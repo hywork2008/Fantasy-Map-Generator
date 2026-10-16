@@ -11,6 +11,7 @@ import { DEFAULT_ROUTE_GRADE_THRESHOLDS, sampleEdgeGrade } from "../services/rou
 import { densifyLandRoutePoints, routeRenderPoints } from "../services/routeRenderGeometry";
 import { generateWorldLandConnections } from "../services/worldLandConnectionRuntime";
 import { pow } from "../simulation/deterministicMath";
+import { markLoadRepairCurrent } from "../simulation/loadRepairs";
 import { optionsStore } from "../state/optionsStore";
 import type {
   Burg,
@@ -1728,6 +1729,8 @@ class RoutesModule {
     this.worldContext = worldContext;
     this.viewContext = viewContext;
     this.appServices = appServices;
+    // Freshly generated routes are what the load-time route repair would produce.
+    markLoadRepairCurrent(worldContext.options, "routes");
     const { pack } = state;
     const resolvedSeaRouteGenerationMode =
       seaRouteGenerationMode ?? worldContext.options.seaRouteGenerationMode ?? "augmented";

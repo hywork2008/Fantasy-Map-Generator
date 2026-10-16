@@ -228,6 +228,8 @@ export interface WorldOptions {
   /** Data only: restored against current terrain, rivers, costs and units. */
   registeredLandConnections?: string;
   registeredLandConnectionUnit?: string;
+  /** Load-time repair versions this world already has (simulation/loadRepairs.ts). */
+  loadRepairs?: Record<string, number>;
   /**
    * Strength of elevation/slope aversion when landRouteGenerationMode is elevationAware.
    * 0 = ignore height (short ridge shortcuts allowed); 1 = plan defaults; >1 = stricter valleys.

@@ -1,6 +1,7 @@
 import { MEAN_DAYS_PER_MONTH, MEAN_DAYS_PER_YEAR } from "../../runtime/calendarDuration";
 import type { DataTopic } from "../../runtime/worldRuntime";
 import { simEvents } from "../../simulation/events";
+import { isRepairAtVersion } from "../../simulation/loadRepairs";
 import { uiPreferencesStore } from "../../state/uiPreferencesStore";
 import type { SimulationExtension, SimulationExtensionAPI } from "../../types/extension-api";
 import {
@@ -79,7 +80,11 @@ import {
 } from "./generators/constructionHire";
 import { DamSites } from "./generators/damSites";
 import { Dams } from "./generators/dams";
-import { DevelopmentPotential } from "./generators/developmentPotential";
+import {
+  DEVELOPMENT_POTENTIAL_LOAD_REPAIR,
+  DEVELOPMENT_POTENTIAL_LOAD_REPAIR_VERSION,
+  DevelopmentPotential
+} from "./generators/developmentPotential";
 import { ElectrolysisPlants } from "./generators/electrolysisPlants";
 import {
   applyCharacterToEscortJob,
@@ -184,7 +189,6 @@ import {
   clearRetailInventory,
   planRetailReplenishment,
   planRetailReplenishmentIncrementally,
-  reconcileRetailInventory,
   tickRetailInventory
 } from "./generators/retailInventory";
 import { releaseRuralLaborSurplus } from "./generators/ruralLaborRelease";
@@ -1710,8 +1714,17 @@ function register(api: SimulationExtensionAPI): () => void {
       Markets.initializeMarketPrices();
     }
     // Run after the crop migration so a loaded map immediately receives crop-specific climate,
-    // soil, and field-output columns rather than waiting for its next annual tick.
-    DevelopmentPotential.generate();
+    // soil, and field-output columns rather than waiting for its next annual tick — once per
+    // formula version, so a save/load continues the saved columns (§23).
+    if (
+      migratedGoodsCatalog ||
+      !isRepairAtVersion(
+        getWorldContext().options,
+        DEVELOPMENT_POTENTIAL_LOAD_REPAIR,
+        DEVELOPMENT_POTENTIAL_LOAD_REPAIR_VERSION
+      )
+    )
+      DevelopmentPotential.generate();
     if (MineOperations.reanchorOperations() || (!getSmelterOperations().length && getMineOperations().length)) {
       SmelterOperations.generate();
     }
@@ -1727,17 +1740,6 @@ function register(api: SimulationExtensionAPI): () => void {
     // Rebuild cull / escort boards when empty or only invalid targets remain after load.
     rebuildCullJobPostings();
     rebuildEscortJobPostings();
-    // Lay out the loaded stock across burg inventories here. Balance History's first row (UI,
-    // `fmg:world-loaded`) reconciles too; without this the loaded world would depend on whether
-    // a UI captured that row (a headless host has none).
-    reconcileRetailInventory();
-  });
-
-  // Balance History's per-action row (UI, `fmg:time-advance-completed`) reconciles retail stock
-  // too; do it here first so the world after an Advance Time does not depend on that UI.
-  on("fmg:time-advance-completed", () => {
-    if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
-    reconcileRetailInventory();
   });
 
   // Production-affecting changes are accumulated between monthly settlements. In

@@ -52,6 +52,7 @@ import { fitMapToScreen, resizeGraphRects } from "../services/mapViewport";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { migrateUnknownCharacterRaces, normalizeLoadedWorld } from "../simulation/loadedWorld";
+import { isLoadRepairCurrent } from "../simulation/loadRepairs";
 import { applySimulationTimeline } from "../simulation/simulationTimeline";
 import { materializeWorldSettings } from "../simulation/worldSettings";
 import { rulers } from "../store/editorState";
@@ -286,7 +287,8 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
     // (the coordinator drops them while not yet available), then it is enabled afterwards.
     const skipTasks = loadMapDialogStore.getState().skipMapReadyTasksOnLoad;
     if (!skipTasks) markMapReadyTasksAvailable();
-    requestMapReadyTask(DUAL_PORT_PLACEMENT_TASK_ID);
+    if (!isLoadRepairCurrent(worldContext.options, "dualPortPlacement"))
+      requestMapReadyTask(DUAL_PORT_PLACEMENT_TASK_ID);
     document.dispatchEvent(new CustomEvent("fmg:world-loaded"));
     document.dispatchEvent(new CustomEvent("fmg:render-mode-changed"));
     document.dispatchEvent(new CustomEvent("fmg:refresh-editors"));
@@ -407,7 +409,8 @@ export async function parseLoadedData(
       // their current runtime state after a legacy map has been committed.
       const skipTasks = loadMapDialogStore.getState().skipMapReadyTasksOnLoad;
       if (!skipTasks) markMapReadyTasksAvailable();
-      requestMapReadyTask(DUAL_PORT_PLACEMENT_TASK_ID);
+      if (!isLoadRepairCurrent(worldContext.options, "dualPortPlacement"))
+        requestMapReadyTask(DUAL_PORT_PLACEMENT_TASK_ID);
       document.dispatchEvent(new CustomEvent("fmg:world-loaded"));
       document.dispatchEvent(new CustomEvent("fmg:refresh-editors"));
       if (skipTasks) markMapReadyTasksAvailable();

@@ -14,6 +14,7 @@ import { WARN } from "../utils/debug";
 import { normalizeFrontierPolitySpacing, normalizeFrontierStartMode } from "../utils/frontierStartMode";
 import { normalizeInitialPolityRealmSize } from "../utils/initialPolityScope";
 import { normalizeInitialSettlementPattern } from "../utils/initialSettlementPattern";
+import { isLoadRepairCurrent, markLoadRepairCurrent } from "./loadRepairs";
 
 /**
  * Simulation-affecting work that follows a `.fmg` archive's `world.replace`
@@ -57,13 +58,18 @@ export function normalizeLoadedWorld(facts: LoadedArchiveFacts, betweenViewWork?
   // when the archive has no landRouteGenerationMode field.
   const hasRegisteredLandArchive =
     !!worldContext.options.landConnectionGeneration && !!worldContext.options.registeredLandConnections;
-  if (facts.seaRouteGenerationMode && !hasRegisteredLandArchive) {
+  if (
+    facts.seaRouteGenerationMode &&
+    !hasRegisteredLandArchive &&
+    !isLoadRepairCurrent(worldContext.options, "routes")
+  ) {
     const seaMode = facts.seaRouteGenerationMode;
     legacyMutation(() => {
       if (facts.landRouteElevationAversion !== undefined) {
         worldContext.options.landRouteElevationAversion = facts.landRouteElevationAversion;
       }
       regenerateLoadedRoutes(seaMode, facts.landRouteGenerationMode ?? "elevationAware");
+      markLoadRepairCurrent(worldContext.options, "routes");
       return { result: undefined, topics: ["map.networks"] };
     });
   }

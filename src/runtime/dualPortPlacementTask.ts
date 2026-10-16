@@ -23,6 +23,7 @@ import {
 } from "../services/waterfrontSettlement";
 import { generateWorldLandConnections } from "../services/worldLandConnectionRuntime";
 import { simEvents } from "../simulation/events";
+import { markLoadRepairCurrent } from "../simulation/loadRepairs";
 import { yieldToHost } from "../simulation/ports";
 import { optionsStore } from "../state/optionsStore";
 import type { Burg, Route } from "../types/models";
@@ -209,6 +210,8 @@ function reportWaterfront(
         failures.push({ burg, issues });
       } else delete burg.waterfrontCheck;
     }
+    // Every completed run ends here; an interrupted one returns earlier and stays due.
+    markLoadRepairCurrent(world.options, "dualPortPlacement");
     return { result: undefined, topics: ["map.settlements"] };
   });
   if (!failures.length) return;

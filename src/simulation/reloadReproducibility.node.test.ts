@@ -39,3 +39,19 @@ it("saves Economy's cadence phases with the world", async () => {
   expect(phases()).toEqual(before);
   host.dispose();
 }, 300_000);
+
+it("continues a saved world exactly: 17 days + save/load + 30 days equals 47 days (§23)", async () => {
+  const bytes = readFileSync(resolve(__dirname, "../../tests/fixtures/sim-golden.fmg"));
+  const fixture = new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const advanceFrom = async (data: Uint8Array, days: number) => {
+    const host = createNodeSimulationHost();
+    await loadWorld(host, data);
+    await advanceWorld(host, { days });
+    const saved = await host.saveArchive();
+    host.dispose();
+    return saved;
+  };
+  const straight = await hashArchiveBytes(await advanceFrom(fixture, 47));
+  const continued = await hashArchiveBytes(await advanceFrom(await advanceFrom(fixture, 17), 30));
+  expect(diffWorldHashes(straight, continued)).toEqual([]);
+}, 300_000);

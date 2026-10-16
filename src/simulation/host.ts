@@ -32,6 +32,7 @@ import {
   type SimulationExtensionEnablement
 } from "./extensionEnablement";
 import { normalizeLoadedWorld } from "./loadedWorld";
+import { isLoadRepairCurrent } from "./loadRepairs";
 import { simulationSettings, yieldToHost } from "./ports";
 import { applySimulationTimeline, type SimulationTimelineChoice } from "./simulationTimeline";
 import { materializeWorldSettings } from "./worldSettings";
@@ -237,7 +238,8 @@ export function createSimulationHost(options: SimulationHostOptions = {}): Simul
       const commit = await worldRuntime.dispatch({ type: "world.replace", payload: validated });
       if (!commit) throw new Error("World archive did not produce a replacement commit");
       normalizeLoadedWorld(facts);
-      mapReadyTasks.request(DUAL_PORT_PLACEMENT_TASK_ID);
+      if (!isLoadRepairCurrent(worldContext.options, "dualPortPlacement"))
+        mapReadyTasks.request(DUAL_PORT_PLACEMENT_TASK_ID);
       simEvents.dispatchEvent(new CustomEvent("fmg:world-loaded"));
     },
     prepare: async prepareOptions => {
