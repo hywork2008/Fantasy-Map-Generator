@@ -10,6 +10,7 @@ import { ChunkedWorldCodecAdapter, decodeAndValidateWorldArchive } from "../runt
 import { useOptionsState } from "../store/optionsState";
 import type { Burg, Route } from "../types/models";
 import * as shoreSurvey from "./dualPortShore";
+import { reconnectRelocatedBurgSeaRoutes } from "./relocatedBurgRoutes";
 import { SettlementGeometrySession } from "./settlementGeometrySession";
 import * as networkGeneration from "./worldLandConnectionRuntime";
 
@@ -50,6 +51,33 @@ it("adds a relocated town's dry connection without rotating an existing bridge",
   delete route.riverRoadConvergence;
   expect(Routes.getRenderPoints(route)).toEqual(route.points);
   expect(Routes.getPath(route)).toContain("L10,20");
+});
+
+it("moves sea-lane endpoints that sat on a relocated town, leaving haven anchors and locked lanes", () => {
+  const before = { i: 1, cell: 2, x: 10, y: 20 } as Burg;
+  const after = { ...before, x: 12, y: 22 };
+  const lane = (lock?: boolean) =>
+    ({
+      group: "searoutes",
+      lock,
+      points: [
+        [10, 20, 2],
+        [15, 18, 5],
+        [30, 20, 6]
+      ]
+    }) as Route;
+  const anchored = {
+    group: "searoutes",
+    points: [
+      [10.4, 19.6, 7],
+      [30, 20, 6]
+    ]
+  } as Route;
+  const routes = [lane(), lane(true), anchored];
+  reconnectRelocatedBurgSeaRoutes(routes, before, after);
+  expect(routes[0].points[0]).toEqual([12, 22, 2]);
+  expect(routes[1].points[0]).toEqual([10, 20, 2]);
+  expect(anchored.points[0]).toEqual([10.4, 19.6, 7]);
 });
 
 describe.skipIf(!existsSync(archive))("dual-port real-world placement", () => {

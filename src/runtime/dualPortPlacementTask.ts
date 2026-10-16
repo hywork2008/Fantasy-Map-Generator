@@ -10,6 +10,7 @@ import {
   applyStraightenedApproach,
   planDetouredBurgApproaches,
   reconnectRelocatedBurgLandRoutes,
+  reconnectRelocatedBurgSeaRoutes,
   samePosition
 } from "../services/relocatedBurgRoutes";
 import { SettlementGeometrySession } from "../services/settlementGeometrySession";
@@ -169,6 +170,7 @@ export async function repairDualPortPlacements(context: MapReadyTaskContext): Pr
     for (const { before, after } of proposals) {
       const burg = pack.burgs[before.i!];
       reconnectRelocatedBurgLandRoutes(pack.routes, before, after, dryLink, stale.has(before.i!));
+      reconnectRelocatedBurgSeaRoutes(pack.routes, before, after);
       burg.x = after.x;
       burg.y = after.y;
       burg.riverPlacement = after.riverPlacement;

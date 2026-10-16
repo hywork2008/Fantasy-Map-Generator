@@ -136,6 +136,24 @@ export function densifyLandRoutePoints(points: number[][], pack: PackedGraph): n
   return densified;
 }
 
+/** A sea lane stops at its port's haven-edge anchor, which depends only on the
+ * cell; a waterfront-settled town sits elsewhere on that shore. Close the gap. */
+function seaRouteToPortBurgs(pack: Readonly<PackedGraph>, points: number[][]): number[][] {
+  const town = (p: number[] | undefined) => {
+    const burg = p && pack.burgs[pack.cells.burg?.[p[2]] ?? 0];
+    return burg?.i && !burg.removed && burg.port && Math.hypot(p![0] - burg.x, p![1] - burg.y) > 1e-7 ? burg : null;
+  };
+  if (points.length < 2) return points;
+  const first = town(points[0]),
+    last = town(points.at(-1));
+  if (!first && !last) return points;
+  return [
+    ...(first ? [[first.x, first.y, points[0][2]]] : []),
+    ...points,
+    ...(last ? [[last.x, last.y, points.at(-1)![2]]] : [])
+  ];
+}
+
 export function routeRenderPoints(
   world: Readonly<WorldContext>,
   route: {
@@ -146,7 +164,7 @@ export function routeRenderPoints(
   },
   distanceUnit: string
 ): number[][] {
-  if (route.group === "searoutes") return route.points;
+  if (route.group === "searoutes") return seaRouteToPortBurgs(world.pack, route.points);
   const points =
     route.riverRoadConvergence || route.fixedSettlementApproach
       ? route.points

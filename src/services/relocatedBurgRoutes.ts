@@ -143,6 +143,17 @@ export function reconnectRelocatedBurgLandRoutes(
   }
 }
 
+/** Sea lanes whose endpoint sat on the town itself (river lanes, or a port
+ * without a unique haven edge) follow it; haven-anchored endpoints depend only
+ * on the town's cell and stay put. */
+export function reconnectRelocatedBurgSeaRoutes(routes: Route[], before: Readonly<Burg>, after: Readonly<Burg>): void {
+  if (Math.hypot(after.x - before.x, after.y - before.y) <= 1e-7) return;
+  for (const route of routes) {
+    if (route.group !== "searoutes" || route.lock || !route.points.some(p => samePosition(p, before))) continue;
+    route.points = route.points.map(p => (samePosition(p, before) ? [after.x, after.y, p[2]] : p));
+  }
+}
+
 /** Saved maps carry links made before detours were straightened. Read-only plan;
  * apply each entry with applyStraightenedApproach. */
 export function planDetouredBurgApproaches(
