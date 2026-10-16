@@ -163,6 +163,7 @@ import { captureSnapshotData, debugSnapshotsEnabled } from "./utils/aiDebugExpor
 import { normalizeConflictAutonomy } from "./utils/conflictAutonomy";
 import { locked } from "./utils/domUtils";
 import { EditorBus } from "./utils/editorBus";
+import { defaultGunpowderEraEnabled } from "./utils/gunpowderEra";
 import { dampenBurgLabelSize, dampenStateLabelSize } from "./utils/labelZoomScale";
 import { scopedMapSize, scopedStatesNumber } from "./utils/mapScope";
 import { getElementById, layerIsOn } from "./utils/nodeUtils";
@@ -1146,6 +1147,11 @@ function prepareGenerationStage(request: GenerateRequest): GenerateRequest {
   randomizeOptions();
   // After randomizeOptions(): an unlocked scope/density resets there before it shrinks the canvas.
   const scopedGrid = precreatedGraph ? null : applyMapScope();
+  // An unset switch (the Military Options dialog stores it once the user changes it) follows the period.
+  if (localStorage.getItem("gunpowderEraEnabled") === null)
+    useOptionsState
+      .getState()
+      .setOption("gunpowderEraEnabled", defaultGunpowderEraEnabled(useOptionsState.getState().historicalPeriod));
   worldContext.options.gunpowderEraEnabled = useOptionsState.getState().gunpowderEraEnabled;
   worldContext.options.initialFirearmsUnstocked = useOptionsState.getState().initialFirearmsUnstocked;
   worldContext.options.historicalPeriod = useOptionsState.getState().historicalPeriod;

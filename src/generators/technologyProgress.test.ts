@@ -201,6 +201,33 @@ describe("technologyProgress", () => {
     expect(getTechnologyStage("threeFieldAgriculture", 1)).toBe("diffused");
   });
 
+  it("gives China, the Mongols, Korea and Japan their own gunpowder start stages", () => {
+    const seedWithCulture = (base: number, period: HistoricalPeriod) => {
+      resetTechnologyProgress();
+      installMinimalWorld({ gunpowder: true, historicalPeriod: period });
+      const pack = worldContext.pack as unknown as { cultures: unknown[]; states: { culture?: number }[] };
+      pack.cultures = [
+        { i: 0, base: 0, name: "Wildlands" },
+        { i: 1, base, name: "East" }
+      ];
+      pack.states[1].culture = 1;
+      seedTechnologyStartProfile(1200);
+      return (id: string) => getTechnologyStage(id, 1);
+    };
+    // Name bases: 11 Chinese, 31 Mongolian, 10 Korean, 12 Japanese.
+    const china = seedWithCulture(11, "highMedieval");
+    expect(china("blackPowder")).toBe("adopted");
+    expect(china("cannonFoundry")).toBe("known");
+    expect(getTechnologyStage("blackPowder", 2)).toBe("locked"); // a state of another culture
+    expect(seedWithCulture(11, "lateMedieval")("massFirearms")).toBe("demonstrated");
+    expect(seedWithCulture(31, "highMedieval")("blackPowder")).toBe("demonstrated");
+    expect(seedWithCulture(10, "highMedieval")("blackPowder")).toBe("known");
+    expect(seedWithCulture(10, "lateMedieval")("cannonFoundry")).toBe("demonstrated");
+    expect(seedWithCulture(12, "lateMedieval")("blackPowder")).toBe("known");
+    // A head start never lowers the period default (lateMedieval Europe is already "known").
+    expect(seedWithCulture(12, "lateMedieval")("cannonFoundry")).toBe("known");
+  });
+
   it("seeds Age of Exploration and later historical periods as diffused below, demonstrated at, and untouched above their frontier era", () => {
     installMinimalWorld({ gunpowder: true, historicalPeriod: "ageOfExploration" });
     seedTechnologyStartProfile(1200);

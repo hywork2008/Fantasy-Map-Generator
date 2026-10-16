@@ -7,6 +7,7 @@ import type { PackedGraph } from "../types/PackedGraph";
 import type { WorldState } from "../types/WorldState";
 import { Military } from "./military-generator";
 import { resetTechnologyProgress, setTechnologyProgressForTests } from "./technologyProgress";
+import type { TechnologyProgress } from "./technologyTypes";
 
 function makeState(pack: PackedGraph): WorldState {
   return {
@@ -300,8 +301,16 @@ describe("MilitaryModule.generate — consolidated regiment structure", () => {
 // docs/plan/military-era-progression.md Phase 1: per-State technology gating for era-5/6 units
 // (riflemen/fieldArtillery/machineGunners) and gradual obsolescence of the units they supersede.
 describe("MilitaryModule.generate — era-5/6 technology-gated units", () => {
+  // Musketeers and artillery are themselves gated on gunpowder technology, so these tests start
+  // from a state that already fields them and isolate the era-5/6 gates.
+  const GUNPOWDER_READY: TechnologyProgress[] = [
+    { technologyId: "massFirearms", scope: "state", ownerId: 1, stage: "diffused", diffusion: 1 },
+    { technologyId: "cannonFoundry", scope: "state", ownerId: 1, stage: "diffused", diffusion: 1 }
+  ];
+
   beforeEach(() => {
     resetTechnologyProgress();
+    setTechnologyProgressForTests(GUNPOWDER_READY);
   });
 
   function unitTotals(state: ReturnType<typeof generate>): Record<string, number> {
@@ -315,8 +324,7 @@ describe("MilitaryModule.generate — era-5/6 technology-gated units", () => {
   }
 
   it("keeps riflemen/fieldArtillery/machineGunners out of the roster while their technology is locked", () => {
-    // No setTechnologyProgressForTests() call — every technology defaults to "locked", same as
-    // the pre-Phase-1 behavior for every existing (ungated) unit.
+    // Only the gunpowder baseline is set — every era-5/6 technology is "locked".
     const state = generate(makeBasePack("Enemy"));
     const totals = unitTotals(state);
 
@@ -327,12 +335,21 @@ describe("MilitaryModule.generate — era-5/6 technology-gated units", () => {
     expect(totals.artillery ?? 0).toBeGreaterThan(0);
   });
 
+  it("fields no musketeers or artillery in a state that never developed gunpowder, even with the switch on", () => {
+    resetTechnologyProgress();
+    const totals = unitTotals(generate(makeBasePack("Enemy")));
+    expect(totals.musketeers ?? 0).toBe(0);
+    expect(totals.artillery ?? 0).toBe(0);
+    expect(totals.archers ?? 0).toBeGreaterThan(0);
+  });
+
   it("recruits riflemen once standardMachineWorks is adopted, and shrinks musketeers' share", () => {
     const lockedState = generate(makeBasePack("Enemy"));
     const lockedTotals = unitTotals(lockedState);
 
     resetTechnologyProgress();
     setTechnologyProgressForTests([
+      ...GUNPOWDER_READY,
       { technologyId: "standardMachineWorks", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
     ]);
     const adoptedState = generate(makeBasePack("Enemy"));
@@ -351,6 +368,7 @@ describe("MilitaryModule.generate — era-5/6 technology-gated units", () => {
 
   it("nearly eliminates archers once riflemen technology is fully diffused (2026-08-21 user feedback: rocketryEra starts still showed a full archer corps)", () => {
     setTechnologyProgressForTests([
+      ...GUNPOWDER_READY,
       { technologyId: "standardMachineWorks", scope: "state", ownerId: 1, stage: "diffused", diffusion: 1 }
     ]);
     const totals = unitTotals(generate(makeBasePack("Enemy")));
@@ -363,6 +381,7 @@ describe("MilitaryModule.generate — era-5/6 technology-gated units", () => {
 
   it("recruits machineGunners once modernSteelmaking is demonstrated, below fieldArtillery's adopted bar", () => {
     setTechnologyProgressForTests([
+      ...GUNPOWDER_READY,
       { technologyId: "modernSteelmaking", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 }
     ]);
     const state = generate(makeBasePack("Enemy"));
@@ -381,6 +400,7 @@ describe("MilitaryModule.generate — era-5/6 technology-gated units", () => {
 
     resetTechnologyProgress();
     setTechnologyProgressForTests([
+      ...GUNPOWDER_READY,
       { technologyId: "modernSteelmaking", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
     ]);
     const adoptedState = generate(makeBasePack("Enemy"));
@@ -393,6 +413,7 @@ describe("MilitaryModule.generate — era-5/6 technology-gated units", () => {
 
   it("does not gate riflemen/fieldArtillery/machineGunners when the gunpowder era is disabled, same as musketeers/artillery", () => {
     setTechnologyProgressForTests([
+      ...GUNPOWDER_READY,
       { technologyId: "standardMachineWorks", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 },
       { technologyId: "modernSteelmaking", scope: "state", ownerId: 1, stage: "adopted", diffusion: 0 }
     ]);

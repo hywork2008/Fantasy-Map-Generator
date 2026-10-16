@@ -6,6 +6,7 @@ import { periodUnitModifier, periodUnitTypeModifier } from "../generators/milita
 import { domesticRoadHubPolicy } from "../generators/routes-generator";
 import { bridgeCrossingLimitForPeriod } from "../utils/bridgeCrossingPolicy";
 import { bridgeSkewLimitForTier, bridgeSkewTierForPeriod } from "../utils/bridgeSkewPolicy";
+import { defaultGunpowderEraEnabled } from "../utils/gunpowderEra";
 import { riverBridgeTechnology } from "../utils/riverCrossing";
 import { residentialStoreys, supportsUrbanMorphology } from "../utils/urbanMorphology";
 import { HISTORICAL_PERIODS, historicalPeriodIndex, isHistoricalPeriod } from "./historicalPeriod";
@@ -56,6 +57,14 @@ describe("antiquity roads, armies and bridges", () => {
       periodUnitTypeModifier("lateAntiquity", "mounted")
     );
     expect(periodUnitTypeModifier("highMedieval", "mounted")).toBe(1);
+  });
+
+  it("defaults the gunpowder switch off until the high Middle Ages", () => {
+    expect(defaultGunpowderEraEnabled("classicalAntiquity")).toBe(false);
+    expect(defaultGunpowderEraEnabled("lateAntiquity")).toBe(false);
+    expect(defaultGunpowderEraEnabled("earlyMedieval")).toBe(false);
+    expect(defaultGunpowderEraEnabled("highMedieval")).toBe(true);
+    expect(defaultGunpowderEraEnabled("ageOfExploration")).toBe(true);
   });
 
   it("recruits siege engines from antiquity to the late Middle Ages, then retires them for guns", () => {

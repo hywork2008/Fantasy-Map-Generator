@@ -1,6 +1,17 @@
 import type { MilitaryUnit } from "../types/models";
 import type { WorldOptions } from "../types/WorldState";
 
+/**
+ * Default for the gunpowder switch when the user has not set it: off while gunpowder exists
+ * nowhere (antiquity) or only as alchemy and the first fire lances (early Middle Ages), on from
+ * the high Middle Ages, when China already fields fire lances and bombs. Firearm units are gated
+ * per state by technology, so "on" does not arm states that never developed gunpowder
+ * (docs/plan/classical-antiquity-historical-period.md §11).
+ */
+export function defaultGunpowderEraEnabled(period: string | undefined): boolean {
+  return !["classicalAntiquity", "lateAntiquity", "earlyMedieval"].includes(period ?? "");
+}
+
 /** Maps created before this setting existed retain the former, gunpowder-enabled behavior. */
 export function isGunpowderEraEnabled(options: Pick<WorldOptions, "gunpowderEraEnabled">): boolean {
   return options.gunpowderEraEnabled !== false;

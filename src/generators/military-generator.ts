@@ -1080,7 +1080,10 @@ class MilitaryModule {
         crew: 1,
         power: 1,
         type: "ranged",
-        separate: 0
+        separate: 0,
+        // Handgunners appear once mass firearms are demonstrated; a state that never developed
+        // gunpowder fields none even when the world switch is on (classical-antiquity plan §11).
+        requiresTechnology: { id: "massFirearms", minimum: "demonstrated" }
       },
       {
         // docs/plan/military-era-progression.md §4.2 (Phase 1). Gated by the same world-level
@@ -1146,7 +1149,9 @@ class MilitaryModule {
         crew: 8,
         power: 12,
         type: "machinery",
-        separate: 0
+        separate: 0,
+        // A few bombards as soon as cannon founding is known (classical-antiquity plan §11).
+        requiresTechnology: { id: "cannonFoundry", minimum: "known" }
       },
       {
         // docs/plan/military-era-progression.md §4.3 (Phase 1). modernSteelmaking (era 6) reaching

@@ -15,6 +15,7 @@ import {
   bridgeSkewLimitForTier,
   bridgeSkewTierForPeriod
 } from "../utils/bridgeSkewPolicy";
+import { getCultureTradition } from "../utils/cultureTradition";
 import { isGunpowderEraEnabled } from "../utils/gunpowderEra";
 import { getTechnologyDevelopmentSpeed } from "../utils/technologyDevelopmentSpeed";
 import {
@@ -432,6 +433,65 @@ const EARLY_PERIOD_START_STAGE: Readonly<Partial<Record<HistoricalPeriod, Readon
     }
   };
 
+/**
+ * Gunpowder came from China and reached its neighbours at different times, so each East Asian
+ * tradition gets its own gunpowder-chain start stages on top of the period default; Europe keeps
+ * GUNPOWDER_ERA2_START_STAGE_BY_PERIOD (classical-antiquity-historical-period.md §11).
+ * - China: alchemical formula 9th c., fire lances mid-10th c.; Wujing Zongyao formula 1044,
+ *   fire lances in battle 1132, metal hand cannon c. 1288; firearms standard under the Ming.
+ * - Mongols: took Jin/Song gunpowder engineers in the 13th c.
+ * - Korea: gunpowder works under Choe Mu-seon from 1377.
+ * - Japan: met Mongol bombs in 1274 but made little use of gunpowder before the arquebus of 1543,
+ *   which the ageOfExploration period default already covers.
+ * Only applies when the world switch is on; earlier periods default it off (gunpowderEra.ts).
+ */
+const GUNPOWDER_START_STAGE_BY_TRADITION: Readonly<
+  Record<string, Partial<Record<HistoricalPeriod, Readonly<Record<string, TechnologyStage>>>>>
+> = {
+  sinitic: {
+    earlyMedieval: { blackPowder: "known" },
+    highMedieval: { blackPowder: "adopted", cannonFoundry: "known" },
+    lateMedieval: {
+      blackPowder: "diffused",
+      cornedPowder: "demonstrated",
+      cannonFoundry: "adopted",
+      artilleryTactics: "known",
+      massFirearms: "demonstrated"
+    }
+  },
+  mongol: {
+    highMedieval: { blackPowder: "demonstrated" },
+    lateMedieval: { blackPowder: "adopted", cannonFoundry: "demonstrated" }
+  },
+  korean: {
+    highMedieval: { blackPowder: "known" },
+    lateMedieval: { blackPowder: "adopted", cannonFoundry: "demonstrated" }
+  },
+  japanese: {
+    highMedieval: { blackPowder: "known" },
+    lateMedieval: { blackPowder: "known" }
+  }
+};
+
+function stateTraditionId(stateId: number): string | undefined {
+  const state = worldContext.pack?.states?.[stateId];
+  const culture = state?.culture !== undefined ? worldContext.pack?.cultures?.[state.culture] : undefined;
+  return culture?.i ? getCultureTradition(culture).id : undefined;
+}
+
+function applyGunpowderTraditionBias(
+  def: TechnologyDefinition,
+  start: TechnologyStage | undefined,
+  stateId: number,
+  period: HistoricalPeriod | undefined
+): TechnologyStage | undefined {
+  if (!period || !GUNPOWDER_ERA2_TECHNOLOGY_IDS.has(def.id)) return start;
+  const tradition = stateTraditionId(stateId);
+  const head = tradition ? GUNPOWDER_START_STAGE_BY_TRADITION[tradition]?.[period]?.[def.id] : undefined;
+  if (!head) return start;
+  return !start || technologyStageRank(head) > technologyStageRank(start) ? head : start;
+}
+
 const MARITIME_START_TECHNOLOGIES = new Set([
   "oceanNavigation",
   "oceanGoingHulls",
@@ -516,7 +576,12 @@ export function seedTechnologyStartProfile(year = simulationContext.currentYear)
       if (def.scope !== "state") continue;
       const key = progressKey(def.id, "state", state.i);
       if (byKey.has(key)) continue;
-      const start = applyMaritimeStartBias(def, resolveStartStage(def, period), state.i);
+      const start = applyGunpowderTraditionBias(
+        def,
+        applyMaritimeStartBias(def, resolveStartStage(def, period), state.i),
+        state.i,
+        period
+      );
       if (!start || start === "locked") {
         byKey.set(key, {
           technologyId: def.id,
