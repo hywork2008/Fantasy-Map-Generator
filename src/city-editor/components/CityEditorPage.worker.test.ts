@@ -222,6 +222,8 @@ describe("background complete generation", () => {
     vi.spyOn(console, "groupEnd").mockImplementation(() => {});
     mount();
     vi.stubGlobal("Worker", undefined);
+    // Exercise the legacy patch-count rejection without population sizing.
+    root.querySelector<HTMLInputElement>(".ce-population-enabled")!.click();
     root.querySelector<HTMLInputElement>('input[aria-label="デバッグ：生成失敗の途中図を表示"]')!.click();
     const patches = [...root.querySelectorAll("label")]
       .find(l => l.textContent?.includes("nPatches (blank"))!

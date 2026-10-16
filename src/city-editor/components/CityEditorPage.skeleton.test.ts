@@ -8,6 +8,8 @@ beforeEach(() => {
   root = document.createElement("div");
   document.body.append(root);
   dispose = mountCityEditor(root);
+  // Skeleton generation uses the legacy frame rather than population planning.
+  root.querySelector<HTMLInputElement>(".ce-population-enabled")!.click();
 });
 afterEach(() => {
   dispose();
