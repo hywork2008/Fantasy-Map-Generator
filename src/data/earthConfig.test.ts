@@ -22,6 +22,7 @@ import {
   unwrapLongitudeForRange,
   wrapLongitude
 } from "./earthConfig";
+import { getTemplateDistanceScale } from "./earthRegions";
 
 describe("Earth map calibration", () => {
   it("keeps the standard 12.9% map about 5,170 km wide at a 2:1 aspect ratio", () => {
@@ -202,5 +203,14 @@ describe("World Configurator globe longitude", () => {
     const range = mapLatitudeSliderRange(12.9, 1280, 720);
     expect(range.max).toBeCloseTo(90 - getEarthMapLatitudeSpan(12.9, 1280, 720) / 2, 5);
     expect(range.min).toBeCloseTo(-range.max, 5);
+  });
+});
+
+describe("Earth-region distance scale", () => {
+  it("scales Britain by cos(mid-latitude) so getArea matches the true area", () => {
+    const equatorial = getEarthDistanceScale(4.0278, 1_000);
+    const britain = getTemplateDistanceScale("britain", 4.0278, 1_000);
+    expect(britain / equatorial).toBeCloseTo(Math.cos((55.35 * Math.PI) / 180), 2);
+    expect(getTemplateDistanceScale("not-a-region", 4.0278, 1_000)).toBe(equatorial);
   });
 });

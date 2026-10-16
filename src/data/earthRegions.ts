@@ -3,7 +3,7 @@
  * cell centroids. See docs/plan/earth-geography-heightmaps.md.
  */
 
-import { earthRegionView } from "./earthConfig";
+import { earthRegionView, getEarthDistanceScale } from "./earthConfig";
 
 export interface EarthClimateAnchor {
   mapSize: number;
@@ -423,6 +423,19 @@ export function isEarthRegion(id: string): boolean {
 
 export function getEarthRegion(id: string): EarthRegion | undefined {
   return earthRegions[id];
+}
+
+/**
+ * Kilometres per map pixel for a template. `mapSize` is an equatorial-width share, but an
+ * Earth-region graph is laid out with its true mid-latitude aspect (`earthRegionAspect`), so its
+ * width spans only cos(mid-latitude) of the equatorial km. Other templates keep the equatorial scale.
+ */
+export function getTemplateDistanceScale(template: string, mapSize: number, graphWidth: number): number {
+  const scale = getEarthDistanceScale(mapSize, graphWidth);
+  const region = getEarthRegion(template);
+  if (!region) return scale;
+  const midLat = ((region.north + region.south) / 2) * (Math.PI / 180);
+  return scale * Math.max(Math.cos(midLat), 0.05);
 }
 
 export function earthRegionMapCoordinates(

@@ -7,7 +7,6 @@ import { unitsEditorActions } from "../../controllers/units-editor";
 import { updateClimateDuringStagedGeneration, updateWorld } from "../../controllers/world-configurator";
 import {
   GLOBE_MERIDIAN_STEP_DEG,
-  getEarthDistanceScale,
   globeMeridianSliderRange,
   longitudeCenterToShift,
   longitudeShiftToCenter,
@@ -16,6 +15,7 @@ import {
   unwrapLongitudeForRange,
   wrapLongitude
 } from "../../data/earthConfig";
+import { getTemplateDistanceScale } from "../../data/earthRegions";
 import { useDialogState } from "../../store/dialogState";
 import { useGenerationProgressState } from "../../store/generationProgressState";
 import { useOptionsState } from "../../store/optionsState";
@@ -343,7 +343,11 @@ export const WorldConfiguratorDialog: React.FC = () => {
 
   function syncEarthDistanceScale(mapSize: number): void {
     if (locked("distanceScale")) return;
-    const distanceScale = getEarthDistanceScale(mapSize, worldContext.graphWidth);
+    const distanceScale = getTemplateDistanceScale(
+      useOptionsState.getState().template,
+      mapSize,
+      worldContext.graphWidth
+    );
     useOptionsState.getState().setOption("distanceScale", distanceScale);
     unitsEditorActions.changeDistanceScale(distanceScale);
   }

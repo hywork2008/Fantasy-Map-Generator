@@ -3,7 +3,7 @@ import type { AppServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
-import { getEarthDistanceScale } from "../data/earthConfig";
+import { getTemplateDistanceScale } from "../data/earthRegions";
 
 import { drawTemperature } from "../renderers";
 import { refreshLabeledContourLabels } from "../renderers/draw-heightmap";
@@ -116,7 +116,7 @@ export const unitsEditorActions = {
 
   restoreDefaultUnits(): void {
     const options = useOptionsState.getState();
-    const distanceScale = getEarthDistanceScale(options.mapSize, worldContext.graphWidth);
+    const distanceScale = getTemplateDistanceScale(options.template, options.mapSize, worldContext.graphWidth);
     worldContext.distanceScale = distanceScale;
 
     options.setOptions({

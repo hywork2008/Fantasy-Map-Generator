@@ -535,6 +535,10 @@ Nobility 拡張がオフのときは何も生成しない。オンでも体制�
 
 ## PR Plan
 
+### PR 0. 実地図の距離スケール補正（実装済 2026-10-17）
+
+R1 の修正。`getTemplateDistanceScale()`（`src/data/earthRegions.ts`）が実地図テンプレートの `distanceScale` に cos(bbox 中央緯度) を掛ける。`defineMapSize()`、World Configurator、Units Editor の復元の 4 箇所が使う。ランダム地図は従来どおり赤道スケール。
+
 ### PR 1. 体制判定と面積
 
 - タイトル: Add European feudal regime classifier

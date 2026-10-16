@@ -4,11 +4,10 @@ import {
   EARTH_AXIAL_TILT_DEG,
   EARTH_DEFAULT_MAP_SIZE,
   EARTH_TEMPERATURE_PRESET,
-  getEarthDistanceScale,
   getEarthMapLatitudeSpan,
   getTemperateLatitudeBound
 } from "./data/earthConfig";
-import { getEarthRegion } from "./data/earthRegions";
+import { getEarthRegion, getTemplateDistanceScale } from "./data/earthRegions";
 import { isFantasyCulturesSet } from "./data/raceCivicStance";
 import {
   beginGenerationProfile,
@@ -1684,7 +1683,7 @@ function defineMapSize() {
     if (randomize || !locked("longitude")) updates.longitude = longitude;
     if (randomize || !locked("distanceScale")) {
       const appliedMapSize = updates.mapSize ?? mapSize;
-      const distanceScale = getEarthDistanceScale(appliedMapSize, worldContext.graphWidth);
+      const distanceScale = getTemplateDistanceScale(options.template, appliedMapSize, worldContext.graphWidth);
       updates.distanceScale = distanceScale;
       worldContext.distanceScale = distanceScale;
     }
@@ -1720,7 +1719,7 @@ function defineMapSize() {
   if (randomize || !locked("longitude")) updates.longitude = rn(Math.random() * 100, 1);
   if (randomize || !locked("distanceScale")) {
     const mapSize = updates.mapSize ?? options.mapSize;
-    const distanceScale = getEarthDistanceScale(mapSize, worldContext.graphWidth);
+    const distanceScale = getTemplateDistanceScale(options.template, mapSize, worldContext.graphWidth);
     updates.distanceScale = distanceScale;
     worldContext.distanceScale = distanceScale;
   }
