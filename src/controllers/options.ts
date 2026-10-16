@@ -47,8 +47,9 @@ import { normalizeFrontierPolitySpacing, normalizeFrontierStartMode } from "../u
 import type { ScopedGridRequest } from "../utils/graphUtils";
 import { normalizeInitialPolityRealmSize } from "../utils/initialPolityScope";
 import { normalizeInitialSettlementPattern } from "../utils/initialSettlementPattern";
+import { layerIsOn } from "../utils/layerUtils";
 import { densityCellsForPoints, normalizeMapScope, resolveGridMapScope } from "../utils/mapScope";
-import { getElementById, getElementBySelector, getElementsBySelector, layerIsOn } from "../utils/nodeUtils";
+import { getElementById, getElementBySelector, getElementsBySelector } from "../utils/nodeUtils";
 import { clampTechnologyDevelopmentSpeed } from "../utils/technologyDevelopmentSpeed";
 import { clampTechnologyRequirementEase } from "../utils/technologyRequirementEase";
 import { cleanupData } from "../versioning";

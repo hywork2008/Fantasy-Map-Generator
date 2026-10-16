@@ -5,6 +5,7 @@ import {
   registerSpecializationSimulation
 } from "./specializationRuntime";
 import { evaluateExpertise } from "./specializations";
+import { useCharactersUiState } from "./ui/charactersUiState";
 import "./types"; // activate module augmentation for PackedGraph.characters
 
 import type { ExtensionAPI } from "../../types/extension-api";
@@ -122,7 +123,9 @@ function isApplyPrepTemplateRequest(value: unknown): value is { characterId: num
 
 export function init(api: ExtensionAPI): void {
   initCharactersContext(api);
-  _unregisterSpecializations = registerSpecializationCommands(api);
+  _unregisterSpecializations = registerSpecializationCommands(api, () =>
+    useCharactersUiState.getState().bumpRefreshToken()
+  );
   _unregisterExpertiseSimulation = registerSpecializationSimulation(api);
 
   _unregisterClearCommand = api.registerExtensionCommand({

@@ -40,7 +40,8 @@ import { advanceTime, registerSimulationSystem, registerTimeTickHook } from "./g
 import { buildGeoJsonZones, saveGeoJsonZones } from "./io/export";
 import { prepareWorldArchive } from "./io/save";
 import { generate, initMain, regenerateMap } from "./main";
-import { initRenderers } from "./renderers/index";
+import { COArenderer } from "./renderers/emblem-renderer";
+import { initRenderers, removeBurgIcon, removeBurgLabel } from "./renderers/index";
 import {
   registerExtensionWebglLayers,
   unregisterExtensionWebglLayers
@@ -56,16 +57,18 @@ import {
 } from "./services/extensionMapPickHandlers";
 import { applyMapMarkerPatch, markerNoteId, nextMarkerId } from "./services/mapMarkerApi";
 import { getEffectiveSkill, registerSkillModifier } from "./services/skillModifierService";
-import { tooltipExtensions } from "./services/tooltipService";
+import { tip, tooltipExtensions } from "./services/tooltipService";
 import { UITour } from "./services/ui-tour";
+import { installSimulationViewPort } from "./simulation/viewPort";
 import { useExtensionState } from "./store/extensionState";
 import type { SvgLayerSpec } from "./store/layerState";
 import { useLayerState } from "./store/layerState";
 import type { ExtensionAPI } from "./types/extension-api";
 import { closeDialog, isDialogOpen, openDialog, openRichDialog } from "./ui/dialogs/dialogService";
+import { installDebugSnapshotCapture } from "./utils/aiDebugExporter";
 import { removeCircle } from "./utils/domUtils";
 import { initUtils } from "./utils/index";
-import { layerIsOn } from "./utils/nodeUtils";
+import { layerIsOn } from "./utils/layerUtils";
 
 export interface FMGInitOptions {
   container?: HTMLElement;
@@ -239,8 +242,23 @@ function buildExtensionAPI(): ExtensionAPI {
   };
 }
 
+/** Browser handlers for the view side effects the simulation core requests (S1). */
+function installBrowserSimulationViewPort(): void {
+  installSimulationViewPort({
+    tip,
+    burgAdded: (burgId, coa, x, y) => {
+      COArenderer.add("burg", burgId, coa, x, y);
+    },
+    burgRemoved: burgId => {
+      removeBurgIcon(worldContext, viewContext, appServices, burgId);
+      removeBurgLabel(worldContext, viewContext, appServices, burgId);
+    }
+  });
+}
+
 export async function initApp(options: FMGInitOptions = {}): Promise<void> {
   console.log("initApp starting with options:", options);
+  installBrowserSimulationViewPort();
 
   const drawMap = options.drawMap ?? true;
   const drawUI = options.drawUI ?? true;
@@ -299,6 +317,7 @@ export async function initApp(options: FMGInitOptions = {}): Promise<void> {
   // Renderer work observes WorldRuntime commits instead of being called from
   // simulation writers. It needs the view layers initialized by initMain().
   initRenderCoordinator();
+  installDebugSnapshotCapture();
 
   // Assemble the public API surface before loading extensions so that
   // dynamically loaded extension modules can call window.fmg.extensionAPI.

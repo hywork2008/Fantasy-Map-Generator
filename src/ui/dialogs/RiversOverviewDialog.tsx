@@ -15,7 +15,7 @@ import { useDialogState } from "../../store/dialogState";
 import { useOptionsState } from "../../store/optionsState";
 import { useRiversOverviewState } from "../../store/riversOverviewState";
 import { rn } from "../../utils";
-import { layerIsOn } from "../../utils/nodeUtils";
+import { layerIsOn } from "../../utils/layerUtils";
 import { IconButton } from "../components/IconButton";
 import { VirtualTableBody } from "../components/VirtualTableBody";
 import { Dialog } from "./Dialog";

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { type CoastlineSettings, defaultCoastSettings } from "../renderers/coastline-fractal";
+import { type CoastlineSettings, defaultCoastSettings } from "../utils/coastlineFractal";
 
 export interface GroupOption {
   value: string;

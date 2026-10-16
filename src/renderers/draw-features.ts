@@ -4,8 +4,8 @@ import type { SvgGroup, ViewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import type { PackedGraphFeature } from "../types/models";
 import { round } from "../utils";
+import { buildCoastlinePath, drawnFeatureShape } from "../utils/coastlineFractal";
 import { ERROR, TIME } from "../utils/debug";
-import { buildCoastlinePath, drawnFeatureShape } from "./coastline-fractal";
 import type { IRenderer } from "./core/IRenderer";
 
 interface FeaturesHtml {

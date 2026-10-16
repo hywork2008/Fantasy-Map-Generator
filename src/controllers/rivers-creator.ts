@@ -12,7 +12,7 @@ import { closeDialog, closeDialogs, openDialog } from "../ui/dialogs/dialogServi
 import { findCell, last, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { getPackPolygon } from "../utils/graphUtils";
-import { layerIsOn } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/layerUtils";
 import { interactionManager } from "./interactionManager";
 import { toggleCells, toggleRivers } from "./layers";
 import { cellsDensityMap } from "./options";

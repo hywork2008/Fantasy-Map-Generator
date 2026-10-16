@@ -1,19 +1,8 @@
 import { color, type D3DragEvent, drag, pointer } from "d3";
 import { clearMainTip, showMainTip, tip } from "../../hostServices";
 import type { Burg } from "../../hostTypes";
-import { closeDialogs, openDialog } from "../../hostUi";
-import {
-  downloadFile,
-  findAllCellsInRadius,
-  findCell,
-  findClosestCell,
-  getFileName,
-  getIsolines,
-  getVertexPath,
-  layerIsOn,
-  removeCircle,
-  rn
-} from "../../hostUtils";
+import { closeDialogs, downloadFile, getFileName, layerIsOn, openDialog, removeCircle } from "../../hostUi";
+import { findAllCellsInRadius, findCell, findClosestCell, getIsolines, getVertexPath, rn } from "../../hostUtils";
 
 import {
   getApi,

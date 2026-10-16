@@ -1,5 +1,5 @@
 import type { WorldContext } from "../context/worldContext";
-import { defaultCoastSettings, drawnFeatureShape, sampleCoastlineShape } from "../renderers/coastline-fractal";
+import { defaultCoastSettings, drawnFeatureShape, sampleCoastlineShape } from "../utils/coastlineFractal";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
 import { measureProcessing, type ProcessingProfiler } from "../utils/processingProfiler";
 

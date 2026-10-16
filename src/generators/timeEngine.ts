@@ -26,11 +26,9 @@ import {
 } from "../runtime/worldRuntime";
 import { telemetry } from "../services/simulationTelemetry";
 import { withSimulationAmbientRandom } from "../simulation/simulationRandom";
-import { useDebugSnapshotState } from "../store/debugSnapshotState";
 import { getFastAdvanceState, resolveFastAdvanceRates, resolveHistoryModeProfile } from "../store/fastAdvanceState";
 import { useOptionsState } from "../store/optionsState";
 import { useTimeSimulationState } from "../store/timeSimulationState";
-import { captureSnapshotData, debugSnapshotsEnabled } from "../utils/aiDebugExporter";
 import { normalizeConflictAutonomy } from "../utils/conflictAutonomy";
 import { getDaysInMonth, getSeason } from "../utils/seasonUtils";
 import { isStateInActiveConflict } from "./activeConflict";
@@ -600,19 +598,6 @@ export function notifyAfterDayStep(deltaYears: number, deltaMonths: number, delt
     },
     { deltaYears, deltaMonths, deltaDays }
   );
-
-  if (debugSnapshotsEnabled()) {
-    try {
-      useDebugSnapshotState.getState().addSnapshot({
-        tickCount: simulationContext.tickCount,
-        year: simulationContext.currentYear,
-        label: `Advance Time +${deltaYears}y ${deltaMonths}m ${deltaDays}d`,
-        data: captureSnapshotData()
-      });
-    } catch {
-      // Headless / incomplete pack fixtures skip debug capture.
-    }
-  }
 }
 
 // Headless runner notify path uses the same observers without importing advanceTime.

@@ -68,8 +68,9 @@ import { closeDialog, closeDialogs, openDialog, openPrompt } from "../ui/dialogs
 import type { RegenerateConfirmConfig, RouteRegenerationModes } from "../ui/dialogs/RegenerateConfirmDialog";
 import { findCell, gauss, generateSeed, getNextId, isCtrlClick, P, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
+import { layerIsOn } from "../utils/layerUtils";
 import { gridDensityCells, scopedStatesNumber } from "../utils/mapScope";
-import { getElementById, getElementBySelector, getElementsBySelector, layerIsOn } from "../utils/nodeUtils";
+import { getElementById, getElementBySelector, getElementsBySelector } from "../utils/nodeUtils";
 import { overviewBurgs } from "./burgs-overview";
 import { openChartsOverview } from "./charts-overview";
 import { editDiplomacy, openRelationsHistory } from "./diplomacy-editor";

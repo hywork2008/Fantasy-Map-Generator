@@ -34,7 +34,7 @@ import {
   WorkerLandTopologyProjectionAdapter
 } from "../renderers/webgl/landTopologyProjectionWorkerAdapter";
 import { useLayerState } from "../store/layerState";
-import { layerIsOn } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/layerUtils";
 import { presentationData } from "./presentationData";
 import { type DataTopic, type WorldCommit, type WorldRuntime, worldRuntime } from "./worldRuntime";
 

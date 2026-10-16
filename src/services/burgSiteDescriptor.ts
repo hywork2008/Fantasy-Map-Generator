@@ -6,7 +6,6 @@ import { getConstrainedNetworkConnections } from "../generators/constrainedLandN
 import { Rivers } from "../generators/river-generator";
 import { Routes } from "../generators/routes-generator";
 import { getStateBridgeSkewLimit } from "../generators/technologyProgress";
-import { drawnFeatureShape, sampleCoastlineShape } from "../renderers/coastline-fractal";
 import { initializeBurgMorphology } from "../runtime/worldRuntime";
 import { useOptionsState } from "../store/optionsState";
 import type {
@@ -24,6 +23,7 @@ import type { Burg, River } from "../types/models";
 import type { UrbanMorphologyProfile } from "../types/urbanMorphology";
 import { findCell, minmax, rn } from "../utils";
 import { bridgeCrossingLimitForPeriod } from "../utils/bridgeCrossingPolicy";
+import { drawnFeatureShape, sampleCoastlineShape } from "../utils/coastlineFractal";
 import { getCultureBurialProfile } from "../utils/cultureBurialProfile";
 import { burgLotOccupancy } from "../utils/cultureLotOccupancy";
 import {

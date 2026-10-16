@@ -1,4 +1,4 @@
-import { createLayerCanvas } from "../../hostCore";
+import { createLayerCanvas } from "../../hostUi";
 import { getPackPolygon, normalize, rn, TIME } from "../../hostUtils";
 import {
   getBurgProductionRecords,

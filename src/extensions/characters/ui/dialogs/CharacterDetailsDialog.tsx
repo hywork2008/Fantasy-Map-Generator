@@ -30,7 +30,6 @@ import type { Character, CharacterRole, EquippedItem, LoadoutSlotId, TitleHoldin
 import { resolveCharacterRaceName } from "../../controllers/characters-overview";
 import { setPlayerCharacter } from "../../controllers/playerCharacter";
 import { effectiveDemonSecretSkill, effectiveOvertDemonSkill } from "../../demonExperience";
-import { formatFlavorHook } from "../../flavorHooks";
 import { isGoodEligibleForSlot, LOADOUT_SLOT_GOOD_NAMES, LOADOUT_SLOT_IDS } from "../../loadoutEquip";
 import { serviceStartYearForDisplay } from "../../militaryWarRecord";
 import { getAbilityValue } from "../../personFactory";
@@ -39,6 +38,7 @@ import { specializationCsvRows } from "../../specializationExport";
 import { readEconomyPractice } from "../../specializationRuntime";
 import { usePlayerCharacterState } from "../../store/playerCharacterState";
 import { getCharacterEpithetSuffix, getCharacterRoleLabel, getCharacterTitleLabel } from "../../utils/characterLabels";
+import { formatFlavorHook } from "../../utils/flavorHookLabels";
 import { useCharactersUiState } from "../charactersUiState";
 import { RadarChart } from "../components/charts/RadarChart";
 import { PersonalityFlavorTabs } from "../components/PersonalityFlavorTabs";

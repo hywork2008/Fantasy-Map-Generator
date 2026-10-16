@@ -9,7 +9,8 @@ import { getReliefEditorState, setReliefEditorState } from "../store/reliefEdito
 import { closeDialog, closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { findAllInQuadtree, findCell, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
-import { getElementBySelector, layerIsOn } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/layerUtils";
+import { getElementBySelector } from "../utils/nodeUtils";
 import { toggleRelief } from "./layers";
 import { editStyle } from "./style";
 

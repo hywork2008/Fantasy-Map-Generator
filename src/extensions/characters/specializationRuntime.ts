@@ -6,7 +6,6 @@ import type { Character } from "./characterTypes";
 import { advanceSpecializationLearning } from "./specializationLearning";
 import { decaySpecializations, emptySpecializations, recordSpecializationExperience } from "./specializations";
 import { validateSpecializationProfile } from "./specializationValidation";
-import { useCharactersUiState } from "./ui/charactersUiState";
 
 export type AptitudeTierName = "poor" | "ordinary" | "promising" | "gifted" | "exceptional";
 
@@ -56,7 +55,11 @@ export function validateLanguageWorldReferences(world: WorldLanguages): void {
   for (const character of getCharacters()) validateSpecializationProfile(character.specializations, world);
 }
 
-export function registerSpecializationCommands(api: ExtensionAPI): () => void {
+/**
+ * `onChanged` lets the UI refresh after a command; the runtime itself never touches UI state
+ * (docs/plan/simulation-core-separation.md S1).
+ */
+export function registerSpecializationCommands(api: ExtensionAPI, onChanged: () => void = () => {}): () => void {
   const unregisterProfile = api.registerExtensionCommand({
     extensionId: "characters",
     name: "setSpecializations",
@@ -67,7 +70,7 @@ export function registerSpecializationCommands(api: ExtensionAPI): () => void {
       validateSpecializationProfile(value.profile, getWorldContext().pack.languageWorld);
       if (!value.profile) throw new Error("A profile is required");
       character.specializations = structuredClone(value.profile);
-      useCharactersUiState.getState().bumpRefreshToken();
+      onChanged();
       return { changed: true };
     }
   });
@@ -80,7 +83,7 @@ export function registerSpecializationCommands(api: ExtensionAPI): () => void {
       if (!value) throw new Error("Language settings are required");
       validateLanguageWorldReferences(value);
       getWorldContext().pack.languageWorld = structuredClone(value);
-      useCharactersUiState.getState().bumpRefreshToken();
+      onChanged();
       return { changed: true };
     }
   });

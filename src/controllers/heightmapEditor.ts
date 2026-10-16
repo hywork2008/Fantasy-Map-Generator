@@ -46,7 +46,8 @@ import { getColorScheme } from "../utils/colorUtils";
 import { INFO, TIME } from "../utils/debug";
 import { EditorBus } from "../utils/editorBus";
 import { getFileName } from "../utils/editorHelpers";
-import { getElementById, layerIsOn } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/layerUtils";
+import { getElementById } from "../utils/nodeUtils";
 import { HeightmapEditorHistoryClass as HeightmapEditorHistory } from "./HeightmapEditorHistory";
 import {
   disruptAllHeights,

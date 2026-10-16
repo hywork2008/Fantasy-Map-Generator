@@ -3,7 +3,6 @@ import Delaunator from "delaunator";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
-import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { getRaceById } from "../data/races";
@@ -332,7 +331,8 @@ const suffixes: Record<string, Record<string, number>> = {
 
 class RoutesModule {
   worldContext: WorldContext = worldContext;
-  viewContext: Readonly<ViewContext> = viewContext;
+  // Set by generate(); the simulation core never imports the live view context (S1).
+  viewContext?: Readonly<ViewContext>;
   appServices: AppServices = appServices;
 
   private riverAdjacency = new Set<string>();

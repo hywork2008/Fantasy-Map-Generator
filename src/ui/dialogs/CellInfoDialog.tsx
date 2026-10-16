@@ -5,7 +5,7 @@ import { toggleCells } from "../../controllers/layers";
 import { useCellInfoState } from "../../store/cellInfoState";
 import { useDialogState } from "../../store/dialogState";
 import { useExtensionState } from "../../store/extensionState";
-import { layerIsOn } from "../../utils/nodeUtils";
+import { layerIsOn } from "../../utils/layerUtils";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 

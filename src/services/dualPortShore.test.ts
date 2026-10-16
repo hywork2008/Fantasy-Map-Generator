@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { WorldContext } from "../context/worldContext";
 import { MIN_NAVIGABLE_FLUX } from "../generators/river-generator";
-import type { FractalizedShape } from "../renderers/coastline-fractal";
 import type { Burg } from "../types/models";
+import type { FractalizedShape } from "../utils/coastlineFractal";
 import { dualPortHaven, dualPortShore } from "./dualPortShore";
 
 function fixture() {

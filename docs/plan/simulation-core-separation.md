@@ -2,7 +2,7 @@
 
 ## 状態
 
-- 2026-10-16 設計・計画。**S0 完了**(§12)、**トラック R 完了**(§13)。S1 以降は未着手。
+- 2026-10-16 設計・計画。**S0 完了**(§12)、**トラック R 完了**(§13)、**S1 完了**(§14)。S2 以降は未着手。
 - 目的は**分離そのもの**。統計収集・API サーバなど、分離後にできる応用は本書の範囲外(§11 で触れるだけ)。
 
 ## 1. 目的
@@ -371,3 +371,43 @@ golden の実行中(fixture の読み込み後)に、`Math.random` の呼び出�
 - `pinAmbientRandom` を削除した。golden は `simulationTimelineOnLoad: "continue"` で fixture を読み込み、固定 PRNG なしで 2 回の実行が一致する。基準は R の結果で更新済み(シミュレーション結果が変わるので、意図した更新)。
 - **ガード**: golden は読み込み後のページで `Math.random` を監視する。シミュレーション乱数に束縛されていない呼び出しが 1 回でもあれば、呼び出し箇所を列挙して失敗する(`--trace-random <file>` で一覧を保存できる)。現在は 0 回。
 - 注意: このガードが見るのは golden の fixture が通る経路だけ。戦争・飢饉など、fixture の 1 年で起きない経路は検出できない。fixture を増やすか、Node ランナー(S6)で長期間を回す時に、同じガードを掛ける。
+
+## 14. S1 の結果(2026-10-16)
+
+### 14.1 境界の変化
+
+| 指標 | S0 後 | S1 後 |
+| --- | --- | --- |
+| コアから到達するモジュール | 764 | 685 |
+| 禁止モジュール | 73 | 8 |
+| 禁止パッケージ | 5(three ×3、react/jsx-runtime、react-i18next) | 0 |
+| `src/renderers`・`canvas`・`ui`・`.tsx`・`i18n` | 46・1・1・1・5 | すべて 0 |
+
+残っている 8 件は、S1 の対象外として残したもの。
+
+- `src/store/*` 5 件(`optionsState`、`fastAdvanceState`、`timeSimulationState`、`uiPreferencesState`、economy の `economyCalibrationState`・`stateFiscalReportState`)と characters の `playerCharacterState`: S4(ストアの分割)で扱う。
+- `src/context/viewContext.ts`: SVG 選択の入れ物。読み込み時に DOM には触れない(`typeof document` で守られている)。生成系のクラス(`States`・`Military`・`Names` ほか約 20 個)が `this.viewContext` を引数として受け渡しているだけで、生成の分離(非目的)と一緒に扱う。burgs・routes の 2 クラスは、使っていない既定値の import だけを外した。
+
+### 14.2 断ち切った経路
+
+| 経路 | 対処 |
+| --- | --- |
+| A `timeEngine` → `aiDebugExporter` → 全レンダラ・three | デバッグ用スナップショットの取得を `installDebugSnapshotCapture()`(`fmg:time-advanced` の購読)に移し、`app.ts` から登録する |
+| C・D `burgs-generator` → `tooltipService`・`emblem-renderer`・`removeBurgIcon/Label` | `src/simulation/viewPort.ts`(`simulationView.tip`・`burgAdded`・`burgRemoved`)を経由するようにした。ブラウザの処理は `app.ts` の `installBrowserSimulationViewPort()` で登録する。登録が無い時(Node・テスト)はログを出すだけ。`names-generator` の `tip` も同じ |
+| `services/*` → `renderers/coastline-fractal.ts` | 純粋な幾何計算だったので `src/utils/coastlineFractal.ts` へ移動した(12 ファイルの import を更新) |
+| E `hostCore` → `draw-borders`・`draw-states`・`draw-military`・`map-canvas` | レンダラ 3 つは拡張から使われていなかったので削除した。`createLayerCanvas` は `hostUi` へ移した |
+| F `hostUtils` → `domUtils`・`editorHelpers`・`nodeUtils.layerIsOn` | `applySorting`・`removeCircle`・`confirmationDialog`・`downloadFile`・`getFileName`・`layerIsOn` を `hostUi` へ移した(拡張側の 8 ファイルを更新) |
+| `utils/index` → `debugUtils` → `viewLayerService` | バレルからデバッグ描画関数を外した(使っていたのは `draw-state-labels` だけ) |
+| `nodeUtils` → `layerState.tsx`(React) | `layerIsOn` を `src/utils/layerUtils.ts` に分けた(50 ファイルの import を更新) |
+| `names-generator`・`states-generator` → `domUtils` → `dialogState` | オプションロック(`locked`・`unlock`)を `src/utils/optionLocks.ts` に分けた。`domUtils` からも再エクスポートする |
+| G `specializationRuntime` → `characters/ui/charactersUiState` | コマンドに `onChanged` コールバックを渡す形にし、UI の更新は `characters/index.ts` が行う |
+| H `urbanWaterSystem`・`epithetCatalog` → `i18n` | 表示用の関数を移した。`formatUrbanWaterSummary` → `economy/ui/urbanWaterSummary.ts`、`formatEpithetLabel` → `characters/utils/characterLabels.ts`、`formatFlavorHook` → `characters/utils/flavorHookLabels.ts` |
+
+追加: `optionsState` が読み込み時に `localStorage` を参照する箇所を、`typeof localStorage` で守ったアクセサ経由にした(ブラウザの挙動は同じ)。
+
+### 14.3 検証
+
+- golden(0・30・365 日)は S1 の前後で一致した。シミュレーション結果は変わっていない。
+- `tsc`・`lint:legacy` は通った。vitest は 6,974 件が成功し、失敗 5 件はすべて既知のもの(city-editor 4 件、食料気候の較正 1 件)。
+- e2e(burgs・layers・load-map・states・map-context-menu・click-edit)は、変更前の HEAD でも同じ程度(約 26 件)失敗していた。前後で失敗の一覧に差が出た分は、単独で再実行すると変更前と同じ結果になった(並列実行時の揺れ)。`click-edit` は単独で 2 回とも全件成功した。
+- Node スモークテストは、まだ import の段階で失敗する。原因は `localStorage` から `generators/navalTechBonus.ts:28` に移った。モジュール読み込み時の `document.addEventListener` で、S2(イベントバス)の対象。

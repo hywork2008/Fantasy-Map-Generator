@@ -14,11 +14,8 @@ import { Production } from "./generators/production-generator";
 import { getCellStapleFoodProduction } from "./generators/production-utils";
 import { getBurgSettlementValue } from "./generators/settlementValuation";
 import { formatExpectedBirthsLowerBound, formatPregnantHeadcount } from "./generators/urbanPregnancy";
-import {
-  formatUrbanWaterSummary,
-  getUrbanWaterSystemForBurg,
-  sanitationScoreFromSystem
-} from "./generators/urbanWaterSystem";
+import { getUrbanWaterSystemForBurg, sanitationScoreFromSystem } from "./generators/urbanWaterSystem";
+import { formatUrbanWaterSummary } from "./ui/urbanWaterSummary";
 
 /** Gross product normalized to 1,000 actual residents for a readable, comparable value. */
 export function getBurgProductPerThousandResidents(burg: Burg): number {

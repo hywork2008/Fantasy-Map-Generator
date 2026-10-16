@@ -14,7 +14,7 @@ import type { IceIceberg } from "../types/models";
 import { closeDialog, openConfirm } from "../ui/dialogs/dialogService";
 import { findGridCell, parseTransform } from "../utils";
 import { EditorBus } from "../utils/editorBus";
-import { layerIsOn } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/layerUtils";
 import { interactionManager } from "./interactionManager";
 import { drawLayers, toggleIce } from "./layers";
 import { editStyle } from "./style";

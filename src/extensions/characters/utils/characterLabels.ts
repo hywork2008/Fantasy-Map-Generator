@@ -1,6 +1,12 @@
 import i18n from "../../../i18n";
 import type { Character, CharacterRole, CharacterRoleClass } from "../characterTypes";
-import { characterPublicEpithetId, formatEpithetLabel, UNDER_REGENCY_SUFFIX } from "../epithetCatalog";
+import {
+  characterPublicEpithetId,
+  INFLECTED_IDS,
+  landedSovereignTitle,
+  sovereignEpithetStem,
+  UNDER_REGENCY_SUFFIX
+} from "../epithetCatalog";
 
 /** Stable filter options for the Characters Overview title/role dropdown. */
 export const CHARACTER_ROLE_CLASS_FILTERS: readonly CharacterRoleClass[] = [
@@ -168,4 +174,14 @@ export function getCharacterEpithetSuffix(
 ): string {
   const id = characterPublicEpithetId(character);
   return id ? ` (${formatEpithetLabel(id, character)})` : "";
+}
+
+export function formatEpithetLabel(id: string, character: Pick<Character, "titles"> = { titles: [] }): string {
+  const lang = i18n.language ?? "en";
+  if (INFLECTED_IDS.has(id) && lang.startsWith("ja")) {
+    const title = landedSovereignTitle(character);
+    const stem = title ? sovereignEpithetStem(title) : "lord";
+    return i18n.t(`characters.epithetStems.${id}.${stem}`);
+  }
+  return i18n.t(`characters.epithetNames.${id}`);
 }

@@ -2,7 +2,6 @@ import { worldContext } from "../context/worldContext";
 import { Burgs } from "../generators/burgs-generator";
 import { Routes } from "../generators/routes-generator";
 import i18n from "../i18n";
-import type { FractalizedShape } from "../renderers/coastline-fractal";
 import { burgApproachDryLink } from "../services/burgApproachDryLink";
 import { updateBurgWaterAccess } from "../services/burgWaterAccess";
 import { dualPortHaven } from "../services/dualPortShore";
@@ -27,6 +26,7 @@ import {
 import { generateWorldLandConnections } from "../services/worldLandConnectionRuntime";
 import { useOptionsState } from "../store/optionsState";
 import type { Burg, Route } from "../types/models";
+import type { FractalizedShape } from "../utils/coastlineFractal";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
 import { yieldToEventLoop } from "../utils/yieldToEventLoop";
 import { type MapReadyTaskContext, registerMapReadyTask, requestMapReadyTask } from "./mapReadyTaskCoordinator";

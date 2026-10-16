@@ -4,7 +4,6 @@ import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
 import { simulationContext } from "../context/simulationContext";
 import type { ViewContext } from "../context/viewContext";
-import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import {
@@ -19,9 +18,6 @@ import { getRaceById } from "../data/races";
 import { activeLabOptions } from "../debug/riverPortLab/labOptions";
 import { selectLabSites } from "../debug/riverPortLab/selectLabSites";
 import { isLichCultureId, MAX_LICHES_PER_MAP } from "../extensions/characters/lichPolicy";
-import { removeBurgIcon, removeBurgLabel } from "../renderers";
-import type { FractalizedShape } from "../renderers/coastline-fractal";
-import { COArenderer } from "../renderers/emblem-renderer";
 import { bindSimulationBurg } from "../runtime/simulationBurgState";
 import { countBurgRoadLegs } from "../services/burgSiteDescriptor";
 import { updateAllBurgWaterAccess, updateBurgWaterAccess } from "../services/burgWaterAccess";
@@ -37,11 +33,12 @@ import {
   findRiverSettlementSiteSteps,
   type RiverSettlementSite
 } from "../services/settlementRiverSite";
-import { tip } from "../services/tooltipService";
+import { simulationView } from "../simulation/viewPort";
 import { useOptionsState } from "../store/optionsState";
 import type { Burg, Route } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import { each, findCell, gauss, minmax, normalize, P, rn } from "../utils";
+import type { FractalizedShape } from "../utils/coastlineFractal";
 import { burgLotOccupancy, occupancyRadiusMeters } from "../utils/cultureLotOccupancy";
 import { ERROR, TIME, WARN } from "../utils/debug";
 import { normalizeFrontierStartMode } from "../utils/frontierStartMode";
@@ -130,7 +127,8 @@ export type BurgShiftOptions = {
 
 class BurgModule {
   worldContext: WorldContext = worldContext;
-  viewContext: Readonly<ViewContext> = viewContext;
+  // Set by generate(); the simulation core never imports the live view context (S1).
+  viewContext?: Readonly<ViewContext>;
   appServices: AppServices = appServices;
   /** Burgs founded as overseas harbours: keep the town on the cell centre; the anchor sits at sea. */
   private landmassPortBurgIds = new Set<number>();
@@ -2269,7 +2267,7 @@ class BurgModule {
     };
     this.definePopulation(burg);
     this.defineEmblem(burg);
-    COArenderer.add("burg", burgId, burg.coa as Emblem, x, y);
+    simulationView.burgAdded(burgId, burg.coa as Emblem, x, y);
     this.defineFeatures(burg, this.computeStrategicContext(pack, options.year ?? 0));
 
     const populations = pack.burgs
@@ -2327,7 +2325,7 @@ class BurgModule {
   remove(burgId: number) {
     const { pack, notes } = this.worldContext;
     const burg = pack.burgs[burgId];
-    if (!burg) return tip(`Burg ${burgId} not found`, false, "error");
+    if (!burg) return simulationView.tip(`Burg ${burgId} not found`, false, "error");
 
     pack.cells.burg[burg.cell] = 0;
     burg.removed = true;
@@ -2339,8 +2337,7 @@ class BurgModule {
       delete burg.coa;
     }
 
-    removeBurgIcon(worldContext, viewContext, appServices, burg.i!);
-    removeBurgLabel(worldContext, viewContext, appServices, burg.i!);
+    simulationView.burgRemoved(burg.i!);
   }
 }
 export const Burgs = new BurgModule();

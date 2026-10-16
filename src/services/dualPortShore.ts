@@ -1,7 +1,7 @@
 import type { WorldContext } from "../context/worldContext";
 import { MIN_NAVIGABLE_FLUX } from "../generators/river-generator";
-import { drawnFeatureShape, type FractalizedShape, sampleCoastlineShape } from "../renderers/coastline-fractal";
 import type { Burg } from "../types/models";
+import { drawnFeatureShape, type FractalizedShape, sampleCoastlineShape } from "../utils/coastlineFractal";
 import { PORT_SHORE_INLAND_METERS } from "./portShorePosition";
 import { pointInWater, segmentsTouch } from "./riverPhysicalGeometry";
 

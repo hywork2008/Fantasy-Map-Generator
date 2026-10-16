@@ -13,7 +13,7 @@ import {
 } from "../renderers";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { useBurgsOverviewState } from "../store/burgsOverviewState";
-import { layerIsOn } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/layerUtils";
 import { refreshProvincesEditor } from "./provinces-editor";
 import { refreshStatesEditor } from "./states-editor";
 

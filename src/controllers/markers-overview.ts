@@ -9,7 +9,7 @@ import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { getLatitude, getLongitude } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
-import { layerIsOn } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/layerUtils";
 import { toggleMarkers } from "./layers";
 
 export function overviewMarkers(): void {

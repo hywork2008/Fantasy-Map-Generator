@@ -6,14 +6,11 @@ import { Goods } from "../generators/goods-generator";
 import { getMarketTradeOpportunitiesState } from "../store/marketTradeOpportunitiesState";
 import { downloadCsv, refresh, setSelectedGoodId } from "./marketTradeOpportunities";
 
-vi.mock("../../hostUi", () => ({
-  openDialog: vi.fn()
+vi.mock("../../hostUi", async () => ({
+  openDialog: vi.fn(),
+  downloadFile: vi.fn(),
+  getFileName: (await import("../../../utils/editorHelpers")).getFileName
 }));
-
-vi.mock("../../hostUtils", async importOriginal => {
-  const actual = await importOriginal<typeof import("../../hostUtils")>();
-  return { ...actual, downloadFile: vi.fn() };
-});
 
 describe("market trade opportunities", () => {
   beforeEach(() => {
@@ -196,7 +193,7 @@ describe("market trade opportunities", () => {
   });
 
   it("writes plain numeric prices in the CSV export, without display-only decoration", async () => {
-    const { downloadFile } = await import("../../hostUtils");
+    const { downloadFile } = await import("../../hostUi");
 
     setSelectedGoodId(1);
     refresh();

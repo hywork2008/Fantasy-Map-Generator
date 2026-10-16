@@ -76,7 +76,7 @@ import { ERROR, INFO, WARN } from "../utils/debug";
 import { normalizeFrontierPolitySpacing, normalizeFrontierStartMode } from "../utils/frontierStartMode";
 import { normalizeInitialPolityRealmSize } from "../utils/initialPolityScope";
 import { normalizeInitialSettlementPattern } from "../utils/initialSettlementPattern";
-import { layerIsOn } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/layerUtils";
 import { validateWorldLanguages } from "../utils/worldLanguages";
 import { cleanupData, compareVersions, isValidVersion, parseMapVersion, VERSION } from "../versioning";
 import { resolveVersionConflicts } from "./auto-update";

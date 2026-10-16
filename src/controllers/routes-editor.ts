@@ -19,7 +19,7 @@ import { findCell, getSegmentId, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
-import { layerIsOn } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/layerUtils";
 import { openElevationProfile } from "./elevation-profile";
 import { interactionManager } from "./interactionManager";
 import { scheduleWebglUpdate, toggleCells, toggleRoutes } from "./layers";

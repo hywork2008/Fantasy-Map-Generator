@@ -21,8 +21,9 @@ import { convertTemperature, findCell, getPortAnchorPosition, openURL, parseTran
 import { getBurgPorts } from "../utils/burgPorts";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog } from "../utils/editorHelpers";
+import { layerIsOn } from "../utils/layerUtils";
 import { generateRandomName } from "../utils/nameGenerator";
-import { getElementBySelector, layerIsOn } from "../utils/nodeUtils";
+import { getElementBySelector } from "../utils/nodeUtils";
 import { getUrbanDwellings } from "../utils/urbanDwellings";
 import { editBurgGroups } from "./burg-group-editor";
 import { openCityEditorForBurg, stashCitySite } from "./city-editor-handshake";

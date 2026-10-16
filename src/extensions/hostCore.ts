@@ -1,4 +1,3 @@
-export { createLayerCanvas } from "../canvas/map-canvas";
 export { appServices } from "../context/appServices";
 export type { FuneralMaterialDemand, IntelligenceReport, StrategicGoal } from "../context/simulationContext";
 export { addFrontierApplicants, simulationContext } from "../context/simulationContext";
@@ -66,9 +65,6 @@ export {
 export { getAtmosphericSteamPumpingEffect, getFourCourseRotationEffect } from "../generators/technologyProgress";
 export { raiseUndeadOnCellEntered } from "../generators/undeadRaising";
 export type { Point } from "../generators/voronoi";
-export { BordersRenderer } from "../renderers/draw-borders";
-export { MilitaryRenderer } from "../renderers/draw-military";
-export { StatesRenderer } from "../renderers/draw-states";
 export { runWithSimulationRandom } from "../simulation/simulationRandom";
 export { isFastAdvanceActive, resolveFastAdvanceRates } from "../store/fastAdvanceState";
 export { useOptionsState } from "../store/optionsState";

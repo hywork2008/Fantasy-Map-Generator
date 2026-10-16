@@ -17,7 +17,8 @@ import { closeDialog, closeDialogs, openConfirm, openDialog } from "../ui/dialog
 import { findCell, last, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { isGunpowderEraEnabled, isGunpowderEraMilitaryUnit } from "../utils/gunpowderEra";
-import { getElementBySelector, layerIsOn } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/layerUtils";
+import { getElementBySelector } from "../utils/nodeUtils";
 import { Battle, type BattleRegiment } from "./battle-screen";
 import { interactionManager } from "./interactionManager";
 import { toggleMilitary } from "./layers";

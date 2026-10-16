@@ -1,86 +1,15 @@
 {
   "modules": {
-    "src/canvas/map-canvas.ts": "view / UI layer: src/extensions/economy/generators/agriculturalLandUse.ts -> src/extensions/hostCore.ts -> src/canvas/map-canvas.ts",
-    "src/context/viewContext.ts": "view service: src/extensions/economy/generators/mineOperations.ts -> src/generators/routes-generator.ts -> src/context/viewContext.ts",
+    "src/context/viewContext.ts": "view service: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/generators/military-generator.ts -> src/context/viewContext.ts",
     "src/extensions/characters/store/playerCharacterState.ts": "extension view / UI layer: src/extensions/nobility/generators/characterPruning.ts -> src/extensions/characters/store/playerCharacterState.ts",
-    "src/extensions/characters/ui/charactersUiState.ts": "extension view / UI layer: src/extensions/characters/specializationRuntime.ts -> src/extensions/characters/ui/charactersUiState.ts",
     "src/extensions/economy/store/economyCalibrationState.ts": "extension view / UI layer: src/extensions/economy/generators/academyKnowledge.ts -> src/extensions/economy/store/economyCalibrationState.ts",
     "src/extensions/economy/store/stateFiscalReportState.ts": "extension view / UI layer: src/extensions/economy/generators/stateFiscalReport.ts -> src/extensions/economy/store/stateFiscalReportState.ts",
-    "src/i18n/index.ts": "view / UI layer: src/extensions/economy/generators/urbanWaterSystem.ts -> src/i18n/index.ts",
-    "src/i18n/locales/editors.en.json": "view / UI layer: src/extensions/economy/generators/urbanWaterSystem.ts -> src/i18n/index.ts -> src/i18n/locales/editors.en.json",
-    "src/i18n/locales/editors.ja.json": "view / UI layer: src/extensions/economy/generators/urbanWaterSystem.ts -> src/i18n/index.ts -> src/i18n/locales/editors.ja.json",
-    "src/i18n/locales/en.json": "view / UI layer: src/extensions/economy/generators/urbanWaterSystem.ts -> src/i18n/index.ts -> src/i18n/locales/en.json",
-    "src/i18n/locales/ja.json": "view / UI layer: src/extensions/economy/generators/urbanWaterSystem.ts -> src/i18n/index.ts -> src/i18n/locales/ja.json",
-    "src/renderers/coastline-fractal.ts": "view / UI layer: src/extensions/economy/generators/agriculturalLandUse.ts -> src/extensions/hostCore.ts -> src/generators/burgs-generator.ts -> src/services/burgSiteDescriptor.ts -> src/renderers/coastline-fractal.ts",
-    "src/renderers/combatDeathsRenderer.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/combatDeathsRenderer.ts",
-    "src/renderers/core/focusScope.ts": "view / UI layer: src/extensions/economy/generators/agriculturalLandUse.ts -> src/extensions/hostCore.ts -> src/renderers/draw-borders.ts -> src/renderers/core/focusScope.ts",
-    "src/renderers/danger-renderer.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/danger-renderer.ts",
-    "src/renderers/dangerColorScale.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/danger-renderer.ts -> src/renderers/dangerColorScale.ts",
-    "src/renderers/draw-biomes.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-biomes.ts",
-    "src/renderers/draw-borders.ts": "view / UI layer: src/extensions/economy/generators/agriculturalLandUse.ts -> src/extensions/hostCore.ts -> src/renderers/draw-borders.ts",
-    "src/renderers/draw-burg-icons.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-burg-icons.ts",
-    "src/renderers/draw-burg-labels.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-burg-labels.ts",
-    "src/renderers/draw-calendar.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-calendar.ts",
-    "src/renderers/draw-cells.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-cells.ts",
-    "src/renderers/draw-coastal-habitats.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-coastal-habitats.ts",
-    "src/renderers/draw-coordinates.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-coordinates.ts",
-    "src/renderers/draw-cultures.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-cultures.ts",
-    "src/renderers/draw-emblems.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-emblems.ts",
-    "src/renderers/draw-features.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-features.ts",
-    "src/renderers/draw-grid.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-grid.ts",
-    "src/renderers/draw-heightmap.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-heightmap.ts",
-    "src/renderers/draw-ice.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-ice.ts",
-    "src/renderers/draw-lava-flows.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-lava-flows.ts",
-    "src/renderers/draw-markers.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-markers.ts",
-    "src/renderers/draw-military.ts": "view / UI layer: src/extensions/economy/generators/agriculturalLandUse.ts -> src/extensions/hostCore.ts -> src/renderers/draw-military.ts",
-    "src/renderers/draw-population.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-population.ts",
-    "src/renderers/draw-precipitation.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-precipitation.ts",
-    "src/renderers/draw-provinces.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-provinces.ts",
-    "src/renderers/draw-registered-land-routes.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-routes.ts -> src/renderers/draw-registered-land-routes.ts",
-    "src/renderers/draw-relief-icons.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-relief-icons.ts",
-    "src/renderers/draw-religions.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-religions.ts",
-    "src/renderers/draw-rivers.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-rivers.ts",
-    "src/renderers/draw-routes.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-routes.ts",
-    "src/renderers/draw-satellite-texture.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-satellite-texture.ts",
-    "src/renderers/draw-scalebar.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-scalebar.ts",
-    "src/renderers/draw-state-labels.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-state-labels.ts",
-    "src/renderers/draw-states.ts": "view / UI layer: src/extensions/economy/generators/agriculturalLandUse.ts -> src/extensions/hostCore.ts -> src/renderers/draw-states.ts",
-    "src/renderers/draw-temperature.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-temperature.ts",
-    "src/renderers/draw-texture.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-texture.ts",
-    "src/renderers/draw-zones.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-zones.ts",
-    "src/renderers/drawFrontierForts.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/drawFrontierForts.ts",
-    "src/renderers/emblem-renderer.ts": "view / UI layer: src/extensions/economy/generators/agriculturalLandUse.ts -> src/extensions/hostCore.ts -> src/generators/burgs-generator.ts -> src/renderers/emblem-renderer.ts",
-    "src/renderers/enclosureRenderer.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/enclosureRenderer.ts",
-    "src/renderers/erosion-bake.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-satellite-texture.ts -> src/renderers/erosion-bake.ts",
-    "src/renderers/index.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts",
-    "src/renderers/populationColorScale.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-population.ts -> src/renderers/populationColorScale.ts",
-    "src/renderers/registeredLandRouteScene.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-routes.ts -> src/renderers/draw-registered-land-routes.ts -> src/renderers/registeredLandRouteScene.ts",
-    "src/renderers/svgRasterize.ts": "view / UI layer: src/extensions/economy/generators/agriculturalLandUse.ts -> src/extensions/hostCore.ts -> src/generators/burgs-generator.ts -> src/renderers/emblem-renderer.ts -> src/renderers/svgRasterize.ts",
-    "src/renderers/underground-renderer.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/underground-renderer.ts",
-    "src/services/tooltipService.ts": "view service: src/extensions/economy/generators/agriculturalLandUse.ts -> src/extensions/hostCore.ts -> src/generators/burgs-generator.ts -> src/services/tooltipService.ts",
-    "src/services/viewLayerService.ts": "view service: src/extensions/economy/generators/academyKnowledge.ts -> src/extensions/hostUtils.ts -> src/utils/index.ts -> src/utils/debugUtils.ts -> src/services/viewLayerService.ts",
-    "src/store/cellInfoState.ts": "view / UI layer: src/extensions/economy/generators/agriculturalLandUse.ts -> src/extensions/hostCore.ts -> src/generators/burgs-generator.ts -> src/services/tooltipService.ts -> src/services/cellInfoService.ts -> src/store/cellInfoState.ts",
-    "src/store/debugSnapshotState.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/store/debugSnapshotState.ts",
-    "src/store/dialogState.ts": "view / UI layer: src/extensions/economy/generators/academyKnowledge.ts -> src/extensions/hostUtils.ts -> src/utils/domUtils.ts -> src/store/dialogState.ts",
     "src/store/fastAdvanceState.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/store/fastAdvanceState.ts",
-    "src/store/hoverNotesState.ts": "view / UI layer: src/extensions/economy/generators/agriculturalLandUse.ts -> src/extensions/hostCore.ts -> src/generators/burgs-generator.ts -> src/services/tooltipService.ts -> src/store/hoverNotesState.ts",
-    "src/store/layerState.tsx": "React component module: src/extensions/economy/generators/academyKnowledge.ts -> src/extensions/hostUtils.ts -> src/utils/nodeUtils.ts -> src/store/layerState.tsx",
     "src/store/optionsState.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/store/optionsState.ts",
-    "src/store/populationOverviewState.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/combatDeathsRenderer.ts -> src/store/populationOverviewState.ts",
     "src/store/timeSimulationState.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/store/timeSimulationState.ts",
-    "src/store/toastStore.ts": "view / UI layer: src/extensions/economy/generators/agriculturalLandUse.ts -> src/extensions/hostCore.ts -> src/generators/burgs-generator.ts -> src/services/tooltipService.ts -> src/store/toastStore.ts",
-    "src/store/uiPreferencesState.ts": "view / UI layer: src/extensions/economy/generators/characterStipends.ts -> src/extensions/nobility/nobilityContext.ts -> src/store/uiPreferencesState.ts",
-    "src/ui/dialogs/dialogService.ts": "view / UI layer: src/extensions/economy/generators/academyKnowledge.ts -> src/extensions/hostUtils.ts -> src/utils/editorHelpers.ts -> src/ui/dialogs/dialogService.ts",
-    "src/utils/domUtils.ts": "view service: src/extensions/economy/generators/academyKnowledge.ts -> src/extensions/hostUtils.ts -> src/utils/domUtils.ts",
-    "src/utils/editorHelpers.ts": "view service: src/extensions/economy/generators/academyKnowledge.ts -> src/extensions/hostUtils.ts -> src/utils/editorHelpers.ts"
+    "src/store/uiPreferencesState.ts": "view / UI layer: src/extensions/economy/generators/characterStipends.ts -> src/extensions/nobility/nobilityContext.ts -> src/store/uiPreferencesState.ts"
   },
-  "packages": {
-    "react-i18next": "src/extensions/economy/generators/urbanWaterSystem.ts -> src/i18n/index.ts",
-    "react/jsx-runtime": "src/extensions/economy/generators/academyKnowledge.ts -> src/extensions/hostUtils.ts -> src/utils/nodeUtils.ts -> src/store/layerState.tsx",
-    "three": "src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-satellite-texture.ts",
-    "three/tsl": "src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-satellite-texture.ts",
-    "three/webgpu": "src/simulation/core.ts -> src/generators/timeEngine.ts -> src/utils/aiDebugExporter.ts -> src/renderers/index.ts -> src/renderers/draw-satellite-texture.ts"
-  },
+  "packages": {},
   "runtime": {
     "src/debug/riverPortLab/labOptions.ts": {
       "localStorage": 2
@@ -155,9 +84,6 @@
     "src/extensions/shipbuilding/generators/shipyardQueue.ts": {
       "document": 2
     },
-    "src/generators/coastalHabitatAssignment.ts": {
-      "window": 1
-    },
     "src/generators/funeralRites.ts": {
       "document": 1
     },
@@ -186,9 +112,6 @@
     "src/runtime/worldRuntime.ts": {
       "document": 8
     },
-    "src/utils/aiDebugExporter.ts": {
-      "document": 1
-    },
     "src/utils/commonUtils.ts": {
       "navigator": 1,
       "window": 2
@@ -204,6 +127,10 @@
     },
     "src/utils/nodeUtils.ts": {
       "document": 3
+    },
+    "src/utils/optionLocks.ts": {
+      "document": 1,
+      "localStorage": 2
     }
   }
 }

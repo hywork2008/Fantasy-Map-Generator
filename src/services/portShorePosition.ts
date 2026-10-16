@@ -1,5 +1,5 @@
 import type { WorldContext } from "../context/worldContext";
-import { drawnFeatureShape, type FractalizedShape, sampleCoastlineShape } from "../renderers/coastline-fractal";
+import { drawnFeatureShape, type FractalizedShape, sampleCoastlineShape } from "../utils/coastlineFractal";
 
 type Point = [number, number];
 

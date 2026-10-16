@@ -15,7 +15,7 @@ import { closeDialog, closeDialogs, openConfirm, openDialog } from "../ui/dialog
 import { findCell, getSegmentId, rand, rn } from "../utils";
 import { EditorBus } from "../utils/editorBus";
 import { getPackPolygon } from "../utils/graphUtils";
-import { layerIsOn } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/layerUtils";
 import { openElevationProfile } from "./elevation-profile";
 import { toggleCells, toggleRivers } from "./layers";
 import { editNotes } from "./notes-editor";

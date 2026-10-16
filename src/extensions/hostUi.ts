@@ -1,3 +1,4 @@
+export { createLayerCanvas } from "../canvas/map-canvas";
 export { useBurgEditorState } from "../store/burgEditorState";
 export { useCellInfoState } from "../store/cellInfoState";
 export { useDialogState } from "../store/dialogState";
@@ -26,3 +27,6 @@ export type {
   RegenerateConfirmProceedOptions
 } from "../ui/dialogs/RegenerateConfirmDialog";
 export { TableDialogLayout } from "../ui/dialogs/TableDialogLayout";
+export { applySorting, removeCircle } from "../utils/domUtils";
+export { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
+export { layerIsOn } from "../utils/layerUtils";

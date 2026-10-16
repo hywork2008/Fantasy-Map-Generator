@@ -5,7 +5,6 @@ import { rn } from "../../../hostUtils";
 import { getAleDemandMultiplier, getAleWaterRisk } from "../../generators/aleDemand";
 import {
   culturalHygieneProfile,
-  formatUrbanWaterSummary,
   getUrbanWaterSystemForBurg,
   sanitationScoreFromSystem,
   WATER_DEMAND_SIGNAL_LABELS,
@@ -18,6 +17,7 @@ import {
   ORGANIC_WASTE_ROUTES,
   type OrganicWasteRoute
 } from "../../generators/urbanWaterTypes";
+import { formatUrbanWaterSummary } from "../urbanWaterSummary";
 
 /** English fallbacks used when a translation is missing; canonical labels live in i18n under economy.water.*. */
 const CLEANSING_LABELS: Readonly<Record<CleansingMaterial, string>> = {

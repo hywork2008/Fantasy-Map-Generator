@@ -20,7 +20,7 @@ import { ThreeDRenderer } from "../renderers/three-d-renderer";
 import { legacyMutation } from "../runtime/worldRuntime";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { openDialog } from "../ui/dialogs/dialogService";
-import { layerIsOn } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/layerUtils";
 
 export function editWorld(): void {
   if (view.customization) return;

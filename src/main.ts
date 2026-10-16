@@ -165,8 +165,9 @@ import { locked } from "./utils/domUtils";
 import { EditorBus } from "./utils/editorBus";
 import { defaultGunpowderEraEnabled } from "./utils/gunpowderEra";
 import { dampenBurgLabelSize, dampenStateLabelSize } from "./utils/labelZoomScale";
+import { layerIsOn } from "./utils/layerUtils";
 import { scopedMapSize, scopedStatesNumber } from "./utils/mapScope";
-import { getElementById, layerIsOn } from "./utils/nodeUtils";
+import { getElementById } from "./utils/nodeUtils";
 import { cleanupData } from "./versioning";
 
 const UINT16_MAX = _TMP.UINT16_MAX;

@@ -1,7 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { closeDialog, Dialog, useDialogState, VirtualTableBody } from "../../../hostUi";
-import { applySorting, formatPrice } from "../../../hostUtils";
+import { applySorting, closeDialog, Dialog, useDialogState, VirtualTableBody } from "../../../hostUi";
+import { formatPrice } from "../../../hostUtils";
 
 import {
   downloadDealsCsv,

@@ -12,7 +12,8 @@
  *     event's doc-comment for why.
  */
 
-import { downloadFile, getFileName, rn } from "../../hostUtils";
+import { downloadFile, getFileName } from "../../hostUi";
+import { rn } from "../../hostUtils";
 import { getGoods, getMarkets, getWorldContext } from "../economyContext";
 import { type BalanceSnapshot, captureBalanceSnapshot } from "../generators/balanceSnapshot";
 import {

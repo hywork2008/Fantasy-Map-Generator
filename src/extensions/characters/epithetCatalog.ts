@@ -2,7 +2,6 @@
  * Public-epithet occupation catalog, sovereign stem inflection, and name-line picker.
  * Spec: docs/plan/characters/occupation-epithets.md
  */
-import i18n from "../../i18n";
 import type { Character, CharacterEpithet, EpithetLineage, OccupationEpithetId } from "./characterTypes";
 import { resolveOfficeKind } from "./prestige";
 
@@ -60,7 +59,7 @@ const SOVEREIGN_STEM_BY_TITLE: Readonly<Record<string, SovereignEpithetStem>> = 
 
 const WAR_GOD_TITLE_RE = /^(Marshal|General|Minister of War|Commander|Admiral|Warlord|Shogun)$/i;
 const WAR_CONDUCT_TITLE_RE = /^(Marshal|General|Minister of War|Commander|Admiral|Warlord|Shogun)$/i;
-const INFLECTED_IDS = new Set(["wise_king", "foolish_king"]);
+export const INFLECTED_IDS = new Set(["wise_king", "foolish_king"]);
 
 export function isSovereignRuler(character: Pick<Character, "titles">): boolean {
   return character.titles.some(t => t.landed && t.entityType === "state");
@@ -76,16 +75,6 @@ export function landedSovereignTitle(character: Pick<Character, "titles">): stri
 
 export function sovereignEpithetStem(title: string): SovereignEpithetStem {
   return SOVEREIGN_STEM_BY_TITLE[stripUnderRegencySuffix(title)] ?? "lord";
-}
-
-export function formatEpithetLabel(id: string, character: Pick<Character, "titles"> = { titles: [] }): string {
-  const lang = i18n.language ?? "en";
-  if (INFLECTED_IDS.has(id) && lang.startsWith("ja")) {
-    const title = landedSovereignTitle(character);
-    const stem = title ? sovereignEpithetStem(title) : "lord";
-    return i18n.t(`characters.epithetStems.${id}.${stem}`);
-  }
-  return i18n.t(`characters.epithetNames.${id}`);
 }
 
 export function allCharacterEpithets(

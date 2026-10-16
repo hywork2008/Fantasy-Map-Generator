@@ -36,7 +36,7 @@ import {
   trimVowels
 } from "../utils";
 import { TIME } from "../utils/debug";
-import { locked } from "../utils/domUtils";
+import { locked } from "../utils/optionLocks";
 import { generateWorldLanguages } from "../utils/worldLanguages";
 import { getStateExpandDangerCost } from "./dangerExpandPolicy";
 import { COA } from "./emblem/generator";

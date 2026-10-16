@@ -1,6 +1,9 @@
 import { worldContext } from "../context/worldContext";
 import { dialogStore } from "../store/dialogState";
 import { useOptionsState } from "../store/optionsState";
+import { locked, unlock } from "./optionLocks";
+
+export { locked, unlock };
 
 export function isDialogVisible(id: string): boolean {
   return dialogStore.getState().openDialogs.has(id);
@@ -27,13 +30,6 @@ export function lock(id: string, valueToStore?: string): void {
   }
 
   document.dispatchEvent(new CustomEvent("fmg:lock-changed", { detail: { id, locked: true } }));
-}
-export function unlock(id: string): void {
-  localStorage.removeItem(id);
-  document.dispatchEvent(new CustomEvent("fmg:lock-changed", { detail: { id, locked: false } }));
-}
-export function locked(id: string): boolean {
-  return localStorage.getItem(id) !== null;
 }
 export function stored(key: string): string | null {
   return localStorage.getItem(key) || null;

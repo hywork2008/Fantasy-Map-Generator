@@ -21,7 +21,6 @@ import {
   throttle,
   wiki
 } from "./commonUtils";
-import { drawCellsValue, drawPath, drawPoint, drawPolygons, drawRouteConnections } from "./debugUtils";
 import { distanceSquared, rollups } from "./functionUtils";
 import {
   calculateVoronoi,
@@ -105,12 +104,7 @@ export {
   createTypedArray,
   debounce,
   distanceSquared,
-  drawCellsValue,
   drawHeights,
-  drawPath,
-  drawPoint,
-  drawPolygons,
-  drawRouteConnections,
   each,
   findAll,
   findAllCellsInRadius,

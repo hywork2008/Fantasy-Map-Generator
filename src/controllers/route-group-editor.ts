@@ -9,7 +9,8 @@ import { modules } from "../store/editorState";
 import { useRouteGroupsEditorStore } from "../store/routeGroupsEditorStore";
 import { openDialog, openPrompt } from "../ui/dialogs/dialogService";
 import { confirmationDialog } from "../utils/editorHelpers";
-import { getElementById, layerIsOn } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/layerUtils";
+import { getElementById } from "../utils/nodeUtils";
 import { toggleRoutes } from "./layers";
 
 export function refreshRouteGroups(): void {

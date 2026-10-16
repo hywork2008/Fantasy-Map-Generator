@@ -397,6 +397,13 @@ export interface OptionsState {
 /** Serializable option values — the Zustand store minus action methods. */
 export type OptionsValues = Omit<OptionsState, "setOption" | "setOptions">;
 
+/**
+ * Option locks live in localStorage. Read it through this guard so the simulation core can import
+ * the options store where no browser storage exists (Node; docs/plan/simulation-core-separation.md).
+ */
+const optionStorage = (): Pick<Storage, "getItem" | "setItem"> | null =>
+  typeof localStorage === "undefined" ? null : localStorage;
+
 /** UI settings used when neither the store nor localStorage provides a user preference. */
 export const DEFAULT_UI_OPTIONS = {
   uiSize: 1,
@@ -643,13 +650,13 @@ export const useOptionsState = create<OptionsState>(set => ({
 
   ...DEFAULT_WORLD_SCALE_OPTIONS,
   ...DEFAULT_UI_OPTIONS,
-  temperatureScale: localStorage.getItem("temperatureScale") ?? DEFAULT_UNIT_OPTIONS.temperatureScale,
+  temperatureScale: optionStorage()?.getItem("temperatureScale") ?? DEFAULT_UNIT_OPTIONS.temperatureScale,
 
-  distanceUnit: localStorage.getItem("distanceUnit") ?? DEFAULT_UNIT_OPTIONS.distanceUnit,
-  heightUnit: localStorage.getItem("heightUnit") ?? DEFAULT_UNIT_OPTIONS.heightUnit,
-  areaUnit: localStorage.getItem("areaUnit") ?? DEFAULT_UNIT_OPTIONS.areaUnit,
-  weightUnit: localStorage.getItem("weightUnit") ?? DEFAULT_UNIT_OPTIONS.weightUnit,
-  heightExponent: Number(localStorage.getItem("heightExponent") ?? DEFAULT_UNIT_OPTIONS.heightExponent),
+  distanceUnit: optionStorage()?.getItem("distanceUnit") ?? DEFAULT_UNIT_OPTIONS.distanceUnit,
+  heightUnit: optionStorage()?.getItem("heightUnit") ?? DEFAULT_UNIT_OPTIONS.heightUnit,
+  areaUnit: optionStorage()?.getItem("areaUnit") ?? DEFAULT_UNIT_OPTIONS.areaUnit,
+  weightUnit: optionStorage()?.getItem("weightUnit") ?? DEFAULT_UNIT_OPTIONS.weightUnit,
+  heightExponent: Number(optionStorage()?.getItem("heightExponent") ?? DEFAULT_UNIT_OPTIONS.heightExponent),
 
   shapeRendering: "optimizeSpeed",
   rescaleLabels: true,
@@ -666,9 +673,9 @@ export const useOptionsState = create<OptionsState>(set => ({
     // otherwise the old value would be restored on the next page load.
     // Complex objects (race person-name map, allowed race keys) always serialize as JSON.
     if (key === "racePersonNameSpheres" || key === "allowedRaceKeys") {
-      localStorage.setItem(key, JSON.stringify(value));
-    } else if (localStorage.getItem(key) !== null) {
-      localStorage.setItem(key, String(value));
+      optionStorage()?.setItem(key, JSON.stringify(value));
+    } else if ((optionStorage()?.getItem(key) ?? null) !== null) {
+      optionStorage()?.setItem(key, String(value));
     }
     set({ [key]: value });
   },
@@ -677,9 +684,9 @@ export const useOptionsState = create<OptionsState>(set => ({
     // invariant as setOption to each value that already has a lock.
     for (const [key, value] of Object.entries(updates)) {
       if (key === "racePersonNameSpheres" || key === "allowedRaceKeys") {
-        localStorage.setItem(key, JSON.stringify(value));
-      } else if (localStorage.getItem(key) !== null) {
-        localStorage.setItem(key, String(value));
+        optionStorage()?.setItem(key, JSON.stringify(value));
+      } else if ((optionStorage()?.getItem(key) ?? null) !== null) {
+        optionStorage()?.setItem(key, String(value));
       }
     }
     set(updates);

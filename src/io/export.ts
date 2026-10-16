@@ -16,7 +16,8 @@ import { getColor, getColorScheme } from "../utils/colorUtils";
 import { ERROR, TIME } from "../utils/debug";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
 import { getGridPolygon } from "../utils/graphUtils";
-import { getElementById, layerIsOn } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/layerUtils";
+import { getElementById } from "../utils/nodeUtils";
 
 type AnySelection = Selection<SVGSVGElement, unknown, null, undefined>;
 

@@ -9,7 +9,7 @@ import { shieldPositions } from "../generators/emblem/shieldPositions";
 import { shieldSize } from "../generators/emblem/size";
 import { templates } from "../generators/emblem/templates";
 import { ERROR } from "../utils/debug";
-import { layerIsOn } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/layerUtils";
 import { rasterizeSvgToPngDataUrl } from "./svgRasterize";
 
 interface Division {

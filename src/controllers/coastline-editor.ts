@@ -13,14 +13,6 @@ import {
   ReligionsRenderer,
   StatesRenderer
 } from "../renderers";
-import {
-  buildCoastlinePath,
-  type CoastlineSettings,
-  defaultCoastSettings,
-  fractalize,
-  makeRoughnessProfile,
-  PROFILE_SIZE
-} from "../renderers/coastline-fractal";
 import { getFeaturePath } from "../renderers/index";
 import { moveFeatureVertex, patchFeature } from "../runtime/worldRuntime";
 import { tip } from "../services/tooltipService";
@@ -28,11 +20,20 @@ import { viewLayerService as view } from "../services/viewLayerService";
 import { modules, setElSelected } from "../store/editorState";
 import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { rn, si, unique } from "../utils";
+import {
+  buildCoastlinePath,
+  type CoastlineSettings,
+  defaultCoastSettings,
+  fractalize,
+  makeRoughnessProfile,
+  PROFILE_SIZE
+} from "../utils/coastlineFractal";
 import { debounce } from "../utils/commonUtils";
 import { getArea, getAreaUnit } from "../utils/domUtils";
 import { EditorBus } from "../utils/editorBus";
 import { getPackPolygon } from "../utils/graphUtils";
-import { getElementBySelector, layerIsOn } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/layerUtils";
+import { getElementBySelector } from "../utils/nodeUtils";
 import { interactionManager } from "./interactionManager";
 import { drawLayers, toggleCells } from "./layers";
 import { editStyle } from "./style";

@@ -1,6 +1,7 @@
 import { pointer } from "d3";
 import { clearMainTip, tip } from "../../hostServices";
-import { confirmationDialog, downloadFile, findCell, getFileName, layerIsOn, rn, unique } from "../../hostUtils";
+import { confirmationDialog, downloadFile, getFileName, layerIsOn } from "../../hostUi";
+import { findCell, rn, unique } from "../../hostUtils";
 import {
   getApi,
   getGoodCellColumn,

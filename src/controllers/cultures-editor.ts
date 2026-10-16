@@ -26,7 +26,7 @@ import { getArea, getAreaUnit } from "../utils/domUtils";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, getFileName } from "../utils/editorHelpers";
 import { getPackPolygon } from "../utils/graphUtils";
-import { layerIsOn } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/layerUtils";
 import { openPopulationChangeDialog } from "../utils/populationHelpers";
 import { BrushHistoryClass as BrushHistory } from "./BrushHistory";
 import { open as openHierarchyTree } from "./hierarchy-tree";
