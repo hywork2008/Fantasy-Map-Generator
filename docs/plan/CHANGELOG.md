@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-10-17
+
+- docs/plan/medieval-european-nobility-holdings.md
+
 2026-10-16
 
 - docs/plan/simulation-channel-server.md
