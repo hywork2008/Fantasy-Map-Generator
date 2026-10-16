@@ -10,7 +10,7 @@ import {
   type ShipGoodStock,
   type State
 } from "../../hostTypes";
-import { getShipbuildingRuntimeState } from "../shipbuildingContext";
+import { getHistoricalPeriodIfReady, getShipbuildingRuntimeState } from "../shipbuildingContext";
 import type { PortCapacity } from "./portCapacity";
 import {
   getAnnualShipbuildingMaterialDemand,
@@ -496,11 +496,13 @@ export function runShipyardTick(
     const techPoints = burg.state ? getStateTechPoints(burg.state) : 0;
     const maxTechTier = burg.state ? getMaxShipClassTierForState(burg.state) : 0;
     const unlockedClass = getHighestUnlockedShipClass(techPoints, maxTechTier);
+    // Antiquity crown yards build the oared navy; merchants keep sailing hulls.
+    const targetClass = (owner === "state" && antiquityGalley()) || unlockedClass;
 
     const runtimeState = getShipbuildingRuntimeState();
     let entry = runtimeState.queues[burgId];
     if (!entry) {
-      entry = { shipClassId: unlockedClass.id, owner, progress: 0, pendingWorkPoints: 0 };
+      entry = { shipClassId: targetClass.id, owner, progress: 0, pendingWorkPoints: 0 };
       runtimeState.queues[burgId] = entry;
     } else {
       entry.owner = owner;
@@ -530,8 +532,14 @@ export function runShipyardTick(
       );
     }
     // Re-evaluate the target class for the next hull — tech may have advanced.
-    entry.shipClassId = unlockedClass.id;
+    entry.shipClassId = targetClass.id;
   }
+}
+
+/** The galley class when the map is set in antiquity (classical-antiquity-historical-period.md §6.6). */
+function antiquityGalley(): ShipClass | undefined {
+  const period = getHistoricalPeriodIfReady();
+  return period === "classicalAntiquity" || period === "lateAntiquity" ? getShipClass("galley") : undefined;
 }
 
 function advanceQueueWithMaterials(

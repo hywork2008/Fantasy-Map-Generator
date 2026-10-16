@@ -23,8 +23,11 @@ export function supportsUrbanMorphology(period: string): boolean {
   ].includes(period);
 }
 export function residentialStoreys(period: string): { standard: number; maximum: number } {
-  if (["classicalAntiquity", "lateAntiquity", "earlyMedieval", "highMedieval"].includes(period))
-    return { standard: 2, maximum: 3 };
+  // Roman insulae reached five or six floors (Augustus capped them near 21 m); only population
+  // pressure uses the maximum, so provincial towns stay low (classical-antiquity-historical-period.md §6.5).
+  if (period === "classicalAntiquity") return { standard: 2, maximum: 5 };
+  if (period === "lateAntiquity") return { standard: 2, maximum: 4 };
+  if (["earlyMedieval", "highMedieval"].includes(period)) return { standard: 2, maximum: 3 };
   if (period === "lateMedieval") return { standard: 3, maximum: 4 };
   return { standard: 3, maximum: 5 };
 }

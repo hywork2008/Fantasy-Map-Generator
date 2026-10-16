@@ -34,6 +34,8 @@ export interface ClassCounts {
   sloop: number;
   caravel: number;
   galleon: number;
+  /** State-owned oared warships; antiquity only (galleysForStateHulls). */
+  galley?: number;
 }
 
 export interface StateFleetPlan extends ClassCounts {
@@ -272,10 +274,11 @@ export function planStateFleet(
  * State prefers large → medium → small; market prefers small → medium → large.
  */
 export function splitHullsByOwner(plan: StateFleetPlan): { owner: "state" | "market"; shipClassId: ShipClassId }[] {
-  const remaining: ClassCounts = {
+  const remaining: Required<ClassCounts> = {
     sloop: plan.sloop,
     caravel: plan.caravel,
-    galleon: plan.galleon
+    galleon: plan.galleon,
+    galley: plan.galley ?? 0
   };
   const out: { owner: "state" | "market"; shipClassId: ShipClassId }[] = [];
 
@@ -290,7 +293,10 @@ export function splitHullsByOwner(plan: StateFleetPlan): { owner: "state" | "mar
     }
     // If preference order ran dry, take any remaining class.
     if (left > 0) {
-      for (const cls of ["sloop", "caravel", "galleon"] as ShipClassId[]) {
+      // Galleys never fall to merchants.
+      for (const cls of (owner === "state"
+        ? ["sloop", "caravel", "galleon", "galley"]
+        : ["sloop", "caravel", "galleon"]) as ShipClassId[]) {
         while (left > 0 && remaining[cls] > 0) {
           remaining[cls]--;
           left--;
@@ -300,7 +306,7 @@ export function splitHullsByOwner(plan: StateFleetPlan): { owner: "state" | "mar
     }
   };
 
-  take("state", ["galleon", "caravel", "sloop"], plan.stateHulls);
+  take("state", ["galley", "galleon", "caravel", "sloop"], plan.stateHulls);
   take("market", ["sloop", "caravel", "galleon"], plan.marketHulls);
   return out;
 }
@@ -381,10 +387,30 @@ function ensureTechFloor(stateId: number, minTechPoints: number): void {
   runtime.stateTechPoints[stateId] = Math.max(runtime.stateTechPoints[stateId] ?? 0, minTechPoints);
 }
 
+/**
+ * Antiquity navies were oared galleys while merchants sailed round ships, so the state-owned share
+ * of an antiquity fleet becomes galleys, taken from the largest sailing hulls first; merchant hulls
+ * keep the earlyMedieval table (docs/plan/classical-antiquity-historical-period.md §6.6).
+ */
+export function galleysForStateHulls(plan: StateFleetPlan): StateFleetPlan {
+  let galley = plan.stateHulls;
+  const next = { ...plan };
+  for (const cls of ["galleon", "caravel", "sloop"] as const) {
+    const moved = Math.min(galley, next[cls]);
+    next[cls] -= moved;
+    galley -= moved;
+  }
+  next.galley = plan.stateHulls - galley;
+  return next;
+}
+
+function isAntiquityPeriod(raw: unknown): boolean {
+  return raw === "classicalAntiquity" || raw === "lateAntiquity";
+}
+
 function resolveHistoricalPeriod(raw: unknown): HistoricalPeriod {
-  // Antiquity uses the earlyMedieval fleet table (no galleons) until galleys exist
-  // (docs/plan/classical-antiquity-historical-period.md §6.6, P3).
-  if (raw === "classicalAntiquity" || raw === "lateAntiquity") return "earlyMedieval";
+  // Antiquity sails the earlyMedieval table for merchants; its navy is galleys (galleysForStateHulls).
+  if (isAntiquityPeriod(raw)) return "earlyMedieval";
   if (raw === "earlyMedieval" || raw === "highMedieval" || raw === "lateMedieval" || raw === "ageOfExploration") {
     return raw;
   }
@@ -414,7 +440,7 @@ export function seedInitialFleets(
     const state = states[stateId] as State | undefined;
     if (!state || (state as { removed?: boolean }).removed) continue;
 
-    const plan = isFrontierSeaborneLanding(options)
+    const basePlan = isFrontierSeaborneLanding(options)
       ? planSeaborneLandingRemnant(period, stateId)
       : planStateFleet(
           period,
@@ -426,6 +452,7 @@ export function seedInitialFleets(
           ports.length,
           stateId
         );
+    const plan = isAntiquityPeriod(options?.historicalPeriod) ? galleysForStateHulls(basePlan) : basePlan;
     if (plan.total === 0) continue;
 
     ensureTechFloor(stateId, plan.maxTechPointsRequired);

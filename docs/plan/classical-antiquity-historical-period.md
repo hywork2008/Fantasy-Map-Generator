@@ -2,7 +2,7 @@
 
 ## 状態
 
-**P0・P1・P2 完了（2026-10-16）、P3 以降は未実装。** P2 で `technologyProgress.ts` に `EARLY_PERIOD_START_STAGE`（§5.1/5.2/5.3 の表）を追加し、era 0 の4ノード（三圃式・水車風車・騎士戦術・識字と市場）に古代・初期中世向けの閾値と最低滞在年数を与えた。年次評価は従来「開始プロファイルのノードは一切再評価しない」としていたため、「プロファイル段階に達していないものだけ評価する」に改めた（盛期中世以降のマップでは従来どおり全く評価されない）。`hospitalMedicine` は known で国庫から試験病院を建てる副作用があるため、§5.2 の前倒しから外した。§5.2 の舗装率（`pavedShare`）は道路生成側の変更なので P3 へ送る。 P1 で `classicalAntiquity`・`lateAntiquity` を `HISTORICAL_PERIODS` の先頭に追加し、Generation Settings と CE で選べるようにした。開始段階・識字・上水上限・艦隊表は暫定で `earlyMedieval` と同じ値、火薬 Goods の価格倍率は §6.10 の値、橋は tier 0・300 m。CE の城は両時代とも `ancient-castra`（`lateAntiquity` 専用の城は未作成）。`riverCrossing.ts` の単径間上限は古代が 20 m のまま（ローマの石造アーチは 30 m 前後なので P3 で見直す）。 P0 で `src/types/historicalPeriod.ts`（`HISTORICAL_PERIODS`・`HistoricalPeriod`・`isHistoricalPeriod`・`historicalPeriodIndex`）を作り、optionsState / WorldState / options.ts / GenerationSettingsTab / urbanWaterTech / cultures-generator / `TRADITION_PERIODS` / CE の `HistoricalPeriod` の重複列挙を置き換えた（出力は同一）。艦隊表の4値型は対応表が4時代分しかないため意図的に残した。 Generation Settings の Historical period は現在 `earlyMedieval`（c. 500–1000）が最古。本書は、その手前に古代ローマを中心とする2つの時代を追加する設計である。中世から古代へ遡って同時代の知識・技術の蓄積を調べ（§2）、既存コードのどこが時代に依存しているかを棚卸しし（§3）、追加する値・技術グラフの扱い・各システムへの対応表・実装フェーズを定める（§4〜§8）。
+**P0〜P3 完了（2026-10-16）、P4 は未実装。** 各フェーズの実装内容は §10 を参照。
 
 関連文書:
 
@@ -350,3 +350,27 @@ CE は既に `classicalAntiquity` を扱えるので、FMG から descriptor で
 8. `hellenisticAge`（c. 前330–前30）は将来追加する（2026-10-16 決定）。本書の P0–P3 の範囲外で、P4 以降に別文書で設計する。`HISTORICAL_PERIODS` の先頭（`classicalAntiquity` より前）に入る前提で、P0 の型の一本化では順序リストが先頭への追加に耐える形にしておく。
 
 未決: なし。
+
+---
+
+## 10. 実装ログ
+
+### P0（2026-10-16）
+`src/types/historicalPeriod.ts`（`HISTORICAL_PERIODS`・`HistoricalPeriod`・`isHistoricalPeriod`・`historicalPeriodIndex`）を作り、各所の重複列挙を置き換えた（出力同一）。艦隊表の4値型は意図的に残した。
+
+### P1（2026-10-16）
+`classicalAntiquity`・`lateAntiquity` を `HISTORICAL_PERIODS` の先頭に追加し、Generation Settings と CE で選べるようにした。橋は tier 0・300 m。CE の城は両時代とも `ancient-castra`。
+
+### P2（2026-10-16）
+`technologyProgress.ts` に `EARLY_PERIOD_START_STAGE`（§5.1/5.2/5.3 の表、`earlyMedieval` 列を含む）。era 0 の4ノードに閾値と最低滞在年数。年次評価の「開始プロファイルは再評価しない」を「プロファイル段階に達していないものだけ評価する」に改めた。`hospitalMedicine` は known で試験病院を建てる副作用があるため前倒しから外した。
+
+### P3（2026-10-16）
+- 識字（§6.4）・上水上限（§6.3）は表の値どおり。都市形態（§6.5）は古典古代 2/5 階・古代末期 2/4 階。最大値は人口圧があるときだけ使われるので、首都級に限る条件は付けていない。
+- 都市上水の初期段階: `urbanWaterSystem.ts` の `ancientCivicWaterworksFloor`。古典古代は首都・1.5万人以上で tier 3（被覆暗渠）、4千人以上で tier 2。古代末期は首都級で tier 2。近代浄水の種まきが読む `CIVIC_WATERWORKS_TECH_LEVEL` には古代を入れていない。実測（seed antiq1）では首都22のうち19が tier 3。
+- 舗装道路: `routes-generator.ts` の `domesticRoadHubPolicy`。首都と結ぶ舗装道路の拠点数の上限が中世の3に対し、古典古代8・古代末期5。実測で舗装道路のセル数が 286→495。
+- 橋の単径間: `riverCrossing.ts` で古代は 30 m、可動部（跳ね橋）なし。
+- 軍事: `military-generator.ts` の `periodUnitTypeModifier`。古典古代は歩兵 ×1.3・騎兵 ×0.5、古代末期は騎兵 ×0.8。投射機ユニットは未追加（§6.7 のとおり P4）。
+- 文化・宗教（§6.8・決定事項7）: Antique 文化セットの時代読み替えを削除。ローマ・ギリシア系に `lateAntiquity` の時代（キリスト教・古典的城壁）を追加。修道院は古代末期から。`Culture.traditionOverride`（信仰・築城の上書き）と `traditionEra(..., override)` を追加し、文化の信仰・築城・宗教判定のすべてに通した。設定 UI は未作成。
+- ガレー船（§6.6・決定事項6）: `SHIP_CLASS_DEFINITIONS` に `galley`（tier 1・積載 30・乗員 200・`role: "warship"`）。warship は造船所の次の段階（`getHighestUnlockedShipClass`）にも貨物輸送（`tradeCargo.ts` は `MERCHANT_SHIP_CLASS_DEFINITIONS` を使う）にも選ばれない。古代の初期艦隊は国有分がガレー（`galleysForStateHulls`）、民間は帆船のまま。古代の国営造船所はガレーを建造する。実測で国有41隻がすべてガレー、民間108隻はスループ。
+- 火薬 Goods の価格倍率は P1 で §6.10 の値を設定済み。紙（Paper）は葦から作る Good で、古代のパピルスに当たるものとして生産可能のままにした（止めると書籍・教育の需要連鎖が切れる）。
+- 未実施: 長期の Advance Time による技術上昇速度と水道の維持の較正、`late-roman-walled-town` 城プロファイル（P4）。

@@ -109,6 +109,17 @@ interface FieldArmyBucket {
   anchorY?: number;
 }
 
+/**
+ * Recruitment weight of a unit type by Historical period. Without stirrups, Roman armies were
+ * professional heavy infantry with auxiliary horse; late antiquity shifted toward cavalry
+ * (comitatenses, cataphracts) (docs/plan/classical-antiquity-historical-period.md §6.7).
+ */
+export function periodUnitTypeModifier(period: string | undefined, unitType: string): number {
+  if (period === "classicalAntiquity") return unitType === "melee" ? 1.3 : unitType === "mounted" ? 0.5 : 1;
+  if (period === "lateAntiquity") return unitType === "mounted" ? 0.8 : 1;
+  return 1;
+}
+
 class MilitaryModule {
   worldContext: WorldContext = worldContext;
   viewContext: Readonly<ViewContext> = viewContext;
@@ -367,6 +378,7 @@ class MilitaryModule {
         } else if (unit.type === "naval" && s.form === "Republic") {
           modifier *= 1.2;
         }
+        modifier *= periodUnitTypeModifier(this.worldContext.options?.historicalPeriod, unit.type);
         s.temp[unit.name] = modifier * s.alert;
         // Shipbuilding extension (if enabled) boosts naval unit strength for states
         // whose shipyards have completed state-owned hulls — defaults to 1 (no-op).

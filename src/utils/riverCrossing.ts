@@ -11,9 +11,11 @@ export function riverBridgeTechnology(
   const modern = ["industrialChemistryEra", "petroleumEra", "rocketryEra"].includes(period ?? "");
   const steam = period === "steamEra";
   const earlyModern = ["ageOfExploration", "maritimeEra", "preIndustrialEra"].includes(period ?? "");
+  // Roman semicircular stone arches spanned about 30 m (Alcántara); no drawbridges.
+  const ancient = ["classicalAntiquity", "lateAntiquity"].includes(period ?? "");
   const medieval = ["highMedieval", "lateMedieval"].includes(period ?? "");
   const defaults: RiverBridgeTechnology = {
-    maxSupportedSpanMeters: modern ? 500 : steam ? 150 : earlyModern ? 60 : medieval ? 30 : 20,
+    maxSupportedSpanMeters: modern ? 500 : steam ? 150 : earlyModern ? 60 : medieval || ancient ? 30 : 20,
     maxPierDepthMeters: modern ? 30 : steam ? 15 : earlyModern ? 8 : 5,
     fixedClearanceMeters: modern ? 30 : steam ? 15 : earlyModern ? 6 : 4,
     movableOpeningMeters: modern ? 80 : steam ? 40 : earlyModern ? 12 : medieval ? 6 : 0

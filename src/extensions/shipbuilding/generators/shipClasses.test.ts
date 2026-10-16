@@ -24,8 +24,9 @@ describe("shipClasses", () => {
     expect(getHighestUnlockedShipClass(150).id).toBe("galleon");
   });
 
-  it("never exceeds the highest defined tier", () => {
-    expect(getHighestUnlockedShipClass(1_000_000).id).toBe(SHIP_CLASSES[SHIP_CLASSES.length - 1].id);
+  it("never exceeds the highest defined merchant tier (warships are never a shipyard's next tier)", () => {
+    const merchant = SHIP_CLASSES.filter(shipClass => shipClass.role !== "warship");
+    expect(getHighestUnlockedShipClass(1_000_000).id).toBe(merchant[merchant.length - 1].id);
   });
 
   it("caps unlocks by technology-graph ship tier even when tech points are high", () => {

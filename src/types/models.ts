@@ -548,6 +548,8 @@ export interface Culture {
   romanceNorms?: CultureRomanceNorms;
   /** City Editor Lot occupancy guide (0–1). Unset uses DEFAULT_LOT_OCCUPANCY (80%). */
   lotOccupancy?: number;
+  /** Alternate-history faith/fortification that ignores the period (unset follows the period). */
+  traditionOverride?: import("../data/civilizationTraditions").TraditionOverride;
   name: string;
   i: number;
   base: number;

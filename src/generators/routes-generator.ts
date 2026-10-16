@@ -88,6 +88,17 @@ const ROUTE_TYPE_MODIFIERS: Record<string, number> = {
  */
 export type LandRouteMode = "roads" | "trails";
 
+/**
+ * How many domestic hubs a capital's paved roads reach. Rome paved some 80,000 km of roads that
+ * tied provincial towns to the capital, far denser than the medieval norm; late antiquity still
+ * had most of them (docs/plan/classical-antiquity-historical-period.md §5.2).
+ */
+export function domesticRoadHubPolicy(period: string | undefined): { maxHubs: number; perSqrt: number } {
+  if (period === "classicalAntiquity") return { maxHubs: 8, perSqrt: 2 };
+  if (period === "lateAntiquity") return { maxHubs: 5, perSqrt: 1.5 };
+  return { maxHubs: 3, perSqrt: 1 };
+}
+
 /** Soft height bias starts above this pack height index (~116 m at exp 1.8). */
 const LAND_ROUTE_ELEVATION_H0 = 32;
 const LAND_ROUTE_HEIGHT_SOFT = 1.2;
@@ -1012,7 +1023,8 @@ class RoutesModule {
         (a, b) =>
           Number(Boolean(b.port)) - Number(Boolean(a.port)) || baseSize(b) - baseSize(a) || (a.i ?? 0) - (b.i ?? 0)
       );
-    const hubCount = Math.min(3, Math.max(1, Math.floor(Math.sqrt(candidates.length))));
+    const { maxHubs, perSqrt } = domesticRoadHubPolicy(this.worldContext.options?.historicalPeriod);
+    const hubCount = Math.min(maxHubs, Math.max(1, Math.floor(perSqrt * Math.sqrt(candidates.length))));
     return [capital, ...candidates.slice(0, hubCount)];
   }
 

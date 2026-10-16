@@ -72,6 +72,11 @@ export function getWorldContext() {
   return getApi().worldContext;
 }
 
+/** Historical period, or undefined before init (unit tests drive the queue without an API). */
+export function getHistoricalPeriodIfReady(): string | undefined {
+  return _api?.worldContext.options?.historicalPeriod;
+}
+
 export function getShipyardsLayer() {
   return getApi().getSvgLayer("shipyards");
 }

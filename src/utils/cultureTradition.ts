@@ -18,7 +18,7 @@ import {
 } from "../data/civilizationTraditions";
 import type { Culture, Religion } from "../types/models";
 
-type CultureLike = Pick<Culture, "i" | "base"> | undefined | null;
+type CultureLike = (Pick<Culture, "i" | "base"> & Partial<Pick<Culture, "traditionOverride">>) | undefined | null;
 type ReligionLike = Pick<Religion, "i" | "type" | "form" | "culture"> | undefined | null;
 
 export function getCultureTradition(culture: CultureLike): CivilizationTradition {
@@ -27,11 +27,11 @@ export function getCultureTradition(culture: CultureLike): CivilizationTradition
 
 /** The faith a culture's organized church held in the period. */
 export function getCultureFaith(culture: CultureLike, period: string | undefined): FaithFamily {
-  return traditionEra(getCultureTradition(culture), period).faith;
+  return traditionEra(getCultureTradition(culture), period, culture?.traditionOverride).faith;
 }
 
 export function getCultureFortification(culture: CultureLike, period: string | undefined): FortificationFamily {
-  return traditionEra(getCultureTradition(culture), period).fortification;
+  return traditionEra(getCultureTradition(culture), period, culture?.traditionOverride).fortification;
 }
 
 /**
@@ -48,7 +48,7 @@ export function getReligionFaith(
 ): FaithFamily {
   const origin = (religion && cultures?.[religion.culture]) || fallbackCulture;
   const tradition = getCultureTradition(origin);
-  const organized = traditionEra(tradition, period).faith;
+  const organized = traditionEra(tradition, period, origin?.traditionOverride).faith;
   if (!religion?.i) return organized;
   if (religion.type === "Folk") return tradition.folkFaith;
   if (religion.type === "Organized" && !FAITH_FORMS[organized].includes(religion.form)) {
@@ -67,7 +67,8 @@ export function rollReligionForm(
 ): string {
   if (type !== "Folk" && type !== "Organized") return fallback();
   const tradition = getCultureTradition(culture);
-  const faith = type === "Folk" ? tradition.folkFaith : traditionEra(tradition, period).faith;
+  const faith =
+    type === "Folk" ? tradition.folkFaith : traditionEra(tradition, period, culture?.traditionOverride).faith;
   const forms = FAITH_FORMS[faith];
   return forms[Math.floor(rng() * forms.length)] ?? fallback();
 }
@@ -119,11 +120,11 @@ export function burgBurialProfile(
 }
 
 /**
- * Period used to resolve traditions. The Antique culture set stands for the
- * classical world, so its Romans and Greeks stay polytheist even though FMG's
- * Historical period (a technology backdrop) starts in the early Middle Ages.
+ * Period used to resolve traditions: always the chosen Historical period. The Antique culture set
+ * no longer forces classical antiquity (that period is selectable now); a culture that should keep
+ * its old faith in a later period sets Culture.traditionOverride instead
+ * (docs/plan/classical-antiquity-historical-period.md §6.8).
  */
-export function worldTraditionPeriod(options: { historicalPeriod?: string; culturesSet?: string } | undefined): string {
-  if (options?.culturesSet === "antique") return "classicalAntiquity";
+export function worldTraditionPeriod(options: { historicalPeriod?: string } | undefined): string {
   return options?.historicalPeriod ?? "ageOfExploration";
 }

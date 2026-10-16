@@ -450,6 +450,24 @@ const CIVIC_WATERWORKS_TECH_LEVEL_MIN = 2; // lateMedieval
 const CIVIC_WATERWORKS_TECH_LEVEL_MAX = 8; // rocketryEra
 
 /**
+ * Roman aqueducts, baths and covered drains (docs/plan/classical-antiquity-historical-period.md
+ * §6.3): big and capital cities start with gravity water and covered culverts regardless of culture
+ * affinity — the engineering belongs to the period, not to modernization. Late antiquity keeps the
+ * capitals' works running but at a reduced level. Undefined outside antiquity. Kept separate from
+ * CIVIC_WATERWORKS_TECH_LEVEL so antiquity never feeds the modern-treatment seeds that read it.
+ */
+function ancientCivicWaterworksFloor(
+  period: string | undefined,
+  people: number,
+  isCapital: boolean
+): WaterSanitationTier | undefined {
+  const metropolis = people >= 15000 || (isCapital && people >= MODERN_WATER_MIN_POPULATION);
+  if (period === "classicalAntiquity") return metropolis ? 3 : people >= 4000 ? 2 : 0;
+  if (period === "lateAntiquity") return metropolis ? 2 : 0;
+  return undefined;
+}
+
+/**
  * Initial tier from geography and settlement size (generation only assigns 0–2 on its own).
  * Large river / wetland / dry-irrigation towns start with more drainage practice.
  *
@@ -495,6 +513,9 @@ export function initialTier(args: {
   if (geography.slopeAdvantage < 0.15 && !geography.hasRiver) score -= 1;
 
   const baseTier: WaterSanitationTier = score >= 5 ? 2 : score >= 2 ? 1 : 0;
+
+  const ancientFloor = ancientCivicWaterworksFloor(args.historicalPeriod, people, isCapital);
+  if (ancientFloor !== undefined) return asTier(Math.max(baseTier, ancientFloor));
 
   const techLevel = args.historicalPeriod ? CIVIC_WATERWORKS_TECH_LEVEL[args.historicalPeriod] : undefined;
   if (techLevel === undefined) return baseTier;

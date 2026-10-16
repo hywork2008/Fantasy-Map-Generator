@@ -64,5 +64,10 @@ export {
   type ShipGoodName,
   type ShipGoodStock
 } from "../types/shipbuildingMaterials";
-export { SHIP_CLASS_DEFINITIONS, SHIP_VALUE_PER_BUILD_POINT, type ShipClassDefinition } from "../types/shipClasses";
+export {
+  MERCHANT_SHIP_CLASS_DEFINITIONS,
+  SHIP_CLASS_DEFINITIONS,
+  SHIP_VALUE_PER_BUILD_POINT,
+  type ShipClassDefinition
+} from "../types/shipClasses";
 export type { BiomesData, ConflictAutonomy } from "../types/WorldState";

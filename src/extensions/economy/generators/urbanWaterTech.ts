@@ -30,9 +30,13 @@ export function waterTechCeilings(
 ): WaterTechStocks {
   const base = (() => {
     switch (period) {
-      // Antiquity provisionally shares earlyMedieval until calibrated (classical-antiquity-historical-period.md §6.3, P3).
+      // Roman gravity aqueducts and public baths: supply and public sanitation at late-medieval
+      // level, but no filtration or modern sewer engineering (classical-antiquity-historical-period.md §6.3).
       case "classicalAntiquity":
+        return { waterLifting: 0.7, municipalSanitation: 0.75, sanitaryEngineering: 0.15 };
+      // Aqueducts still stand but maintenance is lapsing.
       case "lateAntiquity":
+        return { waterLifting: 0.55, municipalSanitation: 0.55, sanitaryEngineering: 0.08 };
       case "earlyMedieval":
         return { waterLifting: 0.35, municipalSanitation: 0.35, sanitaryEngineering: 0 };
       case "lateMedieval":

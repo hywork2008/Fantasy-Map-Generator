@@ -213,6 +213,18 @@ describe("initialTier", () => {
     ).toBe(2);
   });
 
+  it("gives Roman capitals aqueduct-era covered drains, weaker in late antiquity, and leaves villages alone", () => {
+    const dryCapital = { geography: baseGeography({ isDry: true, slopeAdvantage: 0.1 }), hasMarket: false };
+    const tier = (historicalPeriod: string, people: number, isCapital: boolean) =>
+      initialTier({ ...dryCapital, people, isCapital, historicalPeriod });
+    expect(tier("classicalAntiquity", 20000, true)).toBe(3);
+    expect(tier("classicalAntiquity", 5000, false)).toBe(2);
+    expect(tier("classicalAntiquity", 200, false)).toBe(0);
+    expect(tier("lateAntiquity", 20000, true)).toBe(2);
+    expect(tier("lateAntiquity", 5000, false)).toBe(tier("earlyMedieval", 5000, false));
+    expect(tier("earlyMedieval", 20000, true)).toBeLessThan(3);
+  });
+
   it("gives wetland towns at least open ditches when large enough", () => {
     const tier = initialTier({
       people: 3000,

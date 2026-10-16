@@ -89,22 +89,24 @@ const NEUTRAL_PERIOD: PeriodLiteracyPolicy = {
 };
 
 const PERIOD_LITERACY: Record<HistoricalPeriod, PeriodLiteracyPolicy> = {
-  // Provisional: antiquity reuses earlyMedieval until calibrated
-  // (docs/plan/classical-antiquity-historical-period.md §6.4, P3).
+  // Roman elites read and wrote; overall literacy stayed under 10–20% (W. V. Harris, Ancient
+  // Literacy) but cities ran higher, hence the lower local threshold
+  // (docs/plan/classical-antiquity-historical-period.md §6.4).
   classicalAntiquity: {
-    nobleReadingFloorCap: 40,
-    nobleWritingFloorCap: 22,
-    commonerReadingCeiling: 12,
-    commonerWritingCeiling: 6,
-    commonerLocalThreshold: 0.5,
+    nobleReadingFloorCap: 60,
+    nobleWritingFloorCap: 50,
+    commonerReadingCeiling: 18,
+    commonerWritingCeiling: 10,
+    commonerLocalThreshold: 0.4,
     massLiteracy: false
   },
+  // Shrinking cities push letters toward the clergy.
   lateAntiquity: {
-    nobleReadingFloorCap: 40,
-    nobleWritingFloorCap: 22,
-    commonerReadingCeiling: 12,
-    commonerWritingCeiling: 6,
-    commonerLocalThreshold: 0.5,
+    nobleReadingFloorCap: 50,
+    nobleWritingFloorCap: 35,
+    commonerReadingCeiling: 14,
+    commonerWritingCeiling: 7,
+    commonerLocalThreshold: 0.45,
     massLiteracy: false
   },
   earlyMedieval: {

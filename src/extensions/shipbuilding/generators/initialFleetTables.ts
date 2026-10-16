@@ -8,7 +8,7 @@ export type HistoricalPeriod = "earlyMedieval" | "highMedieval" | "lateMedieval"
 
 export type MaritimeRole = "minor_coastal" | "regional_maritime" | "major_maritime" | "oceanic_empire";
 
-export type ShipClassId = "sloop" | "caravel" | "galleon";
+export type ShipClassId = "sloop" | "caravel" | "galleon" | "galley";
 
 export interface StarterFleetGuideline {
   totalShipsBase: number;
@@ -211,5 +211,6 @@ export const STARTER_GUIDELINES: Readonly<
 export const SHIP_CLASS_TECH_POINTS: Readonly<Record<ShipClassId, number>> = {
   sloop: 0,
   caravel: 50,
-  galleon: 150
+  galleon: 150,
+  galley: 0
 };

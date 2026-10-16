@@ -88,6 +88,16 @@ interface TraditionEra {
   fortification: FortificationFamily;
 }
 
+/**
+ * Per-culture alternate history: pins the faith and/or fortification a culture would otherwise
+ * take from its period (e.g. a Rome that never became Christian). Technology, literacy and other
+ * period values are not affected (docs/plan/classical-antiquity-historical-period.md §6.8).
+ */
+export interface TraditionOverride {
+  faith?: FaithFamily;
+  fortification?: FortificationFamily;
+}
+
 export interface CivilizationTradition {
   id: string;
   /** English label for debugging and docs; not shown in the UI. */
@@ -182,7 +192,12 @@ export const CIVILIZATION_TRADITIONS: Record<string, CivilizationTradition> = {
     id: "hellenic",
     label: "Greek and Byzantine",
     folkFaith: "classicalPolytheism",
-    eras: [era("classicalAntiquity", "classicalPolytheism", "classical"), era("earlyMedieval", "orthodox", "european")]
+    // Christian empire from Constantine (313); classical city walls until the medieval castle.
+    eras: [
+      era("classicalAntiquity", "classicalPolytheism", "classical"),
+      era("lateAntiquity", "orthodox", "classical"),
+      era("earlyMedieval", "orthodox", "european")
+    ]
   },
   roman: {
     id: "roman",
@@ -190,6 +205,7 @@ export const CIVILIZATION_TRADITIONS: Record<string, CivilizationTradition> = {
     folkFaith: "classicalPolytheism",
     eras: [
       era("classicalAntiquity", "classicalPolytheism", "classical"),
+      era("lateAntiquity", "latinCatholic", "classical"),
       era("earlyMedieval", "latinCatholic", "european")
     ],
     burialPresets: {
@@ -452,11 +468,20 @@ export function traditionForNameBase(base: number | undefined): CivilizationTrad
   return getTradition(base === undefined ? undefined : NAME_BASE_TRADITION[base]);
 }
 
-export function traditionEra(tradition: CivilizationTradition, period: string | undefined): TraditionEra {
+export function traditionEra(
+  tradition: CivilizationTradition,
+  period: string | undefined,
+  override?: TraditionOverride
+): TraditionEra {
   const at = periodIndex(period);
   let current = tradition.eras[0];
   for (const entry of tradition.eras) if (periodIndex(entry.from) <= at) current = entry;
-  return current;
+  if (!override?.faith && !override?.fortification) return current;
+  return {
+    from: current.from,
+    faith: override.faith ?? current.faith,
+    fortification: override.fortification ?? current.fortification
+  };
 }
 
 /** Religion forms (religions-generator.ts) each faith family can take. */
@@ -573,11 +598,13 @@ export function burialPresetsFor(
 export function religiousHousesFor(faith: FaithFamily, period: string | undefined): ReligiousHouse[] {
   const at = periodIndex(period);
   if (faith === "latinCatholic") {
-    if (at < periodIndex("earlyMedieval")) return [];
+    // Western monasticism from the 4th–5th centuries (Martin of Tours, Cassian); Benedict c. 529.
+    if (at < periodIndex("lateAntiquity")) return [];
     // Franciscans 1209, Dominicans 1216
     return at >= periodIndex("highMedieval") ? ["abbey", "friary"] : ["abbey"];
   }
-  if (faith === "orthodox") return at >= periodIndex("earlyMedieval") ? ["orthodoxMonastery"] : [];
+  // Pachomius and Basil, 4th century.
+  if (faith === "orthodox") return at >= periodIndex("lateAntiquity") ? ["orthodoxMonastery"] : [];
   return [];
 }
 
@@ -585,7 +612,7 @@ export function religiousHousesFor(faith: FaithFamily, period: string | undefine
 export interface BurgCivilization {
   /** civilizationTraditions.ts id of the burg's culture. */
   tradition: string;
-  /** Period the tradition was resolved for (the Antique culture set is classical). */
+  /** Period the tradition was resolved for. */
   period: string;
   /** Faith of the burg's local religion; drives monasteries and the burial ground. */
   faith: FaithFamily;

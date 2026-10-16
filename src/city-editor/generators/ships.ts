@@ -14,7 +14,7 @@ export function normalizeShipType(key: string | undefined): ShipType {
     return "barge";
   }
   if (lower === "sloop" || lower === "small" || lower.includes("小")) return "small";
-  if (lower === "caravel" || lower === "medium" || lower.includes("中")) return "medium";
+  if (lower === "caravel" || lower === "galley" || lower === "medium" || lower.includes("中")) return "medium";
   if (lower === "galleon" || lower === "large" || lower.includes("大")) return "large";
   return "small";
 }

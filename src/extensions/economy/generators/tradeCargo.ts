@@ -1,4 +1,4 @@
-import { SHIP_CLASS_DEFINITIONS } from "../../hostTypes";
+import { MERCHANT_SHIP_CLASS_DEFINITIONS } from "../../hostTypes";
 import { getDraftAnimalType } from "./caravanMovement";
 import type { Good } from "./goodsGeneratorTypes";
 import type { Deal, TradeRouteSegment, TransportAllocation } from "./marketTypes";
@@ -106,8 +106,8 @@ export function getTransportAllocations(
 
   if (modes.has("water") || modes.has("sea")) {
     const selected =
-      SHIP_CLASS_DEFINITIONS.find(shipClass => shipClass.cargoCapacitySlots >= pendingSlots) ??
-      SHIP_CLASS_DEFINITIONS[SHIP_CLASS_DEFINITIONS.length - 1];
+      MERCHANT_SHIP_CLASS_DEFINITIONS.find(shipClass => shipClass.cargoCapacitySlots >= pendingSlots) ??
+      MERCHANT_SHIP_CLASS_DEFINITIONS[MERCHANT_SHIP_CLASS_DEFINITIONS.length - 1];
     const unitCount = allowConvoy ? Math.max(1, Math.ceil(pendingSlots / selected.cargoCapacitySlots)) : 1;
     allocations.push({
       mode: "water",

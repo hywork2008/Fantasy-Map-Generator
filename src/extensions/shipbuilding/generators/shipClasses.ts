@@ -64,6 +64,7 @@ export function getHighestUnlockedShipClass(
 ): ShipClass {
   let unlocked = SHIP_CLASSES[0];
   for (const shipClass of SHIP_CLASSES) {
+    if (shipClass.role === "warship") continue;
     if (techPoints >= shipClass.techPointsRequired && shipClass.tier <= maxTechTier) {
       unlocked = shipClass;
     }

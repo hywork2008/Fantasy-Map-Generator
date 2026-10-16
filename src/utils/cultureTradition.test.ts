@@ -12,7 +12,13 @@ import {
 } from "../data/civilizationTraditions";
 import type { Culture, Religion } from "../types/models";
 import { rollCultureBurialProfile } from "./cultureBurialProfile";
-import { burgBurialProfile, getCultureFaith, getReligionFaith, worldTraditionPeriod } from "./cultureTradition";
+import {
+  burgBurialProfile,
+  getCultureFaith,
+  getCultureFortification,
+  getReligionFaith,
+  worldTraditionPeriod
+} from "./cultureTradition";
 
 const culture = (i: number, base: number) => ({ i, base, name: `c${i}` }) as Culture;
 const religion = (type: Religion["type"], form: string, cultureId: number) =>
@@ -44,13 +50,34 @@ describe("civilization tradition catalog", () => {
     expect(traditionEra(CIVILIZATION_TRADITIONS.magyar, "ageOfExploration").fortification).toBe("european");
   });
 
-  it("keeps the Antique culture set classical", () => {
-    const period = worldTraditionPeriod({ culturesSet: "antique", historicalPeriod: "lateMedieval" });
-    expect(getCultureFaith(culture(1, 8), period)).toBe("classicalPolytheism");
-    expect(getCultureFaith(culture(1, 8), "lateMedieval")).toBe("latinCatholic");
+  it("follows the chosen period for every culture set, Antique included", () => {
+    const period = worldTraditionPeriod({ historicalPeriod: "lateMedieval" });
+    expect(getCultureFaith(culture(1, 8), period)).toBe("latinCatholic");
+    expect(getCultureFaith(culture(1, 8), "classicalAntiquity")).toBe("classicalPolytheism");
+    // Christian empire in late antiquity, still behind classical walls.
+    expect(getCultureFaith(culture(1, 8), "lateAntiquity")).toBe("latinCatholic");
+    expect(getCultureFortification(culture(1, 8), "lateAntiquity")).toBe("classical");
+  });
+
+  it("lets a culture override its period faith and fortification (alternate history)", () => {
+    const paganRome = { ...culture(1, 8), traditionOverride: { faith: "classicalPolytheism" as const } };
+    expect(getCultureFaith(paganRome, "highMedieval")).toBe("classicalPolytheism");
+    // Fortification still follows the period unless pinned too.
+    expect(getCultureFortification(paganRome, "highMedieval")).toBe("european");
+    const organized = getReligionFaith(religion("Organized", "Polytheism", 1), [undefined, paganRome], "highMedieval");
+    expect(organized).toBe("classicalPolytheism");
+    const castraRome = {
+      ...paganRome,
+      traditionOverride: { faith: "classicalPolytheism" as const, fortification: "classical" as const }
+    };
+    expect(getCultureFortification(castraRome, "highMedieval")).toBe("classical");
+    // No override: unchanged.
+    expect(getCultureFaith(culture(1, 8), "highMedieval")).toBe("latinCatholic");
   });
 
   it("founds friaries only in Catholic towns from the high Middle Ages", () => {
+    expect(religiousHousesFor("latinCatholic", "classicalAntiquity")).toEqual([]);
+    expect(religiousHousesFor("latinCatholic", "lateAntiquity")).toEqual(["abbey"]);
     expect(religiousHousesFor("latinCatholic", "earlyMedieval")).toEqual(["abbey"]);
     expect(religiousHousesFor("latinCatholic", "highMedieval")).toContain("friary");
     expect(religiousHousesFor("protestant", "ageOfExploration")).toEqual([]);
