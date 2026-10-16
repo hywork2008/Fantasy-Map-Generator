@@ -520,4 +520,4 @@ class FeatureModule {
 
 export const Features = new FeatureModule();
 
-export const NON_NAVIGABLE_LAKE_GROUPS = new Set(["dry", "frozen", "lava"]);
+export { NON_NAVIGABLE_LAKE_GROUPS } from "../data/waterNavigation";

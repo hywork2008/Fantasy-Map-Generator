@@ -1,4 +1,4 @@
-import { MIN_NAVIGABLE_FLUX } from "../generators/river-generator";
+import { MIN_NAVIGABLE_FLUX } from "../data/waterNavigation";
 import type { BurgWaterAccess } from "../types/burgWater";
 import type { Burg } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";

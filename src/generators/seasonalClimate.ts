@@ -12,7 +12,7 @@
 import type { SimulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
 import type { DataTopic } from "../runtime/worldRuntime";
-import { minmax } from "../utils";
+import { minmax } from "../utils/numberUtils";
 import { ensureCellClimateNormals } from "./cellClimateNormals";
 
 export interface SeasonalClimateInput {

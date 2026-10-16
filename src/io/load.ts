@@ -4,7 +4,6 @@ import { appServices } from "../context/appServices";
 import { simulationContext } from "../context/simulationContext";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
-import { fitMapToScreen, resizeGraphRects } from "../controllers/options";
 import { syncLoadedStylePreset } from "../controllers/style";
 import { snapshotToBiomesData } from "../data/biomeCatalog";
 import { ensureCoastalHabitatColumns } from "../data/coastalHabitatCatalog";
@@ -45,6 +44,7 @@ import {
 import { legacyMutation, worldRuntime } from "../runtime/worldRuntime";
 import { updateAllBurgWaterAccess } from "../services/burgWaterAccess";
 import { declareFont, fonts } from "../services/fonts";
+import { fitMapToScreen, resizeGraphRects } from "../services/mapViewport";
 import { burgsUnplacedOnRivers, removeRepeatedRiverCells } from "../services/repairRiverCells";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";

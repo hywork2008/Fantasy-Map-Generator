@@ -1,4 +1,4 @@
-import { NON_NAVIGABLE_LAKE_GROUPS } from "../generators/features";
+import { NON_NAVIGABLE_LAKE_GROUPS } from "../data/waterNavigation";
 
 /** A formal lake port requires at least this share of the packed map. */
 export const MIN_LAKE_PORT_SHARE = 0.003;

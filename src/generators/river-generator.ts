@@ -7,6 +7,7 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { HeightmapConstants, HeightThreshold, RiverConstants } from "../data/constants";
+import { MIN_NAVIGABLE_FLUX } from "../data/waterNavigation";
 import { activeLabOptions, labRiverPrecipitation } from "../debug/riverPortLab/labOptions";
 import { useOptionsState } from "../store/optionsState";
 import type { River } from "../types/models";
@@ -643,5 +644,5 @@ class RiverModule {
   }
 }
 
-export const MIN_NAVIGABLE_FLUX = 100;
+export { MIN_NAVIGABLE_FLUX } from "../data/waterNavigation";
 export const Rivers = new RiverModule();
