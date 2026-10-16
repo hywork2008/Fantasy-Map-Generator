@@ -1,3 +1,4 @@
+import { pow } from "../../simulation/deterministicMath";
 import { getRaceById, HUMAN_RACE_ID } from "../hostRaces";
 import { P, rand } from "../hostUtils";
 import {
@@ -348,11 +349,11 @@ export function advanceCharacterAging(deltaYears: number): void {
 
     // Mortality: human-scale curve for short-lived races only.
     // Long-lived folk do not take the "past 50" spike (no human mid-life age penalty).
-    const baseMortalityRisk = skipAgePenalty ? 0.002 : 0.01 + (newAge > 50 ? 1.15 ** (newAge - 50) / 100 : 0);
+    const baseMortalityRisk = skipAgePenalty ? 0.002 : 0.01 + (newAge > 50 ? pow(1.15, newAge - 50) / 100 : 0);
     // Sickness (see characterHealth.ts) adds to, never replaces, the age curve above — a
     // character with no active affliction contributes 0 here, so this is purely additive.
     const mortalityRisk = Math.min(0.99, baseMortalityRisk + diseaseDeathRiskFor(character));
-    const survivalProb = (1 - mortalityRisk) ** deltaYears;
+    const survivalProb = pow(1 - mortalityRisk, deltaYears);
     if (Math.random() > survivalProb) {
       character.dead = true;
       character.deathYear = getCurrentYear();

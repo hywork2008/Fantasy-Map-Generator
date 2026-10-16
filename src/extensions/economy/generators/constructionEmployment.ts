@@ -1,4 +1,4 @@
-import { getBurgDemographics, useOptionsState } from "../../hostCore";
+import { getBurgDemographics, optionsStore } from "../../hostCore";
 import type { CultureType } from "../../hostTypes";
 import { minmax, rn } from "../../hostUtils";
 import {
@@ -11,7 +11,7 @@ import {
   getWorldContext,
   setConstructionOperations
 } from "../economyContext";
-import { getEconomyCalibrationState } from "../store/economyCalibrationState";
+import { getEconomyCalibrationState } from "../state/economyCalibrationStore";
 import type { ConstructionOperation, LegacyConstructionOperation } from "./constructionEmploymentTypes";
 import { pointsToPeople } from "./craftScale";
 import { isGoodEnabled } from "./goods-generator";
@@ -86,7 +86,7 @@ export function getMasonShare(hasQuarryAccess: boolean, context: MasonShareConte
   const recipe = getHousingRecipe({
     cultureType: context.cultureType,
     hasQuarryAccess,
-    highFantasy: context.highFantasy ?? useOptionsState.getState().culturesSet === "highFantasy",
+    highFantasy: context.highFantasy ?? optionsStore.getState().culturesSet === "highFantasy",
     brickAvailable: context.brickAvailable ?? false
   });
   return getMasonMaterialShare(recipe);
@@ -303,7 +303,7 @@ export function getHousingLedgerSnapshot(
   const adults = Math.max(0, (burg.demographics?.maleAdults ?? 0) + (burg.demographics?.femaleAdults ?? 0));
   const workersNeeded = getConstructionRequiredWorkers({ ...normalized, requiredDwellings: required }, adults, {
     cultureType: resolveBurgCultureType(burg),
-    highFantasy: useOptionsState.getState().culturesSet === "highFantasy",
+    highFantasy: optionsStore.getState().culturesSet === "highFantasy",
     brickAvailable: isBrickGoodAvailable()
   });
   const named = countNamedConstructionSeats(normalized.burgId);
@@ -352,7 +352,7 @@ export function getHousingRecipeForBurg(
   return getHousingRecipe({
     cultureType: resolveBurgCultureType(burg),
     hasQuarryAccess,
-    highFantasy: useOptionsState.getState().culturesSet === "highFantasy",
+    highFantasy: optionsStore.getState().culturesSet === "highFantasy",
     brickAvailable: isBrickGoodAvailable()
   });
 }
@@ -437,7 +437,7 @@ export class ConstructionOperationsModule {
     const burgs = getWorldContext().pack.burgs;
     const populationRate = getPopulationRate();
     const brickAvailable = isBrickGoodAvailable();
-    const highFantasy = useOptionsState.getState().culturesSet === "highFantasy";
+    const highFantasy = optionsStore.getState().culturesSet === "highFantasy";
 
     for (const raw of getConstructionOperations()) {
       if (!raw.active) continue;

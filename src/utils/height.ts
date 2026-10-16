@@ -1,3 +1,4 @@
+import { pow } from "../simulation/deterministicMath";
 /**
  * Height-index conversion shared by site descriptors, route grade, and related tooling.
  *
@@ -14,7 +15,7 @@
  * Does not round — callers that need integer meters should apply `rn` themselves.
  */
 export function heightToMeters(h: number, exponent: number): number {
-  return h < 20 ? 0 : (h - 18) ** exponent;
+  return h < 20 ? 0 : pow(h - 18, exponent);
 }
 
 /**
@@ -51,7 +52,7 @@ export const DEEP_WATER_SENTINEL_M = -9999;
 export function metersToHeight(meters: number, exponent: number): number {
   const exp = normalizeHeightExponent(exponent);
   if (!Number.isFinite(meters) || meters <= 0) return 20;
-  const raw = 18 + meters ** (1 / exp);
+  const raw = 18 + pow(meters, 1 / exp);
   return Math.max(20, Math.min(100, Math.round(raw)));
 }
 

@@ -10,7 +10,7 @@ import { resetDistanceSession } from "../store/mapContextMenuState";
 import { useOptionsState } from "../store/optionsState";
 import { findCell, getSegmentId, last, parseTransform, rn, round, si } from "../utils";
 import { getArea, getAreaUnit } from "../utils/domUtils";
-import { layerIsOn } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/layerUtils";
 import { toggleRulers } from "./layers";
 
 const lineGen = d3.line<[number, number]>();

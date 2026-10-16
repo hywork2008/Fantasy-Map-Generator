@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getBirthFloorProvider } from "../../../generators/birthModifiers";
-import { useOptionsState, worldContext } from "../../hostCore";
+import { optionsStore, worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import { clearEconomyContext, getUrbanPregnancy, initEconomyContext } from "../economyContext";
 import {
@@ -139,7 +139,7 @@ describe("advanceBurgPregnancy", () => {
 describe("tickUrbanPregnancy", () => {
   beforeEach(() => {
     initEconomyContext({ worldContext } as unknown as ExtensionAPI);
-    useOptionsState.setState({ demographicBirthRate: 0.25 });
+    optionsStore.setState({ demographicBirthRate: 0.25 });
     setBirthFloorProviderActive(false);
   });
   afterEach(() => {
@@ -198,7 +198,7 @@ describe("tickUrbanPregnancy", () => {
 describe("urbanPregnancy birth floor provider (PR-P2)", () => {
   beforeEach(() => {
     initEconomyContext({ worldContext } as unknown as ExtensionAPI);
-    useOptionsState.setState({ demographicBirthRate: 0.25 });
+    optionsStore.setState({ demographicBirthRate: 0.25 });
     clearUrbanPregnancyBirthFloorRegistration();
   });
   afterEach(() => {

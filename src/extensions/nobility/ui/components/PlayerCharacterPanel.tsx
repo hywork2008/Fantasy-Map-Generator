@@ -68,7 +68,7 @@ import { Dialog, isDialogOpen, openDialog } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
 import { buildPlayerCharacterSummary, selectRandomPlayerCharacter } from "../../controllers/playerCharacter";
 import { isSvgRenderMode, togglePlayerMoveMode } from "../../controllers/playerCharacterTravel";
-import { getApi, getWorldContext } from "../../nobilityContext";
+import { getApi, getViewApi, getWorldContext } from "../../nobilityContext";
 import "./playerCharacterPanel.css";
 
 const ECONOMY_EXTENSION_ID = "economy";
@@ -162,7 +162,7 @@ export const PlayerCharacterPanel: React.FC = () => {
 
   const handleZoomToLocation = () => {
     if (!summary?.location) return;
-    getApi().zoomTo(summary.location.x, summary.location.y, 20, 2000);
+    getViewApi().zoomTo(summary.location.x, summary.location.y, 20, 2000);
   };
 
   const handleToggleMove = () => {

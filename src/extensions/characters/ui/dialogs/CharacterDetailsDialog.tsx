@@ -2,9 +2,8 @@ import type React from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { warDetailsDialogStore } from "../../../../store/warDetailsDialogState";
-import { useOptionsState } from "../../../hostCore";
 import { getRaceById, isFantasyCulturesSet } from "../../../hostRaces";
-import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
+import { closeDialog, Dialog, useDialogState, useOptionsState } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
 import { dnd5ePreset, getDnd5eAbilityModifier } from "../../abilityPresets";
 import { attractiveness, resolveAttractivenessObserver } from "../../appearance";
@@ -24,13 +23,13 @@ import {
   getCharacters,
   getCurrentYear,
   getSelectedAbilityPreset,
+  getViewApi,
   getWorldContext
 } from "../../charactersContext";
 import type { Character, CharacterRole, EquippedItem, LoadoutSlotId, TitleHolding } from "../../characterTypes";
 import { resolveCharacterRaceName } from "../../controllers/characters-overview";
 import { setPlayerCharacter } from "../../controllers/playerCharacter";
 import { effectiveDemonSecretSkill, effectiveOvertDemonSkill } from "../../demonExperience";
-import { formatFlavorHook } from "../../flavorHooks";
 import { isGoodEligibleForSlot, LOADOUT_SLOT_GOOD_NAMES, LOADOUT_SLOT_IDS } from "../../loadoutEquip";
 import { serviceStartYearForDisplay } from "../../militaryWarRecord";
 import { getAbilityValue } from "../../personFactory";
@@ -39,6 +38,7 @@ import { specializationCsvRows } from "../../specializationExport";
 import { readEconomyPractice } from "../../specializationRuntime";
 import { usePlayerCharacterState } from "../../store/playerCharacterState";
 import { getCharacterEpithetSuffix, getCharacterRoleLabel, getCharacterTitleLabel } from "../../utils/characterLabels";
+import { formatFlavorHook } from "../../utils/flavorHookLabels";
 import { useCharactersUiState } from "../charactersUiState";
 import { RadarChart } from "../components/charts/RadarChart";
 import { PersonalityFlavorTabs } from "../components/PersonalityFlavorTabs";
@@ -1432,7 +1432,7 @@ export const CharacterDetailsDialog: React.FC = () => {
                     style={{ marginRight: "6px" }}
                     onClick={() => {
                       const b = burgs[character.location!];
-                      getApi().zoomTo(b.x, b.y, 20, 2000);
+                      getViewApi().zoomTo(b.x, b.y, 20, 2000);
                     }}
                   />
                 )}

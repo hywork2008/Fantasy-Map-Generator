@@ -7,7 +7,7 @@
 import type { SimulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
 import type { DataTopic } from "../runtime/worldRuntime";
-import { useOptionsState } from "../store/optionsState";
+import { optionsStore } from "../state/optionsStore";
 import type { RNGService } from "../utils/probabilityUtils";
 import { getDungeonSpawnProfile } from "./dungeonProfiles";
 import { Dungeons } from "./dungeons-generator";
@@ -32,7 +32,7 @@ export function resetDungeonEcologyGate(): void {
 
 export function advanceDungeonEcology(input: DungeonEcologyInput): DungeonEcologyResult {
   const { world, simulation, rng } = input;
-  const culturesSet = useOptionsState.getState().culturesSet;
+  const culturesSet = optionsStore.getState().culturesSet;
   const profile = getDungeonSpawnProfile(culturesSet);
   if (!profile) return { topics: [], spawned: 0 };
   if (simulation.currentMonth !== 1 || simulation.currentDay !== 1) return { topics: [], spawned: 0 };

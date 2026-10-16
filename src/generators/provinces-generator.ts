@@ -7,7 +7,8 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { useOptionsState } from "../store/optionsState";
+import { pow } from "../simulation/deterministicMath";
+import { optionsStore } from "../state/optionsStore";
 import type { Province } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import { gauss, generateSeed, getMixedColor, getPolesOfInaccessibility, P, rand, rw } from "../utils";
@@ -98,8 +99,8 @@ class ProvinceModule {
       });
     }
 
-    const provincesRatio = useOptionsState.getState().provincesRatio;
-    const maxGrowth = provincesRatio === 100 ? 1000 : gauss(20, 5, 5, 100) * provincesRatio ** 0.5; // max growth
+    const provincesRatio = optionsStore.getState().provincesRatio;
+    const maxGrowth = provincesRatio === 100 ? 1000 : gauss(20, 5, 5, 100) * pow(provincesRatio, 0.5); // max growth
 
     // generate provinces for selected burgs
     states.forEach(s => {

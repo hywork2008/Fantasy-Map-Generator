@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { useOptionsState, worldContext } from "../../hostCore";
+import { optionsStore, worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
   clearEconomyContext,
@@ -83,7 +83,7 @@ function setupBurgWithConstruction(): void {
 describe("constructionHire Phase 2–3", () => {
   beforeEach(() => {
     initEconomyContext({ worldContext } as unknown as ExtensionAPI);
-    useOptionsState.setState({ culturesSet: "world" });
+    optionsStore.setState({ culturesSet: "world" });
     clearConstructionHireState();
     setupBurgWithConstruction();
   });

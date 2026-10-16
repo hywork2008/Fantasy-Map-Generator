@@ -7,7 +7,8 @@ import { HeightmapGenerator } from "../generators/heightmap-generator";
 import type { Grid } from "../types/Grid";
 import { openDialog } from "../ui/dialogs/dialogService";
 import { getColorScheme, heightmapColorSchemes } from "../utils/colorUtils";
-import { drawHeights, generateGrid, shouldRegenerateGrid } from "../utils/graphUtils";
+import { generateGrid, shouldRegenerateGrid } from "../utils/graphUtils";
+import { drawHeights } from "../utils/heightmapImage";
 
 // Cached grid to avoid regenerating on every open
 let cachedGraph: Grid | null = null;

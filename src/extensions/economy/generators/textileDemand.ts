@@ -1,7 +1,7 @@
 import type { Burg } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getGoods, getMarketCellColumn, getMarkets, getWorldContext } from "../economyContext";
-import { getEconomyCalibrationState } from "../store/economyCalibrationState";
+import { getEconomyCalibrationState } from "../state/economyCalibrationStore";
 import { laborPeople } from "./craftScale";
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import type { Market, TextileLedger } from "./marketTypes";

@@ -12,7 +12,7 @@ import {
 } from "../../../hostUi";
 
 import { open as openGuildOverview, refreshGuildOverview } from "../../controllers/guild-overview";
-import { getApi } from "../../economyContext";
+import { getApi, getViewApi } from "../../economyContext";
 import { useEconomyCalibrationState } from "../../store/economyCalibrationState";
 import { type GuildOverviewRow, useGuildOverviewState } from "../../store/guildOverviewState";
 
@@ -295,7 +295,7 @@ const GuildRow: React.FC<{ row: GuildOverviewRow }> = ({ row }) => {
           className="icon-dot-circled pointer"
           onClick={() => {
             const burg = getApi().worldContext.pack.burgs[row.burgId];
-            if (burg) getApi().zoomTo(burg.x, burg.y, 8, 2000);
+            if (burg) getViewApi().zoomTo(burg.x, burg.y, 8, 2000);
           }}
         />
         <span data-tip={row.burgName}>{row.burgName}</span>

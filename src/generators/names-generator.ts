@@ -4,12 +4,12 @@ import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
-import { tip } from "../services/tooltipService";
-import { useOptionsState } from "../store/optionsState";
+import { simulationView } from "../simulation/viewPort";
+import { optionsStore } from "../state/optionsStore";
 import type { NameBase } from "../types/models";
 import { capitalize, isVowel, last, P, ra, rand } from "../utils";
 import { ERROR, WARN } from "../utils/debug";
-import { locked, unlock } from "../utils/domUtils";
+import { locked, unlock } from "../utils/optionLocks";
 
 // Markov chain lookup table: key is a letter (or empty string for word start), value is array of possible next syllables
 // Note: Uses array with string keys (sparse array) to match original JS behavior
@@ -96,7 +96,7 @@ class NamesGenerator {
 
     const data = this.chains[base];
     if (!data || data[""] === undefined) {
-      tip(`Namesbase ${base} is incorrect. Please check in namesbase editor`, false, "error");
+      simulationView.tip(`Namesbase ${base} is incorrect. Please check in namesbase editor`, false, "error");
       ERROR && console.error(`Namebase ${base} is incorrect!`);
       return "ERROR";
     }
@@ -295,14 +295,14 @@ class NamesGenerator {
     if (force && locked("mapName")) unlock("mapName");
     const base = P(0.7) ? 2 : P(0.5) ? rand(0, 6) : rand(0, 31);
     if (!nameBases[base]) {
-      tip("Namebase is not found", false, "error");
+      simulationView.tip("Namebase is not found", false, "error");
       return "";
     }
     const min = nameBases[base].min - 1;
     const max = Math.max(nameBases[base].max - 3, min);
     const baseName = this.getBase(base, min, max, "") as string;
     const name = P(0.7) ? this.addSuffix(baseName) : baseName;
-    useOptionsState.getState().setOption("mapName", name);
+    optionsStore.getState().setOption("mapName", name);
   }
 
   getNameBases(): NameBase[] {

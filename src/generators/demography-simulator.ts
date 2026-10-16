@@ -2,7 +2,7 @@ import type { SimulationContext } from "../context/simulationContext";
 import { FRONTIER_STAGE, simulationContext } from "../context/simulationContext";
 import { type WorldContext, worldContext } from "../context/worldContext";
 import { isLichState } from "../extensions/characters/lichPolicy";
-import { useOptionsState } from "../store/optionsState";
+import { optionsStore } from "../state/optionsStore";
 import { getBirthFloorProvider } from "./birthModifiers";
 import { Burgs } from "./burgs-generator";
 import {
@@ -106,7 +106,7 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
   if (!pack?.cells || !pack.burgs) return { bordersChanged, newBurgsAdded, routesAdded, promotedSettlements };
   if (deltaYears <= 0) return { bordersChanged, newBurgsAdded, routesAdded, promotedSettlements };
 
-  const { demographicBirthRate, demographicChildMortalityRate } = useOptionsState.getState();
+  const { demographicBirthRate, demographicChildMortalityRate } = optionsStore.getState();
   const baseGrowthRate = demographicBirthRate;
   const populationRate = worldContext.populationRate || 1;
   /** Batch natural/famine/epidemic point losses per state, convert once to people. */

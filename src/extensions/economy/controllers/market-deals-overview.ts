@@ -1,9 +1,9 @@
 import { tip } from "../../hostServices";
 import type { Burg } from "../../hostTypes";
-import { openDialog } from "../../hostUi";
-import { downloadFile, getFileName, rn } from "../../hostUtils";
+import { downloadFile, getFileName, openDialog } from "../../hostUi";
+import { rn } from "../../hostUtils";
 
-import { getApi, getDeals, getWorldContext } from "../economyContext";
+import { getDeals, getViewApi, getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
 import { Markets } from "../generators/markets-generator";
 import type { Deal } from "../generators/marketTypes";
@@ -58,7 +58,7 @@ export function refreshMarketDeals(): void {
       const deal = getDeals().find(d => d.i === row.id);
       if (!deal) return;
       const party = getParty(deal);
-      if (party) getApi().zoomTo(party.x, party.y, 8, 2000);
+      if (party) getViewApi().zoomTo(party.x, party.y, 8, 2000);
     }
   });
 }

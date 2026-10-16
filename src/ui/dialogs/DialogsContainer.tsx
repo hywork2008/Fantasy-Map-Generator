@@ -77,6 +77,7 @@ import { RouteJoinDialog } from "./RouteJoinDialog";
 import { RoutesEditorDialog } from "./RoutesEditorDialog";
 import { RoutesOverviewDialog } from "./RoutesOverviewDialog";
 import { SaveMapDialog } from "./SaveMapDialog";
+import { SimChannelsDialog } from "./SimChannelsDialog";
 import { StateEditorDialog } from "./StateEditorDialog";
 import { StateMergeDialog } from "./StateMergeDialog";
 import { StateNameEditorDialog } from "./StateNameEditorDialog";
@@ -186,6 +187,7 @@ export const DialogsContainer: React.FC = () => {
           <RoutesEditorDialog />
           <RoutesOverviewDialog />
           <SaveMapDialog />
+          <SimChannelsDialog />
           <StateEditorDialog />
           <StateMergeDialog />
           <StateNameEditorDialog />

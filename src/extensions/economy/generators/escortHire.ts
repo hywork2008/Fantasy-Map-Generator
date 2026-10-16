@@ -2,9 +2,11 @@
  * Escort (護衛) hire lag, accept, purge, resign, combat resolve.
  * Mirrors threat-cull board lifecycle with destination arrival on success.
  */
+
 import type { RNGService } from "../../../utils/probabilityUtils";
 import type { Character } from "../../characters/characterTypes";
 import { rn } from "../../hostUtils";
+import { getCadencePhase, setCadencePhase } from "../context/cadencePhases";
 import {
   getBanditCohorts,
   getEscortActiveContracts,
@@ -44,10 +46,8 @@ import { ANON_COMBAT_SCORE, namedHunterCombatScore, resolveCullCombat } from "./
 
 export const ESCORT_RESOLVE_ENABLED = true;
 
-let daysSinceAnonRound = 0;
-
 export function clearEscortHiringSession(): void {
-  daysSinceAnonRound = 0;
+  setCadencePhase("escortAnonRoundDays", 0);
 }
 
 function nextApplicationId(apps: readonly EscortHireApplication[]): number {
@@ -365,11 +365,12 @@ export function tickEscortHiring(deltaDays: number, rng?: RNGService): { topics:
     setEscortActiveContracts(stillActive);
   }
 
-  daysSinceAnonRound += deltaDays;
+  let daysSinceAnonRound = getCadencePhase("escortAnonRoundDays") + deltaDays;
   while (daysSinceAnonRound >= ESCORT_ANON_ROUND_DAYS) {
     daysSinceAnonRound -= ESCORT_ANON_ROUND_DAYS;
     runAnonymousEscortRound();
   }
+  setCadencePhase("escortAnonRoundDays", daysSinceAnonRound);
 
   if (topics.size) {
     topics.add("extension.economy");

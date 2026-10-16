@@ -1,7 +1,7 @@
 import type * as d3 from "d3";
 import { fitScopedMapToView } from "../actions";
 import { appServices } from "../context/appServices";
-import { simulationContext } from "../context/simulationContext";
+import { type SimulationContext, simulationContext } from "../context/simulationContext";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { syncLoadedStylePreset } from "../controllers/style";
@@ -28,10 +28,14 @@ import { initSimulationClock } from "../generators/timeEngine";
 import { GridRenderer } from "../renderers";
 import { OceanLayers } from "../renderers/ocean-layers";
 import { DeckGlRenderer } from "../renderers/webgl/deckRenderer";
-import { requestDualPortPlacementRepair } from "../runtime/dualPortPlacementTask";
+import { DUAL_PORT_PLACEMENT_TASK_ID } from "../runtime/dualPortPlacementTask";
 import { resetExtensionStateSlices } from "../runtime/extensionStateSlices";
 import { importLegacyPresentationFromSvg } from "../runtime/legacyPresentationImport";
-import { cancelMapReadyTasks, markMapReadyTasksAvailable } from "../runtime/mapReadyTaskCoordinator";
+import {
+  cancelMapReadyTasks,
+  markMapReadyTasksAvailable,
+  requestMapReadyTask
+} from "../runtime/mapReadyTaskCoordinator";
 import { bindSimulationBurgState, resetSimulationBurgState } from "../runtime/simulationBurgState";
 import { bindSimulationMilitaryState, resetSimulationMilitaryState } from "../runtime/simulationMilitaryState";
 import { bindSimulationStateState, resetSimulationStateState } from "../runtime/simulationStateState";
@@ -41,31 +45,24 @@ import {
   decodeAndValidateWorldArchive,
   LegacyMapCodecAdapter
 } from "../runtime/worldArchive";
-import { legacyMutation, worldRuntime } from "../runtime/worldRuntime";
+import { worldRuntime } from "../runtime/worldRuntime";
 import { updateAllBurgWaterAccess } from "../services/burgWaterAccess";
 import { declareFont, fonts } from "../services/fonts";
 import { fitMapToScreen, resizeGraphRects } from "../services/mapViewport";
-import { burgsUnplacedOnRivers, removeRepeatedRiverCells } from "../services/repairRiverCells";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
-import { getWorldLandConnectionCurrent } from "../services/worldLandConnectionRuntime";
+import { migrateUnknownCharacterRaces, normalizeLoadedWorld } from "../simulation/loadedWorld";
+import { isLoadRepairCurrent } from "../simulation/loadRepairs";
+import { applySimulationTimeline } from "../simulation/simulationTimeline";
+import { materializeWorldSettings } from "../simulation/worldSettings";
 import { rulers } from "../store/editorState";
 import { generationProgressStore } from "../store/generationProgressState";
 import { DEFAULT_LAYERS, useLayerState } from "../store/layerState";
 import { loadErrorDialogStore } from "../store/loadErrorDialogState";
 import { loadMapDialogStore } from "../store/loadMapDialogState";
 import { type OptionsState, useOptionsState } from "../store/optionsState";
-import type {
-  Culture,
-  LandRouteGenerationMode,
-  NameBase,
-  Race,
-  River,
-  Route,
-  SeaRouteGenerationMode,
-  SubterraneanDomain,
-  SubterraneanDomainKind
-} from "../types/models";
+import { useUiPreferencesState } from "../store/uiPreferencesState";
+import type { Culture, NameBase, Race, River, SubterraneanDomain, SubterraneanDomainKind } from "../types/models";
 import { closeDialogs, openAlert, openConfirm } from "../ui/dialogs/dialogService";
 import { calculateVoronoi, findCell, last, link, minmax, parseError, rn } from "../utils";
 import { heightmapColorSchemes } from "../utils/colorUtils";
@@ -74,7 +71,7 @@ import { ERROR, INFO, WARN } from "../utils/debug";
 import { normalizeFrontierPolitySpacing, normalizeFrontierStartMode } from "../utils/frontierStartMode";
 import { normalizeInitialPolityRealmSize } from "../utils/initialPolityScope";
 import { normalizeInitialSettlementPattern } from "../utils/initialSettlementPattern";
-import { layerIsOn } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/layerUtils";
 import { validateWorldLanguages } from "../utils/worldLanguages";
 import { cleanupData, compareVersions, isValidVersion, parseMapVersion, VERSION } from "../versioning";
 import { resolveVersionConflicts } from "./auto-update";
@@ -240,11 +237,19 @@ export function uploadMap(file: Blob, callback?: () => void): void {
   fileReader.readAsArrayBuffer(file);
 }
 
+/** Starts a fresh timeline or keeps the saved one, per the user's preference (track R §13.3). */
+function applyLoadTimeline(simulation: SimulationContext, mapSeed: string): void {
+  applySimulationTimeline(simulation, mapSeed, { mode: useUiPreferencesState.getState().simulationTimelineOnLoad });
+  // An archive saved before world-scoped settings adopts this browser's values once (§18).
+  materializeWorldSettings(simulation);
+}
+
 async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?: () => void): Promise<void> {
   try {
     // Decode, migrate and validate are complete before the first live mutation.
     // A malformed archive therefore leaves the active world and SVG untouched.
     const validated = await decodeAndValidateWorldArchive({ blob: file, header });
+    applyLoadTimeline(validated.document.simulation, validated.document.world.seed);
     await waitForGenerationToSettleBeforeMapLoad();
     const seaRouteGenerationMode = validated.document.world.options.seaRouteGenerationMode;
     const landRouteGenerationMode = validated.document.world.options.landRouteGenerationMode;
@@ -257,87 +262,22 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
     // previously generated map cannot leave its sea texture over this map.
     OceanLayers();
 
-    // Archives created before river hydrology stored source conditions have no
-    // derived per-cell surface data. Backfill it once the validated world is live.
-    legacyMutation(() => {
-      refreshAllRiverHydrology(worldContext);
-      updateAllBurgWaterAccess(worldContext.pack);
-      return { result: undefined, topics: ["map.networks"] };
-    });
-
-    // Archives whose rivers repeat a lake cell could not place their river burgs; repair and re-site them.
-    const repairedRivers = removeRepeatedRiverCells(worldContext);
-    if (repairedRivers.size)
-      legacyMutation(() => {
-        const moved = Burgs.resiteRiverBurgs(burgsUnplacedOnRivers(worldContext, repairedRivers));
-        WARN &&
-          console.warn("[Data integrity] Repeated river cells removed", [...repairedRivers], "re-sited burgs", moved);
-        return { result: undefined, topics: ["map.networks", "map.settlements"] };
-      });
-
-    // Archives created before the generation-mode field was introduced have no
-    // reliable indication of which algorithm produced their routes. Preserve
-    // those routes verbatim instead of forcibly replacing them with augmented.
-    // When sea mode is present we rebuild; land mode defaults to elevationAware
-    // when the archive has no landRouteGenerationMode field.
-    const hasRegisteredLandArchive =
-      !!worldContext.options.landConnectionGeneration && !!worldContext.options.registeredLandConnections;
-    if (seaRouteGenerationMode && !hasRegisteredLandArchive) {
-      legacyMutation(() => {
-        if (landRouteElevationAversion !== undefined) {
-          worldContext.options.landRouteElevationAversion = landRouteElevationAversion;
-        }
-        regenerateLoadedRoutes(seaRouteGenerationMode, landRouteGenerationMode ?? "elevationAware");
-        return { result: undefined, topics: ["map.networks"] };
-      });
-    }
-
-    useOptionsState.getState().setOptions({
-      ...(hasRegisteredLandArchive && worldContext.options.registeredLandConnectionUnit
-        ? { distanceUnit: worldContext.options.registeredLandConnectionUnit }
-        : {}),
-      ...(worldContext.options.mapName ? { mapName: worldContext.options.mapName } : {}),
-      seed: worldContext.seed,
-      year: validated.document.simulation.currentYear,
-      era: validated.document.simulation.era,
-      // A Province/Islet-scope map keeps the canvas it was cut from, so regenerating does not shrink twice.
-      mapWidth: worldContext.grid.scope?.canvasWidth ?? worldContext.graphWidth,
-      mapHeight: worldContext.grid.scope?.canvasHeight ?? worldContext.graphHeight,
-      initialSettlementPattern: normalizeInitialSettlementPattern(worldContext.options.initialSettlementPattern),
-      initialPolityRealmSize: normalizeInitialPolityRealmSize(
-        worldContext.options.initialPolityRealmSize ?? worldContext.options.initialPolityScope
-      ),
-      frontierStartMode: normalizeFrontierStartMode(worldContext.options.frontierStartMode),
-      frontierPolitySpacing: normalizeFrontierPolitySpacing(worldContext.options.frontierPolitySpacing),
-      ...(worldContext.options.portCoastPlacement
-        ? { portCoastPlacement: worldContext.options.portCoastPlacement }
-        : {})
-    });
-    // The archive carries its own canvas size; resize graph-sized rects/masks and
-    // the zoom extent, otherwise areas outside the pre-load viewport stay unpainted.
-    resizeGraphRects();
-    fitMapToScreen();
-    fitScopedMapToView();
-    if (worldContext.options.landConnectionGeneration) {
-      legacyMutation(() => {
-        const physical = getWorldLandConnectionCurrent(worldContext, useOptionsState.getState().distanceUnit);
-        const ids = new Set(physical?.snapshot.connectionIds ?? []);
-        worldContext.pack.cells.routes = Routes.buildLinks(
-          worldContext.pack.routes.filter(
-            route =>
-              route.group === "searoutes" ||
-              (route.registeredConnectionId !== undefined && ids.has(route.registeredConnectionId))
-          )
-        );
-        return { result: undefined, topics: ["map.networks"] };
-      });
-    }
-    // Saved routes keep their converged bridge approaches; CE re-prepares on demand.
-    // Wildlands merchants saved with race 0 (catalog Unknown) → Human for display/play.
-    legacyMutation(() => {
-      migrateUnknownCharacterRaces(worldContext.pack.characters, worldContext.pack.cultures as Culture[]);
-      return { result: undefined, topics: ["map.politics"] };
-    });
+    normalizeLoadedWorld(
+      {
+        seaRouteGenerationMode,
+        landRouteGenerationMode,
+        landRouteElevationAversion,
+        currentYear: validated.document.simulation.currentYear,
+        era: validated.document.simulation.era
+      },
+      () => {
+        // The archive carries its own canvas size; resize graph-sized rects/masks and
+        // the zoom extent, otherwise areas outside the pre-load viewport stay unpainted.
+        resizeGraphRects();
+        fitMapToScreen();
+        fitScopedMapToView();
+      }
+    );
     callback?.();
     document.getElementById("coas")?.replaceChildren();
 
@@ -347,7 +287,8 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
     // (the coordinator drops them while not yet available), then it is enabled afterwards.
     const skipTasks = loadMapDialogStore.getState().skipMapReadyTasksOnLoad;
     if (!skipTasks) markMapReadyTasksAvailable();
-    requestDualPortPlacementRepair();
+    if (!isLoadRepairCurrent(worldContext.options, "dualPortPlacement"))
+      requestMapReadyTask(DUAL_PORT_PLACEMENT_TASK_ID);
     document.dispatchEvent(new CustomEvent("fmg:world-loaded"));
     document.dispatchEvent(new CustomEvent("fmg:render-mode-changed"));
     document.dispatchEvent(new CustomEvent("fmg:refresh-editors"));
@@ -364,34 +305,6 @@ async function loadChunkedWorldArchive(file: Blob, header: Uint8Array, callback?
       onNewMap: () => document.dispatchEvent(new CustomEvent("fmg:regenerate-map", { detail: "loading error" }))
     });
   }
-}
-
-/**
- * Route generation is intentionally upgraded when an archive is loaded. A
- * `.fmg` archives that explicitly record a generation mode are rebuilt using
- * that mode. Locked routes remain user-authored and are retained.
- *
- * This runs immediately after `world.replace`: `Routes.sync()` uses the River
- * singleton's current world context to build river geometry, so it cannot
- * safely operate on the detached decoded document.
- */
-function regenerateLoadedRoutes(
-  seaRouteGenerationMode: SeaRouteGenerationMode,
-  landRouteGenerationMode: LandRouteGenerationMode = "elevationAware"
-): void {
-  const lockedRoutes = worldContext.pack.routes
-    .filter((route: Route) => route.lock)
-    .map((route: Route, index: number) => ({ ...route, i: index }));
-  const { pack, grid, seed, options, nameBases, biomesData, notes } = worldContext;
-  Routes.generate(
-    worldContext,
-    viewContext,
-    appServices,
-    { pack, grid, seed, options, nameBases, biomesData, notes },
-    lockedRoutes,
-    seaRouteGenerationMode,
-    landRouteGenerationMode
-  );
 }
 
 export async function parseLoadedResult(
@@ -481,6 +394,7 @@ export async function parseLoadedData(
 
       const staged = worldRuntime.captureRollbackDocument();
       assertValidWorldDocument(staged);
+      applyLoadTimeline(staged.simulation, staged.world.seed);
       const commit = await worldRuntime.dispatch({
         type: "world.replace",
         payload: { stage: "validated", document: staged }
@@ -495,7 +409,8 @@ export async function parseLoadedData(
       // their current runtime state after a legacy map has been committed.
       const skipTasks = loadMapDialogStore.getState().skipMapReadyTasksOnLoad;
       if (!skipTasks) markMapReadyTasksAvailable();
-      requestDualPortPlacementRepair();
+      if (!isLoadRepairCurrent(worldContext.options, "dualPortPlacement"))
+        requestMapReadyTask(DUAL_PORT_PLACEMENT_TASK_ID);
       document.dispatchEvent(new CustomEvent("fmg:world-loaded"));
       document.dispatchEvent(new CustomEvent("fmg:refresh-editors"));
       if (skipTasks) markMapReadyTasksAvailable();
@@ -1558,24 +1473,4 @@ function migrateLoadedRaces(loaded: Race[] | undefined, cultures: Culture[]): Ra
   }
 
   return races;
-}
-
-/**
- * Named characters created on Wildlands (culture 0) can store race id 0 (catalog "Unknown").
- * Court generation already remaps that to Human; economy merchants did not — fix on load.
- */
-function migrateUnknownCharacterRaces(
-  characters: Array<{ race?: number; culture?: number } | null | undefined> | undefined,
-  cultures: Culture[] | undefined
-): void {
-  if (!characters?.length) return;
-  for (const character of characters) {
-    if (!character) continue;
-    if (character.race !== undefined && character.race !== null && character.race !== UNKNOWN_RACE_ID) continue;
-    const cultureRace = character.culture !== undefined ? cultures?.[character.culture]?.race : undefined;
-    character.race =
-      cultureRace !== undefined && cultureRace !== null && cultureRace !== UNKNOWN_RACE_ID
-        ? cultureRace
-        : HUMAN_RACE_ID;
-  }
 }

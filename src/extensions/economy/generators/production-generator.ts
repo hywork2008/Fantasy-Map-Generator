@@ -4,6 +4,7 @@ import {
   isDistillationKnown
 } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
+import { yieldToHost } from "../../../simulation/ports";
 import type { Burg, State } from "../../hostTypes";
 import { DEBUG, ERROR, measureTickStep, measureTickStepAsync, rn, TIME } from "../../hostUtils";
 import {
@@ -26,7 +27,7 @@ import {
   setDeals,
   setStrategicLaborMarkets
 } from "../economyContext";
-import { getEconomyCalibrationState } from "../store/economyCalibrationState";
+import { getEconomyCalibrationState } from "../state/economyCalibrationStore";
 import { getDiscontentLaborMultiplier } from "./burgDiscontent";
 import { creditHouseholdWealth, syncBurgMarketLedgers } from "./burgMarketLedgers";
 import { Caravans } from "./caravans";
@@ -268,7 +269,7 @@ export class ProductionModule {
         } while (completed < total && performance.now() - frameStart < frameBudgetMs);
 
         onProgress(completed, total);
-        if (completed < total) await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+        if (completed < total) await yieldToHost();
       }
 
       if (isCancelled()) return false;

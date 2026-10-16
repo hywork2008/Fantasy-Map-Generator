@@ -1,5 +1,5 @@
 import { worldContext } from "../../context/worldContext";
-import { useOptionsState } from "../../store/optionsState";
+import { optionsStore } from "../../state/optionsStore";
 import { P, rw } from "../../utils";
 import { ERROR } from "../../utils/debug";
 import { charges } from "./charges";
@@ -394,7 +394,7 @@ class EmblemGeneratorModule {
   }
 
   getShield(culture: number, state?: number): string {
-    const emblemShapeValue = useOptionsState.getState().emblemShape;
+    const emblemShapeValue = optionsStore.getState().emblemShape;
     // "Diversiform" optgroup values delegate to context; all other optgroups are fixed shape names
     const DIVERSIFORM_VALUES = ["culture", "random", "state"];
     if (!DIVERSIFORM_VALUES.includes(emblemShapeValue)) return emblemShapeValue;

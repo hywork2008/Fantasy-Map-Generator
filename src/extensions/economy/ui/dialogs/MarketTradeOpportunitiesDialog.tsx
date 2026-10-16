@@ -1,7 +1,6 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { useOptionsState } from "../../../hostCore";
-import { closeDialog, Dialog, useDialogState, VirtualTableBody } from "../../../hostUi";
+import { closeDialog, Dialog, useDialogState, useOptionsState, VirtualTableBody } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
 import {
   clearTradeOpportunityHighlight,

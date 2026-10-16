@@ -1,4 +1,4 @@
-import { getBurgDemographics, useOptionsState } from "../../hostCore";
+import { getBurgDemographics, optionsStore } from "../../hostCore";
 import type { Burg } from "../../hostTypes";
 import {
   getAdministrationEmployment,
@@ -160,7 +160,7 @@ export function reconcileAnnualBasicEmploymentWorkers(options?: { initial?: bool
 
   const populationRate = Math.max(0, getWorldContext().populationRate ?? 0) || 1;
   const brickAvailable = isBrickGoodAvailable();
-  const highFantasy = useOptionsState.getState().culturesSet === "highFantasy";
+  const highFantasy = optionsStore.getState().culturesSet === "highFantasy";
   for (const construction of getConstructionOperations()) {
     if (!construction.active || !construction.burgId) continue;
     const burg = burgs[construction.burgId];

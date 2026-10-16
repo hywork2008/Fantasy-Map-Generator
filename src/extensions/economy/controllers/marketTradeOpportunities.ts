@@ -4,8 +4,8 @@ import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 
 import { buildRiverNavigationGraph } from "../../hostCore";
 import type { Burg, PackedGraph } from "../../hostTypes";
-import { openDialog } from "../../hostUi";
-import { downloadFile, getFileName, rn } from "../../hostUtils";
+import { downloadFile, getFileName, openDialog } from "../../hostUi";
+import { rn } from "../../hostUtils";
 import { getGoods, getMarkets, getWorldContext } from "../economyContext";
 import { Goods, isGoodEnabled } from "../generators/goods-generator";
 import { Markets } from "../generators/markets-generator";

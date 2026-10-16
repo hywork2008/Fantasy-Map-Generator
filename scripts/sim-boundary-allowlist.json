@@ -1,0 +1,20 @@
+{
+  "modules": {
+    "src/context/viewContext.ts": "view service: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/generators/military-generator.ts -> src/context/viewContext.ts"
+  },
+  "packages": {},
+  "runtime": {
+    "src/utils/commonUtils.ts": {
+      "navigator": 1,
+      "typeof": 1,
+      "window": 2
+    },
+    "src/utils/languageUtils.ts": {
+      "document": 1,
+      "typeof": 1
+    },
+    "src/utils/nodeUtils.ts": {
+      "document": 3
+    }
+  }
+}

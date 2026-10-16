@@ -9,7 +9,8 @@ import {
   landEdgeEffortCost,
   landEdgeSpeedMultiplier
 } from "../services/routeGrade";
-import { useOptionsState } from "../store/optionsState";
+import { worldSettings } from "../simulation/worldSettings";
+import { optionsStore } from "../state/optionsStore";
 import type { Burg, MilitaryRegiment, State } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import { findPath, lerp, minmax } from "../utils";
@@ -203,7 +204,7 @@ function kmToDistanceUnit(km: number, distanceUnit: string): number {
 
 /** Map-unit distance this regiment can cover per day, given its type/off-road state and the map's distance scale. */
 export function dailySpeedMapUnits(r: MilitaryRegiment, worldContext: WorldContext): number {
-  const distanceUnit = useOptionsState.getState().distanceUnit || "km";
+  const distanceUnit = optionsStore.getState().distanceUnit || "km";
   const distanceScale = worldContext.distanceScale || 1;
   const baseKmPerDay = r.n
     ? FLEET_SPEED_KM_PER_DAY
@@ -220,12 +221,12 @@ export function regimentGradeSensitivity(r: MilitaryRegiment): GradeSensitivity 
 }
 
 /**
- * Grade effect strength for military marches. Reuses the travel-side localStorage key so
+ * Grade effect strength for military marches. Reuses the travel-side world setting so
  * `gradeEffectStrength = 0` restores planar pathfinding + advance (legacy compatibility).
  */
 export function getMilitaryGradeEffectStrength(): number {
   try {
-    const raw = localStorage.getItem(GRADE_EFFECT_STRENGTH_KEY);
+    const raw = worldSettings.getItem(GRADE_EFFECT_STRENGTH_KEY);
     if (raw === null || raw === "") return 1;
     const n = Number(raw);
     if (!Number.isFinite(n)) return 1;
@@ -247,7 +248,7 @@ function buildRegimentLandEdgeCostFn(
 
   const options = {
     distanceScale: worldContext.distanceScale || 1,
-    heightExponent: normalizeHeightExponent(useOptionsState.getState().heightExponent),
+    heightExponent: normalizeHeightExponent(optionsStore.getState().heightExponent),
     heights: pack.cells.h,
     gradeEffectStrength: strength,
     sensitivity: regimentGradeSensitivity(r)
@@ -268,7 +269,7 @@ function landEdgeCostMultiplier(
   if (strength <= 0 || !pack.cells?.h || planarDist <= 0) return 1;
   const m = landEdgeSpeedMultiplier(fromCell, toCell, planarDist, {
     distanceScale: worldContext.distanceScale || 1,
-    heightExponent: normalizeHeightExponent(useOptionsState.getState().heightExponent),
+    heightExponent: normalizeHeightExponent(optionsStore.getState().heightExponent),
     heights: pack.cells.h,
     gradeEffectStrength: strength,
     sensitivity: regimentGradeSensitivity(r)
@@ -1117,7 +1118,7 @@ export function advanceAllRegimentMovement(
   const routeJunctions = identifyRouteJunctions(landRouteGraph);
   const defenseNodesByStateAndLandmass = buildDefenseNodesByStateAndLandmass(pack, routeJunctions);
   const days = deltaYears * 365;
-  const hierarchyEnabled = useOptionsState.getState().militaryHierarchy === "dynamic";
+  const hierarchyEnabled = optionsStore.getState().militaryHierarchy === "dynamic";
 
   const initialRegiments = new Set(pack.states.flatMap(state => state?.military ?? []));
   let anyMoved = false;

@@ -13,7 +13,7 @@ import {
   getSimulationYear,
   getWorldContext
 } from "../economyContext";
-import { getEconomyCalibrationState } from "../store/economyCalibrationState";
+import { getEconomyCalibrationState } from "../state/economyCalibrationStore";
 import { SCHOLARLY_KNOWLEDGE_DOMAINS, type ScholarlyKnowledgeDomain } from "./academyKnowledgeTypes";
 import { ACADEMY_SATURATION_PEOPLE, guildSaturationPoints, peopleToPoints } from "./craftScale";
 import { CRAFT_KNOWLEDGE_DOMAINS, type CraftKnowledgeDomain } from "./guildKnowledgeTypes";

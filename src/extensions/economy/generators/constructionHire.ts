@@ -1,4 +1,5 @@
 import type { Character } from "../../characters/characterTypes";
+import { getCadencePhase, setCadencePhase } from "../context/cadencePhases";
 import {
   getConstructionHireApplications,
   getConstructionNamedSeats,
@@ -7,7 +8,7 @@ import {
   setConstructionHireApplications,
   setConstructionNamedSeats
 } from "../economyContext";
-import { getEconomyCalibrationState } from "../store/economyCalibrationState";
+import { getEconomyCalibrationState } from "../state/economyCalibrationStore";
 import type { ConstructionHireApplication, ConstructionHireRole, ConstructionNamedSeat } from "./constructionHireTypes";
 import { getConstructionJobPosting } from "./constructionJobPostings";
 import { peopleToPoints } from "./craftScale";
@@ -26,12 +27,11 @@ export const CONSTRUCTION_ROLE_SOURCE = "economy";
 export const CONSTRUCTION_ROLE_KIND = "constructionWorker";
 
 /** Accumulator for anonymous hire rounds (session; not persisted — fine for Phase 2). */
-let daysSinceGlobalHireRound = 0;
 
 export function clearConstructionHireState(): void {
   setConstructionHireApplications([]);
   setConstructionNamedSeats([]);
-  daysSinceGlobalHireRound = 0;
+  setCadencePhase("constructionHireRoundDays", 0);
 }
 
 export function countNamedSeats(
@@ -285,11 +285,12 @@ export function tickConstructionHiring(deltaDays: number): void {
   setConstructionHireApplications(remaining);
 
   // Anonymous hire rounds: one application per burg with free seats, lag ANON_HIRE_LAG_DAYS.
-  daysSinceGlobalHireRound += deltaDays;
+  let daysSinceGlobalHireRound = getCadencePhase("constructionHireRoundDays") + deltaDays;
   while (daysSinceGlobalHireRound >= HIRE_ROUND_DAYS) {
     daysSinceGlobalHireRound -= HIRE_ROUND_DAYS;
     runAnonymousHireRound();
   }
+  setCadencePhase("constructionHireRoundDays", daysSinceGlobalHireRound);
 }
 
 function runAnonymousHireRound(): void {

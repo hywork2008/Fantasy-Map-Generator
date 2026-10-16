@@ -1,8 +1,7 @@
-import { useOptionsState } from "../../hostCore";
-import { openDialog } from "../../hostUi";
+import { openDialog, useOptionsState } from "../../hostUi";
 import { minmax, rn } from "../../hostUtils";
 
-import { getApi, getCaravans, getMarketById, getMerchantOrganizations, getWorldContext } from "../economyContext";
+import { getCaravans, getMarketById, getMerchantOrganizations, getViewApi, getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
 import type { Caravan, TradeRouteSegment } from "../generators/marketTypes";
 import { MerchantTransportAssets } from "../generators/merchantTransportAssets";
@@ -155,10 +154,10 @@ function tradeDetailsAddLines(): void {
       buyerName: to?.name ?? "",
       buyerType: caravan.buyerType,
       onZoomSeller: () => {
-        if (from) getApi().zoomTo(from.x, from.y, 8, 1500);
+        if (from) getViewApi().zoomTo(from.x, from.y, 8, 1500);
       },
       onZoomBuyer: () => {
-        if (to) getApi().zoomTo(to.x, to.y, 8, 1500);
+        if (to) getViewApi().zoomTo(to.x, to.y, 8, 1500);
       }
     },
     rows,
@@ -193,7 +192,7 @@ document.addEventListener("trade:showDetails", (e: Event) => {
 // dialog otherwise has no way to learn that time has passed while it stayed open.
 document.addEventListener("fmg:time-advanced", () => {
   if (!activeCaravan) return;
-  if (!getApi().isDialogOpen("tradeDetails")) return;
+  if (!getViewApi().isDialogOpen("tradeDetails")) return;
   // Identity is the object, not caravan.i — a finished id may be reissued.
   const stillLive = getCaravans().includes(activeCaravan);
   if (!stillLive) {

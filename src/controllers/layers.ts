@@ -60,7 +60,8 @@ import { registerSvgPaintFunction } from "../services/svgPaintRegistry";
 import { tip } from "../services/tooltipService";
 import { generationProgressStore } from "../store/generationProgressState";
 import { DEFAULT_LAYERS, useLayerState } from "../store/layerState";
-import { getElementById, layerIsOn } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/layerUtils";
+import { getElementById } from "../utils/nodeUtils";
 
 const editStyle = (element: string, group?: string) =>
   document.dispatchEvent(new CustomEvent("fmg:edit-style", { detail: { element, group } }));

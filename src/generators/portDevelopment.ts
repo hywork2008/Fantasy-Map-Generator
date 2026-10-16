@@ -3,7 +3,7 @@ import type { WorldContext } from "../context/worldContext";
 import { type BurgApproachDryLink, burgApproachDryLink } from "../services/burgApproachDryLink";
 import { reconnectRelocatedBurgLandRoutes } from "../services/relocatedBurgRoutes";
 import { settlementGeometrySession } from "../services/settlementGeometrySession";
-import { useOptionsState } from "../store/optionsState";
+import { optionsStore } from "../state/optionsStore";
 import { Burgs } from "./burgs-generator";
 import { Routes } from "./routes-generator";
 
@@ -65,7 +65,7 @@ export function advancePortDevelopment(
         candidate,
         (a, b) => {
           if (!dryLink) {
-            const unit = useOptionsState.getState().distanceUnit;
+            const unit = optionsStore.getState().distanceUnit;
             const session = settlementGeometrySession(world);
             session.prepare(world, unit);
             dryLink = burgApproachDryLink(world, unit, session);

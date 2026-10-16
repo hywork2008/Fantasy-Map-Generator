@@ -1,5 +1,5 @@
 import type { ExtensionMapPickHandler } from "../../../types/extension-api";
-import { getApi, getCaravans, getGoodCellColumn, getMarketById, getWorldContext } from "../economyContext";
+import { getCaravans, getGoodCellColumn, getMarketById, getViewApi, getWorldContext } from "../economyContext";
 import { Goods } from "../generators/goods-generator";
 
 const GOODS_CELL_ID = /^economy-goods-cell-(\d+)-(\d+)$/;
@@ -62,12 +62,12 @@ export const economyMapPickHandler: ExtensionMapPickHandler = {
     }
 
     if (GOODS_CELL_ID.test(detail.id) || GOODS_SOURCE_ID.test(detail.id)) {
-      getApi().openDialog("goodsEditor");
+      getViewApi().openDialog("goodsEditor");
       return;
     }
 
     const marketId = getMarketId(detail.id);
-    if (marketId !== null) getApi().openDialog("marketOverview", { marketId });
+    if (marketId !== null) getViewApi().openDialog("marketOverview", { marketId });
   },
 
   getEntityKey(detail) {

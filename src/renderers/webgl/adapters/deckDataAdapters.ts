@@ -35,10 +35,10 @@ import type {
 import type { PackedGraphCells, PackedGraphVertices } from "../../../types/PackedGraph";
 import type { WebglPickKind } from "../../../types/webglPicking";
 import { getPortAnchorPosition, isWater, lerp, minmax } from "../../../utils";
+import { drawnFeatureShape, sampleCatmullRomPolyline, sampleCoastlineShape } from "../../../utils/coastlineFractal";
 import { getColor, getColorScheme } from "../../../utils/colorUtils";
 import { type RelationKey, relations } from "../../../utils/diplomacyRelations";
 import { getBeaufortForce } from "../../../utils/windClimate";
-import { drawnFeatureShape, sampleCatmullRomPolyline, sampleCoastlineShape } from "../../coastline-fractal";
 import { isCellInScope, isGridCellInScope } from "../../core/focusScope";
 import { dangerValueToMagmaT } from "../../dangerColorScale";
 import { buildPopulationColorMetrics, heatBucketToColorT } from "../../populationColorScale";

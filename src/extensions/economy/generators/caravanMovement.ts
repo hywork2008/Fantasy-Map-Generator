@@ -4,6 +4,7 @@ import {
   type GradeSensitivity,
   type MerchantRoutePreference
 } from "../../../services/routeGrade";
+import { worldSettings } from "../../../simulation/worldSettings";
 import { getCurrentDirection, minmax } from "../../hostUtils";
 
 export interface CaravanMovementSettings {
@@ -115,21 +116,28 @@ function parseStoredStrength(raw: unknown): number | undefined {
   return minmax(n, 0, 1);
 }
 
+/** The raw stored values the settings were parsed from; a change (world load, new map) re-parses. */
+function storedSettingsKey(): string {
+  return ([STORAGE_KEY, GRADE_STRENGTH_KEY, ROUTE_PREF_KEY] as const)
+    .map(key => worldSettings.getItem(key) ?? "\u0000")
+    .join("\u0001");
+}
+
 function loadSettings(): CaravanMovementSettings {
   let options: CaravanMovementSettings = { ...DEFAULT_MOVEMENT_SETTINGS };
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = worldSettings.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored) as Partial<CaravanMovementSettings>;
       options = {
         ...DEFAULT_MOVEMENT_SETTINGS,
         ...parsed,
         merchantRoutePreference: parseStoredPreference(
-          parsed.merchantRoutePreference ?? localStorage.getItem(ROUTE_PREF_KEY)
+          parsed.merchantRoutePreference ?? worldSettings.getItem(ROUTE_PREF_KEY)
         ),
         gradeEffectStrength:
           parseStoredStrength(parsed.gradeEffectStrength) ??
-          parseStoredStrength(localStorage.getItem(GRADE_STRENGTH_KEY)) ??
+          parseStoredStrength(worldSettings.getItem(GRADE_STRENGTH_KEY)) ??
           DEFAULT_MOVEMENT_SETTINGS.gradeEffectStrength,
         settingsVersion: SETTINGS_VERSION
       };
@@ -138,19 +146,34 @@ function loadSettings(): CaravanMovementSettings {
       }
     } else {
       // Plan keys may exist even when the bundled caravan-movement blob does not.
-      const strength = parseStoredStrength(localStorage.getItem(GRADE_STRENGTH_KEY));
-      const pref = localStorage.getItem(ROUTE_PREF_KEY);
+      const strength = parseStoredStrength(worldSettings.getItem(GRADE_STRENGTH_KEY));
+      const pref = worldSettings.getItem(ROUTE_PREF_KEY);
       if (strength !== undefined) options.gradeEffectStrength = strength;
       if (pref) options.merchantRoutePreference = parseStoredPreference(pref);
     }
   } catch (e) {
-    console.warn("Failed to load caravan-movement options from localStorage", e);
+    console.warn("Failed to load caravan-movement options from simulation settings", e);
   }
   return options;
 }
 
 export class CaravanMovementModule {
-  private options: CaravanMovementSettings = loadSettings();
+  // Settings are world-scoped (saved in the .fmg): re-read whenever the live world's values change.
+  private optionsKey = storedSettingsKey();
+  private cachedOptions: CaravanMovementSettings = loadSettings();
+
+  private get options(): CaravanMovementSettings {
+    const key = storedSettingsKey();
+    if (key !== this.optionsKey) {
+      this.optionsKey = key;
+      this.cachedOptions = loadSettings();
+    }
+    return this.cachedOptions;
+  }
+
+  private set options(next: CaravanMovementSettings) {
+    this.cachedOptions = next;
+  }
 
   getOptions(): Readonly<CaravanMovementSettings> {
     return this.options;
@@ -173,12 +196,13 @@ export class CaravanMovementModule {
     }
     this.options = next;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.options));
-      localStorage.setItem(GRADE_STRENGTH_KEY, String(this.options.gradeEffectStrength));
-      localStorage.setItem(ROUTE_PREF_KEY, this.options.merchantRoutePreference);
+      worldSettings.setItem(STORAGE_KEY, JSON.stringify(next));
+      worldSettings.setItem(GRADE_STRENGTH_KEY, String(next.gradeEffectStrength));
+      worldSettings.setItem(ROUTE_PREF_KEY, next.merchantRoutePreference);
     } catch (e) {
-      console.warn("Failed to persist caravan-movement options to localStorage", e);
+      console.warn("Failed to persist caravan-movement options to the world settings", e);
     }
+    this.optionsKey = storedSettingsKey();
   }
 }
 

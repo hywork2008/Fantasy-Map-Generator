@@ -2,7 +2,7 @@ import { viewLayerService as view } from "../services/viewLayerService";
 import { modules } from "../store/editorState";
 import { closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { fitContent } from "../utils/domUtils";
-import { layerIsOn } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/layerUtils";
 import { toggleRoutes } from "./layers";
 
 export function overviewRoutes(): void {

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { setTechnologyProgressForTests } from "../../../generators/technologyProgress";
-import { useOptionsState, worldContext } from "../../hostCore";
+import { optionsStore, worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import { applyKnowledgeEwma, rn } from "../../hostUtils";
 import {
@@ -52,11 +52,11 @@ describe("ExperimentalWorkshopsModule", () => {
     ]);
     Goods.sync();
     Markets.sync();
-    useOptionsState.setState({ technologyDevelopmentSpeed: 1 });
+    optionsStore.setState({ technologyDevelopmentSpeed: 1 });
   });
 
   afterEach(() => {
-    useOptionsState.setState({ technologyDevelopmentSpeed: 1 });
+    optionsStore.setState({ technologyDevelopmentSpeed: 1 });
     clearEconomyContext();
     setTechnologyProgressForTests([]);
   });
@@ -106,7 +106,7 @@ describe("ExperimentalWorkshopsModule", () => {
   });
 
   it("does not square EWMA years when speed is 25 and a workshopResearcher seat is present", () => {
-    useOptionsState.setState({ technologyDevelopmentSpeed: 25 });
+    optionsStore.setState({ technologyDevelopmentSpeed: 25 });
     seedWorkshop();
     setResearchNamedSeats([{ burgId: 1, characterId: 9, role: "workshopResearcher" }]);
 

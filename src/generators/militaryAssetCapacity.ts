@@ -1,3 +1,4 @@
+import { simEvents } from "../simulation/events";
 import type { MilitaryRegiment, State } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 
@@ -19,7 +20,7 @@ function requestCapacity<T extends MountedCapacityRequest | FleetCapacityRequest
   eventName: string,
   detail: T
 ): number | undefined {
-  document.dispatchEvent(new CustomEvent(eventName, { detail }));
+  simEvents.dispatchEvent(new CustomEvent(eventName, { detail }));
   if (!detail.handled || detail.capacity === undefined || !Number.isFinite(detail.capacity)) return undefined;
   return Math.max(0, Math.floor(detail.capacity));
 }

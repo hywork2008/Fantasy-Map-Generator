@@ -1,4 +1,5 @@
 import type { RNGService } from "../../../context/appServices";
+import { pow } from "../../../simulation/deterministicMath";
 import {
   ANNUAL_GATE,
   getGuildChapters,
@@ -9,7 +10,7 @@ import {
   setGuildChapters,
   settleAnnualOnce
 } from "../economyContext";
-import { getEconomyCalibrationState } from "../store/economyCalibrationState";
+import { getEconomyCalibrationState } from "../state/economyCalibrationStore";
 import { guildSaturationPoints } from "./craftScale";
 import { buildGuildChapterSuitabilityContext, scoreGuildChapterSuitability } from "./guildChapterSuitability";
 import type { GuildChapter } from "./guildChapterTypes";
@@ -27,7 +28,7 @@ export const CHAPTER_DISSOLVE_YEARS = 3;
  * A guild promotes when its stock has reached this fraction of its current coverage,
  * so a small workshop qualifies on the same calendar as a full one.
  */
-export const CHAPTER_INFORMAL_PROMOTE_STOCK = 1 - (1 - GUILD_ADOPTION_RATE) ** CHAPTER_DISSOLVE_YEARS;
+export const CHAPTER_INFORMAL_PROMOTE_STOCK = 1 - pow(1 - GUILD_ADOPTION_RATE, CHAPTER_DISSOLVE_YEARS);
 
 function keyOf(burgId: number, domain: CraftKnowledgeDomain): string {
   return `${burgId}:${domain}`;

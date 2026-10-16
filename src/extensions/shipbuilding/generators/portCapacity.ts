@@ -4,8 +4,9 @@ import {
   evaluateHarborDepth,
   evaluateHarborElevation
 } from "../../../generators/harborSiteConditions";
+import { pow } from "../../../simulation/deterministicMath";
 import { normalizeHeightExponent } from "../../../utils/height";
-import { useOptionsState } from "../../hostCore";
+import { optionsStore } from "../../hostCore";
 import type { Burg, PackedGraph } from "../../hostTypes";
 import { getWorldContext } from "../shipbuildingContext";
 import type { ShipyardCandidate } from "./shipyardCandidates";
@@ -40,7 +41,7 @@ const LARGE_MIN_HARBOR_FACTOR = 0.5;
  */
 export function computePortCapacity(candidates: readonly ShipyardCandidate[]): Map<number, PortCapacity> {
   const { pack, populationRate, urbanization } = getWorldContext();
-  const heightExponent = normalizeHeightExponent(useOptionsState.getState().heightExponent);
+  const heightExponent = normalizeHeightExponent(optionsStore.getState().heightExponent);
   const capacityByBurg = new Map<number, PortCapacity>();
 
   for (const { burgId } of candidates) {
@@ -62,7 +63,7 @@ function computeBurgPortCapacity(
 ): PortCapacity {
   const { cells } = pack;
   const realPopulation = (burg.population ?? 0) * populationRate * urbanization;
-  const basePortScore = POWER_LAW_COEFFICIENT * realPopulation ** POWER_LAW_EXPONENT;
+  const basePortScore = POWER_LAW_COEFFICIENT * pow(realPopulation, POWER_LAW_EXPONENT);
 
   const harborQuality = Math.min(cells.harbor[burg.cell] ?? 0, MAX_HARBOR_QUALITY);
   const harborFactor = Math.max(harborQuality, 1) / MAX_HARBOR_QUALITY;

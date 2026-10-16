@@ -7,7 +7,7 @@ import type { WebglPickCandidatesDetail, WebglPickDetail } from "../types/webglP
 import { debounce } from "../utils/commonUtils";
 import { isDialogVisible } from "../utils/domUtils";
 import { findCell, findGridCell } from "../utils/graphUtils";
-import { layerIsOn } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/layerUtils";
 import { convertTemperature } from "../utils/unitUtils";
 import {
   getCellPoliticalSummary,

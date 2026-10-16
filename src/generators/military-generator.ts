@@ -1,4 +1,5 @@
 import { ensureCoreMilitaryUnits } from "../data/coreMilitaryUnits";
+import { simEvents } from "../simulation/events";
 import { isUndeadMilitaryUnit, livingTroops, undeadTroops } from "../utils/regimentPopulation";
 
 export { ensureCoreMilitaryUnits } from "../data/coreMilitaryUnits";
@@ -13,7 +14,8 @@ import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { isForestBiome, isNomadicBiome, isWetlandBiome } from "../data/biomeCatalog";
 import { getTroopPreferredFormation } from "../data/militaryFormations";
-import { useOptionsState } from "../store/optionsState";
+import { pow } from "../simulation/deterministicMath";
+import { optionsStore } from "../state/optionsStore";
 import { historicalPeriodIndex } from "../types/historicalPeriod";
 import type { MilitaryRegiment, MilitaryUnit, Platoon, State } from "../types/models";
 import type { WorldState } from "../types/WorldState";
@@ -379,7 +381,7 @@ class MilitaryModule {
           if (s.formName!.includes("Horde")) modifier *= 2;
           const plainsRatio = stateCellsCount[s.i] ? statePlainsCount[s.i] / stateCellsCount[s.i] : 0;
           // Sharp exponential curve: high plains -> massive boost, low plains -> practically zero
-          const plainsModifier = minmax(0.05 + plainsRatio ** 2 * 15, 0.05, 5);
+          const plainsModifier = minmax(0.05 + pow(plainsRatio, 2) * 15, 0.05, 5);
           modifier *= plainsModifier;
         } else if (unit.type === "melee" || unit.type === "ranged") {
           if (s.type === "Nomadic" || s.formName!.includes("Horde")) modifier *= 0.3;
@@ -1305,7 +1307,7 @@ class MilitaryModule {
       regiment.name = this.getName(regiment, state.military ?? []);
       this.generateNote(regiment, state);
     }
-    document.dispatchEvent(new CustomEvent("fmg:refresh-military"));
+    simEvents.dispatchEvent(new CustomEvent("fmg:refresh-military"));
     return true;
   }
 
@@ -1435,7 +1437,7 @@ class MilitaryModule {
    */
   updateDynamic(worldContext: WorldContext, deltaYears: number) {
     if (deltaYears <= 0) return;
-    if (!useOptionsState.getState().simMilitaryRecovery) return;
+    if (!optionsStore.getState().simMilitaryRecovery) return;
 
     const { pack } = worldContext;
     const states = pack.states;
@@ -1507,14 +1509,14 @@ class MilitaryModule {
 }
 export const Military = new MilitaryModule();
 
-document.addEventListener("fmg:shipbuilding-ship-completed", event => {
+simEvents.addEventListener("fmg:shipbuilding-ship-completed", event => {
   const detail = (event as CustomEvent<unknown>).detail;
   if (typeof detail !== "object" || detail === null || Array.isArray(detail)) return;
   const stateId = (detail as Record<string, unknown>).stateId;
   if (typeof stateId === "number" && stateId > 0) Military.refreshFleetCapacity(stateId);
 });
 
-document.addEventListener("fmg:time-advance-completed", () => {
+simEvents.addEventListener("fmg:time-advance-completed", () => {
   for (const state of worldContext.pack.states) {
     if (state?.i && !state.removed) Military.refreshMountedCapacity(state.i);
   }

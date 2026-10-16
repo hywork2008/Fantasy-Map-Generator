@@ -1,8 +1,9 @@
 import { getTechnologyStage } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import { landTravelLegSpeeds } from "../../../services/routeGrade";
+import { simEvents } from "../../../simulation/events";
 import { normalizeHeightExponent } from "../../../utils/height";
-import { useOptionsState, type WorldContext } from "../../hostCore";
+import { optionsStore, type WorldContext } from "../../hostCore";
 import { rn } from "../../hostUtils";
 import {
   getCaravans,
@@ -371,7 +372,7 @@ function publishCaravanHullPositions(caravans: readonly Caravan[]): void {
   }
 
   if (!updates.length) return;
-  document.dispatchEvent(new CustomEvent("fmg:economy-caravan-hull-positions", { detail: { updates } }));
+  simEvents.dispatchEvent(new CustomEvent("fmg:economy-caravan-hull-positions", { detail: { updates } }));
 }
 
 function tryDepartLoadingCaravan(caravan: Caravan): "departed" | "waiting" | "cancelled" {
@@ -631,7 +632,7 @@ function advanceCaravan(
       movement,
       month,
       heights,
-      normalizeHeightExponent(useOptionsState.getState().heightExponent),
+      normalizeHeightExponent(optionsStore.getState().heightExponent),
       world
     );
     caravan.travelLegs = legs;
@@ -683,7 +684,7 @@ function resolveBakeContext(month: number): {
   return {
     movement: CaravanMovement.getOptions(),
     heights: getWorldContext().pack?.cells?.h ?? null,
-    heightExponent: normalizeHeightExponent(useOptionsState.getState().heightExponent),
+    heightExponent: normalizeHeightExponent(optionsStore.getState().heightExponent),
     month
   };
 }

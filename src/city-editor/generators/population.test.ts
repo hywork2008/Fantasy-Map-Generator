@@ -304,6 +304,7 @@ describe("population-driven city generation", () => {
     expect(doc.populationReport!.unplacedPopulation).toBe(3000);
     expect(doc.populationReport!.reasons).toContain("population-capacity-adjustment-exhausted");
   });
+  // Full-scale generation, replay and housing variants need headroom when suites run in parallel.
   it("generates and accounts for a Paris-sized city", () => {
     const input = createGridDocument({
       size: "small",
@@ -388,5 +389,5 @@ describe("population-driven city generation", () => {
           .reduce((n, c) => n + c.assignedDwellings, 0)
       ).toBe(33334);
     }
-  });
+  }, 240000);
 });

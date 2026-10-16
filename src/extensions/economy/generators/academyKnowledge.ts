@@ -10,7 +10,7 @@ import {
   setAcademyKnowledgeStocks,
   settleAnnualOnce
 } from "../economyContext";
-import { getEconomyCalibrationState } from "../store/economyCalibrationState";
+import { getEconomyCalibrationState } from "../state/economyCalibrationStore";
 import type { AcademyKnowledgeStock, ScholarlyKnowledgeDomain } from "./academyKnowledgeTypes";
 import { ACADEMY_ADMIN_KNOWLEDGE_CAP_PEOPLE, getAdministrationEmploymentPeople } from "./administrationEmployment";
 import { ACADEMY_SATURATION_PEOPLE } from "./craftScale";

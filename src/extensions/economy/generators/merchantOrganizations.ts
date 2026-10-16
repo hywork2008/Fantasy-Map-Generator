@@ -1,3 +1,4 @@
+import { pow } from "../../../simulation/deterministicMath";
 import { applyCharacterBackstory, seedRelationsWithPeers } from "../../characters/backstoryProfile";
 import type { Character, CharacterRole, CharacterSkills } from "../../characters/characterTypes";
 import { finalizeCharacterSocietyForPeer } from "../../characters/finalizeCharacterSociety";
@@ -457,7 +458,7 @@ function getBranchStaffCount(servedBurgCount: number): number {
 }
 
 function applyBodyguardProwess(character: Character): void {
-  setProwess(character, Math.floor(60 + Math.random() ** 2.4 * 41));
+  setProwess(character, Math.floor(60 + pow(Math.random(), 2.4) * 41));
 }
 
 function setProwess(character: Character, value: number): void {

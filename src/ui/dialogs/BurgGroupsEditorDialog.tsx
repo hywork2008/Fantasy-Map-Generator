@@ -10,7 +10,7 @@ import { burgGroupSelectionStore, useBurgGroupSelectionState } from "../../store
 import { useBurgsOverviewState } from "../../store/burgsOverviewState";
 import { dialogStore, useDialogState } from "../../store/dialogState";
 import type { Burg, BurgGroup } from "../../types/models";
-import { layerIsOn } from "../../utils/nodeUtils";
+import { layerIsOn } from "../../utils/layerUtils";
 import { Dialog } from "./Dialog";
 import { closeDialog, openConfirm } from "./dialogService";
 import { FeaturesSelectionDialog } from "./FeaturesSelectionDialog";

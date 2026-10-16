@@ -27,7 +27,7 @@ import {
 } from "three/tsl";
 import { Line2NodeMaterial, MeshLambertNodeMaterial, WebGPURenderer } from "three/webgpu";
 import { LoopSubdivision } from "three-subdivide";
-import { layerIsOn } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/layerUtils";
 import {
   disposeRiverFlowTexture,
   disposeSatelliteTexture,

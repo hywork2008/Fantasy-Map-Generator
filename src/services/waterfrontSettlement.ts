@@ -1,9 +1,9 @@
 import type { WorldContext } from "../context/worldContext";
-import { drawnFeatureShape, type FractalizedShape, sampleCoastlineShape } from "../renderers/coastline-fractal";
 import type { Burg } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import type { WaterfrontIssue } from "../types/waterfrontSettlement";
 import { rn } from "../utils";
+import { drawnFeatureShape, type FractalizedShape, sampleCoastlineShape } from "../utils/coastlineFractal";
 import { burgLotOccupancy, occupancyRadiusMeters } from "../utils/cultureLotOccupancy";
 import { PORT_SHORE_INLAND_METERS } from "./portShorePosition";
 

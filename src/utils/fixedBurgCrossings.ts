@@ -1,4 +1,5 @@
 import { footprintTouchesWater, normalWaterSection, validWaterPolygon } from "../services/riverPhysicalGeometry";
+import { pow } from "../simulation/deterministicMath";
 import { BRIDGE_SKEW_MAX_DEGREES } from "./bridgeSkewPolicy";
 import { isRequiredSiteBounds, type RequiredSiteBounds, requiredSiteExtent } from "./requiredSiteBounds";
 
@@ -219,7 +220,7 @@ export function validFixedBurgCrossings(raw: unknown, budgets: FixedCrossingBudg
       q[i] =
         w.kind === "line"
           ? v * p[0][i] + t * p[1][i]
-          : v ** 3 * p[0][i] + 3 * v * v * t * p[1][i] + 3 * v * t * t * p[2][i] + t ** 3 * p[3][i];
+          : pow(v, 3) * p[0][i] + 3 * v * v * t * p[1][i] + 3 * v * t * t * p[2][i] + pow(t, 3) * p[3][i];
       derivative[i] =
         w.kind === "line"
           ? p[1][i] - p[0][i]

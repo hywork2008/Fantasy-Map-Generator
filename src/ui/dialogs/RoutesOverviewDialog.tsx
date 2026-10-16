@@ -11,7 +11,7 @@ import { useDialogState } from "../../store/dialogState";
 import { useOptionsState } from "../../store/optionsState";
 import { useRoutesOverviewState } from "../../store/routesOverviewState";
 import { rn } from "../../utils";
-import { layerIsOn } from "../../utils/nodeUtils";
+import { layerIsOn } from "../../utils/layerUtils";
 import { IconButton } from "../components/IconButton";
 import { LandConnectionAssessmentReport } from "../components/LandConnectionAssessmentReport";
 import { SortableHeader } from "../components/tables/SortableHeader";

@@ -3,7 +3,6 @@ import Delaunator from "delaunator";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
 import type { ViewContext } from "../context/viewContext";
-import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { getRaceById } from "../data/races";
@@ -11,7 +10,9 @@ import { NO_RIVER_ROAD_CONVERGENCE, resolveRiverRouteCrossings } from "../servic
 import { DEFAULT_ROUTE_GRADE_THRESHOLDS, sampleEdgeGrade } from "../services/routeGrade";
 import { densifyLandRoutePoints, routeRenderPoints } from "../services/routeRenderGeometry";
 import { generateWorldLandConnections } from "../services/worldLandConnectionRuntime";
-import { useOptionsState } from "../store/optionsState";
+import { pow } from "../simulation/deterministicMath";
+import { markLoadRepairCurrent } from "../simulation/loadRepairs";
+import { optionsStore } from "../state/optionsStore";
 import type {
   Burg,
   InternationalRoutePolicy,
@@ -152,7 +153,7 @@ export function landRouteSlopeModifier(grade: number, sensitivity = 1, aversion 
   if (grade <= 0) return 1;
   return (
     1 +
-    LAND_ROUTE_SLOPE_S * sensitivity * aversion * (grade / DEFAULT_ROUTE_GRADE_THRESHOLDS.G_hard) ** LAND_ROUTE_SLOPE_Q
+    LAND_ROUTE_SLOPE_S * sensitivity * aversion * pow(grade / DEFAULT_ROUTE_GRADE_THRESHOLDS.G_hard, LAND_ROUTE_SLOPE_Q)
   );
 }
 
@@ -160,7 +161,7 @@ export function landRouteSlopeModifier(grade: number, sensitivity = 1, aversion 
 export function landRoutePeakMultiplier(hTo: number, sensitivity = 1, aversion = 1): number {
   const peak = Math.max(0, hTo - LAND_ROUTE_PEAK_H0);
   if (peak === 0) return 1;
-  return 1 + LAND_ROUTE_PEAK_K * sensitivity * aversion * (peak / LAND_ROUTE_PEAK_REF) ** LAND_ROUTE_PEAK_P;
+  return 1 + LAND_ROUTE_PEAK_K * sensitivity * aversion * pow(peak / LAND_ROUTE_PEAK_REF, LAND_ROUTE_PEAK_P);
 }
 
 /** Combined terrain multiplier (no low cap — high peaks may be arbitrarily expensive). */
@@ -332,7 +333,8 @@ const suffixes: Record<string, Record<string, number>> = {
 
 class RoutesModule {
   worldContext: WorldContext = worldContext;
-  viewContext: Readonly<ViewContext> = viewContext;
+  // Set by generate(); the simulation core never imports the live view context (S1).
+  viewContext?: Readonly<ViewContext>;
   appServices: AppServices = appServices;
 
   private riverAdjacency = new Set<string>();
@@ -793,7 +795,7 @@ class RoutesModule {
     // Shared with travel time (route-grade-movement.md): grade is rise/run in real terrain, not
     // the raw pack height index, so a generated road's steepness and its later-computed travel
     // difficulty agree on what "steep" means.
-    const heightExponent = normalizeHeightExponent(useOptionsState.getState().heightExponent);
+    const heightExponent = normalizeHeightExponent(optionsStore.getState().heightExponent);
     const isNavigableRiverLeg = (current: number, next: number): boolean => {
       const riverIds = pack.cells.r as Uint16Array | number[] | undefined;
       const flux = pack.cells.fl as Uint16Array | number[] | undefined;
@@ -1520,7 +1522,7 @@ class RoutesModule {
     for (let k = lo; k < hi; k++) {
       const [ax, ay] = polygon[k];
       const [bx, by] = polygon[k + 1];
-      const length = (bx - ax) ** 2 + (by - ay) ** 2;
+      const length = pow(bx - ax, 2) + pow(by - ay, 2);
       const t = length ? Math.max(0, Math.min(1, ((burg.x - ax) * (bx - ax) + (burg.y - ay) * (by - ay)) / length)) : 0;
       const q: [number, number] = [ax + (bx - ax) * t, ay + (by - ay) * t];
       const d = Math.hypot(q[0] - burg.x, q[1] - burg.y);
@@ -1717,7 +1719,7 @@ class RoutesModule {
 
   generate(
     worldContext: WorldContext,
-    viewContext: Readonly<ViewContext>,
+    viewContext: Readonly<ViewContext> | undefined,
     appServices: AppServices,
     state: WorldState,
     lockedRoutes: Route[] = [],
@@ -1727,6 +1729,8 @@ class RoutesModule {
     this.worldContext = worldContext;
     this.viewContext = viewContext;
     this.appServices = appServices;
+    // Freshly generated routes are what the load-time route repair would produce.
+    markLoadRepairCurrent(worldContext.options, "routes");
     const { pack } = state;
     const resolvedSeaRouteGenerationMode =
       seaRouteGenerationMode ?? worldContext.options.seaRouteGenerationMode ?? "augmented";
@@ -1790,7 +1794,7 @@ class RoutesModule {
     pack.cells.routes = measureGenerationStep("buildLinks", () => this.buildLinks(pack.routes));
     if (worldContext.options.landConnectionGeneration) {
       const physical = measureGenerationStep("generateWorldLandConnections", () =>
-        generateWorldLandConnections(worldContext, useOptionsState.getState().distanceUnit)
+        generateWorldLandConnections(worldContext, optionsStore.getState().distanceUnit)
       );
       if ("routes" in physical) {
         pack.routes = [...pack.routes.filter(route => route.group === "searoutes" || route.lock), ...physical.routes];
@@ -2136,7 +2140,7 @@ class RoutesModule {
     pack?: PackedGraph
   ): number[][] {
     const world = pack && pack !== this.worldContext.pack ? { ...this.worldContext, pack } : this.worldContext;
-    return routeRenderPoints(world, route, useOptionsState.getState().distanceUnit);
+    return routeRenderPoints(world, route, optionsStore.getState().distanceUnit);
   }
 
   getPath(

@@ -74,7 +74,7 @@ test("Fast-Forward no longer double-drains the treasury on top of the preset rat
     has: page.locator(".fmg-dialog-title", { hasText: "Advance Time" })
   });
   await dialog.getByRole("checkbox").first().check();
-  await dialog.getByRole("combobox").selectOption("steady");
+  await dialog.getByRole("combobox", { name: "Preset" }).selectOption("steady");
 
   const ffBefore = await totalTreasury(page);
   await page.evaluate(() => window.fmg.actions.advanceTime(1));

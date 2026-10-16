@@ -1,3 +1,4 @@
+import { pow } from "../../../simulation/deterministicMath";
 import { minmax, rn } from "../../hostUtils";
 import type { Good } from "./goodsGeneratorTypes";
 
@@ -40,7 +41,7 @@ export function applyPriceElasticity(
   if (elasticity === 0) return baseDemand;
   const value = good.value > 0 ? good.value : 1;
   const current = typeof price === "number" && price > 0 ? price : value;
-  const factor = (current / value) ** elasticity;
+  const factor = pow(current / value, elasticity);
   if (!Number.isFinite(factor)) return baseDemand;
   return Math.max(0, baseDemand * factor);
 }

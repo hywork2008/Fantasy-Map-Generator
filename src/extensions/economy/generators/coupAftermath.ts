@@ -1,3 +1,4 @@
+import { simEvents } from "../../../simulation/events";
 import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { appendCouncilLog } from "./councilSession";
@@ -150,8 +151,7 @@ export function tickCoupLegitimacyAndUnrest(state: State): CivilUnrestTickResult
 }
 
 function dispatchCoupCivilUnrestEvent(state: State, phase: "start" | "tick" | "clear"): void {
-  if (typeof document === "undefined") return;
-  document.dispatchEvent(
+  simEvents.dispatchEvent(
     new CustomEvent("fmg:coup-civil-unrest", {
       detail: {
         stateId: state.i,

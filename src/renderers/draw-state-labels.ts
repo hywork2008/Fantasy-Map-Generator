@@ -4,8 +4,9 @@ import type { FocusFields, RootLayers, SettlementLayers } from "../context/viewC
 import type { WorldContext } from "../context/worldContext";
 import { getPresentationLabel, presentationData } from "../runtime/presentationData";
 import type { TypedArray } from "../types/PackedGraph";
-import { drawPath, drawPoint, findClosestCell, minmax, rn, round, splitInTwo } from "../utils";
+import { findClosestCell, minmax, rn, round, splitInTwo } from "../utils";
 import { DEBUG, TIME } from "../utils/debug";
+import { drawPath, drawPoint } from "../utils/debugUtils";
 import type { IRenderer } from "./core/IRenderer";
 
 interface Ray {

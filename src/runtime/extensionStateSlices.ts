@@ -535,6 +535,19 @@ function validateEconomySlice(slice: Record<string, unknown>, world: WorldContex
       }
     }
   }
+  if (slice.cadencePhases !== undefined) {
+    const phases = slice.cadencePhases;
+    if (typeof phases !== "object" || phases === null || Array.isArray(phases)) {
+      throw new Error("Archive simulation.extensions.economy.cadencePhases must be a record");
+    }
+    for (const [key, value] of Object.entries(phases as Record<string, unknown>)) {
+      if (!key || typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+        throw new Error(
+          `Archive simulation.extensions.economy.cadencePhases.${key} must be a finite non-negative number`
+        );
+      }
+    }
+  }
   if (slice.innFacilitiesLastSettledYear !== undefined) {
     const year = slice.innFacilitiesLastSettledYear;
     if (typeof year !== "number" || !Number.isFinite(year)) {

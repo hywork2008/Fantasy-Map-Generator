@@ -9,6 +9,7 @@
  * extension command, player-facing quotes, tests) keeps calling the synchronous originals and
  * is unaffected.
  */
+import { yieldToHost } from "../../../simulation/ports";
 
 export interface IncrementalBatchOptions {
   /** Checked once per frame; a `true` return stops the batch early without finishing `items`. */
@@ -38,7 +39,7 @@ export async function runBatchedYielding<T>(
       fn(items[index]);
       index++;
     } while (index < items.length && performance.now() - frameStart < frameBudgetMs);
-    if (index < items.length) await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+    if (index < items.length) await yieldToHost();
   }
   return true;
 }

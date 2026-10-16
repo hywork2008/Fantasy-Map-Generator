@@ -4,7 +4,6 @@ import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
 import { simulationContext } from "../context/simulationContext";
 import type { ViewContext } from "../context/viewContext";
-import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import {
@@ -19,9 +18,6 @@ import { getRaceById } from "../data/races";
 import { activeLabOptions } from "../debug/riverPortLab/labOptions";
 import { selectLabSites } from "../debug/riverPortLab/selectLabSites";
 import { isLichCultureId, MAX_LICHES_PER_MAP } from "../extensions/characters/lichPolicy";
-import { removeBurgIcon, removeBurgLabel } from "../renderers";
-import type { FractalizedShape } from "../renderers/coastline-fractal";
-import { COArenderer } from "../renderers/emblem-renderer";
 import { bindSimulationBurg } from "../runtime/simulationBurgState";
 import { countBurgRoadLegs } from "../services/burgSiteDescriptor";
 import { updateAllBurgWaterAccess, updateBurgWaterAccess } from "../services/burgWaterAccess";
@@ -37,11 +33,13 @@ import {
   findRiverSettlementSiteSteps,
   type RiverSettlementSite
 } from "../services/settlementRiverSite";
-import { tip } from "../services/tooltipService";
-import { useOptionsState } from "../store/optionsState";
+import { pow } from "../simulation/deterministicMath";
+import { simulationView } from "../simulation/viewPort";
+import { optionsStore } from "../state/optionsStore";
 import type { Burg, Route } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import { each, findCell, gauss, minmax, normalize, P, rn } from "../utils";
+import type { FractalizedShape } from "../utils/coastlineFractal";
 import { burgLotOccupancy, occupancyRadiusMeters } from "../utils/cultureLotOccupancy";
 import { ERROR, TIME, WARN } from "../utils/debug";
 import { normalizeFrontierStartMode } from "../utils/frontierStartMode";
@@ -130,7 +128,8 @@ export type BurgShiftOptions = {
 
 class BurgModule {
   worldContext: WorldContext = worldContext;
-  viewContext: Readonly<ViewContext> = viewContext;
+  // Set by generate(); the simulation core never imports the live view context (S1).
+  viewContext?: Readonly<ViewContext>;
   appServices: AppServices = appServices;
   /** Burgs founded as overseas harbours: keep the town on the cell centre; the anchor sits at sea. */
   private landmassPortBurgIds = new Set<number>();
@@ -248,7 +247,7 @@ class BurgModule {
         this.reservedRiverSites.set(burg.i, [burg.x, burg.y]);
     }
     try {
-      yield* this.geometrySession.prepareSteps(this.worldContext, useOptionsState.getState().distanceUnit);
+      yield* this.geometrySession.prepareSteps(this.worldContext, optionsStore.getState().distanceUnit);
       for (const burg of burgs) {
         if (burg.i && !burg.lock) delete burg.port;
       }
@@ -299,7 +298,7 @@ class BurgModule {
     const highestSourceElevation = highestWaterSourceElevation(cells);
     if (highestSourceElevation === null || !states?.length) return;
 
-    const culturesSet = useOptionsState.getState().culturesSet;
+    const culturesSet = optionsStore.getState().culturesSet;
     for (const burg of burgs) {
       if (!burg.i || burg.removed || !burg.state) continue;
       if (
@@ -353,7 +352,7 @@ class BurgModule {
    * capacity (`elevationFactor`, applied in portCapacity.ts) — it never excludes the candidate.
    */
   private elevationAllowsFormalHarbor(cellId: number): boolean {
-    const heightExponent = normalizeHeightExponent(useOptionsState.getState().heightExponent);
+    const heightExponent = normalizeHeightExponent(optionsStore.getState().heightExponent);
     const { tier } = evaluateHarborElevation(this.worldContext.pack.cells.h[cellId], heightExponent);
     return tier !== "unsuitable";
   }
@@ -703,9 +702,9 @@ class BurgModule {
     const existingPorts = [...lockedPorts, ...selected.map(candidate => candidate.burg)];
     if (!existingPorts.length) return [...candidates].sort((a, b) => rank(a) - rank(b))[0];
 
-    const minDistanceSquared = lakeArea > 0 ? lakeArea / capacity ** 2 : 0;
+    const minDistanceSquared = lakeArea > 0 ? lakeArea / pow(capacity, 2) : 0;
     const distanceToNearestPort = (candidate: PortCandidate) =>
-      Math.min(...existingPorts.map(port => (candidate.burg.x - port.x) ** 2 + (candidate.burg.y - port.y) ** 2));
+      Math.min(...existingPorts.map(port => pow(candidate.burg.x - port.x, 2) + pow(candidate.burg.y - port.y, 2)));
     const spaced = candidates.filter(candidate => distanceToNearestPort(candidate) >= minDistanceSquared);
     if (spaced.length) return [...spaced].sort((a, b) => rank(a) - rank(b))[0];
 
@@ -821,7 +820,7 @@ class BurgModule {
           riverSiteStatus: prior.riverSiteStatus
         };
         const session = settlementGeometrySession(this.worldContext);
-        session.prepare(this.worldContext, useOptionsState.getState().distanceUnit);
+        session.prepare(this.worldContext, optionsStore.getState().distanceUnit);
         const steps = this.resiteOnRiverBankSteps(river, [burg.x, burg.y], session);
         let step = steps.next();
         while (!step.done) step = steps.next();
@@ -891,7 +890,7 @@ class BurgModule {
     const world = this.worldContext;
     const mode = world.options.portCoastPlacement;
     if (!mode) return null; // maps generated before the option keep the legacy slide
-    const metersPerMapUnit = mapUnitMeters(world.distanceScale, useOptionsState.getState().distanceUnit);
+    const metersPerMapUnit = mapUnitMeters(world.distanceScale, optionsStore.getState().distanceUnit);
     if (!(metersPerMapUnit > 0)) return null;
     if (mode === "pinned") return pinnedShorePortPosition(world.pack.cells.p[cellId] as Point, edge, metersPerMapUnit);
     // The module is a singleton: drop shapes from a previous map or feature set.
@@ -972,7 +971,7 @@ class BurgModule {
     const burg = burgOverride ?? pack.burgs.find(b => b?.i && b.cell === cellId);
     const river = pack.rivers.find(r => r.i === cells.r[cellId]);
     if (!river) return source;
-    const unit = useOptionsState.getState().distanceUnit;
+    const unit = optionsStore.getState().distanceUnit;
     const session = sessionOverride ?? this.geometrySession ?? new SettlementGeometrySession();
     if (!sessionOverride && !this.geometrySession) session.prepare(world, unit);
     const prepared = session.source(river.i);
@@ -1127,11 +1126,11 @@ class BurgModule {
         )
           return false;
         const elevations = touched.map(t =>
-          heightToMeters(cells.h[t.id], normalizeHeightExponent(useOptionsState.getState().heightExponent))
+          heightToMeters(cells.h[t.id], normalizeHeightExponent(optionsStore.getState().heightExponent))
         );
         // Bounded terrain proxy: relief over the core and slopes to adjacent land centres.
         if ((Math.max(...elevations) - Math.min(...elevations)) / (2 * radius) > 0.15) return false;
-        const exponent = normalizeHeightExponent(useOptionsState.getState().heightExponent);
+        const exponent = normalizeHeightExponent(optionsStore.getState().heightExponent);
         return touched.every(t =>
           (cells.c?.[t.id] ?? []).every(next => {
             if (cells.h[next] < 20) return true;
@@ -1298,8 +1297,8 @@ class BurgModule {
     cells.burg = new Uint16Array(cells.i.length);
     const giantHighlandOikoumene = seedGiantHighlandOikoumene(
       this.worldContext,
-      useOptionsState.getState().culturesSet,
-      useOptionsState.getState().initialPopulationSaturation / 100
+      optionsStore.getState().culturesSet,
+      optionsStore.getState().initialPopulationSaturation / 100
     );
 
     // The Settlement Foundation owns non-standard Burg candidates. Standard
@@ -1324,7 +1323,7 @@ class BurgModule {
       if (plannedNodes.length) {
         const capitalsNumber = getInitialPolityCapitalCount(
           pack.settlementFoundation!,
-          scopedStatesNumber(grid, useOptionsState.getState().statesNumber)
+          scopedStatesNumber(grid, optionsStore.getState().statesNumber)
         );
         // ensureMandatoryCapitals (docs/plan/underground-realm-and-supernatural-areas.md §3.4/
         // §7.3) guarantees the Dwarf hold's "mountain" region node is a capital even when it
@@ -1505,7 +1504,7 @@ class BurgModule {
     TIME && console.timeEnd("generateBurgs");
 
     function getCapitalsNumber() {
-      let number = useOptionsState.getState().statesNumber;
+      let number = optionsStore.getState().statesNumber;
       if (grid.scope) return capScopedCount(grid.scope, "states", number, populatedCells.length);
 
       if (populatedCells.length < number * 10) {
@@ -1595,9 +1594,9 @@ class BurgModule {
     }
 
     function getTownsNumber() {
-      const manors = useOptionsState.getState().manors;
+      const manors = optionsStore.getState().manors;
       const isAuto = manors === 1000; // 1000 is considered as auto
-      if (isAuto) return rn(populatedCells.length / 5 / (gridDensityCells(grid) / 10000) ** 0.8);
+      if (isAuto) return rn(populatedCells.length / 5 / pow(gridDensityCells(grid) / 10000, 0.8));
 
       return Math.min(manors, populatedCells.length);
     }
@@ -1686,7 +1685,7 @@ class BurgModule {
     for (let i = sorted.length - 1; i >= 0; i--) if (score[sorted[i]] <= 0) sorted.splice(i, 1);
     sorted.sort((a, b) => score[b] - score[a]);
 
-    let spacing = (this.worldContext.graphWidth + this.worldContext.graphHeight) / 150 / (count ** 0.7 / 66);
+    let spacing = (this.worldContext.graphWidth + this.worldContext.graphHeight) / 150 / (pow(count, 0.7) / 66);
 
     for (let added = 0; added < count && spacing > 1; ) {
       for (let i = 0; added < count && i < sorted.length; i++) {
@@ -1793,7 +1792,7 @@ class BurgModule {
     population += (((burg.i as number) % 100) - (cellId % 100)) / 1000; // unround
     const capacity = rn(Math.max(population, 0.01), 3);
 
-    const initialPopulationSaturation = useOptionsState.getState().initialPopulationSaturation / 100;
+    const initialPopulationSaturation = optionsStore.getState().initialPopulationSaturation / 100;
     burg.population = rn(capacity * initialPopulationSaturation, 3);
     // Group is usually assigned later in defineGroup(); apply default shares first, then
     // applyDemographics() after the group is known so fort/monastery/etc. get the right mix.
@@ -2061,7 +2060,7 @@ class BurgModule {
     const { i, name, population: burgPopulation, cell } = burg;
     const burgSeed = String(burg.MFCG ?? seed + String(burg.i).padStart(4, "0"));
 
-    const sizeRaw = 2.13 * ((burgPopulation! * populationRate) / worldContext.urbanDensity) ** 0.385;
+    const sizeRaw = 2.13 * pow((burgPopulation! * populationRate) / worldContext.urbanDensity, 0.385);
     const size = minmax(Math.ceil(sizeRaw), 6, 100);
     const population = rn(burgPopulation! * populationRate * urbanization);
 
@@ -2269,7 +2268,7 @@ class BurgModule {
     };
     this.definePopulation(burg);
     this.defineEmblem(burg);
-    COArenderer.add("burg", burgId, burg.coa as Emblem, x, y);
+    simulationView.burgAdded(burgId, burg.coa as Emblem, x, y);
     this.defineFeatures(burg, this.computeStrategicContext(pack, options.year ?? 0));
 
     const populations = pack.burgs
@@ -2327,7 +2326,7 @@ class BurgModule {
   remove(burgId: number) {
     const { pack, notes } = this.worldContext;
     const burg = pack.burgs[burgId];
-    if (!burg) return tip(`Burg ${burgId} not found`, false, "error");
+    if (!burg) return simulationView.tip(`Burg ${burgId} not found`, false, "error");
 
     pack.cells.burg[burg.cell] = 0;
     burg.removed = true;
@@ -2339,8 +2338,7 @@ class BurgModule {
       delete burg.coa;
     }
 
-    removeBurgIcon(worldContext, viewContext, appServices, burg.i!);
-    removeBurgLabel(worldContext, viewContext, appServices, burg.i!);
+    simulationView.burgRemoved(burg.i!);
   }
 }
 export const Burgs = new BurgModule();

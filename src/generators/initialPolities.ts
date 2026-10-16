@@ -1,3 +1,4 @@
+import { pow } from "../simulation/deterministicMath";
 import type { Burg, State } from "../types/models";
 import type { SettlementFoundationPlan, SettlementNode } from "../types/settlementFoundation";
 import { normalizeInitialPolityRealmSize } from "../utils/initialPolityScope";
@@ -294,7 +295,7 @@ function nearestSquaredDistance(
   return Math.min(
     ...selected.map(other => {
       const [otherX, otherY] = points[other.cell];
-      return (x - otherX) ** 2 + (y - otherY) ** 2;
+      return pow(x - otherX, 2) + pow(y - otherY, 2);
     })
   );
 }

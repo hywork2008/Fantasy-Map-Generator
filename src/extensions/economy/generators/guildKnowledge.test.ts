@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { useOptionsState, worldContext } from "../../hostCore";
+import { optionsStore, worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
   clearEconomyContext,
@@ -40,7 +40,7 @@ describe("GuildKnowledgeModule", () => {
   });
 
   afterEach(() => {
-    useOptionsState.setState({ technologyDevelopmentSpeed: 1 });
+    optionsStore.setState({ technologyDevelopmentSpeed: 1 });
     clearEconomyContext();
   });
 
@@ -95,7 +95,7 @@ describe("GuildKnowledgeModule", () => {
   });
 
   it("matures a fully-staffed chapter in one year at 100× development speed", () => {
-    useOptionsState.setState({ technologyDevelopmentSpeed: 100 });
+    optionsStore.setState({ technologyDevelopmentSpeed: 100 });
     setSmelterOperations([smelter()]);
 
     GuildKnowledge.settleAnnual();

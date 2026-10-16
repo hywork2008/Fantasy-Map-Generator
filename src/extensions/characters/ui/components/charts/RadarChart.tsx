@@ -2,7 +2,7 @@ import * as d3 from "d3";
 import type React from "react";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { useOptionsState } from "../../../../hostCore";
+import { useOptionsState } from "../../../../hostUi";
 
 export interface RadarData {
   axis: string;

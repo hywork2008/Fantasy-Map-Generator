@@ -2,7 +2,7 @@ import { select } from "d3";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI } from "../../hostTypes";
-import { clearEconomyContext, initEconomyContext, setDamSites, setDams } from "../economyContext";
+import { bindEconomyView, clearEconomyContext, initEconomyContext, setDamSites, setDams } from "../economyContext";
 import { drawDams } from "./drawDams";
 
 describe("drawDams", () => {
@@ -11,7 +11,11 @@ describe("drawDams", () => {
   beforeEach(() => {
     node = document.createElementNS("http://www.w3.org/2000/svg", "g");
     const layer = select(node);
-    initEconomyContext({ worldContext, getSvgLayer: () => layer } as unknown as ExtensionAPI);
+    {
+      const api = { worldContext, getSvgLayer: () => layer } as unknown as ExtensionAPI;
+      initEconomyContext(api);
+      bindEconomyView(api);
+    }
 
     setDamSites([
       {

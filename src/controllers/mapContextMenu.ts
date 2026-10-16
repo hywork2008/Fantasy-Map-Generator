@@ -16,7 +16,8 @@ import {
 import { is3DViewActive } from "../store/viewModeState";
 import { openDialog } from "../ui/dialogs/dialogService";
 import { findCell, rn } from "../utils";
-import { getElementById, layerIsOn } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/layerUtils";
+import { getElementById } from "../utils/nodeUtils";
 import { openCityEditorForBurg } from "./city-editor-handshake";
 import { toggleRulers } from "./layers";
 import { Ruler, Rulers } from "./measurers";

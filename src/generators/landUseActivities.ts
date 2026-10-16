@@ -1,3 +1,4 @@
+import { pow } from "../simulation/deterministicMath";
 import type { CellLandUseBudget, LandUsePatchBudget, LandUseSnapshot } from "../types/landUse";
 import {
   CLOSED_CANOPY_COVER,
@@ -180,7 +181,7 @@ export function placeLandUses(input: ClearanceCellInput, cell: CellLandUseBudget
     landscapeNoise((p[0] * Math.sqrt(areaScale) * 100) / 5000, (p[1] * Math.sqrt(areaScale) * 100) / 5000, seed);
   const metersPerUnit = Math.sqrt(areaScale) * 100;
   // World-coherent (no per-cell salt) so neighbouring cells of similar size continue the same clusters.
-  const cropNoise = createFieldNoise(`${seed}:crop-layout`, 2 ** Math.round(Math.log2(step * metersPerUnit * 3)));
+  const cropNoise = createFieldNoise(`${seed}:crop-layout`, pow(2, Math.round(Math.log2(step * metersPerUnit * 3))));
   const fieldNoise = (p: Point) => cropNoise(p[0] * metersPerUnit, p[1] * metersPerUnit);
   const contour = (poly: Point[], threshold: number): Point[] => {
     const output: Point[] = [];

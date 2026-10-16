@@ -8,7 +8,7 @@ import {
   setGuildKnowledgeStocks,
   settleAnnualOnce
 } from "../economyContext";
-import { getEconomyCalibrationState } from "../store/economyCalibrationState";
+import { getEconomyCalibrationState } from "../state/economyCalibrationStore";
 import { guildSaturationPoints, peopleToPoints } from "./craftScale";
 import type { CraftKnowledgeDomain, GuildKnowledgeStock } from "./guildKnowledgeTypes";
 import { GUILD_SITE_KNOWLEDGE_CAP_PEOPLE, getSmelterEmploymentPeople } from "./smelterOperationsTypes";

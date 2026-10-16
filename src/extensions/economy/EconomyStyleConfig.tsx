@@ -1,12 +1,12 @@
 import { type ExtensionStyleConfig, type ExtensionStyleProps, useStyleState } from "../hostUi";
-import { getApi } from "./economyContext";
+import { getViewApi } from "./economyContext";
 
 export function EconomyStyleBody({ visibility }: ExtensionStyleProps) {
   const showCircle = useStyleState(state => state.values.styleGoodsCircle === "1");
 
   const handleChange = (checked: boolean) => {
     useStyleState.getState().updateValue("styleGoodsCircle", checked ? "1" : "");
-    const goodsGroup = getApi().getSvgLayer("goods");
+    const goodsGroup = getViewApi().getSvgLayer("goods");
     if (goodsGroup) {
       goodsGroup.selectAll("circle").attr("display", checked ? "block" : "none");
     }

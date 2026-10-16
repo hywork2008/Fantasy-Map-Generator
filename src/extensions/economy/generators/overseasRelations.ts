@@ -13,6 +13,7 @@
  */
 
 import { getStateMaritimeAptitude, isTechnologyAtLeast } from "../../../generators/technologyProgress";
+import { simEvents } from "../../../simulation/events";
 import { type ChronicleEvent, SHIP_CLASS_DEFINITIONS } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import {
@@ -348,21 +349,21 @@ function getReservationShipHullIds(reservationId: number): number[] {
 
 function getAvailableEscortHullIds(stateId: number): number[] {
   const detail: { source: "economy"; stateId: number; hullIds?: number[] } = { source: "economy", stateId };
-  document.dispatchEvent(new CustomEvent("fmg:shipbuilding-state-hull-availability-request", { detail }));
+  simEvents.dispatchEvent(new CustomEvent("fmg:shipbuilding-state-hull-availability-request", { detail }));
   return detail.hullIds ?? [];
 }
 
 function reserveEscortHulls(stateId: number, expeditionId: number, hullIds: readonly number[]): boolean {
   if (!hullIds.length) return true;
   const detail = { stateId, expeditionId, hullIds, result: undefined as "fulfilled" | "unavailable" | undefined };
-  document.dispatchEvent(new CustomEvent("fmg:shipbuilding-state-hull-reservation-request", { detail }));
+  simEvents.dispatchEvent(new CustomEvent("fmg:shipbuilding-state-hull-reservation-request", { detail }));
   return detail.result === "fulfilled";
 }
 
 function releaseEscortHulls(expeditionId: number, hullIds: readonly number[], outcome: "arrived" | "lost"): void {
   if (!hullIds.length) return;
   const detail = { expeditionId, hullIds, outcome, result: undefined as "fulfilled" | "unavailable" | undefined };
-  document.dispatchEvent(new CustomEvent("fmg:shipbuilding-state-hull-release-request", { detail }));
+  simEvents.dispatchEvent(new CustomEvent("fmg:shipbuilding-state-hull-release-request", { detail }));
 }
 
 /** Add a sparse, player-visible record for consequential overseas milestones. */

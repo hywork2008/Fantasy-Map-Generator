@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { useOptionsState, worldContext } from "../../hostCore";
+import { optionsStore, worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
   clearEconomyContext,
@@ -82,7 +82,7 @@ describe("computeConstructionOpenSeats", () => {
 describe("getConstructionJobPosting", () => {
   beforeEach(() => {
     initEconomyContext({ worldContext } as unknown as ExtensionAPI);
-    useOptionsState.setState({ culturesSet: "world" });
+    optionsStore.setState({ culturesSet: "world" });
     worldContext.populationRate = 1000;
     worldContext.pack = {
       burgs: [
@@ -116,7 +116,7 @@ describe("getConstructionJobPosting", () => {
 
   afterEach(() => {
     clearEconomyContext();
-    useOptionsState.setState({ culturesSet: "world" });
+    optionsStore.setState({ culturesSet: "world" });
   });
 
   it("returns null without a construction operation", () => {

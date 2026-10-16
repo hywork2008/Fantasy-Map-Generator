@@ -1,6 +1,6 @@
-import { openDialog } from "../../hostUi";
-import { downloadFile, getFileName, rn } from "../../hostUtils";
-import { getApi, getGoods, getMarkets } from "../economyContext";
+import { downloadFile, getFileName, openDialog } from "../../hostUi";
+import { rn } from "../../hostUtils";
+import { getGoods, getMarkets, getViewApi } from "../economyContext";
 import { Goods, isGoodEnabled } from "../generators/goods-generator";
 import { Markets } from "../generators/markets-generator";
 import {
@@ -86,7 +86,7 @@ export function setSorting(sortBy: "market" | "stock" | "price"): void {
 export function openMarketOverview(marketId: number): void {
   const market = Markets.get(marketId);
   if (!market) return;
-  getApi().openDialog("marketOverview", { marketId });
+  getViewApi().openDialog("marketOverview", { marketId });
 }
 
 export function downloadCsv(): void {

@@ -1,14 +1,21 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type { MerchantRoutePreference } from "../../../../services/routeGrade";
-import { useOptionsState } from "../../../hostCore";
-import { closeDialog, Dialog, SliderInput, SortableHeader, useDialogState, VirtualTableBody } from "../../../hostUi";
+import {
+  closeDialog,
+  Dialog,
+  SliderInput,
+  SortableHeader,
+  useDialogState,
+  useOptionsState,
+  VirtualTableBody
+} from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
 import { getCaravans, getMarketById, getMarkets, getWorldContext } from "../../economyContext";
 import { CaravanMovement, type CaravanMovementSettings } from "../../generators/caravanMovement";
 import { getCaravanTravelTime } from "../../generators/caravans";
 import { Goods } from "../../generators/goods-generator";
-import { downloadFlowReportCsv, getFlowReport } from "../../generators/marketFlowDiagnostics";
+import { getFlowReport } from "../../generators/marketFlowDiagnostics";
 import type { FlowReportSummary, MarketGoodFlowReportRow } from "../../generators/marketFlowReport";
 import type { Caravan } from "../../generators/marketTypes";
 import { TradeAnimation } from "../../generators/trade-animation";
@@ -19,6 +26,7 @@ import {
 } from "../../generators/tradeLogisticsSettings";
 import { routeHasWater } from "../../generators/tradeSailSchedule";
 import { getCaravanInstanceKey } from "../../renderers/draw-trade-animation";
+import { downloadFlowReportCsv } from "../marketFlowReportDownload";
 
 type Translate = (key: string, options?: Record<string, unknown>) => string;
 

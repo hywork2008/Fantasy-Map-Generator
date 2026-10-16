@@ -4,7 +4,7 @@ import {
   registerBirthFloorProvider,
   unregisterBirthFloorProvider
 } from "../../../generators/birthModifiers";
-import { useOptionsState } from "../../hostCore";
+import { optionsStore } from "../../hostCore";
 import { rn } from "../../hostUtils";
 import { getUrbanPregnancy, getWorldContext, setUrbanPregnancy } from "../economyContext";
 import type { UrbanPregnancyRecord } from "./urbanPregnancyTypes";
@@ -46,7 +46,7 @@ function upsertUrbanPregnancyRecord(record: UrbanPregnancyRecord): void {
  * writes the slice, returns due completions as birthsFromPregnancy (population points).
  */
 export function urbanPregnancyBirthFloorProvider(args: BirthFloorProviderArgs): number {
-  const birthRate = useOptionsState.getState().demographicBirthRate;
+  const birthRate = optionsStore.getState().demographicBirthRate;
   const previous = getUrbanPregnancy().find(record => record.burgId === args.burgId);
   const record = advanceBurgPregnancy(previous, {
     burgId: args.burgId,
@@ -170,7 +170,7 @@ export function tickUrbanPregnancy(effectiveDeltaYears: number): void {
 
   const { pack } = getWorldContext();
   const burgs = pack.burgs ?? [];
-  const birthRate = useOptionsState.getState().demographicBirthRate;
+  const birthRate = optionsStore.getState().demographicBirthRate;
   const previousByBurg = new Map(getUrbanPregnancy().map(record => [record.burgId, record]));
   const next: UrbanPregnancyRecord[] = [];
 

@@ -15,6 +15,7 @@ import {
   getApi,
   getGreatLibraryNextId,
   getGreatLibraryProjects,
+  getOptionalViewApi,
   getSimulationYear,
   getWorldContext,
   isEconomyContextReady,
@@ -116,7 +117,7 @@ function deriveLibraryName(burg: Burg | undefined): string {
 }
 
 function requestWebglRenderIfReady(): void {
-  if (isEconomyContextReady()) getApi().requestWebglRender();
+  getOptionalViewApi()?.requestWebglRender();
 }
 
 function greatLibraryMarkerIcon(status: GreatLibraryStatus): string {

@@ -29,9 +29,13 @@ export default defineConfig({
         },
     },
     // Opt-in: FMG_MAP_SERVER=http://127.0.0.1:8787 npm run dev forwards the shared map API (npm run map:server).
-    server: process.env.FMG_MAP_SERVER ? {
-        proxy: Object.fromEntries(['/api/map', '/api/burgs', '/api/health', '/api/events']
-            .map(route => [route, { target: process.env.FMG_MAP_SERVER, changeOrigin: true }])),
+    // FMG_SIM_SERVER=http://127.0.0.1:8788 forwards the simulation channel API (npm run sim:server).
+    server: process.env.FMG_MAP_SERVER || process.env.FMG_SIM_SERVER ? {
+        proxy: {
+            ...(process.env.FMG_MAP_SERVER ? Object.fromEntries(['/api/map', '/api/burgs', '/api/health', '/api/events']
+                .map(route => [route, { target: process.env.FMG_MAP_SERVER, changeOrigin: true }])) : {}),
+            ...(process.env.FMG_SIM_SERVER ? { '/api/sim': { target: process.env.FMG_SIM_SERVER, changeOrigin: true } } : {}),
+        },
     } : undefined,
     publicDir: '../public',
     plugins: [

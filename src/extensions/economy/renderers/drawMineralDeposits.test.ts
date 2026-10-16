@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
+  bindEconomyView,
   clearEconomyContext,
   initEconomyContext,
   setGoods,
@@ -17,7 +18,11 @@ describe("drawMineralDeposits", () => {
   beforeEach(() => {
     node = document.createElementNS("http://www.w3.org/2000/svg", "g");
     const layer = select(node);
-    initEconomyContext({ worldContext, getSvgLayer: () => layer } as unknown as ExtensionAPI);
+    {
+      const api = { worldContext, getSvgLayer: () => layer } as unknown as ExtensionAPI;
+      initEconomyContext(api);
+      bindEconomyView(api);
+    }
 
     worldContext.pack = {
       cells: {

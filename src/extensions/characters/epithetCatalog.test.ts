@@ -5,11 +5,11 @@ import { governingCompetence } from "./courtFavorite";
 import {
   characterPublicEpithetId,
   eligibilityFor,
-  formatEpithetLabel,
   isSovereignRuler,
   sovereignEpithetStem,
   stripUnderRegencySuffix
 } from "./epithetCatalog";
+import { formatEpithetLabel } from "./utils/characterLabels";
 
 afterEach(async () => {
   await i18n.changeLanguage("en");

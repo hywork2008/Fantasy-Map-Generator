@@ -8,9 +8,9 @@ import {
   buildSeaRouteGraph,
   findSeaRouteDistance,
   mergeFrontiers,
+  optionsStore,
   type StrategicGoal,
-  simulationContext,
-  useOptionsState
+  simulationContext
 } from "../../hostCore";
 import { mayAdvanceAutonomousConflict, mayAdvanceConflict } from "../conflictDirector";
 import { getRulerId, getWorldContext } from "../nobilityContext";
@@ -250,7 +250,7 @@ export class StrategicPlannerGenerator {
 
     // War Frequency controls autonomous AI escalation only. A conflict explicitly approved
     // by the player must remain actionable even when autonomous escalation is set to 0.
-    const frequencyMultiplier = mayAdvanceAutonomousConflict() ? (useOptionsState.getState().warFrequency ?? 1.0) : 1;
+    const frequencyMultiplier = mayAdvanceAutonomousConflict() ? (optionsStore.getState().warFrequency ?? 1.0) : 1;
 
     for (const stateIdStr in strategicGoals) {
       const stateId = Number(stateIdStr);

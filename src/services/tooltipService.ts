@@ -6,7 +6,8 @@ import { setHoverNotesState } from "../store/hoverNotesState";
 import { useToastStore } from "../store/toastStore";
 import type { EmblemEl } from "../types/models";
 import { getVisibleDialogElement, isDialogVisible } from "../utils/domUtils";
-import { getComposedPath, layerIsOn } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/layerUtils";
+import { getComposedPath } from "../utils/nodeUtils";
 import { convertTemperature, si } from "../utils/unitUtils";
 import {
   getCellPoliticalSummary,

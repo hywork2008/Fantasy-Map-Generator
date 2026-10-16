@@ -15,9 +15,8 @@
 
 import { getTechnologyStage } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
-import i18n from "../../../i18n";
 import { isLichRaceKey } from "../../characters/lichPolicy";
-import { getCultureFuneralMechanics, getCultureModernizationAffinity, useOptionsState } from "../../hostCore";
+import { getCultureFuneralMechanics, getCultureModernizationAffinity, optionsStore } from "../../hostCore";
 import type { Burg, CultureType } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import {
@@ -88,9 +87,7 @@ import {
   ABSOLUTE_MAX_WATER_TIER,
   CLEANSING_MATERIALS,
   MAX_INVESTABLE_TIER,
-  ORGANIC_WASTE_ROUTES,
-  WATER_SANITATION_TIER_LABELS,
-  WATER_WORKS_PROJECT_LABELS
+  ORGANIC_WASTE_ROUTES
 } from "./urbanWaterTypes";
 
 export type { RiverBasinKind, WaterEffluentDestination } from "./urbanWaterClimate";
@@ -1310,38 +1307,6 @@ export function getUrbanWaterSystemForBurg(burgId: number): UrbanWaterSystem | u
   return getUrbanWaterSystems().find(system => system.burgId === burgId);
 }
 
-export function formatUrbanWaterSummary(system: UrbanWaterSystem): string {
-  const tierLabel = i18n.t(`economy.water.tiers.${system.tier}`, {
-    defaultValue: WATER_SANITATION_TIER_LABELS[system.tier]
-  });
-  const project =
-    system.activeProject && system.upgradeProgress > 0
-      ? i18n.t("economy.water.summary.building", {
-          project: i18n.t(`economy.water.projects.${system.activeProject}`, {
-            defaultValue: WATER_WORKS_PROJECT_LABELS[system.activeProject]
-          }),
-          percent: rn(system.upgradeProgress * 100, 0)
-        })
-      : "";
-  const health =
-    system.healthPressure >= 0.45
-      ? i18n.t("economy.water.summary.healthRisk", { percent: rn(system.healthPressure * 100, 0) })
-      : "";
-  const upstream =
-    system.upstreamPollutionImport >= 0.15
-      ? i18n.t("economy.water.summary.upstreamPollution", { percent: rn(system.upstreamPollutionImport * 100, 0) })
-      : "";
-  return i18n.t("economy.water.summary.main", {
-    tier: tierLabel,
-    burden: rn(system.sanitationBurden * 100, 0),
-    flood: rn(system.floodExposure * 100, 0),
-    odor: rn(system.odor * 100, 0),
-    project,
-    health,
-    upstream
-  });
-}
-
 function cultureTypeForBurg(burg: Burg): CultureType | string | undefined {
   if (burg.type) return burg.type;
   const cultures = getWorldContext().pack.cultures;
@@ -1480,7 +1445,7 @@ function systemDefaults(
 function giantRomanWaterworksSeed(burg: Burg): UrbanWaterSystem | null {
   const stateRace = raceKeyForBurgState(burg);
   const isGiantFantasyState =
-    stateRace === "giant" && waterTechRaceBiasFor(stateRace, useOptionsState.getState().culturesSet) !== null;
+    stateRace === "giant" && waterTechRaceBiasFor(stateRace, optionsStore.getState().culturesSet) !== null;
   if (!isGiantFantasyState) return null;
 
   return systemDefaults({
@@ -1697,7 +1662,7 @@ export function settleBurgWaterInvestment(args: {
   // inheritance belongs to the Giant State that operates its aqueducts and trunk sewer, so it
   // continues to receive that State's technical bias even if a local burg culture differs.
   const waterTechRace = raceKeyForBurgWaterworks(burg, system.hasInheritedRomanWaterworks);
-  const raceBias = waterTechRaceBiasFor(waterTechRace, useOptionsState.getState().culturesSet);
+  const raceBias = waterTechRaceBiasFor(waterTechRace, optionsStore.getState().culturesSet);
   const effectiveUrgencyThreshold = WATER_PROJECT_URGENCY_THRESHOLD * (raceBias?.urgencyThresholdMultiplier ?? 1);
 
   // Institutional head start feeds connectionPermitCoverage/dischargeRegulation targets only

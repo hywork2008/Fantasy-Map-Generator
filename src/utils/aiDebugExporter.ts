@@ -10,8 +10,8 @@ import {
   ProvincesRenderer,
   StateLabelsRenderer
 } from "../renderers";
-import type { Snapshot, SnapshotData } from "../store/debugSnapshotState";
-import { layerIsOn } from "./nodeUtils";
+import { type Snapshot, type SnapshotData, useDebugSnapshotState } from "../store/debugSnapshotState";
+import { layerIsOn } from "./layerUtils";
 
 /**
  * Off by default — this is a war/combat-debugging tool, not everyday tooling.
@@ -25,6 +25,32 @@ import { layerIsOn } from "./nodeUtils";
  */
 export function debugSnapshotsEnabled(): boolean {
   return import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEBUG_SNAPSHOTS === "true";
+}
+
+/**
+ * Records one debug snapshot per `fmg:time-advanced` notification. Installed by the browser app,
+ * not the time engine, so the simulation core never reaches this renderer-importing module
+ * (docs/plan/simulation-core-separation.md S1, path A).
+ */
+export function installDebugSnapshotCapture(): void {
+  if (!debugSnapshotsEnabled()) return;
+  document.addEventListener("fmg:time-advanced", event => {
+    const { deltaYears, deltaMonths, deltaDays } = (event as CustomEvent).detail as {
+      deltaYears: number;
+      deltaMonths: number;
+      deltaDays: number;
+    };
+    try {
+      useDebugSnapshotState.getState().addSnapshot({
+        tickCount: simulationContext.tickCount,
+        year: simulationContext.currentYear,
+        label: `Advance Time +${deltaYears}y ${deltaMonths}m ${deltaDays}d`,
+        data: captureSnapshotData()
+      });
+    } catch {
+      // Headless / incomplete pack fixtures skip debug capture.
+    }
+  });
 }
 
 /**

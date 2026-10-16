@@ -8,6 +8,7 @@
  * @see docs/plan/market-goods-flow-budget.md
  */
 
+import { getCadencePhase, setCadencePhase } from "../context/cadencePhases";
 import {
   getCaravans,
   getDeals,
@@ -32,7 +33,6 @@ import {
   buildFlowReportSummary,
   type FlowCycleSnapshot,
   type FlowReportSummary,
-  formatFlowReportCsv,
   type MarketGoodCycleSample,
   trimFlowCycleHistory
 } from "./marketFlowReport";
@@ -43,7 +43,6 @@ import { getGoodCargoSlotsPerUnit } from "./tradeCargo";
 export type StockSnapshot = Map<number, Map<number, number>>;
 
 let _pendingStartStocks: StockSnapshot | null = null;
-let _nextCycleIndex = 0;
 
 function isTradeableGood(good: Good): boolean {
   if (!isGoodEnabled(good)) return false;
@@ -204,7 +203,7 @@ export function recordFlowCycleEnd(options?: {
   const caravanUtilization = summarizeCaravanUtilization(utilSamples);
 
   const snapshot: FlowCycleSnapshot = {
-    cycleIndex: _nextCycleIndex++,
+    cycleIndex: nextFlowCycleIndex(),
     year: options?.year ?? getSimulationYear(),
     month: options?.month ?? getSimulationMonth(),
     day: options?.day ?? getSimulationDay(),
@@ -221,32 +220,9 @@ export function getFlowReport(): FlowReportSummary {
   return buildFlowReportSummary(getFlowCycleHistory(), CYCLES_PER_YEAR);
 }
 
-export function downloadFlowReportCsv(filename = "market-flow-report.csv"): void {
-  const summary = getFlowReport();
-  const world = getWorldContext();
-  const markets = getMarkets();
-  const marketName = (marketId: number) => {
-    const market = markets.find(candidate => candidate.i === marketId);
-    if (!market) return `Market ${marketId}`;
-    if (market.name) return market.name;
-    const burg = world.pack.burgs[market.centerBurgId];
-    return burg?.name ?? `Market ${marketId}`;
-  };
-  const goodName = (goodId: number) => Goods.get(goodId)?.name ?? `Good ${goodId}`;
-  const csv = formatFlowReportCsv(summary.rows, { marketName, goodName });
-
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  URL.revokeObjectURL(url);
-}
-
 export function clearFlowDiagnostics(): void {
   _pendingStartStocks = null;
-  _nextCycleIndex = 0;
+  setCadencePhase("flowCycleIndex", 0);
   setFlowCycleHistory([]);
 }
 
@@ -257,4 +233,10 @@ export function __setPendingStartStocksForTests(snapshot: StockSnapshot | null):
 
 export function __resetFlowDiagnosticsForTests(): void {
   clearFlowDiagnostics();
+}
+
+function nextFlowCycleIndex(): number {
+  const index = getCadencePhase("flowCycleIndex");
+  setCadencePhase("flowCycleIndex", index + 1);
+  return index;
 }

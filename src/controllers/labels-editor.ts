@@ -9,7 +9,7 @@ import { getLabelsEditorState, type LabelEditorSection, setLabelsEditorState } f
 import { closeDialog, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { findCell, parseTransform, round } from "../utils";
 import { EditorBus } from "../utils/editorBus";
-import { layerIsOn } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/layerUtils";
 import { interactionManager } from "./interactionManager";
 import { toggleLabels } from "./layers";
 import { editNotes } from "./notes-editor";

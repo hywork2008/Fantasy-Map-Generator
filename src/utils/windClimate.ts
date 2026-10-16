@@ -1,3 +1,4 @@
+import { pow } from "../simulation/deterministicMath";
 /**
  * Climatological zonal wind (docs/plan/wind-aspect-climate-variability.md §5.1–5.2, stage W1).
  *
@@ -348,7 +349,7 @@ export const WINDMILL_MAX_SPEED = 12;
 export function getWeibullCdf(x: number, meanSpeed: number): number {
   if (!(meanSpeed > 0)) return 1;
   const scale = meanSpeed / GAMMA_1_PLUS_HALF;
-  return 1 - Math.exp(-((Math.max(0, x) / scale) ** WIND_WEIBULL_K));
+  return 1 - Math.exp(-pow(Math.max(0, x) / scale, WIND_WEIBULL_K));
 }
 
 export interface DailyWindStats {

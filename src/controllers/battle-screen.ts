@@ -23,7 +23,7 @@ import type { MilitaryFormation, MilitaryRegiment } from "../types/models";
 import { closeDialog, closeDialogs, openDialog } from "../ui/dialogs/dialogService";
 import { findCell, getAdjective, last, list, minmax, P, Pint, rand, rn, wiki } from "../utils";
 import { isGunpowderEraEnabled, isGunpowderEraMilitaryUnit } from "../utils/gunpowderEra";
-import { layerIsOn } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/layerUtils";
 import { isUndeadMilitaryUnit } from "../utils/regimentPopulation";
 
 interface BattleRegiment extends MilitaryRegiment {

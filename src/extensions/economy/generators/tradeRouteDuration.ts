@@ -1,6 +1,6 @@
 import { calculateLandTravelDays } from "../../../services/routeGrade";
 import { normalizeHeightExponent } from "../../../utils/height";
-import { getCellWind, useOptionsState, type WorldContext } from "../../hostCore";
+import { getCellWind, optionsStore, type WorldContext } from "../../hostCore";
 import { getMarkets, getRailwayLinks, getSimulationMonth, getWorldContext } from "../economyContext";
 import {
   CaravanMovement,
@@ -190,7 +190,7 @@ function resolveHeights(options?: RouteDurationOptions): ArrayLike<number> | nul
 
 function resolveHeightExponent(options?: RouteDurationOptions): number {
   if (options?.heightExponent !== undefined) return normalizeHeightExponent(options.heightExponent);
-  return normalizeHeightExponent(useOptionsState.getState().heightExponent);
+  return normalizeHeightExponent(optionsStore.getState().heightExponent);
 }
 
 function applyRailway(points: readonly TradeRoutePoint[]): number {

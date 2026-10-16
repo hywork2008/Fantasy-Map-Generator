@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "../../types/extension-api";
+import type { SimulationExtensionAPI } from "../../types/extension-api";
 import type { WorldLanguages } from "../../types/worldLanguages";
 import { assertObject, validateWorldLanguages } from "../../utils/worldLanguages";
 import { getApi, getCharacters, getCurrentYear, getWorldContext } from "./charactersContext";
@@ -6,7 +6,6 @@ import type { Character } from "./characterTypes";
 import { advanceSpecializationLearning } from "./specializationLearning";
 import { decaySpecializations, emptySpecializations, recordSpecializationExperience } from "./specializations";
 import { validateSpecializationProfile } from "./specializationValidation";
-import { useCharactersUiState } from "./ui/charactersUiState";
 
 export type AptitudeTierName = "poor" | "ordinary" | "promising" | "gifted" | "exceptional";
 
@@ -56,7 +55,14 @@ export function validateLanguageWorldReferences(world: WorldLanguages): void {
   for (const character of getCharacters()) validateSpecializationProfile(character.specializations, world);
 }
 
-export function registerSpecializationCommands(api: ExtensionAPI): () => void {
+/**
+ * `onChanged` lets the UI refresh after a command; the runtime itself never touches UI state
+ * (docs/plan/simulation-core-separation.md S1).
+ */
+export function registerSpecializationCommands(
+  api: SimulationExtensionAPI,
+  onChanged: () => void = () => {}
+): () => void {
   const unregisterProfile = api.registerExtensionCommand({
     extensionId: "characters",
     name: "setSpecializations",
@@ -67,7 +73,7 @@ export function registerSpecializationCommands(api: ExtensionAPI): () => void {
       validateSpecializationProfile(value.profile, getWorldContext().pack.languageWorld);
       if (!value.profile) throw new Error("A profile is required");
       character.specializations = structuredClone(value.profile);
-      useCharactersUiState.getState().bumpRefreshToken();
+      onChanged();
       return { changed: true };
     }
   });
@@ -80,7 +86,7 @@ export function registerSpecializationCommands(api: ExtensionAPI): () => void {
       if (!value) throw new Error("Language settings are required");
       validateLanguageWorldReferences(value);
       getWorldContext().pack.languageWorld = structuredClone(value);
-      useCharactersUiState.getState().bumpRefreshToken();
+      onChanged();
       return { changed: true };
     }
   });
@@ -154,7 +160,7 @@ export function profileForEditing(character: Character) {
 }
 
 /** Characters owns education even on maps without political/court simulation. */
-export function registerSpecializationSimulation(api: ExtensionAPI): () => void {
+export function registerSpecializationSimulation(api: SimulationExtensionAPI): () => void {
   return api.registerSimulationSystem({
     id: "characters.expertise",
     phase: "finalize",

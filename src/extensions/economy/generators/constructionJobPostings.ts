@@ -1,4 +1,4 @@
-import { getBurgDemographics, useOptionsState } from "../../hostCore";
+import { getBurgDemographics, optionsStore } from "../../hostCore";
 import { rn } from "../../hostUtils";
 import {
   getConstructionHireApplications,
@@ -6,7 +6,7 @@ import {
   getConstructionOperations,
   getWorldContext
 } from "../economyContext";
-import { getEconomyCalibrationState } from "../store/economyCalibrationState";
+import { getEconomyCalibrationState } from "../state/economyCalibrationStore";
 import {
   getConstructionRequiredPeople,
   getConstructionRequiredWorkers,
@@ -83,7 +83,7 @@ export interface ConstructionJobPosting {
 function masonContextForBurg(burg: { culture?: number; type?: string }): MasonShareContext {
   return {
     cultureType: resolveBurgCultureType(burg),
-    highFantasy: useOptionsState.getState().culturesSet === "highFantasy",
+    highFantasy: optionsStore.getState().culturesSet === "highFantasy",
     brickAvailable: isBrickGoodAvailable()
   };
 }

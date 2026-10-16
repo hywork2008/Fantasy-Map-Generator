@@ -20,6 +20,7 @@ export * from "./context/annualGates";
 export * from "./context/cellTables";
 export {
   addFrontierApplicants,
+  bindEconomyView,
   clearEconomyContext,
   getApi,
   getAppServices,
@@ -29,6 +30,7 @@ export {
   getMarketsFillLayer,
   getMarketsLayer,
   getMineralDepositsLayer,
+  getOptionalViewApi,
   getPowerGridLayer,
   getSewerageLayer,
   getSimulationContext,
@@ -36,6 +38,7 @@ export {
   getSimulationMonth,
   getSimulationYear,
   getTradeAnimLayer,
+  getViewApi,
   getViewContext,
   getWaterSupplyLayer,
   getWorldContext,

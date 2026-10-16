@@ -1,3 +1,4 @@
+import { pow } from "../../../simulation/deterministicMath";
 import type { Burg } from "../../hostTypes";
 import type { ShipyardCandidate } from "./shipyardCandidates";
 
@@ -19,7 +20,7 @@ export function checkForeignInterference(
 ): void {
   if (deltaYears <= 0) return;
 
-  const chance = 1 - (1 - INTERFERENCE_CHANCE_PER_YEAR) ** deltaYears;
+  const chance = 1 - pow(1 - INTERFERENCE_CHANCE_PER_YEAR, deltaYears);
   for (const { burgId } of candidates) {
     const burg = burgs[burgId];
     if (!burg || burg.removed) continue;

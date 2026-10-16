@@ -1,5 +1,3 @@
-import { useLayerState } from "../store/layerState";
-
 export const getElementById = <T extends Element = HTMLElement>(id: string): T | null => {
   return document.getElementById(id) as T | null;
 };
@@ -10,10 +8,6 @@ export const getElementBySelector = <T extends Element = Element>(selector: stri
 
 export const getElementsBySelector = <T extends Element = Element>(selector: string): NodeListOf<T> => {
   return document.querySelectorAll(selector) as NodeListOf<T>;
-};
-
-export const layerIsOn = (layer: string): boolean => {
-  return useLayerState.getState().activeLayers[layer] === true;
 };
 
 /**

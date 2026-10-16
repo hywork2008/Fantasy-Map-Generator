@@ -25,11 +25,13 @@ import {
   stepDaySimulation
 } from "../runtime/worldRuntime";
 import { telemetry } from "../services/simulationTelemetry";
-import { useDebugSnapshotState } from "../store/debugSnapshotState";
-import { getFastAdvanceState, resolveFastAdvanceRates, resolveHistoryModeProfile } from "../store/fastAdvanceState";
-import { useOptionsState } from "../store/optionsState";
-import { useTimeSimulationState } from "../store/timeSimulationState";
-import { captureSnapshotData, debugSnapshotsEnabled } from "../utils/aiDebugExporter";
+import { simEvents } from "../simulation/events";
+import { isSimulationExtensionEnabled } from "../simulation/extensionEnablement";
+import { withSimulationAmbientRandom } from "../simulation/simulationRandom";
+import { resetWorldSettingsFromHost } from "../simulation/worldSettings";
+import { getFastAdvanceState, resolveFastAdvanceRates, resolveHistoryModeProfile } from "../state/fastAdvanceStore";
+import { optionsStore } from "../state/optionsStore";
+import { timeSimulationStore } from "../state/timeSimulationStore";
 import { normalizeConflictAutonomy } from "../utils/conflictAutonomy";
 import { getDaysInMonth, getSeason } from "../utils/seasonUtils";
 import { isStateInActiveConflict } from "./activeConflict";
@@ -128,7 +130,7 @@ interface FrontierResourceDiscoveredEventDetail {
  * host records only the strategic intent; it never assumes a discovery grants
  * ownership before the normal Frontier incorporation transaction.
  */
-document.addEventListener("fmg:frontier-resource-discovered", event => {
+simEvents.addEventListener("fmg:frontier-resource-discovered", event => {
   const detail = (event as CustomEvent<unknown>).detail;
   if (!isFrontierResourceDiscoveredEventDetail(detail)) return;
   recordFrontierResourceClaim(simulationContext.frontier, detail);
@@ -166,7 +168,7 @@ registerSimulationStepDayHandler(request => stepDayMutation(request?.days ?? 1))
  * and never unregisters (session lifetime), matching the historical hook API.
  */
 export function registerTimeTickHook(fn: TimeTickHook, label = "unlabeled", writes?: readonly DataTopic[]): void {
-  if (import.meta.env.DEV) {
+  if (import.meta.env?.DEV) {
     console.warn(
       `[fmg] registerTimeTickHook(${JSON.stringify(label)}) is deprecated; use registerSimulationSystem() with phase/reads/writes`
     );
@@ -240,7 +242,6 @@ registerSimulationSystem({
  * manpower body actually executes does.
  */
 const MANPOWER_GATE_DAYS = 7;
-let manpowerDaysAccumulated = 0;
 /**
  * Fast-Forward population injection is associative in deltaYears, so it accrues days and applies
  * once per coarse gate (and flushes any remainder when the batch ends) instead of walking every
@@ -256,21 +257,26 @@ registerSimulationSystem({
   cadence: { every: 1 },
   profileLabel: "core:manpower",
   run: (context, writer) => {
-    const sim = useOptionsState.getState();
+    const sim = optionsStore.getState();
     if (!sim.simManpower || !worldContext.pack?.states) {
       // Drop any partial accumulation so re-enabling later doesn't apply a surprise multi-day
       // lump built up while the ledger was off.
-      manpowerDaysAccumulated = 0;
+      simulationContext.manpowerDaysAccumulated = 0;
       return;
     }
 
+    // Kept in the simulation slice (saved with the world), so a loaded map continues the same phase.
     const { years, months, days } = context.delta;
-    manpowerDaysAccumulated += years * DAYS_PER_YEAR + months * DAYS_PER_MONTH + days;
+    const accumulated =
+      (simulationContext.manpowerDaysAccumulated ?? 0) + years * DAYS_PER_YEAR + months * DAYS_PER_MONTH + days;
     const gateDays = context.fastAdvanceRates ? FAST_ADVANCE_COARSE_GATE_DAYS : MANPOWER_GATE_DAYS;
-    if (manpowerDaysAccumulated < gateDays) return;
+    if (accumulated < gateDays) {
+      simulationContext.manpowerDaysAccumulated = accumulated;
+      return;
+    }
 
-    const dueDeltaYears = manpowerDaysAccumulated / DAYS_PER_YEAR;
-    manpowerDaysAccumulated = 0;
+    const dueDeltaYears = accumulated / DAYS_PER_YEAR;
+    simulationContext.manpowerDaysAccumulated = 0;
     tickManpower(worldContext.pack, dueDeltaYears, worldContext.populationRate);
     writer.markChanged("simulation.states", "simulation.military");
   }
@@ -348,7 +354,7 @@ registerSimulationSystem({
     });
     for (const incorporation of result.incorporations) {
       if (incorporation.origin !== "seaborne" || incorporation.burgId === undefined) continue;
-      document.dispatchEvent(
+      simEvents.dispatchEvent(
         new CustomEvent("fmg:settlement-promoted", {
           detail: {
             burgId: incorporation.burgId,
@@ -518,7 +524,7 @@ function updateWorldSeason(): void {
  * simulationContext.currentYear/era changed, regardless of the cause.
  */
 function dispatchSimulationUpdated(): void {
-  document.dispatchEvent(
+  simEvents.dispatchEvent(
     new CustomEvent("fmg:simulation-updated", {
       detail: {
         currentYear: simulationContext.currentYear,
@@ -560,6 +566,8 @@ export function initSimulationClock(): void {
   simulationContext.intelligence = {};
   simulationContext.strategicGoals = {};
   simulationContext.navalTechBonus = {};
+  resetWorldSettingsFromHost(simulationContext);
+  simulationContext.manpowerDaysAccumulated = 0;
   simulationContext.frontier = createEmptyFrontierSimulationState(worldContext.pack?.cells?.i.length ?? 0);
   simulationContext.wilderness = createEmptyWildernessEcologyState();
   simulationContext.technology = createEmptyTechnologySimulationState();
@@ -571,7 +579,7 @@ export function initSimulationClock(): void {
 // Economy seeds state.treasury during map-ready tasks, after initSimulationClock.
 // Capture that opening reserve so the Tools panel and the first January
 // evaluation see the same calendar-boundary budget.
-document.addEventListener("fmg:map-ready-tasks-completed", () => {
+simEvents.addEventListener("fmg:map-ready-tasks-completed", () => {
   snapshotFrontierBudgets(worldContext, simulationContext);
 });
 
@@ -580,7 +588,7 @@ document.addEventListener("fmg:map-ready-tasks-completed", () => {
  * Shared by `advanceTime`, UI day loops, and the headless runner's notify path.
  */
 export function notifyAfterDayStep(deltaYears: number, deltaMonths: number, deltaDays: number): void {
-  document.dispatchEvent(
+  simEvents.dispatchEvent(
     new CustomEvent("fmg:time-advanced", {
       detail: { deltaYears, deltaMonths, deltaDays, currentYear: simulationContext.currentYear }
     })
@@ -599,19 +607,6 @@ export function notifyAfterDayStep(deltaYears: number, deltaMonths: number, delt
     },
     { deltaYears, deltaMonths, deltaDays }
   );
-
-  if (debugSnapshotsEnabled()) {
-    try {
-      useDebugSnapshotState.getState().addSnapshot({
-        tickCount: simulationContext.tickCount,
-        year: simulationContext.currentYear,
-        label: `Advance Time +${deltaYears}y ${deltaMonths}m ${deltaDays}d`,
-        data: captureSnapshotData()
-      });
-    } catch {
-      // Headless / incomplete pack fixtures skip debug capture.
-    }
-  }
 }
 
 // Headless runner notify path uses the same observers without importing advanceTime.
@@ -627,7 +622,7 @@ registerDayStepObserver(notifyAfterDayStep);
  * a failed/thrown batch — see call sites.
  */
 function notifyAdvanceCompleted(): void {
-  document.dispatchEvent(
+  simEvents.dispatchEvent(
     new CustomEvent("fmg:time-advance-completed", {
       detail: {
         currentYear: simulationContext.currentYear,
@@ -804,7 +799,7 @@ function flushFastAdvancePopulationRemainder(): void {
   if (!(fastAdvancePopulationDaysAccumulated > 0)) return;
   const years = fastAdvancePopulationDaysAccumulated / DAYS_PER_YEAR;
   fastAdvancePopulationDaysAccumulated = 0;
-  if (!useOptionsState.getState().simDemographics) return;
+  if (!optionsStore.getState().simDemographics) return;
   const rates = getActiveFastAdvanceRun()?.rates ?? resolveFastAdvanceRates();
   applyFastForwardPopulation(years, rates, appServices.rng);
 }
@@ -867,7 +862,7 @@ function publishDayBatchRollbackCorrection(): void {
 /**
  * Forces one more coalesced extension draw-layer pass after a bulk
  * runTimeSimulation run ends (stop, completion, or failure). Extension draw
- * hooks that suppress decorative work while useTimeSimulationState.isRunning
+ * hooks that suppress decorative work while timeSimulationStore.isRunning
  * is true (e.g. economy's Trade animation restart — see economy/index.tsx)
  * need this to actually resume once the run is over. Published through the
  * normal commit/topic path rather than calling a renderer directly, so
@@ -932,6 +927,15 @@ function stepDayMutation(days = 1): { result: SimulationStepResult; topics: read
  * which wraps it with snapshot rollback.
  */
 function advanceTimeMutation(deltaYears: number, deltaMonths: number, deltaDays: number) {
+  // Track R (docs/plan/simulation-core-separation.md §13): many simulation call sites still use
+  // Math.random (directly or via rand/P/ra/gauss). While time advances, route it to appServices.rng,
+  // which runWithSystemRng swaps to each system's own seed-derived stream; outside systems it is
+  // the persisted root stream. Results then depend only on simulation.rng, not on whatever state
+  // the page's last map generation left in Math.random, nor on other systems' draw counts.
+  return withSimulationAmbientRandom(() => advanceTimeMutationInSimulationRng(deltaYears, deltaMonths, deltaDays));
+}
+
+function advanceTimeMutationInSimulationRng(deltaYears: number, deltaMonths: number, deltaDays: number) {
   if (deltaYears <= 0 && deltaMonths <= 0 && deltaDays <= 0) {
     return { result: undefined, topics: [] as DataTopic[] };
   }
@@ -1009,7 +1013,7 @@ function advanceTimeMutation(deltaYears: number, deltaMonths: number, deltaDays:
   const effectiveDeltaDays = deltaYears * DAYS_PER_YEAR + deltaMonths * DAYS_PER_MONTH + deltaDays;
   const effectiveDeltaYears = effectiveDeltaDays / DAYS_PER_YEAR;
 
-  const sim = useOptionsState.getState();
+  const sim = optionsStore.getState();
 
   // Rolling death tallies (Population Overview) — advance clock before deaths are recorded this tick
   advancePopulationLossClock(effectiveDeltaDays);
@@ -1043,7 +1047,7 @@ function advanceTimeMutation(deltaYears: number, deltaMonths: number, deltaDays:
   if (result.newBurgsAdded) topics.push("map.settlements");
   if (result.routesAdded) topics.push("map.networks");
   for (const settlement of result.promotedSettlements) {
-    document.dispatchEvent(new CustomEvent("fmg:settlement-promoted", { detail: settlement }));
+    simEvents.dispatchEvent(new CustomEvent("fmg:settlement-promoted", { detail: settlement }));
   }
 
   const portDevelopments = advancePortDevelopment(worldContext, simulationContext);
@@ -1089,7 +1093,7 @@ function advanceTimeMutation(deltaYears: number, deltaMonths: number, deltaDays:
 
   // Fallback: if Nobility extension is disabled, run the core military movement here.
   // (If Nobility is enabled, it handles this internally with additional siege/capture logic).
-  const isNobilityEnabled = window.fmg?.extensionAPI?.isExtensionEnabled("nobility");
+  const isNobilityEnabled = isSimulationExtensionEnabled("nobility");
   if (!isNobilityEnabled) {
     measureTickStep("core:militaryFallback", () => {
       if (sim.simMilitaryRecovery) {
@@ -1121,7 +1125,7 @@ function advanceTimeMutation(deltaYears: number, deltaMonths: number, deltaDays:
 }
 
 export function runTimeSimulation(targetDeltaYears: number, targetDeltaMonths: number, targetDeltaDays: number): void {
-  const store = useTimeSimulationState.getState();
+  const store = timeSimulationStore.getState();
   if (store.isRunning) return;
 
   // Same calendar expansion as public advanceTime / headless SimulationRunner.advance.
@@ -1150,7 +1154,7 @@ export function runTimeSimulation(targetDeltaYears: number, targetDeltaMonths: n
 
   const loop = () => {
     const chunkStartedAt = performance.now();
-    const currentState = useTimeSimulationState.getState();
+    const currentState = timeSimulationStore.getState();
     if (currentState.stopRequested || currentProgress >= totalDays) {
       exitDayBatch();
       logTickProfile();
@@ -1188,17 +1192,17 @@ export function runTimeSimulation(targetDeltaYears: number, targetDeltaMonths: n
       logTickProfile();
       // Otherwise isRunning (and suppressed decorative draw hooks) stay stuck
       // forever after a system throws — nothing else clears it on this path.
-      useTimeSimulationState.getState().clearSimulation();
+      timeSimulationStore.getState().clearSimulation();
       publishBulkRunFinishedRedraw();
       throw error;
     }
 
     currentProgress += daysThisFrame;
     if (daysThisFrame > 0) notifyAfterDayStep(0, 0, daysThisFrame);
-    useTimeSimulationState.getState().setSimulationProgress(currentProgress, totalDays);
+    timeSimulationStore.getState().setSimulationProgress(currentProgress, totalDays);
 
-    window.setTimeout(loop, 0);
+    setTimeout(loop, 0);
   };
 
-  window.setTimeout(loop, 0);
+  setTimeout(loop, 0);
 }

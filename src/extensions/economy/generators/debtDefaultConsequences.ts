@@ -1,3 +1,4 @@
+import { simEvents } from "../../../simulation/events";
 import { getCharacters, hasCharactersContext } from "../../characters/charactersContext";
 import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
@@ -109,8 +110,7 @@ export function applyDebtDefaultConsequences(
 }
 
 function dispatchDebtCoupRiskEvent(state: State, discontent: number): void {
-  if (typeof document === "undefined") return;
-  document.dispatchEvent(
+  simEvents.dispatchEvent(
     new CustomEvent("fmg:debt-coup-risk", {
       detail: {
         stateId: state.i,

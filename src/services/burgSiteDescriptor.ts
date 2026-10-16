@@ -6,9 +6,8 @@ import { getConstrainedNetworkConnections } from "../generators/constrainedLandN
 import { Rivers } from "../generators/river-generator";
 import { Routes } from "../generators/routes-generator";
 import { getStateBridgeSkewLimit } from "../generators/technologyProgress";
-import { drawnFeatureShape, sampleCoastlineShape } from "../renderers/coastline-fractal";
 import { initializeBurgMorphology } from "../runtime/worldRuntime";
-import { useOptionsState } from "../store/optionsState";
+import { optionsStore } from "../state/optionsStore";
 import type {
   BurgSiteArchetype,
   BurgSiteDescriptor,
@@ -24,6 +23,7 @@ import type { Burg, River } from "../types/models";
 import type { UrbanMorphologyProfile } from "../types/urbanMorphology";
 import { findCell, minmax, rn } from "../utils";
 import { bridgeCrossingLimitForPeriod } from "../utils/bridgeCrossingPolicy";
+import { drawnFeatureShape, sampleCoastlineShape } from "../utils/coastlineFractal";
 import { getCultureBurialProfile } from "../utils/cultureBurialProfile";
 import { burgLotOccupancy } from "../utils/cultureLotOccupancy";
 import {
@@ -156,7 +156,7 @@ export function getBurgSiteDescriptor(
 
   const previousRoads = peekConvergedWorldRiverRoads(worldContext);
   const preparedRoads = measureProcessing(profiler, "world-road-convergence", () =>
-    ensureConvergingWorldRiverRoads(worldContext, useOptionsState.getState().distanceUnit, profiler)
+    ensureConvergingWorldRiverRoads(worldContext, optionsStore.getState().distanceUnit, profiler)
   );
   if (preparedRoads !== previousRoads && preparedRoads.changedRoutes.length) commitConvergedRoads(preparedRoads);
   const metersPerMapUnit = getMetersPerMapUnit();
@@ -215,7 +215,7 @@ export function getBurgSiteDescriptor(
   let fixedCrossings =
     frameRequirements?.fixedCrossings ??
     measureProcessing(profiler, "fixed-crossings", () =>
-      convergedBurgCrossings(worldContext, useOptionsState.getState().distanceUnit, burg, preparedRoads)
+      convergedBurgCrossings(worldContext, optionsStore.getState().distanceUnit, burg, preparedRoads)
     );
   if (fixedCrossings && !frameRequirements) {
     const b = fixedCrossings.requiredBounds;
@@ -231,7 +231,7 @@ export function getBurgSiteDescriptor(
   }
   if (!fixedCrossings && worldContext.options.landConnectionGeneration) {
     const physical = measureProcessing(profiler, "land-connections", () =>
-      getWorldLandConnectionCurrent(worldContext, useOptionsState.getState().distanceUnit)
+      getWorldLandConnectionCurrent(worldContext, optionsStore.getState().distanceUnit)
     );
     if (physical) {
       const facilities = new Set(
@@ -538,7 +538,7 @@ export function countBurgRoadLegs(burg: Burg): number {
 }
 
 function getMetersPerMapUnit(): number {
-  const unit = useOptionsState.getState().distanceUnit;
+  const unit = optionsStore.getState().distanceUnit;
   return mapUnitMeters(worldContext.distanceScale, unit);
 }
 
@@ -548,7 +548,7 @@ function getCityRadiusMeters(population: number, burg: Burg, morphology?: UrbanM
 }
 
 function getHeightExponent(): number {
-  return normalizeHeightExponent(useOptionsState.getState().heightExponent);
+  return normalizeHeightExponent(optionsStore.getState().heightExponent);
 }
 
 /** Integer meters for site descriptors (display / export). */
@@ -684,7 +684,7 @@ function canonicalFrontageBounds(burg: Burg, riverId: number, toLocal: (x: numbe
   const source = regionalRiverGeometry(
     worldContext,
     river,
-    useOptionsState.getState().distanceUnit,
+    optionsStore.getState().distanceUnit,
     SETTLEMENT_RIVER_SETTINGS
   );
   if (!(source instanceof RegionalRiverGeometry)) return null;
@@ -717,11 +717,11 @@ function canonicalSiteWater(burg: Burg, half: number, required?: RequiredSiteBou
     [origin[0] - half, origin[1] + half]
   ];
   const session = settlementGeometrySession(worldContext);
-  session.prepare(worldContext, useOptionsState.getState().distanceUnit);
+  session.prepare(worldContext, optionsStore.getState().distanceUnit);
   const coverage = { minX: origin[0] - half, maxX: origin[0] + half, minY: origin[1] - half, maxY: origin[1] + half };
   for (const riverId of session.rivers(coverage)) {
     const river = worldContext.pack.rivers.find(r => r.i === riverId)!;
-    const resolved = session.resolve(worldContext, river, useOptionsState.getState().distanceUnit, coverage);
+    const resolved = session.resolve(worldContext, river, optionsStore.getState().distanceUnit, coverage);
     if (!("geometry" in resolved)) {
       if (resolved.reason === "no-local-water") continue;
       return null;
@@ -994,7 +994,7 @@ function getDownstreamContext(
 }
 
 function burgRoadContext(burg: Burg, preparedRoads?: PreparedWorldRiverRoads): BurgRoadContext {
-  const unit = useOptionsState.getState().distanceUnit;
+  const unit = optionsStore.getState().distanceUnit;
   let physical: ReturnType<typeof getWorldLandConnectionCurrent> | undefined;
   let connections: ReturnType<typeof getConstrainedNetworkConnections> | undefined;
   return {
@@ -1338,7 +1338,7 @@ function legacyCanonicalFrontageBounds(
 ) {
   const river = worldContext.pack.rivers.find(r => r.i === riverId);
   if (!river) return null;
-  const resolved = settlementRiverGeometry(worldContext, river, useOptionsState.getState().distanceUnit);
+  const resolved = settlementRiverGeometry(worldContext, river, optionsStore.getState().distanceUnit);
   if (!("geometry" in resolved)) return null;
   const scale = resolved.metersPerMapUnit;
   const bank = nearestSettlementBank(resolved.geometry, [burg.x * scale, burg.y * scale]);
@@ -1370,7 +1370,7 @@ function legacyCanonicalSiteWater(burg: Burg, half: number, required?: RequiredS
     const possible = worldRiverOccupiedBounds(
       worldContext,
       river,
-      useOptionsState.getState().distanceUnit,
+      optionsStore.getState().distanceUnit,
       SETTLEMENT_RIVER_SETTINGS
     );
     if (!possible) return null;
@@ -1381,7 +1381,7 @@ function legacyCanonicalSiteWater(burg: Burg, half: number, required?: RequiredS
       possible.minY > origin[1] + half
     )
       continue;
-    const resolved = settlementRiverGeometry(worldContext, river, useOptionsState.getState().distanceUnit);
+    const resolved = settlementRiverGeometry(worldContext, river, optionsStore.getState().distanceUnit);
     // Remote unresolved reaches cannot affect this frame; a nearby one stops the export.
     const b = resolved.bounds;
     if (!b) return null;

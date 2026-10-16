@@ -1,12 +1,13 @@
 import { isInitialLandUsePending, resolveStaticLandUseInputs } from "../../../generators/landUse";
 import type { ClearanceCellInput } from "../../../generators/settlementClearance";
+import { markRepairAtVersion } from "../../../simulation/loadRepairs";
 import {
   applyRiverResidualFlows,
   Burgs,
   clearRiverResidualFlows,
   getFourCourseRotationEffect,
+  optionsStore,
   reconcileSubsistenceCapacityFromFood,
-  useOptionsState,
   type WorldContext
 } from "../../hostCore";
 import type { Burg } from "../../hostTypes";
@@ -218,12 +219,21 @@ export interface DevelopmentPotentials {
  * callers can rebuild the two deterministic columns and request annual group reevaluation
  * without knowing how terrain, routes, or mineral deposits are weighted.
  */
+/**
+ * Load repair id/version (simulation/loadRepairs.ts): a load rebuilds the columns only for a world
+ * last built by an older version. Bump when the columns' formula changes.
+ */
+export const DEVELOPMENT_POTENTIAL_LOAD_REPAIR = "economy.developmentPotential";
+export const DEVELOPMENT_POTENTIAL_LOAD_REPAIR_VERSION = 1;
+
 export class DevelopmentPotentialModule {
   generate(): DevelopmentPotentials {
     const world = getWorldContext();
+    // Columns built by this version need no rebuild when the world is loaded again.
+    markRepairAtVersion(world.options, DEVELOPMENT_POTENTIAL_LOAD_REPAIR, DEVELOPMENT_POTENTIAL_LOAD_REPAIR_VERSION);
     const agTechStockByCell = resolveAgTechStockByCell(world.pack.cells?.i?.length ?? 0);
     const stateProductivityByCell = resolveStateProductivityByCell(world.pack.cells);
-    const megacity = useOptionsState.getState().ruralUrbanMigration === "megacity";
+    const megacity = optionsStore.getState().ruralUrbanMigration === "megacity";
     const demandOptions = {
       includeUrbanFoodDemand: !megacity,
       reserveLaborForUrbanExport: megacity,
@@ -314,7 +324,7 @@ export class DevelopmentPotentialModule {
     const world = getWorldContext();
     const agTechStockByCell = resolveAgTechStockByCell(world.pack.cells?.i?.length ?? 0);
     const stateProductivityByCell = resolveStateProductivityByCell(world.pack.cells);
-    const megacity = useOptionsState.getState().ruralUrbanMigration === "megacity";
+    const megacity = optionsStore.getState().ruralUrbanMigration === "megacity";
     const demandOptions = {
       includeUrbanFoodDemand: !megacity,
       reserveLaborForUrbanExport: megacity,

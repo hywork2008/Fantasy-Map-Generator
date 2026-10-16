@@ -1,4 +1,5 @@
 import type { WorldContext } from "../context/worldContext";
+import { pow } from "../simulation/deterministicMath";
 import { landCoverCode } from "../types/biomeAttributes";
 import { assertValidLandUseSnapshot, type LandUseSnapshot } from "../types/landUse";
 import { estimateCellFoodProduction } from "./estimatedFoodProduction";
@@ -27,7 +28,7 @@ export function resolveStaticLandUseInputs(world: Readonly<WorldContext>): Clear
   const food = estimateCellFoodProduction(world, true);
   for (const id of cells.i) {
     if (cells.h[id] < 20) continue;
-    const area = Math.max(0, cells.area?.[id] ?? 0) * (world.distanceScale || 1) ** 2 * 100;
+    const area = Math.max(0, cells.area?.[id] ?? 0) * pow(world.distanceScale || 1, 2) * 100;
     const tags = world.biomesData.tags?.[cells.biomeCode[id]] ?? [];
     const burg = world.pack.burgs?.[cells.burg?.[id] ?? 0];
     const urbanPeople =

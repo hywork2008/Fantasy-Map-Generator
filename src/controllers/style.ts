@@ -35,7 +35,8 @@ import { heightmapColorSchemes } from "../utils/colorUtils";
 import { ERROR, INFO } from "../utils/debug";
 import { EditorBus } from "../utils/editorBus";
 import { confirmationDialog, downloadFile, uploadFile } from "../utils/editorHelpers";
-import { getElementById, layerIsOn, getElementBySelector as queryElementBySelector } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/layerUtils";
+import { getElementById, getElementBySelector as queryElementBySelector } from "../utils/nodeUtils";
 import { VERSION } from "../versioning";
 import { schedule3dSceneUpdate, scheduleWebglUpdate, toggleRelief } from "./layers";
 

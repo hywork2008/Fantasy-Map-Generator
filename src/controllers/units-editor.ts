@@ -18,7 +18,8 @@ import { getUnitsEditorState, setUnitsEditorState } from "../store/unitsEditorSt
 import { closeDialogs, openConfirm, openDialog } from "../ui/dialogs/dialogService";
 import { findCell } from "../utils";
 import { EditorBus } from "../utils/editorBus";
-import { getElementById, layerIsOn } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/layerUtils";
+import { getElementById } from "../utils/nodeUtils";
 import { type UnitSystemId, unitSystemPresets } from "../utils/unitUtils";
 import { toggleRulers } from "./layers";
 import { Opisometer, Planimeter, RouteOpisometer, Ruler, Rulers } from "./measurers";

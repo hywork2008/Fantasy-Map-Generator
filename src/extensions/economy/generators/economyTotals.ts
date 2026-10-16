@@ -24,7 +24,6 @@ import { getMineExtractionFactor } from "./mineOperations";
 import { getMinedGoodName } from "./mineralResources";
 import { Production } from "./production-generator";
 import { getCellProduction } from "./production-utils";
-import { reconcileRetailInventory } from "./retailInventory";
 import { getTradeableStapleCropUnits } from "./stapleCropInventory";
 
 export type StockSource = { name: string; type: "market" | "burg"; x: number; y: number; id: number; stock: number };
@@ -33,17 +32,15 @@ export type GoodProduction = { burg: number; cell: number; industrial: number; m
 
 /**
  * Every enabled Good's current world-wide stock, broken down by where it physically sits
- * (market territory pools vs. burg retail/wholesale inventories). Reconciles retail inventory
- * first so the numbers reflect actual shelved/depot stock rather than the per-cycle production
- * accounting journal (see reconcileRetailInventory()'s own doc-comment).
+ * (market territory pools vs. burg retail/wholesale inventories), as the world holds it now.
+ * Read-only: it used to reconcile retail inventory first, which made Balance History (UI) change
+ * the simulated world (docs/plan/simulation-core-separation.md §23).
  */
 export function getAllStockData(): Record<number, { total: number; sources: StockSource[] }> {
   const result: Record<number, { total: number; sources: StockSource[] }> = {};
   for (const good of getGoods().filter(isGoodEnabled)) {
     result[good.i] = { total: 0, sources: [] };
   }
-
-  reconcileRetailInventory();
 
   for (const market of getMarkets()) {
     const center = getWorldContext().pack.burgs[market.centerBurgId];

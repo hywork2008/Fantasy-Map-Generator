@@ -1,5 +1,5 @@
 import type { TechnologyStage } from "../../generators/technologyTypes";
-import type { OptionsState } from "../../store/optionsState";
+import type { OptionsState } from "../../state/optionsStore";
 import type { WorldLanguages } from "../../types/worldLanguages";
 import { getCultureKnowledgeValue } from "../../utils/cultureKnowledgeValue";
 import { getApi, getWorldContext, hasCharactersContext } from "./charactersContext";

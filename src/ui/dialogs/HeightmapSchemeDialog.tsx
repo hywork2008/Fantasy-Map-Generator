@@ -2,7 +2,8 @@ import { interpolateRgb, interpolateRgbBasis, scaleSequential } from "d3";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { worldContext } from "../../context/worldContext";
 import { useDialogState } from "../../store/dialogState";
-import { drawHeights, toHEX } from "../../utils";
+import { toHEX } from "../../utils";
+import { drawHeights } from "../../utils/heightmapImage";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 

@@ -4,8 +4,9 @@ import enTranslations from "../../i18n/locales/en.json";
 import jaTranslations from "../../i18n/locales/ja.json";
 import type { Race } from "../../types/models";
 import type { Character } from "./characterTypes";
-import { formatFlavorHook, generateCharacterHooks } from "./flavorHooks";
+import { generateCharacterHooks } from "./flavorHooks";
 import { getMatchingLichTypes, isLichCharacter, LICH_TYPE_DEFINITIONS, selectLichFlavorHook } from "./lichFlavor";
+import { formatFlavorHook } from "./utils/flavorHookLabels";
 
 describe("Lich flavor hooks", () => {
   const races: Race[] = [

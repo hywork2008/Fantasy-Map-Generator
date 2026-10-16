@@ -1,3 +1,4 @@
+import { simEvents } from "../../../simulation/events";
 import { getCharacters, hasCharactersContext } from "../../characters/charactersContext";
 import { stateHasEnemy } from "../../hostCore";
 import type { State } from "../../hostTypes";
@@ -213,8 +214,7 @@ export function shouldAiEnableWarFooting(state: State): boolean {
  * PR-9: dispatch when AI or policy changes war footing so nobility/UI can react later.
  */
 function dispatchWarFootingChange(state: State, warFooting: boolean, reason: string): void {
-  if (typeof document === "undefined") return;
-  document.dispatchEvent(
+  simEvents.dispatchEvent(
     new CustomEvent("fmg:war-footing-change", {
       detail: {
         stateId: state.i,

@@ -25,7 +25,6 @@ import {
   unregisterPreset,
   unregisterToolAction
 } from "./controllers/layers";
-import { raceService } from "./services/raceService";
 import "./controllers/seaCurrentsAnimation";
 import { changeViewMode } from "./controllers/viewMode";
 import { generateLabMap, type LabGenerateRequest } from "./debug/riverPortLab/labGenerate";
@@ -36,36 +35,38 @@ import { initExtensions } from "./extensions/index";
 import { getGenerationProfile } from "./generators/generationProfiler";
 import { initModules } from "./generators/index";
 import { getTickProfile, resetTickProfile } from "./generators/tickProfiler";
-import { advanceTime, registerSimulationSystem, registerTimeTickHook } from "./generators/timeEngine";
 import { buildGeoJsonZones, saveGeoJsonZones } from "./io/export";
 import { prepareWorldArchive } from "./io/save";
 import { generate, initMain, regenerateMap } from "./main";
-import { initRenderers } from "./renderers/index";
+import { COArenderer } from "./renderers/emblem-renderer";
+import { initRenderers, removeBurgIcon, removeBurgLabel } from "./renderers/index";
 import {
   registerExtensionWebglLayers,
   unregisterExtensionWebglLayers
 } from "./renderers/webgl/extensionWebglLayerRegistry";
 import { registerMapReadyTask, requestMapReadyTask } from "./runtime/mapReadyTaskCoordinator";
 import { initRenderCoordinator } from "./runtime/renderCoordinator";
-import { createMarker, dispatchExtensionCommand, worldRuntime } from "./runtime/worldRuntime";
 import { burgEconomyExtensions } from "./services/burgEconomyExtensions";
 import { getBurgSiteDescriptor } from "./services/burgSiteDescriptor";
 import {
   registerExtensionMapPickHandler,
   unregisterExtensionMapPickHandler
 } from "./services/extensionMapPickHandlers";
-import { applyMapMarkerPatch, markerNoteId, nextMarkerId } from "./services/mapMarkerApi";
-import { getEffectiveSkill, registerSkillModifier } from "./services/skillModifierService";
-import { tooltipExtensions } from "./services/tooltipService";
+import { tip, tooltipExtensions } from "./services/tooltipService";
 import { UITour } from "./services/ui-tour";
+import { connectSimulationEventsToDocument } from "./simulation/events";
+import type { SimulationExtensionEnablement } from "./simulation/extensionEnablement";
+import { createSimulationHost, type SimulationHost, setSimulationHost } from "./simulation/host";
+import { installSimulationViewPort } from "./simulation/viewPort";
 import { useExtensionState } from "./store/extensionState";
 import type { SvgLayerSpec } from "./store/layerState";
 import { useLayerState } from "./store/layerState";
 import type { ExtensionAPI } from "./types/extension-api";
 import { closeDialog, isDialogOpen, openDialog, openRichDialog } from "./ui/dialogs/dialogService";
+import { installDebugSnapshotCapture } from "./utils/aiDebugExporter";
 import { removeCircle } from "./utils/domUtils";
 import { initUtils } from "./utils/index";
-import { layerIsOn } from "./utils/nodeUtils";
+import { layerIsOn } from "./utils/layerUtils";
 
 export interface FMGInitOptions {
   container?: HTMLElement;
@@ -73,7 +74,16 @@ export interface FMGInitOptions {
   drawUI?: boolean;
 }
 
-function buildExtensionAPI(): ExtensionAPI {
+/** Browser enablement: the Extensions tab store (persisted per browser). */
+const browserExtensionEnablement: SimulationExtensionEnablement = {
+  isEnabled: id => useExtensionState.getState().enabledExtensions[id] ?? false,
+  subscribe: listener =>
+    useExtensionState.subscribe((state, prev) =>
+      listener({ enabledExtensions: state.enabledExtensions }, { enabledExtensions: prev.enabledExtensions })
+    )
+};
+
+function buildExtensionAPI(host: SimulationHost): ExtensionAPI {
   const extState = useExtensionState.getState;
   const layerState = useLayerState.getState;
 
@@ -118,12 +128,12 @@ function buildExtensionAPI(): ExtensionAPI {
     }
   });
 
-  return {
-    races: raceService,
-    worldContext,
+  // The simulation members come from the host, so the browser and a headless run share them (S5).
+  // Spread copies the members; the host keeps using its own object for the simulation entries.
+  const api: ExtensionAPI = {
+    ...host.api,
     viewContext,
-    appServices,
-    simulationContext,
+    registerSimulationExtension: extension => host.registerExtension(extension),
 
     registerExtension: (config, defaultEnabled) => extState().registerExtension(config, defaultEnabled),
     registerAction: action => extState().registerAction(action),
@@ -138,17 +148,9 @@ function buildExtensionAPI(): ExtensionAPI {
     unregisterCellInfoRow: id => extState().unregisterCellInfoRow(id),
     unregisterExtension: id => extState().unregisterExtension(id),
     toggleExtension: (id, forceState) => extState().toggleExtension(id, forceState),
-    isExtensionEnabled: id => extState().enabledExtensions[id] ?? false,
-    subscribeExtensionState: listener =>
-      useExtensionState.subscribe((state, prev) =>
-        listener({ enabledExtensions: state.enabledExtensions }, { enabledExtensions: prev.enabledExtensions })
-      ),
-    registerMapReadyTask,
-    requestMapReadyTask,
 
     registerPreset,
     unregisterPreset,
-
     addLayers: layers => {
       layerState().addLayers(layers);
       // Create or re-acquire SVG <g> elements declared in each layer's svgLayers spec.
@@ -185,33 +187,6 @@ function buildExtensionAPI(): ExtensionAPI {
     registerMapPickHandler: registerExtensionMapPickHandler,
     unregisterMapPickHandler: unregisterExtensionMapPickHandler,
 
-    createMapMarker: input => {
-      const markerI = nextMarkerId(worldContext.pack.markers);
-      const noteId = markerNoteId(markerI);
-      try {
-        const commit = createMarker({
-          marker: { ...input.marker, i: markerI },
-          note: { id: noteId, name: input.note.name, legend: input.note.legend }
-        });
-        if (!commit) return null;
-      } catch {
-        // Duplicate id / invalid cell — reject instead of throwing into caller code.
-        return null;
-      }
-      scheduleWebglUpdate();
-      return { markerId: markerI, noteId };
-    },
-    updateMapMarker: (markerId, patch) => {
-      const marker = worldContext.pack.markers.find(candidate => candidate.i === markerId);
-      if (!marker) return false;
-
-      const note = worldContext.notes.find(candidate => candidate.id === markerNoteId(markerId));
-      applyMapMarkerPatch(marker, note, patch);
-
-      scheduleWebglUpdate();
-      return true;
-    },
-
     openRichDialog,
     openDialog: (id, config) => openDialog(id, config),
     closeDialog,
@@ -219,15 +194,6 @@ function buildExtensionAPI(): ExtensionAPI {
 
     registerToolAction,
     unregisterToolAction,
-
-    registerTimeTickHook,
-    registerSimulationSystem,
-    registerExtensionCommand: command => worldRuntime.registerExtensionCommand(command),
-    dispatchExtensionCommand,
-    registerStateSlice: spec => worldRuntime.registerStateSlice(spec),
-
-    registerSkillModifier,
-    getEffectiveSkill,
 
     zoomTo,
     restoreDefaultEvents,
@@ -237,10 +203,27 @@ function buildExtensionAPI(): ExtensionAPI {
     tooltipExtensions,
     burgEconomyExtensions
   };
+  return api;
+}
+
+/** Browser handlers for the view side effects the simulation core requests (S1). */
+function installBrowserSimulationViewPort(): void {
+  installSimulationViewPort({
+    tip,
+    burgAdded: (burgId, coa, x, y) => {
+      COArenderer.add("burg", burgId, coa, x, y);
+    },
+    burgRemoved: burgId => {
+      removeBurgIcon(worldContext, viewContext, appServices, burgId);
+      removeBurgLabel(worldContext, viewContext, appServices, burgId);
+    }
+  });
 }
 
 export async function initApp(options: FMGInitOptions = {}): Promise<void> {
   console.log("initApp starting with options:", options);
+  connectSimulationEventsToDocument();
+  installBrowserSimulationViewPort();
 
   const drawMap = options.drawMap ?? true;
   const drawUI = options.drawUI ?? true;
@@ -299,6 +282,15 @@ export async function initApp(options: FMGInitOptions = {}): Promise<void> {
   // Renderer work observes WorldRuntime commits instead of being called from
   // simulation writers. It needs the view layers initialized by initMain().
   initRenderCoordinator();
+  installDebugSnapshotCapture();
+
+  // One SimulationHost drives time for the UI and for every extension's simulation entry (S5).
+  const simulationHost = createSimulationHost({
+    enablement: browserExtensionEnablement,
+    mapReadyTasks: { register: registerMapReadyTask, request: requestMapReadyTask },
+    onMapAnnotationsChanged: scheduleWebglUpdate
+  });
+  setSimulationHost(simulationHost);
 
   // Assemble the public API surface before loading extensions so that
   // dynamically loaded extension modules can call window.fmg.extensionAPI.
@@ -327,14 +319,15 @@ export async function initApp(options: FMGInitOptions = {}): Promise<void> {
       saveGeoJsonZones,
       getGeoJsonZones: buildGeoJsonZones,
       editBurg,
-      advanceTime,
+      advanceTime: (deltaYears: number, deltaMonths = 0, deltaDays = 0) =>
+        simulationHost.advance({ years: deltaYears, months: deltaMonths, days: deltaDays }),
       getBurgSiteDescriptor,
       getTickProfile,
       resetTickProfile,
       getGenerationProfile,
       prepareWorldArchive
     }),
-    extensionAPI: buildExtensionAPI(),
+    extensionAPI: buildExtensionAPI(simulationHost),
     lab: Object.freeze({
       getOptions: getLabOptions,
       setOptions: setLabOptions,

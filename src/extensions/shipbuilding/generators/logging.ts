@@ -1,3 +1,4 @@
+import { simEvents } from "../../../simulation/events";
 import { rn } from "../../hostUtils";
 import { getWorldContext } from "../shipbuildingContext";
 import type { ShipyardCandidate } from "./shipyardCandidates";
@@ -27,7 +28,7 @@ export function runLoggingTick(candidates: ShipyardCandidate[], deltaYears: numb
     const amount = rn(LOGGING_RATE_PER_YEAR * forestRatio * deltaYears, 2);
     if (amount <= 0) continue;
 
-    document.dispatchEvent(
+    simEvents.dispatchEvent(
       new CustomEvent("fmg:shipbuilding-log-harvested", {
         detail: { cellId: loggingCellId, burgId, amount, deltaYears }
       })

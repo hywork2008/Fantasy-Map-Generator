@@ -1,12 +1,14 @@
 import { pointer } from "d3";
 import { clearMainTip, tip } from "../../hostServices";
-import { confirmationDialog, downloadFile, findCell, getFileName, layerIsOn, rn, unique } from "../../hostUtils";
+import { confirmationDialog, downloadFile, getFileName, layerIsOn } from "../../hostUi";
+import { findCell, rn, unique } from "../../hostUtils";
 import {
   getApi,
   getGoodCellColumn,
   getGoods,
   getOrCreateCumulativeCellFoodFlows,
   getOrCreateCumulativeMarketIntake,
+  getViewApi,
   getViewContext,
   getWorldContext,
   resetCumulativeMarketIntake
@@ -55,7 +57,7 @@ function compareGoodsBySort(a: GoodTableRow, b: GoodTableRow, sortBy: string): n
 function refreshEditor(): void {
   goodsEditorAddLines();
   drawGoods(getDisplayedGoodIds());
-  getApi().requestWebglRender();
+  getViewApi().requestWebglRender();
 }
 
 function regenerateEconomyForGood(goodId: number): void {
@@ -76,7 +78,7 @@ export function open(): void {
   if (getViewContext().customization) return;
 
   initializeDisplayedGoodIds();
-  if (!layerIsOn("toggleGoods")) getApi().toggleLayerById("toggleGoods");
+  if (!layerIsOn("toggleGoods")) getViewApi().toggleLayerById("toggleGoods");
   else drawGoods(getDisplayedGoodIds());
 
   goodsEditorAddLines();
@@ -211,7 +213,7 @@ export function openProducersDialog(goodId: number): void {
     isOpen: true,
     goodName: good.name,
     producers,
-    onZoom: (x: number, y: number) => getApi().zoomTo(x, y, 8, 2000)
+    onZoom: (x: number, y: number) => getViewApi().zoomTo(x, y, 8, 2000)
   });
 }
 
@@ -226,7 +228,7 @@ export function openStockDialog(goodId: number): void {
     isOpen: true,
     goodName: good.name,
     sources: sources.map(s => ({ id: s.id, name: s.name, type: s.type, x: s.x, y: s.y, stock: s.stock })),
-    onZoom: (x: number, y: number) => getApi().zoomTo(x, y, 8, 2000)
+    onZoom: (x: number, y: number) => getViewApi().zoomTo(x, y, 8, 2000)
   });
 }
 
@@ -303,10 +305,10 @@ export function enterResourceAssignMode(): void {
   }
   getViewContext().customization = 14;
   setGoodsEditorTableState({ isAssignMode: true, selectedAssignGoodId: null });
-  if (!layerIsOn("toggleGoods")) getApi().toggleLayerById("toggleGoods");
+  if (!layerIsOn("toggleGoods")) getViewApi().toggleLayerById("toggleGoods");
   if (!layerIsOn("toggleCells")) {
     cellsWasForced = true;
-    getApi().toggleLayerById("toggleCells");
+    getViewApi().toggleLayerById("toggleCells");
   }
 
   tip("Select good line in editor, click on cells to remove or add a bonus resource", true);
@@ -340,14 +342,14 @@ function exitResourceAssignMode(close?: string): void {
   getViewContext().customization = 0;
   setGoodsEditorTableState({ isAssignMode: false, selectedAssignGoodId: null });
 
-  if (cellsWasForced && layerIsOn("toggleCells")) getApi().toggleLayerById("toggleCells");
+  if (cellsWasForced && layerIsOn("toggleCells")) getViewApi().toggleLayerById("toggleCells");
   cellsWasForced = false;
 
   viewbox().on("click.goodsAssign", null);
 
   if (!close) goodsEditorAddLines();
 
-  getApi().restoreDefaultEvents();
+  getViewApi().restoreDefaultEvents();
   clearMainTip();
 }
 
@@ -438,14 +440,14 @@ export function toggleDisplayedGood(goodId: number, show: boolean): void {
     goods: getGoodsEditorTableState().goods.map(g => (g.i === goodId ? { ...g, isDisplayed: show } : g))
   });
   drawGoods(displayedGoods);
-  getApi().requestWebglRender();
+  getViewApi().requestWebglRender();
 }
 
 export function toggleAllDisplayed(show: boolean): void {
   setAllGoodsDisplayed(show);
   goodsEditorAddLines();
   drawGoods(getDisplayedGoodIds());
-  getApi().requestWebglRender();
+  getViewApi().requestWebglRender();
 }
 
 export function requestGoodsRegeneration(): void {

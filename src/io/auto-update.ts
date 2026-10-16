@@ -47,7 +47,7 @@ import type {
 } from "../types/models";
 import { findCell, P, rand, rn, unique } from "../utils";
 import { ERROR } from "../utils/debug";
-import { layerIsOn } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/layerUtils";
 import { compareVersions } from "../versioning";
 
 const ANCHOR_SYMBOL_PATH =

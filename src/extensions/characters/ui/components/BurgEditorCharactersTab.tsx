@@ -1,7 +1,6 @@
 import type { FC } from "react";
 import { useState } from "react";
-import { useOptionsState } from "../../../hostCore";
-import { openDialog, useBurgEditorState } from "../../../hostUi";
+import { openDialog, useBurgEditorState, useOptionsState } from "../../../hostUi";
 import { generateBurgResidents } from "../../characterPopulation";
 import { getCharacters } from "../../charactersContext";
 import type { Character } from "../../characterTypes";

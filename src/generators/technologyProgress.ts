@@ -8,6 +8,7 @@
 
 import { simulationContext } from "../context/simulationContext";
 import { worldContext } from "../context/worldContext";
+import { pow } from "../simulation/deterministicMath";
 import {
   BRIDGE_SKEW_TECHNOLOGY_GATES,
   type BridgeSkewTier,
@@ -528,7 +529,7 @@ export function getStateMaritimeAptitude(stateId: number): 0 | 1 | 2 {
   for (let index = 0; index < seed.length; index += 1) {
     hash = Math.imul(hash ^ seed.charCodeAt(index), 16777619);
   }
-  const randomBonus = ownArea > 0 && (hash >>> 0) / 2 ** 32 >= 0.72 ? 1 : 0;
+  const randomBonus = ownArea > 0 && (hash >>> 0) / pow(2, 32) >= 0.72 ? 1 : 0;
   return Math.min(2, (compact ? 1 : 0) + randomBonus) as 0 | 1 | 2;
 }
 

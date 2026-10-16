@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { probeMapServer } from "../../io/mapServer";
 import { saveMap } from "../../io/save";
+import { probeSimServer } from "../../io/simServer";
 import { useDialogState } from "../../store/dialogState";
 import { Dialog } from "./Dialog";
 
@@ -11,10 +12,12 @@ export const SaveMapDialog: React.FC = () => {
   const isOpen = useDialogState(state => state.openDialogs.has("saveMapData"));
   const closeDialog = useDialogState(state => state.closeDialog);
   const [serverWritable, setServerWritable] = useState(false);
+  const [simServer, setSimServer] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
     void probeMapServer().then(status => setServerWritable(Boolean(status?.writable)));
+    void probeSimServer().then(status => setSimServer(Boolean(status)));
   }, [isOpen]);
 
   return (
@@ -38,6 +41,11 @@ export const SaveMapDialog: React.FC = () => {
         {serverWritable && (
           <button type="button" data-tip={t("dialogs.save.serverTip")} onClick={() => saveMap("server")}>
             {t("dialogs.save.server")}
+          </button>
+        )}
+        {simServer && (
+          <button type="button" data-tip={t("dialogs.save.simServerTip")} onClick={() => saveMap("simServer")}>
+            {t("dialogs.save.simServer")}
           </button>
         )}
       </div>

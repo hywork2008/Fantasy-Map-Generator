@@ -1,4 +1,5 @@
 import { worldContext } from "../context/worldContext";
+import { BUILTIN_SIMULATION_EXTENSIONS } from "../extensions/simulation";
 import { Names } from "../generators/names-generator";
 import { appendOceanPathsToSaveSVG } from "../renderers/ocean-layers";
 import { ChunkedWorldCodecAdapter } from "../runtime/worldArchive";
@@ -6,6 +7,7 @@ import { worldRuntime } from "../runtime/worldRuntime";
 import { updateAllBurgWaterAccess } from "../services/burgWaterAccess";
 import { tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
+import { getSimulationHost } from "../simulation/host";
 import { rulers } from "../store/editorState";
 import { generationProgressStore } from "../store/generationProgressState";
 import { useMapReadyTaskState } from "../store/mapReadyTaskState";
@@ -19,6 +21,7 @@ import { Cloud } from "./cloud";
 import { getUsedFonts } from "./export";
 import { ldb } from "./ldb";
 import { saveMapToServer } from "./mapServer";
+import { publishToSimServer } from "./simServer";
 
 // ─── Map serialization ────────────────────────────────────────────────────────
 
@@ -371,6 +374,22 @@ async function saveToMapServer(archive: Blob): Promise<void> {
   throw new Error(result.message);
 }
 
+async function publishToSimulationServer(archive: Blob): Promise<void> {
+  const host = getSimulationHost();
+  const extensions = BUILTIN_SIMULATION_EXTENSIONS.map(ext => ext.id).filter(id => host.enablement.isEnabled(id));
+  const channel = await publishToSimServer(archive, useOptionsState.getState().mapName || "FMG map", extensions);
+  openConfirm(
+    `Published as channel <b>${channel.id}</b>. The server holds its own copy: changes made here are not sent to it.` +
+      `<p>API: <code>${channel.api}</code></p>`,
+    {
+      title: "Published to simulation server",
+      confirm: "Copy API URL",
+      cancel: "Close",
+      onConfirm: () => void navigator.clipboard?.writeText(channel.api)
+    }
+  );
+}
+
 async function saveToDropbox(archive: Blob, filename: string): Promise<void> {
   await Cloud.providers.dropbox.save(filename, archive);
   tip("Map is saved to your Dropbox", true, "success", 8000);
@@ -393,6 +412,7 @@ export async function saveMap(method: string): Promise<void> {
     if (method === "machine") saveToMachine(archive, filename);
     if (method === "dropbox") await saveToDropbox(archive, filename);
     if (method === "server") await saveToMapServer(archive);
+    if (method === "simServer") await publishToSimulationServer(archive);
   } catch (error) {
     ERROR && console.error(error);
     openConfirm(

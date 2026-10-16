@@ -1,3 +1,4 @@
+import { simEvents } from "../../../simulation/events";
 import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
@@ -69,13 +70,11 @@ export function updateDiplomaticReliability(state: State): DiplomaticReliability
           const change = worsenRelation(state, ally);
           if (change) {
             allianceStrained = { allyStateId: ally.i, from: change.from, to: change.to };
-            if (typeof document !== "undefined") {
-              document.dispatchEvent(
-                new CustomEvent("fmg:diplomatic-reliability-alliance-strain", {
-                  detail: { stateId: state.i, allyStateId: ally.i, from: change.from, to: change.to }
-                })
-              );
-            }
+            simEvents.dispatchEvent(
+              new CustomEvent("fmg:diplomatic-reliability-alliance-strain", {
+                detail: { stateId: state.i, allyStateId: ally.i, from: change.from, to: change.to }
+              })
+            );
           }
           break;
         }

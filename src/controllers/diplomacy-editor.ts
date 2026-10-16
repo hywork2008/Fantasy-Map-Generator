@@ -25,7 +25,7 @@ import { type RelationKey, relations } from "../utils/diplomacyRelations";
 import { EditorBus } from "../utils/editorBus";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
 import { isGunpowderEraEnabled, isGunpowderEraMilitaryUnit } from "../utils/gunpowderEra";
-import { layerIsOn } from "../utils/nodeUtils";
+import { layerIsOn } from "../utils/layerUtils";
 import { interactionManager } from "./interactionManager";
 import {
   scheduleWebglUpdate,

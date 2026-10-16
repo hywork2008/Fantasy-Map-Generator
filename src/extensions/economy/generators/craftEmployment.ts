@@ -1,5 +1,5 @@
 import { rn } from "../../hostUtils";
-import { getEconomyCalibrationState } from "../store/economyCalibrationState";
+import { getEconomyCalibrationState } from "../state/economyCalibrationStore";
 import { peopleToPoints } from "./craftScale";
 
 /**

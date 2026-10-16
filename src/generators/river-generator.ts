@@ -9,7 +9,8 @@ import { worldContext } from "../context/worldContext";
 import { HeightmapConstants, HeightThreshold, RiverConstants } from "../data/constants";
 import { MIN_NAVIGABLE_FLUX } from "../data/waterNavigation";
 import { activeLabOptions, labRiverPrecipitation } from "../debug/riverPortLab/labOptions";
-import { useOptionsState } from "../store/optionsState";
+import { pow } from "../simulation/deterministicMath";
+import { optionsStore } from "../state/optionsStore";
 import type { River } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import { each, rn, round, rw } from "../utils";
@@ -76,8 +77,8 @@ class RiverModule {
 
     const drainWater = () => {
       const MIN_FLUX_TO_FORM_RIVER = RiverConstants.MIN_FLUX_TO_FORM_RIVER / (activeLabOptions()?.riverDensity ?? 1);
-      const { points } = useOptionsState.getState();
-      const cellsNumberModifier = ((points === 4 ? 10000 : points * 2500) / 10000) ** 0.25;
+      const { points } = optionsStore.getState();
+      const cellsNumberModifier = pow((points === 4 ? 10000 : points * 2500) / 10000, 0.25);
 
       const prec = labRiverPrecipitation(grid.cells.prec, seed);
       const land = cells.i.filter((i: number) => h[i] >= 20).sort((a: number, b: number) => h[b] - h[a]);
@@ -209,8 +210,8 @@ class RiverModule {
       cells.conf = new Uint16Array(cells.i.length);
       pack.rivers = [];
 
-      const pointsVal = useOptionsState.getState().points;
-      const defaultWidthFactor = rn(1 / ((pointsVal === 4 ? 10000 : pointsVal * 2500) / 10000) ** 0.25, 2);
+      const pointsVal = optionsStore.getState().points;
+      const defaultWidthFactor = rn(1 / pow((pointsVal === 4 ? 10000 : pointsVal * 2500) / 10000, 0.25), 2);
       const mainStemWidthFactor = defaultWidthFactor * 1.2;
 
       for (const key in riversData) {
@@ -332,7 +333,7 @@ class RiverModule {
   resolveDepressions(h: number[]) {
     const { pack } = this.worldContext;
     const { cells, features } = pack;
-    const maxIterations = useOptionsState.getState().resolveDepressionsSteps;
+    const maxIterations = optionsStore.getState().resolveDepressionsSteps;
     const checkLakeMaxIteration = maxIterations * 0.85;
     const elevateLakeMaxIteration = maxIterations * 0.75;
 
@@ -453,7 +454,7 @@ class RiverModule {
   }
 
   getSourceWidth(flux: number) {
-    return rn(Math.min(flux ** 0.9 / this.FLUX_FACTOR, this.MAX_FLUX_WIDTH), 2);
+    return rn(Math.min(pow(flux, 0.9) / this.FLUX_FACTOR, this.MAX_FLUX_WIDTH), 2);
   }
 
   /** Build the variable-width river banks shared by SVG and WebGL renderers. */

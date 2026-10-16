@@ -5,7 +5,8 @@
  * without waiting out the full pre-industrial accumulation.
  */
 
-import { useOptionsState } from "../store/optionsState";
+import { pow } from "../simulation/deterministicMath";
+import { optionsStore } from "../state/optionsStore";
 
 export const MIN_TECHNOLOGY_DEVELOPMENT_SPEED = 1;
 export const MAX_TECHNOLOGY_DEVELOPMENT_SPEED = Number.MAX_SAFE_INTEGER;
@@ -18,7 +19,7 @@ export function clampTechnologyDevelopmentSpeed(value: unknown): number {
 }
 
 export function getTechnologyDevelopmentSpeed(): number {
-  return clampTechnologyDevelopmentSpeed(useOptionsState.getState().technologyDevelopmentSpeed);
+  return clampTechnologyDevelopmentSpeed(optionsStore.getState().technologyDevelopmentSpeed);
 }
 
 /**
@@ -37,6 +38,6 @@ export function applyKnowledgeEwma(
   const r = Math.max(0, Math.min(1, rate));
   if (r === 0) return previous;
   if (r === 1) return target;
-  const remaining = (1 - r) ** steps;
+  const remaining = pow(1 - r, steps);
   return previous * remaining + target * (1 - remaining);
 }

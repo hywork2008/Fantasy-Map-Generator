@@ -6,7 +6,7 @@
  * constants stay on `technologyDevelopmentSpeed`.
  */
 
-import { useOptionsState } from "../store/optionsState";
+import { optionsStore } from "../state/optionsStore";
 
 export const MIN_TECHNOLOGY_REQUIREMENT_EASE = 1;
 export const MAX_TECHNOLOGY_REQUIREMENT_EASE = 100;
@@ -26,7 +26,7 @@ export function clampTechnologyRequirementEase(value: unknown): number {
 }
 
 export function getTechnologyRequirementEase(): number {
-  return clampTechnologyRequirementEase(useOptionsState.getState().technologyRequirementEase);
+  return clampTechnologyRequirementEase(optionsStore.getState().technologyRequirementEase);
 }
 
 /** Discrete counts (mines, trial years, ports). Floor-scaled; 0 means waived. */

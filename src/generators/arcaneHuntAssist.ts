@@ -16,7 +16,7 @@ import {
 import { isFantasyCulturesSet } from "../data/raceCivicStance";
 import { supernaturalForRaceKey } from "../data/raceSupernatural";
 import { getRaceById } from "../data/races";
-import { useOptionsState } from "../store/optionsState";
+import { optionsStore } from "../state/optionsStore";
 import type { Monster, Race } from "../types/models";
 
 export interface ArcaneHuntAssistInput {
@@ -31,7 +31,7 @@ export interface ArcaneHuntAssistInput {
 
 /** Extra monster.power removed by a ready 90+ caster of the hunting state. 0 if none. */
 export function applyArcaneHuntAssist(input: ArcaneHuntAssistInput): number {
-  if (!isFantasyCulturesSet(useOptionsState.getState().culturesSet)) return 0;
+  if (!isFantasyCulturesSet(optionsStore.getState().culturesSet)) return 0;
   if (input.monster.power <= 0) return 0;
   const casters = input.characters ?? [];
   if (!casters.length) return 0;

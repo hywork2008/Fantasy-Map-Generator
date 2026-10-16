@@ -14,6 +14,7 @@
  */
 
 import { simulationContext } from "../context/simulationContext";
+import { simEvents } from "../simulation/events";
 
 const BONUS_PER_HULL = 0.1;
 const MAX_BONUS = 10;
@@ -25,7 +26,7 @@ function getBonusTable(): Record<number, number> {
   return simulationContext.navalTechBonus;
 }
 
-document.addEventListener("fmg:shipbuilding-ship-completed", e => {
+simEvents.addEventListener("fmg:shipbuilding-ship-completed", e => {
   const detail = (e as CustomEvent).detail as { stateId: number | null; owner: "state" | "market" } | undefined;
   if (detail?.owner !== "state" || !detail.stateId) return;
 
@@ -36,7 +37,7 @@ document.addEventListener("fmg:shipbuilding-ship-completed", e => {
 
 // A brand-new map reuses state ids from 0, so a bonus tied to the previous map's
 // state ids must not carry over.
-document.addEventListener("fmg:generate-post-core", () => {
+simEvents.addEventListener("fmg:generate-post-core", () => {
   simulationContext.navalTechBonus = {};
 });
 

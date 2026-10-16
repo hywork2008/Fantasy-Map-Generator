@@ -4,14 +4,17 @@ import { viewContext } from "../../../context/viewContext";
 import { worldContext } from "../../../context/worldContext";
 import { createDefaultBiomesData } from "../../../data/biomeCatalog";
 import { Military } from "../../../generators/military-generator";
+import { simEvents } from "../../../simulation/events";
 import type { Burg, State } from "../../../types/models";
-import { init as initShipbuilding } from "../index";
 import { clearShipbuildingContext } from "../shipbuildingContext";
+import { shipbuildingSimulation } from "../simulation";
 import { seedInitialFleets } from "./initialFleet";
 import { clearShipyardQueues, getHulls } from "./shipyardQueue";
 
 describe("fleet discrepancy test", () => {
   let mockApi: any;
+
+  let unregisterSimulation: (() => void) | undefined;
 
   beforeEach(() => {
     clearShipyardQueues();
@@ -21,7 +24,8 @@ describe("fleet discrepancy test", () => {
       {
         isExtensionEnabled: () => true,
         layerIsOn: () => false,
-        worldContext
+        worldContext,
+        events: simEvents
       },
       {
         get(target, prop) {
@@ -30,7 +34,8 @@ describe("fleet discrepancy test", () => {
         }
       }
     );
-    initShipbuilding(mockApi);
+    unregisterSimulation?.();
+    unregisterSimulation = shipbuildingSimulation.register(mockApi);
   });
 
   it("checks discrepancy between Vessel assets navy hulls and Military Overview fleet units", () => {

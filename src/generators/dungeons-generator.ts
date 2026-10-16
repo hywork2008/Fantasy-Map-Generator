@@ -6,7 +6,7 @@
  * Clear removes the site and rebuilds danger (does not claim land).
  */
 import type { WorldContext } from "../context/worldContext";
-import { useOptionsState } from "../store/optionsState";
+import { optionsStore } from "../state/optionsStore";
 import type { Burg, Dungeon, DungeonKind, Marker, Monster } from "../types/models";
 import type { PackedGraph, PackedGraphCells } from "../types/PackedGraph";
 import { rand } from "../utils";
@@ -37,7 +37,7 @@ export interface DungeonGenerateOptions {
 export const Dungeons = {
   /** Full initial placement (replaces pack.dungeons). */
   generate(worldContext: WorldContext, options: DungeonGenerateOptions = {}): Dungeon[] {
-    const { culturesSet, dangerEnabled } = useOptionsState.getState();
+    const { culturesSet, dangerEnabled } = optionsStore.getState();
     const profile = getDungeonSpawnProfile(culturesSet);
     const pack = worldContext.pack;
     // Drop prior dungeon markers/notes if regenerating.
@@ -58,7 +58,7 @@ export const Dungeons = {
       return [];
     }
 
-    const year = options.year ?? useOptionsState.getState().year ?? 0;
+    const year = options.year ?? optionsStore.getState().year ?? 0;
     const kinds = rollKindList(target, profile, options.random);
     const dungeons = placeMany(worldContext, profile, kinds, year, options.random);
     pack.dungeons = dungeons;
@@ -70,7 +70,7 @@ export const Dungeons = {
    * Spontaneous append of a single dungeon (Phase 3). No-op at max capacity.
    */
   spawnOne(worldContext: WorldContext, options: DungeonGenerateOptions = {}): Dungeon | null {
-    const { culturesSet, dangerEnabled } = useOptionsState.getState();
+    const { culturesSet, dangerEnabled } = optionsStore.getState();
     const profile = getDungeonSpawnProfile(culturesSet);
     if (!dangerEnabled || !profile) return null;
 
@@ -78,7 +78,7 @@ export const Dungeons = {
     const existing = pack.dungeons ?? [];
     if (existing.length >= profile.maxActive) return null;
 
-    const year = options.year ?? useOptionsState.getState().year ?? 0;
+    const year = options.year ?? optionsStore.getState().year ?? 0;
     const kinds = rollKindList(1, profile, options.random);
     const nextIndex = existing.reduce((max, d) => Math.max(max, d.i), -1) + 1;
     const placed = placeMany(worldContext, profile, kinds, year, options.random, nextIndex, existing);
@@ -211,7 +211,7 @@ export function rebuildDungeonDanger(worldContext: WorldContext): void {
     cells.danger = new Uint8Array(cells.i.length);
   }
 
-  const options = useOptionsState.getState();
+  const options = optionsStore.getState();
   const culturesSet = options.culturesSet;
   const threatCalculation = resolveThreatCalculation(options);
   const mode = resolveThreatCultureMode(culturesSet);

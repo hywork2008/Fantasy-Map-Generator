@@ -4,6 +4,8 @@
  *
  * Pure character mutations: debit/credit personal inventory only — no market prices.
  */
+
+import { simEvents } from "../../simulation/events";
 import type { Character, CharacterLoadout, EquipmentQuality, EquippedItem, LoadoutSlotId } from "./characterTypes";
 import { clampEquipmentQuality, normalizeCharacterLoadout } from "./loadoutSeed";
 
@@ -285,7 +287,7 @@ export function setSlotQuality(args: SetSlotQualityArgs): LoadoutCommandResult {
 }
 
 export function notifyLoadoutChanged(characterId: number): void {
-  document.dispatchEvent(new CustomEvent("fmg:character-loadout-changed", { detail: { characterId } }));
+  simEvents.dispatchEvent(new CustomEvent("fmg:character-loadout-changed", { detail: { characterId } }));
   // Inventory may have changed (equip/unequip) — keep inventory tab in sync.
-  document.dispatchEvent(new CustomEvent("fmg:character-inventory-changed", { detail: { characterId } }));
+  simEvents.dispatchEvent(new CustomEvent("fmg:character-inventory-changed", { detail: { characterId } }));
 }
