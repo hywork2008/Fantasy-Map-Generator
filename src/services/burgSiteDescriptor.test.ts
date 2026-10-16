@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildBlockFabric } from "../city-editor/generators/blockInfill";
 import { createGridDocument, descriptorFrameGridOptions } from "../city-editor/generators/document";
 import { generateCityOnDocument } from "../city-editor/generators/generation/generateCity";
@@ -14,6 +14,7 @@ import { parseDocument } from "../city-editor/services/io/documentCodec";
 import { decodeShare, encodeShare, shareFromDescriptor } from "../city-editor/services/io/incomingCity";
 import type { BurgSiteDescriptor as CESite } from "../city-editor/types/contracts/burgSiteDescriptor";
 import { worldContext } from "../context/worldContext";
+import * as cellWindClimate from "../generators/cellWindClimate";
 import type { Grid } from "../types/Grid";
 import type { PackedGraph } from "../types/PackedGraph";
 import { FIXED_SITE_CROSSING_BUDGETS, validFixedBurgCrossings } from "../utils/fixedBurgCrossings";
@@ -213,6 +214,30 @@ describe("getBurgSiteDescriptor", () => {
     } finally {
       worldContext.options.winds = previousWinds;
       worldContext.mapCoordinates = previousCoords;
+    }
+  });
+
+  it("passes the burg cell's wind rose and prevailing direction through the CE handoff", () => {
+    const entry = {
+      frequency: [0, 0, 0, 0, 0, 0, 1, 0],
+      meanSpeed: [0, 0, 0, 0, 0, 0, 6, 0],
+      calmFraction: 0
+    };
+    const rose = {
+      sectors: ["N", "NE", "E", "SE", "S", "SW", "W", "NW"],
+      monthly: Array.from({ length: 12 }, () => structuredClone(entry)),
+      annual: entry,
+      prevailingTowardDeg: 90
+    };
+    const readWind = vi.spyOn(cellWindClimate, "getCellWindRose").mockReturnValue(rose);
+    try {
+      const site = getBurgSiteDescriptor(1)!;
+      expect(readWind).toHaveBeenCalledWith(worldContext, worldContext.pack.cells.g[worldContext.pack.burgs[1].cell]);
+      const shared = decodeShare(encodeShare(shareFromDescriptor(site as unknown as CESite)));
+      expect(shared?.descriptor?.climate.windRose).toEqual(rose);
+      expect(shared?.descriptor?.climate.prevailingWindDeg).toBe(90);
+    } finally {
+      readWind.mockRestore();
     }
   });
 

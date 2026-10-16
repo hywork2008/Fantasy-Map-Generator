@@ -873,6 +873,10 @@ function polygonsDistance(a: Point[], b: Point[]): number {
 
 function placeTanneries(site: Site, input: AerialLandmarkInput, rng: Rng, enabled = true): Tannery[] {
   const document = site.document;
+  const windDeg = prevailingWindDegOnDocument(document);
+  // CE uses Cartesian coordinates (+Y north); compass bearings increase clockwise.
+  const wind =
+    windDeg === undefined ? null : [Math.sin((windDeg * Math.PI) / 180), Math.cos((windDeg * Math.PI) / 180)];
   if (
     !enabled ||
     (document.facilityCounts?.tannery === undefined && input.buildings.length < 150) ||
@@ -986,7 +990,13 @@ function placeTanneries(site: Site, input: AerialLandmarkInput, rng: Rng, enable
         const cleared = site.buildingsIn(yard).length;
         // The tanners worked on the town's own bank; the far bank means a crossing for every hide.
         const townSide = n[0] * (townCentre[0] - p[0]) + n[1] * (townCentre[1] - p[1]) > 0;
+        const yardCentre = centroid(yard);
+        const fromTown = unit(yardCentre[0] - townCentre[0], yardCentre[1] - townCentre[1]);
+        // Prefer carrying odours away from town. River hygiene and all physical
+        // clearance checks above still apply even when the wind opposes the river.
+        const downwind = wind && fromTown ? wind[0] * fromTown[0] + wind[1] * fromTown[1] : 0;
         const score =
+          downwind * 8 +
           (townSide ? 3 : 0) -
           Math.abs(d - (site.walled ? 45 : 20)) * 0.02 -
           cleared * 0.02 -

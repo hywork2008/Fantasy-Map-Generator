@@ -400,6 +400,26 @@ describe("aerial landmarks (1008-wards-and-features priority list)", () => {
     expect(yard.pits.length).toBeGreaterThan(20);
   });
 
+  it("prefers the downwind bank for tanneries while retaining downstream water hygiene", () => {
+    const input = {
+      buildings: fabric.buildings,
+      lanes: fabric.lanes,
+      farms: fabric.farms.map(f => f.polygon),
+      reserved: []
+    };
+    const east = buildAerialLandmarkPlan({ ...city, prevailingWindDeg: 90 }, input, "tannery-wind");
+    const west = buildAerialLandmarkPlan({ ...city, prevailingWindDeg: 270 }, input, "tannery-wind");
+    expect(east.tanneries).toHaveLength(1);
+    expect(west.tanneries).toHaveLength(1);
+    expect(centre(east.tanneries[0].yard)[0]).toBeGreaterThan(centre(west.tanneries[0].yard)[0]);
+    const river = flowingRivers(city)[0];
+    const exit = downstreamTownExit(river.points, river.widthMeters, ring);
+    for (const plan of [east, west]) {
+      for (const p of plan.tanneries[0].yard) expect(riverStation(p, river.points)).toBeGreaterThan(exit);
+      expect(polygonOverlaps(plan.tanneries[0].yard, ring)).toBe(false);
+    }
+  });
+
   it("places a downstream yard when the river is separated from the town boundary", () => {
     const seed = "tannery-audit-7";
     const grid = createGridDocument({ size: "small", grid: "evolution", seed });
