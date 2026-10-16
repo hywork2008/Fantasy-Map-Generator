@@ -1,4 +1,4 @@
-import { recordDeaths, useOptionsState, type WorldContext } from "../../hostCore";
+import { optionsStore, recordDeaths, type WorldContext } from "../../hostCore";
 import type { Burg } from "../../hostTypes";
 import {
   addFrontierApplicants,
@@ -86,7 +86,7 @@ export class UrbanLaborIntakeModule {
     // referencing formula only in "megacity" mode. In "independent" mode (the default), the
     // employmentDemand model (docs/plan/urban-employment-demand.md) is never evaluated — the
     // classic population*rate formula runs unchanged, matching the §6 invariant.
-    const employmentDemandDriven = useOptionsState.getState().ruralUrbanMigration === "megacity";
+    const employmentDemandDriven = optionsStore.getState().ruralUrbanMigration === "megacity";
     const employmentDemandByBurg = employmentDemandDriven
       ? new Map(
           getBasicEmploymentSummary().map(record => [

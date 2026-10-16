@@ -1,7 +1,7 @@
 import type { SimulationContext } from "../context/simulationContext";
 import { type WorldContext, worldContext } from "../context/worldContext";
 import { isFantasyCulturesSet } from "../data/raceCivicStance";
-import { useOptionsState } from "../store/optionsState";
+import { optionsStore } from "../state/optionsStore";
 import type { Culture, Race } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import { isGunpowderEraMilitaryUnit } from "../utils/gunpowderEra";
@@ -171,7 +171,7 @@ export function evaluateCellFireSpiritStatus(
   cachedLavaCells?: Set<number>,
   cachedEstuaryCells?: Set<number>
 ): CellFireSpiritStatus {
-  const globalOptions = useOptionsState.getState();
+  const globalOptions = optionsStore.getState();
   const culturesSet = options?.culturesSet ?? globalOptions.culturesSet;
   const fireSpiritsEnabled = options?.fireSpiritsEnabled ?? globalOptions.fireSpiritsEnabled;
 
@@ -230,7 +230,7 @@ export function advanceFireSpirits(
   rng: () => number = Math.random
 ): { incidents: FireSpiritExplosionIncident[]; changed: boolean } {
   const { pack, options } = world;
-  const globalOptions = useOptionsState.getState();
+  const globalOptions = optionsStore.getState();
   const culturesSet = options?.culturesSet ?? globalOptions.culturesSet;
   const fireSpiritsEnabled = options?.fireSpiritsEnabled ?? globalOptions.fireSpiritsEnabled;
 

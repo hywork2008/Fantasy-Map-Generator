@@ -1,5 +1,5 @@
 import type { WorldContext } from "../context/worldContext";
-import { useOptionsState } from "../store/optionsState";
+import { optionsStore } from "../state/optionsStore";
 import type { River, RiverCellHydrology } from "../types/models";
 import { heightToMeters, normalizeHeightExponent } from "../utils/height";
 import { rn } from "../utils/numberUtils";
@@ -39,7 +39,7 @@ export function refreshRiverHydrology(
   const packedCells = world.pack.cells;
   const sourceCell = river.source;
   const sourceHeight = packedCells?.h?.[sourceCell] ?? 20;
-  const heightExponent = normalizeHeightExponent(useOptionsState.getState().heightExponent);
+  const heightExponent = normalizeHeightExponent(optionsStore.getState().heightExponent);
   const sourceFeature = world.pack.features?.[packedCells?.f?.[sourceCell] ?? 0];
   const sourceElevationHeight =
     sourceFeature?.type === "lake" && Number.isFinite(sourceFeature.height) ? sourceFeature.height : sourceHeight;

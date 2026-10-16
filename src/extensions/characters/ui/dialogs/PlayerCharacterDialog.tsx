@@ -1,8 +1,7 @@
 import type React from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useOptionsState } from "../../../hostCore";
-import { closeDialog, Dialog, useDialogState } from "../../../hostUi";
+import { closeDialog, Dialog, useDialogState, useOptionsState } from "../../../hostUi";
 import { createPlayerCharacter } from "../../characterPopulation";
 import {
   filterAllowedCharacterRaces,

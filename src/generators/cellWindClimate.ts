@@ -14,7 +14,7 @@
 
 import type { WorldContext } from "../context/worldContext";
 import { getEarthCoordinatesAtMapPoint } from "../data/earthConfig";
-import { useOptionsState } from "../store/optionsState";
+import { optionsStore } from "../state/optionsStore";
 import { getMonthlyMeanTemperaturesC } from "../utils/earthlikeClimate";
 import { heightToMeters, normalizeHeightExponent } from "../utils/height";
 import { precipitationProxyToMillimeters } from "../utils/precipitationUnits";
@@ -158,7 +158,7 @@ function latitudeOf(world: WorldContext, cell: number): number {
 }
 
 export function ensureCellWindClimate(world: WorldContext): CellWindClimate {
-  const exponent = normalizeHeightExponent(useOptionsState.getState().heightExponent);
+  const exponent = normalizeHeightExponent(optionsStore.getState().heightExponent);
   const key = cacheKey(world, exponent);
   const previous = cache.get(world);
   if (previous?.key === key) return previous;

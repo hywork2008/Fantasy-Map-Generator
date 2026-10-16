@@ -1,6 +1,6 @@
 import type { WorldContext } from "../context/worldContext";
 import { EARTH_EQUATORIAL_CIRCUMFERENCE_KM, getEarthCoordinatesAtMapPoint } from "../data/earthConfig";
-import { useOptionsState } from "../store/optionsState";
+import { optionsStore } from "../state/optionsStore";
 import {
   getGlobalClimateAnomaly,
   getMonthlyCellAnomalyC,
@@ -199,7 +199,7 @@ function fallbackLatitude(world: WorldContext, cell: number): number {
 export function ensureCellClimateNormals(world: WorldContext, year: number): ClimateCache {
   const previous = cache.get(world);
   const geoKey = geographyKey(world);
-  const exponent = normalizeHeightExponent(useOptionsState.getState().heightExponent);
+  const exponent = normalizeHeightExponent(optionsStore.getState().heightExponent);
   const variability = normalizeClimateVariability(world.options.climateVariability);
   const globalAnomaly = getGlobalClimateAnomaly(variability, world.seed ?? "", year);
   const key = `${geoKey}:${hash(world.grid.cells.temp)}:${hash(world.grid.cells.prec)}:${world.options.axialTilt}:${world.distanceScale}:${exponent}:${globalAnomaly.episodeC}:${globalAnomaly.volcanicC}:${year}`;

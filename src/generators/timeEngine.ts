@@ -27,9 +27,9 @@ import {
 import { telemetry } from "../services/simulationTelemetry";
 import { simEvents } from "../simulation/events";
 import { withSimulationAmbientRandom } from "../simulation/simulationRandom";
-import { getFastAdvanceState, resolveFastAdvanceRates, resolveHistoryModeProfile } from "../store/fastAdvanceState";
-import { useOptionsState } from "../store/optionsState";
-import { useTimeSimulationState } from "../store/timeSimulationState";
+import { getFastAdvanceState, resolveFastAdvanceRates, resolveHistoryModeProfile } from "../state/fastAdvanceStore";
+import { optionsStore } from "../state/optionsStore";
+import { timeSimulationStore } from "../state/timeSimulationStore";
 import { normalizeConflictAutonomy } from "../utils/conflictAutonomy";
 import { getDaysInMonth, getSeason } from "../utils/seasonUtils";
 import { isStateInActiveConflict } from "./activeConflict";
@@ -256,7 +256,7 @@ registerSimulationSystem({
   cadence: { every: 1 },
   profileLabel: "core:manpower",
   run: (context, writer) => {
-    const sim = useOptionsState.getState();
+    const sim = optionsStore.getState();
     if (!sim.simManpower || !worldContext.pack?.states) {
       // Drop any partial accumulation so re-enabling later doesn't apply a surprise multi-day
       // lump built up while the ledger was off.
@@ -791,7 +791,7 @@ function flushFastAdvancePopulationRemainder(): void {
   if (!(fastAdvancePopulationDaysAccumulated > 0)) return;
   const years = fastAdvancePopulationDaysAccumulated / DAYS_PER_YEAR;
   fastAdvancePopulationDaysAccumulated = 0;
-  if (!useOptionsState.getState().simDemographics) return;
+  if (!optionsStore.getState().simDemographics) return;
   const rates = getActiveFastAdvanceRun()?.rates ?? resolveFastAdvanceRates();
   applyFastForwardPopulation(years, rates, appServices.rng);
 }
@@ -854,7 +854,7 @@ function publishDayBatchRollbackCorrection(): void {
 /**
  * Forces one more coalesced extension draw-layer pass after a bulk
  * runTimeSimulation run ends (stop, completion, or failure). Extension draw
- * hooks that suppress decorative work while useTimeSimulationState.isRunning
+ * hooks that suppress decorative work while timeSimulationStore.isRunning
  * is true (e.g. economy's Trade animation restart — see economy/index.tsx)
  * need this to actually resume once the run is over. Published through the
  * normal commit/topic path rather than calling a renderer directly, so
@@ -1005,7 +1005,7 @@ function advanceTimeMutationInSimulationRng(deltaYears: number, deltaMonths: num
   const effectiveDeltaDays = deltaYears * DAYS_PER_YEAR + deltaMonths * DAYS_PER_MONTH + deltaDays;
   const effectiveDeltaYears = effectiveDeltaDays / DAYS_PER_YEAR;
 
-  const sim = useOptionsState.getState();
+  const sim = optionsStore.getState();
 
   // Rolling death tallies (Population Overview) — advance clock before deaths are recorded this tick
   advancePopulationLossClock(effectiveDeltaDays);
@@ -1118,7 +1118,7 @@ function advanceTimeMutationInSimulationRng(deltaYears: number, deltaMonths: num
 }
 
 export function runTimeSimulation(targetDeltaYears: number, targetDeltaMonths: number, targetDeltaDays: number): void {
-  const store = useTimeSimulationState.getState();
+  const store = timeSimulationStore.getState();
   if (store.isRunning) return;
 
   // Same calendar expansion as public advanceTime / headless SimulationRunner.advance.
@@ -1147,7 +1147,7 @@ export function runTimeSimulation(targetDeltaYears: number, targetDeltaMonths: n
 
   const loop = () => {
     const chunkStartedAt = performance.now();
-    const currentState = useTimeSimulationState.getState();
+    const currentState = timeSimulationStore.getState();
     if (currentState.stopRequested || currentProgress >= totalDays) {
       exitDayBatch();
       logTickProfile();
@@ -1185,14 +1185,14 @@ export function runTimeSimulation(targetDeltaYears: number, targetDeltaMonths: n
       logTickProfile();
       // Otherwise isRunning (and suppressed decorative draw hooks) stay stuck
       // forever after a system throws — nothing else clears it on this path.
-      useTimeSimulationState.getState().clearSimulation();
+      timeSimulationStore.getState().clearSimulation();
       publishBulkRunFinishedRedraw();
       throw error;
     }
 
     currentProgress += daysThisFrame;
     if (daysThisFrame > 0) notifyAfterDayStep(0, 0, daysThisFrame);
-    useTimeSimulationState.getState().setSimulationProgress(currentProgress, totalDays);
+    timeSimulationStore.getState().setSimulationProgress(currentProgress, totalDays);
 
     setTimeout(loop, 0);
   };

@@ -20,7 +20,7 @@ import {
   workingAllowedOnPath
 } from "../../data/arcaneWorking";
 import type { Culture, Race, RaceSupernatural, State } from "../../types/models";
-import { useOptionsState } from "../hostCore";
+import { optionsStore } from "../hostCore";
 import { getRaceById, HUMAN_SUPERNATURAL, isFantasyCulturesSet, supernaturalForRaceKey } from "../hostRaces";
 import { gauss, P, rand } from "../hostUtils";
 import type { Character, InfernalAtavismFlavor } from "./characterTypes";
@@ -70,7 +70,7 @@ export {
 
 export function isFantasySupernaturalEnabled(): boolean {
   try {
-    return isFantasyCulturesSet(useOptionsState.getState().culturesSet);
+    return isFantasyCulturesSet(optionsStore.getState().culturesSet);
   } catch {
     return false;
   }

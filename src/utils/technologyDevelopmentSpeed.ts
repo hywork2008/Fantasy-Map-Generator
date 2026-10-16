@@ -5,7 +5,7 @@
  * without waiting out the full pre-industrial accumulation.
  */
 
-import { useOptionsState } from "../store/optionsState";
+import { optionsStore } from "../state/optionsStore";
 
 export const MIN_TECHNOLOGY_DEVELOPMENT_SPEED = 1;
 export const MAX_TECHNOLOGY_DEVELOPMENT_SPEED = Number.MAX_SAFE_INTEGER;
@@ -18,7 +18,7 @@ export function clampTechnologyDevelopmentSpeed(value: unknown): number {
 }
 
 export function getTechnologyDevelopmentSpeed(): number {
-  return clampTechnologyDevelopmentSpeed(useOptionsState.getState().technologyDevelopmentSpeed);
+  return clampTechnologyDevelopmentSpeed(optionsStore.getState().technologyDevelopmentSpeed);
 }
 
 /**

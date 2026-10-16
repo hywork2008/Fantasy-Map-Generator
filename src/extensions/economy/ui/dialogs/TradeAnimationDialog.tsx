@@ -1,8 +1,15 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import type { MerchantRoutePreference } from "../../../../services/routeGrade";
-import { useOptionsState } from "../../../hostCore";
-import { closeDialog, Dialog, SliderInput, SortableHeader, useDialogState, VirtualTableBody } from "../../../hostUi";
+import {
+  closeDialog,
+  Dialog,
+  SliderInput,
+  SortableHeader,
+  useDialogState,
+  useOptionsState,
+  VirtualTableBody
+} from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
 import { getCaravans, getMarketById, getMarkets, getWorldContext } from "../../economyContext";
 import { CaravanMovement, type CaravanMovementSettings } from "../../generators/caravanMovement";

@@ -2,7 +2,7 @@
 
 ## 状態
 
-- 2026-10-16 設計・計画。**S0 完了**(§12)、**トラック R 完了**(§13)、**S1 完了**(§14)、**S2 完了**(§15)、**S3 完了**(§16)。S4 以降は未着手。
+- 2026-10-16 設計・計画。**S0 完了**(§12)、**トラック R 完了**(§13)、**S1 完了**(§14)、**S2 完了**(§15)、**S3 完了**(§16)、**S4 完了**(§17)。S5 以降は未着手。
 - 目的は**分離そのもの**。統計収集・API サーバなど、分離後にできる応用は本書の範囲外(§11 で触れるだけ)。
 
 ## 1. 目的
@@ -495,3 +495,35 @@ golden の実行中(fixture の読み込み後)に、`Math.random` の呼び出�
 - vitest は 6,979 件が成功し、失敗 5 件はすべて既知のもの。
 - `tsc`・`lint:legacy` は通った。Node スモークテストも引き続き成功。
 - e2e(fast-advance-settings・load-map・startup-check)は 10 件すべて成功した。
+
+## 17. S4 の結果(2026-10-16)
+
+### 17.1 方式:値はコアの vanilla ストア、React のフックは UI 側
+
+- 対象の 7 ストアについて、本体を `zustand/vanilla` の `createStore` で作ったストアとしてコア側へ移した(`git mv` で履歴を保持)。
+
+| 元のファイル(UI 用のフックとして残す) | コアのストア |
+| --- | --- |
+| `src/store/optionsState.ts`(`useOptionsState`) | `src/state/optionsStore.ts`(`optionsStore`) |
+| `src/store/fastAdvanceState.ts` | `src/state/fastAdvanceStore.ts` |
+| `src/store/timeSimulationState.ts` | `src/state/timeSimulationStore.ts` |
+| `src/store/uiPreferencesState.ts` | `src/state/uiPreferencesStore.ts` |
+| `extensions/economy/store/economyCalibrationState.ts` | `extensions/economy/state/economyCalibrationStore.ts` |
+| `extensions/economy/store/stateFiscalReportState.ts` | `extensions/economy/state/stateFiscalReportStore.ts` |
+| `extensions/characters/store/playerCharacterState.ts` | `extensions/characters/state/playerCharacterStore.ts` |
+
+- 元のファイルには、`export *`(型・既定値・補助関数)と `export const useXState = bindStore(xStore)` だけを残した。`src/store/bindStore.ts` は zustand の `create()` と同じ合成(フックとして呼べ、`getState`・`setState`・`subscribe` も持つ)をする。UI 側の import と使い方は一切変わらない。
+- コアのファイル(48 ファイル)とそのテスト(14 ファイル)は `xStore.getState()` を直接使うようにした。拡張向けのまとめ用ファイルは、`hostCore` が `optionsStore`・`fastAdvanceStore` を、`hostUi` が `useOptionsState` を公開する。
+- 永続化(`persist`)は `createJSONStorage(() => simulationSettings)` を使うようにした。ブラウザでは従来と同じ `localStorage` の同じキー・同じ形式に保存される。Node ではメモリ上に保持される。
+- オプションロックの読み書き(`optionsStore` 内)も `simulationSettings` を経由するようにした。
+
+### 17.2 結果
+
+- 禁止モジュールは 8 から 1 になった。残るのは `src/context/viewContext.ts` のみ(§14.1 のとおり、生成の分離と一緒に扱う)。
+- ブラウザ・グローバルは 8 箇所(4 ファイル)のまま。内訳は §16.2 のとおり。
+
+### 17.3 検証
+
+- golden は一致した。Node スモークテストも成功。
+- `tsc`・`lint:legacy` は通った。vitest は 6,979 件が成功し、失敗 5 件はすべて既知のもの。
+- e2e(fast-advance-settings・options-panel-interactions・load-map・startup-check・tour-prompt・generation-progress)は、並列実行で 8 件失敗した。変更前の HEAD では同じ組み合わせで 10 件失敗しており、変更後の失敗はすべて変更前にも出ていた(load-map は失敗するテストが入れ替わったが、単独で実行すると全件成功)。永続化に関わる fast-advance-settings・load-map は、単独実行で 9 件すべて成功した。

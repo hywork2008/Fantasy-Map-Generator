@@ -2,7 +2,7 @@ import FlatQueue from "flatqueue";
 import { calculateLandTravelDays } from "../../../services/routeGrade";
 import { simulationSettings } from "../../../simulation/ports";
 import { normalizeHeightExponent } from "../../../utils/height";
-import { buildRiverNavigationGraph, type Point, useOptionsState } from "../../hostCore";
+import { buildRiverNavigationGraph, optionsStore, type Point } from "../../hostCore";
 import { getWorldContext } from "../economyContext";
 import { CaravanMovement, getDraftAnimalType } from "./caravanMovement";
 import type { TradeRoutePoint } from "./marketTypes";
@@ -356,7 +356,7 @@ export class TradeAnimationModule {
 
     if (movement.landKmPerDay <= 0) return Infinity;
     const animal = getDraftAnimalType(undefined);
-    const heightExponent = normalizeHeightExponent(useOptionsState.getState().heightExponent);
+    const heightExponent = normalizeHeightExponent(optionsStore.getState().heightExponent);
     const days = calculateLandTravelDays(points, {
       distanceScale: world.distanceScale,
       heightExponent,

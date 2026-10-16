@@ -5,7 +5,7 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { simulationView } from "../simulation/viewPort";
-import { useOptionsState } from "../store/optionsState";
+import { optionsStore } from "../state/optionsStore";
 import type { NameBase } from "../types/models";
 import { capitalize, isVowel, last, P, ra, rand } from "../utils";
 import { ERROR, WARN } from "../utils/debug";
@@ -302,7 +302,7 @@ class NamesGenerator {
     const max = Math.max(nameBases[base].max - 3, min);
     const baseName = this.getBase(base, min, max, "") as string;
     const name = P(0.7) ? this.addSuffix(baseName) : baseName;
-    useOptionsState.getState().setOption("mapName", name);
+    optionsStore.getState().setOption("mapName", name);
   }
 
   getNameBases(): NameBase[] {

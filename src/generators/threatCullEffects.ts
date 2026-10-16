@@ -15,7 +15,7 @@ import {
 import type { WorldContext } from "../context/worldContext";
 import { biomeHasTag, isForestBiome } from "../data/biomeCatalog";
 import type { DataTopic } from "../runtime/worldRuntime";
-import { useOptionsState } from "../store/optionsState";
+import { optionsStore } from "../state/optionsStore";
 import type { Monster } from "../types/models";
 import type { BiomesData } from "../types/WorldState";
 import type { RNGService } from "../utils/probabilityUtils";
@@ -172,7 +172,7 @@ export function decayPestSuppression(wilderness: WildernessEcologyState): boolea
 }
 
 function resolveThreatCalculation(): ThreatCalculationMode {
-  return resolveThreatCalculationFromOptions(useOptionsState.getState());
+  return resolveThreatCalculationFromOptions(optionsStore.getState());
 }
 
 /**
@@ -185,7 +185,7 @@ export function rebuildDangerAfterCull(world: WorldContext, simulation: Simulati
   if (!cells.danger || cells.danger.length !== cells.i.length) {
     cells.danger = new Uint8Array(cells.i.length);
   }
-  const culturesSet = useOptionsState.getState().culturesSet;
+  const culturesSet = optionsStore.getState().culturesSet;
   const dangerSources = [...(world.pack.monsters ?? []), ...dungeonsAsDangerSources(world.pack.dungeons)];
   const wilderness = ensureWildernessState(simulation);
   rebuildDangerField(cells, dangerSources, resolveThreatCalculation(), {

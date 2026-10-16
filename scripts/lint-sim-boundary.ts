@@ -14,6 +14,7 @@ import { build, type Metafile } from "esbuild";
  *   npm run lint:sim-boundary -- --update          # rewrite the allowlist after removing violations
  *   npm run lint:sim-boundary -- --update --accept-new   # also record new ones (needs a reason in review)
  *   npm run lint:sim-boundary -- --why src/renderers/index.ts   # print the import chain
+ *   npm run lint:sim-boundary -- --list            # print every simulation-core module
  */
 
 const ROOT = path.join(import.meta.dirname, "..");
@@ -171,6 +172,11 @@ async function main() {
   const metafile = await buildGraph(entries);
   const { reached, packages, chain } = reachability(metafile, entries);
   const sourceFiles = reached.filter(file => file.startsWith("src/"));
+
+  if (args.includes("--list")) {
+    console.log(sourceFiles.join("\n"));
+    return;
+  }
 
   if (whyIndex >= 0) {
     const target = args[whyIndex + 1];

@@ -66,8 +66,8 @@ export { getAtmosphericSteamPumpingEffect, getFourCourseRotationEffect } from ".
 export { raiseUndeadOnCellEntered } from "../generators/undeadRaising";
 export type { Point } from "../generators/voronoi";
 export { runWithSimulationRandom } from "../simulation/simulationRandom";
-export { isFastAdvanceActive, resolveFastAdvanceRates } from "../store/fastAdvanceState";
-export { useOptionsState } from "../store/optionsState";
+export { fastAdvanceStore, isFastAdvanceActive, resolveFastAdvanceRates } from "../state/fastAdvanceStore";
+export { optionsStore } from "../state/optionsStore";
 export { getCultureFuneralMechanics } from "../utils/cultureBurialProfile";
 export { getCultureKnowledgeValue } from "../utils/cultureKnowledgeValue";
 export { getCultureModernizationAffinity } from "../utils/cultureModernizationAffinity";

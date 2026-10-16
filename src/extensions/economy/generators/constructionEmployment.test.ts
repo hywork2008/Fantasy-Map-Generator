@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { useOptionsState, worldContext } from "../../hostCore";
+import { optionsStore, worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
   clearEconomyContext,
@@ -124,7 +124,7 @@ function setUpWorld(
 }
 
 describe("getTargetBuildingStock / getMasonShare (K17)", () => {
-  afterEach(() => useOptionsState.setState({ culturesSet: "world" }));
+  afterEach(() => optionsStore.setState({ culturesSet: "world" }));
 
   it("saturates toward 1 as adults grow, and is 0 with no population", () => {
     expect(getTargetBuildingStock(0)).toBe(0);
@@ -134,7 +134,7 @@ describe("getTargetBuildingStock / getMasonShare (K17)", () => {
 
   it("is 0 without quarry when brick is unavailable", () => {
     expect(getMasonShare(false, { brickAvailable: false })).toBe(0);
-    useOptionsState.setState({ culturesSet: "highFantasy" });
+    optionsStore.setState({ culturesSet: "highFantasy" });
     expect(getMasonShare(false, { brickAvailable: false, highFantasy: true })).toBe(0);
   });
 
@@ -406,7 +406,7 @@ describe("ConstructionOperationsModule", () => {
   beforeEach(() => initEconomyContext({ worldContext } as unknown as ExtensionAPI));
   afterEach(() => {
     clearEconomyContext();
-    useOptionsState.setState({ culturesSet: "world" });
+    optionsStore.setState({ culturesSet: "world" });
   });
 
   it("creates one operation per market Burg with dwellingStock seeded at 0", () => {

@@ -13,7 +13,7 @@ import {
   HUNT_RESERVE,
   setupHuntCost
 } from "../../../generators/threatCullEffects";
-import { useOptionsState } from "../../hostCore";
+import { optionsStore } from "../../hostCore";
 import { rn } from "../../hostUtils";
 import {
   getCullActiveContracts,
@@ -192,7 +192,7 @@ export function rebuildCullJobPostings(options?: { clearAll?: boolean }): void {
     currentMonth: getSimulationMonth(),
     currentDay: getSimulationDay()
   }) as SimulationContext;
-  const culturesSet = useOptionsState.getState().culturesSet ?? "world";
+  const culturesSet = optionsStore.getState().culturesSet ?? "world";
   const ordinal = getSimulationOrdinalDay();
 
   const existing = [...getCullJobPostings()];

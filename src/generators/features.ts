@@ -13,7 +13,7 @@ import {
   OceanCurrentConstants,
   TemperatureThreshold
 } from "../data/constants";
-import { useOptionsState } from "../store/optionsState";
+import { optionsStore } from "../state/optionsStore";
 import type { GridFeature, PackedGraphFeature } from "../types/models";
 import {
   clipPoly,
@@ -416,7 +416,7 @@ class FeatureModule {
    * "Enclosure calculation" select so switching modes updates the map without a full regenerate.
    */
   applyOceanCurrentEnclosure(): void {
-    const mode = useOptionsState.getState().enclosureCalculationMode;
+    const mode = optionsStore.getState().enclosureCalculationMode;
     if (mode !== "oceanCurrents" && mode !== "oceanCurrentsAmbient") return;
 
     const { pack, grid } = this.worldContext;

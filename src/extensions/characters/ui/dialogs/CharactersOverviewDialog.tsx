@@ -1,8 +1,7 @@
 import type React from "react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { useOptionsState } from "../../../hostCore";
-import { closeDialog, Dialog, openDialog, useDialogState } from "../../../hostUi";
+import { closeDialog, Dialog, openDialog, useDialogState, useOptionsState } from "../../../hostUi";
 import { getCharacters, getSelectedAbilityPreset, getWorldContext } from "../../charactersContext";
 import { filterAndSortCharacters, isFantasyCulturesSet } from "../../controllers/characters-overview";
 import { getAbilityValue } from "../../personFactory";

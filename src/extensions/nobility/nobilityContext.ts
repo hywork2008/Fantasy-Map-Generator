@@ -6,7 +6,7 @@
  * module instances when the extension is loaded via a blob URL.
  */
 
-import { useUiPreferencesState } from "../../store/uiPreferencesState";
+import { uiPreferencesStore } from "../../state/uiPreferencesStore";
 import type { ExtensionAPI } from "../../types/extension-api";
 import type { State } from "../../types/models";
 import type { CharacterGenerationBias } from "../characters/characterTypes";
@@ -50,7 +50,7 @@ export function getWorldContext() {
  */
 export function getCharacterGenerationBias(): CharacterGenerationBias {
   try {
-    return useUiPreferencesState.getState().nobilityCharacterGenerationBias;
+    return uiPreferencesStore.getState().nobilityCharacterGenerationBias;
   } catch {
     return "none";
   }

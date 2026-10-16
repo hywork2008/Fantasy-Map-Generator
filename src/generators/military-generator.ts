@@ -14,7 +14,7 @@ import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { isForestBiome, isNomadicBiome, isWetlandBiome } from "../data/biomeCatalog";
 import { getTroopPreferredFormation } from "../data/militaryFormations";
-import { useOptionsState } from "../store/optionsState";
+import { optionsStore } from "../state/optionsStore";
 import { historicalPeriodIndex } from "../types/historicalPeriod";
 import type { MilitaryRegiment, MilitaryUnit, Platoon, State } from "../types/models";
 import type { WorldState } from "../types/WorldState";
@@ -1436,7 +1436,7 @@ class MilitaryModule {
    */
   updateDynamic(worldContext: WorldContext, deltaYears: number) {
     if (deltaYears <= 0) return;
-    if (!useOptionsState.getState().simMilitaryRecovery) return;
+    if (!optionsStore.getState().simMilitaryRecovery) return;
 
     const { pack } = worldContext;
     const states = pack.states;

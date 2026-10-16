@@ -6,7 +6,7 @@ import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
 import { worldContext } from "../context/worldContext";
 import { HeightmapConstants } from "../data/constants";
-import { useOptionsState } from "../store/optionsState";
+import { optionsStore } from "../state/optionsStore";
 import type { PackedGraphFeature } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import { rn } from "../utils";
@@ -74,7 +74,7 @@ export class LakesModule {
     };
 
     const getLakeEvaporation = (lake: PackedGraphFeature) => {
-      const height = (lake.height - 18) ** Number(useOptionsState.getState().heightExponent); // height in meters
+      const height = (lake.height - 18) ** Number(optionsStore.getState().heightExponent); // height in meters
       const evaporation = ((700 * (lake.temp + 0.006 * height)) / 50 + 75) / (80 - lake.temp); // based on Penman formula, [1-11]
       return rn(evaporation * lake.cells);
     };
@@ -105,7 +105,7 @@ export class LakesModule {
   detectCloseLakes(h: number[] | Uint8Array) {
     const { pack } = this.worldContext;
     const { cells } = pack;
-    const ELEVATION_LIMIT = useOptionsState.getState().lakeElevationLimit;
+    const ELEVATION_LIMIT = optionsStore.getState().lakeElevationLimit;
 
     pack.features.forEach(feature => {
       if (feature.type !== "lake") return;

@@ -1,6 +1,6 @@
 import { evaluateHarborElevation } from "../../../generators/harborSiteConditions";
 import { normalizeHeightExponent } from "../../../utils/height";
-import { useOptionsState } from "../../hostCore";
+import { optionsStore } from "../../hostCore";
 import { rn } from "../../hostUtils";
 import { getWorldContext } from "../shipbuildingContext";
 
@@ -31,7 +31,7 @@ export function computeShipyardCandidates(): ShipyardCandidate[] {
   const { pack } = getWorldContext();
   if (!pack.burgs) return [];
 
-  const heightExponent = normalizeHeightExponent(useOptionsState.getState().heightExponent);
+  const heightExponent = normalizeHeightExponent(optionsStore.getState().heightExponent);
   const candidates: ShipyardCandidate[] = [];
 
   for (const burg of pack.burgs) {

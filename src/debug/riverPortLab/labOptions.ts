@@ -5,7 +5,7 @@
  */
 import Alea from "alea";
 import { simulationSettings } from "../../simulation/ports";
-import { useOptionsState } from "../../store/optionsState";
+import { optionsStore } from "../../state/optionsStore";
 import { LAB_SITE_KINDS } from "./classifyRiverSite";
 import type { RiverPortLabOptions } from "./labOptions.types";
 import { type LabTerrainGrid, type LabTerrainReport, shapeLabTerrain } from "./labTerrain";
@@ -60,7 +60,7 @@ function normalize(next: RiverPortLabOptions): RiverPortLabOptions {
 
 /** Lab options in force for the generation now running: Province scope only. */
 export function activeLabOptions(): RiverPortLabOptions | null {
-  return current.enabled && useOptionsState.getState().mapScope === "province" ? current : null;
+  return current.enabled && optionsStore.getState().mapScope === "province" ? current : null;
 }
 
 /** Uniform precipitation per riverDensity step (grid prec units) used when the climate is ignored. */

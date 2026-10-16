@@ -7,7 +7,7 @@ import {
   setConstructionHireApplications,
   setConstructionNamedSeats
 } from "../economyContext";
-import { getEconomyCalibrationState } from "../store/economyCalibrationState";
+import { getEconomyCalibrationState } from "../state/economyCalibrationStore";
 import type { ConstructionHireApplication, ConstructionHireRole, ConstructionNamedSeat } from "./constructionHireTypes";
 import { getConstructionJobPosting } from "./constructionJobPostings";
 import { peopleToPoints } from "./craftScale";

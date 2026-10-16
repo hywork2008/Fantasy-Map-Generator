@@ -1,5 +1,4 @@
-import { useOptionsState } from "../../hostCore";
-import { openDialog } from "../../hostUi";
+import { openDialog, useOptionsState } from "../../hostUi";
 import { minmax, rn } from "../../hostUtils";
 
 import { getApi, getCaravans, getMarketById, getMerchantOrganizations, getWorldContext } from "../economyContext";

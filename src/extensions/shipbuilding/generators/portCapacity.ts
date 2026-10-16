@@ -5,7 +5,7 @@ import {
   evaluateHarborElevation
 } from "../../../generators/harborSiteConditions";
 import { normalizeHeightExponent } from "../../../utils/height";
-import { useOptionsState } from "../../hostCore";
+import { optionsStore } from "../../hostCore";
 import type { Burg, PackedGraph } from "../../hostTypes";
 import { getWorldContext } from "../shipbuildingContext";
 import type { ShipyardCandidate } from "./shipyardCandidates";
@@ -40,7 +40,7 @@ const LARGE_MIN_HARBOR_FACTOR = 0.5;
  */
 export function computePortCapacity(candidates: readonly ShipyardCandidate[]): Map<number, PortCapacity> {
   const { pack, populationRate, urbanization } = getWorldContext();
-  const heightExponent = normalizeHeightExponent(useOptionsState.getState().heightExponent);
+  const heightExponent = normalizeHeightExponent(optionsStore.getState().heightExponent);
   const capacityByBurg = new Map<number, PortCapacity>();
 
   for (const { burgId } of candidates) {

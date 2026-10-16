@@ -1,5 +1,5 @@
 import { getSimulationDay, getSimulationMonth, getSimulationYear } from "../economyContext";
-import { getStateFiscalReportState, type StateFiscalReport } from "../store/stateFiscalReportState";
+import { getStateFiscalReportState, type StateFiscalReport } from "../state/stateFiscalReportStore";
 
 export type StateFiscalAmounts = Readonly<Record<string, number>>;
 

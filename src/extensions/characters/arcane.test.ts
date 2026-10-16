@@ -12,7 +12,7 @@ import {
 } from "../../data/arcaneWorking";
 import { RACE_SUPERNATURAL } from "../../data/raceSupernatural";
 import { createDefaultRaces } from "../../data/races";
-import { useOptionsState } from "../hostCore";
+import { optionsStore } from "../hostCore";
 import {
   arcaneBand,
   HUMAN_INFERNAL_ATAVISM,
@@ -159,31 +159,31 @@ describe("human infernal atavism", () => {
 });
 
 describe("isFantasySupernaturalEnabled", () => {
-  const previous = useOptionsState.getState().culturesSet;
+  const previous = optionsStore.getState().culturesSet;
 
   afterEach(() => {
-    useOptionsState.setState({ culturesSet: previous });
+    optionsStore.setState({ culturesSet: previous });
   });
 
   it("is on only for High and Dark Fantasy", () => {
-    useOptionsState.setState({ culturesSet: "highFantasy" });
+    optionsStore.setState({ culturesSet: "highFantasy" });
     expect(isFantasySupernaturalEnabled()).toBe(true);
-    useOptionsState.setState({ culturesSet: "darkFantasy" });
+    optionsStore.setState({ culturesSet: "darkFantasy" });
     expect(isFantasySupernaturalEnabled()).toBe(true);
-    useOptionsState.setState({ culturesSet: "world" });
+    optionsStore.setState({ culturesSet: "world" });
     expect(isFantasySupernaturalEnabled()).toBe(false);
   });
 });
 
 describe("trySpendArcaneWarWorking", () => {
-  const previous = useOptionsState.getState().culturesSet;
+  const previous = optionsStore.getState().culturesSet;
 
   beforeEach(() => {
-    useOptionsState.setState({ culturesSet: "highFantasy" });
+    optionsStore.setState({ culturesSet: "highFantasy" });
   });
 
   afterEach(() => {
-    useOptionsState.setState({ culturesSet: previous });
+    optionsStore.setState({ culturesSet: previous });
   });
 
   it("spends a ready mid-war working without a lifetime debit", () => {
@@ -250,7 +250,7 @@ describe("trySpendArcaneWarWorking", () => {
   });
 
   it("does not fire on historical culture sets", () => {
-    useOptionsState.setState({ culturesSet: "world" });
+    optionsStore.setState({ culturesSet: "world" });
     const elf = caster({ arcane: 60 });
     expect(
       trySpendArcaneWarWorking({
@@ -266,14 +266,14 @@ describe("trySpendArcaneWarWorking", () => {
 });
 
 describe("supernaturalAttackForceMultiplier", () => {
-  const previous = useOptionsState.getState().culturesSet;
+  const previous = optionsStore.getState().culturesSet;
 
   afterEach(() => {
-    useOptionsState.setState({ culturesSet: previous });
+    optionsStore.setState({ culturesSet: previous });
   });
 
   it("makes dragons much harder to casually attack than humans", () => {
-    useOptionsState.setState({ culturesSet: "highFantasy" });
+    optionsStore.setState({ culturesSet: "highFantasy" });
     const races = createDefaultRaces();
     const pack = {
       races,

@@ -1,21 +1,7 @@
-import { create } from "zustand";
+import { timeSimulationStore } from "../state/timeSimulationStore";
+import { bindStore } from "./bindStore";
 
-interface TimeSimulationState {
-  isRunning: boolean;
-  progress: number;
-  totalDays: number;
-  stopRequested: boolean;
-  setSimulationProgress: (progress: number, totalDays: number) => void;
-  stopSimulation: () => void;
-  clearSimulation: () => void;
-}
+export * from "../state/timeSimulationStore";
 
-export const useTimeSimulationState = create<TimeSimulationState>(set => ({
-  isRunning: false,
-  progress: 0,
-  totalDays: 0,
-  stopRequested: false,
-  setSimulationProgress: (progress, totalDays) => set({ isRunning: true, progress, totalDays, stopRequested: false }),
-  stopSimulation: () => set({ stopRequested: true }),
-  clearSimulation: () => set({ isRunning: false, progress: 0, totalDays: 0, stopRequested: false })
-}));
+/** React binding of the simulation-core store (docs/plan/simulation-core-separation.md S4). */
+export const useTimeSimulationState = bindStore(timeSimulationStore);

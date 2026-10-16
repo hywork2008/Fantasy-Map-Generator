@@ -1,5 +1,5 @@
 import { pruneDeadCharacters } from "../../characters/characterPruning";
-import { usePlayerCharacterState } from "../../characters/store/playerCharacterState";
+import { playerCharacterStore } from "../../characters/state/playerCharacterStore";
 import type { State } from "../../hostTypes";
 import { getRulerId, getWorldContext } from "../nobilityContext";
 
@@ -25,7 +25,7 @@ function collectProtectedCharacterIds(states: readonly State[]): Set<number> {
     }
   }
 
-  const playerCharacterId = usePlayerCharacterState.getState().playerCharacterId;
+  const playerCharacterId = playerCharacterStore.getState().playerCharacterId;
   if (playerCharacterId !== null) ids.add(playerCharacterId);
 
   return ids;

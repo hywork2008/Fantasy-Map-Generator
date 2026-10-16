@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { getDeathsByState, resetPopulationLossTracker, useOptionsState } from "../../hostCore";
+import { getDeathsByState, optionsStore, resetPopulationLossTracker } from "../../hostCore";
 import type { ExtensionAPI } from "../../hostTypes";
 import {
   clearEconomyContext,
@@ -21,12 +21,12 @@ import {
   UrbanLaborIntakeModule
 } from "./urbanLaborIntake";
 
-const DEFAULT_RURAL_URBAN_MIGRATION = useOptionsState.getState().ruralUrbanMigration;
+const DEFAULT_RURAL_URBAN_MIGRATION = optionsStore.getState().ruralUrbanMigration;
 
 afterEach(() => {
   clearEconomyContext();
   resetPopulationLossTracker();
-  useOptionsState.setState({ ruralUrbanMigration: DEFAULT_RURAL_URBAN_MIGRATION });
+  optionsStore.setState({ ruralUrbanMigration: DEFAULT_RURAL_URBAN_MIGRATION });
 });
 
 describe("annual urban labour intake", () => {
@@ -210,7 +210,7 @@ describe("employment-demand-driven intake (Phase 4, §5.1 decision 4)", () => {
   });
 
   it("ignores basicEmploymentSummary in 'independent' mode — the classic population-rate formula runs unchanged (§6 invariant)", () => {
-    useOptionsState.setState({ ruralUrbanMigration: "independent" });
+    optionsStore.setState({ ruralUrbanMigration: "independent" });
     const world = buildWorld();
     initEconomyContext({
       worldContext: world,
@@ -227,7 +227,7 @@ describe("employment-demand-driven intake (Phase 4, §5.1 decision 4)", () => {
   });
 
   it("drives intake from employmentDemand in 'megacity' mode", () => {
-    useOptionsState.setState({ ruralUrbanMigration: "megacity" });
+    optionsStore.setState({ ruralUrbanMigration: "megacity" });
     const world = buildWorld();
     initEconomyContext({
       worldContext: world,
@@ -243,7 +243,7 @@ describe("employment-demand-driven intake (Phase 4, §5.1 decision 4)", () => {
   });
 
   it("offers nothing in 'megacity' mode to a Burg with no recorded employment demand", () => {
-    useOptionsState.setState({ ruralUrbanMigration: "megacity" });
+    optionsStore.setState({ ruralUrbanMigration: "megacity" });
     const world = buildWorld();
     initEconomyContext({
       worldContext: world,

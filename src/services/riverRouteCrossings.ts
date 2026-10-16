@@ -1,6 +1,6 @@
 import type { WorldContext } from "../context/worldContext";
 import { MIN_NAVIGABLE_FLUX, Rivers } from "../generators/river-generator";
-import { useOptionsState } from "../store/optionsState";
+import { optionsStore } from "../state/optionsStore";
 import type { Route } from "../types/models";
 import { mapUnitMeters } from "../utils/mapUnitMeters";
 import { planRiverCrossing, RIVER_CARGO_VESSEL, SEA_SAILING_VESSEL } from "../utils/riverCrossing";
@@ -74,7 +74,7 @@ export function resolveRiverRouteCrossings(
               : undefined;
           const plan = planRiverCrossing({
             widthMeters:
-              Rivers.getWidth(offset) * mapUnitMeters(world.distanceScale, useOptionsState.getState().distanceUnit),
+              Rivers.getWidth(offset) * mapUnitMeters(world.distanceScale, optionsStore.getState().distanceUnit),
             depthMeters: river.cellHydrology?.[cellId]?.waterDepth,
             period: world.options.historicalPeriod,
             technology: world.options.riverBridgeTechnology,
@@ -85,7 +85,7 @@ export function resolveRiverRouteCrossings(
       }
     }
   }
-  const scale = mapUnitMeters(world.distanceScale, useOptionsState.getState().distanceUnit);
+  const scale = mapUnitMeters(world.distanceScale, optionsStore.getState().distanceUnit);
   for (const facility of converged.facilities) {
     const c = facility.crossing;
     const river = pack.rivers.find(r => r.i === c.riverId)!;

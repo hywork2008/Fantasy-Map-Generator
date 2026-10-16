@@ -9,7 +9,7 @@ import { worldContext } from "../context/worldContext";
 import { HeightmapConstants, HeightThreshold, RiverConstants } from "../data/constants";
 import { MIN_NAVIGABLE_FLUX } from "../data/waterNavigation";
 import { activeLabOptions, labRiverPrecipitation } from "../debug/riverPortLab/labOptions";
-import { useOptionsState } from "../store/optionsState";
+import { optionsStore } from "../state/optionsStore";
 import type { River } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import { each, rn, round, rw } from "../utils";
@@ -76,7 +76,7 @@ class RiverModule {
 
     const drainWater = () => {
       const MIN_FLUX_TO_FORM_RIVER = RiverConstants.MIN_FLUX_TO_FORM_RIVER / (activeLabOptions()?.riverDensity ?? 1);
-      const { points } = useOptionsState.getState();
+      const { points } = optionsStore.getState();
       const cellsNumberModifier = ((points === 4 ? 10000 : points * 2500) / 10000) ** 0.25;
 
       const prec = labRiverPrecipitation(grid.cells.prec, seed);
@@ -209,7 +209,7 @@ class RiverModule {
       cells.conf = new Uint16Array(cells.i.length);
       pack.rivers = [];
 
-      const pointsVal = useOptionsState.getState().points;
+      const pointsVal = optionsStore.getState().points;
       const defaultWidthFactor = rn(1 / ((pointsVal === 4 ? 10000 : pointsVal * 2500) / 10000) ** 0.25, 2);
       const mainStemWidthFactor = defaultWidthFactor * 1.2;
 
@@ -332,7 +332,7 @@ class RiverModule {
   resolveDepressions(h: number[]) {
     const { pack } = this.worldContext;
     const { cells, features } = pack;
-    const maxIterations = useOptionsState.getState().resolveDepressionsSteps;
+    const maxIterations = optionsStore.getState().resolveDepressionsSteps;
     const checkLakeMaxIteration = maxIterations * 0.85;
     const elevateLakeMaxIteration = maxIterations * 0.75;
 

@@ -1,4 +1,4 @@
-import { useOptionsState } from "../store/optionsState";
+import { optionsStore } from "../state/optionsStore";
 import { type CurrencyRates, DEFAULT_CURRENCY_RATES, normalizeCurrencyRates } from "./currency";
 import { rn } from "./numberUtils";
 
@@ -154,6 +154,6 @@ export function formatCoinage(silverAmount: number, rates: CurrencyRates = DEFAU
  * the live denomination settings.
  */
 export function formatPrice(value: number): string {
-  const { goldToSilverRate, silverToCopperRate } = useOptionsState.getState();
+  const { goldToSilverRate, silverToCopperRate } = optionsStore.getState();
   return formatCoinage(value, { goldToSilverRate, silverToCopperRate });
 }

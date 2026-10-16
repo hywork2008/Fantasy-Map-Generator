@@ -13,7 +13,7 @@
  */
 import { simulationContext } from "../context/simulationContext";
 import { worldContext } from "../context/worldContext";
-import { useOptionsState } from "../store/optionsState";
+import { optionsStore } from "../state/optionsStore";
 import type { MilitaryRegiment, State } from "../types/models";
 import type { PackedGraph } from "../types/PackedGraph";
 import { isUndeadMilitaryUnit, livingTroops, undeadTroops } from "../utils/regimentPopulation";
@@ -350,7 +350,7 @@ export function getDraftEfficiency(state: State): number {
 
 /** Regiment combat multiplier from recruit quality (1 if feature off / unset). */
 export function regimentQualityMultiplier(regiment: MilitaryRegiment): number {
-  if (!useOptionsState.getState().recruitQualityEnabled) return 1;
+  if (!optionsStore.getState().recruitQualityEnabled) return 1;
   const q = regiment.quality;
   if (q === undefined || q === null || !Number.isFinite(q)) return 1;
   return Math.max(0.2, Math.min(1.2, q));
@@ -524,7 +524,7 @@ export function fillRegimentFromManpower(
   );
 
   // Optional female levy when male pool is short (Phase 5)
-  if (gotPeople + 1e-9 < needPeople && useOptionsState.getState().femaleLevyEnabled && isManpowerSimEnabled()) {
+  if (gotPeople + 1e-9 < needPeople && optionsStore.getState().femaleLevyEnabled && isManpowerSimEnabled()) {
     const shortfall = needPeople - gotPeople;
     gotPeople += removeCivilianFemalePeople(
       pack,
@@ -539,7 +539,7 @@ export function fillRegimentFromManpower(
   if (got <= 0) return;
 
   // Blend quality: veterans keep strength, green recruits pull it down
-  if (useOptionsState.getState().recruitQualityEnabled) {
+  if (optionsStore.getState().recruitQualityEnabled) {
     const oldQ = r.quality ?? 1;
     const oldA = living;
     r.quality = (oldQ * oldA + GREEN_RECRUIT_QUALITY * got) / (oldA + got);
@@ -664,7 +664,7 @@ export function markStatesNeedManpowerReconcile(pack: PackedGraph, populationRat
 }
 
 export function isManpowerSimEnabled(): boolean {
-  return useOptionsState.getState().simManpower;
+  return optionsStore.getState().simManpower;
 }
 
 /**

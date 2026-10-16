@@ -16,7 +16,7 @@
 import { getTechnologyStage } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import { isLichRaceKey } from "../../characters/lichPolicy";
-import { getCultureFuneralMechanics, getCultureModernizationAffinity, useOptionsState } from "../../hostCore";
+import { getCultureFuneralMechanics, getCultureModernizationAffinity, optionsStore } from "../../hostCore";
 import type { Burg, CultureType } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import {
@@ -1445,7 +1445,7 @@ function systemDefaults(
 function giantRomanWaterworksSeed(burg: Burg): UrbanWaterSystem | null {
   const stateRace = raceKeyForBurgState(burg);
   const isGiantFantasyState =
-    stateRace === "giant" && waterTechRaceBiasFor(stateRace, useOptionsState.getState().culturesSet) !== null;
+    stateRace === "giant" && waterTechRaceBiasFor(stateRace, optionsStore.getState().culturesSet) !== null;
   if (!isGiantFantasyState) return null;
 
   return systemDefaults({
@@ -1662,7 +1662,7 @@ export function settleBurgWaterInvestment(args: {
   // inheritance belongs to the Giant State that operates its aqueducts and trunk sewer, so it
   // continues to receive that State's technical bias even if a local burg culture differs.
   const waterTechRace = raceKeyForBurgWaterworks(burg, system.hasInheritedRomanWaterworks);
-  const raceBias = waterTechRaceBiasFor(waterTechRace, useOptionsState.getState().culturesSet);
+  const raceBias = waterTechRaceBiasFor(waterTechRace, optionsStore.getState().culturesSet);
   const effectiveUrgencyThreshold = WATER_PROJECT_URGENCY_THRESHOLD * (raceBias?.urgencyThresholdMultiplier ?? 1);
 
   // Institutional head start feeds connectionPermitCoverage/dischargeRegulation targets only

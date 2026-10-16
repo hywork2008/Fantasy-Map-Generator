@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { simulationContext } from "../../../context/simulationContext";
 import { getTechnologyStage, setTechnologyProgressForTests } from "../../../generators/technologyProgress";
-import { useOptionsState, worldContext } from "../../hostCore";
+import { optionsStore, worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
   clearEconomyContext,
@@ -81,7 +81,7 @@ describe("SteamInstallations", () => {
   });
 
   afterEach(() => {
-    useOptionsState.setState({ technologyRequirementEase: 1 });
+    optionsStore.setState({ technologyRequirementEase: 1 });
     clearEconomyContext();
   });
 
@@ -99,7 +99,7 @@ describe("SteamInstallations", () => {
   });
 
   it("starts a trial on a shallow mine when requirement ease waives the deep-mine gate", () => {
-    useOptionsState.setState({ technologyRequirementEase: 2 });
+    optionsStore.setState({ technologyRequirementEase: 2 });
     setMineralDeposits([
       {
         i: 1,

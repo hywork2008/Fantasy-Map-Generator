@@ -10,7 +10,7 @@ import { NO_RIVER_ROAD_CONVERGENCE, resolveRiverRouteCrossings } from "../servic
 import { DEFAULT_ROUTE_GRADE_THRESHOLDS, sampleEdgeGrade } from "../services/routeGrade";
 import { densifyLandRoutePoints, routeRenderPoints } from "../services/routeRenderGeometry";
 import { generateWorldLandConnections } from "../services/worldLandConnectionRuntime";
-import { useOptionsState } from "../store/optionsState";
+import { optionsStore } from "../state/optionsStore";
 import type {
   Burg,
   InternationalRoutePolicy,
@@ -793,7 +793,7 @@ class RoutesModule {
     // Shared with travel time (route-grade-movement.md): grade is rise/run in real terrain, not
     // the raw pack height index, so a generated road's steepness and its later-computed travel
     // difficulty agree on what "steep" means.
-    const heightExponent = normalizeHeightExponent(useOptionsState.getState().heightExponent);
+    const heightExponent = normalizeHeightExponent(optionsStore.getState().heightExponent);
     const isNavigableRiverLeg = (current: number, next: number): boolean => {
       const riverIds = pack.cells.r as Uint16Array | number[] | undefined;
       const flux = pack.cells.fl as Uint16Array | number[] | undefined;
@@ -1790,7 +1790,7 @@ class RoutesModule {
     pack.cells.routes = measureGenerationStep("buildLinks", () => this.buildLinks(pack.routes));
     if (worldContext.options.landConnectionGeneration) {
       const physical = measureGenerationStep("generateWorldLandConnections", () =>
-        generateWorldLandConnections(worldContext, useOptionsState.getState().distanceUnit)
+        generateWorldLandConnections(worldContext, optionsStore.getState().distanceUnit)
       );
       if ("routes" in physical) {
         pack.routes = [...pack.routes.filter(route => route.group === "searoutes" || route.lock), ...physical.routes];
@@ -2136,7 +2136,7 @@ class RoutesModule {
     pack?: PackedGraph
   ): number[][] {
     const world = pack && pack !== this.worldContext.pack ? { ...this.worldContext, pack } : this.worldContext;
-    return routeRenderPoints(world, route, useOptionsState.getState().distanceUnit);
+    return routeRenderPoints(world, route, optionsStore.getState().distanceUnit);
   }
 
   getPath(

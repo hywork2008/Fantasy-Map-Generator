@@ -9,7 +9,7 @@ import { worldContext } from "../context/worldContext";
 import { isForestBiome } from "../data/biomeCatalog";
 import { HeightThreshold } from "../data/constants";
 import { findWarRouteCells } from "../services/warRouteFinder";
-import { getDefaultMaxWarDisparityRatioEnabled, useOptionsState } from "../store/optionsState";
+import { getDefaultMaxWarDisparityRatioEnabled, optionsStore } from "../state/optionsStore";
 import type {
   Campaign,
   State,
@@ -64,7 +64,7 @@ class StatesModule {
     const states: State[] = [{ i: 0, name: "Neutrals" } as State];
     if (!pack.burgs?.length) return states;
     const each5th = each(5);
-    const sizeVariety = useOptionsState.getState().sizeVariety;
+    const sizeVariety = optionsStore.getState().sizeVariety;
 
     pack.burgs.forEach(burg => {
       if (!burg.i || !burg.capital) return;
@@ -153,7 +153,7 @@ class StatesModule {
       burgs: pack.burgs,
       cells: pack.cells,
       cultures: pack.cultures,
-      culturesSet: useOptionsState.getState().culturesSet,
+      culturesSet: optionsStore.getState().culturesSet,
       races: pack.races,
       rivers: pack.rivers,
       states: pack.states
@@ -233,7 +233,7 @@ class StatesModule {
     const queue = new FlatQueue<{ e: number; p: number; s: number; b: number }>();
     const cost: number[] = [];
 
-    const { growthRate: globalGrowthRate, statesGrowthRate } = useOptionsState.getState();
+    const { growthRate: globalGrowthRate, statesGrowthRate } = optionsStore.getState();
     const growthRate = (cells.i.length / 2) * globalGrowthRate * statesGrowthRate; // limit cost for state growth
 
     // remove state from all cells except of locked
@@ -657,18 +657,18 @@ class StatesModule {
       return { infantry, cavalry, naval: navalForces, total };
     };
 
-    const diplomacyHistoryAttempts = useOptionsState.getState().diplomacyHistoryAttempts ?? 1;
-    const culturesSet = worldContext.options?.culturesSet ?? useOptionsState.getState().culturesSet;
+    const diplomacyHistoryAttempts = optionsStore.getState().diplomacyHistoryAttempts ?? 1;
+    const culturesSet = worldContext.options?.culturesSet ?? optionsStore.getState().culturesSet;
     const defaultDisparityEnabled = getDefaultMaxWarDisparityRatioEnabled(culturesSet);
     const maxWarDisparityRatioEnabled =
       worldContext.options?.maxWarDisparityRatioEnabled ??
       (worldContext.options?.culturesSet &&
-      worldContext.options.culturesSet !== useOptionsState.getState().culturesSet &&
+      worldContext.options.culturesSet !== optionsStore.getState().culturesSet &&
       !locked("maxWarDisparityRatioEnabled")
         ? defaultDisparityEnabled
-        : (useOptionsState.getState().maxWarDisparityRatioEnabled ?? defaultDisparityEnabled));
+        : (optionsStore.getState().maxWarDisparityRatioEnabled ?? defaultDisparityEnabled));
     const maxWarDisparityRatio =
-      worldContext.options?.maxWarDisparityRatio ?? useOptionsState.getState().maxWarDisparityRatio ?? 8;
+      worldContext.options?.maxWarDisparityRatio ?? optionsStore.getState().maxWarDisparityRatio ?? 8;
     for (let attempt = 0; attempt < diplomacyHistoryAttempts; attempt++) {
       for (let attacker = 1; attacker < states.length; attacker++) {
         const ad = states[attacker].diplomacy as string[]; // attacker relations;

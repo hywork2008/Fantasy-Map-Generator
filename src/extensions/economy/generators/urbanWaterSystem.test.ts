@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { getBurialCulturePreset } from "../../../data/burialCultures";
 import { setTechnologyProgressForTests } from "../../../generators/technologyProgress";
-import { useOptionsState, worldContext } from "../../hostCore";
+import { optionsStore, worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
   ANNUAL_GATE,
@@ -1654,7 +1654,7 @@ describe("UrbanWater module", () => {
       setGuildKnowledgeStocks([{ burgId: 1, domain: "masonry", stock: 0.5, treasury: 0 }]);
     });
 
-    afterEach(() => useOptionsState.setState({ culturesSet: "world" }));
+    afterEach(() => optionsStore.setState({ culturesSet: "world" }));
 
     function settleYears(count: number): void {
       for (let i = 0; i < count; i++) {
@@ -1668,7 +1668,7 @@ describe("UrbanWater module", () => {
     const YEARS = 15;
 
     it("seeds every Giant-state capital/city with Roman works, including a city without a local river", () => {
-      useOptionsState.setState({ culturesSet: "highFantasy" });
+      optionsStore.setState({ culturesSet: "highFantasy" });
       // The capital's river is the high gravity source; the inland city sits below it and its
       // lower river cell is the trunk-sewer outfall.
       worldContext.pack.cells.h[0] = 60;
@@ -1699,7 +1699,7 @@ describe("UrbanWater module", () => {
     });
 
     it("never spends Giant burg treasury on Modern Phase 2/4/5 construction, even when analyticalChemistry/catalyticChemistry/generatorAndMotor are all ready for the Giant State (regression: computeUrbanWaterSystem always overrides a Giant's tiers back to 1, so any such spend would be silently wasted — §15.2)", () => {
-      useOptionsState.setState({ culturesSet: "highFantasy" });
+      optionsStore.setState({ culturesSet: "highFantasy" });
       worldContext.options = { historicalPeriod: "steamEra" } as typeof worldContext.options;
       setTechnologyProgressForTests([
         { technologyId: "analyticalChemistry", scope: "state", ownerId: 1, stage: "demonstrated", diffusion: 0 },
@@ -1730,7 +1730,7 @@ describe("UrbanWater module", () => {
     });
 
     it("extends the inherited aqueduct and trunk sewer to Giant-state villages and forts", () => {
-      useOptionsState.setState({ culturesSet: "highFantasy" });
+      optionsStore.setState({ culturesSet: "highFantasy" });
       worldContext.pack.burgs[2]!.group = "fort";
       UrbanWater.generate();
 
@@ -1741,7 +1741,7 @@ describe("UrbanWater module", () => {
     });
 
     it("does not seed Roman works outside Fantasy culture sets, even for the same Giant state", () => {
-      useOptionsState.setState({ culturesSet: "world" });
+      optionsStore.setState({ culturesSet: "world" });
       UrbanWater.generate();
       settleYears(YEARS);
 

@@ -6,7 +6,7 @@ import { appServices } from "../context/appServices";
 import { viewContext } from "../context/viewContext";
 import { worldContext } from "../context/worldContext";
 import { type Cells, type Point, type Vertices, Voronoi } from "../generators/voronoi";
-import { useOptionsState } from "../store/optionsState";
+import { optionsStore } from "../state/optionsStore";
 import type { Grid, GridCells } from "../types/Grid";
 import type { PackedGraph, TypedArray } from "../types/PackedGraph";
 import { TIME } from "../utils/debug";
@@ -92,7 +92,7 @@ const placePoints = (
   cellsY: number;
 } => {
   TIME && console.time("placePoints");
-  const { points: pointsOpt } = useOptionsState.getState();
+  const { points: pointsOpt } = optionsStore.getState();
   const cellsDesired = cellsDesiredOverride ?? densityCellsForPoints(pointsOpt);
   const spacing = rn(Math.sqrt((graphWidth * graphHeight) / cellsDesired), 2); // spacing between points before jittering
 
@@ -130,7 +130,7 @@ export const shouldRegenerateGrid = (
   if (!grid) return true;
   if (expectedSeed && expectedSeed !== grid.seed) return true;
 
-  const { points: pointsOpt } = useOptionsState.getState();
+  const { points: pointsOpt } = optionsStore.getState();
   const cellsDesired = scoped?.cellsDesired ?? densityCellsForPoints(pointsOpt);
   if (cellsDesired !== grid.cellsDesired) return true;
   if (JSON.stringify(scoped?.scope ?? null) !== JSON.stringify(grid.scope ?? null)) return true;

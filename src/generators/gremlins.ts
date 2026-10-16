@@ -1,7 +1,7 @@
 import { type SimulationContext, simulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
 import { isFantasyCulturesSet } from "../data/raceCivicStance";
-import { useOptionsState } from "../store/optionsState";
+import { optionsStore } from "../state/optionsStore";
 import { isTechnologyStageAtLeast } from "./technologyTypes";
 
 export interface StateGremlinStatus {
@@ -58,8 +58,8 @@ export function evaluateStateGremlinStatus(
   }
 ): StateGremlinStatus {
   const options = world.options;
-  const culturesSet = options?.culturesSet ?? useOptionsState.getState().culturesSet;
-  const gremlinsEnabled = options?.gremlinsEnabled ?? useOptionsState.getState().gremlinsEnabled;
+  const culturesSet = options?.culturesSet ?? optionsStore.getState().culturesSet;
+  const gremlinsEnabled = options?.gremlinsEnabled ?? optionsStore.getState().gremlinsEnabled;
 
   if (!isFantasyCulturesSet(culturesSet) || gremlinsEnabled === false) {
     return {
@@ -142,8 +142,8 @@ export function advanceGremlins(
   rng: () => number = Math.random
 ): { incidents: GremlinDisruptionIncident[]; changed: boolean } {
   const { pack, options } = world;
-  const culturesSet = options?.culturesSet ?? useOptionsState.getState().culturesSet;
-  const gremlinsEnabled = options?.gremlinsEnabled ?? useOptionsState.getState().gremlinsEnabled;
+  const culturesSet = options?.culturesSet ?? optionsStore.getState().culturesSet;
+  const gremlinsEnabled = options?.gremlinsEnabled ?? optionsStore.getState().gremlinsEnabled;
 
   if (!isFantasyCulturesSet(culturesSet) || gremlinsEnabled === false) {
     return { incidents: [], changed: false };

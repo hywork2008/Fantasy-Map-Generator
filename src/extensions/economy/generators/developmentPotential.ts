@@ -5,8 +5,8 @@ import {
   Burgs,
   clearRiverResidualFlows,
   getFourCourseRotationEffect,
+  optionsStore,
   reconcileSubsistenceCapacityFromFood,
-  useOptionsState,
   type WorldContext
 } from "../../hostCore";
 import type { Burg } from "../../hostTypes";
@@ -223,7 +223,7 @@ export class DevelopmentPotentialModule {
     const world = getWorldContext();
     const agTechStockByCell = resolveAgTechStockByCell(world.pack.cells?.i?.length ?? 0);
     const stateProductivityByCell = resolveStateProductivityByCell(world.pack.cells);
-    const megacity = useOptionsState.getState().ruralUrbanMigration === "megacity";
+    const megacity = optionsStore.getState().ruralUrbanMigration === "megacity";
     const demandOptions = {
       includeUrbanFoodDemand: !megacity,
       reserveLaborForUrbanExport: megacity,
@@ -314,7 +314,7 @@ export class DevelopmentPotentialModule {
     const world = getWorldContext();
     const agTechStockByCell = resolveAgTechStockByCell(world.pack.cells?.i?.length ?? 0);
     const stateProductivityByCell = resolveStateProductivityByCell(world.pack.cells);
-    const megacity = useOptionsState.getState().ruralUrbanMigration === "megacity";
+    const megacity = optionsStore.getState().ruralUrbanMigration === "megacity";
     const demandOptions = {
       includeUrbanFoodDemand: !megacity,
       reserveLaborForUrbanExport: megacity,

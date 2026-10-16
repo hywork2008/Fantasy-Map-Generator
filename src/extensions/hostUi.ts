@@ -4,6 +4,7 @@ export { useCellInfoState } from "../store/cellInfoState";
 export { useDialogState } from "../store/dialogState";
 export type { ExtensionStyleConfig, ExtensionStyleProps } from "../store/extensionState";
 export type { LayerConfig } from "../store/layerState";
+export { useOptionsState } from "../store/optionsState";
 export { regenerateFeatureDialogStore } from "../store/regenerateFeatureDialogState";
 export { useStyleState } from "../store/styleState";
 export { useTimeSimulationState } from "../store/timeSimulationState";

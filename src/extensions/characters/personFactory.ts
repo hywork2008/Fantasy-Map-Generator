@@ -1,7 +1,7 @@
 import { tryRollMythicPersonName } from "../../data/personNames";
 import type { RaceFertility } from "../../types/models";
 import { APPEARANCE_AXIS_IDS } from "../../types/models";
-import { Names, useOptionsState } from "../hostCore";
+import { Names, optionsStore } from "../hostCore";
 import {
   DEFAULT_RACE_KEY,
   getRaceBeautyIdeal,
@@ -569,7 +569,7 @@ export function createPerson(i: number, cultureId: number, options: CreatePerson
   // culture or a restrictive race allow-list resolves to Demon.
   if (
     !options.allowOpenDemon &&
-    useOptionsState.getState().culturesSet === "highFantasy" &&
+    optionsStore.getState().culturesSet === "highFantasy" &&
     raceKeyForId(packRaces, race) === "demon"
   ) {
     race = HUMAN_RACE_ID;

@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createEmptyWildernessEcologyState, simulationContext } from "../../../context/simulationContext";
 import { createDefaultBiomesData } from "../../../data/biomeCatalog";
 import type { RNGService } from "../../../utils/probabilityUtils";
-import { useOptionsState, worldContext } from "../../hostCore";
+import { optionsStore, worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
   clearEconomyContext,
@@ -150,7 +150,7 @@ describe("threatCullHire PR-3a", () => {
       worldContext,
       simulationContext
     } as unknown as ExtensionAPI);
-    useOptionsState.setState({ culturesSet: "highFantasy" });
+    optionsStore.setState({ culturesSet: "highFantasy" });
     clearConstructionHireState();
     clearCullHireState();
     clearCullHiringSession();

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { useOptionsState, worldContext } from "../../hostCore";
+import { optionsStore, worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import { clearEconomyContext, initEconomyContext, setConstructionOperations, setGoods } from "../economyContext";
 import type { ConstructionOperation } from "./constructionEmploymentTypes";
@@ -130,12 +130,12 @@ describe("unitCost / fortificationPremium", () => {
 describe("getBurgSettlementValue", () => {
   beforeEach(() => {
     initEconomyContext({ worldContext } as unknown as ExtensionAPI);
-    useOptionsState.setState({ culturesSet: "world" });
+    optionsStore.setState({ culturesSet: "world" });
     setUpWorld();
   });
   afterEach(() => {
     clearEconomyContext();
-    useOptionsState.setState({ culturesSet: "world" });
+    optionsStore.setState({ culturesSet: "world" });
   });
 
   it("returns null when there is no construction operation", () => {

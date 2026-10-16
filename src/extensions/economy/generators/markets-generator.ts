@@ -33,7 +33,7 @@ import {
   setMarkets,
   setStrategicLaborMarkets
 } from "../economyContext";
-import { getEconomyCalibrationState } from "../store/economyCalibrationState";
+import { getEconomyCalibrationState } from "../state/economyCalibrationStore";
 import { getBurgMarketLedger, syncBurgMarketLedgers } from "./burgMarketLedgers";
 import { CaravanMovement } from "./caravanMovement";
 import { getChilledFreshFoodExportUnits, planCellFoodRescue } from "./cellFoodRescue";

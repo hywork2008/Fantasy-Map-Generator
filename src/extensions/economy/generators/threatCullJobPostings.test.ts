@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createEmptyWildernessEcologyState, simulationContext } from "../../../context/simulationContext";
 import { createDefaultBiomesData } from "../../../data/biomeCatalog";
-import { useOptionsState, worldContext } from "../../hostCore";
+import { optionsStore, worldContext } from "../../hostCore";
 import type { ExtensionAPI } from "../../hostTypes";
 import {
   clearEconomyContext,
@@ -113,7 +113,7 @@ describe("rebuildCullJobPostings", () => {
       worldContext,
       simulationContext
     } as unknown as ExtensionAPI);
-    useOptionsState.setState({ culturesSet: "highFantasy" });
+    optionsStore.setState({ culturesSet: "highFantasy" });
     clearCullHireState();
   });
 
@@ -135,7 +135,7 @@ describe("rebuildCullJobPostings", () => {
   it("posts pest targets without painted danger on forest hinterland", () => {
     setupWorld({ monsters: false, forest: true });
     worldContext.pack.cells.danger.fill(0);
-    useOptionsState.setState({ culturesSet: "world" });
+    optionsStore.setState({ culturesSet: "world" });
     rebuildCullJobPostings({ clearAll: true });
     const posts = getCullJobPostings();
     expect(posts.some(p => p.target.kind === "pest")).toBe(true);
@@ -190,11 +190,11 @@ describe("rebuildCullJobPostings", () => {
 
   it("skips forts unless darkFantasy border fort flag path", () => {
     setupWorld({ monsters: true, forest: true, fort: true });
-    useOptionsState.setState({ culturesSet: "highFantasy" });
+    optionsStore.setState({ culturesSet: "highFantasy" });
     rebuildCullJobPostings({ clearAll: true });
     expect(getCullJobPostings().filter(p => p.burgId === 1)).toHaveLength(0);
 
-    useOptionsState.setState({ culturesSet: "darkFantasy" });
+    optionsStore.setState({ culturesSet: "darkFantasy" });
     rebuildCullJobPostings({ clearAll: true });
     // Border fort on darkFantasy may post.
     expect(getCullJobPostings().some(p => p.burgId === 1)).toBe(true);

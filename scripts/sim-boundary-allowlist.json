@@ -1,13 +1,6 @@
 {
   "modules": {
-    "src/context/viewContext.ts": "view service: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/generators/military-generator.ts -> src/context/viewContext.ts",
-    "src/extensions/characters/store/playerCharacterState.ts": "extension view / UI layer: src/extensions/nobility/generators/characterPruning.ts -> src/extensions/characters/store/playerCharacterState.ts",
-    "src/extensions/economy/store/economyCalibrationState.ts": "extension view / UI layer: src/extensions/economy/generators/academyKnowledge.ts -> src/extensions/economy/store/economyCalibrationState.ts",
-    "src/extensions/economy/store/stateFiscalReportState.ts": "extension view / UI layer: src/extensions/economy/generators/stateFiscalReport.ts -> src/extensions/economy/store/stateFiscalReportState.ts",
-    "src/store/fastAdvanceState.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/store/fastAdvanceState.ts",
-    "src/store/optionsState.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/store/optionsState.ts",
-    "src/store/timeSimulationState.ts": "view / UI layer: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/store/timeSimulationState.ts",
-    "src/store/uiPreferencesState.ts": "view / UI layer: src/extensions/economy/generators/characterStipends.ts -> src/extensions/nobility/nobilityContext.ts -> src/store/uiPreferencesState.ts"
+    "src/context/viewContext.ts": "view service: src/simulation/core.ts -> src/generators/timeEngine.ts -> src/generators/military-generator.ts -> src/context/viewContext.ts"
   },
   "packages": {},
   "runtime": {

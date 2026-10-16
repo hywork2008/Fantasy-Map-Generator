@@ -34,7 +34,7 @@ import {
   type RiverSettlementSite
 } from "../services/settlementRiverSite";
 import { simulationView } from "../simulation/viewPort";
-import { useOptionsState } from "../store/optionsState";
+import { optionsStore } from "../state/optionsStore";
 import type { Burg, Route } from "../types/models";
 import type { WorldState } from "../types/WorldState";
 import { each, findCell, gauss, minmax, normalize, P, rn } from "../utils";
@@ -246,7 +246,7 @@ class BurgModule {
         this.reservedRiverSites.set(burg.i, [burg.x, burg.y]);
     }
     try {
-      yield* this.geometrySession.prepareSteps(this.worldContext, useOptionsState.getState().distanceUnit);
+      yield* this.geometrySession.prepareSteps(this.worldContext, optionsStore.getState().distanceUnit);
       for (const burg of burgs) {
         if (burg.i && !burg.lock) delete burg.port;
       }
@@ -297,7 +297,7 @@ class BurgModule {
     const highestSourceElevation = highestWaterSourceElevation(cells);
     if (highestSourceElevation === null || !states?.length) return;
 
-    const culturesSet = useOptionsState.getState().culturesSet;
+    const culturesSet = optionsStore.getState().culturesSet;
     for (const burg of burgs) {
       if (!burg.i || burg.removed || !burg.state) continue;
       if (
@@ -351,7 +351,7 @@ class BurgModule {
    * capacity (`elevationFactor`, applied in portCapacity.ts) — it never excludes the candidate.
    */
   private elevationAllowsFormalHarbor(cellId: number): boolean {
-    const heightExponent = normalizeHeightExponent(useOptionsState.getState().heightExponent);
+    const heightExponent = normalizeHeightExponent(optionsStore.getState().heightExponent);
     const { tier } = evaluateHarborElevation(this.worldContext.pack.cells.h[cellId], heightExponent);
     return tier !== "unsuitable";
   }
@@ -819,7 +819,7 @@ class BurgModule {
           riverSiteStatus: prior.riverSiteStatus
         };
         const session = settlementGeometrySession(this.worldContext);
-        session.prepare(this.worldContext, useOptionsState.getState().distanceUnit);
+        session.prepare(this.worldContext, optionsStore.getState().distanceUnit);
         const steps = this.resiteOnRiverBankSteps(river, [burg.x, burg.y], session);
         let step = steps.next();
         while (!step.done) step = steps.next();
@@ -889,7 +889,7 @@ class BurgModule {
     const world = this.worldContext;
     const mode = world.options.portCoastPlacement;
     if (!mode) return null; // maps generated before the option keep the legacy slide
-    const metersPerMapUnit = mapUnitMeters(world.distanceScale, useOptionsState.getState().distanceUnit);
+    const metersPerMapUnit = mapUnitMeters(world.distanceScale, optionsStore.getState().distanceUnit);
     if (!(metersPerMapUnit > 0)) return null;
     if (mode === "pinned") return pinnedShorePortPosition(world.pack.cells.p[cellId] as Point, edge, metersPerMapUnit);
     // The module is a singleton: drop shapes from a previous map or feature set.
@@ -970,7 +970,7 @@ class BurgModule {
     const burg = burgOverride ?? pack.burgs.find(b => b?.i && b.cell === cellId);
     const river = pack.rivers.find(r => r.i === cells.r[cellId]);
     if (!river) return source;
-    const unit = useOptionsState.getState().distanceUnit;
+    const unit = optionsStore.getState().distanceUnit;
     const session = sessionOverride ?? this.geometrySession ?? new SettlementGeometrySession();
     if (!sessionOverride && !this.geometrySession) session.prepare(world, unit);
     const prepared = session.source(river.i);
@@ -1125,11 +1125,11 @@ class BurgModule {
         )
           return false;
         const elevations = touched.map(t =>
-          heightToMeters(cells.h[t.id], normalizeHeightExponent(useOptionsState.getState().heightExponent))
+          heightToMeters(cells.h[t.id], normalizeHeightExponent(optionsStore.getState().heightExponent))
         );
         // Bounded terrain proxy: relief over the core and slopes to adjacent land centres.
         if ((Math.max(...elevations) - Math.min(...elevations)) / (2 * radius) > 0.15) return false;
-        const exponent = normalizeHeightExponent(useOptionsState.getState().heightExponent);
+        const exponent = normalizeHeightExponent(optionsStore.getState().heightExponent);
         return touched.every(t =>
           (cells.c?.[t.id] ?? []).every(next => {
             if (cells.h[next] < 20) return true;
@@ -1296,8 +1296,8 @@ class BurgModule {
     cells.burg = new Uint16Array(cells.i.length);
     const giantHighlandOikoumene = seedGiantHighlandOikoumene(
       this.worldContext,
-      useOptionsState.getState().culturesSet,
-      useOptionsState.getState().initialPopulationSaturation / 100
+      optionsStore.getState().culturesSet,
+      optionsStore.getState().initialPopulationSaturation / 100
     );
 
     // The Settlement Foundation owns non-standard Burg candidates. Standard
@@ -1322,7 +1322,7 @@ class BurgModule {
       if (plannedNodes.length) {
         const capitalsNumber = getInitialPolityCapitalCount(
           pack.settlementFoundation!,
-          scopedStatesNumber(grid, useOptionsState.getState().statesNumber)
+          scopedStatesNumber(grid, optionsStore.getState().statesNumber)
         );
         // ensureMandatoryCapitals (docs/plan/underground-realm-and-supernatural-areas.md §3.4/
         // §7.3) guarantees the Dwarf hold's "mountain" region node is a capital even when it
@@ -1503,7 +1503,7 @@ class BurgModule {
     TIME && console.timeEnd("generateBurgs");
 
     function getCapitalsNumber() {
-      let number = useOptionsState.getState().statesNumber;
+      let number = optionsStore.getState().statesNumber;
       if (grid.scope) return capScopedCount(grid.scope, "states", number, populatedCells.length);
 
       if (populatedCells.length < number * 10) {
@@ -1593,7 +1593,7 @@ class BurgModule {
     }
 
     function getTownsNumber() {
-      const manors = useOptionsState.getState().manors;
+      const manors = optionsStore.getState().manors;
       const isAuto = manors === 1000; // 1000 is considered as auto
       if (isAuto) return rn(populatedCells.length / 5 / (gridDensityCells(grid) / 10000) ** 0.8);
 
@@ -1791,7 +1791,7 @@ class BurgModule {
     population += (((burg.i as number) % 100) - (cellId % 100)) / 1000; // unround
     const capacity = rn(Math.max(population, 0.01), 3);
 
-    const initialPopulationSaturation = useOptionsState.getState().initialPopulationSaturation / 100;
+    const initialPopulationSaturation = optionsStore.getState().initialPopulationSaturation / 100;
     burg.population = rn(capacity * initialPopulationSaturation, 3);
     // Group is usually assigned later in defineGroup(); apply default shares first, then
     // applyDemographics() after the group is known so fort/monastery/etc. get the right mix.

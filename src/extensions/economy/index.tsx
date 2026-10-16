@@ -7,8 +7,7 @@ import {
   FUNERAL_DEMAND_EVENT,
   isStateInActiveConflict,
   resolveFastAdvanceRates,
-  runWithSimulationRandom,
-  useOptionsState
+  runWithSimulationRandom
 } from "../hostCore";
 import {
   isShipbuildingInitialStockRequest,
@@ -22,6 +21,7 @@ import {
 import {
   type LayerConfig,
   regenerateFeatureDialogStore,
+  useOptionsState,
   useTimeSimulationState,
   useUiPreferencesState
 } from "../hostUi";

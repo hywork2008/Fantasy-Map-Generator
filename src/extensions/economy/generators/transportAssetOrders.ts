@@ -10,7 +10,7 @@ import {
   setNextTransportAssetOrderId,
   setTransportAssetOrders
 } from "../economyContext";
-import { getEconomyCalibrationState } from "../store/economyCalibrationState";
+import { getEconomyCalibrationState } from "../state/economyCalibrationStore";
 import { laborPeople, peopleToPoints } from "./craftScale";
 import { getGuildBonus } from "./guildKnowledge";
 import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";

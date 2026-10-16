@@ -13,7 +13,7 @@
 import type { SimulationContext, ThreatCullProject, WildernessEcologyState } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
 import type { DataTopic } from "../runtime/worldRuntime";
-import { useOptionsState } from "../store/optionsState";
+import { optionsStore } from "../state/optionsStore";
 import type { Monster, State } from "../types/models";
 import type { RNGService } from "../utils/probabilityUtils";
 import { applyArcaneHuntAssist } from "./arcaneHuntAssist";
@@ -205,7 +205,7 @@ export function advanceWildernessEcology(input: WildernessEcologyInput): Wildern
   if (!cells.danger || cells.danger.length !== cells.i.length) {
     cells.danger = new Uint8Array(cells.i.length);
   }
-  const culturesSet = useOptionsState.getState().culturesSet;
+  const culturesSet = optionsStore.getState().culturesSet;
   const dangerSources = [...(world.pack.monsters ?? []), ...dungeonsAsDangerSources(world.pack.dungeons)];
   rebuildDangerField(cells, dangerSources, threatCalculation, {
     biomesData: world.biomesData,
@@ -226,7 +226,7 @@ export function advanceWildernessEcology(input: WildernessEcologyInput): Wildern
 }
 
 function isFantasyThreatMap(world: WorldContext): boolean {
-  const culturesSet = useOptionsState.getState().culturesSet;
+  const culturesSet = optionsStore.getState().culturesSet;
   if (getThreatSpawnProfile(culturesSet)) return true;
   // Also allow when monsters already exist (loaded fantasy map with unlocked culture set).
   return (world.pack.monsters?.length ?? 0) > 0;
@@ -239,7 +239,7 @@ function ensureMonsterBasePower(monsters: readonly Monster[]): void {
 }
 
 function resolveThreatCalculation(): ThreatCalculationMode {
-  return resolveThreatCalculationFromOptions(useOptionsState.getState());
+  return resolveThreatCalculationFromOptions(optionsStore.getState());
 }
 
 function countStateCulls(wilderness: WildernessEcologyState, stateId: number): number {

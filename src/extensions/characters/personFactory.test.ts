@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createDefaultRaces } from "../../data/races";
-import { useOptionsState, worldContext } from "../hostCore";
+import { optionsStore, worldContext } from "../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../hostTypes";
 import { clearCharactersContext, initCharactersContext } from "./charactersContext";
 import {
@@ -293,13 +293,13 @@ describe("createPerson bound servitors (fallen_angel and human under demon)", ()
 
   afterEach(() => {
     clearCharactersContext();
-    useOptionsState.setState({ culturesSet: prevSet });
+    optionsStore.setState({ culturesSet: prevSet });
   });
 
   beforeEach(() => {
     initCharactersContext({ worldContext } as unknown as ExtensionAPI);
-    prevSet = useOptionsState.getState().culturesSet;
-    useOptionsState.setState({ culturesSet: "darkFantasy" });
+    prevSet = optionsStore.getState().culturesSet;
+    optionsStore.setState({ culturesSet: "darkFantasy" });
     const races = createDefaultRaces();
     const demon = races.find(r => r.key === "demon")!.i;
     worldContext.pack = {
@@ -441,8 +441,8 @@ describe("createPerson fantasy race appearance", () => {
   });
 
   it("does not generate an exposed Demon on High Fantasy maps", () => {
-    const previousSet = useOptionsState.getState().culturesSet;
-    useOptionsState.setState({ culturesSet: "highFantasy" });
+    const previousSet = optionsStore.getState().culturesSet;
+    optionsStore.setState({ culturesSet: "highFantasy" });
 
     try {
       const person = createPerson(0, 1, { homeStateId: 1 });
@@ -451,7 +451,7 @@ describe("createPerson fantasy race appearance", () => {
       expect(person.raceAppearance).toBeUndefined();
       expect(person.demonInfiltration).toBeUndefined();
     } finally {
-      useOptionsState.setState({ culturesSet: previousSet });
+      optionsStore.setState({ culturesSet: previousSet });
     }
   });
 
@@ -476,10 +476,10 @@ describe("createPerson fantasy race appearance", () => {
 });
 
 describe("createPerson Arcane on fantasy maps", () => {
-  const previous = useOptionsState.getState().culturesSet;
+  const previous = optionsStore.getState().culturesSet;
 
   afterEach(() => {
-    useOptionsState.setState({ culturesSet: previous });
+    optionsStore.setState({ culturesSet: previous });
     clearCharactersContext();
   });
 
@@ -498,13 +498,13 @@ describe("createPerson Arcane on fantasy maps", () => {
   });
 
   it("omits Arcane on historical culture sets", () => {
-    useOptionsState.setState({ culturesSet: "world" });
+    optionsStore.setState({ culturesSet: "world" });
     const person = createPerson(0, 1, { homeStateId: 1 });
     expect(person.arcane).toBeUndefined();
   });
 
   it("rolls Arcane at or below the elf cap on High Fantasy", () => {
-    useOptionsState.setState({ culturesSet: "highFantasy" });
+    optionsStore.setState({ culturesSet: "highFantasy" });
     const person = createPerson(0, 1, { homeStateId: 1, raceOverride: 2 });
     expect(person.arcane).toBeDefined();
     expect(person.arcane).toBeGreaterThanOrEqual(0);
@@ -512,7 +512,7 @@ describe("createPerson Arcane on fantasy maps", () => {
   });
 
   it("rolls Lich Arcane strictly between 92 and 100 on High Fantasy when roleClass is ruler, and restricts non-rulers", () => {
-    useOptionsState.setState({ culturesSet: "highFantasy" });
+    optionsStore.setState({ culturesSet: "highFantasy" });
     const lichRace = createDefaultRaces().find(r => r.key === "lich")!;
     for (let i = 0; i < 20; i++) {
       const ruler = createPerson(i, 1, { homeStateId: 1, raceOverride: lichRace.i, roleClass: "ruler" });

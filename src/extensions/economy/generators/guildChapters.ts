@@ -9,7 +9,7 @@ import {
   setGuildChapters,
   settleAnnualOnce
 } from "../economyContext";
-import { getEconomyCalibrationState } from "../store/economyCalibrationState";
+import { getEconomyCalibrationState } from "../state/economyCalibrationStore";
 import { guildSaturationPoints } from "./craftScale";
 import { buildGuildChapterSuitabilityContext, scoreGuildChapterSuitability } from "./guildChapterSuitability";
 import type { GuildChapter } from "./guildChapterTypes";

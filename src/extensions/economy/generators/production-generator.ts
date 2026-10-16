@@ -27,7 +27,7 @@ import {
   setDeals,
   setStrategicLaborMarkets
 } from "../economyContext";
-import { getEconomyCalibrationState } from "../store/economyCalibrationState";
+import { getEconomyCalibrationState } from "../state/economyCalibrationStore";
 import { getDiscontentLaborMultiplier } from "./burgDiscontent";
 import { creditHouseholdWealth, syncBurgMarketLedgers } from "./burgMarketLedgers";
 import { Caravans } from "./caravans";
