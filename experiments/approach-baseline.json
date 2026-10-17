@@ -1,7 +1,7 @@
 {
   "id": "approach-baseline",
   "maps": [
-    { "kind": "new", "seeds": [101, 102, 103], "options": { "culturesSet": "european", "initialSettlementPattern": "standard", "scope": "province" } }
+    { "kind": "new", "seeds": [101, 102, 103], "options": { "culturesSet": "european", "initialSettlementPattern": "standard", "scope": "province", "cells": 3000 } }
   ],
   "extensions": ["economy", "characters", "nobility", "shipbuilding"],
   "timeline": "new",

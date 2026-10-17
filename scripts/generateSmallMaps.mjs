@@ -10,7 +10,7 @@ const REQUIREMENTS = ["burg", "sea-port", "river-port", "river-burg", "river", "
 const usage = `Usage: npm run fmg:small -- <out-dir> [--scope province|islet] [--count 1] [--seed 1,2,3 | --start-seed 1000 --tries 50]
          [--cells 500] [--islet-land 0..6] [--require ${REQUIREMENTS.join(",")}] [--max-burgs N]
          [--local-storage settings.json] [--width 1920] [--height 1080] [--url http://host/Fantasy-Map-Generator/]
-         [--timeout-ms 120000] [--headed] [--lab '{"riverDensity":4}' | --lab default]`;
+         [--timeout-ms 120000] [--headed] [--wait-extensions] [--lab '{"riverDensity":4}' | --lab default]`;
 const args = process.argv.slice(2);
 if (args.includes("--help")) {
   console.log(usage);
@@ -19,16 +19,17 @@ if (args.includes("--help")) {
 const log = message => console.error(`[fmg:small] ${message}`);
 
 /** Waits for the generation started by page load, continuing the Build-map review like a user. */
-function waitForMap(page, timeoutMs) {
+function waitForMap(page, timeoutMs, waitExtensions) {
   return page.evaluate(
-    timeoutMs =>
+    ({ timeoutMs, waitExtensions }) =>
       new Promise(resolveMap => {
         const deadline = performance.now() + timeoutMs;
         const poll = () => {
           const profile = window.fmg?.actions?.getGenerationProfile?.();
           const marks = profile?.marks ?? {};
           if ("failed" in marks) return resolveMap("failed");
-          if ("map-ready" in marks) return resolveMap("generated");
+          // --wait-extensions: extension map-ready tasks (economy, nobility) finish after "map-ready".
+          if ("map-ready" in marks && (!waitExtensions || window.__fmgMapReadyTasksDone)) return resolveMap("generated");
           const button = [...document.querySelectorAll("button")].find(b => b.textContent === "Generate entire map");
           if ("review-waiting" in marks && button && !button.disabled) button.click();
           if (performance.now() > deadline) return resolveMap("timeout");
@@ -36,7 +37,7 @@ function waitForMap(page, timeoutMs) {
         };
         poll();
       }),
-    timeoutMs
+    { timeoutMs, waitExtensions }
   );
 }
 
@@ -118,6 +119,7 @@ async function main() {
   let externalUrl;
   let timeoutMs = 120000;
   let headed = false;
+  let waitExtensions = false;
   let lab;
   const value = flag => {
     const val = args.shift();
@@ -141,6 +143,7 @@ async function main() {
     else if (flag === "--url") externalUrl = value(flag);
     else if (flag === "--timeout-ms") timeoutMs = Number(value(flag));
     else if (flag === "--headed") headed = true;
+    else if (flag === "--wait-extensions") waitExtensions = true;
     else if (flag === "--lab") {
       const val = value(flag);
       lab = { ...(val === "default" ? {} : JSON.parse(val)), enabled: true };
@@ -186,6 +189,9 @@ async function main() {
         localStorage.clear();
         for (const [key, val] of Object.entries(entries)) localStorage.setItem(key, val);
       }, storage);
+      await context.addInitScript(() =>
+        document.addEventListener("fmg:map-ready-tasks-completed", () => (window.__fmgMapReadyTasksDone = true))
+      );
       const page = await context.newPage();
       const pageErrors = [];
       page.on("pageerror", error => pageErrors.push(error.message));
@@ -195,7 +201,7 @@ async function main() {
       url.searchParams.set("height", String(height));
       const started = performance.now();
       await page.goto(url.href, { waitUntil: "domcontentloaded", timeout: timeoutMs });
-      const status = await waitForMap(page, timeoutMs);
+      const status = await waitForMap(page, timeoutMs, waitExtensions);
       const elapsedMs = Math.round(performance.now() - started);
       if (status !== "generated") {
         log(`seed=${seed} ${status} ${pageErrors.slice(0, 2).join(" | ")}`);

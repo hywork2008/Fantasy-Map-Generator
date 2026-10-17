@@ -8,8 +8,9 @@
  *
  * --token  required as `Authorization: Bearer T` for every write (publish, ops, delete). Reads stay open.
  */
-import { type ChildProcess, fork } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { type ChildProcess, fork, spawn } from "node:child_process";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { join, resolve } from "node:path";
 
@@ -159,7 +160,7 @@ function debugIndex(api: string) {
       route: `${api}/routes/{id}`,
       settlementDiagnostics: `${api}/diagnostics/settlement?minSeparationRadii=2  (towns outside their cell, crowded pairs, bridges in the sea or over the skew limit)`,
       archive: `${api}/archive  (the .fmg; open it in FMG to look at the same world)`,
-      observe: `${api}/observe/{sample|routes|approaches|corridors|markets|staticInfo|samples}  (traffic observatory; docs/plan/approach-traffic-observatory.md §5)`
+      observe: `${api}/observe/{sample|routes|approaches|corridors|markets|staticInfo|samples|burgs/{id}/growth}  (traffic observatory; docs/plan/approach-traffic-observatory.md §5)`
     }
   };
 }
@@ -270,6 +271,27 @@ async function route(request: IncomingMessage, response: ServerResponse) {
       // What `advance` + `sampleEvery` appended in the worker, as NDJSON.
       const file = join(channelDir(id), entityId === "samples" ? "observe.ndjson" : "observe.static.ndjson");
       return send(response, 200, existsSync(file) ? readFileSync(file) : Buffer.alloc(0), { "Content-Type": "application/x-ndjson" });
+    }
+    if (entityId === "burgs" && view !== undefined && parts[7] === "growth") {
+      // CE probe (§7.2) on a copy of the current snapshot, in its own process: the channel is untouched.
+      const burgId = Number(view);
+      if (!Number.isSafeInteger(burgId)) return send(response, 400, { error: "Burg id must be an integer" });
+      const work = mkdtempSync(join(tmpdir(), "fmg-growth-"));
+      try {
+        copyFileSync(join(channelDir(id), "current.fmg"), join(work, "world.fmg"));
+        await new Promise<void>((done, fail) => {
+          const child = spawn(process.execPath, ["--import", "tsx", join(root, "scripts/observeCeProbe.mjs"), join(work, "world.fmg"), String(burgId), join(work, "out.json")], {
+            cwd: root,
+            stdio: "ignore"
+          });
+          child.on("error", fail);
+          child.on("exit", code => (code === 0 ? done() : fail(new Error(`CE probe exited with ${code}`))));
+        });
+        const result = JSON.parse(readFileSync(join(work, "out.json"), "utf8")) as { burgs: unknown[] };
+        return send(response, 200, { revision: readMeta(id).revision, ...(result.burgs[0] as object) });
+      } finally {
+        rmSync(work, { recursive: true, force: true });
+      }
     }
     const views = ["sample", "routes", "approaches", "corridors", "markets", "staticInfo"];
     if (!entityId || !views.includes(entityId)) return send(response, 404, { error: `observe/{${views.join("|")}|samples|static}` });

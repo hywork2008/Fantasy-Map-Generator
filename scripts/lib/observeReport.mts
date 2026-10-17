@@ -147,6 +147,124 @@ export function approachMetrics(channel: string, samples: Sample[]): ApproachMet
   return metrics;
 }
 
+/** Spearman ρ with average ranks for ties; null with fewer than 3 items or a constant side. */
+export function spearman(x: number[], y: number[]): number | null {
+  if (x.length < 3) return null;
+  const ranks = (v: number[]) => {
+    const order = v.map((value, i) => ({ value, i })).sort((a, b) => a.value - b.value);
+    const r = new Array<number>(v.length);
+    for (let i = 0; i < order.length; ) {
+      let j = i;
+      while (j + 1 < order.length && order[j + 1].value === order[i].value) j++;
+      for (let k = i; k <= j; k++) r[order[k].i] = (i + j) / 2;
+      i = j + 1;
+    }
+    return r;
+  };
+  const rx = ranks(x);
+  const ry = ranks(y);
+  const mean = (v: number[]) => v.reduce((s, n) => s + n, 0) / v.length;
+  const mx = mean(rx);
+  const my = mean(ry);
+  let num = 0;
+  let dx = 0;
+  let dy = 0;
+  for (let i = 0; i < rx.length; i++) {
+    num += (rx[i] - mx) * (ry[i] - my);
+    dx += (rx[i] - mx) ** 2;
+    dy += (ry[i] - my) ** 2;
+  }
+  return dx > 0 && dy > 0 ? num / Math.sqrt(dx * dy) : null;
+}
+
+/** Index of the single largest value; null when the top is tied or all zero. */
+function argmaxUnique(values: number[]): number | null {
+  const max = Math.max(...values);
+  if (!(max > 0)) return null;
+  const at = values.flatMap((v, i) => (v === max ? [i] : []));
+  return at.length === 1 ? at[0] : null;
+}
+
+interface ProbeApproach {
+  approachId: string;
+  routeId: number;
+  group: string;
+  sharedRouteIds: number[] | null;
+  ribbonBudget: number;
+  ribbonLength: number;
+  lots: number;
+  gateInns: number;
+  cobbled: boolean;
+}
+interface ProbeFile {
+  burgs: { burgId: number; status: string; usesTraffic: boolean | null; approaches: ProbeApproach[] }[];
+}
+
+/** §7.3: does the FMG potential P (and the route-level traffic CE gets today) rank CE's ribbons? */
+function ceAgreement(runDir: string, samplesOf: (channel: string) => Sample[]) {
+  const dir = join(runDir, "ce");
+  const rows: Record<string, unknown>[] = [];
+  const towns: { probe: string; burg: number; usesTraffic: boolean | null; top1P: boolean | null; top1Route: boolean | null; rhoP: number | null; rhoRoute: number | null }[] = [];
+  if (!existsSync(dir)) return { rows, towns };
+  for (const file of readdirSync(dir).filter(f => f.endsWith(".json"))) {
+    const tag = file.replace(/\.json$/, "");
+    const [channel, date] = tag.split("@");
+    const samples = samplesOf(channel).filter(s => s.date <= date);
+    const metrics = approachMetrics(channel, samples);
+    const routeTraffic = new Map((samples.at(-1)?.routes ?? []).map(r => [r.id, r.traffic]));
+    const probe = JSON.parse(readFileSync(join(dir, file), "utf8")) as ProbeFile;
+    for (const burg of probe.burgs) {
+      if (burg.status !== "generated") continue;
+      const own = metrics.filter(m => m.burg === burg.burgId);
+      const gates = burg.approaches.filter(a => a.group !== "searoutes");
+      const potential = gates.map(a => {
+        const exact = own.find(m => m.approach === a.approachId);
+        if (exact) return exact.potential;
+        // A shared crossing bundles routes; the ledger keys their gates by route edge.
+        const routes = a.sharedRouteIds ?? [];
+        return own.filter(m => m.route !== null && routes.includes(m.route)).reduce((sum, m) => sum + m.potential, 0);
+      });
+      const traffic = gates.map(a => Math.max(...(a.sharedRouteIds ?? [a.routeId]).map(id => routeTraffic.get(id) ?? 0)));
+      const budget = gates.map(a => a.ribbonBudget);
+      gates.forEach((a, i) =>
+        rows.push({ probe: tag, burg: burg.burgId, approach: a.approachId, group: a.group, potential: potential[i], routeTraffic: traffic[i], ribbonBudget: a.ribbonBudget, ribbonLength: a.ribbonLength, lots: a.lots, gateInns: a.gateInns, cobbled: a.cobbled })
+      );
+      const top = argmaxUnique(budget);
+      const pTop = argmaxUnique(potential);
+      const rTop = argmaxUnique(traffic);
+      towns.push({
+        probe: tag,
+        burg: burg.burgId,
+        usesTraffic: burg.usesTraffic,
+        top1P: top === null || pTop === null ? null : top === pTop,
+        top1Route: top === null || rTop === null ? null : top === rTop,
+        rhoP: spearman(potential, budget),
+        rhoRoute: spearman(traffic, budget)
+      });
+    }
+  }
+  return { rows, towns };
+}
+
+function agreementSummary(towns: ReturnType<typeof ceAgreement>["towns"]) {
+  const rate = (values: (boolean | null)[]) => {
+    const known = values.filter((v): v is boolean => v !== null);
+    return { n: known.length, value: known.length ? known.filter(Boolean).length / known.length : NaN };
+  };
+  const mean = (values: (number | null)[]) => {
+    const known = values.filter((v): v is number => v !== null);
+    return { n: known.length, value: known.length ? known.reduce((s, v) => s + v, 0) / known.length : NaN };
+  };
+  return {
+    towns: towns.length,
+    usingTraffic: towns.filter(t => t.usesTraffic).length,
+    top1P: rate(towns.map(t => t.top1P)),
+    top1Route: rate(towns.map(t => t.top1Route)),
+    rhoP: mean(towns.map(t => t.rhoP)),
+    rhoRoute: mean(towns.map(t => t.rhoRoute))
+  };
+}
+
 function csv(rows: Record<string, unknown>[]): string {
   if (!rows.length) return "";
   const columns = Object.keys(rows[0]);
@@ -243,6 +361,19 @@ export function buildReport(runDir: string): Record<string, string> {
 <h3>Busiest routes (departures in the period)</h3><table><tr><th>route</th><th>group</th><th>departures</th><th></th></tr>${routeTable}</table></section>`);
   }
 
+  const samplesByChannel = new Map(files.map(f => [f.replace(/\.ndjson$/, ""), readSamples(join(runDir, "samples", f))]));
+  const agreement = ceAgreement(runDir, channel => samplesByChannel.get(channel) ?? []);
+  const summary = agreementSummary(agreement.towns);
+  const ceSection = agreement.towns.length
+    ? `<section><h2>CE agreement <small>${summary.towns} towns probed · ${summary.usingTraffic} with traffic-driven roads</small></h2>
+<p>Do the approaches with the highest FMG potential P get CE's largest suburb ribbon? Compared with ranking by route-level traffic, the input CE receives today (§7.3).</p>
+<table><tr><th></th><th>Top-1 match</th><th>Spearman ρ (mean)</th></tr>
+<tr><td>Potential P (approach ledger)</td><td>${fmt(summary.top1P.value * 100, 0)}% <small>n=${summary.top1P.n}</small></td><td>${fmt(summary.rhoP.value, 2)} <small>n=${summary.rhoP.n}</small></td></tr>
+<tr><td>Route traffic</td><td>${fmt(summary.top1Route.value * 100, 0)}% <small>n=${summary.top1Route.n}</small></td><td>${fmt(summary.rhoRoute.value, 2)} <small>n=${summary.rhoRoute.n}</small></td></tr></table>
+<p><small>Towns whose top ribbon or top predictor is tied are left out of Top-1; ρ needs three or more approaches. Rows: ce.csv.</small></p></section>`
+    : "";
+  sections.unshift(ceSection);
+
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Approach Traffic Report</title>
 <style>
 :root{--bg:#fbfaf7;--fg:#1d1d1b;--muted:#6b6a65;--line:#d9d6cf;--accent:#2f6f8f;--top:#c4572b}
@@ -261,6 +392,8 @@ ${sections.join("\n")}</body></html>`;
     "approaches.csv": csv(approaches as unknown as Record<string, unknown>[]),
     "routes.csv": csv(routes),
     "corridors.csv": csv(corridors),
+    "ce.csv": csv(agreement.rows),
+    "ce-summary.json": `${JSON.stringify({ summary, towns: agreement.towns }, null, 2)}\n`,
     "report.html": html
   };
 }

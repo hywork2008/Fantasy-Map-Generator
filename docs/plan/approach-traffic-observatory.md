@@ -1,6 +1,6 @@
 # 出入り口交通観測所 (Approach Traffic Observatory) 設計
 
-2026-10-17 設計。O0〜O2 実装済み(2026-10-17)。
+2026-10-17 設計。O0〜O3 実装済み(2026-10-17)。
 
 ## 状態
 
@@ -11,7 +11,12 @@
   - 月ストライドで進めた結果は、1 回で同じ期間を進めた結果と一致しない(既存の性質。標本の有無では変わらない)。O0 の完了条件は「sim:server と `npm run sim` の同ストライド実行でハッシュ・標本が一致」で確認した。
   - 渡河施設を共有する `crossing:<c>` の出入り口は経済側に施設 id が無いため、v1 の台帳では `route:<r>:edge:<cell>` で記録する。
   - 同一市場内の出荷(`MarketShipment`)は経路を持たないため、相手都市の方向に最も近い路線の門で両端を記録し、通過は数えない。
-  - descriptor `roads[].approachTraffic`(§4.3)、`observe/burgs/:b/growth` と CE プローブ(O3)、O4 は未実装。新規地図は `fmg:small`(Province/Islet 規模)で生成する。
+  - descriptor `roads[].approachTraffic`(§4.3)と O4 は未実装。新規地図は `fmg:small --wait-extensions`(Province/Islet 規模、`fmg-extensions` を有効化)で生成する。
+- O3: `src/city-editor/services/analysis/approachGrowthProbe.ts`(approachId ごとの ribbon budget/length・ribbon 内の lot 数・門前宿・石畳)、`scripts/observeCeProbe.mjs`(スナップショットの複製に対して別プロセスで実行)、`observe/burgs/:b/growth`、実験定義 `ceProbe.at` による区切り実行、レポートの一致率(`ce.csv`, `ce-summary.json`)。
+- O3 の初回結果(`experiments/approach-baseline.json`、province 3000 cells、seed 101–103、warmup 2 年 + 10 年、+2y/+10y、上位 10 都市、計 58 都市・時点):
+  - P の Top-1 一致 37%(n=51)、Spearman 平均 −0.21(n=27)。路線粒度の traffic は Top-1 64%(n=11)、ρ 0.10(n=20)。
+  - 全都市で urban morphology が有効なため descriptor は `traffic` を渡さず(`burgSiteDescriptor.ts` の `withoutEconomy`)、CE の ribbon は隣接都市の人口と道路種別(`approachGrowthWeight`)で決まる。現状の CE 発展は FMG の交通量とほぼ無関係であることが確認できた。O4 の比較対象はこの状態。
+  - 出入り口が 2〜3 本の小都市が多く、ρ は値が粗い。全球規模の地図での再測定が望ましい。
 - 既存の土台: `npm run sim`(Node でのヘッドレス時間経過)、`npm run sim:server`(チャンネル + REST、[simulation-channel-server.md](simulation-channel-server.md) §13/§16)、`npm run map:server`([map-server.md](map-server.md))、交易回廊台帳 `tradeCorridorLedger.ts`([fmg-economy-to-city-editor.md](fmg-economy-to-city-editor.md) §6)、CE の `UrbanGrowthPlan.regions[].approachId`。
 
 ## 1. 目的

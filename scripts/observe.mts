@@ -11,7 +11,7 @@
  * report  derives the per-period flows (§7.1) and writes approaches.csv, routes.csv, corridors.csv
  *         and report.html next to the samples.
  */
-import { type ChildProcess, execFileSync, fork } from "node:child_process";
+import { type ChildProcess, execFileSync, fork, spawn } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { basename, join, resolve } from "node:path";
@@ -37,9 +37,33 @@ interface Experiment {
   warmup?: { years?: number; months?: number };
   advance: { years?: number; months?: number; days?: number; sampleEvery?: { months: number } };
   sampleDetail?: string;
-  ceProbe?: unknown;
+  ceProbe?: CeProbe;
   workers?: number;
 }
+
+/** §7.2: `at` is an offset from the start of the sampled advance ("+0", "+6m", "+2y"). */
+interface CeProbe {
+  at: string[];
+  burgs?: { topByPopulation?: number; ids?: number[] };
+}
+
+function offsetMonths(text: string): number {
+  const match = /^\+?(\d+)([ym]?)$/.exec(text.trim());
+  if (!match) throw new Error(`ceProbe.at '${text}' must look like +2y or +6m`);
+  return Number(match[1]) * (match[2] === "y" ? 12 : 1);
+}
+
+/** Runs the CE probe on a copy of the world, never on the running channel (§10). */
+function probeSnapshot(snapshot: string, burgIds: number[], out: string): Promise<void> {
+  const args = ["--import", "tsx", join(root, "scripts/observeCeProbe.mjs"), snapshot, burgIds.join(","), out];
+  return new Promise((done, fail) => {
+    const child = spawn(process.execPath, args, { cwd: root, stdio: ["ignore", "ignore", "ignore"] });
+    child.on("error", fail);
+    child.on("exit", code => (code === 0 ? done() : fail(new Error(`CE probe exited with ${code}`))));
+  });
+}
+
+const DEFAULT_EXTENSIONS = ["economy", "characters", "nobility", "shipbuilding"];
 
 /** Defaults that let states and population form (AGENTS.md: Fantasy sets fall back to Marches). */
 const NEW_MAP_DEFAULTS: Record<string, string> = { culturesSet: "european", initialSettlementPattern: "standard" };
@@ -117,12 +141,25 @@ function client(server: string, token: string) {
 }
 
 /** Generates one new map with the headless browser generator (`npm run fmg:small`). */
-function generateMap(seed: string, options: Record<string, string | number | boolean>, mapsDir: string): Uint8Array {
+function generateMap(
+  seed: string,
+  options: Record<string, string | number | boolean>,
+  mapsDir: string,
+  extensions: readonly string[]
+): Uint8Array {
   const { scope = "province", cells, ...storage } = options;
-  const entries = { ...NEW_MAP_DEFAULTS, ...Object.fromEntries(Object.entries(storage).map(([k, v]) => [k, String(v)])) };
+  const entries = {
+    ...NEW_MAP_DEFAULTS,
+    ...Object.fromEntries(Object.entries(storage).map(([k, v]) => [k, String(v)])),
+    // Extensions are off in a fresh browser profile; without this the map has no economy to observe.
+    "fmg-extensions": JSON.stringify({
+      state: { enabledExtensions: Object.fromEntries(extensions.map(id => [id, true])) },
+      version: 0
+    })
+  };
   const storageFile = join(mapsDir, `storage-${seed}.json`);
   writeFileSync(storageFile, JSON.stringify(entries, null, 2));
-  const args = [join(root, "scripts/generateSmallMaps.mjs"), mapsDir, "--seed", seed, "--scope", String(scope), "--local-storage", storageFile];
+  const args = [join(root, "scripts/generateSmallMaps.mjs"), mapsDir, "--seed", seed, "--scope", String(scope), "--local-storage", storageFile, "--wait-extensions"];
   if (cells !== undefined) args.push("--cells", String(cells));
   log(`generating seed ${seed} (${scope})`);
   execFileSync(process.execPath, args, { stdio: ["ignore", "inherit", "inherit"] });
@@ -142,7 +179,8 @@ function jobsOf(experiment: Experiment, api: ReturnType<typeof client>, mapsDir:
   const jobs: Job[] = [];
   for (const map of experiment.maps) {
     if (map.kind === "new") {
-      for (const seed of map.seeds ?? []) jobs.push({ label: `seed-${seed}`, source: () => generateMap(String(seed), map.options ?? {}, mapsDir) });
+      for (const seed of map.seeds ?? []) jobs.push({ label: `seed-${seed}`, source: () => generateMap(String(seed), map.options ?? {}, mapsDir, experiment.extensions ?? DEFAULT_EXTENSIONS)
+        });
     } else if (map.kind === "file") {
       if (!map.path) throw new Error("file map needs path");
       const path = resolve(map.path);
@@ -166,7 +204,7 @@ async function runExperiment(options: ReturnType<typeof parseArgs>) {
   const stamp = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 12);
   const runId = `${experiment.id}-${stamp}`;
   const runDir = join(options.out, runId);
-  for (const sub of ["samples", "static", "maps"]) mkdirSync(join(runDir, sub), { recursive: true });
+  for (const sub of ["samples", "static", "maps", "snapshots", "ce"]) mkdirSync(join(runDir, sub), { recursive: true });
 
   const own = options.server ? null : await startPrivateServer(join(runDir, "channels"));
   const server = options.server ?? own!.url;
@@ -181,8 +219,7 @@ async function runExperiment(options: ReturnType<typeof parseArgs>) {
     finishedAt: null as string | null,
     // The sim:server advance runs the full economy; history / fast-forward modes are not used (§8).
     mockedPeriods: [] as unknown[],
-    ceProbe: experiment.ceProbe ? "not run (stage O3)" : null,
-    channels: [] as { label: string; channel: string; samples: number; error?: string }[]
+    channels: [] as { label: string; channel: string; samples: number; probes: string[]; error?: string }[]
   };
   const save = () => writeFileSync(join(runDir, "run.json"), JSON.stringify(run, null, 2));
   save();
@@ -193,7 +230,7 @@ async function runExperiment(options: ReturnType<typeof parseArgs>) {
     while (next < jobs.length) {
       const index = next++;
       const job = jobs[index];
-      const entry = { label: job.label, channel: job.channel ?? `obs-${stamp}-${index + 1}`, samples: 0 } as (typeof run.channels)[number];
+      const entry = { label: job.label, channel: job.channel ?? `obs-${stamp}-${index + 1}`, samples: 0, probes: [] } as (typeof run.channels)[number];
       run.channels.push(entry);
       try {
         if (!job.channel) {
@@ -211,8 +248,41 @@ async function runExperiment(options: ReturnType<typeof parseArgs>) {
           await api.json("POST", ops, { type: "advance", ...experiment.warmup });
         }
         log(`${entry.channel}: advance ${JSON.stringify(experiment.advance)}`);
-        const { sampleEvery: _, ...duration } = experiment.advance;
-        await api.json("POST", ops, { type: "advance", ...duration, sampleEvery, sampleDetail: experiment.sampleDetail, runId });
+        const totalMonths = (experiment.advance.years ?? 0) * 12 + (experiment.advance.months ?? 0);
+        const probeAt = [...new Set((experiment.ceProbe?.at ?? []).map(offsetMonths))]
+          .filter(m => m <= totalMonths)
+          .sort((a, b) => a - b);
+        const probe = async () => {
+          const summary = (await api.json("GET", `/channels/${entry.channel}`)) as { summary: { date: { year: number; month: number; day: number } } };
+          const { year, month, day } = summary.summary.date;
+          const tag = `${entry.channel}@${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+          const snapshot = join(runDir, "snapshots", `${tag}.fmg`);
+          writeFileSync(snapshot, await api.bytes(`/channels/${entry.channel}/archive`));
+          const sample = (await api.json("GET", `/channels/${entry.channel}/observe/sample?detail=burgs`)) as { burgs: { id: number; pop: number }[] };
+          const wanted = experiment.ceProbe?.burgs ?? { topByPopulation: 10 };
+          const ids = [
+            ...sample.burgs
+              .slice()
+              .sort((a, b) => b.pop - a.pop)
+              .slice(0, wanted.topByPopulation ?? 0)
+              .map(b => b.id),
+            ...(wanted.ids ?? [])
+          ];
+          log(`${entry.channel}: CE probe ${tag} (${ids.length} burgs)`);
+          await probeSnapshot(snapshot, [...new Set(ids)], join(runDir, "ce", `${tag}.json`));
+          entry.probes.push(tag);
+        };
+        // Advance in segments that end at the probe points; sampling continues across them.
+        let done = 0;
+        for (const at of [...new Set([...probeAt, totalMonths])]) {
+          if (at > done) {
+            await api.json("POST", ops, { type: "advance", months: at - done, sampleEvery, sampleDetail: experiment.sampleDetail, runId });
+            done = at;
+          }
+          if (probeAt.includes(at)) await probe();
+        }
+        if (experiment.advance.days)
+          await api.json("POST", ops, { type: "advance", days: experiment.advance.days, sampleEvery, sampleDetail: experiment.sampleDetail, runId });
         const ofRun = (text: string) =>
           text
             .split("\n")
