@@ -198,6 +198,30 @@ export function textScaleForZoom(zoom: number): number {
   return Math.round(((TEXT_BASE_SCREEN_RATIO * (s + 1)) / (2 * zoom)) * 10) / 10;
 }
 
+/** Wall-clock ms per phase of the most recent renderRegionSvg call (for the perf recorder). */
+export let lastRenderPhases: Record<string, number> = {};
+
+/**
+ * Detail levels 1 and 2 produce the same elements and differ only in field-hatch pattern size,
+ * so switching between them is patched in place instead of rebuilding the SVG.
+ */
+export function canPatchDetail(from: number, to: number): boolean {
+  return from > 0 && to > 0;
+}
+
+export function applyDetailInPlace(container: ParentNode, detail: number): void {
+  const size = detail === 2 ? 1.8 : 3;
+  for (const pat of container.querySelectorAll<SVGPatternElement>("pattern[id^='re-field-']")) {
+    pat.setAttribute("width", String(size));
+    pat.setAttribute("height", String(size));
+    const rect = pat.querySelector("rect");
+    rect?.setAttribute("width", String(size));
+    rect?.setAttribute("height", String(detail === 2 ? 0.7 : 1.2));
+    rect?.setAttribute("opacity", detail === 0 ? "0.12" : "0.22");
+  }
+  container.querySelector("#layer-land-use")?.setAttribute("data-detail-level", String(detail));
+}
+
 /** Detail level (LOD) used by renderRegionSvg for a given zoom. */
 export function detailForZoom(zoom: number): number {
   return zoom < 0.65 ? 0 : zoom < 1.6 ? 1 : 2;
@@ -226,6 +250,13 @@ export function renderRegionSvg(
   selectedId?: string | null,
   options: { zoom?: number; quality?: RenderQuality } = {}
 ): string {
+  const phases: Record<string, number> = {};
+  let phaseStart = performance.now();
+  const phase = (name: string) => {
+    const now = performance.now();
+    phases[name] = (phases[name] ?? 0) + (now - phaseStart);
+    phaseStart = now;
+  };
   const zoom = options.zoom ?? 1;
   const highQuality = (options.quality ?? DEFAULT_RENDER_QUALITY) === "high";
   const detail = detailForZoom(zoom);
@@ -258,6 +289,7 @@ export function renderRegionSvg(
     doc.settlements.map(st => st.position),
     doc.bridgeSkewLimitDegrees
   );
+  phase("coastBridgePrep");
   const routes = bridgeLayout.adjustedRoutes;
   const coastPatchD = coasts
     .flatMap(c => c.patches)
@@ -443,6 +475,7 @@ export function renderRegionSvg(
     if (outlineD) forestMode = oblique ? "oblique" : highQuality ? "crowns" : "pattern";
   }
 
+  phase("forest");
   // 1. Defs (パーチメント風テクスチャ、フィルター、森林マスク・シェーディング)
   const defs = `
     <defs>
@@ -720,6 +753,7 @@ export function renderRegionSvg(
       layer: strips.length ? `<g class="ground-blend"><defs>${defs.join("")}</defs>${strips.join("")}</g>` : ""
     };
   })();
+  phase("biomes");
   const biomesLayer = `${biomesLayerBase}\n${groundBlend.layer}\n${coastPatches}`;
 
   /** 沼地セルがこの数を超えたら軽量描画にする */
@@ -759,6 +793,7 @@ export function renderRegionSvg(
   }).join("\n");
   const wetlandMarks = highQuality && !lightWetland ? renderWetlandMarks(wetlandBiomes, "#4f6b3a") : "";
 
+  phase("wetlands");
   // 3.5. 等高線レイヤー（Elevation Contours）
   let contoursLayer = "";
   if (doc.terrain.showContours !== false && doc.terrain.contours && doc.terrain.contours.length > 0) {
@@ -799,6 +834,7 @@ export function renderRegionSvg(
     `;
   }
 
+  phase("contours");
   // 4. 海岸線 & 波紋ハッチング & 湖
   const smoothCoasts = coasts.map(c => c.curve);
   const ripples = generateCoastalRipples(smoothCoasts, 3, 5);
@@ -932,6 +968,7 @@ export function renderRegionSvg(
     })
     .join("\n");
 
+  phase("coastsHabitatsLakes");
   // 5. 河川
   // 5. 河川（太さの変化・水理幅の反映、FMG準拠のベジェ曲線）
   const riversLayer = rivers
@@ -1014,10 +1051,12 @@ export function renderRegionSvg(
     })
     .join("\n");
 
+  phase("riversRoutesBridges");
   const reliefLayer = oblique
     ? renderObliqueRelief(doc.biomes, doc.terrain.heightfield, widthUnits, heightUnits, theme, detail, mapAreaKm2)
     : "";
 
+  phase("relief");
   // 8. 地勢シンボル（山岳、丘陵、樹木、湿地等）
   const reliefBiomes = oblique ? doc.biomes.filter(isReliefBiome) : [];
   const drawnSymbols = doc.symbols
@@ -1115,6 +1154,7 @@ export function renderRegionSvg(
     landUse: landUseCounts
   });
 
+  phase("symbols");
   // 9. 集落・拠点シンボル (Settlements) - 衝突回避ラベル配置
   const labelOffsets = resolveSettlementLabelPlacements(doc.settlements, doc.labels);
   const offsetMap = new Map(labelOffsets.map(o => [o.settlementId, o.offset]));
@@ -1177,6 +1217,7 @@ export function renderRegionSvg(
     })
     .join("\n");
 
+  phase("settlementsLandmarksLabels");
   // 12. 装飾（コンパスローズ、スケールバー、外枠）
   let decorationLayer = "";
   if (doc.decoration.showCompassRose) {
@@ -1235,7 +1276,8 @@ export function renderRegionSvg(
       ? { bottom: cellBordersSvg, top: "" }
       : { bottom: "", top: cellBordersSvg };
 
-  return `
+  phase("decorations");
+  const svgOut = `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${widthUnits} ${heightUnits}" width="100%" height="100%" class="region-map-svg theme-${themeName}">
       ${defs}
       ${background}
@@ -1288,4 +1330,7 @@ export function renderRegionSvg(
       </g>
     </svg>
   `.trim();
+  phase("assemble");
+  lastRenderPhases = phases;
+  return svgOut;
 }

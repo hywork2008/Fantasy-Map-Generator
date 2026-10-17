@@ -13,7 +13,7 @@
  * Performance panel. Console access: window.__rePerf.start() / stop() / report() / json().
  */
 
-export type PerfSpanKind = "wheel" | "textScale" | "render" | "longTask" | "frameGap";
+export type PerfSpanKind = "wheel" | "textScale" | "detailPatch" | "render" | "longTask" | "frameGap";
 
 export interface PerfSpan {
   kind: PerfSpanKind;
@@ -35,7 +35,10 @@ export interface PerfSummary {
     postMs: Stat;
     paintMs: Stat;
     maxSvgElements: number;
+    /** build time per renderRegionSvg phase, summed over renders */
+    phases: Record<string, Stat>;
   };
+  detailPatches: number;
   frames: { count: number; ms: Stat; over50ms: number; over100ms: number; over500ms: number };
   longTasks: { count: number; ms: Stat };
 }
@@ -145,6 +148,11 @@ export class ZoomPerfRecorder {
     this.push("textScale", start, performance.now() - start, { elements });
   }
 
+  detailPatch(start: number, detail: number): void {
+    if (!this.recording) return;
+    this.push("detailPatch", start, performance.now() - start, { detail });
+  }
+
   /** Records a full re-render; paint time is measured until the next animation frame. */
   render(
     start: number,
@@ -197,8 +205,15 @@ export class ZoomPerfRecorder {
         parseMs: stat(renders.map(s => num(s, "parseMs"))),
         postMs: stat(renders.map(s => num(s, "postMs"))),
         paintMs: stat(renders.map(s => num(s, "paintMs"))),
-        maxSvgElements: Math.max(0, ...renders.map(s => num(s, "svgElements")))
+        maxSvgElements: Math.max(0, ...renders.map(s => num(s, "svgElements"))),
+        phases: Object.fromEntries(
+          [...new Set(renders.flatMap(s => Object.keys(s.detail ?? {}).filter(k => k.startsWith("phase."))))].map(k => [
+            k.slice(6),
+            stat(renders.map(s => num(s, k)))
+          ])
+        )
       },
+      detailPatches: of("detailPatch").length,
       frames: {
         count: this.frameIntervals.length,
         ms: stat(this.frameIntervals),
@@ -231,6 +246,10 @@ export class ZoomPerfRecorder {
       `  parse ${f(s.render.parseMs)}`,
       `  post ${f(s.render.postMs)}`,
       `  paint ${f(s.render.paintMs)}`,
+      ...Object.entries(s.render.phases)
+        .sort((a, b) => b[1].total - a[1].total)
+        .map(([k, st]) => `    ${k} avg ${st.mean} / max ${st.max}`),
+      `detail patches (no rebuild) ${s.detailPatches}`,
       `frames ${s.frames.count}, >50ms ${s.frames.over50ms}, >100ms ${s.frames.over100ms}, >500ms ${s.frames.over500ms}`,
       `  interval ${f(s.frames.ms)}`,
       `longTasks ${s.longTasks.count}, ${f(s.longTasks.ms)}`

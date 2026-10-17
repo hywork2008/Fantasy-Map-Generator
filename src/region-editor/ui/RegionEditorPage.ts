@@ -49,10 +49,13 @@ import { describeCell } from "../render/cellInfo";
 import { ILLUSTRATED_PALETTES } from "../render/styles/themes";
 import {
   applyCultivationVisibility,
+  applyDetailInPlace,
   applyTextScale,
+  canPatchDetail,
   carryRenderCaches,
   detailForZoom,
   forestMassOfRenderedDoc,
+  lastRenderPhases,
   renderRegionSvg,
   renderStatsOfRenderedDoc
 } from "../render/svg";
@@ -485,7 +488,8 @@ export function mountRegionEditor(
         detail: renderedDetail,
         zoom: Math.round(zoom * 1000) / 1000,
         svgChars: svg.length,
-        svgElements: svgLayer.querySelectorAll("*").length
+        svgElements: svgLayer.querySelectorAll("*").length,
+        ...Object.fromEntries(Object.entries(lastRenderPhases).map(([k, v]) => [`phase.${k}`, Math.round(v * 10) / 10]))
       });
     }
   }
@@ -1049,7 +1053,14 @@ export function mountRegionEditor(
       });
     clearTimeout(zoomDetailTimer);
     zoomDetailTimer = setTimeout(() => {
-      if (detailForZoom(zoom) !== renderedDetail) renderMap();
+      const next = detailForZoom(zoom);
+      if (next === renderedDetail) return;
+      if (canPatchDetail(renderedDetail, next)) {
+        const tPatch = performance.now();
+        applyDetailInPlace(svgLayer, next);
+        renderedDetail = next;
+        perf.detailPatch(tPatch, next);
+      } else renderMap();
     }, 200);
   }
 
