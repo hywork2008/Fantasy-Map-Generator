@@ -70,13 +70,17 @@ describe("strategic labor markets", () => {
     );
   });
 
-  it("reads wageByOccupation for manufacture: occupation wage, else forestry baseline, else 0", () => {
+  it("scales the subsistence wage by the occupation index, else the forestry index, else 0", () => {
     const [laborMarket] = reconcile([sailOrder()]);
 
-    expect(getManufactureWageRate(undefined, { name: "Sails" })).toBe(0);
-    expect(getManufactureWageRate(laborMarket, { name: "Sails" })).toBe(laborMarket.wageByOccupation.sailmaking);
-    expect(getManufactureWageRate(laborMarket, { name: "Barrels" })).toBe(laborMarket.wageByOccupation.forestry);
-    expect(getManufactureWageRate({ ...laborMarket, wageByOccupation: {} }, { name: "Barrels" })).toBe(1);
+    expect(getManufactureWageRate(undefined, { name: "Sails" }, 50)).toBe(0);
+    expect(getManufactureWageRate(laborMarket, { name: "Sails" }, 50)).toBe(
+      50 * laborMarket.wageByOccupation.sailmaking!
+    );
+    expect(getManufactureWageRate(laborMarket, { name: "Barrels" }, 50)).toBe(
+      50 * laborMarket.wageByOccupation.forestry!
+    );
+    expect(getManufactureWageRate({ ...laborMarket, wageByOccupation: {} }, { name: "Barrels" }, 50)).toBe(50);
   });
 
   it("drops cohorts whose markets no longer exist", () => {

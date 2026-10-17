@@ -1,4 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+// Wage fixtures below read wageByOccupation as coins per labor point; pin the subsistence wage it
+// scales to 1 so they keep that meaning (docs/plan/craft-wage-subsistence-scale.md).
+vi.mock("./subsistenceWage", () => ({ getSubsistenceWage: () => 1, WAGE_SUBSISTENCE_MULTIPLE: 1.5 }));
+
 import { simulationContext } from "../../../context/simulationContext";
 import { createEmptyTechnologySimulationState } from "../../../generators/technologyTypes";
 import { worldContext } from "../../hostCore";

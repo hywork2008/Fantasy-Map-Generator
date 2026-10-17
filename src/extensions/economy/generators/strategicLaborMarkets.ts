@@ -87,26 +87,31 @@ export function reconcileStrategicLaborMarkets(
     const desiredWorkers = getDesiredWorkers(workforce, demandMultiplierByOccupation);
 
     moveWorkersTowardDemand(laborMarket, desiredWorkers, workforce);
-    updateWagesSkillsAndCapacity(laborMarket, demandMultiplierByOccupation, goodById, workforce);
+    updateWagesSkillsAndCapacity(laborMarket, demandMultiplierByOccupation, workforce);
     return laborMarket;
   });
 }
 
 /**
- * Coins per population-point of manufacturing labor (docs/plan/economy-coupling-audit.md L2 Phase 1).
- *
- * Strategic goods (Wood/Sails/Ropes/Tar) use that occupation's live `wageByOccupation`.
- * Other crafts use the local forestry wage as the unskilled baseline, so a tight labor
- * market still raises general manufacturing cost. Missing labor market → 0, matching
- * tests and Economy-off paths that never reconciled a cohort.
+ * Coins per labor point of manufacturing (docs/plan/craft-wage-subsistence-scale.md): the local
+ * subsistence wage (`getSubsistenceWage`) times the occupation's relative wage. Strategic goods
+ * (Wood/Sails/Ropes/Tar) use that occupation's live `wageByOccupation` index; other crafts use the
+ * forestry index as the unskilled baseline, so a tight labor market still raises general
+ * manufacturing cost. Missing labor market → 0, matching tests and Economy-off paths that never
+ * reconciled a cohort (every live market gets one each production cycle).
  */
-export function getManufactureWageRate(laborMarket: LaborMarket | undefined, good: Pick<Good, "name">): number {
+export function getManufactureWageRate(
+  laborMarket: LaborMarket | undefined,
+  good: Pick<Good, "name">,
+  subsistenceWage: number
+): number {
+  if (!(subsistenceWage > 0)) return 0;
   if (!laborMarket) return 0;
   const occupation = getStrategicOccupation(good);
   const occupied = occupation ? laborMarket.wageByOccupation[occupation] : undefined;
-  if (typeof occupied === "number" && Number.isFinite(occupied) && occupied > 0) return occupied;
+  if (typeof occupied === "number" && Number.isFinite(occupied) && occupied > 0) return subsistenceWage * occupied;
   const baseline = laborMarket.wageByOccupation.forestry ?? 1;
-  return typeof baseline === "number" && Number.isFinite(baseline) && baseline > 0 ? baseline : 0;
+  return subsistenceWage * (typeof baseline === "number" && Number.isFinite(baseline) && baseline > 0 ? baseline : 1);
 }
 
 /** Returns the output multiplier earned by an established strategic cohort. */
@@ -200,11 +205,9 @@ function moveWorkersTowardDemand(
 function updateWagesSkillsAndCapacity(
   laborMarket: LaborMarket,
   demandMultiplierByOccupation: Record<StrategicOccupation, number>,
-  goodById: ReadonlyMap<number, Good>,
   workforce: number
 ): void {
   for (const occupation of STRATEGIC_OCCUPATIONS) {
-    const good = findOccupationGood(occupation, goodById);
     const demandMultiplier = demandMultiplierByOccupation[occupation];
     const workers = laborMarket.workersByOccupation[occupation] ?? 0;
     const workforceShare = workforce > 0 ? workers / workforce : 0;
@@ -215,7 +218,8 @@ function updateWagesSkillsAndCapacity(
     const desiredCapacity = workers * (1 + Math.min(0.5, (demandMultiplier - 1) * 0.15));
     const capacityChange = clamp(desiredCapacity - currentCapacity, -workforce * 0.02, workforce * 0.05);
 
-    laborMarket.wageByOccupation[occupation] = (good?.value ?? 1) * demandMultiplier;
+    // Relative wage index; getManufactureWageRate() multiplies it by the local subsistence wage.
+    laborMarket.wageByOccupation[occupation] = demandMultiplier;
     laborMarket.skillByOccupation[occupation] = skill;
     laborMarket.capacityByOccupation[occupation] = Math.max(0, currentCapacity + capacityChange);
   }

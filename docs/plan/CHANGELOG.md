@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-10-18
+
+- docs/plan/craft-wage-subsistence-scale.md - 生産の賃金(労働点 1 = 1,000 人・月に約 1 SP)を地元の穀物価格で測った生活費 × 倍率にそろえ、都市の家計が食費を払えるようにする設計(money-scale-calibration.md §8.3 の残課題)
+
 2026-10-17
 
 - docs/plan/approach-commerce-quarters.md - 門ごとの物流(占有率・流入出・貨物区分)と史料調査に基づき、CE の市場通り・商人区・職人区・門前宿・家畜市・資材置き場の配置を物流に従わせる改善案

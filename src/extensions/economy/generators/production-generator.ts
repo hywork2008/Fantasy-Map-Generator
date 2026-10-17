@@ -138,6 +138,8 @@ export type {
   ProductionRecord
 } from "./productionRecordTypes";
 
+import { getSubsistenceWage } from "./subsistenceWage";
+
 const BONUS_URBAN_PRODUCTION = 1;
 
 /**
@@ -1035,7 +1037,7 @@ export class ProductionModule {
     let actualYield = Math.min(desiredLots, maxYield);
     const fundingState = this.getStateMilitaryManufacturingFund(state, decision.goalGoodId);
     const availableFunds = fundingState?.treasury ?? state.burg.treasury ?? 0;
-    const wageRate = getManufactureWageRate(state.strategicLaborMarket, good);
+    const wageRate = getManufactureWageRate(state.strategicLaborMarket, good, getSubsistenceWage(state.market));
     const wageCostPerLot = laborPerLot * wageRate;
 
     if (good.name === "Garments") {
