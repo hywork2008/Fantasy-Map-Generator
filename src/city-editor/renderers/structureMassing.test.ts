@@ -172,6 +172,34 @@ describe("city structures", () => {
 });
 
 describe("cutWallOpenings", () => {
+  it("follows the perimeter in order across the ring origin between gates", () => {
+    const runs = cutWallOpenings(
+      [
+        [0, 0],
+        [40, 0],
+        [40, 40],
+        [0, 40],
+        [0, 0]
+      ],
+      [
+        { index: 1, half: 3 },
+        { index: 3, half: 3 }
+      ]
+    );
+    expect(runs).toEqual([
+      [
+        [40, 3],
+        [40, 40],
+        [3, 40]
+      ],
+      [
+        [0, 37],
+        [0, 0],
+        [37, 0]
+      ]
+    ]);
+  });
+
   it("removes a span around the gate vertex", () => {
     const runs = cutWallOpenings(
       [
