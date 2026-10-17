@@ -1,5 +1,6 @@
 import type { BuildingMassing, RoofForm } from "../../city-editor/types/contracts/buildingMassing";
 import type { Point } from "../../city-editor/types/primitives";
+import { planVertex } from "./planFrame";
 
 type V3 = [number, number, number];
 interface Bucket {
@@ -106,6 +107,9 @@ function offsetConvex(poly: readonly Point[], distance: number): Point[] {
     const previous = lines[(i + poly.length - 1) % poly.length];
     const hit = lineIntersection(previous.a, previous.b, lines[i].a, lines[i].b);
     if (!hit || !Number.isFinite(hit[0]) || !Number.isFinite(hit[1])) return poly.map(point => [point[0], point[1]]);
+    // Acute corners must not turn a small jetty into a long projecting spike.
+    if (Math.hypot(hit[0] - poly[i][0], hit[1] - poly[i][1]) > distance * 4)
+      return poly.map(point => [point[0], point[1]]);
     ring.push(hit);
   }
   return ring;
@@ -124,7 +128,7 @@ function pointInTri(p: Point, a: Point, b: Point, c: Point): boolean {
   return !(negative && positive);
 }
 
-function earClip(poly: readonly Point[]): Array<[number, number, number]> {
+export function earClip(poly: readonly Point[]): Array<[number, number, number]> {
   const index = poly.map((_, i) => i);
   const triangles: Array<[number, number, number]> = [];
   let guard = poly.length * poly.length;
@@ -179,18 +183,22 @@ function pushOriented(bucket: Bucket, a: V3, b: V3, c: V3, interior: V3, forceDo
 }
 
 function addWall(bucket: Bucket, a: Point, b: Point, y0: number, y1: number, interior: V3): void {
-  pushOriented(bucket, [a[0], y0, a[1]], [b[0], y0, b[1]], [b[0], y1, b[1]], interior);
-  pushOriented(bucket, [a[0], y0, a[1]], [b[0], y1, b[1]], [a[0], y1, a[1]], interior);
+  const a0 = planVertex(a, y0);
+  const b0 = planVertex(b, y0);
+  const a1 = planVertex(a, y1);
+  const b1 = planVertex(b, y1);
+  pushOriented(bucket, a0, b0, b1, interior);
+  pushOriented(bucket, a0, b1, a1, interior);
 }
 
 function addSoffit(bucket: Bucket, inner: readonly Point[], outer: readonly Point[], y: number): void {
   if (inner.length !== outer.length) return;
   for (let i = 0; i < inner.length; i++) {
     const next = (i + 1) % inner.length;
-    const a: V3 = [inner[i][0], y, inner[i][1]];
-    const b: V3 = [inner[next][0], y, inner[next][1]];
-    const c: V3 = [outer[next][0], y, outer[next][1]];
-    const d: V3 = [outer[i][0], y, outer[i][1]];
+    const a = planVertex(inner[i], y);
+    const b = planVertex(inner[next], y);
+    const c = planVertex(outer[next], y);
+    const d = planVertex(outer[i], y);
     pushOriented(bucket, a, b, c, [0, y + 1, 0], true);
     pushOriented(bucket, a, c, d, [0, y + 1, 0], true);
   }
@@ -198,25 +206,13 @@ function addSoffit(bucket: Bucket, inner: readonly Point[], outer: readonly Poin
 
 function addFloor(bucket: Bucket, ring: readonly Point[], interior: V3): void {
   for (const [i, j, k] of earClip(ring)) {
-    pushOriented(
-      bucket,
-      [ring[i][0], 0, ring[i][1]],
-      [ring[j][0], 0, ring[j][1]],
-      [ring[k][0], 0, ring[k][1]],
-      interior
-    );
+    pushOriented(bucket, planVertex(ring[i], 0), planVertex(ring[j], 0), planVertex(ring[k], 0), interior);
   }
 }
 
 function addFlatRoof(bucket: Bucket, ring: readonly Point[], y: number, interior: V3): void {
   for (const [i, j, k] of earClip(ring)) {
-    pushOriented(
-      bucket,
-      [ring[i][0], y, ring[i][1]],
-      [ring[j][0], y, ring[j][1]],
-      [ring[k][0], y, ring[k][1]],
-      interior
-    );
+    pushOriented(bucket, planVertex(ring[i], y), planVertex(ring[j], y), planVertex(ring[k], y), interior);
   }
 }
 
@@ -309,10 +305,10 @@ function addEdgeToRidge(
     addWall(walls, a, b, y, y + rise, interior);
     return;
   }
-  const a0: V3 = [a[0], y, a[1]];
-  const b0: V3 = [b[0], y, b[1]];
-  const a1: V3 = [projectedA[0], y + rise, projectedA[1]];
-  const b1: V3 = [projectedB[0], y + rise, projectedB[1]];
+  const a0 = planVertex(a, y);
+  const b0 = planVertex(b, y);
+  const a1 = planVertex(projectedA, y + rise);
+  const b1 = planVertex(projectedB, y + rise);
   if (samePoint(projectedA, projectedB)) {
     addClassified(walls, roofs, a0, b0, a1, interior);
     return;
@@ -387,7 +383,7 @@ function addLeanTo(
 
 /**
  * Closed wall, floor and roof triangles for one lot. Null when the footprint cannot be drawn.
- * X = CE x, Y = height, Z = CE y.
+ * X = CE x, Y = height, Z = -CE y, matching the SVG frame.
  */
 export function buildingSurfaces(polygon: readonly Point[], massing: BuildingMassing): BuildingSurfaces | null {
   const base = cleanRing(polygon);
@@ -398,7 +394,7 @@ export function buildingSurfaces(polygon: readonly Point[], massing: BuildingMas
   const roofs: Bucket = { positions: [], normals: [] };
   const centre = centroid(base);
   const eave = massing.eaveHeightMeters;
-  const interior: V3 = [centre[0], Math.max(eave * 0.45, 0.5), centre[1]];
+  const interior = planVertex(centre, Math.max(eave * 0.45, 0.5));
   let y = 0;
   let previous = base;
   for (let level = 0; level < massing.floors.length; level++) {

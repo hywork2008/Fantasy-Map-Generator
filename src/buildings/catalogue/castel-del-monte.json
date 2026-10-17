@@ -1,0 +1,1383 @@
+{
+  "format": "fmg-building-record",
+  "version": 1,
+  "id": "castel-del-monte",
+  "revision": 1,
+  "contentHash": "015e7e6e3328312e25146e8c5ece00215f6e29fb0d5f95cf973c092e3af0a0cf",
+  "name": "Castel del Monte",
+  "kind": "castle",
+  "period": "highMedieval",
+  "planFamily": "octagonal",
+  "region": "Andria, Apulia, Italy",
+  "occupancyMeters": {
+    "width": 47.318586,
+    "depth": 47.318586
+  },
+  "approachAzimuthRadians": 0,
+  "placementStyles": [
+    "classic",
+    "concentric"
+  ],
+  "levels": [
+    {
+      "id": "ground",
+      "name": "Ground",
+      "elevationMeters": 0,
+      "floorToFloorMeters": 12.5,
+      "plates": [
+        {
+          "id": "ground-court",
+          "use": "courtyard",
+          "outer": [
+            [
+              8.875,
+              -3.676145
+            ],
+            [
+              8.875,
+              3.676145
+            ],
+            [
+              3.676145,
+              8.875
+            ],
+            [
+              -3.676145,
+              8.875
+            ],
+            [
+              -8.875,
+              3.676145
+            ],
+            [
+              -8.875,
+              -3.676145
+            ],
+            [
+              -3.676145,
+              -8.875
+            ],
+            [
+              3.676145,
+              -8.875
+            ]
+          ],
+          "holes": [],
+          "kind": "court",
+          "roof": "open"
+        }
+      ],
+      "walls": [
+        {
+          "id": "body",
+          "kind": "curtain",
+          "outer": [
+            [
+              19.917262,
+              -8.25
+            ],
+            [
+              19.917262,
+              8.25
+            ],
+            [
+              8.25,
+              19.917262
+            ],
+            [
+              -8.25,
+              19.917262
+            ],
+            [
+              -19.917262,
+              8.25
+            ],
+            [
+              -19.917262,
+              -8.25
+            ],
+            [
+              -8.25,
+              -19.917262
+            ],
+            [
+              8.25,
+              -19.917262
+            ]
+          ],
+          "holes": [
+            [
+              [
+                8.875,
+                -3.676145
+              ],
+              [
+                3.676145,
+                -8.875
+              ],
+              [
+                -3.676145,
+                -8.875
+              ],
+              [
+                -8.875,
+                -3.676145
+              ],
+              [
+                -8.875,
+                3.676145
+              ],
+              [
+                -3.676145,
+                8.875
+              ],
+              [
+                3.676145,
+                8.875
+              ],
+              [
+                8.875,
+                3.676145
+              ]
+            ]
+          ],
+          "thicknessMeters": 11.042262
+        },
+        {
+          "id": "tower-ese",
+          "kind": "tower",
+          "outer": [
+            [
+              23.659293,
+              -9.8
+            ],
+            [
+              23.659293,
+              -6.7
+            ],
+            [
+              21.467262,
+              -4.507969
+            ],
+            [
+              18.367262,
+              -4.507969
+            ],
+            [
+              16.175231,
+              -6.7
+            ],
+            [
+              16.175231,
+              -9.8
+            ],
+            [
+              18.367262,
+              -11.992031
+            ],
+            [
+              21.467262,
+              -11.992031
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 7.484062
+        },
+        {
+          "id": "tower-ene",
+          "kind": "tower",
+          "outer": [
+            [
+              23.659293,
+              6.7
+            ],
+            [
+              23.659293,
+              9.8
+            ],
+            [
+              21.467262,
+              11.992031
+            ],
+            [
+              18.367262,
+              11.992031
+            ],
+            [
+              16.175231,
+              9.8
+            ],
+            [
+              16.175231,
+              6.7
+            ],
+            [
+              18.367262,
+              4.507969
+            ],
+            [
+              21.467262,
+              4.507969
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 7.484062
+        },
+        {
+          "id": "tower-nne",
+          "kind": "tower",
+          "outer": [
+            [
+              11.992031,
+              18.367262
+            ],
+            [
+              11.992031,
+              21.467262
+            ],
+            [
+              9.8,
+              23.659293
+            ],
+            [
+              6.7,
+              23.659293
+            ],
+            [
+              4.507969,
+              21.467262
+            ],
+            [
+              4.507969,
+              18.367262
+            ],
+            [
+              6.7,
+              16.175231
+            ],
+            [
+              9.8,
+              16.175231
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 7.484062
+        },
+        {
+          "id": "tower-nnw",
+          "kind": "tower",
+          "outer": [
+            [
+              -4.507969,
+              18.367262
+            ],
+            [
+              -4.507969,
+              21.467262
+            ],
+            [
+              -6.7,
+              23.659293
+            ],
+            [
+              -9.8,
+              23.659293
+            ],
+            [
+              -11.992031,
+              21.467262
+            ],
+            [
+              -11.992031,
+              18.367262
+            ],
+            [
+              -9.8,
+              16.175231
+            ],
+            [
+              -6.7,
+              16.175231
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 7.484062
+        },
+        {
+          "id": "tower-wnw",
+          "kind": "tower",
+          "outer": [
+            [
+              -16.175231,
+              6.7
+            ],
+            [
+              -16.175231,
+              9.8
+            ],
+            [
+              -18.367262,
+              11.992031
+            ],
+            [
+              -21.467262,
+              11.992031
+            ],
+            [
+              -23.659293,
+              9.8
+            ],
+            [
+              -23.659293,
+              6.7
+            ],
+            [
+              -21.467262,
+              4.507969
+            ],
+            [
+              -18.367262,
+              4.507969
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 7.484062
+        },
+        {
+          "id": "tower-wsw",
+          "kind": "tower",
+          "outer": [
+            [
+              -16.175231,
+              -9.8
+            ],
+            [
+              -16.175231,
+              -6.7
+            ],
+            [
+              -18.367262,
+              -4.507969
+            ],
+            [
+              -21.467262,
+              -4.507969
+            ],
+            [
+              -23.659293,
+              -6.7
+            ],
+            [
+              -23.659293,
+              -9.8
+            ],
+            [
+              -21.467262,
+              -11.992031
+            ],
+            [
+              -18.367262,
+              -11.992031
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 7.484062
+        },
+        {
+          "id": "tower-ssw",
+          "kind": "tower",
+          "outer": [
+            [
+              -4.507969,
+              -21.467262
+            ],
+            [
+              -4.507969,
+              -18.367262
+            ],
+            [
+              -6.7,
+              -16.175231
+            ],
+            [
+              -9.8,
+              -16.175231
+            ],
+            [
+              -11.992031,
+              -18.367262
+            ],
+            [
+              -11.992031,
+              -21.467262
+            ],
+            [
+              -9.8,
+              -23.659293
+            ],
+            [
+              -6.7,
+              -23.659293
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 7.484062
+        },
+        {
+          "id": "tower-sse",
+          "kind": "tower",
+          "outer": [
+            [
+              11.992031,
+              -21.467262
+            ],
+            [
+              11.992031,
+              -18.367262
+            ],
+            [
+              9.8,
+              -16.175231
+            ],
+            [
+              6.7,
+              -16.175231
+            ],
+            [
+              4.507969,
+              -18.367262
+            ],
+            [
+              4.507969,
+              -21.467262
+            ],
+            [
+              6.7,
+              -23.659293
+            ],
+            [
+              9.8,
+              -23.659293
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 7.484062
+        }
+      ],
+      "openings": [
+        {
+          "id": "east-door",
+          "ring": {
+            "wallId": "body",
+            "hole": null
+          },
+          "offsetMeters": 7.25,
+          "widthMeters": 2,
+          "sillMeters": 0,
+          "heightMeters": 3,
+          "kind": "door"
+        }
+      ],
+      "fixtures": []
+    },
+    {
+      "id": "upper",
+      "name": "Upper",
+      "elevationMeters": 12.5,
+      "floorToFloorMeters": 12.5,
+      "plates": [
+        {
+          "id": "upper-court",
+          "use": "courtyard",
+          "outer": [
+            [
+              8.875,
+              -3.676145
+            ],
+            [
+              8.875,
+              3.676145
+            ],
+            [
+              3.676145,
+              8.875
+            ],
+            [
+              -3.676145,
+              8.875
+            ],
+            [
+              -8.875,
+              3.676145
+            ],
+            [
+              -8.875,
+              -3.676145
+            ],
+            [
+              -3.676145,
+              -8.875
+            ],
+            [
+              3.676145,
+              -8.875
+            ]
+          ],
+          "holes": [],
+          "kind": "court",
+          "roof": "open"
+        }
+      ],
+      "walls": [
+        {
+          "id": "body",
+          "kind": "curtain",
+          "outer": [
+            [
+              19.917262,
+              -8.25
+            ],
+            [
+              19.917262,
+              8.25
+            ],
+            [
+              8.25,
+              19.917262
+            ],
+            [
+              -8.25,
+              19.917262
+            ],
+            [
+              -19.917262,
+              8.25
+            ],
+            [
+              -19.917262,
+              -8.25
+            ],
+            [
+              -8.25,
+              -19.917262
+            ],
+            [
+              8.25,
+              -19.917262
+            ]
+          ],
+          "holes": [
+            [
+              [
+                8.875,
+                -3.676145
+              ],
+              [
+                3.676145,
+                -8.875
+              ],
+              [
+                -3.676145,
+                -8.875
+              ],
+              [
+                -8.875,
+                -3.676145
+              ],
+              [
+                -8.875,
+                3.676145
+              ],
+              [
+                -3.676145,
+                8.875
+              ],
+              [
+                3.676145,
+                8.875
+              ],
+              [
+                8.875,
+                3.676145
+              ]
+            ]
+          ],
+          "thicknessMeters": 11.042262
+        },
+        {
+          "id": "tower-ese",
+          "kind": "tower",
+          "outer": [
+            [
+              23.659293,
+              -9.8
+            ],
+            [
+              23.659293,
+              -6.7
+            ],
+            [
+              21.467262,
+              -4.507969
+            ],
+            [
+              18.367262,
+              -4.507969
+            ],
+            [
+              16.175231,
+              -6.7
+            ],
+            [
+              16.175231,
+              -9.8
+            ],
+            [
+              18.367262,
+              -11.992031
+            ],
+            [
+              21.467262,
+              -11.992031
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 7.484062
+        },
+        {
+          "id": "tower-ene",
+          "kind": "tower",
+          "outer": [
+            [
+              23.659293,
+              6.7
+            ],
+            [
+              23.659293,
+              9.8
+            ],
+            [
+              21.467262,
+              11.992031
+            ],
+            [
+              18.367262,
+              11.992031
+            ],
+            [
+              16.175231,
+              9.8
+            ],
+            [
+              16.175231,
+              6.7
+            ],
+            [
+              18.367262,
+              4.507969
+            ],
+            [
+              21.467262,
+              4.507969
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 7.484062
+        },
+        {
+          "id": "tower-nne",
+          "kind": "tower",
+          "outer": [
+            [
+              11.992031,
+              18.367262
+            ],
+            [
+              11.992031,
+              21.467262
+            ],
+            [
+              9.8,
+              23.659293
+            ],
+            [
+              6.7,
+              23.659293
+            ],
+            [
+              4.507969,
+              21.467262
+            ],
+            [
+              4.507969,
+              18.367262
+            ],
+            [
+              6.7,
+              16.175231
+            ],
+            [
+              9.8,
+              16.175231
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 7.484062
+        },
+        {
+          "id": "tower-nnw",
+          "kind": "tower",
+          "outer": [
+            [
+              -4.507969,
+              18.367262
+            ],
+            [
+              -4.507969,
+              21.467262
+            ],
+            [
+              -6.7,
+              23.659293
+            ],
+            [
+              -9.8,
+              23.659293
+            ],
+            [
+              -11.992031,
+              21.467262
+            ],
+            [
+              -11.992031,
+              18.367262
+            ],
+            [
+              -9.8,
+              16.175231
+            ],
+            [
+              -6.7,
+              16.175231
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 7.484062
+        },
+        {
+          "id": "tower-wnw",
+          "kind": "tower",
+          "outer": [
+            [
+              -16.175231,
+              6.7
+            ],
+            [
+              -16.175231,
+              9.8
+            ],
+            [
+              -18.367262,
+              11.992031
+            ],
+            [
+              -21.467262,
+              11.992031
+            ],
+            [
+              -23.659293,
+              9.8
+            ],
+            [
+              -23.659293,
+              6.7
+            ],
+            [
+              -21.467262,
+              4.507969
+            ],
+            [
+              -18.367262,
+              4.507969
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 7.484062
+        },
+        {
+          "id": "tower-wsw",
+          "kind": "tower",
+          "outer": [
+            [
+              -16.175231,
+              -9.8
+            ],
+            [
+              -16.175231,
+              -6.7
+            ],
+            [
+              -18.367262,
+              -4.507969
+            ],
+            [
+              -21.467262,
+              -4.507969
+            ],
+            [
+              -23.659293,
+              -6.7
+            ],
+            [
+              -23.659293,
+              -9.8
+            ],
+            [
+              -21.467262,
+              -11.992031
+            ],
+            [
+              -18.367262,
+              -11.992031
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 7.484062
+        },
+        {
+          "id": "tower-ssw",
+          "kind": "tower",
+          "outer": [
+            [
+              -4.507969,
+              -21.467262
+            ],
+            [
+              -4.507969,
+              -18.367262
+            ],
+            [
+              -6.7,
+              -16.175231
+            ],
+            [
+              -9.8,
+              -16.175231
+            ],
+            [
+              -11.992031,
+              -18.367262
+            ],
+            [
+              -11.992031,
+              -21.467262
+            ],
+            [
+              -9.8,
+              -23.659293
+            ],
+            [
+              -6.7,
+              -23.659293
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 7.484062
+        },
+        {
+          "id": "tower-sse",
+          "kind": "tower",
+          "outer": [
+            [
+              11.992031,
+              -21.467262
+            ],
+            [
+              11.992031,
+              -18.367262
+            ],
+            [
+              9.8,
+              -16.175231
+            ],
+            [
+              6.7,
+              -16.175231
+            ],
+            [
+              4.507969,
+              -18.367262
+            ],
+            [
+              4.507969,
+              -21.467262
+            ],
+            [
+              6.7,
+              -23.659293
+            ],
+            [
+              9.8,
+              -23.659293
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 7.484062
+        }
+      ],
+      "openings": [],
+      "fixtures": []
+    },
+    {
+      "id": "tower-heads",
+      "name": "Tower heads",
+      "elevationMeters": 25,
+      "floorToFloorMeters": 1,
+      "plates": [],
+      "walls": [
+        {
+          "id": "tower-ese",
+          "kind": "tower",
+          "outer": [
+            [
+              23.659293,
+              -9.8
+            ],
+            [
+              23.659293,
+              -6.7
+            ],
+            [
+              21.467262,
+              -4.507969
+            ],
+            [
+              18.367262,
+              -4.507969
+            ],
+            [
+              16.175231,
+              -6.7
+            ],
+            [
+              16.175231,
+              -9.8
+            ],
+            [
+              18.367262,
+              -11.992031
+            ],
+            [
+              21.467262,
+              -11.992031
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 7.484062
+        },
+        {
+          "id": "tower-ene",
+          "kind": "tower",
+          "outer": [
+            [
+              23.659293,
+              6.7
+            ],
+            [
+              23.659293,
+              9.8
+            ],
+            [
+              21.467262,
+              11.992031
+            ],
+            [
+              18.367262,
+              11.992031
+            ],
+            [
+              16.175231,
+              9.8
+            ],
+            [
+              16.175231,
+              6.7
+            ],
+            [
+              18.367262,
+              4.507969
+            ],
+            [
+              21.467262,
+              4.507969
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 7.484062
+        },
+        {
+          "id": "tower-nne",
+          "kind": "tower",
+          "outer": [
+            [
+              11.992031,
+              18.367262
+            ],
+            [
+              11.992031,
+              21.467262
+            ],
+            [
+              9.8,
+              23.659293
+            ],
+            [
+              6.7,
+              23.659293
+            ],
+            [
+              4.507969,
+              21.467262
+            ],
+            [
+              4.507969,
+              18.367262
+            ],
+            [
+              6.7,
+              16.175231
+            ],
+            [
+              9.8,
+              16.175231
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 7.484062
+        },
+        {
+          "id": "tower-nnw",
+          "kind": "tower",
+          "outer": [
+            [
+              -4.507969,
+              18.367262
+            ],
+            [
+              -4.507969,
+              21.467262
+            ],
+            [
+              -6.7,
+              23.659293
+            ],
+            [
+              -9.8,
+              23.659293
+            ],
+            [
+              -11.992031,
+              21.467262
+            ],
+            [
+              -11.992031,
+              18.367262
+            ],
+            [
+              -9.8,
+              16.175231
+            ],
+            [
+              -6.7,
+              16.175231
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 7.484062
+        },
+        {
+          "id": "tower-wnw",
+          "kind": "tower",
+          "outer": [
+            [
+              -16.175231,
+              6.7
+            ],
+            [
+              -16.175231,
+              9.8
+            ],
+            [
+              -18.367262,
+              11.992031
+            ],
+            [
+              -21.467262,
+              11.992031
+            ],
+            [
+              -23.659293,
+              9.8
+            ],
+            [
+              -23.659293,
+              6.7
+            ],
+            [
+              -21.467262,
+              4.507969
+            ],
+            [
+              -18.367262,
+              4.507969
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 7.484062
+        },
+        {
+          "id": "tower-wsw",
+          "kind": "tower",
+          "outer": [
+            [
+              -16.175231,
+              -9.8
+            ],
+            [
+              -16.175231,
+              -6.7
+            ],
+            [
+              -18.367262,
+              -4.507969
+            ],
+            [
+              -21.467262,
+              -4.507969
+            ],
+            [
+              -23.659293,
+              -6.7
+            ],
+            [
+              -23.659293,
+              -9.8
+            ],
+            [
+              -21.467262,
+              -11.992031
+            ],
+            [
+              -18.367262,
+              -11.992031
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 7.484062
+        },
+        {
+          "id": "tower-ssw",
+          "kind": "tower",
+          "outer": [
+            [
+              -4.507969,
+              -21.467262
+            ],
+            [
+              -4.507969,
+              -18.367262
+            ],
+            [
+              -6.7,
+              -16.175231
+            ],
+            [
+              -9.8,
+              -16.175231
+            ],
+            [
+              -11.992031,
+              -18.367262
+            ],
+            [
+              -11.992031,
+              -21.467262
+            ],
+            [
+              -9.8,
+              -23.659293
+            ],
+            [
+              -6.7,
+              -23.659293
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 7.484062
+        },
+        {
+          "id": "tower-sse",
+          "kind": "tower",
+          "outer": [
+            [
+              11.992031,
+              -21.467262
+            ],
+            [
+              11.992031,
+              -18.367262
+            ],
+            [
+              9.8,
+              -16.175231
+            ],
+            [
+              6.7,
+              -16.175231
+            ],
+            [
+              4.507969,
+              -18.367262
+            ],
+            [
+              4.507969,
+              -21.467262
+            ],
+            [
+              6.7,
+              -23.659293
+            ],
+            [
+              9.8,
+              -23.659293
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 7.484062
+        }
+      ],
+      "openings": [],
+      "fixtures": []
+    }
+  ],
+  "verticalLinks": [
+    {
+      "id": "stair",
+      "kind": "stair",
+      "fromLevelId": "ground",
+      "toLevelId": "upper",
+      "footprint": [
+        [
+          19.167262,
+          7.5
+        ],
+        [
+          20.667262,
+          7.5
+        ],
+        [
+          20.667262,
+          9
+        ],
+        [
+          19.167262,
+          9
+        ]
+      ],
+      "widthMeters": 1.5
+    },
+    {
+      "id": "tower-head-stair",
+      "kind": "stair",
+      "fromLevelId": "upper",
+      "toLevelId": "tower-heads",
+      "footprint": [
+        [
+          19.167262,
+          7.5
+        ],
+        [
+          20.667262,
+          7.5
+        ],
+        [
+          20.667262,
+          9
+        ],
+        [
+          19.167262,
+          9
+        ]
+      ],
+      "widthMeters": 1.5
+    }
+  ],
+  "roofs": [
+    {
+      "baseId": "body",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "tower-ese",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "tower-ene",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "tower-nne",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "tower-nnw",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "tower-wnw",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "tower-wsw",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "tower-ssw",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "tower-sse",
+      "form": "flat",
+      "pitchDeg": 0
+    }
+  ],
+  "materials": {
+    "wall": "stone",
+    "roof": "flat-stone"
+  },
+  "provenance": {
+    "constructionPeriod": "Built 1240-1250 for Frederick II. The interior was probably never finished.",
+    "depictedPhase": "The surviving octagon, with the wall at its present 25 m and the towers at their present 26 m.",
+    "omitted": [
+      "About 5 m of lost tower height, and the third floor that may have stood there",
+      "Marble lining, columns, and other interior ornament",
+      "Decoration that the restorations after the 1876 state purchase did not put back",
+      "The eight rooms on each floor, their vaults, and their doorways",
+      "The service entrance, whose side is not given",
+      "Two of the three stair towers, which are not identified",
+      "A curtain wall suggested by archaeology, with no dimensions in this source set"
+    ],
+    "dimensionSource": "English Wikipedia, \"Castel del Monte, Apulia\", and Structurae, \"Castel del Monte\": main octagon sides 16.5 m, wall height 25 m, eight towers of side 3.1 m and height 26 m, diameter about 56 m, main entrance facing east. The Structurae excerpt gives the courtyard width between opposite walls as 17.63-17.86 m, courtyard sides varying from 6.96 m to 7.92 m, and says that six sides of each tower are built while two are bonded into the main wall. Two floors, eight rooms on each.",
+    "planClass": "well-published-survey",
+    "confidence": "measured",
+    "note": "The local origin is the centre of the octagon, and +X is east. The main octagon and the towers are regular. Each tower is centred on a main vertex and shares its orientation, so two tower sides fall inside the body. The span across opposite outer tower vertices follows those side lengths and is not stretched to the published approximate diameter of 56 m. The courtyard is a regular octagon 17.75 m across the flats, inside the published 17.63-17.86 m range; its side falls inside the published 6.96-7.92 m variation. Rooms are not cut out, so the body ring is the whole depth from the outer face to the courtyard, not a measured wall thickness. Floor heights are not published, so the 25 m wall is split into two equal floors. The extra metre is the tower head, not a third storey. The east door is a coarse 2 m opening on the middle of the outer east side, not a surveyed portal. One stair sits in the east-north tower."
+  }
+}

@@ -902,6 +902,11 @@ export interface Route {
    * (docs/plan/economy-coupling-audit.md L8 stage 2).
    */
   traffic?: number;
+  /**
+   * Pin from a future route editor. Absent means classifyRouteSurface derives
+   * the wearing course. Generators and publicWorks promotion must not write this.
+   */
+  surface?: import("../utils/roadSurface").RoadSurfaceId;
 }
 
 export interface WarForces {

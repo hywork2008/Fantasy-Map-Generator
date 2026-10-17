@@ -192,34 +192,39 @@ function isConvex(poly: Point[]): boolean {
   return poly.length >= 3;
 }
 
-function edgeStats(poly: Point[]): { shortest: number; longest: number; aspect: number } {
-  let shortest = Infinity;
-  let longest = 0;
+/** Minimum-area edge-aligned bounds avoid treating a tiny bevel as the frontage. */
+function roofBounds(poly: Point[]): { azimuth: number; length: number; width: number } {
+  let bestArea = Infinity;
+  let best = { azimuth: 0, length: 0, width: 0 };
   for (let i = 0; i < poly.length; i++) {
     const a = poly[i];
     const b = poly[(i + 1) % poly.length];
-    const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
-    if (length <= 0) continue;
-    if (length < shortest) shortest = length;
-    if (length > longest) longest = length;
+    const edge = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (edge < 1e-6) continue;
+    const angle = Math.atan2(b[1] - a[1], b[0] - a[0]);
+    const c = Math.cos(angle);
+    const s = Math.sin(angle);
+    let uMin = Infinity,
+      uMax = -Infinity,
+      vMin = Infinity,
+      vMax = -Infinity;
+    for (const point of poly) {
+      const x = point[0] - a[0];
+      const y = point[1] - a[1];
+      const u = x * c + y * s;
+      const v = -x * s + y * c;
+      uMin = Math.min(uMin, u);
+      uMax = Math.max(uMax, u);
+      vMin = Math.min(vMin, v);
+      vMax = Math.max(vMax, v);
+    }
+    const u = uMax - uMin;
+    const v = vMax - vMin;
+    if (u * v >= bestArea) continue;
+    bestArea = u * v;
+    best = { azimuth: angle + (v > u ? Math.PI / 2 : 0), length: Math.max(u, v), width: Math.min(u, v) };
   }
-  if (!Number.isFinite(shortest) || shortest <= 0) return { shortest: 0, longest: 0, aspect: 1 };
-  return { shortest, longest, aspect: longest / shortest };
-}
-
-/** Shortest edge stands in for the street front of a burgage plot. */
-function frontageAzimuth(poly: Point[]): number {
-  let best = Infinity;
-  let azimuth = 0;
-  for (let i = 0; i < poly.length; i++) {
-    const a = poly[i];
-    const b = poly[(i + 1) % poly.length];
-    const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
-    if (length <= 0 || length >= best) continue;
-    best = length;
-    azimuth = Math.atan2(b[1] - a[1], b[0] - a[0]);
-  }
-  return azimuth;
+  return best;
 }
 
 function wrapAzimuth(radians: number): number {
@@ -235,7 +240,7 @@ function roofForm(
   convex: boolean,
   aspect: number
 ): RoofForm {
-  if (!convex) return "flat";
+  if (!convex || lot.polygon.length === 3) return "flat";
   if (lot.role === "shed" || lot.role === "stable") return "lean-to";
   if (wall === "mudbrick" || (ANTIQUITY.has(period) && storeys >= 4)) return "flat";
   return aspect >= 1.45 ? "gable" : "hip";
@@ -257,24 +262,28 @@ export function assignBuildingMassing(document: CityDocument, lots: readonly Bui
     const floors = floorSpecs(uses, period);
     const wall = wallMaterial(document, lot, period, climate, tradition);
     const convex = isConvex(lot.polygon);
-    const { aspect } = edgeStats(lot.polygon);
+    const bounds = roofBounds(lot.polygon);
+    const aspect = bounds.width > 0 ? bounds.length / bounds.width : 1;
     const form = roofForm(lot, wall, period, storeys, convex, aspect);
     const material = roofMaterial(wall, period, tradition);
-    const gableToStreet =
-      MEDIEVAL.has(period) && !tradition.mediterranean && !tradition.eastAsian && !ANTIQUITY.has(period);
-    const frontage = frontageAzimuth(lot.polygon);
     const medievalTimber = wall === "timber-frame" && MEDIEVAL.has(period) && convex && form !== "flat";
+    const jetty = medievalTimber ? 0.4 : 0;
+    // Ordinary roofs should not become monumental structures on oversized lots.
+    // Include upper-floor offsets in the run used by the mesh builder.
+    const offset = Math.min(1.2, (storeys - 1) * jetty);
+    const run = (bounds.width + 2 * offset) / (form === "lean-to" ? 1 : 2);
+    const pitch = Math.min(ROOF_PITCH[material], (Math.atan2(4, run) * 180) / Math.PI);
     const next: BuildingLot = write ? { ...lot, storeys } : { ...lot };
     next.massing = {
       storeys,
       floors,
       cellar: false,
-      jettyMeters: medievalTimber ? 0.4 : 0,
+      jettyMeters: jetty,
       eaveHeightMeters: floors.reduce((sum, floor) => sum + floor.heightMeters, 0),
       roof: {
         form,
-        pitchDeg: form === "flat" ? 2 : ROOF_PITCH[material],
-        ridgeAzimuth: wrapAzimuth(frontage + (gableToStreet ? Math.PI / 2 : 0)),
+        pitchDeg: form === "flat" ? 2 : pitch,
+        ridgeAzimuth: wrapAzimuth(bounds.azimuth),
         material
       },
       wall,

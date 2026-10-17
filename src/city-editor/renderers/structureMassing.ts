@@ -134,10 +134,15 @@ function keptSpans(gaps: [number, number][], total: number, closed: boolean): [n
 }
 
 function sampleSpan(ring: Point[], cum: number[], total: number, closed: boolean, start: number, end: number): Point[] {
-  const inside = (s: number) =>
-    end <= total + 1e-4 ? s > start + 1e-3 && s < end - 1e-3 : s > start + 1e-3 || s < end - total - 1e-3;
   const run: Point[] = [pointAlong(ring, cum, total, closed, start)];
-  for (let i = 0; i < ring.length; i++) if (inside(cum[i])) run.push(ring[i]);
+  // Keep arc distances increasing when a closed span crosses the ring origin.
+  const laps = closed && end > total ? 2 : 1;
+  for (let lap = 0; lap < laps; lap++) {
+    for (let i = 0; i < ring.length; i++) {
+      const s = cum[i] + lap * total;
+      if (s > start + 1e-3 && s < end - 1e-3) run.push(ring[i]);
+    }
+  }
   const finish = pointAlong(ring, cum, total, closed, end);
   if (distance(run[run.length - 1], finish) > 0.05) run.push(finish);
   return run;

@@ -19,8 +19,10 @@ export interface StructureMassing {
   /** Ribbon centre line. Absent when `footprint` is set. */
   centerline?: Point[];
   widthMeters?: number;
-  /** Closed ring. Holes are not cut out. */
+  /** Closed ring. Absent or empty `holes` leaves a solid cap. */
   footprint?: Point[];
+  /** Clockwise rings cut out of `footprint`. */
+  holes?: Point[][];
   /** Body height above `baseElevationMeters`. Roof rise is extra. */
   heightMeters: number;
   baseElevationMeters: number;

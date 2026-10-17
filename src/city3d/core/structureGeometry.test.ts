@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { sealRecord } from "../../buildings/canonicalJson";
+import { coarseSolids } from "../../buildings/coarseSolids";
+import type { BuildingRecord, Point } from "../../buildings/record";
 import type { StructureMassing } from "../../city-editor/types/contracts/structureMassing";
 import { concatPositions, meshIsClosed } from "./massingGeometry";
 import { structureSurfaces } from "./structureGeometry";
@@ -66,4 +69,161 @@ describe("structure geometry", () => {
     expect(meshIsClosed(positions)).toBe(true);
     expect(range(positions, 1).max).toBeGreaterThan(13);
   });
+
+  it("cuts a 4 m courtyard out of a 10 m flat keep", () => {
+    const outer: Point[] = [
+      [0, 0],
+      [10, 0],
+      [10, 10],
+      [0, 10]
+    ];
+    const hole: Point[] = [
+      [3, 3],
+      [3, 7],
+      [7, 7],
+      [7, 3]
+    ];
+    const surfaces = structureSurfaces({
+      ...wall,
+      id: "court",
+      kind: "tower",
+      centerline: undefined,
+      widthMeters: undefined,
+      footprint: outer,
+      holes: [hole],
+      heightMeters: 8,
+      roof: "flat",
+      parapet: "none"
+    });
+    expect(surfaces).not.toBeNull();
+    const positions = concatPositions(surfaces!.walls, surfaces!.roofs);
+    expect(meshIsClosed(positions)).toBe(true);
+    expect(positions.length / 9).toBeLessThanOrEqual(4000);
+    expect(planArea(positions, 7.9)).toBeCloseTo(84, 0);
+    expect(covers(positions, 7.9, 5, -5)).toBe(false);
+    const flat = positions.some(
+      (_, index) => index % 3 === 0 && Math.hypot(positions[index] - 3, positions[index + 2] - -3) < 0.05
+    );
+    expect(flat).toBe(true);
+  });
+
+  it("extrudes two identical floors as one solid", () => {
+    const outer: Point[] = [
+      [-5, -5],
+      [5, -5],
+      [5, 5],
+      [-5, 5]
+    ];
+    const floor = {
+      id: "ground",
+      name: "Ground",
+      elevationMeters: 0,
+      floorToFloorMeters: 6,
+      plates: [] as BuildingRecord["levels"][number]["plates"],
+      walls: [{ id: "keep", kind: "keep" as const, outer, holes: [] as Point[][], thicknessMeters: 2 }],
+      openings: [],
+      fixtures: []
+    };
+    const record = sealRecord({
+      format: "fmg-building-record",
+      version: 1,
+      id: "two-floors",
+      revision: 1,
+      contentHash: "",
+      name: "Two floors",
+      kind: "castle",
+      period: "highMedieval",
+      planFamily: "rectangular-keep",
+      region: "fixture",
+      occupancyMeters: { width: 10, depth: 10 },
+      approachAzimuthRadians: 0,
+      placementStyles: ["classic"],
+      levels: [floor, { ...floor, id: "upper", name: "Upper", elevationMeters: 6, floorToFloorMeters: 5 }],
+      verticalLinks: [
+        {
+          id: "stair",
+          kind: "stair",
+          fromLevelId: "ground",
+          toLevelId: "upper",
+          footprint: [
+            [-4, -1],
+            [-2, -1],
+            [-2, 1],
+            [-4, 1]
+          ],
+          widthMeters: 2
+        }
+      ],
+      roofs: [{ baseId: "keep", form: "flat", pitchDeg: 0 }],
+      materials: { wall: "stone", roof: "tile" },
+      provenance: {
+        constructionPeriod: "fixture",
+        depictedPhase: "fixture",
+        omitted: ["battlements"],
+        dimensionSource: "authored",
+        planClass: "published-dimensions",
+        confidence: "approximate",
+        note: "Schematic."
+      }
+    } as BuildingRecord);
+    const solids = coarseSolids(record);
+    expect(solids).toHaveLength(1);
+    expect(solids[0].heightMeters).toBeCloseTo(11);
+    expect(solids[0].baseElevationMeters).toBeCloseTo(0);
+    const merged = structureSurfaces({
+      ...wall,
+      centerline: undefined,
+      footprint: solids[0].outer,
+      heightMeters: solids[0].heightMeters,
+      baseElevationMeters: solids[0].baseElevationMeters,
+      roof: "flat",
+      parapet: "none"
+    });
+    const single = structureSurfaces({
+      ...wall,
+      centerline: undefined,
+      footprint: outer,
+      heightMeters: 11,
+      roof: "flat",
+      parapet: "none"
+    });
+    expect(concatPositions(merged!.walls, merged!.roofs).length).toBe(
+      concatPositions(single!.walls, single!.roofs).length
+    );
+  });
 });
+
+function planArea(positions: Float32Array, yMin: number): number {
+  let area = 0;
+  for (let i = 0; i < positions.length; i += 9) {
+    const y0 = positions[i + 1];
+    const y1 = positions[i + 4];
+    const y2 = positions[i + 7];
+    if (y0 < yMin || y1 < yMin || y2 < yMin) continue;
+    const ax = positions[i];
+    const ay = -positions[i + 2];
+    const bx = positions[i + 3];
+    const by = -positions[i + 5];
+    const cx = positions[i + 6];
+    const cy = -positions[i + 8];
+    area += Math.abs((ax * (by - cy) + bx * (cy - ay) + cx * (ay - by)) / 2);
+  }
+  return area;
+}
+
+function covers(positions: Float32Array, yMin: number, x: number, z: number): boolean {
+  for (let i = 0; i < positions.length; i += 9) {
+    if (positions[i + 1] < yMin || positions[i + 4] < yMin || positions[i + 7] < yMin) continue;
+    const ax = positions[i];
+    const az = positions[i + 2];
+    const bx = positions[i + 3];
+    const bz = positions[i + 5];
+    const cx = positions[i + 6];
+    const cz = positions[i + 8];
+    const c1 = (bx - ax) * (z - az) - (bz - az) * (x - ax);
+    const c2 = (cx - bx) * (z - bz) - (cz - bz) * (x - bx);
+    const c3 = (ax - cx) * (z - cz) - (az - cz) * (x - cx);
+    if ((c1 >= -1e-6 && c2 >= -1e-6 && c3 >= -1e-6) || (c1 <= 1e-6 && c2 <= 1e-6 && c3 <= 1e-6)) return true;
+  }
+  return false;
+}

@@ -1,0 +1,149 @@
+:root {
+  color: #241f1a;
+  background: #e6e1d4;
+  font: 15px/1.45 system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+.bv-app {
+  display: grid;
+  grid-template-columns: 17rem minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.bv-list {
+  margin: 0;
+  padding: 12px;
+  background: #d4cec0;
+  border-right: 1px solid #b7b0a2;
+}
+
+.bv-list h1 {
+  margin: 0 0 12px;
+  font-size: 1.05rem;
+}
+
+.bv-list button {
+  display: block;
+  width: 100%;
+  margin: 0 0 8px;
+  padding: 8px;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.bv-list button[aria-current="true"] {
+  background: #f7f4ec;
+  border-color: #8d8478;
+}
+
+.bv-name {
+  display: block;
+  font-weight: 650;
+}
+
+.bv-meta {
+  display: block;
+  color: #5c564e;
+  font-size: 0.85rem;
+}
+
+.bv-main {
+  display: grid;
+  grid-template-rows: minmax(260px, 52vh) auto auto;
+  min-width: 0;
+}
+
+.bv-stage {
+  position: relative;
+  background: #c5c5bf;
+}
+
+.bv-stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.bv-banner {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 12px;
+  margin: 0;
+  padding: 8px 10px;
+  background: #f4e4c4;
+  border: 1px solid #a07830;
+}
+
+.bv-plans {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 12px;
+}
+
+.bv-plans h2,
+.bv-facts h2 {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+}
+
+.bv-plans svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: #f7f4ec;
+  border: 1px solid #c8c0b4;
+}
+
+.bv-floors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.bv-floors button[aria-pressed="true"] {
+  background: #241f1a;
+  color: #f7f4ec;
+}
+
+.bv-facts {
+  padding: 0 12px 16px;
+}
+
+.bv-facts p {
+  margin: 0 0 4px;
+}
+
+.bv-warn {
+  color: #8c3a2f;
+}
+
+@media (max-width: 800px) {
+  .bv-app {
+    grid-template-columns: 1fr;
+  }
+
+  .bv-list {
+    border-right: 0;
+    border-bottom: 1px solid #b7b0a2;
+  }
+
+  .bv-plans {
+    grid-template-columns: 1fr;
+  }
+}

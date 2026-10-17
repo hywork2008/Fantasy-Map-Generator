@@ -4,15 +4,16 @@
 
 - docs/plan/approach-commerce-quarters.md - 門ごとの物流(占有率・流入出・貨物区分)と史料調査に基づき、CE の市場通り・商人区・職人区・門前宿・家畜市・資材置き場の配置を物流に従わせる改善案
 - docs/plan/approach-traffic-observatory.md - Advance Time で地図を進めて流通網の区間・都市の出入り口ごとの交通量を時系列収集し、どの門が発展しやすいかを CE の郊外生成と照合して測る仕組み(sim:server 拡張・出入り口台帳・実験定義・レポート)
-- docs/plan/ce-3d-building-massing.md - CE建物の3D属性(階数・各階の用途・屋根・材質)、three.jsでの3D表示、LOD簡略版をFMG 3D/REへ配置
-- docs/plan/ce-3d-building-massing.md - CE建物の3D属性(階数・各階の用途・屋根・材質)、three.jsでの3D表示、LOD簡略版をFMG 3D/REへ配置。同日補強: 今回はCE単体のM0–M2。建物は保存せず導出時に属性を付ける
+- docs/plan/building-record.md - 城・修道院・住宅・水車を後から含められる建造物の正本。測量メートルの平面から CE の粗い 3D と上面 SVG、DE の文書を導く。第1弾は中世ラテン・ヨーロッパの城 9 件。現行の DungeonDocument は正本にしない
 - docs/plan/ce-3d-building-massing.md - CE建物の3D属性(階数・各階の用途・屋根・材質)、three.jsでの3D表示、LOD簡略版をFMG 3D/REへ配置。同日補強: 今回はCE単体のM0–M3。建物と構造物は保存せず導出時に属性を付ける
+- docs/plan/ce-3d-water-boundary.md - CEの3D水面。陸と非陸を文書から描画時に導く
 - docs/plan/estuary-port-pair-relocation.md - 河口の港町の寄せ過ぎ(セル外・海上への再配置、海上の橋)の改善案(取り下げ)
 - docs/plan/fmg-harbour-model-before-after.html - fmg-harbour-model.md を実装した場合の before / after の図解
 - docs/plan/fmg-harbour-model.md - 港を独立した存在にし、都市・港・航路の生成順序を固定する(estuary-port-pair-relocation.md の後継)
 - docs/plan/initial-wealth-calibration.md - 国家・都市・人物の開始時の富を定常期の統計から逆算する調査。現状はお金が家計から国庫へ一方向に流れて定常状態がなく逆算できないため、出入りの計測→循環の是正→逆算の順序を示す
 - docs/plan/medieval-european-nobility-holdings.md
 - docs/plan/money-scale-calibration.md - 価格(人数尺度)と定額のお金(人口点尺度)の桁ずれを、価格は据え置き定額のお金に係数 K(populationRate 比例)を掛けて揃える設計(initial-wealth-calibration.md §8.5 の対応)
+- docs/plan/road-surface.md - 街道と都市内幹道の路面。時代・文化圏・経済力から描画時に導く。CE 3D が最初の消費者
 
 2026-10-16
 

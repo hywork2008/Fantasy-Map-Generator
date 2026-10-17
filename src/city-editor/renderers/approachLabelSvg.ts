@@ -1,6 +1,6 @@
 import { editorText } from "../../i18n/editorMessages";
+import { approachLabelFacts } from "../generators/approachFacts";
 import type { CityDocument } from "../types/document";
-import { approachLabelFacts } from "./approachFacts";
 import { selectionLabelFontSize } from "./labelLayout";
 import { element } from "./svgPrimitives";
 export function renderApproachLabels(document: CityDocument, zoom: number): SVGGElement {

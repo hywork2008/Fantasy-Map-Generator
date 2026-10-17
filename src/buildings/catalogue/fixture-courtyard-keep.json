@@ -1,0 +1,246 @@
+{
+  "format": "fmg-building-record",
+  "version": 1,
+  "id": "fixture-courtyard-keep",
+  "revision": 1,
+  "contentHash": "701b9ea12875f6520007782d12e034b4975e205a4692fbe1205d1805a518530c",
+  "name": "Schematic courtyard keep",
+  "kind": "castle",
+  "period": "highMedieval",
+  "planFamily": "quadrangular",
+  "region": "schematic",
+  "occupancyMeters": {
+    "width": 10,
+    "depth": 10
+  },
+  "approachAzimuthRadians": -1.570796,
+  "placementStyles": [
+    "classic"
+  ],
+  "levels": [
+    {
+      "id": "ground",
+      "name": "Ground",
+      "elevationMeters": 0,
+      "floorToFloorMeters": 6,
+      "plates": [
+        {
+          "id": "ground-court",
+          "use": "courtyard",
+          "outer": [
+            [
+              -2,
+              -2
+            ],
+            [
+              2,
+              -2
+            ],
+            [
+              2,
+              2
+            ],
+            [
+              -2,
+              2
+            ]
+          ],
+          "holes": [],
+          "kind": "court",
+          "roof": "open"
+        }
+      ],
+      "walls": [
+        {
+          "id": "keep",
+          "kind": "keep",
+          "outer": [
+            [
+              -5,
+              -5
+            ],
+            [
+              5,
+              -5
+            ],
+            [
+              5,
+              5
+            ],
+            [
+              -5,
+              5
+            ]
+          ],
+          "holes": [
+            [
+              [
+                -2,
+                -2
+              ],
+              [
+                -2,
+                2
+              ],
+              [
+                2,
+                2
+              ],
+              [
+                2,
+                -2
+              ]
+            ]
+          ],
+          "thicknessMeters": 3
+        }
+      ],
+      "openings": [
+        {
+          "id": "south-gate",
+          "ring": {
+            "wallId": "keep",
+            "hole": null
+          },
+          "offsetMeters": 4,
+          "widthMeters": 2,
+          "sillMeters": 0,
+          "heightMeters": 3.5,
+          "kind": "gate"
+        }
+      ],
+      "fixtures": []
+    },
+    {
+      "id": "upper",
+      "name": "Upper",
+      "elevationMeters": 6,
+      "floorToFloorMeters": 5,
+      "plates": [
+        {
+          "id": "upper-court",
+          "use": "courtyard",
+          "outer": [
+            [
+              -2,
+              -2
+            ],
+            [
+              2,
+              -2
+            ],
+            [
+              2,
+              2
+            ],
+            [
+              -2,
+              2
+            ]
+          ],
+          "holes": [],
+          "kind": "court",
+          "roof": "open"
+        }
+      ],
+      "walls": [
+        {
+          "id": "keep",
+          "kind": "keep",
+          "outer": [
+            [
+              -5,
+              -5
+            ],
+            [
+              5,
+              -5
+            ],
+            [
+              5,
+              5
+            ],
+            [
+              -5,
+              5
+            ]
+          ],
+          "holes": [
+            [
+              [
+                -2,
+                -2
+              ],
+              [
+                -2,
+                2
+              ],
+              [
+                2,
+                2
+              ],
+              [
+                2,
+                -2
+              ]
+            ]
+          ],
+          "thicknessMeters": 3
+        }
+      ],
+      "openings": [],
+      "fixtures": []
+    }
+  ],
+  "verticalLinks": [
+    {
+      "id": "stair",
+      "kind": "stair",
+      "fromLevelId": "ground",
+      "toLevelId": "upper",
+      "footprint": [
+        [
+          -4.5,
+          -1
+        ],
+        [
+          -2.5,
+          -1
+        ],
+        [
+          -2.5,
+          1
+        ],
+        [
+          -4.5,
+          1
+        ]
+      ],
+      "widthMeters": 2
+    }
+  ],
+  "roofs": [
+    {
+      "baseId": "keep",
+      "form": "flat",
+      "pitchDeg": 0
+    }
+  ],
+  "materials": {
+    "wall": "stone",
+    "roof": "tile"
+  },
+  "provenance": {
+    "constructionPeriod": "schematic",
+    "depictedPhase": "schematic",
+    "omitted": [
+      "battlements",
+      "roof timbers",
+      "internal partitions"
+    ],
+    "dimensionSource": "authored for the viewer, not a survey",
+    "planClass": "published-dimensions",
+    "confidence": "approximate",
+    "note": "Authored schematic courtyard keep. Not a measured building."
+  }
+}
