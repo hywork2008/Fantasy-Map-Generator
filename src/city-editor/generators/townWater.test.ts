@@ -505,6 +505,47 @@ describe("town water", () => {
     expect(classifyTownWater(document({ mesh: inlandMesh })).parts).toEqual([]);
   });
 
+  it("punches the land hole with the river ring left after subtraction", () => {
+    const mesh = emptyMesh();
+    addRect(mesh, "land", -30, -5, 30, 30, "land");
+    mesh.vertices.up = { id: "up", point: [0, 20], locked: false };
+    mesh.vertices.down = { id: "down", point: [0, -20], locked: false };
+    const doc = document({
+      mesh,
+      waterAreas: [{ kind: "river", polygon: rect(-8, -8, 8, 8) }],
+      featureGroups: [river("cut", ["up", "down"], 4)]
+    });
+    const full = riverRibbonRing(
+      [
+        [0, 20],
+        [0, -20]
+      ],
+      4
+    )!;
+    const water = classifyTownWater(doc);
+    const rivers = water.parts.filter(part => part.kind === "river");
+    const upper: Point[] = [
+      [2, 20],
+      [2, 8],
+      [-2, 8],
+      [-2, 20]
+    ];
+    const lower: Point[] = [
+      [2, -8],
+      [2, -20],
+      [-2, -20],
+      [-2, -8]
+    ];
+    expect(rivers.map(part => part.polygon)).toEqual([lower, upper]);
+    expect(rivers.some(part => sameRing(part.polygon, full))).toBe(false);
+    const ground = townGroundPolygons(doc, water);
+    const band: Point = [0, 14];
+    const outside: Point = [10, 15];
+    expect(ground.land.some(tri => inTriangle(band, tri))).toBe(false);
+    expect(ground.land.some(tri => inTriangle([0, 0], tri))).toBe(true);
+    expect(ground.land.some(tri => inTriangle(outside, tri))).toBe(true);
+  });
+
   it("changes the stamp for water kind and coordinates, not the salt list", () => {
     const mesh = emptyMesh();
     addRect(mesh, "sea", 0, 0, 10, 10, "sea");

@@ -222,6 +222,11 @@ export function townGroundPolygons(document: CityDocument, water: TownWater): { 
   return { land, unknown: outside.unknown.flatMap(trianglesOf) };
 }
 
+/** 3-point rings of drawn parts. A ring that does not triangulate adds nothing. */
+export function townWaterTriangles(parts: readonly TownWaterPart[]): Point[][] {
+  return parts.flatMap(part => trianglesOf(part.polygon));
+}
+
 function commit(
   ring: Point[],
   kind: TownWaterKind,
