@@ -71,7 +71,8 @@ import {
 } from "./marketFlowBudget";
 import { syncMarketManagers } from "./marketManagers";
 import type { Deal, Market, TradeRouteSegment } from "./marketTypes";
-import { isMarketTradePermitted } from "./merchantOrganizations";
+import { housesPresentIn, knownPrice, recordMarketPriceSnapshot, seedMerchantBranches } from "./merchantIntelligence";
+import { getOrganizationMaxTradeDays, isMarketTradePermitted } from "./merchantOrganizations";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
 import { applyPriceElasticity, relaxMarketPrice } from "./priceElasticity";
 import {
@@ -183,6 +184,9 @@ interface MarketTradeOpportunity {
   importerDutyPerUnit: number;
   units: number;
   unitProfit: number;
+  /** Quoted prices the trading house believes from its letters (merchantIntelligence.ts). */
+  knownExporterPrice?: number;
+  knownImporterPrice?: number;
   /** Net of the route's shared maintenanceCost (see routeKey/isRouteViable below). */
   totalProfit: number;
   distance: number;
@@ -1663,6 +1667,10 @@ export class MarketsModule {
     const textilePopulationByMarket = this.calculateTextilePopulationByMarket();
     const mapDiagonal = Math.hypot(this.worldContext.graphWidth, this.worldContext.graphHeight) || 1;
     const travelRoutes = this.getCachedMarketTradeRoutes();
+    seedMerchantBranches(
+      (from, to) => travelRoutes[from]?.[to]?.durationDays ?? null,
+      getOrganizationMaxTradeDays("major")
+    );
 
     return {
       goods,
@@ -1795,7 +1803,6 @@ export class MarketsModule {
         if (available < minUnit) continue;
 
         const exporterCenter = this.worldContext.pack.burgs[exporter.market.centerBurgId];
-        const quotedExporterPrice = this.getTradeQuotedPrice(exporter.market, good, exporterGood.price);
         const exporterTaxPerUnit = this.getSalesTax(exporterCenter) * exporterGood.price;
         const refrigeratedTransport = isTechnologyStageAtLeast(
           getTechnologyStage("mechanicalRefrigeration", exporterCenter?.state ?? 0),
@@ -1827,9 +1834,19 @@ export class MarketsModule {
           const importerCenter = this.worldContext.pack.burgs[importer.market.centerBurgId];
           const importerDutyPerUnit = this.getImportDuty(exporterCenter, importerCenter) * importerGood.price;
           const transportCost = getTransportCost(route.distance, mapDiagonal, good);
-          const quotedImporterPrice = this.getTradeQuotedPrice(importer.market, good, importerGood.price);
+          // Only a house with agents in both markets trades between them, and it judges by the
+          // prices its letters have brought home, not today's (merchantIntelligence.ts).
+          const known = this.knownTradePrices(
+            exporter.market,
+            importer.market,
+            good,
+            exporterGood.price,
+            importerGood.price,
+            travelRoutes
+          );
+          if (!known) continue;
           const unitProfit =
-            quotedImporterPrice - (quotedExporterPrice + transportCost + exporterTaxPerUnit + importerDutyPerUnit);
+            known.importerPrice - (known.exporterPrice + transportCost + exporterTaxPerUnit + importerDutyPerUnit);
           if (unitProfit <= 0) continue;
           const totalProfit = getNetTradeProfit(unitProfit, units, route.durationDays);
 
@@ -1849,6 +1866,8 @@ export class MarketsModule {
             durationDays: route.durationDays,
             maintenanceCost: getCaravanMaintenanceCost(route.durationDays),
             routeSegments: route.segments,
+            knownExporterPrice: known.exporterPrice,
+            knownImporterPrice: known.importerPrice,
             stateProcurement: this.getStrategicFinishedGoodDemand(ctx, importer.market.i, good.i) > 0
           });
         }
@@ -1964,8 +1983,11 @@ export class MarketsModule {
       units = floorToRetailLot(units, getRetailLotSize(good));
       if (units < minUnit) continue;
 
-      const quotedExporterPrice = this.getTradeQuotedPrice(opportunity.exporter, good, exporterGood.price);
-      const quotedImporterPrice = this.getTradeQuotedPrice(opportunity.importer, good, importerGood.price);
+      // The deal is struck on what the house believes (its letters), not on today's prices.
+      const quotedExporterPrice =
+        opportunity.knownExporterPrice ?? this.getTradeQuotedPrice(opportunity.exporter, good, exporterGood.price);
+      const quotedImporterPrice =
+        opportunity.knownImporterPrice ?? this.getTradeQuotedPrice(opportunity.importer, good, importerGood.price);
       const quotedLandedCost =
         quotedExporterPrice +
         opportunity.transportCost +
@@ -2027,6 +2049,7 @@ export class MarketsModule {
   }
 
   runGlobalTrade(): void {
+    recordMarketPriceSnapshot();
     const ctx = this.buildGlobalTradeContext();
     const opportunitiesByGood = new Map<number, MarketTradeOpportunity[]>();
     const routeMarginalProfit = new Map<string, number>();
@@ -2062,6 +2085,7 @@ export class MarketsModule {
    * synchronous runGlobalTrade(). Returns false if cancelled before completion.
    */
   async runGlobalTradeIncrementally(options: IncrementalBatchOptions = {}): Promise<boolean> {
+    recordMarketPriceSnapshot();
     const ctx = this.buildGlobalTradeContext();
     const opportunitiesByGood = new Map<number, MarketTradeOpportunity[]>();
     const routeMarginalProfit = new Map<string, number>();
@@ -2313,6 +2337,44 @@ export class MarketsModule {
   }
 
   /** Mid-market price as traders value it, including wartime scarcity — not the retail margin. */
+  /**
+   * The best (exporter, importer) quoted prices any house with agents in both markets believes,
+   * or null when no house is present in both. Home prices are current; branch prices are as old
+   * as the journey from that branch to the house's home.
+   */
+  private knownTradePrices(
+    exporter: Market,
+    importer: Market,
+    good: Good,
+    exporterPrice: number,
+    importerPrice: number,
+    travelRoutes: MarketTradeRoutes
+  ): { exporterPrice: number; importerPrice: number } | null {
+    let best: { exporterPrice: number; importerPrice: number; margin: number } | null = null;
+    for (const home of housesPresentIn(exporter.i, importer.i)) {
+      const daysTo = (marketId: number) =>
+        marketId === home
+          ? 0
+          : (travelRoutes[home]?.[marketId]?.durationDays ?? travelRoutes[marketId]?.[home]?.durationDays);
+      const exporterDays = daysTo(exporter.i);
+      const importerDays = daysTo(importer.i);
+      if (exporterDays === undefined || importerDays === undefined) continue;
+      const knownExporter = this.getTradeQuotedPrice(
+        exporter,
+        good,
+        knownPrice(home, exporter.i, good.i, exporterDays, exporterPrice)
+      );
+      const knownImporter = this.getTradeQuotedPrice(
+        importer,
+        good,
+        knownPrice(home, importer.i, good.i, importerDays, importerPrice)
+      );
+      const margin = knownImporter - knownExporter;
+      if (!best || margin > best.margin) best = { exporterPrice: knownExporter, importerPrice: knownImporter, margin };
+    }
+    return best && { exporterPrice: best.exporterPrice, importerPrice: best.importerPrice };
+  }
+
   private getTradeQuotedPrice(market: Market, good: Good, midPrice: number): number {
     return midPrice * this.getWarPriceModifier(market.centerBurgId, good.i);
   }

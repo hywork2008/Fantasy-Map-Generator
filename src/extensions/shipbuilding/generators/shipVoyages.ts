@@ -4,8 +4,7 @@ import { rn } from "../../hostUtils";
 import { getShipClass } from "./shipClasses";
 import { berthHullAtPort, getHulls, isStateAtWar, type ShipHull, setHullStatus } from "./shipyardQueue";
 
-// Placeholder balance constants — see docs/plan/ships.md ("航海訓練・偽装通商・諜報（暫定案）").
-const GOLD_PER_BUILD_POINT_PER_YEAR = 4;
+// Placeholder balance constant — see docs/plan/ships.md ("航海訓練・偽装通商・諜報（暫定案）").
 const INTEL_GAIN_PER_YEAR = 3;
 
 /** Priority order for picking a voyage's "watched rival" — the closest thing to a live threat. */
@@ -21,6 +20,8 @@ export function runVoyageTick(burgs: readonly Burg[], states: readonly State[], 
 
   for (const hull of getHulls()) {
     if (hull.status === "cargo") continue;
+    // The crew is on the State's payroll in war and peace, at sea or in the yard.
+    if (hull.owner === "state") dispatchNavyPayroll(hull, resolveHullStateId(hull, burgs), deltaYears);
     // OverseasRelations owns this hull until the escorting expedition resolves.
     if (hull.duty === "overseas") continue;
 
@@ -62,7 +63,7 @@ export function runVoyageTick(burgs: readonly Burg[], states: readonly State[], 
     }
     if (!stateId) continue;
 
-    dispatchVoyageIncome(hull, stateId, deltaYears);
+    dispatchVoyageTrade(hull, stateId, deltaYears);
     dispatchVoyageIntel(stateId, states, deltaYears);
   }
 }
@@ -72,16 +73,29 @@ function resolveHullStateId(hull: ShipHull, burgs: readonly Burg[]): number | un
   return burgs[hull.ownerId]?.state;
 }
 
-function dispatchVoyageIncome(hull: ShipHull, stateId: number, deltaYears: number): void {
+/**
+ * A patrolling state ship trades under a merchant flag (docs/plan/ships.md §4.5): Economy buys
+ * export goods from its home port's market, sells them abroad and brings back luxuries the market
+ * buys at a markup (docs/plan/initial-wealth-calibration.md §8). This only reports the voyage;
+ * the goods and money move in Economy.
+ */
+function dispatchVoyageTrade(hull: ShipHull, stateId: number, deltaYears: number): void {
   const shipClass = getShipClass(hull.shipClassId);
   if (!shipClass) return;
-
-  const amount = rn(shipClass.buildPointsRequired * GOLD_PER_BUILD_POINT_PER_YEAR * deltaYears, 2);
-  if (amount <= 0) return;
-
   simEvents.dispatchEvent(
-    new CustomEvent("fmg:shipbuilding-voyage-income", {
-      detail: { stateId, owner: hull.owner, amount, deltaYears }
+    new CustomEvent("fmg:shipbuilding-voyage-trade", {
+      detail: { stateId, homeBurgId: hull.homeBurgId, buildPoints: shipClass.buildPointsRequired, deltaYears }
+    })
+  );
+}
+
+/** Crew wages, paid by Economy from the State treasury into the home port's households. */
+function dispatchNavyPayroll(hull: ShipHull, stateId: number | undefined, deltaYears: number): void {
+  const crew = getShipClass(hull.shipClassId)?.navalCrewCapacity ?? 0;
+  if (!stateId || !(crew > 0) || !(deltaYears > 0)) return;
+  simEvents.dispatchEvent(
+    new CustomEvent("fmg:shipbuilding-navy-payroll", {
+      detail: { stateId, homeBurgId: hull.homeBurgId, crew, deltaYears }
     })
   );
 }

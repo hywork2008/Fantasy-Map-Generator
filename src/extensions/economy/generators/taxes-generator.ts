@@ -1,5 +1,5 @@
 import type { Burg } from "../../hostTypes";
-import { gauss, rn, TIME } from "../../hostUtils";
+import { gauss, measureTickStep, rn, TIME } from "../../hostUtils";
 import { getDeals, getSimulationContext, getSimulationYear, getWorldContext } from "../economyContext";
 import { getAcademyBonus } from "./academyKnowledge";
 import { settleAllBurgDiscontent } from "./burgDiscontent";
@@ -297,17 +297,19 @@ export class TaxesModule {
       // math stays keyed to the original flat-percentage model; the state simply keeps more real
       // cash whenever its burgs absorb part of the cost, which shows up as treasury growth rather
       // than a bigger nominal department budget.
-      const civilAdministration = applyCivilAdministrationUpkeep(state, administrativeUpkeepTotal, burgs);
+      const civilAdministration = measureTickStep("taxes:civilAdministration", () =>
+        applyCivilAdministrationUpkeep(state, administrativeUpkeepTotal, burgs)
+      );
       // PR-6 form revenue mix: wartime Monarchy subsidy, Theocracy tithe, Anarchy plunder share.
-      const mix = applyFormRevenueMix(state, rawDomesticIncome);
+      const mix = measureTickStep("taxes:formRevenueMix", () => applyFormRevenueMix(state, rawDomesticIncome));
       // PR-7: council failure / tax farm / public debt — may scale income and move L2 cash.
-      const events = applyFiscalEvents(state, mix.adjustedDomesticIncome);
+      const events = measureTickStep("taxes:fiscalEvents", () => applyFiscalEvents(state, mix.adjustedDomesticIncome));
       const budgetIncome = rn(mix.adjustedDomesticIncome * (1 - administrativeUpkeepShare) * events.incomeScale, 2);
       // PR-7: AI war footing sync from diplomacy (unless player-locked), then court cost.
       syncWarFootingFromDiplomacy(state);
       // Field commanders cash-settle inside allocateTreasury (L3a.marshalcy → L2, PR-5).
       // War footing reweights department shares (PR-6) when state.warFooting is set.
-      const allocation = allocateTreasury(state, budgetIncome);
+      const allocation = measureTickStep("taxes:allocateTreasury", () => allocateTreasury(state, budgetIncome));
       // PR-17g: Chancery's freshly-updated service level feeds diplomatic reliability this cycle.
       updateDiplomaticReliability(state);
       // PR-17h: Ecclesiastica's freshly-updated service level feeds religious unrest this cycle.
@@ -315,7 +317,7 @@ export class TaxesModule {
       applyWarFootingPoliticalCost(state);
       // Troop upkeep: L3a.marshalcy first, then L2 remainder (multi-ledger PR-5). Need is
       // recomputed here so it matches the same military snapshot collectTaxes already used.
-      const militarySpend = payMilitaryUpkeep(state, militaryUpkeep);
+      const militarySpend = measureTickStep("taxes:militaryUpkeep", () => payMilitaryUpkeep(state, militaryUpkeep));
       // Strategic procurement stays an L2-only expense for now (not a marshalcy institutional line).
       let paidProcurement = 0;
       if (procurementExpense > 0) {
@@ -325,7 +327,7 @@ export class TaxesModule {
 
       // Province lords are paid from their own seated Burg's treasury, not state.treasury
       // (docs/plan/state-treasury-department-budget.md §7 item 7) — no deduction here.
-      payProvinceLordStipends(state);
+      measureTickStep("taxes:provinceLordStipends", () => payProvinceLordStipends(state));
 
       // Above its reserve a State spends: public works, court and garrison payroll in its towns.
       const cycleIncome =
@@ -401,21 +403,21 @@ export class TaxesModule {
       });
     }
     // PR-7 domain policies (extract / fortify) after all province lord stipends this cycle.
-    applyAllDomainFiscalPolicies();
+    measureTickStep("taxes:domainFiscalPolicies", () => applyAllDomainFiscalPolicies());
     // L9: burg discontent from food / tax / war, after levy costs and ecclesiastica service
     // levels for this cycle are already on the records.
-    settleAllBurgDiscontent();
+    measureTickStep("taxes:burgDiscontent", () => settleAllBurgDiscontent());
     _voyageIncomeByState.clear();
     _strategicProcurementExpenseByState.clear();
 
     // Guild/Market roles are paid from their own domain-guild/market treasuries, not
     // state.treasury — global passes, not part of the per-state loop above.
-    payGuildStipends();
-    payMarketStipends();
+    measureTickStep("taxes:guildStipends", () => payGuildStipends());
+    measureTickStep("taxes:marketStipends", () => payMarketStipends());
 
     // After all personal stipends: consume lifestyle (+ soft wealth upkeep) from Character.wealth
     // so purses do not grow unbounded. Order matters — pay first, then spend.
-    applyCharacterLivingCosts();
+    measureTickStep("taxes:characterLivingCosts", () => applyCharacterLivingCosts());
 
     TIME && console.timeEnd("collectTaxes");
   }

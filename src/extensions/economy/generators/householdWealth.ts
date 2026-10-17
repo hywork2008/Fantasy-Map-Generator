@@ -43,9 +43,45 @@ function seedRuralHouseholdWealth(market: Market): number {
 function ensureRuralHouseholdWealthSeeded(market: Market): number {
   if (!market.foodLedger) return 0;
   if (market.foodLedger.ruralHouseholdWealth === undefined) {
-    market.foodLedger.ruralHouseholdWealth = seedRuralHouseholdWealth(market);
+    market.foodLedger.ruralHouseholdWealth = transferToNewMarket(market) ?? seedRuralHouseholdWealth(market);
   }
   return market.foodLedger.ruralHouseholdWealth;
+}
+
+/**
+ * A market founded mid-game takes over farms that already belonged to other markets, with their
+ * cash. Seeding it from the start profile again duplicated that money every time a market town
+ * was founded (docs/plan/initial-wealth-calibration.md §8). Instead it receives the average cash
+ * per rural head for its people, taken pro rata from the existing purses. Returns null when no
+ * market has a purse yet (a new map), so the start profile applies.
+ */
+function transferToNewMarket(market: Market): number | null {
+  const others = getMarkets().filter(
+    other => other !== market && other.foodLedger && other.foodLedger.ruralHouseholdWealth !== undefined
+  );
+  if (!others.length) return null;
+  const { pack } = getWorldContext();
+  if (!pack.cells?.i) return 0;
+  const marketCellColumn = getMarketCellColumn();
+  const ruralPopulation = new Map<number, number>();
+  for (const cellId of pack.cells.i) {
+    if (pack.cells.h[cellId] < 20) continue;
+    const owner = marketCellColumn[cellId];
+    ruralPopulation.set(owner, (ruralPopulation.get(owner) ?? 0) + Math.max(0, pack.cells.pop[cellId] ?? 0));
+  }
+  const pool = others.reduce((sum, other) => sum + Math.max(0, other.foodLedger!.ruralHouseholdWealth ?? 0), 0);
+  const othersPopulation = others.reduce((sum, other) => sum + (ruralPopulation.get(other.i) ?? 0), 0);
+  const own = ruralPopulation.get(market.i) ?? 0;
+  if (!(pool > 0) || !(othersPopulation > 0) || !(own > 0)) return 0;
+  const amount = Math.min(pool, (pool / othersPopulation) * own);
+  let moved = 0;
+  for (const other of others) {
+    const wallet = Math.max(0, other.foodLedger!.ruralHouseholdWealth ?? 0);
+    const take = rn((amount * wallet) / pool, 2);
+    other.foodLedger!.ruralHouseholdWealth = rn(wallet - take, 2);
+    moved += take;
+  }
+  return rn(moved, 2);
 }
 
 /** Reads a Market's current pooled rural household wallet balance, seeding it on first touch. */
@@ -304,6 +340,15 @@ export function payOutMarketSurplus(creditMerchant: (characterId: number, amount
       (memberPopulation.get(market.i) ?? 0) *
       profile.burgTreasuryPerPopulation *
       MARKET_CASH_RESERVE_PER_POPULATION_FACTOR;
+    // Farmers are paid what they are owed from any cash, before the market keeps a reserve or
+    // anyone takes a profit.
+    const repay = rn(Math.min(Math.max(0, treasury.balance), Math.max(0, treasury.ruralGrainPayable)), 2);
+    if (repay > 0) {
+      treasury.ruralGrainPayable = rn(treasury.ruralGrainPayable - repay, 2);
+      treasury.balance = rn(treasury.balance - repay, 2);
+      creditRuralHouseholdWealth(market, repay);
+      paid = rn(paid + repay, 2);
+    }
     const excess = treasury.balance - reserve;
     if (!(excess > 0)) continue;
     const payout = rn(excess * MARKET_SURPLUS_PAYOUT_SHARE, 2);

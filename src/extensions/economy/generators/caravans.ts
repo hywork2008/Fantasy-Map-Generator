@@ -41,6 +41,7 @@ import { type IncrementalBatchOptions, runBatchedYielding } from "./incrementalB
 import { utilizationOf } from "./marketFlowBudget";
 import { Markets } from "./markets-generator";
 import type { Caravan, Deal, ExportStagingLot, Market, TradeRouteSegment, TransportAllocation } from "./marketTypes";
+import { openBranch } from "./merchantIntelligence";
 import { MerchantTradeCapital } from "./merchantTradeCapital";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
 import { recordRouteTraffic } from "./publicWorks";
@@ -1169,6 +1170,9 @@ export class CaravansModule {
         // Keep detail/render progress coherent until this terminal row is removed below.
         caravan.currentDistance = Math.max(caravan.currentDistance, caravan.totalDistance);
         caravan.state = "arrived";
+        // The house now has an agent at the destination: its prices start reaching home.
+        const house = getMerchantOrganizations().find(entry => entry.i === caravan.merchantOrganizationId);
+        if (house && caravan.buyerType === "market") openBranch(house.homeMarketId, caravan.buyer);
         MerchantTransportAssets.settleCaravan(caravan, "arrived");
         settlePayloadCapital(caravan, "arrived");
         settleFoodCoLoadOnArrival(caravan, world.distanceScale);

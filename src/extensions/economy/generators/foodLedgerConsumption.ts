@@ -231,8 +231,7 @@ export function settleMonthlyFoodConsumption(settlementMonth = getSimulationMont
       const burgId = burg.i ?? 0;
       const monthlyNeed = getBurgDailyNeed(burg, populationRate, urbanization) * (DAYS_PER_YEAR / 12);
       // L2 Phase 2/3: residents pay for their own food out of their own wallet, capped by what it
-      // holds — unlike temporary lodgers below, whose spending is external money brought into the
-      // local economy and stays a pure credit to the market (docs/plan/economy-coupling-audit.md).
+      // holds (docs/plan/economy-coupling-audit.md).
       const affordableUnits = retailPrice > 0 ? getHouseholdWealth(burgId) / retailPrice : monthlyNeed;
       const { satisfied, needed } = drawBurgMonthlyNeed(burg, ledger, monthlyNeed, affordableUnits);
       urbanMonthlyNeed += needed;
@@ -245,7 +244,10 @@ export function settleMonthlyFoodConsumption(settlementMonth = getSimulationMont
       const temporaryDraw = drawTemporaryLodgerMonthlyNeed(ledger, temporaryMonthlyNeed);
       urbanMonthlyNeed += temporaryDraw.needed;
       urbanDrawn += temporaryDraw.satisfied;
-      urbanRevenue += temporaryDraw.satisfied * retailPrice;
+      // Lodgers are mostly people of the surrounding countryside in town for the market, carting or
+      // a pilgrimage: their meals are paid from the market's rural purse, as far as it holds. They
+      // used to be paid with money from nowhere (docs/plan/initial-wealth-calibration.md §8).
+      urbanRevenue += debitRuralHouseholdWealth(market, rn(temporaryDraw.satisfied * retailPrice, 2));
     }
     // Farm families whose own larder ran out buy the rest from the market, as far as their purse
     // allows (docs/plan/initial-wealth-calibration.md §5.2). What they cannot pay is still supplied,

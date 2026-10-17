@@ -138,6 +138,12 @@ export function resolveLifestyleTier(character: Character): LifestyleTier {
   return best;
 }
 
+/** Years of living costs a character keeps before spending the rest. */
+export const WEALTH_RESERVE_YEARS = 5;
+/** Share of wealth above that reserve spent each production cycle. */
+export const SURPLUS_WEALTH_SPEND_SHARE = 0.1;
+const CYCLES_PER_YEAR = 12;
+
 /**
  * Full living cost for this cycle: base lifestyle + capped wealth-linked status upkeep.
  * Never exceeds current wealth when applied (caller clamps).
@@ -173,8 +179,12 @@ export function applyCharacterLivingCosts(): LivingCostSummary {
     const wealth = character.wealth || 0;
     if (!(wealth > 0)) continue;
 
-    const cost = computeLivingCost(character);
-    if (!(cost > 0)) continue;
+    const lifestyleCost = computeLivingCost(character);
+    if (!(lifestyleCost > 0)) continue;
+    // Beyond a few years' living, a household of means spends on building, retainers, gifts and
+    // fine goods in its town rather than hoarding (docs/plan/initial-wealth-calibration.md §8).
+    const reserve = lifestyleCost * CYCLES_PER_YEAR * WEALTH_RESERVE_YEARS;
+    const cost = lifestyleCost + Math.max(0, wealth - lifestyleCost - reserve) * SURPLUS_WEALTH_SPEND_SHARE;
 
     const paid = rn(Math.min(wealth, cost), 2);
     if (!(paid > 0)) continue;
