@@ -1,6 +1,12 @@
 import type { ExtensionStateSlices, SimulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
 import { validateSpecializationProfile } from "../extensions/characters/specializationValidation";
+import {
+  HOLDER_KINDS,
+  HOLDING_DIGNITIES,
+  HOLDING_OFFICES,
+  HOLDING_TENURES
+} from "../extensions/nobility/holdings/types";
 import { getTechnologyDefinition } from "../generators/technologyDefinitions";
 import type { CoreReference } from "./extensionArchiveTypes";
 import {
@@ -110,6 +116,12 @@ function assertArray(value: unknown, name: string): void {
 function assertNonNegativeInteger(value: unknown, name: string): void {
   if (!Number.isInteger(value) || (value as number) < 0) {
     throw new Error(`Archive ${name} must be a non-negative integer`);
+  }
+}
+
+function assertPositiveInteger(value: unknown, name: string): void {
+  if (!Number.isInteger(value) || (value as number) <= 0) {
+    throw new Error(`Archive ${name} must be a positive integer`);
   }
 }
 
@@ -624,6 +636,112 @@ function validateNobilitySlice(slice: Record<string, unknown>, world: WorldConte
       }
     }
   }
+  validateNobleHoldings(slice, world);
+}
+
+const GAELIC_PERIODS = new Set(["earlyMedieval", "highMedieval", "lateMedieval"]);
+
+function assertHoldingMember(value: unknown, allowed: readonly string[], name: string): void {
+  if (typeof value !== "string" || !allowed.includes(value)) {
+    throw new Error(`Archive ${name} is invalid`);
+  }
+}
+
+function validateNobleHoldings(slice: Record<string, unknown>, world: WorldContext): void {
+  if (slice.holdings !== undefined) {
+    const name = "simulation.extensions.nobility.holdings";
+    assertArray(slice.holdings, name);
+    const holdings = slice.holdings as unknown[];
+    const ids = new Set<number>();
+    const exclusiveCells = new Map<number, number>();
+    const shareSums = new Map<number, number>();
+    const cellCount = world.pack.cells?.i?.length ?? 0;
+    for (const [index, raw] of holdings.entries()) {
+      const label = `${name}[${index}]`;
+      if (!isRecord(raw)) throw new Error(`Archive ${label} must be a record`);
+      assertPositiveInteger(raw.id, `${label}.id`);
+      if (ids.has(raw.id as number)) throw new Error(`Archive ${label}.id is duplicated`);
+      ids.add(raw.id as number);
+      assertPositiveInteger(raw.stateId, `${label}.stateId`);
+      if (raw.dignity !== null) assertHoldingMember(raw.dignity, HOLDING_DIGNITIES, `${label}.dignity`);
+      assertHoldingMember(raw.office, HOLDING_OFFICES, `${label}.office`);
+      assertHoldingMember(raw.tenure, HOLDING_TENURES, `${label}.tenure`);
+      assertHoldingMember(raw.holderKind, HOLDER_KINDS, `${label}.holderKind`);
+      assertArray(raw.cellIds, `${label}.cellIds`);
+      assertArray(raw.provinceIds, `${label}.provinceIds`);
+      assertArray(raw.burgIds, `${label}.burgIds`);
+      const shares = raw.shares;
+      const usesShares = shares !== undefined;
+      if (usesShares) assertArray(shares, `${label}.shares`);
+      for (const cellId of raw.cellIds as unknown[]) {
+        assertNonNegativeInteger(cellId, `${label}.cellIds`);
+        if (cellCount > 0 && (cellId as number) >= cellCount) {
+          throw new Error(`Archive ${label}.cellIds references cell ${String(cellId)} outside 0..${cellCount - 1}`);
+        }
+        if (!usesShares) {
+          const previous = exclusiveCells.get(cellId as number);
+          if (previous !== undefined) {
+            throw new Error(`Archive ${label}.cellIds overlaps cell ${String(cellId)} with holding ${previous}`);
+          }
+          exclusiveCells.set(cellId as number, raw.id as number);
+        }
+      }
+      if (usesShares) {
+        for (const [shareIndex, share] of (shares as unknown[]).entries()) {
+          const shareName = `${label}.shares[${shareIndex}]`;
+          if (!isRecord(share)) throw new Error(`Archive ${shareName} must be a record`);
+          assertNonNegativeInteger(share.cellId, `${shareName}.cellId`);
+          if (cellCount > 0 && (share.cellId as number) >= cellCount) {
+            throw new Error(
+              `Archive ${shareName}.cellId references cell ${String(share.cellId)} outside 0..${cellCount - 1}`
+            );
+          }
+          assertNonNegativeInteger(share.basisPoints, `${shareName}.basisPoints`);
+          if ((share.basisPoints as number) > 10_000) {
+            throw new Error(`Archive ${shareName}.basisPoints must be at most 10000`);
+          }
+          shareSums.set(
+            share.cellId as number,
+            (shareSums.get(share.cellId as number) ?? 0) + (share.basisPoints as number)
+          );
+        }
+      }
+      for (const provinceId of raw.provinceIds as unknown[]) {
+        assertNonNegativeInteger(provinceId, `${label}.provinceIds`);
+      }
+      for (const burgId of raw.burgIds as unknown[]) {
+        assertNonNegativeInteger(burgId, `${label}.burgIds`);
+      }
+      assertNonNegativeInteger(raw.knightFees, `${label}.knightFees`);
+      if (typeof raw.hereditary !== "boolean") throw new Error(`Archive ${label}.hereditary must be a boolean`);
+      if (typeof raw.frontier !== "boolean") throw new Error(`Archive ${label}.frontier must be a boolean`);
+      if (raw.seatName !== undefined && typeof raw.seatName !== "string") {
+        throw new Error(`Archive ${label}.seatName must be a string`);
+      }
+      if (raw.seatBurgId !== undefined) assertNonNegativeInteger(raw.seatBurgId, `${label}.seatBurgId`);
+      if (raw.holderCharacterId !== undefined)
+        assertNonNegativeInteger(raw.holderCharacterId, `${label}.holderCharacterId`);
+      if (raw.officeTitle !== undefined && typeof raw.officeTitle !== "string") {
+        throw new Error(`Archive ${label}.officeTitle must be a string`);
+      }
+    }
+    for (const [cellId, sum] of shareSums) {
+      if (sum > 10_000) {
+        throw new Error(`Archive ${name} basis points on cell ${cellId} sum to ${sum}; expected at most 10000`);
+      }
+    }
+  }
+
+  if (slice.gaelicPeriodByState !== undefined) {
+    const name = "simulation.extensions.nobility.gaelicPeriodByState";
+    assertRecord(slice.gaelicPeriodByState, name);
+    for (const [key, value] of Object.entries(slice.gaelicPeriodByState)) {
+      if (!/^\d+$/.test(key) || Number(key) <= 0) throw new Error(`Archive ${name} has invalid key ${key}`);
+      if (typeof value !== "string" || !GAELIC_PERIODS.has(value)) {
+        throw new Error(`Archive ${name}.${key} must be a medieval period`);
+      }
+    }
+  }
 }
 
 function validateShipbuildingSlice(slice: Record<string, unknown>): void {
@@ -678,6 +796,15 @@ function collectNobilityCoreReferences(slice: Record<string, unknown>): readonly
       seen.add(id);
       refs.push({ kind: "state", id, onDelete: "orphan" });
     }
+  }
+
+  const holdings = Array.isArray(slice.holdings) ? slice.holdings : [];
+  for (const raw of holdings) {
+    if (!isRecord(raw) || typeof raw.stateId !== "number") continue;
+    const id = raw.stateId;
+    if (!Number.isInteger(id) || id <= 0 || seen.has(id)) continue;
+    seen.add(id);
+    refs.push({ kind: "state", id, onDelete: "orphan" });
   }
 
   return refs;

@@ -435,6 +435,63 @@ function createProvinceLord(
   return lord;
 }
 
+/**
+ * Named seat from the holding ledger. Landed seats rank as province lords.
+ * A sheriff is an unlanded officer and does not take a province title.
+ */
+function createHoldingNoble(
+  state: Pick<State, "i" | "culture" | "form" | "formName" | "capital" | "racialComposition">,
+  spec: {
+    titles: { male: string; female: string };
+    landed: boolean;
+    holdingId: number;
+    seatName: string;
+    locationBurgId: number;
+    roleClass: "province_lord" | "central_officer";
+    primarySkill: "martial" | "stewardship";
+    age: "ruler" | "officer";
+  }
+): Character {
+  const { pack } = getWorldContext();
+  const nextId = getNextCharacterId(pack.characters);
+  const ids = resolvePersonCultureAndRace(state, pack, { roleClass: spec.roleClass });
+  const location = spec.locationBurgId > 0 ? spec.locationBurgId : (state.capital ?? 0);
+  const noble = createPerson(nextId, ids.cultureId, {
+    homeStateId: state.i,
+    formName: state.formName,
+    marriageExpectation: spec.landed ? "dynastic" : "elite",
+    primarySkill: spec.primarySkill,
+    isReligiousRole: isReligiousForm(state, spec.primarySkill),
+    ageOverride: spec.age === "ruler" ? rollRulerAge(ids.raceId) : rollOfficerAge(ids.raceId),
+    roleClass: spec.roleClass,
+    raceOverride: ids.raceId,
+    generationBias: getCharacterGenerationBias()
+  });
+  enforcePerfectAppearanceCap(noble, pack.characters);
+  noble.location = location;
+  noble.titles.push({
+    title: spec.titles[noble.gender],
+    landed: spec.landed,
+    entityType: "holding",
+    entityId: spec.holdingId,
+    seatName: spec.seatName,
+    startYear: getCurrentYear() - rand(0, Math.max(0, noble.age - careerStartAge(ids.raceId)))
+  });
+  applyCharacterBackstory(noble, {
+    roleClass: spec.roleClass,
+    isReligiousRole: isReligiousForm(state, spec.primarySkill),
+    formName: state.formName,
+    capitalBurgId: state.capital,
+    homeBurgId: location,
+    birthBurgId: location
+  });
+  pack.characters.push(noble);
+  seedMilitaryWarRecordForPeer(noble, pack.states, getCurrentYear());
+  seedRelationsWithPeers(noble, pack.characters);
+  finalizeCharacterSocietyForPeer(noble, pack.characters, societyContext());
+  return noble;
+}
+
 function clear(): void {
   const { pack } = getWorldContext();
   pack.characters = preserveNonPoliticalCharacters(pack.characters);
@@ -953,6 +1010,7 @@ export const Characters = {
   generate,
   createOfficer,
   createProvinceLord,
+  createHoldingNoble,
   clear,
   processResignationsAndSuccessions,
   processCharacterCorruption,

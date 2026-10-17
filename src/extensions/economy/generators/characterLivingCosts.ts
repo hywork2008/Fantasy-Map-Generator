@@ -101,7 +101,7 @@ export function resolveLifestyleTier(character: Character): LifestyleTier {
     if (title.landed && title.entityType === "state") tier = "ruler";
     else if (CENTRAL_OFFICE_TITLES.has(title.title)) tier = "centralOffice";
     else if (FIELD_COMMANDER_TITLES.has(title.title)) tier = "fieldCommander";
-    else if (title.entityType === "province") tier = "provinceLord";
+    else if (title.entityType === "province" || (title.entityType === "holding" && title.landed)) tier = "provinceLord";
 
     if (tier && TIER_RANK[tier] > TIER_RANK[best]) best = tier;
   }

@@ -120,7 +120,7 @@ function hasWarGodTitle(character: Pick<Character, "titles">): boolean {
 function hasWarConductTitle(character: Pick<Character, "titles">): boolean {
   return (
     character.titles.some(t => WAR_CONDUCT_TITLE_RE.test(stripUnderRegencySuffix(t.title))) ||
-    character.titles.some(t => t.landed && t.entityType === "province")
+    character.titles.some(t => t.landed && (t.entityType === "province" || t.entityType === "holding"))
   );
 }
 

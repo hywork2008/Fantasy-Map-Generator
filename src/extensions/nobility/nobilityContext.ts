@@ -10,6 +10,7 @@ import { uiPreferencesStore } from "../../state/uiPreferencesStore";
 import type { ExtensionAPI, SimulationExtensionAPI } from "../../types/extension-api";
 import type { State } from "../../types/models";
 import type { CharacterGenerationBias } from "../characters/characterTypes";
+import type { GaelicPeriod, NobleHolding } from "./holdings/types";
 import type { ConflictAuthorization } from "./types";
 
 let _api: SimulationExtensionAPI | null = null;
@@ -211,4 +212,54 @@ export function setConflictAuthorizations(state: State, authorizations: Record<n
     return;
   }
   (state as unknown as Record<string, unknown>).conflictAuthorizations = authorizations;
+}
+
+/** True when the simulation slice can persist a holding ledger. Without it, allocation would repeat every tick. */
+export function hasHoldingsStore(): boolean {
+  return getNobilitySlice() !== null;
+}
+
+export function getHoldingsLedger(): NobleHolding[] {
+  const slice = getNobilitySlice();
+  if (!slice) return [];
+  if (Array.isArray(slice.holdings)) return slice.holdings as NobleHolding[];
+  const holdings: NobleHolding[] = [];
+  slice.holdings = holdings;
+  return holdings;
+}
+
+export function setHoldingsLedger(holdings: NobleHolding[]): void {
+  const slice = getNobilitySlice();
+  if (slice) slice.holdings = holdings;
+}
+
+function readGaelicPeriodTable(): Record<string, unknown> | null {
+  const slice = getNobilitySlice();
+  const existing = slice?.gaelicPeriodByState;
+  if (typeof existing === "object" && existing !== null && !Array.isArray(existing)) {
+    return existing as Record<string, unknown>;
+  }
+  return null;
+}
+
+export function getGaelicHoldingPeriod(stateId: number): GaelicPeriod | null {
+  const value = readGaelicPeriodTable()?.[stateId];
+  if (value === "earlyMedieval" || value === "highMedieval" || value === "lateMedieval") return value;
+  return null;
+}
+
+export function setGaelicHoldingPeriod(stateId: number, period: GaelicPeriod): void {
+  const slice = getNobilitySlice();
+  if (!slice) return;
+  const table = readGaelicPeriodTable() ?? {};
+  table[stateId] = period;
+  slice.gaelicPeriodByState = table;
+}
+
+export function pruneGaelicHoldingPeriods(livingStateIds: ReadonlySet<number>): void {
+  const table = readGaelicPeriodTable();
+  if (!table) return;
+  for (const key of Object.keys(table)) {
+    if (!livingStateIds.has(Number(key))) delete table[key];
+  }
 }

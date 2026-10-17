@@ -305,3 +305,79 @@ describe("technology bias extension slice validation", () => {
     ).toThrow("firstEligibleYear must be a finite integer");
   });
 });
+
+describe("nobility holding ledger validation", () => {
+  function holding(overrides: Record<string, unknown> = {}) {
+    return {
+      id: 1,
+      stateId: 1,
+      dignity: null,
+      office: "mormaer",
+      tenure: "kinLand",
+      cellIds: [1],
+      provinceIds: [1],
+      burgIds: [],
+      knightFees: 1,
+      holderKind: "character",
+      hereditary: true,
+      frontier: false,
+      ...overrides
+    };
+  }
+
+  it("accepts a Celtic holding whose state is not in the pack", () => {
+    const world = createWorld();
+    expect(() =>
+      assertValidExtensionStateSlices(world, {
+        extensions: {
+          nobility: {
+            holdings: [holding({ stateId: 9 })],
+            gaelicPeriodByState: { "9": "earlyMedieval" }
+          }
+        }
+      } as SimulationContext)
+    ).not.toThrow();
+  });
+
+  it("rejects an out-of-range cell, an exclusive overlap, and basis points over 10000", () => {
+    const world = createWorld();
+    expect(() =>
+      assertValidExtensionStateSlices(world, {
+        extensions: { nobility: { holdings: [holding({ cellIds: [9] })] } }
+      } as SimulationContext)
+    ).toThrow("outside 0..1");
+
+    expect(() =>
+      assertValidExtensionStateSlices(world, {
+        extensions: {
+          nobility: {
+            holdings: [holding(), holding({ id: 2, cellIds: [1] })]
+          }
+        }
+      } as SimulationContext)
+    ).toThrow("overlaps cell 1");
+
+    expect(() =>
+      assertValidExtensionStateSlices(world, {
+        extensions: {
+          nobility: {
+            holdings: [
+              holding({ cellIds: [], shares: [{ cellId: 1, basisPoints: 6000 }] }),
+              holding({ id: 2, cellIds: [], shares: [{ cellId: 1, basisPoints: 5000 }] })
+            ]
+          }
+        }
+      } as SimulationContext)
+    ).toThrow("sum to 11000");
+  });
+
+  it("skips the cell range check when the pack has no cells", () => {
+    const world = createWorld();
+    world.pack.cells.i = new Uint16Array();
+    expect(() =>
+      assertValidExtensionStateSlices(world, {
+        extensions: { nobility: { holdings: [holding({ cellIds: [9] })] } }
+      } as SimulationContext)
+    ).not.toThrow();
+  });
+});

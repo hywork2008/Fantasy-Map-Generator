@@ -163,14 +163,16 @@ export function inferRoleClass(character: Character): CharacterRoleClass {
   }
 
   for (const title of character.titles) {
-    if (title.entityType === "province" && title.landed) return "province_lord";
+    if ((title.entityType === "province" || title.entityType === "holding") && title.landed) return "province_lord";
     // Marshal / Admiral / field generals are military careers, not generic court officers.
     if (isMartialCommandTitle(title.title)) return "commander";
     if (RELIGIOUS_TITLE_RE.test(title.title)) return "religious";
     if (title.landed && title.entityType === "state") return "ruler";
   }
 
-  if (character.titles.some(t => t.entityType === "state" && !t.landed)) return "central_officer";
+  if (character.titles.some(t => (t.entityType === "state" || t.entityType === "holding") && !t.landed)) {
+    return "central_officer";
+  }
   return "ordinary";
 }
 

@@ -146,7 +146,7 @@ function hasLandedStateTitle(character: Character): boolean {
 }
 
 function hasProvinceLordTitle(character: Character): boolean {
-  return character.titles.some(t => t.landed && t.entityType === "province");
+  return character.titles.some(t => t.landed && (t.entityType === "province" || t.entityType === "holding"));
 }
 
 function bandMid(band: readonly [number, number]): number {

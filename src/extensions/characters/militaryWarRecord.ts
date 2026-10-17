@@ -47,7 +47,7 @@ export function prestigeDeltaForConduct(conduct: WarConductKind): number {
 
 export function isWarRecordEligible(character: Pick<Character, "titles" | "roles">): boolean {
   if (isMilitaryCareerCharacter(character)) return true;
-  return character.titles.some(t => t.landed && t.entityType === "province");
+  return character.titles.some(t => t.landed && (t.entityType === "province" || t.entityType === "holding"));
 }
 
 function officeTenureStartYear(character: Character, currentYear: number): number {
@@ -98,7 +98,7 @@ export function warsInvolvingState(state: Pick<State, "i" | "campaigns">): Campa
 function serviceChance(character: Character): number {
   if (character.titles.some(t => MARTIAL_COURT_TITLE_RE.test(t.title))) return 0.88;
   if (character.titles.some(t => FIELD_TITLE_RE.test(t.title))) return 0.55;
-  if (character.titles.some(t => t.landed && t.entityType === "province")) return 0.4;
+  if (character.titles.some(t => t.landed && (t.entityType === "province" || t.entityType === "holding"))) return 0.4;
   if (isMilitaryCareerCharacter(character)) return 0.5;
   return 0;
 }

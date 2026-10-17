@@ -516,10 +516,13 @@ export const CharacterDetailsDialog: React.FC = () => {
 
   // "state" titles (rulers, central offices, field/fleet officers) point at pack.states;
   // "province" titles (frontier lords) point at pack.provinces — same entityId space, different table.
-  const getTitleEntityName = (titleHolding: TitleHolding) =>
-    titleHolding.entityType === "province"
-      ? (provinces?.[titleHolding.entityId]?.name ?? t("characters.unknown"))
-      : (states[titleHolding.entityId]?.name ?? t("characters.unknown"));
+  const getTitleEntityName = (titleHolding: TitleHolding) => {
+    if (titleHolding.entityType === "holding") return titleHolding.seatName || t("characters.unknown");
+    if (titleHolding.entityType === "province") {
+      return provinces?.[titleHolding.entityId]?.name ?? t("characters.unknown");
+    }
+    return states[titleHolding.entityId]?.name ?? t("characters.unknown");
+  };
 
   const getRoleEntityName = (role: CharacterRole) => {
     if (role.entityType === "burg") {

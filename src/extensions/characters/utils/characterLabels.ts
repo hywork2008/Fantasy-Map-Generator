@@ -68,6 +68,8 @@ const TITLE_KEY_BY_ENGLISH: Readonly<Record<string, string>> = {
   Countess: "countess",
   Earl: "earl",
   Sheriff: "sheriff",
+  Mormaer: "mormaer",
+  Thane: "thane",
   Landgrave: "landgrave",
   Landgravine: "landgravine",
   Baron: "baron",

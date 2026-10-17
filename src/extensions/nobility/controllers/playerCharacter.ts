@@ -100,6 +100,8 @@ export function resolveOrganization(
   title: TitleHolding,
   pack: { states?: State[]; provinces?: Province[] }
 ): string {
+  if (title.entityType === "holding") return title.seatName || "Holding";
+
   if (title.entityType === "province") {
     return resolveProvinceLabel(pack.provinces, title.entityId);
   }
@@ -126,7 +128,9 @@ export function buildPlayerCharacterSummary(
     stateId =
       holding.entityType === "state"
         ? holding.entityId
-        : (character.state ?? pack.provinces?.[holding.entityId]?.state ?? -1);
+        : holding.entityType === "holding"
+          ? (character.state ?? -1)
+          : (character.state ?? pack.provinces?.[holding.entityId]?.state ?? -1);
   } else if (role?.entityType === "state") {
     stateId = role.entityId;
   }

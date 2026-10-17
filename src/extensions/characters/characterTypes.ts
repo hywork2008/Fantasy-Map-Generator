@@ -72,10 +72,12 @@ export interface TitleHolding {
   title: string;
   /** true = sovereign/territorial ruler; false = government office or field command. */
   landed: boolean;
-  /** "state" for rulers/central offices; "province" for landed frontier lords; "burg" for burgomaster/council. */
-  entityType: "state" | "province" | "burg";
-  /** pack.states[] id when entityType is "state"; pack.provinces[] id when "province"; pack.burgs[] id when "burg". */
+  /** "state" for rulers/central offices; "province" for landed frontier lords; "burg" for burgomaster/council; "holding" for a nobility ledger seat. */
+  entityType: "state" | "province" | "burg" | "holding";
+  /** pack.states[] id when entityType is "state"; pack.provinces[] id when "province"; pack.burgs[] id when "burg"; holding id when "holding". */
   entityId: number;
+  /** Place name for a holding title, so the dialog can say "Earl of X" without reading the ledger. */
+  seatName?: string;
   startYear?: number;
   endYear?: number;
   reason?: string;
@@ -421,7 +423,7 @@ export interface CharacterLifeEvent {
   year: number;
   title: string;
   reason: string;
-  entityType: "state" | "province" | "burg";
+  entityType: "state" | "province" | "burg" | "holding";
   entityId: number;
 }
 
