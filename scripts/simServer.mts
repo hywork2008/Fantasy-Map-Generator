@@ -146,6 +146,23 @@ function listChannels() {
     .map(id => ({ ...readMeta(id), running: channels.has(id) }));
 }
 
+/** Self-description for an AI given only a channel URL. */
+function debugIndex(api: string) {
+  return {
+    hint: "Share a channel URL plus entity ids; these read-only views reproduce FMG/City Editor inputs without a browser.",
+    endpoints: {
+      summary: `${api}`,
+      burg: `${api}/burgs/{id}`,
+      burgContext: `${api}/burgs/{id}/context  (home cell, cell under the town, displacement, nearby burgs, routes + bridge checks, waterfront issues)`,
+      burgSite: `${api}/burgs/{id}/site  (the exact City Editor site descriptor; runs CE's road convergence first, ~3 s)`,
+      cell: `${api}/cells/{id}`,
+      route: `${api}/routes/{id}`,
+      settlementDiagnostics: `${api}/diagnostics/settlement?minSeparationRadii=2  (towns outside their cell, crowded pairs, bridges in the sea or over the skew limit)`,
+      archive: `${api}/archive  (the .fmg; open it in FMG to look at the same world)`
+    }
+  };
+}
+
 const base = (request: IncomingMessage) => `http://${request.headers.host ?? `${host}:${port}`}`;
 
 async function route(request: IncomingMessage, response: ServerResponse) {
@@ -153,7 +170,7 @@ async function route(request: IncomingMessage, response: ServerResponse) {
   const parts = url.pathname.split("/").filter(Boolean);
   const method = request.method ?? "GET";
   if (parts[0] !== "api" || parts[1] !== "sim") return send(response, 404, { error: "Not found" });
-  const [, , resource, id, sub, entityId] = parts;
+  const [, , resource, id, sub, entityId, view] = parts;
   const write = method !== "GET";
   // Anyone may delete a channel (deliberate: shared scratch worlds); other writes need the token.
   const isDelete = method === "DELETE" && resource === "channels" && id !== undefined && sub === undefined;
@@ -243,6 +260,22 @@ async function route(request: IncomingMessage, response: ServerResponse) {
     const result = (await call(id, { ...body, user })) as { revision?: number };
     notify(id, "revision", { revision: result.revision, op: body.type });
     return send(response, 200, result);
+  }
+  // Debug views for AI-assisted defect reports (docs/plan/simulation-channel-server.md §16).
+  if (method === "GET") {
+    const n = Number(entityId);
+    if (sub === "debug" && !entityId) return send(response, 200, debugIndex(`${base(request)}/api/sim/channels/${id}`));
+    if (sub === "diagnostics" && entityId === "settlement")
+      return send(response, 200, await call(id, { type: "debug", view: "settlement", params: Object.fromEntries(url.searchParams) }));
+    if (sub === "cells" && entityId !== undefined && !view) {
+      if (!Number.isSafeInteger(n)) return send(response, 400, { error: "Cell id must be an integer" });
+      return send(response, 200, await call(id, { type: "debug", view: "cell", entityId: n }));
+    }
+    if (sub === "burgs" && entityId !== undefined && (view === "context" || view === "site")) {
+      if (!Number.isSafeInteger(n)) return send(response, 400, { error: "Entity id must be an integer" });
+      return send(response, 200, await call(id, { type: "debug", view: view === "site" ? "burgSite" : "burgContext", entityId: n }));
+    }
+    if (view !== undefined) return send(response, 404, { error: "Not found" });
   }
   // Read-only views of pack collections: /burgs, /burgs/12, /states?q=…
   if (method === "GET") {

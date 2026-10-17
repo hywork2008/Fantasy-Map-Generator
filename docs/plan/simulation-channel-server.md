@@ -252,3 +252,15 @@ FMG_SIM_SERVER=http://127.0.0.1:8788 npm run dev     # Vite が /api/sim を転�
   - 別の地図の読み込み: `uploadMap` の先頭で呼ばれる `onMapUpload`(`src/io/load.ts`、新設)を購読し、チャンネル自身が取得した Blob 以外なら切断(ファイル・ブラウザ保存・URL・Dropbox・map:server のいずれも `uploadMap` を通る)。
   - 新しい地図の生成: `generationProgressStore` の `isOpen` が false→true になったら切断(`beginStage`)。
 - 検証(Playwright): 切断ボタンの後に API で進めても暦が変わらない。接続中にファイルから読み込むと切断され、その後の API の advance で上書きされない。接続中に New Map → Generate で切断される。ページのエラー 0。
+
+## 16. デバッグ用の読み取り API(2026-10-17)
+
+人が「チャンネルの URL + 都市番号」を共有するだけで、AI がブラウザなしで FMG・CE の入力を再現できるようにする。事例と設計は [estuary-port-pair-relocation.md](estuary-port-pair-relocation.md) §7。
+
+- `GET /api/sim/channels/:id/debug`: エンドポイントの一覧(自己記述)。
+- `GET …/burgs/:id/context`: 所属セル・都市の下のセル・移動距離・描いた海岸に対する位置・`waterfrontIssues`・近くの都市・接続する道と川の交差(角度の概算、海の上か)。
+- `GET …/burgs/:id/site`: CE のサイト記述子(`getBurgSiteDescriptor`)。CE を開いたときと同じく道の収束処理を走らせ、その結果はメモリ上のワールドに反映される(次の op で保存される。ブラウザで CE を開いた場合と同じ)。
+- `GET …/cells/:id`: セルの詳細(多角形・高さ・川・haven・都市・隣接・道)。
+- `GET …/diagnostics/settlement?minSeparationRadii=2`: 世界全体の検査(セル外の都市・寄り過ぎの組・海の上の川の交差)。
+- 実装: `scripts/lib/simDebugViews.mts`(子プロセス側)、`simChannelWorker.mts` の `debug` 要求、`simServer.mts` の経路。
+- 検証: world-1 で `/burgs/11/context` が「セル 1412(海)上、海岸の海側 63 m、Road #18 の交差が海上・概算 49°」を返した。`/burgs/11/site` は 200(3.2 秒)。不正な id は 400。

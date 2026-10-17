@@ -2,6 +2,7 @@
 
 2026-10-17
 
+- docs/plan/estuary-port-pair-relocation.md - 河口の港町の寄せ過ぎ(セル外・海上への再配置、海上の橋)の改善案
 - docs/plan/medieval-european-nobility-holdings.md
 
 2026-10-16

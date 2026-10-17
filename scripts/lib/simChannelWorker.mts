@@ -6,11 +6,13 @@
 import { appendFileSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createNodeSimulationHost, loadWorld } from "../../src/simulation/adapters/node";
+import { createDebugViews } from "./simDebugViews.mts";
 
 type Request =
   | { id: number; type: "summary" }
   | { id: number; type: "list"; collection: string; q?: string }
   | { id: number; type: "get"; collection: string; entityId: number }
+  | { id: number; type: "debug"; view: "cell" | "burgContext" | "burgSite" | "settlement"; entityId?: number; params?: Record<string, string> }
   | { id: number; type: "advance"; years?: number; months?: number; days?: number; user?: string }
   | { id: number; type: "command"; extensionId: string; name: string; payload: unknown; user?: string };
 
@@ -25,6 +27,8 @@ const meta = JSON.parse(readFileSync(join(dir, "channel.json"), "utf8")) as { re
 const host = createNodeSimulationHost({ extensions: meta.extensions });
 const bytes = readFileSync(join(dir, "current.fmg"));
 await loadWorld(host, new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength));
+
+const debug = createDebugViews(() => host.world);
 
 const date = () => ({
   year: host.simulation.currentYear,
@@ -89,6 +93,13 @@ async function handle(request: Request): Promise<unknown> {
       const entity = collection(request.collection).find(item => (item as { i?: number })?.i === request.entityId);
       if (!entity) throw Object.assign(new Error("Not found"), { status: 404 });
       return entity;
+    }
+    case "debug": {
+      const n = request.entityId ?? -1;
+      if (request.view === "cell") return debug.cell(n);
+      if (request.view === "burgContext") return debug.burgContext(n);
+      if (request.view === "burgSite") return debug.burgSite(n);
+      return debug.settlementDiagnostics(Number(request.params?.minSeparationRadii ?? 2));
     }
     case "advance": {
       const duration = { years: request.years ?? 0, months: request.months ?? 0, days: request.days ?? 0 };
