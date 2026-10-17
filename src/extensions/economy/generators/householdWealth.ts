@@ -17,8 +17,8 @@
 
 import type { Burg } from "../../hostTypes";
 import { rn } from "../../hostUtils";
-import { getMarketCellColumn, getMarkets, getWorldContext } from "../economyContext";
-import { debitHouseholdWealth, getHouseholdWealth } from "./burgMarketLedgers";
+import { getMarketCellColumn, getMarkets, getWorldContext, isEconomyContextReady } from "../economyContext";
+import { creditHouseholdWealth, debitHouseholdWealth, getHouseholdWealth } from "./burgMarketLedgers";
 import { getEconomyStartProfile } from "./economyStartMode";
 import type { Market } from "./marketTypes";
 
@@ -107,6 +107,19 @@ export function drawStateUrbanHouseholdWealth(stateId: number, amount: number): 
   return rn(collected, 2);
 }
 
+/** Rural population points of State `stateId` inside one Market's catchment. */
+function getStateRuralPopulation(stateId: number, market: Market): number {
+  const { pack } = getWorldContext();
+  if (!pack.cells?.i) return 0;
+  const marketCellColumn = getMarketCellColumn();
+  let rural = 0;
+  for (const cellId of pack.cells.i) {
+    if (marketCellColumn[cellId] !== market.i || pack.cells.h[cellId] < 20) continue;
+    if (pack.cells.state?.[cellId] === stateId) rural += Math.max(0, pack.cells.pop[cellId] ?? 0);
+  }
+  return rural;
+}
+
 /** This State's share of one Market's rural cell population — by political ownership, not the Market's center-Burg state. */
 function getStateRuralPopulationShare(stateId: number, market: Market): number {
   const { pack } = getWorldContext();
@@ -185,4 +198,133 @@ export function drawStateRuralHouseholdWealth(stateId: number, amount: number): 
     }
   }
   return rn(collected, 2);
+}
+
+/**
+ * A capital's population counts this many times over when a State's payroll is spread across its
+ * towns: the court, chancery and garrison headquarters sit there. docs/plan/initial-wealth-calibration.md §5.2.
+ */
+export const CAPITAL_PAYROLL_WEIGHT = 3;
+
+/**
+ * Pays public money out as wages and purchases where the State's people live: clerks, judges and
+ * soldiers in its towns (the capital weighted up), carters and labourers in its countryside. Before
+ * this, administration and troop upkeep left the economy entirely, so households drained into the
+ * treasury and never refilled. Returns the amount placed (0 when the State has no towns; the
+ * caller's money then leaves the economy as before).
+ */
+export function payStateHouseholds(stateId: number, amount: number): number {
+  if (!(amount > 0) || !Number.isFinite(amount) || !isEconomyContextReady()) return 0;
+  const burgs = getStateBurgs(stateId);
+  if (!burgs.length) return 0;
+  const capitalId = getWorldContext().pack.states?.[stateId]?.capital;
+  const townWeight = (burg: Burg) =>
+    Math.max(0, burg.population ?? 0) * (burg.i === capitalId ? CAPITAL_PAYROLL_WEIGHT : 1);
+  const townTotal = burgs.reduce((sum, burg) => sum + townWeight(burg), 0);
+  const ruralByMarket = getMarkets()
+    .map(market => ({ market, rural: getStateRuralPopulation(stateId, market) }))
+    .filter(entry => entry.rural > 0);
+  const ruralTotal = ruralByMarket.reduce((sum, entry) => sum + entry.rural, 0);
+  const total = townTotal + ruralTotal;
+  if (!(total > 0)) {
+    for (const burg of burgs) creditHouseholdWealth(burg.i, rn(amount / burgs.length, 2));
+    return amount;
+  }
+  for (const { market, rural } of ruralByMarket) creditRuralHouseholdWealth(market, rn((amount * rural) / total, 2));
+  for (const burg of burgs) {
+    const weight = townWeight(burg);
+    if (weight > 0) creditHouseholdWealth(burg.i, rn((amount * weight) / total, 2));
+  }
+  return amount;
+}
+
+/** Money spent in one town (a character's living costs): it reaches that town's households. */
+export function spendInBurg(burgId: number | undefined, amount: number): boolean {
+  if (!burgId || !(amount > 0) || !isEconomyContextReady()) return false;
+  const burg = getWorldContext().pack.burgs?.[burgId];
+  if (!burg?.i || burg.removed) return false;
+  creditHouseholdWealth(burgId, amount);
+  return true;
+}
+
+/** Months of the start profile's household cash a town keeps before spending on trades and services. */
+export const URBAN_HOUSEHOLD_BUFFER_MONTHS = 12;
+/** Share of the cash above that buffer spent each month in the town. */
+export const URBAN_HOUSEHOLD_SPEND_SHARE = 0.2;
+
+/**
+ * Town households spend cash above their buffer on local trades and services (bakers' bread aside:
+ * clothes, repairs, carting, ale, rent). That spending is the town's business income, credited to
+ * `burg.treasury`, which pays local works and remits to the State. Without it, wages paid into a
+ * town only piled up. docs/plan/initial-wealth-calibration.md §5.2.
+ */
+export function spendUrbanHouseholdSurplus(): number {
+  if (!isEconomyContextReady()) return 0;
+  const { pack } = getWorldContext();
+  const profile = getEconomyStartProfile(getWorldContext().options ?? {});
+  let spent = 0;
+  for (const burg of pack.burgs ?? []) {
+    if (!burg?.i || burg.removed) continue;
+    const buffer = (burg.population ?? 0) * profile.householdWealthPerPopulation * (URBAN_HOUSEHOLD_BUFFER_MONTHS / 12);
+    const excess = getHouseholdWealth(burg.i) - buffer;
+    if (!(excess > 0)) continue;
+    const amount = debitHouseholdWealth(burg.i, rn(excess * URBAN_HOUSEHOLD_SPEND_SHARE, 2));
+    if (!(amount > 0)) continue;
+    burg.treasury = rn((burg.treasury ?? 0) + amount, 2);
+    spent += amount;
+  }
+  return rn(spent, 2);
+}
+
+/** Months of operating cash a market keeps (per member-town population point, as town working cash). */
+export const MARKET_CASH_RESERVE_PER_POPULATION_FACTOR = 1;
+/** Share of a market's cash above its reserve paid out each month. */
+export const MARKET_SURPLUS_PAYOUT_SHARE = 0.2;
+/** Part of that payout kept by the market's merchants as profit; the rest is spent in its centre town. */
+export const MARKET_MERCHANT_PROFIT_SHARE = 1 / 3;
+
+/**
+ * A market's margin (retail minus farmgate) used to pile up in `marketTreasury.balance` with no
+ * outlet. Above an operating reserve it is now paid out: profit to the market's merchants and
+ * spending (wages, carting, rents) in its centre town. docs/plan/initial-wealth-calibration.md §5.2.
+ */
+export function payOutMarketSurplus(creditMerchant: (characterId: number, amount: number) => boolean): number {
+  if (!isEconomyContextReady()) return 0;
+  const { pack } = getWorldContext();
+  const profile = getEconomyStartProfile(getWorldContext().options ?? {});
+  const memberPopulation = new Map<number, number>();
+  for (const burg of pack.burgs ?? [])
+    if (burg?.i && !burg.removed && burg.market)
+      memberPopulation.set(burg.market, (memberPopulation.get(burg.market) ?? 0) + (burg.population ?? 0));
+  let paid = 0;
+  for (const market of getMarkets()) {
+    const treasury = market.marketTreasury;
+    if (!treasury) continue;
+    const reserve =
+      (memberPopulation.get(market.i) ?? 0) *
+      profile.burgTreasuryPerPopulation *
+      MARKET_CASH_RESERVE_PER_POPULATION_FACTOR;
+    const excess = treasury.balance - reserve;
+    if (!(excess > 0)) continue;
+    const payout = rn(excess * MARKET_SURPLUS_PAYOUT_SHARE, 2);
+    const merchants = [market.managerCharacterId, ...(market.rivalCharacterIds ?? [])].filter(
+      (id): id is number => typeof id === "number"
+    );
+    let profit = merchants.length ? rn(payout * MARKET_MERCHANT_PROFIT_SHARE, 2) : 0;
+    if (profit > 0) {
+      const each = rn(profit / merchants.length, 2);
+      profit = 0;
+      for (const id of merchants) if (creditMerchant(id, each)) profit = rn(profit + each, 2);
+    }
+    const local = rn(payout - profit, 2);
+    if (!spendInBurg(market.centerBurgId, local)) {
+      if (!(profit > 0)) continue;
+      treasury.balance = rn(treasury.balance - profit, 2);
+      paid = rn(paid + profit, 2);
+      continue;
+    }
+    treasury.balance = rn(treasury.balance - payout, 2);
+    paid = rn(paid + payout, 2);
+  }
+  return paid;
 }

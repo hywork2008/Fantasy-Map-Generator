@@ -11,6 +11,7 @@ import {
 } from "../../nobility/generators/officerAssignment";
 import { getRulerId } from "../../nobility/nobilityContext";
 import type { DepartmentBaselineAllocation } from "./departmentAllocationTypes";
+import { payStateHouseholds } from "./householdWealth";
 import { getRegimentMilitaryUpkeep, getStateMilitaryUpkeep } from "./militaryLogistics";
 import { applyWarFootingToBaseline, updateMilitaryMobilizationBoost } from "./warFooting";
 
@@ -707,6 +708,8 @@ export function drawFromMarshalcyThenTreasury(state: State, amount: number): Mar
 export function payMilitaryUpkeep(state: State, need?: number): MarshalcySpendResult & { need: number } {
   const upkeepNeed = need ?? getStateMilitaryUpkeep(state);
   const result = drawFromMarshalcyThenTreasury(state, upkeepNeed);
+  // Soldiers' pay and the garrison's supplies are spent in the State's towns.
+  payStateHouseholds(state.i, result.paid);
   return { need: upkeepNeed, ...result };
 }
 

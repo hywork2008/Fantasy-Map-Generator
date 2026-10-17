@@ -14,10 +14,12 @@ import { applyFiscalEvents } from "./fiscalEvents";
 import {
   drawStateRuralHouseholdWealth,
   drawStateUrbanHouseholdWealth,
+  payStateHouseholds,
   resetRuralHouseholdWealthCycleTracking,
   stateHasBurgs,
   stateOwnsRuralLand
 } from "./householdWealth";
+import { CYCLES_PER_YEAR } from "./marketFlowBudget";
 import { Markets } from "./markets-generator";
 import type { Deal } from "./marketTypes";
 import { getStateMilitaryUpkeep } from "./militaryLogistics";
@@ -77,6 +79,14 @@ const STEWARDSHIP_TAX_EFFICIENCY_PENALTY_MAX = 0.15;
 // represents "income since the last cycle" rather than a running total, so it composes cleanly
 // with a treasury that now carries forward between cycles instead of resetting. See
 // docs/plan/ships.md ("航海訓練・偽装通商・諜報（暫定案）").
+/**
+ * A State keeps about this many years of its domestic income as a reserve; above it, a share of
+ * the excess is spent each cycle as public payroll in its towns (docs/plan/initial-wealth-calibration.md
+ * §5.2). Without this the treasury only grew and the households it taxed only shrank.
+ */
+const STATE_RESERVE_YEARS = 2;
+const STATE_SURPLUS_SPEND_SHARE = 0.25;
+
 const _voyageIncomeByState = new Map<number, number>();
 // Procurement spends between fold-ins must be buffered here and folded into the next
 // carry-forward update, since they happen outside collectTaxes()/foldBufferedStateIncome().
@@ -317,6 +327,23 @@ export class TaxesModule {
       // (docs/plan/state-treasury-department-budget.md §7 item 7) — no deduction here.
       payProvinceLordStipends(state);
 
+      // Above its reserve a State spends: public works, court and garrison payroll in its towns.
+      const cycleIncome =
+        rawDomesticIncome + (salesTaxByState.get(state.i) ?? 0) + (importDutyByState.get(state.i) ?? 0);
+      const reserveTarget = Math.max(
+        cycleIncome * CYCLES_PER_YEAR * STATE_RESERVE_YEARS,
+        ((state.urban || 0) + (state.rural || 0)) * profile.stateTreasuryPerPopulation
+      );
+      const surplus = Math.max(0, (state.treasury || 0) - reserveTarget);
+      let publicSpending = 0;
+      if (surplus > 0) {
+        const spend = rn(surplus * STATE_SURPLUS_SPEND_SHARE, 2);
+        if (payStateHouseholds(state.i, spend) > 0) {
+          state.treasury = rn((state.treasury || 0) - spend, 2);
+          publicSpending = spend;
+        }
+      }
+
       const openingTreasury = openingTreasuryByState.get(state.i) ?? 0;
       const income = {
         salesTax: salesTaxByState.get(state.i) ?? 0,
@@ -357,6 +384,7 @@ export class TaxesModule {
         publicWorksTransfer: allocation.departmentActualCredit.publicWorks,
         militaryUpkeep: militarySpend.fromTreasury,
         strategicProcurement: paidProcurement,
+        publicSpending,
         titheTransfer: mix.titheToEcclesiastica,
         plunderTransfer: mix.plunderToRuler
       };

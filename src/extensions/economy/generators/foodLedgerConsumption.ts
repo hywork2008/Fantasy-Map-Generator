@@ -10,7 +10,7 @@ import {
 import { debitHouseholdWealth, getHouseholdWealth } from "./burgMarketLedgers";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import { BURG_TARGET_RESERVE_DAYS, getStapleFoodGood } from "./foodProduction";
-import { creditRuralHouseholdWealth } from "./householdWealth";
+import { creditRuralHouseholdWealth, debitRuralHouseholdWealth } from "./householdWealth";
 import { getTemporaryLodgerPopulationPointsByBurg } from "./innStays";
 import type { FoodLedger, Market } from "./marketTypes";
 import { getGranaryReserveMultiplier } from "./publicWorks";
@@ -129,7 +129,7 @@ function drawRuralMonthlyNeed(
   marketId: number,
   ledger: FoodLedger,
   populationRate: number
-): { satisfied: number; needed: number } {
+): { satisfied: number; needed: number; fromMarket: number } {
   const worldContext = getWorldContext();
   const { cells } = worldContext.pack;
   const householdStock = getRuralHouseholdFoodStock();
@@ -137,6 +137,7 @@ function drawRuralMonthlyNeed(
   const hasHouseholdStock = householdStock.length === cells.i.length;
   let satisfied = 0;
   let needed = 0;
+  let boughtFromMarket = 0;
 
   for (const cellId of cells.i) {
     if (marketCellColumn[cellId] !== marketId || cells.h[cellId] < 20) continue;
@@ -148,9 +149,10 @@ function drawRuralMonthlyNeed(
     if (hasCellHouseholdStock) householdStock[cellId] = rn(Math.max(0, householdStock[cellId] - fromHousehold), 2);
     const fromMarket = drawFromLedgerFifo(ledger, monthlyNeed - fromHousehold);
     satisfied += fromHousehold + fromMarket;
+    boughtFromMarket += fromMarket;
   }
 
-  return { satisfied: rn(satisfied, 2), needed: rn(needed, 2) };
+  return { satisfied: rn(satisfied, 2), needed: rn(needed, 2), fromMarket: rn(boughtFromMarket, 2) };
 }
 
 function updateStressCounters(ledger: FoodLedger, ruralShortfallRate: number, urbanShortfallRate: number): void {
@@ -245,6 +247,10 @@ export function settleMonthlyFoodConsumption(settlementMonth = getSimulationMont
       urbanDrawn += temporaryDraw.satisfied;
       urbanRevenue += temporaryDraw.satisfied * retailPrice;
     }
+    // Farm families whose own larder ran out buy the rest from the market, as far as their purse
+    // allows (docs/plan/initial-wealth-calibration.md §5.2). What they cannot pay is still supplied,
+    // as before; only the paid part reaches the market and repays its farmgate debt.
+    urbanRevenue += debitRuralHouseholdWealth(market, rn(ruralSettlement.fromMarket * retailPrice, 2));
     urbanMonthlyNeed = rn(urbanMonthlyNeed, 2);
     urbanDrawn = rn(urbanDrawn, 2);
 

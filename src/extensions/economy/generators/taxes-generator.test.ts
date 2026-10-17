@@ -85,8 +85,8 @@ describe("TaxesModule", () => {
 
       taxesModule.defineTaxRates();
 
-      // population 1,200 * balanced profile's stateTreasuryPerPopulation (1.5, economyStartMode.ts)
-      expect(state.treasury).toBe(1800);
+      // population 1,200 * balanced profile's stateTreasuryPerPopulation (8, economyStartMode.ts)
+      expect(state.treasury).toBe(9600);
     });
 
     it("seeds rates jittered around the form's base within the gauss bounds", () => {

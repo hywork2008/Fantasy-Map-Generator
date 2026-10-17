@@ -402,3 +402,91 @@ export async function advanceSampled(
   }
   return strides;
 }
+
+/** Holder types the money-flow recorder tracks; same stocks as `wealth().totals`. */
+export const MONEY_HOLDERS = [
+  "stateTreasury",
+  "statePurse",
+  "stateDepartments",
+  "burgTreasury",
+  "guilds",
+  "urbanHouseholds",
+  "ruralHouseholds",
+  "marketBalance",
+  "marketPayable",
+  "tradeCapital",
+  "characters"
+] as const;
+export type MoneyHolder = (typeof MONEY_HOLDERS)[number];
+type MoneyTotals = Record<MoneyHolder, number>;
+
+function moneyTotals(world: WorldContext): MoneyTotals {
+  const totals = Object.fromEntries(MONEY_HOLDERS.map(h => [h, 0])) as MoneyTotals;
+  for (const st of world.pack.states) {
+    if (!st?.i || st.removed) continue;
+    totals.stateTreasury += st.treasury ?? 0;
+    totals.statePurse += st.householdPurse ?? 0;
+    for (const value of Object.values(st.departmentBalances ?? {})) if (Number.isFinite(value)) totals.stateDepartments += Number(value);
+  }
+  for (const b of world.pack.burgs) if (b?.i && !b.removed) totals.burgTreasury += b.treasury ?? 0;
+  if (isEconomyContextReady()) {
+    for (const l of getBurgMarketLedgers()) totals.urbanHouseholds += l.householdWealth ?? 0;
+    for (const g of getGuildKnowledgeStocks()) totals.guilds += g.treasury ?? 0;
+    for (const c of getGuildChapters() as { treasury?: number }[]) totals.guilds += c.treasury ?? 0;
+    for (const m of getMarkets()) {
+      totals.marketBalance += m.marketTreasury?.balance ?? 0;
+      totals.marketPayable += m.marketTreasury?.ruralGrainPayable ?? 0;
+      totals.tradeCapital += (m.marketTreasury?.tradeWorkingCapital ?? 0) + (m.marketTreasury?.tradeCapitalLocked ?? 0);
+      totals.ruralHouseholds += m.foodLedger?.ruralHouseholdWealth ?? 0;
+    }
+  }
+  for (const ch of getCharacters()) totals.characters += ch.wealth ?? 0;
+  return totals;
+}
+
+/**
+ * Attributes every change in the money stocks to the innermost tick step running when it happened
+ * (docs/plan/initial-wealth-calibration.md §5.1). Install it with `setTickStepObserver`; it only
+ * reads the world. Changes made outside any measured step land under "(other)".
+ */
+export function createMoneyFlowRecorder(getWorld: () => WorldContext) {
+  let last = moneyTotals(getWorld());
+  const stack: string[] = [];
+  let flows = new Map<string, MoneyTotals>();
+  const attribute = (label: string) => {
+    const now = moneyTotals(getWorld());
+    let row = flows.get(label);
+    for (const holder of MONEY_HOLDERS) {
+      const delta = now[holder] - last[holder];
+      if (Math.abs(delta) < 1e-9) continue;
+      row ??= Object.fromEntries(MONEY_HOLDERS.map(h => [h, 0])) as MoneyTotals;
+      row[holder] += delta;
+    }
+    if (row) flows.set(label, row);
+    last = now;
+  };
+  return {
+    observer: {
+      enter(label: string) {
+        attribute(stack.at(-1) ?? "(other)");
+        stack.push(label);
+      },
+      exit(label: string) {
+        attribute(label);
+        stack.pop();
+      }
+    },
+    /** The flows since the previous flush, per step and holder; `net` is money created (+) or destroyed (−). */
+    flush() {
+      attribute(stack.at(-1) ?? "(other)");
+      const out = [...flows].map(([step, row]) => ({
+        step,
+        net: r3(MONEY_HOLDERS.reduce((sum, h) => sum + row[h], 0)),
+        ...Object.fromEntries(MONEY_HOLDERS.filter(h => Math.abs(row[h]) >= 0.0005).map(h => [h, r3(row[h])]))
+      }));
+      flows = new Map();
+      return out;
+    },
+    totals: () => moneyTotals(getWorld())
+  };
+}

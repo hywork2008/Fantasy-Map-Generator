@@ -13,13 +13,16 @@
  * --hash       print the golden digest of the result (same hash as `npm run test:sim-golden`).
  * --sample-every-months N   advance in N-month strides and append an observatory sample per stride
  *              to --samples (docs/plan/approach-traffic-observatory.md §6); same strides as sim:server.
- * --sample-detail burgs,routes,approaches,corridors,markets   limit the sample (default: all)
+ * --sample-detail burgs,routes,approaches,corridors,markets,wealth   limit the sample (default: all)
+ * --money-flows f.ndjson   with --sample-every-months: per stride, the change of every money stock
+ *              attributed to the tick step that made it (docs/plan/initial-wealth-calibration.md §5.1)
  */
 import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { BUILTIN_SIMULATION_EXTENSION_IDS, createNodeSimulationHost } from "../src/simulation/adapters/node";
 import { hashArchiveBytes } from "../src/simulation/goldenHash";
-import { advanceSampled, createObserveViews, parseDetails } from "./lib/observeViews.mts";
+import { setTickStepObserver } from "../src/generators/tickProfiler";
+import { advanceSampled, createMoneyFlowRecorder, createObserveViews, parseDetails } from "./lib/observeViews.mts";
 
 const log = (message: string) => console.error(`[sim] ${message}`);
 
@@ -36,7 +39,8 @@ function parseArgs(argv: string[]) {
     hash: false,
     sampleEveryMonths: 0,
     samples: undefined as string | undefined,
-    sampleDetail: undefined as string | undefined
+    sampleDetail: undefined as string | undefined,
+    moneyFlows: undefined as string | undefined
   };
   const args = [...argv];
   const value = (flag: string) => {
@@ -65,6 +69,7 @@ function parseArgs(argv: string[]) {
     else if (arg === "--sample-every-months") options.sampleEveryMonths = count(arg);
     else if (arg === "--samples") options.samples = resolve(value(arg));
     else if (arg === "--sample-detail") options.sampleDetail = value(arg);
+    else if (arg === "--money-flows") options.moneyFlows = resolve(value(arg));
     else if (arg.startsWith("--")) throw new Error(`Unknown option: ${arg}`);
     else if (!options.input) options.input = resolve(arg);
     else throw new Error(`Unexpected argument: ${arg}`);
@@ -72,6 +77,7 @@ function parseArgs(argv: string[]) {
   if (!options.input) throw new Error("Usage: npm run sim -- <map.fmg> [--days N] [--out world.fmg]");
   if (Boolean(options.sampleEveryMonths) !== Boolean(options.samples))
     throw new Error("--sample-every-months and --samples go together");
+  if (options.moneyFlows && !options.samples) throw new Error("--money-flows needs --sample-every-months and --samples");
   return options;
 }
 
@@ -96,9 +102,18 @@ async function main() {
     );
     const details = parseDetails(options.sampleDetail);
     writeFileSync(options.samples, "");
+    const recorder = options.moneyFlows ? createMoneyFlowRecorder(() => host.world) : null;
+    if (recorder && options.moneyFlows) {
+      writeFileSync(options.moneyFlows, "");
+      setTickStepObserver(recorder.observer);
+    }
     const strides = await advanceSampled(host, duration, options.sampleEveryMonths, () => {
-      appendFileSync(options.samples as string, `${JSON.stringify(observe.sample(details))}\n`);
+      const sample = observe.sample(details);
+      appendFileSync(options.samples as string, `${JSON.stringify(sample)}\n`);
+      if (recorder && options.moneyFlows)
+        appendFileSync(options.moneyFlows, `${JSON.stringify({ date: sample.date, totals: recorder.totals(), flows: recorder.flush() })}\n`);
     });
+    setTickStepObserver(null);
     log(`wrote ${strides} samples to ${options.samples}`);
   } else {
     host.advance(duration);

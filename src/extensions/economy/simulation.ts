@@ -4,6 +4,7 @@ import { simEvents } from "../../simulation/events";
 import { isRepairAtVersion } from "../../simulation/loadRepairs";
 import { uiPreferencesStore } from "../../state/uiPreferencesStore";
 import type { SimulationExtension, SimulationExtensionAPI } from "../../types/extension-api";
+import { getCharacters, hasCharactersContext } from "../characters/charactersContext";
 import {
   FAST_ADVANCE_COARSE_GATE_DAYS,
   FUNERAL_DEMAND_EVENT,
@@ -21,7 +22,7 @@ import {
   isShipbuildingStrategicProcurementDemand,
   isShipbuildingSurplusShipRequest
 } from "../hostTypes";
-import { measureTickStep, measureTickStepAsync, TIME } from "../hostUtils";
+import { measureTickStep, measureTickStepAsync, rn, TIME } from "../hostUtils";
 import { getCadencePhase, setCadencePhase } from "./context/cadencePhases";
 import {
   ANNUAL_GATE,
@@ -150,6 +151,7 @@ import {
   settleMonthlyHeating
 } from "./generators/heating";
 import { HospitalInstallations } from "./generators/hospitalInstallations";
+import { payOutMarketSurplus, spendUrbanHouseholdSurplus } from "./generators/householdWealth";
 import type { IncrementalBatchOptions } from "./generators/incrementalBatching";
 import { IndustrialTechInvestment } from "./generators/industrialTechInvestment";
 import { InnFacilities } from "./generators/innFacilities";
@@ -798,6 +800,17 @@ function registerEconomyCommands(api: SimulationExtensionAPI): void {
       if (!skipFoodConsumption) {
         measureTickStep("production:foodConsumption", () => settleMonthlyFoodConsumption());
       }
+      measureTickStep("production:householdSpending", () => spendUrbanHouseholdSurplus());
+      measureTickStep("production:marketPayout", () =>
+        payOutMarketSurplus((characterId, amount) => {
+          const merchant = hasCharactersContext()
+            ? getCharacters().find(c => c.i === characterId && !c.dead)
+            : undefined;
+          if (!merchant) return false;
+          merchant.wealth = rn((merchant.wealth || 0) + amount, 2);
+          return true;
+        })
+      );
       measureTickStep("production:taxes", () => Taxes.collectTaxes());
       measureTickStep("production:stateSummaries", () => refreshStateEconomySummaries());
       measureTickStep("production:playerCommerce", () => synchronizePlayerCommerce());

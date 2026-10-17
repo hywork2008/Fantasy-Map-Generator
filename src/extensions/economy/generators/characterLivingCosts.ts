@@ -2,6 +2,7 @@ import { getCharacters, hasCharactersContext } from "../../characters/characters
 import type { Character, CharacterRole, TitleHolding } from "../../characters/characterTypes";
 import { rn } from "../../hostUtils";
 import { CENTRAL_OFFICES } from "../../nobility/data/titleTable";
+import { payStateHouseholds, spendInBurg } from "./householdWealth";
 
 /**
  * Personal living-cost sink for Character.wealth.
@@ -179,6 +180,8 @@ export function applyCharacterLivingCosts(): LivingCostSummary {
     if (!(paid > 0)) continue;
 
     character.wealth = rn(wealth - paid, 2);
+    // Board, servants and clothes are bought in the town the character lives in.
+    if (!spendInBurg(character.location, paid) && character.state) payStateHouseholds(character.state, paid);
     charactersCharged += 1;
     totalSpent = rn(totalSpent + paid, 2);
   }

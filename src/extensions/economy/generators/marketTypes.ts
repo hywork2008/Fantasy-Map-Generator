@@ -222,6 +222,8 @@ export interface FoodLedger {
   foodStockAge2UnitCost: number;
   /** Cumulative staple food aged/capped out of the ledger with no export sink yet (v1: recorded only, not consumed). */
   storageOverflow: number;
+  /** Rural surplus the market did not buy this period because it could neither hold nor sell it. */
+  unsoldHarvest?: number;
   /** Physical, non-mixed crop lots. Aggregate fields above are a compatibility summary only. */
   stapleCropInventories?: Record<number, StapleCropInventory>;
   /** Consecutive quarters the rural population's food need went unmet by >=5%. Reset below 5%. */

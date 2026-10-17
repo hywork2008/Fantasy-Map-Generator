@@ -1,5 +1,6 @@
 import type { Burg, State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
+import { payStateHouseholds, spendInBurg } from "./householdWealth";
 
 /**
  * `administrativeUpkeep` used to be one undifferentiated flat percentage of a state's domestic
@@ -125,6 +126,8 @@ export function applyCivilAdministrationUpkeep(
       if (!(paid > 0)) continue;
       burg.treasury = rn(available - paid, 2);
       burgLocalAdministrationPaid = rn(burgLocalAdministrationPaid + paid, 2);
+      // The town's own clerks and watchmen are paid in the town.
+      spendInBurg(burg.i, paid);
     }
   }
 
@@ -144,7 +147,10 @@ export function applyCivilAdministrationUpkeep(
   );
 
   if (breakdown.totalFromTreasury > 0) {
+    const before = Math.max(0, state.treasury || 0);
     state.treasury = rn(Math.max(0, (state.treasury || 0) - breakdown.totalFromTreasury), 2);
+    // Courts, scribes, tax farmers and messengers are people paid in the State's towns.
+    payStateHouseholds(state.i, rn(before - state.treasury, 2));
   }
 
   return breakdown;
