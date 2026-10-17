@@ -1,6 +1,6 @@
 # CE 建物の3D属性(マッシング)と3D表示・FMG/REへの配置
 
-2026-10-17 設計。同日補強（§9）。今回の実装は CE 単体の M0–M2。M3 以降は未実装。
+2026-10-17 設計。同日補強（§9、§10）。実装は CE 単体の M0–M3。M4 以降は未実装。
 
 ## 1. 目的と最終形
 
@@ -154,7 +154,7 @@ src/city-editor/renderers/           // CE viewer: OrbitControls, picking -> lot
 | M0 | `BuildingMassing`、`assignBuildingMassing`、`buildBlockFabric` の戻りへの付与。文書バージョンは上げない | Node テスト: 非ランドマークに massing があり、住居容量が変わらない |
 | M1 | `src/city3d/core` の押し出しと屋根（Node、DOM 不要） | 閉じた形（watertight）のテスト |
 | M2 | CE の 3D ビューア（WebGL、オービット、ピッキング、読み上げ） | ブラウザで 3D を開いて棟を拾う |
-| M3 | ランドマーク・城壁・塔・門・橋の `StructureMassing` | 今回はやらない |
+| M3 | ランドマーク・城壁・塔・門・橋の `StructureMassing` と CE 3D への描画。手順は §10 | 閉じた形のテスト。ブラウザで城壁と門を見る |
 | M4 | L1/L2 の生成と `CityMassingExport` | 今回はやらない |
 | M5 | FMG 3D への配置 | 今回はやらない |
 | M6 | RE への配置 | 今回はやらない |
@@ -259,9 +259,58 @@ RE と FMG への配置は対象外。ゴールは、CE の建物に 3D 属性�
 - 壁を 1 メッシュ、屋根を 1 メッシュにまとめ、頂点色で材質と tint を塗る。
 - 頂点属性 `buildingIndex` と Raycaster で棟を拾い、階数・壁・屋根・軒高と階用途を表示する。拾った棟は稜線で強調する。
 - fabric オブジェクトが同じ間はメッシュを作り直さない。2D のパンでは作り直さない。
-- 城壁・塔・門・橋・ランドマーク asset は出さない。
+- M2 の時点では城壁・塔・門・橋・ランドマーク asset を出さない。M3 で §10 のとおり足す。
 
 ### 9.7 テスト
 
 - `buildingMassing.test.ts`: 階の並び、容量不変、倉庫の階数、材質、古代の 21 m、決定論。
 - `massingGeometry.test.ts`: flat / gable / hip / lean-to / 張り出しが閉じていること、棟が軒より高いこと。
+
+## 10. M3 構造物
+
+建物と同じく保存しない。`CityDocument.version` は上げない。`collectCityStructures(document)` が描画の直前に決める。2D が描く位置と幅を使い、高さだけをここで足す。堀、広場、坂、星形要塞の斜面は描かない。
+
+### 10.1 型
+
+`src/city-editor/types/contracts/structureMassing.ts` の `StructureMassing`。kind は `wall` | `tower` | `gate` | `bridge` | `landmark`。材質は城壁の `stone` | `wood`。形は中心線の帯（`centerline` と `widthMeters`）か、閉じた `footprint` のどちらか。`heightMeters` は基壇からの躯体高。屋根の立ち上がりは含まない。`baseElevationMeters` は地面からの底面。`roof` は `none` | `flat` | `gable` | `hip` | `pyramid`。`parapet` は `none` | `outer` | `both`。胸壁は歯を一枚ずつ作らず、帯の上の低い縁にする。`spire` は足跡の重心に載る円錐。穴あきポリゴンの穴は抜かない。
+
+### 10.2 城壁
+
+立っている `kind: "wall"` の中心線を押し出す。`defenseCircuits` に載っていて、その全てが `razed` の壁は出さない。回路に載らない壁は出す。新様式の城の壁もこの中心線で出す（縄張ポリゴンは重ねない）。
+
+幅は `style.widthMeters`。胸壁の有無は `resolveWallGeometry` の `hasWalkway`。城の壁（`castleWallIds`）は高さを 2 m 足す。
+
+| 材質 | 胸壁あり | 胸壁なし |
+| --- | --- | --- |
+| stone | 躯体 8 m、胸壁 1.1 m | 躯体 5 m |
+| wood | 躯体 4.5 m、胸壁 0.8 m | 躯体 3.2 m |
+
+胸壁の幅は `parapetWidth`。外側へ `(壁厚 - 胸壁幅) / 2` ずらす。外側は町の中心（広場、無ければ `[0,0]`）から遠い側。
+
+### 10.3 塔と門
+
+2D の `townFortificationSvg` と同じ位置にする。新様式の城の壁にはこの円塔を置かず、`buildFortressPlan` の塔を使う。
+
+- 壁上の円塔: 半径 `幅 * 0.8`。間隔は城 32 m、それ以外 `max(45, blockSize * 1.4)`。川の中と、門から `幅 * 3` 以内は置かない。高さは壁の躯体 + 4 m。石は pyramid（円に近ければ円錐）、木は flat。
+- 古典城の隅塔: 折れ角 30° 以上、半径 `幅 * 1.05`、門から 14 m 以内は置かない。
+- 門: `gateCrossingFrame` があるもの。開口は 2D と同じ式（`passageWidthMeters` か `max(道路幅 + 2.2, 壁厚 * 0.9)` に斜めの余裕）。壁の中心線を開口の半分ずつ欠く。
+- 門の脇塔: 一辺 `壁厚 * 1.6` の正方形。開口の外へその半分。高さは壁 + 2.5 m、pyramid。新様式の門には置かない。
+- 門の楣: 開口を渡る梁。底面は壁高 − 1.2 m、厚さ 1.2 m、奥行きは壁厚。kind は `gate`。
+- 新様式の城は `buildFortressPlan` の塔と建物を出す。防御門のポリゴンは通路を含むので押し出さない。建物の高さは天守 18 m、小天守 12 m、広間・御殿・礼拝堂 9 m、それ以外 6 m。天守は pyramid、ほかは gable。
+
+### 10.4 橋
+
+`bridgeDecks` のうち、斜角が `documentBridgeSkewLimit` を超えるものは出さない（2D と同じ）。幅はデッキ幅。底面 0.4 m、厚さ 0.55 m。両側に幅 0.35 m、高さ 0.9 m の欄干。
+
+### 10.5 ランドマーク
+
+- `document.landmarks` の asset 足跡（無ければ site）を、位置・回転・縮尺のあとで押し出す。高さは `clamp(sqrt(面積) * 0.55, 7, 22)`。長辺 / 短辺が 1.45 以上なら gable、未満なら hip。名前が church / cathedral / basilica / chapel / shrine / abbey / mosque / temple / stupa / minster を含むとき、最大の足跡に尖塔を載せる。
+- 寺院要素は 2D と同じ長辺・短辺・回転の矩形。megalith は高さ 2.2 m の flat。shrine は木造 5.5 m の gable。chapel は 7 m、basilica は `clamp(長辺 * 0.28, 9, 16)`。chapel と basilica に尖塔。種別が無ければ長辺 24 m 未満を chapel とする。
+- 古典城の `parts` は足跡を押し出す。keep は 16 m の pyramid、chapel は 9 m の gable、ほかは 7 m の gable。
+- `landmark: true` の建物ロットは建物マッシングを付けず、高さ 12 m の gable として出す。
+
+### 10.6 幾何とビューア
+
+`src/city3d/core/structureGeometry.ts`。three.js を import しない。帯は左右にオフセットした四角柱（隅はマイター、長さは幅の 4 倍まで）。足跡は `buildingSurfaces` に渡す。円塔の pyramid は円錐になる。底面・側面・上面で閉じる。尖塔は軒高から載せる小さな pyramid。
+
+ビューアは壁用と屋根用のメッシュを建物と別に足す。`buildingIndex` は構造物配列の番号。近い方を拾い、種類・材質・高さを表示する。fabric が同じ間は作り直さない。

@@ -1,13 +1,17 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { buildingSurfaces } from "../../city3d/core/massingGeometry";
+import { structureSurfaces } from "../../city3d/core/structureGeometry";
 import { type CityMassingMeshes, createCityMassing } from "../../city3d/three/cityMeshes";
+import { type CityStructureMeshes, createStructureMassing } from "../../city3d/three/structureMeshes";
 import type { EditorMessageKey } from "../../i18n/editorMessages";
 import { editorText } from "../../i18n/editorMessages";
 import { buildBlockFabric, type DistrictFabric } from "../generators/blockInfill";
 import type { BuildingLot } from "../generators/buildingLots.types";
 import type { FloorUse, RoofForm, RoofMaterial, WallMaterial } from "../types/contracts/buildingMassing";
+import type { StructureKind, StructureMassing, StructureMaterial } from "../types/contracts/structureMassing";
 import type { CityDocument } from "../types/document";
+import { collectCityStructures, landmarkLotStructures } from "./structureMassing";
 
 const WALL_KEY: Record<WallMaterial, EditorMessageKey> = {
   "timber-frame": "cityEditor.messages.massingTimberFrame",
@@ -34,6 +38,17 @@ const FORM_KEY: Record<RoofForm, EditorMessageKey> = {
   conical: "cityEditor.messages.massingConical",
   dome: "cityEditor.messages.massingDome",
   spire: "cityEditor.messages.massingSpire"
+};
+const STRUCTURE_KEY: Record<StructureKind, EditorMessageKey> = {
+  wall: "cityEditor.messages.massingStructureWall",
+  tower: "cityEditor.messages.massingStructureTower",
+  gate: "cityEditor.messages.massingStructureGate",
+  bridge: "cityEditor.messages.massingStructureBridge",
+  landmark: "cityEditor.messages.massingStructureLandmark"
+};
+const STRUCTURE_MATERIAL: Record<StructureMaterial, EditorMessageKey> = {
+  stone: "cityEditor.messages.massingStone",
+  wood: "cityEditor.messages.massingTimber"
 };
 const USE_KEY: Record<FloorUse, EditorMessageKey> = {
   residential: "cityEditor.messages.massingResidential",
@@ -79,6 +94,8 @@ export function mountCity3d(options: {
   let camera: THREE.PerspectiveCamera | null = null;
   let controls: OrbitControls | null = null;
   let massing: CityMassingMeshes | null = null;
+  let structures: CityStructureMeshes | null = null;
+  let structureList: StructureMassing[] = [];
   let highlight: THREE.LineSegments | null = null;
   let built: DistrictFabric | null = null;
   let framedRadius = 0;
@@ -116,6 +133,41 @@ export function mountCity3d(options: {
     highlight = null;
   };
 
+  const outline = (positions: Float32Array) => {
+    if (!scene || !positions.length) return;
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    highlight = new THREE.LineSegments(
+      new THREE.EdgesGeometry(geometry),
+      new THREE.LineBasicMaterial({ color: 0xf1cf55 })
+    );
+    geometry.dispose();
+    scene.add(highlight);
+  };
+
+  const showStructure = (structure: StructureMassing | undefined) => {
+    clearHighlight();
+    if (!structure) {
+      readout.hidden = false;
+      readout.textContent = editorText("cityEditor.messages.massingEmpty");
+      return;
+    }
+    const top = structure.baseElevationMeters + structure.heightMeters;
+    const line = editorText("cityEditor.messages.structureReadout", {
+      value0: editorText(STRUCTURE_KEY[structure.kind]),
+      value1: editorText(STRUCTURE_MATERIAL[structure.material]),
+      value2: top.toFixed(1)
+    });
+    readout.hidden = false;
+    readout.textContent = structure.name ? `${line}\n${structure.name}` : line;
+    const surfaces = structureSurfaces(structure);
+    if (!surfaces) return;
+    const positions = new Float32Array(surfaces.walls.positions.length + surfaces.roofs.positions.length);
+    positions.set(surfaces.walls.positions, 0);
+    positions.set(surfaces.roofs.positions, surfaces.walls.positions.length);
+    outline(positions);
+  };
+
   const showLot = (lot: BuildingLot | undefined) => {
     clearHighlight();
     if (!lot?.massing || !scene) {
@@ -136,14 +188,7 @@ export function mountCity3d(options: {
     const positions = new Float32Array(surfaces.walls.positions.length + surfaces.roofs.positions.length);
     positions.set(surfaces.walls.positions, 0);
     positions.set(surfaces.roofs.positions, surfaces.walls.positions.length);
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-    highlight = new THREE.LineSegments(
-      new THREE.EdgesGeometry(geometry),
-      new THREE.LineBasicMaterial({ color: 0xf1cf55 })
-    );
-    geometry.dispose();
-    scene.add(highlight);
+    outline(positions);
   };
 
   const rebuild = (city: CityDocument, fabric: DistrictFabric) => {
@@ -152,15 +197,20 @@ export function mountCity3d(options: {
     readout.hidden = true;
     massing?.dispose();
     if (massing) scene.remove(massing.group);
+    structures?.dispose();
+    if (structures) scene.remove(structures.group);
     massing = createCityMassing(fabric.buildings);
     scene.add(massing.group);
+    structureList = [...collectCityStructures(city), ...landmarkLotStructures(fabric.buildings)];
+    structures = createStructureMassing(structureList);
+    scene.add(structures.group);
     const ground = scene.getObjectByName("ce-ground") as THREE.Mesh | undefined;
     if (ground) {
       ground.geometry.dispose();
       ground.geometry = new THREE.CircleGeometry(Math.max(20, city.frame.extentMeters), 64);
     }
     if (!framedRadius || Math.abs(city.frame.cityRadiusMeters - framedRadius) / framedRadius > 0.25) frameCamera(city);
-    if (!fabric.buildings.some(lot => lot.massing)) showLot(undefined);
+    if (!fabric.buildings.some(lot => lot.massing) && !structureList.length) showLot(undefined);
   };
 
   const ensure = () => {
@@ -228,14 +278,14 @@ export function mountCity3d(options: {
   };
 
   const pick = (event: PointerEvent) => {
-    if (!renderer || !camera || !massing || viewport.hidden) return;
+    if (!renderer || !camera || viewport.hidden) return;
     const rect = renderer.domElement.getBoundingClientRect();
     pointerNdc.set(
       ((event.clientX - rect.left) / rect.width) * 2 - 1,
       -((event.clientY - rect.top) / rect.height) * 2 + 1
     );
     raycaster.setFromCamera(pointerNdc, camera);
-    const hit = raycaster.intersectObjects(massing.pickables, false)[0];
+    const hit = raycaster.intersectObjects([...(massing?.pickables ?? []), ...(structures?.pickables ?? [])], false)[0];
     if (!hit?.face) {
       clearHighlight();
       readout.hidden = true;
@@ -243,7 +293,8 @@ export function mountCity3d(options: {
     }
     const attribute = hit.object.geometry.getAttribute("buildingIndex");
     const index = attribute?.getX(hit.face.a) ?? -1;
-    showLot(built?.buildings[index]);
+    if (structures?.pickables.includes(hit.object as THREE.Mesh)) showStructure(structureList[index]);
+    else showLot(built?.buildings[index]);
   };
 
   options.scope.listen(button, "click", () => setOpen(viewport.hidden));
@@ -267,6 +318,7 @@ export function mountCity3d(options: {
     observer?.disconnect();
     clearHighlight();
     massing?.dispose();
+    structures?.dispose();
     controls?.dispose();
     renderer?.dispose();
     viewport.remove();
