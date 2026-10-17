@@ -33,6 +33,7 @@ import { DocumentHistory } from "../generators/history";
 import { clone } from "../generators/mesh";
 import { DEFAULT_PATCH_PARAMS } from "../generators/patches";
 import { CASTLE_STYLE_PROFILES } from "../renderers/castlePatterns";
+import { mountCity3d } from "../renderers/cityView";
 import { clearRenderDerivedCaches } from "../renderers/derivedCaches";
 import type { GridOverlay } from "../renderers/overlays/editorOverlays";
 import { SHIP_SPECS } from "../renderers/shipSpecifications";
@@ -99,6 +100,7 @@ export interface CityEditorOptions {
 
 export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = {}): () => void {
   const scope = beginEditorMount(root);
+  let syncCity3d = (): void => {};
   let editingController: ReturnType<typeof createEditingController> | undefined;
   function getEditingController() {
     if (!editingController)
@@ -2309,6 +2311,14 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
 
   bindMapAuxiliary(panelEventContext());
   rebuildEditorIndexes();
+  const city3d = mountCity3d({
+    canvasHost: canvas,
+    map,
+    scope,
+    getDocument: () => documents.documentState
+  });
+  syncCity3d = () => city3d.sync();
+  scope.own(() => city3d.dispose());
   try {
     const incoming = readIncomingCity();
     if (incoming) applyShare(incoming.share, incoming.origin);
@@ -2428,6 +2438,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
 
   function redrawMap(): void {
     getMapDisplayController().redrawMap();
+    syncCity3d();
   }
 
   function selectedLandmarkAsset(): LandmarkAsset | null {

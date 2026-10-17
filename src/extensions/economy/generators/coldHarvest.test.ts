@@ -66,7 +66,12 @@ describe("cold harvest severity", () => {
 
   it("drought roll keeps one draw and the old result at variability 1", () => {
     let calls = 0;
-    const rng = { gauss: (_m: number, sd: number) => (calls++, sd) };
+    const rng = {
+      gauss: (_m: number, sd: number) => {
+        calls++;
+        return sd;
+      }
+    };
     expect(rollClimateAnomaly(0.2, rng)).toBeCloseTo(0.2 * 0.6 + 0.28 * 0.4, 6);
     expect(calls).toBe(1);
     expect(rollClimateAnomaly(0.2, rng, 1.5)).toBeCloseTo(0.2 * 0.6 + 0.42 * 0.4, 6);

@@ -1,6 +1,6 @@
 # CE 建物の3D属性(マッシング)と3D表示・FMG/REへの配置
 
-2026-10-17 設計。未実装。
+2026-10-17 設計。同日補強（§9）。今回の実装は CE 単体の M0–M2。M3 以降は未実装。
 
 ## 1. 目的と最終形
 
@@ -30,7 +30,7 @@
 
 - **描画用の正本は生成時に一度だけ確定させる。** 描画側で乱数や推定をしない(CE・FMG・RE で見た目が一致し、決定論も保てる)。
 - 2D の `BuildingLot` は壊さない。3D 属性は `BuildingLot.massing` として足し、旧データでは無いもの(optional)として扱う。
-- 属性を割り当てる関数は1つにする: `assignBuildingMassing(document, lots)`。住居容量の fit(`fitImportedHousing`)で `storeys` が確定した**後**に実行する。容量計算が使う `storeys` は唯一の値とし、massing 側に別の値を複製しない。
+- 属性を割り当てる関数は1つにする: `assignBuildingMassing(document, lots)`。住居容量の fit で `storeys` が確定した**後**に実行する。`massing.storeys` は描画側が lot を見ずに済む複製で、必ず `BuildingLot.storeys`（未設定の住居は容量計算と同じく 1）と一致する。別の階数を持たない。確定した手順は §9。
 - 長さの単位はメートル、座標は CE ローカル(既存の `Point`)を使う。
 
 ### 3.2 型
@@ -96,8 +96,7 @@ export interface BuildingMassing {
 
 ### 3.4 保存
 
-- `CityDocument.version` を上げ、`massing` を保存する。旧ドキュメントは読み込み時に `assignBuildingMassing` で補完する(loadRepairs と同じ方式)。
-- 3D を描くたびに再計算しない。2D の編集(区画の移動など)で、その区画の massing だけ作り直す。
+当初は `CityDocument` に massing を保存する案だった。建物ロットは文書に無く `buildBlockFabric` が導出するため、今回は保存しない。手順は §9.2。
 
 ## 4. CE 単体の 3D 表示
 
@@ -113,7 +112,7 @@ export interface BuildingMassing {
 
 **結論:** three.js を使う。理由は、最終的に FMG の three.js シーンに置くこと、屋根の形が必要なことの2つ。deck.gl の利点(大量データの宣言的描画とピッキング)は、ブロック単位のジオメトリ結合と ID バッファで代替できる。deck.gl を使うのは、CE 内の「平屋根の押し出しだけを使う、検証用の簡易表示」程度に留める。
 
-FMG 3D と同じ `WebGPURenderer` と TSL のマテリアルを使い、`src/renderers/` から共有モジュールとして切り出す。
+ジオメトリはライブラリに依存しない。CE のビューアは `WebGLRenderer` と `MeshLambertMaterial` を使う（§9.8）。FMG と同じ `WebGPURenderer` と TSL へ載せるのは M5 で、同じ頂点バッファを渡す。
 
 ### 4.2 構成
 
@@ -123,7 +122,7 @@ src/city3d/                         // shared by CE, FMG, RE (no DOM in core)
   core/roofGeometry.ts              // gable/hip/... on an arbitrary convex or near-convex footprint
   core/simplify.ts                  // LOD generation (§5)
   three/cityMeshes.ts               // geometry -> THREE objects, merged per block, TSL materials
-src/city-editor/render3d/           // CE viewer: OrbitControls, picking -> lot inspector
+src/city-editor/renderers/           // CE viewer: OrbitControls, picking -> lot inspector
 ```
 
 - 屋根は、凸に近い区画では straight skeleton を簡略化した方式(長辺方向の棟 + 寄棟)で作る。凹な区画は凸分割してから作る。作れない区画は flat に落とす。
@@ -152,16 +151,117 @@ src/city-editor/render3d/           // CE viewer: OrbitControls, picking -> lot 
 
 | 段階 | 内容 | 確認 |
 | --- | --- | --- |
-| M0 | `BuildingMassing` の型、`assignBuildingMassing`、全区画への付与、保存と旧データの補完 | Node テスト: 全区画に massing があり、`storeys` が容量計算と一致する |
-| M1 | `src/city3d/core` の押し出しと屋根のジオメトリ(Node で動き、DOM 不要) | 三角形数と閉じた形(watertight)のテスト |
-| M2 | CE の 3D ビューア(three.js、ピッキング、区画の情報表示) | Playwright でスクリーンショット |
-| M3 | ランドマーク・城壁・塔・門・橋の `StructureMassing` | ― |
-| M4 | L1/L2 の生成と `CityMassingExport` | 三角形数の上限 |
-| M5 | FMG 3D への配置(CE 未生成の都市は手続き的な代替) | ― |
-| M6 | RE への配置(RE 3D の設計後) | ― |
+| M0 | `BuildingMassing`、`assignBuildingMassing`、`buildBlockFabric` の戻りへの付与。文書バージョンは上げない | Node テスト: 非ランドマークに massing があり、住居容量が変わらない |
+| M1 | `src/city3d/core` の押し出しと屋根（Node、DOM 不要） | 閉じた形（watertight）のテスト |
+| M2 | CE の 3D ビューア（WebGL、オービット、ピッキング、読み上げ） | ブラウザで 3D を開いて棟を拾う |
+| M3 | ランドマーク・城壁・塔・門・橋の `StructureMassing` | 今回はやらない |
+| M4 | L1/L2 の生成と `CityMassingExport` | 今回はやらない |
+| M5 | FMG 3D への配置 | 今回はやらない |
+| M6 | RE への配置 | 今回はやらない |
 
-## 8. 未決事項
+## 8. 決着（2026-10-17）
 
-- 古代の insula の 5 階建ての内部構成(1 階の店舗 taberna + 上階の賃貸)を、§3.3 の一般規則でまかなうか、専用の archetype にするか。
-- 木造の張り出しで隣の区画に入る場合の扱い(2D の区画からはみ出すことを許すか)。
-- FMG の save サイズの上限(都市数 × L1 を全て持つかどうか)。
+- 古代の insula は専用 archetype を作らない。1 階が retail、上階が residential の一般規則で表す。
+- 張り出しは 2D の区画と容量の外にはみ出してよい。隣棟・街路への衝突は解かない。総量は 1.2 m で止める。
+- FMG の save サイズは M5 まで決めない。今回は massing を保存しない。
+
+## 9. 今回の実装で確定したこと
+
+RE と FMG への配置は対象外。ゴールは、CE の建物に 3D 属性を付け、CE の中で都市（建物の塊と地面）を 3D 表示すること。
+
+### 9.1 建物は保存しない
+
+`BuildingLot` は `CityDocument` に無い。`buildBlockFabric` が導出する。
+
+- `massing` は保存しない。`CityDocument.version` は上げない。loadRepairs でも補完しない。
+- `assignBuildingMassing` は純粋関数で、`buildBlockFabric` がキャッシュへ入れる直前に全棟へ付ける。
+- キャッシュは既存の fabric WeakMap。指紋が変われば棟ごと作り直す。区画単位の部分更新は、区画が個別に永続化されていないのでやらない。
+- ランドマーク（`landmark: true`）と頂点が 3 未満のリングには付けない。
+
+### 9.2 階数
+
+住居容量が使う数と massing の数は同じにする。容量を変えない。
+
+- `storeys` が 1 以上で既にあるときはそれを使う。lot には書き戻さない。
+- 住居（`isResidentialBuilding`）で未設定のときは、容量計算と同じく 1 とする。lot には書かない。
+- 非住居で未設定のときだけ lot に書く（容量は 0 なので住居数は変わらない）。上限は `residentialStoreys(period).maximum`。period は `urbanMorphology.period`、無ければ `historicalPeriod`、無ければ `ageOfExploration`。
+
+| 条件 | 階数 |
+| --- | --- |
+| `role` が shed または stable | 1 |
+| `role` が workshop | min(2, 上限) |
+| `role` が store、または archetype が warehouse-compound / port-workyard | min(3, 上限) |
+| その他の非住居 | min(2, 上限) |
+
+範囲の乱数は使わない。
+
+### 9.3 階の用途
+
+`residentialFloorShare` は容量が既に読んでいる。書き換えない。階の並びはその割合の量子化。
+
+1. `uses` が無ければ `["residential"]`。住居を含むかは、`uses` に residential がある、または（`uses` が無く role が main か未設定）のとき。
+2. 地上階: role が workshop、または craft があり retail が無い → craft。retail がある → retail。role が stable → stable。role が store / shed、または residential が無く storage がある → storage。それ以外 → residential。
+3. 住居を含み地上階が住居なら全階 residential。住居を含まず地上階が storage / stable / craft なら全階その用途。
+4. 地上階が店舗か工房で上に住居があるとき、住居階数は `round(share * storeys)` を 0 .. storeys-1 に収める。share の既定は、用途が混ざるとき 0.55、否则 0.85（既存と同じ）。上階は住居を先に埋め、残りは地上階と同じ用途。
+5. 古典・後期古代で軒高が 21 m を超えたら、全階高を `21 / 軒高` 倍する。
+
+| 用途 | 地上 (m) | 上階 (m) |
+| --- | --- | --- |
+| residential | 3.2 | 2.9 |
+| retail, craft | 4.0 | 3.2 |
+| storage | 4.5 | 3.6 |
+| stable | 3.6 | 3.0 |
+
+`eaveHeightMeters` は階高の和。`cellar` は false（地下室は平面を伸ばすだけで階にしない）。`baseElevationMeters` は 0（CE の地面は平ら。FMG 標高は M5）。
+
+### 9.4 材質・屋根・張り出し
+
+バイオームは `document.biome` の name / key / tags。砂漠・arid・steppe は乾燥。forest・taiga・jungle・woodland は森林。地中海系は faith が classicalPolytheism / semiticPolytheism / sunni / shia / judaism / orthodox / zoroastrian、または fortification が islamic / classical。東アジア系は faith が sinitic / neoConfucian / shintoBuddhist / mahayana / theravada / vajrayana / hindu、または fortification が japanese / sinitic。富裕は archetype が patrician-house / elite-compound。
+
+壁:
+
+1. 乾燥かつ非富裕 → mudbrick
+2. 富裕、または古典・後期古代、または fortification が classical → stone
+3. 東アジア系 → timber-frame
+4. 地中海系 → lateMedieval 以降は plaster、それより前は stone
+5. 中世（early / high / late） → timber-frame
+6. 森林 → timber-frame
+7. それ以外 → brick
+
+屋根材: mudbrick は turf。地中海系・古代・東アジアは tile。中世の timber-frame は thatch。それ以外の timber-frame は shingle。lateMedieval 以降で地中海系でなければ slate。残りは tile。
+
+屋根形: shed / stable は lean-to。mudbrick、または古代で 4 階以上は flat。凹ポリゴンは flat（張り出しも 0）。否則、最長辺 / 最短辺が 1.45 以上なら gable、未満なら hip。
+
+勾配（度）: flat は 2。thatch 48、tile 32、slate 40、shingle 38、turf 8、lead 15。
+
+棟の向き（ラジアン、CE ローカル、`atan2(dy, dx)`）: 正面の代理は最短辺。中世で地中海系でも東アジア系でも古代でもないとき、棟はその辺に直交（妻入り）。それ以外は辺に平行（平入り）。
+
+張り出し: 壁が timber-frame で中世かつ凸なとき、上階ごとに 0.4 m。幾何は `min(1.2, 階番号 * 0.4)` だけ外側へオフセットする。2D と容量は変えない。それ以外は 0。
+
+色の揺らぎ: `growthRandom(`${generationSeed ?? fabric.seed ?? "massing"}:massing:${lot.id ?? faceId:index}:tint`)`。幾何には影響しない。
+
+### 9.5 幾何
+
+`src/city3d/core/massingGeometry.ts`。入力はポリゴンと massing。出力は壁と屋根の三角形（position, normal）。three.js を import しない。
+
+- 軸: three の X = CE の X、Y = 高さ、Z = CE の Y。
+- 凸で gable / hip: 棟線は `v = vMid` と外形の交点。gable はその交点を両端にし、hip は両端を `min(半幅, 半長)` だけ内側へ寄せ、棟高は `その長さ * tan(勾配)`。各辺を棟へつなぐ。妻側の直立した三角形は壁に入れる。
+- lean-to: 最長辺を高い棟にし、その辺は軒から棟までの垂直な面（壁）。他の辺は軒の高さから棟へつなぐ。
+- flat と凹: 外形を耳切りして軒高で塞ぐ。
+- 張り出し: 凸オフセット。階と階の間の下面（soffit）を塞ぐ。
+- 底面は y = 0。壁・屋根・底・soffit で閉じる。作れないリングは null（描かない）。
+
+### 9.6 ビューア
+
+`src/city-editor/renderers/cityView.ts`。地図の「3D / 2D」ボタンで開く。開くまで WebGL もジオメトリも作らない。
+
+- `WebGLRenderer`、`OrbitControls`、半球光と平行光。地面は `frame.extentMeters` の円盤。
+- 壁を 1 メッシュ、屋根を 1 メッシュにまとめ、頂点色で材質と tint を塗る。
+- 頂点属性 `buildingIndex` と Raycaster で棟を拾い、階数・壁・屋根・軒高と階用途を表示する。拾った棟は稜線で強調する。
+- fabric オブジェクトが同じ間はメッシュを作り直さない。2D のパンでは作り直さない。
+- 城壁・塔・門・橋・ランドマーク asset は出さない。
+
+### 9.7 テスト
+
+- `buildingMassing.test.ts`: 階の並び、容量不変、倉庫の階数、材質、古代の 21 m、決定論。
+- `massingGeometry.test.ts`: flat / gable / hip / lean-to / 張り出しが閉じていること、棟が軒より高いこと。
