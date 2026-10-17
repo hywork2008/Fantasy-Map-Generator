@@ -161,6 +161,25 @@ export function textScaleForZoom(zoom: number): number {
   return Math.round(((TEXT_BASE_SCREEN_RATIO * (s + 1)) / (2 * zoom)) * 10) / 10;
 }
 
+/** Detail level (LOD) used by renderRegionSvg for a given zoom. */
+export function detailForZoom(zoom: number): number {
+  return zoom < 0.65 ? 0 : zoom < 1.6 ? 1 : 2;
+}
+
+/**
+ * Rescales zoom-dependent text and stroke sizes of an already rendered map in place,
+ * so zooming does not require regenerating the whole SVG.
+ */
+export function applyTextScale(container: ParentNode, zoom: number): void {
+  const textScale = textScaleForZoom(zoom);
+  container.querySelectorAll<SVGElement>("[data-font-base]").forEach(el => {
+    el.setAttribute("font-size", String(Number(el.dataset.fontBase) * textScale));
+  });
+  container.querySelectorAll<SVGElement>("[data-stroke-base]").forEach(el => {
+    el.setAttribute("stroke-width", (Number(el.dataset.strokeBase) * textScale).toFixed(2));
+  });
+}
+
 export function renderRegionSvg(
   doc: RegionDocument,
   selectedId?: string | null,
@@ -168,7 +187,7 @@ export function renderRegionSvg(
 ): string {
   const zoom = options.zoom ?? 1;
   const highQuality = (options.quality ?? DEFAULT_RENDER_QUALITY) === "high";
-  const detail = zoom < 0.65 ? 0 : zoom < 1.6 ? 1 : 2;
+  const detail = detailForZoom(zoom);
   const textScale = textScaleForZoom(zoom);
   const widthUnits = doc.bounds.widthMeters / doc.bounds.metersPerUnit;
   const heightUnits = doc.bounds.heightMeters / doc.bounds.metersPerUnit;
@@ -717,7 +736,7 @@ export function renderRegionSvg(
               let angle = (Math.atan2(y1 - y0, x1 - x0) * 180) / Math.PI;
               if (angle > 90) angle -= 180;
               else if (angle < -90) angle += 180;
-              return `<text class="contour-elevation" x="${x.toFixed(2)}" y="${y.toFixed(2)}" transform="rotate(${angle.toFixed(1)} ${x.toFixed(2)} ${y.toFixed(2)})" text-anchor="middle" dominant-baseline="central" font-family="'Cinzel', 'Times New Roman', serif" font-size="${8 * textScale}" fill="${theme.contourIndexStroke}" filter="url(#re-halo)">${editorHtml("regionEditor.messages.elevationMetres", { value0: Math.round(c.elevationMeters) })}</text>`;
+              return `<text class="contour-elevation" x="${x.toFixed(2)}" y="${y.toFixed(2)}" transform="rotate(${angle.toFixed(1)} ${x.toFixed(2)} ${y.toFixed(2)})" text-anchor="middle" dominant-baseline="central" font-family="'Cinzel', 'Times New Roman', serif" data-font-base="${8}" font-size="${8 * textScale}" fill="${theme.contourIndexStroke}" filter="url(#re-halo)">${editorHtml("regionEditor.messages.elevationMetres", { value0: Math.round(c.elevationMeters) })}</text>`;
             })
             .join("\n")
         : "";
@@ -1025,7 +1044,7 @@ export function renderRegionSvg(
             ${markerSvg}
             ${isSel ? `<circle cx="0" cy="-10" r="18" fill="none" stroke="#d4a373" stroke-width="2" stroke-dasharray="3,3" />` : ""}
           </g>
-          <text x="${(offset[0] * iconScale).toFixed(2)}" y="${(offset[1] * iconScale).toFixed(2)}" text-anchor="middle" font-family="'Cinzel', 'Times New Roman', serif" font-size="${11 * textScale}" font-weight="${s.isCapital ? "bold" : "normal"}" fill="${theme.textPrimary}" filter="url(#re-halo)">${escapeXml(s.name)}</text>
+          <text x="${(offset[0] * iconScale).toFixed(2)}" y="${(offset[1] * iconScale).toFixed(2)}" text-anchor="middle" font-family="'Cinzel', 'Times New Roman', serif" data-font-base="${11}" font-size="${11 * textScale}" font-weight="${s.isCapital ? "bold" : "normal"}" fill="${theme.textPrimary}" filter="url(#re-halo)">${escapeXml(s.name)}</text>
         </g>
       `;
     })
@@ -1041,7 +1060,7 @@ export function renderRegionSvg(
           <polygon points="0,-9 8,5 -8,5" fill="${theme.landmarkFill}" stroke="#ffffff" stroke-width="1.2" />
           <circle cx="0" cy="0" r="2" fill="#ffffff" />
           ${isSel ? `<circle cx="0" cy="0" r="14" fill="none" stroke="#d4a373" stroke-width="2" />` : ""}
-          <text x="0" y="14" text-anchor="middle" font-family="'Cinzel', serif" font-size="${9.5 * textScale}" font-style="italic" fill="${theme.textSecondary}" filter="url(#re-halo)">${escapeXml(lm.name)}</text>
+          <text x="0" y="14" text-anchor="middle" font-family="'Cinzel', serif" data-font-base="${9.5}" font-size="${9.5 * textScale}" font-style="italic" fill="${theme.textSecondary}" filter="url(#re-halo)">${escapeXml(lm.name)}</text>
         </g>
       `;
     })
@@ -1055,7 +1074,7 @@ export function renderRegionSvg(
       const color = l.category === "water" ? theme.textWater : theme.textPrimary;
       const tracking = l.category === "region" ? "letter-spacing: 5px;" : "";
       return `
-        <text class="map-label label-${l.category}" x="${l.position[0].toFixed(2)}" y="${l.position[1].toFixed(2)}" text-anchor="middle" font-family="${fontFam}" font-size="${l.fontSizePt * textScale}" font-style="${fontStyleAttr}" font-weight="${l.category === "region" ? "bold" : "normal"}" fill="${color}" style="${tracking}" filter="url(#re-halo)">
+        <text class="map-label label-${l.category}" x="${l.position[0].toFixed(2)}" y="${l.position[1].toFixed(2)}" text-anchor="middle" font-family="${fontFam}" data-font-base="${l.fontSizePt}" font-size="${l.fontSizePt * textScale}" font-style="${fontStyleAttr}" font-weight="${l.category === "region" ? "bold" : "normal"}" fill="${color}" style="${tracking}" filter="url(#re-halo)">
           ${escapeXml(l.text)}
         </text>
       `;
@@ -1111,7 +1130,7 @@ export function renderRegionSvg(
       : "";
   const cellBordersSvg =
     doc.terrain.showCellBorders === true && doc.terrain.cellPolygons?.length
-      ? `<g id="layer-cell-borders" fill="none" stroke="#000" stroke-opacity="${doc.terrain.cellBorderOpacity ?? 0.6}" stroke-width="${(0.6 * textScale).toFixed(2)}" stroke-linejoin="round" pointer-events="none">${doc.terrain.cellPolygons
+      ? `<g id="layer-cell-borders" fill="none" stroke="#000" stroke-opacity="${doc.terrain.cellBorderOpacity ?? 0.6}" data-stroke-base="0.6" stroke-width="${(0.6 * textScale).toFixed(2)}" stroke-linejoin="round" pointer-events="none">${doc.terrain.cellPolygons
           .map(poly => `<path d="M ${poly.map(p => `${p[0].toFixed(2)} ${p[1].toFixed(2)}`).join(" L ")} Z" />`)
           .join("")}</g>`
       : "";

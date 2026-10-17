@@ -46,7 +46,7 @@ import { clearRegionSite } from "../io/siteStore";
 import { DEFAULT_RENDER_QUALITY, type RenderQuality } from "../render/biomeArt";
 import { describeCell } from "../render/cellInfo";
 import { ILLUSTRATED_PALETTES } from "../render/styles/themes";
-import { forestMassOfRenderedDoc, renderRegionSvg, textScaleForZoom } from "../render/svg";
+import { applyTextScale, detailForZoom, forestMassOfRenderedDoc, renderRegionSvg } from "../render/svg";
 
 /** FMG burgs-generator.ts の getDefaultGroups に準拠した都市種別（+ 旧 metropolis） */
 function settlementTypeOptions(): ReadonlyArray<readonly [string, string]> {
@@ -100,6 +100,7 @@ export function mountRegionEditor(
 
   // ビューポート状態
   let zoom = 0.85;
+  let renderedDetail = -1;
   let panX = 0;
   let panY = 0;
   let isPanning = false;
@@ -399,6 +400,7 @@ export function mountRegionEditor(
   function renderMap(): void {
     const doc = history.current;
     svgLayer.innerHTML = renderRegionSvg(doc, selectedId, { zoom, quality });
+    renderedDetail = detailForZoom(zoom);
     const widthUnits = doc.bounds.widthMeters / doc.bounds.metersPerUnit;
     const heightUnits = doc.bounds.heightMeters / doc.bounds.metersPerUnit;
     canvas.style.width = `${widthUnits}px`;
@@ -940,8 +942,6 @@ export function mountRegionEditor(
   viewport.addEventListener("wheel", e => {
     e.preventDefault();
     const factor = e.deltaY < 0 ? 1.12 : 0.88;
-    const beforeDetail = zoom < 0.65 ? 0 : zoom < 1.6 ? 1 : 2;
-    const beforeTextScale = textScaleForZoom(zoom);
     const oldZoom = zoom;
     zoom = Math.min(Math.max(0.2, zoom * factor), 5.0);
     // カーソル直下の点を固定する（canvasは中心基準でscaleされる）
@@ -949,10 +949,25 @@ export function mountRegionEditor(
     const ratio = zoom / oldZoom;
     panX += (e.clientX - (rect.left + rect.width / 2)) * (1 - ratio);
     panY += (e.clientY - (rect.top + rect.height / 2)) * (1 - ratio);
-    if (beforeDetail !== (zoom < 0.65 ? 0 : zoom < 1.6 ? 1 : 2) || beforeTextScale !== textScaleForZoom(zoom))
-      renderMap();
     updateTransform();
+    scheduleZoomRefresh();
   });
+
+  // Zooming itself is a CSS transform. Zoom-dependent sizes are patched in place once per frame,
+  // and the full SVG is regenerated only after the wheel settles on a different detail level.
+  let zoomFrame = 0;
+  let zoomDetailTimer: ReturnType<typeof setTimeout> | undefined;
+  function scheduleZoomRefresh(): void {
+    if (!zoomFrame)
+      zoomFrame = requestAnimationFrame(() => {
+        zoomFrame = 0;
+        applyTextScale(svgLayer, zoom);
+      });
+    clearTimeout(zoomDetailTimer);
+    zoomDetailTimer = setTimeout(() => {
+      if (detailForZoom(zoom) !== renderedDetail) renderMap();
+    }, 200);
+  }
 
   viewport.addEventListener("mousedown", e => {
     downClientX = e.clientX;
