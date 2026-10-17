@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import type { CityDocument, Mesh, Point, WaterKind } from "../../city-editor/types/document";
 import { LAND_Y } from "../core/waterGeometry";
+import { roadStampChanged } from "./roadMeshes";
 import { createTownWater, planCity3dRefresh, waterStampChanged } from "./waterMeshes";
 
 function document(partial: Partial<CityDocument> & Pick<CityDocument, "mesh">): CityDocument {
@@ -66,16 +67,22 @@ function sideOf(mesh: THREE.Mesh): THREE.Side {
 
 describe("planCity3dRefresh", () => {
   it("builds nothing while the view is closed", () => {
-    expect(planCity3dRefresh({ fabricChanged: true, stampChanged: true, open: false })).toEqual({
-      buildings: false,
-      water: false
-    });
+    expect(planCity3dRefresh({ fabricChanged: true, stampChanged: true, roadStampChanged: true, open: false })).toEqual(
+      {
+        buildings: false,
+        water: false,
+        roads: false
+      }
+    );
   });
 
   it("rebuilds water only when the caller reports a stamp change", () => {
-    expect(planCity3dRefresh({ fabricChanged: false, stampChanged: true, open: true })).toEqual({
+    expect(
+      planCity3dRefresh({ fabricChanged: false, stampChanged: true, roadStampChanged: false, open: true })
+    ).toEqual({
       buildings: false,
-      water: true
+      water: true,
+      roads: false
     });
   });
 
@@ -86,25 +93,44 @@ describe("planCity3dRefresh", () => {
       planCity3dRefresh({
         fabricChanged: false,
         stampChanged: waterStampChanged(stamp, stamp, false),
+        roadStampChanged: false,
         open: true
       })
-    ).toEqual({ buildings: false, water: true });
+    ).toEqual({ buildings: false, water: true, roads: false });
   });
 
   it("does not rebuild when the stamp matches and the parent is present", () => {
     const stamp = "same";
     expect(waterStampChanged(stamp, stamp, true)).toBe(false);
-    expect(planCity3dRefresh({ fabricChanged: false, stampChanged: false, open: true })).toEqual({
+    expect(
+      planCity3dRefresh({ fabricChanged: false, stampChanged: false, roadStampChanged: false, open: true })
+    ).toEqual({
       buildings: false,
-      water: false
+      water: false,
+      roads: false
     });
   });
 
   it("does not treat missing water children or a cleared building cache as a water rebuild", () => {
     expect(waterStampChanged("same", "same", true)).toBe(false);
-    expect(planCity3dRefresh({ fabricChanged: true, stampChanged: false, open: true })).toEqual({
+    expect(
+      planCity3dRefresh({ fabricChanged: true, stampChanged: false, roadStampChanged: false, open: true })
+    ).toEqual({
       buildings: true,
-      water: false
+      water: false,
+      roads: false
+    });
+  });
+
+  it("rebuilds roads only from the road stamp", () => {
+    expect(roadStampChanged("same", "same", false)).toBe(true);
+    expect(roadStampChanged("same", "same", true)).toBe(false);
+    expect(
+      planCity3dRefresh({ fabricChanged: false, stampChanged: false, roadStampChanged: true, open: true })
+    ).toEqual({
+      buildings: false,
+      water: false,
+      roads: true
     });
   });
 });

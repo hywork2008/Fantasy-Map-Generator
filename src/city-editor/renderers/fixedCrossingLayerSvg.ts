@@ -1,4 +1,4 @@
-import { currentFixedApproachFacts } from "./approachFacts";
+import { currentFixedApproachFacts } from "../generators/approachFacts";
 import type { fixedDocumentLayers } from "./fixedDocumentGeometry";
 import type { RenderContext } from "./renderContext";
 import { element } from "./svgPrimitives";

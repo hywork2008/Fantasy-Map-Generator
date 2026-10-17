@@ -21,20 +21,22 @@ const KINDS: readonly TownWaterKind[] = ["ocean", "lake", "channel", "river"];
 export interface City3dRefreshPlan {
   buildings: boolean;
   water: boolean;
+  roads: boolean;
 }
 
 /**
  * Closed views rebuild nothing. Buildings follow the fabric object.
- * Water follows the caller's stamp bit, which is true only when the stamp
- * string changed or the ce-water parent is missing.
+ * Water follows the caller's water-stamp bit. Roads follow the road-stamp
+ * bit alone: a water edit rebuilds roads only when that string changed.
  */
 export function planCity3dRefresh(input: {
   fabricChanged: boolean;
   stampChanged: boolean;
+  roadStampChanged: boolean;
   open: boolean;
 }): City3dRefreshPlan {
-  if (!input.open) return { buildings: false, water: false };
-  return { buildings: input.fabricChanged, water: input.stampChanged };
+  if (!input.open) return { buildings: false, water: false, roads: false };
+  return { buildings: input.fabricChanged, water: input.stampChanged, roads: input.roadStampChanged };
 }
 
 /** Parent absence counts. Missing ce-water-* children do not. */

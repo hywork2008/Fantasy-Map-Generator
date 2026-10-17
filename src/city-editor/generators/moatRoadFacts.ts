@@ -1,5 +1,5 @@
-import { MoatReservation } from "../generators/moats";
 import type { CityDocument, Point } from "../types/document";
+import { MoatReservation } from "./moats";
 
 export interface MoatBridgeDeck {
   points: Point[];

@@ -3,6 +3,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { buildingSurfaces } from "../../city3d/core/massingGeometry";
 import { structureSurfaces } from "../../city3d/core/structureGeometry";
 import { type CityMassingMeshes, createCityMassing } from "../../city3d/three/cityMeshes";
+import { createTownRoads, roadStampChanged, type TownRoadMeshes } from "../../city3d/three/roadMeshes";
 import { type CityStructureMeshes, createStructureMassing } from "../../city3d/three/structureMeshes";
 import {
   createTownWater,
@@ -13,8 +14,11 @@ import {
 import type { EditorMessageKey } from "../../i18n/editorMessages";
 import { editorText } from "../../i18n/editorMessages";
 import { buildBlockFabric, type DistrictFabric } from "../generators/blockInfill";
+import { riverRibbons } from "../generators/bridgeDeck";
 import type { BuildingLot } from "../generators/buildingLots.types";
+import { collectTownRoads, townRoadStamp } from "../generators/townRoads";
 import { townWaterStamp } from "../generators/townWater";
+import { waterPolygons } from "../generators/waterGeometry";
 import type { FloorUse, RoofForm, RoofMaterial, WallMaterial } from "../types/contracts/buildingMassing";
 import type { StructureKind, StructureMassing, StructureMaterial } from "../types/contracts/structureMassing";
 import type { CityDocument } from "../types/document";
@@ -104,8 +108,11 @@ export function mountCity3d(options: {
   let massing: CityMassingMeshes | null = null;
   let structures: CityStructureMeshes | null = null;
   let waterMeshes: TownWaterMeshes | null = null;
+  let roadMeshes: TownRoadMeshes | null = null;
   let ground: THREE.Mesh | null = null;
   let waterStamp: string | null = null;
+  let roadStamp: string | null = null;
+  let roadWarned: string | null = null;
   let structureList: StructureMassing[] = [];
   let highlight: THREE.LineSegments | null = null;
   let built: DistrictFabric | null = null;
@@ -278,14 +285,17 @@ export function mountCity3d(options: {
     ensure();
     if (!scene) return;
     const city = options.getDocument();
-    const stamp = townWaterStamp(city);
+    // Fabric first: lane geometry is part of the road stamp.
     const fabric = buildBlockFabric(city);
+    const stamp = townWaterStamp(city);
+    const roads = townRoadStamp(city, fabric.lanes);
     const plan = planCity3dRefresh({
       fabricChanged: fabric !== built,
       stampChanged: waterStampChanged(waterStamp, stamp, Boolean(scene.getObjectByName("ce-water"))),
+      roadStampChanged: roadStampChanged(roadStamp, roads, Boolean(scene.getObjectByName("ce-roads"))),
       open: true
     });
-    if (!plan.buildings && !plan.water) return;
+    if (!plan.buildings && !plan.water && !plan.roads) return;
     if (plan.buildings) {
       built = fabric;
       rebuild(city, fabric);
@@ -293,6 +303,26 @@ export function mountCity3d(options: {
     if (plan.water) {
       placeWater(city);
       waterStamp = stamp;
+    }
+    // 3D ignores hideStreetLines. That flag is true only while conceal plays back.
+    if (plan.roads) {
+      try {
+        const next = createTownRoads(collectTownRoads(city, fabric.lanes), {
+          polygons: waterPolygons(city),
+          ribbons: riverRibbons(city).map(ribbon => ({ points: ribbon.points, width: ribbon.width }))
+        });
+        roadMeshes?.dispose();
+        scene.add(next.parent);
+        roadMeshes = next;
+        roadStamp = roads;
+        roadWarned = null;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (roadWarned !== roads) {
+          console.warn("town-roads", message);
+          roadWarned = roads;
+        }
+      }
     }
   };
 
@@ -360,6 +390,7 @@ export function mountCity3d(options: {
     massing?.dispose();
     structures?.dispose();
     waterMeshes?.dispose();
+    roadMeshes?.dispose();
     ground?.geometry.dispose();
     (ground?.material as THREE.Material | undefined)?.dispose();
     controls?.dispose();

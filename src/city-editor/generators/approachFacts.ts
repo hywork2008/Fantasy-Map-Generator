@@ -1,14 +1,14 @@
+import type { CityDocument, Point } from "../types/document";
 import {
   approachBeyondAnchor,
   approachBeyondLabel,
   externalRoadLabels,
   normalizeApproachBeyond
-} from "../generators/approachBeyond";
-import { featureGroupVertices } from "../generators/features";
-import { type FerryPlan, ferryPlan } from "../generators/ferryLanding";
-import { currentFixedCrossingApproaches } from "../generators/fixedApproachAdoption";
-import { frameRoadTownConnection } from "../generators/generation/routing/frameRoadConnection";
-import type { CityDocument, Point } from "../types/document";
+} from "./approachBeyond";
+import { featureGroupVertices } from "./features";
+import { type FerryPlan, ferryPlan } from "./ferryLanding";
+import { currentFixedCrossingApproaches } from "./fixedApproachAdoption";
+import { frameRoadTownConnection } from "./generation/routing/frameRoadConnection";
 
 type RiverConnection = NonNullable<CityDocument["riverConnections"]>[number];
 

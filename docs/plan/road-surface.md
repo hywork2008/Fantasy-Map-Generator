@@ -373,7 +373,7 @@ function importedGroup(
 - `kind: "road"` の中心線。頂点は `featureGroupVertices`（`generators/features.ts`）から `mesh.vertices` の `point`。`edgeGroupPoints` と同じ順であり、レンダラは import しない。
 - `frameRoads` の `piece.kind === "road"` の `points`。
 - `frameRoadTownConnection`（`generators/generation/routing/frameRoadConnection.ts`）が返す乾いた接続 `[Point, Point]`。`null` なら接続は出さない。両端を結ぶ線を新たに作らない。
-- `riverConnectionFacts`（`renderers/approachFacts.ts`）が 2D に渡す `townRoad` と `farRoad`。`dryRuns` は両方に掛ける。`townRoads` がレンダラの事実関数を import してよい。複製しない。
+- `riverConnectionFacts`（`generators/approachFacts.ts`）が 2D に渡す `townRoad` と `farRoad`。`dryRuns` は両方に掛ける。`townRoads` とレンダラは `generators` の事実関数を共有する。複製しない。
 
 載せない。頂点を一つも出さない。両岸を幾何側でつなぎ直さない:
 
@@ -390,7 +390,7 @@ function importedGroup(
 1. `"gc:bridge-"` は空。
 2. `riverRibbons(document)` が空でなければ `roadRunsOutsideRivers`（`generators/bridgeDeck.ts`）。川の中心線を横断する区間は別ランのまま残し、水路を跨がない隙間だけを繋ぐ。対角線のスパンを道路として描かない。
 3. `dryRuns`（`generators/waterGeometry.ts`）に `waterPolygons(document)` を渡す。境界だけの接触は乾いたまま残る。
-4. `new MoatRoadSplitter(document).dryRuns(runs, width)`。クラスは `renderers/moatRoadFacts.ts` のものを呼ぶ。`townRoads.ts` に写さない。このクラスは `generators/moats` だけを import するので、生成器から呼んでよい。戻り値の乾いたランだけを使い、`decks` は捨てる。
+4. `new MoatRoadSplitter(document).dryRuns(runs, width)`。クラスは `generators/moatRoadFacts.ts` のものを呼ぶ。`townRoads.ts` に写さない。このクラスは `generators/moats` だけを import するので、生成器から呼んでよい。戻り値の乾いたランだけを使い、`decks` は捨てる。
 
 枠の `kind: "road"`、接続スタブ、河川の `townRoad` / `farRoad`、路地にも `dryRuns` を掛ける。枠の橋片と `banks` は、切る前に捨てる。中心線が水を横断する枠の道路片は、片ごと捨てずに `dryRuns` の乾いた部分だけを残す。`sceneRegions` 付きの 2D が水に触れた片を丸ごとスキップすることがあっても、3D は乾いた部分を残す。
 
@@ -751,7 +751,7 @@ M2 が見ること: 上面の Y が `ROAD_TOP_Y`、下面がそれより 0.03 �
 ## 18. 参照
 
 - `src/city-editor/renderers/cityView.ts`、`src/city3d/core/planFrame.ts`、`src/city3d/core/waterGeometry.ts`、`src/city3d/three/waterMeshes.ts`
-- `src/city-editor/renderers/featureLayerSvg.ts`、`src/city-editor/renderers/frameRoadSvg.ts`、`src/city-editor/renderers/approachFacts.ts`、`src/city-editor/renderers/moatRoadFacts.ts`、`src/city-editor/renderers/structureMassing.ts` の `addBridges`
+- `src/city-editor/renderers/featureLayerSvg.ts`、`src/city-editor/renderers/frameRoadSvg.ts`、`src/city-editor/generators/approachFacts.ts`、`src/city-editor/generators/moatRoadFacts.ts`、`src/city-editor/renderers/structureMassing.ts` の `addBridges`
 - `src/city-editor/generators/roadTraffic.ts`、`src/city-editor/generators/concealStreets.ts`、`src/city-editor/generators/settlementExtent.ts`、`src/city-editor/generators/localInfill.ts`、`src/city-editor/generators/generation/routing/frameRoadConnection.ts`
 - `src/renderers/webgl/adapters/deckDataAdapters.ts` の `buildRoutePaths`、`src/renderers/three-d-renderer.ts` の `createFloatingRoutes` と `addFloatingRouteBatch`、`src/services/routeGrade.ts`
 - `src/types/models.ts` の `Route`、`src/extensions/economy/generators/publicWorks.ts`、`src/extensions/economy/generators/tradeRouteDuration.ts`
@@ -787,7 +787,7 @@ M2 が見ること: 上面の Y が `ROAD_TOP_Y`、下面がそれより 0.03 �
 
 - Files: `src/city-editor/generators/townRoads.ts`, `src/city-editor/generators/townRoads.test.ts`, `src/city-editor/generators/concealStreets.ts`（`clipPolylineToInterior` だけ）
 - Dependencies: PR 1
-- Clip mesh roads, dry frame-road pieces, the dry `frameRoadTownConnection` stub, dry river-connection approaches, and fabric lanes into `RoadRibbon`s. Resolve group with `importedGroup`, not `roadUse`. Drop `gc:bridge-*` spans, `piece.kind === "bridge"`, and `connection.banks` with no vertices. Call `MoatRoadSplitter` from `renderers/moatRoadFacts.ts`; do not copy it. Split walled towns on `outerWallRing`. On an unwalled town, classify a sample on a mesh edge from `leftFace` and `rightFace`, and a sample on a vertex from `incidentFaces`; use `pointInPolygon` only off the mesh. Split civic at 40 m from a point or a face centroid, never on a highway or a trail. `townRoadStamp` quantizes centerlines and every clip or place input in §7.4 (rivers, `waterPolygons`, moats, walls, frame size, road width, `sourceRoad`, land-face settlement). Do not import three.js. Do not change SVG. Tests in `npx vitest run src/city-editor/generators/townRoads.test.ts`.
+- Clip mesh roads, dry frame-road pieces, the dry `frameRoadTownConnection` stub, dry river-connection approaches, and fabric lanes into `RoadRibbon`s. Resolve group with `importedGroup`, not `roadUse`. Drop `gc:bridge-*` spans, `piece.kind === "bridge"`, and `connection.banks` with no vertices. Call `MoatRoadSplitter` from `generators/moatRoadFacts.ts`; do not copy it. Split walled towns on `outerWallRing`. On an unwalled town, classify a sample on a mesh edge from `leftFace` and `rightFace`, and a sample on a vertex from `incidentFaces`; use `pointInPolygon` only off the mesh. Split civic at 40 m from a point or a face centroid, never on a highway or a trail. `townRoadStamp` quantizes centerlines and every clip or place input in §7.4 (rivers, `waterPolygons`, moats, walls, frame size, road width, `sourceRoad`, land-face settlement). Do not import three.js. Do not change SVG. Tests in `npx vitest run src/city-editor/generators/townRoads.test.ts`.
 
 ### PR 3: Road ribbon geometry
 

@@ -151,6 +151,80 @@ export function clipPolylineToExterior(line: Point[], poly: Point[]): Point[][] 
   return runs;
 }
 
+/** Parts of `line` that lie inside `poly`. A vertex on the curtain stays, so
+ * the street inside the wall still meets its gate. The outside complement is
+ * `clipPolylineToExterior`; the two runs may share the curtain vertex. */
+export function clipPolylineToInterior(line: Point[], poly: Point[]): Point[][] {
+  if (line.length < 2 || poly.length < 3) return [];
+  const ring = isClosed(poly) ? poly : closeRing(poly);
+  const inside = (point: Point): boolean => {
+    if (nearestOnPolyline(point, ring).dist <= SAME_POINT_METERS) return true;
+    return pointInPolygon(point, poly);
+  };
+
+  const runs: Point[][] = [];
+  let current: Point[] = [];
+  const push = (point: Point) => {
+    const last = current[current.length - 1];
+    if (!last || Math.hypot(last[0] - point[0], last[1] - point[1]) > 1e-4) current.push(copyPoint(point));
+  };
+  const flush = () => {
+    if (current.length >= 2) runs.push(current);
+    current = [];
+  };
+
+  for (let i = 0; i + 1 < line.length; i++) {
+    const a = line[i];
+    const b = line[i + 1];
+    const aIn = inside(a);
+    const bIn = inside(b);
+    const hits = segmentRingHits(a, b, ring);
+    if (aIn && bIn) {
+      if (!segmentInteriorOutside(a, b, poly)) {
+        push(a);
+        push(b);
+        continue;
+      }
+      push(a);
+      if (hits[0]) push(hits[0]);
+      flush();
+      if (hits.length >= 2) {
+        push(hits[hits.length - 1]);
+        push(b);
+      }
+      continue;
+    }
+    if (!aIn && !bIn) {
+      flush();
+      if (hits.length >= 2) {
+        push(hits[0]);
+        push(hits[hits.length - 1]);
+        flush();
+      }
+      continue;
+    }
+    const hit = hits[0];
+    if (aIn) {
+      push(a);
+      if (hit) push(hit);
+      flush();
+    } else {
+      flush();
+      if (hit) push(hit);
+      push(b);
+    }
+  }
+  flush();
+  return runs;
+}
+
+function segmentInteriorOutside(a: Point, b: Point, poly: Point[]): boolean {
+  const mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  if (pointInPolygon(mid, poly)) return false;
+  const ring = isClosed(poly) ? poly : closeRing(poly);
+  return nearestOnPolyline(mid, ring).dist > 1e-4;
+}
+
 function segmentRingHits(a: Point, b: Point, ring: Point[]): Point[] {
   const hits: { point: Point; t: number }[] = [];
   for (let i = 0; i + 1 < ring.length; i++) {

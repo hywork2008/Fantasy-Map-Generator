@@ -1,9 +1,9 @@
 import { editorText } from "../../i18n/editorMessages";
+import { frameRoadLegFacts } from "../generators/approachFacts";
 import { cobbledApproach, frameRoadWidthMeters, roadUse } from "../generators/roadTraffic";
 import { defaultRoadWidthMeters, townExtentMeters } from "../generators/settlementExtent";
 import { lineHitsDocumentWater } from "../generators/waterGeometry";
 import type { CityDocument, Point } from "../types/document";
-import { frameRoadLegFacts } from "./approachFacts";
 import { element, line } from "./svgPrimitives";
 /** The shared fixed-crossing layer already draws this span (Allagospo has none, so its frame bridge must draw). */
 export function fixedCrossingCovers(document: CityDocument, deck: Point[]): boolean {
