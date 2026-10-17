@@ -1,9 +1,9 @@
 // Flat water tops and bank skirts for the CE 3D view.
-// Plan x is three.js X, plan y is three.js Z, and height is Y.
-// No three.js import, and no town generator import.
+// Plan positions go through planVertex. No three.js import, and no town generator import.
 
 import type { Point } from "../../city-editor/types/primitives";
 import type { TriangleSoup } from "./massingGeometry";
+import { planVertex } from "./planFrame";
 
 /** Land height. Matches the CE ground disc. */
 export const LAND_Y = -0.2;
@@ -51,12 +51,14 @@ function addTop(bucket: Bucket, triangle: readonly Point[]): void {
   const [a, b, c] = triangle;
   if (!finite(a) || !finite(b) || !finite(c)) return;
   if (span(a, b) < MIN_EDGE || span(b, c) < MIN_EDGE || span(c, a) < MIN_EDGE) return;
-  // Plan y becomes Z, so a counter-clockwise plan ring has a negative Y normal.
-  const ny = (b[1] - a[1]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[1] - a[1]);
+  const av = planVertex(a, WATER_Y);
+  const bv = planVertex(b, WATER_Y);
+  const cv = planVertex(c, WATER_Y);
+  const ny = (bv[2] - av[2]) * (cv[0] - av[0]) - (bv[0] - av[0]) * (cv[2] - av[2]);
   if (Math.abs(ny) * 0.5 < MIN_TRI_AREA) return;
-  const ordered = ny < 0 ? [a, c, b] : [a, b, c];
-  for (const point of ordered) {
-    bucket.positions.push(point[0], WATER_Y, point[1]);
+  const ordered = ny < 0 ? [cv, bv, av] : [av, bv, cv];
+  for (const vertex of ordered) {
+    bucket.positions.push(vertex[0], vertex[1], vertex[2]);
     bucket.normals.push(0, 1, 0);
   }
 }
@@ -83,21 +85,21 @@ function addSkirts(
     const wetRight = isWet([mid[0] - left[0] * BANK_TEST_METERS, mid[1] - left[1] * BANK_TEST_METERS]);
     if (wetLeft === wetRight) continue;
     const dry: Point = wetLeft ? [-left[0], -left[1]] : left;
-    const bottomA: V3 = [a[0], WATER_Y, a[1]];
-    const bottomB: V3 = [b[0], WATER_Y, b[1]];
-    const topA: V3 = [a[0], LAND_Y, a[1]];
-    const topB: V3 = [b[0], LAND_Y, b[1]];
-    // Left of a→b faces +left. Flip when the dry side is on the right.
-    const faces: V3[][] = wetLeft
+    const bottomA = planVertex(a, WATER_Y);
+    const bottomB = planVertex(b, WATER_Y);
+    const topA = planVertex(a, LAND_Y);
+    const topB = planVertex(b, LAND_Y);
+    // Winding matches planVertex, so the geometric normal points at the dry side.
+    const faces = wetLeft
       ? [
-          [bottomA, topA, bottomB],
-          [bottomB, topA, topB]
-        ]
-      : [
           [bottomA, bottomB, topA],
           [bottomB, topB, topA]
+        ]
+      : [
+          [bottomA, topA, bottomB],
+          [bottomB, topA, topB]
         ];
-    const normal: V3 = [dry[0], 0, dry[1]];
+    const normal = planVertex(dry, 0);
     for (const face of faces) for (const vertex of face) push(bucket, vertex, normal);
   }
 }

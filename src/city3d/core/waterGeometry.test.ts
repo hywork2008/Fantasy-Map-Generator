@@ -132,7 +132,7 @@ function readTris(soup: TriangleSoup): ReadTri[] {
 function planMid(tri: ReadTri): Point {
   const unique: Point[] = [];
   for (const vertex of tri.p) {
-    const point: Point = [vertex[0], vertex[2]];
+    const point: Point = [vertex[0], -vertex[2]];
     if (!unique.some(other => Math.hypot(other[0] - point[0], other[1] - point[1]) < 1e-6)) unique.push(point);
   }
   const count = unique.length || 1;
@@ -214,7 +214,7 @@ describe("water surface geometry", () => {
     expect(nearest.dist).toBeLessThan(6);
     const mid = planMid(nearest.tri);
     const toward: Point = [land[0] - mid[0], land[1] - mid[1]];
-    expect(toward[0] * nearest.tri.n[0] + toward[1] * nearest.tri.n[2]).toBeGreaterThan(0);
+    expect(toward[0] * nearest.tri.n[0] - toward[1] * nearest.tri.n[2]).toBeGreaterThan(0);
     const [a, b, c] = nearest.tri.p;
     const ux = b[0] - a[0];
     const uy = b[1] - a[1];
@@ -222,7 +222,7 @@ describe("water surface geometry", () => {
     const vx = c[0] - a[0];
     const vz = c[2] - a[2];
     const geometric: Point = [uy * vz - uz * (c[1] - a[1]), ux * (c[1] - a[1]) - uy * vx];
-    expect(toward[0] * geometric[0] + toward[1] * geometric[1]).toBeGreaterThan(0);
+    expect(toward[0] * geometric[0] - toward[1] * geometric[1]).toBeGreaterThan(0);
 
     const left = rect(0, 0, 10, 10);
     const right = rect(10, 0, 20, 10);

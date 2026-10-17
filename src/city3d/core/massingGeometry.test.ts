@@ -49,6 +49,21 @@ describe("building surfaces", () => {
     [0, 10]
   ] as [number, number][];
 
+  it("places plan +y on -Z so the view matches the SVG", () => {
+    const massing = massingFor(lot({ polygon: square }));
+    const surfaces = buildingSurfaces(square, massing)!;
+    const positions = concatPositions(surfaces.walls, surfaces.roofs);
+    let northEast = false;
+    let southEast = false;
+    for (let i = 0; i < positions.length; i += 3) {
+      if (positions[i] < 9) continue;
+      if (positions[i + 2] < -9) northEast = true;
+      if (Math.abs(positions[i + 2]) < 1) southEast = true;
+    }
+    expect(northEast).toBe(true);
+    expect(southEast).toBe(true);
+  });
+
   it("closes a flat stone insula", () => {
     const building = lot({ polygon: square, storeys: 4, uses: ["residential", "retail"] });
     const massing = massingFor(building, "classicalAntiquity");

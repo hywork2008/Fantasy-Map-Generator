@@ -127,6 +127,7 @@ export function mountCity3d(options: {
     camera.updateProjectionMatrix();
   };
 
+  // Stay on +Z. planVertex maps plan +y to -Z, so the far side matches SVG up.
   const frameCamera = (document: CityDocument) => {
     if (!camera || !controls) return;
     const radius = Math.max(30, document.frame.cityRadiusMeters);

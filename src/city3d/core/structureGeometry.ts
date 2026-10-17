@@ -2,6 +2,7 @@ import type { BuildingMassing, RoofForm } from "../../city-editor/types/contract
 import type { StructureMassing, StructureRoof } from "../../city-editor/types/contracts/structureMassing";
 import type { Point } from "../../city-editor/types/primitives";
 import { type BuildingSurfaces, buildingSurfaces, type TriangleSoup } from "./massingGeometry";
+import { planVertex } from "./planFrame";
 
 type V3 = [number, number, number];
 
@@ -39,8 +40,12 @@ function pushOriented(bucket: Bucket, a: V3, b: V3, c: V3, interior: V3): void {
 }
 
 function addWall(bucket: Bucket, a: Point, b: Point, y0: number, y1: number, interior: V3): void {
-  pushOriented(bucket, [a[0], y0, a[1]], [b[0], y0, b[1]], [b[0], y1, b[1]], interior);
-  pushOriented(bucket, [a[0], y0, a[1]], [b[0], y1, b[1]], [a[0], y1, a[1]], interior);
+  const a0 = planVertex(a, y0);
+  const b0 = planVertex(b, y0);
+  const a1 = planVertex(a, y1);
+  const b1 = planVertex(b, y1);
+  pushOriented(bucket, a0, b0, b1, interior);
+  pushOriented(bucket, a0, b1, a1, interior);
 }
 
 function closedLine(points: readonly Point[]): boolean {
@@ -105,19 +110,21 @@ function extrudeRibbon(points: readonly Point[], width: number, y0: number, y1: 
   const count = closed ? left.length : left.length - 1;
   for (let i = 0; i < count; i++) {
     const j = (i + 1) % left.length;
-    const interior: V3 = [
-      (left[i][0] + right[i][0] + left[j][0] + right[j][0]) / 4,
-      (y0 + y1) / 2,
-      (left[i][1] + right[i][1] + left[j][1] + right[j][1]) / 4
-    ];
+    const interior = planVertex(
+      [
+        (left[i][0] + right[i][0] + left[j][0] + right[j][0]) / 4,
+        (left[i][1] + right[i][1] + left[j][1] + right[j][1]) / 4
+      ],
+      (y0 + y1) / 2
+    );
     addWall(bucket, left[i], left[j], y0, y1, interior);
     addWall(bucket, right[j], right[i], y0, y1, interior);
     if (!closed && i === 0) addWall(bucket, right[i], left[i], y0, y1, interior);
     if (!closed && i === count - 1) addWall(bucket, left[j], right[j], y0, y1, interior);
     const top = (a: Point, b: Point, c: Point) =>
-      pushOriented(bucket, [a[0], y1, a[1]], [b[0], y1, b[1]], [c[0], y1, c[1]], interior);
+      pushOriented(bucket, planVertex(a, y1), planVertex(b, y1), planVertex(c, y1), interior);
     const bottom = (a: Point, b: Point, c: Point) =>
-      pushOriented(bucket, [a[0], y0, a[1]], [b[0], y0, b[1]], [c[0], y0, c[1]], interior);
+      pushOriented(bucket, planVertex(a, y0), planVertex(b, y0), planVertex(c, y0), interior);
     top(left[i], right[i], right[j]);
     top(left[i], right[j], left[j]);
     bottom(left[i], right[j], right[i]);
