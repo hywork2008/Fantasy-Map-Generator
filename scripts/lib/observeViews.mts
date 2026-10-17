@@ -14,12 +14,16 @@ import {
   getMarketShipments,
   getTradeCorridors
 } from "../../src/extensions/economy/context/trade";
+import { getGuildChapters, getGuildKnowledgeStocks } from "../../src/extensions/economy/context/knowledge";
+import { getBurgMarketLedgers } from "../../src/extensions/economy/context/trade";
 import { getGoodCargoSlotsPerUnit } from "../../src/extensions/economy/generators/tradeCargo";
+import { getCharacters } from "../../src/extensions/characters/charactersContext";
+import { inferRoleClass } from "../../src/extensions/characters/backstoryProfile";
 import { delayRatio, liveCorridorNeeds } from "../../src/extensions/economy/generators/tradeCorridorLedger";
 import type { Burg, Route } from "../../src/types/models";
 
 export const SAMPLE_VERSION = 1;
-export const SAMPLE_DETAILS = ["burgs", "routes", "approaches", "corridors", "markets"] as const;
+export const SAMPLE_DETAILS = ["burgs", "routes", "approaches", "corridors", "markets", "wealth"] as const;
 export type SampleDetail = (typeof SAMPLE_DETAILS)[number];
 
 /**
@@ -193,6 +197,7 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
     if (details.includes("approaches")) out.approaches = approachSample();
     if (details.includes("corridors")) out.corridors = corridorSample();
     if (details.includes("markets")) out.markets = markets();
+    if (details.includes("wealth")) out.wealth = wealth();
     return out;
   }
 
@@ -263,6 +268,83 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
     });
   }
 
+  /**
+   * Every money stock, by holder (docs/plan/initial-wealth-calibration.md): what each kind of
+   * holder has, against its population, so start-up endowments can be set from where the
+   * economy settles. Read-only.
+   */
+  function wealth() {
+    const { pack } = getWorld();
+    const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
+    const states = pack.states
+      .filter(st => st?.i && !st.removed)
+      .map(st => ({
+        id: st.i,
+        pop: r3((st.urban ?? 0) + (st.rural ?? 0)),
+        treasury: r3(st.treasury ?? 0),
+        purse: r3(st.householdPurse ?? 0),
+        departments: r3(sum(Object.values(st.departmentBalances ?? {}).map(Number).filter(Number.isFinite)))
+      }));
+    const ledgers = economy() ? new Map(getBurgMarketLedgers().map(l => [l.burgId, l])) : new Map();
+    const guilds = new Map<number, number>();
+    if (economy()) {
+      for (const stock of getGuildKnowledgeStocks()) guilds.set(stock.burgId, (guilds.get(stock.burgId) ?? 0) + (stock.treasury ?? 0));
+      for (const chapter of getGuildChapters() as { burgId?: number; treasury?: number }[])
+        if (chapter.burgId) guilds.set(chapter.burgId, (guilds.get(chapter.burgId) ?? 0) + (chapter.treasury ?? 0));
+    }
+    const burgs = liveBurgs().map(b => ({
+      id: b.i,
+      pop: r3(b.population ?? 0),
+      treasury: r3(b.treasury ?? 0),
+      households: r3(ledgers.get(b.i)?.householdWealth ?? 0),
+      guilds: r3(guilds.get(b.i!) ?? 0)
+    }));
+    const markets = economy()
+      ? getMarkets().map(m => ({
+          id: m.i,
+          balance: r3(m.marketTreasury?.balance ?? 0),
+          payable: r3(m.marketTreasury?.ruralGrainPayable ?? 0),
+          tradeCapital: r3((m.marketTreasury?.tradeWorkingCapital ?? 0) + (m.marketTreasury?.tradeCapitalLocked ?? 0)),
+          ruralHouseholds: r3(m.foodLedger?.ruralHouseholdWealth ?? 0)
+        }))
+      : [];
+    const byClass: Record<string, number[]> = {};
+    for (const character of getCharacters()) {
+      if ((character as { dead?: boolean; deathYear?: number }).dead || (character as { deathYear?: number }).deathYear) continue;
+      (byClass[inferRoleClass(character)] ??= []).push(character.wealth ?? 0);
+    }
+    const characters = Object.fromEntries(
+      Object.entries(byClass).map(([role, values]) => {
+        const sorted = values.slice().sort((a, b) => a - b);
+        const at = (q: number) => sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))] ?? 0;
+        return [role, { count: sorted.length, total: r3(sum(sorted)), median: r3(at(0.5)), p90: r3(at(0.9)), zero: sorted.filter(v => v <= 0).length }];
+      })
+    );
+    const ruralPop = (pack.cells.pop ? Array.from(pack.cells.pop as ArrayLike<number>) : []).reduce((a, b) => a + b, 0);
+    const urbanPop = sum(burgs.map(b => b.pop));
+    return {
+      totals: {
+        urbanPop: r3(urbanPop),
+        ruralPop: r3(ruralPop),
+        stateTreasury: r3(sum(states.map(st => st.treasury))),
+        statePurse: r3(sum(states.map(st => st.purse))),
+        stateDepartments: r3(sum(states.map(st => st.departments))),
+        burgTreasury: r3(sum(burgs.map(b => b.treasury))),
+        urbanHouseholds: r3(sum(burgs.map(b => b.households))),
+        guilds: r3(sum(burgs.map(b => b.guilds))),
+        marketBalance: r3(sum(markets.map(m => m.balance))),
+        marketPayable: r3(sum(markets.map(m => m.payable))),
+        tradeCapital: r3(sum(markets.map(m => m.tradeCapital))),
+        ruralHouseholds: r3(sum(markets.map(m => m.ruralHouseholds))),
+        characters: r3(sum(Object.values(characters).map(c => c.total)))
+      },
+      characters,
+      states,
+      burgs,
+      markets
+    };
+  }
+
   /** Map facts that change only with the route network (§6 static.json). */
   function staticInfo() {
     const { pack, seed } = getWorld();
@@ -282,7 +364,7 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
       .join(",");
   }
 
-  return { sample, routes, approaches, corridors, markets, goods, gates, staticInfo, networkKey };
+  return { sample, routes, approaches, corridors, markets, goods, gates, wealth, staticInfo, networkKey };
 }
 
 export interface SampledAdvanceHost {
