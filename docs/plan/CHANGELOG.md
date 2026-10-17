@@ -8,6 +8,7 @@
 - docs/plan/fmg-harbour-model-before-after.html - fmg-harbour-model.md を実装した場合の before / after の図解
 - docs/plan/fmg-harbour-model.md - 港を独立した存在にし、都市・港・航路の生成順序を固定する(estuary-port-pair-relocation.md の後継)
 - docs/plan/medieval-european-nobility-holdings.md
+- docs/plan/road-surface.md - 街道と都市内幹道の路面。時代・文化圏・経済力から描画時に導く。CE 3D が最初の消費者
 
 2026-10-16
 
