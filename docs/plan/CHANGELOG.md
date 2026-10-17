@@ -2,6 +2,7 @@
 
 2026-10-17
 
+- docs/plan/building-record.md - 城・修道院・住宅・水車を後から含められる建造物の正本。測量メートルの平面から CE の粗い 3D と上面 SVG、DE の文書を導く。第1弾は中世ラテン・ヨーロッパの城 9 件。現行の DungeonDocument は正本にしない
 - docs/plan/ce-3d-building-massing.md - CE建物の3D属性(階数・各階の用途・屋根・材質)、three.jsでの3D表示、LOD簡略版をFMG 3D/REへ配置。同日補強: 今回はCE単体のM0–M3。建物と構造物は保存せず導出時に属性を付ける
 - docs/plan/ce-3d-water-boundary.md - CEの3D水面。陸と非陸を文書から描画時に導く
 - docs/plan/estuary-port-pair-relocation.md - 河口の港町の寄せ過ぎ(セル外・海上への再配置、海上の橋)の改善案(取り下げ)

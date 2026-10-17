@@ -125,7 +125,7 @@ function pointInTri(p: Point, a: Point, b: Point, c: Point): boolean {
   return !(negative && positive);
 }
 
-function earClip(poly: readonly Point[]): Array<[number, number, number]> {
+export function earClip(poly: readonly Point[]): Array<[number, number, number]> {
   const index = poly.map((_, i) => i);
   const triangles: Array<[number, number, number]> = [];
   let guard = poly.length * poly.length;
