@@ -3,6 +3,7 @@
 2026-10-17
 
 - docs/plan/ce-3d-building-massing.md - CE建物の3D属性(階数・各階の用途・屋根・材質)、three.jsでの3D表示、LOD簡略版をFMG 3D/REへ配置。同日補強: 今回はCE単体のM0–M3。建物と構造物は保存せず導出時に属性を付ける
+- docs/plan/ce-3d-water-boundary.md - CEの3D水面。陸と非陸を文書から描画時に導く
 - docs/plan/estuary-port-pair-relocation.md - 河口の港町の寄せ過ぎ(セル外・海上への再配置、海上の橋)の改善案(取り下げ)
 - docs/plan/fmg-harbour-model-before-after.html - fmg-harbour-model.md を実装した場合の before / after の図解
 - docs/plan/fmg-harbour-model.md - 港を独立した存在にし、都市・港・航路の生成順序を固定する(estuary-port-pair-relocation.md の後継)
