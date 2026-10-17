@@ -7,8 +7,9 @@ import { concatPositions, meshIsClosed } from "../city3d/core/massingGeometry";
 import { structureSurfaces } from "../city3d/core/structureGeometry";
 import { contentDigest } from "./canonicalJson";
 import { coarseSolids } from "./coarseSolids";
+import { pointInRing, ringArea } from "./geometry";
 import { committedSvgHash, levelPlanSvg, planSvg } from "./planSvg";
-import { TRIANGLE_BUDGET } from "./record";
+import { type Point, TRIANGLE_BUDGET } from "./record";
 import { validateBuildingRecord } from "./validate";
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
@@ -93,5 +94,74 @@ describe("langeais keep", () => {
     expect(positions.length / 9).toBeLessThanOrEqual(TRIANGLE_BUDGET);
     expect(planArea(positions, 15.9)).toBeCloseTo(73.5, 0);
     expect(covers(positions, 15.9, 0, 0)).toBe(false);
+  });
+});
+
+function sideLength(ring: readonly Point[]): number {
+  return Math.hypot(ring[1][0] - ring[0][0], ring[1][1] - ring[0][1]);
+}
+
+describe("castel del monte", () => {
+  it("builds the published octagon, eight towers, and an open court", () => {
+    const recordPath = path.join(directory, "catalogue/castel-del-monte.json");
+    const planPath = path.join(directory, "plans/castel-del-monte.svg");
+    const result = validateBuildingRecord(JSON.parse(fs.readFileSync(recordPath, "utf8")));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const record = result.record;
+    expect(record.period).toBe("highMedieval");
+    expect(record.planFamily).toBe("octagonal");
+    expect(record.placementStyles).toEqual(["classic", "concentric"]);
+    expect(record.approachAzimuthRadians).toBe(0);
+    expect(record.occupancyMeters.width).toBe(record.occupancyMeters.depth);
+    expect(record.provenance.planClass).toBe("well-published-survey");
+    expect(record.provenance.omitted.length).toBeGreaterThan(0);
+    expect(record.contentHash).toBe(contentDigest(record));
+
+    const body = record.levels[0].walls[0];
+    const tower = record.levels[0].walls[1];
+    const court = body.holes[0];
+    expect(sideLength(body.outer)).toBeCloseTo(16.5, 4);
+    expect(sideLength(tower.outer)).toBeCloseTo(3.1, 4);
+    const flats = Math.max(...court.map(point => point[0])) - Math.min(...court.map(point => point[0]));
+    expect(flats).toBeCloseTo(17.75, 4);
+    const buried = tower.outer.filter((_, index) => {
+      const next = tower.outer[(index + 1) % tower.outer.length];
+      const mid: Point = [(tower.outer[index][0] + next[0]) / 2, (tower.outer[index][1] + next[1]) / 2];
+      return pointInRing(mid, body.outer);
+    });
+    expect(buried).toHaveLength(2);
+    const reach = Math.max(...tower.outer.map(point => Math.hypot(point[0], point[1])));
+    expect(reach).toBeLessThan(28);
+    expect(reach).toBeCloseTo((16.5 + 3.1) / (2 * Math.sin(Math.PI / 8)), 3);
+
+    const solids = coarseSolids(record);
+    expect(solids.filter(solid => solid.heightMeters === 25 && solid.holes.length === 1)).toHaveLength(1);
+    expect(solids.filter(solid => solid.heightMeters === 26 && solid.holes.length === 0)).toHaveLength(8);
+
+    const svg = planSvg(record);
+    const box = /viewBox="([^"]+)"/.exec(svg)?.[1].split(" ").map(Number) ?? [];
+    expect(box.slice(2)).toEqual([record.occupancyMeters.width, record.occupancyMeters.depth]);
+    expect(committedSvgHash(svg)).toBe(record.contentHash);
+    expect(fs.readFileSync(planPath, "utf8")).toBe(`${svg}\n`);
+    expect(levelPlanSvg(record, "ground")).toContain("M19.917262 1");
+    expect(levelPlanSvg(record, "upper")).not.toContain("M19.917262 1");
+
+    let triangles = 0;
+    const bodySolid = catalogueMassing(record).find(solid => solid.holes?.length);
+    expect(bodySolid).toBeDefined();
+    for (const solid of catalogueMassing(record)) {
+      const surfaces = structureSurfaces(solid);
+      expect(surfaces).not.toBeNull();
+      const positions = concatPositions(surfaces!.walls, surfaces!.roofs);
+      expect(meshIsClosed(positions)).toBe(true);
+      triangles += positions.length / 9;
+      if (solid.id === bodySolid?.id) {
+        const courtArea = ringArea(body.outer) + ringArea(court);
+        expect(planArea(positions, 24.9)).toBeCloseTo(courtArea, 0);
+        expect(covers(positions, 24.9, 0, 0)).toBe(false);
+      }
+    }
+    expect(triangles).toBeLessThanOrEqual(TRIANGLE_BUDGET);
   });
 });
