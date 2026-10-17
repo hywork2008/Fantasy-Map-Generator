@@ -12,7 +12,7 @@ import { polygonCentroid } from "../../generators/geom";
 import { FabricCache } from "../../generators/localInfill";
 import { cobbledApproach, roadUse } from "../../generators/roadTraffic";
 import { polylineArc } from "../../generators/urbanGrowth";
-import { renderEditorSvg } from "../../renderers/editorSvg";
+import { serializeCitySvg } from "../../renderers/standaloneSvg";
 import type { GenerationSettings } from "../../types/generation";
 import type { Point } from "../../types/primitives";
 import { parseIncomingPayload } from "../io/incomingCity";
@@ -121,7 +121,8 @@ export function probeBurgGrowth(
         population: descriptor.burg.population,
         approaches: rows
       };
-    if (svgSink) svgSink(renderSvg(city));
+    // Same standalone file as CE "Download SVG": inline styles and xmlns, viewable anywhere.
+    if (svgSink) svgSink(serializeCitySvg(city));
     const byId = new Map(rows.map(row => [row.approachId, row]));
     const ribbons = (city.urbanGrowth?.regions ?? []).filter(
       region => region.kind === "approachRibbon" && region.approachId
@@ -164,26 +165,4 @@ export function probeBurgGrowth(
       ms: performance.now() - started
     };
   }
-}
-
-function renderSvg(city: NonNullable<ReturnType<typeof generateCityOnDocument>>): string {
-  const extent = city.frame.extentMeters;
-  return renderEditorSvg(
-    city,
-    "select",
-    { faceId: null, edgeId: null, vertexId: null, groupId: null },
-    `${-extent / 2} ${-extent / 2} ${extent} ${extent}`,
-    1,
-    false,
-    null,
-    null,
-    null,
-    null,
-    false,
-    false,
-    undefined,
-    false,
-    false,
-    "detailed"
-  ).outerHTML;
 }
