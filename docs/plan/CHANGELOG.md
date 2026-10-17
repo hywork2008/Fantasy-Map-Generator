@@ -2,6 +2,7 @@
 
 2026-10-17
 
+- docs/plan/approach-traffic-observatory.md - Advance Time で地図を進めて流通網の区間・都市の出入り口ごとの交通量を時系列収集し、どの門が発展しやすいかを CE の郊外生成と照合して測る仕組み(sim:server 拡張・出入り口台帳・実験定義・レポート)
 - docs/plan/estuary-port-pair-relocation.md - 河口の港町の寄せ過ぎ(セル外・海上への再配置、海上の橋)の改善案(取り下げ)
 - docs/plan/fmg-harbour-model-before-after.html - fmg-harbour-model.md を実装した場合の before / after の図解
 - docs/plan/fmg-harbour-model.md - 港を独立した存在にし、都市・港・航路の生成順序を固定する(estuary-port-pair-relocation.md の後継)

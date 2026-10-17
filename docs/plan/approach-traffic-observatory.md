@@ -1,0 +1,220 @@
+# 出入り口交通観測所 (Approach Traffic Observatory) 設計
+
+2026-10-17 設計。未実装。
+
+## 状態
+
+- 設計のみ。実装は §9 の段階計画に従う。
+- 既存の土台: `npm run sim`(Node でのヘッドレス時間経過)、`npm run sim:server`(チャンネル + REST、[simulation-channel-server.md](simulation-channel-server.md) §13/§16)、`npm run map:server`([map-server.md](map-server.md))、交易回廊台帳 `tradeCorridorLedger.ts`([fmg-economy-to-city-editor.md](fmg-economy-to-city-editor.md) §6)、CE の `UrbanGrowthPlan.regions[].approachId`。
+
+## 1. 目的
+
+新規生成・既存の地図に対して Advance Time を進め、経済データを定期的に収集し、
+
+1. 都市間の流通網(陸路・川・海路)の**区間ごとの使用量**を時系列で測る。
+2. 各都市の**出入り口(approach = CE の門の候補)ごと**の流入・流出量を測る。
+3. どの出入り口が「発展しやすいか」を、交通量と CE が実際に描く郊外(approachRibbon)・門前宿・舗装の結果で検証する。
+
+これをシード・期間・設定を変えて繰り返し、比較できるようにする(実験 → 収集 → 集計 → 報告の一続きの仕組み)。
+
+### 非目的
+
+- シミュレーションの経済式そのものの調整(この仕組みで見つけた問題は別の設計書で扱う)。
+- ブラウザ UI の新規ダイアログ(v1 は CLI と REST、静的 HTML レポートのみ)。
+- 分散実行([simulation-lab.md](simulation-lab.md) L3)。単一マシンで複数子プロセスまで。
+
+## 2. 現状の計測とその不足
+
+| 既存の値 | 場所 | 不足 |
+| :--- | :--- | :--- |
+| `Route.traffic` | `publicWorks.ts recordRouteTraffic` | 路線全体で 1 つの値。都市を貫通する路線は両側の出入り口に同じ値が付く(`burgRoadProjection.ts` が `route.traffic` をそのまま各 leg に写す)。向き・積荷・陸路以外が無い。 |
+| `TradeCorridor` | `tradeCorridorLedger.ts` | 都市ペア単位で `routeIds` と `routeHits` はあるが、**端の都市のどの出入り口を通ったか**が無い。 |
+| `roads[].trafficRank` | descriptor | 上と同じ理由で、出入り口の区別が路線粒度で止まる。 |
+| 0.7 年減衰 | 両台帳 | 累計の「今の勢い」しか残らず、時系列は外部で保存しない限り失われる。 |
+
+結論: 時系列は**外部収集**で、出入り口粒度は**FMG 側に記録点を 1 つ足す**ことで解決する。
+
+## 3. 全体構成
+
+```
+┌──────────── 実験定義 (experiment.json) ────────────┐
+│ maps: 新規(seed, 設定) / 既存(.fmg) / チャンネルid │
+│ advance: 期間・ストライド, extensions, settings      │
+└───────────────┬─────────────────────────────────────┘
+                ▼
+  npm run observe -- run experiment.json        (scripts/observe.mts, 新規)
+   ├─ 新規地図: 生成 (fmg:small / map:server --lab と同じ Node 生成経路)
+   ├─ sim:server のチャンネルを作成 (POST /api/sim/channels)
+   └─ ループ: ops advance(stride) → GET …/observe/sample → NDJSON 追記
+                ▼
+  data/observatory/<runId>/
+     run.json, samples/<channel>.ndjson, snapshots/*.fmg(任意), ce/<burg>.json
+                ▼
+  npm run observe -- report <runId>   → report.html + CSV
+```
+
+- **実行系は sim:server に寄せる**。理由: チャンネル = 1 地図 1 子プロセスで隔離・再開可能、ジャーナルで再現可能、人がブラウザ(チャンネル選択ダイアログ §14)で同じ状態を見に行ける。
+- `npm run sim` 単体でも同じ収集ができるように、収集関数はワーカー側のモジュール(`scripts/lib/observeViews.mts`)に置き、sim:server と sim CLI の両方から呼ぶ。
+- map:server は読み取り専用の配布(人やAIへの地図共有)に使い、時間を進める主体にはしない。既存地図は map:server が持つ .fmg を `GET /api/map` で取ってチャンネルに投入できる。
+
+## 4. FMG 側の追加: 出入り口台帳 (Approach Ledger)
+
+### 4.1 出入り口の定義(FMG と CE で共通の鍵)
+
+`burgRoadProjection.ts` の `approachId` をそのまま正とする:
+
+- `burg:<b>:route:<r>:edge:<cell>` — 都市セルから最初に出る隣接セルで区別。都市を貫通する路線は両側が別 id になる。
+- `burg:<b>:crossing:<c>` — 渡河施設を共有する束ねられた入口。
+
+同じ判定を経済側でも使えるよう、`approachId` を求める部分を純関数 `approachIdForLeg(burg, routeId, exitCell, crossingId?)` として `src/services/` に切り出す(descriptor 生成と台帳の両方が呼ぶ。二重実装しない)。
+
+路線に乗らない移動(荒野・海・川)は疑似出入り口とする:
+
+| 種別 | id | 判定 |
+| :--- | :--- | :--- |
+| 海 | `burg:<b>:sea` (港が複数になれば `:harbour:<h>`, [fmg-harbour-model.md](fmg-harbour-model.md)) | 区間 `type: sea` の端 |
+| 川 | `burg:<b>:river:up` / `:down` | 区間 `type: river` の端、流向で区別 |
+| 野道 | `burg:<b>:open:<方位8分割>` | 路線に乗らない陸区間。方位は `entryAzimuth` と同じ計算 |
+
+### 4.2 記録点
+
+台帳と同じ 3 か所(`recordCaravanCorridor`・`recordMarketShipment`・国家調達の出発)で、経路の**両端**について:
+
+- 起点側: 最初の区間の、都市セルを出る最初の点 → `outbound`。
+- 終点側: 最後の区間の、都市セルに入る直前の点 → `inbound`。
+- 途中で通過する都市(経路上のセルが他の都市セルと一致): その都市の入った側と出た側に `through` を加える。宿・門前の発展は通過交通でも起きるため、端と区別して残す。
+
+セルは `TradeRoutePoint` の 3 要素目、無ければ `findCell(x, y)`。
+
+### 4.3 データ
+
+```ts
+// src/extensions/economy/generators/approachLedgerTypes.ts (新規)
+export interface ApproachTraffic {
+  approachId: string;
+  burgId: number;
+  routeId: number | null;
+  mode: "land" | "river" | "sea" | "open";
+  /** 0.7 年減衰の累計(TradeCorridor と同じ保持率)。 */
+  inbound: { departures: number; cargoSlots: number; value: number };
+  outbound: { departures: number; cargoSlots: number; value: number };
+  through: { departures: number; cargoSlots: number };
+  /** 上位の品目(cargoSlots)。 */
+  goodsSlots: Record<string, number>;
+  /** 相手都市(cargoSlots 上位 8)。 */
+  partners: Record<string, number>;
+}
+```
+
+- 保存先は economy slice の `approachTraffic`(都市 × 出入り口数なので、都市 200 なら 1000 件前後)。減衰は `decayTradeCorridors` と同じ年次で行う。
+- descriptor の `roads[]` には `approachTraffic`(上記の要約)を追加し、既存の `traffic`/`trafficRank` は残す。CE 側の利用切り替えは §7.3。
+- **シミュレーション結果を変えない**: 台帳は記録のみで、どのシステムも読まない(v1)。golden hash は economy slice を含むので更新が必要になるが、`world` の他の値が一致することを `simGoldenDiff` で確認する。
+
+## 5. 収集 API (sim:server への追加)
+
+`GET /api/sim/channels/:id/observe/...`(子プロセスで `observeViews.mts` を実行。読み取りのみ):
+
+| パス | 内容 |
+| :--- | :--- |
+| `observe/sample` | 1 回分の標本(§6)。`?detail=burgs,routes,approaches,corridors,markets` で絞る |
+| `observe/approaches[?burg=b]` | 出入り口台帳の生値 |
+| `observe/routes` | 路線ごと `traffic`・`pavedShare`・`group`・長さ・通過回廊数 |
+| `observe/corridors[?top=N]` | 交易回廊(既存台帳)と `listCorridorNeeds` |
+| `observe/burgs/:b/growth` | その都市を CE 生成し、`UrbanGrowthPlan.regions` を approachId ごとに集計(§7) |
+
+ops は既存の `advance` を使う。長期実行のため `{"type":"advance","months":N,"sampleEvery":{"months":1}}` を追加し、子プロセス内でストライドごとに標本を取り `data/channels/<id>/observe.ndjson` に追記する(HTTP 往復を年×12 回しなくて済む。§5 の個別 GET は対話・デバッグ用)。
+
+## 6. 標本スキーマ (NDJSON 1 行 = 1 時点 × 1 チャンネル)
+
+```json
+{
+  "v": 1, "runId": "r20261017-a", "channel": "world-3", "revision": 41,
+  "date": "1853-07-01", "elapsedDays": 181,
+  "world": { "population": 0, "burgs": 0, "treasury": 0, "caravansActive": 0, "shipmentsInFlight": 0 },
+  "burgs":  [{ "id": 12, "pop": 0, "market": 3, "port": true, "walls": true, "capital": false }],
+  "routes": [{ "id": 18, "group": "roads", "traffic": 0, "pavedShare": 0 }],
+  "approaches": [{ "id": "burg:12:route:18:edge:1413", "in": 0, "out": 0, "through": 0, "slots": 0, "value": 0, "topGoods": ["grain"] }],
+  "corridors": [{ "a": 12, "b": 40, "slots": 0, "mode": { "land": 0, "river": 0, "sea": 0 }, "delay": 0, "threat": 0 }]
+}
+```
+
+- 値は**減衰後の累計**(台帳の値そのもの)と、前標本との差分 `Δ` を集計時に出す(差分=その期間の実流量)。
+- 地図の静的情報(セル・路線形状・都市座標・出入り口の方位)は run 開始時と路線網が変わった時(Public Works の昇格)だけ `static.json` に出し、毎標本には入れない。
+- 1 地図 200 都市・10 年・月次で約 120 行 × 数百 KB。SQLite 等は使わず NDJSON + CSV(ヘッドレス統計ランナーの設計と同じ方針)。
+
+## 7. 「発展しやすい出入り口」の測り方
+
+### 7.1 FMG 側の指標(毎標本)
+
+出入り口 `k` について、期間の差分から:
+
+| 指標 | 式 | 意味 |
+| :--- | :--- | :--- |
+| 流量 | `Δ(in+out).cargoSlots` | 物が通る |
+| 通過 | `Δthrough.departures` | 宿・厩舎の需要 |
+| 都市内占有率 | `流量_k / Σ_j 流量_j` | その都市で主の門か |
+| 安定度 | 占有率の期間間の順位相関(Kendall τ) | 一時的な交易か、恒常的な街道か |
+| 多様度 | `goodsSlots` のシャノン指数 | 市場的(多品目)か、専用路(穀物だけ等)か |
+| 相手の重み | `Σ partners × 相手都市人口` | 大都市へ向く門か |
+
+**発展ポテンシャル** `P_k = 占有率 × (0.5 + 0.5·安定度) × log(1+流量)` を初期定義とし、係数は §7.3 の CE 実測で較正する(推定値のまま固定しない)。
+
+### 7.2 CE 側の実測(選んだ時点だけ、重い)
+
+指定時点のスナップショットについて、対象都市を Node の CE(ce:perf と同じ jsdom + Vite module runner)で生成し、approachId ごとに:
+
+- `UrbanGrowthPlan.regions` のうち `kind: approachRibbon` の `budget`・`length` の合計。
+- 門前宿(`gateInnPlacement.ts`)が置かれたか、石畳化(`COBBLE_RANK`)されたか。
+- その門の外の住戸数(lot 数)。
+
+を `ce/<burg>@<date>.json` に保存する。
+
+### 7.3 較正と検証
+
+- 目的は「FMG の交通量から、CE がどこを伸ばすかを当てられるか」。`P_k` の都市内順位と CE の ribbon budget 順位の一致率(Top-1 一致・Spearman)を報告する。
+- 現状の CE は路線粒度の `trafficRank` を使うため、貫通路線の両門が同じ扱いになる。§4 の台帳ができた後、CE の `roadUse()` を `approachTraffic` 優先に切り替える案を**別段階**で比較する(切り替え前後で同じ run を CE 再生成し、一致率と見た目の差を並べる)。
+- 時間変化の検証: 10 年進めた後の `P_k` 上位の門が、Public Works の道路昇格・舗装(`pavedShare`)を受けているか(FMG 側の自己整合)。
+
+## 8. 実験定義とレポート
+
+```json
+// experiments/approach-baseline.json
+{
+  "id": "approach-baseline",
+  "maps": [
+    { "kind": "new", "seeds": [101, 102, 103], "options": { "culturesSet": "european", "settlementPattern": "standard", "cells": 10000 } },
+    { "kind": "file", "path": "maps/paia.fmg" },
+    { "kind": "channel", "id": "world-1", "fork": true }
+  ],
+  "extensions": ["economy", "nobility"],
+  "timeline": "new",
+  "warmup": { "years": 2 },
+  "advance": { "years": 10, "sampleEvery": { "months": 1 } },
+  "ceProbe": { "at": ["+2y", "+10y"], "burgs": { "topByPopulation": 10, "ids": [] } },
+  "workers": 3
+}
+```
+
+- 新規地図は Cultures set を `european`、Settlement pattern を Standard に固定する既定値を持つ(Fantasy 系だと国家・人口が成立せず測れない。AGENTS.md の動作確認設定)。
+- `warmup` の期間は標本を捨てる(初期在庫・初期キャラバンの過渡応答を除く)。
+- `fork: true` は既存チャンネルを複製して進める(元のチャンネルを汚さない)。
+- 歴史モード/Fast-Forward([advance-time-history-mode.md](advance-time-history-mode.md) / [advance-time-fast-forward.md](advance-time-fast-forward.md))は経済決済をモックするため**交易台帳が実測にならない**。実験定義で有効にした場合は run.json に記録し、レポートで「モック期間」として標本を除外する。
+- `report.html`: 都市ごとの出入り口の方位ローズ(流量)、時系列、`P_k` と CE ribbon の散布図、地図全体の路線使用量の上位一覧。CSV(`approaches.csv`, `routes.csv`, `corridors.csv`)も出す。
+
+## 9. 段階計画
+
+| 段階 | 内容 | 完了条件 |
+| :--- | :--- | :--- |
+| O0 | 既存値だけで収集: `observe/sample`(routes・corridors・burgs)、`advance` + `sampleEvery`、`npm run observe -- run/report` の骨格 | fixture を 1 年月次で回し 12 行、`npm run sim` の同条件とハッシュ一致 |
+| O1 | `approachIdForLeg` の切り出し(descriptor の approachId が変わらないことをテスト) | 既存 CE テスト・descriptor テストが緑 |
+| O2 | 出入り口台帳(§4)と標本の `approaches` | 貫通路線の両門に別の値が付く地図で確認。economy 以外の golden 一致 |
+| O3 | CE プローブ(§7.2)と一致率レポート | 3 シード × 上位 10 都市で一致率を出す |
+| O4 | CE の `roadUse()` を `approachTraffic` 優先にする比較実験 | O3 の一致率と見た目を並べて採否を決める |
+
+## 10. リスクと未決事項
+
+- **Market 単位の端**: キャラバンの起点・終点は Market の中心 Burg。周辺の都市から市場へ集まる流れは経路上の通過として数えるが、市場町の門に過大に集まる。O2 でどの程度か実測する。
+- **路線網の変化**: Public Works の昇格で route id が変わると approachId も変わる。`static.json` の再出力時に旧→新の対応表を出す(対応が取れない場合は切れ目として扱う)。
+- **CE プローブの所要時間**: 巨大都市は数秒〜十数秒([ce-giant-city-fastest-generation-investigation.md](ce-giant-city-fastest-generation-investigation.md): 6 s 程度)。既定は上位 10 都市・2 時点に絞る。
+- **河川・橋**: 川を渡る出入り口の発展を評価する場合も、橋の可否は `bridgeSkewPolicy.ts` の判定に従う。上限外で渡し船になる地点は `ferryCrossings` として別に表示し、橋前提の発展候補には含めない。
+- 標本の決定性: 収集は読み取りのみだが、`observe/burgs/:b/growth` は CE と同じく道の収束処理をワールドに反映する(§16 の `/site` と同じ)。実験中は**スナップショットの複製**に対して実行し、進行中のチャンネルには触れない。
