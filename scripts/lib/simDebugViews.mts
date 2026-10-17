@@ -7,6 +7,7 @@
 import type { WorldContext } from "../../src/context/worldContext";
 import { getBurgSiteDescriptor } from "../../src/services/burgSiteDescriptor";
 import { burgCityRadiusMeters, drawnShoreNearBurg, waterfrontIssues } from "../../src/services/waterfrontSettlement";
+import { siteWithinHomeCell } from "../../src/services/settlementSiteBounds";
 import { optionsStore } from "../../src/state/optionsStore";
 import type { Burg, Route } from "../../src/types/models";
 import { BRIDGE_SKEW_MAX_DEGREES } from "../../src/utils/bridgeSkewPolicy";
@@ -209,9 +210,10 @@ export function createDebugViews(getWorld: () => WorldContext) {
     const radius = new Map(burgs.map(b => [b.i!, burgCityRadiusMeters(pack, b, w.populationRate, w.urbanization)]));
     const outsideHomeCell = burgs.flatMap(b => {
       const under = cellAt(b.x, b.y, b.cell);
-      return under === b.cell
-        ? []
-        : [{ burg: b.i, name: b.name, homeCell: b.cell, cellUnderBurg: under, underIsWater: under !== null && pack.cells.h[under] < 20 }];
+      if (under === b.cell) return [];
+      // Same allowance as relocation (settlementSiteBounds.ts): R/2 into an empty land neighbour.
+      const tolerated = siteWithinHomeCell(pack, b.cell, b.i, [b.x, b.y], radius.get(b.i!)! / metres);
+      return [{ burg: b.i, name: b.name, homeCell: b.cell, cellUnderBurg: under, underIsWater: under !== null && pack.cells.h[under] < 20, tolerated }];
     });
     // FMG keeps one burg per cell; a pair whose towns sit closer than the neighbour spacing
     // FMG intended (here: a fraction of the original cell-centre distance) has been pulled together.
@@ -239,7 +241,7 @@ export function createDebugViews(getWorld: () => WorldContext) {
     const crossings = all.filter(c => c.inSea);
     return {
       metersPerMapUnit: metres,
-      counts: { burgs: burgs.length, outsideHomeCell: outsideHomeCell.length, crowdedPairs: crowded.length, crossingsInSea: crossings.length, approxSkewOverMax: all.filter(c => c.skewOverMax).length },
+      counts: { burgs: burgs.length, outsideHomeCell: outsideHomeCell.filter(b => !b.tolerated).length, crowdedPairs: crowded.length, crossingsInSea: crossings.length, approxSkewOverMax: all.filter(c => c.skewOverMax).length },
       outsideHomeCell,
       crowdedPairs: crowded,
       crossingsInSea: crossings

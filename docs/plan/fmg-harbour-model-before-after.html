@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FMG Harbour Model: Before / After</title>
+<style>
+  :root {
+    --bg: #f6f4ef; --fg: #222; --muted: #666; --card: #fff; --line: #d8d3c8;
+    --land: #e9e2c8; --sea: #bcd9ea; --river: #4a90c2; --cell: #b9b29c;
+    --bad: #c0392b; --good: #1f8a4c; --burg: #7a3b1d; --route: #1b3a6b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1b1b1a; --fg: #e8e6e0; --muted: #a8a59c; --card: #262624; --line: #3d3c38;
+      --land: #4a4630; --sea: #24465c; --river: #6cb4e8; --cell: #77705c;
+      --bad: #ff7b6b; --good: #5fd18c; --burg: #e0a070; --route: #9bbcf2;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.6 system-ui, "Hiragino Sans", "Yu Gothic", sans-serif; }
+  main { max-width: 1040px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  h2 { font-size: 19px; margin: 40px 0 8px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+  p.lead, p.note { color: var(--muted); margin: 4px 0 12px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 720px) { .pair { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+  .card h3 { margin: 0 0 6px; font-size: 15px; }
+  .before h3 { color: var(--bad); } .after h3 { color: var(--good); }
+  svg { width: 100%; height: auto; display: block; }
+  svg text { fill: var(--fg); font-size: 11px; font-family: inherit; }
+  svg text.bad { fill: var(--bad); font-weight: 600; } svg text.good { fill: var(--good); font-weight: 600; }
+  .land { fill: var(--land); } .sea { fill: var(--sea); }
+  .cell { stroke: var(--cell); stroke-dasharray: 3 3; fill: none; }
+  .river { stroke: var(--river); stroke-width: 4; fill: none; stroke-linecap: round; }
+  .route { stroke: var(--route); stroke-width: 2; fill: none; }
+  .burg { fill: var(--burg); stroke: var(--card); stroke-width: 1.5; }
+  ul.pts { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; }
+  ul.pts li.bad::marker { color: var(--bad); } ul.pts li.good::marker { color: var(--good); }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; background: var(--card); }
+  th, td { border: 1px solid var(--line); padding: 6px 8px; vertical-align: top; text-align: left; }
+  th { background: var(--bg); }
+  td.b { color: var(--bad); } td.a { color: var(--good); }
+  code { font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; }
+  .flow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0; }
+  .step { border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; font-size: 13px; background: var(--card); }
+  .step.warn { border-color: var(--bad); } .step.ok { border-color: var(--good); }
+  .arrow { color: var(--muted); }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--muted); margin: 8px 0; }
+  .legend i { display: inline-block; width: 22px; height: 0; border-top: 3px solid; vertical-align: middle; margin-right: 4px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>FMG 港モデル: 実装前 / 実装後</h1>
+  <p class="lead">設計書: <a href="fmg-harbour-model.md">fmg-harbour-model.md</a>(2026-10-17、未実装)。図は概念図で、実際の座標・縮尺ではない。</p>
+  <div class="legend">
+    <span><i style="border-color:var(--cell);border-top-style:dashed"></i>セルの辺</span>
+    <span><i style="border-color:var(--river)"></i>描いた川</span>
+    <span><i style="border-color:var(--route)"></i>航路</span>
+    <span>● 都市 / ◆ 岸壁(quay)</span>
+  </div>
+
+  <h2>1. 河口の港町: 都市・岸壁・航路の位置</h2>
+  <p class="note">現状はセルで決めた値(航路の端点)と描いた形で決めた値(都市・海岸)が混ざり、後から都市だけを寄せる。実装後は岸壁(描いた岸の上)を基準に、都市・航路を 1 回で決める。</p>
+  <div class="pair">
+    <div class="card before"><h3>Before(現状)</h3><svg id="sceneBefore" viewBox="0 0 400 260" role="img" aria-label="Before scene"></svg>
+      <ul class="pts">
+        <li class="bad">都市が自分のセルの外・海のセルへ寄る(H1違反)</li>
+        <li class="bad">川の交差が描いた海岸の外(海上)にある</li>
+        <li class="bad">航路の端点はセルの辺。都市(描いた海岸基準)と食い違う</li>
+        <li class="bad">航路が描いた陸をかすめる / 貫く</li>
+      </ul></div>
+    <div class="card after"><h3>After(実装後)</h3><svg id="sceneAfter" viewBox="0 0 400 260" role="img" aria-label="After scene"></svg>
+      <ul class="pts">
+        <li class="good">都市は自分のセルの陸の上(H1)</li>
+        <li class="good">岸壁は描いた岸の上かつ都市のセル内(H2)、都市との距離は帯内(H3)</li>
+        <li class="good">航路は岸壁から出て、全区間が水の上(H4)</li>
+        <li class="good">川は描いた海岸で切られ、交差は陸側のみ</li>
+      </ul></div>
+  </div>
+
+  <h2>2. 川の航路: 河口での折り返し</h2>
+  <div class="pair">
+    <div class="card before"><h3>Before</h3><svg id="laneBefore" viewBox="0 0 400 200" role="img" aria-label="River lane before"></svg>
+      <ul class="pts"><li class="bad"><code>alongRiverToBurg</code> が川のセル列の末尾(海のセル)まで下り、都市へ折り返す</li></ul></div>
+    <div class="card after"><h3>After</h3><svg id="laneAfter" viewBox="0 0 400 200" role="img" aria-label="River lane after"></svg>
+      <ul class="pts"><li class="good">川の中心線に沿い、河口港の岸壁より海側へ出ない(H4)</li></ul></div>
+  </div>
+
+  <h2>3. 船の種類: 外洋の船は川を遡らない</h2>
+  <div class="pair">
+    <div class="card before"><h3>Before</h3><svg id="vesBefore" viewBox="0 0 400 170" role="img" aria-label="Vessels before"></svg>
+      <ul class="pts"><li class="bad">区別は航路の <code>navigation</code> のみ。港側に受け入れ種別が無く、保証できない</li></ul></div>
+    <div class="card after"><h3>After</h3><svg id="vesAfter" viewBox="0 0 400 170" role="img" aria-label="Vessels after"></svg>
+      <ul class="pts"><li class="good">各港が <code>vessels</code> を持つ。河口港だけが両方を受け、荷を積み替える(H5)</li></ul></div>
+  </div>
+
+  <h2>4. 生成の順序</h2>
+  <p class="note">Before: 港・都市位置・海岸・航路が別々の段階で決まり、後から修復する。After: 固定順序で 1 回ずつ。</p>
+  <div class="card before"><h3>Before</h3>
+    <div class="flow">
+      <span class="step">都市配置(セル)</span><span class="arrow">→</span>
+      <span class="step">港の選択(haven・流量)</span><span class="arrow">→</span>
+      <span class="step">海岸を描く(港に依存)</span><span class="arrow">→</span>
+      <span class="step">海の航路(セルgraph)</span><span class="arrow">→</span>
+      <span class="step warn">都市を寄せる(河岸/海岸)</span><span class="arrow">→</span>
+      <span class="step warn">dualPortPlacementTask(読込時も)</span><span class="arrow">→</span>
+      <span class="step warn">reconnectRelocatedBurg*(端点の付け替え)</span>
+    </div></div>
+  <div class="card after" style="margin-top:12px"><h3>After</h3>
+    <div class="flow">
+      <span class="step ok">G1 都市のセル</span><span class="arrow">→</span>
+      <span class="step ok">G2 海岸と川を確定(川を海岸で切る)</span><span class="arrow">→</span>
+      <span class="step ok">G3 岸の区間(形∩セル)</span><span class="arrow">→</span>
+      <span class="step ok">G4 港の選択+岸壁</span><span class="arrow">→</span>
+      <span class="step ok">G5 都市の位置</span><span class="arrow">→</span>
+      <span class="step ok">G6 航路(岸壁起点)</span><span class="arrow">→</span>
+      <span class="step ok">G7 道と橋</span><span class="arrow">→</span>
+      <span class="step ok">G8 検査 H1〜H6</span>
+    </div>
+    <p class="note" style="margin-bottom:0">G8 で不適合の港は <code>invalid</code> にして航路を作らない。都市は動かさない(H7)。</p></div>
+
+  <h2>5. データモデル</h2>
+  <table>
+    <tr><th></th><th>Before</th><th>After</th></tr>
+    <tr><th>港の表現</th><td class="b"><code>burg.port</code> / <code>seaPort</code> / <code>riverPort</code> / <code>waterAccess.port</code> が別々。航路の有無からも推定</td><td class="a"><code>pack.harbours: Harbour[]</code>。都市は <code>burg.harbours</code> のみ。旧フラグは有効な港から算出(互換のため保存時に書き出し)</td></tr>
+    <tr><th>河口の都市</th><td class="b">海港 + 河川港の 2 フラグ</td><td class="a"><code>kind: "estuary"</code> の港 1 つ(積み替え)</td></tr>
+    <tr><th>航路の端点</th><td class="b">セルと haven の共有辺の中点</td><td class="a">岸壁 <code>quay</code>(描いた岸の上)</td></tr>
+    <tr><th>航路の所属</th><td class="b">港を外しても航路が残る</td><td class="a">港に属し、港が無ければ消える(H6)</td></tr>
+    <tr><th>船種</th><td class="b">航路の <code>navigation</code></td><td class="a">航路の <code>vessel</code> + 港の <code>vessels</code></td></tr>
+    <tr><th>海岸の固定</th><td class="b"><code>portCoastPlacement: "pinned"</code>(港のセルの辺を固定、循環依存)</td><td class="a">岸壁の周辺だけ局所的に描き直し(未決: 実現性)</td></tr>
+    <tr><th>保存データの修復</th><td class="b">読込時に都市を動かして直す</td><td class="a">不適合の港を <code>invalid</code> にするだけ。再生成は Tools から明示実行(H7)</td></tr>
+  </table>
+
+  <h2>6. 診断指標の目標値</h2>
+  <table>
+    <tr><th>指標</th><th>Before(現状の傾向)</th><th>After(目標)</th></tr>
+    <tr><td><code>outsideHomeCell</code></td><td class="b">&gt; 0(Szerhir 等)</td><td class="a">0</td></tr>
+    <tr><td><code>crowdedPairs</code></td><td class="b">&gt; 0(Khiachaqoh 等)</td><td class="a">0</td></tr>
+    <tr><td><code>harbourOffShore</code> / <code>crossingsInSea</code></td><td class="b">&gt; 0</td><td class="a">0</td></tr>
+    <tr><td><code>laneCrossesLand</code> / <code>riverLaneBeyondMouth</code></td><td class="b">&gt; 0</td><td class="a">0</td></tr>
+    <tr><td><code>vesselMismatch</code> / <code>orphanLanes</code></td><td class="b">検査不能 / &gt; 0</td><td class="a">0</td></tr>
+    <tr><td><code>invalidHarbours</code></td><td>(概念なし)</td><td>記録(seed 1〜200 で前後を比較)</td></tr>
+  </table>
+  <p class="note">Before の実数は H0 で記録する。ここでは傾向のみ。</p>
+</main>
+
+<script>
+const NS = "http://www.w3.org/2000/svg";
+function h(tag, attrs, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text != null) e.textContent = text;
+  return e;
+}
+const COAST = "M0,150 Q60,140 120,155 T240,150 T400,160";
+function base(svg, withCells) {
+  svg.appendChild(h("rect", { x: 0, y: 0, width: 400, height: 260, class: "land" }));
+  svg.appendChild(h("path", { d: COAST + " L400,260 L0,260 Z", class: "sea" }));
+  if (withCells) {
+    for (let x = 0; x <= 400; x += 80) svg.appendChild(h("line", { x1: x, y1: 0, x2: x, y2: 260, class: "cell" }));
+    for (let y = 0; y <= 260; y += 80) svg.appendChild(h("line", { x1: 0, y1: y, x2: 400, y2: y, class: "cell" }));
+  }
+}
+function burg(svg, x, y) { svg.appendChild(h("circle", { cx: x, cy: y, r: 6, class: "burg" })); }
+function quay(svg, x, y) { svg.appendChild(h("path", { d: `M${x},${y - 6} l6,6 l-6,6 l-6,-6 z`, fill: "var(--good)" })); }
+
+// Scene: before
+(() => {
+  const s = document.getElementById("sceneBefore");
+  base(s, true);
+  s.appendChild(h("path", { d: "M200,0 L200,172", class: "river" }));
+  s.appendChild(h("path", { d: "M200,162 C150,150 110,148 40,205", class: "route" }));
+  s.appendChild(h("circle", { cx: 200, cy: 160, r: 4, fill: "var(--bad)" }));
+  burg(s, 215, 190);
+  s.appendChild(h("text", { x: 224, y: 194, class: "bad" }, "都市(海のセル内)"));
+  s.appendChild(h("text", { x: 206, y: 176, class: "bad" }, "川の交差(海上)"));
+  s.appendChild(h("text", { x: 206, y: 152, class: "bad" }, "端点=セルの辺"));
+  s.appendChild(h("text", { x: 70, y: 138, class: "bad" }, "航路が陸をかすめる"));
+  s.appendChild(h("text", { x: 8, y: 20 }, "陸"));
+  s.appendChild(h("text", { x: 8, y: 250 }, "海"));
+})();
+// Scene: after
+(() => {
+  const s = document.getElementById("sceneAfter");
+  base(s, true);
+  s.appendChild(h("path", { d: "M200,0 L200,152", class: "river" }));
+  s.appendChild(h("path", { d: "M200,158 C170,200 110,215 40,215", class: "route" }));
+  quay(s, 200, 152);
+  burg(s, 200, 112);
+  s.appendChild(h("line", { x1: 200, y1: 118, x2: 200, y2: 146, stroke: "var(--good)", "stroke-dasharray": "2 2" }));
+  s.appendChild(h("text", { x: 210, y: 112, class: "good" }, "都市(自セルの陸)"));
+  s.appendChild(h("text", { x: 210, y: 146, class: "good" }, "岸壁 quay"));
+  s.appendChild(h("text", { x: 70, y: 235, class: "good" }, "航路は全区間が水の上"));
+  s.appendChild(h("text", { x: 8, y: 20 }, "陸"));
+  s.appendChild(h("text", { x: 8, y: 250 }, "海"));
+})();
+// River lane
+function lane(id, after) {
+  const s = document.getElementById(id);
+  s.appendChild(h("rect", { x: 0, y: 0, width: 400, height: 200, class: "land" }));
+  s.appendChild(h("path", { d: "M0,150 Q100,140 200,150 T400,150 L400,200 L0,200 Z", class: "sea" }));
+  s.appendChild(h("path", { d: "M300,0 C290,60 230,80 240,150", class: "river" }));
+  if (!after) {
+    s.appendChild(h("path", { d: "M300,10 C290,60 230,80 240,185 C236,150 250,120 262,100", class: "route", "stroke-dasharray": "5 3" }));
+    burg(s, 262, 100);
+    s.appendChild(h("text", { x: 252, y: 196, class: "bad" }, "海側まで下って折り返す"));
+  } else {
+    s.appendChild(h("path", { d: "M300,10 C290,60 238,82 241,146", class: "route" }));
+    burg(s, 262, 100);
+    quay(s, 241, 146);
+    s.appendChild(h("text", { x: 252, y: 150 }, "河口港の岸壁で終端"));
+    s.appendChild(h("text", { x: 10, y: 190 }, "海"));
+  }
+  s.appendChild(h("text", { x: 10, y: 20 }, "陸"));
+}
+lane("laneBefore", false); lane("laneAfter", true);
+// Vessels
+function boxes(id, after) {
+  const s = document.getElementById(id);
+  const item = (x, y, w, t, c) => {
+    s.appendChild(h("rect", { x, y, width: w, height: 34, rx: 6, fill: "var(--card)", stroke: c || "var(--line)", "stroke-width": 1.5 }));
+    s.appendChild(h("text", { x: x + 8, y: y + 21 }, t));
+  };
+  const arrow = (x1, y1, x2, y2, c, dash) => s.appendChild(h("line", { x1, y1, x2, y2, stroke: c, "stroke-width": 2, "stroke-dasharray": dash || "" }));
+  if (!after) {
+    item(10, 20, 110, "外洋の船", "var(--route)");
+    item(150, 20, 110, "海の航路", "var(--route)");
+    item(290, 20, 100, "海港");
+    item(150, 100, 110, "川の航路", "var(--river)");
+    item(290, 100, 100, "河川港");
+    arrow(120, 37, 150, 37, "var(--route)"); arrow(260, 37, 290, 37, "var(--route)");
+    arrow(120, 45, 150, 112, "var(--bad)", "4 3");
+    s.appendChild(h("text", { x: 14, y: 90, class: "bad" }, "?遡上を止める仕組みなし"));
+    s.appendChild(h("text", { x: 14, y: 150 }, "港は船種を持たない"));
+  } else {
+    item(10, 20, 90, "外洋の船", "var(--route)");
+    item(130, 20, 130, "海港 vessels:[sea]", "var(--route)");
+    item(130, 70, 130, "河口港 [sea,river]", "var(--good)");
+    item(130, 120, 130, "河川港 vessels:[river]", "var(--river)");
+    item(290, 70, 100, "川の船", "var(--river)");
+    arrow(100, 37, 130, 37, "var(--route)"); arrow(100, 45, 130, 83, "var(--route)");
+    arrow(260, 87, 290, 87, "var(--river)"); arrow(260, 137, 290, 95, "var(--river)");
+    s.appendChild(h("text", { x: 14, y: 110, class: "good" }, "積み替え"));
+    s.appendChild(h("text", { x: 14, y: 150, class: "bad" }, "外洋の船 → 河川港: 不可"));
+  }
+}
+boxes("vesBefore", false); boxes("vesAfter", true);
+</script>
+</body>
+</html>

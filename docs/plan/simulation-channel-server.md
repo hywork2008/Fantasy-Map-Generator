@@ -261,6 +261,6 @@ FMG_SIM_SERVER=http://127.0.0.1:8788 npm run dev     # Vite が /api/sim を転�
 - `GET …/burgs/:id/context`: 所属セル・都市の下のセル・移動距離・描いた海岸に対する位置・`waterfrontIssues`・近くの都市・接続する道と川の交差(角度の概算、海の上か)。
 - `GET …/burgs/:id/site`: CE のサイト記述子(`getBurgSiteDescriptor`)。CE を開いたときと同じく道の収束処理を走らせ、その結果はメモリ上のワールドに反映される(次の op で保存される。ブラウザで CE を開いた場合と同じ)。
 - `GET …/cells/:id`: セルの詳細(多角形・高さ・川・haven・都市・隣接・道)。
-- `GET …/diagnostics/settlement?minSeparationRadii=2`: 世界全体の検査(セル外の都市・寄り過ぎの組・海の上の川の交差)。
+- `GET …/diagnostics/settlement?minSeparationRadii=2`: 世界全体の検査(セル外の都市・寄り過ぎの組・海の上の川の交差)。セル外の判定は再配置と同じ許容範囲(`settlementSiteBounds.ts`)を使う。範囲内の都市は `tolerated: true` で一覧に出すが、件数には数えない。
 - 実装: `scripts/lib/simDebugViews.mts`(子プロセス側)、`simChannelWorker.mts` の `debug` 要求、`simServer.mts` の経路。
 - 検証: world-1 で `/burgs/11/context` が「セル 1412(海)上、海岸の海側 63 m、Road #18 の交差が海上・概算 49°」を返した。`/burgs/11/site` は 200(3.2 秒)。不正な id は 400。

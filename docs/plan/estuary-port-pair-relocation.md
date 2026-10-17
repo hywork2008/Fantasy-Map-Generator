@@ -1,6 +1,6 @@
 # 河口の港町の寄せ過ぎ: 都市の再配置と海岸の整形の改善
 
-状態: 設計(未実装) 2026-10-17。デバッグ API(§7)は実装済み。
+状態: 取り下げ 2026-10-17(§10)。デバッグ API(§7)のみ実装済み。後継: [fmg-harbour-model.md](fmg-harbour-model.md)
 関連: [waterfront-town-proximity.md](waterfront-town-proximity.md)、[bridge-skew-policy.md](bridge-skew-policy.md)、[simulation-channel-server.md](simulation-channel-server.md) §16、
 `src/generators/burgs-generator.ts`(`riverBankSteps`・`adoptRiverSite`)、`src/runtime/dualPortPlacementTask.ts`、`src/services/dualPortShore.ts`、`src/services/waterfrontSettlement.ts`
 
@@ -138,3 +138,16 @@ P1・P2 だけで、今回の Szerhir の事例は解消する見込みである
 - 4.2 の係数 0.5 と 2R は、lab の分布で較正する(推定値のままにしない)。
 - 4.3 で港のフラグを外した都市の `type`(Naval)を、文化の既定値に戻すかどうか。
 - 既存の保存データ: 読み込み時の修復(`loadRepairs`)で P1・P2 を適用すると、都市が動き、道が作り直される。版を上げて 1 回だけ適用するか、Tools の再配置ボタンに任せるか。
+
+## 10. 取り下げ(2026-10-17)
+
+P1〜P3(都市をセルの中に留める判定、人口順の確定、河口の両港の降格、読み込み時の修復 v2)を実装した。world-1 では、セルの外の都市が 6→0、寄り過ぎの組が 2→0 になった。しかし、実装はすべて取り下げた。取り下げた理由:
+
+- 本設計は、都市の位置・港フラグ・陸の道と橋だけを扱い、**航路(searoutes)を対象にしていなかった**。
+  - 航路は、セルの graph の上で haven を通って引かれる。その端点は、セルの辺から求めた位置(`getPortAnchorPosition`)にある。都市を動かすと、`reconnectRelocatedBurgSeaRoutes` が端点を付け替えるだけになる。そのため、修復の後は海港への航路が陸を貫いた。
+  - 海港のフラグを外しても(P3)、その港につながる航路(world-1 の #448)は残った。
+  - 川の航路(#548、`navigation: "river"`)は、河口の近くまで下ってから、都市まで折り返す。
+  - 外洋の船が川の航路を遡上しないことを保証する仕組みもない。
+- 都市の位置、港の有無と位置、航路の端点、使える船の種類が、それぞれ別の段階で別の基準(セルか、描いた形か)で決まっている。そのため、後から 1 つを直すと、別の所で不整合が出る。
+
+根本的な解決は [fmg-harbour-model.md](fmg-harbour-model.md)(港を独立した存在にし、生成の順序を固定する)で設計する。本書の §1〜§2(事例と原因)と §7(デバッグ API)は、その根拠として残す。§3〜§6、§8、§9 は実装しない。
