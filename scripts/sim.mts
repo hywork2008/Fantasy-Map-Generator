@@ -11,11 +11,15 @@
  * --timeline   continue (default) replays the saved RNG; new starts a fresh timeline from the seed.
  * --settings   JSON object of simulation settings (localStorage keys), for keys the .fmg does not carry.
  * --hash       print the golden digest of the result (same hash as `npm run test:sim-golden`).
+ * --sample-every-months N   advance in N-month strides and append an observatory sample per stride
+ *              to --samples (docs/plan/approach-traffic-observatory.md §6); same strides as sim:server.
+ * --sample-detail burgs,routes,approaches,corridors,markets   limit the sample (default: all)
  */
-import { readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { BUILTIN_SIMULATION_EXTENSION_IDS, createNodeSimulationHost } from "../src/simulation/adapters/node";
 import { hashArchiveBytes } from "../src/simulation/goldenHash";
+import { advanceSampled, createObserveViews, parseDetails } from "./lib/observeViews.mts";
 
 const log = (message: string) => console.error(`[sim] ${message}`);
 
@@ -29,7 +33,10 @@ function parseArgs(argv: string[]) {
     extensions: BUILTIN_SIMULATION_EXTENSION_IDS,
     timeline: "continue" as "continue" | "new",
     settings: undefined as Record<string, string> | undefined,
-    hash: false
+    hash: false,
+    sampleEveryMonths: 0,
+    samples: undefined as string | undefined,
+    sampleDetail: undefined as string | undefined
   };
   const args = [...argv];
   const value = (flag: string) => {
@@ -55,11 +62,16 @@ function parseArgs(argv: string[]) {
       options.timeline = mode;
     } else if (arg === "--settings") options.settings = JSON.parse(readFileSync(resolve(value(arg)), "utf8"));
     else if (arg === "--hash") options.hash = true;
+    else if (arg === "--sample-every-months") options.sampleEveryMonths = count(arg);
+    else if (arg === "--samples") options.samples = resolve(value(arg));
+    else if (arg === "--sample-detail") options.sampleDetail = value(arg);
     else if (arg.startsWith("--")) throw new Error(`Unknown option: ${arg}`);
     else if (!options.input) options.input = resolve(arg);
     else throw new Error(`Unexpected argument: ${arg}`);
   }
   if (!options.input) throw new Error("Usage: npm run sim -- <map.fmg> [--days N] [--out world.fmg]");
+  if (Boolean(options.sampleEveryMonths) !== Boolean(options.samples))
+    throw new Error("--sample-every-months and --samples go together");
   return options;
 }
 
@@ -76,9 +88,23 @@ async function main() {
   log(`loaded ${options.input} (${options.extensions.join(", ") || "core only"}) at ${date()} in ${ms(started)}`);
 
   started = performance.now();
-  host.advance({ years: options.years, months: options.months, days: options.days });
-  // Economy's monthly settlement runs right after the advance returns.
-  await new Promise(done => setImmediate(done));
+  const duration = { years: options.years, months: options.months, days: options.days };
+  if (options.samples) {
+    const observe = createObserveViews(
+      () => host.world,
+      () => ({ year: host.simulation.currentYear, month: host.simulation.currentMonth, day: host.simulation.currentDay, tick: host.simulation.tickCount })
+    );
+    const details = parseDetails(options.sampleDetail);
+    writeFileSync(options.samples, "");
+    const strides = await advanceSampled(host, duration, options.sampleEveryMonths, () => {
+      appendFileSync(options.samples as string, `${JSON.stringify(observe.sample(details))}\n`);
+    });
+    log(`wrote ${strides} samples to ${options.samples}`);
+  } else {
+    host.advance(duration);
+    // Economy's monthly settlement runs right after the advance returns.
+    await new Promise(done => setImmediate(done));
+  }
   log(`advanced to ${date()} (tick ${host.simulation.tickCount}) in ${ms(started)}`);
 
   const result = await host.saveArchive();

@@ -4,8 +4,9 @@
  * over IPC; every request is answered with `{ id, ok, result | error }`.
  */
 import { appendFileSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { createNodeSimulationHost, loadWorld } from "../../src/simulation/adapters/node";
+import { basename, join } from "node:path";
+import { createNodeSimulationHost } from "../../src/simulation/adapters/node";
+import { advanceSampled, createObserveViews, parseDetails } from "./observeViews.mts";
 import { createDebugViews } from "./simDebugViews.mts";
 
 type Request =
@@ -13,7 +14,18 @@ type Request =
   | { id: number; type: "list"; collection: string; q?: string }
   | { id: number; type: "get"; collection: string; entityId: number }
   | { id: number; type: "debug"; view: "cell" | "burgContext" | "burgSite" | "settlement"; entityId?: number; params?: Record<string, string> }
-  | { id: number; type: "advance"; years?: number; months?: number; days?: number; user?: string }
+  | {
+      id: number;
+      type: "advance";
+      years?: number;
+      months?: number;
+      days?: number;
+      user?: string;
+      sampleEvery?: { months: number };
+      sampleDetail?: string;
+      runId?: string;
+    }
+  | { id: number; type: "observe"; view: "sample" | "routes" | "approaches" | "corridors" | "markets" | "static"; params?: Record<string, string> }
   | { id: number; type: "command"; extensionId: string; name: string; payload: unknown; user?: string };
 
 const dir = process.argv[2];
@@ -23,10 +35,18 @@ const send = process.send.bind(process);
 /** pack collections the API may read; values are projected to their primitive fields. */
 const COLLECTIONS = new Set(["burgs", "states", "provinces", "cultures", "religions", "markers", "rivers", "routes"]);
 
-const meta = JSON.parse(readFileSync(join(dir, "channel.json"), "utf8")) as { revision: number; extensions?: string[] };
+const meta = JSON.parse(readFileSync(join(dir, "channel.json"), "utf8")) as {
+  revision: number;
+  extensions?: string[];
+  timeline?: "continue" | "new";
+};
 const host = createNodeSimulationHost({ extensions: meta.extensions });
 const bytes = readFileSync(join(dir, "current.fmg"));
-await loadWorld(host, new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength));
+// A "new" timeline applies to the published archive only; later revisions carry their own RNG state.
+await host.loadArchive(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength), {
+  timeline: { mode: meta.revision === 0 && meta.timeline === "new" ? "new" : "continue" }
+});
+await host.prepare();
 
 const debug = createDebugViews(() => host.world);
 
@@ -35,6 +55,7 @@ const date = () => ({
   month: host.simulation.currentMonth,
   day: host.simulation.currentDay
 });
+const observe = createObserveViews(() => host.world, () => ({ ...date(), tick: host.simulation.tickCount }));
 
 function primitives(entity: unknown): Record<string, unknown> | null {
   if (!entity || typeof entity !== "object") return null;
@@ -109,10 +130,36 @@ async function handle(request: Request): Promise<unknown> {
       if (!duration.years && !duration.months && !duration.days) throw Object.assign(new Error("Empty duration"), { status: 400 });
       const started = performance.now();
       const from = date();
+      if (request.sampleEvery) {
+        // Long observatory runs (docs/plan/approach-traffic-observatory.md §5): sample inside the
+        // worker at every stride instead of one HTTP round trip per month.
+        const details = parseDetails(request.sampleDetail);
+        let network = "";
+        const strides = await advanceSampled(host, duration, request.sampleEvery.months, () => {
+          const tag = { runId: request.runId ?? null, channel: basename(dir), revision: meta.revision };
+          const key = observe.networkKey();
+          if (key !== network) {
+            network = key;
+            appendFileSync(join(dir, "observe.static.ndjson"), `${JSON.stringify({ ...tag, date: date(), ...observe.staticInfo() })}\n`);
+          }
+          appendFileSync(join(dir, "observe.ndjson"), `${JSON.stringify(observe.sample(details, tag))}\n`);
+        });
+        const op = { type: "advance", ...duration, sampleEvery: request.sampleEvery };
+        return { from, samples: strides, ...(await commit(op, request.user, started)) };
+      }
       host.advance(duration);
       // Economy's monthly settlement runs right after the advance returns (adapters/node.ts).
       await new Promise(done => setImmediate(done));
       return { from, ...(await commit({ type: "advance", ...duration }, request.user, started)) };
+    }
+    case "observe": {
+      const params = request.params ?? {};
+      if (request.view === "sample") return observe.sample(parseDetails(params.detail), { channel: basename(dir), revision: meta.revision });
+      if (request.view === "routes") return observe.routes();
+      if (request.view === "markets") return observe.markets();
+      if (request.view === "static") return observe.staticInfo();
+      if (request.view === "approaches") return observe.approaches(params.burg === undefined ? undefined : Number(params.burg));
+      return observe.corridors(params.top === undefined ? undefined : Number(params.top));
     }
     case "command": {
       const started = performance.now();

@@ -17,6 +17,7 @@ import {
   isEconomyContextReady,
   setTradeCorridors
 } from "../economyContext";
+import { decayApproachTraffic, recordJourneyApproaches, recordShipmentApproaches } from "./approachLedger";
 import type { Caravan, TradeRouteSegment } from "./marketTypes";
 import type { MarketShipment } from "./retailInventoryTypes";
 import { getGoodCargoSlotsPerUnit } from "./tradeCargo";
@@ -433,6 +434,13 @@ export function recordCaravanCorridor(caravan: Caravan): void {
     threat: escortThreat(origin, destination),
     goods: lines
   });
+  recordJourneyApproaches(caravan.routeSegments ?? [], {
+    originBurgId: origin,
+    destinationBurgId: destination,
+    cargoSlots: slots,
+    value: Math.max(0, caravan.value ?? 0),
+    goods: lines
+  });
 }
 
 function slotsPerUnit(good: ReturnType<typeof goodById>): number {
@@ -464,10 +472,12 @@ export function recordMarketShipment(shipment: MarketShipment): void {
     threat: escortThreat(shipment.originBurgId, shipment.destinationBurgId),
     goods: slots > 0 ? [{ id: shipment.goodId, slots }] : []
   });
+  recordShipmentApproaches(shipment);
 }
 
 export function decayTradeCorridors(): void {
   if (!isEconomyContextReady()) return;
+  decayApproachTraffic();
   const current = getTradeCorridors();
   if (!current.length) return;
   setTradeCorridors(decayCorridors(current));

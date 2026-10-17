@@ -17,6 +17,7 @@ organizations, and strategic procurement.
  */
 
 import type { Burg } from "../../../types/models";
+import type { ApproachTraffic } from "../generators/approachLedgerTypes";
 import type { BurgMarketLedger } from "../generators/burgMarketLedgersTypes";
 import type { Good } from "../generators/goodsGeneratorTypes";
 import type { FlowCycleSnapshot } from "../generators/marketFlowTypes";
@@ -254,6 +255,24 @@ export function getTradeCorridors(): TradeCorridor[] {
 
 export function setTradeCorridors(corridors: readonly TradeCorridor[]): void {
   setSliceArray("tradeCorridors", corridors);
+}
+
+/** Per-approach (gate) ledger. See approachLedger.ts. Written only; nothing in the simulation reads it. */
+export function getApproachTraffic(): ApproachTraffic[] {
+  return getSliceArray<ApproachTraffic>("approachTraffic");
+}
+
+export function setApproachTraffic(rows: readonly ApproachTraffic[]): void {
+  setSliceArray("approachTraffic", rows);
+}
+
+/** Yearly decays applied so far, so an observer can turn the decayed stocks back into flows. */
+export function getApproachLedgerDecays(): number {
+  return getSliceNumber("approachLedgerDecays");
+}
+
+export function setApproachLedgerDecays(count: number): void {
+  setSliceNumber("approachLedgerDecays", count);
 }
 
 export function getNextMarketShipmentId(): number {

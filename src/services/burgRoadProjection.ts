@@ -8,6 +8,7 @@ import type { RelationKey } from "../utils/diplomacyRelations";
 import { rn } from "../utils/numberUtils";
 import { measureProcessing, type ProcessingProfiler } from "../utils/processingProfiler";
 import { residentialStoreys, supportsUrbanMorphology } from "../utils/urbanMorphology";
+import { approachIdForLeg } from "./approachId";
 import { burgDestinationTraits } from "./burgDestinationTraits";
 import { clipPolylineToBox } from "./sitePolylineGeometry";
 
@@ -264,9 +265,7 @@ export function collectBurgRoadEntries(
             ]
           }
         : {}),
-      approachId: facility
-        ? `burg:${burg.i}:crossing:${facility.crossing.id}`
-        : `burg:${burg.i}:route:${route.i}:edge:${leg.find(p => p[2] !== burg.cell)?.[2] ?? leg.at(-1)?.[2] ?? burg.cell}`,
+      approachId: approachIdForLeg(burg.i!, burg.cell, route.i, leg, facility?.crossing.id),
       routeId: route.i,
       group: route.group,
       ...(route.name ? { name: route.name } : {}),

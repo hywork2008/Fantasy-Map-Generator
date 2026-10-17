@@ -1,10 +1,17 @@
 # 出入り口交通観測所 (Approach Traffic Observatory) 設計
 
-2026-10-17 設計。未実装。
+2026-10-17 設計。O0〜O2 実装済み(2026-10-17)。
 
 ## 状態
 
-- 設計のみ。実装は §9 の段階計画に従う。
+- O0: `scripts/lib/observeViews.mts`(標本・ビュー)、sim:server の `observe/*` と `advance` + `sampleEvery`、`npm run sim -- --sample-every-months N --samples f.ndjson`、`npm run observe -- run/report`(`scripts/observe.mts`, `scripts/lib/observeReport.mts`)。例: `experiments/approach-baseline.json`。
+- O1: `src/services/approachId.ts` の `approachIdForLeg`(descriptor も同じ関数を呼ぶ)。
+- O2: `approachLedger.ts`(economy slice `approachTraffic` と `approachLedgerDecays`)。記録のみで、golden の差分は economy slice の新フィールドだけ(`simGoldenDiff` で確認)。
+- 実装時の注記:
+  - 月ストライドで進めた結果は、1 回で同じ期間を進めた結果と一致しない(既存の性質。標本の有無では変わらない)。O0 の完了条件は「sim:server と `npm run sim` の同ストライド実行でハッシュ・標本が一致」で確認した。
+  - 渡河施設を共有する `crossing:<c>` の出入り口は経済側に施設 id が無いため、v1 の台帳では `route:<r>:edge:<cell>` で記録する。
+  - 同一市場内の出荷(`MarketShipment`)は経路を持たないため、相手都市の方向に最も近い路線の門で両端を記録し、通過は数えない。
+  - descriptor `roads[].approachTraffic`(§4.3)、`observe/burgs/:b/growth` と CE プローブ(O3)、O4 は未実装。新規地図は `fmg:small`(Province/Islet 規模)で生成する。
 - 既存の土台: `npm run sim`(Node でのヘッドレス時間経過)、`npm run sim:server`(チャンネル + REST、[simulation-channel-server.md](simulation-channel-server.md) §13/§16)、`npm run map:server`([map-server.md](map-server.md))、交易回廊台帳 `tradeCorridorLedger.ts`([fmg-economy-to-city-editor.md](fmg-economy-to-city-editor.md) §6)、CE の `UrbanGrowthPlan.regions[].approachId`。
 
 ## 1. 目的
