@@ -49,6 +49,49 @@ describe("building surfaces", () => {
     [0, 10]
   ] as [number, number][];
 
+  it.each(["highMedieval", "classicalAntiquity", "ageOfExploration"])(
+    "keeps long and oversized ordinary roofs below a 4 m rise in %s",
+    period => {
+      for (const [length, width] of [
+        [160, 3],
+        [160, 100]
+      ]) {
+        for (const angle of [0, 0.7, 1.9]) {
+          const polygon = [
+            [0, 0],
+            [length, 0],
+            [length, width],
+            [0, width]
+          ].map(([x, y]): [number, number] => [
+            x * Math.cos(angle) - y * Math.sin(angle),
+            x * Math.sin(angle) + y * Math.cos(angle)
+          ]);
+          const massing = massingFor(lot({ polygon }), period);
+          const surfaces = buildingSurfaces(polygon, massing)!;
+          const positions = concatPositions(surfaces.walls, surfaces.roofs);
+          expect(maxY(positions)).toBeLessThanOrEqual(massing.eaveHeightMeters + 4.00001);
+          expect(meshIsClosed(positions)).toBe(true);
+          if (width === 3) expect(maxY(positions)).toBeLessThan(massing.eaveHeightMeters + 2.2);
+        }
+      }
+    }
+  );
+
+  it("keeps jetties within the footprint bounds at acute corners", () => {
+    const polygon: [number, number][] = [
+      [0, 0],
+      [160, 2],
+      [0, 4]
+    ];
+    const massing = massingFor(lot({ polygon }));
+    massing.jettyMeters = 0.4;
+    const surfaces = buildingSurfaces(polygon, massing)!;
+    const positions = concatPositions(surfaces.walls, surfaces.roofs);
+    for (let i = 0; i < positions.length; i += 3) expect(positions[i]).toBeLessThanOrEqual(160);
+    expect(maxY(positions)).toBeLessThan(massing.eaveHeightMeters + 4.00001);
+    expect(meshIsClosed(positions)).toBe(true);
+  });
+
   it("places plan +y on -Z so the view matches the SVG", () => {
     const massing = massingFor(lot({ polygon: square }));
     const surfaces = buildingSurfaces(square, massing)!;

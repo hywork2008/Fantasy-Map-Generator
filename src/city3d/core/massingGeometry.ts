@@ -107,6 +107,9 @@ function offsetConvex(poly: readonly Point[], distance: number): Point[] {
     const previous = lines[(i + poly.length - 1) % poly.length];
     const hit = lineIntersection(previous.a, previous.b, lines[i].a, lines[i].b);
     if (!hit || !Number.isFinite(hit[0]) || !Number.isFinite(hit[1])) return poly.map(point => [point[0], point[1]]);
+    // Acute corners must not turn a small jetty into a long projecting spike.
+    if (Math.hypot(hit[0] - poly[i][0], hit[1] - poly[i][1]) > distance * 4)
+      return poly.map(point => [point[0], point[1]]);
     ring.push(hit);
   }
   return ring;
