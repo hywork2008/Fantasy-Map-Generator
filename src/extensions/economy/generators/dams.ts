@@ -30,6 +30,7 @@ import {
 } from "./chemMedCommon";
 import type { Dam, DamSite } from "./damTypes";
 import { upsertInstruments } from "./experimentalWorkshops";
+import { nominal } from "./moneyScale";
 
 /** A State may run several dams at once (one per site) — looser than PowerStation's single plant
  *  per State, but capped so flood-prone States don't blanket every river in dams. */
@@ -99,7 +100,7 @@ export class DamsModule {
       if (!candidateSite) continue;
 
       const burgId = this.findNearestBurgId(candidateSite.cell, state.i);
-      if (!burgId || !debitTreasury(state.i, DAM_BUDGET)) continue;
+      if (!burgId || !debitTreasury(state.i, nominal(DAM_BUDGET))) continue;
 
       dams.push({
         i: dams.length + 1,
@@ -124,7 +125,7 @@ export class DamsModule {
     year: number,
     generatorAndMotorStageByState: Map<number, TechnologyStage>
   ): void {
-    if (!debitTreasury(dam.stateId, rn(DAM_BUDGET * CIVIL_INFRASTRUCTURE_MAINTENANCE_RATE, 2))) {
+    if (!debitTreasury(dam.stateId, rn(nominal(DAM_BUDGET) * CIVIL_INFRASTRUCTURE_MAINTENANCE_RATE, 2))) {
       dam.active = false;
       dam.lastFailureReason = "fundingCut";
       dam.utilization = 0;

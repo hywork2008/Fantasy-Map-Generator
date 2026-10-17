@@ -3,6 +3,7 @@ import { getRaceMaturityAge } from "../../characters/raceAge";
 import { getRaceById } from "../../hostRaces";
 import { raceCatalog } from "../data/raceCatalog";
 import { getWorldContext } from "../economyContext";
+import { nominal } from "./moneyScale";
 
 /**
  * Species-level "hoarding" flavor for personal wealth, layered on top of the flat fixed-stipend
@@ -56,5 +57,5 @@ export function raceHoardBonus(character: Character): number {
   const key = getRaceById(getWorldContext().pack.races, character.race)?.key;
   const rate = key ? RACE_HOARD_SP_PER_ADULT_YEAR[key] : undefined;
   if (!rate) return 0;
-  return adultYearsLived(character) * rate;
+  return nominal(adultYearsLived(character) * rate);
 }

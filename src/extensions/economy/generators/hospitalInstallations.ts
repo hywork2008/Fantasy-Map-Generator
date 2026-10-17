@@ -25,6 +25,7 @@ import {
   marketIdForBurg,
   pickSponsorBurg
 } from "./chemMedCommon";
+import { nominal } from "./moneyScale";
 
 export const MEDICAL_CARE_DEFAULT = 50;
 
@@ -100,7 +101,7 @@ export class HospitalInstallationsModule {
       const stateHospitals = hospitals.filter(row => row.stateId === state.i);
       if (stateHospitals.length === 0) {
         const burgId = pickSponsorBurg(state.i);
-        if (burgId && debitTreasury(state.i, HOSPITAL_BUDGET)) {
+        if (burgId && debitTreasury(state.i, nominal(HOSPITAL_BUDGET))) {
           hospitals.push({
             burgId,
             stateId: state.i,
@@ -133,7 +134,7 @@ export class HospitalInstallationsModule {
         hospitals.filter(row => row.stateId === state.i && row.active).length < 2;
       if (wantSecond) {
         const burgId = pickSponsorBurg(state.i);
-        if (burgId && !occupied.has(burgId) && debitTreasury(state.i, HOSPITAL_BUDGET)) {
+        if (burgId && !occupied.has(burgId) && debitTreasury(state.i, nominal(HOSPITAL_BUDGET))) {
           hospitals.push({
             burgId,
             stateId: state.i,
@@ -154,7 +155,7 @@ export class HospitalInstallationsModule {
     const relief: MedicalCareReliefRow[] = [];
     for (const hospital of hospitals) {
       if (!hospital.active) continue;
-      if (!debitTreasury(hospital.stateId, rn(HOSPITAL_BUDGET * FACILITY_MAINTENANCE_RATE, 2))) {
+      if (!debitTreasury(hospital.stateId, rn(nominal(HOSPITAL_BUDGET) * FACILITY_MAINTENANCE_RATE, 2))) {
         hospital.active = false;
         hospital.utilization = 0;
         relief.push({ burgId: hospital.burgId, relief: 0 });

@@ -14,6 +14,7 @@ import { getGoods, getMarkets, getWorldContext, isEconomyContextReady } from "..
 import type { Good } from "./goodsGeneratorTypes";
 import { spendInBurg } from "./householdWealth";
 import type { Market } from "./marketTypes";
+import { nominal } from "./moneyScale";
 
 /** Goods value a ship of one build point trades per year (sloop 10 pt → 160). */
 export const NAVY_TRADE_VALUE_PER_BUILD_POINT_PER_YEAR = 16;
@@ -56,7 +57,7 @@ export function settleNavyVoyageTrade(
   const byId = new Map(goods.map(good => [good.i, good]));
   // Export: the market's largest non-food surpluses by value, paid for by the treasury.
   let budget = Math.min(
-    NAVY_TRADE_VALUE_PER_BUILD_POINT_PER_YEAR * buildPoints * deltaYears,
+    nominal(NAVY_TRADE_VALUE_PER_BUILD_POINT_PER_YEAR) * buildPoints * deltaYears,
     Math.max(0, state.treasury ?? 0)
   );
   let exported = 0;

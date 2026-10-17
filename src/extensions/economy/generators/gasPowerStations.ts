@@ -26,6 +26,7 @@ import {
   pickSponsorBurg
 } from "./chemMedCommon";
 import { upsertInstruments } from "./experimentalWorkshops";
+import { nominal } from "./moneyScale";
 
 /** Same abstract unit as POWER_STATION_BASE_CAPACITY — gas-fired capacity is not privileged over
  *  coal-fired in this abstraction (§1 non-goal 3, docs/plan/natural-gas-lng-power-generation.md). */
@@ -51,7 +52,7 @@ export class GasPowerStationsModule {
       let plant = plants.find(entry => entry.stateId === state.i && entry.active);
       if (!plant) {
         const burgId = pickSponsorBurg(state.i);
-        if (!burgId || !debitTreasury(state.i, GAS_POWER_STATION_BUDGET)) continue;
+        if (!burgId || !debitTreasury(state.i, nominal(GAS_POWER_STATION_BUDGET))) continue;
         plant = {
           burgId,
           stateId: state.i,
@@ -67,7 +68,7 @@ export class GasPowerStationsModule {
         plant.role = "service";
       }
 
-      if (!debitTreasury(state.i, rn(GAS_POWER_STATION_BUDGET * FACILITY_MAINTENANCE_RATE, 2))) {
+      if (!debitTreasury(state.i, rn(nominal(GAS_POWER_STATION_BUDGET) * FACILITY_MAINTENANCE_RATE, 2))) {
         plant.active = false;
         plant.lastFailureReason = "fundingCut";
         plant.generationCapacity = 0;

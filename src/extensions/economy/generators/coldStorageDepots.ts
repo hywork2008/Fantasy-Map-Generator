@@ -28,6 +28,7 @@ import {
   marketIdForBurg,
   pickSponsorBurg
 } from "./chemMedCommon";
+import { nominal } from "./moneyScale";
 
 /** calibration TBD — annual abstract unit, same scale family as POWER_STATION_BASE_CAPACITY but a
  *  separate capacity pool (raw fresh-food-equivalent units a service-role depot can additionally
@@ -52,7 +53,7 @@ export class ColdStorageDepotsModule {
       let depot = depots.find(entry => entry.stateId === state.i && entry.active);
       if (!depot) {
         const burgId = pickSponsorBurg(state.i);
-        if (!burgId || !debitTreasury(state.i, COLD_STORAGE_DEPOT_BUDGET)) continue;
+        if (!burgId || !debitTreasury(state.i, nominal(COLD_STORAGE_DEPOT_BUDGET))) continue;
         depot = {
           burgId,
           stateId: state.i,
@@ -68,7 +69,7 @@ export class ColdStorageDepotsModule {
         depot.role = "service";
       }
 
-      if (!debitTreasury(state.i, rn(COLD_STORAGE_DEPOT_BUDGET * FACILITY_MAINTENANCE_RATE, 2))) {
+      if (!debitTreasury(state.i, rn(nominal(COLD_STORAGE_DEPOT_BUDGET) * FACILITY_MAINTENANCE_RATE, 2))) {
         depot.active = false;
         depot.lastFailureReason = "fundingCut";
         depot.storageCapacity = 0;

@@ -21,6 +21,7 @@ import { issueForeignOrBondDebt } from "./foreignDebt";
 import { applyDomesticDefaultForeignDiplomacyHit, serviceForeignDebtWithDiplomacy } from "./foreignDebtDiplomacy";
 import { tickLegitimacyWar } from "./legitimacyWar";
 import { getStateDebtInterestRate, splitCreditorPayout, updateMoneylenderSnapshot } from "./moneylenders";
+import { nominal } from "./moneyScale";
 import { refreshTradeSanctions } from "./tradeSanctions";
 import { isWarFootingActive } from "./warFooting";
 
@@ -227,8 +228,8 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
     // Repay principal from surplus L2 (keep a small buffer) → pool + syndicate.
     // Only auto-repay when not deep in default coupon trouble (still allow if cash exists).
     const surplus = state.treasury || 0;
-    if (surplus > WAR_DEBT_CASH_THRESHOLD && (state.publicDebt || 0) > 0) {
-      const repay = rn(Math.min(surplus - WAR_DEBT_CASH_THRESHOLD, state.publicDebt || 0), 2);
+    if (surplus > nominal(WAR_DEBT_CASH_THRESHOLD) && (state.publicDebt || 0) > 0) {
+      const repay = rn(Math.min(surplus - nominal(WAR_DEBT_CASH_THRESHOLD), state.publicDebt || 0), 2);
       if (repay > 0) {
         state.treasury = rn(surplus - repay, 2);
         state.publicDebt = rn((state.publicDebt || 0) - repay, 2);
@@ -260,14 +261,14 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
     isWarFootingActive(state) &&
     stateHasEnemy(state) &&
     (state.form === "Republic" || state.form === "Monarchy") &&
-    (state.treasury || 0) <= WAR_DEBT_CASH_THRESHOLD &&
-    (state.publicDebt || 0) < PUBLIC_DEBT_CAP &&
+    (state.treasury || 0) <= nominal(WAR_DEBT_CASH_THRESHOLD) &&
+    (state.publicDebt || 0) < nominal(PUBLIC_DEBT_CAP) &&
     councilSupport >= 30 &&
     budgetApprovals.debtIssue &&
     canIssueDebtWhileNotInDefault(state)
   ) {
-    const room = rn(PUBLIC_DEBT_CAP - (state.publicDebt || 0), 2);
-    const want = rn(Math.min(WAR_DEBT_ISSUE_AMOUNT, room), 2);
+    const room = rn(nominal(PUBLIC_DEBT_CAP) - (state.publicDebt || 0), 2);
+    const want = rn(Math.min(nominal(WAR_DEBT_ISSUE_AMOUNT), room), 2);
     if (want > 0) {
       const { lent } = lendFromCreditPool(state, want);
       if (lent > 0) {
@@ -284,7 +285,7 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
     isWarFootingActive(state) &&
     stateHasEnemy(state) &&
     (state.form === "Republic" || state.form === "Monarchy" || state.form === "Union") &&
-    (state.treasury || 0) <= WAR_DEBT_CASH_THRESHOLD &&
+    (state.treasury || 0) <= nominal(WAR_DEBT_CASH_THRESHOLD) &&
     canIssueDebtWhileNotInDefault(state)
   ) {
     const foreign = issueForeignOrBondDebt(state);

@@ -21,6 +21,7 @@ import type { ClimateVariabilityMode, ClimateVariabilityStart } from "../utils/c
 import { DEFAULT_CONFLICT_AUTONOMY } from "../utils/conflictAutonomy";
 import { DEFAULT_GOLD_TO_SILVER_RATE, DEFAULT_SILVER_TO_COPPER_RATE } from "../utils/currency";
 import { type MapScopeKind, PROVINCE_SCOPE_DEFAULT_CELLS } from "../utils/mapScope";
+import { DEFAULT_MONEY_SCALE_BASE } from "../utils/moneyScale";
 
 export interface OptionsState {
   // Map settings
@@ -227,6 +228,8 @@ export interface OptionsState {
   ruralEcosystemDetail: "detailed" | "simplified";
   /** Economy initial-capital and maintenance preset, applied when generating a new map. */
   economyStartMode: EconomyStartMode;
+  /** Money scale base applied when generating a new map (docs/plan/money-scale-calibration.md). */
+  moneyScaleBase: number;
   /** Minimum iron-bearing mineral deposits per active state, applied when generating a new map. */
   ironDepositsPerState: number;
   demographicBirthRate: number;
@@ -509,6 +512,7 @@ export const GENERATION_OPTION_KEYS = [
   "maxWarDisparityRatio",
   "maxWarDisparityRatioEnabled",
   "economyStartMode",
+  "moneyScaleBase",
   "ironDepositsPerState",
   "ruralEcosystemDetail",
   "gunpowderEraEnabled",
@@ -599,6 +603,7 @@ export const optionsStore = createStore<OptionsState>(set => ({
   climateVariabilityVolcanicPerCentury: 0.8,
   ruralEcosystemDetail: "detailed",
   economyStartMode: "balanced",
+  moneyScaleBase: DEFAULT_MONEY_SCALE_BASE,
   ironDepositsPerState: 0.4,
   demographicBirthRate: 0.25,
   demographicChildMortalityRate: 0.2,

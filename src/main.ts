@@ -1175,6 +1175,7 @@ function prepareGenerationStage(request: GenerateRequest): GenerateRequest {
   );
   worldContext.options.ruralEcosystemDetail = useOptionsState.getState().ruralEcosystemDetail;
   worldContext.options.economyStartMode = useOptionsState.getState().economyStartMode;
+  worldContext.options.moneyScaleBase = useOptionsState.getState().moneyScaleBase;
   worldContext.options.ironDepositsPerState = useOptionsState.getState().ironDepositsPerState;
 
   if (

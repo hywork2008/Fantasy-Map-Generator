@@ -1,6 +1,7 @@
 import type { Character } from "../../characters/characterTypes";
 import { rn } from "../../hostUtils";
 import type { GuildKnowledgeStock } from "./guildKnowledgeTypes";
+import { nominal } from "./moneyScale";
 
 /**
  * A successor receives only the portable working kit needed to continue the trade. The bulk of a
@@ -62,8 +63,8 @@ export function seedGuildMasterStartingAssets(master: Character, guild: GuildKno
   if (master.dead || (master.wealth || 0) > 0 || !(guild.treasury > 0)) return 0;
 
   const desired = Math.min(
-    GUILD_MASTER_STARTING_ASSET_MAX,
-    Math.max(GUILD_MASTER_STARTING_ASSET_MIN, guild.treasury * GUILD_MASTER_STARTING_ASSET_SHARE)
+    nominal(GUILD_MASTER_STARTING_ASSET_MAX),
+    Math.max(nominal(GUILD_MASTER_STARTING_ASSET_MIN), guild.treasury * GUILD_MASTER_STARTING_ASSET_SHARE)
   );
   const amount = rn(Math.min(guild.treasury, desired), 2);
   if (!(amount > 0)) return 0;

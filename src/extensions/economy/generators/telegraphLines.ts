@@ -26,6 +26,7 @@ import {
   pickSponsorBurg,
   TELEGRAPH_LINE_BUDGET
 } from "./chemMedCommon";
+import { nominal } from "./moneyScale";
 
 export class TelegraphLinesModule {
   settleAnnual(): boolean {
@@ -43,7 +44,7 @@ export class TelegraphLinesModule {
       let line = lines.find(entry => entry.stateId === state.i && entry.active);
       if (!line) {
         const burgId = pickSponsorBurg(state.i);
-        if (!burgId || !debitTreasury(state.i, TELEGRAPH_LINE_BUDGET)) continue;
+        if (!burgId || !debitTreasury(state.i, nominal(TELEGRAPH_LINE_BUDGET))) continue;
         line = {
           burgId,
           stateId: state.i,
@@ -58,7 +59,7 @@ export class TelegraphLinesModule {
         line.role = "service";
       }
 
-      if (!debitTreasury(state.i, rn(TELEGRAPH_LINE_BUDGET * FACILITY_MAINTENANCE_RATE, 2))) {
+      if (!debitTreasury(state.i, rn(nominal(TELEGRAPH_LINE_BUDGET) * FACILITY_MAINTENANCE_RATE, 2))) {
         line.active = false;
         line.lastFailureReason = "fundingCut";
         continue;

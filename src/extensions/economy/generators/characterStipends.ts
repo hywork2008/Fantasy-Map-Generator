@@ -14,6 +14,7 @@ import {
   setGuildKnowledgeStocks
 } from "../economyContext";
 import { findApprentices, findMaster } from "./guildSuccession";
+import { nominal } from "./moneyScale";
 import { raceHoardBonus } from "./raceWealthBias";
 import { SmithingWorkshopAccounting } from "./smithingWorkshopLedger";
 import {
@@ -141,28 +142,28 @@ export function computeApprenticePocketMoney(guildTreasury: number, master: Char
   const bond = Math.min(getSolidarity(master, apprentice.i), getSolidarity(apprentice, master.i));
   const quality = Math.min(1, Math.max(0, (bond - GUILD_APPRENTICE_POCKET_SOLIDARITY_MIN) / 60));
   const scale = 0.4 + 0.6 * quality;
-  const desired = apprenticePocketBaseByAge(apprentice.age ?? 0) * scale;
+  const desired = nominal(apprenticePocketBaseByAge(apprentice.age ?? 0)) * scale;
   return payFromPool(guildTreasury, desired);
 }
 
 /** Fixed province-lord stipend limited by the seated Burg's treasury. */
 export function computeProvinceLordStipend(burgTreasury: number): number {
-  return payFromPool(burgTreasury, PROVINCE_LORD_STIPEND);
+  return payFromPool(burgTreasury, nominal(PROVINCE_LORD_STIPEND));
 }
 
 /** Fixed guild-master stipend limited by the domain guild treasury. */
 export function computeGuildMasterStipend(guildTreasury: number): number {
-  return payFromPool(guildTreasury, GUILD_MASTER_STIPEND);
+  return payFromPool(guildTreasury, nominal(GUILD_MASTER_STIPEND));
 }
 
 /** Fixed market-manager stipend limited by market working capital. */
 export function computeMarketManagerStipend(marketBalance: number): number {
-  return payFromPool(marketBalance, MARKET_MANAGER_STIPEND);
+  return payFromPool(marketBalance, nominal(MARKET_MANAGER_STIPEND));
 }
 
 /** Fixed rival-merchant stipend limited by market working capital. */
 export function computeMarketRivalStipend(marketBalance: number): number {
-  return payFromPool(marketBalance, MARKET_RIVAL_STIPEND);
+  return payFromPool(marketBalance, nominal(MARKET_RIVAL_STIPEND));
 }
 
 /**
@@ -372,7 +373,7 @@ export function seedMissingCharacterWealth(): void {
     // silently skipped every burg-less lord and left them stuck at wealth 0 forever.
     // raceHoardBonus() adds age-scaled hoarding flavor for a handful of long-lived races (0 for
     // everyone else) — see raceWealthBias.ts.
-    lord.wealth = rn(PROVINCE_LORD_STIPEND * backPayCycles() + raceHoardBonus(lord), 2);
+    lord.wealth = rn(nominal(PROVINCE_LORD_STIPEND) * backPayCycles() + raceHoardBonus(lord), 2);
   }
 
   for (const entry of getGuildKnowledgeStocks()) {
@@ -384,7 +385,7 @@ export function seedMissingCharacterWealth(): void {
     if (!master) continue;
     // Fixed stipend × back-pay, not pool-capped by entry.treasury — see the function doc comment.
     // raceHoardBonus() adds age-scaled hoarding flavor for a handful of long-lived races.
-    if (!master.wealth) master.wealth = rn(GUILD_MASTER_STIPEND * backPayCycles() + raceHoardBonus(master), 2);
+    if (!master.wealth) master.wealth = rn(nominal(GUILD_MASTER_STIPEND) * backPayCycles() + raceHoardBonus(master), 2);
 
     for (const apprentice of findApprentices(characters, master.i, entry.burgId, entry.domain)) {
       if (apprentice.wealth || apprentice.dead) continue;

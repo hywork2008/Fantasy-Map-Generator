@@ -3,6 +3,7 @@ import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getMarkets, getWorldContext } from "../economyContext";
 import type { Market } from "./marketTypes";
+import { nominal } from "./moneyScale";
 
 /**
  * Multi-ledger PR-9/PR-10 — anonymous credit pool (institutional stock).
@@ -62,7 +63,7 @@ export function ensureCreditPoolSeeded(state: State): number {
     return rn(Math.max(0, state.creditPoolBalance), 2);
   }
 
-  let seed = CREDIT_POOL_BASE_SEED;
+  let seed = nominal(CREDIT_POOL_BASE_SEED);
   const market = resolveCapitalMarket(state);
   if (market?.marketTreasury) {
     seed += rn((market.marketTreasury.balance || 0) * CREDIT_POOL_MARKET_SEED_SHARE, 2);

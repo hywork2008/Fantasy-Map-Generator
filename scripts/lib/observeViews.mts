@@ -297,7 +297,8 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
       pop: r3(b.population ?? 0),
       treasury: r3(b.treasury ?? 0),
       households: r3(ledgers.get(b.i)?.householdWealth ?? 0),
-      guilds: r3(guilds.get(b.i!) ?? 0)
+      guilds: r3(guilds.get(b.i!) ?? 0),
+      foodSecurity: r3(b.foodSecurity ?? 1)
     }));
     const markets = economy()
       ? getMarkets().map(m => ({
@@ -305,7 +306,9 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
           balance: r3(m.marketTreasury?.balance ?? 0),
           payable: r3(m.marketTreasury?.ruralGrainPayable ?? 0),
           tradeCapital: r3((m.marketTreasury?.tradeWorkingCapital ?? 0) + (m.marketTreasury?.tradeCapitalLocked ?? 0)),
-          ruralHouseholds: r3(m.foodLedger?.ruralHouseholdWealth ?? 0)
+          ruralHouseholds: r3(m.foodLedger?.ruralHouseholdWealth ?? 0),
+          urbanFoodStressQuarters: m.foodLedger?.urbanFoodStressQuarters ?? 0,
+          grainPrice: r3(m.goods[getGoods().find(g => g.tags?.includes("stapleFood"))?.i ?? -1]?.price ?? 0)
         }))
       : [];
     const byClass: Record<string, number[]> = {};

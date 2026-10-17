@@ -9,6 +9,7 @@
 - docs/plan/fmg-harbour-model.md - 港を独立した存在にし、都市・港・航路の生成順序を固定する(estuary-port-pair-relocation.md の後継)
 - docs/plan/initial-wealth-calibration.md - 国家・都市・人物の開始時の富を定常期の統計から逆算する調査。現状はお金が家計から国庫へ一方向に流れて定常状態がなく逆算できないため、出入りの計測→循環の是正→逆算の順序を示す
 - docs/plan/medieval-european-nobility-holdings.md
+- docs/plan/money-scale-calibration.md - 価格(人数尺度)と定額のお金(人口点尺度)の桁ずれを、価格は据え置き定額のお金に係数 K(populationRate 比例)を掛けて揃える設計(initial-wealth-calibration.md §8.5 の対応)
 
 2026-10-16
 

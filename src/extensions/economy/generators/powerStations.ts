@@ -29,6 +29,7 @@ import {
   pickSponsorBurg
 } from "./chemMedCommon";
 import { upsertInstruments } from "./experimentalWorkshops";
+import { nominal } from "./moneyScale";
 
 /**
  * calibration TBD — abstract generation-capacity unit a single fully-utilized "service" plant
@@ -58,7 +59,7 @@ export class PowerStationsModule {
       let plant = plants.find(entry => entry.stateId === state.i && entry.active);
       if (!plant) {
         const burgId = pickSponsorBurg(state.i);
-        if (!burgId || !debitTreasury(state.i, POWER_STATION_BUDGET)) continue;
+        if (!burgId || !debitTreasury(state.i, nominal(POWER_STATION_BUDGET))) continue;
         plant = {
           burgId,
           stateId: state.i,
@@ -74,7 +75,7 @@ export class PowerStationsModule {
         plant.role = "service";
       }
 
-      if (!debitTreasury(state.i, rn(POWER_STATION_BUDGET * FACILITY_MAINTENANCE_RATE, 2))) {
+      if (!debitTreasury(state.i, rn(nominal(POWER_STATION_BUDGET) * FACILITY_MAINTENANCE_RATE, 2))) {
         plant.active = false;
         plant.lastFailureReason = "fundingCut";
         plant.generationCapacity = 0;

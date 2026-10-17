@@ -15,6 +15,7 @@ import type { WorldContext } from "../context/worldContext";
 import type { DataTopic } from "../runtime/worldRuntime";
 import { optionsStore } from "../state/optionsStore";
 import type { Monster, State } from "../types/models";
+import { getWorldMoneyScale } from "../utils/moneyScale";
 import type { RNGService } from "../utils/probabilityUtils";
 import { applyArcaneHuntAssist } from "./arcaneHuntAssist";
 import { STATE_EXPAND_DANGER_BAN } from "./dangerExpandPolicy";
@@ -101,6 +102,8 @@ export function advanceWildernessEcology(input: WildernessEcologyInput): Wildern
   // 0) Decay pest suppression before rebuild.
   decayPestSuppression(wilderness);
 
+  // Hunt costs and reserves are per-population-point amounts (docs/plan/money-scale-calibration.md).
+  const moneyScale = getWorldMoneyScale(world);
   // 1) Advance existing cull projects.
   for (const project of Object.values(wilderness.cullProjects)) {
     const state = world.pack.states?.[project.stateId];
@@ -110,8 +113,8 @@ export function advanceWildernessEcology(input: WildernessEcologyInput): Wildern
       continue;
     }
 
-    const cost = annualHuntCost(project, monsters);
-    if ((state.treasury ?? 0) < cost + HUNT_RESERVE) {
+    const cost = annualHuntCost(project, monsters) * moneyScale;
+    if ((state.treasury ?? 0) < cost + HUNT_RESERVE * moneyScale) {
       project.lastOutcome = "abandoned";
       abandoned.push(project.cellId);
       delete wilderness.cullProjects[project.cellId];
@@ -145,12 +148,12 @@ export function advanceWildernessEcology(input: WildernessEcologyInput): Wildern
     if (active >= MAX_CULL_PROJECTS_PER_STATE) continue;
 
     while (active < MAX_CULL_PROJECTS_PER_STATE) {
-      if ((state.treasury ?? 0) < HUNT_RESERVE + 6) break;
+      if ((state.treasury ?? 0) < (HUNT_RESERVE + 6) * moneyScale) break;
       const target = selectHuntTarget(state, world, wilderness, monsters, rng);
       if (!target) break;
 
-      const setupCost = setupHuntCost(target.rarity);
-      if ((state.treasury ?? 0) < setupCost + HUNT_RESERVE) break;
+      const setupCost = setupHuntCost(target.rarity) * moneyScale;
+      if ((state.treasury ?? 0) < setupCost + HUNT_RESERVE * moneyScale) break;
 
       state.treasury = Math.max(0, (state.treasury ?? 0) - setupCost);
       const project: ThreatCullProject = {

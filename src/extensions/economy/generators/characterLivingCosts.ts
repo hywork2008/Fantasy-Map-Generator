@@ -3,6 +3,7 @@ import type { Character, CharacterRole, TitleHolding } from "../../characters/ch
 import { rn } from "../../hostUtils";
 import { CENTRAL_OFFICES } from "../../nobility/data/titleTable";
 import { payStateHouseholds, spendInBurg } from "./householdWealth";
+import { nominal } from "./moneyScale";
 
 /**
  * Personal living-cost sink for Character.wealth.
@@ -150,7 +151,7 @@ const CYCLES_PER_YEAR = 12;
  */
 export function computeLivingCost(character: Character): number {
   const tier = resolveLifestyleTier(character);
-  const lifestyle = LIVING_COST_BY_TIER[tier];
+  const lifestyle = nominal(LIVING_COST_BY_TIER[tier]);
   const wealth = character.wealth || 0;
   if (!(wealth > 0) && lifestyle <= 0) return 0;
 

@@ -23,6 +23,7 @@ import { CYCLES_PER_YEAR } from "./marketFlowBudget";
 import { Markets } from "./markets-generator";
 import type { Deal } from "./marketTypes";
 import { getStateMilitaryUpkeep } from "./militaryLogistics";
+import { nominal } from "./moneyScale";
 import { applyFormRevenueMix } from "./revenueMix";
 import { recordStateFiscalReport } from "./stateFiscalReport";
 import { applyTradeSanctionToIncome, refreshTradeSanctions } from "./tradeSanctions";
@@ -216,7 +217,7 @@ export class TaxesModule {
       // PR-12: domain levy intensity across province seats scales poll-tax collection.
       const domainPollMult = getStateDomainPollTaxMultiplier(state);
       state.domainPollTaxMultiplier = domainPollMult;
-      const pollTaxRatePerHead = (state.pollTax || 0) * administrationBonus * domainPollMult;
+      const pollTaxRatePerHead = nominal(state.pollTax || 0) * administrationBonus * domainPollMult;
       // L2 Phase 2/3 (docs/plan/economy-coupling-audit.md): poll tax is a transfer out of the
       // population's own pooled wallet (BurgMarketLedger.householdWealth / FoodLedger.
       // ruralHouseholdWealth), not pure creation — urban and rural population draw from separate
@@ -246,7 +247,7 @@ export class TaxesModule {
             const elapsed = currentYear - incYear;
             if (elapsed <= 10) {
               // 1-10 years: 100% exempt + 1.5 gold annual settlement subsidy per cell
-              frontierSettlementSubsidyTotal += 1.5;
+              frontierSettlementSubsidyTotal += nominal(1.5);
               continue;
             } else if (elapsed <= 15) {
               // 11-15 years: 50% tax relief
@@ -301,7 +302,21 @@ export class TaxesModule {
         applyCivilAdministrationUpkeep(state, administrativeUpkeepTotal, burgs)
       );
       // PR-6 form revenue mix: wartime Monarchy subsidy, Theocracy tithe, Anarchy plunder share.
-      const mix = measureTickStep("taxes:formRevenueMix", () => applyFormRevenueMix(state, rawDomesticIncome));
+      // Wartime aid is an extra levy on the same household purses as the poll tax, split like it
+      // (docs/plan/money-scale-calibration.md §8.3); it used to be credited from nowhere.
+      const levyWartimeAid = (amount: number) => {
+        const pollDemand = urbanPollTaxDemand + ruralPollTaxDemand;
+        if (!(pollDemand > 0)) return 0;
+        const urbanShare = amount * (urbanPollTaxDemand / pollDemand);
+        const urban = stateHasBurgs(state.i) ? drawStateUrbanHouseholdWealth(state.i, urbanShare) : urbanShare;
+        const rural = stateOwnsRuralLand(state.i)
+          ? drawStateRuralHouseholdWealth(state.i, amount - urbanShare)
+          : amount - urbanShare;
+        return urban + rural;
+      };
+      const mix = measureTickStep("taxes:formRevenueMix", () =>
+        applyFormRevenueMix(state, rawDomesticIncome, levyWartimeAid)
+      );
       // PR-7: council failure / tax farm / public debt — may scale income and move L2 cash.
       const events = measureTickStep("taxes:fiscalEvents", () => applyFiscalEvents(state, mix.adjustedDomesticIncome));
       const budgetIncome = rn(mix.adjustedDomesticIncome * (1 - administrativeUpkeepShare) * events.incomeScale, 2);

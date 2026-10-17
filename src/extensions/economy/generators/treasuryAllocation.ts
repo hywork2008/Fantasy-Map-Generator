@@ -13,6 +13,7 @@ import { getRulerId } from "../../nobility/nobilityContext";
 import type { DepartmentBaselineAllocation } from "./departmentAllocationTypes";
 import { payStateHouseholds } from "./householdWealth";
 import { getRegimentMilitaryUpkeep, getStateMilitaryUpkeep } from "./militaryLogistics";
+import { nominal } from "./moneyScale";
 import { applyWarFootingToBaseline, updateMilitaryMobilizationBoost } from "./warFooting";
 
 export type { DepartmentBaselineAllocation } from "./departmentAllocationTypes";
@@ -331,8 +332,8 @@ export function getHouseholdNominalBudget(state: Pick<State, "form">, domesticIn
 export function getRulerHouseholdStipend(state: Pick<State, "form">, domesticIncome: number): number {
   if (!(domesticIncome > 0)) return 0;
   const raw = getHouseholdNominalBudget(state, domesticIncome);
-  const floored = Math.max(raw, Math.min(HOUSEHOLD_STIPEND_FLOOR, domesticIncome));
-  return rn(Math.min(floored, HOUSEHOLD_STIPEND_CAP, domesticIncome), 2);
+  const floored = Math.max(raw, Math.min(nominal(HOUSEHOLD_STIPEND_FLOOR), domesticIncome));
+  return rn(Math.min(floored, nominal(HOUSEHOLD_STIPEND_CAP), domesticIncome), 2);
 }
 
 /**
@@ -449,8 +450,8 @@ export function sumDepartmentBalances(balances: DepartmentBalances | undefined):
 export function getCentralOfficePersonalStipend(departmentBudget: number): number {
   if (!(departmentBudget > 0)) return 0;
   const proportional = departmentBudget * CENTRAL_OFFICE_PERSONAL_SHARE;
-  const floored = Math.max(proportional, Math.min(CENTRAL_OFFICE_STIPEND_FLOOR, departmentBudget));
-  return rn(Math.min(floored, CENTRAL_OFFICE_STIPEND_CAP, departmentBudget), 2);
+  const floored = Math.max(proportional, Math.min(nominal(CENTRAL_OFFICE_STIPEND_FLOOR), departmentBudget));
+  return rn(Math.min(floored, nominal(CENTRAL_OFFICE_STIPEND_CAP), departmentBudget), 2);
 }
 
 /**
@@ -664,7 +665,10 @@ export const FIELD_COMMANDER_STIPEND_CAP = 4.5;
  */
 export function getFieldCommanderStipend(regiment: Pick<MilitaryRegiment, "u">): number {
   const proportional = getRegimentMilitaryUpkeep(regiment) * FIELD_COMMANDER_STIPEND_RATE;
-  return rn(Math.min(Math.max(proportional, FIELD_COMMANDER_STIPEND_FLOOR), FIELD_COMMANDER_STIPEND_CAP), 2);
+  return rn(
+    Math.min(Math.max(proportional, nominal(FIELD_COMMANDER_STIPEND_FLOOR)), nominal(FIELD_COMMANDER_STIPEND_CAP)),
+    2
+  );
 }
 
 /**

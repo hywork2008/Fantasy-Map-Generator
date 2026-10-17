@@ -46,6 +46,7 @@ import {
   settleAnnualOnce
 } from "../economyContext";
 import { getComfortableTreasuryLevel } from "./guildTreasury";
+import { nominal } from "./moneyScale";
 import { raceKeyForBurgState } from "./resolveBurgCulture";
 import { isModernWaterEraAvailable, MODERN_WATER_MIN_POPULATION } from "./urbanWaterModernTreatment";
 import { buildAqueductTree, chooseProtectedIntakeCell, hasSameLandGravityWaterSource } from "./urbanWaterSupply";
@@ -132,15 +133,15 @@ export function getRegionalSchemeConnectedBurgIds(): ReadonlySet<number> {
  *  this file — deterministic from already-stored scheme fields, so no extra interface field is
  *  needed to remember it (RegionalWaterScheme's shape matches doc §9.4 exactly). */
 function schemeConstructionBudget(scheme: RegionalWaterScheme): number {
-  return (
+  return nominal(
     REGIONAL_SCHEME_BASE_COST +
-    REGIONAL_SCHEME_COST_PER_ROUTE_CELL * scheme.routeCellIds.length +
-    REGIONAL_SCHEME_COST_PER_MEMBER * scheme.memberBurgIds.length
+      REGIONAL_SCHEME_COST_PER_ROUTE_CELL * scheme.routeCellIds.length +
+      REGIONAL_SCHEME_COST_PER_MEMBER * scheme.memberBurgIds.length
   );
 }
 
 function schemeOperationsAnnualNeed(scheme: RegionalWaterScheme): number {
-  return REGIONAL_SCHEME_OPS_BASE_PER_MEMBER * Math.max(1, scheme.memberBurgIds.length);
+  return nominal(REGIONAL_SCHEME_OPS_BASE_PER_MEMBER) * Math.max(1, scheme.memberBurgIds.length);
 }
 
 interface SettleContext {
@@ -278,8 +279,9 @@ function negotiateScheme(scheme: RegionalWaterScheme, { states }: SettleContext)
     return;
   }
   const liquid = Math.max(0, state.treasury ?? 0);
-  if (liquid < REGIONAL_SCHEME_NEGOTIATION_COST) return; // stalls; retried every year, no dead end
-  state.treasury = rn(liquid - REGIONAL_SCHEME_NEGOTIATION_COST, 2);
+  const negotiationCost = nominal(REGIONAL_SCHEME_NEGOTIATION_COST);
+  if (liquid < negotiationCost) return; // stalls; retried every year, no dead end
+  state.treasury = rn(liquid - negotiationCost, 2);
 
   scheme.approvalByParty = {
     [String(scheme.sponsorStateId)]: "approved" as const,

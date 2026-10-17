@@ -8,6 +8,7 @@ import {
   setStateSecretStocks,
   settleAnnualOnce
 } from "../economyContext";
+import { nominal } from "./moneyScale";
 import type { StateSecretDomain, StateSecretStock } from "./stateSecretTypes";
 
 /**
@@ -67,14 +68,14 @@ export class StateSecretKnowledgeModule {
 
       const previousStock = previous?.stock ?? 0;
       const budget = Math.max(0, state.treasury || 0) * STATE_SECRET_BUDGET_SHARE_OF_TREASURY;
-      const spend = Math.min(budget, STATE_SECRET_TARGET_ANNUAL_SPEND);
+      const spend = Math.min(budget, nominal(STATE_SECRET_TARGET_ANNUAL_SPEND));
       // Fast-Forward (docs/plan/advance-time-fast-forward.md §9.4 / Phase 3): keep the affordability
       // math (spend/coverage still scale with the preset-driven treasury, so pyrotechnics knowledge
       // keeps progressing) but let applyFastForwardEconomySettlement()'s preset rate own the
       // treasury balance instead of draining it here on top of that.
       if (spend > 0 && !isFastAdvanceRunActive()) state.treasury = rn((state.treasury || 0) - spend, 2);
 
-      const coverageThisYear = spend / STATE_SECRET_TARGET_ANNUAL_SPEND;
+      const coverageThisYear = spend / nominal(STATE_SECRET_TARGET_ANNUAL_SPEND);
       const stock = rn(applyKnowledgeEwma(previousStock, coverageThisYear, STATE_SECRET_ADOPTION_RATE), 4);
       next.push({ stateId: ledger.stateId, domain: "pyrotechnics", stock });
     }

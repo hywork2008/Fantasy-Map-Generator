@@ -3,6 +3,7 @@ import { getGoods, getMarkets, getMintLedgers, getWorldContext, setMintLedgers }
 import { INITIAL_MONTHS_OF_CURRENCY, TARGET_MONTHS_OF_CURRENCY } from "./currencySufficiency";
 import { Markets } from "./markets-generator";
 import type { MintLedger } from "./mintingTypes";
+import { nominal } from "./moneyScale";
 
 export type { MintLedger } from "./mintingTypes";
 
@@ -102,7 +103,7 @@ export class MintingModule {
           total + Object.values(market.goods).reduce((value, entry) => value + entry.stock * entry.price, 0),
         0
       );
-    return rn(Math.max(1, population * 0.06 + (state.urban || 0) * 0.04 + marketTradeValue * 0.002), 2);
+    return rn(Math.max(1, nominal(population * 0.06 + (state.urban || 0) * 0.04) + marketTradeValue * 0.002), 2);
   }
 }
 

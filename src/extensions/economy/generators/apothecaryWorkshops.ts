@@ -26,6 +26,7 @@ import {
   pickSponsorBurg
 } from "./chemMedCommon";
 import { recordObsidianPractice } from "./chemMedPractice";
+import { nominal } from "./moneyScale";
 
 const ADJUNCTS = ["Honey", "Vinegar", "Salt", "Alum", "Soap"] as const;
 const PRACTITIONERS = 2;
@@ -51,18 +52,18 @@ export class ApothecaryWorkshopsModule {
       let workshop = workshops.find(entry => entry.sponsorStateId === state.i && entry.active);
       if (!workshop) {
         const burgId = pickSponsorBurg(state.i);
-        if (!burgId || !debitTreasury(state.i, APOTHECARY_BUDGET)) continue;
+        if (!burgId || !debitTreasury(state.i, nominal(APOTHECARY_BUDGET))) continue;
         workshop = {
           burgId,
           sponsorStateId: state.i,
           active: true,
           practitioners: PRACTITIONERS,
-          annualBudget: APOTHECARY_BUDGET,
+          annualBudget: nominal(APOTHECARY_BUDGET),
           compoundingRecord: 0,
           lastFundedYear: year
         };
         workshops.push(workshop);
-      } else if (!debitTreasury(state.i, rn(APOTHECARY_BUDGET * FACILITY_MAINTENANCE_RATE, 2))) {
+      } else if (!debitTreasury(state.i, rn(nominal(APOTHECARY_BUDGET) * FACILITY_MAINTENANCE_RATE, 2))) {
         workshop.active = false;
         const trial = trials.find(trialKey(state.i));
         if (trial) {

@@ -1,4 +1,5 @@
 import type { EconomyStartMode, WorldOptions } from "../../../types/WorldState";
+import { getMoneyScale } from "./moneyScale";
 
 /** New maps use a modest, pre-industrial economy. */
 export const DEFAULT_NEW_MAP_ECONOMY_START_MODE: EconomyStartMode = "balanced";
@@ -99,6 +100,19 @@ export function getEconomyStartMode(options: Pick<WorldOptions, "economyStartMod
   return options.economyStartMode ?? "provisioned";
 }
 
+/**
+ * The per-population-point money amounts are lifted onto the live map's money scale
+ * (docs/plan/money-scale-calibration.md); shares and multipliers are scale-free.
+ */
 export function getEconomyStartProfile(options: Pick<WorldOptions, "economyStartMode">): EconomyStartProfile {
-  return PROFILES[getEconomyStartMode(options)];
+  const profile = PROFILES[getEconomyStartMode(options)];
+  const scale = getMoneyScale();
+  if (scale === 1) return profile;
+  return {
+    ...profile,
+    burgTreasuryPerPopulation: profile.burgTreasuryPerPopulation * scale,
+    stateTreasuryPerPopulation: profile.stateTreasuryPerPopulation * scale,
+    marketMaintenancePerPopulation: profile.marketMaintenancePerPopulation * scale,
+    householdWealthPerPopulation: profile.householdWealthPerPopulation * scale
+  };
 }

@@ -10,6 +10,7 @@ import type { WorldContext } from "../context/worldContext";
 import type { DataTopic } from "../runtime/worldRuntime";
 import { allowsGeneratedSeaLanes, normalizeFrontierStartMode } from "../utils/frontierStartMode";
 import { isFrontierExpansionPattern } from "../utils/initialSettlementPattern";
+import { getWorldMoneyScale } from "../utils/moneyScale";
 import { isTrueOceanHarborCell, isTrueOceanPortBurg } from "../utils/oceanPort";
 import type { RNGService } from "../utils/probabilityUtils";
 import { getCellPrecipitation, getCellWaterAccess } from "./cellWaterAccess";
@@ -129,7 +130,8 @@ export function getFrontierCandidateSummaries(
   if (!cells || !states || !isFrontierExpansionPattern(world.options?.initialSettlementPattern)) return [];
   const candidates: FrontierCandidateSummary[] = [];
   for (const state of states) {
-    if (!state?.i || state.removed || getStateStartBlocker(state, simulation, state.i, cells, state.center)) continue;
+    if (!state?.i || state.removed || getStateStartBlocker(world, state, simulation, state.i, cells, state.center))
+      continue;
     candidates.push(...getAvailableStateCandidates(state.i, world, simulation.frontier, state.center));
   }
   return candidates.sort((a, b) => b.score - a.score || a.stateId - b.stateId || a.cellId - b.cellId).slice(0, 8);
@@ -150,7 +152,7 @@ export function getFrontierCandidateBlockerSummaries(
   const blockers: FrontierCandidateBlockerSummary[] = [];
   for (const state of states) {
     if (!state?.i || state.removed) continue;
-    const startBlocker = getStateStartBlocker(state, simulation, state.i, cells, state.center);
+    const startBlocker = getStateStartBlocker(world, state, simulation, state.i, cells, state.center);
     if (startBlocker) {
       blockers.push({ stateId: state.i, reason: startBlocker });
       continue;
@@ -217,6 +219,11 @@ export function snapshotFrontierBudgets(world: WorldContext, simulation: Simulat
     }
   }
   return changed;
+}
+
+/** Fixed frontier costs on the map's money scale (docs/plan/money-scale-calibration.md). */
+function money(world: WorldContext, amount: number): number {
+  return amount * getWorldMoneyScale(world);
 }
 
 function resolvedFrontierBudget(
@@ -289,7 +296,7 @@ export function advanceFrontierExpansion(input: FrontierExpansionInput): Frontie
     const occupiedSectors = getActiveProjectSectors(frontier, state.i, cells, state.center);
 
     while (activeProjects < slots) {
-      const requiredReserve = (activeProjects + 1) * (TREASURY_RESERVE + SETUP_COST);
+      const requiredReserve = (activeProjects + 1) * money(input.world, TREASURY_RESERVE + SETUP_COST);
       const priorBudget = resolvedFrontierBudget(frontier, state.i, state.treasury);
       // Eligibility uses the pre-economy snapshot. Same-tick tax and upkeep must
       // not zero the reserve that was already known at this calendar boundary.
@@ -304,7 +311,7 @@ export function advanceFrontierExpansion(input: FrontierExpansionInput): Frontie
       const colonists = transferColonists(cells, candidate, frontier, state.i);
       if (colonists < MIN_COLONISTS) break;
 
-      state.treasury = Math.max(0, (state.treasury ?? 0) - SETUP_COST);
+      state.treasury = Math.max(0, (state.treasury ?? 0) - money(input.world, SETUP_COST));
       consumeFood(state, SETUP_FOOD);
       frontier.cellStages[candidate.cellId] = FRONTIER_STAGE.outpost;
       frontier.projects[candidate.cellId] = {
@@ -357,9 +364,9 @@ function fundSeaborneBeachheadSupply(
   if (!hasOpenBeachhead) return false;
 
   const priorBudget = resolvedFrontierBudget(frontier, stateId, state.treasury);
-  if (priorBudget < TREASURY_RESERVE + SETUP_COST + SEABORNE_SUPPLY_COST) return false;
+  if (priorBudget < money(input.world, TREASURY_RESERVE + SETUP_COST + SEABORNE_SUPPLY_COST)) return false;
 
-  state.treasury = Math.max(0, (state.treasury ?? 0) - SEABORNE_SUPPLY_COST);
+  state.treasury = Math.max(0, (state.treasury ?? 0) - money(input.world, SEABORNE_SUPPLY_COST));
   consumeFood(state, SEABORNE_SUPPLY_FOOD);
   addFrontierApplicants(frontier, stateId, SEABORNE_SUPPLY_COLONISTS / 2, SEABORNE_SUPPLY_COLONISTS / 2);
   return true;
@@ -387,12 +394,12 @@ function fundFrontierRecruitment(
   const isSeaborne =
     normalizeFrontierStartMode(input.world.options?.frontierStartMode) === "seaborne" ||
     (frontier.seaborneBeachheadsByState?.[stateId]?.length ?? 0) > 0;
-  const cost = isSeaborne ? HOMELAND_PIONEER_CONVOY_COST : HOMESTEADING_BOUNTY_COST;
+  const cost = money(input.world, isSeaborne ? HOMELAND_PIONEER_CONVOY_COST : HOMESTEADING_BOUNTY_COST);
   const food = isSeaborne ? HOMELAND_PIONEER_CONVOY_FOOD : HOMESTEADING_BOUNTY_FOOD;
   const colonists = isSeaborne ? HOMELAND_PIONEER_CONVOY_COLONISTS : HOMESTEADING_BOUNTY_COLONISTS;
 
   const priorBudget = resolvedFrontierBudget(frontier, stateId, state.treasury);
-  if (priorBudget < TREASURY_RESERVE + SETUP_COST + cost) return false;
+  if (priorBudget < money(input.world, TREASURY_RESERVE + SETUP_COST) + cost) return false;
 
   state.treasury = Math.max(0, (state.treasury ?? 0) - cost);
   consumeFood(state, food);
@@ -565,8 +572,8 @@ function getLandStateCandidates(
       origin: "land",
       resourceClaimCellId: claimIndex.nearestClaimCellId(cellId),
       score: scoreCandidate(world, cells, cellId, 0) + claimIndex.priority(cellId) - hops * LAND_HOP_PENALTY,
-      setupCost: SETUP_COST,
-      requiredReserve: TREASURY_RESERVE + SETUP_COST
+      setupCost: money(world, SETUP_COST),
+      requiredReserve: money(world, TREASURY_RESERVE + SETUP_COST)
     });
   }
   return candidates;
@@ -678,8 +685,8 @@ function getSeaborneStateCandidates(
         getSeaborneHinterlandScore(targetLandCells) +
         Math.min(36, hinterland.unclaimedLandCells * 2) -
         distance / 250,
-      setupCost: SETUP_COST,
-      requiredReserve: TREASURY_RESERVE + SETUP_COST
+      setupCost: money(world, SETUP_COST),
+      requiredReserve: money(world, TREASURY_RESERVE + SETUP_COST)
     });
   }
   return candidates;
@@ -790,6 +797,7 @@ function getFrontierApplicantPoolTotal(frontier: FrontierSimulationState, stateI
 }
 
 function getStateStartBlocker(
+  world: WorldContext,
   state: { treasury?: number; diplomacy?: unknown },
   simulation: SimulationContext,
   stateId: number,
@@ -801,7 +809,7 @@ function getStateStartBlocker(
   if (activeProjects >= slots) return `All ${slots} frontier slots are active`;
   if (isAtWar(state)) return "At war";
   const priorBudget = resolvedFrontierBudget(simulation.frontier, stateId, state.treasury);
-  const requiredReserve = (activeProjects + 1) * (TREASURY_RESERVE + SETUP_COST);
+  const requiredReserve = (activeProjects + 1) * money(world, TREASURY_RESERVE + SETUP_COST);
   if (priorBudget < requiredReserve) return `Treasury reserve ${priorBudget.toFixed(0)} / ${requiredReserve}`;
   void stateCenter;
   return null;

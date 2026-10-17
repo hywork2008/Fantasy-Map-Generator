@@ -28,6 +28,7 @@ import {
   settleAnnualOnce
 } from "../economyContext";
 import { clamp01 } from "./chemMedCommon";
+import { nominal } from "./moneyScale";
 
 export type DisasterStage = "calm" | "watch" | "active" | "severe" | "recovering";
 
@@ -319,8 +320,9 @@ class ClimateDisastersModule {
       state.droughtSeverity = rn(severity, 3);
 
       let stress = climateFoodStressForStage(stage, severity);
-      const reliefWanted =
-        stage === "severe" ? DROUGHT_RELIEF_BUDGET_SEVERE : stage === "active" ? DROUGHT_RELIEF_BUDGET_ACTIVE : 0;
+      const reliefWanted = nominal(
+        stage === "severe" ? DROUGHT_RELIEF_BUDGET_SEVERE : stage === "active" ? DROUGHT_RELIEF_BUDGET_ACTIVE : 0
+      );
       const reliefSpent = reliefWanted > 0 ? spendAvailableTreasury(state, reliefWanted) : 0;
       if (reliefWanted > 0) {
         const coverage = reliefSpent / reliefWanted;
@@ -340,12 +342,13 @@ class ClimateDisastersModule {
         state.coldHarvestStage = coldStage;
         state.coldHarvestSeverity = rn(coldSeverity, 3);
         coldStress = climateFoodStressForStage(coldStage, coldSeverity);
-        const coldWanted =
+        const coldWanted = nominal(
           coldStage === "severe"
             ? DROUGHT_RELIEF_BUDGET_SEVERE
             : coldStage === "active"
               ? DROUGHT_RELIEF_BUDGET_ACTIVE
-              : 0;
+              : 0
+        );
         coldRelief = coldWanted > 0 ? spendAvailableTreasury(state, coldWanted) : 0;
         const reliefFactor = coldWanted > 0 ? 1 - (coldRelief / coldWanted) * DROUGHT_RELIEF_MITIGATION : 1;
         coldStress = clamp01(coldStress * reliefFactor);

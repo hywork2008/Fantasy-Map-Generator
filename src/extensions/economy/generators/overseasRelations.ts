@@ -35,6 +35,7 @@ import { getDefaultGoodTradeProfile, isGoodEnabled } from "./goods-generator";
 import type { Good } from "./goodsGeneratorTypes";
 import type { TransportAllocation } from "./marketTypes";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
+import { nominal } from "./moneyScale";
 import type {
   ClimateBand,
   DistanceBand,
@@ -922,10 +923,11 @@ class OverseasRelationsModule {
           computeColonyGarrisonRequirement({ defenseScore: realm.defenseScore, distanceBand: realm.distanceBand })
       );
       ledger.colonyGarrisonRequired = rn(required, 2);
-      const requestedUpkeep = required * COLONY_GARRISON_UPKEEP_PER_UNIT;
+      const garrisonUnitUpkeep = nominal(COLONY_GARRISON_UPKEEP_PER_UNIT);
+      const requestedUpkeep = required * garrisonUnitUpkeep;
       const paidUpkeep = Math.min(Math.max(0, state.treasury ?? 0), requestedUpkeep);
       state.treasury = rn(Math.max(0, (state.treasury ?? 0) - paidUpkeep), 2);
-      ledger.colonyGarrisonFunded = rn(paidUpkeep / COLONY_GARRISON_UPKEEP_PER_UNIT, 2);
+      ledger.colonyGarrisonFunded = rn(paidUpkeep / garrisonUnitUpkeep, 2);
       if ((ledger.colonyGarrisonFunded ?? 0) + 1e-6 < required) ledger.monthsUnderfunded += 1;
       else ledger.monthsUnderfunded = 0;
 

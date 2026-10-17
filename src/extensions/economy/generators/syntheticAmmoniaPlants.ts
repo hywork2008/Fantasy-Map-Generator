@@ -26,6 +26,7 @@ import {
   pickSponsorBurg,
   SYNTHETIC_AMMONIA_PLANT_BUDGET
 } from "./chemMedCommon";
+import { nominal } from "./moneyScale";
 
 /**
  * Output only starts once the prerequisite (catalyticChemistry) is demonstrated somewhere in the
@@ -75,7 +76,7 @@ export class SyntheticAmmoniaPlantsModule {
       let plant = plants.find(entry => entry.stateId === state.i && entry.active);
       if (!plant) {
         const burgId = pickSponsorBurg(state.i);
-        if (!burgId || !debitTreasury(state.i, SYNTHETIC_AMMONIA_PLANT_BUDGET)) continue;
+        if (!burgId || !debitTreasury(state.i, nominal(SYNTHETIC_AMMONIA_PLANT_BUDGET))) continue;
         plant = {
           burgId,
           stateId: state.i,
@@ -90,7 +91,7 @@ export class SyntheticAmmoniaPlantsModule {
         plant.role = "service";
       }
 
-      if (!debitTreasury(state.i, rn(SYNTHETIC_AMMONIA_PLANT_BUDGET * FACILITY_MAINTENANCE_RATE, 2))) {
+      if (!debitTreasury(state.i, rn(nominal(SYNTHETIC_AMMONIA_PLANT_BUDGET) * FACILITY_MAINTENANCE_RATE, 2))) {
         plant.active = false;
         const trial = trials.find(
           entry => entry.kind === "syntheticAmmoniaPlant" && entry.stateId === state.i && entry.status === "running"
