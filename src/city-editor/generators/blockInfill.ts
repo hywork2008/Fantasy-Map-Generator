@@ -4,6 +4,7 @@ import type { Id, Point } from "../types/primitives";
 import { aerialLandmarkFootprints } from "./aerialFootprints";
 import { buildAerialLandmarkPlan, prevailingWindKey } from "./aerialLandmarks";
 import type { DistrictFabric } from "./blockInfill.types";
+import { assignBuildingMassing } from "./buildingMassing";
 import { absorbCellars } from "./cellarAbsorption";
 import { buildCirculadeTownFabric } from "./circuladeFabric";
 import { laneHitsCivicLandmark } from "./civicClearance";
@@ -310,6 +311,7 @@ export function buildBlockFabric(
   }
   if (document.urbanMorphology && !document.populationPlan)
     fabricResult = shapeUrbanGrowthFabric(document, fabricResult);
+  fabricResult = { ...fabricResult, buildings: assignBuildingMassing(document, fabricResult.buildings) };
   if (!profiler) {
     fabricByDocument.set(document, { fingerprint: documentFabricFingerprint(document), fabric: fabricResult });
   }
