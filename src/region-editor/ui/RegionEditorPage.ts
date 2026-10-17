@@ -56,6 +56,7 @@ import {
   renderRegionSvg,
   renderStatsOfRenderedDoc
 } from "../render/svg";
+import { ZoomPerfRecorder } from "./zoomPerf";
 
 /** FMG burgs-generator.ts の getDefaultGroups に準拠した都市種別（+ 旧 metropolis） */
 function settlementTypeOptions(): ReadonlyArray<readonly [string, string]> {
@@ -302,6 +303,16 @@ export function mountRegionEditor(
           <div id="re-selection-content" style="font-size:12px; color:var(--re-text-muted);">${editorHtml("regionEditor.messages.clickASettlementDungeonOrSymbolOnTheMapTo")}</div>
         </section>
 
+        <section class="re-panel-section" id="re-perf-panel">
+          <div class="re-section-title">${editorHtml("regionEditor.messages.perfTitle")}</div>
+          <div style="display:flex; gap:4px; flex-wrap:wrap;">
+            <button class="re-btn" id="btn-perf-toggle">${editorHtml("regionEditor.messages.perfStart")}</button>
+            <button class="re-btn" id="btn-perf-copy">${editorHtml("regionEditor.messages.perfCopy")}</button>
+            <button class="re-btn" id="btn-perf-clear">${editorHtml("regionEditor.messages.perfClear")}</button>
+          </div>
+          <pre id="re-perf-report" style="font-size:10px; line-height:1.4; white-space:pre-wrap; margin:4px 0 0; color:var(--re-text-muted);"></pre>
+        </section>
+
         <!-- 規約・統計情報 -->
         <section class="re-panel-section">
           <div class="re-section-title">${editorHtml("regionEditor.messages.terrainAndPolicyStatistics")}</div>
@@ -332,6 +343,31 @@ export function mountRegionEditor(
   const statsContent = root.querySelector<HTMLDivElement>("#re-stats-content")!;
   const undoBtn = root.querySelector<HTMLButtonElement>("#btn-undo")!;
   const redoBtn = root.querySelector<HTMLButtonElement>("#btn-redo")!;
+
+  const perf = new ZoomPerfRecorder();
+  (window as unknown as { __rePerf?: ZoomPerfRecorder }).__rePerf = perf;
+  const perfReport = root.querySelector<HTMLPreElement>("#re-perf-report")!;
+  const perfToggle = root.querySelector<HTMLButtonElement>("#btn-perf-toggle")!;
+  let perfReportTimer: ReturnType<typeof setTimeout> | undefined;
+  perf.onChange = () => {
+    clearTimeout(perfReportTimer);
+    perfReportTimer = setTimeout(() => {
+      perfReport.textContent = perf.report();
+      perfToggle.textContent = editorText(
+        perf.recording ? "regionEditor.messages.perfStop" : "regionEditor.messages.perfStart"
+      );
+    }, 250);
+  };
+  perfToggle.addEventListener("click", () => (perf.recording ? perf.stop() : perf.start()));
+  root.querySelector("#btn-perf-clear")?.addEventListener("click", () => {
+    perf.clear();
+    perf.onChange?.();
+  });
+  root.querySelector("#btn-perf-copy")?.addEventListener("click", () => {
+    const text = perf.json();
+    void navigator.clipboard?.writeText(text).catch(() => console.log(text));
+    console.log("[RE perf]", perf.summary());
+  });
 
   function updateTransform(): void {
     canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${zoom})`;
@@ -431,7 +467,11 @@ export function mountRegionEditor(
 
   function renderMap(): void {
     const doc = history.current;
-    svgLayer.innerHTML = renderRegionSvg(doc, selectedId, { zoom, quality });
+    const t0 = performance.now();
+    const svg = renderRegionSvg(doc, selectedId, { zoom, quality });
+    const tBuild = performance.now();
+    svgLayer.innerHTML = svg;
+    const tParse = performance.now();
     renderedDetail = detailForZoom(zoom);
     const widthUnits = doc.bounds.widthMeters / doc.bounds.metersPerUnit;
     const heightUnits = doc.bounds.heightMeters / doc.bounds.metersPerUnit;
@@ -440,6 +480,14 @@ export function mountRegionEditor(
     updateHistoryButtons();
     updateStats();
     attachSvgEvents();
+    if (perf.recording) {
+      perf.render(t0, tBuild, tParse, performance.now(), {
+        detail: renderedDetail,
+        zoom: Math.round(zoom * 1000) / 1000,
+        svgChars: svg.length,
+        svgElements: svgLayer.querySelectorAll("*").length
+      });
+    }
   }
 
   function updateToolOptions(): void {
@@ -973,6 +1021,7 @@ export function mountRegionEditor(
   // ビューポートのイベント（パン、ズーム、クリック）
   viewport.addEventListener("wheel", e => {
     e.preventDefault();
+    const tWheel = performance.now();
     const factor = e.deltaY < 0 ? 1.12 : 0.88;
     const oldZoom = zoom;
     zoom = Math.min(Math.max(0.2, zoom * factor), 5.0);
@@ -983,6 +1032,7 @@ export function mountRegionEditor(
     panY += (e.clientY - (rect.top + rect.height / 2)) * (1 - ratio);
     updateTransform();
     scheduleZoomRefresh();
+    perf.wheel(tWheel, e.deltaY, oldZoom, zoom);
   });
 
   // Zooming itself is a CSS transform. Zoom-dependent sizes are patched in place once per frame,
@@ -993,7 +1043,9 @@ export function mountRegionEditor(
     if (!zoomFrame)
       zoomFrame = requestAnimationFrame(() => {
         zoomFrame = 0;
-        applyTextScale(svgLayer, zoom);
+        const tText = performance.now();
+        const touched = applyTextScale(svgLayer, zoom);
+        perf.textScale(tText, touched);
       });
     clearTimeout(zoomDetailTimer);
     zoomDetailTimer = setTimeout(() => {

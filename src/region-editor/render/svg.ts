@@ -207,14 +207,18 @@ export function detailForZoom(zoom: number): number {
  * Rescales zoom-dependent text and stroke sizes of an already rendered map in place,
  * so zooming does not require regenerating the whole SVG.
  */
-export function applyTextScale(container: ParentNode, zoom: number): void {
+/** Patches zoom-dependent font sizes / stroke widths in place; returns the number of touched elements. */
+export function applyTextScale(container: ParentNode, zoom: number): number {
   const textScale = textScaleForZoom(zoom);
-  container.querySelectorAll<SVGElement>("[data-font-base]").forEach(el => {
+  const fonts = container.querySelectorAll<SVGElement>("[data-font-base]");
+  fonts.forEach(el => {
     el.setAttribute("font-size", String(Number(el.dataset.fontBase) * textScale));
   });
-  container.querySelectorAll<SVGElement>("[data-stroke-base]").forEach(el => {
+  const strokes = container.querySelectorAll<SVGElement>("[data-stroke-base]");
+  strokes.forEach(el => {
     el.setAttribute("stroke-width", (Number(el.dataset.strokeBase) * textScale).toFixed(2));
   });
+  return fonts.length + strokes.length;
 }
 
 export function renderRegionSvg(
