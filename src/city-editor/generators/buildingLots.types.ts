@@ -1,3 +1,4 @@
+import type { BuildingMassing } from "../types/contracts/buildingMassing";
 import type { Id, Point } from "../types/primitives";
 
 export interface BuildingLot {
@@ -16,4 +17,6 @@ export interface BuildingLot {
   /** The random draw its occupancy test used: the lot is built while its district's occupancy exceeds it.
    * Lets the housing fit count a lower occupancy without rebuilding (absent: always built). */
   occupancyDraw?: number;
+  /** Present on derived lots after `assignBuildingMassing`. Not saved on the document. */
+  massing?: BuildingMassing;
 }
