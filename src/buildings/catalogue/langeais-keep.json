@@ -1,0 +1,249 @@
+{
+  "format": "fmg-building-record",
+  "version": 1,
+  "id": "langeais-keep",
+  "revision": 1,
+  "contentHash": "1e5b453088178b51d9d6b6624171bf9f953e0df5df9361d734e5620b5b580098",
+  "name": "Langeais keep",
+  "kind": "castle",
+  "period": "earlyMedieval",
+  "planFamily": "rectangular-keep",
+  "region": "Indre-et-Loire, France",
+  "occupancyMeters": {
+    "width": 17.5,
+    "depth": 10
+  },
+  "approachAzimuthRadians": -1.570796,
+  "placementStyles": [
+    "classic",
+    "norman-keep"
+  ],
+  "levels": [
+    {
+      "id": "ground",
+      "name": "Ground",
+      "elevationMeters": 0,
+      "floorToFloorMeters": 8,
+      "plates": [
+        {
+          "id": "ground-room",
+          "use": "storage",
+          "outer": [
+            [
+              -7.25,
+              -3.5
+            ],
+            [
+              7.25,
+              -3.5
+            ],
+            [
+              7.25,
+              3.5
+            ],
+            [
+              -7.25,
+              3.5
+            ]
+          ],
+          "holes": [],
+          "kind": "other",
+          "roof": "covered"
+        }
+      ],
+      "walls": [
+        {
+          "id": "keep",
+          "kind": "keep",
+          "outer": [
+            [
+              -8.75,
+              -5
+            ],
+            [
+              8.75,
+              -5
+            ],
+            [
+              8.75,
+              5
+            ],
+            [
+              -8.75,
+              5
+            ]
+          ],
+          "holes": [
+            [
+              [
+                -7.25,
+                -3.5
+              ],
+              [
+                -7.25,
+                3.5
+              ],
+              [
+                7.25,
+                3.5
+              ],
+              [
+                7.25,
+                -3.5
+              ]
+            ]
+          ],
+          "thicknessMeters": 1.5
+        }
+      ],
+      "openings": [
+        {
+          "id": "south-door",
+          "ring": {
+            "wallId": "keep",
+            "hole": null
+          },
+          "offsetMeters": 8.125,
+          "widthMeters": 1.25,
+          "sillMeters": 0,
+          "heightMeters": 2.5,
+          "kind": "door"
+        }
+      ],
+      "fixtures": []
+    },
+    {
+      "id": "upper",
+      "name": "Upper",
+      "elevationMeters": 8,
+      "floorToFloorMeters": 8,
+      "plates": [
+        {
+          "id": "upper-room",
+          "use": "hall",
+          "outer": [
+            [
+              -7.25,
+              -3.5
+            ],
+            [
+              7.25,
+              -3.5
+            ],
+            [
+              7.25,
+              3.5
+            ],
+            [
+              -7.25,
+              3.5
+            ]
+          ],
+          "holes": [],
+          "kind": "hall",
+          "roof": "covered"
+        }
+      ],
+      "walls": [
+        {
+          "id": "keep",
+          "kind": "keep",
+          "outer": [
+            [
+              -8.75,
+              -5
+            ],
+            [
+              8.75,
+              -5
+            ],
+            [
+              8.75,
+              5
+            ],
+            [
+              -8.75,
+              5
+            ]
+          ],
+          "holes": [
+            [
+              [
+                -7.25,
+                -3.5
+              ],
+              [
+                -7.25,
+                3.5
+              ],
+              [
+                7.25,
+                3.5
+              ],
+              [
+                7.25,
+                -3.5
+              ]
+            ]
+          ],
+          "thicknessMeters": 1.5
+        }
+      ],
+      "openings": [],
+      "fixtures": []
+    }
+  ],
+  "verticalLinks": [
+    {
+      "id": "stair",
+      "kind": "stair",
+      "fromLevelId": "ground",
+      "toLevelId": "upper",
+      "footprint": [
+        [
+          -6,
+          2.25
+        ],
+        [
+          6,
+          2.25
+        ],
+        [
+          6,
+          3.5
+        ],
+        [
+          -6,
+          3.5
+        ]
+      ],
+      "widthMeters": 1.25
+    }
+  ],
+  "roofs": [
+    {
+      "baseId": "keep",
+      "form": "flat",
+      "pitchDeg": 0
+    }
+  ],
+  "materials": {
+    "wall": "stone",
+    "roof": "tile"
+  },
+  "provenance": {
+    "constructionPeriod": "Stone keep traditionally dated to 994. A later date a little after 1000 does not change the geometry.",
+    "depictedPhase": "The 10th-century stone keep shell.",
+    "omitted": [
+      "The château built for Louis XI from 1465",
+      "The timber phase of about 992",
+      "The enclosure of about 250 m",
+      "Battlements and the lost roof and floors",
+      "Local wall thickening up to about 2 m"
+    ],
+    "dimensionSource": "English Wikipedia, \"Château de Langeais\": height 16 m, width 17.5 m, depth 10 m, average wall thickness 1.5 m (maximum about 2 m). A plan exists as Atlas Archéologique de Touraine notice 166.",
+    "planClass": "well-published-survey",
+    "confidence": "scholarly-reconstruction",
+    "note": "The outer box and the 1.5 m average wall are the published shell. The local origin is the centre of that box. The source gives no compass bearing, so the long side lies east-west. The south door is a coarse opening on one wall, not a surveyed position, and the approach azimuth points south through its midpoint. Floors and the roof are lost, so the 16 m shell is split into two equal 8 m floors with one straight stair in the void, and the cap is flat and open. Tile is only the required roof-material label. Atlas Archéologique de Touraine notice 166 shows that a plan exists; this polygon is not a tracing of it."
+  }
+}
