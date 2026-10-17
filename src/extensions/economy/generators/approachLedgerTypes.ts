@@ -21,6 +21,8 @@ export interface ApproachTraffic {
   through: { departures: number; cargoSlots: number };
   /** Cargo slots per good id, busiest 8. */
   goodsSlots: Record<string, number>;
+  /** Cargo value per good id, dearest 8 (high-value goods are invisible in slots). */
+  goodsValue?: Record<string, number>;
   /** Cargo slots per partner burg id, busiest 8. */
   partners: Record<string, number>;
 }
@@ -31,5 +33,5 @@ export interface ApproachJourney {
   destinationBurgId: number;
   cargoSlots: number;
   value: number;
-  goods: { id: number; slots: number }[];
+  goods: { id: number; slots: number; value?: number }[];
 }

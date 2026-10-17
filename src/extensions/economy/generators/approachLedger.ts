@@ -219,8 +219,13 @@ export function applyApproachJourney(
       for (const good of journey.goods) {
         if (!(good.slots > 0)) continue;
         row.goodsSlots[good.id] = rn((row.goodsSlots[good.id] ?? 0) + good.slots, 3);
+        if (good.value && good.value > 0) {
+          row.goodsValue ??= {};
+          row.goodsValue[good.id] = rn((row.goodsValue[good.id] ?? 0) + good.value, 3);
+        }
       }
       row.goodsSlots = trim(row.goodsSlots);
+      if (row.goodsValue) row.goodsValue = trim(row.goodsValue);
     }
   };
   end(approaches.outbound, "outbound", journey.destinationBurgId);
@@ -269,6 +274,7 @@ export function decayApproachRows(
       outbound,
       through,
       goodsSlots: decayRecord(row.goodsSlots, retention),
+      ...(row.goodsValue ? { goodsValue: decayRecord(row.goodsValue, retention) } : {}),
       partners: decayRecord(row.partners, retention)
     });
   }
@@ -289,25 +295,36 @@ export function recordJourneyApproaches(segments: readonly TradeRouteSegment[], 
   setApproachTraffic(applyApproachJourney(getApproachTraffic(), approaches, journey));
 }
 
-/** A same-market shipment, which keeps no path: both ends take the route facing the partner. */
-export function recordShipmentApproaches(shipment: MarketShipment): void {
+/**
+ * A same-market shipment, recorded when it is dispatched on the path its travel time was measured
+ * on (retailInventory.ts). Without a planned path both ends take the route facing the partner.
+ */
+export function recordShipmentApproaches(
+  shipment: MarketShipment,
+  segments: readonly TradeRouteSegment[] | null
+): void {
   if (!isEconomyContextReady()) return;
   const pack = livePack();
   if (!pack) return;
   const good = getGoods().find(entry => entry.i === shipment.goodId);
   const slots = Math.max(0, shipment.units) * (good ? getGoodCargoSlotsPerUnit(good) : 1);
-  const approaches: JourneyApproaches = {
-    outbound: approachTowards(pack, shipment.originBurgId, shipment.destinationBurgId),
-    inbound: approachTowards(pack, shipment.destinationBurgId, shipment.originBurgId),
-    through: []
-  };
+  const approaches: JourneyApproaches = segments?.length
+    ? approachesOfJourney(pack, segments, shipment.originBurgId, shipment.destinationBurgId, findCell)
+    : {
+        outbound: approachTowards(pack, shipment.originBurgId, shipment.destinationBurgId),
+        inbound: approachTowards(pack, shipment.destinationBurgId, shipment.originBurgId),
+        through: []
+      };
   setApproachTraffic(
     applyApproachJourney(getApproachTraffic(), approaches, {
       originBurgId: shipment.originBurgId,
       destinationBurgId: shipment.destinationBurgId,
       cargoSlots: slots,
-      value: 0,
-      goods: slots > 0 ? [{ id: shipment.goodId, slots }] : []
+      value: good ? Math.max(0, shipment.units) * (good.value ?? 0) : 0,
+      goods:
+        slots > 0
+          ? [{ id: shipment.goodId, slots, value: good ? Math.max(0, shipment.units) * (good.value ?? 0) : 0 }]
+          : []
     })
   );
 }

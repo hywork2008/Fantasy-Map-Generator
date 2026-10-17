@@ -253,7 +253,8 @@ async function runExperiment(options: ReturnType<typeof parseArgs>) {
         const ops = `/channels/${entry.channel}/ops`;
         if (experiment.warmup && (experiment.warmup.years || experiment.warmup.months)) {
           log(`${entry.channel}: warmup ${JSON.stringify(experiment.warmup)}`);
-          await api.json("POST", ops, { type: "advance", ...experiment.warmup });
+          for (let left = (experiment.warmup.years ?? 0) * 12 + (experiment.warmup.months ?? 0); left > 0; left -= 12)
+            await api.json("POST", ops, { type: "advance", months: Math.min(12, left) });
         }
         log(`${entry.channel}: advance ${JSON.stringify(experiment.advance)}`);
         const totalMonths = (experiment.advance.years ?? 0) * 12 + (experiment.advance.months ?? 0);
@@ -283,9 +284,11 @@ async function runExperiment(options: ReturnType<typeof parseArgs>) {
         // Advance in segments that end at the probe points; sampling continues across them.
         let done = 0;
         for (const at of [...new Set([...probeAt, totalMonths])]) {
-          if (at > done) {
-            await api.json("POST", ops, { type: "advance", months: at - done, sampleEvery, sampleDetail: experiment.sampleDetail, runId });
-            done = at;
+          // At most a year per request: a long advance on a large map outlasts fetch's 300 s header timeout.
+          while (done < at) {
+            const months = Math.min(12, at - done);
+            await api.json("POST", ops, { type: "advance", months, sampleEvery, sampleDetail: experiment.sampleDetail, runId });
+            done += months;
           }
           if (probeAt.includes(at)) await probe();
         }

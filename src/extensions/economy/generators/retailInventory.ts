@@ -12,10 +12,11 @@ import {
   setMarketShipments,
   setNextMarketShipmentId
 } from "../economyContext";
+import { recordShipmentApproaches } from "./approachLedger";
 import { Goods } from "./goods-generator";
 import { getRetailLotSize } from "./goodsTradeLots";
 import { type IncrementalBatchOptions, runBatchedYielding } from "./incrementalBatching";
-import type { Market } from "./marketTypes";
+import type { Market, TradeRouteSegment } from "./marketTypes";
 import type {
   BurgRetailInventory,
   BurgWholesaleInventory,
@@ -373,8 +374,14 @@ function distance(a: MarketBurg, b: MarketBurg): number {
   return Math.hypot((a.x ?? 0) - (b.x ?? 0), (a.y ?? 0) - (b.y ?? 0));
 }
 
-/** Use the established road/river/sea graph; retain the direct-distance estimate only as a compatibility fallback. */
-function travelDays(origin: MarketBurg, destination: MarketBurg): number {
+/**
+ * Use the established road/river/sea graph; retain the direct-distance estimate only as a
+ * compatibility fallback. Returns the path the time was measured on, when there is one.
+ */
+function planShipment(
+  origin: MarketBurg,
+  destination: MarketBurg
+): { days: number; segments: TradeRouteSegment[] | null } {
   const { pack, distanceScale } = getWorldContext();
   const hasRouteGraph = Object.keys(pack.cells?.routes ?? {}).length > 0;
   const routePath = hasRouteGraph ? TradeRoutePlanner.findRoutePath(origin.cell, destination.cell) : null;
@@ -389,9 +396,10 @@ function travelDays(origin: MarketBurg, destination: MarketBurg): number {
       })),
       distanceScale
     );
-    if (Number.isFinite(duration) && duration > 0) return duration;
+    if (Number.isFinite(duration) && duration > 0)
+      return { days: duration, segments: routePath.segments as TradeRouteSegment[] };
   }
-  return Math.max(1, Math.ceil(distance(origin, destination) / FALLBACK_DISTANCE_PER_DAY));
+  return { days: Math.max(1, Math.ceil(distance(origin, destination) / FALLBACK_DISTANCE_PER_DAY)), segments: null };
 }
 
 function addRetailStock(stock: RetailGoodStock, units: number, transportDays: number, tick: number): void {
@@ -462,10 +470,11 @@ function planGoodReplenishment(
       const units = Math.min(remaining, sourceWholesale.goods[goodId] ?? 0);
       if (!(units > EPSILON)) break;
       sourceWholesale.goods[goodId] = nonNegative((sourceWholesale.goods[goodId] ?? 0) - units);
-      const routeTravelDays = travelDays(source, destination);
+      const plan = planShipment(source, destination);
+      const routeTravelDays = plan.days;
       const id = Math.max(1, getNextMarketShipmentId());
       setNextMarketShipmentId(id + 1);
-      getMarketShipments().push({
+      const shipment = {
         id,
         marketId: market.i,
         goodId,
@@ -475,7 +484,11 @@ function planGoodReplenishment(
         dispatchedTick: tick,
         arrivalTick: tick + routeTravelDays,
         travelDays: routeTravelDays
-      });
+      };
+      getMarketShipments().push(shipment);
+      // Gates are recorded on the path just planned; asking the planner again later would
+      // reorder its cache and change other shipments' times.
+      recordShipmentApproaches(shipment, plan.segments);
       remaining -= units;
     }
   }

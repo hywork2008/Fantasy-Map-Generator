@@ -10,7 +10,7 @@
 - 実装時の注記:
   - 月ストライドで進めた結果は、1 回で同じ期間を進めた結果と一致しない(既存の性質。標本の有無では変わらない)。O0 の完了条件は「sim:server と `npm run sim` の同ストライド実行でハッシュ・標本が一致」で確認した。
   - 渡河施設を共有する `crossing:<c>` の出入り口は経済側に施設 id が無いため、v1 の台帳では `route:<r>:edge:<cell>` で記録する。
-  - 同一市場内の出荷(`MarketShipment`)は経路を持たないため、相手都市の方向に最も近い路線の門で両端を記録し、通過は数えない。
+  - 同一市場内の出荷(`MarketShipment`)は、発送時に所要日数を計った同じ経路で記録する(2026-10-17 修正。それ以前は相手方向の門で両端だけを推定し、通過を数えていなかった)。経路が無い場合だけ相手方向の門を使う。詳細と修正前後の比較は [approach-commerce-quarters.md](approach-commerce-quarters.md) §4。
   - descriptor `roads[].approachTraffic` は O4 で実装(下記)。新規地図は `fmg:small --wait-extensions`(Province/Islet 規模、`fmg-extensions` を有効化)で生成する。
 - O3: `src/city-editor/services/analysis/approachGrowthProbe.ts`(approachId ごとの ribbon budget/length・ribbon 内の lot 数・門前宿・石畳)、`scripts/observeCeProbe.mjs`(スナップショットの複製に対して別プロセスで実行)、`observe/burgs/:b/growth`、実験定義 `ceProbe.at` による区切り実行、レポートの一致率(`ce.csv`, `ce-summary.json`)。
 - O3 の初回結果(`experiments/approach-baseline.json`、province 3000 cells、seed 101–103、warmup 2 年 + 10 年、+2y/+10y、上位 10 都市、計 58 都市・時点):

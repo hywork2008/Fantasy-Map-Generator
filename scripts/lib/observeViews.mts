@@ -10,15 +10,37 @@ import {
   getApproachTraffic,
   getCaravans,
   getMarkets,
+  getGoods,
   getMarketShipments,
   getTradeCorridors
 } from "../../src/extensions/economy/context/trade";
+import { getGoodCargoSlotsPerUnit } from "../../src/extensions/economy/generators/tradeCargo";
 import { delayRatio, liveCorridorNeeds } from "../../src/extensions/economy/generators/tradeCorridorLedger";
 import type { Burg, Route } from "../../src/types/models";
 
 export const SAMPLE_VERSION = 1;
 export const SAMPLE_DETAILS = ["burgs", "routes", "approaches", "corridors", "markets"] as const;
 export type SampleDetail = (typeof SAMPLE_DETAILS)[number];
+
+/**
+ * Cargo classes for gate profiles (docs/plan/approach-commerce-quarters.md §4): what a gate's
+ * traffic asks of the street behind it. First matching tag wins, in this order.
+ */
+export const CARGO_CLASSES = [
+  { id: "livestock", tags: ["liveAnimal", "draft"] },
+  { id: "perishable", tags: ["freshFood", "fruit", "aquatic"] },
+  { id: "grain", tags: ["cereal", "stapleCrop", "legume", "tuber", "stapleFood"] },
+  { id: "bulk", tags: ["construction", "mineral", "ore", "fuel", "ingot", "alloy", "metal"] },
+  { id: "luxury", tags: ["luxury", "art", "gift", "ritual"] },
+  { id: "manufactured", tags: ["clothing", "tools", "industrial", "military", "naval", "chemical"] },
+  { id: "provisions", tags: ["food", "preservedFood", "beverage", "preservative", "crop", "perennialCrop"] }
+] as const;
+export type CargoClass = (typeof CARGO_CLASSES)[number]["id"] | "other";
+
+export function cargoClassOf(tags: readonly string[] | undefined): CargoClass {
+  for (const entry of CARGO_CLASSES) if (tags?.some(tag => (entry.tags as readonly string[]).includes(tag))) return entry.id;
+  return "other";
+}
 
 export interface ObserveClock {
   year: number;
@@ -174,6 +196,73 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
     return out;
   }
 
+  function goods() {
+    if (!economy()) return [];
+    return getGoods().map(good => ({
+      id: good.i,
+      name: good.name,
+      tags: good.tags ?? [],
+      value: good.value,
+      unit: good.unit,
+      slotsPerUnit: r3(getGoodCargoSlotsPerUnit(good)),
+      cargoClass: cargoClassOf(good.tags)
+    }));
+  }
+
+  /**
+   * One row per gate with its share of the town's traffic, the direction of flow and the cargo
+   * classes it carries (docs/plan/approach-commerce-quarters.md §4). Values are the ledger's
+   * decayed stocks: a recent-years picture, not a single month.
+   */
+  function gates(burgId?: number) {
+    const classOf = new Map(goods().map(good => [String(good.id), good.cargoClass]));
+    const rows = approaches(burgId);
+    const byBurg = new Map<number, typeof rows>();
+    for (const row of rows) byBurg.set(row.burgId, [...(byBurg.get(row.burgId) ?? []), row]);
+    const burgs = getWorld().pack.burgs;
+    return [...byBurg].map(([id, list]) => {
+      const load = (row: (typeof rows)[number]) => row.inbound.cargoSlots + row.outbound.cargoSlots + row.through.cargoSlots;
+      const total = list.reduce((sum, row) => sum + load(row), 0);
+      return {
+        burg: id,
+        name: burgs[id]?.name ?? "",
+        population: r3(burgs[id]?.population ?? 0),
+        totalSlots: r3(total),
+        gates: list
+          .map(row => {
+            const classes: Record<string, number> = {};
+            for (const [good, slots] of Object.entries(row.goodsSlots)) {
+              const key = classOf.get(good) ?? "other";
+              classes[key] = r3((classes[key] ?? 0) + slots);
+            }
+            const valueClasses: Record<string, number> = {};
+            for (const [good, value] of Object.entries(row.goodsValue ?? {})) {
+              const key = classOf.get(good) ?? "other";
+              valueClasses[key] = r3((valueClasses[key] ?? 0) + value);
+            }
+            const ends = row.inbound.cargoSlots + row.outbound.cargoSlots;
+            return {
+              id: row.approachId,
+              mode: row.mode,
+              azimuth: azimuthOf(row.approachId, id),
+              share: total > 0 ? r3(load(row) / total) : 0,
+              inbound: row.inbound.cargoSlots,
+              outbound: row.outbound.cargoSlots,
+              through: row.through.cargoSlots,
+              throughShare: load(row) > 0 ? r3(row.through.cargoSlots / load(row)) : 0,
+              inboundShare: ends > 0 ? r3(row.inbound.cargoSlots / ends) : 0,
+              departures: r3(row.inbound.departures + row.outbound.departures + row.through.departures),
+              meanLoad: row.inbound.departures + row.outbound.departures > 0 ? r3(ends / (row.inbound.departures + row.outbound.departures)) : 0,
+              cargoClasses: classes,
+              cargoValue: valueClasses,
+              partners: Object.keys(row.partners).length
+            };
+          })
+          .sort((a, b) => b.share - a.share)
+      };
+    });
+  }
+
   /** Map facts that change only with the route network (§6 static.json). */
   function staticInfo() {
     const { pack, seed } = getWorld();
@@ -193,7 +282,7 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
       .join(",");
   }
 
-  return { sample, routes, approaches, corridors, markets, staticInfo, networkKey };
+  return { sample, routes, approaches, corridors, markets, goods, gates, staticInfo, networkKey };
 }
 
 export interface SampledAdvanceHost {
