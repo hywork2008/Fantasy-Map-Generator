@@ -4,10 +4,17 @@ import { buildingSurfaces } from "../../city3d/core/massingGeometry";
 import { structureSurfaces } from "../../city3d/core/structureGeometry";
 import { type CityMassingMeshes, createCityMassing } from "../../city3d/three/cityMeshes";
 import { type CityStructureMeshes, createStructureMassing } from "../../city3d/three/structureMeshes";
+import {
+  createTownWater,
+  planCity3dRefresh,
+  type TownWaterMeshes,
+  waterStampChanged
+} from "../../city3d/three/waterMeshes";
 import type { EditorMessageKey } from "../../i18n/editorMessages";
 import { editorText } from "../../i18n/editorMessages";
 import { buildBlockFabric, type DistrictFabric } from "../generators/blockInfill";
 import type { BuildingLot } from "../generators/buildingLots.types";
+import { townWaterStamp } from "../generators/townWater";
 import type { FloorUse, RoofForm, RoofMaterial, WallMaterial } from "../types/contracts/buildingMassing";
 import type { StructureKind, StructureMassing, StructureMaterial } from "../types/contracts/structureMassing";
 import type { CityDocument } from "../types/document";
@@ -68,8 +75,9 @@ interface Mount {
 }
 
 /**
- * CE-only 3D view. WebGL starts on the first open. The fabric object identity
- * decides when the meshes are rebuilt, so a 2D pan does not rebuild them.
+ * CE-only 3D view. WebGL starts on the first open. Buildings follow the fabric
+ * object. Water follows the stamp and the ce-water parent. A pan does not
+ * rebuild either, and closing the view keeps the scene.
  */
 export function mountCity3d(options: {
   canvasHost: HTMLElement;
@@ -95,6 +103,9 @@ export function mountCity3d(options: {
   let controls: OrbitControls | null = null;
   let massing: CityMassingMeshes | null = null;
   let structures: CityStructureMeshes | null = null;
+  let waterMeshes: TownWaterMeshes | null = null;
+  let ground: THREE.Mesh | null = null;
+  let waterStamp: string | null = null;
   let structureList: StructureMassing[] = [];
   let highlight: THREE.LineSegments | null = null;
   let built: DistrictFabric | null = null;
@@ -204,8 +215,7 @@ export function mountCity3d(options: {
     structureList = [...collectCityStructures(city), ...landmarkLotStructures(fabric.buildings)];
     structures = createStructureMassing(structureList);
     scene.add(structures.group);
-    const ground = scene.getObjectByName("ce-ground") as THREE.Mesh | undefined;
-    if (ground) {
+    if (ground?.parent) {
       ground.geometry.dispose();
       ground.geometry = new THREE.CircleGeometry(Math.max(20, city.frame.extentMeters), 64);
     }
@@ -228,7 +238,7 @@ export function mountCity3d(options: {
     const sun = new THREE.DirectionalLight(0xffffff, 1.15);
     sun.position.set(1, 1.6, 0.4);
     scene.add(sun);
-    const ground = new THREE.Mesh(new THREE.CircleGeometry(20, 64), new THREE.MeshLambertMaterial({ color: 0xd5cfbf }));
+    ground = new THREE.Mesh(new THREE.CircleGeometry(20, 64), new THREE.MeshLambertMaterial({ color: 0xd5cfbf }));
     ground.name = "ce-ground";
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -0.2;
@@ -246,14 +256,43 @@ export function mountCity3d(options: {
     raf = requestAnimationFrame(tick);
   };
 
+  const placeWater = (city: CityDocument) => {
+    if (!scene || !ground) return;
+    waterMeshes?.dispose();
+    waterMeshes = createTownWater(city);
+    if (waterMeshes.replacesDisc) scene.remove(ground);
+    else {
+      if (!ground.parent) scene.add(ground);
+      ground.geometry.dispose();
+      ground.geometry = new THREE.CircleGeometry(Math.max(20, city.frame.extentMeters), 64);
+    }
+    if (waterMeshes.land) scene.add(waterMeshes.land);
+    if (waterMeshes.unknown) scene.add(waterMeshes.unknown);
+    scene.add(waterMeshes.parent);
+    if (waterMeshes.bank) scene.add(waterMeshes.bank);
+  };
+
   const sync = () => {
     if (viewport.hidden || disposed) return;
     ensure();
+    if (!scene) return;
     const city = options.getDocument();
+    const stamp = townWaterStamp(city);
     const fabric = buildBlockFabric(city);
-    if (fabric === built) return;
-    built = fabric;
-    rebuild(city, fabric);
+    const plan = planCity3dRefresh({
+      fabricChanged: fabric !== built,
+      stampChanged: waterStampChanged(waterStamp, stamp, Boolean(scene.getObjectByName("ce-water"))),
+      open: true
+    });
+    if (!plan.buildings && !plan.water) return;
+    if (plan.buildings) {
+      built = fabric;
+      rebuild(city, fabric);
+    }
+    if (plan.water) {
+      placeWater(city);
+      waterStamp = stamp;
+    }
   };
 
   const setOpen = (open: boolean) => {
@@ -319,6 +358,9 @@ export function mountCity3d(options: {
     clearHighlight();
     massing?.dispose();
     structures?.dispose();
+    waterMeshes?.dispose();
+    ground?.geometry.dispose();
+    (ground?.material as THREE.Material | undefined)?.dispose();
     controls?.dispose();
     renderer?.dispose();
     viewport.remove();

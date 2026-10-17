@@ -1026,6 +1026,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         get scheduleRedraw() {
           return scheduleRedraw;
         },
+        get syncCity3d() {
+          return syncCity3d;
+        },
         get canvas() {
           return canvas;
         },

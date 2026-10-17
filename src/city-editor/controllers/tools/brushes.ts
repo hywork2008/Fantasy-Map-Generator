@@ -16,6 +16,8 @@ export interface BrushesContext {
   map: HTMLDivElement;
   patchFaceRender: (faceId: Id) => void;
   scheduleRedraw: () => void;
+  /** One refresh after a stroke that changed faces. The view returns immediately while closed. */
+  syncCity3d: () => void;
   canvas: HTMLDivElement;
   wardBrushPreview: HTMLDivElement;
   circularWallCenter: HTMLDivElement;
@@ -122,6 +124,7 @@ export function createBrushesController(ctx: BrushesContext) {
       // scheduling a full redrawMap() pass over the whole mesh next frame — on
       // a Large mesh a 1-cell brush touches one face out of ~9,000.
       for (const faceId of touched) ctx.patchFaceRender(faceId);
+      ctx.syncCity3d();
       if (ctx.documents.documentState.fixedCrossingApproaches !== undefined) {
         // Face-only painting can change support/passage without changing mesh edges.
         for (const path of ctx.map.querySelectorAll("[data-fixed-approach-id]")) path.remove();
