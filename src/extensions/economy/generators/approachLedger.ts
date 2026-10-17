@@ -319,3 +319,16 @@ export function decayApproachTraffic(): void {
   // Route.traffic and the corridor ledger decay at the same settlement.
   setApproachLedgerDecays(getApproachLedgerDecays() + 1);
 }
+
+/** The site-descriptor view of one burg's rows (`burgEconomyExtensions.getBurgApproachTraffic`). */
+export function burgApproachTraffic(burgId: number) {
+  if (!isEconomyContextReady()) return [];
+  return getApproachTraffic()
+    .filter(row => row.burgId === burgId)
+    .map(row => ({
+      approachId: row.approachId,
+      routeId: row.routeId,
+      cargoSlots: rn(row.inbound.cargoSlots + row.outbound.cargoSlots, 3),
+      through: row.through.departures
+    }));
+}

@@ -275,12 +275,15 @@ async function route(request: IncomingMessage, response: ServerResponse) {
     if (entityId === "burgs" && view !== undefined && parts[7] === "growth") {
       // CE probe (§7.2) on a copy of the current snapshot, in its own process: the channel is untouched.
       const burgId = Number(view);
+      // ?variants=neighbors,traffic generates the town once per approachGrowthSource (O4).
+      const variants = url.searchParams.get("variants") ?? "neighbors";
+      if (!/^(neighbors|traffic)(,(neighbors|traffic))?$/.test(variants)) return send(response, 400, { error: "variants: neighbors,traffic" });
       if (!Number.isSafeInteger(burgId)) return send(response, 400, { error: "Burg id must be an integer" });
       const work = mkdtempSync(join(tmpdir(), "fmg-growth-"));
       try {
         copyFileSync(join(channelDir(id), "current.fmg"), join(work, "world.fmg"));
         await new Promise<void>((done, fail) => {
-          const child = spawn(process.execPath, ["--import", "tsx", join(root, "scripts/observeCeProbe.mjs"), join(work, "world.fmg"), String(burgId), join(work, "out.json")], {
+          const child = spawn(process.execPath, ["--import", "tsx", join(root, "scripts/observeCeProbe.mjs"), join(work, "world.fmg"), String(burgId), join(work, "out.json"), "--variants", variants], {
             cwd: root,
             stdio: "ignore"
           });
@@ -288,7 +291,7 @@ async function route(request: IncomingMessage, response: ServerResponse) {
           child.on("exit", code => (code === 0 ? done() : fail(new Error(`CE probe exited with ${code}`))));
         });
         const result = JSON.parse(readFileSync(join(work, "out.json"), "utf8")) as { burgs: unknown[] };
-        return send(response, 200, { revision: readMeta(id).revision, ...(result.burgs[0] as object) });
+        return send(response, 200, { revision: readMeta(id).revision, probes: result.burgs });
       } finally {
         rmSync(work, { recursive: true, force: true });
       }

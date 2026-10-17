@@ -1,6 +1,6 @@
 # 出入り口交通観測所 (Approach Traffic Observatory) 設計
 
-2026-10-17 設計。O0〜O3 実装済み(2026-10-17)。
+2026-10-17 設計。O0〜O4 実装済み(2026-10-17)。O4 の採否は未決。
 
 ## 状態
 
@@ -11,7 +11,7 @@
   - 月ストライドで進めた結果は、1 回で同じ期間を進めた結果と一致しない(既存の性質。標本の有無では変わらない)。O0 の完了条件は「sim:server と `npm run sim` の同ストライド実行でハッシュ・標本が一致」で確認した。
   - 渡河施設を共有する `crossing:<c>` の出入り口は経済側に施設 id が無いため、v1 の台帳では `route:<r>:edge:<cell>` で記録する。
   - 同一市場内の出荷(`MarketShipment`)は経路を持たないため、相手都市の方向に最も近い路線の門で両端を記録し、通過は数えない。
-  - descriptor `roads[].approachTraffic`(§4.3)と O4 は未実装。新規地図は `fmg:small --wait-extensions`(Province/Islet 規模、`fmg-extensions` を有効化)で生成する。
+  - descriptor `roads[].approachTraffic` は O4 で実装(下記)。新規地図は `fmg:small --wait-extensions`(Province/Islet 規模、`fmg-extensions` を有効化)で生成する。
 - O3: `src/city-editor/services/analysis/approachGrowthProbe.ts`(approachId ごとの ribbon budget/length・ribbon 内の lot 数・門前宿・石畳)、`scripts/observeCeProbe.mjs`(スナップショットの複製に対して別プロセスで実行)、`observe/burgs/:b/growth`、実験定義 `ceProbe.at` による区切り実行、レポートの一致率(`ce.csv`, `ce-summary.json`)。
 - O3 の初回結果(`experiments/approach-baseline.json`、province 3000 cells、seed 101–103、warmup 2 年 + 10 年、+2y/+10y、上位 10 都市、計 58 都市・時点):
   - P の Top-1 一致 37%(n=51)、Spearman 平均 −0.21(n=27)。路線粒度の traffic は Top-1 64%(n=11)、ρ 0.10(n=20)。
@@ -230,3 +230,19 @@ ops は既存の `advance` を使う。長期実行のため `{"type":"advance",
 - **CE プローブの所要時間**: 巨大都市は数秒〜十数秒([ce-giant-city-fastest-generation-investigation.md](ce-giant-city-fastest-generation-investigation.md): 6 s 程度)。既定は上位 10 都市・2 時点に絞る。
 - **河川・橋**: 川を渡る出入り口の発展を評価する場合も、橋の可否は `bridgeSkewPolicy.ts` の判定に従う。上限外で渡し船になる地点は `ferryCrossings` として別に表示し、橋前提の発展候補には含めない。
 - 標本の決定性: 収集は読み取りのみだが、`observe/burgs/:b/growth` は CE と同じく道の収束処理をワールドに反映する(§16 の `/site` と同じ)。実験中は**スナップショットの複製**に対して実行し、進行中のチャンネルには触れない。
+
+## 11. O4 実装と結果(2026-10-17)
+
+- descriptor: `roads[].approachTraffic = { cargoSlots, through, share }`(`src/services/approachId.ts attachApproachTraffic`)。`burgEconomyExtensions.getBurgApproachTraffic`(Economy が登録、CLI では読み込んだ slice から `useLoadedApproachLedger`)。`traffic`/`trafficRank` と違い urban morphology でも descriptor には残す。共有渡河 `crossing:<c>` は束ねた路線の台帳行を合算する。
+- CE: 生成設定 `approachGrowthSource: "neighbors" | "traffic"`(既定 neighbors)。`traffic` のとき `approachGrowthWeight` は隣接都市人口の代わりに「都市内で最大の出入り口に対する share 比」を使う(道路種別係数・外交による閉鎖は維持)。既定では `generateCity` が `approachTraffic` を入力から取り除くため、既存の都市は変わらない(baseline の neighbors 結果が O3 と完全一致)。
+- 比較: `npm run observe -- reprobe <run> [--variants neighbors,traffic] [--svg]` が保存済みスナップショットを両設定で再生成し、`ce/<probe>/<burg>-<variant>.svg` とレポートの変化量を出す。`observe/burgs/:b/growth?variants=neighbors,traffic` でも同じ。
+- baseline(O3 と同じ 58 都市・時点)の結果:
+
+| CE 設定 | P Top-1 | P ρ | 路線 traffic Top-1 | 路線 traffic ρ |
+| :--- | :--- | :--- | :--- | :--- |
+| neighbors(現行) | 37% (n=51) | −0.21 (n=27) | 64% (n=11) | 0.10 (n=20) |
+| traffic | 75% (n=48) | 0.26 (n=25) | 100% (n=9) | 0.19 (n=18) |
+
+  - 切り替えで最大 ribbon の門が変わった都市 28/58、ribbon 内 lot の平均 59% が別の門へ移った(見た目の変化は大きい)。
+  - traffic 設定でも一致率が 100% にならないのは、ribbon budget が面積の可用性(`available`)と配分(`allocateGrowthBudget`)でも決まるため。
+- 採否は SVG の目視と全球規模での再測定の後に決める。採用する場合は CE UI の設定追加と既定値の切り替え(既存都市の見た目が変わる)の扱いを別途決める。

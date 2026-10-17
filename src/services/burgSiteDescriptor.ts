@@ -52,6 +52,7 @@ import {
 import { planRiverCrossing, RIVER_CARGO_VESSEL, SEA_SAILING_VESSEL } from "../utils/riverCrossing";
 import { getUrbanDwellings } from "../utils/urbanDwellings";
 import { supportsUrbanMorphology } from "../utils/urbanMorphology";
+import { attachApproachTraffic } from "./approachId";
 import { burgEconomyExtensions } from "./burgEconomyExtensions";
 import {
   type BurgRoadAuditReference,
@@ -332,6 +333,10 @@ export function getBurgSiteDescriptor(
       Boolean(morphology && supportsUrbanMorphology(morphology.period))
     )
   );
+  // Measured per-gate traffic (approach-traffic-observatory.md O4). Unlike `traffic` it is kept
+  // under urban morphology; CE reads it only when asked to (`approachGrowthSource`).
+  const approachRows = burgEconomyExtensions.getBurgApproachTraffic?.(burgId);
+  if (approachRows?.length) attachApproachTraffic(roads, approachRows);
   const waterbody = measureProcessing(profiler, "coastline", () =>
     collectWaterbody(burg, toLocal, half, metersPerMapUnit)
   );

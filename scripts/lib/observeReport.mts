@@ -197,14 +197,20 @@ interface ProbeApproach {
   cobbled: boolean;
 }
 interface ProbeFile {
-  burgs: { burgId: number; status: string; usesTraffic: boolean | null; approaches: ProbeApproach[] }[];
+  burgs: {
+    burgId: number;
+    variant?: string;
+    status: string;
+    usesTraffic: boolean | null;
+    approaches: ProbeApproach[];
+  }[];
 }
 
 /** §7.3: does the FMG potential P (and the route-level traffic CE gets today) rank CE's ribbons? */
 function ceAgreement(runDir: string, samplesOf: (channel: string) => Sample[]) {
   const dir = join(runDir, "ce");
   const rows: Record<string, unknown>[] = [];
-  const towns: { probe: string; burg: number; usesTraffic: boolean | null; top1P: boolean | null; top1Route: boolean | null; rhoP: number | null; rhoRoute: number | null }[] = [];
+  const towns: { probe: string; burg: number; variant: string; topGate: string | null; lots: Record<string, number>; usesTraffic: boolean | null; top1P: boolean | null; top1Route: boolean | null; rhoP: number | null; rhoRoute: number | null }[] = [];
   if (!existsSync(dir)) return { rows, towns };
   for (const file of readdirSync(dir).filter(f => f.endsWith(".json"))) {
     const tag = file.replace(/\.json$/, "");
@@ -227,7 +233,7 @@ function ceAgreement(runDir: string, samplesOf: (channel: string) => Sample[]) {
       const traffic = gates.map(a => Math.max(...(a.sharedRouteIds ?? [a.routeId]).map(id => routeTraffic.get(id) ?? 0)));
       const budget = gates.map(a => a.ribbonBudget);
       gates.forEach((a, i) =>
-        rows.push({ probe: tag, burg: burg.burgId, approach: a.approachId, group: a.group, potential: potential[i], routeTraffic: traffic[i], ribbonBudget: a.ribbonBudget, ribbonLength: a.ribbonLength, lots: a.lots, gateInns: a.gateInns, cobbled: a.cobbled })
+        rows.push({ probe: tag, burg: burg.burgId, variant: burg.variant ?? "neighbors", approach: a.approachId, group: a.group, potential: potential[i], routeTraffic: traffic[i], ribbonBudget: a.ribbonBudget, ribbonLength: a.ribbonLength, lots: a.lots, gateInns: a.gateInns, cobbled: a.cobbled })
       );
       const top = argmaxUnique(budget);
       const pTop = argmaxUnique(potential);
@@ -235,6 +241,9 @@ function ceAgreement(runDir: string, samplesOf: (channel: string) => Sample[]) {
       towns.push({
         probe: tag,
         burg: burg.burgId,
+        variant: burg.variant ?? "neighbors",
+        topGate: top === null ? null : gates[top].approachId,
+        lots: Object.fromEntries(gates.map(a => [a.approachId, a.lots])),
         usesTraffic: burg.usesTraffic,
         top1P: top === null || pTop === null ? null : top === pTop,
         top1Route: top === null || rTop === null ? null : top === rTop,
@@ -262,6 +271,27 @@ function agreementSummary(towns: ReturnType<typeof ceAgreement>["towns"]) {
     top1Route: rate(towns.map(t => t.top1Route)),
     rhoP: mean(towns.map(t => t.rhoP)),
     rhoRoute: mean(towns.map(t => t.rhoRoute))
+  };
+}
+
+type Town = ReturnType<typeof ceAgreement>["towns"][number];
+
+/** O4: what switching `approachGrowthSource` changed in the same towns. */
+function variantChanges(towns: Town[]) {
+  const key = (t: Town) => `${t.probe}#${t.burg}`;
+  const before = new Map(towns.filter(t => t.variant === "neighbors").map(t => [key(t), t]));
+  const pairs = towns.filter(t => t.variant === "traffic" && before.has(key(t))).map(t => [before.get(key(t))!, t] as const);
+  const moved = pairs.filter(([a, b]) => a.topGate !== null && b.topGate !== null && a.topGate !== b.topGate).length;
+  const lotShift = pairs.map(([a, b]) => {
+    const ids = new Set([...Object.keys(a.lots), ...Object.keys(b.lots)]);
+    const total = [...ids].reduce((sum, id) => sum + (a.lots[id] ?? 0), 0);
+    const delta = [...ids].reduce((sum, id) => sum + Math.abs((b.lots[id] ?? 0) - (a.lots[id] ?? 0)), 0);
+    return total > 0 ? delta / (2 * total) : 0;
+  });
+  return {
+    towns: pairs.length,
+    topGateMoved: moved,
+    meanLotShift: lotShift.length ? lotShift.reduce((s, v) => s + v, 0) / lotShift.length : NaN
   };
 }
 
@@ -363,14 +393,22 @@ export function buildReport(runDir: string): Record<string, string> {
 
   const samplesByChannel = new Map(files.map(f => [f.replace(/\.ndjson$/, ""), readSamples(join(runDir, "samples", f))]));
   const agreement = ceAgreement(runDir, channel => samplesByChannel.get(channel) ?? []);
-  const summary = agreementSummary(agreement.towns);
+  const variants = [...new Set(agreement.towns.map(t => t.variant))];
+  const summaries = Object.fromEntries(variants.map(v => [v, agreementSummary(agreement.towns.filter(t => t.variant === v))]));
+  const changes = variants.length > 1 ? variantChanges(agreement.towns) : null;
+  const summaryRows = variants
+    .map(v => {
+      const summary = summaries[v];
+      return `<tr><td>${esc(v)}</td><td>Potential P</td><td>${fmt(summary.top1P.value * 100, 0)}% <small>n=${summary.top1P.n}</small></td><td>${fmt(summary.rhoP.value, 2)} <small>n=${summary.rhoP.n}</small></td></tr>
+<tr><td>${esc(v)}</td><td>Route traffic</td><td>${fmt(summary.top1Route.value * 100, 0)}% <small>n=${summary.top1Route.n}</small></td><td>${fmt(summary.rhoRoute.value, 2)} <small>n=${summary.rhoRoute.n}</small></td></tr>`;
+    })
+    .join("");
   const ceSection = agreement.towns.length
-    ? `<section><h2>CE agreement <small>${summary.towns} towns probed · ${summary.usingTraffic} with traffic-driven roads</small></h2>
-<p>Do the approaches with the highest FMG potential P get CE's largest suburb ribbon? Compared with ranking by route-level traffic, the input CE receives today (§7.3).</p>
-<table><tr><th></th><th>Top-1 match</th><th>Spearman ρ (mean)</th></tr>
-<tr><td>Potential P (approach ledger)</td><td>${fmt(summary.top1P.value * 100, 0)}% <small>n=${summary.top1P.n}</small></td><td>${fmt(summary.rhoP.value, 2)} <small>n=${summary.rhoP.n}</small></td></tr>
-<tr><td>Route traffic</td><td>${fmt(summary.top1Route.value * 100, 0)}% <small>n=${summary.top1Route.n}</small></td><td>${fmt(summary.rhoRoute.value, 2)} <small>n=${summary.rhoRoute.n}</small></td></tr></table>
-<p><small>Towns whose top ribbon or top predictor is tied are left out of Top-1; ρ needs three or more approaches. Rows: ce.csv.</small></p></section>`
+    ? `<section><h2>CE agreement <small>${agreement.towns.length} town generations · variants: ${esc(variants.join(", "))}</small></h2>
+<p>Do the approaches with the highest FMG potential P get CE's largest suburb ribbon? Compared with ranking by route-level traffic (§7.3). The variant is CE's <code>approachGrowthSource</code> (O4).</p>
+<table><tr><th>CE variant</th><th>Predictor</th><th>Top-1 match</th><th>Spearman ρ (mean)</th></tr>${summaryRows}</table>
+${changes ? `<p>Switching neighbors → traffic in the same ${changes.towns} towns moved the largest ribbon to another gate in ${changes.topGateMoved}; on average ${fmt(changes.meanLotShift * 100, 0)}% of ribbon lots changed gate.</p>` : ""}
+<p><small>Towns whose top ribbon or top predictor is tied are left out of Top-1; ρ needs three or more approaches. Rows: ce.csv. SVGs, when requested: ce/&lt;probe&gt;/&lt;burg&gt;-&lt;variant&gt;.svg.</small></p></section>`
     : "";
   sections.unshift(ceSection);
 
@@ -393,7 +431,7 @@ ${sections.join("\n")}</body></html>`;
     "routes.csv": csv(routes),
     "corridors.csv": csv(corridors),
     "ce.csv": csv(agreement.rows),
-    "ce-summary.json": `${JSON.stringify({ summary, towns: agreement.towns }, null, 2)}\n`,
+    "ce-summary.json": `${JSON.stringify({ summaries, changes, towns: agreement.towns }, null, 2)}\n`,
     "report.html": html
   };
 }

@@ -57,6 +57,12 @@ export interface GenerationSettings {
   townWallRings?: "single" | "double";
   /** Double walls: preserve the historical outer-first algorithm, or build the old town first. */
   townWallBuildOrder?: "outer-first" | "inner-first";
+  /**
+   * What sizes the approach ribbons of an urban-morphology town: the neighbouring towns'
+   * population (default) or the measured approach traffic, where the descriptor carries it
+   * (docs/plan/approach-traffic-observatory.md O4).
+   */
+  approachGrowthSource?: "neighbors" | "traffic";
   /** Lab-only factorial comparison. UI never sets "legacy" on inner-first towns. */
   townWallDefensePolicy?: "legacy" | "closed";
   /** Double walls only: "razed" turns the old-town wall into a ring road (§4.3). Default "standing". */

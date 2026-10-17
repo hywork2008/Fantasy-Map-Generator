@@ -44,6 +44,10 @@ interface Experiment {
 /** §7.2: `at` is an offset from the start of the sampled advance ("+0", "+6m", "+2y"). */
 interface CeProbe {
   at: string[];
+  /** O4: generate each town per `approachGrowthSource` (default: neighbors only). */
+  variants?: ("neighbors" | "traffic")[];
+  /** Also write each town's SVG under ce/<tag>/ for a side-by-side look. */
+  svg?: boolean;
   burgs?: { topByPopulation?: number; ids?: number[] };
 }
 
@@ -54,8 +58,10 @@ function offsetMonths(text: string): number {
 }
 
 /** Runs the CE probe on a copy of the world, never on the running channel (§10). */
-function probeSnapshot(snapshot: string, burgIds: number[], out: string): Promise<void> {
+function probeSnapshot(snapshot: string, burgIds: number[], out: string, probe: CeProbe | undefined): Promise<void> {
   const args = ["--import", "tsx", join(root, "scripts/observeCeProbe.mjs"), snapshot, burgIds.join(","), out];
+  args.push("--variants", (probe?.variants ?? ["neighbors"]).join(","));
+  if (probe?.svg) args.push("--svg-dir", out.replace(/\.json$/, ""));
   return new Promise((done, fail) => {
     const child = spawn(process.execPath, args, { cwd: root, stdio: ["ignore", "ignore", "ignore"] });
     child.on("error", fail);
@@ -74,14 +80,16 @@ function parseArgs(argv: string[]) {
     const at = rest.indexOf(`--${name}`);
     return at < 0 ? undefined : rest[at + 1];
   };
-  if (!command || !target || !["run", "report"].includes(command)) {
+  if (!command || !target || !["run", "report", "reprobe"].includes(command)) {
     console.log(
-      "Usage: npm run observe -- run <experiment.json> [--server URL] [--token T] [--out dir]\n       npm run observe -- report <runId|dir> [--out dir]"
+      "Usage: npm run observe -- run <experiment.json> [--server URL] [--token T] [--out dir]\n       npm run observe -- report <runId|dir> [--out dir]\n       npm run observe -- reprobe <runId|dir> [--variants neighbors,traffic] [--svg] [--out dir]"
     );
     process.exit(command ? 1 : 0);
   }
   return {
-    command: command as "run" | "report",
+    command: command as "run" | "report" | "reprobe",
+    variants: (flag("variants") ?? "neighbors,traffic").split(",") as ("neighbors" | "traffic")[],
+    svg: rest.includes("--svg"),
     target,
     server: flag("server"),
     token: flag("token") ?? process.env.FMG_SIM_TOKEN ?? "",
@@ -269,7 +277,7 @@ async function runExperiment(options: ReturnType<typeof parseArgs>) {
             ...(wanted.ids ?? [])
           ];
           log(`${entry.channel}: CE probe ${tag} (${ids.length} burgs)`);
-          await probeSnapshot(snapshot, [...new Set(ids)], join(runDir, "ce", `${tag}.json`));
+          await probeSnapshot(snapshot, [...new Set(ids)], join(runDir, "ce", `${tag}.json`), experiment.ceProbe);
           entry.probes.push(tag);
         };
         // Advance in segments that end at the probe points; sampling continues across them.
@@ -322,6 +330,20 @@ function writeReport(runDir: string) {
   log(`report: ${Object.keys(files).join(", ")} in ${runDir}`);
 }
 
+/** O4: regenerates the CE probes of a finished run from its saved snapshots, per variant. */
+async function reprobe(dir: string, options: ReturnType<typeof parseArgs>) {
+  const ceDir = join(dir, "ce");
+  for (const file of readdirSync(join(dir, "snapshots")).filter(f => f.endsWith(".fmg"))) {
+    const tag = file.replace(/\.fmg$/, "");
+    const previous = join(ceDir, `${tag}.json`);
+    if (!existsSync(previous)) continue;
+    const ids = [...new Set((JSON.parse(readFileSync(previous, "utf8")) as { burgs: { burgId: number }[] }).burgs.map(b => b.burgId))];
+    log(`reprobe ${tag} (${ids.length} burgs × ${options.variants.join(", ")})`);
+    await probeSnapshot(join(dir, "snapshots", file), ids, previous, { at: [], variants: options.variants, svg: options.svg });
+  }
+  writeReport(dir);
+}
+
 const options = parseArgs(process.argv.slice(2));
 if (options.command === "run") await runExperiment(options);
 else {
@@ -330,5 +352,6 @@ else {
     const known = existsSync(options.out) ? readdirSync(options.out).join(", ") : "none";
     throw new Error(`No run at ${dir} (runs: ${known})`);
   }
-  writeReport(dir);
+  if (options.command === "reprobe") await reprobe(dir, options);
+  else writeReport(dir);
 }

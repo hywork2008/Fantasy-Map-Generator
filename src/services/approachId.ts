@@ -35,3 +35,47 @@ export function seaApproachId(burgId: number, harbourId?: number): string {
 export function riverApproachId(burgId: number, downstream: boolean): string {
   return `burg:${burgId}:river:${downstream ? "down" : "up"}`;
 }
+
+interface ApproachTrafficRow {
+  approachId: string;
+  routeId: number | null;
+  cargoSlots: number;
+  through: number;
+}
+interface RoadWithApproach {
+  approachId?: string;
+  routeId: number;
+  sharedRouteIds?: number[];
+  approachTraffic?: { cargoSlots: number; through: number; share: number };
+}
+
+/**
+ * Puts each ledger row on the road entry with the same approach id. A shared-crossing entry
+ * (`crossing:<c>`, unknown to the ledger) takes the rows of its bundled routes. Shares are of
+ * the town's land approaches; sea, river and off-road rows stay out of the total.
+ */
+export function attachApproachTraffic(roads: RoadWithApproach[], rows: readonly ApproachTrafficRow[]): void {
+  const load = (row: ApproachTrafficRow) => row.cargoSlots + row.through;
+  const amounts = roads.map(road => {
+    const exact = rows.filter(row => row.approachId === road.approachId);
+    const matched = exact.length
+      ? exact
+      : road.sharedRouteIds
+        ? rows.filter(row => row.routeId !== null && road.sharedRouteIds!.includes(row.routeId))
+        : [];
+    return {
+      cargoSlots: matched.reduce((sum, row) => sum + row.cargoSlots, 0),
+      through: matched.reduce((sum, row) => sum + row.through, 0),
+      load: matched.reduce((sum, row) => sum + load(row), 0)
+    };
+  });
+  const total = amounts.reduce((sum, a) => sum + a.load, 0);
+  if (!(total > 0)) return;
+  roads.forEach((road, i) => {
+    road.approachTraffic = {
+      cargoSlots: Math.round(amounts[i].cargoSlots * 1000) / 1000,
+      through: Math.round(amounts[i].through * 1000) / 1000,
+      share: Math.round((amounts[i].load / total) * 10000) / 10000
+    };
+  });
+}
