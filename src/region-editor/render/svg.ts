@@ -36,6 +36,22 @@ export function forestMassOfRenderedDoc(doc: RegionDocument): ForestMass | null 
   return renderedForestMass.get(doc);
 }
 
+/** Element counts of the most recent render, shown in the stats panel as a reference for thinning. */
+export interface RegionRenderStats {
+  /** How forest trees were drawn: individual crowns/sprites, a repeating pattern, or no forest. */
+  forestMode: "none" | "pattern" | "crowns" | "oblique";
+  /** Individually drawn forest trees (0 in pattern mode). */
+  forestTrees: number;
+  treeSymbols: number;
+  otherSymbols: number;
+  /** Drawn land-use patches per kind (cultivation counts only while shown). */
+  landUse: Record<string, number>;
+}
+const renderedStats = new WeakMap<RegionDocument, RegionRenderStats>();
+export function renderStatsOfRenderedDoc(doc: RegionDocument): RegionRenderStats | undefined {
+  return renderedStats.get(doc);
+}
+
 import {
   isReliefBiome,
   obliqueSymbolSvg,
@@ -251,6 +267,8 @@ export function renderRegionSvg(
   if (!hasForest) renderedForestMass.set(doc, null);
   let forestDefs = "";
   let forestLayer = "";
+  const forestCounter = { trees: 0 };
+  let forestMode: RegionRenderStats["forestMode"] = "none";
 
   if (hasForest) {
     const canopyColors = theme.forestCanopy;
@@ -383,14 +401,15 @@ export function renderRegionSvg(
         <g class="re-forest-floor" clip-path="url(#re-forest-outline)">${forestFloor}${forestPatterns}</g>
         ${
           mass && oblique
-            ? renderObliqueForest(mass, detail, mapAreaKm2)
+            ? renderObliqueForest(mass, detail, mapAreaKm2, forestCounter)
             : highQuality && mass
-              ? renderForestCrowns(mass, canopyColors, detail, mapAreaKm2)
+              ? renderForestCrowns(mass, canopyColors, detail, mapAreaKm2, forestCounter)
               : ""
         }
       </g>
     `
       : "";
+    if (outlineD) forestMode = oblique ? "oblique" : highQuality ? "crowns" : "pattern";
   }
 
   // 1. Defs (パーチメント風テクスチャ、フィルター、森林マスク・シェーディング)
@@ -970,7 +989,7 @@ export function renderRegionSvg(
 
   // 8. 地勢シンボル（山岳、丘陵、樹木、湿地等）
   const reliefBiomes = oblique ? doc.biomes.filter(isReliefBiome) : [];
-  const symbolsLayer = doc.symbols
+  const drawnSymbols = doc.symbols
     .filter(
       sym =>
         !reliefBiomes.length ||
@@ -986,6 +1005,8 @@ export function renderRegionSvg(
             pointInPolygon([sym.x, sym.y], p.polygon)
         )
     )
+    .filter(sym => SYMBOL_DEFINITIONS[sym.type]);
+  const symbolsLayer = drawnSymbols
     .map(sym => {
       const def = SYMBOL_DEFINITIONS[sym.type];
       if (!def) return "";
@@ -1018,6 +1039,20 @@ export function renderRegionSvg(
       `;
     })
     .join("\n");
+
+  const drawnLandUse = (doc.landUse?.patches ?? []).filter(
+    p => p.kind !== "cultivation" || doc.terrain.showCultivation === true
+  );
+  const landUseCounts: Record<string, number> = {};
+  for (const p of drawnLandUse) landUseCounts[p.kind] = (landUseCounts[p.kind] ?? 0) + 1;
+  const treeSymbols = drawnSymbols.filter(sym => sym.type.startsWith("tree")).length;
+  renderedStats.set(doc, {
+    forestMode,
+    forestTrees: forestCounter.trees,
+    treeSymbols,
+    otherSymbols: drawnSymbols.length - treeSymbols,
+    landUse: landUseCounts
+  });
 
   // 9. 集落・拠点シンボル (Settlements) - 衝突回避ラベル配置
   const labelOffsets = resolveSettlementLabelPlacements(doc.settlements, doc.labels);
@@ -1162,8 +1197,7 @@ export function renderRegionSvg(
         ).join("\n")}
         ${detail > 0 ? '<pattern id="re-sparse-trees" width="19" height="17" patternUnits="userSpaceOnUse"><circle cx="8" cy="7" r="2" fill="#68825b" opacity="0.6"/></pattern>' : ""}
       </defs>
-      <g id="layer-land-use" data-detail-level="${detail}"${coastMaskAttr}>${(doc.landUse?.patches ?? [])
-        .filter(p => p.kind !== "cultivation" || doc.terrain.showCultivation === true)
+      <g id="layer-land-use" data-detail-level="${detail}"${coastMaskAttr}>${drawnLandUse
         .map(p => {
           const path = polyToSvgPath(p.polygon);
           const variant = patchVariant(p.id);

@@ -137,7 +137,8 @@ export function renderForestCrowns(
   mass: ForestMass,
   colors: ForestCanopyColors,
   detail: number,
-  mapAreaKm2 = 0
+  mapAreaKm2 = 0,
+  counter?: { trees: number }
 ): string {
   // 最遠景では樹冠はほぼ点なので、地図の面積に応じて密度を落とす（狭い地図は間引かない）
   const thin = forestThinning(mapAreaKm2);
@@ -154,6 +155,7 @@ export function renderForestCrowns(
     const spread = Math.max(Math.sqrt(thin), Math.sqrt(estimate / (MAX_CROWNS * 0.85)));
     const crowns = collectCrowns(mass, kind, spacing * spread, baseR, salt, MAX_CROWNS) as Crown[];
     if (!crowns.length) return;
+    if (counter) counter.trees += crowns.length;
     crowns.sort((a, b) => a.y - b.y);
     const base = colors[kind];
     const tones = [mixHex(base, colors.shadow, 0.22), base, mixHex(base, colors.highlight, 0.28)];

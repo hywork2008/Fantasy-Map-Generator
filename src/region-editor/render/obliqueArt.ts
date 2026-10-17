@@ -137,7 +137,12 @@ export function obliqueTreeDefs(colors: ThemeColors["forestCanopy"]): string {
  * 森林塊の内側に斜め見下ろしの樹木を密に並べる。奥から手前へ描くので手前の木が奥の木の根元を隠し、
  * 「樹冠が連なる森」になる。
  */
-export function renderObliqueForest(mass: ForestMass, detail: number, mapAreaKm2 = 0): string {
+export function renderObliqueForest(
+  mass: ForestMass,
+  detail: number,
+  mapAreaKm2 = 0,
+  counter?: { trees: number }
+): string {
   // 広い地図では本数を間引く代わりに 1 本を大きく描き、森の「木が見える」密度を保つ
   const grow = Math.max(1, Math.sqrt(forestThinning(mapAreaKm2)) * 0.55);
   const lod = detail === 0 ? 1.4 : 1;
@@ -164,6 +169,7 @@ export function renderObliqueForest(mass: ForestMass, detail: number, mapAreaKm2
   const estimate = collect(3, Number.POSITIVE_INFINITY).length * 9;
   const trees = collect(Math.max(1, Math.sqrt(estimate / MAX_TREES)), Number.POSITIVE_INFINITY);
   trees.sort((a, b) => a.y - b.y || a.x - b.x);
+  if (counter) counter.trees += trees.length;
   return `<g class="oblique-forest">${trees
     .map(
       t => `<use href="#re-otree-${t.kind}-${t.v}" transform="translate(${f1(t.x)} ${f1(t.y)}) scale(${f1(t.s)})" />`

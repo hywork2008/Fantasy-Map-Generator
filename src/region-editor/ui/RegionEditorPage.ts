@@ -46,7 +46,13 @@ import { clearRegionSite } from "../io/siteStore";
 import { DEFAULT_RENDER_QUALITY, type RenderQuality } from "../render/biomeArt";
 import { describeCell } from "../render/cellInfo";
 import { ILLUSTRATED_PALETTES } from "../render/styles/themes";
-import { applyTextScale, detailForZoom, forestMassOfRenderedDoc, renderRegionSvg } from "../render/svg";
+import {
+  applyTextScale,
+  detailForZoom,
+  forestMassOfRenderedDoc,
+  renderRegionSvg,
+  renderStatsOfRenderedDoc
+} from "../render/svg";
 
 /** FMG burgs-generator.ts の getDefaultGroups に準拠した都市種別（+ 旧 metropolis） */
 function settlementTypeOptions(): ReadonlyArray<readonly [string, string]> {
@@ -338,6 +344,14 @@ export function mountRegionEditor(
     const contourCount = doc.terrain.contours?.length ?? 0;
     const indexCount = doc.terrain.contours?.filter(c => c.isIndex).length ?? 0;
     const interval = doc.terrain.contourIntervalMeters ?? 100;
+    const drawn = renderStatsOfRenderedDoc(doc);
+    const forestTrees =
+      drawn?.forestMode === "pattern"
+        ? editorHtml("regionEditor.messages.drawnForestPattern")
+        : String(drawn?.forestTrees ?? 0);
+    const fields = drawn?.landUse.cultivation ?? 0;
+    const landUseTotal = Object.values(drawn?.landUse ?? {}).reduce((a, b) => a + b, 0);
+    const svgElements = svgLayer.querySelectorAll("*").length;
 
     statsContent.innerHTML = `
       <div>${editorHtml("regionEditor.messages.treeAndMountainSymbols")}<strong>${doc.symbols.length}</strong></div>
@@ -348,6 +362,12 @@ export function mountRegionEditor(
       <div>⛰️ <strong>${editorHtml("regionEditor.messages.elevationRangeM", { value0: minElev, value1: maxElev })}</strong>${editorHtml("regionEditor.messages.reliefM", { value0: maxElev - minElev })}</div>
       <div>${editorHtml("regionEditor.messages.settlements")}<strong>${doc.settlements.length}</strong></div>
       <div>${editorHtml("regionEditor.messages.adventureSitesAndRuins")}<strong>${doc.landmarks.length}</strong></div>
+      <div style="margin-top:4px; border-top:1px solid rgba(128,128,128,0.3); padding-top:4px;">${editorHtml("regionEditor.messages.drawnElements")}</div>
+      <div>${editorHtml("regionEditor.messages.drawnForestTrees")}<strong>${forestTrees}</strong></div>
+      <div>${editorHtml("regionEditor.messages.drawnSymbols", { value0: drawn?.treeSymbols ?? 0, value1: drawn?.otherSymbols ?? 0 })}</div>
+      <div>${editorHtml("regionEditor.messages.drawnFields")}<strong>${doc.terrain.showCultivation === true ? fields : "-"}</strong></div>
+      <div>${editorHtml("regionEditor.messages.drawnLandUsePatches")}<strong>${landUseTotal}</strong></div>
+      <div>${editorHtml("regionEditor.messages.drawnSvgElements")}<strong>${svgElements}</strong></div>
     `;
 
     const elevInfo = root.querySelector("#re-elevation-info");
