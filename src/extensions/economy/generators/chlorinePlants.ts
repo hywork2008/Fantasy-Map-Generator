@@ -28,6 +28,7 @@ import {
   marketIdForBurg,
   pickSponsorBurg
 } from "./chemMedCommon";
+import { nominal } from "./moneyScale";
 
 function worldHasCatalyticChemistry(): boolean {
   return getTechnologyProgressEntries().some(
@@ -72,7 +73,7 @@ export class ChlorinePlantsModule {
       let plant = plants.find(entry => entry.stateId === state.i && entry.active);
       if (!plant) {
         const burgId = pickSponsorBurg(state.i);
-        if (!burgId || !debitTreasury(state.i, CHLORINE_PLANT_BUDGET)) continue;
+        if (!burgId || !debitTreasury(state.i, nominal(CHLORINE_PLANT_BUDGET))) continue;
         plant = {
           burgId,
           stateId: state.i,
@@ -87,7 +88,7 @@ export class ChlorinePlantsModule {
         plant.role = "service";
       }
 
-      if (!debitTreasury(state.i, rn(CHLORINE_PLANT_BUDGET * FACILITY_MAINTENANCE_RATE, 2))) {
+      if (!debitTreasury(state.i, rn(nominal(CHLORINE_PLANT_BUDGET) * FACILITY_MAINTENANCE_RATE, 2))) {
         plant.active = false;
         const trial = trials.find(
           entry => entry.kind === "chlorinePlant" && entry.stateId === state.i && entry.status === "running"

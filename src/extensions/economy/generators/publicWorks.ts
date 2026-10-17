@@ -33,6 +33,7 @@ import {
   settleAnnualOnce
 } from "../economyContext";
 import type { TradeRouteSegment } from "./marketTypes";
+import { nominal } from "./moneyScale";
 import { corridorRouteScores, decayTradeCorridors } from "./tradeCorridorLedger";
 import { TradeRoutePlanner } from "./tradeRoutePlanner";
 import { ensureDepartmentBalances } from "./treasuryAllocation";
@@ -185,7 +186,7 @@ function findRoadCandidates(stateId: number): RoadCandidate[] {
     for (const cellId of cells) if (cellState[cellId] === stateId) owned++;
     if (owned / cells.length < ROAD_PROMOTION_OWNERSHIP_MIN) continue;
 
-    candidates.push({ route, cost: rn(cells.length * ROAD_PROMOTION_COST_PER_CELL, 2), traffic });
+    candidates.push({ route, cost: rn(cells.length * nominal(ROAD_PROMOTION_COST_PER_CELL), 2), traffic });
   }
   // Busy late corridors first. A route with no ledger row keeps the old traffic order.
   const priority = corridorRouteScores(getTradeCorridors());
@@ -243,14 +244,16 @@ function settleStatePublicWorks(state: State): PublicWorksSettlement {
 
   // 2. Harbours, then 3. granaries — each envelope inherits what the previous one left unspent.
   const burgs = stateBurgs(state.i);
+  const harborStepCost = nominal(HARBOR_WORKS_COST_PER_STEP);
+  const granaryStepCost = nominal(GRANARY_WORKS_COST_PER_STEP);
   let harborEnvelope = rn(budget * HARBOR_BUDGET_SHARE + roadEnvelope, 2);
   for (const burg of burgs) {
     if (!burg.port) continue;
     const works = burg.publicWorks;
     if ((works?.harbor ?? 0) >= 1) continue;
-    if (HARBOR_WORKS_COST_PER_STEP > harborEnvelope) break;
-    if (!spend(HARBOR_WORKS_COST_PER_STEP)) break;
-    harborEnvelope = rn(harborEnvelope - HARBOR_WORKS_COST_PER_STEP, 2);
+    if (harborStepCost > harborEnvelope) break;
+    if (!spend(harborStepCost)) break;
+    harborEnvelope = rn(harborEnvelope - harborStepCost, 2);
     const target = ensureBurgWorks(burg);
     target.harbor = rn(Math.min(1, (target.harbor ?? 0) + WORKS_LEVEL_STEP), 3);
     settlement.harborSteps++;
@@ -260,9 +263,9 @@ function settleStatePublicWorks(state: State): PublicWorksSettlement {
   for (const burg of burgs) {
     const works = burg.publicWorks;
     if ((works?.granary ?? 0) >= 1) continue;
-    if (GRANARY_WORKS_COST_PER_STEP > granaryEnvelope) break;
-    if (!spend(GRANARY_WORKS_COST_PER_STEP)) break;
-    granaryEnvelope = rn(granaryEnvelope - GRANARY_WORKS_COST_PER_STEP, 2);
+    if (granaryStepCost > granaryEnvelope) break;
+    if (!spend(granaryStepCost)) break;
+    granaryEnvelope = rn(granaryEnvelope - granaryStepCost, 2);
     const target = ensureBurgWorks(burg);
     target.granary = rn(Math.min(1, (target.granary ?? 0) + WORKS_LEVEL_STEP), 3);
     settlement.granarySteps++;

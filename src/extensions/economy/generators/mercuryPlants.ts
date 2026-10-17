@@ -29,6 +29,7 @@ import {
   marketIdForBurg,
   pickSponsorBurg
 } from "./chemMedCommon";
+import { nominal } from "./moneyScale";
 
 /** 0..1. A plant whose contamination climbs past this triggers a forced containment shutdown. */
 const CONTAMINATION_INCIDENT_THRESHOLD = 0.6;
@@ -88,7 +89,7 @@ export class MercuryPlantsModule {
       let plant = plants.find(entry => entry.stateId === state.i && entry.active);
       if (!plant) {
         const burgId = pickSponsorBurg(state.i);
-        if (!burgId || !debitTreasury(state.i, MERCURY_PLANT_BUDGET)) continue;
+        if (!burgId || !debitTreasury(state.i, nominal(MERCURY_PLANT_BUDGET))) continue;
         plant = {
           burgId,
           stateId: state.i,
@@ -104,7 +105,7 @@ export class MercuryPlantsModule {
         plant.role = "service";
       }
 
-      if (!debitTreasury(state.i, rn(MERCURY_PLANT_BUDGET * FACILITY_MAINTENANCE_RATE, 2))) {
+      if (!debitTreasury(state.i, rn(nominal(MERCURY_PLANT_BUDGET) * FACILITY_MAINTENANCE_RATE, 2))) {
         plant.active = false;
         const trial = trials.find(
           entry => entry.kind === "mercuryPlant" && entry.stateId === state.i && entry.status === "running"
@@ -143,7 +144,7 @@ export class MercuryPlantsModule {
       let incident = false;
       if (contamination >= CONTAMINATION_INCIDENT_THRESHOLD) {
         incident = true;
-        if (debitTreasury(state.i, rn(MERCURY_PLANT_BUDGET * CONTAMINATION_CLEANUP_BUDGET_MULTIPLIER, 2))) {
+        if (debitTreasury(state.i, rn(nominal(MERCURY_PLANT_BUDGET) * CONTAMINATION_CLEANUP_BUDGET_MULTIPLIER, 2))) {
           contamination = clamp01(contamination - CONTAMINATION_CLEANUP_RELIEF);
         }
       }

@@ -168,7 +168,10 @@ describe("FoodProduction", () => {
 
     // Cultivated area records maintained fields. The labour requirement feeds
     // employment/migration calculations and does not suppress this local crop.
-    expect(mockWorldContext.markets[0].foodLedger.foodProduced).toBeCloseTo(2150, 3);
+    // The surplus offered to the market; with no town to sell to, the market buys none of it.
+    const ledger = mockWorldContext.markets[0].foodLedger;
+    expect(ledger.foodProduced + ledger.unsoldHarvest).toBeCloseTo(2150, 3);
+    expect(ledger.foodProduced).toBe(0);
   });
 
   it("retains harvest until rural household provisions are full, then wholesales only the surplus", () => {
@@ -199,7 +202,8 @@ describe("FoodProduction", () => {
     // Annual household target is 10 people × 0.43 = 4.3. The first quarter
     // harvest is 5, so 0.3 refills the larder and only 4.7 reaches the Market.
     expect(ruralHouseholdFoodStock[0]).toBeCloseTo(4.3, 4);
-    expect(mockWorldContext.markets[0].foodLedger.foodProduced).toBeCloseTo(4.7, 4);
+    const ledger = mockWorldContext.markets[0].foodLedger;
+    expect(ledger.foodProduced + ledger.unsoldHarvest).toBeCloseTo(4.7, 4);
   });
 
   it("does not create anonymous Grain when no catalogued crop is viable", () => {

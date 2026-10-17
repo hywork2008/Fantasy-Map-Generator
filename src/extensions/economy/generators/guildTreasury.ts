@@ -14,6 +14,7 @@ import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";
 import { seedGuildMasterStartingAssets } from "./guildMasterAssets";
 import { findMaster } from "./guildSuccession";
 import { Markets } from "./markets-generator";
+import { nominal } from "./moneyScale";
 
 /**
  * Domain's most representative raw/base craft good, seeded into a brand-new guild's home Burg
@@ -113,7 +114,7 @@ export class GuildTreasuryModule {
     // A guild master must always begin with both workshop working capital and a personal purse;
     // a custom start profile may reduce the multiplier but cannot reduce this bootstrap to zero.
     const cycles = Math.max(1, rn(backPayCycles() * profile.guildBootstrapMultiplier, 2));
-    this.creditGuildTreasury(burgId, domain, GUILD_MASTER_STIPEND * cycles);
+    this.creditGuildTreasury(burgId, domain, nominal(GUILD_MASTER_STIPEND) * cycles);
 
     const guild = getGuildKnowledgeStocks().find(entry => entry.burgId === burgId && entry.domain === domain);
     const master = findMaster(getWorldContext().pack.characters ?? [], burgId, domain);

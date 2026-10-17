@@ -70,3 +70,7 @@ Base lifestyle sits **below** typical stipend so paid roles still save slowly. W
 apprentice cash ≪ craftsman/merchant day-scale ≪ master ≪ field commander
   ≪ province lord / market head ≪ central office ≪ ruler
 ```
+
+## 通貨量の係数(2026-10-17)
+
+本書の金額は人口点尺度の基準値である。新規地図では、役職別の生活費・俸給・下限・上限に通貨量の係数 K(既定 16 × populationRate / 1000)が掛かる。根拠は [money-scale-calibration.md](../plan/money-scale-calibration.md)。`options.moneyScaleBase` を持たない旧セーブは K=1 のまま。

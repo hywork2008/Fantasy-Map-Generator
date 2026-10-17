@@ -58,6 +58,8 @@ const REFERENCE_SEASONAL_AMPLITUDE_C = 20;
 export const FARMGATE_PRICE_SHARE = 0.8;
 /** Months of annual demand a Market may hold before staple food overflows with no export sink yet (v1). */
 const STORAGE_CAP_MONTHS = 9;
+/** Unpaid farmgate debt is capped at this many years of the market's urban grain demand. */
+const FARMGATE_PAYABLE_YEARS = 1;
 /** Months of annual demand reserved before a Market may treat staple food as generally exportable. */
 const EXPORT_RESERVE_MONTHS = 3;
 /** Months of annual demand a deficit Market tries to recover toward via imports. */
@@ -318,7 +320,12 @@ export class FoodProductionModule {
   }
 
   /** Pays the farmgate cost from the market's treasury; any shortfall accrues as rural debt. */
-  private settleFarmgatePayment(market: Market, producedThisQuarter: number, farmgateUnitCost: number): void {
+  private settleFarmgatePayment(
+    market: Market,
+    producedThisQuarter: number,
+    farmgateUnitCost: number,
+    annualUrbanDemand: number
+  ): void {
     if (producedThisQuarter <= 0) return;
     const cost = rn(producedThisQuarter * farmgateUnitCost, 2);
     const treasury = market.marketTreasury ?? { balance: 0, ruralGrainPayable: 0 };
@@ -326,6 +333,11 @@ export class FoodProductionModule {
     const paidFromBalance = Math.min(Math.max(0, treasury.balance), cost);
     treasury.balance = rn(treasury.balance - paidFromBalance, 2);
     treasury.ruralGrainPayable = rn(treasury.ruralGrainPayable + (cost - paidFromBalance), 2);
+    // Grain on credit that has not sold within about a year (given to penniless farm families,
+    // milled, spoiled) is no longer owed: the debt is a claim, not money, and without this cap it
+    // grew without bound (docs/plan/initial-wealth-calibration.md §5.2).
+    const payableCap = rn(annualUrbanDemand * farmgateUnitCost * FARMGATE_PAYABLE_YEARS, 2);
+    if (treasury.ruralGrainPayable > payableCap) treasury.ruralGrainPayable = payableCap;
     market.marketTreasury = treasury;
 
     // L2 Phase 2 (docs/plan/economy-coupling-audit.md): this payment used to vanish once it left
@@ -462,16 +474,27 @@ export class FoodProductionModule {
       // settleMonthlyFoodConsumption.
       const annualDemand = annualUrbanNeed;
 
-      const foodProduced = rn(annualMarketFoodIntake, 2);
       const ruralNeed = rn((annualRuralNeed * periodMonths) / 12, 2);
       const urbanNeed = rn((annualUrbanNeed * periodMonths) / 12, 2);
 
       if (!market.foodLedger) market.foodLedger = emptyFoodLedger();
       const ledger = market.foodLedger;
 
+      // The market buys only what it can hold and sell: up to its storage target plus this
+      // period's urban consumption. Farmers keep the rest (docs/plan/initial-wealth-calibration.md
+      // §5.2). Buying the whole harvest on credit left a debt that urban sales could never repay.
+      const held =
+        ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2 + Math.max(0, ledger.storageOverflow);
+      const purchasable = Math.max(0, annualDemand * (STORAGE_CAP_MONTHS / 12) - held) + urbanNeed;
+      const purchaseShare = annualMarketFoodIntake > 0 ? Math.min(1, purchasable / annualMarketFoodIntake) : 0;
+      if (purchaseShare < 1)
+        for (const [goodId, amount] of cropWholesale) cropWholesale.set(goodId, amount * purchaseShare);
+      const foodProduced = rn(annualMarketFoodIntake * purchaseShare, 2);
+      ledger.unsoldHarvest = rn(annualMarketFoodIntake - foodProduced, 2);
+
       const previousPrice = stapleFoodGood ? (market.goods[stapleFoodGood.i]?.price ?? stapleFoodGood.value) : 1;
       const farmgateUnitCost = rn(previousPrice * FARMGATE_PRICE_SHARE, 2);
-      this.settleFarmgatePayment(market, foodProduced, farmgateUnitCost);
+      this.settleFarmgatePayment(market, foodProduced, farmgateUnitCost, annualDemand);
 
       // A market with catalogued, cell-suitable crops ages and caps stock per named crop (Wheat,
       // Rye, Barley, ...) so each one's own bucket-and-overflow bookkeeping stays real — rather

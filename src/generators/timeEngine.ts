@@ -33,6 +33,7 @@ import { getFastAdvanceState, resolveFastAdvanceRates, resolveHistoryModeProfile
 import { optionsStore } from "../state/optionsStore";
 import { timeSimulationStore } from "../state/timeSimulationStore";
 import { normalizeConflictAutonomy } from "../utils/conflictAutonomy";
+import { getWorldMoneyScale } from "../utils/moneyScale";
 import { getDaysInMonth, getSeason } from "../utils/seasonUtils";
 import { isStateInActiveConflict } from "./activeConflict";
 import { type DemographicsSimulationResult, simulateDemographics } from "./demography-simulator";
@@ -307,7 +308,12 @@ registerSimulationSystem({
 
     const { years, months, days } = context.delta;
     const yearsElapsed = years + months / 12 + days / DAYS_PER_YEAR;
-    const result = applyHistoryStubFunding(worldContext.pack, yearsElapsed, run.stubFunding, isStateInActiveConflict);
+    // Stub revenue is a per-population-point amount (docs/plan/money-scale-calibration.md).
+    const stubFunding = {
+      ...run.stubFunding,
+      revenuePerCapitaPerYear: run.stubFunding.revenuePerCapitaPerYear * getWorldMoneyScale(worldContext)
+    };
+    const result = applyHistoryStubFunding(worldContext.pack, yearsElapsed, stubFunding, isStateInActiveConflict);
     if (result.statesFunded > 0) writer.markChanged("simulation.states", "simulation.burgs");
   }
 });

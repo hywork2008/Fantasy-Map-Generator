@@ -27,6 +27,7 @@ import {
   marketIdForBurg,
   pickSponsorBurg
 } from "./chemMedCommon";
+import { nominal } from "./moneyScale";
 
 /**
  * Output only starts once the prerequisite (modernDrillingAndFieldOperations) is demonstrated
@@ -78,7 +79,7 @@ export class LNGPlantsModule {
       let plant = plants.find(entry => entry.stateId === state.i && entry.active);
       if (!plant) {
         const burgId = pickSponsorBurg(state.i);
-        if (!burgId || !debitTreasury(state.i, LNG_PLANT_BUDGET)) continue;
+        if (!burgId || !debitTreasury(state.i, nominal(LNG_PLANT_BUDGET))) continue;
         plant = {
           burgId,
           stateId: state.i,
@@ -93,7 +94,7 @@ export class LNGPlantsModule {
         plant.role = "service";
       }
 
-      if (!debitTreasury(state.i, rn(LNG_PLANT_BUDGET * FACILITY_MAINTENANCE_RATE, 2))) {
+      if (!debitTreasury(state.i, rn(nominal(LNG_PLANT_BUDGET) * FACILITY_MAINTENANCE_RATE, 2))) {
         plant.active = false;
         const trial = trials.find(
           entry => entry.kind === "lngPlant" && entry.stateId === state.i && entry.status === "running"

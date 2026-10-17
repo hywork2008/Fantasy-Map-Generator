@@ -1,6 +1,7 @@
 import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getApi, getTradeSecurityLedgers, getWorldContext, setTradeSecurityLedgers } from "../economyContext";
+import { nominal } from "./moneyScale";
 import type { TradeSecurityLedger } from "./tradeSecurityTypes";
 import { UrbanLaborIntake } from "./urbanLaborIntake";
 
@@ -148,7 +149,7 @@ export class TradeSecurityModule {
     const activeBurgCount = getWorldContext().pack.burgs.filter(
       burg => burg.i && !burg.removed && burg.state === stateId
     ).length;
-    return SECURITY_UPKEEP_BASE + activeBurgCount * SECURITY_UPKEEP_PER_BURG;
+    return nominal(SECURITY_UPKEEP_BASE) + activeBurgCount * nominal(SECURITY_UPKEEP_PER_BURG);
   }
 
   private getFrontierStage(cell: number, stateId: number): number {

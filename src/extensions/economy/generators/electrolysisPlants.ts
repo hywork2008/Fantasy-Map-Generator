@@ -26,6 +26,7 @@ import {
   marketIdForBurg,
   pickSponsorBurg
 } from "./chemMedCommon";
+import { nominal } from "./moneyScale";
 
 export class ElectrolysisPlantsModule {
   settleAnnual(): boolean {
@@ -43,7 +44,7 @@ export class ElectrolysisPlantsModule {
       let plant = plants.find(entry => entry.stateId === state.i && entry.active);
       if (!plant) {
         const burgId = pickSponsorBurg(state.i);
-        if (!burgId || !debitTreasury(state.i, ELECTROLYSIS_PLANT_BUDGET)) continue;
+        if (!burgId || !debitTreasury(state.i, nominal(ELECTROLYSIS_PLANT_BUDGET))) continue;
         plant = {
           burgId,
           stateId: state.i,
@@ -58,7 +59,7 @@ export class ElectrolysisPlantsModule {
         plant.role = "service";
       }
 
-      if (!debitTreasury(state.i, rn(ELECTROLYSIS_PLANT_BUDGET * FACILITY_MAINTENANCE_RATE, 2))) {
+      if (!debitTreasury(state.i, rn(nominal(ELECTROLYSIS_PLANT_BUDGET) * FACILITY_MAINTENANCE_RATE, 2))) {
         plant.active = false;
         plant.lastFailureReason = "fundingCut";
         continue;

@@ -1,4 +1,5 @@
 import type { EconomyStartMode, WorldOptions } from "../../../types/WorldState";
+import { getMoneyScale } from "./moneyScale";
 
 /** New maps use a modest, pre-industrial economy. */
 export const DEFAULT_NEW_MAP_ECONOMY_START_MODE: EconomyStartMode = "balanced";
@@ -62,17 +63,22 @@ const PROFILES: Readonly<Record<EconomyStartMode, EconomyStartProfile>> = {
   // the thriving minority compounded freely. 3x gives every Burg/State real runway to reach its
   // first production cycle before any shortfall-driven rescue is even attempted, without touching
   // any income/expense formula.
+  //
+  // 2026-10-17 (docs/plan/initial-wealth-calibration.md §6): after closing the money circuit, the
+  // State treasury settles at 7.5–11 per head, household cash at 2–15 (rural) per head and market
+  // cash at about 1–1.5× town working cash. The start now seeds those levels, so the first years
+  // are no longer a drain from the start-up grant to the settled state.
   balanced: {
     burgTreasuryPerPopulation: 15,
-    stateTreasuryPerPopulation: 1.5,
-    marketTreasuryShare: [0.25, 0.5],
+    stateTreasuryPerPopulation: 8,
+    marketTreasuryShare: [1, 1.5],
     tradeCapitalShare: [0.1, 0.3],
     guildBootstrapMultiplier: 0.35,
     comfortableTreasuryMultiplier: 3,
     stateRemittanceShare: 0.1,
     stateAdministrativeUpkeepShare: 0.88,
     marketMaintenancePerPopulation: 0.06,
-    householdWealthPerPopulation: 8
+    householdWealthPerPopulation: 10
   },
   // Cities can feed themselves from seeded staple reserves, but have almost no spare capital.
   subsistence: {
@@ -94,6 +100,19 @@ export function getEconomyStartMode(options: Pick<WorldOptions, "economyStartMod
   return options.economyStartMode ?? "provisioned";
 }
 
+/**
+ * The per-population-point money amounts are lifted onto the live map's money scale
+ * (docs/plan/money-scale-calibration.md); shares and multipliers are scale-free.
+ */
 export function getEconomyStartProfile(options: Pick<WorldOptions, "economyStartMode">): EconomyStartProfile {
-  return PROFILES[getEconomyStartMode(options)];
+  const profile = PROFILES[getEconomyStartMode(options)];
+  const scale = getMoneyScale();
+  if (scale === 1) return profile;
+  return {
+    ...profile,
+    burgTreasuryPerPopulation: profile.burgTreasuryPerPopulation * scale,
+    stateTreasuryPerPopulation: profile.stateTreasuryPerPopulation * scale,
+    marketMaintenancePerPopulation: profile.marketMaintenancePerPopulation * scale,
+    householdWealthPerPopulation: profile.householdWealthPerPopulation * scale
+  };
 }

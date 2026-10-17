@@ -2,6 +2,8 @@ import { getCharacters, hasCharactersContext } from "../../characters/characters
 import type { Character, CharacterRole, TitleHolding } from "../../characters/characterTypes";
 import { rn } from "../../hostUtils";
 import { CENTRAL_OFFICES } from "../../nobility/data/titleTable";
+import { payStateHouseholds, spendInBurg } from "./householdWealth";
+import { nominal } from "./moneyScale";
 
 /**
  * Personal living-cost sink for Character.wealth.
@@ -137,13 +139,19 @@ export function resolveLifestyleTier(character: Character): LifestyleTier {
   return best;
 }
 
+/** Years of living costs a character keeps before spending the rest. */
+export const WEALTH_RESERVE_YEARS = 5;
+/** Share of wealth above that reserve spent each production cycle. */
+export const SURPLUS_WEALTH_SPEND_SHARE = 0.1;
+const CYCLES_PER_YEAR = 12;
+
 /**
  * Full living cost for this cycle: base lifestyle + capped wealth-linked status upkeep.
  * Never exceeds current wealth when applied (caller clamps).
  */
 export function computeLivingCost(character: Character): number {
   const tier = resolveLifestyleTier(character);
-  const lifestyle = LIVING_COST_BY_TIER[tier];
+  const lifestyle = nominal(LIVING_COST_BY_TIER[tier]);
   const wealth = character.wealth || 0;
   if (!(wealth > 0) && lifestyle <= 0) return 0;
 
@@ -172,13 +180,19 @@ export function applyCharacterLivingCosts(): LivingCostSummary {
     const wealth = character.wealth || 0;
     if (!(wealth > 0)) continue;
 
-    const cost = computeLivingCost(character);
-    if (!(cost > 0)) continue;
+    const lifestyleCost = computeLivingCost(character);
+    if (!(lifestyleCost > 0)) continue;
+    // Beyond a few years' living, a household of means spends on building, retainers, gifts and
+    // fine goods in its town rather than hoarding (docs/plan/initial-wealth-calibration.md §8).
+    const reserve = lifestyleCost * CYCLES_PER_YEAR * WEALTH_RESERVE_YEARS;
+    const cost = lifestyleCost + Math.max(0, wealth - lifestyleCost - reserve) * SURPLUS_WEALTH_SPEND_SHARE;
 
     const paid = rn(Math.min(wealth, cost), 2);
     if (!(paid > 0)) continue;
 
     character.wealth = rn(wealth - paid, 2);
+    // Board, servants and clothes are bought in the town the character lives in.
+    if (!spendInBurg(character.location, paid) && character.state) payStateHouseholds(character.state, paid);
     charactersCharged += 1;
     totalSpent = rn(totalSpent + paid, 2);
   }

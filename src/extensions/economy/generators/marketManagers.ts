@@ -10,6 +10,7 @@ import { getMarkets, getWorldContext } from "../economyContext";
 import { backPayCycles, MARKET_MANAGER_STIPEND, MARKET_RIVAL_STIPEND } from "./characterStipends";
 import { rollBalancedEconomyGender } from "./economyCharacterGender";
 import type { Market } from "./marketTypes";
+import { nominal } from "./moneyScale";
 import { raceHoardBonus } from "./raceWealthBias";
 import { resolveBurgCulture } from "./resolveBurgCulture";
 
@@ -128,7 +129,7 @@ function createMarketManager(market: Market): Character | null {
   // few copper (docs/analytics/character-wealth-balance.md). raceHoardBonus() adds age-scaled
   // hoarding flavor for a handful of long-lived races (0 for everyone else) — see
   // raceWealthBias.ts.
-  character.wealth = rn(MARKET_MANAGER_STIPEND * backPayCycles() + raceHoardBonus(character), 2);
+  character.wealth = rn(nominal(MARKET_MANAGER_STIPEND) * backPayCycles() + raceHoardBonus(character), 2);
   market.managerCharacterId = character.i;
   return character;
 }
@@ -164,7 +165,7 @@ function createMarketRival(market: Market): Character | null {
     currentYear: simulationContext.currentYear
   });
   // Fixed stipend × back-pay — see the matching comment in createMarketManager().
-  character.wealth = rn(MARKET_RIVAL_STIPEND * backPayCycles() + raceHoardBonus(character), 2);
+  character.wealth = rn(nominal(MARKET_RIVAL_STIPEND) * backPayCycles() + raceHoardBonus(character), 2);
   return character;
 }
 

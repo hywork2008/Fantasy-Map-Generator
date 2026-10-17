@@ -6,6 +6,7 @@
  * so postings can pay low / market / high relative to the fair rate.
  */
 import type { EscortKind, EscortMarketRate, EscortRouteThreatSnapshot, EscortTransport } from "./escortHireTypes";
+import { nominal } from "./moneyScale";
 
 /** Pedestrian land pace relative to caravan landKmPerDay (≈ walking with pack). */
 export const FOOT_SPEED_MULTIPLIER = 0.75;
@@ -103,13 +104,13 @@ export function computeBaseEscortFee(args: {
   const threatMult = 1 + Math.max(0, args.threatScore) * ESCORT_THREAT_PAY_WEIGHT;
   const kindMult = args.kind === "trade" ? ESCORT_TRADE_KIND_MULT : 1;
   const transportMult = args.transport === "foot" ? ESCORT_FOOT_TRANSPORT_MULT : 1;
-  const raw = ESCORT_BASE_PAY_PER_DAY * days * threatMult * kindMult * transportMult;
-  return Math.max(ESCORT_MIN_FEE, raw);
+  const raw = nominal(ESCORT_BASE_PAY_PER_DAY) * days * threatMult * kindMult * transportMult;
+  return Math.max(nominal(ESCORT_MIN_FEE), raw);
 }
 
 /** Apply market-rate variance and round. */
 export function finalizeEscortFee(baseFee: number, rateMultiplier: number): { fee: number; feePartial: number } {
-  const fee = rn2(Math.max(ESCORT_MIN_FEE, baseFee * rateMultiplier));
+  const fee = rn2(Math.max(nominal(ESCORT_MIN_FEE), baseFee * rateMultiplier));
   const feePartial = rn2(fee * 0.4);
   return { fee, feePartial };
 }

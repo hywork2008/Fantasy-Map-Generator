@@ -13,6 +13,7 @@
  */
 
 import { pow } from "../../simulation/deterministicMath";
+import { getWorldMoneyScale } from "../../utils/moneyScale";
 import { minmax, normalize, P } from "../hostUtils";
 import { resolveCharacterRaceId } from "./appearance";
 import { getCharacters, getCurrentYear, getWorldContext, hasCharactersContext } from "./charactersContext";
@@ -53,6 +54,11 @@ export const LOW_VITALITY_MULTIPLIER = 1.25;
 /** Wealth at which care/nutrition mitigation saturates toward WEALTH_CARE_MITIGATION_CAP. */
 export const WEALTH_CARE_REFERENCE = 500;
 /** Max fraction of risk that wealth (better food, private physicians) can mitigate. */
+/** WEALTH_CARE_REFERENCE on the map's money scale (docs/plan/money-scale-calibration.md). */
+function careMoneyScale(): number {
+  return hasCharactersContext() ? getWorldMoneyScale(getWorldContext()) : 1;
+}
+
 export const WEALTH_CARE_MITIGATION_CAP = 0.35;
 /** Human-scale elder age — matches advanceAge.ts's own mortality-curve inflection at newAge > 50. */
 export const ELDER_HUMAN_AGE = 50;
@@ -277,7 +283,10 @@ function characterVulnerability(character: Character): Vulnerability {
   const vitality = character.looks?.vitality;
   if (typeof vitality === "number" && vitality < LOW_VITALITY_THRESHOLD) multiplier *= LOW_VITALITY_MULTIPLIER;
 
-  const careMitigation = Math.min(WEALTH_CARE_MITIGATION_CAP, (character.wealth || 0) / WEALTH_CARE_REFERENCE);
+  const careMitigation = Math.min(
+    WEALTH_CARE_MITIGATION_CAP,
+    (character.wealth || 0) / (WEALTH_CARE_REFERENCE * careMoneyScale())
+  );
   multiplier *= 1 - careMitigation;
 
   return { multiplier: Math.max(0.05, multiplier), isElder };

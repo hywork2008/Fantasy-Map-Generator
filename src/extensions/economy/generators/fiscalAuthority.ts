@@ -28,6 +28,7 @@ import {
   sumForeignDebtPrincipal
 } from "./foreignDebt";
 import { getPrimaryMoneylenderLabel, negotiateDebtInterestRate, resolveStateBanker } from "./moneylenders";
+import { nominal } from "./moneyScale";
 import {
   issuePublicDebt,
   PUBLIC_DEBT_PLAYER_ISSUE_AMOUNT,
@@ -423,7 +424,7 @@ export function drawHouseholdPurseToPersonal(state: State, characterId: number, 
   if (!character) return { ok: false, paid: 0, error: "Character not found" };
 
   const purse = state.householdPurse || 0;
-  const paid = rn(Math.min(amount, purse, HOUSEHOLD_DRAW_ACTION_CAP), 2);
+  const paid = rn(Math.min(amount, purse, nominal(HOUSEHOLD_DRAW_ACTION_CAP)), 2);
   if (!(paid > 0)) return { ok: false, paid: 0, error: "Household purse is empty" };
 
   state.householdPurse = rn(purse - paid, 2);
@@ -457,7 +458,7 @@ export function seizePublicTreasuryToPersonal(state: State, characterId: number,
   if (!character) return { ok: false, paid: 0, error: "Character not found" };
 
   const publicBal = state.treasury || 0;
-  const paid = rn(Math.min(amount, publicBal, PUBLIC_SEIZE_ACTION_CAP), 2);
+  const paid = rn(Math.min(amount, publicBal, nominal(PUBLIC_SEIZE_ACTION_CAP)), 2);
   if (!(paid > 0)) return { ok: false, paid: 0, error: "Public treasury is empty" };
 
   state.treasury = rn(publicBal - paid, 2);
@@ -488,7 +489,7 @@ export function spendDomainTreasury(characterId: number, amount: number): Fiscal
   const burg = pack.burgs?.[domain.burgId];
   if (!burg || burg.removed) return { ok: false, paid: 0, error: "Domain burg missing" };
 
-  const paid = rn(Math.min(amount, burg.treasury || 0, DOMAIN_SPEND_ACTION_CAP), 2);
+  const paid = rn(Math.min(amount, burg.treasury || 0, nominal(DOMAIN_SPEND_ACTION_CAP)), 2);
   if (!(paid > 0)) return { ok: false, paid: 0, error: "Domain treasury is empty" };
 
   burg.treasury = rn((burg.treasury || 0) - paid, 2);
@@ -522,7 +523,7 @@ export function remitDomainToStateTreasury(characterId: number, amount: number):
   const state = stateId ? pack.states?.[stateId] : undefined;
   if (!state?.i) return { ok: false, paid: 0, error: "Domain has no owning state" };
 
-  const paid = rn(Math.min(amount, burg.treasury || 0, DOMAIN_REMIT_ACTION_CAP), 2);
+  const paid = rn(Math.min(amount, burg.treasury || 0, nominal(DOMAIN_REMIT_ACTION_CAP)), 2);
   if (!(paid > 0)) return { ok: false, paid: 0, error: "Domain treasury is empty" };
 
   burg.treasury = rn((burg.treasury || 0) - paid, 2);
@@ -616,7 +617,7 @@ export function fundDomainWorksForLord(
 export function issuePublicDebtForRuler(
   state: State,
   characterId: number,
-  amount = PUBLIC_DEBT_PLAYER_ISSUE_AMOUNT
+  amount = nominal(PUBLIC_DEBT_PLAYER_ISSUE_AMOUNT)
 ): FiscalActionResult {
   if (!isLivingRulerOf(state, characterId)) {
     return { ok: false, paid: 0, error: "Only the living ruler may issue public debt" };
@@ -629,7 +630,7 @@ export function issuePublicDebtForRuler(
 export function repayPublicDebtForRuler(
   state: State,
   characterId: number,
-  amount = PUBLIC_DEBT_PLAYER_REPAY_AMOUNT
+  amount = nominal(PUBLIC_DEBT_PLAYER_REPAY_AMOUNT)
 ): FiscalActionResult {
   if (!isLivingRulerOf(state, characterId)) {
     return { ok: false, paid: 0, error: "Only the living ruler may repay public debt" };
@@ -642,7 +643,7 @@ export function repayPublicDebtForRuler(
 export function issueForeignDebtForRuler(
   state: State,
   characterId: number,
-  amount = FOREIGN_DEBT_ISSUE_AMOUNT
+  amount = nominal(FOREIGN_DEBT_ISSUE_AMOUNT)
 ): FiscalActionResult & { creditorName?: string } {
   if (!isLivingRulerOf(state, characterId)) {
     return { ok: false, paid: 0, error: "Only the living ruler may issue foreign debt" };

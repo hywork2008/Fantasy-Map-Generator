@@ -17,6 +17,7 @@ import {
   isEconomyContextReady,
   setTradeCorridors
 } from "../economyContext";
+import { decayApproachTraffic, recordJourneyApproaches } from "./approachLedger";
 import type { Caravan, TradeRouteSegment } from "./marketTypes";
 import type { MarketShipment } from "./retailInventoryTypes";
 import { getGoodCargoSlotsPerUnit } from "./tradeCargo";
@@ -411,12 +412,14 @@ export function recordCaravanCorridor(caravan: Caravan): void {
   if (origin === null || destination === null) return;
   const goods = getGoods();
   const lines: { id: number; slots: number }[] = [];
+  const valued: { id: number; slots: number; value: number }[] = [];
   let slots = 0;
   for (const line of caravan.payload ?? []) {
     const perUnit = line.cargoSlotsPerUnit ?? slotsPerUnit(goods.find(good => good.i === line.goodId));
     const lineSlots = Math.max(0, line.units) * perUnit;
     slots += lineSlots;
     if (lineSlots > 0) lines.push({ id: line.goodId, slots: lineSlots });
+    if (lineSlots > 0) valued.push({ id: line.goodId, slots: lineSlots, value: Math.max(0, line.value ?? 0) });
   }
   const routeIds = landRouteIds(caravan.routeSegments ?? []);
   const days = journeyDays(caravan.routeSegments ?? [], bakedTravelDays(caravan));
@@ -432,6 +435,13 @@ export function recordCaravanCorridor(caravan: Caravan): void {
     ferryCrossings: ferryCrossingsOn(routeIds),
     threat: escortThreat(origin, destination),
     goods: lines
+  });
+  recordJourneyApproaches(caravan.routeSegments ?? [], {
+    originBurgId: origin,
+    destinationBurgId: destination,
+    cargoSlots: slots,
+    value: Math.max(0, caravan.value ?? 0),
+    goods: valued
   });
 }
 
@@ -468,6 +478,7 @@ export function recordMarketShipment(shipment: MarketShipment): void {
 
 export function decayTradeCorridors(): void {
   if (!isEconomyContextReady()) return;
+  decayApproachTraffic();
   const current = getTradeCorridors();
   if (!current.length) return;
   setTradeCorridors(decayCorridors(current));

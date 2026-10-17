@@ -60,7 +60,15 @@ export function getWartimeIncomeMultiplier(state: Pick<State, "form" | "diplomac
  * Caller must have already added the *raw* domestic income to `state.treasury`.
  * Returns adjusted income for allocateTreasury nominal % (includes wartime boost).
  */
-export function applyFormRevenueMix(state: State, rawDomesticIncome: number): RevenueMixResult {
+export function applyFormRevenueMix(
+  state: State,
+  rawDomesticIncome: number,
+  /**
+   * Collects the extraordinary wartime aid from the State's people and returns what was raised.
+   * Omitted (unit fixtures), the aid is credited as before — money from nowhere.
+   */
+  levyWartimeAid: (amount: number) => number = amount => amount
+): RevenueMixResult {
   const raw = Math.max(0, rawDomesticIncome);
   let adjustedDomesticIncome = raw;
   let wartimeSubsidy = 0;
@@ -69,7 +77,7 @@ export function applyFormRevenueMix(state: State, rawDomesticIncome: number): Re
 
   const wartimeMult = getWartimeIncomeMultiplier(state);
   if (wartimeMult > 1 && raw > 0) {
-    wartimeSubsidy = rn(raw * (wartimeMult - 1), 2);
+    wartimeSubsidy = rn(levyWartimeAid(rn(raw * (wartimeMult - 1), 2)), 2);
     if (wartimeSubsidy > 0) {
       state.treasury = rn((state.treasury || 0) + wartimeSubsidy, 2);
       adjustedDomesticIncome = rn(raw + wartimeSubsidy, 2);

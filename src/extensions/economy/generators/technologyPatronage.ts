@@ -18,6 +18,7 @@ import {
   setPatronageDeposits
 } from "../economyContext";
 import { findGood } from "./chemMedCommon";
+import { nominal } from "./moneyScale";
 import type { PatronageDeposit } from "./technologyBiasTypes";
 
 const FUEL_COAL = 2;
@@ -111,9 +112,9 @@ export function fundWorkshop(args: { characterId: number; burgId: number; amount
 } {
   const atBurg = requireCharacterAtBurg(args.characterId, args.burgId);
   if (!atBurg.ok) return atBurg;
-  const paidGold = Math.max(1, Math.round(args.amount ?? FUND_WORKSHOP_DEFAULT));
+  const paidGold = Math.max(1, Math.round(args.amount ?? nominal(FUND_WORKSHOP_DEFAULT)));
   const efficiency = patronageEfficiency(readStewardship(atBurg.character));
-  const appliedGold = Math.min(paidGold * efficiency, FUND_WORKSHOP_EFFECTIVE_CAP);
+  const appliedGold = Math.min(paidGold * efficiency, nominal(FUND_WORKSHOP_EFFECTIVE_CAP));
   const stateId = burgState(args.burgId);
   const paid = debitPayer(atBurg.character, stateId, paidGold);
   if (!paid.ok) return paid;
@@ -148,10 +149,11 @@ export function hireResearchers(args: { characterId: number; burgId: number; cou
   if (room <= 0) return { ok: false, message: "Workshop researcher roster is full." };
 
   const efficiency = patronageEfficiency(readStewardship(atBurg.character));
-  const paidGold = requested * WORKSHOP_RESEARCHER_HIRE_COST;
-  const hired = Math.min(room, Math.floor((paidGold * efficiency) / WORKSHOP_RESEARCHER_HIRE_COST));
+  const hireCost = nominal(WORKSHOP_RESEARCHER_HIRE_COST);
+  const paidGold = requested * hireCost;
+  const hired = Math.min(room, Math.floor((paidGold * efficiency) / hireCost));
   if (hired < 1) return { ok: false, message: "Stewardship is too low to hire a researcher." };
-  const charge = hired * WORKSHOP_RESEARCHER_HIRE_COST;
+  const charge = hired * hireCost;
   const paid = debitPayer(atBurg.character, burgState(args.burgId), charge);
   if (!paid.ok) return paid;
 

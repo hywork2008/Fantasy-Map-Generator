@@ -26,6 +26,7 @@ import {
   marketIdForBurg,
   pickSponsorBurg
 } from "./chemMedCommon";
+import { nominal } from "./moneyScale";
 
 function worldHasFoundation(): boolean {
   return getTechnologyProgressEntries().some(
@@ -71,7 +72,7 @@ export class AcidPlantsModule {
       let plant = plants.find(entry => entry.stateId === state.i && entry.active);
       if (!plant) {
         const burgId = pickSponsorBurg(state.i);
-        if (!burgId || !debitTreasury(state.i, ACID_PLANT_BUDGET)) continue;
+        if (!burgId || !debitTreasury(state.i, nominal(ACID_PLANT_BUDGET))) continue;
         plant = {
           burgId,
           stateId: state.i,
@@ -86,7 +87,7 @@ export class AcidPlantsModule {
         plant.role = "service";
       }
 
-      if (!debitTreasury(state.i, rn(ACID_PLANT_BUDGET * FACILITY_MAINTENANCE_RATE, 2))) {
+      if (!debitTreasury(state.i, rn(nominal(ACID_PLANT_BUDGET) * FACILITY_MAINTENANCE_RATE, 2))) {
         plant.active = false;
         const trial = trials.find(
           entry => entry.kind === "acidPlant" && entry.stateId === state.i && entry.status === "running"

@@ -63,9 +63,19 @@ export function allocateGrowthBudget(
 export function approachGrowthWeight(
   road: BurgSiteRoadEntry | undefined,
   maxLogPopulation: number,
-  minLogPopulation: number
+  minLogPopulation: number,
+  /** O4: the town's largest approach-traffic share; set only with `approachGrowthSource: "traffic"`. */
+  maxTrafficShare?: number
 ): { weight: number; defense: number } {
   if (road?.group === "searoutes") return { weight: 0, defense: 0 };
+  if (maxTrafficShare !== undefined && maxTrafficShare > 0) {
+    // Measured traffic replaces the neighbour-population proxy; diplomacy still closes a gate.
+    const neighbors = [...(road?.nextBurgs ?? []), ...(road?.nextBurg ? [road.nextBurg] : [])];
+    const access = neighbors.length ? Math.max(...neighbors.map(n => relationAccess(n.diplomacyRelation))) : 1;
+    const defense = neighbors.length ? Math.max(...neighbors.map(n => relationDefense(n.diplomacyRelation))) : 0.15;
+    const S = Math.min(1, (road?.approachTraffic?.share ?? 0) / maxTrafficShare);
+    return { weight: (road?.group === "trails" ? 0.55 : 1) * (0.5 + 0.5 * S) * access, defense };
+  }
   const neighbors = [...(road?.nextBurgs ?? []), ...(road?.nextBurg ? [road.nextBurg] : [])];
   if (!neighbors.length) return { weight: (road?.group === "trails" ? 0.55 : 1) * 0.625 * 0.8, defense: 0.15 };
   let weight = 0,
@@ -115,6 +125,10 @@ export function planUrbanGrowth(
     .filter(r => r.group !== "searoutes")
     .flatMap(r => [...(r.nextBurgs ?? []), ...(r.nextBurg ? [r.nextBurg] : [])])
     .map(b => Math.log1p(b.population ?? 0));
+  const byTraffic = document.fabric?.generation?.settings.approachGrowthSource === "traffic";
+  const maxTrafficShare = byTraffic
+    ? Math.max(0, ...roads.map(r => (r.group === "searoutes" ? 0 : (r.approachTraffic?.share ?? 0))))
+    : undefined;
   const regions: UrbanGrowthRegion[] = [];
   const outsideFaces = Object.values(document.mesh.faces).filter(
     f => f.properties.settlement === "outskirts" && f.properties.water === "land" && f.properties.buildable
@@ -131,7 +145,12 @@ export function planUrbanGrowth(
     const id = road?.approachId ?? `${profile.seed}:${band.groupId}`;
     if (seen.has(id) || road?.group === "searoutes") continue;
     seen.add(id);
-    const assessed = approachGrowthWeight(road, Math.max(...populations, 0), Math.min(...populations, Infinity));
+    const assessed = approachGrowthWeight(
+      road,
+      Math.max(...populations, 0),
+      Math.min(...populations, Infinity),
+      maxTrafficShare
+    );
     const major = assessed.weight >= 0.55;
     const start = hasWalls ? band.clearance : 0;
     const length = major ? 150 + 350 * assessed.weight : 50 + 130 * assessed.weight;

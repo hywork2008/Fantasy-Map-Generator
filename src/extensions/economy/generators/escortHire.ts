@@ -42,6 +42,7 @@ import {
   getSimulationOrdinalDay
 } from "./escortJobPostings";
 import { escortCombatDifficulty } from "./escortRouteThreat";
+import { nominal } from "./moneyScale";
 import { ANON_COMBAT_SCORE, namedHunterCombatScore, resolveCullCombat } from "./threatCullCombat";
 
 export const ESCORT_RESOLVE_ENABLED = true;
@@ -134,7 +135,7 @@ export function applyCharacterToEscortJob(args: { characterId: number; postingId
     return { ok: false, message: "Posting state is invalid." };
   }
   const minEscrow = posting.feePartial * 0.5;
-  if ((state.treasury ?? 0) < minEscrow + ESCORT_TREASURY_RESERVE) {
+  if ((state.treasury ?? 0) < minEscrow + nominal(ESCORT_TREASURY_RESERVE)) {
     return { ok: false, message: "State treasury cannot fund this escort escrow." };
   }
 
@@ -281,7 +282,10 @@ function acceptApplication(app: EscortHireApplication, overshootDays = 0): void 
   const state = getWorldContext().pack.states?.[posting.stateId];
   if (!state?.i || state.removed) return;
 
-  const escrowAmount = Math.min(posting.feePartial, Math.max(0, (state.treasury ?? 0) - ESCORT_TREASURY_RESERVE));
+  const escrowAmount = Math.min(
+    posting.feePartial,
+    Math.max(0, (state.treasury ?? 0) - nominal(ESCORT_TREASURY_RESERVE))
+  );
   if (escrowAmount < posting.feePartial * 0.5) return;
   state.treasury = rn((state.treasury ?? 0) - escrowAmount, 2);
 
@@ -480,7 +484,7 @@ function payEscortFee(contract: EscortActiveContract, character: Character, outc
   const targetPay = outcome === "success" ? contract.fee : contract.feePartial;
   const alreadyEscrowed = contract.escrow;
   const extraWanted = Math.max(0, targetPay - alreadyEscrowed);
-  const available = Math.max(0, (state.treasury ?? 0) - ESCORT_TREASURY_RESERVE);
+  const available = Math.max(0, (state.treasury ?? 0) - nominal(ESCORT_TREASURY_RESERVE));
   const extraPaid = Math.min(extraWanted, available);
   if (extraPaid > 0) {
     state.treasury = rn((state.treasury ?? 0) - extraPaid, 2);
@@ -495,7 +499,7 @@ function applyInjury(character: Character): void {
   const cooldowns = { ...getEscortCooldowns() };
   cooldowns[String(character.i)] = getSimulationOrdinalDay() + ESCORT_INJURY_COOLDOWN_DAYS;
   setEscortCooldowns(cooldowns);
-  character.wealth = rn(Math.max(0, (character.wealth || 0) - ESCORT_INJURY_WEALTH_LOSS), 2);
+  character.wealth = rn(Math.max(0, (character.wealth || 0) - nominal(ESCORT_INJURY_WEALTH_LOSS)), 2);
 }
 
 function runAnonymousEscortRound(): void {

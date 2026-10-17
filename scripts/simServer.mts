@@ -8,8 +8,9 @@
  *
  * --token  required as `Authorization: Bearer T` for every write (publish, ops, delete). Reads stay open.
  */
-import { type ChildProcess, fork } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { type ChildProcess, fork, spawn } from "node:child_process";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { join, resolve } from "node:path";
 
@@ -158,7 +159,8 @@ function debugIndex(api: string) {
       cell: `${api}/cells/{id}`,
       route: `${api}/routes/{id}`,
       settlementDiagnostics: `${api}/diagnostics/settlement?minSeparationRadii=2  (towns outside their cell, crowded pairs, bridges in the sea or over the skew limit)`,
-      archive: `${api}/archive  (the .fmg; open it in FMG to look at the same world)`
+      archive: `${api}/archive  (the .fmg; open it in FMG to look at the same world)`,
+      observe: `${api}/observe/{sample|routes|approaches|corridors|markets|staticInfo|goods|gates[?burg=]|wealth|samples|burgs/{id}/growth}  (traffic observatory; docs/plan/approach-traffic-observatory.md §5)`
     }
   };
 }
@@ -197,7 +199,9 @@ async function route(request: IncomingMessage, response: ServerResponse) {
       const now = new Date().toISOString();
       // The simulation extensions the publisher had enabled (enablement is not in the .fmg); omitted = all.
       const extensions = url.searchParams.get("extensions")?.split(",").filter(Boolean);
-      const meta = { id: channelId, name: url.searchParams.get("name") ?? channelId, createdAt: now, updatedAt: now, revision: 0, extensions };
+      // ?timeline=new starts a fresh RNG timeline from the seed (as `npm run sim -- --timeline new`).
+      const timeline = url.searchParams.get("timeline") === "new" ? "new" : undefined;
+      const meta = { id: channelId, name: url.searchParams.get("name") ?? channelId, createdAt: now, updatedAt: now, revision: 0, extensions, timeline };
       writeFileSync(join(dir, "channel.json"), JSON.stringify(meta, null, 2));
       writeFileSync(join(dir, "journal.ndjson"), "");
       try {
@@ -260,6 +264,42 @@ async function route(request: IncomingMessage, response: ServerResponse) {
     const result = (await call(id, { ...body, user })) as { revision?: number };
     notify(id, "revision", { revision: result.revision, op: body.type });
     return send(response, 200, result);
+  }
+  // Observatory (docs/plan/approach-traffic-observatory.md §5). Read-only.
+  if (sub === "observe" && method === "GET") {
+    if (entityId === "samples" || entityId === "static") {
+      // What `advance` + `sampleEvery` appended in the worker, as NDJSON.
+      const file = join(channelDir(id), entityId === "samples" ? "observe.ndjson" : "observe.static.ndjson");
+      return send(response, 200, existsSync(file) ? readFileSync(file) : Buffer.alloc(0), { "Content-Type": "application/x-ndjson" });
+    }
+    if (entityId === "burgs" && view !== undefined && parts[7] === "growth") {
+      // CE probe (§7.2) on a copy of the current snapshot, in its own process: the channel is untouched.
+      const burgId = Number(view);
+      // ?variants=neighbors,traffic generates the town once per approachGrowthSource (O4).
+      const variants = url.searchParams.get("variants") ?? "neighbors";
+      if (!/^(neighbors|traffic)(,(neighbors|traffic))?$/.test(variants)) return send(response, 400, { error: "variants: neighbors,traffic" });
+      if (!Number.isSafeInteger(burgId)) return send(response, 400, { error: "Burg id must be an integer" });
+      const work = mkdtempSync(join(tmpdir(), "fmg-growth-"));
+      try {
+        copyFileSync(join(channelDir(id), "current.fmg"), join(work, "world.fmg"));
+        await new Promise<void>((done, fail) => {
+          const child = spawn(process.execPath, ["--import", "tsx", join(root, "scripts/observeCeProbe.mjs"), join(work, "world.fmg"), String(burgId), join(work, "out.json"), "--variants", variants], {
+            cwd: root,
+            stdio: "ignore"
+          });
+          child.on("error", fail);
+          child.on("exit", code => (code === 0 ? done() : fail(new Error(`CE probe exited with ${code}`))));
+        });
+        const result = JSON.parse(readFileSync(join(work, "out.json"), "utf8")) as { burgs: unknown[] };
+        return send(response, 200, { revision: readMeta(id).revision, probes: result.burgs });
+      } finally {
+        rmSync(work, { recursive: true, force: true });
+      }
+    }
+    const views = ["sample", "routes", "approaches", "corridors", "markets", "staticInfo", "goods", "gates", "wealth"];
+    if (!entityId || !views.includes(entityId)) return send(response, 404, { error: `observe/{${views.join("|")}|samples|static}` });
+    const viewName = entityId === "staticInfo" ? "static" : entityId;
+    return send(response, 200, await call(id, { type: "observe", view: viewName, params: Object.fromEntries(url.searchParams) }));
   }
   // Debug views for AI-assisted defect reports (docs/plan/simulation-channel-server.md §16).
   if (method === "GET") {

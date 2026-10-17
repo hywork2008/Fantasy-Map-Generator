@@ -26,6 +26,7 @@ import {
   PHOSPHATE_FERTILIZER_PLANT_BUDGET,
   pickSponsorBurg
 } from "./chemMedCommon";
+import { nominal } from "./moneyScale";
 
 /**
  * Output only starts once the prerequisite (industrialSulfuricAcid) is demonstrated somewhere in
@@ -75,7 +76,7 @@ export class PhosphateFertilizerPlantsModule {
       let plant = plants.find(entry => entry.stateId === state.i && entry.active);
       if (!plant) {
         const burgId = pickSponsorBurg(state.i);
-        if (!burgId || !debitTreasury(state.i, PHOSPHATE_FERTILIZER_PLANT_BUDGET)) continue;
+        if (!burgId || !debitTreasury(state.i, nominal(PHOSPHATE_FERTILIZER_PLANT_BUDGET))) continue;
         plant = {
           burgId,
           stateId: state.i,
@@ -90,7 +91,7 @@ export class PhosphateFertilizerPlantsModule {
         plant.role = "service";
       }
 
-      if (!debitTreasury(state.i, rn(PHOSPHATE_FERTILIZER_PLANT_BUDGET * FACILITY_MAINTENANCE_RATE, 2))) {
+      if (!debitTreasury(state.i, rn(nominal(PHOSPHATE_FERTILIZER_PLANT_BUDGET) * FACILITY_MAINTENANCE_RATE, 2))) {
         plant.active = false;
         const trial = trials.find(
           entry => entry.kind === "phosphateFertilizerPlant" && entry.stateId === state.i && entry.status === "running"

@@ -122,6 +122,13 @@ export interface BurgSiteRoadEntry {
   traffic?: number;
   /** 0..1 among land routes that have traffic. */
   trafficRank?: number;
+  /**
+   * This approach's measured traffic from the Economy approach ledger
+   * (docs/plan/approach-traffic-observatory.md §4, §7.3). `share` is its part of the town's
+   * cargo slots plus pass-through departures, 0..1. Read by CE only with
+   * `approachGrowthSource: "traffic"`.
+   */
+  approachTraffic?: { cargoSlots: number; through: number; share: number };
 }
 
 export interface BurgSiteWaterbody {

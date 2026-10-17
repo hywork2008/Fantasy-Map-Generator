@@ -18,6 +18,7 @@ import {
 } from "../utils/bridgeSkewPolicy";
 import { getCultureTradition } from "../utils/cultureTradition";
 import { isGunpowderEraEnabled } from "../utils/gunpowderEra";
+import { getWorldMoneyScale } from "../utils/moneyScale";
 import { getTechnologyDevelopmentSpeed } from "../utils/technologyDevelopmentSpeed";
 import {
   getTechnologyRequirementEase,
@@ -819,11 +820,14 @@ export function buildStateSignals(): Map<number, TechnologySignals> {
     }
   }
 
+  // Treasury thresholds are per-population-point amounts; compare on that scale
+  // (docs/plan/money-scale-calibration.md).
+  const moneyScale = getWorldMoneyScale(worldContext);
   for (const state of pack.states) {
     if (!state?.i || state.removed) continue;
     const signals = map.get(state.i);
     if (!signals) continue;
-    signals.treasury = Math.max(0, Number(state.treasury) || 0);
+    signals.treasury = Math.max(0, Number(state.treasury) || 0) / moneyScale;
     signals.atWar = Boolean(state.diplomacy && (state.diplomacy as unknown[]).includes("Enemy"));
     // Urban population stays in population-point units (docs/plan/craft-demand-calibration.md
     // PR 4: "urbanPopulation はポイントのまま" — a scale gate, not restated in people).

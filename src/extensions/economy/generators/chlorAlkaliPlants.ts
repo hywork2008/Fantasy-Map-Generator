@@ -31,6 +31,7 @@ import {
   marketIdForBurg,
   pickSponsorBurg
 } from "./chemMedCommon";
+import { nominal } from "./moneyScale";
 
 /**
  * Output only starts once the world knows the underlying chemistry for each co-product Good —
@@ -70,7 +71,7 @@ export class ChlorAlkaliPlantsModule {
       let plant = plants.find(entry => entry.stateId === state.i && entry.active);
       if (!plant) {
         const burgId = pickSponsorBurg(state.i);
-        if (!burgId || !debitTreasury(state.i, CHLOR_ALKALI_PLANT_BUDGET)) continue;
+        if (!burgId || !debitTreasury(state.i, nominal(CHLOR_ALKALI_PLANT_BUDGET))) continue;
         plant = {
           burgId,
           stateId: state.i,
@@ -85,7 +86,7 @@ export class ChlorAlkaliPlantsModule {
         plant.role = "service";
       }
 
-      if (!debitTreasury(state.i, rn(CHLOR_ALKALI_PLANT_BUDGET * FACILITY_MAINTENANCE_RATE, 2))) {
+      if (!debitTreasury(state.i, rn(nominal(CHLOR_ALKALI_PLANT_BUDGET) * FACILITY_MAINTENANCE_RATE, 2))) {
         plant.active = false;
         plant.lastFailureReason = "fundingCut";
         continue;

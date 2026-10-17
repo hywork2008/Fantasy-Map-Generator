@@ -126,6 +126,15 @@ export function generateCityOnDocument(
     );
     return null;
   }
+  if (settings.descriptor && settings.approachGrowthSource !== "traffic") {
+    // Without the O4 opt-in the measured approach traffic must not reach the generation inputs,
+    // so towns stay identical to those generated before the ledger existed.
+    if (settings.descriptor.roads.some(road => road.approachTraffic)) {
+      const descriptor = structuredClone(settings.descriptor);
+      for (const road of descriptor.roads) delete road.approachTraffic;
+      settings = { ...settings, descriptor };
+    }
+  }
   const profile = settings.descriptor?.urbanMorphology;
   if (profile && supportsUrbanMorphology(profile.period)) {
     const inferred = inferredWallSettings(profile, settings.descriptor!.burg.dwellings);

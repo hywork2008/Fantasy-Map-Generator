@@ -213,3 +213,22 @@ describe("common growth masks across generators", () => {
     });
   }
 });
+
+describe("approachGrowthWeight with measured traffic (O4)", () => {
+  const road = (share: number, population: number) =>
+    ({
+      group: "roads",
+      nextBurg: { id: 2, name: "B", population },
+      approachTraffic: { cargoSlots: share * 10, through: 0, share }
+    }) as unknown as BurgSiteRoadEntry;
+
+  it("ranks by traffic share instead of the neighbour's population", () => {
+    const busySmall = approachGrowthWeight(road(0.8, 100), Math.log1p(10000), Math.log1p(100), 0.8);
+    const quietLarge = approachGrowthWeight(road(0.2, 10000), Math.log1p(10000), Math.log1p(100), 0.8);
+    expect(busySmall.weight).toBeGreaterThan(quietLarge.weight);
+    // Default: the population proxy still decides.
+    const proxySmall = approachGrowthWeight(road(0.8, 100), Math.log1p(10000), Math.log1p(100));
+    const proxyLarge = approachGrowthWeight(road(0.2, 10000), Math.log1p(10000), Math.log1p(100));
+    expect(proxySmall.weight).toBeLessThan(proxyLarge.weight);
+  });
+});

@@ -58,6 +58,7 @@ import {
   type GreatLibraryProject,
   type GreatLibraryStatus
 } from "./greatLibraryTypes";
+import { nominal } from "./moneyScale";
 
 /**
  * Royal-patronage Great Library system (docs/plan/great-library.md). One State-scoped
@@ -381,13 +382,16 @@ export class GreatLibraryModule {
     }
 
     const availableTreasury = Math.max(0, state.treasury ?? 0);
-    const spend = rn(Math.min(availableTreasury * GREAT_LIBRARY_BUDGET_SHARE, GREAT_LIBRARY_TARGET_ANNUAL_SPEND), 2);
+    const spend = rn(
+      Math.min(availableTreasury * GREAT_LIBRARY_BUDGET_SHARE, nominal(GREAT_LIBRARY_TARGET_ANNUAL_SPEND)),
+      2
+    );
     // Fast-Forward (docs/plan/advance-time-fast-forward.md §9.4 / Phase 3): keep spend/coverage
     // scaling with the preset-driven treasury (the project keeps building) but leave the treasury
     // balance to applyFastForwardEconomySettlement()'s preset rate.
     if (!isFastAdvanceRunActive()) state.treasury = rn(Math.max(0, availableTreasury - spend), 2);
 
-    const coverage = spend / GREAT_LIBRARY_TARGET_ANNUAL_SPEND;
+    const coverage = spend / nominal(GREAT_LIBRARY_TARGET_ANNUAL_SPEND);
     const wartimeFactor = isStateInActiveConflict(state.i) ? GREAT_LIBRARY_WARTIME_PROGRESS_FACTOR : 1;
     const progress = rn(project.progress + coverage * GREAT_LIBRARY_PROGRESS_PER_FULL_COVERAGE * wartimeFactor, 4);
 
@@ -461,7 +465,7 @@ export class GreatLibraryModule {
     year: number,
     rng: Pick<RNGService, "P" | "rand">
   ): GreatLibraryProject {
-    const spendCap = rn(GREAT_LIBRARY_TARGET_ANNUAL_SPEND * GREAT_LIBRARY_ENDOWMENT_MAINTAIN_SPEND_FACTOR, 2);
+    const spendCap = rn(nominal(GREAT_LIBRARY_TARGET_ANNUAL_SPEND) * GREAT_LIBRARY_ENDOWMENT_MAINTAIN_SPEND_FACTOR, 2);
     const availableTreasury = Math.max(0, state.treasury ?? 0);
     const spend = Math.min(availableTreasury, spendCap);
     // Fast-Forward: see the matching guard in settleBuilding() above — endowment coverage still

@@ -27,6 +27,7 @@ import {
   marketIdForBurg
 } from "./chemMedCommon";
 import type { Levee, LeveeSite } from "./leveeTypes";
+import { nominal } from "./moneyScale";
 
 /** A State may maintain several levee reaches at once — looser than Dam's 3, since a reach is
  *  cheaper (LEVEE_BUDGET) and structurally more numerous than a point-source dam. */
@@ -91,7 +92,7 @@ export class LeveesModule {
       if (!candidateSite) continue;
 
       const burgId = this.findNearestBurgId(candidateSite.cells[0]!, state.i);
-      if (!burgId || !debitTreasury(state.i, LEVEE_BUDGET)) continue;
+      if (!burgId || !debitTreasury(state.i, nominal(LEVEE_BUDGET))) continue;
 
       levees.push({
         i: levees.length + 1,
@@ -107,7 +108,7 @@ export class LeveesModule {
   }
 
   private settleLevee(levee: Levee, year: number): void {
-    if (!debitTreasury(levee.stateId, rn(LEVEE_BUDGET * CIVIL_INFRASTRUCTURE_MAINTENANCE_RATE, 2))) {
+    if (!debitTreasury(levee.stateId, rn(nominal(LEVEE_BUDGET) * CIVIL_INFRASTRUCTURE_MAINTENANCE_RATE, 2))) {
       levee.active = false;
       levee.lastFailureReason = "fundingCut";
       levee.utilization = 0;

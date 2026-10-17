@@ -22,6 +22,7 @@ import {
   GREAT_LIBRARY_TREASURY_FLOOR,
   type GreatLibraryEligibility
 } from "./greatLibraryTypes";
+import { nominal } from "./moneyScale";
 
 /**
  * Commitment-kind → "how much this commitment predisposes a ruler toward scholarship" affinity
@@ -137,7 +138,7 @@ export interface GreatLibraryEligibilityInput {
 }
 
 function projectedCoverageOf(treasury: number): number {
-  return Math.min(1, (treasury * GREAT_LIBRARY_BUDGET_SHARE) / GREAT_LIBRARY_TARGET_ANNUAL_SPEND);
+  return Math.min(1, (treasury * GREAT_LIBRARY_BUDGET_SHARE) / nominal(GREAT_LIBRARY_TARGET_ANNUAL_SPEND));
 }
 
 /** Full triple-condition + wealth + peace start-eligibility check (docs/plan/great-library.md KD-2/3/4). */
@@ -153,7 +154,8 @@ export function checkGreatLibraryEligibility(input: GreatLibraryEligibilityInput
 
   const treasury = Math.max(0, input.treasury);
   const projectedCoverage = projectedCoverageOf(treasury);
-  const wealthOk = treasury >= GREAT_LIBRARY_TREASURY_FLOOR && projectedCoverage >= GREAT_LIBRARY_MIN_START_COVERAGE;
+  const wealthOk =
+    treasury >= nominal(GREAT_LIBRARY_TREASURY_FLOOR) && projectedCoverage >= GREAT_LIBRARY_MIN_START_COVERAGE;
 
   const peaceOk = !GREAT_LIBRARY_REQUIRE_PEACE_TO_START || !input.hasEnemyDiplomacy;
 
@@ -192,7 +194,7 @@ export function checkGreatLibraryMaintain(input: GreatLibraryMaintainInput): Gre
 
   const treasury = Math.max(0, input.treasury);
   const projectedCoverage = projectedCoverageOf(treasury);
-  const treasuryOk = treasury >= GREAT_LIBRARY_MAINTAIN_TREASURY_FLOOR;
+  const treasuryOk = treasury >= nominal(GREAT_LIBRARY_MAINTAIN_TREASURY_FLOOR);
   const coverageOk = projectedCoverage >= GREAT_LIBRARY_MAINTAIN_COVERAGE;
 
   return { ok: rulerOk && treasuryOk && coverageOk, rulerOk, treasuryOk, coverageOk, rulerScore, projectedCoverage };

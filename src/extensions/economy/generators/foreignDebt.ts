@@ -2,6 +2,7 @@ import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
 import { peekCreditPoolBalance } from "./creditPool";
+import { nominal } from "./moneyScale";
 
 /**
  * Multi-ledger PR-13 — thin international / foreign debt (外債).
@@ -99,7 +100,7 @@ export function findForeignCreditor(borrower: State): State | null {
       const treasury = other.treasury || 0;
       const pool = peekCreditPoolBalance(other);
       const surplus = treasury + pool * 0.25;
-      if (surplus < FOREIGN_CREDITOR_MIN_SURPLUS) continue;
+      if (surplus < nominal(FOREIGN_CREDITOR_MIN_SURPLUS)) continue;
       // Prefer Ally, then higher surplus.
       const relBonus = rel === "Ally" ? 20 : rel === "Friendly" ? 10 : 5;
       const score = surplus + relBonus;
@@ -117,7 +118,7 @@ export function findForeignCreditor(borrower: State): State | null {
 /**
  * Issue a foreign loan into L2 from a friendly state's treasury (thin 外債).
  */
-export function issueForeignDebt(state: State, amount = FOREIGN_DEBT_ISSUE_AMOUNT): ForeignDebtActionResult {
+export function issueForeignDebt(state: State, amount = nominal(FOREIGN_DEBT_ISSUE_AMOUNT)): ForeignDebtActionResult {
   if (!state.i) return { ok: false, amount: 0, error: "Invalid state" };
   const form = state.form || "Monarchy";
   if (form === "Anarchy") {
@@ -128,7 +129,7 @@ export function issueForeignDebt(state: State, amount = FOREIGN_DEBT_ISSUE_AMOUN
   }
 
   const outstanding = sumForeignDebtPrincipal(state);
-  const room = rn(FOREIGN_DEBT_CAP - outstanding, 2);
+  const room = rn(nominal(FOREIGN_DEBT_CAP) - outstanding, 2);
   if (!(room > 0)) return { ok: false, amount: 0, error: "Foreign debt is at the cap" };
 
   const creditor = findForeignCreditor(state);
@@ -138,7 +139,7 @@ export function issueForeignDebt(state: State, amount = FOREIGN_DEBT_ISSUE_AMOUN
 
   const creditorCash = creditor.treasury || 0;
   const maxFromCreditor = rn(creditorCash * FOREIGN_LEND_FROM_TREASURY_SHARE, 2);
-  const want = rn(Math.min(amount, room, FOREIGN_DEBT_ISSUE_AMOUNT, maxFromCreditor, creditorCash), 2);
+  const want = rn(Math.min(amount, room, nominal(FOREIGN_DEBT_ISSUE_AMOUNT), maxFromCreditor, creditorCash), 2);
   if (!(want > 0)) {
     return { ok: false, amount: 0, error: "Creditor cannot fund this loan" };
   }
@@ -254,7 +255,7 @@ export function serviceForeignDebt(state: State): ForeignDebtServiceResult {
 export function canIssueForeignDebt(state: State): boolean {
   if (!state.i || state.debtInDefault) return false;
   if ((state.form || "") === "Anarchy") return false;
-  if (sumForeignDebtPrincipal(state) >= FOREIGN_DEBT_CAP) return false;
+  if (sumForeignDebtPrincipal(state) >= nominal(FOREIGN_DEBT_CAP)) return false;
   return findForeignCreditor(state) !== null || findBondMarketUnderwriter(state) !== null;
 }
 
@@ -291,7 +292,7 @@ export function findBondMarketUnderwriter(borrower: State): State | null {
       if (other.debtInDefault || other.foreignDebtInDefault) continue;
 
       const treasury = other.treasury || 0;
-      if (treasury < FOREIGN_CREDITOR_MIN_SURPLUS) continue;
+      if (treasury < nominal(FOREIGN_CREDITOR_MIN_SURPLUS)) continue;
       const score = treasury + (rel === "Neutral" || rel === "Unknown" ? 15 : 5);
       if (score > bestScore) {
         bestScore = score;
@@ -308,7 +309,10 @@ export function findBondMarketUnderwriter(borrower: State): State | null {
  * PR-14: issue foreign debt via the bond market (third-party Neutral underwriter, higher rate).
  * Falls back from empty bilateral Ally market.
  */
-export function issueBondMarketDebt(state: State, amount = FOREIGN_DEBT_ISSUE_AMOUNT): ForeignDebtActionResult {
+export function issueBondMarketDebt(
+  state: State,
+  amount = nominal(FOREIGN_DEBT_ISSUE_AMOUNT)
+): ForeignDebtActionResult {
   if (!state.i) return { ok: false, amount: 0, error: "Invalid state" };
   const form = state.form || "Monarchy";
   if (form === "Anarchy") {
@@ -319,7 +323,7 @@ export function issueBondMarketDebt(state: State, amount = FOREIGN_DEBT_ISSUE_AM
   }
 
   const outstanding = sumForeignDebtPrincipal(state);
-  const room = rn(FOREIGN_DEBT_CAP - outstanding, 2);
+  const room = rn(nominal(FOREIGN_DEBT_CAP) - outstanding, 2);
   if (!(room > 0)) return { ok: false, amount: 0, error: "Foreign debt is at the cap" };
 
   // Prefer direct Ally first; bond market is the fallback.
@@ -335,7 +339,7 @@ export function issueBondMarketDebt(state: State, amount = FOREIGN_DEBT_ISSUE_AM
 
   const creditorCash = underwriter.treasury || 0;
   const maxFrom = rn(creditorCash * BOND_MARKET_LEND_SHARE, 2);
-  const want = rn(Math.min(amount, room, FOREIGN_DEBT_ISSUE_AMOUNT, maxFrom, creditorCash), 2);
+  const want = rn(Math.min(amount, room, nominal(FOREIGN_DEBT_ISSUE_AMOUNT), maxFrom, creditorCash), 2);
   if (!(want > 0)) {
     return { ok: false, amount: 0, error: "Underwriter cannot fund this issue" };
   }
@@ -377,7 +381,10 @@ export function issueBondMarketDebt(state: State, amount = FOREIGN_DEBT_ISSUE_AM
 /**
  * Issue foreign credit: bilateral Ally first, else bond market (PR-14).
  */
-export function issueForeignOrBondDebt(state: State, amount = FOREIGN_DEBT_ISSUE_AMOUNT): ForeignDebtActionResult {
+export function issueForeignOrBondDebt(
+  state: State,
+  amount = nominal(FOREIGN_DEBT_ISSUE_AMOUNT)
+): ForeignDebtActionResult {
   if (findForeignCreditor(state)) return issueForeignDebt(state, amount);
   return issueBondMarketDebt(state, amount);
 }

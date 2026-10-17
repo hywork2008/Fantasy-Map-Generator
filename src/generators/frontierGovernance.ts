@@ -8,6 +8,7 @@ import {
   type SimulationContext
 } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
+import { getWorldMoneyScale } from "../utils/moneyScale";
 import type { RNGService } from "../utils/probabilityUtils";
 import { getCellPrecipitation, getCellWaterAccess, getWellCapacityBonus } from "./cellWaterAccess";
 import { getCellSubsistenceCapacity } from "./subsistenceCapacity";
@@ -62,6 +63,7 @@ export function advanceFrontierGovernance(
 ): boolean {
   if (simulation.currentMonth !== 1 || simulation.currentDay !== 1) return false;
   let changed = false;
+  const k = getWorldMoneyScale(world);
   for (const state of world.pack.states ?? []) {
     if (!state?.i || state.removed) continue;
     const governance = getFrontierGovernance(simulation, state.i);
@@ -71,19 +73,19 @@ export function advanceFrontierGovernance(
     const investment = chooseInvestment(world, simulation, state.i, governance.policy, rng);
     if (investment) {
       const currentLevel = governance.investments[investment] ?? 0;
-      const cost = Math.min(80, INVESTMENT_COST * (1 + currentLevel * 2));
-      if ((state.treasury ?? 0) >= cost + 12) {
+      const cost = k * Math.min(80, INVESTMENT_COST * (1 + currentLevel * 2));
+      if ((state.treasury ?? 0) >= cost + 12 * k) {
         state.treasury = Math.max(0, (state.treasury ?? 0) - cost);
         governance.investments[investment]++;
       }
     }
     // Wealthy states can fund an additional public works project if treasury is high
-    if ((state.treasury ?? 0) >= 150) {
+    if ((state.treasury ?? 0) >= 150 * k) {
       const secondInvestment = chooseInvestment(world, simulation, state.i, governance.policy, rng);
       if (secondInvestment) {
         const secondLevel = governance.investments[secondInvestment] ?? 0;
-        const secondCost = Math.min(80, INVESTMENT_COST * (1 + secondLevel * 2));
-        if ((state.treasury ?? 0) >= secondCost + 50) {
+        const secondCost = k * Math.min(80, INVESTMENT_COST * (1 + secondLevel * 2));
+        if ((state.treasury ?? 0) >= secondCost + 50 * k) {
           state.treasury = Math.max(0, (state.treasury ?? 0) - secondCost);
           governance.investments[secondInvestment]++;
         }
@@ -110,22 +112,24 @@ export function assessFrontierSupport(
   const supportCapacity = capacity * (1 + getWellCapacityBonus(water, governance.investments.well));
   const danger = cells.danger[project.cellId] ?? 0;
   const disaster = rollDisaster(cells, project.cellId, population, capacity, danger, governance, rng, water.canDigWell);
+  const k = getWorldMoneyScale(world);
   const recoveryCost = disaster
-    ? Math.max(1, EMERGENCY_RELIEF_COST - mitigationFor(disaster, governance, water.canDigWell))
+    ? k * Math.max(1, EMERGENCY_RELIEF_COST - mitigationFor(disaster, governance, water.canDigWell))
     : 0;
   const baseUpkeep = project.origin === "seaborne" ? 2 : 1;
-  const upkeep = Math.max(0, baseUpkeep - Math.min(baseUpkeep, governance.investments.road));
+  const upkeep = k * Math.max(0, baseUpkeep - Math.min(baseUpkeep, governance.investments.road));
   const food = Math.max(0, 1 - Math.min(1, governance.investments.granary));
   const failureReasons: string[] = [];
 
   if (!state || state.removed) failureReasons.push("The sponsoring state no longer exists");
   // Judge the calendar-boundary reserve, not the post-economy cash remaining
   // after same-tick taxes and department upkeep.
-  if (priorBudget < 12 + upkeep + recoveryCost) failureReasons.push("The state lacks its protected frontier reserve");
+  if (priorBudget < 12 * k + upkeep + recoveryCost)
+    failureReasons.push("The state lacks its protected frontier reserve");
   if (supportCapacity < population * 1.2) failureReasons.push("Local food capacity is too low for the settlement");
   if (danger > 150 + governance.investments.fort * 12)
     failureReasons.push("Local danger exceeds the fort and patrol cover");
-  if (disaster && recoveryCost > 0 && priorBudget < 12 + upkeep + recoveryCost) {
+  if (disaster && recoveryCost > 0 && priorBudget < 12 * k + upkeep + recoveryCost) {
     failureReasons.push(`${formatDisaster(disaster)} recovery cannot be funded`);
   }
 
@@ -166,7 +170,7 @@ function choosePolicy(
   const hasOutpost = projects.some(project => project.stage === FRONTIER_STAGE.outpost);
   if (hasOutpost) return "defense";
   const state = world.pack.states[stateId];
-  return (state?.treasury ?? 0) >= 30 ? "expansion" : "balanced";
+  return (state?.treasury ?? 0) >= 30 * getWorldMoneyScale(world) ? "expansion" : "balanced";
 }
 
 function chooseInvestment(

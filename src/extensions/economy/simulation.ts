@@ -4,6 +4,7 @@ import { simEvents } from "../../simulation/events";
 import { isRepairAtVersion } from "../../simulation/loadRepairs";
 import { uiPreferencesStore } from "../../state/uiPreferencesStore";
 import type { SimulationExtension, SimulationExtensionAPI } from "../../types/extension-api";
+import { getCharacters, hasCharactersContext } from "../characters/charactersContext";
 import {
   FAST_ADVANCE_COARSE_GATE_DAYS,
   FUNERAL_DEMAND_EVENT,
@@ -21,7 +22,7 @@ import {
   isShipbuildingStrategicProcurementDemand,
   isShipbuildingSurplusShipRequest
 } from "../hostTypes";
-import { measureTickStep, measureTickStepAsync, TIME } from "../hostUtils";
+import { measureTickStep, measureTickStepAsync, rn, TIME } from "../hostUtils";
 import { getCadencePhase, setCadencePhase } from "./context/cadencePhases";
 import {
   ANNUAL_GATE,
@@ -150,6 +151,7 @@ import {
   settleMonthlyHeating
 } from "./generators/heating";
 import { HospitalInstallations } from "./generators/hospitalInstallations";
+import { payOutMarketSurplus, spendUrbanHouseholdSurplus } from "./generators/householdWealth";
 import type { IncrementalBatchOptions } from "./generators/incrementalBatching";
 import { IndustrialTechInvestment } from "./generators/industrialTechInvestment";
 import { InnFacilities } from "./generators/innFacilities";
@@ -173,6 +175,7 @@ import { MineOperations } from "./generators/mineOperations";
 import { MineralResources } from "./generators/mineralResources";
 import { Minting } from "./generators/minting";
 import { getStateMountedCapacity } from "./generators/mountAvailability";
+import { payNavyCrew, settleNavyVoyageTrade } from "./generators/navyTrade";
 import { NitrogenFertilizerInvestment } from "./generators/nitrogenFertilizerInvestment";
 import { OilRefineryPlants } from "./generators/oilRefineryPlants";
 import { OverseasRelations } from "./generators/overseasRelations";
@@ -202,12 +205,7 @@ import { SteamIndustry } from "./generators/steamIndustry";
 import { SteelConverters } from "./generators/steelConverters";
 import { StrategicProcurement } from "./generators/strategicProcurement";
 import { SyntheticAmmoniaPlants } from "./generators/syntheticAmmoniaPlants";
-import {
-  clearStrategicProcurementExpenses,
-  clearVoyageIncome,
-  registerVoyageIncome,
-  Taxes
-} from "./generators/taxes-generator";
+import { clearStrategicProcurementExpenses, clearVoyageIncome, Taxes } from "./generators/taxes-generator";
 import {
   cancelInstructMission,
   decayInstructionResidues,
@@ -798,6 +796,17 @@ function registerEconomyCommands(api: SimulationExtensionAPI): void {
       if (!skipFoodConsumption) {
         measureTickStep("production:foodConsumption", () => settleMonthlyFoodConsumption());
       }
+      measureTickStep("production:householdSpending", () => spendUrbanHouseholdSurplus());
+      measureTickStep("production:marketPayout", () =>
+        payOutMarketSurplus((characterId, amount) => {
+          const merchant = hasCharactersContext()
+            ? getCharacters().find(c => c.i === characterId && !c.dead)
+            : undefined;
+          if (!merchant) return false;
+          merchant.wealth = rn((merchant.wealth || 0) + amount, 2);
+          return true;
+        })
+      );
       measureTickStep("production:taxes", () => Taxes.collectTaxes());
       measureTickStep("production:stateSummaries", () => refreshStateEconomySummaries());
       measureTickStep("production:playerCommerce", () => synchronizePlayerCommerce());
@@ -1944,26 +1953,28 @@ function register(api: SimulationExtensionAPI): () => void {
     detail.result = StrategicProcurement.getShipbuildingProcurementStatus(detail.stateId, detail.destinationMarketId);
   });
 
-  // Listen for Shipbuilding's trade-voyage income (optional dependency — harmless no-op
-  // if Shipbuilding is never enabled). Buffered in taxes-generator.ts and folded into treasury
-  // via foldBufferedStateIncome() rather than written directly, since it must compose with
-  // strategic-procurement expenses buffered the same way. This event fires once per ship hull
-  // per tick (runVoyageTick in shipVoyages.ts), so a state with several hulls can queue several
-  // of these microtasks for the same tick — foldBufferedStateIncome() only touches the buffered
-  // voyage-income/procurement-expense maps and is safe to call repeatedly. Taxes.collectTaxes()
-  // itself must NOT be called here: it also re-sums the current cycle's deal taxes and re-applies
-  // poll tax / military upkeep in full, neither of which is idempotent between production cycles,
-  // so calling it once per hull would double- (or N-times-) count those every tick.
-  on("fmg:shipbuilding-voyage-income", e => {
+  // Shipbuilding reports state ships trading on patrol and their crews; the goods and money move
+  // here (navyTrade.ts, docs/plan/initial-wealth-calibration.md §8). Both run inside Shipbuilding's
+  // tick, synchronously, so the money flows are attributed to that step.
+  on("fmg:shipbuilding-voyage-trade", e => {
     if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
-    const { stateId, amount } = (e as CustomEvent).detail as { stateId: number; amount: number };
-    if (!stateId || !(amount > 0)) return;
-    registerVoyageIncome(stateId, amount);
-    // Voyage income changes tax accounting, not production, so do not force an
-    // expensive production/trade settlement just to expose it to the treasury.
-    queueMicrotask(() => {
-      if (api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) Taxes.foldBufferedStateIncome();
-    });
+    const { stateId, homeBurgId, buildPoints, deltaYears } = (e as CustomEvent).detail as {
+      stateId: number;
+      homeBurgId: number;
+      buildPoints: number;
+      deltaYears: number;
+    };
+    if (stateId) settleNavyVoyageTrade(stateId, homeBurgId, buildPoints, deltaYears);
+  });
+  on("fmg:shipbuilding-navy-payroll", e => {
+    if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+    const { stateId, homeBurgId, crew, deltaYears } = (e as CustomEvent).detail as {
+      stateId: number;
+      homeBurgId: number;
+      crew: number;
+      deltaYears: number;
+    };
+    if (stateId) payNavyCrew(stateId, homeBurgId, crew, deltaYears);
   });
 
   // Depleted cells recover a little on every advanceTime() call, independent of
@@ -2451,8 +2462,8 @@ function register(api: SimulationExtensionAPI): () => void {
       if (daysSinceLastProduction >= 30) {
         daysSinceLastProduction -= 30;
         const settlementMonth = (firstSettlementMonth + settledMonths) % 12 || 12;
-        settleMonthlyFoodConsumption(settlementMonth);
-        FoodProduction.generateMonthlyLedger(settlementMonth);
+        measureTickStep("food:consumption", () => settleMonthlyFoodConsumption(settlementMonth));
+        measureTickStep("food:production", () => FoodProduction.generateMonthlyLedger(settlementMonth));
         settledMonths++;
         foodSettlementsThisTick++;
         if (settlementMonth % 3 === 0) {

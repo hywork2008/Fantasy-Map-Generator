@@ -26,6 +26,7 @@ import {
 } from "./chemMedCommon";
 import { getPracticeForState, recordLabGlassPractice, recordObsidianPractice } from "./chemMedPractice";
 import type { CraftDomainEmploymentRecord } from "./guildKnowledgeTypes";
+import { nominal } from "./moneyScale";
 import { biasExperimentRecordRate, getWorkshopPatronageAppliedGold } from "./technologyBiasApply";
 import { patronageFundedBurgId } from "./technologyPatronage";
 
@@ -73,14 +74,14 @@ export class ExperimentalWorkshopsModule {
         const burgId = fundedBurgId ?? pickSponsorBurg(state.i);
         if (!burgId) continue;
         const applied = getWorkshopPatronageAppliedGold(burgId, state.i, year);
-        const need = Math.max(0, EXPERIMENTAL_BUDGET - applied);
+        const need = Math.max(0, nominal(EXPERIMENTAL_BUDGET) - applied);
         if (need > 0 && !debitTreasury(state.i, need)) continue;
         workshop = {
           burgId,
           sponsorStateId: state.i,
           active: true,
           researchers: RESEARCHERS,
-          annualBudget: EXPERIMENTAL_BUDGET,
+          annualBudget: nominal(EXPERIMENTAL_BUDGET),
           experimentRecord: 0,
           lastFundedYear: year
         };
@@ -92,7 +93,7 @@ export class ExperimentalWorkshopsModule {
         // appliedGold; empty deposits still debit the full upkeep amount.
         const need = Math.max(
           0,
-          rn(EXPERIMENTAL_BUDGET * FACILITY_MAINTENANCE_RATE, 2) -
+          rn(nominal(EXPERIMENTAL_BUDGET) * FACILITY_MAINTENANCE_RATE, 2) -
             getWorkshopPatronageAppliedGold(workshop.burgId, state.i, year)
         );
         if (need > 0 && !debitTreasury(state.i, need)) {

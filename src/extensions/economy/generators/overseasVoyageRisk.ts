@@ -11,6 +11,7 @@
  */
 
 import { pow } from "../../../simulation/deterministicMath";
+import { nominal } from "./moneyScale";
 import type { ClimateBand, DistanceBand, ExpeditionPurpose, PowerTier } from "./overseasRelationsTypes";
 import { CLIMATE_BANDS } from "./overseasRelationsTypes";
 
@@ -119,7 +120,7 @@ export function computeExpeditionBuyCost(params: {
   powerTier: PowerTier;
 }): number {
   return (
-    EXPEDITION_BASE_INVESTMENT *
+    nominal(EXPEDITION_BASE_INVESTMENT) *
     (params.goodValue / GOOD_VALUE_NORMALIZER) *
     DISTANCE_COST_FACTOR[params.distanceBand] *
     BUY_COST_MULTIPLIER[params.powerTier]

@@ -521,6 +521,8 @@ export function applyStoredOptions(): void {
     "volcanoActiveChance",
     "volcanicSoilStrength",
     "economyStartMode",
+    // No UI control; a stored value overrides the money scale base for calibration runs.
+    "moneyScaleBase",
     "ironDepositsPerState",
     "enclosureCalculationMode",
     "manors",

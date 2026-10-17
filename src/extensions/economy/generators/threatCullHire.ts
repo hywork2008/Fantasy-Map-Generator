@@ -25,6 +25,7 @@ import {
 import { cancelConstructionApplication, resignConstructionJob } from "./constructionHire";
 import { applyCullPracticeCredit } from "./cullPractice";
 import { characterHasEmploymentCommitment } from "./employmentCommitment";
+import { nominal } from "./moneyScale";
 import {
   ANON_COMBAT_SCORE,
   ANON_ECOLOGY_SCALE,
@@ -497,7 +498,7 @@ function applyInjury(character: Character): void {
   const cooldowns = { ...getCullCooldowns() };
   cooldowns[String(character.i)] = getSimulationOrdinalDay() + CULL_INJURY_COOLDOWN_DAYS;
   setCullCooldowns(cooldowns);
-  character.wealth = rn(Math.max(0, (character.wealth || 0) - CULL_INJURY_WEALTH_LOSS), 2);
+  character.wealth = rn(Math.max(0, (character.wealth || 0) - nominal(CULL_INJURY_WEALTH_LOSS)), 2);
 }
 
 function runAnonymousCullRound(): void {

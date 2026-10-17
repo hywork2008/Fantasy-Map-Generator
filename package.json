@@ -30,6 +30,7 @@
     "test:sim-golden": "tsx scripts/simGolden.mts",
     "sim": "tsx scripts/sim.mts",
     "sim:server": "tsx scripts/simServer.mts",
+    "observe": "tsx scripts/observe.mts",
     "lint:fix": "biome check --write --unsafe",
     "madge": "madge --circular --extensions ts,tsx src/app.ts",
     "prepare": "simple-git-hooks",

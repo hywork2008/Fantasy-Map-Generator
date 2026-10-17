@@ -64,6 +64,8 @@ export interface BurgEconomyExtensionHooks {
   getBurgEconomySummary?: (burgId: number) => BurgEconomySummary | null;
   /** City Editor site profile. A guild with zero craftsmen is still included. */
   getBurgSiteEconomy?: (burgId: number) => BurgSiteEconomy | null;
+  /** Approach ledger rows of one burg (docs/plan/approach-traffic-observatory.md O4). */
+  getBurgApproachTraffic?: (burgId: number) => import("../services/burgEconomyExtensions").BurgApproachTrafficRow[];
 }
 
 export interface ExtensionStateSnapshot {

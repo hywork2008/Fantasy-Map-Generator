@@ -24,8 +24,37 @@ export interface TickProfileEntry {
 
 const _entries = new Map<string, TickProfileEntry>();
 
+/**
+ * Optional read-only observer told when each step starts and ends (measurement tools such as the
+ * money-flow recorder, docs/plan/initial-wealth-calibration.md §5.1). It must not change the
+ * world. Unset in normal play, which keeps measureTickStep's behaviour unchanged.
+ */
+export interface TickStepObserver {
+  enter(label: string): void;
+  exit(label: string): void;
+}
+let _observer: TickStepObserver | null = null;
+
+export function setTickStepObserver(observer: TickStepObserver | null): void {
+  _observer = observer;
+}
+
+function observed<T>(label: string, fn: () => T): T {
+  const observer = _observer!;
+  observer.enter(label);
+  try {
+    return fn();
+  } finally {
+    observer.exit(label);
+  }
+}
+
 /** Runs `fn`, recording its wall-clock cost under `label`. Zero overhead when recording is disabled. */
 export function measureTickStep<T>(label: string, fn: () => T): T {
+  if (_observer) {
+    const inner = fn;
+    fn = () => observed(label, inner);
+  }
   if (!RECORDING_ENABLED) return fn();
 
   const start = performance.now();
@@ -42,6 +71,18 @@ export function measureTickStep<T>(label: string, fn: () => T): T {
  * measureTickStep(label, () => asyncFn()) would capture.
  */
 export async function measureTickStepAsync<T>(label: string, fn: () => Promise<T>): Promise<T> {
+  if (_observer) {
+    const observer = _observer;
+    const inner = fn;
+    fn = async () => {
+      observer.enter(label);
+      try {
+        return await inner();
+      } finally {
+        observer.exit(label);
+      }
+    };
+  }
   if (!RECORDING_ENABLED) return fn();
 
   const start = performance.now();

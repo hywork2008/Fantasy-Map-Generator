@@ -5,6 +5,7 @@ import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getRulerId, setRulerId } from "../../nobility/nobilityContext";
 import { appendCouncilLog } from "./councilSession";
+import { nominal } from "./moneyScale";
 
 /**
  * Multi-ledger PR-15 — thin post-coup legitimacy war (pretender vs new regime).
@@ -145,7 +146,7 @@ export function tickLegitimacyWar(state: State): LegitimacyWarTickResult {
   state.legitimacyWarTicks = ticks;
 
   const cash = state.treasury || 0;
-  const drain = rn(Math.min(LEGIT_WAR_TREASURY_DRAIN, cash), 2);
+  const drain = rn(Math.min(nominal(LEGIT_WAR_TREASURY_DRAIN), cash), 2);
   if (drain > 0) {
     state.treasury = rn(cash - drain, 2);
     result.treasuryDrained = drain;

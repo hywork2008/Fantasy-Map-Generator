@@ -4,6 +4,7 @@ import { type BurgApproachDryLink, burgApproachDryLink } from "../services/burgA
 import { reconnectRelocatedBurgLandRoutes } from "../services/relocatedBurgRoutes";
 import { settlementGeometrySession } from "../services/settlementGeometrySession";
 import { optionsStore } from "../state/optionsStore";
+import { getWorldMoneyScale } from "../utils/moneyScale";
 import { Burgs } from "./burgs-generator";
 import { Routes } from "./routes-generator";
 
@@ -30,8 +31,9 @@ export function advancePortDevelopment(
   const { burgs, cells, states } = world.pack;
   const developments: PortDevelopment[] = [];
 
+  const k = getWorldMoneyScale(world);
   for (const state of states) {
-    if (!state?.i || state.removed || (state.treasury ?? 0) < PORT_DEVELOPMENT_COST + PORT_DEVELOPMENT_RESERVE) {
+    if (!state?.i || state.removed || (state.treasury ?? 0) < k * (PORT_DEVELOPMENT_COST + PORT_DEVELOPMENT_RESERVE)) {
       continue;
     }
 
@@ -75,7 +77,7 @@ export function advancePortDevelopment(
         before.riverSiteStatus?.status === "placed"
       );
 
-      state.treasury = Math.max(0, (state.treasury ?? 0) - PORT_DEVELOPMENT_COST);
+      state.treasury = Math.max(0, (state.treasury ?? 0) - k * PORT_DEVELOPMENT_COST);
       // Sea ports join the sea network; a river-only port charts its lane downstream.
       const routeAdded =
         (Routes.connectPort(candidate.cell, state.i) ?? Routes.connectRiverPort(candidate.cell)) !== undefined;

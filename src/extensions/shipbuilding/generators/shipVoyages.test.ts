@@ -50,7 +50,7 @@ describe("runVoyageTick", () => {
     runVoyageTick(burgs, states, 1);
 
     expect(getHulls()[0].status).toBe("docked");
-    expect(dispatchedEventsOf(dispatchSpy, "fmg:shipbuilding-voyage-income")).toHaveLength(0);
+    expect(dispatchedEventsOf(dispatchSpy, "fmg:shipbuilding-voyage-trade")).toHaveLength(0);
     expect(dispatchedEventsOf(dispatchSpy, "fmg:shipbuilding-voyage-intel")).toHaveLength(0);
   });
 
@@ -68,7 +68,7 @@ describe("runVoyageTick", () => {
     expect(getHulls()[0].status).toBe("docked");
   });
 
-  it("sends a docked wartime hull back out once the war ends, paying gold income", () => {
+  it("sends a docked wartime hull back out once the war ends, reporting its trade voyage", () => {
     const burgs = makeBurgs([{ i: 1, state: 1, capital: 1 }]);
     const warStates = makeStates([{ i: 1, diplomacy: ["Neutral", "Enemy"] }]);
     const candidates: ShipyardCandidate[] = [{ burgId: 1, forestRatio: 0.5 }];
@@ -80,11 +80,11 @@ describe("runVoyageTick", () => {
     runVoyageTick(burgs, peaceStates, 1);
 
     expect(getHulls()[0].status).toBe("voyage");
-    const incomeEvents = dispatchedEventsOf(dispatchSpy, "fmg:shipbuilding-voyage-income");
-    expect(incomeEvents).toHaveLength(1);
-    // sloop.buildPointsRequired=10 * GOLD_PER_BUILD_POINT_PER_YEAR=4 * deltaYears=1
-    expect(incomeEvents[0].detail.amount).toBe(40);
-    expect(incomeEvents[0].detail.stateId).toBe(1);
+    const tradeEvents = dispatchedEventsOf(dispatchSpy, "fmg:shipbuilding-voyage-trade");
+    expect(tradeEvents).toHaveLength(1);
+    expect(tradeEvents[0].detail).toMatchObject({ stateId: 1, homeBurgId: 1, buildPoints: 10, deltaYears: 1 });
+    const payroll = dispatchedEventsOf(dispatchSpy, "fmg:shipbuilding-navy-payroll");
+    expect(payroll[0].detail).toMatchObject({ stateId: 1, homeBurgId: 1, crew: 100, deltaYears: 1 });
   });
 
   it("gathers intel for a state hull against its most-watched rival (Enemy > Rival > Suspicion)", () => {
@@ -119,7 +119,7 @@ describe("runVoyageTick", () => {
 
     expect(getHulls()[0].status).toBe("docked");
     expect(dispatchedEventsOf(dispatchSpy, "fmg:shipbuilding-voyage-intel")).toHaveLength(0);
-    expect(dispatchedEventsOf(dispatchSpy, "fmg:shipbuilding-voyage-income")).toHaveLength(0);
+    expect(dispatchedEventsOf(dispatchSpy, "fmg:shipbuilding-voyage-trade")).toHaveLength(0);
   });
 
   it("does not claim voyage income while Economy has reserved a merchant hull for cargo", () => {
@@ -134,7 +134,7 @@ describe("runVoyageTick", () => {
     runVoyageTick(burgs, states, 1);
 
     expect(getHulls()[0].status).toBe("cargo");
-    expect(dispatchedEventsOf(dispatchSpy, "fmg:shipbuilding-voyage-income")).toHaveLength(0);
+    expect(dispatchedEventsOf(dispatchSpy, "fmg:shipbuilding-voyage-trade")).toHaveLength(0);
   });
 
   it("skips income/intel for a stateless free-city hull (no treasury to credit)", () => {
@@ -146,6 +146,6 @@ describe("runVoyageTick", () => {
 
     runVoyageTick(burgs, [], 1);
 
-    expect(dispatchedEventsOf(dispatchSpy, "fmg:shipbuilding-voyage-income")).toHaveLength(0);
+    expect(dispatchedEventsOf(dispatchSpy, "fmg:shipbuilding-voyage-trade")).toHaveLength(0);
   });
 });

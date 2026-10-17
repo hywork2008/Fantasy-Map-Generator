@@ -24,6 +24,8 @@ export {
   SMELTER_EMPLOYMENT_PEOPLE_PER_ANNUAL_TON
 } from "./smelterOperationsTypes";
 
+import { nominal } from "./moneyScale";
+
 const DEFAULT_SMELTING_YIELD = 0.8;
 const DEFAULT_SECURITY_INVESTMENT = 0;
 const MARKET_SMELTING_STOCK_SHARE = 0.5;
@@ -296,7 +298,8 @@ export class SmelterOperationsModule {
     if (!state || state.removed) return 0;
 
     const requestedUpkeep =
-      (SECURITY_UPKEEP_BASE + smelter.annualCapacityTons * SECURITY_UPKEEP_PER_ANNUAL_TON) * securityInvestment;
+      (nominal(SECURITY_UPKEEP_BASE) + smelter.annualCapacityTons * nominal(SECURITY_UPKEEP_PER_ANNUAL_TON)) *
+      securityInvestment;
     const treasury = Math.max(0, state.treasury ?? 0);
     const paidUpkeep = Math.min(treasury, requestedUpkeep);
     state.treasury = rn(treasury - paidUpkeep, 2);

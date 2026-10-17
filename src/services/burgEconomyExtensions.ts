@@ -71,4 +71,13 @@ export interface BurgEconomySummary {
 export const burgEconomyExtensions: {
   getBurgEconomySummary?: (burgId: number) => BurgEconomySummary | null;
   getBurgSiteEconomy?: (burgId: number) => import("./burgSiteEconomy").BurgSiteEconomy | null;
+  /** Approach ledger rows of one burg (Economy `approachTraffic`); kept even under urban morphology. */
+  getBurgApproachTraffic?: (burgId: number) => BurgApproachTrafficRow[];
 } = {};
+
+export interface BurgApproachTrafficRow {
+  approachId: string;
+  routeId: number | null;
+  cargoSlots: number;
+  through: number;
+}

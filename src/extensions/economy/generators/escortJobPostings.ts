@@ -29,6 +29,7 @@ import {
   finalizeEscortFee,
   marketRateFromSeed
 } from "./escortRouteThreat";
+import { nominal } from "./moneyScale";
 import { calculateRouteDurationDays } from "./tradeRouteDuration";
 import { TradeRoutePlanner } from "./tradeRoutePlanner";
 import { TradeSecurity } from "./tradeSecurity";
@@ -166,7 +167,7 @@ function banditPressureForBurg(burgId: number): number {
 }
 
 function stateCanFundFee(treasury: number, feePartial: number): boolean {
-  return treasury >= feePartial * 0.5 + ESCORT_TREASURY_RESERVE;
+  return treasury >= feePartial * 0.5 + nominal(ESCORT_TREASURY_RESERVE);
 }
 
 function buildLabel(kind: EscortKind, transport: EscortTransport, destName: string, marketRate: string): string {

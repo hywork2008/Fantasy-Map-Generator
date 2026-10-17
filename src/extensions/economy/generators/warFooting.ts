@@ -5,6 +5,7 @@ import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getRulerId } from "../../nobility/nobilityContext";
 import type { DepartmentBaselineAllocation } from "./departmentAllocationTypes";
+import { nominal } from "./moneyScale";
 
 /**
  * Multi-ledger PR-6/PR-7 / state-treasury-department-budget §4.4 — War Footing policy lever.
@@ -289,7 +290,7 @@ export function applyWarFootingPoliticalCost(state: State): WarFootingCostResult
   let householdCost = 0;
   if (purse > 0) {
     householdCost = rn(
-      Math.min(purse, Math.max(WAR_FOOTING_HOUSEHOLD_COST_FLOOR, purse * WAR_FOOTING_HOUSEHOLD_COST_RATE)),
+      Math.min(purse, Math.max(nominal(WAR_FOOTING_HOUSEHOLD_COST_FLOOR), purse * WAR_FOOTING_HOUSEHOLD_COST_RATE)),
       2
     );
     state.householdPurse = rn(purse - householdCost, 2);

@@ -1,5 +1,5 @@
 import type { Burg } from "../../hostTypes";
-import { gauss, rn, TIME } from "../../hostUtils";
+import { gauss, measureTickStep, rn, TIME } from "../../hostUtils";
 import { getDeals, getSimulationContext, getSimulationYear, getWorldContext } from "../economyContext";
 import { getAcademyBonus } from "./academyKnowledge";
 import { settleAllBurgDiscontent } from "./burgDiscontent";
@@ -14,13 +14,16 @@ import { applyFiscalEvents } from "./fiscalEvents";
 import {
   drawStateRuralHouseholdWealth,
   drawStateUrbanHouseholdWealth,
+  payStateHouseholds,
   resetRuralHouseholdWealthCycleTracking,
   stateHasBurgs,
   stateOwnsRuralLand
 } from "./householdWealth";
+import { CYCLES_PER_YEAR } from "./marketFlowBudget";
 import { Markets } from "./markets-generator";
 import type { Deal } from "./marketTypes";
 import { getStateMilitaryUpkeep } from "./militaryLogistics";
+import { nominal } from "./moneyScale";
 import { applyFormRevenueMix } from "./revenueMix";
 import { recordStateFiscalReport } from "./stateFiscalReport";
 import { applyTradeSanctionToIncome, refreshTradeSanctions } from "./tradeSanctions";
@@ -77,6 +80,14 @@ const STEWARDSHIP_TAX_EFFICIENCY_PENALTY_MAX = 0.15;
 // represents "income since the last cycle" rather than a running total, so it composes cleanly
 // with a treasury that now carries forward between cycles instead of resetting. See
 // docs/plan/ships.md ("航海訓練・偽装通商・諜報（暫定案）").
+/**
+ * A State keeps about this many years of its domestic income as a reserve; above it, a share of
+ * the excess is spent each cycle as public payroll in its towns (docs/plan/initial-wealth-calibration.md
+ * §5.2). Without this the treasury only grew and the households it taxed only shrank.
+ */
+const STATE_RESERVE_YEARS = 2;
+const STATE_SURPLUS_SPEND_SHARE = 0.25;
+
 const _voyageIncomeByState = new Map<number, number>();
 // Procurement spends between fold-ins must be buffered here and folded into the next
 // carry-forward update, since they happen outside collectTaxes()/foldBufferedStateIncome().
@@ -206,7 +217,7 @@ export class TaxesModule {
       // PR-12: domain levy intensity across province seats scales poll-tax collection.
       const domainPollMult = getStateDomainPollTaxMultiplier(state);
       state.domainPollTaxMultiplier = domainPollMult;
-      const pollTaxRatePerHead = (state.pollTax || 0) * administrationBonus * domainPollMult;
+      const pollTaxRatePerHead = nominal(state.pollTax || 0) * administrationBonus * domainPollMult;
       // L2 Phase 2/3 (docs/plan/economy-coupling-audit.md): poll tax is a transfer out of the
       // population's own pooled wallet (BurgMarketLedger.householdWealth / FoodLedger.
       // ruralHouseholdWealth), not pure creation — urban and rural population draw from separate
@@ -236,7 +247,7 @@ export class TaxesModule {
             const elapsed = currentYear - incYear;
             if (elapsed <= 10) {
               // 1-10 years: 100% exempt + 1.5 gold annual settlement subsidy per cell
-              frontierSettlementSubsidyTotal += 1.5;
+              frontierSettlementSubsidyTotal += nominal(1.5);
               continue;
             } else if (elapsed <= 15) {
               // 11-15 years: 50% tax relief
@@ -287,17 +298,33 @@ export class TaxesModule {
       // math stays keyed to the original flat-percentage model; the state simply keeps more real
       // cash whenever its burgs absorb part of the cost, which shows up as treasury growth rather
       // than a bigger nominal department budget.
-      const civilAdministration = applyCivilAdministrationUpkeep(state, administrativeUpkeepTotal, burgs);
+      const civilAdministration = measureTickStep("taxes:civilAdministration", () =>
+        applyCivilAdministrationUpkeep(state, administrativeUpkeepTotal, burgs)
+      );
       // PR-6 form revenue mix: wartime Monarchy subsidy, Theocracy tithe, Anarchy plunder share.
-      const mix = applyFormRevenueMix(state, rawDomesticIncome);
+      // Wartime aid is an extra levy on the same household purses as the poll tax, split like it
+      // (docs/plan/money-scale-calibration.md §8.3); it used to be credited from nowhere.
+      const levyWartimeAid = (amount: number) => {
+        const pollDemand = urbanPollTaxDemand + ruralPollTaxDemand;
+        if (!(pollDemand > 0)) return 0;
+        const urbanShare = amount * (urbanPollTaxDemand / pollDemand);
+        const urban = stateHasBurgs(state.i) ? drawStateUrbanHouseholdWealth(state.i, urbanShare) : urbanShare;
+        const rural = stateOwnsRuralLand(state.i)
+          ? drawStateRuralHouseholdWealth(state.i, amount - urbanShare)
+          : amount - urbanShare;
+        return urban + rural;
+      };
+      const mix = measureTickStep("taxes:formRevenueMix", () =>
+        applyFormRevenueMix(state, rawDomesticIncome, levyWartimeAid)
+      );
       // PR-7: council failure / tax farm / public debt — may scale income and move L2 cash.
-      const events = applyFiscalEvents(state, mix.adjustedDomesticIncome);
+      const events = measureTickStep("taxes:fiscalEvents", () => applyFiscalEvents(state, mix.adjustedDomesticIncome));
       const budgetIncome = rn(mix.adjustedDomesticIncome * (1 - administrativeUpkeepShare) * events.incomeScale, 2);
       // PR-7: AI war footing sync from diplomacy (unless player-locked), then court cost.
       syncWarFootingFromDiplomacy(state);
       // Field commanders cash-settle inside allocateTreasury (L3a.marshalcy → L2, PR-5).
       // War footing reweights department shares (PR-6) when state.warFooting is set.
-      const allocation = allocateTreasury(state, budgetIncome);
+      const allocation = measureTickStep("taxes:allocateTreasury", () => allocateTreasury(state, budgetIncome));
       // PR-17g: Chancery's freshly-updated service level feeds diplomatic reliability this cycle.
       updateDiplomaticReliability(state);
       // PR-17h: Ecclesiastica's freshly-updated service level feeds religious unrest this cycle.
@@ -305,7 +332,7 @@ export class TaxesModule {
       applyWarFootingPoliticalCost(state);
       // Troop upkeep: L3a.marshalcy first, then L2 remainder (multi-ledger PR-5). Need is
       // recomputed here so it matches the same military snapshot collectTaxes already used.
-      const militarySpend = payMilitaryUpkeep(state, militaryUpkeep);
+      const militarySpend = measureTickStep("taxes:militaryUpkeep", () => payMilitaryUpkeep(state, militaryUpkeep));
       // Strategic procurement stays an L2-only expense for now (not a marshalcy institutional line).
       let paidProcurement = 0;
       if (procurementExpense > 0) {
@@ -315,7 +342,24 @@ export class TaxesModule {
 
       // Province lords are paid from their own seated Burg's treasury, not state.treasury
       // (docs/plan/state-treasury-department-budget.md §7 item 7) — no deduction here.
-      payProvinceLordStipends(state);
+      measureTickStep("taxes:provinceLordStipends", () => payProvinceLordStipends(state));
+
+      // Above its reserve a State spends: public works, court and garrison payroll in its towns.
+      const cycleIncome =
+        rawDomesticIncome + (salesTaxByState.get(state.i) ?? 0) + (importDutyByState.get(state.i) ?? 0);
+      const reserveTarget = Math.max(
+        cycleIncome * CYCLES_PER_YEAR * STATE_RESERVE_YEARS,
+        ((state.urban || 0) + (state.rural || 0)) * profile.stateTreasuryPerPopulation
+      );
+      const surplus = Math.max(0, (state.treasury || 0) - reserveTarget);
+      let publicSpending = 0;
+      if (surplus > 0) {
+        const spend = rn(surplus * STATE_SURPLUS_SPEND_SHARE, 2);
+        if (payStateHouseholds(state.i, spend) > 0) {
+          state.treasury = rn((state.treasury || 0) - spend, 2);
+          publicSpending = spend;
+        }
+      }
 
       const openingTreasury = openingTreasuryByState.get(state.i) ?? 0;
       const income = {
@@ -357,6 +401,7 @@ export class TaxesModule {
         publicWorksTransfer: allocation.departmentActualCredit.publicWorks,
         militaryUpkeep: militarySpend.fromTreasury,
         strategicProcurement: paidProcurement,
+        publicSpending,
         titheTransfer: mix.titheToEcclesiastica,
         plunderTransfer: mix.plunderToRuler
       };
@@ -373,21 +418,21 @@ export class TaxesModule {
       });
     }
     // PR-7 domain policies (extract / fortify) after all province lord stipends this cycle.
-    applyAllDomainFiscalPolicies();
+    measureTickStep("taxes:domainFiscalPolicies", () => applyAllDomainFiscalPolicies());
     // L9: burg discontent from food / tax / war, after levy costs and ecclesiastica service
     // levels for this cycle are already on the records.
-    settleAllBurgDiscontent();
+    measureTickStep("taxes:burgDiscontent", () => settleAllBurgDiscontent());
     _voyageIncomeByState.clear();
     _strategicProcurementExpenseByState.clear();
 
     // Guild/Market roles are paid from their own domain-guild/market treasuries, not
     // state.treasury — global passes, not part of the per-state loop above.
-    payGuildStipends();
-    payMarketStipends();
+    measureTickStep("taxes:guildStipends", () => payGuildStipends());
+    measureTickStep("taxes:marketStipends", () => payMarketStipends());
 
     // After all personal stipends: consume lifestyle (+ soft wealth upkeep) from Character.wealth
     // so purses do not grow unbounded. Order matters — pay first, then spend.
-    applyCharacterLivingCosts();
+    measureTickStep("taxes:characterLivingCosts", () => applyCharacterLivingCosts());
 
     TIME && console.timeEnd("collectTaxes");
   }

@@ -204,6 +204,11 @@ export interface WorldOptions {
   /** Missing values identify legacy maps and retain the former provisioned setup. */
   economyStartMode?: EconomyStartMode;
   /**
+   * Money scale base written at generation (docs/plan/money-scale-calibration.md). Fixed money
+   * constants are multiplied by base × populationRate / 1000. Missing on legacy maps = scale 1.
+   */
+  moneyScaleBase?: number;
+  /**
    * Minimum iron-bearing deposits per active state, selected in Generation Settings.
    * Undefined preserves the standard 0.40-deposits-per-state generation baseline.
    */
