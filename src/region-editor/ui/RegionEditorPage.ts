@@ -11,6 +11,7 @@ import {
   setCellBorderOpacity,
   setCellBorderOrder,
   setForestDensityThreshold,
+  setForestTreeDensity,
   setRiverWidthScale,
   setRouteWidthScale,
   setSettlementIconScale,
@@ -47,7 +48,9 @@ import { DEFAULT_RENDER_QUALITY, type RenderQuality } from "../render/biomeArt";
 import { describeCell } from "../render/cellInfo";
 import { ILLUSTRATED_PALETTES } from "../render/styles/themes";
 import {
+  applyCultivationVisibility,
   applyTextScale,
+  carryRenderCaches,
   detailForZoom,
   forestMassOfRenderedDoc,
   renderRegionSvg,
@@ -261,6 +264,11 @@ export function mountRegionEditor(
             <label for="input-forest-threshold" title="${editorHtml("regionEditor.messages.drawForestsWhereBlurredDensityReachesThisValueLowerValues")}">${editorHtml("regionEditor.messages.forestDensityThreshold")}</label>
             <input type="number" id="input-forest-threshold" min="0.05" max="0.95" step="0.05" value="${history.current.terrain.forestDensityThreshold ?? 0.5}" style="width:60px;" />
           </div>
+          <div class="re-form-row" style="display:flex; align-items:center; justify-content:space-between; gap:6px;">
+            <label for="input-forest-tree-density" title="${editorHtml("regionEditor.messages.forestTreeDensityHint")}">${editorHtml("regionEditor.messages.forestTreeDensity")}</label>
+            <input type="range" id="input-forest-tree-density" min="0.1" max="1" step="0.05" value="${history.current.terrain.forestTreeDensity ?? 1}" style="flex:1; min-width:60px;" />
+            <span id="label-forest-tree-density" style="width:36px; text-align:right;">${Math.round((history.current.terrain.forestTreeDensity ?? 1) * 100)}%</span>
+          </div>
           <div class="re-form-row" style="display:flex; align-items:center; justify-content:space-between;">
             <label for="input-settlement-icon-scale">${editorHtml("regionEditor.messages.settlementIconScale")}</label>
             <input type="number" id="input-settlement-icon-scale" min="1" step="1" value="${history.current.decoration.settlementIconScale ?? DEFAULT_SETTLEMENT_ICON_SCALE}" style="width:60px;" />
@@ -411,6 +419,10 @@ export function mountRegionEditor(
     if (inputBorderOpacity) inputBorderOpacity.value = String(doc.terrain.cellBorderOpacity ?? 0.6);
     const inputForestThreshold = root.querySelector<HTMLInputElement>("#input-forest-threshold");
     if (inputForestThreshold) inputForestThreshold.value = String(doc.terrain.forestDensityThreshold ?? 0.5);
+    const inputTreeDensity = root.querySelector<HTMLInputElement>("#input-forest-tree-density");
+    if (inputTreeDensity) inputTreeDensity.value = String(doc.terrain.forestTreeDensity ?? 1);
+    const labelTreeDensity = root.querySelector("#label-forest-tree-density");
+    if (labelTreeDensity) labelTreeDensity.textContent = `${Math.round((doc.terrain.forestTreeDensity ?? 1) * 100)}%`;
     const checkCultivation = root.querySelector<HTMLInputElement>("#check-show-cultivation");
     if (checkCultivation) {
       checkCultivation.checked = doc.terrain.showCultivation === true;
@@ -1253,7 +1265,22 @@ export function mountRegionEditor(
   // 耕作地表示切り替え
   root.querySelector("#check-show-cultivation")?.addEventListener("change", e => {
     const checked = (e.target as HTMLInputElement).checked;
-    history.push(toggleCultivation(history.current, checked));
+    // Fields are pre-rendered in their own layer; toggling only flips visibility (no SVG rebuild).
+    const prev = history.current;
+    history.push(toggleCultivation(prev, checked));
+    carryRenderCaches(prev, history.current);
+    applyCultivationVisibility(svgLayer, checked);
+    updateHistoryButtons();
+    updateStats();
+  });
+
+  // Forest tree thinning slider: live label while dragging, re-render on release
+  root.querySelector("#input-forest-tree-density")?.addEventListener("input", e => {
+    const label = root.querySelector("#label-forest-tree-density");
+    if (label) label.textContent = `${Math.round(Number((e.target as HTMLInputElement).value) * 100)}%`;
+  });
+  root.querySelector("#input-forest-tree-density")?.addEventListener("change", e => {
+    history.push(setForestTreeDensity(history.current, Number((e.target as HTMLInputElement).value)));
     renderMap();
   });
 

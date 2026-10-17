@@ -995,6 +995,8 @@
       "top": "Top",
       "bottom": "Bottom",
       "cellBorderOpacity01": "Cell border opacity (0–1)",
+      "forestTreeDensity": "Forest tree density",
+      "forestTreeDensityHint": "Share of forest trees drawn. Lower values thin the forest and speed up rendering.",
       "showCultivatedLand": "Show cultivated land",
       "drawForestsWhereBlurredDensityReachesThisValueLowerValues": "Draw forests where blurred density reaches this value. Lower values include sparser forests.",
       "forestDensityThreshold": "Forest density threshold",

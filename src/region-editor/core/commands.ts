@@ -258,6 +258,15 @@ export function setForestDensityThreshold(doc: RegionDocument, threshold: number
 }
 
 /**
+ * Sets the share of forest trees drawn (thinning), clamped to 0.1-1.
+ */
+export function setForestTreeDensity(doc: RegionDocument, density: number): RegionDocument {
+  const next = cloneRegionDocument(doc);
+  next.terrain.forestTreeDensity = Number.isFinite(density) ? Math.max(0.1, Math.min(1, density)) : 1;
+  return next;
+}
+
+/**
  * 耕作地レイヤーの表示/非表示を切り替える（デフォルトは非表示）
  */
 export function toggleCultivation(doc: RegionDocument, show?: boolean): RegionDocument {

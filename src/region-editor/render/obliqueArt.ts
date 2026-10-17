@@ -141,7 +141,8 @@ export function renderObliqueForest(
   mass: ForestMass,
   detail: number,
   mapAreaKm2 = 0,
-  counter?: { trees: number }
+  counter?: { trees: number },
+  treeDensity = 1
 ): string {
   // 広い地図では本数を間引く代わりに 1 本を大きく描き、森の「木が見える」密度を保つ
   const grow = Math.max(1, Math.sqrt(forestThinning(mapAreaKm2)) * 0.55);
@@ -167,7 +168,8 @@ export function renderObliqueForest(
   // 上限で打ち切ると先に数えた種類（広葉樹）が枠を使い切り、後の種類（針葉樹）が消える。
   // 粗い格子（間隔 3 倍 = 1/9）で総数を見積もり、全種類へ同じ比率で間隔を広げてから上限なしで集める
   const estimate = collect(3, Number.POSITIVE_INFINITY).length * 9;
-  const trees = collect(Math.max(1, Math.sqrt(estimate / MAX_TREES)), Number.POSITIVE_INFINITY);
+  const thinSpread = 1 / Math.sqrt(Math.max(0.1, treeDensity));
+  const trees = collect(Math.max(1, Math.sqrt(estimate / MAX_TREES)) * thinSpread, Number.POSITIVE_INFINITY);
   trees.sort((a, b) => a.y - b.y || a.x - b.x);
   if (counter) counter.trees += trees.length;
   return `<g class="oblique-forest">${trees

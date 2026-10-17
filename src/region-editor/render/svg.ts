@@ -7,6 +7,7 @@ import { generatePerpendicularBridges } from "../core/gen/perpendicularBridges";
 import { pointInPolygon } from "../core/geometry";
 import {
   DEFAULT_FOREST_DENSITY_THRESHOLD,
+  DEFAULT_FOREST_TREE_DENSITY,
   DEFAULT_RIVER_WIDTH_SCALE,
   DEFAULT_ROUTE_WIDTH_SCALE,
   DEFAULT_SETTLEMENT_ICON_SCALE,
@@ -44,12 +45,32 @@ export interface RegionRenderStats {
   forestTrees: number;
   treeSymbols: number;
   otherSymbols: number;
-  /** Drawn land-use patches per kind (cultivation counts only while shown). */
+  /** Rendered land-use patches per kind (cultivation is always rendered, shown or not). */
   landUse: Record<string, number>;
 }
 const renderedStats = new WeakMap<RegionDocument, RegionRenderStats>();
 export function renderStatsOfRenderedDoc(doc: RegionDocument): RegionRenderStats | undefined {
   return renderedStats.get(doc);
+}
+
+/** Lets a document derived by a display-only change reuse the render caches of the drawn document. */
+export function carryRenderCaches(from: RegionDocument, to: RegionDocument): void {
+  const stats = renderedStats.get(from);
+  if (stats) renderedStats.set(to, stats);
+  if (renderedForestMass.has(from)) renderedForestMass.set(to, renderedForestMass.get(from) ?? null);
+}
+
+/**
+ * Cultivation is always rendered; showing/hiding it only flips `display` on the field layer,
+ * the forest clearing under fields and the tree symbols covered by fields.
+ */
+export function applyCultivationVisibility(container: ParentNode, show: boolean): void {
+  for (const el of container.querySelectorAll<SVGElement>(".re-cultivation-visible")) {
+    el.setAttribute("display", show ? "inline" : "none");
+  }
+  for (const el of container.querySelectorAll<SVGElement>(".re-cultivation-hidden")) {
+    el.setAttribute("display", show ? "none" : "inline");
+  }
 }
 
 import {
@@ -260,6 +281,8 @@ export function renderRegionSvg(
     : "";
   const coastMaskAttr = hasCoastMask ? ' mask="url(#re-wetland-coast-mask)"' : "";
 
+  const showCultivation = doc.terrain.showCultivation === true;
+  const treeDensity = doc.terrain.forestTreeDensity ?? DEFAULT_FOREST_TREE_DENSITY;
   const mapAreaKm2 = (doc.bounds.widthMeters * doc.bounds.heightMeters) / 1e6;
   const forestBiomes = doc.biomes.filter(b => isForestBiome(b.kind));
   const hasForest = forestBiomes.length > 0;
@@ -274,11 +297,14 @@ export function renderRegionSvg(
     const canopyColors = theme.forestCanopy;
 
     // Physical land-use polygons are shared with ground rendering. Icon halos remain symbols only.
+    const cultivationClearing = (doc.landUse?.patches ?? [])
+      .filter(p => p.kind === "cultivation")
+      .map(p => `<path d="${polyToSvgPath(p.polygon)}" fill="#000000" opacity="${1 - (p.canopyRetention ?? 0)}" />`)
+      .join("\n");
     const landUseClearing = (doc.landUse?.patches ?? [])
       .filter(
         p =>
           p.kind === "built" ||
-          (p.kind === "cultivation" && doc.terrain.showCultivation === true) ||
           p.kind === "pasture" ||
           p.kind === "hay_meadow" ||
           p.kind === "wood_pasture" ||
@@ -341,6 +367,7 @@ export function renderRegionSvg(
         ${riversClearing}
         ${routesClearing}
         ${landUseClearing}
+        ${cultivationClearing ? `<g class="re-cultivation-visible" display="${showCultivation ? "inline" : "none"}">${cultivationClearing}</g>` : ""}
       </mask>
       ${highQuality || oblique ? "" : (["deciduous", "coniferous", "tropical"] as const).map(k => forestCrownPattern(k, canopyColors, mapAreaKm2)).join("\n")}
     `;
@@ -401,9 +428,9 @@ export function renderRegionSvg(
         <g class="re-forest-floor" clip-path="url(#re-forest-outline)">${forestFloor}${forestPatterns}</g>
         ${
           mass && oblique
-            ? renderObliqueForest(mass, detail, mapAreaKm2, forestCounter)
+            ? renderObliqueForest(mass, detail, mapAreaKm2, forestCounter, treeDensity)
             : highQuality && mass
-              ? renderForestCrowns(mass, canopyColors, detail, mapAreaKm2, forestCounter)
+              ? renderForestCrowns(mass, canopyColors, detail, mapAreaKm2, forestCounter, treeDensity)
               : ""
         }
       </g>
@@ -999,13 +1026,17 @@ export function renderRegionSvg(
     .filter(
       sym =>
         !sym.type.startsWith("tree") ||
-        !(doc.landUse?.patches ?? []).some(
-          p =>
-            (p.kind === "built" || (p.kind === "cultivation" && doc.terrain.showCultivation === true)) &&
-            pointInPolygon([sym.x, sym.y], p.polygon)
-        )
+        !(doc.landUse?.patches ?? []).some(p => p.kind === "built" && pointInPolygon([sym.x, sym.y], p.polygon))
     )
     .filter(sym => SYMBOL_DEFINITIONS[sym.type]);
+  const cultivationPatches = (doc.landUse?.patches ?? []).filter(p => p.kind === "cultivation");
+  const underFields = new Set(
+    drawnSymbols
+      .filter(
+        sym => sym.type.startsWith("tree") && cultivationPatches.some(p => pointInPolygon([sym.x, sym.y], p.polygon))
+      )
+      .map(sym => sym.id)
+  );
   const symbolsLayer = drawnSymbols
     .map(sym => {
       const def = SYMBOL_DEFINITIONS[sym.type];
@@ -1032,7 +1063,7 @@ export function renderRegionSvg(
 
       const innerSvg = (oblique && obliqueSymbolSvg(sym.type, theme)) || def.renderSvg(fill, stroke, highlight);
       return `
-        <g class="map-symbol ${isSel ? "selected" : ""}" transform="translate(${sym.x.toFixed(2)}, ${sym.y.toFixed(2)}) scale(${sym.scale.toFixed(2)})" data-kind="symbol" data-id="${sym.id}">
+        <g class="map-symbol ${isSel ? "selected" : ""}${underFields.has(sym.id) ? " re-cultivation-hidden" : ""}"${underFields.has(sym.id) ? ` display="${showCultivation ? "none" : "inline"}"` : ""} transform="translate(${sym.x.toFixed(2)}, ${sym.y.toFixed(2)}) scale(${sym.scale.toFixed(2)})" data-kind="symbol" data-id="${sym.id}">
           ${innerSvg}
           ${isSel ? `<circle cx="0" cy="0" r="16" fill="none" stroke="#d4a373" stroke-width="1.8" stroke-dasharray="3,3" />` : ""}
         </g>
@@ -1040,17 +1071,43 @@ export function renderRegionSvg(
     })
     .join("\n");
 
-  const drawnLandUse = (doc.landUse?.patches ?? []).filter(
-    p => p.kind !== "cultivation" || doc.terrain.showCultivation === true
-  );
+  const drawnLandUse = doc.landUse?.patches ?? [];
+  const landUsePatchSvg = (p: (typeof drawnLandUse)[number]): string => {
+    const path = polyToSvgPath(p.polygon);
+    const variant = patchVariant(p.id);
+    const color =
+      p.kind === "built"
+        ? "#d6c3a2"
+        : p.kind === "cultivation"
+          ? FIELD_TONES[variant % FIELD_TONES.length]
+          : p.kind === "hay_meadow"
+            ? "#c8ce99"
+            : p.kind === "pasture"
+              ? MEADOW_TONES[variant % MEADOW_TONES.length]
+              : p.kind === "abandoned"
+                ? "#aabb94"
+                : "#b5c595";
+    const texture =
+      p.kind === "cultivation"
+        ? `re-field-${(variant >> 3) % FIELD_ANGLES.length}`
+        : detail > 0 && ["agroforestry", "wood_pasture", "managed_forest"].includes(p.kind)
+          ? "re-sparse-trees"
+          : undefined;
+    // Hedgerows keep a constant screen width so individual fields stay legible at any zoom.
+    const hedge =
+      detail > 0
+        ? ` stroke="${p.kind === "cultivation" ? "#7d8447" : "#aaae85"}" stroke-width="0.6" stroke-opacity="0.75" stroke-linejoin="round" vector-effect="non-scaling-stroke"`
+        : "";
+    return `<path class="re-land-use re-land-use-${p.kind}" data-id="${escapeXml(p.id)}" d="${path}" fill="${color}"${hedge} />${texture ? `<path d="${path}" fill="url(#${texture})"/>` : ""}`;
+  };
   const landUseCounts: Record<string, number> = {};
   for (const p of drawnLandUse) landUseCounts[p.kind] = (landUseCounts[p.kind] ?? 0) + 1;
-  const treeSymbols = drawnSymbols.filter(sym => sym.type.startsWith("tree")).length;
+  const treeSymbols = drawnSymbols.filter(sym => sym.type.startsWith("tree")).length - underFields.size;
   renderedStats.set(doc, {
     forestMode,
     forestTrees: forestCounter.trees,
     treeSymbols,
-    otherSymbols: drawnSymbols.length - treeSymbols,
+    otherSymbols: drawnSymbols.length - underFields.size - treeSymbols,
     landUse: landUseCounts
   });
 
@@ -1198,35 +1255,13 @@ export function renderRegionSvg(
         ${detail > 0 ? '<pattern id="re-sparse-trees" width="19" height="17" patternUnits="userSpaceOnUse"><circle cx="8" cy="7" r="2" fill="#68825b" opacity="0.6"/></pattern>' : ""}
       </defs>
       <g id="layer-land-use" data-detail-level="${detail}"${coastMaskAttr}>${drawnLandUse
-        .map(p => {
-          const path = polyToSvgPath(p.polygon);
-          const variant = patchVariant(p.id);
-          const color =
-            p.kind === "built"
-              ? "#d6c3a2"
-              : p.kind === "cultivation"
-                ? FIELD_TONES[variant % FIELD_TONES.length]
-                : p.kind === "hay_meadow"
-                  ? "#c8ce99"
-                  : p.kind === "pasture"
-                    ? MEADOW_TONES[variant % MEADOW_TONES.length]
-                    : p.kind === "abandoned"
-                      ? "#aabb94"
-                      : "#b5c595";
-          const texture =
-            p.kind === "cultivation"
-              ? `re-field-${(variant >> 3) % FIELD_ANGLES.length}`
-              : detail > 0 && ["agroforestry", "wood_pasture", "managed_forest"].includes(p.kind)
-                ? "re-sparse-trees"
-                : undefined;
-          // Hedgerows keep a constant screen width so individual fields stay legible at any zoom.
-          const hedge =
-            detail > 0
-              ? ` stroke="${p.kind === "cultivation" ? "#7d8447" : "#aaae85"}" stroke-width="0.6" stroke-opacity="0.75" stroke-linejoin="round" vector-effect="non-scaling-stroke"`
-              : "";
-          return `<path class="re-land-use re-land-use-${p.kind}" data-id="${escapeXml(p.id)}" d="${path}" fill="${color}"${hedge} />${texture ? `<path d="${path}" fill="url(#${texture})"/>` : ""}`;
-        })
-        .join("\n")}</g>
+        .filter(p => p.kind !== "cultivation")
+        .map(landUsePatchSvg)
+        .join(
+          "\n"
+        )}<g id="layer-cultivation" class="re-cultivation-visible" display="${showCultivation ? "inline" : "none"}">${cultivationPatches
+        .map(landUsePatchSvg)
+        .join("\n")}</g></g>
       ${biomeCellsSvg || `<g id="layer-forests">${forestLayer}</g>`}
       ${reliefLayer ? `<g id="layer-relief">${reliefLayer}</g>` : ""}
       <g id="layer-rivers">${riversLayer}</g>

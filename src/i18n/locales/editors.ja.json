@@ -995,6 +995,8 @@
       "top": "一番上",
       "bottom": "一番下",
       "cellBorderOpacity01": "セル境界の透明度 (不透明度 0〜1)",
+      "forestTreeDensity": "森の木の描画量",
+      "forestTreeDensityHint": "森林に描く木の割合。下げるほど間引かれ、描画が軽くなります。",
       "showCultivatedLand": "耕作地を表示",
       "drawForestsWhereBlurredDensityReachesThisValueLowerValues": "ぼかし後の森林密度がこの値以上の所を森として描く。小さいほど疎な森も描かれる",
       "forestDensityThreshold": "森の密度しきい値",

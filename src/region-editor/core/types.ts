@@ -250,7 +250,11 @@ export interface RegionTerrain {
   cellBorderOpacity?: number;
   /** 森林塊として描く密度のしきい値 0〜1（既定 0.5）。小さいほど疎な森も描かれる。マップ全体に適用 */
   forestDensityThreshold?: number;
+  /** Share of forest trees actually drawn, 0.1-1 (default 1). Lower values thin the canopy for speed/readability. */
+  forestTreeDensity?: number;
 }
+
+export const DEFAULT_FOREST_TREE_DENSITY = 1;
 
 export interface RegionLandUsePatch extends LandUsePatchBudget {
   polygon: Point[];

@@ -138,7 +138,8 @@ export function renderForestCrowns(
   colors: ForestCanopyColors,
   detail: number,
   mapAreaKm2 = 0,
-  counter?: { trees: number }
+  counter?: { trees: number },
+  treeDensity = 1
 ): string {
   // 最遠景では樹冠はほぼ点なので、地図の面積に応じて密度を落とす（狭い地図は間引かない）
   const thin = forestThinning(mapAreaKm2);
@@ -152,7 +153,8 @@ export function renderForestCrowns(
     // 森林が広いと上限で北から順に打ち切られ、南の森に樹冠が 1 本も置かれない。
     // 総数を見積もり、面積に応じた間引き率か上限のどちらか厳しい方まで間隔を広げ、全域へ均等に配る
     const estimate = collectCrowns(mass, kind, spacing, baseR, salt, MAX_CROWNS, COUNT_STRIDE) as number;
-    const spread = Math.max(Math.sqrt(thin), Math.sqrt(estimate / (MAX_CROWNS * 0.85)));
+    const spread =
+      Math.max(Math.sqrt(thin), Math.sqrt(estimate / (MAX_CROWNS * 0.85))) / Math.sqrt(Math.max(0.1, treeDensity));
     const crowns = collectCrowns(mass, kind, spacing * spread, baseR, salt, MAX_CROWNS) as Crown[];
     if (!crowns.length) return;
     if (counter) counter.trees += crowns.length;
