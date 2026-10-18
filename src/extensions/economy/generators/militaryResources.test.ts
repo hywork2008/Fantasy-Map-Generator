@@ -12,7 +12,7 @@ import {
 } from "../economyContext";
 import { Goods } from "./goods-generator";
 import { Markets } from "./markets-generator";
-import { MilitaryResources } from "./militaryResources";
+import { MilitaryResources, SIEGE_WORKS_WOOD_PER_SIEGE_MONTH } from "./militaryResources";
 
 describe("MilitaryResourcesModule", () => {
   beforeEach(() => {
@@ -129,12 +129,32 @@ describe("MilitaryResourcesModule", () => {
     MilitaryResources.generate();
     MilitaryResources.settleMonthly();
 
-    expect(getMilitaryResourceLedgers()[0].annualDemand).toEqual({ arms: 0.42 });
+    // Siege engines are timber in every era; only the gunpowder materials drop out.
+    expect(getMilitaryResourceLedgers()[0].annualDemand).toEqual({ arms: 0.42, wood: 240 });
     expect(getMarkets()[0].goods[1].stock).toBe(10);
     expect(getMarkets()[0].goods[2].stock).toBe(10);
     expect(getMarkets()[0].goods[3].stock).toBe(10);
     expect(getMarkets()[0].goods[4].stock).toBe(10);
     expect(getMarkets()[0].goods[5].stock).toBe(10);
+  });
+
+  it("draws siege-works Wood for each town the State's army is besieging", () => {
+    worldContext.pack.states[1].military = [
+      { i: 1, u: { infantry: 20 }, goalTargetBurg: 7 },
+      { i: 2, u: { infantry: 20 }, goalTargetBurg: 7 },
+      { i: 3, u: { infantry: 20 }, goalTargetBurg: 9 }
+    ] as unknown as (typeof worldContext.pack.states)[1]["military"];
+    setGoods([{ i: 6, name: "Wood", tags: ["construction"], value: 1, unit: "pile", icon: "", color: "" }]);
+    setMarkets([{ i: 1, centerBurgId: 1, color: "#111", goods: { 6: { stock: 300, price: 1 } } }]);
+    Goods.sync();
+    Markets.sync();
+
+    MilitaryResources.generate();
+    MilitaryResources.settleMonthly();
+
+    const ledger = getMilitaryResourceLedgers()[0];
+    expect(ledger.annualDemand.wood).toBeCloseTo(2 * SIEGE_WORKS_WOOD_PER_SIEGE_MONTH * 12, 4);
+    expect(ledger.lastConsumed.wood).toBeCloseTo(2 * SIEGE_WORKS_WOOD_PER_SIEGE_MONTH, 4);
   });
 
   it("consumes fodder for mounted units even when the gunpowder era is disabled", () => {

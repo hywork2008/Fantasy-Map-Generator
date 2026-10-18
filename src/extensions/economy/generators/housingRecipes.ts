@@ -17,6 +17,17 @@ export const HIGH_FANTASY_MASON_SHARE_BONUS = 0.2;
 /** Cap on mason-side share (stone + brick) after High Fantasy post-pass. */
 export const MAX_MASON_SHARE = 0.8;
 
+/**
+ * Share of a timber house's timber a stone or brick house still needs: roof, floors, doors and
+ * the farm's sheds and fences (docs/plan/farm-labour-calibration.md §20).
+ */
+export const MASONRY_HOUSE_TIMBER_SHARE = 0.3;
+
+/** Timber of a house of this recipe, as a share of an all-timber house of the same size. */
+export function getHouseTimberShare(recipe: HousingRecipe): number {
+  return recipe.wood + (1 - recipe.wood) * MASONRY_HOUSE_TIMBER_SHARE;
+}
+
 /** Preference shares before terrain/availability gates. Rows sum to 1. */
 export const BASE_HOUSING_RECIPE_BY_CULTURE: Record<CultureType, HousingRecipe> = {
   Highland: { wood: 0.25, stone: 0.6, brick: 0.15 },

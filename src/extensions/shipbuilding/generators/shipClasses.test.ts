@@ -40,12 +40,12 @@ describe("shipClasses", () => {
   });
 
   it("uses the Economy Ships recipe for a full Sloop", () => {
-    expect(getMaterialsForWork(SHIP_CLASSES[0], 10)).toEqual({ Wood: 2, Sails: 2, Ropes: 2, Tar: 1 });
+    expect(getMaterialsForWork(SHIP_CLASSES[0], 10)).toEqual({ Wood: 15, Sails: 2, Ropes: 2, Tar: 1 });
   });
 
   it("scales material requirements by construction work", () => {
-    expect(getMaterialsForWork(SHIP_CLASSES[1], 25)).toEqual({ Wood: 5, Sails: 5, Ropes: 5, Tar: 2.5 });
-    expect(getMaterialsForWork(SHIP_CLASSES[2], 60)).toEqual({ Wood: 12, Sails: 12, Ropes: 12, Tar: 6 });
+    expect(getMaterialsForWork(SHIP_CLASSES[1], 25)).toEqual({ Wood: 37.5, Sails: 5, Ropes: 5, Tar: 2.5 });
+    expect(getMaterialsForWork(SHIP_CLASSES[2], 60)).toEqual({ Wood: 90, Sails: 12, Ropes: 12, Tar: 6 });
   });
 
   it("does not request negative work", () => {
@@ -54,7 +54,7 @@ describe("shipClasses", () => {
 
   it("derives one shipyard's annual material forecast from its build rate", () => {
     expect(getAnnualShipbuildingMaterialDemand(SHIP_CLASSES[0])).toEqual({
-      Wood: 0.4,
+      Wood: 3,
       Sails: 0.4,
       Ropes: 0.4,
       Tar: 0.2

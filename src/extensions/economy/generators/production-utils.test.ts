@@ -18,7 +18,7 @@ import {
   setViticultureRequiredWorkers,
   setViticultureWorkers
 } from "../economyContext";
-import { registerLogHarvest } from "./forestStock";
+import { harvestWood } from "./forestStock";
 import { Goods } from "./goods-generator";
 import { getCellProduction } from "./production-utils";
 import { GAME_YIELD_PER_HUNTER_PER_MONTH } from "./ruralOccupationAllocation";
@@ -73,6 +73,7 @@ describe("getCellProduction forest-stock integration", () => {
         pop: [10],
         h: new Uint8Array([50]),
         c: [[]],
+        area: new Float32Array([1]),
         forestCover: new Float32Array([1]),
         forestStock: new Float32Array([1])
       }
@@ -95,7 +96,7 @@ describe("getCellProduction forest-stock integration", () => {
     expect(before[0]).toBeGreaterThan(0);
     expect(before[1]).toBeGreaterThan(0);
 
-    registerLogHarvest(0, 2500); // 2,500 Wood units remove half of standing forest coverage
+    harvestWood(0, 750); // 100 ha at 150 m³/ha hold 1,500 Wood units; 750 fell half of it
     const after = getCellProduction(0, biomeProduction);
 
     expect(after[0]).toBeCloseTo(before[0] * 0.5, 5);

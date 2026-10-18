@@ -313,6 +313,8 @@ describe("SmelterOperationsModule", () => {
     getMarkets()[0].goods[3].stock = 0;
     worldContext.pack.cells.forestCover = Float32Array.from([0, 1]);
     worldContext.pack.cells.forestStock = Float32Array.from([0, 1]);
+    worldContext.pack.cells.h = Uint8Array.from([30, 30]);
+    worldContext.pack.cells.area = Float32Array.from([1, 1]);
     SmelterOperations.generate();
 
     SmelterOperations.produceMonth();

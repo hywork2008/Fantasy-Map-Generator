@@ -19,7 +19,6 @@ import {
 import { measureGenerationStep } from "../hostUtils";
 import { checkForeignInterference } from "./generators/foreignInterference";
 import { seedInitialFleets } from "./generators/initialFleet";
-import { runLoggingTick } from "./generators/logging";
 import { computePortCapacity, type PortCapacity } from "./generators/portCapacity";
 import { runVoyageTick } from "./generators/shipVoyages";
 import { computeShipyardCandidates, type ShipyardCandidate } from "./generators/shipyardCandidates";
@@ -104,7 +103,9 @@ function resetShipbuildingState(): void {
 function requestShipbuildingMaterials(
   request: Omit<ShipbuildingMaterialRequest, "result">
 ): ShipbuildingMaterialRequestResult {
-  const detail: ShipbuildingMaterialRequest = { ...request };
+  // A shipyard fells its own timber in the woodland beside it (shipyardCandidates.ts).
+  const timberCellId = _candidates.find(candidate => candidate.burgId === request.burgId)?.loggingCellId;
+  const detail: ShipbuildingMaterialRequest = { ...request, timberCellId };
   simEvents.dispatchEvent(new CustomEvent("fmg:shipbuilding-materials-requested", { detail }));
   return detail.result ?? { status: "economyUnavailable" };
 }
@@ -138,6 +139,16 @@ function register(api: SimulationExtensionAPI): () => void {
     api.events.addEventListener(type, listener);
     listeners.push([type, listener]);
   };
+
+  // Shipyard candidates are derived from the map and never saved. A loaded world must rebuild
+  // them from its own ports; otherwise logging and the yards stay idle until the extension is
+  // toggled (docs/plan/farm-labour-calibration.md §20). Only the derived lists are rebuilt:
+  // the saved queues and fleets are the loaded world's own.
+  on("fmg:world-loaded", () => {
+    if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
+    recomputeShipyards();
+    notifyShipbuildingChanged({ redrawShipyards: true });
+  });
 
   on("fmg:shipbuilding-fleet-capacity-request", event => {
     if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
@@ -278,8 +289,8 @@ function register(api: SimulationExtensionAPI): () => void {
     }
   });
 
-  // Economy phase: lexical id places this after `economy.tick`. Logging events fire
-  // before Economy's production-settlement microtask (scheduled from economy.tick).
+  // Economy phase: lexical id places this after `economy.tick`. Material requests (and the
+  // shipyard's own felling) run before Economy's production-settlement microtask.
   const unregisterTickSystem = api.registerSimulationSystem({
     id: "shipbuilding.tick",
     phase: "economy",
@@ -294,7 +305,6 @@ function register(api: SimulationExtensionAPI): () => void {
       // silently stall (matches Economy and Nobility systems).
       const { years: deltaYears, months: deltaMonths, days: deltaDays } = context.delta;
       const effectiveDeltaYears = deltaYears + deltaMonths / 12 + deltaDays / 365.2425;
-      runLoggingTick(_candidates, effectiveDeltaYears);
       const { burgs, states } = getWorldContext().pack;
       runShipyardTick(
         _candidates,

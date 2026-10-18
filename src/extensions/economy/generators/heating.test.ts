@@ -64,7 +64,7 @@ describe("household heating", () => {
   });
 
   it("prefers the shared grid.cells.seasonalTemp over recomputing its own seasonal offset", () => {
-    installMarket(-10, 100, 100);
+    installMarket(-10, 100_000, 100_000);
     // A deliberately distinguishable value: neither the annual-average base temp (-10) nor
     // anything a fresh getSeasonalTemperatureOffset() computation on this fixture (no
     // pack.cells.p, so it falls back to baseTemperature) could produce.
@@ -76,11 +76,11 @@ describe("household heating", () => {
   });
 
   it("draws substantially more Wood in a cold market than in a warm one", () => {
-    installMarket(-10, 100, 100);
+    installMarket(-10, 100_000, 100_000);
     settleMonthlyHeating();
     const coldWoodUse = getMarkets()[0].heatingLedger?.woodConsumption ?? 0;
 
-    installMarket(20, 100, 100);
+    installMarket(20, 100_000, 100_000);
     settleMonthlyHeating();
     const warmWoodUse = getMarkets()[0].heatingLedger?.woodConsumption ?? 0;
 
@@ -90,11 +90,11 @@ describe("household heating", () => {
   });
 
   it("burns rural households' own cut Wood before drawing on market stock", () => {
-    installMarket(-10, 100, 100);
+    installMarket(-10, 100_000, 100_000);
     settleMonthlyHeating();
-    const marketOnlyDraw = 100 - getMarkets()[0].goods[1].stock;
+    const marketOnlyDraw = 100_000 - getMarkets()[0].goods[1].stock;
 
-    installMarket(-10, 100, 100);
+    installMarket(-10, 100_000, 100_000);
     const market = getMarkets()[0];
     market.woodSupply = {
       monthKey: getWoodSupplyMonthKey(),
@@ -107,7 +107,7 @@ describe("household heating", () => {
     };
     settleMonthlyHeating();
 
-    expect(100 - market.goods[1].stock).toBeCloseTo(marketOnlyDraw - 5, 4);
+    expect(100_000 - market.goods[1].stock).toBeCloseTo(marketOnlyDraw - 5, 2);
     expect(market.heatingLedger?.selfSuppliedWood).toBe(5);
     expect(market.heatingLedger?.woodConsumption).toBeCloseTo(marketOnlyDraw, 4);
   });
@@ -142,7 +142,7 @@ describe("household heating", () => {
   });
 
   it("turns sustained cold residence into forestry, heating, and insulation knowledge", () => {
-    installMarket(-10, 100, 0);
+    installMarket(-10, 100_000, 0);
     settleMonthlyHeating();
     const market = getMarkets()[0];
     market.heatingLedger = { ...market.heatingLedger!, coldExposureMonths: 36 };

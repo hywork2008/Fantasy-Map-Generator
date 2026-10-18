@@ -145,6 +145,7 @@ describe("MarketsModule", () => {
         burg: new Uint16Array([1]),
         state: new Uint16Array([0]),
         h: new Uint8Array([50]),
+        area: new Float32Array([1]),
         pop: new Float32Array([0])
       } as unknown as PackedGraph["cells"];
       worldContext.pack.burgs = [{ i: 0 }, { i: 1, cell: 0, x: 0, y: 0, market: 1 }] as Burg[];
@@ -165,13 +166,14 @@ describe("MarketsModule", () => {
         { seed: "receipt", year: 1 }
       );
       snapshot.conversionTimber = [
-        { id: "receipt:1:0", sourceCellId: 0, year: 1, coverage: 0.02, deliveredCoverage: 0 }
+        // 100 ha at the default 150 m³/ha: coverage 0.08 is 120 Wood units.
+        { id: "receipt:1:0", sourceCellId: 0, year: 1, coverage: 0.08, deliveredCoverage: 0 }
       ];
       worldContext.pack.landUse = snapshot;
       marketsModule.collectRuralProduction();
       expect(market.goods[0].stock).toBe(60);
-      expect(market.woodSupply?.clearanceBurned).toBe(40);
-      expect(snapshot.conversionTimber[0].deliveredCoverage).toBe(0.02);
+      expect(market.woodSupply?.clearanceBurned).toBe(60);
+      expect(snapshot.conversionTimber[0].deliveredCoverage).toBe(0.08);
       worldContext.pack.landUse = JSON.parse(JSON.stringify(snapshot));
       marketsModule.collectRuralProduction();
       expect(market.goods[0].stock).toBe(60);
@@ -1495,6 +1497,25 @@ describe("MarketsModule shipbuilding material consumption", () => {
     expect(market.goods[2]).toMatchObject({ stock: 8 });
     expect(market.goods[3]).toMatchObject({ stock: 9 });
     expect(market.goods[0].price).toBeGreaterThan(4);
+  });
+
+  it("fells the shipyard's own woodland for Wood before buying any from the market", () => {
+    worldContext.distanceScale = 1;
+    worldContext.pack.cells = {
+      i: [0],
+      h: Uint8Array.from([30]),
+      area: Float32Array.from([1]),
+      forestCover: Float32Array.from([1]),
+      forestStock: Float32Array.from([1])
+    } as unknown as PackedGraph["cells"];
+
+    const result = marketsModule.tryConsumeShipbuildingMaterials(1, { Wood: 2, Sails: 2, Ropes: 2, Tar: 1 }, 0);
+
+    expect(result).toEqual({ status: "fulfilled" });
+    expect(market.goods[0].stock).toBe(10);
+    expect(market.goods[1].stock).toBe(8);
+    // 100 ha at the default 150 m³/ha hold 1,500 Wood units.
+    expect(worldContext.pack.cells.forestStock![0]).toBeCloseTo(1 - 2 / 1500, 6);
   });
 
   it("does not consume any material when one required stock is insufficient", () => {

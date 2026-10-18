@@ -152,7 +152,9 @@ export interface WoodSupplyLedger {
   monthKey: number;
   /** Rural household fuel (heating and cooking) this month. */
   ruralFuelDemand: number;
-  /** Wood rural households cut or took from clearance for their own fuel this month. */
+  /** Timber rural households need this month to repair and rebuild houses, barns and fences. */
+  ruralBuildingDemand?: number;
+  /** Wood rural households cut or took from clearance for their own fuel and building this month. */
   ruralFuelWood: number;
   /** Wood cut or taken from clearance and delivered to market stock this month. */
   marketWood: number;

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { simulationContext, worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import { clearEconomyContext, initEconomyContext, setCultivatedArea } from "../economyContext";
-import { getForestStockMultiplier, registerLogHarvest, tickForestRegrowth } from "./forestStock";
+import { getForestStockMultiplier, harvestWood, tickForestRegrowth } from "./forestStock";
 
 function installForestCell(stock = 1): void {
   worldContext.distanceScale = 1;
@@ -23,11 +23,12 @@ describe("economy forest stock bridge", () => {
     simulationContext.extensions = {};
   });
 
-  it("turns shipbuilding logging into a standing-timber reduction", () => {
+  it("fells hectares of standing timber, not a share of the cell", () => {
     initEconomyContext({ worldContext, simulationContext } as unknown as ExtensionAPI);
     installForestCell();
 
-    expect(registerLogHarvest(0, 2500)).toBe(true);
+    // 100 ha at the default 150 m³/ha hold 15,000 m³ = 1,500 Wood units; 750 is half of it.
+    expect(harvestWood(0, 750)).toBeCloseTo(750, 5);
     expect(getForestStockMultiplier(0)).toBeCloseTo(0.5, 5);
   });
 

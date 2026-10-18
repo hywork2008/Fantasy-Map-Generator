@@ -54,7 +54,7 @@ import {
   recordFoodMarketIntake,
   recordFoodProcessingConsumption
 } from "./foodProcessingLedger";
-import { FOREST_COVER_PER_WOOD_UNIT, harvestWood } from "./forestStock";
+import { getFellableWood, harvestWood, woodUnitsForCoverage } from "./forestStock";
 import type { DemandCategory, Good } from "./goods-generator";
 import {
   DEMAND_PRIORITY,
@@ -70,6 +70,7 @@ import { type GoodFlowCategory, recordGoodFlow } from "./goodsBalanceLedger";
 import { floorToRetailLot, getMarketTradeMinimumUnits, getRetailLotSize } from "./goodsTradeLots";
 import { getCraftDomainForGood } from "./guildKnowledgeTypes";
 import { getMonthlyHouseholdFuelDemands, getWoodSupplyMonthKey } from "./heating";
+import { getHouseTimberShare, getHousingRecipe } from "./housingRecipes";
 import { type IncrementalBatchOptions, runBatchedYielding } from "./incrementalBatching";
 import { getLiveAnimalCatchKey, rollLiveAnimalCatch } from "./liveAnimalCatch";
 import {
@@ -117,10 +118,18 @@ export const WOOD_STOCK_COVER_MONTHS = 6;
 /** EWMA weight of one month's measured Wood draw. */
 export const WOOD_DRAW_SMOOTHING = 1 / 6;
 /**
- * Floor of the stock rural woodcutters keep, as months of their saleable output, so crafts and
- * builders whose purchases fail on an empty stock still find Wood and show up in the draw.
+ * Most of a market territory's standing forest its rural people can fell in one month (1%, up to
+ * 12% a year): the forest near the villages goes first, and demand beyond it is short or imported
+ * (docs/plan/farm-labour-calibration.md §22).
  */
-export const WOOD_STOCK_FLOOR_MONTHS = 1;
+export const RURAL_MONTHLY_FELLING_SHARE = 0.01;
+/**
+ * Wood a year per 1,000 rural residents of all-timber houses to repair and rebuild their houses
+ * and barns (0.25 m³ a head: a farmstead of 40–60 m³ rebuilt every 20–50 years for five people)
+ * and their fences, poles and hurdles (0.15 m³), cut by themselves: 0.4 m³ = 0.04 units a head
+ * (docs/plan/farm-labour-calibration.md §21.2, §22).
+ */
+export const RURAL_BUILDING_TIMBER_PER_1000_RESIDENTS_ANNUAL = 40;
 const PRICE_CEILING_FACTOR = 3.0;
 const LAPLACE_PRICE_SMOOTHING = 5;
 const MARKET_PRESSURE_FACTOR = 0.01;
@@ -183,6 +192,7 @@ type RuralWoodPlan = {
   market: Market;
   potential: number;
   ruralFuelDemand: number;
+  ruralBuildingDemand: number;
   fuelLeft: number;
   saleLeft: number;
   ruralFuelWood: number;
@@ -194,8 +204,9 @@ type RuralProductionIndex = {
   populationSnapshotPeriod: string;
   standard: RuralTotalsByMarket;
   food: Map<number, FoodTotalsByState>;
-  wood: RuralTotalsByMarket;
   woodByCell: Map<number, WoodContribution[]>;
+  /** Annual rural building timber by market (RURAL_BUILDING_TIMBER_PER_1000_RESIDENTS_ANNUAL). */
+  buildingTimberByMarket: Map<number, number>;
   freshFood: FreshFoodContribution[];
 };
 
@@ -819,31 +830,46 @@ export class MarketsModule {
    */
   private supplyRuralWood(wood: Good, index: RuralProductionIndex): void {
     const fuelDemands = getMonthlyHouseholdFuelDemands();
+    // What each inhabited forest cell could give this month, split among the collection towns
+    // that gather from it in proportion to their share of its wood.
+    const cellPotentials: { cellId: number; marketId: number; collectionBurgId: number; units: number }[] = [];
+    const potentialByMarket = new Map<number, number>();
+    for (const [cellId, contributions] of index.woodByCell) {
+      const woodContributions = contributions.filter(contribution => contribution.goodId === wood.i);
+      const weight = woodContributions.reduce((sum, contribution) => sum + contribution.amount, 0);
+      if (!(weight > 0)) continue;
+      const fellable = getFellableWood(cellId) * RURAL_MONTHLY_FELLING_SHARE;
+      if (!(fellable > 0)) continue;
+      for (const contribution of woodContributions) {
+        const units = (fellable * contribution.amount) / weight;
+        cellPotentials.push({ cellId, ...contribution, units });
+        potentialByMarket.set(contribution.marketId, (potentialByMarket.get(contribution.marketId) ?? 0) + units);
+      }
+    }
+
     const plans = new Map<number, RuralWoodPlan>();
     for (const market of getMarkets()) {
-      const potential = [...(index.wood.get(market.i)?.values() ?? [])].reduce(
-        (sum, totals) => sum + (totals.get(wood.i) ?? 0),
-        0
-      );
+      const potential = potentialByMarket.get(market.i) ?? 0;
       const demand = fuelDemands.get(market.i);
       const ruralFuelDemand = demand?.ruralDemand ?? 0;
+      const ruralBuildingDemand = (index.buildingTimberByMarket.get(market.i) ?? 0) / 12;
       const urbanDemand = demand?.urbanDemand ?? 0;
       const stock = market.goods[wood.i]?.stock ?? 0;
       const previous = market.woodSupply;
+      // Town households always buy; rural ones buy what their own forest cannot give.
       const knownDraw = urbanDemand + Math.max(0, ruralFuelDemand - potential);
       const smoothedDraw = previous
         ? previous.smoothedDraw +
           (Math.max(0, previous.stockAfterSupply - stock) - previous.smoothedDraw) * WOOD_DRAW_SMOOTHING
         : knownDraw;
-      const targetStock = Math.max(
-        WOOD_STOCK_COVER_MONTHS * Math.max(smoothedDraw, knownDraw),
-        WOOD_STOCK_FLOOR_MONTHS * Math.max(0, potential - ruralFuelDemand)
-      );
+      const targetStock = WOOD_STOCK_COVER_MONTHS * Math.max(smoothedDraw, knownDraw);
       plans.set(market.i, {
         market,
         potential,
         ruralFuelDemand,
-        fuelLeft: ruralFuelDemand,
+        ruralBuildingDemand,
+        // Fuel and building timber are cut together; heating takes its share first.
+        fuelLeft: ruralFuelDemand + ruralBuildingDemand,
         saleLeft: Math.max(0, targetStock - stock),
         ruralFuelWood: 0,
         marketWood: 0,
@@ -857,7 +883,7 @@ export class MarketsModule {
     deliverConversionTimber(this.worldContext, (cellId, coverage) => {
       const plan = plans.get(getMarketCellColumn()[cellId]);
       if (!plan) return 0;
-      const units = coverage / FOREST_COVER_PER_WOOD_UNIT;
+      const units = woodUnitsForCoverage(cellId, coverage);
       const fuel = Math.min(units, plan.fuelLeft);
       plan.fuelLeft -= fuel;
       plan.ruralFuelWood += fuel;
@@ -875,16 +901,14 @@ export class MarketsModule {
         cutShares.set(plan.market.i, Math.min(1, (plan.fuelLeft + plan.saleLeft) / plan.potential));
     }
     const harvestByMarket = new Map<number, Map<number, number>>();
-    for (const [cellId, contributions] of index.woodByCell) {
-      for (const contribution of contributions) {
-        const share = contribution.goodId === wood.i ? (cutShares.get(contribution.marketId) ?? 0) : 0;
-        if (share <= 0) continue;
-        const harvested = harvestWood(cellId, contribution.amount * share);
-        if (harvested <= 0) continue;
-        const byBurg = harvestByMarket.get(contribution.marketId) ?? new Map<number, number>();
-        byBurg.set(contribution.collectionBurgId, (byBurg.get(contribution.collectionBurgId) ?? 0) + harvested);
-        harvestByMarket.set(contribution.marketId, byBurg);
-      }
+    for (const contribution of cellPotentials) {
+      const share = cutShares.get(contribution.marketId) ?? 0;
+      if (share <= 0) continue;
+      const harvested = harvestWood(contribution.cellId, contribution.units * share);
+      if (harvested <= 0) continue;
+      const byBurg = harvestByMarket.get(contribution.marketId) ?? new Map<number, number>();
+      byBurg.set(contribution.collectionBurgId, (byBurg.get(contribution.collectionBurgId) ?? 0) + harvested);
+      harvestByMarket.set(contribution.marketId, byBurg);
     }
 
     const monthKey = getWoodSupplyMonthKey();
@@ -903,6 +927,7 @@ export class MarketsModule {
       plan.market.woodSupply = {
         monthKey,
         ruralFuelDemand: rn(plan.ruralFuelDemand, 4),
+        ruralBuildingDemand: rn(plan.ruralBuildingDemand, 4),
         ruralFuelWood: rn(plan.ruralFuelWood, 4),
         marketWood: rn(plan.marketWood, 4),
         clearanceBurned: rn(plan.clearanceBurned, 4),
@@ -937,8 +962,8 @@ export class MarketsModule {
       populationSnapshotPeriod,
       standard: new Map(),
       food: new Map(),
-      wood: new Map(),
       woodByCell: new Map(),
+      buildingTimberByMarket: new Map(),
       freshFood: []
     };
     const { cells } = this.worldContext.pack;
@@ -947,11 +972,25 @@ export class MarketsModule {
     const marketIds = new Set(markets.map(market => market.i));
     const collectionBurgsByMarket = this.getCollectionBurgsByMarket();
     const biomeProduction = Goods.getBiomesProduction();
+    const populationRate = Math.max(1, this.worldContext.populationRate ?? 1);
 
     for (const cellId of cells.i) {
       const marketId = marketCellColumn[cellId];
       if (!marketId || !marketIds.has(marketId)) continue;
       const collectionBurgId = this.getCollectionBurgId(cellId, marketId, collectionBurgsByMarket);
+      if ((cells.h?.[cellId] ?? 0) >= 20 && (cells.pop?.[cellId] ?? 0) > 0) {
+        const recipe = getHousingRecipe({
+          cultureType: this.worldContext.pack.cultures?.[cells.culture?.[cellId] ?? 0]?.type,
+          hasQuarryAccess: true,
+          highFantasy: false,
+          brickAvailable: true
+        });
+        const timber =
+          ((cells.pop[cellId] * populationRate) / 1000) *
+          RURAL_BUILDING_TIMBER_PER_1000_RESIDENTS_ANNUAL *
+          getHouseTimberShare(recipe);
+        index.buildingTimberByMarket.set(marketId, (index.buildingTimberByMarket.get(marketId) ?? 0) + timber);
+      }
 
       for (const contribution of getRuralProductionContributions(cellId, biomeProduction)) {
         const good = Goods.get(contribution.goodId);
@@ -961,7 +1000,6 @@ export class MarketsModule {
         if (good.tags.includes("stapleFood")) continue;
 
         if (good.name === "Wood") {
-          this.addRuralGoodTotal(index.wood, marketId, collectionBurgId, good.i, contribution.amount);
           const entries = index.woodByCell.get(cellId) ?? [];
           entries.push({ marketId, collectionBurgId, goodId: good.i, amount: contribution.amount });
           index.woodByCell.set(cellId, entries);
@@ -1732,9 +1770,14 @@ export class MarketsModule {
    * Unlike buy(), Phase 8 intentionally does not create a Deal or charge an owner;
    * it only models the physical inventory draw and resulting market price pressure.
    */
+  /**
+   * `timberCellId` is the woodland the shipyard fells for its own timber: Wood is cut there first
+   * and only the rest is bought from the market (docs/plan/farm-labour-calibration.md §21).
+   */
   tryConsumeShipbuildingMaterials(
     marketId: number,
-    materials: ShipbuildingMaterials
+    materials: ShipbuildingMaterials,
+    timberCellId?: number
   ): ShipbuildingMaterialRequestResult {
     // `marketById` is populated during generation; saved maps can reach this path
     // before an explicit `Markets.sync()`, so retain a canonical pack fallback.
@@ -1744,10 +1787,17 @@ export class MarketsModule {
     const required: Array<{ good: Good; amount: number; stock: { stock: number; price: number } }> = [];
     const missing: ShipbuildingMaterialShortage = {};
 
+    const fellable = timberCellId !== undefined ? getFellableWood(timberCellId) : 0;
+    let felled = 0;
     for (const material of SHIPBUILDING_MATERIAL_IDS) {
-      const amount = materials[material];
+      let amount = materials[material];
       const good = getGoods().find(candidate => candidate.name === material);
       if (!good || !isGoodEnabled(good)) return { status: "missingGood" };
+      if (material === "Wood") {
+        felled = Math.min(amount, fellable);
+        amount -= felled;
+      }
+      if (amount <= 0.000001) continue;
 
       // Do not call getMarketGood() while validating: creating an empty stock row
       // would itself violate the all-or-nothing contract on a failed request.
@@ -1762,6 +1812,7 @@ export class MarketsModule {
     // Validate every material before touching a single stock row.
     if (Object.keys(missing).length) return { status: "insufficientMaterials", missing };
 
+    if (felled > 0 && timberCellId !== undefined) harvestWood(timberCellId, felled);
     for (const { good, amount, stock } of required) {
       stock.stock = rn(Math.max(0, stock.stock - amount), 2);
       stock.price = rn(this.applyMarketPressure(good.value, stock.price, amount), 2);

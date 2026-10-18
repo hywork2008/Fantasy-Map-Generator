@@ -107,7 +107,7 @@ import { FertilizerInvestment } from "./generators/fertilizerInvestment";
 import { resetEffectiveCapacities } from "./generators/foodImportNetwork";
 import { settleMonthlyFoodConsumption } from "./generators/foodLedgerConsumption";
 import { FoodProduction } from "./generators/foodProduction";
-import { registerLogHarvest, tickForestRegrowth } from "./generators/forestStock";
+import { tickForestRegrowth } from "./generators/forestStock";
 import { FortificationMastery } from "./generators/fortificationMastery";
 import { consumeFuneralMaterialsFromPending } from "./generators/funeralGoodsConsumption";
 import { GasPowerStations } from "./generators/gasPowerStations";
@@ -1882,12 +1882,6 @@ function register(api: SimulationExtensionAPI): () => void {
     scheduleProductionSettlement();
   });
 
-  on("fmg:shipbuilding-log-harvested", e => {
-    if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
-    const { cellId, amount } = (e as CustomEvent).detail as { cellId: number; amount: number };
-    if (registerLogHarvest(cellId, amount)) markProductionDirty();
-  });
-
   on(FUNERAL_DEMAND_EVENT, () => {
     if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
     consumeFuneralMaterialsFromPending();
@@ -1900,7 +1894,7 @@ function register(api: SimulationExtensionAPI): () => void {
     if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
     const detail = (e as CustomEvent<unknown>).detail;
     if (!isShipbuildingMaterialRequest(detail)) return;
-    detail.result = Markets.tryConsumeShipbuildingMaterials(detail.marketId, detail.materials);
+    detail.result = Markets.tryConsumeShipbuildingMaterials(detail.marketId, detail.materials, detail.timberCellId);
   });
 
   on("fmg:shipbuilding-ship-good-stock-request", e => {

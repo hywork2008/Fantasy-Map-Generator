@@ -573,6 +573,27 @@ describe("ConstructionOperationsModule", () => {
     expect(getConstructionOperations()[0].buildingStock).toBeGreaterThan(0);
   });
 
+  it("holds up masonry without timber for its scaffolding and roofs", () => {
+    const grow = (woodStock: number) => {
+      setUpWorld({ includeBrick: true, cultureType: "River" });
+      getMarkets()[0].goods[2].stock = woodStock;
+      ConstructionOperations.generate();
+      const [operation] = getConstructionOperations();
+      operation.masonWorkers = 100;
+      operation.carpenterWorkers = 100;
+      operation.hasQuarryAccess = false;
+      ConstructionOperations.produceMonth();
+      return { stock: getConstructionOperations()[0].dwellingStock, wood: getMarkets()[0].goods[2].stock };
+    };
+
+    const withWood = grow(100000);
+    const withoutWood = grow(0);
+
+    expect(withWood.wood).toBeLessThan(100000);
+    expect(withoutWood.stock).toBe(0);
+    expect(withWood.stock).toBeGreaterThan(0);
+  });
+
   it("does not consume Stone for a Generic Burg with no quarry and no brick good", () => {
     setUpWorld();
     ConstructionOperations.generate();

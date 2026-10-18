@@ -9,6 +9,7 @@
  * from a map's latitude at generation time.
  */
 
+import { WOOD_M3_PER_UNIT } from "../../../generators/forestStock";
 import { getCellClimateNormals } from "../../hostCore";
 import { getLatitude, getMonthlyMeanTemperaturesC, rn } from "../../hostUtils";
 import {
@@ -30,14 +31,24 @@ export function getWoodSupplyMonthKey(): number {
 
 export const PEOPLE_PER_HEATING_MARKET_LOT = 1_000;
 export const COMFORT_TEMPERATURE_C = 18;
-export const BASE_HEATING_UNITS_PER_1000_RESIDENTS_MONTH = 0.16;
 /**
- * calibration TBD — cooking fuel burned in every month and climate. A quarter of the coldest
- * month's heating: the hearth also cooked, so most cooking fuel is shared with heating in winter
- * and only becomes the whole fire in summer (docs/plan/farm-labour-calibration.md §19).
+ * Space-heating Wood a month per 1,000 residents at coldness 1 (a month averaging 0 °C): 2.4 m³ a
+ * head a year where every month is that cold. With cooking it gives about 1.5 m³ a head a year in
+ * an English climate (Warde found ~1 m³ could be supplied there in 1550, low for northern Europe)
+ * and 2.5–3 m³ in Scandinavian ones (docs/plan/farm-labour-calibration.md §21.2, §22).
  */
-export const BASE_COOKING_UNITS_PER_1000_RESIDENTS_MONTH = 0.04;
-export const COAL_HEAT_PER_UNIT = 2.5;
+export const BASE_HEATING_UNITS_PER_1000_RESIDENTS_MONTH = 20;
+/**
+ * Fuel every household burns in any month and climate: the hearth fire for cooking (0.35 m³ a head
+ * a year), bread baked in a shared village or town oven (0.1) and small-scale brewing (0.05).
+ * 0.5 m³ a head a year (§21.2, §22).
+ */
+export const BASE_COOKING_UNITS_PER_1000_RESIDENTS_MONTH = (0.5 * 1_000) / 12 / WOOD_M3_PER_UNIT;
+/**
+ * Heat of one Coal unit (a tonne, ~27 GJ) in Wood units (10 m³ of mixed firewood, ~6.5 t at
+ * ~15 GJ/t, ~100 GJ) (§22).
+ */
+export const COAL_HEAT_PER_UNIT = 0.27;
 export const MAX_HEATING_TECH_FUEL_REDUCTION = 0.25;
 export const MAX_INSULATION_FUEL_REDUCTION = 0.35;
 export const MAX_MANAGED_FOREST_REGROWTH_BONUS = 0.5;

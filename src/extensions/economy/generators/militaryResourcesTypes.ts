@@ -16,7 +16,9 @@ export const MILITARY_RESOURCES = [
   // same as armored/aviation's recruitment gate itself (docs/plan/military-era-progression.md §4.4).
   "steel",
   "kerosene",
-  "aluminum"
+  "aluminum",
+  // Siege engines, gun carriages and siege works (docs/plan/farm-labour-calibration.md §20).
+  "wood"
 ] as const;
 export type MilitaryResource = (typeof MILITARY_RESOURCES)[number];
 

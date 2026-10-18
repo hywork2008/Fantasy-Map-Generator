@@ -5,23 +5,36 @@ import { managedHarvestAllowance, recoveryYears } from "../../../generators/land
  *
  * `pack.cells.forestCover` is immutable potential forest capacity; the sole
  * mutable source of timber is `simulation.cells.forestStock`, exposed through
- * `pack.cells.forestStock` for compatibility. Shipbuilding logging, Wood
+ * `pack.cells.forestStock` for compatibility. Shipyard felling, Wood
  * supply, and natural regrowth therefore observe the same quantity instead of
  * maintaining a parallel depletion coefficient.
  */
 
-import { getForestStockRatio, harvestForestStock, regrowForestStock } from "../../../generators/forestStock";
+import {
+  getForestCapacity,
+  getForestStockRatio,
+  getWoodUnitsPerForestCoverage,
+  harvestForestStock,
+  regrowForestStock
+} from "../../../generators/forestStock";
 import { getMaintainedForestConversion } from "../../../generators/landUse";
 import { getCultivatedArea, getSimulationYear, getWorldContext, isEconomyContextReady } from "../economyContext";
 import { calculatePhysicalAreaHectares } from "./agriculturalLandUse";
 
 /**
- * Conversion from one market unit of Wood to the share of a fully forested
- * cell that must be harvested. The small value keeps ordinary rural forestry
- * renewable at low population while making dense timber demand visibly open
- * the landscape over time.
+ * Wood units a given forest coverage of this cell holds: its hectares at the biome's standing
+ * volume, in 10 m³ units (`WOOD_M3_PER_UNIT`). Felling takes hectares, so the same Wood empties the
+ * same area of forest on any map (docs/plan/farm-labour-calibration.md §22).
  */
-export const FOREST_COVER_PER_WOOD_UNIT = 0.0002;
+export function woodUnitsForCoverage(cellId: number, coverage: number): number {
+  return isEconomyContextReady() ? coverage * getWoodUnitsPerForestCoverage(getWorldContext(), cellId) : 0;
+}
+
+/** Forest coverage of this cell that holds one Wood unit; Infinity where the cell holds none. */
+function coveragePerWoodUnit(cellId: number): number {
+  const units = getWoodUnitsPerForestCoverage(getWorldContext(), cellId);
+  return units > 0 ? 1 / units : Infinity;
+}
 
 function getLiveCells() {
   return isEconomyContextReady() ? getWorldContext().pack.cells : null;
@@ -36,18 +49,26 @@ export function harvestWood(cellId: number, requestedWood: number): number {
   if (!cells || requestedWood <= 0 || !Number.isFinite(requestedWood)) return 0;
   const world = getWorldContext(),
     year = getSimulationYear();
+  const perUnit = coveragePerWoodUnit(cellId);
+  if (!Number.isFinite(perUnit)) return 0;
   const requestedCoverage = Math.min(
-    requestedWood * FOREST_COVER_PER_WOOD_UNIT,
+    requestedWood * perUnit,
     managedHarvestAllowance(world.pack.landUse, cellId, year) ?? Infinity
   );
   const harvestedCoverage = harvestForestStock(cells, cellId, requestedCoverage);
   recordManagedHarvest(world, cellId, year, harvestedCoverage);
-  return harvestedCoverage / FOREST_COVER_PER_WOOD_UNIT;
+  return harvestedCoverage / perUnit;
 }
 
-/** Applies a shipbuilding logging event to the same stock used by market Wood. */
-export function registerLogHarvest(cellId: number, amount: number): boolean {
-  return harvestWood(cellId, amount) > 0;
+/** Wood `harvestWood()` could cut in this cell now, without cutting it. */
+export function getFellableWood(cellId: number): number {
+  const cells = getLiveCells();
+  if (!cells?.forestStock) return 0;
+  const capacity = getForestCapacity(cells, cellId);
+  if (capacity <= 0) return 0;
+  const standing = Math.max(0, Math.min(capacity, cells.forestStock[cellId] ?? capacity));
+  const allowance = managedHarvestAllowance(getWorldContext().pack.landUse, cellId, getSimulationYear()) ?? Infinity;
+  return woodUnitsForCoverage(cellId, Math.min(standing, allowance));
 }
 
 /** Current Wood supply multiplier for one cell, derived from standing timber. */

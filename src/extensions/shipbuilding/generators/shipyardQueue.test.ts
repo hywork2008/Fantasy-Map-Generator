@@ -217,7 +217,7 @@ describe("shipyardQueue", () => {
         source: "shipbuilding",
         stateId: 1,
         destinationMarketId: 2,
-        annualMaterials: { Wood: 0.4, Sails: 0.4, Ropes: 0.4, Tar: 0.2 }
+        annualMaterials: { Wood: 3, Sails: 0.4, Ropes: 0.4, Tar: 0.2 }
       }
     ]);
   });
@@ -234,7 +234,7 @@ describe("shipyardQueue", () => {
       return { status: "fulfilled" };
     });
 
-    expect(consumed.Wood).toBeCloseTo(2, 10);
+    expect(consumed.Wood).toBeCloseTo(15, 10);
     expect(consumed.Sails).toBeCloseTo(2, 10);
     expect(consumed.Ropes).toBeCloseTo(2, 10);
     expect(consumed.Tar).toBeCloseTo(1, 10);
@@ -593,7 +593,7 @@ describe("shipyardQueue", () => {
 
   // New-map initial-stock warm-up input (docs/plan/shipbuilding-industrial-policy.md §4.6).
   describe("getInitialStateOwnedDemand", () => {
-    const sloopDemand = { Wood: 0.4, Sails: 0.4, Ropes: 0.4, Tar: 0.2 };
+    const sloopDemand = { Wood: 3, Sails: 0.4, Ropes: 0.4, Tar: 0.2 };
 
     it("returns nothing for an empty candidate list", () => {
       expect(getInitialStateOwnedDemand([], [])).toEqual([]);
@@ -633,7 +633,7 @@ describe("shipyardQueue", () => {
           source: "shipbuilding",
           stateId: 1,
           destinationMarketId: 10,
-          annualMaterials: { Wood: 0.8, Sails: 0.8, Ropes: 0.8, Tar: 0.4 }
+          annualMaterials: { Wood: 6, Sails: 0.8, Ropes: 0.8, Tar: 0.4 }
         }
       ]);
     });

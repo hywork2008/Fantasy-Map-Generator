@@ -121,9 +121,6 @@ export function funeralMaterialsFor(rite: FuneralRite, cultureType: CultureType 
   }
 }
 
-/** Standing-forest coverage harvested per Wood unit consumed (cell forestStock is 0..capacity). */
-export const FUNERAL_FOREST_COVERAGE_PER_WOOD = 0.0005;
-
 export function scaleFuneralMaterials(need: FuneralMaterialNeed, people: number): FuneralMaterialNeed {
   if (!(people > 0) || !Number.isFinite(people)) return { ...EMPTY_MATERIALS };
   return {

@@ -25,7 +25,7 @@ describe("strategicMaterialObservations", () => {
 
     expect(STRATEGIC_MATERIAL_TARGET_RESERVE_DAYS).toBe(365);
     expect(observations).toEqual([
-      { material: "Wood", stock: 1.5, annualDemand: 0.4, targetReserve: 0.4, inTransit: 0, sourceStateId: null },
+      { material: "Wood", stock: 1.5, annualDemand: 3, targetReserve: 3, inTransit: 0, sourceStateId: null },
       { material: "Sails", stock: 2, annualDemand: 0.4, targetReserve: 0.4, inTransit: 0, sourceStateId: null },
       { material: "Ropes", stock: 0.75, annualDemand: 0.4, targetReserve: 0.4, inTransit: 0, sourceStateId: null },
       { material: "Tar", stock: 0.25, annualDemand: 0.2, targetReserve: 0.2, inTransit: 0, sourceStateId: null }

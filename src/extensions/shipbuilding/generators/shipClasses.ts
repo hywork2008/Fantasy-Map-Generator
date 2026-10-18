@@ -19,9 +19,11 @@ export const SHIP_CLASSES: readonly ShipClass[] = SHIP_CLASS_DEFINITIONS;
 /**
  * The Economy Ships recipe for one Sloop-sized hull, normalized to ten construction
  * points. Larger ship classes consume proportionally to their build-point requirement.
+ * Wood is in 10 m³ units: a sloop takes 150 m³ of timber, a caravel 375 m³, a galleon 900 m³
+ * (docs/plan/farm-labour-calibration.md §22). The shipyard fells it in its own woodland first.
  */
 export const MATERIALS_PER_TEN_BUILD_POINTS: ShipbuildingMaterials = {
-  Wood: 2,
+  Wood: 15,
   Sails: 2,
   Ropes: 2,
   Tar: 1

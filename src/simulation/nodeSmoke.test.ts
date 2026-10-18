@@ -75,6 +75,14 @@ async function runHostStages(): Promise<{ stage: Stage; error?: string }> {
   try {
     const bytes = readFileSync(resolve(__dirname, "../../tests/fixtures/sim-golden.fmg"));
     await host.loadArchive(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength));
+    // Shipyards are derived, never saved: a loaded world must rebuild them from its own ports.
+    const { getShipyardCandidates } = await import("../extensions/shipbuilding/simulation");
+    const { computeShipyardCandidates } = await import("../extensions/shipbuilding/generators/shipyardCandidates");
+    const expectedYards = computeShipyardCandidates().length;
+    if (!expectedYards) throw new Error("the fixture has no shipyard ports");
+    if (getShipyardCandidates().length !== expectedYards) {
+      throw new Error(`shipyards not rebuilt on load (${getShipyardCandidates().length}/${expectedYards})`);
+    }
   } catch (error) {
     return { stage: "load", error: describeError(error) };
   }

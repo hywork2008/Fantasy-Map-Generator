@@ -35,7 +35,24 @@ const WORKERS_SHARE_PER_BACKLOG = 0.05;
 /** How much of the annual material need may be drawn from local market stock per month. */
 const MATERIAL_STOCK_SHARE = 0.3;
 const STONE_PER_MASON_WORKER_ANNUAL = 8;
-const WOOD_PER_CARPENTER_WORKER_ANNUAL = 10;
+/**
+ * Wood a carpenter population point (1,000 people) works a year: 1,000 m³, about 1 m³ a head.
+ * Raised tenfold with the 10 m³ Wood unit: at 10 units the towns built with 0.03 m³ of timber a
+ * resident a year, a tenth of the 0.2–0.4 m³ the countryside spends (docs/plan/farm-labour-calibration.md §22).
+ */
+const WOOD_PER_CARPENTER_WORKER_ANNUAL = 100;
+/**
+ * Wood a mason's year still needs: roof and floor timbers of a stone or brick house, scaffolding,
+ * arch centering, the rollers and sledges stone is moved on, and the treadwheel cranes that lift
+ * it. About 30% of a carpenter's timber (§20, §22).
+ */
+const WOOD_PER_MASON_WORKER_ANNUAL = 30;
+/**
+ * Wood a port town spends a year per 1,000 residents renewing the timber piles, fenders and decking
+ * of its quays and jetties, which rot and are struck by ships: 20 m³, so 200 m³ for a port of
+ * 10,000 (§20, §22).
+ */
+export const HARBOUR_WOOD_PER_1000_RESIDENTS_ANNUAL = 2;
 /**
  * Roman Concrete is a direct Stone substitute (efficiency 2×), not brick.
  * See docs/plan/urban-construction-industry.md §7.1 decision 3.
@@ -534,8 +551,9 @@ export class ConstructionOperationsModule {
       }
 
       let woodFactor = 1;
-      if (woodGood && isGoodEnabled(woodGood) && required.carpenter > 0) {
-        const woodNeededAnnual = required.carpenter * WOOD_PER_CARPENTER_WORKER_ANNUAL;
+      if (woodGood && isGoodEnabled(woodGood) && required.carpenter + required.mason > 0) {
+        const woodNeededAnnual =
+          required.carpenter * WOOD_PER_CARPENTER_WORKER_ANNUAL + required.mason * WOOD_PER_MASON_WORKER_ANNUAL;
         // Brick firing wood is paid when Brick is manufactured (recipe), not double-charged here.
         // Shipbuilding competes indirectly via shared market stock.
         const consumed = Markets.consumeForConstruction(
@@ -547,8 +565,18 @@ export class ConstructionOperationsModule {
         woodFactor = woodNeededAnnual > 0 ? Math.min(1, (consumed * 12) / woodNeededAnnual) : 1;
       }
 
+      if (burg.port && woodGood && isGoodEnabled(woodGood)) {
+        const residents = getUrbanPeople(burg.population ?? 0, populationRate);
+        consumeMaterialMonthly(
+          operation.marketId,
+          woodGood,
+          (residents / 1000) * HARBOUR_WOOD_PER_1000_RESIDENTS_ANNUAL
+        );
+      }
+
       const laborFactor = masonShare * masonFactor + (1 - masonShare) * carpenterFactor;
-      const materialFactor = masonShare * masonMaterialFactor + (1 - masonShare) * woodFactor;
+      // Masonry stands on timber too: a mason's work waits for its scaffolding and roof beams.
+      const materialFactor = masonShare * Math.min(masonMaterialFactor, woodFactor) + (1 - masonShare) * woodFactor;
       const progressFactor = Math.min(laborFactor, materialFactor);
 
       // K14: growth uses full housingBacklog, not employment's size-aware effectiveBacklog.

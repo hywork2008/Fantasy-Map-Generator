@@ -45,6 +45,17 @@ const ARCHER_ARROWS_PER_HEAD = 0.05;
 const FIREARM_BULLETS_PER_HEAD = 0.012;
 /** Replacement weapons and personal protection for every active troop. */
 const ARMS_PER_HEAD = 0.01;
+/**
+ * Wood a year per artillery population point (1,000 crew) to build and keep its engines: about 50
+ * trebuchet or mangonel frames before gunpowder, wheeled carriages and limbers after, at ~4 m³ a
+ * year each, 200 m³ (docs/plan/farm-labour-calibration.md §20, §22).
+ */
+const ENGINE_WOOD_PER_ARTILLERY_HEAD = 20;
+/**
+ * Wood a month for each town a State's army besieges: engines built on the spot, mantlets,
+ * belfries, palisades and the camp's huts, 300 m³ (§20, §22).
+ */
+export const SIEGE_WORKS_WOOD_PER_SIEGE_MONTH = 30;
 
 // docs/plan/military-era-progression.md §5 Phase 3 — armored/aviation/fieldArtillery/
 // machineGunners' equipment and fuel demand. Unlike the plannedU-gated Muskets/Arms establishment
@@ -163,9 +174,10 @@ export class MilitaryResourcesModule {
             "muskets",
             "steel",
             "kerosene",
-            "aluminum"
+            "aluminum",
+            "wood"
           ] as const)
-        : (["fodder", "arms", "arrows", "steel", "kerosene", "aluminum"] as const);
+        : (["fodder", "arms", "arrows", "steel", "kerosene", "aluminum", "wood"] as const);
 
       for (const resource of resources) {
         const requested = (ledger.annualDemand[resource] ?? 0) / MONTHS_PER_YEAR;
@@ -315,6 +327,17 @@ export class MilitaryResourcesModule {
     if (kerosene > 0) demand.kerosene = kerosene;
     const aluminum = rn(aviation * ALUMINUM_PER_AVIATION_HEAD, 4);
     if (aluminum > 0) demand.aluminum = aluminum;
+    // Towns the State's land regiments are committed to besieging (strategic-planner.ts tags them).
+    const siegeTargets = new Set<number>();
+    for (const regiment of state.military || []) {
+      if (!regiment.n && regiment.goalTargetBurg) siegeTargets.add(regiment.goalTargetBurg);
+    }
+    const wood = rn(
+      artillery * ENGINE_WOOD_PER_ARTILLERY_HEAD +
+        siegeTargets.size * SIEGE_WORKS_WOOD_PER_SIEGE_MONTH * MONTHS_PER_YEAR,
+      4
+    );
+    if (wood > 0) demand.wood = wood;
 
     if (!gunpowderEraEnabled) return demand;
 

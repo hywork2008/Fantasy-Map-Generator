@@ -122,6 +122,8 @@ export interface ShipbuildingMaterialRequest {
   owner: ShipbuildingOwner;
   workPoints: number;
   materials: ShipbuildingMaterials;
+  /** Woodland cell the shipyard fells for its own timber; its Wood is cut there before buying. */
+  timberCellId?: number;
   result?: ShipbuildingMaterialRequestResult;
 }
 
