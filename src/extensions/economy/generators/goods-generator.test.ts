@@ -31,10 +31,12 @@ import {
   migratePetroleumChainGoods,
   migratePomaceDistillationGoods,
   migrateRaisinsGood,
+  migrateSmeltedMetalValues,
   migrateSmeltingFuelAndAshGoods,
   migrateStapleCropGoods,
   migrateSyntheticAmmoniaGoods,
-  migrateWineRecipe
+  migrateWineRecipe,
+  SMELTED_METAL_REPRICING
 } from "./goods-generator";
 import { getDefaultGoodsUnitFlavor } from "./goodsUnitFlavor";
 
@@ -875,6 +877,26 @@ describe("GoodsModule", () => {
     expect(upgradedLiquor.recipes).toHaveLength(15);
     expect(upgradedLiquor.byproducts).toEqual(Array.from({ length: 15 }, () => ({ [ash.i]: 1 })));
     expect(migratePomaceDistillationGoods()).toBe(false);
+  });
+
+  it("reprices smelted metals in a saved catalogue only where the old default is still in place", () => {
+    worldContext.options = {
+      gunpowderEraEnabled: true,
+      historicalPeriod: "highMedieval"
+    } as typeof worldContext.options;
+    goodsModule.restoreDefaults();
+    const byName = (name: string) => getGoods().find(good => good.name === name)!;
+    // A save from before the repricing: old defaults, Bullets scaled by the period's 1.8.
+    for (const [name, [before]] of Object.entries(SMELTED_METAL_REPRICING)) byName(name).value = before;
+    byName("Bullets").value = 6 * 1.8;
+    byName("Tin Ingot").value = 12; // set by the player in the Goods editor
+
+    expect(migrateSmeltedMetalValues()).toBe(true);
+    expect(byName("Iron Ingot").value).toBe(8);
+    expect(byName("Lead Ingot").value).toBe(7);
+    expect(byName("Bullets").value).toBeCloseTo(9 * 1.8, 2);
+    expect(byName("Tin Ingot").value).toBe(12);
+    expect(migrateSmeltedMetalValues()).toBe(false);
   });
 
   it("upgrades legacy Wood-to-Coal fuel into Charcoal, Ash-to-Potash, and Slag without inventing stock", () => {

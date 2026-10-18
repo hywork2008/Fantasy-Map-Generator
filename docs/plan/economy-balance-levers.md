@@ -53,6 +53,7 @@
 | `FARMGATE_PRICE_SHARE` | `foodProduction.ts` | 0.8 | — | 下げると農家の現金が細り、町での買い物が減る。上げると市場の利益（運送・小売の稼ぎ）が減る | 穀物の買い上げ価格の統制 | 政策（国） |
 | `STORAGE_CAP_MONTHS` | `foodProduction.ts` | 12 | 9か月で捨てる | 端境期に町の穀物が尽きる | 公設の穀物庫の規模 | 政策（町・国） |
 | `PRICE_FLOOR`・`PRICE_CEILING` | `foodLedgerConsumption.ts` | 0.8・2.0 | — | 上限を上げると不作の年に都市の家計が穀物を買えなくなる | 穀物の価格統制（最高価格令） | 政策（国） |
+| 地金の基準価値（`SMELTED_METAL_REPRICING`） | `goods-generator.ts` | 鉄8・銅8.5・錫9.5・鉛7（原料の約1.25倍） | 鉄4・銅5・錫6・鉛3（原料割れ） | 戻すと製錬が赤字になり、製錬所に人が付かない（§15） | 金属の公定価格・造幣所への定価納入 | 政策（国） |
 | `FARMGATE_PAYABLE_YEARS` | `foodProduction.ts` | 1年 | 上限なし | 農家への未払いが際限なく増える | 市場の掛け買いの規制 | シナリオ |
 | `EXPORT_RESERVE_MONTHS` | `foodProduction.ts` | 3 | — | 下げると、凶作の地域から穀物が出ていく | 穀物の輸出禁止令 | 政策（国） |
 | 市場間の穀物の輸入（実際に運ぶ） | `foodImportNetwork.ts` | 運んだ分だけ | 都市の上限だけを上げ、穀物は動かない | 届かない食料で都市が育つ | 穀物の流通の自由化 | — |

@@ -349,7 +349,8 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["ingot", "metal", "military"],
     icon: "good-iron",
     color: "#5D686E",
-    value: 4,
+    // Repriced over ore and charcoal: SMELTED_METAL_REPRICING.
+    value: 8,
     chance: 0,
     unit: "wagon"
   },
@@ -359,7 +360,8 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["ingot", "metal"],
     icon: "good-copper",
     color: "#b87333",
-    value: 5,
+    // Repriced over ore and charcoal: SMELTED_METAL_REPRICING.
+    value: 8.5,
     chance: 0,
     unit: "wagon"
   },
@@ -369,7 +371,8 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["ingot", "metal"],
     icon: "good-tin",
     color: "#454343",
-    value: 6,
+    // Repriced over ore and charcoal: SMELTED_METAL_REPRICING.
+    value: 9.5,
     chance: 0,
     unit: "wagon"
   },
@@ -379,7 +382,8 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["ingot", "metal", "military", "construction"],
     icon: "good-lead",
     color: "#6f7285",
-    value: 3,
+    // Repriced over ore and charcoal: SMELTED_METAL_REPRICING.
+    value: 7,
     chance: 0,
     unit: "wagon",
     demandCoverage: { construction: 0.3 }
@@ -440,7 +444,8 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["ingot", "metalloid", "alloy"],
     icon: "good-stone",
     color: "#d8d0bc",
-    value: 6,
+    // Repriced over ore and charcoal: SMELTED_METAL_REPRICING.
+    value: 9.5,
     chance: 0,
     unit: "wagon"
   },
@@ -1602,7 +1607,8 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["military"],
     icon: "good-bronze",
     color: "#e46f21",
-    value: 8,
+    // Repriced over ore and charcoal: SMELTED_METAL_REPRICING.
+    value: 10,
     chance: 0,
     recipes: [
       { "Copper Ingot": 0.5, Charcoal: 1 },
@@ -1698,7 +1704,8 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["military", "hunting"],
     icon: "good-lead",
     color: "#5c5c5c",
-    value: 6,
+    // Repriced over ore and charcoal: SMELTED_METAL_REPRICING.
+    value: 9,
     chance: 0,
     recipes: [{ "Lead Ingot": 1 }],
     unit: "pouch",
@@ -4638,6 +4645,45 @@ export function migrateFreshFoodTags(): boolean {
   for (const good of getGoods()) {
     if (!FRESH_FOOD_GOOD_NAMES.has(good.name) || good.tags.includes("freshFood")) continue;
     good.tags.push("freshFood");
+    changed = true;
+  }
+  return changed;
+}
+
+/**
+ * Base values of the smelted metals and their plain castings, before and after
+ * docs/plan/farm-labour-calibration.md §15. The ingots were priced at twice their ore before
+ * Charcoal (3 a unit, one per unit of ore) became the smelting fuel; iron, copper, tin, lead and
+ * silicon then sold for less than their ore and charcoal. Each is now 1.25 × (ore + charcoal) ÷
+ * the 0.8 smelting yield, the median of the ingots that still paid (silver 1.23, gold 1.39,
+ * chromium 1.12, nickel 1.16, molybdenum 1.28). Bronze and lead Bullets follow their metal.
+ */
+export const SMELTED_METAL_REPRICING: Readonly<Record<string, readonly [before: number, after: number]>> = {
+  "Iron Ingot": [4, 8],
+  "Copper Ingot": [5, 8.5],
+  "Tin Ingot": [6, 9.5],
+  "Lead Ingot": [3, 7],
+  "Silicon Ingot": [6, 9.5],
+  Bronze: [8, 10],
+  Bullets: [6, 9]
+};
+
+/**
+ * Applies SMELTED_METAL_REPRICING to a saved catalogue. Only a value still at its old default
+ * (scaled by the map's gunpowder-era multiplier for Bullets) is changed, so a value the player set
+ * in the Goods editor is kept.
+ */
+export function migrateSmeltedMetalValues(): boolean {
+  const period = getWorldContext().options.historicalPeriod ?? "ageOfExploration";
+  const gunpowderMultiplier = GUNPOWDER_ERA_PRICE_MULTIPLIER[period] ?? 1;
+  let changed = false;
+  for (const good of getGoods()) {
+    const repricing = SMELTED_METAL_REPRICING[good.name];
+    if (!repricing) continue;
+    const multiplier = GUNPOWDER_ERA_GOODS.has(good.name.toLowerCase()) ? gunpowderMultiplier : 1;
+    const [before, after] = repricing.map(value => rn(value * multiplier, 2));
+    if (good.value !== before) continue;
+    good.value = after;
     changed = true;
   }
   return changed;
