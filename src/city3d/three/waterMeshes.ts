@@ -12,7 +12,7 @@ import {
 import type { CityDocument } from "../../city-editor/types/document";
 import type { Point } from "../../city-editor/types/primitives";
 import type { TriangleSoup } from "../core/massingGeometry";
-import { LAND_Y, waterSurfaceGeometry } from "../core/waterGeometry";
+import { LAND_Y, WATER_Y, waterSurfaceGeometry } from "../core/waterGeometry";
 
 const LAND_COLOR = 0xd5cfbf;
 const UNKNOWN_COLOR = 0xcfcdc6;
@@ -62,14 +62,27 @@ export function createTownWater(document: CityDocument): TownWaterMeshes {
   parent.name = "ce-water";
   const water = classifyTownWater(document);
   const ground = townGroundPolygons(document, water);
+  // The view flattens land at LAND_Y. Translate absolute sea level into that
+  // local frame using the mean land elevation; legacy/empty maps use 1 m.
+  const elevations = Object.values(document.mesh.faces)
+    .filter(face => face.properties.water === "land")
+    .map(face => face.properties.elevation)
+    .filter(elevation => Number.isFinite(elevation) && elevation > 0);
+  const landElevation = elevations.length ? elevations.reduce((sum, value) => sum + value, 0) / elevations.length : 1;
+  const waterY = (kind: TownWaterKind) => (kind === "ocean" ? LAND_Y - landElevation : WATER_Y);
   const land = meshFrom("ce-land", soupAt(ground.land, LAND_Y), LAND_COLOR, THREE.FrontSide);
   const unknown = land ? meshFrom("ce-unknown", soupAt(ground.unknown, LAND_Y), UNKNOWN_COLOR, THREE.FrontSide) : null;
-  const bank = land ? bankMesh(water.parts.map(part => part.polygon)) : null;
+  const bank = land
+    ? bankMesh(
+        water.parts.map(part => part.polygon),
+        water.parts.map(part => waterY(part.kind))
+      )
+    : null;
   if (land) {
     for (const kind of KINDS) {
       const parts = water.parts.filter(part => part.kind === kind);
       if (!parts.length) continue;
-      const top = waterSurfaceGeometry(townWaterTriangles(parts), [], () => false).top;
+      const top = waterSurfaceGeometry(townWaterTriangles(parts), [], () => false, { waterY: waterY(kind) }).top;
       const mesh = meshFrom(`ce-water-${kind}`, top, TOWN_WATER_COLOR[kind], THREE.FrontSide);
       if (mesh) parent.add(mesh);
     }
@@ -92,8 +105,8 @@ export function createTownWater(document: CityDocument): TownWaterMeshes {
   };
 }
 
-function bankMesh(polygons: Point[][]): THREE.Mesh | null {
-  const skirt = waterSurfaceGeometry([], polygons, point => strictWet(point, polygons)).skirt;
+function bankMesh(polygons: Point[][], boundaryWaterY: number[]): THREE.Mesh | null {
+  const skirt = waterSurfaceGeometry([], polygons, point => strictWet(point, polygons), { boundaryWaterY }).skirt;
   return meshFrom("ce-bank", skirt, LAND_COLOR, THREE.DoubleSide);
 }
 
