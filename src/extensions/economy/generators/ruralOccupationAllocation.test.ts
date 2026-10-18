@@ -9,6 +9,7 @@ import {
   setGoodCellColumn,
   setGoods,
   setHuntingWorkers,
+  setMarketCellColumn,
   setViticultureRequiredWorkers,
   setViticultureWorkers
 } from "../economyContext";
@@ -16,7 +17,8 @@ import {
   allocateRuralOccupations,
   GAME_YIELD_PER_HUNTER_PER_MONTH,
   getFishingWorkerFactor,
-  getHuntingGameOutput
+  getHuntingGameOutput,
+  getUrbanHarvestHelpShare
 } from "./ruralOccupationAllocation";
 import { getViticultureWorkerFactor } from "./viticulture";
 
@@ -132,6 +134,43 @@ describe("ruralOccupationAllocation", () => {
     // Both adults now work year-round (crop month plus fishing), so none can leave.
     expect(result.migratableAdults[0]).toBe(0);
     expect(result.seasonalLaborShortage[6]).toBeGreaterThan(0);
+  });
+
+  it("lets market-town adults and travelling rural hands cover part of a harvest-month shortage, more in later periods", () => {
+    const run = (historicalPeriod: string) => {
+      worldContext.pack = {
+        cells: {
+          i: new Uint16Array([0]),
+          h: new Uint8Array([30]),
+          biomeCode: new Uint8Array([0]),
+          pop: new Float32Array([2]),
+          maleAdults: new Float32Array([0.5]),
+          femaleAdults: new Float32Array([0.5]),
+          c: [[]]
+        },
+        burgs: [{}, { i: 1, market: 1, population: 10, demographics: { maleAdults: 3, femaleAdults: 3 } }]
+      } as unknown as PackedGraph;
+      worldContext.populationRate = 1;
+      worldContext.urbanization = 1;
+      worldContext.options = { ...worldContext.options, historicalPeriod } as never;
+      worldContext.biomesData = { tags: [[]], habitability: [0] } as never;
+      setGoods([] as never);
+      setMarketCellColumn(new Uint16Array([1]));
+      const cropLaborDaysByMonth = new Float32Array(12);
+      cropLaborDaysByMonth[6] = 100; // a harvest month far beyond one adult's peak capacity
+      return allocateRuralOccupations(worldContext, {
+        cropLaborDaysByMonth,
+        minimumCropLaborDaysByMonth: cropLaborDaysByMonth.slice(),
+        farmLaborRequired: new Float32Array([1]),
+        migratableAdults: new Float32Array([0])
+      }).seasonalLaborShortage[6];
+    };
+
+    const medieval = run("highMedieval");
+    const later = run("preIndustrialEra");
+    expect(getUrbanHarvestHelpShare("highMedieval")).toBeLessThan(getUrbanHarvestHelpShare("preIndustrialEra"));
+    expect(later).toBeLessThan(medieval);
+    expect(medieval).toBeGreaterThan(0);
   });
 
   it("gates Grapes' harvest by the assigned/required viticulture workerFactor", () => {

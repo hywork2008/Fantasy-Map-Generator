@@ -37,13 +37,15 @@
  * since `ruralLaborRelease.ts` still expects population points to match `cells.maleAdults`/`femaleAdults`.
  */
 
+import { historicalPeriodIndex } from "../../../types/historicalPeriod";
 import { LIVELIHOOD_CODE, type WorldContext } from "../../hostCore";
 import {
   getFishingRequiredWorkers,
   getFishingWorkers,
   getGoodCellColumn,
   getGoods,
-  getHuntingWorkers
+  getHuntingWorkers,
+  getMarketCellColumn
 } from "../economyContext";
 import {
   type AgriculturalLandProfile,
@@ -51,6 +53,7 @@ import {
   getAnnualRequiredAdults,
   getMonthlyWorkDaysPerAdult,
   getReservedAdultOutflowPoints,
+  PEAK_MONTH_WORK_MULTIPLIER,
   WORKABLE_DAYS_PER_ADULT,
   WORKABLE_DAYS_PER_ADULT_PER_MONTH
 } from "./agriculturalLandUse";
@@ -473,6 +476,7 @@ function allocateRuralOccupationsFromCalendar(
   }
 
   const aidReceivedByCell = applyHarvestMutualAid(world, currentDaysByCell, desiredDaysByCell, workDaysPerAdultByCell);
+  applyRegionalHarvestHelp(world, currentDaysByCell, desiredDaysByCell, workDaysPerAdultByCell, aidReceivedByCell);
 
   for (const cellId of cells.i) {
     if (cells.h[cellId] < 20) continue;
@@ -616,6 +620,128 @@ function applyHarvestMutualAid(
     }
   }
   return aidReceivedByCell;
+}
+
+export const URBAN_HARVEST_HELP_SHARE_MEDIEVAL = 0.05;
+export const URBAN_HARVEST_HELP_SHARE_EARLY_MODERN = 0.1;
+export const URBAN_HARVEST_HELP_SHARE_LATER = 0.15;
+/**
+ * Share of the idle rural hands elsewhere in the market area (beyond the adjacent cells that
+ * applyHarvestMutualAid reaches) who travel for harvest work. Hired occasional labour already
+ * figured prominently on medieval demesnes; travelling harvest gangs grew in the early modern
+ * period (docs/plan/farm-labour-calibration.md §3 proposal 5). Game calibrations.
+ */
+export const REGIONAL_HARVEST_MOBILITY_MEDIEVAL = 0.25;
+export const REGIONAL_HARVEST_MOBILITY_EARLY_MODERN = 0.4;
+export const REGIONAL_HARVEST_MOBILITY_LATER = 0.5;
+
+function periodBand(historicalPeriod: string | undefined): 0 | 1 | 2 {
+  const index = historicalPeriodIndex(historicalPeriod);
+  if (index < 0) return 1;
+  if (index <= historicalPeriodIndex("lateMedieval")) return 0;
+  if (index <= historicalPeriodIndex("maritimeEra")) return 1;
+  return 2;
+}
+
+/**
+ * Share of a market town's adults who go out to the surrounding fields in a harvest month, by
+ * historical period. Medieval harvests leaned on household help, boon work and hired local labour;
+ * townspeople joining the harvest in numbers belongs to the early modern and later periods
+ * (docs/plan/rural-food-labor-audit.md §1.2).
+ */
+export function getUrbanHarvestHelpShare(historicalPeriod: string | undefined): number {
+  return [URBAN_HARVEST_HELP_SHARE_MEDIEVAL, URBAN_HARVEST_HELP_SHARE_EARLY_MODERN, URBAN_HARVEST_HELP_SHARE_LATER][
+    periodBand(historicalPeriod)
+  ];
+}
+
+export function getRegionalHarvestMobility(historicalPeriod: string | undefined): number {
+  return [REGIONAL_HARVEST_MOBILITY_MEDIEVAL, REGIONAL_HARVEST_MOBILITY_EARLY_MODERN, REGIONAL_HARVEST_MOBILITY_LATER][
+    periodBand(historicalPeriod)
+  ];
+}
+
+/**
+ * Seasonal harvest hands from within the market area: its towns' helpers (adults ×
+ * getUrbanHarvestHelpShare, working a peak month) and the travelling share of idle rural adults in
+ * its other cells (getRegionalHarvestMobility). In each month they cover the shortage left after
+ * household help and neighbour aid, shared in proportion to each cell's shortage. The help counts as
+ * aid received (not as the farm cell's resident work); travelling rural hands become employed in
+ * their home cell's calendar, as neighbour aid does. The towns' own production is not reduced yet.
+ */
+function applyRegionalHarvestHelp(
+  world: Readonly<WorldContext>,
+  currentDaysByCell: Float32Array,
+  desiredDaysByCell: Float32Array,
+  workDaysPerAdultByCell: Float32Array,
+  aidReceivedByCell: Float32Array
+): void {
+  const cells = world.pack.cells;
+  const marketCellColumn = getMarketCellColumn();
+  if (!cells?.i || marketCellColumn.length !== cells.i.length) return;
+  const urbanShare = getUrbanHarvestHelpShare(world.options?.historicalPeriod);
+  const mobility = getRegionalHarvestMobility(world.options?.historicalPeriod);
+  const populationRate = Math.max(1, world.populationRate || 1);
+  const urbanization = Math.max(0, world.urbanization ?? 1);
+  const peakWorkDays = WORKABLE_DAYS_PER_ADULT_PER_MONTH * PEAK_MONTH_WORK_MULTIPLIER;
+
+  const townHelpersByMarket = new Map<number, number>();
+  for (const burg of world.pack.burgs ?? []) {
+    if (!burg?.i || burg.removed || !burg.demographics || !burg.market) continue;
+    const adults = Math.max(0, burg.demographics.maleAdults ?? 0) + Math.max(0, burg.demographics.femaleAdults ?? 0);
+    const helpers = adults * populationRate * urbanization * urbanShare;
+    if (helpers > 0) townHelpersByMarket.set(burg.market, (townHelpersByMarket.get(burg.market) ?? 0) + helpers);
+  }
+
+  for (let month = 0; month < 12; month++) {
+    const shortage = new Float32Array(cells.i.length);
+    const slack = new Float32Array(cells.i.length);
+    const shortageByMarket = new Map<number, number>();
+    const slackByMarket = new Map<number, number>();
+    for (const cellId of cells.i) {
+      if ((cells.h[cellId] ?? 0) < 20) continue;
+      const marketId = marketCellColumn[cellId] ?? 0;
+      if (!marketId) continue;
+      const index = cellId * 12 + month;
+      const workDays = workDaysPerAdultByCell[index] || WORKABLE_DAYS_PER_ADULT_PER_MONTH;
+      const ruralAdultPoints =
+        Math.max(0, cells.maleAdults?.[cellId] ?? 0) + Math.max(0, cells.femaleAdults?.[cellId] ?? 0);
+      const capacity = ruralAdultPoints * populationRate * workDays;
+      const helperDays = getHouseholdHarvestHelperDays(cells, cellId, populationRate, workDays);
+      const remaining = (desiredDaysByCell[index] ?? 0) - capacity - helperDays - (aidReceivedByCell[index] ?? 0);
+      if (remaining > 0) {
+        shortage[cellId] = remaining;
+        shortageByMarket.set(marketId, (shortageByMarket.get(marketId) ?? 0) + remaining);
+      } else {
+        // Travelling hands come from adults with an ordinary month to spare.
+        const idle = Math.max(
+          0,
+          ruralAdultPoints * populationRate * WORKABLE_DAYS_PER_ADULT_PER_MONTH - currentDaysByCell[index]
+        );
+        slack[cellId] = idle * mobility;
+        slackByMarket.set(marketId, (slackByMarket.get(marketId) ?? 0) + slack[cellId]);
+      }
+    }
+
+    const usedRuralShare = new Map<number, number>();
+    for (const [marketId, marketShortage] of shortageByMarket) {
+      const town = (townHelpersByMarket.get(marketId) ?? 0) * peakWorkDays;
+      const rural = slackByMarket.get(marketId) ?? 0;
+      const used = Math.min(marketShortage, town + rural);
+      if (!(used > 0)) continue;
+      // Towns' helpers are spent before rural hands leave their own villages.
+      const ruralUsed = Math.max(0, used - town);
+      usedRuralShare.set(marketId, rural > 0 ? ruralUsed / rural : 0);
+      for (const cellId of cells.i) {
+        if (!(shortage[cellId] > 0) || marketCellColumn[cellId] !== marketId) continue;
+        aidReceivedByCell[cellId * 12 + month] += (used * shortage[cellId]) / marketShortage;
+      }
+    }
+    for (const cellId of cells.i) {
+      const share = usedRuralShare.get(marketCellColumn[cellId] ?? 0) ?? 0;
+      if (share > 0 && slack[cellId] > 0) currentDaysByCell[cellId * 12 + month] += slack[cellId] * share;
+    }
+  }
 }
 
 function addWorkerDays(target: number[], workers: number, monthlyWeights: readonly number[]): void {
