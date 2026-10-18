@@ -23,10 +23,11 @@ import {
   resolveBurgCultureType
 } from "./constructionEmployment";
 import { getConstructionMacroRequiredWorkers } from "./constructionJobPostings";
-import { getMineRequiredWorkers } from "./mineOperations";
+import { peopleToPoints } from "./craftScale";
+import { getMineEmploymentPeople, getMineRequiredWorkers } from "./mineOperations";
 import { getQuarryRequiredWorkers } from "./quarryOperations";
 import { type BasicEmploymentSummaryRecord, buildBasicEmploymentSummary } from "./serviceEmployment";
-import { getSmelterRequiredWorkers } from "./smelterOperations";
+import { getSmelterEmploymentPeople, getSmelterRequiredWorkers } from "./smelterOperations";
 import { STRATEGIC_OCCUPATIONS, type StrategicOccupation } from "./strategicLaborMarketsTypes";
 import { getVolcanicRequiredWorkers } from "./volcanicOperations";
 
@@ -106,6 +107,7 @@ export function reconcileAnnualBasicEmploymentWorkers(options?: { initial?: bool
     });
   }
 
+  const populationRate = Math.max(0, getWorldContext().populationRate ?? 0) || 1;
   // Resource operations retain their physical site, but their labor comes from the whole market.
   // Refining precedes extraction because an Ore buffer is useful while a zero-worker smelter
   // blocks every downstream metal Good.
@@ -113,11 +115,14 @@ export function reconcileAnnualBasicEmploymentWorkers(options?: { initial?: bool
     if (!smelter.active || !smelter.burgId || !smelter.marketId) continue;
     pushMarketWorkforceSlot(marketWorkforceSlots, smelter.marketId, {
       burgId: smelter.burgId,
-      requiredWorkers: getSmelterRequiredWorkers(smelter),
-      getWorkers: () => smelter.workers,
-      setWorkers: value => {
-        smelter.workers = value;
-      }
+      ...crewSlot(
+        getSmelterRequiredWorkers(smelter),
+        peopleToPoints(getSmelterEmploymentPeople(smelter), populationRate),
+        () => smelter.workers,
+        value => {
+          smelter.workers = value;
+        }
+      )
     });
   }
 
@@ -128,37 +133,52 @@ export function reconcileAnnualBasicEmploymentWorkers(options?: { initial?: bool
     if (!deposit) continue;
     pushMarketWorkforceSlot(marketWorkforceSlots, mine.marketId, {
       burgId: mine.burgId,
-      requiredWorkers: getMineRequiredWorkers(deposit),
-      getWorkers: () => mine.workers,
-      setWorkers: value => {
-        mine.workers = value;
-      }
+      ...crewSlot(
+        getMineRequiredWorkers(deposit),
+        peopleToPoints(getMineEmploymentPeople(deposit), populationRate),
+        () => mine.workers,
+        value => {
+          mine.workers = value;
+        }
+      )
     });
   }
 
   for (const quarry of getQuarryOperations()) {
     if (!quarry.active || !quarry.burgId) continue;
-    pushSlot(slotsByBurg, quarry.burgId, {
-      requiredWorkers: getQuarryRequiredWorkers(quarry),
-      getWorkers: () => quarry.quarryWorkers,
-      setWorkers: value => {
-        quarry.quarryWorkers = value;
-      }
-    });
+    // Quarry output is per head (12 t of stone a year), so its slots are a crew of that many people.
+    const required = getQuarryRequiredWorkers(quarry);
+    pushSlot(
+      slotsByBurg,
+      quarry.burgId,
+      crewSlot(
+        required,
+        peopleToPoints(required, populationRate),
+        () => quarry.quarryWorkers,
+        value => {
+          quarry.quarryWorkers = value;
+        }
+      )
+    );
   }
 
   for (const volcanicWorks of getVolcanicOperations()) {
     if (!volcanicWorks.active || !volcanicWorks.burgId) continue;
-    pushSlot(slotsByBurg, volcanicWorks.burgId, {
-      requiredWorkers: getVolcanicRequiredWorkers(volcanicWorks),
-      getWorkers: () => volcanicWorks.volcanicWorkers,
-      setWorkers: value => {
-        volcanicWorks.volcanicWorkers = value;
-      }
-    });
+    const required = getVolcanicRequiredWorkers(volcanicWorks);
+    pushSlot(
+      slotsByBurg,
+      volcanicWorks.burgId,
+      crewSlot(
+        required,
+        peopleToPoints(required, populationRate),
+        () => volcanicWorks.volcanicWorkers,
+        value => {
+          volcanicWorks.volcanicWorkers = value;
+        }
+      )
+    );
   }
 
-  const populationRate = Math.max(0, getWorldContext().populationRate ?? 0) || 1;
   const brickAvailable = isBrickGoodAvailable();
   const highFantasy = optionsStore.getState().culturesSet === "highFantasy";
   for (const construction of getConstructionOperations()) {
@@ -280,6 +300,27 @@ export function getTradeWorkersByBurg(): Map<number, number> {
  */
 export function getStrategicIndustryWorkersByBurg(): Map<number, number> {
   return getStrategicOccupationWorkersByBurg(STRATEGIC_INDUSTRY_OCCUPATIONS);
+}
+
+/**
+ * An extraction site counts its staffing in its own units (its `required` slots), which fixed its
+ * output and tools long before real crews were authored. The town's labour, and the jobs that draw
+ * migrants, are its real crew instead: a mine of 40–440 people, not 4–34 population points (up to
+ * 34,000 people). The slot is sized in the crew's population points and scaled back to the site's
+ * units (docs/plan/farm-labour-calibration.md §13).
+ */
+function crewSlot(
+  required: number,
+  crewPoints: number,
+  getSiteWorkers: () => number,
+  setSiteWorkers: (value: number) => void
+): BasicEmploymentSlot {
+  const scale = required > 0 && crewPoints > 0 ? crewPoints / required : 0;
+  return {
+    requiredWorkers: crewPoints,
+    getWorkers: () => getSiteWorkers() * scale,
+    setWorkers: value => setSiteWorkers(scale > 0 ? value / scale : 0)
+  };
 }
 
 function pushSlot(map: Map<number, BasicEmploymentSlot[]>, burgId: number, slot: BasicEmploymentSlot): void {

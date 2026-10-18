@@ -7,6 +7,7 @@ import {
   getWorldContext,
   setQuarryOperations
 } from "../economyContext";
+import { getMarketValue, settleExtractionPayment } from "./extractionPayments";
 import { isGoodEnabled } from "./goods-generator";
 import { Markets } from "./markets-generator";
 import type { QuarryOperation } from "./quarryOperationsTypes";
@@ -141,11 +142,13 @@ export class QuarryOperationsModule {
       const extractionFactor = Math.max(0, Math.min(1, workerFactor * investmentBonus));
 
       const annualOutputTons: QuarryOperation["annualOutputTons"] = {};
+      let outputValue = 0;
 
       if (stoneGood && isGoodEnabled(stoneGood)) {
         const monthlyStone = (BASE_ANNUAL_STONE_TONS_PER_WORKER * operation.quarryWorkers * extractionFactor) / 12;
         const supplied = Markets.addMineSupply(operation.marketId, stoneGood.i, monthlyStone);
         if (supplied > 0) annualOutputTons.stone = rn(supplied * 12, 2);
+        outputValue += getMarketValue(operation.marketId, stoneGood.i, supplied, stoneGood.value);
       }
 
       if (marbleGood && isGoodEnabled(marbleGood) && operation.marbleRatio > 0) {
@@ -154,9 +157,17 @@ export class QuarryOperationsModule {
           12;
         const supplied = Markets.addMineSupply(operation.marketId, marbleGood.i, monthlyMarble);
         if (supplied > 0) annualOutputTons.marble = rn(supplied * 12, 2);
+        outputValue += getMarketValue(operation.marketId, marbleGood.i, supplied, marbleGood.value);
       }
 
       operation.annualOutputTons = annualOutputTons;
+      settleExtractionPayment({
+        marketId: operation.marketId,
+        burgId: operation.burgId,
+        // Output is per head (BASE_ANNUAL_STONE_TONS_PER_WORKER), so the slots read as people here.
+        people: operation.quarryWorkers,
+        outputValue
+      });
     }
   }
 }

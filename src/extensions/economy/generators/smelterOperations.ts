@@ -14,7 +14,7 @@ import { isGoodEnabled } from "./goods-generator";
 import { getGuildBonus } from "./guildKnowledge";
 import { Markets } from "./markets-generator";
 import { getIngotGoodName, ORE_COMMODITIES, type OreCommodity } from "./mineralResources";
-import type { SmelterOperation } from "./smelterOperationsTypes";
+import { getSmelterEmploymentPeople, type SmelterOperation } from "./smelterOperationsTypes";
 
 export type { SmelterOperation } from "./smelterOperationsTypes";
 export {
@@ -24,6 +24,7 @@ export {
   SMELTER_EMPLOYMENT_PEOPLE_PER_ANNUAL_TON
 } from "./smelterOperationsTypes";
 
+import { getMarketValue, settleExtractionPayment } from "./extractionPayments";
 import { nominal } from "./moneyScale";
 
 const DEFAULT_SMELTING_YIELD = 0.8;
@@ -239,6 +240,7 @@ export class SmelterOperationsModule {
       const monthlyCapacity = (smelter.annualCapacityTons * processingFactor) / 12;
       if (monthlyCapacity <= 0) continue;
       this.ensureLocalCharcoalReserve(smelter, monthlyCapacity, goodsByName);
+      let valueAdded = 0;
 
       for (const yieldInfo of oreYields) {
         const commodity = yieldInfo.commodity;
@@ -276,10 +278,21 @@ export class SmelterOperationsModule {
         const theftLoss = this.rollTheft(smelter, deposit.accessibility, refinedIngots, effectiveSecurity);
         const deliveredIngots = Math.max(0, refinedIngots - theftLoss);
         if (deliveredIngots > 0) Markets.addSmelterSupply(smelter.marketId, ingot.i, deliveredIngots);
+        // The smelter is paid for what it adds: the ingots less the ore and charcoal it drew.
+        valueAdded +=
+          getMarketValue(smelter.marketId, ingot.i, deliveredIngots, ingot.value) -
+          getMarketValue(smelter.marketId, ore.i, oreConsumed, ore.value) -
+          getMarketValue(smelter.marketId, charcoal.i, charcoalConsumed, charcoal.value);
         if (slag && isGoodEnabled(slag)) {
           Markets.addSmelterSupply(smelter.marketId, slag.i, oreConsumed * SLAG_PER_ORE_UNIT);
         }
       }
+      settleExtractionPayment({
+        marketId: smelter.marketId,
+        burgId: smelter.burgId,
+        people: getSmelterEmploymentPeople(smelter) * Math.min(1, smelter.workers / getSmelterRequiredWorkers(smelter)),
+        outputValue: valueAdded
+      });
     }
   }
 

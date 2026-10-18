@@ -17,6 +17,7 @@ import {
   WORKS_LEVEL_STEP
 } from "./publicWorks";
 import type { TradeCorridor } from "./tradeCorridorLedger";
+import { getRoadCashCost } from "./worksPayments";
 
 /**
  * Four-cell chain, all owned by State 1. Route 0 is a `trails` route over cells 0-1-2-3
@@ -160,7 +161,11 @@ describe("publicWorks (docs/plan/economy-coupling-audit.md L8 stage 2)", () => {
 
       expect(result.networkChanged).toBe(true);
       expect(worldContext.pack.routes[0].group).toBe("roads");
-      expect(state().departmentBalances?.publicWorks).toBe(4 * ROAD_PROMOTION_COST_PER_CELL);
+      // A monarchy owes part of the road labour as corvée, so the treasury pays less than the full cost.
+      expect(state().departmentBalances?.publicWorks).toBeCloseTo(
+        8 * ROAD_PROMOTION_COST_PER_CELL - getRoadCashCost(state(), 4 * ROAD_PROMOTION_COST_PER_CELL),
+        2
+      );
     });
 
     it("leaves a trail unpaved while its traffic is below the threshold, however rich the state", () => {

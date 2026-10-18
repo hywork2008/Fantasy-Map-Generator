@@ -8,6 +8,7 @@ import {
   getWorldContext,
   setVolcanicOperations
 } from "../economyContext";
+import { getMarketValue, settleExtractionPayment } from "./extractionPayments";
 import { isGoodEnabled } from "./goods-generator";
 import { Markets } from "./markets-generator";
 import type { VolcanicOperation } from "./volcanicOperationsTypes";
@@ -140,25 +141,36 @@ export class VolcanicOperationsModule {
 
       const requiredWorkers = getVolcanicRequiredWorkers(operation);
       const extractionFactor = Math.max(0, Math.min(1, operation.volcanicWorkers / requiredWorkers));
+      let outputValue = 0;
 
       if (ashGood && isGoodEnabled(ashGood)) {
         const monthlyAsh = (BASE_ANNUAL_ASH_TONS_PER_WORKER * operation.volcanicWorkers * extractionFactor) / 12;
-        Markets.addMineSupply(operation.marketId, ashGood.i, monthlyAsh);
+        const supplied = Markets.addMineSupply(operation.marketId, ashGood.i, monthlyAsh);
+        outputValue += getMarketValue(operation.marketId, ashGood.i, supplied, ashGood.value);
       }
 
       if (sulfurGood && isGoodEnabled(sulfurGood) && operation.sulfurNeighborCount > 0) {
         const sulfurRatio = operation.sulfurNeighborCount / operation.ashNeighborCount;
         const monthlySulfur =
           (BASE_ANNUAL_SULFUR_TONS_PER_WORKER * operation.volcanicWorkers * sulfurRatio * extractionFactor) / 12;
-        Markets.addMineSupply(operation.marketId, sulfurGood.i, monthlySulfur);
+        const supplied = Markets.addMineSupply(operation.marketId, sulfurGood.i, monthlySulfur);
+        outputValue += getMarketValue(operation.marketId, sulfurGood.i, supplied, sulfurGood.value);
       }
 
       if (obsidianGood && isGoodEnabled(obsidianGood) && operation.obsidianNeighborCount > 0) {
         const obsidianRatio = operation.obsidianNeighborCount / operation.ashNeighborCount;
         const monthlyObsidian =
           (BASE_ANNUAL_OBSIDIAN_TONS_PER_WORKER * operation.volcanicWorkers * obsidianRatio * extractionFactor) / 12;
-        Markets.addMineSupply(operation.marketId, obsidianGood.i, monthlyObsidian);
+        const supplied = Markets.addMineSupply(operation.marketId, obsidianGood.i, monthlyObsidian);
+        outputValue += getMarketValue(operation.marketId, obsidianGood.i, supplied, obsidianGood.value);
       }
+
+      settleExtractionPayment({
+        marketId: operation.marketId,
+        burgId: operation.burgId,
+        people: operation.volcanicWorkers,
+        outputValue
+      });
     }
   }
 }

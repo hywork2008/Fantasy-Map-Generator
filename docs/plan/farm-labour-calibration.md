@@ -521,7 +521,7 @@ seed 102、Megacity、9〜10年目。都市を首都・市場の中心・その�
 
 ### 12.6 残っている課題
 
-1. **基幹の雇用の賃金**（§12.5）: 鉱山・製錬・採石・建築の賃金を、産物の売り上げや発注者から町の家計へ払う。
+1. **基幹の雇用の賃金**（§12.5）: 鉱山・製錬・採石・建築の賃金を、産物の売り上げや発注者から町の家計へ払う。 → §13
 2. **移住が飢えを見ない**: Megacity の移住の量に、行き先の食料の充足（または家計の現金）を入れるか。入れると、都市は飢える前に伸びが止まる。
 3. **市場全体の貧困**（§12.1 の 3）: 穀物の足りない農村の市場は、農家・町・市場のどこにもお金がない。地域をまたぐお金の流れ（国の給与、輸出の代金）を調べる。
 4. **都市の現金の偏り**（§11.4 の 1）: 首都と市場の中心は余りを町で使い、金庫から年1回、市場と国庫へ回収される。周りの町には戻りにくい。
@@ -530,3 +530,146 @@ seed 102、Megacity、9〜10年目。都市を首都・市場の中心・その�
 ### 12.7 ゲームの係数
 
 ここまでの校正で決めた係数のうち、プレイヤーの意思決定やシナリオで崩せるものは [economy-balance-levers.md](economy-balance-levers.md) にまとめた。
+
+## 13. 鉱山・製錬・採石・公共事業の賃金（§12.6 の 1、2026-10-18）
+
+### 13.1 史料
+
+採掘と建築の労働は、国家の体制と時代で「誰が払うか」「払うか、養うだけか、課すか」が分かれる。
+
+**採掘**
+
+| 時代・体制 | 組織 | 労働 | 支配者の取り分 |
+| --- | --- | --- | --- |
+| 古典期アテネ（ラウレイオン銀山） | 国が採掘権を市民に貸す | 借り手が持つ奴隷が主（1,000人の奴隷を貸した例）。貧しい日雇いも | 借地料 |
+| ローマ帝国の鉱山（ヴィパスカ銅板、ダキアの契約書） | 皇帝の所有。procurator が管理し、請負人（conductores）に貸す | 主に賃金労働。賃金を記した契約書が残る。囚人（damnati ad metalla）は石切り場の例が知られる | 皇帝の取り分 |
+| 中世・近世の中欧（Goslar、イフラヴァ、クトナー・ホラ、ヨアヒムスタール、シュヴァーツ） | 鉱業権（Bergregal）は君主のもの。採掘は出資者の組合（Gewerken）が行い、鉱夫を雇う。12〜13世紀に鉱夫の自由（Bergfreiheit）が成立 | 賃金労働。ヨアヒムスタールでは鉱夫9,200人 | 十分の一税（Zehnt）。銀は君主の造幣所に定価で納める。帝国都市 Goslar は1359年に鉱業権を買い取った |
+| スウェーデン（ファールン） | 農民鉱夫（bergsmän）の持ち分による共同経営。1288年に王の統制、1347年に特許状 | 持ち分を持つ農民と雇い人 | 王の取り分。銅は三十年戦争の戦費になった |
+| 江戸幕府（佐渡金銀山） | 1603年から幕府の直轄（奉行） | 当初は近隣の村から高い賃金で雇う。排水には江戸・大坂の無宿人を送った（約1,900人）。賃金と衣食住を与えた | 幕府の直営 |
+| スペイン領ペルー（ポトシ、1570年代〜） | 王の鉱山を鉱山主が経営 | 先住民の輪番の強制労働（ミタ）。法定の賃金は自由労働より低い | 王の五分の一 |
+
+**建築・道路**
+
+| 時代・体制 | 労働 | 払い手 |
+| --- | --- | --- |
+| エドワード1世のウェールズの城（1277〜1330年） | 石工400人、作業員2,000人、石切り200人を雇う計画。徴用もあったが日給制（親方は1日3シリング）。支払いの遅れで作業が止まった | 王の財務府 |
+| 中世の大聖堂 | 石工の組合（lodge）が日給で働く。年ごとの会計（fabric rolls）は収入（寄付・遺贈・地代・免罪符）と支出（賃金と資材）の2本立て | 聖堂の建築基金 |
+| フランスの王の賦役（corvée royale、1738〜1787） | 道路工事に、農村の平民を教区ごとに年8〜40日、無償で動員。領主の賦役はおおむね年4日以内。1776年に一度廃止して税に替え、1787年に税に置き換え、1789〜1790年に廃止 | 無償（労働で払う） |
+| 中・東欧の賦役（robot） | 16〜17世紀には週1日を超える地域があった。ハンガリーは1514年から年52日の運搬 | 無償 |
+| 明（一条鞭法、1580年代） | 労役を銀納に替え、雇い人で工事を行う | 国（銀で） |
+
+**賃金の水準**
+
+- 中世以来の賃金の系列は、建築の職人と作業員の日給が基本になっている（Phelps Brown と Hopkins 1956、Allen 2001）。他の職は出来高払いが多く、日給の記録が少ないためである。
+- Allen の福祉比率では、作業員の稼ぎで4人家族の最低限の暮らし（bare-bones basket）を支えられるかを測る。多くの地域で1前後だった。
+
+### 13.2 実装の前の状態
+
+- 鉱山・製錬所・採石場・火山の採取場の産物は、市場の在庫にただで入っていた（`Markets.addMineSupply`）。市場はそれを売って利益を得るが、鉱夫の賃金・鉱山税・経営者の利益はどこにも払われていなかった。
+- 国の公共事業費（`departmentBalances.publicWorks`）で道・港・穀物庫を造ると、そのお金は誰にも払われず消えていた。
+- **雇用の枠が実際の人数の約100倍だった。** 鉱山の雇用の枠は人口点で数える（4 + 豊かさ×6 点。1点 = 1,000人なので最大3.4万人）。一方、同じ鉱山の実際の人数は別に定めてあり（40 + 豊かさ×80人、`getMineEmploymentPeople`）、表示にしか使われていなかった。seed 102・Megacity の9年目では、鉱山・製錬所・採石場の雇用が248点（24.8万人）で、基幹の雇用（592点）の4割を占めた。サービスの雇用（基幹の1.5倍）と合わせると、移住を呼ぶ雇用の需要が実在しない職で大きく膨らんでいた（§12.5）。
+
+### 13.3 実装した内容
+
+1. **採掘の産物の買い取り**（新規 [extractionPayments.ts](../../src/extensions/economy/generators/extractionPayments.ts)）
+   - 市場は、産物の市場価格の0.8（`MINE_HEAD_PRICE_SHARE`、農家の庭先価格と同じ）を自分の現金から払う。払えない分は、今までどおり代金なしで入る。製錬所には付加価値（地金 − 鉱石 − 木炭）を払う。
+   - 代金は、鉱山税、賃金、経営者の利益の順に分ける。
+     - **鉱山税**（`MINING_ROYALTY_SHARE` = 0.1、十分の一税）: 君主国・神権国は国庫へ。共和国・連合は町の金庫へ（Goslar の鉱業権の買い取り）。無政府は取らない。
+     - **賃金**: 実際の人数 × 生活賃金（生産の賃金と同じ `getSubsistenceWage`）。払える額までしか払わない。古典古代は労働の6割、古代末期は3割が不自由労働で、その分は賃金ではなく食い扶持（賃金の1/1.5）だけになる（`UNFREE_EXTRACTIVE_LABOUR_SHARE_BY_PERIOD`）。中世以降は0。
+     - **経営者の利益**: 町の金庫へ（出資者の組合 Gewerken）。帝国（`formName` が Empire）は国の直営で、国庫へ（ローマの procurator、佐渡奉行）。
+2. **公共事業の支払い**（新規 [worksPayments.ts](../../src/extensions/economy/generators/worksPayments.ts)、[publicWorks.ts](../../src/extensions/economy/generators/publicWorks.ts)）
+   - 事業費の6割（`WORKS_LABOUR_SHARE`）を賃金、4割を資材とする。
+   - 港・穀物庫: 賃金はその町の家計へ、資材はその町の市場へ払う。
+   - 道路: 賃金は国の家計（町と農村、`payStateHouseholds`）へ、資材は道が通る市場へ、長さに比例して払う。
+   - **道路の賦役**（`ROAD_CORVEE_SHARE_BY_FORM`）: 君主国・神権国は道路の労働の半分を賦役でまかなう。その分は国庫が払わず、道は安く造れる。共和国・連合・無政府は0。蒸気の時代からは、どの体制も0（賦役の廃止）。
+3. **採掘の雇用を実際の人数で数える**（`crewSlot`、[basicEmployment.ts](../../src/extensions/economy/generators/basicEmployment.ts)）
+   - 鉱山・製錬所の雇用の枠を、実際の人数（`getMineEmploymentPeople`・`getSmelterEmploymentPeople`）の人口点にした。採石場・火山の採取場は、産出が1人あたり（年12トンの石など）で決まるので、枠の数をそのまま人数として扱う。
+   - 各施設が使う単位（産出・道具の需要の計算）はそのままにし、割り当てた人数を施設の単位に換算して戻す。
+
+テスト:
+- `extractionPayments.test.ts`（新規）: 君主国では国庫・町の家計・町の金庫に分かれ、お金の総量が変わらないこと。共和国では鉱山税が町に残ること。古代では賃金が食い扶持に下がり、帝国では利益が国庫に入ること。
+- `basicEmployment.test.ts`: 実際の人数での割り当てに合わせて3件を直した（製錬所が先に人を取る順番、市場全体から人を集めること、行政が先に人を取ること）。
+- `publicWorks.test.ts`: 君主国では道の労働の一部が賦役になり、国庫が払う額が減ることに直した。
+
+### 13.4 結果（地図は §9 と同じ）
+
+**採掘の規模**（seed 102、1年間。左は §13.3 の3の前の枠で Independent の5年目から、右は実際の人数の枠で Megacity の9年目から）
+
+| 項目 | 人口点の枠 | 実際の人数の枠 |
+| --- | ---: | ---: |
+| 採掘の産物の市場価値（年） | 126 | 1,051 |
+| 市場が払った額 | 101 | 841 |
+| うち鉱山税・賃金・利益 | 5・86・10 | 83・418・340 |
+| 実際の人数での賃金の総額（払えた額とは別） | 408 | 1,355 |
+| 都市の食費に対する賃金の割合 | 0.1% | 0.2% |
+
+- 採掘の雇用（Megacity、9年目）は248点（24.8万人）→ 約2点（月平均約1,900人）になった。鉱山の雇用の枠が埋まるので、産出は増えた（価値で約8倍）。
+- **鉱石・石の価格は、それを掘る労働の費用より低い。** 実際の人数の賃金（年1,355）に対して、産物の価値は年1,051しかない。採掘の賃金は払える額で頭打ちになる。史料では賃金は採掘の費用の大部分で、銀山は出資者に配当を出していた。産物の価格（または1人あたりの産出量）の較正が別に要る（§13.6）。
+
+**Megacity**（seed 102、12年、各年6月の都市の食料の充足と都市人口）
+
+| 年 | 1 | 3 | 5 | 7 | 9 | 11 | 12年目の都市人口 |
+| --- | --- | --- | --- | --- | --- | --- | ---: |
+| §12 | 0.99 | 0.89 | 0.89 | 0.87 | 0.86 | 0.84 | 76.2万 |
+| §13 | 1.00 | 0.89 | 0.91 | 0.92 | 0.87 | 0.83 | **71.6万** |
+
+- 実在しない職がなくなったので、都市人口は約6%減った。ただし、移住が飢えを見ないので、7年目以降の充足はほとんど変わらない（§12.6 の 2）。
+
+**Independent**（15年、5〜15年目の平均）
+
+| 項目 | 101 | 102 |
+| --- | --- | --- |
+| 都市の食料の充足 | 0.974 → 0.974 | 0.960 → 0.959 |
+| 都市の家計 / 都市人口 | 614 → 632 | 360 → 354 |
+| 国庫 / 全人口 | 93.4 → 93.6 | 57.4 → 57.3 |
+| 都市人口（15年目） | 499 → 498 | 369 → 380 |
+
+- 採掘の賃金と公共事業の支払いは、お金の流れとしては小さく、全体への影響はほとんどない。
+
+### 13.5 体制による違い（まとめ）
+
+| 体制 | 鉱山税 | 鉱山の利益 | 道路の労働 |
+| --- | --- | --- | --- |
+| 君主国（王国・公国など） | 国庫 | 町の出資者 | 半分が賦役（〜前工業期） |
+| 帝国 | 国庫 | 国の直営 | 半分が賦役（〜前工業期） |
+| 神権国 | 国庫 | 町の出資者 | 半分が賦役（〜前工業期） |
+| 共和国・連合 | 町の金庫 | 町の出資者 | 賃金で雇う |
+| 無政府 | 取らない | 町の出資者 | 賃金で雇う |
+
+古典古代・古代末期は、どの体制でも採掘の労働の一部が不自由労働になる（アテネの民主政のラウレイオン銀山も奴隷労働だった）。
+
+### 13.6 残っている課題
+
+1. **採掘の産物の価格**: 鉱石・石の価格が、掘る人の賃金に届かない。価格（`Good.value`）か1人あたりの産出量を、史料で較正する。
+2. **採石場・火山の採取場の表示**: 雇用の一覧（`employment-overview.ts`、`burgEmploymentComposition.ts`）は、採石場・火山の採取場の人数を人口点として表示している。§13.3 の3では、これを人数として扱った。表示を合わせる。
+3. **住宅の建築**: 町の家計が家を建てる費用（石工・大工の賃金と資材）は、町の中のお金の移動なので入れていない。資材は市場から無償で取っており（`consumeForConstruction`）、石の買い手として採石場の収入にはなっていない。
+4. **賦役の負担**: 道路の賦役は、国庫の支出を減らすだけで、農民の労働の時間を奪っていない（年8〜40日）。農業労働（§6〜§8）の季節の不足に足すかを決める。
+5. §12.6 の 2〜5 はそのまま残る。
+
+### 13.7 出典
+
+- Mines of Laurion（Wikipedia）https://en.wikipedia.org/wiki/Mines_of_Laurion
+- Livius, Laurion https://livius.org/articles/place/laurion
+- Universalis, Mines, Antiquité gréco-romaine — les exploitants et la main-d'œuvre https://www.universalis.fr/encyclopedie/mines-antiquite-greco-romaine/3-les-exploitants-et-la-main-d-oeuvre/
+- A. Hirt, *Imperial Mines and Quarries in the Roman World: Organizational Aspects 27 BC–AD 235*（Oxford）https://academic.oup.com/book/32606/chapter/270434993
+- Bergregal（Wikipedia）https://en.wikipedia.org/wiki/Bergregal
+- Rammelsberg（Wikipedia）https://en.wikipedia.org/wiki/Rammelsberg
+- Mining and metallurgy in medieval Europe（Wikipedia）https://en.wikipedia.org/wiki/Mining_and_metallurgy_in_medieval_Europe
+- H. W. Straetz, Bergmännisches Arbeitsrecht im 15. und 16. Jahrhundert, *Der Anschnitt* 1976/3 https://www.bergbaumuseum.de/fileadmin/forschung/zeitschriften/der-anschnitt/1976/1976-03/anschnitt-3-1976-hans-wolfgang-straetz-bergmaennisches-arbeitsrecht-im-15.-und-16-jahrhundert-teil-1.pdf
+- Anti-Fuggerians in the mines（habsburger.net）https://habsburger.net/en/chapter/anti-fuggerians-mines
+- Falun Mine（Wikipedia）https://en.wikipedia.org/wiki/Falun_Mine
+- Sado mine（Wikipedia）https://en.wikipedia.org/wiki/Sado_mine
+- The Shōgun's Golden Mountain（nippon.com）https://www.nippon.com/en/guide-to-japan/b08503/
+- 国土交通省 多言語解説文 佐渡金銀山 https://www.mlit.go.jp/tagengo-db/R5-00119.html
+- Mita（Encyclopedia.com）https://www.encyclopedia.com/history/encyclopedias-almanacs-transcripts-and-maps/mita
+- Beaumaris Castle（Wikipedia）https://en.wikipedia.org/wiki/Beaumaris_Castle
+- Master James of St George（castlewales.com）https://castlewales.com/jsgeorge.html
+- The Minster Fabric Rolls, 1418–1422（York）https://yml1414.york.ac.uk/yml1414image2e5f.html?id=22
+- Exeter Cathedral fabric rolls https://exeter-cathedral.org.uk/?p=215777
+- Corvée（Larousse）https://www.larousse.fr/encyclopedie/divers/corv%C3%A9e/37552
+- Turgot, Corvées（Coppet Institute）https://www.coppetinstitute.org/EL/Turgot-Corvees.pdf
+- Robot Patent（Britannica）https://www.britannica.com/event/Robotpatent
+- Single whip law（Wikipedia）https://en.wikipedia.org/wiki/Single_whip_law
+- J. Munro, Builders' wages in southern England and the southern Low Countries, 1346–1500（MPRA）https://mpra.ub.uni-muenchen.de/11209
+- E. H. Phelps Brown, S. V. Hopkins, "Seven Centuries of the Prices of Consumables, Compared with Builders' Wage-rates", *Economica* 23 (1956)
+- R. C. Allen, "The Great Divergence in European Wages and Prices from the Middle Ages to the First World War", *Explorations in Economic History* 38 (2001)

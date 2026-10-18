@@ -37,6 +37,7 @@ import { nominal } from "./moneyScale";
 import { corridorRouteScores, decayTradeCorridors } from "./tradeCorridorLedger";
 import { TradeRoutePlanner } from "./tradeRoutePlanner";
 import { ensureDepartmentBalances } from "./treasuryAllocation";
+import { getRoadCashCost, payBurgWorks, payRoadWorks } from "./worksPayments";
 
 /** Share of last year's accumulated route traffic carried into this year. */
 export const ROUTE_TRAFFIC_ANNUAL_RETENTION = 0.7;
@@ -235,9 +236,12 @@ function settleStatePublicWorks(state: State): PublicWorksSettlement {
   // shorter busy trail get paved this year while the state keeps saving for the long one.
   let roadEnvelope = rn(budget * ROAD_BUDGET_SHARE, 2);
   for (const candidate of findRoadCandidates(state.i)) {
-    if (candidate.cost > roadEnvelope) continue;
-    if (!spend(candidate.cost)) continue;
-    roadEnvelope = rn(roadEnvelope - candidate.cost, 2);
+    // Corvée labour is owed, not paid, so the treasury pays only the rest (worksPayments.ts).
+    const cashCost = getRoadCashCost(state, candidate.cost);
+    if (cashCost > roadEnvelope) continue;
+    if (!spend(cashCost)) continue;
+    roadEnvelope = rn(roadEnvelope - cashCost, 2);
+    payRoadWorks(state, routeCells(candidate.route), candidate.cost, cashCost);
     candidate.route.group = "roads";
     settlement.roadsPaved++;
   }
@@ -256,6 +260,7 @@ function settleStatePublicWorks(state: State): PublicWorksSettlement {
     harborEnvelope = rn(harborEnvelope - harborStepCost, 2);
     const target = ensureBurgWorks(burg);
     target.harbor = rn(Math.min(1, (target.harbor ?? 0) + WORKS_LEVEL_STEP), 3);
+    payBurgWorks(burg, harborStepCost);
     settlement.harborSteps++;
   }
 
@@ -268,6 +273,7 @@ function settleStatePublicWorks(state: State): PublicWorksSettlement {
     granaryEnvelope = rn(granaryEnvelope - granaryStepCost, 2);
     const target = ensureBurgWorks(burg);
     target.granary = rn(Math.min(1, (target.granary ?? 0) + WORKS_LEVEL_STEP), 3);
+    payBurgWorks(burg, granaryStepCost);
     settlement.granarySteps++;
   }
 

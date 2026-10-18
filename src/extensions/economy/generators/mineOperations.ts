@@ -9,6 +9,7 @@ import {
   getWorldContext,
   setMineOperations
 } from "../economyContext";
+import { getMarketValue, settleExtractionPayment } from "./extractionPayments";
 import { isGoodEnabled } from "./goods-generator";
 import { Markets } from "./markets-generator";
 import { getMinedGoodName, type MineOperation, type MineralCommodity, type MineralDeposit } from "./mineralResources";
@@ -430,6 +431,7 @@ export class MineOperationsModule {
       const steamDrainage = Math.min(1, operation.drainage + getMineSteamDrainageBonus(operation.i));
       const extractionFactor = getMineExtractionFactor({ ...operation, drainage: steamDrainage }, deposit);
       const annualOutput: Partial<Record<MineralCommodity, number>> = {};
+      let outputValue = 0;
 
       for (const yieldInfo of deposit.yields) {
         const good = goodsByName.get(getMinedGoodName(yieldInfo.commodity));
@@ -442,11 +444,18 @@ export class MineOperationsModule {
           Math.min(yieldInfo.reserveTons, potentialAnnual / 12)
         );
         if (supplied <= 0) continue;
+        outputValue += getMarketValue(operation.marketId, good.i, supplied, good.value);
         yieldInfo.reserveTons = rn(Math.max(0, yieldInfo.reserveTons - supplied), 4);
         annualOutput[yieldInfo.commodity] = rn(Math.min(yieldInfo.reserveTons + supplied, potentialAnnual), 4);
       }
 
       operation.annualOutputTons = annualOutput;
+      settleExtractionPayment({
+        marketId: operation.marketId,
+        burgId: operation.burgId,
+        people: getMineEmploymentPeople(deposit) * Math.min(1, operation.workers / getMineRequiredWorkers(deposit)),
+        outputValue
+      });
       deposit.exhausted = deposit.yields.every(
         yieldInfo => yieldInfo.reserveTons <= 0 && !(yieldInfo.annualRechargeTons && yieldInfo.annualRechargeTons > 0)
       );

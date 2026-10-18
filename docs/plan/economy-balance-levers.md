@@ -37,6 +37,13 @@
 | `STATE_RESERVE_YEARS`・`STATE_SURPLUS_SPEND_SHARE` | `taxes-generator.ts` | 2年・0.25（月） | なし（国庫に溜まり続ける） | 国庫に溜まり続け、家計が尽きる（[initial-wealth-calibration.md](initial-wealth-calibration.md) §3） | 国の財政方針（備蓄か支出か） | 政策（国） |
 | `state.pollTax`（人頭税の税率） | `taxes-generator.ts`、国の財政タブ | 国ごと（UI で変えられる） | 通貨量の係数 K を掛けていた（食費の約27%） | 農村の現金を国庫が吸い上げ、2年で農村の家計が1/4になる | 人頭税。既に政策として出ている | 政策（国、既存） |
 | `WAGE_SUBSISTENCE_MULTIPLE` | `subsistenceWage.ts` | 1.5 | 林業の賃金の流用（生活費の1/36） | 生産の賃金が都市の家計の収入の1%前後になる | 賃金の公定（ギルドの賃金規制） | 政策（国・町） |
+| `MINE_HEAD_PRICE_SHARE` | `extractionPayments.ts` | 0.8 | 0（鉱山の産物は市場にただで入る） | 鉱夫・石切りに賃金が払われず、領主に鉱山税も入らない（§13） | 鉱石の買い上げ価格（造幣所への定価納入など） | 政策（国） |
+| `MINING_ROYALTY_SHARE` | `extractionPayments.ts` | 0.1 | 0 | 上げると国庫が潤い、鉱山町の賃金と経営者の利益が減る | 鉱山税（Bergregal の十分の一税） | 政策（国） |
+| 鉱山税の受け取り手（`getMiningRoyaltyHolder`） | `extractionPayments.ts` | 君主国・神権国は国、共和国・連合は町、無政府は無し | — | 町が鉱業権を買い取れば、鉱山税は町に残る（Goslar、1359年） | 鉱業権（regalia）の売却・下賜 | 政策（国） |
+| 鉱山の経営者（`getExtractionOperator`） | `extractionPayments.ts` | 帝国は国の直営、ほかは町の出資者 | — | 直営にすると利益は国庫へ、町には賃金だけが残る | 鉱山の直営か請負か（ローマの procurator、佐渡奉行） | 政策（国） |
+| `UNFREE_EXTRACTIVE_LABOUR_SHARE_BY_PERIOD` | `extractionPayments.ts` | 古典古代0.6・古代末期0.3・以後0 | — | 不自由労働の分は賃金でなく食い扶持だけになり、鉱山町の家計が細る | 奴隷・囚人労働の容認 | 政策（国）／シナリオ |
+| `WORKS_LABOUR_SHARE` | `worksPayments.ts` | 0.6 | 公共事業費はどこにも払われず消える | 公共事業の賃金が町・農村に戻らない | — | 固定 |
+| `ROAD_CORVEE_SHARE_BY_FORM` | `worksPayments.ts` | 君主国・神権国0.5、共和国・連合・無政府0（蒸気の時代から0） | — | 上げると国庫は安く道を造れるが、労働は農民の無償の負担になり、賃金として戻らない | 道路の賦役（フランスの王の賦役、1738〜1787） | 政策（国） |
 | `GUILD_PROFIT_SHARE` | `guildTreasury.ts` | 0.35 | — | 上げるとギルドに富が集まり、町の金庫が細る | ギルドの特権 | 政策（町） |
 
 ## 3. 食料と穀物の市場
@@ -70,6 +77,7 @@
 | 移住の方式（`ruralUrbanMigration`） | `optionsStore.ts` | Independent（既定）／Megacity | — | Megacity では、都市は飢えるところまで人を受け入れる（§12.4） | 農村から都市への移住の自由 | シナリオ（既存） |
 | `URBAN_CAPACITY_MAX_GROWTH_MULTIPLIER` | `urbanFoodCapacity.ts` | 3 | — | 今は効いていない（§12.4） | 都市の城壁・居住区の拡張の許可 | シナリオ |
 | `SERVICE_EMPLOYMENT_MULTIPLIER` | `serviceEmployment.ts` | 1.5 | — | 上げると Megacity の移住が増える（賃金は伴わない、§12.5） | — | 固定（暫定） |
+| 採掘の職の数（`MINE_EMPLOYMENT_*_PEOPLE`・`SMELTER_EMPLOYMENT_*`、`crewSlot`） | `mineOperations.ts`・`smelterOperationsTypes.ts`・`basicEmployment.ts` | 鉱山40＋豊かさ×80人、製錬所8＋年産×2.5人 | 人口点の枠（鉱山1か所で最大3.4万人） | 職を人口点で数えると、Megacity で鉱山町に実在しない職を求めて人が集まる（§13） | — | 固定 |
 | `URBAN_FOOD_FAMINE_DEATH_BAND`・`SEVERE_DEFICIT_QUARTERS_BEFORE_DEATH` | `foodLedgerConsumption.ts` | 0.85・2四半期 | — | 飢えによる死亡の始まり方 | — | 固定 |
 
 ## 6. 開始時の配分（`economyStartMode.ts`）
