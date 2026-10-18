@@ -280,7 +280,7 @@ export function advanceCharacterAging(deltaYears: number): void {
   if (!characters.length) return;
 
   for (const character of characters) {
-    if (character.dead) continue;
+    if (character.dead || character.rosterMode === "memo") continue;
     const usesCk3Systems = isCk3Character(character);
 
     const oldAge = character.age;

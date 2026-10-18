@@ -91,6 +91,11 @@ export function hasCharactersContext(): boolean {
   return _api !== null;
 }
 
+/** Production maps use role counts instead of eagerly creating individual staff. */
+export function isOnDemandRosterEnabled(): boolean {
+  return Boolean(_api?.simulationContext?.extensions);
+}
+
 /**
  * The full browser API, bound by the UI entry (index) after the simulation entry has set the
  * context. Only UI code (controllers, renderers, dialogs) may use it; the simulation core never

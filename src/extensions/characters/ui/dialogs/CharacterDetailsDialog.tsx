@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { warDetailsDialogStore } from "../../../../store/warDetailsDialogState";
 import { getRaceById, isFantasyCulturesSet } from "../../../hostRaces";
-import { closeDialog, Dialog, useDialogState, useOptionsState } from "../../../hostUi";
+import { closeDialog, Dialog, openDialog, useDialogState, useOptionsState } from "../../../hostUi";
 import { formatPrice } from "../../../hostUtils";
 import { dnd5ePreset, getDnd5eAbilityModifier } from "../../abilityPresets";
 import { attractiveness, resolveAttractivenessObserver } from "../../appearance";
@@ -1349,6 +1349,17 @@ export const CharacterDetailsDialog: React.FC = () => {
       buttons={dialogButtons}
     >
       <div id="characterDetailsContainer" style={{ padding: "10px" }}>
+        {character.rosterSlotId && (
+          <button
+            type="button"
+            onClick={() => {
+              useCharactersUiState.getState().setRosterFocus(character.rosterSlotId!);
+              openDialog("charactersOverview");
+            }}
+          >
+            {t("roster.openRoster")}
+          </button>
+        )}
         <h3>{t("characters.personalInformation")}</h3>
         <table className="fmg-table fmg-property-table character-details__table">
           <tbody>

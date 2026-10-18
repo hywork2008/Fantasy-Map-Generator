@@ -15,6 +15,7 @@ import {
   syncSimulationRngToContext
 } from "../runtime/simulationRng";
 import { registerDayBatchController, registerDayStepObserver } from "../runtime/simulationRunner";
+import { beginWatchedAdvance, simulationNeedsDailySteps, simulationWatchPaused } from "../runtime/simulationWatches";
 import {
   type DataTopic,
   FULL_REPLACE_TOPICS,
@@ -111,6 +112,7 @@ function daysUntilNextMonthStart(): number {
 
 /** Days the next tick should cover, given how many remain in this advance. */
 function nextStrideDays(remainingDays: number): number {
+  if (simulationNeedsDailySteps(simulationContext)) return 1;
   const run = getActiveHistoryModeRun();
   if (!run) return 1;
   return strideStepDays(run.stride, remainingDays, daysUntilNextMonthStart());
@@ -158,6 +160,12 @@ function isFrontierResourceDiscoveredEventDetail(value: unknown): value is Front
 registerSimulationAdvanceHandler(({ deltaYears, deltaMonths, deltaDays }) =>
   advanceTimeMutation(deltaYears, deltaMonths, deltaDays)
 );
+
+// UI extensions request an asynchronous resume through the existing simulation event port.
+simEvents.addEventListener("fmg:request-time-advance", event => {
+  const days = (event as CustomEvent<{ days?: unknown }>).detail?.days;
+  if (typeof days === "number" && Number.isInteger(days) && days > 0) runTimeSimulation(0, 0, days);
+});
 
 registerSimulationStepDayHandler(request => stepDayMutation(request?.days ?? 1));
 
@@ -787,15 +795,19 @@ function enterDayBatch(totalDays = 1): void {
     activeDayBatchSnapshot = takeDaySnapshot();
     dayBatchCommittedDays = 0;
     activeDayBatchTotalDays = totalDays;
+    beginWatchedAdvance(simulationContext, totalDays);
     // Every multi-day entry point (advanceTime, the UI rAF loop, headless runDaily) opens its
     // batch here, so this is the one place that has to resolve Fast-Forward and history mode.
     // A lone Advance Day never qualifies, which is what keeps single-day stepping identical
     // to before (docs/plan/advance-time-fast-forward.md §4.2,
     // docs/plan/advance-time-history-mode.md §3.1, §9.2).
-    const fastAdvance = totalDays > 1 && getFastAdvanceState().enabled ? resolveFastAdvanceRates() : null;
+    const fastAdvance =
+      totalDays > 1 && !simulationNeedsDailySteps(simulationContext) && getFastAdvanceState().enabled
+        ? resolveFastAdvanceRates()
+        : null;
     dayBatchOpenedFastAdvanceRun = fastAdvance !== null;
     if (fastAdvance) beginFastAdvanceRun(fastAdvance);
-    const profile = totalDays > 1 ? resolveHistoryModeProfile() : null;
+    const profile = totalDays > 1 && !simulationNeedsDailySteps(simulationContext) ? resolveHistoryModeProfile() : null;
     dayBatchOpenedHistoryRun = profile !== null;
     if (profile) beginHistoryModeRun(profile);
   }
@@ -1161,7 +1173,7 @@ export function runTimeSimulation(targetDeltaYears: number, targetDeltaMonths: n
   const loop = () => {
     const chunkStartedAt = performance.now();
     const currentState = timeSimulationStore.getState();
-    if (currentState.stopRequested || currentProgress >= totalDays) {
+    if (currentState.stopRequested || simulationWatchPaused(simulationContext) || currentProgress >= totalDays) {
       exitDayBatch();
       logTickProfile();
       currentState.clearSimulation();
@@ -1190,7 +1202,7 @@ export function runTimeSimulation(targetDeltaYears: number, targetDeltaMonths: n
         // 1 for an ordinary advance; a whole month at a time under history mode (§4).
         const days = nextStrideDays(totalDays - currentProgress - daysThisFrame);
         const commit = stepDaySimulation(days);
-        if (!commit) break; // e.g. blocked by a concurrent world.generate dispatch.
+        if (!commit) break; // Watch boundary or concurrent generation.
         daysThisFrame += days;
       }
     } catch (error) {

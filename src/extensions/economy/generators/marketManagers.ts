@@ -1,4 +1,5 @@
 import { applyCharacterBackstory, seedRelationsWithPeers } from "../../characters/backstoryProfile";
+import { isOnDemandRosterEnabled } from "../../characters/charactersContext";
 import type { Character, CharacterRole } from "../../characters/characterTypes";
 import { finalizeCharacterSocietyForPeer } from "../../characters/finalizeCharacterSociety";
 import { createPerson, resolveRaceIdForCulture } from "../../characters/personFactory";
@@ -92,6 +93,7 @@ function cultureAllowsMerchantCharacters(cultureId: number): boolean {
 }
 
 function createMarketManager(market: Market): Character | null {
+  if (isOnDemandRosterEnabled()) return null;
   const { pack } = getWorldContext();
   const centerBurg = pack.burgs[market.centerBurgId] as Burg | undefined;
   pack.characters ??= [];
@@ -135,6 +137,7 @@ function createMarketManager(market: Market): Character | null {
 }
 
 function createMarketRival(market: Market): Character | null {
+  if (isOnDemandRosterEnabled()) return null;
   const { pack } = getWorldContext();
   const centerBurg = pack.burgs[market.centerBurgId] as Burg | undefined;
   pack.characters ??= [];

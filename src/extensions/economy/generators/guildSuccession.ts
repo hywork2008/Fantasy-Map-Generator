@@ -1,4 +1,5 @@
 import { applyCharacterBackstory, seedRelationsWithPeers } from "../../characters/backstoryProfile";
+import { isOnDemandRosterEnabled } from "../../characters/charactersContext";
 import type { Character, CharacterRole } from "../../characters/characterTypes";
 import { finalizeCharacterSocietyForPeer } from "../../characters/finalizeCharacterSociety";
 import { createPerson, resolveRaceIdForCulture } from "../../characters/personFactory";
@@ -151,6 +152,7 @@ export function findApprentices(
 }
 
 function createMaster(characters: Character[], burgId: number, domain: CraftKnowledgeDomain): Character | null {
+  if (isOnDemandRosterEnabled()) return null;
   const { pack } = getWorldContext();
   const burg = pack.burgs[burgId] as Burg | undefined;
   const cultureId = resolveBurgCulture(burg);
@@ -342,7 +344,7 @@ function maybeSpawnApprentice(
   );
   if (!forceInitialApprentice && !chance(recruitmentChance)) return;
 
-  createApprentice(characters, burgId, domain, master.i);
+  if (!isOnDemandRosterEnabled()) createApprentice(characters, burgId, domain, master.i);
 }
 
 function settleApprenticeDepartures(

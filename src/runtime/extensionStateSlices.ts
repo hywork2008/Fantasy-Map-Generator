@@ -1,5 +1,6 @@
 import type { ExtensionStateSlices, SimulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
+import { validateWorldRoster } from "../extensions/characters/roster/model";
 import { validateSpecializationProfile } from "../extensions/characters/specializationValidation";
 import {
   HOLDER_KINDS,
@@ -397,6 +398,7 @@ function validatePersonalTechnologyKnowledge(value: unknown): void {
 }
 
 function validateCharactersSlice(slice: Record<string, unknown>): void {
+  if (slice.roster !== undefined) validateWorldRoster(slice.roster);
   assertOptionalArrayField(slice, "characters", "characters");
   if (slice.abilityPresetId !== undefined && typeof slice.abilityPresetId !== "string") {
     throw new Error("simulation.extensions.characters.abilityPresetId must be a string");
@@ -670,15 +672,20 @@ function validateNobleHoldings(slice: Record<string, unknown>, world: WorldConte
       assertArray(raw.cellIds, `${label}.cellIds`);
       assertArray(raw.provinceIds, `${label}.provinceIds`);
       assertArray(raw.burgIds, `${label}.burgIds`);
+      const retired = raw.retiredYear !== undefined;
+      if (retired && (typeof raw.retiredYear !== "number" || !Number.isFinite(raw.retiredYear)))
+        throw new Error(`Archive ${label}.retiredYear must be finite`);
+      if (raw.holderSlotId !== undefined && typeof raw.holderSlotId !== "string")
+        throw new Error(`Archive ${label}.holderSlotId must be a string`);
       const shares = raw.shares;
       const usesShares = shares !== undefined;
       if (usesShares) assertArray(shares, `${label}.shares`);
       for (const cellId of raw.cellIds as unknown[]) {
         assertNonNegativeInteger(cellId, `${label}.cellIds`);
-        if (cellCount > 0 && (cellId as number) >= cellCount) {
+        if (!retired && cellCount > 0 && (cellId as number) >= cellCount) {
           throw new Error(`Archive ${label}.cellIds references cell ${String(cellId)} outside 0..${cellCount - 1}`);
         }
-        if (!usesShares) {
+        if (!usesShares && !retired) {
           const previous = exclusiveCells.get(cellId as number);
           if (previous !== undefined) {
             throw new Error(`Archive ${label}.cellIds overlaps cell ${String(cellId)} with holding ${previous}`);
@@ -691,7 +698,7 @@ function validateNobleHoldings(slice: Record<string, unknown>, world: WorldConte
           const shareName = `${label}.shares[${shareIndex}]`;
           if (!isRecord(share)) throw new Error(`Archive ${shareName} must be a record`);
           assertNonNegativeInteger(share.cellId, `${shareName}.cellId`);
-          if (cellCount > 0 && (share.cellId as number) >= cellCount) {
+          if (!retired && cellCount > 0 && (share.cellId as number) >= cellCount) {
             throw new Error(
               `Archive ${shareName}.cellId references cell ${String(share.cellId)} outside 0..${cellCount - 1}`
             );
@@ -700,10 +707,11 @@ function validateNobleHoldings(slice: Record<string, unknown>, world: WorldConte
           if ((share.basisPoints as number) > 10_000) {
             throw new Error(`Archive ${shareName}.basisPoints must be at most 10000`);
           }
-          shareSums.set(
-            share.cellId as number,
-            (shareSums.get(share.cellId as number) ?? 0) + (share.basisPoints as number)
-          );
+          if (!retired)
+            shareSums.set(
+              share.cellId as number,
+              (shareSums.get(share.cellId as number) ?? 0) + (share.basisPoints as number)
+            );
         }
       }
       for (const provinceId of raw.provinceIds as unknown[]) {
@@ -726,7 +734,7 @@ function validateNobleHoldings(slice: Record<string, unknown>, world: WorldConte
       }
     }
     for (const [cellId, sum] of shareSums) {
-      if (sum > 10_000) {
+      if (sum > 10_000 || (sum > 0 && exclusiveCells.has(cellId))) {
         throw new Error(`Archive ${name} basis points on cell ${cellId} sum to ${sum}; expected at most 10000`);
       }
     }

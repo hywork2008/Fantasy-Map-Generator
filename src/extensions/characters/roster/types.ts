@@ -1,0 +1,109 @@
+import type { CharacterRole, CharacterRoleClass, CharacterSkills, Gender, TitleHolding } from "../characterTypes";
+
+export type RosterMode = "memo" | "simulation";
+export interface RosterOrganization {
+  id: string;
+  name: string;
+  stateId: number;
+  parentId?: string;
+  burgId?: number;
+  notes: string;
+  archived?: boolean;
+  simulate: boolean;
+  generateSuccessors: boolean;
+}
+export interface RosterRole {
+  id: string;
+  organizationId: string;
+  name: string;
+  femaleName?: string;
+  count: number;
+  reason: string;
+  roleClass: CharacterRoleClass;
+  primarySkill: keyof CharacterSkills;
+  entityType: TitleHolding["entityType"];
+  entityId: number;
+  landed: boolean;
+  hereditary: boolean;
+  termYears?: number;
+  characterRole?: CharacterRole;
+  regimentId?: number;
+  simulate?: boolean;
+  generateSuccessors?: boolean;
+}
+export interface RosterProtection {
+  fields: string[];
+  values: Record<string, unknown>;
+  track: "none" | "branch" | "all" | "heir";
+  watchAge?: number;
+  stopBeforeDeath: boolean;
+  stopOnBirth: boolean;
+  stopOnAppointment: boolean;
+  materializeDescendants: boolean;
+}
+export interface PersonSlot {
+  id: string;
+  organizationId: string;
+  roleId?: string;
+  ordinal?: number;
+  generation: number;
+  cultureId: number;
+  raceId?: number;
+  gender?: Gender;
+  birthYear: number;
+  deathYear?: number;
+  cancelledBirth?: boolean;
+  plannedDeathYear: number;
+  childPlan?: { birthYear: number; gender: Gender }[];
+  characterId?: number;
+  mode: RosterMode;
+  notes: string;
+  tags: string[];
+  location?: { burgId?: number; editor?: "FMG" | "RE" | "CE"; x?: number; y?: number };
+  protection: RosterProtection;
+}
+export interface RosterAppointment {
+  roleId: string;
+  ordinal?: number;
+  slotId: string;
+  startYear: number;
+  endYear?: number;
+}
+export interface RosterFamilyRelation {
+  parentId: string;
+  childId: string;
+  kind: "birth" | "adoption";
+}
+export interface RosterLink {
+  fromId: string;
+  toId: string;
+  kind: "supervision" | "alliance" | "vassal" | "spouse";
+}
+export interface RosterStop {
+  slotId: string;
+  kind: "age" | "death" | "birth" | "appointment" | "extinction" | "conflict";
+  year: number;
+  message: string;
+}
+export interface WorldRoster {
+  version: 1;
+  seed: string;
+  organizations: RosterOrganization[];
+  roles: RosterRole[];
+  slots: PersonSlot[];
+  appointments: RosterAppointment[];
+  family: RosterFamilyRelation[];
+  links: RosterLink[];
+  pending?: RosterStop;
+  acknowledged: string[];
+  remainingDays: number;
+  lastYear: number;
+}
+export interface RosterSelection {
+  organizationId?: string;
+  roleId?: string;
+  slotIds?: string[];
+  descendants?: boolean;
+  limit?: number;
+  mode?: RosterMode;
+}

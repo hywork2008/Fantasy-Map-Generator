@@ -62,32 +62,36 @@ export function pruneStaleHoldings(gaelicStateIds: ReadonlySet<number>): void {
  */
 export function assignGaelicProvinceLords(
   state: Pick<State, "i" | "culture" | "form" | "formName" | "capital" | "racialComposition">,
-  segments: readonly FrontierSegment[] | undefined
+  segments: readonly FrontierSegment[] | undefined,
+  materialize = true
 ): boolean {
   if (!hasHoldingsStore() || !state.i) return false;
   const period = gaelicPeriod(getWorldContext().options?.historicalPeriod);
   if (!period) return false;
-  const input = readInput(state, period, segments);
+  const input = readHoldingInput(state, period, segments);
   if (!input) return false;
 
   const ledger = getHoldingsLedger();
-  const mine = ledger.filter(holding => holding.stateId === state.i);
-  const others = ledger.filter(holding => holding.stateId !== state.i);
+  const mine = ledger.filter(holding => holding.stateId === state.i && holding.retiredYear === undefined);
+  const others = ledger.filter(holding => holding.stateId !== state.i || holding.retiredYear !== undefined);
   let next: NobleHolding[];
   if (mine.length && getGaelicHoldingPeriod(state.i) === period) {
     // Same period: follow cell changes and keep ids and holders.
     const result = reconcileGaelicHoldings(input, mine, nextHoldingId(ledger));
-    retireHoldingTitles(new Set(result.retiredIds));
+    if (materialize) retireHoldingTitles(new Set(result.retiredIds));
     next = result.holdings;
   } else {
     // First allocation or a new historical period: redistribute.
-    retireHoldingTitles(new Set(mine.map(holding => holding.id)));
-    if (!mine.length) retireLegacyProvinceLords(state.i);
-    next = stampIds(allocateGaelicHoldings(input), nextHoldingId(others));
+    if (materialize) retireHoldingTitles(new Set(mine.map(holding => holding.id)));
+    if (materialize && !mine.length) retireLegacyProvinceLords(state.i);
+    next = stampIds(allocateGaelicHoldings(input), nextHoldingId(ledger));
     setGaelicHoldingPeriod(state.i, period);
   }
-  fillSeats(state, next);
-  setHoldingsLedger([...others, ...next]);
+  if (materialize) fillSeats(state, next);
+  const retired = materialize
+    ? []
+    : mine.filter(h => !next.some(n => n.id === h.id)).map(h => ({ ...h, retiredYear: getCurrentYear() }));
+  setHoldingsLedger([...others, ...retired, ...next]);
   return true;
 }
 
@@ -96,7 +100,7 @@ function gaelicPeriod(period: string | undefined): GaelicPeriod | null {
   return null;
 }
 
-function readInput(
+export function readHoldingInput(
   state: Pick<State, "i" | "capital">,
   period: GaelicPeriod,
   segments: readonly FrontierSegment[] | undefined

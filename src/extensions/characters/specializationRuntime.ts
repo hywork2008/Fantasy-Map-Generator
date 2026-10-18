@@ -175,7 +175,7 @@ export function registerSpecializationSimulation(api: SimulationExtensionAPI): (
       const year = getCurrentYear();
       let changed = false;
       for (const character of characters) {
-        if (!character.specializations || character.dead) continue;
+        if (!character.specializations || character.dead || character.rosterMode === "memo") continue;
         advanceSpecializationLearning(character, characters, year, deltaYears, api.worldContext.pack.languageWorld);
         advanceProfessionalExperience(character, deltaYears);
         decaySpecializations(character, year);

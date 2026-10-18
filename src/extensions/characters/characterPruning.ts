@@ -69,7 +69,7 @@ function isPrunable(
   graceYears: number,
   protectedIds: ReadonlySet<number> | undefined
 ): boolean {
-  if (!character.dead) return false;
+  if (!character.dead || character.rosterSlotId) return false;
   if (protectedIds?.has(character.i)) return false;
   // No recorded death year — don't guess an age, just leave it for a future pass.
   if (character.deathYear === undefined) return false;

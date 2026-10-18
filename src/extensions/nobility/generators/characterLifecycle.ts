@@ -12,7 +12,7 @@ import {
   resolveCorruptionEvents,
   tryCourtBribe
 } from "../../characters/characterSimulationHooks";
-import { getSelectedAbilityPresetId } from "../../characters/charactersContext";
+import { getSelectedAbilityPresetId, isOnDemandRosterEnabled } from "../../characters/charactersContext";
 import { type Character, type CharacterSkills, isCk3Character } from "../../characters/characterTypes";
 import { finalizeCharacterSociety, finalizeCharacterSocietyForPeer } from "../../characters/finalizeCharacterSociety";
 import { resolveChildRaceId } from "../../characters/hybridChild";
@@ -44,6 +44,7 @@ import {
 } from "../../characters/raceRoster";
 import { filterOfficesForEnemyRace, isEnemyDedicatedRaceKey } from "../../characters/raceSkillBias";
 import { isReligiousStateForm } from "../../characters/religiousForms";
+import { buildWorldRoster } from "../../characters/roster/build";
 import { EXPERTISE_TASKS, evaluateExpertise, specializationScore } from "../../characters/specializations";
 import { calculateCharacterTraits } from "../../characters/utils/personalityUtils";
 import { isEconomyContextReady } from "../../economy/economyContext";
@@ -127,6 +128,10 @@ function isReligiousForm(
 }
 
 function generate(options: { randomSeed?: string | number } = {}): void {
+  if (isOnDemandRosterEnabled()) {
+    buildWorldRoster();
+    return;
+  }
   TIME && console.time("generateCharacters");
   const worldContext = getWorldContext();
   Math.random = Alea(options.randomSeed ?? worldContext.seed);
@@ -507,6 +512,7 @@ function clear(): void {
  * see docs/plan/char-economy.md for the two-pass split rationale.
  */
 function processResignationsAndSuccessions(deltaYears: number): void {
+  if (isOnDemandRosterEnabled()) return;
   const { pack } = getWorldContext();
   if (!pack.characters?.length) return;
 

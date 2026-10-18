@@ -1,3 +1,4 @@
+import { isOnDemandRosterEnabled } from "../../characters/charactersContext";
 import type { Character } from "../../characters/characterTypes";
 import { isLichState } from "../../characters/lichPolicy";
 import type { MilitaryRegiment } from "../../hostTypes";
@@ -75,6 +76,7 @@ export function getRegimentCommander(characters: Character[], regiment: Military
  * officer dying/resigning during Characters.advanceAge().
  */
 export function assignOfficers(): void {
+  if (isOnDemandRosterEnabled()) return;
   const { pack } = getWorldContext();
   const characters = pack.characters;
   if (!characters || !pack.states?.length) return;

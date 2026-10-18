@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { CharacterOverviewRoleFilter } from "../utils/characterLabels";
 
 export type SortOrder = "asc" | "desc";
-export type CharactersTab = "overview" | "stats";
+export type CharactersTab = "overview" | "stats" | "organizations";
 /** Requested tab inside Character Details (consumed once when the dialog opens). */
 export type CharacterDetailsTabRequest =
   | "skills"
@@ -13,7 +13,19 @@ export type CharacterDetailsTabRequest =
   | "backstory"
   | "relationships";
 
+export interface RosterNavigation {
+  organizationId?: string;
+  slotId?: string;
+  roleId?: string;
+  includeChildren: boolean;
+}
+
 interface CharactersUiState {
+  rosterNavigation: RosterNavigation;
+  setRosterNavigation: (navigation: Partial<RosterNavigation>) => void;
+  clearRosterFocus: () => void;
+  rosterFocus?: string;
+  setRosterFocus: (id: string) => void;
   selectedCharacterId: number | null;
   /**
    * Character Details browsing history (character ids).
@@ -58,6 +70,11 @@ interface CharactersUiState {
 }
 
 export const useCharactersUiState = create<CharactersUiState>((set, get) => ({
+  rosterNavigation: { includeChildren: false },
+  setRosterNavigation: navigation => set(state => ({ rosterNavigation: { ...state.rosterNavigation, ...navigation } })),
+  clearRosterFocus: () => set({ rosterFocus: undefined }),
+  rosterFocus: undefined,
+  setRosterFocus: id => set({ rosterFocus: id, activeTab: "organizations" }),
   selectedCharacterId: null,
   detailsHistory: [],
   detailsHistoryIndex: -1,
@@ -66,7 +83,7 @@ export const useCharactersUiState = create<CharactersUiState>((set, get) => ({
   searchText: "",
   filterStateId: null,
   filterRoleClass: null,
-  activeTab: "overview",
+  activeTab: "organizations",
   pendingDetailsTab: null,
   refreshToken: 0,
   setSelectedCharacterId: id => set({ selectedCharacterId: id }),

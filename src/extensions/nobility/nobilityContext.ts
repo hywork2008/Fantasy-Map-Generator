@@ -1,3 +1,5 @@
+import { getCharacters } from "../characters/charactersContext";
+import { readRoster } from "../characters/roster/runtime";
 /**
  * Module-level context holder for the nobility extension.
  * Populated once by init(api) in index.tsx; read by all nobility sub-modules.
@@ -132,6 +134,16 @@ function getStateValueTable<T>(field: string): StateValueTable<T> | null {
 
 /** Nobility-owned ruler pointer, stored by state ID rather than on the map definition. */
 export function getRulerId(state: State): number | undefined {
+  const roster = readRoster();
+  if (roster) {
+    const appointment = roster.appointments.find(
+      a => a.roleId === `state:${state.i}:court:ruler` && a.endYear === undefined
+    );
+    const slot = roster.slots.find(s => s.id === appointment?.slotId && s.mode === "simulation");
+    return slot?.characterId !== undefined && getCharacters().some(c => c.i === slot.characterId && !c.dead)
+      ? slot.characterId
+      : undefined;
+  }
   const stateId = getStateId(state);
   const values = getStateValueTable<number>("rulerIdByState");
   if (stateId !== null && values) return values[stateId];
@@ -222,7 +234,22 @@ export function hasHoldingsStore(): boolean {
 export function getHoldingsLedger(): NobleHolding[] {
   const slice = getNobilitySlice();
   if (!slice) return [];
-  if (Array.isArray(slice.holdings)) return slice.holdings as NobleHolding[];
+  if (Array.isArray(slice.holdings)) {
+    const holdings = slice.holdings as NobleHolding[];
+    const roster = readRoster();
+    if (roster)
+      for (const h of holdings) {
+        const appointment = roster.appointments.find(
+          a => a.roleId === `holding:${h.id}:holder` && a.endYear === undefined
+        );
+        const slot = roster.slots.find(s => s.id === appointment?.slotId);
+        if (slot) {
+          h.holderSlotId = slot.id;
+          h.holderCharacterId = slot.mode === "simulation" ? slot.characterId : undefined;
+        }
+      }
+    return holdings;
+  }
   const holdings: NobleHolding[] = [];
   slice.holdings = holdings;
   return holdings;

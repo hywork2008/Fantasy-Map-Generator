@@ -43,6 +43,7 @@ import { bindSimulationCellColumns } from "./simulationCellColumns";
 import { bindSimulationMilitaryState } from "./simulationMilitaryState";
 import { syncSimulationRngToContext } from "./simulationRng";
 import { bindSimulationStateState } from "./simulationStateState";
+import { checkSimulationWatches, completeObservedStep, simulationNeedsObservedStep } from "./simulationWatches";
 import {
   assertOpaqueCoreDeletesAllowed,
   assertValidWorldDocument,
@@ -967,7 +968,27 @@ class LegacyWorldRuntime implements WorldRuntime {
 
     this.committing = true;
     try {
+      if (command.type === "simulation.stepDay") {
+        const watch = checkSimulationWatches(this.simulation, command.payload?.days ?? 1);
+        if (!watch.allowed) {
+          if (watch.topics?.length) this.publishCommit(undefined, watch.topics, false);
+          return null;
+        }
+      }
+      const observed =
+        command.type === "simulation.stepDay" && simulationNeedsObservedStep(this.simulation)
+          ? this.captureRollbackDocument()
+          : null;
       const outcome = this.getOutcome(command);
+      if (command.type === "simulation.stepDay") {
+        const observation = completeObservedStep(this.simulation, command.payload?.days ?? 1);
+        if (observation.rollback && observed) {
+          this.restoreRollbackDocument(observed);
+          observation.afterRollback?.();
+          if (observation.topics?.length) this.publishCommit(undefined, observation.topics, false);
+          return null;
+        }
+      }
       const topics = [...new Set(outcome.topics)];
       if (!topics.length) return null;
 

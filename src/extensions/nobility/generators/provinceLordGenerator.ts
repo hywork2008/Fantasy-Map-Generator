@@ -1,3 +1,4 @@
+import { isOnDemandRosterEnabled } from "../../characters/charactersContext";
 import { isLichState } from "../../characters/lichPolicy";
 import { densityForState, shouldGenerateSparseRole } from "../../characters/raceRoster";
 import { analyzeFrontiers, getProvinceThreats } from "../../hostCore";
@@ -14,6 +15,7 @@ import { Characters } from "./characterLifecycle";
  * left untouched. A Gaelic ledger refills a dead holder and keeps the same cells.
  */
 export function assignProvinceLords(): void {
+  if (isOnDemandRosterEnabled()) return;
   const { pack } = getWorldContext();
   const characters = pack.characters;
   if (!characters || !pack.states?.length || !pack.provinces?.length) return;

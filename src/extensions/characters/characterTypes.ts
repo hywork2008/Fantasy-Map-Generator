@@ -642,6 +642,9 @@ export interface Character {
    * Populated by applyCharacterBackstory() after titles/roles/location are known.
    */
   backstory?: CharacterBackstory;
+  /** Stable on-demand roster identity; absent on legacy characters. */
+  rosterSlotId?: string;
+  rosterMode?: "memo" | "simulation";
   dead?: boolean;
   deathYear?: number;
   location?: number;
