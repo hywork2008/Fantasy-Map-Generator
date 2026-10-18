@@ -243,6 +243,12 @@ export interface FoodLedger {
    * Market, not literally 0.
    */
   ruralHouseholdWealth?: number;
+  /**
+   * Grain the catchment's farm families bought from this market over roughly the last year (monthly
+   * exponential average × 12), once their own larders ran out. Stocked like urban demand
+   * (foodProduction.ts). Undefined on older saves = 0.
+   */
+  ruralMarketDraw?: number;
 }
 
 export interface Deal {

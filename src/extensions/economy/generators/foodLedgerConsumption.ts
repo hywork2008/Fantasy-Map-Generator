@@ -212,6 +212,7 @@ export function settleMonthlyFoodConsumption(settlementMonth = getSimulationMont
     for (const burg of marketBurgs) topUpBurgFoodReserve(burg, ledger, populationRate, urbanization);
 
     const ruralSettlement = drawRuralMonthlyNeed(market.i, ledger, populationRate);
+    ledger.ruralMarketDraw = rn((ledger.ruralMarketDraw ?? 0) * (11 / 12) + ruralSettlement.fromMarket, 2);
     const ruralMonthlyNeed = ruralSettlement.needed;
     const ruralDrawn = ruralSettlement.satisfied;
 

@@ -77,7 +77,7 @@
       }
     },
     "day-30": {
-      "digest": "36162013c53bb5db17d02821a78986f0e31b9769362f4b97dee753ceddf5dca6",
+      "digest": "6c8d0b8403b12f2d996f397e50f3491bb1075f005b35fd83b874aed77aa6d28f",
       "sections": {
         "world.biomesData": "0ac90fa3970f313e47520e60fe7abdf1d513605d20455b24c660d75fa16b8368",
         "world.distanceScale": "3803459424d54fcdc72fff573b8484c68ec7186f2e1d75d070855a3a5b3d093a",
@@ -123,7 +123,7 @@
         "simulation.currentYear": "0087cf99a4636ebd9a0f66eaf98fde8bca977e2a274bc832cc903c3561735e9d",
         "simulation.era": "003b6f53971aa2f083d73cfde10a1b5c9db7b61fcb6d3ccaa0b19aca86fdab84",
         "simulation.extensions.characters": "513130ff9fbc06e4a8a9fec9ec0be2e0584262fd6f87b4540f5a2ae8e859b143",
-        "simulation.extensions.economy": "7acf18fcce1773bcb4d1ef9c86d013bc56c6eb6f58723952617b12ee1d977fc7",
+        "simulation.extensions.economy": "2870ebb1ed92e76621dbaee713a26e6b72bb2d2f7a1320e1eb7f9139063fb4c4",
         "simulation.extensions.nobility": "312e13194da15e8bbad19d418b9907c532466e0d2a49f83d415a3aab64637369",
         "simulation.extensions.shipbuilding": "03753d059fc730021cf3f22fb1bbc03c9f953b2bf81f59fceef87073bce347cc",
         "simulation.frontier": "23a38db257a8e2a3da0352b1d676617c73fc5bcf6174ca9f958b677d203f5693",
@@ -146,7 +146,7 @@
       }
     },
     "day-365": {
-      "digest": "ec20adb6095a801bd4d15ec4f9907d76ea217d29e04bf06d5ebf906e84d08750",
+      "digest": "39801ac22df3190e7ce0ea95183a413fc90f6ea247301872393d8040ac558fb6",
       "sections": {
         "world.biomesData": "0ac90fa3970f313e47520e60fe7abdf1d513605d20455b24c660d75fa16b8368",
         "world.distanceScale": "3803459424d54fcdc72fff573b8484c68ec7186f2e1d75d070855a3a5b3d093a",
@@ -175,7 +175,7 @@
         "world.pack.races": "fa45c83b01e5023a4724c913a4bdd7ce8631c6789f82a26e5dd03bcab5f6c8e8",
         "world.pack.religions": "dcaf23dd4c3a6955fede77bba0d2bf68062664cbb1c117b9d068a823ac2973b7",
         "world.pack.rivers": "d7ad020fd89d0bac515ca10f06e64d65653b4f3ae8f40f0252fe3220e1578000",
-        "world.pack.routes": "d8e04b28e166030644a21da14b555a07a8348b8ad04f1b1bcf9c2bcd9cade481",
+        "world.pack.routes": "dc262abfceb3a4762f0baec1aa5be24544a8c2ab5f2e2a1194cd0c733cf22d58",
         "world.pack.states": "caf2b2c6f79144a4c78dee7bc948139f79f90bf02383d8c529fa4ebeb1b967f4",
         "world.pack.subterraneanDomains": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
         "world.pack.vertices": "a4b75587cbff7b75a26090dda114b10cc4ea5c7cecd9846c8c4552d17e040d1c",
@@ -185,14 +185,14 @@
         "world.style": "36ab0424548a8685697632db2a305a1459ef9e671b05bcaac8388d59bc160eec",
         "world.urbanDensity": "4a44dc15364204a80fe80e9039455cc1608281820fe2b24f1e5233ade6af1dd5",
         "world.urbanization": "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
-        "simulation.burgs": "d204cec6c60105ac1c61bcbe9b1873837124dce2fb59c93818ebd15a47c361fb",
-        "simulation.cells": "4093272de42df43edbe8450d3ae019c25449655c8919a4aebea5154fa2e4446f",
+        "simulation.burgs": "2d72b747cd7dbd2786723e6b79ff8588b64bfe6f2eb92b93a7efce94348e70ef",
+        "simulation.cells": "9624fde6106fe561483dfa34348c6119b7b427bac91c556bcbb490183716e1b6",
         "simulation.currentDay": "eb1e33e8a81b697b75855af6bfcdbcbf7cbbde9f94962ceaec1ed8af21f5a50f",
         "simulation.currentMonth": "6b51d431df5d7f141cbececcf79edf3dd861c3b4069f0b11661a3eefacbba918",
         "simulation.currentYear": "0087cf99a4636ebd9a0f66eaf98fde8bca977e2a274bc832cc903c3561735e9d",
         "simulation.era": "003b6f53971aa2f083d73cfde10a1b5c9db7b61fcb6d3ccaa0b19aca86fdab84",
         "simulation.extensions.characters": "bc8f08a1831bc4dc69f0216a1a24d0ccc28fecdef50405295f58d50038728bc0",
-        "simulation.extensions.economy": "4703e67940ddebcaa0539f49e3f7f263da0069baef3dc9d75c2f0220fc0786e7",
+        "simulation.extensions.economy": "4033add70987dfe81694b10913493bbd16225f88c0d5225122a03f67f3a915f3",
         "simulation.extensions.nobility": "312e13194da15e8bbad19d418b9907c532466e0d2a49f83d415a3aab64637369",
         "simulation.extensions.shipbuilding": "03753d059fc730021cf3f22fb1bbc03c9f953b2bf81f59fceef87073bce347cc",
         "simulation.frontier": "23a38db257a8e2a3da0352b1d676617c73fc5bcf6174ca9f958b677d203f5693",
@@ -205,7 +205,7 @@
         "simulation.navalTechBonus": "2c9e157abd6df67e16fa28d6289b43d22bb6269834b04436dd8c24abba2f4ce4",
         "simulation.populationLoss": "2b16c484dc4b2b43a41db9ae9fb34dbb0cf990a57f98913f610085f52651f87d",
         "simulation.rng": "62ed3cd65b82c7788d5e30064b5f80e31d3c8c537e26ae06765c5ff0cb2e3236",
-        "simulation.states": "b7c5573a6b89474a87540068d713099ce88fdf0246d1c0bd7dbd2696255c2d1a",
+        "simulation.states": "9f71f0f627923261f881f6232d1803c388729a15dc8daaa3e78cf4d39352a812",
         "simulation.strategicGoals": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
         "simulation.technology": "7163bacfe6179f5c4bdac7a77fefba292058dbbc9a09506f34cf8b2a72468ab9",
         "simulation.tickCount": "4e47eb5525df25f94da777993dafa41d9ab2bfa80a89e28f76d42cd46ab082e7",

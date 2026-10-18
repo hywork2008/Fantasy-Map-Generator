@@ -308,6 +308,19 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
           tradeCapital: r3((m.marketTreasury?.tradeWorkingCapital ?? 0) + (m.marketTreasury?.tradeCapitalLocked ?? 0)),
           ruralHouseholds: r3(m.foodLedger?.ruralHouseholdWealth ?? 0),
           urbanFoodStressQuarters: m.foodLedger?.urbanFoodStressQuarters ?? 0,
+          food: m.foodLedger
+            ? {
+                produced: r3(m.foodLedger.foodProduced),
+                ruralNeed: r3(m.foodLedger.ruralNeed),
+                urbanNeed: r3(m.foodLedger.urbanNeed),
+                stock: r3(m.foodLedger.foodStockAge0 + m.foodLedger.foodStockAge1 + m.foodLedger.foodStockAge2),
+                unsold: r3(m.foodLedger.unsoldHarvest ?? 0),
+                overflow: r3(m.foodLedger.storageOverflow),
+                importNeed: r3(m.foodLedger.importNeed),
+                imported: r3(m.foodLedger.satisfiedImport),
+                targetStock: r3(m.foodLedger.targetStock)
+              }
+            : null,
           grainPrice: r3(m.goods[getGoods().find(g => g.tags?.includes("stapleFood"))?.i ?? -1]?.price ?? 0)
         }))
       : [];

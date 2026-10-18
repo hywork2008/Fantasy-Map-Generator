@@ -472,7 +472,10 @@ export class FoodProductionModule {
       // Rural households normally eat their private provisions. Market stock
       // therefore targets urban demand; rural shortages draw from it later in
       // settleMonthlyFoodConsumption.
-      const annualDemand = annualUrbanNeed;
+      // Farm families in deficit cells buy from the market once their larders run out; that demand
+      // is stocked like the towns' (docs/plan/craft-wage-subsistence-scale.md §10). It used to be
+      // ignored here, so surplus cells' grain went unsold while deficit cells emptied the market.
+      const annualDemand = annualUrbanNeed + Math.max(0, market.foodLedger?.ruralMarketDraw ?? 0);
 
       const ruralNeed = rn((annualRuralNeed * periodMonths) / 12, 2);
       const urbanNeed = rn((annualUrbanNeed * periodMonths) / 12, 2);
@@ -483,9 +486,13 @@ export class FoodProductionModule {
       // The market buys only what it can hold and sell: up to its storage target plus this
       // period's urban consumption. Farmers keep the rest (docs/plan/initial-wealth-calibration.md
       // §5.2). Buying the whole harvest on credit left a debt that urban sales could never repay.
-      const held =
-        ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2 + Math.max(0, ledger.storageOverflow);
-      const purchasable = Math.max(0, annualDemand * (STORAGE_CAP_MONTHS / 12) - held) + urbanNeed;
+      // `storageOverflow` is aged-out or over-cap grain that no longer feeds the towns (only mills and
+      // export read it). Counting it as held stock let a market that had ever overflowed buy at most one
+      // quarter's urban need at harvest, leaving the towns without grain for the rest of the year
+      // (docs/plan/craft-wage-subsistence-scale.md §10).
+      const held = ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2;
+      const purchasable =
+        Math.max(0, annualDemand * (STORAGE_CAP_MONTHS / 12) - held) + (annualDemand * periodMonths) / 12;
       const purchaseShare = annualMarketFoodIntake > 0 ? Math.min(1, purchasable / annualMarketFoodIntake) : 0;
       if (purchaseShare < 1)
         for (const [goodId, amount] of cropWholesale) cropWholesale.set(goodId, amount * purchaseShare);
