@@ -32,7 +32,8 @@ export type GoodFlowCategory =
   | "shipbuilding"
   | "exportDeparture"
   | "spoilage"
-  | "burgDemand";
+  | "burgDemand"
+  | "funeral";
 
 export interface GoodFlowRecord {
   readonly direction: GoodFlowDirection;

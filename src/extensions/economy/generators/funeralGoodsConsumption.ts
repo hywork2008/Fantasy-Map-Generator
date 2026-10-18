@@ -1,10 +1,13 @@
 /**
  * Debit Wood / Stone / Linen (Cloth fallback) from the local market for queued funerals.
- * Core funeral processing writes pending demand; this module is the Economy-side sink.
+ * Core funeral processing writes pending demand; this module is the Economy-side sink. Pyre and
+ * coffin wood the market lacks is felled in the cell's own forest (docs/plan/farm-labour-calibration.md §23).
  */
 import type { FuneralMaterialDemand } from "../../hostCore";
 import { takePendingFuneralMaterials } from "../../hostCore";
 import { getGoods, getMarketById, getMarketCellColumn } from "../economyContext";
+import { harvestWood } from "./forestStock";
+import { recordGoodFlow } from "./goodsBalanceLedger";
 import type { Market } from "./marketTypes";
 
 const WOOD_NAMES = ["Wood"];
@@ -28,6 +31,7 @@ function debitStock(market: Market, goodId: number | undefined, amount: number):
   const taken = Math.min(Math.max(0, slot.stock), amount);
   if (taken <= 0) return 0;
   slot.stock = Math.max(0, slot.stock - taken);
+  recordGoodFlow({ direction: "sink", category: "funeral", goodId, units: taken, marketId: market.i });
   return taken;
 }
 
@@ -49,7 +53,8 @@ export function consumeFuneralMaterialsFromPending(
     if (!marketId) continue;
     const market = getMarketById(marketId);
     if (!market) continue;
-    consumed += debitStock(market, woodId, need.wood);
+    const woodFromMarket = debitStock(market, woodId, need.wood);
+    consumed += woodFromMarket + harvestWood(cellId, Math.max(0, need.wood - woodFromMarket));
     consumed += debitStock(market, stoneId, need.stone);
     consumed += debitStock(market, linenId, need.linen);
     consumed += debitStock(market, incenseId, need.incense ?? 0);

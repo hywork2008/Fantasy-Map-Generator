@@ -5,10 +5,12 @@ import {
   clearEconomyContext,
   getMarkets,
   initEconomyContext,
+  setBurgMarketLedgers,
   setGoods,
   setMarketCellColumn,
   setMarkets
 } from "../economyContext";
+import { getHouseholdWealth } from "./burgMarketLedgers";
 import {
   applyHeatingCapacityBonus,
   BASE_COOKING_UNITS_PER_1000_RESIDENTS_MONTH,
@@ -18,9 +20,10 @@ import {
   settleAnnualColdClimateKnowledge,
   settleMonthlyHeating
 } from "./heating";
+import { getRuralHouseholdWealth } from "./householdWealth";
 import { healthPressureFromSanitation } from "./urbanWaterInstitutions";
 
-function installMarket(temperature: number, woodStock: number, coalStock: number): void {
+function installMarket(temperature: number, woodStock: number, coalStock: number, householdWealth = 1_000_000): void {
   worldContext.populationRate = 1_000;
   worldContext.urbanization = 1;
   worldContext.grid = { cells: { temp: Int8Array.from([temperature]) } } as typeof worldContext.grid;
@@ -47,6 +50,7 @@ function installMarket(temperature: number, woodStock: number, coalStock: number
       goods: { 1: { stock: woodStock, price: 1 }, 2: { stock: coalStock, price: 1 } }
     }
   ]);
+  setBurgMarketLedgers([{ burgId: 1, marketId: 1, merchants: [], householdWealth }]);
 }
 
 describe("household heating", () => {
@@ -110,6 +114,33 @@ describe("household heating", () => {
     expect(100_000 - market.goods[1].stock).toBeCloseTo(marketOnlyDraw - 5, 2);
     expect(market.heatingLedger?.selfSuppliedWood).toBe(5);
     expect(market.heatingLedger?.woodConsumption).toBeCloseTo(marketOnlyDraw, 4);
+  });
+
+  it("makes towns pay for their fuel and sends the money to the countryside", () => {
+    installMarket(-10, 100_000, 0, 1_000);
+    settleMonthlyHeating();
+    const market = getMarkets()[0];
+    const spent = 1_000 - getHouseholdWealth(1);
+
+    expect(spent).toBeGreaterThan(0);
+    expect(market.heatingLedger?.urbanFuelSpending).toBeCloseTo(spent, 2);
+    // No money is lost: it reaches the rural purse, or the merchants where there is none yet.
+    expect(getRuralHouseholdWealth(market) + (market.marketTreasury?.balance ?? 0)).toBeCloseTo(spent, 2);
+    expect(worldContext.pack.burgs[1]!.coldExposure).toBe(0);
+  });
+
+  it("leaves a town that cannot pay cold, cooking before heating", () => {
+    installMarket(-10, 100_000, 0, 1);
+    settleMonthlyHeating();
+    const burg = worldContext.pack.burgs[1]!;
+
+    expect(burg.coldExposure).toBeGreaterThan(0.9);
+    expect(getHouseholdWealth(1)).toBeLessThan(1);
+
+    installMarket(20, 100_000, 0, 1);
+    settleMonthlyHeating();
+    // A warm month needs no heating, so even an unfed hearth leaves nobody cold.
+    expect(worldContext.pack.burgs[1]!.coldExposure).toBe(0);
   });
 
   it("uses Coal only after Wood is unavailable and turns that use into health pressure", () => {

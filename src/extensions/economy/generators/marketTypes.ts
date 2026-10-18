@@ -141,6 +141,8 @@ export interface HeatingLedger {
   cumulativeUnmetHeating: number;
   /** Part of woodConsumption that rural households cut themselves and never reached the market. */
   selfSuppliedWood?: number;
+  /** What town households paid for their Wood and Coal this month. */
+  urbanFuelSpending?: number;
 }
 
 /**

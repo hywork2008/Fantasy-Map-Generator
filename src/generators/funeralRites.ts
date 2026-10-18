@@ -22,7 +22,6 @@ import { isLichCulture, isUndeadRaceKey, raceKeyForId } from "../extensions/char
 import { simEvents } from "../simulation/events";
 import { getCultureFuneralMechanics } from "../utils/cultureBurialProfile";
 import { getCultureFuneralRite } from "../utils/cultureFuneralRite";
-import { getWoodUnitsPerForestCoverage, harvestForestStock } from "./forestStock";
 
 /** Assumed years of graves already in the ground at map generation. */
 export const HISTORICAL_FUNERAL_YEARS = 80;
@@ -87,14 +86,6 @@ export function takePendingFuneralMaterials(): Record<number, FuneralMaterialDem
   return pending;
 }
 
-function harvestFuneralWood(cellId: number, woodUnits: number): void {
-  if (!(woodUnits > 0)) return;
-  const cells = worldContext.pack?.cells;
-  if (!cells) return;
-  const unitsPerCoverage = getWoodUnitsPerForestCoverage(worldContext, cellId);
-  if (unitsPerCoverage > 0) harvestForestStock(cells, cellId, woodUnits / unitsPerCoverage);
-}
-
 function riteForCell(cellId: number) {
   const pack = worldContext.pack;
   if (!pack?.cells || !pack.cultures) return undefined;
@@ -137,8 +128,9 @@ export function processFuneralDeaths(cellId: number, people: number): void {
     },
     people
   );
+  // Economy takes the pending materials from the local market and fells what the market lacks;
+  // felling here as well counted every coffin and pyre twice (docs/plan/farm-labour-calibration.md §23).
   addPendingMaterials(cellId, materials);
-  harvestFuneralWood(cellId, materials.wood);
 }
 
 function livingPeopleAtCell(cellId: number): number {

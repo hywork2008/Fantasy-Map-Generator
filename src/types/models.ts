@@ -447,6 +447,13 @@ export interface Burg {
    */
   foodSecurity?: number;
   /**
+   * Unheated share of the town's heating need this month (0..1), weighted by how cold the month
+   * is. Economy writes it when households cannot buy or find their fuel; host demography turns it
+   * into deaths among the old and the young, and the urban health pressure into illness. Missing
+   * on old saves and Economy-off maps — treat as 0. docs/plan/farm-labour-calibration.md §23.
+   */
+  coldExposure?: number;
+  /**
    * Civic discontent from 0 (quiet) to 100 (open unrest). Economy writes this each tax cycle
    * from food stress, effective tax, and war intensity, and drains it from treasury slack and
    * Ecclesiastica funding. Missing on old saves and Economy-off maps — treat as 0.

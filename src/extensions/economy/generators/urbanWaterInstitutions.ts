@@ -352,6 +352,8 @@ export function healthPressureFromSanitation(args: {
   upstreamPollutionImport: number;
   drinkingWaterSecurity: number;
   coalSmokeExposure?: number;
+  /** Burg.coldExposure: unheated homes breed chills, pneumonia and influenza (farm-labour-calibration.md §23). */
+  coldExposure?: number;
 }): number {
   const {
     waterContamination,
@@ -360,7 +362,8 @@ export function healthPressureFromSanitation(args: {
     scavengingRisk,
     upstreamPollutionImport,
     drinkingWaterSecurity,
-    coalSmokeExposure = 0
+    coalSmokeExposure = 0,
+    coldExposure = 0
   } = args;
   return clamp01(
     waterContamination * 0.35 +
@@ -369,7 +372,8 @@ export function healthPressureFromSanitation(args: {
       scavengingRisk * 0.12 +
       upstreamPollutionImport * 0.2 -
       drinkingWaterSecurity * 0.15 +
-      clamp01(coalSmokeExposure) * 0.22
+      clamp01(coalSmokeExposure) * 0.22 +
+      clamp01(coldExposure) * 0.2
   );
 }
 

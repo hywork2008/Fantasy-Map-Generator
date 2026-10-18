@@ -62,6 +62,16 @@ const FOOD_FAMINE_DEATH_THRESHOLD = 0.85;
  * than vanishing after one bad harvest.
  */
 const FAMINE_RATE_SCALE = 0.08;
+/**
+ * calibration TBD — yearly death rate of a town's elders at `Burg.coldExposure` 1 (no heating in
+ * a month averaging 0 °C or colder), applied for as long as the exposure lasts: 2.5% of the old a
+ * month. Children die at half that rate and working adults at a tenth. A winter of four such
+ * months kills about 10% of the old, the order of the excess winter deaths of the fuel famines
+ * (the Great Frost of 1709). docs/plan/farm-labour-calibration.md §23.
+ */
+const COLD_ELDER_DEATH_RATE = 0.3;
+const COLD_CHILD_DEATH_SHARE = 0.5;
+const COLD_ADULT_DEATH_SHARE = 0.1;
 
 export interface DemographicsSimulationResult {
   bordersChanged: boolean;
@@ -345,6 +355,22 @@ export function simulateDemographics(deltaYears: number): DemographicsSimulation
         burg.cell,
         (beforeFamine - (children + maleAdults + femaleAdults + elders)) * urbanPopulationRate
       );
+    }
+
+    // Cold: a town that cannot buy or find its fuel loses its old and young first. Economy writes
+    // coldExposure monthly; rural households cut their own fuel and are excluded, like famine.
+    const coldExposure = typeof burg.coldExposure === "number" ? Math.max(0, Math.min(1, burg.coldExposure)) : 0;
+    if (coldExposure > 0) {
+      const elderRate = Math.min(0.99, coldExposure * COLD_ELDER_DEATH_RATE * deltaYears);
+      const beforeCold = children + maleAdults + femaleAdults + elders;
+      elders *= 1 - elderRate;
+      children *= 1 - elderRate * COLD_CHILD_DEATH_SHARE;
+      maleAdults *= 1 - elderRate * COLD_ADULT_DEATH_SHARE;
+      femaleAdults *= 1 - elderRate * COLD_ADULT_DEATH_SHARE;
+      const coldDeaths = beforeCold - (children + maleAdults + femaleAdults + elders);
+      // Recorded as disease: most winter deaths were of chills, pneumonia and influenza.
+      addLoss(epidemicPts, stateId, coldDeaths);
+      processFuneralDeaths(burg.cell, coldDeaths * urbanPopulationRate);
     }
 
     // Epidemic mortality: independent of food supply/roomForGrowth above — a well-fed, growing

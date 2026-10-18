@@ -1185,7 +1185,8 @@ export function computeUrbanWaterSystem(args: {
       scavengingRisk: organic.scavengingRisk,
       upstreamPollutionImport,
       drinkingWaterSecurity,
-      coalSmokeExposure
+      coalSmokeExposure,
+      coldExposure: burg.coldExposure ?? 0
     }) +
       burialRisk * 0.15 * Math.max(0.15, treatmentFactor)
   );

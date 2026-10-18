@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getGoods, getMarketById, getMarketCellColumn } from "../economyContext";
+import { harvestWood } from "./forestStock";
 import { consumeFuneralMaterialsFromPending } from "./funeralGoodsConsumption";
 import type { Market } from "./marketTypes";
 
@@ -8,6 +9,8 @@ vi.mock("../economyContext", () => ({
   getMarketById: vi.fn(),
   getMarketCellColumn: vi.fn()
 }));
+vi.mock("./goodsBalanceLedger", () => ({ recordGoodFlow: vi.fn() }));
+vi.mock("./forestStock", () => ({ harvestWood: vi.fn((_cellId: number, units: number) => units) }));
 
 describe("consumeFuneralMaterialsFromPending", () => {
   const market: Market = {
@@ -51,10 +54,11 @@ describe("consumeFuneralMaterialsFromPending", () => {
     expect(market.goods[13].stock).toBe(1);
   });
 
-  it("does not go negative when stock is short", () => {
+  it("does not go negative when stock is short, and fells the rest of the pyre wood locally", () => {
     consumeFuneralMaterialsFromPending({
       1: { wood: 100, stone: 0, linen: 0 }
     });
     expect(market.goods[10].stock).toBe(0);
+    expect(harvestWood).toHaveBeenCalledWith(1, 95);
   });
 });

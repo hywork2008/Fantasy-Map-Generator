@@ -253,6 +253,9 @@ export function getCropLaborCoverageByCell(
   return coverage;
 }
 
+/** Share of the gap between the pasture kept and the pasture its herders can work closed in one year (§23). */
+export const PASTURE_ANNUAL_ADJUSTMENT = 0.25;
+
 export class DevelopmentPotentialModule {
   generate(): DevelopmentPotentials {
     const world = getWorldContext();
@@ -455,9 +458,22 @@ export class DevelopmentPotentialModule {
       const hasGrazed = goods.some(g => isGrazedLivestockGood(g.name));
       const pasture = hasGrazed ? calculateDesiredPastureAreaHectares(world, input.id, true) : 0;
       const workersKnown = getHusbandryWorkers().length === cellCount;
-      const maintainedPasture =
+      const staffedPasture =
         pasture *
         (workersKnown && (getHusbandryRequiredWorkers()[input.id] ?? 0) > 0 ? getHusbandryWorkerFactor(input.id) : 1);
+      // Herds grow and shrink over years, not all at once. Without this the pasture flipped every
+      // year: with no pasture the cell needed no herders, so the next plan laid the full pasture;
+      // then the fields took the labour, no herder was hired, and the pasture went again. Each time
+      // it came back it was counted as newly cleared forest (docs/plan/farm-labour-calibration.md §23).
+      const previousPasture = previous?.diagnostics.includes("resolved-livestock-land")
+        ? previous.patches
+            .filter(patch => patch.kind === "pasture" || patch.kind === "wood_pasture")
+            .reduce((sum, patch) => sum + patch.areaHa, 0)
+        : undefined;
+      const maintainedPasture =
+        previousPasture === undefined
+          ? staffedPasture
+          : previousPasture + (staffedPasture - previousPasture) * PASTURE_ANNUAL_ADJUSTMENT;
       landUseByCell[input.id] = {
         livestock: input.livestock ?? { grazingAreaHa: maintainedPasture },
         workforce: {

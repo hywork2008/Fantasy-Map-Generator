@@ -153,7 +153,7 @@ function seedHouseholdWealth(burg: Burg | undefined): number {
 
 /** Looks a Burg up by id — `.find()`, not `pack.burgs[burgId]` indexing, since nothing here can rely on the array being index-aligned with `.i` (most real maps are, but not every fixture/caller). */
 function findBurg(burgId: number): Burg | undefined {
-  return getWorldContext().pack.burgs?.find(burg => burg.i === burgId);
+  return getWorldContext().pack.burgs?.find(burg => burg?.i === burgId);
 }
 
 /**
