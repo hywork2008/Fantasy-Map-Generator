@@ -16,6 +16,7 @@
 
 - docs/calibration/farmland-area-pilot-20261019.json - 経済有効の3世界・10年ずつの耕地統計、学習・検証の分離、都市側配分で悪化した研究モデルの評価と入力・実装ハッシュ
 - docs/plan/ce-road-network-normalization.md - CE道路の同一edge重複・孤立・折り返しを調査し、物理区間と路線の分離、接続済み網への追加、需要と新設延長による採否、平滑化前の経路正規化を提案
+- docs/plan/character-generation-presets.md - 国家元首・首脳・軍事指揮官・領主・越境宗教組織の聖職者・御用商人・ギルド長等を種類別/組織別に選択生成するプリセットと、役職定員・兼任・新規人数の設計
 - docs/plan/farmland-area-estimation.md - sim:serverの年次耕地観測、5年統計、経済無効時の静的推定の校正・独立世界による評価・純粋推論を分けたAPIとFMG/RE/CEへの接続設計
 - docs/plan/long-distance-merchant-reach-capital.md - 遠距離交易を止めている商会の到達範囲(支店があれば本拠の範囲を問わない、高額品は 90 日まで、外地の商館)と運転資金(対価のない 8% の利益の廃止、市場間の代金の決済、commenda 型の出資、動かない荷の取り消し)の見直し(approach-commerce-quarters.md §10 の候補 (2) と §4.5 で見つかった資本の関門)
 - docs/plan/luxury-value-demand.md - 高額品の需要を個数ではなく予算と価格帯(並・上・極上)で決め、人物の生活費・余剰の一部で居住都市の市場から高額品を実際に買う設計。計測で、買い手のお金は足りているのに安い毛皮・香が需要を満たし、価値 20 以上の品が都市に一度も買われていないことを示した(initial-wealth-calibration.md §5.4 の対応)
