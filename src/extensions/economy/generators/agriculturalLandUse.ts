@@ -7,6 +7,10 @@ import {
   type ClearanceCellInput,
   calculateBuiltAreaHa,
   EDIBLE_SHARE_AFTER_SEED_LOSS_STOCK,
+  FIELD_LABOUR_DAYS_PER_HECTARE,
+  FIELD_WORK_DAYS_PER_ADULT,
+  getFieldLabourFeasibility,
+  getYieldScaledLabourMultiplier,
   planSettlementLandUse,
   resolveLandUseProfile,
   STAPLE_NEED_KG_PER_PERSON_YEAR,
@@ -38,10 +42,11 @@ export {
   ANNUAL_SOWN_SHARE,
   BASE_NET_YIELD_KG_PER_SOWN_HECTARE,
   EDIBLE_SHARE_AFTER_SEED_LOSS_STOCK,
+  getYieldScaledLabourMultiplier,
   STAPLE_NEED_KG_PER_PERSON_YEAR
 } from "../../../generators/settlementClearance";
-export const LABOUR_DAYS_PER_HECTARE = 30;
-export const WORKABLE_DAYS_PER_ADULT = 140;
+export const LABOUR_DAYS_PER_HECTARE = FIELD_LABOUR_DAYS_PER_HECTARE;
+export const WORKABLE_DAYS_PER_ADULT = FIELD_WORK_DAYS_PER_ADULT;
 /** Calendar capacity used by the shared rural labour allocator. */
 export const WORKABLE_DAYS_PER_ADULT_PER_MONTH = WORKABLE_DAYS_PER_ADULT / 12;
 /**
@@ -49,17 +54,6 @@ export const WORKABLE_DAYS_PER_ADULT_PER_MONTH = WORKABLE_DAYS_PER_ADULT / 12;
  * and holy days — about 24 days, twice an ordinary month (docs/plan/farm-labour-calibration.md §1.2).
  */
 export const PEAK_MONTH_WORK_MULTIPLIER = 2;
-
-/**
- * Field labour per hectare scales partly with the crop: threshing was paid by the quarter of grain
- * (docs/plan/farm-labour-calibration.md §1.3). LABOUR_DAYS_PER_HECTARE is calibrated at the base net
- * yield, so the crop mix's processing share of its work follows yield ÷ that base.
- */
-export function getYieldScaledLabourMultiplier(yieldKgPerHa: number, processingShare: number): number {
-  const share = clamp01(processingShare);
-  if (!(share > 0)) return 1;
-  return 1 - share + (share * Math.max(0, yieldKgPerHa)) / BASE_NET_YIELD_KG_PER_SOWN_HECTARE;
-}
 
 /** Area-weighted processing share of the cell's crop mix (0 for catalogues without calendars). */
 function getCropMixProcessingShare(cropMix: readonly CropMixEntry[] | undefined): number {
@@ -291,6 +285,11 @@ export interface AgriculturalLandProfile {
   readonly foodPotential: Float32Array;
   /** Rural people supportable without imports, expressed in rural population points. */
   readonly ruralFoodCapacity: Float32Array;
+  /**
+   * `ruralFoodCapacity` limited to the fields the residents can work with their own labour
+   * (getFieldLabourFeasibility); the agricultural part of the rural settlement capacity.
+   */
+  readonly labourLimitedFoodCapacity: Float32Array;
   /** Current planted and maintained field area, in ha. */
   readonly cultivatedArea: Float32Array;
   /** Flowering clover-ley area within cultivated land, in ha; future apiaries can use it as a nectar source. */
@@ -360,6 +359,7 @@ export function calculateAgriculturalLandProfile(
   const yieldPerArea = new Float32Array(count);
   const foodPotential = new Float32Array(count);
   const ruralFoodCapacity = new Float32Array(count);
+  const labourLimitedFoodCapacity = new Float32Array(count);
   const cultivatedArea = new Float32Array(count);
   const floweringForageArea = new Float32Array(count);
   const farmLaborRequired = new Float32Array(count);
@@ -375,6 +375,7 @@ export function calculateAgriculturalLandProfile(
       yieldPerArea,
       foodPotential,
       ruralFoodCapacity,
+      labourLimitedFoodCapacity,
       cultivatedArea,
       floweringForageArea,
       farmLaborRequired,
@@ -460,11 +461,19 @@ export function calculateAgriculturalLandProfile(
           0
         )
       : 1;
+    const processingShare = getCropMixProcessingShare(cropMix);
     const annualLaborDaysPerHectare =
       effectiveLaborDaysPerHectare *
       fourCourseLaborMultiplier *
       Math.max(1, cycles) *
-      getYieldScaledLabourMultiplier(yieldKgPerHa, getCropMixProcessingShare(cropMix));
+      getYieldScaledLabourMultiplier(yieldKgPerHa, processingShare);
+    labourLimitedFoodCapacity[cellId] =
+      ruralFoodCapacity[cellId] *
+      getFieldLabourFeasibility(yieldKgPerHa, {
+        sownShare: effectiveSownShare,
+        labourDaysPerHectare: effectiveLaborDaysPerHectare * fourCourseLaborMultiplier * Math.max(1, cycles),
+        processingShare
+      });
     const subsistenceArea = Math.min(area, requiredArea * SUBSISTENCE_FIELD_RESERVE);
     const laborAffordableArea =
       yieldKgPerHa > 0
@@ -524,6 +533,7 @@ export function calculateAgriculturalLandProfile(
     yieldPerArea,
     foodPotential,
     ruralFoodCapacity,
+    labourLimitedFoodCapacity,
     cultivatedArea,
     floweringForageArea,
     farmLaborRequired,

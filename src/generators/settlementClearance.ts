@@ -15,6 +15,51 @@ export const BASE_NET_YIELD_KG_PER_SOWN_HECTARE = 450;
 export const BUILT_DENSITY_PEOPLE_PER_HECTARE = 50;
 /** Separate development labour calibration; never reuse days already maintaining crops. */
 export const CLEARANCE_LABOUR_DAYS_PER_HECTARE = 140;
+/** Annual field work per hectare at BASE_NET_YIELD (Clark c.1300: 27–35 days/ha). */
+export const FIELD_LABOUR_DAYS_PER_HECTARE = 30;
+/** Days a rural adult (men and women together) gives to the fields in a year. */
+export const FIELD_WORK_DAYS_PER_ADULT = 140;
+/** Threshing and winnowing share of a cereal's field work, which scales with the crop. */
+export const THRESHING_LABOUR_SHARE = 0.25;
+/** Typical adult share of a rural cell's residents, for capacity estimates made before cohorts exist. */
+export const RURAL_ADULT_SHARE_ESTIMATE = 0.45;
+
+/**
+ * Field labour per hectare scales partly with the crop: threshing was paid by the quarter of grain
+ * (docs/plan/farm-labour-calibration.md §1.3). FIELD_LABOUR_DAYS_PER_HECTARE is calibrated at
+ * BASE_NET_YIELD, so the processing share of the work follows yield ÷ that base.
+ */
+export function getYieldScaledLabourMultiplier(yieldKgPerHa: number, processingShare: number): number {
+  const share = Number.isFinite(processingShare) ? Math.min(1, Math.max(0, processingShare)) : 0;
+  if (!(share > 0)) return 1;
+  return 1 - share + (share * Math.max(0, yieldKgPerHa)) / BASE_NET_YIELD_KG_PER_SOWN_HECTARE;
+}
+
+/**
+ * Share (0..1) of a grain diet the residents can grow with their own labour. Low yields need more
+ * hectares per person; past the adults' field days the rest of the land cannot be worked, so the
+ * fields feed fewer people than the land alone would (docs/plan/farm-labour-calibration.md §7.3).
+ */
+export function getFieldLabourFeasibility(
+  yieldKgPerSownHa: number,
+  options: {
+    sownShare?: number;
+    labourDaysPerHectare?: number;
+    processingShare?: number;
+    adultShare?: number;
+  } = {}
+): number {
+  if (!(yieldKgPerSownHa > 0)) return 0;
+  const sownShare = options.sownShare ?? ANNUAL_SOWN_SHARE;
+  const hectaresPerPerson =
+    STAPLE_NEED_KG_PER_PERSON_YEAR / (yieldKgPerSownHa * sownShare * EDIBLE_SHARE_AFTER_SEED_LOSS_STOCK);
+  const daysPerPerson =
+    hectaresPerPerson *
+    (options.labourDaysPerHectare ?? FIELD_LABOUR_DAYS_PER_HECTARE) *
+    getYieldScaledLabourMultiplier(yieldKgPerSownHa, options.processingShare ?? THRESHING_LABOUR_SHARE);
+  const available = (options.adultShare ?? RURAL_ADULT_SHARE_ESTIMATE) * FIELD_WORK_DAYS_PER_ADULT;
+  return daysPerPerson > 0 ? Math.min(1, available / daysPerPerson) : 1;
+}
 const positive = (n: number) => (Number.isFinite(n) ? Math.max(0, n) : 0);
 export function requiredFieldAreaHectares(people: number, yieldKgPerHa: number, sownShare = ANNUAL_SOWN_SHARE): number {
   if (people <= 0) return 0;

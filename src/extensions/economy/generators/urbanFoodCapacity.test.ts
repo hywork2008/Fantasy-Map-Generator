@@ -5,10 +5,22 @@ vi.mock("../economyContext", () => ({
   getWorldContext: vi.fn(),
   getMarkets: vi.fn(),
   getMarketCellColumn: vi.fn(),
-  getRuralFoodCapacity: vi.fn()
+  getRuralFoodCapacity: vi.fn(),
+  // No land-use or labour columns: the hinterland's whole capacity counts as worked.
+  getCultivableArea: vi.fn(() => new Float32Array()),
+  getCultivatedArea: vi.fn(() => new Float32Array()),
+  getCropLaborCoverage: vi.fn(() => new Float32Array())
 }));
 
-import { getMarketCellColumn, getMarkets, getRuralFoodCapacity, getWorldContext } from "../economyContext";
+import {
+  getCropLaborCoverage,
+  getCultivableArea,
+  getCultivatedArea,
+  getMarketCellColumn,
+  getMarkets,
+  getRuralFoodCapacity,
+  getWorldContext
+} from "../economyContext";
 import type { Market } from "./marketTypes";
 import {
   hinterlandSurplusUrbanPoints,
@@ -121,6 +133,17 @@ describe("reconcileUrbanCapacityFromFood", () => {
 
     expect(reconcileUrbanCapacityFromFood()).toBe(true);
     expect(world.pack.burgs[1]!.demographics!.capacity).toBe(10 * URBAN_CAPACITY_MAX_GROWTH_MULTIPLIER);
+  });
+
+  it("counts only the fields kept under the plough and worked by the village", () => {
+    vi.mocked(getRuralFoodCapacity).mockReturnValue(new Float32Array([60]));
+    vi.mocked(getCultivableArea).mockReturnValue(new Float32Array([100]));
+    vi.mocked(getCultivatedArea).mockReturnValue(new Float32Array([50]));
+    vi.mocked(getCropLaborCoverage).mockReturnValue(new Float32Array([0.8]));
+
+    // 60 × 50% of the land × 80% of its work = 24 grown, less the 10 rural residents' grain.
+    expect(reconcileUrbanCapacityFromFood()).toBe(true);
+    expect(world.pack.burgs[1]!.demographics!.capacity).toBeCloseTo(14, 3);
   });
 
   it("gives an AgTech-rich hinterland a higher urban cap than a poor one", () => {

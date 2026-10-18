@@ -1,6 +1,14 @@
 import type { Burg } from "../../hostTypes";
 import { minmax, rn } from "../../hostUtils";
-import { getMarketCellColumn, getMarkets, getRuralFoodCapacity, getWorldContext } from "../economyContext";
+import {
+  getCropLaborCoverage,
+  getCultivableArea,
+  getCultivatedArea,
+  getMarketCellColumn,
+  getMarkets,
+  getRuralFoodCapacity,
+  getWorldContext
+} from "../economyContext";
 import { getRuralGrainDietShare } from "./ruralDiet";
 
 /**
@@ -27,7 +35,8 @@ export function hinterlandSurplusUrbanPoints(
   },
   marketCellColumn: ArrayLike<number>,
   ruralFoodCapacity: ArrayLike<number>,
-  urbanization: number
+  urbanization: number,
+  dietFieldCapacity: ArrayLike<number> = ruralFoodCapacity
 ): number {
   let foodPoints = 0;
   let ruralPop = 0;
@@ -39,10 +48,32 @@ export function hinterlandSurplusUrbanPoints(
     foodPoints += Math.max(0, ruralFoodCapacity[cellId] ?? 0);
     // Fishing and herding households eat only part of their food as grain
     // (docs/plan/rural-food-labor-audit.md, problem A).
-    ruralPop += Math.max(0, cells.pop?.[cellId] ?? 0) * getRuralGrainDietShare(cells, cellId, ruralFoodCapacity);
+    ruralPop += Math.max(0, cells.pop?.[cellId] ?? 0) * getRuralGrainDietShare(cells, cellId, dietFieldCapacity);
   }
   const surplusRuralPoints = Math.max(0, foodPoints - ruralPop);
   return surplusRuralPoints / Math.max(1e-6, urbanization);
+}
+
+/**
+ * Food the hinterland actually grows, in rural points: the land's capacity on the fields kept under
+ * the plough and worked by its people (cropLaborCoverage), not every cultivable hectare
+ * (docs/plan/farm-labour-calibration.md §9). Columns missing on older saves read as fully used.
+ */
+function getWorkedFoodCapacity(ruralFoodCapacity: ArrayLike<number>): ArrayLike<number> {
+  const cultivable = getCultivableArea();
+  const cultivated = getCultivatedArea();
+  const coverage = getCropLaborCoverage();
+  const count = ruralFoodCapacity.length;
+  const hasLand = cultivable.length === count && cultivated.length === count;
+  const hasCoverage = coverage.length === count;
+  if (!hasLand && !hasCoverage) return ruralFoodCapacity;
+  const worked = new Float32Array(count);
+  for (let cellId = 0; cellId < count; cellId++) {
+    const land = hasLand && cultivable[cellId] > 0 ? minmax(cultivated[cellId] / cultivable[cellId], 0, 1) : 1;
+    worked[cellId] =
+      Math.max(0, ruralFoodCapacity[cellId] ?? 0) * land * (hasCoverage ? minmax(coverage[cellId], 0, 1) : 1);
+  }
+  return worked;
 }
 
 /**
@@ -73,6 +104,7 @@ export function reconcileUrbanCapacityFromFood(): boolean {
 
   const marketCellColumn = getMarketCellColumn();
   const urbanization = Math.max(1e-6, world.urbanization ?? 1);
+  const workedFoodCapacity = getWorkedFoodCapacity(ruralFoodCapacity);
   let changed = false;
 
   for (const market of getMarkets()) {
@@ -91,7 +123,14 @@ export function reconcileUrbanCapacityFromFood(): boolean {
     }
     if (!ready.length) continue;
 
-    const hinterland = hinterlandSurplusUrbanPoints(market.i, cells, marketCellColumn, ruralFoodCapacity, urbanization);
+    const hinterland = hinterlandSurplusUrbanPoints(
+      market.i,
+      cells,
+      marketCellColumn,
+      workedFoodCapacity,
+      urbanization,
+      ruralFoodCapacity
+    );
     const importPoints = Math.max(0, market.foodLedger?.importCapacityBonus ?? 0);
     const foodPoints = hinterland + importPoints;
     const totalSeed = ready.reduce((sum, burg) => sum + (burg.demographics?.seedCapacity ?? 0), 0);

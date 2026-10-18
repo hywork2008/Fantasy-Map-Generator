@@ -403,7 +403,9 @@ export class DevelopmentPotentialModule {
       residualFlowByCell: agriculture.irrigation.residualFlowByCell,
       annualWaterPerFlux: IRRIGATION_ANNUAL_WATER_PER_FLUX
     });
-    reconcileSubsistenceCapacityFromFood(world.pack.cells, agriculture.ruralFoodCapacity);
+    // Only the fields the residents can work feed a settled rural population
+    // (docs/plan/farm-labour-calibration.md §9).
+    reconcileSubsistenceCapacityFromFood(world.pack.cells, agriculture.labourLimitedFoodCapacity);
 
     // The calendar allocator combines staple fields and all resident rural occupations before it
     // derives migration surplus, so these columns are not a second annual deduction from Grain.

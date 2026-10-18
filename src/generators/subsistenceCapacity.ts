@@ -3,6 +3,7 @@ import { estimateCellFoodProduction } from "./estimatedFoodProduction";
 import {
   ANNUAL_SOWN_SHARE,
   EDIBLE_SHARE_AFTER_SEED_LOSS_STOCK,
+  getFieldLabourFeasibility,
   STAPLE_NEED_KG_PER_PERSON_YEAR
 } from "./settlementClearance";
 
@@ -87,7 +88,8 @@ export function generateSubsistenceCapacity(world: WorldContext): void {
       (food.cultivableAreaHa[cellId] *
         food.yieldKgPerHa[cellId] *
         ANNUAL_SOWN_SHARE *
-        EDIBLE_SHARE_AFTER_SEED_LOSS_STOCK) /
+        EDIBLE_SHARE_AFTER_SEED_LOSS_STOCK *
+        getFieldLabourFeasibility(food.yieldKgPerHa[cellId])) /
       STAPLE_NEED_KG_PER_PERSON_YEAR /
       populationRate;
     const agriculture = Math.min(1, agriculturalCapacity / terrainCapacity);
@@ -123,7 +125,11 @@ export function refreshEstimatedSubsistenceCapacity(world: WorldContext): void {
   if (cells.livelihood?.length !== cells.i.length) cells.livelihood = new Uint8Array(cells.i.length);
   for (const id of cells.i) {
     const agriculture =
-      (food.cultivableAreaHa[id] * food.yieldKgPerHa[id] * ANNUAL_SOWN_SHARE * EDIBLE_SHARE_AFTER_SEED_LOSS_STOCK) /
+      (food.cultivableAreaHa[id] *
+        food.yieldKgPerHa[id] *
+        ANNUAL_SOWN_SHARE *
+        EDIBLE_SHARE_AFTER_SEED_LOSS_STOCK *
+        getFieldLabourFeasibility(food.yieldKgPerHa[id])) /
       STAPLE_NEED_KG_PER_PERSON_YEAR /
       rate;
     cells.subsistenceCapacity![id] = Math.min(
