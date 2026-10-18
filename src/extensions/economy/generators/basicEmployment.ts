@@ -24,10 +24,10 @@ import {
 } from "./constructionEmployment";
 import { getConstructionMacroRequiredWorkers } from "./constructionJobPostings";
 import { peopleToPoints } from "./craftScale";
-import { getMineEmploymentPeople, getMineRequiredWorkers } from "./mineOperations";
+import { getMineEmploymentPeople, getMineHiringShare, getMineRequiredWorkers } from "./mineOperations";
 import { getQuarryRequiredWorkers } from "./quarryOperations";
 import { type BasicEmploymentSummaryRecord, buildBasicEmploymentSummary } from "./serviceEmployment";
-import { getSmelterEmploymentPeople, getSmelterRequiredWorkers } from "./smelterOperations";
+import { getSmelterCrewPeople, getSmelterRequiredWorkers } from "./smelterOperations";
 import { STRATEGIC_OCCUPATIONS, type StrategicOccupation } from "./strategicLaborMarketsTypes";
 import { getVolcanicRequiredWorkers } from "./volcanicOperations";
 
@@ -108,6 +108,7 @@ export function reconcileAnnualBasicEmploymentWorkers(options?: { initial?: bool
   }
 
   const populationRate = Math.max(0, getWorldContext().populationRate ?? 0) || 1;
+  const depositsById = new Map(getMineralDeposits().map(deposit => [deposit.i, deposit]));
   // Resource operations retain their physical site, but their labor comes from the whole market.
   // Refining precedes extraction because an Ore buffer is useful while a zero-worker smelter
   // blocks every downstream metal Good.
@@ -117,7 +118,7 @@ export function reconcileAnnualBasicEmploymentWorkers(options?: { initial?: bool
       burgId: smelter.burgId,
       ...crewSlot(
         getSmelterRequiredWorkers(smelter),
-        peopleToPoints(getSmelterEmploymentPeople(smelter), populationRate),
+        peopleToPoints(getSmelterCrewPeople(smelter, depositsById.get(smelter.depositId)), populationRate),
         () => smelter.workers,
         value => {
           smelter.workers = value;
@@ -126,7 +127,6 @@ export function reconcileAnnualBasicEmploymentWorkers(options?: { initial?: bool
     });
   }
 
-  const depositsById = new Map(getMineralDeposits().map(deposit => [deposit.i, deposit]));
   for (const mine of getMineOperations()) {
     if (!mine.active || !mine.burgId || !mine.marketId) continue;
     const deposit = depositsById.get(mine.depositId);
@@ -135,11 +135,12 @@ export function reconcileAnnualBasicEmploymentWorkers(options?: { initial?: bool
       burgId: mine.burgId,
       ...crewSlot(
         getMineRequiredWorkers(deposit),
-        peopleToPoints(getMineEmploymentPeople(deposit), populationRate),
+        peopleToPoints(getMineEmploymentPeople(deposit, mine), populationRate),
         () => mine.workers,
         value => {
           mine.workers = value;
-        }
+        },
+        getMineHiringShare(mine, deposit)
       )
     });
   }
@@ -313,11 +314,12 @@ function crewSlot(
   required: number,
   crewPoints: number,
   getSiteWorkers: () => number,
-  setSiteWorkers: (value: number) => void
+  setSiteWorkers: (value: number) => void,
+  hiringShare = 1
 ): BasicEmploymentSlot {
   const scale = required > 0 && crewPoints > 0 ? crewPoints / required : 0;
   return {
-    requiredWorkers: crewPoints,
+    requiredWorkers: crewPoints * hiringShare,
     getWorkers: () => getSiteWorkers() * scale,
     setWorkers: value => setSiteWorkers(scale > 0 ? value / scale : 0)
   };

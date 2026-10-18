@@ -85,10 +85,10 @@ describe("reconcileAnnualBasicEmploymentWorkers", () => {
   });
 
   it("allocates the shared Burg adult pool to the smelter before the mine, in real crews", () => {
-    // At 1,000 people a point the mine's crew (40 + 5×80 = 440 people) is 0.44 points and the
-    // smelter's (8 + 120×2.5 = 308) 0.308; 0.5 points of adults cannot man both.
+    // With no Goods catalogue the crews fall to their floors: a mine of 4 people (0.004 points at
+    // 1,000 people a point) and a smelter of 8 (0.008); 0.01 points of adults cannot man both.
     worldContext.populationRate = 1000;
-    setBurgs({ maleAdults: 0.25, femaleAdults: 0.25 });
+    setBurgs({ maleAdults: 0.005, femaleAdults: 0.005 });
     setMineralDeposits([
       {
         i: 1,
@@ -145,11 +145,11 @@ describe("reconcileAnnualBasicEmploymentWorkers", () => {
     reconcileAnnualBasicEmploymentWorkers();
 
     // Refining is allocated first and gets its whole crew (0.8 in the smelter's own units); the
-    // mine gets the remaining 0.192 points, 0.192 / 0.44 of its 34-unit requirement.
+    // mine gets the remaining 0.002 points, half of its 34-unit requirement.
     const mine = getMineOperations()[0];
     const smelter = getSmelterOperations()[0];
     expect(smelter.workers).toBeCloseTo(0.8, 5);
-    expect(mine.workers).toBeCloseTo((0.192 / 0.44) * 34, 4);
+    expect(mine.workers).toBeCloseTo(17, 4);
   });
 
   it("uses adults from the whole market when a resource site belongs to a tiny burg", () => {
@@ -228,7 +228,7 @@ describe("reconcileAnnualBasicEmploymentWorkers", () => {
 
     reconcileAnnualBasicEmploymentWorkers();
 
-    // The tiny burg has 0.1 points of adults; both crews (0.748 points) are manned from the market.
+    // Both crews are manned from the market's adults, not just the tiny site burg's.
     expect(getSmelterOperations()[0].workers).toBeCloseTo(0.8, 5);
     expect(getMineOperations()[0].workers).toBeCloseTo(34, 5);
   });
@@ -329,8 +329,8 @@ describe("reconcileAnnualBasicEmploymentWorkers", () => {
     // admin required = 4 + 0 + 1 = 5; maxChange = max(1, 5*0.25) = 1.25 -> 0 to 1.25.
     const [administration] = getAdministrationEmployment();
     expect(administration.workers).toBeCloseTo(1.25, 5);
-    // remaining adults after admin = 10 - 1.25 = 8.75; the mine's crew (0.44 points at 1,000
-    // people a point) fits within that, so it reaches its full 34-unit requirement.
+    // remaining adults after admin = 10 - 1.25 = 8.75; the mine's crew (a few people, well under a
+    // point at 1,000 people a point) fits within that, so it reaches its full 34-unit requirement.
     expect(getMineOperations()[0].workers).toBeCloseTo(34, 5);
   });
 

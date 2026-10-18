@@ -640,7 +640,7 @@ seed 102、Megacity、9〜10年目。都市を首都・市場の中心・その�
 
 ### 13.6 残っている課題
 
-1. **採掘の産物の価格**: 鉱石・石の価格が、掘る人の賃金に届かない。価格（`Good.value`）か1人あたりの産出量を、史料で較正する。
+1. **採掘の産物の価格**: 鉱石・石の価格が、掘る人の賃金に届かない。価格（`Good.value`）か1人あたりの産出量を、史料で較正する。 → §14
 2. **採石場・火山の採取場の表示**: 雇用の一覧（`employment-overview.ts`、`burgEmploymentComposition.ts`）は、採石場・火山の採取場の人数を人口点として表示している。§13.3 の3では、これを人数として扱った。表示を合わせる。
 3. **住宅の建築**: 町の家計が家を建てる費用（石工・大工の賃金と資材）は、町の中のお金の移動なので入れていない。資材は市場から無償で取っており（`consumeForConstruction`）、石の買い手として採石場の収入にはなっていない。
 4. **賦役の負担**: 道路の賦役は、国庫の支出を減らすだけで、農民の労働の時間を奪っていない（年8〜40日）。農業労働（§6〜§8）の季節の不足に足すかを決める。
@@ -673,3 +673,99 @@ seed 102、Megacity、9〜10年目。都市を首都・市場の中心・その�
 - J. Munro, Builders' wages in southern England and the southern Low Countries, 1346–1500（MPRA）https://mpra.ub.uni-muenchen.de/11209
 - E. H. Phelps Brown, S. V. Hopkins, "Seven Centuries of the Prices of Consumables, Compared with Builders' Wage-rates", *Economica* 23 (1956)
 - R. C. Allen, "The Great Divergence in European Wages and Prices from the Middle Ages to the First World War", *Explorations in Economic History* 38 (2001)
+
+## 14. 採掘の産物の価格と、1人あたりの産出（§13.6 の 1、2026-10-18）
+
+### 14.1 史料: 採掘の労働者1人が1年に生む価値
+
+商品の単位（wagon、bullion、pallet）は会計上のロットで、トンとの換算は決まっていない（[goods-unit-scale.md](goods-unit-scale.md)）。そこで、トンあたりの価格ではなく、**労働者1人の1年の産出が、作業員の年の賃金の何年分にあたるか**で比べた。
+
+| 事例 | 労働者 | 産出 | 1人あたり | 作業員の賃金との比 |
+| --- | --- | --- | --- | --- |
+| ウィールドの製鉄（1590年代） | 約9,000人（1574年、大半は採鉱と木炭の木の伐採） | 銑鉄 年9,000トン超 | 銑鉄 約1トン | 棒鉄は1596年に1トン10ポンド（ヨークシャーの契約）。銑鉄はその半分強として約0.7〜1年分（作業員は日給8ペンス前後、年250日で約8ポンド） |
+| クトナー・ホラ（16世紀後半） | 約3,000人 | 銀 年2〜4トン | 銀 約1 kg | 約1.3年分（1500年頃のイングランドの換算。銀1 kg ≈ 5.4ポンド、作業員の年の賃金 ≈ 4.2ポンド） |
+| クレムニツァ（1442年） | — | — | 銀 約1.5 kg | 約2年分（同上の換算） |
+| メル（カロリング朝） | 採掘100人を含む250〜300人 | 鉛52トン、銀150 kg（推定の中心） | 銀 約0.5 kg、鉛 約0.2トン | 1年分前後 |
+
+- 換算は国・時代をまたぐので、ずれは大きい。それでも、**採掘の労働者1人の1年の産出は、作業員の賃金のおよそ1〜1.5年分**だった。採掘の費用の大部分は賃金で、残りが鉱山税・坑木・出資者の利益になる。
+- 製鉄では、銑鉄1トンに鉱石5.5〜7トンと木炭4.5〜5トンを使った（16世紀の高炉）。費用の大部分は木炭で、炉の作業員は少なかった。
+
+### 14.2 モデルとの比較（seed 102、5年目。基準価格での1人あたり産出 ÷ 作業員の年の賃金）
+
+作業員の年の賃金は、生活賃金（`getSubsistenceWage`）で 1.5 × 0.43 = 0.645（穀物価格1のとき）。
+
+| 鉱山 | §13 の人数（40 + 豊かさ×80人） | 1人あたりの産出（賃金の何年分） |
+| --- | ---: | ---: |
+| 縞状鉄鉱（豊かさ4） | 360人 | 1.4 |
+| 炭層（豊かさ4） | 360人 | 1.3 |
+| 砂鉄（豊かさ1〜2） | 120〜200人 | 0.1〜0.4 |
+| 金鉱脈（豊かさ1） | 120人 | 0.08 |
+| 蒸発岩（硫黄、豊かさ2） | 200人 | 0.4 |
+| 錫・銅・銀の花崗岩鉱床（豊かさ2） | 200人 | 人手なし（未稼働） |
+
+- **大きな鉄・石炭の鉱山は史料の範囲（1〜1.5）に入っている。価格を変える必要はない。**
+- **小さな鉱床・貴金属の鉱山は、人数が産出に比べて5〜10倍多すぎた。** 人数が鉱種によらず「40 + 豊かさ×80人」で決まっていたためである。
+- **製錬所は、基準価格では赤字になる。** 鉱石1トンあたりの付加価値（地金0.8 × 価格 − 鉱石 − 木炭1 × 3）は、鉄 −1.8、銅 −1.5、錫 −1.2、鉛 −2.1、銀 +3、金 +9。卑金属の地金の価格が、鉱石と木炭の価格の合計より安い。人数（8 + 年産×2.5人、120トンで308人）も、炉の作業員が数人〜十数人という史料より多すぎる。
+- 実際の市場価格では、鉄鉱石と石炭は在庫が売れ残り、価格が下限（基準の0.25倍）に張り付いていた。それでも鉱山は人を雇い続け、掘り続けていた。
+
+### 14.3 実装した内容
+
+1. **鉱山の人数を、産出の価値で決める**（`getMineEmploymentPeople`、[mineOperations.ts](../../src/extensions/economy/generators/mineOperations.ts)）
+   - 人数 = 満員で働いた時の年の産出の基準価値 ÷（1.3 × 作業員の年の賃金）。1.3 は `EXTRACTION_OUTPUT_PER_WORKER_IN_WAGE_YEARS`（§14.1）。最小4人（`MINE_MIN_CREW_PEOPLE`）。
+   - 満員の時の産出には、排水・技術・燃料・近づきやすさを入れる（`getMineExtractionFactor`）。条件の悪い鉱山は、同じ人数でも少ししか掘れないので、人数も少なくなる。
+   - 雇用（`basicEmployment.ts`）、賃金（`extractionPayments.ts`）、較正の一覧（`calibrationOverview.ts`）が同じ人数を使う。
+2. **製錬所の人数も同じ規則で決める**（`getSmelterCrewPeople`、[smelterOperations.ts](../../src/extensions/economy/generators/smelterOperations.ts)）
+   - 人数 = 年の付加価値 ÷（1.3 × 作業員の年の賃金）。最小8人（炉の作業員）。卑金属の製錬所は付加価値が負なので、8人になる。
+3. **売れない時は人を減らす**（`getMineHiringShare`）
+   - 鉱山が雇う割合 = 市場価格 ÷ 基準価値（産出の価値で重み付け）。0.25（`MINE_MIN_HIRING_SHARE`、排水と維持の人員）から1まで。
+   - 史料では、鉱石が見合う値で売れない時、出資者は追加の出資（Zubuße）をやめ、坑は止まった。これまでの鉱山は、売れ残っても下限の価格で掘り続けていた。
+   - 毎年の雇用の見直しの時の価格で決める。
+
+テスト:
+- `mineOperations.test.ts`: 産出の価値から人数が決まること。小さな鉱床は最小の人数になること。価格が下がると雇う割合が下がり、下限で止まること。
+- `basicEmployment.test.ts`: 人数の規則が変わったので、製錬所が先に人を取る順番の検証の数値を直した。
+
+### 14.4 結果
+
+**採掘の支払い**（seed 102、1年間）
+
+| 項目 | §13（5年目、Independent） | §14（5年目、Independent） | §14（9年目、Megacity） |
+| --- | ---: | ---: | ---: |
+| 産物の市場価値 | 1,090 | 945 | 1,409 |
+| 実際の人数での賃金の総額 | 736 | 353 | 480 |
+| 払えた賃金 | 383（52%） | 240（68%） | 369（77%） |
+| 経営者の利益 | 427 | 458 | 666 |
+| 採掘の雇用（月平均の人数） | 約1,300人 | 約610人 | 約830人 |
+
+- 縞状鉄鉱と炭層の鉱山は、価格が下限なので雇う割合が0.25になり、産出も1/4になった（年166トン → 42トン）。ただし市場の在庫（鉄鉱石513、石炭379）は減らず、価格は下限のままである。鉄鉱石を使う製錬所が少ないためである。
+- 砂鉄は市場で品薄（価格は基準の3倍）で、満員で掘り、利益を出している。
+- 賃金を払いきれない鉱山が残るのは、在庫のだぶつきで価格が下限にあるからで、価格の水準の問題ではない。
+
+**全体**（地図は §9 と同じ）
+
+| 項目 | §13 | §14 |
+| --- | --- | --- |
+| Megacity: 都市の食料の充足（7年目以降） | 0.81〜0.92 | 0.82〜0.91 |
+| Megacity: 都市人口（12年目） | 71.6万 | 71.3万 |
+| Independent 101: 都市の食料の充足 / 都市人口（15年目） | 0.974 / 498 | 0.973 / 493 |
+| Independent 102: 同上 | 0.959 / 380 | 0.960 / 379 |
+
+採掘は経済全体の中では小さく（史料でも、ウィールドの製鉄の9,000人は当時のイングランドの人口の0.2%前後）、全体への影響はほとんどない。
+
+### 14.5 残っている課題
+
+1. **卑金属の地金の価格**: 鉄・銅・錫・鉛の地金の基準価値が、鉱石と木炭の合計より安い（§14.2）。史料では、銑鉄の費用の大部分は木炭で、地金の価格はそれを上回った。例えば鉄の地金は、鉱石1.25 × 2 + 木炭1.25 × 3 = 6.25 に作業員の分を足して、7前後が下限になる（今は4）。地金は道具・武器などのレシピの材料なので、下流の商品の価格と合わせて別に設計する。
+2. **鉱石の売れ残り**: 鉄鉱石・石炭の在庫が減らない。製錬所が使う量が少ないためで、製錬所の数・能力と鉱山の産出の釣り合いを調べる。
+3. **採石場の石**: 石は1人年12トン × 基準価値1で、作業員の賃金の約19年分になる。人数が少なすぎるか、石の価値が高すぎる。建築の資材の需給と合わせて見直す。
+4. §13.6 の 2〜4、§12.6 の 2〜5 はそのまま残る。
+
+### 14.6 出典
+
+- Wealden iron industry（Wikipedia）https://en.wikipedia.org/wiki/Wealden_iron_industry
+- The Wealden Iron Industry（Wealden Iron Research Group）https://www.wealdeniron.org.uk/history/
+- The Blast Furnace: 800 Years of Technology Improvement（Construction Physics）https://www.construction-physics.com/p/the-blast-furnace-800-years-of-technology
+- Bar iron（Yorkshire Dictionary、1596年の Warsill 製鉄所の契約）https://yorkshiredictionary.york.ac.uk/words/bar%20iron
+- Příbram and Kutná Hora mining districts（ResearchGate）https://www.researchgate.net/publication/360411442_Pribram_and_Kutna_Hora_mining_districts_-from_historical_mining_to_recent_environmental_impact
+- The Case of Early Medieval Lead-Silver Mining at Melle, France, *Metalla* 26 (2022) https://ojs.ub.rub.de/index.php/METALLA/article/view/9777
+- Falun Mine（Wikipedia）https://en.wikipedia.org/wiki/Falun_Mine
+- J. Munro, Builders' wages in southern England and the southern Low Countries, 1346–1500（MPRA）https://mpra.ub.uni-muenchen.de/11209

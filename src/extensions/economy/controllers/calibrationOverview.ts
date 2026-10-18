@@ -29,7 +29,7 @@ import {
   OCCUPATIONAL_CALIBRATION,
   type OccupationalCalibrationRow
 } from "../generators/occupationalCalibration";
-import { getSmelterEmploymentPeople } from "../generators/smelterOperationsTypes";
+import { getSmelterCrewPeople } from "../generators/smelterOperations";
 import { type CalibrationOverviewRow, setCalibrationOverviewState } from "../store/calibrationOverviewState";
 import { getEconomyCalibrationState } from "../store/economyCalibrationState";
 
@@ -71,7 +71,7 @@ export function refreshCalibrationOverview(): void {
     if (!deposit) continue;
     mineByBurg.set(
       mine.burgId,
-      (mineByBurg.get(mine.burgId) ?? 0) + peopleToPoints(getMineEmploymentPeople(deposit), rate)
+      (mineByBurg.get(mine.burgId) ?? 0) + peopleToPoints(getMineEmploymentPeople(deposit, mine), rate)
     );
   }
   const smeltByBurg = new Map<number, number>();
@@ -79,7 +79,14 @@ export function refreshCalibrationOverview(): void {
     if (!smelter.active || !smelter.burgId) continue;
     smeltByBurg.set(
       smelter.burgId,
-      (smeltByBurg.get(smelter.burgId) ?? 0) + peopleToPoints(getSmelterEmploymentPeople(smelter), rate)
+      (smeltByBurg.get(smelter.burgId) ?? 0) +
+        peopleToPoints(
+          getSmelterCrewPeople(
+            smelter,
+            getMineralDeposits().find(candidate => candidate.i === smelter.depositId)
+          ),
+          rate
+        )
     );
   }
   const tradeByBurg = getTradeWorkersByBurg();

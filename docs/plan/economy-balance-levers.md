@@ -77,7 +77,9 @@
 | 移住の方式（`ruralUrbanMigration`） | `optionsStore.ts` | Independent（既定）／Megacity | — | Megacity では、都市は飢えるところまで人を受け入れる（§12.4） | 農村から都市への移住の自由 | シナリオ（既存） |
 | `URBAN_CAPACITY_MAX_GROWTH_MULTIPLIER` | `urbanFoodCapacity.ts` | 3 | — | 今は効いていない（§12.4） | 都市の城壁・居住区の拡張の許可 | シナリオ |
 | `SERVICE_EMPLOYMENT_MULTIPLIER` | `serviceEmployment.ts` | 1.5 | — | 上げると Megacity の移住が増える（賃金は伴わない、§12.5） | — | 固定（暫定） |
-| 採掘の職の数（`MINE_EMPLOYMENT_*_PEOPLE`・`SMELTER_EMPLOYMENT_*`、`crewSlot`） | `mineOperations.ts`・`smelterOperationsTypes.ts`・`basicEmployment.ts` | 鉱山40＋豊かさ×80人、製錬所8＋年産×2.5人 | 人口点の枠（鉱山1か所で最大3.4万人） | 職を人口点で数えると、Megacity で鉱山町に実在しない職を求めて人が集まる（§13） | — | 固定 |
+| 採掘の職の数（`getMineEmploymentPeople`・`getSmelterCrewPeople`、`crewSlot`） | `mineOperations.ts`・`smelterOperations.ts`・`basicEmployment.ts` | 産出の価値 ÷（1.3 × 作業員の年の賃金）。鉱山は最小4人、製錬所は最小8人 | 人口点の枠（鉱山1か所で最大3.4万人）→ 鉱種によらず40＋豊かさ×80人 | 職を人口点で数えると、Megacity で鉱山町に実在しない職を求めて人が集まる（§13）。鉱種によらない人数では、小さな鉱山が賃金を払えない（§14） | — | 固定 |
+| `EXTRACTION_OUTPUT_PER_WORKER_IN_WAGE_YEARS` | `mineOperations.ts` | 1.3 | — | 下げると採掘の人数が増え、1人あたりの賃金が払えなくなる | 鉱山の生産性（技術・坑夫の熟練） | シナリオ |
+| `MINE_MIN_HIRING_SHARE` | `mineOperations.ts` | 0.25 | 1（売れなくても掘り続ける） | 1にすると、売れない鉱石を掘り続けて賃金が払えない | 鉱山の雇用の維持（公費の補助） | 政策（国） |
 | `URBAN_FOOD_FAMINE_DEATH_BAND`・`SEVERE_DEFICIT_QUARTERS_BEFORE_DEATH` | `foodLedgerConsumption.ts` | 0.85・2四半期 | — | 飢えによる死亡の始まり方 | — | 固定 |
 
 ## 6. 開始時の配分（`economyStartMode.ts`）

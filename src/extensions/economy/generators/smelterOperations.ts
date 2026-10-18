@@ -13,8 +13,8 @@ import { harvestWood } from "./forestStock";
 import { isGoodEnabled } from "./goods-generator";
 import { getGuildBonus } from "./guildKnowledge";
 import { Markets } from "./markets-generator";
-import { getIngotGoodName, ORE_COMMODITIES, type OreCommodity } from "./mineralResources";
-import { getSmelterEmploymentPeople, type SmelterOperation } from "./smelterOperationsTypes";
+import { getIngotGoodName, type MineralDeposit, ORE_COMMODITIES, type OreCommodity } from "./mineralResources";
+import { SMELTER_EMPLOYMENT_BASE_PEOPLE, type SmelterOperation } from "./smelterOperationsTypes";
 
 export type { SmelterOperation } from "./smelterOperationsTypes";
 export {
@@ -24,8 +24,11 @@ export {
   SMELTER_EMPLOYMENT_PEOPLE_PER_ANNUAL_TON
 } from "./smelterOperationsTypes";
 
+import { DEFAULT_PEOPLE_PER_POPULATION_POINT } from "./craftScale";
 import { getMarketValue, settleExtractionPayment } from "./extractionPayments";
+import { EXTRACTION_OUTPUT_PER_WORKER_IN_WAGE_YEARS } from "./mineOperations";
 import { nominal } from "./moneyScale";
+import { getSubsistenceWage } from "./subsistenceWage";
 
 const DEFAULT_SMELTING_YIELD = 0.8;
 const DEFAULT_SECURITY_INVESTMENT = 0;
@@ -76,6 +79,39 @@ export interface SmelterFuelProcurementDemand {
  */
 export function getSmelterRequiredWorkers(smelter: Pick<SmelterOperation, "annualCapacityTons">): number {
   return REQUIRED_WORKERS_BASE + smelter.annualCapacityTons * REQUIRED_WORKERS_PER_ANNUAL_TON;
+}
+
+/**
+ * Real-people crew of a smelter, by the same rule as a mine's (`getMineEmploymentPeople`): as many
+ * people as the value it adds to its ore pays for, and never fewer than a furnace crew
+ * (`SMELTER_EMPLOYMENT_BASE_PEOPLE`). At base prices iron, copper, tin and lead ingots are worth
+ * less than their ore and charcoal, so those smelters keep the bare crew (docs/plan/
+ * farm-labour-calibration.md §14).
+ */
+export function getSmelterCrewPeople(
+  smelter: Pick<SmelterOperation, "annualCapacityTons" | "smeltingYield">,
+  deposit: Pick<MineralDeposit, "yields"> | undefined
+): number {
+  const goodsByName = new Map(getGoods().map(good => [good.name.toLowerCase(), good]));
+  const charcoal = goodsByName.get(CHARCOAL_GOOD_NAME);
+  const oreYields = (deposit?.yields ?? []).filter(yieldInfo =>
+    (ORE_COMMODITIES as readonly string[]).includes(yieldInfo.commodity)
+  );
+  const totalOre = oreYields.reduce((sum, yieldInfo) => sum + yieldInfo.annualCapacityTons, 0);
+  let annualValueAdded = 0;
+  for (const yieldInfo of oreYields) {
+    const commodity = yieldInfo.commodity as OreCommodity;
+    const ore = goodsByName.get(`${commodity} ore`);
+    const ingot = goodsByName.get(getIngotGoodName(commodity));
+    if (!ore || !ingot || !(totalOre > 0)) continue;
+    const perOreTon = smelter.smeltingYield * ingot.value - ore.value - CHARCOAL_PER_ORE_UNIT * (charcoal?.value ?? 0);
+    annualValueAdded += smelter.annualCapacityTons * (yieldInfo.annualCapacityTons / totalOre) * perOreTon;
+  }
+  const wageYearPerPerson = (getSubsistenceWage(undefined) * 12) / DEFAULT_PEOPLE_PER_POPULATION_POINT;
+  return Math.max(
+    SMELTER_EMPLOYMENT_BASE_PEOPLE,
+    annualValueAdded / (EXTRACTION_OUTPUT_PER_WORKER_IN_WAGE_YEARS * wageYearPerPerson)
+  );
 }
 
 /** Creates one independently sited smelter for each active metal mine and settles monthly refining. */
@@ -290,7 +326,8 @@ export class SmelterOperationsModule {
       settleExtractionPayment({
         marketId: smelter.marketId,
         burgId: smelter.burgId,
-        people: getSmelterEmploymentPeople(smelter) * Math.min(1, smelter.workers / getSmelterRequiredWorkers(smelter)),
+        people:
+          getSmelterCrewPeople(smelter, deposit) * Math.min(1, smelter.workers / getSmelterRequiredWorkers(smelter)),
         outputValue: valueAdded
       });
     }

@@ -16,7 +16,16 @@ import {
 } from "../economyContext";
 import { Goods } from "./goods-generator";
 import { Markets } from "./markets-generator";
-import { getMineDrainageFactor, getMineDrainageRequirement, MineOperations } from "./mineOperations";
+import {
+  EXTRACTION_OUTPUT_PER_WORKER_IN_WAGE_YEARS,
+  getMineDrainageFactor,
+  getMineDrainageRequirement,
+  getMineEmploymentPeople,
+  getMineHiringShare,
+  MINE_MIN_CREW_PEOPLE,
+  MINE_MIN_HIRING_SHARE,
+  MineOperations
+} from "./mineOperations";
 
 describe("MineOperationsModule", () => {
   beforeEach(() => {
@@ -43,6 +52,43 @@ describe("MineOperationsModule", () => {
   });
 
   afterEach(() => clearEconomyContext());
+
+  it("sizes a mine's crew by what its output pays for", () => {
+    const yields = [
+      { commodity: "lead" as const, reserveTons: 100, annualCapacityTons: 100 },
+      { commodity: "silver" as const, reserveTons: 10, annualCapacityTons: 10 }
+    ];
+    const deposit = { yields, richness: 2, depth: "surface" as const, accessibility: 1 };
+    // 100 × 3 + 10 × 20 = 500 a year, against a labourer's year of 1.5 × 0.43 grain at price 1.
+    const wageYear = 1.5 * 0.43;
+    expect(getMineEmploymentPeople(deposit)).toBeCloseTo(
+      500 / (EXTRACTION_OUTPUT_PER_WORKER_IN_WAGE_YEARS * wageYear),
+      4
+    );
+    expect(getMineEmploymentPeople({ ...deposit, yields: [{ ...yields[1], annualCapacityTons: 0.01 }] })).toBe(
+      MINE_MIN_CREW_PEOPLE
+    );
+  });
+
+  it("keeps its whole crew while ore sells at its worth, and lays off down to the floor in a glut", () => {
+    const deposit = {
+      yields: [
+        { commodity: "lead" as const, reserveTons: 100, annualCapacityTons: 100 },
+        { commodity: "silver" as const, reserveTons: 10, annualCapacityTons: 10 }
+      ]
+    };
+    const market = getMarkets()[0];
+    expect(getMineHiringShare({ marketId: 1 }, deposit)).toBe(1);
+
+    // Lead (300 of the 500 output value) halves in price; silver keeps its worth: 0.7 of the crew.
+    market.goods[1] = { stock: 0, price: 1.5 };
+    market.goods[2] = { stock: 0, price: 20 };
+    expect(getMineHiringShare({ marketId: 1 }, deposit)).toBeCloseTo(0.7, 6);
+
+    market.goods[1] = { stock: 0, price: 0.01 };
+    market.goods[2] = { stock: 0, price: 0.01 };
+    expect(getMineHiringShare({ marketId: 1 }, deposit)).toBe(MINE_MIN_HIRING_SHARE);
+  });
 
   it("creates an accessible operation and supplies every co-product to its market", () => {
     setMineralDeposits([

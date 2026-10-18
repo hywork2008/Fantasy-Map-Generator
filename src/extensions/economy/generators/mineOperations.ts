@@ -9,11 +9,13 @@ import {
   getWorldContext,
   setMineOperations
 } from "../economyContext";
+import { DEFAULT_PEOPLE_PER_POPULATION_POINT } from "./craftScale";
 import { getMarketValue, settleExtractionPayment } from "./extractionPayments";
 import { isGoodEnabled } from "./goods-generator";
 import { Markets } from "./markets-generator";
 import { getMinedGoodName, type MineOperation, type MineralCommodity, type MineralDeposit } from "./mineralResources";
 import { getMineSteamDrainageBonus } from "./steamInstallations";
+import { getSubsistenceWage } from "./subsistenceWage";
 
 const INITIAL_OPERATION_ACCESSIBILITY = 0.5;
 const PROSPECTING_ACCESSIBILITY = 0.35;
@@ -64,16 +66,67 @@ export function getMineRequiredWorkers(deposit: Pick<MineralDeposit, "richness">
 }
 
 /**
- * Real-people headcount for a mine site, authored independently of getMineRequiredWorkers()
- * (docs/plan/craft-demand-calibration.md §2.0 P4). Decoupled from the population-point reconcile
- * loop in basicEmployment.ts. Mining has no guild domain (occupationalCalibration.ts), so this is
- * used only for Calibration/Employment Overview display — never added to a guild's practitioner sum.
+ * What one extraction worker's year of output is worth, in labourers' wages. A digger's year
+ * bought about one labourer's year and a third: the Weald's ~9,000 iron workers made ~9,000 t of
+ * iron a year in the 1590s; Kutná Hora's ~3,000 miners 2–4 t of silver a year, Kremnica about
+ * 1.5 kg of silver a worker in 1442 (docs/plan/farm-labour-calibration.md §14).
  */
-export const MINE_EMPLOYMENT_BASE_PEOPLE = 40;
-export const MINE_EMPLOYMENT_PEOPLE_PER_RICHNESS = 80;
+export const EXTRACTION_OUTPUT_PER_WORKER_IN_WAGE_YEARS = 1.3;
+/** The smallest crew that works a site at all. */
+export const MINE_MIN_CREW_PEOPLE = 4;
 
-export function getMineEmploymentPeople(deposit: Pick<MineralDeposit, "richness">): number {
-  return MINE_EMPLOYMENT_BASE_PEOPLE + deposit.richness * MINE_EMPLOYMENT_PEOPLE_PER_RICHNESS;
+/**
+ * Real-people crew of a mine: as many people as its output at full staffing pays for, at
+ * `EXTRACTION_OUTPUT_PER_WORKER_IN_WAGE_YEARS` (docs/plan/farm-labour-calibration.md §14). A rich
+ * iron seam keeps a few hundred; a small gold working a handful. Used for the town's employment
+ * (basicEmployment.ts) and the wage bill (extractionPayments.ts); the site's own output still
+ * counts its `getMineRequiredWorkers()` slots.
+ */
+export function getMineEmploymentPeople(
+  deposit: Pick<MineralDeposit, "richness" | "depth" | "groundwaterPressure" | "accessibility" | "yields">,
+  operation?: Pick<MineOperation, "technology" | "fuelAccess" | "toolsInvestmentStock" | "drainage">
+): number {
+  const fullStaffFactor = operation
+    ? getMineExtractionFactor({ ...operation, workers: getMineRequiredWorkers(deposit) }, deposit)
+    : 1;
+  const goodsByName = new Map(getGoods().map(good => [good.name.toLowerCase(), good]));
+  let annualValue = 0;
+  for (const yieldInfo of deposit.yields) {
+    const good = goodsByName.get(getMinedGoodName(yieldInfo.commodity));
+    if (!good || !isGoodEnabled(good)) continue;
+    annualValue += yieldInfo.annualCapacityTons * fullStaffFactor * good.value;
+  }
+  const wageYearPerPerson = (getSubsistenceWage(undefined) * 12) / DEFAULT_PEOPLE_PER_POPULATION_POINT;
+  return Math.max(MINE_MIN_CREW_PEOPLE, annualValue / (EXTRACTION_OUTPUT_PER_WORKER_IN_WAGE_YEARS * wageYearPerPerson));
+}
+
+/** A mine never lays off below its pumping and upkeep crew. */
+export const MINE_MIN_HIRING_SHARE = 0.25;
+
+/**
+ * Share of its crew a mine keeps hired at its market's prices: price ÷ base value, weighted by
+ * output value, between `MINE_MIN_HIRING_SHARE` and 1. Mines worked to the market — when ore would
+ * not sell at its worth, the shareholders stopped paying their calls (Zubuße) and the workings
+ * stood idle (docs/plan/farm-labour-calibration.md §14). Without this, a mine kept digging into a
+ * glutted market at the floor price.
+ */
+export function getMineHiringShare(
+  operation: Pick<MineOperation, "marketId">,
+  deposit: Pick<MineralDeposit, "yields">
+): number {
+  const market = Markets.get(operation.marketId);
+  const goodsByName = new Map(getGoods().map(good => [good.name.toLowerCase(), good]));
+  let base = 0;
+  let atPrice = 0;
+  for (const yieldInfo of deposit.yields) {
+    const good = goodsByName.get(getMinedGoodName(yieldInfo.commodity));
+    if (!good || !isGoodEnabled(good) || !(good.value > 0)) continue;
+    const price = market?.goods?.[good.i]?.price;
+    const value = yieldInfo.annualCapacityTons * good.value;
+    base += value;
+    atPrice += value * Math.min(1, typeof price === "number" && price > 0 ? price / good.value : 1);
+  }
+  return base > 0 ? Math.max(MINE_MIN_HIRING_SHARE, atPrice / base) : 1;
 }
 
 /**
@@ -453,7 +506,9 @@ export class MineOperationsModule {
       settleExtractionPayment({
         marketId: operation.marketId,
         burgId: operation.burgId,
-        people: getMineEmploymentPeople(deposit) * Math.min(1, operation.workers / getMineRequiredWorkers(deposit)),
+        people:
+          getMineEmploymentPeople(deposit, operation) *
+          Math.min(1, operation.workers / getMineRequiredWorkers(deposit)),
         outputValue
       });
       deposit.exhausted = deposit.yields.every(
