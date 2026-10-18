@@ -3,6 +3,7 @@ import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph, State } from "../../hostTypes";
 import { clearEconomyContext, initEconomyContext, setGoods, setMarkets } from "../economyContext";
 import { getHouseholdWealth } from "./burgMarketLedgers";
+import { beginGoodsBalanceInterval, clearGoodsBalanceLedger, closeGoodsBalanceInterval } from "./goodsBalanceLedger";
 import type { Good } from "./goodsGeneratorTypes";
 import type { Market } from "./marketTypes";
 import { NAVY_TRADE_MARKUP, payNavyCrew, settleNavyVoyageTrade } from "./navyTrade";
@@ -45,6 +46,19 @@ describe("navyTrade", () => {
     expect(market.goods[3].stock).toBeCloseTo(200 / 20, 4); // silk in
     expect(state.treasury).toBeCloseTo(1000 + 40, 4);
     expect((state.treasury ?? 0) + market.marketTreasury!.balance).toBeCloseTo(before, 4);
+  });
+
+  it("records the goods it ships out and brings back in the goods ledger", () => {
+    const point = { year: 1, month: 1, day: 1, tickCount: 0 };
+    beginGoodsBalanceInterval(point);
+    settleNavyVoyageTrade(1, 1, 10, 1);
+    const { intervals } = closeGoodsBalanceInterval({ ...point, month: 2, tickCount: 30 });
+    clearGoodsBalanceLedger();
+    const wool = intervals.find(row => row.goodName === "Wool")!;
+    const silk = intervals.find(row => row.goodName === "Silk")!;
+    expect(wool.navyExport).toBeCloseTo(80, 4);
+    expect(silk.navyImport).toBeCloseTo(10, 4);
+    expect(Math.abs(wool.accountingGap) + Math.abs(silk.accountingGap)).toBeLessThan(1e-3);
   });
 
   it("pays the crew from the treasury into the home port", () => {

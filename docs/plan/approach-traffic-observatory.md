@@ -132,6 +132,7 @@ export interface ApproachTraffic {
 | `observe/approaches[?burg=b]` | 出入り口台帳の生値 |
 | `observe/routes` | 路線ごと `traffic`・`pavedShare`・`group`・長さ・通過回廊数 |
 | `observe/corridors[?top=N]` | 交易回廊(既存台帳)と `listCorridorNeeds` |
+| `observe/luxury` | 前回の呼び出しからの高額品の流れ・価格帯ごとの支出・品目ごとの在庫と相場([luxury-value-demand.md](luxury-value-demand.md) §7。最初の呼び出しは区間を始めるだけ) |
 | `observe/burgs/:b/growth` | その都市を CE 生成し、`UrbanGrowthPlan.regions` を approachId ごとに集計(§7) |
 
 ops は既存の `advance` を使う。長期実行のため `{"type":"advance","months":N,"sampleEvery":{"months":1}}` を追加し、子プロセス内でストライドごとに標本を取り `data/channels/<id>/observe.ndjson` に追記する(HTTP 往復を年×12 回しなくて済む。§5 の個別 GET は対話・デバッグ用)。

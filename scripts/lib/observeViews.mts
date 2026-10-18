@@ -9,6 +9,7 @@ import {
   getApproachLedgerDecays,
   getApproachTraffic,
   getCaravans,
+  getMarketById,
   getMarkets,
   getGoods,
   getMarketShipments,
@@ -20,10 +21,15 @@ import { getGoodCargoSlotsPerUnit } from "../../src/extensions/economy/generator
 import { getCharacters } from "../../src/extensions/characters/charactersContext";
 import { inferRoleClass } from "../../src/extensions/characters/backstoryProfile";
 import { delayRatio, liveCorridorNeeds } from "../../src/extensions/economy/generators/tradeCorridorLedger";
+import { setGoodFlowObserver, type GoodFlowRecord } from "../../src/extensions/economy/generators/goodsBalanceLedger";
+import { DEMAND_TARGET_FACTORS } from "../../src/extensions/economy/generators/goods-generator";
+import { isLuxuryDemandGood, LUXURY_TIERS, luxuryTierOf } from "../../src/extensions/economy/generators/luxuryTiers";
+import { housesPresentIn } from "../../src/extensions/economy/generators/merchantIntelligence";
+import type { Good } from "../../src/extensions/economy/generators/goodsGeneratorTypes";
 import type { Burg, Route } from "../../src/types/models";
 
 export const SAMPLE_VERSION = 1;
-export const SAMPLE_DETAILS = ["burgs", "routes", "approaches", "corridors", "markets", "wealth"] as const;
+export const SAMPLE_DETAILS = ["burgs", "routes", "approaches", "corridors", "markets", "wealth", "luxury"] as const;
 export type SampleDetail = (typeof SAMPLE_DETAILS)[number];
 
 /**
@@ -198,6 +204,7 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
     if (details.includes("corridors")) out.corridors = corridorSample();
     if (details.includes("markets")) out.markets = markets();
     if (details.includes("wealth")) out.wealth = wealth();
+    if (details.includes("luxury")) out.luxury = luxury();
     return out;
   }
 
@@ -369,6 +376,163 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
     };
   }
 
+  // Luxury flows (docs/plan/luxury-value-demand.md §7) accumulate between luxury() calls through a
+  // read-only tap on the goods ledger, so they are measured whether or not a balance interval is open.
+  const luxuryTags = new Set<string>(CARGO_CLASSES.find(entry => entry.id === "luxury")!.tags);
+  let luxuryCatalogue: readonly Good[] | null = null;
+  let luxuryGoods = new Map<number, Good>();
+  const trackedLuxuryGoods = () => {
+    const catalogue = getGoods();
+    if (catalogue !== luxuryCatalogue) {
+      luxuryCatalogue = catalogue;
+      luxuryGoods = new Map(
+        catalogue.filter(g => isLuxuryDemandGood(g) || g.tags?.some(tag => luxuryTags.has(tag))).map(g => [g.i, g])
+      );
+    }
+    return luxuryGoods;
+  };
+  type LuxuryFlow = { units: number; value: number };
+  let luxuryFlows = new Map<number, Map<string, LuxuryFlow>>();
+  let luxuryBuyers = new Set<number>();
+  let luxuryCovered = 0;
+  let luxurySince: ObserveClock | null = null;
+  setGoodFlowObserver((flow: GoodFlowRecord) => {
+    const good = trackedLuxuryGoods().get(flow.goodId);
+    if (!good) return;
+    const price = (flow.marketId !== undefined ? getMarketById(flow.marketId)?.goods[flow.goodId]?.price : undefined) ?? good.value;
+    const byKey = luxuryFlows.get(flow.goodId) ?? new Map<string, LuxuryFlow>();
+    luxuryFlows.set(flow.goodId, byKey);
+    const key = `${flow.direction}:${flow.category}`;
+    const row = byKey.get(key) ?? { units: 0, value: 0 };
+    row.units += flow.units;
+    row.value += flow.units * price;
+    byKey.set(key, row);
+    if (flow.category === "burgDemand" && isLuxuryDemandGood(good)) {
+      luxuryCovered += flow.units * (good.demandCoverage?.luxury ?? 0);
+      if (flow.burgId) luxuryBuyers.add(flow.burgId);
+    }
+  });
+
+  /**
+   * Luxury goods since the previous call: town purchases against the consumer target, spend by
+   * price tier, every recorded flow, and per good its stock, price level and the market pairs a
+   * merchant house could trade on. The first call only starts the interval.
+   */
+  function luxury() {
+    const now = clock();
+    const since = luxurySince;
+    if (!since) {
+      luxuryFlows = new Map();
+      luxuryBuyers = new Set();
+      luxuryCovered = 0;
+      luxurySince = now;
+      return null;
+    }
+    const months = Math.max(0, now.year * 12 + now.month - (since.year * 12 + since.month));
+    const flows = luxuryFlows;
+    const buyers = luxuryBuyers;
+    const covered = luxuryCovered;
+    luxuryFlows = new Map();
+    luxuryBuyers = new Set();
+    luxuryCovered = 0;
+    luxurySince = now;
+    if (!economy()) return null;
+
+    const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
+    const median = (values: number[]) => {
+      const sorted = values.slice().sort((a, b) => a - b);
+      return sorted.length ? sorted[Math.floor(sorted.length / 2)] : 0;
+    };
+    const towns = liveBurgs().filter(b => b.market);
+    const urbanPop = sum(towns.map(b => b.population ?? 0));
+    const target = urbanPop * DEMAND_TARGET_FACTORS.luxury * months;
+
+    const totals: Record<string, LuxuryFlow> = {};
+    const tiers = Object.fromEntries(LUXURY_TIERS.map(tier => [tier, { units: 0, spend: 0 }])) as Record<
+      string,
+      { units: number; spend: number }
+    >;
+    for (const [goodId, byKey] of flows) {
+      const good = luxuryGoods.get(goodId);
+      for (const [key, row] of byKey) {
+        const total = (totals[key] ??= { units: 0, value: 0 });
+        total.units += row.units;
+        total.value += row.value;
+        if (key === "sink:burgDemand" && good && isLuxuryDemandGood(good)) {
+          tiers[luxuryTierOf(good)].units += row.units;
+          tiers[luxuryTierOf(good)].spend += row.value;
+        }
+      }
+    }
+    const spend = sum(LUXURY_TIERS.map(tier => tiers[tier].spend));
+
+    const markets = getMarkets();
+    const goods = [...trackedLuxuryGoods().values()]
+      .map(good => {
+        const rows = markets.map(m => ({ id: m.i, stock: m.goods[good.i]?.stock ?? 0, price: m.goods[good.i]?.price ?? 0 }));
+        const stocked = rows.filter(row => row.stock > 0.01);
+        let gapPairs = 0;
+        let gapPairsWithHouse = 0;
+        for (const exporter of stocked)
+          for (const importer of rows) {
+            if (importer.id === exporter.id || !(importer.price > exporter.price * 1.3)) continue;
+            gapPairs++;
+            if (housesPresentIn(exporter.id, importer.id).length) gapPairsWithHouse++;
+          }
+        const byKey = flows.get(good.i);
+        return {
+          id: good.i,
+          name: good.name,
+          value: good.value,
+          tier: isLuxuryDemandGood(good) ? luxuryTierOf(good) : null,
+          stock: r3(sum(stocked.map(row => row.stock))),
+          marketsStocked: stocked.length,
+          priceRatio: r3(median(rows.filter(row => row.price > 0).map(row => row.price / (good.value || 1)))),
+          flows: byKey ? Object.fromEntries([...byKey].map(([key, row]) => [key, r3(row.units)])) : {},
+          gapPairs,
+          gapPairsWithHouse
+        };
+      })
+      .filter(row => row.stock > 0 || Object.keys(row.flows).length);
+
+    let inTransit = 0;
+    let withLuxury = 0;
+    let luxuryValue = 0;
+    for (const caravan of getCaravans()) {
+      if (caravan.sellerType !== "market" || caravan.buyerType !== "market") continue;
+      inTransit++;
+      const items = caravan.payload.filter(item => luxuryGoods.has(item.goodId));
+      if (!items.length) continue;
+      withLuxury++;
+      luxuryValue += sum(items.map(item => item.value ?? 0));
+    }
+
+    return {
+      months,
+      demand: {
+        target: r3(target),
+        covered: r3(covered),
+        coverage: target > 0 ? r3(covered / target) : 0,
+        spend: r3(spend),
+        buyerBurgs: buyers.size,
+        burgs: towns.length
+      },
+      tiers: Object.fromEntries(
+        LUXURY_TIERS.map(tier => [
+          tier,
+          { units: r3(tiers[tier].units), spend: r3(tiers[tier].spend), share: spend > 0 ? r3(tiers[tier].spend / spend) : 0 }
+        ])
+      ),
+      flows: Object.fromEntries(Object.entries(totals).map(([key, row]) => [key, { units: r3(row.units), value: r3(row.value) }])),
+      caravans: { inTransit, withLuxury, luxuryValue: r3(luxuryValue) },
+      burgTreasury: {
+        zeroShare: towns.length ? r3(towns.filter(b => (b.treasury ?? 0) < 1).length / towns.length) : 0,
+        perPopMedian: r3(median(towns.map(b => (b.treasury ?? 0) / Math.max(0.01, b.population ?? 0))))
+      },
+      goods
+    };
+  }
+
   /** Map facts that change only with the route network (§6 static.json). */
   function staticInfo() {
     const { pack, seed } = getWorld();
@@ -388,7 +552,7 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
       .join(",");
   }
 
-  return { sample, routes, approaches, corridors, markets, goods, gates, wealth, staticInfo, networkKey };
+  return { sample, routes, approaches, corridors, markets, goods, gates, wealth, luxury, staticInfo, networkKey };
 }
 
 export interface SampledAdvanceHost {

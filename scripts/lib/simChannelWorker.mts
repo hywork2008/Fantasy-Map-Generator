@@ -25,7 +25,7 @@ type Request =
       sampleDetail?: string;
       runId?: string;
     }
-  | { id: number; type: "observe"; view: "sample" | "routes" | "approaches" | "corridors" | "markets" | "static" | "goods" | "gates" | "wealth"; params?: Record<string, string> }
+  | { id: number; type: "observe"; view: "sample" | "routes" | "approaches" | "corridors" | "markets" | "static" | "goods" | "gates" | "wealth" | "luxury"; params?: Record<string, string> }
   | { id: number; type: "command"; extensionId: string; name: string; payload: unknown; user?: string };
 
 const dir = process.argv[2];
@@ -160,6 +160,7 @@ async function handle(request: Request): Promise<unknown> {
       if (request.view === "static") return observe.staticInfo();
       if (request.view === "goods") return observe.goods();
       if (request.view === "wealth") return observe.wealth();
+      if (request.view === "luxury") return observe.luxury();
       if (request.view === "gates") return observe.gates(params.burg === undefined ? undefined : Number(params.burg));
       if (request.view === "approaches") return observe.approaches(params.burg === undefined ? undefined : Number(params.burg));
       return observe.corridors(params.top === undefined ? undefined : Number(params.top));

@@ -11,6 +11,7 @@
 
 import { rn } from "../../hostUtils";
 import { getGoods, getMarkets, getWorldContext, isEconomyContextReady } from "../economyContext";
+import { recordGoodFlow } from "./goodsBalanceLedger";
 import type { Good } from "./goodsGeneratorTypes";
 import { spendInBurg } from "./householdWealth";
 import type { Market } from "./marketTypes";
@@ -65,11 +66,12 @@ export function settleNavyVoyageTrade(
     .map(([id, row]) => ({ good: byId.get(Number(id)), row }))
     .filter(entry => entry.good && !isFood(entry.good) && entry.row.stock > 0 && entry.row.price > 0)
     .sort((a, b) => b.row.stock * b.row.price - a.row.stock * a.row.price);
-  for (const { row } of offers) {
+  for (const { good, row } of offers) {
     if (!(budget > 1e-6)) break;
     const units = Math.min(row.stock * EXPORT_STOCK_SHARE, budget / row.price);
     if (!(units > 0)) continue;
     row.stock = rn(row.stock - units, 4);
+    recordGoodFlow({ direction: "sink", category: "navyExport", goodId: good!.i, units, marketId: market.i });
     exported += units * row.price;
     budget -= units * row.price;
   }
@@ -90,6 +92,13 @@ export function settleNavyVoyageTrade(
     imported = rn(Math.min(exported * (1 + NAVY_TRADE_MARKUP), Math.max(0, market.marketTreasury.balance)), 4);
     const row = market.goods[target.good.i] ?? { stock: 0, price: target.price };
     row.stock = rn(row.stock + imported / target.price, 4);
+    recordGoodFlow({
+      direction: "source",
+      category: "navyImport",
+      goodId: target.good.i,
+      units: imported / target.price,
+      marketId: market.i
+    });
     market.goods[target.good.i] = row;
     market.marketTreasury.balance = rn(market.marketTreasury.balance - imported, 4);
     state.treasury = rn((state.treasury ?? 0) + imported, 4);

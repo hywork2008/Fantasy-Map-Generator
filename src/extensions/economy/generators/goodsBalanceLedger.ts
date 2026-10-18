@@ -33,7 +33,9 @@ export type GoodFlowCategory =
   | "exportDeparture"
   | "spoilage"
   | "burgDemand"
-  | "funeral";
+  | "funeral"
+  | "navyExport"
+  | "navyImport";
 
 export interface GoodFlowRecord {
   readonly direction: GoodFlowDirection;
@@ -92,6 +94,8 @@ export interface GoodBalanceInterval {
   readonly shipbuilding: number;
   readonly exportDeparture: number;
   readonly spoilage: number;
+  readonly navyExport: number;
+  readonly navyImport: number;
   /** Positive means a stock mutation was not recorded by the accounting ledger. */
   readonly accountingGap: number;
 }
@@ -103,6 +107,17 @@ type ActiveInterval = {
 };
 
 let activeInterval: ActiveInterval | null = null;
+
+export type GoodFlowObserver = (flow: GoodFlowRecord) => void;
+let flowObserver: GoodFlowObserver | null = null;
+
+/**
+ * Read-only tap on every recorded flow, active with or without an open interval. Headless
+ * observation (scripts/lib/observeViews.mts) uses it; the observer must not touch the world.
+ */
+export function setGoodFlowObserver(observer: GoodFlowObserver | null): void {
+  flowObserver = observer;
+}
 
 function copyPoint(point: GoodsBalancePoint): GoodsBalancePoint {
   return { year: point.year, month: point.month, day: point.day, tickCount: point.tickCount };
@@ -159,7 +174,9 @@ export function clearGoodsBalanceLedger(): void {
 
 /** Records an aggregate physical stock movement. Calls before the first baseline are ignored. */
 export function recordGoodFlow(flow: GoodFlowRecord): void {
-  if (!activeInterval || !Number.isFinite(flow.units) || flow.units <= 0) return;
+  if (!Number.isFinite(flow.units) || flow.units <= 0) return;
+  flowObserver?.(flow);
+  if (!activeInterval) return;
   const key = flowKey(flow);
   const previous = activeInterval.flows.get(key);
   activeInterval.flows.set(
@@ -227,6 +244,8 @@ export function closeGoodsBalanceInterval(point: GoodsBalancePoint): {
         shipbuilding: categoryTotal(flows, "shipbuilding", good.i),
         exportDeparture: categoryTotal(flows, "exportDeparture", good.i),
         spoilage: categoryTotal(flows, "spoilage", good.i),
+        navyExport: categoryTotal(flows, "navyExport", good.i),
+        navyImport: categoryTotal(flows, "navyImport", good.i),
         accountingGap: opening + sources - sinks - closing
       };
     });
