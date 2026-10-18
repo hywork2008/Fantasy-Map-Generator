@@ -33,19 +33,10 @@ const SEVERE_DEFICIT_QUARTERS_BEFORE_DEATH = 2;
 export const URBAN_FOOD_FAMINE_DEATH_BAND = 0.85;
 const PRICE_FLOOR = 0.8;
 const PRICE_CEILING = 2.0;
-const SHORTFALL_JITTER_MIN = 0.8;
-const SHORTFALL_JITTER_SPAN = 0.4;
 const DAYS_PER_YEAR = 365.2425;
 
 function dailyNeedPerPerson(): number {
   return GROSS_FOOD_NEED / DAYS_PER_YEAR;
-}
-
-/** Deterministic per-market/quarter jitter in [0.8, 1.2), seeded from market id and calendar month. */
-function getShortfallJitter(marketId: number, month: number): number {
-  const seed = Math.sin(marketId * 12.9898 + month * 78.233) * 43758.5453;
-  const fraction = seed - Math.floor(seed);
-  return SHORTFALL_JITTER_MIN + fraction * SHORTFALL_JITTER_SPAN;
 }
 
 /** Draws up to `amount` from the ledger's stock, oldest bucket first. Returns the amount actually drawn. */
@@ -294,17 +285,13 @@ export function settleMonthlyFoodConsumption(settlementMonth = getSimulationMont
     ledger.exportable = rn(Math.max(0, remainingStock - exportReserve), 2);
 
     if (isQuarterEnd) {
-      const totalUnmetNeed = Math.max(0, ruralMonthlyNeed - ruralDrawn) + Math.max(0, urbanMonthlyNeed - urbanDrawn);
-      const totalNeed = ruralMonthlyNeed + urbanMonthlyNeed;
-      let ruralShortfallRate = 0;
-      let urbanShortfallRate = 0;
-      if (totalNeed > 0 && totalUnmetNeed > 0) {
-        const commonShortfallRate = minmax(totalUnmetNeed / totalNeed, 0, 1);
-        const jitter = getShortfallJitter(market.i, settlementMonth);
-        ruralShortfallRate = minmax(commonShortfallRate * jitter, 0, 1);
-        const ruralUnmet = ruralMonthlyNeed * ruralShortfallRate;
-        urbanShortfallRate = urbanMonthlyNeed > 0 ? minmax((totalUnmetNeed - ruralUnmet) / urbanMonthlyNeed, 0, 1) : 0;
-      }
+      // Each sector's own unmet share of what it actually drew this month. Splitting the combined
+      // shortfall evenly used to record rural stress while every farm family had eaten, and moved the
+      // towns' purse-limited shortfall onto them (docs/plan/farm-labour-calibration.md §10.3).
+      const ruralShortfallRate =
+        ruralMonthlyNeed > 0 ? minmax((ruralMonthlyNeed - ruralDrawn) / ruralMonthlyNeed, 0, 1) : 0;
+      const urbanShortfallRate =
+        urbanMonthlyNeed > 0 ? minmax((urbanMonthlyNeed - urbanDrawn) / urbanMonthlyNeed, 0, 1) : 0;
       updateStressCounters(ledger, ruralShortfallRate, urbanShortfallRate);
       const foodSecurity = computeUrbanFoodSecurity(urbanShortfallRate, ledger.urbanSevereDeficitQuarters);
       for (const burg of marketBurgs) burg.foodSecurity = foodSecurity;

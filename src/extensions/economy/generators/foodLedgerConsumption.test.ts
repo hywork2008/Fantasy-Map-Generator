@@ -335,6 +335,28 @@ describe("settleMonthlyFoodConsumption", () => {
     expect(burg.foodSecurity).toBeLessThan(URBAN_FOOD_FAMINE_DEATH_BAND);
   });
 
+  it("records stress only for the sector that went short, not a share of the combined shortfall", () => {
+    // Farm families eat from their own larder; the town has no market grain at all.
+    mockWorldContext.pack.cells = { i: [0], h: [25], pop: [200] };
+    vi.mocked(getMarketCellColumn).mockReturnValue(new Uint16Array([1]));
+    vi.mocked(getRuralHouseholdFoodStock).mockReturnValue(new Float32Array([1_000]));
+    const burg = { i: 1, market: 1, removed: false, population: 100_000, foodReserve: 0 } as any;
+    mockWorldContext.pack.burgs = [burg];
+    const market = {
+      i: 1,
+      centerBurgId: 1,
+      color: "#fff",
+      goods: {},
+      foodLedger: makeLedger({ foodStockAge0: 0 })
+    } as Market;
+    setMarket(market);
+
+    settleMonthlyFoodConsumption(3);
+
+    expect(market.foodLedger!.ruralFoodStressQuarters).toBe(0);
+    expect(market.foodLedger!.urbanSevereDeficitQuarters).toBe(1);
+  });
+
   it("restores foodSecurity to 1 when the quarter ends fully fed", () => {
     const burg = {
       i: 1,
