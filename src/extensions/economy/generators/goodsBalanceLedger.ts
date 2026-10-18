@@ -36,7 +36,8 @@ export type GoodFlowCategory =
   | "funeral"
   | "navyExport"
   | "navyImport"
-  | "luxuryPurchase";
+  | "luxuryPurchase"
+  | "characterLuxury";
 
 export interface GoodFlowRecord {
   readonly direction: GoodFlowDirection;
@@ -98,6 +99,7 @@ export interface GoodBalanceInterval {
   readonly navyExport: number;
   readonly navyImport: number;
   readonly luxuryPurchase: number;
+  readonly characterLuxury: number;
   /** Positive means a stock mutation was not recorded by the accounting ledger. */
   readonly accountingGap: number;
 }
@@ -249,6 +251,7 @@ export function closeGoodsBalanceInterval(point: GoodsBalancePoint): {
         navyExport: categoryTotal(flows, "navyExport", good.i),
         navyImport: categoryTotal(flows, "navyImport", good.i),
         luxuryPurchase: categoryTotal(flows, "luxuryPurchase", good.i),
+        characterLuxury: categoryTotal(flows, "characterLuxury", good.i),
         accountingGap: opening + sources - sinks - closing
       };
     });

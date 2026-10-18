@@ -2,7 +2,9 @@ import { getCharacters, hasCharactersContext } from "../../characters/characters
 import type { Character, CharacterRole, TitleHolding } from "../../characters/characterTypes";
 import { rn } from "../../hostUtils";
 import { CENTRAL_OFFICES } from "../../nobility/data/titleTable";
+import { buyCharacterLuxuries, characterLuxuryBudget } from "./characterLuxuryPurchases";
 import { payStateHouseholds, spendInBurg } from "./householdWealth";
+import { isLuxuryValueDemandEnabled } from "./luxuryDemand";
 import { nominal } from "./moneyScale";
 
 /**
@@ -172,6 +174,7 @@ export function applyCharacterLivingCosts(): LivingCostSummary {
   if (!hasCharactersContext()) return { charactersCharged: 0, totalSpent: 0 };
 
   const characters = getCharacters();
+  const buysLuxuries = isLuxuryValueDemandEnabled();
   let charactersCharged = 0;
   let totalSpent = 0;
 
@@ -185,14 +188,24 @@ export function applyCharacterLivingCosts(): LivingCostSummary {
     // Beyond a few years' living, a household of means spends on building, retainers, gifts and
     // fine goods in its town rather than hoarding (docs/plan/initial-wealth-calibration.md §8).
     const reserve = lifestyleCost * CYCLES_PER_YEAR * WEALTH_RESERVE_YEARS;
-    const cost = lifestyleCost + Math.max(0, wealth - lifestyleCost - reserve) * SURPLUS_WEALTH_SPEND_SHARE;
+    const surplusSpend = Math.max(0, wealth - lifestyleCost - reserve) * SURPLUS_WEALTH_SPEND_SHARE;
+    const cost = lifestyleCost + surplusSpend;
 
     const paid = rn(Math.min(wealth, cost), 2);
     if (!(paid > 0)) continue;
 
     character.wealth = rn(wealth - paid, 2);
+    // Under the luxury value demand, part of it buys fine goods at the home market
+    // (docs/plan/luxury-value-demand.md §4); the rest stays the town's income as before.
+    let cash = paid;
+    if (buysLuxuries) {
+      const tier = resolveLifestyleTier(character);
+      const budget = Math.min(paid, characterLuxuryBudget(tier, lifestyleCost, surplusSpend));
+      cash = rn(paid - buyCharacterLuxuries(character, tier, budget), 2);
+    }
     // Board, servants and clothes are bought in the town the character lives in.
-    if (!spendInBurg(character.location, paid) && character.state) payStateHouseholds(character.state, paid);
+    if (cash > 0 && !spendInBurg(character.location, cash) && character.state)
+      payStateHouseholds(character.state, cash);
     charactersCharged += 1;
     totalSpent = rn(totalSpent + paid, 2);
   }

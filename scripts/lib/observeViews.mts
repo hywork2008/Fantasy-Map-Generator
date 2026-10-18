@@ -450,10 +450,13 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
     const target = urbanPop * DEMAND_TARGET_FACTORS.luxury * months;
 
     const totals: Record<string, LuxuryFlow> = {};
-    const tiers = Object.fromEntries(LUXURY_TIERS.map(tier => [tier, { units: 0, spend: 0 }])) as Record<
-      string,
-      { units: number; spend: number }
-    >;
+    const emptyTiers = () =>
+      Object.fromEntries(LUXURY_TIERS.map(tier => [tier, { units: 0, spend: 0 }])) as Record<
+        string,
+        { units: number; spend: number }
+      >;
+    const tiers = emptyTiers();
+    const characterTiers = emptyTiers();
     for (const [goodId, byKey] of flows) {
       const good = luxuryGoods.get(goodId);
       for (const [key, row] of byKey) {
@@ -464,9 +467,21 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
           tiers[luxuryTierOf(good)].units += row.units;
           tiers[luxuryTierOf(good)].spend += row.value;
         }
+        if (key === "sink:characterLuxury" && good && isLuxuryDemandGood(good)) {
+          characterTiers[luxuryTierOf(good)].units += row.units;
+          characterTiers[luxuryTierOf(good)].spend += row.value;
+        }
       }
     }
     const spend = sum(LUXURY_TIERS.map(tier => tiers[tier].spend));
+    const characterSpend = sum(LUXURY_TIERS.map(tier => characterTiers[tier].spend));
+    const tierRows = (rows: typeof tiers, total: number) =>
+      Object.fromEntries(
+        LUXURY_TIERS.map(tier => [
+          tier,
+          { units: r3(rows[tier].units), spend: r3(rows[tier].spend), share: total > 0 ? r3(rows[tier].spend / total) : 0 }
+        ])
+      );
 
     const markets = getMarkets();
     const goods = [...trackedLuxuryGoods().values()]
@@ -519,12 +534,9 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
         buyerBurgs: buyers.size,
         burgs: towns.length
       },
-      tiers: Object.fromEntries(
-        LUXURY_TIERS.map(tier => [
-          tier,
-          { units: r3(tiers[tier].units), spend: r3(tiers[tier].spend), share: spend > 0 ? r3(tiers[tier].spend / spend) : 0 }
-        ])
-      ),
+      tiers: tierRows(tiers, spend),
+      /** Characters' purchases at their home markets (§4). */
+      characters: { spend: r3(characterSpend), tiers: tierRows(characterTiers, characterSpend) },
       flows: Object.fromEntries(Object.entries(totals).map(([key, row]) => [key, { units: r3(row.units), value: r3(row.value) }])),
       caravans: { inTransit, withLuxury, luxuryValue: r3(luxuryValue) },
       burgTreasury: {
