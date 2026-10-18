@@ -358,26 +358,39 @@ export function spendRuralHouseholdsInTowns(): number {
   return spent;
 }
 
+/** Spreads a market's wage bill over its member towns by population; false when it has none. */
+function payMarketTownWages(towns: Burg[] | undefined, population: number, amount: number): boolean {
+  if (!towns?.length || !(population > 0) || !(amount > 0)) return false;
+  for (const burg of towns) creditHouseholdWealth(burg.i, rn((amount * (burg.population ?? 0)) / population, 2));
+  return true;
+}
+
 /** Months of operating cash a market keeps (per member-town population point, as town working cash). */
 export const MARKET_CASH_RESERVE_PER_POPULATION_FACTOR = 1;
 /** Share of a market's cash above its reserve paid out each month. */
 export const MARKET_SURPLUS_PAYOUT_SHARE = 0.2;
-/** Part of that payout kept by the market's merchants as profit; the rest is spent in its centre town. */
+/** Part of that payout kept by the market's merchants as profit; the rest is paid as wages in its towns. */
 export const MARKET_MERCHANT_PROFIT_SHARE = 1 / 3;
 
 /**
  * A market's margin (retail minus farmgate) used to pile up in `marketTreasury.balance` with no
- * outlet. Above an operating reserve it is now paid out: profit to the market's merchants and
- * spending (wages, carting, rents) in its centre town. docs/plan/initial-wealth-calibration.md §5.2.
+ * outlet. Above an operating reserve it is now paid out (docs/plan/initial-wealth-calibration.md
+ * §5.2): profit to the market's merchants, and the wages of the grain dealers, measurers, porters
+ * and carters in every member town, by town population — the grain is sold where people live, so
+ * this work grows with the town (docs/plan/farm-labour-calibration.md §12). It used to go to the
+ * centre town alone.
  */
 export function payOutMarketSurplus(creditMerchant: (characterId: number, amount: number) => boolean): number {
   if (!isEconomyContextReady()) return 0;
   const { pack } = getWorldContext();
   const profile = getEconomyStartProfile(getWorldContext().options ?? {});
   const memberPopulation = new Map<number, number>();
-  for (const burg of pack.burgs ?? [])
-    if (burg?.i && !burg.removed && burg.market)
-      memberPopulation.set(burg.market, (memberPopulation.get(burg.market) ?? 0) + (burg.population ?? 0));
+  const memberTowns = new Map<number, Burg[]>();
+  for (const burg of pack.burgs ?? []) {
+    if (!burg?.i || burg.removed || !burg.market) continue;
+    memberPopulation.set(burg.market, (memberPopulation.get(burg.market) ?? 0) + (burg.population ?? 0));
+    if ((burg.population ?? 0) > 0) memberTowns.set(burg.market, [...(memberTowns.get(burg.market) ?? []), burg]);
+  }
   let paid = 0;
   for (const market of getMarkets()) {
     const treasury = market.marketTreasury;
@@ -408,7 +421,7 @@ export function payOutMarketSurplus(creditMerchant: (characterId: number, amount
       for (const id of merchants) if (creditMerchant(id, each)) profit = rn(profit + each, 2);
     }
     const local = rn(payout - profit, 2);
-    if (!spendInBurg(market.centerBurgId, local)) {
+    if (!payMarketTownWages(memberTowns.get(market.i), memberPopulation.get(market.i) ?? 0, local)) {
       if (!(profit > 0)) continue;
       treasury.balance = rn(treasury.balance - profit, 2);
       paid = rn(paid + profit, 2);

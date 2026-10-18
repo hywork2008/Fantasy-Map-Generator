@@ -59,6 +59,7 @@
 - 犂耕と播種は、秋分から12月初めまでの2か月余りに分散した（Columella）。休閑地は春・夏・秋に1回ずつ耕した。
 
 **判断**:
+
 - 30日/ha は、イングランドの水準（Clark）として妥当である。地中海の集約栽培（57〜78日/ha）は別の体系とみる。
 - 一方、今の作物暦（`stapleCrops.ts` の `labourByStage`）は、収穫と脱穀を合わせた「harvestAndProcessing」の0.50〜0.55を、収穫の30〜45日に詰め込んでいる。史料では、脱穀は収穫の後の冬に分散し、量に比例する。
 
@@ -126,19 +127,19 @@ seed 102 は南緯43〜57度、年平均気温7℃、年降水量1,500 mm ほど
 
 ## 5. 出典
 
-- Devereaux, B. "Collections: Life, Work, Death and the Peasant, Part IVb: Working Days", *A Collection of Unmitigated Pedantry* (2025)。Columella、Kenyon、Clark (2018)、Spurr、Rosenstein、Erdkamp を引く。https://acoup.blog/2025/09/05/collections-life-work-death-and-the-peasant-part-ivb-working-days/
-- Devereaux, B. "Bread, How Did they Make it? Part III: Actually Farming" (2020)。Columella の労働日数。https://acoup.blog/2020/08/06/collections-bread-how-did-they-make-it-part-iii-actually-farming/
-- Cucuteni-Trypillia 地域の前近代農業の生産性（White 1965 による Columella の評価、鎌の刈り取り、脱穀）。https://arxiv.org/pdf/1505.05121
-- Clark, G. *The Long March of History*（既存の30日/ha の根拠）。https://faculty.econ.ucdavis.edu/faculty/gclark/papers/echr2006.pdf
-- 中世の労働時間の表（Schor による整理。Clark 1986、Blanchard、Ritchie、荘園帳簿の値）。https://groups.csail.mit.edu/mac/users/rauch/worktime/hours_workweek.html
-- Goose, N. "Wage Labour on a Kentish Manor: Meopham, 1307–75", *Archaeologia Cantiana* 92。https://kentarchaeology.org.uk/journal/92/wage-labour-kentish-manor-meopham-1307-75
-- Walsham-le-Willows の中世の農業（boon works）。https://www.walsham-le-willows.org/?p=6098
-- "The composition of famuli labour on English demesnes, c.1300", LSE Research Online。https://researchonline.lse.ac.uk/id/eprint/101316
-- Merton Historical Society 所蔵の荘園帳簿の翻刻（1319–20年、1350–51年。脱穀の出来高払い）。https://mertonhistoricalsociety.org.uk/wp-content/uploads/2017/08/SAL_MS_555_4.pdf 、https://mertonhistoricalsociety.org.uk/wp-content/uploads/2017/09/WAM_27325.pdf
-- University of Reading, Museum of English Rural Life の所蔵品記録（殻竿の脱穀は冬の仕事）。https://reading.ac.uk/adlib/Details/collect/313
-- Met Museum, The Cloisters Gardens Blog "Threshing It Out"（屋内で、雨の月に分散）。https://blog.metmuseum.org/cloistersgardens/2009/08/14/threshing-it-out/
-- "The Experience of Work in Early Modern England IV: Harvesters", *The Many-Headed Monster* (2025)。https://manyheadedmonster.com/2025/10/16/the-experience-of-work-in-early-modern-england-iv-harvesters/
-- State Library Victoria "Medieval lives: working women in English society 1300–1500"。https://blogs.slv.vic.gov.au/our-stories/medieval-lives-working-women-in-english-society-1300-1500
+- Devereaux, B. "Collections: Life, Work, Death and the Peasant, Part IVb: Working Days", *A Collection of Unmitigated Pedantry* (2025)。Columella、Kenyon、Clark (2018)、Spurr、Rosenstein、Erdkamp を引く。<https://acoup.blog/2025/09/05/collections-life-work-death-and-the-peasant-part-ivb-working-days/>
+- Devereaux, B. "Bread, How Did they Make it? Part III: Actually Farming" (2020)。Columella の労働日数。<https://acoup.blog/2020/08/06/collections-bread-how-did-they-make-it-part-iii-actually-farming/>
+- Cucuteni-Trypillia 地域の前近代農業の生産性（White 1965 による Columella の評価、鎌の刈り取り、脱穀）。<https://arxiv.org/pdf/1505.05121>
+- Clark, G. *The Long March of History*（既存の30日/ha の根拠）。<https://faculty.econ.ucdavis.edu/faculty/gclark/papers/echr2006.pdf>
+- 中世の労働時間の表（Schor による整理。Clark 1986、Blanchard、Ritchie、荘園帳簿の値）。<https://groups.csail.mit.edu/mac/users/rauch/worktime/hours_workweek.html>
+- Goose, N. "Wage Labour on a Kentish Manor: Meopham, 1307–75", *Archaeologia Cantiana* 92。<https://kentarchaeology.org.uk/journal/92/wage-labour-kentish-manor-meopham-1307-75>
+- Walsham-le-Willows の中世の農業（boon works）。<https://www.walsham-le-willows.org/?p=6098>
+- "The composition of famuli labour on English demesnes, c.1300", LSE Research Online。<https://researchonline.lse.ac.uk/id/eprint/101316>
+- Merton Historical Society 所蔵の荘園帳簿の翻刻（1319–20年、1350–51年。脱穀の出来高払い）。<https://mertonhistoricalsociety.org.uk/wp-content/uploads/2017/08/SAL_MS_555_4.pdf> 、<https://mertonhistoricalsociety.org.uk/wp-content/uploads/2017/09/WAM_27325.pdf>
+- University of Reading, Museum of English Rural Life の所蔵品記録（殻竿の脱穀は冬の仕事）。<https://reading.ac.uk/adlib/Details/collect/313>
+- Met Museum, The Cloisters Gardens Blog "Threshing It Out"（屋内で、雨の月に分散）。<https://blog.metmuseum.org/cloistersgardens/2009/08/14/threshing-it-out/>
+- "The Experience of Work in Early Modern England IV: Harvesters", *The Many-Headed Monster* (2025)。<https://manyheadedmonster.com/2025/10/16/the-experience-of-work-in-early-modern-england-iv-harvesters/>
+- State Library Victoria "Medieval lives: working women in English society 1300–1500"。<https://blogs.slv.vic.gov.au/our-stories/medieval-lives-working-women-in-english-society-1300-1500>
 
 ## 6. 案 1〜3 の実装と結果（2026-10-18）
 
@@ -434,3 +435,98 @@ seed 102、Megacity、7年目から1年。お金を動かす処理ごとの都�
 1. **都市の現金の偏り**: Megacity の8年目の1月で、手元の現金が食費1か月分未満の都市に都市人口の44%が住む（修正前は66%）。市場の利益の払い出しは中心の都市だけに入り、国の給与は首都を3倍に数える。
 2. **都市の雇用が生産だけ**: サービス・建築・運送・小売の雇用がなく、都市の人口が増えても賃金の総額は増えない。人口に比例する町の仕事（町の人どうしの支出の一部を賃金として回すなど）を入れるかは、1 の後に判断する。
 3. **受け入れ枠の上限**（§10.4 の 3）: 家計が改善したので、Megacity の受け入れ枠（種の能力の3倍）が食料に比べて大きすぎるかを測り直す。
+
+## 12. 都市の雇用と、受け入れ枠の測り直し（§11.4 の 2・3、2026-10-18）
+
+### 12.1 計測: どの都市が、なぜ飢えるか
+
+seed 102、Megacity、9〜10年目。都市を首都・市場の中心・その他（人口点3以上・未満）に分け、家計の出入りを、それぞれの都市の食費の何か月分か（年あたり）で表す（計測用のスクリプト）。
+
+| 処理 | 首都 | 市場の中心 | その他（3以上） | その他（3未満） |
+| --- | ---: | ---: | ---: | ---: |
+| 都市人口の割合 | 10% | 16% | 70% | 5% |
+| 食料の購入 | −12.0 | −7.5 | −10.1 | −8.6 |
+| 農家が町で使うお金（§11） | +7.4 | +7.1 | +6.7 | +5.3 |
+| 生産の賃金 | +3.1 | +1.8 | +2.5 | +2.6 |
+| 市場の利益の払い出し | 0 | +4.0 | +0.9 | +1.7 |
+| 人物の生活費・海軍の給与 | +5.8 | +2.9 | +0.1 | 0 |
+| 町での支出（金庫へ） | −4.8 | −9.1 | −0.8 | −1.6 |
+
+（市場の利益の払い出しは、§12.2 の変更後の値）
+
+- 首都と市場の中心は、食費を超える収入があり、余りを町で使って金庫に入れている。その他の都市は、収入が食費の8〜9割で、手元の現金は食費0.7か月分前後に張り付く。
+- 市場ごとに見ると、飢える理由は3通りある（10年目の1年間）。
+  1. **金庫にお金がある町で家計が飢える**（市場3）: 町の金庫には食費8.9か月分、家計は0.75か月分。金庫は、生産が使う以上のお金を持っている。
+  2. **中心の都市だけが豊か**（市場2）: 首都は家計9か月分・金庫9か月分。周りの町は家計0.7か月分・金庫0.3か月分。市場全体の食料の充足は0.67。
+  3. **市場全体にお金がない**（市場5・12・15）: 町の家計も金庫も0で、農家の財布も小さい。穀物の足りない農家が市場から買い戻している（年2万）。在庫は1年分以上あるのに、充足は0.1前後。
+- 穀物そのものが尽きている市場はほとんどない（都市の必要量の1%）。
+
+### 12.2 実装した内容
+
+1. **市場の利益の払い出しを、市場のすべての町へ**（`payOutMarketSurplus`、[householdWealth.ts](../../src/extensions/economy/generators/householdWealth.ts)）
+   - 商人の利益（1/3）を除いた残りを、市場の中心の都市だけでなく、市場のすべての町へ人口比で入れる。
+   - 穀物の小売りの稼ぎ（穀物商・計量人・運搬人・荷馬車引き）は穀物が売られる所、つまり人の住む所で生まれるので、町の人口に比例する。
+2. **町の公共事業の賃金**（`payTownWorks`、[townWorks.ts](../../src/extensions/economy/generators/townWorks.ts)）
+   - 町の家計の現金が食費の2か月分（`TOWN_WORKS_TARGET_MONTHS`）を下回る間、町は自分の金庫から、町の住民を城壁・舗装・井戸・夜警・穀物庫の運搬などに雇う。
+   - 金庫は食費2か月分（`TOWN_WORKS_RESERVE_MONTHS`）を手元に残し、その上の10%（`TOWN_WORKS_TREASURY_SHARE`）を月に使える。家計の不足分までしか払わない。
+   - 毎月、市場の利益の払い出しの後、税の前に行う。
+
+- テスト: `townWorks.test.ts`（手元に残す額と、不足分までしか払わないこと）。
+
+### 12.3 結果（地図は §9 と同じ。§11 → §12）
+
+**Megacity**（seed 102、12年、各年6月の都市の食料の充足）
+
+| 年 | 1 | 2 | 3 | 4 | 5 | 6 | 7〜12 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| §11 | 0.86 | 0.72 | 0.73 | 0.81 | 0.80 | 0.91 | 0.80〜0.89 |
+| §12 | **0.99** | **0.83** | **0.89** | **0.93** | **0.89** | 0.91 | 0.83〜0.90 |
+
+- 10年目の市場3（§12.1 の 1）は、町の家計が0.75 → 2.1か月分になり、充足は0.94 → 1.00 になった。
+- 都市人口（12年目）は76万人で変わらない。7年目以降の充足も、ほとんど変わらない（§12.4）。
+
+**Independent**（15年、5〜15年目の平均）
+
+| 項目 | 101 | 102 |
+| --- | --- | --- |
+| 都市の食料の充足 | 0.973 → 0.974 | 0.961 → 0.960 |
+| 都市の食料の充足（15年目） | 0.954 → 0.954 | 0.947 → 0.952 |
+| 都市の金庫 / 都市人口 | 947 → 871 | 472 → 462 |
+| 都市の家計 / 都市人口 | 628 → 614 | 352 → 360 |
+| 都市人口（15年目） | 490 → 499 | 370 → 369 |
+
+- Independent はもともと充足が0.95以上で、ほとんど変わらない。
+
+### 12.4 受け入れ枠の測り直し（§10.4 の 3）
+
+| 年 | 都市人口 | 受け入れ枠 | 人口 ÷ 枠 | 充足 |
+| --- | ---: | ---: | ---: | ---: |
+| 1 | 28万 | 100万 | 0.28 | 1.00 |
+| 3 | 46万 | 108万 | 0.42 | 0.83 |
+| 5 | 58万 | 105万 | 0.55 | 0.93 |
+| 7 | 67万 | 104万 | 0.64 | 0.91 |
+| 9 | 72万 | 101万 | 0.71 | 0.87 |
+| 11 | 75万 | 100万 | 0.75 | 0.84 |
+| 12（最後） | 78万 | 97万 | 0.81 | 0.90 |
+
+- 12年では、都市人口は受け入れ枠に届いていない。都市の伸びを止めているのは枠ではなく、食料不足による死亡である。**上限の倍率（3倍）は今は効いておらず、変えていない。**
+- Megacity の移住の量は、都市の雇用の需要（基幹の雇用 + その1.5倍のサービスの雇用、`calculateAnnualUrbanLaborIntakeFromEmploymentDemand`）と、今いる成人との差で決まる。食料の充足や家計の現金は見ていない。そのため、都市は飢えるところまで人を受け入れ、移住と飢えによる死亡が釣り合うところ（充足0.85前後）で止まる。
+- 家計を改善しても、その分だけ人が増えるので、7年目以降の充足は変わらない。
+
+### 12.5 見つかったこと: 雇用の需要と賃金が対応していない
+
+- 移住を呼ぶ雇用の需要のうち、賃金が町の家計に入るのは、生産（工芸）と行政（国の給与）、運送・小売（市場の利益の払い出し）だけである。
+- **鉱山・製錬・採石・建築の労働者には、賃金が払われていない**（`mineOperations.ts`・`smelterOperations.ts`・`constructionHire.ts`・`constructionEmployment.ts` に家計への支払いがない）。サービスの雇用（基幹の1.5倍）も、町の家計の中を回るだけで、外からのお金にはならない。
+- §10.4 の「移住者の職と賃金の支払いの対応」はこれである。対応には、誰が払うか（鉱石・地金の買い手、国の公共事業費 `departmentBalances.publicWorks`、建築の発注者）を決める必要がある。
+
+### 12.6 残っている課題
+
+1. **基幹の雇用の賃金**（§12.5）: 鉱山・製錬・採石・建築の賃金を、産物の売り上げや発注者から町の家計へ払う。
+2. **移住が飢えを見ない**: Megacity の移住の量に、行き先の食料の充足（または家計の現金）を入れるか。入れると、都市は飢える前に伸びが止まる。
+3. **市場全体の貧困**（§12.1 の 3）: 穀物の足りない農村の市場は、農家・町・市場のどこにもお金がない。地域をまたぐお金の流れ（国の給与、輸出の代金）を調べる。
+4. **都市の現金の偏り**（§11.4 の 1）: 首都と市場の中心は余りを町で使い、金庫から年1回、市場と国庫へ回収される。周りの町には戻りにくい。
+5. **時間の進め方で結果が変わる**: 計測の途中で、同じ地図・同じ設定でも、10年を一度に進めた場合（`advance({ years: 10 })`）と1か月ずつ進めた場合で、Megacity の10年目の都市の人口点が約410 → 約740と大きく違った。一度に進めると、月ごとの処理（食料・家計・移住）がまとめて行われるためと考えられるが、未確認。§9〜§12 の計測はすべて1か月ずつ（`npm run sim` は3か月ずつ）進めている。
+
+### 12.7 ゲームの係数
+
+ここまでの校正で決めた係数のうち、プレイヤーの意思決定やシナリオで崩せるものは [economy-balance-levers.md](economy-balance-levers.md) にまとめた。

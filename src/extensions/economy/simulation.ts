@@ -236,6 +236,7 @@ import {
   tickCullHiring
 } from "./generators/threatCullHire";
 import { clearCullHireState, rebuildCullJobPostings, tickCullJobBoard } from "./generators/threatCullJobPostings";
+import { payTownWorks } from "./generators/townWorks";
 import { TradeAnimation } from "./generators/trade-animation";
 import { TradeSecurity } from "./generators/tradeSecurity";
 import { TransportAssetOrders } from "./generators/transportAssetOrders";
@@ -812,6 +813,7 @@ function registerEconomyCommands(api: SimulationExtensionAPI): void {
           return true;
         })
       );
+      measureTickStep("production:townWorks", () => payTownWorks());
       measureTickStep("production:taxes", () => Taxes.collectTaxes());
       measureTickStep("production:stateSummaries", () => refreshStateEconomySummaries());
       measureTickStep("production:playerCommerce", () => synchronizePlayerCommerce());
