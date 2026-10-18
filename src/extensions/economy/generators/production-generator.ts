@@ -74,7 +74,7 @@ import {
   getCraftDomainForGood
 } from "./guildKnowledgeTypes";
 import { GUILD_PROFIT_SHARE, GuildTreasury } from "./guildTreasury";
-import { buyTownLuxuries, isLuxuryValueDemandEnabled, luxuryTierWeights } from "./luxuryDemand";
+import { isLuxuryValueDemandEnabled, luxuryTierWeights } from "./luxuryDemand";
 import { type LuxuryTier, luxuryTierOf } from "./luxuryTiers";
 import { beginFlowCycleCapture, recordFlowCycleEnd } from "./marketFlowDiagnostics";
 import { settleMarketMaintenance } from "./marketMaintenance";
@@ -125,6 +125,7 @@ import {
   type StrategicProductionDemand
 } from "./strategicProductionDemand";
 import { getGarmentProductionHeadroom, settleTextileHouseholdDemand } from "./textileDemand";
+import { buyTownLuxuries } from "./townLuxuryPurchases";
 import { TradeSecurity } from "./tradeSecurity";
 import { TransportAssetOrders } from "./transportAssetOrders";
 import { advanceViticultureAllocationShares, getViticultureAllocationMultiplier } from "./viticultureAllocation";

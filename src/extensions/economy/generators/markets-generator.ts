@@ -73,6 +73,8 @@ import { getMonthlyHouseholdFuelDemands, getWoodSupplyMonthKey } from "./heating
 import { getHouseTimberShare, getHousingRecipe } from "./housingRecipes";
 import { type IncrementalBatchOptions, runBatchedYielding } from "./incrementalBatching";
 import { getLiveAnimalCatchKey, rollLiveAnimalCatch } from "./liveAnimalCatch";
+import { isLuxuryValueDemandEnabled, luxuryBudgetByMarketTier, luxuryStockTarget } from "./luxuryDemand";
+import { isLuxuryDemandGood, type LuxuryTier } from "./luxuryTiers";
 import {
   computeMarketGoodFlowBudget,
   TRADE_RESERVE_FACTOR as FLOW_TRADE_RESERVE_FACTOR,
@@ -261,6 +263,11 @@ interface GlobalTradeContext {
   mapDiagonal: number;
   tradeReserveFactor: number;
   travelRoutes: MarketTradeRoutes;
+  /**
+   * Luxury budget per market and price tier when the value demand is on
+   * (docs/plan/luxury-value-demand.md §3.5); null keeps the unit-count luxury demand.
+   */
+  luxuryBudgets: Map<number, Record<LuxuryTier, number>> | null;
 }
 
 export type { Deal, Market } from "./marketTypes";
@@ -1824,8 +1831,14 @@ export class MarketsModule {
 
   private buildGlobalTradeContext(): GlobalTradeContext {
     const goods = getGoods().filter(isGoodEnabled);
-    const consumerDemandFactors = this.collectConsumerDemand(goods);
-    const industrialDemandFactors = this.collectIndustrialDemand(goods, consumerDemandFactors);
+    const luxuryValueDemand = isLuxuryValueDemandEnabled();
+    const fullConsumerDemandFactors = this.collectConsumerDemand(goods);
+    // With the value demand on, luxuries are asked for by the towns' budgets instead of per head.
+    // Their ingredients keep the per-head derivation so the crafts that make them still source inputs.
+    const consumerDemandFactors = luxuryValueDemand
+      ? this.collectConsumerDemand(goods, true)
+      : fullConsumerDemandFactors;
+    const industrialDemandFactors = this.collectIndustrialDemand(goods, fullConsumerDemandFactors);
     const strategicDemandByMarket = this.collectOutstandingStateMetallurgDemand(goods);
     this.addCalibratedMetalInputDemand(goods, strategicDemandByMarket);
     this.addFarmToolsDemand(goods, strategicDemandByMarket);
@@ -1847,7 +1860,8 @@ export class MarketsModule {
       textilePopulationByMarket,
       mapDiagonal,
       tradeReserveFactor: FLOW_TRADE_RESERVE_FACTOR,
-      travelRoutes
+      travelRoutes,
+      luxuryBudgets: luxuryValueDemand ? luxuryBudgetByMarketTier(this.worldContext.pack.burgs) : null
     };
   }
 
@@ -1967,8 +1981,22 @@ export class MarketsModule {
         consumerDemandFactor,
         industrialDemandFactor,
         laggedPrice
-      ) + this.getStrategicFinishedGoodDemand(ctx, marketId, good.i)
+      ) +
+      this.getStrategicFinishedGoodDemand(ctx, marketId, good.i) +
+      this.getLuxuryBudgetDemand(ctx, marketId, good)
     );
+  }
+
+  /**
+   * Units of a luxury the market keeps for its towns: each tier's budget, split by the good's share
+   * of the tier's coverage, at the market price, for LUXURY_STOCK_CYCLES cycles
+   * (docs/plan/luxury-value-demand.md §3.5). Budget over price already falls as the price rises, so
+   * no further elasticity is applied.
+   */
+  private getLuxuryBudgetDemand(ctx: GlobalTradeContext, marketId: number, good: Good): number {
+    if (!ctx.luxuryBudgets || !isLuxuryDemandGood(good)) return 0;
+    const price = this.get(marketId)?.goods[good.i]?.price || good.value;
+    return luxuryStockTarget(ctx.luxuryBudgets.get(marketId), good, price);
   }
 
   /**
@@ -2112,7 +2140,9 @@ export class MarketsModule {
       }
     }
 
-    if (!opportunities.length) {
+    // Speculation moves goods by supply alone. Luxuries under the value demand travel only where a
+    // town budget asks for them, so stock no buyer wants stops piling up in the import markets.
+    if (!opportunities.length && !(ctx.luxuryBudgets && isLuxuryDemandGood(good))) {
       this.addSpeculativeGlobalTradeOpportunities({
         good,
         populationByMarket,
@@ -2722,10 +2752,11 @@ export class MarketsModule {
     return minmax(floor, price + units * basePrice * MARKET_PRESSURE_FACTOR, ceiling);
   }
 
-  private collectConsumerDemand(goods: Good[]): number[] {
+  private collectConsumerDemand(goods: Good[], excludeLuxury = false): number[] {
     const applyCalibration = getEconomyCalibrationState().applyCalibration;
+    const categories = excludeLuxury ? DEMAND_PRIORITY.filter(category => category !== "luxury") : DEMAND_PRIORITY;
     const totalCoverageByCategory = Object.fromEntries(
-      DEMAND_PRIORITY.map(category => [
+      categories.map(category => [
         category,
         goods.reduce((sum, g) => sum + consumerCoverageForCategory(g, category, applyCalibration), 0) || 1
       ])
@@ -2733,7 +2764,7 @@ export class MarketsModule {
 
     const demandFactor: number[] = [];
     for (const good of goods) {
-      demandFactor[good.i] = DEMAND_PRIORITY.reduce((sum, category) => {
+      demandFactor[good.i] = categories.reduce((sum, category) => {
         const share =
           consumerCoverageForCategory(good, category, applyCalibration) / (totalCoverageByCategory[category] || 1);
         return sum + share * DEMAND_TARGET_FACTORS[category];

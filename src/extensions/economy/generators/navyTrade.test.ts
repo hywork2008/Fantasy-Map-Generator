@@ -1,10 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { simulationContext } from "../../../context/simulationContext";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph, State } from "../../hostTypes";
 import { clearEconomyContext, initEconomyContext, setGoods, setMarkets } from "../economyContext";
 import { getHouseholdWealth } from "./burgMarketLedgers";
 import { beginGoodsBalanceInterval, clearGoodsBalanceLedger, closeGoodsBalanceInterval } from "./goodsBalanceLedger";
 import type { Good } from "./goodsGeneratorTypes";
+import { LUXURY_VALUE_DEMAND_SETTING, luxuryBudgetByMarketTier, luxuryStockTarget } from "./luxuryDemand";
 import type { Market } from "./marketTypes";
 import { NAVY_TRADE_MARKUP, payNavyCrew, settleNavyVoyageTrade } from "./navyTrade";
 
@@ -34,7 +36,10 @@ describe("navyTrade", () => {
     } as unknown as Market;
     setMarkets([market]);
   });
-  afterEach(() => clearEconomyContext());
+  afterEach(() => {
+    clearEconomyContext();
+    delete simulationContext.worldSettings;
+  });
 
   it("exports surplus goods, brings luxuries back and keeps only the markup, without creating money", () => {
     const before = (state.treasury ?? 0) + market.marketTreasury!.balance;
@@ -59,6 +64,26 @@ describe("navyTrade", () => {
     expect(wool.navyExport).toBeCloseTo(80, 4);
     expect(silk.navyImport).toBeCloseTo(10, 4);
     expect(Math.abs(wool.accountingGap) + Math.abs(silk.accountingGap)).toBeLessThan(1e-3);
+  });
+
+  it("under the luxury value demand, brings back only what the home towns' budgets lack", () => {
+    simulationContext.worldSettings = { [LUXURY_VALUE_DEMAND_SETTING]: "on" };
+    const silk = { ...good(3, "Silk", ["luxury"], 20), demandCoverage: { luxury: 1 } } as Good;
+    setGoods([good(1, "Wool", ["clothing"], 2), good(2, "Grain", ["food", "stapleFood"], 1), silk]);
+    worldContext.pack.burgs[1].treasury = 1000;
+    market.goods[3].stock = 1000; // already stocked: nothing short
+    const before = (state.treasury ?? 0) + market.marketTreasury!.balance;
+    expect(settleNavyVoyageTrade(1, 1, 10, 1).imported).toBe(0);
+    expect(market.goods[3].stock).toBe(1000); // a stocked luxury is not shipped back out either
+
+    market.goods[3].stock = 0;
+    const target = luxuryStockTarget(luxuryBudgetByMarketTier(worldContext.pack.burgs).get(1), silk, 20);
+    expect(target).toBeGreaterThan(0);
+    const result = settleNavyVoyageTrade(1, 1, 10, 1);
+    expect(result.imported).toBeGreaterThan(0);
+    expect(result.imported).toBeCloseTo(Math.min(result.exported * (1 + NAVY_TRADE_MARKUP), target * 20), 3);
+    expect(market.goods[3].stock).toBeLessThanOrEqual(target + 1e-6);
+    expect((state.treasury ?? 0) + market.marketTreasury!.balance).toBeCloseTo(before, 4);
   });
 
   it("pays the crew from the treasury into the home port", () => {

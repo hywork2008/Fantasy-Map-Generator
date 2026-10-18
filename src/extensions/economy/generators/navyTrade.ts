@@ -14,6 +14,8 @@ import { getGoods, getMarkets, getWorldContext, isEconomyContextReady } from "..
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import type { Good } from "./goodsGeneratorTypes";
 import { spendInBurg } from "./householdWealth";
+import { isLuxuryValueDemandEnabled, largestLuxuryShortfall, luxuryBudgetByMarketTier } from "./luxuryDemand";
+import { isLuxuryDemandGood, luxuryTierOf } from "./luxuryTiers";
 import type { Market } from "./marketTypes";
 import { nominal } from "./moneyScale";
 
@@ -28,6 +30,8 @@ export const NAVY_CREW_WAGE_PER_YEAR = 0.25;
 
 const isFood = (good: Good) => good.tags.some(tag => tag === "food" || tag === "freshFood" || tag === "stapleFood");
 const isLuxury = (good: Good) => good.tags.some(tag => tag === "luxury" || tag === "art" || tag === "gift");
+/** Luxuries a voyage may bring home under the value demand; cheap ones (furs, resin) still sail out. */
+const isKeptLuxury = (good: Good) => isLuxury(good) || (isLuxuryDemandGood(good) && luxuryTierOf(good) !== "common");
 
 function homeMarket(homeBurgId: number): Market | undefined {
   const burg = getWorldContext().pack.burgs?.[homeBurgId];
@@ -62,9 +66,13 @@ export function settleNavyVoyageTrade(
     Math.max(0, state.treasury ?? 0)
   );
   let exported = 0;
+  const keepLuxuries = isLuxuryValueDemandEnabled();
   const offers = Object.entries(market.goods)
     .map(([id, row]) => ({ good: byId.get(Number(id)), row }))
-    .filter(entry => entry.good && !isFood(entry.good) && entry.row.stock > 0 && entry.row.price > 0)
+    // Under the luxury value demand the ship does not carry back out the luxuries it brought in
+    // (docs/plan/luxury-value-demand.md §12): they wait for the towns' budgets instead.
+    .filter(entry => entry.good && !isFood(entry.good) && !(keepLuxuries && isKeptLuxury(entry.good)))
+    .filter(entry => entry.row.stock > 0 && entry.row.price > 0)
     .sort((a, b) => b.row.stock * b.row.price - a.row.stock * a.row.price);
   for (const { good, row } of offers) {
     if (!(budget > 1e-6)) break;
@@ -81,15 +89,24 @@ export function settleNavyVoyageTrade(
   market.marketTreasury.balance = rn(market.marketTreasury.balance + exported, 4);
 
   // Import: luxuries, the dearest at home first, bought by the market as far as its cash allows.
+  // Under the luxury value demand, the luxury the home towns' budgets are shortest of, and no more
+  // than that shortfall — a voyage no longer brings back the same dear good whether wanted or not.
+  const shortfall = keepLuxuries
+    ? largestLuxuryShortfall(market, luxuryBudgetByMarketTier(getWorldContext().pack.burgs ?? []).get(market.i))
+    : null;
   const luxuries = goods
     .filter(good => isLuxury(good) && !isFood(good))
     .map(good => ({ good, price: market.goods[good.i]?.price ?? good.value }))
     .filter(entry => entry.price > 0)
     .sort((a, b) => b.price - a.price);
-  const target = luxuries[0];
+  const target = keepLuxuries ? shortfall : luxuries[0];
   let imported = 0;
   if (target) {
-    imported = rn(Math.min(exported * (1 + NAVY_TRADE_MARKUP), Math.max(0, market.marketTreasury.balance)), 4);
+    const wanted = exported * (1 + NAVY_TRADE_MARKUP);
+    imported = rn(
+      Math.min(shortfall ? Math.min(wanted, shortfall.value) : wanted, Math.max(0, market.marketTreasury.balance)),
+      4
+    );
     const row = market.goods[target.good.i] ?? { stock: 0, price: target.price };
     row.stock = rn(row.stock + imported / target.price, 4);
     recordGoodFlow({

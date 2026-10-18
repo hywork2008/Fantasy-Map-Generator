@@ -4,9 +4,10 @@ import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
 import { clearEconomyContext, initEconomyContext, setGoods, setMarkets } from "../economyContext";
 import { Goods } from "./goods-generator";
 import type { Good } from "./goodsGeneratorTypes";
-import { buyTownLuxuries, LUXURY_TIER_SHARES, luxuryBudget } from "./luxuryDemand";
+import { LUXURY_TIER_SHARES, luxuryBudget, luxuryBudgetByMarketTier, luxuryShareInTier } from "./luxuryDemand";
 import { Markets } from "./markets-generator";
 import type { Market } from "./marketTypes";
+import { buyTownLuxuries } from "./townLuxuryPurchases";
 
 const FURS = 1;
 const INCENSE = 2;
@@ -82,5 +83,14 @@ describe("buyTownLuxuries", () => {
     expect(spentOn(JEWELRY)).toBe(0);
     expect(spentOn(INCENSE)).toBeCloseTo(budget * (shares.precious + shares.fine), 1);
     expect(spentOn(FURS)).toBeCloseTo(budget * shares.common, 1);
+  });
+
+  it("gives the trade demand each market's tier budgets, split over the goods of the tier", () => {
+    const budgets = luxuryBudgetByMarketTier(worldContext.pack.burgs).get(1)!;
+    const budget = luxuryBudget(burg);
+    expect(budgets.precious).toBeCloseTo(budget * LUXURY_TIER_SHARES.capital.precious, 4);
+    expect(budgets.common).toBeCloseTo(budget * LUXURY_TIER_SHARES.capital.common, 4);
+    // One good per tier here, so each takes its whole tier's budget.
+    for (const id of [FURS, INCENSE, JEWELRY]) expect(luxuryShareInTier(Goods.get(id)!)).toBeCloseTo(1, 6);
   });
 });
