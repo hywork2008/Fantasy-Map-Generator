@@ -217,7 +217,7 @@ export class TaxesModule {
       // PR-12: domain levy intensity across province seats scales poll-tax collection.
       const domainPollMult = getStateDomainPollTaxMultiplier(state);
       state.domainPollTaxMultiplier = domainPollMult;
-      const pollTaxRatePerHead = nominal(state.pollTax || 0) * administrationBonus * domainPollMult;
+      const pollTaxRatePerHead = (state.pollTax || 0) * administrationBonus * domainPollMult;
       // L2 Phase 2/3 (docs/plan/economy-coupling-audit.md): poll tax is a transfer out of the
       // population's own pooled wallet (BurgMarketLedger.householdWealth / FoodLedger.
       // ruralHouseholdWealth), not pure creation — urban and rural population draw from separate

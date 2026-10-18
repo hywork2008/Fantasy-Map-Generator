@@ -151,7 +151,11 @@ import {
   settleMonthlyHeating
 } from "./generators/heating";
 import { HospitalInstallations } from "./generators/hospitalInstallations";
-import { payOutMarketSurplus, spendUrbanHouseholdSurplus } from "./generators/householdWealth";
+import {
+  payOutMarketSurplus,
+  spendRuralHouseholdsInTowns,
+  spendUrbanHouseholdSurplus
+} from "./generators/householdWealth";
 import type { IncrementalBatchOptions } from "./generators/incrementalBatching";
 import { IndustrialTechInvestment } from "./generators/industrialTechInvestment";
 import { InnFacilities } from "./generators/innFacilities";
@@ -797,6 +801,7 @@ function registerEconomyCommands(api: SimulationExtensionAPI): void {
         measureTickStep("production:foodConsumption", () => settleMonthlyFoodConsumption());
       }
       measureTickStep("production:householdSpending", () => spendUrbanHouseholdSurplus());
+      measureTickStep("production:ruralSpending", () => spendRuralHouseholdsInTowns());
       measureTickStep("production:marketPayout", () =>
         payOutMarketSurplus((characterId, amount) => {
           const merchant = hasCharactersContext()

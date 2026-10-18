@@ -312,6 +312,42 @@ export function spendUrbanHouseholdSurplus(): number {
   return rn(spent, 2);
 }
 
+/** Share of a market's rural purse its farm families spend each month in the market's towns. */
+export const RURAL_HOUSEHOLD_TOWN_SPEND_SHARE = 0.05;
+
+/**
+ * Farm families buy what the farm does not make — salt, tools, cloth, pots, the smith, the miller,
+ * the fair — in their market's towns (docs/plan/craft-wage-subsistence-scale.md §9). The money is
+ * the towns' business income, credited to `burg.treasury` by town population, which then pays
+ * craft wages. Before this, rural cash went only to the poll tax and town people's food money
+ * never came back to them.
+ */
+export function spendRuralHouseholdsInTowns(): number {
+  if (!isEconomyContextReady()) return 0;
+  const { pack } = getWorldContext();
+  const townsByMarket = new Map<number, Burg[]>();
+  for (const burg of pack.burgs ?? []) {
+    if (!burg?.i || burg.removed || !burg.market || !((burg.population ?? 0) > 0)) continue;
+    const towns = townsByMarket.get(burg.market) ?? [];
+    towns.push(burg);
+    townsByMarket.set(burg.market, towns);
+  }
+  let spent = 0;
+  for (const market of getMarkets()) {
+    const towns = townsByMarket.get(market.i);
+    if (!towns?.length) continue;
+    const purse = getRuralHouseholdWealth(market);
+    if (!(purse > 0)) continue;
+    const amount = debitRuralHouseholdWealth(market, rn(purse * RURAL_HOUSEHOLD_TOWN_SPEND_SHARE, 2));
+    if (!(amount > 0)) continue;
+    const population = towns.reduce((sum, burg) => sum + (burg.population ?? 0), 0);
+    for (const burg of towns)
+      burg.treasury = rn((burg.treasury ?? 0) + (amount * (burg.population ?? 0)) / population, 2);
+    spent = rn(spent + amount, 2);
+  }
+  return spent;
+}
+
 /** Months of operating cash a market keeps (per member-town population point, as town working cash). */
 export const MARKET_CASH_RESERVE_PER_POPULATION_FACTOR = 1;
 /** Share of a market's cash above its reserve paid out each month. */
