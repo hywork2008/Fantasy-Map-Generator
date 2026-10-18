@@ -74,6 +74,8 @@ import {
   getCraftDomainForGood
 } from "./guildKnowledgeTypes";
 import { GUILD_PROFIT_SHARE, GuildTreasury } from "./guildTreasury";
+import { buyTownLuxuries, isLuxuryValueDemandEnabled, luxuryTierWeights } from "./luxuryDemand";
+import { type LuxuryTier, luxuryTierOf } from "./luxuryTiers";
 import { beginFlowCycleCapture, recordFlowCycleEnd } from "./marketFlowDiagnostics";
 import { settleMarketMaintenance } from "./marketMaintenance";
 import { allocateMarketProcurementBudgets } from "./marketProcurementBudget";
@@ -1408,8 +1410,12 @@ export class ProductionModule {
     if (!market) return;
 
     const demandCoverage = new Array(DEMAND_PRIORITY.length).fill(0);
+    // docs/plan/luxury-value-demand.md §3: with the value demand on, luxuries are bought from a
+    // budget after every other category instead of by unit count.
+    const luxuryIndex = isLuxuryValueDemandEnabled() ? DEMAND_PRIORITY.indexOf("luxury") : -1;
 
     for (let categoryIndex = 0; categoryIndex < DEMAND_PRIORITY.length; categoryIndex++) {
+      if (categoryIndex === luxuryIndex) continue;
       let shortage = Math.max(0, demandTargets[categoryIndex] - demandCoverage[categoryIndex]);
       if (shortage <= 0.001) continue;
 
@@ -1449,6 +1455,8 @@ export class ProductionModule {
         shortage = Math.max(0, demandTargets[categoryIndex] - demandCoverage[categoryIndex]);
       }
     }
+
+    if (luxuryIndex >= 0) for (const deal of buyTownLuxuries(burg).deals) records.push({ dealId: deal.i });
   }
 
   private getDemandFocus(demandTargets: number[], demandCoverage: number[]): DemandFocus | null {
@@ -1466,10 +1474,17 @@ export class ProductionModule {
     return null;
   }
 
-  private getDemandEffect(good: Good, demandFocus: DemandFocus | null, demandCoverageByGood: number[][]): DemandEffect {
+  private getDemandEffect(
+    good: Good,
+    demandFocus: DemandFocus | null,
+    demandCoverageByGood: number[][],
+    luxuryWeights: Record<LuxuryTier, number> | null = null
+  ): DemandEffect {
     if (!demandFocus) return { multiplier: 1, category: null };
 
-    const coverageWeight = demandCoverageByGood[good.i]?.[demandFocus.categoryIndex] || 0;
+    let coverageWeight = demandCoverageByGood[good.i]?.[demandFocus.categoryIndex] || 0;
+    // A town's luxury shortage favours the price tiers it buys (docs/plan/luxury-value-demand.md §3.4).
+    if (luxuryWeights && demandFocus.category === "luxury") coverageWeight *= luxuryWeights[luxuryTierOf(good)];
     if (!coverageWeight) return { multiplier: 1, category: null };
 
     const multiplier = 1 + coverageWeight * demandFocus.shortage;
@@ -1703,12 +1718,13 @@ export class ProductionModule {
     const collectCandidates = Boolean(DEBUG.production);
     const candidates: ProductionCandidate[] = [];
     const demandFocus = this.getDemandFocus(demandTargets, demandCoverage);
+    const luxuryWeights = isLuxuryValueDemandEnabled() ? luxuryTierWeights(state.burg) : null;
 
     let chosenGoal: GoalActionPlan | null = null;
     let activeGoal: GoalActionPlan | null = null;
     for (const good of candidateGoods) {
       if (!isGoodManufacturableInState(good, state.burg.state || 0)) continue;
-      const populationDemandEffect = this.getDemandEffect(good, demandFocus, index.demandCoverageByGood);
+      const populationDemandEffect = this.getDemandEffect(good, demandFocus, index.demandCoverageByGood, luxuryWeights);
       const strategicDemandMultiplier = getStrategicDemandMultiplier(
         state.strategicDemandByGood.get(good.i),
         demandFocus !== null
@@ -1729,7 +1745,12 @@ export class ProductionModule {
     if (activeGoalGoodId !== null && chosenGoal && !activeGoal) {
       const activeGood = Goods.get(activeGoalGoodId);
       if (activeGood) {
-        const populationDemandEffect = this.getDemandEffect(activeGood, demandFocus, index.demandCoverageByGood);
+        const populationDemandEffect = this.getDemandEffect(
+          activeGood,
+          demandFocus,
+          index.demandCoverageByGood,
+          luxuryWeights
+        );
         const activeDemand: DemandEffect = {
           multiplier:
             populationDemandEffect.multiplier *

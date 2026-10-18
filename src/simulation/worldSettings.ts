@@ -19,7 +19,9 @@ export const WORLD_SETTING_KEYS = [
   /** Merchant route preference (speed vs. avoiding hard passes). */
   "fmg-merchant-route-preference",
   /** Trade logistics: load targets, maximum waiting days, sailing days. */
-  "fmg-trade-logistics-settings"
+  "fmg-trade-logistics-settings",
+  /** "on": town luxury demand by budget and price tier (docs/plan/luxury-value-demand.md §3). */
+  "fmg-luxury-value-demand"
 ] as const;
 
 export type WorldSettingKey = (typeof WORLD_SETTING_KEYS)[number];

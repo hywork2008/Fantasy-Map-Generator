@@ -13,8 +13,19 @@ export const LUXURY_FINE_MIN_VALUE = 10;
 /** Base value from which a luxury good is `precious`. */
 export const LUXURY_PRECIOUS_MIN_VALUE = 20;
 
-export function isLuxuryDemandGood(good: Pick<Good, "demandCoverage">): boolean {
-  return (good.demandCoverage?.luxury ?? 0) > 0;
+/**
+ * Luxury coverage for goods the catalogue leaves without one. Jewelry has no `demandCoverage`, so
+ * the unit-count demand never bought it; the value demand counts it as a precious good. Kept out of
+ * the catalogue so the unit-count path (luxuryValueDemand off) stays exactly as before.
+ */
+const LUXURY_COVERAGE_FALLBACK: Readonly<Record<string, number>> = { Jewelry: 1 };
+
+export function luxuryCoverageOf(good: Pick<Good, "name" | "demandCoverage">): number {
+  return good.demandCoverage?.luxury ?? LUXURY_COVERAGE_FALLBACK[good.name] ?? 0;
+}
+
+export function isLuxuryDemandGood(good: Pick<Good, "name" | "demandCoverage">): boolean {
+  return luxuryCoverageOf(good) > 0;
 }
 
 export function luxuryTierOf(good: Pick<Good, "value">): LuxuryTier {

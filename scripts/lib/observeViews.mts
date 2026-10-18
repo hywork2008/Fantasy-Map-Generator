@@ -23,7 +23,7 @@ import { inferRoleClass } from "../../src/extensions/characters/backstoryProfile
 import { delayRatio, liveCorridorNeeds } from "../../src/extensions/economy/generators/tradeCorridorLedger";
 import { setGoodFlowObserver, type GoodFlowRecord } from "../../src/extensions/economy/generators/goodsBalanceLedger";
 import { DEMAND_TARGET_FACTORS } from "../../src/extensions/economy/generators/goods-generator";
-import { isLuxuryDemandGood, LUXURY_TIERS, luxuryTierOf } from "../../src/extensions/economy/generators/luxuryTiers";
+import { isLuxuryDemandGood, LUXURY_TIERS, luxuryCoverageOf, luxuryTierOf } from "../../src/extensions/economy/generators/luxuryTiers";
 import { housesPresentIn } from "../../src/extensions/economy/generators/merchantIntelligence";
 import type { Good } from "../../src/extensions/economy/generators/goodsGeneratorTypes";
 import type { Burg, Route } from "../../src/types/models";
@@ -392,6 +392,8 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
     return luxuryGoods;
   };
   type LuxuryFlow = { units: number; value: number };
+  // Unit-count demand books town luxuries as burgDemand; the value demand as luxuryPurchase.
+  const TOWN_LUXURY_PURCHASES = new Set(["sink:burgDemand", "sink:luxuryPurchase"]);
   let luxuryFlows = new Map<number, Map<string, LuxuryFlow>>();
   let luxuryBuyers = new Set<number>();
   let luxuryCovered = 0;
@@ -407,8 +409,8 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
     row.units += flow.units;
     row.value += flow.units * price;
     byKey.set(key, row);
-    if (flow.category === "burgDemand" && isLuxuryDemandGood(good)) {
-      luxuryCovered += flow.units * (good.demandCoverage?.luxury ?? 0);
+    if (TOWN_LUXURY_PURCHASES.has(key) && isLuxuryDemandGood(good)) {
+      luxuryCovered += flow.units * luxuryCoverageOf(good);
       if (flow.burgId) luxuryBuyers.add(flow.burgId);
     }
   });
@@ -458,7 +460,7 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
         const total = (totals[key] ??= { units: 0, value: 0 });
         total.units += row.units;
         total.value += row.value;
-        if (key === "sink:burgDemand" && good && isLuxuryDemandGood(good)) {
+        if (TOWN_LUXURY_PURCHASES.has(key) && good && isLuxuryDemandGood(good)) {
           tiers[luxuryTierOf(good)].units += row.units;
           tiers[luxuryTierOf(good)].spend += row.value;
         }
