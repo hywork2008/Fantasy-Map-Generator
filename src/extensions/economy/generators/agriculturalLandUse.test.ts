@@ -12,7 +12,6 @@ import {
   FOUR_COURSE_CLOVER_LEY_SHARE,
   FOUR_COURSE_FALLOW_REDUCTION_MAX,
   getCropMix,
-  MEGACITY_LABOR_EXPORT_SHARE,
   NITROGEN_FERTILIZER_FALLOW_REDUCTION_MAX,
   NITROGEN_FERTILIZER_YIELD_BONUS_MAX,
   PHOSPHATE_FERTILIZER_YIELD_BONUS_MAX,
@@ -752,24 +751,16 @@ describe("agricultural land use", () => {
     expect(profile.cultivatedArea[1]).toBeGreaterThan(0);
   });
 
-  it("reserves the megacity labour-export share so hinterland cells can ship people and extra grain", () => {
+  it("reserves only the urban-bound outflow in megacity mode, so no idle labour reserve shrinks the fields", () => {
     const world = createWorld();
-    // Keep the cell labour-constrained (not land-constrained) so the 32% reserve
-    // actually changes planted area instead of both modes hitting the same ceiling.
     world.pack.cells.pop[1] = 2;
     world.pack.cells.maleAdults[1] = 0.45;
     world.pack.cells.femaleAdults[1] = 0.45;
-    const ruralAdults = 0.9;
 
     const independent = calculateAgriculturalLandProfile(world);
-    const megacity = calculateAgriculturalLandProfile(world, undefined, undefined, {
-      includeUrbanFoodDemand: false,
-      reserveLaborForUrbanExport: true
-    });
+    const megacity = calculateAgriculturalLandProfile(world, undefined, undefined, { includeUrbanFoodDemand: false });
 
-    expect(megacity.migratableAdults[1]).toBeGreaterThanOrEqual(ruralAdults * MEGACITY_LABOR_EXPORT_SHARE - 1e-6);
-    expect(megacity.migratableAdults[1]).toBeGreaterThan(independent.migratableAdults[1]);
-    expect(megacity.cultivatedArea[1]).toBeLessThan(independent.cultivatedArea[1]);
+    expect(megacity.reservedLaborExport[1]).toBeCloseTo(independent.reservedLaborExport[1], 6);
     expect(megacity.cultivatedArea[1]).toBeGreaterThan(0);
   });
 

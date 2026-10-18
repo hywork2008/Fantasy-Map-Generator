@@ -3,6 +3,7 @@ import { minmax, rn } from "../../hostUtils";
 import {
   getMarketCellColumn,
   getMarkets,
+  getRuralFoodCapacity,
   getRuralHouseholdFoodStock,
   getSimulationMonth,
   getWorldContext
@@ -14,6 +15,7 @@ import { creditRuralHouseholdWealth, debitRuralHouseholdWealth } from "./househo
 import { getTemporaryLodgerPopulationPointsByBurg } from "./innStays";
 import type { FoodLedger, Market } from "./marketTypes";
 import { getGranaryReserveMultiplier } from "./publicWorks";
+import { getRuralGrainDietShare } from "./ruralDiet";
 import { drawStapleCropFood } from "./stapleCropInventory";
 
 const STRESS_THRESHOLD = 0.05;
@@ -145,13 +147,21 @@ function drawRuralMonthlyNeed(
   const householdStock = getRuralHouseholdFoodStock();
   const marketCellColumn = getMarketCellColumn();
   const hasHouseholdStock = householdStock.length === cells.i.length;
+  const ruralFoodCapacity = getRuralFoodCapacity();
   let satisfied = 0;
   let needed = 0;
   let boughtFromMarket = 0;
 
   for (const cellId of cells.i) {
     if (marketCellColumn[cellId] !== marketId || cells.h[cellId] < 20) continue;
-    const monthlyNeed = (Math.max(0, cells.pop[cellId] ?? 0) * populationRate * GROSS_FOOD_NEED) / 12;
+    // Grain only: fishing and herding households eat part of their own produce
+    // (docs/plan/rural-food-labor-audit.md, problem A).
+    const monthlyNeed =
+      (Math.max(0, cells.pop[cellId] ?? 0) *
+        populationRate *
+        GROSS_FOOD_NEED *
+        getRuralGrainDietShare(cells, cellId, ruralFoodCapacity)) /
+      12;
     needed += monthlyNeed;
 
     const hasCellHouseholdStock = hasHouseholdStock && cellId >= 0 && cellId < householdStock.length;

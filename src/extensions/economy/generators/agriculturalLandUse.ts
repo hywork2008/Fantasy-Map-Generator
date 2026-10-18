@@ -17,7 +17,6 @@ import {
   allocateRiverWater,
   CHILD_COHORT_YEARS,
   compileRiverWaterNetwork,
-  LIVELIHOOD_CODE,
   type RiverWaterAllocation,
   type RiverWithdrawal,
   type WorldContext
@@ -26,6 +25,7 @@ import { type CultureType, DEFAULT_CULTURE_TYPE } from "../../hostTypes";
 import { computeNaturalFloodRisk } from "./floodHazard";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import type { Good, SoilType } from "./goods-generator";
+import { getRuralGrainDietShare } from "./ruralDiet";
 import {
   type AgriculturalClimateReader,
   createAgriculturalClimateReader,
@@ -51,15 +51,6 @@ export const FARM_LABOUR_SAFETY_MARGIN = 1.15;
  * limits (docs/simulation/population-food-supply.md §4.2).
  */
 export const SUBSISTENCE_FIELD_RESERVE = 1.1;
-/**
- * Share of rural adults kept off the plough in megacity mode so hinterland cells can
- * ship people *and* grain. Midpoint of the 30–40% dual-export calibration
- * (docs/plan/megacity-food-import-economy.md, 2026-07-30). The remaining farmers still
- * tend every hectare they can — food export grows with yield/land, not by cancelling
- * the migrant pool.
- */
-export const MEGACITY_LABOR_EXPORT_SHARE = 0.32;
-
 /**
  * Rural technology (Tools/plow) adoption bonus, driven by AgTechInvestment.settleAnnual().
  * See docs/plan/rural-agtech-investment.md §3.4. "calibration TBD" like the rest of this module.
@@ -270,8 +261,8 @@ export interface AgriculturalLandProfile {
   /** Adults that can leave after farm labour's safety margin, in rural population points. */
   readonly migratableAdults: Float32Array;
   /**
-   * Adults reserved *before* extra fields were sized (child→adult outflow, and in megacity
-   * the hinterland labour-export share). The occupation allocator must not spend this cohort
+   * Adults reserved *before* extra fields were sized (this year's child→adult outflow).
+   * The occupation allocator must not spend this cohort
    * on harvest peaks or mutual aid.
    */
   readonly reservedLaborExport: Float32Array;
@@ -295,12 +286,6 @@ export interface AgriculturalDemandOptions {
   readonly year?: number;
   readonly annual?: boolean;
   readonly includeUrbanFoodDemand?: boolean;
-  /**
-   * Megacity hinterland: reserve `MEGACITY_LABOR_EXPORT_SHARE` of rural adults (at least
-   * this year's child→adult outflow) as urban-bound labour. Independent growth leaves
-   * only the outflow reserved and spends every other adult on fields.
-   */
-  readonly reserveLaborForUrbanExport?: boolean;
 }
 
 /**
@@ -406,15 +391,12 @@ export function calculateAgriculturalLandProfile(
       world,
       cellId,
       populationRate,
-      demandOptions.includeUrbanFoodDemand !== false
+      demandOptions.includeUrbanFoodDemand !== false,
+      getRuralGrainDietShare(cells, cellId, ruralFoodCapacity)
     );
     const requiredArea = requiredFieldAreaHectares(currentPeople, yieldKgPerHa, effectiveSownShare);
     const ruralAdults = Math.max(0, cells.maleAdults?.[cellId] ?? 0) + Math.max(0, cells.femaleAdults?.[cellId] ?? 0);
-    const reservedLaborExportPoints = getReservedLaborExportPoints(
-      cells,
-      cellId,
-      demandOptions.reserveLaborForUrbanExport === true
-    );
+    const reservedLaborExportPoints = getReservedLaborExportPoints(cells, cellId);
     const farmableAdults = Math.max(0, ruralAdults - reservedLaborExportPoints);
     const fourCourseLaborMultiplier = 1 - FOUR_COURSE_LABOR_SAVINGS_MAX * fourCourseRotation;
     const cycles = conditions.cropGoods
@@ -439,7 +421,7 @@ export function calculateAgriculturalLandProfile(
         ? getLaborAffordableAreaHectares(farmableAdults, populationRate, annualLaborDaysPerHectare, area)
         : 0;
     // Food first for the village, then the remaining *farmable* adults develop extra
-    // hectares for export. Megacity keeps a labour-export reserve out of farmable.
+    // hectares for export. The urban-bound outflow stays out of farmable.
     const currentArea =
       yieldKgPerHa > 0
         ? Math.min(
@@ -474,7 +456,7 @@ export function calculateAgriculturalLandProfile(
     farmLaborRequired[cellId] = requiredAdultPoints;
     reservedLaborExport[cellId] = reservedLaborExportPoints;
     // Labour reserved before extra fields were sized stays migratable — extra planting
-    // must not cancel the urban-bound cohort (outflow, or the megacity export share).
+    // must not cancel the urban-bound outflow cohort.
     migratableAdults[cellId] = Math.max(
       reservedLaborExportPoints,
       ruralAdults - requiredAdultPoints * FARM_LABOUR_SAFETY_MARGIN
@@ -520,22 +502,13 @@ export function getReservedAdultOutflowPoints(cells: WorldContext["pack"]["cells
 }
 
 /**
- * Adults that must not be absorbed into extra ploughing. Independent growth reserves
- * only this year's child→adult outflow. Megacity also reserves the calibrated
- * hinterland labour-export share so a cell can ship people and grain together.
+ * Adults that must not be absorbed into extra ploughing: this year's child→adult outflow, the
+ * cohort ruralLaborRelease.ts may send to the towns. Megacity used to keep a further 32% of adults
+ * off the plough, but the release never draws more than this outflow, so that reserve sat idle in
+ * the village and did not cut the fields either (docs/plan/rural-food-labor-audit.md, problem B).
  */
-export function getReservedLaborExportPoints(
-  cells: WorldContext["pack"]["cells"],
-  cellId: number,
-  reserveLaborForUrbanExport: boolean
-): number {
-  const outflow = getReservedAdultOutflowPoints(cells, cellId);
-  if (!reserveLaborForUrbanExport) return outflow;
-  const livelihood = cells.livelihood?.[cellId] ?? 0;
-  // Highland foraging/herding cells have no grain surplus to trade for urban labour.
-  if (livelihood !== LIVELIHOOD_CODE.agriculture && livelihood !== LIVELIHOOD_CODE.none) return outflow;
-  const ruralAdults = Math.max(0, cells.maleAdults?.[cellId] ?? 0) + Math.max(0, cells.femaleAdults?.[cellId] ?? 0);
-  return Math.max(outflow, ruralAdults * MEGACITY_LABOR_EXPORT_SHARE);
+export function getReservedLaborExportPoints(cells: WorldContext["pack"]["cells"], cellId: number): number {
+  return getReservedAdultOutflowPoints(cells, cellId);
 }
 
 /**
@@ -603,10 +576,7 @@ export function reconcileForestClearanceForAgriculture(
       conditions
     );
     const ruralAdults = Math.max(0, cells.maleAdults?.[cellId] ?? 0) + Math.max(0, cells.femaleAdults?.[cellId] ?? 0);
-    const farmableAdults = Math.max(
-      0,
-      ruralAdults - getReservedLaborExportPoints(cells, cellId, demandOptions.reserveLaborForUrbanExport === true)
-    );
+    const farmableAdults = Math.max(0, ruralAdults - getReservedLaborExportPoints(cells, cellId));
     const fourCourseRotation = conditions.fourCourseRotationByCell?.[cellId] ?? 0;
     const laborDays =
       LABOUR_DAYS_PER_HECTARE *
@@ -684,10 +654,11 @@ function getCellFoodDemandPeople(
   world: Readonly<WorldContext>,
   cellId: number,
   populationRate: number,
-  includeUrbanFoodDemand: boolean
+  includeUrbanFoodDemand: boolean,
+  ruralGrainDietShare = 1
 ): number {
   const cells = world.pack.cells;
-  const ruralPeople = Math.max(0, cells.pop[cellId] ?? 0) * populationRate;
+  const ruralPeople = Math.max(0, cells.pop[cellId] ?? 0) * populationRate * ruralGrainDietShare;
   if (!includeUrbanFoodDemand) return ruralPeople;
 
   const burgId = cells.burg?.[cellId] ?? 0;
@@ -977,17 +948,12 @@ export function getCropOutputMix(
   const climateByCell = conditions.climateByCell ?? (id => readAgriculturalClimate(world, id));
   const mix = getCropMix(world, cellId, crops, { ...conditions, climateByCell });
   if (!mix.length) return [];
-  const grid = world.pack.cells.g?.[cellId] ?? cellId;
-  const rain = world.grid?.cells.prec?.[grid] ?? 45;
-  const supplement =
-    conditions.irrigationAtCell?.(cellId).supplement ?? conditions.irrigation?.irrigationSupplement[cellId] ?? 0;
   const weighted = mix.map(entry => ({
     ...entry,
     share:
       entry.share *
       entry.suitability *
       (entry.good.crop?.yieldMultiplier ?? 1) *
-      getPrecipitationFactor(rain + (entry.irrigated ? supplement : 0)) *
       (entry.good.crop?.calendar
         ? getSeasonalCropPlan(entry.good.crop.calendar, climateByCell(cellId), entry.irrigated).calendar.cropCycles
         : 1)
@@ -1348,8 +1314,10 @@ function calculateClimateYield(
           (sum, entry) =>
             sum +
             entry.share *
+              // Crop suitability already scores this cell's rainfall and irrigation against the
+              // crop's own range (stapleCrops.ts), so the generic rainfall factor is not applied
+              // again (docs/plan/rural-food-labor-audit.md, problem D).
               entry.suitability *
-              (entry.irrigated ? irrigatedPrecipitationFactor : precipitationFactor) *
               (entry.good.crop?.yieldMultiplier ?? 1) *
               (entry.good.crop?.calendar
                 ? getSeasonalCropPlan(
@@ -1381,13 +1349,14 @@ function calculateClimateYield(
   return Math.max(0, cropFactor * soilFertilityFactor * salinityFactor * floodFactor * droughtFactor);
 }
 
+/**
+ * Generic rainfall yield factor for catalogues without crop profiles. `precipitation` is the map's
+ * 100 mm proxy (precipitationUnits.ts): 0.75 at 800 mm, saturating at 2,400 mm.
+ */
 function getPrecipitationFactor(precipitation: number): number {
-  // Crop-specific suitability still rejects insufficient rainfall. The generic yield
-  // multiplier must not erase viable dryland crops below 800 mm; join the existing
-  // 800 mm coefficient continuously to zero water instead.
-  if (precipitation < 8) return Math.max(0, precipitation) * (0.4 / 8);
-  if (precipitation < 20) return 0.4 + ((precipitation - 8) / 12) * 0.35;
-  if (precipitation < 60) return 0.75 + ((precipitation - 20) / 40) * 0.25;
+  if (precipitation < 3.2) return Math.max(0, precipitation) * (0.4 / 3.2);
+  if (precipitation < 8) return 0.4 + ((precipitation - 3.2) / 4.8) * 0.35;
+  if (precipitation < 24) return 0.75 + ((precipitation - 8) / 16) * 0.25;
   return 1;
 }
 

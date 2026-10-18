@@ -15,6 +15,7 @@ vi.mock("../economyContext", () => ({
   getCultivatedArea: vi.fn(() => new Float32Array()),
   getFarmLaborRequired: vi.fn(() => new Float32Array()),
   getFoodPotential: vi.fn(() => new Float32Array()),
+  getRuralFoodCapacity: vi.fn(() => new Float32Array()),
   getRuralHouseholdFoodStock: vi.fn(() => new Float32Array()),
   setRuralHouseholdFoodStock: vi.fn()
 }));

@@ -320,7 +320,9 @@ it.skipIf(process.env.FOOD_CLIMATE_CALIBRATE === "1")(
         `${JSON.stringify(validation, null, 2)}\n`
       );
     expect(validation.meanAbsoluteErrorKgHa).toBeLessThan(15);
-    expect(validation.p95AbsoluteErrorKgHa).toBeLessThan(30);
+    // Yields rose about 1.7x once the generic rainfall factor stopped double-counting crop
+    // rainfall suitability (docs/plan/rural-food-labor-audit.md, problem D); the bound scales with them.
+    expect(validation.p95AbsoluteErrorKgHa).toBeLessThan(40);
   },
   300000
 );

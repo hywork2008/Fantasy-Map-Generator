@@ -6,6 +6,7 @@ vi.mock("../economyContext", () => ({
   getMarketCellColumn: vi.fn(),
   getSimulationMonth: vi.fn(),
   getGoods: vi.fn(() => []),
+  getRuralFoodCapacity: vi.fn(() => new Float32Array()),
   getRuralHouseholdFoodStock: vi.fn(() => new Float32Array()),
   getBurgMarketLedgers: vi.fn(),
   setBurgMarketLedgers: vi.fn()

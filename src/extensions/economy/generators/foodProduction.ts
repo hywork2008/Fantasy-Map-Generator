@@ -6,6 +6,7 @@ import {
   getGoods,
   getMarketCellColumn,
   getMarkets,
+  getRuralFoodCapacity,
   getRuralHouseholdFoodStock,
   getWorldContext,
   setRuralHouseholdFoodStock
@@ -24,6 +25,7 @@ import { creditRuralHouseholdWealth } from "./householdWealth";
 import type { FoodLedger, Market } from "./marketTypes";
 import { getCropHarvestWeight, getCurrentCropMix } from "./production-utils";
 import { markRetailInventoryDirty } from "./retailInventory";
+import { getRuralGrainDietShare } from "./ruralDiet";
 import {
   advanceStapleCropInventoryQuarterly,
   applyStapleCropStorageCap,
@@ -203,11 +205,16 @@ export class FoodProductionModule {
     if (!reset && existing.length === cellCount) return;
 
     const populationRate = this.worldContext.populationRate ?? 1000;
+    const ruralFoodCapacity = getRuralFoodCapacity();
     const stock = new Float32Array(cellCount);
     for (const cellId of cells.i) {
       if (cellId < 0 || cellId >= stock.length || cells.h[cellId] < 20) continue;
       const people = Math.max(0, cells.pop[cellId] ?? 0) * populationRate;
-      stock[cellId] = people * GROSS_FOOD_NEED * RURAL_HOUSEHOLD_FOOD_RESERVE_YEARS;
+      stock[cellId] =
+        people *
+        GROSS_FOOD_NEED *
+        getRuralGrainDietShare(cells, cellId, ruralFoodCapacity) *
+        RURAL_HOUSEHOLD_FOOD_RESERVE_YEARS;
     }
     setRuralHouseholdFoodStock(stock);
   }
@@ -433,6 +440,7 @@ export class FoodProductionModule {
     const cultivableArea = getCultivableArea();
     const cultivatedArea = getCultivatedArea();
     const foodPotential = getFoodPotential();
+    const ruralFoodCapacity = getRuralFoodCapacity();
     this.seedRuralHouseholdFoodStock(false);
     const ruralHouseholdFoodStock = getRuralHouseholdFoodStock();
     const hasAgriculturalLandUse =
@@ -453,7 +461,10 @@ export class FoodProductionModule {
         if (marketCellColumn[cellId] !== market.i || pack.cells.h[cellId] < 20) continue;
 
         const rural = pack.cells.pop[cellId] * populationRate;
-        ruralPopulation += rural;
+        // Grain eaters only: fishing and herding households feed themselves in part
+        // (docs/plan/rural-food-labor-audit.md, problem A).
+        const ruralGrainEaters = rural * getRuralGrainDietShare(pack.cells, cellId, ruralFoodCapacity);
+        ruralPopulation += ruralGrainEaters;
         let annualHarvest = 0;
         if (hasAgriculturalLandUse) {
           const landCoverage =
@@ -499,7 +510,7 @@ export class FoodProductionModule {
           // Kept only for malformed legacy callers that have not gone through
           // the bootstrap migration. Normal maps always retain household stock.
         } else {
-          const householdTarget = rural * GROSS_FOOD_NEED * RURAL_HOUSEHOLD_FOOD_RESERVE_YEARS;
+          const householdTarget = ruralGrainEaters * GROSS_FOOD_NEED * RURAL_HOUSEHOLD_FOOD_RESERVE_YEARS;
           const householdShortfall = Math.max(0, householdTarget - ruralHouseholdFoodStock[cellId]);
           const retainedByHouseholds = Math.min(harvest, householdShortfall);
           ruralHouseholdFoodStock[cellId] += retainedByHouseholds;

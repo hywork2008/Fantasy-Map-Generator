@@ -483,7 +483,7 @@ function allocateRuralOccupationsFromCalendar(
     const annualCurrentAdults = getAnnualRequiredAdults(currentDays);
     const annualMinimumAdults = getAnnualRequiredAdults(minimumDays);
     farmLaborRequired[cellId] = annualCurrentAdults / populationRate;
-    // Honour the land-use reserve (outflow, or megacity's 32% labour export). Harvest
+    // Honour the land-use reserve (this year's urban-bound outflow). Harvest
     // mutual aid must not reclassify that cohort as year-round farm employment.
     migratableAdults[cellId] = Math.max(
       reservedLaborExport,

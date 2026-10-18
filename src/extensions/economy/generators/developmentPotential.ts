@@ -236,7 +236,6 @@ export class DevelopmentPotentialModule {
     const megacity = optionsStore.getState().ruralUrbanMigration === "megacity";
     const demandOptions = {
       includeUrbanFoodDemand: !megacity,
-      reserveLaborForUrbanExport: megacity,
       preserveLegacyStock: !world.pack.landUse && !isInitialLandUsePending(world)
     };
     const conditions = this.getAgriculturalConditions(world);
@@ -327,7 +326,6 @@ export class DevelopmentPotentialModule {
     const megacity = optionsStore.getState().ruralUrbanMigration === "megacity";
     const demandOptions = {
       includeUrbanFoodDemand: !megacity,
-      reserveLaborForUrbanExport: megacity,
       year,
       annual: true
     };

@@ -1,6 +1,7 @@
 import type { Burg } from "../../hostTypes";
 import { minmax, rn } from "../../hostUtils";
 import { getMarketCellColumn, getMarkets, getRuralFoodCapacity, getWorldContext } from "../economyContext";
+import { getRuralGrainDietShare } from "./ruralDiet";
 
 /**
  * Live `capacity` may shrink to this share of generation-time `seedCapacity` in a
@@ -22,6 +23,7 @@ export function hinterlandSurplusUrbanPoints(
     readonly i: ArrayLike<number>;
     readonly h?: ArrayLike<number>;
     readonly pop?: ArrayLike<number>;
+    readonly subsistenceNonAgriculturalCapacity?: ArrayLike<number>;
   },
   marketCellColumn: ArrayLike<number>,
   ruralFoodCapacity: ArrayLike<number>,
@@ -35,7 +37,9 @@ export function hinterlandSurplusUrbanPoints(
     if (marketCellColumn[cellId] !== marketId) continue;
     if ((cells.h?.[cellId] ?? 0) < LAND_HEIGHT) continue;
     foodPoints += Math.max(0, ruralFoodCapacity[cellId] ?? 0);
-    ruralPop += Math.max(0, cells.pop?.[cellId] ?? 0);
+    // Fishing and herding households eat only part of their food as grain
+    // (docs/plan/rural-food-labor-audit.md, problem A).
+    ruralPop += Math.max(0, cells.pop?.[cellId] ?? 0) * getRuralGrainDietShare(cells, cellId, ruralFoodCapacity);
   }
   const surplusRuralPoints = Math.max(0, foodPoints - ruralPop);
   return surplusRuralPoints / Math.max(1e-6, urbanization);
