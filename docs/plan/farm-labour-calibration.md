@@ -1,0 +1,220 @@
+# 農業労働の校正（史料調査）
+
+## 0. 目的
+
+[rural-food-labor-audit.md](rural-food-labor-audit.md) の問題 C では、「労働の不足が収穫を減らさない」ことを直すつもりだった。ところが、労働の充足率を収穫に掛けると、充足率は0.43になり、収穫が半分以下に落ちた（同 §6.3）。
+
+本書は、その前提になっている4つの値を史料で確かめ、校正の案を示す。
+
+1. 成人1人の年間の農作業日数（`WORKABLE_DAYS_PER_ADULT = 140`）
+2. 月ごとの労働能力（今は一律 `140 ÷ 12 = 11.7日`）
+3. 1 ha あたりの労働日数（`LABOUR_DAYS_PER_HECTARE = 30`）と、作業の月への配分（`labourByStage`）
+4. 労働で耕せる以上の面積を、土地利用の台帳が割り当てていること
+
+**2026-10-18 起案**。本書は史料調査と校正の案である。
+
+**2026-10-18 実装（案 1〜3）**: §6 に結果を書く。
+
+**2026-10-18 実装（案 4 の収穫の部分）**: すぐに掛ける方式で実装した（§7）。対象は既にある畑だけで、新しい開墾は別の労働の枠（`settlementClearance.ts` の `clearanceLabor`、140日/ha、畑の維持の後の残り）で進む。人口の上限と土地利用の台帳の変更、案 5 は未着手。
+
+## 1. 史料
+
+### 1.1 年間の労働日数
+
+| 出典 | 値 | 備考 |
+| --- | --- | --- |
+| Columella 2.12.8–9 | 290日/年 | 祝日・悪天候45日、播種後の休み30日を除く（ローマ） |
+| 中世キリスト教圏の推計 | 約270日 | 日曜と約45の祝日を除く |
+| Clark (2018) | 250〜300日 | |
+| Kenyon (1934) | 通常は308日、日雇いの一部は120日 | Schor が引いたのは120日の方 |
+| Clark (1986、未刊行。二次資料経由) | 家族で自分の土地に150日、成人男子135日 | |
+| 14世紀の荘園帳簿 | 隷農の労働者 約175日 | 二次資料経由 |
+
+- 成人男子の実働は250〜300日だった。そのうち自分の畑の作業は135〜150日ほどで、残りは家畜の世話、運搬、雇われ仕事、手工業などである。
+- 女性が畑に出るのは主に繁忙期（収穫）で、普段は家事・家内工業・家畜の世話をした。16歳以上の男子は成人の約4分の3、10〜15歳の子は約半分の労働として数える推計がある（Devereaux）。
+
+**判断**: 男女の成人をならした「農作業に回せる日数」140日は、これらの史料と矛盾しない。変えない。
+
+### 1.2 収穫期の集中
+
+- 収穫期は、村じゅうの働ける人が日の出から日没まで働いた（複数の二次資料）。女性は刈り取りの後の束ね・積み上げ（stook）を担い、落ち穂拾いは子ども連れの女性が中心だった。男女の分担はあいまいだった（Many-Headed Monster、State Library Victoria）。
+- 荘園の直営地では、1年の作業の大部分を常雇いの famuli がこなした。賦役（boon work、Reapale）と臨時雇いは、収穫と犂耕の時期に集中した（Goose、Meopham 1307–75、Walsham の研究）。c.1300の400超の荘園の帳簿では、famuli は男性中心の1段目と、女性・若者・老人の2段目に分かれていた（LSE の研究）。
+- 収穫の前後には大きな祭りが集まるが、収穫期そのものは休みが少ない。
+
+**判断**: 収穫の月は、成人1人が平月の約2倍、日曜・祝日以外のほぼ毎日（約24日）働いたとみてよい。今の一律11.7日では、収穫の月に必要な人手が平月の6倍になってしまう（§2）。
+
+### 1.3 1 ha あたりの労働と、作業の時期
+
+| 出典 | 小麦 | 備考 |
+| --- | --- | --- |
+| Columella | 44人・日/ha（収穫を除く）＋刈り取り5.7 | 犂耕4回、中耕2回の集約的な地中海の栽培 |
+| Columella を補正（Spurr、Rosenstein） | 1 iugerum あたり14.25〜19.5日（57〜78日/ha） | 脱穀など Columella が省いた作業を含む |
+| Clark の1300年ごろの推計（既存の設計書） | 1 acre あたり成人男子11〜14日（27〜35日/ha） | イングランド |
+| 鎌での刈り取り | 10〜30人・日/ha | 脱穀・風選は刈り取りとほぼ同じ労働 |
+
+- **脱穀は冬の仕事だった**。北欧では刈った穀物を束のまま納屋に置き、冬に屋内の脱穀場で殻竿（flail）で打った（Reading 大学の農村博物館の所蔵品記録、Met Museum の Cloisters の記事、Patcham 荘園の研究）。豊作の年は翌年まで続いた。
+- **脱穀は量に比例して支払われた**。1319–20年と1350–51年の荘園の帳簿（Merton）では、脱穀は穀物1 quarter あたりの出来高払いだった。脱穀の労働は、面積ではなく収穫量に比例する。
+- 犂耕と播種は、秋分から12月初めまでの2か月余りに分散した（Columella）。休閑地は春・夏・秋に1回ずつ耕した。
+
+**判断**:
+- 30日/ha は、イングランドの水準（Clark）として妥当である。地中海の集約栽培（57〜78日/ha）は別の体系とみる。
+- 一方、今の作物暦（`stapleCrops.ts` の `labourByStage`）は、収穫と脱穀を合わせた「harvestAndProcessing」の0.50〜0.55を、収穫の30〜45日に詰め込んでいる。史料では、脱穀は収穫の後の冬に分散し、量に比例する。
+
+## 2. モデルとの差（seed 102、地図生成直後〜13か月）
+
+| 項目 | モデル | 史料 |
+| --- | --- | --- |
+| 年間の農作業日数 | 140日 | 135〜150日（家族、自分の畑） |
+| 収穫の月の労働能力 | 11.7日（一律） | 約24日（平月の約2倍） |
+| 収穫の月に集中する作業 | 年の50〜55% | 刈り取り・束ね・運搬で約30%。脱穀は冬 |
+| 脱穀の労働 | 面積に比例 | 収穫量に比例（出来高払い） |
+| 収穫の月の必要人手 ÷ 年平均 | 0.55 × 140 ÷ 11.7 ≒ **6.6倍** | 0.30 × 140 ÷ 24 ≒ **1.75倍** |
+
+seed 102 は南緯43〜57度、年平均気温7℃、年降水量1,500 mm ほどの冷涼で多湿な地図である。収量の倍率の中央値は約0.38（169 kg/ha）と低い。
+
+- 年単位で見ても、畑の作業が成人 × 140日を超えるセルに、農村人口の40%が住んでいる。
+- 脱穀を量に比例させても（労働の3〜4割を量比例とする）、その割合は31〜34%までしか下がらない。年単位の充足率で見た収穫 ÷ 必要量は、0.83 → 0.89〜0.91 になる。
+- 残る不足の原因は、地図を作る時の人口の上限（`subsistenceCapacity`）が、収量の低い土地で「自分たちの労働で耕せる面積」を見ていないことである。土地利用の台帳も、労働で耕せる面積を超えて `必要面積 × 1.1` を割り当てる（`planSettlementLandUse`）。
+- 史実では、こうした冷涼で多湿な土地は、牧畜の比重が高く、人口密度も低かった。
+
+## 3. 校正の案
+
+### 案 1: 作物暦の作業配分を、収穫と脱穀に分ける（`stapleCrops.ts`、`cropCalendars.ts`）
+
+- `harvestAndProcessing` を、次の2つに分ける。
+  - `harvest`（刈り取り・束ね・運搬）: 収穫の期間に配分する。
+  - `processing`（脱穀・風選）: 収穫の後の4〜5か月（冬）に均等に配分する。
+- 出発値は、穀物で `establishment 0.20 / maintenance 0.25 / harvest 0.30 / processing 0.25`。脱穀≒刈り取りという史料に合わせる。
+- 犂耕・播種（`establishment`）は、1か月ではなく2か月に分ける。
+
+### 案 2: 脱穀の労働を収穫量に比例させる（`agriculturalLandUse.ts`）
+
+- 1 ha あたりの労働日数を、面積に比例する部分と、収穫量に比例する部分に分ける。
+  - `LABOUR_DAYS_PER_HECTARE × (1 − PROCESSING_SHARE + PROCESSING_SHARE × 収量 ÷ 450)`
+  - `PROCESSING_SHARE = 0.25`（案 1 の processing の割合）。基準の450 kg/ha は、30日/ha を校正したイングランドの水準である。
+- 収量の低い土地では、脱穀の分だけ労働が減る。
+
+### 案 3: 月の労働能力を、収穫の月だけ引き上げる（`ruralOccupationAllocation.ts`）
+
+- 月の労働能力を `WORKABLE_DAYS_PER_ADULT_PER_MONTH × 月の倍率` にする。倍率は、その月の作業量が年平均を超える月で最大2.0（約24日）とする。
+- 年間の上限（140日）は `getAnnualRequiredAdults` で今どおり守る。繁忙月に多く働いた分、閑散月は働かない。
+- 互助（隣のセル）と家族の手伝い（子ども0.35・老人0.4）は、今の値のまま残す。
+
+### 案 4: 収穫に労働の充足率を掛ける（問題 C の本体）
+
+- 案 1〜3 の後で、`seasonalLaborShortage` から求めた充足率を、セルの収穫に掛ける。
+- 地図を作る時の人口の上限（`subsistenceCapacity` の農業の分）にも、同じ労働の充足率を掛ける。自分たちの労働で耕せない面積は、上限に入れない。
+- 土地利用の台帳の割り当て（`max(必要面積 × 1.1, 労働で耕せる面積)`）は、労働で耕せる面積を上限にする。
+- 旧セーブでは、最初の年に収穫が下がる。それでも人口は数年で、労働と食料の釣り合う水準へ移る。ここは移行の影響として受け入れるか、充足率を数年かけて掛け始めるかを決める必要がある。
+
+### 案 5: 季節の出稼ぎ（問題 E）
+
+- 案 4 の後で、残った `seasonalLaborShortage` を、近くの都市の住民が収穫の月だけ農村で働いて埋める。
+- 史料（rural-food-labor-audit.md §1.2）に合わせ、近世以降（Historical period）で強く、中世は互助と家族の手伝いだけにする。
+
+## 4. 実装の順序（提案）
+
+1. 案 1 と案 2（作業配分と脱穀）。月の不足と移住の余力が変わるだけで、収穫は変わらない。
+2. 案 3（収穫の月の労働能力）。
+3. 計測: 労働の充足率の分布と、年単位で労働が足りないセルの人口の割合。
+4. 案 4（充足率を収穫と人口の上限に掛ける）と、移行の方法の決定。
+5. 案 5（季節の出稼ぎ）。
+
+案 1〜3 では収穫は変わらない。変わるのは雇用・移住の余力（`migratableAdults`、`ruralReleasePressure`）と、季節の不足の値である。ただし旧セーブの動きも変わるので、Node 用の基準データを更新する。案 1・2 は `agriculturalLandUse.ts` と作物暦を変えるので、地図生成側の収量の推定表（`foodClimateCalibration.json`）も作り直す。
+
+## 5. 出典
+
+- Devereaux, B. "Collections: Life, Work, Death and the Peasant, Part IVb: Working Days", *A Collection of Unmitigated Pedantry* (2025)。Columella、Kenyon、Clark (2018)、Spurr、Rosenstein、Erdkamp を引く。https://acoup.blog/2025/09/05/collections-life-work-death-and-the-peasant-part-ivb-working-days/
+- Devereaux, B. "Bread, How Did they Make it? Part III: Actually Farming" (2020)。Columella の労働日数。https://acoup.blog/2020/08/06/collections-bread-how-did-they-make-it-part-iii-actually-farming/
+- Cucuteni-Trypillia 地域の前近代農業の生産性（White 1965 による Columella の評価、鎌の刈り取り、脱穀）。https://arxiv.org/pdf/1505.05121
+- Clark, G. *The Long March of History*（既存の30日/ha の根拠）。https://faculty.econ.ucdavis.edu/faculty/gclark/papers/echr2006.pdf
+- 中世の労働時間の表（Schor による整理。Clark 1986、Blanchard、Ritchie、荘園帳簿の値）。https://groups.csail.mit.edu/mac/users/rauch/worktime/hours_workweek.html
+- Goose, N. "Wage Labour on a Kentish Manor: Meopham, 1307–75", *Archaeologia Cantiana* 92。https://kentarchaeology.org.uk/journal/92/wage-labour-kentish-manor-meopham-1307-75
+- Walsham-le-Willows の中世の農業（boon works）。https://www.walsham-le-willows.org/?p=6098
+- "The composition of famuli labour on English demesnes, c.1300", LSE Research Online。https://researchonline.lse.ac.uk/id/eprint/101316
+- Merton Historical Society 所蔵の荘園帳簿の翻刻（1319–20年、1350–51年。脱穀の出来高払い）。https://mertonhistoricalsociety.org.uk/wp-content/uploads/2017/08/SAL_MS_555_4.pdf 、https://mertonhistoricalsociety.org.uk/wp-content/uploads/2017/09/WAM_27325.pdf
+- University of Reading, Museum of English Rural Life の所蔵品記録（殻竿の脱穀は冬の仕事）。https://reading.ac.uk/adlib/Details/collect/313
+- Met Museum, The Cloisters Gardens Blog "Threshing It Out"（屋内で、雨の月に分散）。https://blog.metmuseum.org/cloistersgardens/2009/08/14/threshing-it-out/
+- "The Experience of Work in Early Modern England IV: Harvesters", *The Many-Headed Monster* (2025)。https://manyheadedmonster.com/2025/10/16/the-experience-of-work-in-early-modern-england-iv-harvesters/
+- State Library Victoria "Medieval lives: working women in English society 1300–1500"。https://blogs.slv.vic.gov.au/our-stories/medieval-lives-working-women-in-english-society-1300-1500
+
+## 6. 案 1〜3 の実装と結果（2026-10-18）
+
+### 6.1 実装した内容
+
+- **案 1**（[cropCalendars.ts](../../src/data/cropCalendars.ts)、[seasonalCropClimate.ts](../../src/extensions/economy/generators/seasonalCropClimate.ts)、[stapleCrops.ts](../../src/data/stapleCrops.ts)）
+  - `labourByStage` に `processing`（脱穀・風選）を足した。収穫が終わった月の翌月から4か月（`PROCESSING_MONTHS`）に均等に配分する。
+  - 犂耕・播種（`establishment`）は、植え付けの月とその前の月に半分ずつ配分する。
+  - 配分の値は次のとおり。根菜と永年作物は変えていない。
+    - 寒冷地の穀物: 0.20 / 0.25 / 0.30 / 0.25
+    - 温暖地の穀物・豆: 0.22 / 0.28 / 0.28 / 0.22
+- **案 2**（[agriculturalLandUse.ts](../../src/extensions/economy/generators/agriculturalLandUse.ts) の `getYieldScaledLabourMultiplier`）
+  - 作物の組み合わせのうち脱穀の割合の分だけ、1 ha あたりの労働を `収量 ÷ 450 kg/ha` に比例させる。
+  - 年の労働の計算（`calculateAgriculturalLandProfile`）と、開墾・土地利用の台帳への入力（`reconcileForestClearanceForAgriculture`）の両方に入れた。
+- **案 3**（`getMonthlyWorkDaysPerAdult`、[ruralOccupationAllocation.ts](../../src/extensions/economy/generators/ruralOccupationAllocation.ts)）
+  - 畑の作業が月平均を超える月は、成人1人の月の労働日数を最大2倍（約23日、`PEAK_MONTH_WORK_MULTIPLIER`）にする。
+  - 次の4か所で使う: 職の割り当て、隣のセルの互助の余力、家族の手伝い、季節の不足。
+  - 年間の必要人数は、今どおり年140日で数える。
+- 地図生成側の収量の推定表を作り直した。計算は約290秒かかるため、計算時だけ実行するテストの時間制限を900秒に延ばした。
+
+### 6.2 結果（seed 102、Independent、13か月後）
+
+| 項目 | 修正前 | 修正後 |
+| --- | --- | --- |
+| 季節の不足 ÷ 年の必要労働 | （畑の作業の約57%） | 21% |
+| 季節の不足を収穫に掛けた場合の、収穫 ÷ 必要量（試算） | 1.04 → 0.45 前後 | 1.05 → **0.94** |
+| 必要労働 ÷ 成人（人口加重） | 1.34 | 1.22 |
+| 必要労働が成人を超えるセルの人口の割合 | 40% | 38% |
+| 移住に回せる成人の割合 | 11.4% | 12.7% |
+
+- 案 1〜3 は収穫を変えない。変わるのは、職の割り当て・移住の余力・季節の不足である。
+- 季節の不足を収穫に掛けた場合（案 4）の影響は、収穫の約1割減まで小さくなった。案 4 を入れられる段階になった。
+- 必要労働が成人を超えるセルは、まだ人口の約4割ある。地図を作る時の人口の上限と土地利用の台帳が、労働で耕せる面積を見ていないためで、案 4 の後半（人口の上限と台帳の面積）で扱う。
+
+### 6.3 次の判断
+
+案 4 の移行の方法を決める必要がある。
+
+- **すぐに掛ける**: 旧セーブと既存の地図では、最初の年に収穫が約1割下がる。
+- **数年かけて段階的に掛ける**: 例えば5年かけて、充足率の効き目を0から1まで上げる。
+
+## 7. 案 4（収穫に労働の充足率を掛ける）の実装と結果（2026-10-18）
+
+### 7.1 実装した内容
+
+- `getCropLaborCoverageByCell`（[developmentPotential.ts](../../src/extensions/economy/generators/developmentPotential.ts)）
+  - 毎年の農業の更新で、セルごとの充足率を求めて `cropLaborCoverage` 列に保存する。
+  - 充足率 = 1 − Σ月 min(畑の作業日数, 季節の不足) ÷ Σ月 畑の作業日数。不足は畑の作業に先に充てる。
+- [foodProduction.ts](../../src/extensions/economy/generators/foodProduction.ts) で、セルの収穫に充足率を掛ける。旧セーブで列がない間は 1 として扱う。
+- **すぐに掛ける**方式にした。対象は地図を開いた時点で既にある畑で、地図の開始前の開墾は済んでいる扱いである。新しい開墾は、畑の維持の後に残った労働の一部（専用の枠）で、140日/ha をかけて進む。
+- 次の2つは見送った。
+  - **土地利用の台帳を、労働で耕せる面積に抑える**: 季節の不足は、年単位の不足も含んでいる。両方を入れると不足を二重に引く。
+  - **地図を作る時の人口の上限**: 地図生成側の推定に関わるので、別の作業とする。
+
+### 7.2 結果（新しく生成した地図、15年、5〜15年目）
+
+| 項目 | 101 | 102 | 103 |
+| --- | --- | --- | --- |
+| 1月に価格が上限の市場（案 4 の前 → 後） | 3% → 3% | 20% → 25% | 0% → 2% |
+| 都市の食料の充足（15年目、前 → 後） | 0.997 → 0.993 | 0.994 → 0.985 | 0.998 → 0.997 |
+| 都市人口（開始 → 15年目） | 208 → 445 | 185 → 418 | 780 → 1,283 |
+
+案 4 の「前」は、前回の計測（rural-food-labor-audit.md §6.2）の値である。今回は地図を作り直したので、厳密に同じ地図の比較ではない。
+
+**Megacity**（seed 102、12年）
+
+| 項目 | 案 4 の前 → 後 |
+| --- | --- |
+| 都市人口（開始 → 12年目） | 25万→99万人 → 25万→102万人 |
+| 農村人口 | −14% → −15% |
+| 都市の食料の充足の最低値 | 0.76 → 0.76 |
+| 蓄えの尽きた農村の住民 | 約19% → 30〜34% |
+
+Megacity で成人が都市へ出ると、村の畑の労働が足りなくなり、農村の自給が下がる。「出しすぎると食料が減る」釣り合いが表れた。
+
+### 7.3 残っている課題
+
+1. 地図を作る時の人口の上限（`subsistenceCapacity`）に、労働の充足率を入れる。
+2. 案 5（季節の出稼ぎ）。Megacity では、蓄えの尽きた農村の住民が3割に増えた。都市から農繁期に人が戻る仕組みが効く場面である。
+3. 都市の受け入れ枠の後背地の余剰（`hinterlandSurplusUrbanPoints`）は、まだ土地の能力（`ruralFoodCapacity`）で数えていて、労働の充足率を見ていない。
+4. seed 103 の15年の sim は、1024MB の上限で、最後の保存の時にメモリが足りなくなった。標本は60件とも出力済み。

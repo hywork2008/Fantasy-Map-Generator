@@ -122,14 +122,15 @@ describe("ruralOccupationAllocation", () => {
       migratableAdults: new Float32Array([1])
     });
 
-    // The fish crew can only take the remaining month-7 capacity. The annual surplus argument
+    // The harvest month is a peak, so both adults work double days then (PEAK_MONTH_WORK_MULTIPLIER)
+    // and the crew is bound by an ordinary month instead: two fishers. The annual surplus argument
     // supplied by the legacy path is deliberately ignored by the calendar path.
     expect(result.fishingRequiredWorkers[0]).toBeCloseTo(30, 5);
-    expect(result.fishingWorkers[0]).toBeCloseTo(1, 5);
-    // Year-round residents: one cereal-harvest month (11.7 days) plus one fisher (140 days).
-    expect(result.farmLaborRequired[0]).toBeCloseTo((140 / 12 + 140) / 140, 5);
-    expect(result.migratableAdults[0]).toBeGreaterThan(0);
-    expect(result.migratableAdults[0]).toBeLessThan(2);
+    expect(result.fishingWorkers[0]).toBeCloseTo(2, 5);
+    // Year-round residents: one cereal-harvest month (11.7 days) plus two fishers (140 days each).
+    expect(result.farmLaborRequired[0]).toBeCloseTo((140 / 12 + 2 * 140) / 140, 5);
+    // Both adults now work year-round (crop month plus fishing), so none can leave.
+    expect(result.migratableAdults[0]).toBe(0);
     expect(result.seasonalLaborShortage[6]).toBeGreaterThan(0);
   });
 

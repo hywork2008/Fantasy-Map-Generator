@@ -64,9 +64,16 @@ export interface CropCalendarProfile {
   readonly minimumGrowingTemperatureC: number;
   readonly harvestWindows: readonly HarvestWindow[];
   readonly labourByStage: {
+    /** Ploughing and sowing, spread over the planting month and the month before it (annual crops). */
     readonly establishment: number;
     readonly maintenance: number;
+    /** Field harvest work: reaping, binding, carting (and, without `processing`, all processing). */
     readonly harvestAndProcessing: number;
+    /**
+     * Threshing and winnowing of sheaves stored in the barn, spread over the PROCESSING_MONTHS after
+     * the harvest (docs/plan/farm-labour-calibration.md §1.3). Its days scale with the crop's yield.
+     */
+    readonly processing?: number;
   };
   readonly canProduceContinuously: boolean;
   readonly maximumCropsPerYear: 1 | 2;
@@ -95,6 +102,23 @@ export interface CropCalendar {
   readonly labourWeights: MonthlyWeights;
   readonly growableMonths: MonthlyFlags;
   readonly cropCycles: 0 | 1 | 2;
+}
+
+/** Months after the harvest over which stored sheaves are threshed. */
+export const PROCESSING_MONTHS = 4;
+
+/** Adds a crop's barn processing after the month its harvest window ends. */
+export function addProcessingLabour(labour: number[], harvestEndMonth: number, processing: number | undefined): void {
+  if (!(processing && processing > 0)) return;
+  for (let offset = 1; offset <= PROCESSING_MONTHS; offset++) {
+    labour[(harvestEndMonth + offset) % 12] += processing / PROCESSING_MONTHS;
+  }
+}
+
+/** Ploughing and sowing: half in the month before planting, half in the planting month. */
+export function addEstablishmentLabour(labour: number[], plantingMonth: number, establishment: number): void {
+  labour[(plantingMonth + 11) % 12] += establishment / 2;
+  labour[plantingMonth] += establishment / 2;
 }
 
 const NORTH_TEMPERATURE_OFFSETS: MonthlyValues = [-8, -7, -4, 0, 4, 7, 8, 7, 4, 0, -4, -7];
@@ -287,18 +311,19 @@ export function getCropCalendar(
   const labour = Array.from({ length: 12 }, () => 0);
   const labourStages = profile.labourByStage;
   for (const plantingMonth of plantingMonths) {
-    labour[plantingMonth] += labourStages.establishment;
+    addEstablishmentLabour(labour, plantingMonth, labourStages.establishment);
     const maintenanceMonths = Math.max(1, Math.ceil(profile.annualCycleDays / 30));
     for (let offset = 0; offset < maintenanceMonths; offset++) {
       labour[(plantingMonth + offset) % 12] += labourStages.maintenance / maintenanceMonths;
     }
-    for (const window of profile.harvestWindows) {
-      const harvestMonth = (plantingMonth + Math.floor(window.startAfterPlantingDays / 30)) % 12;
-      addWindow(harvest, harvestMonth, window.durationDays);
-      const harvestMonths = Math.max(1, Math.ceil(window.durationDays / 30));
+    for (const harvestWindow of profile.harvestWindows) {
+      const harvestMonth = (plantingMonth + Math.floor(harvestWindow.startAfterPlantingDays / 30)) % 12;
+      addWindow(harvest, harvestMonth, harvestWindow.durationDays);
+      const harvestMonths = Math.max(1, Math.ceil(harvestWindow.durationDays / 30));
       for (let offset = 0; offset < harvestMonths; offset++) {
         labour[(harvestMonth + offset) % 12] += labourStages.harvestAndProcessing / harvestMonths;
       }
+      addProcessingLabour(labour, (harvestMonth + harvestMonths - 1) % 12, labourStages.processing);
     }
   }
   const harvestWeights = normalize(harvest);
@@ -325,10 +350,10 @@ function getPerennialCalendar(
   // A perennial has no annual planting. This stage represents dormant-season pruning, training,
   // and replacement work at the beginning of its viable season.
   labour[run.start] += profile.labourByStage.establishment;
-  for (const window of profile.harvestWindows) {
-    const harvestMonth = (run.start + Math.floor(window.startAfterPlantingDays / 30)) % 12;
-    addWindow(harvest, harvestMonth, window.durationDays);
-    const harvestMonths = Math.max(1, Math.ceil(window.durationDays / 30));
+  for (const harvestWindow of profile.harvestWindows) {
+    const harvestMonth = (run.start + Math.floor(harvestWindow.startAfterPlantingDays / 30)) % 12;
+    addWindow(harvest, harvestMonth, harvestWindow.durationDays);
+    const harvestMonths = Math.max(1, Math.ceil(harvestWindow.durationDays / 30));
     for (let offset = 0; offset < harvestMonths; offset++) {
       labour[(harvestMonth + offset) % 12] += profile.labourByStage.harvestAndProcessing / harvestMonths;
     }

@@ -211,7 +211,8 @@ it.skipIf(process.env.FOOD_CLIMATE_CALIBRATE !== "1")(
       })
     );
   },
-  300000
+  // Offline only; the full grid takes about five minutes on a 16 GB Mac mini.
+  900000
 );
 
 // The host table may already be imported transitively before the calibration writes it.

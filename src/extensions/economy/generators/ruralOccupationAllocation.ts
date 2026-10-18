@@ -49,6 +49,7 @@ import {
   type AgriculturalLandProfile,
   FARM_LABOUR_SAFETY_MARGIN,
   getAnnualRequiredAdults,
+  getMonthlyWorkDaysPerAdult,
   getReservedAdultOutflowPoints,
   WORKABLE_DAYS_PER_ADULT,
   WORKABLE_DAYS_PER_ADULT_PER_MONTH
@@ -376,6 +377,7 @@ function allocateRuralOccupationsFromCalendar(
   const currentDaysByCell = new Float32Array(count * 12);
   const desiredDaysByCell = new Float32Array(count * 12);
   const minimumDaysByCell = new Float32Array(count * 12);
+  const workDaysPerAdultByCell = new Float32Array(count * 12);
   if (
     !count ||
     laborPlan.cropLaborDaysByMonth.length !== count * 12 ||
@@ -398,13 +400,16 @@ function allocateRuralOccupationsFromCalendar(
     const currentDays = copyMonthlyDays(laborPlan.cropLaborDaysByMonth, cellId);
     const minimumDays = copyMonthlyDays(laborPlan.minimumCropLaborDaysByMonth, cellId);
     const desiredDays = currentDays.slice();
+    const workDaysPerAdult = getMonthlyWorkDaysPerAdult(laborPlan.cropLaborDaysByMonth, cellId * 12);
+    workDaysPerAdultByCell.set(workDaysPerAdult, cellId * 12);
     const huntingRequired = hasWildGameHabitat(cellId) ? getHuntingSubsistenceClaim(residentAdults) : 0;
     addWorkerDays(desiredDays, huntingRequired, UNIFORM_MONTHLY_WEIGHTS);
     const huntingFactor = getMaximumAssignableFactor(
       currentDays,
       huntingRequired,
       UNIFORM_MONTHLY_WEIGHTS,
-      residentAdults
+      residentAdults,
+      workDaysPerAdult
     );
     const assignedHunting = huntingRequired * huntingFactor;
     huntingWorkers[cellId] = assignedHunting;
@@ -451,7 +456,8 @@ function allocateRuralOccupationsFromCalendar(
         currentDays,
         candidate.requiredWorkers,
         candidate.monthlyWeights,
-        residentAdults
+        residentAdults,
+        workDaysPerAdult
       );
       const assigned = candidate.requiredWorkers * factor;
       if (candidate.kind === "viticulture") viticultureWorkers[cellId] += assigned;
@@ -466,7 +472,7 @@ function allocateRuralOccupationsFromCalendar(
     writeMonthlyDays(minimumDaysByCell, cellId, minimumDays);
   }
 
-  const aidReceivedByCell = applyHarvestMutualAid(world, currentDaysByCell, desiredDaysByCell);
+  const aidReceivedByCell = applyHarvestMutualAid(world, currentDaysByCell, desiredDaysByCell, workDaysPerAdultByCell);
 
   for (const cellId of cells.i) {
     if (cells.h[cellId] < 20) continue;
@@ -505,12 +511,13 @@ function allocateRuralOccupationsFromCalendar(
     );
 
     const adultsAfterMigration = Math.max(0, residentAdults - migratableAdults[cellId] * populationRate);
-    const helperDays = getHouseholdHarvestHelperDays(cells, cellId, populationRate);
     for (let month = 0; month < 12; month++) {
+      const workDays = workDaysPerAdultByCell[cellId * 12 + month] || WORKABLE_DAYS_PER_ADULT_PER_MONTH;
+      const helperDays = getHouseholdHarvestHelperDays(cells, cellId, populationRate, workDays);
       seasonalLaborShortage[cellId * 12 + month] = Math.max(
         0,
         desiredDays[month] -
-          adultsAfterMigration * WORKABLE_DAYS_PER_ADULT_PER_MONTH -
+          adultsAfterMigration * workDays -
           helperDays -
           (aidReceivedByCell[cellId * 12 + month] ?? 0)
       );
@@ -547,13 +554,13 @@ function copyStoredMonthlyDays(source: Float32Array, cellId: number): number[] {
 function getHouseholdHarvestHelperDays(
   cells: WorldContext["pack"]["cells"],
   cellId: number,
-  populationRate: number
+  populationRate: number,
+  workDaysPerAdult = WORKABLE_DAYS_PER_ADULT_PER_MONTH
 ): number {
   const children = Math.max(0, cells.children?.[cellId] ?? 0) * populationRate;
   const elders = Math.max(0, cells.elders?.[cellId] ?? 0) * populationRate;
   return (
-    (children * HOUSEHOLD_HARVEST_CHILD_EQUIVALENT + elders * HOUSEHOLD_HARVEST_ELDER_EQUIVALENT) *
-    WORKABLE_DAYS_PER_ADULT_PER_MONTH
+    (children * HOUSEHOLD_HARVEST_CHILD_EQUIVALENT + elders * HOUSEHOLD_HARVEST_ELDER_EQUIVALENT) * workDaysPerAdult
   );
 }
 
@@ -565,7 +572,8 @@ function getHouseholdHarvestHelperDays(
 function applyHarvestMutualAid(
   world: Readonly<WorldContext>,
   currentDaysByCell: Float32Array,
-  desiredDaysByCell: Float32Array
+  desiredDaysByCell: Float32Array,
+  workDaysPerAdultByCell: Float32Array
 ): Float32Array {
   const cells = world.pack.cells;
   const aidReceivedByCell = new Float32Array(Math.max(0, cells?.i?.length ?? 0) * 12);
@@ -579,8 +587,9 @@ function applyHarvestMutualAid(
       if ((cells.h[cellId] ?? 0) < 20) continue;
       const ruralAdultPoints =
         Math.max(0, cells.maleAdults?.[cellId] ?? 0) + Math.max(0, cells.femaleAdults?.[cellId] ?? 0);
-      const capacity = ruralAdultPoints * populationRate * WORKABLE_DAYS_PER_ADULT_PER_MONTH;
-      const helperDays = getHouseholdHarvestHelperDays(cells, cellId, populationRate);
+      const workDays = workDaysPerAdultByCell[cellId * 12 + month] || WORKABLE_DAYS_PER_ADULT_PER_MONTH;
+      const capacity = ruralAdultPoints * populationRate * workDays;
+      const helperDays = getHouseholdHarvestHelperDays(cells, cellId, populationRate, workDays);
       const current = currentDaysByCell[cellId * 12 + month] ?? 0;
       const desired = desiredDaysByCell[cellId * 12 + month] ?? 0;
       slack[cellId] = Math.max(0, capacity - current);
@@ -618,14 +627,16 @@ function getMaximumAssignableFactor(
   existingDays: readonly number[],
   requiredWorkers: number,
   monthlyWeights: readonly number[],
-  residentAdults: number
+  residentAdults: number,
+  workDaysPerAdult?: readonly number[]
 ): number {
   if (requiredWorkers <= 0 || residentAdults <= 0) return 0;
   let factor = 1;
   for (let month = 0; month < 12; month++) {
     const candidateDays = requiredWorkers * WORKABLE_DAYS_PER_ADULT * (monthlyWeights[month] ?? 0);
     if (candidateDays <= 0) continue;
-    const availableDays = Math.max(0, residentAdults * WORKABLE_DAYS_PER_ADULT_PER_MONTH - existingDays[month]);
+    const workDays = workDaysPerAdult?.[month] ?? WORKABLE_DAYS_PER_ADULT_PER_MONTH;
+    const availableDays = Math.max(0, residentAdults * workDays - existingDays[month]);
     factor = Math.min(factor, availableDays / candidateDays);
   }
   return Math.max(0, Math.min(1, factor));

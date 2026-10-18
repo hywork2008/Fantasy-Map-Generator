@@ -44,6 +44,49 @@ export const LABOUR_DAYS_PER_HECTARE = 30;
 export const WORKABLE_DAYS_PER_ADULT = 140;
 /** Calendar capacity used by the shared rural labour allocator. */
 export const WORKABLE_DAYS_PER_ADULT_PER_MONTH = WORKABLE_DAYS_PER_ADULT / 12;
+/**
+ * At the harvest and ploughing peaks every able hand worked from dawn to dusk on all but Sundays
+ * and holy days — about 24 days, twice an ordinary month (docs/plan/farm-labour-calibration.md §1.2).
+ */
+export const PEAK_MONTH_WORK_MULTIPLIER = 2;
+
+/**
+ * Field labour per hectare scales partly with the crop: threshing was paid by the quarter of grain
+ * (docs/plan/farm-labour-calibration.md §1.3). LABOUR_DAYS_PER_HECTARE is calibrated at the base net
+ * yield, so the crop mix's processing share of its work follows yield ÷ that base.
+ */
+export function getYieldScaledLabourMultiplier(yieldKgPerHa: number, processingShare: number): number {
+  const share = clamp01(processingShare);
+  if (!(share > 0)) return 1;
+  return 1 - share + (share * Math.max(0, yieldKgPerHa)) / BASE_NET_YIELD_KG_PER_SOWN_HECTARE;
+}
+
+/** Area-weighted processing share of the cell's crop mix (0 for catalogues without calendars). */
+function getCropMixProcessingShare(cropMix: readonly CropMixEntry[] | undefined): number {
+  if (!cropMix) return 0;
+  return cropMix.reduce((sum, entry) => {
+    const stages = entry.good.crop?.calendar?.labourByStage;
+    if (!stages) return sum;
+    const total = stages.establishment + stages.maintenance + stages.harvestAndProcessing + (stages.processing ?? 0);
+    return sum + (total > 0 ? (entry.share * (stages.processing ?? 0)) / total : 0);
+  }, 0);
+}
+
+/**
+ * Work-days one adult can give in each month of a cell's crop calendar: the ordinary month, raised up
+ * to PEAK_MONTH_WORK_MULTIPLIER in months whose crop work exceeds the cell's monthly average. The
+ * annual requirement (getAnnualRequiredAdults) still holds the year to WORKABLE_DAYS_PER_ADULT.
+ */
+export function getMonthlyWorkDaysPerAdult(cropDaysByMonth: ArrayLike<number>, offset = 0): number[] {
+  let total = 0;
+  for (let month = 0; month < 12; month++) total += Math.max(0, cropDaysByMonth[offset + month] ?? 0);
+  const mean = total / 12;
+  return Array.from({ length: 12 }, (_, month) => {
+    const days = Math.max(0, cropDaysByMonth[offset + month] ?? 0);
+    const multiplier = mean > 0 ? Math.min(PEAK_MONTH_WORK_MULTIPLIER, Math.max(1, days / mean)) : 1;
+    return WORKABLE_DAYS_PER_ADULT_PER_MONTH * multiplier;
+  });
+}
 export const FARM_LABOUR_SAFETY_MARGIN = 1.15;
 /**
  * Local consumption plus a modest on-field reserve. This is the *floor* on cultivated area,
@@ -399,8 +442,11 @@ export function calculateAgriculturalLandProfile(
     const reservedLaborExportPoints = getReservedLaborExportPoints(cells, cellId);
     const farmableAdults = Math.max(0, ruralAdults - reservedLaborExportPoints);
     const fourCourseLaborMultiplier = 1 - FOUR_COURSE_LABOR_SAVINGS_MAX * fourCourseRotation;
-    const cycles = conditions.cropGoods
-      ? getCropMix(world, cellId, conditions.cropGoods, { ...conditions, irrigation }).reduce(
+    const cropMix = conditions.cropGoods
+      ? getCropMix(world, cellId, conditions.cropGoods, { ...conditions, irrigation })
+      : undefined;
+    const cycles = cropMix
+      ? cropMix.reduce(
           (sum, entry) =>
             sum +
             entry.share *
@@ -414,7 +460,11 @@ export function calculateAgriculturalLandProfile(
           0
         )
       : 1;
-    const annualLaborDaysPerHectare = effectiveLaborDaysPerHectare * fourCourseLaborMultiplier * Math.max(1, cycles);
+    const annualLaborDaysPerHectare =
+      effectiveLaborDaysPerHectare *
+      fourCourseLaborMultiplier *
+      Math.max(1, cycles) *
+      getYieldScaledLabourMultiplier(yieldKgPerHa, getCropMixProcessingShare(cropMix));
     const subsistenceArea = Math.min(area, requiredArea * SUBSISTENCE_FIELD_RESERVE);
     const laborAffordableArea =
       yieldKgPerHa > 0
@@ -581,7 +631,13 @@ export function reconcileForestClearanceForAgriculture(
     const laborDays =
       LABOUR_DAYS_PER_HECTARE *
       (1 - AGTECH_LABOR_SAVINGS_MAX * effectiveAgTech) *
-      (1 - FOUR_COURSE_LABOR_SAVINGS_MAX * fourCourseRotation);
+      (1 - FOUR_COURSE_LABOR_SAVINGS_MAX * fourCourseRotation) *
+      getYieldScaledLabourMultiplier(
+        yieldKgPerHa,
+        getCropMixProcessingShare(
+          conditions.cropGoods ? getCropMix(world, cellId, conditions.cropGoods, conditions) : undefined
+        )
+      );
     const laborArea =
       yieldKgPerHa > 0
         ? getLaborAffordableAreaHectares(farmableAdults, populationRate, laborDays, constraints.terrainAndBiomeCeiling)

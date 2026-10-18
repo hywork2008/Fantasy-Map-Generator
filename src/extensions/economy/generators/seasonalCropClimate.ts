@@ -1,10 +1,12 @@
 /** Economy-owned crop planning. The host supplies climate, never crop biology. */
-import type {
-  CropCalendar,
-  CropCalendarProfile,
-  MonthlyFlags,
-  MonthlyWeights,
-  PlantingCohort
+import {
+  addEstablishmentLabour,
+  addProcessingLabour,
+  type CropCalendar,
+  type CropCalendarProfile,
+  type MonthlyFlags,
+  type MonthlyWeights,
+  type PlantingCohort
 } from "../../../data/cropCalendars";
 import { getDaysInMonth } from "../../../utils/seasonUtils";
 import { createCellClimateNormalsReader, simulationContext, type WorldContext } from "../../hostCore";
@@ -214,13 +216,16 @@ export function getSeasonalCropPlan(
     }
     if (elapsed < minimumDays - 1e-7 || heat < requiredHeat - 1e-7) break;
     const harvestDays = Math.min(elapsed, Math.max(...profile.harvestWindows.map(w => w.durationDays), 1));
-    labour[segments[0].month] += profile.labourByStage.establishment;
+    addEstablishmentLabour(labour, segments[0].month, profile.labourByStage.establishment);
+    let harvestEndMonth = segments[segments.length - 1].month;
     for (const segment of segments) {
       labour[segment.month] += (profile.labourByStage.maintenance * segment.days) / elapsed;
       const harvestOverlap = Math.max(0, segment.start + segment.days - Math.max(segment.start, elapsed - harvestDays));
       harvest[segment.month] += harvestOverlap / harvestDays;
       labour[segment.month] += (profile.labourByStage.harvestAndProcessing * harvestOverlap) / harvestDays;
+      if (harvestOverlap > 0) harvestEndMonth = segment.month;
     }
+    addProcessingLabour(labour, harvestEndMonth, profile.labourByStage.processing);
     totalHeat += heat;
     temperatureSum += tempSum;
     growingDays += elapsed;

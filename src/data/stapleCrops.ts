@@ -42,7 +42,9 @@ const COOL_CEREAL_CALENDAR = {
   turnaroundDays: 30,
   minimumGrowingTemperatureC: 3,
   harvestWindows: [{ startAfterPlantingDays: 210, durationDays: 30 }],
-  labourByStage: { establishment: 0.2, maintenance: 0.25, harvestAndProcessing: 0.55 },
+  // Reaping and carting in the harvest window; threshing in the barn over the winter after it
+  // (docs/plan/farm-labour-calibration.md §1.3).
+  labourByStage: { establishment: 0.2, maintenance: 0.25, harvestAndProcessing: 0.3, processing: 0.25 },
   canProduceContinuously: false,
   maximumCropsPerYear: 1
 } as const satisfies CropCalendarProfile;
@@ -53,7 +55,7 @@ const WARM_CEREAL_CALENDAR = {
   turnaroundDays: 30,
   minimumGrowingTemperatureC: 10,
   harvestWindows: [{ startAfterPlantingDays: 105, durationDays: 30 }],
-  labourByStage: { establishment: 0.22, maintenance: 0.28, harvestAndProcessing: 0.5 },
+  labourByStage: { establishment: 0.22, maintenance: 0.28, harvestAndProcessing: 0.28, processing: 0.22 },
   canProduceContinuously: false,
   maximumCropsPerYear: 2
 } as const satisfies CropCalendarProfile;
@@ -64,7 +66,7 @@ const LEGUME_CALENDAR = {
   turnaroundDays: 30,
   minimumGrowingTemperatureC: 5,
   harvestWindows: [{ startAfterPlantingDays: 135, durationDays: 30 }],
-  labourByStage: { establishment: 0.22, maintenance: 0.28, harvestAndProcessing: 0.5 },
+  labourByStage: { establishment: 0.22, maintenance: 0.28, harvestAndProcessing: 0.28, processing: 0.22 },
   canProduceContinuously: false,
   maximumCropsPerYear: 2
 } as const satisfies CropCalendarProfile;

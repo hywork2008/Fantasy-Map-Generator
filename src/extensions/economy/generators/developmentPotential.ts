@@ -47,6 +47,7 @@ import {
   getYieldPerArea,
   setAnnualGateYear,
   setClimateFoodStress,
+  setCropLaborCoverage,
   setCultivableArea,
   setCultivatedArea,
   setFarmLaborRequired,
@@ -226,6 +227,32 @@ export interface DevelopmentPotentials {
 export const DEVELOPMENT_POTENTIAL_LOAD_REPAIR = "economy.developmentPotential";
 export const DEVELOPMENT_POTENTIAL_LOAD_REPAIR_VERSION = 1;
 
+/**
+ * Share of each cell's crop work-days actually done. The monthly shortage left after peak-month
+ * hours, household help and neighbour aid (allocateRuralOccupations) leaves that part of the
+ * existing fields unharvested; new clearance has its own labour budget (settlementClearance.ts).
+ * Shortage is charged to crops first (docs/plan/farm-labour-calibration.md §3 proposal 4).
+ */
+export function getCropLaborCoverageByCell(
+  cropLaborDaysByMonth: ArrayLike<number>,
+  seasonalLaborShortage: ArrayLike<number>
+): Float32Array {
+  const count = Math.floor(cropLaborDaysByMonth.length / 12);
+  const coverage = new Float32Array(count).fill(1);
+  if (seasonalLaborShortage.length !== cropLaborDaysByMonth.length) return coverage;
+  for (let cellId = 0; cellId < count; cellId++) {
+    let required = 0;
+    let unworked = 0;
+    for (let month = 0; month < 12; month++) {
+      const days = Math.max(0, cropLaborDaysByMonth[cellId * 12 + month] ?? 0);
+      required += days;
+      unworked += Math.min(days, Math.max(0, seasonalLaborShortage[cellId * 12 + month] ?? 0));
+    }
+    if (required > 0) coverage[cellId] = 1 - unworked / required;
+  }
+  return coverage;
+}
+
 export class DevelopmentPotentialModule {
   generate(): DevelopmentPotentials {
     const world = getWorldContext();
@@ -294,6 +321,7 @@ export class DevelopmentPotentialModule {
     setMigratableAdults(new Float32Array());
     setRuralReleasePressure(new Float32Array());
     setSeasonalLaborShortage(new Float32Array());
+    setCropLaborCoverage(new Float32Array());
     setSoilFertility(new Float32Array());
     setIrrigationSalinity(new Float32Array());
     setIrrigationDevelopment(new Float32Array());
@@ -391,6 +419,9 @@ export class DevelopmentPotentialModule {
     setMigratableAdults(occupations.migratableAdults);
     setRuralReleasePressure(occupations.ruralReleasePressure);
     setSeasonalLaborShortage(occupations.seasonalLaborShortage);
+    setCropLaborCoverage(
+      getCropLaborCoverageByCell(agriculture.cropLaborDaysByMonth, occupations.seasonalLaborShortage)
+    );
     return occupations;
   }
 

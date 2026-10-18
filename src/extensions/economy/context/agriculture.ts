@@ -44,6 +44,7 @@ let _migratableAdultsFallback: Float32Array<ArrayBufferLike> = new Float32Array(
 let _ruralReleasePressureFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 
 let _seasonalLaborShortageFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _cropLaborCoverageFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 
 let _soilFertilityFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 
@@ -197,6 +198,21 @@ export function getSeasonalLaborShortage(): Float32Array<ArrayBufferLike> {
 export function setSeasonalLaborShortage(value: Float32Array<ArrayBufferLike>): void {
   setSliceFloat32Column("seasonalLaborShortage", value, next => {
     _seasonalLaborShortageFallback = next;
+  });
+}
+
+/**
+ * Share (0..1) of each cell's crop work-days its people can do once household help and neighbour
+ * aid are counted; scales the harvest of the existing fields (docs/plan/farm-labour-calibration.md
+ * §3 proposal 4). Empty on older saves until the annual agriculture refresh, which reads as fully worked.
+ */
+export function getCropLaborCoverage(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("cropLaborCoverage", _cropLaborCoverageFallback);
+}
+
+export function setCropLaborCoverage(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("cropLaborCoverage", value, next => {
+    _cropLaborCoverageFallback = next;
   });
 }
 
@@ -454,6 +470,7 @@ registerContextFallbackReset(() => {
   _migratableAdultsFallback = new Float32Array();
   _ruralReleasePressureFallback = new Float32Array();
   _seasonalLaborShortageFallback = new Float32Array();
+  _cropLaborCoverageFallback = new Float32Array();
   _soilFertilityFallback = new Float32Array();
   _irrigationSalinityFallback = new Float32Array();
   _irrigationDevelopmentFallback = new Float32Array();

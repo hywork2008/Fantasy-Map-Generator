@@ -1,5 +1,6 @@
 import { getSeasonalAmplitude, minmax, rn } from "../../hostUtils";
 import {
+  getCropLaborCoverage,
   getCultivableArea,
   getCultivatedArea,
   getFoodPotential,
@@ -441,6 +442,7 @@ export class FoodProductionModule {
     const cultivatedArea = getCultivatedArea();
     const foodPotential = getFoodPotential();
     const ruralFoodCapacity = getRuralFoodCapacity();
+    const cropLaborCoverage = getCropLaborCoverage();
     this.seedRuralHouseholdFoodStock(false);
     const ruralHouseholdFoodStock = getRuralHouseholdFoodStock();
     const hasAgriculturalLandUse =
@@ -469,10 +471,12 @@ export class FoodProductionModule {
         if (hasAgriculturalLandUse) {
           const landCoverage =
             cultivableArea[cellId] > 0 ? minmax(cultivatedArea[cellId] / cultivableArea[cellId], 0, 1) : 0;
-          // cultivatedArea is the active, maintained field area. Farm-labour
-          // columns are used by the employment model, but are not a second
-          // production gate: ordinary burg cells reserve their own fields too.
-          annualHarvest = foodPotential[cellId] * landCoverage;
+          // cultivatedArea is the maintained field area; the part of its work-days the village could
+          // not do even with peak-month hours, household help and neighbour aid goes unharvested
+          // (docs/plan/farm-labour-calibration.md §3 proposal 4). Older saves read as fully worked.
+          const laborCoverage =
+            cropLaborCoverage.length === pack.cells.i.length ? minmax(cropLaborCoverage[cellId] ?? 1, 0, 1) : 1;
+          annualHarvest = foodPotential[cellId] * landCoverage * laborCoverage;
         } else {
           // Compatibility path for tests and maps created before the agricultural
           // columns exist. New economy generation always takes the land-use path.
