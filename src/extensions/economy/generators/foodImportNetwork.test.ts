@@ -56,7 +56,7 @@ describe("resolveFoodImportNetwork", () => {
         targetStock: 0,
         satisfiedImport: 0,
         importCapacityBonus: 0,
-        foodStockAge0: 0,
+        foodStockAge0: 100,
         foodStockAge1: 0,
         foodStockAge2: 0,
         foodStockAge0UnitCost: 0,

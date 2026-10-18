@@ -8,10 +8,11 @@ import {
 import { rn } from "../../hostUtils";
 import { getGoods, getMarkets } from "../economyContext";
 import { getBurgMarketLedger } from "./burgMarketLedgers";
+import { drawFoodForExport, receiveFoodImport, syncStapleFoodMarketStock } from "./foodCoLoad";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import { applyHeatingCapacityBonus } from "./heating";
 import { Markets } from "./markets-generator";
-import type { Market } from "./marketTypes";
+import type { FoodLedger, Market } from "./marketTypes";
 import { calculateRouteDurationFromDistances } from "./tradeRouteDuration";
 import { TradeSecurity } from "./tradeSecurity";
 
@@ -72,6 +73,7 @@ export function resolveFoodImportNetwork(worldContext: Readonly<WorldContext>): 
   }
 
   const wheatGood = getGoods().find(good => good.name === "Wheat");
+  const stapleFood = getGoods().find(good => good.tags.includes("stapleFood"));
   const landGraph = buildLandRouteGraph(pack, {
     month: worldContext.options.month ?? 1,
     mapCoordinates: worldContext.mapCoordinates,
@@ -110,14 +112,39 @@ export function resolveFoodImportNetwork(worldContext: Readonly<WorldContext>): 
       const deliveredShare = spoilageDecay * (1 - securityRisk);
       if (deliveredShare <= 0) continue;
 
-      // Load only what can reach the demand market usefully, subject to its finite surplus.
-      const volume = Math.min(available, remainingNeed / deliveredShare);
+      // Load only what can reach the demand market usefully, subject to its finite surplus and to
+      // what the importer can pay for at the supplier's cost (docs/plan/craft-wage-subsistence-scale.md
+      // §11). The grain physically leaves the supplier's ledger and lands in the importer's: this
+      // pass used to raise only the importer's carrying capacity, so towns grew on food that never came.
+      const supplierLedger = supplier.foodLedger;
+      if (!supplierLedger) continue;
+      const wanted = Math.min(available, remainingNeed / deliveredShare);
+      const unitPrice = Math.max(0, getUnitCostEstimate(supplierLedger));
+      const purse = Math.max(0, importer.marketTreasury?.balance ?? 0);
+      const affordable = unitPrice > 0 ? purse / unitPrice : wanted;
+      const drawn = drawFoodForExport(supplierLedger, exportedCrop, Math.min(wanted, affordable));
+      const volume = drawn.units;
       const delivered = Math.min(remainingNeed, volume * deliveredShare);
       if (volume <= 0 || delivered <= 0) continue;
 
+      const payment = rn(volume * drawn.unitCost, 2);
+      if (payment > 0 && importer.marketTreasury && supplier.marketTreasury) {
+        importer.marketTreasury.balance = rn(importer.marketTreasury.balance - payment, 2);
+        supplier.marketTreasury.balance = rn(supplier.marketTreasury.balance + payment, 2);
+      }
+      receiveFoodImport(
+        ledger,
+        exportedCrop,
+        delivered,
+        deliveredShare > 0 ? rn(drawn.unitCost / deliveredShare, 2) : 0
+      );
+
       remainingExport.set(supplier.i, available - volume);
       remainingNeed -= delivered;
-      ledger.satisfiedImport += delivered;
+      if (stapleFood) {
+        syncStapleFoodMarketStock(supplier, stapleFood.i, stapleFood.value);
+        syncStapleFoodMarketStock(importer, stapleFood.i, stapleFood.value);
+      }
       flows.push({
         fromMarketId: supplier.i,
         toMarketId: importer.i,
@@ -129,7 +156,7 @@ export function resolveFoodImportNetwork(worldContext: Readonly<WorldContext>): 
       });
     }
 
-    ledger.satisfiedImport = rn(Math.min(ledger.importNeed, ledger.satisfiedImport), 2);
+    ledger.satisfiedImport = rn(ledger.satisfiedImport, 2);
     applyImportCapacity(importer, ledger.satisfiedImport, worldContext);
   }
 
@@ -138,6 +165,18 @@ export function resolveFoodImportNetwork(worldContext: Readonly<WorldContext>): 
   applyHeatingCapacityBonus(burgs);
   lastFoodFlows = flows;
   return lastFoodFlows;
+}
+
+/** Weighted farmgate cost of the supplier's stock, the price an importing market pays per unit. */
+function getUnitCostEstimate(ledger: FoodLedger): number {
+  const stock = ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2;
+  if (!(stock > 0)) return 0;
+  return (
+    (ledger.foodStockAge0 * ledger.foodStockAge0UnitCost +
+      ledger.foodStockAge1 * ledger.foodStockAge1UnitCost +
+      ledger.foodStockAge2 * ledger.foodStockAge2UnitCost) /
+    stock
+  );
 }
 
 /** Chooses the largest actual staple-crop lot available for export. */

@@ -314,8 +314,10 @@ function settleGrainPrice(
     0
   );
   // Rural households have their own cell-level provisions. Market price is
-  // driven by the demand that normally buys from the Market: burgs and lodgers.
-  const annualDemand = urbanPopulation * GROSS_FOOD_NEED;
+  // driven by the demand that buys from the Market: burgs, lodgers and farm buy-back.
+  // Farm families buying back once their larders run out draw on the same stock
+  // (docs/plan/craft-wage-subsistence-scale.md §11).
+  const annualDemand = urbanPopulation * GROSS_FOOD_NEED + Math.max(0, ledger.ruralMarketDraw ?? 0);
   const positionInQuarter = ((simulationMonth - 1) % 3) + 1; // 1, 2, or 3
   const monthsRemainingInQuarter = 4 - positionInQuarter; // includes the current month
   const expectedRemainingDemand = (annualDemand / 12) * monthsRemainingInQuarter;
