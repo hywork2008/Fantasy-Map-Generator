@@ -9,7 +9,10 @@ import {
   drawStateRuralHouseholdWealth,
   drawStateUrbanHouseholdWealth,
   getRuralHouseholdWealth,
+  RURAL_HOUSEHOLD_TOWN_SPEND_SHARE,
+  RURAL_TOWN_SPEND_DUES_SHARE,
   resetRuralHouseholdWealthCycleTracking,
+  spendRuralHouseholdsInTowns,
   stateHasBurgs,
   stateOwnsRuralLand
 } from "./householdWealth";
@@ -78,6 +81,30 @@ describe("householdWealth (docs/plan/economy-coupling-audit.md L2 Phase 2/3)", (
       setMarkets([market]);
       return market;
     }
+
+    it("pays farm families' town spending mostly to town households, the dues share to the treasury", () => {
+      const market = setUpSplitMarket();
+      market.foodLedger = {
+        ruralFoodStressQuarters: 0,
+        urbanFoodStressQuarters: 0,
+        ruralHouseholdWealth: 1000
+      } as never;
+      worldContext.pack.burgs = [
+        { i: 0 } as unknown as Burg,
+        { i: 1, market: 1, population: 3, treasury: 0 } as unknown as Burg,
+        { i: 2, market: 1, population: 1, treasury: 0 } as unknown as Burg
+      ];
+
+      // Town wallets seed lazily from population, so compare what they gained.
+      const before = [getHouseholdWealth(1), getHouseholdWealth(2)];
+      const spent = spendRuralHouseholdsInTowns();
+      const [, big, small] = worldContext.pack.burgs;
+
+      expect(spent).toBeCloseTo(1000 * RURAL_HOUSEHOLD_TOWN_SPEND_SHARE, 6);
+      expect(big.treasury).toBeCloseTo(spent * 0.75 * RURAL_TOWN_SPEND_DUES_SHARE, 1);
+      expect(getHouseholdWealth(1) - before[0]).toBeCloseTo(spent * 0.75 * (1 - RURAL_TOWN_SPEND_DUES_SHARE), 1);
+      expect(small.treasury! + getHouseholdWealth(2) - before[1]).toBeCloseTo(spent * 0.25, 1);
+    });
 
     it("reports no rural land for a state that owns none", () => {
       expect(stateOwnsRuralLand(1)).toBe(false);

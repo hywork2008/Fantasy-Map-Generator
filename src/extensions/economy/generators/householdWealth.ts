@@ -316,11 +316,17 @@ export function spendUrbanHouseholdSurplus(): number {
 export const RURAL_HOUSEHOLD_TOWN_SPEND_SHARE = 0.05;
 
 /**
+ * Share of farm families' town spending the town keeps as market dues, tolls and excise; the rest
+ * is the earnings of the townspeople who made and sold the goods (docs/plan/farm-labour-calibration.md §11).
+ */
+export const RURAL_TOWN_SPEND_DUES_SHARE = 0.25;
+
+/**
  * Farm families buy what the farm does not make — salt, tools, cloth, pots, the smith, the miller,
- * the fair — in their market's towns (docs/plan/craft-wage-subsistence-scale.md §9). The money is
- * the towns' business income, credited to `burg.treasury` by town population, which then pays
- * craft wages. Before this, rural cash went only to the poll tax and town people's food money
- * never came back to them.
+ * the fair — in their market's towns (docs/plan/craft-wage-subsistence-scale.md §9). Most of the
+ * money is the earnings of the town's artisans, shopkeepers and carters and goes to its households;
+ * the dues share goes to `burg.treasury`. Split by town population. Crediting all of it to the
+ * treasury left it there until the annual surplus sweep, while town households ran out of food money.
  */
 export function spendRuralHouseholdsInTowns(): number {
   if (!isEconomyContextReady()) return 0;
@@ -341,8 +347,12 @@ export function spendRuralHouseholdsInTowns(): number {
     const amount = debitRuralHouseholdWealth(market, rn(purse * RURAL_HOUSEHOLD_TOWN_SPEND_SHARE, 2));
     if (!(amount > 0)) continue;
     const population = towns.reduce((sum, burg) => sum + (burg.population ?? 0), 0);
-    for (const burg of towns)
-      burg.treasury = rn((burg.treasury ?? 0) + (amount * (burg.population ?? 0)) / population, 2);
+    for (const burg of towns) {
+      const share = (amount * (burg.population ?? 0)) / population;
+      const dues = rn(share * RURAL_TOWN_SPEND_DUES_SHARE, 2);
+      burg.treasury = rn((burg.treasury ?? 0) + dues, 2);
+      creditHouseholdWealth(burg.i, rn(share - dues, 2));
+    }
     spent = rn(spent + amount, 2);
   }
   return spent;
