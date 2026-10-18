@@ -80,6 +80,8 @@ export interface Market {
   textileLedger?: TextileLedger;
   /** Household fuel use and cold-climate technical knowledge for this market territory. */
   heatingLedger?: HeatingLedger;
+  /** Rural woodcutting for own fuel and for sale (docs/plan/farm-labour-calibration.md §19). */
+  woodSupply?: WoodSupplyLedger;
   /** Physical intake, household use, processing and spoilage for dairy, vine, and ale goods. */
   foodProcessingLedger?: FoodProcessingLedger;
   /** Returnable containers remain in circulation; recipe inputs only cover loss and repair. */
@@ -137,6 +139,29 @@ export interface HeatingLedger {
   cumulativeWoodConsumption: number;
   cumulativeCoalConsumption: number;
   cumulativeUnmetHeating: number;
+  /** Part of woodConsumption that rural households cut themselves and never reached the market. */
+  selfSuppliedWood?: number;
+}
+
+/**
+ * Monthly rural Wood supply of one market territory. Rural households cut their own fuel first;
+ * only what the market draws down is cut for sale, so unsold Wood stays standing.
+ */
+export interface WoodSupplyLedger {
+  /** Simulation year*12+month the monthly figures below belong to. */
+  monthKey: number;
+  /** Rural household fuel (heating and cooking) this month. */
+  ruralFuelDemand: number;
+  /** Wood rural households cut or took from clearance for their own fuel this month. */
+  ruralFuelWood: number;
+  /** Wood cut or taken from clearance and delivered to market stock this month. */
+  marketWood: number;
+  /** Clearance timber nobody needed this month, burned where it fell. */
+  clearanceBurned: number;
+  /** Market stock right after this month's rural delivery; the next month measures the draw from it. */
+  stockAfterSupply: number;
+  /** Smoothed monthly draw on the market's Wood stock (consumption and net exports). */
+  smoothedDraw: number;
 }
 
 export type FoodProcessingGoodLedger = {

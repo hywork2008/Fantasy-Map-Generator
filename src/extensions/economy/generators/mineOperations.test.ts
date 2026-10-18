@@ -70,7 +70,7 @@ describe("MineOperationsModule", () => {
     );
   });
 
-  it("keeps its whole crew while ore sells at its worth, and lays off down to the floor in a glut", () => {
+  it("keeps its whole crew while ore sells at its worth, lays off in a glut, and stops when nothing sells", () => {
     const deposit = {
       yields: [
         { commodity: "lead" as const, reserveTons: 100, annualCapacityTons: 100 },
@@ -85,9 +85,13 @@ describe("MineOperationsModule", () => {
     market.goods[2] = { stock: 0, price: 20 };
     expect(getMineHiringShare({ marketId: 1 }, deposit)).toBeCloseTo(0.7, 6);
 
+    // Silver at 0.4 of its worth still sells and keeps the pumping crew; unsold lead adds nothing.
     market.goods[1] = { stock: 0, price: 0.01 };
-    market.goods[2] = { stock: 0, price: 0.01 };
+    market.goods[2] = { stock: 0, price: 8 };
     expect(getMineHiringShare({ marketId: 1 }, deposit)).toBe(MINE_MIN_HIRING_SHARE);
+
+    market.goods[2] = { stock: 0, price: 0.01 };
+    expect(getMineHiringShare({ marketId: 1 }, deposit)).toBe(0);
   });
 
   it("creates an accessible operation and supplies every co-product to its market", () => {

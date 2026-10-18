@@ -11,7 +11,9 @@ import {
 } from "../economyContext";
 import {
   applyHeatingCapacityBonus,
+  BASE_COOKING_UNITS_PER_1000_RESIDENTS_MONTH,
   getForestRegrowthMultiplier,
+  getWoodSupplyMonthKey,
   MAX_HEATING_CLIMATE_CAPACITY_BONUS,
   settleAnnualColdClimateKnowledge,
   settleMonthlyHeating
@@ -82,8 +84,32 @@ describe("household heating", () => {
     settleMonthlyHeating();
     const warmWoodUse = getMarkets()[0].heatingLedger?.woodConsumption ?? 0;
 
-    expect(coldWoodUse).toBeGreaterThan(0);
-    expect(warmWoodUse).toBe(0);
+    // A warm month still burns cooking fuel for all 100 lots of residents.
+    expect(warmWoodUse).toBeCloseTo(100 * BASE_COOKING_UNITS_PER_1000_RESIDENTS_MONTH, 4);
+    expect(coldWoodUse).toBeGreaterThan(warmWoodUse * 2);
+  });
+
+  it("burns rural households' own cut Wood before drawing on market stock", () => {
+    installMarket(-10, 100, 100);
+    settleMonthlyHeating();
+    const marketOnlyDraw = 100 - getMarkets()[0].goods[1].stock;
+
+    installMarket(-10, 100, 100);
+    const market = getMarkets()[0];
+    market.woodSupply = {
+      monthKey: getWoodSupplyMonthKey(),
+      ruralFuelDemand: 5,
+      ruralFuelWood: 5,
+      marketWood: 0,
+      clearanceBurned: 0,
+      stockAfterSupply: 100,
+      smoothedDraw: 0
+    };
+    settleMonthlyHeating();
+
+    expect(100 - market.goods[1].stock).toBeCloseTo(marketOnlyDraw - 5, 4);
+    expect(market.heatingLedger?.selfSuppliedWood).toBe(5);
+    expect(market.heatingLedger?.woodConsumption).toBeCloseTo(marketOnlyDraw, 4);
   });
 
   it("uses Coal only after Wood is unavailable and turns that use into health pressure", () => {

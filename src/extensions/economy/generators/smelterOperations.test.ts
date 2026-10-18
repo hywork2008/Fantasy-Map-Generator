@@ -119,6 +119,84 @@ describe("SmelterOperationsModule", () => {
     expect(getMarkets()[0].goods[4].stock).toBe(2.5);
   });
 
+  it("leaves ore unsmelted while its ingot would not sell", () => {
+    SmelterOperations.generate();
+    getMarkets()[0].goods[2] = { stock: 50, price: 1 };
+
+    SmelterOperations.produceMonth();
+
+    expect(getMarkets()[0].goods[1].stock).toBe(20);
+    expect(getMarkets()[0].goods[2].stock).toBe(50);
+  });
+
+  it("piles unsold lead smelted for its silver at the works and sells it once lead sells again", () => {
+    setGoods([
+      ...[
+        { i: 1, name: "Lead Ore", value: 2 },
+        { i: 2, name: "Lead Ingot", value: 4 },
+        { i: 5, name: "Silver Ore", value: 20 },
+        { i: 6, name: "Silver Ingot", value: 40 }
+      ].map(good => ({
+        ...good,
+        tags: [good.name.endsWith("Ore") ? "ore" : "ingot"],
+        unit: "wagon",
+        icon: "",
+        color: ""
+      })),
+      { i: 3, name: "Charcoal", tags: ["fuel"], value: 3, unit: "sack", icon: "coal", color: "#333" }
+    ]);
+    setMineralDeposits([
+      {
+        i: 1,
+        districtId: 1,
+        cell: 0,
+        type: "galena",
+        primaryCommodity: "lead",
+        commodities: ["lead", "silver"],
+        yields: [
+          { commodity: "lead", reserveTons: 100, annualCapacityTons: 60 },
+          { commodity: "silver", reserveTons: 100, annualCapacityTons: 60 }
+        ],
+        richness: 2,
+        depth: "surface",
+        accessibility: 1,
+        discovered: true,
+        exhausted: false
+      }
+    ]);
+    setMarkets([
+      {
+        i: 1,
+        centerBurgId: 1,
+        color: "#111",
+        goods: {
+          1: { stock: 20, price: 2 },
+          2: { stock: 0, price: 1 },
+          3: { stock: 40, price: 3 },
+          5: { stock: 20, price: 20 },
+          6: { stock: 0, price: 40 }
+        }
+      }
+    ]);
+    Goods.sync();
+    Markets.sync();
+    SmelterOperations.generate();
+
+    SmelterOperations.produceMonth();
+    const market = getMarkets()[0];
+    const smelter = getSmelterOperations()[0];
+    expect(market.goods[1].stock).toBeLessThan(20);
+    expect(market.goods[2].stock).toBe(0);
+    expect(market.goods[6].stock).toBeGreaterThan(0);
+    const held = smelter.heldIngots?.[2] ?? 0;
+    expect(held).toBeGreaterThan(0);
+
+    market.goods[2].price = 4;
+    SmelterOperations.produceMonth();
+    expect(smelter.heldIngots?.[2]).toBeUndefined();
+    expect(market.goods[2].stock).toBeGreaterThan(held);
+  });
+
   it("restaffs a smelter that follows its mine onto a newly founded market", () => {
     worldContext.pack = {
       burgs: [

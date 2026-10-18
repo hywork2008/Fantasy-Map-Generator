@@ -23,9 +23,20 @@ import { isGoodEnabled } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import type { HeatingLedger, Market } from "./marketTypes";
 
+/** Key that ties rural production's monthly Wood record to the same month's heating. */
+export function getWoodSupplyMonthKey(): number {
+  return getSimulationYear() * 12 + getSimulationMonth();
+}
+
 export const PEOPLE_PER_HEATING_MARKET_LOT = 1_000;
 export const COMFORT_TEMPERATURE_C = 18;
 export const BASE_HEATING_UNITS_PER_1000_RESIDENTS_MONTH = 0.16;
+/**
+ * calibration TBD — cooking fuel burned in every month and climate. A quarter of the coldest
+ * month's heating: the hearth also cooked, so most cooking fuel is shared with heating in winter
+ * and only becomes the whole fire in summer (docs/plan/farm-labour-calibration.md §19).
+ */
+export const BASE_COOKING_UNITS_PER_1000_RESIDENTS_MONTH = 0.04;
 export const COAL_HEAT_PER_UNIT = 2.5;
 export const MAX_HEATING_TECH_FUEL_REDUCTION = 0.25;
 export const MAX_INSULATION_FUEL_REDUCTION = 0.35;
@@ -87,39 +98,95 @@ function getCellEffectiveTemperature(cellId: number): number | null {
   })[getSimulationMonth() - 1];
 }
 
-function getMarketPopulationAndTemperature(marketId: number): { populationLots: number; effectiveTemperature: number } {
+type MarketResidents = {
+  urbanPeople: number;
+  ruralPeople: number;
+  weightedTemperature: number;
+  temperatureWeight: number;
+};
+
+/** Monthly household fuel need of one market territory, split by who supplies it. */
+export type HouseholdFuelDemand = {
+  populationLots: number;
+  urbanLots: number;
+  ruralLots: number;
+  effectiveTemperature: number;
+  /** Heating and cooking fuel of Burg residents; always drawn from market stock. */
+  urbanDemand: number;
+  /** Heating and cooking fuel of rural households; cut by themselves where forest allows. */
+  ruralDemand: number;
+};
+
+function collectMarketResidents(): Map<number, MarketResidents> {
   const world = getWorldContext();
   const marketCells = getMarketCellColumn();
   const populationRate = Math.max(1, world.populationRate ?? 1);
   const urbanization = Math.max(0, world.urbanization ?? 1);
-  let people = 0;
-  let weightedTemperature = 0;
-  let temperatureWeight = 0;
+  const residents = new Map<number, MarketResidents>();
+  const add = (marketId: number, cellId: number, people: number, urban: boolean) => {
+    const entry = residents.get(marketId) ?? {
+      urbanPeople: 0,
+      ruralPeople: 0,
+      weightedTemperature: 0,
+      temperatureWeight: 0
+    };
+    if (urban) entry.urbanPeople += people;
+    else entry.ruralPeople += people;
+    residents.set(marketId, entry);
+    const temperature = people > 0 ? getCellEffectiveTemperature(cellId) : null;
+    if (temperature === null) return;
+    entry.weightedTemperature += temperature * people;
+    entry.temperatureWeight += people;
+  };
 
   for (const burg of world.pack.burgs) {
-    if (!burg?.i || burg.removed || burg.market !== marketId) continue;
-    const population = Math.max(0, burg.population ?? 0) * populationRate * urbanization;
-    people += population;
-    const temperature = getCellEffectiveTemperature(burg.cell);
-    if (temperature === null || population <= 0) continue;
-    weightedTemperature += temperature * population;
-    temperatureWeight += population;
+    if (!burg?.i || burg.removed || !burg.market) continue;
+    add(burg.market, burg.cell, Math.max(0, burg.population ?? 0) * populationRate * urbanization, true);
   }
 
   for (const cellId of world.pack.cells.i) {
-    if (world.pack.cells.h[cellId] < 20 || marketCells[cellId] !== marketId) continue;
-    const population = Math.max(0, world.pack.cells.pop[cellId] ?? 0) * populationRate;
-    people += population;
-    const temperature = getCellEffectiveTemperature(cellId);
-    if (temperature === null || population <= 0) continue;
-    weightedTemperature += temperature * population;
-    temperatureWeight += population;
+    const marketId = marketCells[cellId];
+    if (!marketId || world.pack.cells.h[cellId] < 20) continue;
+    add(marketId, cellId, Math.max(0, world.pack.cells.pop[cellId] ?? 0) * populationRate, false);
   }
+  return residents;
+}
 
-  return {
-    populationLots: people / PEOPLE_PER_HEATING_MARKET_LOT,
-    effectiveTemperature: temperatureWeight > 0 ? weightedTemperature / temperatureWeight : 18
-  };
+/**
+ * Household fuel per 1,000 residents this month: space heating scaled by coldness and the
+ * market's stove and insulation knowledge, plus cooking fuel that every household burns.
+ */
+function getFuelPerLot(ledger: HeatingLedger | undefined, effectiveTemperature: number): number {
+  const coldness = Math.max(0, COMFORT_TEMPERATURE_C - effectiveTemperature) / COMFORT_TEMPERATURE_C;
+  const fuelEfficiency = 1 - (ledger?.heatingTechnology ?? 0) * MAX_HEATING_TECH_FUEL_REDUCTION;
+  const heatRetention = 1 - (ledger?.insulationTechnology ?? 0) * MAX_INSULATION_FUEL_REDUCTION;
+  return (
+    BASE_HEATING_UNITS_PER_1000_RESIDENTS_MONTH * coldness * fuelEfficiency * heatRetention +
+    BASE_COOKING_UNITS_PER_1000_RESIDENTS_MONTH
+  );
+}
+
+/** This month's household fuel need for every market, from one pass over burgs and cells. */
+export function getMonthlyHouseholdFuelDemands(): Map<number, HouseholdFuelDemand> {
+  const residents = collectMarketResidents();
+  const demands = new Map<number, HouseholdFuelDemand>();
+  for (const market of getMarkets()) {
+    const entry = residents.get(market.i);
+    const urbanLots = (entry?.urbanPeople ?? 0) / PEOPLE_PER_HEATING_MARKET_LOT;
+    const ruralLots = (entry?.ruralPeople ?? 0) / PEOPLE_PER_HEATING_MARKET_LOT;
+    const effectiveTemperature =
+      entry && entry.temperatureWeight > 0 ? entry.weightedTemperature / entry.temperatureWeight : 18;
+    const fuelPerLot = getFuelPerLot(market.heatingLedger, effectiveTemperature);
+    demands.set(market.i, {
+      populationLots: urbanLots + ruralLots,
+      urbanLots,
+      ruralLots,
+      effectiveTemperature,
+      urbanDemand: urbanLots * fuelPerLot,
+      ruralDemand: ruralLots * fuelPerLot
+    });
+  }
+  return demands;
 }
 
 function drawFuel(market: Market, goodId: number | undefined, requested: number): number {
@@ -137,32 +204,39 @@ export function getHeatingLedger(marketId: number): HeatingLedger | undefined {
 }
 
 /**
- * Settles one month of household heating. Wood is drawn first; Coal is a
- * higher-energy fallback and therefore only appears when local Wood is scarce.
+ * Settles one month of household heating and cooking. Rural households first burn the Wood they
+ * cut themselves this month (recorded by rural production in `market.woodSupply`); the rest of
+ * the need draws on market stock. Wood is drawn first; Coal is a higher-energy fallback and
+ * therefore only appears when local Wood is scarce.
  */
 export function settleMonthlyHeating(): void {
   const wood = getGoods().find(good => good.name === "Wood" && isGoodEnabled(good));
   const coal = getGoods().find(good => good.name === "Coal" && isGoodEnabled(good));
+  const monthKey = getWoodSupplyMonthKey();
 
+  const demands = getMonthlyHouseholdFuelDemands();
   for (const market of getMarkets()) {
-    const { populationLots, effectiveTemperature } = getMarketPopulationAndTemperature(market.i);
+    const demand = demands.get(market.i);
+    if (!demand) continue;
+    const { populationLots, effectiveTemperature } = demand;
     const previous = market.heatingLedger ?? emptyLedger(populationLots, effectiveTemperature);
-    const coldness = Math.max(0, COMFORT_TEMPERATURE_C - effectiveTemperature) / COMFORT_TEMPERATURE_C;
-    const fuelEfficiency = 1 - previous.heatingTechnology * MAX_HEATING_TECH_FUEL_REDUCTION;
-    const heatRetention = 1 - previous.insulationTechnology * MAX_INSULATION_FUEL_REDUCTION;
-    const heatingDemand =
-      populationLots * BASE_HEATING_UNITS_PER_1000_RESIDENTS_MONTH * coldness * fuelEfficiency * heatRetention;
+    const heatingDemand = demand.urbanDemand + demand.ruralDemand;
+    const selfSuppliedWood =
+      market.woodSupply?.monthKey === monthKey
+        ? Math.min(demand.ruralDemand, Math.max(0, market.woodSupply.ruralFuelWood))
+        : 0;
 
-    const woodConsumption = drawFuel(market, wood?.i, heatingDemand);
-    if (woodConsumption > 0 && wood) {
+    const marketWood = drawFuel(market, wood?.i, heatingDemand - selfSuppliedWood);
+    if (marketWood > 0 && wood) {
       recordGoodFlow({
         direction: "sink",
         category: "householdHeating",
         goodId: wood.i,
-        units: woodConsumption,
+        units: marketWood,
         marketId: market.i
       });
     }
+    const woodConsumption = selfSuppliedWood + marketWood;
 
     const heatStillNeeded = Math.max(0, heatingDemand - woodConsumption);
     const coalConsumption = drawFuel(market, coal?.i, heatStillNeeded / COAL_HEAT_PER_UNIT);
@@ -196,7 +270,8 @@ export function settleMonthlyHeating(): void {
       coldExposureMonths: rn(coldExposureMonths, 2),
       cumulativeWoodConsumption: rn(previous.cumulativeWoodConsumption + woodConsumption, 4),
       cumulativeCoalConsumption: rn(previous.cumulativeCoalConsumption + coalConsumption, 4),
-      cumulativeUnmetHeating: rn(previous.cumulativeUnmetHeating + Math.max(0, heatingDemand - suppliedHeat), 4)
+      cumulativeUnmetHeating: rn(previous.cumulativeUnmetHeating + Math.max(0, heatingDemand - suppliedHeat), 4),
+      selfSuppliedWood: rn(selfSuppliedWood, 4)
     };
   }
 }

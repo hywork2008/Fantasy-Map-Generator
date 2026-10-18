@@ -26,7 +26,7 @@ export {
 
 import { getMarketValue, settleExtractionPayment } from "./extractionPayments";
 import type { Good } from "./goodsGeneratorTypes";
-import { getExtractionCrewPeople } from "./mineOperations";
+import { EXTRACTION_UNSOLD_PRICE_RATIO, getExtractionCrewPeople, getMarketPriceRatio } from "./mineOperations";
 import { nominal } from "./moneyScale";
 
 const DEFAULT_SMELTING_YIELD = 0.8;
@@ -137,6 +137,7 @@ export class SmelterOperationsModule {
         fuelAccess: site.fuelAccess,
         technology: previous?.technology ?? mine.technology,
         toolsInvestmentStock: previous?.toolsInvestmentStock ?? 0,
+        ...(previous?.heldIngots && !relocated ? { heldIngots: previous.heldIngots } : {}),
         smeltingYield: previous?.smeltingYield ?? DEFAULT_SMELTING_YIELD,
         annualCapacityTons,
         // A newly built or relocated smelter staffs up immediately; annual reconciliation
@@ -270,11 +271,24 @@ export class SmelterOperationsModule {
       const processingFactor = this.getProcessingFactor(smelter);
       const monthlyCapacity = (smelter.annualCapacityTons * processingFactor) / 12;
       if (monthlyCapacity <= 0) continue;
-      const oreGoodIds = oreYields.flatMap(yieldInfo => {
+      // A furnace does not smelt an ore whose ingot would not sell. Where another ingot of the same
+      // ore still sells (lead from argentiferous galena smelted for its silver), it smelts anyway
+      // and piles the unsold ingot at the works instead of glutting the market (§19).
+      const unsoldIngotIds = new Set<number>();
+      let anyIngotSells = false;
+      for (const yieldInfo of oreYields) {
+        const ingot = goodsByName.get(getIngotGoodName(yieldInfo.commodity as OreCommodity));
+        if (!ingot || !isGoodEnabled(ingot)) continue;
+        if (getMarketPriceRatio(smelter.marketId, ingot) <= EXTRACTION_UNSOLD_PRICE_RATIO) unsoldIngotIds.add(ingot.i);
+        else anyIngotSells = true;
+      }
+      const smeltedOreGoodIds = oreYields.flatMap(yieldInfo => {
         const ore = goodsByName.get(`${yieldInfo.commodity} ore`);
-        return ore ? [ore.i] : [];
+        const ingot = goodsByName.get(getIngotGoodName(yieldInfo.commodity as OreCommodity));
+        return ore && ingot && (anyIngotSells || !unsoldIngotIds.has(ingot.i)) ? [ore.i] : [];
       });
-      this.ensureCharcoalReserve(smelter, monthlyCapacity, oreGoodIds, goodsByName);
+      if (smeltedOreGoodIds.length)
+        this.ensureCharcoalReserve(smelter, monthlyCapacity, smeltedOreGoodIds, goodsByName);
       let valueAdded = 0;
 
       for (const yieldInfo of oreYields) {
@@ -283,6 +297,9 @@ export class SmelterOperationsModule {
         const ore = goodsByName.get(`${commodity} ore`);
         const ingot = goodsByName.get(getIngotGoodName(commodity));
         if (!ore || !ingot || !isGoodEnabled(ore) || !isGoodEnabled(ingot)) continue;
+        const unsold = unsoldIngotIds.has(ingot.i);
+        if (unsold && !anyIngotSells) continue;
+        if (!unsold) valueAdded += this.releaseHeldIngots(smelter, ingot, monthlyCapacity * smelter.smeltingYield);
 
         const market = Markets.get(smelter.marketId);
         const availableCharcoal = market?.goods[charcoal.i]?.stock ?? 0;
@@ -312,10 +329,15 @@ export class SmelterOperationsModule {
         const refinedIngots = oreConsumed * smelter.smeltingYield;
         const theftLoss = this.rollTheft(smelter, deposit.accessibility, refinedIngots, effectiveSecurity);
         const deliveredIngots = Math.max(0, refinedIngots - theftLoss);
-        if (deliveredIngots > 0) Markets.addSmelterSupply(smelter.marketId, ingot.i, deliveredIngots);
-        // The smelter is paid for what it adds: the ingots less the ore and charcoal it drew.
+        if (unsold) {
+          smelter.heldIngots = {
+            ...smelter.heldIngots,
+            [ingot.i]: rn((smelter.heldIngots?.[ingot.i] ?? 0) + deliveredIngots, 4)
+          };
+        } else if (deliveredIngots > 0) Markets.addSmelterSupply(smelter.marketId, ingot.i, deliveredIngots);
+        // The smelter is paid for what it adds: the ingots it sells less the ore and charcoal it drew.
         valueAdded +=
-          getMarketValue(smelter.marketId, ingot.i, deliveredIngots, ingot.value) -
+          (unsold ? 0 : getMarketValue(smelter.marketId, ingot.i, deliveredIngots, ingot.value)) -
           getMarketValue(smelter.marketId, ore.i, oreConsumed, ore.value) -
           getMarketValue(smelter.marketId, charcoal.i, charcoalConsumed, charcoal.value);
         if (slag && isGoodEnabled(slag)) {
@@ -330,6 +352,21 @@ export class SmelterOperationsModule {
         outputValue: valueAdded
       });
     }
+  }
+
+  /**
+   * Puts up to `maxUnits` of a pile of ingots smelted while unsold back on the market once they sell
+   * again, and returns their market value.
+   */
+  private releaseHeldIngots(smelter: SmelterOperation, ingot: Good, maxUnits: number): number {
+    const held = smelter.heldIngots?.[ingot.i] ?? 0;
+    const released = Math.min(held, Math.max(0, maxUnits));
+    if (!(released > 0)) return 0;
+    const remaining = rn(held - released, 4);
+    const { [ingot.i]: _released, ...rest } = smelter.heldIngots ?? {};
+    smelter.heldIngots = remaining > 0 ? { ...rest, [ingot.i]: remaining } : rest;
+    Markets.addSmelterSupply(smelter.marketId, ingot.i, released);
+    return getMarketValue(smelter.marketId, ingot.i, released, ingot.value);
   }
 
   /**

@@ -24,6 +24,12 @@ export interface SmelterOperation {
   lastTheftLoss: number;
   /** Highest per-batch theft probability used in the latest production month. */
   lastTheftRisk: number;
+  /**
+   * Ingots by Good id smelted only for a co-product (lead alongside silver) while they would not
+   * sell, piled at the works and released when their price recovers
+   * (docs/plan/farm-labour-calibration.md §19). Undefined is an empty pile.
+   */
+  heldIngots?: Record<number, number>;
   active: boolean;
 }
 

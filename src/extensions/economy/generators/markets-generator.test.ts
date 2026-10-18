@@ -118,9 +118,24 @@ describe("MarketsModule", () => {
       } as unknown as PackedGraph;
     });
 
-    it("delivers pending annual conversion timber through the market once, including reload", () => {
+    it("sells conversion timber the market draws, burns the rest, and settles the receipt once", () => {
       getGoods()[0].name = "Wood";
-      const market: Market = { i: 1, centerBurgId: 1, color: "#fff", goods: { 0: { stock: 0, price: 10 } } };
+      const market: Market = {
+        i: 1,
+        centerBurgId: 1,
+        color: "#fff",
+        goods: { 0: { stock: 0, price: 10 } },
+        // Smoothed draw 12 -> 10 after an empty month; six months of cover is 60 units.
+        woodSupply: {
+          monthKey: 0,
+          ruralFuelDemand: 0,
+          ruralFuelWood: 0,
+          marketWood: 0,
+          clearanceBurned: 0,
+          stockAfterSupply: 0,
+          smoothedDraw: 12
+        }
+      };
       // biome-ignore lint/complexity/useLiteralKeys: exercise existing test fixture lookup
       marketsModule["marketById"] = [market, market];
       setMarkets([market]);
@@ -128,7 +143,9 @@ describe("MarketsModule", () => {
         i: new Uint16Array([0]),
         p: [[0, 0]],
         burg: new Uint16Array([1]),
-        state: new Uint16Array([0])
+        state: new Uint16Array([0]),
+        h: new Uint8Array([50]),
+        pop: new Float32Array([0])
       } as unknown as PackedGraph["cells"];
       worldContext.pack.burgs = [{ i: 0 }, { i: 1, cell: 0, x: 0, y: 0, market: 1 }] as Burg[];
       setMarketCellColumn(new Uint16Array([1]));
@@ -152,11 +169,12 @@ describe("MarketsModule", () => {
       ];
       worldContext.pack.landUse = snapshot;
       marketsModule.collectRuralProduction();
-      expect(market.goods[0].stock).toBe(100);
+      expect(market.goods[0].stock).toBe(60);
+      expect(market.woodSupply?.clearanceBurned).toBe(40);
       expect(snapshot.conversionTimber[0].deliveredCoverage).toBe(0.02);
       worldContext.pack.landUse = JSON.parse(JSON.stringify(snapshot));
       marketsModule.collectRuralProduction();
-      expect(market.goods[0].stock).toBe(100);
+      expect(market.goods[0].stock).toBe(60);
       vi.clearAllMocks();
     });
 

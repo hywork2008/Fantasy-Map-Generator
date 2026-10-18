@@ -12,6 +12,7 @@ import {
 import { DEFAULT_PEOPLE_PER_POPULATION_POINT } from "./craftScale";
 import { getMarketValue, settleExtractionPayment } from "./extractionPayments";
 import { isGoodEnabled } from "./goods-generator";
+import type { Good } from "./goodsGeneratorTypes";
 import { Markets } from "./markets-generator";
 import { getMinedGoodName, type MineOperation, type MineralCommodity, type MineralDeposit } from "./mineralResources";
 import { getMineSteamDrainageBonus } from "./steamInstallations";
@@ -105,33 +106,46 @@ export function getExtractionCrewPeople(annualValue: number): number {
   return Math.max(0, annualValue) / (EXTRACTION_OUTPUT_PER_WORKER_IN_WAGE_YEARS * wageYearPerPerson);
 }
 
-/** A mine never lays off below its pumping and upkeep crew. */
+/** A mine that still sells some of its output never lays off below its pumping and upkeep crew. */
 export const MINE_MIN_HIRING_SHARE = 0.25;
+/**
+ * Price ÷ base value at or below which an extracted or smelted good counts as unsold: the market
+ * sits at its price floor because its stock is several times its demand
+ * (docs/plan/farm-labour-calibration.md §19).
+ */
+export const EXTRACTION_UNSOLD_PRICE_RATIO = 0.3;
+
+/** Market price ÷ base value of a good, or 1 when the market has not priced it yet. */
+export function getMarketPriceRatio(marketId: number, good: Pick<Good, "i" | "value">): number {
+  const price = Markets.get(marketId)?.goods?.[good.i]?.price;
+  return typeof price === "number" && price > 0 && good.value > 0 ? price / good.value : 1;
+}
 
 /**
  * Share of its crew a mine keeps hired at its market's prices: price ÷ base value, weighted by
  * output value, between `MINE_MIN_HIRING_SHARE` and 1. Mines worked to the market — when ore would
  * not sell at its worth, the shareholders stopped paying their calls (Zubuße) and the workings
- * stood idle (docs/plan/farm-labour-calibration.md §14). Without this, a mine kept digging into a
- * glutted market at the floor price.
+ * stood idle (docs/plan/farm-labour-calibration.md §14). An output that does not sell at all
+ * (`EXTRACTION_UNSOLD_PRICE_RATIO`) adds nothing, and a mine none of whose output sells stands
+ * idle: coal piled at the pithead was not dug further (§19).
  */
 export function getMineHiringShare(
   operation: Pick<MineOperation, "marketId">,
   deposit: Pick<MineralDeposit, "yields">
 ): number {
-  const market = Markets.get(operation.marketId);
   const goodsByName = new Map(getGoods().map(good => [good.name.toLowerCase(), good]));
   let base = 0;
   let atPrice = 0;
   for (const yieldInfo of deposit.yields) {
     const good = goodsByName.get(getMinedGoodName(yieldInfo.commodity));
     if (!good || !isGoodEnabled(good) || !(good.value > 0)) continue;
-    const price = market?.goods?.[good.i]?.price;
+    const ratio = getMarketPriceRatio(operation.marketId, good);
     const value = yieldInfo.annualCapacityTons * good.value;
     base += value;
-    atPrice += value * Math.min(1, typeof price === "number" && price > 0 ? price / good.value : 1);
+    atPrice += ratio <= EXTRACTION_UNSOLD_PRICE_RATIO ? 0 : value * Math.min(1, ratio);
   }
-  return base > 0 ? Math.max(MINE_MIN_HIRING_SHARE, atPrice / base) : 1;
+  if (!(base > 0)) return 1;
+  return atPrice > 0 ? Math.max(MINE_MIN_HIRING_SHARE, atPrice / base) : 0;
 }
 
 /**
