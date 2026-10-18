@@ -244,6 +244,37 @@ describe("SmelterOperationsModule", () => {
     expect(getMarkets()[0].goods[1].stock).toBeLessThan(20);
   });
 
+  it("coals cordwood bought at its market when the furnace has no woods of its own", () => {
+    setGoods([
+      { i: 1, name: "Iron Ore", tags: ["ore"], value: 2, unit: "wagon", icon: "iron", color: "#777" },
+      { i: 2, name: "Iron Ingot", tags: ["ingot"], value: 8, unit: "wagon", icon: "iron", color: "#777" },
+      {
+        i: 3,
+        name: "Charcoal",
+        tags: ["fuel"],
+        value: 3,
+        unit: "sack",
+        icon: "coal",
+        color: "#333",
+        recipes: [{ 5: 1.5 }]
+      },
+      { i: 4, name: "Slag", tags: ["industrialWaste"], value: 0.5, unit: "wain", icon: "slag", color: "#444" },
+      { i: 5, name: "Wood", tags: ["fuel"], value: 1, unit: "log", icon: "wood", color: "#642" }
+    ]);
+    Goods.sync();
+    const market = getMarkets()[0];
+    market.goods[3].stock = 0;
+    market.goods[5] = { stock: 100, price: 1 };
+    SmelterOperations.generate();
+    getSmelterOperations()[0].fuelAccess = 0.4;
+
+    SmelterOperations.produceMonth();
+
+    expect(market.goods[5].stock).toBeLessThan(100);
+    expect(market.goods[2].stock).toBeGreaterThan(0);
+    expect(market.goods[1].stock).toBeLessThan(20);
+  });
+
   it("requests a State-funded Charcoal reserve at an iron smelter serving military Ingot demand", () => {
     getMarkets()[0].goods[3].stock = 0;
     SmelterOperations.generate();

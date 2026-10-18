@@ -82,7 +82,7 @@ export function setMarkets(markets: readonly Market[]): void {
   setSliceArray("markets", markets);
 }
 
-let _marketByIdCache: { source: readonly Market[]; byId: Map<number, Market> } | null = null;
+let _marketByIdCache: { source: readonly Market[]; length: number; byId: Map<number, Market> } | null = null;
 
 /**
  * `getMarkets().find(market => market.i === id)` shows up on hot per-day paths (Shipbuilding's
@@ -94,12 +94,19 @@ let _marketByIdCache: { source: readonly Market[]; byId: Map<number, Market> } |
  */
 export function getMarketById(id: number): Market | undefined {
   const markets = getMarkets();
-  if (!_marketByIdCache || _marketByIdCache.source !== markets) {
-    const byId = new Map<number, Market>();
-    for (const market of markets) byId.set(market.i, market);
-    _marketByIdCache = { source: markets, byId };
+  // Markets founded during play are pushed into the same array, so the reference alone does not
+  // show a stale map; neither does the length when a market is replaced. Every market founded after
+  // the first lookup used to be missing here, and those markets could never book an export
+  // (docs/plan/farm-labour-calibration.md §17). Rebuild on a length change or a miss.
+  const cached = _marketByIdCache;
+  if (cached && cached.source === markets && cached.length === markets.length) {
+    const market = cached.byId.get(id);
+    if (market && market.i === id) return market;
   }
-  return _marketByIdCache.byId.get(id);
+  const byId = new Map<number, Market>();
+  for (const market of markets) byId.set(market.i, market);
+  _marketByIdCache = { source: markets, length: markets.length, byId };
+  return byId.get(id);
 }
 
 /** Active trade deals owned by the economy extension. */

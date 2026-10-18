@@ -96,8 +96,13 @@ export function getMineEmploymentPeople(
     if (!good || !isGoodEnabled(good)) continue;
     annualValue += yieldInfo.annualCapacityTons * fullStaffFactor * good.value;
   }
+  return Math.max(MINE_MIN_CREW_PEOPLE, getExtractionCrewPeople(annualValue));
+}
+
+/** People a year's output of `annualValue` employs at `EXTRACTION_OUTPUT_PER_WORKER_IN_WAGE_YEARS`. */
+export function getExtractionCrewPeople(annualValue: number): number {
   const wageYearPerPerson = (getSubsistenceWage(undefined) * 12) / DEFAULT_PEOPLE_PER_POPULATION_POINT;
-  return Math.max(MINE_MIN_CREW_PEOPLE, annualValue / (EXTRACTION_OUTPUT_PER_WORKER_IN_WAGE_YEARS * wageYearPerPerson));
+  return Math.max(0, annualValue) / (EXTRACTION_OUTPUT_PER_WORKER_IN_WAGE_YEARS * wageYearPerPerson);
 }
 
 /** A mine never lays off below its pumping and upkeep crew. */

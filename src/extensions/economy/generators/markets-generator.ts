@@ -39,7 +39,13 @@ import { getBurgMarketLedger, syncBurgMarketLedgers } from "./burgMarketLedgers"
 import { CaravanMovement } from "./caravanMovement";
 import { getChilledFreshFoodExportUnits, planCellFoodRescue } from "./cellFoodRescue";
 import type { CellFreshFoodInput } from "./cellFoodRescueTypes";
-import { consumerCoverageForCategory, recipesForIndustrialDemand } from "./craftDemandCalibration";
+import {
+  consumerCoverageForCategory,
+  getCalibratedMonthlyLots,
+  getGoodDemandCalibration,
+  recipesForIndustrialDemand
+} from "./craftDemandCalibration";
+import { laborPeople } from "./craftScale";
 import { getMoneyPriceLevelForMarket } from "./currencySufficiency";
 import { ExportStaging } from "./exportStaging";
 import {
@@ -222,6 +228,11 @@ interface GlobalTradeContext {
 }
 
 export type { Deal, Market } from "./marketTypes";
+
+/** Goods whose supply is a mine or a furnace rather than a cell distribution or a recipe. */
+function isMineOrFurnaceGood(good: Pick<Good, "tags">): boolean {
+  return good.tags.some(tag => tag === "ore" || tag === "ingot" || tag === "mineral");
+}
 
 export class MarketsModule {
   private get worldContext() {
@@ -1239,24 +1250,31 @@ export class MarketsModule {
     const avgIngredientsCostByGood = this.calculateAverageBaseCostByGood(goods);
     const populationByMarket = this.calculatePopulationByMarket();
     const textilePopulationByMarket = this.calculateTextilePopulationByMarket();
+    // Ore and Ingots have no cell distribution and no recipe, so neither pass priced them: their
+    // price only moved when a sale or a failed purchase pushed it, and a town that never saw an
+    // Ingot kept the stale price that made nobody carry one there (docs/plan/farm-labour-calibration.md §17).
+    const metalDemandByMarket = this.collectOutstandingStateMetallurgDemand(goods);
+    this.addCalibratedMetalInputDemand(goods, metalDemandByMarket);
 
     for (const market of getMarkets()) {
       const population = populationByMarket[market.i] || 0;
 
       // First pass: raw goods - price from demand/supply ratio
       for (const good of goods) {
-        if (!good.distribution) continue;
+        const mineOrFurnaceGood = isMineOrFurnaceGood(good);
+        if (!good.distribution && !mineOrFurnaceGood) continue;
         const marketGood = this.getMarketGood(market, good);
         const consumerDemand = consumerDemandFactors[good.i] || 0;
         const industrialDemand = industrialDemandFactors[good.i] || 0;
-        const demand = this.calculateGoodDemand(
-          good,
-          population,
-          textilePopulationByMarket[market.i] || population,
-          consumerDemand,
-          industrialDemand,
-          marketGood.price
-        );
+        const demand =
+          this.calculateGoodDemand(
+            good,
+            population,
+            textilePopulationByMarket[market.i] || population,
+            consumerDemand,
+            industrialDemand,
+            marketGood.price
+          ) + (mineOrFurnaceGood ? (metalDemandByMarket.get(market.i)?.get(good.i) ?? 0) : 0);
         const ratio = (demand + LAPLACE_PRICE_SMOOTHING) / (marketGood.stock + LAPLACE_PRICE_SMOOTHING);
         const targetPrice = good.value * minmax(ratio, PRICE_FLOOR_FACTOR, PRICE_CEILING_FACTOR);
         const prevPrice = marketGood.price > 0 ? marketGood.price : good.value;
@@ -1663,6 +1681,7 @@ export class MarketsModule {
     const consumerDemandFactors = this.collectConsumerDemand(goods);
     const industrialDemandFactors = this.collectIndustrialDemand(goods, consumerDemandFactors);
     const strategicDemandByMarket = this.collectOutstandingStateMetallurgDemand(goods);
+    this.addCalibratedMetalInputDemand(goods, strategicDemandByMarket);
     const populationByMarket = this.calculatePopulationByMarket();
     const textilePopulationByMarket = this.calculateTextilePopulationByMarket();
     const mapDiagonal = Math.hypot(this.worldContext.graphWidth, this.worldContext.graphHeight) || 1;
@@ -1688,26 +1707,80 @@ export class MarketsModule {
   /**
    * State armories place their equipment orders through MetallurgWork rather than population
    * demand. Treat an open order as finished-Good demand at its destination market so a surplus
-   * produced elsewhere can reach the armory instead of remaining stranded at its source.
+   * produced elsewhere can reach the armory instead of remaining stranded at its source. Every
+   * open forge order (the town smiths' Tools as well as the State's) also asks for its materials
+   * — Ingots, Bronze, Charcoal — at its destination, so a furnace's Ingots can travel to the towns
+   * that forge them (docs/plan/farm-labour-calibration.md §17).
    */
   private collectOutstandingStateMetallurgDemand(goods: readonly Good[]): Map<number, Map<number, number>> {
     const enabledGoodIds = new Set(goods.map(good => good.i));
     const demandByMarket = new Map<number, Map<number, number>>();
+    const add = (marketId: number, goodId: number, units: number): void => {
+      if (!(units > 0) || !enabledGoodIds.has(goodId)) return;
+      const demandByGood = demandByMarket.get(marketId) ?? new Map<number, number>();
+      demandByGood.set(goodId, (demandByGood.get(goodId) || 0) + units);
+      demandByMarket.set(marketId, demandByGood);
+    };
 
     for (const order of getMetallurgWorkOrders()) {
-      if (order.ownerKind !== "state" || order.status === "completed" || !enabledGoodIds.has(order.productGoodId)) {
-        continue;
-      }
-
+      if (order.status === "completed") continue;
       const outstandingUnits = Math.max(0, order.requestedUnits - order.completedUnits);
       if (outstandingUnits <= 0) continue;
 
-      const demandByGood = demandByMarket.get(order.destinationMarketId) ?? new Map<number, number>();
-      demandByGood.set(order.productGoodId, (demandByGood.get(order.productGoodId) || 0) + outstandingUnits);
-      demandByMarket.set(order.destinationMarketId, demandByGood);
+      if (order.ownerKind === "state") add(order.destinationMarketId, order.productGoodId, outstandingUnits);
+      const requestedUnits = Math.max(0.001, order.requestedUnits);
+      for (const material of order.materials) {
+        add(order.destinationMarketId, material.goodId, material.units * (outstandingUnits / requestedUnits));
+      }
     }
 
     return demandByMarket;
+  }
+
+  /**
+   * The town smiths forge Tools and the other household metal goods to a per-head lot target
+   * (craftDemandCalibration.ts), not to market demand, so their Ingots never showed up as demand
+   * anywhere a furnace's surplus could be sent. Adds each market's monthly Ore and Ingot need for
+   * its towns' calibrated lots, through each good's typical recipe (docs/plan/farm-labour-calibration.md §17).
+   */
+  private addCalibratedMetalInputDemand(
+    goods: readonly Good[],
+    demandByMarket: Map<number, Map<number, number>>
+  ): void {
+    if (!getEconomyCalibrationState().applyCalibration) return;
+    const goodsById = new Map(goods.map(good => [good.i, good]));
+    const recipeCost = (recipe: Record<string, number>): number =>
+      Object.entries(recipe).reduce((sum, [id, amount]) => sum + amount * (goodsById.get(+id)?.value ?? 0), 0);
+    const metalRecipes = goods.flatMap(good => {
+      if (!getGoodDemandCalibration(good.name)) return [];
+      const [recipe] = recipesForIndustrialDemand(good, true, recipeCost);
+      const inputs = Object.entries(recipe ?? {}).flatMap(([id, amount]) => {
+        const ingredient = goodsById.get(+id);
+        return ingredient && isMineOrFurnaceGood(ingredient) ? [{ goodId: ingredient.i, amount }] : [];
+      });
+      return inputs.length ? [{ good, inputs }] : [];
+    });
+    if (!metalRecipes.length) return;
+
+    const populationRate = Math.max(0, this.worldContext.populationRate ?? 0) || 1;
+    for (const burg of this.worldContext.pack.burgs) {
+      const population = burg?.population ?? 0;
+      if (!burg?.i || burg.removed || !burg.market || !(population > 0)) continue;
+      const laborPeopleBurg = laborPeople(population, populationRate);
+      for (const { good, inputs } of metalRecipes) {
+        const lots = getCalibratedMonthlyLots({
+          goodName: good.name,
+          laborPeopleBurg,
+          port: Boolean(burg.port),
+          capital: Boolean(burg.capital)
+        });
+        if (!(lots > 0)) continue;
+        const demandByGood = demandByMarket.get(burg.market) ?? new Map<number, number>();
+        for (const { goodId, amount } of inputs)
+          demandByGood.set(goodId, (demandByGood.get(goodId) || 0) + lots * amount);
+        demandByMarket.set(burg.market, demandByGood);
+      }
+    }
   }
 
   private getStrategicFinishedGoodDemand(ctx: GlobalTradeContext, marketId: number, goodId: number): number {
@@ -1753,7 +1826,10 @@ export class MarketsModule {
     routeMarginalProfit: Map<string, number>,
     routeMaintenanceCost: Map<string, number>
   ): void {
-    if (!good.distribution && !good.recipes?.length) return;
+    // Mined and smelted Goods have neither a cell distribution nor a recipe — mines and furnaces
+    // supply them — and were skipped here, so Ore and Ingots never left their mining district
+    // while the towns' smiths stood idle (docs/plan/farm-labour-calibration.md §17).
+    if (!good.distribution && !good.recipes?.length && !isMineOrFurnaceGood(good)) return;
 
     const {
       consumerDemandFactors,
@@ -1826,7 +1902,7 @@ export class MarketsModule {
               route.maxTemperatureC,
               refrigeratedTransport
             ) ||
-            !isMarketTradePermitted(exporter.market, importer.market, route.durationDays)
+            !isMarketTradePermitted(exporter.market, importer.market, route.durationDays, isMineOrFurnaceGood(good))
           ) {
             continue;
           }

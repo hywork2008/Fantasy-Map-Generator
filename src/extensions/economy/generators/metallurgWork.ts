@@ -616,6 +616,7 @@ export class MetallurgWorkModule {
    */
   getProductionDemandByGood(marketId: number): ReadonlyMap<number, MetallurgProductionDemand> {
     const demandByGood = new Map<number, MetallurgProductionDemand>();
+    const materialNeeds = new Map<number, { units: number; priorityCycles: number; stateFunded: boolean }>();
     const addDemand = (goodId: number, units: number, priorityCycles: number, stateFunded: boolean): void => {
       if (units <= 0.001) return;
       const existing = demandByGood.get(goodId);
@@ -636,14 +637,29 @@ export class MetallurgWorkModule {
 
       const stateFunded = order.ownerKind === "state";
       addDemand(order.productGoodId, outstandingUnits, priorityCycles, stateFunded);
-      if (stateFunded) {
-        const requestedUnits = Math.max(0.001, order.requestedUnits);
-        for (const material of order.materials) {
-          // A State armory must also create its renewable recipe inputs (especially Charcoal),
-          // rather than consuming an initial local stock and then leaving its final order stalled.
-          addDemand(material.goodId, material.units * (outstandingUnits / requestedUnits), priorityCycles, true);
-        }
+      const requestedUnits = Math.max(0.001, order.requestedUnits);
+      for (const material of order.materials) {
+        // Every forge order must also create its renewable recipe inputs (especially Charcoal),
+        // rather than consuming an initial local stock and then leaving the order stalled. Only the
+        // State's own orders did, so the town smiths' Tools orders found no Charcoal: the generic
+        // demand signal never counts forge goods, which households do not buy at market
+        // (docs/plan/farm-labour-calibration.md §17).
+        const units = material.units * (outstandingUnits / requestedUnits);
+        if (!(units > 0.001)) continue;
+        const existing = materialNeeds.get(material.goodId);
+        if (existing) {
+          existing.units += units;
+          existing.priorityCycles = Math.max(existing.priorityCycles, priorityCycles);
+          existing.stateFunded ||= stateFunded;
+        } else materialNeeds.set(material.goodId, { units, priorityCycles, stateFunded });
       }
+    }
+    // Materials already in the market are not made again. An order stalled on its Iron Ingot kept
+    // asking for its whole Charcoal every month, and the colliers heaped it up unsold.
+    const market = getMarkets().find(candidate => candidate.i === marketId);
+    for (const [goodId, need] of materialNeeds) {
+      const inStock = Math.max(0, market?.goods[goodId]?.stock ?? 0);
+      addDemand(goodId, need.units - inStock, need.priorityCycles, need.stateFunded);
     }
     return demandByGood;
   }

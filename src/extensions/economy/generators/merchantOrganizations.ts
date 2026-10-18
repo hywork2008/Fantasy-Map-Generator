@@ -121,11 +121,24 @@ export function clearMerchantOrganizations(): void {
  * Merchant organizations limit trade by travelling time, not a map-wide kilometre cap. The
  * remaining kilometre ranges describe each organization's home-ground reach only.
  */
-export function isMarketTradePermitted(source: Market, target: Market, durationDays: number): boolean {
+/**
+ * `metalTrade`: ore and ingots from a mining district. A great house did not trade with a remote
+ * village, except where the village had a mine: the Fugger at Schwaz, the Hanse at Falun's copper.
+ * Metal still keeps the house's reach and home ground, but not the village limit
+ * (docs/plan/farm-labour-calibration.md §17).
+ */
+export function isMarketTradePermitted(
+  source: Market,
+  target: Market,
+  durationDays: number,
+  metalTrade = false
+): boolean {
   const organizations = getMerchantOrganizations();
   if (!organizations.length) return true;
 
-  return organizations.some(organization => canOrganizationServeTrade(organization, source, target, durationDays));
+  return organizations.some(organization =>
+    canOrganizationServeTrade(organization, source, target, durationDays, metalTrade)
+  );
 }
 
 export function getOrganizationMaxTradeDays(scale: MerchantOrganizationScale): number {
@@ -136,7 +149,8 @@ function canOrganizationServeTrade(
   organization: MerchantOrganization,
   source: Market,
   target: Market,
-  durationDays: number
+  durationDays: number,
+  metalTrade: boolean
 ): boolean {
   if (durationDays > getOrganizationMaxTradeDays(organization.scale)) return false;
   if (!isInHomeGround(organization, source, target)) return false;
@@ -155,6 +169,7 @@ function canOrganizationServeTrade(
   }
 
   if (organization.scale === "major") {
+    if (metalTrade) return true;
     const hasTinyRuralEndpoint =
       sourcePopulation < SMALL_RURAL_POPULATION_THRESHOLD || targetPopulation < SMALL_RURAL_POPULATION_THRESHOLD;
     return !hasTinyRuralEndpoint || durationDays <= getOrganizationMaxTradeDays("local");

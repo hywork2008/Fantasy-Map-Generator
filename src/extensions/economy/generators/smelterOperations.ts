@@ -24,11 +24,10 @@ export {
   SMELTER_EMPLOYMENT_PEOPLE_PER_ANNUAL_TON
 } from "./smelterOperationsTypes";
 
-import { DEFAULT_PEOPLE_PER_POPULATION_POINT } from "./craftScale";
 import { getMarketValue, settleExtractionPayment } from "./extractionPayments";
-import { EXTRACTION_OUTPUT_PER_WORKER_IN_WAGE_YEARS } from "./mineOperations";
+import type { Good } from "./goodsGeneratorTypes";
+import { getExtractionCrewPeople } from "./mineOperations";
 import { nominal } from "./moneyScale";
-import { getSubsistenceWage } from "./subsistenceWage";
 
 const DEFAULT_SMELTING_YIELD = 0.8;
 const DEFAULT_SECURITY_INVESTMENT = 0;
@@ -107,11 +106,7 @@ export function getSmelterCrewPeople(
     const perOreTon = smelter.smeltingYield * ingot.value - ore.value - CHARCOAL_PER_ORE_UNIT * (charcoal?.value ?? 0);
     annualValueAdded += smelter.annualCapacityTons * (yieldInfo.annualCapacityTons / totalOre) * perOreTon;
   }
-  const wageYearPerPerson = (getSubsistenceWage(undefined) * 12) / DEFAULT_PEOPLE_PER_POPULATION_POINT;
-  return Math.max(
-    SMELTER_EMPLOYMENT_BASE_PEOPLE,
-    annualValueAdded / (EXTRACTION_OUTPUT_PER_WORKER_IN_WAGE_YEARS * wageYearPerPerson)
-  );
+  return Math.max(SMELTER_EMPLOYMENT_BASE_PEOPLE, getExtractionCrewPeople(annualValueAdded));
 }
 
 /** Creates one independently sited smelter for each active metal mine and settles monthly refining. */
@@ -275,7 +270,11 @@ export class SmelterOperationsModule {
       const processingFactor = this.getProcessingFactor(smelter);
       const monthlyCapacity = (smelter.annualCapacityTons * processingFactor) / 12;
       if (monthlyCapacity <= 0) continue;
-      this.ensureLocalCharcoalReserve(smelter, monthlyCapacity, goodsByName);
+      const oreGoodIds = oreYields.flatMap(yieldInfo => {
+        const ore = goodsByName.get(`${yieldInfo.commodity} ore`);
+        return ore ? [ore.i] : [];
+      });
+      this.ensureCharcoalReserve(smelter, monthlyCapacity, oreGoodIds, goodsByName);
       let valueAdded = 0;
 
       for (const yieldInfo of oreYields) {
@@ -428,31 +427,64 @@ export class SmelterOperationsModule {
   }
 
   /**
-   * A forest-sited furnace burns local timber into Charcoal when the market has none.
-   * Frontier mining towns often have no spare burg labour for the Charcoal recipe, so
-   * the smelter's own fuelAccess is what actually feeds the bloomery.
+   * Keeps the furnace in charcoal for the ore its market holds (docs/plan/farm-labour-calibration.md
+   * §17). An ironmaster did not wait for the town's market to stock charcoal: he bought cordwood and
+   * hired colliers to coal it near the works, because charcoal crumbles and was not carted far. A
+   * forest-sited furnace burns its own woods first; any furnace then coals cordwood bought at its
+   * market. Before, only forest-sited furnaces made charcoal, and every other furnace stood idle
+   * beside heaps of ore and wood while the market's few charcoal makers supplied the smiths.
+   * The colliers are paid what the coaling adds to the wood, like the miners (settleExtractionPayment).
    */
-  private ensureLocalCharcoalReserve(
+  private ensureCharcoalReserve(
     smelter: SmelterOperation,
     monthlyOreCapacity: number,
-    goodsByName: ReadonlyMap<string, { i: number; name: string; recipes?: readonly Record<number, number>[] }>
+    oreGoodIds: readonly number[],
+    goodsByName: ReadonlyMap<string, Good>
   ): void {
-    if (smelter.fuelAccess < 0.75 || monthlyOreCapacity <= 0) return;
+    if (monthlyOreCapacity <= 0) return;
     const charcoal = goodsByName.get(CHARCOAL_GOOD_NAME);
     const wood = goodsByName.get("wood");
     if (!charcoal || !wood || !isGoodEnabled(charcoal) || !isGoodEnabled(wood)) return;
 
     const market = Markets.get(smelter.marketId);
     if (!market) return;
+    const oreAvailable = oreGoodIds.reduce((sum, goodId) => sum + (market.goods[goodId]?.stock ?? 0), 0);
+    const oreToSmelt = Math.min(monthlyOreCapacity, oreAvailable * MARKET_SMELTING_STOCK_SHARE);
     const available = market.goods[charcoal.i]?.stock ?? 0;
-    const needed = (monthlyOreCapacity * CHARCOAL_PER_ORE_UNIT) / MARKET_SMELTING_STOCK_SHARE;
-    const shortfall = needed - available;
+    const needed = (oreToSmelt * CHARCOAL_PER_ORE_UNIT) / MARKET_SMELTING_STOCK_SHARE;
+    let shortfall = needed - available;
     if (shortfall <= 0.0001) return;
 
     const woodPerCharcoal = charcoal.recipes?.[0]?.[wood.i] ?? 1.5;
-    const harvestedWood = this.harvestLocalWood(smelter.cell, shortfall * woodPerCharcoal);
-    if (harvestedWood <= 0) return;
-    Markets.addSmelterSupply(smelter.marketId, charcoal.i, harvestedWood / Math.max(0.0001, woodPerCharcoal));
+    let made = 0;
+    if (smelter.fuelAccess >= 0.75) {
+      const harvestedWood = this.harvestLocalWood(smelter.cell, shortfall * woodPerCharcoal);
+      made += harvestedWood / Math.max(0.0001, woodPerCharcoal);
+      shortfall -= harvestedWood / Math.max(0.0001, woodPerCharcoal);
+    }
+    let boughtWood = 0;
+    if (shortfall > 0.0001) {
+      boughtWood = Markets.consumeForSmelting(
+        smelter.marketId,
+        wood.i,
+        shortfall * woodPerCharcoal,
+        MARKET_SMELTING_STOCK_SHARE
+      );
+      made += boughtWood / Math.max(0.0001, woodPerCharcoal);
+    }
+    if (!(made > 0)) return;
+    Markets.addSmelterSupply(smelter.marketId, charcoal.i, made);
+
+    const annualValueAdded =
+      12 *
+      (getMarketValue(smelter.marketId, charcoal.i, made, charcoal.value) -
+        getMarketValue(smelter.marketId, wood.i, made * woodPerCharcoal, wood.value));
+    settleExtractionPayment({
+      marketId: smelter.marketId,
+      burgId: smelter.burgId,
+      people: getExtractionCrewPeople(annualValueAdded),
+      outputValue: annualValueAdded / 12
+    });
   }
 
   private harvestLocalWood(cellId: number, requestedWood: number): number {

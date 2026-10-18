@@ -307,11 +307,27 @@ export function domainShare(goodName: string, port: boolean): number {
   return port ? row.portShare : row.inlandShare;
 }
 
+/**
+ * Labour for recipe Goods that have no demand row, at the default population rate. Their demand
+ * comes from recipes and forge orders, which a household lot target must not cap, so they keep
+ * uncapped batching; without an entry here such a Good costs a whole labour point (1,000
+ * person-months) a lot, and its wages alone exceed its price.
+ *
+ * Charcoal: the colliers' year adds 1.3 labourers' wages of value (the extraction rule,
+ * mineOperations.ts EXTRACTION_OUTPUT_PER_WORKER_IN_WAGE_YEARS); a lot adds its value 3 less 1.5
+ * Wood = 1.5, and a labour point earns 1.5 × 0.43 × 1,000 / 12 ≈ 53.75 a month at grain price 1,
+ * so 1.5 / (1.3 × 53.75) ≈ 0.0215 (docs/plan/farm-labour-calibration.md §17).
+ */
+export const UNCALIBRATED_LABOR_POINTS_PER_LOT: Readonly<Record<string, number>> = {
+  Charcoal: 0.0215
+};
+
 export function laborPointsForLots(goodName: string, lots: number, populationRate: number): number {
   const row = getGoodDemandCalibration(goodName);
-  if (!row) return lots;
+  const perLot = row?.laborPointsPerLotAtDefaultRate ?? UNCALIBRATED_LABOR_POINTS_PER_LOT[goodName];
+  if (perLot == null) return lots;
   const rate = Math.max(1, populationRate);
-  return Math.max(0, lots) * row.laborPointsPerLotAtDefaultRate * (DEFAULT_PEOPLE_PER_POPULATION_POINT / rate);
+  return Math.max(0, lots) * perLot * (DEFAULT_PEOPLE_PER_POPULATION_POINT / rate);
 }
 
 /**
