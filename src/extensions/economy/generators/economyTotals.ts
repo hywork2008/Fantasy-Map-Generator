@@ -26,9 +26,21 @@ import { Production } from "./production-generator";
 import { getCellProduction } from "./production-utils";
 import { getTradeableStapleCropUnits } from "./stapleCropInventory";
 
-export type StockSource = { name: string; type: "market" | "burg"; x: number; y: number; id: number; stock: number };
+export type StockSource = {
+  name: string;
+  type: "market" | "burg";
+  x: number;
+  y: number;
+  id: number;
+  stock: number;
+};
 
-export type GoodProduction = { burg: number; cell: number; industrial: number; market: Record<number, number> };
+export type GoodProduction = {
+  burg: number;
+  cell: number;
+  industrial: number;
+  market: Record<number, number>;
+};
 
 /**
  * Every enabled Good's current world-wide stock, broken down by where it physically sits
@@ -64,9 +76,7 @@ export function getAllStockData(): Record<number, { total: number; sources: Stoc
       if (good?.tags.includes("stapleFood")) {
         // Grain is a derived Food Ledger view. Read the ledger rather than a
         // persisted market.goods cache, which can be stale between settlements.
-        const ledgerStock = market.foodLedger
-          ? rn(Math.max(0, market.foodLedger.exportable) + Math.max(0, market.foodLedger.storageOverflow), 2)
-          : stock;
+        const ledgerStock = market.foodLedger ? rn(Math.max(0, market.foodLedger.exportable), 2) : stock;
         addMarketSource(goodId, ledgerStock);
         continue;
       }
@@ -143,7 +153,9 @@ export function getProduction(): Record<number, GoodProduction> {
   const productionByBiome = Goods.getBiomesProduction();
   const marketCells = getMarketCellColumn();
   for (const cellId of getWorldContext().pack.cells.i) {
-    const produced = getCellProduction(cellId, productionByBiome, { preview: true });
+    const produced = getCellProduction(cellId, productionByBiome, {
+      preview: true
+    });
     for (const goodId in produced) {
       addProduction(Number(goodId), produced[goodId] || 0, "cell", marketCells[cellId]);
     }
@@ -188,7 +200,11 @@ export function getProduction(): Record<number, GoodProduction> {
  * `pack.cells.pop` (rural headcount points), urban from each Burg's `population` field — both are
  * scaled the same way the demographics/food systems scale them.
  */
-export function getPopulationBreakdown(): { rural: number; urban: number; total: number } {
+export function getPopulationBreakdown(): {
+  rural: number;
+  urban: number;
+  total: number;
+} {
   const { pack, populationRate, urbanization } = getWorldContext();
   const rate = populationRate || 1;
   const urbanScale = rate * (urbanization || 1);

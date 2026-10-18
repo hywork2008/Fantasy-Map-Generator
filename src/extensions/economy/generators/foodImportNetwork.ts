@@ -96,7 +96,10 @@ export function resolveFoodImportNetwork(worldContext: Readonly<WorldContext>): 
     let remainingNeed = ledger.importNeed;
     const candidates = markets
       .filter(supplier => supplier.i !== importer.i && (remainingExport.get(supplier.i) ?? 0) > 0)
-      .map(supplier => ({ supplier, route: getFoodRoute(worldContext, supplier, importer, landGraph, seaGraph) }))
+      .map(supplier => ({
+        supplier,
+        route: getFoodRoute(worldContext, supplier, importer, landGraph, seaGraph)
+      }))
       .filter((candidate): candidate is { supplier: Market; route: FoodRoute } => candidate.route !== null)
       .sort((left, right) => left.route.travelDays - right.route.travelDays || left.supplier.i - right.supplier.i);
 
@@ -169,12 +172,13 @@ export function resolveFoodImportNetwork(worldContext: Readonly<WorldContext>): 
 
 /** Weighted farmgate cost of the supplier's stock, the price an importing market pays per unit. */
 function getUnitCostEstimate(ledger: FoodLedger): number {
-  const stock = ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2;
+  const stock = ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2 + (ledger.foodStockAge3 ?? 0);
   if (!(stock > 0)) return 0;
   return (
     (ledger.foodStockAge0 * ledger.foodStockAge0UnitCost +
       ledger.foodStockAge1 * ledger.foodStockAge1UnitCost +
-      ledger.foodStockAge2 * ledger.foodStockAge2UnitCost) /
+      ledger.foodStockAge2 * ledger.foodStockAge2UnitCost +
+      (ledger.foodStockAge3 ?? 0) * (ledger.foodStockAge3UnitCost ?? 0)) /
     stock
   );
 }
@@ -183,7 +187,10 @@ function getUnitCostEstimate(ledger: FoodLedger): number {
 function getExportCropGoodId(market: Market): number | null {
   const candidates = getGoods()
     .filter(good => good.tags.includes("stapleCrop"))
-    .map(good => ({ goodId: good.i, stock: market.goods[good.i]?.stock ?? 0 }))
+    .map(good => ({
+      goodId: good.i,
+      stock: market.goods[good.i]?.stock ?? 0
+    }))
     .filter(candidate => candidate.stock > 0)
     .sort((left, right) => right.stock - left.stock || left.goodId - right.goodId);
   return candidates[0]?.goodId ?? null;
@@ -191,7 +198,9 @@ function getExportCropGoodId(market: Market): number | null {
 
 /** Restores normal carrying capacity when the economy is disabled or has no viable routes. */
 export function resetEffectiveCapacities(
-  burgs: readonly { demographics?: { capacity: number; effectiveCapacity?: number } }[]
+  burgs: readonly {
+    demographics?: { capacity: number; effectiveCapacity?: number };
+  }[]
 ): void {
   for (const burg of burgs) {
     if (burg.demographics) burg.demographics.effectiveCapacity = burg.demographics.capacity;

@@ -2,6 +2,9 @@ import { rn } from "../../hostUtils";
 import type { FoodLedger } from "./marketTypes";
 import type { StapleCropInventory } from "./stapleCropInventoryTypes";
 
+/** Consumption, trade and capping draw the oldest grain first. */
+const OLDEST_FIRST = ["age3", "age2", "age1", "age0"] as const;
+
 /**
  * One physical crop's aged Market stock. Amounts are expressed in the shared
  * wheat-equivalent food unit for nutrition, but the `goodId` is never merged
@@ -10,16 +13,34 @@ import type { StapleCropInventory } from "./stapleCropInventoryTypes";
 export type { StapleCropInventory } from "./stapleCropInventoryTypes";
 
 function emptyInventory(): StapleCropInventory {
-  return { age0: 0, age1: 0, age2: 0, age0UnitCost: 0, age1UnitCost: 0, age2UnitCost: 0, overflow: 0 };
+  return {
+    age0: 0,
+    age1: 0,
+    age2: 0,
+    age3: 0,
+    age0UnitCost: 0,
+    age1UnitCost: 0,
+    age2UnitCost: 0,
+    age3UnitCost: 0,
+    overflow: 0
+  };
 }
 
 const EPSILON = 1e-7;
 
 function storedUnits(inventory: StapleCropInventory): number {
-  return Math.max(0, inventory.age0) + Math.max(0, inventory.age1) + Math.max(0, inventory.age2);
+  return (
+    Math.max(0, inventory.age0) +
+    Math.max(0, inventory.age1) +
+    Math.max(0, inventory.age2) +
+    Math.max(0, inventory.age3 ?? 0)
+  );
 }
 
-function cropLedgerTotals(ledger: FoodLedger): { stored: number; overflow: number } {
+function cropLedgerTotals(ledger: FoodLedger): {
+  stored: number;
+  overflow: number;
+} {
   return Object.values(ledger.stapleCropInventories ?? {}).reduce(
     (totals, inventory) => ({
       stored: totals.stored + storedUnits(inventory),
@@ -31,12 +52,12 @@ function cropLedgerTotals(ledger: FoodLedger): { stored: number; overflow: numbe
 
 function debitOldest(inventory: StapleCropInventory, units: number): number {
   let remaining = units;
-  for (const age of ["age2", "age1", "age0"] as const) {
+  for (const age of OLDEST_FIRST) {
     if (!(remaining > EPSILON)) break;
-    const taken = Math.min(Math.max(0, inventory[age]), remaining);
-    inventory[age] = rn(Math.max(0, inventory[age] - taken), 2);
+    const taken = Math.min(Math.max(0, inventory[age] ?? 0), remaining);
+    inventory[age] = rn(Math.max(0, (inventory[age] ?? 0) - taken), 2);
     remaining -= taken;
-    if (!(inventory[age] > EPSILON)) {
+    if (!((inventory[age] ?? 0) > EPSILON)) {
       inventory[age] = 0;
       inventory[`${age}UnitCost`] = 0;
     }
@@ -64,7 +85,10 @@ export function getTradeableStapleCropUnits(ledger: FoodLedger, goodId: number):
   if (!inventory) return null;
 
   const totalStored =
-    Math.max(0, ledger.foodStockAge0) + Math.max(0, ledger.foodStockAge1) + Math.max(0, ledger.foodStockAge2);
+    Math.max(0, ledger.foodStockAge0) +
+    Math.max(0, ledger.foodStockAge1) +
+    Math.max(0, ledger.foodStockAge2) +
+    Math.max(0, ledger.foodStockAge3 ?? 0);
   const cropStored = storedUnits(inventory);
   const cropTotals = cropLedgerTotals(ledger);
   const exportable = Math.min(Math.max(0, ledger.exportable), totalStored);
@@ -124,6 +148,8 @@ export function migrateLegacyGrainInventory(ledger: FoodLedger, wheatGoodId: num
   wheat.age0UnitCost = Math.max(0, ledger.foodStockAge0UnitCost);
   wheat.age1UnitCost = Math.max(0, ledger.foodStockAge1UnitCost);
   wheat.age2UnitCost = Math.max(0, ledger.foodStockAge2UnitCost);
+  wheat.age3 = Math.max(0, ledger.foodStockAge3 ?? 0);
+  wheat.age3UnitCost = Math.max(0, ledger.foodStockAge3UnitCost ?? 0);
   wheat.overflow = Math.max(0, ledger.storageOverflow);
   refreshLegacyFoodLedgerTotals(ledger);
 }
@@ -131,11 +157,12 @@ export function migrateLegacyGrainInventory(ledger: FoodLedger, wheatGoodId: num
 /** Keeps legacy aggregate fields read-only mirrors of crop-specific lots. */
 export function refreshLegacyFoodLedgerTotals(ledger: FoodLedger): void {
   const inventories = Object.values(ledger.stapleCropInventories ?? {});
-  const sum = (field: keyof Pick<StapleCropInventory, "age0" | "age1" | "age2" | "overflow">) =>
-    inventories.reduce((total, inventory) => total + inventory[field], 0);
+  const sum = (field: keyof Pick<StapleCropInventory, "age0" | "age1" | "age2" | "age3" | "overflow">) =>
+    inventories.reduce((total, inventory) => total + (inventory[field] ?? 0), 0);
   ledger.foodStockAge0 = rn(sum("age0"), 2);
   ledger.foodStockAge1 = rn(sum("age1"), 2);
   ledger.foodStockAge2 = rn(sum("age2"), 2);
+  ledger.foodStockAge3 = rn(sum("age3"), 2);
   ledger.storageOverflow = rn(sum("overflow"), 2);
 }
 
@@ -150,32 +177,60 @@ export function creditStapleCropHarvest(ledger: FoodLedger, goodId: number, unit
   inventory.age0 = nextUnits;
 }
 
+/** Quarterly storage-loss shares (docs/plan/grain-storage-life.md §3.2). */
+export interface QuarterlyStorageLoss {
+  /** Age0-2 grain. */
+  fresh: number;
+  /** Age3 grain carried past the next harvest. */
+  carryover: number;
+  /** Grain heaped over the storage cap. */
+  overflow: number;
+}
+
+/** Keeps each bucket's unit cost when it shrinks; merges cost when two lots combine. */
+function mergeUnitCost(units: number, unitCost: number, addedUnits: number, addedUnitCost: number): number {
+  const total = units + addedUnits;
+  return total > EPSILON ? rn((units * unitCost + addedUnits * addedUnitCost) / total, 2) : 0;
+}
+
 /**
- * Ages one crop's own buckets by one quarter: the oldest bucket (age2) becomes this crop's own
- * overflow, age1 becomes age2, age0 becomes age1, and this quarter's production lands in a fresh
- * age0. Mirrors the shift `FoodProductionModule.advanceQuarterlyStock()` performs on the shared
- * aggregate buckets, but scoped to a single crop, so every catalogued crop — not only the one
- * seeded at bootstrap — actually rotates through age0/1/2 instead of piling up forever in age0.
- * Called every quarter for every crop this market has ever produced, even one with zero output
- * this cycle, so a crop that stops producing still ages its existing stock out on schedule.
+ * Ages one crop's own buckets by one quarter. Every bucket first loses its quarterly spoilage;
+ * then age2 joins the carried-over age3 (grain is no longer discarded on a date), age1 becomes
+ * age2, age0 becomes age1, and this quarter's production lands in a fresh age0. Mirrors
+ * `FoodProductionModule.advanceQuarterlyStock()` on the shared aggregate buckets, scoped to one
+ * crop. Called every quarter for every crop this market has ever produced, even one with zero
+ * output this cycle, so a crop that stops producing still ages and spoils its stock.
+ * Returns the units spoiled.
  */
 export function advanceStapleCropInventoryQuarterly(
   inventory: StapleCropInventory,
   producedThisQuarter: number,
-  farmgateUnitCost: number
-): void {
-  inventory.overflow = rn(Math.max(0, inventory.overflow) + Math.max(0, inventory.age2), 2);
-  inventory.age2 = inventory.age1;
+  farmgateUnitCost: number,
+  loss: QuarterlyStorageLoss = { fresh: 0, carryover: 0, overflow: 0 }
+): number {
+  let spoiled = 0;
+  const spoil = (units: number, share: number): number => {
+    const kept = rn(Math.max(0, units) * (1 - share), 2);
+    spoiled += Math.max(0, units) - kept;
+    return kept;
+  };
+  inventory.overflow = spoil(inventory.overflow, loss.overflow);
+  const age3 = spoil(inventory.age3 ?? 0, loss.carryover);
+  const age2 = spoil(inventory.age2, loss.fresh);
+  inventory.age3UnitCost = mergeUnitCost(age3, inventory.age3UnitCost ?? 0, age2, inventory.age2UnitCost);
+  inventory.age3 = rn(age3 + age2, 2);
+  inventory.age2 = spoil(inventory.age1, loss.fresh);
   inventory.age2UnitCost = inventory.age1UnitCost;
-  inventory.age1 = inventory.age0;
+  inventory.age1 = spoil(inventory.age0, loss.fresh);
   inventory.age1UnitCost = inventory.age0UnitCost;
   inventory.age0 = rn(Math.max(0, producedThisQuarter), 2);
   inventory.age0UnitCost = producedThisQuarter > 0 ? farmgateUnitCost : 0;
+  return rn(spoiled, 2);
 }
 
 /**
  * Caps the market's total staple-crop stock (every crop combined) at `capTotal`, trimming the
- * oldest tier first — every crop's age2, then age1, then age0 — into each crop's *own* overflow
+ * oldest tier first — every crop's age3, then age2, age1 and age0 — into each crop's *own* overflow
  * bucket, split proportionally to that crop's share of the tier being trimmed. This keeps one
  * market-wide cap (matching the legacy aggregate cap) while giving every crop a real, populated
  * overflow bucket instead of only the market-wide `ledger.storageOverflow` mirror, which used to
@@ -187,17 +242,17 @@ export function applyStapleCropStorageCap(ledger: FoodLedger, capTotal: number):
   let excess = inventories.reduce((sum, inventory) => sum + storedUnits(inventory), 0) - capTotal;
   if (!(excess > EPSILON)) return;
 
-  for (const age of ["age2", "age1", "age0"] as const) {
+  for (const age of OLDEST_FIRST) {
     if (!(excess > EPSILON)) break;
-    const tierTotal = inventories.reduce((sum, inventory) => sum + Math.max(0, inventory[age]), 0);
+    const tierTotal = inventories.reduce((sum, inventory) => sum + Math.max(0, inventory[age] ?? 0), 0);
     if (!(tierTotal > EPSILON)) continue;
     const tierExcess = Math.min(tierTotal, excess);
     for (const inventory of inventories) {
       if (!(tierExcess > EPSILON)) break;
-      const share = Math.max(0, inventory[age]) / tierTotal;
-      const taken = Math.min(Math.max(0, inventory[age]), rn(tierExcess * share, 2));
+      const share = Math.max(0, inventory[age] ?? 0) / tierTotal;
+      const taken = Math.min(Math.max(0, inventory[age] ?? 0), rn(tierExcess * share, 2));
       if (!(taken > EPSILON)) continue;
-      inventory[age] = rn(inventory[age] - taken, 2);
+      inventory[age] = rn((inventory[age] ?? 0) - taken, 2);
       inventory.overflow = rn(Math.max(0, inventory.overflow) + taken, 2);
       excess -= taken;
     }
@@ -206,8 +261,8 @@ export function applyStapleCropStorageCap(ledger: FoodLedger, capTotal: number):
 
 /**
  * Draws one specific crop's staple food for outbound transport (merchant caravan co-load),
- * oldest-first from that crop's own age0-2 buckets only — never its overflow, so an in-transit
- * shipment never competes with stock a market is protecting past its own 9-month storage cap.
+ * oldest-first from that crop's own age0-3 buckets only — never its overflow, so an in-transit
+ * shipment never competes with stock a market is protecting past its own storage cap.
  * Capped by `ledger.exportable`, matching every other outbound draw. Returns the units actually
  * drawn and their weighted-average unit cost, for cargo valuation.
  */
@@ -226,16 +281,16 @@ export function drawStapleCropForTransport(
   let remaining = maxDraw;
   let costSum = 0;
   let drawn = 0;
-  for (const age of ["age2", "age1", "age0"] as const) {
+  for (const age of OLDEST_FIRST) {
     if (!(remaining > EPSILON)) break;
-    const available = Math.max(0, inventory[age]);
+    const available = Math.max(0, inventory[age] ?? 0);
     const taken = Math.min(available, remaining);
     if (!(taken > EPSILON)) continue;
     inventory[age] = rn(available - taken, 2);
-    costSum += taken * inventory[`${age}UnitCost`];
+    costSum += taken * (inventory[`${age}UnitCost`] ?? 0);
     drawn += taken;
     remaining -= taken;
-    if (!(inventory[age] > EPSILON)) {
+    if (!((inventory[age] ?? 0) > EPSILON)) {
       inventory[age] = 0;
       inventory[`${age}UnitCost`] = 0;
     }
@@ -251,7 +306,7 @@ export function drawStapleCropForTransport(
 /**
  * Draws food from the oldest physical crop lots first. Crop identity is kept in each lot; only
  * the caller's nutritional requirement is aggregated. The available amount is read directly from
- * the crop inventories (not the aggregate `ledger.foodStockAge0-2` mirror) so a draw can never be
+ * the crop inventories (not the aggregate `ledger.foodStockAge0-3` mirror) so a draw can never be
  * short-circuited by that mirror lagging behind the real per-crop totals. The aggregate fields
  * are resynced afterwards via refreshLegacyFoodLedgerTotals() for the many other call sites
  * (pricing, storage cap, farmgate settlement) that still read them.
@@ -264,12 +319,12 @@ export function drawStapleCropFood(ledger: FoodLedger, requestedUnits: number): 
   if (!(requestedUnits > 0)) return 0;
   let remaining = requestedUnits;
 
-  for (const age of ["age2", "age1", "age0"] as const) {
+  for (const age of OLDEST_FIRST) {
     for (const inventory of inventories) {
       if (!(remaining > 0)) break;
-      const taken = Math.min(Math.max(0, inventory[age]), remaining);
+      const taken = Math.min(Math.max(0, inventory[age] ?? 0), remaining);
       if (!(taken > 0)) continue;
-      inventory[age] = rn(inventory[age] - taken, 2);
+      inventory[age] = rn((inventory[age] ?? 0) - taken, 2);
       remaining -= taken;
     }
   }

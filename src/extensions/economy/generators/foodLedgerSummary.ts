@@ -28,9 +28,23 @@ export function getFoodLedgerSummary(ledger: FoodLedger | undefined): FoodLedger
   const quarterlyNeed = Math.max(0, ledger.urbanNeed ?? 0);
   const importedFood = Math.max(0, ledger.satisfiedImport ?? 0);
   const reserveGap = Math.max(0, (ledger.importNeed ?? 0) - importedFood);
-  const stock = Math.max(0, (ledger.foodStockAge0 ?? 0) + (ledger.foodStockAge1 ?? 0) + (ledger.foodStockAge2 ?? 0));
+  const stock = Math.max(
+    0,
+    (ledger.foodStockAge0 ?? 0) +
+      (ledger.foodStockAge1 ?? 0) +
+      (ledger.foodStockAge2 ?? 0) +
+      (ledger.foodStockAge3 ?? 0)
+  );
   const importShare = quarterlyNeed > 0 ? importedFood / quarterlyNeed : 0;
   const stockMonths = quarterlyNeed > 0 ? (stock / quarterlyNeed) * 3 : 0;
 
-  return { localProduction, quarterlyNeed, importedFood, importShare, reserveGap, stock, stockMonths };
+  return {
+    localProduction,
+    quarterlyNeed,
+    importedFood,
+    importShare,
+    reserveGap,
+    stock,
+    stockMonths
+  };
 }

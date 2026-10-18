@@ -77,14 +77,14 @@ export function foodDeliveredShare(travelDays: number, halfLifeDays: number = FO
 /**
  * Draw staple food for export from oldest buckets first (FIFO), capped by `exportable`.
  * Mutates the ledger in place. When `goodId` names a market-tracked staple crop, the draw comes
- * from that crop's own age0-2 buckets (see drawStapleCropForTransport()) so a caravan physically
+ * from that crop's own age0-3 buckets (see drawStapleCropForTransport()) so a caravan physically
  * moves the same crop identity it is loaded with; markets with no per-crop tracking yet (legacy
  * aggregate-only Food Ledgers) fall back to the shared bucket set below.
  */
 export function drawFoodForExport(ledger: FoodLedger, goodId: number, amount: number): FoodDrawResult {
   if (ledger.stapleCropInventories?.[goodId]) return drawStapleCropForTransport(ledger, goodId, amount);
 
-  const totalStock = ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2;
+  const totalStock = ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2 + (ledger.foodStockAge3 ?? 0);
   const maxDraw = Math.min(Math.max(0, amount), Math.max(0, ledger.exportable), totalStock);
   if (maxDraw <= UNIT_EPSILON) return { units: 0, unitCost: 0 };
 
@@ -113,6 +113,16 @@ export function drawFoodForExport(ledger: FoodLedger, goodId: number, amount: nu
     }
   };
 
+  take(
+    () => ledger.foodStockAge3 ?? 0,
+    value => {
+      ledger.foodStockAge3 = value;
+    },
+    () => ledger.foodStockAge3UnitCost ?? 0,
+    () => {
+      ledger.foodStockAge3UnitCost = 0;
+    }
+  );
   take(
     () => ledger.foodStockAge2,
     value => {
@@ -191,12 +201,15 @@ export function returnFoodExportToLedger(ledger: FoodLedger, goodId: number, uni
   ledger.exportable = rn(ledger.exportable + units, 2);
 }
 
-/** Sync Grain market stock view (exportable + overflow), matching foodProduction. */
+/** Sync Grain market stock view (exportable only; overflow is not offered), matching foodProduction. */
 export function syncStapleFoodMarketStock(market: Market, stapleGoodId: number, priceFallback = 1): void {
   const ledger = market.foodLedger;
   if (!ledger) return;
-  const marketGood = market.goods[stapleGoodId] ?? { stock: 0, price: priceFallback };
-  marketGood.stock = rn(ledger.exportable + ledger.storageOverflow, 2);
+  const marketGood = market.goods[stapleGoodId] ?? {
+    stock: 0,
+    price: priceFallback
+  };
+  marketGood.stock = rn(ledger.exportable, 2);
   market.goods[stapleGoodId] = marketGood;
   markRetailInventoryDirty(market.i);
 }
@@ -256,7 +269,10 @@ export function tryCoLoadFoodOntoCaravan(caravan: Caravan, options?: { distanceS
 
   const drawn = drawFoodForExport(exporter.foodLedger, staple.i, unitsWanted);
   if (drawn.units <= UNIT_EPSILON) return 0;
-  const exporterStock = exporter.goods[staple.i] ?? { stock: 0, price: staple.value };
+  const exporterStock = exporter.goods[staple.i] ?? {
+    stock: 0,
+    price: staple.value
+  };
   exporterStock.stock = rn(Math.max(0, exporterStock.stock - drawn.units), 2);
   exporter.goods[staple.i] = exporterStock;
 
@@ -311,7 +327,10 @@ export function restoreFoodCoLoadToOrigin(caravan: Caravan): void {
     returnFoodExportToLedger(exporter.foodLedger, item.goodId, item.units, item.unitCost ?? 0);
     const good = getGoods().find(candidate => candidate.i === item.goodId);
     if (good) {
-      const marketGood = exporter.goods[good.i] ?? { stock: 0, price: good.value };
+      const marketGood = exporter.goods[good.i] ?? {
+        stock: 0,
+        price: good.value
+      };
       marketGood.stock = rn(marketGood.stock + item.units, 2);
       exporter.goods[good.i] = marketGood;
     }
@@ -351,7 +370,10 @@ export function settleFoodCoLoadOnArrival(caravan: Caravan, distanceScale: numbe
       receiveFoodImport(importer.foodLedger, item.goodId, delivered, item.unitCost ?? 0);
       const good = getGoods().find(candidate => candidate.i === item.goodId);
       if (good) {
-        const marketGood = importer.goods[good.i] ?? { stock: 0, price: good.value };
+        const marketGood = importer.goods[good.i] ?? {
+          stock: 0,
+          price: good.value
+        };
         marketGood.stock = rn(marketGood.stock + delivered, 2);
         importer.goods[good.i] = marketGood;
       }

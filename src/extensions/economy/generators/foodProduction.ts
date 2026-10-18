@@ -14,6 +14,12 @@ import { getEconomyStartProfile } from "./economyStartMode";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import { resolveFoodImportNetwork } from "./foodImportNetwork";
 import type { Good } from "./goods-generator";
+import {
+  getHarvestBridgeReserve,
+  getQuarterlyStorageLoss,
+  getStorageClimateLossMultiplier,
+  OVERFLOW_QUARTERLY_LOSS
+} from "./grainStorage";
 import { creditRuralHouseholdWealth } from "./householdWealth";
 import type { FoodLedger, Market } from "./marketTypes";
 import { getCropHarvestWeight, getCurrentCropMix } from "./production-utils";
@@ -24,6 +30,7 @@ import {
   creditStapleCropHarvest,
   getStapleCropInventory,
   migrateLegacyGrainInventory,
+  type QuarterlyStorageLoss,
   refreshLegacyFoodLedgerTotals
 } from "./stapleCropInventory";
 
@@ -56,11 +63,17 @@ const REFERENCE_SEASONAL_AMPLITUDE_C = 20;
 
 /** Fraction of the current Grain retail price paid to rural producers at the farm gate. */
 export const FARMGATE_PRICE_SHARE = 0.8;
-/** Months of annual demand a Market may hold before staple food overflows with no export sink yet (v1). */
-const STORAGE_CAP_MONTHS = 9;
+/**
+ * Months of annual demand a Market granary holds before the surplus is heaped as overflow: one
+ * harvest has to last until the next (docs/plan/grain-storage-life.md §3.3).
+ */
+const STORAGE_CAP_MONTHS = 12;
 /** Unpaid farmgate debt is capped at this many years of the market's urban grain demand. */
 const FARMGATE_PAYABLE_YEARS = 1;
-/** Months of annual demand reserved before a Market may treat staple food as generally exportable. */
+/**
+ * Least months of annual demand reserved before a Market may export staple food. A market whose
+ * harvests are uneven keeps its demand until the next harvest instead (getHarvestBridgeReserve).
+ */
 const EXPORT_RESERVE_MONTHS = 3;
 /** Months of annual demand a deficit Market tries to recover toward via imports. */
 const IMPORT_TARGET_MONTHS = 6;
@@ -134,6 +147,17 @@ export function getStapleFoodGood(): Good | undefined {
   );
 }
 
+/**
+ * Remembers what farmers offered in each calendar month, for the harvest-bridge reserve. Months
+ * not yet seen hold -1, so the reserve keeps its floor until a whole year is known.
+ */
+function recordOfferedIntake(ledger: FoodLedger, months: readonly number[], offered: number): void {
+  const history = ledger.offeredIntakeByMonth?.length === 12 ? ledger.offeredIntakeByMonth : new Array(12).fill(-1);
+  const perMonth = months.length ? Math.max(0, offered) / months.length : 0;
+  for (const month of months) history[(month - 1 + 12) % 12] = rn(perMonth, 2);
+  ledger.offeredIntakeByMonth = history;
+}
+
 function emptyFoodLedger(): FoodLedger {
   return {
     foodProduced: 0,
@@ -147,9 +171,11 @@ function emptyFoodLedger(): FoodLedger {
     foodStockAge0: 0,
     foodStockAge1: 0,
     foodStockAge2: 0,
+    foodStockAge3: 0,
     foodStockAge0UnitCost: 0,
     foodStockAge1UnitCost: 0,
     foodStockAge2UnitCost: 0,
+    foodStockAge3UnitCost: 0,
     storageOverflow: 0,
     ruralFoodStressQuarters: 0,
     urbanFoodStressQuarters: 0,
@@ -277,35 +303,62 @@ export class FoodProductionModule {
       if (stapleFoodGood) {
         // Grain remains a Food Ledger summary for overview/price displays. Player-facing
         // trade resolves the named crop lots above instead of this aggregate projection.
-        market.goods[stapleFoodGood.i] = { stock: market.foodLedger.exportable, price: startingPrice };
+        market.goods[stapleFoodGood.i] = {
+          stock: market.foodLedger.exportable,
+          price: startingPrice
+        };
       }
     }
   }
 
   /**
-   * Shifts buckets one quarter older (oldest bucket beyond the ledger's 9-month span becomes
-   * unrecoverable `storageOverflow`), then lands this quarter's production in a now-empty Age0.
-   * Must run before the cap check, which also overflows oldest-first.
+   * Spoils every bucket by its quarterly loss, then shifts buckets one quarter older: Age2 joins the
+   * carried-over Age3 (docs/plan/grain-storage-life.md §3.1), and this quarter's production lands in
+   * a now-empty Age0. Must run before the cap check, which also overflows oldest-first.
    */
-  private advanceQuarterlyStock(ledger: FoodLedger, producedThisQuarter: number, farmgateUnitCost: number): void {
-    ledger.storageOverflow = rn(ledger.storageOverflow + ledger.foodStockAge2, 2);
+  private advanceQuarterlyStock(
+    ledger: FoodLedger,
+    producedThisQuarter: number,
+    farmgateUnitCost: number,
+    loss: QuarterlyStorageLoss
+  ): number {
+    const kept = (units: number, share: number) => rn(Math.max(0, units) * (1 - share), 2);
+    const before =
+      Math.max(0, ledger.storageOverflow) +
+      Math.max(0, ledger.foodStockAge3 ?? 0) +
+      Math.max(0, ledger.foodStockAge2) +
+      Math.max(0, ledger.foodStockAge1) +
+      Math.max(0, ledger.foodStockAge0);
 
-    ledger.foodStockAge2 = ledger.foodStockAge1;
+    ledger.storageOverflow = kept(ledger.storageOverflow, loss.overflow);
+    const age3 = kept(ledger.foodStockAge3 ?? 0, loss.carryover);
+    const age2 = kept(ledger.foodStockAge2, loss.fresh);
+    ledger.foodStockAge3UnitCost =
+      age3 + age2 > 0
+        ? rn((age3 * (ledger.foodStockAge3UnitCost ?? 0) + age2 * ledger.foodStockAge2UnitCost) / (age3 + age2), 2)
+        : 0;
+    ledger.foodStockAge3 = rn(age3 + age2, 2);
+    ledger.foodStockAge2 = kept(ledger.foodStockAge1, loss.fresh);
     ledger.foodStockAge2UnitCost = ledger.foodStockAge1UnitCost;
-    ledger.foodStockAge1 = ledger.foodStockAge0;
+    ledger.foodStockAge1 = kept(ledger.foodStockAge0, loss.fresh);
     ledger.foodStockAge1UnitCost = ledger.foodStockAge0UnitCost;
 
+    const after = ledger.storageOverflow + ledger.foodStockAge3 + ledger.foodStockAge2 + ledger.foodStockAge1;
     ledger.foodStockAge0 = rn(producedThisQuarter, 2);
     ledger.foodStockAge0UnitCost = producedThisQuarter > 0 ? farmgateUnitCost : 0;
+    return rn(before - after, 2);
   }
 
-  /** Caps total stock at 9 months of annual demand, trimming the oldest bucket first into overflow. */
-  private applyStorageCap(ledger: FoodLedger, annualDemand: number): void {
-    const cap = annualDemand * (STORAGE_CAP_MONTHS / 12);
-    let excess = ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2 - cap;
+  /** Caps total stock at `cap`, trimming the oldest bucket first into overflow. */
+  private applyStorageCap(ledger: FoodLedger, cap: number): void {
+    let excess = ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2 + (ledger.foodStockAge3 ?? 0) - cap;
     if (excess <= 0) return;
 
-    const fromAge2 = Math.min(ledger.foodStockAge2, excess);
+    const fromAge3 = Math.min(ledger.foodStockAge3 ?? 0, excess);
+    ledger.foodStockAge3 = rn((ledger.foodStockAge3 ?? 0) - fromAge3, 2);
+    excess -= fromAge3;
+
+    const fromAge2 = excess > 0 ? Math.min(ledger.foodStockAge2, excess) : 0;
     ledger.foodStockAge2 = rn(ledger.foodStockAge2 - fromAge2, 2);
     excess -= fromAge2;
 
@@ -316,7 +369,7 @@ export class FoodProductionModule {
     const fromAge0 = excess > 0 ? Math.min(ledger.foodStockAge0, excess) : 0;
     ledger.foodStockAge0 = rn(ledger.foodStockAge0 - fromAge0, 2);
 
-    ledger.storageOverflow = rn(ledger.storageOverflow + fromAge2 + fromAge1 + fromAge0, 2);
+    ledger.storageOverflow = rn(ledger.storageOverflow + fromAge3 + fromAge2 + fromAge1 + fromAge0, 2);
   }
 
   /** Pays the farmgate cost from the market's treasury; any shortfall accrues as rural debt. */
@@ -328,7 +381,10 @@ export class FoodProductionModule {
   ): void {
     if (producedThisQuarter <= 0) return;
     const cost = rn(producedThisQuarter * farmgateUnitCost, 2);
-    const treasury = market.marketTreasury ?? { balance: 0, ruralGrainPayable: 0 };
+    const treasury = market.marketTreasury ?? {
+      balance: 0,
+      ruralGrainPayable: 0
+    };
 
     const paidFromBalance = Math.min(Math.max(0, treasury.balance), cost);
     treasury.balance = rn(treasury.balance - paidFromBalance, 2);
@@ -490,13 +546,18 @@ export class FoodProductionModule {
       // export read it). Counting it as held stock let a market that had ever overflowed buy at most one
       // quarter's urban need at harvest, leaving the towns without grain for the rest of the year
       // (docs/plan/craft-wage-subsistence-scale.md §10).
-      const held = ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2;
-      const purchasable =
-        Math.max(0, annualDemand * (STORAGE_CAP_MONTHS / 12) - held) + (annualDemand * periodMonths) / 12;
+      const held = ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2 + (ledger.foodStockAge3 ?? 0);
+      const periodDemand = (annualDemand * periodMonths) / 12;
+      // The granary holds STORAGE_CAP_MONTHS plus what is eaten this period. Capping at the bare
+      // STORAGE_CAP_MONTHS used to heap this period's purchase into overflow the moment it was paid
+      // for (docs/plan/grain-storage-life.md §1).
+      const storageCap = annualDemand * (STORAGE_CAP_MONTHS / 12) + periodDemand;
+      const purchasable = Math.max(0, storageCap - held);
       const purchaseShare = annualMarketFoodIntake > 0 ? Math.min(1, purchasable / annualMarketFoodIntake) : 0;
       if (purchaseShare < 1)
         for (const [goodId, amount] of cropWholesale) cropWholesale.set(goodId, amount * purchaseShare);
       const foodProduced = rn(annualMarketFoodIntake * purchaseShare, 2);
+      recordOfferedIntake(ledger, months, annualMarketFoodIntake);
       ledger.unsoldHarvest = rn(annualMarketFoodIntake - foodProduced, 2);
 
       const previousPrice = stapleFoodGood ? (market.goods[stapleFoodGood.i]?.price ?? stapleFoodGood.value) : 1;
@@ -513,32 +574,46 @@ export class FoodProductionModule {
         ...Object.keys(ledger.stapleCropInventories ?? {}).map(Number),
         ...cropWholesale.keys()
       ]);
+      const storageLoss = advanceAgeBuckets ? this.getMarketStorageLoss(market) : undefined;
+      let spoiled = 0;
       if (trackedCropGoodIds.size > 0) {
         for (const goodId of trackedCropGoodIds) {
           const inventory = getStapleCropInventory(ledger, goodId);
           const produced = cropWholesale.get(goodId) ?? 0;
-          if (advanceAgeBuckets) advanceStapleCropInventoryQuarterly(inventory, produced, farmgateUnitCost);
+          if (storageLoss)
+            spoiled += advanceStapleCropInventoryQuarterly(inventory, produced, farmgateUnitCost, storageLoss);
           else creditStapleCropHarvest(ledger, goodId, produced, farmgateUnitCost);
         }
-        applyStapleCropStorageCap(ledger, annualDemand * (STORAGE_CAP_MONTHS / 12));
+        applyStapleCropStorageCap(ledger, storageCap);
         refreshLegacyFoodLedgerTotals(ledger);
 
         for (const [goodId, amount] of cropWholesale) {
           if (amount <= 0) continue;
           const good = cropGoods.find(candidate => candidate.i === goodId);
           if (!good) continue;
-          const marketGood = market.goods[goodId] ?? { stock: 0, price: good.value };
+          const marketGood = market.goods[goodId] ?? {
+            stock: 0,
+            price: good.value
+          };
           marketGood.stock = rn(marketGood.stock + amount, 2);
           market.goods[goodId] = marketGood;
         }
       } else {
-        if (advanceAgeBuckets) this.advanceQuarterlyStock(ledger, foodProduced, farmgateUnitCost);
+        if (storageLoss) spoiled = this.advanceQuarterlyStock(ledger, foodProduced, farmgateUnitCost, storageLoss);
         else this.creditAggregateHarvest(ledger, foodProduced, farmgateUnitCost);
-        this.applyStorageCap(ledger, annualDemand);
+        this.applyStorageCap(ledger, storageCap);
       }
+      if (storageLoss) ledger.storageSpoiled = rn(spoiled, 2);
 
-      const totalStock = ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2;
-      const exportReserve = annualDemand * (EXPORT_RESERVE_MONTHS / 12);
+      const totalStock =
+        ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2 + (ledger.foodStockAge3 ?? 0);
+      const exportReserve = getHarvestBridgeReserve(
+        annualDemand,
+        ledger.offeredIntakeByMonth,
+        months[months.length - 1],
+        EXPORT_RESERVE_MONTHS
+      );
+      ledger.exportReserve = rn(exportReserve, 2);
       const importTarget = annualDemand * (IMPORT_TARGET_MONTHS / 12);
 
       ledger.foodProduced = foodProduced;
@@ -550,14 +625,33 @@ export class FoodProductionModule {
       // satisfiedImport/importCapacityBonus are reset and recomputed by resolveFoodImportNetwork() below.
 
       if (stapleFoodGood) {
-        const marketGood = market.goods[stapleFoodGood.i] ?? { stock: 0, price: previousPrice };
-        marketGood.stock = rn(ledger.exportable + ledger.storageOverflow, 2);
+        const marketGood = market.goods[stapleFoodGood.i] ?? {
+          stock: 0,
+          price: previousPrice
+        };
+        // Overflow heaped outside the granary is not offered to the towns (grain-storage-life.md §3.4).
+        marketGood.stock = rn(ledger.exportable, 2);
         market.goods[stapleFoodGood.i] = marketGood;
         markRetailInventoryDirty(market.i);
       }
     }
 
     resolveFoodImportNetwork(this.worldContext);
+  }
+
+  /** Storage losses at the market's central burg climate (docs/plan/grain-storage-life.md §3.2). */
+  private getMarketStorageLoss(market: Market): QuarterlyStorageLoss {
+    const { pack, grid } = this.worldContext;
+    const cellId = pack.burgs[market.centerBurgId]?.cell ?? -1;
+    const gridCell = cellId >= 0 ? (pack.cells.g?.[cellId] ?? cellId) : -1;
+    const multiplier = getStorageClimateLossMultiplier(
+      gridCell >= 0 ? (grid?.cells?.temp?.[gridCell] ?? Number.NaN) : Number.NaN,
+      gridCell >= 0 ? (grid?.cells?.prec?.[gridCell] ?? Number.NaN) : Number.NaN
+    );
+    return {
+      ...getQuarterlyStorageLoss(multiplier),
+      overflow: OVERFLOW_QUARTERLY_LOSS
+    };
   }
 
   private creditAggregateHarvest(ledger: FoodLedger, units: number, unitCost: number): void {

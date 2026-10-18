@@ -54,7 +54,11 @@ function drawFromLedgerFifo(ledger: FoodLedger, amount: number): number {
   }
   let remaining = amount;
 
-  const fromAge2 = Math.min(ledger.foodStockAge2, remaining);
+  const fromAge3 = Math.min(ledger.foodStockAge3 ?? 0, remaining);
+  ledger.foodStockAge3 = rn((ledger.foodStockAge3 ?? 0) - fromAge3, 2);
+  remaining -= fromAge3;
+
+  const fromAge2 = remaining > 0 ? Math.min(ledger.foodStockAge2, remaining) : 0;
   ledger.foodStockAge2 = rn(ledger.foodStockAge2 - fromAge2, 2);
   remaining -= fromAge2;
 
@@ -108,7 +112,10 @@ function drawBurgMonthlyNeed(
   burg.foodReserve = rn((burg.foodReserve ?? 0) - fromReserve, 2);
   const stillNeeded = affordableNeed - fromReserve;
   const fromMarket = stillNeeded > 0 ? drawFromLedgerFifo(ledger, stillNeeded) : 0;
-  return { satisfied: rn(fromReserve + fromMarket, 2), needed: rn(monthlyNeed, 2) };
+  return {
+    satisfied: rn(fromReserve + fromMarket, 2),
+    needed: rn(monthlyNeed, 2)
+  };
 }
 
 /** Temporary inn guests buy from the market directly; they do not draw a burg household reserve. */
@@ -116,7 +123,10 @@ function drawTemporaryLodgerMonthlyNeed(
   ledger: FoodLedger,
   monthlyNeed: number
 ): { satisfied: number; needed: number } {
-  return { satisfied: drawFromLedgerFifo(ledger, monthlyNeed), needed: rn(monthlyNeed, 2) };
+  return {
+    satisfied: drawFromLedgerFifo(ledger, monthlyNeed),
+    needed: rn(monthlyNeed, 2)
+  };
 }
 
 /**
@@ -152,7 +162,11 @@ function drawRuralMonthlyNeed(
     boughtFromMarket += fromMarket;
   }
 
-  return { satisfied: rn(satisfied, 2), needed: rn(needed, 2), fromMarket: rn(boughtFromMarket, 2) };
+  return {
+    satisfied: rn(satisfied, 2),
+    needed: rn(needed, 2),
+    fromMarket: rn(boughtFromMarket, 2)
+  };
 }
 
 function updateStressCounters(ledger: FoodLedger, ruralShortfallRate: number, urbanShortfallRate: number): void {
@@ -261,8 +275,13 @@ export function settleMonthlyFoodConsumption(settlementMonth = getSimulationMont
 
     // exportable is a current surplus, not a quarterly snapshot. Monthly
     // household consumption must reduce it before Goods Editor or Trade reads it.
-    const remainingStock = Math.max(0, ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2);
-    ledger.exportable = rn(Math.max(0, remainingStock - Math.max(0, ledger.urbanNeed)), 2);
+    const remainingStock = Math.max(
+      0,
+      ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2 + (ledger.foodStockAge3 ?? 0)
+    );
+    // The market keeps back its demand until the next harvest (docs/plan/grain-storage-life.md §3.5).
+    const exportReserve = Math.max(Math.max(0, ledger.urbanNeed), ledger.exportReserve ?? 0);
+    ledger.exportable = rn(Math.max(0, remainingStock - exportReserve), 2);
 
     if (isQuarterEnd) {
       const totalUnmetNeed = Math.max(0, ruralMonthlyNeed - ruralDrawn) + Math.max(0, urbanMonthlyNeed - urbanDrawn);
@@ -282,9 +301,12 @@ export function settleMonthlyFoodConsumption(settlementMonth = getSimulationMont
     }
 
     if (stapleFoodGood) {
-      const marketGood = market.goods[stapleFoodGood.i] ?? { stock: 0, price: retailPrice };
+      const marketGood = market.goods[stapleFoodGood.i] ?? {
+        stock: 0,
+        price: retailPrice
+      };
       marketGood.price = rn(retailPrice, 2);
-      marketGood.stock = rn(ledger.exportable + Math.max(0, ledger.storageOverflow), 2);
+      marketGood.stock = rn(ledger.exportable, 2);
       market.goods[stapleFoodGood.i] = marketGood;
     }
   }
@@ -306,7 +328,7 @@ function settleGrainPrice(
 ): number {
   const stapleFoodGood = getStapleFoodGood();
   const basePrice = stapleFoodGood?.value ?? 1;
-  const currentStock = ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2;
+  const currentStock = ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2 + (ledger.foodStockAge3 ?? 0);
 
   const urbanPopulation = marketBurgs.reduce(
     (sum, burg) =>
@@ -334,7 +356,10 @@ function settleGrainPrice(
 /** Urban retail revenue repays outstanding rural debt first, remainder becomes merchant capital. */
 function settleUrbanRevenue(market: Market, revenue: number): void {
   if (revenue <= 0) return;
-  const treasury = market.marketTreasury ?? { balance: 0, ruralGrainPayable: 0 };
+  const treasury = market.marketTreasury ?? {
+    balance: 0,
+    ruralGrainPayable: 0
+  };
 
   const repayment = Math.min(treasury.ruralGrainPayable, revenue);
   treasury.ruralGrainPayable = rn(treasury.ruralGrainPayable - repayment, 2);

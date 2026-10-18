@@ -101,22 +101,22 @@ describe("FoodProduction", () => {
     // Urban Population = 5 * 1000 = 5,000
     // Urban Need = 5,000 * 0.43 = 2150 => Quarter Need = 537.5.
     // Rural households retain their own annual provisions, so Market stock is
-    // sized for urban demand only: 9-month cap = 1612.5, 3-month export
-    // reserve = 537.5, and 6-month import target = 1075.
+    // sized for urban demand only: 12-month cap plus this quarter's need = 2687.5,
+    // 3-month export reserve = 537.5 (no intake history yet), and 6-month import target = 1075.
 
-    // The ledger starts empty. The 9-month Market-storage cap moves the
-    // excess to overflow, leaving 1612.5 stock and 1075 exportable Grain.
+    // The ledger starts empty and the whole 2015.63 fits under the cap, leaving
+    // 1478.13 exportable Grain and nothing heaped as overflow.
 
     expect(market1.foodLedger.ruralNeed).toBeCloseTo(1612.5, 1);
     expect(market1.foodLedger.urbanNeed).toBeCloseTo(537.5, 1);
-    expect(market1.foodLedger.exportable).toBeCloseTo(1075, 0);
+    expect(market1.foodLedger.exportable).toBeCloseTo(1478.13, 0);
     expect(market1.foodLedger.importNeed).toBe(0);
 
     // The quarter's production lands entirely in the newest bucket; older buckets stay empty.
-    expect(market1.foodLedger.foodStockAge0).toBeCloseTo(1612.5, 0);
+    expect(market1.foodLedger.foodStockAge0).toBeCloseTo(2015.63, 0);
     expect(market1.foodLedger.foodStockAge1).toBe(0);
     expect(market1.foodLedger.foodStockAge2).toBe(0);
-    expect(market1.foodLedger.storageOverflow).toBeCloseTo(403.13, 0);
+    expect(market1.foodLedger.storageOverflow).toBe(0);
 
     // With no starting merchant capital, the farmgate cost accrues entirely as rural debt.
     expect(market1.marketTreasury).toBeDefined();
@@ -268,7 +268,7 @@ describe("FoodProduction", () => {
     expect(weights.reduce((sum, weight) => sum + weight, 0)).toBeCloseTo(1, 12);
   });
 
-  it("shifts buckets oldest-first and overflows what the 9-month cap can't hold", () => {
+  it("ages buckets into carried-over Age3 with quarterly spoilage instead of discarding them", () => {
     const market: any = {
       i: 1,
       goods: {},
@@ -301,12 +301,12 @@ describe("FoodProduction", () => {
       pack: {
         // One rural cell (id 1; index 0 is an unused placeholder, matching the array-by-cellId
         // convention used elsewhere in this file) with no production capacity of its own, but
-        // enough population that annualDemand keeps the 9-month cap well above the 300 units
+        // enough population that annualDemand keeps the storage cap well above the 300 units
         // already in the buckets — this isolates the bucket-shift behavior from the separate
         // cap-trim behavior.
         cells: { i: [1], h: [0, 25], pop: [0, 10], capacity: [0, 0] },
         // Market storage is sized for urban buyers, so add an urban burg
-        // large enough that its 9-month cap does not affect this bucket test.
+        // large enough that its storage cap does not affect this bucket test.
         burgs: [{ i: 1, market: 1, population: 3000, removed: false }]
       },
       markets: [market]
@@ -317,11 +317,14 @@ describe("FoodProduction", () => {
 
     FoodProduction.generateQuarterlyLedger(0);
 
-    // No production this quarter (zero capacity): old Age2 (300) becomes overflow, Age1 (200)
-    // becomes the new Age2, old Age0 (100) becomes the new Age1, and the new Age0 is empty.
-    expect(market.foodLedger.storageOverflow).toBe(300);
-    expect(market.foodLedger.foodStockAge2).toBe(200);
-    expect(market.foodLedger.foodStockAge1).toBe(100);
+    // No production this quarter (zero capacity). Every bucket first loses its quarterly spoilage
+    // (no climate data: multiplier 1.175, so 1.7625%), then old Age2 joins Age3 rather than being
+    // discarded, Age1 becomes Age2, Age0 becomes Age1, and the new Age0 is empty.
+    expect(market.foodLedger.storageOverflow).toBe(0);
+    expect(market.foodLedger.foodStockAge3).toBeCloseTo(294.71, 2);
+    expect(market.foodLedger.foodStockAge2).toBeCloseTo(196.48, 2);
+    expect(market.foodLedger.foodStockAge1).toBeCloseTo(98.24, 2);
     expect(market.foodLedger.foodStockAge0).toBe(0);
+    expect(market.foodLedger.storageSpoiled).toBeCloseTo(10.57, 2);
   });
 });

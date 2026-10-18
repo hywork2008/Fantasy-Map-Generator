@@ -17,7 +17,7 @@ import { getStateArmyFoodConsumptionPerDay } from "./militaryLogistics";
  * territories by burg-weighted state share (decision #3).
  *
  * stapleFood (Grain)'s `market.goods[...].stock` is only a synced view of its tradable surplus
- * (`exportable + storageOverflow`, see foodProduction.ts) — summing it here as well as the
+ * (`exportable`, see foodProduction.ts) — summing it here as well as the
  * ledger's bucket total would double-count `exportable`, so non-staple food goods and the
  * Food Ledger are summed from separate, non-overlapping sources instead.
  */
@@ -39,7 +39,12 @@ export function refreshStateEconomySummaries(): void {
     for (const goodId of foodGoodIds) marketFoodStock += market.goods[goodId]?.stock || 0;
     if (market.foodLedger) {
       const ledger = market.foodLedger;
-      marketFoodStock += ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2 + ledger.storageOverflow;
+      marketFoodStock +=
+        ledger.foodStockAge0 +
+        ledger.foodStockAge1 +
+        ledger.foodStockAge2 +
+        (ledger.foodStockAge3 ?? 0) +
+        ledger.storageOverflow;
     }
     if (marketFoodStock <= 0) continue;
 
@@ -62,7 +67,10 @@ export function getStateFoodStockDays(state: State): number {
 }
 
 /** Single entry point for external consumers (UI, nobility strategic AI) reading a state's war-readiness signals. */
-export function getStateSurplus(state: State): { treasury: number; foodStockDays: number } {
+export function getStateSurplus(state: State): {
+  treasury: number;
+  foodStockDays: number;
+} {
   return {
     treasury: state.treasury || 0,
     foodStockDays: getStateFoodStockDays(state)

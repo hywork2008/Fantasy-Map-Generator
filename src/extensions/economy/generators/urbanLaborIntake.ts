@@ -41,7 +41,7 @@ const RAID_SEVERE_SHORTFALL = 0.1;
 const RAID_SHRINK_QUARTERS = 2;
 /** Fraction of the cohort (times its shortfall rate) lost per quarter once shrinking starts. */
 const RAID_SHRINK_FACTOR = 0.1;
-const FOOD_STOCK_AGE_KEYS = ["foodStockAge0", "foodStockAge1", "foodStockAge2"] as const;
+const FOOD_STOCK_AGE_KEYS = ["foodStockAge0", "foodStockAge1", "foodStockAge2", "foodStockAge3"] as const;
 
 export interface UrbanLaborRandom {
   rand(): number;
@@ -167,7 +167,10 @@ export class UrbanLaborIntakeModule {
   enqueueRuralDisplacement(cohort: MobileAdultCohort): void {
     if (getAdultTotal(cohort) <= 0) return;
     const cohorts = getMobileAdultCohorts();
-    cohorts.push({ ...cohort, yearsSearching: Math.max(0, cohort.yearsSearching) });
+    cohorts.push({
+      ...cohort,
+      yearsSearching: Math.max(0, cohort.yearsSearching)
+    });
     setMobileAdultCohorts(cohorts);
   }
 
@@ -208,7 +211,10 @@ export class UrbanLaborIntakeModule {
       if (remainingAdults <= 0) continue;
 
       if (unresolved.yearsSearching < 1) {
-        stillSearching.push({ ...unresolved, yearsSearching: unresolved.yearsSearching + 1 });
+        stillSearching.push({
+          ...unresolved,
+          yearsSearching: unresolved.yearsSearching + 1
+        });
         continue;
       }
 
@@ -289,7 +295,12 @@ export class UrbanLaborIntakeModule {
       }
 
       if (maleAdults + femaleAdults > 0.001) {
-        survivors.push({ ...cohort, maleAdults, femaleAdults, consecutiveShortfallQuarters });
+        survivors.push({
+          ...cohort,
+          maleAdults,
+          femaleAdults,
+          consecutiveShortfallQuarters
+        });
       }
     }
 
@@ -410,11 +421,11 @@ function distanceTo(origin: readonly [number, number], burg: Pick<Burg, "x" | "y
 /** Deducts up to `amount` from one randomly chosen non-empty age bucket; returns the amount taken. */
 function raidRandomFoodStockBucket(ledger: FoodLedger, amount: number, rng: UrbanLaborRandom): number {
   if (amount <= 0) return 0;
-  const nonEmptyKeys = FOOD_STOCK_AGE_KEYS.filter(key => ledger[key] > 0);
+  const nonEmptyKeys = FOOD_STOCK_AGE_KEYS.filter(key => (ledger[key] ?? 0) > 0);
   if (!nonEmptyKeys.length) return 0;
   const key = nonEmptyKeys[Math.floor(rng.rand() * nonEmptyKeys.length)] ?? nonEmptyKeys[0];
-  const raided = Math.min(amount, ledger[key]);
-  ledger[key] -= raided;
+  const raided = Math.min(amount, ledger[key] ?? 0);
+  ledger[key] = (ledger[key] ?? 0) - raided;
   return raided;
 }
 

@@ -145,7 +145,11 @@ export function storageYardsFromStock(input: StorageFootprintInput): SiteStorage
     if (!(line.units > 0) || !line.name) continue;
     const form = storageFormOf(line);
     if (!form) continue;
-    contributions.push({ form, name: line.name, area: line.units * areaPerUnit(line, form) });
+    contributions.push({
+      form,
+      name: line.name,
+      area: line.units * areaPerUnit(line, form)
+    });
   }
   const raw = contributions.reduce((sum, entry) => sum + entry.area, 0);
   if (!(raw > 0)) return [];
@@ -171,8 +175,13 @@ export function storageYardsFromStock(input: StorageFootprintInput): SiteStorage
   return yards;
 }
 
-function storedCropUnits(inventory: { age0?: number; age1?: number; age2?: number }): number {
-  return Math.max(0, inventory.age0 ?? 0) + Math.max(0, inventory.age1 ?? 0) + Math.max(0, inventory.age2 ?? 0);
+function storedCropUnits(inventory: { age0?: number; age1?: number; age2?: number; age3?: number }): number {
+  return (
+    Math.max(0, inventory.age0 ?? 0) +
+    Math.max(0, inventory.age1 ?? 0) +
+    Math.max(0, inventory.age2 ?? 0) +
+    Math.max(0, inventory.age3 ?? 0)
+  );
 }
 
 function addLots(lots: Map<number, number>, goodId: number, units: number): void {

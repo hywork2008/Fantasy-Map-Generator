@@ -212,15 +212,30 @@ export interface FoodLedger {
   foodStockAge0: number;
   /** Staple food stock 3-6 months old. */
   foodStockAge1: number;
-  /** Staple food stock 6-9 months old. Oldest bucket; consumed/overflowed first. */
+  /** Staple food stock 6-9 months old. */
   foodStockAge2: number;
+  /**
+   * Staple food 9+ months old, carried past the next harvest (docs/plan/grain-storage-life.md §3.1).
+   * Oldest bucket; consumed first and spoils fastest. Missing on older saves = 0.
+   */
+  foodStockAge3?: number;
   /** Weighted-average farmgate unit cost of foodStockAge0. */
   foodStockAge0UnitCost: number;
   /** Weighted-average farmgate unit cost of foodStockAge1. */
   foodStockAge1UnitCost: number;
   /** Weighted-average farmgate unit cost of foodStockAge2. */
   foodStockAge2UnitCost: number;
-  /** Cumulative staple food aged/capped out of the ledger with no export sink yet (v1: recorded only, not consumed). */
+  foodStockAge3UnitCost?: number;
+  /** Staple food lost to pests and decay at the last quarterly ageing, overflow included. */
+  storageSpoiled?: number;
+  /**
+   * Stock the market keeps back from export: its demand until the next harvest restocks it,
+   * from `offeredIntakeByMonth` (docs/plan/grain-storage-life.md §3.5). Missing = three months.
+   */
+  exportReserve?: number;
+  /** Grain farmers offered this market in each calendar month (index 0 = January) over the last year. */
+  offeredIntakeByMonth?: number[];
+  /** Staple food over the storage cap, heaped outside the granary: milled or cheaply exported, else spoils. */
   storageOverflow: number;
   /** Rural surplus the market did not buy this period because it could neither hold nor sell it. */
   unsoldHarvest?: number;

@@ -207,10 +207,10 @@ export function drawTradeableGrain(ledger: FoodLedger, units: number): number {
 
   const bucketBudget = Math.min(remaining, Math.max(0, ledger.exportable));
   let bucketsLeft = bucketBudget;
-  for (const age of ["foodStockAge2", "foodStockAge1", "foodStockAge0"] as const) {
+  for (const age of ["foodStockAge3", "foodStockAge2", "foodStockAge1", "foodStockAge0"] as const) {
     if (!(bucketsLeft > 0)) break;
-    const take = Math.min(Math.max(0, ledger[age]), bucketsLeft);
-    ledger[age] = rn(Math.max(0, ledger[age] - take), 2);
+    const take = Math.min(Math.max(0, ledger[age] ?? 0), bucketsLeft);
+    ledger[age] = rn(Math.max(0, (ledger[age] ?? 0) - take), 2);
     bucketsLeft -= take;
   }
   const bucketDrawn = bucketBudget - bucketsLeft;
@@ -267,7 +267,7 @@ export function settleMilling(): number {
     const batches = rn(drawn / perBatch, 2);
     const grainRow = market.goods[grain.i] ?? { stock: 0, price: grain.value };
     market.goods[grain.i] = grainRow;
-    grainRow.stock = rn(Math.max(0, ledger.exportable) + Math.max(0, ledger.storageOverflow), 2);
+    grainRow.stock = rn(Math.max(0, ledger.exportable), 2);
     recordGoodFlow({
       direction: "sink",
       category: "recipeInput",
