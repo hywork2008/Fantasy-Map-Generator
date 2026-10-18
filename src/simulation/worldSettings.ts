@@ -45,9 +45,18 @@ export function materializeWorldSettings(simulation: SimulationContext = simulat
   if (simulation.worldSettings === undefined) simulation.worldSettings = captureHostWorldSettings();
 }
 
+/**
+ * Values a newly generated world starts with when the host has none. Worlds saved before a key
+ * existed keep the code default (absent), so turning a behaviour on for new maps leaves old saves
+ * running as they did.
+ */
+export const NEW_WORLD_SETTING_DEFAULTS: Readonly<Partial<Record<WorldSettingKey, string>>> = {
+  "fmg-luxury-value-demand": "on"
+};
+
 /** Starts a newly generated world from the host's current values. */
 export function resetWorldSettingsFromHost(simulation: SimulationContext = simulationContext): void {
-  simulation.worldSettings = captureHostWorldSettings();
+  simulation.worldSettings = { ...NEW_WORLD_SETTING_DEFAULTS, ...captureHostWorldSettings() };
 }
 
 /** Same contract as `localStorage`, scoped to the live world. */

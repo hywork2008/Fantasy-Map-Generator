@@ -66,14 +66,16 @@ describe("navyTrade", () => {
     expect(Math.abs(wool.accountingGap) + Math.abs(silk.accountingGap)).toBeLessThan(1e-3);
   });
 
-  it("under the luxury value demand, brings back only what the home towns' budgets lack", () => {
+  it("under the luxury value demand, trades only for what the home towns' budgets lack", () => {
     simulationContext.worldSettings = { [LUXURY_VALUE_DEMAND_SETTING]: "on" };
     const silk = { ...good(3, "Silk", ["luxury"], 20), demandCoverage: { luxury: 1 } } as Good;
     setGoods([good(1, "Wool", ["clothing"], 2), good(2, "Grain", ["food", "stapleFood"], 1), silk]);
     worldContext.pack.burgs[1].treasury = 1000;
     market.goods[3].stock = 1000; // already stocked: nothing short
     const before = (state.treasury ?? 0) + market.marketTreasury!.balance;
-    expect(settleNavyVoyageTrade(1, 1, 10, 1).imported).toBe(0);
+    // Nothing short: the ship does not sail, so the treasury buys no exports it cannot recoup.
+    expect(settleNavyVoyageTrade(1, 1, 10, 1)).toEqual({ exported: 0, imported: 0, profit: 0 });
+    expect(market.goods[1].stock).toBe(1000);
     expect(market.goods[3].stock).toBe(1000); // a stocked luxury is not shipped back out either
 
     market.goods[3].stock = 0;

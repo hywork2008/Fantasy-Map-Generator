@@ -65,8 +65,18 @@ export function settleNavyVoyageTrade(
     nominal(NAVY_TRADE_VALUE_PER_BUILD_POINT_PER_YEAR) * buildPoints * deltaYears,
     Math.max(0, state.treasury ?? 0)
   );
-  let exported = 0;
   const keepLuxuries = isLuxuryValueDemandEnabled();
+  // Under the luxury value demand a voyage sails only for the luxury the home towns' budgets are
+  // shortest of, and loads no more than that shortfall can repay with the markup. Otherwise the
+  // treasury would buy exports with nothing coming back, draining it into the port market.
+  const shortfall = keepLuxuries
+    ? largestLuxuryShortfall(market, luxuryBudgetByMarketTier(getWorldContext().pack.burgs ?? []).get(market.i))
+    : null;
+  if (keepLuxuries) {
+    if (!shortfall) return none;
+    budget = Math.min(budget, shortfall.value / (1 + NAVY_TRADE_MARKUP));
+  }
+  let exported = 0;
   const offers = Object.entries(market.goods)
     .map(([id, row]) => ({ good: byId.get(Number(id)), row }))
     // Under the luxury value demand the ship does not carry back out the luxuries it brought in
@@ -88,12 +98,8 @@ export function settleNavyVoyageTrade(
   state.treasury = rn((state.treasury ?? 0) - exported, 4);
   market.marketTreasury.balance = rn(market.marketTreasury.balance + exported, 4);
 
-  // Import: luxuries, the dearest at home first, bought by the market as far as its cash allows.
-  // Under the luxury value demand, the luxury the home towns' budgets are shortest of, and no more
-  // than that shortfall — a voyage no longer brings back the same dear good whether wanted or not.
-  const shortfall = keepLuxuries
-    ? largestLuxuryShortfall(market, luxuryBudgetByMarketTier(getWorldContext().pack.burgs ?? []).get(market.i))
-    : null;
+  // Import: luxuries, the dearest at home first (under the value demand, the shortfall found above),
+  // bought by the market as far as its cash allows.
   const luxuries = goods
     .filter(good => isLuxury(good) && !isFood(good))
     .map(good => ({ good, price: market.goods[good.i]?.price ?? good.value }))

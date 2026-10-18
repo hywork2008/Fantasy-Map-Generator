@@ -106,9 +106,9 @@ export function luxuryShareInTier(good: Good): number {
 /**
  * Production cycles of town luxury buying a market's merchants keep in stock. One cycle of a single
  * precious good is a few hundredths of a lot, under the smallest trade lot, so merchants bring a
- * half year's custom at once.
+ * year's custom at once.
  */
-export const LUXURY_STOCK_CYCLES = 6;
+export const LUXURY_STOCK_CYCLES = 12;
 
 /** Units of a luxury a market's merchants keep for its towns: LUXURY_STOCK_CYCLES of their budgets. */
 export function luxuryStockTarget(budgets: Record<LuxuryTier, number> | undefined, good: Good, price: number): number {

@@ -55,4 +55,21 @@ describe("world-scoped simulation settings", () => {
     expect(TradeLogisticsSettings.getOptions().maxWaitDaysLand).toBe(9);
     expect(CaravanMovement.getOptions().landKmPerDay).toBe(44);
   });
+
+  it("turns new behaviour on for new worlds only, unless the host says otherwise", () => {
+    resetWorldSettingsFromHost();
+    expect(worldSettings.getItem("fmg-luxury-value-demand")).toBe("on");
+
+    localStorage.setItem("fmg-luxury-value-demand", "off");
+    resetWorldSettingsFromHost();
+    expect(worldSettings.getItem("fmg-luxury-value-demand")).toBe("off");
+
+    // A world saved before the key existed keeps running without it.
+    localStorage.clear();
+    simulationContext.worldSettings = {};
+    expect(worldSettings.getItem("fmg-luxury-value-demand")).toBeNull();
+    delete simulationContext.worldSettings;
+    materializeWorldSettings();
+    expect(worldSettings.getItem("fmg-luxury-value-demand")).toBeNull();
+  });
 });

@@ -19,9 +19,9 @@ export const LIFESTYLE_LUXURY_SHARE: Readonly<Partial<Record<LifestyleTier, numb
   ruler: 0.25,
   centralOffice: 0.2,
   provinceLord: 0.2,
-  marketManager: 0.1,
-  guildMaster: 0.1,
-  fieldCommander: 0.1
+  marketManager: 0.05,
+  guildMaster: 0.05,
+  fieldCommander: 0.05
 };
 
 /** Share of the spending beyond the reserve spent on luxuries, by lifestyle tier (§4.1). */
@@ -29,9 +29,9 @@ export const SURPLUS_LUXURY_SHARE: Readonly<Partial<Record<LifestyleTier, number
   ruler: 0.4,
   centralOffice: 0.3,
   provinceLord: 0.3,
-  marketManager: 0.2,
-  guildMaster: 0.2,
-  fieldCommander: 0.2
+  marketManager: 0.05,
+  guildMaster: 0.05,
+  fieldCommander: 0.05
 };
 
 const COURT: Readonly<Record<LuxuryTier, number>> = { common: 0.1, fine: 0.3, precious: 0.6 };

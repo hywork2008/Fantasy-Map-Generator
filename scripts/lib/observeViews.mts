@@ -23,6 +23,14 @@ import { inferRoleClass } from "../../src/extensions/characters/backstoryProfile
 import { delayRatio, liveCorridorNeeds } from "../../src/extensions/economy/generators/tradeCorridorLedger";
 import { setGoodFlowObserver, type GoodFlowRecord } from "../../src/extensions/economy/generators/goodsBalanceLedger";
 import { DEMAND_TARGET_FACTORS } from "../../src/extensions/economy/generators/goods-generator";
+import { townStanding } from "../../src/extensions/economy/generators/luxuryDemand";
+import { characterLuxuryBudget } from "../../src/extensions/economy/generators/characterLuxuryPurchases";
+import {
+  computeLivingCost,
+  resolveLifestyleTier,
+  SURPLUS_WEALTH_SPEND_SHARE,
+  WEALTH_RESERVE_YEARS
+} from "../../src/extensions/economy/generators/characterLivingCosts";
 import { isLuxuryDemandGood, LUXURY_TIERS, luxuryCoverageOf, luxuryTierOf } from "../../src/extensions/economy/generators/luxuryTiers";
 import { housesPresentIn } from "../../src/extensions/economy/generators/merchantIntelligence";
 import type { Good } from "../../src/extensions/economy/generators/goodsGeneratorTypes";
@@ -397,6 +405,7 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
   let luxuryFlows = new Map<number, Map<string, LuxuryFlow>>();
   let luxuryBuyers = new Set<number>();
   let luxuryCovered = 0;
+  let luxuryByStanding = new Map<string, number>();
   let luxurySince: ObserveClock | null = null;
   setGoodFlowObserver((flow: GoodFlowRecord) => {
     const good = trackedLuxuryGoods().get(flow.goodId);
@@ -412,6 +421,11 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
     if (TOWN_LUXURY_PURCHASES.has(key) && isLuxuryDemandGood(good)) {
       luxuryCovered += flow.units * luxuryCoverageOf(good);
       if (flow.burgId) luxuryBuyers.add(flow.burgId);
+      const burg = flow.burgId ? getWorld().pack.burgs[flow.burgId] : undefined;
+      if (burg) {
+        const standingKey = `${townStanding(burg)}:${luxuryTierOf(good)}`;
+        luxuryByStanding.set(standingKey, (luxuryByStanding.get(standingKey) ?? 0) + flow.units * price);
+      }
     }
   });
 
@@ -427,6 +441,7 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
       luxuryFlows = new Map();
       luxuryBuyers = new Set();
       luxuryCovered = 0;
+      luxuryByStanding = new Map();
       luxurySince = now;
       return null;
     }
@@ -434,9 +449,11 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
     const flows = luxuryFlows;
     const buyers = luxuryBuyers;
     const covered = luxuryCovered;
+    const byStanding = luxuryByStanding;
     luxuryFlows = new Map();
     luxuryBuyers = new Set();
     luxuryCovered = 0;
+    luxuryByStanding = new Map();
     luxurySince = now;
     if (!economy()) return null;
 
@@ -482,6 +499,20 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
           { units: r3(rows[tier].units), spend: r3(rows[tier].spend), share: total > 0 ? r3(rows[tier].spend / total) : 0 }
         ])
       );
+
+    // What each lifestyle tier would spend on luxuries per year at today's wealth (§4.1), so the
+    // character spend can be told apart by rank.
+    const byLifestyle: Record<string, { count: number; budgetPerYear: number }> = {};
+    for (const character of getCharacters()) {
+      if (character.dead || !(character.wealth && character.wealth > 0)) continue;
+      const tier = resolveLifestyleTier(character);
+      const living = computeLivingCost(character);
+      const surplus = Math.max(0, character.wealth - living - living * 12 * WEALTH_RESERVE_YEARS) * SURPLUS_WEALTH_SPEND_SHARE;
+      const budget = Math.min(character.wealth, characterLuxuryBudget(tier, living, surplus)) * 12;
+      const row = (byLifestyle[tier] ??= { count: 0, budgetPerYear: 0 });
+      row.count++;
+      row.budgetPerYear += budget;
+    }
 
     const markets = getMarkets();
     const goods = [...trackedLuxuryGoods().values()]
@@ -536,7 +567,21 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
       },
       tiers: tierRows(tiers, spend),
       /** Characters' purchases at their home markets (§4). */
-      characters: { spend: r3(characterSpend), tiers: tierRows(characterTiers, characterSpend) },
+      characters: {
+        spend: r3(characterSpend),
+        tiers: tierRows(characterTiers, characterSpend),
+        byLifestyle: Object.fromEntries(
+          Object.entries(byLifestyle).map(([tier, row]) => [tier, { count: row.count, budgetPerYear: r3(row.budgetPerYear) }])
+        )
+      },
+      standings: towns.reduce<Record<string, { towns: number; pop: number }>>((acc, b) => {
+        const row = (acc[townStanding(b)] ??= { towns: 0, pop: 0 });
+        row.towns++;
+        row.pop = r3(row.pop + (b.population ?? 0));
+        return acc;
+      }, {}),
+      /** Town purchases by the town's standing and the good's price tier (§3.3). */
+      townsByStanding: Object.fromEntries([...byStanding].map(([key, value]) => [key, r3(value)])),
       flows: Object.fromEntries(Object.entries(totals).map(([key, row]) => [key, { units: r3(row.units), value: r3(row.value) }])),
       caravans: { inTransit, withLuxury, luxuryValue: r3(luxuryValue) },
       burgTreasury: {
