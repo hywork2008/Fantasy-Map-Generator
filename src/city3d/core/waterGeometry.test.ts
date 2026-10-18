@@ -239,7 +239,31 @@ describe("water surface geometry", () => {
     const decomposed = readTris(surfaces([body, west, east]).skirt);
     expect(strictWet([10.25, 5], [body, west, east])).toBe(true);
     expect(decomposed.some(tri => near(planMid(tri), [10, 5]))).toBe(false);
-    expect(decomposed.some(tri => near(planMid(tri), [5, 10]))).toBe(true);
+    expect(
+      decomposed.some(
+        tri =>
+          tri.p.every(vertex => Math.abs(vertex[2] + 10) < 1e-6) &&
+          Math.min(...tri.p.map(vertex => vertex[0])) <= 5 &&
+          Math.max(...tri.p.map(vertex => vertex[0])) >= 5
+      )
+    ).toBe(true);
+  });
+
+  it("opens a river mouth within a longer sea edge while keeping the shore on both sides", () => {
+    for (const riverBottom of [0, -2]) {
+      const ocean = rect(0, -20, 100, 0);
+      const river = rect(20, riverBottom, 30, 40);
+      const skirt = readTris(surfaces([ocean, river]).skirt);
+      const shore = skirt.filter(tri => tri.p.every(vertex => Math.abs(vertex[2]) < 1e-6));
+      expect(shore.length).toBeGreaterThan(0);
+      for (const tri of shore) {
+        const xs = tri.p.map(vertex => vertex[0]);
+        expect(Math.max(...xs) <= 20 || Math.min(...xs) >= 30).toBe(true);
+      }
+      expect(shore.some(tri => near(planMid(tri), [10, 0]))).toBe(true);
+      expect(shore.some(tri => near(planMid(tri), [65, 0]))).toBe(true);
+      expect(skirt.some(tri => near(planMid(tri), [20, 20]))).toBe(true);
+    }
   });
 
   it("keeps the channel midpoint out of land and the bank beside it in land", () => {
@@ -371,7 +395,7 @@ describe("water surface geometry", () => {
   });
 
   it("places water vertices at WATER_Y and skirt vertices on the bank step", () => {
-    expect(WATER_Y).toBe(-0.55);
+    expect(LAND_Y - WATER_Y).toBe(1);
     expect(LAND_Y).toBe(-0.2);
     const drawn = surfaces([rect(10, 10, 30, 20)]);
     const top = readTris(drawn.top);

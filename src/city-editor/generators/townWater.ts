@@ -133,6 +133,7 @@ export function townWaterStamp(document: CityDocument): string {
     .map(face => ({
       id: face.id,
       water: face.properties.water,
+      elevation: face.properties.elevation,
       ring: roundRing(facePoints(document.mesh, face))
     }));
   const areas = (document.waterAreas ?? []).map(area => roundRing(area.polygon));

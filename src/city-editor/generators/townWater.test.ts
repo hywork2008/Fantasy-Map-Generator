@@ -546,7 +546,7 @@ describe("town water", () => {
     expect(ground.land.some(tri => inTriangle(outside, tri))).toBe(true);
   });
 
-  it("changes the stamp for water kind and coordinates, not the salt list", () => {
+  it("changes the stamp for water kind, coordinates, and elevation, not the salt list", () => {
     const mesh = emptyMesh();
     addRect(mesh, "sea", 0, 0, 10, 10, "sea");
     const doc = document({
@@ -565,5 +565,9 @@ describe("town water", () => {
     const moved = townWaterStamp(doc);
     doc.coastalOceanFaceIds = ["absent"];
     expect(townWaterStamp(doc)).toBe(moved);
+    addRect(mesh, "land", -10, -10, 0, 0, "land");
+    const withLand = townWaterStamp(doc);
+    mesh.faces.land.properties.elevation = 30;
+    expect(townWaterStamp(doc)).not.toBe(withLand);
   });
 });

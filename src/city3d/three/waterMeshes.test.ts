@@ -136,6 +136,93 @@ describe("planCity3dRefresh", () => {
 });
 
 describe("town water meshes", () => {
+  it("does not build a land-height bank across the river's connection to the sea", () => {
+    const mesh = emptyMesh();
+    addRect(mesh, "land", 10, 0, 110, 40, "land");
+    addRect(mesh, "sea", 10, -20, 110, 0, "sea");
+    const drawn = createTownWater(
+      document({
+        mesh,
+        waterAreas: [
+          {
+            kind: "river",
+            polygon: [
+              [20, 0],
+              [30, 0],
+              [30, 30],
+              [20, 30]
+            ]
+          }
+        ]
+      })
+    );
+    expect(drawn.parent.getObjectByName("ce-water-ocean")).toBeTruthy();
+    expect(drawn.parent.getObjectByName("ce-water-channel")).toBeTruthy();
+    const bank = drawn.bank!.geometry.getAttribute("position");
+    let shoreTriangles = 0;
+    for (let i = 0; i < bank.count; i += 3) {
+      if (![0, 1, 2].every(j => Math.abs(bank.getZ(i + j)) < 1e-6)) continue;
+      shoreTriangles++;
+      const xs = [0, 1, 2].map(j => bank.getX(i + j));
+      expect(Math.max(...xs) <= 20 || Math.min(...xs) >= 30).toBe(true);
+    }
+    expect(shoreTriangles).toBeGreaterThan(0);
+    drawn.dispose();
+  });
+
+  it("places the sea at zero elevation and rivers and surveyed channels 1 m below land", () => {
+    const mesh = emptyMesh();
+    addRect(mesh, "land", -40, -40, 40, 40, "land");
+    mesh.faces.land.properties.elevation = 30;
+    addRect(mesh, "sea", 50, 10, 70, 30, "sea");
+    // Water depth describes the bed, not the river's drop below the bank.
+    mesh.faces.sea.properties.depth = 12;
+    mesh.vertices.up = { id: "up", point: [10, 30], locked: false };
+    mesh.vertices.down = { id: "down", point: [10, -30], locked: false };
+    const drawn = createTownWater(
+      document({
+        mesh,
+        waterAreas: [
+          {
+            kind: "river",
+            polygon: [
+              [20, 10],
+              [24, 10],
+              [24, 30],
+              [20, 30]
+            ]
+          }
+        ],
+        featureGroups: [
+          {
+            id: "river",
+            kind: "river",
+            name: "River",
+            vertices: ["up", "down"],
+            source: null,
+            mouth: null,
+            style: { widthMeters: 4, color: "#527f8b" },
+            locked: false
+          }
+        ]
+      })
+    );
+    for (const [kind, expectedY] of [
+      ["ocean", LAND_Y - 30],
+      ["river", LAND_Y - 1],
+      ["channel", LAND_Y - 1]
+    ] as const) {
+      const water = drawn.parent.getObjectByName(`ce-water-${kind}`) as THREE.Mesh;
+      const positions = water.geometry.getAttribute("position");
+      expect(positions.count).toBeGreaterThan(0);
+      for (let i = 0; i < positions.count; i++) expect(positions.getY(i)).toBeCloseTo(expectedY, 5);
+    }
+    const bank = drawn.bank!.geometry.getAttribute("position");
+    const levels = new Set(Array.from({ length: bank.count }, (_, index) => bank.getY(index)));
+    expect([...levels].sort((a, b) => a - b)).toEqual([LAND_Y - 30, LAND_Y - 1, LAND_Y].map(Math.fround));
+    drawn.dispose();
+  });
+
   it("keeps an empty water parent for an inland town and does not pick any mesh", () => {
     const mesh = emptyMesh();
     addRect(mesh, "land", 0, 0, 20, 20, "land");
