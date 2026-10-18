@@ -21,6 +21,7 @@ import { getGoodCargoSlotsPerUnit } from "../../src/extensions/economy/generator
 import { getCharacters } from "../../src/extensions/characters/charactersContext";
 import { inferRoleClass } from "../../src/extensions/characters/backstoryProfile";
 import { delayRatio, liveCorridorNeeds } from "../../src/extensions/economy/generators/tradeCorridorLedger";
+import { setTradeStageObserver, type TradeStageEvent } from "../../src/extensions/economy/generators/tradeStageObserver";
 import { setGoodFlowObserver, type GoodFlowRecord } from "../../src/extensions/economy/generators/goodsBalanceLedger";
 import { DEMAND_TARGET_FACTORS } from "../../src/extensions/economy/generators/goods-generator";
 import { townStanding } from "../../src/extensions/economy/generators/luxuryDemand";
@@ -37,7 +38,7 @@ import type { Good } from "../../src/extensions/economy/generators/goodsGenerato
 import type { Burg, Route } from "../../src/types/models";
 
 export const SAMPLE_VERSION = 1;
-export const SAMPLE_DETAILS = ["burgs", "routes", "approaches", "corridors", "markets", "wealth", "luxury"] as const;
+export const SAMPLE_DETAILS = ["burgs", "routes", "approaches", "corridors", "markets", "wealth", "luxury", "trade"] as const;
 export type SampleDetail = (typeof SAMPLE_DETAILS)[number];
 
 /**
@@ -213,6 +214,7 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
     if (details.includes("markets")) out.markets = markets();
     if (details.includes("wealth")) out.wealth = wealth();
     if (details.includes("luxury")) out.luxury = luxury();
+    if (details.includes("trade")) out.trade = trade();
     return out;
   }
 
@@ -592,6 +594,72 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
     };
   }
 
+  // Global trade matching by stage (docs/plan/approach-commerce-quarters.md §4.4), between trade()
+  // calls: how many exporter → importer pairs pass each gate, per cargo class, and how far the
+  // struck deals travel. Luxuries are counted on their own as well as in their cargo class.
+  const DURATION_BUCKETS = [7, 24, 60, Infinity] as const;
+  type StageRow = Record<string, number>;
+  let stageCounts = new Map<string, StageRow>();
+  let dealRows = new Map<string, { deals: number; units: number; value: number; days: number[]; km: number[] }>();
+  let goodClass: { catalogue: readonly Good[] | null; byId: Map<number, string> } = { catalogue: null, byId: new Map() };
+  const classOfGood = (goodId: number) => {
+    const catalogue = getGoods();
+    if (catalogue !== goodClass.catalogue)
+      goodClass = { catalogue, byId: new Map(catalogue.map(g => [g.i, cargoClassOf(g.tags)])) };
+    return goodClass.byId.get(goodId) ?? "other";
+  };
+  setTradeStageObserver((event: TradeStageEvent) => {
+    const keys = [classOfGood(event.goodId)];
+    if (trackedLuxuryGoods().has(event.goodId)) keys.push("luxuryGoods");
+    for (const key of keys) {
+      const row = stageCounts.get(key) ?? {};
+      row[event.stage] = (row[event.stage] ?? 0) + 1;
+      stageCounts.set(key, row);
+      if (event.stage !== "deal") continue;
+      const deal = dealRows.get(key) ?? { deals: 0, units: 0, value: 0, days: [], km: [] };
+      deal.deals++;
+      deal.units += event.units ?? 0;
+      deal.value += event.value ?? 0;
+      deal.days.push(event.durationDays ?? 0);
+      deal.km.push(event.distanceKm ?? 0);
+      dealRows.set(key, deal);
+    }
+  });
+
+  /** Trade matching since the previous call (or since these views were created). */
+  function trade() {
+    const counts = stageCounts;
+    const deals = dealRows;
+    stageCounts = new Map();
+    dealRows = new Map();
+    const quantile = (values: number[], q: number) => {
+      const sorted = values.slice().sort((a, b) => a - b);
+      return sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))] : 0;
+    };
+    return {
+      stages: Object.fromEntries(counts),
+      deals: Object.fromEntries(
+        [...deals].map(([key, row]) => [
+          key,
+          {
+            deals: row.deals,
+            units: r3(row.units),
+            value: r3(row.value),
+            days: { p50: r3(quantile(row.days, 0.5)), p90: r3(quantile(row.days, 0.9)), max: r3(Math.max(...row.days)) },
+            km: { p50: r3(quantile(row.km, 0.5)), p90: r3(quantile(row.km, 0.9)), max: r3(Math.max(...row.km)) },
+            byDuration: Object.fromEntries(
+              DURATION_BUCKETS.map((limit, index) => {
+                const low = index ? DURATION_BUCKETS[index - 1] : 0;
+                const label = Number.isFinite(limit) ? `<${limit}d` : `>=${low}d`;
+                return [label, row.days.filter(d => d >= low && d < limit).length];
+              })
+            )
+          }
+        ])
+      )
+    };
+  }
+
   /** Map facts that change only with the route network (§6 static.json). */
   function staticInfo() {
     const { pack, seed } = getWorld();
@@ -611,7 +679,7 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
       .join(",");
   }
 
-  return { sample, routes, approaches, corridors, markets, goods, gates, wealth, luxury, staticInfo, networkKey };
+  return { sample, routes, approaches, corridors, markets, goods, gates, wealth, luxury, trade, staticInfo, networkKey };
 }
 
 export interface SampledAdvanceHost {

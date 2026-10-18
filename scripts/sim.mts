@@ -13,7 +13,7 @@
  * --hash       print the golden digest of the result (same hash as `npm run test:sim-golden`).
  * --sample-every-months N   advance in N-month strides and append an observatory sample per stride
  *              to --samples (docs/plan/approach-traffic-observatory.md §6); same strides as sim:server.
- * --sample-detail burgs,routes,approaches,corridors,markets,wealth,luxury   limit the sample (default: all)
+ * --sample-detail burgs,routes,approaches,corridors,markets,wealth,luxury,trade   limit the sample (default: all)
  * --money-flows f.ndjson   with --sample-every-months: per stride, the change of every money stock
  *              attributed to the tick step that made it (docs/plan/initial-wealth-calibration.md §5.1)
  */
@@ -103,6 +103,7 @@ async function main() {
     const details = parseDetails(options.sampleDetail);
     // Luxury flows are counted between samples; start the first interval at the loaded date.
     if (details.includes("luxury")) observe.luxury();
+    if (details.includes("trade")) observe.trade();
     writeFileSync(options.samples, "");
     const recorder = options.moneyFlows ? createMoneyFlowRecorder(() => host.world) : null;
     if (recorder && options.moneyFlows) {

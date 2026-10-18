@@ -109,6 +109,7 @@ import {
 import { calculateRouteDurationDays, getRouteDistanceMapUnits } from "./tradeRouteDuration";
 import { TradeRoutePlanner } from "./tradeRoutePlanner";
 import { maxWaitDaysForRoute } from "./tradeSailSchedule";
+import { getTradeStageObserver } from "./tradeStageObserver";
 import { TransportAssetOrders } from "./transportAssetOrders";
 
 const PRICE_FLOOR_FACTOR = 0.25;
@@ -2031,6 +2032,7 @@ export class MarketsModule {
       travelRoutes
     } = ctx;
     const minUnit = getMarketTradeMinimumUnits(good);
+    const observe = getTradeStageObserver();
 
     const exporters: { market: Market; reserve: number }[] = [];
     const importers: { market: Market; reserve: number }[] = [];
@@ -2080,10 +2082,16 @@ export class MarketsModule {
           const needed = Math.max(0, importer.reserve - importerGood.stock);
           const units = Math.min(available, needed);
           if (units < minUnit) continue;
+          const pair = { goodId: good.i, exporterId: exporter.market.i, importerId: importer.market.i };
+          observe?.({ stage: "pair", ...pair });
 
           const route = routes[importer.market.i];
+          if (!route) {
+            observe?.({ stage: "noRoute", ...pair });
+            continue;
+          }
+          const leg = { ...pair, durationDays: route.durationDays, distanceKm: route.distanceKm };
           if (
-            !route ||
             !isGoodTradePermittedForShipment(
               good,
               route.durationDays,
@@ -2091,9 +2099,15 @@ export class MarketsModule {
               route.segments,
               route.maxTemperatureC,
               refrigeratedTransport
-            ) ||
+            )
+          ) {
+            observe?.({ stage: "shipmentRule", ...leg });
+            continue;
+          }
+          if (
             !isMarketTradePermitted(exporter.market, importer.market, route.durationDays, isMineOrFurnaceGood(good))
           ) {
+            observe?.({ stage: "orgReach", ...leg });
             continue;
           }
 
@@ -2110,10 +2124,17 @@ export class MarketsModule {
             importerGood.price,
             travelRoutes
           );
-          if (!known) continue;
+          if (!known) {
+            observe?.({ stage: "noHouse", ...leg });
+            continue;
+          }
           const unitProfit =
             known.importerPrice - (known.exporterPrice + transportCost + exporterTaxPerUnit + importerDutyPerUnit);
-          if (unitProfit <= 0) continue;
+          if (unitProfit <= 0) {
+            observe?.({ stage: "unprofitable", ...leg });
+            continue;
+          }
+          observe?.({ stage: "candidate", ...leg, units });
           const totalProfit = getNetTradeProfit(unitProfit, units, route.durationDays);
 
           opportunities.push({
@@ -2150,6 +2171,16 @@ export class MarketsModule {
         mapDiagonal,
         opportunities
       });
+      for (const opportunity of opportunities)
+        observe?.({
+          stage: "speculative",
+          goodId: good.i,
+          exporterId: opportunity.exporter.i,
+          importerId: opportunity.importer.i,
+          durationDays: opportunity.durationDays,
+          distanceKm: opportunity.distanceKm,
+          units: opportunity.units
+        });
     }
 
     opportunities.sort((a, b) => b.totalProfit - a.totalProfit || b.units - a.units);
@@ -2215,9 +2246,20 @@ export class MarketsModule {
     const { consumerDemandFactors, industrialDemandFactors, populationByMarket, tradeReserveFactor } = ctx;
     const minUnit = getMarketTradeMinimumUnits(good);
     const importerStockAdjustments = new Map<number, number>();
+    const observe = getTradeStageObserver();
 
     for (const opportunity of opportunities) {
-      if (!viableRoutes.has(tradeRouteKey(opportunity.exporter.i, opportunity.importer.i))) continue;
+      const leg = {
+        goodId: good.i,
+        exporterId: opportunity.exporter.i,
+        importerId: opportunity.importer.i,
+        durationDays: opportunity.durationDays,
+        distanceKm: opportunity.distanceKm
+      };
+      if (!viableRoutes.has(tradeRouteKey(opportunity.exporter.i, opportunity.importer.i))) {
+        observe?.({ stage: "routeNotViable", ...leg });
+        continue;
+      }
 
       const exporterGood = this.getMarketGood(opportunity.exporter, good);
       const importerGood = this.getMarketGood(opportunity.importer, good);
@@ -2249,7 +2291,10 @@ export class MarketsModule {
       // goodsTradeLots.ts) must not fraction across a caravan trip either: a market can't
       // wholesale 0.4 of a live animal any more than a player can retail-buy one.
       units = floorToRetailLot(units, getRetailLotSize(good));
-      if (units < minUnit) continue;
+      if (units < minUnit) {
+        observe?.({ stage: "belowFlowBudget", ...leg });
+        continue;
+      }
 
       // The deal is struck on what the house believes (its letters), not on today's prices.
       const quotedExporterPrice =
@@ -2262,7 +2307,10 @@ export class MarketsModule {
         opportunity.exporterTaxPerUnit +
         opportunity.importerDutyPerUnit;
       const quotedSalePrice = opportunity.targetSalePrice ?? quotedImporterPrice;
-      if (quotedSalePrice - quotedLandedCost <= 0) continue;
+      if (quotedSalePrice - quotedLandedCost <= 0) {
+        observe?.({ stage: "quoteUnprofitable", ...leg });
+        continue;
+      }
 
       const landedCost =
         exporterGood.price +
@@ -2305,9 +2353,13 @@ export class MarketsModule {
         // the exporting market's optional merchant working-capital pool.
         requireCapital: !opportunity.stateProcurement
       });
-      if (!lot) continue;
+      if (!lot) {
+        observe?.({ stage: "noCapital", ...leg });
+        continue;
+      }
       deal.stagingLotId = lot.id;
       deals.push(deal);
+      observe?.({ stage: "deal", ...leg, units, value: units * landedCost });
 
       exporterGood.price = rn(this.applyMarketPressure(good.value, exporterGood.price, units), 2);
       importerGood.price = rn(this.applyMarketPressure(good.value, importerGood.price, -units), 2);
