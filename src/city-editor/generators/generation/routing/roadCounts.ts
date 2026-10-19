@@ -2,9 +2,9 @@ import type { CityDocument } from "../../../types/document";
 import { featureGroupVertices } from "../../features";
 import { GEN_PREFIX } from "../constants";
 
-/** `gc:road-*` groups that leave the built-up area. Intramural streets run
- * gate → plaza (one end near the origin) and are ignored. Cape land may never
- * reach the window edge, so "outward from the town" is the test, not the frame. */
+/** Count external approaches, excluding streets even after their endpoints
+ * change. Legacy roads without a purpose still use the geometric test: cape
+ * land may never reach the frame, so require outward travel from the town. */
 export function countExternalApproachRoads(document: CityDocument): number {
   if (document.importedRoadCount !== undefined)
     return document.featureGroups.filter(g => g.kind === "road" && !g.locked && g.sourceRoad && g.segments.length)
@@ -13,7 +13,14 @@ export function countExternalApproachRoads(document: CityDocument): number {
   const core = document.frame.cityRadiusMeters * 0.25;
   let count = 0;
   for (const group of document.featureGroups) {
-    if (group.kind !== "road" || group.locked || !group.id.startsWith(`${GEN_PREFIX}road-`)) continue;
+    if (
+      group.kind !== "road" ||
+      group.locked ||
+      group.roadRole === "street" ||
+      !group.id.startsWith(`${GEN_PREFIX}road-`) ||
+      group.id.includes(":part-")
+    )
+      continue;
     const ids = featureGroupVertices(document, group);
     if (ids.length < 2) continue;
     const start = document.mesh.vertices[ids[0]]?.point;

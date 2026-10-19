@@ -382,8 +382,20 @@ function chooseSplit(
       const cornerDistance = Math.min(...chord.flatMap(p => corners.map(v => distance(p, v))));
       if (cornerDistance < span * 0.24) continue;
       const slenderness = frames.reduce((sum, f) => sum + Math.max(0, (f.hi - f.lo) / f.short - 2.8), 0);
+      // Prefer junctions that leave square-ended housing rows. A short cut
+      // that grazes its parent street creates acute parcels and wedge houses.
+      const junctionSkew = chord.reduce((sum, p, i) => {
+        const direction = unit(sub(chord[1 - i], p));
+        const edge = poly.findIndex((a, j) => onSegment(p, a, poly[(j + 1) % poly.length]));
+        if (edge < 0) return sum;
+        return sum + Math.abs(dot(direction, unit(sub(poly[(edge + 1) % poly.length], poly[edge]))));
+      }, 0);
       const score =
-        slenderness * 2 + Math.abs(sizes[0] / area(poly) - t) + (length / span) * 0.035 - (bend ? roadEnds * 2 : 0);
+        slenderness * 2 +
+        junctionSkew * 0.6 +
+        Math.abs(sizes[0] / area(poly) - t) +
+        (length / span) * 0.035 -
+        (bend ? roadEnds * 2 : 0);
       if (score < bestScore) {
         best = candidate;
         bestScore = score;

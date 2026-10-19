@@ -1,3 +1,4 @@
+import type { ParkTreeCanopy } from "../generators/parkFabric";
 import { renderAerialLandmarks, renderBarbicans } from "./aerialLandmarksSvg";
 import { renderTownQuays } from "./quaySvg";
 import type { RenderContext } from "./renderContext";
@@ -12,7 +13,7 @@ export function renderTownStructures(
   townPlans: TownLayerPlans,
   features: SVGGElement
 ) {
-  const { document, tool, selection, lightweight, minimal, preview } = ctx;
+  const { document, tool, selection, minimal, preview } = ctx;
   if (!preview) {
     svg.appendChild(renderTownQuays(townPlans.harbor, townPlans.plannedPiers, townPlans.fallbackPiers));
     svg.appendChild(renderTownWatermills(document, townPlans.watermills, tool, selection.inspectedId));
@@ -27,14 +28,25 @@ export function renderTownStructures(
     svg.appendChild(walls);
   }
   svg.appendChild(renderTownFortifications(document, tool, selection.inspectedId));
-  if (townPlans.parks.length) {
+  renderTrees(
+    ctx,
+    svg,
+    townPlans.parks.map(park => park.trees),
+    "ce-park-trees"
+  );
+  renderTrees(ctx, svg, [townPlans.vacantTrees ?? []], "ce-vacant-lot-trees");
+}
+
+function renderTrees(ctx: RenderContext, svg: SVGSVGElement, treeGroups: ParkTreeCanopy[][], className: string) {
+  const { lightweight, minimal } = ctx;
+  if (treeGroups.some(trees => trees.length)) {
     const parkTreesLayer = element("g", {
-      class: "ce-park-trees",
+      class: className,
       style: "z-index: 5;",
       "pointer-events": "none"
     });
-    for (const park of townPlans.parks) {
-      for (const [treeIndex, tr] of park.trees.entries()) {
+    for (const trees of treeGroups) {
+      for (const [treeIndex, tr] of trees.entries()) {
         if (minimal && treeIndex % 3 !== 0) continue;
         if (lightweight) {
           parkTreesLayer.appendChild(

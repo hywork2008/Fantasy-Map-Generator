@@ -176,7 +176,7 @@ async function main() {
   const outDir = resolve(outArg);
   mkdirSync(outDir, { recursive: true });
   const manifest = join(outDir, "small-maps.jsonl");
-  const server = externalUrl ? { url: externalUrl, stop: () => {} } : await startDevServer();
+  const server = externalUrl ? { url: externalUrl, stop: () => { } } : await startDevServer();
   const browser = await chromium.launch({ headless: !headed });
   let saved = 0;
   try {

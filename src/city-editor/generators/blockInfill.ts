@@ -200,6 +200,7 @@ function documentFabricFingerprint(doc: CityDocument): string {
     doc.waterAreas?.length ?? 0,
     doc.fixedCrossingApproaches?.length ?? 0,
     siteEconomyKey(economyOnDocument(doc)),
+    doc.farmlandAreaHectares ?? "",
     JSON.stringify(doc.facilityCounts ?? {}),
     roadTrafficKey(doc),
     prevailingWindKey(doc),
@@ -311,6 +312,24 @@ export function buildBlockFabric(
   }
   if (document.urbanMorphology && !document.populationPlan)
     fabricResult = shapeUrbanGrowthFabric(document, fabricResult);
+  const farmlandArea = document.farmlandAreaHectares;
+  if (farmlandArea !== undefined && Number.isFinite(farmlandArea)) {
+    let remaining = Math.max(0, farmlandArea) * 10_000;
+    // Keep complete plots nearest the town first, without changing their geometry or rows.
+    const farms = [...fabricResult.farms]
+      .sort((a, b) => {
+        const ac = polygonCentroid(a.polygon),
+          bc = polygonCentroid(b.polygon);
+        return Math.hypot(...ac) - Math.hypot(...bc);
+      })
+      .filter(farm => {
+        const area = Math.abs(polygonArea(farm.polygon));
+        if (area > remaining) return false;
+        remaining -= area;
+        return true;
+      });
+    fabricResult = { ...fabricResult, farms };
+  }
   fabricResult = { ...fabricResult, buildings: assignBuildingMassing(document, fabricResult.buildings) };
   if (!profiler) {
     fabricByDocument.set(document, { fingerprint: documentFabricFingerprint(document), fabric: fabricResult });

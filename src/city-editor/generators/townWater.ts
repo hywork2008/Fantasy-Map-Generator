@@ -5,7 +5,7 @@ import type { CityDocument, Point, RiverGroup } from "../types/document";
 import type { WaterKind } from "../types/primitives";
 import { riverRibbons } from "./bridgeDeck";
 import { boundaryEdges, boundaryRings, refPoints } from "./fortifications";
-import { nearestOnPolyline, pointInPolygon, polygonArea } from "./geom";
+import { nearestOnPolyline, pointInPolygon, polygonArea, segmentPolylineIntersection } from "./geom";
 import { convexInfillParts, triangularInfillParts } from "./lotGeometry";
 import { facePoints } from "./mesh";
 import { bounds, boundsOverlap, intersectConvex, plotArea, subtractConvex } from "./parcelGeometry";
@@ -78,8 +78,15 @@ export function classifyTownWater(document: CityDocument): TownWater {
     }
   }
 
+  const outside = surfacePieces(document);
+  const sea = coreRing(document) ? regionalCoastalWaterPolygons(document) : [];
+  const receivingWater = [
+    ...parts.filter(part => part.kind === "ocean" || part.kind === "lake").map(part => part.polygon),
+    ...sea,
+    ...outside.water
+  ];
   for (const ribbon of riverRibbons(document)) {
-    const ring = riverRibbonRing(ribbon.points, ribbon.width);
+    const ring = riverMouthRing(ribbon.points, ribbon.width, receivingWater);
     if (!ring) continue;
     commit(ring, "river", parts, reserved, drawn(parts), [], false, {
       centerline: ribbon.points.map(copyPoint),
@@ -88,8 +95,6 @@ export function classifyTownWater(document: CityDocument): TownWater {
   }
 
   const drawnBeforeSea = drawn(parts);
-  const outside = surfacePieces(document);
-  const sea = coreRing(document) ? regionalCoastalWaterPolygons(document) : [];
   for (const piece of sea) {
     commit(piece, "ocean", parts, reserved, drawn(parts), [...outside.land, ...outside.water], true);
   }
@@ -107,6 +112,51 @@ export function riverRibbonRing(centerline: Point[], widthMeters: number): Point
   const right = offsetSide(centerline, -half);
   if (!left || !right || left.length !== right.length || left.length < 2) return null;
   return [...left, ...[...right].reverse()];
+}
+
+/** A centreline ending on shore leaves a dry wedge when its square cap meets
+ * the coast obliquely. Extend only that cap until both banks reach water.
+ * The existing water polygons clip the extension at the actual shoreline. */
+function riverMouthRing(points: Point[], width: number, receivingWater: Point[][]): Point[] | null {
+  const ring = riverRibbonRing(points, width);
+  if (!ring || closedLine(points) || !receivingWater.length) return ring;
+  const count = points.length;
+  const closedWater = receivingWater.map(polygon => [...polygon, polygon[0]]);
+  const wet = (point: Point) => strictWet(point, receivingWater);
+  const extend = (tip: Point, previous: Point, left: Point, right: Point): Point[] => {
+    const length = Math.hypot(tip[0] - previous[0], tip[1] - previous[1]);
+    if (length < 1e-6 || !closedWater.some(polygon => nearestOnPolyline(tip, polygon).dist < 1e-4)) return [];
+    const direction: Point = [(tip[0] - previous[0]) / length, (tip[1] - previous[1]) / length];
+    const ahead = (point: Point, distance: number): Point => [
+      point[0] + direction[0] * distance,
+      point[1] + direction[1] * distance
+    ];
+    if (!wet(ahead(tip, 0.01))) return [];
+    const reach =
+      Math.max(
+        ...receivingWater.flatMap(polygon => polygon.map(point => Math.hypot(point[0] - tip[0], point[1] - tip[1])))
+      ) + width;
+    let extension = 0;
+    for (const bank of [left, right]) {
+      if (wet(bank)) continue;
+      const hits = closedWater.flatMap(polygon => {
+        const hit = segmentPolylineIntersection(bank, ahead(bank, reach), polygon);
+        return hit && wet(ahead(hit, 0.01)) ? [Math.hypot(hit[0] - bank[0], hit[1] - bank[1])] : [];
+      });
+      if (!hits.length) return [];
+      extension = Math.max(extension, Math.min(...hits));
+    }
+    return extension > 1e-6 ? [ahead(left, extension + 0.01), ahead(right, extension + 0.01)] : [];
+  };
+  const end = extend(points[count - 1], points[count - 2], ring[count - 1], ring[count]);
+  const start = extend(points[0], points[1], ring[0], ring[ring.length - 1]);
+  return [
+    ...(start.length ? [start[0]] : []),
+    ...ring.slice(0, count),
+    ...end,
+    ...ring.slice(count),
+    ...(start.length ? [start[1]] : [])
+  ];
 }
 
 /** Strict interior, plus a decomposed seam whose four probes are wet. */

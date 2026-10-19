@@ -1,13 +1,14 @@
 import { editorText } from "../../../../i18n/editorMessages";
 import type { RoadRoutingTrace } from "../../../types/contracts/generationDiagnostics";
-import type { CityDocument, Id, Point } from "../../../types/document";
+import type { CityDocument, EdgeRef, Id, Point } from "../../../types/document";
 import type { Cell, CityProgram } from "../../../types/geometry";
 import { orientedRectPolylineDistance, templeRectForElement } from "../../civicPlacement";
 import { townMeshExtentMeters } from "../../document";
 import { featureGroupVertices } from "../../features";
 import { townGates } from "../../fortifications";
+import { normalizeGeneratedRoadOwnership } from "../../generatedRoadOwnership";
 import type { GenerationObserver } from "../../generationDiagnostics";
-import { pointInPolygon, polylineCrossesSegment } from "../../geom";
+import { pointInPolygon, polylineCrossesSegment, polylineLength } from "../../geom";
 import {
   kindEdgeIds,
   openBarrierPassage,
@@ -16,6 +17,7 @@ import {
   vertexHasKindPassage
 } from "../../passages";
 import { bramCoreRadiusForCity, bramRoadBanRadiusMeters } from "../../polygonalCirculadeLayout";
+import { RoadNetwork, RootedRoadNetwork, roadPathVertices, simpleRoadSegments } from "../../roadNetwork";
 import { defaultRoadWidthMeters, townExtentMeters } from "../../settlementExtent";
 import {
   type DocumentWaterTest,
@@ -297,7 +299,19 @@ export function applyRoads(input: ApplyRoadsInput) {
     // the matching wall run was removed at the coast), so never materialize
     // either route for a gate that did not actually make it onto the mesh.
     const approachRoadCount = plan.roads.length - plan.streets.length;
+    const network = new RoadNetwork(mesh, next.featureGroups);
+    const rootedStreets = new RootedRoadNetwork(next);
+    const protectedStops = new Set([
+      ...townGates(next).map(gate => gate.vertexId),
+      ...next.featureGroups.flatMap(group =>
+        group.kind === "road" && group.id.startsWith(`${GEN_PREFIX}bridge`) ? featureGroupVertices(next, group) : []
+      )
+    ]);
+    let redundantStreets = 0;
+    let detachedStreets = 0;
+    let joinedStreets = 0;
     plan.roads.forEach((polyline, i) => {
+      if (next.featureGroups.some(group => group.id === `${GEN_PREFIX}road-${i}` && group.locked)) return;
       const isApproach = i < approachRoadCount;
       // Approaches and the matching gate-to-plaza streets share a gate index.
       // Later streets are extras and are not paired with a planned gate.
@@ -334,7 +348,8 @@ export function applyRoads(input: ApplyRoadsInput) {
               observer?.({ phase: "road-routing", elapsedMs: 0, attempt, routing: [trace] });
             const id = `${GEN_PREFIX}gate-${gateIndex}`;
             gateRouting.set(id, [...(gateRouting.get(id) ?? []), trace]);
-          }
+          },
+          { existingEdges: plannedGate ? network.edges : undefined }
         );
       let segments = traceRoute(routeLine);
       // Odutum: a ferry landing on the market's bank snaps to the same vertex
@@ -410,10 +425,100 @@ export function applyRoads(input: ApplyRoadsInput) {
             : undefined;
         return near(polyline[0]) ?? near(polyline.at(-1));
       })();
+      const gateSource = plannedGate?.roadIndex === undefined ? undefined : plan.importedRoads?.[plannedGate.roadIndex];
+      const needsSourceStreet =
+        gateSource &&
+        !next.featureGroups.some(group => group.kind === "road" && group.sourceRoad?.index === gateSource.sourceIndex);
+      if (
+        complete &&
+        !isApproach &&
+        plannedGate &&
+        !importedRoad &&
+        !needsSourceStreet &&
+        layout !== "bram" &&
+        layout !== "circulade"
+      ) {
+        const joined = rootedStreets.join(segments);
+        if (joined.length < segments.length) joinedStreets++;
+        segments = joined;
+        if (!segments.length) return;
+      }
+      const optional = !isApproach && !plannedGate && !importedRoad;
+      let access: EdgeRef[] = [];
+      if (optional && complete) {
+        const nodes = roadPathVertices(mesh, segments);
+        if (network.edges.size && !nodes.some(id => network.vertices.has(id))) {
+          // Connect a genuinely new street to the reachable road network;
+          // never manufacture a chord across a wall, moat, or river.
+          const connect = (id: Id) =>
+            routeComplete(
+              [mesh.vertices[id].point, mesh.vertices[network.vertices.values().next().value!].point],
+              false,
+              false,
+              undefined,
+              {
+                connectTo: network.vertices,
+                startVertex: id,
+                maxConnectionMeters: Math.max(source.frame.blockSizeMeters * 2, polylineLength(routeLine) / 2)
+              }
+            );
+          const candidates: EdgeRef[][] = [];
+          const head = connect(nodes[0]);
+          if (head.length)
+            candidates.push([
+              ...head
+                .slice()
+                .reverse()
+                .map(ref => ({ edgeId: ref.edgeId, forward: !ref.forward })),
+              ...segments
+            ]);
+          const closed = nodes[0] === nodes.at(-1);
+          const tail = closed ? [] : connect(nodes.at(-1)!);
+          if (tail.length) candidates.push([...segments, ...tail]);
+          const length = (refs: EdgeRef[]) =>
+            refs.reduce((sum, ref) => {
+              const edge = mesh.edges[ref.edgeId];
+              const a = mesh.vertices[edge.a].point,
+                b = mesh.vertices[edge.b].point;
+              return sum + Math.hypot(b[0] - a[0], b[1] - a[1]);
+            }, 0);
+          const connected = (closed ? [] : candidates)
+            .map(path => simpleRoadSegments(mesh, path, protectedStops))
+            .filter((path): path is EdgeRef[] => !!path?.length)
+            .sort((a, b) => length(a) - length(b));
+          if (closed && head.length) {
+            // Keep a ring and its access stem as separate simple routes.
+            access = head
+              .slice()
+              .reverse()
+              .map(ref => ({ edgeId: ref.edgeId, forward: !ref.forward }));
+          } else if (!connected.length) {
+            detachedStreets++;
+            return;
+          } else segments = connected[0];
+        }
+        if (!network.useful([...access, ...segments])) {
+          redundantStreets++;
+          return;
+        }
+      }
+      if (access.length) {
+        appendGeneratedGroup(next, {
+          id: `${GEN_PREFIX}road-${i}:access`,
+          kind: "road",
+          name: "Street access",
+          roadRole: "street",
+          segments: access,
+          style: { widthMeters: defaultRoadWidthMeters(townExtentMeters(source.frame)), color: "#735238" },
+          locked: false
+        });
+        network.add(access);
+      }
       appendGeneratedGroup(next, {
         id: `${GEN_PREFIX}road-${i}`,
         kind: "road",
         name: `Road ${i + 1}`,
+        roadRole: isApproach ? "approach" : "street",
         ...(importedRoad
           ? {
               sourceRoad: {
@@ -427,7 +532,9 @@ export function applyRoads(input: ApplyRoadsInput) {
         style: { widthMeters: defaultRoadWidthMeters(townExtentMeters(source.frame)), color: "#735238" },
         locked: false
       });
+      network.add(segments);
     });
+    mark("road-network", { ...network.counts(), redundantStreets, detachedStreets, joinedStreets });
     // The outside approach can collapse onto one vertex when the surveyed bank
     // already sits inside the town. The gate's street is that road's town end.
     if (plan.importedRoads) {
@@ -547,6 +654,12 @@ export function applyRoads(input: ApplyRoadsInput) {
     const group = next.featureGroups.find(g => g.kind === "road" && g.sourceRoad?.index === connection.sourceIndex);
     const outer = group ? mesh.vertices[featureGroupVertices(next, group)[0]]?.point : undefined;
     if (outer && connection.townRoad.length === 1) connection.townRoad = [[...outer], connection.townRoad[0]];
+  }
+
+  if (stageStep >= 5) {
+    const approaches = plan.roads.length - plan.streets.length;
+    const preserved = new Set(Array.from({ length: approaches }, (_, i) => `${GEN_PREFIX}road-${i}`));
+    mark("road-ownership", normalizeGeneratedRoadOwnership(next, preserved));
   }
 
   return { stopped: false as const, next, mesh };

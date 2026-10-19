@@ -19,6 +19,7 @@ import { finishCityGeometry } from "../finishCityGeometry";
 import { fitImportedHousing } from "../fitImportedHousing";
 import { townCircuits, townGates } from "../fortifications";
 import { straightenFrameRoadJunctions } from "../frameRoadJunction";
+import { normalizeGeneratedRoadOwnership } from "../generatedRoadOwnership";
 import { captureGenerationDebugPreview, type GenerationDebugObserver } from "../generationDebug";
 import {
   type GenerationObserver,
@@ -57,6 +58,7 @@ import {
 } from "../settlementExtent";
 import { farNodeFor } from "../streets";
 import { approachBands } from "../suburbanLanduse";
+import { consolidateThinRoadCells } from "../thinRoadCells";
 import { auditTownDefenseClosure } from "../townDefenseClosure";
 import { connectUrbanRiverDistricts } from "../urbanBridges";
 import { planUrbanGrowth } from "../urbanGrowth";
@@ -241,6 +243,9 @@ export function generateCityOnDocument(
       const skewLimit = settings.descriptor?.transport?.maxBridgeSkewDegrees ?? document.maxBridgeSkewDegrees;
       if (skewLimit !== undefined) result.maxBridgeSkewDegrees = skewLimit;
       if (settings.descriptor?.economy) result.siteEconomy = structuredClone(settings.descriptor.economy);
+      result.farmlandAreaHectares = settings.descriptor
+        ? settings.descriptor.farmlandAreaHectares
+        : document.farmlandAreaHectares;
       const prevailingWindDeg = settings.descriptor?.climate?.prevailingWindDeg;
       if (typeof prevailingWindDeg === "number" && Number.isFinite(prevailingWindDeg))
         result.prevailingWindDeg = prevailingWindDeg;
@@ -788,7 +793,7 @@ export function generateCityAttempt(
           connectUrbanRiverDistricts(shaped, allowedRiverIds)
         )
       : shaped;
-  const settled = measureProcessing(profiler, "gate-and-bridge-crossings", () =>
+  const crossingSettled = measureProcessing(profiler, "gate-and-bridge-crossings", () =>
     plan.skeleton
       ? finishSkeletonGeometry(
           connected,
@@ -800,6 +805,13 @@ export function generateCityAttempt(
         )
       : straightenGateCrossings(retractProtrudingGates(straightenBridges(connected)))
   );
+  const settled = skeletonFirst
+    ? crossingSettled
+    : measureProcessing(
+        profiler,
+        "thin-road-cells",
+        () => consolidateThinRoadCells(crossingSettled, new Set(roads.map((_, i) => `${GEN_PREFIX}road-${i}`))).document
+      );
   debugDocument = () => settled;
   measureProcessing(profiler, "temple", () => settleTempleOnDocument(settled));
   if (
@@ -1001,6 +1013,12 @@ export function generateCityAttempt(
         fallbackReason: plan.innerWall?.failure ?? "unsupported-layout"
       };
   }
+  const preserved = new Set(
+    plan.skeleton
+      ? plan.skeleton.skeleton.routes.map(route => `${GEN_PREFIX}road-${route.id}`)
+      : roads.map((_, i) => `${GEN_PREFIX}road-${i}`)
+  );
+  mark("road-ownership-final", normalizeGeneratedRoadOwnership(withApproaches, preserved));
   return withApproaches;
 }
 

@@ -15,7 +15,7 @@ import {
   renderHoverOverlay,
   renderRoutePreview
 } from "../renderers/overlays/editorOverlays";
-import { parsePickInfo } from "../renderers/pickInfo";
+import { featureGroupPickInfo, parsePickInfo } from "../renderers/pickInfo";
 import { renderShipRotationHandle, renderShipSvg } from "../renderers/shipSvg";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
 import type { InfillLane } from "../types/contracts/localInfill";
@@ -70,6 +70,8 @@ export interface MapDisplayContext {
   root: HTMLElement;
   renderQualitySelect: HTMLSelectElement;
   coreLayerInput: HTMLInputElement;
+  vacantTreesInput: HTMLInputElement;
+  generateVacantTreesButton: HTMLButtonElement;
   regionalLayerInput: HTMLInputElement;
   scaleLine: HTMLDivElement;
   scaleLabel: HTMLOutputElement;
@@ -126,6 +128,10 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
           defaultWalledAreaShare(ctx.documents.documentState.frame.extentMeters)) * 100
       )
     });
+    ctx.vacantTreesInput.checked = !!ctx.documents.documentState.vacantLotTrees?.visible;
+    ctx.vacantTreesInput.disabled = !ctx.documents.documentState.vacantLotTrees;
+    ctx.generateVacantTreesButton.disabled =
+      ctx.documents.documentState.appearance !== "town" || ctx.display.hideBuildings;
     ctx.map.classList.toggle("ce-map--select", ctx.interaction.tool === "select");
     ctx.map.classList.toggle("ce-map--brush", isBrushTool(ctx.interaction.tool) || ctx.interaction.tool === "wardWall");
     for (const [id, button] of ctx.toolButtons) button.classList.toggle("is-active", id === ctx.interaction.tool);
@@ -472,6 +478,19 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
       el.classList.remove("ce-selected", "ce-is-selected", "cg-is-selected", "ce-active-group");
     });
 
+    const groups = new Map(ctx.documents.documentState.featureGroups.map(group => [group.id, group]));
+    for (const el of svg.querySelectorAll<SVGElement>("[data-road-owner]")) {
+      const info = parsePickInfo(el.getAttribute("data-pick"));
+      if (!info || !Array.isArray(info.routeIds)) continue;
+      const selectedId = ctx.interaction.selection.groupId;
+      const groupId =
+        selectedId && info.routeIds.includes(selectedId) ? selectedId : el.getAttribute("data-road-owner");
+      const group = groupId ? groups.get(groupId) : undefined;
+      if (!group) continue;
+      el.setAttribute("data-group", group.id);
+      el.setAttribute("data-pick", encodeURIComponent(JSON.stringify(featureGroupPickInfo(group, info))));
+    }
+
     if (ctx.interaction.selection.faceId) {
       const faceEl =
         ctx.faceElementsById.get(ctx.interaction.selection.faceId) ??
@@ -502,6 +521,9 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
         const selected =
           info.id === id ||
           (prefix && `${prefix}-${info.id}` === id) ||
+          (info.layer === "features" &&
+            Array.isArray(info.routeIds) &&
+            info.routeIds.some(routeId => routeId === id || `feature-${routeId}` === id)) ||
           (info.layer === "buildings" && info.faceId === id);
         if (selected) el.classList.add("ce-is-selected", "cg-is-selected");
       }

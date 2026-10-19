@@ -72,6 +72,11 @@ function isDocument(value: unknown): value is CityDocument {
   return (
     doc.format === "fmg-city-editor" &&
     validFacilityCounts(doc.facilityCounts) &&
+    (doc.vacantLotTrees === undefined ||
+      (doc.vacantLotTrees !== null &&
+        typeof doc.vacantLotTrees === "object" &&
+        typeof doc.vacantLotTrees.seed === "string" &&
+        typeof doc.vacantLotTrees.visible === "boolean")) &&
     validPopulationDocument(doc) &&
     (doc.townWallGeneration === undefined ||
       (doc.townWallGeneration !== null &&
@@ -89,6 +94,8 @@ function isDocument(value: unknown): value is CityDocument {
       (doc.version === 4 && validSceneRegions(doc.sceneRegions) && validRegionalFrameRoads(doc.frameRoads))) &&
     (doc.landmarks === undefined || Array.isArray(doc.landmarks)) &&
     (doc.landmarkAssets === undefined || Array.isArray(doc.landmarkAssets)) &&
+    (doc.farmlandAreaHectares === undefined ||
+      (Number.isFinite(doc.farmlandAreaHectares) && doc.farmlandAreaHectares >= 0)) &&
     (doc.biome === undefined ||
       (typeof doc.biome === "object" && doc.biome !== null && typeof (doc.biome as { id: unknown }).id === "number")) &&
     (doc.gridKind === undefined || ["hex", "voronoi", "evolution"].includes(doc.gridKind)) &&

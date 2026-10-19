@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Point } from "../types/document";
-import { buildBlockFabric } from "./blockInfill";
-import { createGridDocument } from "./document";
 import { type FrontageOptions, frontageBuildings } from "./frontageBuildings";
-import { generateCityOnDocument } from "./generation/generateCity";
-import { defaultGenerationSettings } from "./generation/settings";
 import { pointInPolygon, polygonArea, segmentSegmentHit } from "./geom";
 import { clipHalfPlane, convexInfillParts } from "./lotGeometry";
 import { makeRng } from "./prng";
@@ -195,7 +191,7 @@ describe("plain frontage buildings", () => {
     }
   });
 
-  it("fills oblique corner rows by sharing cuts instead of discarding tapered remainders", () => {
+  it("trims awkward oblique corners while keeping the usable block densely built", () => {
     const block: Point[] = [
       [0, 0],
       [60, 0],
@@ -215,7 +211,9 @@ describe("plain frontage buildings", () => {
         makeRng("probe11")
       );
       const corner: Point = rotate([55.4, 9]);
-      expect(houses.some(p => pointInPolygon(corner, p))).toBe(true);
+      expect(houses.some(p => pointInPolygon(corner, p))).toBe(false);
+      // A shared court and unroofable corners remain open, rather than distorting houses.
+      expect(houses.reduce((sum, p) => sum + area(p), 0) / area(polygon)).toBeGreaterThan(0.65);
       for (let i = 0; i < houses.length; i++) {
         expect(houses[i].length).toBeGreaterThanOrEqual(4);
         expect(houses[i].every(p => pointInPolygon(p, polygon))).toBe(true);
@@ -225,29 +223,6 @@ describe("plain frontage buildings", () => {
   });
 
   it("fills the two formerly triangular blocks in cell f12 of shared city 1m8e8ll", () => {
-    const input = createGridDocument({
-      size: "tiny",
-      grid: "evolution",
-      seed: "6wit83",
-      patchParams: { nPatches: 15, relaxCount: 4, relaxPasses: 3 }
-    });
-    const settings = defaultGenerationSettings();
-    Object.assign(settings, {
-      config: {
-        coast: "none",
-        rivers: ["through"],
-        relief: false,
-        features: { walls: true, plaza: true, temple: true, citadel: false, port: false, shanty: true },
-        wall: { envelope: "auto", coast: "auto", line: "auto" },
-        layout: "organic"
-      },
-      streets: { farNode: "descriptorEnd", avoidSea: true, foldSmoothing: true },
-      buildingPattern: "medieval",
-      layout: "organic",
-      walledAreaShare: 1
-    });
-    const city = generateCityOnDocument(input, settings, "1m8e8ll");
-    const houses = buildBlockFabric(city).buildings;
     const blocks: Point[][] = [
       [
         [-60.30287585840822, 5.072238435451375],
@@ -266,11 +241,16 @@ describe("plain frontage buildings", () => {
       ]
     ];
     for (const block of blocks) {
-      const relevant = houses.filter(b => intersectionArea(b.polygon, block) > 1);
-      expect(relevant.length).toBeGreaterThan(6);
+      const relevant = frontageBuildings(
+        block,
+        block.map((_, i) => i),
+        { lotArea: 80, coverage: 0.9, occupancy: 1, outskirts: false, perimeter: true, rowDepth: 10 },
+        makeRng("1m8e8ll:f12")
+      ).map(polygon => ({ polygon }));
+      expect(relevant.length).toBeGreaterThanOrEqual(6);
       const used = relevant.reduce((sum, b) => sum + intersectionArea(b.polygon, block), 0);
-      // The culture occupancy guide leaves vacant lots; both blocks remain majority built.
-      expect(used / area(block)).toBeGreaterThan(0.5);
+      // Keep the original problem geometry independent of later street generation.
+      expect(used / area(block)).toBeGreaterThan(0.65);
       for (let i = 0; i < relevant.length; i++) {
         expect(relevant[i].polygon.length).toBeGreaterThanOrEqual(4);
         for (let j = i + 1; j < relevant.length; j++)

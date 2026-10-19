@@ -1,0 +1,753 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-19",
+  "experiment": "experiments/farmland-pilot.json",
+  "runId": "farmland-pilot-202610191429",
+  "rawRunDirectory": "temp/farmland-research/runs/farmland-pilot-202610191429",
+  "gitHead": "fe6b296edd26b01aa61f2e3806bae017f2d798b5",
+  "nodeVersion": "v22.23.1",
+  "sourceSha256": {
+    "src/services/farmlandObservation.ts": "e5e1361a4c95484db9411534f9edb35063e39b06c6ac31132dc7bb3f8763c8c6",
+    "src/services/farmlandCalibration.ts": "322b10cc16c6341b1325f83e3e6370d4df88ca1ff4b634fd110678f213b0c8ac",
+    "scripts/lib/observeViews.mts": "9d7d97968b71808b947531832db0984b9171fe1869da9bd308ff2088c3d8ac1d",
+    "scripts/lib/simChannelWorker.mts": "6c39e4e4a6c408cb883ddb0f4577c6a41849832117d3e339f00e38489f115314",
+    "scripts/simServer.mts": "b531745dc8eab2117c7e170dbdf5a590b715501bc43b5d46f6ef87b4a70ffa3a",
+    "scripts/farmlandResearch.mts": "8b2856a4a2c288679ffd4a5f48730921b0837ed96d66ced15bde0f619ea19607",
+    "scripts/generateSmallMaps.mjs": "35e6accf670e3b9a80d8559c8b6bde96f074923fbae54683b405a5a216646afd",
+    "experiments/farmland-pilot.json": "7479a0198066e4b193cb1bfd33bd871366547c432bc3a53a6df1d00d7b6cf7d1"
+  },
+  "sampleInputs": [
+    {
+      "file": "obs-202610191429-1.ndjson",
+      "sha256": "e58af0fcf73832edeaba3231bc86c92fb8604cd988f0eedad60721bcb6955c0e"
+    },
+    {
+      "file": "obs-202610191429-2.ndjson",
+      "sha256": "5f073abf94653f4cd7eb8228bd3e75f1d95427f17e3f79c1f0f1f58f28e2bddc"
+    },
+    {
+      "file": "obs-202610191429-3.ndjson",
+      "sha256": "76df5e044864b933d89d082ade2e8354073820728ee8efdba759cdffc28fd9e4"
+    }
+  ],
+  "worlds": [
+    {
+      "worldId": "obs-202610191429-1",
+      "seed": "610191",
+      "initialBurgs": 70,
+      "observedYears": [
+        923,
+        924,
+        925,
+        926,
+        927,
+        928,
+        929,
+        930,
+        931,
+        932
+      ],
+      "landCells": 1815,
+      "cellYears": 18150,
+      "burgCellYears": 965,
+      "biomes": [
+        "alpineTundra",
+        "centralEuropeanGreatForest",
+        "floodedForest",
+        "grassland",
+        "hotDesert",
+        "lavaField",
+        "mangrove",
+        "mediterraneanWoodlandScrub",
+        "savanna",
+        "temperateDeciduousForest",
+        "temperateRainforest",
+        "tropicalDryForest",
+        "tropicalRainforest",
+        "tropicalSeasonalForest",
+        "volcanicBarrens",
+        "volcanicSoil",
+        "wetland",
+        "xericShrubland"
+      ],
+      "initialArchiveSha256": "516556c58be704f4027ae29576b8583c3d4e6ed26f8b1de5cc5d8f0d1cd4a419"
+    },
+    {
+      "worldId": "obs-202610191429-2",
+      "seed": "610192",
+      "initialBurgs": 75,
+      "observedYears": [
+        1690,
+        1691,
+        1692,
+        1693,
+        1694,
+        1695,
+        1696,
+        1697,
+        1698,
+        1699
+      ],
+      "landCells": 1842,
+      "cellYears": 18420,
+      "burgCellYears": 1063,
+      "biomes": [
+        "alpineTundra",
+        "borealPeatland",
+        "centralEuropeanGreatForest",
+        "coldDesert",
+        "coldSteppe",
+        "floodedForest",
+        "glacier",
+        "grassland",
+        "heathMoorland",
+        "lavaField",
+        "mediterraneanWoodlandScrub",
+        "taiga",
+        "temperateConiferousForest",
+        "temperateDeciduousForest",
+        "temperateRainforest",
+        "tundra",
+        "volcanicBarrens",
+        "volcanicSoil",
+        "wetland",
+        "xericShrubland"
+      ],
+      "initialArchiveSha256": "3b2e3bbc1ae51e13397cdae35ecbe4b6d9e998a5edbe7f7e296233339343834a"
+    },
+    {
+      "worldId": "obs-202610191429-3",
+      "seed": "610193",
+      "initialBurgs": 70,
+      "observedYears": [
+        365,
+        366,
+        367,
+        368,
+        369,
+        370,
+        371,
+        372,
+        373,
+        374
+      ],
+      "landCells": 1897,
+      "cellYears": 18970,
+      "burgCellYears": 1063,
+      "biomes": [
+        "alpineTundra",
+        "borealPeatland",
+        "centralEuropeanGreatForest",
+        "coldDesert",
+        "coldSteppe",
+        "floodedForest",
+        "glacier",
+        "grassland",
+        "heathMoorland",
+        "taiga",
+        "temperateConiferousForest",
+        "temperateDeciduousForest",
+        "temperateRainforest",
+        "tundra",
+        "wetland",
+        "xericShrubland"
+      ],
+      "initialArchiveSha256": "d1f2e8a30e0545bafb3c458b41f12ccccf606401308b035a22bc342919cec847"
+    }
+  ],
+  "periods": [
+    {
+      "worldId": "obs-202610191429-1",
+      "startYear": 923,
+      "endYear": 927,
+      "observedYears": [
+        923,
+        924,
+        925,
+        926,
+        927
+      ],
+      "complete": true,
+      "completeAreaYears": 5,
+      "missingCellYears": 0,
+      "meanCultivationAreaHa": 13410823.89547656,
+      "minCultivationAreaHa": 12958334.324127935,
+      "maxCultivationAreaHa": 13878071.534786288,
+      "meanUrbanAllocatedAreaHa": 428007.6055519212
+    },
+    {
+      "worldId": "obs-202610191429-1",
+      "startYear": 928,
+      "endYear": 932,
+      "observedYears": [
+        928,
+        929,
+        930,
+        931,
+        932
+      ],
+      "complete": true,
+      "completeAreaYears": 5,
+      "missingCellYears": 0,
+      "meanCultivationAreaHa": 14566779.179855984,
+      "minCultivationAreaHa": 14108900.05293969,
+      "maxCultivationAreaHa": 15033338.970433457,
+      "meanUrbanAllocatedAreaHa": 474652.7492642533
+    },
+    {
+      "worldId": "obs-202610191429-2",
+      "startYear": 1690,
+      "endYear": 1694,
+      "observedYears": [
+        1690,
+        1691,
+        1692,
+        1693,
+        1694
+      ],
+      "complete": true,
+      "completeAreaYears": 5,
+      "missingCellYears": 0,
+      "meanCultivationAreaHa": 16682409.001871943,
+      "minCultivationAreaHa": 16418017.77014649,
+      "maxCultivationAreaHa": 16971554.45024889,
+      "meanUrbanAllocatedAreaHa": 673236.2581720013
+    },
+    {
+      "worldId": "obs-202610191429-2",
+      "startYear": 1695,
+      "endYear": 1699,
+      "observedYears": [
+        1695,
+        1696,
+        1697,
+        1698,
+        1699
+      ],
+      "complete": true,
+      "completeAreaYears": 5,
+      "missingCellYears": 0,
+      "meanCultivationAreaHa": 17418147.06983767,
+      "minCultivationAreaHa": 17133034.71504654,
+      "maxCultivationAreaHa": 17768196.587683447,
+      "meanUrbanAllocatedAreaHa": 756938.9516215988
+    },
+    {
+      "worldId": "obs-202610191429-3",
+      "startYear": 365,
+      "endYear": 369,
+      "observedYears": [
+        365,
+        366,
+        367,
+        368,
+        369
+      ],
+      "complete": true,
+      "completeAreaYears": 5,
+      "missingCellYears": 0,
+      "meanCultivationAreaHa": 15796130.16071586,
+      "minCultivationAreaHa": 15469435.061081966,
+      "maxCultivationAreaHa": 16131189.50957615,
+      "meanUrbanAllocatedAreaHa": 597693.0764286164
+    },
+    {
+      "worldId": "obs-202610191429-3",
+      "startYear": 370,
+      "endYear": 374,
+      "observedYears": [
+        370,
+        371,
+        372,
+        373,
+        374
+      ],
+      "complete": true,
+      "completeAreaYears": 5,
+      "missingCellYears": 0,
+      "meanCultivationAreaHa": 16701823.264514918,
+      "minCultivationAreaHa": 16323555.338527583,
+      "maxCultivationAreaHa": 17116045.75153669,
+      "meanUrbanAllocatedAreaHa": 686878.3346269887
+    }
+  ],
+  "byBiome": [
+    {
+      "biomeKey": "alpineTundra",
+      "cellYears": 1120,
+      "missingCellYears": 0,
+      "zeroAreaCellYears": 1100,
+      "meanAreaPerCellHa": 274.5615357783011,
+      "areaPerResidentHa": 47.312991471065054,
+      "meanUrbanAllocatedPerCellHa": 0.0
+    },
+    {
+      "biomeKey": "borealPeatland",
+      "cellYears": 3800,
+      "missingCellYears": 0,
+      "zeroAreaCellYears": 3800,
+      "meanAreaPerCellHa": 0.0,
+      "areaPerResidentHa": 0.0,
+      "meanUrbanAllocatedPerCellHa": 0.0
+    },
+    {
+      "biomeKey": "centralEuropeanGreatForest",
+      "cellYears": 1410,
+      "missingCellYears": 0,
+      "zeroAreaCellYears": 0,
+      "meanAreaPerCellHa": 17049.375330494484,
+      "areaPerResidentHa": 3.0129304120484455,
+      "meanUrbanAllocatedPerCellHa": 640.0264842588012
+    },
+    {
+      "biomeKey": "coldDesert",
+      "cellYears": 430,
+      "missingCellYears": 0,
+      "zeroAreaCellYears": 430,
+      "meanAreaPerCellHa": 0.0,
+      "areaPerResidentHa": 0.0,
+      "meanUrbanAllocatedPerCellHa": 0.0
+    },
+    {
+      "biomeKey": "coldSteppe",
+      "cellYears": 4480,
+      "missingCellYears": 0,
+      "zeroAreaCellYears": 150,
+      "meanAreaPerCellHa": 5681.936243177913,
+      "areaPerResidentHa": 2.1150386575772937,
+      "meanUrbanAllocatedPerCellHa": 40.523974807563974
+    },
+    {
+      "biomeKey": "floodedForest",
+      "cellYears": 1770,
+      "missingCellYears": 0,
+      "zeroAreaCellYears": 1770,
+      "meanAreaPerCellHa": 0.0,
+      "areaPerResidentHa": 0.0,
+      "meanUrbanAllocatedPerCellHa": 0.0
+    },
+    {
+      "biomeKey": "glacier",
+      "cellYears": 240,
+      "missingCellYears": 0,
+      "zeroAreaCellYears": 240,
+      "meanAreaPerCellHa": 0.0,
+      "areaPerResidentHa": null,
+      "meanUrbanAllocatedPerCellHa": 0.0
+    },
+    {
+      "biomeKey": "grassland",
+      "cellYears": 2840,
+      "missingCellYears": 0,
+      "zeroAreaCellYears": 1710,
+      "meanAreaPerCellHa": 4525.271555756618,
+      "areaPerResidentHa": 1.6956805951848244,
+      "meanUrbanAllocatedPerCellHa": 51.39875542769691
+    },
+    {
+      "biomeKey": "heathMoorland",
+      "cellYears": 310,
+      "missingCellYears": 0,
+      "zeroAreaCellYears": 310,
+      "meanAreaPerCellHa": 0.0,
+      "areaPerResidentHa": 0.0,
+      "meanUrbanAllocatedPerCellHa": 0.0
+    },
+    {
+      "biomeKey": "hotDesert",
+      "cellYears": 320,
+      "missingCellYears": 0,
+      "zeroAreaCellYears": 250,
+      "meanAreaPerCellHa": 788.96407144612,
+      "areaPerResidentHa": 1.458952339590504,
+      "meanUrbanAllocatedPerCellHa": 0.0
+    },
+    {
+      "biomeKey": "lavaField",
+      "cellYears": 80,
+      "missingCellYears": 0,
+      "zeroAreaCellYears": 80,
+      "meanAreaPerCellHa": 0.0,
+      "areaPerResidentHa": null,
+      "meanUrbanAllocatedPerCellHa": 0.0
+    },
+    {
+      "biomeKey": "mangrove",
+      "cellYears": 930,
+      "missingCellYears": 0,
+      "zeroAreaCellYears": 930,
+      "meanAreaPerCellHa": 0.0,
+      "areaPerResidentHa": 0.0,
+      "meanUrbanAllocatedPerCellHa": 0.0
+    },
+    {
+      "biomeKey": "mediterraneanWoodlandScrub",
+      "cellYears": 5540,
+      "missingCellYears": 0,
+      "zeroAreaCellYears": 190,
+      "meanAreaPerCellHa": 8616.938472774684,
+      "areaPerResidentHa": 1.7972967779121913,
+      "meanUrbanAllocatedPerCellHa": 150.87509954111485
+    },
+    {
+      "biomeKey": "savanna",
+      "cellYears": 1070,
+      "missingCellYears": 0,
+      "zeroAreaCellYears": 670,
+      "meanAreaPerCellHa": 2709.648354043531,
+      "areaPerResidentHa": 1.4311402766714973,
+      "meanUrbanAllocatedPerCellHa": 0.0
+    },
+    {
+      "biomeKey": "taiga",
+      "cellYears": 7840,
+      "missingCellYears": 0,
+      "zeroAreaCellYears": 1720,
+      "meanAreaPerCellHa": 5456.299847040365,
+      "areaPerResidentHa": 2.7195922041673324,
+      "meanUrbanAllocatedPerCellHa": 28.05823054370338
+    },
+    {
+      "biomeKey": "temperateConiferousForest",
+      "cellYears": 2460,
+      "missingCellYears": 0,
+      "zeroAreaCellYears": 0,
+      "meanAreaPerCellHa": 10869.019827234275,
+      "areaPerResidentHa": 2.6950705905697867,
+      "meanUrbanAllocatedPerCellHa": 213.06703456563028
+    },
+    {
+      "biomeKey": "temperateDeciduousForest",
+      "cellYears": 3790,
+      "missingCellYears": 0,
+      "zeroAreaCellYears": 20,
+      "meanAreaPerCellHa": 25079.509929883367,
+      "areaPerResidentHa": 1.92899595595433,
+      "meanUrbanAllocatedPerCellHa": 1158.076483495009
+    },
+    {
+      "biomeKey": "temperateRainforest",
+      "cellYears": 4050,
+      "missingCellYears": 0,
+      "zeroAreaCellYears": 0,
+      "meanAreaPerCellHa": 32784.288243648385,
+      "areaPerResidentHa": 2.858538885301189,
+      "meanUrbanAllocatedPerCellHa": 2453.5014140191515
+    },
+    {
+      "biomeKey": "tropicalDryForest",
+      "cellYears": 830,
+      "missingCellYears": 0,
+      "zeroAreaCellYears": 0,
+      "meanAreaPerCellHa": 8009.2860167490035,
+      "areaPerResidentHa": 1.6473160827130182,
+      "meanUrbanAllocatedPerCellHa": 18.42581722634986
+    },
+    {
+      "biomeKey": "tropicalRainforest",
+      "cellYears": 640,
+      "missingCellYears": 0,
+      "zeroAreaCellYears": 0,
+      "meanAreaPerCellHa": 15660.878328031837,
+      "areaPerResidentHa": 1.8051229727432594,
+      "meanUrbanAllocatedPerCellHa": 0.0
+    },
+    {
+      "biomeKey": "tropicalSeasonalForest",
+      "cellYears": 840,
+      "missingCellYears": 0,
+      "zeroAreaCellYears": 0,
+      "meanAreaPerCellHa": 13065.102000896622,
+      "areaPerResidentHa": 1.6739323168863645,
+      "meanUrbanAllocatedPerCellHa": 67.58831681204563
+    },
+    {
+      "biomeKey": "tundra",
+      "cellYears": 1860,
+      "missingCellYears": 0,
+      "zeroAreaCellYears": 820,
+      "meanAreaPerCellHa": 1471.0522627585265,
+      "areaPerResidentHa": 1.6770857725205188,
+      "meanUrbanAllocatedPerCellHa": 0.0
+    },
+    {
+      "biomeKey": "volcanicBarrens",
+      "cellYears": 960,
+      "missingCellYears": 0,
+      "zeroAreaCellYears": 690,
+      "meanAreaPerCellHa": 960.6786285116874,
+      "areaPerResidentHa": 1.8686224231191124,
+      "meanUrbanAllocatedPerCellHa": 30.84060138224244
+    },
+    {
+      "biomeKey": "volcanicSoil",
+      "cellYears": 3040,
+      "missingCellYears": 0,
+      "zeroAreaCellYears": 1960,
+      "meanAreaPerCellHa": 4762.59610860471,
+      "areaPerResidentHa": 1.7277132981139343,
+      "meanUrbanAllocatedPerCellHa": 193.94012875600433
+    },
+    {
+      "biomeKey": "wetland",
+      "cellYears": 630,
+      "missingCellYears": 0,
+      "zeroAreaCellYears": 630,
+      "meanAreaPerCellHa": 0.0,
+      "areaPerResidentHa": 0.0,
+      "meanUrbanAllocatedPerCellHa": 0.0
+    },
+    {
+      "biomeKey": "xericShrubland",
+      "cellYears": 4260,
+      "missingCellYears": 0,
+      "zeroAreaCellYears": 260,
+      "meanAreaPerCellHa": 3805.636641541418,
+      "areaPerResidentHa": 1.8727820425658772,
+      "meanUrbanAllocatedPerCellHa": 61.04812127434978
+    }
+  ],
+  "researchModel": {
+    "version": 1,
+    "target": "land-use-cultivation-ha",
+    "status": "research",
+    "trainingWorldIds": [
+      "obs-202610191429-1",
+      "obs-202610191429-2"
+    ],
+    "trainingSeeds": [
+      "610191",
+      "610192"
+    ],
+    "groups": [
+      {
+        "key": "[\"floodedForest\",\"highMedieval\",\"standard\",\"10000-plus\"]",
+        "cells": 32,
+        "worlds": 2,
+        "ratioP10": 0,
+        "ratioP50": 0,
+        "ratioP90": 0,
+        "populationMin": 10024.383544921875,
+        "populationMax": 32613.986114588173
+      },
+      {
+        "key": "[\"floodedForest\",\"highMedieval\",\"standard\",\"1000-9999\"]",
+        "cells": 102,
+        "worlds": 2,
+        "ratioP10": 0,
+        "ratioP50": 0,
+        "ratioP90": 0,
+        "populationMin": 1321.8578100204468,
+        "populationMax": 9995.257020354184
+      },
+      {
+        "key": "[\"xericShrubland\",\"highMedieval\",\"standard\",\"1000-9999\"]",
+        "cells": 234,
+        "worlds": 2,
+        "ratioP10": 1.01549962181765,
+        "ratioP50": 1.785996900456285,
+        "ratioP90": 2.6678058909349702,
+        "populationMin": 1002.082109451294,
+        "populationMax": 9951.392465035193
+      },
+      {
+        "key": "[\"mediterraneanWoodlandScrub\",\"highMedieval\",\"standard\",\"1000-9999\"]",
+        "cells": 536,
+        "worlds": 2,
+        "ratioP10": 1.2290508163738103,
+        "ratioP50": 1.868211850722679,
+        "ratioP90": 2.7522544390437655,
+        "populationMin": 1003.3109188079834,
+        "populationMax": 9998.727798461914
+      },
+      {
+        "key": "[\"xericShrubland\",\"highMedieval\",\"standard\",\"under-1000\"]",
+        "cells": 23,
+        "worlds": 2,
+        "ratioP10": 0,
+        "ratioP50": 1.2378845953834199,
+        "ratioP90": 2.2911840622633592,
+        "populationMin": 358.09606313705444,
+        "populationMax": 999.4204640388489
+      },
+      {
+        "key": "[\"volcanicSoil\",\"highMedieval\",\"standard\",\"1000-9999\"]",
+        "cells": 98,
+        "worlds": 2,
+        "ratioP10": 0.757013891948245,
+        "ratioP50": 1.3551445051215234,
+        "ratioP90": 2.5169915162106262,
+        "populationMin": 1035.7321500778198,
+        "populationMax": 9997.030258178711
+      },
+      {
+        "key": "[\"volcanicSoil\",\"highMedieval\",\"standard\",\"under-1000\"]",
+        "cells": 26,
+        "worlds": 2,
+        "ratioP10": 0,
+        "ratioP50": 0.3308599590651783,
+        "ratioP90": 0.9071911046991119,
+        "populationMin": 2.979537283565037e-06,
+        "populationMax": 939.9687051773071
+      },
+      {
+        "key": "[\"volcanicBarrens\",\"highMedieval\",\"standard\",\"under-1000\"]",
+        "cells": 22,
+        "worlds": 2,
+        "ratioP10": 0,
+        "ratioP50": 0.9540676156717147,
+        "ratioP90": 1.569963541672162,
+        "populationMin": 67.77437031269073,
+        "populationMax": 890.0653719902039
+      },
+      {
+        "key": "[\"volcanicBarrens\",\"highMedieval\",\"standard\",\"1000-9999\"]",
+        "cells": 12,
+        "worlds": 2,
+        "ratioP10": 0.08496470789430996,
+        "ratioP50": 1.1818630051482568,
+        "ratioP90": 2.7331117165873824,
+        "populationMin": 1031.2180519104004,
+        "populationMax": 7938.380718231201
+      },
+      {
+        "key": "[\"volcanicSoil\",\"highMedieval\",\"standard\",\"10000-plus\"]",
+        "cells": 20,
+        "worlds": 2,
+        "ratioP10": 0.7653269774459893,
+        "ratioP50": 1.0807848353828862,
+        "ratioP90": 1.777869772778779,
+        "populationMin": 10027.464866638184,
+        "populationMax": 20371.464794760956
+      },
+      {
+        "key": "[\"temperateDeciduousForest\",\"highMedieval\",\"standard\",\"1000-9999\"]",
+        "cells": 74,
+        "worlds": 2,
+        "ratioP10": 0.9543596112918014,
+        "ratioP50": 1.3386989716518056,
+        "ratioP90": 2.0477039216129067,
+        "populationMin": 1933.5029125213623,
+        "populationMax": 9988.001823425293
+      },
+      {
+        "key": "[\"temperateDeciduousForest\",\"highMedieval\",\"standard\",\"10000-plus\"]",
+        "cells": 151,
+        "worlds": 2,
+        "ratioP10": 1.0429635006042894,
+        "ratioP50": 1.344960668351728,
+        "ratioP90": 2.0627761176486348,
+        "populationMin": 10000.956903391292,
+        "populationMax": 43187.47179846617
+      },
+      {
+        "key": "[\"wetland\",\"highMedieval\",\"standard\",\"1000-9999\"]",
+        "cells": 35,
+        "worlds": 2,
+        "ratioP10": 0,
+        "ratioP50": 0,
+        "ratioP90": 0,
+        "populationMin": 1144.2346572875977,
+        "populationMax": 7937.323704074715
+      },
+      {
+        "key": "[\"temperateRainforest\",\"highMedieval\",\"standard\",\"1000-9999\"]",
+        "cells": 127,
+        "worlds": 2,
+        "ratioP10": 0.813706464317494,
+        "ratioP50": 1.1073019403637594,
+        "ratioP90": 1.7772062226230403,
+        "populationMin": 1879.958987236023,
+        "populationMax": 9998.396873474121
+      },
+      {
+        "key": "[\"temperateRainforest\",\"highMedieval\",\"standard\",\"10000-plus\"]",
+        "cells": 157,
+        "worlds": 2,
+        "ratioP10": 0.800224295330643,
+        "ratioP50": 1.0763072164678096,
+        "ratioP90": 1.5240998044440806,
+        "populationMin": 10002.293586730957,
+        "populationMax": 44012.22237371659
+      },
+      {
+        "key": "[\"grassland\",\"highMedieval\",\"standard\",\"1000-9999\"]",
+        "cells": 50,
+        "worlds": 2,
+        "ratioP10": 0,
+        "ratioP50": 0.8452645330884565,
+        "ratioP90": 1.354352118980064,
+        "populationMin": 1002.2562742233276,
+        "populationMax": 9425.49496227946
+      },
+      {
+        "key": "[\"centralEuropeanGreatForest\",\"highMedieval\",\"standard\",\"1000-9999\"]",
+        "cells": 82,
+        "worlds": 2,
+        "ratioP10": 0.7171838735182265,
+        "ratioP50": 1.0151824983594975,
+        "ratioP90": 1.6059672561912222,
+        "populationMin": 1188.999891281128,
+        "populationMax": 9924.18574065708
+      }
+    ]
+  },
+  "modelFileSha256": "1d34d2e90aaf3429980111cc2afab1ea969767bb49f38d8ce63751ccf2f2abc3",
+  "validation": {
+    "worldIds": [
+      "obs-202610191429-3"
+    ],
+    "cellYears": 18970,
+    "calibratedCellYears": 6605,
+    "baseline": {
+      "maeHa": 13033.854459667591,
+      "wape": 1.52164793803866
+    },
+    "model": {
+      "maeHa": 11787.78307553976,
+      "wape": 1.3761743209920378
+    },
+    "burgCells": {
+      "cellYears": 1063,
+      "calibratedCellYears": 713,
+      "baseline": {
+        "maeHa": 16786.383149248995,
+        "wape": 0.8195152283454371
+      },
+      "model": {
+        "maeHa": 16775.205522597855,
+        "wape": 0.818969533946833
+      }
+    },
+    "urbanAllocation": {
+      "baseline": {
+        "maeHa": 4842.01285530556,
+        "wape": 0.8013660620019853
+      },
+      "model": {
+        "maeHa": 5218.547214623915,
+        "wape": 0.86368350430385
+      }
+    }
+  },
+  "httpObservationCheck": {
+    "revision": 12,
+    "date": {
+      "year": 932,
+      "month": 1,
+      "day": 1
+    },
+    "economyEnabled": true,
+    "cells": 1815,
+    "unchangedRevisionAndDate": true
+  },
+  "economyDisabledInferenceCheck": {
+    "economyEnabled": false,
+    "economyContextReady": false,
+    "cells": 1897,
+    "calibratedCells": 666,
+    "urbanAllocatedAreaHa": 629978.9181021594,
+    "worldStateUnchanged": true
+  },
+  "productionModelEnabled": false
+}

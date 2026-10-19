@@ -1,6 +1,7 @@
 // Materialise K6's certified edge chains. No path search or passage deformation.
 import type { CityDocument, EdgeRef, Point } from "../../../types/document";
 import { registerTownCircuit } from "../../castles";
+import { normalizeGeneratedRoadOwnership } from "../../generatedRoadOwnership";
 import type { GenerationObserver } from "../../generationDiagnostics";
 import { polygonArea } from "../../geom";
 import { facePoints } from "../../mesh";
@@ -93,6 +94,7 @@ export function applySkeletonFeatures(
           id: `${GEN_PREFIX}${suffix}`,
           kind: "road",
           name: "Road",
+          roadRole: suffix.startsWith("road-") ? "approach" : "street",
           segments,
           style: { widthMeters: defaultRoadWidthMeters(townExtentMeters(next.frame)), color: "#9d8a65" },
           locked: false,
@@ -123,7 +125,11 @@ export function applySkeletonFeatures(
     }
   });
   // K1 surveyed water is already a boundary; any further clipping is reported.
-  return JSON.stringify(clipped.mesh) === before && JSON.stringify(clipped.featureGroups) === featuresBefore
-    ? clipped
-    : next;
+  const result =
+    JSON.stringify(clipped.mesh) === before && JSON.stringify(clipped.featureGroups) === featuresBefore
+      ? clipped
+      : next;
+  if (stageStep >= 5)
+    normalizeGeneratedRoadOwnership(result, new Set(skeleton.routes.map(route => `${GEN_PREFIX}road-${route.id}`)));
+  return result;
 }

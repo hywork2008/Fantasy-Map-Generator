@@ -1,6 +1,7 @@
 import type { Point } from "../types/primitives";
 import type { Front, FrontageOptions } from "./frontageBuildings.types";
 import { polygonArea, polygonCentroid } from "./geom";
+import { houseFootprint } from "./houseFootprint";
 import { clipHalfPlane, insetConvexKernel } from "./lotGeometry";
 import { occupancyDraws } from "./occupancyDraws";
 import type { Rng } from "./prng";
@@ -9,9 +10,8 @@ const dot = (a: Point, b: Point) => a[0] * b[0] + a[1] * b[1];
 const area = (poly: Point[]) => Math.abs(polygonArea(poly));
 const distance = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 
-/** Plan complete rows before creating houses. Shared cuts are the only interior
- * boundaries: a corner remnant is merged into its neighbour, never trimmed off
- * a house after the surrounding land has already been assigned. */
+/** Plan dense rows before creating houses. Shared cuts allocate ownership;
+ * unusable corner tips remain open rather than dictating the roof outline. */
 export function packPerimeter(block: Point[], fronts: Front[], options: FrontageOptions, rng: Rng): Point[][] {
   if (!fronts.length || options.coverage <= 0 || options.occupancy <= 0) return [];
   let low = 0,
@@ -70,9 +70,11 @@ export function packPerimeter(block: Point[], fronts: Front[], options: Frontage
     for (const lot of lots) {
       const draw = rng();
       if (draw >= options.occupancy) continue;
-      const center = polygonCentroid(lot);
+      const house = houseFootprint(lot, fronts, frame.axis);
+      if (house.length < 4 || area(house) < 12) continue;
+      const center = polygonCentroid(house);
       // Numerical clearance only; no geometric area is intentionally removed.
-      const footprint = lot.map((p): Point => [p[0] + (center[0] - p[0]) * 1e-7, p[1] + (center[1] - p[1]) * 1e-7]);
+      const footprint = house.map((p): Point => [p[0] + (center[0] - p[0]) * 1e-7, p[1] + (center[1] - p[1]) * 1e-7]);
       occupancyDraws.set(footprint, draw);
       buildings.push(footprint);
     }
@@ -108,21 +110,19 @@ function hasFrontage(poly: Point[], fronts: Front[]): boolean {
   return accessible;
 }
 
-function rowQuality(poly: Point[], axis: Point): number {
-  if (poly.length < 4 || area(poly) < 12) return 0;
+function rowQuality(poly: Point[], axis: Point, fronts: Front[]): number {
+  if (poly.length < 3 || area(poly) < 12) return 0;
+  const house = houseFootprint(poly, fronts, axis);
+  if (house.length < 4 || area(house) < 12 || area(house) < area(poly) * 0.45) return 0;
   const normal: Point = [-axis[1], axis[0]];
-  const xs = poly.map(p => dot(p, axis)),
-    ys = poly.map(p => dot(p, normal));
+  const xs = house.map(p => dot(p, axis)),
+    ys = house.map(p => dot(p, normal));
   const width = Math.max(...xs) - Math.min(...xs),
     depth = Math.max(...ys) - Math.min(...ys);
   if (Math.min(width, depth) < 2.5) return 0;
-  // Only exterior bends can contribute extra vertices. Keeping those vertices
-  // preserves land instead of replacing a five-sided corner with a diagonal.
-  if (poly.length === 4) {
-    const lengths = poly.map((p, i) => distance(p, poly[(i + 1) % 4]));
-    if (lengths.some((n, i) => n < Math.min(lengths[(i + 2) % 4], Math.max(1, lengths[(i + 2) % 4] * 0.26)))) return 0;
-  }
-  return area(poly) / (width * depth);
+  // Judge the buildable house, not the unbuildable tip. Requiring the entire
+  // corner parcel to be roofed merged it into an unnecessarily large house.
+  return area(house) / (width * depth);
 }
 
 function planRow(band: Point[], axis: Point, width: number, fronts: Front[], rng: Rng): Point[][] {
@@ -137,11 +137,11 @@ function planRow(band: Point[], axis: Point, width: number, fronts: Front[], rng
   cuts[cuts.length - 1] = end;
   const plot = (lo: number, hi: number) =>
     cleanPolygon(clipHalfPlane(clipHalfPlane(band, [-axis[0], -axis[1]], -lo), axis, hi));
-  // Replan shared boundaries rather than clipping the individual buildings.
-  // Absorbing a wedge into the next plot fills its entire area with one house.
+  // Replan shared boundaries when a parcel cannot hold a useful house.
+  // Buildable corner remnants can be trimmed without merging a whole row.
   for (let i = 0; i < cuts.length - 1; ) {
     const lot = plot(cuts[i], cuts[i + 1]);
-    if (rowQuality(lot, axis) >= 0.6 && hasFrontage(lot, fronts)) {
+    if (rowQuality(lot, axis, fronts) >= 0.6 && hasFrontage(lot, fronts)) {
       i++;
       continue;
     }
@@ -157,8 +157,8 @@ function planRow(band: Point[], axis: Point, width: number, fronts: Front[], rng
         const position = lo + ((hi - lo) * step) / 24;
         const a = plot(lo, position),
           b = plot(position, hi);
-        const qa = rowQuality(a, axis),
-          qb = rowQuality(b, axis);
+        const qa = rowQuality(a, axis, fronts),
+          qb = rowQuality(b, axis, fronts);
         if (qa < 0.6 || qb < 0.6 || !hasFrontage(a, fronts) || !hasFrontage(b, fronts)) continue;
         const score = qa + qb - Math.abs(position - (lo + hi) / 2) / (hi - lo);
         if (!adjustment || score > adjustment.score) adjustment = { boundary, position, score };
@@ -169,8 +169,8 @@ function planRow(band: Point[], axis: Point, width: number, fronts: Front[], rng
       i = Math.max(0, i - 1);
       continue;
     }
-    const left = i > 0 ? rowQuality(plot(cuts[i - 1], cuts[i + 1]), axis) : -1;
-    const right = i < cuts.length - 2 ? rowQuality(plot(cuts[i], cuts[i + 2]), axis) : -1;
+    const left = i > 0 ? rowQuality(plot(cuts[i - 1], cuts[i + 1]), axis, fronts) : -1;
+    const right = i < cuts.length - 2 ? rowQuality(plot(cuts[i], cuts[i + 2]), axis, fronts) : -1;
     cuts.splice(left > right ? i : i + 1, 1);
     i = Math.max(0, i - 1);
   }

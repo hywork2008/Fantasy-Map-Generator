@@ -54,6 +54,7 @@ import { getUrbanDwellings } from "../utils/urbanDwellings";
 import { supportsUrbanMorphology } from "../utils/urbanMorphology";
 import { attachApproachTraffic } from "./approachId";
 import { burgEconomyExtensions } from "./burgEconomyExtensions";
+import { burgFarmlandAreaHectares } from "./burgFarmland";
 import {
   type BurgRoadAuditReference,
   burgRoadInputRevision,
@@ -406,6 +407,7 @@ export function getBurgSiteDescriptor(
         : (burgEconomyExtensions.getBurgSiteEconomy?.(burgId) ?? undefined);
     return {
       version: DESCRIPTOR_VERSION,
+      farmlandAreaHectares: burgFarmlandAreaHectares(worldContext, burg),
       ...(morphology ? { urbanMorphology: structuredClone(morphology) } : {}),
       regionalContext,
       ...(fixedCrossings ? { fixedCrossings: structuredClone(fixedCrossings) } : {}),

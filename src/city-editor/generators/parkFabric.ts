@@ -187,6 +187,38 @@ export function buildParkLawns(document: CityDocument, seed = "park-fabric"): Pa
   return lawns;
 }
 
+/** Sparse decorative candidates on ordinary urban blocks; no lawns or paths are added. */
+export function buildVacantTreeCandidates(
+  document: CityDocument,
+  seed: string,
+  accept: (tree: ParkTreeCanopy, faceId: Id) => boolean
+): { faceId: Id; tree: ParkTreeCanopy }[] {
+  const clearance = collectClearanceData(document);
+  return Object.values(document.mesh.faces).flatMap(face => {
+    if (
+      face.properties.water !== "land" ||
+      !["core", "outskirts"].includes(face.properties.settlement ?? "") ||
+      !["merchant", "craftsmen", "patriciate", "empty"].includes(face.properties.ward ?? "empty")
+    )
+      return [];
+    const rng = makeRng(`${seed}:vacant:${face.id}`);
+    // Some blocks remain entirely open; the rest have irregular, sparse planting.
+    if (rng() < 0.12) return [];
+    const outline = facePoints(document.mesh, face);
+    if (outline.length < 3) return [];
+    return generateTopDownBushes(
+      outline,
+      [],
+      [],
+      Math.abs(polygonArea(outline)),
+      rng,
+      clearance,
+      isFaceAdjacentToDefense(document, face, outline, clearance),
+      { accept: tree => accept(tree, face.id), density: 0.65 + rng() * 0.65 }
+    ).map(tree => ({ faceId: face.id, tree }));
+  });
+}
+
 function shapeParkFace(document: CityDocument, face: Face, seed: string, clearance: ClearanceData): ParkLawn | null {
   const outline = facePoints(document.mesh, face);
   if (outline.length < 3) return null;
@@ -378,15 +410,18 @@ function generateTopDownBushes(
   area: number,
   rng: Rng,
   clearance?: ClearanceData,
-  isFortified = false
+  isFortified = false,
+  decoration?: { accept: (tree: ParkTreeCanopy) => boolean; density: number }
 ): ParkTreeCanopy[] {
   // If adjacent to fortifications and block is small/medium, treat as an open esplanade /
   // military parade ground (pure lawn, no climbable trees).
-  if (isFortified && area < MIN_FORTIFIED_PARK_TREE_AREA) {
+  if (!decoration && isFortified && area < MIN_FORTIFIED_PARK_TREE_AREA) {
     return [];
   }
 
-  const targetCount = Math.max(2, Math.min(18, Math.round(area / 110)));
+  const targetCount = decoration
+    ? Math.max(1, Math.min(80, Math.round((area / 120) * decoration.density)))
+    : Math.max(2, Math.min(18, Math.round(area / 110)));
   const trees: ParkTreeCanopy[] = [];
   const xs = outline.map(p => p[0]);
   const ys = outline.map(p => p[1]);
@@ -395,11 +430,11 @@ function generateTopDownBushes(
   const minY = Math.min(...ys);
   const maxY = Math.max(...ys);
 
-  const borderMargin = Math.min(4.0, Math.sqrt(area) * 0.12);
+  const borderMargin = decoration ? 0.6 : Math.min(4.0, Math.sqrt(area) * 0.12);
   const minTreeDist = 6.5;
 
   let attempts = 0;
-  while (trees.length < targetCount && attempts < 90) {
+  while (trees.length < targetCount && attempts < (decoration ? Math.max(180, targetCount * 35) : 90)) {
     attempts++;
     const cand: Point = [minX + rng() * (maxX - minX), minY + rng() * (maxY - minY)];
 
@@ -456,7 +491,7 @@ function generateTopDownBushes(
     // Check distance to existing trees
     if (trees.some(t => Math.hypot(t.center[0] - cand[0], t.center[1] - cand[1]) < minTreeDist)) continue;
 
-    const radius = 3.5 + rng() * 2.8; // radius 3.5m - 6.3m (diameter 7m - 12.6m)
+    const radius = decoration ? 2.2 + rng() * 1.8 : 3.5 + rng() * 2.8; // Smaller crowns fit roadside gaps.
     const numSubCircles = 2 + rng.int(0, 2);
     const subCircles: { offset: Point; radius: number }[] = [];
     for (let k = 0; k < numSubCircles; k++) {
@@ -469,11 +504,14 @@ function generateTopDownBushes(
       });
     }
 
-    trees.push({ center: cand, radius, subCircles });
+    const tree = { center: cand, radius, subCircles };
+    // Rejected footprints do not consume a tree slot or keep valid neighbours away.
+    if (decoration && !decoration.accept(tree)) continue;
+    trees.push(tree);
   }
 
   // Fallback: at least one canopy if area is large enough, but NEVER violate fortification or river clear zones
-  if (!trees.length && !isFortified) {
+  if (!decoration && !trees.length && !isFortified) {
     const c = polygonCentroid(outline);
     if (pointInPolygon(c, outline)) {
       const nearDefense = clearance?.segments.some(([a, b]) => distToSegment(c, a, b) < FORTIFICATION_TREE_CLEAR_ZONE);

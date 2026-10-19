@@ -68,6 +68,25 @@ function connectedLaneSegments(fabric: ReturnType<typeof buildBlockFabric>) {
 }
 
 describe("coarse-cell infill", () => {
+  it("caps farm polygons by hectares, including zero, and refreshes the fabric cache", () => {
+    const document = fixture([rect]);
+    for (const face of Object.values(document.mesh.faces)) face.properties.ward = "farm";
+    document.fabric = createFabricPlan(document, "farm-budget");
+    const original = buildBlockFabric(document);
+    const area = (farms: typeof original.farms) =>
+      farms.reduce((sum, farm) => sum + Math.abs(polygonArea(farm.polygon)), 0);
+    expect(original.farms.length).toBeGreaterThan(1);
+    const fullArea = area(original.farms);
+    document.farmlandAreaHectares = fullArea / 20_000;
+    const limited = buildBlockFabric(document);
+    expect(area(limited.farms)).toBeGreaterThan(0);
+    expect(area(limited.farms)).toBeLessThanOrEqual(fullArea / 2);
+    document.farmlandAreaHectares = 0;
+    expect(buildBlockFabric(document).farms).toEqual([]);
+    delete document.farmlandAreaHectares;
+    expect(buildBlockFabric(document).farms).toEqual(original.farms);
+  });
+
   it("reserves a polygon without changing generated lanes or unrelated houses", () => {
     const document = fixture([rect]);
     const before = buildBlockFabric(document);

@@ -141,6 +141,8 @@ export interface EdgeFeatureGroup {
   segments: EdgeRef[];
   style: LineStyle;
   locked: boolean;
+  /** Generated road purpose, retained when a route is trimmed or split. */
+  roadRole?: "approach" | "street";
   /** Set on roads that leave an outer-wall gate for the map exterior. */
   beyond?: ApproachBeyond;
   /** Source FMG land-road leg; distinguishes external approaches from local streets. */
@@ -366,6 +368,8 @@ export interface FabricPlan {
 }
 
 export interface CityDocument {
+  /** Optional finishing decoration, independent of city generation stages. */
+  vacantLotTrees?: { seed: string; visible: boolean };
   /** CE overrides for automatically placed facilities; absent entries follow FMG/defaults. */
   facilityCounts?: Partial<Record<import("./facilities").FacilityKind, number>>;
   populationPlan?: import("./contracts/population").PopulationPlan;
@@ -453,6 +457,8 @@ export interface CityDocument {
    * A guild chapter in this profile is drawn even when its craftsman count is zero.
    */
   siteEconomy?: import("./contracts/burgSiteEconomy").BurgSiteEconomy;
+  /** Upper bound on rendered farms, in hectares; absent for unsurveyed sites. */
+  farmlandAreaHectares?: number;
   /**
    * Compass bearing the wind blows toward (0 = north, clockwise), copied from
    * `climate.prevailingWindDeg`. Absent: windmills keep a seeded facing.

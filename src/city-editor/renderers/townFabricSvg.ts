@@ -3,7 +3,8 @@ import type { AerialLandmarkPlan } from "../generators/aerialLandmarks";
 import { farmSheds } from "../generators/farmSheds";
 import { polygonArea, polygonCentroid } from "../generators/geom";
 import type { HarborPlan } from "../generators/harborFabric";
-import type { ParkLawn } from "../generators/parkFabric";
+import type { ParkLawn, ParkTreeCanopy } from "../generators/parkFabric";
+import { buildVacantLotTrees } from "../generators/vacantLotTrees";
 import type { WatermillPlan } from "../generators/watermillFabric";
 import type { Id } from "../types/document";
 import type { SvgPickInfo } from "../types/selection";
@@ -18,6 +19,7 @@ import { roundedFarmPolygon } from "./townShapes";
 export interface TownLayerPlans {
   harbor: HarborPlan | undefined;
   parks: ParkLawn[];
+  vacantTrees?: ParkTreeCanopy[];
   watermills: WatermillPlan | undefined;
   aerial: AerialLandmarkPlan | undefined;
   plannedPiers: HarborPlan["piers"];
@@ -438,6 +440,10 @@ export function renderTownFabric(
   return {
     harbor: facts.fabric?.harbor,
     parks: townParkLawns,
+    vacantTrees:
+      !hideBuildings && document.vacantLotTrees?.visible
+        ? buildVacantLotTrees(document, lots, fabric, document.vacantLotTrees.seed)
+        : [],
     watermills: facts.watermills,
     aerial: facts.fabric?.aerialLandmarks,
     plannedPiers: plannedHarborPiers(document, facts.fabric?.harbor),
