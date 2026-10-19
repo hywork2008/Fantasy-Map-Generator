@@ -454,7 +454,7 @@ export function buildingSurfaces(
   const roofs: Bucket = { positions: [], normals: [] };
   const centre = centroid(base);
   const eave = massing.eaveHeightMeters;
-  const interior = planVertex(centre, Math.max(eave * 0.45, 0.5));
+  const interior = planVertex(centre, Math.min(eave * 0.5, Math.max(eave * 0.45, 0.5)));
   let y = 0;
   let previous = base;
   for (let level = 0; level < massing.floors.length; level++) {

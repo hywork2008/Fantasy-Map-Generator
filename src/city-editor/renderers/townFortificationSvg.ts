@@ -13,6 +13,7 @@ import type { CityDocument, Id, Point, Tool } from "../types/document";
 import type { SvgPickInfo } from "../types/selection";
 import { isNewStyleCastleCircuit, isNewStyleCastleGate, isNewStyleCastleWall } from "./castleStyle";
 import { gateHasMoat } from "./moatSvg";
+import { modularFortressOwnsCircuit, modularFortressOwnsGate, modularFortressOwnsWall } from "./modularFortress";
 import { edgeGroupPoints, element } from "./svgPrimitives";
 import { renderGateDecoration, renderTowerDecoration } from "./wallSvg";
 export function renderTownFortifications(
@@ -34,7 +35,7 @@ export function renderTownFortifications(
   const cornerIds = new Set<Id>();
   for (const circuit of document.defenseCircuits ?? []) {
     if (circuit.scope !== "castle") continue;
-    if (isNewStyleCastleCircuit(document, circuit.id)) continue;
+    if (isNewStyleCastleCircuit(document, circuit.id) || modularFortressOwnsCircuit(document, circuit.id)) continue;
     const refs = boundaryRings(document.mesh, boundaryEdges(document.mesh, circuit.areaFaceIds))[0] ?? [];
     const points = refs.map(
       ref =>
@@ -102,7 +103,7 @@ export function renderTownFortifications(
   }
   for (const group of document.featureGroups) {
     if (group.kind !== "wall") continue;
-    if (isNewStyleCastleWall(document, group.id)) continue;
+    if (isNewStyleCastleWall(document, group.id) || modularFortressOwnsWall(document, group.id)) continue;
     const wallMat = group.wallMaterial ?? "stone";
     const towerFill = wallMat === "wood" ? "#634327" : "#292a26";
     const points = edgeGroupPoints(document, group.segments);
@@ -164,7 +165,7 @@ export function renderTownFortifications(
     }
   }
   for (const gate of document.gates) {
-    if (isNewStyleCastleGate(document, gate)) continue;
+    if (isNewStyleCastleGate(document, gate) || modularFortressOwnsGate(document, gate)) continue;
     const frame = gateCrossingFrame(document, gate.vertexId);
     if (!frame) continue;
     const wall = document.featureGroups.find(

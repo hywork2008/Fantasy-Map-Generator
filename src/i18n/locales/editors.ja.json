@@ -1,6 +1,12 @@
 {
   "cityEditor": {
     "messages": {
+      "fortressModel": "城塞モデル",
+      "fortressProcedural": "自動生成の城",
+      "fortressKrak1270": "クラック・デ・シュヴァリエ（1270年頃）",
+      "fortressKrak1302": "クラック・デ・シュヴァリエ（マムルーク朝改修後）",
+      "fortressSiteTooSmall": "内郭と石造斜面を置くには、より広く、くぼみの少ない城郭が必要です。",
+      "fortressSchematic": "概形モデルです。内郭の比率を保ち、外郭は敷地に沿います。セル標高が3Dの丘に反映されます。",
       "facilityPlacedCount": "現在の配置数: {{value0}}",
       "facilityManagement": "施設の追加・削除",
       "facilityAutomatic": "自動設定",

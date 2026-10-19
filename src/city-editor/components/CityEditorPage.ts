@@ -2433,6 +2433,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
 
   function refresh(): void {
     getMapDisplayController().refresh();
+    syncCity3d();
   }
 
   /**

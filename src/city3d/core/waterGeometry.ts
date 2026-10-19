@@ -38,26 +38,41 @@ export function waterSurfaceGeometry(
   triangles: readonly Point[][],
   boundaries: readonly Point[][],
   isWet: (point: Point) => boolean,
-  levels: { waterY?: number; boundaryWaterY?: readonly number[] } = {}
+  levels: {
+    waterY?: number;
+    boundaryWaterY?: readonly number[];
+    landHeightAt?: (point: Point) => number;
+    waterHeightAt?: (point: Point) => number;
+    boundaryWaterHeightAt?: (point: Point, index: number) => number;
+  } = {}
 ): WaterSurfaces {
   const top: Bucket = { positions: [], normals: [] };
   const skirt: Bucket = { positions: [], normals: [] };
   const waterY = levels.waterY ?? WATER_Y;
-  for (const triangle of triangles) addTop(top, triangle, waterY);
+  for (const triangle of triangles) addTop(top, triangle, waterY, levels.waterHeightAt);
   const rings = boundaries.map(openRing);
   for (let index = 0; index < rings.length; index++)
-    addSkirts(skirt, rings[index], index, rings, isWet, levels.boundaryWaterY?.[index] ?? waterY);
+    addSkirts(
+      skirt,
+      rings[index],
+      index,
+      rings,
+      isWet,
+      levels.boundaryWaterY?.[index] ?? waterY,
+      levels.landHeightAt,
+      levels.boundaryWaterHeightAt ? point => levels.boundaryWaterHeightAt!(point, index) : undefined
+    );
   return { top: toSoup(top), skirt: toSoup(skirt) };
 }
 
-function addTop(bucket: Bucket, triangle: readonly Point[], waterY: number): void {
+function addTop(bucket: Bucket, triangle: readonly Point[], waterY: number, heightAt?: (point: Point) => number): void {
   if (triangle.length !== 3) return;
   const [a, b, c] = triangle;
   if (!finite(a) || !finite(b) || !finite(c)) return;
   if (span(a, b) < MIN_EDGE || span(b, c) < MIN_EDGE || span(c, a) < MIN_EDGE) return;
-  const av = planVertex(a, waterY);
-  const bv = planVertex(b, waterY);
-  const cv = planVertex(c, waterY);
+  const av = planVertex(a, heightAt?.(a) ?? waterY);
+  const bv = planVertex(b, heightAt?.(b) ?? waterY);
+  const cv = planVertex(c, heightAt?.(c) ?? waterY);
   const ny = (bv[2] - av[2]) * (cv[0] - av[0]) - (bv[0] - av[0]) * (cv[2] - av[2]);
   if (Math.abs(ny) * 0.5 < MIN_TRI_AREA) return;
   const ordered = ny < 0 ? [cv, bv, av] : [av, bv, cv];
@@ -73,7 +88,9 @@ function addSkirts(
   index: number,
   rings: readonly (readonly Point[])[],
   isWet: (point: Point) => boolean,
-  waterY: number
+  waterY: number,
+  landHeightAt?: (point: Point) => number,
+  waterHeightAt?: (point: Point) => number
 ): void {
   if (ring.length < 3) return;
   for (let i = 0; i < ring.length; i++) {
@@ -83,12 +100,20 @@ function addSkirts(
     for (let j = 1; j < cuts.length; j++) {
       const start: Point = [a[0] + (b[0] - a[0]) * cuts[j - 1], a[1] + (b[1] - a[1]) * cuts[j - 1]];
       const end: Point = [a[0] + (b[0] - a[0]) * cuts[j], a[1] + (b[1] - a[1]) * cuts[j]];
-      addBankEdge(bucket, start, end, isWet, waterY);
+      addBankEdge(bucket, start, end, isWet, waterY, landHeightAt, waterHeightAt);
     }
   }
 }
 
-function addBankEdge(bucket: Bucket, a: Point, b: Point, isWet: (point: Point) => boolean, waterY: number): void {
+function addBankEdge(
+  bucket: Bucket,
+  a: Point,
+  b: Point,
+  isWet: (point: Point) => boolean,
+  waterY: number,
+  landHeightAt?: (point: Point) => number,
+  waterHeightAt?: (point: Point) => number
+): void {
   const dx = b[0] - a[0];
   const dy = b[1] - a[1];
   const length = Math.hypot(dx, dy);
@@ -99,10 +124,10 @@ function addBankEdge(bucket: Bucket, a: Point, b: Point, isWet: (point: Point) =
   const wetRight = isWet([mid[0] - left[0] * BANK_TEST_METERS, mid[1] - left[1] * BANK_TEST_METERS]);
   if (wetLeft === wetRight) return;
   const dry: Point = wetLeft ? [-left[0], -left[1]] : left;
-  const bottomA = planVertex(a, waterY);
-  const bottomB = planVertex(b, waterY);
-  const topA = planVertex(a, LAND_Y);
-  const topB = planVertex(b, LAND_Y);
+  const bottomA = planVertex(a, waterHeightAt?.(a) ?? waterY);
+  const bottomB = planVertex(b, waterHeightAt?.(b) ?? waterY);
+  const topA = planVertex(a, landHeightAt?.(a) ?? LAND_Y);
+  const topB = planVertex(b, landHeightAt?.(b) ?? LAND_Y);
   // Winding matches planVertex, so the geometric normal points at the dry side.
   const faces = wetLeft
     ? [

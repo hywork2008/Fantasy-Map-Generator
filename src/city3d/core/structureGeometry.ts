@@ -503,6 +503,7 @@ function solidSurfaces(structure: StructureMassing): BuildingSurfaces | null {
 
 /** Closed triangles for one structure. Null when it cannot be drawn. */
 export function structureSurfaces(structure: StructureMassing): BuildingSurfaces | null {
+  if (structure.sections) return sectionSurfaces(structure.sections);
   const walls: Bucket = { positions: [], normals: [] };
   const roofs: Bucket = { positions: [], normals: [] };
   if (structure.centerline && structure.centerline.length >= 2 && structure.widthMeters) {
@@ -530,4 +531,54 @@ export function structureSurfaces(structure: StructureMassing): BuildingSurfaces
     walls: toSoup(walls),
     roofs: roofs.positions.length ? toSoup(roofs) : EMPTY
   };
+}
+
+/** Corresponding vertices retain vertical sides; changing rings forms a talus. */
+function sectionSurfaces(sections: NonNullable<StructureMassing["sections"]>): BuildingSurfaces | null {
+  if (sections.length < 2) return null;
+  const count = sections[0].footprint.length;
+  if (
+    count < 3 ||
+    sections.some(
+      section =>
+        section.footprint.length !== count ||
+        section.elevationsMeters.length !== count ||
+        section.footprint.some(point => !point.every(Number.isFinite)) ||
+        section.elevationsMeters.some(height => !Number.isFinite(height))
+    )
+  )
+    return null;
+  const walls: Bucket = { positions: [], normals: [] };
+  const roofs: Bucket = { positions: [], normals: [] };
+  const vertex = (section: number, index: number) =>
+    planVertex(sections[section].footprint[index], sections[section].elevationsMeters[index]);
+  for (let level = 1; level < sections.length; level++) {
+    const center: V3 = [0, 0, 0];
+    for (let i = 0; i < count; i++) {
+      const a = vertex(level - 1, i),
+        b = vertex(level, i);
+      for (const axis of [0, 1, 2] as const) center[axis] += (a[axis] + b[axis]) / (count * 2);
+    }
+    for (let i = 0; i < count; i++) {
+      const j = (i + 1) % count;
+      pushOriented(walls, vertex(level - 1, i), vertex(level - 1, j), vertex(level, j), center);
+      pushOriented(walls, vertex(level - 1, i), vertex(level, j), vertex(level, i), center);
+    }
+  }
+  for (const level of [0, sections.length - 1]) {
+    const triangles = earClip(sections[level].footprint);
+    if (triangles.length !== count - 2) return null;
+    for (const [a, b, c] of triangles) {
+      const av = vertex(level, a),
+        bv = vertex(level, b),
+        cv = vertex(level, c);
+      const interior: V3 = [
+        (av[0] + bv[0] + cv[0]) / 3,
+        (av[1] + bv[1] + cv[1]) / 3 + (level === 0 ? 1 : -1),
+        (av[2] + bv[2] + cv[2]) / 3
+      ];
+      pushOriented(level === 0 ? walls : roofs, av, bv, cv, interior);
+    }
+  }
+  return { walls: toSoup(walls), roofs: toSoup(roofs) };
 }

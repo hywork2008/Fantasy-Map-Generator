@@ -57,8 +57,9 @@ export function createStructureMassing(structures: readonly StructureMassing[]):
     const surfaces = structureSurfaces(structure);
     if (!surfaces) return;
     const deck = structure.kind === "bridge";
-    append(body, surfaces.walls, deck ? DECK : BODY[structure.material], index);
-    const cap = structure.roofMaterial ? ROOF_COLOR[structure.roofMaterial] : CAP[structure.material];
+    append(body, surfaces.walls, structure.color ?? (deck ? DECK : BODY[structure.material]), index);
+    const cap =
+      structure.color ?? (structure.roofMaterial ? ROOF_COLOR[structure.roofMaterial] : CAP[structure.material]);
     append(caps, surfaces.roofs, deck ? RAIL : cap, index);
   });
   const group = new THREE.Group();

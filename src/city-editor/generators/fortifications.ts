@@ -267,6 +267,12 @@ export function validateFortifications(document: CityDocument): string[] {
       errors.push(`Invalid gate circuit ${gate.id}`);
   for (const castle of castles) {
     if (
+      castle.fortress !== undefined &&
+      (castle.fortress?.modelId !== "krak-des-chevaliers" ||
+        !["hospitalier-1270", "mamluk-1302"].includes(castle.fortress.phase))
+    )
+      errors.push(`Invalid modular fortress ${castle.id}`);
+    if (
       castle.version !== 1 ||
       !["keep-bailey", "courtyard"].includes(castle.form) ||
       !["edge", "central"].includes(castle.position) ||

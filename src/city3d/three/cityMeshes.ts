@@ -38,7 +38,10 @@ function meshFrom(parts: Parts): THREE.Mesh | null {
 }
 
 /** One wall mesh and one roof mesh for every lot that has massing. `buildingIndex` matches the input array. */
-export function createCityMassing(lots: readonly { polygon: Point[]; massing?: BuildingMassing }[]): CityMassingMeshes {
+export function createCityMassing(
+  lots: readonly { polygon: Point[]; massing?: BuildingMassing }[],
+  foundationAt?: (ring: Point[]) => number
+): CityMassingMeshes {
   const walls: Parts = { positions: [], normals: [], colors: [], buildingIndex: [] };
   const roofs: Parts = { positions: [], normals: [], colors: [], buildingIndex: [] };
   for (let index = 0; index < lots.length; index++) {
@@ -46,6 +49,10 @@ export function createCityMassing(lots: readonly { polygon: Point[]; massing?: B
     if (!massing) continue;
     const surfaces = buildingSurfaces(lots[index].polygon, massing);
     if (!surfaces) continue;
+    const elevation = foundationAt?.(lots[index].polygon) ?? 0;
+    if (elevation)
+      for (const surface of [surfaces.walls, surfaces.roofs])
+        for (let i = 1; i < surface.positions.length; i += 3) surface.positions[i] += elevation;
     append(walls, surfaces.walls, tinted(WALL_COLOR[massing.wall], massing.tint), index);
     append(roofs, surfaces.roofs, tinted(ROOF_COLOR[massing.roof.material], massing.tint), index);
   }

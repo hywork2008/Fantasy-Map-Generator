@@ -273,6 +273,8 @@ export interface CastlePlan {
   relationship: "integrated" | "detached";
   form: "keep-bailey" | "courtyard";
   castleStyle?: import("./contracts/castlePatterns").CastleStyle;
+  /** Explicit modular fortress; the circuit remains the source of its outer wall. */
+  fortress?: { modelId: "krak-des-chevaliers"; phase: "hospitalier-1270" | "mamluk-1302" };
   circuitId: Id;
   courtyards: Point[][];
   parts: CastlePart[];

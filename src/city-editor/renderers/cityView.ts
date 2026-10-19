@@ -16,6 +16,7 @@ import { editorText } from "../../i18n/editorMessages";
 import { buildBlockFabric, type DistrictFabric } from "../generators/blockInfill";
 import { riverRibbons } from "../generators/bridgeDeck";
 import type { BuildingLot } from "../generators/buildingLots.types";
+import { type CityTerrain, cityTerrain, cityTerrainStamp } from "../generators/terrainElevation";
 import { collectTownRoads, townRoadStamp } from "../generators/townRoads";
 import { townWaterStamp } from "../generators/townWater";
 import { waterPolygons } from "../generators/waterGeometry";
@@ -23,6 +24,7 @@ import type { FloorUse, RoofForm, RoofMaterial, WallMaterial } from "../types/co
 import type { StructureKind, StructureMassing, StructureMaterial } from "../types/contracts/structureMassing";
 import type { CityDocument } from "../types/document";
 import { collectCityStructures, landmarkLotStructures } from "./structureMassing";
+import { groundStructures, lotFoundations } from "./terrainMassing";
 
 const WALL_KEY: Record<WallMaterial, EditorMessageKey> = {
   "timber-frame": "cityEditor.messages.massingTimberFrame",
@@ -114,6 +116,8 @@ export function mountCity3d(options: {
   let roadStamp: string | null = null;
   let roadWarned: string | null = null;
   let structureList: StructureMassing[] = [];
+  let terrain: CityTerrain | null = null;
+  let terrainStamp: string | null = null;
   let highlight: THREE.LineSegments | null = null;
   let built: DistrictFabric | null = null;
   let framedRadius = 0;
@@ -139,7 +143,9 @@ export function mountCity3d(options: {
     if (!camera || !controls) return;
     const radius = Math.max(30, document.frame.cityRadiusMeters);
     camera.position.set(radius * 0.85, radius * 0.62, radius * 0.85);
-    controls.target.set(0, 4, 0);
+    const elevation = terrain?.heightAt([0, 0]) ?? 0;
+    camera.position.y += elevation;
+    controls.target.set(0, elevation + 4, 0);
     controls.update();
     framedRadius = radius;
   };
@@ -207,6 +213,8 @@ export function mountCity3d(options: {
     const positions = new Float32Array(surfaces.walls.positions.length + surfaces.roofs.positions.length);
     positions.set(surfaces.walls.positions, 0);
     positions.set(surfaces.roofs.positions, surfaces.walls.positions.length);
+    const elevation = terrain?.foundationAt(lot.polygon) ?? 0;
+    if (elevation) for (let i = 1; i < positions.length; i += 3) positions[i] += elevation;
     outline(positions);
   };
 
@@ -218,9 +226,12 @@ export function mountCity3d(options: {
     if (massing) scene.remove(massing.group);
     structures?.dispose();
     if (structures) scene.remove(structures.group);
-    massing = createCityMassing(fabric.buildings);
+    massing = createCityMassing(fabric.buildings, terrain?.relief ? terrain.foundationAt : undefined);
     scene.add(massing.group);
-    structureList = [...collectCityStructures(city), ...landmarkLotStructures(fabric.buildings)];
+    const parts = [...collectCityStructures(city), ...landmarkLotStructures(fabric.buildings)];
+    structureList = terrain
+      ? [...groundStructures(parts, terrain), ...lotFoundations(fabric.buildings, terrain)]
+      : parts;
     structures = createStructureMassing(structureList);
     scene.add(structures.group);
     if (ground?.parent) {
@@ -267,7 +278,7 @@ export function mountCity3d(options: {
   const placeWater = (city: CityDocument) => {
     if (!scene || !ground) return;
     waterMeshes?.dispose();
-    waterMeshes = createTownWater(city);
+    waterMeshes = createTownWater(city, terrain ?? undefined);
     if (waterMeshes.replacesDisc) scene.remove(ground);
     else {
       if (!ground.parent) scene.add(ground);
@@ -285,14 +296,21 @@ export function mountCity3d(options: {
     ensure();
     if (!scene) return;
     const city = options.getDocument();
+    const nextTerrainStamp = cityTerrainStamp(city);
+    const terrainChanged = nextTerrainStamp !== terrainStamp;
+    if (terrainChanged) {
+      terrain = cityTerrain(city);
+      terrainStamp = nextTerrainStamp;
+    }
     // Fabric first: lane geometry is part of the road stamp.
     const fabric = buildBlockFabric(city);
     const stamp = townWaterStamp(city);
     const roads = townRoadStamp(city, fabric.lanes);
     const plan = planCity3dRefresh({
-      fabricChanged: fabric !== built,
-      stampChanged: waterStampChanged(waterStamp, stamp, Boolean(scene.getObjectByName("ce-water"))),
-      roadStampChanged: roadStampChanged(roadStamp, roads, Boolean(scene.getObjectByName("ce-roads"))),
+      fabricChanged: fabric !== built || terrainChanged,
+      stampChanged: terrainChanged || waterStampChanged(waterStamp, stamp, Boolean(scene.getObjectByName("ce-water"))),
+      roadStampChanged:
+        terrainChanged || roadStampChanged(roadStamp, roads, Boolean(scene.getObjectByName("ce-roads"))),
       open: true
     });
     if (!plan.buildings && !plan.water && !plan.roads) return;
@@ -307,10 +325,14 @@ export function mountCity3d(options: {
     // 3D ignores hideStreetLines. That flag is true only while conceal plays back.
     if (plan.roads) {
       try {
-        const next = createTownRoads(collectTownRoads(city, fabric.lanes), {
-          polygons: waterPolygons(city),
-          ribbons: riverRibbons(city).map(ribbon => ({ points: ribbon.points, width: ribbon.width }))
-        });
+        const next = createTownRoads(
+          collectTownRoads(city, fabric.lanes),
+          {
+            polygons: waterPolygons(city),
+            ribbons: riverRibbons(city).map(ribbon => ({ points: ribbon.points, width: ribbon.width }))
+          },
+          terrain?.relief ? terrain.heightAt : undefined
+        );
         roadMeshes?.dispose();
         scene.add(next.parent);
         roadMeshes = next;
@@ -361,13 +383,13 @@ export function mountCity3d(options: {
       readout.hidden = true;
       return;
     }
-    const attribute = hit.object.geometry.getAttribute("buildingIndex");
+    const attribute = (hit.object as THREE.Mesh).geometry.getAttribute("buildingIndex");
     const index = attribute?.getX(hit.face.a) ?? -1;
     if (structures?.pickables.includes(hit.object as THREE.Mesh)) showStructure(structureList[index]);
     else showLot(built?.buildings[index]);
   };
 
-  options.scope.listen(button, "click", () => setOpen(viewport.hidden));
+  options.scope.listen(button, "click", () => setOpen(Boolean(viewport.hidden)));
   options.scope.listen(viewport, "pointerdown", event => {
     const point = event as PointerEvent;
     pointer = { x: point.clientX, y: point.clientY };

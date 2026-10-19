@@ -2,12 +2,14 @@ import "./viewer.css";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { contentDigest } from "../buildings/canonicalJson";
+import { KRAK, type KrakPhase } from "../buildings/fortresses/krak";
 import { committedSvgHash, levelPlanSvg, planSvg } from "../buildings/planSvg";
 import { type BuildingRecord, TRIANGLE_BUDGET } from "../buildings/record";
 import { validateBuildingRecord } from "../buildings/validate";
 import { catalogueMassing } from "../city3d/core/catalogueMassing";
 import { structureSurfaces } from "../city3d/core/structureGeometry";
 import { type CityStructureMeshes, createStructureMassing } from "../city3d/three/structureMeshes";
+import type { TownWaterMeshes } from "../city3d/three/waterMeshes";
 import type { HistoricalPeriod } from "../types/historicalPeriod";
 import { sanitizeSvg } from "./svgSanitize";
 
@@ -134,6 +136,8 @@ scene.add(ground);
 const controls = new OrbitControls(camera, canvas);
 controls.maxPolarAngle = Math.PI / 2 - 0.05;
 let massing: CityStructureMeshes | null = null;
+let studyWater: TownWaterMeshes | null = null;
+let selection = 0;
 
 function resize(): void {
   const rect = stage.getBoundingClientRect();
@@ -151,7 +155,7 @@ function label(value: string): string {
     .join(" ");
 }
 
-function frame(record: BuildingRecord, height: number): void {
+function frame(record: Pick<BuildingRecord, "occupancyMeters">, height: number): void {
   const radius = Math.max(record.occupancyMeters.width, record.occupancyMeters.depth, 8);
   camera.position.set(radius * 1.45, Math.max(height, 4) * 1.25, radius * 1.45);
   controls.target.set(0, height * 0.42, 0);
@@ -162,6 +166,8 @@ function frame(record: BuildingRecord, height: number): void {
 
 function clearMesh(): void {
   ground.visible = false;
+  studyWater?.dispose();
+  studyWater = null;
   if (!massing) return;
   scene.remove(massing.group);
   massing.dispose();
@@ -176,6 +182,9 @@ function showLevel(record: BuildingRecord, levelId: string): void {
 }
 
 function show(entry: Entry): void {
+  selection++;
+  roofTitle.textContent = "Roof plan";
+  levelTitle.textContent = "Floor plan";
   for (const button of list.querySelectorAll("button")) {
     button.setAttribute("aria-current", button.dataset.id === entry.record.id ? "true" : "false");
   }
@@ -240,6 +249,70 @@ function show(entry: Entry): void {
   }
 }
 
+async function showFortress(phase: KrakPhase): Promise<void> {
+  const token = ++selection;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button.dataset.phase === phase ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Fortress plan";
+  levelTitle.textContent = "Inner ward plan";
+  const [{ createFortressStudy }, { cityTerrain }, { modularFortressStructures }, { createTownWater }] =
+    await Promise.all([
+      import("../city-editor/generators/fortressStudy"),
+      import("../city-editor/generators/terrainElevation"),
+      import("../city-editor/renderers/modularFortress"),
+      import("../city3d/three/waterMeshes")
+    ]);
+  if (token !== selection) return;
+  const city = createFortressStudy(phase);
+  const terrain = cityTerrain(city);
+  const parts = modularFortressStructures(city, city.castles![0], terrain)!;
+  massing = createStructureMassing(parts);
+  scene.add(massing.group);
+  studyWater = createTownWater(city, terrain);
+  for (const mesh of [studyWater.land, studyWater.bank, studyWater.unknown]) if (mesh) scene.add(mesh);
+  scene.add(studyWater.parent);
+  const top = Math.max(...parts.map(part => part.baseElevationMeters + part.heightMeters));
+  frame({ occupancyMeters: { width: 160, depth: 190 } }, top);
+  camera.position.set(200, top + 110, 220);
+  controls.target.set(0, terrain.heightAt([0, 0]) + 8, 0);
+  controls.update();
+  const outline = (points: [number, number][]) =>
+    `${points.map(([x, y], i) => `${i ? "L" : "M"}${x},${-y}`).join(" ")} Z`;
+  const paths = [...parts]
+    .sort((a, b) => a.baseElevationMeters + a.heightMeters - b.baseElevationMeters - b.heightMeters)
+    .map(
+      part =>
+        `<path d="${[outline(part.footprint!), ...(part.holes ?? []).map(outline)].join(" ")}" fill-rule="evenodd" fill="${part.color ? "#456d7f" : part.id.includes("talus") ? "#aaa28e" : "#c1b8a2"}" stroke="#4a463c" stroke-width="0.6"/>`
+    );
+  mountPlan(roofHost, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-110 -115 220 230">${paths.join("")}</svg>`);
+  mountPlan(levelHost, levelPlanSvg(KRAK.inner, KRAK.inner.levels[0].id));
+  facts.append(
+    fact("Model", `${KRAK.name} — modular hill study`),
+    fact("Phase", phase === "hospitalier-1270" ? "Hospitaller, c. 1270" : "Mamluk alterations, c. 1302"),
+    fact("Parts", String(parts.length)),
+    fact("Note", KRAK.note),
+    fact("Source", KRAK.source),
+    fact("Inner ward", KRAK.inner.provenance.dimensionSource)
+  );
+  const download = document.createElement("button");
+  download.type = "button";
+  download.textContent = "Download editable CE hill study";
+  download.addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify(city, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `krak-${phase}.city.json`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+  facts.append(download);
+}
+
 if (!entries.length) {
   const empty = document.createElement("p");
   empty.textContent = "No buildings are in the catalogue.";
@@ -260,6 +333,23 @@ if (!entries.length) {
     list.append(button);
   }
   show(entries[0]);
+}
+
+const assemblies = document.createElement("h2");
+assemblies.textContent = "Fortress assemblies";
+list.append(assemblies);
+for (const phase of ["hospitalier-1270", "mamluk-1302"] as const) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.dataset.phase = phase;
+  button.textContent = `${KRAK.name} · ${phase === "hospitalier-1270" ? "c. 1270" : "Mamluk alterations"}`;
+  button.addEventListener("click", () => {
+    void showFortress(phase).catch(error => {
+      banner.hidden = false;
+      banner.textContent = error instanceof Error ? error.message : String(error);
+    });
+  });
+  list.append(button);
 }
 
 resize();

@@ -30,6 +30,7 @@ import type {
 import { buildFortressPlan, createRotatedRect, type TowerGeometry } from "./castleLayoutBuilder";
 import { resolveCastleStyle } from "./castlePatterns";
 import { isNewStyleCastleCircuit, isNewStyleCastleGate, isNewStyleCastleWall } from "./castleStyle";
+import { modularFortressOwnsCircuit, modularFortressOwnsWall, modularFortressStructures } from "./modularFortress";
 import { resolveWallGeometry } from "./wallSvg";
 
 const STONE_WALK = 8;
@@ -298,7 +299,12 @@ function curtainTowers(
 function cornerTowers(document: CityDocument, out: StructureMassing[]): void {
   const seen = new Set<Id>();
   for (const circuit of document.defenseCircuits ?? []) {
-    if (circuit.scope !== "castle" || circuit.state === "razed" || isNewStyleCastleCircuit(document, circuit.id))
+    if (
+      circuit.scope !== "castle" ||
+      circuit.state === "razed" ||
+      isNewStyleCastleCircuit(document, circuit.id) ||
+      modularFortressOwnsCircuit(document, circuit.id)
+    )
       continue;
     const refs = boundaryRings(document.mesh, boundaryEdges(document.mesh, circuit.areaFaceIds))[0] ?? [];
     const points = refs.map(ref => {
@@ -520,6 +526,11 @@ function planBuildingHeight(kind: string): { height: number; roof: StructureRoof
 
 function addFortress(document: CityDocument, out: StructureMassing[]): void {
   for (const castle of document.castles ?? []) {
+    const modular = modularFortressStructures(document, castle);
+    if (modular) {
+      out.push(...modular);
+      continue;
+    }
     const profile = resolveCastleStyle(document, castle);
     const circuit = document.defenseCircuits?.find(item => item.id === castle.circuitId);
     if (profile.style === "classic") {
@@ -683,7 +694,7 @@ export function collectCityStructures(document: CityDocument): StructureMassing[
   const prepared = new Map<Id, { group: EdgeFeatureGroup; points: Point[]; height: number }>();
   const out: StructureMassing[] = [];
   for (const group of document.featureGroups) {
-    if (group.kind !== "wall" || !standing(document, group.id)) continue;
+    if (group.kind !== "wall" || !standing(document, group.id) || modularFortressOwnsWall(document, group.id)) continue;
     const points = wallPoints(document, group);
     if (points.length < 2) continue;
     const material: StructureMaterial = group.wallMaterial === "wood" ? "wood" : "stone";
