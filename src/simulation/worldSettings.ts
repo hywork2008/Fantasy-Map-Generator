@@ -53,7 +53,9 @@ export function materializeWorldSettings(simulation: SimulationContext = simulat
  * running as they did.
  */
 export const NEW_WORLD_SETTING_DEFAULTS: Readonly<Partial<Record<WorldSettingKey, string>>> = {
-  "fmg-luxury-value-demand": "on"
+  "fmg-luxury-value-demand": "on",
+  // docs/plan/money-supply-mint.md §11.12: calibrated over 100 years on new-catalogue maps.
+  "fmg-money-supply": "on"
 };
 
 /** Starts a newly generated world from the host's current values. */
