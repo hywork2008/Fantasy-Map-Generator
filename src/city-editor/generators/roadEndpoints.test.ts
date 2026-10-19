@@ -4,6 +4,7 @@ import { featureGroupVertices } from "./features";
 import { generateCityOnDocument } from "./generation/generateCity";
 import { defaultGenerationSettings } from "./generation/settings";
 import { validate } from "./mesh";
+import { physicalRoadRuns, RoadNetwork, roadPathVertices } from "./roadNetwork";
 
 describe("external road endpoints", () => {
   it("stops gc:road-1 at its first frame contact from town in the shared 1o564jj city", () => {
@@ -38,5 +39,14 @@ describe("external road endpoints", () => {
     expect(frameVertices[0]).toBe(vertices[0]);
     expect(city.gates.some(gate => gate.vertexId === vertices.at(-1))).toBe(true);
     expect(validate(city)).toEqual([]);
+    for (const group of city.featureGroups) {
+      if (group.kind !== "road") continue;
+      const nodes = roadPathVertices(city.mesh, group.segments);
+      const open = nodes[0] === nodes.at(-1) ? nodes.slice(0, -1) : nodes;
+      expect(new Set(open).size, group.id).toBe(open.length);
+    }
+    const physical = physicalRoadRuns(city).flatMap(run => run.segments.map(ref => ref.edgeId));
+    expect(new Set(physical).size).toBe(physical.length);
+    expect(new RoadNetwork(city.mesh, city.featureGroups).counts().roadComponents).toBe(1);
   });
 });

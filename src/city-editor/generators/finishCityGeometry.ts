@@ -8,6 +8,7 @@ import { polygonArea, polygonCentroid, segmentInteriorInPolygon, segmentSegmentH
 import { clone, facePoints, faceVertices, indexMeshEdges } from "./mesh";
 import { onFixedCrossingApproach, straightenBridges, straightenGateCrossings } from "./passages";
 import { regionalRoadThroughGate } from "./regionalRoadGates";
+import { minimumCellWidth, roadCellHousingWidth } from "./roadCellGeometry";
 
 /** Distance from `p` to segment `u`–`v`. */
 function pointSegmentGap(p: Point, u: Point, v: Point): number {
@@ -333,6 +334,19 @@ export function finishCityGeometry(source: CityDocument, phase: "finish" | "boun
     }
   }
 
+  const housingWidthFloors = new Map<Id, number>();
+  if (phase === "finish")
+    for (const face of Object.values(mesh.faces)) {
+      if (face.properties.water !== "land" || !face.properties.buildable || face.properties.locked) continue;
+      const widths = face.boundary
+        .flatMap(ref => (roadWidths.has(ref.edgeId) ? [roadWidths.get(ref.edgeId)!] : []))
+        .sort((a, b) => b - a);
+      if (widths.length < 2) continue;
+      housingWidthFloors.set(
+        face.id,
+        Math.min(minimumCellWidth(facePoints(mesh, face)), roadCellHousingWidth(widths[0], widths[1]))
+      );
+    }
   const minimumCorner = (points: Point[]): number =>
     Math.min(
       ...points.map((p, i) => {
@@ -355,6 +369,8 @@ export function finishCityGeometry(source: CityDocument, phase: "finish" | "boun
       const before = areas.get(fid)!;
       const area = polygonArea(points);
       if (Math.abs(area) < 1.01 || area / before < (coarse ? 0.5 : 0.12)) return false;
+      const housingWidth = housingWidthFloors.get(fid);
+      if (housingWidth !== undefined && minimumCellWidth(points) < housingWidth - 1e-6) return false;
       if (minimumCorner(points) < cornerFloors.get(fid)! - 1e-7) return false;
       for (let i = 0; i < points.length; i++) {
         for (let j = i + 2; j < points.length; j++) {

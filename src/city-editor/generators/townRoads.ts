@@ -12,6 +12,7 @@ import { frameRoadTownConnection } from "./generation/routing/frameRoadConnectio
 import { pointInPolygon, polygonCentroid } from "./geom";
 import { facePoints, incidentFaces } from "./mesh";
 import { MoatRoadSplitter } from "./moatRoadFacts";
+import { physicalRoadRuns, roadPathVertices } from "./roadNetwork";
 import { defaultRoadWidthMeters, townExtentMeters } from "./settlementExtent";
 import { dryRuns, waterPolygons } from "./waterGeometry";
 
@@ -95,9 +96,8 @@ export function collectTownRoads(document: CityDocument, lanes: readonly InfillL
     }
   };
 
-  for (const group of document.featureGroups) {
-    if (group.kind !== "road" || group.id.startsWith("gc:bridge-")) continue;
-    const line = resolvedPoints(document, group);
+  for (const { group, segments } of physicalRoadRuns(document, group => !group.id.startsWith("gc:bridge-"))) {
+    const line = roadPathVertices(document.mesh, segments).map(id => document.mesh.vertices[id].point);
     const lineGroup = group.sourceRoad
       ? importedGroup(document, group.sourceRoad.index, group.sourceRoad.routeId)
       : "local";

@@ -5,16 +5,25 @@ import { castleRoadEdgeTest } from "../../castles";
 import { aStar, type EdgeGraph } from "../../edgeGraph";
 import { featureGroupVertices } from "../../features";
 import { townGates } from "../../fortifications";
-import { pointInPolygon, polygonCentroid, polylineLength } from "../../geom";
+import { nearestOnPolyline, pointInPolygon, polygonCentroid, polylineLength } from "../../geom";
 import { facePoints, faceVertices, indexMeshEdges } from "../../mesh";
 import { MoatReservation } from "../../moats";
 import { kindEdgeIds, throughEdgesAt } from "../../passages";
 import { bramCoreRadiusForCity, bramRoadBanRadiusMeters } from "../../polygonalCirculadeLayout";
+import { shortestRoadPath, simpleRoadPath } from "../../roadNetwork";
 import { defaultRoadWidthMeters, townExtentMeters } from "../../settlementExtent";
 import { lineHitsDocumentWater } from "../../waterGeometry";
 import { GEN_PREFIX } from "../constants";
 import type { Plan } from "../contracts";
 import type { NearestVertex } from "../planning/meshLookup";
+
+export interface RoadRoutingOptions {
+  existingEdges?: ReadonlySet<Id>;
+  startVertex?: Id;
+  /** Attach the starting vertex to any reachable member of this network. */
+  connectTo?: ReadonlySet<Id>;
+  maxConnectionMeters?: number;
+}
 
 /** Re-route against the topology AFTER gates have been opened. Snapping each
  * old Voronoi hop independently can leave a road ending beside its own gate. */
@@ -31,7 +40,8 @@ export function completeRoadRouter(
   polyline: Point[],
   outside: boolean,
   acrossBanks?: boolean,
-  onTrace?: (trace: RoadRoutingTrace) => void
+  onTrace?: (trace: RoadRoutingTrace) => void,
+  options?: RoadRoutingOptions
 ) => EdgeRef[] {
   const { mesh } = document;
   const ids = Object.keys(mesh.vertices);
@@ -240,7 +250,7 @@ export function completeRoadRouter(
   const interiorVertices = new Set(
     [...(curtainInterior ?? [])].flatMap(fid => (mesh.faces[fid] ? faceVertices(mesh, mesh.faces[fid]) : []))
   );
-  return (polyline, outside, acrossBanks = false, onTrace) => {
+  return (polyline, outside, acrossBanks = false, onTrace, options) => {
     const searches: RoadRoutingTrace["searches"] = [];
     if (polyline.length < 2) {
       onTrace?.({
@@ -271,7 +281,12 @@ export function completeRoadRouter(
               )
             )
           : undefined;
-      let id = onFrame ? nearest(sampled[i], onFrame) : snap(sampled[i], outside ? i === sampled.length - 1 : i === 0);
+      let id =
+        i === 0 && options?.startVertex
+          ? options.startVertex
+          : onFrame
+            ? nearest(sampled[i], onFrame)
+            : snap(sampled[i], outside ? i === sampled.length - 1 : i === 0);
       // The nearest plaza corner is often a curtain vertex. An interior street
       // has to end on a town vertex or its only hops are the wall itself.
       const gateEnd = outside ? i === sampled.length - 1 : i === 0;
@@ -443,8 +458,42 @@ export function completeRoadRouter(
         if (!hop || hop.length < 2) return null;
         nodes.push(...hop.slice(1));
       }
-      return nodes.length >= 2 ? nodes : null;
+      const protectedStops = new Set(
+        [...gateIds, ...bridgeInterior.keys()].flatMap(id => {
+          const index = indexOf.get(id);
+          return index === undefined ? [] : [index];
+        })
+      );
+      const simple = simpleRoadPath(nodes, protectedStops, points[0] === points.at(-1));
+      return simple && simple.length >= 2 ? simple : null;
     };
+    const segmentsFor = (nodes: number[]): EdgeRef[] =>
+      nodes.slice(1).map((b, i) => {
+        const edge = edgeFor.get(`${Math.min(nodes[i], b)},${Math.max(nodes[i], b)}`)!;
+        return { edgeId: edge.id, forward: edge.a === ids[nodes[i]] };
+      });
+    if (options?.connectTo) {
+      const targets = new Set(
+        [...options.connectTo].flatMap(id => {
+          const index = indexOf.get(id);
+          return index === undefined ? [] : [index];
+        })
+      );
+      const search = () =>
+        shortestRoadPath(
+          graph,
+          waypoints[0],
+          targets,
+          (a, b, w) => weight(a, b, w, targets.has(b) ? b : -1),
+          options.maxConnectionMeters
+        );
+      let connection = search();
+      if (!connection && !outside && curtainInterior) {
+        useCurrentCurtain = true;
+        connection = search();
+      }
+      return connection ? segmentsFor(connection) : [];
+    }
     let nodes = stitch(waypoints) ?? stitch([waypoints[0], hopEndOf]);
     // Passage splits and a citadel can leave the planned urban ids behind the
     // curtain that was actually built. Retry a failed interior street on that
@@ -603,10 +652,39 @@ export function completeRoadRouter(
       const firstContactFromTown = nodes.findLastIndex(onFrame);
       if (firstContactFromTown >= 0) nodes = nodes.slice(firstContactFromTown);
     }
+    if (!outside && !acrossBanks && nodes[0] !== nodes.at(-1) && options?.existingEdges?.size) {
+      const existing = options.existingEdges;
+      const end = nodes.at(-1)!;
+      const reused = shortestRoadPath(graph, nodes[0], new Set([end]), (a, b, w) => {
+        const legal = weight(a, b, w, end);
+        if (!Number.isFinite(legal)) return Infinity;
+        const edge = edgeFor.get(`${Math.min(a, b)},${Math.max(a, b)}`)!;
+        const p = graph.points[a],
+          q = graph.points[b];
+        const deviation = nearestOnPolyline([(p[0] + q[0]) / 2, (p[1] + q[1]) / 2], polyline).dist;
+        return legal * (existing.has(edge.id) ? 1 : 2) + w * (deviation / document.frame.blockSizeMeters) ** 2;
+      });
+      const length = (path: number[], onlyNew = false) =>
+        segmentsFor(path).reduce((sum, ref) => {
+          if (onlyNew && existing.has(ref.edgeId)) return sum;
+          const edge = mesh.edges[ref.edgeId];
+          const p = mesh.vertices[edge.a].point,
+            q = mesh.vertices[edge.b].point;
+          return sum + Math.hypot(p[0] - q[0], p[1] - q[1]);
+        }, 0);
+      // Keep certified crossings and gate choices, and cap the extra travel
+      // introduced by sharing. A ring's useful corridor must not collapse.
+      const stops = nodes.filter(node => gateIds.has(ids[node]) || bridgeInterior.has(ids[node]));
+      const retainedStops = reused?.filter(node => stops.includes(node));
+      if (
+        reused &&
+        retainedStops?.join(",") === stops.join(",") &&
+        length(reused) <= length(nodes) * 1.25 &&
+        length(reused, true) < length(nodes, true)
+      )
+        nodes = reused;
+    }
     emitTrace();
-    return nodes.slice(1).map((b, i) => {
-      const edge = edgeFor.get(`${Math.min(nodes[i], b)},${Math.max(nodes[i], b)}`)!;
-      return { edgeId: edge.id, forward: edge.a === ids[nodes[i]] };
-    });
+    return segmentsFor(nodes);
   };
 }

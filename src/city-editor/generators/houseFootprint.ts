@@ -4,7 +4,8 @@ import { polygonArea } from "./geom";
 
 const dot = (a: Point, b: Point) => a[0] * b[0] + a[1] * b[1];
 const distance = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);
-const MIN_SPAN = 2.5;
+export const MIN_HOUSE_SPAN_METERS = 2.5;
+const MIN_SPAN = MIN_HOUSE_SPAN_METERS;
 const MAX_ASPECT = 5;
 
 /** Remove only shallow boundary kinks. Chords of a convex parcel stay inside

@@ -13,7 +13,13 @@ export function countExternalApproachRoads(document: CityDocument): number {
   const core = document.frame.cityRadiusMeters * 0.25;
   let count = 0;
   for (const group of document.featureGroups) {
-    if (group.kind !== "road" || group.locked || !group.id.startsWith(`${GEN_PREFIX}road-`)) continue;
+    if (
+      group.kind !== "road" ||
+      group.locked ||
+      !group.id.startsWith(`${GEN_PREFIX}road-`) ||
+      group.id.includes(":part-")
+    )
+      continue;
     const ids = featureGroupVertices(document, group);
     if (ids.length < 2) continue;
     const start = document.mesh.vertices[ids[0]]?.point;

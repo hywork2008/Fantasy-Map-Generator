@@ -5,10 +5,11 @@ import { riverRibbons, roadRunsOutsideRivers } from "../generators/bridgeDeck";
 import { clipPolylineToExterior, outerWallRing } from "../generators/concealStreets";
 import { wallRunsOutsideGates } from "../generators/fortifications";
 import { MoatRoadSplitter } from "../generators/moatRoadFacts";
+import { type PhysicalRoadRun, physicalRoadRuns } from "../generators/roadNetwork";
 import { cobbledApproach, cobbledWidthMeters, roadUse } from "../generators/roadTraffic";
 import { defaultRoadWidthMeters, townExtentMeters } from "../generators/settlementExtent";
 import { dryRuns, waterPolygons } from "../generators/waterGeometry";
-import type { Point } from "../types/document";
+import type { FeatureGroup, Point } from "../types/document";
 import type { SvgPickInfo } from "../types/selection";
 import { renderApproachLabels } from "./approachLabelSvg";
 import { isNewStyleCastleWall } from "./castleStyle";
@@ -33,10 +34,28 @@ export function renderFeatureLayer(ctx: RenderContext, svg: SVGSVGElement): SVGG
   const approachWall = town ? (concealWall ?? outerWallRing(document)) : null;
   const ribbons = town ? riverRibbons(document) : [];
   const moatSplitter = new MoatRoadSplitter(document);
-  for (const group of renderGroups) {
+  const groupById = new Map(document.featureGroups.map(group => [group.id, group]));
+  const physical = new Map<string, PhysicalRoadRun[]>();
+  for (const run of physicalRoadRuns(document, group => !((town || fixedMode) && group.id.startsWith("gc:bridge-")))) {
+    if (!physical.has(run.group.id)) physical.set(run.group.id, []);
+    physical.get(run.group.id)!.push(run);
+  }
+  const entries = renderGroups.flatMap((group): { group: FeatureGroup; routeIds: string[] }[] =>
+    group.kind === "road"
+      ? (physical.get(group.id) ?? []).map(run => ({
+          group: { ...group, segments: run.segments },
+          routeIds: run.routeIds
+        }))
+      : [{ group, routeIds: [group.id] }]
+  );
+  for (const { group, routeIds } of entries) {
     if (fixedMode && (group.kind === "river" || (group.kind === "road" && group.id.startsWith("gc:bridge-")))) continue;
-    const active = selection.groupId === group.id;
-    const isPickSelected = selection.inspectedId === group.id || selection.inspectedId === `feature-${group.id}`;
+    const active = !!selection.groupId && routeIds.includes(selection.groupId);
+    const pickGroupId = active ? selection.groupId! : group.id;
+    const pickGroup = groupById.get(pickGroupId)!;
+    const isPickSelected = routeIds.some(
+      id => selection.inspectedId === id || selection.inspectedId === `feature-${id}`
+    );
     const points =
       group.kind === "river"
         ? group.vertices.map(id => document.mesh.vertices[id]?.point).filter(isPoint)
@@ -60,20 +79,21 @@ export function renderFeatureLayer(ctx: RenderContext, svg: SVGSVGElement): SVGG
     }
     if (fixedMode && group.kind === "road")
       runs = fixedGeometry ? runs.filter(run => fixedRoadIsDry(run, group.style.widthMeters, fixedGeometry)) : [];
-    const beyondLabel = group.kind === "road" ? approachBeyondLabel(group.beyond) : null;
+    const beyondLabel = pickGroup.kind === "road" ? approachBeyondLabel(pickGroup.beyond) : null;
     const wallMaterial = group.kind === "wall" ? (group.wallMaterial ?? "stone") : undefined;
     const wallStrokeColor = wallMaterial === "wood" ? "#634327" : "#292a26";
     const pickInfo: SvgPickInfo = {
       layer: "features",
       kind: group.kind,
-      id: group.id,
-      label: beyondLabel ? `${group.kind} (${group.name} · ${beyondLabel})` : `${group.kind} (${group.name})`,
-      name: group.name,
-      locked: group.locked,
+      id: pickGroupId,
+      ...(group.kind === "road" ? { routeIds } : {}),
+      label: beyondLabel ? `${group.kind} (${pickGroup.name} · ${beyondLabel})` : `${group.kind} (${pickGroup.name})`,
+      name: pickGroup.name,
+      locked: pickGroup.locked,
       widthMeters: group.style.widthMeters,
       color: group.style.color,
       segmentCount: group.kind === "river" ? group.vertices.length : group.segments.length,
-      ...(beyondLabel ? { beyond: group.kind === "road" ? group.beyond : undefined, beyondLabel } : {}),
+      ...(beyondLabel ? { beyond: pickGroup.kind === "road" ? pickGroup.beyond : undefined, beyondLabel } : {}),
       ...(wallMaterial ? { wallMaterial } : {})
     };
     for (const run of runs) {
@@ -106,7 +126,8 @@ export function renderFeatureLayer(ctx: RenderContext, svg: SVGSVGElement): SVGG
             : group.style.color,
           "stroke-width": String(group.style.widthMeters),
           ...(fixedMode && group.kind === "road" ? { "stroke-linejoin": "round", "stroke-linecap": "butt" } : {}),
-          "data-group": group.id,
+          "data-group": pickGroupId,
+          ...(group.kind === "road" ? { "data-road-routes": JSON.stringify(routeIds) } : {}),
           "data-pick": encodeURIComponent(JSON.stringify(pickInfo)),
           "pointer-events": "stroke"
         })
