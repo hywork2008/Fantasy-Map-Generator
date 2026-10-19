@@ -43,7 +43,7 @@ import {
   WEALTH_RESERVE_YEARS
 } from "../../src/extensions/economy/generators/characterLivingCosts";
 import { isLuxuryDemandGood, LUXURY_TIERS, luxuryCoverageOf, luxuryTierOf } from "../../src/extensions/economy/generators/luxuryTiers";
-import { housesPresentIn } from "../../src/extensions/economy/generators/merchantIntelligence";
+import { housesPresentIn, merchantIntelligenceSummary } from "../../src/extensions/economy/generators/merchantIntelligence";
 import { getTradeCapitalMoney, takeTradeSettlementStats } from "../../src/extensions/economy/generators/merchantTradeCapital";
 import type { Good } from "../../src/extensions/economy/generators/goodsGeneratorTypes";
 import type { Burg, Route } from "../../src/types/models";
@@ -192,7 +192,18 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
     if (!economy()) return [];
     const members = new Map<number, number>();
     for (const b of liveBurgs()) if (b.market) members.set(b.market, (members.get(b.market) ?? 0) + 1);
-    return getMarkets().map(m => ({ id: m.i, center: m.centerBurgId, burgs: members.get(m.i) ?? 0 }));
+    const { pack } = getWorld();
+    return getMarkets().map(m => {
+      const center = pack.burgs[m.centerBurgId];
+      return {
+        id: m.i,
+        center: m.centerBurgId,
+        burgs: members.get(m.i) ?? 0,
+        centerPop: r3(center?.population ?? 0),
+        state: center?.state ?? 0,
+        capital: Boolean(center?.capital)
+      };
+    });
   }
 
   function world() {
@@ -757,6 +768,8 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
         [...counts].map(([key, row]) => [key, Object.fromEntries(Object.entries(row).map(([k, v]) => [k, r3(v)]))])
       ),
       warehouse: warehouseLots(),
+      /** Agents of each house (home market → markets with an agent) and pending price rumours (§4.3). */
+      branches: merchantIntelligenceSummary(),
       deals: Object.fromEntries(
         [...deals].map(([key, row]) => [
           key,

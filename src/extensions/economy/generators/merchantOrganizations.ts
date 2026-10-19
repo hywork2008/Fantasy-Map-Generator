@@ -15,7 +15,9 @@ import {
 } from "../economyContext";
 import { rollBalancedEconomyGender } from "./economyCharacterGender";
 import type { Market } from "./marketTypes";
+import { housesPresentIn } from "./merchantIntelligence";
 import type { MerchantOrganization, MerchantOrganizationScale } from "./merchantOrganizationsTypes";
+import { isLongDistanceTradeEnabled } from "./merchantTradeCapital";
 import { resolveBurgCulture } from "./resolveBurgCulture";
 import type { MarketReachRefusal } from "./tradeStageObserver";
 
@@ -34,6 +36,20 @@ const ORGANIZATION_MAX_TRADE_DAYS: Record<MerchantOrganizationScale, number> = {
   regional: 25,
   major: 50
 };
+/**
+ * Day cap of a great house for high-value cargo with `fmg-long-distance-trade` on: Datini's letters
+ * took 30–45 days from Palma to Florence; a round trip with time waiting for cargo is about twice
+ * that (docs/plan/long-distance-merchant-reach-capital.md §4.2).
+ */
+export const HIGH_VALUE_MAX_TRADE_DAYS = 90;
+
+/** What is carried, as far as it changes a house's reach. */
+export interface TradeCargo {
+  /** Ore and ingots: not held to the village limit (farm-labour-calibration.md §17). */
+  metal?: boolean;
+  /** Luxuries and other high-value goods: a longer day cap (§4.2). */
+  highValue?: boolean;
+}
 
 export const MERCHANT_ORGANIZATION_ROLE_SOURCE = "economy";
 export const MERCHANT_ORGANIZATION_HEAD_ROLE_KIND = "merchantOrganizationHead";
@@ -123,7 +139,7 @@ export function clearMerchantOrganizations(): void {
  * remaining kilometre ranges describe each organization's home-ground reach only.
  */
 /**
- * `metalTrade`: ore and ingots from a mining district. A great house did not trade with a remote
+ * `cargo.metal`: ore and ingots from a mining district. A great house did not trade with a remote
  * village, except where the village had a mine: the Fugger at Schwaz, the Hanse at Falun's copper.
  * Metal still keeps the house's reach and home ground, but not the village limit
  * (docs/plan/farm-labour-calibration.md §17).
@@ -132,13 +148,14 @@ export function isMarketTradePermitted(
   source: Market,
   target: Market,
   durationDays: number,
-  metalTrade = false
+  cargo: TradeCargo = {}
 ): boolean {
   const organizations = getMerchantOrganizations();
   if (!organizations.length) return true;
 
-  return organizations.some(organization =>
-    canOrganizationServeTrade(organization, source, target, durationDays, metalTrade)
+  const reach = getReachRules(source, target);
+  return organizations.some(
+    organization => organizationTradeRefusal(organization, source, target, durationDays, cargo, reach) === null
   );
 }
 
@@ -146,14 +163,28 @@ export function getOrganizationMaxTradeDays(scale: MerchantOrganizationScale): n
   return ORGANIZATION_MAX_TRADE_DAYS[scale];
 }
 
-function canOrganizationServeTrade(
-  organization: MerchantOrganization,
-  source: Market,
-  target: Market,
-  durationDays: number,
-  metalTrade: boolean
-): boolean {
-  return organizationTradeRefusal(organization, source, target, durationDays, metalTrade) === null;
+/** The longest journey a house of `scale` undertakes for this cargo. */
+export function getOrganizationMaxTradeDaysFor(
+  scale: MerchantOrganizationScale,
+  cargo: TradeCargo,
+  longDistanceTrade = isLongDistanceTradeEnabled()
+): number {
+  if (longDistanceTrade && scale === "major" && cargo.highValue) return HIGH_VALUE_MAX_TRADE_DAYS;
+  return getOrganizationMaxTradeDays(scale);
+}
+
+interface ReachRules {
+  longDistanceTrade: boolean;
+  /** Homes of the houses with agents at both ends (only read with `longDistanceTrade` on). */
+  housesAtBothEnds: () => ReadonlySet<number>;
+}
+
+function getReachRules(source: Market, target: Market): ReachRules {
+  let houses: Set<number> | null = null;
+  return {
+    longDistanceTrade: isLongDistanceTradeEnabled(),
+    housesAtBothEnds: () => (houses ??= new Set(housesPresentIn(source.i, target.i)))
+  };
 }
 
 /** Gates in the order they are checked; a later gate means the house came closer to trading. */
@@ -170,10 +201,12 @@ function organizationTradeRefusal(
   source: Market,
   target: Market,
   durationDays: number,
-  metalTrade: boolean
+  cargo: TradeCargo,
+  reach: ReachRules
 ): MarketReachRefusal | null {
-  if (durationDays > getOrganizationMaxTradeDays(organization.scale)) return "tooFar";
-  if (!isInHomeGround(organization, source, target)) return "outsideHomeGround";
+  if (durationDays > getOrganizationMaxTradeDaysFor(organization.scale, cargo, reach.longDistanceTrade))
+    return "tooFar";
+  if (!isInHomeGround(organization, source, target, reach)) return "outsideHomeGround";
 
   const sourceBurg = getMarketCenter(source);
   const targetBurg = getMarketCenter(target);
@@ -189,10 +222,15 @@ function organizationTradeRefusal(
   }
 
   if (organization.scale === "major") {
-    if (metalTrade) return null;
+    if (cargo.metal) return null;
     const hasTinyRuralEndpoint =
       sourcePopulation < SMALL_RURAL_POPULATION_THRESHOLD || targetPopulation < SMALL_RURAL_POPULATION_THRESHOLD;
-    return !hasTinyRuralEndpoint || durationDays <= getOrganizationMaxTradeDays("local") ? null : "smallVillage";
+    if (!hasTinyRuralEndpoint || durationDays <= getOrganizationMaxTradeDays("local")) return null;
+    // The village limit kept great houses from sending caravans to remote villages, not from
+    // dealing in high-value goods through an agent of their own there (§4.1).
+    if (reach.longDistanceTrade && cargo.highValue && reach.housesAtBothEnds().has(organization.homeMarketId))
+      return null;
+    return "smallVillage";
   }
 
   return null;
@@ -206,19 +244,30 @@ export function explainMarketTradeRefusal(
   source: Market,
   target: Market,
   durationDays: number,
-  metalTrade = false
+  cargo: TradeCargo = {}
 ): MarketReachRefusal | null {
   let closest = -1;
+  const reach = getReachRules(source, target);
   for (const organization of getMerchantOrganizations()) {
-    const refusal = organizationTradeRefusal(organization, source, target, durationDays, metalTrade);
+    const refusal = organizationTradeRefusal(organization, source, target, durationDays, cargo, reach);
     if (refusal === null) return null;
     closest = Math.max(closest, REFUSAL_ORDER.indexOf(refusal));
   }
   return closest < 0 ? null : REFUSAL_ORDER[closest];
 }
 
-function isInHomeGround(organization: MerchantOrganization, source: Market, target: Market): boolean {
+/**
+ * With `fmg-long-distance-trade` on, a house with agents at both ends trades there however far
+ * from home: Datini's branches at Barcelona and Valencia traded with each other (§4.1).
+ */
+function isInHomeGround(
+  organization: MerchantOrganization,
+  source: Market,
+  target: Market,
+  reach: ReachRules
+): boolean {
   if (source.i === organization.homeMarketId || target.i === organization.homeMarketId) return true;
+  if (reach.longDistanceTrade && reach.housesAtBothEnds().has(organization.homeMarketId)) return true;
 
   const sourceBurg = getMarketCenter(source);
   const targetBurg = getMarketCenter(target);

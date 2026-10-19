@@ -33,3 +33,15 @@ export function luxuryTierOf(good: Pick<Good, "value">): LuxuryTier {
   if (good.value >= LUXURY_FINE_MIN_VALUE) return "fine";
   return "common";
 }
+
+const HIGH_VALUE_CARGO_TAGS: ReadonlySet<string> = new Set(["luxury", "art", "gift", "ritual"]);
+
+/**
+ * Cargo a great house carried across a month or more of road and sea: luxuries, art, gifts and
+ * ritual goods, or a fine or precious good of the luxury demand
+ * (docs/plan/long-distance-merchant-reach-capital.md §4.2).
+ */
+export function isHighValueTradeGood(good: Pick<Good, "name" | "demandCoverage" | "value" | "tags">): boolean {
+  if (good.tags?.some(tag => HIGH_VALUE_CARGO_TAGS.has(tag))) return true;
+  return isLuxuryDemandGood(good) && luxuryTierOf(good) !== "common";
+}

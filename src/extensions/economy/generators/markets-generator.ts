@@ -75,7 +75,7 @@ import { getHouseTimberShare, getHousingRecipe } from "./housingRecipes";
 import { type IncrementalBatchOptions, runBatchedYielding } from "./incrementalBatching";
 import { getLiveAnimalCatchKey, rollLiveAnimalCatch } from "./liveAnimalCatch";
 import { isLuxuryValueDemandEnabled, luxuryBudgetByMarketTier, luxuryStockTarget } from "./luxuryDemand";
-import { isLuxuryDemandGood, type LuxuryTier } from "./luxuryTiers";
+import { isHighValueTradeGood, isLuxuryDemandGood, type LuxuryTier } from "./luxuryTiers";
 import {
   computeMarketGoodFlowBudget,
   TRADE_RESERVE_FACTOR as FLOW_TRADE_RESERVE_FACTOR,
@@ -83,10 +83,19 @@ import {
 } from "./marketFlowBudget";
 import { syncMarketManagers } from "./marketManagers";
 import type { Deal, Market, TradeRouteSegment } from "./marketTypes";
-import { housesPresentIn, knownPrice, recordMarketPriceSnapshot, seedMerchantBranches } from "./merchantIntelligence";
+import {
+  forgetLapsedRumours,
+  hearPriceGapRumour,
+  housesPresentIn,
+  knownPrice,
+  recordMarketPriceSnapshot,
+  seedForeignFactories,
+  seedMerchantBranches
+} from "./merchantIntelligence";
 import {
   explainMarketTradeRefusal,
   getOrganizationMaxTradeDays,
+  HIGH_VALUE_MAX_TRADE_DAYS,
   isMarketTradePermitted
 } from "./merchantOrganizations";
 import {
@@ -286,6 +295,8 @@ interface GlobalTradeContext {
    * (docs/plan/long-distance-merchant-reach-capital.md §5.1); null when cargo is not paid for.
    */
   importerPurchaseRoom: Map<number, number> | null;
+  /** Long-distance reach rules (long-distance-merchant-reach-capital.md §4) are on. */
+  longDistanceTrade: boolean;
 }
 
 export type { Deal, Market } from "./marketTypes";
@@ -1905,10 +1916,13 @@ export class MarketsModule {
     const textilePopulationByMarket = this.calculateTextilePopulationByMarket();
     const mapDiagonal = Math.hypot(this.worldContext.graphWidth, this.worldContext.graphHeight) || 1;
     const travelRoutes = this.getCachedMarketTradeRoutes();
-    seedMerchantBranches(
-      (from, to) => travelRoutes[from]?.[to]?.durationDays ?? null,
-      getOrganizationMaxTradeDays("major")
-    );
+    const daysBetween = (from: number, to: number) => travelRoutes[from]?.[to]?.durationDays ?? null;
+    seedMerchantBranches(daysBetween, getOrganizationMaxTradeDays("major"));
+    const longDistanceTrade = isLongDistanceTradeEnabled();
+    if (longDistanceTrade) {
+      seedForeignFactories(daysBetween, HIGH_VALUE_MAX_TRADE_DAYS);
+      forgetLapsedRumours();
+    }
 
     return {
       goods,
@@ -1921,7 +1935,8 @@ export class MarketsModule {
       tradeReserveFactor: FLOW_TRADE_RESERVE_FACTOR,
       travelRoutes,
       luxuryBudgets: luxuryValueDemand ? luxuryBudgetByMarketTier(this.worldContext.pack.burgs) : null,
-      importerPurchaseRoom: isLongDistanceTradeEnabled() ? getImporterPurchaseRoom() : null
+      importerPurchaseRoom: longDistanceTrade ? getImporterPurchaseRoom() : null,
+      longDistanceTrade
     };
   }
 
@@ -2092,6 +2107,10 @@ export class MarketsModule {
     } = ctx;
     const minUnit = getMarketTradeMinimumUnits(good);
     const observe = getTradeStageObserver();
+    const cargo = { metal: isMineOrFurnaceGood(good), highValue: isHighValueTradeGood(good) };
+    // Houses hear of lasting price gaps in high-value goods where none of them is present at both
+    // ends, and send an agent (long-distance-merchant-reach-capital.md §4.3).
+    const hearsRumours = ctx.longDistanceTrade && cargo.highValue;
 
     const exporters: { market: Market; reserve: number }[] = [];
     const importers: { market: Market; reserve: number }[] = [];
@@ -2163,26 +2182,32 @@ export class MarketsModule {
             observe?.({ stage: "shipmentRule", ...leg });
             continue;
           }
-          if (
-            !isMarketTradePermitted(exporter.market, importer.market, route.durationDays, isMineOrFurnaceGood(good))
-          ) {
-            observe?.({
-              stage: "orgReach",
-              ...leg,
-              reason:
-                explainMarketTradeRefusal(
-                  exporter.market,
-                  importer.market,
-                  route.durationDays,
-                  isMineOrFurnaceGood(good)
-                ) ?? undefined
-            });
-            continue;
-          }
-
           const importerCenter = this.worldContext.pack.burgs[importer.market.centerBurgId];
           const importerDutyPerUnit = this.getImportDuty(exporterCenter, importerCenter) * importerGood.price;
           const transportCost = getTransportCost(route.distance, mapDiagonal, good);
+          const hearOfPriceGap = () => {
+            const landedCost =
+              this.getTradeQuotedPrice(exporter.market, good, exporterGood.price) +
+              transportCost +
+              exporterTaxPerUnit +
+              importerDutyPerUnit;
+            if (this.getTradeQuotedPrice(importer.market, good, importerGood.price) <= landedCost) return;
+            hearPriceGapRumour(
+              exporter.market.i,
+              importer.market.i,
+              (from, to) => travelRoutes[from]?.[to]?.durationDays ?? null,
+              HIGH_VALUE_MAX_TRADE_DAYS
+            );
+          };
+          if (!isMarketTradePermitted(exporter.market, importer.market, route.durationDays, cargo)) {
+            const reason = explainMarketTradeRefusal(exporter.market, importer.market, route.durationDays, cargo);
+            observe?.({ stage: "orgReach", ...leg, reason: reason ?? undefined });
+            // Agents at both ends would lift these gates (merchantOrganizations.ts isInHomeGround,
+            // the village limit for high-value cargo).
+            if (hearsRumours && (reason === "smallVillage" || reason === "outsideHomeGround")) hearOfPriceGap();
+            continue;
+          }
+
           // Only a house with agents in both markets trades between them, and it judges by the
           // prices its letters have brought home, not today's (merchantIntelligence.ts).
           const known = this.knownTradePrices(
@@ -2195,6 +2220,7 @@ export class MarketsModule {
           );
           if (!known) {
             observe?.({ stage: "noHouse", ...leg });
+            if (hearsRumours) hearOfPriceGap();
             continue;
           }
           const unitProfit =
@@ -2597,7 +2623,7 @@ export class MarketsModule {
             route.maxTemperatureC,
             refrigeratedTransport
           ) ||
-          !isMarketTradePermitted(exporter, importer, route.durationDays)
+          !isMarketTradePermitted(exporter, importer, route.durationDays, { highValue: isHighValueTradeGood(good) })
         ) {
           continue;
         }

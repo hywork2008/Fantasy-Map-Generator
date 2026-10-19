@@ -8,6 +8,7 @@ import { downloadFile, getFileName, openDialog } from "../../hostUi";
 import { rn } from "../../hostUtils";
 import { getGoods, getMarkets, getWorldContext } from "../economyContext";
 import { Goods, isGoodEnabled } from "../generators/goods-generator";
+import { isHighValueTradeGood } from "../generators/luxuryTiers";
 import { Markets } from "../generators/markets-generator";
 import type { Market } from "../generators/marketTypes";
 import { isMarketTradePermitted } from "../generators/merchantOrganizations";
@@ -147,7 +148,7 @@ export function refresh(): void {
       );
       if (
         !isGoodTradePermitted(good, durationDays, routeSegments, routeMaxTemperatureC, refrigeratedTransport) ||
-        !isMarketTradePermitted(source, target, durationDays)
+        !isMarketTradePermitted(source, target, durationDays, { highValue: isHighValueTradeGood(good) })
       )
         continue;
 

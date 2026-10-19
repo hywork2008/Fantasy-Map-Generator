@@ -8,14 +8,23 @@
  * - knows nothing of a market where it has no branch, and cannot trade there.
  * Branches are abstract agents (one resident of the town), not Characters. A house opens one
  * where its caravan arrives. Monthly price snapshots stand in for the letters.
+ * With `fmg-long-distance-trade` on, a house also starts with factories in foreign capitals and
+ * opens a branch where rumours of a lasting price gap reach it
+ * (docs/plan/long-distance-merchant-reach-capital.md §4.3).
  */
 import { getSliceArray, setSliceArray } from "../context/economyApi";
-import { getApi, getMarkets } from "../economyContext";
+import { getApi, getMarkets, getWorldContext } from "../economyContext";
 
 /** Months of price snapshots kept; letters older than this are no use. */
 export const PRICE_HISTORY_MONTHS = 12;
 /** Branches a house starts with besides its home market: the nearest markets it can reach. */
 export const STARTING_BRANCHES = 3;
+/** Factories (Kontore) a house starts with in foreign capitals, the nearest within its reach (§4.3). */
+export const FOREIGN_FACTORIES = 2;
+/** Days a price gap must be heard of before a house sends an agent there (§4.3). */
+export const RUMOUR_BRANCH_DAYS = 180;
+/** A rumour not heard again within this many days is forgotten: the gap did not last. */
+const RUMOUR_LAPSE_DAYS = 45;
 
 interface PriceSnapshot {
   tick: number;
@@ -24,6 +33,15 @@ interface PriceSnapshot {
 interface BranchRow {
   homeMarketId: number;
   marketIds: number[];
+  /** Foreign factories have been placed (once per house, on a new map or the first load). */
+  factoriesPlaced?: boolean;
+}
+/** A house has heard of a price gap with a market where it has no agent, since `since`. */
+interface BranchRumour {
+  homeMarketId: number;
+  marketId: number;
+  since: number;
+  last: number;
 }
 
 const now = () => Math.max(0, Math.floor(getApi().simulationContext?.tickCount ?? 0));
@@ -72,6 +90,98 @@ export function seedMerchantBranches(daysBetween: (from: number, to: number) => 
   if (changed) setSliceArray("merchantBranches", rows);
 }
 
+/**
+ * Gives every house without them up to FOREIGN_FACTORIES branches in the capitals of other states
+ * within `maxDays` of its home, nearest first — the Hanse's Kontore at Bruges, London and
+ * Novgorod (§4.3). States at war with the house's state are passed over.
+ */
+export function seedForeignFactories(daysBetween: (from: number, to: number) => number | null, maxDays: number): void {
+  const rows = branches();
+  if (rows.every(row => row.factoriesPlaced)) return;
+  const { pack } = getWorldContext();
+  const marketById = new Map(getMarkets().map(market => [market.i, market]));
+  const capitals: { marketId: number; stateId: number }[] = [];
+  for (const state of pack.states ?? []) {
+    if (!state?.i || state.removed || !state.capital) continue;
+    const marketId = pack.burgs[state.capital]?.market;
+    if (marketId && marketById.has(marketId)) capitals.push({ marketId, stateId: state.i });
+  }
+
+  const next = rows.map(row => {
+    if (row.factoriesPlaced) return row;
+    const home = marketById.get(row.homeMarketId);
+    const homeStateId = home ? (pack.burgs[home.centerBurgId]?.state ?? 0) : 0;
+    const diplomacy = pack.states?.[homeStateId]?.diplomacy;
+    const factories = capitals
+      .filter(capital => capital.stateId !== homeStateId && !row.marketIds.includes(capital.marketId))
+      .filter(capital => diplomacy?.[capital.stateId] !== "Enemy")
+      .map(capital => ({ id: capital.marketId, days: daysBetween(row.homeMarketId, capital.marketId) }))
+      .filter((entry): entry is { id: number; days: number } => entry.days !== null && entry.days <= maxDays)
+      .sort((a, b) => a.days - b.days || a.id - b.id)
+      .map(entry => entry.id)
+      .filter((id, index, ids) => ids.indexOf(id) === index)
+      .slice(0, FOREIGN_FACTORIES);
+    return { ...row, marketIds: [...row.marketIds, ...factories], factoriesPlaced: true };
+  });
+  setSliceArray("merchantBranches", next);
+}
+
+function rumours(): BranchRumour[] {
+  return getSliceArray<BranchRumour>("merchantBranchRumours");
+}
+
+/**
+ * A price gap between two markets that no house serves together. The house with an agent at one
+ * end whose home lies nearest the other end (within `maxDays`) hears of it; once it has heard
+ * of the gap for RUMOUR_BRANCH_DAYS without a lapse, it sends an agent there (§4.3).
+ */
+export function hearPriceGapRumour(
+  marketA: number,
+  marketB: number,
+  daysBetween: (from: number, to: number) => number | null,
+  maxDays: number
+): void {
+  let best: { homeMarketId: number; marketId: number; days: number } | null = null;
+  for (const row of branches()) {
+    const hasA = row.marketIds.includes(marketA);
+    if (hasA === row.marketIds.includes(marketB)) continue;
+    const marketId = hasA ? marketB : marketA;
+    const days = daysBetween(row.homeMarketId, marketId);
+    if (days === null || days > maxDays) continue;
+    if (!best || days < best.days || (days === best.days && row.homeMarketId < best.homeMarketId))
+      best = { homeMarketId: row.homeMarketId, marketId, days };
+  }
+  if (!best) return;
+
+  const tick = now();
+  const list = rumours();
+  const rumour = list.find(entry => entry.homeMarketId === best.homeMarketId && entry.marketId === best.marketId);
+  if (!rumour) {
+    setSliceArray("merchantBranchRumours", [
+      ...list,
+      { homeMarketId: best.homeMarketId, marketId: best.marketId, since: tick, last: tick }
+    ]);
+    return;
+  }
+  if (tick - rumour.last > RUMOUR_LAPSE_DAYS) rumour.since = tick;
+  rumour.last = tick;
+  if (tick - rumour.since < RUMOUR_BRANCH_DAYS) return;
+  openBranch(best.homeMarketId, best.marketId);
+  setSliceArray(
+    "merchantBranchRumours",
+    list.filter(entry => entry !== rumour)
+  );
+}
+
+/** Drops rumours of gaps that closed (not heard again within RUMOUR_LAPSE_DAYS). */
+export function forgetLapsedRumours(): void {
+  const list = rumours();
+  if (!list.length) return;
+  const tick = now();
+  const kept = list.filter(entry => tick - entry.last <= RUMOUR_LAPSE_DAYS);
+  if (kept.length !== list.length) setSliceArray("merchantBranchRumours", kept);
+}
+
 /** A house's caravan reached `marketId`: from now on it keeps an agent there. */
 export function openBranch(homeMarketId: number, marketId: number): void {
   const rows = branches();
@@ -114,6 +224,7 @@ export function knownPrice(
 export function merchantIntelligenceSummary() {
   return {
     snapshots: getSliceArray<PriceSnapshot>("marketPriceHistory").length,
-    branches: Object.fromEntries(branches().map(row => [row.homeMarketId, row.marketIds.length]))
+    branches: Object.fromEntries(branches().map(row => [row.homeMarketId, row.marketIds.length])),
+    rumours: rumours().length
   };
 }
