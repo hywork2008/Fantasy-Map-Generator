@@ -546,6 +546,28 @@ describe("town water", () => {
     expect(ground.land.some(tri => inTriangle(outside, tri))).toBe(true);
   });
 
+  it("joins the full width of an oblique river mouth to the sea without leaving a land wedge", () => {
+    const mesh = emptyMesh();
+    addRect(mesh, "land", 10, -40, 90, 0, "land");
+    addRect(mesh, "sea", 10, 0, 90, 40, "sea");
+    mesh.vertices.up = { id: "up", point: [20, -20], locked: false };
+    mesh.vertices.mouth = { id: "mouth", point: [40, 0], locked: false };
+    const doc = document({ mesh, featureGroups: [river("mouth", ["up", "mouth"], 8)] });
+    const before = JSON.stringify(doc);
+    const water = classifyTownWater(doc);
+    const mouth: Point = [43, -1];
+    expect(
+      strictWet(
+        mouth,
+        water.parts.map(part => part.polygon)
+      )
+    ).toBe(true);
+    const ground = townGroundPolygons(doc, water);
+    expect(ground.land.some(triangle => pointInPolygon(mouth, triangle))).toBe(false);
+    expect(ground.land.some(triangle => pointInPolygon([50, -1], triangle))).toBe(true);
+    expect(JSON.stringify(doc)).toBe(before);
+  });
+
   it("changes the stamp for water kind, coordinates, and elevation, not the salt list", () => {
     const mesh = emptyMesh();
     addRect(mesh, "sea", 0, 0, 10, 10, "sea");

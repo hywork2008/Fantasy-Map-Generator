@@ -22,29 +22,30 @@ function emptyMesh(): Mesh {
 }
 
 function addRect(mesh: Mesh, id: string, x0: number, y0: number, x1: number, y1: number, water: WaterKind): void {
-  const ids = [0, 1, 2, 3].map(index => `${id}v${index}`);
-  const points: Point[] = [
-    [x0, y0],
-    [x1, y0],
-    [x1, y1],
-    [x0, y1]
-  ];
+  addPolygon(
+    mesh,
+    id,
+    [
+      [x0, y0],
+      [x1, y0],
+      [x1, y1],
+      [x0, y1]
+    ],
+    water
+  );
+}
+
+function addPolygon(mesh: Mesh, id: string, points: Point[], water: WaterKind): void {
+  const ids = points.map((_, index) => `${id}v${index}`);
   ids.forEach((vertexId, index) => {
     mesh.vertices[vertexId] = { id: vertexId, point: points[index], locked: false };
   });
-  const edgeIds = [0, 1, 2, 3].map(index => `${id}e${index}`);
-  (
-    [
-      [0, 1],
-      [1, 2],
-      [2, 3],
-      [3, 0]
-    ] as [number, number][]
-  ).forEach(([a, b], index) => {
-    mesh.edges[edgeIds[index]] = {
-      id: edgeIds[index],
-      a: ids[a],
-      b: ids[b],
+  const edgeIds = points.map((_, index) => `${id}e${index}`);
+  edgeIds.forEach((edgeId, index) => {
+    mesh.edges[edgeId] = {
+      id: edgeId,
+      a: ids[index],
+      b: ids[(index + 1) % ids.length],
       leftFace: id,
       rightFace: null,
       locked: false
@@ -136,6 +137,62 @@ describe("planCity3dRefresh", () => {
 });
 
 describe("town water meshes", () => {
+  it("leaves the oblique mouth from shared city 1ftwp9z open across its full width", () => {
+    const mesh = emptyMesh();
+    const tip: Point = [62.68570004058118, 199.17868876752703];
+    const shore: Point = [80.6112223401968, 180.92537282517813];
+    addPolygon(
+      mesh,
+      "sea",
+      [
+        tip,
+        shore,
+        [104.21636738595961, 237.5091087209978],
+        [100.15700084555431, 242.27633932034638],
+        [53.870735873164094, 222.936819334696]
+      ],
+      "sea"
+    );
+    addPolygon(mesh, "land", [tip, shore, [35, 170]], "land");
+    mesh.vertices.up = { id: "up", point: [38.399217032609116, 183.5611342402933], locked: false };
+    mesh.vertices.mouth = { id: "mouth", point: tip, locked: false };
+    const drawn = createTownWater(
+      document({
+        mesh,
+        featureGroups: [
+          {
+            id: "river",
+            kind: "river",
+            name: "River",
+            vertices: ["up", "mouth"],
+            source: null,
+            mouth: null,
+            style: { widthMeters: 9.141790033315084, color: "#527f8b" },
+            locked: false
+          }
+        ]
+      })
+    );
+    const raycaster = new THREE.Raycaster(new THREE.Vector3(65.3, 10, -196), new THREE.Vector3(0, -1, 0));
+    // Bypass the deliberate no-picking override to inspect actual surface coverage.
+    const landHits: THREE.Intersection[] = [];
+    THREE.Mesh.prototype.raycast.call(drawn.land!, raycaster, landHits);
+    expect(landHits).toHaveLength(0);
+    const river = drawn.parent.getObjectByName("ce-water-river") as THREE.Mesh;
+    const waterHits: THREE.Intersection[] = [];
+    THREE.Mesh.prototype.raycast.call(river, raycaster, waterHits);
+    expect(waterHits.length).toBeGreaterThan(0);
+    const bank = drawn.bank!.geometry.getAttribute("position");
+    const direction: Point = [tip[0] - 38.399217032609116, tip[1] - 183.5611342402933];
+    for (let i = 0; i < bank.count; i += 3) {
+      const onOldCap = [0, 1, 2].every(
+        j => Math.abs((bank.getX(i + j) - tip[0]) * direction[0] + (-bank.getZ(i + j) - tip[1]) * direction[1]) < 1e-3
+      );
+      expect(onOldCap).toBe(false);
+    }
+    drawn.dispose();
+  });
+
   it("does not build a land-height bank across the river's connection to the sea", () => {
     const mesh = emptyMesh();
     addRect(mesh, "land", 10, 0, 110, 40, "land");
