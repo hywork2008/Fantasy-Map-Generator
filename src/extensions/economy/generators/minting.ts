@@ -12,6 +12,7 @@ import {
   getCurrencySufficiency,
   INITIAL_MONTHS_OF_CURRENCY,
   isMoneySupplyEnabled,
+  SEIGNIORAGE_RATE,
   stepPriceLevel,
   TARGET_MONTHS_OF_CURRENCY
 } from "./currencySufficiency";
@@ -30,7 +31,6 @@ const METAL_COIN_VALUES = [
   ["copper ingot", 1]
 ] as const;
 const CIRCULATION_MONTHLY_RETENTION = 0.995;
-const SEIGNIORAGE_RATE = 0.02;
 /** Share of a market's stock of market goods valued into the State's monthly currency demand. */
 const MARKET_STOCK_CURRENCY_SHARE = 0.002;
 /**
@@ -188,7 +188,7 @@ export class MintingModule {
 
   private mintMoneySupply(wear: ReadonlyMap<number, number>): void {
     const goodsByName = new Map(getGoods().map(good => [good.name.toLowerCase(), good]));
-    const states = getWorldContext().pack.states;
+    const { states, burgs } = getWorldContext().pack;
     const stocks = getStateMoneyStocks();
     const ledgerByState = new Map(getMintLedgers().map(ledger => [ledger.stateId, ledger]));
     // A State founded since the ledgers were built gets one now.
@@ -216,33 +216,33 @@ export class MintingModule {
       ledger.currencyDemand = rn(rawDemand * ledger.demandScale, 2);
       let money = stock.money;
 
-      const market = ledger.mintMarketId ? Markets.get(ledger.mintMarketId) : undefined;
-      for (const [metal] of METAL_COIN_VALUES) {
-        if (!market) break;
-        const good = goodsByName.get(metal);
-        // Free coinage (§11.3): the mint coins whatever bullion is brought, at the metal's coin
-        // value, whether or not coin is short; too much coin shows in the price level. Where
-        // bullion sells above its coin value to craftsmen and exporters, none reaches the mint:
-        // the bullion famine.
-        const price = good?.value ?? 0;
-        const marketPrice = good ? (market.goods[good.i]?.price ?? 0) : 0;
-        if (!good || !(price > 0) || marketPrice > price) continue;
-        const suppliedUnits = Markets.consumeForMint(market.i, good.i, Number.POSITIVE_INFINITY);
-        if (suppliedUnits <= 0) continue;
-        const mintedValue = rn(suppliedUnits * price, 2);
-        ledger.lastMintedValue = rn(ledger.lastMintedValue + mintedValue, 2);
-        ledger.totalMintedValue = rn(ledger.totalMintedValue + mintedValue, 2);
-      }
-
-      if (market && ledger.lastMintedValue > 0) {
+      // Free coinage (§11.3): the mint coins whatever bullion is brought, at the metal's coin value,
+      // whether or not coin is short; too much coin shows in the price level. The realm's changers
+      // bring it from every market, as the regal purchase right (Kutná Hora's Urbura) required.
+      // Where bullion sells above its coin value to craftsmen and exporters, none reaches the mint:
+      // the bullion famine.
+      for (const market of getMarkets()) {
+        if (!market || burgs[market.centerBurgId]?.state !== ledger.stateId) continue;
+        let minted = 0;
+        for (const [metal] of METAL_COIN_VALUES) {
+          const good = goodsByName.get(metal);
+          const price = good?.value ?? 0;
+          const marketPrice = good ? (market.goods[good.i]?.price ?? 0) : 0;
+          if (!good || !(price > 0) || marketPrice > price) continue;
+          const suppliedUnits = Markets.consumeForMint(market.i, good.i, Number.POSITIVE_INFINITY);
+          if (suppliedUnits > 0) minted = rn(minted + suppliedUnits * price, 2);
+        }
+        if (!(minted > 0)) continue;
         // The sellers of the bullion are paid in new coin; the mint's fee goes to the treasury.
-        const seigniorage = rn(ledger.lastMintedValue * SEIGNIORAGE_RATE, 2);
-        ledger.lastSeigniorage = seigniorage;
+        const seigniorage = rn(minted * SEIGNIORAGE_RATE, 2);
         state.treasury = rn((state.treasury || 0) + seigniorage, 2);
         const treasury = market.marketTreasury ?? { balance: 0, ruralGrainPayable: 0 };
-        treasury.balance = rn(treasury.balance + ledger.lastMintedValue - seigniorage, 2);
+        treasury.balance = rn(treasury.balance + minted - seigniorage, 2);
         market.marketTreasury = treasury;
-        money += ledger.lastMintedValue;
+        ledger.lastMintedValue = rn(ledger.lastMintedValue + minted, 2);
+        ledger.totalMintedValue = rn(ledger.totalMintedValue + minted, 2);
+        ledger.lastSeigniorage = rn(ledger.lastSeigniorage + seigniorage, 2);
+        money += minted;
       }
 
       ledger.circulation = rn(money, 2);

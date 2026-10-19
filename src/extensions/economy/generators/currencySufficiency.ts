@@ -11,6 +11,8 @@ import { pow } from "../../../simulation/deterministicMath";
 import { worldSettings } from "../../../simulation/worldSettings";
 import { minmax } from "../../hostUtils";
 import { getMintLedgers, getWorldContext, isEconomyContextReady } from "../economyContext";
+import type { Good } from "./goodsGeneratorTypes";
+import { KILOGRAM_UNIT } from "./goodUnits";
 import type { Market } from "./marketTypes";
 import type { MintLedger } from "./mintingTypes";
 
@@ -126,6 +128,21 @@ export function getMoneyPriceLevelForMarket(market: Pick<Market, "centerBurgId">
  * The smoothed price level `P` of the market's State under the money-supply model (§4.3): the
  * base that goods' values and the staple price are multiplied by. 1 when the setting is off.
  */
+/** Share of a minted metal's coin value the mint keeps as its fee (seigniorage). */
+export const SEIGNIORAGE_RATE = 0.02;
+
+/**
+ * Under the money-supply model the mint buys gold and silver at their coin value in every market
+ * of the realm (money-supply-mint.md §11.11), so their bullion and ore never sell for less than that
+ * value less the mint's fee: the mint price was the floor of the bullion market. Without it, metal
+ * the craftsmen did not want sat at a quarter of its worth and the silver mines laid off their
+ * crews. Undefined for every other good, and with the setting off.
+ */
+export function getMintPriceFloor(good: Pick<Good, "unit" | "value">): number | undefined {
+  if (good.unit !== KILOGRAM_UNIT || !isMoneySupplyEnabled()) return undefined;
+  return good.value * (1 - SEIGNIORAGE_RATE);
+}
+
 export function getMarketPriceLevel(market: Pick<Market, "centerBurgId">): number {
   if (!isMoneySupplyEnabled()) return 1;
   const level = getMintLedgerForMarket(market)?.priceLevel;

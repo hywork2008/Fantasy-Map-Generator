@@ -47,7 +47,7 @@ import {
   recipesForIndustrialDemand
 } from "./craftDemandCalibration";
 import { laborPeople } from "./craftScale";
-import { getMarketPriceLevel, getMoneyPriceLevelForMarket } from "./currencySufficiency";
+import { getMarketPriceLevel, getMintPriceFloor, getMoneyPriceLevelForMarket } from "./currencySufficiency";
 import { ExportStaging } from "./exportStaging";
 import {
   recordCellFoodHouseholdConsumption,
@@ -275,6 +275,13 @@ interface GlobalTradeContext {
 export type { Deal, Market } from "./marketTypes";
 
 /** Goods whose supply is a mine or a furnace rather than a cell distribution or a recipe. */
+/** Lowest price a good falls to: a quarter of its value, or the mint price for minted metal. */
+function getPriceFloor(good: Pick<Good, "unit" | "value">, baseValue: number): number {
+  const floor = baseValue * PRICE_FLOOR_FACTOR;
+  const mintFloor = getMintPriceFloor(good);
+  return mintFloor === undefined ? floor : Math.max(floor, mintFloor);
+}
+
 function isMineOrFurnaceGood(good: Pick<Good, "tags">): boolean {
   return good.tags.some(tag => tag === "ore" || tag === "ingot" || tag === "mineral");
 }
@@ -1431,14 +1438,10 @@ export class MarketsModule {
           ) + (mineOrFurnaceGood ? (metalDemandByMarket.get(market.i)?.get(good.i) ?? 0) : 0);
         const ratio = (demand + LAPLACE_PRICE_SMOOTHING) / (marketGood.stock + LAPLACE_PRICE_SMOOTHING);
         const baseValue = good.value * priceLevel;
-        const targetPrice = baseValue * minmax(ratio, PRICE_FLOOR_FACTOR, PRICE_CEILING_FACTOR);
+        const floor = getPriceFloor(good, baseValue);
+        const targetPrice = minmax(baseValue * ratio, floor, baseValue * PRICE_CEILING_FACTOR);
         const prevPrice = marketGood.price > 0 ? marketGood.price : baseValue;
-        marketGood.price = relaxMarketPrice(
-          prevPrice,
-          targetPrice,
-          baseValue * PRICE_FLOOR_FACTOR,
-          baseValue * PRICE_CEILING_FACTOR
-        );
+        marketGood.price = relaxMarketPrice(prevPrice, targetPrice, floor, baseValue * PRICE_CEILING_FACTOR);
       }
 
       // Second pass: manufactured goods - average local ingredient cost + demand-scaled value-added.
@@ -1522,7 +1525,7 @@ export class MarketsModule {
         });
         const baseValue = good.value * priceLevel;
         marketGood.price = rn(
-          minmax(baseValue * PRICE_FLOOR_FACTOR, marketGood.price * multiplier, baseValue * PRICE_CEILING_FACTOR),
+          minmax(getPriceFloor(good, baseValue), marketGood.price * multiplier, baseValue * PRICE_CEILING_FACTOR),
           2
         );
       }

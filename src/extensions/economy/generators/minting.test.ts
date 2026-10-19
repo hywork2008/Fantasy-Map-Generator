@@ -101,6 +101,24 @@ describe("MintingModule", () => {
       expect(ledger.priceLevel).toBeLessThan(1);
     });
 
+    it("coins bullion brought to any market of the State and pays that market", () => {
+      worldContext.pack.burgs = [
+        0,
+        { i: 1, state: 1, market: 1, population: 20 },
+        { i: 2, state: 1, market: 2, population: 2 }
+      ] as never;
+      for (const good of Object.values(getMarkets()[0].goods)) good.stock = 0;
+      setMarkets([...getMarkets(), { i: 2, centerBurgId: 2, color: "#222", goods: { 2: { stock: 50, price: 20 } } }]);
+      Markets.sync();
+      Minting.generate();
+
+      Minting.settleMonthly();
+
+      // 20% of the outlying market's 50 silver at its coin value of 20.
+      expect(getMintLedgers()[0].lastMintedValue).toBe(200);
+      expect(getMarkets()[1].marketTreasury?.balance).toBe(196);
+    });
+
     it("issues nothing without bullion", () => {
       for (const good of Object.values(getMarkets()[0].goods)) good.stock = 0;
       Minting.generate();
