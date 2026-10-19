@@ -336,6 +336,10 @@ function addPitchedRoof(
     addFlatRoof(roofs, ring, y, interior);
     return;
   }
+  if (ring.length === 4) {
+    addQuadrilateralRoof(walls, roofs, ring, y, form, azimuth, pitchDeg, ends.run, interior);
+    return;
+  }
   const span = Math.hypot(ends.end[0] - ends.start[0], ends.end[1] - ends.start[1]);
   const hip = form === "hip" || form === "pyramid";
   const inset = hip ? Math.min(ends.run, span / 2) : 0;
@@ -347,6 +351,55 @@ function addPitchedRoof(
   const ridgeEnd: Point = [ends.end[0] - dx * scale, ends.end[1] - dy * scale];
   for (let i = 0; i < ring.length; i++)
     addEdgeToRidge(walls, roofs, ring[i], ring[(i + 1) % ring.length], ridgeStart, ridgeEnd, y, rise, interior);
+}
+
+/** A skewed house still has two complete roof slopes and two end faces.
+ * Projecting each corner independently onto the ridge creates unmatched ridge
+ * subdivisions on trapezoids. Shared endpoints keep both slopes watertight. */
+function addQuadrilateralRoof(
+  walls: Bucket,
+  roofs: Bucket,
+  ring: readonly Point[],
+  y: number,
+  form: RoofForm,
+  azimuth: number,
+  pitchDeg: number,
+  run: number,
+  interior: V3
+): void {
+  const midpoint = (a: Point, b: Point): Point => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  const along: Point = [Math.cos(azimuth), Math.sin(azimuth)];
+  const alignment = (i: number): number => {
+    const a = midpoint(ring[i], ring[i + 1]);
+    const b = midpoint(ring[i + 2], ring[(i + 3) % 4]);
+    const dx = b[0] - a[0],
+      dy = b[1] - a[1];
+    return Math.abs(dx * along[0] + dy * along[1]) / Math.hypot(dx, dy);
+  };
+  const i = alignment(0) >= alignment(1) ? 0 : 1;
+  const a = ring[i],
+    b = ring[i + 1],
+    c = ring[i + 2],
+    d = ring[(i + 3) % 4];
+  const start = midpoint(a, b),
+    end = midpoint(c, d);
+  const span = Math.hypot(end[0] - start[0], end[1] - start[1]);
+  const hip = form === "hip" || form === "pyramid";
+  const inset = hip ? Math.min(run, span / 2) : 0;
+  const rise = Math.min(4, (hip ? inset : run) * Math.tan((pitchDeg * Math.PI) / 180));
+  const t = span > 1e-6 ? inset / span : 0;
+  const r0 = planVertex([start[0] + (end[0] - start[0]) * t, start[1] + (end[1] - start[1]) * t], y + rise);
+  const r1 = planVertex([end[0] + (start[0] - end[0]) * t, end[1] + (start[1] - end[1]) * t], y + rise);
+  const a0 = planVertex(a, y),
+    b0 = planVertex(b, y),
+    c0 = planVertex(c, y),
+    d0 = planVertex(d, y);
+  pushOriented(hip ? roofs : walls, a0, b0, r0, interior);
+  pushOriented(roofs, b0, c0, r1, interior);
+  pushOriented(roofs, b0, r1, r0, interior);
+  pushOriented(hip ? roofs : walls, c0, d0, r1, interior);
+  pushOriented(roofs, d0, a0, r0, interior);
+  pushOriented(roofs, d0, r0, r1, interior);
 }
 
 function addLeanTo(

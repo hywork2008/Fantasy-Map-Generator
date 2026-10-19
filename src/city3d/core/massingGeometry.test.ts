@@ -36,6 +36,33 @@ function minX(positions: Float32Array): number {
 }
 
 describe("building surfaces", () => {
+  it("closes skewed four-wall roofs with shared ridge ends, including jettied upper floors", () => {
+    const source: [number, number][] = [
+      [0, 0],
+      [8, 0],
+      [6, 15],
+      [0, 13]
+    ];
+    for (const reverse of [false, true])
+      for (const angle of [0, 0.63]) {
+        const polygon = (reverse ? [...source].reverse() : source).map(([x, y]): [number, number] => [
+          70 + x * Math.cos(angle) - y * Math.sin(angle),
+          -40 + x * Math.sin(angle) + y * Math.cos(angle)
+        ]);
+        for (const storeys of [1, 3]) {
+          const massing = massingFor(lot({ polygon, storeys }));
+          for (const form of ["gable", "hip", "pyramid"] as const) {
+            massing.roof.form = form;
+            const surfaces = buildingSurfaces(polygon, massing)!;
+            const positions = concatPositions(surfaces.walls, surfaces.roofs);
+            expect(positions.every(Number.isFinite)).toBe(true);
+            expect(meshIsClosed(positions), `${form}:${storeys}:${reverse}:${angle}`).toBe(true);
+            expect(maxY(positions)).toBeGreaterThan(massing.eaveHeightMeters);
+            expect(maxY(positions)).toBeLessThanOrEqual(massing.eaveHeightMeters + 4.00001);
+          }
+        }
+      }
+  });
   const rectangle = [
     [0, 0],
     [20, 0],

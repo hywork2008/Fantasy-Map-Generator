@@ -7,8 +7,8 @@ const distance = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 const MIN_SPAN = 2.5;
 const MAX_ASPECT = 5;
 
-/** Ordinary town houses use a rectangular roofed range. A parcel's skewed
- * boundary, bevels and acute tips are not copied into the building corners.
+/** Ordinary town houses keep modest four-wall skew to fill their parcels.
+ * Bevels and acute tips are not copied into the building corners.
  * Fit inside the parcel, keeping an actual street facade and leaving only the
  * unusable remainder open. This never allocates a long rear garden. */
 export function houseFootprint(lot: Point[], fronts: Front[]): Point[] {
@@ -18,12 +18,13 @@ export function houseFootprint(lot: Point[], fronts: Front[]): Point[] {
     lot.length === 4 &&
     Math.min(...lengths) >= MIN_SPAN &&
     Math.max(...lengths) / Math.min(...lengths) <= MAX_ASPECT &&
+    lengths.every((length, i) => length >= lengths[(i + 2) % 4] * 0.4) &&
     lot.every((p, i) => {
       const a = lot[(i + 3) % 4],
         b = lot[(i + 1) % 4];
       const cosine =
         ((a[0] - p[0]) * (b[0] - p[0]) + (a[1] - p[1]) * (b[1] - p[1])) / (lengths[(i + 3) % 4] * lengths[i]);
-      return Math.abs(cosine) <= 1e-6;
+      return Math.abs(cosine) <= Math.cos((60 * Math.PI) / 180);
     })
   )
     return lot;

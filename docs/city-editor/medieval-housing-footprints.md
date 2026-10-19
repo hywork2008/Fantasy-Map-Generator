@@ -18,10 +18,19 @@ for all medieval Europe, nor a historical numerical angle or aspect-ratio rule.
 
 ## CE implementation choices
 
-- Ordinary dense perimeter houses use rectangular roofed ranges with substantial
-  sides. Existing compact rectangles keep their complete area. Historical skewed
-  quadrilaterals are plausible, but are fitted to rectangles here because the
-  current single-ridge roof builder cannot reliably close their gable surfaces.
+- Ordinary dense perimeter houses keep rectangles and modestly skewed four-wall
+  plans, including trapezoids along angled block boundaries. Corner angles must
+  remain within 60–120 degrees, and opposite wall lengths must retain at least
+  40% of each other. Narrow wedge tips still fall back to a fitted rectangle.
+  These numerical limits are generation heuristics, not historical rules.
+- The supplied aerial photograph `temp/000.savdata/circulade-de-bram-960x640.jpg`
+  shows adjoining houses adapting to curved blocks with slightly skewed corners.
+  Retaining these usable four-sided parcels fills the long-side gaps left by
+  forcing every house into a rectangle.
+- Four-wall pitched roofs use the same two ridge endpoints for both slopes.
+  The ridge joins the midpoints of opposing end walls and is shortened for hips.
+  This closes trapezoidal gables without independently projected, mismatched
+  ridge subdivisions. Roof rise remains capped at 4 m for ordinary houses.
 - A bevelled, acute or excessively elongated parcel is fitted with a rectangle
   on one of its actual street edges. Independent end trims maximize usable
   floor area. The search is bounded and deterministic, independent of occupancy.
@@ -43,8 +52,13 @@ for all medieval Europe, nor a historical numerical angle or aspect-ratio rule.
 
 ## Validation
 
-Geometry regressions cover retained rectangles and fitted skewed plans, bevels, acute
+Geometry regressions cover retained rectangles and skewed plans, bevels, acute
 triangular blocks, rotation, both vertex orders, containment, non-overlap, dense
 coverage and open tips. The triangular-block case also checks pitched roof
 assignment and finite, closed 3D wall/roof meshes. Existing block and medieval
 fabric tests cover the street and parcel integration.
+
+The oblique-block regression checks that both formerly empty long-side corners
+are occupied, while the triangular-block regression still leaves its pointed tip
+open. Skewed gable, hip and pyramid meshes are checked with rotated/reversed
+footprints and jettied upper floors.

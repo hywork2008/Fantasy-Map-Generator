@@ -22,7 +22,7 @@ function fronts(poly: Point[]): Front[] {
 }
 
 describe("roofable town house footprints", () => {
-  it("retains dense rectangles and fits modest skew without making rear gardens", () => {
+  it("retains dense rectangles and modest skew without making rear gardens", () => {
     for (const lot of [
       [
         [0, 0],
@@ -40,7 +40,50 @@ describe("roofable town house footprints", () => {
       const house = houseFootprint(lot, fronts(lot));
       expect(house).toHaveLength(4);
       expect(plotArea(house) / plotArea(lot)).toBeGreaterThan(0.9);
-      if (lot[1][0] === 6) expect(house).toEqual(lot);
+      expect(house).toEqual(lot);
+    }
+  });
+
+  it("fills long-side gaps in an oblique block with modest four-corner skew", () => {
+    const block: Point[] = [
+      [0, 0],
+      [60, 0],
+      [41.1, 40],
+      [10, 35]
+    ];
+    for (const reverse of [false, true]) {
+      const polygon = reverse ? [...block].reverse() : block;
+      const houses = frontageBuildings(
+        polygon,
+        [0, 1, 2, 3],
+        {
+          lotArea: 80,
+          coverage: 0.9,
+          occupancy: 1,
+          outskirts: false,
+          perimeter: true,
+          rowDepth: 10
+        },
+        makeRng("probe11")
+      );
+      expect(houses.reduce((sum, p) => sum + plotArea(p), 0) / plotArea(block)).toBeGreaterThan(0.7);
+      const skewed = houses.filter(house =>
+        house.some((p, i) => {
+          const a = house[(i + 3) % 4],
+            b = house[(i + 1) % 4];
+          return Math.abs((a[0] - p[0]) * (b[0] - p[0]) + (a[1] - p[1]) * (b[1] - p[1])) > 0.01;
+        })
+      );
+      expect(skewed.length).toBeGreaterThanOrEqual(3);
+      for (const point of [
+        [8, 24],
+        [43.5, 33]
+      ] as Point[])
+        expect(houses.some(house => pointInPolygon(point, house))).toBe(true);
+      for (const house of houses) {
+        expect(house).toHaveLength(4);
+        expect(plotArea(intersectConvex(house, polygon))).toBeCloseTo(plotArea(house), 5);
+      }
     }
   });
 
