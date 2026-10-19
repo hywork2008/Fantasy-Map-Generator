@@ -122,7 +122,9 @@ export function resolveFoodImportNetwork(worldContext: Readonly<WorldContext>): 
       const supplierLedger = supplier.foodLedger;
       if (!supplierLedger) continue;
       const wanted = Math.min(available, remainingNeed / deliveredShare);
-      const unitPrice = Math.max(0, getUnitCostEstimate(supplierLedger));
+      // The draw takes the crop's own aged lots, which can cost more than the ledger-wide average;
+      // budget against the dearest lot so the payment never exceeds the importer's purse.
+      const unitPrice = Math.max(0, getMaxDrawUnitCost(supplierLedger, exportedCrop));
       const purse = Math.max(0, importer.marketTreasury?.balance ?? 0);
       const affordable = unitPrice > 0 ? purse / unitPrice : wanted;
       const drawn = drawFoodForExport(supplierLedger, exportedCrop, Math.min(wanted, affordable));
@@ -130,7 +132,7 @@ export function resolveFoodImportNetwork(worldContext: Readonly<WorldContext>): 
       const delivered = Math.min(remainingNeed, volume * deliveredShare);
       if (volume <= 0 || delivered <= 0) continue;
 
-      const payment = rn(volume * drawn.unitCost, 2);
+      const payment = Math.min(rn(volume * drawn.unitCost, 2), purse);
       if (payment > 0 && importer.marketTreasury && supplier.marketTreasury) {
         importer.marketTreasury.balance = rn(importer.marketTreasury.balance - payment, 2);
         supplier.marketTreasury.balance = rn(supplier.marketTreasury.balance + payment, 2);
@@ -171,16 +173,23 @@ export function resolveFoodImportNetwork(worldContext: Readonly<WorldContext>): 
 }
 
 /** Weighted farmgate cost of the supplier's stock, the price an importing market pays per unit. */
-function getUnitCostEstimate(ledger: FoodLedger): number {
-  const stock = ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2 + (ledger.foodStockAge3 ?? 0);
-  if (!(stock > 0)) return 0;
-  return (
-    (ledger.foodStockAge0 * ledger.foodStockAge0UnitCost +
-      ledger.foodStockAge1 * ledger.foodStockAge1UnitCost +
-      ledger.foodStockAge2 * ledger.foodStockAge2UnitCost +
-      (ledger.foodStockAge3 ?? 0) * (ledger.foodStockAge3UnitCost ?? 0)) /
-    stock
-  );
+/** Dearest unit cost among the lots `drawFoodForExport` may take for this crop. */
+function getMaxDrawUnitCost(ledger: FoodLedger, goodId: number): number {
+  const crop = ledger.stapleCropInventories?.[goodId];
+  const lots: [number, number][] = crop
+    ? [
+        [crop.age0, crop.age0UnitCost],
+        [crop.age1, crop.age1UnitCost],
+        [crop.age2, crop.age2UnitCost],
+        [crop.age3 ?? 0, crop.age3UnitCost ?? 0]
+      ]
+    : [
+        [ledger.foodStockAge0, ledger.foodStockAge0UnitCost],
+        [ledger.foodStockAge1, ledger.foodStockAge1UnitCost],
+        [ledger.foodStockAge2, ledger.foodStockAge2UnitCost],
+        [ledger.foodStockAge3 ?? 0, ledger.foodStockAge3UnitCost ?? 0]
+      ];
+  return lots.reduce((max, [stock, cost]) => (stock > 0 && cost > max ? cost : max), 0);
 }
 
 /** Chooses the largest actual staple-crop lot available for export. */

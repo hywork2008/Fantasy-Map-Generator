@@ -144,4 +144,76 @@ describe("resolveFoodImportNetwork", () => {
     expect(world.pack.burgs[1].demographics?.effectiveCapacity).toBe(10);
     expect(world.pack.burgs[2].demographics?.effectiveCapacity).toBeCloseTo(20 + (50 * 4) / 0.43 / 100, 3);
   });
+
+  it("never pays more than the importer holds when the crop's own lots cost more than the average", () => {
+    const ledger = (overrides: Record<string, unknown>) => ({
+      foodProduced: 0,
+      ruralNeed: 0,
+      urbanNeed: 0,
+      exportable: 0,
+      importNeed: 0,
+      targetStock: 0,
+      satisfiedImport: 0,
+      importCapacityBonus: 0,
+      foodStockAge0: 0,
+      foodStockAge1: 0,
+      foodStockAge2: 0,
+      foodStockAge0UnitCost: 0,
+      foodStockAge1UnitCost: 0,
+      foodStockAge2UnitCost: 0,
+      storageOverflow: 0,
+      ruralFoodStressQuarters: 0,
+      urbanFoodStressQuarters: 0,
+      ruralSevereDeficitQuarters: 0,
+      urbanSevereDeficitQuarters: 0,
+      ...overrides
+    });
+    // The ledger-wide average is cheap (0.5), but the wheat itself sits in a dear old lot (3).
+    const supplier = {
+      i: 1,
+      centerBurgId: 1,
+      color: "",
+      goods: { 1: { stock: 100, price: 1 } },
+      marketTreasury: { balance: 0, ruralGrainPayable: 0 },
+      foodLedger: ledger({
+        exportable: 100,
+        foodStockAge0: 100,
+        foodStockAge0UnitCost: 0.5,
+        stapleCropInventories: {
+          1: { age0: 0, age1: 0, age2: 100, age0UnitCost: 0.5, age1UnitCost: 0.5, age2UnitCost: 3, overflow: 0 }
+        }
+      })
+    };
+    const importer = {
+      i: 2,
+      centerBurgId: 2,
+      color: "",
+      goods: { 1: { stock: 0, price: 4 } },
+      marketTreasury: { balance: 30, ruralGrainPayable: 0 },
+      foodLedger: ledger({ importNeed: 50 })
+    };
+    vi.mocked(getMarkets).mockReturnValue([supplier, importer] as never);
+    const world = {
+      populationRate: 100,
+      urbanization: 1,
+      distanceScale: 1,
+      graphHeight: 100,
+      mapCoordinates: { latT: 90, latN: 90, lonT: 180, lonW: 180 },
+      options: { month: 6 },
+      pack: {
+        routes: [{ group: "roads", points: [] }],
+        burgs: [
+          { cell: 0 },
+          { i: 1, cell: 1, market: 1, population: 5, demographics: { capacity: 10 } },
+          { i: 2, cell: 2, market: 2, population: 20, demographics: { capacity: 20 } }
+        ]
+      }
+    } as unknown as WorldContext;
+
+    resolveFoodImportNetwork(world);
+
+    expect(importer.marketTreasury.balance).toBeGreaterThanOrEqual(0);
+    expect(supplier.marketTreasury.balance).toBeCloseTo(30 - importer.marketTreasury.balance, 2);
+    expect(supplier.marketTreasury.balance).toBeGreaterThan(0);
+  });
 });
