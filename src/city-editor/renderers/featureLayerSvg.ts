@@ -1,5 +1,4 @@
 import { editorText } from "../../i18n/editorMessages";
-import { approachBeyondLabel } from "../generators/approachBeyond";
 import { riverConnectionFacts } from "../generators/approachFacts";
 import { riverRibbons, roadRunsOutsideRivers } from "../generators/bridgeDeck";
 import { clipPolylineToExterior, outerWallRing } from "../generators/concealStreets";
@@ -16,6 +15,7 @@ import { isNewStyleCastleWall } from "./castleStyle";
 import { fixedRoadIsDry } from "./fixedDocumentGeometry";
 import { appendCobble, appendFrameRoads } from "./frameRoadSvg";
 import { drawbridgeGate, renderDrawbridge } from "./moatSvg";
+import { featureGroupPickInfo } from "./pickInfo";
 import type { RenderContext } from "./renderContext";
 import { edgeGroupPoints, element, isPoint, line } from "./svgPrimitives";
 import { drawableBridgeDecks } from "./townFacts";
@@ -79,23 +79,18 @@ export function renderFeatureLayer(ctx: RenderContext, svg: SVGSVGElement): SVGG
     }
     if (fixedMode && group.kind === "road")
       runs = fixedGeometry ? runs.filter(run => fixedRoadIsDry(run, group.style.widthMeters, fixedGeometry)) : [];
-    const beyondLabel = pickGroup.kind === "road" ? approachBeyondLabel(pickGroup.beyond) : null;
     const wallMaterial = group.kind === "wall" ? (group.wallMaterial ?? "stone") : undefined;
     const wallStrokeColor = wallMaterial === "wood" ? "#634327" : "#292a26";
-    const pickInfo: SvgPickInfo = {
+    const pickInfo: SvgPickInfo = featureGroupPickInfo(pickGroup, {
       layer: "features",
       kind: group.kind,
-      id: pickGroupId,
       ...(group.kind === "road" ? { routeIds } : {}),
-      label: beyondLabel ? `${group.kind} (${pickGroup.name} · ${beyondLabel})` : `${group.kind} (${pickGroup.name})`,
-      name: pickGroup.name,
-      locked: pickGroup.locked,
+      label: group.name,
       widthMeters: group.style.widthMeters,
       color: group.style.color,
       segmentCount: group.kind === "river" ? group.vertices.length : group.segments.length,
-      ...(beyondLabel ? { beyond: pickGroup.kind === "road" ? pickGroup.beyond : undefined, beyondLabel } : {}),
       ...(wallMaterial ? { wallMaterial } : {})
-    };
+    });
     for (const run of runs) {
       if (run.length < 2) continue;
       if (town && group.kind === "road") {
@@ -127,7 +122,9 @@ export function renderFeatureLayer(ctx: RenderContext, svg: SVGSVGElement): SVGG
           "stroke-width": String(group.style.widthMeters),
           ...(fixedMode && group.kind === "road" ? { "stroke-linejoin": "round", "stroke-linecap": "butt" } : {}),
           "data-group": pickGroupId,
-          ...(group.kind === "road" ? { "data-road-routes": JSON.stringify(routeIds) } : {}),
+          ...(group.kind === "road"
+            ? { "data-road-routes": JSON.stringify(routeIds), "data-road-owner": group.id }
+            : {}),
           "data-pick": encodeURIComponent(JSON.stringify(pickInfo)),
           "pointer-events": "stroke"
         })

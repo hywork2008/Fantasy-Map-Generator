@@ -71,6 +71,10 @@ it("retains ordinary blocks, wider roads, protected roads and intermediate conne
   const fixed = fixture();
   fixed.featureGroups[1].locked = true;
   expect(removeRedundantRoadDetours(fixed)).toBe(fixed);
+  const approach = fixture();
+  const approachRoad = approach.featureGroups[1];
+  if (approachRoad.kind === "road") approachRoad.roadRole = "approach";
+  expect(removeRedundantRoadDetours(approach)).toBe(approach);
   const preserved = fixture();
   expect(removeRedundantRoadDetours(preserved, new Set(["gc:road-8"]))).toBe(preserved);
   const branch = fixture();
@@ -91,4 +95,24 @@ it("keeps a short access spur for a junction near the start of a bypass", () => 
   const road8 = result.featureGroups.find(g => g.id === "gc:road-8")!;
   expect(road8.kind === "road" && road8.segments.map(r => r.edgeId)).toEqual(["e2"]);
   expect(result.featureGroups.some(g => g.id === "gc:road-9")).toBe(true);
+});
+
+it("detects a bypass split across oppositely oriented road groups", () => {
+  const source = fixture();
+  const bypass = source.featureGroups[1];
+  if (bypass.kind !== "road") throw new Error("Expected a road");
+  source.featureGroups[1] = { ...bypass, segments: [bypass.segments[0]] };
+  source.featureGroups.push({
+    ...bypass,
+    id: "gc:road-10",
+    segments: bypass.segments
+      .slice(1)
+      .reverse()
+      .map(r => ({ ...r, forward: !r.forward }))
+  });
+  const before = JSON.stringify(source);
+  const result = removeRedundantRoadDetours(source);
+  expect(result.featureGroups.map(g => g.id)).toEqual(["gc:road-5"]);
+  expect(JSON.stringify(source)).toBe(before);
+  expect(removeRedundantRoadDetours(result)).toBe(result);
 });

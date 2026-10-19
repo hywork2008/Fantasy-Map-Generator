@@ -507,6 +507,7 @@ export function applyRoads(input: ApplyRoadsInput) {
           id: `${GEN_PREFIX}road-${i}:access`,
           kind: "road",
           name: "Street access",
+          roadRole: "street",
           segments: access,
           style: { widthMeters: defaultRoadWidthMeters(townExtentMeters(source.frame)), color: "#735238" },
           locked: false
@@ -517,6 +518,7 @@ export function applyRoads(input: ApplyRoadsInput) {
         id: `${GEN_PREFIX}road-${i}`,
         kind: "road",
         name: `Road ${i + 1}`,
+        roadRole: isApproach ? "approach" : "street",
         ...(importedRoad
           ? {
               sourceRoad: {

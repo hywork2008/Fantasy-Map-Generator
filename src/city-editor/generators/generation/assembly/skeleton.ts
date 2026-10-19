@@ -94,6 +94,7 @@ export function applySkeletonFeatures(
           id: `${GEN_PREFIX}${suffix}`,
           kind: "road",
           name: "Road",
+          roadRole: suffix.startsWith("road-") ? "approach" : "street",
           segments,
           style: { widthMeters: defaultRoadWidthMeters(townExtentMeters(next.frame)), color: "#9d8a65" },
           locked: false,

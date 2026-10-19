@@ -47,6 +47,37 @@ function edges(city: CityDocument): string[] {
 }
 
 describe("generated street ownership", () => {
+  it("does not count the original street ID as an approach after removing its shared tail", () => {
+    const city = document([road("gc:road-0", refs("BC")), road("gc:road-1", refs("AB", "BC"))]);
+    city.mesh.vertices.A.point = [120, 0];
+    city.mesh.vertices.B.point = [40, 0];
+    city.mesh.vertices.C.point = [0, 0];
+    expect(countExternalApproachRoads(city)).toBe(0);
+    normalizeGeneratedRoadOwnership(city);
+    expect(city.featureGroups.find(group => group.id === "gc:road-1")).toMatchObject({
+      segments: refs("AB"),
+      roadRole: "street"
+    });
+    expect(countExternalApproachRoads(city)).toBe(0);
+    expect(countExternalApproachRoads(JSON.parse(JSON.stringify(city)))).toBe(0);
+  });
+
+  it("uses the planned purpose for streets ending at a junction outside the core", () => {
+    const city = document([road("gc:road-0", refs("AB")), road("gc:road-1", refs("CD"))]);
+    for (const [id, x] of [
+      ["A", 120],
+      ["B", 40],
+      ["C", 160],
+      ["D", 80]
+    ] as const)
+      city.mesh.vertices[id].point = [x, 0];
+    const [street, approach] = city.featureGroups;
+    if (street.kind !== "road" || approach.kind !== "road") throw new Error("Expected roads");
+    street.roadRole = "street";
+    approach.roadRole = "approach";
+    expect(countExternalApproachRoads(city)).toBe(1);
+  });
+
   it("does not count split street parts as new external entrances", () => {
     const city = document([
       road("gc:road-0", refs("AB")),
@@ -112,7 +143,7 @@ describe("generated street ownership", () => {
     expect(validate(city)).toEqual([]);
   });
 
-  it.each(["manual", "locked", "source", "beyond", "bridge", "preserved"])(
+  it.each(["manual", "locked", "source", "beyond", "bridge", "preserved", "approach"])(
     "preserves the authoritative %s road and removes its copy from an ordinary street",
     kind => {
       const fixed = road(
@@ -122,6 +153,7 @@ describe("generated street ownership", () => {
       if (kind === "locked") fixed.locked = true;
       if (kind === "source") fixed.sourceRoad = { index: 0, routeId: 7 };
       if (kind === "beyond") fixed.beyond = "city";
+      if (kind === "approach") fixed.roadRole = "approach";
       const before = structuredClone(fixed);
       const city = document([road("gc:road-1", refs("AB", "BC", "CD")), fixed]);
       normalizeGeneratedRoadOwnership(city, kind === "preserved" ? new Set([fixed.id]) : undefined);

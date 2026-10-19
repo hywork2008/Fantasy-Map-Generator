@@ -5,23 +5,26 @@ import { isSimplePolygon, nearestOnPolyline, pointInPolygon, polygonCentroid } f
 import { facePoints } from "./mesh";
 import { roadPathVertices } from "./roadNetwork";
 
+const automaticRoad = (g: CityDocument["featureGroups"][number], preserved: ReadonlySet<Id>) =>
+  g.kind === "road" &&
+  /^gc:(road|street|riverRoad|ring-road)-/.test(g.id) &&
+  g.roadRole !== "approach" &&
+  !g.locked &&
+  !g.sourceRoad &&
+  !g.beyond &&
+  !g.crossing &&
+  !preserved.has(g.id);
+
 /** Remove short, close bypasses between two existing junctions. Interior
  * junctions, facilities, fixed roads and ordinary city-block loops survive. */
-export function removeRedundantRoadDetours(source: CityDocument, preserved: ReadonlySet<Id> = new Set()): CityDocument {
+function pruneRoadDetours(source: CityDocument, preserved: ReadonlySet<Id> = new Set()): CityDocument {
   const mesh = source.mesh;
   const adjacency = new Map<Id, Map<Id, number>>();
   const widths = new Map<Id, Map<Id, number>>();
   const incident = new Map<Id, Set<Id>>();
   const protectedVertices = new Set(source.gates.map(g => g.vertexId));
   const protectedFaces = new Set(source.elements.flatMap(e => e.faceIds));
-  const automatic = (g: CityDocument["featureGroups"][number]) =>
-    g.kind === "road" &&
-    /^gc:(road|street|riverRoad|ring-road)-/.test(g.id) &&
-    !g.locked &&
-    !g.sourceRoad &&
-    !g.beyond &&
-    !g.crossing &&
-    !preserved.has(g.id);
+  const automatic = (g: CityDocument["featureGroups"][number]) => automaticRoad(g, preserved);
   for (const g of source.featureGroups) {
     if (g.kind === "river") {
       for (const id of g.vertices) protectedVertices.add(id);
@@ -159,6 +162,78 @@ export function removeRedundantRoadDetours(source: CityDocument, preserved: Read
   }
   if (!changed) return source;
   const result = { ...source, featureGroups: groups };
+  normalizeGeneratedRoadOwnership(result, preserved);
+  return result;
+}
+
+/** Join degree-two continuations for detection, then restore original ownership. */
+export function removeRedundantRoadDetours(source: CityDocument, preserved: ReadonlySet<Id> = new Set()): CityDocument {
+  const incident = new Map<Id, Set<Id>>();
+  for (const g of source.featureGroups) {
+    if (g.kind !== "road") continue;
+    for (const ref of g.segments) {
+      const e = source.mesh.edges[ref.edgeId];
+      for (const id of [e.a, e.b]) {
+        if (!incident.has(id)) incident.set(id, new Set());
+        incident.get(id)!.add(e.id);
+      }
+    }
+  }
+  const groups = [...source.featureGroups];
+  const consumed = new Set<Id>();
+  // Resolve later continuations before considering the earlier trunk.
+  for (let i = groups.length - 1; i >= 0; i--) {
+    const first = groups[i];
+    if (first.kind !== "road" || !automaticRoad(first, preserved) || consumed.has(first.id)) continue;
+    let segments = first.segments;
+    let extended = true;
+    while (extended) {
+      extended = false;
+      const nodes = roadPathVertices(source.mesh, segments);
+      for (let j = i + 1; j < groups.length; j++) {
+        const next = groups[j];
+        if (
+          next.kind !== "road" ||
+          !automaticRoad(next, preserved) ||
+          consumed.has(next.id) ||
+          next.style.widthMeters !== first.style.widthMeters
+        )
+          continue;
+        const other = roadPathVertices(source.mesh, next.segments);
+        const shared = new Set(other.filter(id => nodes.includes(id)));
+        if (shared.size !== 1) continue;
+        const reverse = (refs: EdgeRef[]) => [...refs].reverse().map(r => ({ ...r, forward: !r.forward }));
+        let joined: EdgeRef[] | undefined;
+        for (const atStart of [false, true]) {
+          const junction = atStart ? nodes[0] : nodes.at(-1)!;
+          if (incident.get(junction)?.size !== 2) continue;
+          if (atStart && other.at(-1) === junction) joined = [...next.segments, ...segments];
+          else if (atStart && other[0] === junction) joined = [...reverse(next.segments), ...segments];
+          else if (!atStart && other[0] === junction) joined = [...segments, ...next.segments];
+          else if (!atStart && other.at(-1) === junction) joined = [...segments, ...reverse(next.segments)];
+          if (joined) break;
+        }
+        if (!joined) continue;
+        segments = joined;
+        consumed.add(next.id);
+        extended = true;
+        break;
+      }
+    }
+    groups[i] = { ...first, segments };
+  }
+  const virtual = { ...source, featureGroups: groups.filter(g => !consumed.has(g.id)) };
+  const pruned = pruneRoadDetours(virtual, preserved);
+  if (pruned === virtual) return source;
+  const retained = new Set(pruned.featureGroups.flatMap(g => (g.kind === "road" ? g.segments.map(r => r.edgeId) : [])));
+  const result = {
+    ...source,
+    featureGroups: source.featureGroups.map(g =>
+      g.kind === "road" && automaticRoad(g, preserved)
+        ? { ...g, segments: g.segments.filter(r => retained.has(r.edgeId)) }
+        : g
+    )
+  };
   normalizeGeneratedRoadOwnership(result, preserved);
   return result;
 }

@@ -146,14 +146,21 @@ describe("thin road cells", () => {
     expect(minimumCellWidth(facePoints(city.mesh, city.mesh.faces.f4))).toBe(20);
     expect(roadCellHousingWidth(4, 4)).toBeCloseTo(7.2);
   });
-  it.each(["locked", "manual", "preserved", "facility"])("protects %s roads and destinations", protection => {
-    const city = fixture();
-    if (protection === "locked") city.featureGroups[0].locked = true;
-    if (protection === "manual") city.featureGroups[0].id = "manual-road";
-    if (protection === "facility") city.mesh.faces.f4.properties.ward = "market";
-    const result = consolidateThinRoadCells(city, protection === "preserved" ? new Set(["gc:road-16"]) : undefined);
-    expect(result.document).toBe(city);
-  });
+  it.each(["locked", "manual", "preserved", "facility", "approach"])(
+    "protects %s roads and destinations",
+    protection => {
+      const city = fixture();
+      if (protection === "locked") city.featureGroups[0].locked = true;
+      if (protection === "manual") city.featureGroups[0].id = "manual-road";
+      if (protection === "facility") city.mesh.faces.f4.properties.ward = "market";
+      if (protection === "approach") {
+        const road = city.featureGroups[0];
+        if (road.kind === "road") road.roadRole = "approach";
+      }
+      const result = consolidateThinRoadCells(city, protection === "preserved" ? new Set(["gc:road-16"]) : undefined);
+      expect(result.document).toBe(city);
+    }
+  );
 });
 
 it("does not classify compact housing cells as slivers by area/perimeter alone", () => {

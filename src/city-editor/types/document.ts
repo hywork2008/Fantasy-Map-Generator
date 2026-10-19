@@ -141,6 +141,8 @@ export interface EdgeFeatureGroup {
   segments: EdgeRef[];
   style: LineStyle;
   locked: boolean;
+  /** Generated road purpose, retained when a route is trimmed or split. */
+  roadRole?: "approach" | "street";
   /** Set on roads that leave an outer-wall gate for the map exterior. */
   beyond?: ApproachBeyond;
   /** Source FMG land-road leg; distinguishes external approaches from local streets. */

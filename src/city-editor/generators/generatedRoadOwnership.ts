@@ -7,6 +7,7 @@ function isGeneratedStreet(group: FeatureGroup, preserved: ReadonlySet<Id>): boo
   return (
     group.kind === "road" &&
     /^gc:(road|street|riverRoad|ring-road)-/.test(group.id) &&
+    group.roadRole !== "approach" &&
     !group.locked &&
     !group.sourceRoad &&
     !group.beyond &&
@@ -84,12 +85,13 @@ export function normalizeGeneratedRoadOwnership(document: CityDocument, preserve
     splitRoadGroups += Math.max(0, runs.length - 1);
     if (runs.length === 1 && runs[0].length === group.segments.length) return [group];
     return runs.map((segments, index) => {
-      if (!index) return { ...group, segments };
+      // Legacy streets also need a stable purpose once their endpoints change.
+      if (!index) return { ...group, roadRole: "street", segments };
       let suffix = index;
       while (ids.has(`${group.id}:part-${suffix}`)) suffix++;
       const id = `${group.id}:part-${suffix}`;
       ids.add(id);
-      return { ...group, id, segments };
+      return { ...group, id, roadRole: "street", segments };
     });
   });
   return { removedRoadReferences, removedRoadGroups, splitRoadGroups };

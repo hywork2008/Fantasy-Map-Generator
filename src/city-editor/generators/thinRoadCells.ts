@@ -16,6 +16,7 @@ function automaticRoad(group: CityDocument["featureGroups"][number], preserved: 
   return (
     group.kind === "road" &&
     /^gc:(road|street|riverRoad|ring-road)-/.test(group.id) &&
+    group.roadRole !== "approach" &&
     !group.locked &&
     !group.sourceRoad &&
     !group.beyond &&
