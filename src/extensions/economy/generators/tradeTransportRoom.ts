@@ -13,7 +13,9 @@
  * (long-distance-merchant-reach-capital.md §17.4, §18).
  *
  * Land room counts the carts the market may hire on top of its own, and sea room counts other
- * markets' hulls lying at its ports (docs/plan/port-freight-queue-and-warehouses.md §3, §4.2).
+ * markets' hulls lying at the port the route's sea leg leaves from — the market's own port, or for
+ * a market without one, another market's (docs/plan/port-freight-queue-and-warehouses.md §3, §4.2,
+ * §10.7). Sea room is therefore kept per exporter and departure port.
  * A separate own-land count tells the booking how much of a load rides on hired carts.
  */
 
@@ -21,6 +23,7 @@ import { getCaravans, getExportStagingLots, getGoods } from "../economyContext";
 import { DEFAULT_DRAFT_ANIMAL_ID } from "./caravanMovement";
 import type { Caravan, TradeRouteSegment } from "./marketTypes";
 import { LAND_HIRE_SHARE, MerchantTransportAssets } from "./merchantTransportAssets";
+import { seaDepartureMarketId } from "./seaRoutePorts";
 import { getGoodCargoSlotsPerUnit } from "./tradeCargo";
 
 /** Days a month a vehicle can be out carrying. */
@@ -36,8 +39,46 @@ export type TransportRoom = Map<string, { capacity: number; held: number }>;
 /** Route of a booked lot, by origin and destination market. */
 export type LotRouteLookup = (from: number, to: number) => readonly TradeRouteSegment[] | undefined;
 
-function roomKey(marketId: number, mode: TransportMode | typeof OWN_LAND): string {
+function roomKey(marketId: number, mode: "land" | typeof OWN_LAND): string {
   return `${marketId}:${mode}`;
+}
+
+/** Sea room of one exporter at the port its route sails from; created on first use. */
+function seaEntry(
+  room: TransportRoom,
+  marketId: number,
+  segments: readonly TradeRouteSegment[] | undefined
+): { capacity: number; held: number } {
+  const portMarketId = seaDepartureMarketId(segments) ?? marketId;
+  const key = `${marketId}:sea@${portMarketId}`;
+  let entry = room.get(key);
+  if (!entry) {
+    entry = {
+      capacity:
+        MerchantTransportAssets.getFleetCapacitySlots(marketId, "sea", DEFAULT_DRAFT_ANIMAL_ID) +
+        MerchantTransportAssets.getCharterableSeaCapacitySlots(marketId, portMarketId),
+      held: 0
+    };
+    room.set(key, entry);
+  }
+  return entry;
+}
+
+/** The room entries a booking on this route draws on. */
+function entriesFor(
+  room: TransportRoom,
+  marketId: number,
+  segments: readonly TradeRouteSegment[] | undefined
+): { capacity: number; held: number }[] {
+  const entries: { capacity: number; held: number }[] = [];
+  for (const mode of routeModes(segments)) {
+    if (mode === "sea") entries.push(seaEntry(room, marketId, segments));
+    else {
+      const entry = room.get(roomKey(marketId, "land"));
+      if (entry) entries.push(entry);
+    }
+  }
+  return entries;
 }
 
 /**
@@ -61,15 +102,17 @@ function payloadSlots(caravan: Pick<Caravan, "payload">): number {
   return caravan.payload.reduce((sum, item) => sum + item.units * (item.cargoSlotsPerUnit ?? 1), 0);
 }
 
-function hold(room: TransportRoom, marketId: number, modes: readonly TransportMode[], slotDays: number): void {
+function hold(
+  room: TransportRoom,
+  marketId: number,
+  segments: readonly TradeRouteSegment[] | undefined,
+  slotDays: number
+): void {
   if (!(slotDays > 0)) return;
-  for (const mode of modes) {
-    for (const key of mode === "land"
-      ? [roomKey(marketId, mode), roomKey(marketId, OWN_LAND)]
-      : [roomKey(marketId, mode)]) {
-      const entry = room.get(key);
-      if (entry) entry.held += slotDays;
-    }
+  for (const entry of entriesFor(room, marketId, segments)) entry.held += slotDays;
+  if (routeModes(segments).includes("land")) {
+    const own = room.get(roomKey(marketId, OWN_LAND));
+    if (own) own.held += slotDays;
   }
 }
 
@@ -84,10 +127,6 @@ export function buildTransportRoom(
     const land = MerchantTransportAssets.getFleetCapacitySlots(marketId, "land", DEFAULT_DRAFT_ANIMAL_ID);
     room.set(roomKey(marketId, "land"), { capacity: land * (1 + LAND_HIRE_SHARE), held: 0 });
     room.set(roomKey(marketId, OWN_LAND), { capacity: land, held: 0 });
-    const sea =
-      MerchantTransportAssets.getFleetCapacitySlots(marketId, "sea", DEFAULT_DRAFT_ANIMAL_ID) +
-      MerchantTransportAssets.getCharterableSeaCapacitySlots(marketId);
-    room.set(roomKey(marketId, "sea"), { capacity: sea, held: 0 });
   }
 
   const goods = new Map(getGoods().map(good => [good.i, good]));
@@ -96,7 +135,7 @@ export function buildTransportRoom(
     if (!good || !(lot.units > 0)) continue;
     const segments = lotRoute(lot.marketId, lot.destinationMarketId);
     const days = Math.max(1, lot.durationDays ?? 1);
-    hold(room, lot.marketId, routeModes(segments), lot.units * getGoodCargoSlotsPerUnit(good) * days);
+    hold(room, lot.marketId, segments, lot.units * getGoodCargoSlotsPerUnit(good) * days);
   }
 
   for (const caravan of getCaravans()) {
@@ -108,7 +147,7 @@ export function buildTransportRoom(
       caravan.state === "transit" && caravan.totalDistance > 0
         ? Math.max(0, 1 - caravan.currentDistance / caravan.totalDistance)
         : 1;
-    hold(room, dispatcher, routeModes(caravan.routeSegments), payloadSlots(caravan) * days * left);
+    hold(room, dispatcher, caravan.routeSegments, payloadSlots(caravan) * days * left);
   }
   return room;
 }
@@ -128,7 +167,7 @@ export function transportRoomSlots(
 ): number {
   const days = Math.max(1, durationDays);
   let slots = Number.POSITIVE_INFINITY;
-  for (const mode of routeModes(segments)) slots = Math.min(slots, slotsLeft(room.get(roomKey(marketId, mode)), days));
+  for (const entry of entriesFor(room, marketId, segments)) slots = Math.min(slots, slotsLeft(entry, days));
   return slots;
 }
 
@@ -151,7 +190,7 @@ export function seaRoomSlots(
   durationDays: number
 ): number {
   if (!routeModes(segments).includes("sea")) return Number.POSITIVE_INFINITY;
-  return slotsLeft(room.get(roomKey(marketId, "sea")) ?? { capacity: 0, held: 0 }, Math.max(1, durationDays));
+  return slotsLeft(seaEntry(room, marketId, segments), Math.max(1, durationDays));
 }
 
 /** A booking of `slots` on this route takes its share of the fleet. */
@@ -162,5 +201,5 @@ export function takeTransportRoom(
   durationDays: number,
   slots: number
 ): void {
-  hold(room, marketId, routeModes(segments), slots * Math.max(1, durationDays));
+  hold(room, marketId, segments, slots * Math.max(1, durationDays));
 }

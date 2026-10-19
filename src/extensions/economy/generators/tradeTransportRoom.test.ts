@@ -117,6 +117,18 @@ describe("trade transport room", () => {
     expect(transportRoomSlots(room, 1, LAND, 10)).toBeGreaterThan(0);
   });
 
+  it("lets a market without a port charter a hull at the port its sea leg leaves from", () => {
+    const burgs = worldContext.pack.burgs;
+    Object.assign(burgs[1], { x: 100, y: 0, port: 1 });
+    Object.assign(burgs[2], { x: 0, y: 0 });
+    MerchantTransportAssets.setWaterAssetModeActive(true);
+    MerchantTransportAssets.reconcileMerchantHulls([
+      { id: 8, shipClassId: "sloop", homeBurgId: 1, ownerId: 1, status: "docked", currentBurgId: 1 }
+    ]);
+    // Market 2 is inland; its cargo goes overland to market 1's port and sails from there.
+    expect(seaRoomSlots(build(), 2, LAND_AND_SEA, 10)).toBeCloseTo(100 * 3);
+  });
+
   it("counts another market's free hull lying in the exporter's port", () => {
     MerchantTransportAssets.setWaterAssetModeActive(true);
     MerchantTransportAssets.reconcileMerchantHulls([

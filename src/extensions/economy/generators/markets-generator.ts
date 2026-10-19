@@ -112,6 +112,7 @@ import {
   getSeasonalFoodProductionMultiplier
 } from "./production-utils";
 import { addWholesaleGoodStock, getRetailLocalityMultiplier } from "./retailInventory";
+import { seaDeparturePortBurgId } from "./seaRoutePorts";
 import { getMarketTextileDemandProfile } from "./textileDemand";
 import { getGoodCargoSlotsPerUnit } from "./tradeCargo";
 import { TradeLogisticsSettings } from "./tradeLogisticsSettings";
@@ -2455,7 +2456,11 @@ export class MarketsModule {
           opportunity.durationDays
         );
         if (seaSlots + 0.000001 < units * slotsPerUnit)
-          MerchantTransportAssets.recordSeaHullShortfall(opportunity.exporter.i, units * slotsPerUnit - seaSlots);
+          MerchantTransportAssets.recordSeaHullShortfall(
+            opportunity.exporter.i,
+            units * slotsPerUnit - seaSlots,
+            seaDeparturePortBurgId(opportunity.routeSegments)
+          );
         units = Math.min(units, floorToRetailLot(carriable / slotsPerUnit, getRetailLotSize(good)));
         if (units < minUnit) {
           observe?.({ stage: "noTransport", ...leg });

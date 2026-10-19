@@ -490,6 +490,8 @@ export class MerchantTransportAssetsModule {
     itinerary?: {
       originBurgId?: number | null;
       destinationBurgId?: number | null;
+      /** Market of the port the sea leg leaves from; hulls lying there may be chartered (§10.7). */
+      seaPortMarketId?: number;
     }
   ): TransportReservationResult | null {
     if (!hasLandAllocation(allocations) && !hasWaterAllocation(allocations) && !hasRiverAllocation(allocations))
@@ -524,7 +526,7 @@ export class MerchantTransportAssetsModule {
       return null;
     }
 
-    const waterAllocations = this.allocateWaterAssets(ledger, allocations);
+    const waterAllocations = this.allocateWaterAssets(ledger, allocations, itinerary?.seaPortMarketId);
     if (hasWaterAllocation(allocations) && this.waterAssetModeActive && !waterAllocations) return null;
     const hiredByAllocation = new Map<TransportAllocation, number>(
       balances.map(entry => [entry.allocation, entry.hired])
@@ -586,7 +588,8 @@ export class MerchantTransportAssetsModule {
 
   private allocateWaterAssets(
     ledger: MerchantTransportLedger,
-    allocations: readonly TransportAllocation[]
+    allocations: readonly TransportAllocation[],
+    portMarketId: number = ledger.marketId
   ): TransportAllocation[] | null {
     const requested = allocations.filter(allocation => allocation.mode === "water" && allocation.usedSlots > 0);
     if (!requested.length) return [];
@@ -602,12 +605,13 @@ export class MerchantTransportAssetsModule {
         .map(asset => ({ asset, definition: getShipDefinition(asset.shipClassId) }))
         .filter((entry): entry is Entry => Boolean(entry.definition));
     const available = entriesOf(ledger.waterAssets);
-    // Hulls of other markets lying at this market's ports take freight as well (§4.2).
+    // Hulls of other markets lying at the port the cargo sails from take freight as well (§4.2);
+    // for a market without a port, that is another market's port (§10.7).
     const chartered = entriesOf(
       getMerchantTransportLedgers()
         .filter(other => other.marketId !== ledger.marketId)
         .flatMap(other => other.waterAssets ?? [])
-        .filter(asset => berthMarketId(asset) === ledger.marketId)
+        .filter(asset => berthMarketId(asset) === portMarketId)
     );
     const resolved: TransportAllocation[] = [];
     const pick = (pool: Entry[], neededSlots: number): Entry[] => {
@@ -956,15 +960,17 @@ export class MerchantTransportAssetsModule {
   }
 
   /**
-   * Cargo slots of other markets' free hulls lying at this market's ports. A merchant without a
-   * ship of his own paid freight on whatever ship lay in port (port-freight-queue-and-warehouses.md §4.2).
+   * Cargo slots of other markets' free hulls lying at the ports of `portMarketId` (by default the
+   * market's own). A merchant without a ship of his own paid freight on whatever ship lay in port
+   * (port-freight-queue-and-warehouses.md §4.2); a market without a port charters at the port its
+   * cargo sails from (§10.7).
    */
-  getCharterableSeaCapacitySlots(marketId: number): number {
+  getCharterableSeaCapacitySlots(marketId: number, portMarketId: number = marketId): number {
     let slots = 0;
     for (const ledger of getMerchantTransportLedgers()) {
       if (ledger.marketId === marketId) continue;
       for (const asset of ledger.waterAssets ?? []) {
-        if (asset.state !== "available" || berthMarketId(asset) !== marketId) continue;
+        if (asset.state !== "available" || berthMarketId(asset) !== portMarketId) continue;
         slots += getShipDefinition(asset.shipClassId)?.cargoCapacitySlots ?? 0;
       }
     }
@@ -997,10 +1003,7 @@ export class MerchantTransportAssetsModule {
     if (!this.waterAssetModeActive) return [];
     const need = new Map<number, number>();
     for (const [marketId, slots] of backlogSlots) {
-      const lying =
-        this.getCharterableSeaCapacitySlots(marketId) +
-        this.availableOwnSeaSlots(marketId) +
-        this.ballastInboundSlots(marketId);
+      const lying = this.freeSlotsLyingAt(marketId) + this.ballastInboundSlots(marketId);
       const left = slots - lying;
       if (left > 0 && portOf(marketId) !== undefined) need.set(marketId, left);
     }
@@ -1065,10 +1068,14 @@ export class MerchantTransportAssetsModule {
     return slots;
   }
 
-  private availableOwnSeaSlots(marketId: number): number {
-    return (findLedger(marketId)?.waterAssets ?? [])
-      .filter(asset => asset.state === "available")
-      .reduce((sum, asset) => sum + (getShipDefinition(asset.shipClassId)?.cargoCapacitySlots ?? 0), 0);
+  /** Cargo slots of every free hull, of any owner, lying at the market's ports. */
+  private freeSlotsLyingAt(marketId: number): number {
+    let slots = 0;
+    for (const ledger of getMerchantTransportLedgers())
+      for (const asset of ledger.waterAssets ?? [])
+        if (asset.state === "available" && berthMarketId(asset) === marketId)
+          slots += getShipDefinition(asset.shipClassId)?.cargoCapacitySlots ?? 0;
+    return slots;
   }
 
   /** Whether sea legs need one of the market's own hulls (Shipbuilding publishes a finite fleet). */
@@ -1076,17 +1083,57 @@ export class MerchantTransportAssetsModule {
     return this.waterAssetModeActive;
   }
 
-  /** Sea cargo that could not be booked for want of hulls since the last replenishment (§17). */
-  recordSeaHullShortfall(marketId: number, cargoSlots: number): void {
+  /**
+   * Sea cargo that could not be booked for want of hulls since the last replenishment (§17), and
+   * the port burg its sea leg leaves from when known (§10.7).
+   */
+  recordSeaHullShortfall(marketId: number, cargoSlots: number, portBurgId?: number): void {
     if (!(cargoSlots > 0)) return;
     const ledger = this.ensureLedger(marketId);
     if (!ledger) return;
     ledger.seaShortfallSlots = (ledger.seaShortfallSlots ?? 0) + cargoSlots;
+    if (portBurgId === undefined) return;
+    ledger.seaShortfallByPort ??= {};
+    ledger.seaShortfallByPort[portBurgId] = (ledger.seaShortfallByPort[portBurgId] ?? 0) + cargoSlots;
   }
 
-  /** The sea shortfall recorded since the last replenishment, left in place. */
-  peekSeaHullShortfall(marketId: number): number {
-    return findLedger(marketId)?.seaShortfallSlots ?? 0;
+  /**
+   * The sea shortfall recorded since the last replenishment, left in place, by the market whose
+   * port the cargo sails from. Shortfall with no known port stays with the exporting market.
+   */
+  peekSeaShortfallByPortMarket(): Map<number, number> {
+    const burgs = getWorldContext().pack.burgs ?? [];
+    const byMarket = new Map<number, number>();
+    for (const entry of this.peekSeaShortfallEntries()) {
+      const portMarket = entry.portBurgId === undefined ? undefined : burgs[entry.portBurgId]?.market;
+      const marketId = typeof portMarket === "number" ? portMarket : entry.marketId;
+      byMarket.set(marketId, (byMarket.get(marketId) ?? 0) + entry.slots);
+    }
+    return byMarket;
+  }
+
+  /** The sea shortfall left in place, by exporting market and, when known, the port it sails from. */
+  peekSeaShortfallEntries(): { marketId: number; portBurgId?: number; slots: number }[] {
+    const entries: { marketId: number; portBurgId?: number; slots: number }[] = [];
+    for (const ledger of getMerchantTransportLedgers()) {
+      const total = ledger.seaShortfallSlots ?? 0;
+      if (!(total > 0)) continue;
+      let placed = 0;
+      for (const [burgId, slots] of Object.entries(ledger.seaShortfallByPort ?? {})) {
+        entries.push({ marketId: ledger.marketId, portBurgId: Number(burgId), slots });
+        placed += slots;
+      }
+      if (total - placed > 0.000001) entries.push({ marketId: ledger.marketId, slots: total - placed });
+    }
+    return entries;
+  }
+
+  /** The port burg most of the market's unbooked sea cargo would have sailed from. */
+  peekSeaShortfallPort(marketId: number): number | undefined {
+    let best: { burgId: number; slots: number } | undefined;
+    for (const [burgId, slots] of Object.entries(findLedger(marketId)?.seaShortfallByPort ?? {}))
+      if (!best || slots > best.slots) best = { burgId: Number(burgId), slots };
+    return best?.burgId;
   }
 
   /** Reads and resets the sea shortfall recorded since the last replenishment. */
@@ -1095,6 +1142,7 @@ export class MerchantTransportAssetsModule {
     if (!ledger) return 0;
     const shortfall = ledger.seaShortfallSlots ?? 0;
     ledger.seaShortfallSlots = undefined;
+    ledger.seaShortfallByPort = undefined;
     return shortfall;
   }
 

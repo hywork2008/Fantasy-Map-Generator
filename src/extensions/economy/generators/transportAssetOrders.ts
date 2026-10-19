@@ -90,13 +90,16 @@ const TRANSPORT_CRAFT_PEOPLE_PER_THOUSAND = 1.5;
 
 type PlannedWork = { orderId: number; workPoints: number; domain: CraftKnowledgeDomain };
 
-/** Where a market's ordered hull berths: its most populous port town, else its centre town. */
-function merchantHullHomePort(market: Market): number | undefined {
+/**
+ * Where a market's ordered hull berths: its most populous port town, else the port its sea cargo
+ * sails from, else its centre town.
+ */
+function merchantHullHomePort(market: Market, fallbackPortBurgId?: number): number | undefined {
   const ports = (getWorldContext().pack.burgs ?? []).filter(
     burg => burg.i && !burg.removed && burg.market === market.i && burg.port
   );
   const port = ports.sort((a, b) => (b.population ?? 0) - (a.population ?? 0) || (a.i ?? 0) - (b.i ?? 0))[0];
-  return port?.i ?? (market.centerBurgId || undefined);
+  return port?.i ?? fallbackPortBurgId ?? (market.centerBurgId || undefined);
 }
 
 function getBlueprint(id: TransportAssetOrder["blueprintId"]): TransportAssetBlueprint {
@@ -280,8 +283,12 @@ export class TransportAssetOrdersModule {
         if (missing > 0) this.createOrder({ marketId: market.i, blueprintId: balance.assetId, quantity: missing });
       }
       // Sea trade that waited for a hull asks the shipyards for one (long-distance-merchant-reach-capital.md §17).
+      // A market without a port has its hull based where its sea cargo sails from, not at an
+      // inland town (port-freight-queue-and-warehouses.md §10.7). The hull is then that port's
+      // market's, and the inland market charters it there.
+      const shortfallPort = MerchantTransportAssets.peekSeaShortfallPort(market.i);
       if (MerchantTransportAssets.takeSeaHullShortfall(market.i) > 0) {
-        const homeBurgId = merchantHullHomePort(market);
+        const homeBurgId = merchantHullHomePort(market, shortfallPort);
         if (homeBurgId !== undefined)
           simEvents.dispatchEvent(
             new CustomEvent("fmg:economy-merchant-hull-order", { detail: { marketId: market.i, homeBurgId } })

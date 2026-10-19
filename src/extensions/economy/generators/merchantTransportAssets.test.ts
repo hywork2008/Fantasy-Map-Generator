@@ -269,6 +269,31 @@ describe("merchant transport assets", () => {
     expect(MerchantTransportAssets.getCharterableSeaCapacitySlots(1)).toBe(0);
   });
 
+  it("charters a hull at another market's port for a market without one", () => {
+    worldContext.pack.burgs.push({ i: 3, market: 3 } as Burg);
+    worldContext.pack.markets.push({ i: 3, centerBurgId: 3, color: "#222", goods: {} } as never);
+    MerchantTransportAssets.reconcileMerchantHulls([
+      { id: 50, shipClassId: "sloop", homeBurgId: 2, ownerId: 2, status: "docked", currentBurgId: 1 }
+    ]);
+    // Without the port its sea leg leaves from, the inland market finds no hull.
+    expect(MerchantTransportAssets.reserve(3, 10, [SLOOP_ALLOCATION])).toBeNull();
+    const reservation = MerchantTransportAssets.reserve(3, 11, [SLOOP_ALLOCATION], { seaPortMarketId: 1 });
+    expect(reservation?.reservation.allocations).toMatchObject([{ shipHullIds: [50] }]);
+  });
+
+  it("orders a hull for a market without a port at the port its cargo sails from", () => {
+    MerchantTransportAssets.recordSeaHullShortfall(2, 120, 1);
+    MerchantTransportAssets.recordSeaHullShortfall(2, 30);
+    expect(MerchantTransportAssets.peekSeaShortfallPort(2)).toBe(1);
+    // The waiting cargo counts at the port's market; the rest stays with the exporter.
+    expect([...MerchantTransportAssets.peekSeaShortfallByPortMarket()]).toEqual([
+      [1, 120],
+      [2, 30]
+    ]);
+    expect(MerchantTransportAssets.takeSeaHullShortfall(2)).toBe(150);
+    expect(MerchantTransportAssets.peekSeaShortfallPort(2)).toBeUndefined();
+  });
+
   it("sails a hull idle for two months in ballast, taking the passage's days", () => {
     const burgs = worldContext.pack.burgs;
     Object.assign(burgs[1], { x: 0, y: 0 });

@@ -22,6 +22,7 @@ import {
 } from "../economyContext";
 import type { Caravan, PortWarehouseState, TradeRouteSegment } from "./marketTypes";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
+import { seaArrivalPortBurgId, seaDepartureMarketId, seaDeparturePortBurgId } from "./seaRoutePorts";
 
 /** Days the average sea cargo lies in a port warehouse, loading and unloading. */
 const DWELL_DAYS = 30;
@@ -112,37 +113,69 @@ function ensureState(burgId: number, states: PortWarehouseState[]): PortWarehous
   return state;
 }
 
-/** A departing sea shipment passes through the warehouses of both its ports. */
+/**
+ * A departing sea shipment passes through the warehouses of both its ports: where its sea leg
+ * leaves and arrives, which for a market without a port is another market's port (§10.7).
+ */
 export function recordSeaDeparture(caravan: Caravan, dispatcherMarketId: number | null): void {
   if (!caravan.routeSegments.some(isSeaSegment)) return;
   const slots = payloadSlots(caravan);
   if (!(slots > 0)) return;
   const states = getPortWarehouses();
   const ports = new Set<number>();
-  for (const marketId of [dispatcherMarketId, buyerMarketId(caravan)]) {
-    if (typeof marketId !== "number") continue;
-    const port = getMarketPortBurgId(marketId);
-    if (port !== undefined) ports.add(port);
-  }
+  const buyer = buyerMarketId(caravan);
+  const from =
+    seaDeparturePortBurgId(caravan.routeSegments) ??
+    (typeof dispatcherMarketId === "number" ? getMarketPortBurgId(dispatcherMarketId) : undefined);
+  const to =
+    seaArrivalPortBurgId(caravan.routeSegments) ?? (typeof buyer === "number" ? getMarketPortBurgId(buyer) : undefined);
+  for (const port of [from, to]) if (port !== undefined) ports.add(port);
   if (!ports.size) return;
   for (const port of ports) ensureState(port, states).cycleSlots += slots;
   setPortWarehouses(states);
 }
 
-/** Sea cargo loaded and waiting for a ship, and sea cargo no hull could be booked for, by market. */
+/**
+ * Sea cargo loaded and waiting for a ship, and sea cargo no hull could be booked for, by the
+ * market whose port it sails from: a market without a port waits at another market's (§10.7).
+ */
 export function collectSeaBacklogSlots(): Map<number, number> {
   const backlog = new Map<number, number>();
   for (const caravan of getCaravans()) {
     if (caravan.state !== "loading" || !caravan.routeSegments.some(isSeaSegment)) continue;
-    const marketId = caravan.transportDispatcherMarketId ?? MerchantTransportAssets.getDispatcherMarketId(caravan);
-    if (marketId === null) continue;
+    const marketId =
+      seaDepartureMarketId(caravan.routeSegments) ??
+      caravan.transportDispatcherMarketId ??
+      MerchantTransportAssets.getDispatcherMarketId(caravan);
+    if (marketId === null || marketId === undefined) continue;
     backlog.set(marketId, (backlog.get(marketId) ?? 0) + payloadSlots(caravan));
   }
-  for (const market of getMarkets()) {
-    const shortfall = MerchantTransportAssets.peekSeaHullShortfall(market.i);
-    if (shortfall > 0) backlog.set(market.i, (backlog.get(market.i) ?? 0) + shortfall);
-  }
+  for (const [marketId, shortfall] of MerchantTransportAssets.peekSeaShortfallByPortMarket())
+    if (shortfall > 0) backlog.set(marketId, (backlog.get(marketId) ?? 0) + shortfall);
   return backlog;
+}
+
+/**
+ * Sea cargo waiting for a ship, by the port burg it waits at: where its sea leg leaves, as the
+ * departures through the port are counted. Cargo with no known port waits at its market's.
+ */
+function collectSeaQueueByPortBurg(): Map<number, number> {
+  const queued = new Map<number, number>();
+  const add = (burgId: number | undefined, slots: number) => {
+    if (burgId !== undefined && slots > 0) queued.set(burgId, (queued.get(burgId) ?? 0) + slots);
+  };
+  for (const caravan of getCaravans()) {
+    if (caravan.state !== "loading" || !caravan.routeSegments.some(isSeaSegment)) continue;
+    const dispatcher = caravan.transportDispatcherMarketId ?? MerchantTransportAssets.getDispatcherMarketId(caravan);
+    add(
+      seaDeparturePortBurgId(caravan.routeSegments) ??
+        (dispatcher === null ? undefined : getMarketPortBurgId(dispatcher)),
+      payloadSlots(caravan)
+    );
+  }
+  for (const entry of MerchantTransportAssets.peekSeaShortfallEntries())
+    add(entry.portBurgId ?? getMarketPortBurgId(entry.marketId), entry.slots);
+  return queued;
 }
 
 /**
@@ -163,12 +196,8 @@ export function beginPortProductionCycle(cycleDays: number): void {
 
   const states = getPortWarehouses();
   const year = getSimulationYear();
-  const queuedByPort = new Map<number, number>();
-  for (const [marketId, slots] of backlog) {
-    const port = getMarketPortBurgId(marketId);
-    if (port !== undefined) queuedByPort.set(port, (queuedByPort.get(port) ?? 0) + slots);
-  }
-  for (const port of new Set(portByMarket.values())) ensureState(port, states);
+  const queuedByPort = collectSeaQueueByPortBurg();
+  for (const port of new Set([...portByMarket.values(), ...queuedByPort.keys()])) ensureState(port, states);
 
   for (const state of states) {
     const queued = queuedByPort.get(state.burgId) ?? 0;

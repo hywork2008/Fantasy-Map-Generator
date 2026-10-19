@@ -55,6 +55,7 @@ import { MerchantTransportAssets } from "./merchantTransportAssets";
 import { recordSeaDeparture } from "./portWarehouses";
 import { recordRouteTraffic } from "./publicWorks";
 import { markRetailInventoryDirty } from "./retailInventory";
+import { seaDepartureMarketId } from "./seaRoutePorts";
 import {
   buildCargoManifests,
   getGoodCargoSlotsPerUnit,
@@ -388,6 +389,14 @@ function caravanItinerary(caravan: Pick<Caravan, "seller" | "sellerType" | "buye
   };
 }
 
+/** Itinerary for a reservation: the endpoints, and the port the sea leg leaves from (§10.7). */
+function reservationItinerary(
+  caravan: Pick<Caravan, "seller" | "sellerType" | "buyer" | "buyerType">,
+  routeSegments: readonly TradeRouteSegment[]
+) {
+  return { ...caravanItinerary(caravan), seaPortMarketId: seaDepartureMarketId(routeSegments) };
+}
+
 /** Push live caravan progress onto Shipbuilding hull itineraries (finite fleet P1). */
 function publishCaravanHullPositions(caravans: readonly Caravan[]): void {
   const updates: {
@@ -512,7 +521,7 @@ function tryDepartLoadingCaravan(caravan: Caravan): "departed" | "waiting" | "ca
     dispatcherMarketId,
     caravan.i,
     allocations,
-    caravanItinerary(caravan)
+    reservationItinerary(caravan, caravan.routeSegments)
   );
   if (!canDepartWithTransportAssets(allocations, reservation, caravan.routeSegments)) {
     return waitForTransport(caravan);
@@ -862,10 +871,7 @@ export class CaravansModule {
     for (const allocation of transportAllocations) allocation.usedSlots = cargoSlots;
 
     const caravanId = this.ensureNextCaravanId();
-    const itinerary = {
-      originBurgId: resolveEndpointBurgId(deal.sellerType, deal.seller),
-      destinationBurgId: resolveEndpointBurgId(deal.buyerType, deal.buyer)
-    };
+    const itinerary = reservationItinerary(deal, routeSegments);
     const reservation = MerchantTransportAssets.reserve(dispatcherMarketId, caravanId, transportAllocations, itinerary);
     if (!canDepartWithTransportAssets(transportAllocations, reservation, routeSegments)) return null;
 

@@ -494,6 +494,11 @@ export type MerchantTransportLedger = {
    * (long-distance-merchant-reach-capital.md §17). Read and reset when hulls are asked of Shipbuilding.
    */
   seaShortfallSlots?: number;
+  /**
+   * The same shortfall by the port burg the sea leg leaves from, for cargo shipped through another
+   * market's port (port-freight-queue-and-warehouses.md §10.7). Reset with `seaShortfallSlots`.
+   */
+  seaShortfallByPort?: Record<number, number>;
 };
 
 /**
