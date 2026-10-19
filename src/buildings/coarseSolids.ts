@@ -28,10 +28,13 @@ function sameLoop(a: WallLoop, b: WallLoop): boolean {
   return sameRing(a.outer, b.outer) && sameHoles(a.holes, b.holes);
 }
 
-function roofFor(roofs: readonly RoofRecord[], wallId: string): Pick<CoarseSolid, "roof" | "ridgeAzimuth"> {
+function roofFor(
+  roofs: readonly RoofRecord[],
+  wallId: string
+): Pick<CoarseSolid, "roof" | "ridgeAzimuth" | "roofPitchDeg"> {
   const roof = roofs.find(item => item.baseId === wallId);
   if (!roof) return { roof: "flat" };
-  return { roof: roof.form, ridgeAzimuth: roof.ridgeAzimuth };
+  return { roof: roof.form, ridgeAzimuth: roof.ridgeAzimuth, roofPitchDeg: roof.pitchDeg };
 }
 
 interface Run {
@@ -59,6 +62,7 @@ export function coarseSolids(record: BuildingRecord): CoarseSolid[] {
       baseElevationMeters: run.baseElevationMeters,
       heightMeters: run.topMeters - run.baseElevationMeters,
       roof: cap.roof,
+      roofPitchDeg: cap.roofPitchDeg,
       ridgeAzimuth: cap.ridgeAzimuth
     });
   };

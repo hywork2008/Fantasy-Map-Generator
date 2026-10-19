@@ -30,6 +30,8 @@ export function catalogueMassing(record: BuildingRecord): StructureMassing[] {
     heightMeters: solid.heightMeters,
     baseElevationMeters: solid.baseElevationMeters,
     roof: ROOF[solid.roof],
+    roofPitchDeg: solid.roofPitchDeg,
+    roofMaterial: solid.roof === "flat" || record.materials.roof === "flat-stone" ? undefined : record.materials.roof,
     ridgeAzimuth: solid.ridgeAzimuth ?? 0,
     parapet: "none",
     parapetMeters: 0,

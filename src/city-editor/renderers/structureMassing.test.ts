@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { concatPositions, meshIsClosed } from "../../city3d/core/massingGeometry";
+import { structureSurfaces } from "../../city3d/core/structureGeometry";
 import type { CityDocument, EdgeFeatureGroup, Point } from "../types/document";
 import { collectCityStructures, cutWallOpenings, landmarkLotStructures } from "./structureMassing";
 
@@ -138,7 +140,7 @@ describe("city structures", () => {
     expect(bridges[0].baseElevationMeters).toBe(0.4);
   });
 
-  it("gives a basilica a spire and a landmark lot a gable", () => {
+  it("replaces the simple basilica with catalogue masses and keeps a landmark lot gabled", () => {
     const structures = collectCityStructures(
       town({
         gates: [],
@@ -149,10 +151,17 @@ describe("city structures", () => {
         ]
       })
     );
-    const temple = structures.find(item => item.id.startsWith("temple:"));
-    expect(temple?.spire).toBe(true);
-    expect(temple?.roof).toBe("gable");
-    expect(temple?.heightMeters).toBeCloseTo(11.2, 1);
+    const temple = structures.filter(item => item.id.startsWith("temple:temple:"));
+    expect(temple).toHaveLength(15);
+    expect(structures.some(item => item.id === "temple:temple")).toBe(false);
+    expect(temple.filter(item => item.id.endsWith("west-tower"))).toHaveLength(2);
+    expect(temple.filter(item => item.id.includes("radiating-chapel"))).toHaveLength(3);
+    expect(temple.find(item => item.id.endsWith(":nave"))?.roofMaterial).toBe("tile");
+    for (const part of temple) {
+      const surfaces = structureSurfaces(part);
+      expect(surfaces, part.id).not.toBeNull();
+      expect(meshIsClosed(concatPositions(surfaces!.walls, surfaces!.roofs)), part.id).toBe(true);
+    }
     const lots = landmarkLotStructures([
       {
         faceId: "f",
@@ -168,6 +177,39 @@ describe("city structures", () => {
     ]);
     expect(lots[0].heightMeters).toBe(12);
     expect(lots[0].roof).toBe("gable");
+  });
+
+  it("places and scales each basilica around the same anchor and rotation as the CE symbol", () => {
+    for (const length of [27, 54]) {
+      for (const rotation of [0, Math.PI / 2]) {
+        const structures = collectCityStructures(
+          town({
+            frame: { extentMeters: 2400, cityRadiusMeters: 1000, blockSizeMeters: 30 },
+            gates: [],
+            featureGroups: [],
+            elements: [
+              {
+                id: "church",
+                kind: "temple",
+                templeType: "basilica",
+                faceIds: [],
+                point: [80, -30],
+                sizeMeters: length,
+                rotation,
+                locked: false
+              }
+            ]
+          })
+        );
+        const nave = structures.find(part => part.id === "temple:church:nave")!;
+        const scale = length / 54;
+        const [x, y] = [-18.9 * scale, -5.6 * scale];
+        expect(nave.footprint![0][0]).toBeCloseTo(80 + x * Math.cos(rotation) - y * Math.sin(rotation), 5);
+        expect(nave.footprint![0][1]).toBeCloseTo(-30 + x * Math.sin(rotation) + y * Math.cos(rotation), 5);
+        expect(nave.heightMeters).toBeCloseTo(12 * scale, 5);
+        expect(nave.ridgeAzimuth).toBeCloseTo(rotation, 5);
+      }
+    }
   });
 });
 

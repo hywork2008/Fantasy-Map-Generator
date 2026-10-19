@@ -1,4 +1,5 @@
 import type { Point } from "../primitives";
+import type { RoofMaterial } from "./buildingMassing";
 
 export type StructureKind = "wall" | "tower" | "gate" | "bridge" | "landmark";
 export type StructureMaterial = "stone" | "wood";
@@ -27,6 +28,9 @@ export interface StructureMassing {
   heightMeters: number;
   baseElevationMeters: number;
   roof: StructureRoof;
+  /** Catalogue roof attributes. Omitted structures retain their default cap. */
+  roofPitchDeg?: number;
+  roofMaterial?: RoofMaterial;
   /** Ridge direction for a gable or hip, radians, `atan2(dy, dx)`. */
   ridgeAzimuth?: number;
   parapet: ParapetMode;

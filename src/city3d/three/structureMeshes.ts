@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import type { StructureMassing, StructureMaterial } from "../../city-editor/types/contracts/structureMassing";
-import { structureSurfaces, type TriangleSoup } from "../core/structureGeometry";
+import type { TriangleSoup } from "../core/massingGeometry";
+import { structureSurfaces } from "../core/structureGeometry";
+import { ROOF_COLOR } from "./palette";
 
 const BODY: Record<StructureMaterial, readonly [number, number, number]> = {
   stone: [0.48, 0.46, 0.42],
@@ -56,7 +58,8 @@ export function createStructureMassing(structures: readonly StructureMassing[]):
     if (!surfaces) return;
     const deck = structure.kind === "bridge";
     append(body, surfaces.walls, deck ? DECK : BODY[structure.material], index);
-    append(caps, surfaces.roofs, deck ? RAIL : CAP[structure.material], index);
+    const cap = structure.roofMaterial ? ROOF_COLOR[structure.roofMaterial] : CAP[structure.material];
+    append(caps, surfaces.roofs, deck ? RAIL : cap, index);
   });
   const group = new THREE.Group();
   group.name = "structures";

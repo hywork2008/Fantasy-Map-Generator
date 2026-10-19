@@ -14,6 +14,42 @@ import { validateBuildingRecord } from "./validate";
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 
+describe("basilica temple", () => {
+  it("loads a matching plan and closed masses for the nave, towers and rounded east end", () => {
+    const recordPath = path.join(directory, "catalogue/basilica-temple.json");
+    const planPath = path.join(directory, "plans/basilica-temple.svg");
+    const result = validateBuildingRecord(JSON.parse(fs.readFileSync(recordPath, "utf8")));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const record = result.record;
+    expect(record.kind).toBe("temple");
+    expect(fs.readFileSync(planPath, "utf8")).toBe(`${planSvg(record)}\n`);
+    expect(committedSvgHash(planSvg(record))).toBe(record.contentHash);
+
+    const structures = catalogueMassing(record);
+    expect(structures.filter(part => part.id.endsWith("west-tower"))).toHaveLength(2);
+    expect(structures.filter(part => part.id.startsWith("radiating-chapel-"))).toHaveLength(3);
+    expect(structures.find(part => part.id === "crossing-tower")?.heightMeters).toBeGreaterThan(
+      structures.find(part => part.id === "nave")!.heightMeters
+    );
+    let triangles = 0;
+    for (const structure of structures) {
+      const surfaces = structureSurfaces(structure);
+      expect(surfaces, structure.id).not.toBeNull();
+      const positions = concatPositions(surfaces!.walls, surfaces!.roofs);
+      expect(meshIsClosed(positions), structure.id).toBe(true);
+      triangles += positions.length / 9;
+      if (structure.id === "nave" || structure.id === "apse") {
+        let top = -Infinity;
+        for (let i = 1; i < positions.length; i += 3) top = Math.max(top, positions[i]);
+        expect(top).toBeCloseTo(12 + 5.6 * Math.tan((40 * Math.PI) / 180), 4);
+        expect(structure.roofMaterial).toBe("tile");
+      }
+    }
+    expect(triangles).toBeLessThanOrEqual(TRIANGLE_BUDGET);
+  });
+});
+
 function planArea(positions: Float32Array, yMin: number): number {
   let area = 0;
   for (let i = 0; i < positions.length; i += 9) {

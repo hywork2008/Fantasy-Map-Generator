@@ -3,11 +3,12 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { contentDigest } from "../buildings/canonicalJson";
 import { committedSvgHash, levelPlanSvg, planSvg } from "../buildings/planSvg";
-import { type BuildingRecord, type HistoricalPeriod, TRIANGLE_BUDGET } from "../buildings/record";
+import { type BuildingRecord, TRIANGLE_BUDGET } from "../buildings/record";
 import { validateBuildingRecord } from "../buildings/validate";
 import { catalogueMassing } from "../city3d/core/catalogueMassing";
 import { structureSurfaces } from "../city3d/core/structureGeometry";
 import { type CityStructureMeshes, createStructureMassing } from "../city3d/three/structureMeshes";
+import type { HistoricalPeriod } from "../types/historicalPeriod";
 import { sanitizeSvg } from "./svgSanitize";
 
 const PERIOD: Partial<Record<HistoricalPeriod, string>> = {

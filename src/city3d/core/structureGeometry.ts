@@ -191,7 +191,7 @@ function footprintMassing(structure: StructureMassing): BuildingMassing {
     eaveHeightMeters: structure.heightMeters,
     roof: {
       form,
-      pitchDeg: form === "pyramid" ? 50 : form === "gable" ? 40 : form === "hip" ? 35 : 2,
+      pitchDeg: structure.roofPitchDeg ?? (form === "pyramid" ? 50 : form === "gable" ? 40 : form === "hip" ? 35 : 2),
       ridgeAzimuth: structure.ridgeAzimuth ?? 0,
       material: "slate"
     },

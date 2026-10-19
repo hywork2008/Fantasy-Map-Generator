@@ -1,3 +1,6 @@
+import basilicaRecord from "../../buildings/catalogue/basilica-temple.json";
+import { validateBuildingRecord } from "../../buildings/validate";
+import { catalogueMassing } from "../../city3d/core/catalogueMassing";
 import { withinBridgeSkewLimit } from "../../utils/bridgeSkewPolicy";
 import { bridgeDecks, documentBridgeSkewLimit, riverRibbons } from "../generators/bridgeDeck";
 import type { BuildingLot } from "../generators/buildingLots.types";
@@ -36,6 +39,14 @@ const WOOD_BARE = 3.2;
 const STONE_LIP = 1.1;
 const WOOD_LIP = 0.8;
 const SACRED = /church|cathedral|basilica|chapel|shrine|abbey|mosque|temple|stupa|minster/i;
+const BASILICA_LENGTH = 54;
+const BASILICA_WIDTH = 28;
+const basilica = validateBuildingRecord(basilicaRecord);
+if (!basilica.ok) throw new Error(`Invalid basilica catalogue record: ${basilica.errors.join("; ")}`);
+const BASILICA_PARTS = catalogueMassing(basilica.record);
+// The BV record is centred on its full bounds; CE anchors the nominal nave length.
+const BASILICA_ORIGIN_X =
+  Math.min(...BASILICA_PARTS.flatMap(part => part.footprint!.map(point => point[0]))) + BASILICA_LENGTH / 2;
 
 function blank(
   values: Omit<
@@ -440,6 +451,31 @@ function addTemples(document: CityDocument, out: StructureMassing[]): void {
     const length = element.sizeMeters && element.sizeMeters > 0 ? element.sizeMeters : preset.length;
     const width = length * (preset.width / preset.length);
     const type = element.templeType ?? (length < 24 ? "chapel" : "basilica");
+    if (type === "basilica") {
+      const scaleX = length / BASILICA_LENGTH;
+      const scaleY = width / BASILICA_WIDTH;
+      const rotation = element.rotation ?? 0;
+      const cos = Math.cos(rotation);
+      const sin = Math.sin(rotation);
+      const transform = ([x, y]: Point): Point => {
+        const localX = (x - BASILICA_ORIGIN_X) * scaleX;
+        const localY = y * scaleY;
+        return [element.point![0] + localX * cos - localY * sin, element.point![1] + localX * sin + localY * cos];
+      };
+      for (const part of BASILICA_PARTS) {
+        const ridge = part.ridgeAzimuth ?? 0;
+        out.push({
+          ...part,
+          id: `temple:${element.id}:${part.id}`,
+          footprint: part.footprint!.map(transform),
+          holes: part.holes?.map(ring => ring.map(transform)),
+          heightMeters: part.heightMeters * scaleX,
+          baseElevationMeters: part.baseElevationMeters * scaleX,
+          ridgeAzimuth: rotation + Math.atan2(Math.sin(ridge) * scaleY, Math.cos(ridge) * scaleX)
+        });
+      }
+      continue;
+    }
     const ring = createRotatedRect(element.point, length, width, element.rotation ?? 0);
     if (type === "megalith") {
       pushFootprint(out, { id: `temple:${element.id}`, kind: "landmark", ring, height: 2.2, roof: "flat" });
@@ -461,7 +497,7 @@ function addTemples(document: CityDocument, out: StructureMassing[]): void {
       id: `temple:${element.id}`,
       kind: "landmark",
       ring,
-      height: type === "chapel" ? 7 : Math.min(16, Math.max(9, length * 0.28)),
+      height: 7,
       roof: "gable",
       azimuth: element.rotation ?? 0,
       spire: true
