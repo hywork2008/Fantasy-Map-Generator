@@ -96,6 +96,18 @@ describe("trade transport room", () => {
     expect(transportRoomSlots(room, 1, LAND, 10)).toBeCloseTo(0);
   });
 
+  it("books one full trip per vehicle on a trip longer than a month", () => {
+    const fleet = MerchantTransportAssets.getFleetCapacitySlots(1, "land", "horse");
+    // A 90-day trip: each cart (own or hired) carries one load, not a third of one.
+    expect(transportRoomSlots(build(), 1, LAND, 90)).toBeCloseTo(fleet * (1 + LAND_HIRE_SHARE));
+    expect(ownLandRoomSlots(build(), 1, LAND, 90)).toBeCloseTo(fleet);
+    const room = build();
+    takeTransportRoom(room, 1, LAND, 90, fleet);
+    expect(transportRoomSlots(room, 1, LAND, 90)).toBeCloseTo(fleet * LAND_HIRE_SHARE);
+    // The 90-day cargo still fills most of the month's work on a short route.
+    expect(transportRoomSlots(room, 1, LAND, 10)).toBeCloseTo(0);
+  });
+
   it("holds sea trade of a market with no hull while Shipbuilding runs a finite fleet", () => {
     expect(seaRoomSlots(build(), 1, LAND_AND_SEA, 10)).toBe(Number.POSITIVE_INFINITY);
     MerchantTransportAssets.setWaterAssetModeActive(true);

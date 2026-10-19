@@ -5,9 +5,12 @@
  * carts, and most of it waited past the stale limit and was cancelled. A merchant does not buy what
  * he cannot carry within the month.
  *
- * Capacity is counted in slot-days: a vehicle of `c` slots works `c × 30` slot-days a month, and a
- * load of `s` slots on a trip of `d` days takes `s × d` of them (vehicles are back at the home
- * ledger on arrival). Cargo already booked, loading or on the road holds its share.
+ * Capacity is counted in slot-days: a load of `s` slots on a trip of `d` days takes `s × d` of them
+ * (vehicles are back at the home ledger on arrival). Cargo already booked, loading or on the road
+ * holds its share. A vehicle of `c` slots offers `c × H` slot-days, where the horizon `H` is a month,
+ * or one trip when the trip is longer: a house booking for a voyage of three months fills each ship
+ * once, rather than a third of it because the ship cannot be back within the month
+ * (long-distance-merchant-reach-capital.md §17.4, §18).
  *
  * Land room counts the carts the market may hire on top of its own, and sea room counts other
  * markets' hulls lying at its ports (docs/plan/port-freight-queue-and-warehouses.md §3, §4.2).
@@ -27,8 +30,8 @@ type TransportMode = "land" | "sea";
 /** Own land vehicles only; held alongside `land`. */
 const OWN_LAND = "landOwn";
 
-/** Slot-days left this cycle, by market and mode. */
-export type TransportRoom = Map<string, number>;
+/** Fleet capacity (slots) and slot-days held by booked or moving cargo, by market and mode. */
+export type TransportRoom = Map<string, { capacity: number; held: number }>;
 
 /** Route of a booked lot, by origin and destination market. */
 export type LotRouteLookup = (from: number, to: number) => readonly TradeRouteSegment[] | undefined;
@@ -63,8 +66,10 @@ function hold(room: TransportRoom, marketId: number, modes: readonly TransportMo
   for (const mode of modes) {
     for (const key of mode === "land"
       ? [roomKey(marketId, mode), roomKey(marketId, OWN_LAND)]
-      : [roomKey(marketId, mode)])
-      if (room.has(key)) room.set(key, (room.get(key) ?? 0) - slotDays);
+      : [roomKey(marketId, mode)]) {
+      const entry = room.get(key);
+      if (entry) entry.held += slotDays;
+    }
   }
 }
 
@@ -77,12 +82,12 @@ export function buildTransportRoom(
   const room: TransportRoom = new Map();
   for (const marketId of marketIds) {
     const land = MerchantTransportAssets.getFleetCapacitySlots(marketId, "land", DEFAULT_DRAFT_ANIMAL_ID);
-    room.set(roomKey(marketId, "land"), land * (1 + LAND_HIRE_SHARE) * MONTH_DAYS);
-    room.set(roomKey(marketId, OWN_LAND), land * MONTH_DAYS);
+    room.set(roomKey(marketId, "land"), { capacity: land * (1 + LAND_HIRE_SHARE), held: 0 });
+    room.set(roomKey(marketId, OWN_LAND), { capacity: land, held: 0 });
     const sea =
       MerchantTransportAssets.getFleetCapacitySlots(marketId, "sea", DEFAULT_DRAFT_ANIMAL_ID) +
       MerchantTransportAssets.getCharterableSeaCapacitySlots(marketId);
-    room.set(roomKey(marketId, "sea"), sea * MONTH_DAYS);
+    room.set(roomKey(marketId, "sea"), { capacity: sea, held: 0 });
   }
 
   const goods = new Map(getGoods().map(good => [good.i, good]));
@@ -108,6 +113,12 @@ export function buildTransportRoom(
   return room;
 }
 
+/** Slots one mode's fleet can still take on a trip of `days`: a month of work, or one trip if longer. */
+function slotsLeft(entry: { capacity: number; held: number } | undefined, days: number): number {
+  if (!entry) return Number.POSITIVE_INFINITY;
+  return Math.max(0, entry.capacity * Math.max(MONTH_DAYS, days) - entry.held) / days;
+}
+
 /** Slots the exporter's fleet can still take on this route this cycle (Infinity: no limit). */
 export function transportRoomSlots(
   room: TransportRoom,
@@ -117,11 +128,7 @@ export function transportRoomSlots(
 ): number {
   const days = Math.max(1, durationDays);
   let slots = Number.POSITIVE_INFINITY;
-  for (const mode of routeModes(segments)) {
-    const left = room.get(roomKey(marketId, mode));
-    if (left === undefined) continue;
-    slots = Math.min(slots, Math.max(0, left) / days);
-  }
+  for (const mode of routeModes(segments)) slots = Math.min(slots, slotsLeft(room.get(roomKey(marketId, mode)), days));
   return slots;
 }
 
@@ -133,9 +140,7 @@ export function ownLandRoomSlots(
   durationDays: number
 ): number {
   if (!routeModes(segments).includes("land")) return Number.POSITIVE_INFINITY;
-  const left = room.get(roomKey(marketId, OWN_LAND));
-  if (left === undefined) return Number.POSITIVE_INFINITY;
-  return Math.max(0, left) / Math.max(1, durationDays);
+  return slotsLeft(room.get(roomKey(marketId, OWN_LAND)), Math.max(1, durationDays));
 }
 
 /** Slots the hulls at the exporter's disposal can still take on this route (Infinity when it has no sea leg to sail). */
@@ -146,7 +151,7 @@ export function seaRoomSlots(
   durationDays: number
 ): number {
   if (!routeModes(segments).includes("sea")) return Number.POSITIVE_INFINITY;
-  return Math.max(0, room.get(roomKey(marketId, "sea")) ?? 0) / Math.max(1, durationDays);
+  return slotsLeft(room.get(roomKey(marketId, "sea")) ?? { capacity: 0, held: 0 }, Math.max(1, durationDays));
 }
 
 /** A booking of `slots` on this route takes its share of the fleet. */
