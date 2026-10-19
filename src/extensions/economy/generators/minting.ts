@@ -42,10 +42,11 @@ const COIN_WEAR_MONTHLY_RETENTION = pow(1 - COIN_WEAR_ANNUAL_RATE, 1 / 12);
 
 /**
  * Months after the model starts over which `MintLedger.demandScale` follows the State's money before
- * it is fixed: the start profile's uneven split between States evens out in the first year's trade,
- * and calibrating on the day-one stock read that as a lasting shortage (money-supply-mint.md §11.4).
+ * it is fixed: the start profile's uneven split between States evens out in the first years' trade,
+ * and the farms of land a State claims early count to its money and partly fall back in the second
+ * year. Calibrating before that read it as a lasting shortage (money-supply-mint.md §11.4).
  */
-const START_CALIBRATION_MONTHS = 12;
+const START_CALIBRATION_MONTHS = 24;
 /** Bounds of the start calibration of a State's currency demand (`MintLedger.demandScale`). */
 const MIN_DEMAND_SCALE = 0.25;
 const MAX_DEMAND_SCALE = 4;
