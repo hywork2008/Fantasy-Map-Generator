@@ -12,10 +12,13 @@
  * once, rather than a third of it because the ship cannot be back within the month
  * (long-distance-merchant-reach-capital.md §17.4, §18).
  *
- * Land room counts the carts the market may hire on top of its own, and sea room counts other
- * markets' hulls lying at the port the route's sea leg leaves from — the market's own port, or for
- * a market without one, another market's (docs/plan/port-freight-queue-and-warehouses.md §3, §4.2,
- * §10.7). Sea room is therefore kept per exporter and departure port.
+ * Land room counts the carts the market may hire on top of its own. Sea room counts the hulls of
+ * any owner lying at the port the route's sea leg leaves from — the market's own port, or for a
+ * market without one, another market's — and the market's own hulls coming in
+ * (docs/plan/port-freight-queue-and-warehouses.md §3, §4.2, §10.7). A hull serves the port she
+ * lies in: one that sails with cargo ends her voyage at the far port, and is not back within the
+ * month to sail again (§10.6). Sea room is therefore counted in slots, one voyage a hull, held only
+ * by cargo still waiting to sail, and kept per exporter and departure port.
  * A separate own-land count tells the booking how much of a load rides on hired carts.
  */
 
@@ -23,7 +26,7 @@ import { getCaravans, getExportStagingLots, getGoods } from "../economyContext";
 import { DEFAULT_DRAFT_ANIMAL_ID } from "./caravanMovement";
 import type { Caravan, TradeRouteSegment } from "./marketTypes";
 import { LAND_HIRE_SHARE, MerchantTransportAssets } from "./merchantTransportAssets";
-import { seaDepartureMarketId } from "./seaRoutePorts";
+import { seaDepartureMarketId, seaDeparturePortBurgId } from "./seaRoutePorts";
 import { getGoodCargoSlotsPerUnit } from "./tradeCargo";
 
 /** Days a month a vehicle can be out carrying. */
@@ -33,7 +36,10 @@ type TransportMode = "land" | "sea";
 /** Own land vehicles only; held alongside `land`. */
 const OWN_LAND = "landOwn";
 
-/** Fleet capacity (slots) and slot-days held by booked or moving cargo, by market and mode. */
+/**
+ * Fleet capacity (slots) and what booked or moving cargo holds of it, by market and mode: slot-days
+ * on land, slots at sea.
+ */
 export type TransportRoom = Map<string, { capacity: number; held: number }>;
 
 /** Route of a booked lot, by origin and destination market. */
@@ -54,9 +60,11 @@ function seaEntry(
   let entry = room.get(key);
   if (!entry) {
     entry = {
-      capacity:
-        MerchantTransportAssets.getFleetCapacitySlots(marketId, "sea", DEFAULT_DRAFT_ANIMAL_ID) +
-        MerchantTransportAssets.getCharterableSeaCapacitySlots(marketId, portMarketId),
+      capacity: MerchantTransportAssets.getSeaRoomCapacitySlots(
+        marketId,
+        portMarketId,
+        seaDeparturePortBurgId(segments)
+      ),
       held: 0
     };
     room.set(key, entry);
@@ -65,21 +73,6 @@ function seaEntry(
 }
 
 /** The room entries a booking on this route draws on. */
-function entriesFor(
-  room: TransportRoom,
-  marketId: number,
-  segments: readonly TradeRouteSegment[] | undefined
-): { capacity: number; held: number }[] {
-  const entries: { capacity: number; held: number }[] = [];
-  for (const mode of routeModes(segments)) {
-    if (mode === "sea") entries.push(seaEntry(room, marketId, segments));
-    else {
-      const entry = room.get(roomKey(marketId, "land"));
-      if (entry) entries.push(entry);
-    }
-  }
-  return entries;
-}
 
 /**
  * Modes whose vehicles the market must own for this route. River legs are left out: barges are
@@ -102,18 +95,24 @@ function payloadSlots(caravan: Pick<Caravan, "payload">): number {
   return caravan.payload.reduce((sum, item) => sum + item.units * (item.cargoSlotsPerUnit ?? 1), 0);
 }
 
+/** Cargo of `slots` on a trip of `days` holds land slot-days and, until it sails, sea slots. */
 function hold(
   room: TransportRoom,
   marketId: number,
   segments: readonly TradeRouteSegment[] | undefined,
-  slotDays: number
+  slots: number,
+  days: number,
+  sailed = false
 ): void {
-  if (!(slotDays > 0)) return;
-  for (const entry of entriesFor(room, marketId, segments)) entry.held += slotDays;
-  if (routeModes(segments).includes("land")) {
-    const own = room.get(roomKey(marketId, OWN_LAND));
-    if (own) own.held += slotDays;
+  if (!(slots > 0)) return;
+  const modes = routeModes(segments);
+  if (modes.includes("land")) {
+    for (const key of [roomKey(marketId, "land"), roomKey(marketId, OWN_LAND)]) {
+      const entry = room.get(key);
+      if (entry) entry.held += slots * days;
+    }
   }
+  if (modes.includes("sea") && !sailed) seaEntry(room, marketId, segments).held += slots;
 }
 
 /** Each market's fleet capacity this cycle, less what cargo already booked or under way holds. */
@@ -135,7 +134,7 @@ export function buildTransportRoom(
     if (!good || !(lot.units > 0)) continue;
     const segments = lotRoute(lot.marketId, lot.destinationMarketId);
     const days = Math.max(1, lot.durationDays ?? 1);
-    hold(room, lot.marketId, segments, lot.units * getGoodCargoSlotsPerUnit(good) * days);
+    hold(room, lot.marketId, segments, lot.units * getGoodCargoSlotsPerUnit(good), days);
   }
 
   for (const caravan of getCaravans()) {
@@ -147,15 +146,20 @@ export function buildTransportRoom(
       caravan.state === "transit" && caravan.totalDistance > 0
         ? Math.max(0, 1 - caravan.currentDistance / caravan.totalDistance)
         : 1;
-    hold(room, dispatcher, caravan.routeSegments, payloadSlots(caravan) * days * left);
+    hold(room, dispatcher, caravan.routeSegments, payloadSlots(caravan), days * left, caravan.state === "transit");
   }
   return room;
 }
 
-/** Slots one mode's fleet can still take on a trip of `days`: a month of work, or one trip if longer. */
+/** Slots the land fleet can still take on a trip of `days`: a month of work, or one trip if longer. */
 function slotsLeft(entry: { capacity: number; held: number } | undefined, days: number): number {
   if (!entry) return Number.POSITIVE_INFINITY;
   return Math.max(0, entry.capacity * Math.max(MONTH_DAYS, days) - entry.held) / days;
+}
+
+/** Slots the hulls at the departure port can still take: one voyage each. */
+function seaSlotsLeft(entry: { capacity: number; held: number }): number {
+  return Math.max(0, entry.capacity - entry.held);
 }
 
 /** Slots the exporter's fleet can still take on this route this cycle (Infinity: no limit). */
@@ -167,7 +171,9 @@ export function transportRoomSlots(
 ): number {
   const days = Math.max(1, durationDays);
   let slots = Number.POSITIVE_INFINITY;
-  for (const entry of entriesFor(room, marketId, segments)) slots = Math.min(slots, slotsLeft(entry, days));
+  const modes = routeModes(segments);
+  if (modes.includes("land")) slots = slotsLeft(room.get(roomKey(marketId, "land")), days);
+  if (modes.includes("sea")) slots = Math.min(slots, seaSlotsLeft(seaEntry(room, marketId, segments)));
   return slots;
 }
 
@@ -187,10 +193,10 @@ export function seaRoomSlots(
   room: TransportRoom,
   marketId: number,
   segments: readonly TradeRouteSegment[] | undefined,
-  durationDays: number
+  _durationDays: number
 ): number {
   if (!routeModes(segments).includes("sea")) return Number.POSITIVE_INFINITY;
-  return slotsLeft(seaEntry(room, marketId, segments), Math.max(1, durationDays));
+  return seaSlotsLeft(seaEntry(room, marketId, segments));
 }
 
 /** A booking of `slots` on this route takes its share of the fleet. */
@@ -201,5 +207,5 @@ export function takeTransportRoom(
   durationDays: number,
   slots: number
 ): void {
-  hold(room, marketId, segments, slots * Math.max(1, durationDays));
+  hold(room, marketId, segments, slots, Math.max(1, durationDays));
 }

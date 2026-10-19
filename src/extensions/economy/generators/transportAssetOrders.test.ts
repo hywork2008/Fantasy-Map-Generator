@@ -123,6 +123,31 @@ describe("transport asset orders", () => {
     expect(automaticOrder).toMatchObject({ status: "waitingMaterials", blockedReason: "missingMaterials" });
   });
 
+  it("builds what the materials in hand allow, with a plain leather harness when no fitted one is to be had", () => {
+    worldContext.pack.markets[0].goods[1].stock = 7;
+    worldContext.pack.markets[0].goods[3].stock = 0;
+    const order = TransportAssetOrders.createOrder({ marketId: 1, blueprintId: "cart", quantity: 5 });
+
+    TransportAssetOrders.beginProductionCycle();
+
+    // Seven wood make two carts; the other three wait for the next cycle in an order of their own.
+    expect(order).toMatchObject({ status: "building", quantity: 2, reservedMaterials: { 1: 6, 2: 2 } });
+    expect(TransportAssetOrders.getOrders(1).find(other => other !== order)).toMatchObject({
+      status: "queued",
+      quantity: 3
+    });
+  });
+
+  it("lets the shipping house pay for a craft when the market's purse is short", () => {
+    worldContext.pack.markets[0].marketTreasury = { balance: 4, ruralGrainPayable: 0, tradeWorkingCapital: 50 };
+    const order = TransportAssetOrders.createOrder({ marketId: 1, blueprintId: "cart", quantity: 1 });
+
+    TransportAssetOrders.beginProductionCycle();
+
+    expect(order).toMatchObject({ status: "building", fundedAmount: 11 });
+    expect(worldContext.pack.markets[0].marketTreasury).toMatchObject({ balance: 0, tradeWorkingCapital: 43 });
+  });
+
   it("credits a completed river barge to the durable ledger instead of market goods", () => {
     worldContext.pack.markets[0].goods[4] = { stock: 20, price: 2 };
     worldContext.pack.markets[0].goods[5] = { stock: 20, price: 1 };

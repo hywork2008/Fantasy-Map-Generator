@@ -2,6 +2,7 @@ import { isTechnologyAtLeast } from "../../../generators/technologyProgress";
 import { simEvents } from "../../../simulation/events";
 import { SHIP_CLASS_DEFINITIONS, type ShipbuildingMerchantHullSnapshot } from "../../hostTypes";
 import {
+  getCaravans,
   getExportStagingLots,
   getFlowCycleHistory,
   getGoods,
@@ -38,14 +39,25 @@ import type {
   TransportAllocation,
   TransportReservation
 } from "./marketTypes";
+import { seaDepartureMarketId } from "./seaRoutePorts";
 import { getGoodCargoSlotsPerUnit, getLandTransportDefinition, RIVER_BARGE_TRANSPORT } from "./tradeCargo";
 
 const MAINTENANCE_RECOVERY_DAYS = 30;
 /**
- * Days a free hull lies in port before it sails empty to cargo elsewhere. A master looked for a
- * freight where he lay, so a ship carried cargo round a triangle rather than in ballast (§4.5).
+ * Days a free hull the port's own demand does not need lies there before she sails in ballast, home
+ * for her owner's cargo or to another port where cargo waits or is expected. A master looked for a
+ * freight where he lay, so a ship carried cargo round a triangle rather than in ballast (§4.5,
+ * §10.6, §10.8, §10.10).
  */
-const BALLAST_MIN_IDLE_DAYS = 60;
+const BALLAST_MIN_IDLE_DAYS = 14;
+/**
+ * Days a free hull lies idle at a foreign port, with no freight there or anywhere she might sail
+ * for, before she goes home to lie up: ships were laid up where their owners could tend them
+ * (port-freight-queue-and-warehouses.md §10.10).
+ */
+const LAY_UP_MIN_IDLE_DAYS = 60;
+/** A hull of the exporter's own lying free within this many days' passage counts as coming in (§4.2). */
+const INBOUND_HORIZON_DAYS = 30;
 /** Coastal track over the straight line between two ports. */
 const BALLAST_DETOUR = 1.4;
 /** A light ship waits on wind and on her owner's orders; ballast passages run slower than freight. */
@@ -306,6 +318,35 @@ function berthMarketId(asset: MerchantWaterAssetReference): number | null {
   if (asset.berthBurgId === undefined) return null;
   const marketId = getWorldContext().pack.burgs?.[asset.berthBurgId]?.market;
   return typeof marketId === "number" ? marketId : null;
+}
+
+function homeMarketId(asset: MerchantWaterAssetReference): number | null {
+  const marketId = getWorldContext().pack.burgs?.[asset.homeBurgId]?.market;
+  return typeof marketId === "number" ? marketId : null;
+}
+
+/**
+ * Whether a free hull lies at one of the market's ports and can take cargo there. A hull serves
+ * only the port she lies in, her owner's cargo included (§10.6): a ship that delivered at a far
+ * port finds her next freight there or sails back. A free hull whose berth is not known lies at
+ * her home port.
+ */
+function isFreeAt(asset: MerchantWaterAssetReference, portMarketId: number): boolean {
+  if (asset.state !== "available" || asset.ballast) return false;
+  const lying = asset.berthBurgId === undefined ? homeMarketId(asset) : berthMarketId(asset);
+  return lying === portMarketId;
+}
+
+/** Days a light hull takes from port to port: the coastal track at an unhurried pace. */
+function ballastPassageDays(fromBurgId: number, toBurgId: number): number {
+  const burgs = getWorldContext().pack.burgs ?? [];
+  const from = burgs[fromBurgId];
+  const to = burgs[toBurgId];
+  if (!from || !to) return Number.POSITIVE_INFINITY;
+  const kmPerMapUnit = getWorldContext().distanceScale || 1;
+  const seaKmPerDay = Math.max(1, CaravanMovement.getOptions().seaKmPerDay);
+  const km = Math.hypot(to.x - from.x, to.y - from.y) * kmPerMapUnit * BALLAST_DETOUR;
+  return Math.max(1, Math.ceil((km / seaKmPerDay) * BALLAST_SLOWNESS));
 }
 
 function getOrganizationId(marketId: number): number | undefined {
@@ -601,17 +642,17 @@ export class MerchantTransportAssetsModule {
     };
     const entriesOf = (assets: readonly MerchantWaterAssetReference[]): Entry[] =>
       assets
-        .filter(asset => asset.state === "available")
+        .filter(asset => isFreeAt(asset, portMarketId))
         .map(asset => ({ asset, definition: getShipDefinition(asset.shipClassId) }))
         .filter((entry): entry is Entry => Boolean(entry.definition));
+    // Only hulls lying at the port the cargo sails from take it, the market's own first (§10.6).
+    // Hulls of other markets lying there take freight as well (§4.2); for a market without a
+    // port, that is another market's port (§10.7).
     const available = entriesOf(ledger.waterAssets);
-    // Hulls of other markets lying at the port the cargo sails from take freight as well (§4.2);
-    // for a market without a port, that is another market's port (§10.7).
     const chartered = entriesOf(
       getMerchantTransportLedgers()
         .filter(other => other.marketId !== ledger.marketId)
         .flatMap(other => other.waterAssets ?? [])
-        .filter(asset => berthMarketId(asset) === portMarketId)
     );
     const resolved: TransportAllocation[] = [];
     const pick = (pool: Entry[], neededSlots: number): Entry[] => {
@@ -970,10 +1011,37 @@ export class MerchantTransportAssetsModule {
     for (const ledger of getMerchantTransportLedgers()) {
       if (ledger.marketId === marketId) continue;
       for (const asset of ledger.waterAssets ?? []) {
-        if (asset.state !== "available" || berthMarketId(asset) !== portMarketId) continue;
+        if (!isFreeAt(asset, portMarketId)) continue;
         slots += getShipDefinition(asset.shipClassId)?.cargoCapacitySlots ?? 0;
       }
     }
+    return slots;
+  }
+
+  /**
+   * Cargo slots of the hulls an exporter can load at the port its sea leg leaves from now (§4.2,
+   * §10.6): free hulls of any owner lying there, and its own hulls coming in — sailing there in
+   * ballast, or lying free within a month's passage, as they sail home for its cargo. A hull at sea
+   * with cargo does not count: she ends her voyage at the far port and serves the cargo there or
+   * comes back in ballast. Its own hulls lying farther off serve the cargo where they lie.
+   */
+  getSeaRoomCapacitySlots(marketId: number, portMarketId: number = marketId, portBurgId?: number): number {
+    const burgs = getWorldContext().pack.burgs ?? [];
+    const port = portBurgId ?? getMarketById(portMarketId)?.centerBurgId;
+    const comingIn = (asset: MerchantWaterAssetReference): boolean => {
+      if (asset.ballast) return burgs[asset.ballast.toBurgId]?.market === portMarketId;
+      return (
+        asset.state === "available" &&
+        asset.berthBurgId !== undefined &&
+        port !== undefined &&
+        ballastPassageDays(asset.berthBurgId, port) <= INBOUND_HORIZON_DAYS
+      );
+    };
+    let slots = 0;
+    for (const ledger of getMerchantTransportLedgers())
+      for (const asset of ledger.waterAssets ?? [])
+        if (isFreeAt(asset, portMarketId) || (ledger.marketId === marketId && comingIn(asset)))
+          slots += getShipDefinition(asset.shipClassId)?.cargoCapacitySlots ?? 0;
     return slots;
   }
 
@@ -990,69 +1058,115 @@ export class MerchantTransportAssetsModule {
   }
 
   /**
-   * Hulls that have lain free in port for two months, where neither their own market nor the port's
-   * has sea cargo waiting, sail empty to the ports where cargo waits, as tramp ships went where
-   * freight ran high (§4.5). The passage takes its days and the hull is out of use meanwhile, so a
-   * ship that can find a freight where she lies takes it first. Ownership and home port stay. At
-   * most half of one market's idle hulls leave in one cycle. Returns the departures.
+   * Free hulls set out in ballast for the ports where sea cargo waits or is expected, as tramp ships
+   * went where freight ran high, and to the ports a harvest or a season's trade was known to fill
+   * (§4.5, §10.10). `demandSlots` gives each market's sea cargo, by the market whose port it sails
+   * from: what waits for a ship, or about a month's usual departures where that is more.
+   *
+   * A hull takes cargo only where she lies (§10.6), and one that can find a freight where she lies
+   * takes it first: a port keeps as many of its free hulls as its own demand fills, its owner's own
+   * first, and only the rest may sail. A hull lying at a foreign port for two weeks sails home if
+   * her owner has demand, or else to the port with the most demand for its distance, so ships that
+   * delivered where no freight offers do not pile up there (§10.8). A laid-up hull at her home
+   * port, beyond what the port's demand keeps, puts out the same way once freight offers. One that
+   * finds nowhere to go for two months goes home to lie up. Runs every day. The passage takes its
+   * days and the hull is out of use meanwhile. Ownership and home port stay. Returns the departures.
    */
   repositionIdleHulls(
-    backlogSlots: ReadonlyMap<number, number>,
+    demandSlots: ReadonlyMap<number, number>,
     portOf: (marketId: number) => number | undefined
   ): { hullId: number; marketId: number; burgId: number; days: number }[] {
     if (!this.waterAssetModeActive) return [];
+    const capacityOf = (asset: MerchantWaterAssetReference) =>
+      getShipDefinition(asset.shipClassId)?.cargoCapacitySlots ?? 0;
+
+    // Free hulls by the market of the port they lie at; each port keeps what its demand fills.
+    const lyingByMarket = new Map<number, { asset: MerchantWaterAssetReference; owner: number }[]>();
+    for (const ledger of getMerchantTransportLedgers())
+      for (const asset of ledger.waterAssets ?? []) {
+        if (asset.state !== "available" || asset.ballast || asset.berthBurgId === undefined) continue;
+        const at = berthMarketId(asset);
+        if (at === null) continue;
+        const list = lyingByMarket.get(at) ?? [];
+        list.push({ asset, owner: ledger.marketId });
+        lyingByMarket.set(at, list);
+      }
+    const releasable = new Set<MerchantWaterAssetReference>();
+    for (const [marketId, list] of lyingByMarket) {
+      list.sort(
+        (left, right) =>
+          Number(right.owner === marketId) - Number(left.owner === marketId) ||
+          (left.asset.idleDays ?? 0) - (right.asset.idleDays ?? 0) ||
+          left.asset.shipHullId - right.asset.shipHullId
+      );
+      let kept = 0;
+      const demand = demandSlots.get(marketId) ?? 0;
+      for (const { asset } of list) {
+        if (kept < demand) kept += capacityOf(asset);
+        else releasable.add(asset);
+      }
+    }
+
     const need = new Map<number, number>();
-    for (const [marketId, slots] of backlogSlots) {
+    for (const [marketId, slots] of demandSlots) {
       const lying = this.freeSlotsLyingAt(marketId) + this.ballastInboundSlots(marketId);
       const left = slots - lying;
       if (left > 0 && portOf(marketId) !== undefined) need.set(marketId, left);
     }
-    if (!need.size) return [];
-    const burgs = getWorldContext().pack.burgs ?? [];
-    const kmPerMapUnit = getWorldContext().distanceScale || 1;
-    const seaKmPerDay = Math.max(1, CaravanMovement.getOptions().seaKmPerDay);
-    const passageDays = (fromBurgId: number, toBurgId: number): number => {
-      const from = burgs[fromBurgId];
-      const to = burgs[toBurgId];
-      if (!from || !to) return Number.POSITIVE_INFINITY;
-      const km = Math.hypot(to.x - from.x, to.y - from.y) * kmPerMapUnit * BALLAST_DETOUR;
-      return Math.max(1, Math.ceil((km / seaKmPerDay) * BALLAST_SLOWNESS));
-    };
     const departures: { hullId: number; marketId: number; burgId: number; days: number }[] = [];
-    for (const ledger of getMerchantTransportLedgers()) {
-      if ((backlogSlots.get(ledger.marketId) ?? 0) > 0) continue;
-      const idle = (ledger.waterAssets ?? []).filter(asset => {
-        if (asset.state !== "available" || asset.berthBurgId === undefined) return false;
-        if ((asset.idleDays ?? 0) < BALLAST_MIN_IDLE_DAYS) return false;
-        return (backlogSlots.get(berthMarketId(asset) ?? -1) ?? 0) <= 0;
-      });
-      let budget = Math.ceil(idle.length / 2);
-      for (const asset of idle) {
-        if (budget <= 0 || !need.size) break;
-        const from = asset.berthBurgId as number;
-        // The nearer of two waiting ports wins unless the farther waits for much more.
-        let best: { marketId: number; burgId: number; days: number; score: number } | null = null;
-        for (const [marketId, left] of need) {
-          const burgId = portOf(marketId);
-          if (burgId === undefined || berthMarketId(asset) === marketId) continue;
-          const days = passageDays(from, burgId);
-          if (!Number.isFinite(days)) continue;
-          const score = left / (days + 30);
-          if (!best || score > best.score || (score === best.score && marketId < best.marketId))
-            best = { marketId, burgId, days, score };
-        }
-        if (!best) break;
-        asset.state = "inTransit";
-        asset.ballast = { toBurgId: best.burgId, daysLeft: best.days };
-        delete asset.berthBurgId;
-        delete asset.idleDays;
-        departures.push({ hullId: asset.shipHullId, marketId: best.marketId, burgId: best.burgId, days: best.days });
-        budget -= 1;
-        const left = (need.get(best.marketId) ?? 0) - (getShipDefinition(asset.shipClassId)?.cargoCapacitySlots ?? 0);
-        if (left > 0) need.set(best.marketId, left);
-        else need.delete(best.marketId);
+    const sail = (asset: MerchantWaterAssetReference, marketId: number, burgId: number, days: number) => {
+      asset.state = "inTransit";
+      asset.ballast = { toBurgId: burgId, daysLeft: days };
+      delete asset.berthBurgId;
+      delete asset.idleDays;
+      departures.push({ hullId: asset.shipHullId, marketId, burgId, days });
+      const left = (need.get(marketId) ?? 0) - capacityOf(asset);
+      if (left > 0) need.set(marketId, left);
+      else need.delete(marketId);
+    };
+    // The nearer of two waiting ports wins unless the farther waits for much more.
+    const bestPort = (asset: MerchantWaterAssetReference) => {
+      let best: { marketId: number; burgId: number; days: number; score: number } | null = null;
+      for (const [marketId, left] of need) {
+        const burgId = portOf(marketId);
+        if (burgId === undefined || berthMarketId(asset) === marketId) continue;
+        const days = ballastPassageDays(asset.berthBurgId as number, burgId);
+        if (!Number.isFinite(days)) continue;
+        const score = left / (days + 30);
+        if (!best || score > best.score || (score === best.score && marketId < best.marketId))
+          best = { marketId, burgId, days, score };
       }
-      if (!need.size) break;
+      return best;
+    };
+    for (const ledger of getMerchantTransportLedgers()) {
+      const home = portOf(ledger.marketId);
+      const ready = (ledger.waterAssets ?? []).filter(
+        asset => releasable.has(asset) && (asset.idleDays ?? 0) >= BALLAST_MIN_IDLE_DAYS
+      );
+      const isAbroad = (asset: MerchantWaterAssetReference) => berthMarketId(asset) !== ledger.marketId;
+      // While her owner has demand, a hull abroad sails home, the nearest first.
+      if (home !== undefined && need.has(ledger.marketId)) {
+        const homeward = ready
+          .filter(isAbroad)
+          .map(asset => ({ asset, days: ballastPassageDays(asset.berthBurgId as number, home) }))
+          .filter(entry => Number.isFinite(entry.days))
+          .sort((left, right) => left.days - right.days);
+        for (const { asset, days } of homeward) {
+          if (!need.has(ledger.marketId)) break;
+          sail(asset, ledger.marketId, home, days);
+        }
+        if (need.has(ledger.marketId)) continue;
+      }
+      for (const asset of ready) {
+        if (asset.ballast) continue;
+        const best = need.size ? bestPort(asset) : null;
+        if (best) sail(asset, best.marketId, best.burgId, best.days);
+        else if (home !== undefined && isAbroad(asset) && (asset.idleDays ?? 0) >= LAY_UP_MIN_IDLE_DAYS) {
+          // Nowhere to sail for: home to lie up.
+          const days = ballastPassageDays(asset.berthBurgId as number, home);
+          if (Number.isFinite(days)) sail(asset, ledger.marketId, home, days);
+        }
+      }
     }
     return departures;
   }
@@ -1146,28 +1260,41 @@ export class MerchantTransportAssetsModule {
     return shortfall;
   }
 
-  /** The largest shipment that can be assigned without bypassing a physical mode's capacity. */
+  /**
+   * The largest shipment that can be assigned without bypassing a physical mode's capacity. With
+   * `awaitVessel`, sea and river cargo is packed for a vessel even when none is free now: it goes
+   * down to the port or landing and waits there, as cargo lay on the quay for the next sailing.
+   * Waiting sea cargo draws idle hulls to the port, and waiting river cargo has a barge built for
+   * it (port-freight-queue-and-warehouses.md §4.1, §10.11). The load is then sized to the largest
+   * merchant hull afloat, or to a barge.
+   */
   getLargestAvailableRouteCapacity(
     marketId: number,
     routeSegments: readonly TradeRouteSegment[],
-    draftAnimalId: string
+    draftAnimalId: string,
+    options: { awaitVessel?: boolean } = {}
   ): number {
     const modes = new Set(routeSegments.map(segment => segment.type));
     const capacities: number[] = [];
     if (modes.has("land")) capacities.push(this.getLargestAvailableLandCapacity(marketId, draftAnimalId));
-    if (modes.has("water") && this.waterAssetModeActive) {
-      capacities.push(
-        this.getAvailability(marketId)
-          .filter(asset => asset.assetId.startsWith("hull-") && asset.available > 0)
-          .reduce((largest, asset) => Math.max(largest, asset.cargoCapacitySlots), 0)
-      );
+    if ((modes.has("sea") || modes.has("water")) && this.waterAssetModeActive) {
+      // The largest free hull, of any owner, lying at the port the sea leg leaves from (§10.6).
+      const portMarketId = seaDepartureMarketId(routeSegments) ?? marketId;
+      let largest = 0;
+      let afloat = 0;
+      for (const ledger of getMerchantTransportLedgers())
+        for (const asset of ledger.waterAssets ?? []) {
+          const slots = getShipDefinition(asset.shipClassId)?.cargoCapacitySlots ?? 0;
+          if (isFreeAt(asset, portMarketId)) largest = Math.max(largest, slots);
+          if (asset.state !== "maintenance") afloat = Math.max(afloat, slots);
+        }
+      capacities.push(largest > 0 || !options.awaitVessel ? largest : afloat);
     }
     if (modes.has("river")) {
-      capacities.push(
-        this.getAvailability(marketId)
-          .filter(asset => asset.assetId === "river-barge" && asset.available > 0)
-          .reduce((largest, asset) => Math.max(largest, asset.cargoCapacitySlots), 0)
-      );
+      const free = this.getAvailability(marketId)
+        .filter(asset => asset.assetId === "river-barge" && asset.available > 0)
+        .reduce((largest, asset) => Math.max(largest, asset.cargoCapacitySlots), 0);
+      capacities.push(free > 0 || !options.awaitVessel ? free : RIVER_BARGE_CARGO_CAPACITY_SLOTS);
     }
     return capacities.length ? Math.min(...capacities) : Number.POSITIVE_INFINITY;
   }
@@ -1196,8 +1323,9 @@ export class MerchantTransportAssetsModule {
 
   /**
    * Barges a market should have built or building this cycle: enough for the river cargo that
-   * waited for one, plus — while craft are one-way — about a cycle's usual departures built ahead
-   * where the river trade is steady. Resets the cycle's shortfall and departure counts.
+   * waited for one or is loading at the landing for one, plus — while craft are one-way — about a
+   * cycle's usual departures built ahead where the river trade is steady. Resets the cycle's
+   * shortfall and departure counts.
    */
   takeRiverBargeTarget(marketId: number): number {
     const ledger = findLedger(marketId);
@@ -1207,7 +1335,18 @@ export class MerchantTransportAssetsModule {
       (ledger.riverDeparturesPerCycle ?? 0) * (1 - RIVER_DEPARTURE_SMOOTHING) + departures * RIVER_DEPARTURE_SMOOTHING;
     ledger.riverDeparturesPerCycle = smoothed > 0.01 ? smoothed : undefined;
     ledger.riverDeparturesThisCycle = undefined;
-    const shortfall = Math.ceil((ledger.riverShortfallSlots ?? 0) / RIVER_BARGE_CARGO_CAPACITY_SLOTS - 0.000001);
+    // Barges for the shipments loading at the landing.
+    let loading = 0;
+    for (const caravan of getCaravans()) {
+      if (caravan.state !== "loading" || caravan.transportReservationId !== undefined) continue;
+      if (!caravan.routeSegments.some(segment => segment.type === "river")) continue;
+      if ((caravan.transportDispatcherMarketId ?? this.getDispatcherMarketId(caravan)) !== marketId) continue;
+      // Each shipment sails in its own barge, however little it fills.
+      const slots = caravan.payload.reduce((sum, item) => sum + item.units * (item.cargoSlotsPerUnit ?? 1), 0);
+      loading += Math.max(1, Math.ceil(slots / RIVER_BARGE_CARGO_CAPACITY_SLOTS - 0.000001));
+    }
+    const shortfall =
+      Math.ceil((ledger.riverShortfallSlots ?? 0) / RIVER_BARGE_CARGO_CAPACITY_SLOTS - 0.000001) + loading;
     ledger.riverShortfallSlots = undefined;
     const prebuilt =
       isOneWayRiverCraftEra(marketId) && smoothed >= RIVER_PREBUILD_MIN_DEPARTURES_PER_CYCLE ? Math.floor(smoothed) : 0;

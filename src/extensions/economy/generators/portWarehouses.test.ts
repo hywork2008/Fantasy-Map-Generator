@@ -7,6 +7,7 @@ import { MerchantTransportAssets } from "./merchantTransportAssets";
 import {
   beginPortProductionCycle,
   clearPortWarehouseCache,
+  collectSeaDemandSlots,
   getMarketPortBurgId,
   portWarehouseLayout,
   recordSeaDeparture
@@ -83,6 +84,17 @@ describe("port warehouses", () => {
     const capacity = built?.capacitySlots ?? 0;
     for (let month = 0; month < 24; month++) beginPortProductionCycle(30);
     expect(getPortWarehouses().find(state => state.burgId === 1)?.capacitySlots).toBeGreaterThanOrEqual(capacity);
+  });
+
+  it("expects about a month of a port's usual departures as demand for hulls", () => {
+    for (let month = 0; month < 24; month++) {
+      recordSeaDeparture(seaCaravan(60), 1);
+      beginPortProductionCycle(30);
+    }
+    // 60 slots sail from market 1's port each month; the arrival port expects none.
+    expect(collectSeaDemandSlots().get(1)).toBeGreaterThan(50);
+    expect(collectSeaDemandSlots().get(1)).toBeLessThanOrEqual(60);
+    expect(collectSeaDemandSlots().get(2)).toBeUndefined();
   });
 
   it("chooses the historical layout by size and standing", () => {

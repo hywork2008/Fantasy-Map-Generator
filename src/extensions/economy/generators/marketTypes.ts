@@ -515,6 +515,10 @@ export type PortWarehouseState = {
   annualSlots: number;
   /** Sea cargo through the port this production cycle. */
   cycleSlots: number;
+  /** Sea cargo that sailed from the port, decayed like `annualSlots`; ships expect it (§10.10). */
+  annualOutboundSlots?: number;
+  /** Sea cargo that sailed from the port this production cycle. */
+  cycleOutboundSlots?: number;
   /** Highest sea cargo waiting for a ship in the last year, decayed a twelfth each month. */
   queuePeakSlots: number;
   /** Sea cargo waiting at the last update. */

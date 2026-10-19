@@ -52,7 +52,7 @@ import type {
 import { openBranch } from "./merchantIntelligence";
 import { isLongDistanceTradeEnabled, MerchantTradeCapital, recordStaleLotCancelled } from "./merchantTradeCapital";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
-import { recordSeaDeparture } from "./portWarehouses";
+import { recordSeaDeparture, repositionIdleHulls } from "./portWarehouses";
 import { recordRouteTraffic } from "./publicWorks";
 import { markRetailInventoryDirty } from "./retailInventory";
 import { seaDepartureMarketId } from "./seaRoutePorts";
@@ -436,14 +436,27 @@ function publishCaravanHullPositions(caravans: readonly Caravan[]): void {
 }
 
 /**
+ * Days more that sea cargo waits in port for a ship than cargo for the road. Durable goods lay in
+ * the port warehouses for a season: the Hanse laid ships up from Martinmas to Candlemas and the
+ * cargo waited the winter for the spring sailing, and cargo for the monsoon voyages waited months
+ * for the wind (port-freight-queue-and-warehouses.md §4.4, §10.11). Perishable cargo spoils first
+ * by its freshness clock.
+ */
+const PORT_SEASON_WAIT_DAYS = 90;
+
+/**
  * A paid shipment that is due to sail but finds no carts or hull free keeps waiting, up to the
- * same limit as a warehouse lot; then it is called off and its cargo and capital go back to the
- * origin market (docs/plan/long-distance-merchant-reach-capital.md §5.3, §15).
+ * same limit as a warehouse lot, and sea cargo a season more; then it is called off and its cargo
+ * and capital go back to the origin market (docs/plan/long-distance-merchant-reach-capital.md
+ * §5.3, §15).
  */
 function waitForTransport(caravan: Caravan): "waiting" | "cancelled" {
   if (!caravan.loading || caravan.sellerType !== "market" || !isLongDistanceTradeEnabled()) return "waiting";
   const durationDays = calculateRouteDurationDays(caravan.routeSegments, getWorldContext().distanceScale);
-  if (caravan.loading.waitedDays <= getStaleLotDays({ durationDays })) return "waiting";
+  const seaWait = caravan.routeSegments.some(segment => segment.type === "sea" || segment.type === "water")
+    ? PORT_SEASON_WAIT_DAYS
+    : 0;
+  if (caravan.loading.waitedDays <= getStaleLotDays({ durationDays }) + seaWait) return "waiting";
   recordStaleLotCancelled(caravan.payload.reduce((sum, item) => sum + (item.lockedCapital ?? 0), 0));
   restoreLoadingCargoToOrigin(caravan);
   caravan.state = "lost";
@@ -548,6 +561,23 @@ function payloadValuePerSlot(caravan: Caravan): number {
 }
 
 /** Land shipments in their own order, then sea shipments by value per slot, dearest first. */
+/**
+ * Whether older cargo of the same house waits at the landing for a river barge. Barges are built
+ * for the cargo waiting for one, and the boat went to the cargo that came first; a new shipment
+ * leaves after it, in the daily loading pass (port-freight-queue-and-warehouses.md §10.11).
+ */
+function waitsBehindAtLanding(caravan: Caravan): boolean {
+  const hasRiver = (route: readonly TradeRouteSegment[]) => route.some(segment => segment.type === "river");
+  if (!hasRiver(caravan.routeSegments)) return false;
+  return getCaravans().some(
+    other =>
+      other.i < caravan.i &&
+      other.state === "loading" &&
+      other.transportDispatcherMarketId === caravan.transportDispatcherMarketId &&
+      hasRiver(other.routeSegments)
+  );
+}
+
 function loadingOrder(caravans: readonly Caravan[]): Caravan[] {
   const land: Caravan[] = [];
   const sea: { caravan: Caravan; value: number }[] = [];
@@ -1026,16 +1056,30 @@ export class CaravansModule {
     if (!Markets.isDomesticTradePair(startBurg, endBurg)) return { nextId, outcome: "notDomestic" };
 
     const routePath = TradeRoutePlanner.findRoutePath(startBurg.cell, endBurg.cell);
-    if (!routePath || routePath.segments.length === 0) return { nextId, outcome: "noRoute" };
+    // Trade matching books a pair with no road between them on a cross-country track, as pack
+    // trains went where no road ran; the shipment takes the same track rather than waiting for a
+    // road that never comes (port-freight-queue-and-warehouses.md §10.11).
+    const crossCountry = !routePath?.segments.length && !Markets.usesStateBoundedTerritories();
+    if (!routePath?.segments.length && !crossCountry) return { nextId, outcome: "noRoute" };
 
-    const routeSegments: TradeRouteSegment[] = routePath.segments.map(segment => ({
-      type: segment.type,
-      // Preserve cell ids for grade-aware duration (Phase 1).
-      points: segment.points.map(toTradeRoutePoint),
-      // Paved share of this leg at planning time — Public Works road promotions make the same
-      // journey faster (docs/plan/economy-coupling-audit.md L8 stage 2).
-      pavedShare: segment.pavedShare
-    }));
+    const routeSegments: TradeRouteSegment[] = routePath?.segments.length
+      ? routePath.segments.map(segment => ({
+          type: segment.type,
+          // Preserve cell ids for grade-aware duration (Phase 1).
+          points: segment.points.map(toTradeRoutePoint),
+          // Paved share of this leg at planning time — Public Works road promotions make the same
+          // journey faster (docs/plan/economy-coupling-audit.md L8 stage 2).
+          pavedShare: segment.pavedShare
+        }))
+      : [
+          {
+            type: "land",
+            points: [
+              [startBurg.x, startBurg.y, startBurg.cell],
+              [endBurg.x, endBurg.y, endBurg.cell]
+            ]
+          }
+        ];
     const distance = getRouteDistanceKm(routeSegments, world.distanceScale);
     if (distance <= 0) return { nextId, outcome: "noRoute" };
 
@@ -1076,7 +1120,8 @@ export class CaravansModule {
       const maxCapacitySlots = MerchantTransportAssets.getLargestAvailableRouteCapacity(
         dispatcherMarketId,
         routeSegments,
-        DEFAULT_DRAFT_ANIMAL_ID
+        DEFAULT_DRAFT_ANIMAL_ID,
+        { awaitVessel: true }
       );
       if (maxCapacitySlots === 0) {
         outcome = "noTransport";
@@ -1190,8 +1235,9 @@ export class CaravansModule {
       if (addedSlots <= UNIT_EPSILON || !caravan.payload.length) break;
       getCaravans().push(caravan);
 
-      // Immediate depart when the first load already meets the fill target (common for large deals).
-      tryDepartLoadingCaravan(caravan);
+      // Immediate depart when the first load already meets the fill target (common for large deals),
+      // unless older cargo of the house waits at the landing for a barge: it goes first.
+      if (!waitsBehindAtLanding(caravan)) tryDepartLoadingCaravan(caravan);
     }
 
     return { nextId, outcome, eligibleLotIds };
@@ -1253,6 +1299,7 @@ export class CaravansModule {
     const markets = getMarkets();
     decayCaravanArrivalVolume(markets, deltaDays);
     MerchantTransportAssets.recoverMaintenance(deltaDays);
+    repositionIdleHulls();
     ExportStaging.expireFreshLots(deltaDays);
     ExportStaging.cancelStaleLots(deltaDays);
 

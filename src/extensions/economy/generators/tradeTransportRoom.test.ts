@@ -126,7 +126,7 @@ describe("trade transport room", () => {
       { id: 8, shipClassId: "sloop", homeBurgId: 1, ownerId: 1, status: "docked", currentBurgId: 1 }
     ]);
     // Market 2 is inland; its cargo goes overland to market 1's port and sails from there.
-    expect(seaRoomSlots(build(), 2, LAND_AND_SEA, 10)).toBeCloseTo(100 * 3);
+    expect(seaRoomSlots(build(), 2, LAND_AND_SEA, 10)).toBeCloseTo(100);
   });
 
   it("counts another market's free hull lying in the exporter's port", () => {
@@ -134,6 +134,6 @@ describe("trade transport room", () => {
     MerchantTransportAssets.reconcileMerchantHulls([
       { id: 7, shipClassId: "sloop", homeBurgId: 2, ownerId: 2, status: "docked", currentBurgId: 1 }
     ]);
-    expect(seaRoomSlots(build(), 1, LAND_AND_SEA, 10)).toBeCloseTo(100 * 3);
+    expect(seaRoomSlots(build(), 1, LAND_AND_SEA, 10)).toBeCloseTo(100);
   });
 });

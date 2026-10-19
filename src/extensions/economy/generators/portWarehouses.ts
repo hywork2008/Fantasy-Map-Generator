@@ -132,6 +132,10 @@ export function recordSeaDeparture(caravan: Caravan, dispatcherMarketId: number 
   for (const port of [from, to]) if (port !== undefined) ports.add(port);
   if (!ports.size) return;
   for (const port of ports) ensureState(port, states).cycleSlots += slots;
+  if (from !== undefined) {
+    const state = ensureState(from, states);
+    state.cycleOutboundSlots = (state.cycleOutboundSlots ?? 0) + slots;
+  }
   setPortWarehouses(states);
 }
 
@@ -179,20 +183,44 @@ function collectSeaQueueByPortBurg(): Map<number, number> {
 }
 
 /**
- * Start of a production cycle: idle hulls set out for the ports where cargo waits, then each port's
- * need and warehouses are brought up to date. Runs before hull orders read the sea shortfall.
+ * Sea cargo each market's ports are to load, by market: what waits for a ship, or a month of the
+ * usual departures where that is more. A master sailed for the port whose harvest or season's
+ * trade he knew would fill his hold, not only where cargo already lay on the quay (§10.10).
  */
-export function beginPortProductionCycle(cycleDays: number): void {
-  portByMarket = buildPortByMarket();
-  portByMarketPack = getWorldContext().pack;
-  const backlog = collectSeaBacklogSlots();
+export function collectSeaDemandSlots(): Map<number, number> {
+  const demand = collectSeaBacklogSlots();
+  const burgs = getWorldContext().pack.burgs ?? [];
+  const expected = new Map<number, number>();
+  for (const state of getPortWarehouses()) {
+    const marketId = burgs[state.burgId]?.market;
+    const monthly = (state.annualOutboundSlots ?? 0) / 12;
+    if (typeof marketId === "number" && monthly > 0) expected.set(marketId, (expected.get(marketId) ?? 0) + monthly);
+  }
+  for (const [marketId, slots] of expected) demand.set(marketId, Math.max(demand.get(marketId) ?? 0, slots));
+  return demand;
+}
 
+/**
+ * Every day: idle hulls set out in ballast for the ports where sea cargo waits or is expected, or go
+ * home to lie up (§4.5, §10.8, §10.10).
+ */
+export function repositionIdleHulls(): void {
+  if (!MerchantTransportAssets.isWaterAssetModeActive()) return;
   // A hull leaves in ballast now and berths at the waiting port when the passage is over.
-  for (const move of MerchantTransportAssets.repositionIdleHulls(backlog, getMarketPortBurgId)) {
+  for (const move of MerchantTransportAssets.repositionIdleHulls(collectSeaDemandSlots(), getMarketPortBurgId)) {
     simEvents.dispatchEvent(
       new CustomEvent("fmg:economy-merchant-hull-ballast", { detail: { hullId: move.hullId, burgId: move.burgId } })
     );
   }
+}
+
+/**
+ * Start of a production cycle: each port's need and warehouses are brought up to date. Runs before
+ * hull orders read the sea shortfall.
+ */
+export function beginPortProductionCycle(cycleDays: number): void {
+  portByMarket = buildPortByMarket();
+  portByMarketPack = getWorldContext().pack;
 
   const states = getPortWarehouses();
   const year = getSimulationYear();
@@ -202,6 +230,9 @@ export function beginPortProductionCycle(cycleDays: number): void {
   for (const state of states) {
     const queued = queuedByPort.get(state.burgId) ?? 0;
     state.annualSlots = state.annualSlots * MONTH_DECAY + state.cycleSlots;
+    const outbound = (state.annualOutboundSlots ?? 0) * MONTH_DECAY + (state.cycleOutboundSlots ?? 0);
+    state.annualOutboundSlots = outbound > 0.01 ? outbound : undefined;
+    state.cycleOutboundSlots = undefined;
     state.idleMonths = state.cycleSlots > 0 ? 0 : state.idleMonths + 1;
     state.cycleSlots = 0;
     state.queuedSlots = queued;

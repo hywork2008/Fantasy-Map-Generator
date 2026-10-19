@@ -294,7 +294,7 @@ describe("merchant transport assets", () => {
     expect(MerchantTransportAssets.peekSeaShortfallPort(2)).toBeUndefined();
   });
 
-  it("sails a hull idle for two months in ballast, taking the passage's days", () => {
+  it("sails a hull idle for two weeks in ballast, taking the passage's days", () => {
     const burgs = worldContext.pack.burgs;
     Object.assign(burgs[1], { x: 0, y: 0 });
     Object.assign(burgs[2], { x: 100, y: 0 });
@@ -308,7 +308,7 @@ describe("merchant transport assets", () => {
       const waiting = new Map([[1, 150]]);
       // A ship first looks for a freight where she lies.
       expect(MerchantTransportAssets.repositionIdleHulls(waiting, marketId => marketId)).toEqual([]);
-      MerchantTransportAssets.recoverMaintenance(60);
+      MerchantTransportAssets.recoverMaintenance(14);
       const moves = MerchantTransportAssets.repositionIdleHulls(waiting, marketId => marketId);
       expect(moves).toHaveLength(1);
       expect(moves[0]).toMatchObject({ hullId: 40, marketId: 1, burgId: 1 });
@@ -330,6 +330,93 @@ describe("merchant transport assets", () => {
     } finally {
       document.removeEventListener("fmg:economy-merchant-hull-reposition", onBerth);
     }
+  });
+
+  it("loads its own hull only at the port where she lies, and sails her home for its cargo", () => {
+    const burgs = worldContext.pack.burgs;
+    Object.assign(burgs[1], { x: 0, y: 0 });
+    // Farther than a month's ballast passage from home.
+    Object.assign(burgs[2], { x: 2000, y: 0 });
+    MerchantTransportAssets.reconcileMerchantHulls([
+      { id: 42, shipClassId: "sloop", homeBurgId: 1, ownerId: 1, status: "docked", currentBurgId: 2 }
+    ]);
+    // Lying at market 2's port, she serves market 2's cargo, not her owner's at home.
+    expect(MerchantTransportAssets.reserve(1, 10, [SLOOP_ALLOCATION])).toBeNull();
+    expect(MerchantTransportAssets.getSeaRoomCapacitySlots(1)).toBe(0);
+    expect(MerchantTransportAssets.getSeaRoomCapacitySlots(2)).toBe(100);
+
+    // Her owner's waiting cargo calls her home after a short wait, before a port that waits for more.
+    MerchantTransportAssets.recoverMaintenance(14);
+    worldContext.pack.burgs.push({ i: 3, market: 3, x: 2010, y: 0 } as Burg);
+    worldContext.pack.markets.push({ i: 3, centerBurgId: 3, color: "#222", goods: {} } as never);
+    const moves = MerchantTransportAssets.repositionIdleHulls(
+      new Map([
+        [1, 50],
+        [3, 500]
+      ]),
+      marketId => marketId
+    );
+    expect(moves).toMatchObject([{ hullId: 42, marketId: 1, burgId: 1 }]);
+    expect(MerchantTransportAssets.getSeaRoomCapacitySlots(1)).toBe(100);
+  });
+
+  it("sends hulls idle for two weeks to waiting cargo, keeping those its own port's demand fills", () => {
+    worldContext.pack.burgs.push({ i: 3, market: 3, x: 50, y: 0 } as Burg);
+    worldContext.pack.markets.push({ i: 3, centerBurgId: 3, color: "#222", goods: {} } as never);
+    Object.assign(worldContext.pack.burgs[1], { x: 0, y: 0 });
+    Object.assign(worldContext.pack.burgs[2], { x: 100, y: 0 });
+    MerchantTransportAssets.reconcileMerchantHulls([
+      { id: 43, shipClassId: "sloop", homeBurgId: 2, ownerId: 2, status: "docked", currentBurgId: 3 },
+      { id: 44, shipClassId: "sloop", homeBurgId: 2, ownerId: 2, status: "docked", currentBurgId: 2 }
+    ]);
+    MerchantTransportAssets.recoverMaintenance(14);
+    // Two weeks without a freight where she delivered: she goes where cargo waits. The hull at
+    // home stays for the cargo her own port expects.
+    expect(
+      MerchantTransportAssets.repositionIdleHulls(
+        new Map([
+          [1, 150],
+          [2, 50]
+        ]),
+        marketId => marketId
+      )
+    ).toMatchObject([{ hullId: 43, marketId: 1, burgId: 1 }]);
+    // With nothing expected at home, she puts out too.
+    expect(MerchantTransportAssets.repositionIdleHulls(new Map([[1, 150]]), marketId => marketId)).toMatchObject([
+      { hullId: 44, marketId: 1 }
+    ]);
+  });
+
+  it("keeps as many hulls as a port's demand fills, and sends one with nowhere to go home to lie up", () => {
+    Object.assign(worldContext.pack.burgs[1], { x: 0, y: 0 });
+    Object.assign(worldContext.pack.burgs[2], { x: 100, y: 0 });
+    MerchantTransportAssets.reconcileMerchantHulls([
+      { id: 45, shipClassId: "sloop", homeBurgId: 2, ownerId: 2, status: "docked", currentBurgId: 1 },
+      { id: 46, shipClassId: "sloop", homeBurgId: 2, ownerId: 2, status: "docked", currentBurgId: 1 }
+    ]);
+    MerchantTransportAssets.recoverMaintenance(59);
+    expect(MerchantTransportAssets.repositionIdleHulls(new Map([[1, 50]]), marketId => marketId)).toEqual([]);
+    MerchantTransportAssets.recoverMaintenance(1);
+    // Market 1 expects a sloop's load: one stays for it, the other goes home to lie up.
+    const moves = MerchantTransportAssets.repositionIdleHulls(new Map([[1, 50]]), marketId => marketId);
+    expect(moves).toHaveLength(1);
+    expect(moves[0]).toMatchObject({ marketId: 2, burgId: 2 });
+  });
+
+  it("packs sea and river cargo to wait for a vessel when none is free", () => {
+    const route = [
+      { type: "river" as const, points: [[0, 0] as [number, number]] },
+      { type: "sea" as const, points: [[0, 0] as [number, number]] }
+    ];
+    MerchantTransportAssets.reconcileMerchantHulls([
+      { id: 47, shipClassId: "sloop", homeBurgId: 2, ownerId: 2, status: "voyage", currentBurgId: null }
+    ]);
+    MerchantTransportAssets.ensureLedger(1);
+    expect(MerchantTransportAssets.getLargestAvailableRouteCapacity(1, route, "horse")).toBe(0);
+    // Sized to a barge and the largest hull afloat, the cargo goes down to wait at the landing.
+    expect(MerchantTransportAssets.getLargestAvailableRouteCapacity(1, route, "horse", { awaitVessel: true })).toBe(
+      Math.min(160, 100)
+    );
   });
 
   it("keeps a hull home while its own market or its port has sea cargo waiting", () => {

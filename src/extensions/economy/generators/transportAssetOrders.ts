@@ -16,6 +16,7 @@ import { laborPeople, peopleToPoints } from "./craftScale";
 import { getGuildBonus } from "./guildKnowledge";
 import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";
 import type { Market, MerchantLandAssetBalance, TransportAssetOrder } from "./marketTypes";
+import { getUncommittedTradeCapital } from "./merchantTradeCapital";
 import { MerchantTransportAssets, RIVER_BARGE_WOOD_UNITS } from "./merchantTransportAssets";
 
 export type TransportAssetBlueprint = {
@@ -25,6 +26,12 @@ export type TransportAssetBlueprint = {
   materialNames: Readonly<Record<string, number>>;
   /** Used when the market has them in stock; otherwise the craft is built without (e.g. withies for rope). */
   optionalMaterialNames?: Readonly<Record<string, number>>;
+  /**
+   * Plainer builds used when the market lacks the usual materials: harness of plain leather with
+   * wooden hames instead of a smith's fitted harness, as carters and peasants made their own
+   * (port-freight-queue-and-warehouses.md §10.11).
+   */
+  substituteMaterialNames?: readonly Readonly<Record<string, number>>[];
   requiredWorkPoints: number;
   requiredCraft: CraftKnowledgeDomain;
   cargoCapacitySlots: number;
@@ -37,6 +44,8 @@ const BLUEPRINTS: readonly TransportAssetBlueprint[] = [
     outputAssetId: "pack-train",
     outputMode: "land",
     materialNames: { Leather: 1, Harnesses: 1 },
+    // A pack saddle on a wooden tree, strapped with leather.
+    substituteMaterialNames: [{ Leather: 2, Wood: 1 }],
     requiredWorkPoints: 2,
     requiredCraft: "leather",
     cargoCapacitySlots: 40,
@@ -47,6 +56,7 @@ const BLUEPRINTS: readonly TransportAssetBlueprint[] = [
     outputAssetId: "cart",
     outputMode: "land",
     materialNames: { Wood: 3, Harnesses: 1 },
+    substituteMaterialNames: [{ Wood: 3, Leather: 1 }],
     requiredWorkPoints: 4,
     requiredCraft: "woodworking",
     cargoCapacitySlots: 80,
@@ -57,6 +67,7 @@ const BLUEPRINTS: readonly TransportAssetBlueprint[] = [
     outputAssetId: "wagon",
     outputMode: "land",
     materialNames: { Wood: 6, Harnesses: 2 },
+    substituteMaterialNames: [{ Wood: 6, Leather: 2 }],
     requiredWorkPoints: 8,
     requiredCraft: "woodworking",
     cargoCapacitySlots: 180,
@@ -111,11 +122,12 @@ function getBlueprint(id: TransportAssetOrder["blueprintId"]): TransportAssetBlu
 function requiredMaterials(
   blueprint: TransportAssetBlueprint,
   quantity: number,
-  market?: { goods: Record<number, { stock: number } | undefined> }
+  market?: { goods: Record<number, { stock: number } | undefined> },
+  materialNames: Readonly<Record<string, number>> = blueprint.materialNames
 ): Record<number, number> | null {
   const goods = getGoods();
   const materials: Record<number, number> = {};
-  for (const [name, perAsset] of Object.entries(blueprint.materialNames)) {
+  for (const [name, perAsset] of Object.entries(materialNames)) {
     const good = goods.find(candidate => candidate.name === name);
     if (!good) return null;
     materials[good.i] = perAsset * quantity;
@@ -314,39 +326,85 @@ export class TransportAssetOrdersModule {
     }
   }
 
+  /**
+   * Reserves materials and money for an order. A wheelwright built what the timber and leather in
+   * hand allowed rather than waiting for the whole order: a simulation order the market can fund
+   * only in part is split, the rest waiting for the next cycle (§10.11). The usual materials are
+   * used first, a plainer build only when it funds more.
+   */
   private fundOrder(order: TransportAssetOrder): void {
     if (order.status !== "queued" && order.status !== "waitingMaterials") return;
     const market = getMarketById(order.marketId);
-    const materials = market ? requiredMaterials(getBlueprint(order.blueprintId), order.quantity, market) : null;
-    if (!market || !materials) {
+    const blueprint = getBlueprint(order.blueprintId);
+    const block = (reason: NonNullable<TransportAssetOrder["blockedReason"]>) => {
       order.status = "waitingMaterials";
-      order.blockedReason = "missingMaterials";
-      return;
-    }
-    const costs = Object.entries(materials).map(([goodId, units]) => {
-      const row = market.goods[+goodId];
-      return { goodId: +goodId, units, row, cost: (row?.price ?? 0) * units };
-    });
-    if (costs.some(item => !item.row || item.row.stock + 0.0001 < item.units)) {
-      order.status = "waitingMaterials";
-      order.blockedReason = "missingMaterials";
-      return;
-    }
-    const totalCost = costs.reduce((sum, item) => sum + item.cost, 0);
-    if (order.budgetLimit !== undefined && totalCost > order.budgetLimit + 0.0001) {
-      order.status = "waitingMaterials";
-      order.blockedReason = "budgetLimit";
+      order.blockedReason = reason;
+    };
+    if (!market) {
+      block("missingMaterials");
       return;
     }
     const treasury = getMarketTreasury(market);
-    if (treasury.balance + 0.0001 < totalCost) {
-      order.status = "waitingMaterials";
-      order.blockedReason = "insufficientTreasury";
+    // A player's order is built as specified, whole or not at all.
+    const player = order.requestedBy === "player";
+    // The house that ships pays the cartwright or boatbuilder when the market's purse is short,
+    // as a merchant bought the boat his cargo went down in (§10.11).
+    const houseCapital = player ? 0 : Math.max(0, getUncommittedTradeCapital(treasury));
+    const money = Math.max(0, treasury.balance) + houseCapital;
+    const options = [blueprint.materialNames, ...(player ? [] : (blueprint.substituteMaterialNames ?? []))];
+    let best: {
+      quantity: number;
+      materials: Record<number, number>;
+      reason?: "budgetLimit" | "insufficientTreasury";
+    } | null = null;
+    for (const names of options) {
+      const perUnit = requiredMaterials(blueprint, 1, market, names);
+      if (!perUnit) continue;
+      const costPerUnit = Object.entries(perUnit).reduce(
+        (sum, [goodId, units]) => sum + (market.goods[+goodId]?.price ?? 0) * units,
+        0
+      );
+      let quantity = order.quantity;
+      for (const [goodId, units] of Object.entries(perUnit))
+        quantity = Math.min(quantity, Math.floor(((market.goods[+goodId]?.stock ?? 0) + 0.0001) / units));
+      let reason: "budgetLimit" | "insufficientTreasury" | undefined;
+      if (costPerUnit > 0) {
+        const byBudget =
+          order.budgetLimit === undefined ? quantity : Math.floor((order.budgetLimit + 0.0001) / costPerUnit);
+        const byTreasury = Math.floor((money + 0.0001) / costPerUnit);
+        if (byBudget < quantity) reason = "budgetLimit";
+        if (byTreasury < Math.min(quantity, byBudget)) reason = "insufficientTreasury";
+        quantity = Math.min(quantity, byBudget, byTreasury);
+      }
+      if (player && quantity < order.quantity) quantity = 0;
+      if (!best || quantity > best.quantity) {
+        const materials = quantity > 0 ? requiredMaterials(blueprint, quantity, market, names) : null;
+        best = { quantity: materials ? quantity : 0, materials: materials ?? {}, reason };
+      }
+    }
+    if (!best || best.quantity <= 0) {
+      block(best?.reason ?? "missingMaterials");
       return;
     }
-    for (const item of costs) item.row!.stock = rn(Math.max(0, item.row!.stock - item.units), 4);
-    treasury.balance = rn(Math.max(0, treasury.balance - totalCost), 2);
-    order.reservedMaterials = materials;
+    if (best.quantity < order.quantity) {
+      this.createOrder({
+        marketId: order.marketId,
+        blueprintId: order.blueprintId,
+        quantity: order.quantity - best.quantity
+      });
+      order.quantity = best.quantity;
+    }
+    const costs = Object.entries(best.materials).map(([goodId, units]) => {
+      const row = market.goods[+goodId];
+      return { row, units, cost: (row?.price ?? 0) * units };
+    });
+    const totalCost = costs.reduce((sum, item) => sum + item.cost, 0);
+    for (const item of costs) if (item.row) item.row.stock = rn(Math.max(0, item.row.stock - item.units), 4);
+    const fromPurse = Math.min(Math.max(0, treasury.balance), totalCost);
+    treasury.balance = rn(treasury.balance - fromPurse, 2);
+    if (totalCost - fromPurse > 0)
+      treasury.tradeWorkingCapital = rn(Math.max(0, (treasury.tradeWorkingCapital ?? 0) - (totalCost - fromPurse)), 2);
+    order.reservedMaterials = best.materials;
     order.fundedAmount = rn(totalCost, 2);
     order.status = "building";
     order.blockedReason = undefined;
