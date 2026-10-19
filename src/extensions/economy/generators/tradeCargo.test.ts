@@ -45,6 +45,13 @@ describe("trade cargo manifests", () => {
     expect(shippedUnits).toBeCloseTo(200, 6);
   });
 
+  it("finds each deal's good by id, not by catalogue position (ids start at 1)", () => {
+    const goods = [good(1, "Wood", 1, 3), good(2, "Silk", 50, 1)];
+    const [manifest] = buildCargoManifests([deal(1, 2, 4, 50)], goods, LAND_ROUTE, "horse");
+
+    expect(manifest.items[0].cargoSlotsPerUnit).toBe(1);
+  });
+
   it("reserves hold space for a lower-value alternative before density filling", () => {
     const goods = [good(0, "Jewelry", 100, 1), good(1, "Grain", 1, 1)];
     const deals = [deal(1, 0, 300, 100), deal(2, 1, 300, 1)];

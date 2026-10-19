@@ -49,6 +49,11 @@ export type TradeSettlementStats = {
   payableCreated: number;
   /** Owed purchases paid later. */
   payableRepaid: number;
+  /** Importers' cash put up at booking under escrow terms. */
+  escrowPutUp: number;
+  /** Arrived cargo value sold on escrow terms, and the part of it left owed (escrow short at booking). */
+  escrowSaleValue: number;
+  escrowPayableCreated: number;
   /** Warehouse lots cancelled for never loading. */
   staleLotsCancelled: number;
   staleCapitalReleased: number;
@@ -60,6 +65,9 @@ function emptyStats(): TradeSettlementStats {
     paidOnArrival: 0,
     payableCreated: 0,
     payableRepaid: 0,
+    escrowPutUp: 0,
+    escrowSaleValue: 0,
+    escrowPayableCreated: 0,
     staleLotsCancelled: 0,
     staleCapitalReleased: 0
   };
@@ -102,27 +110,39 @@ function totalPayables(treasury: MarketTreasury | undefined): number {
 }
 
 /**
- * Cash each market could still pay for inter-market cargo: its cash, less what it owes for cargo
- * that has arrived and the price of cargo already booked or on the way to it (§5.1).
+ * Price of open-account cargo booked or on the way to each market (escrowed cargo is already paid
+ * for out of its cash). The importer keeps this much back from its monthly payout (§12).
  */
-export function getImporterPurchaseRoom(): Map<number, number> {
-  const room = new Map<number, number>();
-  for (const market of getMarkets()) {
-    if (market?.i)
-      room.set(market.i, Math.max(0, market.marketTreasury?.balance ?? 0) - totalPayables(market.marketTreasury));
-  }
+export function getOpenAccountCommitments(): Map<number, number> {
+  const committed = new Map<number, number>();
   const commit = (marketId: number, amount: number) => {
-    if (room.has(marketId) && amount > 0) room.set(marketId, (room.get(marketId) ?? 0) - amount);
+    if (amount > 0) committed.set(marketId, (committed.get(marketId) ?? 0) + amount);
   };
   for (const lot of getExportStagingLots()) {
-    if ((lot.lockedCapital ?? 0) > UNIT_EPSILON) commit(lot.destinationMarketId, lot.units * (lot.saleUnitPrice ?? 0));
+    if ((lot.lockedCapital ?? 0) > UNIT_EPSILON && lot.paymentTerms !== "escrow")
+      commit(lot.destinationMarketId, lot.units * (lot.saleUnitPrice ?? 0));
   }
   for (const caravan of getCaravans()) {
     if (caravan.buyerType !== "market" || caravan.sellerType !== "market") continue;
     for (const item of caravan.payload) {
-      if (!item.isFoodCoLoad && (item.lockedCapital ?? 0) > UNIT_EPSILON)
+      if (!item.isFoodCoLoad && (item.lockedCapital ?? 0) > UNIT_EPSILON && item.paymentTerms !== "escrow")
         commit(caravan.buyer, item.units * (item.saleUnitPrice ?? 0));
     }
+  }
+  return committed;
+}
+
+/**
+ * Cash each market could still pay for inter-market cargo: its cash, less what it owes for cargo
+ * that has arrived and the price of open-account cargo already booked or on the way to it (§5.1).
+ */
+export function getImporterPurchaseRoom(): Map<number, number> {
+  const room = new Map<number, number>();
+  const committed = getOpenAccountCommitments();
+  for (const market of getMarkets()) {
+    if (!market?.i) continue;
+    const treasury = market.marketTreasury;
+    room.set(market.i, Math.max(0, treasury?.balance ?? 0) - totalPayables(treasury) - (committed.get(market.i) ?? 0));
   }
   return room;
 }
@@ -290,6 +310,11 @@ export class MerchantTradeCapitalModule {
     }
   }
 
+  /** Same as `availableCapital` without seeding or topping up anything (diagnostics). */
+  peekAvailableCapital(market: Market): number {
+    return market.marketTreasury ? spendableWorkingCapital(market, market.marketTreasury) : 0;
+  }
+
   availableCapital(marketId: number): number {
     const market = getMarkets().find(entry => entry.i === marketId);
     if (!market) return 0;
@@ -341,7 +366,7 @@ export class MerchantTradeCapitalModule {
    * capital. On: the importing market buys the cargo for `saleValue`, in cash as far as it has
    * it and owing the rest; the house's profit or loss is the sale less what it paid (§5.1).
    */
-  settleArrival(marketId: number, lockedCapital: number, buyerMarketId?: number, saleValue = 0): void {
+  settleArrival(marketId: number, lockedCapital: number, buyerMarketId?: number, saleValue = 0, escrow = 0): void {
     if (!(lockedCapital > UNIT_EPSILON)) return;
     const market = getMarkets().find(entry => entry.i === marketId);
     if (!market) return;
@@ -354,10 +379,19 @@ export class MerchantTradeCapitalModule {
     }
     const buyer = buyerMarketId === undefined ? undefined : getMarkets().find(entry => entry.i === buyerMarketId);
     const sale = rn(Math.max(0, saleValue), 2);
-    if (!buyer || buyer === market || !(sale > UNIT_EPSILON)) return;
+    if (!buyer || buyer === market || !(sale > UNIT_EPSILON)) {
+      if (buyerMarketId !== undefined) this.releaseEscrow(buyerMarketId, escrow);
+      return;
+    }
     const buyerTreasury = this.ensureTradeCapital(buyer);
-    const paid = rn(Math.min(sale, Math.max(0, buyerTreasury.balance)), 2);
-    buyerTreasury.balance = rn(buyerTreasury.balance - paid, 2);
+    // Escrow pays first; any of it the sale does not need goes back to the buyer's cash.
+    const fromEscrow = rn(Math.min(sale, Math.max(0, escrow), Math.max(0, buyerTreasury.tradeEscrow ?? 0)), 2);
+    buyerTreasury.tradeEscrow = rn((buyerTreasury.tradeEscrow ?? 0) - fromEscrow, 2);
+    this.releaseEscrow(buyer.i, rn(Math.max(0, escrow) - fromEscrow, 2));
+    if (!((buyerTreasury.tradeEscrow ?? 0) > UNIT_EPSILON)) delete buyerTreasury.tradeEscrow;
+    const fromCash = rn(Math.min(sale - fromEscrow, Math.max(0, buyerTreasury.balance)), 2);
+    buyerTreasury.balance = rn(buyerTreasury.balance - fromCash, 2);
+    const paid = rn(fromEscrow + fromCash, 2);
     treasury.tradeWorkingCapital = rn((treasury.tradeWorkingCapital ?? 0) + paid, 2);
     const owed = rn(sale - paid, 2);
     if (owed > UNIT_EPSILON) {
@@ -368,6 +402,10 @@ export class MerchantTradeCapitalModule {
     settlementStats.saleValue += sale;
     settlementStats.paidOnArrival += paid;
     settlementStats.payableCreated += Math.max(0, owed);
+    if (escrow > 0) {
+      settlementStats.escrowSaleValue += sale;
+      settlementStats.escrowPayableCreated += Math.max(0, owed);
+    }
   }
 
   /**
@@ -384,6 +422,33 @@ export class MerchantTradeCapitalModule {
     const recovered = rn(lockedCapital * TRADE_LOSS_RECOVERY_RATE, 2);
     const writtenOff = lockedCapital - recovered;
     treasury.tradeWorkingCapital = rn(Math.max(0, (treasury.tradeWorkingCapital ?? 0) - writtenOff), 2);
+  }
+
+  /**
+   * Escrow terms: the importer puts up to `amount` of its cash aside for cargo on the way to it.
+   * Returns what it could put up.
+   */
+  putUpEscrow(buyerMarketId: number, amount: number): number {
+    const buyer = getMarkets().find(entry => entry.i === buyerMarketId);
+    const treasury = buyer?.marketTreasury;
+    if (!treasury || !(amount > UNIT_EPSILON)) return 0;
+    const moved = rn(Math.min(amount, Math.max(0, treasury.balance)), 2);
+    if (!(moved > 0)) return 0;
+    treasury.balance = rn(treasury.balance - moved, 2);
+    treasury.tradeEscrow = rn((treasury.tradeEscrow ?? 0) + moved, 2);
+    settlementStats.escrowPutUp += moved;
+    return moved;
+  }
+
+  /** Escrowed cash for cargo that will not arrive (lost, spoiled, cancelled) goes back to the buyer. */
+  releaseEscrow(buyerMarketId: number, amount: number): void {
+    if (!(amount > UNIT_EPSILON)) return;
+    const treasury = getMarkets().find(entry => entry.i === buyerMarketId)?.marketTreasury;
+    if (!treasury) return;
+    const moved = rn(Math.min(amount, Math.max(0, treasury.tradeEscrow ?? 0)), 2);
+    treasury.tradeEscrow = rn((treasury.tradeEscrow ?? 0) - moved, 2);
+    if (!((treasury.tradeEscrow ?? 0) > UNIT_EPSILON)) delete treasury.tradeEscrow;
+    treasury.balance = rn(treasury.balance + moved, 2);
   }
 
   /**

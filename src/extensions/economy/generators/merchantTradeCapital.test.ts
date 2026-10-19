@@ -170,6 +170,29 @@ describe("MerchantTradeCapital with paid cargo (fmg-long-distance-trade)", () =>
     expect(treasuryOf(1).tradeWorkingCapital).toBeCloseTo(105);
   });
 
+  it("pays the seller from the buyer's escrow, and returns it if the cargo is lost", () => {
+    MerchantTradeCapital.lock(1, 20, { goods: 20, freight: 0 });
+    expect(MerchantTradeCapital.putUpEscrow(2, 25)).toBeCloseTo(25);
+    expect(treasuryOf(2).balance).toBeCloseTo(5);
+    expect(treasuryOf(2).tradeEscrow).toBeCloseTo(25);
+    const before = money() + treasuryOf(2).tradeEscrow!;
+
+    // The buyer's free cash is spent meanwhile; the escrow still pays in full.
+    treasuryOf(2).balance = 0;
+    MerchantTradeCapital.settleArrival(1, 20, 2, 25, 25);
+    expect(treasuryOf(1).tradeWorkingCapital).toBeCloseTo(105);
+    expect(treasuryOf(2).tradeEscrow).toBeUndefined();
+    expect(treasuryOf(2).tradePayables).toBeUndefined();
+    expect(money()).toBeCloseTo(before - 5);
+
+    MerchantTradeCapital.putUpEscrow(2, 0);
+    treasuryOf(2).balance = 30;
+    MerchantTradeCapital.putUpEscrow(2, 10);
+    MerchantTradeCapital.releaseEscrow(2, 10);
+    expect(treasuryOf(2).balance).toBeCloseTo(30);
+    expect(treasuryOf(2).tradeEscrow).toBeUndefined();
+  });
+
   it("gives no arrival profit and recovers nothing from lost cargo", () => {
     MerchantTradeCapital.lock(1, 50, { goods: 50, freight: 0 });
     MerchantTradeCapital.settleLoss(1, 50);

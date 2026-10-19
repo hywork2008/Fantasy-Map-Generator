@@ -20,8 +20,9 @@ import {
 } from "../economyContext";
 import { isFreshFoodGood, isGoodEnabled } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
+import type { Good } from "./goodsGeneratorTypes";
 import { floorToRetailLot, getRetailLotSize } from "./goodsTradeLots";
-import type { ExportStagingLot } from "./marketTypes";
+import type { ExportStagingLot, TradePaymentTerms } from "./marketTypes";
 import { isLongDistanceTradeEnabled, MerchantTradeCapital, recordStaleLotCancelled } from "./merchantTradeCapital";
 import { TradeLogisticsSettings } from "./tradeLogisticsSettings";
 
@@ -53,15 +54,26 @@ export type BookExportStagingInput = {
   freightUnitCost?: number;
   /** Price per unit the house expects the destination to pay. */
   saleUnitPrice?: number;
+  /** How the destination pays (§12); escrow puts the price up from its cash at booking. */
+  paymentTerms?: TradePaymentTerms;
   /** When false, skip capital lock (tests / special paths). Default true. */
   requireCapital?: boolean;
 };
+
+/** Route a start-of-map lot of `good` can travel from one market to another, or null. */
+export type InheritedLotRouteResolver = (
+  sourceMarketId: number,
+  targetMarketId: number,
+  good: Good
+) => { durationDays: number; distanceKm: number } | null;
 
 export type TakeFromLotResult = {
   units: number;
   lockedCapital: number;
   goodsUnitCost?: number;
   saleUnitPrice?: number;
+  paymentTerms?: TradePaymentTerms;
+  escrowAmount?: number;
   freshnessAgeDays?: number;
 };
 
@@ -95,15 +107,21 @@ function ensureNextLotId(): number {
 
 function findMergeTarget(
   lots: readonly ExportStagingLot[],
-  input: Pick<BookExportStagingInput, "marketId" | "destinationMarketId" | "goodId" | "unitCost">
+  input: Pick<BookExportStagingInput, "marketId" | "destinationMarketId" | "goodId" | "unitCost" | "paymentTerms">
 ): ExportStagingLot | undefined {
   return lots.find(
     lot =>
       lot.marketId === input.marketId &&
       lot.destinationMarketId === input.destinationMarketId &&
       lot.goodId === input.goodId &&
+      lot.paymentTerms === input.paymentTerms &&
       Math.abs(lot.unitCost - input.unitCost) < 0.0001
   );
+}
+
+/** Escrowed cash of `units` out of a lot's or cargo's `totalUnits`. */
+function escrowShare(escrow: number | undefined, units: number, totalUnits: number): number {
+  return escrow && totalUnits > UNIT_EPSILON ? rn((escrow * Math.min(units, totalUnits)) / totalUnits, 2) : 0;
 }
 
 /** What the exporting market refunds when a lot's goods come back to it; undefined = the whole lock. */
@@ -140,6 +158,7 @@ export class ExportStagingModule {
     const freightUnitCost = Math.min(unitCost - goodsUnitCost, Math.max(0, input.freightUnitCost ?? 0));
     // Prices for settlement are only kept when cargo is paid for, so the legacy save stays as it was.
     const priced = isLongDistanceTradeEnabled();
+    const paymentTerms = priced && requireCapital ? input.paymentTerms : undefined;
     if (
       requireCapital &&
       lockAmount > UNIT_EPSILON &&
@@ -160,13 +179,20 @@ export class ExportStagingModule {
       marketId: input.marketId
     });
 
+    // Escrow terms: the importer puts the price up from its cash now (§12).
+    const escrow =
+      paymentTerms === "escrow" && input.saleUnitPrice
+        ? MerchantTradeCapital.putUpEscrow(input.destinationMarketId, rn(units * input.saleUnitPrice, 2))
+        : 0;
+
     const lots = [...getExportStagingLots()];
-    const existing = findMergeTarget(lots, { ...input, unitCost });
+    const existing = findMergeTarget(lots, { ...input, unitCost, paymentTerms });
     if (existing) {
       if (priced) {
         existing.goodsUnitCost = mergeUnitPrice(existing.goodsUnitCost, existing.units, goodsUnitCost, units);
         existing.saleUnitPrice = mergeUnitPrice(existing.saleUnitPrice, existing.units, input.saleUnitPrice, units);
       }
+      if (escrow > 0) existing.escrowAmount = rn((existing.escrowAmount ?? 0) + escrow, 2);
       existing.units = rn(existing.units + units, 2);
       existing.lockedCapital = rn((existing.lockedCapital ?? 0) + lockAmount, 2);
       if (input.dealId !== undefined) existing.dealId = input.dealId;
@@ -194,6 +220,8 @@ export class ExportStagingModule {
       taxPerUnit: input.taxPerUnit,
       goodsUnitCost: priced ? goodsUnitCost : undefined,
       saleUnitPrice: priced ? input.saleUnitPrice : undefined,
+      paymentTerms,
+      escrowAmount: escrow > 0 ? escrow : undefined,
       freshnessAgeDays: (() => {
         const good = getGoods().find(candidate => candidate.i === input.goodId);
         return good && isFreshFoodGood(good) ? 0 : undefined;
@@ -227,6 +255,8 @@ export class ExportStagingModule {
     if (!lot) return { units: 0, lockedCapital: 0 };
     const taken = Math.min(lot.units, units);
     const capitalShare = lot.units > UNIT_EPSILON ? rn(((lot.lockedCapital ?? 0) * taken) / lot.units, 2) : 0;
+    const escrowTaken = escrowShare(lot.escrowAmount, taken, lot.units);
+    if (lot.escrowAmount !== undefined) lot.escrowAmount = rn(Math.max(0, lot.escrowAmount - escrowTaken), 2);
     lot.units = rn(Math.max(0, lot.units - taken), 2);
     lot.lockedCapital = rn(Math.max(0, (lot.lockedCapital ?? 0) - capitalShare), 2);
     // Loading is movement: the lot is not stuck (§5.3).
@@ -237,6 +267,8 @@ export class ExportStagingModule {
       lockedCapital: capitalShare,
       goodsUnitCost: lot.goodsUnitCost,
       saleUnitPrice: lot.saleUnitPrice,
+      paymentTerms: lot.paymentTerms,
+      escrowAmount: escrowTaken > 0 ? escrowTaken : undefined,
       freshnessAgeDays: lot.freshnessAgeDays
     };
   }
@@ -262,6 +294,7 @@ export class ExportStagingModule {
     const locked = lot.lockedCapital ?? 0;
     this.returnUnitsToRetail(lot.marketId, lot.goodId, units);
     if (locked > UNIT_EPSILON) MerchantTradeCapital.unlock(lot.marketId, locked, goodsRefund(lot));
+    MerchantTradeCapital.releaseEscrow(lot.destinationMarketId, lot.escrowAmount ?? 0);
     setExportStagingLots(lots.filter(entry => entry.id !== lotId));
     return units;
   }
@@ -291,6 +324,7 @@ export class ExportStagingModule {
       if ((lot.lockedCapital ?? 0) > UNIT_EPSILON) {
         MerchantTradeCapital.unlock(lot.marketId, lot.lockedCapital ?? 0, goodsRefund(lot));
       }
+      MerchantTradeCapital.releaseEscrow(lot.destinationMarketId, lot.escrowAmount ?? 0);
     }
     setExportStagingLots([]);
     setNextExportStagingLotId(1);
@@ -317,6 +351,7 @@ export class ExportStagingModule {
       if ((lot.lockedCapital ?? 0) > UNIT_EPSILON) {
         MerchantTradeCapital.settleLoss(lot.marketId, lot.lockedCapital ?? 0);
       }
+      MerchantTradeCapital.releaseEscrow(lot.destinationMarketId, lot.escrowAmount ?? 0);
       recordGoodFlow({
         direction: "sink",
         category: "spoilage",
@@ -338,8 +373,10 @@ export class ExportStagingModule {
   /**
    * Once per map: stage random export lots as pre-start merchant inventory, funded by trade
    * working capital (as if the house already bought cargo before the player opened the map).
+   * With `shippableRoute`, a good is only stocked for a destination it reaches before it spoils or
+   * stops paying its carriage; a lot that could never load would sit in the warehouse for good.
    */
-  seedInheritedExportWarehouseIfNeeded(): void {
+  seedInheritedExportWarehouseIfNeeded(shippableRoute?: InheritedLotRouteResolver): void {
     if (getExportWarehouseSeeded()) return;
     const markets = getMarkets().filter(market => market?.i);
     if (markets.length < 2) {
@@ -382,8 +419,12 @@ export class ExportStagingModule {
         if (spent >= capitalBudget - UNIT_EPSILON) break;
         const row = origin.goods[good.i];
         if (!row || row.stock <= UNIT_EPSILON) continue;
-        const dest = chosenDests[Math.floor(Math.random() * chosenDests.length)];
+        const reachable = shippableRoute
+          ? chosenDests.filter(market => shippableRoute(origin.i, market.i, good) !== null)
+          : chosenDests;
+        const dest = reachable[Math.floor(Math.random() * reachable.length)];
         if (!dest) continue;
+        const route = shippableRoute?.(origin.i, dest.i, good) ?? undefined;
 
         const unitCost = Math.max(row.price || good.value, good.value * 0.5);
         const maxByStock = row.stock * INHERITED_STOCK_SHARE;
@@ -401,7 +442,9 @@ export class ExportStagingModule {
           destinationMarketId: dest.i,
           goodId: good.i,
           units,
-          unitCost
+          unitCost,
+          distance: route ? rn(route.distanceKm, 2) : undefined,
+          durationDays: route?.durationDays
         });
         if (lot) spent += lot.lockedCapital ?? units * unitCost;
       }

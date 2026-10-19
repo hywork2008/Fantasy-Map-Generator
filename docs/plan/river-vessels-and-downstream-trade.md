@@ -2,7 +2,7 @@
 
 | 項目 | 内容 |
 | :-- | :-- |
-| Status | In progress — R1–R3 functional core implemented; UI and saved-data migration remain |
+| Status | In progress — R1–R3 functional core implemented; one-way craft built to demand (§10, 2026-10-19); UI and saved-data migration remain |
 | 対象 | Core routes / rivers、Economy extension、任意の Shipbuilding extension、Trade Details |
 | 前提 | [ship-in-river.md](ships/ship-in-river.md)、[merchant-transport-asset-ledger.md](merchant-transport-asset-ledger.md) |
 | 調査日 | 2026-08-01 |
@@ -276,7 +276,7 @@ Trade Details と Market Overview に次を追加する。新規 UI は React / 
 - Implemented: river-barge を Economy 所有の集計資産とし、大工への TransportAssetOrder 完成物として台帳へ直接登録する。
 - Implemented: river-barge の reserve / depart / cancel / arrival を追加し、arrival 時には source へ戻さず destination market へ移管する。
 - Implemented: ledger、reservation、到着先移管、maintenance recovery を実装する。river access に基づく初期 seed は R4 と併せて追加する。
-- Implemented: `TransportAssetOrder` / player order に blueprint を加える。simulation replacement の river-barge 発注は別途追加する。
+- Implemented: `TransportAssetOrder` / player order に blueprint を加える。simulation の river-barge 発注は §10 で追加した(需要に応じて組む)。
 - 完了条件: 同一 barge を二便に予約できず、到着後に source へ戻らず destination で再利用される。
 
 ### R4 — UI・移行・回帰
@@ -311,3 +311,58 @@ Trade Details と Market Overview に次を追加する。新規 UI は React / 
 - `enclosure` を外洋船の航海性能や港湾品質の万能な指標にしない。
 - river-barge を個別 ShipHull、Market.goods、または State navy の資産として扱わない。
 - River を描き直すためだけの新しい SVG route layer は作らない。既存 river renderer を地形表示の正本とする。
+
+## 10. 片道の川船を需要に応じて組む(2026-10-19)
+
+### 10.1 問題
+
+シミュレーションは陸の輸送手段しか補充せず、`river-barge` は手動の注文でしかできなかった。交易の照合は輸送手段を見ずに取引を結ぶので、キャラバンの経路に川の区間がある荷は永久に積まれなかった(world-101 で 59 件。[long-distance-merchant-reach-capital.md](long-distance-merchant-reach-capital.md) §11.4)。
+
+### 10.2 史実の運用
+
+| 事例 | 時期 | 運用 | 出典の信頼度 |
+| :--- | :--- | :--- | :--- |
+| Ulm の船(Ulmer Schachtel / Ordinari) | 16 世紀〜19 世紀(定期便は 1712 年から) | Ulm から Vienna へ下るだけの「使い捨ての船」。着いた Vienna で解体し、薪・材木として売った | ○ Ulm 市、Habsburger.net、Donauschwäbisches Zentralmuseum |
+| 筏流し(Flößerei、Kinzig・Rhine・Danube) | 中世から(Kinzig の板に 1365 年の記録)、19 世紀末まで | 材木そのものを筏に組んで下流(Strasbourg・Rhine・Rotterdam)へ流し、着いた所で材木として売る | ○ 博物館の解説 |
+| 平底船(flatboat、Mississippi) | 18 世紀末〜1850 年代 | ほぼ必ず片道。New Orleans で解体し、板を材木・燃料として売った。回収は建造費の約 1/4 | △ 百科事典・海事博物館 |
+| 上りの曳航(Inn・Danube・Traun の塩船) | 中世から 20 世紀初め | 価値の高い荷の船は、人や馬で上流へ曳き戻した。Vienna から Passau まで 20〜31 日、馬 50 頭の船団。塩・木材・鉄のような重い荷は、実際には下りしか運べなかった | ○ Historisches Lexikon Bayerns、UNESCO Austria、Habsburger.net |
+| 衰退 | 19 世紀 | 蒸気船で帰りの旅が速くなり(Mississippi は 1810 年代から)、船を戻す・作り続ける理由が変わった。筏流しは鉄道に押されて 1900 年前後に終わった | ○・△ 同上 |
+
+→ モデルへの補正:
+
+- 蒸気以前の川船は、上流の出荷地で荷に合わせて組み、下流で解体して材木にする。上りの曳航は、初版どおり扱わない(§9)。重い荷が上りで運べなかった史実に合う。
+- 蒸気の航行(`coastalSteamNavigation` の `adopted`)以降は、着いた川船を到着地の市場の船として残す(§5.1 の従来の動き)。
+- 回収できる材木は、建造に使った材木の半分とする。平底船の回収が建造費の約 1/4 で、建造費の残りは労賃・ロープ・ピッチ。
+- 筏は藤蔓(withies)で縛り、ピッチを塗らずに組めた。ロープとタールは、市場に在庫があるときだけ使う。
+
+### 10.3 実装
+
+| 項目 | 内容 | 場所 |
+| :--- | :--- | :--- |
+| 不足の記録 | 積み込みの周期で、川の区間がある経路に空いた川船がないとき、運べなかった荷の積載量(スロット)を出発地の市場に記録する | `caravans.ts planBundleCaravans`、`MerchantTransportAssets.recordRiverBargeShortfall` |
+| 発注(ジャスト・イン・タイム) | 次の生産の周期の始めに、不足を埋める隻数(160 スロットで 1 隻)から、空いている・修理中の川船と建造中の注文を引いた分を、大工に注文する。組み上がったものから次の積み込みで使う | `TransportAssetOrders.queueSimulationReplenishment`、`takeRiverBargeTarget` |
+| 予め組む(中世の需要が多いとき) | 蒸気以前で、出発する川船が平均して 1 周期 1 隻以上の市場は、1 周期分の隻数を予め組んでおく | `riverDeparturesPerCycle`(重み 0.2 の移動平均) |
+| 到着 | 蒸気以前: 解体し、材木 5 × 0.5 = 2.5 単位を到着地の市場の在庫に足す(品物の流れの区分 `vesselSalvage`)。失われた船は戻らない。蒸気以後: 到着地の市場の船になる | `MerchantTransportAssets.settleCaravan`、`isOneWayRiverCraftEra` |
+| 材料 | 材木 5(必須)、ロープ 1・タール 1(在庫があるときだけ) | `transportAssetOrders.ts` の `river-barge` |
+
+すべての地図に入る(取り残される荷の修正にあたる)。node の golden を更新した。
+
+### 10.4 計測(world-101 を作り直したもの、`off`、2 年)
+
+- 川船の注文 26 件・45 隻が組み上がり、40 隻ほどが下流で解体された(材木 100 単位)。
+- 材木のない市場(1 件)では注文が材料待ちのまま残り、その経路の荷は動かない。材木のない土地では筏を組めない、という扱いになる。
+- 3 年で、上限を超えて動かない荷は 136 件(固定 1,688)から 1 件(固定 18)になった(開始時の荷の修正、long-distance-merchant-reach-capital.md §11.4 と合わせて)。
+
+### 10.5 残る課題
+
+- 注文の材料費は、市場が自分の在庫を使うのに市場の現金から払い、払った先がない(荷車・荷馬車の注文も同じ)。お金が消える。金額は小さいが、川船の注文が増えたので、long-distance-merchant-reach-capital.md の R3(出資)で、商会の資本から大工の賃金として払う形に直すのがよい。
+
+### 参考資料
+
+- [The Ulmer Schachtel (Ulm)](https://english.ulm.de/0/the-ulmer-schachtel) / [The Ulmer Schachtel (Donauschwäbisches Zentralmuseum)](https://www.dzm-museum.de/en/?p=108653)
+- [The Danube flows in the wrong direction (Habsburger.net)](https://www.habsburger.net/en/chapter/danube-flows-wrong-direction-waterways-form-transport-obstacles)
+- [The Salt Trade in Old Bavaria (Historisches Lexikon Bayerns)](https://www.historisches-lexikon-bayerns.de/Lexikon/EN:The_Salt_Trade_in_Old_Bavaria_(Middle_Ages/Early_Modern_Period))
+- [Rowing downstream and returning upstream by horse-drawn boat on the Traun (UNESCO Austria)](https://www.unesco.at/en/culture/intangible-cultural-heritage/inventory/element/naufahrt-und-schiffsgegentrieb-mittels-pferdezug-auf-der-traun)
+- [Flatboat (Wikipedia)](https://en.wikipedia.org/wiki/Flatboat) / [Mississippi River Flatboats (Louisiana Maritime Museum)](https://maritimemuseumlouisiana.org/maritimeblog/mississippi-river-flatboats-the-semis-of-yesteryear)
+- [How raftsmen invented logistics](https://en.tellerrandstories.de/rafting-logistik/) / Black Forest rafting objects (museum-digital Baden-Württemberg)
+

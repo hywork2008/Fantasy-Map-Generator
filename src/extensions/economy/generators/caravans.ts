@@ -40,7 +40,15 @@ import { recordGoodFlow } from "./goodsBalanceLedger";
 import { type IncrementalBatchOptions, runBatchedYielding } from "./incrementalBatching";
 import { utilizationOf } from "./marketFlowBudget";
 import { Markets } from "./markets-generator";
-import type { Caravan, Deal, ExportStagingLot, Market, TradeRouteSegment, TransportAllocation } from "./marketTypes";
+import type {
+  Caravan,
+  Deal,
+  ExportStagingLot,
+  Market,
+  TradePaymentTerms,
+  TradeRouteSegment,
+  TransportAllocation
+} from "./marketTypes";
 import { openBranch } from "./merchantIntelligence";
 import { MerchantTradeCapital } from "./merchantTradeCapital";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
@@ -77,6 +85,7 @@ import {
   sailDecisionFromReason
 } from "./tradeSailSchedule";
 import { TradeSecurity } from "./tradeSecurity";
+import { getLotDispatchObserver, type LotDispatchOutcome } from "./tradeStageObserver";
 
 export type CaravanTravelLeg = { endKm: number; speedKmPerDay: number };
 
@@ -105,6 +114,7 @@ function discardFreshPayload(caravan: Caravan): boolean {
     if (caravan.sellerType === "market" && (item.lockedCapital ?? 0) > UNIT_EPSILON) {
       MerchantTradeCapital.settleLoss(caravan.seller, item.lockedCapital ?? 0);
     }
+    if (caravan.buyerType === "market") MerchantTradeCapital.releaseEscrow(caravan.buyer, item.escrowAmount ?? 0);
     recordGoodFlow({
       direction: "sink",
       category: "spoilage",
@@ -157,6 +167,8 @@ function appendPayloadFromManifest(
     let lockedCapital = 0;
     let goodsUnitCost: number | undefined;
     let saleUnitPrice: number | undefined;
+    let paymentTerms: TradePaymentTerms | undefined;
+    let escrowAmount = 0;
     let freshnessAgeDays: number | undefined;
     const good = getGoods().find(candidate => candidate.i === item.deal.good);
     // selectRouteCargo normally prevents this. Keep this boundary fail-closed so a stale
@@ -169,6 +181,8 @@ function appendPayloadFromManifest(
       lockedCapital = taken.lockedCapital;
       goodsUnitCost = taken.goodsUnitCost;
       saleUnitPrice = taken.saleUnitPrice;
+      paymentTerms = taken.paymentTerms;
+      escrowAmount = taken.escrowAmount ?? 0;
       freshnessAgeDays = taken.freshnessAgeDays;
       if (units <= UNIT_EPSILON) continue;
       item.deal.remainingUnits = Math.max(0, (item.deal.remainingUnits ?? item.deal.units) - units);
@@ -189,6 +203,7 @@ function appendPayloadFromManifest(
     if (existing) {
       existing.goodsUnitCost = mergeUnitPrice(existing.goodsUnitCost, existing.units, goodsUnitCost, units);
       existing.saleUnitPrice = mergeUnitPrice(existing.saleUnitPrice, existing.units, saleUnitPrice, units);
+      if (escrowAmount > 0) existing.escrowAmount = rn((existing.escrowAmount ?? 0) + escrowAmount, 2);
       existing.units += units;
       existing.value += value;
       existing.lockedCapital = (existing.lockedCapital ?? 0) + lockedCapital;
@@ -207,6 +222,8 @@ function appendPayloadFromManifest(
         lockedCapital: lockedCapital > UNIT_EPSILON ? lockedCapital : undefined,
         goodsUnitCost,
         saleUnitPrice,
+        paymentTerms,
+        escrowAmount: escrowAmount > 0 ? escrowAmount : undefined,
         freshnessAgeDays
       });
     }
@@ -227,6 +244,7 @@ function restoreLoadingCargoToOrigin(caravan: Caravan): void {
       const goodsRefund = item.goodsUnitCost === undefined ? undefined : rn(item.units * item.goodsUnitCost, 2);
       MerchantTradeCapital.unlock(caravan.seller, item.lockedCapital ?? 0, goodsRefund);
     }
+    if (caravan.buyerType === "market") MerchantTradeCapital.releaseEscrow(caravan.buyer, item.escrowAmount ?? 0);
   }
 }
 
@@ -239,12 +257,20 @@ function settlePayloadCapital(caravan: Caravan, outcome: "arrived" | "lost"): vo
     if (!(locked > UNIT_EPSILON)) continue;
     if (outcome === "lost") {
       MerchantTradeCapital.settleLoss(caravan.seller, locked);
+      // The seller bears the loss on the road; the buyer's escrow goes back to it.
+      if (buyerMarket) MerchantTradeCapital.releaseEscrow(buyerMarket.i, item.escrowAmount ?? 0);
       continue;
     }
     // The importer buys at the price the house knew when it struck the deal; cargo booked before
     // that price was kept sells at today's price there.
     const unitPrice = item.saleUnitPrice ?? buyerMarket?.goods[item.goodId]?.price ?? 0;
-    MerchantTradeCapital.settleArrival(caravan.seller, locked, buyerMarket?.i, item.units * unitPrice);
+    MerchantTradeCapital.settleArrival(
+      caravan.seller,
+      locked,
+      buyerMarket?.i,
+      item.units * unitPrice,
+      item.escrowAmount ?? 0
+    );
   }
 }
 
@@ -772,7 +798,7 @@ export class CaravansModule {
       bake.heightExponent,
       world
     );
-    const good = getGoods()[deal.good];
+    const good = getGoods().find(candidate => candidate.i === deal.good);
     const durationDays = calculateRouteDurationDays(routeSegments, world.distanceScale);
     const routeMaxTemperatureC = getRouteMaxTemperatureC(routeSegments, world.pack.cells?.g, world.grid.cells?.temp);
     const refrigeratedTransport = isTechnologyStageAtLeast(
@@ -885,13 +911,51 @@ export class CaravansModule {
    * per-map counter across bundles — see spawnFromDeals()'s nextId comment.
    */
   private spawnCaravansForBundle(bundle: RouteBundle, world: WorldContext, nextId: number): number {
+    const observe = bundle.sellerType === "market" && bundle.buyerType === "market" ? getLotDispatchObserver() : null;
+    if (!observe) return this.planBundleCaravans(bundle, world, nextId).nextId;
+
+    // R0 diagnostics (docs/plan/long-distance-merchant-reach-capital.md §5.3): what became of each lot.
+    const unitsBefore = new Map<number, number>();
+    for (const deal of bundle.deals) {
+      if (deal.stagingLotId !== undefined) unitsBefore.set(deal.stagingLotId, deal.remainingUnits ?? deal.units);
+    }
+    const result = this.planBundleCaravans(bundle, world, nextId);
+    const lots = new Map(getExportStagingLots().map(lot => [lot.id, lot]));
+    for (const [lotId, before] of unitsBefore) {
+      const lot = lots.get(lotId);
+      const units = lot?.units ?? 0;
+      const outcome: LotDispatchOutcome =
+        units + UNIT_EPSILON < before
+          ? "loaded"
+          : result.eligibleLotIds && !result.eligibleLotIds.has(lotId)
+            ? "shipmentRule"
+            : result.outcome;
+      observe({
+        lotId,
+        exporterId: bundle.seller,
+        importerId: bundle.buyer,
+        goodId: lot?.goodId ?? bundle.deals.find(deal => deal.stagingLotId === lotId)?.good ?? -1,
+        outcome,
+        units,
+        lockedCapital: lot?.lockedCapital ?? 0,
+        durationDays: lot?.durationDays
+      });
+    }
+    return result.nextId;
+  }
+
+  private planBundleCaravans(
+    bundle: RouteBundle,
+    world: WorldContext,
+    nextId: number
+  ): { nextId: number; outcome: LotDispatchOutcome; eligibleLotIds?: Set<number> } {
     const burgs = world.pack.burgs;
-    if (!burgs) return nextId;
+    if (!burgs) return { nextId, outcome: "noEndpoint" };
 
     let startBurgId: number;
     if (bundle.sellerType === "market") {
       const m = getMarketById(bundle.seller);
-      if (!m) return nextId;
+      if (!m) return { nextId, outcome: "noEndpoint" };
       startBurgId = m.centerBurgId;
     } else {
       startBurgId = bundle.seller;
@@ -900,7 +964,7 @@ export class CaravansModule {
     let endBurgId: number;
     if (bundle.buyerType === "market") {
       const m = getMarketById(bundle.buyer);
-      if (!m) return nextId;
+      if (!m) return { nextId, outcome: "noEndpoint" };
       endBurgId = m.centerBurgId;
     } else {
       endBurgId = bundle.buyer;
@@ -909,11 +973,11 @@ export class CaravansModule {
     const startBurg = burgs[startBurgId];
     const endBurg = burgs[endBurgId];
 
-    if (!startBurg || !endBurg || startBurg.i === endBurg.i) return nextId;
-    if (!Markets.isDomesticTradePair(startBurg, endBurg)) return nextId;
+    if (!startBurg || !endBurg || startBurg.i === endBurg.i) return { nextId, outcome: "noEndpoint" };
+    if (!Markets.isDomesticTradePair(startBurg, endBurg)) return { nextId, outcome: "notDomestic" };
 
     const routePath = TradeRoutePlanner.findRoutePath(startBurg.cell, endBurg.cell);
-    if (!routePath || routePath.segments.length === 0) return nextId;
+    if (!routePath || routePath.segments.length === 0) return { nextId, outcome: "noRoute" };
 
     const routeSegments: TradeRouteSegment[] = routePath.segments.map(segment => ({
       type: segment.type,
@@ -924,7 +988,7 @@ export class CaravansModule {
       pavedShare: segment.pavedShare
     }));
     const distance = getRouteDistanceKm(routeSegments, world.distanceScale);
-    if (distance <= 0) return nextId;
+    if (distance <= 0) return { nextId, outcome: "noRoute" };
 
     const durationDays = calculateRouteDurationDays(routeSegments, world.distanceScale);
     const maintenanceCost = getCaravanMaintenanceCost(durationDays);
@@ -948,20 +1012,41 @@ export class CaravansModule {
       routeSegments,
       refrigeratedTransport
     );
-    if (!transportedDeals.length) return nextId;
+    const eligibleLotIds = new Set(
+      transportedDeals.map(deal => deal.stagingLotId).filter((id): id is number => id !== undefined)
+    );
+    if (!transportedDeals.length) return { nextId, outcome: "shipmentRule", eligibleLotIds };
 
     const dispatcherMarketId = MerchantTransportAssets.getDispatcherMarketId(bundle);
-    if (dispatcherMarketId === null) return nextId;
+    if (dispatcherMarketId === null) return { nextId, outcome: "noDispatcher", eligibleLotIds };
 
     // Commercial shipments accumulate in `loading` without reserving fleet assets. Assets are
     // reserved only at departure so a half-empty hold does not lock a cart or hull for weeks.
+    let outcome: LotDispatchOutcome = "notPacked";
     while (true) {
       const maxCapacitySlots = MerchantTransportAssets.getLargestAvailableRouteCapacity(
         dispatcherMarketId,
         routeSegments,
         DEFAULT_DRAFT_ANIMAL_ID
       );
-      if (maxCapacitySlots === 0) break;
+      if (maxCapacitySlots === 0) {
+        outcome = "noTransport";
+        // A river leg with no barge free: ask for one to be built for this cargo (§10).
+        if (
+          routeSegments.some(segment => segment.type === "river") &&
+          !MerchantTransportAssets.getAvailability(dispatcherMarketId).some(
+            asset => asset.assetId === "river-barge" && asset.available > 0
+          )
+        ) {
+          const goodById = new Map(getGoods().map(good => [good.i, good]));
+          const slots = transportedDeals.reduce((sum, deal) => {
+            const good = goodById.get(deal.good);
+            return sum + (good ? (deal.remainingUnits ?? deal.units) * getGoodCargoSlotsPerUnit(good) : 0);
+          }, 0);
+          MerchantTransportAssets.recordRiverBargeShortfall(dispatcherMarketId, slots);
+        }
+        break;
+      }
 
       // Prefer topping up an existing loading caravan on the same O/D before opening a new one.
       const existingLoading = getCaravans().find(
@@ -1060,7 +1145,7 @@ export class CaravansModule {
       tryDepartLoadingCaravan(caravan);
     }
 
-    return nextId;
+    return { nextId, outcome, eligibleLotIds };
   }
 
   /**
@@ -1261,8 +1346,10 @@ function selectRouteCargo(
 ): Deal[] {
   const world = getWorldContext();
   const routeMaxTemperatureC = getRouteMaxTemperatureC(routeSegments, world.pack.cells?.g, world.grid.cells?.temp);
+  // Good ids start at 1: look goods up by id, not by position in the catalogue.
+  const goodById = new Map(goods.map(good => [good.i, good]));
   const eligible = deals.filter(deal => {
-    const good = goods[deal.good];
+    const good = goodById.get(deal.good);
     return Boolean(
       good &&
         isGoodTradePermittedForShipment(

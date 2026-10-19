@@ -59,7 +59,7 @@ worldConfigurator の size（mapSize）は地球に占める割合を変える�
 ## 4. CLI: `npm run fmg:small`
 
 ```
-npm run fmg:small -- <out-dir> [--scope province|islet] [--count 1]
+npm run fmg:small -- <out-dir> [--scope province|islet|world] [--count 1]
     [--seed 1,2,3 | --start-seed 1000 --tries 50] [--cells 500] [--islet-land 0..6]
     [--require burg,sea-port,river-port,river-burg,river,road,province] [--max-burgs N]
     [--local-storage settings.json] [--url http://127.0.0.1:5173/Fantasy-Map-Generator/]
@@ -68,6 +68,8 @@ npm run fmg:small -- <out-dir> [--scope province|islet] [--count 1]
 - ヘッドレス Chromium で生成する。`--require` を満たした地図だけを `window.fmg.actions.prepareWorldArchive()` で `<scope>-<seed>.fmg` として保存する。
 - 判定結果は `small-maps.jsonl` に追記する（セル数、都市ごとの seaPort / riverPort / onRiver、街道種別など）。
 - `--local-storage` で設定パターンや文化セットなどをロックできる（例: `{"initialSettlementPattern":"standard"}`）。
+- `--scope world` は通常の世界を作る（遠距離交易の計測用、long-distance-merchant-reach-capital.md §11.2）。密度は `--local-storage` の `points`（例 `"1"` で 2,500 セル）で決める。
+- 経済を含む地図には、`--local-storage` に `fmg-extensions`（`characters`・`economy`・`nobility`・`shipbuilding` を有効）が要る。新しいブラウザの context では economy が無効のまま生成される。
 
 実測（M 系 Mac、dev サーバー）:
 

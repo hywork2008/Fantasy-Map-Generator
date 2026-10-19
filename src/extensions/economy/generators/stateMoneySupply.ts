@@ -100,7 +100,10 @@ export function getStateMoneyStocks(): Map<number, StateMoneyStock> {
   for (const market of getMarkets()) {
     if (!market) continue;
     const treasury = market.marketTreasury;
-    add(burgState.get(market.centerBurgId), positive(treasury?.balance) + getTradeCapitalMoney(treasury));
+    add(
+      burgState.get(market.centerBurgId),
+      positive(treasury?.balance) + positive(treasury?.tradeEscrow) + getTradeCapitalMoney(treasury)
+    );
     const purse = positive(market.foodLedger?.ruralHouseholdWealth);
     const byState = ruralByMarket.get(market.i);
     if (!purse || !byState) continue;

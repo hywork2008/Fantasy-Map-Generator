@@ -21,7 +21,7 @@ import { getMarketCellColumn, getMarkets, getWorldContext, isEconomyContextReady
 import { creditHouseholdWealth, debitHouseholdWealth, getHouseholdWealth } from "./burgMarketLedgers";
 import { getEconomyStartProfile } from "./economyStartMode";
 import type { Market } from "./marketTypes";
-import { MerchantTradeCapital } from "./merchantTradeCapital";
+import { getOpenAccountCommitments, isLongDistanceTradeEnabled, MerchantTradeCapital } from "./merchantTradeCapital";
 
 /**
  * One-time bootstrap for a Market's rural household wallet, from the same population-point scale
@@ -472,13 +472,16 @@ export function payOutMarketSurplus(creditMerchant: (characterId: number, amount
     if ((burg.population ?? 0) > 0) memberTowns.set(burg.market, [...(memberTowns.get(burg.market) ?? []), burg]);
   }
   let paid = 0;
+  // Open-account cargo on its way is paid for on arrival; that cash is not surplus (§12).
+  const openAccount = isLongDistanceTradeEnabled() ? getOpenAccountCommitments() : null;
   for (const market of getMarkets()) {
     const treasury = market.marketTreasury;
     if (!treasury) continue;
     const reserve =
       (memberPopulation.get(market.i) ?? 0) *
-      profile.burgTreasuryPerPopulation *
-      MARKET_CASH_RESERVE_PER_POPULATION_FACTOR;
+        profile.burgTreasuryPerPopulation *
+        MARKET_CASH_RESERVE_PER_POPULATION_FACTOR +
+      (openAccount?.get(market.i) ?? 0);
     // Farmers are paid what they are owed from any cash, before the market keeps a reserve or
     // anyone takes a profit.
     const repay = rn(Math.min(Math.max(0, treasury.balance), Math.max(0, treasury.ruralGrainPayable)), 2);

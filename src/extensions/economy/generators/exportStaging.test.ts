@@ -201,6 +201,22 @@ describe("ExportStaging warehouse", () => {
     expect(lots[0].units).toBe(1);
   });
 
+  it("stocks no start-of-map lot for a destination the good cannot reach in time", () => {
+    worldContext.pack.goods = [HEAD_GOOD];
+    const origin = getMarketById(1)!;
+    origin.goods[HEAD_GOOD.i] = { stock: 40, price: 3 };
+    origin.marketTreasury = { balance: 0, ruralGrainPayable: 0, tradeWorkingCapital: 1000, tradeCapitalLocked: 0 };
+
+    ExportStaging.seedInheritedExportWarehouseIfNeeded(() => null);
+    expect(getExportStagingLots()).toHaveLength(0);
+
+    ExportStaging.clear();
+    ExportStaging.seedInheritedExportWarehouseIfNeeded(() => ({ durationDays: 12, distanceKm: 300 }));
+    const lots = getExportStagingLots().filter(lot => lot.goodId === HEAD_GOOD.i);
+    expect(lots.length).toBeGreaterThan(0);
+    expect(lots.every(lot => lot.durationDays === 12)).toBe(true);
+  });
+
   it("caps booking by available trade capital", () => {
     const market = getMarketById(1)!;
     market.marketTreasury = {

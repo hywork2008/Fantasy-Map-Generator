@@ -424,7 +424,9 @@ export class ProductionModule {
     // stock (pre-start merchant inventory) before this cycle's global trade books more lots.
     measureTickStep("production:merchantPrep", () => {
       MerchantTradeCapital.ensureAllMarkets();
-      ExportStaging.seedInheritedExportWarehouseIfNeeded();
+      ExportStaging.seedInheritedExportWarehouseIfNeeded((from, to, good) =>
+        Markets.getShippableTradeRoute(from, to, good)
+      );
     });
 
     measureTickStep("production:pomaceWine", () => {
@@ -482,7 +484,9 @@ export class ProductionModule {
     // stock (pre-start merchant inventory) before this cycle's global trade books more lots.
     measureTickStep("production:merchantPrep", () => {
       MerchantTradeCapital.ensureAllMarkets();
-      ExportStaging.seedInheritedExportWarehouseIfNeeded();
+      ExportStaging.seedInheritedExportWarehouseIfNeeded((from, to, good) =>
+        Markets.getShippableTradeRoute(from, to, good)
+      );
     });
 
     measureTickStep("production:pomaceWine", () => {

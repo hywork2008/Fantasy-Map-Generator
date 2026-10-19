@@ -17,6 +17,7 @@ import { rollBalancedEconomyGender } from "./economyCharacterGender";
 import type { Market } from "./marketTypes";
 import type { MerchantOrganization, MerchantOrganizationScale } from "./merchantOrganizationsTypes";
 import { resolveBurgCulture } from "./resolveBurgCulture";
+import type { MarketReachRefusal } from "./tradeStageObserver";
 
 export type { MerchantOrganization, MerchantOrganizationScale } from "./merchantOrganizationsTypes";
 
@@ -152,12 +153,31 @@ function canOrganizationServeTrade(
   durationDays: number,
   metalTrade: boolean
 ): boolean {
-  if (durationDays > getOrganizationMaxTradeDays(organization.scale)) return false;
-  if (!isInHomeGround(organization, source, target)) return false;
+  return organizationTradeRefusal(organization, source, target, durationDays, metalTrade) === null;
+}
+
+/** Gates in the order they are checked; a later gate means the house came closer to trading. */
+const REFUSAL_ORDER: readonly MarketReachRefusal[] = [
+  "tooFar",
+  "outsideHomeGround",
+  "noCenter",
+  "smallVillage",
+  "localScale"
+];
+
+function organizationTradeRefusal(
+  organization: MerchantOrganization,
+  source: Market,
+  target: Market,
+  durationDays: number,
+  metalTrade: boolean
+): MarketReachRefusal | null {
+  if (durationDays > getOrganizationMaxTradeDays(organization.scale)) return "tooFar";
+  if (!isInHomeGround(organization, source, target)) return "outsideHomeGround";
 
   const sourceBurg = getMarketCenter(source);
   const targetBurg = getMarketCenter(target);
-  if (!sourceBurg || !targetBurg) return false;
+  if (!sourceBurg || !targetBurg) return "noCenter";
 
   const sourcePopulation = sourceBurg.population ?? 0;
   const targetPopulation = targetBurg.population ?? 0;
@@ -165,17 +185,36 @@ function canOrganizationServeTrade(
 
   if (organization.scale === "local") {
     const bothUrban = sourcePopulation >= URBAN_POPULATION_THRESHOLD && targetPopulation >= URBAN_POPULATION_THRESHOLD;
-    return !bothUrban || hasHomeEndpoint;
+    return !bothUrban || hasHomeEndpoint ? null : "localScale";
   }
 
   if (organization.scale === "major") {
-    if (metalTrade) return true;
+    if (metalTrade) return null;
     const hasTinyRuralEndpoint =
       sourcePopulation < SMALL_RURAL_POPULATION_THRESHOLD || targetPopulation < SMALL_RURAL_POPULATION_THRESHOLD;
-    return !hasTinyRuralEndpoint || durationDays <= getOrganizationMaxTradeDays("local");
+    return !hasTinyRuralEndpoint || durationDays <= getOrganizationMaxTradeDays("local") ? null : "smallVillage";
   }
 
-  return true;
+  return null;
+}
+
+/**
+ * Why `isMarketTradePermitted` refuses a pair: the gate of the house that came closest
+ * (diagnostics, docs/plan/long-distance-merchant-reach-capital.md R0). Null when it is permitted.
+ */
+export function explainMarketTradeRefusal(
+  source: Market,
+  target: Market,
+  durationDays: number,
+  metalTrade = false
+): MarketReachRefusal | null {
+  let closest = -1;
+  for (const organization of getMerchantOrganizations()) {
+    const refusal = organizationTradeRefusal(organization, source, target, durationDays, metalTrade);
+    if (refusal === null) return null;
+    closest = Math.max(closest, REFUSAL_ORDER.indexOf(refusal));
+  }
+  return closest < 0 ? null : REFUSAL_ORDER[closest];
 }
 
 function isInHomeGround(organization: MerchantOrganization, source: Market, target: Market): boolean {

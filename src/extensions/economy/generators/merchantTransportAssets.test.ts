@@ -1,9 +1,20 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
-import { clearEconomyContext, initEconomyContext, setFlowCycleHistory } from "../economyContext";
+import { clearEconomyContext, getMarkets, initEconomyContext, setFlowCycleHistory, setGoods } from "../economyContext";
+import type { Good } from "./goodsGeneratorTypes";
 import type { TransportAllocation } from "./marketTypes";
-import { MerchantTransportAssets } from "./merchantTransportAssets";
+import {
+  MerchantTransportAssets,
+  RIVER_BARGE_SALVAGE_WOOD_SHARE,
+  RIVER_BARGE_WOOD_UNITS
+} from "./merchantTransportAssets";
+
+const steam = vi.hoisted(() => ({ adopted: false }));
+vi.mock("../../../generators/technologyProgress", async importOriginal => ({
+  ...(await importOriginal<typeof import("../../../generators/technologyProgress")>()),
+  isTechnologyAtLeast: (technologyId: string) => technologyId === "coastalSteamNavigation" && steam.adopted
+}));
 
 const CART_ALLOCATION: TransportAllocation = {
   mode: "land",
@@ -156,23 +167,48 @@ describe("merchant transport assets", () => {
     expect(totalAfter).toBeGreaterThan(baseline);
   });
 
-  it("moves an arrived river barge to the destination market instead of returning it upstream", () => {
+  const sendBargeDownstream = () => {
     MerchantTransportAssets.addAvailableRiverAssets(1, 1);
     const reservation = MerchantTransportAssets.reserve(1, 10, [RIVER_BARGE_ALLOCATION]);
     expect(reservation).not.toBeNull();
     MerchantTransportAssets.depart(reservation?.reservation.id ?? -1);
-
     MerchantTransportAssets.settleCaravan(
       { transportReservationId: reservation?.reservation.id, buyer: 2, buyerType: "burg" },
       "arrived"
     );
+  };
+  const bargesAt = (marketId: number) =>
+    MerchantTransportAssets.getAvailability(marketId).find(asset => asset.assetId === "river-barge")?.available ?? 0;
 
-    expect(
-      MerchantTransportAssets.getAvailability(1).find(asset => asset.assetId === "river-barge")?.available ?? 0
-    ).toBe(0);
-    expect(MerchantTransportAssets.getAvailability(2).find(asset => asset.assetId === "river-barge")?.available).toBe(
-      1
-    );
+  it("breaks up a one-way barge for its wood where it lands, before steam towing", () => {
+    setGoods([{ i: 1, name: "Wood", value: 1, tags: [] } as unknown as Good]);
+    sendBargeDownstream();
+
+    expect(bargesAt(1)).toBe(0);
+    expect(bargesAt(2)).toBe(0);
+    const destination = getMarkets().find(market => market.i === 2);
+    expect(destination?.goods[1]?.stock).toBeCloseTo(RIVER_BARGE_WOOD_UNITS * RIVER_BARGE_SALVAGE_WOOD_SHARE);
+  });
+
+  it("moves an arrived river barge to the destination market once steam navigation is adopted", () => {
+    steam.adopted = true;
+    try {
+      worldContext.pack.burgs[1].state = 1;
+      sendBargeDownstream();
+      expect(bargesAt(1)).toBe(0);
+      expect(bargesAt(2)).toBe(1);
+    } finally {
+      steam.adopted = false;
+    }
+  });
+
+  it("orders barges for river cargo that found none, less those already afloat", () => {
+    MerchantTransportAssets.recordRiverBargeShortfall(1, 400);
+    expect(MerchantTransportAssets.takeRiverBargeTarget(1)).toBe(3);
+    expect(MerchantTransportAssets.takeRiverBargeTarget(1)).toBe(0);
+    MerchantTransportAssets.addAvailableRiverAssets(1, 1);
+    MerchantTransportAssets.recordRiverBargeShortfall(1, 400);
+    expect(MerchantTransportAssets.takeRiverBargeTarget(1)).toBe(2);
   });
 
   it("reserves one concrete merchant hull at a time and releases it through Shipbuilding", () => {

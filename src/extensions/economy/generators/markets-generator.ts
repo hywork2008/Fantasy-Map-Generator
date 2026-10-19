@@ -84,8 +84,17 @@ import {
 import { syncMarketManagers } from "./marketManagers";
 import type { Deal, Market, TradeRouteSegment } from "./marketTypes";
 import { housesPresentIn, knownPrice, recordMarketPriceSnapshot, seedMerchantBranches } from "./merchantIntelligence";
-import { getOrganizationMaxTradeDays, isMarketTradePermitted } from "./merchantOrganizations";
-import { getImporterPurchaseRoom, isLongDistanceTradeEnabled } from "./merchantTradeCapital";
+import {
+  explainMarketTradeRefusal,
+  getOrganizationMaxTradeDays,
+  isMarketTradePermitted
+} from "./merchantOrganizations";
+import {
+  getImporterPurchaseRoom,
+  getUncommittedTradeCapital,
+  isLongDistanceTradeEnabled,
+  MerchantTradeCapital
+} from "./merchantTradeCapital";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
 import { applyPriceElasticity, relaxMarketPrice } from "./priceElasticity";
 import {
@@ -108,6 +117,7 @@ import {
   isGoodTradePermittedForShipment,
   MIN_TRADE_PROFIT
 } from "./tradeOpportunityEstimator";
+import { choosePaymentTerms } from "./tradePaymentTerms";
 import { calculateRouteDurationDays, getRouteDistanceMapUnits } from "./tradeRouteDuration";
 import { TradeRoutePlanner } from "./tradeRoutePlanner";
 import { maxWaitDaysForRoute } from "./tradeSailSchedule";
@@ -298,6 +308,27 @@ export class MarketsModule {
   }
 
   /** Worst-case commercial loading wait, included in fresh cargo's shelf-life check. */
+  /**
+   * The route between two markets when `good` survives the trip and the wait for a sailing on it
+   * (the cargo rule of global trade), else null. Used to stock the start-of-map export warehouse.
+   */
+  getShippableTradeRoute(
+    sourceMarketId: number,
+    targetMarketId: number,
+    good: Good
+  ): { durationDays: number; distanceKm: number } | null {
+    const route = this.getCachedMarketTradeRoutes()[sourceMarketId]?.[targetMarketId];
+    if (!route || !Number.isFinite(route.durationDays)) return null;
+    const permitted = isGoodTradePermittedForShipment(
+      good,
+      route.durationDays,
+      this.getExpectedLoadingWaitDays(route),
+      route.segments,
+      route.maxTemperatureC
+    );
+    return permitted ? { durationDays: route.durationDays, distanceKm: route.distanceKm } : null;
+  }
+
   private getExpectedLoadingWaitDays(route: Pick<MarketTradeRoute, "segments" | "distanceKm">): number {
     const logistics = TradeLogisticsSettings.getOptions();
     return maxWaitDaysForRoute(route.segments, route.distanceKm, {
@@ -2135,7 +2166,17 @@ export class MarketsModule {
           if (
             !isMarketTradePermitted(exporter.market, importer.market, route.durationDays, isMineOrFurnaceGood(good))
           ) {
-            observe?.({ stage: "orgReach", ...leg });
+            observe?.({
+              stage: "orgReach",
+              ...leg,
+              reason:
+                explainMarketTradeRefusal(
+                  exporter.market,
+                  importer.market,
+                  route.durationDays,
+                  isMineOrFurnaceGood(good)
+                ) ?? undefined
+            });
             continue;
           }
 
@@ -2393,12 +2434,26 @@ export class MarketsModule {
         goodsUnitCost: exporterGood.price,
         freightUnitCost: opportunity.transportCost,
         saleUnitPrice: quotedSalePrice,
+        paymentTerms:
+          purchaseRoom && !opportunity.stateProcurement
+            ? choosePaymentTerms(opportunity.exporter, opportunity.importer, opportunity.durationDays)
+            : undefined,
         // State procurement underwrites its own committed shipment; it must not be blocked by
         // the exporting market's optional merchant working-capital pool.
         requireCapital: !opportunity.stateProcurement
       });
       if (!lot) {
-        observe?.({ stage: "noCapital", ...leg });
+        if (observe) {
+          const treasury = opportunity.exporter.marketTreasury;
+          observe({
+            stage: "noCapital",
+            ...leg,
+            units,
+            capitalNeeded: units * landedCost,
+            capitalAvailable: MerchantTradeCapital.peekAvailableCapital(opportunity.exporter),
+            capitalCash: getUncommittedTradeCapital(treasury)
+          });
+        }
         continue;
       }
       deal.stagingLotId = lot.id;

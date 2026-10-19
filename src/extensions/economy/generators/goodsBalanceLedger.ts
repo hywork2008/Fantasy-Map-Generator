@@ -37,7 +37,9 @@ export type GoodFlowCategory =
   | "navyExport"
   | "navyImport"
   | "luxuryPurchase"
-  | "characterLuxury";
+  | "characterLuxury"
+  /** Timber recovered by breaking up a one-way river craft at its destination. */
+  | "vesselSalvage";
 
 export interface GoodFlowRecord {
   readonly direction: GoodFlowDirection;
@@ -252,6 +254,7 @@ export function closeGoodsBalanceInterval(point: GoodsBalancePoint): {
         navyImport: categoryTotal(flows, "navyImport", good.i),
         luxuryPurchase: categoryTotal(flows, "luxuryPurchase", good.i),
         characterLuxury: categoryTotal(flows, "characterLuxury", good.i),
+        vesselSalvage: categoryTotal(flows, "vesselSalvage", good.i),
         accountingGap: opening + sources - sinks - closing
       };
     });

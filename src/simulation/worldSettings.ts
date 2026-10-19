@@ -25,7 +25,9 @@ export const WORLD_SETTING_KEYS = [
   /** "on": the mint issues real coin and prices follow the money stock (docs/plan/money-supply-mint.md §4.1, §4.3). */
   "fmg-money-supply",
   /** "on": inter-market cargo is paid for, with no soft arrival profit (docs/plan/long-distance-merchant-reach-capital.md §5.1). */
-  "fmg-long-distance-trade"
+  "fmg-long-distance-trade",
+  /** "escrow" / "openAccount" fix how importers pay for paid cargo; default strikes terms per booking (long-distance-merchant-reach-capital.md §12). */
+  "fmg-trade-payment-terms"
 ] as const;
 
 export type WorldSettingKey = (typeof WORLD_SETTING_KEYS)[number];

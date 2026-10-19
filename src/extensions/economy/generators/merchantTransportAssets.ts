@@ -1,3 +1,4 @@
+import { isTechnologyAtLeast } from "../../../generators/technologyProgress";
 import { simEvents } from "../../../simulation/events";
 import { SHIP_CLASS_DEFINITIONS, type ShipbuildingMerchantHullSnapshot } from "../../hostTypes";
 import {
@@ -16,6 +17,7 @@ import {
 } from "../economyContext";
 import { getDraftAnimalType } from "./caravanMovement";
 import { DEMAND_PRIORITY, DEMAND_TARGET_FACTORS, type DemandCategory, Goods, isGoodEnabled } from "./goods-generator";
+import { recordGoodFlow } from "./goodsBalanceLedger";
 import type { Good } from "./goodsGeneratorTypes";
 import {
   estimateSoftAnnualExportCargoSlots,
@@ -42,6 +44,45 @@ const MAINTENANCE_RECOVERY_DAYS = 30;
 /** Top-up fleets from measured A0 flow only after this many production cycles. */
 const FLOW_FLEET_TOPUP_MIN_CYCLES = 3;
 export const RIVER_BARGE_CARGO_CAPACITY_SLOTS = RIVER_BARGE_TRANSPORT.cargoCapacitySlots;
+/** Wood one river barge is built from (its TransportAssetOrder blueprint). */
+export const RIVER_BARGE_WOOD_UNITS = 5;
+/**
+ * Share of that wood recovered when a one-way craft is broken up downstream. A Mississippi
+ * flatboat broken up at New Orleans fetched about a quarter of what it cost to build, labour,
+ * pitch and rope included; the planks were most of what was left (docs/plan/river-vessels-and-
+ * downstream-trade.md §10).
+ */
+export const RIVER_BARGE_SALVAGE_WOOD_SHARE = 0.5;
+/** Weight of the latest cycle in the smoothed barge departures. */
+const RIVER_DEPARTURE_SMOOTHING = 0.2;
+/** A market keeps barges built ahead only once it sends at least this many a cycle. */
+const RIVER_PREBUILD_MIN_DEPARTURES_PER_CYCLE = 1;
+
+/**
+ * Until steam can tow a craft back, a river barge is built for one trip downstream and broken
+ * up where it lands: the Ulm boats on the Danube were sold as timber and firewood at Vienna, Rhine
+ * and Black Forest rafts were the timber they carried, and flatboats were dismantled at New
+ * Orleans. Steam towing made craft worth bringing back, so from coastal steam navigation (adopted)
+ * an arriving barge joins the destination market's fleet instead.
+ */
+export function isOneWayRiverCraftEra(marketId: number): boolean {
+  const market = getMarketById(marketId);
+  const stateId = market ? (getWorldContext().pack.burgs[market.centerBurgId]?.state ?? 0) : 0;
+  return !(stateId > 0 && isTechnologyAtLeast("coastalSteamNavigation", stateId, "adopted"));
+}
+
+/** Breaks up arrived one-way barges at `marketId`: their recoverable wood goes to its stock. */
+function salvageRiverBarges(marketId: number | undefined, barges: number): void {
+  if (!(barges > 0) || typeof marketId !== "number") return;
+  const market = getMarketById(marketId);
+  const wood = getGoods().find(good => good.name === "Wood");
+  if (!market || !wood) return;
+  const units = barges * RIVER_BARGE_WOOD_UNITS * RIVER_BARGE_SALVAGE_WOOD_SHARE;
+  const row = market.goods[wood.i];
+  if (row) row.stock += units;
+  else market.goods[wood.i] = { stock: units, price: wood.value };
+  recordGoodFlow({ direction: "source", category: "vesselSalvage", goodId: wood.i, units, marketId });
+}
 
 export type MerchantTransportAssetAvailability = {
   assetId: string;
@@ -580,6 +621,7 @@ export class MerchantTransportAssetsModule {
       if (!balance) continue;
       balance.reserved -= allocation.unitCount;
       balance.inTransit += allocation.unitCount;
+      ledger.riverDeparturesThisCycle = (ledger.riverDeparturesThisCycle ?? 0) + allocation.unitCount;
       assertBalance(balance);
     }
     for (const hullId of reservation.allocations.flatMap(allocation => allocation.shipHullIds ?? [])) {
@@ -658,11 +700,18 @@ export class MerchantTransportAssetsModule {
           : undefined;
     const destinationLedger =
       typeof destinationMarketId === "number" ? (this.ensureLedger(destinationMarketId) ?? ledger) : ledger;
+    const oneWay = isOneWayRiverCraftEra(reservation.dispatcherMarketId);
     for (const allocation of reservation.allocations) {
       if (allocation.mode !== "river") continue;
       const sourceBalance = ledger.riverAssets.find(asset => asset.assetId === allocation.transportId);
       if (!sourceBalance) continue;
       sourceBalance.inTransit -= allocation.unitCount;
+      if (oneWay) {
+        // Built for this trip: broken up for its wood on arrival, lost with its cargo otherwise.
+        if (outcome === "arrived") salvageRiverBarges(destinationMarketId, allocation.unitCount);
+        assertBalance(sourceBalance);
+        continue;
+      }
       let destinationBalance = destinationLedger.riverAssets.find(asset => asset.assetId === allocation.transportId);
       if (!destinationBalance) {
         destinationBalance = {
@@ -804,6 +853,36 @@ export class MerchantTransportAssetsModule {
     if (!balance) return;
     balance.available += quantity;
     assertBalance(balance);
+  }
+
+  /** A loading pass found river cargo but no free barge at `marketId` (§10: barges are built to demand). */
+  recordRiverBargeShortfall(marketId: number, cargoSlots: number): void {
+    if (!(cargoSlots > 0)) return;
+    const ledger = this.ensureLedger(marketId);
+    if (!ledger) return;
+    ledger.riverShortfallSlots = (ledger.riverShortfallSlots ?? 0) + cargoSlots;
+  }
+
+  /**
+   * Barges a market should have built or building this cycle: enough for the river cargo that
+   * waited for one, plus — while craft are one-way — about a cycle's usual departures built ahead
+   * where the river trade is steady. Resets the cycle's shortfall and departure counts.
+   */
+  takeRiverBargeTarget(marketId: number): number {
+    const ledger = findLedger(marketId);
+    if (!ledger) return 0;
+    const departures = ledger.riverDeparturesThisCycle ?? 0;
+    const smoothed =
+      (ledger.riverDeparturesPerCycle ?? 0) * (1 - RIVER_DEPARTURE_SMOOTHING) + departures * RIVER_DEPARTURE_SMOOTHING;
+    ledger.riverDeparturesPerCycle = smoothed > 0.01 ? smoothed : undefined;
+    ledger.riverDeparturesThisCycle = undefined;
+    const shortfall = Math.ceil((ledger.riverShortfallSlots ?? 0) / RIVER_BARGE_CARGO_CAPACITY_SLOTS - 0.000001);
+    ledger.riverShortfallSlots = undefined;
+    const prebuilt =
+      isOneWayRiverCraftEra(marketId) && smoothed >= RIVER_PREBUILD_MIN_DEPARTURES_PER_CYCLE ? Math.floor(smoothed) : 0;
+    const balance = ledger.riverAssets.find(asset => asset.assetId === "river-barge");
+    const ready = (balance?.available ?? 0) + (balance?.maintenance ?? 0);
+    return Math.max(0, shortfall + prebuilt - ready);
   }
 
   /** Credits completed shallow-draft vessels to Economy's aggregate river-asset ledger. */

@@ -9,6 +9,7 @@ import {
   getApproachLedgerDecays,
   getApproachTraffic,
   getCaravans,
+  getExportStagingLots,
   getMarketById,
   getMarkets,
   getGoods,
@@ -23,7 +24,14 @@ import { getGoodCargoSlotsPerUnit } from "../../src/extensions/economy/generator
 import { getCharacters } from "../../src/extensions/characters/charactersContext";
 import { inferRoleClass } from "../../src/extensions/characters/backstoryProfile";
 import { delayRatio, liveCorridorNeeds } from "../../src/extensions/economy/generators/tradeCorridorLedger";
-import { setTradeStageObserver, type TradeStageEvent } from "../../src/extensions/economy/generators/tradeStageObserver";
+import {
+  type LotDispatchEvent,
+  type LotDispatchOutcome,
+  setLotDispatchObserver,
+  setTradeStageObserver,
+  type TradeStageEvent
+} from "../../src/extensions/economy/generators/tradeStageObserver";
+import { TradeLogisticsSettings } from "../../src/extensions/economy/generators/tradeLogisticsSettings";
 import { setGoodFlowObserver, type GoodFlowRecord } from "../../src/extensions/economy/generators/goodsBalanceLedger";
 import { DEMAND_TARGET_FACTORS } from "../../src/extensions/economy/generators/goods-generator";
 import { townStanding } from "../../src/extensions/economy/generators/luxuryDemand";
@@ -633,6 +641,18 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
     for (const key of keys) {
       const row = stageCounts.get(key) ?? {};
       row[event.stage] = (row[event.stage] ?? 0) + 1;
+      // R0 (docs/plan/long-distance-merchant-reach-capital.md §8): which reach gate, and how short
+      // of capital the refused bookings were.
+      if (event.reason) row[`${event.stage}:${event.reason}`] = (row[`${event.stage}:${event.reason}`] ?? 0) + 1;
+      if (event.stage === "noCapital") {
+        const needed = event.capitalNeeded ?? 0;
+        const available = event.capitalAvailable ?? 0;
+        row.noCapitalNeeded = (row.noCapitalNeeded ?? 0) + needed;
+        row.noCapitalAvailable = (row.noCapitalAvailable ?? 0) + available;
+        // Cash enough but the coin shortage caps it / under a tenth of the need / partly short.
+        const kind = (event.capitalCash ?? 0) >= needed ? "coin" : available < needed * 0.1 ? "empty" : "short";
+        row[`noCapital:${kind}`] = (row[`noCapital:${kind}`] ?? 0) + 1;
+      }
       stageCounts.set(key, row);
       if (event.stage !== "deal") continue;
       const deal = dealRows.get(key) ?? { deals: 0, units: 0, value: 0, days: [], km: [] };
@@ -644,6 +664,72 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
       dealRows.set(key, deal);
     }
   });
+
+  // Export-warehouse lots (§5.3, R0): how many loading passes (one per production cycle, about a
+  // month) each has sat through since it was last loaded, and why each pass left it. The economy
+  // catches up its months after an advance returns, so the clock cannot date the passes.
+  const PASS_DAYS = 30.4;
+  type LotTrack = { idlePasses: number; outcome: LotDispatchOutcome; passes: Record<string, number> };
+  const lotTracks = new Map<number, LotTrack>();
+  setLotDispatchObserver((event: LotDispatchEvent) => {
+    let track = lotTracks.get(event.lotId);
+    if (!track || event.outcome === "loaded") {
+      track = { idlePasses: 0, outcome: event.outcome, passes: {} };
+      lotTracks.set(event.lotId, track);
+    }
+    if (event.outcome !== "loaded") track.idlePasses++;
+    track.outcome = event.outcome;
+    track.passes[event.outcome] = (track.passes[event.outcome] ?? 0) + 1;
+  });
+  const LOT_AGE_BUCKETS = [90, 365, 730, Infinity] as const;
+  function warehouseLots() {
+    const logistics = TradeLogisticsSettings.getOptions();
+    const maxWait = Math.max(logistics.maxWaitDaysLand, logistics.maxWaitDaysSea, logistics.maxWaitDaysShortSea);
+    const lots = getExportStagingLots();
+    const live = new Set(lots.map(lot => lot.id));
+    for (const id of lotTracks.keys()) if (!live.has(id)) lotTracks.delete(id);
+    const byAge: Record<string, { lots: number; locked: number }> = {};
+    const staleByOutcome: Record<string, { lots: number; locked: number; units: number }> = {};
+    const stale: unknown[] = [];
+    const staleSamples: Record<string, number> = {};
+    for (const lot of lots) {
+      const track = lotTracks.get(lot.id);
+      const age = (track?.idlePasses ?? 0) * PASS_DAYS;
+      const bucket = LOT_AGE_BUCKETS.findIndex(limit => age < limit);
+      const label = Number.isFinite(LOT_AGE_BUCKETS[bucket]) ? `<${LOT_AGE_BUCKETS[bucket]}d` : `>=${LOT_AGE_BUCKETS[bucket - 1]}d`;
+      const row = (byAge[label] ??= { lots: 0, locked: 0 });
+      row.lots++;
+      row.locked = r3(row.locked + (lot.lockedCapital ?? 0));
+      if (age <= maxWait + (lot.durationDays ?? 0)) continue;
+      const outcome = track?.outcome ?? "untracked";
+      const staleRow = (staleByOutcome[outcome] ??= { lots: 0, locked: 0, units: 0 });
+      staleRow.lots++;
+      staleRow.locked = r3(staleRow.locked + (lot.lockedCapital ?? 0));
+      staleRow.units = r3(staleRow.units + lot.units);
+      // Up to 10 examples per outcome.
+      staleSamples[outcome] = (staleSamples[outcome] ?? 0) + 1;
+      if (staleSamples[outcome] <= 10)
+        stale.push({
+        id: lot.id,
+        from: lot.marketId,
+        to: lot.destinationMarketId,
+        good: getGoods().find(g => g.i === lot.goodId)?.name ?? lot.goodId,
+        units: r3(lot.units),
+        locked: r3(lot.lockedCapital ?? 0),
+        days: lot.durationDays,
+        age: Math.round(age),
+        outcome,
+        passes: track?.passes
+      });
+    }
+    return {
+      lots: lots.length,
+      locked: r3(lots.reduce((sum, lot) => sum + (lot.lockedCapital ?? 0), 0)),
+      byAge,
+      staleByOutcome,
+      stale
+    };
+  }
 
   /** Trade matching since the previous call (or since these views were created). */
   function trade() {
@@ -667,7 +753,10 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
         paidShare: settlement.saleValue > 0 ? r3((settlement.paidOnArrival + settlement.payableRepaid) / settlement.saleValue) : null,
         payablesOutstanding: r3(payablesOutstanding)
       },
-      stages: Object.fromEntries(counts),
+      stages: Object.fromEntries(
+        [...counts].map(([key, row]) => [key, Object.fromEntries(Object.entries(row).map(([k, v]) => [k, r3(v)]))])
+      ),
+      warehouse: warehouseLots(),
       deals: Object.fromEntries(
         [...deals].map(([key, row]) => [
           key,
@@ -779,7 +868,7 @@ function moneyTotals(world: WorldContext): MoneyTotals {
     for (const g of getGuildKnowledgeStocks()) totals.guilds += g.treasury ?? 0;
     for (const c of getGuildChapters() as { treasury?: number }[]) totals.guilds += c.treasury ?? 0;
     for (const m of getMarkets()) {
-      totals.marketBalance += m.marketTreasury?.balance ?? 0;
+      totals.marketBalance += (m.marketTreasury?.balance ?? 0) + (m.marketTreasury?.tradeEscrow ?? 0);
       totals.marketPayable += m.marketTreasury?.ruralGrainPayable ?? 0;
       totals.tradeCapital += getTradeCapitalMoney(m.marketTreasury);
       totals.ruralHouseholds += m.foodLedger?.ruralHouseholdWealth ?? 0;

@@ -15,13 +15,15 @@ import { laborPeople, peopleToPoints } from "./craftScale";
 import { getGuildBonus } from "./guildKnowledge";
 import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";
 import type { MerchantLandAssetBalance, TransportAssetOrder } from "./marketTypes";
-import { MerchantTransportAssets } from "./merchantTransportAssets";
+import { MerchantTransportAssets, RIVER_BARGE_WOOD_UNITS } from "./merchantTransportAssets";
 
 export type TransportAssetBlueprint = {
   id: TransportAssetOrder["blueprintId"];
   outputAssetId: MerchantLandAssetBalance["assetId"] | "river-barge";
   outputMode: "land" | "river";
   materialNames: Readonly<Record<string, number>>;
+  /** Used when the market has them in stock; otherwise the craft is built without (e.g. withies for rope). */
+  optionalMaterialNames?: Readonly<Record<string, number>>;
   requiredWorkPoints: number;
   requiredCraft: CraftKnowledgeDomain;
   cargoCapacitySlots: number;
@@ -63,7 +65,10 @@ const BLUEPRINTS: readonly TransportAssetBlueprint[] = [
     id: "river-barge",
     outputAssetId: "river-barge",
     outputMode: "river",
-    materialNames: { Wood: 5, Ropes: 1, Tar: 1 },
+    // Plank-built and caulked; a raft-like one-way craft can be bound with withies and left
+    // unpitched, so rope and tar are used only where the market has them.
+    materialNames: { Wood: RIVER_BARGE_WOOD_UNITS },
+    optionalMaterialNames: { Ropes: 1, Tar: 1 },
     requiredWorkPoints: 6,
     requiredCraft: "woodworking",
     cargoCapacitySlots: 160
@@ -88,13 +93,22 @@ function getBlueprint(id: TransportAssetOrder["blueprintId"]): TransportAssetBlu
   return blueprint;
 }
 
-function requiredMaterials(blueprint: TransportAssetBlueprint, quantity: number): Record<number, number> | null {
+function requiredMaterials(
+  blueprint: TransportAssetBlueprint,
+  quantity: number,
+  market?: { goods: Record<number, { stock: number } | undefined> }
+): Record<number, number> | null {
   const goods = getGoods();
   const materials: Record<number, number> = {};
   for (const [name, perAsset] of Object.entries(blueprint.materialNames)) {
     const good = goods.find(candidate => candidate.name === name);
     if (!good) return null;
     materials[good.i] = perAsset * quantity;
+  }
+  for (const [name, perAsset] of Object.entries(blueprint.optionalMaterialNames ?? {})) {
+    const good = goods.find(candidate => candidate.name === name);
+    if (good && market && (market.goods[good.i]?.stock ?? 0) + 0.0001 >= perAsset * quantity)
+      materials[good.i] = perAsset * quantity;
   }
   return materials;
 }
@@ -251,13 +265,30 @@ export class TransportAssetOrdersModule {
         const missing = Math.max(0, Math.ceil(balance.maintenance) - outstanding);
         if (missing > 0) this.createOrder({ marketId: market.i, blueprintId: balance.assetId, quantity: missing });
       }
+      // River barges are built to demand: for river cargo that found none, and a cycle's usual
+      // departures ahead while craft are one-way (docs/plan/river-vessels-and-downstream-trade.md §10).
+      const bargeTarget = MerchantTransportAssets.takeRiverBargeTarget(market.i);
+      if (bargeTarget > 0) {
+        const building = getTransportAssetOrders()
+          .filter(
+            order =>
+              order.marketId === market.i &&
+              order.blueprintId === "river-barge" &&
+              order.requestedBy === "simulation" &&
+              order.status !== "completed" &&
+              order.status !== "cancelled"
+          )
+          .reduce((sum, order) => sum + order.quantity - order.completedQuantity, 0);
+        const missing = bargeTarget - building;
+        if (missing > 0) this.createOrder({ marketId: market.i, blueprintId: "river-barge", quantity: missing });
+      }
     }
   }
 
   private fundOrder(order: TransportAssetOrder): void {
     if (order.status !== "queued" && order.status !== "waitingMaterials") return;
     const market = getMarketById(order.marketId);
-    const materials = requiredMaterials(getBlueprint(order.blueprintId), order.quantity);
+    const materials = market ? requiredMaterials(getBlueprint(order.blueprintId), order.quantity, market) : null;
     if (!market || !materials) {
       order.status = "waitingMaterials";
       order.blockedReason = "missingMaterials";
@@ -372,9 +403,11 @@ export class TransportAssetOrdersModule {
       } else {
         MerchantTransportAssets.addAvailableRiverAssets(order.marketId, newlyCompleted);
       }
+      // Materials were reserved for the whole order; release each completed craft's share.
+      const remainingQuantity = order.quantity - order.completedQuantity;
       for (const [goodId, reserved] of Object.entries(order.reservedMaterials)) {
         order.reservedMaterials[+goodId] = rn(
-          Math.max(0, reserved - (requiredMaterials(blueprint, newlyCompleted)?.[+goodId] ?? 0)),
+          Math.max(0, reserved - (reserved * newlyCompleted) / Math.max(1, remainingQuantity)),
           4
         );
       }

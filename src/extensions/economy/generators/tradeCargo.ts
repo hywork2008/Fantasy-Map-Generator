@@ -152,9 +152,11 @@ export function buildCargoManifests(
   draftAnimalId: string,
   maxCapacitySlots?: number
 ): CargoManifest[] {
+  // Good ids start at 1: look goods up by id, not by position in the catalogue.
+  const goodById = new Map(goods.map(good => [good.i, good]));
   const pending = deals
     .map(deal => {
-      const good = goods[deal.good];
+      const good = goodById.get(deal.good);
       const remainingUnits = deal.remainingUnits ?? deal.units;
       return good && remainingUnits > UNIT_EPSILON ? { deal, good, remainingUnits } : null;
     })

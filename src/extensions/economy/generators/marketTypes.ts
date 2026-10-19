@@ -230,7 +230,20 @@ export interface MarketTreasury {
   tradeCapitalPaid?: boolean;
   /** Unpaid purchases of arrived inter-market cargo, by creditor (exporting) market id (§5.1). */
   tradePayables?: Record<string, number>;
+  /**
+   * Cash this market has put up for cargo bought on escrow terms and still on the way: taken
+   * out of `balance` at booking, paid to the seller on arrival, returned if the cargo never comes
+   * (docs/plan/long-distance-merchant-reach-capital.md §12).
+   */
+  tradeEscrow?: number;
 }
+
+/**
+ * How the importer pays for a booking (§12): `escrow` puts the price up at booking and pays it on
+ * arrival; `openAccount` pays on arrival from cash, owing what it lacks, while the expected price
+ * is kept out of the market's monthly payout.
+ */
+export type TradePaymentTerms = "escrow" | "openAccount";
 
 export interface FoodLedger {
   /** Current quarter's Grain physically sold by rural households into this Market. */
@@ -361,6 +374,9 @@ export type ExportStagingLot = {
   goodsUnitCost?: number;
   /** Price per unit the house expected at the destination; what the importer pays on arrival. */
   saleUnitPrice?: number;
+  paymentTerms?: TradePaymentTerms;
+  /** Escrow terms: the importer's cash put up for this lot's units. */
+  escrowAmount?: number;
   /** Days this lot has waited without any of it being loaded (§5.3). */
   waitedDays?: number;
   /** Days since this fresh cargo left the origin market. Omitted for durable/legacy cargo. */
@@ -422,6 +438,15 @@ export type MerchantTransportLedger = {
   /** References only; Shipbuilding's ShipHull remains the source of truth. */
   waterAssets: MerchantWaterAssetReference[];
   lastReconciledTick: number;
+  /**
+   * Cargo slots that could not leave by river since the last replenishment for want of a barge
+   * (docs/plan/river-vessels-and-downstream-trade.md §10). Read and reset when barges are ordered.
+   */
+  riverShortfallSlots?: number;
+  /** Barges sent downstream since the last replenishment. */
+  riverDeparturesThisCycle?: number;
+  /** Smoothed barges sent downstream per production cycle; sizes the pre-built stock. */
+  riverDeparturesPerCycle?: number;
 };
 
 export type TransportReservation = {
@@ -511,6 +536,9 @@ export interface Caravan {
     goodsUnitCost?: number;
     /** Price per unit the importer pays on arrival. */
     saleUnitPrice?: number;
+    paymentTerms?: TradePaymentTerms;
+    /** Escrow terms: the importer's cash put up for this cargo. */
+    escrowAmount?: number;
     /**
      * Staple food (Food Ledger) riding free capacity on a commercial caravan.
      * Settled via foodCoLoad helpers, not ordinary retail stock transfer.
