@@ -189,6 +189,8 @@ export interface BurgSiteBiome {
 }
 
 export interface BurgSiteDescriptor {
+  /** Cultivated hectares allocated to the cell's urban population; absent without land-use data. */
+  farmlandAreaHectares?: number;
   urbanMorphology?: UrbanMorphologyProfile;
   burialProfile?: import("../data/burialCultures").BurialCultureProfile;
   civilization?: import("../data/civilizationTraditions").BurgCivilization;

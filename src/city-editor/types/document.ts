@@ -457,6 +457,8 @@ export interface CityDocument {
    * A guild chapter in this profile is drawn even when its craftsman count is zero.
    */
   siteEconomy?: import("./contracts/burgSiteEconomy").BurgSiteEconomy;
+  /** Upper bound on rendered farms, in hectares; absent for unsurveyed sites. */
+  farmlandAreaHectares?: number;
   /**
    * Compass bearing the wind blows toward (0 = north, clockwise), copied from
    * `climate.prevailingWindDeg`. Absent: windmills keep a seeded facing.

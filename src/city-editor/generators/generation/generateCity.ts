@@ -243,6 +243,9 @@ export function generateCityOnDocument(
       const skewLimit = settings.descriptor?.transport?.maxBridgeSkewDegrees ?? document.maxBridgeSkewDegrees;
       if (skewLimit !== undefined) result.maxBridgeSkewDegrees = skewLimit;
       if (settings.descriptor?.economy) result.siteEconomy = structuredClone(settings.descriptor.economy);
+      result.farmlandAreaHectares = settings.descriptor
+        ? settings.descriptor.farmlandAreaHectares
+        : document.farmlandAreaHectares;
       const prevailingWindDeg = settings.descriptor?.climate?.prevailingWindDeg;
       if (typeof prevailingWindDeg === "number" && Number.isFinite(prevailingWindDeg))
         result.prevailingWindDeg = prevailingWindDeg;

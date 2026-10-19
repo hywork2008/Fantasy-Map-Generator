@@ -176,6 +176,9 @@ export function generateStageOnDocument(
     applyCheckpoint as "walls" | "riverPassages" | "passages" | undefined
   );
   if (res) {
+    res.farmlandAreaHectares = settings.descriptor
+      ? settings.descriptor.farmlandAreaHectares
+      : document.farmlandAreaHectares;
     res.layout = resolveEffectiveLayout(
       settings.layout ?? settings.config?.layout,
       townExtentMeters(document.frame),

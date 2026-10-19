@@ -340,6 +340,12 @@ function parseJson(json: string): unknown {
 }
 
 function asDescriptor(raw: unknown): BurgSiteDescriptor | null {
+  if (
+    isRecord(raw) &&
+    raw.farmlandAreaHectares !== undefined &&
+    (!isFiniteNumber(raw.farmlandAreaHectares) || raw.farmlandAreaHectares < 0)
+  )
+    return warnShape("descriptor.farmlandAreaHectares");
   if (!isRecord(raw)) return warnShape("root object");
   if (raw.version !== 2 && raw.version !== DESCRIPTOR_VERSION) {
     if (raw.kind === CITY_EDITOR_SHARE_KIND) return null;

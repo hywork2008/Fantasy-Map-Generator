@@ -94,6 +94,8 @@ function isDocument(value: unknown): value is CityDocument {
       (doc.version === 4 && validSceneRegions(doc.sceneRegions) && validRegionalFrameRoads(doc.frameRoads))) &&
     (doc.landmarks === undefined || Array.isArray(doc.landmarks)) &&
     (doc.landmarkAssets === undefined || Array.isArray(doc.landmarkAssets)) &&
+    (doc.farmlandAreaHectares === undefined ||
+      (Number.isFinite(doc.farmlandAreaHectares) && doc.farmlandAreaHectares >= 0)) &&
     (doc.biome === undefined ||
       (typeof doc.biome === "object" && doc.biome !== null && typeof (doc.biome as { id: unknown }).id === "number")) &&
     (doc.gridKind === undefined || ["hex", "voronoi", "evolution"].includes(doc.gridKind)) &&
