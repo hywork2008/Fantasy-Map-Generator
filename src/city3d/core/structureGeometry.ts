@@ -12,6 +12,8 @@ interface Bucket {
 }
 
 const EMPTY: TriangleSoup = { positions: new Float32Array(), normals: new Float32Array() };
+/** Civic buildings, fortifications and spires retain their specified roof pitch. */
+const STRUCTURE_ROOF_OPTIONS = { maximumRoofRiseMeters: Infinity };
 
 function toSoup(bucket: Bucket): TriangleSoup {
   return { positions: Float32Array.from(bucket.positions), normals: Float32Array.from(bucket.normals) };
@@ -234,7 +236,7 @@ function addSpire(structure: StructureMassing, roofs: Bucket): void {
     spire: false
   });
   massing.roof.pitchDeg = (Math.atan(rise / radius) * 180) / Math.PI;
-  const surfaces = buildingSurfaces(circle(centre, radius), massing);
+  const surfaces = buildingSurfaces(circle(centre, radius), massing, STRUCTURE_ROOF_OPTIONS);
   if (!surfaces) return;
   appendSoup(roofs, lift(surfaces.walls, structure.baseElevationMeters + structure.heightMeters));
   appendSoup(roofs, lift(surfaces.roofs, structure.baseElevationMeters + structure.heightMeters));
@@ -517,7 +519,7 @@ export function structureSurfaces(structure: StructureMassing): BuildingSurfaces
     const holed = (structure.holes?.length ?? 0) > 0;
     const surfaces = holed
       ? solidSurfaces(structure)
-      : buildingSurfaces(structure.footprint, footprintMassing(structure));
+      : buildingSurfaces(structure.footprint, footprintMassing(structure), STRUCTURE_ROOF_OPTIONS);
     if (!surfaces) return null;
     appendSoup(walls, lift(surfaces.walls, structure.baseElevationMeters));
     appendSoup(roofs, lift(surfaces.roofs, structure.baseElevationMeters));

@@ -325,7 +325,8 @@ function addPitchedRoof(
   form: RoofForm,
   azimuth: number,
   pitchDeg: number,
-  interior: V3
+  interior: V3,
+  maximumRoofRiseMeters: number
 ): void {
   if (form === "lean-to") {
     addLeanTo(walls, roofs, ring, y, pitchDeg, interior);
@@ -337,7 +338,7 @@ function addPitchedRoof(
     return;
   }
   if (ring.length === 4) {
-    addQuadrilateralRoof(walls, roofs, ring, y, form, azimuth, pitchDeg, ends.run, interior);
+    addQuadrilateralRoof(walls, roofs, ring, y, form, azimuth, pitchDeg, ends.run, interior, maximumRoofRiseMeters);
     return;
   }
   const span = Math.hypot(ends.end[0] - ends.start[0], ends.end[1] - ends.start[1]);
@@ -365,7 +366,8 @@ function addQuadrilateralRoof(
   azimuth: number,
   pitchDeg: number,
   run: number,
-  interior: V3
+  interior: V3,
+  maximumRoofRiseMeters: number
 ): void {
   const midpoint = (a: Point, b: Point): Point => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
   const along: Point = [Math.cos(azimuth), Math.sin(azimuth)];
@@ -386,7 +388,7 @@ function addQuadrilateralRoof(
   const span = Math.hypot(end[0] - start[0], end[1] - start[1]);
   const hip = form === "hip" || form === "pyramid";
   const inset = hip ? Math.min(run, span / 2) : 0;
-  const rise = Math.min(4, (hip ? inset : run) * Math.tan((pitchDeg * Math.PI) / 180));
+  const rise = Math.min(maximumRoofRiseMeters, (hip ? inset : run) * Math.tan((pitchDeg * Math.PI) / 180));
   const t = span > 1e-6 ? inset / span : 0;
   const r0 = planVertex([start[0] + (end[0] - start[0]) * t, start[1] + (end[1] - start[1]) * t], y + rise);
   const r1 = planVertex([end[0] + (start[0] - end[0]) * t, end[1] + (start[1] - end[1]) * t], y + rise);
@@ -437,8 +439,13 @@ function addLeanTo(
 /**
  * Closed wall, floor and roof triangles for one lot. Null when the footprint cannot be drawn.
  * X = CE x, Y = height, Z = -CE y, matching the SVG frame.
+ * Ordinary quadrilateral roofs default to a 4 m rise; structures can opt out.
  */
-export function buildingSurfaces(polygon: readonly Point[], massing: BuildingMassing): BuildingSurfaces | null {
+export function buildingSurfaces(
+  polygon: readonly Point[],
+  massing: BuildingMassing,
+  options: { maximumRoofRiseMeters?: number } = {}
+): BuildingSurfaces | null {
   const base = cleanRing(polygon);
   if (!base.length || !massing.floors.length) return null;
   const convex = isConvex(base);
@@ -463,7 +470,18 @@ export function buildingSurfaces(polygon: readonly Point[], massing: BuildingMas
   addFloor(walls, base, interior);
   const form = convex ? massing.roof.form : "flat";
   if (form === "flat" || form === "dome") addFlatRoof(roofs, previous, y, interior);
-  else addPitchedRoof(walls, roofs, previous, y, form, massing.roof.ridgeAzimuth, massing.roof.pitchDeg, interior);
+  else
+    addPitchedRoof(
+      walls,
+      roofs,
+      previous,
+      y,
+      form,
+      massing.roof.ridgeAzimuth,
+      massing.roof.pitchDeg,
+      interior,
+      options.maximumRoofRiseMeters ?? 4
+    );
   if (!walls.positions.length) return null;
   return { walls: toSoup(walls), roofs: toSoup(roofs) };
 }

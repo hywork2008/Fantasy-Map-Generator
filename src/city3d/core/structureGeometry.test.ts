@@ -36,6 +36,63 @@ const wall: StructureMassing = {
 };
 
 describe("structure geometry", () => {
+  it("preserves tall landmark and tower roof pitches without the ordinary house limit", () => {
+    for (const [roof, pitch] of [
+      ["gable", 40],
+      ["hip", 35],
+      ["pyramid", 50]
+    ] as const) {
+      const structure: StructureMassing = {
+        ...wall,
+        id: "large-structure",
+        kind: roof === "pyramid" ? "tower" : "landmark",
+        centerline: undefined,
+        widthMeters: undefined,
+        footprint: [
+          [0, 0],
+          [60, 0],
+          [60, 40],
+          [0, 40]
+        ],
+        heightMeters: 16,
+        baseElevationMeters: 2,
+        ridgeAzimuth: 0,
+        roof,
+        parapet: "none"
+      };
+      const surfaces = structureSurfaces(structure)!;
+      const positions = concatPositions(surfaces.walls, surfaces.roofs);
+      expect(range(positions, 1).max).toBeCloseTo(18 + 20 * Math.tan((pitch * Math.PI) / 180), 4);
+      expect(meshIsClosed(positions)).toBe(true);
+    }
+  });
+
+  it("keeps an existing central spire inside a sufficiently tall temple roof", () => {
+    const temple: StructureMassing = {
+      ...wall,
+      id: "temple",
+      kind: "landmark",
+      centerline: undefined,
+      widthMeters: undefined,
+      footprint: [
+        [0, 0],
+        [60, 0],
+        [60, 40],
+        [0, 40]
+      ],
+      heightMeters: 16,
+      roof: "gable",
+      ridgeAzimuth: 0,
+      parapet: "none",
+      spire: true
+    };
+    const roof = structureSurfaces({ ...temple, spire: false })!;
+    const withSpire = structureSurfaces(temple)!;
+    const expected = 16 + 20 * Math.tan((40 * Math.PI) / 180);
+    expect(range(roof.roofs.positions, 1).max).toBeCloseTo(expected, 4);
+    expect(range(withSpire.roofs.positions, 1).max).toBeCloseTo(expected, 4);
+  });
+
   it("closes a curtain and lifts the parapet above the wall", () => {
     const surfaces = structureSurfaces(wall);
     expect(surfaces).not.toBeNull();
