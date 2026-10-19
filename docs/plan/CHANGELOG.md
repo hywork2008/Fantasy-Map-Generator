@@ -5,6 +5,7 @@
 - docs/plan/long-distance-merchant-reach-capital.md - 遠距離交易を止めている商会の到達範囲(支店があれば本拠の範囲を問わない、高額品は 90 日まで、外地の商館)と運転資金(対価のない 8% の利益の廃止、市場間の代金の決済、commenda 型の出資、動かない荷の取り消し)の見直し(approach-commerce-quarters.md §10 の候補 (2) と §4.5 で見つかった資本の関門)
 - docs/plan/luxury-value-demand.md - 高額品の需要を個数ではなく予算と価格帯(並・上・極上)で決め、人物の生活費・余剰の一部で居住都市の市場から高額品を実際に買う設計。計測で、買い手のお金は足りているのに安い毛皮・香が需要を満たし、価値 20 以上の品が都市に一度も買われていないことを示した(initial-wealth-calibration.md §5.4 の対応)
 - docs/plan/money-supply-mint.md - 長期の計測(修正後 50 年でお金が 37% 減、1 人あたり半分、金庫が 0 の都市 8 割)を受け、造幣で実際のお金を出す・摩耗と国外への支払いで減らす・物価を通貨量に合わせる・国内への支払いを消さず家計へ・国庫の抱え込みの上限・対価のない生成の除去を設計(long-distance-merchant-reach-capital.md R1 より先に行う)
+- docs/plan/port-freight-queue-and-warehouses.md - 史料(運賃積み・ヴェネツィアのガレー船の船腹・ロンドンの Legal Quays の荷揚げ待ち・浅草御蔵・大坂の蔵屋敷・Bryggen・Fondaco など)に基づき、陸は車両を雇い足して運賃を上げ、海は港で船を待つ(どの市場の船でも運賃で積む・高い荷から積む・期限を過ぎた荷は港で売る・空いた船の回航)。港を持つ都市に倉庫の収容力を持たせ、交易と荷待ちで増やし、CE は型(商人の家・岸の倉庫の列・商館・大倉庫・船渠)と敷地を岸の背後に描く(long-distance-merchant-reach-capital.md §17 の後継)
 
 2026-10-18
 

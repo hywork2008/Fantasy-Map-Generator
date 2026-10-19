@@ -4,6 +4,7 @@ import type { DomesticWaterPoint } from "./domesticWater";
 import type { GateInn } from "./gateInnPlacement";
 import type { GuildHall, GuildYard } from "./guildFacilityPlacement";
 import type { Monastery } from "./monasteryLayout";
+import type { QuayWarehouse } from "./quayWarehousePlacement";
 import type { StorageYard } from "./storageYardPlacement";
 
 export interface Windmill {
@@ -73,6 +74,8 @@ export interface AerialLandmarkPlan {
   guildYards: GuildYard[];
   /** Inventory yards. A cellar has no plot. */
   storageYards: StorageYard[];
+  /** Port warehouses behind the quay. Absent on a plan cached before they existed. */
+  quayWarehouses?: QuayWarehouse[];
   /** Wayside inns and caravanserais outside the busiest gate. */
   gateInns: GateInn[];
 }

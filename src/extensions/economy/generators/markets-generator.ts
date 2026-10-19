@@ -104,7 +104,7 @@ import {
   isLongDistanceTradeEnabled,
   MerchantTradeCapital
 } from "./merchantTradeCapital";
-import { MerchantTransportAssets } from "./merchantTransportAssets";
+import { LAND_HIRE_FREIGHT_MULTIPLIER, MerchantTransportAssets } from "./merchantTransportAssets";
 import { applyPriceElasticity, relaxMarketPrice } from "./priceElasticity";
 import {
   getRuralCellPopulation,
@@ -133,6 +133,7 @@ import { maxWaitDaysForRoute } from "./tradeSailSchedule";
 import { getTradeStageObserver } from "./tradeStageObserver";
 import {
   buildTransportRoom,
+  ownLandRoomSlots,
   seaRoomSlots,
   type TransportRoom,
   takeTransportRoom,
@@ -2433,10 +2434,13 @@ export class MarketsModule {
         }
       }
 
-      // A house books no more than its carts and hulls can carry this month (§17). A sea leg the
-      // exporter has no hull for is asked of the shipyards; until one is built, the pair waits.
+      // A house books no more than its carts and hulls can carry this month (§17). Carts beyond its
+      // own are hired at a dearer freight, and hulls of other markets in its ports carry freight
+      // (port-freight-queue-and-warehouses.md §3, §4.2). A sea leg no hull can take is asked of the
+      // shipyards; until one is built or one comes in, the pair waits.
       const slotsPerUnit = getGoodCargoSlotsPerUnit(good);
       const { transportRoom } = ctx;
+      let hireSurcharge = 0;
       const carriable = transportRoomSlots(
         transportRoom,
         opportunity.exporter.i,
@@ -2457,13 +2461,31 @@ export class MarketsModule {
           observe?.({ stage: "noTransport", ...leg });
           continue;
         }
+        const ownSlots = ownLandRoomSlots(
+          transportRoom,
+          opportunity.exporter.i,
+          opportunity.routeSegments,
+          opportunity.durationDays
+        );
+        const slots = units * slotsPerUnit;
+        if (slots > ownSlots + 0.000001) {
+          const hiredShare = 1 - ownSlots / slots;
+          hireSurcharge = opportunity.transportCost * (LAND_HIRE_FREIGHT_MULTIPLIER - 1) * hiredShare;
+          if (quotedSalePrice - quotedLandedCost - hireSurcharge <= 0) {
+            // Hired carts do not pay on this good: ship only what the house's own carts carry.
+            hireSurcharge = 0;
+            units = floorToRetailLot(ownSlots / slotsPerUnit, getRetailLotSize(good));
+            if (units < minUnit) {
+              observe?.({ stage: "noTransport", ...leg });
+              continue;
+            }
+          }
+        }
       }
 
+      const freightUnitCost = opportunity.transportCost + hireSurcharge;
       const landedCost =
-        exporterGood.price +
-        opportunity.transportCost +
-        opportunity.exporterTaxPerUnit +
-        opportunity.importerDutyPerUnit;
+        exporterGood.price + freightUnitCost + opportunity.exporterTaxPerUnit + opportunity.importerDutyPerUnit;
 
       const deals = getDeals();
       const deal: Deal = {
@@ -2498,7 +2520,7 @@ export class MarketsModule {
         maintenanceCost: deal.maintenanceCost,
         taxPerUnit: opportunity.exporterTaxPerUnit,
         goodsUnitCost: exporterGood.price,
-        freightUnitCost: opportunity.transportCost,
+        freightUnitCost,
         saleUnitPrice: quotedSalePrice,
         paymentTerms:
           purchaseRoom && !opportunity.stateProcurement

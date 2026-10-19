@@ -418,6 +418,11 @@ export type TransportAllocation = {
   requiredDraftAnimals?: number;
   /** Concrete Shipbuilding hulls used for a physical water allocation. */
   shipHullIds?: number[];
+  /**
+   * Land only: vehicles hired from local carriers for this trip, part of `unitCount`. They are
+   * not on the market's ledger and go home when the trip ends (port-freight-queue-and-warehouses.md §3).
+   */
+  hiredUnits?: number;
 };
 
 export type TransportAssetState = "available" | "reserved" | "inTransit" | "maintenance";
@@ -431,6 +436,10 @@ export type MerchantLandAssetBalance = {
   maintenance: number;
   /** Days remaining until the currently-maintained group returns to service. */
   recoveryDays: number;
+  /** Hired vehicles of this kind out with the market's cargo now. Not owned (§3 of port-freight-queue-and-warehouses.md). */
+  hired?: number;
+  /** Hired vehicle-days since the last replenishment; the market orders its own to replace them. */
+  hiredDays?: number;
 };
 
 /** Aggregate shallow-draft vessels. Unlike sea hulls, river barges are Economy-owned assets. */
@@ -450,6 +459,11 @@ export type MerchantWaterAssetReference = {
   homeBurgId: number;
   state: TransportAssetState;
   reservationId?: number;
+  /**
+   * Port the hull lies at, from Shipbuilding's snapshot. Another market's cargo there may charter
+   * it (port-freight-queue-and-warehouses.md §4.2). Absent while at sea or on an older save.
+   */
+  berthBurgId?: number;
 };
 
 /** Durable transport assets owned by a market, separate from saleable Market.goods. */
@@ -476,6 +490,34 @@ export type MerchantTransportLedger = {
    * (long-distance-merchant-reach-capital.md §17). Read and reset when hulls are asked of Shipbuilding.
    */
   seaShortfallSlots?: number;
+};
+
+/**
+ * Warehouses of one port burg, counted in cargo slots (docs/plan/port-freight-queue-and-warehouses.md §5).
+ * Buildings stay when trade falls; the need grows them a building step at a time.
+ */
+export type PortWarehouseState = {
+  burgId: number;
+  /** Cargo slots the port's warehouses hold. */
+  capacitySlots: number;
+  /** Smoothed slots the port needs: a month's sea cargo through it plus the year's peak queue. */
+  needSlots: number;
+  /** Sea cargo through the port, decayed by a twelfth each month (about a year's worth). */
+  annualSlots: number;
+  /** Sea cargo through the port this production cycle. */
+  cycleSlots: number;
+  /** Highest sea cargo waiting for a ship in the last year, decayed a twelfth each month. */
+  queuePeakSlots: number;
+  /** Sea cargo waiting at the last update. */
+  queuedSlots: number;
+  /** Consecutive months the need has exceeded the capacity. */
+  overNeedMonths: number;
+  /** Slots of the building under way, and the days it still takes. */
+  buildingSlots?: number;
+  buildingDaysLeft?: number;
+  /** Consecutive months with no sea cargo through the port. */
+  idleMonths: number;
+  lastBuiltYear: number | null;
 };
 
 export type TransportReservation = {

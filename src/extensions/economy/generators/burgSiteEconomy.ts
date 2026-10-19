@@ -17,6 +17,7 @@ import type { GuildChapter } from "./guildChapterTypes";
 import { collectGuildPractitioners } from "./guildKnowledge";
 import type { CraftKnowledgeDomain, GuildKnowledgeStock } from "./guildKnowledgeTypes";
 import { millCountsForBurg } from "./millCapacity";
+import { portWarehouseForBurg } from "./portWarehouses";
 import { storageYardsForBurg } from "./siteEconomyFootprint";
 import { tradePartnersForBurg } from "./tradeCorridorLedger";
 
@@ -153,6 +154,10 @@ export function buildBurgSiteEconomy(burgId: number): BurgSiteEconomy | null {
     goodName
   });
   const organization = getMerchantOrganizations().find(entry => entry.homeBurgId === burgId);
+  const portWarehouse = portWarehouseForBurg(
+    burgId,
+    tradePartners.filter(partner => partner.mode === "sea").flatMap(partner => partner.mainGoods)
+  );
   const mintMarkets = new Set(
     getMintLedgers().flatMap(ledger => (ledger.mintMarketId == null ? [] : [ledger.mintMarketId]))
   );
@@ -171,7 +176,8 @@ export function buildBurgSiteEconomy(burgId: number): BurgSiteEconomy | null {
     storage: storageYardsForBurg(burgId, arrival.marketCenter, tradePartners),
     facilities: projectLodging(getInnFacilities(), burgId),
     tradePartners,
-    mills: millCountsForBurg(burgId)
+    mills: millCountsForBurg(burgId),
+    ...(portWarehouse ? { portWarehouse } : {})
   };
 }
 

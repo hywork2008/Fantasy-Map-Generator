@@ -267,6 +267,7 @@ export function renderEditorSvg(
       for (const hall of townPlans.aerial.guildHalls) keep.polygons.push(hall.footprint);
       for (const yard of townPlans.aerial.guildYards) keep.polygons.push(yard.polygon);
       for (const yard of townPlans.aerial.storageYards) keep.polygons.push(yard.polygon);
+      for (const warehouse of townPlans.aerial.quayWarehouses ?? []) keep.polygons.push(warehouse.footprint);
       for (const inn of townPlans.aerial.gateInns) keep.polygons.push(inn.footprint, inn.court);
     }
     landscapeSlot.replaceWith(renderLandscapeLayer(document, town, effectiveQuality, keep));

@@ -12,6 +12,7 @@ import type {
 } from "../generators/aerialLandmarks";
 import { featureGroupVertices } from "../generators/features";
 import type { Monastery, PrecinctBuilding } from "../generators/monasteryLayout";
+import type { QuayWarehouse } from "../generators/quayWarehousePlacement";
 import type { CityDocument, EdgeFeatureGroup, Point, Tool } from "../types/document";
 import { renderTowerDecoration, renderWallStructure } from "./wallSvg";
 
@@ -546,6 +547,7 @@ export function renderAerialLandmarks(
   for (const hall of plan.guildHalls ?? []) layer.appendChild(renderGuildHall(hall, options));
   for (const yard of plan.guildYards ?? []) layer.appendChild(renderGuildYard(yard, options, minimal));
   for (const yard of plan.storageYards ?? []) layer.appendChild(renderStorageYard(yard, options));
+  for (const warehouse of plan.quayWarehouses ?? []) layer.appendChild(renderQuayWarehouse(warehouse, options));
   for (const inn of plan.gateInns ?? []) layer.appendChild(renderGateInn(inn, options));
   for (const gw of plan.gallows) layer.appendChild(renderGallows(gw, options));
   for (const w of plan.windmills) layer.appendChild(renderWindmill(w, options));
@@ -734,6 +736,61 @@ function renderStorageYard(yard: StorageYard, options: PickOptions): SVGElement 
       "stroke-width": "0.45"
     })
   );
+  return g;
+}
+
+const QUAY_WAREHOUSE_LABEL: Record<QuayWarehouse["layout"], string> = {
+  get quayRow() {
+    return editorText("cityEditor.messages.quayWarehouse");
+  },
+  get compound() {
+    return editorText("cityEditor.messages.merchantsFondaco");
+  },
+  get stateStore() {
+    return editorText("cityEditor.messages.stateStorehouse");
+  },
+  get dock() {
+    return editorText("cityEditor.messages.dockWarehouse");
+  }
+};
+
+function renderQuayWarehouse(warehouse: QuayWarehouse, options: PickOptions): SVGElement {
+  const kindLabel = QUAY_WAREHOUSE_LABEL[warehouse.layout];
+  const goods = warehouse.mainGoods.length
+    ? warehouse.mainGoods.join(editorText("cityEditor.messages.separator"))
+    : editorText("cityEditor.messages.storeysAndQueue", {
+        value0: warehouse.storeys,
+        value1: warehouse.queuedSlots
+      });
+  const dated =
+    warehouse.year > 0 ? editorText("cityEditor.messages.facilityYearPrefix", { value0: warehouse.year }) : "";
+  const g = pickGroup(
+    `ce-quay-warehouse ce-quay-warehouse--${warehouse.layout}`,
+    {
+      kind: "quayWarehouse",
+      id: warehouse.id,
+      label: editorText("cityEditor.messages.facilityAreaDetails", {
+        value0: warehouse.name,
+        value1: kindLabel,
+        value2: dated,
+        value3: goods,
+        value4: warehouse.areaM2
+      }),
+      layout: warehouse.layout,
+      areaM2: warehouse.areaM2,
+      storeys: warehouse.storeys
+    },
+    options
+  );
+  if (warehouse.ridge) gabled(g, warehouse.footprint, warehouse.ridge, "#9c6b4e", "#7a523b");
+  else
+    g.appendChild(
+      el("path", { d: polygon(warehouse.footprint), fill: "#9c6b4e", stroke: STROKE, "stroke-width": "0.45" })
+    );
+  if (warehouse.court)
+    g.appendChild(
+      el("path", { d: polygon(warehouse.court), fill: "#e4d7be", stroke: "#8a7560", "stroke-width": "0.35" })
+    );
   return g;
 }
 

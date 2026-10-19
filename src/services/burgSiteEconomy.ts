@@ -61,6 +61,33 @@ export interface BurgSiteEconomy {
    * Absent on an older profile: City Editor keeps its population counts.
    */
   mills?: { wind: number; water: number };
+  /**
+   * Warehouses of a port burg (docs/plan/port-freight-queue-and-warehouses.md §5–§6).
+   * Absent on an inland burg and on an older profile.
+   */
+  portWarehouse?: SitePortWarehouse;
+}
+
+/**
+ * How a port keeps its sea cargo (§2.4): in the merchants' own houses, a row of warehouses
+ * behind the quay, a walled merchants' compound, a state or company storehouse, or dock warehouses.
+ */
+export const PORT_WAREHOUSE_LAYOUTS = ["merchantHouses", "quayRow", "compound", "stateStore", "dock"] as const;
+
+export type PortWarehouseLayout = (typeof PORT_WAREHOUSE_LAYOUTS)[number];
+
+export interface SitePortWarehouse {
+  /** Cargo slots the warehouses hold. Buildings stay when trade falls. */
+  capacitySlots: number;
+  /** Floor area over all storeys (m²). City Editor divides by the period's storeys. */
+  floorAreaM2: number;
+  layout: PortWarehouseLayout;
+  /** World rank 0..1 of the capacity among ports. */
+  rank: number;
+  /** Sea cargo waiting for a ship now (slots). */
+  queuedSlots: number;
+  /** Main sea goods through the port, for labels. */
+  mainGoods: string[];
 }
 
 /** Gate lodging. `inn` is a wayside inn. The courtyard is sized from `stableSpaces`. */

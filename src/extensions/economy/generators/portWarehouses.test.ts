@@ -1,0 +1,97 @@
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { worldContext } from "../../hostCore";
+import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
+import { clearEconomyContext, getPortWarehouses, initEconomyContext } from "../economyContext";
+import type { Caravan } from "./marketTypes";
+import { MerchantTransportAssets } from "./merchantTransportAssets";
+import {
+  beginPortProductionCycle,
+  clearPortWarehouseCache,
+  getMarketPortBurgId,
+  portWarehouseLayout,
+  recordSeaDeparture
+} from "./portWarehouses";
+
+const SEA_ROUTE = [
+  {
+    type: "sea" as const,
+    points: [
+      [0, 0],
+      [100, 0]
+    ] as [number, number][]
+  }
+];
+
+function seaCaravan(slots: number): Caravan {
+  return {
+    i: 1,
+    seller: 1,
+    sellerType: "market",
+    buyer: 2,
+    buyerType: "market",
+    payload: [{ goodId: 1, dealId: 0, units: slots, value: slots, cargoSlotsPerUnit: 1 }],
+    routeSegments: SEA_ROUTE,
+    state: "transit"
+  } as unknown as Caravan;
+}
+
+describe("port warehouses", () => {
+  beforeEach(() => {
+    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    worldContext.pack = {
+      burgs: [
+        { i: 0 } as Burg,
+        { i: 1, market: 1, population: 2, port: 1 } as Burg,
+        { i: 2, market: 2, population: 1, port: 1 } as Burg,
+        { i: 3, market: 1, population: 5 } as Burg
+      ],
+      markets: [
+        { i: 1, centerBurgId: 3, color: "#000", goods: {} },
+        { i: 2, centerBurgId: 2, color: "#111", goods: {} }
+      ],
+      caravans: [],
+      merchantTransportLedgers: [],
+      portWarehouses: []
+    } as unknown as PackedGraph;
+    clearPortWarehouseCache();
+  });
+
+  afterEach(() => {
+    MerchantTransportAssets.clear();
+    clearPortWarehouseCache();
+    clearEconomyContext();
+  });
+
+  it("keeps a market's sea cargo at its largest port, not at an inland centre", () => {
+    expect(getMarketPortBurgId(1)).toBe(1);
+    expect(getMarketPortBurgId(2)).toBe(2);
+  });
+
+  it("builds a warehouse after a year of sea trade beyond its room, and keeps it when trade stops", () => {
+    beginPortProductionCycle(30);
+    const start = getPortWarehouses().find(state => state.burgId === 1)?.capacitySlots ?? 0;
+    expect(start).toBeGreaterThan(0);
+
+    for (let month = 0; month < 36; month++) {
+      recordSeaDeparture(seaCaravan(2000), 1);
+      beginPortProductionCycle(30);
+    }
+    const built = getPortWarehouses().find(state => state.burgId === 1);
+    expect(built?.capacitySlots).toBeGreaterThan(start);
+    expect(built?.lastBuiltYear).not.toBeNull();
+
+    const capacity = built?.capacitySlots ?? 0;
+    for (let month = 0; month < 24; month++) beginPortProductionCycle(30);
+    expect(getPortWarehouses().find(state => state.burgId === 1)?.capacitySlots).toBeGreaterThanOrEqual(capacity);
+  });
+
+  it("chooses the historical layout by size and standing", () => {
+    const base = { steam: false, capital: false, merchantHome: false };
+    expect(portWarehouseLayout({ ...base, floorAreaM2: 100 })).toBe("merchantHouses");
+    expect(portWarehouseLayout({ ...base, floorAreaM2: 1000 })).toBe("quayRow");
+    expect(portWarehouseLayout({ ...base, floorAreaM2: 5000, merchantHome: true })).toBe("compound");
+    expect(portWarehouseLayout({ ...base, floorAreaM2: 9000, capital: true, merchantHome: true })).toBe("stateStore");
+    expect(portWarehouseLayout({ ...base, floorAreaM2: 20000, steam: true, capital: true })).toBe("dock");
+    expect(portWarehouseLayout({ ...base, floorAreaM2: 5000, steam: true })).toBe("quayRow");
+  });
+});

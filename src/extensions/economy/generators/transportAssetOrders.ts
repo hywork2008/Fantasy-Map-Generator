@@ -77,6 +77,8 @@ const BLUEPRINTS: readonly TransportAssetBlueprint[] = [
 ];
 
 const WORK_SHARE_OF_OBSERVED_CRAFT_EMPLOYMENT = 0.25;
+/** Days between production cycles, over which hired vehicle-days are averaged. */
+const PRODUCTION_CYCLE_DAYS = 30;
 /**
  * Dedicated real-people capacity for transport-asset construction (docs/plan/
  * craft-demand-calibration.md Key Decision 10 / §2.0 P2). Replaces the legacy "25% of observed
@@ -272,7 +274,9 @@ export class TransportAssetOrdersModule {
               order.status !== "cancelled"
           )
           .reduce((sum, order) => sum + order.quantity - order.completedQuantity, 0);
-        const missing = Math.max(0, Math.ceil(balance.maintenance) - outstanding);
+        // Vehicles hired month after month are cheaper owned (port-freight-queue-and-warehouses.md §3.2).
+        const hired = MerchantTransportAssets.takeHiredVehicleAverage(market.i, balance.assetId, PRODUCTION_CYCLE_DAYS);
+        const missing = Math.max(0, Math.ceil(balance.maintenance + hired - 0.000001) - outstanding);
         if (missing > 0) this.createOrder({ marketId: market.i, blueprintId: balance.assetId, quantity: missing });
       }
       // Sea trade that waited for a hull asks the shipyards for one (long-distance-merchant-reach-capital.md §17).

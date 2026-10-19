@@ -27,6 +27,7 @@ import type {
   ExportStagingLot,
   Market,
   MerchantTransportLedger,
+  PortWarehouseState,
   TransportAssetOrder,
   TransportReservation
 } from "../generators/marketTypes";
@@ -262,6 +263,15 @@ export function getTradeCorridors(): TradeCorridor[] {
 
 export function setTradeCorridors(corridors: readonly TradeCorridor[]): void {
   setSliceArray("tradeCorridors", corridors);
+}
+
+/** Warehouses of each port burg. See portWarehouses.ts. */
+export function getPortWarehouses(): PortWarehouseState[] {
+  return getSliceArray<PortWarehouseState>("portWarehouses");
+}
+
+export function setPortWarehouses(warehouses: readonly PortWarehouseState[]): void {
+  setSliceArray("portWarehouses", warehouses);
 }
 
 /** Per-approach (gate) ledger. See approachLedger.ts. Written only; nothing in the simulation reads it. */

@@ -18,3 +18,5 @@ export const STORAGE_FORMS = [
   "cellar",
   "warehouse"
 ] as const;
+
+export const PORT_WAREHOUSE_LAYOUTS = ["merchantHouses", "quayRow", "compound", "stateStore", "dock"] as const;

@@ -8,18 +8,24 @@
  * Capacity is counted in slot-days: a vehicle of `c` slots works `c × 30` slot-days a month, and a
  * load of `s` slots on a trip of `d` days takes `s × d` of them (vehicles are back at the home
  * ledger on arrival). Cargo already booked, loading or on the road holds its share.
+ *
+ * Land room counts the carts the market may hire on top of its own, and sea room counts other
+ * markets' hulls lying at its ports (docs/plan/port-freight-queue-and-warehouses.md §3, §4.2).
+ * A separate own-land count tells the booking how much of a load rides on hired carts.
  */
 
 import { getCaravans, getExportStagingLots, getGoods } from "../economyContext";
 import { DEFAULT_DRAFT_ANIMAL_ID } from "./caravanMovement";
 import type { Caravan, TradeRouteSegment } from "./marketTypes";
-import { MerchantTransportAssets } from "./merchantTransportAssets";
+import { LAND_HIRE_SHARE, MerchantTransportAssets } from "./merchantTransportAssets";
 import { getGoodCargoSlotsPerUnit } from "./tradeCargo";
 
 /** Days a month a vehicle can be out carrying. */
 const MONTH_DAYS = 30;
 
 type TransportMode = "land" | "sea";
+/** Own land vehicles only; held alongside `land`. */
+const OWN_LAND = "landOwn";
 
 /** Slot-days left this cycle, by market and mode. */
 export type TransportRoom = Map<string, number>;
@@ -27,7 +33,7 @@ export type TransportRoom = Map<string, number>;
 /** Route of a booked lot, by origin and destination market. */
 export type LotRouteLookup = (from: number, to: number) => readonly TradeRouteSegment[] | undefined;
 
-function roomKey(marketId: number, mode: TransportMode): string {
+function roomKey(marketId: number, mode: TransportMode | typeof OWN_LAND): string {
   return `${marketId}:${mode}`;
 }
 
@@ -55,8 +61,10 @@ function payloadSlots(caravan: Pick<Caravan, "payload">): number {
 function hold(room: TransportRoom, marketId: number, modes: readonly TransportMode[], slotDays: number): void {
   if (!(slotDays > 0)) return;
   for (const mode of modes) {
-    const key = roomKey(marketId, mode);
-    if (room.has(key)) room.set(key, (room.get(key) ?? 0) - slotDays);
+    for (const key of mode === "land"
+      ? [roomKey(marketId, mode), roomKey(marketId, OWN_LAND)]
+      : [roomKey(marketId, mode)])
+      if (room.has(key)) room.set(key, (room.get(key) ?? 0) - slotDays);
   }
 }
 
@@ -68,10 +76,13 @@ export function buildTransportRoom(
 ): TransportRoom {
   const room: TransportRoom = new Map();
   for (const marketId of marketIds) {
-    for (const mode of ["land", "sea"] as const) {
-      const capacity = MerchantTransportAssets.getFleetCapacitySlots(marketId, mode, DEFAULT_DRAFT_ANIMAL_ID);
-      room.set(roomKey(marketId, mode), capacity * MONTH_DAYS);
-    }
+    const land = MerchantTransportAssets.getFleetCapacitySlots(marketId, "land", DEFAULT_DRAFT_ANIMAL_ID);
+    room.set(roomKey(marketId, "land"), land * (1 + LAND_HIRE_SHARE) * MONTH_DAYS);
+    room.set(roomKey(marketId, OWN_LAND), land * MONTH_DAYS);
+    const sea =
+      MerchantTransportAssets.getFleetCapacitySlots(marketId, "sea", DEFAULT_DRAFT_ANIMAL_ID) +
+      MerchantTransportAssets.getCharterableSeaCapacitySlots(marketId);
+    room.set(roomKey(marketId, "sea"), sea * MONTH_DAYS);
   }
 
   const goods = new Map(getGoods().map(good => [good.i, good]));
@@ -114,7 +125,20 @@ export function transportRoomSlots(
   return slots;
 }
 
-/** Slots the exporter's own hulls can still take on this route (Infinity when it has no sea leg to sail). */
+/** Slots the exporter's own carts can still take on this route; the rest would be hired (Infinity: no land leg). */
+export function ownLandRoomSlots(
+  room: TransportRoom,
+  marketId: number,
+  segments: readonly TradeRouteSegment[] | undefined,
+  durationDays: number
+): number {
+  if (!routeModes(segments).includes("land")) return Number.POSITIVE_INFINITY;
+  const left = room.get(roomKey(marketId, OWN_LAND));
+  if (left === undefined) return Number.POSITIVE_INFINITY;
+  return Math.max(0, left) / Math.max(1, durationDays);
+}
+
+/** Slots the hulls at the exporter's disposal can still take on this route (Infinity when it has no sea leg to sail). */
 export function seaRoomSlots(
   room: TransportRoom,
   marketId: number,

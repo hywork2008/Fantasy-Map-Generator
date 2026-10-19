@@ -1,5 +1,5 @@
 import type { OpenSpace } from "../types/contracts/parcelTypes";
-import type { CityDocument, Id, Point } from "../types/document";
+import type { CityDocument, HarborPreset, Id, Point } from "../types/document";
 import { ferryLandingReserves } from "./ferryLanding";
 import {
   nearestOnPolyline,
@@ -8,6 +8,7 @@ import {
   segmentInteriorInPolygon,
   segmentSegmentHit
 } from "./geom";
+import { economyOnDocument } from "./guildFacilities";
 import { harborRootIsDry } from "./harborLand";
 import { type HarborWaterField, harborWaterField, seaBerthIsNavigable } from "./harborNavigation";
 import { convexInfillParts } from "./lotGeometry";
@@ -81,6 +82,11 @@ export function planHarbor(
   throughStreets: ParcelFrontage[] = streets
 ): HarborPlan {
   const plan: HarborPlan = { spaces: [], frontages: [], piers: [], cranes: [], cargoPiles: [], sharedArea: 0 };
+  // A port with a merchants' compound, a storehouse or docks has the wide quays of a warehouse port
+  // unless the district chose otherwise (port-freight-queue-and-warehouses.md §6.2).
+  const portLayout = economyOnDocument(document)?.portWarehouse?.layout;
+  const defaultPreset: HarborPreset =
+    portLayout === "compound" || portLayout === "stateStore" || portLayout === "dock" ? "warehouse" : "dense";
   const shores: Shore[] = [];
   barriers = [...barriers, ...waterPolygons(document).flatMap(convexInfillParts), ...ferryLandingReserves(document)];
   const land = Object.values(document.mesh.faces)
@@ -294,7 +300,7 @@ export function planHarbor(
     }
 
     const params = document.fabric?.districts.find(d => d.faceIds.includes(shore.landId))?.parameters;
-    const preset = params?.harborPreset ?? "dense";
+    const preset = params?.harborPreset ?? defaultPreset;
     const stripWidth =
       preset === "small"
         ? 4
@@ -363,7 +369,7 @@ export function planHarbor(
   const candidateShores = usableShores
     .filter(u => {
       const params = document.fabric?.districts.find(d => d.faceIds.includes(u.shore.landId))?.parameters;
-      const preset = params?.harborPreset ?? "dense";
+      const preset = params?.harborPreset ?? defaultPreset;
       return preset !== "small";
     })
     .map(u => {
@@ -384,7 +390,7 @@ export function planHarbor(
 
   for (const { shore, midpoint, stripWidth } of selectedForCrane) {
     const params = document.fabric?.districts.find(d => d.faceIds.includes(shore.landId))?.parameters;
-    const preset = params?.harborPreset ?? "dense";
+    const preset = params?.harborPreset ?? defaultPreset;
     if (preset === "small") continue;
 
     const shift = (p: Point, d: number): Point => [p[0] + shore.inward[0] * d, p[1] + shore.inward[1] * d];

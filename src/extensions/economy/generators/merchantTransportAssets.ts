@@ -41,6 +41,15 @@ import type {
 import { getGoodCargoSlotsPerUnit, getLandTransportDefinition, RIVER_BARGE_TRANSPORT } from "./tradeCargo";
 
 const MAINTENANCE_RECOVERY_DAYS = 30;
+/**
+ * Carts and wagons a market may hire from local carriers on top of its own, as a share of its own
+ * fleet. Merchants rarely owned their carts: carriers were hired, and peasants' teams pressed in
+ * when trade ran high, so a short fleet raised freight rather than stopping trade
+ * (docs/plan/port-freight-queue-and-warehouses.md §2.1, §3).
+ */
+export const LAND_HIRE_SHARE = 1;
+/** Freight on hired vehicles relative to the market's own. Thin bulk trade stops on price. */
+export const LAND_HIRE_FREIGHT_MULTIPLIER = 1.5;
 /** Top-up fleets from measured A0 flow only after this many production cycles. */
 const FLOW_FLEET_TOPUP_MIN_CYCLES = 3;
 export const RIVER_BARGE_CARGO_CAPACITY_SLOTS = RIVER_BARGE_TRANSPORT.cargoCapacitySlots;
@@ -258,6 +267,38 @@ function topUpLandAssets(ledger: MerchantTransportLedger): void {
   }
 }
 
+/** Hired vehicles one kind may add: the market's own count of that kind times the hire share. */
+function hireCap(balance: MerchantLandAssetBalance): number {
+  return Math.floor(landAssetTotal(balance) * LAND_HIRE_SHARE);
+}
+
+function ownUnits(allocation: TransportAllocation): number {
+  return Math.max(0, allocation.unitCount - (allocation.hiredUnits ?? 0));
+}
+
+function releaseHired(balance: MerchantLandAssetBalance, allocation: TransportAllocation): void {
+  const hired = allocation.hiredUnits ?? 0;
+  if (!(hired > 0)) return;
+  const left = Math.max(0, (balance.hired ?? 0) - hired);
+  balance.hired = left > 0 ? left : undefined;
+}
+
+/** A hull may be another market's, chartered for this trip (§4.2), so look in every ledger. */
+function findWaterAsset(hullId: number): MerchantWaterAssetReference | undefined {
+  for (const ledger of getMerchantTransportLedgers()) {
+    const asset = ledger.waterAssets?.find(item => item.shipHullId === hullId);
+    if (asset) return asset;
+  }
+  return undefined;
+}
+
+/** The market a port belongs to, or null for a hull at sea. */
+function berthMarketId(asset: MerchantWaterAssetReference): number | null {
+  if (asset.berthBurgId === undefined) return null;
+  const marketId = getWorldContext().pack.burgs?.[asset.berthBurgId]?.market;
+  return typeof marketId === "number" ? marketId : null;
+}
+
 function getOrganizationId(marketId: number): number | undefined {
   return getMerchantOrganizations().find(organization => organization.homeMarketId === marketId)?.i;
 }
@@ -383,13 +424,16 @@ export class MerchantTransportAssetsModule {
             : hull.status === "cargo"
               ? "inTransit"
               : "available";
+      const berth = hull.status === "docked" ? (hull.currentBurgId ?? hull.homeBurgId) : undefined;
       const next: MerchantWaterAssetReference = {
         shipHullId: hull.id,
         shipClassId: hull.shipClassId,
         homeBurgId: hull.homeBurgId,
         state,
-        ...(existing?.reservationId === undefined ? {} : { reservationId: existing.reservationId })
+        ...(existing?.reservationId === undefined ? {} : { reservationId: existing.reservationId }),
+        ...(typeof berth === "number" ? { berthBurgId: berth } : {})
       };
+      if (existing && typeof berth !== "number") delete existing.berthBurgId;
       if (existing) Object.assign(existing, next);
       else ledger.waterAssets.push(next);
 
@@ -448,11 +492,16 @@ export class MerchantTransportAssetsModule {
       (allocation): allocation is TransportAllocation & { mode: "land" } =>
         allocation.mode === "land" && allocation.unitCount > 0
     );
-    const balances = requestedLandAllocations.map(allocation => ({
-      allocation,
-      balance: ledger.landAssets.find(asset => asset.assetId === allocation.transportId)
-    }));
-    if (balances.some(({ balance, allocation }) => !balance || balance.available < allocation.unitCount)) return null;
+    // Own vehicles first; the rest are hired from local carriers up to the hire share (§3).
+    const balances = requestedLandAllocations.map(allocation => {
+      const balance = ledger.landAssets.find(asset => asset.assetId === allocation.transportId);
+      const own = balance ? Math.min(balance.available, allocation.unitCount) : 0;
+      return { allocation, balance, own, hired: allocation.unitCount - own };
+    });
+    if (
+      balances.some(({ balance, hired }) => !balance || (hired > 0 && (balance.hired ?? 0) + hired > hireCap(balance)))
+    )
+      return null;
     const riverAllocations = allocations.filter(
       (allocation): allocation is TransportAllocation & { mode: "river" } =>
         allocation.mode === "river" && allocation.unitCount > 0
@@ -468,9 +517,17 @@ export class MerchantTransportAssetsModule {
 
     const waterAllocations = this.allocateWaterAssets(ledger, allocations);
     if (hasWaterAllocation(allocations) && this.waterAssetModeActive && !waterAllocations) return null;
+    const hiredByAllocation = new Map<TransportAllocation, number>(
+      balances.map(entry => [entry.allocation, entry.hired])
+    );
+    const withHire = (allocation: TransportAllocation): TransportAllocation => {
+      const hired = hiredByAllocation.get(allocation) ?? 0;
+      const { hiredUnits: _ignored, ...rest } = allocation;
+      return hired > 0 ? { ...rest, hiredUnits: hired } : rest;
+    };
     const resolvedAllocations = waterAllocations
-      ? [...allocations.filter(allocation => allocation.mode !== "water"), ...waterAllocations]
-      : allocations.map(allocation => ({ ...allocation }));
+      ? [...allocations.filter(allocation => allocation.mode !== "water").map(withHire), ...waterAllocations]
+      : allocations.map(withHire);
     const hullIds = resolvedAllocations.flatMap(allocation => allocation.shipHullIds ?? []);
     if (
       hullIds.length &&
@@ -483,10 +540,11 @@ export class MerchantTransportAssetsModule {
       return null;
     }
 
-    for (const { balance, allocation } of balances) {
+    for (const { balance, own, hired } of balances) {
       if (!balance) continue;
-      balance.available -= allocation.unitCount;
-      balance.reserved += allocation.unitCount;
+      balance.available -= own;
+      balance.reserved += own;
+      if (hired > 0) balance.hired = (balance.hired ?? 0) + hired;
       assertBalance(balance);
     }
     for (const allocation of riverAllocations) {
@@ -507,7 +565,7 @@ export class MerchantTransportAssetsModule {
     const reservations = getTransportReservations();
     reservations.push(reservation);
     for (const hullId of hullIds) {
-      const asset = ledger.waterAssets.find(item => item.shipHullId === hullId);
+      const asset = findWaterAsset(hullId);
       if (!asset) continue;
       asset.state = "reserved";
       asset.reservationId = reservation.id;
@@ -525,31 +583,43 @@ export class MerchantTransportAssetsModule {
     if (!requested.length) return [];
     if (!this.waterAssetModeActive) return null;
 
-    const available = ledger.waterAssets
-      .filter(asset => asset.state === "available")
-      .map(asset => ({ asset, definition: getShipDefinition(asset.shipClassId) }))
-      .filter(
-        (
-          entry
-        ): entry is {
-          asset: MerchantWaterAssetReference;
-          definition: NonNullable<ReturnType<typeof getShipDefinition>>;
-        } => Boolean(entry.definition)
-      );
+    type Entry = {
+      asset: MerchantWaterAssetReference;
+      definition: NonNullable<ReturnType<typeof getShipDefinition>>;
+    };
+    const entriesOf = (assets: readonly MerchantWaterAssetReference[]): Entry[] =>
+      assets
+        .filter(asset => asset.state === "available")
+        .map(asset => ({ asset, definition: getShipDefinition(asset.shipClassId) }))
+        .filter((entry): entry is Entry => Boolean(entry.definition));
+    const available = entriesOf(ledger.waterAssets);
+    // Hulls of other markets lying at this market's ports take freight as well (§4.2).
+    const chartered = entriesOf(
+      getMerchantTransportLedgers()
+        .filter(other => other.marketId !== ledger.marketId)
+        .flatMap(other => other.waterAssets ?? [])
+        .filter(asset => berthMarketId(asset) === ledger.marketId)
+    );
     const resolved: TransportAllocation[] = [];
+    const pick = (pool: Entry[], neededSlots: number): Entry[] => {
+      const single = pool
+        .filter(entry => entry.definition.cargoCapacitySlots >= neededSlots)
+        .sort((left, right) => left.definition.cargoCapacitySlots - right.definition.cargoCapacitySlots)[0];
+      return single ? [single] : takeWaterConvoy(pool, neededSlots);
+    };
 
     for (const allocation of requested) {
       const neededSlots = allocation.usedSlots;
-      const single = available
-        .filter(entry => entry.definition.cargoCapacitySlots >= neededSlots)
-        .sort((left, right) => left.definition.cargoCapacitySlots - right.definition.cargoCapacitySlots)[0];
-      const selected = single ? [single] : takeWaterConvoy(available, neededSlots);
+      let selected = pick(available, neededSlots);
+      if (!selected.length) selected = pick([...available, ...chartered], neededSlots);
       if (!selected.length) return null;
 
       let remainingSlots = neededSlots;
       for (const entry of selected) {
         const index = available.indexOf(entry);
         if (index >= 0) available.splice(index, 1);
+        const charterIndex = chartered.indexOf(entry);
+        if (charterIndex >= 0) chartered.splice(charterIndex, 1);
         const capacitySlots = entry.definition.cargoCapacitySlots;
         const usedSlots = Math.min(capacitySlots, remainingSlots);
         remainingSlots -= usedSlots;
@@ -611,8 +681,8 @@ export class MerchantTransportAssetsModule {
       if (allocation.mode !== "land") continue;
       const balance = ledger.landAssets.find(asset => asset.assetId === allocation.transportId);
       if (!balance) continue;
-      balance.reserved -= allocation.unitCount;
-      balance.inTransit += allocation.unitCount;
+      balance.reserved -= ownUnits(allocation);
+      balance.inTransit += ownUnits(allocation);
       assertBalance(balance);
     }
     for (const allocation of reservation.allocations) {
@@ -625,9 +695,10 @@ export class MerchantTransportAssetsModule {
       assertBalance(balance);
     }
     for (const hullId of reservation.allocations.flatMap(allocation => allocation.shipHullIds ?? [])) {
-      const asset = ledger.waterAssets.find(item => item.shipHullId === hullId);
+      const asset = findWaterAsset(hullId);
       if (!asset) continue;
       asset.state = "inTransit";
+      delete asset.berthBurgId;
     }
     reservation.state = "inTransit";
   }
@@ -642,8 +713,9 @@ export class MerchantTransportAssetsModule {
       if (allocation.mode !== "land") continue;
       const balance = ledger.landAssets.find(asset => asset.assetId === allocation.transportId);
       if (!balance) continue;
-      balance.reserved -= allocation.unitCount;
-      balance.available += allocation.unitCount;
+      balance.reserved -= ownUnits(allocation);
+      balance.available += ownUnits(allocation);
+      releaseHired(balance, allocation);
       assertBalance(balance);
     }
     for (const allocation of reservation.allocations) {
@@ -655,18 +727,14 @@ export class MerchantTransportAssetsModule {
       assertBalance(balance);
     }
     const hullIds = reservation.allocations.flatMap(allocation => allocation.shipHullIds ?? []);
-    for (const hullId of hullIds) {
-      const asset = ledger.waterAssets.find(item => item.shipHullId === hullId);
+    const assets = hullIds.map(findWaterAsset);
+    for (const asset of assets) {
       if (!asset) continue;
       asset.state = "available";
       asset.reservationId = undefined;
     }
     // Cancel returns the hull to its home port (no destination berth).
-    this.releaseShipbuildingHulls(
-      hullIds,
-      "arrived",
-      ledger.waterAssets.find(asset => hullIds.includes(asset.shipHullId))?.homeBurgId ?? null
-    );
+    this.releaseShipbuildingHulls(hullIds, "arrived", assets.find(Boolean)?.homeBurgId ?? null);
     reservation.state = "cancelled";
   }
 
@@ -684,12 +752,14 @@ export class MerchantTransportAssetsModule {
       if (allocation.mode !== "land") continue;
       const balance = ledger.landAssets.find(asset => asset.assetId === allocation.transportId);
       if (!balance) continue;
-      balance.inTransit -= allocation.unitCount;
-      if (outcome === "arrived") balance.available += allocation.unitCount;
-      else {
-        balance.maintenance += allocation.unitCount;
+      const own = ownUnits(allocation);
+      balance.inTransit -= own;
+      if (outcome === "arrived") balance.available += own;
+      else if (own > 0) {
+        balance.maintenance += own;
         balance.recoveryDays = MAINTENANCE_RECOVERY_DAYS;
       }
+      releaseHired(balance, allocation);
       assertBalance(balance);
     }
     const destinationMarketId =
@@ -732,18 +802,20 @@ export class MerchantTransportAssetsModule {
       assertBalance(sourceBalance);
     }
     const hullIds = reservation.allocations.flatMap(allocation => allocation.shipHullIds ?? []);
-    for (const hullId of hullIds) {
-      const asset = ledger.waterAssets.find(item => item.shipHullId === hullId);
-      if (!asset) continue;
-      asset.state = outcome === "arrived" ? "available" : "maintenance";
-      asset.reservationId = undefined;
-    }
     const destinationBurgId =
       caravan.buyerType === "burg" && typeof caravan.buyer === "number"
         ? caravan.buyer
         : caravan.buyerType === "market" && typeof caravan.buyer === "number"
           ? (getMarketById(caravan.buyer)?.centerBurgId ?? null)
           : null;
+    for (const hullId of hullIds) {
+      const asset = findWaterAsset(hullId);
+      if (!asset) continue;
+      asset.state = outcome === "arrived" ? "available" : "maintenance";
+      asset.reservationId = undefined;
+      // An arrived hull lies at the destination port until it is reserved again (§4.2).
+      if (outcome === "arrived" && typeof destinationBurgId === "number") asset.berthBurgId = destinationBurgId;
+    }
     this.releaseShipbuildingHulls(hullIds, outcome, destinationBurgId);
     reservation.state = outcome === "arrived" ? "released" : "lost";
   }
@@ -752,6 +824,7 @@ export class MerchantTransportAssetsModule {
     if (deltaDays <= 0) return;
     for (const ledger of getMerchantTransportLedgers()) {
       for (const balance of ledger.landAssets) {
+        if ((balance.hired ?? 0) > 0) balance.hiredDays = (balance.hiredDays ?? 0) + (balance.hired ?? 0) * deltaDays;
         if (balance.maintenance <= 0 || balance.recoveryDays <= 0) continue;
         balance.recoveryDays = Math.max(0, balance.recoveryDays - deltaDays);
         if (balance.recoveryDays > 0) continue;
@@ -803,8 +876,14 @@ export class MerchantTransportAssetsModule {
   /** Largest single ready land vehicle for a route; callers use it to form a shippable partial manifest. */
   getLargestAvailableLandCapacity(marketId: number, draftAnimalId: string): number {
     const draftAnimal = getDraftAnimalType(draftAnimalId);
+    const ledger = findLedger(marketId);
+    // A kind with none of its own free can still be hired while the carriers have some to lend (§3).
+    const canHire = (assetId: string) => {
+      const balance = ledger?.landAssets.find(asset => asset.assetId === assetId);
+      return balance ? (balance.hired ?? 0) < hireCap(balance) : false;
+    };
     return this.getAvailability(marketId).reduce((largest, asset) => {
-      if (asset.available <= 0) return largest;
+      if (asset.available <= 0 && !canHire(asset.assetId)) return largest;
       const definition = getLandTransportDefinition(asset.assetId);
       if (!definition) return largest;
       const capacity = Math.min(
@@ -839,6 +918,82 @@ export class MerchantTransportAssetsModule {
     }, 0);
   }
 
+  /**
+   * Cargo slots of other markets' free hulls lying at this market's ports. A merchant without a
+   * ship of his own paid freight on whatever ship lay in port (port-freight-queue-and-warehouses.md §4.2).
+   */
+  getCharterableSeaCapacitySlots(marketId: number): number {
+    let slots = 0;
+    for (const ledger of getMerchantTransportLedgers()) {
+      if (ledger.marketId === marketId) continue;
+      for (const asset of ledger.waterAssets ?? []) {
+        if (asset.state !== "available" || berthMarketId(asset) !== marketId) continue;
+        slots += getShipDefinition(asset.shipClassId)?.cargoCapacitySlots ?? 0;
+      }
+    }
+    return slots;
+  }
+
+  /**
+   * Hired vehicles of one kind the market kept on the road on average since the last call, and
+   * resets the count. The market orders that many of its own (§3.2).
+   */
+  takeHiredVehicleAverage(marketId: number, assetId: MerchantLandAssetBalance["assetId"], cycleDays: number): number {
+    const balance = findLedger(marketId)?.landAssets.find(asset => asset.assetId === assetId);
+    if (!balance) return 0;
+    const days = balance.hiredDays ?? 0;
+    balance.hiredDays = undefined;
+    return cycleDays > 0 ? days / cycleDays : 0;
+  }
+
+  /**
+   * Free hulls whose own market has no sea cargo waiting sail in ballast to the ports where cargo
+   * waits longest for a ship, as tramp ships went where freight ran high (§4.5). Ownership and home
+   * port stay. At most half of one market's idle hulls leave in one cycle. Returns the moves made.
+   */
+  repositionIdleHulls(
+    backlogSlots: ReadonlyMap<number, number>,
+    portOf: (marketId: number) => number | undefined
+  ): { hullId: number; marketId: number; burgId: number }[] {
+    if (!this.waterAssetModeActive) return [];
+    const need = new Map<number, number>();
+    for (const [marketId, slots] of backlogSlots) {
+      const lying = this.getCharterableSeaCapacitySlots(marketId) + this.availableOwnSeaSlots(marketId);
+      const left = slots - lying;
+      if (left > 0 && portOf(marketId) !== undefined) need.set(marketId, left);
+    }
+    if (!need.size) return [];
+    const moves: { hullId: number; marketId: number; burgId: number }[] = [];
+    for (const ledger of getMerchantTransportLedgers()) {
+      if ((backlogSlots.get(ledger.marketId) ?? 0) > 0) continue;
+      const idle = (ledger.waterAssets ?? []).filter(
+        asset => asset.state === "available" && asset.berthBurgId !== undefined && !need.has(berthMarketId(asset) ?? -1)
+      );
+      let budget = Math.ceil(idle.length / 2);
+      for (const asset of idle) {
+        if (budget <= 0) break;
+        const target = [...need.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0];
+        if (!target) break;
+        const burgId = portOf(target[0]);
+        if (burgId === undefined || berthMarketId(asset) === target[0]) continue;
+        asset.berthBurgId = burgId;
+        moves.push({ hullId: asset.shipHullId, marketId: target[0], burgId });
+        budget -= 1;
+        const left = target[1] - (getShipDefinition(asset.shipClassId)?.cargoCapacitySlots ?? 0);
+        if (left > 0) need.set(target[0], left);
+        else need.delete(target[0]);
+      }
+      if (!need.size) break;
+    }
+    return moves;
+  }
+
+  private availableOwnSeaSlots(marketId: number): number {
+    return (findLedger(marketId)?.waterAssets ?? [])
+      .filter(asset => asset.state === "available")
+      .reduce((sum, asset) => sum + (getShipDefinition(asset.shipClassId)?.cargoCapacitySlots ?? 0), 0);
+  }
+
   /** Whether sea legs need one of the market's own hulls (Shipbuilding publishes a finite fleet). */
   needsOwnHulls(): boolean {
     return this.waterAssetModeActive;
@@ -850,6 +1005,11 @@ export class MerchantTransportAssetsModule {
     const ledger = this.ensureLedger(marketId);
     if (!ledger) return;
     ledger.seaShortfallSlots = (ledger.seaShortfallSlots ?? 0) + cargoSlots;
+  }
+
+  /** The sea shortfall recorded since the last replenishment, left in place. */
+  peekSeaHullShortfall(marketId: number): number {
+    return findLedger(marketId)?.seaShortfallSlots ?? 0;
   }
 
   /** Reads and resets the sea shortfall recorded since the last replenishment. */

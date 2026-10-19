@@ -5,8 +5,14 @@ import { clearEconomyContext, initEconomyContext } from "../economyContext";
 import { ExportStaging } from "./exportStaging";
 import type { Good } from "./goods-generator";
 import type { TradeRouteSegment } from "./marketTypes";
-import { MerchantTransportAssets } from "./merchantTransportAssets";
-import { buildTransportRoom, seaRoomSlots, takeTransportRoom, transportRoomSlots } from "./tradeTransportRoom";
+import { LAND_HIRE_SHARE, MerchantTransportAssets } from "./merchantTransportAssets";
+import {
+  buildTransportRoom,
+  ownLandRoomSlots,
+  seaRoomSlots,
+  takeTransportRoom,
+  transportRoomSlots
+} from "./tradeTransportRoom";
 
 const LAND: TradeRouteSegment[] = [
   {
@@ -70,8 +76,9 @@ describe("trade transport room", () => {
   it("books no more than the fleet carries in a month, less cargo already waiting", () => {
     const fleet = MerchantTransportAssets.getFleetCapacitySlots(1, "land", "horse");
     expect(fleet).toBeGreaterThan(0);
-    // Two carts on a 10-day trip make three trips each in a month.
-    expect(transportRoomSlots(build(), 1, LAND, 10)).toBeCloseTo(fleet * 3);
+    // Two carts on a 10-day trip make three trips each in a month; as many again may be hired.
+    expect(transportRoomSlots(build(), 1, LAND, 10)).toBeCloseTo(fleet * 3 * (1 + LAND_HIRE_SHARE));
+    expect(ownLandRoomSlots(build(), 1, LAND, 10)).toBeCloseTo(fleet * 3);
 
     ExportStaging.bookFromRetail({
       marketId: 1,
@@ -83,8 +90,9 @@ describe("trade transport room", () => {
       requireCapital: false
     });
     const room = build();
-    expect(transportRoomSlots(room, 1, LAND, 10)).toBeCloseTo(fleet * 2);
-    takeTransportRoom(room, 1, LAND, 10, fleet * 2);
+    expect(ownLandRoomSlots(room, 1, LAND, 10)).toBeCloseTo(fleet * 2);
+    expect(transportRoomSlots(room, 1, LAND, 10)).toBeCloseTo(fleet * (3 * (1 + LAND_HIRE_SHARE) - 1));
+    takeTransportRoom(room, 1, LAND, 10, fleet * (3 * (1 + LAND_HIRE_SHARE) - 1));
     expect(transportRoomSlots(room, 1, LAND, 10)).toBeCloseTo(0);
   });
 
@@ -95,5 +103,13 @@ describe("trade transport room", () => {
     expect(seaRoomSlots(room, 1, LAND_AND_SEA, 10)).toBe(0);
     expect(transportRoomSlots(room, 1, LAND_AND_SEA, 10)).toBe(0);
     expect(transportRoomSlots(room, 1, LAND, 10)).toBeGreaterThan(0);
+  });
+
+  it("counts another market's free hull lying in the exporter's port", () => {
+    MerchantTransportAssets.setWaterAssetModeActive(true);
+    MerchantTransportAssets.reconcileMerchantHulls([
+      { id: 7, shipClassId: "sloop", homeBurgId: 2, ownerId: 2, status: "docked", currentBurgId: 1 }
+    ]);
+    expect(seaRoomSlots(build(), 1, LAND_AND_SEA, 10)).toBeCloseTo(100 * 3);
   });
 });

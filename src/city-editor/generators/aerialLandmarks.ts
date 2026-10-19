@@ -51,6 +51,7 @@ import { facePoints } from "./mesh";
 import { fitMonastery, type Monastery, type MonasteryKind } from "./monasteryLayout";
 import { GATE_TOWER_SCALE, gateCrossingFrame } from "./passages";
 import { makeRng, type Rng } from "./prng";
+import { placeQuayWarehouses, subtractQuayCover } from "./quayWarehousePlacement";
 import { flowingRivers } from "./riverFlow";
 import { roadTrafficKey } from "./roadTraffic";
 import { defaultRoadWidthMeters, townExtentMeters } from "./settlementExtent";
@@ -72,6 +73,7 @@ const EMPTY_PLAN: AerialLandmarkPlan = {
   guildHalls: [],
   guildYards: [],
   storageYards: [],
+  quayWarehouses: [],
   gateInns: []
 };
 
@@ -1205,9 +1207,16 @@ export function buildAerialLandmarkPlan(
     (counts.tannery ??
       (document.urbanMorphology?.waterfrontResolved !== false && wantsTannery(economy, guildPlan) ? 1 : 0)) > 0
   );
+  // Port warehouses claim the shore before the town's stock yards look for room.
+  const quayWarehouses = placeQuayWarehouses(
+    site,
+    economy?.portWarehouse,
+    document.historicalPeriod ?? "ageOfExploration",
+    economy?.year ?? 0
+  );
   const storageYards = placeStorageYards(
     site,
-    facilityStorage(document, economy?.storage ?? []),
+    subtractQuayCover(facilityStorage(document, economy?.storage ?? []), quayWarehouses),
     guildWorks.yards,
     economy?.year ?? 0
   );
@@ -1233,6 +1242,7 @@ export function buildAerialLandmarkPlan(
     guildHalls: guildWorks.halls,
     guildYards: guildWorks.yards,
     storageYards,
+    quayWarehouses,
     gateInns
   };
   aerialPlanCache.set(document, { fingerprint: fp, plan });

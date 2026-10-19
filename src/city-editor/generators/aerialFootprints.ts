@@ -20,6 +20,7 @@ export function aerialLandmarkFootprints(plan: AerialLandmarkPlan): Point[][] {
     ...plan.guildHalls.flatMap(hall => (hall.tower ? [hall.footprint, hall.tower] : [hall.footprint])),
     ...plan.guildYards.map(yard => yard.polygon),
     ...plan.storageYards.map(yard => yard.polygon),
+    ...(plan.quayWarehouses ?? []).map(warehouse => warehouse.footprint),
     ...plan.gateInns.map(inn => inn.footprint)
   ];
 }

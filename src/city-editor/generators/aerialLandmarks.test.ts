@@ -636,6 +636,58 @@ describe("aerial landmarks (1008-wards-and-features priority list)", () => {
     ).toContain("穀倉");
   }, 180000);
 
+  it("lines the river bank with the port's warehouses and takes their goods off the town's stock yards", () => {
+    const economy: BurgSiteEconomy = {
+      version: 1,
+      year: 1350,
+      commerce: { rank: 0.6, marketCenter: true, merchantHouse: null, mint: false, caravanArrivalRank: 0.6 },
+      guilds: [],
+      storage: [{ form: "warehouse", areaM2: 300, mainGoods: ["Cloth"], inflowAzimuthDeg: null, waterborne: true }],
+      facilities: [],
+      tradePartners: [],
+      portWarehouse: {
+        capacitySlots: 5000,
+        floorAreaM2: 4000,
+        layout: "quayRow",
+        rank: 0.8,
+        queuedSlots: 120,
+        mainGoods: ["Cloth", "Wine"]
+      }
+    };
+    const withPort = { ...city, historicalPeriod: "lateMedieval" as const, siteEconomy: economy };
+    const built = buildBlockFabric(withPort, new FabricCache());
+    const warehouses = built.aerialLandmarks?.quayWarehouses ?? [];
+    expect(warehouses.length).toBeGreaterThan(0);
+    const river = city.featureGroups.find(g => g.kind === "river");
+    if (river?.kind !== "river") throw new Error("no river");
+    const points = river.vertices.map(id => city.mesh.vertices[id].point);
+    for (const warehouse of warehouses) {
+      expect(warehouse.storeys).toBe(3);
+      // Behind the quay: near the bank, never in it.
+      expect(nearestOnPolyline(centre(warehouse.footprint), points).dist).toBeLessThan(60);
+      expect(nearestOnPolyline(centre(warehouse.footprint), points).dist - river.style.widthMeters / 2).toBeGreaterThan(
+        5
+      );
+    }
+    const total = warehouses.reduce((sum, item) => sum + item.areaM2, 0);
+    expect(total).toBeLessThanOrEqual(4000 / 3 + 300);
+    // The cloth yard's goods lie in the quay warehouses instead.
+    expect(built.aerialLandmarks?.storageYards.some(yard => yard.form === "warehouse")).toBe(false);
+
+    const half = withPort.frame.extentMeters / 2;
+    const svg = renderEditorSvg(
+      { ...withPort, appearance: "town" },
+      "select",
+      { faceId: null, edgeId: null, vertexId: null, groupId: null },
+      `${-half} ${-half} ${half * 2} ${half * 2}`,
+      1
+    );
+    expect(svg.querySelectorAll(".ce-quay-warehouse--quayRow[data-pick]")).toHaveLength(warehouses.length);
+    expect(
+      decodeURIComponent(svg.querySelector(".ce-quay-warehouse[data-pick]")!.getAttribute("data-pick")!)
+    ).toContain("岸の倉庫");
+  }, 180000);
+
   it("pins land timber to the forest gate, draws a public granary, and lengthens houses for the cellar", () => {
     const exits = externalGateRoads(city);
     expect(exits.length).toBeGreaterThan(0);

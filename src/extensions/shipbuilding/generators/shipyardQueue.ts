@@ -119,6 +119,17 @@ export function berthHullAtPort(hullId: number, burgId: number): void {
 }
 
 /**
+ * Sail an idle merchant hull in ballast to another port where cargo waits for a ship. Ownership
+ * and home port stay. A hull out on cargo, in repair, or not a market's is left where it is.
+ */
+export function repositionMerchantHull(hullId: number, burgId: number): boolean {
+  const hull = getShipbuildingRuntimeState().hulls[hullId];
+  if (hull?.owner !== "market" || (hull.status !== "docked" && hull.status !== "voyage")) return false;
+  berthHullAtPort(hullId, burgId);
+  return true;
+}
+
+/**
  * Bind merchant hulls to a cargo caravan (Economy reservation). Sets status cargo and
  * itinerary for the sail leg. Phase 1 reserves only at departure, so duty is "cargo".
  */

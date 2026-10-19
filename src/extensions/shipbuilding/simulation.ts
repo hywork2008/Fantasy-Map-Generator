@@ -32,6 +32,7 @@ import {
   orderMerchantHull,
   releaseMerchantHullsFromCargo,
   releaseStateHullsFromOverseasEscort,
+  repositionMerchantHull,
   reserveMerchantHullsForCargo,
   reserveStateHullsForOverseasEscort,
   runShipyardTick
@@ -261,6 +262,15 @@ function register(api: SimulationExtensionAPI): () => void {
     const detail = (event as CustomEvent<{ marketId?: unknown; homeBurgId?: unknown }>).detail;
     if (typeof detail?.marketId !== "number" || typeof detail.homeBurgId !== "number") return;
     orderMerchantHull(detail.marketId, detail.homeBurgId);
+  });
+
+  // Economy sends idle merchant hulls to ports where cargo waits for a ship
+  // (docs/plan/port-freight-queue-and-warehouses.md §4.5).
+  on("fmg:economy-merchant-hull-reposition", (event: Event) => {
+    if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
+    const detail = (event as CustomEvent<{ hullId?: unknown; burgId?: unknown }>).detail;
+    if (typeof detail?.hullId !== "number" || typeof detail.burgId !== "number") return;
+    repositionMerchantHull(detail.hullId, detail.burgId);
   });
 
   on("fmg:economy-caravan-hull-positions", (event: Event) => {

@@ -52,6 +52,7 @@ import type {
 import { openBranch } from "./merchantIntelligence";
 import { isLongDistanceTradeEnabled, MerchantTradeCapital, recordStaleLotCancelled } from "./merchantTradeCapital";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
+import { recordSeaDeparture } from "./portWarehouses";
 import { recordRouteTraffic } from "./publicWorks";
 import { markRetailInventoryDirty } from "./retailInventory";
 import {
@@ -526,9 +527,28 @@ function tryDepartLoadingCaravan(caravan: Caravan): "departed" | "waiting" | "ca
   // corridor whose caravans keep getting robbed still counts as used traffic (L8 stage 2).
   recordRouteTraffic(caravan.routeSegments);
   recordCaravanCorridor(caravan);
+  recordSeaDeparture(caravan, caravan.transportDispatcherMarketId);
   caravan.loading = undefined;
   if (reservation) MerchantTransportAssets.depart(reservation.reservation.id);
   return "departed";
+}
+
+function payloadValuePerSlot(caravan: Caravan): number {
+  const slots = payloadUsedSlots(caravan);
+  return slots > UNIT_EPSILON ? caravan.payload.reduce((sum, item) => sum + item.value, 0) / slots : 0;
+}
+
+/** Land shipments in their own order, then sea shipments by value per slot, dearest first. */
+function loadingOrder(caravans: readonly Caravan[]): Caravan[] {
+  const land: Caravan[] = [];
+  const sea: { caravan: Caravan; value: number }[] = [];
+  for (const caravan of caravans) {
+    if (caravan.state !== "loading" || !caravan.loading) continue;
+    if (routeNeedsSeaHulls(caravan.routeSegments)) sea.push({ caravan, value: payloadValuePerSlot(caravan) });
+    else land.push(caravan);
+  }
+  sea.sort((a, b) => b.value - a.value);
+  return [...land, ...sea.map(entry => entry.caravan)];
 }
 
 function decayCaravanArrivalVolume(markets: readonly Market[], deltaDays: number): void {
@@ -882,6 +902,7 @@ export class CaravansModule {
     getCaravans().push(caravan);
     recordRouteTraffic(routeSegments);
     recordCaravanCorridor(caravan);
+    recordSeaDeparture(caravan, reservation?.dispatcherMarketId ?? dispatcherMarketId);
     if (reservation) MerchantTransportAssets.depart(reservation.reservation.id);
     setNextCaravanId(caravan.i + 1);
     deal.remainingUnits = 0;
@@ -1237,8 +1258,10 @@ export class CaravansModule {
     const arrived: Caravan[] = [];
     const lost: Caravan[] = [];
 
-    // Advance accumulation clocks and attempt scheduled / full-enough departures.
-    for (const caravan of caravans) {
+    // Advance accumulation clocks and attempt scheduled / full-enough departures. Sea cargo goes
+    // last and dearest first: a ship's master loaded the precious goods before the bulk, and the
+    // bulk waited for the next ship (port-freight-queue-and-warehouses.md §4.3).
+    for (const caravan of loadingOrder(caravans)) {
       if (caravan.state !== "loading" || !caravan.loading) continue;
       const cargoSpoiled = discardFreshPayload(caravan);
       if (cargoSpoiled && !caravan.payload.length) {

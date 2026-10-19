@@ -91,6 +91,7 @@ import { isMineSuppliedGoodName } from "./mineralResources";
 import { Minting } from "./minting";
 import { expectedWorkerPoints, getOccupationalRow } from "./occupationalCalibration";
 import { OverseasRelations } from "./overseasRelations";
+import { beginPortProductionCycle } from "./portWarehouses";
 import { getModifiers, MAX_BONUS_PRODUCTION } from "./production-utils";
 import type {
   DealRecord,
@@ -144,6 +145,8 @@ export type {
 import { getSubsistenceWage } from "./subsistenceWage";
 
 const BONUS_URBAN_PRODUCTION = 1;
+/** Days between production cycles, for the port warehouses' building clock. */
+const PORT_CYCLE_DAYS = 30;
 
 /**
  * Guaranteed labor share for goods with outstanding Metallurg/strategic-procurement demand
@@ -322,6 +325,8 @@ export class ProductionModule {
     measureTickStep("production:militaryMaterialStaging", () => MetallurgWork.stageStateMilitaryMaterials());
     measureTickStep("production:pricesAndLabor", () => {
       Markets.initializeMarketPrices();
+      // Idle hulls move to waiting cargo before hull orders read the sea shortfall.
+      beginPortProductionCycle(PORT_CYCLE_DAYS);
       TransportAssetOrders.beginProductionCycle();
       refreshAleHouseholdDemand();
     });

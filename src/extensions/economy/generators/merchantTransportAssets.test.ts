@@ -5,6 +5,7 @@ import { clearEconomyContext, getMarkets, initEconomyContext, setFlowCycleHistor
 import type { Good } from "./goodsGeneratorTypes";
 import type { TransportAllocation } from "./marketTypes";
 import {
+  LAND_HIRE_SHARE,
   MerchantTransportAssets,
   RIVER_BARGE_SALVAGE_WOOD_SHARE,
   RIVER_BARGE_WOOD_UNITS
@@ -87,7 +88,6 @@ describe("merchant transport assets", () => {
 
     const reservation = MerchantTransportAssets.reserve(1, 10, [CART_ALLOCATION]);
     expect(reservation).not.toBeNull();
-    expect(MerchantTransportAssets.reserve(1, 11, [CART_ALLOCATION])).toBeNull();
 
     MerchantTransportAssets.depart(reservation?.reservation.id ?? -1);
     const inTransit = MerchantTransportAssets.getAvailability(1).find(asset => asset.assetId === "cart");
@@ -97,6 +97,26 @@ describe("merchant transport assets", () => {
     const returned = MerchantTransportAssets.getAvailability(1).find(asset => asset.assetId === "cart");
     expect(returned?.available).toBe(initial?.available);
     expect(returned?.inTransit).toBe(0);
+  });
+
+  it("hires carts beyond its own up to the hire share and gives them back after the trip", () => {
+    const own = MerchantTransportAssets.getAvailability(1).find(asset => asset.assetId === "cart")?.available ?? 0;
+    expect(own).toBeGreaterThan(0);
+    const reservation = MerchantTransportAssets.reserve(1, 10, [{ ...CART_ALLOCATION, unitCount: own + 1 }]);
+    expect(reservation?.reservation.allocations[0]).toMatchObject({ unitCount: own + 1, hiredUnits: 1 });
+    expect(MerchantTransportAssets.getAvailability(1).find(asset => asset.assetId === "cart")?.available).toBe(0);
+    // The hire share caps the carts the town's carriers can lend at once.
+    const cap = Math.floor(own * LAND_HIRE_SHARE);
+    expect(MerchantTransportAssets.reserve(1, 11, [{ ...CART_ALLOCATION, unitCount: cap }])).toBeNull();
+
+    MerchantTransportAssets.depart(reservation?.reservation.id ?? -1);
+    MerchantTransportAssets.recoverMaintenance(30);
+    expect(MerchantTransportAssets.takeHiredVehicleAverage(1, "cart", 30)).toBeCloseTo(1);
+    MerchantTransportAssets.settleCaravan({ transportReservationId: reservation?.reservation.id }, "lost");
+    const after = MerchantTransportAssets.getAvailability(1).find(asset => asset.assetId === "cart");
+    // Only the market's own carts go to repair; the hired one went home.
+    expect(after?.maintenance).toBe(own);
+    expect(after?.total).toBe(own);
   });
 
   it("places assets from lost caravans in maintenance before recovering them", () => {
@@ -228,5 +248,43 @@ describe("merchant transport assets", () => {
     MerchantTransportAssets.settleCaravan({ transportReservationId: reservation?.reservation.id }, "arrived");
     expect(releasedHullIds).toEqual([20]);
     expect(MerchantTransportAssets.getAvailability(1).find(asset => asset.assetId === "hull-20")?.available).toBe(1);
+  });
+
+  it("charters another market's hull lying in its port and leaves it at the destination", () => {
+    MerchantTransportAssets.reconcileMerchantHulls([
+      { id: 30, shipClassId: "sloop", homeBurgId: 2, ownerId: 2, status: "docked", currentBurgId: 1 }
+    ]);
+    expect(MerchantTransportAssets.getCharterableSeaCapacitySlots(1)).toBe(100);
+
+    const reservation = MerchantTransportAssets.reserve(1, 10, [SLOOP_ALLOCATION]);
+    expect(reservation?.reservation.allocations).toMatchObject([{ shipHullIds: [30] }]);
+    expect(MerchantTransportAssets.getCharterableSeaCapacitySlots(1)).toBe(0);
+    MerchantTransportAssets.depart(reservation?.reservation.id ?? -1);
+    MerchantTransportAssets.settleCaravan(
+      { transportReservationId: reservation?.reservation.id, buyer: 2, buyerType: "burg" },
+      "arrived"
+    );
+    // The hull stays its owner's and now lies at the destination port.
+    expect(MerchantTransportAssets.getAvailability(2).find(asset => asset.assetId === "hull-30")?.available).toBe(1);
+    expect(MerchantTransportAssets.getCharterableSeaCapacitySlots(1)).toBe(0);
+  });
+
+  it("sends an idle hull in ballast to the port where cargo waits", () => {
+    MerchantTransportAssets.reconcileMerchantHulls([
+      { id: 40, shipClassId: "sloop", homeBurgId: 2, ownerId: 2, status: "docked", currentBurgId: 2 }
+    ]);
+    const moves = MerchantTransportAssets.repositionIdleHulls(new Map([[1, 150]]), marketId => marketId);
+    expect(moves).toEqual([{ hullId: 40, marketId: 1, burgId: 1 }]);
+    expect(MerchantTransportAssets.getCharterableSeaCapacitySlots(1)).toBe(100);
+    // A market whose own cargo waits keeps its hulls.
+    expect(
+      MerchantTransportAssets.repositionIdleHulls(
+        new Map([
+          [2, 50],
+          [1, 500]
+        ]),
+        marketId => marketId
+      )
+    ).toEqual([]);
   });
 });

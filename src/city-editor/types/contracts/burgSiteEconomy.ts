@@ -1,4 +1,4 @@
-import type { GUILD_DOMAINS, STORAGE_FORMS } from "../../data/siteEconomy";
+import type { GUILD_DOMAINS, PORT_WAREHOUSE_LAYOUTS, STORAGE_FORMS } from "../../data/siteEconomy";
 
 export interface BurgSiteEconomy {
   version: 1;
@@ -20,6 +20,20 @@ export interface BurgSiteEconomy {
    * Absent: windmill and watermill counts stay on the population bands.
    */
   mills?: { wind: number; water: number };
+  /** Port warehouses. Absent inland and on an older profile: no quay warehouses are drawn. */
+  portWarehouse?: SitePortWarehouse;
+}
+
+export type PortWarehouseLayout = (typeof PORT_WAREHOUSE_LAYOUTS)[number];
+
+export interface SitePortWarehouse {
+  capacitySlots: number;
+  /** Floor area over all storeys (m²). */
+  floorAreaM2: number;
+  layout: PortWarehouseLayout;
+  rank: number;
+  queuedSlots: number;
+  mainGoods: string[];
 }
 
 export interface SiteStorageYard {
