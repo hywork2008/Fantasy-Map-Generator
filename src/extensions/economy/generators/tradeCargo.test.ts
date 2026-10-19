@@ -75,6 +75,13 @@ describe("trade cargo manifests", () => {
     expect(manifests[0].allocations[0].transportId).toBe("cart");
   });
 
+  it("keeps a load filled to a cart's slots on a cart despite floating-point dust", () => {
+    // 19.9625 × 4 + 0.05 × 3 slots, as summed from a caravan payload.
+    const allocations = getTransportAllocations(LAND_ROUTE, 19.96250000000023 * 4 + 0.05 * 3, "horse");
+
+    expect(allocations[0].transportId).toBe("cart");
+  });
+
   it("uses the smaller capacity when a route has both land and water legs", () => {
     const allocations = getTransportAllocations(
       [

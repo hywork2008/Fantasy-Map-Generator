@@ -138,6 +138,22 @@ describe("transport asset orders", () => {
     });
   });
 
+  it("fits the harnesses in hand first and orders the missing ones from the smiths", () => {
+    worldContext.pack.markets[0].goods[3].stock = 2;
+    const order = TransportAssetOrders.createOrder({ marketId: 1, blueprintId: "cart", quantity: 5 });
+
+    TransportAssetOrders.beginProductionCycle();
+
+    // Two carts get fitted harnesses; the other three are built with leather in the same cycle.
+    expect(order).toMatchObject({ status: "building", quantity: 2, reservedMaterials: { 1: 6, 3: 2 } });
+    expect(TransportAssetOrders.getOrders(1).find(other => other !== order)).toMatchObject({
+      status: "building",
+      quantity: 3,
+      reservedMaterials: { 1: 9, 2: 3 }
+    });
+    expect(TransportAssetOrders.getMaterialDemandByGood(1)).toEqual(new Map([[3, 3]]));
+  });
+
   it("lets the shipping house pay for a craft when the market's purse is short", () => {
     worldContext.pack.markets[0].marketTreasury = { balance: 4, ruralGrainPayable: 0, tradeWorkingCapital: 50 };
     const order = TransportAssetOrders.createOrder({ marketId: 1, blueprintId: "cart", quantity: 1 });

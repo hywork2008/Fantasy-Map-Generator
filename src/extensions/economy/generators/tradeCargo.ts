@@ -89,8 +89,11 @@ export function getTransportAllocations(
       definition,
       capacitySlots: Math.min(definition.cargoCapacitySlots, definition.requiredDraftAnimals * animal.towCapacitySlots)
     }));
+    // A load filled to the slot is not tipped onto the next size by floating-point dust: 80.0000000001
+    // slots asked for a wagon, and a market with carts and no wagon left the cargo waiting.
     const selected =
-      landOptions.find(option => option.capacitySlots >= pendingSlots) ?? landOptions[landOptions.length - 1];
+      landOptions.find(option => option.capacitySlots >= pendingSlots - UNIT_EPSILON) ??
+      landOptions[landOptions.length - 1];
     const unitCount = allowConvoy ? Math.max(1, Math.ceil(pendingSlots / selected.capacitySlots)) : 1;
     allocations.push({
       mode: "land",
@@ -106,7 +109,7 @@ export function getTransportAllocations(
 
   if (modes.has("water") || modes.has("sea")) {
     const selected =
-      MERCHANT_SHIP_CLASS_DEFINITIONS.find(shipClass => shipClass.cargoCapacitySlots >= pendingSlots) ??
+      MERCHANT_SHIP_CLASS_DEFINITIONS.find(shipClass => shipClass.cargoCapacitySlots >= pendingSlots - UNIT_EPSILON) ??
       MERCHANT_SHIP_CLASS_DEFINITIONS[MERCHANT_SHIP_CLASS_DEFINITIONS.length - 1];
     const unitCount = allowConvoy ? Math.max(1, Math.ceil(pendingSlots / selected.cargoCapacitySlots)) : 1;
     allocations.push({

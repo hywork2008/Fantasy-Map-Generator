@@ -689,7 +689,7 @@ export class ProductionModule {
       smithingProgramByGood,
       strategicLaborMarket,
       strategicDemandByGood: this.getCombinedStrategicDemand(market.i),
-      remainingCalibratedLots: this.buildRemainingCalibratedLots(burg, population, index)
+      remainingCalibratedLots: this.buildRemainingCalibratedLots(burg, population, index, market.i)
     };
   }
 
@@ -698,10 +698,18 @@ export class ProductionModule {
    * §3.5). Empty unless applyCalibration is on. Only goods with a GOOD_DEMAND_CALIBRATION row are
    * tracked — every other good keeps runWorkerLoop()'s pre-PR-3, uncapped batching behavior.
    */
-  private buildRemainingCalibratedLots(burg: Burg, population: number, index: ProductionIndex): Map<number, number> {
+  private buildRemainingCalibratedLots(
+    burg: Burg,
+    population: number,
+    index: ProductionIndex,
+    marketId: number
+  ): Map<number, number> {
     const remainingCalibratedLots = new Map<number, number>();
     if (!getEconomyCalibrationState().applyCalibration) return remainingCalibratedLots;
 
+    // A cartwright's order is made on top of the authored floor: Harnesses' floor covers only the
+    // cavalry's, so the smiths could not make the fittings the carts went without (§10.12).
+    const transportMaterialDemand = TransportAssetOrders.getMaterialDemandByGood(marketId);
     const populationRate = Math.max(0, this.worldContext.populationRate ?? 0) || 1;
     const laborPeopleBurg = laborPeople(population, populationRate);
     const port = Boolean(burg.port);
@@ -709,7 +717,7 @@ export class ProductionModule {
     for (const good of index.productiveGoods) {
       if (!getGoodDemandCalibration(good.name)) continue;
       const lots = getCalibratedMonthlyLots({ goodName: good.name, laborPeopleBurg, port, capital });
-      remainingCalibratedLots.set(good.i, Math.max(0, lots));
+      remainingCalibratedLots.set(good.i, Math.max(0, lots) + (transportMaterialDemand.get(good.i) ?? 0));
     }
     return remainingCalibratedLots;
   }
@@ -729,6 +737,13 @@ export class ProductionModule {
       } else {
         combined.set(demand.goodId, { ...demand });
       }
+    }
+    // Fittings the cartwrights went without are made to their order
+    // (port-freight-queue-and-warehouses.md §10.12).
+    for (const [goodId, units] of TransportAssetOrders.getMaterialDemandByGood(marketId)) {
+      const existing = combined.get(goodId);
+      if (existing) existing.outstandingUnits += units;
+      else combined.set(goodId, { goodId, outstandingUnits: units, priorityCycles: 1 });
     }
     return combined;
   }

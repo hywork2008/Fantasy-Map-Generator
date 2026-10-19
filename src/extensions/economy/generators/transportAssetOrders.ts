@@ -152,6 +152,8 @@ function getMarketTreasury(market: NonNullable<ReturnType<typeof getMarketById>>
  */
 export class TransportAssetOrdersModule {
   private plannedWorkByBurg = new Map<number, PlannedWork[]>();
+  /** Usual materials this cycle's orders went without, by market and Good (§10.12). */
+  private materialShortfallByMarket = new Map<number, Map<number, number>>();
 
   getBlueprints(): readonly TransportAssetBlueprint[] {
     return BLUEPRINTS;
@@ -225,6 +227,7 @@ export class TransportAssetOrdersModule {
   /** Called once at the start of each production cycle, before recipe workers are chosen. */
   beginProductionCycle(): void {
     this.plannedWorkByBurg.clear();
+    this.materialShortfallByMarket.clear();
     this.queueSimulationReplenishment();
     for (const order of this.getOrdersByPriority()) this.fundOrder(order);
     this.planCraftWork();
@@ -267,8 +270,27 @@ export class TransportAssetOrdersModule {
     return { total, byDomain };
   }
 
+  /**
+   * The fitted harness a cartwright went without is ordered from the smiths and harness-makers:
+   * production reads it as a market's demand, as it reads the armouries' orders (§10.12). Stock
+   * already in the market is not made again, so the burgs of one market do not each make the
+   * whole shortfall.
+   */
+  getMaterialDemandByGood(marketId: number): ReadonlyMap<number, number> {
+    const demand = new Map<number, number>();
+    const shortfall = this.materialShortfallByMarket.get(marketId);
+    const market = shortfall && getMarketById(marketId);
+    if (!shortfall || !market) return demand;
+    for (const [goodId, units] of shortfall) {
+      const missing = units - Math.max(0, market.goods[goodId]?.stock ?? 0);
+      if (missing > 0.001) demand.set(goodId, missing);
+    }
+    return demand;
+  }
+
   clear(): void {
     this.plannedWorkByBurg.clear();
+    this.materialShortfallByMarket.clear();
     setTransportAssetOrders([]);
     setNextTransportAssetOrderId(0);
   }
@@ -330,7 +352,7 @@ export class TransportAssetOrdersModule {
    * Reserves materials and money for an order. A wheelwright built what the timber and leather in
    * hand allowed rather than waiting for the whole order: a simulation order the market can fund
    * only in part is split, the rest waiting for the next cycle (§10.11). The usual materials are
-   * used first, a plainer build only when it funds more.
+   * used for as many crafts as they fund, a plainer build for the rest (§10.12).
    */
   private fundOrder(order: TransportAssetOrder): void {
     if (order.status !== "queued" && order.status !== "waitingMaterials") return;
@@ -356,8 +378,10 @@ export class TransportAssetOrdersModule {
       quantity: number;
       materials: Record<number, number>;
       reason?: "budgetLimit" | "insufficientTreasury";
+      optionIndex: number;
     } | null = null;
-    for (const names of options) {
+    for (const [optionIndex, names] of options.entries()) {
+      if (best && best.quantity > 0) break;
       const perUnit = requiredMaterials(blueprint, 1, market, names);
       if (!perUnit) continue;
       const costPerUnit = Object.entries(perUnit).reduce(
@@ -379,15 +403,17 @@ export class TransportAssetOrdersModule {
       if (player && quantity < order.quantity) quantity = 0;
       if (!best || quantity > best.quantity) {
         const materials = quantity > 0 ? requiredMaterials(blueprint, quantity, market, names) : null;
-        best = { quantity: materials ? quantity : 0, materials: materials ?? {}, reason };
+        best = { quantity: materials ? quantity : 0, materials: materials ?? {}, reason, optionIndex };
       }
     }
     if (!best || best.quantity <= 0) {
+      this.recordMaterialShortfall(order, blueprint, {});
       block(best?.reason ?? "missingMaterials");
       return;
     }
+    let remainder: TransportAssetOrder | null = null;
     if (best.quantity < order.quantity) {
-      this.createOrder({
+      remainder = this.createOrder({
         marketId: order.marketId,
         blueprintId: order.blueprintId,
         quantity: order.quantity - best.quantity
@@ -408,6 +434,25 @@ export class TransportAssetOrdersModule {
     order.fundedAmount = rn(totalCost, 2);
     order.status = "building";
     order.blockedReason = undefined;
+    this.recordMaterialShortfall(order, blueprint, best.materials);
+    // The usual materials ran out first: the rest is built plainer in the same cycle.
+    if (remainder && best.optionIndex < options.length - 1) this.fundOrder(remainder);
+  }
+
+  private recordMaterialShortfall(
+    order: TransportAssetOrder,
+    blueprint: TransportAssetBlueprint,
+    funded: Readonly<Record<number, number>>
+  ): void {
+    const usual = requiredMaterials(blueprint, order.quantity);
+    if (!usual) return;
+    for (const [goodId, units] of Object.entries(usual)) {
+      const missing = units - (funded[+goodId] ?? 0);
+      if (!(missing > 0.0001)) continue;
+      const shortfall = this.materialShortfallByMarket.get(order.marketId) ?? new Map<number, number>();
+      shortfall.set(+goodId, (shortfall.get(+goodId) ?? 0) + missing);
+      this.materialShortfallByMarket.set(order.marketId, shortfall);
+    }
   }
 
   private planCraftWork(): void {
