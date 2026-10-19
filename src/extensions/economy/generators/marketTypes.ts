@@ -220,8 +220,16 @@ export interface MarketTreasury {
    * Soft ledger: not full B2B settlement between markets.
    */
   tradeWorkingCapital?: number;
-  /** Capital currently locked in export staging lots and in-transit cargo. */
+  /**
+   * Capital currently locked in export staging lots and in-transit cargo. With
+   * `fmg-long-distance-trade` on it is the cost already paid for that cargo (not cash), otherwise
+   * a reservation inside `tradeWorkingCapital`.
+   */
   tradeCapitalLocked?: number;
+  /** True once `tradeCapitalLocked` is held as paid cost basis (docs/plan/long-distance-merchant-reach-capital.md §5.1). */
+  tradeCapitalPaid?: boolean;
+  /** Unpaid purchases of arrived inter-market cargo, by creditor (exporting) market id (§5.1). */
+  tradePayables?: Record<string, number>;
 }
 
 export interface FoodLedger {
@@ -349,6 +357,12 @@ export type ExportStagingLot = {
   durationDays?: number;
   maintenanceCost?: number;
   taxPerUnit?: number;
+  /** Exporter price paid to the origin market per unit (part of `unitCost`). */
+  goodsUnitCost?: number;
+  /** Price per unit the house expected at the destination; what the importer pays on arrival. */
+  saleUnitPrice?: number;
+  /** Days this lot has waited without any of it being loaded (§5.3). */
+  waitedDays?: number;
   /** Days since this fresh cargo left the origin market. Omitted for durable/legacy cargo. */
   freshnessAgeDays?: number;
 };
@@ -493,6 +507,10 @@ export interface Caravan {
     stagingLotId?: number;
     /** Working capital still locked against this cargo until arrival / cancel / loss. */
     lockedCapital?: number;
+    /** Exporter price per unit paid to the origin market (refunded if the load is cancelled). */
+    goodsUnitCost?: number;
+    /** Price per unit the importer pays on arrival. */
+    saleUnitPrice?: number;
     /**
      * Staple food (Food Ledger) riding free capacity on a commercial caravan.
      * Settled via foodCoLoad helpers, not ordinary retail stock transfer.

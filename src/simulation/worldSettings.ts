@@ -23,7 +23,9 @@ export const WORLD_SETTING_KEYS = [
   /** "on": town luxury demand by budget and price tier (docs/plan/luxury-value-demand.md §3). */
   "fmg-luxury-value-demand",
   /** "on": the mint issues real coin and prices follow the money stock (docs/plan/money-supply-mint.md §4.1, §4.3). */
-  "fmg-money-supply"
+  "fmg-money-supply",
+  /** "on": inter-market cargo is paid for, with no soft arrival profit (docs/plan/long-distance-merchant-reach-capital.md §5.1). */
+  "fmg-long-distance-trade"
 ] as const;
 
 export type WorldSettingKey = (typeof WORLD_SETTING_KEYS)[number];

@@ -36,6 +36,7 @@ import {
 } from "../../src/extensions/economy/generators/characterLivingCosts";
 import { isLuxuryDemandGood, LUXURY_TIERS, luxuryCoverageOf, luxuryTierOf } from "../../src/extensions/economy/generators/luxuryTiers";
 import { housesPresentIn } from "../../src/extensions/economy/generators/merchantIntelligence";
+import { getTradeCapitalMoney, takeTradeSettlementStats } from "../../src/extensions/economy/generators/merchantTradeCapital";
 import type { Good } from "../../src/extensions/economy/generators/goodsGeneratorTypes";
 import type { Burg, Route } from "../../src/types/models";
 
@@ -654,7 +655,18 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
       const sorted = values.slice().sort((a, b) => a - b);
       return sorted.length ? sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))] : 0;
     };
+    // Inter-market cargo payments (docs/plan/long-distance-merchant-reach-capital.md §5.1, §7.2).
+    const settlement = takeTradeSettlementStats();
+    const payablesOutstanding = getMarkets().reduce(
+      (sum, m) => sum + Object.values(m.marketTreasury?.tradePayables ?? {}).reduce((a, b) => a + b, 0),
+      0
+    );
     return {
+      settlement: {
+        ...Object.fromEntries(Object.entries(settlement).map(([key, value]) => [key, r3(value)])),
+        paidShare: settlement.saleValue > 0 ? r3((settlement.paidOnArrival + settlement.payableRepaid) / settlement.saleValue) : null,
+        payablesOutstanding: r3(payablesOutstanding)
+      },
       stages: Object.fromEntries(counts),
       deals: Object.fromEntries(
         [...deals].map(([key, row]) => [
@@ -769,7 +781,7 @@ function moneyTotals(world: WorldContext): MoneyTotals {
     for (const m of getMarkets()) {
       totals.marketBalance += m.marketTreasury?.balance ?? 0;
       totals.marketPayable += m.marketTreasury?.ruralGrainPayable ?? 0;
-      totals.tradeCapital += (m.marketTreasury?.tradeWorkingCapital ?? 0) + (m.marketTreasury?.tradeCapitalLocked ?? 0);
+      totals.tradeCapital += getTradeCapitalMoney(m.marketTreasury);
       totals.ruralHouseholds += m.foodLedger?.ruralHouseholdWealth ?? 0;
     }
   }

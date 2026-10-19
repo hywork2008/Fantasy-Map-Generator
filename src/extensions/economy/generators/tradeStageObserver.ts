@@ -20,6 +20,8 @@ export type TradeStage =
   | "belowFlowBudget"
   | "quoteUnprofitable"
   | "noCapital"
+  /** The importer cannot pay for more cargo (paid cargo only, long-distance-merchant-reach-capital.md §5.1). */
+  | "noBuyerCash"
   | "deal";
 
 export interface TradeStageEvent {

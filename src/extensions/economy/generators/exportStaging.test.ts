@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { simulationContext } from "../../../context/simulationContext";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI } from "../../hostTypes";
 import {
@@ -237,5 +238,27 @@ describe("ExportStaging warehouse", () => {
     expect(lot?.freshnessAgeDays).toBe(0);
     expect(ExportStaging.expireFreshLots(11)).toBeCloseTo(5);
     expect(getExportStagingLots()).toHaveLength(0);
+  });
+
+  it("cancels a lot that never loads once the setting pays for cargo (§5.3)", () => {
+    simulationContext.worldSettings = { "fmg-long-distance-trade": "on" };
+    try {
+      const lot = ExportStaging.bookFromRetail({
+        marketId: 1,
+        destinationMarketId: 2,
+        goodId: 0,
+        units: 10,
+        unitCost: 10,
+        durationDays: 20,
+        requireCapital: false
+      });
+      expect(lot).not.toBeNull();
+      expect(ExportStaging.cancelStaleLots(30)).toBe(0);
+      expect(ExportStaging.cancelStaleLots(400)).toBe(1);
+      expect(getExportStagingLots()).toHaveLength(0);
+      expect(getMarketById(1)!.goods[0].stock).toBeCloseTo(50);
+    } finally {
+      delete simulationContext.worldSettings;
+    }
   });
 });

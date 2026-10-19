@@ -1,11 +1,11 @@
 # 遠距離交易の商会の到達範囲と運転資金 (Long-Distance Merchant Reach and Capital) 設計
 
-2026-10-19 設計。未実装。[approach-commerce-quarters.md](approach-commerce-quarters.md) §10「経済モデルの遠距離交易が細い」の対応(再計測は同 §4.5)。
+2026-10-19 設計。同日 R1 を実装(§10)。[approach-commerce-quarters.md](approach-commerce-quarters.md) §10「経済モデルの遠距離交易が細い」の対応(再計測は同 §4.5)。
 
 ## 状態
 
-- 設計のみ。実装は §8 の段階計画に従う。
-- **R1(運転資金の会計)は [money-supply-mint.md](money-supply-mint.md) の M2(造幣で実際のお金を出す)の後に行う**。8% の利益を先に廃止すると、通貨の入口がないまま出口だけが増える。
+- R1(運転資金の会計)を実装した(§10)。世界の設定 `fmg-long-distance-trade`(`"on"`)で有効。既定は `off`(新しい地図も `off`)。R0・R2〜R4 は未実装。
+- R1 は [money-supply-mint.md](money-supply-mint.md) の M2(造幣で実際のお金を出す)の後に行う、という順序は守った(M0〜M4 は実装済み)。
 - 前提: [luxury-value-demand.md](luxury-value-demand.md) で高額品の継続的な需要(§10 の候補 (1))は入った。それでも、24 日以上の高額品の交易は 3 年目にほぼなくなる(approach-commerce-quarters.md §4.5)。
 - 本設計は残る 2 つの関門を扱う。
   - 商会の到達範囲: 高額品の組の 55〜83% を除外している。§10 の候補 (2)。
@@ -201,3 +201,55 @@
 - [Letters of the Datini Company (Wesleyan Travelers Lab)](https://travelerslab.research.wesleyan.edu/letters-of-the-datini-company) / [Mapping the Communication Network of the Datini Company](https://travelerslab.research.wesleyan.edu/tag/italian-merchants/) — 支店網と書簡の所要日数
 - [Datini, Francesco (Encyclopedia.com)](https://www.encyclopedia.com/humanities/culture-magazines/datini-francesco)
 - [Commenda (Wikipedia)](https://en.wikipedia.org/wiki/Commenda) / [Equity Capital ch.5 (Poitras, SFU)](https://www.sfu.ca/~poitras/Equity-Capital_ch5.pdf) / [Medieval Business (Macmillan)](https://digfir-published.macmillanusa.com/Lauldi4e/lauldi4e_ch10_2.html) — commenda の構造と利益の配分。原典は Pryor(*Speculum*・*Viator*)、Williamson(Venice の海上契約)
+
+## 10. R1 の実装(2026-10-19)
+
+### 10.1 内容
+
+`fmg-long-distance-trade` が `on` のときだけ働く。`off` では golden が変わらない(node の golden parity で確認)。
+
+| 時点 | 実装 | 場所 |
+| :--- | :--- | :--- |
+| 輸出の予約 | 原価(到着地での原価 = 輸出地の価格 + 運賃 + 売上税 + 輸入税)を商会の資本から払う。輸出地の価格の分は輸出側の市場の現金へ、運賃は輸出側の中心都市の家計へ(荷車・水夫の賃金)、税は取引(deal)が国庫へ運ぶ。`tradeCapitalLocked` は「払い済みの積荷の原価」になる(現金ではない) | `MerchantTradeCapital.lock`、`ExportStaging.bookFromRetail` |
+| 取引の数量 | 資本で予約が減ったときは、取引の数量と税を予約できた分に合わせる(税が払った分を超えて国庫に入らない) | `markets-generator.ts emitGlobalTradeDealsForGood` |
+| 到着 | 輸入側の市場が、取引のときに商会が知っていた売値(`saleUnitPrice`)で買い取る。現金が足りなければ残りは掛け(`MarketTreasury.tradePayables`、債権者の市場ごと)。8% の利益は出さない | `settleArrival`、`caravans.ts settlePayloadCapital` |
+| 掛けの返済 | 毎月、農民への未払いの次に、市場の現金から返す | `MerchantTradeCapital.repayPayables`(`payOutMarketSurplus` から) |
+| 損失 | 払った原価は戻らない(15% の回収はない) | `settleLoss` |
+| 取り消し | 積み荷を輸出側の市場に戻すときは、市場が品物の代金(輸出地の価格の分)を、現金の範囲で返す。運賃と税は戻らない | `unlock`、`cancelLot`、`restoreLoadingCargoToOrigin` |
+| 動かない荷(§5.3) | 倉庫の荷の待ち日数(`waitedDays`)を数え、荷待ちの上限(陸・海・近海の最大)+ 所要日数を超えたら取り消す。一部でも積まれたら 0 に戻す | `ExportStaging.cancelStaleLots`(`Caravans.tick` から) |
+| 旧セーブ・切り替え | `on` で初めて触れたとき、予約の額(`tradeCapitalLocked`)を、その市場が品物の代金として受け取ったものとして資本から市場の現金へ移す(`tradeCapitalPaid`)。`off` に戻すと逆に移す | `alignLockedCapital` |
+
+設計からの追加(§5.1 の補い):
+
+- **買い手の支払い能力**: 掛けを認めるだけでは、現金のない新しい市場(人口の少ない開拓地の市場)へ、売値の高い品が掛けで送られ続けた(seed 101 で 5 年目に売値の 87% が未払い、未払い 8,900)。商会は、輸入側の市場の「現金 − 未払い − 予約済み・輸送中の荷の売値」を超えて取引しない(`getImporterPurchaseRoom`)。止まった組は `trade()` の段階 `noBuyerCash` で数える。国の調達(`stateProcurement`)は対象外。
+- **お金の数え方**: 旧来の帳簿は、予約(資本の内側)を `tradeWorkingCapital + tradeCapitalLocked` と二重に数えていた。`on` では資本は `tradeWorkingCapital` だけを数える(`getTradeCapitalMoney`。造幣の国のお金の合計と `--money-flows` が使う)。`off` は golden のため従来どおり。
+- 観測: `trade()` に `settlement`(売値の合計・到着時の支払い・掛けの発生と返済・取り消した荷・支払いの比 `paidShare`・未払いの残高)を足した。
+
+### 10.2 計測(province seed 101、K=16、5 年、1 年ごと)
+
+`npm run sim -- province-101.fmg --years 5 --world-setting fmg-long-distance-trade=on --sample-every-months 12 --sample-detail wealth,trade --money-flows …`
+
+| 指標 | `off` | `on` |
+| :--- | :--- | :--- |
+| キャラバンの移動(到着・損失)のお金の出入り / 年 | −46〜−382(8% の利益と、予約の二重計上の出入りが混ざる) | 1 年目 −511(旧来の予約の二重計上の解消、1 回だけ)、2〜5 年目 **0** |
+| 交易の照合(予約)の出入り / 年 | — | −25〜−1,056(商会が払った税。国庫が `production:taxes` で受け取る) |
+| 代金の支払い / 運ばれた価値(到着時の現金 + 掛けの返済) | なし | **0.999〜1.0**(2〜5 年目) |
+| 掛けの残高(5 年目の末) | — | 2 |
+| 取り消した動かない荷(件 / 固定額) | — | 1 年目 9 / 374、4 年目 6 / 6,770、5 年目 8 / 5,211 |
+| 資本の総額(5 年目の末) | 34,743(増え続ける) | 23,212(横ばい) |
+| 市場間の取引(件 / 年、高額品を除く) | 28・54・67・55・43 | 28・55・65・70・84 |
+| `noBuyerCash` で止まった組 / 年 | — | 0・163・507・495・540 |
+
+読み取れること:
+
+1. 到着・損失・取り消しで、お金は生まれも消えもしない(キャラバンの移動の出入りが 0)。§8 の R1 の完了条件「お金の総量が変わらない」を満たす。予約で減る分は商会が払う税で、国庫に移る。
+2. 代金は、到着時に払えない分も 1 年以内に返される。支払いの比は 9 割以上(§8 の完了条件)。
+3. 動かない荷の取り消しで寝ていた資本が戻り、取引の件数は `off` より増えた。
+4. 到着時に現金で払える比は年によって 0.14〜0.82 と低い。輸入側の市場の現金は、月ごとの払い出し(`payOutMarketSurplus`)で準備金まで下がるため。§9 の「輸入側の市場の現金が減る」の確認は R3(出資)と合わせて続ける。
+
+### 10.3 残る課題
+
+- 動かない荷が出る原因(R0)はまだ調べていない。今は期限で取り消すだけ。4・5 年目に固定額の大きい荷(数千)が取り消されている。
+- 取り消しでは運賃と税が戻らない。荷待ちで取り消される船便が多い経路では、商会の資本が細る。
+- 遠距離の地図(§7.1)での計測は R0 で地図を用意してから行う。
+

@@ -27,7 +27,7 @@ import {
   DEFAULT_DRAFT_ANIMAL_ID,
   getDraftAnimalType
 } from "./caravanMovement";
-import { ExportStaging } from "./exportStaging";
+import { ExportStaging, mergeUnitPrice } from "./exportStaging";
 import {
   restoreFoodCoLoadToOrigin,
   settleFoodCoLoadOnArrival,
@@ -155,6 +155,8 @@ function appendPayloadFromManifest(
   for (const item of manifest.items) {
     let units = item.units;
     let lockedCapital = 0;
+    let goodsUnitCost: number | undefined;
+    let saleUnitPrice: number | undefined;
     let freshnessAgeDays: number | undefined;
     const good = getGoods().find(candidate => candidate.i === item.deal.good);
     // selectRouteCargo normally prevents this. Keep this boundary fail-closed so a stale
@@ -165,6 +167,8 @@ function appendPayloadFromManifest(
       const taken = ExportStaging.takeFromLot(item.deal.stagingLotId, item.units);
       units = taken.units;
       lockedCapital = taken.lockedCapital;
+      goodsUnitCost = taken.goodsUnitCost;
+      saleUnitPrice = taken.saleUnitPrice;
       freshnessAgeDays = taken.freshnessAgeDays;
       if (units <= UNIT_EPSILON) continue;
       item.deal.remainingUnits = Math.max(0, (item.deal.remainingUnits ?? item.deal.units) - units);
@@ -183,6 +187,8 @@ function appendPayloadFromManifest(
         entry.dealId === item.deal.i && entry.goodId === item.deal.good && entry.stagingLotId === item.deal.stagingLotId
     );
     if (existing) {
+      existing.goodsUnitCost = mergeUnitPrice(existing.goodsUnitCost, existing.units, goodsUnitCost, units);
+      existing.saleUnitPrice = mergeUnitPrice(existing.saleUnitPrice, existing.units, saleUnitPrice, units);
       existing.units += units;
       existing.value += value;
       existing.lockedCapital = (existing.lockedCapital ?? 0) + lockedCapital;
@@ -199,6 +205,8 @@ function appendPayloadFromManifest(
         strategicProcurementOrderId: item.deal.strategicProcurementOrderId,
         stagingLotId: item.deal.stagingLotId,
         lockedCapital: lockedCapital > UNIT_EPSILON ? lockedCapital : undefined,
+        goodsUnitCost,
+        saleUnitPrice,
         freshnessAgeDays
       });
     }
@@ -216,19 +224,27 @@ function restoreLoadingCargoToOrigin(caravan: Caravan): void {
     if (item.isFoodCoLoad) continue;
     ExportStaging.returnUnitsToRetail(caravan.seller, item.goodId, item.units);
     if ((item.lockedCapital ?? 0) > UNIT_EPSILON) {
-      MerchantTradeCapital.unlock(caravan.seller, item.lockedCapital ?? 0);
+      const goodsRefund = item.goodsUnitCost === undefined ? undefined : rn(item.units * item.goodsUnitCost, 2);
+      MerchantTradeCapital.unlock(caravan.seller, item.lockedCapital ?? 0, goodsRefund);
     }
   }
 }
 
 function settlePayloadCapital(caravan: Caravan, outcome: "arrived" | "lost"): void {
   if (caravan.sellerType !== "market") return;
+  const buyerMarket = caravan.buyerType === "market" ? getMarketById(caravan.buyer) : undefined;
   for (const item of caravan.payload) {
     if (item.isFoodCoLoad) continue;
     const locked = item.lockedCapital ?? 0;
     if (!(locked > UNIT_EPSILON)) continue;
-    if (outcome === "arrived") MerchantTradeCapital.settleArrival(caravan.seller, locked);
-    else MerchantTradeCapital.settleLoss(caravan.seller, locked);
+    if (outcome === "lost") {
+      MerchantTradeCapital.settleLoss(caravan.seller, locked);
+      continue;
+    }
+    // The importer buys at the price the house knew when it struck the deal; cargo booked before
+    // that price was kept sells at today's price there.
+    const unitPrice = item.saleUnitPrice ?? buyerMarket?.goods[item.goodId]?.price ?? 0;
+    MerchantTradeCapital.settleArrival(caravan.seller, locked, buyerMarket?.i, item.units * unitPrice);
   }
 }
 
@@ -1104,6 +1120,7 @@ export class CaravansModule {
     decayCaravanArrivalVolume(markets, deltaDays);
     MerchantTransportAssets.recoverMaintenance(deltaDays);
     ExportStaging.expireFreshLots(deltaDays);
+    ExportStaging.cancelStaleLots(deltaDays);
 
     const caravans = getCaravans();
     if (!caravans.length) return { arrived: [], lost: [] };

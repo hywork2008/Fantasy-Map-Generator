@@ -22,7 +22,8 @@ import { isFreshFoodGood, isGoodEnabled } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import { floorToRetailLot, getRetailLotSize } from "./goodsTradeLots";
 import type { ExportStagingLot } from "./marketTypes";
-import { MerchantTradeCapital } from "./merchantTradeCapital";
+import { isLongDistanceTradeEnabled, MerchantTradeCapital, recordStaleLotCancelled } from "./merchantTradeCapital";
+import { TradeLogisticsSettings } from "./tradeLogisticsSettings";
 
 const UNIT_EPSILON = 0.000001;
 
@@ -46,6 +47,12 @@ export type BookExportStagingInput = {
   durationDays?: number;
   maintenanceCost?: number;
   taxPerUnit?: number;
+  /** Exporter price per unit inside `unitCost`; the rest is carriage and taxes. Default `unitCost`. */
+  goodsUnitCost?: number;
+  /** Carriage per unit inside `unitCost` (paid to the origin's carriers when the setting is on). */
+  freightUnitCost?: number;
+  /** Price per unit the house expects the destination to pay. */
+  saleUnitPrice?: number;
   /** When false, skip capital lock (tests / special paths). Default true. */
   requireCapital?: boolean;
 };
@@ -53,8 +60,29 @@ export type BookExportStagingInput = {
 export type TakeFromLotResult = {
   units: number;
   lockedCapital: number;
+  goodsUnitCost?: number;
+  saleUnitPrice?: number;
   freshnessAgeDays?: number;
 };
+
+/** Units-weighted mean of a per-unit price when cargo merges; keeps whichever side is known. */
+export function mergeUnitPrice(
+  current: number | undefined,
+  currentUnits: number,
+  added: number | undefined,
+  addedUnits: number
+): number | undefined {
+  if (added === undefined) return current;
+  if (current === undefined || !(currentUnits > UNIT_EPSILON)) return added;
+  return rn((current * currentUnits + added * addedUnits) / (currentUnits + addedUnits), 4);
+}
+
+/** Days a lot may sit in the warehouse before it is cancelled: the longest wait for a sailing plus the trip (§5.3). */
+function staleLotDays(lot: ExportStagingLot): number {
+  const logistics = TradeLogisticsSettings.getOptions();
+  const maxWait = Math.max(logistics.maxWaitDaysLand, logistics.maxWaitDaysSea, logistics.maxWaitDaysShortSea);
+  return maxWait + Math.max(0, lot.durationDays ?? 0);
+}
 
 function ensureNextLotId(): number {
   const nextId = getNextExportStagingLotId();
@@ -76,6 +104,11 @@ function findMergeTarget(
       lot.goodId === input.goodId &&
       Math.abs(lot.unitCost - input.unitCost) < 0.0001
   );
+}
+
+/** What the exporting market refunds when a lot's goods come back to it; undefined = the whole lock. */
+function goodsRefund(lot: Pick<ExportStagingLot, "units" | "goodsUnitCost">): number | undefined {
+  return lot.goodsUnitCost === undefined ? undefined : rn(lot.units * lot.goodsUnitCost, 2);
 }
 
 export class ExportStagingModule {
@@ -103,7 +136,18 @@ export class ExportStagingModule {
     }
 
     const lockAmount = rn(units * unitCost, 2);
-    if (requireCapital && lockAmount > UNIT_EPSILON && !MerchantTradeCapital.lock(input.marketId, lockAmount)) {
+    const goodsUnitCost = Math.min(unitCost, Math.max(0, input.goodsUnitCost ?? unitCost));
+    const freightUnitCost = Math.min(unitCost - goodsUnitCost, Math.max(0, input.freightUnitCost ?? 0));
+    // Prices for settlement are only kept when cargo is paid for, so the legacy save stays as it was.
+    const priced = isLongDistanceTradeEnabled();
+    if (
+      requireCapital &&
+      lockAmount > UNIT_EPSILON &&
+      !MerchantTradeCapital.lock(input.marketId, lockAmount, {
+        goods: rn(units * goodsUnitCost, 2),
+        freight: rn(units * freightUnitCost, 2)
+      })
+    ) {
       return null;
     }
 
@@ -119,6 +163,10 @@ export class ExportStagingModule {
     const lots = [...getExportStagingLots()];
     const existing = findMergeTarget(lots, { ...input, unitCost });
     if (existing) {
+      if (priced) {
+        existing.goodsUnitCost = mergeUnitPrice(existing.goodsUnitCost, existing.units, goodsUnitCost, units);
+        existing.saleUnitPrice = mergeUnitPrice(existing.saleUnitPrice, existing.units, input.saleUnitPrice, units);
+      }
       existing.units = rn(existing.units + units, 2);
       existing.lockedCapital = rn((existing.lockedCapital ?? 0) + lockAmount, 2);
       if (input.dealId !== undefined) existing.dealId = input.dealId;
@@ -144,6 +192,8 @@ export class ExportStagingModule {
       durationDays: input.durationDays,
       maintenanceCost: input.maintenanceCost,
       taxPerUnit: input.taxPerUnit,
+      goodsUnitCost: priced ? goodsUnitCost : undefined,
+      saleUnitPrice: priced ? input.saleUnitPrice : undefined,
       freshnessAgeDays: (() => {
         const good = getGoods().find(candidate => candidate.i === input.goodId);
         return good && isFreshFoodGood(good) ? 0 : undefined;
@@ -179,8 +229,16 @@ export class ExportStagingModule {
     const capitalShare = lot.units > UNIT_EPSILON ? rn(((lot.lockedCapital ?? 0) * taken) / lot.units, 2) : 0;
     lot.units = rn(Math.max(0, lot.units - taken), 2);
     lot.lockedCapital = rn(Math.max(0, (lot.lockedCapital ?? 0) - capitalShare), 2);
+    // Loading is movement: the lot is not stuck (§5.3).
+    if (lot.waitedDays !== undefined) lot.waitedDays = 0;
     setExportStagingLots(lot.units <= UNIT_EPSILON ? lots.filter(entry => entry.id !== lotId) : lots);
-    return { units: taken, lockedCapital: capitalShare, freshnessAgeDays: lot.freshnessAgeDays };
+    return {
+      units: taken,
+      lockedCapital: capitalShare,
+      goodsUnitCost: lot.goodsUnitCost,
+      saleUnitPrice: lot.saleUnitPrice,
+      freshnessAgeDays: lot.freshnessAgeDays
+    };
   }
 
   returnUnitsToRetail(marketId: number, goodId: number, units: number): void {
@@ -203,16 +261,35 @@ export class ExportStagingModule {
     const units = lot.units;
     const locked = lot.lockedCapital ?? 0;
     this.returnUnitsToRetail(lot.marketId, lot.goodId, units);
-    if (locked > UNIT_EPSILON) MerchantTradeCapital.unlock(lot.marketId, locked);
+    if (locked > UNIT_EPSILON) MerchantTradeCapital.unlock(lot.marketId, locked, goodsRefund(lot));
     setExportStagingLots(lots.filter(entry => entry.id !== lotId));
     return units;
+  }
+
+  /**
+   * With `fmg-long-distance-trade` on, a lot that has waited longer than any sailing wait plus
+   * its trip without loading is cancelled: the goods go back to retail and its capital is freed
+   * (docs/plan/long-distance-merchant-reach-capital.md §5.3). Returns the lots cancelled.
+   */
+  cancelStaleLots(deltaDays: number): number {
+    if (!(deltaDays > 0) || !isLongDistanceTradeEnabled()) return 0;
+    const stale: ExportStagingLot[] = [];
+    for (const lot of getExportStagingLots()) {
+      lot.waitedDays = (lot.waitedDays ?? 0) + deltaDays;
+      if (lot.waitedDays > staleLotDays(lot)) stale.push(lot);
+    }
+    for (const lot of stale) {
+      recordStaleLotCancelled(lot.lockedCapital ?? 0);
+      this.cancelLot(lot.id);
+    }
+    return stale.length;
   }
 
   returnAllToRetail(): void {
     for (const lot of [...getExportStagingLots()]) {
       this.returnUnitsToRetail(lot.marketId, lot.goodId, lot.units);
       if ((lot.lockedCapital ?? 0) > UNIT_EPSILON) {
-        MerchantTradeCapital.unlock(lot.marketId, lot.lockedCapital ?? 0);
+        MerchantTradeCapital.unlock(lot.marketId, lot.lockedCapital ?? 0, goodsRefund(lot));
       }
     }
     setExportStagingLots([]);

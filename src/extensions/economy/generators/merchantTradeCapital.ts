@@ -1,16 +1,131 @@
 /**
- * Soft trade working capital for market merchant companies (Phase D).
- * Caps export-warehouse booking; does not implement full inter-market cash settlement.
+ * Trade working capital for market merchant companies (Phase D).
+ * Caps export-warehouse booking. With `fmg-long-distance-trade` on, booking pays for the cargo and
+ * the importing market pays for it on arrival (docs/plan/long-distance-merchant-reach-capital.md
+ * §5.1); otherwise capital is only reserved and arrival credits a soft profit.
  *
  * @see docs/plan/merchant-logistics-warehouses.md Phase D
  */
 
+import { worldSettings } from "../../../simulation/worldSettings";
 import type { Burg } from "../../hostTypes";
 import { rn } from "../../hostUtils";
-import { getMarkets, getWorldContext } from "../economyContext";
+import { getCaravans, getExportStagingLots, getMarkets, getWorldContext } from "../economyContext";
+import { creditHouseholdWealth } from "./burgMarketLedgers";
 import { getMoneyTradeCapacityFactorForMarket } from "./currencySufficiency";
 import { getEconomyStartProfile } from "./economyStartMode";
 import type { Market, MarketTreasury } from "./marketTypes";
+
+export const LONG_DISTANCE_TRADE_SETTING = "fmg-long-distance-trade";
+
+/**
+ * "on": inter-market cargo is paid for — the house pays the exporting market at booking and the
+ * importing market pays the house on arrival, with no soft arrival profit; warehouse lots that
+ * never load are cancelled (docs/plan/long-distance-merchant-reach-capital.md §5.1, §5.3).
+ */
+export function isLongDistanceTradeEnabled(): boolean {
+  try {
+    return worldSettings.getItem(LONG_DISTANCE_TRADE_SETTING) === "on";
+  } catch {
+    return false;
+  }
+}
+
+/** What a booking pays out besides the taxes, which the deal carries to the treasuries (§5.1). */
+export type TradeBookingPayments = {
+  /** Exporter price of the goods, paid to the exporting market's cash. */
+  goods: number;
+  /** Carriage, paid as wages to the households of the exporting market's centre town. */
+  freight: number;
+};
+
+/** Running totals of inter-market cargo settlement (§7.2), read and reset by diagnostics. */
+export type TradeSettlementStats = {
+  /** Value of arrived cargo at the price the importer pays. */
+  saleValue: number;
+  /** Paid in cash on arrival. */
+  paidOnArrival: number;
+  /** Left owed by importers that were short of cash. */
+  payableCreated: number;
+  /** Owed purchases paid later. */
+  payableRepaid: number;
+  /** Warehouse lots cancelled for never loading. */
+  staleLotsCancelled: number;
+  staleCapitalReleased: number;
+};
+
+function emptyStats(): TradeSettlementStats {
+  return {
+    saleValue: 0,
+    paidOnArrival: 0,
+    payableCreated: 0,
+    payableRepaid: 0,
+    staleLotsCancelled: 0,
+    staleCapitalReleased: 0
+  };
+}
+
+let settlementStats = emptyStats();
+
+/** Settlement since the previous call. */
+export function takeTradeSettlementStats(): TradeSettlementStats {
+  const stats = settlementStats;
+  settlementStats = emptyStats();
+  return stats;
+}
+
+export function recordStaleLotCancelled(capital: number): void {
+  settlementStats.staleLotsCancelled += 1;
+  settlementStats.staleCapitalReleased += capital;
+}
+
+/**
+ * Money a company holds. Paid capital locked in cargo is goods, not cash; an unpaid reservation
+ * is already inside `tradeWorkingCapital`, but the legacy ledger counted it again and stays so
+ * while the setting is off.
+ */
+export function getTradeCapitalMoney(treasury: MarketTreasury | undefined): number {
+  if (!treasury) return 0;
+  const working = Math.max(0, treasury.tradeWorkingCapital ?? 0);
+  return treasury.tradeCapitalPaid ? working : working + Math.max(0, treasury.tradeCapitalLocked ?? 0);
+}
+
+/** Capital the company could still commit: cash, plus cash not yet spent on its locked cargo. */
+export function getUncommittedTradeCapital(treasury: MarketTreasury | undefined): number {
+  if (!treasury) return 0;
+  const working = treasury.tradeWorkingCapital ?? 0;
+  return treasury.tradeCapitalPaid ? working : Math.max(0, working - (treasury.tradeCapitalLocked ?? 0));
+}
+
+function totalPayables(treasury: MarketTreasury | undefined): number {
+  return Object.values(treasury?.tradePayables ?? {}).reduce((sum, owed) => sum + Math.max(0, owed), 0);
+}
+
+/**
+ * Cash each market could still pay for inter-market cargo: its cash, less what it owes for cargo
+ * that has arrived and the price of cargo already booked or on the way to it (§5.1).
+ */
+export function getImporterPurchaseRoom(): Map<number, number> {
+  const room = new Map<number, number>();
+  for (const market of getMarkets()) {
+    if (market?.i)
+      room.set(market.i, Math.max(0, market.marketTreasury?.balance ?? 0) - totalPayables(market.marketTreasury));
+  }
+  const commit = (marketId: number, amount: number) => {
+    if (room.has(marketId) && amount > 0) room.set(marketId, (room.get(marketId) ?? 0) - amount);
+  };
+  for (const lot of getExportStagingLots()) {
+    if ((lot.lockedCapital ?? 0) > UNIT_EPSILON) commit(lot.destinationMarketId, lot.units * (lot.saleUnitPrice ?? 0));
+  }
+  for (const caravan of getCaravans()) {
+    if (caravan.buyerType !== "market" || caravan.sellerType !== "market") continue;
+    for (const item of caravan.payload) {
+      if (!item.isFoodCoLoad && (item.lockedCapital ?? 0) > UNIT_EPSILON)
+        commit(caravan.buyer, item.units * (item.saleUnitPrice ?? 0));
+    }
+  }
+  return room;
+}
 
 /** Soft profit realized when export cargo arrives (fraction of locked capital). */
 export const TRADE_ARRIVAL_PROFIT_RATE = 0.08;
@@ -67,9 +182,32 @@ function drawFromMemberTreasuries(market: Market, amount: number): number {
   return rn(moved, 2);
 }
 
+/**
+ * Brings the locked capital in line with the setting. A reservation becomes a paid cost when the
+ * setting turns on: the market that sold the goods receives the reserved cash. Turning it off
+ * reverses that as far as the market's cash allows.
+ */
+function alignLockedCapital(treasury: MarketTreasury): void {
+  const paid = isLongDistanceTradeEnabled();
+  if (Boolean(treasury.tradeCapitalPaid) === paid) return;
+  const locked = treasury.tradeCapitalLocked ?? 0;
+  if (paid) {
+    const moved = rn(Math.min(locked, Math.max(0, treasury.tradeWorkingCapital ?? 0)), 2);
+    treasury.tradeWorkingCapital = rn((treasury.tradeWorkingCapital ?? 0) - moved, 2);
+    treasury.balance = rn(treasury.balance + moved, 2);
+    treasury.tradeCapitalPaid = true;
+    return;
+  }
+  const moved = rn(Math.min(locked, Math.max(0, treasury.balance)), 2);
+  treasury.balance = rn(treasury.balance - moved, 2);
+  treasury.tradeWorkingCapital = rn((treasury.tradeWorkingCapital ?? 0) + moved, 2);
+  treasury.tradeCapitalPaid = undefined;
+}
+
 function normalizeTreasury(treasury: MarketTreasury): MarketTreasury {
   treasury.tradeWorkingCapital = Math.max(0, treasury.tradeWorkingCapital ?? 0);
   treasury.tradeCapitalLocked = Math.max(0, treasury.tradeCapitalLocked ?? 0);
+  alignLockedCapital(treasury);
   return treasury;
 }
 
@@ -80,8 +218,17 @@ function normalizeTreasury(treasury: MarketTreasury): MarketTreasury {
 function spendableWorkingCapital(market: Market, treasury: MarketTreasury): number {
   const working = treasury.tradeWorkingCapital ?? 0;
   const locked = treasury.tradeCapitalLocked ?? 0;
-  const liquid = working * getMoneyTradeCapacityFactorForMarket(market);
-  return Math.max(0, liquid - locked);
+  // Paid cargo is no longer in the cash, but it still counts against what the mint lets the
+  // house have out at once.
+  const total = treasury.tradeCapitalPaid ? working + locked : working;
+  const liquid = total * getMoneyTradeCapacityFactorForMarket(market);
+  return Math.max(0, Math.min(working, liquid - locked));
+}
+
+function payFreight(market: Market, treasury: MarketTreasury, freight: number): void {
+  if (!(freight > UNIT_EPSILON)) return;
+  if (market.centerBurgId) creditHouseholdWealth(market.centerBurgId, freight);
+  else treasury.balance = rn(treasury.balance + freight, 2);
 }
 
 export class MerchantTradeCapitalModule {
@@ -96,12 +243,12 @@ export class MerchantTradeCapitalModule {
       if (!getMarkets().some(other => other !== market && other.marketTreasury)) {
         // No market has cash yet: a world being set up, endowed from the start profile.
         const sum = seedStartTreasuries(market);
-        market.marketTreasury = {
+        market.marketTreasury = normalizeTreasury({
           balance: rn(sum * grainShare, 2),
           ruralGrainPayable: 0,
           tradeWorkingCapital: rn(sum * tradeShare, 2),
           tradeCapitalLocked: 0
-        };
+        });
         return market.marketTreasury;
       }
       const sum = burgTreasurySum(market);
@@ -111,12 +258,12 @@ export class MerchantTradeCapitalModule {
       const moved = drawFromMemberTreasuries(market, Math.min(wanted, sum * NEW_MARKET_TOWN_CAPITAL_SHARE));
       const tradeFraction = grainShare + tradeShare > 0 ? tradeShare / (grainShare + tradeShare) : 0;
       const tradeWorkingCapital = rn(moved * tradeFraction, 2);
-      market.marketTreasury = {
+      market.marketTreasury = normalizeTreasury({
         balance: rn(moved - tradeWorkingCapital, 2),
         ruralGrainPayable: 0,
         tradeWorkingCapital,
         tradeCapitalLocked: 0
-      };
+      });
       return market.marketTreasury;
     }
 
@@ -150,8 +297,12 @@ export class MerchantTradeCapitalModule {
     return spendableWorkingCapital(market, treasury);
   }
 
-  /** Lock capital when booking export cargo. Returns false if insufficient. */
-  lock(marketId: number, amount: number): boolean {
+  /**
+   * Lock capital when booking export cargo. Returns false if insufficient. With the setting on the
+   * booking is paid: `payments.goods` to the exporting market, `payments.freight` to its carriers;
+   * the rest of `amount` is the taxes the deal pays (§5.1).
+   */
+  lock(marketId: number, amount: number, payments?: TradeBookingPayments): boolean {
     if (!(amount > UNIT_EPSILON)) return true;
     const market = getMarkets().find(entry => entry.i === marketId);
     if (!market) return false;
@@ -159,34 +310,69 @@ export class MerchantTradeCapitalModule {
     const available = spendableWorkingCapital(market, treasury);
     if (available + UNIT_EPSILON < amount) return false;
     treasury.tradeCapitalLocked = rn((treasury.tradeCapitalLocked ?? 0) + amount, 2);
+    if (!treasury.tradeCapitalPaid) return true;
+    treasury.tradeWorkingCapital = rn(Math.max(0, (treasury.tradeWorkingCapital ?? 0) - amount), 2);
+    const goods = rn(Math.min(amount, Math.max(0, payments?.goods ?? amount)), 2);
+    const freight = rn(Math.min(amount - goods, Math.max(0, payments?.freight ?? 0)), 2);
+    treasury.balance = rn(treasury.balance + goods, 2);
+    payFreight(market, treasury, freight);
     return true;
   }
 
-  /** Release locked capital (cancel / unstage). Does not change tradeWorkingCapital total. */
-  unlock(marketId: number, amount: number): void {
+  /**
+   * Release locked capital (cancel / unstage). Off: does not change the tradeWorkingCapital total.
+   * On: the goods go back to the exporting market, which refunds `goodsRefund` (default: all of
+   * `amount`) as far as its cash allows; taxes and carriage already paid are not returned.
+   */
+  unlock(marketId: number, amount: number, goodsRefund?: number): void {
     if (!(amount > UNIT_EPSILON)) return;
     const market = getMarkets().find(entry => entry.i === marketId);
     if (!market?.marketTreasury) return;
     const treasury = normalizeTreasury(market.marketTreasury);
     treasury.tradeCapitalLocked = rn(Math.max(0, (treasury.tradeCapitalLocked ?? 0) - amount), 2);
+    if (!treasury.tradeCapitalPaid) return;
+    const refund = rn(Math.min(Math.max(0, treasury.balance), Math.max(0, Math.min(amount, goodsRefund ?? amount))), 2);
+    treasury.balance = rn(treasury.balance - refund, 2);
+    treasury.tradeWorkingCapital = rn((treasury.tradeWorkingCapital ?? 0) + refund, 2);
   }
 
   /**
-   * Cargo arrived: unlock locked capital and credit a soft trading profit into working capital.
+   * Cargo arrived. Off: unlock locked capital and credit a soft trading profit into working
+   * capital. On: the importing market buys the cargo for `saleValue`, in cash as far as it has
+   * it and owing the rest; the house's profit or loss is the sale less what it paid (§5.1).
    */
-  settleArrival(marketId: number, lockedCapital: number): void {
+  settleArrival(marketId: number, lockedCapital: number, buyerMarketId?: number, saleValue = 0): void {
     if (!(lockedCapital > UNIT_EPSILON)) return;
     const market = getMarkets().find(entry => entry.i === marketId);
     if (!market) return;
     const treasury = this.ensureTradeCapital(market);
     treasury.tradeCapitalLocked = rn(Math.max(0, (treasury.tradeCapitalLocked ?? 0) - lockedCapital), 2);
-    const profit = rn(lockedCapital * TRADE_ARRIVAL_PROFIT_RATE, 2);
-    treasury.tradeWorkingCapital = rn((treasury.tradeWorkingCapital ?? 0) + profit, 2);
+    if (!treasury.tradeCapitalPaid) {
+      const profit = rn(lockedCapital * TRADE_ARRIVAL_PROFIT_RATE, 2);
+      treasury.tradeWorkingCapital = rn((treasury.tradeWorkingCapital ?? 0) + profit, 2);
+      return;
+    }
+    const buyer = buyerMarketId === undefined ? undefined : getMarkets().find(entry => entry.i === buyerMarketId);
+    const sale = rn(Math.max(0, saleValue), 2);
+    if (!buyer || buyer === market || !(sale > UNIT_EPSILON)) return;
+    const buyerTreasury = this.ensureTradeCapital(buyer);
+    const paid = rn(Math.min(sale, Math.max(0, buyerTreasury.balance)), 2);
+    buyerTreasury.balance = rn(buyerTreasury.balance - paid, 2);
+    treasury.tradeWorkingCapital = rn((treasury.tradeWorkingCapital ?? 0) + paid, 2);
+    const owed = rn(sale - paid, 2);
+    if (owed > UNIT_EPSILON) {
+      buyerTreasury.tradePayables ??= {};
+      const payables = buyerTreasury.tradePayables;
+      payables[market.i] = rn((payables[market.i] ?? 0) + owed, 2);
+    }
+    settlementStats.saleValue += sale;
+    settlementStats.paidOnArrival += paid;
+    settlementStats.payableCreated += Math.max(0, owed);
   }
 
   /**
-   * Cargo lost: unlock a small recovery fraction, write off the rest of locked capital
-   * from the working-capital pool (inventory destroyed).
+   * Cargo lost. Off: unlock a small recovery fraction, write off the rest of locked capital from
+   * the working-capital pool (inventory destroyed). On: the cost already paid is simply gone.
    */
   settleLoss(marketId: number, lockedCapital: number): void {
     if (!(lockedCapital > UNIT_EPSILON)) return;
@@ -194,9 +380,40 @@ export class MerchantTradeCapitalModule {
     if (!market) return;
     const treasury = this.ensureTradeCapital(market);
     treasury.tradeCapitalLocked = rn(Math.max(0, (treasury.tradeCapitalLocked ?? 0) - lockedCapital), 2);
+    if (treasury.tradeCapitalPaid) return;
     const recovered = rn(lockedCapital * TRADE_LOSS_RECOVERY_RATE, 2);
     const writtenOff = lockedCapital - recovered;
     treasury.tradeWorkingCapital = rn(Math.max(0, (treasury.tradeWorkingCapital ?? 0) - writtenOff), 2);
+  }
+
+  /**
+   * A market pays what it owes for arrived cargo out of its cash, oldest creditor first by id.
+   * Returns the amount paid (§5.1; like the farmers' `ruralGrainPayable`).
+   */
+  repayPayables(market: Market): number {
+    const treasury = market.marketTreasury;
+    const payables = treasury?.tradePayables;
+    if (!treasury || !payables) return 0;
+    let paid = 0;
+    for (const key of Object.keys(payables).sort((a, b) => Number(a) - Number(b))) {
+      const creditor = getMarkets().find(entry => entry.i === Number(key));
+      const owed = payables[key] ?? 0;
+      if (!creditor?.marketTreasury || !(owed > UNIT_EPSILON)) {
+        delete payables[key];
+        continue;
+      }
+      const pay = rn(Math.min(owed, Math.max(0, treasury.balance)), 2);
+      if (!(pay > 0)) break;
+      treasury.balance = rn(treasury.balance - pay, 2);
+      creditor.marketTreasury.tradeWorkingCapital = rn((creditor.marketTreasury.tradeWorkingCapital ?? 0) + pay, 2);
+      paid = rn(paid + pay, 2);
+      const left = rn(owed - pay, 2);
+      if (left > UNIT_EPSILON) payables[key] = left;
+      else delete payables[key];
+    }
+    if (!Object.keys(payables).length) delete treasury.tradePayables;
+    settlementStats.payableRepaid += paid;
+    return paid;
   }
 }
 

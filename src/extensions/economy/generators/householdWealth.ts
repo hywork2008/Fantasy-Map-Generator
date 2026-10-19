@@ -21,6 +21,7 @@ import { getMarketCellColumn, getMarkets, getWorldContext, isEconomyContextReady
 import { creditHouseholdWealth, debitHouseholdWealth, getHouseholdWealth } from "./burgMarketLedgers";
 import { getEconomyStartProfile } from "./economyStartMode";
 import type { Market } from "./marketTypes";
+import { MerchantTradeCapital } from "./merchantTradeCapital";
 
 /**
  * One-time bootstrap for a Market's rural household wallet, from the same population-point scale
@@ -487,6 +488,8 @@ export function payOutMarketSurplus(creditMerchant: (characterId: number, amount
       creditRuralHouseholdWealth(market, repay);
       paid = rn(paid + repay, 2);
     }
+    // Then the houses whose cargo it bought on credit (long-distance-merchant-reach-capital.md §5.1).
+    MerchantTradeCapital.repayPayables(market);
     const excess = treasury.balance - reserve;
     if (!(excess > 0)) continue;
     const payout = rn(excess * MARKET_SURPLUS_PAYOUT_SHARE, 2);

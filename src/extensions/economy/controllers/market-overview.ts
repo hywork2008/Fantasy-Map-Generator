@@ -20,7 +20,7 @@ import { getFoodLedgerSummary } from "../generators/foodLedgerSummary";
 import { Goods } from "../generators/goods-generator";
 import { Markets } from "../generators/markets-generator";
 import type { TransportAssetOrder } from "../generators/marketTypes";
-import { MerchantTradeCapital } from "../generators/merchantTradeCapital";
+import { getUncommittedTradeCapital, MerchantTradeCapital } from "../generators/merchantTradeCapital";
 import { MerchantTransportAssets } from "../generators/merchantTransportAssets";
 import { TradeLogisticsSettings } from "../generators/tradeLogisticsSettings";
 import { TransportAssetOrders } from "../generators/transportAssetOrders";
@@ -188,7 +188,7 @@ export function refreshMarketOverview(): void {
   MerchantTradeCapital.ensureTradeCapital(market);
   const tradeWorkingCapital = market.marketTreasury?.tradeWorkingCapital ?? 0;
   const tradeCapitalLocked = market.marketTreasury?.tradeCapitalLocked ?? 0;
-  const tradeCapitalAvailable = Math.max(0, tradeWorkingCapital - tradeCapitalLocked);
+  const tradeCapitalAvailable = getUncommittedTradeCapital(market.marketTreasury);
 
   const stagingLots = getExportStagingLots().filter(lot => lot.marketId === market.i && lot.units > 0);
   const exportStagingUnits = stagingLots.reduce((sum, lot) => sum + lot.units, 0);

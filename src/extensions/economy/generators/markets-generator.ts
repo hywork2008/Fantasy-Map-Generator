@@ -85,6 +85,7 @@ import { syncMarketManagers } from "./marketManagers";
 import type { Deal, Market, TradeRouteSegment } from "./marketTypes";
 import { housesPresentIn, knownPrice, recordMarketPriceSnapshot, seedMerchantBranches } from "./merchantIntelligence";
 import { getOrganizationMaxTradeDays, isMarketTradePermitted } from "./merchantOrganizations";
+import { getImporterPurchaseRoom, isLongDistanceTradeEnabled } from "./merchantTradeCapital";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
 import { applyPriceElasticity, relaxMarketPrice } from "./priceElasticity";
 import {
@@ -270,6 +271,11 @@ interface GlobalTradeContext {
    * (docs/plan/luxury-value-demand.md §3.5); null keeps the unit-count luxury demand.
    */
   luxuryBudgets: Map<number, Record<LuxuryTier, number>> | null;
+  /**
+   * Cash each importing market can still pay for cargo when it is paid for
+   * (docs/plan/long-distance-merchant-reach-capital.md §5.1); null when cargo is not paid for.
+   */
+  importerPurchaseRoom: Map<number, number> | null;
 }
 
 export type { Deal, Market } from "./marketTypes";
@@ -1883,7 +1889,8 @@ export class MarketsModule {
       mapDiagonal,
       tradeReserveFactor: FLOW_TRADE_RESERVE_FACTOR,
       travelRoutes,
-      luxuryBudgets: luxuryValueDemand ? luxuryBudgetByMarketTier(this.worldContext.pack.burgs) : null
+      luxuryBudgets: luxuryValueDemand ? luxuryBudgetByMarketTier(this.worldContext.pack.burgs) : null,
+      importerPurchaseRoom: isLongDistanceTradeEnabled() ? getImporterPurchaseRoom() : null
     };
   }
 
@@ -2333,6 +2340,18 @@ export class MarketsModule {
         continue;
       }
 
+      // A house does not ship more than the buyer can pay for: its cash, less what it already owes
+      // and what is already on the way to it.
+      const purchaseRoom = ctx.importerPurchaseRoom;
+      if (purchaseRoom && quotedSalePrice > 0 && !opportunity.stateProcurement) {
+        const room = purchaseRoom.get(opportunity.importer.i) ?? 0;
+        units = Math.min(units, floorToRetailLot(Math.max(0, room) / quotedSalePrice, getRetailLotSize(good)));
+        if (units < minUnit) {
+          observe?.({ stage: "noBuyerCash", ...leg });
+          continue;
+        }
+      }
+
       const landedCost =
         exporterGood.price +
         opportunity.transportCost +
@@ -2359,6 +2378,7 @@ export class MarketsModule {
       };
 
       // Retail → export warehouse (single stock deduct). Caravan load takes from the lot later.
+      const stockBeforeBooking = exporterGood.stock;
       const lot = ExportStaging.bookFromRetail({
         marketId: opportunity.exporter.i,
         destinationMarketId: opportunity.importer.i,
@@ -2370,6 +2390,9 @@ export class MarketsModule {
         durationDays: deal.durationDays,
         maintenanceCost: deal.maintenanceCost,
         taxPerUnit: opportunity.exporterTaxPerUnit,
+        goodsUnitCost: exporterGood.price,
+        freightUnitCost: opportunity.transportCost,
+        saleUnitPrice: quotedSalePrice,
         // State procurement underwrites its own committed shipment; it must not be blocked by
         // the exporting market's optional merchant working-capital pool.
         requireCapital: !opportunity.stateProcurement
@@ -2379,6 +2402,21 @@ export class MarketsModule {
         continue;
       }
       deal.stagingLotId = lot.id;
+      if (isLongDistanceTradeEnabled()) {
+        // Capital may clamp the booking; the deal's taxes are what the house actually paid for.
+        const booked = rn(Math.max(0, stockBeforeBooking - exporterGood.stock), 2);
+        if (booked + 0.000001 < units && units > 0) {
+          const share = booked / units;
+          deal.units = booked;
+          deal.remainingUnits = booked;
+          deal.tax = rn(deal.tax * share, 2);
+          if (deal.importTax !== undefined) deal.importTax = rn(deal.importTax * share, 2);
+        }
+        if (purchaseRoom && !opportunity.stateProcurement) {
+          const room = purchaseRoom.get(opportunity.importer.i) ?? 0;
+          purchaseRoom.set(opportunity.importer.i, room - booked * quotedSalePrice);
+        }
+      }
       deals.push(deal);
       observe?.({ stage: "deal", ...leg, units, value: units * landedCost });
 
