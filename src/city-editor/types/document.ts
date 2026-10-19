@@ -366,6 +366,8 @@ export interface FabricPlan {
 }
 
 export interface CityDocument {
+  /** Optional finishing decoration, independent of city generation stages. */
+  vacantLotTrees?: { seed: string; visible: boolean };
   /** CE overrides for automatically placed facilities; absent entries follow FMG/defaults. */
   facilityCounts?: Partial<Record<import("./facilities").FacilityKind, number>>;
   populationPlan?: import("./contracts/population").PopulationPlan;

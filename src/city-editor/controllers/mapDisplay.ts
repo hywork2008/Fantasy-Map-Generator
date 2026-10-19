@@ -70,6 +70,8 @@ export interface MapDisplayContext {
   root: HTMLElement;
   renderQualitySelect: HTMLSelectElement;
   coreLayerInput: HTMLInputElement;
+  vacantTreesInput: HTMLInputElement;
+  generateVacantTreesButton: HTMLButtonElement;
   regionalLayerInput: HTMLInputElement;
   scaleLine: HTMLDivElement;
   scaleLabel: HTMLOutputElement;
@@ -126,6 +128,10 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
           defaultWalledAreaShare(ctx.documents.documentState.frame.extentMeters)) * 100
       )
     });
+    ctx.vacantTreesInput.checked = !!ctx.documents.documentState.vacantLotTrees?.visible;
+    ctx.vacantTreesInput.disabled = !ctx.documents.documentState.vacantLotTrees;
+    ctx.generateVacantTreesButton.disabled =
+      ctx.documents.documentState.appearance !== "town" || ctx.display.hideBuildings;
     ctx.map.classList.toggle("ce-map--select", ctx.interaction.tool === "select");
     ctx.map.classList.toggle("ce-map--brush", isBrushTool(ctx.interaction.tool) || ctx.interaction.tool === "wardWall");
     for (const [id, button] of ctx.toolButtons) button.classList.toggle("is-active", id === ctx.interaction.tool);

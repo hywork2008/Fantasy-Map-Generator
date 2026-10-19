@@ -559,6 +559,12 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         get renderQualitySelect() {
           return renderQualitySelect;
         },
+        get vacantTreesInput() {
+          return vacantTreesInput;
+        },
+        get generateVacantTreesButton() {
+          return generateVacantTreesButton;
+        },
         get coreLayerInput() {
           return coreLayerInput;
         },
@@ -2070,6 +2076,29 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     })
   );
 
+  const vacantTreesInput = checkbox(false, visible => {
+    const current = documents.documentState;
+    if (!current.vacantLotTrees) return;
+    commit(
+      { ...current, vacantLotTrees: { ...current.vacantLotTrees, visible } },
+      editorText("cityEditor.messages.showVacantLotTrees")
+    );
+  });
+  const generateVacantTreesButton = makeButton(editorText("cityEditor.messages.generateVacantLotTrees"), () => {
+    const current = documents.documentState;
+    if (current.appearance !== "town" || display.hideBuildings) return;
+    commit(
+      { ...current, vacantLotTrees: { seed: randomSeed(), visible: true } },
+      editorText("cityEditor.messages.generateVacantLotTrees")
+    );
+  });
+  const decorationControls = div("ce-city-decoration");
+  decorationControls.append(
+    text(editorText("cityEditor.messages.cityDecoration")),
+    generateVacantTreesButton,
+    toggleLabel(editorText("cityEditor.messages.showVacantLotTrees"), vacantTreesInput)
+  );
+
   generatePanel.content.append(
     generationProgress,
     cancelGeneration,
@@ -2079,6 +2108,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     makeButton(editorText("cityEditor.messages.generateCompleteCity"), () => runCompleteGeneration()),
     makeButton(editorText("cityEditor.messages.newCity"), () => rollNewTown()),
     copyLinkButton,
+    decorationControls,
     seedLabel,
     meshToggleRow,
     label(editorText("cityEditor.messages.renderQuality"), renderQualitySelect),
