@@ -280,7 +280,14 @@ function stagingLotsToDeals(lots: readonly ExportStagingLot[]): Deal[] {
   return lots
     .filter(lot => lot.units > UNIT_EPSILON)
     .map(lot => {
-      const linked = lot.dealId !== undefined ? liveDeals.find(deal => deal.i === lot.dealId) : undefined;
+      // Deal ids restart every production cycle, so a lot booked in an earlier cycle can share its
+      // `dealId` with an unrelated deal of this one. Two lots under one id were packed as one
+      // manifest row of the first lot's good: the hold came out over capacity and never sailed
+      // (long-distance-merchant-reach-capital.md §16).
+      const linked =
+        lot.dealId !== undefined
+          ? liveDeals.find(deal => deal.i === lot.dealId && deal.stagingLotId === lot.id)
+          : undefined;
       return {
         i: linked?.i ?? -lot.id,
         seller: lot.marketId,

@@ -471,6 +471,11 @@ export type MerchantTransportLedger = {
   riverDeparturesThisCycle?: number;
   /** Smoothed barges sent downstream per production cycle; sizes the pre-built stock. */
   riverDeparturesPerCycle?: number;
+  /**
+   * Sea cargo slots trade matching could not book for want of hulls since the last replenishment
+   * (long-distance-merchant-reach-capital.md §17). Read and reset when hulls are asked of Shipbuilding.
+   */
+  seaShortfallSlots?: number;
 };
 
 export type TransportReservation = {

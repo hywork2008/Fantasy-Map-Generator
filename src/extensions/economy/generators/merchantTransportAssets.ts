@@ -815,6 +815,52 @@ export class MerchantTransportAssetsModule {
     }, 0);
   }
 
+  /**
+   * Cargo slots the market's whole fleet of one mode carries at once, out on the road or not;
+   * vehicles in repair do not count (long-distance-merchant-reach-capital.md §17).
+   */
+  getFleetCapacitySlots(marketId: number, mode: "land" | "sea", draftAnimalId: string): number {
+    const ledger = this.ensureLedger(marketId);
+    if (!ledger) return 0;
+    if (mode === "sea") {
+      return ledger.waterAssets
+        .filter(asset => asset.state !== "maintenance")
+        .reduce((sum, asset) => sum + (getShipDefinition(asset.shipClassId)?.cargoCapacitySlots ?? 0), 0);
+    }
+    const draftAnimal = getDraftAnimalType(draftAnimalId);
+    return ledger.landAssets.reduce((sum, asset) => {
+      const definition = getLandTransportDefinition(asset.assetId);
+      if (!definition) return sum;
+      const capacity = Math.min(
+        definition.cargoCapacitySlots,
+        definition.requiredDraftAnimals * draftAnimal.towCapacitySlots
+      );
+      return sum + capacity * (asset.available + asset.reserved + asset.inTransit);
+    }, 0);
+  }
+
+  /** Whether sea legs need one of the market's own hulls (Shipbuilding publishes a finite fleet). */
+  needsOwnHulls(): boolean {
+    return this.waterAssetModeActive;
+  }
+
+  /** Sea cargo that could not be booked for want of hulls since the last replenishment (§17). */
+  recordSeaHullShortfall(marketId: number, cargoSlots: number): void {
+    if (!(cargoSlots > 0)) return;
+    const ledger = this.ensureLedger(marketId);
+    if (!ledger) return;
+    ledger.seaShortfallSlots = (ledger.seaShortfallSlots ?? 0) + cargoSlots;
+  }
+
+  /** Reads and resets the sea shortfall recorded since the last replenishment. */
+  takeSeaHullShortfall(marketId: number): number {
+    const ledger = findLedger(marketId);
+    if (!ledger) return 0;
+    const shortfall = ledger.seaShortfallSlots ?? 0;
+    ledger.seaShortfallSlots = undefined;
+    return shortfall;
+  }
+
   /** The largest shipment that can be assigned without bypassing a physical mode's capacity. */
   getLargestAvailableRouteCapacity(
     marketId: number,

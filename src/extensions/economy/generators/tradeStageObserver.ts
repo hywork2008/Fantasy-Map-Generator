@@ -22,6 +22,8 @@ export type TradeStage =
   | "noCapital"
   /** The importer cannot pay for more cargo (paid cargo only, long-distance-merchant-reach-capital.md §5.1). */
   | "noBuyerCash"
+  /** The exporter's carts or hulls cannot carry more this cycle (long-distance-merchant-reach-capital.md §17). */
+  | "noTransport"
   | "deal";
 
 export interface TradeStageEvent {

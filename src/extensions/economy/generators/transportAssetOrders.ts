@@ -1,3 +1,4 @@
+import { simEvents } from "../../../simulation/events";
 import { rn } from "../../hostUtils";
 import {
   getCraftDomainEmploymentRecords,
@@ -14,7 +15,7 @@ import { getEconomyCalibrationState } from "../state/economyCalibrationStore";
 import { laborPeople, peopleToPoints } from "./craftScale";
 import { getGuildBonus } from "./guildKnowledge";
 import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";
-import type { MerchantLandAssetBalance, TransportAssetOrder } from "./marketTypes";
+import type { Market, MerchantLandAssetBalance, TransportAssetOrder } from "./marketTypes";
 import { MerchantTransportAssets, RIVER_BARGE_WOOD_UNITS } from "./merchantTransportAssets";
 
 export type TransportAssetBlueprint = {
@@ -86,6 +87,15 @@ const WORK_SHARE_OF_OBSERVED_CRAFT_EMPLOYMENT = 0.25;
 const TRANSPORT_CRAFT_PEOPLE_PER_THOUSAND = 1.5;
 
 type PlannedWork = { orderId: number; workPoints: number; domain: CraftKnowledgeDomain };
+
+/** Where a market's ordered hull berths: its most populous port town, else its centre town. */
+function merchantHullHomePort(market: Market): number | undefined {
+  const ports = (getWorldContext().pack.burgs ?? []).filter(
+    burg => burg.i && !burg.removed && burg.market === market.i && burg.port
+  );
+  const port = ports.sort((a, b) => (b.population ?? 0) - (a.population ?? 0) || (a.i ?? 0) - (b.i ?? 0))[0];
+  return port?.i ?? (market.centerBurgId || undefined);
+}
 
 function getBlueprint(id: TransportAssetOrder["blueprintId"]): TransportAssetBlueprint {
   const blueprint = BLUEPRINTS.find(candidate => candidate.id === id);
@@ -264,6 +274,14 @@ export class TransportAssetOrdersModule {
           .reduce((sum, order) => sum + order.quantity - order.completedQuantity, 0);
         const missing = Math.max(0, Math.ceil(balance.maintenance) - outstanding);
         if (missing > 0) this.createOrder({ marketId: market.i, blueprintId: balance.assetId, quantity: missing });
+      }
+      // Sea trade that waited for a hull asks the shipyards for one (long-distance-merchant-reach-capital.md §17).
+      if (MerchantTransportAssets.takeSeaHullShortfall(market.i) > 0) {
+        const homeBurgId = merchantHullHomePort(market);
+        if (homeBurgId !== undefined)
+          simEvents.dispatchEvent(
+            new CustomEvent("fmg:economy-merchant-hull-order", { detail: { marketId: market.i, homeBurgId } })
+          );
       }
       // River barges are built to demand: for river cargo that found none, and a cycle's usual
       // departures ahead while craft are one-way (docs/plan/river-vessels-and-downstream-trade.md §10).

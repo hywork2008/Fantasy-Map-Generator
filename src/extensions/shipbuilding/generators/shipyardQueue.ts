@@ -23,7 +23,14 @@ import {
   type ShipClass
 } from "./shipClasses";
 import type { ShipyardCandidate } from "./shipyardCandidates";
-import type { ShipHull, ShipHullDuty, ShipHullStatus, ShipyardOwner, ShipyardQueueEntry } from "./shipyardQueueTypes";
+import type {
+  MerchantHullOrder,
+  ShipHull,
+  ShipHullDuty,
+  ShipHullStatus,
+  ShipyardOwner,
+  ShipyardQueueEntry
+} from "./shipyardQueueTypes";
 
 export type {
   ShipHull,
@@ -413,6 +420,8 @@ export function registerCompletedHull(args: {
   states: readonly State[];
   /** When false, skip `fmg:shipbuilding-ship-completed` (default true). */
   emitCompletedEvent?: boolean;
+  /** Port the hull is delivered to and owned from, when not the yard that built it (an order). */
+  homeBurgId?: number;
 }): ShipHull {
   const { burg, owner, shipClassId, states, emitCompletedEvent = true } = args;
   const ownerId = owner === "state" ? burg.state! : burg.i!;
@@ -424,7 +433,7 @@ export function registerCompletedHull(args: {
   // State navy: wartime docked/mobilized; peacetime patrol voyage for training/intel.
   const isMerchant = owner === "market";
   const staysDocked = isMerchant || (owner === "state" && isStateAtWar(ownerId, states));
-  const homeBurgId = burg.i!;
+  const homeBurgId = args.homeBurgId ?? burg.i!;
   const hull: ShipHull = {
     id: runtimeState.nextHullId++,
     shipClassId,
@@ -455,6 +464,83 @@ export function registerCompletedHull(args: {
 
 function completeHull(burg: Burg, owner: ShipHullOwner, shipClassId: string, states: readonly State[]): void {
   registerCompletedHull({ burg, owner, shipClassId, states });
+}
+
+/**
+ * A market whose sea trade waits for a hull orders one (long-distance-merchant-reach-capital.md
+ * §17). One stays on order at a time: the yards build a hull in years, and the order is renewed
+ * while the trade still waits.
+ */
+export function orderMerchantHull(marketId: number, homeBurgId: number): void {
+  const runtimeState = getShipbuildingRuntimeState();
+  runtimeState.merchantHullOrders ??= {};
+  const orders = runtimeState.merchantHullOrders;
+  const order = orders[marketId];
+  if (order) order.homeBurgId = homeBurgId;
+  else orders[marketId] = { homeBurgId, remaining: 1 };
+}
+
+/** The open order whose home port has `yard` as its nearest merchant yard, lowest market id first. */
+function findMerchantHullOrder(
+  yard: Burg,
+  candidates: readonly ShipyardCandidate[],
+  burgs: readonly Burg[]
+): MerchantHullOrder | undefined {
+  const orders = getShipbuildingRuntimeState().merchantHullOrders;
+  if (!orders) return undefined;
+  const merchantYards = candidates
+    .map(candidate => burgs[candidate.burgId])
+    .filter((burg): burg is Burg => Boolean(burg && !burg.removed && determineOwner(burg) === "market"));
+  for (const key of Object.keys(orders).sort((a, b) => Number(a) - Number(b))) {
+    const order = orders[Number(key)];
+    const home = burgs[order.homeBurgId];
+    if (!home || home.removed) {
+      delete orders[Number(key)];
+      continue;
+    }
+    const distance = (burg: Burg) => Math.hypot(burg.x - home.x, burg.y - home.y);
+    const nearest = merchantYards.reduce<Burg | undefined>(
+      (best, burg) => (!best || distance(burg) < distance(best) ? burg : best),
+      undefined
+    );
+    if (nearest?.i === yard.i) return order;
+  }
+  return undefined;
+}
+
+/**
+ * A merchant yard works on an order before its own hull: the smallest merchant class, delivered
+ * to the ordering market's port (long-distance-merchant-reach-capital.md §17). Returns the work
+ * points left for the yard's own queue.
+ */
+function advanceMerchantHullOrder(
+  yard: Burg,
+  candidates: readonly ShipyardCandidate[],
+  burgs: readonly Burg[],
+  earnedWorkPoints: number,
+  requestMaterials: RequestShipbuildingMaterialsFn,
+  states: readonly State[]
+): number {
+  const order = findMerchantHullOrder(yard, candidates, burgs);
+  const shipClass = getShipClass("sloop");
+  if (!order || !shipClass) return earnedWorkPoints;
+  order.build ??= { shipClassId: shipClass.id, owner: "market", progress: 0, pendingWorkPoints: 0 };
+  return advanceQueueWithMaterials(order.build, yard, shipClass, earnedWorkPoints, requestMaterials, () => {
+    registerCompletedHull({
+      burg: yard,
+      owner: "market",
+      shipClassId: shipClass.id,
+      states,
+      homeBurgId: order.homeBurgId
+    });
+    order.remaining -= 1;
+    order.build = undefined;
+    const orders = getShipbuildingRuntimeState().merchantHullOrders;
+    if (order.remaining <= 0 && orders) {
+      for (const key of Object.keys(orders)) if (orders[Number(key)] === order) delete orders[Number(key)];
+    }
+    return false;
+  });
 }
 
 /**
@@ -519,7 +605,15 @@ export function runShipyardTick(
     }
 
     const classDef = getShipClass(entry.shipClassId) ?? unlockedClass;
-    const unusedWorkPoints = advanceQueueWithMaterials(entry, burg, classDef, deltaYears, requestMaterials, states);
+    const earnedWorkPoints = SHIPYARD_BUILD_POINTS_PER_YEAR * deltaYears;
+    const ownWorkPoints =
+      owner === "market"
+        ? advanceMerchantHullOrder(burg, candidates, burgs, earnedWorkPoints, requestMaterials, states)
+        : earnedWorkPoints;
+    const unusedWorkPoints = advanceQueueWithMaterials(entry, burg, classDef, ownWorkPoints, requestMaterials, () => {
+      completeHull(burg, entry.owner, classDef.id, states);
+      return true;
+    });
     if (owner === "market" && unusedWorkPoints > EPSILON) {
       advanceSurplusQueue(
         burg,
@@ -543,15 +637,19 @@ function antiquityGalley(): ShipClass | undefined {
   return period === "classicalAntiquity" || period === "lateAntiquity" ? getShipClass("galley") : undefined;
 }
 
+/**
+ * Spends `earnedWorkPoints` on `entry`'s hulls. `onComplete` registers each finished hull and says
+ * whether to start another; when it says no, the points left over are returned for other work.
+ */
 function advanceQueueWithMaterials(
   entry: ShipyardQueueEntry,
   burg: Burg,
   shipClass: ShipClass,
-  deltaYears: number,
+  earnedWorkPoints: number,
   requestMaterials: RequestShipbuildingMaterialsFn,
-  states: readonly State[]
+  onComplete: () => boolean
 ): number {
-  let availableWorkPoints = entry.pendingWorkPoints + SHIPYARD_BUILD_POINTS_PER_YEAR * deltaYears;
+  let availableWorkPoints = entry.pendingWorkPoints + earnedWorkPoints;
   entry.pendingWorkPoints = 0;
 
   while (availableWorkPoints > EPSILON) {
@@ -598,7 +696,7 @@ function advanceQueueWithMaterials(
     if (entry.progress + EPSILON < shipClass.buildPointsRequired) continue;
 
     entry.progress = 0;
-    completeHull(burg, entry.owner, shipClass.id, states);
+    if (!onComplete()) return Math.max(0, availableWorkPoints);
   }
   return 0;
 }
@@ -714,4 +812,5 @@ export function clearShipyardQueues(): void {
   runtimeState.completedHulls = {};
   runtimeState.hulls = {};
   runtimeState.nextHullId = 1;
+  runtimeState.merchantHullOrders = undefined;
 }

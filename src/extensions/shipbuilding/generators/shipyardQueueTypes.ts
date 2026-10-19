@@ -54,3 +54,14 @@ export interface ShipHull {
   /** OverseasRelations expedition id while a state navy hull is escorting a convoy. */
   overseasExpeditionId?: number | null;
 }
+
+/**
+ * A hull a market ordered for sea trade that waited for one (long-distance-merchant-reach-capital.md
+ * §17). The nearest merchant yard builds it before its own hull and delivers it to `homeBurgId`.
+ */
+export interface MerchantHullOrder {
+  homeBurgId: number;
+  remaining: number;
+  /** Hull under construction for this order. */
+  build?: ShipyardQueueEntry;
+}

@@ -131,6 +131,13 @@ import { calculateRouteDurationDays, getRouteDistanceMapUnits } from "./tradeRou
 import { TradeRoutePlanner } from "./tradeRoutePlanner";
 import { maxWaitDaysForRoute } from "./tradeSailSchedule";
 import { getTradeStageObserver } from "./tradeStageObserver";
+import {
+  buildTransportRoom,
+  seaRoomSlots,
+  type TransportRoom,
+  takeTransportRoom,
+  transportRoomSlots
+} from "./tradeTransportRoom";
 import { TransportAssetOrders } from "./transportAssetOrders";
 
 const PRICE_FLOOR_FACTOR = 0.25;
@@ -297,6 +304,8 @@ interface GlobalTradeContext {
   importerPurchaseRoom: Map<number, number> | null;
   /** Long-distance reach rules (long-distance-merchant-reach-capital.md §4) are on. */
   longDistanceTrade: boolean;
+  /** What each exporter's fleet can still carry this cycle (long-distance-merchant-reach-capital.md §17). */
+  transportRoom: TransportRoom;
 }
 
 export type { Deal, Market } from "./marketTypes";
@@ -1936,7 +1945,12 @@ export class MarketsModule {
       travelRoutes,
       luxuryBudgets: luxuryValueDemand ? luxuryBudgetByMarketTier(this.worldContext.pack.burgs) : null,
       importerPurchaseRoom: longDistanceTrade ? getImporterPurchaseRoom() : null,
-      longDistanceTrade
+      longDistanceTrade,
+      transportRoom: buildTransportRoom(
+        getMarkets().map(market => market.i),
+        (from, to) => travelRoutes[from]?.[to]?.segments,
+        segments => calculateRouteDurationDays(segments, this.worldContext.distanceScale)
+      )
     };
   }
 
@@ -2419,6 +2433,32 @@ export class MarketsModule {
         }
       }
 
+      // A house books no more than its carts and hulls can carry this month (§17). A sea leg the
+      // exporter has no hull for is asked of the shipyards; until one is built, the pair waits.
+      const slotsPerUnit = getGoodCargoSlotsPerUnit(good);
+      const { transportRoom } = ctx;
+      const carriable = transportRoomSlots(
+        transportRoom,
+        opportunity.exporter.i,
+        opportunity.routeSegments,
+        opportunity.durationDays
+      );
+      if (Number.isFinite(carriable)) {
+        const seaSlots = seaRoomSlots(
+          transportRoom,
+          opportunity.exporter.i,
+          opportunity.routeSegments,
+          opportunity.durationDays
+        );
+        if (seaSlots + 0.000001 < units * slotsPerUnit)
+          MerchantTransportAssets.recordSeaHullShortfall(opportunity.exporter.i, units * slotsPerUnit - seaSlots);
+        units = Math.min(units, floorToRetailLot(carriable / slotsPerUnit, getRetailLotSize(good)));
+        if (units < minUnit) {
+          observe?.({ stage: "noTransport", ...leg });
+          continue;
+        }
+      }
+
       const landedCost =
         exporterGood.price +
         opportunity.transportCost +
@@ -2485,6 +2525,13 @@ export class MarketsModule {
         continue;
       }
       deal.stagingLotId = lot.id;
+      takeTransportRoom(
+        transportRoom,
+        opportunity.exporter.i,
+        opportunity.routeSegments,
+        opportunity.durationDays,
+        Math.max(0, stockBeforeBooking - exporterGood.stock) * slotsPerUnit
+      );
       if (isLongDistanceTradeEnabled()) {
         // Capital may clamp the booking; the deal's taxes are what the house actually paid for.
         const booked = rn(Math.max(0, stockBeforeBooking - exporterGood.stock), 2);

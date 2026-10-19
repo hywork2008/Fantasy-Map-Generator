@@ -53,7 +53,9 @@ export function computeFoodCoLoadUnits(input: {
   spoilageLoadFactor?: number;
 }): number {
   const slotsPerUnit = Math.max(UNIT_EPSILON, input.cargoSlotsPerUnit);
-  const slotCap = Math.max(0, input.freeSlots) / slotsPerUnit;
+  // Rounded down: rounding the units up overfilled the hold by a hair, and a hold over its
+  // vehicle's capacity never sails (long-distance-merchant-reach-capital.md §16).
+  const slotCap = Math.floor((Math.max(0, input.freeSlots) / slotsPerUnit) * 100 + UNIT_EPSILON) / 100;
   const exportCap = Math.max(0, input.exportable);
   if (slotCap <= UNIT_EPSILON || exportCap <= UNIT_EPSILON) return 0;
 

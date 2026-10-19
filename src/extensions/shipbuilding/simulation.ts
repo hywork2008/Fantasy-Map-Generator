@@ -29,6 +29,7 @@ import {
   getInitialStateOwnedDemand,
   getStateNavyHullsCount,
   isStateAtWar,
+  orderMerchantHull,
   releaseMerchantHullsFromCargo,
   releaseStateHullsFromOverseasEscort,
   reserveMerchantHullsForCargo,
@@ -252,6 +253,14 @@ function register(api: SimulationExtensionAPI): () => void {
       ? "fulfilled"
       : "unavailable";
     notifyShipbuildingChanged();
+  });
+
+  // Economy asks for a hull where sea trade waits for one (long-distance-merchant-reach-capital.md §17).
+  on("fmg:economy-merchant-hull-order", (event: Event) => {
+    if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
+    const detail = (event as CustomEvent<{ marketId?: unknown; homeBurgId?: unknown }>).detail;
+    if (typeof detail?.marketId !== "number" || typeof detail.homeBurgId !== "number") return;
+    orderMerchantHull(detail.marketId, detail.homeBurgId);
   });
 
   on("fmg:economy-caravan-hull-positions", (event: Event) => {

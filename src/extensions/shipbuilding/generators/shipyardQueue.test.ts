@@ -7,12 +7,14 @@ import {
   clearShipyardQueues,
   type GetEffectiveSkillFn,
   getCompletedHulls,
+  getHulls,
   getHullsAtBurg,
   getInitialStateOwnedDemand,
   getQueueEntry,
   getStateNavalCrewCapacity,
   getStateTechPoints,
   isStateAtWar,
+  orderMerchantHull,
   runShipyardTick,
   setHullStatus
 } from "./shipyardQueue";
@@ -134,6 +136,29 @@ describe("shipyardQueue", () => {
 
     expect(getCompletedHulls("market", 1, "sloop")).toBe(1);
     expect(getQueueEntry(1)?.progress).toBe(0);
+  });
+
+  it("has the nearest merchant yard build an ordered hull first and deliver it to the ordering port", () => {
+    // Yard 1 is nearer burg 3 than yard 2 is; burg 3's market has no yard of its own.
+    const burgs = makeBurgs([
+      { i: 1, state: 0, x: 0, y: 0 },
+      { i: 2, state: 0, x: 500, y: 0 },
+      { i: 3, state: 0, x: 100, y: 0, market: 7 }
+    ]);
+    const candidates: ShipyardCandidate[] = [
+      { burgId: 1, forestRatio: 0.5 },
+      { burgId: 2, forestRatio: 0.5 }
+    ];
+    orderMerchantHull(7, 3);
+    runShipyardTick(candidates, burgs, [], 2, noSkill);
+    // Renewed while the trade still waits: the hull under way is kept.
+    orderMerchantHull(7, 3);
+    runShipyardTick(candidates, burgs, [], 8, noSkill);
+
+    const homes = getHulls().map(hull => hull.homeBurgId);
+    expect(homes.filter(home => home === 3)).toHaveLength(1);
+    expect(homes.filter(home => home === 1)).toHaveLength(1);
+    expect(homes.filter(home => home === 2)).toHaveLength(2);
   });
 
   it("drains every hull completed within a single large tick, not just one", () => {

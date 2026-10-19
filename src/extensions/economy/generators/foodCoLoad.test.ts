@@ -60,6 +60,12 @@ describe("foodCoLoad pure helpers", () => {
     ).toBe(10);
   });
 
+  it("never fills more slots than the hold has free", () => {
+    // 0.055 free slots / 3 per unit = 0.0183 units: rounding to 0.02 would take 0.06 slots.
+    const units = computeFoodCoLoadUnits({ freeSlots: 0.055, cargoSlotsPerUnit: 3, exportable: 10, importNeed: 0 });
+    expect(units * 3).toBeLessThanOrEqual(0.055);
+  });
+
   it("applies half-life spoilage", () => {
     expect(foodDeliveredShare(0)).toBe(1);
     expect(foodDeliveredShare(90)).toBeCloseTo(Math.exp(-1));

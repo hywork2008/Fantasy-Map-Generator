@@ -7,7 +7,12 @@
  */
 
 import type { ExtensionAPI, SimulationExtensionAPI } from "../hostTypes";
-import type { ShipHull, ShipyardQueueEntry, SurplusShipyardQueueEntry } from "./generators/shipyardQueueTypes";
+import type {
+  MerchantHullOrder,
+  ShipHull,
+  ShipyardQueueEntry,
+  SurplusShipyardQueueEntry
+} from "./generators/shipyardQueueTypes";
 
 let _api: SimulationExtensionAPI | null = null;
 
@@ -18,6 +23,12 @@ export interface ShipbuildingRuntimeState {
   completedHulls: Record<string, number>;
   hulls: Record<number, ShipHull>;
   nextHullId: number;
+  /**
+   * Hulls Economy asked for, by ordering market, for sea trade it could not book
+   * (docs/plan/long-distance-merchant-reach-capital.md §17). The nearest merchant yard's next hull
+   * goes to `homeBurgId`. Absent in older saves.
+   */
+  merchantHullOrders?: Record<number, MerchantHullOrder>;
 }
 
 const fallbackRuntimeState: ShipbuildingRuntimeState = createRuntimeState();

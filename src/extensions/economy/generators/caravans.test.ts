@@ -310,6 +310,60 @@ describe("caravan loading accumulation", () => {
     expect(getCaravans()).toEqual([]);
   });
 
+  it("loads each lot as its own good when an older lot's deal id was reused", () => {
+    // Deal ids restart every production cycle: lot A's id 0 now names lot B's deal. Packing both
+    // lots as one row of the bulkier good overfilled the hold, and it never sailed.
+    const [silk] = worldContext.pack.goods as Good[];
+    silk.cargo = { cargoSlotsPerUnit: 4, handlingClass: "crated" };
+    worldContext.pack.goods.push({
+      ...silk,
+      i: 1,
+      name: "Wool",
+      cargo: { cargoSlotsPerUnit: 1, handlingClass: "loose" }
+    } as Good);
+    getMarkets()[0].goods[1] = { stock: 50, price: 10 };
+    ExportStaging.bookFromRetail({
+      marketId: 0,
+      destinationMarketId: 1,
+      goodId: 0,
+      units: 100,
+      unitCost: 50,
+      dealId: 0,
+      requireCapital: false
+    });
+    const wool = ExportStaging.bookFromRetail({
+      marketId: 0,
+      destinationMarketId: 1,
+      goodId: 1,
+      units: 40,
+      unitCost: 10,
+      dealId: 0,
+      requireCapital: false
+    });
+    setDeals([
+      {
+        i: 0,
+        seller: 0,
+        sellerType: "market",
+        buyer: 1,
+        buyerType: "market",
+        good: 1,
+        units: 40,
+        price: 10,
+        tax: 0,
+        stagingLotId: wool!.id
+      }
+    ]);
+
+    Caravans.spawnFromDeals(getDeals());
+
+    for (const caravan of getCaravans()) {
+      const used = caravan.payload.reduce((sum, item) => sum + item.units * (item.cargoSlotsPerUnit ?? 1), 0);
+      const capacity = Math.min(...(caravan.transportAllocations ?? []).map(allocation => allocation.capacitySlots));
+      expect(used).toBeLessThanOrEqual(capacity + 0.000001);
+    }
+  });
+
   it("keeps export warehouse lots across deal wipes until loaded", () => {
     ExportStaging.bookFromRetail({
       marketId: 0,
