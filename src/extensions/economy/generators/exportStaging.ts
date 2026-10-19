@@ -89,11 +89,18 @@ export function mergeUnitPrice(
   return rn((current * currentUnits + added * addedUnits) / (currentUnits + addedUnits), 4);
 }
 
-/** Days a lot may sit in the warehouse before it is cancelled: the longest wait for a sailing plus the trip (§5.3). */
-function staleLotDays(lot: ExportStagingLot): number {
+/** Days past a round trip a lot still waits for carts or a hull that are out on the road. */
+const STALE_LOT_GRACE_DAYS = 30;
+
+/**
+ * Days a lot may sit in the warehouse before it is cancelled: the longest wait for a sailing, a
+ * round trip for the house's carts or hull to come back, and a month's grace (§5.3, §15). With only
+ * the wait and one trip, cargo waiting for carts still out on the road was cancelled.
+ */
+export function getStaleLotDays(lot: Pick<ExportStagingLot, "durationDays">): number {
   const logistics = TradeLogisticsSettings.getOptions();
   const maxWait = Math.max(logistics.maxWaitDaysLand, logistics.maxWaitDaysSea, logistics.maxWaitDaysShortSea);
-  return maxWait + Math.max(0, lot.durationDays ?? 0);
+  return maxWait + 2 * Math.max(0, lot.durationDays ?? 0) + STALE_LOT_GRACE_DAYS;
 }
 
 function ensureNextLotId(): number {
@@ -311,7 +318,7 @@ export class ExportStagingModule {
     const stale: ExportStagingLot[] = [];
     for (const lot of getExportStagingLots()) {
       lot.waitedDays = (lot.waitedDays ?? 0) + deltaDays;
-      if (lot.waitedDays > staleLotDays(lot)) stale.push(lot);
+      if (lot.waitedDays > getStaleLotDays(lot)) stale.push(lot);
     }
     for (const lot of stale) {
       recordStaleLotCancelled(lot.lockedCapital ?? 0);

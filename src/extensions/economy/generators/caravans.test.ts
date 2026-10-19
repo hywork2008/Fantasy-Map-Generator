@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { simulationContext } from "../../../context/simulationContext";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
@@ -698,6 +699,21 @@ describe("finite sea fleet departure gate (P0)", () => {
     const caravan = getCaravans()[0];
     expect(caravan?.state).toBe("loading");
     expect(reservedHullIds).toEqual([]);
+  });
+
+  it("calls off a paid hold that finds no hull long after it was due (long-distance trade §15)", () => {
+    simulationContext.worldSettings = { "fmg-long-distance-trade": "on" };
+    try {
+      MerchantTransportAssets.reconcileMerchantHulls([]);
+      setCaravans([seaLoadingCaravan({ loading: { ...seaLoadingCaravan().loading!, waitedDays: 1000 } })]);
+
+      Caravans.tick(1);
+
+      expect(getCaravans().filter(caravan => caravan.state === "loading")).toHaveLength(0);
+      expect(getMarkets()[0].goods[0].stock).toBe(280);
+    } finally {
+      delete simulationContext.worldSettings;
+    }
   });
 
   it("departs a sea hold with a concrete hull and refuses a second concurrent sea voyage", () => {

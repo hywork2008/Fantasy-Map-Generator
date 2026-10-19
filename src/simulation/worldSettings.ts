@@ -59,7 +59,9 @@ export function materializeWorldSettings(simulation: SimulationContext = simulat
 export const NEW_WORLD_SETTING_DEFAULTS: Readonly<Partial<Record<WorldSettingKey, string>>> = {
   "fmg-luxury-value-demand": "on",
   // docs/plan/money-supply-mint.md §11.12: calibrated over 100 years on new-catalogue maps.
-  "fmg-money-supply": "on"
+  "fmg-money-supply": "on",
+  // docs/plan/long-distance-merchant-reach-capital.md §15: calibrated on new world and province maps.
+  "fmg-long-distance-trade": "on"
 };
 
 /** Starts a newly generated world from the host's current values. */

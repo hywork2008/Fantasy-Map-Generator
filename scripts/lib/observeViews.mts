@@ -31,7 +31,7 @@ import {
   setTradeStageObserver,
   type TradeStageEvent
 } from "../../src/extensions/economy/generators/tradeStageObserver";
-import { TradeLogisticsSettings } from "../../src/extensions/economy/generators/tradeLogisticsSettings";
+import { getStaleLotDays } from "../../src/extensions/economy/generators/exportStaging";
 import { setGoodFlowObserver, type GoodFlowRecord } from "../../src/extensions/economy/generators/goodsBalanceLedger";
 import { DEMAND_TARGET_FACTORS } from "../../src/extensions/economy/generators/goods-generator";
 import { townStanding } from "../../src/extensions/economy/generators/luxuryDemand";
@@ -702,8 +702,6 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
   });
   const LOT_AGE_BUCKETS = [90, 365, 730, Infinity] as const;
   function warehouseLots() {
-    const logistics = TradeLogisticsSettings.getOptions();
-    const maxWait = Math.max(logistics.maxWaitDaysLand, logistics.maxWaitDaysSea, logistics.maxWaitDaysShortSea);
     const lots = getExportStagingLots();
     const live = new Set(lots.map(lot => lot.id));
     for (const id of lotTracks.keys()) if (!live.has(id)) lotTracks.delete(id);
@@ -719,7 +717,7 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
       const row = (byAge[label] ??= { lots: 0, locked: 0 });
       row.lots++;
       row.locked = r3(row.locked + (lot.lockedCapital ?? 0));
-      if (age <= maxWait + (lot.durationDays ?? 0)) continue;
+      if (age <= getStaleLotDays(lot)) continue;
       const outcome = track?.outcome ?? "untracked";
       const staleRow = (staleByOutcome[outcome] ??= { lots: 0, locked: 0, units: 0 });
       staleRow.lots++;

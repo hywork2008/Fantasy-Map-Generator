@@ -27,7 +27,7 @@ import {
   DEFAULT_DRAFT_ANIMAL_ID,
   getDraftAnimalType
 } from "./caravanMovement";
-import { ExportStaging, mergeUnitPrice } from "./exportStaging";
+import { ExportStaging, getStaleLotDays, mergeUnitPrice } from "./exportStaging";
 import {
   restoreFoodCoLoadToOrigin,
   settleFoodCoLoadOnArrival,
@@ -50,7 +50,7 @@ import type {
   TransportAllocation
 } from "./marketTypes";
 import { openBranch } from "./merchantIntelligence";
-import { MerchantTradeCapital } from "./merchantTradeCapital";
+import { isLongDistanceTradeEnabled, MerchantTradeCapital, recordStaleLotCancelled } from "./merchantTradeCapital";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
 import { recordRouteTraffic } from "./publicWorks";
 import { markRetailInventoryDirty } from "./retailInventory";
@@ -418,6 +418,21 @@ function publishCaravanHullPositions(caravans: readonly Caravan[]): void {
   simEvents.dispatchEvent(new CustomEvent("fmg:economy-caravan-hull-positions", { detail: { updates } }));
 }
 
+/**
+ * A paid shipment that is due to sail but finds no carts or hull free keeps waiting, up to the
+ * same limit as a warehouse lot; then it is called off and its cargo and capital go back to the
+ * origin market (docs/plan/long-distance-merchant-reach-capital.md §5.3, §15).
+ */
+function waitForTransport(caravan: Caravan): "waiting" | "cancelled" {
+  if (!caravan.loading || caravan.sellerType !== "market" || !isLongDistanceTradeEnabled()) return "waiting";
+  const durationDays = calculateRouteDurationDays(caravan.routeSegments, getWorldContext().distanceScale);
+  if (caravan.loading.waitedDays <= getStaleLotDays({ durationDays })) return "waiting";
+  recordStaleLotCancelled(caravan.payload.reduce((sum, item) => sum + (item.lockedCapital ?? 0), 0));
+  restoreLoadingCargoToOrigin(caravan);
+  caravan.state = "lost";
+  return "cancelled";
+}
+
 function tryDepartLoadingCaravan(caravan: Caravan): "departed" | "waiting" | "cancelled" {
   if (caravan.state !== "loading" || !caravan.loading) return "waiting";
 
@@ -479,11 +494,11 @@ function tryDepartLoadingCaravan(caravan: Caravan): "departed" | "waiting" | "ca
   );
   for (const allocation of allocations) allocation.usedSlots = usedSlots;
   const capacitySlots = getManifestCapacitySlots(allocations);
-  if (capacitySlots <= 0 || usedSlots > capacitySlots + UNIT_EPSILON) return "waiting";
+  if (capacitySlots <= 0 || usedSlots > capacitySlots + UNIT_EPSILON) return waitForTransport(caravan);
 
   const dispatcherMarketId =
     caravan.transportDispatcherMarketId ?? MerchantTransportAssets.getDispatcherMarketId(caravan);
-  if (dispatcherMarketId === null) return "waiting";
+  if (dispatcherMarketId === null) return waitForTransport(caravan);
 
   const reservation = MerchantTransportAssets.reserve(
     dispatcherMarketId,
@@ -492,7 +507,7 @@ function tryDepartLoadingCaravan(caravan: Caravan): "departed" | "waiting" | "ca
     caravanItinerary(caravan)
   );
   if (!canDepartWithTransportAssets(allocations, reservation, caravan.routeSegments)) {
-    return "waiting";
+    return waitForTransport(caravan);
   }
 
   caravan.transportAllocations = reservation?.reservation.allocations ?? allocations;

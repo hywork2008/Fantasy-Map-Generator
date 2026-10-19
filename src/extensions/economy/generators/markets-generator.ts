@@ -2465,8 +2465,10 @@ export class MarketsModule {
             ? choosePaymentTerms(opportunity.exporter, opportunity.importer, opportunity.durationDays)
             : undefined,
         // State procurement underwrites its own committed shipment; it must not be blocked by
-        // the exporting market's optional merchant working-capital pool.
-        requireCapital: !opportunity.stateProcurement
+        // the exporting market's optional merchant working-capital pool. Once cargo is paid for,
+        // the house pays for it like any other: unpaid cargo would be sold to the importer for
+        // nothing (long-distance-merchant-reach-capital.md §15).
+        requireCapital: !opportunity.stateProcurement || ctx.longDistanceTrade
       });
       if (!lot) {
         if (observe) {
