@@ -464,6 +464,10 @@ export type MerchantWaterAssetReference = {
    * it (port-freight-queue-and-warehouses.md §4.2). Absent while at sea or on an older save.
    */
   berthBurgId?: number;
+  /** Days the hull has lain free at its berth without cargo; ballast sailing waits for it (§4.5). */
+  idleDays?: number;
+  /** Sailing empty to a port where cargo waits; the hull berths there when `daysLeft` runs out. */
+  ballast?: { toBurgId: number; daysLeft: number };
 };
 
 /** Durable transport assets owned by a market, separate from saleable Market.goods. */

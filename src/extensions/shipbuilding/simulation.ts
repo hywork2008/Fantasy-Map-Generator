@@ -35,7 +35,8 @@ import {
   repositionMerchantHull,
   reserveMerchantHullsForCargo,
   reserveStateHullsForOverseasEscort,
-  runShipyardTick
+  runShipyardTick,
+  sailMerchantHullInBallast
 } from "./generators/shipyardQueue";
 import { clearShipbuildingContext, getWorldContext, initShipbuildingContext } from "./shipbuildingContext";
 
@@ -264,8 +265,15 @@ function register(api: SimulationExtensionAPI): () => void {
     orderMerchantHull(detail.marketId, detail.homeBurgId);
   });
 
-  // Economy sends idle merchant hulls to ports where cargo waits for a ship
-  // (docs/plan/port-freight-queue-and-warehouses.md §4.5).
+  // Economy sends idle merchant hulls in ballast to ports where cargo waits for a ship and berths
+  // them there when the passage is over (docs/plan/port-freight-queue-and-warehouses.md §4.5).
+  on("fmg:economy-merchant-hull-ballast", (event: Event) => {
+    if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
+    const detail = (event as CustomEvent<{ hullId?: unknown; burgId?: unknown }>).detail;
+    if (typeof detail?.hullId !== "number" || typeof detail.burgId !== "number") return;
+    sailMerchantHullInBallast(detail.hullId, detail.burgId);
+  });
+
   on("fmg:economy-merchant-hull-reposition", (event: Event) => {
     if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
     const detail = (event as CustomEvent<{ hullId?: unknown; burgId?: unknown }>).detail;

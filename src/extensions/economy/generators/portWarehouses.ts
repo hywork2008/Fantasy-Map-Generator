@@ -146,7 +146,7 @@ export function collectSeaBacklogSlots(): Map<number, number> {
 }
 
 /**
- * Start of a production cycle: idle hulls sail to the ports where cargo waits, then each port's
+ * Start of a production cycle: idle hulls set out for the ports where cargo waits, then each port's
  * need and warehouses are brought up to date. Runs before hull orders read the sea shortfall.
  */
 export function beginPortProductionCycle(cycleDays: number): void {
@@ -154,9 +154,10 @@ export function beginPortProductionCycle(cycleDays: number): void {
   portByMarketPack = getWorldContext().pack;
   const backlog = collectSeaBacklogSlots();
 
+  // A hull leaves in ballast now and berths at the waiting port when the passage is over.
   for (const move of MerchantTransportAssets.repositionIdleHulls(backlog, getMarketPortBurgId)) {
     simEvents.dispatchEvent(
-      new CustomEvent("fmg:economy-merchant-hull-reposition", { detail: { hullId: move.hullId, burgId: move.burgId } })
+      new CustomEvent("fmg:economy-merchant-hull-ballast", { detail: { hullId: move.hullId, burgId: move.burgId } })
     );
   }
 

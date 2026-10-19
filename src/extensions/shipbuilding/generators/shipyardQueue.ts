@@ -119,8 +119,25 @@ export function berthHullAtPort(hullId: number, burgId: number): void {
 }
 
 /**
- * Sail an idle merchant hull in ballast to another port where cargo waits for a ship. Ownership
- * and home port stay. A hull out on cargo, in repair, or not a market's is left where it is.
+ * An idle merchant hull leaves port empty for another port where cargo waits. Economy counts the
+ * passage and berths her there on arrival (`repositionMerchantHull`). Only a docked market hull sails.
+ */
+export function sailMerchantHullInBallast(hullId: number, burgId: number): boolean {
+  const hull = getShipbuildingRuntimeState().hulls[hullId];
+  if (hull?.owner !== "market" || hull.status !== "docked") return false;
+  hull.status = "voyage";
+  hull.currentBurgId = null;
+  hull.nextBurgId = burgId;
+  hull.caravanId = null;
+  hull.routeProgress = 0;
+  applyDuty(hull, "ballast");
+  dispatchMerchantHullChanged(hull);
+  return true;
+}
+
+/**
+ * Berth a merchant hull at the port her ballast passage was bound for. Ownership and home port
+ * stay. A hull out on cargo, in repair, or not a market's is left where it is.
  */
 export function repositionMerchantHull(hullId: number, burgId: number): boolean {
   const hull = getShipbuildingRuntimeState().hulls[hullId];

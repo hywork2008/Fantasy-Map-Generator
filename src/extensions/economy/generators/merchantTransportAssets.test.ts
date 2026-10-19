@@ -269,14 +269,49 @@ describe("merchant transport assets", () => {
     expect(MerchantTransportAssets.getCharterableSeaCapacitySlots(1)).toBe(0);
   });
 
-  it("sends an idle hull in ballast to the port where cargo waits", () => {
+  it("sails a hull idle for two months in ballast, taking the passage's days", () => {
+    const burgs = worldContext.pack.burgs;
+    Object.assign(burgs[1], { x: 0, y: 0 });
+    Object.assign(burgs[2], { x: 100, y: 0 });
+    const berthed: number[] = [];
+    const onBerth = (event: Event) => berthed.push((event as CustomEvent<{ burgId: number }>).detail.burgId);
+    document.addEventListener("fmg:economy-merchant-hull-reposition", onBerth);
+    try {
+      MerchantTransportAssets.reconcileMerchantHulls([
+        { id: 40, shipClassId: "sloop", homeBurgId: 2, ownerId: 2, status: "docked", currentBurgId: 2 }
+      ]);
+      const waiting = new Map([[1, 150]]);
+      // A ship first looks for a freight where she lies.
+      expect(MerchantTransportAssets.repositionIdleHulls(waiting, marketId => marketId)).toEqual([]);
+      MerchantTransportAssets.recoverMaintenance(60);
+      const moves = MerchantTransportAssets.repositionIdleHulls(waiting, marketId => marketId);
+      expect(moves).toHaveLength(1);
+      expect(moves[0]).toMatchObject({ hullId: 40, marketId: 1, burgId: 1 });
+      const days = moves[0].days;
+      expect(days).toBeGreaterThan(1);
+      // At sea in ballast: neither her owner's nor the waiting port's to use, and not sent twice.
+      MerchantTransportAssets.reconcileMerchantHulls([
+        { id: 40, shipClassId: "sloop", homeBurgId: 2, ownerId: 2, status: "voyage", currentBurgId: null }
+      ]);
+      expect(MerchantTransportAssets.getAvailability(2).find(asset => asset.assetId === "hull-40")?.inTransit).toBe(1);
+      expect(MerchantTransportAssets.getCharterableSeaCapacitySlots(1)).toBe(0);
+      expect(MerchantTransportAssets.repositionIdleHulls(waiting, marketId => marketId)).toEqual([]);
+
+      MerchantTransportAssets.recoverMaintenance(days - 1);
+      expect(berthed).toEqual([]);
+      MerchantTransportAssets.recoverMaintenance(1);
+      expect(berthed).toEqual([1]);
+      expect(MerchantTransportAssets.getCharterableSeaCapacitySlots(1)).toBe(100);
+    } finally {
+      document.removeEventListener("fmg:economy-merchant-hull-reposition", onBerth);
+    }
+  });
+
+  it("keeps a hull home while its own market or its port has sea cargo waiting", () => {
     MerchantTransportAssets.reconcileMerchantHulls([
-      { id: 40, shipClassId: "sloop", homeBurgId: 2, ownerId: 2, status: "docked", currentBurgId: 2 }
+      { id: 41, shipClassId: "sloop", homeBurgId: 2, ownerId: 2, status: "docked", currentBurgId: 2 }
     ]);
-    const moves = MerchantTransportAssets.repositionIdleHulls(new Map([[1, 150]]), marketId => marketId);
-    expect(moves).toEqual([{ hullId: 40, marketId: 1, burgId: 1 }]);
-    expect(MerchantTransportAssets.getCharterableSeaCapacitySlots(1)).toBe(100);
-    // A market whose own cargo waits keeps its hulls.
+    MerchantTransportAssets.recoverMaintenance(90);
     expect(
       MerchantTransportAssets.repositionIdleHulls(
         new Map([
