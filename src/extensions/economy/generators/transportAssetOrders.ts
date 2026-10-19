@@ -38,15 +38,23 @@ export type TransportAssetBlueprint = {
   requiredDraftAnimals?: number;
 };
 
+/*
+ * One land vehicle is a convoy: a cart's 80 slots hold 20 wains of grain, some 12 t, the load of
+ * about twenty one-horse carts; a wagon's 160 slots twenty wagons with some sixty horses; a pack
+ * train's 36 slots fifty pack horses (port-freight-queue-and-warehouses.md §10.13, §10.15). The
+ * materials and work are for the whole convoy: a one-horse cart took a wheelwright and his men
+ * about 15-20 days, a four-wheeled wagon 40-60, a pack saddle two or three; a pile of wood is about
+ * 1.2 m³; a lot of Harnesses is about a hundred sets (54 person-months, craftDemandCalibration.ts).
+ */
 const BLUEPRINTS: readonly TransportAssetBlueprint[] = [
   {
     id: "pack-train",
     outputAssetId: "pack-train",
     outputMode: "land",
-    materialNames: { Leather: 1, Harnesses: 1 },
-    // A pack saddle on a wooden tree, strapped with leather.
-    substituteMaterialNames: [{ Leather: 2, Wood: 1 }],
-    requiredWorkPoints: 2,
+    // Fifty pack saddles on wooden trees, with halters, girths and breeching.
+    materialNames: { Leather: 0.5, Wood: 0.5, Harnesses: 0.5 },
+    substituteMaterialNames: [{ Leather: 1, Wood: 0.5 }],
+    requiredWorkPoints: 5,
     requiredCraft: "leather",
     cargoCapacitySlots: 40,
     requiredDraftAnimals: 1
@@ -55,9 +63,9 @@ const BLUEPRINTS: readonly TransportAssetBlueprint[] = [
     id: "cart",
     outputAssetId: "cart",
     outputMode: "land",
-    materialNames: { Wood: 3, Harnesses: 1 },
-    substituteMaterialNames: [{ Wood: 3, Leather: 1 }],
-    requiredWorkPoints: 4,
+    materialNames: { Wood: 7, Harnesses: 0.2 },
+    substituteMaterialNames: [{ Wood: 7, Leather: 0.2 }],
+    requiredWorkPoints: 12,
     requiredCraft: "woodworking",
     cargoCapacitySlots: 80,
     requiredDraftAnimals: 1
@@ -66,9 +74,9 @@ const BLUEPRINTS: readonly TransportAssetBlueprint[] = [
     id: "wagon",
     outputAssetId: "wagon",
     outputMode: "land",
-    materialNames: { Wood: 6, Harnesses: 2 },
-    substituteMaterialNames: [{ Wood: 6, Leather: 2 }],
-    requiredWorkPoints: 8,
+    materialNames: { Wood: 16, Harnesses: 0.6 },
+    substituteMaterialNames: [{ Wood: 16, Leather: 0.6 }],
+    requiredWorkPoints: 40,
     requiredCraft: "woodworking",
     cargoCapacitySlots: 180,
     requiredDraftAnimals: 2
