@@ -9,6 +9,7 @@ import {
   drawStateRuralHouseholdWealth,
   drawStateUrbanHouseholdWealth,
   getRuralHouseholdWealth,
+  moveRuralPursesWithFarms,
   RURAL_HOUSEHOLD_TOWN_SPEND_SHARE,
   RURAL_TOWN_SPEND_DUES_SHARE,
   resetRuralHouseholdWealthCycleTracking,
@@ -104,6 +105,26 @@ describe("householdWealth (docs/plan/economy-coupling-audit.md L2 Phase 2/3)", (
       expect(big.treasury).toBeCloseTo(spent * 0.75 * RURAL_TOWN_SPEND_DUES_SHARE, 1);
       expect(getHouseholdWealth(1) - before[0]).toBeCloseTo(spent * 0.75 * (1 - RURAL_TOWN_SPEND_DUES_SHARE), 1);
       expect(small.treasury! + getHouseholdWealth(2) - before[1]).toBeCloseTo(spent * 0.25, 1);
+    });
+
+    it("moves farm families' cash with their farms when market territories are redrawn", () => {
+      setUpSplitMarket();
+      const ledger = (purse: number | undefined) =>
+        ({ ruralFoodStressQuarters: 0, urbanFoodStressQuarters: 0, ruralHouseholdWealth: purse }) as never;
+      const [a, b, c] = [1, 2, 3].map(i => ({ i, centerBurgId: 0, color: "#fff", goods: {} }) as Market);
+      a.foodLedger = ledger(2000); // cells 1–3, 20 points: 100 a head
+      c.foodLedger = ledger(9000); // the richest purse, untouched by the redraw
+      setMarkets([a, b, c]);
+      const previous = Uint16Array.from([0, 1, 1, 1]);
+      const next = Uint16Array.from([0, 1, 2, 2]); // the new market 2 takes cells 2 and 3 (10 points)
+      setMarketCellColumn(next);
+
+      moveRuralPursesWithFarms(previous, next);
+      b.foodLedger = ledger(undefined); // market 2's Food Ledger is opened after the redraw
+
+      expect(getRuralHouseholdWealth(b)).toBeCloseTo(1000, 6);
+      expect(getRuralHouseholdWealth(a)).toBeCloseTo(1000, 6);
+      expect(getRuralHouseholdWealth(c)).toBe(9000);
     });
 
     it("reports no rural land for a state that owns none", () => {

@@ -43,9 +43,86 @@ function seedRuralHouseholdWealth(market: Market): number {
 function ensureRuralHouseholdWealthSeeded(market: Market): number {
   if (!market.foodLedger) return 0;
   if (market.foodLedger.ruralHouseholdWealth === undefined) {
-    market.foodLedger.ruralHouseholdWealth = transferToNewMarket(market) ?? seedRuralHouseholdWealth(market);
+    const pending = pendingFarmMoves.get(market.i);
+    pendingFarmMoves.delete(market.i);
+    market.foodLedger.ruralHouseholdWealth = pending
+      ? takeFromFormerMarkets(pending)
+      : (transferToNewMarket(market) ?? seedRuralHouseholdWealth(market));
   }
   return market.foodLedger.ruralHouseholdWealth;
+}
+
+/**
+ * Farms a market without a purse yet took over at the last redraw, by former market: rural
+ * population points. Not saved: after a reload the market falls back to `transferToNewMarket`.
+ */
+const pendingFarmMoves = new Map<number, Map<number, number>>();
+
+/** Rural population points per market in a market-cell column. */
+function getRuralPopulationByMarket(column: ArrayLike<number>): Map<number, number> {
+  const { pack } = getWorldContext();
+  const population = new Map<number, number>();
+  for (const cellId of pack.cells?.i ?? []) {
+    if (pack.cells.h[cellId] < 20) continue;
+    const marketId = column[cellId];
+    if (marketId) population.set(marketId, (population.get(marketId) ?? 0) + Math.max(0, pack.cells.pop[cellId] ?? 0));
+  }
+  return population;
+}
+
+/** Takes each former market's purse share for the farms it lost (`moves`: market id → points). */
+function takeFromFormerMarkets(moves: ReadonlyMap<number, number>): number {
+  const markets = new Map(getMarkets().map(market => [market.i, market]));
+  const remaining = getRuralPopulationByMarket(getMarketCellColumn());
+  let taken = 0;
+  for (const [fromId, points] of moves) {
+    const from = markets.get(fromId);
+    const wallet = from?.foodLedger?.ruralHouseholdWealth;
+    if (!from?.foodLedger || wallet === undefined || !(wallet > 0) || !(points > 0)) continue;
+    // The former market's cash per head before it lost these farms.
+    const take = rn((wallet * points) / (points + (remaining.get(fromId) ?? 0)), 2);
+    from.foodLedger.ruralHouseholdWealth = rn(wallet - take, 2);
+    taken += take;
+  }
+  return rn(taken, 2);
+}
+
+/**
+ * When market territories are redrawn (a market town founded, a market removed, a border moved),
+ * the farm families' cash goes with their farms. Before, a new market's purse was taken from every
+ * market pro rata to its cash, so a town founded in one State drew farm money from its neighbour's
+ * richest market (docs/plan/money-supply-mint.md §11.10).
+ */
+export function moveRuralPursesWithFarms(previous: ArrayLike<number>, next: ArrayLike<number>): void {
+  if (!isEconomyContextReady() || previous.length !== next.length) return;
+  const { pack } = getWorldContext();
+  if (!pack.cells?.i) return;
+  const markets = new Map(getMarkets().map(market => [market.i, market]));
+  // On a new map no purse exists yet and the start profile seeds them.
+  if (![...markets.values()].some(market => market.foodLedger?.ruralHouseholdWealth !== undefined)) return;
+
+  const moves = new Map<number, Map<number, number>>();
+  for (const cellId of pack.cells.i) {
+    const from = previous[cellId];
+    const to = next[cellId];
+    if (!from || !to || from === to || pack.cells.h[cellId] < 20) continue;
+    const points = Math.max(0, pack.cells.pop[cellId] ?? 0);
+    if (!points) continue;
+    const byFrom = moves.get(to) ?? new Map<number, number>();
+    byFrom.set(from, (byFrom.get(from) ?? 0) + points);
+    moves.set(to, byFrom);
+  }
+
+  for (const [toId, byFrom] of moves) {
+    const to = markets.get(toId);
+    if (to?.foodLedger && to.foodLedger.ruralHouseholdWealth !== undefined) {
+      to.foodLedger.ruralHouseholdWealth = rn(to.foodLedger.ruralHouseholdWealth + takeFromFormerMarkets(byFrom), 2);
+      continue;
+    }
+    const pending = pendingFarmMoves.get(toId) ?? new Map<number, number>();
+    for (const [fromId, points] of byFrom) pending.set(fromId, (pending.get(fromId) ?? 0) + points);
+    pendingFarmMoves.set(toId, pending);
+  }
 }
 
 /**

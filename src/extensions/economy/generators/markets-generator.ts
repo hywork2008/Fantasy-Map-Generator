@@ -70,6 +70,7 @@ import { type GoodFlowCategory, recordGoodFlow } from "./goodsBalanceLedger";
 import { floorToRetailLot, getMarketTradeMinimumUnits, getRetailLotSize } from "./goodsTradeLots";
 import { getCraftDomainForGood } from "./guildKnowledgeTypes";
 import { getMonthlyHouseholdFuelDemands, getWoodSupplyMonthKey } from "./heating";
+import { moveRuralPursesWithFarms } from "./householdWealth";
 import { getHouseTimberShare, getHousingRecipe } from "./housingRecipes";
 import { type IncrementalBatchOptions, runBatchedYielding } from "./incrementalBatching";
 import { getLiveAnimalCatchKey, rollLiveAnimalCatch } from "./liveAnimalCatch";
@@ -565,7 +566,10 @@ export class MarketsModule {
     this.indexMarkets(markets);
     const next = this.assignMarketsToStateTerritories(markets);
     const changed = previous.length !== next.length || previous.some((marketId, cellId) => marketId !== next[cellId]);
-    if (changed) this.invalidateRuralProductionCache();
+    if (changed) {
+      moveRuralPursesWithFarms(previous, next);
+      this.invalidateRuralProductionCache();
+    }
     return changed;
   }
 
@@ -654,7 +658,9 @@ export class MarketsModule {
 
   expandTerritories(markets: Market[] = getMarkets()): Uint16Array {
     this.indexMarkets(markets);
+    const previous = getMarketCellColumn();
     const territories = this.expandMarkets(markets);
+    moveRuralPursesWithFarms(previous, territories);
     this.invalidateRuralProductionCache();
     return territories;
   }
