@@ -4,6 +4,8 @@
  * so both produce the same sample from the same world. Nothing here writes to the world.
  */
 import type { WorldContext } from "../../src/context/worldContext";
+import { collectFarmlandSnapshot } from "../../src/services/farmlandObservation";
+import { getCultivatedArea } from "../../src/extensions/economy/context/agriculture";
 import { isEconomyContextReady } from "../../src/extensions/economy/context/economyApi";
 import {
   getApproachLedgerDecays,
@@ -38,8 +40,9 @@ import type { Good } from "../../src/extensions/economy/generators/goodsGenerato
 import type { Burg, Route } from "../../src/types/models";
 
 export const SAMPLE_VERSION = 1;
-export const SAMPLE_DETAILS = ["burgs", "routes", "approaches", "corridors", "markets", "wealth", "luxury", "trade"] as const;
+export const SAMPLE_DETAILS = ["burgs", "routes", "approaches", "corridors", "markets", "wealth", "luxury", "trade", "farmland"] as const;
 export type SampleDetail = (typeof SAMPLE_DETAILS)[number];
+const DEFAULT_SAMPLE_DETAILS = SAMPLE_DETAILS.filter(detail => detail !== "farmland");
 
 /**
  * Cargo classes for gate profiles (docs/plan/approach-commerce-quarters.md §4): what a gate's
@@ -79,7 +82,7 @@ function routeLength(route: Route): number {
 }
 
 export function parseDetails(value: string | null | undefined): SampleDetail[] {
-  if (!value) return [...SAMPLE_DETAILS];
+  if (!value) return [...DEFAULT_SAMPLE_DETAILS];
   const wanted = value.split(",").filter(Boolean);
   const unknown = wanted.filter(name => !(SAMPLE_DETAILS as readonly string[]).includes(name));
   if (unknown.length)
@@ -201,7 +204,7 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
     };
   }
 
-  function sample(details: readonly SampleDetail[] = SAMPLE_DETAILS, meta: Record<string, unknown> = {}) {
+  function sample(details: readonly SampleDetail[] = DEFAULT_SAMPLE_DETAILS, meta: Record<string, unknown> = {}) {
     const { year, month, day, tick } = clock();
     const date = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     // `decays` counts the yearly ledger decays, so Δ = now − before × 0.7^(decays − decays before).
@@ -215,6 +218,7 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
     if (details.includes("wealth")) out.wealth = wealth();
     if (details.includes("luxury")) out.luxury = luxury();
     if (details.includes("trade")) out.trade = trade();
+    if (details.includes("farmland")) out.farmland = farmland();
     return out;
   }
 
@@ -679,7 +683,12 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
       .join(",");
   }
 
-  return { sample, routes, approaches, corridors, markets, goods, gates, wealth, luxury, trade, staticInfo, networkKey };
+  function farmland() {
+    const enabled = economy();
+    return collectFarmlandSnapshot(getWorld(), clock().year, enabled, enabled ? getCultivatedArea() : undefined);
+  }
+
+  return { sample, routes, approaches, corridors, markets, goods, gates, wealth, luxury, trade, farmland, staticInfo, networkKey };
 }
 
 export interface SampledAdvanceHost {

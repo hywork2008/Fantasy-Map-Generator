@@ -1,0 +1,41 @@
+{
+  "id": "farmland-pilot",
+  "maps": [
+    {
+      "kind": "new",
+      "seeds": [
+        610191,
+        610192,
+        610193
+      ],
+      "options": {
+        "scope": "world",
+        "culturesSet": "european",
+        "initialSettlementPattern": "standard",
+        "historicalPeriod": "highMedieval",
+        "initialPopulationSaturation": 60,
+        "points": 1,
+        "manors": 60,
+        "statesNumber": 6,
+        "cultures": 6
+      }
+    }
+  ],
+  "extensions": [
+    "economy",
+    "characters",
+    "nobility",
+    "shipbuilding"
+  ],
+  "warmup": {
+    "years": 2
+  },
+  "advance": {
+    "years": 10,
+    "sampleEvery": {
+      "months": 12
+    }
+  },
+  "sampleDetail": "farmland",
+  "workers": 1
+}

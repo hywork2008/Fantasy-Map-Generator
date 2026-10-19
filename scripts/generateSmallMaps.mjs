@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Generates Province/Islet-scope maps (docs/plan/map-scope-small-worlds.md) in headless Chromium
+// Generates World/Province/Islet-scope maps (docs/plan/map-scope-small-worlds.md) in headless Chromium
 // and saves those that meet --require as .fmg files, e.g. a minimal set for `npm run ce:perf`.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -7,7 +7,7 @@ import { chromium } from "playwright";
 import { startDevServer } from "./lib/viteDevServer.mjs";
 
 const REQUIREMENTS = ["burg", "sea-port", "river-port", "river-burg", "river", "road", "province"];
-const usage = `Usage: npm run fmg:small -- <out-dir> [--scope province|islet] [--count 1] [--seed 1,2,3 | --start-seed 1000 --tries 50]
+const usage = `Usage: npm run fmg:small -- <out-dir> [--scope world|province|islet] [--count 1] [--seed 1,2,3 | --start-seed 1000 --tries 50]
          [--cells 500] [--islet-land 0..6] [--require ${REQUIREMENTS.join(",")}] [--max-burgs N]
          [--local-storage settings.json] [--width 1920] [--height 1080] [--url http://host/Fantasy-Map-Generator/]
          [--timeout-ms 120000] [--headed] [--wait-extensions] [--lab '{"riverDensity":4}' | --lab default]`;
@@ -150,7 +150,7 @@ async function main() {
     }
     else throw new Error(`Unknown option: ${flag}\n${usage}`);
   }
-  if (!["province", "islet"].includes(scope)) throw new Error("--scope must be province or islet");
+  if (!["world", "province", "islet"].includes(scope)) throw new Error("--scope must be world, province or islet");
   const unknown = required.filter(key => !REQUIREMENTS.includes(key));
   if (unknown.length) throw new Error(`Unknown --require: ${unknown.join(",")}`);
   for (const [key, val] of Object.entries({ count, startSeed, tries, width, height, timeoutMs }))

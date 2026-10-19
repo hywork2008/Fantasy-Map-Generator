@@ -160,7 +160,7 @@ function debugIndex(api: string) {
       route: `${api}/routes/{id}`,
       settlementDiagnostics: `${api}/diagnostics/settlement?minSeparationRadii=2  (towns outside their cell, crowded pairs, bridges in the sea or over the skew limit)`,
       archive: `${api}/archive  (the .fmg; open it in FMG to look at the same world)`,
-      observe: `${api}/observe/{sample|routes|approaches|corridors|markets|staticInfo|goods|gates[?burg=]|wealth|samples|burgs/{id}/growth}  (traffic observatory; docs/plan/approach-traffic-observatory.md §5)`
+      observe: `${api}/observe/{sample|routes|approaches|corridors|markets|staticInfo|goods|gates[?burg=]|wealth|farmland|samples|burgs/{id}/growth}  (docs/plan/approach-traffic-observatory.md §5; docs/plan/farmland-area-estimation.md)`
     }
   };
 }
@@ -296,7 +296,7 @@ async function route(request: IncomingMessage, response: ServerResponse) {
         rmSync(work, { recursive: true, force: true });
       }
     }
-    const views = ["sample", "routes", "approaches", "corridors", "markets", "staticInfo", "goods", "gates", "wealth", "luxury", "trade"];
+    const views = ["sample", "routes", "approaches", "corridors", "markets", "staticInfo", "goods", "gates", "wealth", "luxury", "trade", "farmland"];
     if (!entityId || !views.includes(entityId)) return send(response, 404, { error: `observe/{${views.join("|")}|samples|static}` });
     const viewName = entityId === "staticInfo" ? "static" : entityId;
     return send(response, 200, await call(id, { type: "observe", view: viewName, params: Object.fromEntries(url.searchParams) }));
