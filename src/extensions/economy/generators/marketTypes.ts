@@ -236,6 +236,30 @@ export interface MarketTreasury {
    * (docs/plan/long-distance-merchant-reach-capital.md §12).
    */
   tradeEscrow?: number;
+  /**
+   * Who put up the house's trading capital, and what it needs, with `fmg-long-distance-trade` on
+   * (docs/plan/long-distance-merchant-reach-capital.md §5.2, commenda).
+   */
+  tradeCapitalAccount?: TradeCapitalAccount;
+}
+
+export interface TradeCapitalAccount {
+  /** Principal the market itself has in the house (its cash, or the capital of an older save). */
+  marketPrincipal: number;
+  /** Principal of investing characters, by character id. */
+  characterPrincipal: Record<string, number>;
+  /** Capital bookings asked for and could not get since the last monthly settlement. */
+  shortfall: number;
+  /** Last month's shortfall, open to investors this month. */
+  wanted: number;
+  /** Capital committed to bookings since the last monthly settlement. */
+  bookedThisMonth: number;
+  /**
+   * Average monthly demand on the capital over about the last year (bookings plus refused
+   * bookings), and the months recorded so far.
+   */
+  demandMonthly: number;
+  demandMonths: number;
 }
 
 /**

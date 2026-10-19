@@ -44,7 +44,12 @@ import {
 } from "../../src/extensions/economy/generators/characterLivingCosts";
 import { isLuxuryDemandGood, LUXURY_TIERS, luxuryCoverageOf, luxuryTierOf } from "../../src/extensions/economy/generators/luxuryTiers";
 import { housesPresentIn, merchantIntelligenceSummary } from "../../src/extensions/economy/generators/merchantIntelligence";
-import { getTradeCapitalMoney, takeTradeSettlementStats } from "../../src/extensions/economy/generators/merchantTradeCapital";
+import {
+  getTradeCapitalMoney,
+  MerchantTradeCapital,
+  takeTradeSettlementStats
+} from "../../src/extensions/economy/generators/merchantTradeCapital";
+import { getMoneyTradeCapacityFactorForMarket } from "../../src/extensions/economy/generators/currencySufficiency";
 import type { Good } from "../../src/extensions/economy/generators/goodsGeneratorTypes";
 import type { Burg, Route } from "../../src/types/models";
 
@@ -646,7 +651,10 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
       goodClass = { catalogue, byId: new Map(catalogue.map(g => [g.i, cargoClassOf(g.tags)])) };
     return goodClass.byId.get(goodId) ?? "other";
   };
+  let noCapitalByExporter = new Map<number, number>();
   setTradeStageObserver((event: TradeStageEvent) => {
+    if (event.stage === "noCapital")
+      noCapitalByExporter.set(event.exporterId, (noCapitalByExporter.get(event.exporterId) ?? 0) + 1);
     const keys = [classOfGood(event.goodId)];
     if (trackedLuxuryGoods().has(event.goodId)) keys.push("luxuryGoods");
     for (const key of keys) {
@@ -770,6 +778,38 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
       warehouse: warehouseLots(),
       /** Agents of each house (home market → markets with an agent) and pending price rumours (§4.3). */
       branches: merchantIntelligenceSummary(),
+      /** The houses' capital and who put it up (long-distance-merchant-reach-capital.md §5.2). */
+      capital: (() => {
+        const row = { working: 0, locked: 0, marketPrincipal: 0, characterPrincipal: 0, investors: 0, demandMonthly: 0 };
+        for (const m of getMarkets()) {
+          const t = m.marketTreasury;
+          if (!t) continue;
+          row.working += t.tradeWorkingCapital ?? 0;
+          row.locked += t.tradeCapitalLocked ?? 0;
+          const account = t.tradeCapitalAccount;
+          if (!account) continue;
+          row.marketPrincipal += account.marketPrincipal;
+          const stakes = Object.values(account.characterPrincipal);
+          row.characterPrincipal += stakes.reduce((a, b) => a + b, 0);
+          row.investors += stakes.length;
+          row.demandMonthly += account.demandMonthly;
+        }
+        const byMarket = getMarkets()
+          .filter(m => m.marketTreasury)
+          .map(m => ({
+            id: m.i,
+            working: r3(m.marketTreasury?.tradeWorkingCapital ?? 0),
+            locked: r3(m.marketTreasury?.tradeCapitalLocked ?? 0),
+            available: r3(MerchantTradeCapital.peekAvailableCapital(m)),
+            coinFactor: r3(getMoneyTradeCapacityFactorForMarket(m)),
+            cash: r3(m.marketTreasury?.balance ?? 0),
+            demandMonthly: r3(m.marketTreasury?.tradeCapitalAccount?.demandMonthly ?? 0),
+            wanted: r3(m.marketTreasury?.tradeCapitalAccount?.wanted ?? 0),
+            noCapital: noCapitalByExporter.get(m.i) ?? 0
+          }));
+        noCapitalByExporter = new Map();
+        return { ...Object.fromEntries(Object.entries(row).map(([key, value]) => [key, r3(value)])), byMarket };
+      })(),
       deals: Object.fromEntries(
         [...deals].map(([key, row]) => [
           key,

@@ -14,7 +14,7 @@ import { getCaravans, getExportStagingLots, getMarkets, getWorldContext } from "
 import { creditHouseholdWealth } from "./burgMarketLedgers";
 import { getMoneyTradeCapacityFactorForMarket } from "./currencySufficiency";
 import { getEconomyStartProfile } from "./economyStartMode";
-import type { Market, MarketTreasury } from "./marketTypes";
+import type { Market, MarketTreasury, TradeCapitalAccount } from "./marketTypes";
 
 export const LONG_DISTANCE_TRADE_SETTING = "fmg-long-distance-trade";
 
@@ -57,6 +57,15 @@ export type TradeSettlementStats = {
   /** Warehouse lots cancelled for never loading. */
   staleLotsCancelled: number;
   staleCapitalReleased: number;
+  /** Capital bookings could not get (§5.2). */
+  capitalShortfall: number;
+  /** Put into the houses by their markets' payouts and by their merchants (§5.2). */
+  investedByMarkets: number;
+  investedByCharacters: number;
+  /** Idle capital given back: principal, and the profit to the investors and to the house's merchants. */
+  returnedPrincipal: number;
+  profitToInvestors: number;
+  profitToMembers: number;
 };
 
 function emptyStats(): TradeSettlementStats {
@@ -69,7 +78,13 @@ function emptyStats(): TradeSettlementStats {
     escrowSaleValue: 0,
     escrowPayableCreated: 0,
     staleLotsCancelled: 0,
-    staleCapitalReleased: 0
+    staleCapitalReleased: 0,
+    capitalShortfall: 0,
+    investedByMarkets: 0,
+    investedByCharacters: 0,
+    returnedPrincipal: 0,
+    profitToInvestors: 0,
+    profitToMembers: 0
   };
 }
 
@@ -228,8 +243,63 @@ function normalizeTreasury(treasury: MarketTreasury): MarketTreasury {
   treasury.tradeWorkingCapital = Math.max(0, treasury.tradeWorkingCapital ?? 0);
   treasury.tradeCapitalLocked = Math.max(0, treasury.tradeCapitalLocked ?? 0);
   alignLockedCapital(treasury);
+  if (treasury.tradeCapitalPaid) ensureCapitalAccount(treasury);
   return treasury;
 }
+
+/** Share of a market's cash above its reserve it puts into its own house each month while the house is short (§5.2). */
+export const MARKET_TRADE_INVEST_SHARE = 0.25;
+/** Share of a house merchant's surplus spending put into the house while it is short (§5.2). */
+export const CHARACTER_TRADE_INVEST_SHARE = 0.5;
+/** Months of demand (bookings and refused bookings) a house keeps uncommitted; above that, capital goes back to its investors. */
+export const TRADE_CAPITAL_KEEP_MONTHS = 6;
+/** Share of the idle capital given back each month: voyages come home one by one, not all at once. */
+export const TRADE_CAPITAL_RETURN_SHARE = 0.1;
+/** Months of demand recorded before a house gives any capital back. */
+const TRADE_CAPITAL_RECORD_MONTHS = 12;
+/** Commenda: the investors' share of the profit; the house's merchants take the rest (§3, §5.2). */
+export const INVESTOR_PROFIT_SHARE = 0.75;
+/** Smallest shortfall worth asking investors for (rounding of booked units is not one). */
+const MIN_SHORTFALL = 0.01;
+/** Floor of the coin factor when grossing up a shortfall. */
+const MIN_COIN_FACTOR = 0.25;
+/** Smallest return worth settling. */
+const MIN_CAPITAL_RETURN = 1;
+
+/**
+ * The investors' account of a paid house. A house without one (a new market, an older save, the
+ * setting just turned on) belongs wholly to its market.
+ */
+function ensureCapitalAccount(treasury: MarketTreasury): TradeCapitalAccount {
+  treasury.tradeCapitalAccount ??= {
+    marketPrincipal: rn(houseCapital(treasury), 2),
+    characterPrincipal: {},
+    shortfall: 0,
+    wanted: 0,
+    bookedThisMonth: 0,
+    demandMonthly: 0,
+    demandMonths: 0
+  };
+  return treasury.tradeCapitalAccount;
+}
+
+/** Cash plus the paid cost of cargo booked or on the way. */
+function houseCapital(treasury: MarketTreasury): number {
+  return Math.max(0, treasury.tradeWorkingCapital ?? 0) + Math.max(0, treasury.tradeCapitalLocked ?? 0);
+}
+
+function principalOf(account: TradeCapitalAccount): number {
+  return account.marketPrincipal + Object.values(account.characterPrincipal).reduce((sum, value) => sum + value, 0);
+}
+
+function marketMembers(market: Market): number[] {
+  return [market.managerCharacterId, ...(market.rivalCharacterIds ?? [])].filter(
+    (id): id is number => typeof id === "number"
+  );
+}
+
+/** Pays a character, or reports false when there is none alive to pay. */
+export type CreditCharacter = (characterId: number, amount: number) => boolean;
 
 /**
  * Working capital the mint will actually let this market deploy. Locked bookings stay;
@@ -300,6 +370,8 @@ export class MerchantTradeCapitalModule {
       treasury.balance = rn(treasury.balance - moved, 2);
       treasury.tradeWorkingCapital = moved;
       treasury.tradeCapitalLocked = treasury.tradeCapitalLocked ?? 0;
+      if (treasury.tradeCapitalAccount)
+        treasury.tradeCapitalAccount.marketPrincipal = rn(treasury.tradeCapitalAccount.marketPrincipal + moved, 2);
     }
     return treasury;
   }
@@ -336,6 +408,8 @@ export class MerchantTradeCapitalModule {
     if (available + UNIT_EPSILON < amount) return false;
     treasury.tradeCapitalLocked = rn((treasury.tradeCapitalLocked ?? 0) + amount, 2);
     if (!treasury.tradeCapitalPaid) return true;
+    const account = ensureCapitalAccount(treasury);
+    account.bookedThisMonth = rn(account.bookedThisMonth + amount, 2);
     treasury.tradeWorkingCapital = rn(Math.max(0, (treasury.tradeWorkingCapital ?? 0) - amount), 2);
     const goods = rn(Math.min(amount, Math.max(0, payments?.goods ?? amount)), 2);
     const freight = rn(Math.min(amount - goods, Math.max(0, payments?.freight ?? 0)), 2);
@@ -451,6 +525,97 @@ export class MerchantTradeCapitalModule {
     treasury.balance = rn(treasury.balance + moved, 2);
   }
 
+  /** A booking wanted `amount` more capital than the house could deploy (§5.2). */
+  recordShortfall(marketId: number, amount: number): void {
+    if (!(amount > MIN_SHORTFALL)) return;
+    const market = getMarkets().find(entry => entry.i === marketId);
+    const treasury = market?.marketTreasury;
+    if (!market || !treasury?.tradeCapitalPaid) return;
+    // Under a coin shortage only part of new capital can be put out (§5.4): ask for enough that
+    // the deployable part covers the booking.
+    const factor = getMoneyTradeCapacityFactorForMarket(market);
+    const coinBound = spendableWorkingCapital(market, treasury) < (treasury.tradeWorkingCapital ?? 0) - UNIT_EPSILON;
+    const wanted = coinBound && factor > 0 ? amount / Math.max(MIN_COIN_FACTOR, factor) : amount;
+    const account = ensureCapitalAccount(treasury);
+    account.shortfall = rn(account.shortfall + wanted, 2);
+    settlementStats.capitalShortfall += wanted;
+  }
+
+  /** Capital the house of `market` still wants this month from its investors. */
+  capitalWanted(market: Market): number {
+    const treasury = market.marketTreasury;
+    return treasury?.tradeCapitalPaid ? Math.max(0, treasury.tradeCapitalAccount?.wanted ?? 0) : 0;
+  }
+
+  /** The market puts up to `amount` of its cash into its house, as far as the house wants it. */
+  investFromMarket(market: Market, amount: number): number {
+    const treasury = market.marketTreasury;
+    if (!treasury?.tradeCapitalPaid) return 0;
+    const account = ensureCapitalAccount(treasury);
+    const moved = rn(Math.min(amount, account.wanted, Math.max(0, treasury.balance)), 2);
+    if (!(moved > 0)) return 0;
+    treasury.balance = rn(treasury.balance - moved, 2);
+    treasury.tradeWorkingCapital = rn((treasury.tradeWorkingCapital ?? 0) + moved, 2);
+    account.marketPrincipal = rn(account.marketPrincipal + moved, 2);
+    account.wanted = rn(account.wanted - moved, 2);
+    settlementStats.investedByMarkets += moved;
+    return moved;
+  }
+
+  /**
+   * A character puts up to `amount` into the house, as far as it wants it; returns what the house
+   * took. The caller takes it out of the character's wealth.
+   */
+  investFromCharacter(market: Market, characterId: number, amount: number): number {
+    const treasury = market.marketTreasury;
+    if (!treasury?.tradeCapitalPaid) return 0;
+    const account = ensureCapitalAccount(treasury);
+    const moved = rn(Math.min(Math.max(0, amount), account.wanted), 2);
+    if (!(moved > 0)) return 0;
+    treasury.tradeWorkingCapital = rn((treasury.tradeWorkingCapital ?? 0) + moved, 2);
+    const key = String(characterId);
+    account.characterPrincipal[key] = rn((account.characterPrincipal[key] ?? 0) + moved, 2);
+    account.wanted = rn(account.wanted - moved, 2);
+    settlementStats.investedByCharacters += moved;
+    return moved;
+  }
+
+  /**
+   * Once a month, before the markets' payouts: last month's shortfall becomes what the house asks its
+   * investors for this month, and a house with more idle capital than TRADE_CAPITAL_KEEP_MONTHS
+   * of demand gives part of the excess back (§5.2).
+   */
+  settleCapitalAccounts(creditCharacter: CreditCharacter): void {
+    if (!isLongDistanceTradeEnabled()) return;
+    for (const market of getMarkets()) {
+      const treasury = market?.marketTreasury;
+      if (!treasury?.tradeCapitalPaid) continue;
+      const account = ensureCapitalAccount(treasury);
+      // What the house was asked to fund this month: what it booked and what it had to refuse.
+      const demand = account.bookedThisMonth + account.shortfall;
+      const months = account.demandMonths;
+      account.demandMonthly = rn(
+        months < TRADE_CAPITAL_RECORD_MONTHS
+          ? (account.demandMonthly * months + demand) / (months + 1)
+          : account.demandMonthly + (demand - account.demandMonthly) / TRADE_CAPITAL_RECORD_MONTHS,
+        2
+      );
+      account.demandMonths = Math.min(TRADE_CAPITAL_RECORD_MONTHS, months + 1);
+      account.bookedThisMonth = 0;
+      // Refused bookings come back every month; investors put up at most what the house already
+      // has (or a month of its demand) at a time, and see how it goes.
+      account.wanted = rn(
+        Math.min(account.shortfall, Math.max(houseCapital(treasury), account.demandMonthly, MIN_CAPITAL_RETURN)),
+        2
+      );
+      account.shortfall = 0;
+      if (account.wanted >= MIN_CAPITAL_RETURN || account.demandMonths < TRADE_CAPITAL_RECORD_MONTHS) continue;
+      const idle = (treasury.tradeWorkingCapital ?? 0) - account.demandMonthly * TRADE_CAPITAL_KEEP_MONTHS;
+      const back = idle * TRADE_CAPITAL_RETURN_SHARE;
+      if (back >= MIN_CAPITAL_RETURN) returnCapital(market, treasury, account, rn(back, 2), creditCharacter);
+    }
+  }
+
   /**
    * A market pays what it owes for arrived cargo out of its cash, oldest creditor first by id.
    * Returns the amount paid (§5.1; like the farmers' `ruralGrainPayable`).
@@ -487,4 +652,72 @@ export const MerchantTradeCapital = new MerchantTradeCapitalModule();
 /** Shared empty treasury for call sites that create a placeholder object. */
 export function createEmptyMarketTreasury(): MarketTreasury {
   return emptyTreasury();
+}
+
+/**
+ * Gives `amount` of the house's cash back. The part above the investors' principal is profit:
+ * INVESTOR_PROFIT_SHARE of it to the investors by their principal, the rest to the house's
+ * merchants. Below principal (after losses), principal is written down in proportion.
+ */
+function returnCapital(
+  market: Market,
+  treasury: MarketTreasury,
+  account: TradeCapitalAccount,
+  amount: number,
+  creditCharacter: CreditCharacter
+): void {
+  const capital = houseCapital(treasury);
+  if (!(capital > 0) || !(amount > 0)) return;
+  const principal = principalOf(account);
+  const profit = principal > 0 ? Math.max(0, (amount * (capital - principal)) / capital) : amount;
+  const principalBack = amount - profit;
+  // Investors' weights: their principal, or the market alone when nothing is left of it.
+  const weights: [string | null, number][] =
+    principal > 0 ? [[null, account.marketPrincipal], ...Object.entries(account.characterPrincipal)] : [[null, 1]];
+  const weightTotal = weights.reduce((sum, [, weight]) => sum + weight, 0);
+  const members = marketMembers(market);
+  const toMembers = members.length ? profit * (1 - INVESTOR_PROFIT_SHARE) : 0;
+  const toInvestors = profit - toMembers;
+  // Principal falls by what is paid back, or in proportion to capital after losses.
+  const writeDown =
+    principal > 0
+      ? Math.min(1, (capital >= principal ? principalBack : amount * (principal / capital)) / principal)
+      : 0;
+
+  let toMarket = 0;
+  let paid = 0;
+  for (const [key, weight] of weights) {
+    if (!(weight > 0)) continue;
+    const share = rn(((principalBack + toInvestors) * weight) / weightTotal, 2);
+    if (key === null) {
+      account.marketPrincipal = rn(account.marketPrincipal * (1 - writeDown), 2);
+      toMarket = rn(toMarket + share, 2);
+    } else {
+      const left = rn(weight * (1 - writeDown), 2);
+      if (creditCharacter(Number(key), share)) {
+        if (left > 0) account.characterPrincipal[key] = left;
+        else delete account.characterPrincipal[key];
+      } else {
+        // An investor no longer alive: the share and what is left of the stake pass to the market.
+        delete account.characterPrincipal[key];
+        account.marketPrincipal = rn(account.marketPrincipal + left, 2);
+        toMarket = rn(toMarket + share, 2);
+      }
+    }
+    paid = rn(paid + share, 2);
+  }
+  let membersPaid = 0;
+  if (toMembers > 0) {
+    const each = rn(toMembers / members.length, 2);
+    for (const id of members) {
+      if (creditCharacter(id, each)) membersPaid = rn(membersPaid + each, 2);
+      else toMarket = rn(toMarket + each, 2);
+      paid = rn(paid + each, 2);
+    }
+  }
+  treasury.tradeWorkingCapital = rn((treasury.tradeWorkingCapital ?? 0) - paid, 2);
+  treasury.balance = rn(treasury.balance + toMarket, 2);
+  settlementStats.returnedPrincipal += principalBack;
+  settlementStats.profitToInvestors += toInvestors;
+  settlementStats.profitToMembers += membersPaid;
 }

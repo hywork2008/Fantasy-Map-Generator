@@ -193,6 +193,43 @@ describe("MerchantTradeCapital with paid cargo (fmg-long-distance-trade)", () =>
     expect(treasuryOf(2).tradeEscrow).toBeUndefined();
   });
 
+  it("asks its market for what bookings lacked, and gives idle capital back with the profit split (commenda)", () => {
+    const market = getMarkets()[0];
+    MerchantTradeCapital.ensureTradeCapital(market);
+    MerchantTradeCapital.recordShortfall(1, 30);
+    MerchantTradeCapital.settleCapitalAccounts(() => true);
+    expect(MerchantTradeCapital.capitalWanted(market)).toBeCloseTo(30);
+    expect(MerchantTradeCapital.investFromMarket(market, 50)).toBeCloseTo(30);
+    expect(treasuryOf(1).balance).toBeCloseTo(50);
+    expect(treasuryOf(1).tradeWorkingCapital).toBeCloseTo(130);
+    expect(treasuryOf(1).tradeCapitalAccount?.marketPrincipal).toBeCloseTo(130);
+
+    // A year on with no demand: capital 100 against principal 80 (60 the market's, 20 a merchant's).
+    market.managerCharacterId = 9;
+    treasuryOf(1).tradeWorkingCapital = 100;
+    Object.assign(treasuryOf(1).tradeCapitalAccount!, {
+      marketPrincipal: 60,
+      characterPrincipal: { 7: 20 },
+      shortfall: 0,
+      demandMonthly: 0,
+      demandMonths: 12
+    });
+    const paid = new Map<number, number>();
+    const before = money();
+    MerchantTradeCapital.settleCapitalAccounts((id, amount) => {
+      paid.set(id, (paid.get(id) ?? 0) + amount);
+      return true;
+    });
+    // A tenth of the idle 100 comes back: 8 principal and 2 profit, 1.5 of it to the investors.
+    expect(treasuryOf(1).tradeWorkingCapital).toBeCloseTo(90, 1);
+    expect(treasuryOf(1).balance).toBeCloseTo(50 + 7.125, 1);
+    expect(paid.get(7)).toBeCloseTo(2.375, 1);
+    expect(paid.get(9)).toBeCloseTo(0.5, 1);
+    expect(money() + paid.get(7)! + paid.get(9)!).toBeCloseTo(before, 1);
+    expect(treasuryOf(1).tradeCapitalAccount?.marketPrincipal).toBeCloseTo(54, 1);
+    expect(treasuryOf(1).tradeCapitalAccount?.characterPrincipal).toEqual({ 7: 18 });
+  });
+
   it("gives no arrival profit and recovers nothing from lost cargo", () => {
     MerchantTradeCapital.lock(1, 50, { goods: 50, freight: 0 });
     MerchantTradeCapital.settleLoss(1, 50);

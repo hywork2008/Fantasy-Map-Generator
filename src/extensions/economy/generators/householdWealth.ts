@@ -21,7 +21,12 @@ import { getMarketCellColumn, getMarkets, getWorldContext, isEconomyContextReady
 import { creditHouseholdWealth, debitHouseholdWealth, getHouseholdWealth } from "./burgMarketLedgers";
 import { getEconomyStartProfile } from "./economyStartMode";
 import type { Market } from "./marketTypes";
-import { getOpenAccountCommitments, isLongDistanceTradeEnabled, MerchantTradeCapital } from "./merchantTradeCapital";
+import {
+  getOpenAccountCommitments,
+  isLongDistanceTradeEnabled,
+  MARKET_TRADE_INVEST_SHARE,
+  MerchantTradeCapital
+} from "./merchantTradeCapital";
 
 /**
  * One-time bootstrap for a Market's rural household wallet, from the same population-point scale
@@ -495,7 +500,10 @@ export function payOutMarketSurplus(creditMerchant: (characterId: number, amount
     MerchantTradeCapital.repayPayables(market);
     const excess = treasury.balance - reserve;
     if (!(excess > 0)) continue;
-    const payout = rn(excess * MARKET_SURPLUS_PAYOUT_SHARE, 2);
+    // Part of the cash above the reserve goes into the market's own house while it is short of
+    // capital, before the payout (long-distance-merchant-reach-capital.md §5.2).
+    const invested = MerchantTradeCapital.investFromMarket(market, rn(excess * MARKET_TRADE_INVEST_SHARE, 2));
+    const payout = rn((excess - invested) * MARKET_SURPLUS_PAYOUT_SHARE, 2);
     const merchants = [market.managerCharacterId, ...(market.rivalCharacterIds ?? [])].filter(
       (id): id is number => typeof id === "number"
     );

@@ -174,6 +174,7 @@ import { MartialDisciplineKnowledge } from "./generators/martialDisciplineKnowle
 import { MartialIndividualMastery } from "./generators/martialIndividualMastery";
 import { clearMerchantOrganizations } from "./generators/merchantOrganizations";
 import { clearMarketMerchantPortfolios, syncMarketMerchantPortfolios } from "./generators/merchantPortfolios";
+import { MerchantTradeCapital } from "./generators/merchantTradeCapital";
 import { MerchantTransportAssets } from "./generators/merchantTransportAssets";
 import { MercuryPlants } from "./generators/mercuryPlants";
 import { MetallurgWork } from "./generators/metallurgWork";
@@ -807,16 +808,18 @@ function registerEconomyCommands(api: SimulationExtensionAPI): void {
       }
       measureTickStep("production:householdSpending", () => spendUrbanHouseholdSurplus());
       measureTickStep("production:ruralSpending", () => spendRuralHouseholdsInTowns());
-      measureTickStep("production:marketPayout", () =>
-        payOutMarketSurplus((characterId, amount) => {
-          const merchant = hasCharactersContext()
-            ? getCharacters().find(c => c.i === characterId && !c.dead)
-            : undefined;
-          if (!merchant) return false;
-          merchant.wealth = rn((merchant.wealth || 0) + amount, 2);
-          return true;
-        })
-      );
+      const creditCharacter = (characterId: number, amount: number) => {
+        const merchant = hasCharactersContext() ? getCharacters().find(c => c.i === characterId && !c.dead) : undefined;
+        if (!merchant) return false;
+        merchant.wealth = rn((merchant.wealth || 0) + amount, 2);
+        return true;
+      };
+      // Houses ask investors for what they lacked, and give idle capital back
+      // (long-distance-merchant-reach-capital.md §5.2). Only on a month's settlement (its food was
+      // settled by the food calendar), not on one a producer change asked for between months.
+      if (skipFoodConsumption)
+        measureTickStep("production:tradeCapital", () => MerchantTradeCapital.settleCapitalAccounts(creditCharacter));
+      measureTickStep("production:marketPayout", () => payOutMarketSurplus(creditCharacter));
       measureTickStep("production:townWorks", () => payTownWorks());
       measureTickStep("production:taxes", () => Taxes.collectTaxes());
       measureTickStep("production:stateSummaries", () => refreshStateEconomySummaries());

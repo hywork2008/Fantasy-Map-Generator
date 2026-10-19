@@ -149,6 +149,8 @@ export class ExportStagingModule {
     if (requireCapital && unitCost > UNIT_EPSILON) {
       MerchantTradeCapital.ensureTradeCapital(market);
       const affordable = MerchantTradeCapital.availableCapital(input.marketId) / unitCost;
+      // What the house could not fund is asked of its investors (long-distance-merchant-reach-capital.md §5.2).
+      if (affordable < units) MerchantTradeCapital.recordShortfall(input.marketId, (units - affordable) * unitCost);
       units = rn(Math.min(units, affordable), 2);
       if (units < UNIT_EPSILON) return null;
     }

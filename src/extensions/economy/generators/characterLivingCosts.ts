@@ -2,9 +2,12 @@ import { getCharacters, hasCharactersContext } from "../../characters/characters
 import type { Character, CharacterRole, TitleHolding } from "../../characters/characterTypes";
 import { rn } from "../../hostUtils";
 import { CENTRAL_OFFICES } from "../../nobility/data/titleTable";
+import { getMarkets } from "../economyContext";
 import { buyCharacterLuxuries, characterLuxuryBudget } from "./characterLuxuryPurchases";
 import { payStateHouseholds, spendInBurg } from "./householdWealth";
 import { isLuxuryValueDemandEnabled } from "./luxuryDemand";
+import type { Market } from "./marketTypes";
+import { CHARACTER_TRADE_INVEST_SHARE, isLongDistanceTradeEnabled, MerchantTradeCapital } from "./merchantTradeCapital";
 import { nominal } from "./moneyScale";
 
 /**
@@ -175,6 +178,7 @@ export function applyCharacterLivingCosts(): LivingCostSummary {
 
   const characters = getCharacters();
   const buysLuxuries = isLuxuryValueDemandEnabled();
+  const houseOf = isLongDistanceTradeEnabled() ? houseMarketsByMerchant() : null;
   let charactersCharged = 0;
   let totalSpent = 0;
 
@@ -188,13 +192,27 @@ export function applyCharacterLivingCosts(): LivingCostSummary {
     // Beyond a few years' living, a household of means spends on building, retainers, gifts and
     // fine goods in its town rather than hoarding (docs/plan/initial-wealth-calibration.md §8).
     const reserve = lifestyleCost * CYCLES_PER_YEAR * WEALTH_RESERVE_YEARS;
-    const surplusSpend = Math.max(0, wealth - lifestyleCost - reserve) * SURPLUS_WEALTH_SPEND_SHARE;
+    let surplusSpend = Math.max(0, wealth - lifestyleCost - reserve) * SURPLUS_WEALTH_SPEND_SHARE;
+    // A market's merchants put part of it into their own house while it is short of capital
+    // (commenda, docs/plan/long-distance-merchant-reach-capital.md §5.2).
+    const house = houseOf?.get(character.i);
+    if (house && surplusSpend > 0) {
+      const invested = MerchantTradeCapital.investFromCharacter(
+        house,
+        character.i,
+        rn(Math.min(wealth, surplusSpend * CHARACTER_TRADE_INVEST_SHARE), 2)
+      );
+      if (invested > 0) {
+        character.wealth = rn(wealth - invested, 2);
+        surplusSpend = Math.max(0, surplusSpend - invested);
+      }
+    }
     const cost = lifestyleCost + surplusSpend;
 
-    const paid = rn(Math.min(wealth, cost), 2);
+    const paid = rn(Math.min(character.wealth || 0, cost), 2);
     if (!(paid > 0)) continue;
 
-    character.wealth = rn(wealth - paid, 2);
+    character.wealth = rn((character.wealth || 0) - paid, 2);
     // Under the luxury value demand, part of it buys fine goods at the home market
     // (docs/plan/luxury-value-demand.md §4); the rest stays the town's income as before.
     let cash = paid;
@@ -211,4 +229,15 @@ export function applyCharacterLivingCosts(): LivingCostSummary {
   }
 
   return { charactersCharged, totalSpent };
+}
+
+/** The market whose house each market manager and rival merchant belongs to. */
+function houseMarketsByMerchant(): Map<number, Market> {
+  const houses = new Map<number, Market>();
+  for (const market of getMarkets()) {
+    if (!market) continue;
+    for (const id of [market.managerCharacterId, ...(market.rivalCharacterIds ?? [])])
+      if (typeof id === "number" && !houses.has(id)) houses.set(id, market);
+  }
+  return houses;
 }
