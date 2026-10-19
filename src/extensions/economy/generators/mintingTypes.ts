@@ -24,6 +24,11 @@ export interface MintLedger {
    * the starting stock counts as exactly 12 months (docs/plan/money-supply-mint.md §5).
    */
   demandScale?: number;
+  /**
+   * Money-supply model: months left in which `demandScale` follows the State's money before it is
+   * fixed (docs/plan/money-supply-mint.md §11.4). Absent on older saves: the scale stays fixed.
+   */
+  calibrationMonthsLeft?: number;
   /** Coin worn away in the most recent cycle (money-supply model only). */
   lastWear?: number;
 }

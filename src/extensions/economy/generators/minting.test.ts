@@ -79,7 +79,11 @@ describe("MintingModule", () => {
       simulationContext.worldSettings = { "fmg-money-supply": "on" };
     });
 
-    it("buys bullion at the market price with new coin and lowers prices while coin is short", () => {
+    it("buys bullion at its coin value with new coin and lowers prices while coin is short", () => {
+      const market = getMarkets()[0];
+      market.goods[1].price = 30;
+      // Silver selling above its coin value goes to craftsmen, not the mint (§11.3).
+      market.goods[2].price = 25;
       Minting.generate();
       const ledger = getMintLedgers()[0];
       expect(ledger.circulation).toBe(0);
@@ -87,13 +91,13 @@ describe("MintingModule", () => {
 
       Minting.settleMonthly();
 
-      const market = getMarkets()[0];
-      // 20% of each stock: 4 silver at 20, 1 gold at 40, 10 copper at 5.
-      expect(ledger.lastMintedValue).toBe(170);
-      expect(ledger.lastSeigniorage).toBe(3.4);
-      expect(worldContext.pack.states[1].treasury).toBe(3.4);
-      expect(market.marketTreasury?.balance).toBe(166.6);
-      expect(ledger.circulation).toBe(170);
+      // 20% of each stock at coin value: 1 gold at 40, 10 copper at 5; no silver.
+      expect(ledger.lastMintedValue).toBe(90);
+      expect(market.goods[2].stock).toBe(20);
+      expect(ledger.lastSeigniorage).toBe(1.8);
+      expect(worldContext.pack.states[1].treasury).toBe(1.8);
+      expect(market.marketTreasury?.balance).toBe(88.2);
+      expect(ledger.circulation).toBe(90);
       expect(ledger.priceLevel).toBeLessThan(1);
     });
 

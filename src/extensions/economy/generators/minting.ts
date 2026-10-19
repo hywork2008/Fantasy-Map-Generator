@@ -40,6 +40,12 @@ const MARKET_STOCK_CURRENCY_SHARE = 0.002;
 export const COIN_WEAR_ANNUAL_RATE = 0.0025;
 const COIN_WEAR_MONTHLY_RETENTION = pow(1 - COIN_WEAR_ANNUAL_RATE, 1 / 12);
 
+/**
+ * Months after the model starts over which `MintLedger.demandScale` follows the State's money before
+ * it is fixed: the start profile's uneven split between States evens out in the first year's trade,
+ * and calibrating on the day-one stock read that as a lasting shortage (money-supply-mint.md §11.4).
+ */
+const START_CALIBRATION_MONTHS = 12;
 /** Bounds of the start calibration of a State's currency demand (`MintLedger.demandScale`). */
 const MIN_DEMAND_SCALE = 0.25;
 const MAX_DEMAND_SCALE = 4;
@@ -82,8 +88,8 @@ function calibrateDemandScale(stock: Pick<StateMoneyStock, "money">, rawDemand: 
  * Legacy model: `circulation` is a ledger figure (`currencySufficiency.ts`); only seigniorage
  * credits the fiscal treasury, so metal / coin / treasury are not the same wealth thrice.
  *
- * Money-supply model (`fmg-money-supply` on, docs/plan/money-supply-mint.md §4.1): the mint buys
- * bullion at the market's price and pays in new coin, so the market's cash grows by what it sold.
+ * Money-supply model (`fmg-money-supply` on, docs/plan/money-supply-mint.md §4.1, §11.3): the mint
+ * buys bullion at its coin value and pays in new coin, so the market's cash grows by what it sold.
  * `circulation` is the State's real money; a State without bullion cannot add to it.
  */
 export class MintingModule {
@@ -109,7 +115,14 @@ export class MintingModule {
         lastMintedValue: 0,
         totalMintedValue: prior?.totalMintedValue ?? 0,
         lastSeigniorage: 0,
-        ...(moneySupply ? { priceLevel: prior?.priceLevel ?? 1, lastWear: 0, demandScale } : {})
+        ...(moneySupply
+          ? {
+              priceLevel: prior?.priceLevel ?? 1,
+              lastWear: 0,
+              demandScale,
+              calibrationMonthsLeft: prior ? prior.calibrationMonthsLeft : START_CALIBRATION_MONTHS
+            }
+          : {})
       });
     }
     setMintLedgers(ledgers);
@@ -163,9 +176,9 @@ export class MintingModule {
   }
 
   /**
-   * Money-supply month (§4.1–§4.3): coin wears away, each State's mint buys bullion up to the gap
-   * between its real money and 12 months of demand, and the price level moves toward what the
-   * money stock now supports.
+   * Money-supply month (§4.1–§4.3, §11.3): coin wears away, each State's mint coins the bullion
+   * brought to it, and the price level moves toward what the money stock against 12 months of
+   * demand now supports.
    */
   private settleMoneySupplyMonthly(): void {
     // Separate steps so the money-flow recorder shows wear and issue apart (§7.1).
@@ -193,24 +206,32 @@ export class MintingModule {
       if (!stock || !state || state.removed) continue;
       ledger.mintMarketId = this.getMintMarketId(ledger.stateId);
       const rawDemand = getMoneySupplyDemand(stock, this.getMarketStockValue(ledger.stateId));
-      // A save switched to the model keeps its ledgers, so the start calibration happens here.
+      // A save switched to the model keeps its ledgers, so the start calibration begins here.
+      if (ledger.demandScale === undefined) ledger.calibrationMonthsLeft = START_CALIBRATION_MONTHS;
+      if (ledger.calibrationMonthsLeft) {
+        ledger.demandScale = calibrateDemandScale(stock, rawDemand);
+        ledger.calibrationMonthsLeft -= 1;
+      }
       ledger.demandScale ??= calibrateDemandScale(stock, rawDemand);
       ledger.currencyDemand = rn(rawDemand * ledger.demandScale, 2);
       let money = stock.money;
 
       const market = ledger.mintMarketId ? Markets.get(ledger.mintMarketId) : undefined;
-      let remainingDemand = Math.max(0, ledger.currencyDemand * TARGET_MONTHS_OF_CURRENCY - money);
       for (const [metal] of METAL_COIN_VALUES) {
-        if (!market || remainingDemand <= 0) break;
+        if (!market) break;
         const good = goodsByName.get(metal);
-        const price = good ? (market.goods[good.i]?.price ?? 0) : 0;
-        if (!good || !(price > 0)) continue;
-        const suppliedUnits = Markets.consumeForMint(market.i, good.i, remainingDemand / price);
+        // Free coinage (§11.3): the mint coins whatever bullion is brought, at the metal's coin
+        // value, whether or not coin is short; too much coin shows in the price level. Where
+        // bullion sells above its coin value to craftsmen and exporters, none reaches the mint:
+        // the bullion famine.
+        const price = good?.value ?? 0;
+        const marketPrice = good ? (market.goods[good.i]?.price ?? 0) : 0;
+        if (!good || !(price > 0) || marketPrice > price) continue;
+        const suppliedUnits = Markets.consumeForMint(market.i, good.i, Number.POSITIVE_INFINITY);
         if (suppliedUnits <= 0) continue;
         const mintedValue = rn(suppliedUnits * price, 2);
         ledger.lastMintedValue = rn(ledger.lastMintedValue + mintedValue, 2);
         ledger.totalMintedValue = rn(ledger.totalMintedValue + mintedValue, 2);
-        remainingDemand = Math.max(0, remainingDemand - mintedValue);
       }
 
       if (market && ledger.lastMintedValue > 0) {

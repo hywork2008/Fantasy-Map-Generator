@@ -486,7 +486,10 @@ export class MineralResourcesModule {
       tin: 8,
       lead: 65,
       silver: 3,
-      gold: 1,
+      // A Kremnica-class gold field (richness 5) yields about a tonne a year, a fifteenth of the
+      // silver districts' output, as in late-medieval Europe. At coin value (money-supply-mint.md §11)
+      // the former 1 t base made one placer worth several % of a map's money a year.
+      gold: 0.2,
       chromium: 20,
       nickel: 16,
       molybdenum: 6,

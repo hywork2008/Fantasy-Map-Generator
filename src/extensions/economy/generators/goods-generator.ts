@@ -288,9 +288,12 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["ore", "mineral"],
     icon: "good-silver",
     color: "#C0C0C0",
-    value: 10,
+    // Per kg of silver contained: the ingot's coin value × the 0.8 smelting yield ÷ 1.25, the
+    // SMELTED_METAL_REPRICING rule (docs/plan/money-supply-mint.md §11.1).
+    value: 3.2,
     chance: 0,
-    unit: "bullion",
+    unit: "kg",
+    cargo: { cargoSlotsPerUnit: 0.05, handlingClass: "loose" },
     multipliers: { cultureType: { Hunting: 0.5, Highland: 1.4, Nomadic: 0.5 } }
   },
   {
@@ -298,9 +301,11 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["ore", "mineral"],
     icon: "good-gold",
     color: "#ffd700",
-    value: 20,
+    // Per kg of gold contained, priced as Silver Ore.
+    value: 35,
     chance: 0,
-    unit: "bullion",
+    unit: "kg",
+    cargo: { cargoSlotsPerUnit: 0.05, handlingClass: "loose" },
     multipliers: { cultureType: { Highland: 1.4, Nomadic: 0.5 } }
   },
   {
@@ -394,9 +399,12 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["ingot", "metal", "luxury"],
     icon: "good-silver",
     color: "#C0C0C0",
-    value: 20,
+    // Coin value of a kg of silver: a year's grain (0.43 SP) cost about 60 pennies of ~1.35 g c. 1300,
+    // so 1 SP is ~0.2 kg of silver (docs/plan/money-supply-mint.md §10.7.2). The mint buys at it.
+    value: 5,
     chance: 0,
-    unit: "bullion"
+    unit: "kg",
+    cargo: { cargoSlotsPerUnit: 0.005, handlingClass: "crated" }
   },
   {
     name: "Gold Ingot",
@@ -404,9 +412,11 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["ingot", "metal", "luxury"],
     icon: "good-gold",
     color: "#ffd700",
-    value: 40,
+    // Coin value of a kg of gold at a gold:silver ratio of 11.
+    value: 55,
     chance: 0,
-    unit: "bullion"
+    unit: "kg",
+    cargo: { cargoSlotsPerUnit: 0.005, handlingClass: "crated" }
   },
   {
     name: "Chromium Ingot",
@@ -1790,17 +1800,19 @@ export const GOODS_DATA: GoodData[] = [
     // than ingredientCost, so both legs were mathematically dead recipes (never selected, same failure
     // mode Wine hit pre-546dba34). Halved to 0.5 (still a generous "half a tusk per piece" ratio) to
     // bring their cost down to 37.5, a ~47% margin in line with the other legs' 37.5–53% range.
+    // Metals are in kg at coin value (docs/plan/money-supply-mint.md §11.2): 0.4 kg of gold (22) or
+    // 3 kg of silver plate (15) per piece.
     recipes: [
-      { Gemstones: 1, "Gold Ingot": 0.5 },
-      { Pearls: 1, "Gold Ingot": 0.5 },
-      { Amber: 2, "Gold Ingot": 0.5 },
-      { Ivory: 0.5, "Gold Ingot": 0.5 },
-      { Coral: 1, "Gold Ingot": 0.5 },
-      { Gemstones: 1, "Silver Ingot": 1 },
-      { Pearls: 1, "Silver Ingot": 1 },
-      { Amber: 2, "Silver Ingot": 1 },
-      { Ivory: 0.5, "Silver Ingot": 1 },
-      { Coral: 1, "Silver Ingot": 1 }
+      { Gemstones: 1, "Gold Ingot": 0.4 },
+      { Pearls: 1, "Gold Ingot": 0.4 },
+      { Amber: 2, "Gold Ingot": 0.4 },
+      { Ivory: 0.5, "Gold Ingot": 0.4 },
+      { Coral: 1, "Gold Ingot": 0.4 },
+      { Gemstones: 1, "Silver Ingot": 3 },
+      { Pearls: 1, "Silver Ingot": 3 },
+      { Amber: 2, "Silver Ingot": 3 },
+      { Ivory: 0.5, "Silver Ingot": 3 },
+      { Coral: 1, "Silver Ingot": 3 }
     ],
     unit: "piece",
     demandCoverage: { luxury: 1 }

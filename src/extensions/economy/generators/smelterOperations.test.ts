@@ -4,6 +4,7 @@ import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
   clearEconomyContext,
   getMarkets,
+  getMineralDeposits,
   getSmelterOperations,
   initEconomyContext,
   setGoods,
@@ -115,6 +116,26 @@ describe("SmelterOperationsModule", () => {
 
     expect(getMarkets()[0].goods[1].stock).toBe(10);
     expect(getMarkets()[0].goods[2].stock).toBe(8);
+    expect(getMarkets()[0].goods[3].stock).toBe(10);
+    expect(getMarkets()[0].goods[4].stock).toBe(2.5);
+  });
+
+  it("smelts precious-metal ore counted in kg with charcoal and slag per tonne", () => {
+    setGoods([
+      { i: 1, name: "Silver Ore", tags: ["ore"], value: 3.2, unit: "kg", icon: "silver", color: "#ccc" },
+      { i: 2, name: "Silver Ingot", tags: ["ingot"], value: 5, unit: "kg", icon: "silver", color: "#ccc" },
+      { i: 3, name: "Charcoal", tags: ["fuel"], value: 3, unit: "sack", icon: "coal", color: "#333" },
+      { i: 4, name: "Slag", tags: ["industrialWaste"], value: 0.5, unit: "wain", icon: "slag", color: "#444" }
+    ]);
+    Goods.sync();
+    getMineralDeposits()[0].yields = [{ commodity: "silver", reserveTons: 100, annualCapacityTons: 120 }];
+    getMarkets()[0].goods[1] = { stock: 20000, price: 3.2 };
+    SmelterOperations.generate();
+
+    SmelterOperations.produceMonth();
+
+    expect(getMarkets()[0].goods[1].stock).toBe(10000);
+    expect(getMarkets()[0].goods[2].stock).toBe(8000);
     expect(getMarkets()[0].goods[3].stock).toBe(10);
     expect(getMarkets()[0].goods[4].stock).toBe(2.5);
   });

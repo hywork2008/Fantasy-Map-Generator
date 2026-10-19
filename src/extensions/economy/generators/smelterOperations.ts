@@ -10,7 +10,8 @@ import {
   setSmelterOperations
 } from "../economyContext";
 import { harvestWood } from "./forestStock";
-import { isGoodEnabled } from "./goods-generator";
+import { Goods, isGoodEnabled } from "./goods-generator";
+import { getGoodUnitsPerTon } from "./goodUnits";
 import { getGuildBonus } from "./guildKnowledge";
 import { Markets } from "./markets-generator";
 import { getIngotGoodName, type MineralDeposit, ORE_COMMODITIES, type OreCommodity } from "./mineralResources";
@@ -32,10 +33,13 @@ import { nominal } from "./moneyScale";
 const DEFAULT_SMELTING_YIELD = 0.8;
 const DEFAULT_SECURITY_INVESTMENT = 0;
 const MARKET_SMELTING_STOCK_SHARE = 0.5;
-/** Medieval ore reduction requires charcoal both as furnace fuel and as the reducing agent. */
-const CHARCOAL_PER_ORE_UNIT = 1;
-/** Gangue and furnace waste retained locally after each unit of ore is processed. */
-const SLAG_PER_ORE_UNIT = 0.25;
+/**
+ * Medieval ore reduction requires charcoal both as furnace fuel and as the reducing agent. Per
+ * tonne of ore: precious-metal ore is counted in kg (goodUnits.ts), the furnace still in tonnes.
+ */
+const CHARCOAL_PER_ORE_TON = 1;
+/** Gangue and furnace waste retained locally after each tonne of ore is processed. */
+const SLAG_PER_ORE_TON = 0.25;
 const CHARCOAL_GOOD_NAME = "charcoal";
 const SLAG_GOOD_NAME = "slag";
 const BASE_THEFT_RISK = 0.008;
@@ -102,8 +106,9 @@ export function getSmelterCrewPeople(
     const commodity = yieldInfo.commodity as OreCommodity;
     const ore = goodsByName.get(`${commodity} ore`);
     const ingot = goodsByName.get(getIngotGoodName(commodity));
-    if (!ore || !ingot || !(totalOre > 0)) continue;
-    const perOreTon = smelter.smeltingYield * ingot.value - ore.value - CHARCOAL_PER_ORE_UNIT * (charcoal?.value ?? 0);
+    // Precious-metal ore at coin value: the furnace crew does not grow with the metal's worth.
+    if (!ore || !ingot || !(totalOre > 0) || getGoodUnitsPerTon(ore) !== 1) continue;
+    const perOreTon = smelter.smeltingYield * ingot.value - ore.value - CHARCOAL_PER_ORE_TON * (charcoal?.value ?? 0);
     annualValueAdded += smelter.annualCapacityTons * (yieldInfo.annualCapacityTons / totalOre) * perOreTon;
   }
   return Math.max(SMELTER_EMPLOYMENT_BASE_PEOPLE, getExtractionCrewPeople(annualValueAdded));
@@ -181,15 +186,16 @@ export class SmelterOperationsModule {
       const commodity = ingot && this.getCommodityForIngot(ingot.name);
       if (!commodity) continue;
       const key = `${shortage.stateId}:${commodity}`;
-      shortagesByCommodity.set(key, (shortagesByCommodity.get(key) ?? 0) + shortage.requestedIngotUnits);
+      const requestedTons = shortage.requestedIngotUnits / getGoodUnitsPerTon(ingot);
+      shortagesByCommodity.set(key, (shortagesByCommodity.get(key) ?? 0) + requestedTons);
     }
 
     const depositsById = new Map(getMineralDeposits().map(deposit => [deposit.i, deposit]));
     const marketsById = new Map(getMarkets().map(market => [market.i, market]));
-    const requiredOreByMarket = new Map<number, { stateId: number; units: number }>();
+    const requiredOreByMarket = new Map<number, { stateId: number; tons: number }>();
     const { burgs } = getWorldContext().pack;
 
-    for (const [key, requestedIngotUnits] of shortagesByCommodity) {
+    for (const [key, requestedIngotTons] of shortagesByCommodity) {
       const separator = key.indexOf(":");
       const stateId = Number(key.slice(0, separator));
       const commodity = key.slice(separator + 1) as OreCommodity;
@@ -218,20 +224,20 @@ export class SmelterOperationsModule {
       const weightedYield =
         eligibleSmelters.reduce((sum, entry) => sum + entry.monthlyOreCapacity * entry.smelter.smeltingYield, 0) /
         totalOreCapacity;
-      const oreNeeded = requestedIngotUnits / Math.max(0.0001, weightedYield);
+      const oreNeeded = requestedIngotTons / Math.max(0.0001, weightedYield);
       const plannedOre = Math.min(oreNeeded, totalOreCapacity);
       for (const entry of eligibleSmelters) {
         const allocatedOre = plannedOre * (entry.monthlyOreCapacity / totalOreCapacity);
         const existing = requiredOreByMarket.get(entry.smelter.marketId);
-        if (existing) existing.units += allocatedOre;
-        else requiredOreByMarket.set(entry.smelter.marketId, { stateId, units: allocatedOre });
+        if (existing) existing.tons += allocatedOre;
+        else requiredOreByMarket.set(entry.smelter.marketId, { stateId, tons: allocatedOre });
       }
     }
 
     return Array.from(requiredOreByMarket, ([destinationMarketId, requirement]) => {
       const market = marketsById.get(destinationMarketId)!;
       const availableFuel = market.goods[charcoal.i]?.stock ?? 0;
-      const targetFuelStock = (requirement.units * CHARCOAL_PER_ORE_UNIT) / MARKET_SMELTING_STOCK_SHARE;
+      const targetFuelStock = (requirement.tons * CHARCOAL_PER_ORE_TON) / MARKET_SMELTING_STOCK_SHARE;
       return {
         stateId: requirement.stateId,
         destinationMarketId,
@@ -299,11 +305,14 @@ export class SmelterOperationsModule {
         if (!ore || !ingot || !isGoodEnabled(ore) || !isGoodEnabled(ingot)) continue;
         const unsold = unsoldIngotIds.has(ingot.i);
         if (unsold && !anyIngotSells) continue;
-        if (!unsold) valueAdded += this.releaseHeldIngots(smelter, ingot, monthlyCapacity * smelter.smeltingYield);
+        // Capacity, charcoal and slag are per tonne of ore; the market counts the ore in its own unit.
+        const unitsPerTon = getGoodUnitsPerTon(ore);
+        if (!unsold)
+          valueAdded += this.releaseHeldIngots(smelter, ingot, monthlyCapacity * smelter.smeltingYield * unitsPerTon);
 
         const market = Markets.get(smelter.marketId);
         const availableCharcoal = market?.goods[charcoal.i]?.stock ?? 0;
-        const charcoalBoundCapacity = (availableCharcoal * MARKET_SMELTING_STOCK_SHARE) / CHARCOAL_PER_ORE_UNIT;
+        const charcoalBoundCapacity = (availableCharcoal * MARKET_SMELTING_STOCK_SHARE) / CHARCOAL_PER_ORE_TON;
         const capacityShare = Math.min(
           monthlyCapacity * (yieldInfo.annualCapacityTons / totalAnnualOreCapacity),
           charcoalBoundCapacity
@@ -311,20 +320,21 @@ export class SmelterOperationsModule {
         const oreConsumed = Markets.consumeForSmelting(
           smelter.marketId,
           ore.i,
-          capacityShare,
+          capacityShare * unitsPerTon,
           MARKET_SMELTING_STOCK_SHARE
         );
         if (!oreConsumed) continue;
+        const oreTons = oreConsumed / unitsPerTon;
 
         // Ore is only drawn after the available Charcoal reserve has bounded capacity above, so
         // this second market draw is exact and prevents a fuel-free Ingot from being created.
         const charcoalConsumed = Markets.consumeForSmelting(
           smelter.marketId,
           charcoal.i,
-          oreConsumed * CHARCOAL_PER_ORE_UNIT,
+          oreTons * CHARCOAL_PER_ORE_TON,
           MARKET_SMELTING_STOCK_SHARE
         );
-        if (charcoalConsumed < oreConsumed * CHARCOAL_PER_ORE_UNIT - 0.0001) continue;
+        if (charcoalConsumed < oreTons * CHARCOAL_PER_ORE_TON - 0.0001) continue;
 
         const refinedIngots = oreConsumed * smelter.smeltingYield;
         const theftLoss = this.rollTheft(smelter, deposit.accessibility, refinedIngots, effectiveSecurity);
@@ -341,7 +351,7 @@ export class SmelterOperationsModule {
           getMarketValue(smelter.marketId, ore.i, oreConsumed, ore.value) -
           getMarketValue(smelter.marketId, charcoal.i, charcoalConsumed, charcoal.value);
         if (slag && isGoodEnabled(slag)) {
-          Markets.addSmelterSupply(smelter.marketId, slag.i, oreConsumed * SLAG_PER_ORE_UNIT);
+          Markets.addSmelterSupply(smelter.marketId, slag.i, oreTons * SLAG_PER_ORE_TON);
         }
       }
       settleExtractionPayment({
@@ -485,10 +495,13 @@ export class SmelterOperationsModule {
 
     const market = Markets.get(smelter.marketId);
     if (!market) return;
-    const oreAvailable = oreGoodIds.reduce((sum, goodId) => sum + (market.goods[goodId]?.stock ?? 0), 0);
-    const oreToSmelt = Math.min(monthlyOreCapacity, oreAvailable * MARKET_SMELTING_STOCK_SHARE);
+    const oreAvailableTons = oreGoodIds.reduce((sum, goodId) => {
+      const ore = Goods.get(goodId);
+      return sum + (market.goods[goodId]?.stock ?? 0) / (ore ? getGoodUnitsPerTon(ore) : 1);
+    }, 0);
+    const oreToSmelt = Math.min(monthlyOreCapacity, oreAvailableTons * MARKET_SMELTING_STOCK_SHARE);
     const available = market.goods[charcoal.i]?.stock ?? 0;
-    const needed = (oreToSmelt * CHARCOAL_PER_ORE_UNIT) / MARKET_SMELTING_STOCK_SHARE;
+    const needed = (oreToSmelt * CHARCOAL_PER_ORE_TON) / MARKET_SMELTING_STOCK_SHARE;
     let shortfall = needed - available;
     if (shortfall <= 0.0001) return;
 

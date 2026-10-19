@@ -3,6 +3,7 @@ import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
   clearEconomyContext,
+  getGoods,
   getMarkets,
   getMineOperations,
   getMineralDeposits,
@@ -95,6 +96,8 @@ describe("MineOperationsModule", () => {
   });
 
   it("creates an accessible operation and supplies every co-product to its market", () => {
+    // Precious metals are counted in kg on the market, reserves in tonnes (goodUnits.ts).
+    getGoods()[1].unit = "kg";
     setMineralDeposits([
       {
         i: 1,
@@ -122,7 +125,9 @@ describe("MineOperationsModule", () => {
     expect(getMineralDeposits()[0].discovered).toBe(true);
     expect(getMineralDeposits()[0].yields[0].reserveTons).toBeLessThan(100);
     expect(getMarkets()[0].goods[1].stock).toBeGreaterThan(0);
-    expect(getMarkets()[0].goods[2].stock).toBeGreaterThan(0);
+    const silverTons = 20 - getMineralDeposits()[0].yields[1].reserveTons;
+    expect(silverTons).toBeGreaterThan(0);
+    expect(getMarkets()[0].goods[2].stock).toBeCloseTo(silverTons * 1000, 1);
   });
 
   it("keeps unclaimed deposits undiscovered when frontier market coverage reaches them", () => {

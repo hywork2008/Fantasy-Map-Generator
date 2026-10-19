@@ -20,6 +20,7 @@ import {
   getWorldContext
 } from "../economyContext";
 import { Goods, isGoodEnabled } from "./goods-generator";
+import { getGoodUnitsPerTon } from "./goodUnits";
 import { getMineExtractionFactor } from "./mineOperations";
 import { getMinedGoodName } from "./mineralResources";
 import { Production } from "./production-generator";
@@ -188,7 +189,8 @@ export function getProduction(): Record<number, GoodProduction> {
     for (const yieldInfo of deposit.yields) {
       const good = goodsByName.get(getMinedGoodName(yieldInfo.commodity));
       if (!good || !isGoodEnabled(good) || yieldInfo.reserveTons <= 0) continue;
-      addProduction(good.i, (yieldInfo.annualCapacityTons * extractionFactor) / 12, "industrial", operation.marketId);
+      const units = (yieldInfo.annualCapacityTons * extractionFactor * getGoodUnitsPerTon(good)) / 12;
+      addProduction(good.i, units, "industrial", operation.marketId);
     }
   }
 

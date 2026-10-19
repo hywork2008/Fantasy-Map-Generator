@@ -13,6 +13,7 @@ import { DEFAULT_PEOPLE_PER_POPULATION_POINT } from "./craftScale";
 import { getMarketValue, settleExtractionPayment } from "./extractionPayments";
 import { isGoodEnabled } from "./goods-generator";
 import type { Good } from "./goodsGeneratorTypes";
+import { getGoodUnitsPerTon } from "./goodUnits";
 import { Markets } from "./markets-generator";
 import { getMinedGoodName, type MineOperation, type MineralCommodity, type MineralDeposit } from "./mineralResources";
 import { getMineSteamDrainageBonus } from "./steamInstallations";
@@ -73,6 +74,16 @@ export function getMineRequiredWorkers(deposit: Pick<MineralDeposit, "richness">
  * 1.5 kg of silver a worker in 1442 (docs/plan/farm-labour-calibration.md §14).
  */
 export const EXTRACTION_OUTPUT_PER_WORKER_IN_WAGE_YEARS = 1.3;
+/**
+ * Precious metals counted in kg at their coin value (money-supply-mint.md §11) are worth far more
+ * than a digger's wage, so their crews follow the metal won per worker instead: Kremnica about
+ * 1.5 kg of silver a worker in 1442, Kutná Hora's ~3,000 miners 2–4 t a year. Gold is an estimate
+ * (a fifth of silver's weight per worker).
+ */
+const PRECIOUS_METAL_KG_PER_WORKER_YEAR: Readonly<Partial<Record<MineralCommodity, number>>> = {
+  silver: 1.2,
+  gold: 0.25
+};
 /** The smallest crew that works a site at all. */
 export const MINE_MIN_CREW_PEOPLE = 4;
 
@@ -92,12 +103,19 @@ export function getMineEmploymentPeople(
     : 1;
   const goodsByName = new Map(getGoods().map(good => [good.name.toLowerCase(), good]));
   let annualValue = 0;
+  let preciousMetalPeople = 0;
   for (const yieldInfo of deposit.yields) {
     const good = goodsByName.get(getMinedGoodName(yieldInfo.commodity));
     if (!good || !isGoodEnabled(good)) continue;
-    annualValue += yieldInfo.annualCapacityTons * fullStaffFactor * good.value;
+    const unitsPerTon = getGoodUnitsPerTon(good);
+    const kgPerWorker = PRECIOUS_METAL_KG_PER_WORKER_YEAR[yieldInfo.commodity];
+    if (unitsPerTon !== 1 && kgPerWorker) {
+      preciousMetalPeople += (yieldInfo.annualCapacityTons * fullStaffFactor * 1000) / kgPerWorker;
+      continue;
+    }
+    annualValue += yieldInfo.annualCapacityTons * fullStaffFactor * good.value * unitsPerTon;
   }
-  return Math.max(MINE_MIN_CREW_PEOPLE, getExtractionCrewPeople(annualValue));
+  return Math.max(MINE_MIN_CREW_PEOPLE, getExtractionCrewPeople(annualValue) + preciousMetalPeople);
 }
 
 /** People a year's output of `annualValue` employs at `EXTRACTION_OUTPUT_PER_WORKER_IN_WAGE_YEARS`. */
@@ -140,7 +158,7 @@ export function getMineHiringShare(
     const good = goodsByName.get(getMinedGoodName(yieldInfo.commodity));
     if (!good || !isGoodEnabled(good) || !(good.value > 0)) continue;
     const ratio = getMarketPriceRatio(operation.marketId, good);
-    const value = yieldInfo.annualCapacityTons * good.value;
+    const value = yieldInfo.annualCapacityTons * good.value * getGoodUnitsPerTon(good);
     base += value;
     atPrice += ratio <= EXTRACTION_UNSOLD_PRICE_RATIO ? 0 : value * Math.min(1, ratio);
   }
@@ -510,15 +528,18 @@ export class MineOperationsModule {
         if (!good || !isGoodEnabled(good) || yieldInfo.reserveTons <= 0) continue;
 
         const potentialAnnual = yieldInfo.annualCapacityTons * extractionFactor;
+        // Reserves stay in tonnes; the market counts precious metals in kg (goodUnits.ts).
+        const unitsPerTon = getGoodUnitsPerTon(good);
         const supplied = Markets.addMineSupply(
           operation.marketId,
           good.i,
-          Math.min(yieldInfo.reserveTons, potentialAnnual / 12)
+          Math.min(yieldInfo.reserveTons, potentialAnnual / 12) * unitsPerTon
         );
         if (supplied <= 0) continue;
         outputValue += getMarketValue(operation.marketId, good.i, supplied, good.value);
-        yieldInfo.reserveTons = rn(Math.max(0, yieldInfo.reserveTons - supplied), 4);
-        annualOutput[yieldInfo.commodity] = rn(Math.min(yieldInfo.reserveTons + supplied, potentialAnnual), 4);
+        const suppliedTons = supplied / unitsPerTon;
+        yieldInfo.reserveTons = rn(Math.max(0, yieldInfo.reserveTons - suppliedTons), 4);
+        annualOutput[yieldInfo.commodity] = rn(Math.min(yieldInfo.reserveTons + suppliedTons, potentialAnnual), 4);
       }
 
       operation.annualOutputTons = annualOutput;
