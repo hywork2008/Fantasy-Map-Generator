@@ -19,6 +19,7 @@ import { canIssueDebtWhileNotInDefault, updateDebtDefaultStatus } from "./debtDe
 import { applyDebtDefaultConsequences } from "./debtDefaultConsequences";
 import { issueForeignOrBondDebt } from "./foreignDebt";
 import { applyDomesticDefaultForeignDiplomacyHit, serviceForeignDebtWithDiplomacy } from "./foreignDebtDiplomacy";
+import { payStateHouseholds } from "./householdWealth";
 import { tickLegitimacyWar } from "./legitimacyWar";
 import { getStateDebtInterestRate, splitCreditorPayout, updateMoneylenderSnapshot } from "./moneylenders";
 import { nominal } from "./moneyScale";
@@ -176,7 +177,10 @@ export function applyFiscalEvents(state: State, domesticIncome: number): FiscalE
     // Claw back the unapproved share from L2 (already fully credited).
     const claw = rn(income * (1 - incomeScale), 2);
     if (claw > 0) {
-      state.treasury = rn(Math.max(0, (state.treasury || 0) - claw), 2);
+      const before = state.treasury || 0;
+      state.treasury = rn(Math.max(0, before - claw), 2);
+      // The unapproved levy goes back to the people it was collected from (docs/plan/money-supply-mint.md §4.2).
+      payStateHouseholds(state.i, rn(before - state.treasury, 2));
     }
   }
   state.councilLastFailed = councilFailed;

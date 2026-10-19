@@ -46,11 +46,13 @@ import {
   settleAnnualOnce
 } from "../economyContext";
 import { getComfortableTreasuryLevel } from "./guildTreasury";
+import { payStateHouseholds } from "./householdWealth";
 import { nominal } from "./moneyScale";
 import { raceKeyForBurgState } from "./resolveBurgCulture";
 import { isModernWaterEraAvailable, MODERN_WATER_MIN_POPULATION } from "./urbanWaterModernTreatment";
 import { buildAqueductTree, chooseProtectedIntakeCell, hasSameLandGravityWaterSource } from "./urbanWaterSupply";
 import type { RegionalWaterScheme } from "./urbanWaterTypes";
+import { payBurgWorks } from "./worksPayments";
 
 /** At most this many non-suspended schemes per sponsoring State — same "cap concurrent civil
  *  projects per State" idiom as dams.ts's MAX_DAMS_PER_STATE. */
@@ -282,6 +284,7 @@ function negotiateScheme(scheme: RegionalWaterScheme, { states }: SettleContext)
   const negotiationCost = nominal(REGIONAL_SCHEME_NEGOTIATION_COST);
   if (liquid < negotiationCost) return; // stalls; retried every year, no dead end
   state.treasury = rn(liquid - negotiationCost, 2);
+  payStateHouseholds(state.i, negotiationCost);
 
   scheme.approvalByParty = {
     [String(scheme.sponsorStateId)]: "approved" as const,
@@ -321,6 +324,7 @@ function collectCapitalContributions(
       const spend = Math.min(remaining, liquid * REGIONAL_SCHEME_STATE_ANNUAL_SHARE);
       if (spend > 0) {
         state.treasury = rn(liquid - spend, 2);
+        payStateHouseholds(state.i, spend);
         scheme.capitalContributionByParty[stateKey] = rn(already + spend, 2);
       }
     }
@@ -349,6 +353,7 @@ function collectCapitalContributions(
     );
     if (spend > 0) {
       burg.treasury = rn(liquid - spend, 2);
+      payBurgWorks(burg, spend);
       scheme.capitalContributionByParty[key] = rn(already + spend, 2);
     }
   }
@@ -390,6 +395,7 @@ function collectOperationsContributions(
     const spend = Math.min(target, liquid * REGIONAL_SCHEME_STATE_ANNUAL_SHARE);
     if (spend > 0) {
       state.treasury = rn(liquid - spend, 2);
+      payStateHouseholds(state.i, spend);
       raised += spend;
     }
   }
@@ -406,6 +412,7 @@ function collectOperationsContributions(
     const spend = Math.max(0, Math.min(target, liquid - cushion, liquid * REGIONAL_SCHEME_BURG_BUDGET_SHARE));
     if (spend > 0) {
       burg.treasury = rn(liquid - spend, 2);
+      payBurgWorks(burg, spend);
       raised += spend;
     }
   }

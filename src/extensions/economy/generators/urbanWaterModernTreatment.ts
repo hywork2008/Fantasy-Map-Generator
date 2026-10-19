@@ -70,6 +70,7 @@ import { getGoods } from "../economyContext";
 import { getComfortableTreasuryLevel } from "./guildTreasury";
 import { Markets } from "./markets-generator";
 import type { WaterSanitationTier } from "./urbanWaterTypes";
+import { payBurgWorks } from "./worksPayments";
 
 function clamp01(value: number): number {
   if (!Number.isFinite(value)) return 0;
@@ -415,7 +416,10 @@ export function settleModernWaterTreatmentInvestment(args: {
     }
   }
 
-  if (totalConstructionSpend > 0) burg.treasury = rn((burg.treasury ?? 0) - totalConstructionSpend, 2);
+  if (totalConstructionSpend > 0) {
+    burg.treasury = rn((burg.treasury ?? 0) - totalConstructionSpend, 2);
+    payBurgWorks(burg, totalConstructionSpend);
+  }
 
   // Operations: recurring, a separate pool from construction above — only relevant once a tier has
   // actually been reached this year or earlier. Runs every year regardless of construction status
@@ -431,7 +435,10 @@ export function settleModernWaterTreatmentInvestment(args: {
   const effluentTestOpsNeed = wastewaterTier >= 2 ? effluentTestOperationsNeed(people) : 0;
   const totalOpsNeed = drinkingOpsNeed + wastewaterOpsNeed + testOpsNeed + sludgeOpsNeed + effluentTestOpsNeed;
   const opsSpend = Math.min(opsAvailable, totalOpsNeed);
-  if (opsSpend > 0) burg.treasury = rn((burg.treasury ?? 0) - opsSpend, 2);
+  if (opsSpend > 0) {
+    burg.treasury = rn((burg.treasury ?? 0) - opsSpend, 2);
+    payBurgWorks(burg, opsSpend);
+  }
 
   const treatmentOperationsFunding =
     drinkingOpsNeed > 0 ? clamp01((opsSpend * (drinkingOpsNeed / totalOpsNeed)) / drinkingOpsNeed) : 0;

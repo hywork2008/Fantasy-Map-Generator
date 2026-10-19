@@ -11,7 +11,8 @@ import {
   isStateInActiveConflict,
   optionsStore,
   resolveFastAdvanceRates,
-  runWithSimulationRandom
+  runWithSimulationRandom,
+  setFrontierSpendingPayee
 } from "../hostCore";
 import {
   isShipbuildingInitialStockRequest,
@@ -154,6 +155,7 @@ import {
 import { HospitalInstallations } from "./generators/hospitalInstallations";
 import {
   payOutMarketSurplus,
+  payStateHouseholds,
   spendRuralHouseholdsInTowns,
   spendUrbanHouseholdSurplus
 } from "./generators/householdWealth";
@@ -1471,6 +1473,10 @@ function register(api: SimulationExtensionAPI): () => void {
   const _unregisterTickSystems: (() => void)[] = [];
 
   initEconomyContext(api);
+  // Frontier works and settlement are paid to the State's people (docs/plan/money-supply-mint.md §4.2).
+  setFrontierSpendingPayee((stateId, amount) =>
+    api.isExtensionEnabled(ECONOMY_EXTENSION_ID) ? payStateHouseholds(stateId, amount) : 0
+  );
   const economySlice = api.simulationContext?.extensions?.economy;
   if (economySlice) migrateLegacyAnnualGateYears(economySlice);
   registerEconomyCommands(api);
@@ -2627,6 +2633,7 @@ function register(api: SimulationExtensionAPI): () => void {
     clearPlayerMarketCommerce();
 
     clearUrbanPregnancyBirthFloorRegistration();
+    setFrontierSpendingPayee(null);
     clearEconomyContext();
   };
 }

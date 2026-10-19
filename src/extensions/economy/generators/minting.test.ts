@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { simulationContext } from "../../../context/simulationContext";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph, State } from "../../hostTypes";
 import {
@@ -39,7 +40,10 @@ describe("MintingModule", () => {
     Markets.sync();
   });
 
-  afterEach(() => clearEconomyContext());
+  afterEach(() => {
+    clearEconomyContext();
+    delete simulationContext.worldSettings;
+  });
 
   it("keeps an initial circulation reserve, then converts finite market metal into currency", () => {
     Minting.generate();
@@ -68,5 +72,37 @@ describe("MintingModule", () => {
 
     expect(ledger.lastMintedValue).toBe(0);
     expect(worldContext.pack.states[1].treasury).toBe(0);
+  });
+
+  describe("money-supply model (docs/plan/money-supply-mint.md §4.1)", () => {
+    beforeEach(() => {
+      simulationContext.worldSettings = { "fmg-money-supply": "on" };
+    });
+
+    it("buys bullion at the market price with new coin and lowers prices while coin is short", () => {
+      Minting.generate();
+      const ledger = getMintLedgers()[0];
+      expect(ledger.circulation).toBe(0);
+      expect(ledger.priceLevel).toBe(1);
+
+      Minting.settleMonthly();
+
+      const market = getMarkets()[0];
+      // 20% of each stock: 4 silver at 20, 1 gold at 40, 10 copper at 5.
+      expect(ledger.lastMintedValue).toBe(170);
+      expect(ledger.lastSeigniorage).toBe(3.4);
+      expect(worldContext.pack.states[1].treasury).toBe(3.4);
+      expect(market.marketTreasury?.balance).toBe(166.6);
+      expect(ledger.circulation).toBe(170);
+      expect(ledger.priceLevel).toBeLessThan(1);
+    });
+
+    it("issues nothing without bullion", () => {
+      for (const good of Object.values(getMarkets()[0].goods)) good.stock = 0;
+      Minting.generate();
+      Minting.settleMonthly();
+      expect(getMintLedgers()[0].lastMintedValue).toBe(0);
+      expect(getMarkets()[0].marketTreasury?.balance ?? 0).toBe(0);
+    });
   });
 });

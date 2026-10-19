@@ -8,11 +8,15 @@ import {
   getMoneyPriceLevelForMarket,
   getMoneyTradeCapacityFactor,
   getMoneyTradeCapacityFactorForMarket,
+  getTargetPriceLevel,
   INITIAL_MONTHS_OF_CURRENCY,
   MONEY_NEUTRAL_MIN_SUFFICIENCY,
   MONEY_PRICE_CEILING,
   MONEY_PRICE_FLOOR,
   MONEY_TRADE_CAPACITY_FLOOR,
+  PRICE_LEVEL_MAX,
+  PRICE_LEVEL_MIN,
+  stepPriceLevel,
   TARGET_MONTHS_OF_CURRENCY
 } from "./currencySufficiency";
 import type { Market } from "./marketTypes";
@@ -106,5 +110,22 @@ describe("market lookups (docs/plan/economy-coupling-audit.md L7)", () => {
     ]);
     expect(getMoneyPriceLevelForMarket(market)).toBe(MONEY_PRICE_FLOOR);
     expect(getMoneyTradeCapacityFactorForMarket(market)).toBe(MONEY_TRADE_CAPACITY_FLOOR);
+  });
+});
+
+describe("money-supply price level (docs/plan/money-supply-mint.md §4.3)", () => {
+  it("targets the square root of sufficiency within 0.5–1.5", () => {
+    expect(getTargetPriceLevel(1)).toBe(1);
+    expect(getTargetPriceLevel(0.64)).toBeCloseTo(0.8, 6);
+    expect(getTargetPriceLevel(0)).toBe(PRICE_LEVEL_MIN);
+    expect(getTargetPriceLevel(9)).toBe(PRICE_LEVEL_MAX);
+  });
+
+  it("moves 2% of the gap a month, so a coin famine lowers prices over years", () => {
+    expect(stepPriceLevel(undefined, 0.64)).toBeCloseTo(1 - 0.2 * 0.02, 6);
+    let level = 1;
+    for (let month = 0; month < 12 * 30; month++) level = stepPriceLevel(level, 0.64);
+    expect(level).toBeGreaterThan(0.8);
+    expect(level).toBeLessThan(0.81);
   });
 });

@@ -204,10 +204,12 @@ describe("TaxesModule", () => {
       expect(state.treasury || 0).toBeLessThan(0.5);
     });
 
+    // In the next tests a town holds most of the State's money, so the reserve cap (30% of the
+    // State's money, docs/plan/money-supply-mint.md §4.4) does not bind.
     it("credits deal.tax from burg-sell deals to the seller's state treasury", () => {
       const state1: State = { i: 1, salesTax: 0.2, pollTax: 0, rural: 0, urban: 0 } as unknown as State;
       worldContext.pack.states = [{ i: 0 } as unknown as State, state1];
-      worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, { i: 1, state: 1 } as unknown as Burg];
+      worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, { i: 1, state: 1, treasury: 1000 } as unknown as Burg];
       setDeals([
         { i: 0, seller: 1, sellerType: "burg", buyer: 1, buyerType: "market", good: 0, units: 5, price: 10, tax: 12 }
       ]);
@@ -220,7 +222,7 @@ describe("TaxesModule", () => {
     it("credits deal.tax from market-sell (global trade) deals via the market's center burg's state", () => {
       const state1: State = { i: 1, salesTax: 0.2, pollTax: 0, rural: 0, urban: 0 } as unknown as State;
       worldContext.pack.states = [{ i: 0 } as unknown as State, state1];
-      worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, { i: 1, state: 1 } as unknown as Burg];
+      worldContext.pack.burgs = [{ i: 0 } as unknown as Burg, { i: 1, state: 1, treasury: 1000 } as unknown as Burg];
       setMarkets([{ i: 1, centerBurgId: 1, color: "#fff", goods: {} } as Market]);
       setDeals([
         { i: 0, seller: 1, sellerType: "market", buyer: 2, buyerType: "market", good: 0, units: 5, price: 10, tax: 7 }
@@ -239,8 +241,8 @@ describe("TaxesModule", () => {
       worldContext.pack.states = [{ i: 0 } as unknown as State, sellerState, buyerState];
       worldContext.pack.burgs = [
         { i: 0 } as unknown as Burg,
-        { i: 1, state: 1 } as unknown as Burg,
-        { i: 2, state: 2 } as unknown as Burg
+        { i: 1, state: 1, treasury: 1000 } as unknown as Burg,
+        { i: 2, state: 2, treasury: 1000 } as unknown as Burg
       ];
       setMarkets([
         { i: 1, centerBurgId: 1, color: "#fff", goods: {} } as Market,

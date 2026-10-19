@@ -68,7 +68,7 @@ describe("IndustrialTechInvestmentModule", () => {
 
   afterEach(() => clearEconomyContext());
 
-  it("raises MineOperation.toolsInvestmentStock and spends the market treasury", () => {
+  it("raises MineOperation.toolsInvestmentStock from the market's own Tools stock without destroying its cash", () => {
     setMineOperations([
       {
         i: 1,
@@ -88,7 +88,8 @@ describe("IndustrialTechInvestmentModule", () => {
 
     const mine = getMineOperations()[0];
     expect(mine.toolsInvestmentStock).toBeGreaterThan(0);
-    expect(Markets.get(1)?.marketTreasury?.balance).toBeLessThan(1000);
+    // The market buys from its own stock: the price it pays comes back to its own cash.
+    expect(Markets.get(1)?.marketTreasury?.balance).toBe(1000);
     expect(Markets.get(1)?.goods[TOOLS_ID].stock).toBeLessThan(100);
   });
 

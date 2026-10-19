@@ -8,7 +8,8 @@ import { nominal } from "./moneyScale";
 /**
  * Multi-ledger PR-9/PR-10 — anonymous credit pool (institutional stock).
  *
- * Public debt issues draw from `state.creditPoolBalance`. Named syndicate personal cuts are
+ * Public debt issues draw from `state.creditPoolBalance`, the lenders' limit; the coin itself moves
+ * through the capital market's cash (`marketTreasury.balance`). Named syndicate personal cuts are
  * applied by callers via moneylenders.splitCreditorPayout before/alongside payToCreditPool
  * (avoids a circular import with moneylenders.ts).
  *
@@ -113,7 +114,12 @@ export function lendFromCreditPool(state: State, amount: number): CreditPoolLend
   if (!(desired > 0) || !(poolBefore > 0)) {
     return { lent: 0, poolBefore, poolAfter: poolBefore };
   }
-  const lent = rn(Math.min(desired, poolBefore), 2);
+  // The pool is the lenders' limit; the coin itself is the capital's merchant cash, so a loan
+  // cannot exceed what that market holds (docs/plan/money-supply-mint.md §4.2).
+  const lenderCash = resolveCapitalMarket(state)?.marketTreasury;
+  const lent = rn(Math.min(desired, poolBefore, lenderCash ? Math.max(0, lenderCash.balance) : Infinity), 2);
+  if (!(lent > 0)) return { lent: 0, poolBefore, poolAfter: poolBefore };
+  if (lenderCash) lenderCash.balance = rn(lenderCash.balance - lent, 2);
   state.creditPoolBalance = rn(poolBefore - lent, 2);
   return { lent, poolBefore, poolAfter: state.creditPoolBalance };
 }
@@ -127,6 +133,9 @@ export function payToCreditPool(state: State, amount: number): CreditPoolPayResu
   const pay = Math.max(0, amount);
   const pool = ensureCreditPoolSeeded(state);
   if (!(pay > 0)) return { paid: 0, poolAfter: pool };
+  // The coin reaches the lenders' cash at the capital market; it used to vanish into the pool figure.
+  const lenderCash = resolveCapitalMarket(state)?.marketTreasury;
+  if (lenderCash) lenderCash.balance = rn(lenderCash.balance + pay, 2);
   state.creditPoolBalance = rn(pool + pay, 2);
   return { paid: pay, poolAfter: state.creditPoolBalance };
 }

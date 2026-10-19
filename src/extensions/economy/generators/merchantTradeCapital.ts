@@ -5,6 +5,7 @@
  * @see docs/plan/merchant-logistics-warehouses.md Phase D
  */
 
+import type { Burg } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getMarkets, getWorldContext } from "../economyContext";
 import { getMoneyTradeCapacityFactorForMarket } from "./currencySufficiency";
@@ -15,6 +16,8 @@ import type { Market, MarketTreasury } from "./marketTypes";
 export const TRADE_ARRIVAL_PROFIT_RATE = 0.08;
 /** Loss write-off: unlock this fraction of locked capital after bandit loss (rest is destroyed). */
 export const TRADE_LOSS_RECOVERY_RATE = 0.15;
+/** Most a new market's merchants take out of its towns' treasuries to start trading. */
+export const NEW_MARKET_TOWN_CAPITAL_SHARE = 0.5;
 
 const UNIT_EPSILON = 0.000001;
 
@@ -27,18 +30,41 @@ function emptyTreasury(): MarketTreasury {
   };
 }
 
+function memberBurgs(market: Market): Burg[] {
+  return (getWorldContext().pack.burgs ?? []).filter(burg => burg.i && !burg.removed && burg.market === market.i);
+}
+
 function burgTreasurySum(market: Market): number {
-  const burgs = getWorldContext().pack.burgs ?? [];
+  return memberBurgs(market).reduce((sum, burg) => sum + Math.max(0, burg.treasury ?? 0), 0);
+}
+
+/** Start-profile working cash for member towns that have none yet (world setup only). */
+function seedStartTreasuries(market: Market): number {
   const profile = getEconomyStartProfile(getWorldContext().options);
-  let sum = 0;
-  for (const burg of burgs) {
-    if (!burg.i || burg.removed || burg.market !== market.i) continue;
-    if (!burg.treasury) {
-      burg.treasury = rn((burg.population ?? 0) * profile.burgTreasuryPerPopulation, 2);
-    }
-    sum += Math.max(0, burg.treasury ?? 0);
+  for (const burg of memberBurgs(market)) {
+    if (!burg.treasury) burg.treasury = rn((burg.population ?? 0) * profile.burgTreasuryPerPopulation, 2);
   }
-  return sum;
+  return burgTreasurySum(market);
+}
+
+/**
+ * Moves up to `amount` out of the market's member towns' treasuries, pro rata, and returns what was
+ * moved. A market founded mid-game is capitalised by its own towns' merchants rather than from
+ * nothing (docs/plan/money-supply-mint.md §4.5).
+ */
+function drawFromMemberTreasuries(market: Market, amount: number): number {
+  const burgs = memberBurgs(market);
+  const total = burgTreasurySum(market);
+  if (!(amount > 0) || !(total > 0)) return 0;
+  const share = Math.min(1, amount / total);
+  let moved = 0;
+  for (const burg of burgs) {
+    const take = rn(Math.max(0, burg.treasury ?? 0) * share, 2);
+    if (!(take > 0)) continue;
+    burg.treasury = rn((burg.treasury ?? 0) - take, 2);
+    moved += take;
+  }
+  return rn(moved, 2);
 }
 
 function normalizeTreasury(treasury: MarketTreasury): MarketTreasury {
@@ -65,13 +91,30 @@ export class MerchantTradeCapitalModule {
     const [minimumTreasuryShare, maximumTreasuryShare] = profile.marketTreasuryShare;
     const [minimumTradeShare, maximumTradeShare] = profile.tradeCapitalShare;
     if (!market.marketTreasury) {
-      const sum = burgTreasurySum(market);
       const grainShare = minimumTreasuryShare + Math.random() * (maximumTreasuryShare - minimumTreasuryShare);
       const tradeShare = minimumTradeShare + Math.random() * (maximumTradeShare - minimumTradeShare);
+      if (!getMarkets().some(other => other !== market && other.marketTreasury)) {
+        // No market has cash yet: a world being set up, endowed from the start profile.
+        const sum = seedStartTreasuries(market);
+        market.marketTreasury = {
+          balance: rn(sum * grainShare, 2),
+          ruralGrainPayable: 0,
+          tradeWorkingCapital: rn(sum * tradeShare, 2),
+          tradeCapitalLocked: 0
+        };
+        return market.marketTreasury;
+      }
+      const sum = burgTreasurySum(market);
+      // The towns' own merchants put up the new market's cash and trading capital: at most half
+      // of what the towns hold, split in the start profile's proportions.
+      const wanted = sum * (grainShare + tradeShare);
+      const moved = drawFromMemberTreasuries(market, Math.min(wanted, sum * NEW_MARKET_TOWN_CAPITAL_SHARE));
+      const tradeFraction = grainShare + tradeShare > 0 ? tradeShare / (grainShare + tradeShare) : 0;
+      const tradeWorkingCapital = rn(moved * tradeFraction, 2);
       market.marketTreasury = {
-        balance: rn(sum * grainShare, 2),
+        balance: rn(moved - tradeWorkingCapital, 2),
         ruralGrainPayable: 0,
-        tradeWorkingCapital: rn(sum * tradeShare, 2),
+        tradeWorkingCapital,
         tradeCapitalLocked: 0
       };
       return market.marketTreasury;
@@ -79,11 +122,16 @@ export class MerchantTradeCapitalModule {
 
     const treasury = normalizeTreasury(market.marketTreasury);
     market.marketTreasury = treasury;
-    if (treasury.tradeWorkingCapital === undefined || treasury.tradeWorkingCapital <= 0) {
-      // Legacy saves / food-only bootstrap: invent trade capital from burg scale without debiting burgs.
-      const sum = burgTreasurySum(market);
+    if (!((treasury.tradeWorkingCapital ?? 0) > 0)) {
+      // Merchants whose trading capital ran out (losses, or a save from before Phase D) set aside
+      // part of the market's cash again; it used to be invented from the towns' scale each time.
       const tradeShare = minimumTradeShare + Math.random() * (maximumTradeShare - minimumTradeShare);
-      treasury.tradeWorkingCapital = rn(Math.max(sum * tradeShare, treasury.balance * 0.4), 2);
+      const moved = rn(
+        Math.min(Math.max(0, treasury.balance), Math.max(burgTreasurySum(market) * tradeShare, treasury.balance * 0.4)),
+        2
+      );
+      treasury.balance = rn(treasury.balance - moved, 2);
+      treasury.tradeWorkingCapital = moved;
       treasury.tradeCapitalLocked = treasury.tradeCapitalLocked ?? 0;
     }
     return treasury;

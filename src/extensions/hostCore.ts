@@ -26,7 +26,7 @@ export {
   getProvinceThreats,
   mergeFrontiers
 } from "../generators/frontierAnalysis";
-export { advanceFrontierGovernance } from "../generators/frontierGovernance";
+export { advanceFrontierGovernance, setFrontierSpendingPayee } from "../generators/frontierGovernance";
 export {
   FUNERAL_DEMAND_EVENT,
   takePendingFuneralMaterials

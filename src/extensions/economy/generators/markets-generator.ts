@@ -47,7 +47,7 @@ import {
   recipesForIndustrialDemand
 } from "./craftDemandCalibration";
 import { laborPeople } from "./craftScale";
-import { getMoneyPriceLevelForMarket } from "./currencySufficiency";
+import { getMarketPriceLevel, getMoneyPriceLevelForMarket } from "./currencySufficiency";
 import { ExportStaging } from "./exportStaging";
 import {
   recordCellFoodHouseholdConsumption,
@@ -501,6 +501,10 @@ export class MarketsModule {
     const cost = rn(units * price, 2);
     marketGood.stock = rn(Math.max(0, marketGood.stock - units), 4);
     recordGoodFlow({ direction: "sink", category: "marketInvestment", goodId, units, marketId });
+    // The market sold the goods: the buyer's money reaches its cash (docs/plan/money-supply-mint.md §4.2).
+    const treasury = market.marketTreasury ?? { balance: 0, ruralGrainPayable: 0 };
+    treasury.balance = rn(treasury.balance + cost, 2);
+    market.marketTreasury = treasury;
     return { units, cost };
   }
 
@@ -1399,6 +1403,9 @@ export class MarketsModule {
 
     for (const market of getMarkets()) {
       const population = populationByMarket[market.i] || 0;
+      // Money-supply price level (docs/plan/money-supply-mint.md §4.3): the value every price and
+      // price band is reckoned from. 1 when the setting is off.
+      const priceLevel = getMarketPriceLevel(market);
 
       // First pass: raw goods - price from demand/supply ratio
       for (const good of goods) {
@@ -1417,13 +1424,14 @@ export class MarketsModule {
             marketGood.price
           ) + (mineOrFurnaceGood ? (metalDemandByMarket.get(market.i)?.get(good.i) ?? 0) : 0);
         const ratio = (demand + LAPLACE_PRICE_SMOOTHING) / (marketGood.stock + LAPLACE_PRICE_SMOOTHING);
-        const targetPrice = good.value * minmax(ratio, PRICE_FLOOR_FACTOR, PRICE_CEILING_FACTOR);
-        const prevPrice = marketGood.price > 0 ? marketGood.price : good.value;
+        const baseValue = good.value * priceLevel;
+        const targetPrice = baseValue * minmax(ratio, PRICE_FLOOR_FACTOR, PRICE_CEILING_FACTOR);
+        const prevPrice = marketGood.price > 0 ? marketGood.price : baseValue;
         marketGood.price = relaxMarketPrice(
           prevPrice,
           targetPrice,
-          good.value * PRICE_FLOOR_FACTOR,
-          good.value * PRICE_CEILING_FACTOR
+          baseValue * PRICE_FLOOR_FACTOR,
+          baseValue * PRICE_CEILING_FACTOR
         );
       }
 
@@ -1452,7 +1460,7 @@ export class MarketsModule {
         marketGood.costBasis = rn(avgMarketCost, 2);
 
         const avgBaseCost = avgIngredientsCostByGood[good.i] ?? 0;
-        const baseMarkup = Math.max(0, good.value - avgBaseCost);
+        const baseMarkup = Math.max(0, good.value - avgBaseCost) * priceLevel;
 
         const consumerDemand = consumerDemandFactors[good.i] || 0;
         const industrialDemand = industrialDemandFactors[good.i] || 0;
@@ -1468,13 +1476,14 @@ export class MarketsModule {
         const demandMarkup = baseMarkup * minmax(supplyRatio, PRICE_FLOOR_FACTOR, PRICE_CEILING_FACTOR);
 
         const demandPrice = avgMarketCost + demandMarkup;
-        const targetPrice = minmax(demandPrice, good.value * PRICE_FLOOR_FACTOR, good.value * PRICE_CEILING_FACTOR);
-        const prevPrice = marketGood.price > 0 ? marketGood.price : good.value;
+        const baseValue = good.value * priceLevel;
+        const targetPrice = minmax(demandPrice, baseValue * PRICE_FLOOR_FACTOR, baseValue * PRICE_CEILING_FACTOR);
+        const prevPrice = marketGood.price > 0 ? marketGood.price : baseValue;
         marketGood.price = relaxMarketPrice(
           prevPrice,
           targetPrice,
-          good.value * PRICE_FLOOR_FACTOR,
-          good.value * PRICE_CEILING_FACTOR
+          baseValue * PRICE_FLOOR_FACTOR,
+          baseValue * PRICE_CEILING_FACTOR
         );
       }
     }
@@ -1495,6 +1504,7 @@ export class MarketsModule {
   private applyLocalTradePriceBias(populationByMarket: number[]): void {
     for (const market of getMarkets()) {
       const population = populationByMarket[market.i] || 0;
+      const priceLevel = getMarketPriceLevel(market);
       for (const good of getGoods().filter(isGoodEnabled)) {
         if (good.tags.includes("stapleFood")) continue;
         const marketGood = this.getMarketGood(market, good);
@@ -1504,8 +1514,9 @@ export class MarketsModule {
           stock: marketGood.stock,
           population
         });
+        const baseValue = good.value * priceLevel;
         marketGood.price = rn(
-          minmax(good.value * PRICE_FLOOR_FACTOR, marketGood.price * multiplier, good.value * PRICE_CEILING_FACTOR),
+          minmax(baseValue * PRICE_FLOOR_FACTOR, marketGood.price * multiplier, baseValue * PRICE_CEILING_FACTOR),
           2
         );
       }
@@ -1515,7 +1526,8 @@ export class MarketsModule {
   /**
    * L7: scale every non-staple mid-price by the state's mint sufficiency. Missing ledgers and
    * the 6–12 month band are a no-op (`getMoneyPriceLevel` = 1), so existing tests and a healthy
-   * mint do not move. stapleFood stays on the food-ledger grain price.
+   * mint do not move. stapleFood stays on the food-ledger grain price. Under the money-supply
+   * model the level is already in each good's base value above, so this is a no-op.
    */
   private applyMoneySupplyPriceLevel(): void {
     for (const market of getMarkets()) {

@@ -16,6 +16,8 @@ import {
   getTradeCorridors
 } from "../../src/extensions/economy/context/trade";
 import { getGuildChapters, getGuildKnowledgeStocks } from "../../src/extensions/economy/context/knowledge";
+import { getMintLedgers } from "../../src/extensions/economy/context/fiscal";
+import { getStateMoneyStocks } from "../../src/extensions/economy/generators/stateMoneySupply";
 import { getBurgMarketLedgers } from "../../src/extensions/economy/context/trade";
 import { getGoodCargoSlotsPerUnit } from "../../src/extensions/economy/generators/tradeCargo";
 import { getCharacters } from "../../src/extensions/characters/charactersContext";
@@ -293,15 +295,31 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
   function wealth() {
     const { pack } = getWorld();
     const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
+    // Money supply per State (docs/plan/money-supply-mint.md §7.1): real money where it is held,
+    // the mint's issue and the price level.
+    const moneyStocks = economy() ? getStateMoneyStocks() : new Map();
+    const mints = economy() ? new Map(getMintLedgers().map(l => [l.stateId, l])) : new Map();
     const states = pack.states
       .filter(st => st?.i && !st.removed)
-      .map(st => ({
-        id: st.i,
-        pop: r3((st.urban ?? 0) + (st.rural ?? 0)),
-        treasury: r3(st.treasury ?? 0),
-        purse: r3(st.householdPurse ?? 0),
-        departments: r3(sum(Object.values(st.departmentBalances ?? {}).map(Number).filter(Number.isFinite)))
-      }));
+      .map(st => {
+        const stock = moneyStocks.get(st.i);
+        const mint = mints.get(st.i);
+        return {
+          id: st.i,
+          pop: r3((st.urban ?? 0) + (st.rural ?? 0)),
+          livePop: r3(stock?.population ?? 0),
+          treasury: r3(st.treasury ?? 0),
+          purse: r3(st.householdPurse ?? 0),
+          departments: r3(sum(Object.values(st.departmentBalances ?? {}).map(Number).filter(Number.isFinite))),
+          money: r3(stock?.money ?? 0),
+          currencyDemand: r3(mint?.currencyDemand ?? 0),
+          circulation: r3(mint?.circulation ?? 0),
+          minted: r3(mint?.lastMintedValue ?? 0),
+          totalMinted: r3(mint?.totalMintedValue ?? 0),
+          wear: r3(mint?.lastWear ?? 0),
+          priceLevel: r3(mint?.priceLevel ?? 1)
+        };
+      });
     const ledgers = economy() ? new Map(getBurgMarketLedgers().map(l => [l.burgId, l])) : new Map();
     const guilds = new Map<number, number>();
     if (economy()) {

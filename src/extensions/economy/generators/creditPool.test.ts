@@ -103,4 +103,28 @@ describe("creditPool (PR-9)", () => {
     expect(result.toManager).toBeGreaterThan(0);
     expect(manager.wealth).toBeGreaterThan(1);
   });
+
+  it("moves the coin through the capital market's cash: payments land there, loans need it", () => {
+    const state = { i: 1, capital: 1, creditPoolBalance: 100 } as unknown as State;
+    worldContext.pack = {
+      states: [undefined, state],
+      burgs: [undefined, { i: 1, treasury: 0, removed: false } as Burg]
+    } as unknown as PackedGraph;
+    const market = {
+      i: 1,
+      centerBurgId: 1,
+      color: "#fff",
+      goods: {},
+      marketTreasury: { balance: 10, ruralGrainPayable: 0 }
+    } as Market;
+    setMarkets([market]);
+
+    payToCreditPool(state, 5);
+    expect(market.marketTreasury?.balance).toBe(15);
+
+    const loan = lendFromCreditPool(state, 50);
+    expect(loan.lent).toBe(15);
+    expect(market.marketTreasury?.balance).toBe(0);
+    expect(state.creditPoolBalance).toBe(90);
+  });
 });

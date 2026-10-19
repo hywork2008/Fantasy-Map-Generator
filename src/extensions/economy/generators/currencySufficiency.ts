@@ -7,10 +7,48 @@
  * calibration is unchanged. docs/plan/economy-coupling-audit.md L7.
  */
 
+import { pow } from "../../../simulation/deterministicMath";
+import { worldSettings } from "../../../simulation/worldSettings";
 import { minmax } from "../../hostUtils";
 import { getMintLedgers, getWorldContext, isEconomyContextReady } from "../economyContext";
 import type { Market } from "./marketTypes";
 import type { MintLedger } from "./mintingTypes";
+
+export const MONEY_SUPPLY_SETTING = "fmg-money-supply";
+
+/**
+ * "on": the mint pays for bullion with new coin, `circulation` is the State's real money, coin
+ * wears away and a smoothed price level follows the money stock (docs/plan/money-supply-mint.md
+ * §4.1–§4.3). Anything else keeps the ledger-only mint and the 0.85–1.15 price band below.
+ */
+export function isMoneySupplyEnabled(): boolean {
+  try {
+    return worldSettings.getItem(MONEY_SUPPLY_SETTING) === "on";
+  } catch {
+    return false;
+  }
+}
+
+/** Price level range under the money-supply model (§4.3): wide enough for a bullion famine's deflation. */
+export const PRICE_LEVEL_MIN = 0.5;
+export const PRICE_LEVEL_MAX = 1.5;
+/** Share of money sufficiency that reaches prices; the rest is absorbed by velocity and credit. */
+export const PRICE_LEVEL_ELASTICITY = 0.5;
+/** Monthly share of the gap to the target price level closed (prices follow over years). */
+export const PRICE_LEVEL_MONTHLY_ADJUSTMENT = 0.02;
+
+/** Price level the money stock points to: sufficiency^elasticity, clamped (§4.3). */
+export function getTargetPriceLevel(sufficiency: number): number {
+  if (!Number.isFinite(sufficiency)) return 1;
+  return minmax(pow(Math.max(0, sufficiency), PRICE_LEVEL_ELASTICITY), PRICE_LEVEL_MIN, PRICE_LEVEL_MAX);
+}
+
+/** One month's move of the price level toward its target. */
+export function stepPriceLevel(current: number | undefined, sufficiency: number): number {
+  const level = Number.isFinite(current) && (current as number) > 0 ? (current as number) : 1;
+  const next = level + (getTargetPriceLevel(sufficiency) - level) * PRICE_LEVEL_MONTHLY_ADJUSTMENT;
+  return minmax(next, PRICE_LEVEL_MIN, PRICE_LEVEL_MAX);
+}
 
 /** Months of `currencyDemand` the mint treats as a full circulating stock. */
 export const TARGET_MONTHS_OF_CURRENCY = 12;
@@ -78,8 +116,20 @@ export function getMintLedgerForMarket(market: Pick<Market, "centerBurgId">): Mi
   return getMintLedgers().find(ledger => ledger.stateId === stateId);
 }
 
+/** Legacy L7 multiplier applied on top of market prices; 1 under the money-supply model. */
 export function getMoneyPriceLevelForMarket(market: Pick<Market, "centerBurgId">): number {
+  if (isMoneySupplyEnabled()) return 1;
   return getMoneyPriceLevel(getCurrencySufficiency(getMintLedgerForMarket(market)));
+}
+
+/**
+ * The smoothed price level `P` of the market's State under the money-supply model (§4.3): the
+ * base that goods' values and the staple price are multiplied by. 1 when the setting is off.
+ */
+export function getMarketPriceLevel(market: Pick<Market, "centerBurgId">): number {
+  if (!isMoneySupplyEnabled()) return 1;
+  const level = getMintLedgerForMarket(market)?.priceLevel;
+  return Number.isFinite(level) && (level as number) > 0 ? (level as number) : 1;
 }
 
 export function getMoneyTradeCapacityFactorForMarket(market: Pick<Market, "centerBurgId">): number {

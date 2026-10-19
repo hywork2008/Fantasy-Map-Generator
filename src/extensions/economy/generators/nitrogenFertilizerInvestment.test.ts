@@ -53,7 +53,7 @@ describe("NitrogenFertilizerInvestmentModule", () => {
 
   afterEach(() => clearEconomyContext());
 
-  it("spends market treasury on available Nitrogen Fertilizer stock and raises nitrogenFertilizerStock", () => {
+  it("draws the market's own Nitrogen Fertilizer stock (its cash stays in the economy) and raises nitrogenFertilizerStock", () => {
     setMarkets([
       {
         i: 1,
@@ -70,7 +70,8 @@ describe("NitrogenFertilizerInvestmentModule", () => {
     const market = getMarkets()[0];
     expect(market.nitrogenFertilizerStock).toBeGreaterThan(0);
     expect(market.nitrogenFertilizerStock).toBeLessThanOrEqual(NITROGEN_FERTILIZER_ADOPTION_RATE + 1e-6);
-    expect(market.marketTreasury?.balance).toBeLessThan(1000);
+    // The market buys from its own stock: the price it pays comes back to its own cash.
+    expect(market.marketTreasury?.balance).toBe(1000);
     expect(market.goods[FERTILIZER_ID].stock).toBeLessThan(100);
   });
 

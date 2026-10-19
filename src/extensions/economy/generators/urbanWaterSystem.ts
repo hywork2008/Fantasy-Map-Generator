@@ -33,6 +33,7 @@ import {
   setUrbanWaterSystems
 } from "../economyContext";
 import { getAcademyBonus } from "./academyKnowledge";
+import { debitHouseholdWealth } from "./burgMarketLedgers";
 import { electricityCoverageForMarket } from "./chemMedCommon";
 import { computeNaturalFloodRisk } from "./floodHazard";
 import { getComfortableTreasuryLevel } from "./guildTreasury";
@@ -89,6 +90,7 @@ import {
   MAX_INVESTABLE_TIER,
   ORGANIC_WASTE_ROUTES
 } from "./urbanWaterTypes";
+import { payBurgWorks } from "./worksPayments";
 
 export type { RiverBasinKind, WaterEffluentDestination } from "./urbanWaterClimate";
 export { maxInvestableTier, waterTechCeilings } from "./urbanWaterTech";
@@ -1686,11 +1688,13 @@ export function settleBurgWaterInvestment(args: {
     wastewaterTreatmentTier: system.wastewaterTreatmentTier ?? 0
   });
 
-  const taxRevenue = cleaningTaxRevenue({
+  const assessedCleaningTax = cleaningTaxRevenue({
     cleaningTaxRate: institutions.cleaningTaxRate,
     people,
     product: burg.product ?? 0
   });
+  // The cleaning tax is paid by the town's households; it used to be credited from nowhere.
+  const taxRevenue = debitHouseholdWealth(burg.i, assessedCleaningTax);
   if (taxRevenue > 0) burg.treasury = rn((burg.treasury ?? 0) + taxRevenue, 2);
 
   // ── Maintenance (separate budget from construction; can use cleaning tax) ─
@@ -1704,7 +1708,10 @@ export function settleBurgWaterInvestment(args: {
   const cushion = getComfortableTreasuryLevel(burg) * 0.15;
   const maintBudget = Math.max(0, Math.min(liquid - cushion, liquid * WATER_MAINTENANCE_BUDGET_SHARE + taxRevenue));
   const maintSpend = rn(Math.min(maintBudget, needed), 2);
-  if (maintSpend > 0) burg.treasury = rn((burg.treasury ?? 0) - maintSpend, 2);
+  if (maintSpend > 0) {
+    burg.treasury = rn((burg.treasury ?? 0) - maintSpend, 2);
+    payBurgWorks(burg, maintSpend);
+  }
   const coverage = needed > 0 ? clamp01(maintSpend / needed) : 1;
 
   const { maintenanceCondition, clogging } = applyMaintenanceYear({
@@ -1820,7 +1827,10 @@ export function settleBurgWaterInvestment(args: {
     upgradeProgress = clamp01(upgradeProgress + yearProgress * urgencyBoost);
 
     constructionSpend = rn(cashSpend + materialSpend, 2);
-    if (cashSpend > 0) burg.treasury = rn((burg.treasury ?? 0) - cashSpend, 2);
+    // Materials are bought at the town's market (the market's cash takes the price); the cash
+    // share pays the town's labourers and suppliers (docs/plan/money-supply-mint.md §4.2).
+    if (constructionSpend > 0) burg.treasury = rn((burg.treasury ?? 0) - constructionSpend, 2);
+    if (cashSpend > 0) payBurgWorks(burg, cashSpend);
 
     if (upgradeProgress >= 0.999) {
       const target = targetTierForProject(activeProject);

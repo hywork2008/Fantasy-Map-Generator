@@ -21,7 +21,9 @@ export const WORLD_SETTING_KEYS = [
   /** Trade logistics: load targets, maximum waiting days, sailing days. */
   "fmg-trade-logistics-settings",
   /** "on": town luxury demand by budget and price tier (docs/plan/luxury-value-demand.md §3). */
-  "fmg-luxury-value-demand"
+  "fmg-luxury-value-demand",
+  /** "on": the mint issues real coin and prices follow the money stock (docs/plan/money-supply-mint.md §4.1, §4.3). */
+  "fmg-money-supply"
 ] as const;
 
 export type WorldSettingKey = (typeof WORLD_SETTING_KEYS)[number];

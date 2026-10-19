@@ -26,6 +26,7 @@ import { getStateMilitaryUpkeep } from "./militaryLogistics";
 import { nominal } from "./moneyScale";
 import { applyFormRevenueMix } from "./revenueMix";
 import { recordStateFiscalReport } from "./stateFiscalReport";
+import { getStateMoneyStocks } from "./stateMoneySupply";
 import { applyTradeSanctionToIncome, refreshTradeSanctions } from "./tradeSanctions";
 import { allocateTreasury, payMilitaryUpkeep } from "./treasuryAllocation";
 import { applyWarFootingPoliticalCost, syncWarFootingFromDiplomacy } from "./warFooting";
@@ -87,6 +88,12 @@ const STEWARDSHIP_TAX_EFFICIENCY_PENALTY_MAX = 0.15;
  */
 const STATE_RESERVE_YEARS = 2;
 const STATE_SURPLUS_SPEND_SHARE = 0.25;
+/**
+ * A State's reserve never exceeds this share of the money held inside it. The population-based
+ * floor rose with every new head while the money stock shrank, so the treasury came to hold three
+ * quarters of all coin and spent none of it (docs/plan/money-supply-mint.md §4.4).
+ */
+export const STATE_RESERVE_MONEY_SHARE_CAP = 0.3;
 
 const _voyageIncomeByState = new Map<number, number>();
 // Procurement spends between fold-ins must be buffered here and folded into the next
@@ -199,6 +206,7 @@ export class TaxesModule {
       }
     }
 
+    const moneyStocks = getStateMoneyStocks();
     for (const state of states) {
       if (!state.i) continue;
       const voyageIncome = _voyageIncomeByState.get(state.i) ?? 0;
@@ -347,18 +355,24 @@ export class TaxesModule {
       // Above its reserve a State spends: public works, court and garrison payroll in its towns.
       const cycleIncome =
         rawDomesticIncome + (salesTaxByState.get(state.i) ?? 0) + (importDutyByState.get(state.i) ?? 0);
-      const reserveTarget = Math.max(
-        cycleIncome * CYCLES_PER_YEAR * STATE_RESERVE_YEARS,
-        ((state.urban || 0) + (state.rural || 0)) * profile.stateTreasuryPerPopulation
+      const stateMoney = moneyStocks.get(state.i)?.money;
+      const reserveTarget = Math.min(
+        Math.max(
+          cycleIncome * CYCLES_PER_YEAR * STATE_RESERVE_YEARS,
+          ((state.urban || 0) + (state.rural || 0)) * profile.stateTreasuryPerPopulation
+        ),
+        stateMoney === undefined ? Infinity : stateMoney * STATE_RESERVE_MONEY_SHARE_CAP
       );
       const surplus = Math.max(0, (state.treasury || 0) - reserveTarget);
       let publicSpending = 0;
       if (surplus > 0) {
         const spend = rn(surplus * STATE_SURPLUS_SPEND_SHARE, 2);
-        if (payStateHouseholds(state.i, spend) > 0) {
-          state.treasury = rn((state.treasury || 0) - spend, 2);
-          publicSpending = spend;
-        }
+        measureTickStep("taxes:publicSpending", () => {
+          if (payStateHouseholds(state.i, spend) > 0) {
+            state.treasury = rn((state.treasury || 0) - spend, 2);
+            publicSpending = spend;
+          }
+        });
       }
 
       const openingTreasury = openingTreasuryByState.get(state.i) ?? 0;

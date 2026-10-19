@@ -10,6 +10,8 @@
  *
  * --timeline   continue (default) replays the saved RNG; new starts a fresh timeline from the seed.
  * --settings   JSON object of simulation settings (localStorage keys), for keys the .fmg does not carry.
+ * --world-setting key=value   set a world setting (simulation/worldSettings.ts) on the loaded world,
+ *              e.g. fmg-money-supply=on; repeatable. Unlike --settings it overrides the .fmg's value.
  * --hash       print the golden digest of the result (same hash as `npm run test:sim-golden`).
  * --sample-every-months N   advance in N-month strides and append an observatory sample per stride
  *              to --samples (docs/plan/approach-traffic-observatory.md §6); same strides as sim:server.
@@ -21,6 +23,7 @@ import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { BUILTIN_SIMULATION_EXTENSION_IDS, createNodeSimulationHost } from "../src/simulation/adapters/node";
 import { hashArchiveBytes } from "../src/simulation/goldenHash";
+import { WORLD_SETTING_KEYS } from "../src/simulation/worldSettings";
 import { setTickStepObserver } from "../src/generators/tickProfiler";
 import { advanceSampled, createMoneyFlowRecorder, createObserveViews, parseDetails } from "./lib/observeViews.mts";
 
@@ -36,6 +39,7 @@ function parseArgs(argv: string[]) {
     extensions: BUILTIN_SIMULATION_EXTENSION_IDS,
     timeline: "continue" as "continue" | "new",
     settings: undefined as Record<string, string> | undefined,
+    worldSettings: {} as Record<string, string>,
     hash: false,
     sampleEveryMonths: 0,
     samples: undefined as string | undefined,
@@ -65,7 +69,12 @@ function parseArgs(argv: string[]) {
       if (mode !== "continue" && mode !== "new") throw new Error("--timeline must be continue or new");
       options.timeline = mode;
     } else if (arg === "--settings") options.settings = JSON.parse(readFileSync(resolve(value(arg)), "utf8"));
-    else if (arg === "--hash") options.hash = true;
+    else if (arg === "--world-setting") {
+      const [key, ...rest] = value(arg).split("=");
+      if (!(WORLD_SETTING_KEYS as readonly string[]).includes(key) || !rest.length)
+        throw new Error(`--world-setting must be key=value with key in ${WORLD_SETTING_KEYS.join(", ")}`);
+      options.worldSettings[key] = rest.join("=");
+    } else if (arg === "--hash") options.hash = true;
     else if (arg === "--sample-every-months") options.sampleEveryMonths = count(arg);
     else if (arg === "--samples") options.samples = resolve(value(arg));
     else if (arg === "--sample-detail") options.sampleDetail = value(arg);
@@ -89,6 +98,11 @@ async function main() {
   await host.loadArchive(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength), {
     timeline: { mode: options.timeline }
   });
+  if (Object.keys(options.worldSettings).length)
+    (host.simulation as { worldSettings?: Record<string, string> }).worldSettings = {
+      ...(host.simulation.worldSettings ?? {}),
+      ...options.worldSettings
+    };
   await host.prepare();
   const date = () => `${host.simulation.currentYear}-${host.simulation.currentMonth}-${host.simulation.currentDay}`;
   log(`loaded ${options.input} (${options.extensions.join(", ") || "core only"}) at ${date()} in ${ms(started)}`);

@@ -9,6 +9,7 @@ import {
   getWorldContext
 } from "../economyContext";
 import { debitHouseholdWealth, getHouseholdWealth } from "./burgMarketLedgers";
+import { getMarketPriceLevel } from "./currencySufficiency";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import { BURG_TARGET_RESERVE_DAYS, getStapleFoodGood } from "./foodProduction";
 import { creditRuralHouseholdWealth, debitRuralHouseholdWealth } from "./householdWealth";
@@ -240,7 +241,8 @@ export function settleMonthlyFoodConsumption(settlementMonth = getSimulationMont
       temporaryLodgersByBurg,
       populationRate,
       urbanization,
-      settlementMonth
+      settlementMonth,
+      getMarketPriceLevel(market)
     );
 
     for (const burg of marketBurgs) {
@@ -321,10 +323,13 @@ function settleGrainPrice(
   temporaryLodgersByBurg: ReadonlyMap<number, number>,
   populationRate: number,
   urbanization: number,
-  simulationMonth: number
+  simulationMonth: number,
+  priceLevel = 1
 ): number {
   const stapleFoodGood = getStapleFoodGood();
-  const basePrice = stapleFoodGood?.value ?? 1;
+  // The staple's base price follows the money-supply price level, so the living wage (set by the
+  // staple price) and food costs move together (docs/plan/money-supply-mint.md §4.3).
+  const basePrice = (stapleFoodGood?.value ?? 1) * priceLevel;
   const currentStock = ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2 + (ledger.foodStockAge3 ?? 0);
 
   const urbanPopulation = marketBurgs.reduce(

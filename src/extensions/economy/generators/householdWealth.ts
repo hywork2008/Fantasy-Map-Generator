@@ -257,7 +257,9 @@ export function payStateHouseholds(stateId: number, amount: number): number {
   const townWeight = (burg: Burg) =>
     Math.max(0, burg.population ?? 0) * (burg.i === capitalId ? CAPITAL_PAYROLL_WEIGHT : 1);
   const townTotal = burgs.reduce((sum, burg) => sum + townWeight(burg), 0);
+  // A market founded this cycle has no farm purse yet; paying its share there lost the money.
   const ruralByMarket = getMarkets()
+    .filter(market => market.foodLedger)
     .map(market => ({ market, rural: getStateRuralPopulation(stateId, market) }))
     .filter(entry => entry.rural > 0);
   const ruralTotal = ruralByMarket.reduce((sum, entry) => sum + entry.rural, 0);

@@ -15,7 +15,12 @@ import { isTrueOceanHarborCell, isTrueOceanPortBurg } from "../utils/oceanPort";
 import type { RNGService } from "../utils/probabilityUtils";
 import { getCellPrecipitation, getCellWaterAccess } from "./cellWaterAccess";
 import { FRONTIER_OUTPOST_MAX_DANGER } from "./dangerExpandPolicy";
-import { assessFrontierSupport, getFrontierGovernance, statusForProject } from "./frontierGovernance";
+import {
+  assessFrontierSupport,
+  getFrontierGovernance,
+  spendFrontierTreasury,
+  statusForProject
+} from "./frontierGovernance";
 import { type FrontierIncorporation, incorporateEligibleFrontierSettlements } from "./frontierIncorporation";
 import { requestFrontierLandUse } from "./landUse";
 import { getCellSubsistenceCapacity } from "./subsistenceCapacity";
@@ -311,7 +316,7 @@ export function advanceFrontierExpansion(input: FrontierExpansionInput): Frontie
       const colonists = transferColonists(cells, candidate, frontier, state.i);
       if (colonists < MIN_COLONISTS) break;
 
-      state.treasury = Math.max(0, (state.treasury ?? 0) - money(input.world, SETUP_COST));
+      spendFrontierTreasury(state, money(input.world, SETUP_COST));
       consumeFood(state, SETUP_FOOD);
       frontier.cellStages[candidate.cellId] = FRONTIER_STAGE.outpost;
       frontier.projects[candidate.cellId] = {
@@ -366,7 +371,7 @@ function fundSeaborneBeachheadSupply(
   const priorBudget = resolvedFrontierBudget(frontier, stateId, state.treasury);
   if (priorBudget < money(input.world, TREASURY_RESERVE + SETUP_COST + SEABORNE_SUPPLY_COST)) return false;
 
-  state.treasury = Math.max(0, (state.treasury ?? 0) - money(input.world, SEABORNE_SUPPLY_COST));
+  spendFrontierTreasury(state, money(input.world, SEABORNE_SUPPLY_COST));
   consumeFood(state, SEABORNE_SUPPLY_FOOD);
   addFrontierApplicants(frontier, stateId, SEABORNE_SUPPLY_COLONISTS / 2, SEABORNE_SUPPLY_COLONISTS / 2);
   return true;
@@ -401,7 +406,7 @@ function fundFrontierRecruitment(
   const priorBudget = resolvedFrontierBudget(frontier, stateId, state.treasury);
   if (priorBudget < money(input.world, TREASURY_RESERVE + SETUP_COST) + cost) return false;
 
-  state.treasury = Math.max(0, (state.treasury ?? 0) - cost);
+  spendFrontierTreasury(state, cost);
   consumeFood(state, food);
   addFrontierApplicants(frontier, stateId, colonists / 2, colonists / 2);
   return true;
@@ -431,7 +436,7 @@ function advanceProject(
 
   // The assessment has already accounted for infrastructure discounts and a
   // disaster's one-off recovery. The state remains the only treasury owner.
-  state!.treasury = Math.max(0, (state!.treasury ?? 0) - assessment.upkeep - assessment.recoveryCost);
+  spendFrontierTreasury(state!, assessment.upkeep + assessment.recoveryCost);
   if (assessment.recoveryCost) {
     getFrontierGovernance(input.simulation, project.stateId).reliefSpent += assessment.recoveryCost;
   }

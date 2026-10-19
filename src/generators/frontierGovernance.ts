@@ -14,6 +14,28 @@ import { getCellPrecipitation, getCellWaterAccess, getWellCapacityBonus } from "
 import { getCellSubsistenceCapacity } from "./subsistenceCapacity";
 
 const INVESTMENT_COST = 6;
+
+/** Pays public money to a State's own people; returns the amount placed. */
+export type FrontierSpendingPayee = (stateId: number, amount: number) => number;
+let spendingPayee: FrontierSpendingPayee | null = null;
+
+/**
+ * Lets the Economy extension receive what frontier works and settlement cost: wages for the
+ * labourers, carters and garrison, and the grain and timber bought for the settlers
+ * (docs/plan/money-supply-mint.md §4.2). Without a payee the money leaves the economy, as before.
+ */
+export function setFrontierSpendingPayee(payee: FrontierSpendingPayee | null): void {
+  spendingPayee = payee;
+}
+
+/** Takes up to `amount` from the treasury and pays it to the State's people. Returns what was spent. */
+export function spendFrontierTreasury(state: { i: number; treasury?: number }, amount: number): number {
+  const before = state.treasury ?? 0;
+  state.treasury = Math.max(0, before - Math.max(0, amount));
+  const spent = Math.max(0, before - state.treasury);
+  if (spent > 0) spendingPayee?.(state.i, spent);
+  return spent;
+}
 const EMERGENCY_RELIEF_COST = 3;
 
 export interface FrontierSupportAssessment {
@@ -75,7 +97,7 @@ export function advanceFrontierGovernance(
       const currentLevel = governance.investments[investment] ?? 0;
       const cost = k * Math.min(80, INVESTMENT_COST * (1 + currentLevel * 2));
       if ((state.treasury ?? 0) >= cost + 12 * k) {
-        state.treasury = Math.max(0, (state.treasury ?? 0) - cost);
+        spendFrontierTreasury(state, cost);
         governance.investments[investment]++;
       }
     }
@@ -86,7 +108,7 @@ export function advanceFrontierGovernance(
         const secondLevel = governance.investments[secondInvestment] ?? 0;
         const secondCost = k * Math.min(80, INVESTMENT_COST * (1 + secondLevel * 2));
         if ((state.treasury ?? 0) >= secondCost + 50 * k) {
-          state.treasury = Math.max(0, (state.treasury ?? 0) - secondCost);
+          spendFrontierTreasury(state, secondCost);
           governance.investments[secondInvestment]++;
         }
       }
