@@ -70,7 +70,7 @@ export function packPerimeter(block: Point[], fronts: Front[], options: Frontage
     for (const lot of lots) {
       const draw = rng();
       if (draw >= options.occupancy) continue;
-      const house = houseFootprint(lot, fronts);
+      const house = houseFootprint(lot, fronts, frame.axis);
       if (house.length < 4 || area(house) < 12) continue;
       const center = polygonCentroid(house);
       // Numerical clearance only; no geometric area is intentionally removed.
@@ -112,7 +112,7 @@ function hasFrontage(poly: Point[], fronts: Front[]): boolean {
 
 function rowQuality(poly: Point[], axis: Point, fronts: Front[]): number {
   if (poly.length < 3 || area(poly) < 12) return 0;
-  const house = houseFootprint(poly, fronts);
+  const house = houseFootprint(poly, fronts, axis);
   if (house.length < 4 || area(house) < 12 || area(house) < area(poly) * 0.45) return 0;
   const normal: Point = [-axis[1], axis[0]];
   const xs = house.map(p => dot(p, axis)),

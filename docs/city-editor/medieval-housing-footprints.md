@@ -31,6 +31,13 @@ for all medieval Europe, nor a historical numerical angle or aspect-ratio rule.
   The ridge joins the midpoints of opposing end walls and is shortened for hips.
   This closes trapezoidal gables without independently projected, mismatched
   ridge subdivisions. Roof rise remains capped at 4 m for ordinary houses.
+- Shallow kinks on a five-or-more-sided parcel are replaced by internal chords
+  before deciding whether it is a usable quadrilateral. Boundary movement is
+  limited to 0.25 m, the direction change to 20 degrees, and total area loss to
+  2%. Shared row cuts remain unchanged. This avoids rotating one house because
+  a street bend introduces a tiny fifth edge (the shared city cell f48 case).
+- Rectangle fallback also receives the row axis and favours matching wall
+  directions when choosing between usable street-aligned candidates.
 - A bevelled, acute or excessively elongated parcel is fitted with a rectangle
   on one of its actual street edges. Independent end trims maximize usable
   floor area. The search is bounded and deterministic, independent of occupancy.
@@ -62,3 +69,7 @@ The oblique-block regression checks that both formerly empty long-side corners
 are occupied, while the triangular-block regression still leaves its pointed tip
 open. Skewed gable, hip and pyramid meshes are checked with rotated/reversed
 footprints and jettied upper floors.
+
+The three kinked parcels around shared city cell f48 are regression fixtures.
+They retain their shared row cuts and more than 98% of their area, remain inside
+their original parcels, and produce closed roofs with reversed/rotated input.

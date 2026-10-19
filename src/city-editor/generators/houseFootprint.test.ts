@@ -44,6 +44,62 @@ describe("roofable town house footprints", () => {
     }
   });
 
+  it("keeps the shared row cuts on the three kinked parcels around shared city cell f48", () => {
+    const parcels: Point[][] = [
+      [
+        [-195.9662732635671, 6.3708397566269195],
+        [-196.06528779329722, 5.271863055440322],
+        [-195.99576704016042, 2.0015228563007392],
+        [-190.44120888451917, 1.1993511255328313],
+        [-189.8224948584168, 5.483574699961949]
+      ],
+      [
+        [-165.6358043711881, 28.286399966980927],
+        [-165.63048699951972, 28.309371833349324],
+        [-165.74304834395218, 32.771493199625475],
+        [-171.52904013868275, 33.80666951137992],
+        [-172.30325693512987, 29.47927911351286]
+      ],
+      [
+        [-193.52844907578668, 32.229952781989695],
+        [-193.7182753598963, 31.321696233795592],
+        [-194.04092934811322, 27.740512577600377],
+        [-188.67410260040853, 26.780329411842402],
+        [-187.87991067387742, 31.21936836411738]
+      ]
+    ];
+    for (const source of parcels) {
+      for (const reverse of [false, true]) {
+        const rotate = ([x, y]: Point): Point => [
+          x * Math.cos(0.63) - y * Math.sin(0.63),
+          x * Math.sin(0.63) + y * Math.cos(0.63)
+        ];
+        const transformed = source.map(rotate);
+        const lot = reverse ? [...transformed].reverse() : transformed;
+        const a = transformed[2],
+          b = transformed[3];
+        const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        const rowAxis: Point = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
+        const house = houseFootprint(lot, fronts(lot), rowAxis);
+        expect(house).toHaveLength(4);
+        expect(plotArea(house) / plotArea(lot)).toBeGreaterThan(0.98);
+        expect(plotArea(intersectConvex(house, lot))).toBeCloseTo(plotArea(house), 5);
+        // The party-wall cut must stay in place rather than rotate with the street kink.
+        expect(
+          house.some((p, i) => {
+            const q = house[(i + 1) % 4];
+            return (p === a && q === b) || (p === b && q === a);
+          })
+        ).toBe(true);
+        const [building] = assignBuildingMassing({ historicalPeriod: "highMedieval" } as CityDocument, [
+          { faceId: "f48", polygon: house, landmark: false }
+        ]);
+        const surfaces = buildingSurfaces(house, building.massing!)!;
+        expect(meshIsClosed(concatPositions(surfaces.walls, surfaces.roofs))).toBe(true);
+      }
+    }
+  });
+
   it("fills long-side gaps in an oblique block with modest four-corner skew", () => {
     const block: Point[] = [
       [0, 0],
