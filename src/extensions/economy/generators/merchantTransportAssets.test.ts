@@ -150,6 +150,25 @@ describe("merchant transport assets", () => {
     expect(wagon?.total).toBeGreaterThanOrEqual(1);
   });
 
+  it("lets go a share of the vehicles that stood free all cycle beyond the burg floor", () => {
+    MerchantTransportAssets.addAvailableLandAssets(1, "cart", 9);
+    const cart = () => MerchantTransportAssets.ensureLedger(1)!.landAssets.find(asset => asset.assetId === "cart")!;
+    expect(cart().available).toBe(10);
+    MerchantTransportAssets.recoverMaintenance(1);
+    const reservation = MerchantTransportAssets.reserve(1, 10, [{ ...CART_ALLOCATION, unitCount: 4 }]);
+    MerchantTransportAssets.depart(reservation?.reservation.id ?? -1);
+    MerchantTransportAssets.recoverMaintenance(1);
+
+    // Six stood free every day; one is needed, and a quarter of the rest (rounded up) goes, but only after
+    // six slack cycles in a row.
+    for (let cycle = 1; cycle < 6; cycle++) {
+      expect(MerchantTransportAssets.releaseIdleLandAssets(1)).toBe(0);
+      MerchantTransportAssets.recoverMaintenance(1);
+    }
+    expect(MerchantTransportAssets.releaseIdleLandAssets(1)).toBe(2);
+    expect(cart()).toMatchObject({ available: 4, inTransit: 4, idleLowWater: undefined, idleCycles: 6 });
+  });
+
   it("tops up fleets from measured export demand without shrinking", () => {
     const ledger = MerchantTransportAssets.ensureLedger(1);
     expect(ledger).not.toBeNull();

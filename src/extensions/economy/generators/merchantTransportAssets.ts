@@ -3,7 +3,6 @@ import { simEvents } from "../../../simulation/events";
 import { SHIP_CLASS_DEFINITIONS, type ShipbuildingMerchantHullSnapshot } from "../../hostTypes";
 import {
   getCaravans,
-  getExportStagingLots,
   getFlowCycleHistory,
   getGoods,
   getMarketById,
@@ -17,18 +16,15 @@ import {
   setTransportReservations
 } from "../economyContext";
 import { CaravanMovement, getDraftAnimalType } from "./caravanMovement";
-import { DEMAND_PRIORITY, DEMAND_TARGET_FACTORS, type DemandCategory, Goods, isGoodEnabled } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
-import type { Good } from "./goodsGeneratorTypes";
 import {
-  estimateSoftAnnualExportCargoSlots,
-  getDefaultMonthsOfCover,
   type LandFleetSeedCounts,
   landFleetCountsFromBurgScale,
   mergeLandFleetCounts,
   sizeLandFleetFromAnnualExportSlots
 } from "./marketFlowBudget";
 import { buildFlowReportSummary } from "./marketFlowReport";
+import { getMarketRuralPopulation } from "./marketPopulation";
 import type {
   Caravan,
   MerchantLandAssetBalance,
@@ -40,7 +36,7 @@ import type {
   TransportReservation
 } from "./marketTypes";
 import { seaDepartureMarketId } from "./seaRoutePorts";
-import { getGoodCargoSlotsPerUnit, getLandTransportDefinition, RIVER_BARGE_TRANSPORT } from "./tradeCargo";
+import { getLandTransportDefinition, RIVER_BARGE_TRANSPORT } from "./tradeCargo";
 
 const MAINTENANCE_RECOVERY_DAYS = 30;
 /**
@@ -73,6 +69,25 @@ export const LAND_HIRE_SHARE = 1;
 export const LAND_HIRE_FREIGHT_MULTIPLIER = 1.5;
 /** Top-up fleets from measured A0 flow only after this many production cycles. */
 const FLOW_FLEET_TOPUP_MIN_CYCLES = 3;
+/**
+ * Share of the vehicles that stood free at home all cycle, beyond what the measured trade needs,
+ * that a market lets go each cycle. A carrier did not keep a team eating in the stable for want of
+ * freight: idle carts and beasts were sold to peasants and local carters (§10.13).
+ */
+const IDLE_LAND_ASSET_RELEASE_SHARE = 0.25;
+/**
+ * Cycles in a row a kind must stand partly idle before any goes. Trade ran by the season: grain
+ * moved after harvest and roads closed in winter, and a carrier kept his teams through a slack
+ * season he knew would end.
+ */
+const IDLE_LAND_ASSET_RELEASE_CYCLES = 6;
+/**
+ * Vehicles of each kind a market's people lend for hire, per thousand rural people. One vehicle
+ * here is a convoy of some twenty carts (§10.13). Peasants carted for hire between field work, and
+ * town carters plied for any merchant: a market of a hundred and fifty thousand country people
+ * could find thirty convoys of carts to hire without a merchant owning one (§10.14).
+ */
+const LOCAL_CARRIERS_PER_THOUSAND_RURAL = { packTrain: 0.2, cart: 0.2, wagon: 0.1 } as const;
 export const RIVER_BARGE_CARGO_CAPACITY_SLOTS = RIVER_BARGE_TRANSPORT.cargoCapacitySlots;
 /** Wood one river barge is built from (its TransportAssetOrder blueprint). */
 export const RIVER_BARGE_WOOD_UNITS = 5;
@@ -130,102 +145,18 @@ export type TransportReservationResult = {
   dispatcherMarketId: number;
 };
 
-function isTradeableGood(good: Good): boolean {
-  if (!isGoodEnabled(good)) return false;
-  if (good.tags.includes("stapleFood")) return false;
-  return Boolean(good.distribution || good.recipes?.length);
-}
-
-function collectConsumerDemandFactors(goods: readonly Good[]): number[] {
-  const totalCoverageByCategory = Object.fromEntries(
-    DEMAND_PRIORITY.map(category => [
-      category,
-      goods.reduce((sum, good) => sum + (good.demandCoverage?.[category] || 0), 0) || 1
-    ])
-  ) as Record<DemandCategory, number>;
-
-  const demandFactor: number[] = [];
-  for (const good of goods) {
-    demandFactor[good.i] = DEMAND_PRIORITY.reduce((sum, category) => {
-      const share = (good.demandCoverage?.[category] || 0) / (totalCoverageByCategory[category] || 1);
-      return sum + share * DEMAND_TARGET_FACTORS[category];
-    }, 0);
-  }
-  return demandFactor;
-}
-
-function collectIndustrialDemandFactors(goods: readonly Good[], consumerDemandFactors: number[]): number[] {
-  const demandFactor: number[] = [];
-  for (const good of goods) {
-    if (!good.recipes?.length) continue;
-    const outputDemand = consumerDemandFactors[good.i] || 0;
-    for (const recipe of good.recipes) {
-      for (const [ingredientIdStr, amount] of Object.entries(recipe)) {
-        const ingredientId = Number(ingredientIdStr);
-        const ingredient = Goods.get(ingredientId);
-        if (!ingredient || !isGoodEnabled(ingredient)) continue;
-        demandFactor[ingredientId] = (demandFactor[ingredientId] || 0) + amount * outputDemand;
-      }
-    }
-  }
-  return demandFactor;
-}
-
-function marketPopulation(marketId: number): number {
-  let population = 0;
-  for (const burg of getWorldContext().pack.burgs ?? []) {
-    if (!burg.i || burg.removed || burg.market !== marketId || !burg.population) continue;
-    population += burg.population;
-  }
-  return population;
-}
-
-function stagingUnitsByGood(marketId: number): Map<number, number> {
-  const byGood = new Map<number, number>();
-  for (const lot of getExportStagingLots()) {
-    if (lot.marketId !== marketId || lot.units <= 0) continue;
-    byGood.set(lot.goodId, (byGood.get(lot.goodId) || 0) + lot.units);
-  }
-  return byGood;
-}
-
 /**
- * Prefer multi-cycle A0 measured export slots when available; otherwise soft budget from
- * retail stock + export staging (so booked-but-not-yet-sailed cargo still sizes the fleet).
+ * Annual export cargo slots measured over the A0 flow cycles, 0 before they accumulate. The soft
+ * estimate from retail stock that used to stand in sized markets for a million slots a year, and
+ * gave every early market the largest fleet free; vehicles are now added only for trade that
+ * has been seen (port-freight-queue-and-warehouses.md §10.13).
  */
 export function estimateMarketAnnualExportCargoSlots(marketId: number): number {
   const history = getFlowCycleHistory();
-  if (history.length >= FLOW_FLEET_TOPUP_MIN_CYCLES) {
-    const summary = buildFlowReportSummary(history);
-    const measured = summary.rows
-      .filter(row => row.marketId === marketId)
-      .reduce((sum, row) => sum + row.exportSlots, 0);
-    if (measured > 0) return measured;
-  }
-
-  const market = getMarketById(marketId);
-  if (!market) return 0;
-
-  const goods = getGoods().filter(isTradeableGood);
-  if (!goods.length) return 0;
-
-  const consumer = collectConsumerDemandFactors(goods);
-  const industrial = collectIndustrialDemandFactors(goods, consumer);
-  const population = marketPopulation(marketId);
-  const staging = stagingUnitsByGood(marketId);
-
-  const rows = goods.map(good => {
-    const retail = market.goods[good.i]?.stock ?? 0;
-    const staged = staging.get(good.i) || 0;
-    return {
-      stock: retail + staged,
-      cycleDemand: population * ((consumer[good.i] || 0) + (industrial[good.i] || 0)),
-      cargoSlotsPerUnit: getGoodCargoSlotsPerUnit(good),
-      monthsOfCover: getDefaultMonthsOfCover(good)
-    };
-  });
-
-  return estimateSoftAnnualExportCargoSlots(rows);
+  if (history.length < FLOW_FLEET_TOPUP_MIN_CYCLES) return 0;
+  return buildFlowReportSummary(history)
+    .rows.filter(row => row.marketId === marketId)
+    .reduce((sum, row) => sum + row.exportSlots, 0);
 }
 
 /** Land fleet counts: max(burg floor, export-slot seed). */
@@ -236,6 +167,19 @@ export function computeLandFleetSeedCounts(marketId: number): LandFleetSeedCount
   const annualSlots = estimateMarketAnnualExportCargoSlots(marketId);
   const fromExport = sizeLandFleetFromAnnualExportSlots({ annualExportCargoSlots: annualSlots });
   return mergeLandFleetCounts(burgFloor, fromExport);
+}
+
+/**
+ * The fleet a market's measured trade needs, one of each kind at least. A new market is seeded to
+ * its burg floor, but only this many are topped up for free, kept through a slack season, or kept
+ * back from sale (§10.13): the burg floor gave a fifty-burg market of the world map twenty-six carts
+ * that never left the yard.
+ */
+export function computeLandFleetNeedCounts(marketId: number): LandFleetSeedCounts {
+  const fromExport = sizeLandFleetFromAnnualExportSlots({
+    annualExportCargoSlots: estimateMarketAnnualExportCargoSlots(marketId)
+  });
+  return mergeLandFleetCounts({ packTrain: 1, cart: 1, wagon: 1 }, fromExport);
 }
 
 function makeLandBalance(assetId: MerchantLandAssetBalance["assetId"], count: number): MerchantLandAssetBalance {
@@ -264,10 +208,10 @@ function landAssetTotal(balance: MerchantLandAssetBalance): number {
 
 /**
  * Grow land fleets toward export-slot needs without shrinking or touching reserved/in-transit units.
- * Called after flow diagnostics accumulate so early soft-budget seeds can catch up.
+ * Called after flow diagnostics accumulate so the seed can catch up with measured trade.
  */
 function topUpLandAssets(ledger: MerchantTransportLedger): void {
-  const desired = computeLandFleetSeedCounts(ledger.marketId);
+  const desired = computeLandFleetNeedCounts(ledger.marketId);
   const targets: { assetId: MerchantLandAssetBalance["assetId"]; count: number }[] = [
     { assetId: "pack-train", count: desired.packTrain },
     { assetId: "cart", count: desired.cart },
@@ -288,9 +232,20 @@ function topUpLandAssets(ledger: MerchantTransportLedger): void {
   }
 }
 
-/** Hired vehicles one kind may add: the market's own count of that kind times the hire share. */
-function hireCap(balance: MerchantLandAssetBalance): number {
-  return Math.floor(landAssetTotal(balance) * LAND_HIRE_SHARE);
+/**
+ * Hired vehicles one kind may add: the market's own count of that kind times the hire share, and
+ * at least what its local carriers lend (`refreshLocalCarriers`).
+ */
+function hireCap(balance: MerchantLandAssetBalance, ledger: MerchantTransportLedger | undefined): number {
+  const local = ledger?.localCarriers;
+  const localCount = !local
+    ? 0
+    : balance.assetId === "pack-train"
+      ? local.packTrain
+      : balance.assetId === "cart"
+        ? local.cart
+        : local.wagon;
+  return Math.max(Math.floor(landAssetTotal(balance) * LAND_HIRE_SHARE), localCount);
 }
 
 function ownUnits(allocation: TransportAllocation): number {
@@ -551,7 +506,9 @@ export class MerchantTransportAssetsModule {
       return { allocation, balance, own, hired: allocation.unitCount - own };
     });
     if (
-      balances.some(({ balance, hired }) => !balance || (hired > 0 && (balance.hired ?? 0) + hired > hireCap(balance)))
+      balances.some(
+        ({ balance, hired }) => !balance || (hired > 0 && (balance.hired ?? 0) + hired > hireCap(balance, ledger))
+      )
     )
       return null;
     const riverAllocations = allocations.filter(
@@ -884,6 +841,7 @@ export class MerchantTransportAssetsModule {
     for (const ledger of getMerchantTransportLedgers()) {
       for (const balance of ledger.landAssets) {
         if ((balance.hired ?? 0) > 0) balance.hiredDays = (balance.hiredDays ?? 0) + (balance.hired ?? 0) * deltaDays;
+        balance.idleLowWater = Math.min(balance.idleLowWater ?? balance.available, balance.available);
         if (balance.maintenance <= 0 || balance.recoveryDays <= 0) continue;
         balance.recoveryDays = Math.max(0, balance.recoveryDays - deltaDays);
         if (balance.recoveryDays > 0) continue;
@@ -962,7 +920,7 @@ export class MerchantTransportAssetsModule {
     // A kind with none of its own free can still be hired while the carriers have some to lend (§3).
     const canHire = (assetId: string) => {
       const balance = ledger?.landAssets.find(asset => asset.assetId === assetId);
-      return balance ? (balance.hired ?? 0) < hireCap(balance) : false;
+      return balance ? (balance.hired ?? 0) < hireCap(balance, ledger) : false;
     };
     return this.getAvailability(marketId).reduce((largest, asset) => {
       if (asset.available <= 0 && !canHire(asset.assetId)) return largest;
@@ -980,6 +938,39 @@ export class MerchantTransportAssetsModule {
    * Cargo slots the market's whole fleet of one mode carries at once, out on the road or not;
    * vehicles in repair do not count (long-distance-merchant-reach-capital.md §17).
    */
+  /**
+   * Counts the carts and teams the market's countryside and towns lend for hire: the burg floor
+   * that used to be handed to the merchants free, or more where the countryside is large (§10.14).
+   */
+  refreshLocalCarriers(marketId: number): void {
+    const ledger = findLedger(marketId);
+    if (!ledger) return;
+    const world = getWorldContext();
+    const burgCount = (world.pack.burgs ?? []).filter(burg => !burg.removed && burg.market === marketId).length;
+    const rural = world.pack.cells?.i ? getMarketRuralPopulation(world, marketId) / 1000 : 0;
+    ledger.localCarriers = mergeLandFleetCounts(landFleetCountsFromBurgScale(burgCount), {
+      packTrain: Math.floor(rural * LOCAL_CARRIERS_PER_THOUSAND_RURAL.packTrain),
+      cart: Math.floor(rural * LOCAL_CARRIERS_PER_THOUSAND_RURAL.cart),
+      wagon: Math.floor(rural * LOCAL_CARRIERS_PER_THOUSAND_RURAL.wagon)
+    });
+  }
+
+  /** Cargo slots of the land vehicles the market may hire at once (`hireCap` of each kind). */
+  getHireableLandCapacitySlots(marketId: number, draftAnimalId: string): number {
+    const ledger = this.ensureLedger(marketId);
+    if (!ledger) return 0;
+    const draftAnimal = getDraftAnimalType(draftAnimalId);
+    return ledger.landAssets.reduce((sum, asset) => {
+      const definition = getLandTransportDefinition(asset.assetId);
+      if (!definition) return sum;
+      const capacity = Math.min(
+        definition.cargoCapacitySlots,
+        definition.requiredDraftAnimals * draftAnimal.towCapacitySlots
+      );
+      return sum + capacity * hireCap(asset, ledger);
+    }, 0);
+  }
+
   getFleetCapacitySlots(marketId: number, mode: "land" | "sea", draftAnimalId: string): number {
     const ledger = this.ensureLedger(marketId);
     if (!ledger) return 0;
@@ -1301,6 +1292,71 @@ export class MerchantTransportAssetsModule {
 
   getReservation(reservationId: number | undefined): TransportReservation | undefined {
     return reservationId === undefined ? undefined : getTransportReservations().find(item => item.id === reservationId);
+  }
+
+  /**
+   * Lets go a share of the vehicles that stood free at home every day since the last call, above
+   * the fleet the market's measured trade needs, once some have stood so for
+   * IDLE_LAND_ASSET_RELEASE_CYCLES calls in a row, and restarts the count. A kind the market hired
+   * since the last call, or `isStillWanted` says it is building, is kept: its trade ran short on
+   * some day even if a few stood free on all of them. Returns how many went.
+   */
+  releaseIdleLandAssets(
+    marketId: number,
+    isStillWanted: (assetId: MerchantLandAssetBalance["assetId"]) => boolean = () => false
+  ): number {
+    const ledger = findLedger(marketId);
+    if (!ledger) return 0;
+    const keep = computeLandFleetNeedCounts(marketId);
+    let released = 0;
+    for (const balance of ledger.landAssets) {
+      const idle = Math.min(balance.idleLowWater ?? 0, balance.available);
+      balance.idleLowWater = undefined;
+      const kept =
+        balance.assetId === "pack-train" ? keep.packTrain : balance.assetId === "cart" ? keep.cart : keep.wagon;
+      const surplus = Math.min(idle, landAssetTotal(balance) - kept);
+      if (
+        !(surplus > 0) ||
+        (balance.hiredDays ?? 0) > 0 ||
+        (balance.hired ?? 0) > 0 ||
+        isStillWanted(balance.assetId)
+      ) {
+        balance.idleCycles = undefined;
+        balance.idleSurplus = undefined;
+        continue;
+      }
+      balance.idleCycles = (balance.idleCycles ?? 0) + 1;
+      balance.idleSurplus = Math.min(balance.idleSurplus ?? surplus, surplus);
+      if (balance.idleCycles < IDLE_LAND_ASSET_RELEASE_CYCLES) continue;
+      const count = Math.ceil(balance.idleSurplus * IDLE_LAND_ASSET_RELEASE_SHARE);
+      if (!(count > 0)) continue;
+      balance.available -= count;
+      balance.idleSurplus -= count;
+      assertBalance(balance);
+      released += count;
+    }
+    return released;
+  }
+
+  /**
+   * Hands free vehicles from one market's fleet to another's, as a carrier sold his cart and team
+   * where the load was delivered (§10.13). Returns how many moved.
+   */
+  transferLandAssets(
+    fromMarketId: number,
+    toMarketId: number,
+    assetId: MerchantLandAssetBalance["assetId"],
+    quantity: number
+  ): number {
+    const from = findLedger(fromMarketId)?.landAssets.find(asset => asset.assetId === assetId);
+    const to = this.ensureLedger(toMarketId)?.landAssets.find(asset => asset.assetId === assetId);
+    const count = Math.min(Math.floor(quantity), from?.available ?? 0);
+    if (!from || !to || !(count > 0)) return 0;
+    from.available -= count;
+    to.available += count;
+    assertBalance(from);
+    assertBalance(to);
+    return count;
   }
 
   /** Credits completed land assets directly to the durable ledger, bypassing saleable market stock. */

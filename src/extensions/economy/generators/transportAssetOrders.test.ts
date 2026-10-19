@@ -154,6 +154,62 @@ describe("transport asset orders", () => {
     expect(TransportAssetOrders.getMaterialDemandByGood(1)).toEqual(new Map([[3, 3]]));
   });
 
+  it("sells a delivering market's spare carts to a market waiting on its own", () => {
+    worldContext.pack.burgs.push({ i: 2, market: 2, population: 10 } as Burg);
+    worldContext.pack.markets.push({
+      i: 2,
+      centerBurgId: 2,
+      color: "#111",
+      goods: { 1: { stock: 0, price: 2 }, 3: { stock: 0, price: 5 } },
+      marketTreasury: { balance: 100, ruralGrainPayable: 0 }
+    } as unknown as PackedGraph["markets"][number]);
+    MerchantTransportAssets.addAvailableLandAssets(1, "cart", 3);
+    const cartsAt = (marketId: number) =>
+      MerchantTransportAssets.getAvailability(marketId).find(asset => asset.assetId === "cart")?.available;
+    const before = cartsAt(2) ?? 0;
+    const order = TransportAssetOrders.createOrder({ marketId: 2, blueprintId: "cart", quantity: 2 });
+
+    TransportAssetOrders.sellArrivedVehicles({
+      transportDispatcherMarketId: 1,
+      transportAllocations: [
+        { mode: "land", transportId: "cart", transportName: "Cart", unitCount: 2, capacitySlots: 160, usedSlots: 0 }
+      ],
+      buyer: 2,
+      buyerType: "market"
+    });
+
+    // Two carts at 3 wood × 2 + 1 harness × 5 each, at the buyer's prices.
+    expect(cartsAt(1)).toBe(2);
+    expect(cartsAt(2)).toBe(before + 2);
+    expect(order).toMatchObject({ status: "cancelled", quantity: 0 });
+    expect(worldContext.pack.markets[1].marketTreasury?.balance).toBe(78);
+    expect(worldContext.pack.markets[0].marketTreasury?.balance).toBe(122);
+  });
+
+  it("orders its own carts only for hire that ran two cycles, and withdraws them when carts stand idle", () => {
+    worldContext.pack.markets[0].goods[1].stock = 0;
+    const cart = () => MerchantTransportAssets.ensureLedger(1)!.landAssets.find(asset => asset.assetId === "cart")!;
+    const cartOrders = () =>
+      TransportAssetOrders.getOrders(1).filter(order => order.blueprintId === "cart" && order.status !== "cancelled");
+    const hireForCycle = (vehicles: number) => {
+      cart().hiredDays = vehicles * 30;
+      cart().idleLowWater = 0;
+    };
+
+    hireForCycle(3);
+    TransportAssetOrders.beginProductionCycle();
+    expect(cartOrders()).toHaveLength(0);
+
+    hireForCycle(2);
+    TransportAssetOrders.beginProductionCycle();
+    expect(cartOrders()).toMatchObject([{ quantity: 2, status: "waitingMaterials" }]);
+
+    // A slack cycle: the market's own cart stood free every day and nothing was hired.
+    cart().idleLowWater = 1;
+    TransportAssetOrders.beginProductionCycle();
+    expect(cartOrders()).toMatchObject([{ quantity: 1 }]);
+  });
+
   it("lets the shipping house pay for a craft when the market's purse is short", () => {
     worldContext.pack.markets[0].marketTreasury = { balance: 4, ruralGrainPayable: 0, tradeWorkingCapital: 50 };
     const order = TransportAssetOrders.createOrder({ marketId: 1, blueprintId: "cart", quantity: 1 });

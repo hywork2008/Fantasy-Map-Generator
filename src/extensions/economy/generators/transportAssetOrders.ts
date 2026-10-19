@@ -15,9 +15,9 @@ import { getEconomyCalibrationState } from "../state/economyCalibrationStore";
 import { laborPeople, peopleToPoints } from "./craftScale";
 import { getGuildBonus } from "./guildKnowledge";
 import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";
-import type { Market, MerchantLandAssetBalance, TransportAssetOrder } from "./marketTypes";
+import type { Caravan, Market, MerchantLandAssetBalance, TransportAssetOrder } from "./marketTypes";
 import { getUncommittedTradeCapital } from "./merchantTradeCapital";
-import { MerchantTransportAssets, RIVER_BARGE_WOOD_UNITS } from "./merchantTransportAssets";
+import { computeLandFleetNeedCounts, MerchantTransportAssets, RIVER_BARGE_WOOD_UNITS } from "./merchantTransportAssets";
 
 export type TransportAssetBlueprint = {
   id: TransportAssetOrder["blueprintId"];
@@ -288,6 +288,83 @@ export class TransportAssetOrdersModule {
     return demand;
   }
 
+  /**
+   * A carrier who delivered to a market short of carts sold his cart and team there and went home
+   * on foot or by another's wagon, when his own house had them to spare (§10.13). On arrival, own
+   * vehicles the dispatching market does not need are sold to the destination market for the
+   * automatic orders it has not yet funded, at what their usual materials cost there; the orders
+   * are reduced by as many.
+   */
+  sellArrivedVehicles(
+    caravan: Pick<Caravan, "transportDispatcherMarketId" | "transportAllocations" | "buyer" | "buyerType">
+  ): void {
+    const sellerId = caravan.transportDispatcherMarketId;
+    const buyerId =
+      caravan.buyerType === "market" ? caravan.buyer : getWorldContext().pack.burgs[caravan.buyer]?.market;
+    if (sellerId === undefined || typeof buyerId !== "number" || buyerId === sellerId) return;
+    const seller = getMarketById(sellerId);
+    const buyer = getMarketById(buyerId);
+    const sellerLedger = MerchantTransportAssets.ensureLedger(sellerId);
+    if (!seller || !buyer || !sellerLedger) return;
+    let keep: ReturnType<typeof computeLandFleetNeedCounts> | undefined;
+
+    for (const allocation of caravan.transportAllocations ?? []) {
+      if (allocation.mode !== "land") continue;
+      const own = allocation.unitCount - (allocation.hiredUnits ?? 0);
+      const blueprint = BLUEPRINTS.find(candidate => candidate.id === allocation.transportId);
+      const balance = sellerLedger.landAssets.find(asset => asset.assetId === allocation.transportId);
+      if (!(own > 0) || !blueprint || blueprint.outputMode !== "land" || !balance) continue;
+      // The seller's house keeps what its own trade needs: nothing goes while it hires or builds.
+      if ((balance.hired ?? 0) > 0 || this.openSimulationOrders(sellerId, blueprint.id).length) continue;
+      const wanting = this.openSimulationOrders(buyerId, blueprint.id).filter(
+        order => order.status === "queued" || order.status === "waitingMaterials"
+      );
+      const wanted = wanting.reduce((sum, order) => sum + order.quantity, 0);
+      if (!(wanted > 0)) continue;
+      keep ??= computeLandFleetNeedCounts(sellerId);
+      const kept = blueprint.id === "pack-train" ? keep.packTrain : blueprint.id === "cart" ? keep.cart : keep.wagon;
+      const total = balance.available + balance.reserved + balance.inTransit + balance.maintenance;
+      const spare = Math.min(own, balance.available, total - kept);
+      const perUnit = requiredMaterials(blueprint, 1);
+      if (!perUnit || !(spare > 0)) continue;
+      const price = Object.entries(perUnit).reduce(
+        (sum, [goodId, units]) => sum + (buyer.goods[+goodId]?.price ?? 0) * units,
+        0
+      );
+      const treasury = getMarketTreasury(buyer);
+      const money = Math.max(0, treasury.balance) + Math.max(0, getUncommittedTradeCapital(treasury));
+      const affordable = price > 0 ? Math.floor((money + 0.0001) / price) : wanted;
+      const sold = MerchantTransportAssets.transferLandAssets(
+        sellerId,
+        buyerId,
+        blueprint.outputAssetId as MerchantLandAssetBalance["assetId"],
+        Math.min(spare, wanted, affordable)
+      );
+      if (!(sold > 0)) continue;
+
+      const paid = rn(price * sold, 2);
+      const fromPurse = Math.min(Math.max(0, treasury.balance), paid);
+      treasury.balance = rn(treasury.balance - fromPurse, 2);
+      if (paid - fromPurse > 0)
+        treasury.tradeWorkingCapital = rn(Math.max(0, (treasury.tradeWorkingCapital ?? 0) - (paid - fromPurse)), 2);
+      const sellerTreasury = getMarketTreasury(seller);
+      sellerTreasury.balance = rn(sellerTreasury.balance + paid, 2);
+
+      let remaining = sold;
+      for (const order of wanting.toSorted((left, right) => right.id - left.id)) {
+        if (remaining <= 0) break;
+        const taken = Math.min(remaining, order.quantity);
+        order.quantity -= taken;
+        remaining -= taken;
+        if (order.quantity <= 0) {
+          order.status = "cancelled";
+          order.blockedReason = undefined;
+        }
+      }
+      setTransportAssetOrders(getTransportAssetOrders());
+    }
+  }
+
   clear(): void {
     this.plannedWorkByBurg.clear();
     this.materialShortfallByMarket.clear();
@@ -299,21 +376,25 @@ export class TransportAssetOrdersModule {
     for (const market of getMarkets()) {
       const ledger = MerchantTransportAssets.ensureLedger(market.i);
       if (!ledger) continue;
+      MerchantTransportAssets.refreshLocalCarriers(market.i);
+      for (const balance of ledger.landAssets) this.withdrawSlackOrders(market.i, balance);
+      MerchantTransportAssets.releaseIdleLandAssets(
+        market.i,
+        assetId => this.openSimulationOrders(market.i, assetId).length > 0
+      );
       for (const balance of ledger.landAssets) {
         // Maintenance is a concrete capacity loss. Keep one replacement order active until it is covered.
-        const outstanding = getTransportAssetOrders()
-          .filter(
-            order =>
-              order.marketId === market.i &&
-              order.blueprintId === balance.assetId &&
-              order.requestedBy === "simulation" &&
-              order.status !== "completed" &&
-              order.status !== "cancelled"
-          )
-          .reduce((sum, order) => sum + order.quantity - order.completedQuantity, 0);
+        const outstanding = this.openSimulationOrders(market.i, balance.assetId).reduce(
+          (sum, order) => sum + order.quantity - order.completedQuantity,
+          0
+        );
         // Vehicles hired month after month are cheaper owned (port-freight-queue-and-warehouses.md §3.2).
+        // Only what was hired two cycles running is ordered: a month's rush was met with hired teams,
+        // and the carts ordered for it stood idle when it passed (§10.14).
         const hired = MerchantTransportAssets.takeHiredVehicleAverage(market.i, balance.assetId, PRODUCTION_CYCLE_DAYS);
-        const missing = Math.max(0, Math.ceil(balance.maintenance + hired - 0.000001) - outstanding);
+        const sustained = Math.min(hired, balance.previousHiredAverage ?? 0);
+        balance.previousHiredAverage = hired > 0 ? hired : undefined;
+        const missing = Math.max(0, Math.ceil(balance.maintenance + sustained - 0.000001) - outstanding);
         if (missing > 0) this.createOrder({ marketId: market.i, blueprintId: balance.assetId, quantity: missing });
       }
       // Sea trade that waited for a hull asks the shipyards for one (long-distance-merchant-reach-capital.md §17).
@@ -508,6 +589,42 @@ export class TransportAssetOrdersModule {
       }
       if (unassigned > 0) order.blockedReason = "missingCraftWorkers";
     }
+  }
+
+  /**
+   * A market whose own vehicles of a kind stood free every day of the cycle, without hiring any,
+   * withdraws its automatic orders of that kind the wright has not yet been paid for, up to the
+   * number that stood free: the rush they were ordered for has passed (§10.14).
+   */
+  private withdrawSlackOrders(marketId: number, balance: MerchantLandAssetBalance): void {
+    const idle = Math.min(balance.idleLowWater ?? 0, balance.available);
+    if (!(idle >= 1) || (balance.hiredDays ?? 0) > 0 || (balance.hired ?? 0) > 0) return;
+    let remaining = Math.floor(idle);
+    const unfunded = this.openSimulationOrders(marketId, balance.assetId)
+      .filter(order => order.status === "queued" || order.status === "waitingMaterials")
+      .toSorted((left, right) => right.id - left.id);
+    for (const order of unfunded) {
+      if (remaining <= 0) break;
+      const taken = Math.min(remaining, order.quantity);
+      order.quantity -= taken;
+      remaining -= taken;
+      if (order.quantity <= 0) {
+        order.status = "cancelled";
+        order.blockedReason = undefined;
+      }
+    }
+    if (remaining < Math.floor(idle)) setTransportAssetOrders(getTransportAssetOrders());
+  }
+
+  private openSimulationOrders(marketId: number, blueprintId: TransportAssetOrder["blueprintId"]) {
+    return getTransportAssetOrders().filter(
+      order =>
+        order.marketId === marketId &&
+        order.blueprintId === blueprintId &&
+        order.requestedBy === "simulation" &&
+        order.status !== "completed" &&
+        order.status !== "cancelled"
+    );
   }
 
   private getOrdersByPriority(): TransportAssetOrder[] {

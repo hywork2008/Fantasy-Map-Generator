@@ -25,7 +25,7 @@
 import { getCaravans, getExportStagingLots, getGoods } from "../economyContext";
 import { DEFAULT_DRAFT_ANIMAL_ID } from "./caravanMovement";
 import type { Caravan, TradeRouteSegment } from "./marketTypes";
-import { LAND_HIRE_SHARE, MerchantTransportAssets } from "./merchantTransportAssets";
+import { MerchantTransportAssets } from "./merchantTransportAssets";
 import { seaDepartureMarketId, seaDeparturePortBurgId } from "./seaRoutePorts";
 import { getGoodCargoSlotsPerUnit } from "./tradeCargo";
 
@@ -124,7 +124,8 @@ export function buildTransportRoom(
   const room: TransportRoom = new Map();
   for (const marketId of marketIds) {
     const land = MerchantTransportAssets.getFleetCapacitySlots(marketId, "land", DEFAULT_DRAFT_ANIMAL_ID);
-    room.set(roomKey(marketId, "land"), { capacity: land * (1 + LAND_HIRE_SHARE), held: 0 });
+    const hireable = MerchantTransportAssets.getHireableLandCapacitySlots(marketId, DEFAULT_DRAFT_ANIMAL_ID);
+    room.set(roomKey(marketId, "land"), { capacity: land + hireable, held: 0 });
     room.set(roomKey(marketId, OWN_LAND), { capacity: land, held: 0 });
   }
 

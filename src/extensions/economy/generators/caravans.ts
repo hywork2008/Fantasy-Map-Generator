@@ -88,6 +88,7 @@ import {
 } from "./tradeSailSchedule";
 import { TradeSecurity } from "./tradeSecurity";
 import { getLotDispatchObserver, type LotDispatchOutcome } from "./tradeStageObserver";
+import { TransportAssetOrders } from "./transportAssetOrders";
 
 export type CaravanTravelLeg = { endKm: number; speedKmPerDay: number };
 
@@ -1374,6 +1375,7 @@ export class CaravansModule {
         const house = getMerchantOrganizations().find(entry => entry.i === caravan.merchantOrganizationId);
         if (house && caravan.buyerType === "market") openBranch(house.homeMarketId, caravan.buyer);
         MerchantTransportAssets.settleCaravan(caravan, "arrived");
+        TransportAssetOrders.sellArrivedVehicles(caravan);
         settlePayloadCapital(caravan, "arrived");
         settleFoodCoLoadOnArrival(caravan, world.distanceScale);
 

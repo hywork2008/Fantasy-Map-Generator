@@ -440,6 +440,13 @@ export type MerchantLandAssetBalance = {
   hired?: number;
   /** Hired vehicle-days since the last replenishment; the market orders its own to replace them. */
   hiredDays?: number;
+  /** Hired vehicles kept on the road on average in the cycle before the last replenishment. */
+  previousHiredAverage?: number;
+  /** Fewest of this kind standing free at home on any day since the last replenishment. */
+  idleLowWater?: number;
+  /** Replenishments in a row this kind stood partly idle without hiring, and the fewest idle beyond need. */
+  idleCycles?: number;
+  idleSurplus?: number;
 };
 
 /** Aggregate shallow-draft vessels. Unlike sea hulls, river barges are Economy-owned assets. */
@@ -476,6 +483,11 @@ export type MerchantTransportLedger = {
   /** Derived display reference only; marketId remains the ownership key. */
   organizationId?: number;
   landAssets: MerchantLandAssetBalance[];
+  /**
+   * Carts, wagons and pack trains the market's towns and countryside lend for hire, whether a
+   * merchant owns any or not (port-freight-queue-and-warehouses.md §10.14). Refreshed each cycle.
+   */
+  localCarriers?: { packTrain: number; cart: number; wagon: number };
   riverAssets: MerchantRiverAssetBalance[];
   /** References only; Shipbuilding's ShipHull remains the source of truth. */
   waterAssets: MerchantWaterAssetReference[];
