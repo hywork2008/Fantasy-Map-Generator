@@ -1,6 +1,7 @@
 import "./viewer.css";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { createPontDuGard, PONT_DU_GARD, pontDuGardElevation } from "../buildings/aqueducts/pontDuGard";
 import { contentDigest } from "../buildings/canonicalJson";
 import { KRAK, type KrakPhase } from "../buildings/fortresses/krak";
 import { committedSvgHash, levelPlanSvg, planSvg } from "../buildings/planSvg";
@@ -336,6 +337,49 @@ if (!entries.length) {
 }
 
 const assemblies = document.createElement("h2");
+const aqueducts = document.createElement("h2");
+aqueducts.textContent = "Aqueduct assemblies";
+list.append(aqueducts);
+const aqueductButton = document.createElement("button");
+aqueductButton.type = "button";
+aqueductButton.textContent = "Pont du Gard · Roman aqueduct";
+aqueductButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === aqueductButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Aqueduct elevation";
+  levelTitle.textContent = "Water channel plan";
+  massing = createPontDuGard();
+  scene.add(massing.group);
+  ground.visible = true;
+  const width = PONT_DU_GARD.bays * PONT_DU_GARD.pitch;
+  frame({ occupancyMeters: { width, depth: 6 } }, PONT_DU_GARD.height);
+  camera.position.set(width * 0.45, 70, width * 0.95);
+  controls.target.set(0, 24, 0);
+  controls.update();
+  mountPlan(roofHost, pontDuGardElevation());
+  mountPlan(
+    levelHost,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3 -4 ${width + 6} 8"><rect width="${width}" y="-1.5" height="3" fill="#d9c7a3" stroke="#827358" stroke-width="0.15"/><rect width="${width}" y="-1.05" height="2.1" fill="#a7b6b6"/></svg>`
+  );
+  facts.append(
+    fact("Model", PONT_DU_GARD.name),
+    fact("Period", "Roman antiquity"),
+    fact("Dimensions", `${width} × 6 × ${PONT_DU_GARD.height} m`),
+    fact("Assembly", "6 large bays on each lower tier; 24 small arches on the upper tier"),
+    fact(
+      "Note",
+      "Simplified imagined intact aqueduct inspired by Pont du Gard. Repeated bays share geometry; dimensions are illustrative. The upper channel is open for inspection."
+    ),
+    fact("Omitted", "Modern road bridge, damage, weathering, terrain and individual masonry blocks")
+  );
+});
+list.append(aqueductButton);
 assemblies.textContent = "Fortress assemblies";
 list.append(assemblies);
 for (const phase of ["hospitalier-1270", "mamluk-1302"] as const) {
