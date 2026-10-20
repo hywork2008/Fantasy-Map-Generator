@@ -22,6 +22,11 @@ export interface Market {
       costBasis?: number;
     }
   >;
+  /**
+   * Finished weapons' stock by age in whole months (index 12 = a year or older), per good id. Kept
+   * by armsTheft.ts so a stock nobody buys can be stolen; old stock is sold or stolen first.
+   */
+  weaponStockAge?: Record<number, number[]>;
   foodLedger?: FoodLedger;
   /** Working capital of the market manager's merchant company; separate from Burg/State treasury. */
   marketTreasury?: MarketTreasury;

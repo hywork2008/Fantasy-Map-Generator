@@ -461,6 +461,13 @@ export interface Burg {
    * docs/plan/economy-coupling-audit.md L9.
    */
   discontent?: number;
+  /**
+   * Weapons (market stock units) stolen from, or lost out of, this burg's market since the map
+   * began, and the same by good name. Counted by armsTheft.ts as a risk factor for an armed
+   * uprising; nothing reads it yet. Missing = 0.
+   */
+  armsStolen?: number;
+  armsStolenByGood?: Record<string, number>;
   /** Small local staple-food buffer (Grain-equivalent units), independent of the Market's pooled stock. */
   foodReserve?: number;
   /**

@@ -62,8 +62,7 @@ export function getHarvestBridgeReserve(
 ): number {
   const monthlyDemand = Math.max(0, annualDemand) / 12;
   const floor = monthlyDemand * floorMonths;
-  if (!offeredIntakeByMonth || offeredIntakeByMonth.length !== 12 || offeredIntakeByMonth.some(offer => !(offer >= 0)))
-    return floor;
+  if (offeredIntakeByMonth?.length !== 12 || offeredIntakeByMonth.some(offer => !(offer >= 0))) return floor;
 
   let shortfall = 0;
   let worst = 0;

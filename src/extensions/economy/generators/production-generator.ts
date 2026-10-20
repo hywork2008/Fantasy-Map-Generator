@@ -28,6 +28,7 @@ import {
   setStrategicLaborMarkets
 } from "../economyContext";
 import { getEconomyCalibrationState } from "../state/economyCalibrationStore";
+import { settleArmsTheft } from "./armsTheft";
 import { getDiscontentLaborMultiplier } from "./burgDiscontent";
 import { creditHouseholdWealth, syncBurgMarketLedgers } from "./burgMarketLedgers";
 import { Caravans } from "./caravans";
@@ -447,6 +448,7 @@ export class ProductionModule {
     measureTickStep("production:spawnCaravans", () => Caravans.spawnFromDeals(getDeals()));
     measureTickStep("production:fillDemand", () => this.fillBurgsDemand(cycle.sortedBurgs, cycle.index));
     measureTickStep("production:marketMaintenance", () => settleMarketMaintenance());
+    measureTickStep("production:armsTheft", () => settleArmsTheft());
     measureTickStep("production:syncLedgers", () => {
       syncBurgMarketLedgers();
 
@@ -520,6 +522,7 @@ export class ProductionModule {
 
     measureTickStep("production:fillDemand", () => this.fillBurgsDemand(cycle.sortedBurgs, cycle.index));
     measureTickStep("production:marketMaintenance", () => settleMarketMaintenance());
+    measureTickStep("production:armsTheft", () => settleArmsTheft());
     measureTickStep("production:syncLedgers", () => {
       syncBurgMarketLedgers();
 
