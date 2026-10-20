@@ -11,6 +11,7 @@ import { createTowerMill, TOWER_MILL } from "../buildings/mills/towerMill";
 import { createWaterMill, WATER_MILL } from "../buildings/mills/waterMill";
 import { committedSvgHash, levelPlanSvg, planSvg } from "../buildings/planSvg";
 import { type BuildingRecord, TRIANGLE_BUDGET } from "../buildings/record";
+import { CARRACK, createCarrack } from "../buildings/ships/carrack";
 import { createGalleon, GALLEON } from "../buildings/ships/galleon";
 import { createTrebuchet, TREBUCHET } from "../buildings/siege/trebuchet";
 import { validateBuildingRecord } from "../buildings/validate";
@@ -488,6 +489,49 @@ for (const phase of ["hospitalier-1270", "mamluk-1302"] as const) {
 const shipsHeading = document.createElement("h2");
 shipsHeading.textContent = "Ships";
 list.append(shipsHeading);
+const carrackButton = document.createElement("button");
+carrackButton.type = "button";
+carrackButton.textContent = "Carrack · High-castled merchant ship";
+carrackButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === carrackButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Ship elevation";
+  levelTitle.textContent = "Deck plan";
+  const model = createCarrack();
+  massing = model;
+  scene.add(model.group);
+  frame({ occupancyMeters: { width: CARRACK.length, depth: CARRACK.beam } }, CARRACK.height);
+  camera.position.set(43, 28, 54);
+  controls.target.set(1, 14, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", CARRACK.name),
+    fact("Period", "Late medieval / early modern · imagined merchant vessel"),
+    fact(
+      "Dimensions",
+      `${CARRACK.length} m overall length × ${CARRACK.beam} m beam; ${CARRACK.height} m above water; ${CARRACK.draft} m draft`
+    ),
+    fact("Rig", "Three masts; square-rigged fore and main masts; lateen mizzen"),
+    fact("Hull", "Broad round-bilged hull; high forecastle and stepped sterncastle"),
+    fact("Note", CARRACK.note)
+  );
+  const source = document.createElement("a");
+  source.href = CARRACK.source;
+  source.textContent = "Mariners’ Museum · Carrack";
+  source.target = "_blank";
+  source.rel = "noreferrer";
+  facts.append(source);
+});
+list.append(carrackButton);
+
 const galleonButton = document.createElement("button");
 galleonButton.type = "button";
 galleonButton.textContent = "Galleon · Three-masted sailing ship";
