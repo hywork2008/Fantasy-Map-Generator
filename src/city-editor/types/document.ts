@@ -181,7 +181,7 @@ export interface CityElement {
   /** Point-anchored elements such as imported MFCG trees do not belong to a face. */
   point?: Point;
   sizeMeters?: number;
-  /** Long-axis angle in radians, CCW from +X. Temples and ships use this. */
+  /** Angle in radians: temples are CCW from plan +X; ship bows are CCW from plan +Y. */
   rotation?: number;
   locked: boolean;
   shipType?: "small" | "medium" | "large" | "barge";

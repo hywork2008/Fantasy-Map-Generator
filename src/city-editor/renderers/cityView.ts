@@ -4,11 +4,13 @@ import { buildingSurfaces } from "../../city3d/core/massingGeometry";
 import { structureSurfaces } from "../../city3d/core/structureGeometry";
 import { type CityMassingMeshes, createCityMassing } from "../../city3d/three/cityMeshes";
 import { createTownRoads, roadStampChanged, type TownRoadMeshes } from "../../city3d/three/roadMeshes";
+import { createTownShips } from "../../city3d/three/shipMeshes";
 import { type CityStructureMeshes, createStructureMassing } from "../../city3d/three/structureMeshes";
 import {
   createTownWater,
   planCity3dRefresh,
   type TownWaterMeshes,
+  townWaterHeightAt,
   waterStampChanged
 } from "../../city3d/three/waterMeshes";
 import { createTownWells } from "../../city3d/three/wellMeshes";
@@ -24,6 +26,7 @@ import { waterPolygons } from "../generators/waterGeometry";
 import type { FloorUse, RoofForm, RoofMaterial, WallMaterial } from "../types/contracts/buildingMassing";
 import type { StructureKind, StructureMassing, StructureMaterial } from "../types/contracts/structureMassing";
 import type { CityDocument } from "../types/document";
+import { collectShipSites } from "./shipSites";
 import { collectCityStructures, landmarkLotStructures } from "./structureMassing";
 import { groundStructures, lotFoundations } from "./terrainMassing";
 import { collectWellSites } from "./wellSites";
@@ -112,6 +115,8 @@ export function mountCity3d(options: {
   let massing: CityMassingMeshes | null = null;
   let structures: CityStructureMeshes | null = null;
   let wells: CityStructureMeshes | null = null;
+  let ships: CityStructureMeshes | null = null;
+  let shipStamp: string | null = null;
   let waterMeshes: TownWaterMeshes | null = null;
   let roadMeshes: TownRoadMeshes | null = null;
   let ground: THREE.Mesh | null = null;
@@ -320,7 +325,10 @@ export function mountCity3d(options: {
         terrainChanged || roadStampChanged(roadStamp, roads, Boolean(scene.getObjectByName("ce-roads"))),
       open: true
     });
-    if (!plan.buildings && !plan.water && !plan.roads) return;
+    const shipSites = collectShipSites(city);
+    const nextShipStamp = JSON.stringify(shipSites);
+    const shipsChanged = plan.water || shipStamp !== nextShipStamp || !scene.getObjectByName("ce-ships");
+    if (!plan.buildings && !plan.water && !plan.roads && !shipsChanged) return;
     if (plan.buildings) {
       built = fabric;
       rebuild(city, fabric);
@@ -328,6 +336,12 @@ export function mountCity3d(options: {
     if (plan.water) {
       placeWater(city);
       waterStamp = stamp;
+    }
+    if (shipsChanged && waterMeshes) {
+      ships?.dispose();
+      ships = createTownShips(shipSites, point => townWaterHeightAt(waterMeshes!, point));
+      scene.add(ships.group);
+      shipStamp = nextShipStamp;
     }
     // 3D ignores hideStreetLines. That flag is true only while conceal plays back.
     if (plan.roads) {
@@ -420,6 +434,7 @@ export function mountCity3d(options: {
     structures?.dispose();
     waterMeshes?.dispose();
     wells?.dispose();
+    ships?.dispose();
     roadMeshes?.dispose();
     ground?.geometry.dispose();
     (ground?.material as THREE.Material | undefined)?.dispose();

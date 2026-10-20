@@ -15,6 +15,7 @@ import {
 import type { CityDocument } from "../../city-editor/types/document";
 import type { Point } from "../../city-editor/types/primitives";
 import type { TriangleSoup } from "../core/massingGeometry";
+import { planVertex } from "../core/planFrame";
 import { LAND_Y, WATER_Y, waterSurfaceGeometry } from "../core/waterGeometry";
 
 const LAND_COLOR = 0xd5cfbf;
@@ -57,6 +58,19 @@ export interface TownWaterMeshes {
   /** False keeps the ground disc and draws no water. */
   replacesDisc: boolean;
   dispose(): void;
+}
+
+/** Sample the rendered water triangles so floating models share the exact sea or river datum. */
+export function townWaterHeightAt(water: TownWaterMeshes, point: Point): number {
+  water.parent.updateMatrixWorld(true);
+  const ray = new THREE.Raycaster(new THREE.Vector3(...planVertex(point, 1e6)), new THREE.Vector3(0, -1, 0));
+  // Water meshes deliberately disable picking; query their triangles without enabling UI picking.
+  const hits: THREE.Intersection[] = [];
+  water.parent.traverse(object => {
+    if (object instanceof THREE.Mesh) THREE.Mesh.prototype.raycast.call(object, ray, hits);
+  });
+  hits.sort((a, b) => a.distance - b.distance);
+  return hits[0]?.point.y ?? WATER_Y;
 }
 
 /** Classify the document and build the meshes. Does not touch the scene. */
