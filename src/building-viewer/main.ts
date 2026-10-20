@@ -9,6 +9,7 @@ import { KRAK, type KrakPhase } from "../buildings/fortresses/krak";
 import { committedSvgHash, levelPlanSvg, planSvg } from "../buildings/planSvg";
 import { type BuildingRecord, TRIANGLE_BUDGET } from "../buildings/record";
 import { createGalleon, GALLEON } from "../buildings/ships/galleon";
+import { createTrebuchet, TREBUCHET } from "../buildings/siege/trebuchet";
 import { validateBuildingRecord } from "../buildings/validate";
 import { catalogueMassing } from "../city3d/core/catalogueMassing";
 import { structureSurfaces } from "../city3d/core/structureGeometry";
@@ -520,6 +521,44 @@ galleonButton.addEventListener("click", () => {
   );
 });
 list.append(galleonButton);
+
+const siegeHeading = document.createElement("h2");
+siegeHeading.textContent = "Siege engines";
+list.append(siegeHeading);
+const trebuchetButton = document.createElement("button");
+trebuchetButton.type = "button";
+trebuchetButton.textContent = "Trebuchet · Hinged counterweight";
+trebuchetButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === trebuchetButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Siege engine elevation";
+  levelTitle.textContent = "Siege engine plan";
+  const model = createTrebuchet();
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: TREBUCHET.length, depth: TREBUCHET.width } }, TREBUCHET.height);
+  camera.position.set(14, 11, 21);
+  controls.target.set(3, 4, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", TREBUCHET.name),
+    fact("Type", "Hinged-counterweight siege engine"),
+    fact("Study envelope", `${TREBUCHET.length} × ${TREBUCHET.width} × ${TREBUCHET.height} m`),
+    fact("Throwing arm", `${TREBUCHET.longArm} m long arm / ${TREBUCHET.shortArm} m counterweight arm`),
+    fact("Pose", "Lowered for loading; sling and projectile in the trough"),
+    fact("Note", TREBUCHET.note)
+  );
+});
+list.append(trebuchetButton);
 
 resize();
 new ResizeObserver(resize).observe(stage);
