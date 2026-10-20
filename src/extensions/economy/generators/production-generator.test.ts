@@ -530,3 +530,61 @@ describe("executeManufacture wages (docs/plan/economy-coupling-audit.md L2 Phase
     expect(restless.yieldLots).toBeCloseTo(calm.yieldLots * 0.85, 2);
   });
 });
+
+describe("runWorkerLoop steps (port-freight-queue-and-warehouses.md §10.23)", () => {
+  beforeEach(() => initEconomyContext({ worldContext } as unknown as ExtensionAPI));
+  afterEach(() => {
+    setEconomyCalibrationState({ applyCalibration: false });
+    clearEconomyContext();
+  });
+
+  type LoopHarness = {
+    runWorkerLoop(index: unknown, state: unknown): { total: number };
+    makeProductionDecision: (...args: unknown[]) => unknown;
+    executeManufacture: (...args: unknown[]) => { yieldLots: number; laborUsed: number };
+  };
+  const good = (i: number, name: string) => ({ i, name, tags: [], value: 1, unit: "lot", icon: "", color: "" }) as Good;
+
+  it("gives a failed attempt's step back and skips its goal, so a small town's steps reach its work", () => {
+    setEconomyCalibrationState({ applyCalibration: true });
+    const failingGoal = good(1, "Failing Goal");
+    const missingInput = good(2, "Missing Input");
+    const work = good(3, "Work");
+    const production = new ProductionModule() as unknown as LoopHarness;
+    const made: string[] = [];
+    // The failing goal keeps winning while it is a candidate, as an active goal would.
+    production.makeProductionDecision = (...args: unknown[]) => {
+      const candidates = args[7] as Good[];
+      const goal = candidates.includes(failingGoal) ? failingGoal : candidates.includes(work) ? work : null;
+      if (!goal) return null;
+      return {
+        action: { good: goal === failingGoal ? missingInput : work },
+        candidates: [],
+        goalGoodId: goal.i,
+        laborProductivity: 1
+      };
+    };
+    production.executeManufacture = (...args: unknown[]) => {
+      const action = (args[2] as { action: { good: Good } }).action;
+      made.push(action.good.name);
+      return action.good === work ? { yieldLots: 1, laborUsed: 1 } : { yieldLots: 0, laborUsed: 0 };
+    };
+
+    const { total } = production.runWorkerLoop(
+      { priorityGoods: [], productiveGoods: [failingGoal, missingInput, work] },
+      {
+        burg: { i: 0, cell: 0 },
+        population: 2,
+        activeGoalGoodId: null,
+        strategicDemandByGood: new Map(),
+        remainingCalibratedLots: new Map(),
+        orderedCalibratedLots: new Map(),
+        demandTargets: [],
+        demandCoverage: []
+      }
+    );
+
+    expect(made).toEqual(["Missing Input", "Work", "Work"]);
+    expect(total).toBe(2);
+  });
+});

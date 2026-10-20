@@ -690,7 +690,7 @@ export class ProductionModule {
       smithingProgramByGood,
       strategicLaborMarket,
       strategicDemandByGood: this.getCombinedStrategicDemand(market.i),
-      remainingCalibratedLots: this.buildRemainingCalibratedLots(burg, population, index, market.i)
+      ...this.buildRemainingCalibratedLots(burg, population, index, market.i)
     };
   }
 
@@ -704,9 +704,10 @@ export class ProductionModule {
     population: number,
     index: ProductionIndex,
     marketId: number
-  ): Map<number, number> {
+  ): Pick<BurgProductionState, "remainingCalibratedLots" | "orderedCalibratedLots"> {
     const remainingCalibratedLots = new Map<number, number>();
-    if (!getEconomyCalibrationState().applyCalibration) return remainingCalibratedLots;
+    const orderedCalibratedLots = new Map<number, number>();
+    if (!getEconomyCalibrationState().applyCalibration) return { remainingCalibratedLots, orderedCalibratedLots };
 
     // A cartwright's order is made on top of the authored floor: Harnesses' floor covers only the
     // cavalry's, so the smiths could not make the fittings the carts went without (§10.12).
@@ -731,8 +732,9 @@ export class ProductionModule {
         (transportMaterialDemand.get(good.i) ?? 0) +
         (row.provenances.includes("militaryLedger") ? militaryOrder(good.i) : 0);
       remainingCalibratedLots.set(good.i, Math.max(0, lots) + ordered);
+      if (ordered > 0) orderedCalibratedLots.set(good.i, ordered);
     }
-    return remainingCalibratedLots;
+    return { remainingCalibratedLots, orderedCalibratedLots };
   }
 
   /**
@@ -809,6 +811,16 @@ export class ProductionModule {
     // Cap iterations to ceil(population) so floating-point leftovers cannot spin.
     const maxSteps = Math.max(0, Math.ceil(state.population));
     let step = 0;
+    // Under calibration an attempt that spent no labor skips its goal and gives its step back, so a
+    // small town's few steps are left for the work it can do (port-freight-queue-and-warehouses.md
+    // §10.23). At most once a good, so the give-back cannot spin either.
+    let failedStepsLeft = index.productiveGoods.length;
+    const giveBackFailedStep = (decision: ProductionDecision): void => {
+      this.skipFailedGoal(state, decision, skippedGoodIds);
+      if (failedStepsLeft <= 0) return;
+      failedStepsLeft--;
+      step--;
+    };
 
     // Phase 1: preservation goods and their direct craft ingredients only. This protects the rare
     // case of fresh cargo already in a Burg's market, but is intentionally capped: food safety is a
@@ -857,6 +869,7 @@ export class ProductionModule {
         );
         workersUsed += spent;
         priorityWorkUsed += spent;
+        if (applyCalibration && laborUsed <= 1e-9) giveBackFailedStep(decision);
 
         const domain = getCraftDomainForGood(decision.action.good.name);
         if (domain) byDomain.set(domain, (byDomain.get(domain) ?? 0) + spent);
@@ -936,10 +949,15 @@ export class ProductionModule {
             workersUsed += spent;
             strategicWorkUsed += spent;
             shareUsed += spent;
-            if (applyCalibration && laborUsed <= 1e-9) break; // this good is stuck; move to the next.
 
             const domain = getCraftDomainForGood(decision.action.good.name);
             if (domain) byDomain.set(domain, (byDomain.get(domain) ?? 0) + spent);
+            if ((applyCalibration && laborUsed <= 1e-9) || skippedGoodIds.has(good.i)) {
+              // This good is stuck or done; move to the next. A break skips the loop's step++, so
+              // only a batch that did work is counted.
+              if (laborUsed > 1e-9) step++;
+              break;
+            }
           }
         }
       }
@@ -985,9 +1003,10 @@ export class ProductionModule {
       const spent = applyCalibration ? laborUsed : workerFraction;
       this.settleCalibratedProduction(state, chosenGood.i, yieldLots, laborUsed, applyCalibration, skippedGoodIds);
       workersUsed += spent;
+      if (applyCalibration && laborUsed <= 1e-9) giveBackFailedStep(stickyDecision);
       // A stuck good (zero output this attempt) must not keep winning the sticky slot — force a
       // fresh ranking next step so a different good gets a turn (docs/plan/craft-demand-calibration.md §3.5).
-      if (applyCalibration && laborUsed <= 1e-9) stickyDecision = null;
+      if (skippedGoodIds.has(chosenGood.i)) stickyDecision = null;
 
       const domain = getCraftDomainForGood(chosenGood.name);
       if (domain) byDomain.set(domain, (byDomain.get(domain) ?? 0) + spent);
@@ -1001,7 +1020,11 @@ export class ProductionModule {
    * monthly lot target (docs/plan/craft-demand-calibration.md §3.5). Bounded by whatever labor the
    * calling phase still has left, this good's remaining calibrated lots for the cycle (converted to
    * labor via its authored laborPointsPerLot), and — for guild-mapped goods — a domain-wide labor
-   * cap so one good cannot absorb its whole domain's expected labor in a single batch.
+   * cap so one good cannot absorb its whole domain's expected labor in a single batch. The cap is
+   * the labor of the authored floor alone, so an order on top of the floor (cartwrights', the
+   * State's) adds its own labor to it: capped at the floor, an order was cut into floor-sized
+   * batches that spent the Burg's ceil(population) steps, leaving a small town's later goods and
+   * phase 2 without a step (port-freight-queue-and-warehouses.md §10.23).
    */
   private getCalibratedLaborBudget(
     state: BurgProductionState,
@@ -1024,10 +1047,23 @@ export class ProductionModule {
         capital: Boolean(state.burg.capital),
         hasQuarry: false
       });
-      cap = Math.min(cap, expected * domainShare(good.name, port));
+      const orderedLabor = (state.orderedCalibratedLots.get(good.i) ?? 0) * laborPerLot;
+      cap = Math.min(cap, expected * domainShare(good.name, port) + orderedLabor);
     }
 
     return Math.max(0, Math.min(cap, remainingLots * laborPerLot));
+  }
+
+  /**
+   * After an attempt that spent no labor, skips its goal as well as the good it tried to make (an
+   * ingredient, when preparing): planning the goal again picks the same failing step. The goal is
+   * no longer the active one either, which makeProductionDecision() plans even outside its
+   * candidates.
+   */
+  private skipFailedGoal(state: BurgProductionState, decision: ProductionDecision, skippedGoodIds: Set<number>): void {
+    skippedGoodIds.add(decision.action.good.i);
+    if (decision.goalGoodId !== null) skippedGoodIds.add(decision.goalGoodId);
+    state.activeGoalGoodId = null;
   }
 
   /**
@@ -1047,8 +1083,12 @@ export class ProductionModule {
   ): void {
     if (!applyCalibration) return;
     const remaining = state.remainingCalibratedLots.get(goodId);
-    if (remaining != null) state.remainingCalibratedLots.set(goodId, Math.max(0, remaining - yieldLots));
-    if (laborUsed <= 1e-9) skippedGoodIds.add(goodId);
+    const left = remaining == null ? null : Math.max(0, remaining - yieldLots);
+    if (left != null) state.remainingCalibratedLots.set(goodId, left);
+    // A good whose target is met is done too: another attempt only spends a step to make nothing
+    // (executeManufacture() drops batches of 0.001 lot or less), which a small town cannot spare
+    // (port-freight-queue-and-warehouses.md §10.23).
+    if (laborUsed <= 1e-9 || (left != null && left <= 0.001)) skippedGoodIds.add(goodId);
   }
 
   /**
@@ -1973,6 +2013,8 @@ type BurgProductionState = {
    * pre-PR-3 behavior for it (docs/plan/craft-demand-calibration.md §3.5).
    */
   remainingCalibratedLots: Map<number, number>;
+  /** The part of remainingCalibratedLots' seed that is ordered work on top of the authored floor. */
+  orderedCalibratedLots: ReadonlyMap<number, number>;
 };
 
 type DemandEffect = { multiplier: number; category: DemandCategory | null };
