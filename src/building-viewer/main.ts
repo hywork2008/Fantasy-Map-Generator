@@ -29,6 +29,7 @@ import {
 } from "../buildings/signs/hangingSign";
 import { validateBuildingRecord } from "../buildings/validate";
 import { createMedievalWagon, MEDIEVAL_WAGON } from "../buildings/vehicles/medievalWagon";
+import { createWarWagon, WAR_WAGON } from "../buildings/vehicles/warWagon";
 import { createMedievalWell, MEDIEVAL_WELL } from "../buildings/wells/medievalWell";
 import { createMedievalLumberYard, MEDIEVAL_LUMBER_YARD } from "../buildings/yards/medievalLumberYard";
 import { catalogueMassing } from "../city3d/core/catalogueMassing";
@@ -1003,6 +1004,45 @@ wagonButton.addEventListener("click", () => {
   );
 });
 list.append(wagonButton);
+
+const warWagonButton = document.createElement("button");
+warWagonButton.type = "button";
+warWagonButton.textContent = "War wagon · Medieval European defensive wagon";
+warWagonButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === warWagonButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "War wagon side elevation";
+  levelTitle.textContent = "War wagon plan";
+  const model = createWarWagon();
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: WAR_WAGON.length, depth: WAR_WAGON.width } }, WAR_WAGON.height);
+  camera.position.set(8, 6, 9);
+  controls.target.set(0.6, 1.45, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", WAR_WAGON.name),
+    fact("Style", "Late medieval Europe · Wagon-fort inspired defensive wagon"),
+    fact("Study envelope", `${WAR_WAGON.length} × ${WAR_WAGON.width} × ${WAR_WAGON.height} m`),
+    fact(
+      "Defenses",
+      "High iron-strapped timber walls with four firing apertures on each side; open fighting compartment"
+    ),
+    fact("Running gear", "Four iron-bound spoked wheels, front axle kingpin and wooden drawbar; no animals"),
+    fact("Access", "Closed rear double doors, iron hinges and latch, and a boarding step"),
+    fact("Note", WAR_WAGON.note)
+  );
+});
+list.append(warWagonButton);
 
 const signsHeading = document.createElement("h2");
 signsHeading.textContent = "Hanging shop signs";
