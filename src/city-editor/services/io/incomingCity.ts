@@ -455,6 +455,10 @@ function asSettings(raw: unknown): Omit<GenerationSettings, "descriptor"> | null
     : structuredClone(DEFAULT_SITE_CONFIG);
   if (raw.buildingPattern !== undefined && !["legacy", "medieval"].includes(String(raw.buildingPattern))) return null;
   const settings: Omit<GenerationSettings, "descriptor"> = { config };
+  if (raw.mode !== undefined) {
+    if (raw.mode !== "city" && raw.mode !== "fort") return null;
+    settings.mode = raw.mode;
+  }
   if (raw.population !== undefined) {
     if (!validPopulationSettings(raw.population)) return null;
     settings.population = structuredClone(raw.population);

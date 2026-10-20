@@ -17,6 +17,7 @@ import {
 import { createFabricPlan } from "../fabricDistricts";
 import { finishCityGeometry } from "../finishCityGeometry";
 import { fitImportedHousing } from "../fitImportedHousing";
+import { generateFortOnDocument } from "../fortGeneration";
 import { townCircuits, townGates } from "../fortifications";
 import { straightenFrameRoadJunctions } from "../frameRoadJunction";
 import { normalizeGeneratedRoadOwnership } from "../generatedRoadOwnership";
@@ -95,6 +96,7 @@ export function generateCityOnDocument(
   profiler?: ProcessingProfiler,
   stopAfter?: "streets" | "innerWall" | "innerGates" | "firstInnerGates"
 ): CityDocument | null {
+  if (settings.mode === "fort") return generateFortOnDocument(document, settings, seed);
   try {
     ({ document, settings } = measureProcessing(profiler, "population-prepare", () =>
       preparePopulationGeneration(document, settings, seed)

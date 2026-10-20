@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { CityDocument, Mesh, Point, WaterKind } from "../../city-editor/types/document";
 import { LAND_Y } from "../core/waterGeometry";
 import { roadStampChanged } from "./roadMeshes";
-import { createTownWater, planCity3dRefresh, waterStampChanged } from "./waterMeshes";
+import { createTownWater, planCity3dRefresh, townWaterHeightAt, waterStampChanged } from "./waterMeshes";
 
 function document(partial: Partial<CityDocument> & Pick<CityDocument, "mesh">): CityDocument {
   return {
@@ -317,4 +317,16 @@ describe("town water meshes", () => {
     expect(hits).toEqual([]);
     drawn.dispose();
   });
+});
+
+it("samples the rendered sea and inland water surfaces at ship locations", () => {
+  const mesh = emptyMesh();
+  addRect(mesh, "land", -50, -50, 0, 50, "land");
+  mesh.faces.land.properties.elevation = 8;
+  addRect(mesh, "sea", 0, -50, 50, 0, "sea");
+  addRect(mesh, "lake", 0, 0, 50, 50, "lake");
+  const water = createTownWater(document({ mesh }));
+  expect(townWaterHeightAt(water, [25, -25])).toBeCloseTo(LAND_Y - 8);
+  expect(townWaterHeightAt(water, [25, 25])).toBeCloseTo(LAND_Y - 1);
+  water.dispose();
 });

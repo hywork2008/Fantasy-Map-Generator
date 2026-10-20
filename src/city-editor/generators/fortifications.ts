@@ -96,7 +96,10 @@ export function circuitRing(document: CityDocument, circuit: DefenseCircuit): Po
 }
 
 export function reservedCastleFaces(document: CityDocument): Set<Id> {
-  return new Set((document.defenseCircuits ?? []).filter(c => c.scope === "castle").flatMap(c => c.areaFaceIds));
+  return new Set([
+    ...(document.defenseCircuits ?? []).filter(c => c.scope === "castle").flatMap(c => c.areaFaceIds),
+    ...(document.castles ?? []).flatMap(c => c.siteFaceIds ?? [])
+  ]);
 }
 
 export function castleWallIds(document: CityDocument): Set<Id> {
@@ -267,6 +270,12 @@ export function validateFortifications(document: CityDocument): string[] {
       errors.push(`Invalid gate circuit ${gate.id}`);
   for (const castle of castles) {
     if (
+      castle.fortress !== undefined &&
+      (castle.fortress?.modelId !== "krak-des-chevaliers" ||
+        !["hospitalier-1270", "mamluk-1302"].includes(castle.fortress.phase))
+    )
+      errors.push(`Invalid modular fortress ${castle.id}`);
+    if (
       castle.version !== 1 ||
       !["keep-bailey", "courtyard"].includes(castle.form) ||
       !["edge", "central"].includes(castle.position) ||
@@ -275,6 +284,78 @@ export function validateFortifications(document: CityDocument): string[] {
     )
       errors.push(`Invalid castle metadata ${castle.id}`);
 
+    if (castle.siteFaceIds !== undefined) {
+      const sites = castle.siteFaceIds.map(id => document.mesh.faces[id]);
+      if (!sites.length || !unique(castle.siteFaceIds) || sites.some(face => face?.properties.water !== "land")) {
+        errors.push(`Invalid castle site ${castle.id}`);
+        continue;
+      }
+      if (castle.circuitId !== undefined || (castle.motteFaceId && !castle.siteFaceIds.includes(castle.motteFaceId)))
+        errors.push(`Invalid independent castle ${castle.id}`);
+      const authoredFort = document.fortSite?.castleId === castle.id;
+      const siteBoundary = boundaryRings(document.mesh, boundaryEdges(document.mesh, castle.siteFaceIds));
+      const sitePolygon = siteBoundary.length === 1 ? refPoints(document.mesh, siteBoundary[0]) : [];
+      for (const part of castle.parts) {
+        const candidates =
+          part.role === "keep" && castle.motteFaceId ? [document.mesh.faces[castle.motteFaceId]] : sites;
+        if (
+          !isSimplePolygon(part.footprint) ||
+          Math.abs(polygonArea(part.footprint)) < 20 ||
+          !(authoredFort && part.role !== "keep"
+            ? polylineInsideRing([...part.footprint, part.footprint[0]], sitePolygon)
+            : candidates.some(face =>
+                polylineInsideRing([...part.footprint, part.footprint[0]], refPoints(document.mesh, face.boundary))
+              ))
+        )
+          errors.push(`Invalid castle building ${part.id}`);
+        if (
+          !part.entrances.length ||
+          part.entrances.some(
+            p => !p.every(Number.isFinite) || nearestOnPolyline(p, [...part.footprint, part.footprint[0]]).dist > 0.01
+          )
+        )
+          errors.push(`Missing entrance ${part.id}`);
+      }
+      const siteRings = boundaryRings(document.mesh, boundaryEdges(document.mesh, castle.siteFaceIds));
+      if (siteRings.length !== 1) errors.push(`Disconnected castle site ${castle.id}`);
+      const ring = siteRings.length === 1 ? refPoints(document.mesh, siteRings[0]) : [];
+      if (sites.some(face => face.properties.buildable || face.properties.ward !== "castle"))
+        errors.push(`Unreserved castle area ${castle.id}`);
+      if (!authoredFort && !castle.parts.some(part => part.role === "keep")) errors.push(`Missing keep ${castle.id}`);
+      for (const court of castle.courtyards)
+        if (
+          !isSimplePolygon(court) ||
+          !polylineInsideRing([...court, court[0]], ring) ||
+          castle.parts.some(part => polygonOverlaps(court, part.footprint))
+        )
+          errors.push(`Invalid castle courtyard ${castle.id}`);
+      for (const access of castle.accesses)
+        if (
+          access.points.length < 2 ||
+          !access.points.every(p => p.every(Number.isFinite)) ||
+          !Number.isFinite(access.widthMeters) ||
+          access.widthMeters <= 0 ||
+          !polylineInsideRing(access.points, ring) ||
+          castle.parts.some(part =>
+            access.points.slice(1).some((p, i) => segmentInteriorInPolygon(access.points[i], p, part.footprint))
+          )
+        )
+          errors.push(`Invalid castle access ${castle.id}`);
+      for (const part of authoredFort ? [] : castle.parts)
+        if (
+          !part.entrances.every(entrance =>
+            castle.accesses.some(access => {
+              const end = access.points.at(-1);
+              return end && Math.hypot(end[0] - entrance[0], end[1] - entrance[1]) < 0.01;
+            })
+          )
+        )
+          errors.push(`Unreachable castle building ${part.id}`);
+      for (let i = 0; i < castle.parts.length; i++)
+        if (castle.parts.slice(i + 1).some(part => polygonOverlaps(part.footprint, castle.parts[i].footprint)))
+          errors.push(`Overlapping castle buildings ${castle.id}`);
+      continue;
+    }
     const circuit = circuits.find(
       c => c.id === castle.circuitId && c.scope === "castle" && c.ownerCastleId === castle.id
     );

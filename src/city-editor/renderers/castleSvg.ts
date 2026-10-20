@@ -4,6 +4,7 @@ import { polygonCentroid } from "../generators/geom";
 import type { CastlePlan, CityDocument, Point } from "../types/document";
 import { buildFortressPlan, type FortressPlan } from "./castleLayoutBuilder";
 import { type CastleStyleProfile, resolveCastleStyle } from "./castlePatterns";
+import { renderModularFortress } from "./modularFortress";
 
 const NS = "http://www.w3.org/2000/svg";
 
@@ -780,7 +781,7 @@ export function renderCastle(
   inspectedId?: string | number | null
 ): SVGElement {
   const circuit = document.defenseCircuits?.find(c => c.id === castle.circuitId);
-  if (!circuit && castle.courtyards.length === 0) return element("g", {});
+  if (!circuit && !castle.siteFaceIds?.length && castle.courtyards.length === 0) return element("g", {});
 
   const profile = resolveCastleStyle(document, castle);
 
@@ -788,8 +789,16 @@ export function renderCastle(
     layer: "fortifications",
     kind: "castle",
     id: castle.id,
-    label: editorText("cityEditor.messages.castleCastleSvg", { value0: profile.label }),
-    style: profile.style,
+    label: castle.fortress
+      ? editorText(
+          castle.fortress.phase === "hospitalier-1270"
+            ? "cityEditor.messages.fortressKrak1270"
+            : "cityEditor.messages.fortressKrak1302"
+        )
+      : editorText("cityEditor.messages.castleCastleSvg", { value0: profile.label }),
+    ...(castle.fortress
+      ? { modelId: castle.fortress.modelId, phase: castle.fortress.phase }
+      : { style: profile.style }),
     locked: castle.locked
   };
 
@@ -798,6 +807,12 @@ export function renderCastle(
     class: `ce-castle-precinct ce-castle--${profile.style} ${inspectedId === castle.id ? "ce-is-selected cg-is-selected" : ""}`,
     style: "cursor:pointer"
   });
+
+  const modular = renderModularFortress(document, castle);
+  if (modular) {
+    group.append(modular);
+    return group;
+  }
 
   // 1. 従来のクラシックスタイル（城の種類が1種類だけだった時）：
   // 旧パーツと旧来の施設間連絡路（castle.accesses）を描画する
@@ -818,6 +833,20 @@ export function renderCastle(
 
   // Layer 2: Ramparts, Stone Slopes, Motte Mounds, and Curtains (縄張・多重囲壁・石垣・盛土)
   renderRamparts(group, plan, profile);
+  if (castle.siteFaceIds) {
+    for (const access of castle.accesses) {
+      group.appendChild(
+        element("path", {
+          d: line(access.points),
+          fill: "none",
+          stroke: profile.palette.pathStroke,
+          "stroke-width": String(access.widthMeters),
+          "stroke-linejoin": "round",
+          class: "ce-castle-access-path"
+        })
+      );
+    }
+  }
 
   // Layer 3: Gates, Masugata Enclosures, Barbicans, and Timber Ramps (枡形虎口・大双塔門・出構え・登城木橋)
   renderDefensiveGates(group, plan, profile);

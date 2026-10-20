@@ -1,6 +1,8 @@
+import type { KrakPhase } from "../../buildings/fortresses/krak";
 import { editorHtml, editorText } from "../../i18n/editorMessages";
 import type { createEditorControls, FloatingWindow } from "../components/editorControls";
 import { div, text } from "../components/editorControls";
+import { populateFortSiteInspector } from "../components/fortSiteInspector";
 import {
   evaluateApproachBeyond,
   normalizeApproachBeyond,
@@ -12,7 +14,7 @@ import {
   SETTLEMENT_SCALES
 } from "../generators/approachBeyond";
 import {
-  createCastleOnFace,
+  createCastleBuildingOnFace,
   deleteCastle,
   regenerateCastleInterior,
   setCastleLocked,
@@ -29,6 +31,7 @@ import {
   vertexHasWallPassage
 } from "../generators/features";
 import { reservedCastleFaces } from "../generators/fortifications";
+import { fortressPlacement, setCastleFortress } from "../generators/fortressPlacement";
 import { transformPlacedLandmark } from "../generators/landmarks";
 import {
   clone,
@@ -353,18 +356,81 @@ export function createInspectorController(ctx: InspectorContext) {
   }
 
   function populateInspectorEditControls(container: HTMLElement): void {
+    if (
+      populateFortSiteInspector(
+        container,
+        ctx.documents.documentState,
+        ctx.interaction.selection.inspectedId,
+        ctx.controls,
+        ctx.runContextAction
+      )
+    )
+      return;
     const castle = ctx.documents.documentState.castles?.find(
       c =>
         c.id === ctx.interaction.selection.inspectedId ||
         (ctx.interaction.selection.faceId &&
-          ctx.documents.documentState.defenseCircuits
-            ?.find(d => d.id === c.circuitId)
-            ?.areaFaceIds.includes(ctx.interaction.selection.faceId))
+          (
+            c.siteFaceIds ?? ctx.documents.documentState.defenseCircuits?.find(d => d.id === c.circuitId)?.areaFaceIds
+          )?.includes(ctx.interaction.selection.faceId))
     );
     if (castle) {
+      const fortressSelect = document.createElement("select");
+      fortressSelect.className = "ce-select ce-fortress-model";
+      fortressSelect.setAttribute("aria-label", editorText("cityEditor.messages.fortressModel"));
+      const fits = !!fortressPlacement(ctx.documents.documentState, castle);
+      const choices = [
+        ["procedural", editorText("cityEditor.messages.fortressProcedural")],
+        ["hospitalier-1270", editorText("cityEditor.messages.fortressKrak1270")],
+        ["mamluk-1302", editorText("cityEditor.messages.fortressKrak1302")]
+      ];
+      for (const [value, title] of choices) {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = title;
+        option.disabled = value !== "procedural" && !fits;
+        fortressSelect.append(option);
+      }
+      fortressSelect.value = castle.fortress?.phase ?? "procedural";
+      fortressSelect.disabled = castle.locked;
+      ctx.scope.listen(fortressSelect, "change", () =>
+        ctx.runContextAction(
+          () =>
+            setCastleFortress(
+              ctx.documents.documentState,
+              castle.id,
+              fortressSelect.value === "procedural" ? null : (fortressSelect.value as KrakPhase)
+            ),
+          editorText("cityEditor.messages.fortressModel")
+        )
+      );
+      if (!castle.siteFaceIds) {
+        container.append(label(editorText("cityEditor.messages.fortressModel"), fortressSelect));
+        if (!fits) container.append(text(editorText("cityEditor.messages.fortressSiteTooSmall")));
+        if (castle.fortress) container.append(text(editorText("cityEditor.messages.fortressSchematic")));
+      }
+      const circuit = ctx.documents.documentState.defenseCircuits?.find(item => item.id === castle.circuitId);
+      for (const faceId of ctx.documents.documentState.fortSite?.castleId === castle.id
+        ? []
+        : (castle.siteFaceIds ?? circuit?.areaFaceIds ?? [])) {
+        const face = ctx.documents.documentState.mesh.faces[faceId];
+        if (!face) continue;
+        const elevation = numberInput(String(face.properties.elevation), "1", "1");
+        elevation.disabled = castle.locked || face.properties.locked;
+        ctx.scope.listen(elevation, "change", () => {
+          const height = Number(elevation.value);
+          if (!Number.isFinite(height) || height <= 0) return;
+          ctx.runContextAction(
+            () => setFaceElevation(ctx.documents.documentState, faceId, height),
+            editorText("cityEditor.messages.elevation")
+          );
+        });
+        container.append(label(`${editorText("cityEditor.messages.elevation")} (${faceId})`, elevation));
+      }
       const currentProfile = resolveCastleStyle(ctx.documents.documentState, castle);
       const styleSelect = document.createElement("select");
       styleSelect.className = "ce-select";
+      styleSelect.disabled = castle.locked || !!castle.fortress;
       const styleChoices: Array<[string, string]> = [
         ["auto", editorText("cityEditor.messages.automaticAssessment")],
         ...Object.entries(CASTLE_STYLE_PROFILES).map(([k, p]) => [k, p.label] as [string, string])
@@ -398,7 +464,9 @@ export function createInspectorController(ctx: InspectorContext) {
             value2: castle.form
           })
         ),
-        label(editorText("cityEditor.messages.style", { value0: currentProfile.label }), styleSelect),
+        ...(!castle.fortress
+          ? [label(editorText("cityEditor.messages.style", { value0: currentProfile.label }), styleSelect)]
+          : []),
         makeButton(
           castle.locked ? editorText("cityEditor.messages.unlockCastle") : editorText("cityEditor.messages.lockCastle"),
           () =>
@@ -407,18 +475,22 @@ export function createInspectorController(ctx: InspectorContext) {
               editorText("cityEditor.messages.castleLock")
             )
         ),
-        makeButton(editorText("cityEditor.messages.regenerateCastleInterior"), () =>
-          ctx.runContextAction(
-            () => regenerateCastleInterior(ctx.documents.documentState, castle.id, false),
-            editorText("cityEditor.messages.castleLayout")
-          )
-        ),
-        makeButton(editorText("cityEditor.messages.switchCastleForm"), () =>
-          ctx.runContextAction(
-            () => regenerateCastleInterior(ctx.documents.documentState, castle.id),
-            editorText("cityEditor.messages.castleInterior")
-          )
-        ),
+        ...(!castle.fortress && !castle.siteFaceIds
+          ? [
+              makeButton(editorText("cityEditor.messages.regenerateCastleInterior"), () =>
+                ctx.runContextAction(
+                  () => regenerateCastleInterior(ctx.documents.documentState, castle.id, false),
+                  editorText("cityEditor.messages.castleLayout")
+                )
+              ),
+              makeButton(editorText("cityEditor.messages.switchCastleForm"), () =>
+                ctx.runContextAction(
+                  () => regenerateCastleInterior(ctx.documents.documentState, castle.id),
+                  editorText("cityEditor.messages.castleInterior")
+                )
+              )
+            ]
+          : []),
         makeButton(editorText("cityEditor.messages.deleteCastle"), () =>
           ctx.runContextAction(
             () => deleteCastle(ctx.documents.documentState, castle.id),
@@ -426,6 +498,7 @@ export function createInspectorController(ctx: InspectorContext) {
           )
         )
       );
+      if (castle.fortress) return;
       for (const part of castle.parts) {
         const input = checkbox(part.locked, checked =>
           ctx.runContextAction(
@@ -438,11 +511,14 @@ export function createInspectorController(ctx: InspectorContext) {
       }
       return;
     }
-    if (ctx.interaction.selection.faceId && !reservedCastleFaces(ctx.documents.documentState).size)
+    if (
+      ctx.interaction.selection.faceId &&
+      !reservedCastleFaces(ctx.documents.documentState).has(ctx.interaction.selection.faceId)
+    )
       container.append(
         makeButton(editorText("cityEditor.messages.createACastleInTheSelectedCell"), () =>
           ctx.runContextAction(
-            () => createCastleOnFace(ctx.documents.documentState, ctx.interaction.selection.faceId!),
+            () => createCastleBuildingOnFace(ctx.documents.documentState, ctx.interaction.selection.faceId!),
             editorText("cityEditor.messages.createCastle")
           )
         )
@@ -869,6 +945,28 @@ export function createInspectorController(ctx: InspectorContext) {
     ctx.scope.replaceChildren(ctx.inspector.content);
 
     if (ctx.interaction.inspectedInfo) {
+      const info = ctx.interaction.inspectedInfo;
+      const selectedCastle =
+        info.kind === "castle" ? ctx.documents.documentState.castles?.find(castle => castle.id === info.id) : undefined;
+      if (selectedCastle) {
+        info.locked = selectedCastle.locked;
+        if (selectedCastle.fortress) {
+          info.label = editorText(
+            selectedCastle.fortress.phase === "hospitalier-1270"
+              ? "cityEditor.messages.fortressKrak1270"
+              : "cityEditor.messages.fortressKrak1302"
+          );
+          info.modelId = selectedCastle.fortress.modelId;
+          info.phase = selectedCastle.fortress.phase;
+          delete info.style;
+        } else {
+          const profile = resolveCastleStyle(ctx.documents.documentState, selectedCastle);
+          info.label = editorText("cityEditor.messages.castleCastleSvg", { value0: profile.label });
+          info.style = profile.style;
+          delete info.modelId;
+          delete info.phase;
+        }
+      }
       const kind = document.createElement("strong");
       kind.className = "ce-inspector-kind cg-inspector-kind";
       kind.textContent = ctx.interaction.inspectedInfo.label;

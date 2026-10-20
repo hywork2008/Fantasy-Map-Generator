@@ -1,0 +1,468 @@
+{
+  "format": "fmg-building-record",
+  "version": 1,
+  "id": "loches-donjon",
+  "revision": 1,
+  "contentHash": "b1b11f548b7ac72de08a60721b36a73462b328b2b9e5c65c2e53da7eaed3c2bd",
+  "name": "Loches donjon",
+  "kind": "castle",
+  "period": "highMedieval",
+  "planFamily": "keep-with-forebuilding",
+  "region": "Indre-et-Loire, France",
+  "occupancyMeters": {
+    "width": 15.5,
+    "depth": 32.3
+  },
+  "approachAzimuthRadians": 1.570796,
+  "placementStyles": [
+    "classic",
+    "norman-keep"
+  ],
+  "levels": [
+    {
+      "id": "ground",
+      "name": "Ground",
+      "elevationMeters": 0,
+      "floorToFloorMeters": 12,
+      "walls": [
+        {
+          "id": "keep",
+          "kind": "keep",
+          "outer": [
+            [
+              -7.7,
+              -16.15
+            ],
+            [
+              7.7,
+              -16.15
+            ],
+            [
+              7.7,
+              9.15
+            ],
+            [
+              -7.7,
+              9.15
+            ]
+          ],
+          "holes": [
+            [
+              [
+                -4.1,
+                5.55
+              ],
+              [
+                4.1,
+                5.55
+              ],
+              [
+                4.1,
+                -12.55
+              ],
+              [
+                -4.1,
+                -12.55
+              ]
+            ]
+          ],
+          "thicknessMeters": 3.6
+        },
+        {
+          "id": "forebuilding",
+          "kind": "range",
+          "outer": [
+            [
+              -7.75,
+              9.15
+            ],
+            [
+              7.75,
+              9.15
+            ],
+            [
+              7.75,
+              16.15
+            ],
+            [
+              -7.75,
+              16.15
+            ]
+          ],
+          "holes": [
+            [
+              [
+                -4.95,
+                13.35
+              ],
+              [
+                4.95,
+                13.35
+              ],
+              [
+                4.95,
+                11.95
+              ],
+              [
+                -4.95,
+                11.95
+              ]
+            ]
+          ],
+          "thicknessMeters": 2.8
+        }
+      ],
+      "plates": [
+        {
+          "id": "ground-hall",
+          "use": "hall",
+          "outer": [
+            [
+              -4.1,
+              -12.55
+            ],
+            [
+              4.1,
+              -12.55
+            ],
+            [
+              4.1,
+              5.55
+            ],
+            [
+              -4.1,
+              5.55
+            ]
+          ],
+          "holes": [],
+          "kind": "hall",
+          "roof": "covered"
+        },
+        {
+          "id": "fore-room",
+          "use": "entrance",
+          "outer": [
+            [
+              -4.95,
+              11.95
+            ],
+            [
+              4.95,
+              11.95
+            ],
+            [
+              4.95,
+              13.35
+            ],
+            [
+              -4.95,
+              13.35
+            ]
+          ],
+          "holes": [],
+          "kind": "hall",
+          "roof": "covered"
+        }
+      ],
+      "openings": [
+        {
+          "id": "north-door",
+          "ring": {
+            "wallId": "forebuilding",
+            "hole": null
+          },
+          "offsetMeters": 29.25,
+          "widthMeters": 2,
+          "sillMeters": 0,
+          "heightMeters": 2.5,
+          "kind": "door"
+        }
+      ],
+      "fixtures": []
+    },
+    {
+      "id": "middle",
+      "name": "Middle",
+      "elevationMeters": 12,
+      "floorToFloorMeters": 13,
+      "walls": [
+        {
+          "id": "keep",
+          "kind": "keep",
+          "outer": [
+            [
+              -7.7,
+              -16.15
+            ],
+            [
+              7.7,
+              -16.15
+            ],
+            [
+              7.7,
+              9.15
+            ],
+            [
+              -7.7,
+              9.15
+            ]
+          ],
+          "holes": [
+            [
+              [
+                -4.1,
+                5.55
+              ],
+              [
+                4.1,
+                5.55
+              ],
+              [
+                4.1,
+                -12.55
+              ],
+              [
+                -4.1,
+                -12.55
+              ]
+            ]
+          ],
+          "thicknessMeters": 3.6
+        },
+        {
+          "id": "forebuilding",
+          "kind": "range",
+          "outer": [
+            [
+              -7.75,
+              9.15
+            ],
+            [
+              7.75,
+              9.15
+            ],
+            [
+              7.75,
+              16.15
+            ],
+            [
+              -7.75,
+              16.15
+            ]
+          ],
+          "holes": [
+            [
+              [
+                -4.95,
+                13.35
+              ],
+              [
+                4.95,
+                13.35
+              ],
+              [
+                4.95,
+                11.95
+              ],
+              [
+                -4.95,
+                11.95
+              ]
+            ]
+          ],
+          "thicknessMeters": 2.8
+        }
+      ],
+      "plates": [
+        {
+          "id": "middle-hall",
+          "use": "hall",
+          "outer": [
+            [
+              -4.1,
+              -12.55
+            ],
+            [
+              4.1,
+              -12.55
+            ],
+            [
+              4.1,
+              5.55
+            ],
+            [
+              -4.1,
+              5.55
+            ]
+          ],
+          "holes": [],
+          "kind": "hall",
+          "roof": "covered"
+        }
+      ],
+      "openings": [],
+      "fixtures": []
+    },
+    {
+      "id": "upper",
+      "name": "Upper",
+      "elevationMeters": 25,
+      "floorToFloorMeters": 11,
+      "walls": [
+        {
+          "id": "keep",
+          "kind": "keep",
+          "outer": [
+            [
+              -7.7,
+              -16.15
+            ],
+            [
+              7.7,
+              -16.15
+            ],
+            [
+              7.7,
+              9.15
+            ],
+            [
+              -7.7,
+              9.15
+            ]
+          ],
+          "holes": [
+            [
+              [
+                -4.1,
+                5.55
+              ],
+              [
+                4.1,
+                5.55
+              ],
+              [
+                4.1,
+                -12.55
+              ],
+              [
+                -4.1,
+                -12.55
+              ]
+            ]
+          ],
+          "thicknessMeters": 3.6
+        }
+      ],
+      "plates": [
+        {
+          "id": "upper-hall",
+          "use": "hall",
+          "outer": [
+            [
+              -4.1,
+              -12.55
+            ],
+            [
+              4.1,
+              -12.55
+            ],
+            [
+              4.1,
+              5.55
+            ],
+            [
+              -4.1,
+              5.55
+            ]
+          ],
+          "holes": [],
+          "kind": "hall",
+          "roof": "covered"
+        }
+      ],
+      "openings": [],
+      "fixtures": []
+    }
+  ],
+  "verticalLinks": [
+    {
+      "id": "stair-1",
+      "kind": "stair",
+      "fromLevelId": "ground",
+      "toLevelId": "middle",
+      "footprint": [
+        [
+          -4,
+          -11.5
+        ],
+        [
+          -2.8,
+          -11.5
+        ],
+        [
+          -2.8,
+          -6.5
+        ],
+        [
+          -4,
+          -6.5
+        ]
+      ],
+      "widthMeters": 1.2
+    },
+    {
+      "id": "stair-2",
+      "kind": "stair",
+      "fromLevelId": "middle",
+      "toLevelId": "upper",
+      "footprint": [
+        [
+          -4,
+          -11.5
+        ],
+        [
+          -2.8,
+          -11.5
+        ],
+        [
+          -2.8,
+          -6.5
+        ],
+        [
+          -4,
+          -6.5
+        ]
+      ],
+      "widthMeters": 1.2
+    }
+  ],
+  "roofs": [
+    {
+      "baseId": "keep",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "forebuilding",
+      "form": "flat",
+      "pitchDeg": 0
+    }
+  ],
+  "materials": {
+    "wall": "stone",
+    "roof": "lead"
+  },
+  "provenance": {
+    "constructionPeriod": "c. 1013 and 1030–1035, dendrochronological phases.",
+    "depictedPhase": "The early stone donjon with its lower north forebuilding.",
+    "omitted": [
+      "The 15th-century new tower, Martelet and later royal residence",
+      "Dimension set A (French Wikipedia): 25.2 × 13.7 m main tower and 13.2 × 9.1 m small tower; not mixed with set B",
+      "Lost floors, original roof details and local wall setbacks"
+    ],
+    "dimensionSource": "Dimension set B in docs/plan/building-record.md: Riches Heures, Loches (dimensions transcribed in the design document): keep 25.30 × 15.40 m, base walls 3.60 m, height 36 m; forebuilding 7 × 15.50 m, walls 2.80 m, height 25 m. The 25.30 × 15.40 m main-tower plan and north forebuilding are also described in the 1996 Bulletin monumental study (https://www.persee.fr/doc/bulmo_0007-473x_1996_num_154_3_4583); the adopted heights remain those of set B.",
+    "planClass": "well-published-survey",
+    "confidence": "scholarly-reconstruction",
+    "note": "Original coarse polygons, not a traced plan. The long keep axis is north-south; the forebuilding spans its north face. Lost floors are represented by three reconstructed levels at 0, 12 and 25 m. Door and straight stair positions are schematic. The open flat caps represent the shell without inventing a lost roof. Lead is only a material label."
+  }
+}

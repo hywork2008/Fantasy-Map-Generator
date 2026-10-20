@@ -1,0 +1,1835 @@
+{
+  "format": "fmg-building-record",
+  "version": 1,
+  "id": "vincennes-donjon",
+  "revision": 1,
+  "contentHash": "468ac6d9b646394f94157e660ddc299fca468b0401779c5ea51507691a171f92",
+  "name": "Vincennes donjon and chemise",
+  "kind": "castle",
+  "period": "lateMedieval",
+  "planFamily": "donjon-chemise",
+  "region": "Val-de-Marne, France",
+  "occupancyMeters": {
+    "width": 50,
+    "depth": 50
+  },
+  "approachAzimuthRadians": -1.570796,
+  "placementStyles": [
+    "classic",
+    "concentric"
+  ],
+  "levels": [
+    {
+      "id": "floor-1",
+      "name": "Floor 1",
+      "elevationMeters": 0,
+      "floorToFloorMeters": 10,
+      "walls": [
+        {
+          "id": "chemise",
+          "kind": "chemise",
+          "outer": [
+            [
+              -25,
+              -25
+            ],
+            [
+              25,
+              -25
+            ],
+            [
+              25,
+              25
+            ],
+            [
+              -25,
+              25
+            ]
+          ],
+          "holes": [
+            [
+              [
+                -23,
+                23
+              ],
+              [
+                23,
+                23
+              ],
+              [
+                23,
+                -23
+              ],
+              [
+                -23,
+                -23
+              ]
+            ]
+          ],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "gatehouse",
+          "kind": "range",
+          "outer": [
+            [
+              -4,
+              -25
+            ],
+            [
+              4,
+              -25
+            ],
+            [
+              4,
+              -18
+            ],
+            [
+              -4,
+              -18
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "donjon",
+          "kind": "keep",
+          "outer": [
+            [
+              -8.1,
+              -8.1
+            ],
+            [
+              8.1,
+              -8.1
+            ],
+            [
+              8.1,
+              8.1
+            ],
+            [
+              -8.1,
+              8.1
+            ]
+          ],
+          "holes": [
+            [
+              [
+                -4.9,
+                4.9
+              ],
+              [
+                4.9,
+                4.9
+              ],
+              [
+                4.9,
+                -4.9
+              ],
+              [
+                -4.9,
+                -4.9
+              ]
+            ]
+          ],
+          "thicknessMeters": 3.2
+        },
+        {
+          "id": "donjon-corner-1",
+          "kind": "tower",
+          "outer": [
+            [
+              -4.8,
+              -8.1
+            ],
+            [
+              -5.242116,
+              -6.45
+            ],
+            [
+              -6.45,
+              -5.242116
+            ],
+            [
+              -8.1,
+              -4.8
+            ],
+            [
+              -9.75,
+              -5.242116
+            ],
+            [
+              -10.957884,
+              -6.45
+            ],
+            [
+              -11.4,
+              -8.1
+            ],
+            [
+              -10.957884,
+              -9.75
+            ],
+            [
+              -9.75,
+              -10.957884
+            ],
+            [
+              -8.1,
+              -11.4
+            ],
+            [
+              -6.45,
+              -10.957884
+            ],
+            [
+              -5.242116,
+              -9.75
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "donjon-corner-2",
+          "kind": "tower",
+          "outer": [
+            [
+              11.4,
+              -8.1
+            ],
+            [
+              10.957884,
+              -6.45
+            ],
+            [
+              9.75,
+              -5.242116
+            ],
+            [
+              8.1,
+              -4.8
+            ],
+            [
+              6.45,
+              -5.242116
+            ],
+            [
+              5.242116,
+              -6.45
+            ],
+            [
+              4.8,
+              -8.1
+            ],
+            [
+              5.242116,
+              -9.75
+            ],
+            [
+              6.45,
+              -10.957884
+            ],
+            [
+              8.1,
+              -11.4
+            ],
+            [
+              9.75,
+              -10.957884
+            ],
+            [
+              10.957884,
+              -9.75
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "donjon-corner-3",
+          "kind": "tower",
+          "outer": [
+            [
+              11.4,
+              8.1
+            ],
+            [
+              10.957884,
+              9.75
+            ],
+            [
+              9.75,
+              10.957884
+            ],
+            [
+              8.1,
+              11.4
+            ],
+            [
+              6.45,
+              10.957884
+            ],
+            [
+              5.242116,
+              9.75
+            ],
+            [
+              4.8,
+              8.1
+            ],
+            [
+              5.242116,
+              6.45
+            ],
+            [
+              6.45,
+              5.242116
+            ],
+            [
+              8.1,
+              4.8
+            ],
+            [
+              9.75,
+              5.242116
+            ],
+            [
+              10.957884,
+              6.45
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "donjon-corner-4",
+          "kind": "tower",
+          "outer": [
+            [
+              -4.8,
+              8.1
+            ],
+            [
+              -5.242116,
+              9.75
+            ],
+            [
+              -6.45,
+              10.957884
+            ],
+            [
+              -8.1,
+              11.4
+            ],
+            [
+              -9.75,
+              10.957884
+            ],
+            [
+              -10.957884,
+              9.75
+            ],
+            [
+              -11.4,
+              8.1
+            ],
+            [
+              -10.957884,
+              6.45
+            ],
+            [
+              -9.75,
+              5.242116
+            ],
+            [
+              -8.1,
+              4.8
+            ],
+            [
+              -6.45,
+              5.242116
+            ],
+            [
+              -5.242116,
+              6.45
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        }
+      ],
+      "plates": [
+        {
+          "id": "floor-1-chamber",
+          "use": "hall",
+          "outer": [
+            [
+              -4.9,
+              -4.9
+            ],
+            [
+              4.9,
+              -4.9
+            ],
+            [
+              4.9,
+              4.9
+            ],
+            [
+              -4.9,
+              4.9
+            ]
+          ],
+          "holes": [],
+          "kind": "hall",
+          "roof": "covered"
+        },
+        {
+          "id": "court",
+          "use": "open court",
+          "outer": [
+            [
+              -23,
+              -23
+            ],
+            [
+              23,
+              -23
+            ],
+            [
+              23,
+              23
+            ],
+            [
+              -23,
+              23
+            ]
+          ],
+          "holes": [
+            [
+              [
+                -12,
+                12
+              ],
+              [
+                12,
+                12
+              ],
+              [
+                12,
+                -12
+              ],
+              [
+                -12,
+                -12
+              ]
+            ]
+          ],
+          "kind": "courtyard",
+          "roof": "open"
+        }
+      ],
+      "openings": [
+        {
+          "id": "main-gate",
+          "ring": {
+            "wallId": "gatehouse",
+            "hole": null
+          },
+          "offsetMeters": 2.5,
+          "widthMeters": 3,
+          "sillMeters": 0,
+          "heightMeters": 2.5,
+          "kind": "gate"
+        },
+        {
+          "id": "keep-door",
+          "ring": {
+            "wallId": "donjon",
+            "hole": null
+          },
+          "offsetMeters": 7.35,
+          "widthMeters": 1.5,
+          "sillMeters": 0,
+          "heightMeters": 2.5,
+          "kind": "door"
+        }
+      ],
+      "fixtures": []
+    },
+    {
+      "id": "floor-2",
+      "name": "Floor 2",
+      "elevationMeters": 10,
+      "floorToFloorMeters": 10,
+      "walls": [
+        {
+          "id": "donjon",
+          "kind": "keep",
+          "outer": [
+            [
+              -8.1,
+              -8.1
+            ],
+            [
+              8.1,
+              -8.1
+            ],
+            [
+              8.1,
+              8.1
+            ],
+            [
+              -8.1,
+              8.1
+            ]
+          ],
+          "holes": [
+            [
+              [
+                -4.9,
+                4.9
+              ],
+              [
+                4.9,
+                4.9
+              ],
+              [
+                4.9,
+                -4.9
+              ],
+              [
+                -4.9,
+                -4.9
+              ]
+            ]
+          ],
+          "thicknessMeters": 3.2
+        },
+        {
+          "id": "donjon-corner-1",
+          "kind": "tower",
+          "outer": [
+            [
+              -4.8,
+              -8.1
+            ],
+            [
+              -5.242116,
+              -6.45
+            ],
+            [
+              -6.45,
+              -5.242116
+            ],
+            [
+              -8.1,
+              -4.8
+            ],
+            [
+              -9.75,
+              -5.242116
+            ],
+            [
+              -10.957884,
+              -6.45
+            ],
+            [
+              -11.4,
+              -8.1
+            ],
+            [
+              -10.957884,
+              -9.75
+            ],
+            [
+              -9.75,
+              -10.957884
+            ],
+            [
+              -8.1,
+              -11.4
+            ],
+            [
+              -6.45,
+              -10.957884
+            ],
+            [
+              -5.242116,
+              -9.75
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "donjon-corner-2",
+          "kind": "tower",
+          "outer": [
+            [
+              11.4,
+              -8.1
+            ],
+            [
+              10.957884,
+              -6.45
+            ],
+            [
+              9.75,
+              -5.242116
+            ],
+            [
+              8.1,
+              -4.8
+            ],
+            [
+              6.45,
+              -5.242116
+            ],
+            [
+              5.242116,
+              -6.45
+            ],
+            [
+              4.8,
+              -8.1
+            ],
+            [
+              5.242116,
+              -9.75
+            ],
+            [
+              6.45,
+              -10.957884
+            ],
+            [
+              8.1,
+              -11.4
+            ],
+            [
+              9.75,
+              -10.957884
+            ],
+            [
+              10.957884,
+              -9.75
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "donjon-corner-3",
+          "kind": "tower",
+          "outer": [
+            [
+              11.4,
+              8.1
+            ],
+            [
+              10.957884,
+              9.75
+            ],
+            [
+              9.75,
+              10.957884
+            ],
+            [
+              8.1,
+              11.4
+            ],
+            [
+              6.45,
+              10.957884
+            ],
+            [
+              5.242116,
+              9.75
+            ],
+            [
+              4.8,
+              8.1
+            ],
+            [
+              5.242116,
+              6.45
+            ],
+            [
+              6.45,
+              5.242116
+            ],
+            [
+              8.1,
+              4.8
+            ],
+            [
+              9.75,
+              5.242116
+            ],
+            [
+              10.957884,
+              6.45
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "donjon-corner-4",
+          "kind": "tower",
+          "outer": [
+            [
+              -4.8,
+              8.1
+            ],
+            [
+              -5.242116,
+              9.75
+            ],
+            [
+              -6.45,
+              10.957884
+            ],
+            [
+              -8.1,
+              11.4
+            ],
+            [
+              -9.75,
+              10.957884
+            ],
+            [
+              -10.957884,
+              9.75
+            ],
+            [
+              -11.4,
+              8.1
+            ],
+            [
+              -10.957884,
+              6.45
+            ],
+            [
+              -9.75,
+              5.242116
+            ],
+            [
+              -8.1,
+              4.8
+            ],
+            [
+              -6.45,
+              5.242116
+            ],
+            [
+              -5.242116,
+              6.45
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        }
+      ],
+      "plates": [
+        {
+          "id": "floor-2-chamber",
+          "use": "hall",
+          "outer": [
+            [
+              -4.9,
+              -4.9
+            ],
+            [
+              4.9,
+              -4.9
+            ],
+            [
+              4.9,
+              4.9
+            ],
+            [
+              -4.9,
+              4.9
+            ]
+          ],
+          "holes": [],
+          "kind": "hall",
+          "roof": "covered"
+        }
+      ],
+      "openings": [],
+      "fixtures": []
+    },
+    {
+      "id": "floor-3",
+      "name": "Floor 3",
+      "elevationMeters": 20,
+      "floorToFloorMeters": 10,
+      "walls": [
+        {
+          "id": "donjon",
+          "kind": "keep",
+          "outer": [
+            [
+              -8.1,
+              -8.1
+            ],
+            [
+              8.1,
+              -8.1
+            ],
+            [
+              8.1,
+              8.1
+            ],
+            [
+              -8.1,
+              8.1
+            ]
+          ],
+          "holes": [
+            [
+              [
+                -4.9,
+                4.9
+              ],
+              [
+                4.9,
+                4.9
+              ],
+              [
+                4.9,
+                -4.9
+              ],
+              [
+                -4.9,
+                -4.9
+              ]
+            ]
+          ],
+          "thicknessMeters": 3.2
+        },
+        {
+          "id": "donjon-corner-1",
+          "kind": "tower",
+          "outer": [
+            [
+              -4.8,
+              -8.1
+            ],
+            [
+              -5.242116,
+              -6.45
+            ],
+            [
+              -6.45,
+              -5.242116
+            ],
+            [
+              -8.1,
+              -4.8
+            ],
+            [
+              -9.75,
+              -5.242116
+            ],
+            [
+              -10.957884,
+              -6.45
+            ],
+            [
+              -11.4,
+              -8.1
+            ],
+            [
+              -10.957884,
+              -9.75
+            ],
+            [
+              -9.75,
+              -10.957884
+            ],
+            [
+              -8.1,
+              -11.4
+            ],
+            [
+              -6.45,
+              -10.957884
+            ],
+            [
+              -5.242116,
+              -9.75
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "donjon-corner-2",
+          "kind": "tower",
+          "outer": [
+            [
+              11.4,
+              -8.1
+            ],
+            [
+              10.957884,
+              -6.45
+            ],
+            [
+              9.75,
+              -5.242116
+            ],
+            [
+              8.1,
+              -4.8
+            ],
+            [
+              6.45,
+              -5.242116
+            ],
+            [
+              5.242116,
+              -6.45
+            ],
+            [
+              4.8,
+              -8.1
+            ],
+            [
+              5.242116,
+              -9.75
+            ],
+            [
+              6.45,
+              -10.957884
+            ],
+            [
+              8.1,
+              -11.4
+            ],
+            [
+              9.75,
+              -10.957884
+            ],
+            [
+              10.957884,
+              -9.75
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "donjon-corner-3",
+          "kind": "tower",
+          "outer": [
+            [
+              11.4,
+              8.1
+            ],
+            [
+              10.957884,
+              9.75
+            ],
+            [
+              9.75,
+              10.957884
+            ],
+            [
+              8.1,
+              11.4
+            ],
+            [
+              6.45,
+              10.957884
+            ],
+            [
+              5.242116,
+              9.75
+            ],
+            [
+              4.8,
+              8.1
+            ],
+            [
+              5.242116,
+              6.45
+            ],
+            [
+              6.45,
+              5.242116
+            ],
+            [
+              8.1,
+              4.8
+            ],
+            [
+              9.75,
+              5.242116
+            ],
+            [
+              10.957884,
+              6.45
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "donjon-corner-4",
+          "kind": "tower",
+          "outer": [
+            [
+              -4.8,
+              8.1
+            ],
+            [
+              -5.242116,
+              9.75
+            ],
+            [
+              -6.45,
+              10.957884
+            ],
+            [
+              -8.1,
+              11.4
+            ],
+            [
+              -9.75,
+              10.957884
+            ],
+            [
+              -10.957884,
+              9.75
+            ],
+            [
+              -11.4,
+              8.1
+            ],
+            [
+              -10.957884,
+              6.45
+            ],
+            [
+              -9.75,
+              5.242116
+            ],
+            [
+              -8.1,
+              4.8
+            ],
+            [
+              -6.45,
+              5.242116
+            ],
+            [
+              -5.242116,
+              6.45
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        }
+      ],
+      "plates": [
+        {
+          "id": "floor-3-chamber",
+          "use": "hall",
+          "outer": [
+            [
+              -4.9,
+              -4.9
+            ],
+            [
+              4.9,
+              -4.9
+            ],
+            [
+              4.9,
+              4.9
+            ],
+            [
+              -4.9,
+              4.9
+            ]
+          ],
+          "holes": [],
+          "kind": "hall",
+          "roof": "covered"
+        }
+      ],
+      "openings": [],
+      "fixtures": []
+    },
+    {
+      "id": "floor-4",
+      "name": "Floor 4",
+      "elevationMeters": 30,
+      "floorToFloorMeters": 10,
+      "walls": [
+        {
+          "id": "donjon",
+          "kind": "keep",
+          "outer": [
+            [
+              -8.1,
+              -8.1
+            ],
+            [
+              8.1,
+              -8.1
+            ],
+            [
+              8.1,
+              8.1
+            ],
+            [
+              -8.1,
+              8.1
+            ]
+          ],
+          "holes": [
+            [
+              [
+                -4.9,
+                4.9
+              ],
+              [
+                4.9,
+                4.9
+              ],
+              [
+                4.9,
+                -4.9
+              ],
+              [
+                -4.9,
+                -4.9
+              ]
+            ]
+          ],
+          "thicknessMeters": 3.2
+        },
+        {
+          "id": "donjon-corner-1",
+          "kind": "tower",
+          "outer": [
+            [
+              -4.8,
+              -8.1
+            ],
+            [
+              -5.242116,
+              -6.45
+            ],
+            [
+              -6.45,
+              -5.242116
+            ],
+            [
+              -8.1,
+              -4.8
+            ],
+            [
+              -9.75,
+              -5.242116
+            ],
+            [
+              -10.957884,
+              -6.45
+            ],
+            [
+              -11.4,
+              -8.1
+            ],
+            [
+              -10.957884,
+              -9.75
+            ],
+            [
+              -9.75,
+              -10.957884
+            ],
+            [
+              -8.1,
+              -11.4
+            ],
+            [
+              -6.45,
+              -10.957884
+            ],
+            [
+              -5.242116,
+              -9.75
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "donjon-corner-2",
+          "kind": "tower",
+          "outer": [
+            [
+              11.4,
+              -8.1
+            ],
+            [
+              10.957884,
+              -6.45
+            ],
+            [
+              9.75,
+              -5.242116
+            ],
+            [
+              8.1,
+              -4.8
+            ],
+            [
+              6.45,
+              -5.242116
+            ],
+            [
+              5.242116,
+              -6.45
+            ],
+            [
+              4.8,
+              -8.1
+            ],
+            [
+              5.242116,
+              -9.75
+            ],
+            [
+              6.45,
+              -10.957884
+            ],
+            [
+              8.1,
+              -11.4
+            ],
+            [
+              9.75,
+              -10.957884
+            ],
+            [
+              10.957884,
+              -9.75
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "donjon-corner-3",
+          "kind": "tower",
+          "outer": [
+            [
+              11.4,
+              8.1
+            ],
+            [
+              10.957884,
+              9.75
+            ],
+            [
+              9.75,
+              10.957884
+            ],
+            [
+              8.1,
+              11.4
+            ],
+            [
+              6.45,
+              10.957884
+            ],
+            [
+              5.242116,
+              9.75
+            ],
+            [
+              4.8,
+              8.1
+            ],
+            [
+              5.242116,
+              6.45
+            ],
+            [
+              6.45,
+              5.242116
+            ],
+            [
+              8.1,
+              4.8
+            ],
+            [
+              9.75,
+              5.242116
+            ],
+            [
+              10.957884,
+              6.45
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "donjon-corner-4",
+          "kind": "tower",
+          "outer": [
+            [
+              -4.8,
+              8.1
+            ],
+            [
+              -5.242116,
+              9.75
+            ],
+            [
+              -6.45,
+              10.957884
+            ],
+            [
+              -8.1,
+              11.4
+            ],
+            [
+              -9.75,
+              10.957884
+            ],
+            [
+              -10.957884,
+              9.75
+            ],
+            [
+              -11.4,
+              8.1
+            ],
+            [
+              -10.957884,
+              6.45
+            ],
+            [
+              -9.75,
+              5.242116
+            ],
+            [
+              -8.1,
+              4.8
+            ],
+            [
+              -6.45,
+              5.242116
+            ],
+            [
+              -5.242116,
+              6.45
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        }
+      ],
+      "plates": [
+        {
+          "id": "floor-4-chamber",
+          "use": "hall",
+          "outer": [
+            [
+              -4.9,
+              -4.9
+            ],
+            [
+              4.9,
+              -4.9
+            ],
+            [
+              4.9,
+              4.9
+            ],
+            [
+              -4.9,
+              4.9
+            ]
+          ],
+          "holes": [],
+          "kind": "hall",
+          "roof": "covered"
+        }
+      ],
+      "openings": [],
+      "fixtures": []
+    },
+    {
+      "id": "floor-5",
+      "name": "Floor 5",
+      "elevationMeters": 40,
+      "floorToFloorMeters": 10,
+      "walls": [
+        {
+          "id": "donjon",
+          "kind": "keep",
+          "outer": [
+            [
+              -8.1,
+              -8.1
+            ],
+            [
+              8.1,
+              -8.1
+            ],
+            [
+              8.1,
+              8.1
+            ],
+            [
+              -8.1,
+              8.1
+            ]
+          ],
+          "holes": [
+            [
+              [
+                -4.9,
+                4.9
+              ],
+              [
+                4.9,
+                4.9
+              ],
+              [
+                4.9,
+                -4.9
+              ],
+              [
+                -4.9,
+                -4.9
+              ]
+            ]
+          ],
+          "thicknessMeters": 3.2
+        },
+        {
+          "id": "donjon-corner-1",
+          "kind": "tower",
+          "outer": [
+            [
+              -4.8,
+              -8.1
+            ],
+            [
+              -5.242116,
+              -6.45
+            ],
+            [
+              -6.45,
+              -5.242116
+            ],
+            [
+              -8.1,
+              -4.8
+            ],
+            [
+              -9.75,
+              -5.242116
+            ],
+            [
+              -10.957884,
+              -6.45
+            ],
+            [
+              -11.4,
+              -8.1
+            ],
+            [
+              -10.957884,
+              -9.75
+            ],
+            [
+              -9.75,
+              -10.957884
+            ],
+            [
+              -8.1,
+              -11.4
+            ],
+            [
+              -6.45,
+              -10.957884
+            ],
+            [
+              -5.242116,
+              -9.75
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "donjon-corner-2",
+          "kind": "tower",
+          "outer": [
+            [
+              11.4,
+              -8.1
+            ],
+            [
+              10.957884,
+              -6.45
+            ],
+            [
+              9.75,
+              -5.242116
+            ],
+            [
+              8.1,
+              -4.8
+            ],
+            [
+              6.45,
+              -5.242116
+            ],
+            [
+              5.242116,
+              -6.45
+            ],
+            [
+              4.8,
+              -8.1
+            ],
+            [
+              5.242116,
+              -9.75
+            ],
+            [
+              6.45,
+              -10.957884
+            ],
+            [
+              8.1,
+              -11.4
+            ],
+            [
+              9.75,
+              -10.957884
+            ],
+            [
+              10.957884,
+              -9.75
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "donjon-corner-3",
+          "kind": "tower",
+          "outer": [
+            [
+              11.4,
+              8.1
+            ],
+            [
+              10.957884,
+              9.75
+            ],
+            [
+              9.75,
+              10.957884
+            ],
+            [
+              8.1,
+              11.4
+            ],
+            [
+              6.45,
+              10.957884
+            ],
+            [
+              5.242116,
+              9.75
+            ],
+            [
+              4.8,
+              8.1
+            ],
+            [
+              5.242116,
+              6.45
+            ],
+            [
+              6.45,
+              5.242116
+            ],
+            [
+              8.1,
+              4.8
+            ],
+            [
+              9.75,
+              5.242116
+            ],
+            [
+              10.957884,
+              6.45
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "donjon-corner-4",
+          "kind": "tower",
+          "outer": [
+            [
+              -4.8,
+              8.1
+            ],
+            [
+              -5.242116,
+              9.75
+            ],
+            [
+              -6.45,
+              10.957884
+            ],
+            [
+              -8.1,
+              11.4
+            ],
+            [
+              -9.75,
+              10.957884
+            ],
+            [
+              -10.957884,
+              9.75
+            ],
+            [
+              -11.4,
+              8.1
+            ],
+            [
+              -10.957884,
+              6.45
+            ],
+            [
+              -9.75,
+              5.242116
+            ],
+            [
+              -8.1,
+              4.8
+            ],
+            [
+              -6.45,
+              5.242116
+            ],
+            [
+              -5.242116,
+              6.45
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        }
+      ],
+      "plates": [
+        {
+          "id": "floor-5-chamber",
+          "use": "hall",
+          "outer": [
+            [
+              -4.9,
+              -4.9
+            ],
+            [
+              4.9,
+              -4.9
+            ],
+            [
+              4.9,
+              4.9
+            ],
+            [
+              -4.9,
+              4.9
+            ]
+          ],
+          "holes": [],
+          "kind": "hall",
+          "roof": "covered"
+        }
+      ],
+      "openings": [],
+      "fixtures": []
+    }
+  ],
+  "verticalLinks": [
+    {
+      "id": "stair-1",
+      "kind": "stair",
+      "fromLevelId": "floor-1",
+      "toLevelId": "floor-2",
+      "footprint": [
+        [
+          -4,
+          -3
+        ],
+        [
+          -2.8,
+          -3
+        ],
+        [
+          -2.8,
+          2
+        ],
+        [
+          -4,
+          2
+        ]
+      ],
+      "widthMeters": 1.2
+    },
+    {
+      "id": "stair-2",
+      "kind": "stair",
+      "fromLevelId": "floor-2",
+      "toLevelId": "floor-3",
+      "footprint": [
+        [
+          -4,
+          -3
+        ],
+        [
+          -2.8,
+          -3
+        ],
+        [
+          -2.8,
+          2
+        ],
+        [
+          -4,
+          2
+        ]
+      ],
+      "widthMeters": 1.2
+    },
+    {
+      "id": "stair-3",
+      "kind": "stair",
+      "fromLevelId": "floor-3",
+      "toLevelId": "floor-4",
+      "footprint": [
+        [
+          -4,
+          -3
+        ],
+        [
+          -2.8,
+          -3
+        ],
+        [
+          -2.8,
+          2
+        ],
+        [
+          -4,
+          2
+        ]
+      ],
+      "widthMeters": 1.2
+    },
+    {
+      "id": "stair-4",
+      "kind": "stair",
+      "fromLevelId": "floor-4",
+      "toLevelId": "floor-5",
+      "footprint": [
+        [
+          -4,
+          -3
+        ],
+        [
+          -2.8,
+          -3
+        ],
+        [
+          -2.8,
+          2
+        ],
+        [
+          -4,
+          2
+        ]
+      ],
+      "widthMeters": 1.2
+    }
+  ],
+  "roofs": [
+    {
+      "baseId": "chemise",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "gatehouse",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "donjon",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "donjon-corner-1",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "donjon-corner-2",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "donjon-corner-3",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "donjon-corner-4",
+      "form": "flat",
+      "pitchDeg": 0
+    }
+  ],
+  "materials": {
+    "wall": "stone",
+    "roof": "lead"
+  },
+  "provenance": {
+    "constructionPeriod": "1361–1370, the keep of Charles V.",
+    "depictedPhase": "The 50 m donjon inside its low square chemise.",
+    "omitted": [
+      "The larger enclosure built from 1378, about 326 m north-south",
+      "17th-century pavilions and Sainte-Chapelle",
+      "Campanile, detailed roof forms, vaults and local floor heights"
+    ],
+    "dimensionSource": "docs/plan/building-record.md: Structurae, Donjon du Château de Vincennes (dimensions transcribed in the design document), 16.2 m square first five levels, 3.2 m walls, four 6.60 m-diameter corner towers and 50 m-square chemise. Centre des monuments nationaux (https://www.chateau-de-vincennes.fr/en/discover/una-fortaleza-real), 50 m keep above the courtyard and five levels.",
+    "planClass": "well-published-survey",
+    "confidence": "scholarly-reconstruction",
+    "note": "The donjon and its corner towers reach 50 m in five simplified 10 m levels. The towers are centred on the keep corners, so their total span is 22.80 m, inside the 50 m occupancy. Chemise thickness 2 m, height 10 m and 8 × 7 m gatehouse are approximate; no towers are added to the chemise corners. Flat open caps and schematic doors and stairs omit interior vaulting and roof details."
+  }
+}

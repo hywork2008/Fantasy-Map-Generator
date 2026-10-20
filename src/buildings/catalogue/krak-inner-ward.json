@@ -1,0 +1,1230 @@
+{
+  "format": "fmg-building-record",
+  "version": 1,
+  "id": "krak-inner-ward",
+  "revision": 1,
+  "contentHash": "c36f34a138e7331c506bc9f0e4e5e33dc30736056a244468dfb2321af6609f90",
+  "name": "Krak des Chevaliers — schematic inner ward",
+  "kind": "castle",
+  "period": "highMedieval",
+  "planFamily": "concentric",
+  "region": "Levant / City Editor schematic",
+  "occupancyMeters": {
+    "width": 54,
+    "depth": 74
+  },
+  "approachAzimuthRadians": 0,
+  "placementStyles": [
+    "concentric"
+  ],
+  "levels": [
+    {
+      "id": "ground",
+      "name": "Court and vaulted ranges",
+      "elevationMeters": 0,
+      "floorToFloorMeters": 10,
+      "walls": [
+        {
+          "id": "west-curtain",
+          "kind": "curtain",
+          "outer": [
+            [
+              -27,
+              -27
+            ],
+            [
+              -24,
+              -27
+            ],
+            [
+              -24,
+              37
+            ],
+            [
+              -27,
+              37
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "north-curtain",
+          "kind": "curtain",
+          "outer": [
+            [
+              -24,
+              34
+            ],
+            [
+              27,
+              34
+            ],
+            [
+              27,
+              37
+            ],
+            [
+              -24,
+              37
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "east-north-curtain",
+          "kind": "curtain",
+          "outer": [
+            [
+              24,
+              8
+            ],
+            [
+              27,
+              8
+            ],
+            [
+              27,
+              34
+            ],
+            [
+              24,
+              34
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "east-south-curtain",
+          "kind": "curtain",
+          "outer": [
+            [
+              24,
+              -27
+            ],
+            [
+              27,
+              -27
+            ],
+            [
+              27,
+              3
+            ],
+            [
+              24,
+              3
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "south-curtain",
+          "kind": "curtain",
+          "outer": [
+            [
+              -24,
+              -27
+            ],
+            [
+              24,
+              -27
+            ],
+            [
+              24,
+              -24
+            ],
+            [
+              -24,
+              -24
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "north-range",
+          "kind": "range",
+          "outer": [
+            [
+              -24,
+              27
+            ],
+            [
+              24,
+              27
+            ],
+            [
+              24,
+              34
+            ],
+            [
+              -24,
+              34
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "west-range",
+          "kind": "range",
+          "outer": [
+            [
+              -24,
+              -16
+            ],
+            [
+              -17,
+              -16
+            ],
+            [
+              -17,
+              27
+            ],
+            [
+              -24,
+              27
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "south-range",
+          "kind": "range",
+          "outer": [
+            [
+              -24,
+              -24
+            ],
+            [
+              24,
+              -24
+            ],
+            [
+              24,
+              -16
+            ],
+            [
+              -24,
+              -16
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "east-range",
+          "kind": "range",
+          "outer": [
+            [
+              17,
+              -16
+            ],
+            [
+              24,
+              -16
+            ],
+            [
+              24,
+              3
+            ],
+            [
+              17,
+              3
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "great-hall",
+          "kind": "range",
+          "outer": [
+            [
+              -24,
+              -5
+            ],
+            [
+              -16.5,
+              -5
+            ],
+            [
+              -16.5,
+              22
+            ],
+            [
+              -24,
+              22
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "chapel",
+          "kind": "range",
+          "outer": [
+            [
+              17,
+              13
+            ],
+            [
+              27,
+              13
+            ],
+            [
+              27,
+              32
+            ],
+            [
+              17,
+              32
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "south-tower-1",
+          "kind": "tower",
+          "outer": [
+            [
+              -11,
+              -25
+            ],
+            [
+              -12.07179676972449,
+              -21
+            ],
+            [
+              -15,
+              -18.071796769724493
+            ],
+            [
+              -19,
+              -17
+            ],
+            [
+              -23,
+              -18.07179676972449
+            ],
+            [
+              -25.92820323027551,
+              -21
+            ],
+            [
+              -27,
+              -25
+            ],
+            [
+              -25.92820323027551,
+              -28.999999999999996
+            ],
+            [
+              -23.000000000000004,
+              -31.928203230275507
+            ],
+            [
+              -19,
+              -33
+            ],
+            [
+              -15,
+              -31.928203230275507
+            ],
+            [
+              -12.071796769724493,
+              -29
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 3
+        },
+        {
+          "id": "south-tower-2",
+          "kind": "tower",
+          "outer": [
+            [
+              8,
+              -29
+            ],
+            [
+              6.92820323027551,
+              -25
+            ],
+            [
+              4.000000000000001,
+              -22.071796769724493
+            ],
+            [
+              4.898587196589413e-16,
+              -21
+            ],
+            [
+              -3.9999999999999982,
+              -22.07179676972449
+            ],
+            [
+              -6.92820323027551,
+              -25
+            ],
+            [
+              -8,
+              -29
+            ],
+            [
+              -6.9282032302755105,
+              -33
+            ],
+            [
+              -4.0000000000000036,
+              -35.92820323027551
+            ],
+            [
+              -1.4695761589768238e-15,
+              -37
+            ],
+            [
+              4.000000000000001,
+              -35.92820323027551
+            ],
+            [
+              6.928203230275507,
+              -33
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 3
+        },
+        {
+          "id": "south-tower-3",
+          "kind": "tower",
+          "outer": [
+            [
+              27,
+              -25
+            ],
+            [
+              25.92820323027551,
+              -21
+            ],
+            [
+              23,
+              -18.071796769724493
+            ],
+            [
+              19,
+              -17
+            ],
+            [
+              15.000000000000002,
+              -18.07179676972449
+            ],
+            [
+              12.07179676972449,
+              -21
+            ],
+            [
+              11,
+              -25
+            ],
+            [
+              12.07179676972449,
+              -28.999999999999996
+            ],
+            [
+              14.999999999999996,
+              -31.928203230275507
+            ],
+            [
+              19,
+              -33
+            ],
+            [
+              23,
+              -31.928203230275507
+            ],
+            [
+              25.928203230275507,
+              -29
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 3
+        }
+      ],
+      "plates": [
+        {
+          "id": "court",
+          "use": "courtyard",
+          "outer": [
+            [
+              -16.5,
+              -16
+            ],
+            [
+              17,
+              -16
+            ],
+            [
+              17,
+              27
+            ],
+            [
+              -16.5,
+              27
+            ]
+          ],
+          "holes": [],
+          "kind": "courtyard",
+          "roof": "open"
+        }
+      ],
+      "openings": [],
+      "fixtures": []
+    },
+    {
+      "id": "upper",
+      "name": "Inner curtain and upper buildings",
+      "elevationMeters": 10,
+      "floorToFloorMeters": 6,
+      "walls": [
+        {
+          "id": "west-curtain",
+          "kind": "curtain",
+          "outer": [
+            [
+              -27,
+              -27
+            ],
+            [
+              -24,
+              -27
+            ],
+            [
+              -24,
+              37
+            ],
+            [
+              -27,
+              37
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "north-curtain",
+          "kind": "curtain",
+          "outer": [
+            [
+              -24,
+              34
+            ],
+            [
+              27,
+              34
+            ],
+            [
+              27,
+              37
+            ],
+            [
+              -24,
+              37
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "east-north-curtain",
+          "kind": "curtain",
+          "outer": [
+            [
+              24,
+              8
+            ],
+            [
+              27,
+              8
+            ],
+            [
+              27,
+              34
+            ],
+            [
+              24,
+              34
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "east-south-curtain",
+          "kind": "curtain",
+          "outer": [
+            [
+              24,
+              -27
+            ],
+            [
+              27,
+              -27
+            ],
+            [
+              27,
+              3
+            ],
+            [
+              24,
+              3
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "south-curtain",
+          "kind": "curtain",
+          "outer": [
+            [
+              -24,
+              -27
+            ],
+            [
+              24,
+              -27
+            ],
+            [
+              24,
+              -24
+            ],
+            [
+              -24,
+              -24
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "chapel",
+          "kind": "range",
+          "outer": [
+            [
+              17,
+              13
+            ],
+            [
+              27,
+              13
+            ],
+            [
+              27,
+              32
+            ],
+            [
+              17,
+              32
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "south-tower-1",
+          "kind": "tower",
+          "outer": [
+            [
+              -11,
+              -25
+            ],
+            [
+              -12.07179676972449,
+              -21
+            ],
+            [
+              -15,
+              -18.071796769724493
+            ],
+            [
+              -19,
+              -17
+            ],
+            [
+              -23,
+              -18.07179676972449
+            ],
+            [
+              -25.92820323027551,
+              -21
+            ],
+            [
+              -27,
+              -25
+            ],
+            [
+              -25.92820323027551,
+              -28.999999999999996
+            ],
+            [
+              -23.000000000000004,
+              -31.928203230275507
+            ],
+            [
+              -19,
+              -33
+            ],
+            [
+              -15,
+              -31.928203230275507
+            ],
+            [
+              -12.071796769724493,
+              -29
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 3
+        },
+        {
+          "id": "south-tower-2",
+          "kind": "tower",
+          "outer": [
+            [
+              8,
+              -29
+            ],
+            [
+              6.92820323027551,
+              -25
+            ],
+            [
+              4.000000000000001,
+              -22.071796769724493
+            ],
+            [
+              4.898587196589413e-16,
+              -21
+            ],
+            [
+              -3.9999999999999982,
+              -22.07179676972449
+            ],
+            [
+              -6.92820323027551,
+              -25
+            ],
+            [
+              -8,
+              -29
+            ],
+            [
+              -6.9282032302755105,
+              -33
+            ],
+            [
+              -4.0000000000000036,
+              -35.92820323027551
+            ],
+            [
+              -1.4695761589768238e-15,
+              -37
+            ],
+            [
+              4.000000000000001,
+              -35.92820323027551
+            ],
+            [
+              6.928203230275507,
+              -33
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 3
+        },
+        {
+          "id": "south-tower-3",
+          "kind": "tower",
+          "outer": [
+            [
+              27,
+              -25
+            ],
+            [
+              25.92820323027551,
+              -21
+            ],
+            [
+              23,
+              -18.071796769724493
+            ],
+            [
+              19,
+              -17
+            ],
+            [
+              15.000000000000002,
+              -18.07179676972449
+            ],
+            [
+              12.07179676972449,
+              -21
+            ],
+            [
+              11,
+              -25
+            ],
+            [
+              12.07179676972449,
+              -28.999999999999996
+            ],
+            [
+              14.999999999999996,
+              -31.928203230275507
+            ],
+            [
+              19,
+              -33
+            ],
+            [
+              23,
+              -31.928203230275507
+            ],
+            [
+              25.928203230275507,
+              -29
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 3
+        }
+      ],
+      "plates": [],
+      "openings": [],
+      "fixtures": []
+    },
+    {
+      "id": "towers",
+      "name": "Southern tower group",
+      "elevationMeters": 16,
+      "floorToFloorMeters": 6,
+      "walls": [
+        {
+          "id": "south-tower-1",
+          "kind": "tower",
+          "outer": [
+            [
+              -11,
+              -25
+            ],
+            [
+              -12.07179676972449,
+              -21
+            ],
+            [
+              -15,
+              -18.071796769724493
+            ],
+            [
+              -19,
+              -17
+            ],
+            [
+              -23,
+              -18.07179676972449
+            ],
+            [
+              -25.92820323027551,
+              -21
+            ],
+            [
+              -27,
+              -25
+            ],
+            [
+              -25.92820323027551,
+              -28.999999999999996
+            ],
+            [
+              -23.000000000000004,
+              -31.928203230275507
+            ],
+            [
+              -19,
+              -33
+            ],
+            [
+              -15,
+              -31.928203230275507
+            ],
+            [
+              -12.071796769724493,
+              -29
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 3
+        },
+        {
+          "id": "south-tower-2",
+          "kind": "tower",
+          "outer": [
+            [
+              8,
+              -29
+            ],
+            [
+              6.92820323027551,
+              -25
+            ],
+            [
+              4.000000000000001,
+              -22.071796769724493
+            ],
+            [
+              4.898587196589413e-16,
+              -21
+            ],
+            [
+              -3.9999999999999982,
+              -22.07179676972449
+            ],
+            [
+              -6.92820323027551,
+              -25
+            ],
+            [
+              -8,
+              -29
+            ],
+            [
+              -6.9282032302755105,
+              -33
+            ],
+            [
+              -4.0000000000000036,
+              -35.92820323027551
+            ],
+            [
+              -1.4695761589768238e-15,
+              -37
+            ],
+            [
+              4.000000000000001,
+              -35.92820323027551
+            ],
+            [
+              6.928203230275507,
+              -33
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 3
+        },
+        {
+          "id": "south-tower-3",
+          "kind": "tower",
+          "outer": [
+            [
+              27,
+              -25
+            ],
+            [
+              25.92820323027551,
+              -21
+            ],
+            [
+              23,
+              -18.071796769724493
+            ],
+            [
+              19,
+              -17
+            ],
+            [
+              15.000000000000002,
+              -18.07179676972449
+            ],
+            [
+              12.07179676972449,
+              -21
+            ],
+            [
+              11,
+              -25
+            ],
+            [
+              12.07179676972449,
+              -28.999999999999996
+            ],
+            [
+              14.999999999999996,
+              -31.928203230275507
+            ],
+            [
+              19,
+              -33
+            ],
+            [
+              23,
+              -31.928203230275507
+            ],
+            [
+              25.928203230275507,
+              -29
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 3
+        }
+      ],
+      "plates": [],
+      "openings": [],
+      "fixtures": []
+    },
+    {
+      "id": "command",
+      "name": "Southwest command tower",
+      "elevationMeters": 22,
+      "floorToFloorMeters": 3,
+      "walls": [
+        {
+          "id": "south-tower-1",
+          "kind": "tower",
+          "outer": [
+            [
+              -11,
+              -25
+            ],
+            [
+              -12.07179676972449,
+              -21
+            ],
+            [
+              -15,
+              -18.071796769724493
+            ],
+            [
+              -19,
+              -17
+            ],
+            [
+              -23,
+              -18.07179676972449
+            ],
+            [
+              -25.92820323027551,
+              -21
+            ],
+            [
+              -27,
+              -25
+            ],
+            [
+              -25.92820323027551,
+              -28.999999999999996
+            ],
+            [
+              -23.000000000000004,
+              -31.928203230275507
+            ],
+            [
+              -19,
+              -33
+            ],
+            [
+              -15,
+              -31.928203230275507
+            ],
+            [
+              -12.071796769724493,
+              -29
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 3
+        }
+      ],
+      "plates": [],
+      "openings": [],
+      "fixtures": []
+    }
+  ],
+  "verticalLinks": [
+    {
+      "id": "tower-stair-0",
+      "kind": "stair",
+      "fromLevelId": "ground",
+      "toLevelId": "upper",
+      "footprint": [
+        [
+          -21,
+          -27
+        ],
+        [
+          -19,
+          -27
+        ],
+        [
+          -19,
+          -23
+        ],
+        [
+          -21,
+          -23
+        ]
+      ],
+      "widthMeters": 2
+    },
+    {
+      "id": "tower-stair-1",
+      "kind": "stair",
+      "fromLevelId": "upper",
+      "toLevelId": "towers",
+      "footprint": [
+        [
+          -21,
+          -27
+        ],
+        [
+          -19,
+          -27
+        ],
+        [
+          -19,
+          -23
+        ],
+        [
+          -21,
+          -23
+        ]
+      ],
+      "widthMeters": 2
+    },
+    {
+      "id": "tower-stair-2",
+      "kind": "stair",
+      "fromLevelId": "towers",
+      "toLevelId": "command",
+      "footprint": [
+        [
+          -21,
+          -27
+        ],
+        [
+          -19,
+          -27
+        ],
+        [
+          -19,
+          -23
+        ],
+        [
+          -21,
+          -23
+        ]
+      ],
+      "widthMeters": 2
+    }
+  ],
+  "roofs": [
+    {
+      "baseId": "west-curtain",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "north-curtain",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "east-north-curtain",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "east-south-curtain",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "south-curtain",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "north-range",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "west-range",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "south-range",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "east-range",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "great-hall",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "chapel",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "south-tower-1",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "south-tower-2",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "south-tower-3",
+      "form": "flat",
+      "pitchDeg": 0
+    }
+  ],
+  "materials": {
+    "wall": "stone",
+    "roof": "flat-stone"
+  },
+  "provenance": {
+    "constructionPeriod": "Hospitaller castle, late 12th to mid-13th century",
+    "depictedPhase": "Schematic inner ward around 1270; outer defences are assembled separately",
+    "omitted": [
+      "surveyed plan",
+      "reconstructed interiors",
+      "exact floor divisions",
+      "windows",
+      "arrow slits",
+      "vault ribs",
+      "ornament"
+    ],
+    "dimensionSource": "French Ministry of Culture, The Krak des Chevaliers: https://archeologie.culture.gouv.fr/crac-chevaliers/en/first-hospitaller-castle-12th-century ; https://archeologie.culture.gouv.fr/crac-chevaliers/en/strengthening-fortifications-13th-century ; https://archeologie.culture.gouv.fr/crac-chevaliers/en/great-gothic-hall (hall 27 x 7.5 m only; other dimensions and heights are schematic).",
+    "planClass": "well-published-survey",
+    "confidence": "approximate",
+    "note": "Original approximate exterior model. The three southern towers, open court, ranges, chapel and hall are fixed relative to one another. Dimensions other than the published hall are design proportions, not measurements. Levels are massing sections; stair positions are schematic. The east curtain is interrupted for the inner entrance. Stone talus, outer wall, towers, stables, cistern and access ramp belong to the modular fortress assembly."
+  }
+}

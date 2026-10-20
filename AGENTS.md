@@ -10,6 +10,10 @@ RE / Region Editor
 src/region-editor
 FMGのProvince相当の地図を描く
 
+BV / Building Viewer
+src/building-viewer
+CEで使用する3Dオブジェクトを閲覧する為のツール
+
 CE / City Editor
 src/city-editor
 FMGのBurg相当の地図を描く

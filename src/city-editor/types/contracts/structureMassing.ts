@@ -1,4 +1,5 @@
 import type { Point } from "../primitives";
+import type { RoofMaterial } from "./buildingMassing";
 
 export type StructureKind = "wall" | "tower" | "gate" | "bridge" | "landmark";
 export type StructureMaterial = "stone" | "wood";
@@ -16,6 +17,8 @@ export interface StructureMassing {
   /** Proper name of a landmark or castle part. Document content, not UI chrome. */
   name?: string;
   material: StructureMaterial;
+  /** Optional linear RGB for a dedicated assembly surface such as a cistern. */
+  color?: readonly [number, number, number];
   /** Ribbon centre line. Absent when `footprint` is set. */
   centerline?: Point[];
   widthMeters?: number;
@@ -23,10 +26,16 @@ export interface StructureMassing {
   footprint?: Point[];
   /** Clockwise rings cut out of `footprint`. */
   holes?: Point[][];
+  /** Matched CCW rings, in plan metres, for battered masonry and sloping ramps.
+   * Elevations are absolute in the local 3D frame, one per footprint vertex. */
+  sections?: Array<{ footprint: Point[]; elevationsMeters: number[] }>;
   /** Body height above `baseElevationMeters`. Roof rise is extra. */
   heightMeters: number;
   baseElevationMeters: number;
   roof: StructureRoof;
+  /** Catalogue roof attributes. Omitted structures retain their default cap. */
+  roofPitchDeg?: number;
+  roofMaterial?: RoofMaterial;
   /** Ridge direction for a gable or hip, radians, `atan2(dy, dx)`. */
   ridgeAzimuth?: number;
   parapet: ParapetMode;

@@ -3,7 +3,7 @@ import type { HistoricalPeriod } from "../types/historicalPeriod";
 export const BUILDING_RECORD_FORMAT = "fmg-building-record" as const;
 export const BUILDING_RECORD_VERSION = 1 as const;
 
-export type BuildingKind = "castle" | "monastery" | "house" | "watermill" | "dungeon";
+export type BuildingKind = "castle" | "temple" | "monastery" | "house" | "watermill" | "dungeon";
 
 export type PlanFamily =
   | "rectangular-keep"
@@ -186,7 +186,7 @@ export interface BuildingRecord {
   name: string;
   kind: BuildingKind;
   period: HistoricalPeriod;
-  /** Optional for monastery, house, and watermill. Required for castle and dungeon. */
+  /** Optional for temple, monastery, house, and watermill. Required for castle and dungeon. */
   planFamily?: PlanFamily;
   region: string;
   /** Axis-aligned size of the outer works at scale 1, in the local frame. */
@@ -222,6 +222,7 @@ export interface CoarseSolid {
   baseElevationMeters: number;
   heightMeters: number;
   roof: "flat" | "gable" | "hip" | "pyramid" | "cone";
+  roofPitchDeg?: number;
   ridgeAzimuth?: number;
 }
 

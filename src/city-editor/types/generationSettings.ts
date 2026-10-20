@@ -21,6 +21,8 @@ export type WallShape = "organic" | "round" | "oval" | "square" | "polygon" | "b
 export type WallShapeChoice = "auto" | WallShape;
 
 export interface GenerationSettings {
+  /** Standalone military site; defaults to a motte-and-bailey on a hex mesh. */
+  mode?: "city" | "fort";
   population?: import("./contracts/population").PopulationGenerationSettings;
   /** Unset preserves the existing flood fill and outer residential belt. */
   urbanCoreMode?: "legacy" | "compact";

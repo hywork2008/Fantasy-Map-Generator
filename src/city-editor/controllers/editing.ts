@@ -89,6 +89,7 @@ export function createEditingController(ctx: EditingContext) {
       ctx.syncStageUi(playback.stage);
     } else {
       const recipe = next.fabric?.generation;
+      ctx.generation.generateSettings.mode = recipe?.settings.mode ?? "city";
       ctx.generation.completeSource = recipe ? clone(recipe.input) : null;
       ctx.generation.completeResult = recipe ? next : null;
       ctx.generation.completeResultSettings = recipe ? JSON.stringify(ctx.generation.generateSettings) : null;

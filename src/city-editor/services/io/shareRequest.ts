@@ -18,7 +18,7 @@ export function cityEditorSettings(share: CityEditorShare): GenerationSettings {
 /** Grid document City Editor builds from an incoming share, including a fitted hamlet window. */
 export function cityEditorDocument(share: CityEditorShare): CityDocument {
   if (share.input) return structuredClone(share.input);
-  if (share.settings.population && !share.descriptor) {
+  if (share.settings.mode !== "fort" && share.settings.population && !share.descriptor) {
     // Plan before a large mesh: an auto-sized share must not allocate thousands of 50 m cells first.
     const initial = createGridDocument({
       size: share.size,

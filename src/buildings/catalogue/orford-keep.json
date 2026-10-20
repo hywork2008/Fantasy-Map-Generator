@@ -1,0 +1,871 @@
+{
+  "format": "fmg-building-record",
+  "version": 1,
+  "id": "orford-keep",
+  "revision": 1,
+  "contentHash": "ffacf07d60d4092a7bd46d5d0c44289f20a339c246603aa6aaf8d8de156c8b1e",
+  "name": "Orford keep",
+  "kind": "castle",
+  "period": "highMedieval",
+  "planFamily": "polygonal-keep",
+  "region": "Suffolk, England",
+  "occupancyMeters": {
+    "width": 19.692388,
+    "depth": 19.849832
+  },
+  "approachAzimuthRadians": -1.062655,
+  "placementStyles": [
+    "classic",
+    "norman-keep"
+  ],
+  "levels": [
+    {
+      "id": "ground",
+      "name": "Ground",
+      "elevationMeters": 0,
+      "floorToFloorMeters": 9,
+      "walls": [
+        {
+          "id": "keep",
+          "kind": "keep",
+          "outer": [
+            [
+              8.153806,
+              -0.732528
+            ],
+            [
+              7.148997,
+              3.017472
+            ],
+            [
+              4.403806,
+              5.762663
+            ],
+            [
+              0.653806,
+              6.767472
+            ],
+            [
+              -3.096194,
+              5.762663
+            ],
+            [
+              -5.841385,
+              3.017472
+            ],
+            [
+              -6.846194,
+              -0.732528
+            ],
+            [
+              -5.841385,
+              -4.482528
+            ],
+            [
+              -3.096194,
+              -7.227719
+            ],
+            [
+              0.653806,
+              -8.232528
+            ],
+            [
+              4.403806,
+              -7.227719
+            ],
+            [
+              7.148997,
+              -4.482528
+            ]
+          ],
+          "holes": [
+            [
+              [
+                4.55092,
+                -2.982528
+              ],
+              [
+                2.903806,
+                -4.629642
+              ],
+              [
+                0.653806,
+                -5.232528
+              ],
+              [
+                -1.596194,
+                -4.629642
+              ],
+              [
+                -3.243308,
+                -2.982528
+              ],
+              [
+                -3.846194,
+                -0.732528
+              ],
+              [
+                -3.243308,
+                1.517472
+              ],
+              [
+                -1.596194,
+                3.164586
+              ],
+              [
+                0.653806,
+                3.767472
+              ],
+              [
+                2.903806,
+                3.164586
+              ],
+              [
+                4.55092,
+                1.517472
+              ],
+              [
+                5.153806,
+                -0.732528
+              ]
+            ]
+          ],
+          "thicknessMeters": 3
+        },
+        {
+          "id": "clasping-turret-1",
+          "kind": "tower",
+          "outer": [
+            [
+              5.068264,
+              3.392101
+            ],
+            [
+              6.981681,
+              8.011499
+            ],
+            [
+              2.362283,
+              9.924916
+            ],
+            [
+              0.448866,
+              5.305518
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "clasping-turret-2",
+          "kind": "tower",
+          "outer": [
+            [
+              -4.846194,
+              1.767472
+            ],
+            [
+              -9.846194,
+              1.767472
+            ],
+            [
+              -9.846194,
+              -3.232528
+            ],
+            [
+              -4.846194,
+              -3.232528
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "clasping-turret-3",
+          "kind": "tower",
+          "outer": [
+            [
+              2.775126,
+              -6.389382
+            ],
+            [
+              6.31066,
+              -9.924916
+            ],
+            [
+              9.846194,
+              -6.389382
+            ],
+            [
+              6.31066,
+              -2.853848
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        }
+      ],
+      "plates": [
+        {
+          "id": "ground-chamber",
+          "use": "hall",
+          "outer": [
+            [
+              5.153806,
+              -0.732528
+            ],
+            [
+              4.55092,
+              1.517472
+            ],
+            [
+              2.903806,
+              3.164586
+            ],
+            [
+              0.653806,
+              3.767472
+            ],
+            [
+              -1.596194,
+              3.164586
+            ],
+            [
+              -3.243308,
+              1.517472
+            ],
+            [
+              -3.846194,
+              -0.732528
+            ],
+            [
+              -3.243308,
+              -2.982528
+            ],
+            [
+              -1.596194,
+              -4.629642
+            ],
+            [
+              0.653806,
+              -5.232528
+            ],
+            [
+              2.903806,
+              -4.629642
+            ],
+            [
+              4.55092,
+              -2.982528
+            ]
+          ],
+          "holes": [],
+          "kind": "hall",
+          "roof": "covered"
+        }
+      ],
+      "openings": [
+        {
+          "id": "entrance",
+          "ring": {
+            "wallId": "clasping-turret-3",
+            "hole": null
+          },
+          "offsetMeters": 1.75,
+          "widthMeters": 1.5,
+          "sillMeters": 0,
+          "heightMeters": 2.5,
+          "kind": "door"
+        }
+      ],
+      "fixtures": []
+    },
+    {
+      "id": "hall",
+      "name": "Hall",
+      "elevationMeters": 9,
+      "floorToFloorMeters": 9,
+      "walls": [
+        {
+          "id": "keep",
+          "kind": "keep",
+          "outer": [
+            [
+              8.153806,
+              -0.732528
+            ],
+            [
+              7.148997,
+              3.017472
+            ],
+            [
+              4.403806,
+              5.762663
+            ],
+            [
+              0.653806,
+              6.767472
+            ],
+            [
+              -3.096194,
+              5.762663
+            ],
+            [
+              -5.841385,
+              3.017472
+            ],
+            [
+              -6.846194,
+              -0.732528
+            ],
+            [
+              -5.841385,
+              -4.482528
+            ],
+            [
+              -3.096194,
+              -7.227719
+            ],
+            [
+              0.653806,
+              -8.232528
+            ],
+            [
+              4.403806,
+              -7.227719
+            ],
+            [
+              7.148997,
+              -4.482528
+            ]
+          ],
+          "holes": [
+            [
+              [
+                4.55092,
+                -2.982528
+              ],
+              [
+                2.903806,
+                -4.629642
+              ],
+              [
+                0.653806,
+                -5.232528
+              ],
+              [
+                -1.596194,
+                -4.629642
+              ],
+              [
+                -3.243308,
+                -2.982528
+              ],
+              [
+                -3.846194,
+                -0.732528
+              ],
+              [
+                -3.243308,
+                1.517472
+              ],
+              [
+                -1.596194,
+                3.164586
+              ],
+              [
+                0.653806,
+                3.767472
+              ],
+              [
+                2.903806,
+                3.164586
+              ],
+              [
+                4.55092,
+                1.517472
+              ],
+              [
+                5.153806,
+                -0.732528
+              ]
+            ]
+          ],
+          "thicknessMeters": 3
+        },
+        {
+          "id": "clasping-turret-1",
+          "kind": "tower",
+          "outer": [
+            [
+              5.068264,
+              3.392101
+            ],
+            [
+              6.981681,
+              8.011499
+            ],
+            [
+              2.362283,
+              9.924916
+            ],
+            [
+              0.448866,
+              5.305518
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "clasping-turret-2",
+          "kind": "tower",
+          "outer": [
+            [
+              -4.846194,
+              1.767472
+            ],
+            [
+              -9.846194,
+              1.767472
+            ],
+            [
+              -9.846194,
+              -3.232528
+            ],
+            [
+              -4.846194,
+              -3.232528
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "clasping-turret-3",
+          "kind": "tower",
+          "outer": [
+            [
+              2.775126,
+              -6.389382
+            ],
+            [
+              6.31066,
+              -9.924916
+            ],
+            [
+              9.846194,
+              -6.389382
+            ],
+            [
+              6.31066,
+              -2.853848
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        }
+      ],
+      "plates": [
+        {
+          "id": "hall-chamber",
+          "use": "hall",
+          "outer": [
+            [
+              5.153806,
+              -0.732528
+            ],
+            [
+              4.55092,
+              1.517472
+            ],
+            [
+              2.903806,
+              3.164586
+            ],
+            [
+              0.653806,
+              3.767472
+            ],
+            [
+              -1.596194,
+              3.164586
+            ],
+            [
+              -3.243308,
+              1.517472
+            ],
+            [
+              -3.846194,
+              -0.732528
+            ],
+            [
+              -3.243308,
+              -2.982528
+            ],
+            [
+              -1.596194,
+              -4.629642
+            ],
+            [
+              0.653806,
+              -5.232528
+            ],
+            [
+              2.903806,
+              -4.629642
+            ],
+            [
+              4.55092,
+              -2.982528
+            ]
+          ],
+          "holes": [],
+          "kind": "hall",
+          "roof": "covered"
+        }
+      ],
+      "openings": [],
+      "fixtures": []
+    },
+    {
+      "id": "upper",
+      "name": "Upper",
+      "elevationMeters": 18,
+      "floorToFloorMeters": 9,
+      "walls": [
+        {
+          "id": "keep",
+          "kind": "keep",
+          "outer": [
+            [
+              8.153806,
+              -0.732528
+            ],
+            [
+              7.148997,
+              3.017472
+            ],
+            [
+              4.403806,
+              5.762663
+            ],
+            [
+              0.653806,
+              6.767472
+            ],
+            [
+              -3.096194,
+              5.762663
+            ],
+            [
+              -5.841385,
+              3.017472
+            ],
+            [
+              -6.846194,
+              -0.732528
+            ],
+            [
+              -5.841385,
+              -4.482528
+            ],
+            [
+              -3.096194,
+              -7.227719
+            ],
+            [
+              0.653806,
+              -8.232528
+            ],
+            [
+              4.403806,
+              -7.227719
+            ],
+            [
+              7.148997,
+              -4.482528
+            ]
+          ],
+          "holes": [
+            [
+              [
+                4.55092,
+                -2.982528
+              ],
+              [
+                2.903806,
+                -4.629642
+              ],
+              [
+                0.653806,
+                -5.232528
+              ],
+              [
+                -1.596194,
+                -4.629642
+              ],
+              [
+                -3.243308,
+                -2.982528
+              ],
+              [
+                -3.846194,
+                -0.732528
+              ],
+              [
+                -3.243308,
+                1.517472
+              ],
+              [
+                -1.596194,
+                3.164586
+              ],
+              [
+                0.653806,
+                3.767472
+              ],
+              [
+                2.903806,
+                3.164586
+              ],
+              [
+                4.55092,
+                1.517472
+              ],
+              [
+                5.153806,
+                -0.732528
+              ]
+            ]
+          ],
+          "thicknessMeters": 3
+        },
+        {
+          "id": "clasping-turret-1",
+          "kind": "tower",
+          "outer": [
+            [
+              5.068264,
+              3.392101
+            ],
+            [
+              6.981681,
+              8.011499
+            ],
+            [
+              2.362283,
+              9.924916
+            ],
+            [
+              0.448866,
+              5.305518
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "clasping-turret-2",
+          "kind": "tower",
+          "outer": [
+            [
+              -4.846194,
+              1.767472
+            ],
+            [
+              -9.846194,
+              1.767472
+            ],
+            [
+              -9.846194,
+              -3.232528
+            ],
+            [
+              -4.846194,
+              -3.232528
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "clasping-turret-3",
+          "kind": "tower",
+          "outer": [
+            [
+              2.775126,
+              -6.389382
+            ],
+            [
+              6.31066,
+              -9.924916
+            ],
+            [
+              9.846194,
+              -6.389382
+            ],
+            [
+              6.31066,
+              -2.853848
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        }
+      ],
+      "plates": [
+        {
+          "id": "upper-chamber",
+          "use": "hall",
+          "outer": [
+            [
+              5.153806,
+              -0.732528
+            ],
+            [
+              4.55092,
+              1.517472
+            ],
+            [
+              2.903806,
+              3.164586
+            ],
+            [
+              0.653806,
+              3.767472
+            ],
+            [
+              -1.596194,
+              3.164586
+            ],
+            [
+              -3.243308,
+              1.517472
+            ],
+            [
+              -3.846194,
+              -0.732528
+            ],
+            [
+              -3.243308,
+              -2.982528
+            ],
+            [
+              -1.596194,
+              -4.629642
+            ],
+            [
+              0.653806,
+              -5.232528
+            ],
+            [
+              2.903806,
+              -4.629642
+            ],
+            [
+              4.55092,
+              -2.982528
+            ]
+          ],
+          "holes": [],
+          "kind": "hall",
+          "roof": "covered"
+        }
+      ],
+      "openings": [],
+      "fixtures": []
+    }
+  ],
+  "verticalLinks": [
+    {
+      "id": "stair-1",
+      "kind": "stair",
+      "fromLevelId": "ground",
+      "toLevelId": "hall",
+      "footprint": [
+        [
+          -0.346194,
+          -3.732528
+        ],
+        [
+          0.853806,
+          -3.732528
+        ],
+        [
+          0.853806,
+          0.267472
+        ],
+        [
+          -0.346194,
+          0.267472
+        ]
+      ],
+      "widthMeters": 1.2
+    },
+    {
+      "id": "stair-2",
+      "kind": "stair",
+      "fromLevelId": "hall",
+      "toLevelId": "upper",
+      "footprint": [
+        [
+          -0.346194,
+          -3.732528
+        ],
+        [
+          0.853806,
+          -3.732528
+        ],
+        [
+          0.853806,
+          0.267472
+        ],
+        [
+          -0.346194,
+          0.267472
+        ]
+      ],
+      "widthMeters": 1.2
+    }
+  ],
+  "roofs": [
+    {
+      "baseId": "keep",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "clasping-turret-1",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "clasping-turret-2",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "clasping-turret-3",
+      "form": "flat",
+      "pitchDeg": 0
+    }
+  ],
+  "materials": {
+    "wall": "stone",
+    "roof": "lead"
+  },
+  "provenance": {
+    "constructionPeriod": "1165–1173.",
+    "depictedPhase": "The surviving polygonal keep and three rectangular clasping turrets.",
+    "omitted": [
+      "Lost curtain and bailey, removed by the 17th–19th centuries",
+      "Original dome and spire; replacement lead roof of 1831",
+      "Small forebuilding, detailed chambers and local turret heights"
+    ],
+    "dimensionSource": "docs/plan/building-record.md: central tower 27 m high and 15 m wide. English Heritage, History of Orford Castle (https://www.english-heritage.org.uk/visit/places/orford-castle/history/); Suffolk Heritage Explorer designation DSF15075 (https://heritage.suffolk.gov.uk/Designation/DSF15075), three projecting turrets to NNE, west and southeast.",
+    "planClass": "well-published-survey",
+    "confidence": "scholarly-reconstruction",
+    "note": "Original twelve-sided simplification of the irregular core, with schematic 5 × 5 m radial turrets and a 3 m core wall. Three equal 9 m levels and a straight stair approximate the principal storeys. Main entrance is on the southwest-facing flank of the southeast turret; its approach bearing follows that coarse opening. Flat open caps avoid inventing the lost dome and spire or presenting the 1831 lead roof as medieval."
+  }
+}

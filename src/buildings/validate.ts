@@ -267,7 +267,12 @@ function checkKind(errors: string[], record: BuildingRecord): void {
     if (family !== "procedural-rooms") errors.push("a dungeon plan family must be procedural-rooms");
     if (!record.generation) errors.push("a dungeon needs generation settings");
   }
-  if (record.kind === "monastery" || record.kind === "house" || record.kind === "watermill") {
+  if (
+    record.kind === "temple" ||
+    record.kind === "monastery" ||
+    record.kind === "house" ||
+    record.kind === "watermill"
+  ) {
     if (family !== undefined && family !== "other") errors.push(`${record.kind} planFamily must be omitted or other`);
   }
 }

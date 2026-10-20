@@ -15,6 +15,7 @@ import { isNewStyleCastleWall } from "./castleStyle";
 import { fixedRoadIsDry } from "./fixedDocumentGeometry";
 import { appendCobble, appendFrameRoads } from "./frameRoadSvg";
 import { drawbridgeGate, renderDrawbridge } from "./moatSvg";
+import { modularFortressOwnsWall } from "./modularFortress";
 import { featureGroupPickInfo } from "./pickInfo";
 import type { RenderContext } from "./renderContext";
 import { edgeGroupPoints, element, isPoint, line } from "./svgPrimitives";
@@ -105,7 +106,10 @@ export function renderFeatureLayer(ctx: RenderContext, svg: SVGSVGElement): SVGG
           })
         );
       }
-      if (group.kind === "wall" && isNewStyleCastleWall(document, group.id)) {
+      if (
+        group.kind === "wall" &&
+        (isNewStyleCastleWall(document, group.id) || modularFortressOwnsWall(document, group.id))
+      ) {
         continue;
       }
       features.appendChild(

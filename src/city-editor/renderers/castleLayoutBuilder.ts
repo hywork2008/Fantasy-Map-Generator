@@ -21,6 +21,7 @@
 
 import { circuitRing, townCircuits } from "../generators/fortifications";
 import { polygonCentroid } from "../generators/geom";
+import { facePoints } from "../generators/mesh";
 import type { CastleStyle } from "../types/contracts/castlePatterns";
 import type { CastlePart, CastlePlan, CityDocument, Point } from "../types/document";
 import type { CastleStyleProfile } from "./castlePatterns";
@@ -1034,6 +1035,24 @@ export function buildFortressPlan(
   castle: CastlePlan,
   profile: CastleStyleProfile
 ): FortressPlan {
+  if (castle.siteFaceIds) {
+    const motte = castle.motteFaceId && document.mesh.faces[castle.motteFaceId];
+    const plan: FortressPlan = {
+      style: profile.style,
+      ramparts: motte ? [{ kind: "motte_slope", polygon: facePoints(document.mesh, motte) }] : [],
+      towers: [],
+      buildings: [],
+      defensiveGates: [],
+      props: [],
+      courtyards: castle.siteFaceIds
+        .filter(id => id !== castle.motteFaceId)
+        .flatMap(id => {
+          const face = document.mesh.faces[id];
+          return face ? [{ polygon: facePoints(document.mesh, face), texture: "earth" }] : [];
+        })
+    };
+    return applySavedBuildings(plan, castle.parts, profile);
+  }
   const circuit = document.defenseCircuits?.find(c => c.id === castle.circuitId);
   let ring = circuit ? circuitRing(document, circuit) : [];
   if (ring.length < 3 && castle.courtyards.length > 0) {

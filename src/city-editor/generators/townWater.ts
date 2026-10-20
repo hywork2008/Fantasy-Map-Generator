@@ -234,7 +234,11 @@ export function townWaterStamp(document: CityDocument): string {
 }
 
 /** Land triangles: punched mesh faces, island remainder, landRefill, and the frame outside the mesh. */
-export function townGroundPolygons(document: CityDocument, water: TownWater): { land: Point[][]; unknown: Point[][] } {
+export function townGroundPolygons(
+  document: CityDocument,
+  water: TownWater,
+  landTriangles?: ReadonlyMap<string, Point[][]>
+): { land: Point[][]; unknown: Point[][] } {
   if (Object.keys(document.mesh.faces).length === 0) {
     let remain = [frameSquare(document.frame.extentMeters)];
     for (const part of water.parts) remain = remain.flatMap(piece => subtractPolygons(piece, [part.polygon], []));
@@ -249,8 +253,10 @@ export function townGroundPolygons(document: CityDocument, water: TownWater): { 
     if (face.properties.water !== "land") continue;
     const poly = facePoints(document.mesh, face);
     if (!usable(poly)) continue;
-    const remain = cutters.length ? subtractPolygons(poly, cutters, []) : [poly];
-    for (const piece of remain) land.push(...trianglesOf(piece));
+    for (const surface of landTriangles?.get(face.id) ?? [poly]) {
+      const remain = cutters.length ? subtractPolygons(surface, cutters, []) : [surface];
+      for (const piece of remain) land.push(...trianglesOf(piece));
+    }
   }
   for (const tri of water.landRefill) land.push(...(tri.length === 3 ? [tri] : trianglesOf(tri)));
 

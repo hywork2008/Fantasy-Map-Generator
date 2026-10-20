@@ -1,13 +1,40 @@
 import "./viewer.css";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { createPontDuGard, PONT_DU_GARD, pontDuGardElevation } from "../buildings/aqueducts/pontDuGard";
 import { contentDigest } from "../buildings/canonicalJson";
+import { createStGeorgesChapel, ST_GEORGES_CHAPEL } from "../buildings/chapels/stGeorgesChapel";
+import { BOJNICE, bojnicePlan, createBojnice } from "../buildings/fortresses/bojnice";
+import { CHAMBORD, createChambord } from "../buildings/fortresses/chambord";
+import { KRAK, type KrakPhase } from "../buildings/fortresses/krak";
+import { meshProjection } from "../buildings/meshProjection";
+import { createPostMill, POST_MILL } from "../buildings/mills/postMill";
+import { createTowerMill, TOWER_MILL } from "../buildings/mills/towerMill";
+import { createWaterMill, WATER_MILL } from "../buildings/mills/waterMill";
 import { committedSvgHash, levelPlanSvg, planSvg } from "../buildings/planSvg";
-import { type BuildingRecord, type HistoricalPeriod, TRIANGLE_BUDGET } from "../buildings/record";
+import { type BuildingRecord, TRIANGLE_BUDGET } from "../buildings/record";
+import { BARGE, createBarge } from "../buildings/ships/barge";
+import { CARRACK, createCarrack } from "../buildings/ships/carrack";
+import { createGalleon, GALLEON } from "../buildings/ships/galleon";
+import { createSloop, SLOOP } from "../buildings/ships/sloop";
+import { createTrebuchet, TREBUCHET } from "../buildings/siege/trebuchet";
+import {
+  createHangingSign,
+  HANGING_SIGN_TEMPLATES,
+  type HangingSignOptions,
+  SIGN_MATERIALS,
+  SIGN_SHAPES,
+  SIGN_SYMBOLS
+} from "../buildings/signs/hangingSign";
 import { validateBuildingRecord } from "../buildings/validate";
+import { createMedievalWagon, MEDIEVAL_WAGON } from "../buildings/vehicles/medievalWagon";
+import { createMedievalWell, MEDIEVAL_WELL } from "../buildings/wells/medievalWell";
+import { createMedievalLumberYard, MEDIEVAL_LUMBER_YARD } from "../buildings/yards/medievalLumberYard";
 import { catalogueMassing } from "../city3d/core/catalogueMassing";
 import { structureSurfaces } from "../city3d/core/structureGeometry";
 import { type CityStructureMeshes, createStructureMassing } from "../city3d/three/structureMeshes";
+import type { TownWaterMeshes } from "../city3d/three/waterMeshes";
+import type { HistoricalPeriod } from "../types/historicalPeriod";
 import { sanitizeSvg } from "./svgSanitize";
 
 const PERIOD: Partial<Record<HistoricalPeriod, string>> = {
@@ -133,6 +160,8 @@ scene.add(ground);
 const controls = new OrbitControls(camera, canvas);
 controls.maxPolarAngle = Math.PI / 2 - 0.05;
 let massing: CityStructureMeshes | null = null;
+let studyWater: TownWaterMeshes | null = null;
+let selection = 0;
 
 function resize(): void {
   const rect = stage.getBoundingClientRect();
@@ -150,7 +179,7 @@ function label(value: string): string {
     .join(" ");
 }
 
-function frame(record: BuildingRecord, height: number): void {
+function frame(record: Pick<BuildingRecord, "occupancyMeters">, height: number): void {
   const radius = Math.max(record.occupancyMeters.width, record.occupancyMeters.depth, 8);
   camera.position.set(radius * 1.45, Math.max(height, 4) * 1.25, radius * 1.45);
   controls.target.set(0, height * 0.42, 0);
@@ -161,6 +190,8 @@ function frame(record: BuildingRecord, height: number): void {
 
 function clearMesh(): void {
   ground.visible = false;
+  studyWater?.dispose();
+  studyWater = null;
   if (!massing) return;
   scene.remove(massing.group);
   massing.dispose();
@@ -175,6 +206,9 @@ function showLevel(record: BuildingRecord, levelId: string): void {
 }
 
 function show(entry: Entry): void {
+  selection++;
+  roofTitle.textContent = "Roof plan";
+  levelTitle.textContent = "Floor plan";
   for (const button of list.querySelectorAll("button")) {
     button.setAttribute("aria-current", button.dataset.id === entry.record.id ? "true" : "false");
   }
@@ -239,6 +273,70 @@ function show(entry: Entry): void {
   }
 }
 
+async function showFortress(phase: KrakPhase): Promise<void> {
+  const token = ++selection;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button.dataset.phase === phase ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Fortress plan";
+  levelTitle.textContent = "Inner ward plan";
+  const [{ createFortressStudy }, { cityTerrain }, { modularFortressStructures }, { createTownWater }] =
+    await Promise.all([
+      import("../city-editor/generators/fortressStudy"),
+      import("../city-editor/generators/terrainElevation"),
+      import("../city-editor/renderers/modularFortress"),
+      import("../city3d/three/waterMeshes")
+    ]);
+  if (token !== selection) return;
+  const city = createFortressStudy(phase);
+  const terrain = cityTerrain(city);
+  const parts = modularFortressStructures(city, city.castles![0], terrain)!;
+  massing = createStructureMassing(parts);
+  scene.add(massing.group);
+  studyWater = createTownWater(city, terrain);
+  for (const mesh of [studyWater.land, studyWater.bank, studyWater.unknown]) if (mesh) scene.add(mesh);
+  scene.add(studyWater.parent);
+  const top = Math.max(...parts.map(part => part.baseElevationMeters + part.heightMeters));
+  frame({ occupancyMeters: { width: 160, depth: 190 } }, top);
+  camera.position.set(200, top + 110, 220);
+  controls.target.set(0, terrain.heightAt([0, 0]) + 8, 0);
+  controls.update();
+  const outline = (points: [number, number][]) =>
+    `${points.map(([x, y], i) => `${i ? "L" : "M"}${x},${-y}`).join(" ")} Z`;
+  const paths = [...parts]
+    .sort((a, b) => a.baseElevationMeters + a.heightMeters - b.baseElevationMeters - b.heightMeters)
+    .map(
+      part =>
+        `<path d="${[outline(part.footprint!), ...(part.holes ?? []).map(outline)].join(" ")}" fill-rule="evenodd" fill="${part.color ? "#456d7f" : part.id.includes("talus") ? "#aaa28e" : "#c1b8a2"}" stroke="#4a463c" stroke-width="0.6"/>`
+    );
+  mountPlan(roofHost, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-110 -115 220 230">${paths.join("")}</svg>`);
+  mountPlan(levelHost, levelPlanSvg(KRAK.inner, KRAK.inner.levels[0].id));
+  facts.append(
+    fact("Model", `${KRAK.name} — modular hill study`),
+    fact("Phase", phase === "hospitalier-1270" ? "Hospitaller, c. 1270" : "Mamluk alterations, c. 1302"),
+    fact("Parts", String(parts.length)),
+    fact("Note", KRAK.note),
+    fact("Source", KRAK.source),
+    fact("Inner ward", KRAK.inner.provenance.dimensionSource)
+  );
+  const download = document.createElement("button");
+  download.type = "button";
+  download.textContent = "Download editable CE hill study";
+  download.addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify(city, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `krak-${phase}.city.json`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+  facts.append(download);
+}
+
 if (!entries.length) {
   const empty = document.createElement("p");
   empty.textContent = "No buildings are in the catalogue.";
@@ -259,6 +357,683 @@ if (!entries.length) {
     list.append(button);
   }
   show(entries[0]);
+}
+
+const assemblies = document.createElement("h2");
+const aqueducts = document.createElement("h2");
+aqueducts.textContent = "Aqueduct assemblies";
+list.append(aqueducts);
+const aqueductButton = document.createElement("button");
+aqueductButton.type = "button";
+aqueductButton.textContent = "Pont du Gard · Roman aqueduct";
+aqueductButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === aqueductButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Aqueduct elevation";
+  levelTitle.textContent = "Water channel plan";
+  massing = createPontDuGard();
+  scene.add(massing.group);
+  ground.visible = true;
+  const width = PONT_DU_GARD.bays * PONT_DU_GARD.pitch;
+  frame({ occupancyMeters: { width, depth: 6 } }, PONT_DU_GARD.height);
+  camera.position.set(width * 0.45, 70, width * 0.95);
+  controls.target.set(0, 24, 0);
+  controls.update();
+  mountPlan(roofHost, pontDuGardElevation());
+  mountPlan(
+    levelHost,
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3 -4 ${width + 6} 8"><rect width="${width}" y="-1.5" height="3" fill="#d9c7a3" stroke="#827358" stroke-width="0.15"/><rect width="${width}" y="-1.05" height="2.1" fill="#a7b6b6"/></svg>`
+  );
+  facts.append(
+    fact("Model", PONT_DU_GARD.name),
+    fact("Period", "Roman antiquity"),
+    fact("Dimensions", `${width} × 6 × ${PONT_DU_GARD.height} m`),
+    fact("Assembly", "6 large bays on each lower tier; 24 small arches on the upper tier"),
+    fact(
+      "Note",
+      "Simplified imagined intact aqueduct inspired by Pont du Gard. Repeated bays share geometry; dimensions are illustrative. The upper channel is open for inspection."
+    ),
+    fact("Omitted", "Modern road bridge, damage, weathering, terrain and individual masonry blocks")
+  );
+});
+list.append(aqueductButton);
+const chapels = document.createElement("h2");
+chapels.textContent = "Chapel assemblies";
+list.append(chapels);
+const stGeorgesButton = document.createElement("button");
+stGeorgesButton.type = "button";
+stGeorgesButton.textContent = "St George's Chapel · Windsor Castle";
+stGeorgesButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === stGeorgesButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Chapel roof plan";
+  levelTitle.textContent = "South elevation";
+  massing = createStGeorgesChapel();
+  scene.add(massing.group);
+  ground.visible = true;
+  frame(
+    { occupancyMeters: { width: ST_GEORGES_CHAPEL.width, depth: ST_GEORGES_CHAPEL.depth } },
+    ST_GEORGES_CHAPEL.height
+  );
+  camera.position.set(-80, 52, 85);
+  controls.target.set(-2, 10, 0);
+  controls.update();
+  mountPlan(roofHost, meshProjection(massing, "top"));
+  mountPlan(levelHost, meshProjection(massing, "side"));
+  facts.append(
+    fact("Model", ST_GEORGES_CHAPEL.name),
+    fact("Style", "English Perpendicular Gothic"),
+    fact("Study envelope", `${ST_GEORGES_CHAPEL.width} × ${ST_GEORGES_CHAPEL.depth} × ${ST_GEORGES_CHAPEL.height} m`),
+    fact("Note", ST_GEORGES_CHAPEL.note)
+  );
+  const source = document.createElement("a");
+  source.href = ST_GEORGES_CHAPEL.source;
+  source.textContent = "College of St George · Nave and west window";
+  source.target = "_blank";
+  source.rel = "noreferrer";
+  facts.append(source);
+});
+list.append(stGeorgesButton);
+assemblies.textContent = "Fortress assemblies";
+list.append(assemblies);
+const bojniceButton = document.createElement("button");
+bojniceButton.type = "button";
+bojniceButton.textContent = "Bojnice Castle · Romantic reconstruction";
+bojniceButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === bojniceButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Castle roof plan";
+  levelTitle.textContent = "Assembly";
+  massing = createBojnice();
+  scene.add(massing.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: BOJNICE.width, depth: BOJNICE.depth } }, BOJNICE.height);
+  camera.position.set(105, 85, 130);
+  controls.target.set(0, 25, 0);
+  controls.update();
+  mountPlan(roofHost, bojnicePlan(massing));
+  levelHost.replaceChildren(
+    fact("Exterior study", "Palace wings around an open courtyard, upper keep, conical towers and an arched entrance.")
+  );
+  facts.append(
+    fact("Model", BOJNICE.name),
+    fact("Phase", "Romantic reconstruction, 1889–1910"),
+    fact("Study envelope", `${BOJNICE.width} × ${BOJNICE.depth} × ${BOJNICE.height} m`),
+    fact("Note", BOJNICE.note)
+  );
+  const source = document.createElement("a");
+  source.href = BOJNICE.source;
+  source.textContent = "Museum source";
+  source.target = "_blank";
+  source.rel = "noreferrer";
+  facts.append(source);
+});
+list.append(bojniceButton);
+const chambordButton = document.createElement("button");
+chambordButton.type = "button";
+chambordButton.textContent = "Château de Chambord · French Renaissance";
+chambordButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === chambordButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Castle roof plan";
+  levelTitle.textContent = "Assembly";
+  const model = createChambord();
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: CHAMBORD.width, depth: CHAMBORD.depth } }, CHAMBORD.height);
+  camera.position.set(155, 125, 205);
+  controls.target.set(0, 18, 8);
+  controls.update();
+  mountPlan(roofHost, model.plan);
+  levelHost.replaceChildren(
+    fact(
+      "Exterior study",
+      "Four-towered keep, central lantern, roof terraces, lateral wings and an open entrance court."
+    )
+  );
+  facts.append(
+    fact("Model", CHAMBORD.name),
+    fact("Period", "French Renaissance"),
+    fact("Study envelope", `${CHAMBORD.width} × ${CHAMBORD.depth} × ${CHAMBORD.height} m`),
+    fact("Note", CHAMBORD.note)
+  );
+  const source = document.createElement("a");
+  source.href = CHAMBORD.source;
+  source.textContent = "Official architecture source";
+  source.target = "_blank";
+  source.rel = "noreferrer";
+  facts.append(source);
+});
+list.append(chambordButton);
+for (const phase of ["hospitalier-1270", "mamluk-1302"] as const) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.dataset.phase = phase;
+  button.textContent = `${KRAK.name} · ${phase === "hospitalier-1270" ? "c. 1270" : "Mamluk alterations"}`;
+  button.addEventListener("click", () => {
+    void showFortress(phase).catch(error => {
+      banner.hidden = false;
+      banner.textContent = error instanceof Error ? error.message : String(error);
+    });
+  });
+  list.append(button);
+}
+
+const shipsHeading = document.createElement("h2");
+shipsHeading.textContent = "Ships";
+list.append(shipsHeading);
+const carrackButton = document.createElement("button");
+carrackButton.type = "button";
+carrackButton.textContent = "Carrack · High-castled merchant ship";
+carrackButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === carrackButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Ship elevation";
+  levelTitle.textContent = "Deck plan";
+  const model = createCarrack();
+  massing = model;
+  scene.add(model.group);
+  frame({ occupancyMeters: { width: CARRACK.length, depth: CARRACK.beam } }, CARRACK.height);
+  camera.position.set(43, 28, 54);
+  controls.target.set(1, 14, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", CARRACK.name),
+    fact("Period", "Late medieval / early modern · imagined merchant vessel"),
+    fact(
+      "Dimensions",
+      `${CARRACK.length} m overall length × ${CARRACK.beam} m beam; ${CARRACK.height} m above water; ${CARRACK.draft} m draft`
+    ),
+    fact("Rig", "Three masts; square-rigged fore and main masts; lateen mizzen"),
+    fact("Hull", "Broad round-bilged hull; high forecastle and stepped sterncastle"),
+    fact("Note", CARRACK.note)
+  );
+  const source = document.createElement("a");
+  source.href = CARRACK.source;
+  source.textContent = "Mariners’ Museum · Carrack";
+  source.target = "_blank";
+  source.rel = "noreferrer";
+  facts.append(source);
+});
+list.append(carrackButton);
+
+const galleonButton = document.createElement("button");
+galleonButton.type = "button";
+galleonButton.textContent = "Galleon · Three-masted sailing ship";
+galleonButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === galleonButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Ship elevation";
+  levelTitle.textContent = "Deck plan";
+  const model = createGalleon();
+  massing = model;
+  scene.add(model.group);
+  frame({ occupancyMeters: { width: GALLEON.length, depth: GALLEON.beam } }, GALLEON.height);
+  camera.position.set(54, 32, 67);
+  controls.target.set(2, 17, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", GALLEON.name),
+    fact("Period", "Age of sail · imagined early modern vessel"),
+    fact(
+      "Dimensions",
+      `${GALLEON.length} m overall length × ${GALLEON.beam} m beam; ${GALLEON.height} m above water; ${GALLEON.draft} m draft`
+    ),
+    fact("Rig", "Three masts; square-rigged fore and main masts; lateen mizzen"),
+    fact("Armament", "14 broadside guns"),
+    fact("Note", GALLEON.note)
+  );
+});
+list.append(galleonButton);
+
+const sloopButton = document.createElement("button");
+sloopButton.type = "button";
+sloopButton.textContent = "Sloop · Small coastal sailing ship";
+sloopButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === sloopButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Ship elevation";
+  levelTitle.textContent = "Deck plan";
+  const model = createSloop();
+  massing = model;
+  scene.add(model.group);
+  frame({ occupancyMeters: { width: SLOOP.length, depth: SLOOP.beam } }, SLOOP.height);
+  camera.position.set(19, 13, 23);
+  controls.target.set(1, 6, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", SLOOP.name),
+    fact("Period", "Age of sail · imagined coastal vessel"),
+    fact(
+      "Dimensions",
+      `${SLOOP.length} m overall length × ${SLOOP.beam} m beam; ${SLOOP.height} m above water; ${SLOOP.draft} m draft`
+    ),
+    fact("Rig", "One mast; gaff mainsail and jib"),
+    fact("Hull", "Small wooden hull with keel, low cabin and tiller steering"),
+    fact("Note", SLOOP.note)
+  );
+});
+list.append(sloopButton);
+
+const bargeButton = document.createElement("button");
+bargeButton.type = "button";
+bargeButton.textContent = "Barge · River cargo carrier";
+bargeButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === bargeButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Ship elevation";
+  levelTitle.textContent = "Deck plan";
+  const model = createBarge();
+  massing = model;
+  scene.add(model.group);
+  frame({ occupancyMeters: { width: BARGE.length, depth: BARGE.beam } }, BARGE.height);
+  camera.position.set(23, 17, 26);
+  controls.target.set(0, 0.8, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", BARGE.name),
+    fact("Period", "Pre-industrial · imagined river carrier"),
+    fact(
+      "Dimensions",
+      `${BARGE.length} m overall length × ${BARGE.beam} m beam; ${BARGE.height} m above water; ${BARGE.draft} m draft`
+    ),
+    fact("Propulsion", "Towing or poling; unpowered"),
+    fact("Hull", "Flat bottom, rising ends and shallow draft"),
+    fact("Cargo", "Stacked crates, barrels and bundled timber"),
+    fact("Note", BARGE.note)
+  );
+});
+list.append(bargeButton);
+
+const siegeHeading = document.createElement("h2");
+siegeHeading.textContent = "Siege engines";
+list.append(siegeHeading);
+const trebuchetButton = document.createElement("button");
+trebuchetButton.type = "button";
+trebuchetButton.textContent = "Trebuchet · Hinged counterweight";
+trebuchetButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === trebuchetButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Siege engine elevation";
+  levelTitle.textContent = "Siege engine plan";
+  const model = createTrebuchet();
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: TREBUCHET.length, depth: TREBUCHET.width } }, TREBUCHET.height);
+  camera.position.set(14, 11, 21);
+  controls.target.set(3, 4, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", TREBUCHET.name),
+    fact("Type", "Hinged-counterweight siege engine"),
+    fact("Study envelope", `${TREBUCHET.length} × ${TREBUCHET.width} × ${TREBUCHET.height} m`),
+    fact("Throwing arm", `${TREBUCHET.longArm} m long arm / ${TREBUCHET.shortArm} m counterweight arm`),
+    fact("Pose", "Lowered for loading; sling and projectile in the trough"),
+    fact("Note", TREBUCHET.note)
+  );
+});
+list.append(trebuchetButton);
+
+const millsHeading = document.createElement("h2");
+millsHeading.textContent = "Mills";
+list.append(millsHeading);
+const postMillButton = document.createElement("button");
+postMillButton.type = "button";
+postMillButton.textContent = "Medieval windmill · Timber post mill";
+postMillButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === postMillButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Windmill front elevation";
+  levelTitle.textContent = "Windmill plan";
+  const model = createPostMill();
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: POST_MILL.width, depth: POST_MILL.depth } }, POST_MILL.height);
+  camera.position.set(17, 12, 24);
+  controls.target.set(0, 6, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", POST_MILL.name),
+    fact("Style", "Medieval Europe · Timber post mill"),
+    fact("Study envelope", `${POST_MILL.width} × ${POST_MILL.depth} × ${POST_MILL.height} m`),
+    fact("Sails", `Four canvas-covered lattice sails; ${POST_MILL.sailRadius * 2} m stock diameter`),
+    fact("Structure", "Timber milling house on a braced central post; rear stair and tailpole"),
+    fact("Note", POST_MILL.note)
+  );
+});
+list.append(postMillButton);
+
+const towerMillButton = document.createElement("button");
+towerMillButton.type = "button";
+towerMillButton.textContent = "Stone windmill · Tower mill";
+towerMillButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === towerMillButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Tower windmill front elevation";
+  levelTitle.textContent = "Tower windmill plan";
+  const model = createTowerMill();
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: TOWER_MILL.width, depth: TOWER_MILL.depth } }, TOWER_MILL.height);
+  camera.position.set(21, 16, 30);
+  controls.target.set(0, 9, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", TOWER_MILL.name),
+    fact("Style", "European stone tower mill"),
+    fact("Study envelope", `${TOWER_MILL.width} × ${TOWER_MILL.depth} × ${TOWER_MILL.height} m`),
+    fact("Tower", `${TOWER_MILL.towerHeight} m high; ${TOWER_MILL.baseRadius * 2} m diameter at the base`),
+    fact("Sails", "Four canvas-covered lattice sails on a timber cap"),
+    fact("Note", TOWER_MILL.note)
+  );
+});
+list.append(towerMillButton);
+
+const waterMillButton = document.createElement("button");
+waterMillButton.type = "button";
+waterMillButton.textContent = "Medieval watermill · Timber and stone";
+waterMillButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === waterMillButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Watermill front elevation";
+  levelTitle.textContent = "Watermill plan";
+  const model = createWaterMill();
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: WATER_MILL.width, depth: WATER_MILL.depth } }, WATER_MILL.height);
+  camera.position.set(20, 13, 25);
+  controls.target.set(0, 4, 0.8);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", WATER_MILL.name),
+    fact("Style", "Medieval Europe · Stone and half-timbered grain mill"),
+    fact("Study envelope", `${WATER_MILL.width} × ${WATER_MILL.depth} × ${WATER_MILL.height} m`),
+    fact("Wheel", `Wooden overshot wheel; ${WATER_MILL.wheelRadius * 2} m diameter; 24 buckets`),
+    fact("Water supply", "Raised timber flume with sluice gate; lower millrace and axle bearing pier"),
+    fact("Note", WATER_MILL.note)
+  );
+});
+list.append(waterMillButton);
+
+const wellsHeading = document.createElement("h2");
+wellsHeading.textContent = "Wells";
+list.append(wellsHeading);
+const wellButton = document.createElement("button");
+wellButton.type = "button";
+wellButton.textContent = "Medieval European well · Stone and timber";
+wellButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === wellButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Well front elevation";
+  levelTitle.textContent = "Well roof plan";
+  const model = createMedievalWell();
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: MEDIEVAL_WELL.width, depth: MEDIEVAL_WELL.depth } }, MEDIEVAL_WELL.height);
+  camera.position.set(5.2, 4.2, 6.8);
+  controls.target.set(0, 1.75, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", MEDIEVAL_WELL.name),
+    fact("Style", "Medieval Europe · Roofed village well"),
+    fact("Study envelope", `${MEDIEVAL_WELL.width} × ${MEDIEVAL_WELL.depth} × ${MEDIEVAL_WELL.height} m`),
+    fact("Structure", "Open masonry curb, braced oak posts and a timber-shingled gable roof"),
+    fact("Lifting gear", "Hand-cranked wooden windlass, rope and iron-bound wooden bucket"),
+    fact("Note", MEDIEVAL_WELL.note)
+  );
+});
+list.append(wellButton);
+
+const yardsHeading = document.createElement("h2");
+yardsHeading.textContent = "Work yards";
+list.append(yardsHeading);
+const lumberYardButton = document.createElement("button");
+lumberYardButton.type = "button";
+lumberYardButton.textContent = "Medieval European lumber yard · Timber storage";
+lumberYardButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === lumberYardButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Yard front elevation";
+  levelTitle.textContent = "Yard plan";
+  const model = createMedievalLumberYard();
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame(
+    { occupancyMeters: { width: MEDIEVAL_LUMBER_YARD.width, depth: MEDIEVAL_LUMBER_YARD.depth } },
+    MEDIEVAL_LUMBER_YARD.height
+  );
+  camera.position.set(20, 15, 22);
+  controls.target.set(0, 1.7, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", MEDIEVAL_LUMBER_YARD.name),
+    fact("Style", "Medieval Europe · Timber storage and hand-work yard"),
+    fact(
+      "Study envelope",
+      `${MEDIEVAL_LUMBER_YARD.width} × ${MEDIEVAL_LUMBER_YARD.depth} × ${MEDIEVAL_LUMBER_YARD.height} m`
+    ),
+    fact("Storage", "Sleeper-supported log pile, boards separated by drying stickers and stacked hewn beams"),
+    fact("Workshop", "Open braced timber shed, wooden roof, sawing trestles, frame saw and chopping block with axe"),
+    fact("Note", MEDIEVAL_LUMBER_YARD.note)
+  );
+});
+list.append(lumberYardButton);
+
+const vehiclesHeading = document.createElement("h2");
+vehiclesHeading.textContent = "Vehicles";
+list.append(vehiclesHeading);
+const wagonButton = document.createElement("button");
+wagonButton.type = "button";
+wagonButton.textContent = "Medieval European wagon · Four-wheeled freight wagon";
+wagonButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === wagonButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Wagon side elevation";
+  levelTitle.textContent = "Wagon plan";
+  const model = createMedievalWagon();
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: MEDIEVAL_WAGON.length, depth: MEDIEVAL_WAGON.width } }, MEDIEVAL_WAGON.height);
+  camera.position.set(7, 5, 8);
+  controls.target.set(0.7, 1, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", MEDIEVAL_WAGON.name),
+    fact("Style", "Medieval Europe · Open timber freight wagon"),
+    fact("Study envelope", `${MEDIEVAL_WAGON.length} × ${MEDIEVAL_WAGON.width} × ${MEDIEVAL_WAGON.height} m`),
+    fact("Running gear", "Four wooden spoked wheels with iron tires; smaller front wheels and a pivoted front axle"),
+    fact("Body", "Empty plank bed, iron straps, driver's bench and twin draft shafts; no animals"),
+    fact("Note", MEDIEVAL_WAGON.note)
+  );
+});
+list.append(wagonButton);
+
+const signsHeading = document.createElement("h2");
+signsHeading.textContent = "Hanging shop signs";
+list.append(signsHeading);
+function showSign(options: HangingSignOptions, activeButton: HTMLButtonElement): void {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === activeButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Sign front elevation";
+  levelTitle.textContent = "Sign plan";
+  const model = createHangingSign(options);
+  massing = model;
+  scene.add(model.group);
+  camera.position.set(2.3, 0.5, 3.1);
+  controls.target.set(0.8, -0.65, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(fact("Model", "Modular hanging shop sign"));
+  function selector<T extends string>(name: string, values: readonly T[], selected: T, change: (value: T) => void) {
+    const row = document.createElement("label");
+    row.textContent = `${name}: `;
+    const select = document.createElement("select");
+    for (const value of values) {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label(value);
+      select.append(option);
+    }
+    select.value = selected;
+    select.addEventListener("change", () => change(select.value as T));
+    row.append(select);
+    const paragraph = document.createElement("p");
+    paragraph.append(row);
+    facts.append(paragraph);
+  }
+  selector("Shape", SIGN_SHAPES, options.shape ?? "rectangle", shape => showSign({ ...options, shape }, activeButton));
+  selector("Material", SIGN_MATERIALS, options.material ?? "oak", material =>
+    showSign({ ...options, material }, activeButton)
+  );
+  selector("Symbol", SIGN_SYMBOLS, options.symbol ?? "blank", symbol => showSign({ ...options, symbol }, activeButton));
+  facts.append(
+    fact(
+      "Mount",
+      "Wall plate at origin; +X projects from the facade. Meter units. Rotate around Y to align with the wall."
+    ),
+    fact("Construction", "Braced metal arm, two chains, metal rim and two-sided raised pictogram"),
+    fact(
+      "Note",
+      "Imagined reusable templates. Building attributes and automatic placement are not assigned by this preview."
+    )
+  );
+}
+for (const template of [
+  { id: "blank", shape: "rectangle", material: "oak", symbol: "blank" },
+  ...HANGING_SIGN_TEMPLATES
+] as const) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = `${label(template.id)} · Hanging sign`;
+  button.addEventListener("click", () => showSign(template, button));
+  list.append(button);
 }
 
 resize();
