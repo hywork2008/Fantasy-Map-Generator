@@ -1,6 +1,7 @@
 import { isTechnologyAtLeast } from "../../../generators/technologyProgress";
 import { simEvents } from "../../../simulation/events";
 import { SHIP_CLASS_DEFINITIONS, type ShipbuildingMerchantHullSnapshot } from "../../hostTypes";
+import { rn } from "../../hostUtils";
 import {
   getCaravans,
   getFlowCycleHistory,
@@ -246,6 +247,16 @@ function hireCap(balance: MerchantLandAssetBalance, ledger: MerchantTransportLed
         ? local.cart
         : local.wagon;
   return Math.max(Math.floor(landAssetTotal(balance) * LAND_HIRE_SHARE), localCount);
+}
+
+/** Removes `count` vehicles' share of the horses the market paid for, and returns it. */
+function takeDraftAnimalHeads(balance: MerchantLandAssetBalance, count: number): number {
+  const heads = balance.draftAnimalHeads ?? 0;
+  const total = landAssetTotal(balance);
+  if (!(heads > 0) || !(total > 0)) return 0;
+  const taken = rn((heads * Math.min(count, total)) / total, 4);
+  balance.draftAnimalHeads = heads - taken > 0.0001 ? rn(heads - taken, 4) : undefined;
+  return taken;
 }
 
 function ownUnits(allocation: TransportAllocation): number {
@@ -1299,16 +1310,18 @@ export class MerchantTransportAssetsModule {
    * the fleet the market's measured trade needs, once some have stood so for
    * IDLE_LAND_ASSET_RELEASE_CYCLES calls in a row, and restarts the count. A kind the market hired
    * since the last call, or `isStillWanted` says it is building, is kept: its trade ran short on
-   * some day even if a few stood free on all of them. Returns how many went.
+   * some day even if a few stood free on all of them. Returns how many of each kind went, and
+   * the horses (market heads) that went with them, a share of the heads the market paid for.
    */
   releaseIdleLandAssets(
     marketId: number,
     isStillWanted: (assetId: MerchantLandAssetBalance["assetId"]) => boolean = () => false
-  ): number {
+  ): Partial<Record<MerchantLandAssetBalance["assetId"], { count: number; draftAnimalHeads: number }>> {
+    const released: Partial<Record<MerchantLandAssetBalance["assetId"], { count: number; draftAnimalHeads: number }>> =
+      {};
     const ledger = findLedger(marketId);
-    if (!ledger) return 0;
+    if (!ledger) return released;
     const keep = computeLandFleetNeedCounts(marketId);
-    let released = 0;
     for (const balance of ledger.landAssets) {
       const idle = Math.min(balance.idleLowWater ?? 0, balance.available);
       balance.idleLowWater = undefined;
@@ -1330,10 +1343,11 @@ export class MerchantTransportAssetsModule {
       if (balance.idleCycles < IDLE_LAND_ASSET_RELEASE_CYCLES) continue;
       const count = Math.ceil(balance.idleSurplus * IDLE_LAND_ASSET_RELEASE_SHARE);
       if (!(count > 0)) continue;
+      const draftAnimalHeads = takeDraftAnimalHeads(balance, count);
       balance.available -= count;
       balance.idleSurplus -= count;
       assertBalance(balance);
-      released += count;
+      released[balance.assetId] = { count, draftAnimalHeads };
     }
     return released;
   }
@@ -1352,6 +1366,8 @@ export class MerchantTransportAssetsModule {
     const to = this.ensureLedger(toMarketId)?.landAssets.find(asset => asset.assetId === assetId);
     const count = Math.min(Math.floor(quantity), from?.available ?? 0);
     if (!from || !to || !(count > 0)) return 0;
+    const heads = takeDraftAnimalHeads(from, count);
+    if (heads > 0) to.draftAnimalHeads = (to.draftAnimalHeads ?? 0) + heads;
     from.available -= count;
     to.available += count;
     assertBalance(from);
@@ -1360,12 +1376,18 @@ export class MerchantTransportAssetsModule {
   }
 
   /** Credits completed land assets directly to the durable ledger, bypassing saleable market stock. */
-  addAvailableLandAssets(marketId: number, assetId: MerchantLandAssetBalance["assetId"], quantity: number): void {
+  addAvailableLandAssets(
+    marketId: number,
+    assetId: MerchantLandAssetBalance["assetId"],
+    quantity: number,
+    draftAnimalHeads = 0
+  ): void {
     if (!(quantity > 0)) return;
     const ledger = this.ensureLedger(marketId);
     const balance = ledger?.landAssets.find(asset => asset.assetId === assetId);
     if (!balance) return;
     balance.available += quantity;
+    if (draftAnimalHeads > 0) balance.draftAnimalHeads = (balance.draftAnimalHeads ?? 0) + draftAnimalHeads;
     assertBalance(balance);
   }
 

@@ -162,10 +162,10 @@ describe("merchant transport assets", () => {
     // Six stood free every day; one is needed, and a quarter of the rest (rounded up) goes, but only after
     // six slack cycles in a row.
     for (let cycle = 1; cycle < 6; cycle++) {
-      expect(MerchantTransportAssets.releaseIdleLandAssets(1)).toBe(0);
+      expect(MerchantTransportAssets.releaseIdleLandAssets(1)).toEqual({});
       MerchantTransportAssets.recoverMaintenance(1);
     }
-    expect(MerchantTransportAssets.releaseIdleLandAssets(1)).toBe(2);
+    expect(MerchantTransportAssets.releaseIdleLandAssets(1)).toEqual({ cart: { count: 2, draftAnimalHeads: 0 } });
     expect(cart()).toMatchObject({ available: 4, inTransit: 4, idleLowWater: undefined, idleCycles: 6 });
   });
 

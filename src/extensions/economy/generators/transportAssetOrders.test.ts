@@ -9,8 +9,14 @@ import {
   setMarketCellColumn
 } from "../economyContext";
 import { setEconomyCalibrationState } from "../store/economyCalibrationState";
+import { getHouseholdWealth } from "./burgMarketLedgers";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
 import { TransportAssetOrders } from "./transportAssetOrders";
+
+/** A wright's month at the craft wage, with no grain market (`getSubsistenceWage`): 1.5 × 0.43 / 12. */
+const WAGE_PER_WORK_POINT = (1.5 * 0.43) / 12;
+/** 7 wood × 2 + 0.2 harness × 5 + 0.8 head of horses × 3 + twelve months of a wright's wage. */
+const CART_COST = 7 * 2 + 0.2 * 5 + 0.8 * 3 + 12 * WAGE_PER_WORK_POINT;
 
 describe("transport asset orders", () => {
   beforeEach(() => {
@@ -25,7 +31,8 @@ describe("transport asset orders", () => {
           goods: {
             1: { stock: 20, price: 2 },
             2: { stock: 20, price: 3 },
-            3: { stock: 20, price: 5 }
+            3: { stock: 20, price: 5 },
+            6: { stock: 20, price: 3 }
           },
           marketTreasury: { balance: 100, ruralGrainPayable: 0 }
         }
@@ -36,7 +43,8 @@ describe("transport asset orders", () => {
       { i: 2, name: "Leather", value: 3, tags: [] },
       { i: 3, name: "Harnesses", value: 5, tags: [] },
       { i: 4, name: "Ropes", value: 2, tags: [] },
-      { i: 5, name: "Tar", value: 1, tags: [] }
+      { i: 5, name: "Tar", value: 1, tags: [] },
+      { i: 6, name: "Horses", value: 3, tags: [] }
     ]);
     // These tests (outside the "applyCalibration real-people transport capacity" block below)
     // exercise the pre-PR-3 legacy capacity model (25% of observed craft employment, `used.total`
@@ -55,16 +63,21 @@ describe("transport asset orders", () => {
     const initialCarts =
       MerchantTransportAssets.getAvailability(1).find(asset => asset.assetId === "cart")?.available ?? 0;
     const order = TransportAssetOrders.createOrder({ marketId: 1, blueprintId: "cart", quantity: 1 });
+    const wealthBefore = getHouseholdWealth(1);
 
     TransportAssetOrders.beginProductionCycle();
     const used = TransportAssetOrders.consumePlannedWork(1, 100);
 
-    // 7 wood × 2 + 0.2 harness × 5; twelve person-months of work.
-    expect(order).toMatchObject({ status: "completed", completedQuantity: 1, fundedAmount: 15 });
+    // The wrights' wages went to the town's households as they worked.
+    expect(getHouseholdWealth(1) - wealthBefore).toBeCloseTo(12 * WAGE_PER_WORK_POINT, 1);
+
+    expect(order).toMatchObject({ status: "completed", completedQuantity: 1, reservedWages: undefined });
+    expect(order?.fundedAmount).toBeCloseTo(CART_COST, 1);
     expect(used.total).toBe(12);
     expect(worldContext.pack.markets[0].goods[1].stock).toBe(13);
     expect(worldContext.pack.markets[0].goods[3].stock).toBe(19.8);
-    expect(worldContext.pack.markets[0].marketTreasury?.balance).toBe(85);
+    expect(worldContext.pack.markets[0].goods[6].stock).toBe(19.2);
+    expect(worldContext.pack.markets[0].marketTreasury?.balance).toBeCloseTo(100 - CART_COST, 1);
     expect(MerchantTransportAssets.getAvailability(1).find(asset => asset.assetId === "cart")?.available).toBe(
       initialCarts + 1
     );
@@ -121,12 +134,13 @@ describe("transport asset orders", () => {
       blueprintId: "cart",
       quantity: 1,
       requestedBy: "player",
-      budgetLimit: 15
+      budgetLimit: 19
     });
 
     TransportAssetOrders.beginProductionCycle();
 
-    expect(playerOrder).toMatchObject({ status: "building", fundedAmount: 15 });
+    expect(playerOrder).toMatchObject({ status: "building" });
+    expect(playerOrder?.fundedAmount).toBeCloseTo(CART_COST, 1);
     expect(automaticOrder).toMatchObject({ status: "waitingMaterials", blockedReason: "missingMaterials" });
   });
 
@@ -166,7 +180,7 @@ describe("transport asset orders", () => {
       i: 2,
       centerBurgId: 2,
       color: "#111",
-      goods: { 1: { stock: 0, price: 2 }, 3: { stock: 0, price: 5 } },
+      goods: { 1: { stock: 0, price: 2 }, 3: { stock: 0, price: 5 }, 6: { stock: 0, price: 3 } },
       marketTreasury: { balance: 100, ruralGrainPayable: 0 }
     } as unknown as PackedGraph["markets"][number]);
     MerchantTransportAssets.addAvailableLandAssets(1, "cart", 3);
@@ -184,12 +198,12 @@ describe("transport asset orders", () => {
       buyerType: "market"
     });
 
-    // Two carts at 7 wood × 2 + 0.2 harness × 5 each, at the buyer's prices.
+    // Two carts with their horses, at what they would cost to build at the buyer's prices.
     expect(cartsAt(1)).toBe(2);
     expect(cartsAt(2)).toBe(before + 2);
     expect(order).toMatchObject({ status: "cancelled", quantity: 0 });
-    expect(worldContext.pack.markets[1].marketTreasury?.balance).toBe(70);
-    expect(worldContext.pack.markets[0].marketTreasury?.balance).toBe(130);
+    expect(worldContext.pack.markets[1].marketTreasury?.balance).toBeCloseTo(100 - 2 * CART_COST, 1);
+    expect(worldContext.pack.markets[0].marketTreasury?.balance).toBeCloseTo(100 + 2 * CART_COST, 1);
   });
 
   it("orders its own carts only for hire that ran three cycles, and withdraws them when carts stand idle", () => {
@@ -224,8 +238,9 @@ describe("transport asset orders", () => {
 
     TransportAssetOrders.beginProductionCycle();
 
-    expect(order).toMatchObject({ status: "building", fundedAmount: 15 });
-    expect(worldContext.pack.markets[0].marketTreasury).toMatchObject({ balance: 0, tradeWorkingCapital: 39 });
+    expect(order?.fundedAmount).toBeCloseTo(CART_COST, 1);
+    expect(worldContext.pack.markets[0].marketTreasury?.balance).toBe(0);
+    expect(worldContext.pack.markets[0].marketTreasury?.tradeWorkingCapital).toBeCloseTo(50 - (CART_COST - 4), 1);
   });
 
   it("credits a completed river barge to the durable ledger instead of market goods", () => {

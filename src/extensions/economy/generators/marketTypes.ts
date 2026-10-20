@@ -442,6 +442,11 @@ export type MerchantLandAssetBalance = {
   hiredDays?: number;
   /** Hired vehicles kept on the road on average in each recent cycle, oldest first, while hiring lasts. */
   recentHiredAverages?: number[];
+  /**
+   * Horses (market heads) the market paid for with vehicles of this kind it built or bought, spread
+   * over all of them. Vehicles it was given at the start carry none (§10.17).
+   */
+  draftAnimalHeads?: number;
   /** Fewest of this kind standing free at home on any day since the last replenishment. */
   idleLowWater?: number;
   /** Replenishments in a row this kind stood partly idle without hiring, and the fewest idle beyond need. */
@@ -567,6 +572,10 @@ export type TransportAssetOrder = {
   fundedAmount: number;
   /** Materials removed from market stock but not yet consumed by a completed asset. */
   reservedMaterials: Record<number, number>;
+  /** Wages set aside at funding and not yet paid to the wrights (§10.17 of port-freight-queue-and-warehouses.md). */
+  reservedWages?: number;
+  /** The wage per work point fixed at funding. */
+  wagePerWorkPoint?: number;
   workPoints: number;
   status: TransportAssetOrderStatus;
   blockedReason?: "insufficientTreasury" | "budgetLimit" | "missingMaterials" | "missingCraftWorkers";

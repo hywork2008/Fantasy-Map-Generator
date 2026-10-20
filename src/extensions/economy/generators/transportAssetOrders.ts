@@ -12,13 +12,16 @@ import {
   setTransportAssetOrders
 } from "../economyContext";
 import { getEconomyCalibrationState } from "../state/economyCalibrationStore";
-import { laborPeople, peopleToPoints } from "./craftScale";
+import { creditHouseholdWealth } from "./burgMarketLedgers";
+import { DEFAULT_PEOPLE_PER_POPULATION_POINT, laborPeople, peopleToPoints } from "./craftScale";
 import { getGuildBonus } from "./guildKnowledge";
 import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";
+import { creditRuralHouseholdWealth } from "./householdWealth";
 import { getMarketRuralPopulation } from "./marketPopulation";
 import type { Caravan, Market, MerchantLandAssetBalance, TransportAssetOrder } from "./marketTypes";
 import { getUncommittedTradeCapital } from "./merchantTradeCapital";
 import { computeLandFleetNeedCounts, MerchantTransportAssets, RIVER_BARGE_WOOD_UNITS } from "./merchantTransportAssets";
+import { getSubsistenceWage } from "./subsistenceWage";
 
 export type TransportAssetBlueprint = {
   id: TransportAssetOrder["blueprintId"];
@@ -34,6 +37,8 @@ export type TransportAssetBlueprint = {
    */
   substituteMaterialNames?: readonly Readonly<Record<string, number>>[];
   requiredWorkPoints: number;
+  /** Horses bought with the convoy, in market heads (about 25 animals each, §10.17). */
+  draftAnimalHeads?: number;
   requiredCraft: CraftKnowledgeDomain;
   cargoCapacitySlots: number;
   requiredDraftAnimals?: number;
@@ -46,6 +51,8 @@ export type TransportAssetBlueprint = {
  * materials and work are for the whole convoy: a one-horse cart took a wheelwright and his men
  * about 15-20 days, a four-wheeled wagon 40-60, a pack saddle two or three; a pile of wood is about
  * 1.2 m³; a lot of Harnesses is about a hundred sets (54 person-months, craftDemandCalibration.ts).
+ * A head of Horses in the market is about twenty-five animals: a horse cost a labourer half a
+ * year's to a year's wage, and half a head is tanned into a roll of leather (§10.17).
  */
 const BLUEPRINTS: readonly TransportAssetBlueprint[] = [
   {
@@ -56,6 +63,7 @@ const BLUEPRINTS: readonly TransportAssetBlueprint[] = [
     materialNames: { Leather: 0.5, Wood: 0.5, Harnesses: 0.5 },
     substituteMaterialNames: [{ Leather: 1, Wood: 0.5 }],
     requiredWorkPoints: 5,
+    draftAnimalHeads: 2,
     requiredCraft: "leather",
     cargoCapacitySlots: 40,
     requiredDraftAnimals: 1
@@ -67,6 +75,7 @@ const BLUEPRINTS: readonly TransportAssetBlueprint[] = [
     materialNames: { Wood: 7, Harnesses: 0.2 },
     substituteMaterialNames: [{ Wood: 7, Leather: 0.2 }],
     requiredWorkPoints: 12,
+    draftAnimalHeads: 0.8,
     requiredCraft: "woodworking",
     cargoCapacitySlots: 80,
     requiredDraftAnimals: 1
@@ -78,6 +87,7 @@ const BLUEPRINTS: readonly TransportAssetBlueprint[] = [
     materialNames: { Wood: 16, Harnesses: 0.6 },
     substituteMaterialNames: [{ Wood: 16, Leather: 0.6 }],
     requiredWorkPoints: 40,
+    draftAnimalHeads: 2.4,
     requiredCraft: "woodworking",
     cargoCapacitySlots: 180,
     requiredDraftAnimals: 2
@@ -97,6 +107,8 @@ const BLUEPRINTS: readonly TransportAssetBlueprint[] = [
 ];
 
 const WORK_SHARE_OF_OBSERVED_CRAFT_EMPLOYMENT = 0.25;
+/** The draft animals a convoy is bought with; they go back to the market when it is let go. */
+const DRAFT_ANIMAL_GOOD_NAME = "Horses";
 /** Cycles in a row a market must hire a kind before it orders its own for the least it hired. */
 const SUSTAINED_HIRE_CYCLES = 3;
 /** Days between production cycles, over which hired vehicle-days are averaged. */
@@ -150,12 +162,25 @@ function requiredMaterials(
     if (!good) return null;
     materials[good.i] = perAsset * quantity;
   }
+  if (blueprint.draftAnimalHeads) {
+    const horses = goods.find(candidate => candidate.name === DRAFT_ANIMAL_GOOD_NAME);
+    if (!horses) return null;
+    materials[horses.i] = (materials[horses.i] ?? 0) + blueprint.draftAnimalHeads * quantity;
+  }
   for (const [name, perAsset] of Object.entries(blueprint.optionalMaterialNames ?? {})) {
     const good = goods.find(candidate => candidate.name === name);
     if (good && market && (market.goods[good.i]?.stock ?? 0) + 0.0001 >= perAsset * quantity)
       materials[good.i] = perAsset * quantity;
   }
   return materials;
+}
+
+/**
+ * A wright's monthly wage: the craft wage the generic workshops pay (`getSubsistenceWage`, per
+ * labour point of 1,000 person-months), for one person-month.
+ */
+function wagePerWorkPoint(market: Market): number {
+  return getSubsistenceWage(market) / DEFAULT_PEOPLE_PER_POPULATION_POINT;
 }
 
 function getMarketTreasury(market: NonNullable<ReturnType<typeof getMarketById>>) {
@@ -235,6 +260,7 @@ export class TransportAssetOrdersModule {
         if (row) row.stock = rn(row.stock + units, 4);
       }
     }
+    this.refundWages(order);
     order.reservedMaterials = {};
     order.status = "cancelled";
     order.blockedReason = undefined;
@@ -345,10 +371,9 @@ export class TransportAssetOrdersModule {
       const spare = Math.min(own, balance.available, total - kept);
       const perUnit = requiredMaterials(blueprint, 1);
       if (!perUnit || !(spare > 0)) continue;
-      const price = Object.entries(perUnit).reduce(
-        (sum, [goodId, units]) => sum + (buyer.goods[+goodId]?.price ?? 0) * units,
-        0
-      );
+      const price =
+        blueprint.requiredWorkPoints * wagePerWorkPoint(buyer) +
+        Object.entries(perUnit).reduce((sum, [goodId, units]) => sum + (buyer.goods[+goodId]?.price ?? 0) * units, 0);
       const treasury = getMarketTreasury(buyer);
       const money = Math.max(0, treasury.balance) + Math.max(0, getUncommittedTradeCapital(treasury));
       const affordable = price > 0 ? Math.floor((money + 0.0001) / price) : wanted;
@@ -396,10 +421,11 @@ export class TransportAssetOrdersModule {
       if (!ledger) continue;
       MerchantTransportAssets.refreshLocalCarriers(market.i);
       for (const balance of ledger.landAssets) this.withdrawSlackOrders(market.i, balance);
-      MerchantTransportAssets.releaseIdleLandAssets(
+      const released = MerchantTransportAssets.releaseIdleLandAssets(
         market.i,
         assetId => this.openSimulationOrders(market.i, assetId).length > 0
       );
+      this.returnDraftAnimals(market, released);
       for (const balance of ledger.landAssets) {
         // Maintenance is a concrete capacity loss. Keep one replacement order active until it is covered.
         const outstanding = this.openSimulationOrders(market.i, balance.assetId).reduce(
@@ -474,6 +500,9 @@ export class TransportAssetOrdersModule {
     const houseCapital = player ? 0 : Math.max(0, getUncommittedTradeCapital(treasury));
     const money = Math.max(0, treasury.balance) + houseCapital;
     const options = [blueprint.materialNames, ...(player ? [] : (blueprint.substituteMaterialNames ?? []))];
+    // The wrights are paid as they work, from a wage fund set aside with the materials.
+    const wageRate = wagePerWorkPoint(market);
+    const wagesPerUnit = blueprint.requiredWorkPoints * wageRate;
     let best: {
       quantity: number;
       materials: Record<number, number>;
@@ -484,10 +513,9 @@ export class TransportAssetOrdersModule {
       if (best && best.quantity > 0) break;
       const perUnit = requiredMaterials(blueprint, 1, market, names);
       if (!perUnit) continue;
-      const costPerUnit = Object.entries(perUnit).reduce(
-        (sum, [goodId, units]) => sum + (market.goods[+goodId]?.price ?? 0) * units,
-        0
-      );
+      const costPerUnit =
+        wagesPerUnit +
+        Object.entries(perUnit).reduce((sum, [goodId, units]) => sum + (market.goods[+goodId]?.price ?? 0) * units, 0);
       let quantity = order.quantity;
       for (const [goodId, units] of Object.entries(perUnit))
         quantity = Math.min(quantity, Math.floor(((market.goods[+goodId]?.stock ?? 0) + 0.0001) / units));
@@ -524,13 +552,16 @@ export class TransportAssetOrdersModule {
       const row = market.goods[+goodId];
       return { row, units, cost: (row?.price ?? 0) * units };
     });
-    const totalCost = costs.reduce((sum, item) => sum + item.cost, 0);
+    const wages = rn(wagesPerUnit * order.quantity, 2);
+    const totalCost = costs.reduce((sum, item) => sum + item.cost, 0) + wages;
     for (const item of costs) if (item.row) item.row.stock = rn(Math.max(0, item.row.stock - item.units), 4);
     const fromPurse = Math.min(Math.max(0, treasury.balance), totalCost);
     treasury.balance = rn(treasury.balance - fromPurse, 2);
     if (totalCost - fromPurse > 0)
       treasury.tradeWorkingCapital = rn(Math.max(0, (treasury.tradeWorkingCapital ?? 0) - (totalCost - fromPurse)), 2);
     order.reservedMaterials = best.materials;
+    order.reservedWages = wages;
+    order.wagePerWorkPoint = wageRate;
     order.fundedAmount = rn(totalCost, 2);
     order.status = "building";
     order.blockedReason = undefined;
@@ -677,6 +708,28 @@ export class TransportAssetOrdersModule {
     });
   }
 
+  /** A convoy let go leaves the horses the market paid for in its stock; carts and gear go with it (§10.17). */
+  private returnDraftAnimals(
+    market: Market,
+    released: Partial<Record<MerchantLandAssetBalance["assetId"], { count: number; draftAnimalHeads: number }>>
+  ): void {
+    const horses = getGoods().find(good => good.name === DRAFT_ANIMAL_GOOD_NAME);
+    const heads = Object.values(released).reduce((sum, entry) => sum + (entry?.draftAnimalHeads ?? 0), 0);
+    if (!horses || !(heads > 0)) return;
+    const row = market.goods[horses.i] ?? { stock: 0, price: horses.value };
+    row.stock = rn(row.stock + heads, 4);
+    market.goods[horses.i] = row;
+  }
+
+  private refundWages(order: TransportAssetOrder): void {
+    const left = order.reservedWages ?? 0;
+    order.reservedWages = undefined;
+    const market = getMarketById(order.marketId);
+    if (!(left > 0) || !market) return;
+    const treasury = getMarketTreasury(market);
+    treasury.balance = rn(treasury.balance + left, 2);
+  }
+
   /** `burgId` null is village work, outside any guild. */
   private applyWork(orderId: number, workPoints: number, domain: CraftKnowledgeDomain, burgId: number | null): void {
     const order = getTransportAssetOrders().find(candidate => candidate.id === orderId);
@@ -684,6 +737,13 @@ export class TransportAssetOrdersModule {
     const bonus = burgId === null ? 1 : getGuildBonus(burgId, domain);
     order.workPoints = rn(order.workPoints + workPoints * bonus, 4);
     order.blockedReason = undefined;
+    // Town wrights' wages go to their burg's households, village wrights' to the countryside's.
+    const wage = rn(Math.min(order.reservedWages ?? 0, workPoints * (order.wagePerWorkPoint ?? 0)), 2);
+    if (wage > 0) {
+      order.reservedWages = rn((order.reservedWages ?? 0) - wage, 2);
+      if (burgId === null) creditRuralHouseholdWealth(getMarketById(order.marketId), wage);
+      else creditHouseholdWealth(burgId, wage);
+    }
     const blueprint = getBlueprint(order.blueprintId);
     const completed = Math.min(order.quantity, Math.floor(order.workPoints / blueprint.requiredWorkPoints));
     const newlyCompleted = completed - order.completedQuantity;
@@ -692,7 +752,8 @@ export class TransportAssetOrdersModule {
         MerchantTransportAssets.addAvailableLandAssets(
           order.marketId,
           blueprint.outputAssetId as MerchantLandAssetBalance["assetId"],
-          newlyCompleted
+          newlyCompleted,
+          (blueprint.draftAnimalHeads ?? 0) * newlyCompleted
         );
       } else {
         MerchantTransportAssets.addAvailableRiverAssets(order.marketId, newlyCompleted);
@@ -708,6 +769,8 @@ export class TransportAssetOrdersModule {
       order.completedQuantity = completed;
     }
     if (order.completedQuantity === order.quantity) {
+      // A guild's skill finishes the work in fewer days; the wages not earned go back.
+      this.refundWages(order);
       order.status = "completed";
       order.reservedMaterials = {};
       order.blockedReason = undefined;
