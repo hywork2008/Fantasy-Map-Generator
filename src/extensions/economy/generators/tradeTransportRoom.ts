@@ -18,7 +18,7 @@
  * (docs/plan/port-freight-queue-and-warehouses.md §3, §4.2, §10.7). A hull serves the port she
  * lies in: one that sails with cargo ends her voyage at the far port, and is not back within the
  * month to sail again (§10.6). Sea room is therefore counted in slots, one voyage a hull, held only
- * by cargo still waiting to sail, and kept per exporter and departure port.
+ * by cargo still waiting to sail. Each house/destination reserves whole hulls from a shared port pool.
  * A separate own-land count tells the booking how much of a load rides on hired carts.
  */
 
@@ -41,7 +41,7 @@ const OWN_LAND = "landOwn";
  * Fleet capacity (slots) and what booked or moving cargo holds of it, by market and mode: slot-days
  * on land, slots at sea.
  */
-export type TransportRoom = Map<string, { capacity: number; held: number }>;
+export type TransportRoom = Map<string, { capacity: number; held: number; hulls?: string[]; assignedHulls?: string[] }>;
 
 /** Route of a booked lot, by origin and destination market. */
 export type LotRouteLookup = (from: number, to: number) => readonly TradeRouteSegment[] | undefined;
@@ -50,27 +50,51 @@ function roomKey(marketId: number, mode: "land" | typeof OWN_LAND): string {
   return `${marketId}:${mode}`;
 }
 
-/** Sea room of one exporter at the port its route sails from; created on first use. */
-function seaEntry(
-  room: TransportRoom,
-  marketId: number,
-  segments: readonly TradeRouteSegment[] | undefined
-): { capacity: number; held: number } {
+/** A house gathers one consignment per destination, sharing the port's physical hull pool. */
+function seaEntry(room: TransportRoom, marketId: number, segments: readonly TradeRouteSegment[] | undefined) {
   const portMarketId = seaDepartureMarketId(segments) ?? marketId;
-  const key = `${marketId}:sea@${portMarketId}`;
+  const destination = segments?.[segments.length - 1]?.points.at(-1)?.join(",") ?? "unknown";
+  const key = `${marketId}:sea@${portMarketId}:${destination}`;
   let entry = room.get(key);
   if (!entry) {
-    entry = {
-      capacity: MerchantTransportAssets.getSeaRoomCapacitySlots(
-        marketId,
-        portMarketId,
-        seaDeparturePortBurgId(segments)
-      ),
-      held: 0
-    };
+    const hulls = MerchantTransportAssets.getSeaRoomHulls(marketId, portMarketId, seaDeparturePortBurgId(segments));
+    const keys = hulls
+      .filter(hull => hull.capacity > 0)
+      .map(hull => {
+        const hullKey = `seaHull:${hull.hullId}`;
+        if (!room.has(hullKey)) room.set(hullKey, { capacity: hull.capacity, held: 0 });
+        return hullKey;
+      });
+    entry = { capacity: 0, held: 0, hulls: keys };
     room.set(key, entry);
   }
   return entry;
+}
+
+/** Keep the unused part of a booked hull for the same destination, never for another voyage. */
+function holdSea(
+  room: TransportRoom,
+  marketId: number,
+  segments: readonly TradeRouteSegment[] | undefined,
+  slots: number
+) {
+  const entry = seaEntry(room, marketId, segments);
+  entry.held += slots;
+  // As the load grows, exchange its small hull for a larger free one before claiming a second.
+  for (const key of entry.assignedHulls ?? []) room.get(key)!.held = 0;
+  entry.capacity = 0;
+  entry.assignedHulls = [];
+  const free = (entry.hulls ?? [])
+    .map(key => room.get(key)!)
+    .filter(hull => hull.held === 0)
+    .sort((a, b) => a.capacity - b.capacity);
+  while (entry.capacity + 0.000001 < entry.held && free.length) {
+    const index = free.findIndex(hull => hull.capacity >= entry.held - entry.capacity - 0.000001);
+    const [hull] = free.splice(index < 0 ? free.length - 1 : index, 1);
+    hull.held = hull.capacity;
+    entry.capacity += hull.capacity;
+    entry.assignedHulls.push((entry.hulls ?? []).find(key => room.get(key) === hull)!);
+  }
 }
 
 /** The room entries a booking on this route draws on. */
@@ -113,7 +137,7 @@ function hold(
       if (entry) entry.held += slots * days;
     }
   }
-  if (modes.includes("sea") && !sailed) seaEntry(room, marketId, segments).held += slots;
+  if (modes.includes("sea") && !sailed) holdSea(room, marketId, segments, slots);
 }
 
 /** Each market's fleet capacity this cycle, less what cargo already booked or under way holds. */
@@ -159,8 +183,17 @@ function slotsLeft(entry: { capacity: number; held: number } | undefined, days: 
 }
 
 /** Slots the hulls at the departure port can still take: one voyage each. */
-function seaSlotsLeft(entry: { capacity: number; held: number }): number {
-  return Math.max(0, entry.capacity - entry.held);
+function seaSlotsLeft(
+  room: TransportRoom,
+  marketId: number,
+  segments: readonly TradeRouteSegment[] | undefined
+): number {
+  const entry = seaEntry(room, marketId, segments);
+  const free = (entry.hulls ?? []).reduce((sum, key) => {
+    const hull = room.get(key)!;
+    return sum + (hull.held === 0 ? hull.capacity : 0);
+  }, 0);
+  return Math.max(0, entry.capacity - entry.held + free);
 }
 
 /**
@@ -187,7 +220,7 @@ export function transportRoomSlots(
   let slots = Number.POSITIVE_INFINITY;
   const modes = routeModes(segments);
   if (modes.includes("land")) slots = slotsLeft(room.get(roomKey(marketId, "land")), days);
-  if (modes.includes("sea")) slots = Math.min(slots, seaSlotsLeft(seaEntry(room, marketId, segments)));
+  if (modes.includes("sea")) slots = Math.min(slots, seaSlotsLeft(room, marketId, segments));
   return slots;
 }
 
@@ -211,7 +244,7 @@ export function seaRoomSlots(
 ): number {
   if (seaClosedForBooking(segments)) return 0;
   if (!routeModes(segments).includes("sea")) return Number.POSITIVE_INFINITY;
-  return seaSlotsLeft(seaEntry(room, marketId, segments));
+  return seaSlotsLeft(room, marketId, segments);
 }
 
 /** A booking of `slots` on this route takes its share of the fleet. */

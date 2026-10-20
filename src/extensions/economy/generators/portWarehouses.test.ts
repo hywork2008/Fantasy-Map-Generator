@@ -9,6 +9,7 @@ import {
   accruePortStorage,
   beginPortProductionCycle,
   clearPortWarehouseCache,
+  collectSeaBacklogSlots,
   collectSeaDemandSlots,
   getMarketPortBurgId,
   PORT_WAREHOUSE_COST_PER_SLOT,
@@ -63,6 +64,7 @@ describe("port warehouses", () => {
 
   afterEach(() => {
     MerchantTransportAssets.clear();
+    MerchantTransportAssets.setWaterAssetModeActive(false);
     clearPortWarehouseCache();
     clearEconomyContext();
   });
@@ -130,6 +132,34 @@ describe("port warehouses", () => {
     expect(collectSeaDemandSlots().get(1)).toBeGreaterThan(50);
     expect(collectSeaDemandSlots().get(1)).toBeLessThanOrEqual(60);
     expect(collectSeaDemandSlots().get(2)).toBeUndefined();
+  });
+
+  it("separates gathering demand from failed departures and unbooked cargo (T9)", () => {
+    Object.assign(worldContext.pack.burgs[1], { x: 0, y: 0 });
+    Object.assign(worldContext.pack.burgs[2], { x: 100, y: 0 });
+    const caravan = {
+      ...seaCaravan(10),
+      state: "loading",
+      departReason: "waiting",
+      loading: { plannedCapacitySlots: 100, waitedDays: 0 }
+    } as Caravan;
+    setCaravans([caravan]);
+    expect(collectSeaBacklogSlots().get(1)).toBeUndefined();
+    expect(collectSeaDemandSlots().get(1)).toBe(100);
+    caravan.departReason = "depart-overdue";
+    MerchantTransportAssets.setWaterAssetModeActive(true);
+    expect(collectSeaBacklogSlots().get(1)).toBe(100);
+    MerchantTransportAssets.reconcileMerchantHulls([
+      { id: 7, shipClassId: "sloop", homeBurgId: 1, ownerId: 1, status: "docked", currentBurgId: 1 }
+    ]);
+    // A hull available for this load means another constraint caused the departure failure.
+    expect(collectSeaBacklogSlots().get(1)).toBeUndefined();
+    setCaravans([]);
+    MerchantTransportAssets.recordSeaHullShortfall(1, 15, 1);
+    expect(collectSeaBacklogSlots().get(1)).toBe(15);
+    // A refused purchase is not physical cargo occupying a warehouse.
+    beginPortProductionCycle(30);
+    expect(getPortWarehouses().find(state => state.burgId === 1)?.queuedSlots).toBe(0);
   });
 
   it("spoils staple food left outside the port's warehouses half as fast again (§4.4)", () => {

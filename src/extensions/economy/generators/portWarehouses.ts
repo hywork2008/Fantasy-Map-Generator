@@ -176,15 +176,23 @@ export function recordSeaDeparture(caravan: Caravan, dispatcherMarketId: number 
 }
 
 /**
- * Sea cargo loaded and waiting for a ship, on its way to the port by land or river, and sea cargo
- * no hull could be booked for, by the market whose port it sails from: a market without a port
- * waits at another market's (§10.7, §10.19).
+ * Sea cargo whose departure is due but lacks a hull, and cargo no hull could be booked for,
+ * by the market whose port it sails from: a market without a port waits at another market's
+ * (§10.7, §10.19, §10.32).
  */
 export function collectSeaBacklogSlots(): Map<number, number> {
+  return collectSeaCargoSlots(false);
+}
+
+/** Repositioning also anticipates cargo still gathering toward a full hold or travelling to port. */
+function collectSeaCargoSlots(includeGathering: boolean): Map<number, number> {
   const backlog = new Map<number, number>();
   for (const caravan of getCaravans()) {
     const bound = caravan.state === "loading" || (caravan.state === "transit" && isInlandStage(caravan));
     if (!bound || !caravan.routeSegments.some(isSeaSegment)) continue;
+    // A departure decision followed by a failed reservation is a real transport wait. Merely
+    // gathering a load (or bringing it to port) is prospective demand, not a ship shortage.
+    if (!includeGathering && (caravan.state !== "loading" || !caravan.departReason?.startsWith("depart-"))) continue;
     const marketId =
       seaDepartureMarketId(caravan.routeSegments) ??
       caravan.transportDispatcherMarketId ??
@@ -193,6 +201,16 @@ export function collectSeaBacklogSlots(): Map<number, number> {
     // Cargo in port for one destination wants a hull of its own, however little of it it fills
     // (§10.25): a hull sails for one port.
     const slots = payloadSlots(caravan);
+    if (!includeGathering) {
+      const dispatcher = caravan.transportDispatcherMarketId ?? MerchantTransportAssets.getDispatcherMarketId(caravan);
+      if (dispatcher === null) continue;
+      const available = MerchantTransportAssets.getLargestAvailableRouteCapacity(
+        dispatcher,
+        caravan.routeSegments.filter(isSeaSegment),
+        caravan.draftAnimalId
+      );
+      if (available >= slots) continue;
+    }
     const hold = waitingPortBurgId(caravan) !== undefined ? (caravan.loading?.plannedCapacitySlots ?? 0) : 0;
     backlog.set(marketId, (backlog.get(marketId) ?? 0) + Math.max(slots, hold));
   }
@@ -308,8 +326,6 @@ function collectSeaQueueByPortBurg(): Map<number, number> {
     if (burgId !== undefined && slots > 0) queued.set(burgId, (queued.get(burgId) ?? 0) + slots);
   };
   for (const caravan of getCaravans()) add(waitingPortBurgId(caravan), payloadSlots(caravan));
-  for (const entry of MerchantTransportAssets.peekSeaShortfallEntries())
-    add(entry.portBurgId ?? getMarketPortBurgId(entry.marketId), entry.slots);
   return queued;
 }
 
@@ -319,7 +335,7 @@ function collectSeaQueueByPortBurg(): Map<number, number> {
  * trade he knew would fill his hold, not only where cargo already lay on the quay (§10.10).
  */
 export function collectSeaDemandSlots(): Map<number, number> {
-  const demand = collectSeaBacklogSlots();
+  const demand = collectSeaCargoSlots(true);
   const burgs = getWorldContext().pack.burgs ?? [];
   const expected = new Map<number, number>();
   for (const state of getPortWarehouses()) {

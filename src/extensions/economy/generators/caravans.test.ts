@@ -157,6 +157,78 @@ describe("caravan loading accumulation", () => {
     clearEconomyContext();
   });
 
+  it("dispatches a ship-sized load with several available pack trains beyond the sea (T30)", () => {
+    Object.assign(worldContext.pack.burgs[1], { port: 1 });
+    worldContext.pack.burgs.push({ i: 3, market: 1, x: 60, y: 0, port: 1 } as Burg);
+    vi.mocked(TradeAnimation.findRoutePath).mockReturnValue({
+      points: [
+        [0, 0],
+        [60, 0],
+        [100, 0]
+      ],
+      segments: [
+        {
+          type: "sea",
+          points: [
+            [0, 0],
+            [60, 0]
+          ]
+        },
+        {
+          type: "land",
+          points: [
+            [60, 0],
+            [100, 0]
+          ]
+        }
+      ]
+    });
+    MerchantTransportAssets.reconcileMerchantHulls([
+      { id: 30, shipClassId: "sloop", homeBurgId: 1, ownerId: 1, status: "docked", currentBurgId: 1 }
+    ]);
+    const ledger = MerchantTransportAssets.ensureLedger(0)!;
+    for (const asset of ledger.landAssets) asset.available = asset.assetId === "pack-train" ? 10 : 0;
+    ledger.localCarriers = { packTrain: 0, cart: 0, wagon: 0 };
+    const reserveHull = (event: Event) => {
+      (event as CustomEvent).detail.result = "fulfilled";
+    };
+    document.addEventListener("fmg:shipbuilding-merchant-hull-reservation-request", reserveHull);
+    try {
+      expect(MerchantTransportAssets.getLargestAvailableLandCapacity(0, "horse")).toBe(36);
+      for (const units of [10, 50]) {
+        ExportStaging.bookFromRetail({
+          marketId: 0,
+          destinationMarketId: 1,
+          goodId: 0,
+          units,
+          unitCost: 50,
+          requireCapital: false
+        });
+        Caravans.spawnFromDeals([]);
+        if (units === 10)
+          expect(getCaravans()[0]).toMatchObject({ state: "loading", loading: { plannedCapacitySlots: 100 } });
+      }
+      expect(getCaravans()).toHaveLength(1);
+      expect(getCaravans()[0]).toMatchObject({
+        state: "transit",
+        units: 60,
+        portTransfer: { seaSegmentIndex: 0, atKm: 0, atPort: true }
+      });
+      expect(getCaravans()[0].transportAllocations).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ mode: "land", transportId: "pack-train", unitCount: 2, usedSlots: 60 }),
+          expect.objectContaining({ mode: "water", shipHullIds: [30] })
+        ])
+      );
+      expect(ledger.landAssets.find(asset => asset.assetId === "pack-train")?.inTransit).toBe(2);
+      expect(getExportStagingLots()).toHaveLength(0);
+    } finally {
+      document.removeEventListener("fmg:shipbuilding-merchant-hull-reservation-request", reserveHull);
+      MerchantTransportAssets.clear();
+      MerchantTransportAssets.setWaterAssetModeActive(false);
+    }
+  });
+
   it("holds a thin market-to-market load in loading until max wait and then cancels below min fill", () => {
     // Phase C: market↔market cargo is booked into the export warehouse, not only deals.
     const lot = ExportStaging.bookFromRetail({

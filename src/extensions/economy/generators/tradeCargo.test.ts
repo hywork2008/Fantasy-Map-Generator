@@ -130,4 +130,33 @@ describe("trade cargo manifests", () => {
       { mode: "river", transportId: "river-barge", unitCount: 2, capacitySlots: 320 }
     ]);
   });
+  it("limits a top-up to the remaining berth even when the smallest vessel is larger", () => {
+    const good = { i: 1, tags: [], cargo: { cargoSlotsPerUnit: 1 } } as Good;
+    const manifests = buildCargoManifests(
+      [{ i: 1, good: 1, units: 100, price: 1 } as Deal],
+      [good],
+      [
+        {
+          type: "sea",
+          points: [
+            [0, 0],
+            [100, 0]
+          ]
+        }
+      ],
+      "horse",
+      30
+    );
+    expect(manifests[0].usedSlots).toBe(30);
+    expect(manifests.every(manifest => manifest.usedSlots <= 30)).toBe(true);
+  });
+  it("adds capacity across vehicle kinds before applying the sea bottleneck", () => {
+    expect(
+      getManifestCapacitySlots([
+        { mode: "land", capacitySlots: 80 },
+        { mode: "land", capacitySlots: 36 },
+        { mode: "water", capacitySlots: 100 }
+      ])
+    ).toBe(100);
+  });
 });

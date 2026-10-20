@@ -89,6 +89,30 @@ describe("merchant transport assets", () => {
     clearEconomyContext();
   });
 
+  it("combines available vehicle kinds and respects the draft animal and remaining hire capacity", () => {
+    const ledger = MerchantTransportAssets.ensureLedger(1)!;
+    for (const balance of ledger.landAssets) {
+      balance.available = balance.assetId === "wagon" ? 0 : 1;
+      // Exhaust the own-fleet hire allowance; only the specified local carriers remain.
+      balance.hired = 1;
+    }
+    ledger.localCarriers = { packTrain: 1, cart: 2, wagon: 0 };
+    const before = JSON.stringify(ledger);
+    const convoy = MerchantTransportAssets.getAvailableLandConvoy(1, 120, "horse");
+    expect(convoy).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ transportId: "cart", unitCount: 2, capacitySlots: 160, usedSlots: 84 }),
+        expect.objectContaining({ transportId: "pack-train", unitCount: 1, capacitySlots: 36, usedSlots: 36 })
+      ])
+    );
+    expect(JSON.stringify(ledger)).toBe(before);
+    const reserved = MerchantTransportAssets.reserve(1, 10, convoy!);
+    expect(reserved?.reservation.allocations.find(allocation => allocation.transportId === "cart")?.hiredUnits).toBe(1);
+    const after = JSON.stringify(ledger);
+    expect(MerchantTransportAssets.getAvailableLandConvoy(1, 1, "horse")).toBeNull();
+    expect(JSON.stringify(ledger)).toBe(after);
+  });
+
   it("reserves one market asset at a time and returns it on arrival", () => {
     const initial = MerchantTransportAssets.getAvailability(1).find(asset => asset.assetId === "cart");
     expect(initial?.available).toBeGreaterThan(0);

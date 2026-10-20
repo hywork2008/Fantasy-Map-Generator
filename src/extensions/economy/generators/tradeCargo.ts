@@ -142,10 +142,15 @@ export function getTransportAllocations(
   return allocations;
 }
 
-/** The weakest route mode determines a mixed-route shipment's maximum payload. */
-export function getManifestCapacitySlots(allocations: readonly Pick<TransportAllocation, "capacitySlots">[]): number {
+/** Add vehicles within each mode; the weakest route mode determines the shipment's capacity. */
+export function getManifestCapacitySlots(
+  allocations: readonly Pick<TransportAllocation, "mode" | "capacitySlots">[]
+): number {
   if (!allocations.length) return 0;
-  return Math.min(...allocations.map(allocation => allocation.capacitySlots));
+  const byMode = new Map<TransportAllocation["mode"], number>();
+  for (const allocation of allocations)
+    byMode.set(allocation.mode, (byMode.get(allocation.mode) ?? 0) + allocation.capacitySlots);
+  return Math.min(...byMode.values());
 }
 
 /**
@@ -178,7 +183,7 @@ export function buildCargoManifests(
     );
     const requestedSlots = maxCapacitySlots !== undefined ? Math.min(pendingSlots, maxCapacitySlots) : pendingSlots;
     const allocations = getTransportAllocations(routeSegments, requestedSlots, draftAnimalId);
-    const capacitySlots = getManifestCapacitySlots(allocations);
+    const capacitySlots = Math.min(getManifestCapacitySlots(allocations), maxCapacitySlots ?? Number.POSITIVE_INFINITY);
     if (capacitySlots <= 0) break;
 
     const manifest: CargoManifest = { items: [], allocations, usedSlots: 0 };

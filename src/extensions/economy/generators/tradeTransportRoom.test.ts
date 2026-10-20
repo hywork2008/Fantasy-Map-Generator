@@ -136,4 +136,60 @@ describe("trade transport room", () => {
     ]);
     expect(seaRoomSlots(build(), 1, LAND_AND_SEA, 10)).toBeCloseTo(100);
   });
+  it("keeps a whole hull for one destination, including top-ups across goods and exporters (T9)", () => {
+    Object.assign(worldContext.pack.burgs[1], { x: 100, y: 0, port: 1 });
+    MerchantTransportAssets.setWaterAssetModeActive(true);
+    MerchantTransportAssets.reconcileMerchantHulls([
+      { id: 7, shipClassId: "sloop", homeBurgId: 1, ownerId: 1, status: "docked", currentBurgId: 1 }
+    ]);
+    const otherDestination = LAND_AND_SEA.map(segment => ({ ...segment, points: [...segment.points] }));
+    otherDestination[1].points = [
+      [100, 0],
+      [400, 0]
+    ];
+    const room = build();
+    takeTransportRoom(room, 1, LAND_AND_SEA, 10, 10);
+    expect(seaRoomSlots(room, 1, LAND_AND_SEA, 10)).toBe(90);
+    expect(seaRoomSlots(room, 1, otherDestination, 10)).toBe(0);
+    // The inland exporter cannot charter the very same hull for its own consignment.
+    expect(seaRoomSlots(room, 2, LAND_AND_SEA, 10)).toBe(0);
+    takeTransportRoom(room, 1, LAND_AND_SEA, 10, 90);
+    expect(seaRoomSlots(room, 1, LAND_AND_SEA, 10)).toBe(0);
+  });
+
+  it("rebuilds destination holds from existing warehouse lots (T9)", () => {
+    Object.assign(worldContext.pack.burgs[1], { x: 100, y: 0, port: 1 });
+    MerchantTransportAssets.setWaterAssetModeActive(true);
+    MerchantTransportAssets.reconcileMerchantHulls([
+      { id: 7, shipClassId: "sloop", homeBurgId: 1, ownerId: 1, status: "docked", currentBurgId: 1 }
+    ]);
+    ExportStaging.bookFromRetail({
+      marketId: 1,
+      destinationMarketId: 2,
+      goodId: 1,
+      units: 10,
+      unitCost: 1,
+      requireCapital: false
+    });
+    const room = buildTransportRoom(
+      [1, 2],
+      () => LAND_AND_SEA,
+      () => 10
+    );
+    expect(seaRoomSlots(room, 1, LAND_AND_SEA, 10)).toBe(90);
+    expect(seaRoomSlots(room, 2, LAND_AND_SEA, 10)).toBe(0);
+  });
+  it("exchanges a small reserved hull for a larger free one when a destination's load grows", () => {
+    Object.assign(worldContext.pack.burgs[1], { x: 100, y: 0, port: 1 });
+    MerchantTransportAssets.setWaterAssetModeActive(true);
+    MerchantTransportAssets.reconcileMerchantHulls([
+      { id: 7, shipClassId: "sloop", homeBurgId: 1, ownerId: 1, status: "docked", currentBurgId: 1 },
+      { id: 8, shipClassId: "caravel", homeBurgId: 1, ownerId: 1, status: "docked", currentBurgId: 1 }
+    ]);
+    const room = build();
+    takeTransportRoom(room, 1, LAND_AND_SEA, 10, 10);
+    takeTransportRoom(room, 1, LAND_AND_SEA, 10, 100);
+    // Only the larger hull is held; the sloop can serve another exporting house.
+    expect(seaRoomSlots(room, 2, LAND_AND_SEA, 10)).toBe(100);
+  });
 });

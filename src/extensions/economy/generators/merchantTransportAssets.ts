@@ -941,6 +941,54 @@ export class MerchantTransportAssetsModule {
     return [...landAssets, ...riverAssets, ...ledger.waterAssets.map(getWaterAssetAvailability)];
   }
 
+  /** Plan a port consignment's road convoy from free vehicles first, then remaining hire capacity. */
+  getAvailableLandConvoy(marketId: number, slots: number, draftAnimalId: string): TransportAllocation[] | null {
+    const ledger = this.ensureLedger(marketId);
+    if (!ledger || !(slots > 0) || !Number.isFinite(slots)) return null;
+    const animal = getDraftAnimalType(draftAnimalId);
+    const options = ledger.landAssets
+      .flatMap(balance => {
+        const definition = getLandTransportDefinition(balance.assetId);
+        if (!definition) return [];
+        const capacity = Math.min(
+          definition.cargoCapacitySlots,
+          definition.requiredDraftAnimals * animal.towCapacitySlots
+        );
+        return capacity > 0 ? [{ balance, definition, capacity }] : [];
+      })
+      .sort((a, b) => b.capacity - a.capacity);
+    const allocations = new Map<string, TransportAllocation>();
+    let remaining = slots;
+    for (const hired of [false, true]) {
+      for (const { balance, definition, capacity } of options) {
+        const available = Math.max(
+          0,
+          Math.floor(hired ? hireCap(balance, ledger) - (balance.hired ?? 0) : balance.available)
+        );
+        const count = Math.min(available, Math.ceil((remaining - 0.000001) / capacity));
+        if (count <= 0) continue;
+        const usedSlots = Math.min(remaining, count * capacity);
+        const allocation = allocations.get(definition.id) ?? {
+          mode: "land",
+          transportId: definition.id,
+          transportName: definition.name,
+          unitCount: 0,
+          capacitySlots: 0,
+          usedSlots: 0,
+          draftAnimalId,
+          requiredDraftAnimals: definition.requiredDraftAnimals
+        };
+        allocation.unitCount += count;
+        allocation.capacitySlots += count * capacity;
+        allocation.usedSlots += usedSlots;
+        allocations.set(definition.id, allocation);
+        remaining -= usedSlots;
+        if (remaining <= 0.000001) return [...allocations.values()];
+      }
+    }
+    return null;
+  }
+
   /** Largest single ready land vehicle for a route; callers use it to form a shippable partial manifest. */
   getLargestAvailableLandCapacity(marketId: number, draftAnimalId: string): number {
     const draftAnimal = getDraftAnimalType(draftAnimalId);
@@ -1048,6 +1096,11 @@ export class MerchantTransportAssetsModule {
    * comes back in ballast. Its own hulls lying farther off serve the cargo where they lie.
    */
   getSeaRoomCapacitySlots(marketId: number, portMarketId: number = marketId, portBurgId?: number): number {
+    return this.getSeaRoomHulls(marketId, portMarketId, portBurgId).reduce((sum, hull) => sum + hull.capacity, 0);
+  }
+
+  /** Physical hulls behind booking room; shared hull IDs prevent two exporters booking one ship. */
+  getSeaRoomHulls(marketId: number, portMarketId: number = marketId, portBurgId?: number) {
     const burgs = getWorldContext().pack.burgs ?? [];
     const port = portBurgId ?? getMarketById(portMarketId)?.centerBurgId;
     const comingIn = (asset: MerchantWaterAssetReference): boolean => {
@@ -1059,12 +1112,15 @@ export class MerchantTransportAssetsModule {
         ballastPassageDays(asset.berthBurgId, port) <= INBOUND_HORIZON_DAYS
       );
     };
-    let slots = 0;
+    const hulls: { hullId: number; capacity: number }[] = [];
     for (const ledger of getMerchantTransportLedgers())
       for (const asset of ledger.waterAssets ?? [])
         if (isFreeAt(asset, portMarketId) || (ledger.marketId === marketId && comingIn(asset)))
-          slots += getShipDefinition(asset.shipClassId)?.cargoCapacitySlots ?? 0;
-    return slots;
+          hulls.push({
+            hullId: asset.shipHullId,
+            capacity: getShipDefinition(asset.shipClassId)?.cargoCapacitySlots ?? 0
+          });
+    return hulls;
   }
 
   /**
