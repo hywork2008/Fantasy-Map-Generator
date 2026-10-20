@@ -39,6 +39,8 @@ const STONE_BARE = 5;
 const WOOD_WALK = 4.5;
 const WOOD_BARE = 3.2;
 const STONE_LIP = 1.1;
+// Artillery curtains, including their parapets, must not overtop the bastions.
+const BASTION_HEIGHT = 6;
 const WOOD_LIP = 0.8;
 const SACRED = /church|cathedral|basilica|chapel|shrine|abbey|mosque|temple|stupa|minster/i;
 const BASILICA_LENGTH = 54;
@@ -573,7 +575,7 @@ function addPlanTower(
 ): void {
   const material: StructureMaterial = tower.kind === "wood_watchtower" ? "wood" : "stone";
   const low = tower.kind === "star_bastion";
-  const height = low ? 6 : wallHeight + (tower.kind === "drum_tower" ? 6 : 4);
+  const height = low ? BASTION_HEIGHT - STONE_LIP : wallHeight + (tower.kind === "drum_tower" ? 6 : 4);
   const roof: StructureRoof = material === "wood" || low ? "flat" : "pyramid";
   const ring =
     tower.polygon && tower.polygon.length >= 3
@@ -583,6 +585,20 @@ function addPlanTower(
         : null;
   if (!ring) return;
   pushFootprint(out, { id: `tower:${castleId}:${index}`, kind: "tower", material, ring, height, roof });
+  if (low && ring.length === 5) {
+    // Leave the gorge (between the two rear flanks) open to the curtain's gun deck.
+    out.push(
+      blank({
+        id: `bastion-parapet:${castleId}:${index}`,
+        kind: "wall",
+        material,
+        centerline: [ring[3], ring[4], ring[0], ring[1], ring[2]],
+        widthMeters: STONE_LIP,
+        heightMeters: STONE_LIP,
+        baseElevationMeters: height
+      })
+    );
+  }
 }
 
 function addGates(
@@ -693,6 +709,12 @@ function addLandmarks(document: CityDocument, out: StructureMassing[]): void {
 export function collectCityStructures(document: CityDocument): StructureMassing[] {
   const anchor = document.elements?.find(element => element.kind === "plaza" && element.point)?.point ?? [0, 0];
   const castle = castleWallIds(document);
+  const bastionWalls = new Set<Id>();
+  for (const owner of document.castles ?? []) {
+    if (resolveCastleStyle(document, owner).style !== "bastion-citadel") continue;
+    const circuit = document.defenseCircuits?.find(item => item.id === owner.circuitId);
+    for (const id of circuit?.wallGroupIds ?? []) bastionWalls.add(id);
+  }
   const prepared = new Map<Id, { group: EdgeFeatureGroup; points: Point[]; height: number }>();
   const out: StructureMassing[] = [];
   for (const group of document.featureGroups) {
@@ -701,14 +723,15 @@ export function collectCityStructures(document: CityDocument): StructureMassing[
     if (points.length < 2) continue;
     const material: StructureMaterial = group.wallMaterial === "wood" ? "wood" : "stone";
     const profile = resolveWallGeometry(group.style.widthMeters, material, group.walkway);
-    const body =
-      (material === "wood"
-        ? profile.hasWalkway
-          ? WOOD_WALK
-          : WOOD_BARE
-        : profile.hasWalkway
-          ? STONE_WALK
-          : STONE_BARE) + (castle.has(group.id) ? 2 : 0);
+    const body = bastionWalls.has(group.id)
+      ? BASTION_HEIGHT - (profile.hasWalkway ? (material === "wood" ? WOOD_LIP : STONE_LIP) : 0)
+      : (material === "wood"
+          ? profile.hasWalkway
+            ? WOOD_WALK
+            : WOOD_BARE
+          : profile.hasWalkway
+            ? STONE_WALK
+            : STONE_BARE) + (castle.has(group.id) ? 2 : 0);
     prepared.set(group.id, { group, points, height: body });
     curtainTowers(document, group, points, body, out);
   }
