@@ -31,6 +31,7 @@ import {
 import { validateBuildingRecord } from "../buildings/validate";
 import { COVERED_WAGON, createCoveredWagon } from "../buildings/vehicles/coveredWagon";
 import { createMedievalWagon, MEDIEVAL_WAGON } from "../buildings/vehicles/medievalWagon";
+import { createMinecart, MINECART } from "../buildings/vehicles/minecart";
 import { createNobleCarriage, NOBLE_CARRIAGE } from "../buildings/vehicles/nobleCarriage";
 import { createWarWagon, WAR_WAGON } from "../buildings/vehicles/warWagon";
 import { createMedievalWell, MEDIEVAL_WELL } from "../buildings/wells/medievalWell";
@@ -1018,6 +1019,41 @@ list.append(lumberYardButton);
 const vehiclesHeading = document.createElement("h2");
 vehiclesHeading.textContent = "Vehicles";
 list.append(vehiclesHeading);
+const minecartButton = document.createElement("button");
+minecartButton.type = "button";
+minecartButton.textContent = "Minecart · Timber mining cart";
+minecartButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === minecartButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Minecart side elevation";
+  levelTitle.textContent = "Minecart plan";
+  const model = createMinecart();
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: MINECART.length, depth: MINECART.width } }, MINECART.height);
+  camera.position.set(3.5, 2.7, 3.8);
+  controls.target.set(0, 0.7, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", MINECART.name),
+    fact("Type", "Hand-pushed mining cart"),
+    fact("Study envelope", `${MINECART.length} × ${MINECART.width} × ${MINECART.height} m, including display track`),
+    fact("Body", "Empty sloping plank box, iron straps, rivets and end handles"),
+    fact("Running gear", "Four flanged iron wheels on two axles; short narrow-gauge track on timber sleepers"),
+    fact("Note", MINECART.note)
+  );
+});
+list.append(minecartButton);
+
 const wagonButton = document.createElement("button");
 wagonButton.type = "button";
 wagonButton.textContent = "Medieval European wagon · Four-wheeled freight wagon";
