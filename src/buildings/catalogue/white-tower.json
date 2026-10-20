@@ -1,0 +1,763 @@
+{
+  "format": "fmg-building-record",
+  "version": 1,
+  "id": "white-tower",
+  "revision": 1,
+  "contentHash": "b71d9b6c1c95fe89f03d3ccb309de0f1afc50bd5ab60840938a3cd3ce19d63bd",
+  "name": "White Tower",
+  "kind": "castle",
+  "period": "highMedieval",
+  "planFamily": "apsidal-keep",
+  "region": "London, England",
+  "occupancyMeters": {
+    "width": 43,
+    "depth": 35.5
+  },
+  "approachAzimuthRadians": -1.776788,
+  "placementStyles": [
+    "classic",
+    "norman-keep"
+  ],
+  "levels": [
+    {
+      "id": "basement",
+      "name": "Basement",
+      "elevationMeters": 0,
+      "floorToFloorMeters": 9,
+      "walls": [
+        {
+          "id": "keep",
+          "kind": "keep",
+          "outer": [
+            [
+              -20.5,
+              -16.75
+            ],
+            [
+              15.5,
+              -16.75
+            ],
+            [
+              15.5,
+              -15.75
+            ],
+            [
+              18.5,
+              -14.946152
+            ],
+            [
+              20.696152,
+              -12.75
+            ],
+            [
+              21.5,
+              -9.75
+            ],
+            [
+              20.696152,
+              -6.75
+            ],
+            [
+              18.5,
+              -4.553848
+            ],
+            [
+              15.5,
+              -3.75
+            ],
+            [
+              15.5,
+              15.25
+            ],
+            [
+              -20.5,
+              15.25
+            ]
+          ],
+          "holes": [
+            [
+              [
+                -15.9,
+                10.65
+              ],
+              [
+                10.9,
+                10.65
+              ],
+              [
+                10.9,
+                -12.15
+              ],
+              [
+                -15.9,
+                -12.15
+              ]
+            ]
+          ],
+          "thicknessMeters": 4.6
+        },
+        {
+          "id": "northeast-stair",
+          "kind": "tower",
+          "outer": [
+            [
+              18,
+              14.25
+            ],
+            [
+              17.531089,
+              16
+            ],
+            [
+              16.25,
+              17.281089
+            ],
+            [
+              14.5,
+              17.75
+            ],
+            [
+              12.75,
+              17.281089
+            ],
+            [
+              11.468911,
+              16
+            ],
+            [
+              11,
+              14.25
+            ],
+            [
+              11.468911,
+              12.5
+            ],
+            [
+              12.75,
+              11.218911
+            ],
+            [
+              14.5,
+              10.75
+            ],
+            [
+              16.25,
+              11.218911
+            ],
+            [
+              17.531089,
+              12.5
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "northwest-turret",
+          "kind": "tower",
+          "outer": [
+            [
+              -21.5,
+              10.25
+            ],
+            [
+              -16.5,
+              10.25
+            ],
+            [
+              -16.5,
+              15.25
+            ],
+            [
+              -21.5,
+              15.25
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "southwest-turret",
+          "kind": "tower",
+          "outer": [
+            [
+              -21.5,
+              -17.75
+            ],
+            [
+              -16.5,
+              -17.75
+            ],
+            [
+              -16.5,
+              -12.75
+            ],
+            [
+              -21.5,
+              -12.75
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        }
+      ],
+      "plates": [
+        {
+          "id": "basement-hall",
+          "use": "hall",
+          "outer": [
+            [
+              -15.9,
+              -12.15
+            ],
+            [
+              10.9,
+              -12.15
+            ],
+            [
+              10.9,
+              10.65
+            ],
+            [
+              -15.9,
+              10.65
+            ]
+          ],
+          "holes": [],
+          "kind": "hall",
+          "roof": "covered"
+        }
+      ],
+      "openings": [],
+      "fixtures": []
+    },
+    {
+      "id": "entrance",
+      "name": "Entrance",
+      "elevationMeters": 9,
+      "floorToFloorMeters": 9,
+      "walls": [
+        {
+          "id": "keep",
+          "kind": "keep",
+          "outer": [
+            [
+              -20.5,
+              -16.75
+            ],
+            [
+              15.5,
+              -16.75
+            ],
+            [
+              15.5,
+              -15.75
+            ],
+            [
+              18.5,
+              -14.946152
+            ],
+            [
+              20.696152,
+              -12.75
+            ],
+            [
+              21.5,
+              -9.75
+            ],
+            [
+              20.696152,
+              -6.75
+            ],
+            [
+              18.5,
+              -4.553848
+            ],
+            [
+              15.5,
+              -3.75
+            ],
+            [
+              15.5,
+              15.25
+            ],
+            [
+              -20.5,
+              15.25
+            ]
+          ],
+          "holes": [
+            [
+              [
+                -15.9,
+                10.65
+              ],
+              [
+                10.9,
+                10.65
+              ],
+              [
+                10.9,
+                -12.15
+              ],
+              [
+                -15.9,
+                -12.15
+              ]
+            ]
+          ],
+          "thicknessMeters": 4.6
+        },
+        {
+          "id": "northeast-stair",
+          "kind": "tower",
+          "outer": [
+            [
+              18,
+              14.25
+            ],
+            [
+              17.531089,
+              16
+            ],
+            [
+              16.25,
+              17.281089
+            ],
+            [
+              14.5,
+              17.75
+            ],
+            [
+              12.75,
+              17.281089
+            ],
+            [
+              11.468911,
+              16
+            ],
+            [
+              11,
+              14.25
+            ],
+            [
+              11.468911,
+              12.5
+            ],
+            [
+              12.75,
+              11.218911
+            ],
+            [
+              14.5,
+              10.75
+            ],
+            [
+              16.25,
+              11.218911
+            ],
+            [
+              17.531089,
+              12.5
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "northwest-turret",
+          "kind": "tower",
+          "outer": [
+            [
+              -21.5,
+              10.25
+            ],
+            [
+              -16.5,
+              10.25
+            ],
+            [
+              -16.5,
+              15.25
+            ],
+            [
+              -21.5,
+              15.25
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "southwest-turret",
+          "kind": "tower",
+          "outer": [
+            [
+              -21.5,
+              -17.75
+            ],
+            [
+              -16.5,
+              -17.75
+            ],
+            [
+              -16.5,
+              -12.75
+            ],
+            [
+              -21.5,
+              -12.75
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        }
+      ],
+      "plates": [
+        {
+          "id": "entrance-hall",
+          "use": "hall",
+          "outer": [
+            [
+              -15.9,
+              -12.15
+            ],
+            [
+              10.9,
+              -12.15
+            ],
+            [
+              10.9,
+              10.65
+            ],
+            [
+              -15.9,
+              10.65
+            ]
+          ],
+          "holes": [],
+          "kind": "hall",
+          "roof": "covered"
+        }
+      ],
+      "openings": [
+        {
+          "id": "south-entrance",
+          "ring": {
+            "wallId": "keep",
+            "hole": null
+          },
+          "offsetMeters": 16,
+          "widthMeters": 2,
+          "sillMeters": 0,
+          "heightMeters": 2.5,
+          "kind": "door"
+        }
+      ],
+      "fixtures": []
+    },
+    {
+      "id": "upper",
+      "name": "Upper",
+      "elevationMeters": 18,
+      "floorToFloorMeters": 9,
+      "walls": [
+        {
+          "id": "keep",
+          "kind": "keep",
+          "outer": [
+            [
+              -20.5,
+              -16.75
+            ],
+            [
+              15.5,
+              -16.75
+            ],
+            [
+              15.5,
+              -15.75
+            ],
+            [
+              18.5,
+              -14.946152
+            ],
+            [
+              20.696152,
+              -12.75
+            ],
+            [
+              21.5,
+              -9.75
+            ],
+            [
+              20.696152,
+              -6.75
+            ],
+            [
+              18.5,
+              -4.553848
+            ],
+            [
+              15.5,
+              -3.75
+            ],
+            [
+              15.5,
+              15.25
+            ],
+            [
+              -20.5,
+              15.25
+            ]
+          ],
+          "holes": [
+            [
+              [
+                -15.9,
+                10.65
+              ],
+              [
+                10.9,
+                10.65
+              ],
+              [
+                10.9,
+                -12.15
+              ],
+              [
+                -15.9,
+                -12.15
+              ]
+            ]
+          ],
+          "thicknessMeters": 4.6
+        },
+        {
+          "id": "northeast-stair",
+          "kind": "tower",
+          "outer": [
+            [
+              18,
+              14.25
+            ],
+            [
+              17.531089,
+              16
+            ],
+            [
+              16.25,
+              17.281089
+            ],
+            [
+              14.5,
+              17.75
+            ],
+            [
+              12.75,
+              17.281089
+            ],
+            [
+              11.468911,
+              16
+            ],
+            [
+              11,
+              14.25
+            ],
+            [
+              11.468911,
+              12.5
+            ],
+            [
+              12.75,
+              11.218911
+            ],
+            [
+              14.5,
+              10.75
+            ],
+            [
+              16.25,
+              11.218911
+            ],
+            [
+              17.531089,
+              12.5
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "northwest-turret",
+          "kind": "tower",
+          "outer": [
+            [
+              -21.5,
+              10.25
+            ],
+            [
+              -16.5,
+              10.25
+            ],
+            [
+              -16.5,
+              15.25
+            ],
+            [
+              -21.5,
+              15.25
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "southwest-turret",
+          "kind": "tower",
+          "outer": [
+            [
+              -21.5,
+              -17.75
+            ],
+            [
+              -16.5,
+              -17.75
+            ],
+            [
+              -16.5,
+              -12.75
+            ],
+            [
+              -21.5,
+              -12.75
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        }
+      ],
+      "plates": [
+        {
+          "id": "upper-hall",
+          "use": "hall",
+          "outer": [
+            [
+              -15.9,
+              -12.15
+            ],
+            [
+              10.9,
+              -12.15
+            ],
+            [
+              10.9,
+              10.65
+            ],
+            [
+              -15.9,
+              10.65
+            ]
+          ],
+          "holes": [],
+          "kind": "hall",
+          "roof": "covered"
+        }
+      ],
+      "openings": [],
+      "fixtures": []
+    }
+  ],
+  "verticalLinks": [
+    {
+      "id": "stair-1",
+      "kind": "stair",
+      "fromLevelId": "basement",
+      "toLevelId": "entrance",
+      "footprint": [
+        [
+          12.5,
+          12.25
+        ],
+        [
+          13.7,
+          12.25
+        ],
+        [
+          13.7,
+          15.25
+        ],
+        [
+          12.5,
+          15.25
+        ]
+      ],
+      "widthMeters": 1.2
+    },
+    {
+      "id": "stair-2",
+      "kind": "stair",
+      "fromLevelId": "entrance",
+      "toLevelId": "upper",
+      "footprint": [
+        [
+          12.5,
+          12.25
+        ],
+        [
+          13.7,
+          12.25
+        ],
+        [
+          13.7,
+          15.25
+        ],
+        [
+          12.5,
+          15.25
+        ]
+      ],
+      "widthMeters": 1.2
+    }
+  ],
+  "roofs": [
+    {
+      "baseId": "keep",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "northeast-stair",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "northwest-turret",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "southwest-turret",
+      "form": "flat",
+      "pitchDeg": 0
+    }
+  ],
+  "materials": {
+    "wall": "stone",
+    "roof": "lead"
+  },
+  "provenance": {
+    "constructionPeriod": "c. 1078–1100.",
+    "depictedPhase": "The Norman keep with southeast chapel apse and northeast stair turret.",
+    "omitted": [
+      "Later palace buildings and Henry II’s lost forebuilding",
+      "18th–19th-century windows and cupolas; Salvin’s 1856–57 alterations",
+      "Later internal floor divisions, chapel vaults and detailed turret interiors"
+    ],
+    "dimensionSource": "docs/plan/building-record.md: Tower of London, published base 36 × 32 m excluding projections, southern battlements 27 m; wall thickness 4.6 m at base to 3.4 m above. Historic England 1260258 (https://historicengland.org.uk/listing/the-list/list-entry/1260258/); Historic Royal Palaces, St John’s Chapel (https://www.hrp.org.uk/tower-of-london/whats-on/st-johns-chapel/), eastern semicircular apse.",
+    "planClass": "well-published-survey",
+    "confidence": "scholarly-reconstruction",
+    "note": "The 36 × 32 m body is the dimensional anchor; occupancy includes the projections. Apse radius 6 m, stair turret radius 3.5 m and square turrets 5 m are approximate silhouette choices. The apse is part of the body outline, with a simplified rectangular interior void. Three equal 9 m levels consolidate basement, entrance and upper floors. Wall thickness is held at the basal 4.6 m to avoid invented setbacks. Flat open caps omit roof and cupola reconstruction; stairs and entrance are schematic."
+  }
+}

@@ -1,0 +1,1373 @@
+{
+  "format": "fmg-building-record",
+  "version": 1,
+  "id": "nunney",
+  "revision": 1,
+  "contentHash": "ce07903262f4cf7a0591cc5edb9b21113e87c92ad90b6d6b63af952aa1609da0",
+  "name": "Nunney Castle",
+  "kind": "castle",
+  "period": "lateMedieval",
+  "planFamily": "tower-house",
+  "region": "Somerset, England",
+  "occupancyMeters": {
+    "width": 29.2,
+    "depth": 18.2
+  },
+  "approachAzimuthRadians": -1.570796,
+  "placementStyles": [
+    "classic",
+    "concentric"
+  ],
+  "levels": [
+    {
+      "id": "ground",
+      "name": "Ground",
+      "elevationMeters": 0,
+      "floorToFloorMeters": 4,
+      "walls": [
+        {
+          "id": "hall",
+          "kind": "keep",
+          "outer": [
+            [
+              -11.4,
+              -5.9
+            ],
+            [
+              11.4,
+              -5.9
+            ],
+            [
+              11.4,
+              5.9
+            ],
+            [
+              -11.4,
+              5.9
+            ]
+          ],
+          "holes": [
+            [
+              [
+                -9,
+                3.5
+              ],
+              [
+                9,
+                3.5
+              ],
+              [
+                9,
+                -3.5
+              ],
+              [
+                -9,
+                -3.5
+              ]
+            ]
+          ],
+          "thicknessMeters": 2.4
+        },
+        {
+          "id": "corner-1",
+          "kind": "tower",
+          "outer": [
+            [
+              -8.2,
+              -5.9
+            ],
+            [
+              -8.628719,
+              -4.3
+            ],
+            [
+              -9.8,
+              -3.128719
+            ],
+            [
+              -11.4,
+              -2.7
+            ],
+            [
+              -13,
+              -3.128719
+            ],
+            [
+              -14.171281,
+              -4.3
+            ],
+            [
+              -14.6,
+              -5.9
+            ],
+            [
+              -14.171281,
+              -7.5
+            ],
+            [
+              -13,
+              -8.671281
+            ],
+            [
+              -11.4,
+              -9.1
+            ],
+            [
+              -9.8,
+              -8.671281
+            ],
+            [
+              -8.628719,
+              -7.5
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "corner-2",
+          "kind": "tower",
+          "outer": [
+            [
+              14.6,
+              -5.9
+            ],
+            [
+              14.171281,
+              -4.3
+            ],
+            [
+              13,
+              -3.128719
+            ],
+            [
+              11.4,
+              -2.7
+            ],
+            [
+              9.8,
+              -3.128719
+            ],
+            [
+              8.628719,
+              -4.3
+            ],
+            [
+              8.2,
+              -5.9
+            ],
+            [
+              8.628719,
+              -7.5
+            ],
+            [
+              9.8,
+              -8.671281
+            ],
+            [
+              11.4,
+              -9.1
+            ],
+            [
+              13,
+              -8.671281
+            ],
+            [
+              14.171281,
+              -7.5
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "corner-3",
+          "kind": "tower",
+          "outer": [
+            [
+              14.6,
+              5.9
+            ],
+            [
+              14.171281,
+              7.5
+            ],
+            [
+              13,
+              8.671281
+            ],
+            [
+              11.4,
+              9.1
+            ],
+            [
+              9.8,
+              8.671281
+            ],
+            [
+              8.628719,
+              7.5
+            ],
+            [
+              8.2,
+              5.9
+            ],
+            [
+              8.628719,
+              4.3
+            ],
+            [
+              9.8,
+              3.128719
+            ],
+            [
+              11.4,
+              2.7
+            ],
+            [
+              13,
+              3.128719
+            ],
+            [
+              14.171281,
+              4.3
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "corner-4",
+          "kind": "tower",
+          "outer": [
+            [
+              -8.2,
+              5.9
+            ],
+            [
+              -8.628719,
+              7.5
+            ],
+            [
+              -9.8,
+              8.671281
+            ],
+            [
+              -11.4,
+              9.1
+            ],
+            [
+              -13,
+              8.671281
+            ],
+            [
+              -14.171281,
+              7.5
+            ],
+            [
+              -14.6,
+              5.9
+            ],
+            [
+              -14.171281,
+              4.3
+            ],
+            [
+              -13,
+              3.128719
+            ],
+            [
+              -11.4,
+              2.7
+            ],
+            [
+              -9.8,
+              3.128719
+            ],
+            [
+              -8.628719,
+              4.3
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        }
+      ],
+      "plates": [
+        {
+          "id": "ground-hall",
+          "use": "hall",
+          "outer": [
+            [
+              -9,
+              -3.5
+            ],
+            [
+              9,
+              -3.5
+            ],
+            [
+              9,
+              3.5
+            ],
+            [
+              -9,
+              3.5
+            ]
+          ],
+          "holes": [],
+          "kind": "hall",
+          "roof": "covered"
+        }
+      ],
+      "openings": [
+        {
+          "id": "entrance",
+          "ring": {
+            "wallId": "hall",
+            "hole": null
+          },
+          "offsetMeters": 10.4,
+          "widthMeters": 2,
+          "sillMeters": 0,
+          "heightMeters": 2.5,
+          "kind": "door"
+        }
+      ],
+      "fixtures": []
+    },
+    {
+      "id": "first",
+      "name": "First",
+      "elevationMeters": 4,
+      "floorToFloorMeters": 4,
+      "walls": [
+        {
+          "id": "hall",
+          "kind": "keep",
+          "outer": [
+            [
+              -11.4,
+              -5.9
+            ],
+            [
+              11.4,
+              -5.9
+            ],
+            [
+              11.4,
+              5.9
+            ],
+            [
+              -11.4,
+              5.9
+            ]
+          ],
+          "holes": [
+            [
+              [
+                -9,
+                3.5
+              ],
+              [
+                9,
+                3.5
+              ],
+              [
+                9,
+                -3.5
+              ],
+              [
+                -9,
+                -3.5
+              ]
+            ]
+          ],
+          "thicknessMeters": 2.4
+        },
+        {
+          "id": "corner-1",
+          "kind": "tower",
+          "outer": [
+            [
+              -8.2,
+              -5.9
+            ],
+            [
+              -8.628719,
+              -4.3
+            ],
+            [
+              -9.8,
+              -3.128719
+            ],
+            [
+              -11.4,
+              -2.7
+            ],
+            [
+              -13,
+              -3.128719
+            ],
+            [
+              -14.171281,
+              -4.3
+            ],
+            [
+              -14.6,
+              -5.9
+            ],
+            [
+              -14.171281,
+              -7.5
+            ],
+            [
+              -13,
+              -8.671281
+            ],
+            [
+              -11.4,
+              -9.1
+            ],
+            [
+              -9.8,
+              -8.671281
+            ],
+            [
+              -8.628719,
+              -7.5
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "corner-2",
+          "kind": "tower",
+          "outer": [
+            [
+              14.6,
+              -5.9
+            ],
+            [
+              14.171281,
+              -4.3
+            ],
+            [
+              13,
+              -3.128719
+            ],
+            [
+              11.4,
+              -2.7
+            ],
+            [
+              9.8,
+              -3.128719
+            ],
+            [
+              8.628719,
+              -4.3
+            ],
+            [
+              8.2,
+              -5.9
+            ],
+            [
+              8.628719,
+              -7.5
+            ],
+            [
+              9.8,
+              -8.671281
+            ],
+            [
+              11.4,
+              -9.1
+            ],
+            [
+              13,
+              -8.671281
+            ],
+            [
+              14.171281,
+              -7.5
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "corner-3",
+          "kind": "tower",
+          "outer": [
+            [
+              14.6,
+              5.9
+            ],
+            [
+              14.171281,
+              7.5
+            ],
+            [
+              13,
+              8.671281
+            ],
+            [
+              11.4,
+              9.1
+            ],
+            [
+              9.8,
+              8.671281
+            ],
+            [
+              8.628719,
+              7.5
+            ],
+            [
+              8.2,
+              5.9
+            ],
+            [
+              8.628719,
+              4.3
+            ],
+            [
+              9.8,
+              3.128719
+            ],
+            [
+              11.4,
+              2.7
+            ],
+            [
+              13,
+              3.128719
+            ],
+            [
+              14.171281,
+              4.3
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "corner-4",
+          "kind": "tower",
+          "outer": [
+            [
+              -8.2,
+              5.9
+            ],
+            [
+              -8.628719,
+              7.5
+            ],
+            [
+              -9.8,
+              8.671281
+            ],
+            [
+              -11.4,
+              9.1
+            ],
+            [
+              -13,
+              8.671281
+            ],
+            [
+              -14.171281,
+              7.5
+            ],
+            [
+              -14.6,
+              5.9
+            ],
+            [
+              -14.171281,
+              4.3
+            ],
+            [
+              -13,
+              3.128719
+            ],
+            [
+              -11.4,
+              2.7
+            ],
+            [
+              -9.8,
+              3.128719
+            ],
+            [
+              -8.628719,
+              4.3
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        }
+      ],
+      "plates": [
+        {
+          "id": "first-hall",
+          "use": "hall",
+          "outer": [
+            [
+              -9,
+              -3.5
+            ],
+            [
+              9,
+              -3.5
+            ],
+            [
+              9,
+              3.5
+            ],
+            [
+              -9,
+              3.5
+            ]
+          ],
+          "holes": [],
+          "kind": "hall",
+          "roof": "covered"
+        }
+      ],
+      "openings": [],
+      "fixtures": []
+    },
+    {
+      "id": "second",
+      "name": "Second",
+      "elevationMeters": 8,
+      "floorToFloorMeters": 4,
+      "walls": [
+        {
+          "id": "hall",
+          "kind": "keep",
+          "outer": [
+            [
+              -11.4,
+              -5.9
+            ],
+            [
+              11.4,
+              -5.9
+            ],
+            [
+              11.4,
+              5.9
+            ],
+            [
+              -11.4,
+              5.9
+            ]
+          ],
+          "holes": [
+            [
+              [
+                -9,
+                3.5
+              ],
+              [
+                9,
+                3.5
+              ],
+              [
+                9,
+                -3.5
+              ],
+              [
+                -9,
+                -3.5
+              ]
+            ]
+          ],
+          "thicknessMeters": 2.4
+        },
+        {
+          "id": "corner-1",
+          "kind": "tower",
+          "outer": [
+            [
+              -8.2,
+              -5.9
+            ],
+            [
+              -8.628719,
+              -4.3
+            ],
+            [
+              -9.8,
+              -3.128719
+            ],
+            [
+              -11.4,
+              -2.7
+            ],
+            [
+              -13,
+              -3.128719
+            ],
+            [
+              -14.171281,
+              -4.3
+            ],
+            [
+              -14.6,
+              -5.9
+            ],
+            [
+              -14.171281,
+              -7.5
+            ],
+            [
+              -13,
+              -8.671281
+            ],
+            [
+              -11.4,
+              -9.1
+            ],
+            [
+              -9.8,
+              -8.671281
+            ],
+            [
+              -8.628719,
+              -7.5
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "corner-2",
+          "kind": "tower",
+          "outer": [
+            [
+              14.6,
+              -5.9
+            ],
+            [
+              14.171281,
+              -4.3
+            ],
+            [
+              13,
+              -3.128719
+            ],
+            [
+              11.4,
+              -2.7
+            ],
+            [
+              9.8,
+              -3.128719
+            ],
+            [
+              8.628719,
+              -4.3
+            ],
+            [
+              8.2,
+              -5.9
+            ],
+            [
+              8.628719,
+              -7.5
+            ],
+            [
+              9.8,
+              -8.671281
+            ],
+            [
+              11.4,
+              -9.1
+            ],
+            [
+              13,
+              -8.671281
+            ],
+            [
+              14.171281,
+              -7.5
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "corner-3",
+          "kind": "tower",
+          "outer": [
+            [
+              14.6,
+              5.9
+            ],
+            [
+              14.171281,
+              7.5
+            ],
+            [
+              13,
+              8.671281
+            ],
+            [
+              11.4,
+              9.1
+            ],
+            [
+              9.8,
+              8.671281
+            ],
+            [
+              8.628719,
+              7.5
+            ],
+            [
+              8.2,
+              5.9
+            ],
+            [
+              8.628719,
+              4.3
+            ],
+            [
+              9.8,
+              3.128719
+            ],
+            [
+              11.4,
+              2.7
+            ],
+            [
+              13,
+              3.128719
+            ],
+            [
+              14.171281,
+              4.3
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "corner-4",
+          "kind": "tower",
+          "outer": [
+            [
+              -8.2,
+              5.9
+            ],
+            [
+              -8.628719,
+              7.5
+            ],
+            [
+              -9.8,
+              8.671281
+            ],
+            [
+              -11.4,
+              9.1
+            ],
+            [
+              -13,
+              8.671281
+            ],
+            [
+              -14.171281,
+              7.5
+            ],
+            [
+              -14.6,
+              5.9
+            ],
+            [
+              -14.171281,
+              4.3
+            ],
+            [
+              -13,
+              3.128719
+            ],
+            [
+              -11.4,
+              2.7
+            ],
+            [
+              -9.8,
+              3.128719
+            ],
+            [
+              -8.628719,
+              4.3
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        }
+      ],
+      "plates": [
+        {
+          "id": "second-hall",
+          "use": "hall",
+          "outer": [
+            [
+              -9,
+              -3.5
+            ],
+            [
+              9,
+              -3.5
+            ],
+            [
+              9,
+              3.5
+            ],
+            [
+              -9,
+              3.5
+            ]
+          ],
+          "holes": [],
+          "kind": "hall",
+          "roof": "covered"
+        }
+      ],
+      "openings": [],
+      "fixtures": []
+    },
+    {
+      "id": "third",
+      "name": "Third",
+      "elevationMeters": 12,
+      "floorToFloorMeters": 4,
+      "walls": [
+        {
+          "id": "hall",
+          "kind": "keep",
+          "outer": [
+            [
+              -11.4,
+              -5.9
+            ],
+            [
+              11.4,
+              -5.9
+            ],
+            [
+              11.4,
+              5.9
+            ],
+            [
+              -11.4,
+              5.9
+            ]
+          ],
+          "holes": [
+            [
+              [
+                -9,
+                3.5
+              ],
+              [
+                9,
+                3.5
+              ],
+              [
+                9,
+                -3.5
+              ],
+              [
+                -9,
+                -3.5
+              ]
+            ]
+          ],
+          "thicknessMeters": 2.4
+        },
+        {
+          "id": "corner-1",
+          "kind": "tower",
+          "outer": [
+            [
+              -8.2,
+              -5.9
+            ],
+            [
+              -8.628719,
+              -4.3
+            ],
+            [
+              -9.8,
+              -3.128719
+            ],
+            [
+              -11.4,
+              -2.7
+            ],
+            [
+              -13,
+              -3.128719
+            ],
+            [
+              -14.171281,
+              -4.3
+            ],
+            [
+              -14.6,
+              -5.9
+            ],
+            [
+              -14.171281,
+              -7.5
+            ],
+            [
+              -13,
+              -8.671281
+            ],
+            [
+              -11.4,
+              -9.1
+            ],
+            [
+              -9.8,
+              -8.671281
+            ],
+            [
+              -8.628719,
+              -7.5
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "corner-2",
+          "kind": "tower",
+          "outer": [
+            [
+              14.6,
+              -5.9
+            ],
+            [
+              14.171281,
+              -4.3
+            ],
+            [
+              13,
+              -3.128719
+            ],
+            [
+              11.4,
+              -2.7
+            ],
+            [
+              9.8,
+              -3.128719
+            ],
+            [
+              8.628719,
+              -4.3
+            ],
+            [
+              8.2,
+              -5.9
+            ],
+            [
+              8.628719,
+              -7.5
+            ],
+            [
+              9.8,
+              -8.671281
+            ],
+            [
+              11.4,
+              -9.1
+            ],
+            [
+              13,
+              -8.671281
+            ],
+            [
+              14.171281,
+              -7.5
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "corner-3",
+          "kind": "tower",
+          "outer": [
+            [
+              14.6,
+              5.9
+            ],
+            [
+              14.171281,
+              7.5
+            ],
+            [
+              13,
+              8.671281
+            ],
+            [
+              11.4,
+              9.1
+            ],
+            [
+              9.8,
+              8.671281
+            ],
+            [
+              8.628719,
+              7.5
+            ],
+            [
+              8.2,
+              5.9
+            ],
+            [
+              8.628719,
+              4.3
+            ],
+            [
+              9.8,
+              3.128719
+            ],
+            [
+              11.4,
+              2.7
+            ],
+            [
+              13,
+              3.128719
+            ],
+            [
+              14.171281,
+              4.3
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        },
+        {
+          "id": "corner-4",
+          "kind": "tower",
+          "outer": [
+            [
+              -8.2,
+              5.9
+            ],
+            [
+              -8.628719,
+              7.5
+            ],
+            [
+              -9.8,
+              8.671281
+            ],
+            [
+              -11.4,
+              9.1
+            ],
+            [
+              -13,
+              8.671281
+            ],
+            [
+              -14.171281,
+              7.5
+            ],
+            [
+              -14.6,
+              5.9
+            ],
+            [
+              -14.171281,
+              4.3
+            ],
+            [
+              -13,
+              3.128719
+            ],
+            [
+              -11.4,
+              2.7
+            ],
+            [
+              -9.8,
+              3.128719
+            ],
+            [
+              -8.628719,
+              4.3
+            ]
+          ],
+          "holes": [],
+          "thicknessMeters": 2
+        }
+      ],
+      "plates": [
+        {
+          "id": "third-hall",
+          "use": "hall",
+          "outer": [
+            [
+              -9,
+              -3.5
+            ],
+            [
+              9,
+              -3.5
+            ],
+            [
+              9,
+              3.5
+            ],
+            [
+              -9,
+              3.5
+            ]
+          ],
+          "holes": [],
+          "kind": "hall",
+          "roof": "covered"
+        }
+      ],
+      "openings": [],
+      "fixtures": []
+    }
+  ],
+  "verticalLinks": [
+    {
+      "id": "stair-1",
+      "kind": "stair",
+      "fromLevelId": "ground",
+      "toLevelId": "first",
+      "footprint": [
+        [
+          -8,
+          -2.5
+        ],
+        [
+          -6.8,
+          -2.5
+        ],
+        [
+          -6.8,
+          2.5
+        ],
+        [
+          -8,
+          2.5
+        ]
+      ],
+      "widthMeters": 1.2
+    },
+    {
+      "id": "stair-2",
+      "kind": "stair",
+      "fromLevelId": "first",
+      "toLevelId": "second",
+      "footprint": [
+        [
+          -8,
+          -2.5
+        ],
+        [
+          -6.8,
+          -2.5
+        ],
+        [
+          -6.8,
+          2.5
+        ],
+        [
+          -8,
+          2.5
+        ]
+      ],
+      "widthMeters": 1.2
+    },
+    {
+      "id": "stair-3",
+      "kind": "stair",
+      "fromLevelId": "second",
+      "toLevelId": "third",
+      "footprint": [
+        [
+          -8,
+          -2.5
+        ],
+        [
+          -6.8,
+          -2.5
+        ],
+        [
+          -6.8,
+          2.5
+        ],
+        [
+          -8,
+          2.5
+        ]
+      ],
+      "widthMeters": 1.2
+    }
+  ],
+  "roofs": [
+    {
+      "baseId": "hall",
+      "form": "flat",
+      "pitchDeg": 0
+    },
+    {
+      "baseId": "corner-1",
+      "form": "cone",
+      "pitchDeg": 40
+    },
+    {
+      "baseId": "corner-2",
+      "form": "cone",
+      "pitchDeg": 40
+    },
+    {
+      "baseId": "corner-3",
+      "form": "cone",
+      "pitchDeg": 40
+    },
+    {
+      "baseId": "corner-4",
+      "form": "cone",
+      "pitchDeg": 40
+    }
+  ],
+  "materials": {
+    "wall": "stone",
+    "roof": "slate"
+  },
+  "provenance": {
+    "constructionPeriod": "Licensed in 1373 for John de la Mare.",
+    "depictedPhase": "The compact medieval tower house before Civil War destruction.",
+    "omitted": [
+      "Hypothetical outer enclosure and moat geometry",
+      "Post-1645 ruin silhouette",
+      "Machicolation teeth, detailed floor partitions and roof construction"
+    ],
+    "dimensionSource": "docs/plan/building-record.md: clear interior 60 × 24 ft (rounded to 18 × 7 m), walls 8 ft (2.4 m), height 54 ft (16 m). English Heritage, History of Nunney Castle (https://www.english-heritage.org.uk/visit/places/nunney-castle/history/); Historic England 1014716 (https://historicengland.org.uk/listing/the-list/list-entry/1014716/).",
+    "planClass": "well-published-survey",
+    "confidence": "scholarly-reconstruction",
+    "note": "The narrow hall has a covered room, not an open courtyard. Four 3.2 m-radius corner towers, 40-degree conical roofs and four equal 4 m storeys are schematic reconstructions. The interior void is the hall in the wall-shell representation. The flat cap of the hall leaves its interior legible rather than inventing a lost main roof. Door and straight stair positions are approximate. Tower diameter is not a published measurement."
+  }
+}
