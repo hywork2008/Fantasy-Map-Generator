@@ -258,6 +258,35 @@ describe("renderCastle (authentic fortress ground plans)", () => {
     expect(g.querySelector(".ce-masugata-gate")).toBeTruthy();
   });
 
+  it.each([false, true])("rejects inward corners and overlapping bastions (reverse: %s)", reverse => {
+    const ring: [number, number][] = [
+      [0, 0],
+      [30, 0],
+      [60, 0],
+      [63, 3],
+      [60, 60],
+      [30, 30],
+      [0, 60]
+    ];
+    const doc = mockDocument({ defenseCircuits: [] });
+    const castle = mockCastle({ parts: [], courtyards: [reverse ? [...ring].reverse() : ring] });
+    const plan = buildFortressPlan(doc, castle, CASTLE_STYLE_PROFILES["bastion-citadel"]);
+    expect(plan.towers.length).toBeGreaterThan(0);
+    expect(plan.towers.some(t => t.point[0] === 30 && t.point[1] === 30)).toBe(false);
+    expect(plan.towers.some(t => t.point[0] === 30 && t.point[1] === 0)).toBe(false);
+    expect(plan.towers.filter(t => t.point[0] >= 60 && t.point[1] <= 3)).toHaveLength(1);
+    for (let i = 0; i < plan.towers.length; i++) {
+      const a = plan.towers[i];
+      const radius = (t: typeof a) =>
+        Math.max(...t.polygon!.map(p => Math.hypot(p[0] - t.point[0], p[1] - t.point[1])));
+      for (const b of plan.towers.slice(i + 1)) {
+        expect(Math.hypot(a.point[0] - b.point[0], a.point[1] - b.point[1])).toBeGreaterThanOrEqual(
+          radius(a) + radius(b) + 1
+        );
+      }
+    }
+  });
+
   it("renders Concentric Fortress with inner/outer curtains, drum towers, and barbican", () => {
     const doc = mockDocument();
     const castle = mockCastle({ castleStyle: "concentric" });
