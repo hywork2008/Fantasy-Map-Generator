@@ -2,6 +2,7 @@ import type { CityDocument, Edge, EdgeRef, Face, FeatureGroup, Id, Mesh, Point, 
 import type { Cell } from "../types/geometry";
 import { refreshCastleLayouts } from "./castleLayout";
 import { reservedCastleFaces, validateFortifications } from "./fortifications";
+import { scaleFortSite, validateFortSite } from "./fortSiteGeometry";
 import { isSimplePolygon, segmentsIntersect } from "./geom";
 import { probed } from "./meshOpProbe";
 
@@ -418,6 +419,9 @@ function indexAddedEdge(mesh: Mesh, edge: Edge): void {
 export function mergeFaces(document: CityDocument, keepFaceId: Id, removeFaceId: Id): CityDocument | null {
   if (
     keepFaceId === removeFaceId ||
+    document.castles?.some(
+      castle => castle.locked && castle.siteFaceIds?.some(id => id === keepFaceId || id === removeFaceId)
+    ) ||
     (document.defenseCircuits ?? []).some(
       c => c.areaFaceIds.includes(keepFaceId) !== c.areaFaceIds.includes(removeFaceId)
     )
@@ -463,6 +467,11 @@ export function mergeFaces(document: CityDocument, keepFaceId: Id, removeFaceId:
   }
   for (const circuit of next.defenseCircuits ?? [])
     circuit.areaFaceIds = [...new Set(circuit.areaFaceIds.map(id => (id === removeFaceId ? keepFaceId : id)))];
+  for (const castle of next.castles ?? []) {
+    if (castle.siteFaceIds)
+      castle.siteFaceIds = [...new Set(castle.siteFaceIds.map(id => (id === removeFaceId ? keepFaceId : id)))];
+    if (castle.motteFaceId === removeFaceId) castle.motteFaceId = keepFaceId;
+  }
   rebuildFaceSides(next.mesh);
   return validate(next).length ? null : next;
 }
@@ -542,9 +551,9 @@ export function protectedVertex(document: CityDocument, id: Id): boolean {
     (document.castles ?? []).some(
       c =>
         c.locked &&
-        document.defenseCircuits
-          ?.find(d => d.id === c.circuitId)
-          ?.areaFaceIds.some(fid => faceVertices(document.mesh, document.mesh.faces[fid]).includes(id))
+        (c.siteFaceIds ?? document.defenseCircuits?.find(d => d.id === c.circuitId)?.areaFaceIds)?.some(fid =>
+          faceVertices(document.mesh, document.mesh.faces[fid]).includes(id)
+        )
     ) ||
     incidentFaces(document.mesh, id).some(f => f.properties.locked) ||
     edges.some(e => e.locked || document.featureGroups.some(g => g.locked && groupUsesEdge(document, g, e.id)))
@@ -926,6 +935,7 @@ export function scaleDocument(document: CityDocument, factor: number): CityDocum
   if (!Number.isFinite(factor) || factor <= 0) return null;
   if (factor === 1) return document;
   const next = clone(document);
+  if (next.fortSite) scaleFortSite(next.fortSite, factor);
   for (const vertex of Object.values(next.mesh.vertices))
     vertex.point = [vertex.point[0] * factor, vertex.point[1] * factor];
   for (const face of Object.values(next.mesh.faces))
@@ -1041,7 +1051,7 @@ export function validate(document: CityDocument): string[] {
 }
 
 function validateUnprobed(document: CityDocument): string[] {
-  const errors: string[] = [];
+  const errors: string[] = validateFortSite(document);
   const { mesh } = document;
   const hasEdge = (a: Id, b: Id): boolean => edgeBetween(mesh, a, b) !== null;
   for (const edge of Object.values(mesh.edges)) {

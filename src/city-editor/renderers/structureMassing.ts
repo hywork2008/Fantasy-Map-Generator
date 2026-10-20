@@ -30,6 +30,7 @@ import type {
 import { buildFortressPlan, createRotatedRect, type TowerGeometry } from "./castleLayoutBuilder";
 import { resolveCastleStyle } from "./castlePatterns";
 import { isNewStyleCastleCircuit, isNewStyleCastleGate, isNewStyleCastleWall } from "./castleStyle";
+import { fortSiteStructures } from "./fortSiteMassing";
 import { modularFortressOwnsCircuit, modularFortressOwnsWall, modularFortressStructures } from "./modularFortress";
 import { resolveWallGeometry } from "./wallSvg";
 
@@ -526,6 +527,7 @@ function planBuildingHeight(kind: string): { height: number; roof: StructureRoof
 
 function addFortress(document: CityDocument, out: StructureMassing[]): void {
   for (const castle of document.castles ?? []) {
+    if (document.fortSite?.castleId === castle.id) continue;
     const modular = modularFortressStructures(document, castle);
     if (modular) {
       out.push(...modular);
@@ -538,7 +540,7 @@ function addFortress(document: CityDocument, out: StructureMassing[]): void {
       for (const part of castle.parts) addClassicPart(out, castle.id, part);
       continue;
     }
-    if (!circuit && castle.courtyards.length === 0) continue;
+    if (!circuit && !castle.siteFaceIds?.length && castle.courtyards.length === 0) continue;
     let plan: ReturnType<typeof buildFortressPlan>;
     try {
       plan = buildFortressPlan(document, castle, profile);
@@ -738,6 +740,7 @@ export function collectCityStructures(document: CityDocument): StructureMassing[
   addLandmarks(document, out);
   addTemples(document, out);
   addFortress(document, out);
+  out.push(...fortSiteStructures(document));
   return out;
 }
 

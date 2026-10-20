@@ -7,7 +7,7 @@ import type { Point } from "../types/document";
 export function groundStructures(parts: StructureMassing[], terrain: CityTerrain): StructureMassing[] {
   if (!terrain.relief) return parts;
   return parts.flatMap(part => {
-    if (part.sections || part.id.includes(":krak:")) return [part];
+    if (part.sections || part.id.startsWith("fort-site:") || part.id.includes(":krak:")) return [part];
     const ring = part.footprint ?? part.centerline ?? [];
     if (!ring.length) return [part];
     const level = terrain.foundationAt(ring);

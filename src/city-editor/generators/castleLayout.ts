@@ -5,6 +5,7 @@ import { insetConvexKernel } from "./lotGeometry";
 
 /** Rectangular buildings on a shared court, in metres rather than cell units. */
 export function layoutCastle(document: CityDocument, castle: CastlePlan, minFrame = 13): CastlePlan | null {
+  if (castle.siteFaceIds) return castle;
   const circuit = document.defenseCircuits?.find(c => c.id === castle.circuitId);
   const gate = document.gates.find(g => g.ownerCastleId === castle.id);
   if (!circuit || !gate) return null;

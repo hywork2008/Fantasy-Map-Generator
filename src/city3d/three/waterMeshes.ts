@@ -1,6 +1,7 @@
 // CE 3D land, water, and bank meshes. WebGL is created by the view, not here.
 
 import * as THREE from "three";
+import { fortWaterPolygons } from "../../city-editor/generators/fortSiteGeometry";
 import { type CityTerrain, cityTerrain } from "../../city-editor/generators/terrainElevation";
 import {
   classifyTownWater,
@@ -60,6 +61,7 @@ export interface TownWaterMeshes {
 
 /** Classify the document and build the meshes. Does not touch the scene. */
 export function createTownWater(document: CityDocument, terrain: CityTerrain = cityTerrain(document)): TownWaterMeshes {
+  if (document.fortSite) return createFortGround(document, terrain);
   const parent = new THREE.Object3D();
   parent.name = "ce-water";
   const water = classifyTownWater(document);
@@ -180,4 +182,53 @@ function disposeMesh(object: THREE.Object3D | null): void {
   const material = object.material;
   if (Array.isArray(material)) for (const item of material) item.dispose();
   else material.dispose();
+}
+
+/** Excavated terrain remains beneath one disjoint water surface, including moat junctions. */
+function createFortGround(document: CityDocument, terrain: CityTerrain): TownWaterMeshes {
+  const site = document.fortSite!,
+    parent = new THREE.Object3D();
+  parent.name = "ce-water";
+  const land = meshFrom(
+    "ce-land",
+    soupAt(
+      terrain.triangles.map(patch => patch.points),
+      LAND_Y,
+      terrain.heightAt
+    ),
+    LAND_COLOR,
+    THREE.FrontSide
+  );
+  const polygons = fortWaterPolygons(site);
+  const positions: number[] = [],
+    normals: number[] = [];
+  for (const part of polygons) {
+    const top = soupAt(
+      townWaterTriangles([{ kind: "lake", polygon: part.polygon }]),
+      part.elevationMeters - terrain.datumMeters + LAND_Y + 0.02
+    );
+    positions.push(...top.positions);
+    normals.push(...top.normals);
+  }
+  const water = meshFrom(
+    "ce-water-moat",
+    { positions: Float32Array.from(positions), normals: Float32Array.from(normals) },
+    0x527f8b,
+    THREE.FrontSide
+  );
+  if (water) parent.add(water);
+  return {
+    parent,
+    land,
+    unknown: null,
+    bank: null,
+    pickables: [],
+    replacesDisc: !!land,
+    dispose() {
+      parent.removeFromParent();
+      land?.removeFromParent();
+      if (land) disposeMesh(land);
+      if (water) disposeMesh(water);
+    }
+  };
 }

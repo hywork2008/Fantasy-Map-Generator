@@ -18,6 +18,7 @@ import { renderEditHandles } from "./editHandlesSvg";
 import { renderFeatureLayer } from "./featureLayerSvg";
 import { renderFixedCrossingLayers } from "./fixedCrossingLayerSvg";
 import { fixedDocumentGeometry, fixedDocumentLayers } from "./fixedDocumentGeometry";
+import { renderFortSiteGround, renderFortSiteObjects } from "./fortSiteSvg";
 import { appendFrameRoads } from "./frameRoadSvg";
 import { renderGateLayer } from "./gateLayerSvg";
 import { faceClassName, renderFaceWardLandmark } from "./landmarkSvg";
@@ -273,6 +274,7 @@ export function renderEditorSvg(
     landscapeSlot.replaceWith(renderLandscapeLayer(document, town, effectiveQuality, keep));
   }
 
+  if (document.fortSite) svg.appendChild(renderFortSiteGround(document));
   const edges = element("g", { class: "ce-edges" });
   for (const edge of Object.values(document.mesh.edges)) {
     // In town view these strokes are transparent; route picking uses the mesh index.
@@ -316,6 +318,7 @@ export function renderEditorSvg(
   // Castle curtains and towers cover town walls that meet or overlap them.
   // SVG stacking follows paint order, including the raised town-wall layer.
   svg.appendChild(renderCastles(document, selection.inspectedId));
+  if (document.fortSite) svg.appendChild(renderFortSiteObjects(document));
   svg.appendChild(element("g", { class: "ce-route-preview-layer", "pointer-events": "none" }));
 
   const castleFaces = !town ? reservedCastleFaces(document) : new Set<Id>();

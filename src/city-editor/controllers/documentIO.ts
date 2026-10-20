@@ -143,6 +143,7 @@ export function createDocumentIOController(ctx: DocumentIOContext) {
       Object.assign(
         ctx.generation.generateSettings,
         {
+          mode: undefined,
           population: undefined,
           generationMethod: undefined,
           wallShape: undefined,
@@ -166,6 +167,7 @@ export function createDocumentIOController(ctx: DocumentIOContext) {
         : null;
       ctx.syncGenerateControls();
     } else {
+      delete ctx.generation.generateSettings.mode;
       delete ctx.generation.generateSettings.population;
       delete ctx.generation.generateSettings.descriptor;
       ctx.documents.importedOrigin = null;
@@ -272,6 +274,7 @@ export function createDocumentIOController(ctx: DocumentIOContext) {
       defaultGenerationSettings(),
       {
         buildingPattern: "legacy",
+        mode: undefined,
         population: undefined,
         generationMethod: undefined,
         wallShape: undefined,

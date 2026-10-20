@@ -8,6 +8,7 @@ import {
   boundaryRings,
   castleWallIds,
   outerTownCircuit,
+  polylineInsideRing,
   reservedCastleFaces,
   townCircuitForFace,
   townCircuits,
@@ -500,6 +501,19 @@ export function deleteCastle(document: CityDocument, id: Id): CityDocument | nul
   const next = clone(document),
     castle = next.castles?.find(c => c.id === id);
   if (!castle || castle.locked) return null;
+  if (castle.siteFaceIds) {
+    if (next.fortSite?.castleId === castle.id) {
+      const ids = new Set(castle.parts.map(part => part.id));
+      next.fortSite.buildings = [];
+      next.fortSite.routes = next.fortSite.routes.filter(route => !ids.has(route.from) && !ids.has(route.to));
+    }
+    next.castles = next.castles!.filter(c => c.id !== id);
+    for (const faceId of castle.siteFaceIds) {
+      const face = next.mesh.faces[faceId];
+      if (face && !face.properties.locked) face.properties.ward = "park";
+    }
+    return validateFortifications(next).length ? null : next;
+  }
   const circuit = next.defenseCircuits?.find(c => c.id === castle.circuitId);
   if (!circuit || circuit.locked || circuit.wallGroupIds.some(id => next.featureGroups.find(g => g.id === id)?.locked))
     return null;
@@ -516,6 +530,58 @@ export function deleteCastle(document: CityDocument, id: Id): CityDocument | nul
     face.properties.buildable = false;
   }
   return validateFortifications(next).length ? null : next;
+}
+
+/** A cell facility is a building site; its walls are edited as separate edge features. */
+export function createCastleBuildingOnFace(document: CityDocument, faceId: Id): CityDocument | null {
+  const face = document.mesh.faces[faceId];
+  if (!face || face.properties.locked || face.properties.water !== "land" || reservedCastleFaces(document).has(faceId))
+    return null;
+  const ring = facePoints(document.mesh, face),
+    center = polygonCentroid(ring);
+  let footprint: Point[] | undefined;
+  for (let width = 20; width >= 6; width -= 1) {
+    const [x, y] = center,
+      half = width / 2;
+    const candidate: Point[] = [
+      [x - half, y - half],
+      [x + half, y - half],
+      [x + half, y + half],
+      [x - half, y + half]
+    ];
+    if (polylineInsideRing([...candidate, candidate[0]], ring)) {
+      footprint = candidate;
+      break;
+    }
+  }
+  if (!footprint) return null;
+  let index = 1;
+  while (document.castles?.some(castle => castle.id === `castle-building-${index}`)) index++;
+  const id = `castle-building-${index}`,
+    entrance: Point = [center[0], footprint[0][1]];
+  const at = nearestOnPolyline(entrance, [...ring, ring[0]]).point;
+  const next = clone(document);
+  next.mesh.faces[faceId].properties.ward = "castle";
+  next.mesh.faces[faceId].properties.buildable = false;
+  next.castles ??= [];
+  next.castles.push({
+    id,
+    version: 1,
+    seed: document.generationSeed ?? id,
+    position: "central",
+    relationship: "detached",
+    form: "keep-bailey",
+    castleStyle: "norman-keep",
+    siteFaceIds: [faceId],
+    courtyards: [],
+    parts: [{ id: `${id}:keep`, role: "keep", footprint, entrances: [entrance], locked: false }],
+    accesses: [{ gateId: `${id}:entrance`, points: [at, entrance], widthMeters: 3 }],
+    provenance: "manual",
+    locked: false
+  });
+  next.version = Math.max(2, next.version) as CityDocument["version"];
+  delete next.fabric;
+  return validate(next).length ? null : next;
 }
 
 /** Explicit replacement for a selected legacy castle or a manually chosen site. */
@@ -586,6 +652,7 @@ export function setCastleLocked(document: CityDocument, id: Id, locked: boolean)
     castle = next.castles?.find(c => c.id === id);
   if (!castle) return null;
   castle.locked = locked;
+  if (castle.siteFaceIds) return next;
   const circuit = next.defenseCircuits?.find(c => c.id === castle.circuitId);
   if (!circuit) return null;
   circuit.locked = locked;

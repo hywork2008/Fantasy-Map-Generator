@@ -781,7 +781,7 @@ export function renderCastle(
   inspectedId?: string | number | null
 ): SVGElement {
   const circuit = document.defenseCircuits?.find(c => c.id === castle.circuitId);
-  if (!circuit && castle.courtyards.length === 0) return element("g", {});
+  if (!circuit && !castle.siteFaceIds?.length && castle.courtyards.length === 0) return element("g", {});
 
   const profile = resolveCastleStyle(document, castle);
 
@@ -833,6 +833,20 @@ export function renderCastle(
 
   // Layer 2: Ramparts, Stone Slopes, Motte Mounds, and Curtains (縄張・多重囲壁・石垣・盛土)
   renderRamparts(group, plan, profile);
+  if (castle.siteFaceIds) {
+    for (const access of castle.accesses) {
+      group.appendChild(
+        element("path", {
+          d: line(access.points),
+          fill: "none",
+          stroke: profile.palette.pathStroke,
+          "stroke-width": String(access.widthMeters),
+          "stroke-linejoin": "round",
+          class: "ce-castle-access-path"
+        })
+      );
+    }
+  }
 
   // Layer 3: Gates, Masugata Enclosures, Barbicans, and Timber Ramps (枡形虎口・大双塔門・出構え・登城木橋)
   renderDefensiveGates(group, plan, profile);

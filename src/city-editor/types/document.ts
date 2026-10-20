@@ -275,7 +275,10 @@ export interface CastlePlan {
   castleStyle?: import("./contracts/castlePatterns").CastleStyle;
   /** Explicit modular fortress; the circuit remains the source of its outer wall. */
   fortress?: { modelId: "krak-des-chevaliers"; phase: "hospitalier-1270" | "mamluk-1302" };
-  circuitId: Id;
+  /** Legacy compounds own a circuit; face-based buildings are independent of walls. */
+  circuitId?: Id;
+  siteFaceIds?: Id[];
+  motteFaceId?: Id;
   courtyards: Point[][];
   parts: CastlePart[];
   accesses: Array<{ gateId: Id; points: Point[]; widthMeters: number }>;
@@ -362,7 +365,7 @@ export interface FabricPlan {
   districts: FabricDistrict[];
   /** Exact completed-generation settings; absent for manually upgraded maps. */
   generation?: {
-    algorithm: "evolution-city-v3" | "castle-city-v1" | "skeleton-city-v1";
+    algorithm: "evolution-city-v3" | "castle-city-v1" | "skeleton-city-v1" | "fort-v1";
     seed: string;
     settings: import("./generationSettings").GenerationSettings;
     input: Omit<CityDocument, "fabric">;
@@ -370,6 +373,7 @@ export interface FabricPlan {
 }
 
 export interface CityDocument {
+  fortSite?: import("./fortSite").FortSite;
   /** Optional finishing decoration, independent of city generation stages. */
   vacantLotTrees?: { seed: string; visible: boolean };
   /** CE overrides for automatically placed facilities; absent entries follow FMG/defaults. */

@@ -277,7 +277,8 @@ export function validFabricPlan(plan: FabricPlan): boolean {
   const g = plan.generation,
     config = g.settings?.config;
   return (
-    ["evolution-city-v3", "castle-city-v1", "skeleton-city-v1"].includes(g.algorithm) &&
+    ["evolution-city-v3", "castle-city-v1", "skeleton-city-v1", "fort-v1"].includes(g.algorithm) &&
+    (g.settings?.mode === undefined || ["city", "fort"].includes(g.settings.mode)) &&
     (g.settings?.generationMethod === undefined ||
       ["mesh-first", "skeleton-first"].includes(g.settings.generationMethod)) &&
     (g.algorithm !== "skeleton-city-v1" || g.settings.generationMethod === "skeleton-first") &&

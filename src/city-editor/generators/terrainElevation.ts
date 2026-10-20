@@ -1,4 +1,5 @@
 import type { CityDocument, Point } from "../types/document";
+import { fortSiteTerrain } from "./fortSiteTerrain";
 import { pointInPolygon, polygonCentroid } from "./geom";
 import { triangularInfillParts } from "./lotGeometry";
 import { faceVertices } from "./mesh";
@@ -23,6 +24,7 @@ const cross = (a: Point, b: Point, c: Point) => (b[0] - a[0]) * (c[1] - a[1]) - 
 
 /** Continuous shared-edge heights and cell-centre elevations, without altering the mesh. */
 export function cityTerrain(document: CityDocument): CityTerrain {
+  if (document.fortSite) return fortSiteTerrain(document);
   const faces = Object.values(document.mesh.faces).filter(
     face => face.properties.water === "land" && Number.isFinite(face.properties.elevation)
   );
@@ -151,6 +153,7 @@ export function cityTerrainStamp(document: CityDocument): string {
     ]),
     document.castles,
     document.gates,
-    document.defenseCircuits
+    document.defenseCircuits,
+    document.fortSite
   ]);
 }

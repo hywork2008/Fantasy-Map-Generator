@@ -2,6 +2,7 @@ import type { KrakPhase } from "../../buildings/fortresses/krak";
 import { editorHtml, editorText } from "../../i18n/editorMessages";
 import type { createEditorControls, FloatingWindow } from "../components/editorControls";
 import { div, text } from "../components/editorControls";
+import { populateFortSiteInspector } from "../components/fortSiteInspector";
 import {
   evaluateApproachBeyond,
   normalizeApproachBeyond,
@@ -13,7 +14,7 @@ import {
   SETTLEMENT_SCALES
 } from "../generators/approachBeyond";
 import {
-  createCastleOnFace,
+  createCastleBuildingOnFace,
   deleteCastle,
   regenerateCastleInterior,
   setCastleLocked,
@@ -355,13 +356,23 @@ export function createInspectorController(ctx: InspectorContext) {
   }
 
   function populateInspectorEditControls(container: HTMLElement): void {
+    if (
+      populateFortSiteInspector(
+        container,
+        ctx.documents.documentState,
+        ctx.interaction.selection.inspectedId,
+        ctx.controls,
+        ctx.runContextAction
+      )
+    )
+      return;
     const castle = ctx.documents.documentState.castles?.find(
       c =>
         c.id === ctx.interaction.selection.inspectedId ||
         (ctx.interaction.selection.faceId &&
-          ctx.documents.documentState.defenseCircuits
-            ?.find(d => d.id === c.circuitId)
-            ?.areaFaceIds.includes(ctx.interaction.selection.faceId))
+          (
+            c.siteFaceIds ?? ctx.documents.documentState.defenseCircuits?.find(d => d.id === c.circuitId)?.areaFaceIds
+          )?.includes(ctx.interaction.selection.faceId))
     );
     if (castle) {
       const fortressSelect = document.createElement("select");
@@ -393,11 +404,15 @@ export function createInspectorController(ctx: InspectorContext) {
           editorText("cityEditor.messages.fortressModel")
         )
       );
-      container.append(label(editorText("cityEditor.messages.fortressModel"), fortressSelect));
-      if (!fits) container.append(text(editorText("cityEditor.messages.fortressSiteTooSmall")));
-      if (castle.fortress) container.append(text(editorText("cityEditor.messages.fortressSchematic")));
+      if (!castle.siteFaceIds) {
+        container.append(label(editorText("cityEditor.messages.fortressModel"), fortressSelect));
+        if (!fits) container.append(text(editorText("cityEditor.messages.fortressSiteTooSmall")));
+        if (castle.fortress) container.append(text(editorText("cityEditor.messages.fortressSchematic")));
+      }
       const circuit = ctx.documents.documentState.defenseCircuits?.find(item => item.id === castle.circuitId);
-      for (const faceId of circuit?.areaFaceIds ?? []) {
+      for (const faceId of ctx.documents.documentState.fortSite?.castleId === castle.id
+        ? []
+        : (castle.siteFaceIds ?? circuit?.areaFaceIds ?? [])) {
         const face = ctx.documents.documentState.mesh.faces[faceId];
         if (!face) continue;
         const elevation = numberInput(String(face.properties.elevation), "1", "1");
@@ -460,7 +475,7 @@ export function createInspectorController(ctx: InspectorContext) {
               editorText("cityEditor.messages.castleLock")
             )
         ),
-        ...(!castle.fortress
+        ...(!castle.fortress && !castle.siteFaceIds
           ? [
               makeButton(editorText("cityEditor.messages.regenerateCastleInterior"), () =>
                 ctx.runContextAction(
@@ -496,11 +511,14 @@ export function createInspectorController(ctx: InspectorContext) {
       }
       return;
     }
-    if (ctx.interaction.selection.faceId && !reservedCastleFaces(ctx.documents.documentState).size)
+    if (
+      ctx.interaction.selection.faceId &&
+      !reservedCastleFaces(ctx.documents.documentState).has(ctx.interaction.selection.faceId)
+    )
       container.append(
         makeButton(editorText("cityEditor.messages.createACastleInTheSelectedCell"), () =>
           ctx.runContextAction(
-            () => createCastleOnFace(ctx.documents.documentState, ctx.interaction.selection.faceId!),
+            () => createCastleBuildingOnFace(ctx.documents.documentState, ctx.interaction.selection.faceId!),
             editorText("cityEditor.messages.createCastle")
           )
         )

@@ -2099,23 +2099,59 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     toggleLabel(editorText("cityEditor.messages.showVacantLotTrees"), vacantTreesInput)
   );
 
-  generatePanel.content.append(
-    generationProgress,
-    cancelGeneration,
-    toggleLabel(editorText("cityEditor.messages.debugShowGenerationFailurePreview"), failureDebugInput),
-    failureDebugSummary,
-    closeFailurePreview,
-    makeButton(editorText("cityEditor.messages.generateCompleteCity"), () => runCompleteGeneration()),
-    makeButton(editorText("cityEditor.messages.newCity"), () => rollNewTown()),
-    copyLinkButton,
-    decorationControls,
-    seedLabel,
-    meshToggleRow,
-    label(editorText("cityEditor.messages.renderQuality"), renderQualitySelect),
-    renderQualityHelp,
-    toggleLabel(editorText("cityEditor.messages.showUrbanCore"), coreLayerInput),
-    toggleLabel(editorText("cityEditor.messages.showFMGSurroundings"), regionalLayerInput),
-    divider(),
+  let cityModeGrid:
+    | { size: string; grid: typeof documents.gridKind; hexSize: number; source: CityDocument }
+    | undefined;
+  const generationModeSelect = select(["city", "fort"], generation.generateSettings.mode ?? "city");
+  generationModeSelect.className = "ce-generation-mode";
+  generationModeSelect.options[0].textContent = editorText("cityEditor.messages.cityMode");
+  generationModeSelect.options[1].textContent = editorText("cityEditor.messages.fortMode");
+  scope.listen(generationModeSelect, "change", () => {
+    const mode = generationModeSelect.value === "fort" ? "fort" : "city";
+    generation.generateSettings.mode = mode;
+    generation.generateSettings.generationRetry = undefined;
+    generation.completeResult = documents.documentState;
+    generation.lastGeneratedStep = null;
+    if (mode === "fort") {
+      cityModeGrid = {
+        size: size.value,
+        grid: documents.gridKind,
+        hexSize: documents.hexSizeMeters,
+        source: clone(generation.completeSource ?? documents.documentState)
+      };
+      size.value = "micro";
+      documents.gridKind = "hex";
+      documents.hexSizeMeters = 20;
+    } else if (cityModeGrid) {
+      size.value = cityModeGrid.size;
+      documents.gridKind = cityModeGrid.grid;
+      documents.hexSizeMeters = cityModeGrid.hexSize;
+    }
+    gridKindSelect.value = documents.gridKind;
+    hexSizeInput.value = String(documents.hexSizeMeters);
+    hexSizeInput.dispatchEvent(new Event("input"));
+    syncGridKindUi();
+    generation.completeSource =
+      mode === "city" && cityModeGrid
+        ? clone(cityModeGrid.source)
+        : createGridDocument({
+            size: size.value as import("../generators/document").CitySizePreset,
+            grid: documents.gridKind,
+            hexSizeMeters: documents.hexSizeMeters,
+            seed: documents.gridSeed
+          });
+    syncGenerateControls();
+  });
+  const completeGenerationButton = makeButton(editorText("cityEditor.messages.generateCompleteCity"), () =>
+    runCompleteGeneration()
+  );
+  completeGenerationButton.classList.add("ce-complete-generation");
+  const newGenerationButton = makeButton(editorText("cityEditor.messages.newCity"), () => rollNewTown());
+  newGenerationButton.classList.add("ce-new-generation");
+  const fortHelp = text(editorText("cityEditor.messages.motteBaileyHelp"));
+  fortHelp.className = "ce-fort-help";
+  const cityGenerationControls = div("ce-city-generation-controls");
+  cityGenerationControls.append(
     importedBox,
     populationControls,
     skeletonControls,
@@ -2144,6 +2180,27 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     bearingsLabel,
     text(editorText("cityEditor.messages.stepThroughTheLastPressedProcessOneLoopIterationAt")),
     stepRow
+  );
+  generatePanel.content.append(
+    generationProgress,
+    cancelGeneration,
+    label(editorText("cityEditor.messages.generationMode"), generationModeSelect),
+    fortHelp,
+    completeGenerationButton,
+    newGenerationButton,
+    copyLinkButton,
+    seedLabel,
+    toggleLabel(editorText("cityEditor.messages.debugShowGenerationFailurePreview"), failureDebugInput),
+    failureDebugSummary,
+    closeFailurePreview,
+    decorationControls,
+    meshToggleRow,
+    label(editorText("cityEditor.messages.renderQuality"), renderQualitySelect),
+    renderQualityHelp,
+    toggleLabel(editorText("cityEditor.messages.showUrbanCore"), coreLayerInput),
+    toggleLabel(editorText("cityEditor.messages.showFMGSurroundings"), regionalLayerInput),
+    divider(),
+    cityGenerationControls
   );
   syncGenerateControls();
 
