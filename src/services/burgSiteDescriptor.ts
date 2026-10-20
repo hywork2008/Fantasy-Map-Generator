@@ -139,7 +139,7 @@ export function getBurgRoadAuditReference(burgId: number, inputSha256: string): 
       burgRoadContext(worldContext.pack.burgs[burgId], peekConvergedWorldRiverRoads(worldContext)),
       worldContext.pack.burgs[burgId]
     ),
-    !!descriptor.urbanMorphology && supportsUrbanMorphology(descriptor.urbanMorphology.period)
+    !!descriptor.urbanMorphology && supportsUrbanMorphology(descriptor.urbanMorphology.period) && !descriptor.economy
   );
 }
 
@@ -322,6 +322,9 @@ export function getBurgSiteDescriptor(
   if (beyondBudgetRiverId != null) {
     for (const river of rivers) if (river.riverId === beyondBudgetRiverId) river.frontage = "beyond-budget";
   }
+  // With Economy on, City Editor builds the town from its trade, guilds and stores; the
+  // morphology's statistical rules stand in only when Economy is off (no profile).
+  const economy = burgEconomyExtensions.getBurgSiteEconomy?.(burgId) ?? undefined;
   const roads = measureProcessing(profiler, "roads", () =>
     collectRoadEntries(
       burg,
@@ -331,7 +334,7 @@ export function getBurgSiteDescriptor(
       metersPerMapUnit,
       preparedRoads,
       profiler,
-      Boolean(morphology && supportsUrbanMorphology(morphology.period))
+      Boolean(morphology && supportsUrbanMorphology(morphology.period) && !economy)
     )
   );
   // Measured per-gate traffic (approach-traffic-observatory.md O4). Unlike `traffic` it is kept
@@ -401,10 +404,6 @@ export function getBurgSiteDescriptor(
   }));
   return measureProcessing(profiler, "assemble-descriptor", () => {
     if (morphology && !simulationContext.burgs[burgId]?.urbanMorphology) initializeBurgMorphology(burgId, morphology);
-    const economy =
-      morphology && supportsUrbanMorphology(morphology.period)
-        ? undefined
-        : (burgEconomyExtensions.getBurgSiteEconomy?.(burgId) ?? undefined);
     return {
       version: DESCRIPTOR_VERSION,
       farmlandAreaHectares: burgFarmlandAreaHectares(worldContext, burg),

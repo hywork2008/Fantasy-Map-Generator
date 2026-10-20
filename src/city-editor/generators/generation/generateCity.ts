@@ -141,16 +141,11 @@ export function generateCityOnDocument(
   }
   const profile = settings.descriptor?.urbanMorphology;
   if (profile && supportsUrbanMorphology(profile.period)) {
+    // The descriptor's economy and road traffic stay: they come only with Economy on, and then the
+    // town is built from them; the morphology's statistical rules fill in when they are absent.
     const inferred = inferredWallSettings(profile, settings.descriptor!.burg.dwellings);
-    const descriptor = structuredClone(settings.descriptor!);
-    delete descriptor.economy;
-    for (const road of descriptor.roads) {
-      delete road.traffic;
-      delete road.trafficRank;
-    }
     settings = {
       ...settings,
-      descriptor,
       townWallRings: settings.townWallRings ?? (skeletonFirst ? "single" : inferred.townWallRings),
       walledAreaShare: settings.walledAreaShare ?? inferred.walledAreaShare
     };

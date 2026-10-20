@@ -10,6 +10,7 @@ import { createGridDocument } from "./document";
 import { createFabricPlan } from "./fabricDistricts";
 import { generateCityOnDocument } from "./generation/generateCity";
 import { defaultGenerationSettings } from "./generation/settings";
+import { economyOnDocument } from "./guildFacilities";
 import { FabricCache } from "./localInfill";
 import { applyResidentialStoreys, measureHousingCapacity, residentialCapacity } from "./residentialCapacity";
 import { DEFAULT_SITE_CONFIG } from "./site/siteConfig";
@@ -230,5 +231,32 @@ describe("approachGrowthWeight with measured traffic (O4)", () => {
     const proxySmall = approachGrowthWeight(road(0.8, 100), Math.log1p(10000), Math.log1p(100));
     const proxyLarge = approachGrowthWeight(road(0.2, 10000), Math.log1p(10000), Math.log1p(100));
     expect(proxySmall.weight).toBeLessThan(proxyLarge.weight);
+  });
+});
+
+describe("urban morphology with Economy on", () => {
+  it("keeps the economy profile and road traffic for the town it builds", () => {
+    const seed = "morphology-economy";
+    const doc = createGridDocument({ size: "tiny", grid: "hex", seed });
+    doc.fabric = createFabricPlan(doc, seed);
+    const config = { ...DEFAULT_SITE_CONFIG, coast: "none" as const, rivers: [], relief: "flat" as const };
+    const descriptor = synthSite("smallTown", config, seed, doc.frame);
+    descriptor.urbanMorphology = { ...profile, baselinePopulation: descriptor.burg.population };
+    descriptor.economy = {
+      version: 1,
+      year: 1500,
+      commerce: { rank: 0.5, marketCenter: true, merchantHouse: null, mint: false, caravanArrivalRank: 0.5 },
+      guilds: [{ domain: "leather", status: "chapter", practitioners: 12, prestige: 0.5, foundedYear: 1400 }],
+      storage: [],
+      facilities: [],
+      tradePartners: []
+    };
+    expect(descriptor.roads.length).toBeGreaterThan(0);
+    descriptor.roads[0] = { ...descriptor.roads[0], traffic: 40, trafficRank: 1 };
+    const city = generateCityOnDocument(doc, { ...defaultGenerationSettings(), config, descriptor }, seed);
+    expect(city?.urbanMorphology).toBeDefined();
+    expect(city?.siteEconomy).toEqual(descriptor.economy);
+    expect(economyOnDocument(city!)?.guilds).toEqual(descriptor.economy.guilds);
+    expect(city?.fabric?.generation?.settings.descriptor?.roads[0].traffic).toBe(40);
   });
 });

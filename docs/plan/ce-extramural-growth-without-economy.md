@@ -3,6 +3,7 @@
 - 作成日: 2026-10-13
 - 状態: 初期実装済み（2026-10-13）。係数は暫定値。実装範囲・設計時の式からの調整・検証は§13を参照。
 - 対象: FMG → CE の入力、CEの市壁・住宅容量・城外配置。CGは対象外。
+- 適用範囲(2026-10-21): 本設計の「経済データ非依存」は、Economy拡張機能が**無効**なときに、統計と立地から妥当な都市を作るための規則である。拡張機能が**有効**なときは、推定都市史(profile)はそのまま使い、経済データ(`BurgSiteEconomy`、道路交通量、近隣都市の資金・富裕度)もCEへ渡して、施設・置き場・港の倉庫・道の舗装・門前の宿を経済データから作る(§13.2)。profileと`contextRevision`には今後も経済値を入れない。
 - 元資料: [街道別交易観測の計画](./ce-roadside-growth-observation.md)、[そのレビュー](../temp/reviews/1013-roadside-growth-review.md)
 - 関連: [多重市壁](./ce-multi-ring-walls.md)、[橋の斜交規約](./bridge-skew-policy.md)
 - 基準セーブ: [`Triviers_2026-10-12-18-47.fmg`](../../temp/000.savdata/Triviers_2026-10-12-18-47.fmg)
@@ -312,7 +313,7 @@ FMG側は人口・政治・推定史という意味情報を所有する。CE側
 4. 城外の配分住戸は§6の上限以内。旧郊外の取り込み後に旧・新領域へ二重に人口を数えない。
 5. 壁の年代は創設後かつ現在以前、初回→拡張の順序を保ち、領域は入れ子。撤去壁を現在の外壁として使わない。
 6. 同じseed・保存profile・地形で再生成し、ID・年表・配分・建物配置が同じ。保存再読込、CEの開閉、無関係な経済値変更で変化しない。
-7. 経済ON/OFFで非経済入力を固定したとき、profileと配置が一致する。経済をOFFにすることで後日の人口が変化する比較とは区別する。
+7. 経済ON/OFFで非経済入力を固定したとき、profileと城外の成長領域が一致する。経済をOFFにすることで後日の人口が変化する比較とは区別する。施設・置き場・港の倉庫・舗装の配置は、経済ONでは経済データに従うので一致しない(§13.2、2026-10-21)。
 8. 全橋が共通斜交・渡河長制約を満たす。橋頭拠点を置くための例外を設けない。
 
 ### 11.2 配置の法則性
@@ -350,7 +351,7 @@ Leighを主対象、Penorham（約15,990人、川岸配置済み）、Seriemigny
 - FMGの`simulation.burgs[id].urbanMorphology`へ初期profileを保存する。初回のdescriptor取得で、専用の`burg.morphology.initialize`コマンドを通して一度だけ確定する。人口履歴は別の`urbanPopulationHistory`へ年境界で記録し、通常・早送り・歴史モードが共通で呼ぶ。
 - 創設年の出典を`initial / observed / explicit`で識別する。一律の旧創設年は保存値を保ち、profile側へ推定年を作る。国家の出生モデル、現在の人口・領域・外交から年代と防御圧力を生成する。
 - 推定成長局面は緩増・拡張後安定・急増・縮小をseedで選ぶ。現在人口と過去の壁人口を別に保持し、縮小では過去人口の方が大きくなる。
-- 対応時代の新しいdescriptorは経済providerを呼ばず、道路交通量・近隣都市の資金／富裕度も投影しない。旧descriptorや未対応の後期時代は従来経路を維持する。
+- ~~対応時代の新しいdescriptorは経済providerを呼ばず、道路交通量・近隣都市の資金／富裕度も投影しない。~~ 2026-10-21 に変更: 経済providerがprofileを返す(Economy拡張機能が有効)ときは、対応時代でも経済profile・道路交通量・近隣都市の資金／富裕度を投影し、CEもそれを使う(§13.2)。無効なときは投影しない。旧descriptorや未対応の後期時代は従来経路を維持する。
 - CEは推定壁段階から単一／二重と内側の面積目標を自動選択する。現在の城へ旧壁を伸ばすと間隔を守れない場合は、城を後期の地区に置いたまま旧壁を検証する。生成できなかった旧壁は診断に残す。
 - 壁間の旧郊外は幹線付近の実際のface IDで記録し、同じfaceを複数の取り込み地区へ重複登録しない。
 - 共通の住戸容量計算を住宅fitとレポート・画面に接続する。階数・床面積・住宅用途を計上し、建物数と住戸数を分ける。密度に応じてdescriptorの住宅半径も調整する。
@@ -384,3 +385,19 @@ node scripts/renderUrbanGrowthValidation.mjs
 生成物は`temp/urban-growth-validation/`のprofile、容量集計、生成診断、CE文書、比較SVG・PNG。通常のロードと同じ河岸・道路修復を行うため、§3の未修復のZIP保存値との違いはロード経路による。比較の旧生成では同じ世界・seedを使い、従来の住宅半径と壁・住宅fitへ戻している。画像は同じメートル尺度へ揃える。
 
 自動試験に加え、[比較画像の描画スクリプト](../../scripts/renderUrbanGrowthValidation.mjs)でLeighの全周住宅帯の解消と旧・新壁、門外の列、間の空地を目視確認する。数値と実際の較正結果は生成時の`summary.json`を参照する。
+
+### 13.2 Economy拡張機能が有効なときの経済データの共有(2026-10-21)
+
+経済に依らない規則は、Economy拡張機能が無効なときに妥当な都市を作るためのものとし、有効なときは経済データを共有して実際の交易・ギルド・在庫に合う都市を作る。
+
+| 場所 | 変更 |
+| :--- | :--- |
+| `services/burgSiteDescriptor.ts` | 経済providerのprofileがあれば、推定都市史を持つ時代でも`economy`を入れる。道路の`traffic`・`trafficRank`、`nextBurg`の資金・富裕度も、profileがあるときは投影する |
+| `city-editor/generators/generation/generateCity.ts` | 推定都市史の経路でdescriptorの`economy`と道路交通量を消さない |
+| `city-editor/generators/guildFacilities.ts economyOnDocument` | `urbanMorphology`のある文書でも経済profileを返す(ギルドの会館・置き場・水車の数・港の倉庫・荷さばき場の荷) |
+| `city-editor/generators/roadTraffic.ts` | `urbanMorphology`のある文書でも道路交通量を使う(舗装・門前の宿)。キャッシュの鍵に交通量を足す |
+
+変えていないこと:
+
+- profile(`urbanMorphology`)と`contextRevision`は今後も経済値を含まない。壁の段階・城外の領域・空地の楔は経済のON/OFFで変わらない。§11の受入基準7(経済ON/OFFで配置が一致する)は、profileと城外の領域についての基準とし、施設・置き場の配置は経済ONで変わる。
+- 城外の街道沿いの成長の重み(§7.1)は、近隣都市の人口と外交のまま。計測した門ごとの交通量で重みを決める`approachGrowthSource: "traffic"`(O4)は、従来どおり明示したときだけ使う。

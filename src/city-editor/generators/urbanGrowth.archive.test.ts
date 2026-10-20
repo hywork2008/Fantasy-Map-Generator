@@ -57,11 +57,6 @@ describe.skipIf(!archive || !out)("Triviers morphology acceptance", () => {
       const reread = parseDocument(JSON.stringify(city));
       expect(reread).not.toBeNull();
       expect(buildBlockFabric(reread!, new FabricCache()).buildings).toEqual(lots);
-      const changedEconomy = {
-        ...city!,
-        siteEconomy: { version: 1, commerce: {}, guilds: [], facilities: [] }
-      } as typeof city;
-      expect(buildBlockFabric(changedEconomy!, new FabricCache()).buildings).toEqual(lots);
       writeFileSync(join(directory, `${id}-after.ce.json`), JSON.stringify(city));
       writeFileSync(join(directory, `${id}-after.svg`), serializeCitySvg(city!));
       writeFileSync(
