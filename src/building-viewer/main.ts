@@ -8,6 +8,7 @@ import { CHAMBORD, createChambord } from "../buildings/fortresses/chambord";
 import { KRAK, type KrakPhase } from "../buildings/fortresses/krak";
 import { committedSvgHash, levelPlanSvg, planSvg } from "../buildings/planSvg";
 import { type BuildingRecord, TRIANGLE_BUDGET } from "../buildings/record";
+import { createGalleon, GALLEON } from "../buildings/ships/galleon";
 import { validateBuildingRecord } from "../buildings/validate";
 import { catalogueMassing } from "../city3d/core/catalogueMassing";
 import { structureSurfaces } from "../city3d/core/structureGeometry";
@@ -479,6 +480,46 @@ for (const phase of ["hospitalier-1270", "mamluk-1302"] as const) {
   });
   list.append(button);
 }
+
+const shipsHeading = document.createElement("h2");
+shipsHeading.textContent = "Ships";
+list.append(shipsHeading);
+const galleonButton = document.createElement("button");
+galleonButton.type = "button";
+galleonButton.textContent = "Galleon · Three-masted sailing ship";
+galleonButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === galleonButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Ship elevation";
+  levelTitle.textContent = "Deck plan";
+  const model = createGalleon();
+  massing = model;
+  scene.add(model.group);
+  frame({ occupancyMeters: { width: GALLEON.length, depth: GALLEON.beam } }, GALLEON.height);
+  camera.position.set(54, 32, 67);
+  controls.target.set(2, 17, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", GALLEON.name),
+    fact("Period", "Age of sail · imagined early modern vessel"),
+    fact(
+      "Dimensions",
+      `${GALLEON.length} m overall length × ${GALLEON.beam} m beam; ${GALLEON.height} m above water; ${GALLEON.draft} m draft`
+    ),
+    fact("Rig", "Three masts; square-rigged fore and main masts; lateen mizzen"),
+    fact("Armament", "14 broadside guns"),
+    fact("Note", GALLEON.note)
+  );
+});
+list.append(galleonButton);
 
 resize();
 new ResizeObserver(resize).observe(stage);
