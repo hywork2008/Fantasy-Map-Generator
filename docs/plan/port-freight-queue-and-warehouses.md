@@ -1,6 +1,7 @@
 # 港の荷待ちと港の倉庫: 船を借りて順番を待ち、交易の多い港に大きな倉庫を建てる
 
 状態: 2026-10-19 設計。同日 P1〜P3 と P5、P4 の倉庫の収容力を実装(§10)。倉敷料・港での売却・隊商を港で分けること・P6 は未実装
+残る課題: [port-freight-remaining-tasks.md](port-freight-remaining-tasks.md)(§10.18 までで対応していないものをまとめたタスクリスト)
 前提: [long-distance-merchant-reach-capital.md](long-distance-merchant-reach-capital.md) §16〜§17、[merchant-logistics-warehouses.md](merchant-logistics-warehouses.md)、[merchant-transport-asset-ledger.md](merchant-transport-asset-ledger.md)
 関連: [fmg-economy-to-city-editor.md](fmg-economy-to-city-editor.md) §5.3(在庫 → 置き場)、[approach-commerce-quarters.md](approach-commerce-quarters.md)(商人の家は倉庫を兼ねる)、[fmg-harbour-model.md](fmg-harbour-model.md)(港を独立した存在にする)
 

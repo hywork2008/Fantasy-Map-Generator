@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-10-20
+
+- docs/plan/port-freight-remaining-tasks.md - port-freight-queue-and-warehouses.md の §10.18 までで対応していない課題(倉敷料・港での売却・隊商を港で分ける・船の注文のきっかけ・陸の出荷の回数・失われた隊商の車両と馬・Horses の単位・武器と弾の国の注文・季節・仮の値の校正・CE の描画・未決と計測)のタスクリストと進める順の案
+
 2026-10-19
 
 - docs/calibration/farmland-area-pilot-20261019.json - 経済有効の3世界・10年ずつの耕地統計、学習・検証の分離、都市側配分で悪化した研究モデルの評価と入力・実装ハッシュ
