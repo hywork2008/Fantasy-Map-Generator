@@ -67,6 +67,10 @@ export type TradeSettlementStats = {
   /** Warehouse rent paid by cargo waiting in port for a ship, and the part the houses could not pay. */
   portStorageFees: number;
   portStorageUnpaid: number;
+  /** The part of the rent paid to the houses that built the warehouses (§5.2). */
+  portStorageToHouses: number;
+  /** Paid by houses to build port warehouses (§5.2). */
+  portWarehouseBuilt: number;
   /** Capital bookings could not get (§5.2). */
   capitalShortfall: number;
   /** Put into the houses by their markets' payouts and by their merchants (§5.2). */
@@ -94,6 +98,8 @@ function emptyStats(): TradeSettlementStats {
     staleSaleValue: 0,
     portStorageFees: 0,
     portStorageUnpaid: 0,
+    portStorageToHouses: 0,
+    portWarehouseBuilt: 0,
     capitalShortfall: 0,
     investedByMarkets: 0,
     investedByCharacters: 0,
@@ -532,15 +538,43 @@ export class MerchantTradeCapitalModule {
    * Cargo waiting in port pays rent to the townsfolk who own the warehouses, out of the house's
    * cash as far as it has it (port-freight-queue-and-warehouses.md §4.4, §10.20). Off: no rent.
    */
-  payPortStorage(marketId: number, amount: number, portBurgId: number): void {
+  payPortStorage(
+    marketId: number,
+    amount: number,
+    portBurgId: number,
+    owner?: { marketId: number; share: number }
+  ): void {
     if (!(amount > UNIT_EPSILON)) return;
     const treasury = getMarkets().find(entry => entry.i === marketId)?.marketTreasury;
     if (!treasury?.tradeCapitalPaid) return;
     const paid = Math.min(amount, Math.max(0, treasury.tradeWorkingCapital ?? 0));
     treasury.tradeWorkingCapital = rn((treasury.tradeWorkingCapital ?? 0) - paid, 2);
-    creditHouseholdWealth(portBurgId, paid);
+    // The house that built part of the room takes that share of the rent (§5.2, T6).
+    const ownerTreasury = owner ? getMarkets().find(entry => entry.i === owner.marketId)?.marketTreasury : undefined;
+    const toHouse = ownerTreasury?.tradeCapitalPaid ? rn(paid * Math.min(1, Math.max(0, owner?.share ?? 0)), 2) : 0;
+    if (ownerTreasury && toHouse > 0) {
+      ownerTreasury.tradeWorkingCapital = rn((ownerTreasury.tradeWorkingCapital ?? 0) + toHouse, 2);
+      settlementStats.portStorageToHouses += toHouse;
+    }
+    creditHouseholdWealth(portBurgId, paid - toHouse);
     settlementStats.portStorageFees += paid;
     settlementStats.portStorageUnpaid += amount - paid;
+  }
+
+  /**
+   * The house of a port's market pays the builders of a new warehouse, out of the cash it may put
+   * out; false when it has too little (port-freight-queue-and-warehouses.md §5.2, T6).
+   */
+  payPortWarehouse(marketId: number, amount: number, portBurgId: number): boolean {
+    const market = getMarkets().find(entry => entry.i === marketId);
+    const treasury = market?.marketTreasury;
+    if (!market || !treasury?.tradeCapitalPaid) return false;
+    const cost = rn(Math.max(0, amount), 2);
+    if (spendableWorkingCapital(market, treasury) + UNIT_EPSILON < cost) return false;
+    treasury.tradeWorkingCapital = rn((treasury.tradeWorkingCapital ?? 0) - cost, 2);
+    creditHouseholdWealth(portBurgId, cost);
+    settlementStats.portWarehouseBuilt += cost;
+    return true;
   }
 
   /**

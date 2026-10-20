@@ -57,7 +57,13 @@ import {
   recordStaleSaleAtPort
 } from "./merchantTradeCapital";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
-import { accruePortStorage, recordSeaDeparture, repositionIdleHulls, waitingPortBurgId } from "./portWarehouses";
+import {
+  accruePortStorage,
+  portWarehouseOwner,
+  recordSeaDeparture,
+  repositionIdleHulls,
+  waitingPortBurgId
+} from "./portWarehouses";
 import { recordRouteTraffic } from "./publicWorks";
 import { markRetailInventoryDirty } from "./retailInventory";
 import { isAtPort, seaDepartureMarketId, seaDeparturePortBurgId, stageSegments } from "./seaRoutePorts";
@@ -582,7 +588,7 @@ function payPortStorage(caravan: Caravan, portBurgId: number | undefined): void 
   const due = caravan.loading?.portStorageDue ?? 0;
   if (caravan.loading) caravan.loading.portStorageDue = undefined;
   if (portBurgId === undefined || caravan.sellerType !== "market" || !(due > 0)) return;
-  MerchantTradeCapital.payPortStorage(caravan.seller, due, portBurgId);
+  MerchantTradeCapital.payPortStorage(caravan.seller, due, portBurgId, portWarehouseOwner(portBurgId));
 }
 
 /**

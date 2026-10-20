@@ -11,7 +11,9 @@ import {
   clearPortWarehouseCache,
   collectSeaDemandSlots,
   getMarketPortBurgId,
+  PORT_WAREHOUSE_COST_PER_SLOT,
   portWarehouseLayout,
+  portWarehouseOwner,
   recordSeaDeparture
 } from "./portWarehouses";
 
@@ -86,6 +88,37 @@ describe("port warehouses", () => {
     const capacity = built?.capacitySlots ?? 0;
     for (let month = 0; month < 24; month++) beginPortProductionCycle(30);
     expect(getPortWarehouses().find(state => state.burgId === 1)?.capacitySlots).toBeGreaterThanOrEqual(capacity);
+  });
+
+  it("has the port market's house pay for the building and take its share of the rent (T6)", () => {
+    simulationContext.worldSettings = { "fmg-long-distance-trade": "on" };
+    try {
+      const treasury = { balance: 0, ruralGrainPayable: 0, tradeWorkingCapital: 0, tradeCapitalPaid: true };
+      (worldContext.pack.markets as unknown as { marketTreasury?: unknown }[])[0].marketTreasury = treasury;
+      const trade = (months: number) => {
+        for (let month = 0; month < months; month++) {
+          recordSeaDeparture(seaCaravan(2000), 1);
+          beginPortProductionCycle(30);
+        }
+      };
+      beginPortProductionCycle(30);
+      const start = getPortWarehouses().find(state => state.burgId === 1)?.capacitySlots ?? 0;
+      trade(24);
+      // A house with no cash builds nothing.
+      expect(getPortWarehouses().find(state => state.burgId === 1)?.buildingSlots).toBeUndefined();
+      expect(getPortWarehouses().find(state => state.burgId === 1)?.capacitySlots).toBe(start);
+
+      treasury.tradeWorkingCapital = 100_000;
+      trade(14);
+      const state = getPortWarehouses().find(entry => entry.burgId === 1);
+      const built = (state?.capacitySlots ?? 0) - start;
+      expect(built).toBeGreaterThan(0);
+      expect(state?.houseSlots).toBe(built);
+      expect(treasury.tradeWorkingCapital).toBeCloseTo(100_000 - built * PORT_WAREHOUSE_COST_PER_SLOT, 0);
+      expect(portWarehouseOwner(1)).toEqual({ marketId: 1, share: built / (state?.capacitySlots ?? 1) });
+    } finally {
+      delete simulationContext.worldSettings;
+    }
   });
 
   it("expects about a month of a port's usual departures as demand for hulls", () => {

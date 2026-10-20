@@ -105,6 +105,7 @@ import {
   MerchantTradeCapital
 } from "./merchantTradeCapital";
 import { LAND_HIRE_FREIGHT_MULTIPLIER, MerchantTransportAssets } from "./merchantTransportAssets";
+import { expectedPortStorageUnitCost } from "./portWarehouses";
 import { applyPriceElasticity, relaxMarketPrice } from "./priceElasticity";
 import {
   getRuralCellPopulation,
@@ -256,6 +257,8 @@ interface MarketTradeOpportunity {
   reserveExporter: number;
   reserveImporter: number;
   transportCost: number;
+  /** Warehouse rent a unit is expected to pay in port before it sails; not freight (§10.20). */
+  portStorageCost: number;
   exporterTaxPerUnit: number;
   importerDutyPerUnit: number;
   units: number;
@@ -2240,8 +2243,16 @@ export class MarketsModule {
             if (hearsRumours) hearOfPriceGap();
             continue;
           }
+          // A house reckons the rent its cargo will pay in port, a winter's for cargo that would
+          // miss the last sailing (port-freight-remaining-tasks.md T31).
+          const portStorageCost = expectedPortStorageUnitCost(
+            route.segments,
+            getGoodCargoSlotsPerUnit(good),
+            this.getExpectedLoadingWaitDays(route)
+          );
           const unitProfit =
-            known.importerPrice - (known.exporterPrice + transportCost + exporterTaxPerUnit + importerDutyPerUnit);
+            known.importerPrice -
+            (known.exporterPrice + transportCost + portStorageCost + exporterTaxPerUnit + importerDutyPerUnit);
           if (unitProfit <= 0) {
             observe?.({ stage: "unprofitable", ...leg });
             continue;
@@ -2255,6 +2266,7 @@ export class MarketsModule {
             reserveExporter: exporter.reserve,
             reserveImporter: importer.reserve,
             transportCost,
+            portStorageCost,
             exporterTaxPerUnit,
             importerDutyPerUnit,
             units,
@@ -2413,9 +2425,11 @@ export class MarketsModule {
         opportunity.knownExporterPrice ?? this.getTradeQuotedPrice(opportunity.exporter, good, exporterGood.price);
       const quotedImporterPrice =
         opportunity.knownImporterPrice ?? this.getTradeQuotedPrice(opportunity.importer, good, importerGood.price);
+      // Rent in port is reckoned with the landed cost but paid when the cargo sails, not at booking.
       const quotedLandedCost =
         quotedExporterPrice +
         opportunity.transportCost +
+        opportunity.portStorageCost +
         opportunity.exporterTaxPerUnit +
         opportunity.importerDutyPerUnit;
       const quotedSalePrice = opportunity.targetSalePrice ?? quotedImporterPrice;
@@ -2734,9 +2748,14 @@ export class MarketsModule {
         });
         if (!estimate) continue;
 
+        const portStorageCost = expectedPortStorageUnitCost(
+          route.segments,
+          getGoodCargoSlotsPerUnit(good),
+          this.getExpectedLoadingWaitDays(route)
+        );
         const landedCost = quotedExporterGood.price + estimate.transportCost + exporterTaxPerUnit + importerDutyPerUnit;
-        const unitProfit = estimate.sellPrice - landedCost;
-        const totalProfit = estimate.totalProfit;
+        const unitProfit = estimate.sellPrice - landedCost - portStorageCost;
+        const totalProfit = estimate.totalProfit - portStorageCost * estimate.maxUnits;
 
         opportunities.push({
           exporter,
@@ -2744,6 +2763,7 @@ export class MarketsModule {
           reserveExporter: Math.max(0, exporterGood.stock - estimate.maxUnits),
           reserveImporter: importerGood.stock + estimate.maxUnits,
           transportCost: estimate.transportCost,
+          portStorageCost,
           exporterTaxPerUnit,
           importerDutyPerUnit,
           units: estimate.maxUnits,

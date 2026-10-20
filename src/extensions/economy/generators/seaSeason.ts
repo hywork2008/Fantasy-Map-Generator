@@ -46,6 +46,7 @@ let cacheKey = "";
 let cachePack: unknown = null;
 let seasons = new Map<number, PortSeason | null>();
 let openingDays = new Map<number, number>();
+let waitDaysCache = new Map<string, number>();
 
 function isAntiquity(): boolean {
   const period = historicalPeriodIndex(getWorldContext().options?.historicalPeriod);
@@ -60,6 +61,7 @@ function portSeason(burgId: number): PortSeason | null {
     if (pack !== cachePack || !cacheKey.startsWith(`${getSimulationYear()}:${getSimulationMonth()}:`))
       seasons = new Map();
     openingDays = new Map();
+    waitDaysCache = new Map();
     cacheKey = key;
     cachePack = pack;
   }
@@ -97,19 +99,19 @@ function closedOn(season: PortSeason, month: number, day: number, antiquity: boo
   );
 }
 
-/** Days until merchant hulls may sail from the port again: 0 while it is open. */
-export function daysUntilSeaOpens(portBurgId: number | undefined): number {
-  if (portBurgId === undefined || !isLongDistanceTradeEnabled()) return 0;
+/**
+ * Days from today until cargo ready to sail in `readyDays` may leave the port: `readyDays` if the
+ * port is open that day, else the day it opens after (`readyDays` 0: today).
+ */
+function daysUntilOpenFrom(portBurgId: number, readyDays: number): number {
   const season = portSeason(portBurgId);
-  if (!season) return 0;
-  const cached = openingDays.get(portBurgId);
-  if (cached !== undefined) return cached;
+  if (!season) return readyDays;
   let year = getSimulationYear();
   let month = getSimulationMonth();
   let day = getSimulationDay();
   let days = 0;
   const antiquity = isAntiquity();
-  while (days < MAX_LOOKAHEAD_DAYS && closedOn(season, month, day, antiquity)) {
+  const step = () => {
     days += 1;
     day += 1;
     if (day > getDaysInMonth(year, month)) {
@@ -117,8 +119,37 @@ export function daysUntilSeaOpens(portBurgId: number | undefined): number {
       month = (month % 12) + 1;
       if (month === 1) year += 1;
     }
-  }
+  };
+  while (days < readyDays) step();
+  while (days < readyDays + MAX_LOOKAHEAD_DAYS && closedOn(season, month, day, antiquity)) step();
+  return days;
+}
+
+/** Days until merchant hulls may sail from the port again: 0 while it is open. */
+export function daysUntilSeaOpens(portBurgId: number | undefined): number {
+  if (portBurgId === undefined || !isLongDistanceTradeEnabled()) return 0;
+  portSeason(portBurgId);
+  const cached = openingDays.get(portBurgId);
+  if (cached !== undefined) return cached;
+  const days = daysUntilOpenFrom(portBurgId, 0);
   openingDays.set(portBurgId, days);
+  return days;
+}
+
+/**
+ * Days cargo booked today is expected to lie in the port before it sails: the usual wait for a
+ * fuller hold, or, where the port is shut by then, until it opens again (§10.27). Cargo booked
+ * just before Martinmas lies in the warehouse all winter.
+ */
+export function expectedSeaWaitDays(portBurgId: number | undefined, waitDays: number): number {
+  const wait = Math.max(0, Math.round(waitDays));
+  if (portBurgId === undefined || !isLongDistanceTradeEnabled()) return wait;
+  portSeason(portBurgId);
+  const key = `${portBurgId}:${wait}`;
+  const cached = waitDaysCache.get(key);
+  if (cached !== undefined) return cached;
+  const days = daysUntilOpenFrom(portBurgId, wait);
+  waitDaysCache.set(key, days);
   return days;
 }
 

@@ -23,9 +23,10 @@ import {
 } from "../economyContext";
 import { getQuarterlyStorageLoss, getStorageClimateLossMultiplier } from "./grainStorage";
 import type { Caravan, PortWarehouseState, TradeRouteSegment } from "./marketTypes";
-import { isLongDistanceTradeEnabled } from "./merchantTradeCapital";
+import { isLongDistanceTradeEnabled, MerchantTradeCapital } from "./merchantTradeCapital";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
 import { isInlandStage, seaArrivalPortBurgId, seaDepartureMarketId, seaDeparturePortBurgId } from "./seaRoutePorts";
+import { expectedSeaWaitDays } from "./seaSeason";
 
 /**
  * Warehouse rent per cargo slot and day in port (§4.4, §10.20). Rent was charged by room, not by
@@ -35,6 +36,13 @@ import { isInlandStage, seaArrivalPortBurgId, seaDepartureMarketId, seaDeparture
  * than on the quay.
  */
 export const PORT_STORAGE_FEE = 0.0005;
+/**
+ * What the port market's house pays to build a warehouse slot (§5.2, T6): twelve years' rent at the
+ * quay rate with a quarter of the room let. Town houses and shops sold at ten to twenty years'
+ * purchase of their rent, a building that wears out at the lower end. The money goes to the port
+ * town's builders.
+ */
+export const PORT_WAREHOUSE_COST_PER_SLOT = PORT_STORAGE_FEE * 365 * 0.25 * 12;
 /**
  * How much faster staple food spoils stacked on the quay or left in the lighters than in a port
  * warehouse, out of the weather and off the ground (§4.4).
@@ -331,6 +339,52 @@ export function repositionIdleHulls(): void {
   }
 }
 
+function portMarketId(burgId: number): number | undefined {
+  const marketId = getWorldContext().pack.burgs?.[burgId]?.market;
+  return typeof marketId === "number" ? marketId : undefined;
+}
+
+function payWarehouseBuilding(burgId: number, slots: number): boolean {
+  const marketId = portMarketId(burgId);
+  return (
+    marketId !== undefined &&
+    MerchantTradeCapital.payPortWarehouse(marketId, slots * PORT_WAREHOUSE_COST_PER_SLOT, burgId)
+  );
+}
+
+/**
+ * Who the port's warehouse rent goes to: the port market's house for the share of the room it built,
+ * the townsfolk for the rest, which stood before the map began (§5.2, T6).
+ */
+export function portWarehouseOwner(burgId: number): { marketId: number; share: number } | undefined {
+  const state = getPortWarehouses().find(entry => entry.burgId === burgId);
+  const marketId = portMarketId(burgId);
+  if (!state || marketId === undefined || !(state.capacitySlots > 0) || !((state.houseSlots ?? 0) > 0))
+    return undefined;
+  return { marketId, share: Math.min(1, (state.houseSlots ?? 0) / state.capacitySlots) };
+}
+
+/**
+ * Warehouse rent a unit of cargo is expected to run up in port before it sails, for the matching
+ * (§10.20, T31): the usual wait for a fuller hold, or until the port opens again where it will be
+ * shut by then, at double the rate for the share of the port's queue its warehouses cannot hold.
+ * Only with `fmg-long-distance-trade` on, as the rent itself.
+ */
+export function expectedPortStorageUnitCost(
+  segments: readonly TradeRouteSegment[] | undefined,
+  slotsPerUnit: number,
+  waitDays: number
+): number {
+  if (!isLongDistanceTradeEnabled() || !segments?.some(isSeaSegment)) return 0;
+  const burgId = seaDeparturePortBurgId(segments);
+  if (burgId === undefined) return 0;
+  const state = getPortWarehouses().find(entry => entry.burgId === burgId);
+  const capacity = state?.capacitySlots ?? 0;
+  const queued = state?.queuedSlots ?? 0;
+  const overflowShare = queued > 0 ? Math.max(0, queued - capacity) / queued : capacity > 0 ? 0 : 1;
+  return expectedSeaWaitDays(burgId, waitDays) * PORT_STORAGE_FEE * (1 + overflowShare) * slotsPerUnit;
+}
+
 /**
  * Start of a production cycle: each port's need and warehouses are brought up to date. Runs before
  * hull orders read the sea shortfall.
@@ -361,6 +415,8 @@ export function beginPortProductionCycle(cycleDays: number): void {
       state.buildingDaysLeft = (state.buildingDaysLeft ?? 0) - cycleDays;
       if (state.buildingDaysLeft <= 0) {
         state.capacitySlots += state.buildingSlots;
+        if (state.buildingByHouse) state.houseSlots = (state.houseSlots ?? 0) + state.buildingSlots;
+        state.buildingByHouse = undefined;
         state.lastBuiltYear = year;
         state.buildingSlots = undefined;
         state.buildingDaysLeft = undefined;
@@ -368,14 +424,24 @@ export function beginPortProductionCycle(cycleDays: number): void {
     } else if (state.needSlots > state.capacitySlots) {
       state.overNeedMonths += 1;
       if (state.overNeedMonths >= OVER_NEED_MONTHS_TO_BUILD) {
-        state.buildingSlots = Math.max(MIN_BUILD_STEP_SLOTS, Math.round(state.needSlots - state.capacitySlots));
-        state.buildingDaysLeft = BUILD_DAYS;
-        state.overNeedMonths = 0;
+        const slots = Math.max(MIN_BUILD_STEP_SLOTS, Math.round(state.needSlots - state.capacitySlots));
+        // With cargo paid for, the port market's house pays the builders, and builds nothing it
+        // cannot pay for; it tries again next month (§5.2, T6).
+        const paid = isLongDistanceTradeEnabled();
+        if (!paid || payWarehouseBuilding(state.burgId, slots)) {
+          state.buildingSlots = slots;
+          state.buildingDaysLeft = BUILD_DAYS;
+          state.buildingByHouse = paid || undefined;
+          state.overNeedMonths = 0;
+        }
       }
     } else state.overNeedMonths = 0;
 
-    if (state.idleMonths > IDLE_MONTHS_BEFORE_DECAY)
-      state.capacitySlots *= pow(1 - IDLE_DECAY_PER_YEAR, cycleDays / 365);
+    if (state.idleMonths > IDLE_MONTHS_BEFORE_DECAY) {
+      const kept = pow(1 - IDLE_DECAY_PER_YEAR, cycleDays / 365);
+      state.capacitySlots *= kept;
+      if (state.houseSlots !== undefined) state.houseSlots *= kept;
+    }
   }
   setPortWarehouses(states);
 }

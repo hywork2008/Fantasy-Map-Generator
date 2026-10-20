@@ -560,6 +560,10 @@ export type PortWarehouseState = {
   /** Slots of the building under way, and the days it still takes. */
   buildingSlots?: number;
   buildingDaysLeft?: number;
+  /** The building under way is the port market's house's (paid for with cargo paid for). */
+  buildingByHouse?: boolean;
+  /** Slots the port market's house built; their share of the rent is its (§5.2). */
+  houseSlots?: number;
   /** Consecutive months with no sea cargo through the port. */
   idleMonths: number;
   lastBuiltYear: number | null;
