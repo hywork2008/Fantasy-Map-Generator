@@ -317,12 +317,20 @@ function crewSlot(
   setSiteWorkers: (value: number) => void,
   hiringShare = 1
 ): BasicEmploymentSlot {
-  const scale = required > 0 && crewPoints > 0 ? crewPoints / required : 0;
+  const scale = crewScale(required, crewPoints);
   return {
     requiredWorkers: crewPoints * hiringShare,
     getWorkers: () => getSiteWorkers() * scale,
     setWorkers: value => setSiteWorkers(scale > 0 ? value / scale : 0)
   };
+}
+
+/**
+ * Population points per site worker. A mine's or smelter's `workers` count in its required-workers
+ * unit and a quarry's in people, so a site's points are its workers times this.
+ */
+export function crewScale(required: number, crewPoints: number): number {
+  return required > 0 && crewPoints > 0 ? crewPoints / required : 0;
 }
 
 function pushSlot(map: Map<number, BasicEmploymentSlot[]>, burgId: number, slot: BasicEmploymentSlot): void {

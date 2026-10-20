@@ -575,6 +575,7 @@ describe("runWorkerLoop steps (port-freight-queue-and-warehouses.md §10.23)", (
       {
         burg: { i: 0, cell: 0 },
         population: 2,
+        workforce: 2,
         activeGoalGoodId: null,
         strategicDemandByGood: new Map(),
         remainingCalibratedLots: new Map(),

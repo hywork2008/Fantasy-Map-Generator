@@ -46,6 +46,7 @@ import {
 } from "./craftDemandCalibration";
 import { smoothCraftWorkers } from "./craftEmployment";
 import { laborPeople } from "./craftScale";
+import { getBasicWorkersByBurg, getChildLabourEquivalent, getCraftWorkforce } from "./craftWorkforce";
 import { ExportStaging } from "./exportStaging";
 import { hasViableFoodProcessingMargin } from "./foodProcessingEconomics";
 import {
@@ -359,6 +360,8 @@ export class ProductionModule {
       getConstructionOperations().map(operation => [operation.burgId, operation])
     );
     const craftWorkersByBurg = new Map(getCraftEmploymentRecords().map(record => [record.burgId, record.workers]));
+    const basicWorkersByBurg = getBasicWorkersByBurg(this.worldContext.pack.burgs);
+    const childLabourEquivalent = getChildLabourEquivalent();
     const craftDomainWorkersByKey = new Map(
       getCraftDomainEmploymentRecords().map(record => [craftDomainKey(record.burgId, record.domain), record.workers])
     );
@@ -377,7 +380,9 @@ export class ProductionModule {
       constructionOperationByBurg,
       craftWorkersByBurg,
       craftDomainWorkersByKey,
-      saleBudgetByBurg
+      saleBudgetByBurg,
+      basicWorkersByBurg,
+      childLabourEquivalent
     };
   }
 
@@ -391,7 +396,8 @@ export class ProductionModule {
       market,
       cycle.index,
       cycle.strategicLaborMarketById.get(market.i),
-      cycle.constructionOperationByBurg.get(burg.i)
+      cycle.constructionOperationByBurg.get(burg.i),
+      getCraftWorkforce(burg, cycle.basicWorkersByBurg.get(burg.i) ?? 0, cycle.childLabourEquivalent)
     );
     const craftWorkersUsed = this.runWorkerLoop(cycle.index, state);
     const populationRate = Math.max(0, this.worldContext.populationRate ?? 0) || 1;
@@ -642,7 +648,8 @@ export class ProductionModule {
     market: Market,
     index: ProductionIndex,
     strategicLaborMarket: LaborMarket | undefined,
-    constructionOperation: ConstructionOperation | undefined
+    constructionOperation: ConstructionOperation | undefined,
+    workforce: number
   ): BurgProductionState {
     const population = rn(burg.population || 0, 2);
     const inventory: number[] = [];
@@ -681,6 +688,7 @@ export class ProductionModule {
       burg,
       market,
       population,
+      workforce,
       demandTargets,
       inventory,
       demandCoverage,
@@ -791,7 +799,7 @@ export class ProductionModule {
     const populationRate = Math.max(0, this.worldContext.populationRate ?? 0) || 1;
     const burgId = state.burg.i;
     const reservedTransportWork = burgId
-      ? TransportAssetOrders.consumePlannedWork(burgId, state.population)
+      ? TransportAssetOrders.consumePlannedWork(burgId, state.workforce)
       : { total: 0, byDomain: new Map<CraftKnowledgeDomain, number>() };
     let workersUsed = reservedTransportWork.total;
     const byDomain = new Map<CraftDomainEmploymentRecord["domain"], number>();
@@ -808,7 +816,9 @@ export class ProductionModule {
     // step (docs/plan/craft-demand-calibration.md §3.5). Only populated when applyCalibration is on.
     const skippedGoodIds = new Set<number>();
 
-    // Cap iterations to ceil(population) so floating-point leftovers cannot spin.
+    // Cap iterations to ceil(population) so floating-point leftovers cannot spin. Steps stay counted
+    // on all the Burg's people, not its workforce: a step is an attempt, and a small town whose
+    // workforce is under one point still tries its preserving, ordered and ranked work.
     const maxSteps = Math.max(0, Math.ceil(state.population));
     let step = 0;
     // Under calibration an attempt that spent no labor skips its goal and gives its step back, so a
@@ -828,10 +838,10 @@ export class ProductionModule {
     // construction, military, or luxury work. Cell-local fresh harvests use cellFoodRescue instead.
     if (index.priorityGoods.length) {
       state.activeGoalGoodId = null;
-      const priorityWorkCap = state.population * CELL_FOOD_PRESERVATION_LABOR_SHARE;
+      const priorityWorkCap = state.workforce * CELL_FOOD_PRESERVATION_LABOR_SHARE;
       let priorityWorkUsed = 0;
       for (; step < maxSteps && priorityWorkUsed < priorityWorkCap - 1e-9; step++) {
-        const workersLeft = Math.min(state.population - workersUsed, priorityWorkCap - priorityWorkUsed);
+        const workersLeft = Math.min(state.workforce - workersUsed, priorityWorkCap - priorityWorkUsed);
         const workerFraction = Math.min(1, workersLeft);
         if (workerFraction <= 1e-9) break;
 
@@ -898,7 +908,7 @@ export class ProductionModule {
         return total + (demand ? getStrategicLaborAllocationWeight(demand) : 0);
       }, 0);
       if (strategicGoods.length && totalStrategicWeight > 0) {
-        const strategicWorkCap = state.population * STRATEGIC_PRIORITY_LABOR_SHARE;
+        const strategicWorkCap = state.workforce * STRATEGIC_PRIORITY_LABOR_SHARE;
         let strategicWorkUsed = 0;
 
         for (const good of strategicGoods) {
@@ -915,7 +925,7 @@ export class ProductionModule {
           state.activeGoalGoodId = null;
 
           for (; step < maxSteps && shareUsed < share - 1e-9; step++) {
-            const workersLeft = Math.min(state.population - workersUsed, share - shareUsed);
+            const workersLeft = Math.min(state.workforce - workersUsed, share - shareUsed);
             const workerFraction = Math.min(1, workersLeft);
             if (workerFraction <= 1e-9) break;
 
@@ -972,7 +982,7 @@ export class ProductionModule {
     const reevalEvery = 4;
     let stickyDecision: ProductionDecision | null = null;
     for (; step < maxSteps; step++) {
-      const workersLeft = state.population - workersUsed;
+      const workersLeft = state.workforce - workersUsed;
       const workerFraction = Math.min(1, workersLeft);
       if (workerFraction <= 1e-9) break;
 
@@ -1961,6 +1971,10 @@ type ProductionCycle = {
   craftDomainWorkersByKey: Map<string, number>;
   /** Market cash reserved for each Burg's own sales before production order begins. */
   saleBudgetByBurg: ReadonlyMap<number, number>;
+  /** Population points each Burg gives to its basic industries (craftWorkforce.ts). */
+  basicWorkersByBurg: ReadonlyMap<number, number>;
+  /** A child's work as a share of an adult's in this map's historical period. */
+  childLabourEquivalent: number;
 };
 
 /** `${burgId}:${domain}` key into craftDomainWorkersByKey / craftDomainEmploymentRecords. */
@@ -1995,7 +2009,13 @@ type IncrementalProductionOptions = {
 type BurgProductionState = {
   burg: Burg;
   market: Market;
+  /** All the Burg's people, children and elders too: what its households buy and its trades number. */
   population: number;
+  /**
+   * Population points its workshops can employ: adults, and children at their period's share,
+   * less its basic industries (craftWorkforce.ts, docs/plan/child-labour-history.md §5).
+   */
+  workforce: number;
   demandTargets: number[];
   inventory: number[];
   demandCoverage: number[];
