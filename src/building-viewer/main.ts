@@ -29,6 +29,7 @@ import {
 } from "../buildings/signs/hangingSign";
 import { validateBuildingRecord } from "../buildings/validate";
 import { createMedievalWagon, MEDIEVAL_WAGON } from "../buildings/vehicles/medievalWagon";
+import { createNobleCarriage, NOBLE_CARRIAGE } from "../buildings/vehicles/nobleCarriage";
 import { createWarWagon, WAR_WAGON } from "../buildings/vehicles/warWagon";
 import { createMedievalWell, MEDIEVAL_WELL } from "../buildings/wells/medievalWell";
 import { createMedievalLumberYard, MEDIEVAL_LUMBER_YARD } from "../buildings/yards/medievalLumberYard";
@@ -1004,6 +1005,42 @@ wagonButton.addEventListener("click", () => {
   );
 });
 list.append(wagonButton);
+
+const nobleCarriageButton = document.createElement("button");
+nobleCarriageButton.type = "button";
+nobleCarriageButton.textContent = "Noble carriage · Medieval European covered carriage";
+nobleCarriageButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === nobleCarriageButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Carriage side elevation";
+  levelTitle.textContent = "Carriage canopy plan";
+  const model = createNobleCarriage();
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: NOBLE_CARRIAGE.length, depth: NOBLE_CARRIAGE.width } }, NOBLE_CARRIAGE.height);
+  camera.position.set(7, 4.8, 8);
+  controls.target.set(0.55, 1.65, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", NOBLE_CARRIAGE.name),
+    fact("Style", "Late medieval Europe · Noble household traveling wagon"),
+    fact("Study envelope", `${NOBLE_CARRIAGE.length} × ${NOBLE_CARRIAGE.width} × ${NOBLE_CARRIAGE.height} m`),
+    fact("Body", "Blue painted timber, burgundy textile canopy, tied curtains and gilded heraldic shields"),
+    fact("Interior", "Facing cushioned benches, low side doors and boarding steps; unglazed openings"),
+    fact("Running gear", "Four iron-bound spoked wheels, front axle pivot, driver's bench and twin shafts; no animals"),
+    fact("Note", NOBLE_CARRIAGE.note)
+  );
+});
+list.append(nobleCarriageButton);
 
 const warWagonButton = document.createElement("button");
 warWagonButton.type = "button";
