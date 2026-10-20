@@ -13,6 +13,7 @@ import { pow } from "../../../simulation/deterministicMath";
 import { simEvents } from "../../../simulation/events";
 import {
   getCaravans,
+  getGoods,
   getMarkets,
   getMerchantOrganizations,
   getPortWarehouses,
@@ -20,7 +21,9 @@ import {
   getWorldContext,
   setPortWarehouses
 } from "../economyContext";
+import { getQuarterlyStorageLoss, getStorageClimateLossMultiplier } from "./grainStorage";
 import type { Caravan, PortWarehouseState, TradeRouteSegment } from "./marketTypes";
+import { isLongDistanceTradeEnabled } from "./merchantTradeCapital";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
 import { isInlandStage, seaArrivalPortBurgId, seaDepartureMarketId, seaDeparturePortBurgId } from "./seaRoutePorts";
 
@@ -32,6 +35,12 @@ import { isInlandStage, seaArrivalPortBurgId, seaDepartureMarketId, seaDeparture
  * than on the quay.
  */
 export const PORT_STORAGE_FEE = 0.0005;
+/**
+ * How much faster staple food spoils stacked on the quay or left in the lighters than in a port
+ * warehouse, out of the weather and off the ground (§4.4).
+ */
+const OVERFLOW_SPOILAGE_MULTIPLIER = 1.5;
+const DAYS_PER_QUARTER = 365 / 4;
 /** Days the average sea cargo lies in a port warehouse, loading and unloading. */
 const DWELL_DAYS = 30;
 /** Monthly weight of the latest need in the smoothed need. */
@@ -195,7 +204,8 @@ export function waitingPortBurgId(caravan: Caravan): number | undefined {
 /**
  * Every day: cargo waiting in port for a ship runs up warehouse rent, by the slot and the day, and
  * at double the rate for what the port's warehouses cannot hold (stacked on the quay or left in the
- * lighters). The house pays it when the cargo sails or is sold (§4.4, §10.20).
+ * lighters). The house pays it when the cargo sails or is sold (§4.4, §10.20). Staple food spoils
+ * meanwhile, faster for the share left outside.
  */
 export function accruePortStorage(deltaDays: number): void {
   if (!(deltaDays > 0)) return;
@@ -212,10 +222,63 @@ export function accruePortStorage(deltaDays: number): void {
   for (const [burgId, entry] of waiting) {
     if (!(entry.slots > 0)) continue;
     const capacity = states.find(state => state.burgId === burgId)?.capacitySlots ?? 0;
-    const rate = PORT_STORAGE_FEE * (1 + Math.max(0, entry.slots - capacity) / entry.slots);
+    const overflowShare = Math.max(0, entry.slots - capacity) / entry.slots;
+    const rate = PORT_STORAGE_FEE * (1 + overflowShare);
     for (const caravan of entry.caravans) {
       if (!caravan.loading) continue;
       caravan.loading.portStorageDue = (caravan.loading.portStorageDue ?? 0) + payloadSlots(caravan) * rate * deltaDays;
+    }
+    accruePortSpoilage(burgId, entry.caravans, overflowShare, deltaDays);
+  }
+}
+
+/** Quarterly loss of staple food in a granary at the port's climate (grain-storage-life.md §3.2). */
+function portStorageLoss(burgId: number): number {
+  const { pack, grid } = getWorldContext();
+  const cellId = pack.burgs?.[burgId]?.cell ?? -1;
+  const gridCell = cellId >= 0 ? (pack.cells?.g?.[cellId] ?? cellId) : -1;
+  const multiplier = getStorageClimateLossMultiplier(
+    gridCell >= 0 ? (grid?.cells?.temp?.[gridCell] ?? Number.NaN) : Number.NaN,
+    gridCell >= 0 ? (grid?.cells?.prec?.[gridCell] ?? Number.NaN) : Number.NaN
+  );
+  return getQuarterlyStorageLoss(multiplier).fresh;
+}
+
+/**
+ * Staple food waiting in port spoils as in a granary, and the share the port's warehouses cannot
+ * hold spoils faster (§4.4). The loss is taken off the cargo when it sails or is sold.
+ */
+function accruePortSpoilage(
+  burgId: number,
+  caravans: readonly Caravan[],
+  overflowShare: number,
+  deltaDays: number
+): void {
+  if (!isLongDistanceTradeEnabled()) return;
+  const staple = new Set(
+    getGoods()
+      .filter(good => good.tags?.includes("stapleFood"))
+      .map(good => good.i)
+  );
+  if (!staple.size) return;
+  let dailyShare: number | undefined;
+  for (const caravan of caravans) {
+    if (!caravan.loading) continue;
+    const units = new Map<number, number>();
+    for (const item of caravan.payload) {
+      if (!item.isFoodCoLoad && staple.has(item.goodId) && item.units > 0)
+        units.set(item.goodId, (units.get(item.goodId) ?? 0) + item.units);
+    }
+    if (!units.size) continue;
+    if (dailyShare === undefined) {
+      const quarterly = Math.min(1, portStorageLoss(burgId) * (1 + (OVERFLOW_SPOILAGE_MULTIPLIER - 1) * overflowShare));
+      dailyShare = 1 - pow(1 - quarterly, deltaDays / DAYS_PER_QUARTER);
+    }
+    caravan.loading.portSpoiledUnits ??= {};
+    const spoiled = caravan.loading.portSpoiledUnits;
+    for (const [goodId, total] of units) {
+      const lost = spoiled[goodId] ?? 0;
+      spoiled[goodId] = lost + Math.max(0, total - lost) * dailyShare;
     }
   }
 }

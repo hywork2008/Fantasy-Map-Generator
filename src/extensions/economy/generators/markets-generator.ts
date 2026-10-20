@@ -2541,7 +2541,8 @@ export class MarketsModule {
         // the exporting market's optional merchant working-capital pool. Once cargo is paid for,
         // the house pays for it like any other: unpaid cargo would be sold to the importer for
         // nothing (long-distance-merchant-reach-capital.md §15).
-        requireCapital: !opportunity.stateProcurement || ctx.longDistanceTrade
+        requireCapital: !opportunity.stateProcurement || ctx.longDistanceTrade,
+        seaPortBurgId: ctx.longDistanceTrade ? seaDeparturePortBurgId(opportunity.routeSegments) : undefined
       });
       if (!lot) {
         if (observe) {

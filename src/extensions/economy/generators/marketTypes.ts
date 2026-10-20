@@ -404,6 +404,11 @@ export type ExportStagingLot = {
   /** Days this lot has waited without any of it being loaded (§5.3). */
   waitedDays?: number;
   /**
+   * Port burg the route's sea leg sails from; the lot does not wait while it is closed
+   * (port-freight-queue-and-warehouses.md §10.27). Omitted for land routes and legacy lots.
+   */
+  seaPortBurgId?: number;
+  /**
    * The last loading pass found no cart, barge or hull free for it; the daily pass tries it again
    * once the dispatching market has one (port-freight-queue-and-warehouses.md §10.24).
    */
@@ -629,6 +634,11 @@ export type CaravanLoadingState = {
   nextSailDay?: number;
   /** Warehouse rent run up waiting in port for a ship, paid when the cargo sails or is sold. */
   portStorageDue?: number;
+  /**
+   * Staple food lost to pests and damp waiting in port, by good id; taken off the cargo when it
+   * sails or is sold (port-freight-queue-and-warehouses.md §4.4).
+   */
+  portSpoiledUnits?: Record<number, number>;
 };
 
 export interface Caravan {

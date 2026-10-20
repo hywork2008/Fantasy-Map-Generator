@@ -24,6 +24,7 @@ import type { Good } from "./goodsGeneratorTypes";
 import { floorToRetailLot, getRetailLotSize } from "./goodsTradeLots";
 import type { ExportStagingLot, TradePaymentTerms } from "./marketTypes";
 import { isLongDistanceTradeEnabled, MerchantTradeCapital, recordStaleLotCancelled } from "./merchantTradeCapital";
+import { isSeaClosed } from "./seaSeason";
 import { TradeLogisticsSettings } from "./tradeLogisticsSettings";
 
 const UNIT_EPSILON = 0.000001;
@@ -56,6 +57,8 @@ export type BookExportStagingInput = {
   saleUnitPrice?: number;
   /** How the destination pays (§12); escrow puts the price up from its cash at booking. */
   paymentTerms?: TradePaymentTerms;
+  /** Port burg the route's sea leg sails from, if it has one. */
+  seaPortBurgId?: number;
   /** When false, skip capital lock (tests / special paths). Default true. */
   requireCapital?: boolean;
 };
@@ -209,6 +212,7 @@ export class ExportStagingModule {
       if (input.durationDays !== undefined) existing.durationDays = input.durationDays;
       if (input.maintenanceCost !== undefined) existing.maintenanceCost = input.maintenanceCost;
       if (input.taxPerUnit !== undefined) existing.taxPerUnit = input.taxPerUnit;
+      if (input.seaPortBurgId !== undefined) existing.seaPortBurgId = input.seaPortBurgId;
       setExportStagingLots(lots);
       return existing;
     }
@@ -231,6 +235,7 @@ export class ExportStagingModule {
       saleUnitPrice: priced ? input.saleUnitPrice : undefined,
       paymentTerms,
       escrowAmount: escrow > 0 ? escrow : undefined,
+      seaPortBurgId: input.seaPortBurgId,
       freshnessAgeDays: (() => {
         const good = getGoods().find(candidate => candidate.i === input.goodId);
         return good && isFreshFoodGood(good) ? 0 : undefined;
@@ -311,12 +316,15 @@ export class ExportStagingModule {
   /**
    * With `fmg-long-distance-trade` on, a lot that has waited longer than any sailing wait plus
    * its trip without loading is cancelled: the goods go back to retail and its capital is freed
-   * (docs/plan/long-distance-merchant-reach-capital.md §5.3). Returns the lots cancelled.
+   * (docs/plan/long-distance-merchant-reach-capital.md §5.3). Sea cargo does not count the days
+   * its port is laid up or iced in, as cargo waiting in port does not
+   * (port-freight-queue-and-warehouses.md §10.27). Returns the lots cancelled.
    */
   cancelStaleLots(deltaDays: number): number {
     if (!(deltaDays > 0) || !isLongDistanceTradeEnabled()) return 0;
     const stale: ExportStagingLot[] = [];
     for (const lot of getExportStagingLots()) {
+      if (isSeaClosed(lot.seaPortBurgId)) continue;
       lot.waitedDays = (lot.waitedDays ?? 0) + deltaDays;
       if (lot.waitedDays > getStaleLotDays(lot)) stale.push(lot);
     }

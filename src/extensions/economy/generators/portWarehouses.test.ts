@@ -1,10 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { simulationContext } from "../../../context/simulationContext";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
-import { clearEconomyContext, getPortWarehouses, initEconomyContext } from "../economyContext";
+import { clearEconomyContext, getPortWarehouses, initEconomyContext, setCaravans } from "../economyContext";
 import type { Caravan } from "./marketTypes";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
 import {
+  accruePortStorage,
   beginPortProductionCycle,
   clearPortWarehouseCache,
   collectSeaDemandSlots,
@@ -95,6 +97,33 @@ describe("port warehouses", () => {
     expect(collectSeaDemandSlots().get(1)).toBeGreaterThan(50);
     expect(collectSeaDemandSlots().get(1)).toBeLessThanOrEqual(60);
     expect(collectSeaDemandSlots().get(2)).toBeUndefined();
+  });
+
+  it("spoils staple food left outside the port's warehouses half as fast again (§4.4)", () => {
+    simulationContext.worldSettings = { "fmg-long-distance-trade": "on" };
+    try {
+      worldContext.pack.goods = [{ i: 1, name: "Grain", tags: ["food", "stapleFood"] }] as never;
+      const spoiledAfterAMonth = (capacitySlots: number): number => {
+        const caravan = {
+          ...seaCaravan(1000),
+          state: "loading",
+          loading: { waitedDays: 0 },
+          portTransfer: { seaSegmentIndex: 0, atKm: 0, portBurgId: 1, atPort: true }
+        } as unknown as Caravan;
+        setCaravans([caravan]);
+        worldContext.pack.portWarehouses = [{ burgId: 1, capacitySlots }] as never;
+        for (let day = 0; day < 30; day++) accruePortStorage(1);
+        return caravan.loading?.portSpoiledUnits?.[1] ?? 0;
+      };
+      const inside = spoiledAfterAMonth(5000);
+      const outside = spoiledAfterAMonth(0);
+      // About 1.5% a quarter in a temperate granary.
+      expect(inside).toBeGreaterThan(3);
+      expect(inside).toBeLessThan(10);
+      expect(outside / inside).toBeCloseTo(1.5, 1);
+    } finally {
+      delete simulationContext.worldSettings;
+    }
   });
 
   it("chooses the historical layout by size and standing", () => {

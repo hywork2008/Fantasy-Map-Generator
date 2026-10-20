@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { simulationContext } from "../../../context/simulationContext";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI } from "../../hostTypes";
@@ -11,6 +11,9 @@ import {
 } from "../economyContext";
 import { ExportStaging } from "./exportStaging";
 import type { Market } from "./marketTypes";
+
+/** Port burg 9 is laid up for the winter. */
+vi.mock("./seaSeason", () => ({ isSeaClosed: (portBurgId?: number) => portBurgId === 9 }));
 
 const HEAD_GOOD = {
   i: 5,
@@ -273,6 +276,26 @@ describe("ExportStaging warehouse", () => {
       expect(ExportStaging.cancelStaleLots(400)).toBe(1);
       expect(getExportStagingLots()).toHaveLength(0);
       expect(getMarketById(1)!.goods[0].stock).toBeCloseTo(50);
+    } finally {
+      delete simulationContext.worldSettings;
+    }
+  });
+
+  it("does not count the days a sea lot's port is laid up (§10.27)", () => {
+    simulationContext.worldSettings = { "fmg-long-distance-trade": "on" };
+    try {
+      const lot = ExportStaging.bookFromRetail({
+        marketId: 1,
+        destinationMarketId: 2,
+        goodId: 0,
+        units: 10,
+        unitCost: 10,
+        durationDays: 20,
+        seaPortBurgId: 9,
+        requireCapital: false
+      });
+      expect(ExportStaging.cancelStaleLots(400)).toBe(0);
+      expect(lot?.waitedDays ?? 0).toBe(0);
     } finally {
       delete simulationContext.worldSettings;
     }

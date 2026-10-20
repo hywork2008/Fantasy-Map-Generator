@@ -527,8 +527,58 @@ function holdsThinInPort(caravan: Caravan): boolean {
  */
 const STALE_SALE_DISCOUNT = 0.7;
 
+/**
+ * Staple food that spoiled waiting in port comes off the cargo when it sails or is sold; the house
+ * bears its cost and the importer's escrow for it is released (§4.4).
+ */
+function takePortSpoilage(caravan: Caravan): void {
+  const spoiled = caravan.loading?.portSpoiledUnits;
+  if (!spoiled || !caravan.loading) return;
+  caravan.loading.portSpoiledUnits = undefined;
+  let changed = false;
+  for (const [key, lostUnits] of Object.entries(spoiled)) {
+    const goodId = Number(key);
+    const items = caravan.payload.filter(item => item.goodId === goodId && !item.isFoodCoLoad);
+    const total = items.reduce((sum, item) => sum + item.units, 0);
+    if (!(total > UNIT_EPSILON) || !(lostUnits > UNIT_EPSILON)) continue;
+    const share = Math.min(1, lostUnits / total);
+    for (const item of items) {
+      const lost = rn(item.units * share, 2);
+      if (!(lost > UNIT_EPSILON)) continue;
+      const itemShare = lost / item.units;
+      const locked = rn((item.lockedCapital ?? 0) * itemShare, 2);
+      const escrow = rn((item.escrowAmount ?? 0) * itemShare, 2);
+      if (caravan.sellerType === "market") MerchantTradeCapital.settleLoss(caravan.seller, locked);
+      if (caravan.buyerType === "market") MerchantTradeCapital.releaseEscrow(caravan.buyer, escrow);
+      if (item.lockedCapital !== undefined) item.lockedCapital = rn(Math.max(0, item.lockedCapital - locked), 2);
+      if (item.escrowAmount !== undefined) item.escrowAmount = rn(Math.max(0, item.escrowAmount - escrow), 2);
+      item.value = rn(item.value * (1 - itemShare), 2);
+      item.units = rn(Math.max(0, item.units - lost), 2);
+      recordGoodFlow({
+        direction: "sink",
+        category: "spoilage",
+        goodId,
+        units: lost,
+        marketId: caravan.sellerType === "market" ? caravan.seller : undefined
+      });
+      changed = true;
+    }
+  }
+  if (!changed) return;
+  caravan.payload = caravan.payload.filter(item => item.units > UNIT_EPSILON);
+  caravan.units = rn(
+    caravan.payload.reduce((sum, item) => sum + item.units, 0),
+    2
+  );
+  caravan.value = rn(
+    caravan.payload.reduce((sum, item) => sum + item.value, 0),
+    2
+  );
+}
+
 /** The rent the cargo ran up in port, paid by its house to the port's warehouse owners (§10.20). */
 function payPortStorage(caravan: Caravan, portBurgId: number | undefined): void {
+  takePortSpoilage(caravan);
   const due = caravan.loading?.portStorageDue ?? 0;
   if (caravan.loading) caravan.loading.portStorageDue = undefined;
   if (portBurgId === undefined || caravan.sellerType !== "market" || !(due > 0)) return;
