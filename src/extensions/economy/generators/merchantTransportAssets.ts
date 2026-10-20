@@ -86,7 +86,10 @@ const IDLE_LAND_ASSET_RELEASE_CYCLES = 6;
  * Vehicles of each kind a market's people lend for hire, per thousand rural people. One vehicle
  * here is a convoy of some twenty carts (§10.13). Peasants carted for hire between field work, and
  * town carters plied for any merchant: a market of a hundred and fifty thousand country people
- * could find thirty convoys of carts to hire without a merchant owning one (§10.14).
+ * could find thirty convoys of carts to hire without a merchant owning one (§10.14). Twenty beasts
+ * on hire at once per thousand: Shinano's licensed peasant carriers (chūma, 1764) kept some 27
+ * horses per thousand people, and England's farms about a hundred per thousand country people in
+ * 1871 (§10.26).
  */
 const LOCAL_CARRIERS_PER_THOUSAND_RURAL = { packTrain: 0.2, cart: 0.2, wagon: 0.1 } as const;
 export const RIVER_BARGE_CARGO_CAPACITY_SLOTS = RIVER_BARGE_TRANSPORT.cargoCapacitySlots;

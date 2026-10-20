@@ -46,7 +46,12 @@ const MIN_BUILD_STEP_SLOTS = 100;
 const IDLE_MONTHS_BEFORE_DECAY = 1200;
 /** Yearly share of unused capacity lost after that. */
 const IDLE_DECAY_PER_YEAR = 0.01;
-/** Slots a port held before the simulation began, per population point (×2 at a market center). */
+/**
+ * Slots a port held before the simulation began, per population point (×2 at a market center).
+ * Warehouses followed trade, not people, but the trade before the map began is unknown; ports with
+ * sea cargo in the simulation need some 60 a point, and a port without keeps its coastal and
+ * fishing trade's (§10.26).
+ */
 const INITIAL_SLOTS_PER_POPULATION_POINT = 40;
 
 /** Floor area per cargo slot, as the stock-based warehouse yard (fmg-economy-to-city-editor.md §5.3). */

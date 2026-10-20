@@ -132,7 +132,9 @@ const TRANSPORT_CRAFT_PEOPLE_PER_THOUSAND = 1.5;
  * Village wheelwrights and saddlers, per thousand of the market's rural people, who build for the
  * carriers when the town's are busy. Most of a village wright's work was the farmers' own carts and
  * ploughs; this is the share left for merchants' convoys (port-freight-queue-and-warehouses.md
- * §10.16). With calibration only: the town pool is in real people there.
+ * §10.16). England had one wheelwright to some 37 farm horses in 1871; at that rate the carriers'
+ * twenty beasts per thousand would keep half a wright, the town's wrights build the rest (§10.26).
+ * With calibration only: the town pool is in real people there.
  */
 const RURAL_TRANSPORT_CRAFT_PEOPLE_PER_THOUSAND = 0.3;
 
