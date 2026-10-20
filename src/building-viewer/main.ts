@@ -12,6 +12,13 @@ import { createPostMill, POST_MILL } from "../buildings/mills/postMill";
 import { createTowerMill, TOWER_MILL } from "../buildings/mills/towerMill";
 import { createWaterMill, WATER_MILL } from "../buildings/mills/waterMill";
 import { committedSvgHash, levelPlanSvg, planSvg } from "../buildings/planSvg";
+import {
+  CONTAINER_KINDS,
+  CONTAINER_STATES,
+  createMedievalContainer,
+  MEDIEVAL_CONTAINER_NOTE,
+  MEDIEVAL_CONTAINERS
+} from "../buildings/props/medievalContainers";
 import { type BuildingRecord, TRIANGLE_BUDGET } from "../buildings/record";
 import { BARGE, createBarge } from "../buildings/ships/barge";
 import { CARRACK, createCarrack } from "../buildings/ships/carrack";
@@ -981,6 +988,55 @@ wellButton.addEventListener("click", () => {
   );
 });
 wellsHeading.append(wellButton);
+
+const containersHeading = modelCategory("Storage props");
+for (const kind of CONTAINER_KINDS) {
+  for (const state of CONTAINER_STATES) {
+    const spec = MEDIEVAL_CONTAINERS[kind];
+    const button = document.createElement("button");
+    button.type = "button";
+    const stateLabel = state === "closed" && kind === "sack" ? "Tied" : label(state);
+    button.textContent = `${spec.name} · ${stateLabel}`;
+    button.addEventListener("click", () => {
+      selection++;
+      for (const item of list.querySelectorAll("button")) {
+        item.setAttribute("aria-current", item === button ? "true" : "false");
+      }
+      clearMesh();
+      floors.replaceChildren();
+      facts.replaceChildren();
+      banner.hidden = true;
+      roofTitle.textContent = "Container front elevation";
+      levelTitle.textContent = "Container top view";
+      const model = createMedievalContainer(kind, state);
+      massing = model;
+      scene.add(model.group);
+      ground.visible = true;
+      const size = Math.max(spec.width, spec.depth, spec.height);
+      ground.geometry.dispose();
+      ground.geometry = new THREE.CircleGeometry(size * 1.3, 48);
+      camera.position.set(size * 1.65, size * 1.6, size * 1.9);
+      controls.target.set(0, spec.height * 0.43, 0);
+      controls.update();
+      mountPlan(roofHost, model.elevation);
+      mountPlan(levelHost, model.plan);
+      const bounds = new THREE.Box3().setFromObject(model.group);
+      const dimensions = bounds.getSize(new THREE.Vector3());
+      facts.append(
+        fact("Model", spec.name),
+        fact("State", stateLabel),
+        fact("Study envelope", `${spec.width} × ${spec.depth} × ${spec.height} m`),
+        fact(
+          "Mesh dimensions",
+          `${dimensions.x.toFixed(3)} × ${dimensions.z.toFixed(3)} × ${dimensions.y.toFixed(3)} m`
+        ),
+        fact("Ground contact", `Base Y = ${(Math.abs(bounds.min.y) < 0.0005 ? 0 : bounds.min.y).toFixed(3)} m`),
+        fact("Note", MEDIEVAL_CONTAINER_NOTE)
+      );
+    });
+    containersHeading.append(button);
+  }
+}
 
 const yardsHeading = modelCategory("Work yards");
 const lumberYardButton = document.createElement("button");

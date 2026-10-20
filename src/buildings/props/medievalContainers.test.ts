@@ -1,0 +1,58 @@
+import * as THREE from "three";
+import { describe, expect, it, vi } from "vitest";
+import {
+  CONTAINER_KINDS,
+  CONTAINER_STATES,
+  createMedievalContainer,
+  createMedievalContainerModel,
+  MEDIEVAL_CONTAINERS
+} from "./medievalContainers";
+
+describe.each(CONTAINER_KINDS)("medieval %s", kind => {
+  it.each(CONTAINER_STATES)("grounds the %s variant within its meter envelope and produces finite drawings", state => {
+    const model = createMedievalContainer(kind, state);
+    const spec = MEDIEVAL_CONTAINERS[kind];
+    const bounds = new THREE.Box3().setFromObject(model.group);
+    const size = bounds.getSize(new THREE.Vector3());
+    expect(bounds.min.y).toBeCloseTo(0, 6);
+    expect(size.x).toBeLessThanOrEqual(spec.width);
+    expect(size.z).toBeLessThanOrEqual(spec.depth);
+    expect(size.y).toBeLessThanOrEqual(spec.height);
+    for (const mesh of model.pickables) {
+      expect(Array.from(mesh.geometry.getAttribute("position").array).every(Number.isFinite)).toBe(true);
+    }
+    expect(model.elevation).toContain("<path");
+    expect(model.plan).toContain("<path");
+    expect(model.elevation + model.plan).not.toMatch(/NaN|Infinity|undefined/);
+    model.dispose();
+  });
+
+  it("has an open empty interior and visibly closes or fills the mouth in other states", () => {
+    const height: number[] = [];
+    for (const state of CONTAINER_STATES) {
+      const model = createMedievalContainerModel(kind, state);
+      model.group.updateMatrixWorld(true);
+      const ray = new THREE.Raycaster(new THREE.Vector3(0.02, 2, 0.01), new THREE.Vector3(0, -1, 0));
+      const hits = ray.intersectObjects(model.pickables);
+      expect(hits.length).toBeGreaterThan(0);
+      height.push(hits[0].point.y);
+      model.dispose();
+    }
+    expect(height[0]).toBeLessThan(0.09);
+    expect(height[1]).toBeGreaterThan(0.5);
+    expect(height[2]).toBeGreaterThan(0.4);
+  });
+});
+
+it("releases shared geometries and materials exactly once without affecting another instance", () => {
+  const model = createMedievalContainerModel("basket", "loaded");
+  const other = createMedievalContainerModel("basket", "loaded");
+  const geometries = new Set(model.pickables.map(mesh => mesh.geometry));
+  const surfaces = new Set(model.pickables.flatMap(mesh => mesh.material));
+  const spies = [...geometries, ...surfaces].map(resource => vi.spyOn(resource, "dispose"));
+  const otherDispose = vi.spyOn(other.pickables[0].geometry, "dispose");
+  model.dispose();
+  for (const spy of spies) expect(spy).toHaveBeenCalledTimes(1);
+  expect(otherDispose).not.toHaveBeenCalled();
+  other.dispose();
+});
