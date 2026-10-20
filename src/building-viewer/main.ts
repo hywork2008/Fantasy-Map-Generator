@@ -16,6 +16,14 @@ import { CARRACK, createCarrack } from "../buildings/ships/carrack";
 import { createGalleon, GALLEON } from "../buildings/ships/galleon";
 import { createSloop, SLOOP } from "../buildings/ships/sloop";
 import { createTrebuchet, TREBUCHET } from "../buildings/siege/trebuchet";
+import {
+  createHangingSign,
+  HANGING_SIGN_TEMPLATES,
+  type HangingSignOptions,
+  SIGN_MATERIALS,
+  SIGN_SHAPES,
+  SIGN_SYMBOLS
+} from "../buildings/signs/hangingSign";
 import { validateBuildingRecord } from "../buildings/validate";
 import { createMedievalWagon, MEDIEVAL_WAGON } from "../buildings/vehicles/medievalWagon";
 import { createMedievalWell, MEDIEVAL_WELL } from "../buildings/wells/medievalWell";
@@ -869,6 +877,74 @@ wagonButton.addEventListener("click", () => {
   );
 });
 list.append(wagonButton);
+
+const signsHeading = document.createElement("h2");
+signsHeading.textContent = "Hanging shop signs";
+list.append(signsHeading);
+function showSign(options: HangingSignOptions, activeButton: HTMLButtonElement): void {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === activeButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Sign front elevation";
+  levelTitle.textContent = "Sign plan";
+  const model = createHangingSign(options);
+  massing = model;
+  scene.add(model.group);
+  camera.position.set(2.3, 0.5, 3.1);
+  controls.target.set(0.8, -0.65, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(fact("Model", "Modular hanging shop sign"));
+  function selector<T extends string>(name: string, values: readonly T[], selected: T, change: (value: T) => void) {
+    const row = document.createElement("label");
+    row.textContent = `${name}: `;
+    const select = document.createElement("select");
+    for (const value of values) {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label(value);
+      select.append(option);
+    }
+    select.value = selected;
+    select.addEventListener("change", () => change(select.value as T));
+    row.append(select);
+    const paragraph = document.createElement("p");
+    paragraph.append(row);
+    facts.append(paragraph);
+  }
+  selector("Shape", SIGN_SHAPES, options.shape ?? "rectangle", shape => showSign({ ...options, shape }, activeButton));
+  selector("Material", SIGN_MATERIALS, options.material ?? "oak", material =>
+    showSign({ ...options, material }, activeButton)
+  );
+  selector("Symbol", SIGN_SYMBOLS, options.symbol ?? "blank", symbol => showSign({ ...options, symbol }, activeButton));
+  facts.append(
+    fact(
+      "Mount",
+      "Wall plate at origin; +X projects from the facade. Meter units. Rotate around Y to align with the wall."
+    ),
+    fact("Construction", "Braced metal arm, two chains, metal rim and two-sided raised pictogram"),
+    fact(
+      "Note",
+      "Imagined reusable templates. Building attributes and automatic placement are not assigned by this preview."
+    )
+  );
+}
+for (const template of [
+  { id: "blank", shape: "rectangle", material: "oak", symbol: "blank" },
+  ...HANGING_SIGN_TEMPLATES
+] as const) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = `${label(template.id)} · Hanging sign`;
+  button.addEventListener("click", () => showSign(template, button));
+  list.append(button);
+}
 
 resize();
 new ResizeObserver(resize).observe(stage);
