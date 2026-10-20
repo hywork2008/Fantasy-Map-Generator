@@ -25,14 +25,22 @@ export function getServiceEmploymentDemand(basicEmploymentDemand: number): numbe
   return Math.max(0, basicEmploymentDemand) * SERVICE_EMPLOYMENT_MULTIPLIER;
 }
 
+/**
+ * `exportEmployment` is the part of `basicEmploymentDemand` that earns from outside the town
+ * (administration, extraction, the shipbuilding supply occupations), the only part the service
+ * multiplier applies to. Workshops for the town, builders and traders are themselves the non-basic
+ * trades this multiplier stands for; multiplying them too counted the towns' service work at
+ * two to three times their adults (docs/plan/child-labour-history.md §6.3).
+ */
 export function buildBasicEmploymentSummary(
   burgId: number,
-  basicEmploymentDemand: number
+  basicEmploymentDemand: number,
+  exportEmployment = basicEmploymentDemand
 ): BasicEmploymentSummaryRecord {
   const clamped = Math.max(0, basicEmploymentDemand);
   return {
     burgId,
     basicEmploymentDemand: clamped,
-    serviceEmploymentDemand: getServiceEmploymentDemand(clamped)
+    serviceEmploymentDemand: getServiceEmploymentDemand(Math.min(clamped, exportEmployment))
   };
 }

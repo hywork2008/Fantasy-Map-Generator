@@ -18,7 +18,7 @@ import {
   resolveBurgCultureType
 } from "./constructionEmployment";
 import type { ConstructionOperation } from "./constructionEmploymentTypes";
-import { pointsToPeople } from "./craftScale";
+import { peopleToPoints, pointsToPeople } from "./craftScale";
 
 /**
  * Construction job postings vs anonymous macro hiring
@@ -127,6 +127,32 @@ export function getConstructionMacroRequiredWorkers(
   return {
     mason: rn(full.mason * scale, 2),
     carpenter: rn(full.carpenter * scale, 2)
+  };
+}
+
+/**
+ * The macro target in population points, the unit of `masonWorkers`/`carpenterWorkers`. Under
+ * calibration the demand is real people, as the hire board and the labor-factor gate already read
+ * it: the points formula's one-point floor asked a thousand builders of every hamlet, a third to
+ * a half of the towns' adults against 22 a thousand people (docs/plan/child-labour-history.md
+ * §6.3). Used by `reconcileAnnualBasicEmploymentWorkers` only.
+ */
+export function getConstructionMacroRequiredPoints(
+  operation: Pick<ConstructionOperation, "buildingStock" | "hasQuarryAccess" | "dwellingStock"> & {
+    requiredDwellings?: number;
+  },
+  adults: number,
+  populationRate: number,
+  masonShareContext?: MasonShareContext
+): { mason: number; carpenter: number } {
+  if (!getEconomyCalibrationState().applyCalibration) {
+    return getConstructionMacroRequiredWorkers(operation, adults, masonShareContext);
+  }
+  const full = getConstructionRequiredPeople(operation, adults, populationRate, masonShareContext);
+  const scale = 1 - CONSTRUCTION_RESERVED_FOR_HIRE;
+  return {
+    mason: peopleToPoints(full.mason * scale, populationRate),
+    carpenter: peopleToPoints(full.carpenter * scale, populationRate)
   };
 }
 

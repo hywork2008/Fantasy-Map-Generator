@@ -22,7 +22,7 @@ import {
   normalizeConstructionOperation,
   resolveBurgCultureType
 } from "./constructionEmployment";
-import { getConstructionMacroRequiredWorkers } from "./constructionJobPostings";
+import { getConstructionMacroRequiredPoints } from "./constructionJobPostings";
 import { peopleToPoints } from "./craftScale";
 import { getMineEmploymentPeople, getMineHiringShare, getMineRequiredWorkers } from "./mineOperations";
 import { getQuarryRequiredWorkers } from "./quarryOperations";
@@ -192,7 +192,7 @@ export function reconcileAnnualBasicEmploymentWorkers(options?: { initial?: bool
     const requiredDwellings = getRequiredDwellings(burg.population ?? 0, populationRate);
     // Macro target only — reserve a share of full demand for hire-board openings
     // so anonymous reconcile does not wipe seats a player could apply for.
-    const required = getConstructionMacroRequiredWorkers({ ...operation, requiredDwellings }, adults, {
+    const required = getConstructionMacroRequiredPoints({ ...operation, requiredDwellings }, adults, populationRate, {
       cultureType: resolveBurgCultureType(burg),
       highFantasy,
       brickAvailable
@@ -241,16 +241,32 @@ export function reconcileAnnualBasicEmploymentWorkers(options?: { initial?: bool
     ...strategicIndustryWorkersByBurg.keys(),
     ...craftWorkersByBurg.keys()
   ]);
+  const constructionWorkersByBurg = new Map<number, number>();
+  for (const construction of getConstructionOperations()) {
+    if (!construction.active || !construction.burgId) continue;
+    const workers = (construction.masonWorkers ?? 0) + (construction.carpenterWorkers ?? 0);
+    constructionWorkersByBurg.set(
+      construction.burgId,
+      (constructionWorkersByBurg.get(construction.burgId) ?? 0) + workers
+    );
+  }
+
   const summaryRecords: BasicEmploymentSummaryRecord[] = [];
   for (const burgId of summaryBurgIds) {
     if (!burgs[burgId]) continue;
+    // Administration, extraction and the shipbuilding supply occupations earn from outside the
+    // town; its builders, workshops and traders serve it (serviceEmployment.ts).
+    const exportEmployment =
+      Math.max(0, (localWorkersByBurg.get(burgId) ?? 0) - (constructionWorkersByBurg.get(burgId) ?? 0)) +
+      (marketWorkersByBurg.get(burgId) ?? 0) +
+      (strategicIndustryWorkersByBurg.get(burgId) ?? 0);
     const basicEmploymentDemand =
       (localWorkersByBurg.get(burgId) ?? 0) +
       (marketWorkersByBurg.get(burgId) ?? 0) +
       (tradeWorkersByBurg.get(burgId) ?? 0) +
       (strategicIndustryWorkersByBurg.get(burgId) ?? 0) +
       (craftWorkersByBurg.get(burgId) ?? 0);
-    summaryRecords.push(buildBasicEmploymentSummary(burgId, basicEmploymentDemand));
+    summaryRecords.push(buildBasicEmploymentSummary(burgId, basicEmploymentDemand, exportEmployment));
   }
 
   setAdministrationEmployment(administrationRecords);

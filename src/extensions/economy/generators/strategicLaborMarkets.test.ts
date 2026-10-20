@@ -44,8 +44,24 @@ describe("strategic labor markets", () => {
     expect(laborMarket.marketId).toBe(1);
     expect(
       Object.values(laborMarket.workersByOccupation).reduce((sum, workers) => sum + (workers ?? 0), 0)
-    ).toBeCloseTo(30);
+    ).toBeCloseTo(10);
     expect(laborMarket.skillByOccupation.sailmaking).toBeCloseTo(0.99);
+  });
+
+  it("scales a cohort saved at another share to the market's workforce, keeping each occupation's share", () => {
+    const [initial] = reconcile([]);
+    const saved: LaborMarket = {
+      ...initial,
+      workersByOccupation: { trade: 18, forestry: 3, sailmaking: 3, ropeMaking: 3, tarBurning: 3 },
+      capacityByOccupation: { trade: 27, forestry: 3, sailmaking: 3, ropeMaking: 3, tarBurning: 3 }
+    };
+    const [scaled] = reconcile([], [saved]);
+    const total = Object.values(scaled.workersByOccupation).reduce((sum, workers) => sum + (workers ?? 0), 0);
+
+    expect(total).toBeCloseTo(10);
+    // Trade gives a bounded share back to the others each cycle; its capacity per worker stays.
+    expect(scaled.workersByOccupation.trade).toBeGreaterThan(5);
+    expect((scaled.capacityByOccupation.trade ?? 0) / (scaled.workersByOccupation.trade ?? 1)).toBeGreaterThan(1.3);
   });
 
   it("moves only a bounded share of workers toward an enduring strategic order", () => {
@@ -54,7 +70,7 @@ describe("strategic labor markets", () => {
     const moved = (updated.workersByOccupation.sailmaking ?? 0) - (initial.workersByOccupation.sailmaking ?? 0);
 
     expect(moved).toBeGreaterThan(0);
-    expect(moved).toBeLessThanOrEqual(1.5);
+    expect(moved).toBeLessThanOrEqual(0.5);
     expect(updated.wageByOccupation.sailmaking).toBeGreaterThan(updated.wageByOccupation.forestry ?? 0);
   });
 
@@ -99,7 +115,7 @@ describe("strategic labor markets", () => {
       const [laborMarket] = reconcileWithVolume(0);
 
       // No demand anywhere -> all five occupations split the workforce evenly.
-      expect(laborMarket.workersByOccupation.trade).toBeCloseTo(6);
+      expect(laborMarket.workersByOccupation.trade).toBeCloseTo(2);
       expect(laborMarket.wageByOccupation.trade).toBeCloseTo(1);
     });
 

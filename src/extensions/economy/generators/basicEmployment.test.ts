@@ -372,7 +372,8 @@ describe("reconcileAnnualBasicEmploymentWorkers", () => {
     // (not reallocated) so it does not draw on the Burg's own adult pool here.
     const [summary] = getBasicEmploymentSummary();
     expect(summary).toMatchObject({ burgId: 1, basicEmploymentDemand: 12 });
-    expect(summary.serviceEmploymentDemand).toBeCloseTo(12 * 1.5, 5);
+    // Traders serve the town: no service multiplier on them (docs/plan/child-labour-history.md §6.3).
+    expect(summary.serviceEmploymentDemand).toBe(0);
   });
 
   it("sums the non-trade strategic occupations (forestry/sailmaking/ropeMaking/tarBurning) into the center Burg's basicEmploymentDemand", () => {
@@ -394,6 +395,8 @@ describe("reconcileAnnualBasicEmploymentWorkers", () => {
     // both are read (not reallocated), so basicEmploymentDemand = 9 + 8 = 17.
     const [summary] = getBasicEmploymentSummary();
     expect(summary).toMatchObject({ burgId: 1, basicEmploymentDemand: 17 });
+    // Only the shipbuilding supply occupations earn from outside the town: 8 × 1.5.
+    expect(summary.serviceEmploymentDemand).toBeCloseTo(8 * 1.5, 5);
   });
 
   it("attributes a Burg's craft employment record without an admin/mine/smelter slot", () => {
@@ -405,7 +408,8 @@ describe("reconcileAnnualBasicEmploymentWorkers", () => {
     // Craft is read (not reallocated), like trade — it does not draw on the Burg's own adult pool.
     const [summary] = getBasicEmploymentSummary();
     expect(summary).toMatchObject({ burgId: 1, basicEmploymentDemand: 7 });
-    expect(summary.serviceEmploymentDemand).toBeCloseTo(7 * 1.5, 5);
+    // Workshops for the town are service work themselves (docs/plan/child-labour-history.md §6.3).
+    expect(summary.serviceEmploymentDemand).toBe(0);
   });
 
   it("sums craft employment alongside admin/mine/smelter/trade into the same Burg's basicEmploymentDemand", () => {

@@ -25,7 +25,13 @@ const OCCUPATION_BY_GOOD_NAME: Readonly<Record<string, StrategicOccupation>> = {
   Ropes: "ropeMaking",
   Tar: "tarBurning"
 };
-const WORKFORCE_SHARE = 0.3;
+/**
+ * Share of a market's people in trade and the shipbuilding supply occupations. Trade is 40-120 a
+ * thousand urban people, typically 80 (occupationalCalibration.ts), and forestry, sail lofts,
+ * ropewalks and tar burning a few more; 0.3 gave them three quarters of the towns' adults
+ * (docs/plan/child-labour-history.md §6.3).
+ */
+const WORKFORCE_SHARE = 0.1;
 const MAX_TRANSFER_SHARE_PER_CYCLE = 0.05;
 const MIN_SKILL = 0.75;
 const MAX_SKILL = 1.5;
@@ -148,6 +154,20 @@ function createLaborMarket(marketId: number, workforce: number, prior: LaborMark
     laborMarket.wageByOccupation[occupation] ??= 1;
     laborMarket.skillByOccupation[occupation] ??= 1;
     laborMarket.capacityByOccupation[occupation] ??= laborMarket.workersByOccupation[occupation];
+  }
+  // Moving workers between occupations keeps their total, so the cohort follows the market's
+  // people (and a save made at the old share) by scaling, which keeps each occupation's share and
+  // capacity per worker.
+  const total = STRATEGIC_OCCUPATIONS.reduce(
+    (sum, occupation) => sum + (laborMarket.workersByOccupation[occupation] ?? 0),
+    0
+  );
+  if (total > 0 && workforce > 0 && Math.abs(total - workforce) > 1e-9) {
+    const scale = workforce / total;
+    for (const occupation of STRATEGIC_OCCUPATIONS) {
+      laborMarket.workersByOccupation[occupation] = (laborMarket.workersByOccupation[occupation] ?? 0) * scale;
+      laborMarket.capacityByOccupation[occupation] = (laborMarket.capacityByOccupation[occupation] ?? 0) * scale;
+    }
   }
   return laborMarket;
 }
