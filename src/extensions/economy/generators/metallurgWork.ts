@@ -675,9 +675,31 @@ export class MetallurgWorkModule {
       demandByGood.set(goodId, { goodId, outstandingUnits: units, priorityCycles, stateFunded });
     };
 
-    for (const order of getMetallurgWorkOrders()) {
-      if (order.destinationMarketId !== marketId || order.status === "completed") continue;
-      const outstandingUnits = Math.max(0, order.requestedUnits - order.completedUnits);
+    const market = getMarkets().find(candidate => candidate.i === marketId);
+    const openOrders = getMetallurgWorkOrders().filter(
+      order =>
+        order.destinationMarketId === marketId &&
+        order.status !== "completed" &&
+        order.requestedUnits - order.completedUnits > 0.001
+    );
+    // Finished goods already in the market fill the orders after production (fulfillFromMarkets),
+    // so only the rest is made. The gross backlog let a month's small maintenance order put the
+    // supply market's strategic stage to work every month, heaping up unsold Arms
+    // (port-freight-queue-and-warehouses.md §10.31).
+    const grossByProduct = new Map<number, number>();
+    for (const order of openOrders) {
+      const outstandingUnits = order.requestedUnits - order.completedUnits;
+      grossByProduct.set(order.productGoodId, (grossByProduct.get(order.productGoodId) ?? 0) + outstandingUnits);
+    }
+    const unmetShare = new Map<number, number>();
+    for (const [goodId, gross] of grossByProduct) {
+      const inStock = Math.max(0, market?.goods[goodId]?.stock ?? 0);
+      unmetShare.set(goodId, Math.max(0, gross - inStock) / gross);
+    }
+
+    for (const order of openOrders) {
+      const outstandingUnits =
+        (order.requestedUnits - order.completedUnits) * (unmetShare.get(order.productGoodId) ?? 1);
       if (outstandingUnits <= 0.001) continue;
       const priorityCycles = order.kind === "maintenance" || order.ownerKind === "state" ? 2 : 1;
 
@@ -702,7 +724,6 @@ export class MetallurgWorkModule {
     }
     // Materials already in the market are not made again. An order stalled on its Iron Ingot kept
     // asking for its whole Charcoal every month, and the colliers heaped it up unsold.
-    const market = getMarkets().find(candidate => candidate.i === marketId);
     for (const [goodId, need] of materialNeeds) {
       const inStock = Math.max(0, market?.goods[goodId]?.stock ?? 0);
       addDemand(goodId, need.units - inStock, need.priorityCycles, need.stateFunded);

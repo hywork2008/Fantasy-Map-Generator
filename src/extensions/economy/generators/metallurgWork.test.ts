@@ -483,6 +483,34 @@ describe("MetallurgWorkModule", () => {
     ).toBe(0);
   });
 
+  it("asks production only for the finished goods the market's stock does not already cover", () => {
+    MetallurgWork.generate();
+    MetallurgWork.settleMonthly();
+    const armsOutstanding = getMetallurgWorkOrders()
+      .filter(order => order.productGoodId === 4)
+      .reduce((total, order) => total + order.requestedUnits - order.completedUnits, 0);
+    expect(MetallurgWork.getProductionDemandByGood(1).get(4)?.outstandingUnits).toBeCloseTo(armsOutstanding, 4);
+
+    getMarkets()[0].goods[4] = { stock: armsOutstanding / 2, price: 24 };
+    expect(MetallurgWork.getProductionDemandByGood(1).get(4)?.outstandingUnits).toBeCloseTo(armsOutstanding / 2, 4);
+
+    getMarkets()[0].goods[4] = { stock: armsOutstanding * 10, price: 24 };
+    const demand = MetallurgWork.getProductionDemandByGood(1);
+    expect(demand.has(4)).toBe(false);
+    // Arms' own Leather is no longer asked for; only Harnesses' share of it remains.
+    const leatherForHarnesses = getMetallurgWorkOrders()
+      .filter(order => order.productGoodId === 5)
+      .flatMap(order =>
+        order.materials.filter(material => material.goodId === 3).map(material => ({ order, material }))
+      )
+      .reduce(
+        (total, { order, material }) =>
+          total + material.units * ((order.requestedUnits - order.completedUnits) / order.requestedUnits),
+        0
+      );
+    expect(demand.get(3)?.outstandingUnits ?? 0).toBeCloseTo(Math.max(0, leatherForHarnesses - 0.01), 4);
+  });
+
   it("aligns State orders with the military supply market and accepts finished Goods from another State market", () => {
     worldContext.options.initialFirearmsUnstocked = true;
     worldContext.pack.burgs.push({

@@ -15,7 +15,6 @@ import {
   getDeals,
   getGoodCellColumn,
   getGoods,
-  getMarketById,
   getMarkets,
   getOrCreateCumulativeGoodsSales,
   getOrCreateMarketGoodProductionTotals,
@@ -722,12 +721,10 @@ export class ProductionModule {
     const transportMaterialDemand = TransportAssetOrders.getMaterialDemandByGood(marketId);
     // So are the State's own orders for the goods the military ledger counts (Arms, Arrows,
     // Harnesses, Bullets): the authored floor of a town's workshops fell far short of a large
-    // army's (port-freight-queue-and-warehouses.md §10.18, §10.22). Goods already in the market
-    // are not made again, so the burgs of one market do not each make the whole order.
+    // army's (port-freight-queue-and-warehouses.md §10.18, §10.22). The demand is net of the goods
+    // already in the market, so the burgs of one market do not each make the whole order.
     const militaryDemand = MetallurgWork.getProductionDemandByGood(marketId);
-    const market = getMarketById(marketId);
-    const militaryOrder = (goodId: number): number =>
-      Math.max(0, (militaryDemand.get(goodId)?.outstandingUnits ?? 0) - Math.max(0, market?.goods[goodId]?.stock ?? 0));
+    const militaryOrder = (goodId: number): number => militaryDemand.get(goodId)?.outstandingUnits ?? 0;
     const populationRate = Math.max(0, this.worldContext.populationRate ?? 0) || 1;
     const laborPeopleBurg = laborPeople(population, populationRate);
     const port = Boolean(burg.port);
@@ -749,7 +746,7 @@ export class ProductionModule {
    * Public Metallurg orders and import procurement share one production-priority seam. Generic
    * production remains the sole owner of worker allocation, recipes, and material purchasing.
    */
-  private getCombinedStrategicDemand(marketId: number): ReadonlyMap<number, StrategicProductionDemand> {
+  private getCombinedStrategicDemand(marketId: number): Map<number, StrategicProductionDemand> {
     const combined = new Map(getStrategicProductionDemandByGood(getStrategicProcurementOrders(), marketId));
     for (const demand of MetallurgWork.getProductionDemandByGood(marketId).values()) {
       const existing = combined.get(demand.goodId);
@@ -922,9 +919,13 @@ export class ProductionModule {
             strategicWorkCap - strategicWorkUsed
           );
           let shareUsed = 0;
+          // The reserve makes the backlog, not the good's whole calibrated month: a supply market
+          // whose orders were all but met made its full Arms floor here every month and heaped it up
+          // (port-freight-queue-and-warehouses.md §10.31). Phase 2 may still make more for profit.
+          let madeLots = 0;
           state.activeGoalGoodId = null;
 
-          for (; step < maxSteps && shareUsed < share - 1e-9; step++) {
+          for (; step < maxSteps && shareUsed < share - 1e-9 && madeLots < demand.outstandingUnits - 1e-9; step++) {
             const workersLeft = Math.min(state.workforce - workersUsed, share - shareUsed);
             const workerFraction = Math.min(1, workersLeft);
             if (workerFraction <= 1e-9) break;
@@ -959,6 +960,7 @@ export class ProductionModule {
             workersUsed += spent;
             strategicWorkUsed += spent;
             shareUsed += spent;
+            if (decision.action.good.i === good.i) madeLots += yieldLots;
 
             const domain = getCraftDomainForGood(decision.action.good.name);
             if (domain) byDomain.set(domain, (byDomain.get(domain) ?? 0) + spent);
@@ -969,6 +971,7 @@ export class ProductionModule {
               break;
             }
           }
+          if (madeLots >= demand.outstandingUnits - 1e-9) state.strategicDemandByGood.delete(good.i);
         }
       }
     }
@@ -2024,7 +2027,8 @@ type BurgProductionState = {
   activeGoalGoodId: number | null;
   /** Resolved once per Burg so production candidate ranking does not repeatedly scan characters. */
   smithingProgramByGood: ReadonlyMap<string, SmithingProductProgram>;
-  strategicDemandByGood: ReadonlyMap<number, StrategicProductionDemand>;
+  /** Phase 1b drops a good once this cycle's work has covered its backlog. */
+  strategicDemandByGood: Map<number, StrategicProductionDemand>;
   strategicLaborMarket: LaborMarket | undefined;
   /**
    * This cycle's remaining calibrated monthly lot target, by goodId, for every good with a
