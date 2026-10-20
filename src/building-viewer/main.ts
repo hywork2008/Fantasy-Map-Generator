@@ -17,6 +17,7 @@ import { BARGE, createBarge } from "../buildings/ships/barge";
 import { CARRACK, createCarrack } from "../buildings/ships/carrack";
 import { createGalleon, GALLEON } from "../buildings/ships/galleon";
 import { createSloop, SLOOP } from "../buildings/ships/sloop";
+import { BATTERING_RAM, createBatteringRam } from "../buildings/siege/batteringRam";
 import { createTrebuchet, TREBUCHET } from "../buildings/siege/trebuchet";
 import {
   createHangingSign,
@@ -739,6 +740,41 @@ trebuchetButton.addEventListener("click", () => {
   );
 });
 list.append(trebuchetButton);
+
+const ramButton = document.createElement("button");
+ramButton.type = "button";
+ramButton.textContent = "Battering ram · Medieval European covered ram";
+ramButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === ramButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Battering ram side elevation";
+  levelTitle.textContent = "Battering ram plan";
+  const model = createBatteringRam();
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: BATTERING_RAM.length, depth: BATTERING_RAM.width } }, BATTERING_RAM.height);
+  camera.position.set(8, 5, 9);
+  controls.target.set(0.3, 1.65, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", BATTERING_RAM.name),
+    fact("Style", "Medieval Europe · Covered siege ram"),
+    fact("Study envelope", `${BATTERING_RAM.length} × ${BATTERING_RAM.width} × ${BATTERING_RAM.height} m`),
+    fact("Ram", "Suspended oak log, rope cradles, iron bindings, blunt iron head and crew hand grips"),
+    fact("Protection", "Hide-covered timber roof, braced open frame and four iron-bound wooden wheels"),
+    fact("Note", BATTERING_RAM.note)
+  );
+});
+list.append(ramButton);
 
 const millsHeading = document.createElement("h2");
 millsHeading.textContent = "Mills";
