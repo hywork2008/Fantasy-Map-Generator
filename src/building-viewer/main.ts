@@ -11,6 +11,7 @@ import { createTowerMill, TOWER_MILL } from "../buildings/mills/towerMill";
 import { createWaterMill, WATER_MILL } from "../buildings/mills/waterMill";
 import { committedSvgHash, levelPlanSvg, planSvg } from "../buildings/planSvg";
 import { type BuildingRecord, TRIANGLE_BUDGET } from "../buildings/record";
+import { BARGE, createBarge } from "../buildings/ships/barge";
 import { CARRACK, createCarrack } from "../buildings/ships/carrack";
 import { createGalleon, GALLEON } from "../buildings/ships/galleon";
 import { createSloop, SLOOP } from "../buildings/ships/sloop";
@@ -607,6 +608,44 @@ sloopButton.addEventListener("click", () => {
   );
 });
 list.append(sloopButton);
+
+const bargeButton = document.createElement("button");
+bargeButton.type = "button";
+bargeButton.textContent = "Barge · River cargo carrier";
+bargeButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === bargeButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Ship elevation";
+  levelTitle.textContent = "Deck plan";
+  const model = createBarge();
+  massing = model;
+  scene.add(model.group);
+  frame({ occupancyMeters: { width: BARGE.length, depth: BARGE.beam } }, BARGE.height);
+  camera.position.set(23, 17, 26);
+  controls.target.set(0, 0.8, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", BARGE.name),
+    fact("Period", "Pre-industrial · imagined river carrier"),
+    fact(
+      "Dimensions",
+      `${BARGE.length} m overall length × ${BARGE.beam} m beam; ${BARGE.height} m above water; ${BARGE.draft} m draft`
+    ),
+    fact("Propulsion", "Towing or poling; unpowered"),
+    fact("Hull", "Flat bottom, rising ends and shallow draft"),
+    fact("Cargo", "Stacked crates, barrels and bundled timber"),
+    fact("Note", BARGE.note)
+  );
+});
+list.append(bargeButton);
 
 const siegeHeading = document.createElement("h2");
 siegeHeading.textContent = "Siege engines";
