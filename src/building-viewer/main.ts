@@ -17,6 +17,7 @@ import { createGalleon, GALLEON } from "../buildings/ships/galleon";
 import { createSloop, SLOOP } from "../buildings/ships/sloop";
 import { createTrebuchet, TREBUCHET } from "../buildings/siege/trebuchet";
 import { validateBuildingRecord } from "../buildings/validate";
+import { createMedievalWagon, MEDIEVAL_WAGON } from "../buildings/vehicles/medievalWagon";
 import { createMedievalWell, MEDIEVAL_WELL } from "../buildings/wells/medievalWell";
 import { catalogueMassing } from "../city3d/core/catalogueMassing";
 import { structureSurfaces } from "../city3d/core/structureGeometry";
@@ -830,6 +831,44 @@ wellButton.addEventListener("click", () => {
   );
 });
 list.append(wellButton);
+
+const vehiclesHeading = document.createElement("h2");
+vehiclesHeading.textContent = "Vehicles";
+list.append(vehiclesHeading);
+const wagonButton = document.createElement("button");
+wagonButton.type = "button";
+wagonButton.textContent = "Medieval European wagon · Four-wheeled freight wagon";
+wagonButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === wagonButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Wagon side elevation";
+  levelTitle.textContent = "Wagon plan";
+  const model = createMedievalWagon();
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: MEDIEVAL_WAGON.length, depth: MEDIEVAL_WAGON.width } }, MEDIEVAL_WAGON.height);
+  camera.position.set(7, 5, 8);
+  controls.target.set(0.7, 1, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", MEDIEVAL_WAGON.name),
+    fact("Style", "Medieval Europe · Open timber freight wagon"),
+    fact("Study envelope", `${MEDIEVAL_WAGON.length} × ${MEDIEVAL_WAGON.width} × ${MEDIEVAL_WAGON.height} m`),
+    fact("Running gear", "Four wooden spoked wheels with iron tires; smaller front wheels and a pivoted front axle"),
+    fact("Body", "Empty plank bed, iron straps, driver's bench and twin draft shafts; no animals"),
+    fact("Note", MEDIEVAL_WAGON.note)
+  );
+});
+list.append(wagonButton);
 
 resize();
 new ResizeObserver(resize).observe(stage);
