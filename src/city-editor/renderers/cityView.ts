@@ -11,6 +11,7 @@ import {
   type TownWaterMeshes,
   waterStampChanged
 } from "../../city3d/three/waterMeshes";
+import { createTownWells } from "../../city3d/three/wellMeshes";
 import type { EditorMessageKey } from "../../i18n/editorMessages";
 import { editorText } from "../../i18n/editorMessages";
 import { buildBlockFabric, type DistrictFabric } from "../generators/blockInfill";
@@ -25,6 +26,7 @@ import type { StructureKind, StructureMassing, StructureMaterial } from "../type
 import type { CityDocument } from "../types/document";
 import { collectCityStructures, landmarkLotStructures } from "./structureMassing";
 import { groundStructures, lotFoundations } from "./terrainMassing";
+import { collectWellSites } from "./wellSites";
 
 const WALL_KEY: Record<WallMaterial, EditorMessageKey> = {
   "timber-frame": "cityEditor.messages.massingTimberFrame",
@@ -109,6 +111,7 @@ export function mountCity3d(options: {
   let controls: OrbitControls | null = null;
   let massing: CityMassingMeshes | null = null;
   let structures: CityStructureMeshes | null = null;
+  let wells: CityStructureMeshes | null = null;
   let waterMeshes: TownWaterMeshes | null = null;
   let roadMeshes: TownRoadMeshes | null = null;
   let ground: THREE.Mesh | null = null;
@@ -226,6 +229,8 @@ export function mountCity3d(options: {
     if (massing) scene.remove(massing.group);
     structures?.dispose();
     if (structures) scene.remove(structures.group);
+    wells?.dispose();
+    if (wells) scene.remove(wells.group);
     massing = createCityMassing(fabric.buildings, terrain?.relief ? terrain.foundationAt : undefined);
     scene.add(massing.group);
     const parts = [...collectCityStructures(city), ...landmarkLotStructures(fabric.buildings)];
@@ -234,6 +239,8 @@ export function mountCity3d(options: {
       : parts;
     structures = createStructureMassing(structureList);
     scene.add(structures.group);
+    wells = createTownWells(collectWellSites(city, fabric), terrain?.heightAt);
+    scene.add(wells.group);
     if (ground?.parent) {
       ground.geometry.dispose();
       ground.geometry = new THREE.CircleGeometry(Math.max(20, city.frame.extentMeters), 64);
@@ -412,6 +419,7 @@ export function mountCity3d(options: {
     massing?.dispose();
     structures?.dispose();
     waterMeshes?.dispose();
+    wells?.dispose();
     roadMeshes?.dispose();
     ground?.geometry.dispose();
     (ground?.material as THREE.Material | undefined)?.dispose();

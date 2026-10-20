@@ -16,7 +16,8 @@ export interface MedievalWellMeshes extends CityStructureMeshes {
   plan: string;
 }
 
-export function createMedievalWell(): MedievalWellMeshes {
+/** Shared model for BV drawings and CE instances. */
+export function createMedievalWellModel(): CityStructureMeshes {
   const group = new THREE.Group();
   group.name = "medieval-european-well";
   const pickables: THREE.Mesh[] = [];
@@ -167,5 +168,10 @@ export function createMedievalWell(): MedievalWellMeshes {
       for (const surface of materials) surface.dispose();
     }
   };
+  return model;
+}
+
+export function createMedievalWell(): MedievalWellMeshes {
+  const model = createMedievalWellModel();
   return { ...model, elevation: meshProjection(model, "side"), plan: meshProjection(model, "top") };
 }
