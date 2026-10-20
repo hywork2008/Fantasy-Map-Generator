@@ -4,6 +4,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { createPontDuGard, PONT_DU_GARD, pontDuGardElevation } from "../buildings/aqueducts/pontDuGard";
 import { contentDigest } from "../buildings/canonicalJson";
 import { BOJNICE, bojnicePlan, createBojnice } from "../buildings/fortresses/bojnice";
+import { CHAMBORD, createChambord } from "../buildings/fortresses/chambord";
 import { KRAK, type KrakPhase } from "../buildings/fortresses/krak";
 import { committedSvgHash, levelPlanSvg, planSvg } from "../buildings/planSvg";
 import { type BuildingRecord, TRIANGLE_BUDGET } from "../buildings/record";
@@ -422,6 +423,49 @@ bojniceButton.addEventListener("click", () => {
   facts.append(source);
 });
 list.append(bojniceButton);
+const chambordButton = document.createElement("button");
+chambordButton.type = "button";
+chambordButton.textContent = "Château de Chambord · French Renaissance";
+chambordButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === chambordButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Castle roof plan";
+  levelTitle.textContent = "Assembly";
+  const model = createChambord();
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: CHAMBORD.width, depth: CHAMBORD.depth } }, CHAMBORD.height);
+  camera.position.set(155, 125, 205);
+  controls.target.set(0, 18, 8);
+  controls.update();
+  mountPlan(roofHost, model.plan);
+  levelHost.replaceChildren(
+    fact(
+      "Exterior study",
+      "Four-towered keep, central lantern, roof terraces, lateral wings and an open entrance court."
+    )
+  );
+  facts.append(
+    fact("Model", CHAMBORD.name),
+    fact("Period", "French Renaissance"),
+    fact("Study envelope", `${CHAMBORD.width} × ${CHAMBORD.depth} × ${CHAMBORD.height} m`),
+    fact("Note", CHAMBORD.note)
+  );
+  const source = document.createElement("a");
+  source.href = CHAMBORD.source;
+  source.textContent = "Official architecture source";
+  source.target = "_blank";
+  source.rel = "noreferrer";
+  facts.append(source);
+});
+list.append(chambordButton);
 for (const phase of ["hospitalier-1270", "mamluk-1302"] as const) {
   const button = document.createElement("button");
   button.type = "button";
