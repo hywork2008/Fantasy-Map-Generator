@@ -3,6 +3,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { createPontDuGard, PONT_DU_GARD, pontDuGardElevation } from "../buildings/aqueducts/pontDuGard";
 import { contentDigest } from "../buildings/canonicalJson";
+import { BOJNICE, bojnicePlan, createBojnice } from "../buildings/fortresses/bojnice";
 import { KRAK, type KrakPhase } from "../buildings/fortresses/krak";
 import { committedSvgHash, levelPlanSvg, planSvg } from "../buildings/planSvg";
 import { type BuildingRecord, TRIANGLE_BUDGET } from "../buildings/record";
@@ -382,6 +383,45 @@ aqueductButton.addEventListener("click", () => {
 list.append(aqueductButton);
 assemblies.textContent = "Fortress assemblies";
 list.append(assemblies);
+const bojniceButton = document.createElement("button");
+bojniceButton.type = "button";
+bojniceButton.textContent = "Bojnice Castle · Romantic reconstruction";
+bojniceButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === bojniceButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Castle roof plan";
+  levelTitle.textContent = "Assembly";
+  massing = createBojnice();
+  scene.add(massing.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: BOJNICE.width, depth: BOJNICE.depth } }, BOJNICE.height);
+  camera.position.set(105, 85, 130);
+  controls.target.set(0, 25, 0);
+  controls.update();
+  mountPlan(roofHost, bojnicePlan(massing));
+  levelHost.replaceChildren(
+    fact("Exterior study", "Palace wings around an open courtyard, upper keep, conical towers and an arched entrance.")
+  );
+  facts.append(
+    fact("Model", BOJNICE.name),
+    fact("Phase", "Romantic reconstruction, 1889–1910"),
+    fact("Study envelope", `${BOJNICE.width} × ${BOJNICE.depth} × ${BOJNICE.height} m`),
+    fact("Note", BOJNICE.note)
+  );
+  const source = document.createElement("a");
+  source.href = BOJNICE.source;
+  source.textContent = "Museum source";
+  source.target = "_blank";
+  source.rel = "noreferrer";
+  facts.append(source);
+});
+list.append(bojniceButton);
 for (const phase of ["hospitalier-1270", "mamluk-1302"] as const) {
   const button = document.createElement("button");
   button.type = "button";
