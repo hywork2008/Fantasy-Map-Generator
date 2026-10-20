@@ -15,6 +15,7 @@ import { CARRACK, createCarrack } from "../buildings/ships/carrack";
 import { createGalleon, GALLEON } from "../buildings/ships/galleon";
 import { createTrebuchet, TREBUCHET } from "../buildings/siege/trebuchet";
 import { validateBuildingRecord } from "../buildings/validate";
+import { createMedievalWell, MEDIEVAL_WELL } from "../buildings/wells/medievalWell";
 import { catalogueMassing } from "../city3d/core/catalogueMassing";
 import { structureSurfaces } from "../city3d/core/structureGeometry";
 import { type CityStructureMeshes, createStructureMassing } from "../city3d/three/structureMeshes";
@@ -714,6 +715,44 @@ waterMillButton.addEventListener("click", () => {
   );
 });
 list.append(waterMillButton);
+
+const wellsHeading = document.createElement("h2");
+wellsHeading.textContent = "Wells";
+list.append(wellsHeading);
+const wellButton = document.createElement("button");
+wellButton.type = "button";
+wellButton.textContent = "Medieval European well · Stone and timber";
+wellButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === wellButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Well front elevation";
+  levelTitle.textContent = "Well roof plan";
+  const model = createMedievalWell();
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: MEDIEVAL_WELL.width, depth: MEDIEVAL_WELL.depth } }, MEDIEVAL_WELL.height);
+  camera.position.set(5.2, 4.2, 6.8);
+  controls.target.set(0, 1.75, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", MEDIEVAL_WELL.name),
+    fact("Style", "Medieval Europe · Roofed village well"),
+    fact("Study envelope", `${MEDIEVAL_WELL.width} × ${MEDIEVAL_WELL.depth} × ${MEDIEVAL_WELL.height} m`),
+    fact("Structure", "Open masonry curb, braced oak posts and a timber-shingled gable roof"),
+    fact("Lifting gear", "Hand-cranked wooden windlass, rope and iron-bound wooden bucket"),
+    fact("Note", MEDIEVAL_WELL.note)
+  );
+});
+list.append(wellButton);
 
 resize();
 new ResizeObserver(resize).observe(stage);
