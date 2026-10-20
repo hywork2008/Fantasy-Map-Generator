@@ -43,11 +43,11 @@ import type { BiomesData } from "../../../types/WorldState";
 import { DEFAULT_CULTURE_TYPE } from "../../hostTypes";
 import {
   ANNUAL_GATE,
-  getCaravans,
   getCultivatedArea,
   getGoods,
   getMarketCellColumn,
   getMarkets,
+  getMerchantTransportLedgers,
   getOrCreateFaunaStockTable,
   getOrCreateMarketGoodProductionTotals,
   getOrCreateNonFoodFaunaDemandHistory,
@@ -60,6 +60,8 @@ import { calculateBurgBuiltAreaHectares, calculatePhysicalAreaHectares } from ".
 import type { FaunaCohorts } from "./faunaPopulationTypes";
 import { type Good, isGoodEnabled } from "./goods-generator";
 import { getGrazedCarryingCapacity, getPastureAreaUsedHectares, isGrazedLivestockGood } from "./husbandry";
+import { animalsPerMarketHead } from "./liveAnimalScale";
+import { getLandTransportDefinition } from "./tradeCargo";
 import { getVineyardAreaUsedHectares } from "./viticulture";
 
 /** The species key used for Game's wild stock — Game itself carries no `liveAnimal` tag (§4.1). */
@@ -299,21 +301,21 @@ function isNomadicState(stateId: number): boolean {
 }
 
 /**
- * World count of caravans currently drafted by `draftAnimalId`, averaged evenly across every
- * market (caravanMovement.ts's `DRAFT_ANIMAL_TYPES`; "horse" is every caravan's draft animal today
- * — this system has no camel-drafted caravan yet). Real demand for Horses (§4.5 extension,
- * 2026-08-08): merchants use their own draft teams directly rather than selling them, so the
- * market stock-flow signal never sees this use. Averaged rather than attributed per-caravan-origin
- * because `Caravan` carries no home-market field precise enough to localize it — the same
- * "applied identically to every cell feeding the same market" simplification this function's
- * caller already documents for the stock-flow signal itself.
+ * Horses in the convoys of the merchants of `cellId`'s market, as animals (tradeCargo.ts
+ * `convoyDraftAnimals`; horses draw every convoy today). Real demand for Horses (§4.5 extension):
+ * merchants use their own teams rather than selling them, so the market stock-flow signal never
+ * sees this use. Applied to every cell feeding the market, as the stock-flow signal is.
  */
-function getCaravanDraftAnimalDemandPerMarket(draftAnimalId: string): number {
-  const markets = getMarkets();
-  if (!markets.length) return 0;
-  let count = 0;
-  for (const caravan of getCaravans()) if (caravan.draftAnimalId === draftAnimalId) count++;
-  return count / markets.length;
+function getMerchantConvoyHorses(cellId: number): number {
+  const marketId = getMarketCellColumn()[cellId];
+  if (!marketId) return 0;
+  const ledger = getMerchantTransportLedgers().find(item => item.marketId === marketId);
+  let animals = 0;
+  for (const asset of ledger?.landAssets ?? []) {
+    const vehicles = asset.available + asset.reserved + asset.inTransit + asset.maintenance;
+    animals += Math.max(0, vehicles) * (getLandTransportDefinition(asset.assetId)?.convoyDraftAnimals ?? 0);
+  }
+  return animals;
 }
 
 /** Real population at `cellId` (population points x `populationRate`) — mirrors husbandry.ts's
@@ -332,7 +334,7 @@ function getRealPopulation(cellId: number): number {
  * Horses/Camels/Cats/Dogs collapsing to exactly 0 headcount within a year). Every term here reads
  * data this codebase already simulates — no new game systems invented:
  *   - Horses/Camels: standing military mounts (`getStateMountedHeadcount`) split by culture
- *     (`isNomadicState`), plus merchants' own draft teams for Horses (`getCaravanDraftAnimalDemandPerMarket`).
+ *     (`isNomadicState`), plus merchants' own draft teams for Horses (`getMerchantConvoyHorses`).
  *   - Cats/Dogs: nothing in the Goods catalog consumes either as a recipe ingredient or a military
  *     unit type, so their demand is entirely ambient (`getAmbientSettlementDemand` below).
  *   - Elephants and everyone else: no real-use signal exists in this codebase today (no war-
@@ -347,8 +349,8 @@ export function getRealNonMarketDemand(cellId: number, good: Good): number {
       const nomadic = isNomadicState(stateId);
       const wantsThisSpecies = good.name === "Camels" ? nomadic : !nomadic;
       const mountDemand = wantsThisSpecies ? getStateMountedHeadcount(stateId) : 0;
-      const caravanDemand = good.name === "Horses" ? getCaravanDraftAnimalDemandPerMarket("horse") : 0;
-      return mountDemand + caravanDemand;
+      const convoyDemand = good.name === "Horses" ? getMerchantConvoyHorses(cellId) : 0;
+      return mountDemand + convoyDemand;
     }
     case "Cats":
       return getRealPopulation(cellId) * AMBIENT_CATS_DEMAND_PER_PERSON;
@@ -376,7 +378,7 @@ function getNonFoodDemandAbsorptionCapacity(cellId: number, good: Good): number 
   const history = getOrCreateNonFoodFaunaDemandHistory()?.[getDemandHistoryKey(marketId, good.i)];
   if (!history?.length) return Number.POSITIVE_INFINITY;
   const average = history.reduce((sum, value) => sum + value, 0) / history.length;
-  return Math.max(realDemand, average * NON_FOOD_DEMAND_BUFFER);
+  return Math.max(realDemand, average * animalsPerMarketHead(good.name) * NON_FOOD_DEMAND_BUFFER);
 }
 
 /**
@@ -392,7 +394,7 @@ export function getDomesticatedCarryingCapacity(cellId: number, good: Good, flat
   // which would double-gate the labour-based herd ceiling below.
   const rawCapacity = isGrazedLivestockGood(good.name)
     ? getGrazedCarryingCapacity(cellId, good)
-    : Math.max(0, flatRateAmount) * DOMESTICATED_CAPACITY_MONTHS_PROXY;
+    : Math.max(0, flatRateAmount) * animalsPerMarketHead(good.name) * DOMESTICATED_CAPACITY_MONTHS_PROXY;
   if (good.tags.includes("food")) return rawCapacity;
 
   const demandCapacity = getNonFoodDemandAbsorptionCapacity(cellId, good);
@@ -520,14 +522,18 @@ export function drawWildFaunaOfftake(cellId: number, desiredAmount: number): num
 
 /**
  * A liveAnimal good's monthly offtake, capped by its domesticated stock. `desiredAmount` = the
- * pre-Phase-2 flat rate (population × biomeOutput) — also used to size the interim capacity
- * proxy, so the non-food demand cap (§4.5) is the only way this can bind below Phase 1's number.
+ * pre-Phase-2 flat rate (population × biomeOutput) in market heads — also used to size the interim
+ * capacity proxy, so the non-food demand cap (§4.5) is the only way this can bind below Phase 1's
+ * number. The herd counts animals, so the draw is `animalsPerMarketHead` animals to a head.
  * Same "simplified" pass-through guarantee as drawWildFaunaOfftake.
  */
 export function drawDomesticatedFaunaOfftake(cellId: number, good: Good, desiredAmount: number): number {
   if (getRuralEcosystemDetail() !== "detailed") return desiredAmount;
   const capacity = getDomesticatedCarryingCapacity(cellId, good, desiredAmount);
-  return drawOfftake(cellId, good.name, desiredAmount, getDomesticatedCullSelectivity(cellId), capacity);
+  const scale = animalsPerMarketHead(good.name);
+  return (
+    drawOfftake(cellId, good.name, desiredAmount * scale, getDomesticatedCullSelectivity(cellId), capacity) / scale
+  );
 }
 
 /**
@@ -559,7 +565,7 @@ export function previewDomesticatedFaunaOfftake(cellId: number, good: Good, desi
   if (getRuralEcosystemDetail() !== "detailed") return desiredAmount;
   if (desiredAmount <= 0) return 0;
   const capacity = getDomesticatedCarryingCapacity(cellId, good, desiredAmount);
-  return Math.min(desiredAmount, peekHarvestableStock(cellId, good.name, capacity));
+  return Math.min(desiredAmount, peekHarvestableStock(cellId, good.name, capacity) / animalsPerMarketHead(good.name));
 }
 
 // ---- Annual cohort update (§4.3) ----

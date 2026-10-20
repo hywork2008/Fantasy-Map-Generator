@@ -40,7 +40,13 @@ function getDomesticMountStock(stateId: number): number | undefined {
   return found ? total : undefined;
 }
 
+/**
+ * Horses in the convoys of the state's merchants, counted as animals like the herd and the riders:
+ * one vehicle is a convoy of twenty to sixty beasts (tradeCargo.ts `convoyDraftAnimals`). Convoys
+ * go with horses only, so a camel-riding state's herd is untouched.
+ */
 function getMerchantDraftRequirement(stateId: number): number {
+  if (isCamelState(stateId)) return 0;
   const { pack } = getWorldContext();
   const marketsById = new Map(getMarkets().map(market => [market.i, market]));
   let required = 0;
@@ -53,8 +59,8 @@ function getMerchantDraftRequirement(stateId: number): number {
     for (const asset of ledger.landAssets) {
       const definition = getLandTransportDefinition(asset.assetId);
       if (!definition) continue;
-      const activeAssets = asset.available + asset.reserved + asset.inTransit;
-      required += Math.max(0, activeAssets) * definition.requiredDraftAnimals;
+      const vehicles = asset.available + asset.reserved + asset.inTransit + asset.maintenance;
+      required += Math.max(0, vehicles) * definition.convoyDraftAnimals;
     }
   }
 

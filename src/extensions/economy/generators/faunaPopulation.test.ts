@@ -9,11 +9,11 @@ import {
   getOrCreateNonFoodFaunaDemandSnapshot,
   getOrCreateNonFoodFaunaProductionSnapshot,
   initEconomyContext,
-  setCaravans,
   setCultivatedArea,
   setGoods,
   setMarketCellColumn,
-  setMarkets
+  setMarkets,
+  setMerchantTransportLedgers
 } from "../economyContext";
 import {
   AMBIENT_CATS_DEMAND_PER_PERSON,
@@ -38,6 +38,7 @@ import {
   WILD_GAME_DENSITY_PER_HECTARE_BY_TAG,
   WILD_SPECIES_KEY
 } from "./faunaPopulation";
+import { HORSES_PER_MARKET_HEAD } from "./liveAnimalScale";
 
 const CATTLE_GOOD = {
   i: 1,
@@ -495,22 +496,37 @@ describe("faunaPopulation", () => {
       worldContext.pack.states = [{}, { i: 1, culture: 0, military: [{ u: { cavalry: 300 } }] }] as never;
 
       expect(getRealNonMarketDemand(0, CAMELS_GOOD as never)).toBe(300);
-      // Horses can still pick up caravan-draft demand (world-average, independent of culture), but
-      // none is registered here since no caravans exist in this fixture.
+      // Horses can still pick up the market's convoy horses (independent of culture), but no
+      // merchant fleet exists in this fixture.
       expect(getRealNonMarketDemand(0, HORSES_GOOD as never)).toBe(0);
     });
 
-    it("adds caravan draft-animal usage to Horses' demand, world-averaged across markets", () => {
+    it("adds the horses of the cell's market's own convoys to Horses' demand, as animals", () => {
       forestCellWorld();
-      setMarkets([{ i: 1 }, { i: 2 }] as never); // 2 markets
-      setCaravans([
-        { i: 1, draftAnimalId: "horse" },
-        { i: 2, draftAnimalId: "horse" },
-        { i: 3, draftAnimalId: "ox" } // not a horse -> excluded
+      setMarketCellColumn(new Uint16Array([1]));
+      const balance = { available: 1, reserved: 0, inTransit: 1, maintenance: 1, recoveryDays: 0 };
+      setMerchantTransportLedgers([
+        {
+          marketId: 1,
+          landAssets: [
+            { assetId: "pack-train", ...balance }, // 3 x 50 pack horses
+            { assetId: "cart", ...balance, available: 0 } // 2 x 20 cart horses
+          ],
+          riverAssets: [],
+          waterAssets: [],
+          lastReconciledTick: 0
+        },
+        {
+          marketId: 2,
+          landAssets: [{ assetId: "wagon", ...balance }],
+          riverAssets: [],
+          waterAssets: [],
+          lastReconciledTick: 0
+        }
       ] as never);
 
-      expect(getRealNonMarketDemand(0, HORSES_GOOD as never)).toBeCloseTo(2 / 2, 5); // 2 horse-caravans / 2 markets
-      expect(getRealNonMarketDemand(0, CAMELS_GOOD as never)).toBe(0); // no camel-drafted caravans exist in this system
+      expect(getRealNonMarketDemand(0, HORSES_GOOD as never)).toBe(190);
+      expect(getRealNonMarketDemand(0, CAMELS_GOOD as never)).toBe(0); // convoys go with horses only
     });
   });
 
@@ -518,6 +534,16 @@ describe("faunaPopulation", () => {
     it("passes desired amount through unchanged in simplified mode", () => {
       worldContext.options = { ruralEcosystemDetail: "simplified" } as typeof worldContext.options;
       expect(drawDomesticatedFaunaOfftake(0, CATTLE_GOOD as never, 7)).toBe(7);
+    });
+
+    it("draws Horses from the herd at HORSES_PER_MARKET_HEAD animals to a market head", () => {
+      forestCellWorld();
+      worldContext.options = { ruralEcosystemDetail: "detailed" } as typeof worldContext.options;
+      getOrCreateFaunaStockTable()!["0:Horses"] = { young: 0, breeding: 100, old: 0 };
+
+      expect(drawDomesticatedFaunaOfftake(0, HORSES_GOOD as never, 2)).toBeCloseTo(2, 5);
+      expect(getOrCreateFaunaStockTable()!["0:Horses"].breeding).toBeCloseTo(100 - 2 * HORSES_PER_MARKET_HEAD, 5);
+      expect(previewDomesticatedFaunaOfftake(0, HORSES_GOOD as never, 4)).toBeCloseTo(2, 5);
     });
 
     it("grants the full desired amount when stock comfortably covers it (non-grazed food species)", () => {

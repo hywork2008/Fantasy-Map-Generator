@@ -761,9 +761,16 @@ export class MerchantTransportAssetsModule {
     reservation.state = "cancelled";
   }
 
+  /**
+   * Ends a caravan's use of its vehicles. Arrived, they are free again; lost on the way (its cargo
+   * spoiled away), they come home through repair. Raided by bandits or soldiers (TradeSecurity),
+   * the market's own convoys are gone with the horses it paid for: raiders drove off the teams and
+   * kept or burnt the carts (port-freight-queue-and-warehouses.md §10.21). Hired vehicles were their
+   * carriers' loss. A raided barge is gone too; a raided hull goes to repair as a lost one does.
+   */
   settleCaravan(
     caravan: Pick<Caravan, "transportReservationId"> & Partial<Pick<Caravan, "buyer" | "buyerType">>,
-    outcome: "arrived" | "lost"
+    outcome: "arrived" | "lost" | "raided"
   ): void {
     if (caravan.transportReservationId === undefined) return;
     const reservation = getTransportReservations().find(item => item.id === caravan.transportReservationId);
@@ -776,9 +783,10 @@ export class MerchantTransportAssetsModule {
       const balance = ledger.landAssets.find(asset => asset.assetId === allocation.transportId);
       if (!balance) continue;
       const own = ownUnits(allocation);
+      if (outcome === "raided") takeDraftAnimalHeads(balance, own);
       balance.inTransit -= own;
       if (outcome === "arrived") balance.available += own;
-      else if (own > 0) {
+      else if (outcome === "lost" && own > 0) {
         balance.maintenance += own;
         balance.recoveryDays = MAINTENANCE_RECOVERY_DAYS;
       }
@@ -799,8 +807,9 @@ export class MerchantTransportAssetsModule {
       const sourceBalance = ledger.riverAssets.find(asset => asset.assetId === allocation.transportId);
       if (!sourceBalance) continue;
       sourceBalance.inTransit -= allocation.unitCount;
-      if (oneWay) {
+      if (oneWay || outcome === "raided") {
         // Built for this trip: broken up for its wood on arrival, lost with its cargo otherwise.
+        // A raided barge is lost in any era.
         if (outcome === "arrived") salvageRiverBarges(destinationMarketId, allocation.unitCount);
         assertBalance(sourceBalance);
         continue;
@@ -842,7 +851,7 @@ export class MerchantTransportAssetsModule {
         asset.idleDays = 0;
       }
     }
-    this.releaseShipbuildingHulls(hullIds, outcome, destinationBurgId);
+    this.releaseShipbuildingHulls(hullIds, outcome === "arrived" ? "arrived" : "lost", destinationBurgId);
     reservation.state = outcome === "arrived" ? "released" : "lost";
   }
 

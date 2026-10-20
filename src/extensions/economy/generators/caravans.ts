@@ -1549,7 +1549,7 @@ export class CaravansModule {
         const risk = banditRiskPerDay * deltaDays;
         if (Math.random() < risk) {
           caravan.state = "lost";
-          MerchantTransportAssets.settleCaravan(caravan, "lost");
+          MerchantTransportAssets.settleCaravan(caravan, "raided");
           settlePayloadCapital(caravan, "lost");
           settleFoodCoLoadOnLoss(caravan);
           lost.push(caravan);

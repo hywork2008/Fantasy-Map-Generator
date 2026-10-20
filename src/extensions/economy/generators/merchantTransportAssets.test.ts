@@ -1,7 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
-import { clearEconomyContext, getMarkets, initEconomyContext, setFlowCycleHistory, setGoods } from "../economyContext";
+import {
+  clearEconomyContext,
+  getMarkets,
+  getMerchantTransportLedgers,
+  initEconomyContext,
+  setFlowCycleHistory,
+  setGoods
+} from "../economyContext";
 import type { Good } from "./goodsGeneratorTypes";
 import type { TransportAllocation } from "./marketTypes";
 import {
@@ -117,6 +124,24 @@ describe("merchant transport assets", () => {
     // Only the market's own carts go to repair; the hired one went home.
     expect(after?.maintenance).toBe(own);
     expect(after?.total).toBe(own);
+  });
+
+  it("loses a raided caravan's own carts with the horses the market paid for", () => {
+    const own = MerchantTransportAssets.getAvailability(1).find(asset => asset.assetId === "cart")?.available ?? 0;
+    MerchantTransportAssets.addAvailableLandAssets(1, "cart", 1, 0.8);
+    const reservation = MerchantTransportAssets.reserve(1, 10, [{ ...CART_ALLOCATION, unitCount: own + 2 }]);
+    expect(reservation?.reservation.allocations[0]).toMatchObject({ hiredUnits: 1 });
+    MerchantTransportAssets.depart(reservation?.reservation.id ?? -1);
+    MerchantTransportAssets.settleCaravan({ transportReservationId: reservation?.reservation.id }, "raided");
+
+    const after = MerchantTransportAssets.getAvailability(1).find(asset => asset.assetId === "cart");
+    expect(after?.total).toBe(0);
+    expect(after?.maintenance).toBe(0);
+    const balance = getMerchantTransportLedgers()
+      .find(ledger => ledger.marketId === 1)
+      ?.landAssets.find(asset => asset.assetId === "cart");
+    expect(balance?.draftAnimalHeads).toBeUndefined();
+    expect(balance?.hired).toBeUndefined();
   });
 
   it("places assets from lost caravans in maintenance before recovering them", () => {

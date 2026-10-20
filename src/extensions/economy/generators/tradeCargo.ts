@@ -20,12 +20,17 @@ export type LandTransportDefinition = {
   name: string;
   cargoCapacitySlots: number;
   requiredDraftAnimals: number;
+  /**
+   * Beasts in one vehicle of this kind, which is a convoy: fifty pack horses, twenty one-horse
+   * carts, twenty wagons with some sixty horses (port-freight-queue-and-warehouses.md §10.13, §10.15).
+   */
+  convoyDraftAnimals: number;
 };
 
 export const LAND_TRANSPORTS: readonly LandTransportDefinition[] = [
-  { id: "pack-train", name: "Pack train", cargoCapacitySlots: 36, requiredDraftAnimals: 2 },
-  { id: "cart", name: "Cart", cargoCapacitySlots: 80, requiredDraftAnimals: 1 },
-  { id: "wagon", name: "Wagon", cargoCapacitySlots: 240, requiredDraftAnimals: 2 }
+  { id: "pack-train", name: "Pack train", cargoCapacitySlots: 36, requiredDraftAnimals: 2, convoyDraftAnimals: 50 },
+  { id: "cart", name: "Cart", cargoCapacitySlots: 80, requiredDraftAnimals: 1, convoyDraftAnimals: 20 },
+  { id: "wagon", name: "Wagon", cargoCapacitySlots: 240, requiredDraftAnimals: 2, convoyDraftAnimals: 60 }
 ];
 
 export const RIVER_BARGE_TRANSPORT = {
