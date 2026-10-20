@@ -13,6 +13,7 @@ import { committedSvgHash, levelPlanSvg, planSvg } from "../buildings/planSvg";
 import { type BuildingRecord, TRIANGLE_BUDGET } from "../buildings/record";
 import { CARRACK, createCarrack } from "../buildings/ships/carrack";
 import { createGalleon, GALLEON } from "../buildings/ships/galleon";
+import { createSloop, SLOOP } from "../buildings/ships/sloop";
 import { createTrebuchet, TREBUCHET } from "../buildings/siege/trebuchet";
 import { validateBuildingRecord } from "../buildings/validate";
 import { createMedievalWell, MEDIEVAL_WELL } from "../buildings/wells/medievalWell";
@@ -569,6 +570,43 @@ galleonButton.addEventListener("click", () => {
   );
 });
 list.append(galleonButton);
+
+const sloopButton = document.createElement("button");
+sloopButton.type = "button";
+sloopButton.textContent = "Sloop · Small coastal sailing ship";
+sloopButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === sloopButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Ship elevation";
+  levelTitle.textContent = "Deck plan";
+  const model = createSloop();
+  massing = model;
+  scene.add(model.group);
+  frame({ occupancyMeters: { width: SLOOP.length, depth: SLOOP.beam } }, SLOOP.height);
+  camera.position.set(19, 13, 23);
+  controls.target.set(1, 6, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", SLOOP.name),
+    fact("Period", "Age of sail · imagined coastal vessel"),
+    fact(
+      "Dimensions",
+      `${SLOOP.length} m overall length × ${SLOOP.beam} m beam; ${SLOOP.height} m above water; ${SLOOP.draft} m draft`
+    ),
+    fact("Rig", "One mast; gaff mainsail and jib"),
+    fact("Hull", "Small wooden hull with keel, low cabin and tiller steering"),
+    fact("Note", SLOOP.note)
+  );
+});
+list.append(sloopButton);
 
 const siegeHeading = document.createElement("h2");
 siegeHeading.textContent = "Siege engines";
