@@ -10,6 +10,7 @@
 
 import { getWorldContext } from "../economyContext";
 import type { Caravan, TradeRoutePoint, TradeRouteSegment } from "./marketTypes";
+import { calculateRouteDurationDays } from "./tradeRouteDuration";
 
 let portIndex: {
   pack: unknown;
@@ -60,6 +61,23 @@ function isSea(segment: TradeRouteSegment): boolean {
 export function seaDeparturePortBurgId(segments: readonly TradeRouteSegment[] | undefined): number | undefined {
   const leg = segments?.find(isSea);
   return leg ? nearestPort(leg.points[0]) : undefined;
+}
+
+const inlandDaysCache = new WeakMap<readonly TradeRouteSegment[], number>();
+
+/**
+ * Days the route's cargo travels by road and river before its first sea leg leaves: 0 when the
+ * route starts at sea or has no sea leg. Routes are planned once and shared, so it is kept per route.
+ */
+export function daysToSeaDeparture(segments: readonly TradeRouteSegment[] | undefined): number {
+  if (!segments) return 0;
+  const cached = inlandDaysCache.get(segments);
+  if (cached !== undefined) return cached;
+  const first = segments.findIndex(isSea);
+  const days = first > 0 ? calculateRouteDurationDays(segments.slice(0, first), getWorldContext().distanceScale) : 0;
+  const inland = Number.isFinite(days) ? days : 0;
+  inlandDaysCache.set(segments, inland);
+  return inland;
 }
 
 /** Port burg the route's last sea leg arrives at. */

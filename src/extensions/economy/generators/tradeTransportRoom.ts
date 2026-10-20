@@ -26,7 +26,7 @@ import { getCaravans, getExportStagingLots, getGoods } from "../economyContext";
 import { DEFAULT_DRAFT_ANIMAL_ID } from "./caravanMovement";
 import type { Caravan, TradeRouteSegment } from "./marketTypes";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
-import { isInlandStage, seaDepartureMarketId, seaDeparturePortBurgId } from "./seaRoutePorts";
+import { daysToSeaDeparture, isInlandStage, seaDepartureMarketId, seaDeparturePortBurgId } from "./seaRoutePorts";
 import { isSeaBookable } from "./seaSeason";
 import { getGoodCargoSlotsPerUnit } from "./tradeCargo";
 
@@ -165,12 +165,13 @@ function seaSlotsLeft(entry: { capacity: number; held: number }): number {
 
 /**
  * A port laid up for the winter or iced in takes no sea cargo until a month before it opens; then
- * the house gathers its goods in the port warehouse for the first sailing (§10.27).
+ * the house gathers its goods in the port warehouse for the first sailing (§10.27). Cargo carted to
+ * the port is judged by the day it gets there.
  */
 export function seaClosedForBooking(segments: readonly TradeRouteSegment[] | undefined): boolean {
   return (
     !!segments?.some(segment => segment.type === "sea" || segment.type === "water") &&
-    !isSeaBookable(seaDeparturePortBurgId(segments))
+    !isSeaBookable(seaDeparturePortBurgId(segments), daysToSeaDeparture(segments))
   );
 }
 

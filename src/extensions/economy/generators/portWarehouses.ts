@@ -25,7 +25,13 @@ import { getQuarterlyStorageLoss, getStorageClimateLossMultiplier } from "./grai
 import type { Caravan, PortWarehouseState, TradeRouteSegment } from "./marketTypes";
 import { isLongDistanceTradeEnabled, MerchantTradeCapital } from "./merchantTradeCapital";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
-import { isInlandStage, seaArrivalPortBurgId, seaDepartureMarketId, seaDeparturePortBurgId } from "./seaRoutePorts";
+import {
+  daysToSeaDeparture,
+  isInlandStage,
+  seaArrivalPortBurgId,
+  seaDepartureMarketId,
+  seaDeparturePortBurgId
+} from "./seaRoutePorts";
 import { expectedSeaWaitDays } from "./seaSeason";
 
 /**
@@ -367,7 +373,7 @@ export function portWarehouseOwner(burgId: number): { marketId: number; share: n
 /**
  * Warehouse rent a unit of cargo is expected to run up in port before it sails, for the matching
  * (§10.20, T31): the usual wait for a fuller hold, or until the port opens again where it will be
- * shut by then, at double the rate for the share of the port's queue its warehouses cannot hold.
+ * shut by then, reckoned from the day cargo carted to the port gets there, at double the rate for the share of the port's queue its warehouses cannot hold.
  * Only with `fmg-long-distance-trade` on, as the rent itself.
  */
 export function expectedPortStorageUnitCost(
@@ -382,7 +388,8 @@ export function expectedPortStorageUnitCost(
   const capacity = state?.capacitySlots ?? 0;
   const queued = state?.queuedSlots ?? 0;
   const overflowShare = queued > 0 ? Math.max(0, queued - capacity) / queued : capacity > 0 ? 0 : 1;
-  return expectedSeaWaitDays(burgId, waitDays) * PORT_STORAGE_FEE * (1 + overflowShare) * slotsPerUnit;
+  const days = expectedSeaWaitDays(burgId, waitDays, daysToSeaDeparture(segments));
+  return days * PORT_STORAGE_FEE * (1 + overflowShare) * slotsPerUnit;
 }
 
 /**

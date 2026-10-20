@@ -136,21 +136,28 @@ export function daysUntilSeaOpens(portBurgId: number | undefined): number {
   return days;
 }
 
-/**
- * Days cargo booked today is expected to lie in the port before it sails: the usual wait for a
- * fuller hold, or, where the port is shut by then, until it opens again (§10.27). Cargo booked
- * just before Martinmas lies in the warehouse all winter.
- */
-export function expectedSeaWaitDays(portBurgId: number | undefined, waitDays: number): number {
-  const wait = Math.max(0, Math.round(waitDays));
-  if (portBurgId === undefined || !isLongDistanceTradeEnabled()) return wait;
+/** Days from today until the port opens for cargo that reaches it in `arriveDays`, cached for the day. */
+function openingAfter(portBurgId: number, arriveDays: number): number {
   portSeason(portBurgId);
-  const key = `${portBurgId}:${wait}`;
+  const key = `${portBurgId}:${arriveDays}`;
   const cached = waitDaysCache.get(key);
   if (cached !== undefined) return cached;
-  const days = daysUntilOpenFrom(portBurgId, wait);
+  const days = daysUntilOpenFrom(portBurgId, arriveDays);
   waitDaysCache.set(key, days);
   return days;
+}
+
+/**
+ * Days cargo booked today is expected to lie in the port before it sails: the usual wait for a
+ * fuller hold, or, where the port is shut by then, until it opens again (§10.27). Cargo carted
+ * `inlandDays` to the port is reckoned from its arrival there. Cargo that would reach the quay
+ * just before Martinmas lies in the warehouse all winter.
+ */
+export function expectedSeaWaitDays(portBurgId: number | undefined, waitDays: number, inlandDays = 0): number {
+  const wait = Math.max(0, Math.round(waitDays));
+  if (portBurgId === undefined || !isLongDistanceTradeEnabled()) return wait;
+  const inland = Math.max(0, Math.round(inlandDays));
+  return openingAfter(portBurgId, inland + wait) - inland;
 }
 
 /** Whether merchant hulls may not sail from the port today. */
@@ -158,7 +165,13 @@ export function isSeaClosed(portBurgId: number | undefined): boolean {
   return daysUntilSeaOpens(portBurgId) > 0;
 }
 
-/** Whether a house may book sea cargo from the port now: open, or opening within the lead. */
-export function isSeaBookable(portBurgId: number | undefined): boolean {
-  return daysUntilSeaOpens(portBurgId) <= SEA_SEASON_BOOKING_LEAD_DAYS;
+/**
+ * Whether a house may book sea cargo from the port now: open when the cargo reaches it after
+ * `inlandDays` on the road or river, or opening within the lead of then.
+ */
+export function isSeaBookable(portBurgId: number | undefined, inlandDays = 0): boolean {
+  const inland = Math.max(0, Math.round(inlandDays));
+  if (portBurgId === undefined || !isLongDistanceTradeEnabled() || inland === 0)
+    return daysUntilSeaOpens(portBurgId) <= SEA_SEASON_BOOKING_LEAD_DAYS;
+  return openingAfter(portBurgId, inland) - inland <= SEA_SEASON_BOOKING_LEAD_DAYS;
 }
