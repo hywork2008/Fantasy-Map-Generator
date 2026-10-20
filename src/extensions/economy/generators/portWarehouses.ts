@@ -162,7 +162,11 @@ export function collectSeaBacklogSlots(): Map<number, number> {
       caravan.transportDispatcherMarketId ??
       MerchantTransportAssets.getDispatcherMarketId(caravan);
     if (marketId === null || marketId === undefined) continue;
-    backlog.set(marketId, (backlog.get(marketId) ?? 0) + payloadSlots(caravan));
+    // Cargo in port for one destination wants a hull of its own, however little of it it fills
+    // (§10.25): a hull sails for one port.
+    const slots = payloadSlots(caravan);
+    const hold = waitingPortBurgId(caravan) !== undefined ? (caravan.loading?.plannedCapacitySlots ?? 0) : 0;
+    backlog.set(marketId, (backlog.get(marketId) ?? 0) + Math.max(slots, hold));
   }
   for (const [marketId, shortfall] of MerchantTransportAssets.peekSeaShortfallByPortMarket())
     if (shortfall > 0) backlog.set(marketId, (backlog.get(marketId) ?? 0) + shortfall);

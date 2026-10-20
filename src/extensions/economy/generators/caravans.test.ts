@@ -847,6 +847,33 @@ describe("finite sea fleet departure gate (P0)", () => {
     expect(reservedHullIds).toEqual([20]);
   });
 
+  it("keeps a thin paid hold in port for more freight, then sails it as it is (§10.25)", () => {
+    simulationContext.worldSettings = { "fmg-long-distance-trade": "on" };
+    (worldContext.pack.burgs[1] as Burg).port = 1;
+    try {
+      MerchantTransportAssets.reconcileMerchantHulls([
+        { id: 20, shipClassId: "sloop", homeBurgId: 1, ownerId: 1, status: "voyage" }
+      ]);
+      const thin = (waitedDays: number) =>
+        seaLoadingCaravan({
+          payload: [{ goodId: 0, dealId: 1, units: 5, value: 250, cargoSlotsPerUnit: 1 }],
+          units: 5,
+          value: 250,
+          loading: { ...seaLoadingCaravan().loading!, waitedDays, nextSailDay: undefined, sailScheduleDays: [] }
+        });
+
+      setCaravans([thin(20)]);
+      Caravans.tick(1);
+      expect(getCaravans()[0]?.state).toBe("loading");
+
+      setCaravans([thin(50)]);
+      Caravans.tick(1);
+      expect(getCaravans()[0]?.state).toBe("transit");
+    } finally {
+      delete simulationContext.worldSettings;
+    }
+  });
+
   it("still allows abstract sea departure when Shipbuilding water mode is inactive", () => {
     MerchantTransportAssets.setWaterAssetModeActive(false);
     setCaravans([seaLoadingCaravan()]);

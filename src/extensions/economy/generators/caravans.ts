@@ -498,6 +498,23 @@ function publishCaravanHullPositions(caravans: readonly Caravan[]): void {
 const PORT_SEASON_WAIT_DAYS = 90;
 
 /**
+ * Days beyond its loading wait that a thin hold of paid cargo in port waits for more freight to the
+ * same port before it sails as it is. A master took on freight for weeks before he sailed, and the
+ * merchant's goods lay on the quay meanwhile rather than going back to the shop (§10.25).
+ */
+const PORT_THIN_HOLD_DAYS = 30;
+
+/** Paid cargo in its port of departure, which waits for a fuller hold instead of being called off. */
+function holdsThinInPort(caravan: Caravan): boolean {
+  return (
+    caravan.sellerType === "market" &&
+    caravan.buyerType === "market" &&
+    isLongDistanceTradeEnabled() &&
+    waitingPortBurgId(caravan) !== undefined
+  );
+}
+
+/**
  * Share of the port's own price that cargo given up on fetches there: a forced sale to the port's
  * dealers, who took the risk of the next sailing (port-freight-queue-and-warehouses.md §4.4).
  */
@@ -628,9 +645,16 @@ function tryDepartLoadingCaravan(caravan: Caravan): "departed" | "waiting" | "ca
 
   if (decision === "waiting") return "waiting";
   if (decision === "cancelled") {
-    restoreLoadingCargoToOrigin(caravan);
-    caravan.state = "lost";
-    return "cancelled";
+    if (!holdsThinInPort(caravan)) {
+      restoreLoadingCargoToOrigin(caravan);
+      caravan.state = "lost";
+      return "cancelled";
+    }
+    if (caravan.loading.waitedDays < caravan.loading.maxWaitDays + PORT_THIN_HOLD_DAYS) {
+      caravan.departReason = "waiting";
+      return "waiting";
+    }
+    caravan.departReason = "depart-overdue";
   }
 
   // Right-size the vehicle to the actual cargo, then reserve durable assets at sail time only. A
