@@ -114,6 +114,7 @@ const app = document.createElement("div");
 app.className = "bv-app";
 const list = document.createElement("nav");
 list.className = "bv-list";
+list.setAttribute("aria-label", "Model catalogue");
 const heading = document.createElement("h1");
 heading.textContent = "Building viewer";
 list.append(heading);
@@ -142,8 +143,19 @@ levelPane.append(levelTitle, floors, levelHost);
 plans.append(roofPane, levelPane);
 const facts = document.createElement("section");
 facts.className = "bv-facts";
-main.append(stage, plans, facts);
-app.append(list, main);
+const inspector = document.createElement("aside");
+inspector.className = "bv-inspector";
+inspector.setAttribute("aria-label", "Model options and details");
+const modelOptions = document.createElement("section");
+modelOptions.className = "bv-options";
+modelOptions.hidden = true;
+const optionsTitle = document.createElement("h2");
+optionsTitle.textContent = "Model options";
+const optionFields = document.createElement("div");
+modelOptions.append(optionsTitle, optionFields);
+inspector.append(modelOptions, facts);
+main.append(stage, plans);
+app.append(list, main, inspector);
 root.append(app);
 
 const canvas = document.createElement("canvas");
@@ -195,6 +207,8 @@ function frame(record: Pick<BuildingRecord, "occupancyMeters">, height: number):
 }
 
 function clearMesh(): void {
+  optionFields.replaceChildren();
+  modelOptions.hidden = true;
   ground.visible = false;
   studyWater?.dispose();
   studyWater = null;
@@ -343,10 +357,22 @@ async function showFortress(phase: KrakPhase): Promise<void> {
   facts.append(download);
 }
 
+function modelCategory(title: string, open = false): HTMLDetailsElement {
+  const category = document.createElement("details");
+  category.className = "bv-category";
+  category.open = open;
+  const summary = document.createElement("summary");
+  summary.textContent = title;
+  category.append(summary);
+  list.append(category);
+  return category;
+}
+
+const catalogue = modelCategory("Building catalogue", true);
 if (!entries.length) {
   const empty = document.createElement("p");
   empty.textContent = "No buildings are in the catalogue.";
-  list.append(empty);
+  catalogue.append(empty);
 } else {
   for (const entry of entries) {
     const button = document.createElement("button");
@@ -360,15 +386,12 @@ if (!entries.length) {
     meta.textContent = `${PERIOD[entry.record.period] ?? entry.record.period} · ${label(entry.record.planFamily ?? "unspecified")} · ${entry.record.occupancyMeters.width} × ${entry.record.occupancyMeters.depth} m`;
     button.append(name, meta);
     button.addEventListener("click", () => show(entry));
-    list.append(button);
+    catalogue.append(button);
   }
   show(entries[0]);
 }
 
-const assemblies = document.createElement("h2");
-const aqueducts = document.createElement("h2");
-aqueducts.textContent = "Aqueduct assemblies";
-list.append(aqueducts);
+const aqueducts = modelCategory("Aqueduct assemblies");
 const aqueductButton = document.createElement("button");
 aqueductButton.type = "button";
 aqueductButton.textContent = "Pont du Gard · Roman aqueduct";
@@ -408,10 +431,8 @@ aqueductButton.addEventListener("click", () => {
     fact("Omitted", "Modern road bridge, damage, weathering, terrain and individual masonry blocks")
   );
 });
-list.append(aqueductButton);
-const chapels = document.createElement("h2");
-chapels.textContent = "Chapel assemblies";
-list.append(chapels);
+aqueducts.append(aqueductButton);
+const chapels = modelCategory("Chapel assemblies");
 const stGeorgesButton = document.createElement("button");
 stGeorgesButton.type = "button";
 stGeorgesButton.textContent = "St George's Chapel · Windsor Castle";
@@ -451,9 +472,8 @@ stGeorgesButton.addEventListener("click", () => {
   source.rel = "noreferrer";
   facts.append(source);
 });
-list.append(stGeorgesButton);
-assemblies.textContent = "Fortress assemblies";
-list.append(assemblies);
+chapels.append(stGeorgesButton);
+const assemblies = modelCategory("Fortress assemblies");
 const bojniceButton = document.createElement("button");
 bojniceButton.type = "button";
 bojniceButton.textContent = "Bojnice Castle · Romantic reconstruction";
@@ -492,7 +512,7 @@ bojniceButton.addEventListener("click", () => {
   source.rel = "noreferrer";
   facts.append(source);
 });
-list.append(bojniceButton);
+assemblies.append(bojniceButton);
 const chambordButton = document.createElement("button");
 chambordButton.type = "button";
 chambordButton.textContent = "Château de Chambord · French Renaissance";
@@ -535,7 +555,7 @@ chambordButton.addEventListener("click", () => {
   source.rel = "noreferrer";
   facts.append(source);
 });
-list.append(chambordButton);
+assemblies.append(chambordButton);
 for (const phase of ["hospitalier-1270", "mamluk-1302"] as const) {
   const button = document.createElement("button");
   button.type = "button";
@@ -547,12 +567,10 @@ for (const phase of ["hospitalier-1270", "mamluk-1302"] as const) {
       banner.textContent = error instanceof Error ? error.message : String(error);
     });
   });
-  list.append(button);
+  assemblies.append(button);
 }
 
-const shipsHeading = document.createElement("h2");
-shipsHeading.textContent = "Ships";
-list.append(shipsHeading);
+const shipsHeading = modelCategory("Ships");
 const carrackButton = document.createElement("button");
 carrackButton.type = "button";
 carrackButton.textContent = "Carrack · High-castled merchant ship";
@@ -594,7 +612,7 @@ carrackButton.addEventListener("click", () => {
   source.rel = "noreferrer";
   facts.append(source);
 });
-list.append(carrackButton);
+shipsHeading.append(carrackButton);
 
 const galleonButton = document.createElement("button");
 galleonButton.type = "button";
@@ -631,7 +649,7 @@ galleonButton.addEventListener("click", () => {
     fact("Note", GALLEON.note)
   );
 });
-list.append(galleonButton);
+shipsHeading.append(galleonButton);
 
 const sloopButton = document.createElement("button");
 sloopButton.type = "button";
@@ -668,7 +686,7 @@ sloopButton.addEventListener("click", () => {
     fact("Note", SLOOP.note)
   );
 });
-list.append(sloopButton);
+shipsHeading.append(sloopButton);
 
 const bargeButton = document.createElement("button");
 bargeButton.type = "button";
@@ -706,11 +724,9 @@ bargeButton.addEventListener("click", () => {
     fact("Note", BARGE.note)
   );
 });
-list.append(bargeButton);
+shipsHeading.append(bargeButton);
 
-const siegeHeading = document.createElement("h2");
-siegeHeading.textContent = "Siege engines";
-list.append(siegeHeading);
+const siegeHeading = modelCategory("Siege engines");
 const trebuchetButton = document.createElement("button");
 trebuchetButton.type = "button";
 trebuchetButton.textContent = "Trebuchet · Hinged counterweight";
@@ -744,7 +760,7 @@ trebuchetButton.addEventListener("click", () => {
     fact("Note", TREBUCHET.note)
   );
 });
-list.append(trebuchetButton);
+siegeHeading.append(trebuchetButton);
 
 const ramButton = document.createElement("button");
 ramButton.type = "button";
@@ -779,11 +795,9 @@ ramButton.addEventListener("click", () => {
     fact("Note", BATTERING_RAM.note)
   );
 });
-list.append(ramButton);
+siegeHeading.append(ramButton);
 
-const artilleryHeading = document.createElement("h2");
-artilleryHeading.textContent = "Artillery";
-list.append(artilleryHeading);
+const artilleryHeading = modelCategory("Artillery");
 const cannonButton = document.createElement("button");
 cannonButton.type = "button";
 cannonButton.textContent = "Early field cannon · Europe c. 1500";
@@ -824,11 +838,9 @@ cannonButton.addEventListener("click", () => {
     fact("Note", EARLY_FIELD_CANNON.note)
   );
 });
-list.append(cannonButton);
+artilleryHeading.append(cannonButton);
 
-const millsHeading = document.createElement("h2");
-millsHeading.textContent = "Mills";
-list.append(millsHeading);
+const millsHeading = modelCategory("Mills");
 const postMillButton = document.createElement("button");
 postMillButton.type = "button";
 postMillButton.textContent = "Medieval windmill · Timber post mill";
@@ -862,7 +874,7 @@ postMillButton.addEventListener("click", () => {
     fact("Note", POST_MILL.note)
   );
 });
-list.append(postMillButton);
+millsHeading.append(postMillButton);
 
 const towerMillButton = document.createElement("button");
 towerMillButton.type = "button";
@@ -897,7 +909,7 @@ towerMillButton.addEventListener("click", () => {
     fact("Note", TOWER_MILL.note)
   );
 });
-list.append(towerMillButton);
+millsHeading.append(towerMillButton);
 
 const waterMillButton = document.createElement("button");
 waterMillButton.type = "button";
@@ -932,11 +944,9 @@ waterMillButton.addEventListener("click", () => {
     fact("Note", WATER_MILL.note)
   );
 });
-list.append(waterMillButton);
+millsHeading.append(waterMillButton);
 
-const wellsHeading = document.createElement("h2");
-wellsHeading.textContent = "Wells";
-list.append(wellsHeading);
+const wellsHeading = modelCategory("Wells");
 const wellButton = document.createElement("button");
 wellButton.type = "button";
 wellButton.textContent = "Medieval European well · Stone and timber";
@@ -970,11 +980,9 @@ wellButton.addEventListener("click", () => {
     fact("Note", MEDIEVAL_WELL.note)
   );
 });
-list.append(wellButton);
+wellsHeading.append(wellButton);
 
-const yardsHeading = document.createElement("h2");
-yardsHeading.textContent = "Work yards";
-list.append(yardsHeading);
+const yardsHeading = modelCategory("Work yards");
 const lumberYardButton = document.createElement("button");
 lumberYardButton.type = "button";
 lumberYardButton.textContent = "Medieval European lumber yard · Timber storage";
@@ -1014,11 +1022,9 @@ lumberYardButton.addEventListener("click", () => {
     fact("Note", MEDIEVAL_LUMBER_YARD.note)
   );
 });
-list.append(lumberYardButton);
+yardsHeading.append(lumberYardButton);
 
-const vehiclesHeading = document.createElement("h2");
-vehiclesHeading.textContent = "Vehicles";
-list.append(vehiclesHeading);
+const vehiclesHeading = modelCategory("Vehicles");
 const minecartButton = document.createElement("button");
 minecartButton.type = "button";
 minecartButton.textContent = "Minecart · Timber mining cart";
@@ -1052,7 +1058,7 @@ minecartButton.addEventListener("click", () => {
     fact("Note", MINECART.note)
   );
 });
-list.append(minecartButton);
+vehiclesHeading.append(minecartButton);
 
 const wagonButton = document.createElement("button");
 wagonButton.type = "button";
@@ -1087,7 +1093,7 @@ wagonButton.addEventListener("click", () => {
     fact("Note", MEDIEVAL_WAGON.note)
   );
 });
-list.append(wagonButton);
+vehiclesHeading.append(wagonButton);
 
 const coveredWagonButton = document.createElement("button");
 coveredWagonButton.type = "button";
@@ -1123,7 +1129,7 @@ coveredWagonButton.addEventListener("click", () => {
     fact("Note", COVERED_WAGON.note)
   );
 });
-list.append(coveredWagonButton);
+vehiclesHeading.append(coveredWagonButton);
 
 const nobleCarriageButton = document.createElement("button");
 nobleCarriageButton.type = "button";
@@ -1159,7 +1165,7 @@ nobleCarriageButton.addEventListener("click", () => {
     fact("Note", NOBLE_CARRIAGE.note)
   );
 });
-list.append(nobleCarriageButton);
+vehiclesHeading.append(nobleCarriageButton);
 
 const warWagonButton = document.createElement("button");
 warWagonButton.type = "button";
@@ -1198,11 +1204,9 @@ warWagonButton.addEventListener("click", () => {
     fact("Note", WAR_WAGON.note)
   );
 });
-list.append(warWagonButton);
+vehiclesHeading.append(warWagonButton);
 
-const signsHeading = document.createElement("h2");
-signsHeading.textContent = "Hanging shop signs";
-list.append(signsHeading);
+const signsHeading = modelCategory("Hanging shop signs");
 function showSign(options: HangingSignOptions, activeButton: HTMLButtonElement): void {
   selection++;
   for (const button of list.querySelectorAll("button")) {
@@ -1223,6 +1227,7 @@ function showSign(options: HangingSignOptions, activeButton: HTMLButtonElement):
   mountPlan(roofHost, model.elevation);
   mountPlan(levelHost, model.plan);
   facts.append(fact("Model", "Modular hanging shop sign"));
+  modelOptions.hidden = false;
   function selector<T extends string>(name: string, values: readonly T[], selected: T, change: (value: T) => void) {
     const row = document.createElement("label");
     row.textContent = `${name}: `;
@@ -1238,7 +1243,7 @@ function showSign(options: HangingSignOptions, activeButton: HTMLButtonElement):
     row.append(select);
     const paragraph = document.createElement("p");
     paragraph.append(row);
-    facts.append(paragraph);
+    optionFields.append(paragraph);
   }
   selector("Shape", SIGN_SHAPES, options.shape ?? "rectangle", shape => showSign({ ...options, shape }, activeButton));
   selector("Material", SIGN_MATERIALS, options.material ?? "oak", material =>
@@ -1265,7 +1270,7 @@ for (const template of [
   button.type = "button";
   button.textContent = `${label(template.id)} · Hanging sign`;
   button.addEventListener("click", () => showSign(template, button));
-  list.append(button);
+  signsHeading.append(button);
 }
 
 resize();
