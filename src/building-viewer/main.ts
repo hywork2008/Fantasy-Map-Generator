@@ -18,6 +18,7 @@ import { CARRACK, createCarrack } from "../buildings/ships/carrack";
 import { createGalleon, GALLEON } from "../buildings/ships/galleon";
 import { createSloop, SLOOP } from "../buildings/ships/sloop";
 import { BATTERING_RAM, createBatteringRam } from "../buildings/siege/batteringRam";
+import { createEarlyFieldCannon, EARLY_FIELD_CANNON } from "../buildings/siege/earlyFieldCannon";
 import { createTrebuchet, TREBUCHET } from "../buildings/siege/trebuchet";
 import {
   createHangingSign,
@@ -777,6 +778,51 @@ ramButton.addEventListener("click", () => {
   );
 });
 list.append(ramButton);
+
+const artilleryHeading = document.createElement("h2");
+artilleryHeading.textContent = "Artillery";
+list.append(artilleryHeading);
+const cannonButton = document.createElement("button");
+cannonButton.type = "button";
+cannonButton.textContent = "Early field cannon · Europe c. 1500";
+cannonButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === cannonButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Field cannon side elevation";
+  levelTitle.textContent = "Field cannon plan";
+  const model = createEarlyFieldCannon();
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame(
+    { occupancyMeters: { width: EARLY_FIELD_CANNON.length, depth: EARLY_FIELD_CANNON.width } },
+    EARLY_FIELD_CANNON.height
+  );
+  camera.position.set(4.6, 3.1, 5.2);
+  controls.target.set(-0.2, 0.8, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", EARLY_FIELD_CANNON.name),
+    fact("Period", "Late medieval / Age of Discovery · Europe, circa 1500"),
+    fact("Type", "Muzzle-loading land artillery on a two-wheeled field carriage"),
+    fact(
+      "Study envelope",
+      `${EARLY_FIELD_CANNON.length} × ${EARLY_FIELD_CANNON.width} × ${EARLY_FIELD_CANNON.height} m`
+    ),
+    fact("Barrel", "Tapered bronze tube, open muzzle, reinforcing mouldings, trunnions and cascabel"),
+    fact("Carriage", "Iron-bound oak wheels, timber cheeks, ground-resting trail and wooden elevation quoin"),
+    fact("Note", EARLY_FIELD_CANNON.note)
+  );
+});
+list.append(cannonButton);
 
 const millsHeading = document.createElement("h2");
 millsHeading.textContent = "Mills";
