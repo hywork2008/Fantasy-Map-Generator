@@ -6,6 +6,8 @@ import { contentDigest } from "../buildings/canonicalJson";
 import { BOJNICE, bojnicePlan, createBojnice } from "../buildings/fortresses/bojnice";
 import { CHAMBORD, createChambord } from "../buildings/fortresses/chambord";
 import { KRAK, type KrakPhase } from "../buildings/fortresses/krak";
+import { createPostMill, POST_MILL } from "../buildings/mills/postMill";
+import { createTowerMill, TOWER_MILL } from "../buildings/mills/towerMill";
 import { committedSvgHash, levelPlanSvg, planSvg } from "../buildings/planSvg";
 import { type BuildingRecord, TRIANGLE_BUDGET } from "../buildings/record";
 import { createGalleon, GALLEON } from "../buildings/ships/galleon";
@@ -559,6 +561,79 @@ trebuchetButton.addEventListener("click", () => {
   );
 });
 list.append(trebuchetButton);
+
+const millsHeading = document.createElement("h2");
+millsHeading.textContent = "Mills";
+list.append(millsHeading);
+const postMillButton = document.createElement("button");
+postMillButton.type = "button";
+postMillButton.textContent = "Medieval windmill · Timber post mill";
+postMillButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === postMillButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Windmill front elevation";
+  levelTitle.textContent = "Windmill plan";
+  const model = createPostMill();
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: POST_MILL.width, depth: POST_MILL.depth } }, POST_MILL.height);
+  camera.position.set(17, 12, 24);
+  controls.target.set(0, 6, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", POST_MILL.name),
+    fact("Style", "Medieval Europe · Timber post mill"),
+    fact("Study envelope", `${POST_MILL.width} × ${POST_MILL.depth} × ${POST_MILL.height} m`),
+    fact("Sails", `Four canvas-covered lattice sails; ${POST_MILL.sailRadius * 2} m stock diameter`),
+    fact("Structure", "Timber milling house on a braced central post; rear stair and tailpole"),
+    fact("Note", POST_MILL.note)
+  );
+});
+list.append(postMillButton);
+
+const towerMillButton = document.createElement("button");
+towerMillButton.type = "button";
+towerMillButton.textContent = "Stone windmill · Tower mill";
+towerMillButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === towerMillButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Tower windmill front elevation";
+  levelTitle.textContent = "Tower windmill plan";
+  const model = createTowerMill();
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: TOWER_MILL.width, depth: TOWER_MILL.depth } }, TOWER_MILL.height);
+  camera.position.set(21, 16, 30);
+  controls.target.set(0, 9, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", TOWER_MILL.name),
+    fact("Style", "European stone tower mill"),
+    fact("Study envelope", `${TOWER_MILL.width} × ${TOWER_MILL.depth} × ${TOWER_MILL.height} m`),
+    fact("Tower", `${TOWER_MILL.towerHeight} m high; ${TOWER_MILL.baseRadius * 2} m diameter at the base`),
+    fact("Sails", "Four canvas-covered lattice sails on a timber cap"),
+    fact("Note", TOWER_MILL.note)
+  );
+});
+list.append(towerMillButton);
 
 resize();
 new ResizeObserver(resize).observe(stage);
