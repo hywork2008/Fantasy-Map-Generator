@@ -54,6 +54,22 @@ export function renderTownQuays(
               })
             );
           }
+        } else if (pile.kind === "bales") {
+          // Two rows of sacks or straw bales (tawara), each about 1.2 m across.
+          for (const row of [-1, 1])
+            for (const column of [-1, 0, 1])
+              g.appendChild(
+                element("rect", {
+                  x: (column * 1.3 - 0.6).toFixed(2),
+                  y: (row * hh * 0.5 - 0.6).toFixed(2),
+                  width: "1.2",
+                  height: "1.2",
+                  rx: "0.45",
+                  fill: "#b39c6b",
+                  stroke: "#5e4d2c",
+                  "stroke-width": "0.3"
+                })
+              );
         } else if (pile.kind === "crates") {
           g.appendChild(
             element("rect", {

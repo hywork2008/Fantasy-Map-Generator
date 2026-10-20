@@ -25,6 +25,8 @@ export interface QuayWarehouse {
   ridge?: [Point, Point];
   /** Open court of a compound. */
   court?: Point[];
+  /** Cut led in from the water beside a state storehouse, for boats to unload at its door. */
+  cut?: Point[];
   areaM2: number;
   storeys: number;
   mainGoods: string[];
@@ -60,6 +62,11 @@ const BLOCKED_WARDS = new Set(["castle", "market", "cemetery", "park"]);
 const SHORE_REACH = 45;
 /** Quay left between the water and a warehouse front. */
 const QUAY_SETBACK = 6;
+/**
+ * Fronts tried, nearest the water first: on the bare quay, then behind a harbour's quay strip
+ * (6–14 m) and loading yard (10–18 m, harborFabric.ts), which a town's quay street often lines.
+ */
+const FRONT_SETBACKS = [QUAY_SETBACK, 14, 22, 30];
 const PROBE_STEP = 3;
 const PROBE_DIRECTIONS = 12;
 const MAX_PIECES = 24;
@@ -69,6 +76,18 @@ const TOWN_SHARE_CAP = 0.12;
 const COMPOUND_RANGE_DEPTH = 9;
 /** Furthest outside the town a warehouse may stand (a rice store on the edge of town). */
 const OUTSIDE_TOWN_REACH = 150;
+/**
+ * A state store on a cut (§6.2, D): two storehouses run back from the bank on either side of a
+ * channel led in from the water, as the Asakusa rice store's eight cuts let its boats unload at
+ * the storehouse doors. Store width, cut width and the walk between them (m); a unit spans the
+ * plain storehouse's 40 m of bank.
+ */
+const CUT_STORE_WIDTH = 14;
+const CUT_WIDTH = 8;
+const CUT_WALK = 2;
+const CUT_UNIT_ALONG = 2 * CUT_STORE_WIDTH + 2 * CUT_WALK + CUT_WIDTH;
+/** The channel runs past the bank into the water so its mouth meets the river or harbour. */
+const CUT_MOUTH = 3;
 
 /** Storeys by period: two in antiquity and the early middle ages, up to five or six with the docks. */
 export function quayWarehouseStoreys(period: HistoricalPeriod): number {
@@ -179,17 +198,29 @@ function rectAt(centre: Point, normal: Point, along: number, depth: number): Poi
   return polygonArea(polygon) < 0 ? polygon.reverse() : polygon;
 }
 
+/**
+ * Streets, walls and other works stop a warehouse; houses and alleys do not. The town's fabric is
+ * laid before its landmarks, and the waterfront behind a quay is already built over: the stores
+ * replace the houses under them and the alleys end at their walls, as on any landmark's ground.
+ */
 function fits(site: QuaySiteView, polygon: Point[]): boolean {
   if (!site.inFrame(polygon, 2)) return false;
   if (site.hitsWater(polygon, 1)) return false;
-  if (site.hitsRoutes(polygon, 1) || site.hitsBlocked(polygon) || site.hitsLanes(polygon)) return false;
+  if (site.hitsRoutes(polygon, 1) || site.hitsBlocked(polygon)) return false;
   for (const ward of site.wardsUnder(polygon)) if (BLOCKED_WARDS.has(ward)) return false;
   return true;
 }
 
 /** The strip in front of a warehouse reaches the water across the quay, so a row ends where the bank turns away. */
-function facesWater(site: QuaySiteView, centre: Point, normal: Point, along: number, depth: number): boolean {
-  const reach = QUAY_SETBACK + 4;
+function facesWater(
+  site: QuaySiteView,
+  centre: Point,
+  normal: Point,
+  along: number,
+  depth: number,
+  setback = QUAY_SETBACK
+): boolean {
+  const reach = setback + 4;
   const front: Point = [
     centre[0] + normal[0] * (depth / 2 + reach / 2),
     centre[1] + normal[1] * (depth / 2 + reach / 2)
@@ -226,48 +257,120 @@ export function placeQuayWarehouses(
 
   const placed: QuayWarehouse[] = [];
   let left = target;
+  const add = (footprint: Point[], ridge: [Point, Point] | undefined, extra: Partial<QuayWarehouse> = {}) => {
+    const area = Math.round(Math.abs(polygonArea(footprint)));
+    placed.push({
+      id: `quay-warehouse-${placed.length}`,
+      layout,
+      name: NAMES[layout],
+      footprint,
+      ...(ridge ? { ridge } : {}),
+      ...extra,
+      areaM2: area,
+      storeys,
+      mainGoods: warehouse.mainGoods.slice(0, 3),
+      queuedSlots: warehouse.queuedSlots,
+      year
+    });
+    left -= area;
+  };
+  const ridgeOf = (centre: Point, axis: Point, half: number): [Point, Point] => [
+    [centre[0] - axis[0] * half, centre[1] - axis[1] * half],
+    [centre[0] + axis[0] * half, centre[1] + axis[1] * half]
+  ];
   for (const spot of spots(site)) {
     if (left <= 0 || placed.length >= maxPieces) break;
-    const back = spot.dist - QUAY_SETBACK - depth / 2;
-    if (back < -depth / 2) continue;
-    const base: Point = [spot.centre[0] + spot.normal[0] * back, spot.centre[1] + spot.normal[1] * back];
     const tangent: Point = [-spot.normal[1], spot.normal[0]];
     // Fill outwards along the shore from this spot: 0, +1, -1, +2, -2 …
     for (let step = 0; step < 2 * MAX_PIECES && left > 0 && placed.length < maxPieces; step++) {
       const index = step % 2 === 0 ? step / 2 : -(step + 1) / 2;
       const offset = index * (along + piece.gap);
-      const centre: Point = [base[0] + tangent[0] * offset, base[1] + tangent[1] * offset];
-      const footprint = rectAt(centre, spot.normal, along, depth);
-      if (!fits(site, footprint) || !facesWater(site, centre, spot.normal, along, depth)) continue;
+      if (
+        layout === "stateStore" &&
+        FRONT_SETBACKS.some(setback => placeCutUnit(site, spot, tangent, offset, setback, add, ridgeOf))
+      )
+        continue;
+      let centre: Point | null = null;
+      let footprint: Point[] = [];
+      for (const setback of FRONT_SETBACKS) {
+        const back = spot.dist - setback - depth / 2;
+        if (back < -depth) break;
+        const at: Point = [
+          spot.centre[0] + spot.normal[0] * back + tangent[0] * offset,
+          spot.centre[1] + spot.normal[1] * back + tangent[1] * offset
+        ];
+        const rect = rectAt(at, spot.normal, along, depth);
+        if (!fits(site, rect) || !facesWater(site, at, spot.normal, along, depth, setback)) continue;
+        centre = at;
+        footprint = rect;
+        break;
+      }
+      if (!centre) continue;
       site.claim(footprint);
       const half = piece.gableToWater ? depth / 2 - 1 : along / 2 - 1;
       const axis: Point = piece.gableToWater ? spot.normal : tangent;
-      const ridge: [Point, Point] = [
-        [centre[0] - axis[0] * half, centre[1] - axis[1] * half],
-        [centre[0] + axis[0] * half, centre[1] + axis[1] * half]
-      ];
       const court =
         layout === "compound" && along > COMPOUND_RANGE_DEPTH * 2 + 6 && depth > COMPOUND_RANGE_DEPTH * 2 + 6
           ? rectAt(centre, spot.normal, along - COMPOUND_RANGE_DEPTH * 2, depth - COMPOUND_RANGE_DEPTH * 2)
           : undefined;
-      const area = Math.round(Math.abs(polygonArea(footprint)));
-      placed.push({
-        id: `quay-warehouse-${placed.length}`,
-        layout,
-        name: NAMES[layout],
-        footprint,
-        ...(layout === "compound" ? {} : { ridge }),
-        ...(court ? { court } : {}),
-        areaM2: area,
-        storeys,
-        mainGoods: warehouse.mainGoods.slice(0, 3),
-        queuedSlots: warehouse.queuedSlots,
-        year
-      });
-      left -= area;
+      add(footprint, layout === "compound" ? undefined : ridgeOf(centre, axis, half), court ? { court } : {});
     }
   }
   return placed;
+}
+
+/**
+ * One state-store unit at `offset` along the bank: a cut led in from the water with a storehouse
+ * gabled to the water on each side. Placed only whole; otherwise the plain storehouse is tried.
+ */
+function placeCutUnit(
+  site: QuaySiteView,
+  spot: Spot,
+  tangent: Point,
+  offset: number,
+  setback: number,
+  add: (footprint: Point[], ridge: [Point, Point], extra?: Partial<QuayWarehouse>) => void,
+  ridgeOf: (centre: Point, axis: Point, half: number) => [Point, Point]
+): boolean {
+  const length = PIECE.stateStore.along;
+  const back = spot.dist - setback - length / 2;
+  if (back < -length) return false;
+  const centre: Point = [
+    spot.centre[0] + spot.normal[0] * back + tangent[0] * offset,
+    spot.centre[1] + spot.normal[1] * back + tangent[1] * offset
+  ];
+  const side = (CUT_UNIT_ALONG - CUT_STORE_WIDTH) / 2;
+  const stores = [-side, side].map(u => {
+    const at: Point = [centre[0] + tangent[0] * u, centre[1] + tangent[1] * u];
+    return { at, footprint: rectAt(at, spot.normal, CUT_STORE_WIDTH, length) };
+  });
+  // The channel runs from the storehouses' back wall across the quay to the first water ahead.
+  const front: Point = [centre[0] + (spot.normal[0] * length) / 2, centre[1] + (spot.normal[1] * length) / 2];
+  let bank = 0;
+  for (let t = 1; t <= setback + 8 && !bank; t++) {
+    const probe: Point = [front[0] + spot.normal[0] * t, front[1] + spot.normal[1] * t];
+    if (site.hitsWater(rectAt(probe, spot.normal, CUT_WIDTH * 0.6, 1), 0)) bank = t;
+  }
+  if (!bank) return false;
+  const midAt = (t: number): Point => [centre[0] + (spot.normal[0] * t) / 2, centre[1] + (spot.normal[1] * t) / 2];
+  const land = rectAt(midAt(bank - 1), spot.normal, CUT_WIDTH + 2 * CUT_WALK, length + bank - 1);
+  if (
+    stores.some(store => !fits(site, store.footprint)) ||
+    !facesWater(site, centre, spot.normal, CUT_WIDTH, length, setback) ||
+    !site.inFrame(land, 2) ||
+    site.hitsWater(rectAt(centre, spot.normal, CUT_WIDTH, length), 1) ||
+    site.hitsRoutes(land, 1) ||
+    site.hitsBlocked(land)
+  )
+    return false;
+  for (const ward of site.wardsUnder(land)) if (BLOCKED_WARDS.has(ward)) return false;
+  const cut = rectAt(midAt(bank + CUT_MOUTH), spot.normal, CUT_WIDTH, length + bank + CUT_MOUTH);
+  site.claim(land);
+  stores.forEach((store, index) => {
+    site.claim(store.footprint);
+    add(store.footprint, ridgeOf(store.at, spot.normal, length / 2 - 1), index === 0 ? { cut } : {});
+  });
+  return true;
 }
 
 /**

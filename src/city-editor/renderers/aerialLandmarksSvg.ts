@@ -782,6 +782,17 @@ function renderQuayWarehouse(warehouse: QuayWarehouse, options: PickOptions): SV
     },
     options
   );
+  // The cut is drawn first: its mouth runs out over the quay edge into the water.
+  if (warehouse.cut)
+    g.appendChild(
+      el("path", {
+        d: polygon(warehouse.cut),
+        class: "ce-quay-warehouse-cut",
+        fill: "#88a5a0",
+        stroke: "#6d675a",
+        "stroke-width": "0.6"
+      })
+    );
   if (warehouse.ridge) gabled(g, warehouse.footprint, warehouse.ridge, "#9c6b4e", "#7a523b");
   else
     g.appendChild(

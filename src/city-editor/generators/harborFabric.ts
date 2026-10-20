@@ -18,6 +18,16 @@ import type { ParcelFrontage } from "./parcelTypes";
 import { riverPortShore, seaPortShore } from "./riverPortShore";
 import { waterPolygons } from "./waterGeometry";
 
+/**
+ * Cargo the port's warehouses cannot hold lies stacked on the loading yards (§4.4, §6.2 of
+ * port-freight-queue-and-warehouses.md): one pile of barrels, bales or crates two high on some
+ * 4 × 3 m holds about 6 t, some 40 slots. The piles drawn stop at a dozen, the yards' share.
+ */
+const OVERFLOW_PILE_SLOTS = 40;
+const MAX_OVERFLOW_PILES = 12;
+const OVERFLOW_PILE_KINDS = ["bales", "barrels", "crates"] as const;
+const OVERFLOW_PILE_STEP = 4.5;
+
 export interface HarborPier {
   id: Id;
   landFaceId?: Id;
@@ -43,7 +53,7 @@ export interface HarborCrane {
 
 export interface HarborCargoPile {
   id: Id;
-  kind: "crates" | "barrels" | "ballast";
+  kind: "crates" | "barrels" | "bales" | "ballast";
   point: Point;
   widthMeters: number;
   heightMeters: number;
@@ -379,6 +389,31 @@ export function planHarbor(
     })
     .sort((a, b) => b.score - a.score);
 
+  // Fit a round footprint within the shore cell's reserved apron, leaving roads and the cross-quay
+  // cart approach unobstructed.
+  const apronFits = (faceId: Id, point: Point, radius: number): boolean => {
+    const footprint: Point[] = Array.from({ length: 16 }, (_, i) => {
+      const angle = (i * Math.PI) / 8;
+      return [point[0] + Math.cos(angle) * radius, point[1] + Math.sin(angle) * radius];
+    });
+    const area = plotArea(footprint);
+    const covered = plan.spaces
+      .filter(s => s.faceId === faceId)
+      .reduce((sum, s) => sum + plotArea(intersectConvex(footprint, s.polygon)), 0);
+    return (
+      covered >= area - 0.01 &&
+      isFree(footprint) &&
+      [...throughStreets, ...plan.frontages.filter(f => f.widthMeters === 3)].every(
+        f => nearestOnPolyline(point, [f.a, f.b]).dist >= radius + f.widthMeters / 2 + 0.8
+      ) &&
+      plan.cranes.every(c => distance(point, c.point) >= radius + c.radiusMeters + 1)
+    );
+  };
+  const clearOfPiles = (point: Point, radius: number): boolean =>
+    plan.cargoPiles.every(
+      other => distance(point, other.point) >= radius + Math.hypot(other.widthMeters, other.heightMeters) / 2 + 0.5
+    );
+
   const selectedForCrane: typeof candidateShores = [];
   const maxCranes = candidateShores.length >= 4 ? 2 : candidateShores.length > 0 ? 1 : 0;
   for (const c of candidateShores) {
@@ -422,26 +457,8 @@ export function planHarbor(
     const armAngleRad = Math.atan2(-shore.inward[1], -shore.inward[0]);
     const radiusMeters = craneKind === "treadwheel" ? 2.8 : 2;
     const tangent: Point = [(shore.b[0] - shore.a[0]) / shore.length, (shore.b[1] - shore.a[1]) / shore.length];
-    // Fit the entire footprint in the reserved apron, leaving roads and the
-    // cross-quay cart approach unobstructed. Omit equipment if no safe fit exists.
-    const fits = (point: Point, radius: number): boolean => {
-      const footprint: Point[] = Array.from({ length: 16 }, (_, i) => {
-        const angle = (i * Math.PI) / 8;
-        return [point[0] + Math.cos(angle) * radius, point[1] + Math.sin(angle) * radius];
-      });
-      const area = plotArea(footprint);
-      const covered = plan.spaces
-        .filter(s => s.faceId === shore.landId)
-        .reduce((sum, s) => sum + plotArea(intersectConvex(footprint, s.polygon)), 0);
-      return (
-        covered >= area - 0.01 &&
-        isFree(footprint) &&
-        [...throughStreets, ...plan.frontages.filter(f => f.widthMeters === 3)].every(
-          f => nearestOnPolyline(point, [f.a, f.b]).dist >= radius + f.widthMeters / 2 + 0.8
-        ) &&
-        plan.cranes.every(c => distance(point, c.point) >= radius + c.radiusMeters + 1)
-      );
-    };
+    // Omit equipment if no safe fit exists.
+    const fits = (point: Point, radius: number): boolean => apronFits(shore.landId, point, radius);
     const candidates: Point[] = [];
     for (const depth of [radiusMeters + 0.8, stripWidth / 2, stripWidth - radiusMeters - 0.8])
       for (const along of [0, -7, 7, -14, 14]) {
@@ -498,17 +515,12 @@ export function planHarbor(
               return [c, ...s.polygon.map(p => [(p[0] + c[0]) / 2, (p[1] + c[1]) / 2] as Point)];
             })
         ];
-        const point = positions.find(
-          p =>
-            fits(p, radius) &&
-            plan.cargoPiles.every(
-              other => distance(p, other.point) >= radius + Math.hypot(other.widthMeters, other.heightMeters) / 2 + 0.5
-            )
-        );
+        const point = positions.find(p => fits(p, radius) && clearOfPiles(p, radius));
         if (point) plan.cargoPiles.push({ ...pile, point });
       }
     }
   }
+  addOverflowPiles();
   let field: HarborWaterField | undefined;
   const waterField = () => {
     field ??= harborWaterField(document);
@@ -524,6 +536,43 @@ export function planHarbor(
     }
   plan.sharedArea = plan.spaces.reduce((a, s) => a + plotArea(s.polygon), 0);
   return plan;
+
+  /** Piles of the cargo waiting for a ship beyond what the warehouses hold, yard by yard. */
+  function addOverflowPiles(): void {
+    const warehouse = economyOnDocument(document)?.portWarehouse;
+    const overflow = warehouse ? warehouse.queuedSlots - warehouse.capacitySlots : 0;
+    let wanted = Math.min(MAX_OVERFLOW_PILES, Math.ceil(Math.max(0, overflow) / OVERFLOW_PILE_SLOTS));
+    if (!(wanted > 0)) return;
+    const yards = plan.spaces.filter(s => s.kind === "loading-yard");
+    for (let pass = 0; wanted > 0 && pass < 4; pass++) {
+      let placedThisPass = 0;
+      // One pile a yard a pass, so the stacks spread over the port's yards.
+      for (const yard of yards) {
+        if (wanted <= 0) break;
+        const shore = usableShores.find(u => u.shore.landId === yard.faceId)?.shore;
+        const tangent: Point = shore
+          ? [(shore.b[0] - shore.a[0]) / shore.length, (shore.b[1] - shore.a[1]) / shore.length]
+          : [1, 0];
+        const index = plan.cargoPiles.length;
+        const kind = OVERFLOW_PILE_KINDS[index % OVERFLOW_PILE_KINDS.length];
+        const pile: HarborCargoPile = {
+          id: `cargo:${yard.id}:queued:${index}`,
+          kind,
+          point: [0, 0],
+          widthMeters: kind === "crates" ? 4.2 : 4,
+          heightMeters: kind === "crates" ? 2.8 : 3,
+          rotation: Math.atan2(tangent[1], tangent[0])
+        };
+        const radius = Math.hypot(pile.widthMeters, pile.heightMeters) / 2 + 0.4;
+        const point = yardGrid(yard.polygon).find(p => apronFits(yard.faceId, p, radius) && clearOfPiles(p, radius));
+        if (!point) continue;
+        plan.cargoPiles.push({ ...pile, point });
+        wanted -= 1;
+        placedThisPass += 1;
+      }
+      if (!placedThisPass) break;
+    }
+  }
 
   function addPiers(shore: Shore): void {
     const count = shore.length >= 50 ? 2 : 1;
@@ -584,6 +633,18 @@ export function planHarbor(
       });
     }
   }
+}
+
+/** Points inside a yard on a grid, the nearest its middle first. */
+function yardGrid(polygon: Point[]): Point[] {
+  const centre = polygonCentroid(polygon);
+  const xs = polygon.map(p => p[0]),
+    ys = polygon.map(p => p[1]);
+  const points: Point[] = [];
+  for (let x = Math.min(...xs); x <= Math.max(...xs); x += OVERFLOW_PILE_STEP)
+    for (let y = Math.min(...ys); y <= Math.max(...ys); y += OVERFLOW_PILE_STEP)
+      if (pointInPolygon([x, y], polygon)) points.push([x, y]);
+  return points.sort((a, b) => distance(a, centre) - distance(b, centre));
 }
 
 /** Split at every apron boundary, including an off-centre crossing whose

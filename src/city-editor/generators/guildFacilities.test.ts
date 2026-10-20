@@ -130,4 +130,36 @@ describe("sanitizeBurgSiteEconomy", () => {
     });
     expect(dropped?.mills).toBeUndefined();
   });
+
+  it("keeps the port warehouses and drops an unknown layout", () => {
+    const portWarehouse = (layout: string) => ({
+      capacitySlots: 2442.4,
+      floorAreaM2: 1954,
+      layout,
+      rank: 1.2,
+      queuedSlots: 310,
+      mainGoods: ["Grain", "Salt", "Honey", "Wine"]
+    });
+    const kept = sanitizeBurgSiteEconomy({
+      version: 1,
+      year: 1931,
+      guilds: [],
+      portWarehouse: portWarehouse("quayRow")
+    });
+    expect(kept?.portWarehouse).toEqual({
+      capacitySlots: 2442,
+      floorAreaM2: 1954,
+      layout: "quayRow",
+      rank: 1,
+      queuedSlots: 310,
+      mainGoods: ["Grain", "Salt", "Honey"]
+    });
+    const dropped = sanitizeBurgSiteEconomy({
+      version: 1,
+      year: 1931,
+      guilds: [],
+      portWarehouse: portWarehouse("silo")
+    });
+    expect(dropped?.portWarehouse).toBeUndefined();
+  });
 });

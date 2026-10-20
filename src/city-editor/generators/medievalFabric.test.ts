@@ -9,7 +9,7 @@ import { createFabricPlan, setBuildingPattern, setDistrictParameters } from "./f
 import { polygonBitesDisk } from "./gatePlazaBuildings";
 import { generateCityOnDocument } from "./generation/generateCity";
 import { defaultGenerationSettings } from "./generation/settings";
-import { isSimplePolygon, nearestOnPolyline, polygonCentroid, segmentInteriorInPolygon } from "./geom";
+import { isSimplePolygon, nearestOnPolyline, pointInPolygon, polygonCentroid, segmentInteriorInPolygon } from "./geom";
 import { DocumentHistory } from "./history";
 import { FabricCache } from "./localInfill";
 import { buildMedievalFabric } from "./medievalFabric";
@@ -375,6 +375,41 @@ describe("medieval parcel fabric", () => {
       for (const space of fabric.harbor!.spaces.filter(s => s.faceId === lane.faceId))
         for (let i = 1; i < lane.points.length; i++)
           expect(segmentInteriorInPolygon(lane.points[i - 1], lane.points[i], space.polygon)).toBe(false);
+  });
+
+  it("stacks the cargo the port's warehouses cannot hold on the loading yards", () => {
+    const port = (queuedSlots: number): CityDocument => ({
+      ...fixture([], true),
+      siteEconomy: {
+        version: 1,
+        year: 1600,
+        commerce: { rank: 0.5, marketCenter: false, merchantHouse: null, mint: false, caravanArrivalRank: 0.5 },
+        guilds: [],
+        storage: [],
+        facilities: [],
+        tradePartners: [],
+        portWarehouse: {
+          capacitySlots: 200,
+          floorAreaM2: 160,
+          layout: "merchantHouses",
+          rank: 0.5,
+          queuedSlots,
+          mainGoods: []
+        }
+      }
+    });
+    const held = buildBlockFabric(port(150)).harbor!;
+    const stacked = buildBlockFabric(port(400)).harbor!;
+    const queued = stacked.cargoPiles.filter(pile => pile.id.includes(":queued:"));
+    expect(held.cargoPiles.some(pile => pile.id.includes(":queued:"))).toBe(false);
+    expect(queued.length).toBeGreaterThan(0);
+    expect(queued.length).toBeLessThanOrEqual(Math.ceil(200 / 40));
+    for (const pile of queued)
+      expect(
+        stacked.spaces.some(space => space.kind === "loading-yard" && pointInPolygon(pile.point, space.polygon))
+      ).toBe(true);
+    const svg = renderStandaloneCitySvg(port(400));
+    expect(svg.querySelectorAll(".ce-cargo-pile--bales").length).toBeGreaterThan(0);
   });
 
   it("keeps cranes and cargo clear of buildings with dedicated open loading spaces", () => {

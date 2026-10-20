@@ -688,6 +688,50 @@ describe("aerial landmarks (1008-wards-and-features priority list)", () => {
     ).toContain("岸の倉庫");
   }, 180000);
 
+  it("leads cuts in from the river between the state storehouses", () => {
+    const economy: BurgSiteEconomy = {
+      version: 1,
+      year: 1700,
+      commerce: { rank: 0.9, marketCenter: true, merchantHouse: null, mint: false, caravanArrivalRank: 0.9 },
+      guilds: [],
+      storage: [],
+      facilities: [],
+      tradePartners: [],
+      portWarehouse: {
+        capacitySlots: 12000,
+        floorAreaM2: 9600,
+        layout: "stateStore",
+        rank: 1,
+        queuedSlots: 0,
+        mainGoods: ["Rice"]
+      }
+    };
+    const withPort = { ...city, historicalPeriod: "ageOfExploration" as const, siteEconomy: economy };
+    const built = buildBlockFabric(withPort, new FabricCache());
+    const warehouses = built.aerialLandmarks?.quayWarehouses ?? [];
+    const cuts = warehouses.flatMap(warehouse => (warehouse.cut ? [warehouse.cut] : []));
+    expect(cuts.length).toBeGreaterThan(0);
+    const river = city.featureGroups.find(g => g.kind === "river");
+    if (river?.kind !== "river") throw new Error("no river");
+    const points = river.vertices.map(id => city.mesh.vertices[id].point);
+    for (const cut of cuts) {
+      // The mouth opens on the river; the head lies back among the storehouses.
+      const reach = cut.map(point => nearestOnPolyline(point, points).dist);
+      expect(Math.min(...reach)).toBeLessThan(river.style.widthMeters / 2 + 4);
+      expect(Math.max(...reach)).toBeGreaterThan(river.style.widthMeters / 2 + 30);
+      for (const warehouse of warehouses) expect(polygonOverlaps(cut, warehouse.footprint)).toBe(false);
+    }
+    const half = withPort.frame.extentMeters / 2;
+    const svg = renderEditorSvg(
+      { ...withPort, appearance: "town" },
+      "select",
+      { faceId: null, edgeId: null, vertexId: null, groupId: null },
+      `${-half} ${-half} ${half * 2} ${half * 2}`,
+      1
+    );
+    expect(svg.querySelectorAll(".ce-quay-warehouse-cut")).toHaveLength(cuts.length);
+  }, 180000);
+
   it("pins land timber to the forest gate, draws a public granary, and lengthens houses for the cellar", () => {
     const exits = externalGateRoads(city);
     expect(exits.length).toBeGreaterThan(0);

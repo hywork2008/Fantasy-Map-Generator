@@ -1,8 +1,9 @@
-import { GUILD_DOMAINS, STORAGE_FORMS } from "../../data/siteEconomy";
+import { GUILD_DOMAINS, PORT_WAREHOUSE_LAYOUTS, STORAGE_FORMS } from "../../data/siteEconomy";
 import type {
   BurgSiteEconomy,
   SiteGuild,
   SiteLodging,
+  SitePortWarehouse,
   SiteStorageYard,
   SiteTradePartner
 } from "../../types/contracts/burgSiteEconomy";
@@ -15,6 +16,7 @@ import type {
 const DOMAINS = new Set<string>(GUILD_DOMAINS);
 const FORMS = new Set<string>(STORAGE_FORMS);
 const LODGING = new Set<string>(["inn", "caravanserai"]);
+const PORT_LAYOUTS = new Set<string>(PORT_WAREHOUSE_LAYOUTS);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
@@ -63,7 +65,27 @@ export function sanitizeBurgSiteEconomy(raw: unknown): BurgSiteEconomy | null {
     storage: yardsFrom(raw.storage),
     facilities: lodgingFrom(raw.facilities),
     tradePartners: partnersFrom(raw.tradePartners),
-    ...millsFrom(raw.mills)
+    ...millsFrom(raw.mills),
+    ...portWarehouseFrom(raw.portWarehouse)
+  };
+}
+
+function portWarehouseFrom(raw: unknown): { portWarehouse: SitePortWarehouse } | Record<string, never> {
+  if (!isRecord(raw) || typeof raw.layout !== "string" || !PORT_LAYOUTS.has(raw.layout)) return {};
+  const capacity = countOf(raw.capacitySlots);
+  const floor = countOf(raw.floorAreaM2);
+  if (capacity === undefined || floor === undefined) return {};
+  return {
+    portWarehouse: {
+      capacitySlots: capacity,
+      floorAreaM2: floor,
+      layout: raw.layout as SitePortWarehouse["layout"],
+      rank: clamp01(raw.rank),
+      queuedSlots: countOf(raw.queuedSlots) ?? 0,
+      mainGoods: Array.isArray(raw.mainGoods)
+        ? raw.mainGoods.filter((good): good is string => typeof good === "string").slice(0, 3)
+        : []
+    }
   };
 }
 
