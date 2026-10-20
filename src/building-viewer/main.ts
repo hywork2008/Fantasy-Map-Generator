@@ -29,6 +29,7 @@ import {
 import { validateBuildingRecord } from "../buildings/validate";
 import { createMedievalWagon, MEDIEVAL_WAGON } from "../buildings/vehicles/medievalWagon";
 import { createMedievalWell, MEDIEVAL_WELL } from "../buildings/wells/medievalWell";
+import { createMedievalLumberYard, MEDIEVAL_LUMBER_YARD } from "../buildings/yards/medievalLumberYard";
 import { catalogueMassing } from "../city3d/core/catalogueMassing";
 import { structureSurfaces } from "../city3d/core/structureGeometry";
 import { type CityStructureMeshes, createStructureMassing } from "../city3d/three/structureMeshes";
@@ -884,6 +885,50 @@ wellButton.addEventListener("click", () => {
   );
 });
 list.append(wellButton);
+
+const yardsHeading = document.createElement("h2");
+yardsHeading.textContent = "Work yards";
+list.append(yardsHeading);
+const lumberYardButton = document.createElement("button");
+lumberYardButton.type = "button";
+lumberYardButton.textContent = "Medieval European lumber yard · Timber storage";
+lumberYardButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === lumberYardButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Yard front elevation";
+  levelTitle.textContent = "Yard plan";
+  const model = createMedievalLumberYard();
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame(
+    { occupancyMeters: { width: MEDIEVAL_LUMBER_YARD.width, depth: MEDIEVAL_LUMBER_YARD.depth } },
+    MEDIEVAL_LUMBER_YARD.height
+  );
+  camera.position.set(20, 15, 22);
+  controls.target.set(0, 1.7, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", MEDIEVAL_LUMBER_YARD.name),
+    fact("Style", "Medieval Europe · Timber storage and hand-work yard"),
+    fact(
+      "Study envelope",
+      `${MEDIEVAL_LUMBER_YARD.width} × ${MEDIEVAL_LUMBER_YARD.depth} × ${MEDIEVAL_LUMBER_YARD.height} m`
+    ),
+    fact("Storage", "Sleeper-supported log pile, boards separated by drying stickers and stacked hewn beams"),
+    fact("Workshop", "Open braced timber shed, wooden roof, sawing trestles, frame saw and chopping block with axe"),
+    fact("Note", MEDIEVAL_LUMBER_YARD.note)
+  );
+});
+list.append(lumberYardButton);
 
 const vehiclesHeading = document.createElement("h2");
 vehiclesHeading.textContent = "Vehicles";
