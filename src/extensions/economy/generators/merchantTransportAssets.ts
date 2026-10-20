@@ -10,6 +10,7 @@ import {
   getMerchantOrganizations,
   getMerchantTransportLedgers,
   getNextTransportReservationId,
+  getSimulationMonth,
   getTransportReservations,
   getWorldContext,
   setMerchantTransportLedgers,
@@ -18,6 +19,7 @@ import {
 } from "../economyContext";
 import { CaravanMovement, getDraftAnimalType } from "./caravanMovement";
 import { recordGoodFlow } from "./goodsBalanceLedger";
+import { getLocalCarrierSeasonFactor } from "./harvestCarriers";
 import {
   type LandFleetSeedCounts,
   landFleetCountsFromBurgScale,
@@ -37,6 +39,7 @@ import type {
   TransportReservation
 } from "./marketTypes";
 import { seaDepartureMarketId, stageSegments } from "./seaRoutePorts";
+import { isSeaClosed } from "./seaSeason";
 import { getLandTransportDefinition, RIVER_BARGE_TRANSPORT } from "./tradeCargo";
 
 const MAINTENANCE_RECOVERY_DAYS = 30;
@@ -238,7 +241,8 @@ function topUpLandAssets(ledger: MerchantTransportLedger): void {
 
 /**
  * Hired vehicles one kind may add: the market's own count of that kind times the hire share, and
- * at least what its local carriers lend (`refreshLocalCarriers`).
+ * at least what its local carriers lend (`refreshLocalCarriers`). Months of heavy field work take
+ * part of both (§10.27).
  */
 function hireCap(balance: MerchantLandAssetBalance, ledger: MerchantTransportLedger | undefined): number {
   const local = ledger?.localCarriers;
@@ -249,7 +253,8 @@ function hireCap(balance: MerchantLandAssetBalance, ledger: MerchantTransportLed
       : balance.assetId === "cart"
         ? local.cart
         : local.wagon;
-  return Math.max(Math.floor(landAssetTotal(balance) * LAND_HIRE_SHARE), localCount);
+  const season = ledger?.localCarrierSeasonFactor ?? 1;
+  return Math.max(Math.floor(landAssetTotal(balance) * LAND_HIRE_SHARE * season), Math.floor(localCount * season));
 }
 
 /** Removes `count` vehicles' share of the horses the market paid for, and returns it. */
@@ -963,7 +968,8 @@ export class MerchantTransportAssetsModule {
    */
   /**
    * Counts the carts and teams the market's countryside and towns lend for hire: the burg floor
-   * that used to be handed to the merchants free, or more where the countryside is large (§10.14).
+   * that used to be handed to the merchants free, or more where the countryside is large (§10.14),
+   * and how many of them field work leaves free this month (§10.27).
    */
   refreshLocalCarriers(marketId: number): void {
     const ledger = findLedger(marketId);
@@ -976,6 +982,8 @@ export class MerchantTransportAssetsModule {
       cart: Math.floor(rural * LOCAL_CARRIERS_PER_THOUSAND_RURAL.cart),
       wagon: Math.floor(rural * LOCAL_CARRIERS_PER_THOUSAND_RURAL.wagon)
     });
+    const season = getLocalCarrierSeasonFactor(marketId, getSimulationMonth());
+    ledger.localCarrierSeasonFactor = season < 1 ? season : undefined;
   }
 
   /** Cargo slots of the land vehicles the market may hire at once (`hireCap` of each kind). */
@@ -1154,8 +1162,10 @@ export class MerchantTransportAssetsModule {
     };
     for (const ledger of getMerchantTransportLedgers()) {
       const home = portOf(ledger.marketId);
+      // A hull laid up for the winter or iced in stays where she lies until the port opens (§10.27).
       const ready = (ledger.waterAssets ?? []).filter(
-        asset => releasable.has(asset) && (asset.idleDays ?? 0) >= BALLAST_MIN_IDLE_DAYS
+        asset =>
+          releasable.has(asset) && (asset.idleDays ?? 0) >= BALLAST_MIN_IDLE_DAYS && !isSeaClosed(asset.berthBurgId)
       );
       const isAbroad = (asset: MerchantWaterAssetReference) => berthMarketId(asset) !== ledger.marketId;
       // While her owner has demand, a hull abroad sails home, the nearest first.

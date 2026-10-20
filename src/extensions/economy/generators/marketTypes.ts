@@ -498,6 +498,11 @@ export type MerchantTransportLedger = {
    * merchant owns any or not (port-freight-queue-and-warehouses.md §10.14). Refreshed each cycle.
    */
   localCarriers?: { packTrain: number; cart: number; wagon: number };
+  /**
+   * Share of the hire limits free from the harvest this cycle: at harvest the peasants' teams
+   * went to the fields (port-freight-queue-and-warehouses.md §10.27). Absent: all of them.
+   */
+  localCarrierSeasonFactor?: number;
   riverAssets: MerchantRiverAssetBalance[];
   /** References only; Shipbuilding's ShipHull remains the source of truth. */
   waterAssets: MerchantWaterAssetReference[];

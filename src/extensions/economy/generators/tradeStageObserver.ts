@@ -44,9 +44,10 @@ export interface TradeStageEvent {
   readonly capitalCash?: number;
   /**
    * `noTransport`: what ran out — the land room (own and hireable carts), the sea room at the
-   * departure port, or the exporter's own carts when hired ones do not pay on the good.
+   * departure port, or the exporter's own carts when hired ones do not pay on the good; `season`
+   * when the departure port is laid up for the winter or iced in.
    */
-  readonly transportLimit?: "land" | "sea" | "ownLand";
+  readonly transportLimit?: "land" | "sea" | "ownLand" | "season";
 }
 
 /**

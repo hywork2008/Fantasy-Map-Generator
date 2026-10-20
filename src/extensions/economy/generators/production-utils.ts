@@ -144,6 +144,19 @@ export function getCropLabourWeight(good: Good, cellId: number, month: number): 
   return calendar.labourWeights[Math.max(0, Math.min(11, Math.floor(month - 1)))] ?? 0;
 }
 
+/** Month weights of a cell's harvest over its current crop mix. Null where nothing is grown. */
+export function getCellHarvestWeights(cellId: number): number[] | null {
+  const crops = getGoods().filter(good => good.crop && isGoodEnabled(good));
+  const weights = new Array<number>(12).fill(0);
+  for (const entry of getCurrentCropMix(getWorldContext(), cellId, crops)) {
+    const calendar = getCalendarForGood(entry.good, cellId, entry.irrigated);
+    if (!calendar) continue;
+    for (let month = 0; month < 12; month++) weights[month] += entry.share * calendar.harvestWeights[month];
+  }
+  const total = weights.reduce((sum, weight) => sum + weight, 0);
+  return total > 0 ? weights.map(weight => weight / total) : null;
+}
+
 /**
  * Compatibility multiplier for production paths that express a good's amount as one normal
  * month. Crop calendars are annual weights, hence the ×12 preserves annual output. Livestock,

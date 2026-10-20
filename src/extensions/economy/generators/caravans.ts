@@ -61,6 +61,7 @@ import { accruePortStorage, recordSeaDeparture, repositionIdleHulls, waitingPort
 import { recordRouteTraffic } from "./publicWorks";
 import { markRetailInventoryDirty } from "./retailInventory";
 import { isAtPort, seaDepartureMarketId, seaDeparturePortBurgId, stageSegments } from "./seaRoutePorts";
+import { isSeaClosed } from "./seaSeason";
 import {
   buildCargoManifests,
   getGoodCargoSlotsPerUnit,
@@ -399,6 +400,12 @@ function reservationHasShipHulls(reservation: ReturnType<typeof MerchantTranspor
 
 function routeNeedsSeaHulls(routeSegments: readonly TradeRouteSegment[]): boolean {
   return routeSegments.some(segment => segment.type === "water" || segment.type === "sea");
+}
+
+/** Whether the port this stage's sea leg sails from is closed for the season (§10.27). */
+function isLaidUp(caravan: Caravan): boolean {
+  const segments = stageSegments(caravan);
+  return routeNeedsSeaHulls(segments) && isSeaClosed(seaDeparturePortBurgId(segments));
 }
 
 /** Whether a planned allocation + optional reservation may leave the loading berth. */
@@ -1603,6 +1610,12 @@ export class CaravansModule {
         for (const allocation of caravan.transportAllocations) allocation.usedSlots = payloadUsedSlots(caravan);
       }
       refreshLoadingPolicy(caravan);
+      // A port laid up for winter or iced in holds its sea cargo, and the wait does not count
+      // against it: the house stored its goods for the first sailing (§10.27).
+      if (isLaidUp(caravan)) {
+        caravan.departReason = "waiting";
+        continue;
+      }
       caravan.loading.waitedDays += deltaDays;
       const outcome = tryDepartLoadingCaravan(caravan);
       if (outcome === "cancelled") lost.push(caravan);

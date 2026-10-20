@@ -27,6 +27,7 @@ import { DEFAULT_DRAFT_ANIMAL_ID } from "./caravanMovement";
 import type { Caravan, TradeRouteSegment } from "./marketTypes";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
 import { isInlandStage, seaDepartureMarketId, seaDeparturePortBurgId } from "./seaRoutePorts";
+import { isSeaBookable } from "./seaSeason";
 import { getGoodCargoSlotsPerUnit } from "./tradeCargo";
 
 /** Days a month a vehicle can be out carrying. */
@@ -162,6 +163,17 @@ function seaSlotsLeft(entry: { capacity: number; held: number }): number {
   return Math.max(0, entry.capacity - entry.held);
 }
 
+/**
+ * A port laid up for the winter or iced in takes no sea cargo until a month before it opens; then
+ * the house gathers its goods in the port warehouse for the first sailing (§10.27).
+ */
+export function seaClosedForBooking(segments: readonly TradeRouteSegment[] | undefined): boolean {
+  return (
+    !!segments?.some(segment => segment.type === "sea" || segment.type === "water") &&
+    !isSeaBookable(seaDeparturePortBurgId(segments))
+  );
+}
+
 /** Slots the exporter's fleet can still take on this route this cycle (Infinity: no limit). */
 export function transportRoomSlots(
   room: TransportRoom,
@@ -169,6 +181,7 @@ export function transportRoomSlots(
   segments: readonly TradeRouteSegment[] | undefined,
   durationDays: number
 ): number {
+  if (seaClosedForBooking(segments)) return 0;
   const days = Math.max(1, durationDays);
   let slots = Number.POSITIVE_INFINITY;
   const modes = routeModes(segments);
@@ -195,6 +208,7 @@ export function seaRoomSlots(
   segments: readonly TradeRouteSegment[] | undefined,
   _durationDays: number
 ): number {
+  if (seaClosedForBooking(segments)) return 0;
   if (!routeModes(segments).includes("sea")) return Number.POSITIVE_INFINITY;
   return seaSlotsLeft(seaEntry(room, marketId, segments));
 }

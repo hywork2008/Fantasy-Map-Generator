@@ -135,6 +135,7 @@ import { getTradeStageObserver } from "./tradeStageObserver";
 import {
   buildTransportRoom,
   ownLandRoomSlots,
+  seaClosedForBooking,
   seaRoomSlots,
   type TransportRoom,
   takeTransportRoom,
@@ -2449,6 +2450,11 @@ export class MarketsModule {
         opportunity.durationDays
       );
       if (Number.isFinite(carriable)) {
+        // A port shut for the season wants no more hulls; it waits for the opening (§10.27).
+        if (seaClosedForBooking(opportunity.routeSegments)) {
+          observe?.({ stage: "noTransport", ...leg, transportLimit: "season" });
+          continue;
+        }
         const seaSlots = seaRoomSlots(
           transportRoom,
           opportunity.exporter.i,
