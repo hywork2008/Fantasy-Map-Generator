@@ -315,13 +315,15 @@ describe("getConstructionRequiredPeople (docs/plan/craft-demand-calibration.md �
     expect(total).toBeLessThanOrEqual(8.5);
   });
 
-  it("matches the 50-point capital fixture (50 adults, full backlog → ~302 people)", () => {
+  // The size target counts adults by the head: 50,000 adults are past it, so a full backlog asks
+  // 5% of them (docs/plan/child-labour-history.md §6.4; the points reading gave 302).
+  it("asks 5% of a 50-point capital's adults at full backlog (~2,508 people)", () => {
     const people = getConstructionRequiredPeople({ buildingStock: 0, hasQuarryAccess: true }, 50, 1000, {
       cultureType: "Generic",
       brickAvailable: true
     });
     const total = people.mason + people.carpenter;
-    expect(total).toBeCloseTo(302, -1);
+    expect(total).toBeCloseTo(2508, -1);
   });
 
   it("scales the variable term inversely with populationRate while BASE stays fixed", () => {

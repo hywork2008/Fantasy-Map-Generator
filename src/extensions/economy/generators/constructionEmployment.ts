@@ -17,6 +17,7 @@ import { pointsToPeople } from "./craftScale";
 import { isGoodEnabled } from "./goods-generator";
 import { getHousingRecipe, getMasonMaterialShare, type HousingRecipe } from "./housingRecipes";
 import { Markets } from "./markets-generator";
+import { CONSTRUCTION_TOTAL_PER_THOUSAND } from "./occupationalCalibration";
 
 export type { ConstructionOperation, LegacyConstructionOperation } from "./constructionEmploymentTypes";
 export {
@@ -213,6 +214,14 @@ export function getConstructionRequiredWorkers(
  * only Employment, hire-board postings, and named seats move to this real-people figure.
  */
 export const CONSTRUCTION_EMPLOYMENT_BASE_PEOPLE = 8;
+/**
+ * Builders a town keeps at work on the houses it has: roofs, rotten sills, plaster, chimneys, and
+ * the houses that fall and are built again. The occupational table's 22 builders a thousand urban
+ * people (occupationalCalibration.ts) is a town that is not growing, so a dwelling of 4.5 people
+ * keeps about a tenth of one; a housing backlog adds its builders on top
+ * (docs/plan/child-labour-history.md §6.4).
+ */
+const MAINTENANCE_PEOPLE_PER_DWELLING = (HOUSEHOLD_SIZE_URBAN * CONSTRUCTION_TOTAL_PER_THOUSAND) / 1000;
 
 export function getConstructionRequiredPeople(
   operation: Pick<ConstructionOperation, "buildingStock" | "hasQuarryAccess"> & {
@@ -223,9 +232,19 @@ export function getConstructionRequiredPeople(
   populationRate: number,
   masonShareContext: MasonShareContext = {}
 ): { mason: number; carpenter: number } {
-  const effectiveBacklog = computeEffectiveBacklog(operation, adults);
+  // `adults` are population points and the size target counts adults by the head
+  // (POPULATION_SCALE_ADULTS): read in points, a town of 1,400 adults reached 0.35% of its target
+  // and its housing backlog asked for no builders (docs/plan/child-labour-history.md §6.4). The
+  // points formula above keeps its reading; its labour sets the building materials.
+  const effectiveBacklog = computeEffectiveBacklog(operation, pointsToPeople(adults, populationRate));
+  // Dwellings beyond the town's households stand empty and are not kept up.
+  const required = operation.requiredDwellings ?? Number.POSITIVE_INFINITY;
+  const dwellings = Math.min(
+    required,
+    operation.dwellingStock ?? clamp01(operation.buildingStock) * (operation.requiredDwellings ?? 0)
+  );
   const totalPeople =
-    CONSTRUCTION_EMPLOYMENT_BASE_PEOPLE +
+    Math.max(CONSTRUCTION_EMPLOYMENT_BASE_PEOPLE, Math.max(0, dwellings) * MAINTENANCE_PEOPLE_PER_DWELLING) +
     pointsToPeople(effectiveBacklog * adults * WORKERS_SHARE_PER_BACKLOG, populationRate);
   const masonShare = getMasonShare(operation.hasQuarryAccess, masonShareContext);
   return { mason: rn(totalPeople * masonShare, 2), carpenter: rn(totalPeople * (1 - masonShare), 2) };

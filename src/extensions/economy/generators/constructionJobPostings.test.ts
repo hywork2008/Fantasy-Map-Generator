@@ -9,7 +9,7 @@ import {
   setGoods
 } from "../economyContext";
 import { setEconomyCalibrationState } from "../store/economyCalibrationState";
-import { CONSTRUCTION_EMPLOYMENT_BASE_PEOPLE, getConstructionRequiredWorkers } from "./constructionEmployment";
+import { getConstructionRequiredWorkers } from "./constructionEmployment";
 import type { ConstructionOperation } from "./constructionEmploymentTypes";
 import {
   CONSTRUCTION_RESERVED_FOR_HIRE,
@@ -172,7 +172,7 @@ describe("getConstructionJobPosting", () => {
   describe("applyCalibration real-people hire-board demand (docs/plan/craft-demand-calibration.md §2.2, PR 3)", () => {
     afterEach(() => setEconomyCalibrationState({ applyCalibration: false }));
 
-    it("expresses demand in real people (BASE ≈ 8) instead of population points", () => {
+    it("expresses demand in real people (a maintenance crew of 22 a thousand) instead of population points", () => {
       setEconomyCalibrationState({ applyCalibration: true });
       setConstructionOperations([
         {
@@ -183,7 +183,7 @@ describe("getConstructionJobPosting", () => {
           carpenterWorkers: 0,
           buildingStock: 1,
           // Comfortably above requiredDwellings so normalizeConstructionOperation's write-through
-          // clamps buildingStock to 1 (no backlog) — demand is BASE_PEOPLE only.
+          // clamps buildingStock to 1 (no backlog) — demand is the maintenance crew only.
           dwellingStock: 1_000_000,
           hasQuarryAccess: true,
           active: true
@@ -192,11 +192,13 @@ describe("getConstructionJobPosting", () => {
 
       const posting = getConstructionJobPosting(1);
       expect(posting).not.toBeNull();
-      expect(posting!.demand.total).toBeCloseTo(CONSTRUCTION_EMPLOYMENT_BASE_PEOPLE, 0);
+      // 5,000 people keep 22 builders a thousand at work on their houses
+      // (docs/plan/child-labour-history.md §6.4).
+      expect(posting!.demand.total).toBeCloseTo(110, -1);
       expect(posting!.openSeats).toBeGreaterThanOrEqual(1);
     });
 
-    it("does not let a single named seat (1 real person) fill the 8-person BASE requirement", () => {
+    it("does not let a single named seat (1 real person) fill the maintenance crew", () => {
       setEconomyCalibrationState({ applyCalibration: true });
       setConstructionOperations([
         {
