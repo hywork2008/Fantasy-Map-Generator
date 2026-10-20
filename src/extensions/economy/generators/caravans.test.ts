@@ -202,6 +202,57 @@ describe("caravan loading accumulation", () => {
     expect(getMarkets()[0].goods[0].stock).toBeCloseTo(originStockBefore + 2, 5);
   });
 
+  it("sends a thin paid road load once its wait is over (port-freight-queue-and-warehouses.md §10.24)", () => {
+    simulationContext.worldSettings = { "fmg-long-distance-trade": "on" };
+    try {
+      ExportStaging.bookFromRetail({
+        marketId: 0,
+        destinationMarketId: 1,
+        goodId: 0,
+        units: 2,
+        unitCost: 50,
+        requireCapital: false
+      });
+      Caravans.spawnFromDeals([]);
+      expect(getCaravans()[0]?.state).toBe("loading");
+
+      Caravans.tick(3);
+
+      expect(getCaravans()).toHaveLength(1);
+      expect(getCaravans()[0].state).toBe("transit");
+    } finally {
+      delete simulationContext.worldSettings;
+    }
+  });
+
+  it("loads a lot left for want of carts on the first day one is free (§10.24)", () => {
+    ExportStaging.bookFromRetail({
+      marketId: 0,
+      destinationMarketId: 1,
+      goodId: 0,
+      units: 2,
+      unitCost: 50,
+      requireCapital: false
+    });
+    const ledger = MerchantTransportAssets.ensureLedger(0)!;
+    const saved = ledger.landAssets.map(asset => ({ ...asset }));
+    ledger.localCarriers = { packTrain: 0, cart: 0, wagon: 0 };
+    for (const asset of ledger.landAssets) {
+      asset.inTransit += asset.available;
+      asset.available = 0;
+      asset.hired = 1000;
+    }
+    Caravans.spawnFromDeals([]);
+    expect(getCaravans()).toHaveLength(0);
+    expect(getExportStagingLots()[0]?.awaitingTransport).toBe(true);
+
+    ledger.landAssets.splice(0, ledger.landAssets.length, ...saved);
+    Caravans.tick(1);
+
+    expect(getCaravans()).toHaveLength(1);
+    expect(getExportStagingLots().every(lot => lot.units <= 0.000001)).toBe(true);
+  });
+
   it("loads a warehouse lot that meets target utilization onto a shipment", () => {
     // Fill at least 55% of a cart (80 slots): 50 silk × 1 slot = 62.5% on a cart.
     getMarkets()[0].goods[0].stock = 100;

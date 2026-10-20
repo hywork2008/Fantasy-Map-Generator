@@ -403,6 +403,11 @@ export type ExportStagingLot = {
   escrowAmount?: number;
   /** Days this lot has waited without any of it being loaded (§5.3). */
   waitedDays?: number;
+  /**
+   * The last loading pass found no cart, barge or hull free for it; the daily pass tries it again
+   * once the dispatching market has one (port-freight-queue-and-warehouses.md §10.24).
+   */
+  awaitingTransport?: boolean;
   /** Days since this fresh cargo left the origin market. Omitted for durable/legacy cargo. */
   freshnessAgeDays?: number;
 };

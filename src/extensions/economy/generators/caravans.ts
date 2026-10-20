@@ -282,6 +282,14 @@ function settlePayloadCapital(caravan: Caravan, outcome: "arrived" | "lost"): vo
   }
 }
 
+/** Flags the warehouse lots of a pass that found no free transport, for the daily retry. */
+function markAwaitingTransport(deals: readonly Deal[]): void {
+  const ids = new Set(deals.map(deal => deal.stagingLotId).filter((id): id is number => id !== undefined));
+  if (!ids.size) return;
+  for (const lot of getExportStagingLots())
+    if (ids.has(lot.id) && lot.units > UNIT_EPSILON) lot.awaitingTransport = true;
+}
+
 /** Staging lots → deal-shaped rows so buildCargoManifests can pack them. */
 function stagingLotsToDeals(lots: readonly ExportStagingLot[]): Deal[] {
   const liveDeals = getDeals();
@@ -359,6 +367,15 @@ function refreshLoadingPolicy(caravan: Caravan): void {
   // Cargo bound for the port warehouse, or lying in it, goes however little it fills a cart or a
   // hold: it is not called off as thin and sent back (§10.19).
   if (caravan.portTransfer) caravan.loading.minSailUtilization = 0;
+  // Paid cargo by road goes once its wait is over, however little of a cart it fills: carriers
+  // took mixed loads, and the house had bought the goods for that buyer (§10.24).
+  if (
+    !routeHasWater(segments) &&
+    caravan.sellerType === "market" &&
+    caravan.buyerType === "market" &&
+    isLongDistanceTradeEnabled()
+  )
+    caravan.loading.minSailUtilization = 0;
 
   // Carts have no sailing calendar. Clear stale fields from saves made before this distinction.
   if (!routeHasWater(segments)) {
@@ -1315,6 +1332,7 @@ export class CaravansModule {
       );
       if (maxCapacitySlots === 0) {
         outcome = "noTransport";
+        markAwaitingTransport(transportedDeals);
         // A river leg with no barge free: ask for one to be built for this cargo (§10).
         if (
           routeSegments.some(segment => segment.type === "river") &&
@@ -1486,6 +1504,47 @@ export class CaravansModule {
     return completed;
   }
 
+  /**
+   * Loads the warehouse lots the last pass left for want of a free cart, barge or hull, as soon as
+   * the dispatching market has one again. Carts come home through the month, and cargo waiting for
+   * them went with the first one back rather than at the next production cycle
+   * (port-freight-queue-and-warehouses.md §10.24).
+   */
+  private retryLotsAwaitingTransport(world: WorldContext): void {
+    if (!world.pack.burgs) return;
+    const waiting = getExportStagingLots().filter(lot => lot.awaitingTransport && lot.units > UNIT_EPSILON);
+    if (!waiting.length) return;
+    const ready = new Map<number, boolean>();
+    const hasFreeTransport = (marketId: number): boolean => {
+      let free = ready.get(marketId);
+      if (free === undefined) {
+        free =
+          MerchantTransportAssets.getLargestAvailableLandCapacity(marketId, DEFAULT_DRAFT_ANIMAL_ID) > 0 ||
+          MerchantTransportAssets.getAvailability(marketId).some(
+            asset => asset.assetId === "river-barge" && asset.available > 0
+          );
+        ready.set(marketId, free);
+      }
+      return free;
+    };
+    const lots = waiting.filter(lot => hasFreeTransport(lot.marketId));
+    if (!lots.length) return;
+    const bundles = new Map<string, RouteBundle>();
+    for (const deal of stagingLotsToDeals(lots)) {
+      const key = `${deal.seller}-${deal.buyer}`;
+      let bundle = bundles.get(key);
+      if (!bundle) {
+        bundle = { seller: deal.seller, sellerType: "market", buyer: deal.buyer, buyerType: "market", deals: [] };
+        bundles.set(key, bundle);
+      }
+      bundle.deals.push(deal);
+    }
+    for (const lot of lots) lot.awaitingTransport = undefined;
+    let nextId = this.ensureNextCaravanId();
+    for (const bundle of bundles.values()) nextId = this.spawnCaravansForBundle(bundle, world, nextId);
+    setNextCaravanId(nextId);
+  }
+
   tick(deltaDays: number): CaravanTickResult {
     const world = getWorldContext();
     const markets = getMarkets();
@@ -1495,6 +1554,7 @@ export class CaravansModule {
     accruePortStorage(deltaDays);
     ExportStaging.expireFreshLots(deltaDays);
     ExportStaging.cancelStaleLots(deltaDays);
+    this.retryLotsAwaitingTransport(world);
 
     const caravans = getCaravans();
     if (!caravans.length) return { arrived: [], lost: [] };

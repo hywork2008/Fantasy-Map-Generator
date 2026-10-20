@@ -42,6 +42,11 @@ export interface TradeStageEvent {
   readonly capitalAvailable?: number;
   /** `noCapital`: the house's cash before the coin-shortage factor. */
   readonly capitalCash?: number;
+  /**
+   * `noTransport`: what ran out — the land room (own and hireable carts), the sea room at the
+   * departure port, or the exporter's own carts when hired ones do not pay on the good.
+   */
+  readonly transportLimit?: "land" | "sea" | "ownLand";
 }
 
 /**

@@ -2463,7 +2463,7 @@ export class MarketsModule {
           );
         units = Math.min(units, floorToRetailLot(carriable / slotsPerUnit, getRetailLotSize(good)));
         if (units < minUnit) {
-          observe?.({ stage: "noTransport", ...leg });
+          observe?.({ stage: "noTransport", ...leg, transportLimit: seaSlots <= carriable ? "sea" : "land" });
           continue;
         }
         const ownSlots = ownLandRoomSlots(
@@ -2481,7 +2481,7 @@ export class MarketsModule {
             hireSurcharge = 0;
             units = floorToRetailLot(ownSlots / slotsPerUnit, getRetailLotSize(good));
             if (units < minUnit) {
-              observe?.({ stage: "noTransport", ...leg });
+              observe?.({ stage: "noTransport", ...leg, transportLimit: "ownLand" });
               continue;
             }
           }
