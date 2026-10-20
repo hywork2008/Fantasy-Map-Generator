@@ -3,9 +3,11 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { createPontDuGard, PONT_DU_GARD, pontDuGardElevation } from "../buildings/aqueducts/pontDuGard";
 import { contentDigest } from "../buildings/canonicalJson";
+import { createStGeorgesChapel, ST_GEORGES_CHAPEL } from "../buildings/chapels/stGeorgesChapel";
 import { BOJNICE, bojnicePlan, createBojnice } from "../buildings/fortresses/bojnice";
 import { CHAMBORD, createChambord } from "../buildings/fortresses/chambord";
 import { KRAK, type KrakPhase } from "../buildings/fortresses/krak";
+import { meshProjection } from "../buildings/meshProjection";
 import { createPostMill, POST_MILL } from "../buildings/mills/postMill";
 import { createTowerMill, TOWER_MILL } from "../buildings/mills/towerMill";
 import { createWaterMill, WATER_MILL } from "../buildings/mills/waterMill";
@@ -400,6 +402,49 @@ aqueductButton.addEventListener("click", () => {
   );
 });
 list.append(aqueductButton);
+const chapels = document.createElement("h2");
+chapels.textContent = "Chapel assemblies";
+list.append(chapels);
+const stGeorgesButton = document.createElement("button");
+stGeorgesButton.type = "button";
+stGeorgesButton.textContent = "St George's Chapel · Windsor Castle";
+stGeorgesButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === stGeorgesButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Chapel roof plan";
+  levelTitle.textContent = "South elevation";
+  massing = createStGeorgesChapel();
+  scene.add(massing.group);
+  ground.visible = true;
+  frame(
+    { occupancyMeters: { width: ST_GEORGES_CHAPEL.width, depth: ST_GEORGES_CHAPEL.depth } },
+    ST_GEORGES_CHAPEL.height
+  );
+  camera.position.set(-80, 52, 85);
+  controls.target.set(-2, 10, 0);
+  controls.update();
+  mountPlan(roofHost, meshProjection(massing, "top"));
+  mountPlan(levelHost, meshProjection(massing, "side"));
+  facts.append(
+    fact("Model", ST_GEORGES_CHAPEL.name),
+    fact("Style", "English Perpendicular Gothic"),
+    fact("Study envelope", `${ST_GEORGES_CHAPEL.width} × ${ST_GEORGES_CHAPEL.depth} × ${ST_GEORGES_CHAPEL.height} m`),
+    fact("Note", ST_GEORGES_CHAPEL.note)
+  );
+  const source = document.createElement("a");
+  source.href = ST_GEORGES_CHAPEL.source;
+  source.textContent = "College of St George · Nave and west window";
+  source.target = "_blank";
+  source.rel = "noreferrer";
+  facts.append(source);
+});
+list.append(stGeorgesButton);
 assemblies.textContent = "Fortress assemblies";
 list.append(assemblies);
 const bojniceButton = document.createElement("button");
