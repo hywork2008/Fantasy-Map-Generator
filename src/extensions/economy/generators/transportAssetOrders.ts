@@ -15,6 +15,7 @@ import { getEconomyCalibrationState } from "../state/economyCalibrationStore";
 import { laborPeople, peopleToPoints } from "./craftScale";
 import { getGuildBonus } from "./guildKnowledge";
 import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";
+import { getMarketRuralPopulation } from "./marketPopulation";
 import type { Caravan, Market, MerchantLandAssetBalance, TransportAssetOrder } from "./marketTypes";
 import { getUncommittedTradeCapital } from "./merchantTradeCapital";
 import { computeLandFleetNeedCounts, MerchantTransportAssets, RIVER_BARGE_WOOD_UNITS } from "./merchantTransportAssets";
@@ -96,6 +97,8 @@ const BLUEPRINTS: readonly TransportAssetBlueprint[] = [
 ];
 
 const WORK_SHARE_OF_OBSERVED_CRAFT_EMPLOYMENT = 0.25;
+/** Cycles in a row a market must hire a kind before it orders its own for the least it hired. */
+const SUSTAINED_HIRE_CYCLES = 3;
 /** Days between production cycles, over which hired vehicle-days are averaged. */
 const PRODUCTION_CYCLE_DAYS = 30;
 /**
@@ -106,6 +109,13 @@ const PRODUCTION_CYCLE_DAYS = 30;
  * labor pool instead of borrowing from woodworking's population-point figure.
  */
 const TRANSPORT_CRAFT_PEOPLE_PER_THOUSAND = 1.5;
+/**
+ * Village wheelwrights and saddlers, per thousand of the market's rural people, who build for the
+ * carriers when the town's are busy. Most of a village wright's work was the farmers' own carts and
+ * ploughs; this is the share left for merchants' convoys (port-freight-queue-and-warehouses.md
+ * §10.16). With calibration only: the town pool is in real people there.
+ */
+const RURAL_TRANSPORT_CRAFT_PEOPLE_PER_THOUSAND = 0.3;
 
 type PlannedWork = { orderId: number; workPoints: number; domain: CraftKnowledgeDomain };
 
@@ -397,11 +407,12 @@ export class TransportAssetOrdersModule {
           0
         );
         // Vehicles hired month after month are cheaper owned (port-freight-queue-and-warehouses.md §3.2).
-        // Only what was hired two cycles running is ordered: a month's rush was met with hired teams,
-        // and the carts ordered for it stood idle when it passed (§10.14).
+        // Only what was hired a season running is ordered: a rush of a month or two was met with
+        // hired teams, and the carts ordered for it stood idle when it passed (§10.14, §10.16).
         const hired = MerchantTransportAssets.takeHiredVehicleAverage(market.i, balance.assetId, PRODUCTION_CYCLE_DAYS);
-        const sustained = Math.min(hired, balance.previousHiredAverage ?? 0);
-        balance.previousHiredAverage = hired > 0 ? hired : undefined;
+        const recent = [...(balance.recentHiredAverages ?? []), hired].slice(-SUSTAINED_HIRE_CYCLES);
+        const sustained = recent.length < SUSTAINED_HIRE_CYCLES ? 0 : Math.min(...recent);
+        balance.recentHiredAverages = hired > 0 ? recent : undefined;
         const missing = Math.max(0, Math.ceil(balance.maintenance + sustained - 0.000001) - outstanding);
         if (missing > 0) this.createOrder({ marketId: market.i, blueprintId: balance.assetId, quantity: missing });
       }
@@ -564,6 +575,19 @@ export class TransportAssetOrdersModule {
     }
 
     const assigned = new Map<string, number>();
+    const ruralCapacityByMarket = new Map<number, number>();
+    const ruralCapacity = (marketId: number): number => {
+      let capacity = ruralCapacityByMarket.get(marketId);
+      if (capacity === undefined) {
+        const world = getWorldContext();
+        capacity =
+          applyCalibration && world.pack.cells?.i
+            ? (getMarketRuralPopulation(world, marketId) / 1000) * RURAL_TRANSPORT_CRAFT_PEOPLE_PER_THOUSAND
+            : 0;
+        ruralCapacityByMarket.set(marketId, capacity);
+      }
+      return capacity;
+    };
     const orders = this.getOrdersByPriority().filter(order => order.status === "building");
     for (const order of orders) {
       order.blockedReason = undefined;
@@ -594,6 +618,17 @@ export class TransportAssetOrdersModule {
         this.plannedWorkByBurg.set(burgId, planned);
         assigned.set(key, (assigned.get(key) ?? 0) + workPoints);
         unassigned -= workPoints;
+      }
+      // What the town's wrights cannot take goes to the villages. They are no burg's workforce, so
+      // their work is credited now rather than drawn from a burg's labour in production.
+      if (unassigned > 0) {
+        const key = `rural:${order.marketId}`;
+        const workPoints = Math.min(unassigned, Math.max(0, ruralCapacity(order.marketId) - (assigned.get(key) ?? 0)));
+        if (workPoints > 0) {
+          assigned.set(key, (assigned.get(key) ?? 0) + workPoints);
+          unassigned -= workPoints;
+          this.applyWork(order.id, workPoints, blueprint.requiredCraft, null);
+        }
       }
       if (unassigned > 0) order.blockedReason = "missingCraftWorkers";
     }
@@ -642,10 +677,12 @@ export class TransportAssetOrdersModule {
     });
   }
 
-  private applyWork(orderId: number, workPoints: number, domain: CraftKnowledgeDomain, burgId: number): void {
+  /** `burgId` null is village work, outside any guild. */
+  private applyWork(orderId: number, workPoints: number, domain: CraftKnowledgeDomain, burgId: number | null): void {
     const order = getTransportAssetOrders().find(candidate => candidate.id === orderId);
     if (order?.status !== "building") return;
-    order.workPoints = rn(order.workPoints + workPoints * getGuildBonus(burgId, domain), 4);
+    const bonus = burgId === null ? 1 : getGuildBonus(burgId, domain);
+    order.workPoints = rn(order.workPoints + workPoints * bonus, 4);
     order.blockedReason = undefined;
     const blueprint = getBlueprint(order.blueprintId);
     const completed = Math.min(order.quantity, Math.floor(order.workPoints / blueprint.requiredWorkPoints));

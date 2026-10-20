@@ -440,8 +440,8 @@ export type MerchantLandAssetBalance = {
   hired?: number;
   /** Hired vehicle-days since the last replenishment; the market orders its own to replace them. */
   hiredDays?: number;
-  /** Hired vehicles kept on the road on average in the cycle before the last replenishment. */
-  previousHiredAverage?: number;
+  /** Hired vehicles kept on the road on average in each recent cycle, oldest first, while hiring lasts. */
+  recentHiredAverages?: number[];
   /** Fewest of this kind standing free at home on any day since the last replenishment. */
   idleLowWater?: number;
   /** Replenishments in a row this kind stood partly idle without hiring, and the fewest idle beyond need. */

@@ -1,7 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
-import { clearEconomyContext, initEconomyContext, setCraftDomainEmploymentRecords, setGoods } from "../economyContext";
+import {
+  clearEconomyContext,
+  initEconomyContext,
+  setCraftDomainEmploymentRecords,
+  setGoods,
+  setMarketCellColumn
+} from "../economyContext";
 import { setEconomyCalibrationState } from "../store/economyCalibrationState";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
 import { TransportAssetOrders } from "./transportAssetOrders";
@@ -186,7 +192,7 @@ describe("transport asset orders", () => {
     expect(worldContext.pack.markets[0].marketTreasury?.balance).toBe(130);
   });
 
-  it("orders its own carts only for hire that ran two cycles, and withdraws them when carts stand idle", () => {
+  it("orders its own carts only for hire that ran three cycles, and withdraws them when carts stand idle", () => {
     worldContext.pack.markets[0].goods[1].stock = 0;
     const cart = () => MerchantTransportAssets.ensureLedger(1)!.landAssets.find(asset => asset.assetId === "cart")!;
     const cartOrders = () =>
@@ -197,6 +203,8 @@ describe("transport asset orders", () => {
     };
 
     hireForCycle(3);
+    TransportAssetOrders.beginProductionCycle();
+    hireForCycle(4);
     TransportAssetOrders.beginProductionCycle();
     expect(cartOrders()).toHaveLength(0);
 
@@ -256,6 +264,24 @@ describe("transport asset orders", () => {
       // 12 real people converted back to population points (12/1000), not a chunk of the burg's
       // whole 9-point production-labor budget.
       expect(used.total).toBeCloseTo(0.012, 6);
+    });
+
+    it("gives the village wrights what the town's cannot take, outside the burg's labour", () => {
+      setEconomyCalibrationState({ applyCalibration: true });
+      worldContext.populationRate = 1000;
+      (worldContext.pack.burgs[1] as Burg).population = 1; // 1,000 people: 1.5 town wrights
+      // 100,000 country people: 30 village wrights.
+      worldContext.pack.cells = { i: [0, 1], h: [30, 30], pop: [50, 50] } as unknown as PackedGraph["cells"];
+      setMarketCellColumn(Uint16Array.from([1, 1]));
+      setCraftDomainEmploymentRecords([]);
+
+      const order = TransportAssetOrders.createOrder({ marketId: 1, blueprintId: "wagon", quantity: 1 });
+      TransportAssetOrders.beginProductionCycle();
+      expect(order).toMatchObject({ status: "building", workPoints: 30 });
+
+      const used = TransportAssetOrders.consumePlannedWork(1, 1);
+      expect(order?.workPoints).toBe(31.5);
+      expect(used.total).toBeCloseTo(0.0015, 6);
     });
 
     it("reports the transport-labor allocation for Employment Overview, but production-generator.ts must not feed it into guild-craft employment", () => {
