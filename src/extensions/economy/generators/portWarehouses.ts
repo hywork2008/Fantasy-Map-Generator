@@ -24,6 +24,14 @@ import type { Caravan, PortWarehouseState, TradeRouteSegment } from "./marketTyp
 import { MerchantTransportAssets } from "./merchantTransportAssets";
 import { isInlandStage, seaArrivalPortBurgId, seaDepartureMarketId, seaDeparturePortBurgId } from "./seaRoutePorts";
 
+/**
+ * Warehouse rent per cargo slot and day in port (§4.4, §10.20). Rent was charged by room, not by
+ * value: on the catalogue's median good (2 a slot) it comes to about 0.75% of the value a month,
+ * the order of quay warehouse rents; a season's wait costs silk (8 a slot) half a percent and grain
+ * (0.25 a slot) a sixth of its value, which is why grain waited in the country granaries rather
+ * than on the quay.
+ */
+export const PORT_STORAGE_FEE = 0.0005;
 /** Days the average sea cargo lies in a port warehouse, loading and unloading. */
 const DWELL_DAYS = 30;
 /** Monthly weight of the latest need in the smoothed need. */
@@ -162,6 +170,48 @@ export function collectSeaBacklogSlots(): Map<number, number> {
 }
 
 /**
+ * The port burg a loading shipment's cargo lies at waiting for a ship: where its sea leg leaves.
+ * Undefined for cargo still at an inland origin or not bound for the sea (§10.19).
+ */
+export function waitingPortBurgId(caravan: Caravan): number | undefined {
+  if (caravan.state !== "loading" || isInlandStage(caravan) || !caravan.routeSegments.some(isSeaSegment))
+    return undefined;
+  if (caravan.portTransfer?.atPort) return caravan.portTransfer.portBurgId;
+  const dispatcher = caravan.transportDispatcherMarketId ?? MerchantTransportAssets.getDispatcherMarketId(caravan);
+  return (
+    seaDeparturePortBurgId(caravan.routeSegments) ?? (dispatcher === null ? undefined : getMarketPortBurgId(dispatcher))
+  );
+}
+
+/**
+ * Every day: cargo waiting in port for a ship runs up warehouse rent, by the slot and the day, and
+ * at double the rate for what the port's warehouses cannot hold (stacked on the quay or left in the
+ * lighters). The house pays it when the cargo sails or is sold (§4.4, §10.20).
+ */
+export function accruePortStorage(deltaDays: number): void {
+  if (!(deltaDays > 0)) return;
+  const waiting = new Map<number, { slots: number; caravans: Caravan[] }>();
+  for (const caravan of getCaravans()) {
+    const burgId = waitingPortBurgId(caravan);
+    if (burgId === undefined || caravan.sellerType !== "market") continue;
+    const entry = waiting.get(burgId) ?? { slots: 0, caravans: [] };
+    entry.slots += payloadSlots(caravan);
+    entry.caravans.push(caravan);
+    waiting.set(burgId, entry);
+  }
+  const states = getPortWarehouses();
+  for (const [burgId, entry] of waiting) {
+    if (!(entry.slots > 0)) continue;
+    const capacity = states.find(state => state.burgId === burgId)?.capacitySlots ?? 0;
+    const rate = PORT_STORAGE_FEE * (1 + Math.max(0, entry.slots - capacity) / entry.slots);
+    for (const caravan of entry.caravans) {
+      if (!caravan.loading) continue;
+      caravan.loading.portStorageDue = (caravan.loading.portStorageDue ?? 0) + payloadSlots(caravan) * rate * deltaDays;
+    }
+  }
+}
+
+/**
  * Sea cargo waiting for a ship, by the port burg it waits at: where its sea leg leaves, as the
  * departures through the port are counted. Cargo with no known port waits at its market's. Cargo
  * still at an inland origin, or on the road to the port, is not in the port warehouse (§10.19).
@@ -171,15 +221,7 @@ function collectSeaQueueByPortBurg(): Map<number, number> {
   const add = (burgId: number | undefined, slots: number) => {
     if (burgId !== undefined && slots > 0) queued.set(burgId, (queued.get(burgId) ?? 0) + slots);
   };
-  for (const caravan of getCaravans()) {
-    if (caravan.state !== "loading" || isInlandStage(caravan) || !caravan.routeSegments.some(isSeaSegment)) continue;
-    const dispatcher = caravan.transportDispatcherMarketId ?? MerchantTransportAssets.getDispatcherMarketId(caravan);
-    add(
-      seaDeparturePortBurgId(caravan.routeSegments) ??
-        (dispatcher === null ? undefined : getMarketPortBurgId(dispatcher)),
-      payloadSlots(caravan)
-    );
-  }
+  for (const caravan of getCaravans()) add(waitingPortBurgId(caravan), payloadSlots(caravan));
   for (const entry of MerchantTransportAssets.peekSeaShortfallEntries())
     add(entry.portBurgId ?? getMarketPortBurgId(entry.marketId), entry.slots);
   return queued;

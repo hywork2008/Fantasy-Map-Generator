@@ -50,9 +50,14 @@ import type {
   TransportAllocation
 } from "./marketTypes";
 import { openBranch } from "./merchantIntelligence";
-import { isLongDistanceTradeEnabled, MerchantTradeCapital, recordStaleLotCancelled } from "./merchantTradeCapital";
+import {
+  isLongDistanceTradeEnabled,
+  MerchantTradeCapital,
+  recordStaleLotCancelled,
+  recordStaleSaleAtPort
+} from "./merchantTradeCapital";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
-import { recordSeaDeparture, repositionIdleHulls } from "./portWarehouses";
+import { accruePortStorage, recordSeaDeparture, repositionIdleHulls, waitingPortBurgId } from "./portWarehouses";
 import { recordRouteTraffic } from "./publicWorks";
 import { markRetailInventoryDirty } from "./retailInventory";
 import { isAtPort, seaDepartureMarketId, seaDeparturePortBurgId, stageSegments } from "./seaRoutePorts";
@@ -476,10 +481,68 @@ function publishCaravanHullPositions(caravans: readonly Caravan[]): void {
 const PORT_SEASON_WAIT_DAYS = 90;
 
 /**
+ * Share of the port's own price that cargo given up on fetches there: a forced sale to the port's
+ * dealers, who took the risk of the next sailing (port-freight-queue-and-warehouses.md §4.4).
+ */
+const STALE_SALE_DISCOUNT = 0.7;
+
+/** The rent the cargo ran up in port, paid by its house to the port's warehouse owners (§10.20). */
+function payPortStorage(caravan: Caravan, portBurgId: number | undefined): void {
+  const due = caravan.loading?.portStorageDue ?? 0;
+  if (caravan.loading) caravan.loading.portStorageDue = undefined;
+  if (portBurgId === undefined || caravan.sellerType !== "market" || !(due > 0)) return;
+  MerchantTradeCapital.payPortStorage(caravan.seller, due, portBurgId);
+}
+
+/**
+ * Sea cargo given up on in port is not carted home: the house sells it to the port's market at a
+ * discount and bears the loss (§4.4, §10.20). Cargo lying at its own market's port goes back into
+ * that market's stock, which pays the discounted price for it.
+ */
+function sellStaleCargoAtPort(caravan: Caravan, portBurgId: number): void {
+  const burgMarket = getWorldContext().pack.burgs?.[portBurgId]?.market;
+  const portMarket = getMarketById(typeof burgMarket === "number" ? burgMarket : caravan.seller);
+  if (!portMarket || caravan.sellerType !== "market") {
+    restoreLoadingCargoToOrigin(caravan);
+    return;
+  }
+  payPortStorage(caravan, portBurgId);
+  restoreFoodCoLoadToOrigin(caravan);
+  let cost = 0;
+  let saleValue = 0;
+  for (const item of caravan.payload) {
+    if (item.isFoodCoLoad) continue;
+    const local = portMarket.goods[item.goodId]?.price ?? 0;
+    const price = local > 0 ? local : (item.goodsUnitCost ?? 0);
+    const sale = rn(item.units * price * STALE_SALE_DISCOUNT, 2);
+    const locked = item.lockedCapital ?? 0;
+    cost += locked;
+    saleValue += sale;
+    ExportStaging.returnUnitsToRetail(portMarket.i, item.goodId, item.units);
+    if (portMarket.i === caravan.seller) {
+      if (locked > UNIT_EPSILON) MerchantTradeCapital.unlock(caravan.seller, locked, sale);
+    } else {
+      recordGoodFlow({
+        direction: "source",
+        category: "importArrival",
+        goodId: item.goodId,
+        units: item.units,
+        marketId: portMarket.i
+      });
+      if (locked > UNIT_EPSILON)
+        MerchantTradeCapital.settleArrival(caravan.seller, locked, portMarket.i, sale, 0, false);
+    }
+    if (caravan.buyerType === "market") MerchantTradeCapital.releaseEscrow(caravan.buyer, item.escrowAmount ?? 0);
+  }
+  markRetailInventoryDirty(portMarket.i);
+  recordStaleSaleAtPort(cost, saleValue);
+}
+
+/**
  * A paid shipment that is due to sail but finds no carts or hull free keeps waiting, up to the
- * same limit as a warehouse lot, and sea cargo a season more; then it is called off and its cargo
- * and capital go back to the origin market (docs/plan/long-distance-merchant-reach-capital.md
- * §5.3, §15).
+ * same limit as a warehouse lot, and sea cargo a season more; then it is called off. Cargo still at
+ * its origin goes back there with its capital (docs/plan/long-distance-merchant-reach-capital.md
+ * §5.3, §15); cargo waiting in port is sold there (§10.20).
  */
 function waitForTransport(caravan: Caravan): "waiting" | "cancelled" {
   if (!caravan.loading || caravan.sellerType !== "market" || !isLongDistanceTradeEnabled()) return "waiting";
@@ -487,8 +550,12 @@ function waitForTransport(caravan: Caravan): "waiting" | "cancelled" {
   const durationDays = calculateRouteDurationDays(segments, getWorldContext().distanceScale);
   const seaWait = routeNeedsSeaHulls(segments) ? PORT_SEASON_WAIT_DAYS : 0;
   if (caravan.loading.waitedDays <= getStaleLotDays({ durationDays }) + seaWait) return "waiting";
-  recordStaleLotCancelled(caravan.payload.reduce((sum, item) => sum + (item.lockedCapital ?? 0), 0));
-  restoreLoadingCargoToOrigin(caravan);
+  const portBurgId = waitingPortBurgId(caravan);
+  if (portBurgId !== undefined) sellStaleCargoAtPort(caravan, portBurgId);
+  else {
+    recordStaleLotCancelled(caravan.payload.reduce((sum, item) => sum + (item.lockedCapital ?? 0), 0));
+    restoreLoadingCargoToOrigin(caravan);
+  }
   caravan.state = "lost";
   return "cancelled";
 }
@@ -579,6 +646,7 @@ function tryDepartLoadingCaravan(caravan: Caravan): "departed" | "waiting" | "ca
   caravan.transportReservationId = reservation?.reservation.id;
   caravan.transportDispatcherMarketId = reservation?.dispatcherMarketId ?? dispatcherMarketId;
   caravan.merchantOrganizationId ??= resolveMerchantOrganizationId(dispatcherMarketId);
+  payPortStorage(caravan, waitingPortBurgId(caravan));
   caravan.state = "transit";
   // A departing shipment is what wears a road in; recorded at departure rather than arrival so a
   // corridor whose caravans keep getting robbed still counts as used traffic (L8 stage 2). A
@@ -1424,6 +1492,7 @@ export class CaravansModule {
     decayCaravanArrivalVolume(markets, deltaDays);
     MerchantTransportAssets.recoverMaintenance(deltaDays);
     repositionIdleHulls();
+    accruePortStorage(deltaDays);
     ExportStaging.expireFreshLots(deltaDays);
     ExportStaging.cancelStaleLots(deltaDays);
 

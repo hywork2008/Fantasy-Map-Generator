@@ -57,6 +57,16 @@ export type TradeSettlementStats = {
   /** Warehouse lots cancelled for never loading. */
   staleLotsCancelled: number;
   staleCapitalReleased: number;
+  /**
+   * Cargo that waited in port past its limit and was sold there at a discount, its cost and what it
+   * fetched (port-freight-queue-and-warehouses.md §4.4, §10.20).
+   */
+  staleSoldAtPort: number;
+  staleSaleCost: number;
+  staleSaleValue: number;
+  /** Warehouse rent paid by cargo waiting in port for a ship, and the part the houses could not pay. */
+  portStorageFees: number;
+  portStorageUnpaid: number;
   /** Capital bookings could not get (§5.2). */
   capitalShortfall: number;
   /** Put into the houses by their markets' payouts and by their merchants (§5.2). */
@@ -79,6 +89,11 @@ function emptyStats(): TradeSettlementStats {
     escrowPayableCreated: 0,
     staleLotsCancelled: 0,
     staleCapitalReleased: 0,
+    staleSoldAtPort: 0,
+    staleSaleCost: 0,
+    staleSaleValue: 0,
+    portStorageFees: 0,
+    portStorageUnpaid: 0,
     capitalShortfall: 0,
     investedByMarkets: 0,
     investedByCharacters: 0,
@@ -100,6 +115,12 @@ export function takeTradeSettlementStats(): TradeSettlementStats {
 export function recordStaleLotCancelled(capital: number): void {
   settlementStats.staleLotsCancelled += 1;
   settlementStats.staleCapitalReleased += capital;
+}
+
+export function recordStaleSaleAtPort(cost: number, saleValue: number): void {
+  settlementStats.staleSoldAtPort += 1;
+  settlementStats.staleSaleCost += cost;
+  settlementStats.staleSaleValue += saleValue;
 }
 
 /**
@@ -440,7 +461,15 @@ export class MerchantTradeCapitalModule {
    * capital. On: the importing market buys the cargo for `saleValue`, in cash as far as it has
    * it and owing the rest; the house's profit or loss is the sale less what it paid (§5.1).
    */
-  settleArrival(marketId: number, lockedCapital: number, buyerMarketId?: number, saleValue = 0, escrow = 0): void {
+  settleArrival(
+    marketId: number,
+    lockedCapital: number,
+    buyerMarketId?: number,
+    saleValue = 0,
+    escrow = 0,
+    /** False for cargo sold where it waited rather than delivered: it stays out of the arrival totals. */
+    countAsArrival = true
+  ): void {
     if (!(lockedCapital > UNIT_EPSILON)) return;
     const market = getMarkets().find(entry => entry.i === marketId);
     if (!market) return;
@@ -473,6 +502,7 @@ export class MerchantTradeCapitalModule {
       const payables = buyerTreasury.tradePayables;
       payables[market.i] = rn((payables[market.i] ?? 0) + owed, 2);
     }
+    if (!countAsArrival) return;
     settlementStats.saleValue += sale;
     settlementStats.paidOnArrival += paid;
     settlementStats.payableCreated += Math.max(0, owed);
@@ -496,6 +526,21 @@ export class MerchantTradeCapitalModule {
     const recovered = rn(lockedCapital * TRADE_LOSS_RECOVERY_RATE, 2);
     const writtenOff = lockedCapital - recovered;
     treasury.tradeWorkingCapital = rn(Math.max(0, (treasury.tradeWorkingCapital ?? 0) - writtenOff), 2);
+  }
+
+  /**
+   * Cargo waiting in port pays rent to the townsfolk who own the warehouses, out of the house's
+   * cash as far as it has it (port-freight-queue-and-warehouses.md §4.4, §10.20). Off: no rent.
+   */
+  payPortStorage(marketId: number, amount: number, portBurgId: number): void {
+    if (!(amount > UNIT_EPSILON)) return;
+    const treasury = getMarkets().find(entry => entry.i === marketId)?.marketTreasury;
+    if (!treasury?.tradeCapitalPaid) return;
+    const paid = Math.min(amount, Math.max(0, treasury.tradeWorkingCapital ?? 0));
+    treasury.tradeWorkingCapital = rn((treasury.tradeWorkingCapital ?? 0) - paid, 2);
+    creditHouseholdWealth(portBurgId, paid);
+    settlementStats.portStorageFees += paid;
+    settlementStats.portStorageUnpaid += amount - paid;
   }
 
   /**

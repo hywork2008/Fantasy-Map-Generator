@@ -928,6 +928,47 @@ describe("port transfer (port-freight-queue-and-warehouses.md §10.19)", () => {
     expect(consignment.transportAllocations?.some(allocation => allocation.shipHullIds?.includes(30))).toBe(true);
     expect(consignment.currentDistance).toBeGreaterThan(100);
   });
+
+  it("sells cargo given up on in port to the port's market at a discount, after paying its rent", () => {
+    simulationContext.worldSettings = { "fmg-long-distance-trade": "on" };
+    try {
+      const [origin, port] = getMarkets();
+      origin.marketTreasury = {
+        balance: 5000,
+        ruralGrainPayable: 0,
+        tradeWorkingCapital: 1000,
+        tradeCapitalLocked: 3000,
+        tradeCapitalPaid: true
+      };
+      port.marketTreasury = {
+        balance: 5000,
+        ruralGrainPayable: 0,
+        tradeWorkingCapital: 100,
+        tradeCapitalLocked: 0,
+        tradeCapitalPaid: true
+      };
+      MerchantTransportAssets.reconcileMerchantHulls([]);
+      const caravan = inlandCaravan(1, 60);
+      caravan.payload[0] = { ...caravan.payload[0], lockedCapital: 3000, goodsUnitCost: 50 };
+      caravan.currentDistance = 100;
+      caravan.portTransfer = { seaSegmentIndex: 1, atKm: 100, portBurgId: 2, atPort: true };
+      caravan.loading = { ...caravan.loading!, waitedDays: 10000, minSailUtilization: 0 };
+      setCaravans([caravan]);
+
+      Caravans.tick(1);
+
+      expect(getCaravans()).toEqual([]);
+      // The port market buys the 60 bolts at 70% of its price of 80, and gets the goods.
+      expect(port.goods[0].stock).toBe(60);
+      expect(port.marketTreasury.balance).toBeCloseTo(5000 - 3360);
+      expect(origin.goods[0].stock).toBe(200);
+      // A day's rent for 60 slots, doubled for a port with no warehouse room, comes off the sale.
+      expect(origin.marketTreasury.tradeCapitalLocked).toBeCloseTo(0);
+      expect(origin.marketTreasury.tradeWorkingCapital).toBeCloseTo(1000 + 3360 - 60 * 0.0005 * 2, 2);
+    } finally {
+      delete simulationContext.worldSettings;
+    }
+  });
 });
 
 describe("getCaravanTravelTime", () => {

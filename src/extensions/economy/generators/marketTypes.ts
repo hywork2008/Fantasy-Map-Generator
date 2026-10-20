@@ -617,6 +617,8 @@ export type CaravanLoadingState = {
   sailScheduleDays?: number[];
   /** Next calendar sail day (1–31) from the current simulation day. */
   nextSailDay?: number;
+  /** Warehouse rent run up waiting in port for a ship, paid when the cargo sails or is sold. */
+  portStorageDue?: number;
 };
 
 export interface Caravan {
