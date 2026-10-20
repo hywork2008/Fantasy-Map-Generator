@@ -1598,11 +1598,12 @@ function register(api: SimulationExtensionAPI): () => void {
         syncBurgMarketLedgers();
         synchronizePlayerCommerce();
         FoodProduction.seedFoodLedgerBootstrap();
-        const migratedMetallurgTools = MetallurgWork.migrateLegacyToolsUnitScale();
+        const migratedMetallurgHarnesses = MetallurgWork.migrateLegacyHarnessUnitScale();
+        const migratedMetallurg = MetallurgWork.migrateLegacyToolsUnitScale() || migratedMetallurgHarnesses;
         if (!getMetallurgAssetLedgers().length) {
           MetallurgWork.generate();
           MetallurgWork.settleMonthly();
-        } else if (migratedMetallurgTools) {
+        } else if (migratedMetallurg) {
           MetallurgWork.settleMonthly();
         }
       }
@@ -1757,11 +1758,12 @@ function register(api: SimulationExtensionAPI): () => void {
     }
     if (!getTradeSecurityLedgers().length) TradeSecurity.generate();
     if (!getDistantRealms().length) OverseasRelations.generate();
-    const migratedMetallurgTools = MetallurgWork.migrateLegacyToolsUnitScale();
+    const migratedMetallurgHarnesses = MetallurgWork.migrateLegacyHarnessUnitScale();
+    const migratedMetallurg = MetallurgWork.migrateLegacyToolsUnitScale() || migratedMetallurgHarnesses;
     if (!getMetallurgAssetLedgers().length) {
       MetallurgWork.generate();
       MetallurgWork.settleMonthly();
-    } else if (migratedMetallurgTools) {
+    } else if (migratedMetallurg) {
       MetallurgWork.settleMonthly();
     }
     // Rebuild cull / escort boards when empty or only invalid targets remain after load.

@@ -164,6 +164,66 @@ describe("MetallurgWorkModule", () => {
     expect(getMetallurgWorkOrders()).toEqual([]);
   });
 
+  it("counts a lot of Harnesses as a hundred riders' sets, whatever the populationRate", () => {
+    worldContext.populationRate = 1000;
+    MetallurgWork.generate();
+
+    expect(getMetallurgAssetLedgers().find(asset => asset.productGoodId === 5)).toMatchObject({
+      ownerKind: "state",
+      targetUnits: 0.1,
+      serviceableUnits: 0.1,
+      harnessSetsPerLot: 100
+    });
+  });
+
+  it("rescales a State Harnesses asset saved at a lot per thousand riders, with its open orders", () => {
+    worldContext.populationRate = 1000;
+    setMetallurgAssetLedgers([
+      {
+        ownerKind: "state",
+        ownerId: 1,
+        productGoodId: 5,
+        targetUnits: 0.01,
+        serviceableUnits: 0.008,
+        maintenanceBacklogWork: 0.001,
+        lastSettledMonth: 0
+      }
+    ]);
+    setMetallurgWorkOrders([
+      {
+        id: 1,
+        ownerKind: "state",
+        ownerId: 1,
+        destinationMarketId: 1,
+        productGoodId: 5,
+        kind: "newBuild",
+        recipeIndex: 0,
+        requestedUnits: 0.002,
+        completedUnits: 0.001,
+        plannedWork: 0.0014,
+        completedWork: 0.0007,
+        materials: [{ goodId: 3, units: 0.0005 }],
+        status: "inProgress",
+        createdMonth: 0,
+        updatedMonth: 0
+      }
+    ]);
+
+    expect(MetallurgWork.migrateLegacyHarnessUnitScale()).toBe(true);
+    expect(MetallurgWork.migrateLegacyHarnessUnitScale()).toBe(false);
+    expect(getMetallurgAssetLedgers()[0]).toMatchObject({
+      targetUnits: 0.1,
+      serviceableUnits: 0.08,
+      maintenanceBacklogWork: 0.01,
+      harnessSetsPerLot: 100
+    });
+    expect(getMetallurgWorkOrders()[0]).toMatchObject({
+      requestedUnits: 0.02,
+      completedUnits: 0.01,
+      materials: [{ goodId: 3, units: 0.005 }]
+    });
+  });
+
   it("starts firearm equipment at zero and creates state procurement orders when configured", () => {
     worldContext.options.initialFirearmsUnstocked = true;
     worldContext.pack.states[1].military = [{ i: 1, u: { cavalry: 10, archers: 20, musketeers: 30, artillery: 2 } }];

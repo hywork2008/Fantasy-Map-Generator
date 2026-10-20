@@ -19,6 +19,11 @@ export interface MetallurgAssetLedger {
   serviceableUnits: number;
   maintenanceBacklogWork: number;
   lastSettledMonth: number;
+  /**
+   * Set on a State's Harnesses asset counted at HARNESS_SETS_PER_LOT sets a lot. Older saves
+   * counted one lot per thousand riders (port-freight-queue-and-warehouses.md §10.18).
+   */
+  harnessSetsPerLot?: number;
 }
 
 /** A recipe input already expressed in Economy Good units. */

@@ -13,6 +13,7 @@ import {
 } from "../economyContext";
 import { getEconomyCalibrationState } from "../state/economyCalibrationStore";
 import { creditHouseholdWealth } from "./burgMarketLedgers";
+import { HARNESS_SETS_PER_LOT } from "./craftDemandCalibration";
 import { DEFAULT_PEOPLE_PER_POPULATION_POINT, laborPeople, peopleToPoints } from "./craftScale";
 import { getGuildBonus } from "./guildKnowledge";
 import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";
@@ -50,7 +51,7 @@ export type TransportAssetBlueprint = {
  * train's 36 slots fifty pack horses (port-freight-queue-and-warehouses.md §10.13, §10.15). The
  * materials and work are for the whole convoy: a one-horse cart took a wheelwright and his men
  * about 15-20 days, a four-wheeled wagon 40-60, a pack saddle two or three; a pile of wood is about
- * 1.2 m³; a lot of Harnesses is about a hundred sets (54 person-months, craftDemandCalibration.ts).
+ * 1.2 m³; a horse needs a set of harness (HARNESS_SETS_PER_LOT to a lot).
  * A head of Horses in the market is about twenty-five animals: a horse cost a labourer half a
  * year's to a year's wage, and half a head is tanned into a roll of leather (§10.17).
  */
@@ -60,7 +61,7 @@ const BLUEPRINTS: readonly TransportAssetBlueprint[] = [
     outputAssetId: "pack-train",
     outputMode: "land",
     // Fifty pack saddles on wooden trees, with halters, girths and breeching.
-    materialNames: { Leather: 0.5, Wood: 0.5, Harnesses: 0.5 },
+    materialNames: { Leather: 0.5, Wood: 0.5, Harnesses: 50 / HARNESS_SETS_PER_LOT },
     substituteMaterialNames: [{ Leather: 1, Wood: 0.5 }],
     requiredWorkPoints: 5,
     draftAnimalHeads: 2,
@@ -72,7 +73,7 @@ const BLUEPRINTS: readonly TransportAssetBlueprint[] = [
     id: "cart",
     outputAssetId: "cart",
     outputMode: "land",
-    materialNames: { Wood: 7, Harnesses: 0.2 },
+    materialNames: { Wood: 7, Harnesses: 20 / HARNESS_SETS_PER_LOT },
     substituteMaterialNames: [{ Wood: 7, Leather: 0.2 }],
     requiredWorkPoints: 12,
     draftAnimalHeads: 0.8,
@@ -84,7 +85,7 @@ const BLUEPRINTS: readonly TransportAssetBlueprint[] = [
     id: "wagon",
     outputAssetId: "wagon",
     outputMode: "land",
-    materialNames: { Wood: 16, Harnesses: 0.6 },
+    materialNames: { Wood: 16, Harnesses: 60 / HARNESS_SETS_PER_LOT },
     substituteMaterialNames: [{ Wood: 16, Leather: 0.6 }],
     requiredWorkPoints: 40,
     draftAnimalHeads: 2.4,

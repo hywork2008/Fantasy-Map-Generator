@@ -30,6 +30,14 @@ export interface GoodDemandCalibrationRow {
   sources: readonly string[];
 }
 
+/**
+ * Sets of harness in a lot of Harnesses: the calibrated workshop takes 54 person-months a lot
+ * (craftDemandCalibration.ts), about two weeks a set, and a lot is worth 10, a tenth of a set's
+ * worth for each set. A rider needs one set, a convoy horse one (port-freight-queue-and-warehouses.md
+ * §10.18). The State's mounted demand used to count a lot per thousand riders.
+ */
+export const HARNESS_SETS_PER_LOT = 100;
+
 export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
   {
     goodName: "Barrels",

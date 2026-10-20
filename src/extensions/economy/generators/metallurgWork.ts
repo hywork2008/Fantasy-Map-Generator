@@ -20,6 +20,7 @@ import {
   setMetallurgToolsUnitScaleVersion,
   setMetallurgWorkOrders
 } from "../economyContext";
+import { HARNESS_SETS_PER_LOT } from "./craftDemandCalibration";
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import type { Good } from "./goodsGeneratorTypes";
 import { Markets } from "./markets-generator";
@@ -107,14 +108,14 @@ function isMounted(unitName: string): boolean {
 
 function stateForcePlans(state: State): ProductPlan[] {
   let troopsNeedingArms = 0;
-  let mounted = 0;
+  let riders = 0;
   let artillery = 0;
   let firearms = 0;
 
   for (const regiment of state.military || []) {
     for (const [unitName, rawCount] of Object.entries(regiment.u || {})) {
       const count = economicUnitCount(rawCount);
-      if (isMounted(unitName)) mounted += count;
+      if (isMounted(unitName)) riders += rawCount;
       if (isArtillery(unitName)) {
         artillery += Math.max(count, economicUnitCount(regiment.plannedU?.[unitName] ?? 0));
         troopsNeedingArms += count;
@@ -137,7 +138,13 @@ function stateForcePlans(state: State): ProductPlan[] {
     // not draw Arms until the corresponding firearm or cannon has been delivered.
     { goodName: "Arms", units: troopsNeedingArms, kind: "newBuild", workPerUnit: 1, materialMultiplier: 1 },
     { goodName: "Muskets", units: firearms, kind: "newBuild", workPerUnit: 1.3, materialMultiplier: 1 },
-    { goodName: "Harnesses", units: mounted, kind: "newBuild", workPerUnit: 0.7, materialMultiplier: 1 },
+    {
+      goodName: "Harnesses",
+      units: riders / HARNESS_SETS_PER_LOT,
+      kind: "newBuild",
+      workPerUnit: 0.7,
+      materialMultiplier: 1
+    },
     { goodName: "Artillery", units: artillery, kind: "newBuild", workPerUnit: 8, materialMultiplier: 1 },
     {
       goodName: "Arrows",
@@ -214,7 +221,8 @@ export class MetallurgWorkModule {
           targetUnits: rn(plan.units, 4),
           serviceableUnits: shouldSeedStateAsset(plan) ? rn(plan.units, 4) : 0,
           maintenanceBacklogWork: 0,
-          lastSettledMonth: month - 1
+          lastSettledMonth: month - 1,
+          ...(plan.goodName === "Harnesses" ? { harnessSetsPerLot: HARNESS_SETS_PER_LOT } : {})
         });
       }
     }
@@ -316,6 +324,42 @@ export class MetallurgWorkModule {
     }
     setMetallurgToolsUnitScaleVersion(TOOLS_UNIT_SCALE_VERSION);
     return changed;
+  }
+
+  /**
+   * Rescales State Harnesses assets and their open orders saved at one lot per thousand riders
+   * (economic units) to HARNESS_SETS_PER_LOT sets a lot, so a loaded save does not order the
+   * difference anew. Returns whether anything changed.
+   */
+  migrateLegacyHarnessUnitScale(): boolean {
+    const harnesses = getGoods().find(good => good.name === "Harnesses");
+    if (!harnesses) return false;
+    const factor = Math.max(1, getWorldContext().populationRate || 1) / HARNESS_SETS_PER_LOT;
+    const migratedStates = new Set<number>();
+    for (const asset of getMetallurgAssetLedgers()) {
+      if (asset.ownerKind !== "state" || asset.productGoodId !== harnesses.i || asset.harnessSetsPerLot) continue;
+      asset.targetUnits = rn(asset.targetUnits * factor, 4);
+      asset.serviceableUnits = rn(asset.serviceableUnits * factor, 4);
+      asset.maintenanceBacklogWork = rn(asset.maintenanceBacklogWork * factor, 4);
+      asset.harnessSetsPerLot = HARNESS_SETS_PER_LOT;
+      migratedStates.add(asset.ownerId);
+    }
+    if (!migratedStates.size) return false;
+    const orders = getMetallurgWorkOrders();
+    for (const order of orders) {
+      if (order.ownerKind !== "state" || order.productGoodId !== harnesses.i || !migratedStates.has(order.ownerId))
+        continue;
+      order.requestedUnits = rn(order.requestedUnits * factor, 4);
+      order.completedUnits = rn(order.completedUnits * factor, 4);
+      order.plannedWork = rn(order.plannedWork * factor, 4);
+      order.completedWork = rn(order.completedWork * factor, 4);
+      for (const material of order.materials) material.units = rn(material.units * factor, 4);
+    }
+    setMetallurgAssetLedgers(getMetallurgAssetLedgers());
+    setMetallurgWorkOrders(orders);
+    const goodsById = new Map(getGoods().map(good => [good.i, good]));
+    setMetallurgMaterialForecasts(this.buildMaterialForecasts(orders, goodsById));
+    return true;
   }
 
   /** Reconciles one month of new demand and leaves fulfillment for Phase 2. */
@@ -439,7 +483,8 @@ export class MetallurgWorkModule {
             targetUnits: 0,
             serviceableUnits: 0,
             maintenanceBacklogWork: 0,
-            lastSettledMonth: month - 1
+            lastSettledMonth: month - 1,
+            ...(plan.goodName === "Harnesses" ? { harnessSetsPerLot: HARNESS_SETS_PER_LOT } : {})
           };
           nextAssets.push(seeded);
           assetByKey.set(key, seeded);

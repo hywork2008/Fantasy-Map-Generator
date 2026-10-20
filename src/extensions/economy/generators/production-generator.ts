@@ -15,6 +15,7 @@ import {
   getDeals,
   getGoodCellColumn,
   getGoods,
+  getMarketById,
   getMarkets,
   getOrCreateCumulativeGoodsSales,
   getOrCreateMarketGoodProductionTotals,
@@ -710,6 +711,18 @@ export class ProductionModule {
     // A cartwright's order is made on top of the authored floor: Harnesses' floor covers only the
     // cavalry's, so the smiths could not make the fittings the carts went without (§10.12).
     const transportMaterialDemand = TransportAssetOrders.getMaterialDemandByGood(marketId);
+    // So is the State's own harness order, counted a set a rider: the authored floor of a town's
+    // workshops fell far short of a large cavalry's (port-freight-queue-and-warehouses.md §10.18).
+    // Harness already in the market is not made again, so the burgs of one market do not each
+    // make the whole order.
+    const harnesses = index.productiveGoods.find(good => good.name === "Harnesses");
+    const militaryHarnesses = harnesses
+      ? Math.max(
+          0,
+          (MetallurgWork.getProductionDemandByGood(marketId).get(harnesses.i)?.outstandingUnits ?? 0) -
+            Math.max(0, getMarketById(marketId)?.goods[harnesses.i]?.stock ?? 0)
+        )
+      : 0;
     const populationRate = Math.max(0, this.worldContext.populationRate ?? 0) || 1;
     const laborPeopleBurg = laborPeople(population, populationRate);
     const port = Boolean(burg.port);
@@ -717,7 +730,8 @@ export class ProductionModule {
     for (const good of index.productiveGoods) {
       if (!getGoodDemandCalibration(good.name)) continue;
       const lots = getCalibratedMonthlyLots({ goodName: good.name, laborPeopleBurg, port, capital });
-      remainingCalibratedLots.set(good.i, Math.max(0, lots) + (transportMaterialDemand.get(good.i) ?? 0));
+      const ordered = (transportMaterialDemand.get(good.i) ?? 0) + (good === harnesses ? militaryHarnesses : 0);
+      remainingCalibratedLots.set(good.i, Math.max(0, lots) + ordered);
     }
     return remainingCalibratedLots;
   }
