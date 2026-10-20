@@ -29,6 +29,7 @@ import {
   SIGN_SYMBOLS
 } from "../buildings/signs/hangingSign";
 import { validateBuildingRecord } from "../buildings/validate";
+import { COVERED_WAGON, createCoveredWagon } from "../buildings/vehicles/coveredWagon";
 import { createMedievalWagon, MEDIEVAL_WAGON } from "../buildings/vehicles/medievalWagon";
 import { createNobleCarriage, NOBLE_CARRIAGE } from "../buildings/vehicles/nobleCarriage";
 import { createWarWagon, WAR_WAGON } from "../buildings/vehicles/warWagon";
@@ -1051,6 +1052,42 @@ wagonButton.addEventListener("click", () => {
   );
 });
 list.append(wagonButton);
+
+const coveredWagonButton = document.createElement("button");
+coveredWagonButton.type = "button";
+coveredWagonButton.textContent = "Covered wagon · Canvas-covered freight wagon";
+coveredWagonButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === coveredWagonButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Covered wagon side elevation";
+  levelTitle.textContent = "Covered wagon canopy plan";
+  const model = createCoveredWagon();
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: COVERED_WAGON.length, depth: COVERED_WAGON.width } }, COVERED_WAGON.height);
+  camera.position.set(7, 4.8, 8);
+  controls.target.set(0.55, 1.65, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", COVERED_WAGON.name),
+    fact("Style", "Pre-industrial · Timber freight wagon with a canvas cover"),
+    fact("Study envelope", `${COVERED_WAGON.length} × ${COVERED_WAGON.width} × ${COVERED_WAGON.height} m`),
+    fact("Cover", "Unbleached canvas on five wooden bows; stitched seams, rope lashings and rolled end curtains"),
+    fact("Body", "Empty plank bed; open front and rear above the end boards"),
+    fact("Running gear", "Four iron-bound spoked wheels, driver's bench and twin shafts; no animals"),
+    fact("Note", COVERED_WAGON.note)
+  );
+});
+list.append(coveredWagonButton);
 
 const nobleCarriageButton = document.createElement("button");
 nobleCarriageButton.type = "button";
