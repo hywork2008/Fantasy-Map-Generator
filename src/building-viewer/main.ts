@@ -8,6 +8,7 @@ import { CHAMBORD, createChambord } from "../buildings/fortresses/chambord";
 import { KRAK, type KrakPhase } from "../buildings/fortresses/krak";
 import { createPostMill, POST_MILL } from "../buildings/mills/postMill";
 import { createTowerMill, TOWER_MILL } from "../buildings/mills/towerMill";
+import { createWaterMill, WATER_MILL } from "../buildings/mills/waterMill";
 import { committedSvgHash, levelPlanSvg, planSvg } from "../buildings/planSvg";
 import { type BuildingRecord, TRIANGLE_BUDGET } from "../buildings/record";
 import { createGalleon, GALLEON } from "../buildings/ships/galleon";
@@ -634,6 +635,41 @@ towerMillButton.addEventListener("click", () => {
   );
 });
 list.append(towerMillButton);
+
+const waterMillButton = document.createElement("button");
+waterMillButton.type = "button";
+waterMillButton.textContent = "Medieval watermill · Timber and stone";
+waterMillButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === waterMillButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Watermill front elevation";
+  levelTitle.textContent = "Watermill plan";
+  const model = createWaterMill();
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: WATER_MILL.width, depth: WATER_MILL.depth } }, WATER_MILL.height);
+  camera.position.set(20, 13, 25);
+  controls.target.set(0, 4, 0.8);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", WATER_MILL.name),
+    fact("Style", "Medieval Europe · Stone and half-timbered grain mill"),
+    fact("Study envelope", `${WATER_MILL.width} × ${WATER_MILL.depth} × ${WATER_MILL.height} m`),
+    fact("Wheel", `Wooden overshot wheel; ${WATER_MILL.wheelRadius * 2} m diameter; 24 buckets`),
+    fact("Water supply", "Raised timber flume with sluice gate; lower millrace and axle bearing pier"),
+    fact("Note", WATER_MILL.note)
+  );
+});
+list.append(waterMillButton);
 
 resize();
 new ResizeObserver(resize).observe(stage);
