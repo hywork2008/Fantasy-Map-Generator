@@ -808,6 +808,128 @@ describe("finite sea fleet departure gate (P0)", () => {
   });
 });
 
+describe("port transfer (port-freight-queue-and-warehouses.md §10.19)", () => {
+  const reserveHullListener = (event: Event) => {
+    (event as CustomEvent<{ result?: string }>).detail.result = "fulfilled";
+  };
+
+  beforeEach(() => {
+    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    worldContext.distanceScale = 1;
+    worldContext.pack = {
+      goods: [
+        {
+          i: 0,
+          name: "Silk",
+          value: 40,
+          tags: ["luxury"],
+          unit: "bolt",
+          icon: "silk",
+          color: "#f0f",
+          cargo: { cargoSlotsPerUnit: 1, handlingClass: "crated" }
+        } as Good
+      ],
+      markets: [
+        { i: 0, centerBurgId: 1, color: "#000", goods: { 0: { stock: 200, price: 50 } } },
+        { i: 1, centerBurgId: 2, color: "#111", goods: { 0: { stock: 0, price: 80 } } }
+      ],
+      burgs: [
+        { i: 0 } as Burg,
+        { i: 1, market: 0, cell: 1, x: 0, y: 0 } as Burg,
+        { i: 2, market: 1, cell: 2, x: 400, y: 0, port: 1 } as Burg,
+        { i: 3, market: 0, cell: 3, x: 100, y: 0, port: 1 } as Burg
+      ],
+      caravans: []
+    } as unknown as PackedGraph;
+    document.addEventListener("fmg:shipbuilding-merchant-hull-reservation-request", reserveHullListener);
+  });
+
+  afterEach(() => {
+    MerchantTransportAssets.clear();
+    document.removeEventListener("fmg:shipbuilding-merchant-hull-reservation-request", reserveHullListener);
+    setCaravans([]);
+    clearEconomyContext();
+  });
+
+  function inlandCaravan(i: number, units: number): Caravan {
+    return {
+      i,
+      seller: 0,
+      sellerType: "market",
+      buyer: 1,
+      buyerType: "market",
+      payload: [{ goodId: 0, dealId: i, units, value: units * 50, cargoSlotsPerUnit: 1 }],
+      units,
+      value: units * 50,
+      draftAnimalId: "horse",
+      transportDispatcherMarketId: 0,
+      routeSegments: [
+        {
+          type: "land",
+          points: [
+            [0, 0],
+            [100, 0]
+          ]
+        },
+        {
+          type: "sea",
+          points: [
+            [100, 0],
+            [400, 0]
+          ]
+        }
+      ],
+      totalDistance: 400,
+      currentDistance: 0,
+      travelLegs: [
+        { endKm: 100, speedKmPerDay: 100 },
+        { endKm: 400, speedKmPerDay: 100 }
+      ],
+      state: "loading",
+      departReason: "waiting",
+      portTransfer: { seaSegmentIndex: 1, atKm: 100, portBurgId: 3 },
+      loading: {
+        waitedDays: 30,
+        maxWaitDays: 2,
+        targetUtilization: 0.55,
+        minSailUtilization: 0.2,
+        plannedCapacitySlots: 80,
+        sailScheduleDays: [1, 10, 20],
+        nextSailDay: 1
+      }
+    } as Caravan;
+  }
+
+  it("carts the cargo to the port without a ship, gathers loads there and sails them in one hull", () => {
+    MerchantTransportAssets.reconcileMerchantHulls([]);
+    setCaravans([inlandCaravan(1, 60), inlandCaravan(2, 70)]);
+
+    Caravans.tick(1);
+
+    // Both inland loads left on carts with no hull afloat, reached the port and lie there as one
+    // consignment; the carts went home.
+    const [consignment, ...rest] = getCaravans();
+    expect(rest).toEqual([]);
+    expect(consignment).toMatchObject({ state: "loading", currentDistance: 100, units: 130 });
+    expect(consignment.portTransfer?.atPort).toBe(true);
+    expect(consignment.transportReservationId).toBeUndefined();
+    const carts = MerchantTransportAssets.getAvailability(0).filter(asset => asset.assetId !== "river-barge");
+    expect(carts.some(asset => asset.available > 0)).toBe(true);
+    expect(carts.every(asset => asset.reserved === 0 && asset.inTransit === 0)).toBe(true);
+
+    // A hull comes to the port and takes the whole consignment on the next sailing day.
+    MerchantTransportAssets.reconcileMerchantHulls([
+      { id: 30, shipClassId: "caravel", homeBurgId: 3, ownerId: 1, status: "docked", currentBurgId: 3 }
+    ]);
+    consignment.loading!.waitedDays = 30;
+    Caravans.tick(1);
+
+    expect(consignment.state).toBe("transit");
+    expect(consignment.transportAllocations?.some(allocation => allocation.shipHullIds?.includes(30))).toBe(true);
+    expect(consignment.currentDistance).toBeGreaterThan(100);
+  });
+});
+
 describe("getCaravanTravelTime", () => {
   it("reports remaining and total days from the caravan's baked travel legs", () => {
     const caravan = {

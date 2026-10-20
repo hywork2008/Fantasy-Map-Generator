@@ -22,7 +22,7 @@ import {
 } from "../economyContext";
 import type { Caravan, PortWarehouseState, TradeRouteSegment } from "./marketTypes";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
-import { seaArrivalPortBurgId, seaDepartureMarketId, seaDeparturePortBurgId } from "./seaRoutePorts";
+import { isInlandStage, seaArrivalPortBurgId, seaDepartureMarketId, seaDeparturePortBurgId } from "./seaRoutePorts";
 
 /** Days the average sea cargo lies in a port warehouse, loading and unloading. */
 const DWELL_DAYS = 30;
@@ -140,13 +140,15 @@ export function recordSeaDeparture(caravan: Caravan, dispatcherMarketId: number 
 }
 
 /**
- * Sea cargo loaded and waiting for a ship, and sea cargo no hull could be booked for, by the
- * market whose port it sails from: a market without a port waits at another market's (§10.7).
+ * Sea cargo loaded and waiting for a ship, on its way to the port by land or river, and sea cargo
+ * no hull could be booked for, by the market whose port it sails from: a market without a port
+ * waits at another market's (§10.7, §10.19).
  */
 export function collectSeaBacklogSlots(): Map<number, number> {
   const backlog = new Map<number, number>();
   for (const caravan of getCaravans()) {
-    if (caravan.state !== "loading" || !caravan.routeSegments.some(isSeaSegment)) continue;
+    const bound = caravan.state === "loading" || (caravan.state === "transit" && isInlandStage(caravan));
+    if (!bound || !caravan.routeSegments.some(isSeaSegment)) continue;
     const marketId =
       seaDepartureMarketId(caravan.routeSegments) ??
       caravan.transportDispatcherMarketId ??
@@ -161,7 +163,8 @@ export function collectSeaBacklogSlots(): Map<number, number> {
 
 /**
  * Sea cargo waiting for a ship, by the port burg it waits at: where its sea leg leaves, as the
- * departures through the port are counted. Cargo with no known port waits at its market's.
+ * departures through the port are counted. Cargo with no known port waits at its market's. Cargo
+ * still at an inland origin, or on the road to the port, is not in the port warehouse (§10.19).
  */
 function collectSeaQueueByPortBurg(): Map<number, number> {
   const queued = new Map<number, number>();
@@ -169,7 +172,7 @@ function collectSeaQueueByPortBurg(): Map<number, number> {
     if (burgId !== undefined && slots > 0) queued.set(burgId, (queued.get(burgId) ?? 0) + slots);
   };
   for (const caravan of getCaravans()) {
-    if (caravan.state !== "loading" || !caravan.routeSegments.some(isSeaSegment)) continue;
+    if (caravan.state !== "loading" || isInlandStage(caravan) || !caravan.routeSegments.some(isSeaSegment)) continue;
     const dispatcher = caravan.transportDispatcherMarketId ?? MerchantTransportAssets.getDispatcherMarketId(caravan);
     add(
       seaDeparturePortBurgId(caravan.routeSegments) ??

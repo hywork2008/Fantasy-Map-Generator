@@ -9,7 +9,7 @@
  */
 
 import { getWorldContext } from "../economyContext";
-import type { TradeRoutePoint, TradeRouteSegment } from "./marketTypes";
+import type { Caravan, TradeRoutePoint, TradeRouteSegment } from "./marketTypes";
 
 let portIndex: {
   pack: unknown;
@@ -75,6 +75,30 @@ export function seaDepartureMarketId(segments: readonly TradeRouteSegment[] | un
   if (burgId === undefined) return undefined;
   const marketId = getWorldContext().pack.burgs?.[burgId]?.market;
   return typeof marketId === "number" ? marketId : undefined;
+}
+
+type StagedCaravan = Pick<Caravan, "routeSegments" | "portTransfer">;
+
+/** Whether the shipment's cargo is still on its way to, or waiting to leave for, the port (§10.19). */
+export function isInlandStage(caravan: StagedCaravan): boolean {
+  return Boolean(caravan.portTransfer && !caravan.portTransfer.atPort);
+}
+
+/** Whether the shipment's cargo lies in the port warehouse, set down by the inland stage. */
+export function isAtPort(caravan: StagedCaravan): boolean {
+  return Boolean(caravan.portTransfer?.atPort);
+}
+
+/**
+ * The route segments the shipment's current stage travels: the inland segments to the port, then
+ * the sea and what follows it. A shipment without a transfer travels its whole route at once.
+ */
+export function stageSegments(caravan: StagedCaravan): readonly TradeRouteSegment[] {
+  const transfer = caravan.portTransfer;
+  if (!transfer) return caravan.routeSegments;
+  return transfer.atPort
+    ? caravan.routeSegments.slice(transfer.seaSegmentIndex)
+    : caravan.routeSegments.slice(0, transfer.seaSegmentIndex);
 }
 
 export function clearSeaRoutePortCache(): void {

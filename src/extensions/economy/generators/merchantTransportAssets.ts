@@ -36,7 +36,7 @@ import type {
   TransportAllocation,
   TransportReservation
 } from "./marketTypes";
-import { seaDepartureMarketId } from "./seaRoutePorts";
+import { seaDepartureMarketId, stageSegments } from "./seaRoutePorts";
 import { getLandTransportDefinition, RIVER_BARGE_TRANSPORT } from "./tradeCargo";
 
 const MAINTENANCE_RECOVERY_DAYS = 30;
@@ -1417,7 +1417,7 @@ export class MerchantTransportAssetsModule {
     let loading = 0;
     for (const caravan of getCaravans()) {
       if (caravan.state !== "loading" || caravan.transportReservationId !== undefined) continue;
-      if (!caravan.routeSegments.some(segment => segment.type === "river")) continue;
+      if (!stageSegments(caravan).some(segment => segment.type === "river")) continue;
       if ((caravan.transportDispatcherMarketId ?? this.getDispatcherMarketId(caravan)) !== marketId) continue;
       // Each shipment sails in its own barge, however little it fills.
       const slots = caravan.payload.reduce((sum, item) => sum + item.units * (item.cargoSlotsPerUnit ?? 1), 0);

@@ -55,7 +55,7 @@ import { MerchantTransportAssets } from "./merchantTransportAssets";
 import { recordSeaDeparture, repositionIdleHulls } from "./portWarehouses";
 import { recordRouteTraffic } from "./publicWorks";
 import { markRetailInventoryDirty } from "./retailInventory";
-import { seaDepartureMarketId } from "./seaRoutePorts";
+import { isAtPort, seaDepartureMarketId, seaDeparturePortBurgId, stageSegments } from "./seaRoutePorts";
 import {
   buildCargoManifests,
   getGoodCargoSlotsPerUnit,
@@ -319,19 +319,44 @@ type RouteBundle = {
   deals: Deal[];
 };
 
+/** Route km of the shipment's current stage (§10.19); the whole route without a port transfer. */
+function stageDistanceKm(caravan: Caravan): number {
+  const transfer = caravan.portTransfer;
+  if (!transfer) return caravan.totalDistance;
+  return transfer.atPort ? Math.max(0, caravan.totalDistance - transfer.atKm) : transfer.atKm;
+}
+
+/**
+ * Where a route's inland stage sets its cargo down for the ship: a route that reaches its first sea
+ * leg overland or down river is shipped in two stages (port-freight-queue-and-warehouses.md §4.1,
+ * §10.19). A route that leaves by sea from its first point has no inland stage.
+ */
+function planPortTransfer(routeSegments: readonly TradeRouteSegment[], distanceScale: number): Caravan["portTransfer"] {
+  const seaSegmentIndex = routeSegments.findIndex(segment => segment.type === "sea" || segment.type === "water");
+  if (seaSegmentIndex <= 0) return undefined;
+  const atKm = getRouteDistanceKm(routeSegments.slice(0, seaSegmentIndex), distanceScale);
+  const portBurgId = seaDeparturePortBurgId(routeSegments);
+  if (!(atKm > ARRIVAL_DISTANCE_EPSILON_KM) || portBurgId === undefined) return undefined;
+  return { seaSegmentIndex, atKm, portBurgId };
+}
+
 /** Bring persisted loading rows in line with the current route-aware commercial policy. */
 function refreshLoadingPolicy(caravan: Caravan): void {
   if (caravan.state !== "loading" || !caravan.loading) return;
   const logistics = TradeLogisticsSettings.getOptions();
-  caravan.loading.maxWaitDays = maxWaitDaysForRoute(caravan.routeSegments, caravan.totalDistance, {
+  const segments = stageSegments(caravan);
+  caravan.loading.maxWaitDays = maxWaitDaysForRoute(segments, stageDistanceKm(caravan), {
     maxWaitDaysLand: logistics.maxWaitDaysLand,
     maxWaitDaysSea: logistics.maxWaitDaysSea,
     maxWaitDaysShortSea: logistics.maxWaitDaysShortSea,
     shortSeaDistanceKm: logistics.shortSeaDistanceKm
   });
+  // Cargo bound for the port warehouse, or lying in it, goes however little it fills a cart or a
+  // hold: it is not called off as thin and sent back (§10.19).
+  if (caravan.portTransfer) caravan.loading.minSailUtilization = 0;
 
   // Carts have no sailing calendar. Clear stale fields from saves made before this distinction.
-  if (!routeHasWater(caravan.routeSegments)) {
+  if (!routeHasWater(segments)) {
     caravan.loading.sailScheduleDays = undefined;
     caravan.loading.nextSailDay = undefined;
   }
@@ -380,19 +405,22 @@ function resolveEndpointBurgId(endpointType: "burg" | "market", endpointId: numb
   return market?.centerBurgId ?? null;
 }
 
-function caravanItinerary(caravan: Pick<Caravan, "seller" | "sellerType" | "buyer" | "buyerType">): {
+function caravanItinerary(caravan: Pick<Caravan, "seller" | "sellerType" | "buyer" | "buyerType" | "portTransfer">): {
   originBurgId: number | null;
   destinationBurgId: number | null;
 } {
   return {
-    originBurgId: resolveEndpointBurgId(caravan.sellerType, caravan.seller),
+    // The sea stage of a transferred shipment leaves from the port it was set down at (§10.19).
+    originBurgId: caravan.portTransfer?.atPort
+      ? caravan.portTransfer.portBurgId
+      : resolveEndpointBurgId(caravan.sellerType, caravan.seller),
     destinationBurgId: resolveEndpointBurgId(caravan.buyerType, caravan.buyer)
   };
 }
 
 /** Itinerary for a reservation: the endpoints, and the port the sea leg leaves from (§10.7). */
 function reservationItinerary(
-  caravan: Pick<Caravan, "seller" | "sellerType" | "buyer" | "buyerType">,
+  caravan: Pick<Caravan, "seller" | "sellerType" | "buyer" | "buyerType" | "portTransfer">,
   routeSegments: readonly TradeRouteSegment[]
 ) {
   return { ...caravanItinerary(caravan), seaPortMarketId: seaDepartureMarketId(routeSegments) };
@@ -414,11 +442,13 @@ function publishCaravanHullPositions(caravans: readonly Caravan[]): void {
     const hullIds = (caravan.transportAllocations ?? []).flatMap(allocation => allocation.shipHullIds ?? []);
     if (!hullIds.length) continue;
     const { originBurgId, destinationBurgId } = caravanItinerary(caravan);
+    const startKm = caravan.portTransfer?.atPort ? caravan.portTransfer.atKm : 0;
+    const stageKm = caravan.totalDistance - startKm;
     const progress =
       caravan.state === "loading"
         ? 0
-        : caravan.totalDistance > 0
-          ? Math.max(0, Math.min(1, caravan.currentDistance / caravan.totalDistance))
+        : stageKm > 0
+          ? Math.max(0, Math.min(1, (caravan.currentDistance - startKm) / stageKm))
           : 0;
     for (const hullId of hullIds) {
       updates.push({
@@ -453,10 +483,9 @@ const PORT_SEASON_WAIT_DAYS = 90;
  */
 function waitForTransport(caravan: Caravan): "waiting" | "cancelled" {
   if (!caravan.loading || caravan.sellerType !== "market" || !isLongDistanceTradeEnabled()) return "waiting";
-  const durationDays = calculateRouteDurationDays(caravan.routeSegments, getWorldContext().distanceScale);
-  const seaWait = caravan.routeSegments.some(segment => segment.type === "sea" || segment.type === "water")
-    ? PORT_SEASON_WAIT_DAYS
-    : 0;
+  const segments = stageSegments(caravan);
+  const durationDays = calculateRouteDurationDays(segments, getWorldContext().distanceScale);
+  const seaWait = routeNeedsSeaHulls(segments) ? PORT_SEASON_WAIT_DAYS : 0;
   if (caravan.loading.waitedDays <= getStaleLotDays({ durationDays }) + seaWait) return "waiting";
   recordStaleLotCancelled(caravan.payload.reduce((sum, item) => sum + (item.lockedCapital ?? 0), 0));
   restoreLoadingCargoToOrigin(caravan);
@@ -475,17 +504,20 @@ function tryDepartLoadingCaravan(caravan: Caravan): "departed" | "waiting" | "ca
   }
 
   refreshLoadingPolicy(caravan);
+  const segments = stageSegments(caravan);
+  const atPort = isAtPort(caravan);
 
   // Co-load staple food into free space first so it counts toward sail utilization
-  // (historical ballast / bulk grain riding with higher-value general cargo).
-  tryCoLoadFoodOntoCaravan(caravan, { distanceScale: getWorldContext().distanceScale });
+  // (historical ballast / bulk grain riding with higher-value general cargo). The exporter's food
+  // is at home, not in the port warehouse.
+  if (!atPort) tryCoLoadFoodOntoCaravan(caravan, { distanceScale: getWorldContext().distanceScale });
 
   const usedSlots = payloadUsedSlots(caravan);
   const planned = caravan.loading.plannedCapacitySlots;
   const util = utilizationOf(usedSlots, planned);
   const dayOfMonth = getSimulationDay();
   const logistics = TradeLogisticsSettings.getOptions();
-  const waterRoute = routeHasWater(caravan.routeSegments);
+  const waterRoute = routeHasWater(segments);
   const sailDays = waterRoute
     ? caravan.loading.sailScheduleDays?.length
       ? caravan.loading.sailScheduleDays
@@ -504,7 +536,7 @@ function tryDepartLoadingCaravan(caravan: Caravan): "departed" | "waiting" | "ca
     maxWaitDays: caravan.loading.maxWaitDays,
     dayOfMonth,
     sailDays,
-    immediateDispatch: isLocalLandRoute(caravan.routeSegments, caravan.totalDistance),
+    immediateDispatch: isLocalLandRoute(segments, stageDistanceKm(caravan)),
     unitEpsilon: UNIT_EPSILON
   });
   const decision = sailDecisionFromReason(reason);
@@ -517,11 +549,13 @@ function tryDepartLoadingCaravan(caravan: Caravan): "departed" | "waiting" | "ca
     return "cancelled";
   }
 
-  // Right-size the vehicle to the actual cargo, then reserve durable assets at sail time only.
+  // Right-size the vehicle to the actual cargo, then reserve durable assets at sail time only. A
+  // consignment gathered in the port warehouse can outgrow one cart for the road beyond the sea.
   const allocations = getTransportAllocations(
-    caravan.routeSegments,
+    segments,
     Math.max(usedSlots, UNIT_EPSILON),
-    caravan.draftAnimalId
+    caravan.draftAnimalId,
+    atPort
   );
   for (const allocation of allocations) allocation.usedSlots = usedSlots;
   const capacitySlots = getManifestCapacitySlots(allocations);
@@ -537,7 +571,7 @@ function tryDepartLoadingCaravan(caravan: Caravan): "departed" | "waiting" | "ca
     allocations,
     reservationItinerary(caravan, caravan.routeSegments)
   );
-  if (!canDepartWithTransportAssets(allocations, reservation, caravan.routeSegments)) {
+  if (!canDepartWithTransportAssets(allocations, reservation, segments)) {
     return waitForTransport(caravan);
   }
 
@@ -547,10 +581,11 @@ function tryDepartLoadingCaravan(caravan: Caravan): "departed" | "waiting" | "ca
   caravan.merchantOrganizationId ??= resolveMerchantOrganizationId(dispatcherMarketId);
   caravan.state = "transit";
   // A departing shipment is what wears a road in; recorded at departure rather than arrival so a
-  // corridor whose caravans keep getting robbed still counts as used traffic (L8 stage 2).
-  recordRouteTraffic(caravan.routeSegments);
-  recordCaravanCorridor(caravan);
-  recordSeaDeparture(caravan, caravan.transportDispatcherMarketId);
+  // corridor whose caravans keep getting robbed still counts as used traffic (L8 stage 2). A
+  // transferred shipment wears each stage as it travels it, and leaves its origin once.
+  recordRouteTraffic(segments);
+  if (!atPort) recordCaravanCorridor(caravan);
+  if (routeNeedsSeaHulls(segments)) recordSeaDeparture(caravan, caravan.transportDispatcherMarketId);
   caravan.loading = undefined;
   if (reservation) MerchantTransportAssets.depart(reservation.reservation.id);
   return "departed";
@@ -569,13 +604,14 @@ function payloadValuePerSlot(caravan: Caravan): number {
  */
 function waitsBehindAtLanding(caravan: Caravan): boolean {
   const hasRiver = (route: readonly TradeRouteSegment[]) => route.some(segment => segment.type === "river");
-  if (!hasRiver(caravan.routeSegments)) return false;
+  if (!hasRiver(stageSegments(caravan))) return false;
   return getCaravans().some(
     other =>
       other.i < caravan.i &&
       other.state === "loading" &&
+      !isAtPort(other) &&
       other.transportDispatcherMarketId === caravan.transportDispatcherMarketId &&
-      hasRiver(other.routeSegments)
+      hasRiver(stageSegments(other))
   );
 }
 
@@ -584,11 +620,96 @@ function loadingOrder(caravans: readonly Caravan[]): Caravan[] {
   const sea: { caravan: Caravan; value: number }[] = [];
   for (const caravan of caravans) {
     if (caravan.state !== "loading" || !caravan.loading) continue;
-    if (routeNeedsSeaHulls(caravan.routeSegments)) sea.push({ caravan, value: payloadValuePerSlot(caravan) });
+    if (routeNeedsSeaHulls(stageSegments(caravan))) sea.push({ caravan, value: payloadValuePerSlot(caravan) });
     else land.push(caravan);
   }
   sea.sort((a, b) => b.value - a.value);
   return [...land, ...sea.map(entry => entry.caravan)];
+}
+
+/**
+ * The hold a consignment in the port warehouse gathers toward: the largest hull free at the port,
+ * or afloat when none is (as cargo is packed for a ship that is coming, §10.11). Without a finite
+ * fleet, the largest ship class.
+ */
+function portHoldSlots(caravan: Caravan, segments: readonly TradeRouteSegment[]): number {
+  const sea = segments.filter(segment => segment.type === "sea" || segment.type === "water");
+  const dispatcherMarketId =
+    caravan.transportDispatcherMarketId ?? MerchantTransportAssets.getDispatcherMarketId(caravan);
+  if (MerchantTransportAssets.isWaterAssetModeActive() && dispatcherMarketId !== null) {
+    const largest = MerchantTransportAssets.getLargestAvailableRouteCapacity(
+      dispatcherMarketId,
+      sea,
+      caravan.draftAnimalId,
+      { awaitVessel: true }
+    );
+    if (Number.isFinite(largest) && largest > 0) return largest;
+  }
+  return getManifestCapacitySlots(getTransportAllocations(sea, Number.POSITIVE_INFINITY, caravan.draftAnimalId));
+}
+
+/**
+ * The inland stage reaches the port (port-freight-queue-and-warehouses.md §4.1, §10.19). Its carts
+ * go home, a barge stays at the port's landing, and the cargo lies in the port warehouse for a
+ * ship. A later load of the same house for the same buyer goes into the consignment already
+ * waiting there while the hold has room: the factor at the port shipped the goods of many carts in
+ * one ship. The load merged away ends here, its cargo carried on by the consignment.
+ */
+function setDownAtPort(caravan: Caravan): void {
+  const transfer = caravan.portTransfer;
+  if (!transfer) return;
+  caravan.currentDistance = transfer.atKm;
+  const portMarketId = getWorldContext().pack.burgs?.[transfer.portBurgId]?.market;
+  MerchantTransportAssets.settleCaravan(
+    {
+      transportReservationId: caravan.transportReservationId,
+      buyer: typeof portMarketId === "number" ? portMarketId : undefined,
+      buyerType: "market"
+    },
+    "arrived"
+  );
+  caravan.transportReservationId = undefined;
+  transfer.atPort = true;
+
+  const segments = stageSegments(caravan);
+  const slots = payloadUsedSlots(caravan);
+  const consignment = getCaravans().find(
+    other =>
+      other !== caravan &&
+      other.state === "loading" &&
+      other.loading &&
+      other.portTransfer?.atPort &&
+      other.portTransfer.portBurgId === transfer.portBurgId &&
+      sameRouteBundle(other, caravan) &&
+      payloadUsedSlots(other) + slots <= other.loading.plannedCapacitySlots + UNIT_EPSILON
+  );
+  if (consignment) {
+    consignment.payload.push(...caravan.payload);
+    consignment.units = rn(consignment.units + caravan.units, 2);
+    consignment.value = rn(consignment.value + caravan.value, 2);
+    caravan.payload = [];
+    caravan.units = 0;
+    caravan.value = 0;
+    caravan.state = "arrived";
+    return;
+  }
+
+  const logistics = TradeLogisticsSettings.getOptions();
+  caravan.state = "loading";
+  caravan.departReason = "waiting";
+  caravan.transportAllocations = getTransportAllocations(segments, slots, caravan.draftAnimalId, true).map(
+    allocation => ({ ...allocation, usedSlots: slots })
+  );
+  caravan.loading = {
+    waitedDays: 0,
+    maxWaitDays: logistics.maxWaitDaysSea,
+    targetUtilization: logistics.targetUtilization,
+    minSailUtilization: 0,
+    plannedCapacitySlots: Math.max(slots, portHoldSlots(caravan, segments)),
+    sailScheduleDays: [...logistics.sailDays],
+    nextSailDay: nextScheduledSailDay(getSimulationDay(), logistics.sailDays)
+  };
+  refreshLoadingPolicy(caravan);
 }
 
 function decayCaravanArrivalVolume(markets: readonly Market[], deltaDays: number): void {
@@ -1145,7 +1266,7 @@ export class CaravansModule {
 
       // Prefer topping up an existing loading caravan on the same O/D before opening a new one.
       const existingLoading = getCaravans().find(
-        caravan => caravan.state === "loading" && sameRouteBundle(caravan, bundle)
+        caravan => caravan.state === "loading" && !isAtPort(caravan) && sameRouteBundle(caravan, bundle)
       );
       if (existingLoading?.loading) {
         const freeSlots = existingLoading.loading.plannedCapacitySlots - payloadUsedSlots(existingLoading);
@@ -1222,6 +1343,7 @@ export class CaravansModule {
         travelLegs,
         state: "loading",
         departReason: "waiting",
+        portTransfer: planPortTransfer(routeSegments, world.distanceScale),
         loading: {
           waitedDays: 0,
           maxWaitDays: maxLoadingWaitDays,
@@ -1232,6 +1354,7 @@ export class CaravansModule {
           nextSailDay: nextScheduledSailDay(dayOfMonth, logistics.sailDays)
         }
       };
+      refreshLoadingPolicy(caravan);
       const addedSlots = appendPayloadFromManifest(caravan, manifest);
       if (addedSlots <= UNIT_EPSILON || !caravan.payload.length) break;
       getCaravans().push(caravan);
@@ -1365,6 +1488,13 @@ export class CaravansModule {
           TradeSecurity.recordCaravanLoss(destinationStateId);
           continue;
         }
+      }
+
+      // The inland stage sets its cargo down in the port warehouse (§10.19).
+      const transfer = caravan.portTransfer;
+      if (transfer && !transfer.atPort && caravan.currentDistance + ARRIVAL_DISTANCE_EPSILON_KM >= transfer.atKm) {
+        setDownAtPort(caravan);
+        continue;
       }
 
       if (hasCaravanArrived(caravan)) {

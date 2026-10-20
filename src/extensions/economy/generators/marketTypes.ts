@@ -682,6 +682,22 @@ export interface Caravan {
   /** Present while state === "loading". */
   loading?: CaravanLoadingState;
   /**
+   * Present on a shipment that goes overland or down river to a port before its sea leg
+   * (port-freight-queue-and-warehouses.md §4.1, §10.19). The inland carts or barge set the cargo
+   * down in the port warehouse and go home; the cargo waits there for a ship, joined by later loads
+   * of the same house for the same buyer, and the ship loads it there.
+   */
+  portTransfer?: {
+    /** Index in routeSegments of the first sea segment; the segments before it are the inland stage. */
+    seaSegmentIndex: number;
+    /** Route km (as travelLegs count them) at which the inland stage ends. */
+    atKm: number;
+    /** Port burg the cargo is set down at. */
+    portBurgId: number;
+    /** Set once the inland stage has arrived and the cargo lies in the port warehouse. */
+    atPort?: boolean;
+  };
+  /**
    * Why this shipment left (or was cancelled). Set when leaving loading / cancel-thin.
    * Values: depart-full | depart-local | depart-schedule | depart-overdue | cancelled-thin
    */

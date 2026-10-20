@@ -32,6 +32,7 @@ import type {
   MetallurgWorkOrderKind
 } from "./metallurgWorkTypes";
 import { MilitaryResources } from "./militaryResources";
+import { isAtPort } from "./seaRoutePorts";
 
 export interface MetallurgProductionDemand {
   goodId: number;
@@ -865,7 +866,8 @@ export class MetallurgWorkModule {
     const marketById = new Map(getMarkets().map(market => [market.i, market]));
     const inboundByMarketAndGood = new Map<string, number>();
     for (const caravan of getCaravans()) {
-      if (caravan.state !== "transit" || caravan.buyerType !== "market") continue;
+      // Cargo lying in a port warehouse for its ship is on its way as well (§10.19).
+      if ((caravan.state !== "transit" && !isAtPort(caravan)) || caravan.buyerType !== "market") continue;
       for (const payload of caravan.payload) {
         const key = `${caravan.buyer}:${payload.goodId}`;
         inboundByMarketAndGood.set(key, (inboundByMarketAndGood.get(key) ?? 0) + payload.units);

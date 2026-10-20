@@ -26,7 +26,7 @@ import { getCaravans, getExportStagingLots, getGoods } from "../economyContext";
 import { DEFAULT_DRAFT_ANIMAL_ID } from "./caravanMovement";
 import type { Caravan, TradeRouteSegment } from "./marketTypes";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
-import { seaDepartureMarketId, seaDeparturePortBurgId } from "./seaRoutePorts";
+import { isInlandStage, seaDepartureMarketId, seaDeparturePortBurgId } from "./seaRoutePorts";
 import { getGoodCargoSlotsPerUnit } from "./tradeCargo";
 
 /** Days a month a vehicle can be out carrying. */
@@ -143,11 +143,10 @@ export function buildTransportRoom(
     const dispatcher = caravan.transportDispatcherMarketId ?? MerchantTransportAssets.getDispatcherMarketId(caravan);
     if (dispatcher === null) continue;
     const days = Math.max(1, durationOf(caravan.routeSegments));
-    const left =
-      caravan.state === "transit" && caravan.totalDistance > 0
-        ? Math.max(0, 1 - caravan.currentDistance / caravan.totalDistance)
-        : 1;
-    hold(room, dispatcher, caravan.routeSegments, payloadSlots(caravan), days * left, caravan.state === "transit");
+    const left = caravan.totalDistance > 0 ? Math.max(0, 1 - caravan.currentDistance / caravan.totalDistance) : 1;
+    // Cargo on the road to the port has not sailed yet: it still holds its hull (§10.19).
+    const sailed = caravan.state === "transit" && !isInlandStage(caravan);
+    hold(room, dispatcher, caravan.routeSegments, payloadSlots(caravan), days * left, sailed);
   }
   return room;
 }
