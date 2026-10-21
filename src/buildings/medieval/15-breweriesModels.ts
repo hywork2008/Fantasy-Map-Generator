@@ -3,18 +3,22 @@ import { type MedievalModel, ModelKit } from "./modelKit";
 
 function brewery(large: boolean) {
   const k = new ModelKit(large ? "town-brewery" : "ale-brewhouse");
-  k.hall(-2, -1, large ? 8 : 5.5, 5, large ? 4.7 : 2.8, 1.5, { wall: "stone", storeys: large ? 2 : 1 });
-  k.hall(3, 0, 4, 5, 3, 1.1, { open: true, roof: "wood" });
-  k.box("brewing-furnace", [2.5, 0.5, 0], [1.8, 1, 1.8], "stone");
-  k.box("furnace-mouth", [2.5, 0.35, 0.92], [0.6, 0.5, 0.04], "dark");
-  k.vessel("brewing-copper", [2.5, 1, 0], 0.85, 0.65, "tile", true);
-  k.vessel("mash-tun", [4.5, 0, 1], 0.7, 1.2, "wood", true);
-  for (const y of [0.2, 1]) k.ring("tun-hoop", [4.5, y, 1], 0.71, 0.035);
-  k.chimney(2, -1.8, 4.7);
+  const hallWidth = large ? 8 : 5.5;
+  k.hall(-2, -1, hallWidth, 5, large ? 4.7 : 2.8, 1.5, { wall: "stone", storeys: large ? 2 : 1 });
+  const shelter = new ModelKit("copper-shelter");
+  shelter.hall(0, 0, 4, 5, 3, 1.1, { open: true, roof: "wood" });
+  shelter.box("brewing-furnace", [-0.5, 0.5, 0], [1.8, 1, 1.8], "stone");
+  shelter.box("furnace-mouth", [-0.5, 0.35, 0.92], [0.6, 0.5, 0.04], "dark");
+  shelter.vessel("brewing-copper", [-0.5, 1, 0], 0.85, 0.65, "tile", true);
+  shelter.vessel("mash-tun", [1.5, 0, 1], 0.7, 1.2, "wood", true);
+  for (const y of [0.2, 1]) shelter.ring("tun-hoop", [1.5, y, 1], 0.71, 0.035);
+  shelter.chimney(-1, -1.8, 4.7);
+  shelter.beam("mash-paddle", [1, 1.5, 1], [1.6, 0.8, 1], 0.06, "wood", true);
+  // Allow for both 0.3 m roof overhangs and a 0.6 m gap between the roofs.
+  k.attach(shelter.finish(), [-2 + hallWidth / 2 + 2 + 0.6 + 0.6, 0, 0]);
   k.table(0, 3, 2.2, 1, 0.85);
   k.box("malt-cooling-tray", [0, 0.97, 3], [2, 0.1, 0.8], "straw");
   for (let i = 0; i < 3; i++) k.attach(createMedievalContainerModel("barrel", "closed"), [-3 + i, 0, 2.2]);
-  k.beam("mash-paddle", [4, 1.5, 1], [4.6, 0.8, 1], 0.06, "wood", true);
   return k.finish();
 }
 export const models: MedievalModel[] = [
