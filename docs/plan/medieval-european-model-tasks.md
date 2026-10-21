@@ -56,7 +56,7 @@ CEの施設配置・平面描画や汎用3D表現の有無とは区別する。
 - [x] 39. **楽器職人会館** — CE: `instruments`。比較的大きな都市や専門産地向け。 `src/buildings/medieval/39-instrument-makers-hallsModels.ts` に専用モデルを実装し、BVに登録。
 - [x] 40. **砂置場** — CE: `sandYard`。ガラス製造・建設関連の原料山、囲い、運搬容器。 `src/buildings/medieval/40-sand-yardsModels.ts` に専用モデルを実装し、BVに登録。
 - [x] 41. **正教会修道院** — CE: `orthodoxMonastery`。東欧・南東欧では優先順位を上げる。 `src/buildings/medieval/41-orthodox-monasteriesModels.ts` に専用モデルを実装し、BVに登録。
-- [ ] 42. **キャラバンサライ** — CE: `caravanserai`。欧州全域では低頻度。オスマン圏の南東欧などで採用。
+- [x] 42. **キャラバンサライ** — CE: `caravanserai`。欧州全域では低頻度。オスマン圏の南東欧などで採用。 `src/buildings/medieval/42-caravanseraisModels.ts` に専用モデルを実装し、BVに登録。
 
 ## 既存モデルとの重複を避ける
 
