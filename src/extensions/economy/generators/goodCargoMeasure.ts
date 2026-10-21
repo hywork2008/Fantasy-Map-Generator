@@ -12,7 +12,8 @@ export { CARGO_SLOT_KG, CARGO_SLOT_LITERS };
 /**
  * Goods switched to measured slots, group by group (goods-physical-units.md §13.5): first the staple
  * crops by the wain and Wood by 10 m³ (§12.6), then everything mined, smelted or quarried, which
- * the mines and smelters already count in tonnes (precious metals in kg) (§14).
+ * the mines and smelters already count in tonnes (precious metals in kg) (§14), then the food lots
+ * whose size foodLots.ts or the unit name fixes (§18).
  */
 const MEASURED_SLOT_GOODS: ReadonlySet<string> = new Set([
   // Staple crops and wood (§12.6).
@@ -69,7 +70,21 @@ const MEASURED_SLOT_GOODS: ReadonlySet<string> = new Set([
   "Stainless Steel",
   "Aluminum",
   "Stone",
-  "Marble"
+  "Marble",
+  // Food lots (§18). The casks of wine, ale, cider and perry wait for their prices: a kilogram of
+  // ale is worth nine of grain here, where the sources put it at about one.
+  "Milk",
+  "Cheese",
+  "Grapes",
+  "Apples",
+  "Pears",
+  "Plums",
+  "Figs",
+  "Lemons",
+  "Chestnuts",
+  "Pomace",
+  "Raisins",
+  "Dried Fruits"
 ]);
 
 /** Slots one packed unit of `good` fills, from its measure; undefined for goods that walk or move themselves. */
