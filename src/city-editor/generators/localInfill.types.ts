@@ -4,6 +4,16 @@ import type { BuildingLot } from "./buildingLots.types";
 
 export interface FarmPlot {
   plotId?: string;
+  orientationRadians?: number;
+  managementGroupId?: string;
+  system?: import("../types/contracts/ruralFields").RuralFieldSystem | "market-garden";
+  cropState?: "winter-crop" | "spring-crop" | "fallow" | "horticulture" | "crop";
+  rotationGroup?: number;
+  holdingPolygon?: Point[];
+  clippedByFrame?: boolean;
+  tenureStrips?: Point[][];
+  boundaryKind?: "hedge" | "wall";
+  boundaries?: Point[][];
   sourceFaceIds?: Id[];
   faceId: Id;
   polygon: Point[];

@@ -203,7 +203,7 @@ function documentFabricFingerprint(doc: CityDocument): string {
     siteEconomyKey(economyOnDocument(doc)),
     doc.farmlandAreaHectares ?? "",
     doc.ruralFieldVersion ?? "",
-    doc.ruralFieldVersion === 1
+    doc.ruralFieldVersion !== undefined
       ? JSON.stringify([
           Object.values(doc.mesh.vertices).map(v => [v.id, v.point, v.locked]),
           Object.values(doc.mesh.edges).map(e => [e.id, e.locked]),
@@ -212,13 +212,23 @@ function documentFabricFingerprint(doc: CityDocument): string {
           doc.landmarks,
           doc.waterAreas,
           doc.regionalWaterAreas,
+          doc.regionalSurface,
           doc.frameRoads,
           doc.riverConnections,
           doc.defenseCircuits,
           doc.castles,
           doc.cemeteries,
           doc.importedFixedCrossings,
-          doc.fixedCrossingApproaches
+          doc.fixedCrossingApproaches,
+          doc.ruralFieldSettings,
+          doc.biome,
+          doc.civilization,
+          Object.values(doc.mesh.faces).map(face => [
+            face.id,
+            face.boundary,
+            face.properties.elevation,
+            face.properties.farming
+          ])
         ])
       : "",
     JSON.stringify(doc.facilityCounts ?? {}),
@@ -333,7 +343,7 @@ export function buildBlockFabric(
   if (document.urbanMorphology && !document.populationPlan)
     fabricResult = shapeUrbanGrowthFabric(document, fabricResult);
   const farmlandArea = document.farmlandAreaHectares;
-  if (document.ruralFieldVersion === 1) {
+  if (document.ruralFieldVersion !== undefined) {
     fabricResult = measureProcessing(profiler, "rural-fields", () => applyRuralFields(document, fabricResult));
   } else if (farmlandArea !== undefined && Number.isFinite(farmlandArea)) {
     let remaining = Math.max(0, farmlandArea) * 10_000;

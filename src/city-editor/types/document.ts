@@ -11,6 +11,7 @@ import type {
 } from "./primitives";
 
 export interface FaceProperties {
+  farming?: import("./contracts/ruralFields").RuralLandQuality;
   /** Generated land-use extent; local infill never changes mesh topology. */
   /** "core" is inside the outermost town wall (every ring), "outskirts" outside it. */
   settlement?: "core" | "outskirts";
@@ -466,7 +467,8 @@ export interface CityDocument {
   /** Upper bound on rendered farms, in hectares; absent for unsurveyed sites. */
   farmlandAreaHectares?: number;
   /** Absent on saved legacy cities: retain their original roadside fields. */
-  ruralFieldVersion?: 1;
+  ruralFieldVersion?: 1 | 2;
+  ruralFieldSettings?: import("./contracts/ruralFields").RuralFieldSettings;
   /**
    * Compass bearing the wind blows toward (0 = north, clockwise), copied from
    * `climate.prevailingWindDeg`. Absent: windmills keep a seeded facing.

@@ -29,6 +29,11 @@ export interface RuralFieldPlan {
     orientationRadians: number;
     fixedAreaM2?: number;
     overBudgetAreaM2?: number;
+    profile?: import("../types/contracts/ruralFields").RuralFieldSystem;
+    shortfallReason?: import("../types/contracts/ruralFields").RuralShortfallReason;
+    unsuitableAreaM2?: number;
+    suitableCapacityM2?: number;
+    suitabilitySource?: "survey" | "biome-estimate" | "unknown";
   };
 }
 

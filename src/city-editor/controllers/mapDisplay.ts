@@ -73,6 +73,9 @@ export interface MapDisplayContext {
   vacantTreesInput: HTMLInputElement;
   generateVacantTreesButton: HTMLButtonElement;
   regenerateFarmlandButton: HTMLButtonElement;
+  farmlandSystemSelect: HTMLSelectElement;
+  farmlandYearInput: HTMLInputElement;
+  farmlandSummary: HTMLOutputElement;
   regionalLayerInput: HTMLInputElement;
   scaleLine: HTMLDivElement;
   scaleLabel: HTMLOutputElement;
@@ -133,6 +136,10 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
     ctx.vacantTreesInput.disabled = !ctx.documents.documentState.vacantLotTrees;
     ctx.regenerateFarmlandButton.disabled =
       ctx.documents.documentState.appearance !== "town" || ctx.display.hideBuildings;
+    ctx.farmlandSystemSelect.value = ctx.documents.documentState.ruralFieldSettings?.system ?? "auto";
+    ctx.farmlandYearInput.value = String(ctx.documents.documentState.ruralFieldSettings?.rotationYear ?? 0);
+    ctx.farmlandSystemSelect.disabled = ctx.regenerateFarmlandButton.disabled;
+    ctx.farmlandYearInput.disabled = ctx.regenerateFarmlandButton.disabled;
     ctx.generateVacantTreesButton.disabled =
       ctx.documents.documentState.appearance !== "town" || ctx.display.hideBuildings;
     ctx.map.classList.toggle("ce-map--select", ctx.interaction.tool === "select");
@@ -231,6 +238,7 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
         })
       );
       ctx.housingSummary.hidden = true;
+      ctx.farmlandSummary.hidden = true;
       ctx.faceElementsById.clear();
       ctx.wardLandmarksGroup = null;
       ctx.wardLandmarkElementsById.clear();
@@ -271,6 +279,24 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
       svg.querySelector(".ce-map-scene")!.append(highlights);
     }
     ctx.scope.replaceChildren(ctx.map, svg);
+    const rural = svg.getAttribute("data-rural-fields");
+    ctx.farmlandSummary.hidden = !rural;
+    if (rural) {
+      const diagnostic = JSON.parse(rural) as {
+        cultivatedAreaM2: number;
+        shortfallAreaM2: number;
+        shortfallReason?: "terrain" | "access" | "space" | "minimum-plot";
+        suitabilitySource?: "survey" | "biome-estimate" | "unknown";
+      };
+      ctx.farmlandSummary.textContent = editorText("cityEditor.messages.farmlandSummary", {
+        area: (diagnostic.cultivatedAreaM2 / 10_000).toFixed(1),
+        shortfall: (diagnostic.shortfallAreaM2 / 10_000).toFixed(1)
+      });
+      if (diagnostic.shortfallAreaM2 > 1 && diagnostic.shortfallReason)
+        ctx.farmlandSummary.textContent += ` · ${editorText(`cityEditor.messages.farmlandReason_${diagnostic.shortfallReason}`)}`;
+      if (diagnostic.suitabilitySource)
+        ctx.farmlandSummary.textContent += ` · ${editorText(`cityEditor.messages.farmlandSource_${diagnostic.suitabilitySource}`)}`;
+    }
     const coreBuildings = Number(svg.getAttribute("data-core-buildings") ?? 0);
     const outerBuildings = Number(svg.getAttribute("data-outskirts-buildings") ?? 0);
     const oldTownBuildings = Number(svg.getAttribute("data-old-town-buildings") ?? 0);

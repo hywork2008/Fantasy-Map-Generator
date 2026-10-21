@@ -6,7 +6,7 @@ import { facePoints } from "./mesh";
 
 /** Fill the rural land beside external approaches after their destinations are known. */
 export function cultivateRoadside(document: CityDocument): void {
-  if (document.ruralFieldVersion === 1) {
+  if (document.ruralFieldVersion !== undefined) {
     cultivateCountryside(document);
     return;
   }
@@ -101,7 +101,7 @@ function cultivateCountryside(document: CityDocument): void {
 /** Explicit, undoable upgrade of a saved city's countryside. */
 export function regenerateRuralLand(document: CityDocument): CityDocument {
   const next = structuredClone(document);
-  next.ruralFieldVersion = 1;
+  next.ruralFieldVersion = 2;
   cultivateRoadside(next);
   return next;
 }

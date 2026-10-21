@@ -11,7 +11,10 @@ import { convexInfillParts } from "./lotGeometry";
 import { facePoints } from "./mesh";
 import { MoatReservation } from "./moats";
 import { bounds, intersectConvex, PlotIndex, corridor as roadBand } from "./parcelGeometry";
+import { planDetailedRuralFields } from "./ruralFieldDetails";
 import { planRuralFields } from "./ruralFieldPlan";
+import { ruralFieldSystem } from "./ruralFieldProfile";
+import { ruralSuitability } from "./ruralSuitability";
 import { approachBands } from "./suburbanLanduse";
 import { documentWaterTest } from "./waterGeometry";
 
@@ -21,6 +24,8 @@ export function applyRuralFields(document: CityDocument, fabric: DistrictFabric)
     (farm.sourceFaceIds ?? [farm.faceId]).some(id => document.mesh.faces[id]?.properties.locked)
   );
   const protectedFaces = new Set(document.elements.flatMap(element => element.faceIds));
+  const suitability = document.ruralFieldVersion === 2 ? ruralSuitability(document) : undefined;
+  let unsuitableArea = 0;
   const land = Object.values(document.mesh.faces)
     .filter(
       face =>
@@ -29,7 +34,16 @@ export function applyRuralFields(document: CityDocument, fabric: DistrictFabric)
         !face.properties.locked &&
         !protectedFaces.has(face.id)
     )
-    .map(face => ({ faceId: face.id, polygon: facePoints(document.mesh, face) }));
+    .map(face => ({ faceId: face.id, polygon: facePoints(document.mesh, face) }))
+    .filter(face => {
+      if (!suitability) return true;
+      if (suitability.accepts(face.faceId)) {
+        for (const part of convexInfillParts(face.polygon)) unsuitableArea += suitability.steepArea(part);
+        return true;
+      }
+      unsuitableArea += Math.abs(polygonArea(face.polygon));
+      return false;
+    });
   const roads = document.featureGroups.flatMap(group =>
     group.kind === "road"
       ? group.segments.flatMap(ref => {
@@ -54,6 +68,7 @@ export function applyRuralFields(document: CityDocument, fabric: DistrictFabric)
     )
   );
   const reservations = [
+    ...(document.regionalSurface?.unknown ?? []),
     ...fabric.buildings.map(building => building.polygon),
     ...(fabric.watermills?.mills ?? []).map(mill => mill.millhousePolygon),
     ...fabric.lanes
@@ -91,7 +106,7 @@ export function applyRuralFields(document: CityDocument, fabric: DistrictFabric)
     outworks: glacisOutworks(document, fabric.aerialLandmarks?.barbicans ?? [], bands)
   };
   const fixedArea = fixedFarms.reduce((sum, farm) => sum + Math.abs(polygonArea(farm.polygon)), 0);
-  const plan = planRuralFields({
+  const input = {
     seed: document.generationSeed ?? document.fabric?.seed ?? "rural-fields",
     land,
     roads,
@@ -100,21 +115,44 @@ export function applyRuralFields(document: CityDocument, fabric: DistrictFabric)
       document.farmlandAreaHectares === undefined
         ? undefined
         : Math.max(0, document.farmlandAreaHectares * 10_000 - fixedArea),
-    blocked: polygon =>
+    blocked: (polygon: Point[]) =>
       water(polygon) ||
       fixedRoads.hitsPolygon(polygon) ||
       landmarkReservationHits(document, polygon) ||
       moat.hitsPolygon(polygon) ||
       coastalBandOverlap(polygon, shore, COASTAL_ARABLE_SETBACK_METERS) ||
       !polygonClearsGlacis(polygon, defence) ||
+      !!suitability?.steep(polygon) ||
       index.query(bounds(polygon)).some(part => Math.abs(polygonArea(intersectConvex(polygon, part))) > 0.001)
-  });
+  };
+  const box = bounds(Object.values(document.mesh.vertices).map(vertex => vertex.point));
+  const frame: Point[] = [
+    [box[0], box[1]],
+    [box[2], box[1]],
+    [box[2], box[3]],
+    [box[0], box[3]]
+  ];
+  const plan =
+    document.ruralFieldVersion === 2
+      ? planDetailedRuralFields({
+          ...input,
+          system: ruralFieldSystem(
+            document.historicalPeriod,
+            document.civilization?.tradition,
+            document.ruralFieldSettings
+          ),
+          settings: { gardenRadiusMeters: document.frame.cityRadiusMeters * 1.08, ...document.ruralFieldSettings },
+          unsuitableAreaM2: unsuitableArea,
+          visibleFrame: frame
+        })
+      : planRuralFields(input);
   return {
     ...fabric,
     farms: [...fixedFarms, ...plan.farms],
     lanes: [...fabric.lanes.filter(lane => !lane.kind), ...plan.lanes],
     ruralFields: {
       ...plan.diagnostics,
+      suitabilitySource: suitability?.source,
       requestedAreaM2: document.farmlandAreaHectares === undefined ? undefined : document.farmlandAreaHectares * 10_000,
       fixedAreaM2: fixedArea,
       cultivatedAreaM2: plan.diagnostics.cultivatedAreaM2 + fixedArea,

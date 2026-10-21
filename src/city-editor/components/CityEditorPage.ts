@@ -563,6 +563,15 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         get vacantTreesInput() {
           return vacantTreesInput;
         },
+        get farmlandSystemSelect() {
+          return farmlandSystemSelect;
+        },
+        get farmlandYearInput() {
+          return farmlandYearInput;
+        },
+        get farmlandSummary() {
+          return farmlandSummary;
+        },
         get regenerateFarmlandButton() {
           return regenerateFarmlandButton;
         },
@@ -2100,11 +2109,47 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     if (documents.documentState.appearance !== "town" || display.hideBuildings) return;
     commit(regenerateRuralLand(documents.documentState), editorText("cityEditor.messages.regenerateFarmland"));
   });
+  const farmlandSystemSelect = select(["auto", "open-field", "bocage", "planned", "mechanized"], "auto");
+  const farmlandSystems = ["auto", "open-field", "bocage", "planned", "mechanized"] as const;
+  for (const [index, option] of Array.from(farmlandSystemSelect.options).entries())
+    option.textContent = editorText(`cityEditor.messages.farmlandSystem_${farmlandSystems[index]}`);
+  farmlandSystemSelect.setAttribute("aria-label", editorText("cityEditor.messages.farmlandSystem"));
+  const farmlandYearInput = document.createElement("input");
+  farmlandYearInput.type = "number";
+  farmlandYearInput.min = "0";
+  farmlandYearInput.step = "1";
+  farmlandYearInput.style.width = "5em";
+  farmlandYearInput.setAttribute("aria-label", editorText("cityEditor.messages.farmlandYear"));
+  const farmlandSummary = document.createElement("output");
+  farmlandSummary.hidden = true;
+  const updateFarmland = () => {
+    const current = documents.documentState;
+    const year = Number(farmlandYearInput.value);
+    if (!Number.isSafeInteger(year) || year < 0) return;
+    const system = farmlandSystemSelect.value as NonNullable<CityDocument["ruralFieldSettings"]>["system"] | "auto";
+    commit(
+      regenerateRuralLand({
+        ...current,
+        ruralFieldSettings: {
+          ...current.ruralFieldSettings,
+          system: system === "auto" ? undefined : system,
+          rotationYear: year
+        }
+      }),
+      editorText("cityEditor.messages.regenerateFarmland")
+    );
+  };
+  scope.listen(farmlandSystemSelect, "change", updateFarmland);
+  scope.listen(farmlandYearInput, "change", updateFarmland);
   const decorationControls = div("ce-city-decoration");
   decorationControls.append(
     text(editorText("cityEditor.messages.cityDecoration")),
     generateVacantTreesButton,
     regenerateFarmlandButton,
+    farmlandSystemSelect,
+    text(editorText("cityEditor.messages.farmlandYear")),
+    farmlandYearInput,
+    farmlandSummary,
     toggleLabel(editorText("cityEditor.messages.showVacantLotTrees"), vacantTreesInput)
   );
 

@@ -84,16 +84,30 @@ export function renderTownFabric(
     const farms = element("g", { class: "ce-farms", "pointer-events": "none" });
     fabric.farms.forEach((farm, index) => {
       const tone = Math.abs(Math.round(farm.polygon[0][0] / 17) + Math.round(farm.polygon[0][1] / 13) + index) % 2;
-      const garden = farm.kind === "kitchen-garden";
+      const garden = farm.kind === "kitchen-garden" || farm.system === "market-garden";
+      const fallow = farm.cropState === "fallow";
       farms.appendChild(
         element("path", {
           d: roundedFarmPolygon(farm.polygon),
-          fill: garden ? (tone ? "#bccd9c" : "#aec392") : tone ? "#d4ceb2" : "#c4bf9a",
-          stroke: garden ? "#536c45" : "#8f8a74",
+          fill: garden
+            ? tone
+              ? "#bccd9c"
+              : "#aec392"
+            : fallow
+              ? "#b8bd98"
+              : farm.cropState === "spring-crop"
+                ? "#c5ce9d"
+                : tone
+                  ? "#d4ceb2"
+                  : "#c4bf9a",
+          stroke: farm.clippedByFrame ? "none" : garden ? "#536c45" : "#8f8a74",
           "stroke-width": garden ? "1.8" : "0.6",
-          "stroke-dasharray": garden ? "3 1.2" : "none",
+          "stroke-dasharray": garden && !farm.system ? "3 1.2" : "none",
           class: garden ? "ce-kitchen-garden" : "ce-open-field",
           "data-farm-face": farm.faceId,
+          "data-field-system": farm.system ?? "legacy",
+          ...(farm.managementGroupId ? { "data-field-group": farm.managementGroupId } : {}),
+          "data-crop-state": farm.cropState ?? "crop",
           ...(farm.plotId
             ? { "data-farm-plot": farm.plotId, "data-farm-faces": farm.sourceFaceIds?.join(" ") ?? farm.faceId }
             : {})
@@ -107,6 +121,28 @@ export function renderTownFabric(
             stroke: garden ? "#617b4d" : "#5e5948",
             "stroke-width": garden ? "0.8" : "0.65",
             class: "ce-farm-rows"
+          })
+        );
+      if (!lightweight && farm.tenureStrips?.length)
+        farms.appendChild(
+          element("path", {
+            d: farm.tenureStrips.map(row => line(row)).join(" "),
+            fill: "none",
+            stroke: "#95896f",
+            "stroke-width": "0.7",
+            "stroke-dasharray": "2 2",
+            class: "ce-tenure-strips"
+          })
+        );
+      if (farm.boundaries?.length && (farm.boundaryKind || farm.clippedByFrame))
+        farms.appendChild(
+          element("path", {
+            d: farm.boundaries.map(row => line(row)).join(" "),
+            fill: "none",
+            stroke: farm.boundaryKind === "hedge" ? "#536c45" : "#8f8a74",
+            "stroke-width": farm.boundaryKind === "hedge" ? "1.8" : farm.boundaryKind === "wall" ? "1.2" : "0.6",
+            "stroke-dasharray": farm.boundaryKind === "wall" ? "2 1" : "none",
+            class: `ce-field-boundary ce-field-boundary--${farm.boundaryKind ?? "open"}`
           })
         );
     });
