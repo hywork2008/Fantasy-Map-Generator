@@ -8,6 +8,7 @@ import { buildVacantLotTrees } from "../generators/vacantLotTrees";
 import type { WatermillPlan } from "../generators/watermillFabric";
 import type { Id } from "../types/document";
 import type { SvgPickInfo } from "../types/selection";
+import { ruralRenderProfiler } from "../utils/ruralFieldProfiler";
 import { type FallbackPier, fallbackHarborPiers, plannedHarborPiers } from "./harborPierFacts";
 import { openSpaceBoundary } from "./openSpaceBoundary";
 import type { RenderContext } from "./renderContext";
@@ -81,6 +82,14 @@ export function renderTownFabric(
   );
   if (fabric) {
     if (fabric.ruralFields) svg.setAttribute("data-rural-fields", JSON.stringify(fabric.ruralFields));
+    const profiler = ruralRenderProfiler(document);
+    const timing = profiler?.stages("render");
+    timing?.next("farm-svg");
+    const outline = profiler?.wrap("outline-path", roundedFarmPolygon) ?? roundedFarmPolygon;
+    const rowPath = (rows: import("../types/document").Point[][]) => rows.map(row => line(row)).join(" ");
+    const rowsPath = profiler?.wrap("row-path", rowPath) ?? rowPath;
+    const boundaryPath = profiler?.wrap("boundary-path", rowPath) ?? rowPath;
+    const shedsPlan = profiler?.wrap("shed-plan", farmSheds) ?? farmSheds;
     const farms = element("g", { class: "ce-farms", "pointer-events": "none" });
     fabric.farms.forEach((farm, index) => {
       const tone = Math.abs(Math.round(farm.polygon[0][0] / 17) + Math.round(farm.polygon[0][1] / 13) + index) % 2;
@@ -88,7 +97,7 @@ export function renderTownFabric(
       const fallow = farm.cropState === "fallow";
       farms.appendChild(
         element("path", {
-          d: roundedFarmPolygon(farm.polygon),
+          d: outline(farm.polygon),
           fill: garden
             ? tone
               ? "#bccd9c"
@@ -116,7 +125,7 @@ export function renderTownFabric(
       if (!lightweight)
         farms.appendChild(
           element("path", {
-            d: farm.rows.map(row => line(row)).join(" "),
+            d: rowsPath(farm.rows),
             fill: "none",
             stroke: garden ? "#617b4d" : "#5e5948",
             "stroke-width": garden ? "0.8" : "0.65",
@@ -137,7 +146,7 @@ export function renderTownFabric(
       if (farm.boundaries?.length && (farm.boundaryKind || farm.clippedByFrame))
         farms.appendChild(
           element("path", {
-            d: farm.boundaries.map(row => line(row)).join(" "),
+            d: boundaryPath(farm.boundaries),
             fill: "none",
             stroke: farm.boundaryKind === "hedge" ? "#536c45" : "#8f8a74",
             "stroke-width": farm.boundaryKind === "hedge" ? "1.8" : farm.boundaryKind === "wall" ? "1.2" : "0.6",
@@ -147,9 +156,10 @@ export function renderTownFabric(
         );
     });
     svg.appendChild(farms);
+    timing?.next("farm-sheds");
     if (!hideBuildings && !minimal) {
       const sheds = element("g", { class: "ce-farm-sheds", "pointer-events": "none" });
-      for (const shed of farmSheds(document, fabric.farms, lots, fabric.lanes)) {
+      for (const shed of shedsPlan(document, fabric.farms, lots, fabric.lanes)) {
         sheds.appendChild(
           element("path", {
             d: polygon(shed.polygon),
@@ -163,6 +173,7 @@ export function renderTownFabric(
       }
       svg.appendChild(sheds);
     }
+    timing?.end();
     if (!hideBuildings && fabric.openSpaces?.length) {
       const spaces = element("g", { class: "ce-open-spaces", "pointer-events": "none" });
       const green = new Set(["kitchen-garden", "formal-garden"]);
@@ -237,6 +248,8 @@ export function renderTownFabric(
     }
     // Stage ⑩ hides the lane strokes that cut blocks apart. The houses stay;
     // the ground colour still reads as the gap between them.
+    const laneTiming = profiler?.stages("render");
+    laneTiming?.next("all-lanes-svg");
     if (!hideStreetLines) {
       const lanes = element("g", { class: "ce-infill-lanes", "pointer-events": "none" });
       const trails = element("g", { class: "ce-infill-trails", "pointer-events": "none" });
@@ -315,6 +328,7 @@ export function renderTownFabric(
       svg.appendChild(lanes);
       svg.appendChild(trails);
     }
+    laneTiming?.end();
   }
   const townParkLawns = facts.parks;
   if (townParkLawns.length) {

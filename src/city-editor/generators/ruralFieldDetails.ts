@@ -9,6 +9,7 @@ import { planRuralFieldGroups } from "./ruralFieldGroups";
 import { planRuralFields, type RuralFieldInput, type RuralFieldPlan } from "./ruralFieldPlan";
 
 export interface DetailedRuralFieldInput extends RuralFieldInput {
+  profiler?: import("../utils/ruralFieldProfiler").RuralFieldProfiler;
   system: RuralFieldSystem;
   settings?: RuralFieldSettings;
   /** The physical domain can extend beyond this rendering window. */
@@ -37,7 +38,10 @@ const rectangle = (x0: number, y0: number, x1: number, y1: number): Point[] => [
  * gently curved or tapered fields against the actual domain and reservations. */
 export function planDetailedRuralFields(input: DetailedRuralFieldInput): RuralFieldPlan {
   if (input.system !== "mechanized") return planRuralFieldGroups(input);
+  const timing = input.profiler?.stages("generation/layout");
+  timing?.next("mechanized-base");
   const base = planRuralFields({ ...input, period: "petroleumEra", areaBudgetM2: undefined });
+  timing?.next("mechanized-details");
   const domain = new PlotIndex<{ polygon: Point[]; faceId: string }>();
   for (const face of input.land)
     for (const part of convexInfillParts(face.polygon))
@@ -212,6 +216,7 @@ export function planDetailedRuralFields(input: DetailedRuralFieldInput): RuralFi
   const retainedLanes = connectedLanes(lanes, selected, input.roads);
   const cultivated = farms.reduce((sum, farm) => sum + area(farm.polygon), 0);
   const shortfall = Number.isFinite(budget) ? Math.max(0, budget - cultivated) : 0;
+  timing?.end();
   return {
     ...base,
     farms,

@@ -37,6 +37,8 @@ export function planRuralFieldGroups(input: DetailedRuralFieldInput): RuralField
     }
   };
   if (!input.land.length || !input.roads.length) return result;
+  const timing = input.profiler?.stages("generation/layout");
+  timing?.next("land-and-road-index");
   const land = new PlotIndex<{ polygon: Point[]; faceId: string }>();
   for (const face of input.land)
     for (const polygon of convexInfillParts(face.polygon)) land.add({ polygon, faceId: face.faceId }, bounds(polygon));
@@ -55,6 +57,7 @@ export function planRuralFieldGroups(input: DetailedRuralFieldInput): RuralField
         band = corridor(a, b, road.widthMeters + 2);
       if (band.length) roads.add({ a, b, width: road.widthMeters, band }, bounds(band));
     }
+  timing?.next("access-mask");
   const nodes = new Map<string, AccessNode>(),
     queue: string[] = [];
   for (let y = Math.floor(box[1] / q); y < Math.ceil(box[3] / q); y++)
@@ -83,6 +86,7 @@ export function planRuralFieldGroups(input: DetailedRuralFieldInput): RuralField
         queue.push(key(x, y));
       }
     }
+  timing?.next("reachability");
   const reached = new Set(queue);
   for (let i = 0; i < queue.length; i++) {
     const node = nodes.get(queue[i])!;
@@ -110,6 +114,7 @@ export function planRuralFieldGroups(input: DetailedRuralFieldInput): RuralField
           .map(part => part.faceId)
       )
     ].sort();
+  timing?.next("group-seeds");
   const candidates = queue
     .map(id => ({ id, rank: hash(`${input.seed}:group:${id}`) }))
     .sort((a, b) => a.rank - b.rank || a.id.localeCompare(b.id));
@@ -141,6 +146,7 @@ export function planRuralFieldGroups(input: DetailedRuralFieldInput): RuralField
   // Establish the sparse approach network before allocating any fields.
   // A later group can join an actual earlier track endpoint; all other routes
   // follow the proved reachable tree and are shortened only after clearance.
+  timing?.next("approach-tracks");
   const tracks: Point[][] = [],
     endpoints: Point[] = [];
   const trackIndex = new PlotIndex<Point[]>();
@@ -174,5 +180,13 @@ export function planRuralFieldGroups(input: DetailedRuralFieldInput): RuralField
     }
     if (node.road) reserveTrack([node.point, node.road]);
   }
+  if (input.profiler)
+    Object.assign(input.profiler.counts, {
+      accessNodes: nodes.size,
+      reachableNodes: queue.length,
+      groups: groups.length,
+      gridMeters: q
+    });
+  timing?.end();
   return finishRuralTerritories({ input, result, nodes, queue, groups, tracks, clear, source, q });
 }

@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from "vitest";
 import type { DistrictFabric } from "../generators/blockInfill.types";
 import type { CityDocument } from "../types/document";
-import { startRuralFields } from "./ruralFieldWorkerClient";
+import { RURAL_FIELD_TIMEOUT_MS, startRuralFields } from "./ruralFieldWorkerClient";
 
 class FakeWorker {
   static latest: FakeWorker;
@@ -27,6 +27,8 @@ it("terminates optional work at its deadline and ignores a late result", async (
   const run = startRuralFields(document, fabric);
   const worker = FakeWorker.latest;
   await vi.advanceTimersByTimeAsync(2000);
+  expect(worker.terminate).not.toHaveBeenCalled();
+  await vi.advanceTimersByTimeAsync(RURAL_FIELD_TIMEOUT_MS - 2000);
   expect(await run.result).toBeNull();
   expect(worker.terminate).toHaveBeenCalledOnce();
   worker.onmessage?.({ data: { overlay: fabric } });

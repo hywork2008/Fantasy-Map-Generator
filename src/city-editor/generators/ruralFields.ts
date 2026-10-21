@@ -1,4 +1,5 @@
 import type { CityDocument, Point } from "../types/document";
+import type { RuralFieldProfiler } from "../utils/ruralFieldProfiler";
 import { aerialLandmarkFootprints } from "./aerialFootprints";
 import type { DistrictFabric } from "./blockInfill.types";
 import { COASTAL_ARABLE_SETBACK_METERS, coastalBandOverlap, oceanShoreSegments } from "./coastalSuitability";
@@ -19,12 +20,18 @@ import { approachBands } from "./suburbanLanduse";
 import { documentWaterTest } from "./waterGeometry";
 
 /** The common post-housing farm pass also serves radial and ring layouts. */
-export function applyRuralFields(document: CityDocument, fabric: DistrictFabric): DistrictFabric {
+export function applyRuralFields(
+  document: CityDocument,
+  fabric: DistrictFabric,
+  profiler?: RuralFieldProfiler
+): DistrictFabric {
   const fixedFarms = fabric.farms.filter(farm =>
     (farm.sourceFaceIds ?? [farm.faceId]).some(id => document.mesh.faces[id]?.properties.locked)
   );
   if (document.ruralFieldSettings?.mode === "off" || document.ruralFieldSettings?.coveragePercent === 0)
     return { ...fabric, farms: fixedFarms, lanes: fabric.lanes.filter(lane => !lane.kind), ruralFields: undefined };
+  const timing = profiler?.stages("generation");
+  timing?.next("terrain-and-land");
   const protectedFaces = new Set(document.elements.flatMap(element => element.faceIds));
   const suitability = document.ruralFieldVersion === 2 ? ruralSuitability(document) : undefined;
   let unsuitableArea = 0;
@@ -75,6 +82,7 @@ export function applyRuralFields(document: CityDocument, fabric: DistrictFabric)
     settings?.coveragePercent === undefined
       ? undefined
       : (land.reduce((sum, face) => sum + Math.abs(polygonArea(face.polygon)), 0) * settings.coveragePercent) / 100;
+  timing?.next("roads-and-reservations");
   const roads = document.featureGroups.flatMap(group =>
     group.kind === "road"
       ? group.segments.flatMap(ref => {
@@ -137,6 +145,16 @@ export function applyRuralFields(document: CityDocument, fabric: DistrictFabric)
     outworks: glacisOutworks(document, fabric.aerialLandmarks?.barbicans ?? [], bands)
   };
   const fixedArea = fixedFarms.reduce((sum, farm) => sum + Math.abs(polygonArea(farm.polygon)), 0);
+  timing?.next("layout");
+  const blocked = (polygon: Point[]) =>
+    water(polygon) ||
+    fixedRoads.hitsPolygon(polygon) ||
+    landmarkReservationHits(document, polygon) ||
+    moat.hitsPolygon(polygon) ||
+    coastalBandOverlap(polygon, shore, COASTAL_ARABLE_SETBACK_METERS) ||
+    !polygonClearsGlacis(polygon, defence) ||
+    !!suitability?.steep(polygon) ||
+    index.query(bounds(polygon)).some(part => Math.abs(polygonArea(intersectConvex(polygon, part))) > 0.001);
   const input = {
     seed: document.generationSeed ?? document.fabric?.seed ?? "rural-fields",
     land,
@@ -154,15 +172,7 @@ export function applyRuralFields(document: CityDocument, fabric: DistrictFabric)
               document.farmlandAreaHectares === undefined ? Infinity : document.farmlandAreaHectares * 10000 - fixedArea
             )
           ),
-    blocked: (polygon: Point[]) =>
-      water(polygon) ||
-      fixedRoads.hitsPolygon(polygon) ||
-      landmarkReservationHits(document, polygon) ||
-      moat.hitsPolygon(polygon) ||
-      coastalBandOverlap(polygon, shore, COASTAL_ARABLE_SETBACK_METERS) ||
-      !polygonClearsGlacis(polygon, defence) ||
-      !!suitability?.steep(polygon) ||
-      index.query(bounds(polygon)).some(part => Math.abs(polygonArea(intersectConvex(polygon, part))) > 0.001)
+    blocked: profiler?.wrap("blocked", blocked) ?? blocked
   };
   const box = bounds(Object.values(document.mesh.vertices).map(vertex => vertex.point));
   const frame: Point[] = [
@@ -175,6 +185,7 @@ export function applyRuralFields(document: CityDocument, fabric: DistrictFabric)
     document.ruralFieldVersion === 2
       ? planDetailedRuralFields({
           ...input,
+          profiler,
           system: ruralFieldSystem(
             document.historicalPeriod,
             document.civilization?.tradition,
@@ -185,6 +196,17 @@ export function applyRuralFields(document: CityDocument, fabric: DistrictFabric)
           visibleFrame: frame
         })
       : planRuralFields(input);
+  timing?.next("assemble-result");
+  if (profiler)
+    Object.assign(profiler.counts, {
+      landFaces: land.length,
+      reservationPolygons: reservations.length,
+      farms: plan.farms.length,
+      rows: plan.farms.reduce((n, f) => n + f.rows.length, 0),
+      rowPoints: plan.farms.reduce((n, f) => n + f.rows.reduce((m, row) => m + row.length, 0), 0),
+      lanes: plan.lanes.length
+    });
+  timing?.end();
   return {
     ...fabric,
     farms: [...fixedFarms, ...plan.farms],

@@ -42,6 +42,8 @@ export function finishRuralTerritories({
   q
 }: Context): RuralFieldPlan {
   if (!groups.length) return result;
+  const timing = input.profiler?.stages("generation/layout");
+  timing?.next("territory-ownership");
   const owners = new Map<string, number>();
   const extents = groups.map(() => ({ lo: Infinity, hi: -Infinity }));
   for (const id of queue) {
@@ -61,6 +63,7 @@ export function finishRuralTerritories({
     extents[best].lo = Math.min(extents[best].lo, v - q);
     extents[best].hi = Math.max(extents[best].hi, v + q);
   }
+  timing?.next("interior-tracks");
   groups.forEach((g, i) => {
     const at = (v: number): Point => [g.center[0] - v * Math.sin(g.angle), g.center[1] + v * Math.cos(g.angle)];
     const { lo, hi } = extents[i],
@@ -81,6 +84,7 @@ export function finishRuralTerritories({
     }
     flush();
   });
+  timing?.next("track-reservations");
   const reservations = new PlotIndex<Point[]>();
   for (const line of tracks) {
     const band = corridor(line[0], line[1], 3.8, 1.9);
@@ -116,6 +120,7 @@ export function finishRuralTerritories({
       if (!input.blocked(corridor(a, b, 2.8))) boundarySegments.push([a, b]);
     }
   }
+  timing?.next("boundary-routes");
   const boundaryRoutes = joinSegments(boundarySegments, q, clear);
   for (const line of boundaryRoutes)
     for (let i = 1; i < line.length; i++) {
@@ -134,6 +139,7 @@ export function finishRuralTerritories({
     if (reservations.query(bounds(polygon)).some(band => area(intersectConvex(polygon, band)) > 0.01))
       laneCells.add(id);
   }
+  timing?.next("strip-labels");
   const labels = new Map<string, string>();
   for (const id of queue) {
     if (laneCells.has(id)) continue;
@@ -153,6 +159,7 @@ export function finishRuralTerritories({
     }
     labels.set(id, `${index}:${strip}`);
   }
+  timing?.next("trace-components");
   const components: { label: string; ring: Point[] }[] = [],
     visited = new Set<string>();
   for (const [id, label] of labels) {
@@ -178,14 +185,21 @@ export function finishRuralTerritories({
   }
   const clearsBoundary = (polygon: Point[]) =>
     clear(polygon) && !reservations.query(bounds(polygon)).some(band => area(intersectConvex(polygon, band)) > 0.01);
+  timing?.next("reconstruct-boundaries");
+  if (input.profiler) input.profiler.counts.rawBoundaryVertices = components.reduce((n, c) => n + c.ring.length, 0);
   const reconstructed = reconstructRuralBoundaries(
     components.map(component => component.ring),
     q,
-    clearsBoundary
+    clearsBoundary,
+    input.profiler
   );
   components.forEach((component, i) => {
     component.ring = reconstructed[i];
   });
+  timing?.next("plots-rows-and-boundaries");
+  const rows = input.profiler?.wrap("rows", curvedRows) ?? curvedRows;
+  const boundary = input.profiler?.wrap("field-boundaries", gatedBoundary) ?? gatedBoundary;
+  const sourcesFor = input.profiler?.wrap("source-faces", source) ?? source;
   let remaining = input.areaBudgetM2 === undefined ? Infinity : Math.max(0, input.areaBudgetM2),
     capacity = 0;
   const ordered = components.sort(
@@ -231,7 +245,7 @@ export function finishRuralTerritories({
       : system === "open-field"
         ? (["winter-crop", "spring-crop", "fallow"] as const)[(rotation + (input.settings?.rotationYear ?? 0)) % 3]
         : "crop";
-    const sources = source(polygon),
+    const sources = sourcesFor(polygon),
       id = `rural-territory:${component.label}:${i}`,
       boundaryKind = system === "bocage" ? "hedge" : undefined;
     result.farms.push({
@@ -241,7 +255,7 @@ export function finishRuralTerritories({
       polygon: visible,
       holdingPolygon: polygon,
       clippedByFrame: area(polygon) - size > 0.01,
-      rows: state === "fallow" ? [] : clipLines(curvedRows(polygon, g.angle, garden ? 2.7 : 4, 0), input.visibleFrame),
+      rows: state === "fallow" ? [] : clipLines(rows(polygon, g.angle, garden ? 2.7 : 4, 0), input.visibleFrame),
       system,
       cropState: state,
       rotationGroup: rotation,
@@ -249,10 +263,11 @@ export function finishRuralTerritories({
       managementGroupId: g.id,
       tenureStrips: [],
       boundaryKind,
-      boundaries: clipLines(gatedBoundary(polygon, polygon[0], 4), input.visibleFrame)
+      boundaries: clipLines(boundary(polygon, polygon[0], 4), input.visibleFrame)
     });
     remaining -= size;
   }
+  timing?.next("lanes-and-diagnostics");
   result.lanes = [...tracks, ...boundaryRoutes].flatMap(points =>
     clipLines([points], input.visibleFrame).map(points => ({
       faceId: input.land[0].faceId,
@@ -274,6 +289,12 @@ export function finishRuralTerritories({
     unsuitableAreaM2: input.unsuitableAreaM2 ?? 0,
     shortfallReason: shortfall < 0.01 ? undefined : input.unsuitableAreaM2 && capacity === 0 ? "terrain" : "space"
   };
+  if (input.profiler)
+    Object.assign(input.profiler.counts, {
+      components: components.length,
+      finalBoundaryVertices: components.reduce((n, c) => n + c.ring.length, 0)
+    });
+  timing?.end();
   return result;
 }
 function removeCollinear(ring: Point[]): Point[] {

@@ -1,6 +1,6 @@
 import type { Point } from "../types/document";
 import { isSimplePolygon, polygonArea } from "./geom";
-import { convexInfillParts } from "./lotGeometry";
+import { convexInfillParts, triangularInfillParts } from "./lotGeometry";
 import { bounds, intersectConvex, PlotIndex } from "./parcelGeometry";
 
 const signature = (p: Point) => p.map(n => n.toFixed(5)).join(":");
@@ -12,8 +12,11 @@ const area = (p: Point[]) => Math.abs(polygonArea(p));
 export function reconstructRuralBoundaries(
   rings: Point[][],
   quantum: number,
-  clear: (polygon: Point[]) => boolean
+  clear: (polygon: Point[]) => boolean,
+  profiler?: import("../utils/ruralFieldProfiler").RuralFieldProfiler
 ): Point[][] {
+  const timing = profiler?.stages("generation/layout/reconstruct-boundaries");
+  timing?.next("graph-and-index");
   const points = new Map<string, Point>();
   const graph = new Map<string, Set<string>>();
   const members = new Map<string, Set<number>>();
@@ -33,15 +36,40 @@ export function reconstructRuralBoundaries(
   rings.forEach((ring, i) => {
     index.add(i, bounds(ring));
   });
+  const simple = profiler?.wrap("simple-polygon", isSimplePolygon) ?? isSimplePolygon;
+  const triangulate = profiler?.wrap("convex-decomposition", convexInfillParts) ?? convexInfillParts;
+  const boundaryClear = profiler?.wrap("clearance", clear) ?? clear;
+  const intersectionParts = new WeakMap<Point[], { polygon: Point[]; box: ReturnType<typeof bounds> }[]>();
+  const intersectionTriangles =
+    profiler?.wrap("intersection-triangulation", triangularInfillParts) ?? triangularInfillParts;
+  const overlapArea = (pieces: Point[][], ring: Point[]) => {
+    let other = intersectionParts.get(ring);
+    if (!other) {
+      // Intersection only needs triangles; maximal convex-piece merging is unnecessary.
+      other = intersectionTriangles(ring).map(polygon => ({ polygon, box: bounds(polygon) }));
+      intersectionParts.set(ring, other);
+    }
+    let total = 0;
+    for (const piece of pieces) {
+      const box = bounds(piece);
+      for (const part of other) {
+        if (box[0] >= part.box[2] || box[2] <= part.box[0] || box[1] >= part.box[3] || box[3] <= part.box[1]) continue;
+        total += area(intersectConvex(piece, part.polygon));
+      }
+    }
+    return total;
+  };
+  const overlap = profiler?.wrap("overlap", overlapArea) ?? overlapArea;
   const parts = new WeakMap<Point[], Point[][]>();
   const convex = (ring: Point[]) => {
     let value = parts.get(ring);
     if (!value) {
-      value = convexInfillParts(ring);
+      value = triangulate(ring);
       parts.set(ring, value);
     }
     return value;
   };
+  timing?.next("simplify-and-validate");
   const remove = (interior: string[]): boolean => {
     if (!interior.length) return true;
     const deleted = new Set(interior);
@@ -51,21 +79,17 @@ export function reconstructRuralBoundaries(
       const ids = keys[i].filter(id => !deleted.has(id));
       const ring = ids.map(id => points.get(id)!);
       if (ring.length === keys[i].length) continue;
-      if (!isSimplePolygon(ring, 150) || Math.sign(polygonArea(ring)) !== Math.sign(polygonArea(current[i])))
-        return false;
+      if (!simple(ring, 150) || Math.sign(polygonArea(ring)) !== Math.sign(polygonArea(current[i]))) return false;
       const pieces = convex(ring);
-      if (!pieces.length || pieces.some(piece => !clear(piece))) return false;
+      if (!pieces.length || pieces.some(piece => !boundaryClear(piece))) return false;
       replacements.set(i, { ids, ring, parts: pieces });
     }
     for (const { ring, parts: pieces } of replacements.values()) {
       const [x0, y0, x1, y1] = bounds(ring);
       for (const other of index.query([x0 - quantum * 2, y0 - quantum * 2, x1 + quantum * 2, y1 + quantum * 2])) {
         if (replacements.has(other)) continue;
-        const overlap = pieces.reduce(
-          (sum, piece) => sum + convex(current[other]).reduce((s, part) => s + area(intersectConvex(piece, part)), 0),
-          0
-        );
-        if (overlap > 0.01) return false;
+        const sharedArea = overlap(pieces, current[other]);
+        if (sharedArea > 0.01) return false;
       }
     }
     for (const [i, value] of replacements) {
@@ -131,5 +155,6 @@ export function reconstructRuralBoundaries(
   for (const [id, adjacent] of graph)
     if (adjacent.size !== 2) for (const next of adjacent) if (!edges.has(edge(id, next))) walk(id, next);
   for (const [id, adjacent] of graph) for (const next of adjacent) if (!edges.has(edge(id, next))) walk(id, next);
+  timing?.end();
   return current;
 }
