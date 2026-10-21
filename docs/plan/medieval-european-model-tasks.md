@@ -31,7 +31,7 @@ CEの施設配置・平面描画や汎用3D表現の有無とは区別する。
 - [x] 14. **小規模な教区教会・村の礼拝堂** — 汎用あり。簡素な身廊、内陣、小鐘楼。既存の大型礼拝堂を補完。 `src/buildings/medieval/14-parish-churchesModels.ts` に専用モデルを実装し、BVに登録。
 - [x] 15. **醸造所・エール醸造小屋** — 町、宿、修道院向け。農村への配置は地域による。 `src/buildings/medieval/15-breweriesModels.ts` に専用モデルを実装し、BVに登録。
 - [x] 16. **穀倉・穀物貯蔵棟** — CE: `granary`。地域・時代別の貯蔵形式を選ぶ。 `src/buildings/medieval/16-granariesModels.ts` に専用モデルを実装し、BVに登録。
-- [ ] 17. **商業倉庫・荷蔵** — CE: `warehouse`。荷揚げ扉、庇、巻上げ梁。
+- [x] 17. **商業倉庫・荷蔵** — CE: `warehouse`。荷揚げ扉、庇、巻上げ梁。 `src/buildings/medieval/17-warehousesModels.ts` に専用モデルを実装し、BVに登録。
 - [ ] 18. **家畜市場の囲い・売買用柵** — CE: `livestockPen`。柵、仕切り、出入口。
 - [ ] 19. **墓標・墓石・教会墓地の小物** — 簡素な石標・木標など。時代・地域に合わせる。
 - [ ] 20. **織工・仕立屋・靴職人の工房** — 作業台、織機、材料棚。会館とは別の作業施設。
