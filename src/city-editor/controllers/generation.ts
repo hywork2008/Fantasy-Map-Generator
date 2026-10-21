@@ -126,6 +126,10 @@ export function createGenerationController(ctx: GenerationContext) {
       ctx.generation.completeSource = clone(ctx.documents.documentState);
     }
     if (ctx.generation.generationJob) return;
+    const source = {
+      ...ctx.generation.completeSource,
+      ruralFieldSettings: ctx.documents.documentState.ruralFieldSettings
+    };
     if (!ctx.generation.generationHistory.has(ctx.documents.history.currentEntryKey))
       ctx.rememberGenerationState(
         ctx.generation.generateSeed,
@@ -172,7 +176,7 @@ export function createGenerationController(ctx: GenerationContext) {
       try {
         const job = startCityGeneration(
           {
-            document: ctx.generation.completeSource,
+            document: source,
             settings: ctx.generation.generateSettings,
             seed: ctx.generation.generateSeed,
             debugFailure: ctx.failureDebugInput.checked
@@ -223,7 +227,7 @@ export function createGenerationController(ctx: GenerationContext) {
     try {
       acceptCompleteGeneration(
         generateCityOnDocument(
-          clone(ctx.generation.completeSource),
+          clone(source),
           ctx.generation.generateSettings,
           ctx.generation.generateSeed,
           onProgress,

@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { parseDocument } from "../services/io/documentCodec";
 import type { CityDocument, Point } from "../types/document";
-import { buildBlockFabric } from "./blockInfill";
+import { buildBlockFabric, documentFabricFingerprint } from "./blockInfill";
 import { polygonArea, polygonCentroid } from "./geom";
 import { DocumentHistory } from "./history";
 import { meshFromCells } from "./mesh";
 import { corridor, intersectConvex } from "./parcelGeometry";
 import { cultivateRoadside, regenerateRuralLand } from "./roadsideFarms";
+import { storeRuralFieldOverlay } from "./ruralFieldOverlay";
 import { applyRuralFields } from "./ruralFields";
 import { ruralSuitability } from "./ruralSuitability";
 
@@ -100,19 +101,49 @@ describe("CE rural field integration", () => {
     document.ruralFieldSettings = { system: "bocage", rotationYear: 2, gardenRadiusMeters: 0 };
     const saved = parseDocument(JSON.stringify(document))!;
     expect(saved.ruralFieldSettings).toEqual(document.ruralFieldSettings);
-    expect(buildBlockFabric(saved).farms.some(farm => farm.boundaryKind === "hedge")).toBe(true);
+    expect(applyRuralFields(saved, buildBlockFabric(saved)).farms.some(farm => farm.boundaryKind === "hedge")).toBe(
+      true
+    );
     document.farmlandAreaHectares = 5;
     for (const face of Object.values(document.mesh.faces)) face.properties.farming = { soilQuality: 0.1, wetness: 0.9 };
-    const blocked = buildBlockFabric(document);
+    const blocked = applyRuralFields(document, buildBlockFabric(document));
     expect(blocked.farms).toHaveLength(0);
     expect(blocked.ruralFields?.shortfallReason).toBe("terrain");
     expect(blocked.ruralFields?.suitabilitySource).toBe("survey");
     document.mesh.faces.f0.properties.farming = { soilQuality: 0.8, wetness: 0.2 };
-    expect(buildBlockFabric(document).farms.length).toBeGreaterThan(0);
+    expect(applyRuralFields(document, buildBlockFabric(document)).farms.length).toBeGreaterThan(0);
     expect(parseDocument(JSON.stringify(document))).not.toBeNull();
     document.mesh.faces.f0.properties.farming = { soilQuality: 2 };
     expect(parseDocument(JSON.stringify(document))).toBeNull();
     expect(parseDocument(JSON.stringify({ ...saved, ruralFieldSettings: { rotationYear: -1 } }))).toBeNull();
+  });
+
+  it("defers optional fields, invalidates stale results and persists placement controls", () => {
+    const document = city();
+    document.ruralFieldVersion = 2;
+    document.ruralFieldSettings = { mode: "manual", range: "near-city", direction: "north", coveragePercent: 30 };
+    const saved = parseDocument(JSON.stringify(document))!;
+    expect(saved.ruralFieldSettings).toEqual(document.ruralFieldSettings);
+    const core = buildBlockFabric(document);
+    expect(core.ruralFields).toBeUndefined();
+    expect(core.farms).toHaveLength(0);
+    storeRuralFieldOverlay(document, documentFabricFingerprint(document), {
+      farms: [],
+      lanes: [
+        {
+          points: [
+            [0, 0],
+            [1, 0]
+          ],
+          widthMeters: 1
+        }
+      ]
+    });
+    expect(buildBlockFabric(document).lanes).toHaveLength(1);
+    document.ruralFieldSettings.mode = "off";
+    expect(buildBlockFabric(document).lanes).toEqual(core.lanes);
+    expect(parseDocument(JSON.stringify({ ...document, ruralFieldSettings: { coveragePercent: 101 } }))).toBeNull();
+    expect(parseDocument(JSON.stringify({ ...document, ruralFieldSettings: { mode: "sync" } }))).toBeNull();
   });
 
   it("uses the continuous terrain model and labels biome inference without inventing soil measurements", () => {

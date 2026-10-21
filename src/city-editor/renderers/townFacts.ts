@@ -1,4 +1,4 @@
-import { buildBlockFabric, type DistrictFabric } from "../generators/blockInfill";
+import { buildBlockFabric, type DistrictFabric, documentFabricFingerprint } from "../generators/blockInfill";
 import { type BridgeDeck, bridgeDecks, overSkewedBridgeDecks } from "../generators/bridgeDeck";
 import { buildCityBuildings } from "../generators/buildingLots";
 import { computeCemeteryBoundary, layoutCemetery } from "../generators/cemeteryLayout";
@@ -6,7 +6,7 @@ import { polygonArea } from "../generators/geom";
 import { buildParkLawns, type ParkLawn } from "../generators/parkFabric";
 import { populationHousingFacts } from "../generators/populationHousing";
 import { measureHousingCapacity } from "../generators/residentialCapacity";
-import { applyRuralFields } from "../generators/ruralFields";
+import { ruralFieldOverlay } from "../generators/ruralFieldOverlay";
 import { buildWatermillPlan, type WatermillPlan } from "../generators/watermillFabric";
 import type { CemeteryPlan, CityDocument } from "../types/document";
 
@@ -38,15 +38,16 @@ export function prepareTownFacts(document: CityDocument, mark?: (phase: string) 
     document.layout === "circulade" ||
     document.layout === "bram" ||
     document.layout === "classic";
-  const fabric = usesFabric
+  const fabric: DistrictFabric | null = usesFabric
     ? buildBlockFabric(document)
     : document.ruralFieldVersion === 2
-      ? applyRuralFields(document, {
+      ? {
           buildings: buildCityBuildings(document),
           farms: [],
           lanes: [],
-          entrances: new Map()
-        })
+          entrances: new Map(),
+          ...ruralFieldOverlay(document, documentFabricFingerprint(document))
+        }
       : null;
   mark?.("town-fabric");
   const lots = fabric?.buildings ?? buildCityBuildings(document);

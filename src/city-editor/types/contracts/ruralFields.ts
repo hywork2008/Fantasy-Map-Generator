@@ -1,6 +1,10 @@
 /** Rendering/generation profiles, not claims about land tenure in the economy. */
 export type RuralFieldSystem = "open-field" | "bocage" | "planned" | "mechanized";
 export interface RuralFieldSettings {
+  mode?: "manual" | "background" | "off";
+  range?: "near-city" | "whole-frame";
+  direction?: "all" | "north" | "east" | "south" | "west";
+  coveragePercent?: number;
   system?: RuralFieldSystem;
   rotationYear?: number;
   gardenRadiusMeters?: number;

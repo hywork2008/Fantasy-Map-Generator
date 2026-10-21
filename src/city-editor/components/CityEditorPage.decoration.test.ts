@@ -67,8 +67,12 @@ it("upgrades farmland from the profile control and restores it through undo", as
   document.body.append(root);
   dispose = mountCityEditor(root);
   const controls = root.querySelector<HTMLElement>(".ce-city-decoration")!;
-  const profile = controls.querySelector<HTMLSelectElement>("select")!;
-  const year = controls.querySelector<HTMLInputElement>('input[type="number"]')!;
+  const profile = controls.querySelector<HTMLSelectElement>(
+    `select[aria-label="${editorText("cityEditor.messages.farmlandSystem")}"]`
+  )!;
+  const year = controls.querySelector<HTMLInputElement>(
+    `input[aria-label="${editorText("cityEditor.messages.farmlandYear")}"]`
+  )!;
   expect(profile.disabled).toBe(true);
   root
     .querySelector<HTMLButtonElement>(

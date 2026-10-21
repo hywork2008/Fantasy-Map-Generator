@@ -26,6 +26,11 @@ export function validRuralFieldSettings(value: unknown): value is RuralFieldSett
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const v = value as RuralFieldSettings;
   return (
+    (v.mode === undefined || ["manual", "background", "off"].includes(v.mode)) &&
+    (v.range === undefined || ["near-city", "whole-frame"].includes(v.range)) &&
+    (v.direction === undefined || ["all", "north", "east", "south", "west"].includes(v.direction)) &&
+    (v.coveragePercent === undefined ||
+      (Number.isFinite(v.coveragePercent) && v.coveragePercent >= 0 && v.coveragePercent <= 100)) &&
     (v.system === undefined || ["open-field", "bocage", "planned", "mechanized"].includes(v.system)) &&
     (v.rotationYear === undefined || (Number.isSafeInteger(v.rotationYear) && v.rotationYear >= 0)) &&
     (v.gardenRadiusMeters === undefined ||

@@ -7,7 +7,7 @@ import { FixedRoadReservation } from "./fixedRoadReservation";
 import { circuitRing } from "./fortifications";
 import { polygonArea } from "./geom";
 import { landmarkReservationHits } from "./landmarks";
-import { convexInfillParts } from "./lotGeometry";
+import { clipHalfPlane, convexInfillParts } from "./lotGeometry";
 import { facePoints } from "./mesh";
 import { MoatReservation } from "./moats";
 import { bounds, intersectConvex, PlotIndex, corridor as roadBand } from "./parcelGeometry";
@@ -23,10 +23,12 @@ export function applyRuralFields(document: CityDocument, fabric: DistrictFabric)
   const fixedFarms = fabric.farms.filter(farm =>
     (farm.sourceFaceIds ?? [farm.faceId]).some(id => document.mesh.faces[id]?.properties.locked)
   );
+  if (document.ruralFieldSettings?.mode === "off" || document.ruralFieldSettings?.coveragePercent === 0)
+    return { ...fabric, farms: fixedFarms, lanes: fabric.lanes.filter(lane => !lane.kind), ruralFields: undefined };
   const protectedFaces = new Set(document.elements.flatMap(element => element.faceIds));
   const suitability = document.ruralFieldVersion === 2 ? ruralSuitability(document) : undefined;
   let unsuitableArea = 0;
-  const land = Object.values(document.mesh.faces)
+  let land = Object.values(document.mesh.faces)
     .filter(
       face =>
         face.properties.water === "land" &&
@@ -44,6 +46,35 @@ export function applyRuralFields(document: CityDocument, fabric: DistrictFabric)
       unsuitableArea += Math.abs(polygonArea(face.polygon));
       return false;
     });
+  const settings = document.ruralFieldSettings;
+  if (document.ruralFieldVersion === 2 && settings) {
+    const radius = document.frame.cityRadiusMeters * 1.7;
+    const circle: Point[] = Array.from({ length: 32 }, (_, i) => [
+      radius * Math.cos((i * Math.PI) / 16),
+      radius * Math.sin((i * Math.PI) / 16)
+    ]);
+    const normal: Point | undefined =
+      settings.direction === "north"
+        ? [0, -1]
+        : settings.direction === "south"
+          ? [0, 1]
+          : settings.direction === "east"
+            ? [-1, 0]
+            : settings.direction === "west"
+              ? [1, 0]
+              : undefined;
+    land = land.flatMap(face =>
+      convexInfillParts(face.polygon).flatMap(part => {
+        let polygon = settings.range === "near-city" ? intersectConvex(part, circle) : part;
+        if (normal) polygon = clipHalfPlane(polygon, normal, 0);
+        return polygon.length >= 3 ? [{ faceId: face.faceId, polygon }] : [];
+      })
+    );
+  }
+  const targetArea =
+    settings?.coveragePercent === undefined
+      ? undefined
+      : (land.reduce((sum, face) => sum + Math.abs(polygonArea(face.polygon)), 0) * settings.coveragePercent) / 100;
   const roads = document.featureGroups.flatMap(group =>
     group.kind === "road"
       ? group.segments.flatMap(ref => {
@@ -112,9 +143,17 @@ export function applyRuralFields(document: CityDocument, fabric: DistrictFabric)
     roads,
     period: document.historicalPeriod,
     areaBudgetM2:
-      document.farmlandAreaHectares === undefined
-        ? undefined
-        : Math.max(0, document.farmlandAreaHectares * 10_000 - fixedArea),
+      targetArea === undefined
+        ? document.farmlandAreaHectares === undefined
+          ? undefined
+          : Math.max(0, document.farmlandAreaHectares * 10000 - fixedArea)
+        : Math.max(
+            0,
+            Math.min(
+              targetArea,
+              document.farmlandAreaHectares === undefined ? Infinity : document.farmlandAreaHectares * 10000 - fixedArea
+            )
+          ),
     blocked: (polygon: Point[]) =>
       water(polygon) ||
       fixedRoads.hitsPolygon(polygon) ||
@@ -153,7 +192,7 @@ export function applyRuralFields(document: CityDocument, fabric: DistrictFabric)
     ruralFields: {
       ...plan.diagnostics,
       suitabilitySource: suitability?.source,
-      requestedAreaM2: document.farmlandAreaHectares === undefined ? undefined : document.farmlandAreaHectares * 10_000,
+      requestedAreaM2: input.areaBudgetM2 === undefined ? undefined : input.areaBudgetM2 + fixedArea,
       fixedAreaM2: fixedArea,
       cultivatedAreaM2: plan.diagnostics.cultivatedAreaM2 + fixedArea,
       overBudgetAreaM2:
