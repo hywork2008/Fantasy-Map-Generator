@@ -27,7 +27,9 @@ export const WORLD_SETTING_KEYS = [
   /** "on": inter-market cargo is paid for, with no soft arrival profit (docs/plan/long-distance-merchant-reach-capital.md §5.1). */
   "fmg-long-distance-trade",
   /** "escrow" / "openAccount" fix how importers pay for paid cargo; default strikes terms per booking (long-distance-merchant-reach-capital.md §12). */
-  "fmg-trade-payment-terms"
+  "fmg-trade-payment-terms",
+  /** "off": no bandit or war raids on caravans, for calibration runs (docs/plan/goods-physical-units.md §12.7). */
+  "fmg-caravan-raids"
 ] as const;
 
 export type WorldSettingKey = (typeof WORLD_SETTING_KEYS)[number];

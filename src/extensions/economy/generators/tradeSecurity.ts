@@ -1,3 +1,4 @@
+import { worldSettings } from "../../../simulation/worldSettings";
 import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getApi, getTradeSecurityLedgers, getWorldContext, setTradeSecurityLedgers } from "../economyContext";
@@ -8,6 +9,20 @@ import { UrbanLaborIntake } from "./urbanLaborIntake";
 export type { TradeSecurityLedger } from "./tradeSecurityTypes";
 
 const BASE_BANDIT_RISK_PER_DAY = 0.001;
+/**
+ * World setting that turns bandit and war raids on caravans off, so calibration runs and tests
+ * compare cargo and trade without random losses (docs/plan/goods-physical-units.md §12.7).
+ */
+export const CARAVAN_RAIDS_SETTING = "fmg-caravan-raids";
+
+/** False when the world runs without raids on caravans. */
+export function areCaravanRaidsEnabled(): boolean {
+  try {
+    return worldSettings.getItem(CARAVAN_RAIDS_SETTING) !== "off";
+  } catch {
+    return true;
+  }
+}
 const SECURITY_UPKEEP_BASE = 0.2;
 const SECURITY_UPKEEP_PER_BURG = 0.05;
 /**
@@ -95,9 +110,11 @@ export class TradeSecurityModule {
 
   /**
    * Computes per-day risk at the destination market's burg. State-owned cells are
-   * incorporated by default, even when the optional frontier simulation is absent.
+   * incorporated by default, even when the optional frontier simulation is absent. None when the
+   * world runs without raids (`CARAVAN_RAIDS_SETTING`).
    */
   getBanditRiskPerDay(destinationBurgId: number, warIntensity: number): number {
+    if (!areCaravanRaidsEnabled()) return 0;
     const { burgs, cells, states } = getWorldContext().pack;
     const burg = burgs[destinationBurgId];
     if (!burg || burg.removed || !Number.isInteger(burg.cell)) return 0;

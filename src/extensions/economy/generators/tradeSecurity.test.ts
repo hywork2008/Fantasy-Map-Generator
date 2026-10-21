@@ -94,6 +94,18 @@ describe("TradeSecurityModule", () => {
     expect(TradeSecurity.getBanditRiskPerDay(1, 1)).toBe(0);
   });
 
+  it("lets a calibration world run without raids", () => {
+    simulationContext.worldSettings = { "fmg-caravan-raids": "off" };
+    try {
+      expect(TradeSecurity.getBanditRiskPerDay(1, 1)).toBe(0);
+      setCaravans([transitCaravan()]);
+      vi.spyOn(Math, "random").mockReturnValue(0);
+      expect(Caravans.tick(1).lost).toEqual([]);
+    } finally {
+      delete simulationContext.worldSettings;
+    }
+  });
+
   // docs/plan/economy-coupling-audit.md L8: Spymastery was the only funded department whose
   // service level nothing downstream read.
   describe("Spymastery funding", () => {

@@ -275,7 +275,7 @@ describe("caravan loading accumulation", () => {
   });
 
   it("sends a thin paid road load once its wait is over (port-freight-queue-and-warehouses.md §10.24)", () => {
-    simulationContext.worldSettings = { "fmg-long-distance-trade": "on" };
+    simulationContext.worldSettings = { "fmg-long-distance-trade": "on", "fmg-caravan-raids": "off" };
     try {
       ExportStaging.bookFromRetail({
         marketId: 0,
@@ -879,7 +879,7 @@ describe("finite sea fleet departure gate (P0)", () => {
   });
 
   it("calls off a paid hold that finds no hull long after it was due (long-distance trade §15)", () => {
-    simulationContext.worldSettings = { "fmg-long-distance-trade": "on" };
+    simulationContext.worldSettings = { "fmg-long-distance-trade": "on", "fmg-caravan-raids": "off" };
     try {
       MerchantTransportAssets.reconcileMerchantHulls([]);
       setCaravans([seaLoadingCaravan({ loading: { ...seaLoadingCaravan().loading!, waitedDays: 1000 } })]);
@@ -920,7 +920,7 @@ describe("finite sea fleet departure gate (P0)", () => {
   });
 
   it("keeps a thin paid hold in port for more freight, then sails it as it is (§10.25)", () => {
-    simulationContext.worldSettings = { "fmg-long-distance-trade": "on" };
+    simulationContext.worldSettings = { "fmg-long-distance-trade": "on", "fmg-caravan-raids": "off" };
     (worldContext.pack.burgs[1] as Burg).port = 1;
     try {
       MerchantTransportAssets.reconcileMerchantHulls([
@@ -1080,7 +1080,7 @@ describe("port transfer (port-freight-queue-and-warehouses.md §10.19)", () => {
   });
 
   it("sells cargo given up on in port to the port's market at a discount, after paying its rent", () => {
-    simulationContext.worldSettings = { "fmg-long-distance-trade": "on" };
+    simulationContext.worldSettings = { "fmg-long-distance-trade": "on", "fmg-caravan-raids": "off" };
     try {
       const [origin, port] = getMarkets();
       origin.marketTreasury = {
