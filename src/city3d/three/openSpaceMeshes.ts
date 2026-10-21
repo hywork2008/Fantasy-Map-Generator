@@ -9,14 +9,10 @@ import { models as graves } from "../../buildings/medieval/19-grave-markersModel
 import { ModelKit } from "../../buildings/medieval/modelKit";
 import { createPublicWaterBasinModel } from "../../buildings/wells/publicWaterBasin";
 import type { CityTerrain } from "../../city-editor/generators/terrainElevation";
-import type {
-  OpenSpaceModel,
-  OpenSpacePlan,
-  OpenSpaceSite,
-  OpenSpaceSurface
-} from "../../city-editor/renderers/openSpaceSites";
+import type { OpenSpaceModel, OpenSpacePlan, OpenSpaceSite } from "../../city-editor/renderers/openSpaceSites";
 import type { Point } from "../../city-editor/types/document";
 import { planVertex } from "../core/planFrame";
+import { groundSurfaceGeometry } from "./groundSurfaceGeometry";
 import type { CityStructureMeshes } from "./structureMeshes";
 
 function isTreeModel(kind: OpenSpaceModel): kind is TreeSpecies {
@@ -52,45 +48,6 @@ function shapeOf(ring: Point[], holes: Point[][] = []): THREE.Shape {
   return shape;
 }
 
-/** Ground surfaces follow relief with a bounded triangle spacing instead of bridging entire lawns. */
-function surfaceGeometry(surface: OpenSpaceSurface, heightAt: (p: Point) => number): THREE.BufferGeometry {
-  const shape = shapeOf(surface.ring, surface.holes);
-  const { shape: ring, holes } = shape.extractPoints(12);
-  const points = [...ring, ...holes.flat()];
-  const positions: number[] = [];
-  const addTriangle = (a: Point, b: Point, c: Point, depth = 0) => {
-    const ab = Math.hypot(a[0] - b[0], a[1] - b[1]),
-      bc = Math.hypot(b[0] - c[0], b[1] - c[1]),
-      ca = Math.hypot(c[0] - a[0], c[1] - a[1]);
-    if (Math.max(ab, bc, ca) > 8 && depth < 12) {
-      const mid = (p: Point, q: Point): Point => [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
-      if (ab >= bc && ab >= ca) {
-        const m = mid(a, b);
-        addTriangle(a, m, c, depth + 1);
-        addTriangle(m, b, c, depth + 1);
-      } else if (bc >= ca) {
-        const m = mid(b, c);
-        addTriangle(a, b, m, depth + 1);
-        addTriangle(a, m, c, depth + 1);
-      } else {
-        const m = mid(c, a);
-        addTriangle(a, b, m, depth + 1);
-        addTriangle(m, b, c, depth + 1);
-      }
-      return;
-    }
-    for (const p of [a, b, c]) positions.push(...planVertex(p, heightAt(p) + surface.offset));
-  };
-  for (const tri of THREE.ShapeUtils.triangulateShape(ring, holes)) {
-    const [a, b, c] = tri.map(i => points[i].toArray() as Point);
-    addTriangle(a, b, c);
-  }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-  geometry.computeVertexNormals();
-  return geometry;
-}
-
 /** Instanced BV models, batched ground and explicit non-rectangular grave footprints. Owns all resources. */
 export function createTownOpenSpaces(
   plan: OpenSpacePlan,
@@ -111,7 +68,7 @@ export function createTownOpenSpaces(
   for (const surface of plan.surfaces) {
     if (surface.ring.length < 3) continue;
     const list = surfaces.get(surface.color) ?? [];
-    list.push(surfaceGeometry(surface, heightAt));
+    list.push(groundSurfaceGeometry(surface, heightAt));
     surfaces.set(surface.color, list);
   }
   for (const [color, parts] of surfaces) {

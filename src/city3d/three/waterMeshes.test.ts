@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import type { CityDocument, Mesh, Point, WaterKind } from "../../city-editor/types/document";
 import { LAND_Y } from "../core/waterGeometry";
+import { createTownFarms } from "./farmMeshes";
 import { roadStampChanged } from "./roadMeshes";
 import { createTownWater, planCity3dRefresh, townWaterHeightAt, waterStampChanged } from "./waterMeshes";
 
@@ -182,6 +183,31 @@ describe("town water meshes", () => {
     const waterHits: THREE.Intersection[] = [];
     THREE.Mesh.prototype.raycast.call(river, raycaster, waterHits);
     expect(waterHits.length).toBeGreaterThan(0);
+    expect(waterHits[0].point.y).toBeLessThan(0);
+    // A saved field can predate the river-mouth extension. Its elevated soil
+    // must have the same physical opening as the rendered river below it.
+    const farms = createTownFarms(
+      [
+        {
+          faceId: "land",
+          polygon: [
+            [20, 150],
+            [120, 150],
+            [120, 250],
+            [20, 250]
+          ],
+          rows: []
+        }
+      ],
+      undefined,
+      drawn.wetPolygons
+    );
+    const soil = farms.parent.getObjectByName("ce-field-surfaces") as THREE.Mesh;
+    soil.updateMatrixWorld(true);
+    const soilHits: THREE.Intersection[] = [];
+    THREE.Mesh.prototype.raycast.call(soil, raycaster, soilHits);
+    expect(soilHits).toHaveLength(0);
+    farms.dispose();
     const bank = drawn.bank!.geometry.getAttribute("position");
     const direction: Point = [tip[0] - 38.399217032609116, tip[1] - 183.5611342402933];
     for (let i = 0; i < bank.count; i += 3) {

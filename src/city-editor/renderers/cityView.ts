@@ -3,6 +3,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { buildingSurfaces } from "../../city3d/core/massingGeometry";
 import { structureSurfaces } from "../../city3d/core/structureGeometry";
 import { type CityMassingMeshes, createCityMassing } from "../../city3d/three/cityMeshes";
+import { createTownFarms, type TownFarmMeshes } from "../../city3d/three/farmMeshes";
 import { createTownFriaries } from "../../city3d/three/friaryMeshes";
 import { createTownOpenSpaces } from "../../city3d/three/openSpaceMeshes";
 import { createTownPiers } from "../../city3d/three/pierMeshes";
@@ -123,6 +124,8 @@ export function mountCity3d(options: {
   let structures: CityStructureMeshes | null = null;
   let wells: CityStructureMeshes | null = null;
   let openSpaces: CityStructureMeshes | null = null;
+  let farmland: TownFarmMeshes | null = null;
+  let farmlandSource: DistrictFabric["farms"] | null = null;
   let friaries: CityStructureMeshes | null = null;
   let friaryStamp: string | null = null;
   let openSpaceStamp: string | null = null;
@@ -338,6 +341,7 @@ export function mountCity3d(options: {
         terrainChanged || roadStampChanged(roadStamp, roads, Boolean(scene.getObjectByName("ce-roads"))),
       open: true
     });
+    const farmlandChanged = terrainChanged || plan.water || farmlandSource !== fabric.farms || !farmland;
     const shipSites = collectShipSites(city);
     const nextShipStamp = JSON.stringify(shipSites);
     const shipsChanged = plan.water || shipStamp !== nextShipStamp || !scene.getObjectByName("ce-ships");
@@ -362,7 +366,8 @@ export function mountCity3d(options: {
       !shipsChanged &&
       !piersChanged &&
       !openSpacesChanged &&
-      !friariesChanged
+      !friariesChanged &&
+      !farmlandChanged
     )
       return;
     if (friariesChanged) {
@@ -387,6 +392,13 @@ export function mountCity3d(options: {
     if (plan.water) {
       placeWater(city);
       waterStamp = stamp;
+    }
+    if (farmlandChanged) {
+      const next = createTownFarms(fabric.farms, terrain ?? undefined, waterMeshes?.wetPolygons);
+      farmland?.dispose();
+      farmland = next;
+      farmlandSource = fabric.farms;
+      scene.add(next.parent);
     }
     if (shipsChanged && waterMeshes) {
       ships?.dispose();
@@ -498,6 +510,7 @@ export function mountCity3d(options: {
     ships?.dispose();
     openSpaces?.dispose();
     friaries?.dispose();
+    farmland?.dispose();
     piers?.dispose();
     roadMeshes?.dispose();
     ground?.geometry.dispose();

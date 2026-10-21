@@ -82,6 +82,8 @@ it.each([false, true])("draws shared roadway once and selects either logical rou
     selection: ctx.selection
   };
   const controller = createMapDisplayController({
+    scope: { active: true, own: () => {} },
+    syncCity3d: () => {},
     map,
     documents: { documentState: document },
     interaction,

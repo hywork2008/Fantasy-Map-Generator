@@ -410,6 +410,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   function getMapDisplayController() {
     if (!mapDisplayController)
       mapDisplayController = createMapDisplayController({
+        get syncCity3d() {
+          return syncCity3d;
+        },
         get scope() {
           return scope;
         },

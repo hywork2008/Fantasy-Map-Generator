@@ -57,6 +57,8 @@ export interface TownWaterMeshes {
   pickables: THREE.Mesh[];
   /** False keeps the ground disc and draws no water. */
   replacesDisc: boolean;
+  /** Exact rendered wet footprints, shared with overlays that must leave physical openings. */
+  wetPolygons: Point[][];
   dispose(): void;
 }
 
@@ -146,6 +148,7 @@ export function createTownWater(document: CityDocument, terrain: CityTerrain = c
     bank,
     pickables: [],
     replacesDisc: land !== null,
+    wetPolygons: land ? water.parts.map(part => part.polygon) : [],
     dispose() {
       parent.removeFromParent();
       land?.removeFromParent();
@@ -238,6 +241,7 @@ function createFortGround(document: CityDocument, terrain: CityTerrain): TownWat
     bank: null,
     pickables: [],
     replacesDisc: !!land,
+    wetPolygons: water ? polygons.map(part => part.polygon) : [],
     dispose() {
       parent.removeFromParent();
       land?.removeFromParent();

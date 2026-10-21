@@ -68,6 +68,7 @@ export interface MapDisplayContext {
   wardLandmarksGroup: SVGGElement | null;
   wardLandmarkElementsById: Map<string, SVGGElement>;
   documentForOutput: (current: CityDocument) => CityDocument;
+  syncCity3d: () => void;
   gridOverlayForRender: () => GridOverlay | null;
   root: HTMLElement;
   renderQualitySelect: HTMLSelectElement;
@@ -149,6 +150,7 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
             ruralStatus.delete(document);
           } else ruralStatus.set(document, "stopped");
           redrawMap();
+          ctx.syncCity3d();
         });
       })
     );
