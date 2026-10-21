@@ -3,7 +3,7 @@ import { type Good, type GoodTradeProfile, getDefaultGoodTradeProfile, isFreshFo
 import { getMarketTradeMinimumUnits } from "./goodsTradeLots";
 import type { TradeRoutePoint, TradeRouteSegment } from "./marketTypes";
 import { getRouteCargoSlotsPerUnit } from "./tradeCargo";
-import { calculateRouteDurationDays } from "./tradeRouteDuration";
+import { calculateRouteDurationDays, getSegmentDistanceMapUnits } from "./tradeRouteDuration";
 
 const DISTANCE_COST_FACTOR = 0.5;
 export const MIN_TRADE_PROFIT = 1;
@@ -122,6 +122,20 @@ const FREIGHT_RATE = 1;
 const FREIGHT_LOAD_PER_SLOT = 8 / WAIN_FREIGHT_SLOTS;
 
 /**
+ * Freight for the same load over the same distance, by the way it travels, against the road. In
+ * medieval England carriage by road cost about twice carriage by river (Masschaele, from the
+ * sheriffs' accounts) and ten times or more carriage by sea; Diocletian's edict and the Roman
+ * studies put the road at some ten times the river and twenty-eight times the sea. The values take
+ * the medieval end (goods-physical-units.md §16).
+ */
+export const FREIGHT_MODE_FACTOR: Readonly<Record<TradeRouteSegment["type"], number>> = {
+  land: 1,
+  river: 0.5,
+  sea: 0.1,
+  water: 0.1
+};
+
+/**
  * Per-unit transport cost for one map-unit-scaled distance. Proportional to the good's physical
  * bulk (`weight + bulk` from its trade profile), not its price — a wagon or hold's capacity is
  * set by volume and weight, not value, so hauling a low-value bulky good (Grain, Wood, Stone)
@@ -135,9 +149,39 @@ export function getTransportCost(
   distance: number,
   mapDiagonal: number,
   good: Good,
-  routeSegments: readonly Pick<TradeRouteSegment, "type">[] = []
+  routeSegments: readonly (Pick<TradeRouteSegment, "type"> & Partial<Pick<TradeRouteSegment, "points">>)[] = []
 ): number {
-  return (distance / mapDiagonal) * DISTANCE_COST_FACTOR * getFreightLoad(good, routeSegments) * FREIGHT_RATE;
+  return (
+    (distance / mapDiagonal) *
+    DISTANCE_COST_FACTOR *
+    getFreightLoad(good, routeSegments) *
+    getRouteFreightModeFactor(routeSegments) *
+    FREIGHT_RATE
+  );
+}
+
+/**
+ * The route's freight against an all-road trip of the same length: each leg weighs by its share of
+ * the path and the rate of its way (`FREIGHT_MODE_FACTOR`). 1 without a path.
+ */
+export function getRouteFreightModeFactor(
+  routeSegments: readonly (Pick<TradeRouteSegment, "type"> & Partial<Pick<TradeRouteSegment, "points">>)[]
+): number {
+  let length = 0;
+  let weighted = 0;
+  for (const segment of routeSegments) {
+    const legLength = segment.points?.length ? getSegmentDistanceMapUnits({ points: segment.points }) : 0;
+    length += legLength;
+    weighted += legLength * FREIGHT_MODE_FACTOR[segment.type];
+  }
+  return length > 0 ? weighted / length : 1;
+}
+
+/** The same factor from the lengths of a path's road, river and sea legs. */
+export function getFreightModeFactorFromLengths(land: number, river: number, sea: number): number {
+  const length = land + river + sea;
+  if (!(length > 0)) return 1;
+  return (land * FREIGHT_MODE_FACTOR.land + river * FREIGHT_MODE_FACTOR.river + sea * FREIGHT_MODE_FACTOR.sea) / length;
 }
 
 /**
@@ -204,12 +248,18 @@ function getFreshFoodMaxTradeDays(routeMaxTemperatureC: number | undefined): num
 
 export function getGoodMaxTradeDurationDays(
   good: Good,
-  routeSegments?: readonly Pick<TradeRouteSegment, "type">[],
+  routeSegments?: readonly (Pick<TradeRouteSegment, "type"> & Partial<Pick<TradeRouteSegment, "points">>)[],
   routeMaxTemperatureC?: number,
   refrigeratedTransport?: boolean
 ): number {
   const trade = good.trade ?? getDefaultGoodTradeProfile(good);
-  const densityLimit = Math.max(1, VALUE_DENSITY_BASE_MAX_DAYS * getGoodValueDensity(good) * VALUE_DENSITY_MULTIPLIER);
+  // Worth the freight: a cheap bulky load goes as far by water as its cost of carriage allows, ten
+  // times the road's reach by sea (goods-physical-units.md §16).
+  const densityLimit = Math.max(
+    1,
+    (VALUE_DENSITY_BASE_MAX_DAYS * getGoodValueDensity(good) * VALUE_DENSITY_MULTIPLIER) /
+      getRouteFreightModeFactor(routeSegments ?? [])
+  );
 
   if (good.tags.includes("stapleFood")) {
     // Dry-stored staples (grain: ~1 year shelf life) aren't decay-limited by elapsed transit time
@@ -236,7 +286,7 @@ export function getGoodMaxTradeDurationDays(
 export function isGoodTradePermitted(
   good: Good,
   durationDays: number,
-  routeSegments?: readonly Pick<TradeRouteSegment, "type">[],
+  routeSegments?: readonly (Pick<TradeRouteSegment, "type"> & Partial<Pick<TradeRouteSegment, "points">>)[],
   routeMaxTemperatureC?: number,
   refrigeratedTransport?: boolean
 ): boolean {
@@ -267,7 +317,7 @@ export function isGoodTradePermittedForShipment(
   good: Good,
   durationDays: number,
   maxLoadingWaitDays: number,
-  routeSegments?: readonly Pick<TradeRouteSegment, "type">[],
+  routeSegments?: readonly (Pick<TradeRouteSegment, "type"> & Partial<Pick<TradeRouteSegment, "points">>)[],
   routeMaxTemperatureC?: number,
   refrigeratedTransport?: boolean
 ): boolean {

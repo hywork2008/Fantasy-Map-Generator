@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Good } from "./goodsGeneratorTypes";
-import { estimateSpeculativeTrade, getTransportCost } from "./tradeOpportunityEstimator";
+import { estimateSpeculativeTrade, getRouteFreightModeFactor, getTransportCost } from "./tradeOpportunityEstimator";
 
 describe("estimateSpeculativeTrade", () => {
   it("admits a hundredth-unit military shipment when it is a valid retail lot", () => {
@@ -106,5 +106,24 @@ describe("getTransportCost", () => {
 
     expect(getTransportCost(100, 1000, grain)).toBeCloseTo(perLoad * 8, 10);
     expect(getTransportCost(100, 1000, wood) / getTransportCost(100, 1000, grain)).toBeCloseTo(60 / 3.13, 1);
+  });
+
+  it("charges a sea leg a tenth and a river leg half of the road over the same path", () => {
+    const leg = (type: "land" | "river" | "sea", from: number, to: number) => ({
+      type,
+      points: [
+        [from, 0],
+        [to, 0]
+      ] as [number, number][]
+    });
+    const good = goodWith({ weight: 3, bulk: 3 }, 5);
+    const road = getTransportCost(100, 1000, good, [leg("land", 0, 100)]);
+
+    expect(getTransportCost(100, 1000, good, [leg("sea", 0, 100)])).toBeCloseTo(road * 0.1, 10);
+    expect(getRouteFreightModeFactor([leg("land", 0, 20), leg("river", 20, 60), leg("sea", 60, 100)])).toBeCloseTo(
+      0.2 + 0.4 * 0.5 + 0.4 * 0.1,
+      10
+    );
+    expect(getTransportCost(100, 1000, good)).toBeCloseTo(road, 10);
   });
 });

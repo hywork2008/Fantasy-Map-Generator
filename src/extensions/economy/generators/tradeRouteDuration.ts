@@ -161,7 +161,7 @@ export function getWaterSegmentSpeedKmPerDay(
   return Math.max(movement.seaKmPerDay * multiplier, 1e-6);
 }
 
-function getSegmentDistanceMapUnits(segment: TradeRouteSegment): number {
+export function getSegmentDistanceMapUnits(segment: Pick<TradeRouteSegment, "points">): number {
   let distance = 0;
   for (let index = 0; index < segment.points.length - 1; index++) {
     const [x1, y1] = segment.points[index];
@@ -240,7 +240,7 @@ export function getLandSegmentTravelDays(
     if (movement.landKmPerDay <= 0) return Infinity;
     return (
       applyRailway(points) *
-      ((getSegmentDistanceMapUnits({ type: "land", points: [...points] }) * distanceScale) /
+      ((getSegmentDistanceMapUnits({ points: [...points] }) * distanceScale) /
         (movement.landKmPerDay * animal.speedMultiplier))
     );
   }

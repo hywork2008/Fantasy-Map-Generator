@@ -14,6 +14,7 @@ import type { Market } from "../generators/marketTypes";
 import { isMarketTradePermitted } from "../generators/merchantOrganizations";
 import {
   estimateSpeculativeTrade,
+  getFreightModeFactorFromLengths,
   getNetTradeProfit,
   getRouteMaxTemperatureC,
   getTransportCost,
@@ -152,7 +153,9 @@ export function refresh(): void {
       )
         continue;
 
-      const transportCost = getTransportCost(distance.total, mapDiagonal, good, routeSegments);
+      const transportCost =
+        getTransportCost(distance.total, mapDiagonal, good, routeSegments) *
+        getFreightModeFactorFromLengths(distance.land, distance.river, distance.sea);
       const unitProfit = rn(sellPrice - buyPrice - transportCost, 2);
       if (unitProfit <= 0) {
         const estimate = estimateSpeculativeTrade({
