@@ -25,5 +25,15 @@ it("uses SVG well sites, excludes other water points and avoids duplicate plaza 
     { id: "neighborhood", point: [50, 60] },
     { id: "abbey:well", point: [100, 110] }
   ]);
-  expect(collectWellSites(city, {} as DistrictFabric)).toEqual([{ id: "plaza", point: [10, 20] }]);
+  expect(collectWellSites(city, {} as DistrictFabric)).toEqual([{ id: "plaza", point: [10, 20], kind: "publicBasin" }]);
+});
+
+it("uses the collision-checked basin location and never adds an extra center well", () => {
+  const city = { elements: [{ id: "plaza", kind: "plaza", point: [0, 0] }] } as CityDocument;
+  const fabric = {
+    aerialLandmarks: { domesticWater: [{ id: "basin", kind: "publicBasin", center: [5, 0] }], monasteries: [] }
+  } as unknown as DistrictFabric;
+  expect(collectWellSites(city, fabric)).toEqual([{ id: "basin", point: [5, 0], kind: "publicBasin" }]);
+  fabric.aerialLandmarks!.domesticWater = [];
+  expect(collectWellSites(city, fabric)).toEqual([]);
 });

@@ -516,6 +516,17 @@ export function renderAerialLandmarks(
           "stroke-width": "0.2"
         })
       );
+    if (water.kind === "publicBasin")
+      g.appendChild(
+        el("circle", {
+          cx: `${x}`,
+          cy: `${-y}`,
+          r: "0.3",
+          fill: "#b7ad97",
+          stroke: STROKE,
+          "stroke-width": "0.12"
+        })
+      );
     if (water.kind === "well")
       g.appendChild(
         el("path", {

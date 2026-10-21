@@ -42,6 +42,12 @@ import { createMinecart, MINECART } from "../buildings/vehicles/minecart";
 import { createNobleCarriage, NOBLE_CARRIAGE } from "../buildings/vehicles/nobleCarriage";
 import { createWarWagon, WAR_WAGON } from "../buildings/vehicles/warWagon";
 import { createMedievalWell, MEDIEVAL_WELL } from "../buildings/wells/medievalWell";
+import {
+  createPublicWaterBasin,
+  PUBLIC_WATER_BASIN_NOTE,
+  PUBLIC_WATER_BASINS,
+  WATER_BASIN_KINDS
+} from "../buildings/wells/publicWaterBasin";
 import { createMedievalLumberYard, MEDIEVAL_LUMBER_YARD } from "../buildings/yards/medievalLumberYard";
 import { catalogueMassing } from "../city3d/core/catalogueMassing";
 import { structureSurfaces } from "../city3d/core/structureGeometry";
@@ -988,6 +994,42 @@ wellButton.addEventListener("click", () => {
   );
 });
 wellsHeading.append(wellButton);
+
+for (const kind of WATER_BASIN_KINDS) {
+  const spec = PUBLIC_WATER_BASINS[kind];
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = spec.name;
+  button.addEventListener("click", () => {
+    selection++;
+    for (const item of list.querySelectorAll("button")) {
+      item.setAttribute("aria-current", item === button ? "true" : "false");
+    }
+    clearMesh();
+    floors.replaceChildren();
+    facts.replaceChildren();
+    banner.hidden = true;
+    roofTitle.textContent = "Waterworks front elevation";
+    levelTitle.textContent = "Waterworks top view";
+    const model = createPublicWaterBasin(kind);
+    massing = model;
+    scene.add(model.group);
+    ground.visible = true;
+    frame({ occupancyMeters: { width: spec.width, depth: spec.depth } }, spec.height);
+    camera.position.set(5.5, 4.7, 6.5);
+    controls.target.set(0, spec.height * 0.4, 0);
+    controls.update();
+    mountPlan(roofHost, model.elevation);
+    mountPlan(levelHost, model.plan);
+    facts.append(
+      fact("Model", spec.name),
+      fact("Study envelope", `${spec.width} × ${spec.depth} × ${spec.height} m`),
+      fact("Ground contact", "Base Y = 0 m"),
+      fact("Note", PUBLIC_WATER_BASIN_NOTE)
+    );
+  });
+  wellsHeading.append(button);
+}
 
 const containersHeading = modelCategory("Storage props");
 for (const kind of CONTAINER_KINDS) {
