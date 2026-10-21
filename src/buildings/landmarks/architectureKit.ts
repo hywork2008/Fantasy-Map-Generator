@@ -48,9 +48,9 @@ export class ArchitectureKit extends ModelKit {
   }
 
   /** Same gable rotated so that its ridge runs north/south, e.g. a transept arm. */
-  crossNave(name: string, x: number, z: number, length: number, width: number, eave: number, rise: number) {
+  crossNave(name: string, x: number, z: number, length: number, width: number, eave: number, rise: number, base = 0) {
     const start = this.pickables.length;
-    this.nave(name, 0, 0, length, width, eave, rise);
+    this.nave(name, 0, 0, length, width, eave, rise, base);
     const rotation = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2);
     for (const mesh of this.pickables.slice(start)) {
       mesh.position.applyQuaternion(rotation).add(new THREE.Vector3(x, 0, z));

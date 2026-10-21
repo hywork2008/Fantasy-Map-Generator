@@ -38,7 +38,7 @@ BVには**ウィンザー城の聖ジョージ礼拝堂**（English Perpendicula
   - 再現の重点: 上下二層の礼拝堂、上堂の大きなステンドグラス窓、細い控壁、急勾配屋根。
   - 注意: 西のバラ窓には15世紀のフランボワイヤン様式が見られる。尖塔も含めて再現年代を確認する。
   - 参考: [建物公式・歴史](https://www.sainte-chapelle.fr/en/discover/history-of-the-sainte-chapelle)、[バラ窓](https://www.sainte-chapelle.fr/en/discover/the-rose-of-the-apocalypse)。
-- [ ] **G07. ソールズベリー大聖堂（Salisbury Cathedral）** — イギリス／ソールズベリー。主に13世紀、塔・尖塔は14世紀。イギリス・ゴシック。
+- [x] **G07. ソールズベリー大聖堂（Salisbury Cathedral）** — イギリス／ソールズベリー。主に13世紀、塔・尖塔は14世紀。イギリス・ゴシック。
   - 再現の重点: 長い低層の本体と高い中央尖塔、二組の交差廊、東端の礼拝堂、回廊。
   - 注意: 本体と塔・尖塔の建設時期を区別する。
   - 参考: [大聖堂公式・建設史](https://www.salisburycathedral.org.uk/discover/history/the-cathedral-through-the-years/)。
@@ -106,6 +106,7 @@ BVには**ウィンザー城の聖ジョージ礼拝堂**（English Perpendicula
 - G04: `src/buildings/landmarks/reims.ts`。三つの三角切妻付き玄関・双塔・王像列を備える現存外観の簡略モデル。BV登録、3D・上面図・南側立面図、接地・外形・特徴部位・資源解放を確認。
 - G05: `src/buildings/landmarks/cologne.ts`。19世紀の完成形を対象とし、透かし双尖塔と五廊式本体を備える簡略モデル。BV登録、3D・上面図・南側立面図、接地・外形・特徴部位・資源解放を確認。
 - G06: `src/buildings/landmarks/sainteChapelle.ts`。上下二層・15面の高窓・西の玄関廊を備える現存外観の簡略モデル。BV登録、3D・上面図・南側立面図、接地・外形・特徴部位・資源解放を確認。
+- G07: `src/buildings/landmarks/salisbury.ts`。二組の交差廊・中央尖塔・通り抜け可能な回廊・八角形参事会室を備える簡略モデル。BV登録、3D・上面図・南側立面図、接地・外形・特徴部位・資源解放を確認。
 
 ## 着手順の提案
 
