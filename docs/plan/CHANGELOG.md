@@ -2,6 +2,7 @@
 
 2026-10-21
 
+- docs/plan/gothic-romanesque-building-tasks.md - BV向けにゴシック建築10件・ロマネスク建築10件の著名建築を整理した、再現の重点・増改築への注意・参考資料・完了条件付きタスクリスト
 - docs/plan/medieval-european-model-tasks.md - BVとCE施設一覧の照合に基づく、中世〜大航海時代の欧州向け3Dモデル追加候補42項目の優先順位付きタスクリスト
 
 2026-10-20
