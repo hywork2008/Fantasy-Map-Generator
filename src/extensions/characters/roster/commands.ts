@@ -2,17 +2,31 @@ import type { SimulationExtensionAPI } from "../../../types/extension-api";
 import { getCharacters } from "../charactersContext";
 import { resolveRaceAgeProfile } from "../raceAge";
 import { buildWorldRoster } from "./build";
-import { emptyProtection, LOCKABLE_FIELDS, validateWorldRoster } from "./model";
+import { addPatronage, establishChurch } from "./institutions";
 import {
+  currentAppointment,
+  emptyProtection,
+  invalidateRosterIndex,
+  LOCKABLE_FIELDS,
+  latestRoleSlot,
+  validateWorldRoster
+} from "./model";
+import { createPresetPlan, executePresetBatch } from "./presetRuntime";
+import { previewPreset } from "./presets";
+import { type PresetQuery, ROLE_PURPOSES, validatePresetQuery } from "./presetTypes";
+import {
+  clockYear,
   continueRoster,
   ensureChildren,
   ensureRoster,
+  ensureSlot,
   materializeSlots,
   putOrganization,
   putRole,
   selectedSlots,
   setScope,
-  synchronizeFamily
+  synchronizeFamily,
+  synchronizeTitle
 } from "./runtime";
 import type { PersonSlot, RosterSelection } from "./types";
 
@@ -49,6 +63,128 @@ export function registerRosterCommands(api: SimulationExtensionAPI): () => void 
       switch (v.action) {
         case "build":
           break;
+        case "presetPlan":
+          validatePresetQuery(v.query);
+          if (
+            typeof v.expected !== "string" ||
+            v.expected !== JSON.stringify(previewPreset(roster, v.query, clockYear()))
+          )
+            throw Error("Preview changed. Review the selection again.");
+          result = createPresetPlan(roster, v.query, v.mode === "simulation" ? "simulation" : "memo").id;
+          break;
+        case "presetBatch":
+          if (typeof v.planId !== "string") throw Error("Generation plan required");
+          result = executePresetBatch(roster, v.planId).cursor;
+          break;
+        case "discardPresetPlan": {
+          const plan = roster.presetPlans?.find(p => p.id === v.planId);
+          if (!plan) throw Error("Unknown generation plan");
+          plan.discarded = true;
+          break;
+        }
+        case "endPatronage": {
+          const contract = roster.patronage?.find(c => c.id === v.contractId);
+          if (!contract) throw Error("Unknown patronage contract");
+          contract.endYear = clockYear();
+          break;
+        }
+        case "savePreset": {
+          validatePresetQuery(v.query);
+          if (typeof v.name !== "string" || !v.name.trim()) throw Error("Preset name required");
+          roster.savedPresets ??= [];
+          const saved = roster.savedPresets;
+          saved.push({
+            id: `preset:${saved.length + 1}`,
+            name: v.name.trim(),
+            query: structuredClone(v.query as PresetQuery)
+          });
+          break;
+        }
+        case "church":
+          result = establishChurch(roster, v.setup);
+          break;
+        case "patronage":
+          addPatronage(roster, v);
+          break;
+        case "shareAppointment": {
+          const source = roster.roles.find(r => r.id === v.sourceRoleId);
+          const target = roster.roles.find(r => r.id === v.targetRoleId);
+          if (
+            !source ||
+            !target ||
+            !Number.isInteger(v.sourceOrdinal) ||
+            !Number.isInteger(v.targetOrdinal) ||
+            (v.sourceOrdinal as number) < 0 ||
+            (v.sourceOrdinal as number) >= source.count ||
+            (v.targetOrdinal as number) < 0 ||
+            (v.targetOrdinal as number) >= target.count
+          )
+            throw Error("Invalid appointment seats");
+          if (
+            (!currentAppointment(roster, source.id, v.sourceOrdinal as number) &&
+              latestRoleSlot(roster, source.id, v.sourceOrdinal as number)) ||
+            currentAppointment(roster, target.id, v.targetOrdinal as number)
+          )
+            throw Error("Source must be in office and target must be unassigned.");
+          const person = ensureSlot(roster, source, v.sourceOrdinal as number);
+          if (person.deathYear !== undefined || person.cancelledBirth || person.birthYear > clockYear())
+            throw Error("Person cannot hold this appointment.");
+          roster.appointments.push({
+            roleId: target.id,
+            ordinal: v.targetOrdinal as number,
+            slotId: person.id,
+            startYear: clockYear()
+          });
+          invalidateRosterIndex(roster);
+          const character = getCharacters().find(c => c.i === person.characterId);
+          if (character) synchronizeTitle(roster, person, character);
+          break;
+        }
+        case "classifyOrganization": {
+          const org = roster.organizations.find(o => o.id === v.organizationId);
+          if (
+            !org ||
+            ![
+              "government",
+              "household",
+              "military",
+              "religious",
+              "company",
+              "guild",
+              "market",
+              "settlement",
+              "territory",
+              "institution"
+            ].includes(String(v.kind)) ||
+            (v.formation !== undefined && !["land", "sea", "corps"].includes(String(v.formation)))
+          )
+            throw Error("Invalid organization classification");
+          org.kind = v.kind as typeof org.kind;
+          org.formation = v.formation as typeof org.formation;
+          break;
+        }
+        case "classifyRole": {
+          const role = roster.roles.find(r => r.id === v.roleId);
+          if (!role || !Array.isArray(v.purposes) || !v.purposes.every(p => ROLE_PURPOSES.includes(p)))
+            throw Error("Invalid role purposes");
+          if (v.count !== undefined && (!Number.isInteger(v.count) || (v.count as number) < 0))
+            throw Error("Invalid staffing count");
+          if (v.occupation !== undefined && typeof v.occupation !== "string") throw Error("Invalid occupation");
+          if (v.majorLord !== undefined && typeof v.majorLord !== "boolean") throw Error("Invalid lord classification");
+          if (
+            v.count !== undefined &&
+            roster.appointments.some(
+              a => a.roleId === role.id && a.endYear === undefined && (a.ordinal ?? 0) >= (v.count as number)
+            )
+          )
+            throw Error("Staffing count cannot remove current occupants. End their appointments first.");
+          if (v.count !== undefined) role.count = v.count as number;
+          if (v.occupation !== undefined) role.occupation = v.occupation as string;
+          if (v.majorLord !== undefined) role.majorLord = v.majorLord as boolean;
+          role.purposes = v.purposes;
+          role.unresolved = false;
+          break;
+        }
         case "slots":
           result = selectedSlots(roster, selectionFrom(v.selection)).map(s => s.id);
           break;
@@ -166,7 +302,13 @@ export function registerRosterCommands(api: SimulationExtensionAPI): () => void 
           const parent = roster.organizations.find(o => o.id === v.parentId);
           if (v.parentId && !parent) throw new Error("Unknown parent organization");
           const id = `custom:${roster.organizations.length + 1}`;
-          putOrganization(roster, { id, name: v.name.trim(), stateId: parent?.stateId ?? 0, parentId: parent?.id });
+          putOrganization(roster, {
+            id,
+            name: v.name.trim(),
+            stateId: parent?.stateId ?? 0,
+            parentId: parent?.id,
+            kind: "institution"
+          });
           result = id;
           break;
         }

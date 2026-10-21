@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { defaultPresetQuery, type PresetQuery } from "../roster/presetTypes";
 import type { CharacterOverviewRoleFilter } from "../utils/characterLabels";
 
 export type SortOrder = "asc" | "desc";
@@ -21,6 +22,10 @@ export interface RosterNavigation {
 }
 
 interface CharactersUiState {
+  presetQuery: PresetQuery;
+  setPresetQuery: (query: PresetQuery) => void;
+  presetOpen: boolean;
+  setPresetOpen: (open: boolean) => void;
   rosterNavigation: RosterNavigation;
   setRosterNavigation: (navigation: Partial<RosterNavigation>) => void;
   clearRosterFocus: () => void;
@@ -70,6 +75,10 @@ interface CharactersUiState {
 }
 
 export const useCharactersUiState = create<CharactersUiState>((set, get) => ({
+  presetQuery: defaultPresetQuery(),
+  setPresetQuery: presetQuery => set({ presetQuery }),
+  presetOpen: false,
+  setPresetOpen: presetOpen => set({ presetOpen }),
   rosterNavigation: { includeChildren: false },
   setRosterNavigation: navigation => set(state => ({ rosterNavigation: { ...state.rosterNavigation, ...navigation } })),
   clearRosterFocus: () => set({ rosterFocus: undefined }),

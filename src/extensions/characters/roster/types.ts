@@ -1,10 +1,28 @@
 import type { CharacterRole, CharacterRoleClass, CharacterSkills, Gender, TitleHolding } from "../characterTypes";
+import type { PatronageContract, PresetPlan, RolePurpose, SavedRosterPreset } from "./presetTypes";
 
 export type RosterMode = "memo" | "simulation";
 export interface RosterOrganization {
   id: string;
   name: string;
   stateId: number;
+  kind?:
+    | "government"
+    | "household"
+    | "military"
+    | "religious"
+    | "company"
+    | "guild"
+    | "market"
+    | "settlement"
+    | "territory"
+    | "institution";
+  activityStateIds?: number[];
+  religionId?: number;
+  adherentShare?: number;
+  religiousKind?: "church" | "diocese" | "urban" | "monastery" | "order";
+  formation?: "land" | "sea" | "corps";
+  polity?: string;
   parentId?: string;
   burgId?: number;
   notes: string;
@@ -20,6 +38,10 @@ export interface RosterRole {
   count: number;
   reason: string;
   roleClass: CharacterRoleClass;
+  purposes?: RolePurpose[];
+  majorLord?: boolean;
+  occupation?: string;
+  unresolved?: boolean;
   primarySkill: keyof CharacterSkills;
   entityType: TitleHolding["entityType"];
   entityId: number;
@@ -98,6 +120,9 @@ export interface WorldRoster {
   acknowledged: string[];
   remainingDays: number;
   lastYear: number;
+  presetPlans?: PresetPlan[];
+  savedPresets?: SavedRosterPreset[];
+  patronage?: PatronageContract[];
 }
 export interface RosterSelection {
   organizationId?: string;

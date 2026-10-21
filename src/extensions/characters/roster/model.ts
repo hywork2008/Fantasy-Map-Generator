@@ -1,4 +1,5 @@
 import Alea from "alea";
+import { validatePresetData } from "./presetValidation";
 import type {
   PersonSlot,
   RosterAppointment,
@@ -334,6 +335,7 @@ export function validateWorldRoster(value: unknown): asserts value is WorldRoste
     const ids = link.kind === "spouse" ? slots : orgs;
     if (!ids.has(link.fromId) || !ids.has(link.toId) || link.fromId === link.toId) fail();
   }
+  validatePresetData(r);
   if (!r.acknowledged.every(k => typeof k === "string")) fail();
   if (
     r.pending &&

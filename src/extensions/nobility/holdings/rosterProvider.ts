@@ -1,3 +1,4 @@
+import type { RolePurpose } from "../../characters/roster/presetTypes";
 import { putOrganization, putRole } from "../../characters/roster/runtime";
 import type { RosterRole, WorldRoster } from "../../characters/roster/types";
 import { analyzeFrontiers, getProvinceThreats } from "../../hostCore";
@@ -30,7 +31,9 @@ export function buildNobilityRoster(roster: WorldRoster): void {
       entityId = state.i,
       landed = false,
       femaleName = name,
-      hereditary = false
+      hereditary = false,
+      purposes: RolePurpose[] = [id.endsWith(":ruler") ? "headOfState" : "centralExecutive"],
+      majorLord = false
     ) =>
       putRole(roster, {
         id,
@@ -44,21 +47,24 @@ export function buildNobilityRoster(roster: WorldRoster): void {
         landed,
         hereditary,
         reason: "Government, population and territorial institutions",
+        purposes,
+        majorLord,
         roleClass: id.endsWith(":ruler") ? "ruler" : landed ? "province_lord" : "central_officer"
       });
-    role(
-      `${court}:ruler`,
-      resolveRulerTitle(state, "male"),
-      1,
-      "diplomacy",
-      court,
-      "state",
-      state.i,
-      true,
-      resolveRulerTitle(state, "female"),
-      state.form === "Monarchy"
-    );
-    for (const office of CENTRAL_OFFICES)
+    if (state.form !== "Anarchy")
+      role(
+        `${court}:ruler`,
+        resolveRulerTitle(state, "male"),
+        1,
+        "diplomacy",
+        court,
+        "state",
+        state.i,
+        true,
+        resolveRulerTitle(state, "female"),
+        state.form === "Monarchy"
+      );
+    for (const office of state.form === "Anarchy" ? [] : CENTRAL_OFFICES)
       role(`${court}:${office.title}`, office.title, 1, office.primarySkill ?? "stewardship");
     const regime = regimeForState(state);
     if (regime) {
@@ -89,6 +95,7 @@ export function buildNobilityRoster(roster: WorldRoster): void {
         putOrganization(roster, {
           id,
           name: holding.seatName || `Holding ${holding.id}`,
+          kind: "territory",
           stateId: state.i,
           parentId: `state:${state.i}`,
           burgId: holding.seatBurgId
@@ -103,7 +110,28 @@ export function buildNobilityRoster(roster: WorldRoster): void {
           holding.id,
           holding.cellIds.length > 0 || !!holding.shares?.length,
           names.female,
-          holding.hereditary
+          holding.hereditary,
+          holding.office === "bishopTemporal"
+            ? ["bishop"]
+            : holding.office === "abbotTemporal"
+              ? ["abbot"]
+              : holding.office === "orderMaster"
+                ? ["orderMaster"]
+                : [
+                      "sheriff",
+                      "bailli",
+                      "seneschal",
+                      "sysselman",
+                      "ispan",
+                      "podesta",
+                      "consuls",
+                      "mayor",
+                      "castellan",
+                      "burgrave"
+                    ].includes(holding.office)
+                  ? ["territorialAdministrator"]
+                  : ["secularLord"],
+          !!holding.dignity && !["banneret", "knight"].includes(holding.dignity)
         );
         if (holding.holderCharacterId !== undefined) {
           const old = roster.slots.find(s => s.characterId === holding.holderCharacterId);
@@ -122,6 +150,7 @@ export function buildNobilityRoster(roster: WorldRoster): void {
         putOrganization(roster, {
           id,
           name: province.name,
+          kind: "territory",
           stateId: state.i,
           parentId: `state:${state.i}`,
           burgId: province.burg
@@ -153,7 +182,8 @@ export function buildNobilityRoster(roster: WorldRoster): void {
           province.i,
           !appointed,
           appointed ? name : resolveProvinceLordTitle(province, "female"),
-          !appointed
+          !appointed,
+          ["territorialAdministrator"]
         );
       }
     }
@@ -161,6 +191,7 @@ export function buildNobilityRoster(roster: WorldRoster): void {
     putOrganization(roster, {
       id: army,
       name: `${state.name} Military`,
+      kind: "military",
       stateId: state.i,
       parentId: `state:${state.i}`
     });
@@ -173,23 +204,39 @@ export function buildNobilityRoster(roster: WorldRoster): void {
       putOrganization(roster, {
         id,
         name: regiment.name || `Regiment ${regiment.i}`,
+        kind: "military",
+        formation: regiment.n ? "sea" : "land",
         stateId: state.i,
         parentId: army,
         burgId: pack.cells.burg[regiment.cell]
       });
-      if (strength >= 80) {
-        const command = role(`${id}:commander`, regiment.n ? "Admiral" : "Commander", 1, "martial", id);
+      if (strength > 0) {
+        const command = role(
+          `${id}:commander`,
+          regiment.n ? "Admiral" : strength < 80 ? "Captain" : "Commander",
+          1,
+          "martial",
+          id
+        );
+        command.count = 1;
         command.regimentId = regiment.i;
         command.roleClass = "commander";
+        command.purposes = ["unitCommander"];
+      }
+      if (strength === 0) {
+        const commander = roster.roles.find(r => r.id === `${id}:commander`);
+        if (commander) commander.count = 0;
       }
       const soldiers = role(
         `${id}:soldiers`,
         regiment.n ? "Sailor" : "Soldier",
-        Math.max(0, strength - (strength >= 80 ? 1 : 0)),
+        Math.max(0, strength - (strength > 0 ? 1 : 0)),
         "prowess",
         id
       );
+      soldiers.count = Math.max(0, strength - (strength > 0 ? 1 : 0));
       soldiers.roleClass = "ordinary";
+      soldiers.purposes = ["militaryMember"];
       soldiers.characterRole = {
         source: "characters",
         kind: "militaryMember",
@@ -203,6 +250,7 @@ export function buildNobilityRoster(roster: WorldRoster): void {
     putOrganization(roster, {
       id: household,
       name: `${state.name} Household`,
+      kind: "household",
       stateId: state.i,
       parentId: court,
       burgId: state.capital
@@ -212,7 +260,13 @@ export function buildNobilityRoster(roster: WorldRoster): void {
       "Household Knight",
       Math.max(3, Math.round(((state.rural ?? 0) + (state.urban ?? 0)) / 150)),
       "martial",
-      household
+      household,
+      "state",
+      state.i,
+      false,
+      "Household Knight",
+      false,
+      ["member"]
     );
   }
 }

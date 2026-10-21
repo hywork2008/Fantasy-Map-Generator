@@ -62,12 +62,21 @@ export function putOrganization(
   } else {
     // Names and hierarchy become user settings after their first definition.
     org.archived = input.archived;
+    org.kind ??= input.kind;
+    org.formation ??= input.formation;
+    org.polity = input.polity ?? org.polity;
   }
   return org;
 }
 export function putRole(roster: WorldRoster, role: RosterRole) {
   const existing = roster.roles.find(r => r.id === role.id);
   if (!existing) roster.roles.push(role);
+  else {
+    existing.purposes ??= role.purposes;
+    existing.majorLord ??= role.majorLord;
+    existing.occupation ??= role.occupation;
+    existing.unresolved ??= role.unresolved;
+  }
   return existing ?? role;
 }
 export function ensureSlot(roster: WorldRoster, role: RosterRole, ordinal: number, year = clockYear()): PersonSlot {
@@ -103,7 +112,8 @@ export function ensureSlot(roster: WorldRoster, role: RosterRole, ordinal: numbe
   const world = getWorldContext();
   const organization = roster.organizations.find(o => o.id === role.organizationId)!;
   const state = world.pack.states[organization.stateId];
-  const cultureId = state?.culture ?? world.pack.burgs[organization.burgId ?? 0]?.culture ?? 0;
+  const cultureId =
+    (organization.stateId ? state?.culture : undefined) ?? world.pack.burgs[organization.burgId ?? 0]?.culture ?? 0;
   const raceId = world.pack.cultures[cultureId]?.race;
   const random = rosterRandom(roster, id);
   const profile = resolveRaceAgeProfile(raceId);
@@ -211,13 +221,18 @@ export function materializeSlots(selection: RosterSelection): number[] {
   return ids;
 }
 export function synchronizeTitle(roster: WorldRoster, slot: PersonSlot, character: Character): void {
-  const role = roster.roles.find(r => r.id === slot.roleId);
-  if (!role) return;
+  const roleIds = new Set(
+    roster.appointments.filter(a => a.slotId === slot.id && a.endYear === undefined).map(a => a.roleId)
+  );
+  if (slot.roleId) roleIds.add(slot.roleId);
+  for (const role of roster.roles.filter(r => roleIds.has(r.id))) synchronizeRoleTitle(roster, slot, character, role);
+}
+function synchronizeRoleTitle(roster: WorldRoster, slot: PersonSlot, character: Character, role: RosterRole): void {
   const org = roster.organizations.find(o => o.id === role.organizationId)!;
   const live =
     !character.dead &&
     slot.mode === "simulation" &&
-    roster.appointments.some(a => a.slotId === slot.id && a.endYear === undefined);
+    roster.appointments.some(a => a.slotId === slot.id && a.roleId === role.id && a.endYear === undefined);
   if (role.id === `state:${org.stateId}:court:ruler`) {
     const extensions = getApi().simulationContext.extensions;
     extensions.nobility ??= {};

@@ -7,6 +7,7 @@ import { clockYear, readRoster } from "../../roster/runtime";
 import type { PersonSlot, RosterSelection } from "../../roster/types";
 import { useCharactersUiState } from "../charactersUiState";
 import { groupOrganizations, organizationPath } from "../organizationRosterNavigation";
+import { RosterPresetPanel } from "./RosterPresetPanel";
 
 /** Organization and genealogy views share stable slots; rendering never generates a person. */
 export function OrganizationRosterPanel() {
@@ -194,6 +195,32 @@ export function OrganizationRosterPanel() {
         </button>
       </nav>
       <p>{tr("summary", summary)}</p>
+      <RosterPresetPanel roster={roster} organizationId={organizationId} command={command} />
+      {!slot &&
+        organization?.polity &&
+        roster.organizations.some(
+          o => o.religiousKind === "church" && o.activityStateIds?.includes(organization.stateId)
+        ) && (
+          <section aria-label={tr("crossBorderOrganizations")}>
+            <h4>{tr("crossBorderOrganizations")}</h4>
+            <ul>
+              {roster.organizations
+                .filter(
+                  o => !o.archived && o.religiousKind === "church" && o.activityStateIds?.includes(organization.stateId)
+                )
+                .map(o => (
+                  <li key={o.id}>
+                    <button
+                      type="button"
+                      onClick={() => setNavigation({ organizationId: o.id, slotId: undefined, roleId: undefined })}
+                    >
+                      {o.name}
+                    </button>
+                  </li>
+                ))}
+            </ul>
+          </section>
+        )}
       {!slot && (
         <>
           {groupOrganizations(roster.organizations, organizationId, i18n.resolvedLanguage ?? i18n.language).map(

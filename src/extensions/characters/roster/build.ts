@@ -16,10 +16,11 @@ export function buildWorldRoster(): WorldRoster {
   for (const state of pack.states) {
     if (!state.i || state.removed) continue;
     const root = `state:${state.i}`;
-    putOrganization(roster, { id: root, name: state.name, stateId: state.i });
+    putOrganization(roster, { id: root, name: state.name, stateId: state.i, kind: "government", polity: state.form });
     putOrganization(roster, {
       id: `${root}:court`,
       name: `${state.name} Court`,
+      kind: "government",
       stateId: state.i,
       parentId: root,
       burgId: state.capital
@@ -32,6 +33,7 @@ export function buildWorldRoster(): WorldRoster {
     putOrganization(roster, {
       id,
       name: burg.name || `Burg ${burg.i}`,
+      kind: "settlement",
       stateId,
       parentId: states.has(stateId) ? `state:${stateId}` : undefined,
       burgId: burg.i
@@ -44,6 +46,16 @@ export function buildWorldRoster(): WorldRoster {
         name,
         count,
         reason: "Settlement administration",
+        purposes: [
+          key === "mayor"
+            ? "urbanExecutive"
+            : key === "castellan"
+              ? "castellan"
+              : key === "council"
+                ? "urbanCouncil"
+                : "urbanClergyLead"
+        ],
+        unresolved: key === "clergy",
         roleClass: "central_officer",
         primarySkill: skill,
         entityType: "burg",
@@ -68,6 +80,7 @@ export function buildWorldRoster(): WorldRoster {
     putOrganization(roster, {
       id,
       name: `${burg.name} Market`,
+      kind: "market",
       stateId: burg.state ?? 0,
       parentId: `burg:${burg.i}`,
       burgId: burg.i
@@ -79,6 +92,7 @@ export function buildWorldRoster(): WorldRoster {
         name,
         count: name === "Merchant" ? 2 : 1,
         reason: "Market administration and trade",
+        purposes: [name === "Market Manager" ? "marketHead" : "marketMerchant"],
         roleClass: "merchant",
         primarySkill: "stewardship",
         entityType: "burg",
@@ -99,6 +113,7 @@ export function buildWorldRoster(): WorldRoster {
     putOrganization(roster, {
       id,
       name: company.name,
+      kind: "company",
       stateId: company.homeStateId,
       parentId: `burg:${company.homeBurgId}`,
       burgId: company.homeBurgId
@@ -110,6 +125,7 @@ export function buildWorldRoster(): WorldRoster {
         name,
         count: 1,
         reason: "Merchant organization staffing",
+        purposes: [name === "Company Head" ? "companyHead" : "companyOfficer"],
         roleClass: "merchant",
         primarySkill: name === "Bodyguard" ? "prowess" : "stewardship",
         entityType: "burg",
@@ -142,6 +158,7 @@ export function buildWorldRoster(): WorldRoster {
       putOrganization(roster, {
         id,
         name: `${burg.name} ${entry.domain} Guild`,
+        kind: "guild",
         stateId: burg.state ?? 0,
         parentId: `burg:${burg.i}`,
         burgId: burg.i
@@ -156,6 +173,8 @@ export function buildWorldRoster(): WorldRoster {
           name,
           count,
           reason: "Active craft guild",
+          purposes: [name === "Guild Master" ? "guildHead" : "member"],
+          occupation: entry.domain,
           roleClass: "ordinary",
           primarySkill: "engineering",
           entityType: "burg",
