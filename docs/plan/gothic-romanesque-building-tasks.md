@@ -34,7 +34,7 @@ BVには**ウィンザー城の聖ジョージ礼拝堂**（English Perpendicula
   - 再現の重点: 高い透かし彫りの双尖塔、五廊式の本体、交差廊、後陣のフライング・バットレス。
   - 注意: 現存する完成形には19世紀の施工部分が大きく含まれる。中世都市向けには建設途上の状態を別途検討する。
   - 参考: [UNESCO](https://whc.unesco.org/en/list/292/)。
-- [ ] **G06. サント・シャペル（Sainte-Chapelle）** — フランス／パリ。13世紀、1248年献堂。レイヨナン・ゴシック。
+- [x] **G06. サント・シャペル（Sainte-Chapelle）** — フランス／パリ。13世紀、1248年献堂。レイヨナン・ゴシック。
   - 再現の重点: 上下二層の礼拝堂、上堂の大きなステンドグラス窓、細い控壁、急勾配屋根。
   - 注意: 西のバラ窓には15世紀のフランボワイヤン様式が見られる。尖塔も含めて再現年代を確認する。
   - 参考: [建物公式・歴史](https://www.sainte-chapelle.fr/en/discover/history-of-the-sainte-chapelle)、[バラ窓](https://www.sainte-chapelle.fr/en/discover/the-rose-of-the-apocalypse)。
@@ -105,6 +105,7 @@ BVには**ウィンザー城の聖ジョージ礼拝堂**（English Perpendicula
 - G03: `src/buildings/landmarks/amiens.ts`。高い身廊・七つの礼拝堂・高さの異なる西塔を備える現存外観の簡略モデル。BV登録、3D・上面図・南側立面図、接地・外形・特徴部位・資源解放を確認。
 - G04: `src/buildings/landmarks/reims.ts`。三つの三角切妻付き玄関・双塔・王像列を備える現存外観の簡略モデル。BV登録、3D・上面図・南側立面図、接地・外形・特徴部位・資源解放を確認。
 - G05: `src/buildings/landmarks/cologne.ts`。19世紀の完成形を対象とし、透かし双尖塔と五廊式本体を備える簡略モデル。BV登録、3D・上面図・南側立面図、接地・外形・特徴部位・資源解放を確認。
+- G06: `src/buildings/landmarks/sainteChapelle.ts`。上下二層・15面の高窓・西の玄関廊を備える現存外観の簡略モデル。BV登録、3D・上面図・南側立面図、接地・外形・特徴部位・資源解放を確認。
 
 ## 着手順の提案
 
