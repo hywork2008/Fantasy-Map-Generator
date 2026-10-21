@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { Good } from "./goods-generator";
 import type { Deal, TradeRouteSegment } from "./marketTypes";
-import { buildCargoManifests, getManifestCapacitySlots, getTransportAllocations } from "./tradeCargo";
+import {
+  buildCargoManifests,
+  getDefaultGoodCargoProfile,
+  getManifestCapacitySlots,
+  getRouteCargoSlotsPerUnit,
+  getTransportAllocations
+} from "./tradeCargo";
 
 const LAND_ROUTE: TradeRouteSegment[] = [
   {
@@ -158,5 +164,46 @@ describe("trade cargo manifests", () => {
         { mode: "water", capacitySlots: 100 }
       ])
     ).toBe(100);
+  });
+});
+
+describe("measured cargo", () => {
+  const catalogueGood = (name: string, unit: string, tags: string[] = []): Good => ({
+    i: 1,
+    name,
+    value: 1,
+    tags,
+    unit,
+    icon: "good",
+    color: "#000",
+    trade: { weight: 3, bulk: 3, rarity: 2, distancePremium: 0, timeValueTrend: 0, durability: 3, lossRisk: 2 }
+  });
+
+  it("takes a wain of any staple by its weight, and the light ones by their bulk", () => {
+    const slots = (name: string) => getDefaultGoodCargoProfile(catalogueGood(name, "wain"))?.cargoSlotsPerUnit ?? 0;
+    // 465 kg a wain: 3.1 slots of 150 kg, whether the crop was given 3 or 4 slots before.
+    expect(slots("Wheat")).toBeCloseTo(3.13, 2);
+    expect(slots("Grain")).toBeCloseTo(slots("Wheat"), 6);
+    // Oats take more room than their weight.
+    expect(slots("Oats")).toBeGreaterThan(4.5);
+  });
+
+  it("takes 10 m³ of wood by the room the stacked pile fills", () => {
+    expect(getDefaultGoodCargoProfile(catalogueGood("Wood", "pile"))?.cargoSlotsPerUnit).toBe(60);
+    // A renamed unit is not the measured good.
+    expect(getDefaultGoodCargoProfile(catalogueGood("Wood", "beam"))?.cargoSlotsPerUnit).toBe(3);
+  });
+
+  it("lets livestock walk overland but gives it deck room on water", () => {
+    const sheep = {
+      ...catalogueGood("Sheep", "head", ["liveAnimal"]),
+      cargo: { cargoSlotsPerUnit: 5, handlingClass: "live" as const }
+    };
+    const sea: TradeRouteSegment[] = [...LAND_ROUTE, { ...LAND_ROUTE[0], type: "sea" }];
+    expect(getRouteCargoSlotsPerUnit(sheep, LAND_ROUTE)).toBe(0);
+    expect(getRouteCargoSlotsPerUnit(sheep, sea)).toBe(5);
+    const [manifest] = buildCargoManifests([deal(1, 1, 300, 1)], [sheep], LAND_ROUTE, "horse");
+    expect(manifest.items[0].units).toBe(300);
+    expect(manifest.usedSlots).toBe(0);
   });
 });

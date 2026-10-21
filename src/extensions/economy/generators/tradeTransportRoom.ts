@@ -28,7 +28,7 @@ import type { Caravan, TradeRouteSegment } from "./marketTypes";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
 import { daysToSeaDeparture, isInlandStage, seaDepartureMarketId, seaDeparturePortBurgId } from "./seaRoutePorts";
 import { isSeaBookable } from "./seaSeason";
-import { getGoodCargoSlotsPerUnit } from "./tradeCargo";
+import { getRouteCargoSlotsPerUnit } from "./tradeCargo";
 
 /** Days a month a vehicle can be out carrying. */
 const MONTH_DAYS = 30;
@@ -160,7 +160,7 @@ export function buildTransportRoom(
     if (!good || !(lot.units > 0)) continue;
     const segments = lotRoute(lot.marketId, lot.destinationMarketId);
     const days = Math.max(1, lot.durationDays ?? 1);
-    hold(room, lot.marketId, segments, lot.units * getGoodCargoSlotsPerUnit(good), days);
+    hold(room, lot.marketId, segments, lot.units * getRouteCargoSlotsPerUnit(good, segments ?? []), days);
   }
 
   for (const caravan of getCaravans()) {

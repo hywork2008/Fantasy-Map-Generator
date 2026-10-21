@@ -1,5 +1,6 @@
 import { MERCHANT_SHIP_CLASS_DEFINITIONS } from "../../hostTypes";
 import { getDraftAnimalType } from "./caravanMovement";
+import { measuredCargoSlotsPerUnit } from "./goodCargoMeasure";
 import type { Good } from "./goodsGeneratorTypes";
 import type { Deal, TradeRouteSegment, TransportAllocation } from "./marketTypes";
 
@@ -30,7 +31,8 @@ export type LandTransportDefinition = {
 export const LAND_TRANSPORTS: readonly LandTransportDefinition[] = [
   { id: "pack-train", name: "Pack train", cargoCapacitySlots: 36, requiredDraftAnimals: 2, convoyDraftAnimals: 50 },
   { id: "cart", name: "Cart", cargoCapacitySlots: 80, requiredDraftAnimals: 1, convoyDraftAnimals: 20 },
-  { id: "wagon", name: "Wagon", cargoCapacitySlots: 240, requiredDraftAnimals: 2, convoyDraftAnimals: 60 }
+  // Two draft-animal units of 80 tow slots each: the 240 slots once listed here were never reachable.
+  { id: "wagon", name: "Wagon", cargoCapacitySlots: 160, requiredDraftAnimals: 2, convoyDraftAnimals: 60 }
 ];
 
 export const RIVER_BARGE_TRANSPORT = {
@@ -58,13 +60,34 @@ export function getGoodCargoSlotsPerUnit(
   if (good.cargo && Number.isFinite(good.cargo.cargoSlotsPerUnit) && good.cargo.cargoSlotsPerUnit > 0) {
     return good.cargo.cargoSlotsPerUnit;
   }
-  return Math.max(0.25, good.trade?.bulk ?? 3);
+  return measuredCargoSlotsPerUnit(good) ?? Math.max(0.25, good.trade?.bulk ?? 3);
+}
+
+/** Live animals walk overland in a drove beside the carts; on water they take deck room. */
+export function walksOverland(good: Pick<Good, "tags">): boolean {
+  return good.tags.includes("liveAnimal");
+}
+
+function routeHasCraft(routeSegments: readonly Pick<TradeRouteSegment, "type">[]): boolean {
+  return routeSegments.some(segment => segment.type !== "land");
+}
+
+/**
+ * Vehicle slots one unit takes on this route: none for a drove that never leaves the road
+ * (docs/plan/goods-physical-units.md §5.4.5, §12.4).
+ */
+export function getRouteCargoSlotsPerUnit(
+  good: Pick<Good, "cargo" | "trade" | "name" | "tags" | "unit" | "value">,
+  routeSegments: readonly Pick<TradeRouteSegment, "type">[]
+): number {
+  if (walksOverland(good) && !routeHasCraft(routeSegments)) return 0;
+  return getGoodCargoSlotsPerUnit(good);
 }
 
 export function getDefaultGoodCargoProfile(
   good: Pick<Good, "trade" | "name" | "tags" | "unit" | "value">
 ): Good["cargo"] {
-  const slots = getGoodCargoSlotsPerUnit(good);
+  const slots = measuredCargoSlotsPerUnit(good) ?? getGoodCargoSlotsPerUnit(good);
   const handlingClass =
     good.unit === "head" || good.unit === "slave"
       ? "live"
@@ -178,7 +201,7 @@ export function buildCargoManifests(
 
   while (pending.some(entry => entry.remainingUnits > UNIT_EPSILON)) {
     const pendingSlots = pending.reduce(
-      (sum, entry) => sum + entry.remainingUnits * getGoodCargoSlotsPerUnit(entry.good),
+      (sum, entry) => sum + entry.remainingUnits * getRouteCargoSlotsPerUnit(entry.good, routeSegments),
       0
     );
     const requestedSlots = maxCapacitySlots !== undefined ? Math.min(pendingSlots, maxCapacitySlots) : pendingSlots;
@@ -192,7 +215,7 @@ export function buildCargoManifests(
     const active = () => pending.filter(entry => entry.remainingUnits > UNIT_EPSILON);
 
     const add = (entry: (typeof pending)[number], requestedUnits: number): number => {
-      const slotsPerUnit = getGoodCargoSlotsPerUnit(entry.good);
+      const slotsPerUnit = getRouteCargoSlotsPerUnit(entry.good, routeSegments);
       const freeSlots = capacitySlots - manifest.usedSlots;
       const units = Math.min(entry.remainingUnits, requestedUnits, freeSlots / slotsPerUnit);
       if (units <= UNIT_EPSILON) return 0;

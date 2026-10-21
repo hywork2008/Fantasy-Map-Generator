@@ -72,6 +72,7 @@ import {
   buildCargoManifests,
   getGoodCargoSlotsPerUnit,
   getManifestCapacitySlots,
+  getRouteCargoSlotsPerUnit,
   getTransportAllocations
 } from "./tradeCargo";
 import { recordCaravanCorridor } from "./tradeCorridorLedger";
@@ -688,6 +689,7 @@ function tryDepartLoadingCaravan(caravan: Caravan): "departed" | "waiting" | "ca
   // (historical ballast / bulk grain riding with higher-value general cargo). The exporter's food
   // is at home, not in the port warehouse.
   const atOrigin = !atPort || caravan.portTransfer?.atKm === 0;
+  if (!routeHasWater(segments) && payloadUsedSlots(caravan) <= UNIT_EPSILON) return departDrove(caravan, segments);
   if (atOrigin) tryCoLoadFoodOntoCaravan(caravan, { distanceScale: getWorldContext().distanceScale });
 
   const usedSlots = payloadUsedSlots(caravan);
@@ -772,6 +774,23 @@ function tryDepartLoadingCaravan(caravan: Caravan): "departed" | "waiting" | "ca
   if (routeNeedsSeaHulls(segments)) recordSeaDeparture(caravan, caravan.transportDispatcherMarketId);
   caravan.loading = undefined;
   if (reservation) MerchantTransportAssets.depart(reservation.reservation.id);
+  return "departed";
+}
+
+/**
+ * Livestock that never leaves the road walks in a drove and needs no cart, so it sets off as soon
+ * as it is gathered (docs/plan/goods-physical-units.md §5.4.5, §12.4).
+ */
+function departDrove(caravan: Caravan, segments: readonly TradeRouteSegment[]): "departed" {
+  caravan.transportAllocations = [];
+  caravan.merchantOrganizationId ??= resolveMerchantOrganizationId(
+    MerchantTransportAssets.getDispatcherMarketId(caravan)
+  );
+  caravan.state = "transit";
+  caravan.departReason = "depart-local";
+  recordRouteTraffic(segments);
+  recordCaravanCorridor(caravan);
+  caravan.loading = undefined;
   return "departed";
 }
 
@@ -1194,7 +1213,8 @@ export class CaravansModule {
     );
     if (!good || !isGoodTradePermitted(good, durationDays, routeSegments, routeMaxTemperatureC, refrigeratedTransport))
       return null;
-    const cargoSlots = good ? deal.units * getGoodCargoSlotsPerUnit(good) : 0;
+    const slotsPerUnit = good ? getRouteCargoSlotsPerUnit(good, routeSegments) : 0;
+    const cargoSlots = deal.units * slotsPerUnit;
     const dispatcherMarketId = MerchantTransportAssets.getDispatcherMarketId(deal);
     if (dispatcherMarketId === null) return null;
     const maxCapacitySlots = MerchantTransportAssets.getLargestAvailableRouteCapacity(
@@ -1203,7 +1223,11 @@ export class CaravansModule {
       DEFAULT_DRAFT_ANIMAL_ID
     );
     if (cargoSlots > maxCapacitySlots) return null;
-    const transportAllocations = getTransportAllocations(routeSegments, cargoSlots, DEFAULT_DRAFT_ANIMAL_ID, true);
+    // A drove walks: no cart to book.
+    const transportAllocations =
+      cargoSlots > UNIT_EPSILON || routeHasWater(routeSegments)
+        ? getTransportAllocations(routeSegments, cargoSlots, DEFAULT_DRAFT_ANIMAL_ID, true)
+        : [];
     for (const allocation of transportAllocations) allocation.usedSlots = cargoSlots;
 
     const caravanId = this.ensureNextCaravanId();
@@ -1223,7 +1247,7 @@ export class CaravansModule {
           dealId: deal.i,
           units: deal.units,
           value: deal.price * deal.units,
-          cargoSlotsPerUnit: good ? getGoodCargoSlotsPerUnit(good) : undefined,
+          cargoSlotsPerUnit: good ? slotsPerUnit : undefined,
           strategicProcurementOrderId: deal.strategicProcurementOrderId
         }
       ],

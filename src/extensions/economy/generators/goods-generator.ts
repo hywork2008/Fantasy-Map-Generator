@@ -18,6 +18,7 @@ import {
   MILK_LOTS_PER_CHEESE_LOT,
   POMACE_SHARE_OF_PRESSED_GRAPE_MASS
 } from "./foodLots";
+import { measuredCargoSlotsPerUnit } from "./goodCargoMeasure";
 import {
   DEMAND_PRIORITY,
   type DemandCategory,
@@ -4636,6 +4637,22 @@ export function migrateFoodProcessingLotContracts(): boolean {
       if (!hasBeverageTag) beer.tags.push("beverage");
       changed = true;
     }
+  }
+  return changed;
+}
+
+/**
+ * Gives saved catalogues the cargo slots measured from weight and bulk for the goods whose unit is
+ * fixed (goodCargoMeasure.ts): staple crops by the wain, Wood by 10 m³. Cargo already under way
+ * keeps the slots it was loaded with.
+ */
+export function migrateMeasuredCargoSlots(): boolean {
+  let changed = false;
+  for (const good of getGoods()) {
+    const slots = measuredCargoSlotsPerUnit(good);
+    if (slots === undefined || good.cargo?.cargoSlotsPerUnit === slots) continue;
+    good.cargo = { handlingClass: "loose", ...good.cargo, cargoSlotsPerUnit: slots };
+    changed = true;
   }
   return changed;
 }

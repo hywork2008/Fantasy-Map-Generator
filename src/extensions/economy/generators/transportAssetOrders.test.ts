@@ -15,8 +15,8 @@ import { TransportAssetOrders } from "./transportAssetOrders";
 
 /** A wright's month at the craft wage, with no grain market (`getSubsistenceWage`): 1.5 × 0.43 / 12. */
 const WAGE_PER_WORK_POINT = (1.5 * 0.43) / 12;
-/** 7 wood × 2 + 0.2 harness × 5 + 0.8 head of horses × 3 + twelve months of a wright's wage. */
-const CART_COST = 7 * 2 + 0.2 * 5 + 0.8 * 3 + 12 * WAGE_PER_WORK_POINT;
+/** 1.5 wood × 2 + 0.2 harness × 5 + 0.8 head of horses × 3 + twelve months of a wright's wage. */
+const CART_COST = 1.5 * 2 + 0.2 * 5 + 0.8 * 3 + 12 * WAGE_PER_WORK_POINT;
 
 describe("transport asset orders", () => {
   beforeEach(() => {
@@ -74,7 +74,7 @@ describe("transport asset orders", () => {
     expect(order).toMatchObject({ status: "completed", completedQuantity: 1, reservedWages: undefined });
     expect(order?.fundedAmount).toBeCloseTo(CART_COST, 1);
     expect(used.total).toBe(12);
-    expect(worldContext.pack.markets[0].goods[1].stock).toBe(13);
+    expect(worldContext.pack.markets[0].goods[1].stock).toBe(18.5);
     expect(worldContext.pack.markets[0].goods[3].stock).toBe(19.8);
     expect(worldContext.pack.markets[0].goods[6].stock).toBe(19.2);
     expect(worldContext.pack.markets[0].marketTreasury?.balance).toBeCloseTo(100 - CART_COST, 1);
@@ -89,7 +89,7 @@ describe("transport asset orders", () => {
 
     TransportAssetOrders.beginProductionCycle();
     TransportAssetOrders.consumePlannedWork(1, 100);
-    expect(worldContext.pack.markets[0].goods[1].stock).toBe(4);
+    expect(worldContext.pack.markets[0].goods[1].stock).toBe(16);
     expect(TransportAssetOrders.cancel(order?.id ?? -1)).toBe(true);
     expect(TransportAssetOrders.cancel(order?.id ?? -1)).toBe(false);
     expect(worldContext.pack.markets[0].goods[1].stock).toBe(20);
@@ -114,7 +114,7 @@ describe("transport asset orders", () => {
       blueprintId: "cart",
       quantity: 1,
       requestedBy: "player",
-      budgetLimit: 10
+      budgetLimit: 5
     });
 
     TransportAssetOrders.beginProductionCycle();
@@ -126,7 +126,7 @@ describe("transport asset orders", () => {
   });
 
   it("funds player orders before automatic replacement orders", () => {
-    worldContext.pack.markets[0].goods[1].stock = 7;
+    worldContext.pack.markets[0].goods[1].stock = 1.5;
     worldContext.pack.markets[0].goods[3].stock = 0.2;
     const automaticOrder = TransportAssetOrders.createOrder({ marketId: 1, blueprintId: "cart", quantity: 1 });
     const playerOrder = TransportAssetOrders.createOrder({
@@ -145,14 +145,14 @@ describe("transport asset orders", () => {
   });
 
   it("builds what the materials in hand allow, with a plain leather harness when no fitted one is to be had", () => {
-    worldContext.pack.markets[0].goods[1].stock = 14;
+    worldContext.pack.markets[0].goods[1].stock = 3;
     worldContext.pack.markets[0].goods[3].stock = 0;
     const order = TransportAssetOrders.createOrder({ marketId: 1, blueprintId: "cart", quantity: 5 });
 
     TransportAssetOrders.beginProductionCycle();
 
-    // Fourteen wood make two carts; the other three wait for the next cycle in an order of their own.
-    expect(order).toMatchObject({ status: "building", quantity: 2, reservedMaterials: { 1: 14, 2: 0.4 } });
+    // Three wood make two carts; the other three wait for the next cycle in an order of their own.
+    expect(order).toMatchObject({ status: "building", quantity: 2, reservedMaterials: { 1: 3, 2: 0.4 } });
     expect(TransportAssetOrders.getOrders(1).find(other => other !== order)).toMatchObject({
       status: "queued",
       quantity: 3
@@ -160,16 +160,16 @@ describe("transport asset orders", () => {
   });
 
   it("fits the harnesses in hand first and orders the missing ones from the smiths", () => {
-    worldContext.pack.markets[0].goods[1].stock = 35;
+    worldContext.pack.markets[0].goods[1].stock = 7.5;
     worldContext.pack.markets[0].goods[3].stock = 0.4;
     const order = TransportAssetOrders.createOrder({ marketId: 1, blueprintId: "cart", quantity: 5 });
 
     TransportAssetOrders.beginProductionCycle();
 
     // Two carts get fitted harnesses; the other three are built with leather in the same cycle.
-    expect(order).toMatchObject({ status: "building", quantity: 2, reservedMaterials: { 1: 14, 3: 0.4 } });
+    expect(order).toMatchObject({ status: "building", quantity: 2, reservedMaterials: { 1: 3, 3: 0.4 } });
     const plain = TransportAssetOrders.getOrders(1).find(other => other !== order);
-    expect(plain).toMatchObject({ status: "building", quantity: 3, reservedMaterials: { 1: 21 } });
+    expect(plain).toMatchObject({ status: "building", quantity: 3, reservedMaterials: { 1: 4.5 } });
     expect(plain?.reservedMaterials[2]).toBeCloseTo(0.6);
     expect(TransportAssetOrders.getMaterialDemandByGood(1).get(3)).toBeCloseTo(0.6);
   });

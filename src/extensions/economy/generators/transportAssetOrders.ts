@@ -24,7 +24,7 @@ import type { Caravan, Market, MerchantLandAssetBalance, TransportAssetOrder } f
 import { getUncommittedTradeCapital } from "./merchantTradeCapital";
 import { computeLandFleetNeedCounts, MerchantTransportAssets, RIVER_BARGE_WOOD_UNITS } from "./merchantTransportAssets";
 import { getSubsistenceWage } from "./subsistenceWage";
-import { getLandTransportDefinition } from "./tradeCargo";
+import { getLandTransportDefinition, RIVER_BARGE_TRANSPORT } from "./tradeCargo";
 
 export type TransportAssetBlueprint = {
   id: TransportAssetOrder["blueprintId"];
@@ -52,13 +52,26 @@ function convoyAnimals(assetId: MerchantLandAssetBalance["assetId"]): number {
   return getLandTransportDefinition(assetId)?.convoyDraftAnimals ?? 0;
 }
 
+/** Slots and draft-animal teams of `assetId`, from the one definition trade cargo uses. */
+function landCapacity(
+  assetId: MerchantLandAssetBalance["assetId"]
+): Pick<TransportAssetBlueprint, "cargoCapacitySlots" | "requiredDraftAnimals"> {
+  const definition = getLandTransportDefinition(assetId);
+  return {
+    cargoCapacitySlots: definition?.cargoCapacitySlots ?? 0,
+    requiredDraftAnimals: definition?.requiredDraftAnimals
+  };
+}
+
 /*
  * One land vehicle is a convoy: a cart's 80 slots hold 20 wains of grain, some 12 t, the load of
  * about twenty one-horse carts; a wagon's 160 slots twenty wagons with some sixty horses; a pack
  * train's 36 slots fifty pack horses (port-freight-queue-and-warehouses.md §10.13, §10.15). The
  * materials and work are for the whole convoy: a one-horse cart took a wheelwright and his men
- * about 15-20 days, a four-wheeled wagon 40-60, a pack saddle two or three; a pile of wood is about
- * 1.2 m³; a horse needs a set of harness (HARNESS_SETS_PER_LOT to a lot) and is bought in market
+ * about 15-20 days, a four-wheeled wagon 40-60, a pack saddle two or three. Wood is 10 m³ of
+ * roundwood a unit (`WOOD_M3_PER_UNIT`), half of it sawn timber: a one-horse cart is some 0.35 m³ of
+ * timber, a wagon 1 m³, a pack-saddle tree a hundredth of that (goods-physical-units.md §4.1). A horse
+ * needs a set of harness (HARNESS_SETS_PER_LOT to a lot) and is bought in market
  * heads (HORSES_PER_MARKET_HEAD to a head, §10.17).
  */
 const BLUEPRINTS: readonly TransportAssetBlueprint[] = [
@@ -67,37 +80,34 @@ const BLUEPRINTS: readonly TransportAssetBlueprint[] = [
     outputAssetId: "pack-train",
     outputMode: "land",
     // Fifty pack saddles on wooden trees, with halters, girths and breeching.
-    materialNames: { Leather: 0.5, Wood: 0.5, Harnesses: convoyAnimals("pack-train") / HARNESS_SETS_PER_LOT },
-    substituteMaterialNames: [{ Leather: 1, Wood: 0.5 }],
+    materialNames: { Leather: 0.5, Wood: 0.1, Harnesses: convoyAnimals("pack-train") / HARNESS_SETS_PER_LOT },
+    substituteMaterialNames: [{ Leather: 1, Wood: 0.1 }],
     requiredWorkPoints: 5,
     draftAnimalHeads: convoyAnimals("pack-train") / HORSES_PER_MARKET_HEAD,
     requiredCraft: "leather",
-    cargoCapacitySlots: 40,
-    requiredDraftAnimals: 1
+    ...landCapacity("pack-train")
   },
   {
     id: "cart",
     outputAssetId: "cart",
     outputMode: "land",
-    materialNames: { Wood: 7, Harnesses: convoyAnimals("cart") / HARNESS_SETS_PER_LOT },
-    substituteMaterialNames: [{ Wood: 7, Leather: 0.2 }],
+    materialNames: { Wood: 1.5, Harnesses: convoyAnimals("cart") / HARNESS_SETS_PER_LOT },
+    substituteMaterialNames: [{ Wood: 1.5, Leather: 0.2 }],
     requiredWorkPoints: 12,
     draftAnimalHeads: convoyAnimals("cart") / HORSES_PER_MARKET_HEAD,
     requiredCraft: "woodworking",
-    cargoCapacitySlots: 80,
-    requiredDraftAnimals: 1
+    ...landCapacity("cart")
   },
   {
     id: "wagon",
     outputAssetId: "wagon",
     outputMode: "land",
-    materialNames: { Wood: 16, Harnesses: convoyAnimals("wagon") / HARNESS_SETS_PER_LOT },
-    substituteMaterialNames: [{ Wood: 16, Leather: 0.6 }],
+    materialNames: { Wood: 4, Harnesses: convoyAnimals("wagon") / HARNESS_SETS_PER_LOT },
+    substituteMaterialNames: [{ Wood: 4, Leather: 0.6 }],
     requiredWorkPoints: 40,
     draftAnimalHeads: convoyAnimals("wagon") / HORSES_PER_MARKET_HEAD,
     requiredCraft: "woodworking",
-    cargoCapacitySlots: 180,
-    requiredDraftAnimals: 2
+    ...landCapacity("wagon")
   },
   {
     id: "river-barge",
@@ -109,7 +119,7 @@ const BLUEPRINTS: readonly TransportAssetBlueprint[] = [
     optionalMaterialNames: { Ropes: 1, Tar: 1 },
     requiredWorkPoints: 6,
     requiredCraft: "woodworking",
-    cargoCapacitySlots: 160
+    cargoCapacitySlots: RIVER_BARGE_TRANSPORT.cargoCapacitySlots
   }
 ];
 

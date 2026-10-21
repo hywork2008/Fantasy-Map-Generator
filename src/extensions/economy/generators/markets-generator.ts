@@ -115,7 +115,7 @@ import {
 import { addWholesaleGoodStock, getRetailLocalityMultiplier } from "./retailInventory";
 import { seaDeparturePortBurgId } from "./seaRoutePorts";
 import { getMarketTextileDemandProfile } from "./textileDemand";
-import { getGoodCargoSlotsPerUnit } from "./tradeCargo";
+import { getGoodCargoSlotsPerUnit, getRouteCargoSlotsPerUnit } from "./tradeCargo";
 import { TradeLogisticsSettings } from "./tradeLogisticsSettings";
 import {
   estimateSpeculativeTrade,
@@ -2454,7 +2454,8 @@ export class MarketsModule {
       // own are hired at a dearer freight, and hulls of other markets in its ports carry freight
       // (port-freight-queue-and-warehouses.md §3, §4.2). A sea leg no hull can take is asked of the
       // shipyards; until one is built or one comes in, the pair waits.
-      const slotsPerUnit = getGoodCargoSlotsPerUnit(good);
+      // A drove walks overland and takes no cart (goods-physical-units.md §12.4).
+      const slotsPerUnit = getRouteCargoSlotsPerUnit(good, opportunity.routeSegments);
       const { transportRoom } = ctx;
       let hireSurcharge = 0;
       const carriable = transportRoomSlots(
@@ -2463,7 +2464,7 @@ export class MarketsModule {
         opportunity.routeSegments,
         opportunity.durationDays
       );
-      if (Number.isFinite(carriable)) {
+      if (Number.isFinite(carriable) && slotsPerUnit > 0) {
         // A port shut for the season wants no more hulls; it waits for the opening (§10.27).
         if (seaClosedForBooking(opportunity.routeSegments)) {
           observe?.({ stage: "noTransport", ...leg, transportLimit: "season" });
