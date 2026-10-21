@@ -19,22 +19,7 @@ export interface RuralFieldInput {
 export interface RuralFieldPlan {
   farms: FarmPlot[];
   lanes: InfillLane[];
-  diagnostics: {
-    requestedAreaM2?: number;
-    candidateAreaM2: number;
-    reachableAreaM2: number;
-    cultivatedAreaM2: number;
-    shortfallAreaM2: number;
-    gridMeters: number;
-    orientationRadians: number;
-    fixedAreaM2?: number;
-    overBudgetAreaM2?: number;
-    profile?: import("../types/contracts/ruralFields").RuralFieldSystem;
-    shortfallReason?: import("../types/contracts/ruralFields").RuralShortfallReason;
-    unsuitableAreaM2?: number;
-    suitableCapacityM2?: number;
-    suitabilitySource?: "survey" | "biome-estimate" | "unknown";
-  };
+  diagnostics: import("../types/contracts/ruralFields").RuralFieldDiagnostics;
 }
 
 type Cell = { x: number; y: number; point: Point; arable: boolean; parent?: string; road?: Point };

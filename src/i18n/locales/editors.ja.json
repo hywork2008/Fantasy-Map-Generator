@@ -940,6 +940,10 @@
         "label": "住居・完成都市",
         "hint": "Place residential and civic buildings"
       },
+      "farmland": {
+        "label": "耕作地",
+        "hint": "現在の農地設定で耕作地とあぜ道を生成し、結果を格納します。"
+      },
       "conceal": {
         "label": "道路・小道を隠す",
         "hint": "Hide roads between the centre and the outer wall, and the lanes that divide blocks. Keep river bridges."

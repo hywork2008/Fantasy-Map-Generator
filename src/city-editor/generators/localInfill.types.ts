@@ -1,25 +1,9 @@
 import type { InfillLane } from "../types/contracts/localInfill";
+import type { FarmPlot } from "../types/contracts/ruralFields";
 import type { Id, Point } from "../types/primitives";
 import type { BuildingLot } from "./buildingLots.types";
 
-export interface FarmPlot {
-  plotId?: string;
-  orientationRadians?: number;
-  managementGroupId?: string;
-  system?: import("../types/contracts/ruralFields").RuralFieldSystem | "market-garden";
-  cropState?: "winter-crop" | "spring-crop" | "fallow" | "horticulture" | "crop";
-  rotationGroup?: number;
-  holdingPolygon?: Point[];
-  clippedByFrame?: boolean;
-  tenureStrips?: Point[][];
-  boundaryKind?: "hedge" | "wall";
-  boundaries?: Point[][];
-  sourceFaceIds?: Id[];
-  faceId: Id;
-  polygon: Point[];
-  rows: Point[][];
-  kind?: "open-field" | "kitchen-garden";
-}
+export type { FarmPlot } from "../types/contracts/ruralFields";
 
 export interface CityFabric {
   parcels?: import("./parcelTypes").ParcelPlan[];

@@ -49,6 +49,7 @@ import { isHexagonalDocument, rectifyHexBlocks } from "../rectifyHexBlocks";
 import { rectifyVoronoiBlocks } from "../rectifyVoronoiBlocks";
 import { riverFlowsFromDescriptor } from "../riverFlow";
 import { cultivateRoadside } from "../roadsideFarms";
+import { generateRuralFieldStage } from "../ruralFieldStage";
 import { attachSceneRegions } from "../sceneRegions";
 import {
   innerWalledAreaShare,
@@ -267,6 +268,7 @@ export function generateCityOnDocument(
           )
         );
         delete input.fabric;
+        delete input.ruralFieldSnapshot;
         result.fabric.generation = {
           algorithm: skeletonFirst
             ? "skeleton-city-v1"
@@ -399,7 +401,7 @@ export function generateCityOnDocument(
             ...(singleWallApplied && singleWallFallback !== undefined ? { singleWallFallback } : {})
           }
         });
-      return result;
+      return measureProcessing(profiler, "farmland", () => generateRuralFieldStage(result));
     }
     if (onRejected) return null;
     // A castle can leave the gate streets no way past it while the face
@@ -454,7 +456,8 @@ export function generateCityOnDocument(
 /** Identifies the input of a roll: the document and the requested settings (without any retry record). */
 export function generationInputKey(document: CityDocument, settings: GenerationSettings): string {
   const { generationRetry: _retry, ...requested } = settings;
-  const text = JSON.stringify([document, requested]);
+  const { ruralFieldSnapshot: _snapshot, ...input } = document;
+  const text = JSON.stringify([input, requested]);
   // FNV-1a, 2 × 32 bits: a stale record must not match by accident, but this is no security boundary.
   let a = 0x811c9dc5,
     b = 0x01000193 ^ text.length;
@@ -962,6 +965,7 @@ export function generateCityAttempt(
       straightenFrameRoadJunctions(settled, settings.descriptor)
     );
   settled.ruralFieldVersion = 2;
+  delete settled.ruralFieldSnapshot;
   measureProcessing(profiler, "rural-land", () => cultivateRoadside(settled));
   measureProcessing(profiler, "cemetery-sync", () => syncDocumentCemeteries(settled));
   measureProcessing(profiler, "cemetery-layouts", () => refreshCemeteryLayouts(settled));

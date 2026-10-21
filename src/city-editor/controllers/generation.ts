@@ -9,6 +9,7 @@ import { randomSeed } from "../generators/generation/settings";
 import { generateSkeletonPreview } from "../generators/generation/skeleton/previews";
 import { generationPhaseLabel, logGenerationFailures } from "../generators/generationDiagnostics";
 import { clone } from "../generators/mesh";
+import { generateRuralFieldStage } from "../generators/ruralFieldStage";
 import { WALL_COAST_CHOICES, WALL_MATERIAL_CHOICES } from "../generators/site/siteConfig";
 import { startCityGeneration } from "../services/generationWorkerClient";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
@@ -305,7 +306,7 @@ export function createGenerationController(ctx: GenerationContext) {
       }
       fitPopulationFrame(next);
       ctx.documents.documentState = ctx.documents.history.commit(
-        ctx.documentForOutput(next),
+        generateRuralFieldStage(ctx.documentForOutput(next)),
         editorText(
           ctx.generation.generateSettings.mode === "fort"
             ? "cityEditor.messages.generateFort"
@@ -327,7 +328,7 @@ export function createGenerationController(ctx: GenerationContext) {
       ctx.display.showBlockMesh = false;
       ctx.display.hideBuildings = false;
       ctx.display.hideStreetLines = false;
-      ctx.syncStageUi(generationStages(ctx.generation.generateSettings).find(s => s.id === "buildings")?.step ?? 16);
+      ctx.syncStageUi(generationStages(ctx.generation.generateSettings).find(s => s.id === "farmland")?.step ?? 17);
       ctx.generation.completeResultSettings = JSON.stringify(ctx.generation.generateSettings);
       ctx.rememberGenerationState();
       ctx.rebuildEditorIndexes();
@@ -382,7 +383,10 @@ export function createGenerationController(ctx: GenerationContext) {
         undefined,
         ctx.generation.lastGeneratedStep ?? (ctx.documents.documentState.appearance === "town" ? 16 : 1)
       );
-    const source = clone(ctx.generation.completeSource);
+    const source = clone({
+      ...ctx.generation.completeSource,
+      ruralFieldSettings: ctx.documents.documentState.ruralFieldSettings
+    });
     const effectiveSeed =
       ctx.generation.completeResult?.generationSeed ??
       ctx.documents.documentState.generationSeed ??
@@ -410,7 +414,7 @@ export function createGenerationController(ctx: GenerationContext) {
         );
         next = preview.document;
         skeletonOverlay = preview.overlayPaths;
-      } else if (finished && ["blocks", "buildings", "conceal"].includes(stage.id)) {
+      } else if (finished && ["blocks", "buildings", "farmland", "conceal"].includes(stage.id)) {
         next = clone(finished);
       } else if (finished && stage.id === "geometry") {
         const s7 = clone(finished);
@@ -439,9 +443,14 @@ export function createGenerationController(ctx: GenerationContext) {
           }
         );
       }
+      if (next && ["farmland", "conceal"].includes(stage.id))
+        next = generateRuralFieldStage(
+          ctx.documentForOutput({ ...next, ruralFieldSettings: ctx.documents.documentState.ruralFieldSettings })
+        );
     } catch (error) {
       console.error(error);
       ctx.appendGenerationException(error, effectiveSeed);
+      next = null;
     }
     if (!next) {
       if (stage.id !== "urban") {
@@ -470,6 +479,12 @@ export function createGenerationController(ctx: GenerationContext) {
             townCircuits(next).length < 2
           ? ctx.wallFallbackNotice(next)
           : "";
+    if (["farmland", "conceal"].includes(stage.id)) {
+      ctx.generation.completeResult = next;
+      ctx.generation.completeResultSettings = JSON.stringify(ctx.generation.generateSettings);
+    } else {
+      delete next.ruralFieldSnapshot;
+    }
     if (["buildings", "conceal"].includes(stage.id) && !ctx.generation.completeResult) {
       ctx.generation.completeResult = next;
       ctx.generation.completeResultSettings = JSON.stringify(ctx.generation.generateSettings);
@@ -529,6 +544,8 @@ export function createGenerationController(ctx: GenerationContext) {
       stage === "wards"
         ? (ctx.generation.completeSource ?? ctx.documents.documentState)
         : clone(ctx.generation.completeSource ?? ctx.documents.documentState);
+    if (["farmland", "conceal"].includes(stage))
+      source.ruralFieldSettings = ctx.documents.documentState.ruralFieldSettings;
     let result: UiStepResult;
     try {
       result = STEP_FNS[stage](
@@ -584,7 +601,7 @@ export function createGenerationController(ctx: GenerationContext) {
     ctx.stepStatus.textContent = "";
     ctx.generation.lastGeneratedStep = null;
     ctx.generation.currentStageStep =
-      generationStages(ctx.generation.generateSettings).find(s => s.id === "buildings")?.step ?? 16;
+      generationStages(ctx.generation.generateSettings).find(s => s.id === "farmland")?.step ?? 17;
     ctx.syncStageUi(ctx.generation.currentStageStep);
     runCompleteGeneration();
   }

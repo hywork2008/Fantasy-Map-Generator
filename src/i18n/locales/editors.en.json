@@ -940,6 +940,10 @@
         "label": "Housing and completed city",
         "hint": "Place residential and civic buildings"
       },
+      "farmland": {
+        "label": "Farmland",
+        "hint": "Generate and retain fields and farm tracks using the current farmland settings."
+      },
       "conceal": {
         "label": "Hide roads and lanes",
         "hint": "Hide roads between the centre and the outer wall, and the lanes that divide blocks. Keep river bridges."

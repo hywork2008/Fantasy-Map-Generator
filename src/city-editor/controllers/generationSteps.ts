@@ -155,8 +155,12 @@ export const STEP_FNS: Record<GenerationStage["id"], StepFn> = {
     const d = generateStageOnDocument(doc, settings, seed, 9);
     return { document: d, total: 1, index: 0, detail: editorText("cityEditor.messages.housingPlacementComplete") };
   },
-  conceal: (doc, settings, seed) => {
+  farmland: (doc, settings, seed) => {
     const d = generateStageOnDocument(doc, settings, seed, 10);
+    return { document: d, total: 1, index: 0, detail: editorText("cityEditor.generationStages.farmland.label") };
+  },
+  conceal: (doc, settings, seed) => {
+    const d = generateStageOnDocument(doc, settings, seed, 11);
     return { document: d, total: 1, index: 0, detail: editorText("cityEditor.messages.roadsAndLanesHidden") };
   }
 };

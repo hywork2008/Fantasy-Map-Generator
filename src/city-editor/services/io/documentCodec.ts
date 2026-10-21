@@ -13,6 +13,7 @@ import { validate } from "../../generators/mesh";
 import { populationHousingFacts } from "../../generators/populationHousing";
 import { validPopulationDocument } from "../../generators/populationValidation";
 import { validRuralFieldSettings } from "../../generators/ruralFieldProfile";
+import { validRuralFieldSnapshot } from "../../generators/ruralFieldSnapshot";
 import { validRegionalFrameRoads, validSceneRegions } from "../../generators/sceneRegions";
 import { validUrbanGrowth } from "../../generators/urbanGrowth";
 import type { FixedApproachProvider } from "../../types/contracts/fixedApproachAdoption";
@@ -84,6 +85,7 @@ function isDocument(value: unknown): value is CityDocument {
     validFacilityCounts(doc.facilityCounts) &&
     (doc.ruralFieldVersion === undefined || doc.ruralFieldVersion === 1 || doc.ruralFieldVersion === 2) &&
     validRuralFieldSettings(doc.ruralFieldSettings) &&
+    validRuralFieldSnapshot(doc.ruralFieldSnapshot) &&
     (doc.vacantLotTrees === undefined ||
       (doc.vacantLotTrees !== null &&
         typeof doc.vacantLotTrees === "object" &&

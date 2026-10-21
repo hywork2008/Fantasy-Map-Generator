@@ -4,10 +4,11 @@ import type { CityDocument, Point } from "../types/document";
 import { buildBlockFabric, documentFabricFingerprint } from "./blockInfill";
 import { polygonArea, polygonCentroid } from "./geom";
 import { DocumentHistory } from "./history";
-import { meshFromCells } from "./mesh";
+import { clone, meshFromCells } from "./mesh";
 import { corridor, intersectConvex } from "./parcelGeometry";
 import { cultivateRoadside, regenerateRuralLand } from "./roadsideFarms";
 import { storeRuralFieldOverlay } from "./ruralFieldOverlay";
+import { generateRuralFieldStage } from "./ruralFieldStage";
 import { applyRuralFields } from "./ruralFields";
 import { ruralSuitability } from "./ruralSuitability";
 
@@ -65,6 +66,43 @@ function city(): CityDocument {
 const emptyFabric = () => ({ buildings: [], farms: [], lanes: [], entrances: new Map() });
 
 describe("CE rural field integration", () => {
+  it("retains a farmland stage through save and history, and invalidates edited inputs", () => {
+    const document = { ...city(), appearance: "town" as const, ruralFieldVersion: 2 as const };
+    document.mesh.faces.f1.properties.ward = "empty";
+    const history = new DocumentHistory(document);
+    const stage = generateRuralFieldStage(document);
+    expect(stage.mesh.faces.f1.properties.ward).toBe("farm");
+    expect(document.ruralFieldSnapshot).toBeUndefined();
+    expect(stage.ruralFieldSettings?.coveragePercent).toBe(70);
+    expect(stage.ruralFieldSnapshot!.farms.length).toBeGreaterThan(0);
+    const regenerated = applyRuralFields(
+      { ...stage, ruralFieldSnapshot: undefined },
+      buildBlockFabric({ ...stage, ruralFieldSnapshot: undefined })
+    );
+    expect(stage.ruralFieldSnapshot!.farms).toEqual(regenerated.farms);
+    expect(stage.ruralFieldSnapshot!.lanes).toEqual(regenerated.lanes);
+    expect(generateRuralFieldStage(stage).ruralFieldSnapshot).toBe(stage.ruralFieldSnapshot);
+    history.commit(stage, "Farmland");
+    const earlier = history.undo(stage)!;
+    expect(buildBlockFabric(earlier).ruralFields).toBeUndefined();
+    const restored = history.redo(earlier)!;
+    for (const snapshot of [restored, clone(stage), parseDocument(JSON.stringify(stage))!]) {
+      expect(snapshot).not.toBeNull();
+      expect(buildBlockFabric(snapshot).farms).toEqual(stage.ruralFieldSnapshot!.farms);
+    }
+    const edited = { ...stage, ruralFieldSettings: { ...stage.ruralFieldSettings, coveragePercent: 10 } };
+    expect(buildBlockFabric(edited).ruralFields).toBeUndefined();
+    const regeneratedStage = generateRuralFieldStage(edited);
+    expect(regeneratedStage.ruralFieldSnapshot!.ruralFields!.cultivatedAreaM2).toBeLessThan(
+      stage.ruralFieldSnapshot!.ruralFields!.cultivatedAreaM2
+    );
+    expect(
+      parseDocument(
+        JSON.stringify({ ...stage, ruralFieldSnapshot: { fingerprint: "invalid", farms: [{}], lanes: [] } })
+      )
+    ).toBeNull();
+  });
+
   it("expands rural land away from highways without retagging locked or occupied land", () => {
     const document = city();
     document.mesh.faces.f1.properties.ward = "empty";

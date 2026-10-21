@@ -469,6 +469,7 @@ export interface CityDocument {
   /** Absent on saved legacy cities: retain their original roadside fields. */
   ruralFieldVersion?: 1 | 2;
   ruralFieldSettings?: import("./contracts/ruralFields").RuralFieldSettings;
+  ruralFieldSnapshot?: import("./contracts/ruralFields").RuralFieldSnapshot;
   /**
    * Compass bearing the wind blows toward (0 = north, clockwise), copied from
    * `climate.prevailingWindDeg`. Absent: windmills keep a seeded facing.
