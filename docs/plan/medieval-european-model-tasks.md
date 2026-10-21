@@ -34,7 +34,7 @@ CEの施設配置・平面描画や汎用3D表現の有無とは区別する。
 - [x] 17. **商業倉庫・荷蔵** — CE: `warehouse`。荷揚げ扉、庇、巻上げ梁。 `src/buildings/medieval/17-warehousesModels.ts` に専用モデルを実装し、BVに登録。
 - [x] 18. **家畜市場の囲い・売買用柵** — CE: `livestockPen`。柵、仕切り、出入口。 `src/buildings/medieval/18-livestock-marketsModels.ts` に専用モデルを実装し、BVに登録。
 - [x] 19. **墓標・墓石・教会墓地の小物** — 簡素な石標・木標など。時代・地域に合わせる。 `src/buildings/medieval/19-grave-markersModels.ts` に専用モデルを実装し、BVに登録。
-- [ ] 20. **織工・仕立屋・靴職人の工房** — 作業台、織機、材料棚。会館とは別の作業施設。
+- [x] 20. **織工・仕立屋・靴職人の工房** — 作業台、織機、材料棚。会館とは別の作業施設。 `src/buildings/medieval/20-textile-leather-workshopsModels.ts` に専用モデルを実装し、BVに登録。
 - [ ] 21. **桶職人・指物師の工房** — 樽組立台、木工台など。既存の製材・木材置場とは用途を分ける。
 - [ ] 22. **皮なめし場** — CE: `tannery`。槽、洗場、皮の乾燥架。
 - [ ] 23. **小型漁船・手漕ぎ舟** — 海岸、川、湖向け。漁網、櫂、籠を組み合わせる。
