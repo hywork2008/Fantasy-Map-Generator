@@ -40,7 +40,7 @@ CEの施設配置・平面描画や汎用3D表現の有無とは区別する。
 - [x] 23. **小型漁船・手漕ぎ舟** — 海岸、川、湖向け。漁網、櫂、籠を組み合わせる。 `src/buildings/medieval/23-small-boatsModels.ts` に専用モデルを実装し、BVに登録。
 - [x] 24. **公共水盤・泉の水場・洗濯場** — 広場や水源付近向け。既存の屋根付き井戸を補完。`src/buildings/wells/publicWaterBasin.ts` に3モデルを実装し、BVの `Wells` に登録。CEの広場には衝突・通路判定を通した公共水盤を配置し、2D・3Dで同じ位置・実寸を使用。泉の水場・洗濯場のCEへの自動配置は対象外。
 - [x] 25. **公共穀倉** — CE: `publicGranary`。大型貯蔵棟、搬入口。 `src/buildings/medieval/25-public-granariesModels.ts` に専用モデルを実装し、BVに登録。
-- [ ] 26. **市庁舎・市場会館** — 都市、市場町向け。集会室、商業用の開放階など。
+- [x] 26. **市庁舎・市場会館** — 都市、市場町向け。集会室、商業用の開放階など。 `src/buildings/medieval/26-civic-hallsModels.ts` に専用モデルを実装し、BVに登録。
 - [ ] 27. **布地会館** — CE: `textiles`。織物生産・交易都市向け。店舗や織物工房とは別用途。
 - [ ] 28. **皮革・木工・石工・鍛冶の各会館** — CE: `leather` / `woodworking` / `masonry` / `metallurgy`。各職種のギルド会館。通常の工房とは区別。
 - [ ] 29. **石材置場・石工の作業場** — CE: `stoneYard`。粗石、切石、石工台、作業庇。
