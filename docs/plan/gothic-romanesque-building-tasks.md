@@ -89,7 +89,7 @@ BVには**ウィンザー城の聖ジョージ礼拝堂**（English Perpendicula
   - 再現の重点: ロマネスクの本体平面、交差廊、周歩廊、プラテリーアス門、「栄光の門」。
   - 注意: 著名な現存西正面はバロック。ロマネスクとして作る場合は中世復元の範囲・根拠を明示し、不明部分を断定しない。
   - 参考: [大聖堂公式・建築](https://catedraldesantiago.es/en/cathedral/)、[栄光の門と西正面の改変](https://catedraldesantiago.es/en/portico-de-la-gloria/)。
-- [ ] **R09. マリア・ラーハ修道院教会（Maria Laach Abbey Church）** — ドイツ／ラーハ湖畔。主に11世紀末〜13世紀。ラインラント・ロマネスク。
+- [x] **R09. マリア・ラーハ修道院教会（Maria Laach Abbey Church）** — ドイツ／ラーハ湖畔。主に11世紀末〜13世紀。ラインラント・ロマネスク。
   - 再現の重点: 東西の内陣、六本の塔、半円後陣、西側の「パラディース」と呼ばれる前庭。
   - 注意: 教会と前庭を対象とし、修道院の生活棟全体は別途範囲を決める。
   - 参考: [修道院公式・教会と修道院](https://www.maria-laach.de/unser-kloster/kirche-und-kloster/)。
@@ -118,6 +118,7 @@ BVには**ウィンザー城の聖ジョージ礼拝堂**（English Perpendicula
 - R06: `src/buildings/landmarks/saintSernin.ts`。五段の八角形鐘塔・五つの礼拝堂・レンガと石材の帯を備える現存外観の簡略モデル。BV登録、3D・上面図・南側立面図、接地・外形・特徴部位・資源解放を確認。
 - R07: `src/buildings/landmarks/conques.ts`。短い身廊・幅広い交差廊・三礼拝堂と抽象化したタンパンを備える簡略モデル。BV登録、3D・上面図・南側立面図、接地・外形・特徴部位・資源解放を確認。
 - R08: `src/buildings/landmarks/santiago.ts`。1211年頃の構成を対象にした解釈的モデル。西塔を推定と明示し、バロック西正面は対象外。BV登録、3D・上面図・南側立面図、接地・外形・特徴部位・資源解放を確認。
+- R09: `src/buildings/landmarks/mariaLaach.ts`。六つの塔・東西の後陣・開放された前庭と水盤を備える簡略モデル。BV登録、3D・上面図・南側立面図、接地・外形・特徴部位・資源解放を確認。
 
 ## 着手順の提案
 
