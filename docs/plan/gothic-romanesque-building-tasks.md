@@ -19,7 +19,7 @@ BVには**ウィンザー城の聖ジョージ礼拝堂**（English Perpendicula
   - 再現の重点: 西正面の双塔と三つの入口、バラ窓、身廊と交差廊、後陣を囲むフライング・バットレス。
   - 注意: 尖塔・彫像には後世の復元が含まれる。中世の姿と現存外観のどちらを再現するか明記する。
   - 参考: [大聖堂公式・外部建築](https://www.notredamedeparis.fr/en/understand/architecture/exterior-architecture/)、[西正面](https://www.notredamedeparis.fr/en/understand/architecture/the-western-facade/)。
-- [ ] **G02. シャルトル大聖堂（Chartres Cathedral）** — フランス／シャルトル。主に12〜13世紀。フランス盛期ゴシック。
+- [x] **G02. シャルトル大聖堂（Chartres Cathedral）** — フランス／シャルトル。主に12〜13世紀。フランス盛期ゴシック。
   - 再現の重点: 形の異なる左右の尖塔、三入口の西正面、交差廊、周歩廊と放射状礼拝堂。
   - 注意: 西正面の旧部分と、火災後の本体再建、後世の北尖塔を同一時期の建築として扱わない。
   - 参考: [UNESCO](https://whc.unesco.org/en/list/81/)。
@@ -101,6 +101,7 @@ BVには**ウィンザー城の聖ジョージ礼拝堂**（English Perpendicula
 ## 実装記録
 
 - G01: `src/buildings/landmarks/notreDame.ts`。復元尖塔を含む現存外観の簡略モデル。BVの `Gothic landmarks` に登録。正面寄り3D表示・上面図・南側立面図、接地・塔高・資源解放のテストを確認。
+- G02: `src/buildings/landmarks/chartres.ts`。左右で異なる尖塔・交差廊の玄関廊・放射状礼拝堂を備える現存外観の簡略モデル。BV登録、3D・上面図・南側立面図、接地・外形・特徴部位・資源解放を確認。
 
 ## 着手順の提案
 
