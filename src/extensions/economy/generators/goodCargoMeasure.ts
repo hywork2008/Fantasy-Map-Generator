@@ -13,7 +13,7 @@ export { CARGO_SLOT_KG, CARGO_SLOT_LITERS };
  * Goods switched to measured slots, group by group (goods-physical-units.md §13.5): first the staple
  * crops by the wain and Wood by 10 m³ (§12.6), then everything mined, smelted or quarried, which
  * the mines and smelters already count in tonnes (precious metals in kg) (§14), then the food lots
- * whose size foodLots.ts or the unit name fixes (§18).
+ * whose size foodLots.ts or the unit name fixes (§18), then the light dear goods (§19).
  */
 const MEASURED_SLOT_GOODS: ReadonlySet<string> = new Set([
   // Staple crops and wood (§12.6).
@@ -84,7 +84,25 @@ const MEASURED_SLOT_GOODS: ReadonlySet<string> = new Set([
   "Chestnuts",
   "Pomace",
   "Raisins",
-  "Dried Fruits"
+  "Dried Fruits",
+  // Light dear goods: jewels, spices and colonial crops, drugs, incense, silk, dyes and furs (§19).
+  "Pearls",
+  "Gemstones",
+  "Jewelry",
+  "Amber",
+  "Coral",
+  "Ivory",
+  "Spices",
+  "Coffee",
+  "Cocoa",
+  "Tea",
+  "Medicines",
+  "Medicinal herbs",
+  "Incense",
+  "Perfume",
+  "Silk",
+  "Dyes",
+  "Furs"
 ]);
 
 /** Slots one packed unit of `good` fills, from its measure; undefined for goods that walk or move themselves. */
