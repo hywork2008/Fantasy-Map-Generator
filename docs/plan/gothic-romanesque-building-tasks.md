@@ -81,7 +81,7 @@ BVには**ウィンザー城の聖ジョージ礼拝堂**（English Perpendicula
   - 再現の重点: レンガと石材、長い身廊、広い交差廊、周歩廊と放射状礼拝堂、八角形の鐘塔。
   - 注意: 鐘塔上部などに後世の施工が含まれる。塔全体を11世紀の形としない。
   - 参考: [トゥールーズ公式観光](https://www.toulouse-tourisme.com/en/activite/saint-sernin-basilica/)。
-- [ ] **R07. コンクのサント＝フォワ修道院教会（Abbey Church of Sainte-Foy）** — フランス／コンク。主に11〜12世紀。南フランスのロマネスク。
+- [x] **R07. コンクのサント＝フォワ修道院教会（Abbey Church of Sainte-Foy）** — フランス／コンク。主に11〜12世紀。南フランスのロマネスク。
   - 再現の重点: 短い身廊と幅広い交差廊、後陣と小礼拝堂、入口の「最後の審判」のタンパン。
   - 注意: 斜面に収まる凝縮した平面を重視する。現存正面の塔上部は修復史を確認する。
   - 参考: [コンク公式観光・建築解説](https://www.tourisme-conques.fr/fr/conques/www.tourisme-conques.fr/fr/conques/abbatiale)。
@@ -116,6 +116,7 @@ BVには**ウィンザー城の聖ジョージ礼拝堂**（English Perpendicula
 - R04: `src/buildings/landmarks/modena.ts`。三後陣・二層の玄関廊・ライオン台座を備える簡略モデル。ギルランディーナは対象外。BV登録、3D・上面図・南側立面図、接地・外形・特徴部位・資源解放を確認。
 - R05: `src/buildings/landmarks/vezelay.ts`。ロマネスクの身廊・ナルテックスとゴシックの内陣を区別した簡略モデル。BV登録、3D・上面図・南側立面図、接地・外形・特徴部位・資源解放を確認。
 - R06: `src/buildings/landmarks/saintSernin.ts`。五段の八角形鐘塔・五つの礼拝堂・レンガと石材の帯を備える現存外観の簡略モデル。BV登録、3D・上面図・南側立面図、接地・外形・特徴部位・資源解放を確認。
+- R07: `src/buildings/landmarks/conques.ts`。短い身廊・幅広い交差廊・三礼拝堂と抽象化したタンパンを備える簡略モデル。BV登録、3D・上面図・南側立面図、接地・外形・特徴部位・資源解放を確認。
 
 ## 着手順の提案
 
