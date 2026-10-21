@@ -13,13 +13,14 @@ export const models: MedievalModel[] = [
       cloister(k, 8);
       k.hall(0, -7, 19, 6, 4.8, 2.3, { wall: "stone", windows: false, door: 1.6 });
       for (const x of [-6, -3, 0, 3, 6]) k.box("preaching-church-window", [x, 3.4, -3.95], [0.45, 1.6, 0.045], "dark");
-      k.hall(-7, 1, 4, 9, 4.8, 1.5, { wall: "plaster", storeys: 2 });
+      k.hall(-7, 1, 9, 4, 4.8, 1.5, { wall: "plaster", storeys: 2, rotation: Math.PI / 2 });
       k.hall(0, 7, 12, 4, 3.3, 1.2, { wall: "plaster" });
-      k.hall(7, 2, 4, 6, 3, 1.2, { wall: "stone" });
+      k.hall(7, 2, 6, 4, 3, 1.2, { wall: "stone", rotation: -Math.PI / 2 });
       k.chimney(7, 2, 5.1);
-      for (const x of [-1.2, 1.2]) k.box("church-bellcote-post", [x, 6, -7], [0.18, 2, 0.18]);
-      k.roof(0, -7, 3, 1.8, 7, 0.7, "tile");
-      k.cylinder("friary-bell", [0, 6.3, -7], 0.25, 0.45, "iron", 0.15);
+      for (const x of [-1.2, 1.2]) k.box("church-bellcote-post", [x, 7.7, -7], [0.18, 2, 0.18]);
+      k.beam("bell-yoke", [-1.2, 8.5, -7], [1.2, 8.5, -7], 0.15);
+      k.roof(0, -7, 3, 1.8, 8.7, 0.7, "tile");
+      k.cylinder("friary-bell", [0, 8.2, -7], 0.25, 0.45, "iron", 0.15);
       return k.finish();
     }
   }

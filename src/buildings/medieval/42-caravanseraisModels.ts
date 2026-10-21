@@ -13,9 +13,9 @@ export const models: MedievalModel[] = [
       k.box("caravan-court", [0, 0.08, 0], [27, 0.16, 25], "stone");
       k.hall(0, -10, 25, 5, 5.2, 1.8, { wall: "stone", storeys: 2 });
       for (const side of [-1, 1]) {
-        k.hall(side * 11, 0, 4.5, 15, 5.2, 1.5, { wall: "stone", storeys: 2 });
+        k.hall(side * 11, 0, 15, 4.5, 5.2, 1.5, { wall: "stone", storeys: 2, rotation: (-side * Math.PI) / 2 });
         k.hall(side * 7, 10, 8, 4, 4.7, 1.5, { wall: "stone", storeys: 2 });
-        k.hall(side * 7.5, 0, 2.3, 14, 2.6, 0.6, { open: true, roof: "wood" });
+        k.hall(side * 7.5, 0, 14, 2.3, 2.6, 0.6, { open: true, roof: "wood", rotation: (-side * Math.PI) / 2 });
         for (let i = 0; i < 5; i++)
           k.beam("animal-tethering-rail", [side * 6.1, 1.1, -4 + i * 2], [side * 6.1, 1.1, -3 + i * 2], 0.1);
       }

@@ -29,8 +29,8 @@ export const models: MedievalModel[] = [
       const k = new ModelKit("abbey-domestic-range");
       cloister(k, 11);
       k.hall(0, -9, 19, 5, 5.4, 2, { wall: "stone", storeys: 2 });
-      k.hall(-10, 0, 5, 12, 4.2, 1.8, { wall: "stone" });
-      k.hall(10, 0, 5, 12, 4.8, 1.8, { wall: "stone", storeys: 2 });
+      k.hall(-10, 0, 12, 5, 4.2, 1.8, { wall: "stone", rotation: Math.PI / 2 });
+      k.hall(10, 0, 12, 5, 4.8, 1.8, { wall: "stone", storeys: 2, rotation: -Math.PI / 2 });
       k.hall(-4, 9, 9, 5, 3.8, 1.5, { wall: "stone" });
       k.hall(5, 9, 6, 5, 3.5, 1.5, { wall: "stone" });
       k.chimney(-5, 9, 6.5);

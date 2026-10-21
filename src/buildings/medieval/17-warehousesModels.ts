@@ -20,8 +20,8 @@ export const models: MedievalModel[] = [
       k.beam("lifting-rope", [0, 7.9, 5], [0, 1, 5], 0.025, "cloth", true);
       k.box("loading-platform", [0, 0.3, 3.8], [7, 0.6, 3], "stone");
       k.roof(0, 3.2, 7.8, 2.3, 3.1, 0.65, "wood");
-      for (let i = 0; i < 4; i++)
-        k.attach(createMedievalContainerModel(i % 2 ? "barrel" : "crate", "closed"), [-2.5 + i * 1.5, 0.6, 3.8]);
+      for (const [i, x] of [-2.8, -1.9, 1.9, 2.8].entries())
+        k.attach(createMedievalContainerModel(i % 2 ? "barrel" : "crate", "closed"), [x, 0.6, 3.8]);
       return k.finish();
     }
   },

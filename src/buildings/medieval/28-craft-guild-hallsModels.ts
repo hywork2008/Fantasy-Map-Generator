@@ -32,7 +32,7 @@ export const models: MedievalModel[] = crafts.map((craft, index) => ({
   create() {
     const k = assemblyHall(`${craft.id}-guild-hall`, 12, 7);
     k.box("guild-emblem-plaque", [0, 5.7, 3.7], [1.6, 1.4, 0.12], index === 2 ? "stone" : "wood");
-    k.box("guild-banner", [-4, 5, 3.68], [0.7, 1.5, 0.05], "cloth");
+    k.box("guild-banner", [-1.8, 5, 3.68], [0.7, 1.5, 0.05], "cloth");
     k.table(-2, 0, 2.5, 1.2, 0.9);
     if (craft.id === "leather") {
       k.box("guild-hide-sample", [0, 5.65, 3.8], [0.85, 0.85, 0.04], "leather");

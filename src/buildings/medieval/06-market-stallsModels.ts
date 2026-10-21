@@ -10,7 +10,11 @@ export const models: MedievalModel[] = [
     note: "Braced demountable stall, alternating linen awning panels, display counter, loose produce and a loaded wicker basket.",
     create() {
       const k = new ModelKit("market-produce-stall");
-      for (const x of [-1.8, 1.8]) for (const z of [-1.3, 1.3]) k.box("stall-post", [x, 1.4, z], [0.12, 2.8, 0.12]);
+      for (const z of [-1.3, 1.3]) {
+        const height = 2.9 - Math.tan(0.12) * z;
+        for (const x of [-1.8, 1.8]) k.box("stall-post", [x, height / 2, z], [0.12, height, 0.12]);
+        k.box("awning-support-rail", [0, height - 0.06, z], [3.72, 0.12, 0.12]);
+      }
       for (let i = 0; i < 6; i++) {
         const awning = k.box("awning-panel", [-1.7 + i * 0.68, 2.9, 0], [0.68, 0.045, 3.5], i % 2 ? "white" : "cloth");
         awning.rotation.x = 0.12;

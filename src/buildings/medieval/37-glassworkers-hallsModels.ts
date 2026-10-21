@@ -26,7 +26,7 @@ export const models: MedievalModel[] = [
         k.cylinder("glass-stem", [x, 1.18, 0], 0.025, 0.35, "water");
         k.vessel("goblet-bowl", [x, 1.32, 0], 0.16, 0.25, "water");
       }
-      k.box("guild-banner", [-4, 5, 3.7], [0.65, 1.6, 0.04], "cloth");
+      k.box("guild-banner", [-1.8, 5, 3.7], [0.65, 1.6, 0.04], "cloth");
       return k.finish();
     }
   }

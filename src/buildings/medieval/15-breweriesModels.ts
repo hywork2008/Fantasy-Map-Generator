@@ -18,7 +18,7 @@ function brewery(large: boolean) {
   k.attach(shelter.finish(), [-2 + hallWidth / 2 + 2 + 0.6 + 0.6, 0, 0]);
   k.table(0, 3, 2.2, 1, 0.85);
   k.box("malt-cooling-tray", [0, 0.97, 3], [2, 0.1, 0.8], "straw");
-  for (let i = 0; i < 3; i++) k.attach(createMedievalContainerModel("barrel", "closed"), [-3 + i, 0, 2.2]);
+  for (let i = 0; i < 3; i++) k.attach(createMedievalContainerModel("barrel", "closed"), [-4.4 + i * 0.75, 0, 2.2]);
   return k.finish();
 }
 export const models: MedievalModel[] = [

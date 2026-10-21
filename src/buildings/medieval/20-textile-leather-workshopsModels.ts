@@ -12,14 +12,17 @@ function workshop(kind: "weaver" | "tailor" | "cobbler") {
     k.beam("cloth-beam", [-1.1, 0.9, 0.9], [1.1, 0.9, 0.9], 0.15, "wood", true);
     for (const x of [-0.6, 0.6]) k.beam("loom-treadle", [x, 0.2, 0.9], [x, 0.3, -0.6], 0.08);
     k.box("weavers-bench", [0, 0.45, 1.7], [2, 0.15, 0.35], "wood");
+    for (const x of [-0.8, 0.8]) k.box("bench-leg", [x, 0.2, 1.7], [0.12, 0.4, 0.3]);
   } else {
     k.table(0, 0, 3.1, 1.4, 0.85);
     k.box("cutting-material", [0, 0.93, 0], [1.8, 0.025, 1], kind === "tailor" ? "cloth" : "leather");
     if (kind === "tailor") {
       for (const s of [-1, 1]) k.beam("shears-blade", [0.2, 0.97, 0], [0.7, 0.97, s * 0.22], 0.035, "iron");
+      k.box("textile-stock-plinth", [-2, 0.19, -1.3], [1.1, 0.38, 0.75], "wood");
       for (let i = 0; i < 6; i++)
         k.box("folded-textiles", [-2, 0.45 + i * 0.18, -1.3], [1, 0.15, 0.65], i % 2 ? "white" : "cloth");
       k.box("garment-rail", [1.9, 2.2, -1.5], [1.6, 0.1, 0.1]);
+      for (const x of [1.1, 2.7]) k.box("garment-rack-post", [x, 1.1, -1.5], [0.1, 2.2, 0.1]);
       for (let i = 0; i < 3; i++) k.box("hanging-garment", [1.3 + i * 0.5, 1.6, -1.5], [0.4, 1.1, 0.04], "cloth");
     } else {
       for (let i = 0; i < 5; i++) k.sphere("shoe-last", [-1 + i * 0.5, 1.02, 0.25], [0.2, 0.1, 0.1], "wood");

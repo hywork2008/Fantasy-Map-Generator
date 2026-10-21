@@ -27,9 +27,9 @@ export const models: MedievalModel[] = [
       const k = new ModelKit("bread-bakehouse");
       k.hall(-1, -1, 6, 4.5, 2.7, 1.4, { wall: "stone", door: 1.4 });
       oven(k, 3, 0);
-      k.table(-1, 2.5, 2.5, 0.8, 0.85);
-      k.beam("bread-peel-handle", [-2, 1, 2.5], [0, 1, 2.5], 0.045, "wood", true);
-      k.box("bread-peel-blade", [0.3, 1, 2.5], [0.6, 0.04, 0.4], "wood");
+      k.table(-3.1, 2.5, 2.5, 0.8, 0.85);
+      k.beam("bread-peel-handle", [-4.1, 1, 2.5], [-2.1, 1, 2.5], 0.045, "wood", true);
+      k.box("bread-peel-blade", [-1.8, 1, 2.5], [0.6, 0.04, 0.4], "wood");
       return k.finish();
     }
   },
@@ -43,11 +43,11 @@ export const models: MedievalModel[] = [
       const k = new ModelKit("town-bakery");
       k.hall(-1, -1, 7, 5, 4.7, 1.8, { storeys: 2 });
       oven(k, 4, -0.5);
-      k.table(-1, 2.8, 3, 0.9, 0.9);
+      k.table(-3.3, 2.8, 3, 0.9, 0.9);
       for (let i = 0; i < 8; i++)
         k.sphere(
           "bread-loaf",
-          [-2.2 + (i % 4) * 0.75, 1.1, 2.6 + Math.floor(i / 4) * 0.4],
+          [-4.5 + (i % 4) * 0.75, 1.1, 2.6 + Math.floor(i / 4) * 0.4],
           [0.28, 0.14, 0.15],
           "straw"
         );

@@ -39,12 +39,12 @@ export const models: MedievalModel[] = [
       k.beam("cross-main-bar", [-0.5, 10.7, -6], [0.5, 10.7, -6], 0.075, "iron");
       k.beam("cross-upper-bar", [-0.25, 11.05, -6], [0.25, 11.05, -6], 0.06, "iron");
       k.beam("cross-footbar", [-0.3, 10, -6], [0.3, 9.8, -6], 0.06, "iron");
-      k.hall(-11, 1, 4, 17, 4.7, 1.5, { wall: "plaster", storeys: 2 });
-      k.hall(11, 1, 4, 17, 4.7, 1.5, { wall: "plaster", storeys: 2 });
+      for (const side of [-1, 1])
+        k.hall(side * 11, 1, 17, 4, 4.7, 1.5, { wall: "plaster", storeys: 2, rotation: (-side * Math.PI) / 2 });
       k.hall(0, 10, 18, 4, 3.6, 1.4, { wall: "stone" });
       k.chimney(5, 10, 5.5);
       for (const side of [-1, 1]) {
-        k.hall(side * 7.7, 1, 2.2, 13, 2.5, 0.5, { open: true, roof: "wood" });
+        k.hall(side * 7.7, 1, 13, 2.2, 2.5, 0.5, { open: true, roof: "wood", rotation: (-side * Math.PI) / 2 });
         for (let i = 0; i < 7; i++) k.box("gallery-balustrade", [side * 7.7, 0.9, -4 + i * 1.7], [0.09, 1, 0.09]);
       }
       k.box("herb-garden", [0, 0.17, 3], [5, 0.1, 4], "green");

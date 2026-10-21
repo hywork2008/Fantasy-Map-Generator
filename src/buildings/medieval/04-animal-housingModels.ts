@@ -66,7 +66,11 @@ export const models: MedievalModel[] = [
       k.box("coop-floor", [0, 1, 0], [2.2, 0.14, 1.9], "wood");
       for (const x of [-1, 1]) k.box("coop-end", [x, 1.6, 0], [0.13, 1.2, 1.9], "wood");
       k.box("coop-back", [0, 1.6, -0.9], [2.2, 1.2, 0.12], "wood");
-      for (let i = 0; i < 8; i++) k.box("coop-front-slat", [-0.95 + i * 0.27, 1.6, 0.9], [0.18, 1.2, 0.09], "wood");
+      for (let i = 0; i < 8; i++) {
+        const x = -0.95 + i * 0.27,
+          aboveEntrance = Math.abs(x) < 0.3;
+        k.box("coop-front-slat", [x, aboveEntrance ? 2 : 1.6, 0.9], [0.18, aboveEntrance ? 0.4 : 1.2, 0.09], "wood");
+      }
       k.roof(0, 0, 2.6, 2.4, 2.25, 0.65, "wood", true);
       k.beam("access-ramp", [0, 0.18, 2.1], [0, 1.02, 0.9], 0.4, "wood");
       for (let i = 0; i < 6; i++) k.box("ramp-cleat", [0, 0.25 + i * 0.13, 2 - i * 0.18], [0.46, 0.07, 0.07], "wood");

@@ -22,7 +22,10 @@ function smithy(shoeing: boolean) {
   if (shoeing) {
     for (const x of [2.4, 4]) for (const z of [1.6, 3]) k.box("shoeing-stock-post", [x, 1.1, z], [0.15, 2.2, 0.15]);
     for (const x of [2.4, 4]) k.beam("stock-crossrail", [x, 1.6, 1.6], [x, 1.6, 3], 0.12);
+    for (const x of [1.7, 2.8]) k.box("horseshoe-rack-post", [x, 0.8, 1], [0.08, 1.6, 0.08]);
+    k.box("horseshoe-rack-rail", [2.25, 1.6, 1], [1.2, 0.1, 0.1]);
     for (let i = 0; i < 4; i++) {
+      k.beam("horseshoe-hanger", [1.9 + i * 0.22, 1.6, 1], [1.9 + i * 0.22, 1.5, 1], 0.025, "iron", true);
       const points = Array.from({ length: 13 }, (_, j): readonly [number, number, number] => {
         const a = (j * Math.PI) / 8;
         return [1.9 + i * 0.22 + Math.cos(a) * 0.09, 1.4 + Math.sin(a) * 0.12, 1];

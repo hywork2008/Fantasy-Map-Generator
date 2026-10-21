@@ -38,6 +38,9 @@ export const model: LandmarkModel = {
     for (let i = 0; i < 7; i++) {
       const a = ((i + 0.5) * Math.PI) / 7;
       k.opening("upper-glazing", 10 + Math.sin(a) * 8.5, 9.5, Math.cos(a) * 8.5, 3.1, 15, a);
+    }
+    for (let i = 1; i < 7; i++) {
+      const a = (i * Math.PI) / 7;
       k.block("apse-buttress", 10 + Math.sin(a) * 9.2, Math.cos(a) * 9.2, 0.7, 0.7, 29);
     }
     k.block("west-screen", -18, 0, 0.7, 17, 28);

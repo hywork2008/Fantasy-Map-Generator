@@ -9,10 +9,10 @@ function church(tower: boolean) {
     door: 1.4
   });
   k.hall(tower ? 6.5 : 5.2, 0, 3, 4.6, 3, 1.4, { wall: "stone", windows: false });
-  for (const x of [-3, 0, 3])
+  for (const x of [-3, 3])
     for (const z of [-1, 1]) {
       k.box("church-buttress", [x, 1.5, z * (tower ? 3.65 : 2.65)], [0.45, 3, 0.65], "stone");
-      k.box("lancet-recess", [x, 2.6, z * (tower ? 3.52 : 2.52)], [0.35, 1.4, 0.04], "dark");
+      k.box("lancet-recess", [x / 2, 2.6, z * (tower ? 3.52 : 2.52)], [0.35, 1.4, 0.04], "dark");
     }
   if (tower) {
     k.box("west-bell-tower", [-6, 3.8, 0], [3.1, 7.6, 3.1], "stone");
@@ -22,11 +22,15 @@ function church(tower: boolean) {
     }
     k.roof(-6, 0, 3.5, 3.5, 7.65, 1.7, "wood");
   } else {
-    k.hall(-3, 0, 1.8, 1.8, 5, 1, { open: true, roof: "wood" });
-    k.cylinder("small-bell", [-3, 4.4, 0], 0.25, 0.4, "iron", 0.12);
+    const bellcote = new ModelKit("chapel-bellcote");
+    bellcote.hall(0, 0, 1.8, 1.8, 1.2, 0.65, { open: true, roof: "wood" });
+    for (const x of [-0.78, 0.78]) bellcote.beam("bell-support", [x, 0.9, -0.9], [x, 0.9, 0.9], 0.12);
+    bellcote.beam("bell-yoke", [-0.78, 0.9, 0], [0.78, 0.9, 0], 0.12);
+    bellcote.cylinder("small-bell", [0, 0.65, 0], 0.25, 0.4, "iron", 0.12);
+    k.attach(bellcote.finish(), [-3, 4.95, 0]);
   }
   const x = tower ? -6 : -3,
-    y = tower ? 9.5 : 6.2;
+    y = tower ? 9.3 : 6.9;
   k.beam("roof-cross", [x, y, 0], [x, y + 0.8, 0], 0.065, "iron");
   k.beam("cross-arm", [x - 0.25, y + 0.55, 0], [x + 0.25, y + 0.55, 0], 0.065, "iron");
   return k.finish();

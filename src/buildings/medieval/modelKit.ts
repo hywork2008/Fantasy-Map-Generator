@@ -238,11 +238,23 @@ export class ModelKit {
     d: number,
     eave: number,
     rise: number,
-    options: { wall?: Surface; roof?: Surface; open?: boolean; door?: number; storeys?: number; windows?: boolean } = {}
+    options: {
+      wall?: Surface;
+      roof?: Surface;
+      open?: boolean;
+      door?: number;
+      doorOffset?: number;
+      rotation?: number;
+      storeys?: number;
+      windows?: boolean;
+    } = {}
   ) {
+    const start = this.pickables.length;
     const wall = options.wall ?? "plaster",
       door = Math.min(options.door ?? 1.1, w - 0.8),
-      doorH = Math.min(2.2, eave - 0.3);
+      doorH = Math.min(2.2, eave - 0.3),
+      doorOffset = THREE.MathUtils.clamp(options.doorOffset ?? 0, -(w - door) / 2 + 0.2, (w - door) / 2 - 0.2),
+      doorX = x + doorOffset;
     this.box("stone-sill", [x, 0.12, z], [w, 0.24, d], "stone");
     if (!options.open) {
       this.box("rear-wall", [x, eave / 2, z - d / 2 + 0.1], [w, eave, 0.2], wall);
@@ -250,25 +262,32 @@ export class ModelKit {
         this.box("end-wall", [x + side * (w / 2 - 0.1), eave / 2, z], [0.2, eave, d], wall);
         this.box(
           "door-flanking-wall",
-          [x + side * (door / 2 + (w - door) / 4), eave / 2, z + d / 2 - 0.1],
-          [(w - door) / 2, eave, 0.2],
+          [x + (side * (w + door)) / 4 + doorOffset / 2, eave / 2, z + d / 2 - 0.1],
+          [(w - door) / 2 + side * -doorOffset, eave, 0.2],
           wall
         );
       }
-      this.box("door-lintel-wall", [x, (doorH + eave) / 2, z + d / 2 - 0.1], [door, eave - doorH, 0.2], wall);
+      this.box("door-lintel-wall", [doorX, (doorH + eave) / 2, z + d / 2 - 0.1], [door, eave - doorH, 0.2], wall);
       for (const side of [-1, 1]) {
         this.box(
           "door-leaf",
-          [x + (side * door) / 4, doorH / 2, z + d / 2 + 0.02],
+          [doorX + (side * door) / 4, doorH / 2, z + d / 2 + 0.02],
           [door / 2 - 0.025, doorH, 0.07],
           "wood"
         );
         for (const y of [0.5, doorH - 0.4])
-          this.box("door-strap", [x + (side * door) / 4, y, z + d / 2 + 0.065], [door / 2 - 0.1, 0.055, 0.025], "iron");
+          if (y < doorH - 0.1)
+            this.box(
+              "door-strap",
+              [doorX + (side * door) / 4, y, z + d / 2 + 0.065],
+              [door / 2 - 0.1, 0.055, 0.025],
+              "iron"
+            );
       }
     }
     for (const xx of [x - w / 2 + 0.12, x, x + w / 2 - 0.12])
       for (const zz of [z - d / 2, z + d / 2]) {
+        if (zz > z && (options.open ? xx === x : Math.abs(xx - doorX) < door / 2 + 0.09)) continue;
         this.box("frame-post", [xx, eave / 2, zz], [0.18, eave, 0.18]);
       }
     for (const zz of [z - d / 2, z + d / 2]) {
@@ -278,10 +297,21 @@ export class ModelKit {
     if (!options.open && options.windows !== false && w > 3) {
       for (let floor = 0; floor < (options.storeys ?? 1); floor++)
         for (const side of [-1, 1]) {
-          this.window(x + side * w * 0.3, z + d / 2 + 0.12, 1.7 + floor * 2.6, 0.65, 0.9);
+          const windowX = x + side * w * 0.3,
+            windowY = Math.min(1.7 + floor * 2.6, eave - 0.55);
+          if (windowY < 0.75) continue;
+          if (windowY - 0.45 < doorH && Math.abs(windowX - doorX) < door / 2 + 0.6) continue;
+          this.window(windowX, z + d / 2 + 0.12, windowY, 0.65, 0.9);
         }
     }
     this.roof(x, z, w + 0.6, d + 0.7, eave + 0.12, rise, options.roof ?? "tile", !options.open);
+    if (options.rotation) {
+      const transform = new THREE.Matrix4()
+        .makeTranslation(x, 0, z)
+        .multiply(new THREE.Matrix4().makeRotationY(options.rotation))
+        .multiply(new THREE.Matrix4().makeTranslation(-x, 0, -z));
+      for (const mesh of this.pickables.slice(start)) mesh.applyMatrix4(transform);
+    }
   }
   window(x: number, z: number, y: number, w = 0.7, h = 0.9) {
     this.box("window-recess", [x, y, z], [w, h, 0.045], "dark");

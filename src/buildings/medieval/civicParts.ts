@@ -23,14 +23,15 @@ export function assemblyHall(id: string, width = 12, depth = 7) {
         );
     }
   const upper = new ModelKit(`${id}-assembly-room`);
-  upper.hall(0, 0, width, depth, 3.2, 2, { storeys: 1, wall: "plaster" });
+  const entranceX = width / 2 - 1.2;
+  upper.hall(0, 0, width, depth, 3.2, 2, { storeys: 1, wall: "plaster", doorOffset: entranceX });
   k.attach(upper.finish(), [0, 3.25, 0]);
   for (const z of [-depth / 2 - 0.1, depth / 2 + 0.1])
     k.box("assembly-floor-band", [0, 3.4, z], [width + 0.2, 0.25, 0.25], "wood");
   for (let i = 0; i < 11; i++) {
     const h = (i + 1) * 0.29;
-    k.box("civic-stair", [width / 2 + 0.8, h / 2, depth / 2 + 1.8 - i * 0.4], [1.5, h, 0.4], "stone");
+    k.box("civic-stair", [entranceX, h / 2, depth / 2 + 4.6 - i * 0.4], [1.5, h, 0.4], "stone");
   }
-  k.box("upper-landing", [width / 2 + 0.8, 3.2, -1.2], [1.6, 0.18, 1.8], "stone");
+  k.box("upper-landing", [entranceX, 3.2, depth / 2 + 0.3], [1.6, 0.18, 0.6], "stone");
   return k;
 }
