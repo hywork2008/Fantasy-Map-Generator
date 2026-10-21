@@ -28,7 +28,7 @@ CEの施設配置・平面描画や汎用3D表現の有無とは区別する。
 - [x] 11. **鍛冶場・蹄鉄工房** — CE: `smithyYard`。炉、鞴、金床、作業庇。 `src/buildings/medieval/11-smithiesModels.ts` に専用モデルを実装し、BVに登録。
 - [x] 12. **街道宿・旅籠** — CE: `inn`。宿泊棟、中庭、厩舎。 `src/buildings/medieval/12-innsModels.ts` に専用モデルを実装し、BVに登録。
 - [x] 13. **薪・柴束・木炭の置場** — CE: `fuelStack`。棚、覆い、積み方の差分。 `src/buildings/medieval/13-fuel-storageModels.ts` に専用モデルを実装し、BVに登録。
-- [ ] 14. **小規模な教区教会・村の礼拝堂** — 汎用あり。簡素な身廊、内陣、小鐘楼。既存の大型礼拝堂を補完。
+- [x] 14. **小規模な教区教会・村の礼拝堂** — 汎用あり。簡素な身廊、内陣、小鐘楼。既存の大型礼拝堂を補完。 `src/buildings/medieval/14-parish-churchesModels.ts` に専用モデルを実装し、BVに登録。
 - [ ] 15. **醸造所・エール醸造小屋** — 町、宿、修道院向け。農村への配置は地域による。
 - [ ] 16. **穀倉・穀物貯蔵棟** — CE: `granary`。地域・時代別の貯蔵形式を選ぶ。
 - [ ] 17. **商業倉庫・荷蔵** — CE: `warehouse`。荷揚げ扉、庇、巻上げ梁。
