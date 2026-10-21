@@ -4,6 +4,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { createPontDuGard, PONT_DU_GARD, pontDuGardElevation } from "../buildings/aqueducts/pontDuGard";
 import { contentDigest } from "../buildings/canonicalJson";
 import { createStGeorgesChapel, ST_GEORGES_CHAPEL } from "../buildings/chapels/stGeorgesChapel";
+import { BARBICANS, createBarbican } from "../buildings/fortresses/barbicans";
 import { BOJNICE, bojnicePlan, createBojnice } from "../buildings/fortresses/bojnice";
 import { CHAMBORD, createChambord } from "../buildings/fortresses/chambord";
 import { KRAK, type KrakPhase } from "../buildings/fortresses/krak";
@@ -1440,6 +1441,58 @@ warWagonButton.addEventListener("click", () => {
   );
 });
 vehiclesHeading.append(warWagonButton);
+
+const barbicansHeading = modelCategory("Barbicans");
+for (const definition of BARBICANS) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = definition.name;
+  button.dataset.barbicanId = definition.id;
+  button.addEventListener("click", () => {
+    selection++;
+    for (const item of list.querySelectorAll("button"))
+      item.setAttribute("aria-current", item === button ? "true" : "false");
+    clearMesh();
+    floors.replaceChildren();
+    facts.replaceChildren();
+    banner.hidden = true;
+    roofTitle.textContent = "Barbican front elevation";
+    levelTitle.textContent = "Barbican top view";
+    const model = createBarbican(definition);
+    massing = model;
+    scene.add(model.group);
+    ground.visible = true;
+    const bounds = new THREE.Box3().setFromObject(model.group, true);
+    const center = bounds.getCenter(new THREE.Vector3());
+    const size = bounds.getSize(new THREE.Vector3());
+    const radius = Math.max(size.x, size.y, size.z);
+    camera.position.copy(center).add(new THREE.Vector3(radius * 0.9, radius, radius * 1.2));
+    controls.target.copy(center);
+    controls.update();
+    ground.geometry.dispose();
+    ground.geometry = new THREE.CircleGeometry(radius, 48);
+    mountPlan(roofHost, meshProjection(model, "side"));
+    mountPlan(levelHost, meshProjection(model, "top"));
+    facts.append(
+      fact("Model", definition.name),
+      fact("Period", definition.period),
+      fact("Mesh dimensions", `${size.x.toFixed(2)} × ${size.z.toFixed(2)} × ${size.y.toFixed(2)} m`),
+      fact("Construction", definition.note),
+      fact("Connection", "Castle gate attaches at negative Z. Both entrances are open; the court is unroofed."),
+      fact(
+        "Scope",
+        "Illustrative independent forework; dimensions are invented. Top view projects the actual 3D mesh. CE placement is separate."
+      )
+    );
+    const reference = document.createElement("a");
+    reference.href = definition.reference.url;
+    reference.textContent = definition.reference.title;
+    reference.target = "_blank";
+    reference.rel = "noopener noreferrer";
+    facts.append(reference);
+  });
+  barbicansHeading.append(button);
+}
 
 const signsHeading = modelCategory("Hanging shop signs");
 function showSign(options: HangingSignOptions, activeButton: HTMLButtonElement): void {
