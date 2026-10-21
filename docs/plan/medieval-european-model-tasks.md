@@ -46,7 +46,7 @@ CEの施設配置・平面描画や汎用3D表現の有無とは区別する。
 - [x] 29. **石材置場・石工の作業場** — CE: `stoneYard`。粗石、切石、石工台、作業庇。 `src/buildings/medieval/29-stone-yardsModels.ts` に専用モデルを実装し、BVに登録。
 - [x] 30. **石灰窯** — CE: `limeKiln`。窯体、焚口、原料置場。 `src/buildings/medieval/30-lime-kilnsModels.ts` に専用モデルを実装し、BVに登録。
 - [x] 31. **布の晒し場** — CE: `bleachingField`。布を広げる区画、乾燥設備。 `src/buildings/medieval/31-bleaching-fieldsModels.ts` に専用モデルを実装し、BVに登録。
-- [ ] 32. **修道院の生活棟群** — CE: `abbey`。回廊、食堂、寝室棟、厨房など。
+- [x] 32. **修道院の生活棟群** — CE: `abbey`。回廊、食堂、寝室棟、厨房など。 `src/buildings/medieval/32-abbey-living-quartersModels.ts` に専用モデルを実装し、BVに登録。
 - [ ] 33. **托鉢修道会の修道院** — CE: `friary`。主に中世盛期以降の都市向け。教会と比較的簡素な生活棟。
 - [ ] 34. **陶工の工房・陶器窯** — 窯、乾燥棚、粘土置場。
 - [ ] 35. **港の木製荷揚げクレーン** — 商港、河港向け。踏車式・巻上げ式など地域別に選択。
