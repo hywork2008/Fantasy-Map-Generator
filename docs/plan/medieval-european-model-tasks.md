@@ -51,7 +51,7 @@ CEの施設配置・平面描画や汎用3D表現の有無とは区別する。
 - [x] 34. **陶工の工房・陶器窯** — 窯、乾燥棚、粘土置場。 `src/buildings/medieval/34-pottery-workshopsModels.ts` に専用モデルを実装し、BVに登録。
 - [x] 35. **港の木製荷揚げクレーン** — 商港、河港向け。踏車式・巻上げ式など地域別に選択。 `src/buildings/medieval/35-harbor-cranesModels.ts` に専用モデルを実装し、BVに登録。
 - [x] 36. **常設絞首台** — CE: `gallows`。裁判権を持つ町の郊外や街道沿い向け。 `src/buildings/medieval/36-gallowsModels.ts` に専用モデルを実装し、BVに登録。
-- [ ] 37. **ガラス職人の会館** — CE: `glassware`。専門産業都市向け。ガラス炉・工房とは別施設。
+- [x] 37. **ガラス職人の会館** — CE: `glassware`。専門産業都市向け。ガラス炉・工房とは別施設。 `src/buildings/medieval/37-glassworkers-hallsModels.ts` に専用モデルを実装し、BVに登録。
 - [ ] 38. **印刷工房・印刷職人会館** — CE: `printing`は会館に対応。15世紀半ば以降。印刷機、紙棚、乾燥設備。
 - [ ] 39. **楽器職人会館** — CE: `instruments`。比較的大きな都市や専門産地向け。
 - [ ] 40. **砂置場** — CE: `sandYard`。ガラス製造・建設関連の原料山、囲い、運搬容器。
