@@ -42,7 +42,7 @@ CEの施設配置・平面描画や汎用3D表現の有無とは区別する。
 - [x] 25. **公共穀倉** — CE: `publicGranary`。大型貯蔵棟、搬入口。 `src/buildings/medieval/25-public-granariesModels.ts` に専用モデルを実装し、BVに登録。
 - [x] 26. **市庁舎・市場会館** — 都市、市場町向け。集会室、商業用の開放階など。 `src/buildings/medieval/26-civic-hallsModels.ts` に専用モデルを実装し、BVに登録。
 - [x] 27. **布地会館** — CE: `textiles`。織物生産・交易都市向け。店舗や織物工房とは別用途。 `src/buildings/medieval/27-cloth-hallsModels.ts` に専用モデルを実装し、BVに登録。
-- [ ] 28. **皮革・木工・石工・鍛冶の各会館** — CE: `leather` / `woodworking` / `masonry` / `metallurgy`。各職種のギルド会館。通常の工房とは区別。
+- [x] 28. **皮革・木工・石工・鍛冶の各会館** — CE: `leather` / `woodworking` / `masonry` / `metallurgy`。各職種のギルド会館。通常の工房とは区別。 `src/buildings/medieval/28-craft-guild-hallsModels.ts` に専用モデルを実装し、BVに登録。
 - [ ] 29. **石材置場・石工の作業場** — CE: `stoneYard`。粗石、切石、石工台、作業庇。
 - [ ] 30. **石灰窯** — CE: `limeKiln`。窯体、焚口、原料置場。
 - [ ] 31. **布の晒し場** — CE: `bleachingField`。布を広げる区画、乾燥設備。
