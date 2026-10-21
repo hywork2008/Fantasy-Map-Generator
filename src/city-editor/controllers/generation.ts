@@ -2,6 +2,7 @@ import { editorText } from "../../i18n/editorMessages";
 import { describeImportedSite } from "../components/importedSite";
 import { DEFAULT_CASTLE_SETTINGS } from "../generators/castlePlacement";
 import { sizePresetForExtent } from "../generators/document";
+import { createFabricPlan, resolveDistricts } from "../generators/fabricDistricts";
 import { townCircuits } from "../generators/fortifications";
 import { COMPLETE_CITY_ATTEMPTS, generateCityOnDocument } from "../generators/generation/generateCity";
 import { clearGenerationPreviewCache, generateStageOnDocument } from "../generators/generation/previews";
@@ -360,6 +361,57 @@ export function createGenerationController(ctx: GenerationContext) {
     }
   }
 
+  /** Finish the live edited mesh without rerunning any planning stages. */
+  function generateFromEdits(): void {
+    if (!ctx.scope.active || ctx.generation.generationJob) return;
+    const source = clone(ctx.documents.documentState);
+    const seed = source.generationSeed ?? ctx.generation.generateSeed;
+    let next: CityDocument;
+    try {
+      source.appearance = "town";
+      source.generationSeed = seed;
+      source.buildingPattern ??= ctx.generation.generateSettings.buildingPattern;
+      source.fabric = { ...createFabricPlan(source, seed), districts: resolveDistricts(source, source.fabric) };
+      delete source.ruralFieldSnapshot;
+      next = generateRuralFieldStage(ctx.documentForOutput(source), { preserveLandUse: true });
+    } catch (error) {
+      console.error(error);
+      ctx.appendGenerationException(error, seed);
+      ctx.showNotice(editorText("cityEditor.messages.cityGenerationFailed"));
+      return;
+    }
+    if (!ctx.generation.generationHistory.has(ctx.documents.history.currentEntryKey)) ctx.rememberGenerationState();
+    ctx.clearFailurePreview();
+    ctx.generation.pendingFailurePreview = null;
+    ctx.documents.documentState = ctx.documents.history.commit(
+      next,
+      editorText("cityEditor.messages.generateFromEdits")
+    );
+    ctx.generation.completeSource = clone(source);
+    ctx.generation.completeResult = next;
+    ctx.generation.completeResultSettings = JSON.stringify(ctx.generation.generateSettings);
+    clearGenerationPreviewCache();
+    const stage = generationStages(ctx.generation.generateSettings).find(s => s.id === "conceal")!;
+    ctx.generation.lastGeneratedStep = stage.step;
+    ctx.generation.currentStageStep = stage.step;
+    ctx.generation.activeStepStage = null;
+    ctx.generation.stepIndex = -1;
+    ctx.generation.urbanCoreHighlight = null;
+    ctx.generation.stepOverlayPaths = null;
+    ctx.stepStatus.textContent = "";
+    ctx.display.showBlockMesh = false;
+    ctx.display.hideBuildings = false;
+    ctx.display.hideStreetLines = true;
+    ctx.interaction.selection = emptySelection();
+    ctx.interaction.activeGroupId = null;
+    ctx.interaction.tool = "select";
+    ctx.syncStageUi(stage.step);
+    ctx.rememberGenerationState(seed);
+    ctx.rebuildEditorIndexes();
+    ctx.refresh();
+    ctx.showNotice(editorText("cityEditor.messages.generatedFromEdits"), false);
+  }
+
   function runGenerationStage(stage: GenerationStage): void {
     const populationPanel = ctx.root.querySelector<HTMLElement>(".ce-population-controls");
     if (ctx.generation.generateSettings.mode !== "fort" && populationPanel?.dataset.valid === "false") {
@@ -689,6 +741,7 @@ export function createGenerationController(ctx: GenerationContext) {
 
   return {
     runCompleteGeneration,
+    generateFromEdits,
     acceptCompleteGeneration,
     runGenerationStage,
     runStep,

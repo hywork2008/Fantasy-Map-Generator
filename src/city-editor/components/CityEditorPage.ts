@@ -2281,6 +2281,14 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     ),
     text(editorText("cityEditor.generationStages.title")),
     stageContainer,
+    Object.assign(
+      makeButton(editorText("cityEditor.messages.generateFromEdits"), () => {
+        getMapDisplayController().cancelFarmland();
+        getGenerationController().generateFromEdits();
+      }),
+      { className: "ce-generate-from-edits", title: editorText("cityEditor.messages.generateFromEditsHelp") }
+    ),
+    text(editorText("cityEditor.messages.generateFromEditsHelp")),
     divider(),
     label(editorText("cityEditor.messages.urbanCoreAllocationMode"), urbanCoreModeSelect),
     label(editorText("cityEditor.messages.3NPatchesBlankAuto"), urbanNPatchesInput),
