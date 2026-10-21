@@ -1559,9 +1559,11 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
         fact("Construction", definition.note),
         fact(
           "Scope",
-          definition.task === 43 || definition.task === 44
-            ? "Schematic landscape or funerary model; meter units. Shared with CE park and cemetery 3D placement."
-            : "Illustrative medieval or early modern model; meter units. CE automatic placement is separate."
+          definition.task === 33
+            ? "CE-fitted friary assembly; meter units. BV and CE share the same construction."
+            : definition.task === 43 || definition.task === 44
+              ? "Schematic landscape or funerary model; meter units. Shared with CE park and cemetery 3D placement."
+              : "Illustrative medieval or early modern model; meter units. CE automatic placement is separate."
         )
       );
     });

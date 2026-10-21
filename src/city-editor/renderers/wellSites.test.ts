@@ -37,3 +37,17 @@ it("uses the collision-checked basin location and never adds an extra center wel
   fabric.aerialLandmarks!.domesticWater = [];
   expect(collectWellSites(city, fabric)).toEqual([]);
 });
+
+it("lets friaries own their courtyard well without duplicating it at terrain height", () => {
+  const city = { elements: [] } as unknown as CityDocument;
+  const fabric = {
+    aerialLandmarks: {
+      monasteries: [
+        { id: "friary", kind: "friary", well: [10, 20] },
+        { id: "abbey", kind: "abbey", well: [40, 50] }
+      ],
+      domesticWater: []
+    }
+  } as unknown as DistrictFabric;
+  expect(collectWellSites(city, fabric)).toEqual([{ id: "abbey:well", point: [40, 50] }]);
+});

@@ -17,7 +17,9 @@ export function collectWellSites(city: CityDocument, fabric: DistrictFabric): We
       sites.push({ id: element.id, point: element.point, kind: "publicBasin" });
   }
   for (const monastery of aerial?.monasteries ?? []) {
-    if (monastery.well) sites.push({ id: `${monastery.id}:well`, point: monastery.well });
+    // Friaries own their courtyard well so it shares the raised precinct foundation.
+    if (monastery.kind !== "friary" && monastery.well)
+      sites.push({ id: `${monastery.id}:well`, point: monastery.well });
   }
   return sites.filter((site, index) =>
     sites

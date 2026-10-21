@@ -1,27 +1,13 @@
-import { cloister } from "./32-abbey-living-quartersModels";
-import { type MedievalModel, ModelKit } from "./modelKit";
+import { createFriary } from "../monasteries/friary";
+import type { MedievalModel } from "./modelKit";
 
 export const models: MedievalModel[] = [
   {
     id: "mendicant-friary",
     name: "Urban mendicant friary",
     task: 33,
-    size: [28, 25, 10],
-    note: "Restrained urban friary with a preaching church, a small cloister, shared dormitory, refectory and kitchen. Intended for high/late medieval and later urban settings, not an early medieval foundation.",
-    create() {
-      const k = new ModelKit("mendicant-friary");
-      cloister(k, 8);
-      k.hall(0, -7, 19, 6, 4.8, 2.3, { wall: "stone", windows: false, door: 1.6 });
-      for (const x of [-6, -3, 0, 3, 6]) k.box("preaching-church-window", [x, 3.4, -3.95], [0.45, 1.6, 0.045], "dark");
-      k.hall(-7, 1, 9, 4, 4.8, 1.5, { wall: "plaster", storeys: 2, rotation: Math.PI / 2 });
-      k.hall(0, 7, 12, 4, 3.3, 1.2, { wall: "plaster" });
-      k.hall(7, 2, 6, 4, 3, 1.2, { wall: "stone", rotation: -Math.PI / 2 });
-      k.chimney(7, 2, 5.1);
-      for (const x of [-1.2, 1.2]) k.box("church-bellcote-post", [x, 7.7, -7], [0.18, 2, 0.18]);
-      k.beam("bell-yoke", [-1.2, 8.5, -7], [1.2, 8.5, -7], 0.15);
-      k.roof(0, -7, 3, 1.8, 8.7, 0.7, "tile");
-      k.cylinder("friary-bell", [0, 8.2, -7], 0.25, 0.45, "iron", 0.15);
-      return k.finish();
-    }
+    size: [85, 75, 15],
+    note: "A CE-fitted urban friary: preaching nave and choir with apse, open bellcote, three domestic ranges, roofed cloister around an open garth, herb beds, orchard, well and precinct wall with an entrance. BV and CE use the same assembly. Illustrative high/late medieval proportions.",
+    create: () => createFriary()
   }
 ];

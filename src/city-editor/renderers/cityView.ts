@@ -3,6 +3,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { buildingSurfaces } from "../../city3d/core/massingGeometry";
 import { structureSurfaces } from "../../city3d/core/structureGeometry";
 import { type CityMassingMeshes, createCityMassing } from "../../city3d/three/cityMeshes";
+import { createTownFriaries } from "../../city3d/three/friaryMeshes";
 import { createTownOpenSpaces } from "../../city3d/three/openSpaceMeshes";
 import { createTownPiers } from "../../city3d/three/pierMeshes";
 import { createTownRoads, roadStampChanged, type TownRoadMeshes } from "../../city3d/three/roadMeshes";
@@ -122,6 +123,8 @@ export function mountCity3d(options: {
   let structures: CityStructureMeshes | null = null;
   let wells: CityStructureMeshes | null = null;
   let openSpaces: CityStructureMeshes | null = null;
+  let friaries: CityStructureMeshes | null = null;
+  let friaryStamp: string | null = null;
   let openSpaceStamp: string | null = null;
   let ships: CityStructureMeshes | null = null;
   let shipStamp: string | null = null;
@@ -349,7 +352,26 @@ export function mountCity3d(options: {
       city.historicalPeriod
     ]);
     const openSpacesChanged = terrainChanged || plan.buildings || openSpaceStamp !== nextOpenSpaceStamp || !openSpaces;
-    if (!plan.buildings && !plan.water && !plan.roads && !shipsChanged && !piersChanged && !openSpacesChanged) return;
+    const friaryPlans = (fabric.aerialLandmarks?.monasteries ?? []).filter(monastery => monastery.kind === "friary");
+    const nextFriaryStamp = JSON.stringify(friaryPlans);
+    const friariesChanged = terrainChanged || friaryStamp !== nextFriaryStamp || !friaries;
+    if (
+      !plan.buildings &&
+      !plan.water &&
+      !plan.roads &&
+      !shipsChanged &&
+      !piersChanged &&
+      !openSpacesChanged &&
+      !friariesChanged
+    )
+      return;
+    if (friariesChanged) {
+      if (friaries) scene.remove(friaries.group);
+      friaries?.dispose();
+      friaries = createTownFriaries(friaryPlans, terrain ?? undefined);
+      scene.add(friaries.group);
+      friaryStamp = nextFriaryStamp;
+    }
     if (openSpacesChanged) {
       const openSpacePlan = collectOpenSpacePlan(fabric.parks ?? buildParkLawns(city), resolveCemeteryPlans(city));
       if (openSpaces) scene.remove(openSpaces.group);
@@ -475,6 +497,7 @@ export function mountCity3d(options: {
     wells?.dispose();
     ships?.dispose();
     openSpaces?.dispose();
+    friaries?.dispose();
     piers?.dispose();
     roadMeshes?.dispose();
     ground?.geometry.dispose();
