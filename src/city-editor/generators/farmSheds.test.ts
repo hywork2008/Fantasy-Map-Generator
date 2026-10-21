@@ -64,5 +64,25 @@ describe("farm sheds", () => {
       sheds[0].polygon.every(point => farms.some(farm => pointInPolygon(point, farm.polygon)) && point[1] > 5)
     ).toBe(true);
     expect(farmSheds({ ...document, featureGroups: [] }, farms, [])).toHaveLength(0);
+    const distant = farms.map(farm => ({ ...farm, polygon: farm.polygon.map(([x, y]): Point => [x, y + 300]) }));
+    expect(farmSheds(document, distant, [])).toHaveLength(0);
+    expect(
+      farmSheds(
+        document,
+        distant,
+        [],
+        [
+          {
+            faceId: "f0",
+            points: [
+              [0, 300],
+              [360, 300]
+            ],
+            widthMeters: 4,
+            kind: "farm-track"
+          }
+        ]
+      )
+    ).toHaveLength(1);
   });
 });

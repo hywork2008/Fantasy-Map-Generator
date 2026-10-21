@@ -450,6 +450,7 @@
       "generateCompleteCity": "🏘 都市を一括生成",
       "newCity": "🎲 新しい都市",
       "cityDecoration": "完成後の装飾",
+      "regenerateFarmland": "郊外の農地を再生成",
       "generateVacantLotTrees": "空き地の木を生成（再配置）",
       "showVacantLotTrees": "空き地の木を表示",
       "showUrbanCore": "中心部を表示",

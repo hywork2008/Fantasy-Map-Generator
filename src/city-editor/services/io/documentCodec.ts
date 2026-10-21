@@ -72,6 +72,7 @@ function isDocument(value: unknown): value is CityDocument {
   return (
     doc.format === "fmg-city-editor" &&
     validFacilityCounts(doc.facilityCounts) &&
+    (doc.ruralFieldVersion === undefined || doc.ruralFieldVersion === 1) &&
     (doc.vacantLotTrees === undefined ||
       (doc.vacantLotTrees !== null &&
         typeof doc.vacantLotTrees === "object" &&

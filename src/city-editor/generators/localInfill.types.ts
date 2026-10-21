@@ -3,6 +3,8 @@ import type { Id, Point } from "../types/primitives";
 import type { BuildingLot } from "./buildingLots.types";
 
 export interface FarmPlot {
+  plotId?: string;
+  sourceFaceIds?: Id[];
   faceId: Id;
   polygon: Point[];
   rows: Point[][];

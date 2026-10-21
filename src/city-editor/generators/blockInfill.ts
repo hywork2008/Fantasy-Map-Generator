@@ -47,6 +47,7 @@ import {
 } from "./polygonalCirculadeLayout";
 import { populationFabricSource, populationHousingFabric } from "./populationHousing";
 import { roadTrafficKey } from "./roadTraffic";
+import { applyRuralFields } from "./ruralFields";
 import { enforceDefenseClearance, shapeSuburbanFabric } from "./suburbanLanduse";
 import { shapeUrbanGrowthFabric } from "./urbanGrowth";
 import { documentWaterTest, dryRuns, lineHitsDocumentWater, waterPolygons } from "./waterGeometry";
@@ -201,6 +202,25 @@ function documentFabricFingerprint(doc: CityDocument): string {
     doc.fixedCrossingApproaches?.length ?? 0,
     siteEconomyKey(economyOnDocument(doc)),
     doc.farmlandAreaHectares ?? "",
+    doc.ruralFieldVersion ?? "",
+    doc.ruralFieldVersion === 1
+      ? JSON.stringify([
+          Object.values(doc.mesh.vertices).map(v => [v.id, v.point, v.locked]),
+          Object.values(doc.mesh.edges).map(e => [e.id, e.locked]),
+          doc.elements,
+          doc.frame,
+          doc.landmarks,
+          doc.waterAreas,
+          doc.regionalWaterAreas,
+          doc.frameRoads,
+          doc.riverConnections,
+          doc.defenseCircuits,
+          doc.castles,
+          doc.cemeteries,
+          doc.importedFixedCrossings,
+          doc.fixedCrossingApproaches
+        ])
+      : "",
     JSON.stringify(doc.facilityCounts ?? {}),
     roadTrafficKey(doc),
     prevailingWindKey(doc),
@@ -313,7 +333,9 @@ export function buildBlockFabric(
   if (document.urbanMorphology && !document.populationPlan)
     fabricResult = shapeUrbanGrowthFabric(document, fabricResult);
   const farmlandArea = document.farmlandAreaHectares;
-  if (farmlandArea !== undefined && Number.isFinite(farmlandArea)) {
+  if (document.ruralFieldVersion === 1) {
+    fabricResult = measureProcessing(profiler, "rural-fields", () => applyRuralFields(document, fabricResult));
+  } else if (farmlandArea !== undefined && Number.isFinite(farmlandArea)) {
     let remaining = Math.max(0, farmlandArea) * 10_000;
     // Keep complete plots nearest the town first, without changing their geometry or rows.
     const farms = [...fabricResult.farms]

@@ -72,6 +72,7 @@ export interface MapDisplayContext {
   coreLayerInput: HTMLInputElement;
   vacantTreesInput: HTMLInputElement;
   generateVacantTreesButton: HTMLButtonElement;
+  regenerateFarmlandButton: HTMLButtonElement;
   regionalLayerInput: HTMLInputElement;
   scaleLine: HTMLDivElement;
   scaleLabel: HTMLOutputElement;
@@ -130,6 +131,8 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
     });
     ctx.vacantTreesInput.checked = !!ctx.documents.documentState.vacantLotTrees?.visible;
     ctx.vacantTreesInput.disabled = !ctx.documents.documentState.vacantLotTrees;
+    ctx.regenerateFarmlandButton.disabled =
+      ctx.documents.documentState.appearance !== "town" || ctx.display.hideBuildings;
     ctx.generateVacantTreesButton.disabled =
       ctx.documents.documentState.appearance !== "town" || ctx.display.hideBuildings;
     ctx.map.classList.toggle("ce-map--select", ctx.interaction.tool === "select");

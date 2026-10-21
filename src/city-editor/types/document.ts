@@ -465,6 +465,8 @@ export interface CityDocument {
   siteEconomy?: import("./contracts/burgSiteEconomy").BurgSiteEconomy;
   /** Upper bound on rendered farms, in hectares; absent for unsurveyed sites. */
   farmlandAreaHectares?: number;
+  /** Absent on saved legacy cities: retain their original roadside fields. */
+  ruralFieldVersion?: 1;
   /**
    * Compass bearing the wind blows toward (0 = north, clockwise), copied from
    * `climate.prevailingWindDeg`. Absent: windmills keep a seeded facing.

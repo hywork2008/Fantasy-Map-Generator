@@ -961,7 +961,8 @@ export function generateCityAttempt(
     measureProcessing(profiler, "frame-road-junctions", () =>
       straightenFrameRoadJunctions(settled, settings.descriptor)
     );
-  measureProcessing(profiler, "roadside-fields", () => cultivateRoadside(settled));
+  settled.ruralFieldVersion = 1;
+  measureProcessing(profiler, "rural-land", () => cultivateRoadside(settled));
   measureProcessing(profiler, "cemetery-sync", () => syncDocumentCemeteries(settled));
   measureProcessing(profiler, "cemetery-layouts", () => refreshCemeteryLayouts(settled));
   measureProcessing(profiler, "cemetery-relocation", () =>

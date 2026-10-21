@@ -80,6 +80,7 @@ export function renderTownFabric(
     )
   );
   if (fabric) {
+    if (fabric.ruralFields) svg.setAttribute("data-rural-fields", JSON.stringify(fabric.ruralFields));
     const farms = element("g", { class: "ce-farms", "pointer-events": "none" });
     fabric.farms.forEach((farm, index) => {
       const tone = Math.abs(Math.round(farm.polygon[0][0] / 17) + Math.round(farm.polygon[0][1] / 13) + index) % 2;
@@ -92,7 +93,10 @@ export function renderTownFabric(
           "stroke-width": garden ? "1.8" : "0.6",
           "stroke-dasharray": garden ? "3 1.2" : "none",
           class: garden ? "ce-kitchen-garden" : "ce-open-field",
-          "data-farm-face": farm.faceId
+          "data-farm-face": farm.faceId,
+          ...(farm.plotId
+            ? { "data-farm-plot": farm.plotId, "data-farm-faces": farm.sourceFaceIds?.join(" ") ?? farm.faceId }
+            : {})
         })
       );
       if (!lightweight)
@@ -109,7 +113,7 @@ export function renderTownFabric(
     svg.appendChild(farms);
     if (!hideBuildings && !minimal) {
       const sheds = element("g", { class: "ce-farm-sheds", "pointer-events": "none" });
-      for (const shed of farmSheds(document, fabric.farms, lots)) {
+      for (const shed of farmSheds(document, fabric.farms, lots, fabric.lanes)) {
         sheds.appendChild(
           element("path", {
             d: polygon(shed.polygon),
@@ -212,7 +216,7 @@ export function renderTownFabric(
           lanes.appendChild(
             element("path", {
               d: path,
-              class: "ce-infill-lane",
+              class: lane.kind ? `ce-infill-lane ce-${lane.kind}` : "ce-infill-lane",
               ...(fixedMode ? { "stroke-linejoin": "round" } : {}),
               fill: "none",
               stroke: "#d5cfbf",

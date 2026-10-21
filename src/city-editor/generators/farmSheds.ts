@@ -1,3 +1,4 @@
+import type { InfillLane } from "../types/contracts/localInfill";
 import type { CityDocument, Point } from "../types/document";
 import { polygonOverlaps } from "./fortifications";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "./geom";
@@ -10,7 +11,12 @@ export interface FarmShed {
 }
 
 /** Sparse field-edge stores. The density is a cartographic choice, not a historical census. */
-export function farmSheds(document: CityDocument, farms: FarmPlot[], buildings: { polygon: Point[] }[]): FarmShed[] {
+export function farmSheds(
+  document: CityDocument,
+  farms: FarmPlot[],
+  buildings: { polygon: Point[] }[],
+  lanes: InfillLane[] = []
+): FarmShed[] {
   const roads = document.featureGroups.flatMap(group =>
     group.kind === "road"
       ? group.segments.flatMap(ref => {
@@ -20,6 +26,13 @@ export function farmSheds(document: CityDocument, farms: FarmPlot[], buildings: 
           return a && b ? [{ points: [a, b] as Point[], width: group.style.widthMeters }] : [];
         })
       : []
+  );
+  roads.push(
+    ...lanes
+      .filter(lane => lane.kind)
+      .flatMap(lane =>
+        lane.points.slice(1).map((point, i) => ({ points: [lane.points[i], point], width: lane.widthMeters }))
+      )
   );
   if (!roads.length) return [];
   const roadIndex = new NearbyPolylineIndex(roads);

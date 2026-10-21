@@ -32,6 +32,7 @@ import { DEFAULT_HEX_SIZE_METERS } from "../generators/hexGrid";
 import { DocumentHistory } from "../generators/history";
 import { clone } from "../generators/mesh";
 import { DEFAULT_PATCH_PARAMS } from "../generators/patches";
+import { regenerateRuralLand } from "../generators/roadsideFarms";
 import { CASTLE_STYLE_PROFILES } from "../renderers/castlePatterns";
 import { mountCity3d } from "../renderers/cityView";
 import { clearRenderDerivedCaches } from "../renderers/derivedCaches";
@@ -561,6 +562,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         },
         get vacantTreesInput() {
           return vacantTreesInput;
+        },
+        get regenerateFarmlandButton() {
+          return regenerateFarmlandButton;
         },
         get generateVacantTreesButton() {
           return generateVacantTreesButton;
@@ -2092,10 +2096,15 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       editorText("cityEditor.messages.generateVacantLotTrees")
     );
   });
+  const regenerateFarmlandButton = makeButton(editorText("cityEditor.messages.regenerateFarmland"), () => {
+    if (documents.documentState.appearance !== "town" || display.hideBuildings) return;
+    commit(regenerateRuralLand(documents.documentState), editorText("cityEditor.messages.regenerateFarmland"));
+  });
   const decorationControls = div("ce-city-decoration");
   decorationControls.append(
     text(editorText("cityEditor.messages.cityDecoration")),
     generateVacantTreesButton,
+    regenerateFarmlandButton,
     toggleLabel(editorText("cityEditor.messages.showVacantLotTrees"), vacantTreesInput)
   );
 
