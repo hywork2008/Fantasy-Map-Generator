@@ -104,6 +104,28 @@ export class ModelKit {
     mesh.scale.set(...scale);
     return mesh;
   }
+  /** Thick-walled open vat with a watertight floor, for brewing, tanning and storage. */
+  vessel(name: string, p: Position, radius: number, height: number, surface: Surface = "wood", liquid = false) {
+    const profile = [
+      [0, 0],
+      [radius, 0],
+      [radius, height],
+      [radius - 0.08, height],
+      [radius - 0.08, 0.08],
+      [0, 0.08]
+    ];
+    const mesh = this.add(
+      name,
+      new THREE.LatheGeometry(
+        profile.map(([r, y]) => new THREE.Vector2(r, y)),
+        24
+      ),
+      surface
+    );
+    mesh.position.set(...p);
+    if (liquid) this.cylinder("vat-liquid", [p[0], p[1] + height * 0.72, p[2]], radius - 0.085, 0.02, "water");
+    return mesh;
+  }
   ring(name: string, p: Position, radius: number, thickness: number, surface: Surface = "iron", vertical = false) {
     const mesh = this.add(name, new THREE.TorusGeometry(radius, thickness, 6, 24), surface);
     mesh.position.set(...p);
