@@ -42,7 +42,7 @@ BVには**ウィンザー城の聖ジョージ礼拝堂**（English Perpendicula
   - 再現の重点: 長い低層の本体と高い中央尖塔、二組の交差廊、東端の礼拝堂、回廊。
   - 注意: 本体と塔・尖塔の建設時期を区別する。
   - 参考: [大聖堂公式・建設史](https://www.salisburycathedral.org.uk/discover/history/the-cathedral-through-the-years/)。
-- [ ] **G08. ミラノ大聖堂（Duomo di Milano）** — イタリア／ミラノ。1386年着工、近現代まで施工。イタリアにおける国際ゴシック。
+- [x] **G08. ミラノ大聖堂（Duomo di Milano）** — イタリア／ミラノ。1386年着工、近現代まで施工。イタリアにおける国際ゴシック。
   - 再現の重点: 幅広い五廊式の本体、淡色の大理石、多数の小尖塔、屋上テラスと控壁。
   - 注意: 現在の正面・主尖塔・多数の小尖塔には近世以降の施工が含まれる。現存外観をそのまま中世の完成形にしない。
   - 参考: [大聖堂公式・建設史](https://www.duomomilano.it/en/art-and-culture/the-cathedral/)、[屋上と尖塔](https://www.duomomilano.it/en/art-and-culture/the-terraces/)。
@@ -107,6 +107,7 @@ BVには**ウィンザー城の聖ジョージ礼拝堂**（English Perpendicula
 - G05: `src/buildings/landmarks/cologne.ts`。19世紀の完成形を対象とし、透かし双尖塔と五廊式本体を備える簡略モデル。BV登録、3D・上面図・南側立面図、接地・外形・特徴部位・資源解放を確認。
 - G06: `src/buildings/landmarks/sainteChapelle.ts`。上下二層・15面の高窓・西の玄関廊を備える現存外観の簡略モデル。BV登録、3D・上面図・南側立面図、接地・外形・特徴部位・資源解放を確認。
 - G07: `src/buildings/landmarks/salisbury.ts`。二組の交差廊・中央尖塔・通り抜け可能な回廊・八角形参事会室を備える簡略モデル。BV登録、3D・上面図・南側立面図、接地・外形・特徴部位・資源解放を確認。
+- G08: `src/buildings/landmarks/milan.ts`。段状の五廊式屋根・多数の小尖塔・八角形交差部を備える現存外観の簡略モデル。BV登録、3D・上面図・南側立面図、接地・外形・特徴部位・資源解放を確認。
 
 ## 着手順の提案
 
