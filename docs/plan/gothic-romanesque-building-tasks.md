@@ -50,7 +50,7 @@ BVには**ウィンザー城の聖ジョージ礼拝堂**（English Perpendicula
   - 再現の重点: 西正面の双尖塔、装飾的な交差部の塔、ラテン十字形の本体、付属礼拝堂。
   - 注意: 双尖塔や現在の交差部の塔は初期の本体より後の段階。完成形の対象年代を指定する。
   - 参考: [UNESCO](https://whc.unesco.org/en/list/316/)。
-- [ ] **G10. ブルッヘ市庁舎（Bruges City Hall / Stadhuis）** — ベルギー／ブルッヘ。1376〜1421年。世俗ゴシック。
+- [x] **G10. ブルッヘ市庁舎（Bruges City Hall / Stadhuis）** — ベルギー／ブルッヘ。1376〜1421年。世俗ゴシック。
   - 再現の重点: 縦長の窓が並ぶ正面、装飾された壁面、隅の小塔、急勾配の屋根。
   - 注意: 教会以外の都市建築の候補。後世の彫像・修復部分を調査し、隣接する別建物とは分ける。
   - 参考: [ブルッヘ公式観光・市庁舎](https://www.visitbruges.be/en/things-to-do/culture-and-heritage/stadhuis-city-hall)。
@@ -109,6 +109,7 @@ BVには**ウィンザー城の聖ジョージ礼拝堂**（English Perpendicula
 - G07: `src/buildings/landmarks/salisbury.ts`。二組の交差廊・中央尖塔・通り抜け可能な回廊・八角形参事会室を備える簡略モデル。BV登録、3D・上面図・南側立面図、接地・外形・特徴部位・資源解放を確認。
 - G08: `src/buildings/landmarks/milan.ts`。段状の五廊式屋根・多数の小尖塔・八角形交差部を備える現存外観の簡略モデル。BV登録、3D・上面図・南側立面図、接地・外形・特徴部位・資源解放を確認。
 - G09: `src/buildings/landmarks/burgos.ts`。双尖塔・八角形交差部・コンデスタブレ礼拝堂を備える簡略モデル。BV登録、3D・上面図・南側立面図、接地・外形・特徴部位・資源解放を確認。
+- G10: `src/buildings/landmarks/brugesCityHall.ts`。六つの大窓・彫像壁龕・三つの細塔を備える世俗ゴシックの簡略モデル。BV登録、3D・上面図・南側立面図、接地・外形・特徴部位・資源解放を確認。
 
 ## 着手順の提案
 
