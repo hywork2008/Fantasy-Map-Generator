@@ -39,6 +39,14 @@ import {
 } from "../buildings/signs/hangingSign";
 import { validateBuildingRecord } from "../buildings/validate";
 import { COVERED_WAGON, createCoveredWagon } from "../buildings/vehicles/coveredWagon";
+import {
+  AIRSHIP,
+  createAirship,
+  createHotAirBalloon,
+  createSteamLocomotive,
+  HOT_AIR_BALLOON,
+  STEAM_LOCOMOTIVE
+} from "../buildings/vehicles/industrialVehicles";
 import { createMedievalWagon, MEDIEVAL_WAGON } from "../buildings/vehicles/medievalWagon";
 import { createMinecart, MINECART } from "../buildings/vehicles/minecart";
 import { createNobleCarriage, NOBLE_CARRIAGE } from "../buildings/vehicles/nobleCarriage";
@@ -1211,6 +1219,47 @@ lumberYardButton.addEventListener("click", () => {
 yardsHeading.append(lumberYardButton);
 
 const vehiclesHeading = modelCategory("Vehicles");
+for (const [definition, create] of [
+  [HOT_AIR_BALLOON, createHotAirBalloon],
+  [AIRSHIP, createAirship],
+  [STEAM_LOCOMOTIVE, createSteamLocomotive]
+] as const) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = definition.name;
+  button.addEventListener("click", () => {
+    selection++;
+    for (const entry of list.querySelectorAll("button")) {
+      entry.setAttribute("aria-current", entry === button ? "true" : "false");
+    }
+    clearMesh();
+    floors.replaceChildren();
+    facts.replaceChildren();
+    banner.hidden = true;
+    roofTitle.textContent = `${definition.name} side elevation`;
+    levelTitle.textContent = `${definition.name} plan`;
+    const model = create();
+    massing = model;
+    scene.add(model.group);
+    ground.visible = true;
+    frame({ occupancyMeters: { width: definition.length, depth: definition.width } }, definition.height);
+    mountPlan(roofHost, model.elevation);
+    mountPlan(levelHost, model.plan);
+    const triangles = model.pickables.reduce(
+      (sum, mesh) => sum + (mesh.geometry.index?.count ?? mesh.geometry.getAttribute("position").count) / 3,
+      0
+    );
+    facts.append(
+      fact("Model", definition.name),
+      fact("Style", "Low-poly · Untextured flat-shaded geometry"),
+      fact("Study envelope", `${definition.length} × ${definition.width} × ${definition.height} m`),
+      fact("Triangles", triangles.toLocaleString("en-US")),
+      fact("Note", definition.note)
+    );
+  });
+  vehiclesHeading.append(button);
+}
+
 const minecartButton = document.createElement("button");
 minecartButton.type = "button";
 minecartButton.textContent = "Minecart · Timber mining cart";
