@@ -7,6 +7,7 @@ import { createStGeorgesChapel, ST_GEORGES_CHAPEL } from "../buildings/chapels/s
 import { BOJNICE, bojnicePlan, createBojnice } from "../buildings/fortresses/bojnice";
 import { CHAMBORD, createChambord } from "../buildings/fortresses/chambord";
 import { KRAK, type KrakPhase } from "../buildings/fortresses/krak";
+import type { MedievalModel } from "../buildings/medieval/modelKit";
 import { meshProjection } from "../buildings/meshProjection";
 import { createPostMill, POST_MILL } from "../buildings/mills/postMill";
 import { createTowerMill, TOWER_MILL } from "../buildings/mills/towerMill";
@@ -1369,6 +1370,62 @@ for (const template of [
   button.textContent = `${label(template.id)} · Hanging sign`;
   button.addEventListener("click", () => showSign(template, button));
   signsHeading.append(button);
+}
+
+const medievalModules = import.meta.glob<{ models: MedievalModel[] }>("../buildings/medieval/*Models.ts", {
+  eager: true
+});
+for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => a.localeCompare(b))) {
+  const task = module.models[0].task;
+  const category = modelCategory(
+    `Medieval ${String(task).padStart(2, "0")} · ${label(
+      file
+        .split("/")
+        .at(-1)!
+        .replace(/^\d+-|Models.ts$/g, "")
+    )}`
+  );
+  for (const definition of module.models) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = definition.name;
+    button.dataset.medievalId = definition.id;
+    button.addEventListener("click", () => {
+      selection++;
+      for (const item of list.querySelectorAll("button"))
+        item.setAttribute("aria-current", item === button ? "true" : "false");
+      clearMesh();
+      floors.replaceChildren();
+      facts.replaceChildren();
+      banner.hidden = true;
+      roofTitle.textContent = "Front elevation";
+      levelTitle.textContent = "Top view";
+      const model = definition.create();
+      massing = model;
+      scene.add(model.group);
+      ground.visible = true;
+      const bounds = new THREE.Box3().setFromObject(model.group, true);
+      const center = bounds.getCenter(new THREE.Vector3());
+      const size = bounds.getSize(new THREE.Vector3());
+      const radius = Math.max(size.x, size.y, size.z, 0.6);
+      camera.position.copy(center).add(new THREE.Vector3(radius * 1.15, radius * 0.9, radius * 1.3));
+      controls.target.copy(center);
+      controls.update();
+      ground.geometry.dispose();
+      ground.geometry = new THREE.CircleGeometry(radius * 0.85, 48);
+      mountPlan(roofHost, meshProjection(model, "side"));
+      mountPlan(levelHost, meshProjection(model, "top"));
+      facts.append(
+        fact("Model", definition.name),
+        fact("Task", String(task).padStart(2, "0")),
+        fact("Mesh dimensions", `${size.x.toFixed(2)} × ${size.z.toFixed(2)} × ${size.y.toFixed(2)} m`),
+        fact("Ground contact", `Base Y = ${(Math.abs(bounds.min.y) < 0.0005 ? 0 : bounds.min.y).toFixed(3)} m`),
+        fact("Construction", definition.note),
+        fact("Scope", "Illustrative medieval or early modern model; meter units. CE automatic placement is separate.")
+      );
+    });
+    category.append(button);
+  }
 }
 
 resize();
