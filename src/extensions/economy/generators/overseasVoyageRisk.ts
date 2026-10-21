@@ -205,13 +205,13 @@ export function computeColonyOutputFactor(monthsUnderfunded: number): number {
   return clamp01(1 - Math.max(0, monthsUnderfunded - 1) * 0.25);
 }
 
-/** Abstract naval/mercantile reach a state can project overseas. Tunable defaults. */
-const MERCHANT_TONNAGE_WEIGHT = 0.05;
+/**
+ * Abstract naval/mercantile reach a state can project overseas. Tunable defaults. One 50 t Sloop
+ * scores 5, as her 100 cargo slots did before hulls were measured in tonnes.
+ */
+const MERCHANT_TONNAGE_WEIGHT = 0.1;
 const TREASURY_WEIGHT = 0.3;
 
-export function computeOverseasProjectionScore(params: {
-  merchantCargoCapacitySlots: number;
-  treasury: number;
-}): number {
-  return params.merchantCargoCapacitySlots * MERCHANT_TONNAGE_WEIGHT + Math.max(0, params.treasury) * TREASURY_WEIGHT;
+export function computeOverseasProjectionScore(params: { merchantDeadweightTonnes: number; treasury: number }): number {
+  return params.merchantDeadweightTonnes * MERCHANT_TONNAGE_WEIGHT + Math.max(0, params.treasury) * TREASURY_WEIGHT;
 }

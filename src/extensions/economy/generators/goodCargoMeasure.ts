@@ -1,3 +1,4 @@
+import { CARGO_SLOT_KG, CARGO_SLOT_LITERS } from "../../../types/cargoSlot";
 import { GOOD_MEASURES, packedMeasure } from "./goodMeasureCatalog";
 import type { Good } from "./goodsGeneratorTypes";
 
@@ -5,12 +6,8 @@ import type { Good } from "./goodsGeneratorTypes";
  * Cargo slots measured from what one market unit weighs and how much room it takes when packed
  * (docs/plan/goods-physical-units.md §5.4, §12). Only the goods whose slots have been switched to
  * the measure use it; the others keep their trade-profile slots until their turn (§13).
- *
- * A slot is 150 kg or 250 L, whichever the cargo fills first: a convoy of twenty carts takes 80
- * slots, some 12 t of grain. Heavy cargo fills it by weight, light cargo by bulk.
  */
-export const CARGO_SLOT_KG = 150;
-export const CARGO_SLOT_LITERS = 250;
+export { CARGO_SLOT_KG, CARGO_SLOT_LITERS };
 
 /**
  * Goods switched to measured slots, group by group (goods-physical-units.md §13.5): first the staple

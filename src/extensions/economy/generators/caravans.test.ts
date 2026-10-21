@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { simulationContext } from "../../../context/simulationContext";
 import { worldContext } from "../../hostCore";
-import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
+import { type Burg, type ExtensionAPI, type PackedGraph, SHIP_CLASS_DEFINITIONS } from "../../hostTypes";
 import {
   clearEconomyContext,
   getCaravans,
@@ -19,6 +19,8 @@ import type { Good } from "./goods-generator";
 import type { Caravan } from "./marketTypes";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
 import { TradeAnimation } from "./trade-animation";
+
+const SLOOP_SLOTS = SHIP_CLASS_DEFINITIONS.find(shipClass => shipClass.id === "sloop")?.cargoCapacitySlots ?? 0;
 
 describe("caravan viability", () => {
   beforeEach(() => {
@@ -206,7 +208,7 @@ describe("caravan loading accumulation", () => {
         });
         Caravans.spawnFromDeals([]);
         if (units === 10)
-          expect(getCaravans()[0]).toMatchObject({ state: "loading", loading: { plannedCapacitySlots: 100 } });
+          expect(getCaravans()[0]).toMatchObject({ state: "loading", loading: { plannedCapacitySlots: SLOOP_SLOTS } });
       }
       expect(getCaravans()).toHaveLength(1);
       expect(getCaravans()[0]).toMatchObject({

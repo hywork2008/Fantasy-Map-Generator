@@ -285,12 +285,13 @@ function listStatePortBurgs(stateId: number) {
   return burgs.filter(burg => burg?.state === stateId && isSeaPortBurg(stateId, burg));
 }
 
-function getMarketWaterCargoCapacity(marketId: number): number {
+/** Deadweight tonnes of the market's merchant hulls. */
+function getMarketWaterDeadweightTonnes(marketId: number): number {
   const ledger = MerchantTransportAssets.ensureLedger(marketId);
   if (!ledger) return 0;
   return ledger.waterAssets.reduce((sum, asset) => {
     const definition = SHIP_CLASS_DEFINITIONS.find(shipClass => shipClass.id === asset.shipClassId);
-    return sum + (definition?.cargoCapacitySlots ?? 0);
+    return sum + (definition?.deadweightKg ?? 0) / 1000;
   }, 0);
 }
 
@@ -301,7 +302,7 @@ function pickPortMarketForState(stateId: number): number | null {
   let bestCapacity = -1;
   for (const burg of portBurgs) {
     const marketId = burg.market as number;
-    const capacity = getMarketWaterCargoCapacity(marketId);
+    const capacity = getMarketWaterDeadweightTonnes(marketId);
     if (bestMarketId === null || capacity > bestCapacity) {
       bestMarketId = marketId;
       bestCapacity = capacity;
@@ -458,11 +459,11 @@ class OverseasRelationsModule {
   getOverseasProjectionScore(stateId: number): number {
     const state = getWorldContext().pack.states?.[stateId];
     if (!state?.i || state.removed) return 0;
-    const merchantCargoCapacitySlots = listStatePortBurgs(stateId).reduce(
-      (sum, burg) => sum + getMarketWaterCargoCapacity(burg.market as number),
+    const merchantDeadweightTonnes = listStatePortBurgs(stateId).reduce(
+      (sum, burg) => sum + getMarketWaterDeadweightTonnes(burg.market as number),
       0
     );
-    return computeOverseasProjectionScore({ merchantCargoCapacitySlots, treasury: state.treasury ?? 0 });
+    return computeOverseasProjectionScore({ merchantDeadweightTonnes, treasury: state.treasury ?? 0 });
   }
 
   getPowerTierForState(stateId: number, realm: Pick<DistantRealm, "powerScore">): PowerTier {

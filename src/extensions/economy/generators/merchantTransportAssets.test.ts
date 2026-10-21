@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { worldContext } from "../../hostCore";
-import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
+import { type Burg, type ExtensionAPI, type PackedGraph, SHIP_CLASS_DEFINITIONS } from "../../hostTypes";
 import {
   clearEconomyContext,
   getMarkets,
@@ -35,12 +35,14 @@ const CART_ALLOCATION: TransportAllocation = {
   requiredDraftAnimals: 1
 };
 
+const SLOOP_SLOTS = SHIP_CLASS_DEFINITIONS.find(shipClass => shipClass.id === "sloop")?.cargoCapacitySlots ?? 0;
+
 const SLOOP_ALLOCATION: TransportAllocation = {
   mode: "water",
   transportId: "sloop",
   transportName: "Sloop",
   unitCount: 1,
-  capacitySlots: 100,
+  capacitySlots: SLOOP_SLOTS,
   usedSlots: 75
 };
 
@@ -306,7 +308,7 @@ describe("merchant transport assets", () => {
 
     const reservation = MerchantTransportAssets.reserve(1, 10, [SLOOP_ALLOCATION]);
     expect(reservation).not.toBeNull();
-    expect(reservation?.reservation.allocations).toMatchObject([{ shipHullIds: [20], capacitySlots: 100 }]);
+    expect(reservation?.reservation.allocations).toMatchObject([{ shipHullIds: [20], capacitySlots: SLOOP_SLOTS }]);
     expect(reservedHullIds).toEqual([20]);
     expect(MerchantTransportAssets.reserve(1, 11, [SLOOP_ALLOCATION])).toBeNull();
 
@@ -322,7 +324,7 @@ describe("merchant transport assets", () => {
     MerchantTransportAssets.reconcileMerchantHulls([
       { id: 30, shipClassId: "sloop", homeBurgId: 2, ownerId: 2, status: "docked", currentBurgId: 1 }
     ]);
-    expect(MerchantTransportAssets.getCharterableSeaCapacitySlots(1)).toBe(100);
+    expect(MerchantTransportAssets.getCharterableSeaCapacitySlots(1)).toBe(SLOOP_SLOTS);
 
     const reservation = MerchantTransportAssets.reserve(1, 10, [SLOOP_ALLOCATION]);
     expect(reservation?.reservation.allocations).toMatchObject([{ shipHullIds: [30] }]);
@@ -394,7 +396,7 @@ describe("merchant transport assets", () => {
       expect(berthed).toEqual([]);
       MerchantTransportAssets.recoverMaintenance(1);
       expect(berthed).toEqual([1]);
-      expect(MerchantTransportAssets.getCharterableSeaCapacitySlots(1)).toBe(100);
+      expect(MerchantTransportAssets.getCharterableSeaCapacitySlots(1)).toBe(SLOOP_SLOTS);
     } finally {
       document.removeEventListener("fmg:economy-merchant-hull-reposition", onBerth);
     }
@@ -411,7 +413,7 @@ describe("merchant transport assets", () => {
     // Lying at market 2's port, she serves market 2's cargo, not her owner's at home.
     expect(MerchantTransportAssets.reserve(1, 10, [SLOOP_ALLOCATION])).toBeNull();
     expect(MerchantTransportAssets.getSeaRoomCapacitySlots(1)).toBe(0);
-    expect(MerchantTransportAssets.getSeaRoomCapacitySlots(2)).toBe(100);
+    expect(MerchantTransportAssets.getSeaRoomCapacitySlots(2)).toBe(SLOOP_SLOTS);
 
     // Her owner's waiting cargo calls her home after a short wait, before a port that waits for more.
     MerchantTransportAssets.recoverMaintenance(14);
@@ -425,7 +427,7 @@ describe("merchant transport assets", () => {
       marketId => marketId
     );
     expect(moves).toMatchObject([{ hullId: 42, marketId: 1, burgId: 1 }]);
-    expect(MerchantTransportAssets.getSeaRoomCapacitySlots(1)).toBe(100);
+    expect(MerchantTransportAssets.getSeaRoomCapacitySlots(1)).toBe(SLOOP_SLOTS);
   });
 
   it("sends hulls idle for two weeks to waiting cargo, keeping those its own port's demand fills", () => {
@@ -443,16 +445,16 @@ describe("merchant transport assets", () => {
     expect(
       MerchantTransportAssets.repositionIdleHulls(
         new Map([
-          [1, 150],
-          [2, 50]
+          [1, SLOOP_SLOTS * 1.5],
+          [2, SLOOP_SLOTS * 0.5]
         ]),
         marketId => marketId
       )
     ).toMatchObject([{ hullId: 43, marketId: 1, burgId: 1 }]);
     // With nothing expected at home, she puts out too.
-    expect(MerchantTransportAssets.repositionIdleHulls(new Map([[1, 150]]), marketId => marketId)).toMatchObject([
-      { hullId: 44, marketId: 1 }
-    ]);
+    expect(
+      MerchantTransportAssets.repositionIdleHulls(new Map([[1, SLOOP_SLOTS * 1.5]]), marketId => marketId)
+    ).toMatchObject([{ hullId: 44, marketId: 1 }]);
   });
 
   it("keeps as many hulls as a port's demand fills, and sends one with nowhere to go home to lie up", () => {
@@ -483,7 +485,7 @@ describe("merchant transport assets", () => {
     expect(MerchantTransportAssets.getLargestAvailableRouteCapacity(1, route, "horse")).toBe(0);
     // Sized to a barge and the largest hull afloat, the cargo goes down to wait at the landing.
     expect(MerchantTransportAssets.getLargestAvailableRouteCapacity(1, route, "horse", { awaitVessel: true })).toBe(
-      Math.min(160, 100)
+      Math.min(160, SLOOP_SLOTS)
     );
   });
 
