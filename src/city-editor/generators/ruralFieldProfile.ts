@@ -33,6 +33,8 @@ export function validRuralFieldSettings(value: unknown): value is RuralFieldSett
       (Number.isFinite(v.coveragePercent) && v.coveragePercent >= 0 && v.coveragePercent <= 100)) &&
     (v.system === undefined || ["open-field", "bocage", "planned", "mechanized"].includes(v.system)) &&
     (v.rotationYear === undefined || (Number.isSafeInteger(v.rotationYear) && v.rotationYear >= 0)) &&
+    (v.targetAccessCells === undefined ||
+      (Number.isSafeInteger(v.targetAccessCells) && v.targetAccessCells >= 1000 && v.targetAccessCells <= 1_000_000)) &&
     (v.gardenRadiusMeters === undefined ||
       (Number.isFinite(v.gardenRadiusMeters) && v.gardenRadiusMeters >= 0 && v.gardenRadiusMeters <= 100_000))
   );

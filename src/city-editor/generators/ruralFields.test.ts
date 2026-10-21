@@ -98,7 +98,12 @@ describe("CE rural field integration", () => {
   it("persists v2 settings and quality, rejects invalid data and invalidates cached suitability", () => {
     const document = city();
     document.ruralFieldVersion = 2;
-    document.ruralFieldSettings = { system: "bocage", rotationYear: 2, gardenRadiusMeters: 0 };
+    document.ruralFieldSettings = {
+      system: "bocage",
+      rotationYear: 2,
+      gardenRadiusMeters: 0,
+      targetAccessCells: 25000
+    };
     const saved = parseDocument(JSON.stringify(document))!;
     expect(saved.ruralFieldSettings).toEqual(document.ruralFieldSettings);
     expect(applyRuralFields(saved, buildBlockFabric(saved)).farms.some(farm => farm.boundaryKind === "hedge")).toBe(

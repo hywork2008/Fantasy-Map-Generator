@@ -51,6 +51,17 @@ describe("detailed rural fields", () => {
         expect(overlap(farm.polygon, corridor(lane.points[0], lane.points[1], lane.widthMeters))).toBeLessThan(0.02);
     }
   });
+  it("keeps footpaths narrow independently of the access search resolution", () => {
+    for (const targetAccessCells of [1000, 25000]) {
+      const plan = planDetailedRuralFields(input({ settings: { targetAccessCells } }));
+      expect(plan.farms.length).toBeGreaterThan(5);
+      expect(plan.lanes.length).toBeGreaterThan(0);
+      expect(plan.lanes.every(lane => lane.points.length === 2 && lane.widthMeters === 1.2)).toBe(true);
+      for (const farm of plan.farms)
+        for (const lane of plan.lanes)
+          expect(overlap(farm.polygon, corridor(lane.points[0], lane.points[1], lane.widthMeters))).toBeLessThan(0.02);
+    }
+  });
   it("preserves complete holdings when the visible frame clips them, without a fence on the clipping edge", () => {
     const plan = planDetailedRuralFields(input({ system: "bocage", visibleFrame: rect(0, 0, 181.25, 240) }));
     const clipped = plan.farms.filter(f => f.clippedByFrame);
@@ -76,6 +87,9 @@ describe("detailed rural fields", () => {
     expect(ruralFieldSystem("ageOfExploration", "gallic")).toBe("bocage");
     expect(ruralFieldSystem("petroleumEra", "anglo")).toBe("mechanized");
     expect(ruralFieldSystem("petroleumEra", "anglo", { system: "bocage" })).toBe("bocage");
+    expect(validRuralFieldSettings({ targetAccessCells: 25000 })).toBe(true);
+    for (const targetAccessCells of [0, -1, 25000.5, Infinity, 1_000_001])
+      expect(validRuralFieldSettings({ targetAccessCells })).toBe(false);
     expect(validRuralFieldSettings({ rotationYear: -1 })).toBe(false);
     expect(validRuralFieldSettings({ system: "invalid" })).toBe(false);
     expect(validRuralFieldSettings({ gardenRadiusMeters: Infinity })).toBe(false);

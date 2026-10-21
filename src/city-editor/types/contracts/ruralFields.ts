@@ -8,6 +8,8 @@ export interface RuralFieldSettings {
   system?: RuralFieldSystem;
   rotationYear?: number;
   gardenRadiusMeters?: number;
+  /** Approximate access-search cell count; lower values reduce work, not path width. */
+  targetAccessCells?: number;
 }
 export interface RuralLandQuality {
   /** Measured or explicitly supplied fractions; absent means unknown. */

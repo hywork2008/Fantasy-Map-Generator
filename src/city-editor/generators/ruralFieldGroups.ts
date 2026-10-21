@@ -43,7 +43,10 @@ export function planRuralFieldGroups(input: DetailedRuralFieldInput): RuralField
   for (const face of input.land)
     for (const polygon of convexInfillParts(face.polygon)) land.add({ polygon, faceId: face.faceId }, bounds(polygon));
   const box = bounds(input.land.flatMap(face => face.polygon));
-  const q = Math.max(4, Math.ceil(Math.sqrt(((box[2] - box[0]) * (box[3] - box[1])) / 100000) / 2) * 2);
+  const q = Math.max(
+    4,
+    Math.ceil(Math.sqrt(((box[2] - box[0]) * (box[3] - box[1])) / (input.settings?.targetAccessCells ?? 25000)) / 2) * 2
+  );
   result.diagnostics.gridMeters = q;
   const covered = (polygon: Point[]) =>
     land.query(bounds(polygon)).reduce((sum, part) => sum + area(intersectConvex(polygon, part.polygon)), 0) >=
@@ -80,7 +83,7 @@ export function planRuralFieldGroups(input: DetailedRuralFieldInput): RuralField
       if (
         nearest &&
         nearest.hit.dist <= q + nearest.road.width / 2 &&
-        (nearest.hit.dist < 0.01 || !input.blocked(corridor(point, nearest.hit.point, 3.8, 1.9)))
+        (nearest.hit.dist < 0.01 || !input.blocked(corridor(point, nearest.hit.point, 1.2, 0.6)))
       ) {
         node.road = nearest.hit.point;
         queue.push(key(x, y));
@@ -154,14 +157,14 @@ export function planRuralFieldGroups(input: DetailedRuralFieldInput): RuralField
     if (distance(points[0], points[1]) < 0.001) return;
     tracks.push(points);
     endpoints.push(...points);
-    const band = corridor(points[0], points[1], 3.8, 1.9);
+    const band = corridor(points[0], points[1], 1.2, 0.6);
     trackIndex.add(band, bounds(band));
   };
   for (const group of groups) {
     const joint = endpoints
       .filter(p => distance(p, group.center) < 240)
       .sort((a, b) => distance(a, group.center) - distance(b, group.center))
-      .find(p => clear(corridor(group.center, p, 3.8, 1.9)));
+      .find(p => clear(corridor(group.center, p, 1.2, 0.6)));
     if (joint) {
       reserveTrack([group.center, joint]);
       continue;
@@ -174,7 +177,7 @@ export function planRuralFieldGroups(input: DetailedRuralFieldInput): RuralField
     }
     for (let i = 0; i < path.length - 1; ) {
       let j = path.length - 1;
-      while (j > i + 1 && !clear(corridor(path[i], path[j], 3.8, 1.9))) j--;
+      while (j > i + 1 && !clear(corridor(path[i], path[j], 1.2, 0.6))) j--;
       reserveTrack([path[i], path[j]]);
       i = j;
     }

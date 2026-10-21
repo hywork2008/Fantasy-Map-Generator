@@ -1,13 +1,13 @@
 import type { Point } from "../types/document";
-import { isSimplePolygon, polygonArea, polygonCentroid, simplifyPolyline } from "./geom";
-import { bounds, corridor, intersectConvex, PlotIndex } from "./parcelGeometry";
-import { reconstructRuralBoundaries } from "./ruralFieldBoundaries";
+import { isSimplePolygon, polygonArea, polygonCentroid } from "./geom";
+import { clipHalfPlane, insetConvexKernel } from "./lotGeometry";
+import { bounds, corridor, intersectConvex, PlotIndex, subtractConvex } from "./parcelGeometry";
+import { clipRuralAccess } from "./ruralFieldAccessGeometry";
 import type { DetailedRuralFieldInput } from "./ruralFieldDetails";
 import { clipLines, curvedRows, gatedBoundary } from "./ruralFieldGeometry";
 import type { RuralFieldPlan } from "./ruralFieldPlan";
 
 const area = (p: Point[]) => Math.abs(polygonArea(p));
-const key = (x: number, y: number) => `${x}:${y}`;
 const hash = (s: string) => {
   let n = 2166136261;
   for (const c of s) n = Math.imul(n ^ c.charCodeAt(0), 16777619);
@@ -44,50 +44,80 @@ export function finishRuralTerritories({
   if (!groups.length) return result;
   const timing = input.profiler?.stages("generation/layout");
   timing?.next("territory-ownership");
-  const owners = new Map<string, number>();
-  const extents = groups.map(() => ({ lo: Infinity, hi: -Infinity }));
-  for (const id of queue) {
-    const node = nodes.get(id)!;
-    let best = 0,
-      d = Infinity;
-    groups.forEach((g, i) => {
-      const next = Math.hypot(node.point[0] - g.center[0], node.point[1] - g.center[1]);
-      if (next < d) {
-        best = i;
-        d = next;
-      }
+  const reachable = new Map(queue.map(id => [id, nodes.get(id)!]));
+  const box = bounds([...reachable.values()].map(node => node.point));
+  const frame: Point[] = [
+    [box[0] - q, box[1] - q],
+    [box[2] + q, box[1] - q],
+    [box[2] + q, box[3] + q],
+    [box[0] - q, box[3] + q]
+  ];
+  const width = 1.2;
+  // Exact Voronoi half-planes replace raster ownership and staircase repair.
+  // Offsetting the same bisector on both sides reserves exactly one footpath.
+  const cells = groups.map((g, i) => {
+    let polygon = frame;
+    groups.forEach((other, j) => {
+      if (i === j) return;
+      const dx = other.center[0] - g.center[0],
+        dy = other.center[1] - g.center[1];
+      const length = Math.hypot(dx, dy);
+      const normal: Point = [dx / length, dy / length];
+      const offset = ((g.center[0] + other.center[0]) * normal[0] + (g.center[1] + other.center[1]) * normal[1]) / 2;
+      polygon = clipHalfPlane(polygon, normal, offset);
     });
-    owners.set(id, best);
-    const g = groups[best],
-      v = -(node.point[0] - g.center[0]) * Math.sin(g.angle) + (node.point[1] - g.center[1]) * Math.cos(g.angle);
-    extents[best].lo = Math.min(extents[best].lo, v - q);
-    extents[best].hi = Math.max(extents[best].hi, v + q);
-  }
+    return polygon;
+  });
+  const territories = cells.map(polygon =>
+    insetConvexKernel(
+      polygon,
+      polygon.map(() => width / 2)
+    )
+  );
+  // Keep each unobstructed run straight, stopping at water or reservations.
+  const addStraightTrack = (a: Point, b: Point) => {
+    const steps = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / q));
+    const at = (n: number): Point => [a[0] + ((b[0] - a[0]) * n) / steps, a[1] + ((b[1] - a[1]) * n) / steps];
+    let start: Point | undefined;
+    for (let n = 0; n < steps; n++) {
+      const from = at(n),
+        to = at(n + 1);
+      if (clear(corridor(from, to, width, width / 2))) start ??= from;
+      else if (start) {
+        tracks.push([start, from]);
+        start = undefined;
+      }
+    }
+    if (start) tracks.push([start, b]);
+  };
   timing?.next("interior-tracks");
   groups.forEach((g, i) => {
-    const at = (v: number): Point => [g.center[0] - v * Math.sin(g.angle), g.center[1] + v * Math.cos(g.angle)];
-    const { lo, hi } = extents[i],
-      steps = Math.ceil((hi - lo) / q);
-    let run: Point[] = [];
-    const flush = () => {
-      if (run.length > 1) tracks.push([run[0], run.at(-1)!]);
-      run = [];
-    };
-    for (let j = 0; j < steps; j++) {
-      const a = at(lo + ((hi - lo) * j) / steps),
-        b = at(lo + ((hi - lo) * (j + 1)) / steps);
+    const polygon = territories[i];
+    if (polygon.length < 3) return;
+    const normal: Point = [Math.cos(g.angle), Math.sin(g.angle)];
+    const extent = Math.hypot(box[2] - box[0] + q * 2, box[3] - box[1] + q * 2);
+    const line: Point[] = [
+      [g.center[0] - normal[1] * extent, g.center[1] + normal[0] * extent],
+      [g.center[0] + normal[1] * extent, g.center[1] - normal[0] * extent]
+    ];
+    for (const [a, b] of clipLines([line], polygon)) addStraightTrack(a, b);
+  });
+  timing?.next("boundary-routes");
+  // Shared edges lie on the unoffset bisector, not on a grid staircase.
+  cells.forEach((polygon, i) => {
+    polygon.forEach((a, edge) => {
+      const b = polygon[(edge + 1) % polygon.length];
       const mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-      if (owners.get(key(Math.floor(mid[0] / q), Math.floor(mid[1] / q))) === i && clear(corridor(a, b, 3.8, 1.9))) {
-        if (!run.length) run.push(a);
-        run.push(b);
-      } else flush();
-    }
-    flush();
+      const distance = (p: Point) => Math.hypot(p[0] - mid[0], p[1] - mid[1]);
+      const ownDistance = distance(groups[i].center);
+      const neighbour = groups.findIndex((g, j) => j !== i && Math.abs(distance(g.center) - ownDistance) < 1e-5);
+      if (neighbour > i) addStraightTrack(a, b);
+    });
   });
   timing?.next("track-reservations");
   const reservations = new PlotIndex<Point[]>();
   for (const line of tracks) {
-    const band = corridor(line[0], line[1], 3.8, 1.9);
+    const band = corridor(line[0], line[1], width, width / 2);
     if (band.length) reservations.add(band, bounds(band));
   }
   for (const road of input.roads)
@@ -95,106 +125,29 @@ export function finishRuralTerritories({
       const band = corridor(road.points[i - 1], road.points[i], road.widthMeters + 2);
       if (band.length) reservations.add(band, bounds(band));
     }
-  const laneCells = new Set<string>(),
-    boundarySegments: Point[][] = [];
-  for (const id of queue) {
-    const n = nodes.get(id)!,
-      polygon: Point[] = [
-        [n.x * q, n.y * q],
-        [(n.x + 1) * q, n.y * q],
-        [(n.x + 1) * q, (n.y + 1) * q],
-        [n.x * q, (n.y + 1) * q]
-      ];
-    if (reservations.query(bounds(polygon)).some(band => area(intersectConvex(polygon, band)) > 0.01))
-      laneCells.add(id);
-    for (const [dx, dy] of [
-      [1, 0],
-      [0, 1]
-    ]) {
-      const next = key(n.x + dx, n.y + dy);
-      if (!owners.has(next) || owners.get(next) === owners.get(id)) continue;
-      laneCells.add(id);
-      laneCells.add(next);
-      const a: Point = dx ? [(n.x + 1) * q, n.y * q] : [n.x * q, (n.y + 1) * q];
-      const b: Point = dx ? [(n.x + 1) * q, (n.y + 1) * q] : [(n.x + 1) * q, (n.y + 1) * q];
-      if (!input.blocked(corridor(a, b, 2.8))) boundarySegments.push([a, b]);
-    }
-  }
-  timing?.next("boundary-routes");
-  const boundaryRoutes = joinSegments(boundarySegments, q, clear);
-  for (const line of boundaryRoutes)
-    for (let i = 1; i < line.length; i++) {
-      const band = corridor(line[i - 1], line[i], 2.8);
-      if (band.length) reservations.add(band, bounds(band));
-    }
-  for (const id of queue) {
-    if (laneCells.has(id)) continue;
-    const n = nodes.get(id)!;
-    const polygon: Point[] = [
-      [n.x * q, n.y * q],
-      [(n.x + 1) * q, n.y * q],
-      [(n.x + 1) * q, (n.y + 1) * q],
-      [n.x * q, (n.y + 1) * q]
-    ];
-    if (reservations.query(bounds(polygon)).some(band => area(intersectConvex(polygon, band)) > 0.01))
-      laneCells.add(id);
-  }
   timing?.next("strip-labels");
-  const labels = new Map<string, string>();
-  for (const id of queue) {
-    if (laneCells.has(id)) continue;
-    const n = nodes.get(id)!,
-      index = owners.get(id)!,
-      g = groups[index];
-    const dx = n.point[0] - g.center[0],
-      dy = n.point[1] - g.center[1];
-    const u = dx * Math.cos(g.angle) + dy * Math.sin(g.angle),
-      v = -dx * Math.sin(g.angle) + dy * Math.cos(g.angle);
-    const offset = v - 7 * Math.sin(u / 110 + (g.seed % 7));
-    let cut = extents[index].lo - q,
+  const components: { label: string; ring: Point[] }[] = [];
+  groups.forEach((g, index) => {
+    const territory = territories[index];
+    if (territory.length < 3) return;
+    const normal: Point = [-Math.sin(g.angle), Math.cos(g.angle)];
+    const values = territory.map(p => p[0] * normal[0] + p[1] * normal[1]);
+    const hi = Math.max(...values);
+    let lo = Math.min(...values),
       strip = 0;
-    while (cut < offset && strip < 1000) {
-      cut += 22 + (hash(`${g.seed}:strip:${strip}`) % 19);
+    while (lo < hi && strip < 1000) {
+      const end = Math.min(hi, lo + 22 + (hash(`${g.seed}:strip:${strip}`) % 19));
+      let polygon = clipHalfPlane(territory, normal, end);
+      polygon = clipHalfPlane(polygon, [-normal[0], -normal[1]], -lo);
+      let pieces = [polygon];
+      for (const band of reservations.query(bounds(polygon)))
+        pieces = pieces.flatMap(piece => subtractConvex(piece, band, 0.01));
+      for (const piece of pieces)
+        for (const ring of clipRuralAccess(piece, reachable, q, clear))
+          if (area(ring) >= 150) components.push({ label: `${index}:${strip}`, ring });
+      lo = end;
       strip++;
     }
-    labels.set(id, `${index}:${strip}`);
-  }
-  timing?.next("trace-components");
-  const components: { label: string; ring: Point[] }[] = [],
-    visited = new Set<string>();
-  for (const [id, label] of labels) {
-    if (visited.has(id)) continue;
-    const component = [id];
-    visited.add(id);
-    for (let i = 0; i < component.length; i++) {
-      const n = nodes.get(component[i])!;
-      for (const [dx, dy] of [
-        [1, 0],
-        [-1, 0],
-        [0, 1],
-        [0, -1]
-      ]) {
-        const next = key(n.x + dx, n.y + dy);
-        if (!visited.has(next) && labels.get(next) === label) {
-          visited.add(next);
-          component.push(next);
-        }
-      }
-    }
-    for (const ring of traceFields(component, nodes, q)) if (area(ring) >= 150) components.push({ label, ring });
-  }
-  const clearsBoundary = (polygon: Point[]) =>
-    clear(polygon) && !reservations.query(bounds(polygon)).some(band => area(intersectConvex(polygon, band)) > 0.01);
-  timing?.next("reconstruct-boundaries");
-  if (input.profiler) input.profiler.counts.rawBoundaryVertices = components.reduce((n, c) => n + c.ring.length, 0);
-  const reconstructed = reconstructRuralBoundaries(
-    components.map(component => component.ring),
-    q,
-    clearsBoundary,
-    input.profiler
-  );
-  components.forEach((component, i) => {
-    component.ring = reconstructed[i];
   });
   timing?.next("plots-rows-and-boundaries");
   const rows = input.profiler?.wrap("rows", curvedRows) ?? curvedRows;
@@ -268,11 +221,11 @@ export function finishRuralTerritories({
     remaining -= size;
   }
   timing?.next("lanes-and-diagnostics");
-  result.lanes = [...tracks, ...boundaryRoutes].flatMap(points =>
+  result.lanes = tracks.flatMap(points =>
     clipLines([points], input.visibleFrame).map(points => ({
       faceId: input.land[0].faceId,
       points,
-      widthMeters: 2.8,
+      widthMeters: width,
       kind: "farm-track" as const
     }))
   );
@@ -306,103 +259,4 @@ function removeCollinear(ring: Point[]): Point[] {
 }
 function intersectRing(ring: Point[], clip: Point[]): Point[] {
   return ring.length >= 3 ? intersectConvex(ring, clip) : [];
-}
-function traceFields(ids: string[], nodes: Map<string, AccessNode>, q: number, depth = 0): Point[][] {
-  const members = new Set(ids),
-    edges = new Map<string, { a: Point; b: Point }[]>();
-  const add = (a: Point, b: Point) => {
-    const k = key(a[0], a[1]);
-    edges.set(k, [...(edges.get(k) ?? []), { a, b }]);
-  };
-  for (const id of ids) {
-    const { x, y } = nodes.get(id)!;
-    if (!members.has(key(x, y - 1))) add([x, y], [x + 1, y]);
-    if (!members.has(key(x + 1, y))) add([x + 1, y], [x + 1, y + 1]);
-    if (!members.has(key(x, y + 1))) add([x + 1, y + 1], [x, y + 1]);
-    if (!members.has(key(x - 1, y))) add([x, y + 1], [x, y]);
-  }
-  const rings: Point[][] = [];
-  while (edges.size) {
-    const edge = edges.values().next().value![0],
-      ring: Point[] = [];
-    let current = edge;
-    for (let guard = 0; guard < ids.length * 8 + 8; guard++) {
-      ring.push(current.a);
-      const k = key(current.a[0], current.a[1]),
-        rest = edges.get(k)!.filter(e => e !== current);
-      if (rest.length) edges.set(k, rest);
-      else edges.delete(k);
-      const next = edges.get(key(current.b[0], current.b[1]));
-      if (!next) break;
-      const dx = current.b[0] - current.a[0],
-        dy = current.b[1] - current.a[1];
-      const turn = (e: typeof edge) =>
-        Math.atan2(dx * (e.b[1] - e.a[1]) - dy * (e.b[0] - e.a[0]), dx * (e.b[0] - e.a[0]) + dy * (e.b[1] - e.a[1]));
-      current = [...next].sort((a, b) => turn(b) - turn(a))[0];
-    }
-    if (ring.length >= 3) rings.push(ring.map(([x, y]) => [x * q, y * q]));
-  }
-  const hole = rings.find(r => polygonArea(r) > 0);
-  if (hole && depth < 8) {
-    const cut = polygonCentroid(hole)[1] / q,
-      lower = ids.filter(id => nodes.get(id)!.y < cut),
-      upper = ids.filter(id => nodes.get(id)!.y >= cut);
-    if (lower.length && upper.length)
-      return [...traceFields(lower, nodes, q, depth + 1), ...traceFields(upper, nodes, q, depth + 1)];
-  }
-  return hole ? [] : rings.filter(r => polygonArea(r) < 0);
-}
-function joinSegments(segments: Point[][], quantum: number, clear: (polygon: Point[]) => boolean): Point[][] {
-  const k = (p: Point) => p.map(n => n.toFixed(5)).join(":"),
-    graph = new Map<string, { point: Point; edges: number[] }>();
-  segments.forEach(([a, b], i) => {
-    for (const p of [a, b]) {
-      const id = k(p),
-        entry = graph.get(id) ?? { point: p, edges: [] };
-      entry.edges.push(i);
-      graph.set(id, entry);
-    }
-  });
-  const visited = new Set<number>(),
-    lines: Point[][] = [];
-  for (const [start, entry] of graph) {
-    if (entry.edges.length === 2) continue;
-    for (const first of entry.edges) {
-      if (visited.has(first)) continue;
-      const line = [entry.point];
-      let id = start,
-        index = first;
-      while (!visited.has(index)) {
-        visited.add(index);
-        const segment = segments[index],
-          next = k(segment[0]) === id ? segment[1] : segment[0];
-        line.push(next);
-        id = k(next);
-        const node = graph.get(id)!;
-        if (node.edges.length !== 2) break;
-        index = node.edges.find(i => !visited.has(i)) ?? index;
-      }
-      let smoothed = line;
-      for (let pass = 0; pass < 4; pass++)
-        smoothed = smoothed.map(
-          (p, i): Point =>
-            i === 0 || i === smoothed.length - 1
-              ? p
-              : [
-                  p[0] * 0.5 + (smoothed[i - 1][0] + smoothed[i + 1][0]) * 0.25,
-                  p[1] * 0.5 + (smoothed[i - 1][1] + smoothed[i + 1][1]) * 0.25
-                ]
-        );
-      const candidate = simplifyPolyline(smoothed, quantum * 0.65);
-      lines.push(
-        candidate.slice(1).every((p, i) => clear(corridor(candidate[i], p, 2.8)))
-          ? candidate
-          : simplifyPolyline(line, 0.5)
-      );
-    }
-  }
-  segments.forEach((segment, i) => {
-    if (!visited.has(i)) lines.push(segment);
-  });
-  return lines;
 }
