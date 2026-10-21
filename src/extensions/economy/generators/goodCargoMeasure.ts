@@ -12,8 +12,13 @@ import type { Good } from "./goodsGeneratorTypes";
 export const CARGO_SLOT_KG = 150;
 export const CARGO_SLOT_LITERS = 250;
 
-/** Goods whose unit is fixed by another module: the staple crops by the wain, Wood by 10 m³ (§12.6). */
+/**
+ * Goods switched to measured slots, group by group (goods-physical-units.md §13.5): first the staple
+ * crops by the wain and Wood by 10 m³ (§12.6), then everything mined, smelted or quarried, which
+ * the mines and smelters already count in tonnes (precious metals in kg) (§14).
+ */
 const MEASURED_SLOT_GOODS: ReadonlySet<string> = new Set([
+  // Staple crops and wood (§12.6).
   "Grain",
   "Wheat",
   "Rye",
@@ -32,7 +37,42 @@ const MEASURED_SLOT_GOODS: ReadonlySet<string> = new Set([
   "Potatoes",
   "Turnips",
   "Wood",
-  "Mahogany"
+  "Mahogany",
+  // Mined fuels and minerals, ores, metals and quarried stone (§14).
+  "Coal",
+  "Coke",
+  "Phosphate Rock",
+  "Bauxite",
+  "Sulfur",
+  "Saltpeter",
+  "Cinnabar",
+  "Crude Oil",
+  "Iron Ore",
+  "Copper Ore",
+  "Tin Ore",
+  "Lead Ore",
+  "Chromium Ore",
+  "Nickel Ore",
+  "Molybdenum Ore",
+  "Silicon Ore",
+  "Silver Ore",
+  "Gold Ore",
+  "Iron Ingot",
+  "Copper Ingot",
+  "Tin Ingot",
+  "Lead Ingot",
+  "Chromium Ingot",
+  "Nickel Ingot",
+  "Molybdenum Ingot",
+  "Silicon Ingot",
+  "Silver Ingot",
+  "Gold Ingot",
+  "Bronze",
+  "Steel",
+  "Stainless Steel",
+  "Aluminum",
+  "Stone",
+  "Marble"
 ]);
 
 /** Slots one packed unit of `good` fills, from its measure; undefined for goods that walk or move themselves. */

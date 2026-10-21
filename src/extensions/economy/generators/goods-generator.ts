@@ -3768,7 +3768,10 @@ export class GoodsModule {
       i: index + 1,
       ...good,
       trade,
-      cargo: good.cargo ?? getDefaultGoodCargoProfile({ ...good, trade }),
+      // A good switched to measured slots takes them even where the catalogue row names its own.
+      cargo: good.cargo
+        ? { ...good.cargo, cargoSlotsPerUnit: measuredCargoSlotsPerUnit(good) ?? good.cargo.cargoSlotsPerUnit }
+        : getDefaultGoodCargoProfile({ ...good, trade }),
       ...(recipes && { recipes }),
       ...(byproducts && { byproducts })
     };
