@@ -1557,7 +1557,12 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
         fact("Mesh dimensions", `${size.x.toFixed(2)} × ${size.z.toFixed(2)} × ${size.y.toFixed(2)} m`),
         fact("Ground contact", `Base Y = ${(Math.abs(bounds.min.y) < 0.0005 ? 0 : bounds.min.y).toFixed(3)} m`),
         fact("Construction", definition.note),
-        fact("Scope", "Illustrative medieval or early modern model; meter units. CE automatic placement is separate.")
+        fact(
+          "Scope",
+          definition.task === 43 || definition.task === 44
+            ? "Schematic landscape or funerary model; meter units. Shared with CE park and cemetery 3D placement."
+            : "Illustrative medieval or early modern model; meter units. CE automatic placement is separate."
+        )
       );
     });
     category.append(button);

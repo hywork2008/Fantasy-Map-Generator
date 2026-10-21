@@ -18,7 +18,8 @@ describe.each(models)("$id", definition => {
     expect(size.x).toBeLessThanOrEqual(definition.size[0] + 0.0001);
     expect(size.z).toBeLessThanOrEqual(definition.size[1] + 0.0001);
     expect(size.y).toBeLessThanOrEqual(definition.size[2] + 0.0001);
-    expect(model.pickables.length).toBeGreaterThan(2);
+    // A slab or continuous boundary may legitimately be a single rendered mesh.
+    expect(model.pickables.length).toBeGreaterThan(0);
     for (const mesh of model.pickables)
       expect(Array.from(mesh.geometry.getAttribute("position").array).every(Number.isFinite)).toBe(true);
     for (const view of ["side", "top"] as const) {

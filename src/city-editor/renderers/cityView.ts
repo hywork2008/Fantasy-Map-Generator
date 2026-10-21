@@ -3,6 +3,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { buildingSurfaces } from "../../city3d/core/massingGeometry";
 import { structureSurfaces } from "../../city3d/core/structureGeometry";
 import { type CityMassingMeshes, createCityMassing } from "../../city3d/three/cityMeshes";
+import { createTownOpenSpaces } from "../../city3d/three/openSpaceMeshes";
 import { createTownPiers } from "../../city3d/three/pierMeshes";
 import { createTownRoads, roadStampChanged, type TownRoadMeshes } from "../../city3d/three/roadMeshes";
 import { createTownShips } from "../../city3d/three/shipMeshes";
@@ -20,6 +21,7 @@ import { editorText } from "../../i18n/editorMessages";
 import { buildBlockFabric, type DistrictFabric } from "../generators/blockInfill";
 import { riverRibbons } from "../generators/bridgeDeck";
 import type { BuildingLot } from "../generators/buildingLots.types";
+import { buildParkLawns } from "../generators/parkFabric";
 import { type CityTerrain, cityTerrain, cityTerrainStamp } from "../generators/terrainElevation";
 import { collectTownRoads, townRoadStamp } from "../generators/townRoads";
 import { townWaterStamp } from "../generators/townWater";
@@ -27,10 +29,12 @@ import { waterPolygons } from "../generators/waterGeometry";
 import type { FloorUse, RoofForm, RoofMaterial, WallMaterial } from "../types/contracts/buildingMassing";
 import type { StructureKind, StructureMassing, StructureMaterial } from "../types/contracts/structureMassing";
 import type { CityDocument } from "../types/document";
+import { collectOpenSpacePlan } from "./openSpaceSites";
 import { collectPierSites } from "./pierSites";
 import { collectShipSites } from "./shipSites";
 import { collectCityStructures, landmarkLotStructures } from "./structureMassing";
 import { groundStructures, lotFoundations } from "./terrainMassing";
+import { resolveCemeteryPlans } from "./townFacts";
 import { collectWellSites } from "./wellSites";
 
 const WALL_KEY: Record<WallMaterial, EditorMessageKey> = {
@@ -117,6 +121,8 @@ export function mountCity3d(options: {
   let massing: CityMassingMeshes | null = null;
   let structures: CityStructureMeshes | null = null;
   let wells: CityStructureMeshes | null = null;
+  let openSpaces: CityStructureMeshes | null = null;
+  let openSpaceStamp: string | null = null;
   let ships: CityStructureMeshes | null = null;
   let shipStamp: string | null = null;
   let piers: CityStructureMeshes | null = null;
@@ -336,7 +342,22 @@ export function mountCity3d(options: {
     const nextPierStamp = JSON.stringify(pierSites);
     const piersChanged =
       plan.water || terrainChanged || pierStamp !== nextPierStamp || !scene.getObjectByName("ce-piers");
-    if (!plan.buildings && !plan.water && !plan.roads && !shipsChanged && !piersChanged) return;
+    const nextOpenSpaceStamp = JSON.stringify([
+      fabric.parks ?? null,
+      city.cemeteries ?? city.mesh,
+      city.burialProfile,
+      city.historicalPeriod
+    ]);
+    const openSpacesChanged = terrainChanged || plan.buildings || openSpaceStamp !== nextOpenSpaceStamp || !openSpaces;
+    if (!plan.buildings && !plan.water && !plan.roads && !shipsChanged && !piersChanged && !openSpacesChanged) return;
+    if (openSpacesChanged) {
+      const openSpacePlan = collectOpenSpacePlan(fabric.parks ?? buildParkLawns(city), resolveCemeteryPlans(city));
+      if (openSpaces) scene.remove(openSpaces.group);
+      openSpaces?.dispose();
+      openSpaces = createTownOpenSpaces(openSpacePlan, terrain ?? undefined);
+      scene.add(openSpaces.group);
+      openSpaceStamp = nextOpenSpaceStamp;
+    }
     if (plan.buildings) {
       built = fabric;
       rebuild(city, fabric);
@@ -453,6 +474,7 @@ export function mountCity3d(options: {
     waterMeshes?.dispose();
     wells?.dispose();
     ships?.dispose();
+    openSpaces?.dispose();
     piers?.dispose();
     roadMeshes?.dispose();
     ground?.geometry.dispose();

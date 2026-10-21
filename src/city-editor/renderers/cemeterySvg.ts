@@ -1,7 +1,7 @@
 import { editorText } from "../../i18n/editorMessages";
-import { nearestOnPolyline, pointInPolygon, polygonCentroid } from "../generators/geom";
-import { bounds } from "../generators/parcelGeometry";
-import type { CityDocument, Point } from "../types/document";
+import { cemeteryPlots } from "../generators/cemeteryPlots";
+import { polygonCentroid } from "../generators/geom";
+import type { CityDocument } from "../types/document";
 import { renderCultureCemetery } from "./cultureCemeterySvg";
 import { element, line, polygon } from "./svgPrimitives";
 import { resolveCemeteryPlans } from "./townFacts";
@@ -103,98 +103,63 @@ export function renderCemeteries(document: CityDocument, inspectedId?: string | 
         );
       } else if (part.role === "graves") {
         // Individual stone headstones and grave slabs dotted neatly over the green lawn
-        const [minX, minY, maxX, maxY] = bounds(part.footprint);
-        const stepX = 2.2;
-        const stepY = 2.4;
-        const calvaryPart = cemetery.parts.find(p => p.role === "calvary");
-        const calvaryCenter = calvaryPart ? polygonCentroid(calvaryPart.footprint) : null;
-
-        let plotIndex = 0;
-        for (let gx = minX + 1.2; gx <= maxX - 1.2; gx += stepX) {
-          for (let gy = minY + 1.0; gy <= maxY - 1.0; gy += stepY) {
-            plotIndex++;
-            const p: Point = [gx, gy];
-            if (!pointInPolygon(p, part.footprint)) continue;
-
-            // Keep graves off paths / accesses
-            let hitsPath = false;
-            for (const acc of cemetery.accesses) {
-              const halfW = (acc.widthMeters ?? 1.8) / 2 + 0.45;
-              if (nearestOnPolyline(p, acc.points).dist < halfW) {
-                hitsPath = true;
-                break;
-              }
-            }
-            if (hitsPath) continue;
-
-            // Keep off calvary monument
-            if (calvaryCenter && Math.hypot(gx - calvaryCenter[0], gy - calvaryCenter[1]) < 2.0) {
-              continue;
-            }
-
-            // Keep off tree canopies
-            if (cemetery.trees.some(tp => Math.hypot(gx - tp[0], gy - tp[1]) < 2.2)) {
-              continue;
-            }
-
-            // Authentic European burial field:
-            // Every plot has an upright headstone.
-            // Alternating plots feature flat stone slabs (ledger stones) or kerb borders.
-            const hasSlab = plotIndex % 3 !== 0;
-
-            if (hasSlab) {
-              // 1. Flat horizontal grave slab / stone kerb
-              group.appendChild(
-                element("rect", {
-                  x: String(gx - 0.28),
-                  y: String(-gy - 0.5),
-                  width: "0.56",
-                  height: "1.05",
-                  rx: "0.12",
-                  fill: "#ded9cd",
-                  stroke: "#666157",
-                  "stroke-width": "0.3"
-                })
-              );
-            }
-
-            // 2. Upright headstone at the head of the plot (facing east/pathway)
+        for (const {
+          point: [gx, gy],
+          index: plotIndex,
+          slab: hasSlab
+        } of cemeteryPlots(cemetery, part)) {
+          if (hasSlab) {
+            // 1. Flat horizontal grave slab / stone kerb
             group.appendChild(
               element("rect", {
-                x: String(gx - 0.32),
-                y: String(-gy + 0.38),
-                width: "0.64",
-                height: "0.26",
-                rx: "0.08",
-                fill: "#edeae2",
-                stroke: "#49453c",
-                "stroke-width": "0.35"
+                x: String(gx - 0.28),
+                y: String(-gy - 0.5),
+                width: "0.56",
+                height: "1.05",
+                rx: "0.12",
+                fill: "#ded9cd",
+                stroke: "#666157",
+                "stroke-width": "0.3"
               })
             );
+          }
 
-            // Optional carved cross relief on select headstones
-            if (plotIndex % 2 === 0) {
-              group.appendChild(
-                element("line", {
-                  x1: String(gx),
-                  y1: String(-gy + 0.41),
-                  x2: String(gx),
-                  y2: String(-gy + 0.61),
-                  stroke: "#787265",
-                  "stroke-width": "0.2"
-                })
-              );
-              group.appendChild(
-                element("line", {
-                  x1: String(gx - 0.12),
-                  y1: String(-gy + 0.47),
-                  x2: String(gx + 0.12),
-                  y2: String(-gy + 0.47),
-                  stroke: "#787265",
-                  "stroke-width": "0.2"
-                })
-              );
-            }
+          // 2. Upright headstone at the head of the plot (facing east/pathway)
+          group.appendChild(
+            element("rect", {
+              x: String(gx - 0.32),
+              y: String(-gy + 0.38),
+              width: "0.64",
+              height: "0.26",
+              rx: "0.08",
+              fill: "#edeae2",
+              stroke: "#49453c",
+              "stroke-width": "0.35"
+            })
+          );
+
+          // Optional carved cross relief on select headstones
+          if (plotIndex % 2 === 0) {
+            group.appendChild(
+              element("line", {
+                x1: String(gx),
+                y1: String(-gy + 0.41),
+                x2: String(gx),
+                y2: String(-gy + 0.61),
+                stroke: "#787265",
+                "stroke-width": "0.2"
+              })
+            );
+            group.appendChild(
+              element("line", {
+                x1: String(gx - 0.12),
+                y1: String(-gy + 0.47),
+                x2: String(gx + 0.12),
+                y2: String(-gy + 0.47),
+                stroke: "#787265",
+                "stroke-width": "0.2"
+              })
+            );
           }
         }
       } else {
