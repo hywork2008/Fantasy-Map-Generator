@@ -88,3 +88,6 @@ export function packedCargoSlotsPerUnit(good: Pick<Good, "name" | "unit">): numb
 export function measuredCargoSlotsPerUnit(good: Pick<Good, "name" | "unit">): number | undefined {
   return MEASURED_SLOT_GOODS.has(good.name) ? packedCargoSlotsPerUnit(good) : undefined;
 }
+
+/** Slots a wain of grain fills: the yardstick freight is set by (tradeOpportunityEstimator.ts). */
+export const WAIN_FREIGHT_SLOTS = packedCargoSlotsPerUnit({ name: "Grain", unit: "wain" }) ?? 4;

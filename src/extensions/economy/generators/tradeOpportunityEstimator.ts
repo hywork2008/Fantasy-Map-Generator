@@ -1,6 +1,8 @@
+import { measuredCargoSlotsPerUnit, WAIN_FREIGHT_SLOTS } from "./goodCargoMeasure";
 import { type Good, type GoodTradeProfile, getDefaultGoodTradeProfile, isFreshFoodGood } from "./goods-generator";
 import { getMarketTradeMinimumUnits } from "./goodsTradeLots";
 import type { TradeRoutePoint, TradeRouteSegment } from "./marketTypes";
+import { getRouteCargoSlotsPerUnit } from "./tradeCargo";
 import { calculateRouteDurationDays } from "./tradeRouteDuration";
 
 const DISTANCE_COST_FACTOR = 0.5;
@@ -111,6 +113,15 @@ const DEFAULT_TRADE_PROFILE: GoodTradeProfile = {
 const FREIGHT_RATE = 1;
 
 /**
+ * Freight load per cargo slot for goods whose slots are measured from weight and bulk
+ * (goodCargoMeasure.ts). Set so a wain of grain pays what its trade profile (weight 4 + bulk 4)
+ * paid before: what changes is that a bulky load pays for all the carts it fills. Ten cubic metres
+ * of firewood fill 60 slots and pay seventeen times what they did; a tonne of iron bars a little
+ * under three times (goods-physical-units.md §15).
+ */
+const FREIGHT_LOAD_PER_SLOT = 8 / WAIN_FREIGHT_SLOTS;
+
+/**
  * Per-unit transport cost for one map-unit-scaled distance. Proportional to the good's physical
  * bulk (`weight + bulk` from its trade profile), not its price — a wagon or hold's capacity is
  * set by volume and weight, not value, so hauling a low-value bulky good (Grain, Wood, Stone)
@@ -120,9 +131,27 @@ const FREIGHT_RATE = 1;
  * how freight actually prices, and it left `GoodTradeProfile.weight`/`.bulk` used only for
  * caravan cargo-slot capacity (`tradeCargo.ts`), never for cost. docs/plan/economy-coupling-audit.md L6.
  */
-export function getTransportCost(distance: number, mapDiagonal: number, good: Good): number {
+export function getTransportCost(
+  distance: number,
+  mapDiagonal: number,
+  good: Good,
+  routeSegments: readonly Pick<TradeRouteSegment, "type">[] = []
+): number {
+  return (distance / mapDiagonal) * DISTANCE_COST_FACTOR * getFreightLoad(good, routeSegments) * FREIGHT_RATE;
+}
+
+/**
+ * How much of a cart or hold one unit pays for: its measured slots on this route, or its trade
+ * profile's weight + bulk until its slots are measured. A drove pays its trade-profile load for the
+ * drovers and their keep.
+ */
+function getFreightLoad(good: Good, routeSegments: readonly Pick<TradeRouteSegment, "type">[]): number {
+  if (measuredCargoSlotsPerUnit(good) !== undefined) {
+    const slots = getRouteCargoSlotsPerUnit(good, routeSegments);
+    if (slots > 0) return slots * FREIGHT_LOAD_PER_SLOT;
+  }
   const trade = good.trade ?? getDefaultGoodTradeProfile(good);
-  return (distance / mapDiagonal) * DISTANCE_COST_FACTOR * (trade.weight + trade.bulk) * FREIGHT_RATE;
+  return trade.weight + trade.bulk;
 }
 
 export function getLocalTradePriceMultiplier({ good, marketId, stock, population }: LocalPriceBiasInput): number {
@@ -284,7 +313,7 @@ export function estimateSpeculativeTrade(input: SpeculativeTradeInput): Speculat
       : Infinity);
   if (!isGoodTradePermitted(good, durationDays, routeSegments, routeMaxTemperatureC)) return null;
 
-  const transportCost = getTransportCost(distance, mapDiagonal, good);
+  const transportCost = getTransportCost(distance, mapDiagonal, good, routeSegments);
   const demandWeight = getDemandWeight(good);
   const sourceReserve = Math.max(1, sourcePopulation * demandWeight);
   const targetReserve = Math.max(1, targetPopulation * demandWeight);

@@ -2204,7 +2204,7 @@ export class MarketsModule {
           }
           const importerCenter = this.worldContext.pack.burgs[importer.market.centerBurgId];
           const importerDutyPerUnit = this.getImportDuty(exporterCenter, importerCenter) * importerGood.price;
-          const transportCost = getTransportCost(route.distance, mapDiagonal, good);
+          const transportCost = getTransportCost(route.distance, mapDiagonal, good, route.segments);
           const hearOfPriceGap = () => {
             const landedCost =
               this.getTradeQuotedPrice(exporter.market, good, exporterGood.price) +

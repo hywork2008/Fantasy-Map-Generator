@@ -437,7 +437,9 @@ export class StrategicProcurementModule {
       const sourceBurg = pack.burgs[source.centerBurgId];
       const salesTax = sourceBurg?.state ? (pack.states[sourceBurg.state]?.salesTax ?? 0) : 0;
       const landedUnitPrice =
-        sourceGood.price + sourceGood.price * salesTax + getTransportCost(route.distance, mapDiagonal, good);
+        sourceGood.price +
+        sourceGood.price * salesTax +
+        getTransportCost(route.distance, mapDiagonal, good, route.segments);
       candidates.push({
         sourceMarketId: source.i,
         sourceStateId: getMarketStateId(source, pack.burgs),

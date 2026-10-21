@@ -93,4 +93,18 @@ describe("getTransportCost", () => {
     const noTradeProfile = { i: 2, name: "Untagged Good", tags: [], value: 5, unit: "unit" } as Good;
     expect(getTransportCost(100, 1000, noTradeProfile)).toBeCloseTo((100 / 1000) * 0.5 * 6, 10);
   });
+
+  it("charges a measured good for the slots it fills: a wain of grain as before, a pile of wood nineteen times that", () => {
+    const measured = (name: string, unit: string, weight: number, bulk: number) => ({
+      ...goodWith({ weight, bulk }, 1),
+      name,
+      unit
+    });
+    const grain = measured("Grain", "wain", 4, 4);
+    const wood = measured("Wood", "pile", 4, 5);
+    const perLoad = (100 / 1000) * 0.5;
+
+    expect(getTransportCost(100, 1000, grain)).toBeCloseTo(perLoad * 8, 10);
+    expect(getTransportCost(100, 1000, wood) / getTransportCost(100, 1000, grain)).toBeCloseTo(60 / 3.13, 1);
+  });
 });
