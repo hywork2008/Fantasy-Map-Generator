@@ -44,6 +44,32 @@ describe.each(CONTAINER_KINDS)("medieval %s", kind => {
   });
 });
 
+it("closes the whole barrel opening with circular head boards without perimeter gaps", () => {
+  const model = createMedievalContainerModel("barrel", "closed");
+  const boards = model.pickables.filter(mesh => mesh.name === "barrel-lid-board");
+  model.group.updateMatrixWorld(true);
+  const ray = new THREE.Raycaster(new THREE.Vector3(), new THREE.Vector3(0, -1, 0));
+  for (let ix = -28; ix <= 28; ix++) {
+    for (let iz = -28; iz <= 28; iz++) {
+      const x = ix / 100;
+      const z = iz / 100;
+      if (Math.hypot(x, z) > 0.28) continue;
+      ray.ray.origin.set(x, 2, z);
+      const hits = ray.intersectObjects(boards);
+      expect(hits.length, `Uncovered lid at (${x}, ${z})`).toBeGreaterThan(0);
+      expect(hits[0].point.y).toBeCloseTo(0.99, 6);
+    }
+  }
+  for (const board of boards) {
+    const positions = board.geometry.getAttribute("position");
+    for (let i = 0; i < positions.count; i++) {
+      const point = board.localToWorld(new THREE.Vector3().fromBufferAttribute(positions, i));
+      expect(Math.hypot(point.x, point.z)).toBeLessThanOrEqual(0.283001);
+    }
+  }
+  model.dispose();
+});
+
 it("releases shared geometries and materials exactly once without affecting another instance", () => {
   const model = createMedievalContainerModel("basket", "loaded");
   const other = createMedievalContainerModel("basket", "loaded");

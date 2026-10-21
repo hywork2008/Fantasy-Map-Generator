@@ -127,11 +127,26 @@ export function createMedievalContainerModel(
       );
     }
     if (state === "closed") {
-      // Individual head boards follow the circular opening rather than covering it with a box.
-      for (let i = -3; i <= 3; i++) {
-        const x = i * 0.077;
-        const depth = 2 * Math.sqrt(0.277 ** 2 - (Math.abs(x) + 0.037) ** 2);
-        box("barrel-lid-board", x, 0.974, 0, 0.074, 0.032, depth, wood[(i + 3) % 3]);
+      // Cut each head board to the same circle, with its edge seated inside the staves.
+      const radius = 0.283;
+      const boardCount = 7;
+      for (let i = 0; i < boardCount; i++) {
+        const left = -radius + (2 * radius * i) / boardCount;
+        const right = -radius + (2 * radius * (i + 1)) / boardCount;
+        const leftAngle = Math.acos(left / radius);
+        const rightAngle = Math.acos(right / radius);
+        const shape = new THREE.Shape();
+        shape.absarc(0, 0, radius, -leftAngle, -rightAngle, false);
+        shape.lineTo(right, radius * Math.sin(rightAngle));
+        shape.absarc(0, 0, radius, rightAngle, leftAngle, false);
+        shape.closePath();
+        const board = add(
+          "barrel-lid-board",
+          new THREE.ExtrudeGeometry(shape, { depth: 0.032, bevelEnabled: false, curveSegments: 24, steps: 1 }),
+          wood[i % 3]
+        );
+        board.rotation.x = Math.PI / 2;
+        board.position.y = 0.99;
       }
     }
   } else if (kind === "crate") {
