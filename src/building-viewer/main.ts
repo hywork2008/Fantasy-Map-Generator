@@ -507,7 +507,7 @@ for (const style of ["Gothic", "Romanesque"] as const) {
     category.append(button);
     button.textContent = `${model.task} · ${model.name}`;
     button.dataset.id = model.id;
-    button.addEventListener("click", () => {
+    const showLandmark = (definition: LandmarkModel = model) => {
       selection++;
       for (const other of list.querySelectorAll("button")) other.setAttribute("aria-current", String(other === button));
       clearMesh();
@@ -516,10 +516,33 @@ for (const style of ["Gothic", "Romanesque"] as const) {
       banner.hidden = true;
       roofTitle.textContent = "Exterior roof plan";
       levelTitle.textContent = "South elevation";
-      massing = model.create();
+      if (model.highDetail) {
+        modelOptions.hidden = false;
+        const row = document.createElement("label");
+        row.textContent = "Resolution: ";
+        const resolution = document.createElement("select");
+        for (const [value, title] of [
+          ["low", "Low resolution (default)"],
+          ["high", "High resolution"]
+        ]) {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = title;
+          resolution.append(option);
+        }
+        resolution.value = definition === model ? "low" : "high";
+        resolution.addEventListener("change", () =>
+          showLandmark(resolution.value === "high" ? model.highDetail : model)
+        );
+        row.append(resolution);
+        const paragraph = document.createElement("p");
+        paragraph.append(row);
+        optionFields.append(paragraph);
+      }
+      massing = definition.create();
       scene.add(massing.group);
       ground.visible = true;
-      frame({ occupancyMeters: { width: model.size[0], depth: model.size[1] } }, model.size[2]);
+      frame({ occupancyMeters: { width: definition.size[0], depth: definition.size[1] } }, definition.size[2]);
       // Fit the actual bounding sphere to both viewport axes, including very tall spires.
       const sphere = new THREE.Box3().setFromObject(massing.group).getBoundingSphere(new THREE.Sphere());
       const halfFov = Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * Math.min(1, camera.aspect));
@@ -530,14 +553,14 @@ for (const style of ["Gothic", "Romanesque"] as const) {
       mountPlan(roofHost, meshProjection(massing, "top"));
       mountPlan(levelHost, meshProjection(massing, "side"));
       facts.append(
-        fact("Model", model.name),
-        fact("Style", model.style),
-        fact("State", model.state),
-        fact("Study envelope", `${model.size.join(" × ")} m`),
-        fact("Dimensions", model.dimensions),
-        fact("Note", model.note)
+        fact("Model", definition.name),
+        fact("Style", definition.style),
+        fact("State", definition.state),
+        fact("Study envelope", `${definition.size.join(" × ")} m`),
+        fact("Dimensions", definition.dimensions),
+        fact("Note", definition.note)
       );
-      for (const source of model.sources) {
+      for (const source of definition.sources) {
         const row = document.createElement("p");
         const link = document.createElement("a");
         link.href = source.url;
@@ -547,7 +570,8 @@ for (const style of ["Gothic", "Romanesque"] as const) {
         row.append(link);
         facts.append(row);
       }
-    });
+    };
+    button.addEventListener("click", () => showLandmark());
   }
 }
 const assemblies = modelCategory("Fortress assemblies");

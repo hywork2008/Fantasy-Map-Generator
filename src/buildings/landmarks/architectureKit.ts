@@ -13,6 +13,8 @@ export interface LandmarkModel {
   dimensions: string;
   note: string;
   sources: readonly { title: string; url: string }[];
+  /** Optional detailed exterior; the catalogue entry itself remains the default low-resolution model. */
+  highDetail?: LandmarkModel;
   create(): CityStructureMeshes;
 }
 

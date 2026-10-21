@@ -1,4 +1,5 @@
 import { ArchitectureKit, type LandmarkModel } from "./architectureKit";
+import { model as highDetail } from "./notreDame/highDetail";
 
 export const model: LandmarkModel = {
   id: "notre-dame-paris",
@@ -21,6 +22,7 @@ export const model: LandmarkModel = {
       url: "https://rebatirnotredamedeparis.fr/en/news/the-spire-of-notre-dame-de-paris-is-reborn"
     }
   ],
+  highDetail,
   create() {
     const k = new ArchitectureKit(this.id);
     k.nave("nave-and-choir", -8, 0, 100, 14, 35, 10);
