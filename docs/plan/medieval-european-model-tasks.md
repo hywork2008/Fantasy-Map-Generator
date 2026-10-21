@@ -36,7 +36,7 @@ CEの施設配置・平面描画や汎用3D表現の有無とは区別する。
 - [x] 19. **墓標・墓石・教会墓地の小物** — 簡素な石標・木標など。時代・地域に合わせる。 `src/buildings/medieval/19-grave-markersModels.ts` に専用モデルを実装し、BVに登録。
 - [x] 20. **織工・仕立屋・靴職人の工房** — 作業台、織機、材料棚。会館とは別の作業施設。 `src/buildings/medieval/20-textile-leather-workshopsModels.ts` に専用モデルを実装し、BVに登録。
 - [x] 21. **桶職人・指物師の工房** — 樽組立台、木工台など。既存の製材・木材置場とは用途を分ける。 `src/buildings/medieval/21-woodworking-workshopsModels.ts` に専用モデルを実装し、BVに登録。
-- [ ] 22. **皮なめし場** — CE: `tannery`。槽、洗場、皮の乾燥架。
+- [x] 22. **皮なめし場** — CE: `tannery`。槽、洗場、皮の乾燥架。 `src/buildings/medieval/22-tanneriesModels.ts` に専用モデルを実装し、BVに登録。
 - [ ] 23. **小型漁船・手漕ぎ舟** — 海岸、川、湖向け。漁網、櫂、籠を組み合わせる。
 - [x] 24. **公共水盤・泉の水場・洗濯場** — 広場や水源付近向け。既存の屋根付き井戸を補完。`src/buildings/wells/publicWaterBasin.ts` に3モデルを実装し、BVの `Wells` に登録。CEの広場には衝突・通路判定を通した公共水盤を配置し、2D・3Dで同じ位置・実寸を使用。泉の水場・洗濯場のCEへの自動配置は対象外。
 - [ ] 25. **公共穀倉** — CE: `publicGranary`。大型貯蔵棟、搬入口。
