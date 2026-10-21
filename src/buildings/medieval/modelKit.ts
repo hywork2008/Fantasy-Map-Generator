@@ -216,7 +216,7 @@ export class ModelKit {
     d: number,
     eave: number,
     rise: number,
-    options: { wall?: Surface; roof?: Surface; open?: boolean; door?: number; storeys?: number } = {}
+    options: { wall?: Surface; roof?: Surface; open?: boolean; door?: number; storeys?: number; windows?: boolean } = {}
   ) {
     const wall = options.wall ?? "plaster",
       door = Math.min(options.door ?? 1.1, w - 0.8),
@@ -253,7 +253,7 @@ export class ModelKit {
       this.box("wall-plate", [x, eave, zz], [w, 0.18, 0.18]);
       this.beam("knee-brace", [x - w / 2 + 0.12, eave - 0.8, zz], [x - w / 2 + 0.92, eave, zz], 0.12);
     }
-    if (!options.open && w > 3) {
+    if (!options.open && options.windows !== false && w > 3) {
       for (let floor = 0; floor < (options.storeys ?? 1); floor++)
         for (const side of [-1, 1]) {
           this.window(x + side * w * 0.3, z + d / 2 + 0.12, 1.7 + floor * 2.6, 0.65, 0.9);
