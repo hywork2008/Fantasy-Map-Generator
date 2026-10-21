@@ -46,7 +46,7 @@ BVには**ウィンザー城の聖ジョージ礼拝堂**（English Perpendicula
   - 再現の重点: 幅広い五廊式の本体、淡色の大理石、多数の小尖塔、屋上テラスと控壁。
   - 注意: 現在の正面・主尖塔・多数の小尖塔には近世以降の施工が含まれる。現存外観をそのまま中世の完成形にしない。
   - 参考: [大聖堂公式・建設史](https://www.duomomilano.it/en/art-and-culture/the-cathedral/)、[屋上と尖塔](https://www.duomomilano.it/en/art-and-culture/the-terraces/)。
-- [ ] **G09. ブルゴス大聖堂（Burgos Cathedral）** — スペイン／ブルゴス。主に13〜16世紀。スペイン・ゴシック。
+- [x] **G09. ブルゴス大聖堂（Burgos Cathedral）** — スペイン／ブルゴス。主に13〜16世紀。スペイン・ゴシック。
   - 再現の重点: 西正面の双尖塔、装飾的な交差部の塔、ラテン十字形の本体、付属礼拝堂。
   - 注意: 双尖塔や現在の交差部の塔は初期の本体より後の段階。完成形の対象年代を指定する。
   - 参考: [UNESCO](https://whc.unesco.org/en/list/316/)。
@@ -108,6 +108,7 @@ BVには**ウィンザー城の聖ジョージ礼拝堂**（English Perpendicula
 - G06: `src/buildings/landmarks/sainteChapelle.ts`。上下二層・15面の高窓・西の玄関廊を備える現存外観の簡略モデル。BV登録、3D・上面図・南側立面図、接地・外形・特徴部位・資源解放を確認。
 - G07: `src/buildings/landmarks/salisbury.ts`。二組の交差廊・中央尖塔・通り抜け可能な回廊・八角形参事会室を備える簡略モデル。BV登録、3D・上面図・南側立面図、接地・外形・特徴部位・資源解放を確認。
 - G08: `src/buildings/landmarks/milan.ts`。段状の五廊式屋根・多数の小尖塔・八角形交差部を備える現存外観の簡略モデル。BV登録、3D・上面図・南側立面図、接地・外形・特徴部位・資源解放を確認。
+- G09: `src/buildings/landmarks/burgos.ts`。双尖塔・八角形交差部・コンデスタブレ礼拝堂を備える簡略モデル。BV登録、3D・上面図・南側立面図、接地・外形・特徴部位・資源解放を確認。
 
 ## 着手順の提案
 
