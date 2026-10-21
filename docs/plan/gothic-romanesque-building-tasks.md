@@ -15,7 +15,7 @@ BVには**ウィンザー城の聖ジョージ礼拝堂**（English Perpendicula
 
 ## ゴシック建築
 
-- [ ] **G01. ノートルダム大聖堂（Notre-Dame de Paris）** — フランス／パリ。主に12〜14世紀。フランス・ゴシック。
+- [x] **G01. ノートルダム大聖堂（Notre-Dame de Paris）** — フランス／パリ。主に12〜14世紀。フランス・ゴシック。
   - 再現の重点: 西正面の双塔と三つの入口、バラ窓、身廊と交差廊、後陣を囲むフライング・バットレス。
   - 注意: 尖塔・彫像には後世の復元が含まれる。中世の姿と現存外観のどちらを再現するか明記する。
   - 参考: [大聖堂公式・外部建築](https://www.notredamedeparis.fr/en/understand/architecture/exterior-architecture/)、[西正面](https://www.notredamedeparis.fr/en/understand/architecture/the-western-facade/)。
@@ -97,6 +97,10 @@ BVには**ウィンザー城の聖ジョージ礼拝堂**（English Perpendicula
   - 再現の重点: 赤レンガ、四辺を柱廊に囲まれた前庭、二層のアーケード正面、非対称の二本の鐘塔。
   - 注意: 古代の創建とロマネスク期の姿を区別する。鐘塔同士の年代差と修復部分も確認する。
   - 参考: [聖堂公式・建築群](https://www.basilicasantambrogio.it/en/complesso-monumentale)、[歴史](https://www.basilicasantambrogio.it/en/storia)。
+
+## 実装記録
+
+- G01: `src/buildings/landmarks/notreDame.ts`。復元尖塔を含む現存外観の簡略モデル。BVの `Gothic landmarks` に登録。正面寄り3D表示・上面図・南側立面図、接地・塔高・資源解放のテストを確認。
 
 ## 着手順の提案
 

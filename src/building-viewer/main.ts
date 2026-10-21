@@ -7,6 +7,7 @@ import { createStGeorgesChapel, ST_GEORGES_CHAPEL } from "../buildings/chapels/s
 import { BOJNICE, bojnicePlan, createBojnice } from "../buildings/fortresses/bojnice";
 import { CHAMBORD, createChambord } from "../buildings/fortresses/chambord";
 import { KRAK, type KrakPhase } from "../buildings/fortresses/krak";
+import type { LandmarkModel } from "../buildings/landmarks/architectureKit";
 import type { MedievalModel } from "../buildings/medieval/modelKit";
 import { meshProjection } from "../buildings/meshProjection";
 import { createPostMill, POST_MILL } from "../buildings/mills/postMill";
@@ -487,6 +488,68 @@ stGeorgesButton.addEventListener("click", () => {
   facts.append(source);
 });
 chapels.append(stGeorgesButton);
+const landmarkModules = import.meta.glob<LandmarkModel>(
+  [
+    "../buildings/landmarks/*.ts",
+    "!../buildings/landmarks/*.test.ts",
+    "!../buildings/landmarks/architectureKit.ts",
+    "!../buildings/landmarks/landmarkTestSupport.ts"
+  ],
+  { eager: true, import: "model" }
+);
+for (const style of ["Gothic", "Romanesque"] as const) {
+  const category = modelCategory(`${style} landmarks`);
+  for (const model of Object.values(landmarkModules)
+    .filter(model => model.style === style)
+    .sort((a, b) => a.task.localeCompare(b.task))) {
+    const button = document.createElement("button");
+    button.type = "button";
+    category.append(button);
+    button.textContent = `${model.task} · ${model.name}`;
+    button.dataset.id = model.id;
+    button.addEventListener("click", () => {
+      selection++;
+      for (const other of list.querySelectorAll("button")) other.setAttribute("aria-current", String(other === button));
+      clearMesh();
+      floors.replaceChildren();
+      facts.replaceChildren();
+      banner.hidden = true;
+      roofTitle.textContent = "Exterior roof plan";
+      levelTitle.textContent = "South elevation";
+      massing = model.create();
+      scene.add(massing.group);
+      ground.visible = true;
+      frame({ occupancyMeters: { width: model.size[0], depth: model.size[1] } }, model.size[2]);
+      // Fit the actual bounding sphere to both viewport axes, including very tall spires.
+      const sphere = new THREE.Box3().setFromObject(massing.group).getBoundingSphere(new THREE.Sphere());
+      const halfFov = Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * Math.min(1, camera.aspect));
+      const distance = (sphere.radius / Math.sin(halfFov)) * 1.08;
+      camera.position.copy(new THREE.Vector3(-1, 0.7, 1.1).normalize().multiplyScalar(distance).add(sphere.center));
+      controls.target.copy(sphere.center);
+      controls.update();
+      mountPlan(roofHost, meshProjection(massing, "top"));
+      mountPlan(levelHost, meshProjection(massing, "side"));
+      facts.append(
+        fact("Model", model.name),
+        fact("Style", model.style),
+        fact("State", model.state),
+        fact("Study envelope", `${model.size.join(" × ")} m`),
+        fact("Dimensions", model.dimensions),
+        fact("Note", model.note)
+      );
+      for (const source of model.sources) {
+        const row = document.createElement("p");
+        const link = document.createElement("a");
+        link.href = source.url;
+        link.textContent = source.title;
+        link.target = "_blank";
+        link.rel = "noreferrer";
+        row.append(link);
+        facts.append(row);
+      }
+    });
+  }
+}
 const assemblies = modelCategory("Fortress assemblies");
 const bojniceButton = document.createElement("button");
 bojniceButton.type = "button";
