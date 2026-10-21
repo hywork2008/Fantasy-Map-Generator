@@ -4,6 +4,7 @@ import { isSimplePolygon, polygonArea, polygonCentroid } from "./geom";
 import type { FarmPlot } from "./localInfill.types";
 import { convexInfillParts } from "./lotGeometry";
 import { bounds, corridor, intersectConvex, PlotIndex } from "./parcelGeometry";
+import { ruralBankKey } from "./ruralFieldBanks";
 import { clipLines, curvedRows, gatedBoundary, nearestOnSegment } from "./ruralFieldGeometry";
 import { planRuralFieldGroups } from "./ruralFieldGroups";
 import { planRuralFields, type RuralFieldInput, type RuralFieldPlan } from "./ruralFieldPlan";
@@ -68,6 +69,10 @@ export function planDetailedRuralFields(input: DetailedRuralFieldInput): RuralFi
     }
   const safe = (polygon: Point[], id: number): boolean => {
     if (!isSimplePolygon(polygon, 150)) return false;
+    if (input.riverDividers?.length) {
+      const bank = ruralBankKey(polygonCentroid(base.farms[id].polygon), input.riverDividers);
+      if ([...polygon, polygonCentroid(polygon)].some(p => ruralBankKey(p, input.riverDividers) !== bank)) return false;
+    }
     for (const part of convexInfillParts(polygon)) {
       const box = bounds(part);
       if (input.blocked(part)) return false;

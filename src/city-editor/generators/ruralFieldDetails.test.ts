@@ -5,6 +5,7 @@ import { convexInfillParts } from "./lotGeometry";
 import { corridor, intersectConvex } from "./parcelGeometry";
 import { type DetailedRuralFieldInput, planDetailedRuralFields } from "./ruralFieldDetails";
 import { ruralFieldSystem, validRuralFieldSettings } from "./ruralFieldProfile";
+import { riverRibbonRing } from "./townWater";
 
 const rect = (x: number, y: number, w: number, h: number): Point[] => [
   [x, y],
@@ -82,6 +83,87 @@ describe("detailed rural fields", () => {
       expect(Math.max(...farm.polygon.map(p => p[1]))).toBeLessThanOrEqual(184);
     }
   });
+  it("plans both banks independently even when dry land connects around the river endpoints", () => {
+    const river = corridor([160, 40], [160, 200], 8);
+    const plan = planDetailedRuralFields(
+      input({
+        riverDividers: [
+          [
+            [160, 40],
+            [160, 200]
+          ]
+        ],
+        blocked: polygon => overlap(polygon, river) > 0.001
+      })
+    );
+    const left = plan.farms.filter(f => f.polygon.every(p => p[0] <= 160));
+    const right = plan.farms.filter(f => f.polygon.every(p => p[0] >= 160));
+    expect(left.length).toBeGreaterThan(0);
+    expect(right.length).toBeGreaterThan(0);
+    expect(left.length + right.length).toBe(plan.farms.length);
+    const leftGroups = new Set(left.map(f => f.managementGroupId));
+    expect(right.every(f => !leftGroups.has(f.managementGroupId))).toBe(true);
+    expect(new Set([...left, ...right].map(f => f.orientationRadians)).size).toBeGreaterThan(1);
+    for (const farm of plan.farms) expect(overlap(farm.polygon, river)).toBeLessThan(0.01);
+  });
+
+  it("terminates independently oriented parcels at both banks of a bending river", () => {
+    const line: Point[] = [
+      [120, 0],
+      [120, 80],
+      [180, 160],
+      [180, 240]
+    ];
+    const river = riverRibbonRing(line, 8)!;
+    const plan = planDetailedRuralFields(
+      input({ riverDividers: [line], blocked: polygon => overlap(polygon, river) > 0.001 })
+    );
+    const riverX = (y: number) => (y < 80 ? 120 : y > 160 ? 180 : 120 + (y - 80) * 0.75);
+    const left = plan.farms.filter(f => f.polygon.every(([x, y]) => x < riverX(y)));
+    const right = plan.farms.filter(f => f.polygon.every(([x, y]) => x > riverX(y)));
+    expect(left.length).toBeGreaterThan(0);
+    expect(right.length).toBeGreaterThan(0);
+    expect(left.length + right.length).toBe(plan.farms.length);
+    expect(right.every(f => !left.some(other => other.managementGroupId === f.managementGroupId))).toBe(true);
+    for (const farm of plan.farms) expect(overlap(farm.polygon, river)).toBeLessThan(0.01);
+  });
+
+  it("restarts mechanized headland spacing independently on the opposite bank", () => {
+    const river = corridor([320, 40], [320, 440], 8);
+    const plan = planDetailedRuralFields(
+      input({
+        system: "mechanized",
+        period: "petroleumEra",
+        land: [{ faceId: "land", polygon: rect(0, 0, 640, 480) }],
+        roads: [
+          {
+            points: [
+              [0, 0],
+              [640, 0]
+            ],
+            widthMeters: 6
+          }
+        ],
+        riverDividers: [
+          [
+            [320, 40],
+            [320, 440]
+          ]
+        ],
+        blocked: polygon => overlap(polygon, river) > 0.001
+      })
+    );
+    const left = plan.farms.filter(f => f.polygon.every(p => p[0] < 320));
+    const right = plan.farms.filter(f => f.polygon.every(p => p[0] > 320));
+    expect(left.length).toBeGreaterThan(0);
+    expect(right.length).toBeGreaterThan(0);
+    expect(left.length + right.length).toBe(plan.farms.length);
+    expect(right.every(f => !left.some(other => other.managementGroupId === f.managementGroupId))).toBe(true);
+    const phases = (farms: typeof left) =>
+      new Set(farms.map(f => Math.round(Math.min(...f.polygon.map(p => p[1]))) % 72));
+    expect([...phases(right)].every(phase => !phases(left).has(phase))).toBe(true);
+  });
+
   it("selects explicit and regional profiles and rejects invalid persisted controls", () => {
     expect(ruralFieldSystem("highMedieval", "anglo")).toBe("open-field");
     expect(ruralFieldSystem("ageOfExploration", "gallic")).toBe("bocage");

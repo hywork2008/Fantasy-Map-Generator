@@ -3,6 +3,7 @@ import { isSimplePolygon, polygonArea, polygonCentroid } from "./geom";
 import { clipHalfPlane, insetConvexKernel } from "./lotGeometry";
 import { bounds, corridor, intersectConvex, PlotIndex, subtractConvex } from "./parcelGeometry";
 import { clipRuralAccess } from "./ruralFieldAccessGeometry";
+import { ruralBankKey } from "./ruralFieldBanks";
 import type { DetailedRuralFieldInput } from "./ruralFieldDetails";
 import { clipLines, curvedRows, gatedBoundary } from "./ruralFieldGeometry";
 import type { RuralFieldPlan } from "./ruralFieldPlan";
@@ -15,7 +16,7 @@ const hash = (s: string) => {
   return (n ^ (n >>> 13)) >>> 0;
 };
 type AccessNode = { point: Point; x: number; y: number };
-type Group = { id: string; center: Point; angle: number; seed: number };
+type Group = { id: string; center: Point; angle: number; seed: number; region: string };
 interface Context {
   input: DetailedRuralFieldInput;
   result: RuralFieldPlan;
@@ -24,6 +25,7 @@ interface Context {
   groups: Group[];
   tracks: Point[][];
   q: number;
+  regions: Map<string, string>;
   clear(p: Point[]): boolean;
   source(p: Point[]): string[];
 }
@@ -39,26 +41,40 @@ export function finishRuralTerritories({
   tracks,
   clear,
   source,
-  q
+  q,
+  regions
 }: Context): RuralFieldPlan {
   if (!groups.length) return result;
   const timing = input.profiler?.stages("generation/layout");
   timing?.next("territory-ownership");
   const reachable = new Map(queue.map(id => [id, nodes.get(id)!]));
+  const regionNodes = new Map<string, Map<string, AccessNode>>();
+  for (const [id, node] of reachable) {
+    const region = regions.get(id)!,
+      entries = regionNodes.get(region) ?? new Map<string, AccessNode>();
+    entries.set(id, node);
+    regionNodes.set(region, entries);
+  }
+  const frames = new Map(
+    [...regionNodes].map(([region, entries]) => {
+      const box = bounds([...entries.values()].map(node => node.point));
+      const frame: Point[] = [
+        [box[0] - q, box[1] - q],
+        [box[2] + q, box[1] - q],
+        [box[2] + q, box[3] + q],
+        [box[0] - q, box[3] + q]
+      ];
+      return [region, frame] as const;
+    })
+  );
   const box = bounds([...reachable.values()].map(node => node.point));
-  const frame: Point[] = [
-    [box[0] - q, box[1] - q],
-    [box[2] + q, box[1] - q],
-    [box[2] + q, box[3] + q],
-    [box[0] - q, box[3] + q]
-  ];
   const width = 1.2;
   // Exact Voronoi half-planes replace raster ownership and staircase repair.
   // Offsetting the same bisector on both sides reserves exactly one footpath.
   const cells = groups.map((g, i) => {
-    let polygon = frame;
+    let polygon = frames.get(g.region)!;
     groups.forEach((other, j) => {
-      if (i === j) return;
+      if (i === j || g.region !== other.region) return;
       const dx = other.center[0] - g.center[0],
         dy = other.center[1] - g.center[1];
       const length = Math.hypot(dx, dy);
@@ -75,14 +91,19 @@ export function finishRuralTerritories({
     )
   );
   // Keep each unobstructed run straight, stopping at water or reservations.
-  const addStraightTrack = (a: Point, b: Point) => {
+  const addStraightTrack = (a: Point, b: Point, region: string) => {
     const steps = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / q));
     const at = (n: number): Point => [a[0] + ((b[0] - a[0]) * n) / steps, a[1] + ((b[1] - a[1]) * n) / steps];
     let start: Point | undefined;
     for (let n = 0; n < steps; n++) {
       const from = at(n),
         to = at(n + 1);
-      if (clear(corridor(from, to, width, width / 2))) start ??= from;
+      const mid: Point = [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2];
+      if (
+        (region === "all" || regions.get(`${Math.floor(mid[0] / q)}:${Math.floor(mid[1] / q)}`) === region) &&
+        clear(corridor(from, to, width, width / 2))
+      )
+        start ??= from;
       else if (start) {
         tracks.push([start, from]);
         start = undefined;
@@ -100,7 +121,7 @@ export function finishRuralTerritories({
       [g.center[0] - normal[1] * extent, g.center[1] + normal[0] * extent],
       [g.center[0] + normal[1] * extent, g.center[1] - normal[0] * extent]
     ];
-    for (const [a, b] of clipLines([line], polygon)) addStraightTrack(a, b);
+    for (const [a, b] of clipLines([line], polygon)) addStraightTrack(a, b, g.region);
   });
   timing?.next("boundary-routes");
   // Shared edges lie on the unoffset bisector, not on a grid staircase.
@@ -110,8 +131,10 @@ export function finishRuralTerritories({
       const mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
       const distance = (p: Point) => Math.hypot(p[0] - mid[0], p[1] - mid[1]);
       const ownDistance = distance(groups[i].center);
-      const neighbour = groups.findIndex((g, j) => j !== i && Math.abs(distance(g.center) - ownDistance) < 1e-5);
-      if (neighbour > i) addStraightTrack(a, b);
+      const neighbour = groups.findIndex(
+        (g, j) => j !== i && g.region === groups[i].region && Math.abs(distance(g.center) - ownDistance) < 1e-5
+      );
+      if (neighbour > i) addStraightTrack(a, b, groups[i].region);
     });
   });
   timing?.next("track-reservations");
@@ -130,6 +153,10 @@ export function finishRuralTerritories({
   groups.forEach((g, index) => {
     const territory = territories[index];
     if (territory.length < 3) return;
+    const bank = ruralBankKey(g.center, input.riverDividers);
+    const bankClear = (polygon: Point[]) =>
+      clear(polygon) &&
+      [...polygon, polygonCentroid(polygon)].every(p => ruralBankKey(p, input.riverDividers) === bank);
     const normal: Point = [-Math.sin(g.angle), Math.cos(g.angle)];
     const values = territory.map(p => p[0] * normal[0] + p[1] * normal[1]);
     const hi = Math.max(...values);
@@ -143,7 +170,7 @@ export function finishRuralTerritories({
       for (const band of reservations.query(bounds(polygon)))
         pieces = pieces.flatMap(piece => subtractConvex(piece, band, 0.01));
       for (const piece of pieces)
-        for (const ring of clipRuralAccess(piece, reachable, q, clear))
+        for (const ring of clipRuralAccess(piece, regionNodes.get(g.region)!, q, bankClear))
           if (area(ring) >= 150) components.push({ label: `${index}:${strip}`, ring });
       lo = end;
       strip++;

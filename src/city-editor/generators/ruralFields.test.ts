@@ -103,6 +103,36 @@ describe("CE rural field integration", () => {
     ).toBeNull();
   });
 
+  it("treats a rendered river on land faces as a parcel boundary before generating fields", () => {
+    const document = city();
+    document.ruralFieldVersion = 2;
+    document.ruralFieldSettings = { coveragePercent: 100, gardenRadiusMeters: 0 };
+    const road = document.featureGroups[0];
+    if (road.kind !== "road") throw new Error("Expected road fixture");
+    road.segments = Object.values(document.mesh.edges)
+      .filter(edge => document.mesh.vertices[edge.a].point[1] === 0 && document.mesh.vertices[edge.b].point[1] === 0)
+      .map(edge => ({ edgeId: edge.id, forward: true }));
+    document.mesh.vertices.riverStart = { id: "riverStart", point: [240, 0], locked: false };
+    document.mesh.vertices.riverEnd = { id: "riverEnd", point: [240, 400], locked: false };
+    document.featureGroups.push({
+      id: "river",
+      kind: "river",
+      name: "River",
+      locked: false,
+      vertices: ["riverStart", "riverEnd"],
+      source: null,
+      mouth: null,
+      style: { widthMeters: 12, color: "blue" }
+    });
+    const plan = applyRuralFields(document, emptyFabric());
+    const left = plan.farms.filter(f => f.polygon.every(p => p[0] <= 234.001));
+    const right = plan.farms.filter(f => f.polygon.every(p => p[0] >= 245.999));
+    expect(left.length).toBeGreaterThan(0);
+    expect(right.length).toBeGreaterThan(0);
+    expect(left.length + right.length).toBe(plan.farms.length);
+    expect(right.every(f => !left.some(other => other.managementGroupId === f.managementGroupId))).toBe(true);
+  });
+
   it("expands rural land away from highways without retagging locked or occupied land", () => {
     const document = city();
     document.mesh.faces.f1.properties.ward = "empty";

@@ -8,15 +8,17 @@ import { FixedRoadReservation } from "./fixedRoadReservation";
 import { circuitRing } from "./fortifications";
 import { polygonArea } from "./geom";
 import { landmarkReservationHits } from "./landmarks";
-import { clipHalfPlane, convexInfillParts } from "./lotGeometry";
+import { clipHalfPlane, convexInfillParts, triangularInfillParts } from "./lotGeometry";
 import { facePoints } from "./mesh";
 import { MoatReservation } from "./moats";
 import { bounds, intersectConvex, PlotIndex, corridor as roadBand } from "./parcelGeometry";
+import { ruralRiverDividers } from "./ruralFieldBanks";
 import { planDetailedRuralFields } from "./ruralFieldDetails";
 import { planRuralFields } from "./ruralFieldPlan";
 import { ruralFieldSystem } from "./ruralFieldProfile";
 import { ruralSuitability } from "./ruralSuitability";
 import { approachBands } from "./suburbanLanduse";
+import { classifyTownWater } from "./townWater";
 import { documentWaterTest } from "./waterGeometry";
 
 /** The common post-housing farm pass also serves radial and ring layouts. */
@@ -133,6 +135,9 @@ export function applyRuralFields(
   const index = new PlotIndex<Point[]>();
   for (const polygon of reservations) for (const part of convexInfillParts(polygon)) index.add(part, bounds(part));
   const water = documentWaterTest(document);
+  const wet = new PlotIndex<Point[]>();
+  for (const part of classifyTownWater(document).parts)
+    for (const triangle of triangularInfillParts(part.polygon)) wet.add(triangle, bounds(triangle));
   const fixedRoads = new FixedRoadReservation(document);
   const moat = new MoatReservation(document);
   const shore = oceanShoreSegments(document);
@@ -147,6 +152,7 @@ export function applyRuralFields(
   const fixedArea = fixedFarms.reduce((sum, farm) => sum + Math.abs(polygonArea(farm.polygon)), 0);
   timing?.next("layout");
   const blocked = (polygon: Point[]) =>
+    wet.query(bounds(polygon)).some(part => Math.abs(polygonArea(intersectConvex(polygon, part))) > 0.001) ||
     water(polygon) ||
     fixedRoads.hitsPolygon(polygon) ||
     landmarkReservationHits(document, polygon) ||
@@ -160,6 +166,7 @@ export function applyRuralFields(
     land,
     roads,
     period: document.historicalPeriod,
+    riverDividers: ruralRiverDividers(document),
     areaBudgetM2:
       targetArea === undefined
         ? document.farmlandAreaHectares === undefined

@@ -5,12 +5,15 @@ import { nearestOnPolyline, polygonArea } from "./geom";
 import type { FarmPlot } from "./localInfill.types";
 import { convexInfillParts } from "./lotGeometry";
 import { bounds, boundsOverlap, corridor, intersectConvex, PlotIndex } from "./parcelGeometry";
+import { ruralBankKey } from "./ruralFieldBanks";
 
 export interface RuralFieldInput {
   seed: string;
   land: { faceId: string; polygon: Point[] }[];
   roads: { points: Point[]; widthMeters: number }[];
   period?: HistoricalPeriod;
+  /** Local river tangents separate independently planned banks. */
+  riverDividers?: Point[][];
   areaBudgetM2?: number;
   /** Tests the whole footprint, including water, buildings and defence reservations. */
   blocked(polygon: Point[]): boolean;
@@ -22,7 +25,7 @@ export interface RuralFieldPlan {
   diagnostics: import("../types/contracts/ruralFields").RuralFieldDiagnostics;
 }
 
-type Cell = { x: number; y: number; point: Point; arable: boolean; parent?: string; road?: Point };
+type Cell = { x: number; y: number; point: Point; arable: boolean; bank: string; parent?: string; road?: Point };
 const key = (x: number, y: number) => `${x}:${y}`;
 const adjacent = (cell: Cell) => [
   [cell.x - 1, cell.y],
@@ -67,6 +70,7 @@ export function planRuralFields(input: RuralFieldInput): RuralFieldPlan {
   const plan = planAlignedRuralFields({
     ...input,
     land: input.land.map(face => ({ ...face, polygon: face.polygon.map(local) })),
+    riverDividers: input.riverDividers?.map(line => line.map(local)),
     roads: input.roads.map(road => ({ ...road, points: road.points.map(local) })),
     blocked: polygon => input.blocked(polygon.map(world))
   });
@@ -120,7 +124,10 @@ function planAlignedRuralFields(input: RuralFieldInput): RuralFieldPlan {
   const minLength = Math.max(2, Math.ceil((mechanized ? 36 : 24) / quantum));
   const width = mechanized ? 4 : 2.8;
   const phase = [...input.seed].reduce((n, c) => (n * 33 + c.charCodeAt(0)) >>> 0, 5381) % (across + 1);
-  const isHeadland = (y: number) => ((y % (across + 1)) + across + 1) % (across + 1) === phase;
+  const isHeadland = (cell: Cell) => {
+    const bankPhase = [...cell.bank].reduce((n, c) => (Math.imul(n, 33) + c.charCodeAt(0)) >>> 0, 0);
+    return (((cell.y + bankPhase) % (across + 1)) + across + 1) % (across + 1) === phase;
+  };
   const roads = input.roads.flatMap(road =>
     road.points.slice(1).flatMap((b, i) => {
       const a = road.points[i];
@@ -151,7 +158,7 @@ function planAlignedRuralFields(input: RuralFieldInput): RuralFieldPlan {
         point[1] + quantum * 2
       ]);
       const arable = !nearby.some(road => area(intersectConvex(polygon, road.polygon)) > 0.01);
-      const cell: Cell = { x, y, point, arable };
+      const cell: Cell = { x, y, point, arable, bank: ruralBankKey(point, input.riverDividers) };
       const id = key(x, y);
       cells.set(id, cell);
       if (arable) result.diagnostics.candidateAreaM2 += quantum * quantum;
@@ -184,7 +191,7 @@ function planAlignedRuralFields(input: RuralFieldInput): RuralFieldPlan {
       queue.push(nextId);
     }
   }
-  const headlandIds = queue.filter(id => isHeadland(cells.get(id)!.y));
+  const headlandIds = queue.filter(id => isHeadland(cells.get(id)!));
   const access = new Set(headlandIds);
   const trunks = new Set<string>();
   // Each continuous headland needs one connection, not a separate track for
@@ -223,10 +230,12 @@ function planAlignedRuralFields(input: RuralFieldInput): RuralFieldPlan {
   }
   const usedAccess = new Set<string>();
   const remaining = new Set(queue.filter(id => cells.get(id)!.arable && !access.has(id)));
-  const usable = (x: number, y: number) =>
-    Array.from({ length: across }, (_, i) => key(x, y + i)).every(id => remaining.has(id));
+  const usable = (x: number, y: number, bank: string) =>
+    Array.from({ length: across }, (_, i) => key(x, y + i)).every(
+      id => remaining.has(id) && cells.get(id)!.bank === bank
+    );
   const headlands = queue
-    .filter(id => isHeadland(cells.get(id)!.y) && accessReachable.has(id))
+    .filter(id => isHeadland(cells.get(id)!) && accessReachable.has(id))
     .sort((a, b) => {
       const ap = cells.get(a)!.point,
         bp = cells.get(b)!.point;
@@ -237,9 +246,9 @@ function planAlignedRuralFields(input: RuralFieldInput): RuralFieldPlan {
     const start = cells.get(accessId)!;
     const y = start.y + 1,
       x = start.x;
-    if (!usable(x, y)) continue;
+    if (!usable(x, y, start.bank)) continue;
     let count = 0;
-    while (count < maxLength && usable(x + count, y) && access.has(key(x + count, start.y))) count++;
+    while (count < maxLength && usable(x + count, y, start.bank) && access.has(key(x + count, start.y))) count++;
     if (count < minLength) continue;
     const height = across * quantum - 1;
     const length = Math.min(count * quantum - 1, available / height);
@@ -263,7 +272,8 @@ function planAlignedRuralFields(input: RuralFieldInput): RuralFieldPlan {
     result.farms.push({
       faceId: sources[0],
       sourceFaceIds: sources,
-      plotId: `rural-v1:${x}:${y}`,
+      plotId: start.bank ? `rural-v1:${start.bank}:${x}:${y}` : `rural-v1:${x}:${y}`,
+      ...(start.bank ? { managementGroupId: `rural-bank:${start.bank}` } : {}),
       polygon,
       rows,
       kind: "open-field"

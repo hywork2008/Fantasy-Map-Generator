@@ -2,6 +2,7 @@ import type { Point } from "../types/document";
 import { nearestOnPolyline, polygonArea } from "./geom";
 import { convexInfillParts } from "./lotGeometry";
 import { bounds, corridor, intersectConvex, PlotIndex } from "./parcelGeometry";
+import { ruralAccessRegions } from "./ruralFieldBanks";
 import type { DetailedRuralFieldInput } from "./ruralFieldDetails";
 import type { RuralFieldPlan } from "./ruralFieldPlan";
 import { finishRuralTerritories } from "./ruralFieldTerritories";
@@ -90,6 +91,10 @@ export function planRuralFieldGroups(input: DetailedRuralFieldInput): RuralField
       }
     }
   timing?.next("reachability");
+  const splitBanks = !!input.riverDividers?.length;
+  const regions = splitBanks
+    ? ruralAccessRegions(nodes, input.riverDividers)
+    : new Map([...nodes.keys()].map(id => [id, "all"]));
   const reached = new Set(queue);
   for (let i = 0; i < queue.length; i++) {
     const node = nodes.get(queue[i])!;
@@ -101,7 +106,7 @@ export function planRuralFieldGroups(input: DetailedRuralFieldInput): RuralField
     ]) {
       const id = key(x, y),
         next = nodes.get(id);
-      if (!next || reached.has(id)) continue;
+      if (!next || reached.has(id) || regions.get(id) !== regions.get(queue[i])) continue;
       next.parent = queue[i];
       reached.add(id);
       queue.push(id);
@@ -118,17 +123,29 @@ export function planRuralFieldGroups(input: DetailedRuralFieldInput): RuralField
       )
     ].sort();
   timing?.next("group-seeds");
-  const candidates = queue
+  const ranked = queue
     .map(id => ({ id, rank: hash(`${input.seed}:group:${id}`) }))
     .sort((a, b) => a.rank - b.rank || a.id.localeCompare(b.id));
-  const groups: { id: string; center: Point; angle: number; seed: number }[] = [];
-  const maxGroups = Math.min(240, Math.max(1, Math.ceil((queue.length * q * q) / 24000)));
+  const represented = new Set<string>();
+  const first = ranked.filter(candidate => {
+    const region = regions.get(candidate.id)!;
+    if (represented.has(region)) return false;
+    represented.add(region);
+    return true;
+  });
+  const firstIds = new Set(first.map(candidate => candidate.id));
+  const candidates = [...first, ...ranked.filter(candidate => !firstIds.has(candidate.id))];
+  const groups: { id: string; center: Point; angle: number; seed: number; region: string }[] = [];
+  const maxGroups = Math.max(first.length, Math.min(240, Math.max(1, Math.ceil((queue.length * q * q) / 24000))));
   for (const candidate of candidates) {
     if (groups.length >= maxGroups) break;
     const node = nodes.get(candidate.id)!,
-      seed = hash(`${input.seed}:shape:${candidate.id}`);
+      region = regions.get(candidate.id)!,
+      seed = hash(
+        splitBanks ? `${input.seed}:bank:${region}:shape:${candidate.id}` : `${input.seed}:shape:${candidate.id}`
+      );
     const spacing = 140 + (seed % 71);
-    if (groups.some(group => distance(group.center, node.point) < spacing)) continue;
+    if (groups.some(group => group.region === region && distance(group.center, node.point) < spacing)) continue;
     // Use the local physical road, rather than a city-wide compass direction.
     const road = input.roads
       .map(road => ({ road, hit: nearestOnPolyline(node.point, road.points) }))
@@ -144,29 +161,31 @@ export function planRuralFieldGroups(input: DetailedRuralFieldInput): RuralField
       }
     }
     const angle = tangent + (seed % 3 === 0 ? Math.PI / 2 : 0) + ((((seed >>> 8) % 51) - 25) * Math.PI) / 180;
-    groups.push({ id: candidate.id, center: node.point, angle, seed });
+    groups.push({ id: candidate.id, center: node.point, angle, seed, region });
   }
   // Establish the sparse approach network before allocating any fields.
   // A later group can join an actual earlier track endpoint; all other routes
   // follow the proved reachable tree and are shortened only after clearance.
   timing?.next("approach-tracks");
   const tracks: Point[][] = [],
-    endpoints: Point[] = [];
+    endpoints: { point: Point; region: string }[] = [];
   const trackIndex = new PlotIndex<Point[]>();
-  const reserveTrack = (points: Point[]) => {
+  const reserveTrack = (points: Point[], region: string) => {
     if (distance(points[0], points[1]) < 0.001) return;
     tracks.push(points);
-    endpoints.push(...points);
+    endpoints.push(...points.map(point => ({ point, region })));
     const band = corridor(points[0], points[1], 1.2, 0.6);
     trackIndex.add(band, bounds(band));
   };
   for (const group of groups) {
     const joint = endpoints
+      .filter(endpoint => endpoint.region === group.region)
+      .map(endpoint => endpoint.point)
       .filter(p => distance(p, group.center) < 240)
       .sort((a, b) => distance(a, group.center) - distance(b, group.center))
       .find(p => clear(corridor(group.center, p, 1.2, 0.6)));
     if (joint) {
-      reserveTrack([group.center, joint]);
+      reserveTrack([group.center, joint], group.region);
       continue;
     }
     const path: Point[] = [group.center];
@@ -178,18 +197,19 @@ export function planRuralFieldGroups(input: DetailedRuralFieldInput): RuralField
     for (let i = 0; i < path.length - 1; ) {
       let j = path.length - 1;
       while (j > i + 1 && !clear(corridor(path[i], path[j], 1.2, 0.6))) j--;
-      reserveTrack([path[i], path[j]]);
+      reserveTrack([path[i], path[j]], group.region);
       i = j;
     }
-    if (node.road) reserveTrack([node.point, node.road]);
+    if (node.road) reserveTrack([node.point, node.road], group.region);
   }
   if (input.profiler)
     Object.assign(input.profiler.counts, {
       accessNodes: nodes.size,
       reachableNodes: queue.length,
       groups: groups.length,
+      bankRegions: represented.size,
       gridMeters: q
     });
   timing?.end();
-  return finishRuralTerritories({ input, result, nodes, queue, groups, tracks, clear, source, q });
+  return finishRuralTerritories({ input, result, nodes, queue, groups, tracks, clear, source, q, regions });
 }
