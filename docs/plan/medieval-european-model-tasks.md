@@ -54,7 +54,7 @@ CEの施設配置・平面描画や汎用3D表現の有無とは区別する。
 - [x] 37. **ガラス職人の会館** — CE: `glassware`。専門産業都市向け。ガラス炉・工房とは別施設。 `src/buildings/medieval/37-glassworkers-hallsModels.ts` に専用モデルを実装し、BVに登録。
 - [x] 38. **印刷工房・印刷職人会館** — CE: `printing`は会館に対応。15世紀半ば以降。印刷機、紙棚、乾燥設備。 `src/buildings/medieval/38-printing-modelsModels.ts` に専用モデルを実装し、BVに登録。
 - [x] 39. **楽器職人会館** — CE: `instruments`。比較的大きな都市や専門産地向け。 `src/buildings/medieval/39-instrument-makers-hallsModels.ts` に専用モデルを実装し、BVに登録。
-- [ ] 40. **砂置場** — CE: `sandYard`。ガラス製造・建設関連の原料山、囲い、運搬容器。
+- [x] 40. **砂置場** — CE: `sandYard`。ガラス製造・建設関連の原料山、囲い、運搬容器。 `src/buildings/medieval/40-sand-yardsModels.ts` に専用モデルを実装し、BVに登録。
 - [ ] 41. **正教会修道院** — CE: `orthodoxMonastery`。東欧・南東欧では優先順位を上げる。
 - [ ] 42. **キャラバンサライ** — CE: `caravanserai`。欧州全域では低頻度。オスマン圏の南東欧などで採用。
 
