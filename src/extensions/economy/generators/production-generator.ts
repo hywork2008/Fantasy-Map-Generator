@@ -78,6 +78,7 @@ import {
   getCraftDomainForGood
 } from "./guildKnowledgeTypes";
 import { GUILD_PROFIT_SHARE, GuildTreasury } from "./guildTreasury";
+import { harvestLivestockForage, settleLivestockFeed } from "./livestockFeed";
 import { isLuxuryValueDemandEnabled, luxuryTierWeights } from "./luxuryDemand";
 import { type LuxuryTier, luxuryTierOf } from "./luxuryTiers";
 import { beginFlowCycleCapture, recordFlowCycleEnd } from "./marketFlowDiagnostics";
@@ -314,6 +315,7 @@ export class ProductionModule {
     SmithingWorkshopAccounting.beginProductionCycle();
 
     measureTickStep("production:rural", () => Markets.collectRuralProduction());
+    measureTickStep("production:forageHarvest", () => harvestLivestockForage());
     measureTickStep("production:minesSmelters", () => {
       if (MineOperations.reanchorOperations()) SmelterOperations.generate();
       MineOperations.produceMonth();
@@ -455,6 +457,7 @@ export class ProductionModule {
     });
     measureTickStep("production:globalTrade", () => Markets.runGlobalTrade());
     measureTickStep("production:spawnCaravans", () => Caravans.spawnFromDeals(getDeals()));
+    measureTickStep("production:livestockFeed", () => settleLivestockFeed());
     measureTickStep("production:fillDemand", () => this.fillBurgsDemand(cycle.sortedBurgs, cycle.index));
     measureTickStep("production:marketMaintenance", () => settleMarketMaintenance());
     measureTickStep("production:armsTheft", () => settleArmsTheft());
@@ -529,6 +532,7 @@ export class ProductionModule {
 
     if (isCancelled()) return false;
 
+    measureTickStep("production:livestockFeed", () => settleLivestockFeed());
     measureTickStep("production:fillDemand", () => this.fillBurgsDemand(cycle.sortedBurgs, cycle.index));
     measureTickStep("production:marketMaintenance", () => settleMarketMaintenance());
     measureTickStep("production:armsTheft", () => settleArmsTheft());

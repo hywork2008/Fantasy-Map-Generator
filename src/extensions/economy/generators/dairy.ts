@@ -32,6 +32,7 @@
 import { getOrCreateFaunaStockTable, getSimulationMonth } from "../economyContext";
 import { LITERS_PER_MILK_LOT } from "./foodLots";
 import { getHusbandryWorkerFactor } from "./husbandry";
+import { getLivestockFeedCoverage } from "./livestockFeedState";
 
 /**
  * Annual litres per lactating female. The model uses the breeding cohort as a proxy for the adult
@@ -80,5 +81,5 @@ export function getMilkOutput(cellId: number): number {
       LITERS_PER_MILK_LOT;
   }
   if (rawYield <= 0) return 0;
-  return rawYield * getHusbandryWorkerFactor(cellId);
+  return rawYield * getHusbandryWorkerFactor(cellId) * getLivestockFeedCoverage(cellId);
 }

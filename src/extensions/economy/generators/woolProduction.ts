@@ -19,6 +19,7 @@
 
 import { getOrCreateFaunaStockTable } from "../economyContext";
 import { getHusbandryWorkerFactor } from "./husbandry";
+import { getLivestockFeedCoverage } from "./livestockFeedState";
 
 /** One Wool market unit is a bale of one thousand annual-fleece equivalents. */
 export const FLEECES_PER_WOOL_MARKET_LOT = 1_000;
@@ -57,5 +58,5 @@ export function getWoolOutput(cellId: number): number {
     rawYield += getLocalHeadcount(cellId, species) * yieldPerHead;
   }
   if (rawYield <= 0) return 0;
-  return (rawYield * getHusbandryWorkerFactor(cellId)) / FLEECES_PER_WOOL_MARKET_LOT;
+  return (rawYield * getHusbandryWorkerFactor(cellId) * getLivestockFeedCoverage(cellId)) / FLEECES_PER_WOOL_MARKET_LOT;
 }

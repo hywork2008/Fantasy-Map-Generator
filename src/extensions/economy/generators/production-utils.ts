@@ -222,7 +222,14 @@ export function getRuralProductionContributions(
     // Salt is a state-operated utility: saltworks.ts supplies it to city markets from
     // dedicated national sites. Excluding legacy biome entries also keeps older saves from
     // reintroducing scattered climate-agnostic Salt production.
-    if (!good || !isGoodEnabled(good) || isMineSuppliedGoodName(good.name) || good.name === "Salt") continue;
+    if (
+      !good ||
+      !isGoodEnabled(good) ||
+      isMineSuppliedGoodName(good.name) ||
+      good.name === "Salt" ||
+      good.name === "Fodder"
+    )
+      continue;
 
     // Rural Occupation Allocator (docs/plan/biome-goods-producer-ecosystem.md §3) gates these by
     // actual assigned workers instead of raw population — Phase 1 of that redesign.
@@ -301,7 +308,8 @@ export function getRuralProductionContributions(
       !good.perennialCrop &&
       isGoodEnabled(good) &&
       !isMineSuppliedGoodName(good.name) &&
-      good.name !== "Salt"
+      good.name !== "Salt" &&
+      good.name !== "Fodder"
     ) {
       let bonus = Math.min(population * BONUS_RURAL_PRODUCTION, MAX_BONUS_PRODUCTION);
       if (good.name === "Fish") bonus *= getFishingWorkerFactor(cellId);

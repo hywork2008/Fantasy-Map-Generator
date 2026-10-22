@@ -11,8 +11,8 @@
  *
  * Legacy pasture is labor-gated. Resolved land ledgers already account for maintained pasture;
  * that footprint is used once, without applying worker coverage to the land a second time.
- * Current output remains gated by herder coverage. Winter feed and crop residues need a separate
- * annual feed ledger and are not inferred from this land partition.
+ * Output is gated by herder and recent feed coverage. The separate feed ledger accounts for
+ * seasonal pasture, hay and paid Fodder; crop residues are not inferred from this partition.
  *
  * Working-dog multipliers retain the existing policy (Arnott et al. 2014 and the model baselines
  * in biome-goods-producer-ecosystem.md). The fauna stock lookup is local to avoid a cycle with
@@ -34,10 +34,19 @@ import {
 import {
   calculateBurgBuiltAreaHectares,
   calculatePhysicalAreaHectares,
-  calculateTerrainWorkableShare
+  calculateTerrainWorkableShare,
+  WORKABLE_DAYS_PER_ADULT
 } from "./agriculturalLandUse";
 import type { Good } from "./goods-generator";
 import { isGoodEnabled } from "./goods-generator";
+import {
+  ANNUAL_FEED_DM_KG_PER_HEAD,
+  getPastureGrowth,
+  HAY_DRY_MATTER_RETENTION,
+  HAY_WORK_DAYS_PER_TONNE_DM,
+  WINTER_HAY_PLAN_SHARE
+} from "./livestockFeedPolicy";
+import { getAnnualLivestockFeedFactor } from "./livestockFeedState";
 
 // ---- Placeholder constants (calibration TBD, §9.3 policy; see module doc-comment for sourcing) ----
 
@@ -184,6 +193,9 @@ export function isGrazedLivestockGood(goodName: string): boolean {
 export interface HusbandryDemand {
   /** Aggregate herders this cell could use across every grazed species present in its biome. */
   readonly requiredWorkers: number;
+  /** Additional haymaking crew, unaffected by herding-dog efficiency. */
+  readonly hayWorkers?: number;
+  readonly careWorkers?: number;
   /** Care-headcount-weighted average good.value, for the greedy allocator's value-ranking (§3.1). */
   readonly value: number;
   /** Normalized distribution of this cell's annual herding work, when the cell has a herd. */
@@ -293,6 +305,7 @@ export function calculateHusbandryDemand(world: Readonly<WorldContext>, cellId: 
   let totalCareHeads = 0;
   let workersNoDogs = 0;
   let weightedValue = 0;
+  let annualFeedNeedKg = 0;
 
   // Habitat and land constrain new targets, not the care owed to animals already present.
   for (const [name, profile] of Object.entries(HUSBANDRY_SPECIES_PROFILES)) {
@@ -301,6 +314,7 @@ export function calculateHusbandryDemand(world: Readonly<WorldContext>, cellId: 
     const careHeads = Math.max(plannedHeads.get(name) ?? 0, existingHeads);
     if (!(careHeads > 0)) continue;
     totalCareHeads += careHeads;
+    annualFeedNeedKg += careHeads * (ANNUAL_FEED_DM_KG_PER_HEAD[name] ?? 0);
     workersNoDogs += careHeads / profile.baselineHeadsPerHerder;
     weightedValue += careHeads * (goodsByName.get(name)?.value ?? 0);
     perGoodDemand.push({ careHeads, profile });
@@ -323,8 +337,17 @@ export function calculateHusbandryDemand(world: Readonly<WorldContext>, cellId: 
     for (let month = 0; month < 12; month++) weightedMonthlyLabor[month] += speciesWorkers * weights[month];
   }
 
+  const growth = getPastureGrowth(world, cellId);
+  const forageKg = calculateDesiredPastureAreaHectares(world, cellId) * growth.annualKgPerHa;
+  const hayKg = (Math.min(forageKg, annualFeedNeedKg) * WINTER_HAY_PLAN_SHARE) / HAY_DRY_MATTER_RETENTION;
+  const hayWorkers = ((hayKg / 1000) * HAY_WORK_DAYS_PER_TONNE_DM) / WORKABLE_DAYS_PER_ADULT;
+  for (let month = 0; month < 12; month++) weightedMonthlyLabor[month] += hayWorkers * growth.weights[month];
+  const careWorkers = requiredWorkers;
+  requiredWorkers += hayWorkers;
   return {
     requiredWorkers,
+    hayWorkers,
+    careWorkers,
     value: weightedValue / totalCareHeads,
     monthlyLaborWeights: normalizeMonthlyWeights(weightedMonthlyLabor)
   };
@@ -374,7 +397,7 @@ export function getGrazedCarryingCapacity(
 ): number {
   const world = getWorldContext();
   const area = getPastureAreaUsedHectares(cellId);
-  return (
-    calculateGrazingLandAllocation(world, cellId, area).find(row => row.goodName === good.name)?.capacityHeads ?? 0
-  );
+  const targets = calculateGrazingLandAllocation(world, cellId, area);
+  const heads = targets.find(row => row.goodName === good.name)?.capacityHeads ?? 0;
+  return heads * getAnnualLivestockFeedFactor(cellId, area, targets);
 }

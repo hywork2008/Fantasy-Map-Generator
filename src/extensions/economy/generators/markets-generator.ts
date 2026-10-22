@@ -13,6 +13,7 @@ import {
   type ShipbuildingMaterials
 } from "../../hostTypes";
 import { getColors, getRandomColor, minmax, rn, TIME } from "../../hostUtils";
+import { getMilitaryResourceLedgers } from "../context/fiscal";
 import {
   getColdStorageDepots,
   getDeals,
@@ -79,6 +80,7 @@ import { moveRuralPursesWithFarms } from "./householdWealth";
 import { getHouseTimberShare, getHousingRecipe } from "./housingRecipes";
 import { type IncrementalBatchOptions, runBatchedYielding } from "./incrementalBatching";
 import { getLiveAnimalCatchKey, rollLiveAnimalCatch } from "./liveAnimalCatch";
+import { getLivestockFodderOrderLots } from "./livestockFeed";
 import { isLuxuryValueDemandEnabled, luxuryBudgetByMarketTier, luxuryStockTarget } from "./luxuryDemand";
 import { isHighValueTradeGood, isLuxuryDemandGood, type LuxuryTier } from "./luxuryTiers";
 import {
@@ -3193,6 +3195,18 @@ export class MarketsModule {
     marketId?: number
   ): number {
     const market = marketId === undefined ? undefined : this.get(marketId);
+    if (good.name === "Fodder" && market) {
+      const military = getMilitaryResourceLedgers()
+        .filter(ledger => ledger.supplyMarketId === market.i)
+        .reduce((sum, ledger) => sum + (ledger.annualDemand.fodder ?? 0) / 12, 0);
+      // Migration removes only legacy defaults; retained custom demand still consumes market stock.
+      const customDemand = applyPriceElasticity(
+        urbanPopulation * (consumerDemand + industrialDemand),
+        good,
+        laggedPrice
+      );
+      return getLivestockFodderOrderLots(market) + military + customDemand;
+    }
     if (good.name === "Wool Blankets") return market ? getAffordableTextileDemand(market, true) : 0;
     const calibrated = getEconomyCalibrationState().applyCalibration;
     const clothingCoverage = consumerCoverageForCategory(good, "clothing", calibrated);

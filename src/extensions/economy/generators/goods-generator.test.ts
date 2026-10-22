@@ -33,6 +33,7 @@ import {
   migrateLiveAnimalTags,
   migrateLiveCatsGood,
   migrateLiveDogsGood,
+  migrateLivestockFeedDemand,
   migrateMercuryChainGoods,
   migrateNaturalGasChainGoods,
   migrateOrdinaryWoolGoods,
@@ -73,6 +74,23 @@ describe("GoodsModule", () => {
 
   afterEach(() => {
     clearEconomyContext();
+  });
+
+  it("migrates only legacy Fodder demand and preserves custom contracts", () => {
+    const fodder = {
+      ...GOODS_DATA.find(good => good.name === "Fodder")!,
+      i: 1,
+      demandCoverage: { utilities: 0.7, military: 0.3 }
+    };
+    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    setGoods([fodder]);
+    const before = structuredClone(fodder);
+    expect(migrateLivestockFeedDemand()).toBe(true);
+    expect(fodder).toEqual({ ...before, demandCoverage: {} });
+    expect(migrateLivestockFeedDemand()).toBe(false);
+    fodder.demandCoverage = { utilities: 0.4, military: 0.6 };
+    expect(migrateLivestockFeedDemand()).toBe(false);
+    expect(fodder.demandCoverage).toEqual({ utilities: 0.4, military: 0.6 });
   });
 
   beforeEach(async () => {

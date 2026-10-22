@@ -4,8 +4,8 @@ import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { createNodeSimulationHost } from "../src/simulation/adapters/node";
 import { getGoods, getMarkets } from "../src/extensions/economy/context/trade";
-import { getOrCreateFaunaStockTable } from "../src/extensions/economy/context/cellTables";
-import { calculateGrazingLandAllocation, getPastureAreaUsedHectares, STOCKING_DENSITY_PER_HECTARE } from "../src/extensions/economy/generators/husbandry";
+import { getOrCreateFaunaStockTable, getOrCreateLivestockFeedTable } from "../src/extensions/economy/context/cellTables";
+import { calculateGrazingLandAllocation, getGrazedCarryingCapacity, getPastureAreaUsedHectares, STOCKING_DENSITY_PER_HECTARE } from "../src/extensions/economy/generators/husbandry";
 import { HOUSEHOLD_GARMENT_NAMES } from "../src/extensions/economy/generators/textileRecipeContracts";
 import { getMarketBlanketDemandProfile, getMarketTextileDemandProfile } from "../src/extensions/economy/generators/textileDemand";
 import { getWoolOutput } from "../src/extensions/economy/generators/woolProduction";
@@ -17,6 +17,7 @@ if (!input || !output || !Number.isSafeInteger(months) || months < 1) throw new 
 const paths = ["scripts/auditWoolSupply.mts", "src/extensions/economy/generators/woolProduction.ts", "src/extensions/economy/generators/husbandry.ts", "src/extensions/economy/generators/faunaPopulation.ts", "src/extensions/economy/generators/developmentPotential.ts"];
 paths.push("src/extensions/economy/generators/textileDemand.ts", "src/extensions/economy/generators/textileRecipeContracts.ts", "src/extensions/economy/generators/goods-generator.ts", "src/extensions/economy/generators/production-generator.ts", "src/extensions/economy/generators/markets-generator.ts");
 paths.push("src/extensions/economy/generators/ruralTextileProduction.ts", "src/extensions/economy/generators/textileHouseholdPolicy.ts", "src/extensions/economy/generators/ruralOccupationAllocation.ts");
+paths.push(...["livestockFeed.ts", "livestockFeedPolicy.ts", "livestockFeedState.ts", "dairy.ts", "production-utils.ts"].map(name => `src/extensions/economy/generators/${name}`));
 const sourceHashes = Object.fromEntries(paths.map(path => [path, createHash("sha256").update(readFileSync(path)).digest("hex")]));
 const bytes = readFileSync(input);
 const host = createNodeSimulationHost();
@@ -47,6 +48,12 @@ function snapshot() {
  const table = getOrCreateFaunaStockTable() ?? {};
  const heads: Record<string, number> = {};
  const occupied = [];
+ const feedRows = Object.values(getOrCreateLivestockFeedTable() ?? {});
+ const feedTotals = Object.fromEntries([
+  "hayKg", "pastureGrownKg", "harvestedKg", "harvestLossKg", "storageLossKg", "unharvestedKg",
+  "soldKg", "purchasedKg", "requiredKg", "pastureConsumedKg", "hayConsumedKg", "unmetKg", "spending", "revenue"
+ ].map(key => [key, feedRows.reduce((sum, row) => sum + (Number(row[key as keyof typeof row]) || 0), 0)]));
+ const feedCapacityHeads: Record<string, number> = {};
  let pastureHa = 0;
  let footprintHa = 0;
  let allocatedPastureHa = 0;
@@ -57,7 +64,10 @@ function snapshot() {
   pastureHa += ha;
   const allocations = calculateGrazingLandAllocation(world, cellId, ha);
   allocatedPastureHa += allocations.reduce((sum, row) => sum + row.areaHa, 0);
-  for (const row of allocations) landCapacityHeads[row.goodName] = (landCapacityHeads[row.goodName] ?? 0) + row.capacityHeads;
+  for (const row of allocations) {
+   landCapacityHeads[row.goodName] = (landCapacityHeads[row.goodName] ?? 0) + row.capacityHeads;
+   feedCapacityHeads[row.goodName] = (feedCapacityHeads[row.goodName] ?? 0) + (getGrazedCarryingCapacity(cellId, getGoods().find(good => good.name === row.goodName)!) ?? 0);
+  }
   let claim = 0;
   const localHeads: Record<string, number> = {};
   for (const [name, density] of Object.entries(modelDensity)) {
@@ -75,7 +85,7 @@ function snapshot() {
  const urbanPeople = world.pack.burgs.reduce((sum, burg) => sum + (burg?.i && !burg.removed ? Math.max(0, burg.population ?? 0) : 0), 0) * world.populationRate * (world.urbanization ?? 1);
  const stockLots = getMarkets().reduce((sum, market) => sum + Math.max(0, market.goods[wool.i]?.stock ?? 0), 0);
  const result = { date: [host.simulation.currentYear, host.simulation.currentMonth, host.simulation.currentDay], ruralPeople, urbanPeople,
-  heads, sheepPerResident: heads.Sheep / (ruralPeople + urbanPeople), pastureHa, footprintHa, allocatedPastureHa, landCapacityHeads,
+  heads, sheepPerResident: heads.Sheep / (ruralPeople + urbanPeople), pastureHa, footprintHa, allocatedPastureHa, landCapacityHeads, feedCapacityHeads, feedTotals,
   aggregateOccupancy: pastureHa > 0 ? footprintHa / pastureHa : null,
   occupiedCells: occupied.length, cellsOverModelFootprint: occupied.filter(cell => cell.occupancy === null || cell.occupancy > 1.01).length,
   worstCells: occupied.sort((a,b) => (b.occupancy ?? Infinity) - (a.occupancy ?? Infinity)).slice(0, 10),
@@ -89,7 +99,7 @@ function snapshot() {
   ruralTextileLaborUsed: getMarkets().reduce((sum, market) => sum + (market.ruralTextileProduction?.laborUsed ?? 0), 0),
   householdWardrobeSpending: getMarkets().reduce((sum, market) => sum + (market.textileLedger?.householdSpending ?? 0), 0),
   householdBlanketSpending: getMarkets().reduce((sum, market) => sum + (market.blanketLedger?.householdSpending ?? 0), 0),
-  effectiveWoolLaborCoverage: heads.Sheep > 0 ? woolLotsPerMonth * 1000 / 0.08 / heads.Sheep : 0,
+  effectiveWoolLaborAndFeedCoverage: heads.Sheep > 0 ? woolLotsPerMonth * 1000 / 0.08 / heads.Sheep : 0,
   woolLotsPerMonth, woolKgPerMonth: woolLotsPerMonth * 1500, woolStockLots: stockLots, woolStockKg: stockLots * 1500, woolFlows };
  woolFlows = {}; householdWardrobes = 0; householdBlankets = 0;
  return result;

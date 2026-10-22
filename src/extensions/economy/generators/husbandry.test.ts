@@ -127,7 +127,9 @@ describe("husbandry", () => {
       // min(7650, 600*HUSBANDRY_LAND_AREA_PER_POPULATION_POINT(1)) = 600 ha; landCapacity = 600*0.5 = 300;
       // requiredWorkers = 300 / 60 (Cattle's dogless baseline) = 5.
       const demand = calculateHusbandryDemand(worldContext, 0);
-      expect(demand.requiredWorkers).toBeCloseTo(5, 5);
+      expect(demand.careWorkers).toBeCloseTo(5, 5);
+      expect(demand.hayWorkers).toBeGreaterThan(0);
+      expect(demand.requiredWorkers).toBeCloseTo(demand.careWorkers! + demand.hayWorkers!, 8);
       expect(demand.value).toBeCloseTo(5, 5);
     });
 
@@ -136,11 +138,13 @@ describe("husbandry", () => {
       setGoods([CATTLE_GOOD] as never);
       // landCapacity = 300 (see above); workersNoDogs = 300/60 = 5 -> dogsNeededForFullCoverage =
       // 5 * DOGS_PER_HERDER_FOR_FULL_COVERAGE(3) = 15.
+      const withoutDogs = calculateHusbandryDemand(worldContext, 0);
       const table = getOrCreateFaunaStockTable()!;
       table["0:Dogs"] = { young: 0, breeding: 3, old: 0 }; // coverage = 3/15 = 0.2
       // effectiveHeadsPerHerder = 60 * (1 + (dogMultiplier(8)-1)*0.2) = 144 -> requiredWorkers = 300/144.
       const demand = calculateHusbandryDemand(worldContext, 0);
-      expect(demand.requiredWorkers).toBeCloseTo(300 / 144, 5);
+      expect(demand.careWorkers).toBeCloseTo(300 / 144, 5);
+      expect(demand.hayWorkers).toBe(withoutDogs.hayWorkers);
     });
 
     it("weights value by each grazed good's share of land capacity", () => {
@@ -167,7 +171,7 @@ describe("husbandry", () => {
         const stock = getOrCreateFaunaStockTable()!;
         stock["0:Cattle"] = { young: 20, breeding: 80, old: 20 };
         const demand = calculateHusbandryDemand(worldContext, 0);
-        expect(demand.requiredWorkers).toBeCloseTo(120 / 60, 8);
+        expect(demand.careWorkers).toBeCloseTo(120 / 60, 8);
         expect(demand.monthlyLaborWeights!.reduce((sum, weight) => sum + weight, 0)).toBeCloseTo(1, 8);
         expect(stock["0:Cattle"]).toEqual({ young: 20, breeding: 80, old: 20 });
         if (exclusion !== "no residents") expect(calculateGrazingLandAllocation(worldContext, 0)).toEqual([]);
@@ -183,7 +187,7 @@ describe("husbandry", () => {
       // desiredArea = min(7650, 50*1) = 50 ha -> requiredWorkers = 50*0.5/60, far below what the full
       // 7,650 ha ceiling would imply (7650*0.5/60 = 63.75).
       const demand = calculateHusbandryDemand(worldContext, 0);
-      expect(demand.requiredWorkers).toBeCloseTo((50 * 0.5) / 60, 5);
+      expect(demand.careWorkers).toBeCloseTo((50 * 0.5) / 60, 5);
       expect(demand.requiredWorkers).toBeLessThan((7650 * 0.5) / 60);
     });
   });
@@ -229,10 +233,10 @@ describe("husbandry", () => {
     it("computes herders from partitioned targets and retains care for existing excess animals", () => {
       grasslandCellWorld(600);
       setGoods([CATTLE_GOOD, SHEEP_GOOD] as never);
-      expect(calculateHusbandryDemand(worldContext, 0).requiredWorkers).toBeCloseTo(150 / 60 + 900 / 200, 8);
+      expect(calculateHusbandryDemand(worldContext, 0).careWorkers).toBeCloseTo(150 / 60 + 900 / 200, 8);
       const stock = getOrCreateFaunaStockTable()!;
       stock["0:Cattle"] = { young: 100, breeding: 800, old: 100 };
-      expect(calculateHusbandryDemand(worldContext, 0).requiredWorkers).toBeCloseTo(1000 / 60 + 900 / 200, 8);
+      expect(calculateHusbandryDemand(worldContext, 0).careWorkers).toBeCloseTo(1000 / 60 + 900 / 200, 8);
       expect(stock["0:Cattle"]).toEqual({ young: 100, breeding: 800, old: 100 });
     });
 

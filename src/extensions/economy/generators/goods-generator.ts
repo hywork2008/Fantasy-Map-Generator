@@ -860,9 +860,7 @@ export const GOODS_DATA: GoodData[] = [
   {
     name: "Fodder",
     warEconomyType: "essential",
-    // Hay/feed for draft and cavalry animals. Bought by ordinary farms to keep cattle and oxen
-    // (civilian demand, "utilities") as well as by the army to keep mounted units in the field
-    // ("military", settled monthly by militaryResources.ts against MOUNTED_FODDER_PER_HEAD).
+    // Harvested from the shared pasture budget; rural feed and military ledgers own demand.
     tags: ["fodder", "supply"],
     icon: "good-grain",
     color: "#c9b458",
@@ -870,7 +868,7 @@ export const GOODS_DATA: GoodData[] = [
     chance: 4,
     distribution: '(biomeTag("grassland") || biomeTag("arable")) && !elevation()',
     unit: "bale",
-    demandCoverage: { utilities: 0.7, military: 0.3 },
+    demandCoverage: {},
     multipliers: { cultureType: { Nomadic: 1.5, River: 1.2 } },
     biomeOutputByTag: { grassland: 0.08, arable: 0.06 }
   },
@@ -5264,5 +5262,21 @@ export function migrateWoolBlanketGoods(): boolean {
   const cloth = goods.find(entry => entry.name === "Wool Cloth");
   good.recipes = cloth ? [{ [cloth.i]: TEXTILE_RECIPES[good.name][0]["Wool Cloth"] }] : [];
   goods.push(good);
+  return true;
+}
+
+/** Removes only the old generic default; explicit farm and military ledgers now own feed purchases. */
+export function migrateLivestockFeedDemand(): boolean {
+  const fodder = getGoods().find(good => good.name === "Fodder");
+  const coverage = fodder?.demandCoverage;
+  if (
+    !fodder ||
+    !coverage ||
+    Object.keys(coverage).length !== 2 ||
+    coverage.utilities !== 0.7 ||
+    coverage.military !== 0.3
+  )
+    return false;
+  fodder.demandCoverage = {};
   return true;
 }

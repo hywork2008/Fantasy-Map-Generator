@@ -17,6 +17,7 @@
 
 import type { CellFoodReserve } from "../generators/cellFoodRescueTypes";
 import type { FaunaCohorts } from "../generators/faunaPopulationTypes";
+import type { LivestockFeedLedger } from "../generators/livestockFeedPolicy";
 import { getEconomySlice, getSliceCellColumn, setSliceCellColumn } from "./economyApi";
 
 /** Per-cell dominant good id, owned by the economy extension. */
@@ -53,6 +54,18 @@ export function getOrCreateLiveAnimalCatchTable(): Record<string, number> | null
   }
   const table: Record<string, number> = {};
   slice.liveAnimalCatchAccumulators = table;
+  return table;
+}
+
+/** Private hay reserves and monthly dry-matter flows, owned by the economy slice. */
+export function getOrCreateLivestockFeedTable(): Record<number, LivestockFeedLedger> | null {
+  const slice = getEconomySlice();
+  if (!slice) return null;
+  const existing = slice.livestockFeed;
+  if (existing && typeof existing === "object" && !Array.isArray(existing))
+    return existing as Record<number, LivestockFeedLedger>;
+  const table: Record<number, LivestockFeedLedger> = {};
+  slice.livestockFeed = table;
   return table;
 }
 

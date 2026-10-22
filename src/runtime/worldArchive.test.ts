@@ -68,11 +68,30 @@ describe("ChunkedWorldCodecAdapter", () => {
     expect(rewrittenStage.document.opaqueExtensionChunks[0]?.bytes).toEqual(new Uint8Array([1, 2, 3, 255]));
   });
 
-  it("preserves rural textile capacity and self-supply ledgers across a save and reload", async () => {
+  it("preserves rural textile capacity and livestock feed ledgers across a save and reload", async () => {
     const simulation = sampleSimulation();
     simulation.extensions = {
       economy: {
         householdTextileWorkers: Float32Array.from([12.5, 0]),
+        livestockFeed: {
+          0: {
+            hayKg: 1200,
+            harvestPeriod: 240,
+            feedPeriod: 240,
+            coverage: 0.9,
+            samples: [
+              {
+                period: 240,
+                requiredKg: 100,
+                fedKg: 90,
+                purchasedKg: 20,
+                soldKg: 0,
+                harvestLossKg: 5,
+                storageLossKg: 12
+              }
+            ]
+          }
+        },
         markets: [
           {
             i: 1,
