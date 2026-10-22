@@ -1430,3 +1430,19 @@ Linen・酒樽5品・Ink・Rennet・Leather・Beeswax は、いずれも「値�
 
 - 酒樽5品・Rennet・Leather・Beeswax: 同じ方法で、1 品ずつ。
 - Ink・Linen の品別の生産・取引を集計に出す(今回は集計だけ)。
+
+## 26. Beeswax の調べ(2026-10-22、実装なし)
+
+§25 の方法を Beeswax に当てられるかを調べた。歩留まりを史料に合わせると、今のレシピの形(Honey を入力にして作る品)では成り立たない。
+
+- 今のレシピは Honey 0.5 樽(84 kg)から蝋 10 kg(8.4 : 1)。史料の歩留まりは蜜 約20 kg から蝋 1 kg(20 : 1)。
+- 値は、蜜が 1 kg で Grain の約11倍(樽 4)、蝋が史料で約45倍(今は233倍)。20 : 1 で蝋 1 kg を作る蜜の値は 蜜 20 kg × 11 = 蝋 1 kg の値の約5倍で、入力が出力の値を超える。蝋の値を史料に合わせたまま Honey を入力にすると赤字になる。
+- 蝋は蜜の採取の副産物で、独立した作物ではない。
+- `byproducts` は recipe を持つ品の生産にだけ働く(`goods-generator.ts` の `byproducts`、`production-generator.ts:1246`)。Honey は recipe を持たず、`biomeOutputByTag`(`husbandry.ts resolveBiomeOutputRate`)で採取するため、蜜の採取に蝋を付けるには採取側に副産物の経路を足す必要がある。
+- 選択肢: (a) 採取に副産物を足し、Beeswax を recipe なしの副産物にする。蝋の値は史料の約45倍、単位は大きい箱。Candles の `{ Beeswax: 1 }` の脚は量を直す。(b) 今の歩留まりを保ち、蝋の値を約95倍まで下げる(史料とは合わない)。
+
+#### 残る課題
+
+- Beeswax は (a)(b) を決めてから実装する。Rennet(1 L あたり牛 0.03 頭の recipe。1 lot の利益を保つと入力が出力の値を超える)も同じ型の問題を持つ。
+- 酒樽5品・Leather(Boots・Harnesses と一緒)。
+
