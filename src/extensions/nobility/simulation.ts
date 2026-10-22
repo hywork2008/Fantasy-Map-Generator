@@ -1,6 +1,13 @@
+import { isReferenceEvaluation } from "../characters/reference/evaluation";
+import { registerReferenceTitleNames } from "../characters/reference/roster";
 import { buildWorldRoster, registerRosterProvider } from "../characters/roster/build";
 import { readRoster } from "../characters/roster/runtime";
+import { seedMissingCharacterWealth } from "../economy/generators/characterStipends";
+import { resolveProvinceLordTitle, resolveRulerTitle } from "./data/titleTable";
+import { applyPersonalityToCapitalGuard } from "./generators/capitalGuardModifier";
+import { applyAffinitiesToDiplomacy } from "./generators/diplomacy-modifier";
 import { buildNobilityRoster } from "./holdings/rosterProvider";
+import { gaelicTitles } from "./holdings/titles";
 import "./types"; // activate module augmentation for PackedGraph/State
 
 import { simEvents } from "../../simulation/events";
@@ -15,6 +22,7 @@ import {
   applyConflictAutonomy,
   endPlayerConflict,
   mayAdvanceAnyConflict,
+  mayAdvanceAutonomousConflict,
   shouldSuppressConflictAdvance,
   startPlayerConflict
 } from "./conflictDirector";
@@ -30,7 +38,7 @@ import { Mobilization } from "./generators/mobilization";
 import { assignOfficers } from "./generators/officerAssignment";
 import { assignProvinceLords } from "./generators/provinceLordGenerator";
 import { StrategicPlanner } from "./generators/strategic-planner";
-import { clearNobilityContext, initNobilityContext } from "./nobilityContext";
+import { clearNobilityContext, getHoldingsLedger, initNobilityContext } from "./nobilityContext";
 import { refreshPlayerCharacterSelection } from "./playerCharacterFocus";
 import { clearPendingPlayerTravel, tickPlayerTravel } from "./playerTravel";
 import { NOBILITY_TICK_SYSTEM_IDS, NOBILITY_TICK_TOPIC_CONTRACTS, type NobilityTickSystemId } from "./tickSystemIds";
@@ -71,6 +79,23 @@ function isNobilityRegenerationRequest(value: unknown): value is NobilityRegener
 }
 
 function regenerateNobilityData(_mode: NobilityRegenerationMode, _randomSeed?: string | number): void {
+  if (isReferenceEvaluation()) {
+    Characters.generate(_randomSeed !== undefined ? { randomSeed: _randomSeed } : {});
+    if (getSelectedAbilityPresetId() === "ck3e") {
+      applyAffinitiesToDiplomacy();
+      applyPersonalityToCapitalGuard();
+      if (_mode === "full") {
+        assignOfficers();
+        assignProvinceLords();
+      }
+      Espionage.generate();
+      if (mayAdvanceAutonomousConflict()) StrategicPlanner.generate();
+      seedMissingCharacterWealth();
+    }
+    refreshPlayerCharacterSelection();
+    notifyCourtChanged();
+    return;
+  }
   buildWorldRoster();
   refreshPlayerCharacterSelection();
   notifyCourtChanged();
@@ -79,6 +104,20 @@ function regenerateNobilityData(_mode: NobilityRegenerationMode, _randomSeed?: s
 function register(api: SimulationExtensionAPI): () => void {
   initNobilityContext(api);
   const unregisterRosterProvider = registerRosterProvider(buildNobilityRoster);
+  const unregisterTitleNames = registerReferenceTitleNames((title, stateId) => {
+    const state = api.worldContext.pack.states[stateId];
+    if (title.entityType === "state" && title.landed && state)
+      return { name: resolveRulerTitle(state, "male"), femaleName: resolveRulerTitle(state, "female") };
+    const province = title.entityType === "province" ? api.worldContext.pack.provinces[title.entityId] : undefined;
+    if (province)
+      return {
+        name: resolveProvinceLordTitle(province, "male"),
+        femaleName: resolveProvinceLordTitle(province, "female")
+      };
+    const holding = title.entityType === "holding" ? getHoldingsLedger().find(h => h.id === title.entityId) : undefined;
+    const names = holding && gaelicTitles(holding);
+    return names ? { name: names.male, femaleName: names.female } : undefined;
+  });
   const listeners: [string, (event: Event) => void][] = [];
   const on = (type: string, listener: (event: Event) => void) => {
     api.events.addEventListener(type, listener);
@@ -374,6 +413,7 @@ function register(api: SimulationExtensionAPI): () => void {
     // Reverse order: the registry refuses to remove a system another one still declares `after`.
     while (_unregisterTickSystems.length) _unregisterTickSystems.pop()?.();
     unregisterRosterProvider();
+    unregisterTitleNames();
     clearNobilityContext();
   };
 }

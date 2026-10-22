@@ -31,6 +31,8 @@ export interface RosterOrganization {
   generateSuccessors: boolean;
 }
 export interface RosterRole {
+  referenceSeats?: Record<string, string>;
+  referenceOnly?: boolean;
   id: string;
   organizationId: string;
   name: string;
@@ -64,6 +66,8 @@ export interface RosterProtection {
   materializeDescendants: boolean;
 }
 export interface PersonSlot {
+  referenceId?: number;
+  unresolvedFamily?: { spouses: number; children: number; grandchildren: number; greatGrandchildren: number };
   id: string;
   organizationId: string;
   roleId?: string;
@@ -123,11 +127,13 @@ export interface WorldRoster {
   acknowledged: string[];
   remainingDays: number;
   lastYear: number;
+  referenceProfile?: { id: string; commit: string; inputHash: string; year: number; month: number; day: number };
   presetPlans?: PresetPlan[];
   savedPresets?: SavedRosterPreset[];
   patronage?: PatronageContract[];
 }
 export interface RosterSelection {
+  profile?: "master-20261022-v1" | "household-funded-v1";
   organizationId?: string;
   roleId?: string;
   slotIds?: string[];

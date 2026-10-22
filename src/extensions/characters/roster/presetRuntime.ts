@@ -7,7 +7,7 @@ import type { WorldRoster } from "./types";
 export function createPresetPlan(
   roster: WorldRoster,
   query: PresetQuery,
-  mode: PresetPlan["mode"] = "memo"
+  mode: PresetPlan["mode"] = roster.referenceProfile ? "simulation" : "memo"
 ): PresetPlan {
   validatePresetQuery(query);
   if (mode !== "memo" && mode !== "simulation") throw Error("Invalid generation mode");
@@ -18,7 +18,8 @@ export function createPresetPlan(
     year: clockYear(),
     seats: preview.seats.filter(s => s.status === "new"),
     cursor: 0,
-    mode
+    mode,
+    referenceHash: roster.referenceProfile?.inputHash
   };
   roster.presetPlans ??= [];
   roster.presetPlans.push(plan);
@@ -29,6 +30,8 @@ export function createPresetPlan(
 export function executePresetBatch(roster: WorldRoster, id: string): PresetPlan {
   const plan = roster.presetPlans?.find(p => p.id === id);
   if (!plan || plan.discarded) throw Error("Unknown generation plan");
+  if (plan.referenceHash !== undefined && plan.referenceHash !== roster.referenceProfile?.inputHash)
+    throw Error("Generation reference changed. Create a new preview.");
   if (plan.year !== clockYear()) throw Error("Generation plan changed: world date. Create a new preview.");
   const roles = new Map(roster.roles.map(r => [r.id, r]));
   const eligible = new Set(

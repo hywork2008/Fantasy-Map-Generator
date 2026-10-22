@@ -16,7 +16,12 @@ import { pow } from "../../simulation/deterministicMath";
 import { getWorldMoneyScale } from "../../utils/moneyScale";
 import { minmax, normalize, P } from "../hostUtils";
 import { resolveCharacterRaceId } from "./appearance";
-import { getCharacters, getCurrentYear, getWorldContext, hasCharactersContext } from "./charactersContext";
+import {
+  getSimulationCharacters as getCharacters,
+  getCurrentYear,
+  getWorldContext,
+  hasCharactersContext
+} from "./charactersContext";
 import type { AfflictionKind, AfflictionSeverity, Character } from "./characterTypes";
 import { resolveRaceAgeProfile, scaleHumanAgeToRace } from "./raceAge";
 

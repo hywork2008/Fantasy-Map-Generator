@@ -17,6 +17,7 @@ export function OrganizationRosterPanel() {
   const tr = (key: string, values?: Record<string, unknown>) => String(t(`roster.${key}`, values));
   const [revision, refresh] = useState(0);
   const { organizationId, slotId, roleId, includeChildren } = useCharactersUiState(state => state.rosterNavigation);
+  const selectionProfile = useCharactersUiState(state => state.presetQuery.profile);
   const setNavigation = useCharactersUiState(state => state.setRosterNavigation);
   const setOrganizationId = (organizationId?: string) => setNavigation({ organizationId });
   const setSlotId = (slotId?: string) => setNavigation({ slotId });
@@ -98,6 +99,7 @@ export function OrganizationRosterPanel() {
   if (!roster) return <p>{tr("loading")}</p>;
   const cash = describeCharacterFinance(slot);
   const selection: RosterSelection = {
+    profile: selectionProfile,
     organizationId,
     roleId,
     descendants: includeChildren,

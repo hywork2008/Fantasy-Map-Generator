@@ -4,7 +4,7 @@ import { specializationScore } from "../../characters/specializations";
  * Not saved (docs/plan/player-character-technology-bias.md §5.4 / K18).
  */
 
-import { getCharacters, hasCharactersContext } from "../../characters/charactersContext";
+import { getSimulationCharacters as getCharacters, hasCharactersContext } from "../../characters/charactersContext";
 import { rn } from "../../hostUtils";
 import {
   getInstructionResidues,

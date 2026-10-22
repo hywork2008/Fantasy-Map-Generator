@@ -5,7 +5,11 @@
 - 対象: Characters Overview / Organizations & families の種類別・組織別の選択生成
 - 基礎設計: [組織・役職台帳と必要時の NPC 生成](medieval-european-nobility-holdings.md)
 
+> master と同じ初期人物・所持金・家族構成を再現する追加設計は [master 基準の人物生成](master-character-generation-compatibility.md) を参照。互換プロファイルでは同書の条件・開始予算を優先する。新規世界での実装範囲・固定masterとの比較結果は同書の実装メモを参照。旧方式の世界は自動変換しない。
+
 ## 実装メモ（2026-10-22）
+
+- 新規世界のmaster初期互換プロファイルと5種類の参照集合・基準/参加設定・初期/現在資金と家族の表示を追加した。既存の14種類の制度選択も残し、基準の実生成席と拡充した必要席を区別する。詳細と検証は [master基準の実装メモ](master-character-generation-compatibility.md) を参照。
 
 - Characters Overview → Organizations & families の「プリセットで生成」から使用する。種類別 13 種類と「組織別の構成員」を組み合わせ、対象国家・組織・活動国・役職範囲を指定する。条件と開閉状態はタブ切り替え後も保持する。
 - プレビューは人物・個人枠・契約・定員を追加しない。役職の対象席、兼任を除いた実人数、生成済み人数、新規人数、空席、所属未確定の席を表示する。初期の抽象在職席と退任後の空席を分け、後者は通常の生成から除外する。

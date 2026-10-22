@@ -1,5 +1,7 @@
 import { getApi, getCharacters, getWorldContext } from "../charactersContext";
 import { prepareRosterFinance } from "../financialLifecycle";
+import { readReference } from "../reference/model";
+import { attachReferenceRoster } from "../reference/roster";
 import { ensureRoster, migrateCharacters, putOrganization, putRole, synchronizeTitle } from "./runtime";
 import type { RosterRole, WorldRoster } from "./types";
 
@@ -194,7 +196,9 @@ export function buildWorldRoster(): WorldRoster {
           }
         });
     }
-  for (const provider of providers) provider(roster);
+  const reference = readReference(getApi().simulationContext);
+  if (!reference) for (const provider of providers) provider(roster);
+  if (reference) attachReferenceRoster(roster, getApi());
   migrateCharacters(roster);
   // Repair previously generated memo sheets that were missing their appointed offices.
   const people = new Map(getCharacters().map(character => [character.i, character]));

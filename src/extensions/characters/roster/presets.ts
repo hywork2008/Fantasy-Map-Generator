@@ -16,6 +16,7 @@ export function seatSignature(roster: WorldRoster, role: RosterRole): string {
 
 export function previewPreset(roster: WorldRoster, query: PresetQuery, year: number): PresetPreview {
   validatePresetQuery(query);
+  const master = (query.profile ?? roster.referenceProfile?.id) === "master-20261022-v1";
   const scope = query.organizationId ? organizationScope(roster, query.organizationId, query.descendants) : undefined;
   const orgs = new Map(roster.organizations.map(o => [o.id, o]));
   const suppliers = new Set(
@@ -34,7 +35,7 @@ export function previewPreset(roster: WorldRoster, query: PresetQuery, year: num
   );
   const matches = (role: RosterRole, ordinal?: number): boolean => {
     const org = orgs.get(role.organizationId);
-    if (!org || org.archived) return false;
+    if (!org || org.archived || (master && !role.referenceSeats)) return false;
     const inScope =
       (!scope || scope.has(org.id)) &&
       (!query.stateIds ||
@@ -49,11 +50,28 @@ export function previewPreset(roster: WorldRoster, query: PresetQuery, year: num
           : suppliers.has(`${role.id}:${ordinal}`);
       if (!inScope) return false;
       switch (preset) {
+        case "master-all":
+          return !!role.referenceSeats;
+        case "master-markets":
+          return !!role.referenceSeats && has("marketHead", "marketMerchant", "companyHead");
+        case "master-guilds":
+          return !!role.referenceSeats && (has("guildHead") || role.characterRole?.kind === "guildApprentice");
+        case "master-nobility":
+          return !!role.referenceSeats && has("secularLord", "territorialAdministrator");
+        case "master-covert":
+          return (
+            !!role.referenceSeats &&
+            Object.entries(role.referenceSeats).some(
+              ([i, id]) =>
+                (ordinal === undefined || Number(i) === ordinal) &&
+                roster.slots.some(s => s.id === id && s.tags.includes("master:covert"))
+            )
+          );
         case "state-heads":
-          return orgs.get(`state:${org.stateId}`)?.polity !== "Anarchy" && has("headOfState");
+          return (master || orgs.get(`state:${org.stateId}`)?.polity !== "Anarchy") && has("headOfState");
         case "national-leadership":
           return (
-            orgs.get(`state:${org.stateId}`)?.polity !== "Anarchy" &&
+            (master || orgs.get(`state:${org.stateId}`)?.polity !== "Anarchy") &&
             has("headOfState", "headOfGovernment", "centralExecutive")
           );
         case "field-commanders":
@@ -155,6 +173,7 @@ export function previewPreset(roster: WorldRoster, query: PresetQuery, year: num
   for (const role of roles) {
     const signature = seatSignature(roster, role);
     for (let ordinal = 0; ordinal < role.count; ordinal++) {
+      if (master && !role.referenceSeats?.[String(ordinal)]) continue;
       // Contract-only selection selects the actual representative, not every merchant in the role.
       if (!matches(role, ordinal)) continue;
       const appointment = currentAppointment(roster, role.id, ordinal);
@@ -186,6 +205,7 @@ export function previewPreset(roster: WorldRoster, query: PresetQuery, year: num
     }
   }
   const warnings: string[] = [];
+  if (master && !roster.referenceProfile) warnings.push("masterUnavailable");
   if (
     query.presets.some(p =>
       ["state-heads", "national-leadership", "field-commanders", "major-feudal-lords", "all-feudal-lords"].includes(p)

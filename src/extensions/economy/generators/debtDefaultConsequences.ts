@@ -1,5 +1,5 @@
 import { simEvents } from "../../../simulation/events";
-import { getCharacters, hasCharactersContext } from "../../characters/charactersContext";
+import { getSimulationCharacters as getCharacters, hasCharactersContext } from "../../characters/charactersContext";
 import type { State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { peekCreditPoolBalance } from "./creditPool";

@@ -25,6 +25,7 @@ import {
   unregisterPreset,
   unregisterToolAction
 } from "./controllers/layers";
+import { installBrowserMasterReference } from "./simulation/adapters/masterReferenceBrowser";
 import "./controllers/seaCurrentsAnimation";
 import { changeViewMode } from "./controllers/viewMode";
 import { generateLabMap, type LabGenerateRequest } from "./debug/riverPortLab/labGenerate";
@@ -208,6 +209,7 @@ function buildExtensionAPI(host: SimulationHost): ExtensionAPI {
 
 /** Browser handlers for the view side effects the simulation core requests (S1). */
 function installBrowserSimulationViewPort(): void {
+  installBrowserMasterReference();
   installSimulationViewPort({
     tip,
     burgAdded: (burgId, coa, x, y) => {

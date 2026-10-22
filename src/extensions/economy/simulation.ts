@@ -2,9 +2,10 @@ import { MEAN_DAYS_PER_MONTH, MEAN_DAYS_PER_YEAR } from "../../runtime/calendarD
 import type { DataTopic } from "../../runtime/worldRuntime";
 import { simEvents } from "../../simulation/events";
 import { isRepairAtVersion } from "../../simulation/loadRepairs";
+import { prepareMasterReference } from "../../simulation/masterReference";
 import { uiPreferencesStore } from "../../state/uiPreferencesStore";
 import type { SimulationExtension, SimulationExtensionAPI } from "../../types/extension-api";
-import { getCharacters, hasCharactersContext } from "../characters/charactersContext";
+import { getSimulationCharacters, hasCharactersContext } from "../characters/charactersContext";
 import { buildWorldRoster } from "../characters/roster/build";
 import {
   FAST_ADVANCE_COARSE_GATE_DAYS,
@@ -813,7 +814,9 @@ function registerEconomyCommands(api: SimulationExtensionAPI): void {
       measureTickStep("production:householdSpending", () => spendUrbanHouseholdSurplus());
       measureTickStep("production:ruralSpending", () => spendRuralHouseholdsInTowns());
       const creditCharacter = (characterId: number, amount: number) => {
-        const merchant = hasCharactersContext() ? getCharacters().find(c => c.i === characterId && !c.dead) : undefined;
+        const merchant = hasCharactersContext()
+          ? getSimulationCharacters().find(c => c.i === characterId && !c.dead)
+          : undefined;
         if (!merchant) return false;
         merchant.wealth = rn((merchant.wealth || 0) + amount, 2);
         return true;
@@ -1629,6 +1632,12 @@ function register(api: SimulationExtensionAPI): () => void {
     label: "Preparing economy",
     run: async context => {
       if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID) || !context.isCurrent()) return;
+      if (await prepareMasterReference(api, context)) {
+        Goods.sync();
+        Markets.sync();
+        api.events.dispatchEvent(new CustomEvent(ECONOMY_INITIALIZED_EVENT));
+        return;
+      }
       if (api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) {
         TIME && console.time("generateEconomy");
         try {

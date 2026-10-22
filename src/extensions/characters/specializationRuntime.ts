@@ -1,7 +1,7 @@
 import type { SimulationExtensionAPI } from "../../types/extension-api";
 import type { WorldLanguages } from "../../types/worldLanguages";
 import { assertObject, validateWorldLanguages } from "../../utils/worldLanguages";
-import { getApi, getCharacters, getCurrentYear, getWorldContext } from "./charactersContext";
+import { getApi, getSimulationCharacters as getCharacters, getCurrentYear, getWorldContext } from "./charactersContext";
 import type { Character } from "./characterTypes";
 import { advanceSpecializationLearning } from "./specializationLearning";
 import { decaySpecializations, emptySpecializations, recordSpecializationExperience } from "./specializations";

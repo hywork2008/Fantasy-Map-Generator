@@ -1,5 +1,6 @@
 import type { ExtensionStateSlices, SimulationContext } from "../context/simulationContext";
 import type { WorldContext } from "../context/worldContext";
+import { readReference, validateReference } from "../extensions/characters/reference/model";
 import { validateWorldRoster } from "../extensions/characters/roster/model";
 import { validateSpecializationProfile } from "../extensions/characters/specializationValidation";
 import { validatePersonalCash } from "../extensions/economy/generators/personalCashLedger";
@@ -401,6 +402,7 @@ function validatePersonalTechnologyKnowledge(value: unknown): void {
 function validateCharactersSlice(slice: Record<string, unknown>): void {
   if (slice.roster !== undefined) validateWorldRoster(slice.roster);
   assertOptionalArrayField(slice, "characters", "characters");
+  if (slice.referenceGeneration !== undefined) validateReference(slice.referenceGeneration);
   if (slice.abilityPresetId !== undefined && typeof slice.abilityPresetId !== "string") {
     throw new Error("simulation.extensions.characters.abilityPresetId must be a string");
   }
@@ -922,16 +924,39 @@ export function assertValidExtensionStateSlices(world: WorldContext, simulation:
       }
   }
 
+  const reference = readReference(simulation);
+  if (reference && characters?.roster) {
+    const roster = characters.roster as import("../extensions/characters/roster/types").WorldRoster;
+    if (
+      roster.referenceProfile?.inputHash !== reference.inputHash ||
+      roster.slots.some(s => s.referenceId !== undefined && !reference.people.some(p => p.id === s.referenceId))
+    )
+      throw Error("Invalid master reference roster binding");
+  }
   const economy = simulation.extensions.economy;
   if (economy) validateEconomySlice(economy, world);
   if (economy?.personalCash && Array.isArray(characters?.characters)) {
     const cash =
       economy.personalCash as import("../extensions/economy/generators/personalCashLedger").PersonalCashState;
+    const dormant = new Map<string, number>();
+    const cashField = reference?.fields.indexOf("cashAccountId") ?? -1;
+    for (const person of reference?.people ?? []) {
+      const id = person.values[cashField];
+      if (id === undefined) continue;
+      if (typeof id !== "string" || !Object.hasOwn(cash.accounts, id) || dormant.has(id))
+        throw Error("Invalid dormant cash account reference");
+      dormant.set(id, person.id);
+    }
     const connected = new Set<string>();
     for (const character of characters.characters) {
       if (!isRecord(character) || character.cashAccountId === undefined) continue;
       const id = character.cashAccountId;
-      if (typeof id !== "string" || !Object.hasOwn(cash.accounts, id) || connected.has(id))
+      if (
+        typeof id !== "string" ||
+        !Object.hasOwn(cash.accounts, id) ||
+        connected.has(id) ||
+        (dormant.has(id) && dormant.get(id) !== character.i)
+      )
         throw Error("Invalid character cash account reference");
       connected.add(id);
     }

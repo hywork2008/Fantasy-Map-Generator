@@ -1,5 +1,7 @@
+import { prepareMasterReference } from "../../simulation/masterReference";
 import { simulationView } from "../../simulation/viewPort";
 import { canRemoveCharacterFinance } from "./financialLifecycle";
+import { isReferenceEvaluation } from "./reference/evaluation";
 import { registerRosterCommands } from "./roster/commands";
 import { registerRosterLifecycle, registerRosterWatches } from "./roster/lifecycle";
 import "./types"; // activate module augmentation for PackedGraph.characters
@@ -7,7 +9,11 @@ import "./types"; // activate module augmentation for PackedGraph.characters
 import type { SimulationExtension, SimulationExtensionAPI } from "../../types/extension-api";
 import { clearCharacters } from "./advanceAge";
 import { applyPrepTemplateLoadout, PREP_TEMPLATES, type PrepTemplateId } from "./adventurerTemplates";
-import { clearCharactersContext, getCharacters, initCharactersContext } from "./charactersContext";
+import {
+  clearCharactersContext,
+  getSimulationCharacters as getCharacters,
+  initCharactersContext
+} from "./charactersContext";
 import type { CharacterLoadout, CharacterSkills, LoadoutSlotId } from "./characterTypes";
 import {
   equipFromInventory,
@@ -130,8 +136,10 @@ function register(api: SimulationExtensionAPI): () => void {
   const unregisterRosterInitialization = api.registerMapReadyTask({
     id: "characters.roster",
     label: "Preparing organizations",
-    run: context => {
-      if (context.isCurrent() && api.isExtensionEnabled("characters")) {
+    run: async context => {
+      if (!isReferenceEvaluation() && context.isCurrent() && api.isExtensionEnabled("characters")) {
+        if (!api.isExtensionEnabled("economy")) await prepareMasterReference(api, context);
+        if (!context.isCurrent()) return;
         api.dispatchExtensionCommand({ extensionId: "characters", name: "roster", payload: { action: "build" } });
       }
     }

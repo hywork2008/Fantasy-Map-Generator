@@ -1,4 +1,4 @@
-import { getCharacters, hasCharactersContext } from "../../characters/charactersContext";
+import { getSimulationCharacters as getCharacters, hasCharactersContext } from "../../characters/charactersContext";
 import type { Character, CharacterRole, TitleHolding } from "../../characters/characterTypes";
 import { rn } from "../../hostUtils";
 import { CENTRAL_OFFICES } from "../../nobility/data/titleTable";

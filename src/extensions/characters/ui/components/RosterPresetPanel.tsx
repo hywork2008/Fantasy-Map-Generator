@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getWorldContext } from "../../charactersContext";
+import { formatPrice } from "../../../hostUtils";
+import { getApi, getWorldContext } from "../../charactersContext";
+import { describeCharacterFinance } from "../../financialLifecycle";
+import { readReference } from "../../reference/model";
 import { previewPreset } from "../../roster/presets";
 import { PRESET_IDS, type PresetPreview, type PresetQuery } from "../../roster/presetTypes";
 import { clockYear } from "../../roster/runtime";
@@ -23,6 +26,12 @@ export function RosterPresetPanel({ roster, organizationId, command }: Props) {
   const [preview, setPreview] = useState<PresetPreview>();
   const [name, setName] = useState("");
   const [running, setRunning] = useState(false);
+  const [mode, setMode] = useState<"memo" | "simulation">(roster.referenceProfile ? "simulation" : "memo");
+  const reference = readReference(getApi().simulationContext);
+  const referenceProfileId = roster.referenceProfile?.id;
+  useEffect(() => {
+    if (referenceProfileId) setMode("simulation");
+  }, [referenceProfileId]);
   const stop = useRef(false);
   useEffect(
     () => () => {
@@ -68,8 +77,31 @@ export function RosterPresetPanel({ roster, organizationId, command }: Props) {
         <>
           <fieldset disabled={running} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <legend>{tr("selection")}</legend>
+            <label>
+              {tr("profile")}{" "}
+              <select
+                value={query.profile ?? (roster.referenceProfile ? "master-20261022-v1" : "household-funded-v1")}
+                onChange={e => change({ profile: e.target.value as PresetQuery["profile"] })}
+              >
+                <option value="master-20261022-v1" disabled={!roster.referenceProfile}>
+                  {tr("masterProfile")}
+                </option>
+                <option value="household-funded-v1">{tr("expandedProfile")}</option>
+              </select>
+            </label>
+            <p>{tr(roster.referenceProfile ? "masterProfileHelp" : "legacyProfileHelp")}</p>
+            {roster.referenceProfile && (
+              <p>
+                {tr("referenceDate", {
+                  commit: roster.referenceProfile.commit.slice(0, 10),
+                  year: roster.referenceProfile.year,
+                  month: roster.referenceProfile.month,
+                  day: roster.referenceProfile.day
+                })}
+              </p>
+            )}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 4 }}>
-              {PRESET_IDS.map(id => (
+              {PRESET_IDS.filter(id => !id.startsWith("master-") || !!reference).map(id => (
                 <label key={id}>
                   <input
                     type="checkbox"
@@ -241,7 +273,16 @@ export function RosterPresetPanel({ roster, organizationId, command }: Props) {
                 <table className="table">
                   <thead>
                     <tr>
-                      {["organization", "role", "occupation", "required", "existing", "new", "reason"].map(k => (
+                      {[
+                        "organization",
+                        "role",
+                        "occupation",
+                        "required",
+                        "existing",
+                        "new",
+                        "reason",
+                        ...(reference ? ["initialCash", "cash", "family"] : [])
+                      ].map(k => (
                         <th key={k}>{tr(k)}</th>
                       ))}
                     </tr>
@@ -266,18 +307,83 @@ export function RosterPresetPanel({ roster, organizationId, command }: Props) {
                         <td>{seats.length}</td>
                         <td>{seats.filter(s => s.status === "existing").length}</td>
                         <td>{seats.filter(s => s.status === "new").length}</td>
-                        <td>{role.reason}</td>
+                        <td>
+                          {role.reason}
+                          {reference &&
+                            (() => {
+                              const ids = new Set(seats.flatMap(s => (s.slotId ? [s.slotId] : [])));
+                              const shared = [
+                                ...new Set(
+                                  roster.appointments
+                                    .filter(a => a.roleId !== role.id && a.endYear === undefined && ids.has(a.slotId))
+                                    .map(a => roster.roles.find(r => r.id === a.roleId)?.name)
+                                    .filter(Boolean)
+                                )
+                              ];
+                              return shared.length ? <p>{tr("sharedOffices", { roles: shared.join(", ") })}</p> : null;
+                            })()}
+                        </td>
+                        {reference && (
+                          <>
+                            <td>
+                              {formatPrice(
+                                seats.reduce((sum, s) => {
+                                  const slot = roster.slots.find(p => p.id === s.slotId);
+                                  return (
+                                    sum + (reference.people.find(p => p.id === slot?.referenceId)?.initialWealth ?? 0)
+                                  );
+                                }, 0)
+                              )}
+                            </td>
+                            <td>
+                              {formatPrice(
+                                seats.reduce((sum, s) => {
+                                  const slot = roster.slots.find(p => p.id === s.slotId);
+                                  return sum + (describeCharacterFinance(slot)?.balance ?? 0);
+                                }, 0)
+                              )}
+                            </td>
+                            <td>
+                              {tr(
+                                "referenceFamilies",
+                                seats.reduce(
+                                  (counts, s) => {
+                                    const slot = roster.slots.find(p => p.id === s.slotId);
+                                    const family = reference.people.find(p => p.id === slot?.referenceId)?.family;
+                                    if (family)
+                                      for (const field of [
+                                        "spouses",
+                                        "children",
+                                        "grandchildren",
+                                        "greatGrandchildren"
+                                      ] as const)
+                                        counts[field] += family[field];
+                                    return counts;
+                                  },
+                                  { spouses: 0, children: 0, grandchildren: 0, greatGrandchildren: 0 }
+                                )
+                              )}
+                            </td>
+                          </>
+                        )}
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <p>{tr("memoHelp")}</p>
+              <label>
+                {tr("participation")}{" "}
+                <select value={mode} onChange={e => setMode(e.target.value as "memo" | "simulation")}>
+                  <option value="simulation">{tr("simulationMode")}</option>
+                  <option value="memo">{tr("memoMode")}</option>
+                </select>
+              </label>
+              <p>{tr(mode === "memo" ? "memoHelp" : "simulationHelp")}</p>
               <button
                 type="button"
                 disabled={running || !preview.generate}
                 onClick={() => {
-                  const id = command({ action: "presetPlan", query, expected: JSON.stringify(preview), mode: "memo" });
+                  const id = command({ action: "presetPlan", query, expected: JSON.stringify(preview), mode });
                   if (typeof id === "string") void run(id);
                 }}
               >

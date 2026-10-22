@@ -1,5 +1,5 @@
 import { getSolidarity } from "../../characters/backstoryProfile";
-import { getCharacters, hasCharactersContext } from "../../characters/charactersContext";
+import { getSimulationCharacters as getCharacters, hasCharactersContext } from "../../characters/charactersContext";
 import type { Character } from "../../characters/characterTypes";
 import type { State } from "../../hostTypes";
 import { rand, rn } from "../../hostUtils";

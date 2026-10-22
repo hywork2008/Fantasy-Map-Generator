@@ -40,6 +40,7 @@ function selectionFrom(value: unknown): RosterSelection {
     (s.slotIds !== undefined && (!Array.isArray(s.slotIds) || !s.slotIds.every(id => typeof id === "string"))) ||
     (s.limit !== undefined && (!Number.isInteger(s.limit) || s.limit <= 0)) ||
     (s.descendants !== undefined && typeof s.descendants !== "boolean") ||
+    (s.profile !== undefined && !["master-20261022-v1", "household-funded-v1"].includes(s.profile)) ||
     (s.mode !== undefined && !["memo", "simulation"].includes(s.mode))
   )
     throw new Error("Invalid roster selection");
@@ -71,7 +72,11 @@ export function registerRosterCommands(api: SimulationExtensionAPI): () => void 
             v.expected !== JSON.stringify(previewPreset(roster, v.query, clockYear()))
           )
             throw Error("Preview changed. Review the selection again.");
-          result = createPresetPlan(roster, v.query, v.mode === "simulation" ? "simulation" : "memo").id;
+          result = createPresetPlan(
+            roster,
+            v.query,
+            v.mode === "simulation" ? "simulation" : v.mode === "memo" ? "memo" : undefined
+          ).id;
           break;
         case "presetBatch":
           if (typeof v.planId !== "string") throw Error("Generation plan required");

@@ -1,4 +1,5 @@
 import Alea from "alea";
+import { MASTER_COMMIT, MASTER_PROFILE } from "../reference/model";
 import { validatePresetData } from "./presetValidation";
 import type {
   PersonSlot,
@@ -216,6 +217,14 @@ export function validateWorldRoster(value: unknown): asserts value is WorldRoste
     }
     return ids;
   };
+  if (
+    r.referenceProfile &&
+    (r.referenceProfile.id !== MASTER_PROFILE ||
+      r.referenceProfile.commit !== MASTER_COMMIT ||
+      typeof r.referenceProfile.inputHash !== "string" ||
+      ![r.referenceProfile.year, r.referenceProfile.month, r.referenceProfile.day].every(Number.isInteger))
+  )
+    fail();
   const orgs = unique(r.organizations),
     roles = unique(r.roles),
     slots = unique(r.slots);
@@ -263,8 +272,39 @@ export function validateWorldRoster(value: unknown): asserts value is WorldRoste
     )
       fail();
   }
+  const referenceIds = new Set<number>();
+  for (const role of r.roles) {
+    if (role.referenceOnly !== undefined && typeof role.referenceOnly !== "boolean") fail();
+    if (role.referenceSeats !== undefined) {
+      if (!role.referenceSeats || typeof role.referenceSeats !== "object" || Array.isArray(role.referenceSeats)) fail();
+      for (const [ordinal, id] of Object.entries(role.referenceSeats))
+        if (!/^\d+$/.test(ordinal) || Number(ordinal) >= role.count || !slots.has(id)) fail();
+    }
+  }
   const characterIds = new Set<number>();
   for (const slot of r.slots) {
+    if (slot.referenceId !== undefined) {
+      if (
+        !Number.isSafeInteger(slot.referenceId) ||
+        slot.referenceId < 1 ||
+        referenceIds.has(slot.referenceId) ||
+        slot.id !== `master:${slot.referenceId}` ||
+        slot.retainedCharacterId !== slot.referenceId
+      )
+        fail();
+      referenceIds.add(slot.referenceId);
+    }
+    if (
+      slot.unresolvedFamily !== undefined &&
+      (!slot.unresolvedFamily ||
+        ![
+          slot.unresolvedFamily.spouses,
+          slot.unresolvedFamily.children,
+          slot.unresolvedFamily.grandchildren,
+          slot.unresolvedFamily.greatGrandchildren
+        ].every(n => Number.isSafeInteger(n) && n >= 0))
+    )
+      fail();
     if (slot.removedFromWorld !== undefined && typeof slot.removedFromWorld !== "boolean") fail();
     if (
       slot.retainedCharacterId !== undefined &&

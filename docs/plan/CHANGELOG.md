@@ -3,6 +3,7 @@
 2026-10-22
 
 - docs/plan/character-wealth-lifecycle.md - 人物の遅延生成・詳細削除・死亡・相続から現金口座を独立させ、初期資金の配分と抽象家計の分割、通貨量の保存、旧セーブ移行・削除前精算を定義する設計
+- docs/plan/master-character-generation-compatibility.md - 全拡張ONの固定masterを基準に、初期人物の種類・人数・兼任・所持金・家族構成を選択生成で再現するプロファイル、初期予算・乱数再生・家族集計・移行・差分検証の設計
 
 2026-10-21
 

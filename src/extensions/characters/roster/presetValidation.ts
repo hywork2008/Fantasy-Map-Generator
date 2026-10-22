@@ -71,6 +71,7 @@ export function validatePresetData(r: WorldRoster): void {
   for (const plan of r.presetPlans ?? []) {
     validatePresetQuery(plan.query);
     if (
+      (plan.referenceHash !== undefined && typeof plan.referenceHash !== "string") ||
       !Number.isFinite(plan.year) ||
       !Array.isArray(plan.seats) ||
       !Number.isInteger(plan.cursor) ||

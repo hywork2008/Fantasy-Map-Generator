@@ -1,4 +1,9 @@
 export const PRESET_IDS = [
+  "master-all",
+  "master-markets",
+  "master-guilds",
+  "master-nobility",
+  "master-covert",
   "state-heads",
   "national-leadership",
   "field-commanders",
@@ -45,6 +50,7 @@ export const ROLE_PURPOSES = [
 ] as const;
 export type RolePurpose = (typeof ROLE_PURPOSES)[number];
 export interface PresetQuery {
+  profile?: "master-20261022-v1" | "household-funded-v1";
   version: 1;
   presets: PresetId[];
   stateIds?: number[];
@@ -85,6 +91,7 @@ export interface PresetPreview {
   warnings: string[];
 }
 export interface PresetPlan {
+  referenceHash?: string;
   id: string;
   query: PresetQuery;
   year: number;
@@ -114,6 +121,7 @@ export function validatePresetQuery(value: unknown): asserts value is PresetQuer
   const q = value as PresetQuery;
   if (
     q.version !== 1 ||
+    (q.profile !== undefined && !["master-20261022-v1", "household-funded-v1"].includes(q.profile)) ||
     !Array.isArray(q.presets) ||
     !q.presets.length ||
     !q.presets.every(id => PRESET_IDS.includes(id)) ||

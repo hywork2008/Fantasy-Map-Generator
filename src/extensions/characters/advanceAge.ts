@@ -9,7 +9,7 @@ import {
 } from "./appearance";
 import { diseaseDeathReason, diseaseDeathRiskFor } from "./characterHealth";
 import {
-  getCharacters,
+  getSimulationCharacters as getCharacters,
   getCurrentYear,
   getPersonalTechnologyKnowledge,
   getWorldContext,

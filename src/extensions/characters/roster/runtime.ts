@@ -5,6 +5,7 @@ import { lifetimeExpectedBirths, resolveFertilityForRace } from "../fertility";
 import { prepareCharacterFinance } from "../financialLifecycle";
 import { createPerson } from "../personFactory";
 import { resolveRaceAgeProfile } from "../raceAge";
+import { readReference, referenceCharacter } from "../reference/model";
 import {
   createRoster,
   currentAppointment,
@@ -153,6 +154,8 @@ export function selectedSlots(roster: WorldRoster, selection: RosterSelection): 
   if (!(limit > 0) || (limit !== Infinity && !Number.isInteger(limit))) throw new Error("Invalid generation count");
   for (const role of selectedRoles(roster, selection)) {
     for (let i = 0; i < role.count; i++) {
+      if (roster.referenceProfile && selection.profile !== "household-funded-v1" && !role.referenceSeats?.[String(i)])
+        continue;
       const slot = ensureSlot(roster, role, i);
       if (slot.characterId !== undefined) continue;
       result.push(slot);
@@ -179,34 +182,42 @@ export function materializeSlots(selection: RosterSelection): number[] {
       const role = roster.roles.find(r => r.id === slot.roleId);
       const org = roster.organizations.find(o => o.id === slot.organizationId)!;
       const targetYear = slot.deathYear ?? clockYear();
-      const character = createPerson(id, slot.cultureId, {
-        homeStateId: org.stateId,
-        ageOverride: Math.max(0, Math.floor(targetYear - slot.birthYear)),
-        genderOverride: slot.gender,
-        raceOverride: slot.raceId,
-        primarySkill: role?.primarySkill,
-        roleClass: role?.roleClass ?? "ordinary",
-        formName: getWorldContext().pack.states[org.stateId]?.formName
-      });
+      const reference = readReference(getApi().simulationContext);
+      const original =
+        reference && slot.referenceId !== undefined ? referenceCharacter(reference, slot.referenceId) : undefined;
+      const character = original
+        ? structuredClone(original)
+        : createPerson(id, slot.cultureId, {
+            homeStateId: org.stateId,
+            ageOverride: Math.max(0, Math.floor(targetYear - slot.birthYear)),
+            genderOverride: slot.gender,
+            raceOverride: slot.raceId,
+            primarySkill: role?.primarySkill,
+            roleClass: role?.roleClass ?? "ordinary",
+            formName: getWorldContext().pack.states[org.stateId]?.formName
+          });
       character.rosterSlotId = slot.id;
       character.rosterMode = selection.mode ?? slot.mode;
       slot.mode = character.rosterMode;
       character.location = slot.location?.burgId;
-      character.titles = [];
-      character.pastTitles = [];
-      character.family = {
-        spouses: 0,
-        children: 0,
-        grandchildren: 0,
-        greatGrandchildren: 0,
-        childIds: [],
-        spouseIds: []
-      };
+      if (!original) {
+        character.titles = [];
+        character.pastTitles = [];
+        character.family = {
+          spouses: 0,
+          children: 0,
+          grandchildren: 0,
+          greatGrandchildren: 0,
+          childIds: [],
+          spouseIds: []
+        };
+      }
       if (slot.deathYear !== undefined) {
         character.dead = true;
         character.deathYear = slot.deathYear;
       }
       if (slot.retainedAssets) Object.assign(character, structuredClone(slot.retainedAssets));
+      if (original) getCharacters();
       prepareCharacterFinance(character, slot);
       // Assign to the canonical slot before exposing the person, so retries reuse it.
       slot.characterId = id;
@@ -232,13 +243,14 @@ export function synchronizeTitle(roster: WorldRoster, slot: PersonSlot, characte
   for (const role of roster.roles.filter(r => roleIds.has(r.id))) synchronizeRoleTitle(roster, slot, character, role);
 }
 function synchronizeRoleTitle(roster: WorldRoster, slot: PersonSlot, character: Character, role: RosterRole): void {
+  if (role.referenceOnly) return;
   const org = roster.organizations.find(o => o.id === role.organizationId)!;
   const appointed =
     !character.dead &&
     !slot.removedFromWorld &&
     roster.appointments.some(a => a.slotId === slot.id && a.roleId === role.id && a.endYear === undefined);
   // Memo sheets retain their office; only simulation mode publishes operational references.
-  const live = appointed && slot.mode === "simulation";
+  const live = appointed && (slot.mode === "simulation" || slot.referenceId !== undefined);
   if (role.id === `state:${org.stateId}:court:ruler`) {
     const extensions = getApi().simulationContext.extensions;
     extensions.nobility ??= {};
@@ -349,12 +361,12 @@ export function synchronizeFamily(roster: WorldRoster): void {
       .filter(f => f.parentId === s.id)
       .map(f => slots.get(f.childId)!)
       .filter(child => !child.cancelledBirth && child.birthYear <= clockYear());
-    c.family.children = children.length;
+    c.family.children = children.length + (s.unresolvedFamily?.children ?? 0);
     c.family.childIds = children.flatMap(child => (child.characterId !== undefined ? [child.characterId] : []));
     const partners = roster.links
       .filter(l => l.kind === "spouse" && (l.fromId === s.id || l.toId === s.id))
       .map(l => slots.get(l.fromId === s.id ? l.toId : l.fromId)!);
-    c.family.spouses = partners.length;
+    c.family.spouses = partners.length + (s.unresolvedFamily?.spouses ?? 0);
     c.family.spouseIds = partners.flatMap(partner => (partner.characterId !== undefined ? [partner.characterId] : []));
     for (const f of roster.family.filter(f => f.childId === s.id && f.kind === "birth")) {
       const parent = slots.get(f.parentId)!;
@@ -371,7 +383,8 @@ export function ensureChildren(roster: WorldRoster, parent: PersonSlot): PersonS
   if (!parent.childPlan) {
     const fertility = resolveFertilityForRace(parent.raceId);
     const random = rosterRandom(roster, `${parent.id}:family`);
-    const count = Math.max(0, Math.round(lifetimeExpectedBirths(fertility) * random() * 0.75));
+    const count =
+      parent.unresolvedFamily?.children ?? Math.max(0, Math.round(lifetimeExpectedBirths(fertility) * random() * 0.75));
     parent.childPlan = Array.from({ length: count }, () => ({
       birthYear: Math.floor(
         parent.birthYear +
@@ -379,7 +392,11 @@ export function ensureChildren(roster: WorldRoster, parent: PersonSlot): PersonS
           random() *
             Math.max(
               0,
-              Math.min(fertility.fertilityEnd, parent.plannedDeathYear - parent.birthYear) - fertility.fertilityStart
+              Math.min(
+                fertility.fertilityEnd,
+                parent.plannedDeathYear - parent.birthYear,
+                parent.referenceId !== undefined ? clockYear() - parent.birthYear : Infinity
+              ) - fertility.fertilityStart
             )
       ),
       gender: random() < 0.5 ? ("female" as const) : ("male" as const)
@@ -418,6 +435,7 @@ export function ensureChildren(roster: WorldRoster, parent: PersonSlot): PersonS
       protection
     });
     roster.family.push({ parentId: parent.id, childId: id, kind: "birth" });
+    if (parent.unresolvedFamily) parent.unresolvedFamily.children = Math.max(0, parent.unresolvedFamily.children - 1);
   }
   synchronizeFamily(roster);
   return roster.family.filter(f => f.parentId === parent.id).map(f => roster.slots.find(s => s.id === f.childId)!);

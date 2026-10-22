@@ -1,4 +1,5 @@
 import { simEvents } from "../../simulation/events";
+import { readReference } from "../characters/reference/model";
 import type {
   ShipbuildingMaterialRequest,
   ShipbuildingMaterialRequestResult,
@@ -374,6 +375,7 @@ function register(api: SimulationExtensionAPI): () => void {
     dependsOn: ["economy.initialization"],
     run: context => {
       if (!context.isCurrent() || !api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
+      if (readReference(api.simulationContext)?.tasks.includes("shipbuilding.initialization")) return;
       if (!api.isExtensionEnabled(SHIPBUILDING_EXTENSION_ID)) return;
       measureGenerationStep("generateShipbuilding", () => {
         // A brand-new map reuses burg/state ids from 0, so queue/tech/completed-hull

@@ -5234,6 +5234,21 @@
     }
   },
   "rosterPresets": {
+    "initialCash": "Reference starting cash",
+    "sharedOffices": "Also holds: {{roles}}",
+    "profile": "Generation reference",
+    "masterProfile": "Master opening cohort",
+    "expandedProfile": "Expanded institutions",
+    "masterProfileHelp": "Select the recorded master opening cohort. Money and families are reserved before detailing; selection does not redistribute cash. Expanded selection keeps this world’s saved opening budget.",
+    "legacyProfileHelp": "This saved world keeps its existing generation and money profile. A master opening reference is prepared for new worlds; existing savings are not overwritten.",
+    "referenceDate": "Reference: master {{commit}} · {{year}}/{{month}}/{{day}}",
+    "participation": "Character participation",
+    "simulationMode": "Participate in character simulation",
+    "memoMode": "Memo only (fixed settings)",
+    "simulationHelp": "Offices and family are retained. Time advances this person; generating their sheet does not issue starting cash again.",
+    "cash": "Current cash",
+    "family": "Reference family counts",
+    "referenceFamilies": "Partners {{spouses}} · Children {{children}} · Grandchildren {{grandchildren}} · Great-grandchildren {{greatGrandchildren}}",
     "shareAppointment": "Assign concurrent offices",
     "shareAppointmentHelp": "Share the source seat occupant with an unassigned target seat. Creates a lightweight appointment, not a new Character. Existing occupants are never replaced.",
     "sourceRole": "Source role",
@@ -5317,6 +5332,11 @@
     "orgKind": "Organization type",
     "unclassified": "Unclassified",
     "presets": {
+      "master-all": "All master opening characters",
+      "master-markets": "Master market & merchant leaders",
+      "master-guilds": "Master guild masters & apprentices",
+      "master-nobility": "Master provincial & holding nobility",
+      "master-covert": "Master covert characters (spoilers)",
       "state-heads": "All heads of state",
       "national-leadership": "National leadership",
       "field-commanders": "Military commanders",
@@ -5361,6 +5381,7 @@
       "member": "Member"
     },
     "warnings": {
+      "masterUnavailable": "No master opening reference is recorded for this world.",
       "governmentUnavailable": "Government offices are unavailable. Enable Nobility and refresh the institutional ledger.",
       "economyUnavailable": "No active economic institutions. Check Economy and refresh the ledger.",
       "noContracts": "No matching active patronage contracts. Set contracts separately before generating representatives.",

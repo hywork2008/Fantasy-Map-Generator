@@ -13,7 +13,7 @@ import { poolBalance } from "./personalCashLedger";
  * (`ruralGrainPayable`) is a debt, not cash, and the credit pool is a lending limit, not cash.
  */
 
-import { getCharacters, hasCharactersContext } from "../../characters/charactersContext";
+import { getSimulationCharacters as getCharacters, hasCharactersContext } from "../../characters/charactersContext";
 import {
   getBurgMarketLedgers,
   getGuildChapters,

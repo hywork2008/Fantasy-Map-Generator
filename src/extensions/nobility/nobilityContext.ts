@@ -1,4 +1,6 @@
-import { getCharacters } from "../characters/charactersContext";
+import { getSimulationCharacters as getCharacters } from "../characters/charactersContext";
+import { readReference } from "../characters/reference/model";
+import { operationalWorld } from "../characters/reference/operational";
 import { readRoster } from "../characters/roster/runtime";
 /**
  * Module-level context holder for the nobility extension.
@@ -62,7 +64,10 @@ export function getApi(): SimulationExtensionAPI {
 }
 
 export function getWorldContext() {
-  return getApi().worldContext;
+  const api = getApi();
+  return api.simulationContext?.extensions
+    ? operationalWorld(api.worldContext, api.simulationContext)
+    : api.worldContext;
 }
 
 /**
@@ -135,7 +140,7 @@ function getStateValueTable<T>(field: string): StateValueTable<T> | null {
 /** Nobility-owned ruler pointer, stored by state ID rather than on the map definition. */
 export function getRulerId(state: State): number | undefined {
   const roster = readRoster();
-  if (roster) {
+  if (roster && !readReference(getApi().simulationContext)) {
     const appointment = roster.appointments.find(
       a => a.roleId === `state:${state.i}:court:ruler` && a.endYear === undefined
     );

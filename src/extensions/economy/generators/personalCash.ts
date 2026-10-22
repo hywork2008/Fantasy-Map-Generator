@@ -1,7 +1,9 @@
 import type { SimulationExtensionAPI } from "../../../types/extension-api";
-import { getCharacters } from "../../characters/charactersContext";
+import { getSimulationCharacters as getCharacters } from "../../characters/charactersContext";
 import type { Character } from "../../characters/characterTypes";
 import { registerCharacterFinance } from "../../characters/financialLifecycle";
+import { isReferenceEvaluation } from "../../characters/reference/evaluation";
+import { readReference } from "../../characters/reference/model";
 import { buildWorldRoster } from "../../characters/roster/build";
 import { readRoster } from "../../characters/roster/runtime";
 import type { PersonSlot, RosterRole, WorldRoster } from "../../characters/roster/types";
@@ -63,7 +65,7 @@ function ledger(): PersonalCashState {
 const bindings = new WeakMap<Character, PersonalCashAccount>();
 function bind(character: Character, account: PersonalCashAccount): void {
   character.cashAccountId = account.id;
-  if (bindings.get(character) === account) return;
+  if (bindings.get(character) === account && Object.getOwnPropertyDescriptor(character, "wealth")?.get) return;
   Object.defineProperty(character, "wealth", {
     enumerable: true,
     configurable: true,
@@ -136,7 +138,10 @@ export function synchronizePersonalCash(characters: Character[]): void {
       account = {
         id,
         ownerSlotId: c.rosterSlotId,
-        characterId: c.i,
+        characterId:
+          c.rosterSlotId?.startsWith("master:") && !readRoster()?.slots.some(s => s.characterId === c.i)
+            ? undefined
+            : c.i,
         stateId: getWorldContext().pack.burgs[c.location ?? 0]?.state ?? c.state ?? 0,
         burgId: c.location,
         balance: minor(Math.max(0, c.wealth || 0)),
@@ -200,6 +205,11 @@ export function personalRoleStipend(role: RosterRole, roster: WorldRoster): numb
 }
 export function initializeRosterCash(roster: WorldRoster): void {
   const current = ledger();
+  if (readReference(getApi().simulationContext)) {
+    synchronizePersonalCash(getCharacters());
+    current.initialized = true;
+    return;
+  }
   if (current.initialized) {
     ensureCurrentPools(roster);
     return;
@@ -284,6 +294,7 @@ export function initializeRosterCash(roster: WorldRoster): void {
 }
 /** New institutions begin with zero cash; appointment is not retroactive issuance. */
 function ensureCurrentPools(roster: WorldRoster): void {
+  if (readReference(getApi().simulationContext)) return;
   const s = ledger();
   for (const role of roster.roles) {
     const org = roster.organizations.find(o => o.id === role.organizationId);
@@ -588,6 +599,7 @@ export function applyLegacyCashCorrection(token: string): void {
   }
 }
 export function registerPersonalCash(api: SimulationExtensionAPI): () => void {
+  if (isReferenceEvaluation()) return () => {};
   const unregister = registerCharacterFinance({
     synchronize: characters => {
       if (isEconomyContextReady()) synchronizePersonalCash(characters);

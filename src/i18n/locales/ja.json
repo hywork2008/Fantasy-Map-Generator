@@ -5234,6 +5234,21 @@
     }
   },
   "rosterPresets": {
+    "initialCash": "基準の初期所持金",
+    "sharedOffices": "兼任: {{roles}}",
+    "profile": "生成基準",
+    "masterProfile": "masterと同じ初期人物",
+    "expandedProfile": "制度を拡充して選択",
+    "masterProfileHelp": "masterの初期人物から選択します。所持金と家族は詳細化前に確定し、選ぶ順で再配分しません。拡充した役職を選んでも、この世界の開始予算は変更しません。",
+    "legacyProfileHelp": "この保存世界の生成・資金方式を維持します。masterの初期参照は新しい世界で準備し、既存の貯金を上書きしません。",
+    "referenceDate": "基準: master {{commit}}・{{year}}年{{month}}月{{day}}日",
+    "participation": "人物の参加設定",
+    "simulationMode": "人物シミュレーションに参加",
+    "memoMode": "メモ用（設定を固定）",
+    "simulationHelp": "役職と家族を保持して時間を進めます。人物詳細の生成で初期資金を再発行しません。",
+    "cash": "現在の所持金",
+    "family": "基準の家族人数",
+    "referenceFamilies": "配偶者{{spouses}}・子{{children}}・孫{{grandchildren}}・曾孫{{greatGrandchildren}}",
     "shareAppointment": "兼任・就任を設定",
     "shareAppointmentHelp": "元の席の人物を未割当の席にも就任させます。個人枠と就任記録のみを作り、Characterを生成しません。既存の在職者は置き換えません。",
     "sourceRole": "元の役職",
@@ -5317,6 +5332,11 @@
     "orgKind": "組織の種類",
     "unclassified": "未分類",
     "presets": {
+      "master-all": "masterと同じ初期人物をすべて",
+      "master-markets": "masterの市場・商会関係者",
+      "master-guilds": "masterのギルド親方・徒弟",
+      "master-nobility": "masterの州領主・領地人物",
+      "master-covert": "masterの潜伏人物（ネタバレ）",
       "state-heads": "全国家の国家元首",
       "national-leadership": "首脳・為政者階層",
       "field-commanders": "軍事指揮官",
@@ -5361,6 +5381,7 @@
       "member": "構成員"
     },
     "warnings": {
+      "masterUnavailable": "この世界にはmasterの初期参照が記録されていません。",
       "governmentUnavailable": "統治役職の台帳がありません。Nobilityを有効にして台帳を更新して下さい。",
       "economyUnavailable": "活動中の経済組織がありません。Economyと台帳を確認して下さい。",
       "noContracts": "該当する有効な御用契約がありません。担当者の生成前に契約を設定して下さい。",

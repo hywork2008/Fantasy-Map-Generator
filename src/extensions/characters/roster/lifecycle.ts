@@ -2,7 +2,7 @@ import { registerSimulationWatch } from "../../../runtime/simulationWatches";
 import type { SimulationExtensionAPI } from "../../../types/extension-api";
 import { advanceCharacterAging } from "../advanceAge";
 import { advanceCharacterHealth } from "../characterHealth";
-import { getCharacters } from "../charactersContext";
+import { getSimulationCharacters as getCharacters } from "../charactersContext";
 import { latestRoleSlot, nextRosterStop, stopKey } from "./model";
 import {
   clockYear,
@@ -43,8 +43,13 @@ export function registerRosterWatches(api: SimulationExtensionAPI): () => void {
       const r = readRoster();
       if (!r) return { rollback: false };
       for (const s of r.slots) {
-        if (!s.protection.stopBeforeDeath || s.characterId === undefined || !observedAlive.has(s.characterId)) continue;
-        const c = getCharacters().find(c => c.i === s.characterId);
+        if (
+          !s.protection.stopBeforeDeath ||
+          (s.characterId ?? s.referenceId) === undefined ||
+          !observedAlive.has((s.characterId ?? s.referenceId)!)
+        )
+          continue;
+        const c = getCharacters().find(c => c.i === (s.characterId ?? s.referenceId));
         if (!c?.dead) continue;
         const event = { slotId: s.id, kind: "death" as const, year: clockYear(), message: "Observed death is pending" };
         if (r.acknowledged.includes(stopKey(event))) continue;
@@ -122,7 +127,7 @@ export function advanceRoster(): void {
         }
       }
     }
-    const character = getCharacters().find(c => c.i === slot.characterId);
+    const character = getCharacters().find(c => c.i === (slot.characterId ?? slot.referenceId));
     if (character) {
       character.age = Math.max(0, Math.floor((slot.deathYear ?? now) - slot.birthYear));
       if (slot.deathYear !== undefined) {
@@ -137,9 +142,11 @@ export function advanceRoster(): void {
     }
   }
   for (const role of roster.roles) {
+    if (roster.referenceProfile && !role.referenceSeats && role.simulate !== true) continue;
     const org = roster.organizations.find(o => o.id === role.organizationId);
     if (!org || org.archived || !(role.simulate ?? org.simulate)) continue;
     for (let ordinal = 0; ordinal < role.count; ordinal++) {
+      if (roster.referenceProfile && role.referenceSeats && !role.referenceSeats[String(ordinal)]) continue;
       const previous = latestRoleSlot(roster, role.id, ordinal);
       if (previous && previous.deathYear === undefined) {
         const a = roster.appointments.find(

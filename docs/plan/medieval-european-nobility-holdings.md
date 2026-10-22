@@ -6,6 +6,8 @@
 - 関連実装: `src/extensions/nobility/`, `src/extensions/characters/`, `src/runtime/extensionStateSlices.ts`, `src/generators/timeEngine.ts`
 - 関連設計: [char.md](char.md)、[advance-time-history-mode.md](advance-time-history-mode.md)、[long-lived-race-population-and-roster.md](long-lived-race-population-and-roster.md)
 
+> master と同じ初期人物・所持金・家族構成を再現する追加設計は [master 基準の人物生成](master-character-generation-compatibility.md) を参照。互換プロファイルでは同書の条件・開始予算を優先する。新規世界での実装範囲・固定masterとの比較結果は同書の実装メモを参照。旧方式の世界は自動変換しない。
+
 ## Overview
 
 世界生成では NPC を一括作製しない。世界に必要な組織、役職、人数、領地・管轄を先に台帳として作り、世界全体 → 国家 → 組織の各階層で一覧にする。ユーザーは組織全体、役職、個人枠を選び、必要な時点で NPC を自動生成する。「必要席がある」と「詳細な Character が存在する」は別の状態である。必要席の数を名簿の都合で間引かず、人物実体の量はユーザーの選択で決める。

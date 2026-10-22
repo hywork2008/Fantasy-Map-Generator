@@ -1,5 +1,8 @@
 import { bindRaceService } from "../hostRaces";
 import { canRemoveCharacterFinance, preserveCharacterFinance, synchronizeCharacterFinance } from "./financialLifecycle";
+import { isReferenceEvaluation } from "./reference/evaluation";
+import { flushReference, readReference } from "./reference/model";
+import { operationalCharacters } from "./reference/operational";
 
 /**
  * Module-level context holder for the characters extension.
@@ -94,7 +97,7 @@ export function hasCharactersContext(): boolean {
 
 /** Production maps use role counts instead of eagerly creating individual staff. */
 export function isOnDemandRosterEnabled(): boolean {
-  return Boolean(_api?.simulationContext?.extensions);
+  return !isReferenceEvaluation() && Boolean(_api?.simulationContext?.extensions);
 }
 
 /**
@@ -160,11 +163,26 @@ export function getCharacters(): Character[] {
   return next;
 }
 
+/** Simulation reads include dormant master candidates; views keep using getCharacters(). */
+export function getSimulationCharacters(): Character[] {
+  const visible = getCharacters();
+  const simulation = _api?.simulationContext;
+  if (!simulation?.extensions || !readReference(simulation)) return visible;
+  const people = operationalCharacters(simulation, visible);
+  const roster = simulation.extensions.characters?.roster as import("./roster/types").WorldRoster | undefined;
+  if (roster) {
+    const modes = new Map(roster.slots.filter(s => s.referenceId !== undefined).map(s => [s.referenceId, s.mode]));
+    for (const person of people) if (modes.has(person.i)) person.rosterMode = modes.get(person.i);
+  }
+  return synchronizeCharacterFinance(people);
+}
+
 export function replaceCharacters(characters: Character[]): void {
   const survivors = new Set(characters);
   const removed = getCharacters().filter(character => !survivors.has(character));
   if (removed.some(character => !canRemoveCharacterFinance(character)))
     throw Error("Transfer unresolved assets before removing character details");
+  if (_api?.simulationContext?.extensions) flushReference(_api.simulationContext);
   for (const character of removed) preserveCharacterFinance(character);
   const simulation = getApi().simulationContext;
   if (!simulation?.extensions) {
@@ -399,6 +417,8 @@ export function nextCharacterId(characters: readonly Character[] = getCharacters
   const simulation = _api?.simulationContext;
   if (simulation?.extensions) simulation.extensions.characters ??= {};
   const slice = simulation?.extensions?.characters;
+  const reference = simulation?.extensions && readReference(simulation);
+  if (reference) max = reference.people.reduce((max, person) => Math.max(max, person.id), max);
   if (!slice) return max + 1;
   const next = Math.max(max + 1, Number(slice.nextCharacterId) || 1);
   slice.nextCharacterId = next + 1;

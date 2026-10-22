@@ -5,6 +5,8 @@
 - 対象: Characters / Nobility / Economy。人物の詳細化と経済上の所有者を分離する
 - 関連: [組織・役職台帳](medieval-european-nobility-holdings.md)、[生成プリセット](character-generation-presets.md)、[開始時の富](initial-wealth-calibration.md)、[通貨尺度](money-scale-calibration.md)、[通貨量と造幣](money-supply-mint.md)
 
+> master と同じ初期人物・所持金・家族構成を再現する追加設計は [master 基準の人物生成](master-character-generation-compatibility.md) を参照。互換プロファイルでは同書の条件・開始予算を優先する。新規世界での実装範囲・固定masterとの比較結果は同書の実装メモを参照。旧方式の世界は自動変換しない。
+
 ## 実装メモ（2026-10-22）
 
 - 正本は `simulation.extensions.economy.personalCash`。`personalCashLedger.ts` が整数残高・区間分割・移転・保存検証を、`personalCash.ts` が経済と人物の接続を担当する。Characters は `financialLifecycle.ts` の任意ポートだけに依存する。
