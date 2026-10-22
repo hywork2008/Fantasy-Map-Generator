@@ -3188,7 +3188,14 @@ export class MarketsModule {
     industrialDemand: number,
     laggedPrice?: number
   ): number {
-    const clothingFactor = good.demandCoverage?.clothing ? DEMAND_TARGET_FACTORS.clothing : 0;
+    const calibrated = getEconomyCalibrationState().applyCalibration;
+    const clothingCoverage = consumerCoverageForCategory(good, "clothing", calibrated);
+    const totalClothingCoverage =
+      clothingCoverage > 0
+        ? getGoods().reduce((sum, candidate) => sum + consumerCoverageForCategory(candidate, "clothing", calibrated), 0)
+        : 0;
+    const clothingFactor =
+      totalClothingCoverage > 0 ? (DEMAND_TARGET_FACTORS.clothing * clothingCoverage) / totalClothingCoverage : 0;
     const nonClothingConsumerDemand = Math.max(0, consumerDemand - clothingFactor);
     const baseDemand =
       urbanPopulation * (nonClothingConsumerDemand + industrialDemand) + textilePopulation * clothingFactor;

@@ -1405,12 +1405,9 @@ export const GOODS_DATA: GoodData[] = [
     // 4 t at 15 times the grain price per kilogram (goods-physical-units.md §21): the 4/3 premium over Cloth it had.
     value: 130,
     chance: 0,
-    // Utility demand represents ordinary clothing: an undyed wool/cotton/hemp cloth or linen
-    // garment. Dyed apparel belongs with luxury consumption rather than making every household's
-    // replacement clothing depend on expensive dye and alum. Silk remains an independently traded
-    // luxury good and is used directly by high-status character loadouts and luxury crafts.
-    // The linen leg is the 4 t of a lot in 200 kg bales: 12 of them (2.4 t, linen being the lighter cloth), where it took 0.75 bolt.
-    recipes: [{ Cloth: 1 }, { Linen: 12 }, { Cloth: 0.5, Furs: 1 }, { Cloth: 1, "Synthetic Dye": 0.15 }],
+    // 4 t finished ordinary wardrobes from 4.444 t of cloth, with modeled 10% cutting loss.
+    // Lighter linen wardrobes are a separate product, sharing household replacement demand.
+    recipes: TEXTILE_RECIPES.Garments,
     unit: "wardrobe lot",
     demandCoverage: { clothing: 1 }
   },
@@ -2316,7 +2313,7 @@ export const GOODS_DATA: GoodData[] = [
     // (goods-physical-units.md §24); the bolt was worth 6, 140 times. Linen keeps a lot's gain of about 5.
     value: 8,
     chance: 0,
-    recipes: [{ Flax: 10 }],
+    recipes: TEXTILE_RECIPES.Linen,
     unit: "bale",
     demandCoverage: { utilities: 0.2 }
   },
@@ -3375,6 +3372,19 @@ export const GOODS_DATA: GoodData[] = [
     recipes: TEXTILE_RECIPES["Fine Wool Garments"],
     unit: "wardrobe lot",
     demandCoverage: { luxury: 1 }
+  },
+  {
+    name: "Linen Garments",
+    warEconomyType: "essential",
+    tags: ["clothing"],
+    icon: "good-garments",
+    color: "#e5d9bd",
+    value: 130,
+    chance: 0,
+    // 1,000 lighter wardrobes, 2.16 t after 10% cutting loss from twelve 200 kg bales.
+    recipes: TEXTILE_RECIPES["Linen Garments"],
+    unit: "wardrobe lot",
+    demandCoverage: { clothing: 1 }
   }
 ];
 
@@ -3491,6 +3501,7 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   "Fine Wool Cloth": tradeProfile(2, 2, 3, 2, 0, 3, 2),
   "Fine Wool Garments": tradeProfile(2, 2, 3, 2, 0, 3, 2),
   Garments: tradeProfile(2, 3, 3, 2, 0, 3, 2),
+  "Linen Garments": tradeProfile(2, 3, 3, 2, 0, 3, 2),
   Ceramics: tradeProfile(4, 4, 3, 1, 0, 2, 4),
   Glass: tradeProfile(3, 4, 4, 2, 0, 1, 5),
   Ropes: tradeProfile(3, 4, 2, 0, 0, 4, 2),
@@ -5143,6 +5154,42 @@ export function migrateTextileQualityGoods(): boolean {
   let changed = added.size > 0;
   if (cloth && !cloth.byproducts && legacy.every(Boolean) && key(cloth.recipes) === key(legacy)) {
     cloth.recipes = TEXTILE_RECIPES.Cloth.map(resolve) as Record<number, number>[];
+    changed = true;
+  }
+  return changed;
+}
+
+/** Splits the legacy lighter-linen recipe without reinterpreting existing garment inventories. */
+export function migrateLinenGarmentGoods(): boolean {
+  const goods = getGoods();
+  let changed = false;
+  let linenGarments = goods.find(good => good.name === "Linen Garments");
+  if (!linenGarments) {
+    linenGarments = Goods.getDefaultGood("Linen Garments")!;
+    linenGarments.i = Math.max(0, ...goods.map(good => good.i)) + 1;
+    const linen = goods.find(good => good.name === "Linen");
+    linenGarments.recipes = linen ? [{ [linen.i]: 12 }] : [];
+    goods.push(linenGarments);
+    changed = true;
+  }
+  const byName = new Map(goods.map(good => [good.name, good]));
+  const resolve = (recipes: Record<string, number>[]): Record<number, number>[] | null => {
+    if (recipes.some(recipe => Object.keys(recipe).some(name => !byName.has(name)))) return null;
+    return recipes.map(recipe =>
+      Object.fromEntries(Object.entries(recipe).map(([name, amount]) => [byName.get(name)!.i, amount]))
+    );
+  };
+  const old = resolve([{ Cloth: 1 }, { Linen: 12 }, { Cloth: 0.5, Furs: 1 }, { Cloth: 1, "Synthetic Dye": 0.15 }]);
+  const garments = byName.get("Garments");
+  const key = (value: unknown): string =>
+    JSON.stringify(value, (_key, entry) =>
+      entry && !Array.isArray(entry) && typeof entry === "object"
+        ? Object.fromEntries(Object.entries(entry).sort(([a], [b]) => a.localeCompare(b)))
+        : entry
+    );
+  const next = resolve(TEXTILE_RECIPES.Garments);
+  if (garments && !garments.byproducts && old && next && key(garments.recipes) === key(old)) {
+    garments.recipes = next;
     changed = true;
   }
   return changed;

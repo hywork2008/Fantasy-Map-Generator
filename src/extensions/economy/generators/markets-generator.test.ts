@@ -1701,3 +1701,35 @@ describe("MarketsModule craft calibration demand", () => {
     }
   });
 });
+
+describe("shared clothing trade demand", () => {
+  beforeEach(() => initEconomyContext({ worldContext } as unknown as ExtensionAPI));
+  afterEach(() => clearEconomyContext());
+  it("keeps the total population demand unchanged when lighter linen wardrobes are added", () => {
+    const good = (i: number, name: string): Good => ({
+      i,
+      name,
+      tags: ["clothing"],
+      unit: "wardrobe lot",
+      value: 130,
+      icon: "",
+      color: "",
+      demandCoverage: { clothing: 1 }
+    });
+    const garments = good(1, "Garments");
+    const linen = good(2, "Linen Garments");
+    const market = new MarketsModule() as unknown as {
+      collectConsumerDemand(goods: Good[]): number[];
+      calculateGoodDemand(good: Good, urban: number, textile: number, consumer: number, industrial: number): number;
+    };
+    setGoods([garments]);
+    const before = market.calculateGoodDemand(garments, 10, 100, market.collectConsumerDemand([garments])[1], 0);
+    setGoods([garments, linen]);
+    const factors = market.collectConsumerDemand([garments, linen]);
+    const after = [garments, linen].reduce(
+      (sum, g) => sum + market.calculateGoodDemand(g, 10, 100, factors[g.i], 0),
+      0
+    );
+    expect(after).toBeCloseTo(before, 10);
+  });
+});

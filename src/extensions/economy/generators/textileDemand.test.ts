@@ -3,6 +3,7 @@ import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
   clearEconomyContext,
+  getGoods,
   getGuildChapters,
   getMarkets,
   initEconomyContext,
@@ -13,6 +14,7 @@ import {
 import { setEconomyCalibrationState } from "../store/economyCalibrationState";
 import { GuildChapters } from "./guildChapters";
 import {
+  getGarmentProductionHeadroom,
   getMarketTextileDemandProfile,
   getTextileGuildWorkPlan,
   settleTextileHouseholdDemand,
@@ -98,6 +100,27 @@ describe("textile household demand", () => {
       unmetDemand: 2.42,
       cumulativeUnmetDemand: 2.42
     });
+  });
+
+  it("shares replacement demand across linen and ordinary garments, without consuming fine apparel", () => {
+    const garments = getGoods()[5];
+    setGoods([
+      ...getGoods(),
+      { ...garments, i: 6, name: "Linen Garments" },
+      { ...garments, i: 7, name: "Fine Wool Garments", demandCoverage: { luxury: 1 } }
+    ]);
+    const market = getMarkets()[0];
+    market.goods[6] = { stock: 2, price: 10 };
+    market.goods[7] = { stock: 9, price: 30 };
+    expect(getGarmentProductionHeadroom(market, 0)).toBe(0);
+    const demand = getMarketTextileDemandProfile(1).monthlyDemand;
+    settleTextileHouseholdDemand();
+    expect(market.goods[6].stock).toBe(0);
+    expect(4 - market.goods[5].stock + 2 - market.goods[6].stock).toBeCloseTo(demand, 10);
+    expect(market.goods[7].stock).toBe(9);
+    market.goods[5].stock = 0;
+    market.goods[6].stock = 0.5;
+    expect(getGarmentProductionHeadroom(market, 0.25)).toBeCloseTo(demand - 0.75, 10);
   });
 
   it("admits a textile chapter only when three months of orders, fibre and margin support two workers", () => {

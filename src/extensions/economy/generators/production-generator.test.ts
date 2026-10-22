@@ -730,3 +730,114 @@ describe("runWorkerLoop steps (port-freight-queue-and-warehouses.md §10.23)", (
     expect(total).toBe(2);
   });
 });
+
+describe("linen clothing preparation", () => {
+  beforeEach(() => {
+    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    worldContext.populationRate = 1000;
+    worldContext.pack = { burgs: [], states: [], cells: {} } as unknown as PackedGraph;
+  });
+  afterEach(() => {
+    setEconomyCalibrationState({ applyCalibration: false });
+    clearEconomyContext();
+  });
+
+  it("shares the basic clothing production ceiling without touching luxury apparel", () => {
+    const good = (i: number, name: string): Good => ({
+      i,
+      name,
+      value: 130,
+      tags: [],
+      unit: "lot",
+      icon: "",
+      color: ""
+    });
+    setGoods([good(1, "Garments"), good(2, "Linen Garments"), good(3, "Fine Wool Garments")]);
+    Goods.sync();
+    const state = {
+      remainingCalibratedLots: new Map([
+        [1, 0.2],
+        [2, 0.2],
+        [3, 0.2]
+      ])
+    };
+    const skipped = new Set<number>();
+    const planner = new ProductionModule() as unknown as {
+      settleCalibratedProduction(
+        state: unknown,
+        id: number,
+        lots: number,
+        labor: number,
+        calibrated: boolean,
+        skipped: Set<number>
+      ): void;
+    };
+    planner.settleCalibratedProduction(state, 2, 0.15, 0.1, true, skipped);
+    expect(state.remainingCalibratedLots.get(1)).toBeCloseTo(0.05, 10);
+    expect(state.remainingCalibratedLots.get(2)).toBeCloseTo(0.05, 10);
+    expect(state.remainingCalibratedLots.get(3)).toBe(0.2);
+    planner.settleCalibratedProduction(state, 1, 0.05, 0.04, true, skipped);
+    expect(skipped.has(1)).toBe(true);
+    expect(skipped.has(2)).toBe(true);
+    expect(skipped.has(3)).toBe(false);
+  });
+
+  it.each([true, false])(
+    "uses real calibrated weaving labor for a small wardrobe order, calibration=%s",
+    calibrated => {
+      setEconomyCalibrationState({ applyCalibration: calibrated });
+      const good = (i: number, name: string, value: number): Good => ({
+        i,
+        name,
+        value,
+        tags: [],
+        unit: "lot",
+        icon: "",
+        color: ""
+      });
+      const flax = good(1, "Flax", 0.3);
+      const linen = good(2, "Linen", 8);
+      const garments = good(3, "Linen Garments", 130);
+      setGoods([flax, linen, garments]);
+      Goods.sync();
+      const recipe = (good: Good, goodId: number, amount: number) => ({
+        good,
+        ingredients: [{ goodId, amount }],
+        byproducts: []
+      });
+      const index = {
+        recipesByOutput: [undefined, undefined, [recipe(linen, 1, 10)], [recipe(garments, 2, 12)]],
+        minWorkersByGood: [1, 1, 1, 1]
+      };
+      const state = {
+        burg: { i: 1, cell: 0 },
+        market: {
+          i: 1,
+          goods: { 1: { stock: 1000, price: 0.3 }, 2: { stock: 0, price: 8 }, 3: { stock: 0, price: 130 } }
+        },
+        inventory: [],
+        smithingProgramByGood: new Map()
+      };
+      const planner = new ProductionModule() as unknown as {
+        planGoodAction(
+          index: unknown,
+          state: unknown,
+          good: Good,
+          target: number,
+          step: number,
+          workers: number,
+          effect: { multiplier: number; category: null }
+        ): { action: { good: Good }; workersNeeded: number; normalizedGain: number } | null;
+      };
+      const plan = planner.planGoodAction(index, state, garments, 0.1, 0.1, 0.2, { multiplier: 1, category: null });
+      if (calibrated) {
+        expect(plan?.action.good.name).toBe("Linen");
+        expect(plan?.workersNeeded).toBeCloseTo(0.1 * 0.972 + 1.2 * 0.01295, 8);
+        const weaving = planner.planGoodAction(index, state, linen, 1, 1, 1, { multiplier: 1, category: null });
+        // Direct candidates still rank by lot margin, not by the inverse of their tiny labor intensity.
+        expect(weaving?.normalizedGain).toBeLessThan(8);
+        expect(weaving?.normalizedGain).toBeGreaterThan(0);
+      } else expect(plan).toBeNull();
+    }
+  );
+});

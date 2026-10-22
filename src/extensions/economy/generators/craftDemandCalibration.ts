@@ -79,26 +79,50 @@ export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
   {
     goodName: "Garments",
     domain: "textiles",
-    inlandShare: 0.73,
-    portShare: 0.58,
+    inlandShare: 0.58,
+    portShare: 0.46,
     provenances: ["householdPerCapita"],
     annualLotsPerPerson: 0.00025,
     fixtureLotsPerMonth: 0.1875,
     laborPointsPerLotAtDefaultRate: 0.972,
     residualWeight: 1,
-    sources: ["existing textileDemand people/1000/4/12"]
+    sources: ["four-year wardrobe replacement ceiling shared with Linen Garments; never additive"]
   },
   {
     goodName: "Cloth",
     domain: "textiles",
-    inlandShare: 0.18,
-    portShare: 0.14,
+    inlandShare: 0.14,
+    portShare: 0.1,
     provenances: ["recipeDerived"],
     fixtureLotsPerMonth: 0.1875,
     laborPointsPerLotAtDefaultRate: 0.259,
     residualWeight: 0,
     typicalRecipeIndex: 0,
     sources: ["Garments+Sails recipe input"]
+  },
+  {
+    goodName: "Linen",
+    domain: "textiles",
+    inlandShare: 0.04,
+    portShare: 0.04,
+    provenances: ["recipeDerived"],
+    fixtureLotsPerMonth: 2.25,
+    laborPointsPerLotAtDefaultRate: 0.01295,
+    residualWeight: 0,
+    typicalRecipeIndex: 0,
+    sources: ["model: Cloth weaving labor / 20 for a 200 kg bale; shared ceiling of 0.1875 wardrobes x 12 bales"]
+  },
+  {
+    goodName: "Linen Garments",
+    domain: "textiles",
+    inlandShare: 0.15,
+    portShare: 0.12,
+    provenances: ["householdPerCapita"],
+    annualLotsPerPerson: 0.00025,
+    fixtureLotsPerMonth: 0.1875,
+    laborPointsPerLotAtDefaultRate: 0.972,
+    residualWeight: 1,
+    sources: ["four-year wardrobe replacement ceiling shared with Garments; never additive"]
   },
   {
     goodName: "Fine Wool Cloth",

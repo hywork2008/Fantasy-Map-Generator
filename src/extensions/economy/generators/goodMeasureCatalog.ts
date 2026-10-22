@@ -345,6 +345,7 @@ export const GOOD_MEASURES: Readonly<Record<string, GoodMeasure>> = {
   // thousand fleeces (goods-generator.ts); Leather a roll from one hide.
   Leather: byMass("roll", "1 hide, 25 kg", 25, 0.8, "bale", "recipe"),
   Cloth: byMass("wardrobe bolt", "1,000 wardrobes of cloth, 4 t", 4000, 0.4, "bale", "recipe"),
+  "Linen Garments": byMass("wardrobe lot", "1,000 lighter linen wardrobes, 2.16 t", 2160, 0.25, "bale", "model"),
   Garments: byMass("wardrobe lot", "1,000 wardrobes, 4 t", 4000, 0.25, "bale", "recipe"),
   "Fine Wool Cloth": byMass("bale", "200 kg selected finished wool fabric", 200, 0.4, "bale", "model"),
   "Fine Wool Garments": byMass("wardrobe lot", "50 fine wardrobes, 180 kg", 180, 0.25, "bale", "model"),

@@ -72,6 +72,8 @@ export const CRAFT_DOMAIN_BY_GOOD_NAME: Readonly<Record<string, CraftKnowledgeDo
   "Fine Wool Cloth": "textiles",
   "Fine Wool Garments": "textiles",
   Garments: "textiles",
+  Linen: "textiles",
+  "Linen Garments": "textiles",
   Sails: "textiles",
   Leather: "leather",
   Boots: "leather",

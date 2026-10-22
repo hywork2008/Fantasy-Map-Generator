@@ -129,8 +129,12 @@ import {
   getStrategicProductionDemandByGood,
   type StrategicProductionDemand
 } from "./strategicProductionDemand";
-import { getGarmentProductionHeadroom, settleTextileHouseholdDemand } from "./textileDemand";
-import { hasPhysicalTextileRecipe } from "./textileRecipeContracts";
+import {
+  getGarmentProductionHeadroom,
+  getHouseholdGarmentInventory,
+  settleTextileHouseholdDemand
+} from "./textileDemand";
+import { HOUSEHOLD_GARMENT_NAMES, hasPhysicalTextileRecipe } from "./textileRecipeContracts";
 import { buyTownLuxuries } from "./townLuxuryPurchases";
 import { TradeSecurity } from "./tradeSecurity";
 import { TransportAssetOrders } from "./transportAssetOrders";
@@ -1105,6 +1109,18 @@ export class ProductionModule {
     const remaining = state.remainingCalibratedLots.get(goodId);
     const left = remaining == null ? null : Math.max(0, remaining - yieldLots);
     if (left != null) state.remainingCalibratedLots.set(goodId, left);
+    // Both basic wardrobe products draw down the same household replacement ceiling.
+    const good = Goods.get(goodId);
+    if (good && HOUSEHOLD_GARMENT_NAMES.has(good.name) && yieldLots > 0) {
+      for (const peer of getGoods()) {
+        if (peer.i === goodId || !HOUSEHOLD_GARMENT_NAMES.has(peer.name)) continue;
+        const peerRemaining = state.remainingCalibratedLots.get(peer.i);
+        if (peerRemaining == null) continue;
+        const peerLeft = Math.max(0, peerRemaining - yieldLots);
+        state.remainingCalibratedLots.set(peer.i, peerLeft);
+        if (peerLeft <= 0.001) skippedGoodIds.add(peer.i);
+      }
+    }
     // A good whose target is met is done too: another attempt only spends a step to make nothing
     // (executeManufacture() drops batches of 0.001 lot or less), which a small town cannot spare
     // (port-freight-queue-and-warehouses.md §10.23).
@@ -1161,8 +1177,11 @@ export class ProductionModule {
     const wageRate = getManufactureWageRate(state.strategicLaborMarket, good, getSubsistenceWage(state.market));
     const wageCostPerLot = laborPerLot * wageRate;
 
-    if (good.name === "Garments") {
-      actualYield = Math.min(actualYield, getGarmentProductionHeadroom(state.market, state.inventory[good.i] || 0));
+    if (HOUSEHOLD_GARMENT_NAMES.has(good.name)) {
+      actualYield = Math.min(
+        actualYield,
+        getGarmentProductionHeadroom(state.market, getHouseholdGarmentInventory(state.inventory))
+      );
     }
     actualYield = Math.min(
       actualYield,
@@ -1705,6 +1724,13 @@ export class ProductionModule {
     if (workersLeft <= 0 || targetUnits <= 0) return null;
     if (path[good.i]) return null;
 
+    const physicalTextile = hasPhysicalTextileRecipe(good.name);
+    const calibratedTextile = physicalTextile && getEconomyCalibrationState().applyCalibration;
+    const laborFor = (input: Good, lots: number): number =>
+      calibratedTextile && hasPhysicalTextileRecipe(input.name)
+        ? laborPointsForLots(input.name, lots, Math.max(0, this.worldContext.populationRate ?? 0) || 1)
+        : lots;
+    const targetLabor = laborFor(good, targetUnits);
     path[good.i] = true;
 
     const modifier = getModifiers(good, state.burg.cell);
@@ -1739,12 +1765,12 @@ export class ProductionModule {
         Math.min(stepUnits, targetUnits),
         good.i
       );
-      if (immediate && targetUnits <= workersLeft + 0.001) {
+      if (immediate && targetLabor <= workersLeft + 0.001) {
         const perUnitNetGain = immediate.candidate.score;
         const immediateMarketCost = immediate.candidate.ingredientCost * immediate.candidate.units;
         const plan: GoalActionPlan = {
           goalGoodId: good.i,
-          workersNeeded: targetUnits,
+          workersNeeded: targetLabor,
           marketCost: immediateMarketCost,
           projectedGain: perUnitNetGain * targetUnits,
           normalizedGain: perUnitNetGain,
@@ -1755,7 +1781,7 @@ export class ProductionModule {
         continue;
       }
 
-      let workersNeeded = targetUnits;
+      let workersNeeded = targetLabor;
       let marketCost = 0;
       let feasible = true;
       let nextActionPlan: GoalActionPlan | null = null;
@@ -1780,9 +1806,11 @@ export class ProductionModule {
           break;
         }
 
-        const lowerBoundWorkers = remaining * (index.minWorkersByGood[ingredient.goodId] ?? Infinity);
-        workersNeeded += lowerBoundWorkers;
-        if (workersNeeded > workersLeft + 0.001) {
+        const lowerBoundWorkers =
+          calibratedTextile && hasPhysicalTextileRecipe(ingredientGood.name)
+            ? laborFor(ingredientGood, remaining)
+            : remaining * (index.minWorkersByGood[ingredient.goodId] ?? Infinity);
+        if (workersNeeded + lowerBoundWorkers > workersLeft + 0.001) {
           feasible = false;
           break;
         }
@@ -1793,7 +1821,7 @@ export class ProductionModule {
           ingredientGood,
           remaining,
           stepUnits,
-          workersLeft - targetUnits,
+          physicalTextile ? workersLeft - workersNeeded : workersLeft - targetUnits,
           demandEffect,
           path
         );
@@ -1803,6 +1831,7 @@ export class ProductionModule {
           break;
         }
 
+        workersNeeded += physicalTextile ? subPlan.workersNeeded : lowerBoundWorkers;
         marketCost += subPlan.marketCost;
 
         if (!nextActionPlan || subPlan.normalizedGain > nextActionPlan.normalizedGain + 0.001) {
@@ -1813,7 +1842,12 @@ export class ProductionModule {
       if (!feasible || !nextActionPlan || workersNeeded > workersLeft + 0.001) continue;
 
       const projectedGain = totalProjectedGain - marketCost;
-      const normalizedGain = workersNeeded > 0 ? projectedGain / workersNeeded : projectedGain;
+      // Textile feasibility uses calibrated work, but ranking remains profit per output lot (§23).
+      const normalizedGain = physicalTextile
+        ? projectedGain / targetUnits
+        : workersNeeded > 0
+          ? projectedGain / workersNeeded
+          : projectedGain;
       const action = nextActionPlan.action;
       const candidate: ProductionCandidate = {
         ...nextActionPlan.candidate,
@@ -1856,6 +1890,24 @@ export class ProductionModule {
     const demandFocus = this.getDemandFocus(demandTargets, demandCoverage);
     const luxuryWeights = isLuxuryValueDemandEnabled() ? luxuryTierWeights(state.burg) : null;
 
+    const planGoal = (good: Good, effect: DemandEffect): GoalActionPlan | null => {
+      let units = fraction;
+      if (hasPhysicalTextileRecipe(good.name)) {
+        if (getEconomyCalibrationState().applyCalibration) {
+          const perLot = Math.max(
+            1e-9,
+            laborPointsForLots(good.name, 1, Math.max(0, this.worldContext.populationRate ?? 0) || 1)
+          );
+          units = Math.min(fraction / perLot, state.remainingCalibratedLots.get(good.i) ?? Infinity);
+        }
+        if (HOUSEHOLD_GARMENT_NAMES.has(good.name))
+          units = Math.min(
+            units,
+            getGarmentProductionHeadroom(state.market, getHouseholdGarmentInventory(state.inventory))
+          );
+      }
+      return this.planGoodAction(index, state, good, units, units, workersLeft, effect);
+    };
     let chosenGoal: GoalActionPlan | null = null;
     let activeGoal: GoalActionPlan | null = null;
     for (const good of candidateGoods) {
@@ -1871,7 +1923,7 @@ export class ProductionModule {
         multiplier: populationDemandEffect.multiplier * strategicDemandMultiplier * viticultureAllocationMultiplier,
         category: populationDemandEffect.category
       };
-      const goalPlan = this.planGoodAction(index, state, good, fraction, fraction, workersLeft, demandEffect);
+      const goalPlan = planGoal(good, demandEffect);
       if (!goalPlan || goalPlan.projectedGain <= 0) continue;
       if (collectCandidates) candidates.push(goalPlan.candidate);
       if (good.i === activeGoalGoodId) activeGoal = goalPlan;
@@ -1894,7 +1946,7 @@ export class ProductionModule {
             getViticultureAllocationMultiplier(activeGood, state.burg.i ?? 0),
           category: populationDemandEffect.category
         };
-        activeGoal = this.planGoodAction(index, state, activeGood, fraction, fraction, workersLeft, activeDemand);
+        activeGoal = planGoal(activeGood, activeDemand);
       }
     }
 

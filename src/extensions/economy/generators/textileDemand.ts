@@ -5,7 +5,13 @@ import { getEconomyCalibrationState } from "../state/economyCalibrationStore";
 import { laborPeople } from "./craftScale";
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import type { Market, TextileLedger } from "./marketTypes";
-import { COTTON_LOTS_PER_CLOTH, HEMP_LOTS_PER_CLOTH } from "./textileRecipeContracts";
+import {
+  CLOTH_LOTS_PER_GARMENT,
+  COTTON_LOTS_PER_CLOTH,
+  HEMP_LOTS_PER_CLOTH,
+  HOUSEHOLD_GARMENT_NAMES,
+  LINEN_BALES_PER_GARMENT
+} from "./textileRecipeContracts";
 
 export const PEOPLE_PER_TEXTILE_MARKET_LOT = 1_000;
 export const WARDROBE_REPLACEMENT_YEARS = 4;
@@ -24,8 +30,11 @@ export const MIN_TEXTILE_ORDER_LOTS = 2;
 export const MIN_TEXTILE_MARGIN_FLOOR = MIN_TEXTILE_ORDER_LOTS * MIN_TEXTILE_MONTHLY_MARGIN_PER_WORKER;
 /** Legacy points-scale burg-size floor, restored when applyCalibration is off. */
 const MIN_TEXTILE_WORKERS = 2;
-/** Bales of linen in a Garments lot (goods-generator.ts). */
-const LINEN_BALES_PER_GARMENT_LOT = 12;
+export function getHouseholdGarmentInventory(inventory: readonly number[]): number {
+  return getGoods()
+    .filter(good => HOUSEHOLD_GARMENT_NAMES.has(good.name))
+    .reduce((sum, good) => sum + Math.max(0, inventory[good.i] ?? 0), 0);
+}
 
 export type TextileDemandProfile = {
   populationLots: number;
@@ -114,25 +123,26 @@ function emptyLedger(profile: TextileDemandProfile): TextileLedger {
 
 /** Settles household wardrobe replacement after manufacturing and trade have supplied the market. */
 export function settleTextileHouseholdDemand(): void {
-  const garments = getGoods().find(good => good.name === "Garments");
-  if (!garments) return;
+  const garments = getGoods().filter(good => HOUSEHOLD_GARMENT_NAMES.has(good.name));
+  if (!garments.length) return;
 
   for (const market of getMarkets()) {
     const profile = getMarketTextileDemandProfile(market.i);
     const previous = market.textileLedger ?? emptyLedger(profile);
-    const row = market.goods[garments.i];
-    const consumed = Math.min(profile.monthlyDemand, Math.max(0, row?.stock ?? 0));
-    const unmetDemand = Math.max(0, profile.monthlyDemand - consumed);
-    if (row) row.stock = rn(Math.max(0, row.stock - consumed), 2);
-    if (consumed > 0) {
-      recordGoodFlow({
-        direction: "sink",
-        category: "householdTextiles",
-        goodId: garments.i,
-        units: consumed,
-        marketId: market.i
-      });
+    let remaining = profile.monthlyDemand;
+    const available = garments
+      .filter(good => (market.goods[good.i]?.stock ?? 0) > 0)
+      .sort((a, b) => market.goods[a.i].price - market.goods[b.i].price || a.i - b.i);
+    for (const good of available) {
+      const row = market.goods[good.i];
+      const units = Math.min(remaining, Math.max(0, row.stock));
+      if (units <= 0) continue;
+      row.stock = Math.max(0, row.stock - units);
+      remaining = Math.max(0, remaining - units);
+      recordGoodFlow({ direction: "sink", category: "householdTextiles", goodId: good.i, units, marketId: market.i });
     }
+    const consumed = profile.monthlyDemand - remaining;
+    const unmetDemand = remaining;
 
     market.textileLedger = {
       ...previous,
@@ -147,10 +157,10 @@ export function settleTextileHouseholdDemand(): void {
 
 /** Caps a single burg's Garment output to the market's next month of actual household replacement demand. */
 export function getGarmentProductionHeadroom(market: Market, localInventory: number): number {
-  const garments = getGoods().find(good => good.name === "Garments");
-  if (!garments) return 0;
+  const garments = getGoods().filter(good => HOUSEHOLD_GARMENT_NAMES.has(good.name));
+  if (!garments.length) return 0;
   const profile = getMarketTextileDemandProfile(market.i);
-  const marketStock = Math.max(0, market.goods[garments.i]?.stock ?? 0);
+  const marketStock = garments.reduce((sum, good) => sum + Math.max(0, market.goods[good.i]?.stock ?? 0), 0);
   return Math.max(0, profile.monthlyDemand - marketStock - Math.max(0, localInventory));
 }
 
@@ -175,17 +185,29 @@ export function getTextileGuildWorkPlan(burg: Burg): TextileGuildWorkPlan {
     return { ...profile, expectedOrders: 0, availableInputOrders: 0, projectedMonthlyMargin: 0, viable: false };
   }
 
-  const woolOrders = Math.max(0, market.goods[wool.i]?.stock ?? 0) / 6;
-  const hempOrders = Math.max(0, market.goods[hemp.i]?.stock ?? 0) / HEMP_LOTS_PER_CLOTH;
-  const cottonOrders = Math.max(0, market.goods[cotton.i]?.stock ?? 0) / COTTON_LOTS_PER_CLOTH;
-  const clothOrders = Math.max(0, market.goods[cloth.i]?.stock ?? 0);
-  const linenOrders = Math.max(0, market.goods[linen.i]?.stock ?? 0) / LINEN_BALES_PER_GARMENT_LOT;
+  const woolOrders = Math.max(0, market.goods[wool.i]?.stock ?? 0) / (6 * CLOTH_LOTS_PER_GARMENT);
+  const hempOrders = Math.max(0, market.goods[hemp.i]?.stock ?? 0) / (HEMP_LOTS_PER_CLOTH * CLOTH_LOTS_PER_GARMENT);
+  const cottonOrders =
+    Math.max(0, market.goods[cotton.i]?.stock ?? 0) / (COTTON_LOTS_PER_CLOTH * CLOTH_LOTS_PER_GARMENT);
+  const clothOrders = Math.max(0, market.goods[cloth.i]?.stock ?? 0) / CLOTH_LOTS_PER_GARMENT;
+  const linenOrders = Math.max(0, market.goods[linen.i]?.stock ?? 0) / LINEN_BALES_PER_GARMENT;
   const availableInputOrders = woolOrders + hempOrders + cottonOrders + clothOrders + linenOrders;
   const expectedOrders = Math.min(profile.monthlyDemand * INITIAL_TEXTILE_WORK_MONTHS, availableInputOrders);
   const garmentPrice = market.goods[garments.i]?.price ?? garments.value;
   const clothPrice = market.goods[cloth.i]?.price ?? cloth.value;
+  const linenGarments = getGoods().find(good => good.name === "Linen Garments");
+  const linenGarmentPrice = linenGarments
+    ? (market.goods[linenGarments.i]?.price ?? linenGarments.value)
+    : garmentPrice;
+  const linenPrice = market.goods[linen.i]?.price ?? linen.value;
+  const ordinaryOrders = woolOrders + hempOrders + cottonOrders + clothOrders;
+  const availableMargin =
+    ordinaryOrders * Math.max(0, garmentPrice - clothPrice * CLOTH_LOTS_PER_GARMENT) +
+    linenOrders * Math.max(0, linenGarmentPrice - linenPrice * LINEN_BALES_PER_GARMENT);
   const projectedMonthlyMargin =
-    Math.max(0, garmentPrice - clothPrice) * (expectedOrders / INITIAL_TEXTILE_WORK_MONTHS);
+    availableInputOrders > 0
+      ? (availableMargin * (expectedOrders / availableInputOrders)) / INITIAL_TEXTILE_WORK_MONTHS
+      : 0;
   const applyCalibration = getEconomyCalibrationState().applyCalibration;
   const burgMeetsSizeFloor = applyCalibration
     ? laborPeople(burg.population ?? 0, Math.max(0, getWorldContext().populationRate ?? 0) || 1) >=

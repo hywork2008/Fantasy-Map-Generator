@@ -29,6 +29,7 @@ import {
   migrateLeatherByproduct,
   migrateLegacyOreIngotGoods,
   migrateLinenBale,
+  migrateLinenGarmentGoods,
   migrateLiveAnimalTags,
   migrateLiveCatsGood,
   migrateLiveDogsGood,
@@ -52,7 +53,12 @@ import {
   WEIGHT_REPRICING
 } from "./goods-generator";
 import { getDefaultGoodsUnitFlavor } from "./goodsUnitFlavor";
-import { COTTON_LOTS_PER_CLOTH, HEMP_LOTS_PER_CLOTH } from "./textileRecipeContracts";
+import {
+  CLOTH_LOTS_PER_FUR_GARMENT,
+  CLOTH_LOTS_PER_GARMENT,
+  COTTON_LOTS_PER_CLOTH,
+  HEMP_LOTS_PER_CLOTH
+} from "./textileRecipeContracts";
 import {
   ASH_LOTS_PER_WOOD_LOT,
   CHARCOAL_WOOD_PER_LOT,
@@ -282,17 +288,16 @@ describe("GoodsModule", () => {
       { [byName.get("Wool")!.i]: 6, [byName.get("Synthetic Dye")!.i]: 0.1 }
     ]);
     expect(garments.recipes).toEqual([
-      { [cloth.i]: 1 },
-      { [linen.i]: 12 },
-      { [cloth.i]: 0.5, [furs.i]: 1 },
-      { [cloth.i]: 1, [byName.get("Synthetic Dye")!.i]: 0.15 }
+      { [cloth.i]: CLOTH_LOTS_PER_GARMENT },
+      { [cloth.i]: CLOTH_LOTS_PER_FUR_GARMENT, [furs.i]: 1 },
+      { [cloth.i]: CLOTH_LOTS_PER_GARMENT, [byName.get("Synthetic Dye")!.i]: 0.15 }
     ]);
     expect(garments).toMatchObject({ value: 130, unit: "wardrobe lot", demandCoverage: { clothing: 1 } });
     expect(cloth.recipes?.some(recipe => Object.hasOwn(recipe, silk.i))).toBe(false);
   });
 
   it("keeps every cloth route within material input and separates fine wool from ordinary wardrobe demand", () => {
-    for (const name of ["Cloth", "Fine Wool Cloth", "Fine Wool Garments"]) {
+    for (const name of ["Cloth", "Garments", "Linen", "Linen Garments", "Fine Wool Cloth", "Fine Wool Garments"]) {
       const good = GOODS_DATA.find(good => good.name === name)!;
       for (const recipe of good.recipes!) {
         const inputKg = Object.entries(recipe).reduce(
@@ -339,6 +344,34 @@ describe("GoodsModule", () => {
     cloth.recipes = [{ [byName.get("Hemp")!.i]: 2 }];
     expect(migrateTextileQualityGoods()).toBe(false);
     expect(cloth.recipes).toEqual([{ [byName.get("Hemp")!.i]: 2 }]);
+  });
+
+  it("splits only unchanged legacy linen wardrobes and resolves the saved material ids", () => {
+    goodsModule.restoreDefaults();
+    const goods = getGoods().filter(good => good.name !== "Linen Garments");
+    setGoods(goods);
+    const byName = new Map(goods.map(good => [good.name, good]));
+    const garments = byName.get("Garments")!;
+    const cloth = byName.get("Cloth")!;
+    const linen = byName.get("Linen")!;
+    linen.i = 3000;
+    garments.value = 131;
+    garments.recipes = [
+      { [cloth.i]: 1 },
+      { [linen.i]: 12 },
+      { [cloth.i]: 0.5, [byName.get("Furs")!.i]: 1 },
+      { [cloth.i]: 1, [byName.get("Synthetic Dye")!.i]: 0.15 }
+    ];
+    setMarkets([{ i: 1, goods: { [garments.i]: { stock: 3, price: 133 } } }] as never);
+    expect(migrateLinenGarmentGoods()).toBe(true);
+    expect(garments.recipes).not.toContainEqual({ [linen.i]: 12 });
+    expect(goods.find(good => good.name === "Linen Garments")!.recipes).toEqual([{ [linen.i]: 12 }]);
+    expect(garments.value).toBe(131);
+    expect(getMarkets()[0].goods[garments.i]).toEqual({ stock: 3, price: 133 });
+    expect(migrateLinenGarmentGoods()).toBe(false);
+    garments.recipes = [{ [linen.i]: 7 }];
+    expect(migrateLinenGarmentGoods()).toBe(false);
+    expect(garments.recipes).toEqual([{ [linen.i]: 7 }]);
   });
 
   it("defines display-only batch and tavern references without changing Goods", () => {
