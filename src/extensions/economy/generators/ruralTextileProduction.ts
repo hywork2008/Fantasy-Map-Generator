@@ -9,12 +9,13 @@ import {
 } from "../economyContext";
 import { isGoodEnabled } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
-import { debitRuralHouseholdWealth } from "./householdWealth";
+import { debitRuralHouseholdWealth, getRuralHouseholdWealth } from "./householdWealth";
 import type { Market } from "./marketTypes";
 import { getRuralTextileChains, type RuralTextileChain } from "./ruralTextileChains";
 import { HOUSEHOLD_GARMENT_NAMES } from "./textileRecipeContracts";
 
 export interface RuralTextileProduction {
+  inputOrders?: Record<number, number>;
   garments: number;
   blankets: number;
   garmentSpending: number;
@@ -30,6 +31,7 @@ export interface RuralTextileProduction {
 function getLaborCapacity(market: Market): number {
   const world = getWorldContext();
   const cells = world.pack.cells;
+  if (!cells?.i?.length) return 0;
   const workers = getHouseholdTextileWorkers();
   const farm = getFarmLaborRequired();
   const markets = getMarketCellColumn();
@@ -46,14 +48,16 @@ function getLaborCapacity(market: Market): number {
   return capacity;
 }
 
-export function settleRuralTextileProduction(
+function runRuralTextileProduction(
   market: Market,
   garmentNeed: number,
   blanketNeed: number,
   garmentBudget: number,
-  blanketBudget: number
+  blanketBudget: number,
+  estimate: boolean
 ): RuralTextileProduction {
   const result: RuralTextileProduction = {
+    inputOrders: {},
     garments: 0,
     blankets: 0,
     garmentSpending: 0,
@@ -67,8 +71,11 @@ export function settleRuralTextileProduction(
   const goods = getGoods().filter(isGoodEnabled);
   if (!(result.laborCapacity > 0)) return result;
   const chains = getRuralTextileChains(goods);
+  let cash = Math.max(0, getRuralHouseholdWealth(market));
+  const inputPrice = (chain: RuralTextileChain) =>
+    market.goods[chain.input.i]?.price ?? (estimate ? chain.input.value : 0);
   const inputCost = (chain: RuralTextileChain): number => {
-    const price = market.goods[chain.input.i]?.price;
+    const price = inputPrice(chain);
     return price > 0 && Number.isFinite(price) ? chain.clothPerProduct * chain.inputPerCloth * price : Infinity;
   };
   // One wardrobe target across all fibers. Deterministic ties retain the declared route order.
@@ -82,23 +89,27 @@ export function settleRuralTextileProduction(
     const { input, cloth, product: good, clothPerProduct, laborPerProduct } = chain;
     const inputRow = market.goods[input.i];
     const costPerProduct = inputCost(chain);
-    if (!(need > 0) || !(budget > 0) || !Number.isFinite(costPerProduct) || !inputRow) return { units: 0, cost: 0 };
+    if (!(need > 0) || !(budget > 0) || !Number.isFinite(costPerProduct) || (!estimate && !inputRow))
+      return { units: 0, cost: 0 };
     const inputPerProduct = clothPerProduct * chain.inputPerCloth;
     const units = Math.min(
       need,
-      Math.max(0, inputRow.stock) / inputPerProduct,
+      estimate ? Infinity : Math.max(0, inputRow.stock) / inputPerProduct,
       Math.max(0, result.laborCapacity - result.laborUsed) / laborPerProduct,
-      budget / (inputPerProduct * inputRow.price)
+      Math.min(budget, cash) / (inputPerProduct * inputPrice(chain))
     );
-    const cost = Math.floor(Math.max(0, units) * inputPerProduct * inputRow.price * 100 + 1e-9) / 100;
+    const cost = Math.floor(Math.max(0, units) * inputPerProduct * inputPrice(chain) * 100 + 1e-9) / 100;
     if (!(cost > 0)) return { units: 0, cost: 0 };
-    const paid = debitRuralHouseholdWealth(market, cost);
-    const produced = paid / (inputPerProduct * inputRow.price);
+    const paid = estimate ? cost : debitRuralHouseholdWealth(market, cost);
+    const produced = paid / (inputPerProduct * inputPrice(chain));
     if (!(produced > 0)) return { units: 0, cost: 0 };
+    cash = Math.max(0, cash - paid);
+    result.inputOrders![input.i] = (result.inputOrders![input.i] ?? 0) + produced * inputPerProduct;
+    result.laborUsed += produced * laborPerProduct;
+    if (estimate) return { units: produced, cost: paid };
     inputRow.stock = Math.max(0, inputRow.stock - produced * inputPerProduct);
     market.marketTreasury ??= { balance: 0, ruralGrainPayable: 0 };
     market.marketTreasury.balance = rn(market.marketTreasury.balance + paid, 2);
-    result.laborUsed += produced * laborPerProduct;
     if (chain.weavesCloth) {
       recordGoodFlow({
         direction: "sink",
@@ -164,4 +175,21 @@ export function settleRuralTextileProduction(
     }
   }
   return result;
+}
+
+type RuralTextileRequest = [
+  market: Market,
+  garmentNeed: number,
+  blanketNeed: number,
+  garmentBudget: number,
+  blanketBudget: number
+];
+
+export function settleRuralTextileProduction(...request: RuralTextileRequest): RuralTextileProduction {
+  return runRuralTextileProduction(...request, false);
+}
+
+/** Gross input orders before stock subtraction; shared cash and labor constrain all alternative routes. */
+export function estimateRuralTextileProduction(...request: RuralTextileRequest): RuralTextileProduction {
+  return runRuralTextileProduction(...request, true);
 }

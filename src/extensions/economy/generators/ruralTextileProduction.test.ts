@@ -14,13 +14,15 @@ import {
   setMarkets
 } from "../economyContext";
 import { getGoodDemandCalibration } from "./craftDemandCalibration";
-import { Goods } from "./goods-generator";
+import { type Good, Goods } from "./goods-generator";
 import { type GoodFlowRecord, setGoodFlowObserver } from "./goodsBalanceLedger";
+import { Markets } from "./markets-generator";
 import type { FoodLedger } from "./marketTypes";
 import { settleRuralTextileProduction } from "./ruralTextileProduction";
 import {
   getMarketBlanketDemandProfile,
   getMarketTextileDemandProfile,
+  getTextileMarketOrders,
   settleTextileHouseholdDemand
 } from "./textileDemand";
 import { getRuralTextileRequiredWorkers } from "./textileHouseholdPolicy";
@@ -232,6 +234,81 @@ describe("rural household wool processing", () => {
     expect(home.garmentSpending).toBeLessThanOrEqual(0.01);
     expect(home.laborUsed).toBeLessThanOrEqual(1);
     expect(home.garments).toBeLessThanOrEqual(1 / 972);
+  });
+
+  it("quotes affordable missing inputs without consuming stock, cash, work or flows", () => {
+    const market = addPlantRoutes();
+    market.foodLedger!.ruralHouseholdWealth = 100;
+    const before = structuredClone(market);
+    const orders = getTextileMarketOrders(market);
+    expect(Object.values(orders.inputs).reduce((sum, units) => sum + units, 0)).toBeGreaterThan(0);
+    const inputBill = Object.entries(orders.inputs).reduce(
+      (sum, [id, units]) => sum + units * market.goods[+id].price,
+      0
+    );
+    const garmentPrice = Math.min(
+      ...["Garments", "Wool Garments", "Linen Garments"].map(name => market.goods[byName(name).i].price)
+    );
+    expect(
+      inputBill + orders.wardrobes * garmentPrice + orders.blankets * market.goods[byName("Wool Blankets").i].price
+    ).toBeLessThanOrEqual(5 + 1e-8);
+    expect(getTextileMarketOrders(market)).toEqual(orders);
+    expect(market).toEqual(before);
+    expect(flows).toHaveLength(0);
+    settleTextileHouseholdDemand();
+    expect(market.ruralTextileProduction!.garments).toBe(0);
+  });
+
+  it("does not quote inputs without rural cash or workers, or when finished supply meets the need", () => {
+    const market = addPlantRoutes();
+    market.goods[byName("Wool Garments").i].stock = 100;
+    market.goods[byName("Wool Blankets").i].stock = 100;
+    expect(getTextileMarketOrders(market).inputs).toEqual({});
+    expect(getTextileMarketOrders(market).wardrobes).toBeGreaterThan(0);
+    market.goods[byName("Wool Garments").i].stock = 0;
+    market.goods[byName("Wool Blankets").i].stock = 0;
+    setHouseholdTextileWorkers(new Float32Array());
+    expect(getTextileMarketOrders(market).inputs).toEqual({});
+    setHouseholdTextileWorkers(Float32Array.from([5000]));
+    market.foodLedger!.ruralHouseholdWealth = 0;
+    expect(getTextileMarketOrders(market)).toEqual({ wardrobes: 0, blankets: 0, inputs: {} });
+  });
+
+  it("adds the same paid input orders to price and trade demand while retaining custom demand", () => {
+    const market = addPlantRoutes();
+    Markets.sync();
+    const orders = getTextileMarketOrders(market);
+    const [id, units] = Object.entries(orders.inputs).find(([, units]) => units > 0)!;
+    const good = getGoods().find(good => good.i === +id)!;
+    good.priceElasticity = -1;
+    const api = Markets as unknown as {
+      calculateGoodDemand(
+        good: Good,
+        urban: number,
+        textile: number,
+        consumer: number,
+        industrial: number,
+        price: number,
+        marketId: number
+      ): number;
+      calculateMarketTradeDemand(
+        good: Good,
+        marketId: number,
+        urban: number,
+        textile: number,
+        consumer: number,
+        industrial: number,
+        ctx: unknown
+      ): number;
+    };
+    expect(api.calculateGoodDemand(good, 10, 100, 0.2, 0.3, good.value * 2, 1)).toBeCloseTo(units + 2.5, 8);
+    const ctx = {
+      strategicDemandByMarket: new Map(),
+      luxuryBudgets: null,
+      textileOrdersByMarket: new Map([[1, orders]])
+    };
+    const expected = api.calculateGoodDemand(good, 10, 100, 0.2, 0.3, market.goods[good.i].price, 1);
+    expect(api.calculateMarketTradeDemand(good, 1, 10, 100, 0.2, 0.3, ctx)).toBeCloseTo(expected, 8);
   });
 
   it("pays for real fiber and uses shared labor to self-supply independent replacements without buying them twice", () => {

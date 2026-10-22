@@ -7,7 +7,7 @@ import { getGoods, getMarkets } from "../src/extensions/economy/context/trade";
 import { getOrCreateFaunaStockTable, getOrCreateLivestockFeedTable } from "../src/extensions/economy/context/cellTables";
 import { calculateGrazingLandAllocation, getGrazedCarryingCapacity, getPastureAreaUsedHectares, STOCKING_DENSITY_PER_HECTARE } from "../src/extensions/economy/generators/husbandry";
 import { HOUSEHOLD_GARMENT_NAMES } from "../src/extensions/economy/generators/textileRecipeContracts";
-import { getMarketBlanketDemandProfile, getMarketTextileDemandProfile } from "../src/extensions/economy/generators/textileDemand";
+import { getMarketBlanketDemandProfile, getMarketTextileDemandProfile, getTextileMarketOrders } from "../src/extensions/economy/generators/textileDemand";
 import { getAnnualWoolPotentialKg, getWoolOutput } from "../src/extensions/economy/generators/woolProduction";
 import { SHEEP_ANNUAL_WOOL_KG, WOOL_KG_PER_MARKET_LOT } from "../src/extensions/economy/generators/woolProductionPolicy";
 import { setGoodFlowObserver } from "../src/extensions/economy/generators/goodsBalanceLedger";
@@ -50,6 +50,18 @@ function snapshot() {
  const heads: Record<string, number> = {};
  const sheepCohorts = { young: 0, breeding: 0, old: 0 };
  const occupied = [];
+ const ruralTextileInputOrders: Record<string, number> = {};
+ const ruralTextileInputPurchases: Record<string, number> = {};
+ for (const market of getMarkets()) {
+  for (const [id, units] of Object.entries(getTextileMarketOrders(market).inputs)) {
+   const name = getGoods().find(good => good.i === +id)?.name ?? id;
+   ruralTextileInputOrders[name] = (ruralTextileInputOrders[name] ?? 0) + units;
+  }
+  for (const [id, units] of Object.entries(market.ruralTextileProduction?.inputOrders ?? {})) {
+   const name = getGoods().find(good => good.i === +id)?.name ?? id;
+   ruralTextileInputPurchases[name] = (ruralTextileInputPurchases[name] ?? 0) + units;
+  }
+ }
  const feedRows = Object.values(getOrCreateLivestockFeedTable() ?? {});
  const feedTotals = Object.fromEntries([
   "hayKg", "pastureGrownKg", "harvestedKg", "harvestLossKg", "storageLossKg", "unharvestedKg",
@@ -107,6 +119,7 @@ function snapshot() {
   ruralPurchasedClothWardrobesLots: getMarkets().reduce((sum, market) => sum + (market.ruralTextileProduction?.purchasedClothGarments ?? 0), 0),
   ruralPurchasedClothBlanketsLots: getMarkets().reduce((sum, market) => sum + (market.ruralTextileProduction?.purchasedClothBlankets ?? 0), 0),
   ruralPurchasedClothSpending: getMarkets().reduce((sum, market) => sum + (market.ruralTextileProduction?.purchasedClothSpending ?? 0), 0),
+  ruralTextileInputOrders, ruralTextileInputPurchases,
   ruralTextileLaborCapacity: getMarkets().reduce((sum, market) => sum + (market.ruralTextileProduction?.laborCapacity ?? 0), 0),
   ruralTextileLaborUsed: getMarkets().reduce((sum, market) => sum + (market.ruralTextileProduction?.laborUsed ?? 0), 0),
   householdWardrobeSpending: getMarkets().reduce((sum, market) => sum + (market.textileLedger?.householdSpending ?? 0), 0),
