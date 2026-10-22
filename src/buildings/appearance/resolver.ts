@@ -2,6 +2,7 @@ import type { RoofMaterial, WallMaterial } from "../../city-editor/types/contrac
 import { growthRandom } from "../../utils/urbanMorphology";
 import type { BuildingPaletteId } from "./palette";
 import {
+  BUILDING_APPEARANCE_CLIMATES,
   BUILDING_APPEARANCE_PROFILES,
   BUILDING_APPEARANCE_VERSION,
   type BuildingAppearance,
@@ -32,11 +33,19 @@ export function normalizeBuildingAppearanceContext(source: BuildingAppearanceSou
 export function validBuildingAppearanceFields(value: {
   buildingAppearanceVersion?: unknown;
   buildingAppearanceProfile?: unknown;
+  buildingAppearanceClimate?: unknown;
   buildingAppearanceContext?: unknown;
 }): boolean {
   const version = value.buildingAppearanceVersion;
   const profile = value.buildingAppearanceProfile;
   const context = value.buildingAppearanceContext;
+  if (
+    value.buildingAppearanceClimate !== undefined &&
+    !BUILDING_APPEARANCE_CLIMATES.includes(
+      value.buildingAppearanceClimate as (typeof BUILDING_APPEARANCE_CLIMATES)[number]
+    )
+  )
+    return false;
   if (version !== undefined && version !== BUILDING_APPEARANCE_VERSION) return false;
   if (profile !== undefined && !BUILDING_APPEARANCE_PROFILES.includes(profile as BuildingAppearanceProfile))
     return false;

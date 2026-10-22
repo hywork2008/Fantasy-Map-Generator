@@ -1,6 +1,7 @@
 import { getUrbanDwellings } from "../../utils/urbanDwellings";
 import type { CityDocument } from "../types/document";
 import type { GenerationSettings } from "../types/generation";
+import { inheritBuildingAppearance } from "./buildingAppearance";
 import { createGridDocument, sizePresetForExtent } from "./document";
 import { planPopulation } from "./populationPlan";
 
@@ -61,6 +62,7 @@ export function preparePopulationGeneration(document: CityDocument, settings: Ge
         measureBlockSize: document.gridKind === "evolution",
         biome: document.biome
       });
+      next = inheritBuildingAppearance(next, document);
     }
   }
   const descriptor = settings.descriptor ? structuredClone(settings.descriptor) : undefined;

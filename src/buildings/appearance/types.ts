@@ -10,6 +10,8 @@ export const BUILDING_APPEARANCE_PROFILES = [
   "stone-upland"
 ] as const;
 export type BuildingAppearanceProfile = (typeof BUILDING_APPEARANCE_PROFILES)[number];
+export const BUILDING_APPEARANCE_CLIMATES = ["temperate", "forest", "wetland", "wet-forest", "arid"] as const;
+export type BuildingAppearanceClimate = (typeof BUILDING_APPEARANCE_CLIMATES)[number];
 
 /** Persisted inputs, independent of later changes to the world or generation recipe. */
 export interface BuildingAppearanceContext {

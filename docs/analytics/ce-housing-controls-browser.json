@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-22T10:53:24.146Z",
+  "errors": [],
+  "gl": {
+    "error": 0,
+    "lost": false
+  },
+  "southern": [
+    "rgb(140, 121, 87)",
+    "rgb(143, 139, 126)",
+    "rgb(148, 82, 62)",
+    "rgb(164, 139, 89)",
+    "rgb(169, 95, 67)",
+    "rgb(178, 175, 162)",
+    "rgb(180, 156, 108)",
+    "rgb(184, 115, 80)"
+  ],
+  "northern": [
+    "rgb(102, 91, 76)",
+    "rgb(104, 112, 75)",
+    "rgb(116, 104, 88)",
+    "rgb(120, 128, 91)",
+    "rgb(130, 115, 96)",
+    "rgb(130, 118, 94)",
+    "rgb(134, 75, 61)",
+    "rgb(143, 139, 126)",
+    "rgb(149, 131, 97)",
+    "rgb(149, 81, 63)",
+    "rgb(165, 149, 114)",
+    "rgb(167, 101, 73)",
+    "rgb(178, 175, 162)",
+    "rgb(89, 97, 63)"
+  ],
+  "profile": "northern-wooded",
+  "climate": "wet-forest",
+  "checks": [
+    "new grid",
+    "generation",
+    "immediate 2D colors",
+    "unchanged geometry",
+    "undo",
+    "redo",
+    "3D",
+    "JSON import",
+    "regeneration"
+  ]
+}

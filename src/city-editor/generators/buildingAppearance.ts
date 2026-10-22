@@ -13,7 +13,7 @@ import type { BuildingLot } from "./buildingLots.types";
 function contextOf(document: CityDocument, descriptor?: BurgSiteDescriptor) {
   const recipe = document.fabric?.generation?.settings.descriptor;
   const climate = descriptor?.climate ?? recipe?.climate;
-  return normalizeBuildingAppearanceContext({
+  const context = normalizeBuildingAppearanceContext({
     period: document.urbanMorphology?.period ?? document.historicalPeriod,
     tradition:
       descriptor?.civilization?.tradition ?? document.civilization?.tradition ?? recipe?.civilization?.tradition,
@@ -21,6 +21,26 @@ function contextOf(document: CityDocument, descriptor?: BurgSiteDescriptor) {
       descriptor?.climate?.temperatureC ?? document.buildingAppearanceContext?.temperatureC ?? climate?.temperatureC,
     biome: descriptor?.biome ?? document.biome ?? (climate?.biomeKey ? { key: climate.biomeKey } : undefined)
   });
+  const override = document.buildingAppearanceClimate;
+  return override
+    ? {
+        ...context,
+        forest: override === "forest" || override === "wet-forest",
+        wetland: override === "wetland" || override === "wet-forest",
+        arid: override === "arid"
+      }
+    : context;
+}
+
+/** Carry current housing controls onto an earlier generation input, including cleared overrides. */
+export function inheritBuildingAppearance(document: CityDocument, current: CityDocument): CityDocument {
+  return {
+    ...document,
+    buildingAppearanceVersion: current.buildingAppearanceVersion,
+    buildingAppearanceProfile: current.buildingAppearanceProfile,
+    buildingAppearanceClimate: current.buildingAppearanceClimate,
+    buildingAppearanceContext: current.buildingAppearanceContext
+  };
 }
 
 /** Explicit opt-in/refresh for saved cities; loading alone never upgrades their appearance. */
@@ -88,6 +108,7 @@ export function buildingAppearanceKey(document: CityDocument): string {
   return JSON.stringify([
     document.buildingAppearanceVersion ?? null,
     document.buildingAppearanceProfile ?? null,
+    document.buildingAppearanceClimate ?? null,
     document.buildingAppearanceContext ?? contextOf(document)
   ]);
 }

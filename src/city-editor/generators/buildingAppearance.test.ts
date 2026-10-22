@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { buildBlockFabric, documentFabricFingerprint } from "./blockInfill";
 import { assignBuildingAppearances, stableBuildingAppearanceId, withBuildingAppearance } from "./buildingAppearance";
+import { buildingAppearancePreview } from "./buildingAppearancePreview";
 import type { BuildingLot } from "./buildingLots.types";
 import { assignBuildingMassing } from "./buildingMassing";
 import { createDocument } from "./document";
 import { generateCityOnDocument } from "./generation/generateCity";
 import { defaultGenerationSettings } from "./generation/settings";
+import { preparePopulationGeneration } from "./populationGeneration";
+import { defaultPopulationSettings } from "./populationPlan";
 import { residentialCapacity } from "./residentialCapacity";
 
 const lot: BuildingLot = {
@@ -29,6 +32,22 @@ function geometryAndCapacity(building: BuildingLot) {
 }
 
 describe("CE building appearance integration", () => {
+  it("applies persisted climate overrides to finishes and retains them when population fitting rebuilds the grid", () => {
+    const source = createDocument("appearance-climate", 400);
+    source.biome = { id: 1, key: "desert", name: "Desert", color: "tan" };
+    const forest = withBuildingAppearance({ ...source, buildingAppearanceClimate: "forest" }, "northern-wooded");
+    const arid = withBuildingAppearance({ ...forest, buildingAppearanceClimate: "arid" });
+    const sample = { ...buildingAppearancePreview("northern-wooded")[0], role: "shed" as const };
+    expect(assignBuildingAppearances(forest, [sample])[0].appearance?.wallFinish).toBe("timber-boarding");
+    expect(assignBuildingAppearances(arid, [sample])[0].appearance?.wallFinish).toBe("plaster-infill");
+    const settings = { ...defaultGenerationSettings(), population: defaultPopulationSettings(500) };
+    const prepared = preparePopulationGeneration(forest, settings, "appearance-climate").document;
+    expect(prepared.mesh).not.toBe(forest.mesh);
+    expect(prepared.buildingAppearanceProfile).toBe("northern-wooded");
+    expect(prepared.buildingAppearanceClimate).toBe("forest");
+    expect(withBuildingAppearance(prepared).buildingAppearanceContext?.forest).toBe(true);
+    expect(source.buildingAppearanceClimate).toBeUndefined();
+  });
   it("keeps no-ID colors stable when a ring or the lot list is reordered", () => {
     const document = createDocument("appearance-order", 400);
     document.buildingAppearanceProfile = "atlantic";

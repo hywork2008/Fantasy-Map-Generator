@@ -462,6 +462,8 @@ export interface CityDocument {
   /** Missing on saved legacy cities: keep their original building appearance. */
   buildingAppearanceVersion?: typeof import("../../buildings/appearance/types").BUILDING_APPEARANCE_VERSION;
   buildingAppearanceProfile?: import("../../buildings/appearance/types").BuildingAppearanceProfile;
+  /** Explicit housing climate override; absent uses the site's biome. */
+  buildingAppearanceClimate?: import("../../buildings/appearance/types").BuildingAppearanceClimate;
   /** Captured on generation or explicit appearance refresh, never on load. */
   buildingAppearanceContext?: import("../../buildings/appearance/types").BuildingAppearanceContext;
   /**

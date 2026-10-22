@@ -12,11 +12,13 @@ describe("native document codec", () => {
     const legacy = parseDocument(serializeDocument(document))!;
     expect(legacy.buildingAppearanceVersion).toBeUndefined();
     expect(legacy.buildingAppearanceContext).toBeUndefined();
-    const upgraded = withBuildingAppearance(legacy, "stone-upland");
+    const upgraded = withBuildingAppearance({ ...legacy, buildingAppearanceClimate: "wet-forest" }, "stone-upland");
     expect(parseDocument(serializeDocument(upgraded))).toEqual(upgraded);
     for (const invalid of [
       { buildingAppearanceVersion: 2 },
       { buildingAppearanceProfile: "unknown" },
+      { buildingAppearanceClimate: "unknown" },
+      { buildingAppearanceClimate: 3 },
       { buildingAppearanceContext: { period: "highMedieval", forest: "yes" } }
     ])
       expect(parseDocument(JSON.stringify({ ...document, ...invalid }))).toBeNull();

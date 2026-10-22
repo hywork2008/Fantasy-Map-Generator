@@ -337,3 +337,31 @@ node --import tsx scripts/checkCeBuildingDetails.mts
 ブラウザーでは向きの違う礼拝堂3棟・井戸1個・水盤1個を3 draw callsで表示し、基礎高12mの表示を確認した。実際の `mountCity3d` でもクリックが `temple:chapel-1` を返し、legacyへの切り替えと復帰後にも選択できることを確認した。JavaScript/WebGLエラーとcontext lossは無かった。バックエンドはSwiftShaderで、実GPUのFPSは未測定。
 
 関連テストは `bvInstances.test.ts`、`wellMeshes.test.ts`、`renderers/structureMassing.test.ts` の3ファイル17件成功。元の井戸の境界・原点・縮尺、線形色と階層変換、完全なモデル包絡の敷地内配置、回転・接地、fallback、インスタンスのID解決、複数利用者の共有と最後の解放を確認した。型チェックと変更ソースのBiomeチェックも成功。
+
+
+## 14. 単独CEの住宅文化・気候入力
+
+2026-10-22実装。Documentパネルの「現在の建物生成」の下に「住宅文化」「住宅の気候・植生」を追加した。FMG連携なしで選択でき、生成済みの街へも即時反映する。
+
+### 入力項目
+
+| 項目 | 選択肢 | 適用 |
+| --- | --- | --- |
+| 住宅文化 | 自動、地中海、大西洋岸、北方森林、北方都市、石材地域・高地、従来の外観 | 既存の外観プロファイルを指定。屋根のパレット・葺き材・壁の仕上げ、近景の露出木骨の対象を決める |
+| 住宅の気候・植生 | 自動、温帯・開けた土地、森林、湿地・葦原、湿潤な森林、乾燥地 | 既存resolverの森林・湿地・乾燥フラグを指定。板葺き/植物材、葦色、北方農村の板壁等の判定に使う |
+
+単独の街は立地の文化情報を持たないため、「自動」では従来表示に戻ることがある。地域色を見るには住宅文化を明示する。「自動」の気候は文書/立地のbiomeを参照する。未使用の温度パラメータは入力項目にしない。気候は住宅外観への入力であり、地形や河川を生成し直すものではない。葺き材は既存の時代・屋根勾配の制限に従うため、全屋根が一律に同じ材になるわけではない。
+
+### 保存と生成への接続
+
+既存の `buildingAppearanceProfile` と、新しい任意項目 `buildingAppearanceClimate`（5つの安定ID、未指定=自動）を保存する。選択時に `withBuildingAppearance` で正規化snapshotを更新し、既存の2D・3D外観処理へ渡す。文書codecは新しい項目も検証し、未知の値と不正な型を拒否する。旧文書の読込だけでは外観を更新しない。
+
+新しいグリッド、元の生成入力を使った再生成、段階表示、人口に合わせたグリッドの作り直しにも現在の住宅設定を渡す。生成workerの実行中に選択が変わった場合は、完了時に最新設定を適用する。Undo/Redo・保存JSONの読込時には文書の値からUIを同期する。単独の文化選択はFMG全体の文明・信仰・技術を変更しない。
+
+### 確認
+
+- 関連テスト: `buildingAppearanceControls.test.ts`、`generators/buildingAppearance.test.ts`、`services/io/documentCodec.test.ts`、`controllers/generationFromEdits.test.ts` の4ファイル12件成功。UI選択の即時適用・復元、自動への戻し、気候による壁仕上げの違い、人口グリッド再作成時の維持、JSONの検証と旧文書互換を確認した。既存パネル4テストも成功。
+- 型チェック、変更ソースのBiomeチェック成功。
+- 実際の単独CEを日本語で開き、新規グリッド、都市生成、生成後の文化・気候変更、2D色の変化、3D表示、Undo/Redo、JSON保存・読込、再生成を確認した。外観変更前後でmesh・elements・featureGroupsの値は一致。JavaScript/WebGLエラーとcontext lossは無かった。
+
+[地中海の2Dと入力欄](../analytics/ce-housing-controls-mediterranean.png)、[北方森林の3Dと入力欄](../analytics/ce-housing-controls-northern-3d.png)、[ブラウザー結果](../analytics/ce-housing-controls-browser.json)。再現は `node --import tsx scripts/checkCeHousingControls.mts`。
