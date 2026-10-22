@@ -78,6 +78,8 @@ let _viticultureWorkersFallback: Float32Array<ArrayBufferLike> = new Float32Arra
 
 let _viticultureRequiredWorkersFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 
+let _householdTextileWorkersFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+
 let _husbandryWorkersFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 
 let _husbandryRequiredWorkersFallback: Float32Array<ArrayBufferLike> = new Float32Array();
@@ -390,6 +392,17 @@ export function setViticultureRequiredWorkers(value: Float32Array<ArrayBufferLik
   });
 }
 
+/** Reserved household textile capacity, in real worker-months each production month. */
+export function getHouseholdTextileWorkers(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("householdTextileWorkers", _householdTextileWorkersFallback);
+}
+
+export function setHouseholdTextileWorkers(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("householdTextileWorkers", value, next => {
+    _householdTextileWorkersFallback = next;
+  });
+}
+
 /** Husbandry (docs/plan/biome-goods-producer-ecosystem.md §5.4, Phase 3) — same workerFactor pattern as viticulture. */
 export function getHusbandryWorkers(): Float32Array<ArrayBufferLike> {
   return getSliceFloat32Column("husbandryWorkers", _husbandryWorkersFallback);
@@ -488,6 +501,7 @@ registerContextFallbackReset(() => {
   _viticultureWorkersFallback = new Float32Array();
   _viticultureRequiredWorkersFallback = new Float32Array();
   _husbandryWorkersFallback = new Float32Array();
+  _householdTextileWorkersFallback = new Float32Array();
   _husbandryRequiredWorkersFallback = new Float32Array();
   _stateAgriculturalProductivityFallback = new Float32Array();
   _climateFoodStressFallback = new Float32Array();

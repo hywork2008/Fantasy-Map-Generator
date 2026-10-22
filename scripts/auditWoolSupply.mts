@@ -16,6 +16,7 @@ const months = Number(length);
 if (!input || !output || !Number.isSafeInteger(months) || months < 1) throw new Error("Invalid arguments");
 const paths = ["scripts/auditWoolSupply.mts", "src/extensions/economy/generators/woolProduction.ts", "src/extensions/economy/generators/husbandry.ts", "src/extensions/economy/generators/faunaPopulation.ts", "src/extensions/economy/generators/developmentPotential.ts"];
 paths.push("src/extensions/economy/generators/textileDemand.ts", "src/extensions/economy/generators/textileRecipeContracts.ts", "src/extensions/economy/generators/goods-generator.ts", "src/extensions/economy/generators/production-generator.ts", "src/extensions/economy/generators/markets-generator.ts");
+paths.push("src/extensions/economy/generators/ruralTextileProduction.ts", "src/extensions/economy/generators/textileHouseholdPolicy.ts", "src/extensions/economy/generators/ruralOccupationAllocation.ts");
 const sourceHashes = Object.fromEntries(paths.map(path => [path, createHash("sha256").update(readFileSync(path)).digest("hex")]));
 const bytes = readFileSync(input);
 const host = createNodeSimulationHost();
@@ -77,6 +78,10 @@ function snapshot() {
   householdWardrobeConsumptionLots: householdWardrobes,
   monthlyBlanketDemandLots: getMarkets().reduce((sum, market) => sum + getMarketBlanketDemandProfile(market.i).monthlyDemand, 0),
   householdBlanketConsumptionLots: householdBlankets,
+  ruralHomeWardrobesLots: getMarkets().reduce((sum, market) => sum + (market.ruralTextileProduction?.garments ?? 0), 0),
+  ruralHomeBlanketsLots: getMarkets().reduce((sum, market) => sum + (market.ruralTextileProduction?.blankets ?? 0), 0),
+  ruralTextileLaborCapacity: getMarkets().reduce((sum, market) => sum + (market.ruralTextileProduction?.laborCapacity ?? 0), 0),
+  ruralTextileLaborUsed: getMarkets().reduce((sum, market) => sum + (market.ruralTextileProduction?.laborUsed ?? 0), 0),
   householdWardrobeSpending: getMarkets().reduce((sum, market) => sum + (market.textileLedger?.householdSpending ?? 0), 0),
   householdBlanketSpending: getMarkets().reduce((sum, market) => sum + (market.blanketLedger?.householdSpending ?? 0), 0),
   effectiveWoolLaborCoverage: heads.Sheep > 0 ? woolLotsPerMonth * 1000 / 0.08 / heads.Sheep : 0,

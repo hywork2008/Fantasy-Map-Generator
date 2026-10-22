@@ -25,6 +25,7 @@ import {
   getFloweringForageArea,
   getFoodPotential,
   getGoods,
+  getHouseholdTextileWorkers,
   getHuntingWorkers,
   getHusbandryRequiredWorkers,
   getHusbandryWorkers,
@@ -57,6 +58,7 @@ import {
   setFloodProtection,
   setFloweringForageArea,
   setFoodPotential,
+  setHouseholdTextileWorkers,
   setHuntingWorkers,
   setHusbandryRequiredWorkers,
   setHusbandryWorkers,
@@ -225,7 +227,7 @@ export interface DevelopmentPotentials {
  * last built by an older version. Bump when the columns' formula changes.
  */
 export const DEVELOPMENT_POTENTIAL_LOAD_REPAIR = "economy.developmentPotential";
-export const DEVELOPMENT_POTENTIAL_LOAD_REPAIR_VERSION = 1;
+export const DEVELOPMENT_POTENTIAL_LOAD_REPAIR_VERSION = 2;
 
 /**
  * Share of each cell's crop work-days actually done. The monthly shortage left after peak-month
@@ -342,6 +344,7 @@ export class DevelopmentPotentialModule {
     setViticultureWorkers(new Float32Array());
     setViticultureRequiredWorkers(new Float32Array());
     setHusbandryWorkers(new Float32Array());
+    setHouseholdTextileWorkers(new Float32Array());
     setHusbandryRequiredWorkers(new Float32Array());
     setSettlementDevelopmentPotential(new Float32Array());
     clearAnnualGateYear(ANNUAL_GATE.settlementDevelopment);
@@ -419,6 +422,7 @@ export class DevelopmentPotentialModule {
     setViticultureWorkers(occupations.viticultureWorkers);
     setViticultureRequiredWorkers(occupations.viticultureRequiredWorkers);
     setHusbandryWorkers(occupations.husbandryWorkers);
+    setHouseholdTextileWorkers(occupations.householdTextileWorkers);
     setHusbandryRequiredWorkers(occupations.husbandryRequiredWorkers);
     setFarmLaborRequired(occupations.farmLaborRequired);
     setMigratableAdults(occupations.migratableAdults);
@@ -449,7 +453,13 @@ export class DevelopmentPotentialModule {
     if (getClimateFoodStress().length !== cellCount) setClimateFoodStress(new Float32Array(cellCount));
     const goods = getGoods().filter(isGoodEnabled);
     const landUseByCell: Record<number, Partial<ClearanceCellInput>> = {};
-    const occupationDays = [getHuntingWorkers(), getFishingWorkers(), getViticultureWorkers(), getHusbandryWorkers()];
+    const occupationDays = [
+      getHuntingWorkers(),
+      getFishingWorkers(),
+      getViticultureWorkers(),
+      getHusbandryWorkers(),
+      getHouseholdTextileWorkers()
+    ];
     for (const input of resolveStaticLandUseInputs(world)) {
       const settings =
         world.pack.burgs?.[world.pack.cells.burg?.[input.id] ?? 0]?.landUseSettings ??

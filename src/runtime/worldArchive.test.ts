@@ -68,6 +68,36 @@ describe("ChunkedWorldCodecAdapter", () => {
     expect(rewrittenStage.document.opaqueExtensionChunks[0]?.bytes).toEqual(new Uint8Array([1, 2, 3, 255]));
   });
 
+  it("preserves rural textile capacity and self-supply ledgers across a save and reload", async () => {
+    const simulation = sampleSimulation();
+    simulation.extensions = {
+      economy: {
+        householdTextileWorkers: Float32Array.from([12.5, 0]),
+        markets: [
+          {
+            i: 1,
+            centerBurgId: 0,
+            color: "",
+            goods: {},
+            textileLedger: { ruralHomeProduction: 0.25, cumulativeRuralHomeProduction: 2.5 },
+            ruralTextileProduction: {
+              garments: 0.25,
+              blankets: 1,
+              garmentSpending: 2,
+              blanketSpending: 1,
+              laborUsed: 10,
+              laborCapacity: 12.5
+            }
+          }
+        ]
+      }
+    };
+    const codec = new ChunkedWorldCodecAdapter();
+    const blob = await codec.encode(createWorldDocument(sampleWorld(), simulation, createPresentationData(), []));
+    const restored = await codec.decode({ header: new Uint8Array(await blob.slice(0, 4).arrayBuffer()), blob });
+    expect(restored.document.simulation.extensions?.economy).toEqual(simulation.extensions.economy);
+  });
+
   it("preserves converged route geometry and its source for bridge revalidation on load", async () => {
     const world = sampleWorld();
     const points: [number, number, number][] = [

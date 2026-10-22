@@ -1,3 +1,4 @@
+import type { RuralTextileProduction } from "./ruralTextileProduction";
 import type { StapleCropInventory } from "./stapleCropInventoryTypes";
 
 export interface Market {
@@ -85,6 +86,8 @@ export interface Market {
   textileLedger?: TextileLedger;
   /** Bedding replacements are independent of wardrobe replacements. */
   blanketLedger?: TextileLedger;
+  /** Current-cycle household work, paid fiber and self-supply; no market inventory mirror. */
+  ruralTextileProduction?: RuralTextileProduction;
   /** Household fuel use and cold-climate technical knowledge for this market territory. */
   heatingLedger?: HeatingLedger;
   /** Rural woodcutting for own fuel and for sale (docs/plan/farm-labour-calibration.md §19). */
@@ -101,6 +104,8 @@ export interface TextileLedger {
   cumulativeHouseholdSpending?: number;
   urbanConsumption?: number;
   ruralConsumption?: number;
+  ruralHomeProduction?: number;
+  cumulativeRuralHomeProduction?: number;
   /** Real residents served by this market, divided into 1,000-person population lots. */
   populationLots: number;
   /** Temperature-derived multiplier for outerwear and replacement needs. */

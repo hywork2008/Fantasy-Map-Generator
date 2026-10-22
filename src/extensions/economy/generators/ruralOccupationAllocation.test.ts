@@ -13,6 +13,8 @@ import {
   setViticultureRequiredWorkers,
   setViticultureWorkers
 } from "../economyContext";
+import { WORKABLE_DAYS_PER_ADULT_PER_MONTH } from "./agriculturalLandUse";
+import { Goods } from "./goods-generator";
 import {
   allocateRuralOccupations,
   GAME_YIELD_PER_HUNTER_PER_MONTH,
@@ -75,6 +77,44 @@ describe("ruralOccupationAllocation", () => {
   afterEach(() => {
     clearEconomyContext();
     simulationContext.extensions = {};
+  });
+
+  it("reserves household textile work after farm work in every month and reduces migration surplus", () => {
+    worldContext.pack = {
+      cells: {
+        i: Uint16Array.from([0]),
+        h: Uint8Array.from([30]),
+        biomeCode: Uint8Array.from([0]),
+        pop: Float32Array.from([100]),
+        maleAdults: Float32Array.from([30]),
+        femaleAdults: Float32Array.from([30]),
+        c: [[]]
+      },
+      burgs: []
+    } as unknown as PackedGraph;
+    worldContext.populationRate = 1;
+    worldContext.biomesData = { tags: [[]], habitability: [0] } as never;
+    setGoodCellColumn(Uint16Array.from([0]));
+    const days = new Float32Array(12);
+    const run = (reserved = 0) =>
+      allocateRuralOccupations(worldContext, {
+        cropLaborDaysByMonth: days,
+        minimumCropLaborDaysByMonth: days.slice(),
+        farmLaborRequired: new Float32Array([0]),
+        migratableAdults: new Float32Array([60]),
+        reservedLaborExport: new Float32Array([reserved])
+      });
+    setGoods([]);
+    const without = run();
+    setGoods(["Wool", "Wool Cloth", "Wool Garments", "Wool Blankets"].map(name => Goods.getDefaultGood(name)!));
+    const withTextiles = run();
+    expect(withTextiles.householdTextileWorkers[0]).toBeGreaterThan(0);
+    expect(withTextiles.farmLaborRequired[0]).toBeGreaterThan(without.farmLaborRequired[0]);
+    expect(withTextiles.migratableAdults[0]).toBeLessThan(without.migratableAdults[0]);
+    expect(withTextiles.ruralReleasePressure[0]).toBeLessThan(without.ruralReleasePressure[0]);
+    expect(run(60).householdTextileWorkers[0]).toBe(0);
+    days.fill(60 * WORKABLE_DAYS_PER_ADULT_PER_MONTH);
+    expect(run().householdTextileWorkers[0]).toBeCloseTo(0, 4);
   });
 
   it("claims a small fixed hunting headcount from a forest cell's surplus, leaving the rest as release pressure", () => {

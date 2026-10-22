@@ -15,6 +15,7 @@ import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";
 export type GoodFlowDirection = "source" | "sink" | "transfer";
 export type GoodFlowCategory =
   | "ruralHarvest"
+  | "ruralCraft"
   | "clearanceSupply"
   | "mineSupply"
   | "smelterSupply"
@@ -83,6 +84,7 @@ export interface GoodBalanceInterval {
   readonly totalSources: number;
   readonly totalSinks: number;
   readonly ruralHarvest: number;
+  readonly ruralCraft: number;
   readonly clearanceSupply: number;
   readonly mineSupply: number;
   readonly smelterSupply: number;
@@ -235,6 +237,7 @@ export function closeGoodsBalanceInterval(point: GoodsBalancePoint): {
         totalSources: sources,
         totalSinks: sinks,
         ruralHarvest: categoryTotal(flows, "ruralHarvest", good.i),
+        ruralCraft: categoryTotal(flows, "ruralCraft", good.i),
         clearanceSupply: categoryTotal(flows, "clearanceSupply", good.i),
         mineSupply: categoryTotal(flows, "mineSupply", good.i),
         smelterSupply: categoryTotal(flows, "smelterSupply", good.i),

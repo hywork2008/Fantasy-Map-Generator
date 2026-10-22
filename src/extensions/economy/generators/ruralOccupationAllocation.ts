@@ -61,6 +61,7 @@ import { drawWildFaunaOfftake, hasWildGameHabitat, previewWildFaunaOfftake } fro
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import { isGoodEnabled } from "./goods-generator";
 import { calculateHusbandryDemand } from "./husbandry";
+import { getRuralTextileRequiredWorkers } from "./textileHouseholdPolicy";
 import { calculateViticultureDemand, getPerennialMonthlyLaborWeights } from "./viticulture";
 
 // ---- Placeholder constants (§9.3 — calibration TBD alongside the rest of this ecosystem) ----
@@ -126,6 +127,8 @@ export interface RuralOccupationAllocation {
   /** Assigned/required husbandry workers (§5.4), keyed by the (land) producing cell. */
   readonly husbandryWorkers: Float32Array;
   readonly husbandryRequiredWorkers: Float32Array;
+  /** Handcraft capacity reserved after existing occupations, in real worker-months per month. */
+  readonly householdTextileWorkers: Float32Array;
   /** Peak common rural workload after allocated occupations, in population points. */
   readonly farmLaborRequired: Float32Array;
   /** Adults available for migration after the common monthly peak and safety margin. */
@@ -233,6 +236,7 @@ function allocateRuralOccupationsFromSurplus(
   const viticultureRequiredWorkers = new Float32Array(count);
   const husbandryWorkers = new Float32Array(count);
   const husbandryRequiredWorkers = new Float32Array(count);
+  const householdTextileWorkers = new Float32Array(count);
   const farmLaborRequired = new Float32Array(count);
   const seasonalLaborShortage = new Float32Array(count * 12);
   const ruralReleasePressure = new Float32Array(count);
@@ -245,6 +249,7 @@ function allocateRuralOccupationsFromSurplus(
       viticultureRequiredWorkers,
       husbandryWorkers,
       husbandryRequiredWorkers,
+      householdTextileWorkers,
       farmLaborRequired,
       migratableAdults,
       seasonalLaborShortage,
@@ -252,7 +257,8 @@ function allocateRuralOccupationsFromSurplus(
     };
   }
 
-  const goodsByName = new Map(getGoods().map(good => [good.name, good]));
+  const enabledGoods = getGoods().filter(isGoodEnabled);
+  const goodsByName = new Map(enabledGoods.map(good => [good.name, good]));
   const fishGood = goodsByName.get("Fish");
 
   const fishOffersByLandCell =
@@ -314,6 +320,13 @@ function allocateRuralOccupationsFromSurplus(
       budget -= assign;
     }
 
+    const textileRequired = getRuralTextileRequiredWorkers(world, cellId, enabledGoods);
+    const textileAssigned = Math.min(Math.max(0, budget), textileRequired);
+    householdTextileWorkers[cellId] = textileAssigned;
+    budget -= textileAssigned;
+    farmLaborRequired[cellId] += textileAssigned / populationRate;
+    migratableAdults[cellId] = Math.max(0, (migratableAdults[cellId] ?? 0) - textileAssigned / populationRate);
+
     // Back to population points — ruralLaborRelease.ts compares this against cells.maleAdults/femaleAdults.
     ruralReleasePressure[cellId] = Math.max(0, budget) / populationRate;
   }
@@ -326,6 +339,7 @@ function allocateRuralOccupationsFromSurplus(
     viticultureRequiredWorkers,
     husbandryWorkers,
     husbandryRequiredWorkers,
+    householdTextileWorkers,
     farmLaborRequired,
     migratableAdults,
     seasonalLaborShortage,
@@ -373,6 +387,7 @@ function allocateRuralOccupationsFromCalendar(
   const viticultureRequiredWorkers = new Float32Array(count);
   const husbandryWorkers = new Float32Array(count);
   const husbandryRequiredWorkers = new Float32Array(count);
+  const householdTextileWorkers = new Float32Array(count);
   const farmLaborRequired = new Float32Array(count);
   const migratableAdults = new Float32Array(count);
   const seasonalLaborShortage = new Float32Array(count * 12);
@@ -389,7 +404,8 @@ function allocateRuralOccupationsFromCalendar(
     return allocateRuralOccupationsFromSurplus(world, laborPlan.migratableAdults);
   }
 
-  const goodsByName = new Map(getGoods().map(good => [good.name, good]));
+  const enabledGoods = getGoods().filter(isGoodEnabled);
+  const goodsByName = new Map(enabledGoods.map(good => [good.name, good]));
   const fishGood = goodsByName.get("Fish");
   const fishOffersByLandCell =
     fishGood && isGoodEnabled(fishGood) ? collectFishingOffers(world, fishGood.i, fishingRequiredWorkers) : new Map();
@@ -470,6 +486,26 @@ function allocateRuralOccupationsFromCalendar(
       addWorkerDays(minimumDays, assigned, candidate.monthlyWeights);
     }
 
+    const textileRequired = getRuralTextileRequiredWorkers(world, cellId, enabledGoods);
+    const reservedOutflow = Math.max(
+      laborPlan.reservedLaborExport?.[cellId] ?? 0,
+      getReservedAdultOutflowPoints(cells, cellId)
+    );
+    const textileAdults = Math.max(0, residentAdults - reservedOutflow * populationRate);
+    const textileAssigned =
+      textileRequired *
+      getMaximumAssignableFactor(
+        currentDays,
+        textileRequired,
+        UNIFORM_MONTHLY_WEIGHTS,
+        textileAdults,
+        workDaysPerAdult
+      );
+    householdTextileWorkers[cellId] = textileAssigned;
+    addWorkerDays(currentDays, textileAssigned, UNIFORM_MONTHLY_WEIGHTS);
+    addWorkerDays(minimumDays, textileAssigned, UNIFORM_MONTHLY_WEIGHTS);
+    addWorkerDays(desiredDays, textileAssigned, UNIFORM_MONTHLY_WEIGHTS);
+
     writeMonthlyDays(currentDaysByCell, cellId, currentDays);
     writeMonthlyDays(desiredDaysByCell, cellId, desiredDays);
     writeMonthlyDays(minimumDaysByCell, cellId, minimumDays);
@@ -536,6 +572,7 @@ function allocateRuralOccupationsFromCalendar(
     viticultureRequiredWorkers,
     husbandryWorkers,
     husbandryRequiredWorkers,
+    householdTextileWorkers,
     farmLaborRequired,
     migratableAdults,
     seasonalLaborShortage,
