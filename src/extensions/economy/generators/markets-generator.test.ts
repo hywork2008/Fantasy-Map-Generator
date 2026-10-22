@@ -1705,7 +1705,7 @@ describe("MarketsModule craft calibration demand", () => {
 describe("shared clothing trade demand", () => {
   beforeEach(() => initEconomyContext({ worldContext } as unknown as ExtensionAPI));
   afterEach(() => clearEconomyContext());
-  it("keeps the total population demand unchanged when lighter linen wardrobes are added", () => {
+  it("keeps the total population demand unchanged when linen and wool wardrobes are added", () => {
     const good = (i: number, name: string): Good => ({
       i,
       name,
@@ -1724,9 +1724,10 @@ describe("shared clothing trade demand", () => {
     };
     setGoods([garments]);
     const before = market.calculateGoodDemand(garments, 10, 100, market.collectConsumerDemand([garments])[1], 0);
-    setGoods([garments, linen]);
-    const factors = market.collectConsumerDemand([garments, linen]);
-    const after = [garments, linen].reduce(
+    const wool = good(3, "Wool Garments");
+    setGoods([garments, linen, wool]);
+    const factors = market.collectConsumerDemand([garments, linen, wool]);
+    const after = [garments, linen, wool].reduce(
       (sum, g) => sum + market.calculateGoodDemand(g, 10, 100, factors[g.i], 0),
       0
     );

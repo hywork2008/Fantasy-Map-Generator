@@ -79,8 +79,8 @@ export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
   {
     goodName: "Garments",
     domain: "textiles",
-    inlandShare: 0.58,
-    portShare: 0.46,
+    inlandShare: 0.43,
+    portShare: 0.34,
     provenances: ["householdPerCapita"],
     annualLotsPerPerson: 0.00025,
     fixtureLotsPerMonth: 0.1875,
@@ -91,14 +91,38 @@ export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
   {
     goodName: "Cloth",
     domain: "textiles",
-    inlandShare: 0.14,
-    portShare: 0.1,
+    inlandShare: 0.1,
+    portShare: 0.06,
     provenances: ["recipeDerived"],
     fixtureLotsPerMonth: 0.1875,
     laborPointsPerLotAtDefaultRate: 0.259,
     residualWeight: 0,
     typicalRecipeIndex: 0,
     sources: ["Garments+Sails recipe input"]
+  },
+  {
+    goodName: "Wool Garments",
+    domain: "textiles",
+    inlandShare: 0.15,
+    portShare: 0.12,
+    provenances: ["householdPerCapita"],
+    annualLotsPerPerson: 0.00025,
+    fixtureLotsPerMonth: 0.1875,
+    laborPointsPerLotAtDefaultRate: 0.972,
+    residualWeight: 1,
+    sources: ["model: ordinary wool shares the four-year wardrobe replacement ceiling with Garments and Linen Garments"]
+  },
+  {
+    goodName: "Wool Cloth",
+    domain: "textiles",
+    inlandShare: 0.04,
+    portShare: 0.04,
+    provenances: ["recipeDerived"],
+    fixtureLotsPerMonth: 0.1875,
+    laborPointsPerLotAtDefaultRate: 0.259,
+    residualWeight: 0,
+    typicalRecipeIndex: 0,
+    sources: ["model: same weaving labor as Cloth; Wool Garments recipe input"]
   },
   {
     goodName: "Linen",

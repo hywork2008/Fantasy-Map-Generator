@@ -3385,6 +3385,30 @@ export const GOODS_DATA: GoodData[] = [
     recipes: TEXTILE_RECIPES["Linen Garments"],
     unit: "wardrobe lot",
     demandCoverage: { clothing: 1 }
+  },
+  {
+    name: "Wool Cloth",
+    warEconomyType: "strategic",
+    tags: ["clothing"],
+    icon: "good-cloth",
+    color: "#b9afa0",
+    value: 98,
+    chance: 0,
+    recipes: TEXTILE_RECIPES["Wool Cloth"],
+    unit: "wardrobe bolt",
+    demandCoverage: {}
+  },
+  {
+    name: "Wool Garments",
+    warEconomyType: "essential",
+    tags: ["clothing"],
+    icon: "good-garments",
+    color: "#a28b73",
+    value: 130,
+    chance: 0,
+    recipes: TEXTILE_RECIPES["Wool Garments"],
+    unit: "wardrobe lot",
+    demandCoverage: { clothing: 1 }
   }
 ];
 
@@ -3498,6 +3522,8 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   "White sand": tradeProfile(5, 5, 1, -2, 0, 5, 1),
   Leather: tradeProfile(3, 3, 2, 0, 0, 4, 2),
   Cloth: tradeProfile(2, 3, 2, 1, 0, 3, 2),
+  "Wool Cloth": tradeProfile(2, 3, 2, 1, 0, 3, 2),
+  "Wool Garments": tradeProfile(2, 3, 3, 2, 0, 3, 2),
   "Fine Wool Cloth": tradeProfile(2, 2, 3, 2, 0, 3, 2),
   "Fine Wool Garments": tradeProfile(2, 2, 3, 2, 0, 3, 2),
   Garments: tradeProfile(2, 3, 3, 2, 0, 3, 2),
@@ -5193,4 +5219,25 @@ export function migrateLinenGarmentGoods(): boolean {
     changed = true;
   }
   return changed;
+}
+
+/** Appends ordinary wool goods using saved ids; existing recipes, prices and stocks are preserved. */
+export function migrateOrdinaryWoolGoods(): boolean {
+  const goods = getGoods();
+  const added: Good[] = [];
+  let nextId = Math.max(0, ...goods.map(good => good.i)) + 1;
+  for (const name of ["Wool Cloth", "Wool Garments"]) {
+    if (goods.some(good => good.name === name)) continue;
+    const good = Goods.getDefaultGood(name)!;
+    good.i = nextId++;
+    goods.push(good);
+    added.push(good);
+  }
+  const byName = new Map(goods.map(good => [good.name, good]));
+  for (const good of added) {
+    good.recipes = TEXTILE_RECIPES[good.name]
+      .filter(recipe => Object.keys(recipe).every(name => byName.has(name)))
+      .map(recipe => Object.fromEntries(Object.entries(recipe).map(([name, amount]) => [byName.get(name)!.i, amount])));
+  }
+  return added.length > 0;
 }

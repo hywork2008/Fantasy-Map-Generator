@@ -35,6 +35,7 @@ import {
   migrateLiveDogsGood,
   migrateMercuryChainGoods,
   migrateNaturalGasChainGoods,
+  migrateOrdinaryWoolGoods,
   migratePerennialFruitGoods,
   migratePetroleumChainGoods,
   migratePomaceDistillationGoods,
@@ -297,7 +298,16 @@ describe("GoodsModule", () => {
   });
 
   it("keeps every cloth route within material input and separates fine wool from ordinary wardrobe demand", () => {
-    for (const name of ["Cloth", "Garments", "Linen", "Linen Garments", "Fine Wool Cloth", "Fine Wool Garments"]) {
+    for (const name of [
+      "Cloth",
+      "Garments",
+      "Linen",
+      "Linen Garments",
+      "Wool Cloth",
+      "Wool Garments",
+      "Fine Wool Cloth",
+      "Fine Wool Garments"
+    ]) {
       const good = GOODS_DATA.find(good => good.name === name)!;
       for (const recipe of good.recipes!) {
         const inputKg = Object.entries(recipe).reduce(
@@ -344,6 +354,28 @@ describe("GoodsModule", () => {
     cloth.recipes = [{ [byName.get("Hemp")!.i]: 2 }];
     expect(migrateTextileQualityGoods()).toBe(false);
     expect(cloth.recipes).toEqual([{ [byName.get("Hemp")!.i]: 2 }]);
+  });
+
+  it("appends ordinary wool goods by saved ids without rewriting existing stocks or custom goods", () => {
+    goodsModule.restoreDefaults();
+    const saved = getGoods().filter(good => !["Wool Cloth", "Wool Garments"].includes(good.name));
+    const wool = saved.find(good => good.name === "Wool")!;
+    wool.i = 3000;
+    setGoods(saved);
+    setMarkets([{ i: 1, goods: { 3000: { stock: 7, price: 9 } } }] as never);
+    expect(migrateOrdinaryWoolGoods()).toBe(true);
+    const cloth = saved.find(good => good.name === "Wool Cloth")!;
+    const garments = saved.find(good => good.name === "Wool Garments")!;
+    expect(cloth.recipes).toEqual([{ 3000: 6 }]);
+    expect(garments.recipes).toEqual([{ [cloth.i]: CLOTH_LOTS_PER_GARMENT }]);
+    expect(cloth.i).toBeGreaterThan(3000);
+    expect(garments.i).toBeGreaterThan(cloth.i);
+    expect(getMarkets()[0].goods[3000]).toEqual({ stock: 7, price: 9 });
+    garments.value = 500;
+    garments.recipes = [{ 3000: 1 }];
+    expect(migrateOrdinaryWoolGoods()).toBe(false);
+    expect(garments.value).toBe(500);
+    expect(garments.recipes).toEqual([{ 3000: 1 }]);
   });
 
   it("splits only unchanged legacy linen wardrobes and resolves the saved material ids", () => {

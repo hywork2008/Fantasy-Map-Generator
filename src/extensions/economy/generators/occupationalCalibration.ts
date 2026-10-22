@@ -48,7 +48,17 @@ export const OCCUPATIONAL_CALIBRATION: readonly OccupationalCalibrationRow[] = [
   {
     pool: "textiles",
     peoplePerThousandUrban: { min: 15, max: 40, inlandTypicalPerThousand: 27 },
-    goodNames: ["Cloth", "Garments", "Linen", "Linen Garments", "Fine Wool Cloth", "Fine Wool Garments", "Sails"],
+    goodNames: [
+      "Cloth",
+      "Garments",
+      "Wool Cloth",
+      "Wool Garments",
+      "Linen",
+      "Linen Garments",
+      "Fine Wool Cloth",
+      "Fine Wool Garments",
+      "Sails"
+    ],
     guildDomain: "textiles",
     sources: ["urban clothing replacement + sail loft share"]
   },

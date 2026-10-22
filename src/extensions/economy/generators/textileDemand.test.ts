@@ -102,21 +102,24 @@ describe("textile household demand", () => {
     });
   });
 
-  it("shares replacement demand across linen and ordinary garments, without consuming fine apparel", () => {
+  it("shares replacement demand across wool, linen and ordinary garments, without consuming fine apparel", () => {
     const garments = getGoods()[5];
     setGoods([
       ...getGoods(),
       { ...garments, i: 6, name: "Linen Garments" },
+      { ...garments, i: 8, name: "Wool Garments" },
       { ...garments, i: 7, name: "Fine Wool Garments", demandCoverage: { luxury: 1 } }
     ]);
     const market = getMarkets()[0];
     market.goods[6] = { stock: 2, price: 10 };
+    market.goods[8] = { stock: 0.5, price: 9 };
     market.goods[7] = { stock: 9, price: 30 };
     expect(getGarmentProductionHeadroom(market, 0)).toBe(0);
     const demand = getMarketTextileDemandProfile(1).monthlyDemand;
     settleTextileHouseholdDemand();
     expect(market.goods[6].stock).toBe(0);
-    expect(4 - market.goods[5].stock + 2 - market.goods[6].stock).toBeCloseTo(demand, 10);
+    expect(market.goods[8].stock).toBe(0);
+    expect(4 - market.goods[5].stock + 2 - market.goods[6].stock + 0.5).toBeCloseTo(demand, 10);
     expect(market.goods[7].stock).toBe(9);
     market.goods[5].stock = 0;
     market.goods[6].stock = 0.5;

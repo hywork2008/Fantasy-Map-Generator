@@ -6,7 +6,7 @@ export const COTTON_LOTS_PER_CLOTH = 4000 / 0.8 / 200;
 export const CLOTH_LOTS_PER_GARMENT = 4000 / 0.9 / 4000;
 export const CLOTH_LOTS_PER_FUR_GARMENT = (4000 / 0.9 - 15) / 4000;
 export const LINEN_BALES_PER_GARMENT = 12;
-export const HOUSEHOLD_GARMENT_NAMES: ReadonlySet<string> = new Set(["Garments", "Linen Garments"]);
+export const HOUSEHOLD_GARMENT_NAMES: ReadonlySet<string> = new Set(["Garments", "Linen Garments", "Wool Garments"]);
 export const TEXTILE_RECIPES: Readonly<Record<string, Record<string, number>[]>> = {
   Cloth: [
     { Wool: 6 },
@@ -21,6 +21,8 @@ export const TEXTILE_RECIPES: Readonly<Record<string, Record<string, number>[]>>
   ],
   Linen: [{ Flax: 10 }],
   "Linen Garments": [{ Linen: LINEN_BALES_PER_GARMENT }],
+  "Wool Cloth": [{ Wool: 6 }],
+  "Wool Garments": [{ "Wool Cloth": CLOTH_LOTS_PER_GARMENT }],
   "Fine Wool Cloth": [{ Wool: 0.3 }],
   "Fine Wool Garments": [{ "Fine Wool Cloth": 1 }]
 };

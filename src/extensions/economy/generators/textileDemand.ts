@@ -191,7 +191,12 @@ export function getTextileGuildWorkPlan(burg: Burg): TextileGuildWorkPlan {
     Math.max(0, market.goods[cotton.i]?.stock ?? 0) / (COTTON_LOTS_PER_CLOTH * CLOTH_LOTS_PER_GARMENT);
   const clothOrders = Math.max(0, market.goods[cloth.i]?.stock ?? 0) / CLOTH_LOTS_PER_GARMENT;
   const linenOrders = Math.max(0, market.goods[linen.i]?.stock ?? 0) / LINEN_BALES_PER_GARMENT;
-  const availableInputOrders = woolOrders + hempOrders + cottonOrders + clothOrders + linenOrders;
+  const woolCloth = getGoods().find(good => good.name === "Wool Cloth");
+  const woolGarments = getGoods().find(good => good.name === "Wool Garments");
+  const woolClothOrders =
+    woolCloth && woolGarments ? Math.max(0, market.goods[woolCloth.i]?.stock ?? 0) / CLOTH_LOTS_PER_GARMENT : 0;
+  // Raw wool is already included once above; alternative recipes must not duplicate that stock.
+  const availableInputOrders = woolOrders + hempOrders + cottonOrders + clothOrders + linenOrders + woolClothOrders;
   const expectedOrders = Math.min(profile.monthlyDemand * INITIAL_TEXTILE_WORK_MONTHS, availableInputOrders);
   const garmentPrice = market.goods[garments.i]?.price ?? garments.value;
   const clothPrice = market.goods[cloth.i]?.price ?? cloth.value;
@@ -203,7 +208,13 @@ export function getTextileGuildWorkPlan(burg: Burg): TextileGuildWorkPlan {
   const ordinaryOrders = woolOrders + hempOrders + cottonOrders + clothOrders;
   const availableMargin =
     ordinaryOrders * Math.max(0, garmentPrice - clothPrice * CLOTH_LOTS_PER_GARMENT) +
-    linenOrders * Math.max(0, linenGarmentPrice - linenPrice * LINEN_BALES_PER_GARMENT);
+    linenOrders * Math.max(0, linenGarmentPrice - linenPrice * LINEN_BALES_PER_GARMENT) +
+    woolClothOrders *
+      Math.max(
+        0,
+        (woolGarments ? (market.goods[woolGarments.i]?.price ?? woolGarments.value) : garmentPrice) -
+          (woolCloth ? (market.goods[woolCloth.i]?.price ?? woolCloth.value) : clothPrice) * CLOTH_LOTS_PER_GARMENT
+      );
   const projectedMonthlyMargin =
     availableInputOrders > 0
       ? (availableMargin * (expectedOrders / availableInputOrders)) / INITIAL_TEXTILE_WORK_MONTHS

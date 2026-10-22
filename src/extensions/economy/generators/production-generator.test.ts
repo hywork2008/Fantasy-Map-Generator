@@ -163,7 +163,7 @@ describe("ProductionModule byproducts", () => {
     expect(state.market.goods[4].stock).toBeCloseTo(result.yieldLots * 0.004, 10);
   });
 
-  it.each(["Cloth", "Fine Wool Cloth", "Fine Wool Garments"])(
+  it.each(["Cloth", "Wool Cloth", "Fine Wool Cloth", "Fine Wool Garments"])(
     "does not multiply %s material when productivity doubles",
     name => {
       setEconomyCalibrationState({ applyCalibration: false });
@@ -752,13 +752,14 @@ describe("linen clothing preparation", () => {
       icon: "",
       color: ""
     });
-    setGoods([good(1, "Garments"), good(2, "Linen Garments"), good(3, "Fine Wool Garments")]);
+    setGoods([good(1, "Garments"), good(2, "Linen Garments"), good(3, "Fine Wool Garments"), good(4, "Wool Garments")]);
     Goods.sync();
     const state = {
       remainingCalibratedLots: new Map([
         [1, 0.2],
         [2, 0.2],
-        [3, 0.2]
+        [3, 0.2],
+        [4, 0.2]
       ])
     };
     const skipped = new Set<number>();
@@ -776,15 +777,22 @@ describe("linen clothing preparation", () => {
     expect(state.remainingCalibratedLots.get(1)).toBeCloseTo(0.05, 10);
     expect(state.remainingCalibratedLots.get(2)).toBeCloseTo(0.05, 10);
     expect(state.remainingCalibratedLots.get(3)).toBe(0.2);
+    expect(state.remainingCalibratedLots.get(4)).toBeCloseTo(0.05, 10);
     planner.settleCalibratedProduction(state, 1, 0.05, 0.04, true, skipped);
     expect(skipped.has(1)).toBe(true);
     expect(skipped.has(2)).toBe(true);
     expect(skipped.has(3)).toBe(false);
+    expect(skipped.has(4)).toBe(true);
   });
 
-  it.each([true, false])(
-    "uses real calibrated weaving labor for a small wardrobe order, calibration=%s",
-    calibrated => {
+  it.each([
+    [true, "Linen", "Linen Garments", 10, 12, 0.01295],
+    [false, "Linen", "Linen Garments", 10, 12, 0.01295],
+    [true, "Wool Cloth", "Wool Garments", 6, 4000 / 0.9 / 4000, 0.259],
+    [false, "Wool Cloth", "Wool Garments", 6, 4000 / 0.9 / 4000, 0.259]
+  ] as const)(
+    "uses calibrated weaving labor for a small wardrobe order, calibration=%s, fabric=%s",
+    (calibrated, fabricName, garmentName, fibreLots, fabricLots, weavingLabor) => {
       setEconomyCalibrationState({ applyCalibration: calibrated });
       const good = (i: number, name: string, value: number): Good => ({
         i,
@@ -796,8 +804,8 @@ describe("linen clothing preparation", () => {
         color: ""
       });
       const flax = good(1, "Flax", 0.3);
-      const linen = good(2, "Linen", 8);
-      const garments = good(3, "Linen Garments", 130);
+      const linen = good(2, fabricName, 8);
+      const garments = good(3, garmentName, 130);
       setGoods([flax, linen, garments]);
       Goods.sync();
       const recipe = (good: Good, goodId: number, amount: number) => ({
@@ -806,7 +814,7 @@ describe("linen clothing preparation", () => {
         byproducts: []
       });
       const index = {
-        recipesByOutput: [undefined, undefined, [recipe(linen, 1, 10)], [recipe(garments, 2, 12)]],
+        recipesByOutput: [undefined, undefined, [recipe(linen, 1, fibreLots)], [recipe(garments, 2, fabricLots)]],
         minWorkersByGood: [1, 1, 1, 1]
       };
       const state = {
@@ -831,8 +839,8 @@ describe("linen clothing preparation", () => {
       };
       const plan = planner.planGoodAction(index, state, garments, 0.1, 0.1, 0.2, { multiplier: 1, category: null });
       if (calibrated) {
-        expect(plan?.action.good.name).toBe("Linen");
-        expect(plan?.workersNeeded).toBeCloseTo(0.1 * 0.972 + 1.2 * 0.01295, 8);
+        expect(plan?.action.good.name).toBe(fabricName);
+        expect(plan?.workersNeeded).toBeCloseTo(0.1 * 0.972 + 0.1 * fabricLots * weavingLabor, 8);
         const weaving = planner.planGoodAction(index, state, linen, 1, 1, 1, { multiplier: 1, category: null });
         // Direct candidates still rank by lot margin, not by the inverse of their tiny labor intensity.
         expect(weaving?.normalizedGain).toBeLessThan(8);
