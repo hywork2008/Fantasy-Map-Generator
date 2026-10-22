@@ -1,0 +1,21 @@
+{
+  "date": "2026-10-22T10:07:18.433Z",
+  "replaced": [
+    "temple:chapel-0",
+    "temple:chapel-1",
+    "temple:chapel-2"
+  ],
+  "calls": 3,
+  "triangles": 15852,
+  "backend": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+  "errors": [],
+  "webgl": {
+    "lost": false,
+    "error": 0
+  },
+  "picked": "Landmark · Stone · 11.5 m\ntemple:chapel-1",
+  "refresh": [
+    "legacy",
+    "atlantic"
+  ]
+}

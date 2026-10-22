@@ -3,6 +3,8 @@ import { inferredWallSettings, supportsUrbanMorphology } from "../../utils/urban
 import { GENERATION_STAGES, generationStages } from "../controllers/generationStages";
 import type { PanelEventsContext } from "../controllers/panelEvents";
 import { bindPanelEvents } from "../controllers/panelEvents";
+import { inheritBuildingAppearance } from "../generators/buildingAppearance";
+import { clearGenerationPreviewCache } from "../generators/generation/previews";
 import { bastionEra, skeletonUnsupportedSettings } from "../generators/generation/settings";
 import { CITY_LAYOUTS, FEATURE_KEYS, WALL_MATERIAL_CHOICES } from "../generators/site/siteConfig";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
@@ -10,6 +12,7 @@ import type { CityFeatureSet, WallCoastChoice, WallMaterialChoice } from "../typ
 import type { FarNodeMode } from "../types/contracts/streets";
 import type { CityDocument } from "../types/document";
 import type { GenerationStage } from "../types/generation";
+import { buildBuildingAppearanceControls } from "./buildingAppearanceControls";
 import { div, text } from "./editorControls";
 import { buildPopulationControls } from "./populationControls";
 export interface GenerationPanelContext {
@@ -237,6 +240,20 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
   for (const option of [...historicalPeriodSelect.options]) {
     if (periodOptionLabels[option.value]) option.textContent = periodOptionLabels[option.value];
   }
+  const appearanceControls = buildBuildingAppearanceControls({
+    scope: events.scope,
+    getDocument: () => ctx.documents.documentState,
+    select: ctx.select,
+    label: ctx.label,
+    updateDocument(next) {
+      clearGenerationPreviewCache();
+      if (ctx.generation.completeSource)
+        ctx.generation.completeSource = inheritBuildingAppearance(ctx.generation.completeSource, next);
+      events.commit(next, editorText("cityEditor.messages.changeHousingAppearance"));
+      if (next.appearance === "town") ctx.generation.completeResult = next;
+      events.syncGenerateControls();
+    }
+  });
   ctx.documentPanel.content.append(
     ctx.sizeLabel,
     ctx.gridKindLabel,
@@ -244,6 +261,7 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
     ctx.documentActions,
     ctx.label(editorText("cityEditor.messages.historicalPeriod"), historicalPeriodSelect),
     ctx.label(editorText("cityEditor.messages.currentBuildingGeneration"), currentBuildingPatternSelect),
+    appearanceControls.root,
     ctx.label(editorText("cityEditor.messages.scale"), ctx.scaleInput),
     ctx.label(editorText("cityEditor.messages.smoothing"), ctx.smoothingModeInput),
     text(editorText("cityEditor.messages.chooseAGridThenPressToStartANewCity")),
@@ -623,6 +641,7 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
   if (ctx.generation.generateSettings.population)
     historicalPeriodSelect.value = ctx.generation.generateSettings.historicalPeriod ?? "ageOfExploration";
   function syncSkeletonControls() {
+    appearanceControls.sync();
     populationControls.sync();
     const settings = ctx.generation.generateSettings;
     const active = settings.generationMethod === "skeleton-first";
@@ -702,6 +721,7 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
     invalidateSkeletonSelection();
   });
   return {
+    appearanceControls,
     populationControls: populationControls.panel,
     skeletonControls,
     syncSkeletonControls,

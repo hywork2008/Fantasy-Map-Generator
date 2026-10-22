@@ -1,3 +1,4 @@
+import { validBuildingAppearanceFields } from "../../../buildings/appearance/resolver";
 import { isBurialCultureProfile } from "../../../data/burialCultures";
 import { isCivilizationContext } from "../../../data/civilizationTraditions";
 import { FIXED_SITE_CROSSING_BUDGETS, validFixedBurgCrossings } from "../../../utils/fixedBurgCrossings";
@@ -82,6 +83,7 @@ function isDocument(value: unknown): value is CityDocument {
   const doc = value as Partial<CityDocument>;
   return (
     doc.format === "fmg-city-editor" &&
+    validBuildingAppearanceFields(doc) &&
     validFacilityCounts(doc.facilityCounts) &&
     (doc.ruralFieldVersion === undefined || doc.ruralFieldVersion === 1 || doc.ruralFieldVersion === 2) &&
     validRuralFieldSettings(doc.ruralFieldSettings) &&

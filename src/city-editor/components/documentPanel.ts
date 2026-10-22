@@ -2,6 +2,7 @@ import { editorOptionText, editorText } from "../../i18n/editorMessages";
 import type { PanelEventsContext } from "../controllers/panelEvents";
 import { bindPanelEvents } from "../controllers/panelEvents";
 import { emptySelection } from "../controllers/tools/toolTypes";
+import { withBuildingAppearance } from "../generators/buildingAppearance";
 import {
   CITY_SIZE_PRESETS,
   type CitySizePreset,
@@ -235,6 +236,7 @@ export function buildDocumentPanel(ctx: DocumentPanelContext) {
   };
   syncGridKindUi();
   const newButton = ctx.makeIconButton("🆕", editorText("cityEditor.messages.generateANewGrid"), () => {
+    const housing = ctx.documents.documentState;
     ctx.documents.gridSeed = randomSeed();
     ctx.documents.documentState = createGridDocument({
       size: size.value as CitySizePreset,
@@ -244,6 +246,11 @@ export function buildDocumentPanel(ctx: DocumentPanelContext) {
       patchParams: { ...ctx.generation.gridEvoParams },
       ...ctx.importedFrame(),
       measureBlockSize: ctx.documents.measureTownCells
+    });
+    ctx.documents.documentState = withBuildingAppearance({
+      ...ctx.documents.documentState,
+      buildingAppearanceProfile: housing.buildingAppearanceProfile,
+      buildingAppearanceClimate: housing.buildingAppearanceClimate
     });
     ctx.documents.history = new DocumentHistory(
       ctx.documents.documentState,

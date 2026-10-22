@@ -1,0 +1,40 @@
+{
+  "researchDate": "2026-10-22",
+  "host": {
+    "node": "v22.23.1",
+    "cpu": "Apple M4"
+  },
+  "size": "small",
+  "grid": "evolution",
+  "seed": "regional-appearance",
+  "pattern": "medieval",
+  "generationMs": 1029.41725,
+  "faces": 131,
+  "environment": "Node + jsdom; render timings exclude layout/paint, warmed median of 3",
+  "results": [
+    {
+      "quality": "detailed",
+      "nodes": 9941,
+      "buildingPaths": 515,
+      "buildingPolygons": 515,
+      "svgBytes": 4037153,
+      "renderMedianMs": 166.53337499999998
+    },
+    {
+      "quality": "light",
+      "nodes": 8147,
+      "buildingPaths": 35,
+      "buildingPolygons": 515,
+      "svgBytes": 1660488,
+      "renderMedianMs": 126.94391700000006
+    },
+    {
+      "quality": "minimal",
+      "nodes": 8112,
+      "buildingPaths": 35,
+      "buildingPolygons": 267,
+      "svgBytes": 1639743,
+      "renderMedianMs": 93.52791700000034
+    }
+  ]
+}

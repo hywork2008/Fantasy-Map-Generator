@@ -1,0 +1,114 @@
+{
+  "date": "2026-10-22T09:51:21.949Z",
+  "errors": [],
+  "ceViews": [
+    {
+      "mode": "overview",
+      "contextLost": false,
+      "error": 0
+    },
+    {
+      "mode": "near",
+      "contextLost": false,
+      "error": 0
+    },
+    {
+      "mode": "returned-far",
+      "contextLost": false,
+      "error": 0
+    }
+  ],
+  "backend": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)",
+  "results": [
+    {
+      "profile": "mediterranean",
+      "mode": "base",
+      "calls": 2,
+      "renderedTriangles": 96,
+      "buildings": 3,
+      "triangles": 552,
+      "builds": 1,
+      "cached": 3
+    },
+    {
+      "profile": "mediterranean",
+      "mode": "near",
+      "calls": 3,
+      "renderedTriangles": 648,
+      "buildings": 3,
+      "triangles": 552,
+      "builds": 1,
+      "cached": 3
+    },
+    {
+      "profile": "mediterranean",
+      "mode": "far",
+      "calls": 2,
+      "renderedTriangles": 96,
+      "buildings": 0,
+      "triangles": 0,
+      "builds": 2,
+      "cached": 3
+    },
+    {
+      "profile": "northern-urban",
+      "mode": "base",
+      "calls": 2,
+      "renderedTriangles": 96,
+      "buildings": 3,
+      "triangles": 750,
+      "builds": 1,
+      "cached": 3
+    },
+    {
+      "profile": "northern-urban",
+      "mode": "near",
+      "calls": 3,
+      "renderedTriangles": 846,
+      "buildings": 3,
+      "triangles": 750,
+      "builds": 1,
+      "cached": 3
+    },
+    {
+      "profile": "northern-urban",
+      "mode": "far",
+      "calls": 2,
+      "renderedTriangles": 96,
+      "buildings": 0,
+      "triangles": 0,
+      "builds": 2,
+      "cached": 3
+    },
+    {
+      "profile": "northern-wooded",
+      "mode": "base",
+      "calls": 2,
+      "renderedTriangles": 96,
+      "buildings": 3,
+      "triangles": 552,
+      "builds": 1,
+      "cached": 3
+    },
+    {
+      "profile": "northern-wooded",
+      "mode": "near",
+      "calls": 3,
+      "renderedTriangles": 648,
+      "buildings": 3,
+      "triangles": 552,
+      "builds": 1,
+      "cached": 3
+    },
+    {
+      "profile": "northern-wooded",
+      "mode": "far",
+      "calls": 2,
+      "renderedTriangles": 96,
+      "buildings": 0,
+      "triangles": 0,
+      "builds": 2,
+      "cached": 3
+    }
+  ]
+}

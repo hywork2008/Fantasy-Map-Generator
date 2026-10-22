@@ -1,6 +1,8 @@
 import { buildBlockFabric, type DistrictFabric, documentFabricFingerprint } from "../generators/blockInfill";
 import { type BridgeDeck, bridgeDecks, overSkewedBridgeDecks } from "../generators/bridgeDeck";
+import { assignBuildingAppearances } from "../generators/buildingAppearance";
 import { buildCityBuildings } from "../generators/buildingLots";
+import { assignBuildingMassing } from "../generators/buildingMassing";
 import { computeCemeteryBoundary, layoutCemetery } from "../generators/cemeteryLayout";
 import { polygonArea } from "../generators/geom";
 import { buildParkLawns, type ParkLawn } from "../generators/parkFabric";
@@ -29,6 +31,8 @@ export interface TownFacts {
  * reuse is owned by `buildBlockFabric`'s own cache.
  */
 export function prepareTownFacts(document: CityDocument, mark?: (phase: string) => void): TownFacts {
+  const plainLots = () =>
+    assignBuildingAppearances(document, assignBuildingMassing(document, buildCityBuildings(document)));
   const usesFabric =
     document.populationPlan ||
     document.urbanMorphology ||
@@ -42,7 +46,7 @@ export function prepareTownFacts(document: CityDocument, mark?: (phase: string) 
     ? buildBlockFabric(document)
     : document.ruralFieldVersion === 2
       ? {
-          buildings: buildCityBuildings(document),
+          buildings: plainLots(),
           farms: [],
           lanes: [],
           entrances: new Map(),
@@ -50,7 +54,7 @@ export function prepareTownFacts(document: CityDocument, mark?: (phase: string) 
         }
       : null;
   mark?.("town-fabric");
-  const lots = fabric?.buildings ?? buildCityBuildings(document);
+  const lots = fabric?.buildings ?? plainLots();
   const housing = document.populationPlan
     ? measureHousingCapacity(document, lots, document.populationPlan.requiredDwellings)
     : document.urbanMorphology && document.urbanGrowth

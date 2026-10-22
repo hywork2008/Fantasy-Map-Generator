@@ -1855,6 +1855,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
 
   const {
     populationControls,
+    appearanceControls,
     currentBuildingPatternSelect,
     historicalPeriodSelect,
     skeletonControls,
@@ -2606,6 +2607,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   }
 
   function refresh(): void {
+    appearanceControls.sync();
     getMapDisplayController().refresh();
     syncCity3d();
   }
@@ -2617,6 +2619,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
    * redo, over the whole mesh, work already done for the touched cells.
    */
   function refreshUiOnly(): void {
+    appearanceControls.sync();
     getMapDisplayController().refreshUiOnly();
   }
 

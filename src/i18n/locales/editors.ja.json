@@ -869,7 +869,23 @@
       "populationEstimate": "必要{{dwellings}}住戸 · 約{{buildings}}棟 · {{{area}}}km² · 地図幅{{extent}}km · セル幅{{cell}}m（コア約{{cells}}セル）",
       "populationSummary": "人口{{population}}人 · {{dwellings}}住戸 · 推定実棟数{{buildings}}棟 · 住宅表示{{groups}}個 · 未配置{{unplaced}}人",
       "populationClusterTitle": "住宅群の代表表示：容量{{capacity}}戸・配分{{dwellings}}戸／{{population}}人・{{buildings}}棟相当",
-      "populationBuildingTitle": "住宅：容量{{capacity}}戸・配分{{dwellings}}戸／{{population}}人"
+      "populationBuildingTitle": "住宅：容量{{capacity}}戸・配分{{dwellings}}戸／{{population}}人",
+      "housingCulture": "住宅文化",
+      "housingClimate": "住宅の気候・植生",
+      "housingSiteAuto": "自動（立地情報から）",
+      "housingCultureLegacy": "従来の外観",
+      "housingCultureMediterranean": "地中海（赤瓦・白い塗壁）",
+      "housingCultureAtlantic": "大西洋岸（瓦・茅葺き）",
+      "housingCultureNorthernWooded": "北方森林（板壁・植物系の屋根）",
+      "housingCultureNorthernUrban": "北方都市（瓦・木骨）",
+      "housingCultureStoneUpland": "石材地域・高地（石壁・石葺き）",
+      "housingClimateTemperate": "温帯・開けた土地",
+      "housingClimateForest": "森林",
+      "housingClimateWetland": "湿地・葦原",
+      "housingClimateWetForest": "湿潤な森林",
+      "housingClimateArid": "乾燥地",
+      "housingAppearanceHelp": "屋根の色・葺き材・壁の仕上げを2D・3Dへ即時反映します。自動は立地情報を使うため、単独の街では住宅文化を選択してください。",
+      "changeHousingAppearance": "住宅文化・気候を変更"
     },
     "generationStages": {
       "firstInnerGates": {

@@ -19,4 +19,6 @@ export interface BuildingLot {
   occupancyDraw?: number;
   /** Present on derived lots after `assignBuildingMassing`. Not saved on the document. */
   massing?: BuildingMassing;
+  /** Derived surface colors; never serialized with the document. */
+  appearance?: import("../../buildings/appearance/types").BuildingAppearance;
 }

@@ -1,5 +1,6 @@
 import { editorText } from "../../i18n/editorMessages";
 import { describeImportedSite } from "../components/importedSite";
+import { inheritBuildingAppearance, withBuildingAppearance } from "../generators/buildingAppearance";
 import { DEFAULT_CASTLE_SETTINGS } from "../generators/castlePlacement";
 import { sizePresetForExtent } from "../generators/document";
 import { createFabricPlan, resolveDistricts } from "../generators/fabricDistricts";
@@ -129,7 +130,7 @@ export function createGenerationController(ctx: GenerationContext) {
     }
     if (ctx.generation.generationJob) return;
     const source = {
-      ...ctx.generation.completeSource,
+      ...inheritBuildingAppearance(ctx.generation.completeSource, ctx.documents.documentState),
       ruralFieldSettings: ctx.documents.documentState.ruralFieldSettings
     };
     if (!ctx.generation.generationHistory.has(ctx.documents.history.currentEntryKey))
@@ -292,6 +293,16 @@ export function createGenerationController(ctx: GenerationContext) {
         return;
       }
       ctx.generation.pendingFailurePreview = null;
+      // Apply the latest housing choices if they changed while the worker was running.
+      next = withBuildingAppearance(
+        {
+          ...next,
+          buildingAppearanceProfile: ctx.documents.documentState.buildingAppearanceProfile,
+          buildingAppearanceClimate: ctx.documents.documentState.buildingAppearanceClimate
+        },
+        ctx.documents.documentState.buildingAppearanceProfile,
+        ctx.generation.generateSettings.descriptor
+      );
       // Keep the requested seed. A town accepted on a retry keeps how it got there, so the
       // next roll of this seed and input (and a shared link) starts at that attempt instead
       // of re-running the rejected ones, and draws the same town.
@@ -436,7 +447,7 @@ export function createGenerationController(ctx: GenerationContext) {
         ctx.generation.lastGeneratedStep ?? (ctx.documents.documentState.appearance === "town" ? 16 : 1)
       );
     const source = clone({
-      ...ctx.generation.completeSource,
+      ...inheritBuildingAppearance(ctx.generation.completeSource, ctx.documents.documentState),
       ruralFieldSettings: ctx.documents.documentState.ruralFieldSettings
     });
     const effectiveSeed =
@@ -615,6 +626,7 @@ export function createGenerationController(ctx: GenerationContext) {
       ctx.showNotice(editorText("cityEditor.messages.nothingToStepThroughFor", { value0: label }));
       return;
     }
+    result.document = inheritBuildingAppearance(result.document, ctx.documents.documentState);
     ctx.generation.stepIndex = result.index;
     ctx.generation.lastGeneratedStep =
       generationStages(ctx.generation.generateSettings).find(s => s.id === stage)?.step ??

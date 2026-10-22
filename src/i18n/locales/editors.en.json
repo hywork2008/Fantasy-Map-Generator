@@ -869,7 +869,23 @@
       "populationEstimate": "{{dwellings}} dwellings · ~{{buildings}} buildings · {{{area}}} km² · {{extent}} km map · {{cell}} m cells (~{{cells}} core cells)",
       "populationSummary": "{{population}} people · {{dwellings}} dwellings · {{buildings}} represented buildings · {{groups}} housing shapes · {{unplaced}} people unplaced",
       "populationClusterTitle": "Representative housing group: capacity {{capacity}} dwellings, assigned {{dwellings}} dwellings / {{population}} people, {{buildings}} buildings",
-      "populationBuildingTitle": "Housing: capacity {{capacity}} dwellings, assigned {{dwellings}} dwellings / {{population}} people"
+      "populationBuildingTitle": "Housing: capacity {{capacity}} dwellings, assigned {{dwellings}} dwellings / {{population}} people",
+      "housingCulture": "Housing culture",
+      "housingClimate": "Housing climate / vegetation",
+      "housingSiteAuto": "Auto (site data)",
+      "housingCultureLegacy": "Legacy appearance",
+      "housingCultureMediterranean": "Mediterranean — terracotta / limewash",
+      "housingCultureAtlantic": "Atlantic Europe — tile / thatch",
+      "housingCultureNorthernWooded": "Northern woodland — timber / plant roofs",
+      "housingCultureNorthernUrban": "Northern towns — tile / timber frame",
+      "housingCultureStoneUpland": "Stone uplands — stone / slate",
+      "housingClimateTemperate": "Temperate / open country",
+      "housingClimateForest": "Woodland",
+      "housingClimateWetland": "Wetland / reeds",
+      "housingClimateWetForest": "Wet woodland",
+      "housingClimateArid": "Dry / arid country",
+      "housingAppearanceHelp": "Applies roof colors, coverings and wall finishes to 2D and 3D immediately. Auto uses site data; choose a culture for a standalone city.",
+      "changeHousingAppearance": "Change housing culture / climate"
     },
     "generationStages": {
       "firstInnerGates": {

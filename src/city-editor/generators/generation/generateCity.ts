@@ -7,6 +7,7 @@ import type { CityDocument, Point } from "../../types/document";
 import type { GenerationSettings } from "../../types/generation";
 import { tagExternalGateRoads } from "../approachBeyond";
 import { buildBlockFabric } from "../blockInfill";
+import { withBuildingAppearance } from "../buildingAppearance";
 import { finalizeCastles } from "../castles";
 import {
   MIN_CEMETERY_GROUND_M2,
@@ -304,6 +305,8 @@ export function generateCityOnDocument(
               color: settings.descriptor.climate.biomeColor ?? "#d5cfbf"
             }
           : document.biome);
+      // Explicit generation refreshes the saved appearance inputs, including legacy opt-in.
+      Object.assign(result, withBuildingAppearance(result, result.buildingAppearanceProfile, settings.descriptor));
       // Count houses on the finished town: harbour ships, bridge approaches,
       // the historical period and scene regions all change which lots are
       // built, so an earlier count overstated the houses by up to ~20%.
