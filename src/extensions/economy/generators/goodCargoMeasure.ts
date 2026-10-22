@@ -126,7 +126,9 @@ const MEASURED_SLOT_GOODS: ReadonlySet<string> = new Set([
   // Linen, in the 200 kg bale that keeps a lot's value (§24).
   "Linen",
   // Ink, in the 120 L barrel that keeps a lot's value (§25).
-  "Ink"
+  "Ink",
+  // Beeswax and candles, priced by weight (§26).
+  "Beeswax"
 ]);
 
 /** Slots one packed unit of `good` fills, from its measure; undefined for goods that walk or move themselves. */

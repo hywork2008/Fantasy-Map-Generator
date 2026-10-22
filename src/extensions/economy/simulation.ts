@@ -120,6 +120,7 @@ import {
   getDefaultGoodTradeProfile,
   isGoodEnabled,
   migrateAlloySteelGoods,
+  migrateBeeswaxByproduct,
   migrateChemMedGoods,
   migrateElectricalGoods,
   migrateElectrolyticIndustryGoods,
@@ -327,6 +328,7 @@ const GOODS_CATALOG_MIGRATIONS: readonly (() => boolean)[] = [
   migrateLiveAnimalTags,
   migrateLinenBale,
   migrateInkBarrel,
+  migrateBeeswaxByproduct,
   migrateMeasuredCargoSlots,
   migrateWeightRepricing
 ];

@@ -1431,18 +1431,48 @@ Linen・酒樽5品・Ink・Rennet・Leather・Beeswax は、いずれも「値�
 - 酒樽5品・Rennet・Leather・Beeswax: 同じ方法で、1 品ずつ。
 - Ink・Linen の品別の生産・取引を集計に出す(今回は集計だけ)。
 
-## 26. Beeswax の調べ(2026-10-22、実装なし)
+## 26. Beeswax: 蜜の採取の副産物へ(2026-10-22、実装)
 
-§25 の方法を Beeswax に当てられるかを調べた。歩留まりを史料に合わせると、今のレシピの形(Honey を入力にして作る品)では成り立たない。
+方針は「ファンタジー要素以外の校正データは常に史料を基準とする」。§25 の方法を Beeswax に当てると、歩留まりを史料に合わせた場合に今の recipe の形(Honey を入力にして作る)では成り立たなかった。蝋は蜜の採取の副産物なので、採取に蝋を付ける形(案 a)にした。
 
-- 今のレシピは Honey 0.5 樽(84 kg)から蝋 10 kg(8.4 : 1)。史料の歩留まりは蜜 約20 kg から蝋 1 kg(20 : 1)。
-- 値は、蜜が 1 kg で Grain の約11倍(樽 4)、蝋が史料で約45倍(今は233倍)。20 : 1 で蝋 1 kg を作る蜜の値は 蜜 20 kg × 11 = 蝋 1 kg の値の約5倍で、入力が出力の値を超える。蝋の値を史料に合わせたまま Honey を入力にすると赤字になる。
-- 蝋は蜜の採取の副産物で、独立した作物ではない。
-- `byproducts` は recipe を持つ品の生産にだけ働く(`goods-generator.ts` の `byproducts`、`production-generator.ts:1246`)。Honey は recipe を持たず、`biomeOutputByTag`(`husbandry.ts resolveBiomeOutputRate`)で採取するため、蜜の採取に蝋を付けるには採取側に副産物の経路を足す必要がある。
-- 選択肢: (a) 採取に副産物を足し、Beeswax を recipe なしの副産物にする。蝋の値は史料の約45倍、単位は大きい箱。Candles の `{ Beeswax: 1 }` の脚は量を直す。(b) 今の歩留まりを保ち、蝋の値を約95倍まで下げる(史料とは合わない)。
+- 今の recipe は Honey 0.5 樽(84 kg)から蝋 10 kg(8.4 : 1)。史料は蜜約 20 kg から蝋 1 kg(20 : 1)。蝋の値を史料の約45倍にすると、20 kg の蜜の値が蝋 1 kg の値の約5倍になり、Honey を入力にしたままでは赤字になる。
+- `byproducts` は recipe を持つ品にだけ働く。Honey は recipe を持たず、農村の採取(`production-utils.ts getRuralProductionContributions`)で出る。
+
+### 26.1 変えたもの
+
+| 項目 | 今まで → 後 |
+| :--- | :--- |
+| Beeswax の単位 | block(10 kg) → block(100 kg)。`goodMeasureCatalog.ts` |
+| Beeswax の値 | 5 → 9.7(1 kg で Grain の約45倍。史料。233倍だった) |
+| Beeswax の recipe | Honey 0.5 → なし |
+| 蝋の出どころ | Honey の採取に付く。Honey 1 樽(168 kg)につき蝋 8.4 kg = 0.084 lot(`BEESWAX_LOTS_PER_HONEY_LOT`) |
+| Candles の値 | 10 → 14(100 kg の蝋が 9.7 なので、蝋の脚に利幅を付けた) |
+| Candles の recipe | `[Honey 2, Oil 1, Beeswax 1, Tallow 1]` → `[Oil 1, Beeswax 1, Tallow 1]`。Honey の脚は、100 kg の蝋燭に蜜 2 t(12 樽、原価 48)が要り、利幅の試験にも通らないので外した |
+| 枠 | `MEASURED_SLOT_GOODS` に Beeswax を加えた(Candles は既に入っている) |
+
+- Candles の `{ Beeswax: 1 }` の脚は数が同じ。単位が 10 kg から 100 kg になり、100 kg の蝋燭に 100 kg の蝋という質量の合う脚になった。
+
+### 26.2 古い保存
+
+`migrateBeeswaxByproduct`(`GOODS_CATALOG_MIGRATIONS`)が、Beeswax に recipe があれば消し、市場の在庫を1/10にし、Candles の Honey だけの脚を外す。値は `migrateWeightRepricing`(Beeswax 5 → 9.7、Candles 10 → 14)が直す。
+
+### 26.3 計測
+
+盗賊なし、province-101、3年(前 → 後)。
+
+| 項目 | 前 → 後 |
+| :--- | :--- |
+| 3年後の国庫の合計 | 549,131 → 549,034 |
+| 贅沢品の充足 | 2.925 → 2.921 |
+| 市場の在庫 Beeswax(block) | 0 → 789 |
+| 市場の在庫 Candles | 52.6 → 20.6 |
+| 市場の在庫 Honey | 10,916 → 10,847 |
+
+- 集計はほぼ同じ。蝋は今までほぼ作られず(Honey を入力にする recipe が選ばれなかった)、採取から出るようになった。在庫が溜まる分は、蝋の需要(`utilities` 0.1)が小さいため。蝋の使い道を増やす課題は未着手。
+- 試験: `src/extensions/economy` は、前から失敗している6件のみ失敗。`tsc` は通る。
 
 #### 残る課題
 
-- Beeswax は (a)(b) を決めてから実装する。Rennet(1 L あたり牛 0.03 頭の recipe。1 lot の利益を保つと入力が出力の値を超える)も同じ型の問題を持つ。
+- 蝋の在庫が溜まる。Candles の需要・蝋の他の使い道(封蝋など)は未調整。
+- Rennet(1 L あたり牛 0.03 頭の recipe。1 lot の利益を保つと入力が出力の値を超える)も同じ型の問題を持つ。史料の歩留まりと値で見直す。
 - 酒樽5品・Leather(Boots・Harnesses と一緒)。
-

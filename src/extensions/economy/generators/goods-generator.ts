@@ -2123,9 +2123,11 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["luxury", "ritual"],
     icon: "good-candles",
     color: "#fffacd",
-    value: 10,
+    value: 14,
     chance: 0,
-    recipes: [{ Honey: 2 }, { Oil: 1 }, { Beeswax: 1 }, { Tallow: 1 }],
+    // 100 kg of candles, from 100 kg of beeswax (one block) or a barrel of oil or tallow. The honey leg is gone:
+    // wax is 1 kg in 20 of the honey harvested, so 100 kg of candles would cost 2 t of honey (§26).
+    recipes: [{ Oil: 1 }, { Beeswax: 1 }, { Tallow: 1 }],
     unit: "block",
     demandCoverage: { utilities: 0.5, luxury: 0.5 }
   },
@@ -2363,9 +2365,10 @@ export const GOODS_DATA: GoodData[] = [
     // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
     icon: "good-unknown",
     color: "#f0c419",
-    value: 5,
+    // A 100 kg block at 45 times the grain price per kilogram, as the sources have it (goods-physical-units.md §26).
+    // It has no recipe: the comb comes with the honey harvest (production-utils.ts BEESWAX_LOTS_PER_HONEY_LOT).
+    value: 9.7,
     chance: 0,
-    recipes: [{ Honey: 0.5 }],
     unit: "block",
     demandCoverage: { utilities: 0.1 }
   },
@@ -4713,6 +4716,27 @@ export function migrateLinenBale(): boolean {
   return migrateLargerUnit("Linen", "bolt", "bale", LINEN_BOLTS_PER_BALE);
 }
 
+/**
+ * Turns a saved catalogue's Beeswax from a block made of honey into a 100 kg block that comes with the honey
+ * harvest (§26): the recipe goes, the stock is counted in blocks ten times as large. The value is repriced by
+ * `migrateWeightRepricing`.
+ */
+export function migrateBeeswaxByproduct(): boolean {
+  const wax = getGoods().find(good => good.name === "Beeswax");
+  if (!wax?.recipes?.length) return false;
+  delete wax.recipes;
+  const honeyId = getGoods().find(good => good.name === "Honey")?.i;
+  const candles = getGoods().find(good => good.name === "Candles");
+  if (candles?.recipes && honeyId !== undefined) {
+    candles.recipes = candles.recipes.filter(recipe => !(honeyId in recipe));
+  }
+  for (const market of getMarkets()) {
+    const row = market.goods[wax.i];
+    if (row) row.stock = rn(row.stock / 10, 4);
+  }
+  return true;
+}
+
 /** Moves a saved catalogue's Ink from the 1 L bottle to the 120 L barrel, a 120th of the stock (§25). */
 export function migrateInkBarrel(): boolean {
   return migrateLargerUnit("Ink", "bottle", "barrel", INK_BOTTLES_PER_BARREL);
@@ -4734,7 +4758,9 @@ export const WEIGHT_REPRICING: Readonly<Record<string, readonly [before: number,
   Salt: [3, 0.45],
   Flax: [1, 0.3],
   Linen: [6, 8],
-  Ink: [7, 3.4]
+  Ink: [7, 3.4],
+  Beeswax: [5, 9.7],
+  Candles: [10, 14]
 };
 
 /**

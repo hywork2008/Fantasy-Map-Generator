@@ -27,6 +27,11 @@ import { getWoolOutput } from "./woolProduction";
 
 export const BONUS_RURAL_PRODUCTION = 0.25;
 export const MAX_BONUS_PRODUCTION = 5;
+/**
+ * Lots (100 kg) of beeswax per barrel of honey: a 168 kg barrel gives 1 kg of wax for every 20 kg of honey
+ * (goods-physical-units.md §26).
+ */
+export const BEESWAX_LOTS_PER_HONEY_LOT = 168 / 20 / 100;
 
 let zoneCellSets: Map<number, Set<number>> | null = null;
 let zoneCellSetsSource: Zone[] | null = null;
@@ -237,7 +242,14 @@ export function getRuralProductionContributions(
         ? previewDomesticatedFaunaOfftake(cellId, good, amount)
         : drawDomesticatedFaunaOfftake(cellId, good, amount);
     }
-    contributions.push({ goodId, amount: amount * getModifiers(good, cellId) });
+    const harvested = amount * getModifiers(good, cellId);
+    contributions.push({ goodId, amount: harvested });
+    // Beeswax is the comb left when the honey is harvested (goods-physical-units.md §26).
+    if (good.name === "Honey") {
+      const wax = getGoods().find(candidate => candidate.name === "Beeswax");
+      if (wax && isGoodEnabled(wax))
+        contributions.push({ goodId: wax.i, amount: harvested * BEESWAX_LOTS_PER_HONEY_LOT });
+    }
   }
 
   // Vines and orchards are climate-, land-, and labour-gated. They intentionally carry no

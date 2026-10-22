@@ -346,7 +346,7 @@ export const GOOD_MEASURES: Readonly<Record<string, GoodMeasure>> = {
   // A gun on its carriage is drawn by its own team but loads a cart or hold like any heavy piece.
   Artillery: byMass("cannon", "2 t", 2000, 1.5, "bulk", "recipe"),
   Candles: byMass("block", "100 kg", 100, 0.9, "crate", "recipe"),
-  Beeswax: byMass("block", "10 kg", 10, 0.9, "crate", "model"),
+  Beeswax: byMass("block", "100 kg", 100, 0.9, "crate", "model"),
   Ropes: byMass("coil", "450 kg", 450, 0.6, "bundle", "recipe"),
   "Copper Wire": byMass("coil", "1 t", TONNE_KG, 4.0, "bundle", "recipe"),
   Rail: byMass("length", "1 t", TONNE_KG, 3.0, "bundle", "recipe"),

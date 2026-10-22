@@ -18,6 +18,7 @@ import {
   GoodsModule,
   isGoodEnabled,
   migrateAlloySteelGoods,
+  migrateBeeswaxByproduct,
   migrateElectricalGoods,
   migrateElectrolyticIndustryGoods,
   migrateFoodProcessingLotContracts,
@@ -950,6 +951,19 @@ describe("GoodsModule", () => {
     expect(ink.unit).toBe("barrel");
     expect(getMarkets()[0].goods[ink.i].stock).toBe(2);
     expect(migrateInkBarrel()).toBe(false);
+  });
+
+  it("turns saved Beeswax into a recipe-less 100 kg block with a tenth of the stock, once", () => {
+    goodsModule.restoreDefaults();
+    const wax = getGoods().find(good => good.name === "Beeswax")!;
+    const honey = getGoods().find(good => good.name === "Honey")!;
+    wax.recipes = [{ [honey.i]: 0.5 }];
+    setMarkets([{ i: 1, centerBurgId: 1, color: "#fff", goods: { [wax.i]: { stock: 30, price: 5 } } }] as never);
+
+    expect(migrateBeeswaxByproduct()).toBe(true);
+    expect(wax.recipes).toBeUndefined();
+    expect(getMarkets()[0].goods[wax.i].stock).toBe(3);
+    expect(migrateBeeswaxByproduct()).toBe(false);
   });
 
   it("upgrades legacy Wood-to-Coal fuel into Charcoal, Ash-to-Potash, and Slag without inventing stock", () => {
