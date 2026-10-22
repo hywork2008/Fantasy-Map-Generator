@@ -12,6 +12,7 @@ import { recordGoodFlow } from "./goodsBalanceLedger";
 import { debitRuralHouseholdWealth, getRuralHouseholdWealth } from "./householdWealth";
 import type { Market } from "./marketTypes";
 import { getRuralTextileChains, type RuralTextileChain } from "./ruralTextileChains";
+import { getBeddingCashBudget } from "./textileHouseholdPolicy";
 import { HOUSEHOLD_GARMENT_NAMES } from "./textileRecipeContracts";
 
 export interface RuralTextileProduction {
@@ -48,12 +49,21 @@ function getLaborCapacity(market: Market): number {
   return capacity;
 }
 
+interface RuralBeddingReservation {
+  wardrobeNeed: number;
+  wardrobePrice: number;
+  blanketNeed: number;
+  blanketStock: number;
+  blanketPrice: number;
+}
+
 function runRuralTextileProduction(
   market: Market,
   garmentNeed: number,
   blanketNeed: number,
   garmentBudget: number,
   blanketBudget: number,
+  reservation: RuralBeddingReservation | undefined,
   estimate: boolean
 ): RuralTextileProduction {
   const result: RuralTextileProduction = {
@@ -158,12 +168,28 @@ function runRuralTextileProduction(
   };
   for (const chain of chains) {
     const garment = HOUSEHOLD_GARMENT_NAMES.has(chain.product.name);
+    const beddingBudget = reservation
+      ? getBeddingCashBudget(
+          garmentBudget + blanketBudget,
+          reservation.wardrobeNeed,
+          reservation.wardrobePrice,
+          result.garments,
+          result.garmentSpending
+        )
+      : blanketBudget;
+    // Savings can now afford existing bedding stock; preserve its priority over home manufacture.
+    const beddingNeed = reservation
+      ? Math.max(
+          0,
+          reservation.blanketNeed - Math.min(reservation.blanketStock, beddingBudget / reservation.blanketPrice)
+        )
+      : blanketNeed;
     const produced = produce(
       chain,
-      Math.max(0, (garment ? garmentNeed : blanketNeed) - (garment ? result.garments : result.blankets)),
+      Math.max(0, (garment ? garmentNeed : beddingNeed) - (garment ? result.garments : result.blankets)),
       Math.max(
         0,
-        (garment ? garmentBudget : blanketBudget) - (garment ? result.garmentSpending : result.blanketSpending)
+        (garment ? garmentBudget : beddingBudget) - (garment ? result.garmentSpending : result.blanketSpending)
       )
     );
     if (garment) {
@@ -182,14 +208,17 @@ type RuralTextileRequest = [
   garmentNeed: number,
   blanketNeed: number,
   garmentBudget: number,
-  blanketBudget: number
+  blanketBudget: number,
+  reservation?: RuralBeddingReservation
 ];
 
 export function settleRuralTextileProduction(...request: RuralTextileRequest): RuralTextileProduction {
-  return runRuralTextileProduction(...request, false);
+  const [market, garments, blankets, garmentBudget, blanketBudget, reservation] = request;
+  return runRuralTextileProduction(market, garments, blankets, garmentBudget, blanketBudget, reservation, false);
 }
 
 /** Gross input orders before stock subtraction; shared cash and labor constrain all alternative routes. */
 export function estimateRuralTextileProduction(...request: RuralTextileRequest): RuralTextileProduction {
-  return runRuralTextileProduction(...request, true);
+  const [market, garments, blankets, garmentBudget, blanketBudget, reservation] = request;
+  return runRuralTextileProduction(market, garments, blankets, garmentBudget, blanketBudget, reservation, true);
 }

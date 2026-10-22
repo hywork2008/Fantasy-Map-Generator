@@ -311,6 +311,57 @@ describe("rural household wool processing", () => {
     expect(api.calculateMarketTradeDemand(good, 1, 10, 100, 0.2, 0.3, ctx)).toBeCloseTo(expected, 8);
   });
 
+  it.each([0, 0.5, 100])(
+    "releases wardrobe savings to bedding and prefers the available %s blanket lots",
+    blanketStock => {
+      const market = getMarkets()[0];
+      market.foodLedger!.ruralHouseholdWealth = 2000;
+      market.goods[byName("Wool").i].price = 1;
+      market.goods[byName("Wool Garments").i].price = 130;
+      market.goods[byName("Wool Blankets").i] = { stock: blanketStock, price: 8 };
+      const initial = structuredClone(market);
+      const orders = getTextileMarketOrders(market);
+      expect(market).toEqual(initial);
+      const inputBill = Object.entries(orders.inputs).reduce(
+        (sum, [id, units]) => sum + units * market.goods[+id].price,
+        0
+      );
+      expect(inputBill + orders.wardrobes * 130 + orders.blankets * 8).toBeLessThanOrEqual(100 + 1e-8);
+      settleTextileHouseholdDemand();
+      const home = market.ruralTextileProduction!;
+      expect(home.garments).toBeGreaterThan(0);
+      expect(market.blanketLedger!.householdConsumption).toBeGreaterThan(0);
+      const spent = market.textileLedger!.householdSpending! + market.blanketLedger!.householdSpending!;
+      expect(spent).toBeLessThanOrEqual(100);
+      expect(market.foodLedger!.ruralHouseholdWealth).toBeCloseTo(2000 - spent, 2);
+      expect(market.marketTreasury!.balance).toBeCloseTo(10 + spent, 2);
+      expect(home.laborUsed).toBeLessThanOrEqual(home.laborCapacity);
+      if (blanketStock === 100) {
+        expect(home.blankets).toBe(0);
+        expect(orders.blankets).toBeGreaterThan(0);
+        expect(market.goods[byName("Wool Blankets").i].stock).toBeLessThan(100);
+      } else {
+        expect(home.blankets).toBeGreaterThan(0);
+        expect(market.goods[byName("Wool Blankets").i].stock).toBeCloseTo(0, 2);
+      }
+    }
+  );
+
+  it("keeps the wardrobe cash reservation when little home work leaves clothing unaffordable", () => {
+    const market = getMarkets()[0];
+    market.foodLedger!.ruralHouseholdWealth = 2000;
+    market.goods[byName("Wool").i].price = 1;
+    market.goods[byName("Wool Garments").i].price = 130;
+    market.goods[byName("Wool Blankets").i] = { stock: 100, price: 8 };
+    setHouseholdTextileWorkers(Float32Array.from([10]));
+    expect(getTextileMarketOrders(market).blankets).toBe(0);
+    settleTextileHouseholdDemand();
+    expect(market.ruralTextileProduction!.garments).toBeGreaterThan(0);
+    expect(market.ruralTextileProduction!.blankets).toBe(0);
+    expect(market.blanketLedger!.householdConsumption).toBe(0);
+    expect(market.goods[byName("Wool Blankets").i].stock).toBe(100);
+  });
+
   it("pays for real fiber and uses shared labor to self-supply independent replacements without buying them twice", () => {
     const market = getMarkets()[0];
     const wool = byName("Wool");

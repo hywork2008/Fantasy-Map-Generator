@@ -55,3 +55,16 @@ export function getRuralTextileRequiredWorkers(
   // Reserve enough for any supported fiber, never sum alternative wardrobe routes.
   return wardrobes * garmentLabor + blankets * blanketLabor;
 }
+
+/** Bedding receives savings only after paying for home wardrobes and reserving their remaining need. */
+export function getBeddingCashBudget(
+  budget: number,
+  wardrobeNeed: number,
+  wardrobePrice: number,
+  homeGarments = 0,
+  homeGarmentSpending = 0
+): number {
+  const remaining = Math.max(0, budget - homeGarmentSpending);
+  const reserve = Number.isFinite(wardrobePrice) ? Math.max(0, wardrobeNeed - homeGarments) * wardrobePrice : 0;
+  return Math.max(0, remaining - reserve);
+}

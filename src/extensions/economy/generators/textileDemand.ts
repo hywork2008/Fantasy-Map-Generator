@@ -17,6 +17,7 @@ import {
   BEDDING_HOUSEHOLD_SIZE,
   BLANKET_REPLACEMENT_YEARS,
   BLANKETS_PER_LOT,
+  getBeddingCashBudget,
   getBlanketsPerHousehold,
   getClothingClimateMultiplier,
   MONTHLY_HOUSEHOLD_TEXTILE_CASH_SHARE,
@@ -293,7 +294,7 @@ function textileSettlementRequest(market: Market) {
   const beddingBudgets = buyers.map(buyer => {
     const wardrobeNeed =
       wardrobe.populationLots > 0 ? (wardrobe.monthlyDemand * buyer.populationLots) / wardrobe.populationLots : 0;
-    return Number.isFinite(garmentPrice) ? Math.max(0, buyer.budget - wardrobeNeed * garmentPrice) : buyer.budget;
+    return getBeddingCashBudget(buyer.budget, wardrobeNeed, garmentPrice);
   });
   const bedding = getMarketBlanketDemandProfile(market.i);
   const rural = buyers.find(buyer => buyer.rural);
@@ -309,7 +310,14 @@ function textileSettlementRequest(market: Market) {
     Math.max(0, wardrobe.monthlyDemand - Math.min(wardrobeStock, affordableFinishedDemand(market, false))) * ruralShare,
     Math.max(0, bedding.monthlyDemand - Math.min(blanketStock, affordableFinishedDemand(market, true))) * ruralShare,
     Math.max(0, (rural?.budget ?? 0) - (beddingBudgets[ruralIndex] ?? 0)),
-    beddingBudgets[ruralIndex] ?? 0
+    beddingBudgets[ruralIndex] ?? 0,
+    {
+      wardrobeNeed: wardrobe.monthlyDemand * ruralShare,
+      wardrobePrice: garmentPrice,
+      blanketNeed: bedding.monthlyDemand * ruralShare,
+      blanketStock: blanketStock * ruralShare,
+      blanketPrice: textilePrice(market, BLANKET_NAMES)
+    }
   ];
   return { buyers, rural, ruralIndex, beddingBudgets, request };
 }
@@ -342,8 +350,20 @@ export function settleTextileHouseholdDemand(): void {
     const { buyers, rural, ruralIndex, beddingBudgets, request } = textileSettlementRequest(market);
     const home = settleRuralTextileProduction(...request);
     market.ruralTextileProduction = home;
-    if (rural) rural.budget = Math.max(0, rural.budget - home.garmentSpending - home.blanketSpending);
-    if (ruralIndex >= 0) beddingBudgets[ruralIndex] = Math.max(0, beddingBudgets[ruralIndex] - home.blanketSpending);
+    if (rural) {
+      const reservation = request[5]!;
+      beddingBudgets[ruralIndex] = Math.max(
+        0,
+        getBeddingCashBudget(
+          rural.budget,
+          reservation.wardrobeNeed,
+          reservation.wardrobePrice,
+          home.garments,
+          home.garmentSpending
+        ) - home.blanketSpending
+      );
+      rural.budget = Math.max(0, rural.budget - home.garmentSpending - home.blanketSpending);
+    }
     market.textileLedger = settleHouseholdTextiles(
       market,
       buyers,
