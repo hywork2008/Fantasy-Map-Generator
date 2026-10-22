@@ -5234,6 +5234,8 @@
     }
   },
   "rosterPresets": {
+    "totalCash": "プレビュー対象全員の所持金合計: {{amount}}",
+    "totalInitialCash": "基準の初期所持金合計: {{amount}}",
     "initialCash": "基準の初期所持金",
     "sharedOffices": "兼任: {{roles}}",
     "profile": "生成基準",

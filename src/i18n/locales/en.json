@@ -5234,6 +5234,8 @@
     }
   },
   "rosterPresets": {
+    "totalCash": "Total cash for previewed people: {{amount}}",
+    "totalInitialCash": "Reference starting cash total: {{amount}}",
     "initialCash": "Reference starting cash",
     "sharedOffices": "Also holds: {{roles}}",
     "profile": "Generation reference",

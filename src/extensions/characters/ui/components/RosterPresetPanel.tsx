@@ -68,6 +68,17 @@ export function RosterPresetPanel({ roster, organizationId, command }: Props) {
         return { role, seats, org: roster.organizations.find(o => o.id === role.organizationId)! };
       })
     : [];
+  const previewSlots = [...new Set(preview?.seats.flatMap(s => (s.slotId ? [s.slotId] : [])) ?? [])]
+    .map(id => roster.slots.find(slot => slot.id === id))
+    .filter((slot): slot is WorldRoster["slots"][number] => !!slot);
+  const totalCash =
+    previewSlots.reduce((sum, slot) => sum + Math.round((describeCharacterFinance(slot)?.balance ?? 0) * 100), 0) / 100;
+  const totalInitialCash =
+    previewSlots.reduce(
+      (sum, slot) =>
+        sum + Math.round((reference?.people.find(p => p.id === slot.referenceId)?.initialWealth ?? 0) * 100),
+      0
+    ) / 100;
   return (
     <section style={{ border: "1px solid #777", padding: 8, margin: "8px 0" }}>
       <button type="button" aria-expanded={open} onClick={() => setOpen(!open)}>
@@ -270,7 +281,7 @@ export function RosterPresetPanel({ roster, organizationId, command }: Props) {
               ))}
               {preview.unresolved > 0 && <p>{tr("unresolvedHelp")}</p>}
               <div style={{ maxHeight: 260, overflow: "auto" }}>
-                <table className="table">
+                <table className="fmg-table">
                   <thead>
                     <tr>
                       {[
@@ -371,6 +382,10 @@ export function RosterPresetPanel({ roster, organizationId, command }: Props) {
                   </tbody>
                 </table>
               </div>
+              <p>
+                <strong>{tr("totalCash", { amount: formatPrice(totalCash) })}</strong>
+                {reference && <> · {tr("totalInitialCash", { amount: formatPrice(totalInitialCash) })}</>}
+              </p>
               <label>
                 {tr("participation")}{" "}
                 <select value={mode} onChange={e => setMode(e.target.value as "memo" | "simulation")}>
