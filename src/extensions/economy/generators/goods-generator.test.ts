@@ -774,8 +774,8 @@ describe("GoodsModule", () => {
     ]);
 
     expect(migratePerennialFruitGoods()).toBe(true);
-    expect(getGoods().find(good => good.name === "Cider")?.recipes).toEqual([{ 7: 0.3, 19: 0.08 }]);
-    expect(getGoods().find(good => good.name === "Perry")?.recipes).toEqual([{ 11: 0.3, 19: 0.08 }]);
+    expect(getGoods().find(good => good.name === "Cider")?.recipes).toEqual([{ 7: 1.5, 19: 0.4 }]);
+    expect(getGoods().find(good => good.name === "Perry")?.recipes).toEqual([{ 11: 1.5, 19: 0.4 }]);
     expect(migratePerennialFruitGoods()).toBe(false);
   });
 
@@ -881,7 +881,7 @@ describe("GoodsModule", () => {
     const ash = getGoods().find(good => good.name === "Ash")!;
     const upgradedLiquor = getGoods().find(good => good.name === "Liquor")!;
     expect(pomace.i).toBeGreaterThan(Math.max(...preservedIds.values()));
-    expect(pomaceWine.recipes).toEqual([{ [pomace.i]: 1.2, [preservedIds.get("Barrels")!]: 0.08 }]);
+    expect(pomaceWine.recipes).toEqual([{ [pomace.i]: 0.12, [preservedIds.get("Barrels")!]: 0.08 }]);
     expect(getGoods().find(good => good.name === "Wine")?.byproducts).toEqual([{ [pomace.i]: 0.0572 }]);
     expect(upgradedLiquor.recipes).toHaveLength(15);
     expect(upgradedLiquor.byproducts).toEqual(Array.from({ length: 15 }, () => ({ [ash.i]: 1 })));
@@ -1104,12 +1104,12 @@ describe("GoodsModule", () => {
     expect(cheese).toMatchObject({ unit: "1,000 kg cheese lot", value: 14 });
     expect(grapes.unit).toBe("1,000 kg grape lot");
     expect(raisins.unit).toBe("250 kg raisins lot");
-    expect(wine).toMatchObject({ unit: "200 L cask", value: 8 });
+    expect(wine).toMatchObject({ unit: "200 L cask", value: 5 });
     expect(beer).toMatchObject({
-      unit: "200 L ale cask",
+      unit: "1,000 L ale tun",
       tags: expect.arrayContaining(["food", "beverage"]),
       demandCoverage: {},
-      recipes: expect.arrayContaining([{ [barley.i]: 1, [barrels.i]: 0.08 }])
+      recipes: expect.arrayContaining([{ [barley.i]: 1, [barrels.i]: 0.4 }])
     });
     expect(migrateFoodProcessingLotContracts()).toBe(false);
   });

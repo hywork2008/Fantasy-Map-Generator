@@ -9,7 +9,9 @@
 export const LITERS_PER_MILK_LOT = 1_000;
 export const KILOGRAMS_PER_CHEESE_LOT = 1_000;
 export const KILOGRAMS_PER_GRAPES_LOT = 1_000;
-export const LITERS_PER_BEER_LOT = 200;
+/** Ale, cider and perry are traded by the tun of 1,000 L, five casks, so that a lot earns what the other goods' do. */
+export const LITERS_PER_BEER_LOT = 1_000;
+export const LITERS_PER_ORCHARD_DRINK_LOT = 1_000;
 export const LITERS_PER_WINE_LOT = 200;
 export const KILOGRAMS_PER_RAISINS_LOT = 250;
 

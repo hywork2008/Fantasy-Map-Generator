@@ -1548,6 +1548,60 @@ Linen・酒樽5品・Ink・Rennet・Leather・Beeswax は、いずれも「値�
 
 #### 残る課題
 
-- 皮の溜まり方(Game の 0.5 roll、使い道)、Harnesses の在庫が0になった原因。
-- 酒樽5品、Rennet の史料。
+- Rennet の胃1つあたりの量と値の史料を探す。
+- 酒樽5品 → §29 で行った。
+
+## 29. 酒樽5品: 史料の値と、ale・cider・perry の 1,000 L の樽(2026-10-22、実装)
+
+方針は「ファンタジー要素以外の校正データは常に史料を基準とする」。
+
+### 29.1 値の根拠と、まず 200 L の樽のまま直した結果
+
+§18.1 の史料の目安(Grain = 1 の 1 kg あたり): ale 0.7〜1.5(中世英国の ale は 1 ガロン約 1 ペンス)、ワイン 2〜4(ガスコーニュのワインは 1 tun 3〜6 ポンド)。cider・perry は ale と同じ扱い、Pomace Wine はそれ以下(搾りかすの酒)にした。
+
+200 L の樽のまま値だけ直すと(Beer 0.48、Wine 1.28 など)、Beer の生産が 3 年で 305.9 → 24.2 樽に落ちた(1 lot の利益が 0.14 になり、§21.5 の壁に当たる)。Wine は 25.1 → 38.1 で、落ちなかった。そこで ale・cider・perry は §24 と同じく、1 lot の利益を保つ大きさの樽(1,000 L = 5 樽分、tun)にした。
+
+### 29.2 変えたもの
+
+| 品 | 単位 | 値 | レシピ |
+| :--- | :--- | :--- | :--- |
+| Beer | 200 L ale cask → 1,000 L ale tun(`LITERS_PER_BEER_LOT` 200 → 1,000) | 4 → 2.4(1 kg で Grain の 9.2 → 1.1 倍) | 穀物 1 → 1 wain(1,000 L に麦芽 465 kg。今までは 200 L に 1 wain だった)、樽 0.08 → 0.4 |
+| Cider | 200 L cider cask → 1,000 L cider tun | 4 → 2.4 | 林檎 0.3 → 1.5 lot(1.5 t)、樽 0.4 |
+| Perry | 200 L perry cask → 1,000 L perry tun | 4.5 → 2.5 | 梨 1.5 lot、樽 0.4 |
+| Wine | 200 L cask のまま | 8 → 1.28(18.8 → 3 倍) | 変えない(葡萄 0.26 lot、樽 0.08) |
+| Pomace Wine | 200 L cask のまま | 2 → 0.3 | Pomace 1.2 → 0.12 lot(120 kg) |
+| Apples・Pears | 1,000 kg lot | 2.2 → 0.7、2.4 → 0.8 | — |
+
+- Apples・Pears を下げたのは、cider の原料の林檎が Grain と同じ 1 kg の値では、ale 並みの値の酒の原価を超えるため。林檎が Grain の約1/3(0.7 / 1,000 kg)は、見つけた史料ではなく**モデルの値**(中世英国の林檎は麦より安かったという見込み。史料の確認は未了)。ほかの果物(Plums など)は変えていない。
+- 樽の返却台帳(`returnableContainerLedger`)は、満たした lot と消費した lot を同じ数で出し入れするので、1 lot が 5 樽になっても釣り合う。
+- Wine の値を `migrateFoodProcessingLotContracts` が毎回 8 に戻していたのをやめた(値は `WEIGHT_REPRICING` が、元の値のままのものだけ直す)。Vinegar の Wine の脚(0.7 樽)・Liquor の Wine の脚は、Wine が安くなった分だけ原価が下がる。
+
+### 29.3 古い保存
+
+`migrateFoodProcessingLotContracts` が Beer・Cider・Perry の単位を tun にし、市場の在庫を 1/5 にする(`scaleMarketStock`)。レシピは同じ関数が作り直す。値は `WEIGHT_REPRICING`(Beer 4、Wine 8、Cider 4、Perry 4.5、Pomace Wine 2、Apples 2.2、Pears 2.4 のままの値だけ)が直す。移動中の荷・注文は直さない。
+
+### 29.4 計測
+
+盗賊なし、province-101、3 年。
+
+| 項目 | 前 → 後 |
+| :--- | :--- |
+| Beer の生産 | 305.9 樽(61.2 kL) → 104.1 tun(104.1 kL) |
+| Wine の生産(樽) | 25.1 → 38.1 |
+| Pomace Wine の生産(樽) | 1.0 → 12.2 |
+| Vinegar の生産 | 35.2 → 27.5 |
+| Liquor の生産 | 38.4 → 39.2 |
+| 国庫の合計 | 549,181 → 549,174 |
+| 贅沢品の充足 | 2.930 → 2.900 |
+
+- Beer の量が 1.7 倍になった。1 L の値が約 1/8 になり、家計の購入が増えたと見られる(原因は未確認)。
+- この地図は果樹園がなく、Apples・Pears・Cider・Perry は 3 年で生産がゼロ(前も同じ)で、cider と perry の挙動は計測していない。
+- 試験: `src/extensions/economy` は前から失敗している6件のみ失敗(Cider・Perry・Wine・Beer・Pomace の試験は新しい数に直した)。`tsc` は通る。
+
+#### 残る課題
+
+- cider・perry の果樹園のある地図での計測、林檎・梨の値の史料。
+- Beer の量が増えた原因(1 L の値と家計の購入)の確認。
+- Rennet の胃1つあたりの量と値の史料。
+- 質量の見直しが残る品は §21.5 の表では他になし。段階5の k ≠ 1 の残りは、全品の見直し。
 

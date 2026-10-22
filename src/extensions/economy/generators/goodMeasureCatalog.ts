@@ -21,6 +21,7 @@ import {
   KILOGRAMS_PER_RAISINS_LOT,
   LITERS_PER_BEER_LOT,
   LITERS_PER_MILK_LOT,
+  LITERS_PER_ORCHARD_DRINK_LOT,
   LITERS_PER_WINE_LOT
 } from "./foodLots";
 import { HORSES_PER_MARKET_HEAD } from "./liveAnimalScale";
@@ -212,9 +213,23 @@ export const GOOD_MEASURES: Readonly<Record<string, GoodMeasure>> = {
   // Food lots and casks.
   Wine: byVolume("200 L cask", `${LITERS_PER_WINE_LOT} L`, LITERS_PER_WINE_LOT, 0.99, "cask", "code"),
   "Pomace Wine": byVolume("200 L cask", "200 L", 200, 1.0, "cask", "label"),
-  Beer: byVolume("200 L ale cask", `${LITERS_PER_BEER_LOT} L`, LITERS_PER_BEER_LOT, 1.01, "cask", "code"),
-  Cider: byVolume("200 L cider cask", "200 L", 200, 1.01, "cask", "label"),
-  Perry: byVolume("200 L perry cask", "200 L", 200, 1.01, "cask", "label"),
+  Beer: byVolume("1,000 L ale tun", `${LITERS_PER_BEER_LOT} L`, LITERS_PER_BEER_LOT, 1.01, "cask", "code"),
+  Cider: byVolume(
+    "1,000 L cider tun",
+    `${LITERS_PER_ORCHARD_DRINK_LOT} L`,
+    LITERS_PER_ORCHARD_DRINK_LOT,
+    1.01,
+    "cask",
+    "label"
+  ),
+  Perry: byVolume(
+    "1,000 L perry tun",
+    `${LITERS_PER_ORCHARD_DRINK_LOT} L`,
+    LITERS_PER_ORCHARD_DRINK_LOT,
+    1.01,
+    "cask",
+    "label"
+  ),
   Milk: byVolume("1,000 L dairy lot", `${LITERS_PER_MILK_LOT} L`, LITERS_PER_MILK_LOT, 1.03, "cask", "code"),
   Cheese: byMass(
     "1,000 kg cheese lot",

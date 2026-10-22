@@ -207,7 +207,7 @@ export type ReturnableContainerLedger = {
   cumulativeWineCaskReturns: number;
   /** New casks/repair material consumed through the Wine recipe. */
   cumulativeWineCaskReplacement: number;
-  /** Filled 200 L ale casks currently outside the cooper's empty-cask pool. */
+  /** Filled ale lots (1,000 L tuns) currently outside the cooper's empty-cask pool. */
   beerCasksInService: number;
   /** Casks returned after Beer is consumed locally. */
   cumulativeBeerCaskReturns: number;

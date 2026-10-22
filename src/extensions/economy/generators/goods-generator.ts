@@ -198,8 +198,14 @@ const ASH_YIELD_PER_WOOD_FULL_COMBUSTION = 1;
 const ASH_YIELD_PER_WOOD_PARTIAL_PYROLYSIS = 0.15;
 const CHARCOAL_WOOD_PER_UNIT = 1.5;
 const POTASH_ASH_PER_UNIT = 1.5;
-/** One 200 L cask of cider or perry uses about 300 kg of pressed orchard fruit. */
-const ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK = 0.3;
+/** A tun (1,000 L) of cider or perry uses about 1.5 t of pressed orchard fruit. */
+const ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK = 1.5;
+/** Grain in a tun (1,000 L) of ale: some 465 kg of malt, a wain (goods-physical-units.md §29). */
+const GRAIN_WAINS_PER_ALE_CASK = 1;
+/** Barrel wear for a tun: five casks at 0.08 each. */
+const BARRELS_PER_TUN = 0.4;
+/** Pressed grape pomace in one 200 L cask of pomace wine: 120 kg, a tenth of a lot, with water (§29). */
+const POMACE_LOTS_PER_POMACE_WINE_CASK = 0.12;
 const shipClassById = new Map(SHIP_CLASS_DEFINITIONS.map(shipClass => [shipClass.id, shipClass]));
 const shipGoodValue = (shipClassId: string): number => {
   const shipClass = shipClassById.get(shipClassId);
@@ -740,22 +746,10 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["food", "luxury", "grapeWine", "beverage"],
     icon: "good-wine",
     color: "#963e48",
-    // 2026-08-08 (docs/temp/0807-alcoholic.md): raised from 6 to 8, back when the recipe below was
-    // still { Grapes: 2, Barrels: 1 } (cost 2*2 + 1*2 = 6) — a zero-margin recipe by construction that
-    // left production-generator.ts's makeProductionDecision() rejecting Wine outright (projectedGain
-    // sat at ~0 and routinely dipped negative on live market prices; Grapes piled up ~20x over a year
-    // while Wine fell from 4 to 0). value 8 was tuned to give a ~33% margin over that cost, matching
-    // Beer's { Grain: 1, Barrels: 1 } margin ratio (value 4 vs cost 3).
-    // 2026-08-12 correction: that recipe cost basis is stale. A later change (commit 209d59f3,
-    // docs/simulation/salt-logistics.md-era food-processing work) replaced the recipe with the
-    // GRAPES_LOTS_PER_WINE_LOT-based one below (cost = 0.26*2 + 0.08*2 = 0.68) without touching this
-    // value or this comment, so the *actual* current margin is ~1076%, not ~33%. Left at 8 anyway:
-    // Wine's value is also the pricing anchor for Vinegar's { Wine: 0.75 } leg and Liquor's Wine-based
-    // recipes below, and for Wine's own luxury/trade classification — lowering it to match the cheaper
-    // recipe would ripple into those the same way the original comment above warned about. If Wine's
-    // production dominance ever needs correcting, prefer adjusting the Grapes/Barrels recipe ratio
-    // (as Vinegar's own fix below did) over re-deriving this value from raw ingredient cost.
-    value: 8,
+    // A 198 kg cask at 3 times the grain price per kilogram: the sources have wine at 2 to 4 times, Gascon wine at
+    // 3 to 6 pounds the tun (goods-physical-units.md §29). It was 8, 18.8 times. The cost is 0.52 for grapes and
+    // 0.16 for barrel wear.
+    value: 1.28,
     chance: 0,
     // One 200 L cask uses 260 kg of grapes. Barrels are returnable containers; 0.08 is the
     // replacement/repair allowance per filling, not a claim that a cask is discarded each time.
@@ -2047,19 +2041,21 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["food", "beverage"],
     icon: "good-beer",
     color: "#fbb117",
-    value: 4,
+    // A 1,010 kg tun at 1.1 times the grain price per kilogram: the sources have ale at 0.7 to 1.5 times
+    // (goods-physical-units.md §29). The 200 L cask was 4, 9.2 times; a tun earns a lot's gain of about 1.
+    value: 2.4,
     chance: 0,
     recipes: [
       // Beer may use locally traded cereal crops. It must never consume the
       // Food Ledger's abstract staple-equivalent accounting unit.
-      { Barley: 1, Barrels: 0.08 },
-      { Wheat: 1, Barrels: 0.08 },
-      { Rye: 1, Barrels: 0.08 },
-      { Oats: 1, Barrels: 0.08 }
+      { Barley: GRAIN_WAINS_PER_ALE_CASK, Barrels: BARRELS_PER_TUN },
+      { Wheat: GRAIN_WAINS_PER_ALE_CASK, Barrels: BARRELS_PER_TUN },
+      { Rye: GRAIN_WAINS_PER_ALE_CASK, Barrels: BARRELS_PER_TUN },
+      { Oats: GRAIN_WAINS_PER_ALE_CASK, Barrels: BARRELS_PER_TUN }
     ],
     // Casks circulate back to coopers; the recipe consumes only replacement/repair material.
     // Honey drinks belong to a future Mead/Braggot luxury good, not ordinary small ale.
-    unit: "200 L ale cask",
+    unit: "1,000 L ale tun",
     demandCoverage: {}
   },
   {
@@ -2070,10 +2066,11 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["food", "beverage"],
     icon: "good-beer",
     color: "#d99a32",
-    value: 4,
+    // Priced as ale, per kilogram, by the tun (§29); the 200 L cask was 4.
+    value: 2.4,
     chance: 0,
-    recipes: [{ Apples: ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK, Barrels: 0.08 }],
-    unit: "200 L cider cask",
+    recipes: [{ Apples: ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK, Barrels: BARRELS_PER_TUN }],
+    unit: "1,000 L cider tun",
     demandCoverage: {}
   },
   {
@@ -2081,10 +2078,11 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["food", "beverage"],
     icon: "good-beer",
     color: "#d7b84a",
-    value: 4.5,
+    // Priced as ale, per kilogram, a little over cider, by the tun (§29); the 200 L cask was 4.5.
+    value: 2.5,
     chance: 0,
-    recipes: [{ Pears: ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK, Barrels: 0.08 }],
-    unit: "200 L perry cask",
+    recipes: [{ Pears: ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK, Barrels: BARRELS_PER_TUN }],
+    unit: "1,000 L perry tun",
     demandCoverage: {}
   },
   {
@@ -2092,9 +2090,10 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["food", "beverage"],
     icon: "good-wine",
     color: "#b08968",
-    value: 2,
+    // Below ale, as a drink of pressed skins (§29); it was 2.
+    value: 0.3,
     chance: 0,
-    recipes: [{ Pomace: 1.2, Barrels: 0.08 }],
+    recipes: [{ Pomace: POMACE_LOTS_PER_POMACE_WINE_CASK, Barrels: 0.08 }],
     unit: "200 L cask",
     demandCoverage: { food: 0.15 }
   },
@@ -2650,7 +2649,8 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["food", "fruit", "freshFood", "perennialCrop"],
     icon: "good-unknown",
     color: "#bf4d3f",
-    value: 2.2,
+    // A third of the grain price per kilogram, which cider can bear (§29); it was 2.2, as much as grain.
+    value: 0.7,
     chance: 0,
     unit: "1,000 kg apple lot",
     freshFood: { householdDemandPerPopulationMonth: 6 / 12 / 1000, preservationLaborPerUnit: 0.05 },
@@ -2661,7 +2661,8 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["food", "fruit", "freshFood", "perennialCrop"],
     icon: "good-unknown",
     color: "#b8b947",
-    value: 2.4,
+    // About as Apples, a little dearer (§29); it was 2.4.
+    value: 0.8,
     chance: 0,
     unit: "1,000 kg pear lot",
     freshFood: { householdDemandPerPopulationMonth: 3 / 12 / 1000, preservationLaborPerUnit: 0.055 },
@@ -4351,8 +4352,13 @@ export function migratePerennialFruitGoods(): boolean {
       }
       continue;
     }
-    const recipes = [{ [fruit.i]: ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK, [barrels.i]: 0.08 }];
-    if (JSON.stringify(beverage.recipes) === JSON.stringify(recipes)) continue;
+    const recipes = [{ [fruit.i]: ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK, [barrels.i]: BARRELS_PER_TUN }];
+    const tunUnit = `1,000 L ${beverageName.toLowerCase()} tun`;
+    if (JSON.stringify(beverage.recipes) === JSON.stringify(recipes) && beverage.unit === tunUnit) continue;
+    if (beverage.unit !== tunUnit) {
+      if (beverage.unit === `200 L ${beverageName.toLowerCase()} cask`) scaleMarketStock(beverage, 1 / 5);
+      beverage.unit = tunUnit;
+    }
     beverage.recipes = recipes;
     changed = true;
   }
@@ -4544,7 +4550,7 @@ export function migratePomaceDistillationGoods(): boolean {
   };
 
   setByproducts("Wine", [{ Pomace: GRAPES_LOTS_PER_WINE_LOT * POMACE_SHARE_OF_PRESSED_GRAPE_MASS }]);
-  setRecipes("Pomace Wine", [{ Pomace: 1.2, Barrels: 0.08 }]);
+  setRecipes("Pomace Wine", [{ Pomace: POMACE_LOTS_PER_POMACE_WINE_CASK, Barrels: 0.08 }]);
   setByproducts("Brick", [{ Ash: 0.1 * ASH_YIELD_PER_WOOD_FULL_COMBUSTION }]);
   setByproducts("Charcoal", [{ Ash: CHARCOAL_WOOD_PER_UNIT * ASH_YIELD_PER_WOOD_PARTIAL_PYROLYSIS }]);
   setByproducts("Preserved food", [
@@ -4653,9 +4659,8 @@ export function migrateFoodProcessingLotContracts(): boolean {
   }
   if (wine && grapes && barrels) {
     const recipes = [{ [grapes.i]: GRAPES_LOTS_PER_WINE_LOT, [barrels.i]: 0.08 }];
-    if (wine.unit !== "200 L cask" || wine.value !== 8 || JSON.stringify(wine.recipes) !== JSON.stringify(recipes)) {
+    if (wine.unit !== "200 L cask" || JSON.stringify(wine.recipes) !== JSON.stringify(recipes)) {
       wine.unit = "200 L cask";
-      wine.value = 8;
       wine.recipes = recipes;
       changed = true;
     }
@@ -4665,15 +4670,16 @@ export function migrateFoodProcessingLotContracts(): boolean {
     const recipes = ["Barley", "Wheat", "Rye", "Oats"]
       .map(name => goods.find(good => good.name === name))
       .filter((ingredient): ingredient is Good => Boolean(ingredient))
-      .map(ingredient => ({ [ingredient.i]: 1, [barrels.i]: 0.08 }));
+      .map(ingredient => ({ [ingredient.i]: GRAIN_WAINS_PER_ALE_CASK, [barrels.i]: BARRELS_PER_TUN }));
     const hasBeverageTag = beer.tags.includes("beverage");
     if (
-      beer.unit !== "200 L ale cask" ||
+      beer.unit !== "1,000 L ale tun" ||
       JSON.stringify(beer.recipes) !== JSON.stringify(recipes) ||
       JSON.stringify(beer.demandCoverage ?? {}) !== "{}" ||
       !hasBeverageTag
     ) {
-      beer.unit = "200 L ale cask";
+      if (beer.unit === "200 L ale cask") scaleMarketStock(beer, 1 / 5);
+      beer.unit = "1,000 L ale tun";
       beer.recipes = recipes;
       beer.demandCoverage = {};
       if (!hasBeverageTag) beer.tags.push("beverage");
@@ -4703,6 +4709,14 @@ export function migrateMeasuredCargoSlots(): boolean {
 const LINEN_BOLTS_PER_BALE = 10;
 /** Bottles of ink in a barrel (§25). */
 const INK_BOTTLES_PER_BARREL = 120;
+
+/** Counts a good's market stock in lots `factor` times the size (a fifth of the casks for a tun). */
+function scaleMarketStock(good: Good, factor: number): void {
+  for (const market of getMarkets()) {
+    const row = market.goods[good.i];
+    if (row) row.stock = rn(row.stock * factor, 4);
+  }
+}
 
 /** Changes a saved good's unit from `from` to `to` and counts the market stock in units `perUnit` times larger. */
 function migrateLargerUnit(goodName: string, from: string, to: string, perUnit: number): boolean {
@@ -4784,7 +4798,14 @@ export const WEIGHT_REPRICING: Readonly<Record<string, readonly [before: number,
   Beeswax: [5, 9.7],
   Rennet: [4, 40],
   Leather: [6, 0.16],
-  Candles: [10, 14]
+  Candles: [10, 14],
+  Beer: [4, 2.4],
+  Wine: [8, 1.28],
+  Cider: [4, 2.4],
+  Perry: [4.5, 2.5],
+  "Pomace Wine": [2, 0.3],
+  Apples: [2.2, 0.7],
+  Pears: [2.4, 0.8]
 };
 
 /**
