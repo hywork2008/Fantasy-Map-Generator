@@ -1474,5 +1474,32 @@ Linen・酒樽5品・Ink・Rennet・Leather・Beeswax は、いずれも「値�
 #### 残る課題
 
 - 蝋の在庫が溜まる。Candles の需要・蝋の他の使い道(封蝋など)は未調整。
-- Rennet(1 L あたり牛 0.03 頭の recipe。1 lot の利益を保つと入力が出力の値を超える)も同じ型の問題を持つ。史料の歩留まりと値で見直す。
-- 酒樽5品・Leather(Boots・Harnesses と一緒)。
+- Leather(Boots・Harnesses と一緒)・酒樽5品。
+
+## 27. Rennet: 1 L の瓶から 120 L の樽へ(2026-10-22、実装)
+
+### 27.1 史料と、史料のない部分
+
+- 凝乳に使う量: 液体の仔牛レンネット(強さ 145 MCU/mL)で乳 100 L に 15〜25 mL、別の供給元で乳 4,000 L に約 1 L(0.25 mL/L)。1,000 kg のチーズ(乳 10,000 L)には 約 2.5 L。今のレシピは 0.1 L で、約25分の1だった。[Faie の液体レンネット](https://www.faie.at/en/artikel/cheese-rennet-50ml/fa109464)
+- 仔牛の胃1つから採れる量と、中世のレンネットの値は、調べたが見つからなかった。**胃1つ(仔牛 0.12 頭)から 3 L、仔羊・仔山羊の胃は仔牛の1/4**は、モデルの値で史料ではない。値 40(1 kg で Grain の約150倍)は、この入力の原価(牛 4.8 頭 = 24)に利幅を付けた値で、史料の価格ではない。史料が見つかれば直す。
+
+### 27.2 変えたもの
+
+| 項目 | 今まで → 後 |
+| :--- | :--- |
+| Rennet の単位 | vial(1 L) → barrel(120 L)。`goodMeasureCatalog.ts`(`barrelOf(1.0)`)、`MEASURED_SLOT_GOODS` に追加 |
+| Rennet の値 | 4 → 40(1 L の瓶は Grain の 1,860 倍だった) |
+| Rennet のレシピ | Cattle・Sheep・Goats 各 0.03 頭 → 4.8・12・10 頭(1 樽) |
+| Cheese の Rennet の脚 | 0.1 瓶(0.1 L) → 2.5/120 樽(2.5 L)。`migrateFoodProcessingLotContracts` が毎回上書きするので、同じ定数 `RENNET_BARRELS_PER_CHEESE_LOT` を使う |
+
+### 27.3 古い保存と計測
+
+`migrateRennetBarrel` が、単位が vial のとき barrel にして、市場の在庫を 1/120 にする。値とレシピは `WEIGHT_REPRICING`・`WEIGHT_RECIPE_REPRICING` が直す。
+
+盗賊なし、province-101、3年。国庫の合計 549,034 → 548,995、贅沢品の充足 2.921 → 2.893。3年後の市場の Rennet の在庫は 44.6 樽、Cheese は 0(前の計測でも Cheese の在庫の有無は取っていない)。`src/extensions/economy` の試験は前から失敗している6件のみ失敗、`tsc` は通る。
+
+#### 残る課題
+
+- Rennet の胃1つあたりの量と値の史料を探す。
+- Leather(Boots・Harnesses と一緒)・酒樽5品。
+

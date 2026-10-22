@@ -36,6 +36,7 @@ import {
   migratePetroleumChainGoods,
   migratePomaceDistillationGoods,
   migrateRaisinsGood,
+  migrateRennetBarrel,
   migrateSmeltedMetalValues,
   migrateSmeltingFuelAndAshGoods,
   migrateStapleCropGoods,
@@ -951,6 +952,18 @@ describe("GoodsModule", () => {
     expect(ink.unit).toBe("barrel");
     expect(getMarkets()[0].goods[ink.i].stock).toBe(2);
     expect(migrateInkBarrel()).toBe(false);
+  });
+
+  it("moves saved Rennet from 1 L vials to 120 L barrels, a 120th of the stock, once", () => {
+    goodsModule.restoreDefaults();
+    const rennet = getGoods().find(good => good.name === "Rennet")!;
+    rennet.unit = "vial";
+    setMarkets([{ i: 1, centerBurgId: 1, color: "#fff", goods: { [rennet.i]: { stock: 240, price: 4 } } }] as never);
+
+    expect(migrateRennetBarrel()).toBe(true);
+    expect(rennet.unit).toBe("barrel");
+    expect(getMarkets()[0].goods[rennet.i].stock).toBe(2);
+    expect(migrateRennetBarrel()).toBe(false);
   });
 
   it("turns saved Beeswax into a recipe-less 100 kg block with a tenth of the stock, once", () => {

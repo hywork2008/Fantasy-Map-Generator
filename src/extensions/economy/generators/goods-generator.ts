@@ -207,6 +207,9 @@ const shipGoodValue = (shipClassId: string): number => {
   return shipClass.buildPointsRequired * SHIP_VALUE_PER_BUILD_POINT;
 };
 
+/** Liquid rennet in a 1,000 kg cheese lot: 25 mL to 100 L of milk, so 2.5 L for its 10,000 L, in 120 L barrels. */
+const RENNET_BARRELS_PER_CHEESE_LOT = 2.5 / 120;
+
 /** Ink in a book or an artwork: the half litre it took of the 1 L bottle, in 120 L barrels. */
 const INK_BARRELS_PER_BOOK = 0.5 / 120;
 
@@ -1948,10 +1951,13 @@ export const GOODS_DATA: GoodData[] = [
     // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
     icon: "good-unknown",
     color: "#e8d5c4",
-    value: 4,
+    // A 120 L barrel of liquid rennet from the vells (fourth stomachs) of slaughtered young stock: a calf's makes
+    // some 3 L (0.12 head), so 4.8 head for a barrel; a lamb's or kid's a quarter of that (goods-physical-units.md §27).
+    // The yield per vell is a model figure, unsourced. The 1 L vial was worth 4, 1,860 times the grain price per kilogram.
+    value: 40,
     chance: 0,
-    recipes: [{ Cattle: 0.03 }, { Sheep: 0.03 }, { Goats: 0.03 }],
-    unit: "vial",
+    recipes: [{ Cattle: 4.8 }, { Sheep: 12 }, { Goats: 10 }],
+    unit: "barrel",
     demandCoverage: {}
   },
   {
@@ -1995,7 +2001,7 @@ export const GOODS_DATA: GoodData[] = [
     recipes: [
       { Milk: MILK_LOTS_PER_CHEESE_LOT, Salt: 0.25 },
       { Milk: MILK_LOTS_PER_CHEESE_LOT, Vinegar: 0.25 },
-      { Milk: MILK_LOTS_PER_CHEESE_LOT, Rennet: 0.1 },
+      { Milk: MILK_LOTS_PER_CHEESE_LOT, Rennet: RENNET_BARRELS_PER_CHEESE_LOT },
       { Milk: MILK_LOTS_PER_CHEESE_LOT, Ash: 0.15 }
     ],
     unit: "1,000 kg cheese lot"
@@ -4614,7 +4620,8 @@ export function migrateFoodProcessingLotContracts(): boolean {
       .filter((ingredient): ingredient is Good => Boolean(ingredient))
       .map(ingredient => ({
         [milk.i]: MILK_LOTS_PER_CHEESE_LOT,
-        [ingredient.i]: ingredient.name === "Rennet" ? 0.1 : ingredient.name === "Ash" ? 0.15 : 0.25
+        [ingredient.i]:
+          ingredient.name === "Rennet" ? RENNET_BARRELS_PER_CHEESE_LOT : ingredient.name === "Ash" ? 0.15 : 0.25
       }));
     if (
       cheese.unit !== "1,000 kg cheese lot" ||
@@ -4737,6 +4744,11 @@ export function migrateBeeswaxByproduct(): boolean {
   return true;
 }
 
+/** Moves a saved catalogue's Rennet from the 1 L vial to the 120 L barrel, a 120th of the stock (§27). */
+export function migrateRennetBarrel(): boolean {
+  return migrateLargerUnit("Rennet", "vial", "barrel", 120);
+}
+
 /** Moves a saved catalogue's Ink from the 1 L bottle to the 120 L barrel, a 120th of the stock (§25). */
 export function migrateInkBarrel(): boolean {
   return migrateLargerUnit("Ink", "bottle", "barrel", INK_BOTTLES_PER_BARREL);
@@ -4760,6 +4772,7 @@ export const WEIGHT_REPRICING: Readonly<Record<string, readonly [before: number,
   Linen: [6, 8],
   Ink: [7, 3.4],
   Beeswax: [5, 9.7],
+  Rennet: [4, 40],
   Candles: [10, 14]
 };
 
@@ -4780,7 +4793,10 @@ const WEIGHT_RECIPE_REPRICING: readonly { good: string; input: string; before: n
   { good: "Ink", input: "Oil", before: 1, after: 0.1 },
   { good: "Ink", input: "Dyes", before: 0.5, after: 0.1 },
   { good: "Books", input: "Ink", before: 0.5, after: INK_BARRELS_PER_BOOK },
-  { good: "Artworks", input: "Ink", before: 0.5, after: INK_BARRELS_PER_BOOK }
+  { good: "Artworks", input: "Ink", before: 0.5, after: INK_BARRELS_PER_BOOK },
+  { good: "Rennet", input: "Cattle", before: 0.03, after: 4.8 },
+  { good: "Rennet", input: "Sheep", before: 0.03, after: 12 },
+  { good: "Rennet", input: "Goats", before: 0.03, after: 10 }
 ];
 
 /** The food a sack of flour and a loaf lot cover, before and after §21: the 50 kg and 20 kg they weigh. */
