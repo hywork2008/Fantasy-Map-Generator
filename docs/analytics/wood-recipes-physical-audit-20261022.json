@@ -1,0 +1,2299 @@
+{
+  "schemaVersion": 1,
+  "scope": "Shipped GOODS_DATA recipes with a direct Wood input; one nominal output lot before production multipliers",
+  "caveat": "Net catalogue measures, excluding packaging, water, air and untracked residues; no dry-mass or energy balance is implied",
+  "sourceHashes": {
+    "scripts/auditWoodRecipes.mts": "28f86eadba027fac82fe3ff7c376e2f6be2ed7fd31952e77fc8a6078be9b29a5",
+    "src/extensions/economy/generators/goods-generator.ts": "0b5da9dc26e831c3236bfcacdafff54ed77b5930cd2812b44f048d70b10d4326",
+    "src/extensions/economy/generators/goodMeasureCatalog.ts": "867803a86abe4abbd8a2173797af31d7a0c0ee91846c8578f09cbf93f0d3668d",
+    "src/extensions/economy/generators/foodLots.ts": "550d75d4cf69b3e3a230bbec28915f4ea9b391c6041574bc1382b81ded0da18a",
+    "src/extensions/economy/generators/foodConstants.ts": "42b326cb59fe8fb0b14ae4b219737e5556efd6a157fab2c64efa7ac84eb72b45",
+    "src/extensions/economy/generators/craftDemandCalibration.ts": "6f6bc6da1eac252f39513deada2af5073ef0e38f4fba66c3680f6fd666763814",
+    "src/generators/forestStock.ts": "1bf421b5aa785329ad96adf32e49fbda12de865aad047c58e1f14099de1940a5",
+    "src/generators/settlementClearance.ts": "8841705f0deb3cb2337504d1ff83e821cceea6bd10a01614b72ff6306bbe1743",
+    "src/extensions/economy/generators/liveAnimalScale.ts": "9cc03976a39e46a559f948b1dd7d2c73ba3739df65b2e0ec5821cda7a5bf6fb7"
+  },
+  "goodsCount": 15,
+  "recipeCount": 29,
+  "rows": [
+    {
+      "good": "Tar",
+      "recipeIndex": 0,
+      "woodRole": "pyrolysis-feedstock-and-process-fuel",
+      "inputs": [
+        {
+          "name": "Wood",
+          "units": 1,
+          "kg": 6500,
+          "liters": 10000,
+          "measure": {
+            "unit": "pile",
+            "content": "10 m³",
+            "kg": 6500,
+            "liters": 10000,
+            "pack": "stack",
+            "source": "code"
+          }
+        }
+      ],
+      "output": {
+        "name": "Tar",
+        "units": 1,
+        "kg": 144,
+        "liters": 120,
+        "measure": {
+          "unit": "barrel",
+          "content": "120 L",
+          "kg": 144,
+          "liters": 120,
+          "pack": "barrel",
+          "source": "model"
+        }
+      },
+      "byproducts": [
+        {
+          "name": "Ash",
+          "units": 0.15,
+          "kg": 7.5,
+          "liters": 12.500000000000002,
+          "measure": {
+            "unit": "sack",
+            "content": "50 kg",
+            "kg": 50,
+            "liters": 83.33333333333334,
+            "pack": "sack",
+            "source": "model"
+          }
+        }
+      ],
+      "inputTotal": {
+        "kg": 6500,
+        "liters": 10000
+      },
+      "outputTotal": {
+        "kg": 151.5,
+        "liters": 132.5
+      },
+      "unaccountedKg": 6348.5,
+      "mainOutputKgPerWoodKg": 0.022153846153846152,
+      "mainOutputLitersPerWoodLiter": 0.012
+    },
+    {
+      "good": "Charcoal",
+      "recipeIndex": 0,
+      "woodRole": "carbonization-feedstock-and-process-fuel",
+      "inputs": [
+        {
+          "name": "Wood",
+          "units": 1.5,
+          "kg": 9750,
+          "liters": 15000,
+          "measure": {
+            "unit": "pile",
+            "content": "10 m³",
+            "kg": 6500,
+            "liters": 10000,
+            "pack": "stack",
+            "source": "code"
+          }
+        }
+      ],
+      "output": {
+        "name": "Charcoal",
+        "units": 1,
+        "kg": 50,
+        "liters": 200,
+        "measure": {
+          "unit": "sack",
+          "content": "50 kg",
+          "kg": 50,
+          "liters": 200,
+          "pack": "sack",
+          "source": "model"
+        }
+      },
+      "byproducts": [
+        {
+          "name": "Ash",
+          "units": 0.22499999999999998,
+          "kg": 11.249999999999998,
+          "liters": 18.75,
+          "measure": {
+            "unit": "sack",
+            "content": "50 kg",
+            "kg": 50,
+            "liters": 83.33333333333334,
+            "pack": "sack",
+            "source": "model"
+          }
+        }
+      ],
+      "inputTotal": {
+        "kg": 9750,
+        "liters": 15000
+      },
+      "outputTotal": {
+        "kg": 61.25,
+        "liters": 218.75
+      },
+      "unaccountedKg": 9688.75,
+      "mainOutputKgPerWoodKg": 0.005128205128205128,
+      "mainOutputLitersPerWoodLiter": 0.013333333333333334
+    },
+    {
+      "good": "Brick",
+      "recipeIndex": 0,
+      "woodRole": "firing-fuel",
+      "inputs": [
+        {
+          "name": "Clay",
+          "units": 1,
+          "kg": 465.1162790697675,
+          "liters": 290.69767441860466,
+          "measure": {
+            "unit": "wain",
+            "content": "465 kg",
+            "kg": 465.1162790697675,
+            "liters": 290.69767441860466,
+            "pack": "bulk",
+            "source": "model"
+          }
+        },
+        {
+          "name": "Wood",
+          "units": 0.1,
+          "kg": 650,
+          "liters": 1000,
+          "measure": {
+            "unit": "pile",
+            "content": "10 m³",
+            "kg": 6500,
+            "liters": 10000,
+            "pack": "stack",
+            "source": "code"
+          }
+        }
+      ],
+      "output": {
+        "name": "Brick",
+        "units": 1,
+        "kg": 465.1162790697675,
+        "liters": 290.69767441860466,
+        "measure": {
+          "unit": "wain",
+          "content": "465 kg",
+          "kg": 465.1162790697675,
+          "liters": 290.69767441860466,
+          "pack": "bulk",
+          "source": "model"
+        }
+      },
+      "byproducts": [
+        {
+          "name": "Ash",
+          "units": 0.1,
+          "kg": 5,
+          "liters": 8.333333333333334,
+          "measure": {
+            "unit": "sack",
+            "content": "50 kg",
+            "kg": 50,
+            "liters": 83.33333333333334,
+            "pack": "sack",
+            "source": "model"
+          }
+        }
+      ],
+      "inputTotal": {
+        "kg": 1115.1162790697674,
+        "liters": 1290.6976744186047
+      },
+      "outputTotal": {
+        "kg": 470.1162790697675,
+        "liters": 299.031007751938
+      },
+      "unaccountedKg": 645,
+      "mainOutputKgPerWoodKg": 0.7155635062611807,
+      "mainOutputLitersPerWoodLiter": 0.29069767441860467
+    },
+    {
+      "good": "Barrels",
+      "recipeIndex": 0,
+      "woodRole": "wooden-body",
+      "inputs": [
+        {
+          "name": "Wood",
+          "units": 1,
+          "kg": 6500,
+          "liters": 10000,
+          "measure": {
+            "unit": "pile",
+            "content": "10 m³",
+            "kg": 6500,
+            "liters": 10000,
+            "pack": "stack",
+            "source": "code"
+          }
+        }
+      ],
+      "output": {
+        "name": "Barrels",
+        "units": 1,
+        "kg": 25,
+        "liters": 120,
+        "measure": {
+          "unit": "barrel",
+          "content": "1 empty barrel",
+          "kg": 25,
+          "liters": 120,
+          "pack": "barrel",
+          "source": "model"
+        }
+      },
+      "byproducts": [],
+      "inputTotal": {
+        "kg": 6500,
+        "liters": 10000
+      },
+      "outputTotal": {
+        "kg": 25,
+        "liters": 120
+      },
+      "unaccountedKg": 6475,
+      "mainOutputKgPerWoodKg": 0.0038461538461538464,
+      "mainOutputLitersPerWoodLiter": 0.012
+    },
+    {
+      "good": "Arrows",
+      "recipeIndex": 0,
+      "woodRole": "wooden-shafts",
+      "inputs": [
+        {
+          "name": "Wood",
+          "units": 0.4,
+          "kg": 2600,
+          "liters": 4000,
+          "measure": {
+            "unit": "pile",
+            "content": "10 m³",
+            "kg": 6500,
+            "liters": 10000,
+            "pack": "stack",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Iron Ingot",
+          "units": 0.1,
+          "kg": 100,
+          "liters": 18.181818181818183,
+          "measure": {
+            "unit": "wagon",
+            "content": "1 t",
+            "kg": 1000,
+            "liters": 181.8181818181818,
+            "pack": "crate",
+            "source": "code"
+          }
+        }
+      ],
+      "output": {
+        "name": "Arrows",
+        "units": 1,
+        "kg": 100,
+        "liters": 333.33333333333337,
+        "measure": {
+          "unit": "quiver",
+          "content": "100 kg",
+          "kg": 100,
+          "liters": 333.33333333333337,
+          "pack": "crate",
+          "source": "model"
+        }
+      },
+      "byproducts": [],
+      "inputTotal": {
+        "kg": 2700,
+        "liters": 4018.181818181818
+      },
+      "outputTotal": {
+        "kg": 100,
+        "liters": 333.33333333333337
+      },
+      "unaccountedKg": 2600,
+      "mainOutputKgPerWoodKg": 0.038461538461538464,
+      "mainOutputLitersPerWoodLiter": 0.08333333333333334
+    },
+    {
+      "good": "Muskets",
+      "recipeIndex": 0,
+      "woodRole": "wooden-stocks; charcoal-is-separate-fuel",
+      "inputs": [
+        {
+          "name": "Iron Ingot",
+          "units": 1,
+          "kg": 1000,
+          "liters": 181.8181818181818,
+          "measure": {
+            "unit": "wagon",
+            "content": "1 t",
+            "kg": 1000,
+            "liters": 181.8181818181818,
+            "pack": "crate",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Charcoal",
+          "units": 1,
+          "kg": 50,
+          "liters": 200,
+          "measure": {
+            "unit": "sack",
+            "content": "50 kg",
+            "kg": 50,
+            "liters": 200,
+            "pack": "sack",
+            "source": "model"
+          }
+        },
+        {
+          "name": "Wood",
+          "units": 0.5,
+          "kg": 3250,
+          "liters": 5000,
+          "measure": {
+            "unit": "pile",
+            "content": "10 m³",
+            "kg": 6500,
+            "liters": 10000,
+            "pack": "stack",
+            "source": "code"
+          }
+        }
+      ],
+      "output": {
+        "name": "Muskets",
+        "units": 1,
+        "kg": 500,
+        "liters": 1000,
+        "measure": {
+          "unit": "piece",
+          "content": "500 kg (about 100 muskets)",
+          "kg": 500,
+          "liters": 1000,
+          "pack": "crate",
+          "source": "recipe"
+        }
+      },
+      "byproducts": [],
+      "inputTotal": {
+        "kg": 4300,
+        "liters": 5381.818181818182
+      },
+      "outputTotal": {
+        "kg": 500,
+        "liters": 1000
+      },
+      "unaccountedKg": 3800,
+      "mainOutputKgPerWoodKg": 0.15384615384615385,
+      "mainOutputLitersPerWoodLiter": 0.2
+    },
+    {
+      "good": "Preserved food",
+      "recipeIndex": 11,
+      "woodRole": "smoking-fuel",
+      "inputs": [
+        {
+          "name": "Fish",
+          "units": 1,
+          "kg": 465.1162790697675,
+          "liters": 775.1937984496125,
+          "measure": {
+            "unit": "wain",
+            "content": "465 kg",
+            "kg": 465.1162790697675,
+            "liters": 775.1937984496125,
+            "pack": "crate",
+            "source": "model"
+          }
+        },
+        {
+          "name": "Wood",
+          "units": 1,
+          "kg": 6500,
+          "liters": 10000,
+          "measure": {
+            "unit": "pile",
+            "content": "10 m³",
+            "kg": 6500,
+            "liters": 10000,
+            "pack": "stack",
+            "source": "code"
+          }
+        }
+      ],
+      "output": {
+        "name": "Preserved food",
+        "units": 1,
+        "kg": 465.1162790697675,
+        "liters": 516.795865633075,
+        "measure": {
+          "unit": "wain",
+          "content": "465 kg",
+          "kg": 465.1162790697675,
+          "liters": 516.795865633075,
+          "pack": "barrel",
+          "source": "model"
+        }
+      },
+      "byproducts": [
+        {
+          "name": "Ash",
+          "units": 1,
+          "kg": 50,
+          "liters": 83.33333333333334,
+          "measure": {
+            "unit": "sack",
+            "content": "50 kg",
+            "kg": 50,
+            "liters": 83.33333333333334,
+            "pack": "sack",
+            "source": "model"
+          }
+        }
+      ],
+      "inputTotal": {
+        "kg": 6965.116279069767,
+        "liters": 10775.193798449613
+      },
+      "outputTotal": {
+        "kg": 515.1162790697674,
+        "liters": 600.1291989664084
+      },
+      "unaccountedKg": 6450,
+      "mainOutputKgPerWoodKg": 0.07155635062611808,
+      "mainOutputLitersPerWoodLiter": 0.0516795865633075
+    },
+    {
+      "good": "Ash",
+      "recipeIndex": 0,
+      "woodRole": "complete-combustion-feedstock",
+      "inputs": [
+        {
+          "name": "Wood",
+          "units": 1,
+          "kg": 6500,
+          "liters": 10000,
+          "measure": {
+            "unit": "pile",
+            "content": "10 m³",
+            "kg": 6500,
+            "liters": 10000,
+            "pack": "stack",
+            "source": "code"
+          }
+        }
+      ],
+      "output": {
+        "name": "Ash",
+        "units": 1,
+        "kg": 50,
+        "liters": 83.33333333333334,
+        "measure": {
+          "unit": "sack",
+          "content": "50 kg",
+          "kg": 50,
+          "liters": 83.33333333333334,
+          "pack": "sack",
+          "source": "model"
+        }
+      },
+      "byproducts": [],
+      "inputTotal": {
+        "kg": 6500,
+        "liters": 10000
+      },
+      "outputTotal": {
+        "kg": 50,
+        "liters": 83.33333333333334
+      },
+      "unaccountedKg": 6450,
+      "mainOutputKgPerWoodKg": 0.007692307692307693,
+      "mainOutputLitersPerWoodLiter": 0.008333333333333335
+    },
+    {
+      "good": "Smoked Cheese",
+      "recipeIndex": 0,
+      "woodRole": "smoking-fuel",
+      "inputs": [
+        {
+          "name": "Cheese",
+          "units": 1,
+          "kg": 1000,
+          "liters": 1111.111111111111,
+          "measure": {
+            "unit": "1,000 kg cheese lot",
+            "content": "1000 kg",
+            "kg": 1000,
+            "liters": 1111.111111111111,
+            "pack": "crate",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Wood",
+          "units": 0.5,
+          "kg": 3250,
+          "liters": 5000,
+          "measure": {
+            "unit": "pile",
+            "content": "10 m³",
+            "kg": 6500,
+            "liters": 10000,
+            "pack": "stack",
+            "source": "code"
+          }
+        }
+      ],
+      "output": {
+        "name": "Smoked Cheese",
+        "units": 1,
+        "kg": 465.1162790697675,
+        "liters": 775.1937984496125,
+        "measure": {
+          "unit": "wain",
+          "content": "465 kg",
+          "kg": 465.1162790697675,
+          "liters": 775.1937984496125,
+          "pack": "crate",
+          "source": "model"
+        }
+      },
+      "byproducts": [
+        {
+          "name": "Ash",
+          "units": 0.5,
+          "kg": 25,
+          "liters": 41.66666666666667,
+          "measure": {
+            "unit": "sack",
+            "content": "50 kg",
+            "kg": 50,
+            "liters": 83.33333333333334,
+            "pack": "sack",
+            "source": "model"
+          }
+        }
+      ],
+      "inputTotal": {
+        "kg": 4250,
+        "liters": 6111.111111111111
+      },
+      "outputTotal": {
+        "kg": 490.1162790697675,
+        "liters": 816.8604651162791
+      },
+      "unaccountedKg": 3759.8837209302324,
+      "mainOutputKgPerWoodKg": 0.14311270125223616,
+      "mainOutputLitersPerWoodLiter": 0.1550387596899225
+    },
+    {
+      "good": "Liquor",
+      "recipeIndex": 0,
+      "woodRole": "distillation-fuel",
+      "inputs": [
+        {
+          "name": "Wheat",
+          "units": 2,
+          "kg": 930.232558139535,
+          "liters": 1208.0942313500454,
+          "measure": {
+            "unit": "wain",
+            "content": "465 kg",
+            "kg": 465.1162790697675,
+            "liters": 604.0471156750227,
+            "pack": "sack",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Wood",
+          "units": 1,
+          "kg": 6500,
+          "liters": 10000,
+          "measure": {
+            "unit": "pile",
+            "content": "10 m³",
+            "kg": 6500,
+            "liters": 10000,
+            "pack": "stack",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Barrels",
+          "units": 0.5,
+          "kg": 12.5,
+          "liters": 60,
+          "measure": {
+            "unit": "barrel",
+            "content": "1 empty barrel",
+            "kg": 25,
+            "liters": 120,
+            "pack": "barrel",
+            "source": "model"
+          }
+        }
+      ],
+      "output": {
+        "name": "Liquor",
+        "units": 1,
+        "kg": 95,
+        "liters": 100,
+        "measure": {
+          "unit": "vessel",
+          "content": "100 L",
+          "kg": 95,
+          "liters": 100,
+          "pack": "cask",
+          "source": "model"
+        }
+      },
+      "byproducts": [
+        {
+          "name": "Ash",
+          "units": 1,
+          "kg": 50,
+          "liters": 83.33333333333334,
+          "measure": {
+            "unit": "sack",
+            "content": "50 kg",
+            "kg": 50,
+            "liters": 83.33333333333334,
+            "pack": "sack",
+            "source": "model"
+          }
+        }
+      ],
+      "inputTotal": {
+        "kg": 7442.732558139535,
+        "liters": 11268.094231350045
+      },
+      "outputTotal": {
+        "kg": 145,
+        "liters": 183.33333333333334
+      },
+      "unaccountedKg": 7297.732558139535,
+      "mainOutputKgPerWoodKg": 0.014615384615384615,
+      "mainOutputLitersPerWoodLiter": 0.01
+    },
+    {
+      "good": "Liquor",
+      "recipeIndex": 1,
+      "woodRole": "distillation-fuel",
+      "inputs": [
+        {
+          "name": "Rye",
+          "units": 2,
+          "kg": 930.232558139535,
+          "liters": 1291.9896640826876,
+          "measure": {
+            "unit": "wain",
+            "content": "465 kg",
+            "kg": 465.1162790697675,
+            "liters": 645.9948320413438,
+            "pack": "sack",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Wood",
+          "units": 1,
+          "kg": 6500,
+          "liters": 10000,
+          "measure": {
+            "unit": "pile",
+            "content": "10 m³",
+            "kg": 6500,
+            "liters": 10000,
+            "pack": "stack",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Barrels",
+          "units": 0.5,
+          "kg": 12.5,
+          "liters": 60,
+          "measure": {
+            "unit": "barrel",
+            "content": "1 empty barrel",
+            "kg": 25,
+            "liters": 120,
+            "pack": "barrel",
+            "source": "model"
+          }
+        }
+      ],
+      "output": {
+        "name": "Liquor",
+        "units": 1,
+        "kg": 95,
+        "liters": 100,
+        "measure": {
+          "unit": "vessel",
+          "content": "100 L",
+          "kg": 95,
+          "liters": 100,
+          "pack": "cask",
+          "source": "model"
+        }
+      },
+      "byproducts": [
+        {
+          "name": "Ash",
+          "units": 1,
+          "kg": 50,
+          "liters": 83.33333333333334,
+          "measure": {
+            "unit": "sack",
+            "content": "50 kg",
+            "kg": 50,
+            "liters": 83.33333333333334,
+            "pack": "sack",
+            "source": "model"
+          }
+        }
+      ],
+      "inputTotal": {
+        "kg": 7442.732558139535,
+        "liters": 11351.989664082688
+      },
+      "outputTotal": {
+        "kg": 145,
+        "liters": 183.33333333333334
+      },
+      "unaccountedKg": 7297.732558139535,
+      "mainOutputKgPerWoodKg": 0.014615384615384615,
+      "mainOutputLitersPerWoodLiter": 0.01
+    },
+    {
+      "good": "Liquor",
+      "recipeIndex": 2,
+      "woodRole": "distillation-fuel",
+      "inputs": [
+        {
+          "name": "Barley",
+          "units": 2,
+          "kg": 930.232558139535,
+          "liters": 1500.3750937734435,
+          "measure": {
+            "unit": "wain",
+            "content": "465 kg",
+            "kg": 465.1162790697675,
+            "liters": 750.1875468867217,
+            "pack": "sack",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Wood",
+          "units": 1,
+          "kg": 6500,
+          "liters": 10000,
+          "measure": {
+            "unit": "pile",
+            "content": "10 m³",
+            "kg": 6500,
+            "liters": 10000,
+            "pack": "stack",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Barrels",
+          "units": 0.5,
+          "kg": 12.5,
+          "liters": 60,
+          "measure": {
+            "unit": "barrel",
+            "content": "1 empty barrel",
+            "kg": 25,
+            "liters": 120,
+            "pack": "barrel",
+            "source": "model"
+          }
+        }
+      ],
+      "output": {
+        "name": "Liquor",
+        "units": 1,
+        "kg": 95,
+        "liters": 100,
+        "measure": {
+          "unit": "vessel",
+          "content": "100 L",
+          "kg": 95,
+          "liters": 100,
+          "pack": "cask",
+          "source": "model"
+        }
+      },
+      "byproducts": [
+        {
+          "name": "Ash",
+          "units": 1,
+          "kg": 50,
+          "liters": 83.33333333333334,
+          "measure": {
+            "unit": "sack",
+            "content": "50 kg",
+            "kg": 50,
+            "liters": 83.33333333333334,
+            "pack": "sack",
+            "source": "model"
+          }
+        }
+      ],
+      "inputTotal": {
+        "kg": 7442.732558139535,
+        "liters": 11560.375093773444
+      },
+      "outputTotal": {
+        "kg": 145,
+        "liters": 183.33333333333334
+      },
+      "unaccountedKg": 7297.732558139535,
+      "mainOutputKgPerWoodKg": 0.014615384615384615,
+      "mainOutputLitersPerWoodLiter": 0.01
+    },
+    {
+      "good": "Liquor",
+      "recipeIndex": 3,
+      "woodRole": "distillation-fuel",
+      "inputs": [
+        {
+          "name": "Wine",
+          "units": 1,
+          "kg": 198,
+          "liters": 200,
+          "measure": {
+            "unit": "200 L cask",
+            "content": "200 L",
+            "kg": 198,
+            "liters": 200,
+            "pack": "cask",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Wood",
+          "units": 1,
+          "kg": 6500,
+          "liters": 10000,
+          "measure": {
+            "unit": "pile",
+            "content": "10 m³",
+            "kg": 6500,
+            "liters": 10000,
+            "pack": "stack",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Barrels",
+          "units": 0.5,
+          "kg": 12.5,
+          "liters": 60,
+          "measure": {
+            "unit": "barrel",
+            "content": "1 empty barrel",
+            "kg": 25,
+            "liters": 120,
+            "pack": "barrel",
+            "source": "model"
+          }
+        }
+      ],
+      "output": {
+        "name": "Liquor",
+        "units": 1,
+        "kg": 95,
+        "liters": 100,
+        "measure": {
+          "unit": "vessel",
+          "content": "100 L",
+          "kg": 95,
+          "liters": 100,
+          "pack": "cask",
+          "source": "model"
+        }
+      },
+      "byproducts": [
+        {
+          "name": "Ash",
+          "units": 1,
+          "kg": 50,
+          "liters": 83.33333333333334,
+          "measure": {
+            "unit": "sack",
+            "content": "50 kg",
+            "kg": 50,
+            "liters": 83.33333333333334,
+            "pack": "sack",
+            "source": "model"
+          }
+        }
+      ],
+      "inputTotal": {
+        "kg": 6710.5,
+        "liters": 10260
+      },
+      "outputTotal": {
+        "kg": 145,
+        "liters": 183.33333333333334
+      },
+      "unaccountedKg": 6565.5,
+      "mainOutputKgPerWoodKg": 0.014615384615384615,
+      "mainOutputLitersPerWoodLiter": 0.01
+    },
+    {
+      "good": "Liquor",
+      "recipeIndex": 4,
+      "woodRole": "distillation-fuel",
+      "inputs": [
+        {
+          "name": "Wheat",
+          "units": 2,
+          "kg": 930.232558139535,
+          "liters": 1208.0942313500454,
+          "measure": {
+            "unit": "wain",
+            "content": "465 kg",
+            "kg": 465.1162790697675,
+            "liters": 604.0471156750227,
+            "pack": "sack",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Wood",
+          "units": 1,
+          "kg": 6500,
+          "liters": 10000,
+          "measure": {
+            "unit": "pile",
+            "content": "10 m³",
+            "kg": 6500,
+            "liters": 10000,
+            "pack": "stack",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Ceramics",
+          "units": 0.25,
+          "kg": 116.27906976744187,
+          "liters": 290.69767441860466,
+          "measure": {
+            "unit": "wain",
+            "content": "465 kg",
+            "kg": 465.1162790697675,
+            "liters": 1162.7906976744187,
+            "pack": "crate",
+            "source": "model"
+          }
+        }
+      ],
+      "output": {
+        "name": "Liquor",
+        "units": 1,
+        "kg": 95,
+        "liters": 100,
+        "measure": {
+          "unit": "vessel",
+          "content": "100 L",
+          "kg": 95,
+          "liters": 100,
+          "pack": "cask",
+          "source": "model"
+        }
+      },
+      "byproducts": [
+        {
+          "name": "Ash",
+          "units": 1,
+          "kg": 50,
+          "liters": 83.33333333333334,
+          "measure": {
+            "unit": "sack",
+            "content": "50 kg",
+            "kg": 50,
+            "liters": 83.33333333333334,
+            "pack": "sack",
+            "source": "model"
+          }
+        }
+      ],
+      "inputTotal": {
+        "kg": 7546.511627906977,
+        "liters": 11498.79190576865
+      },
+      "outputTotal": {
+        "kg": 145,
+        "liters": 183.33333333333334
+      },
+      "unaccountedKg": 7401.511627906977,
+      "mainOutputKgPerWoodKg": 0.014615384615384615,
+      "mainOutputLitersPerWoodLiter": 0.01
+    },
+    {
+      "good": "Liquor",
+      "recipeIndex": 5,
+      "woodRole": "distillation-fuel",
+      "inputs": [
+        {
+          "name": "Rye",
+          "units": 2,
+          "kg": 930.232558139535,
+          "liters": 1291.9896640826876,
+          "measure": {
+            "unit": "wain",
+            "content": "465 kg",
+            "kg": 465.1162790697675,
+            "liters": 645.9948320413438,
+            "pack": "sack",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Wood",
+          "units": 1,
+          "kg": 6500,
+          "liters": 10000,
+          "measure": {
+            "unit": "pile",
+            "content": "10 m³",
+            "kg": 6500,
+            "liters": 10000,
+            "pack": "stack",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Ceramics",
+          "units": 0.25,
+          "kg": 116.27906976744187,
+          "liters": 290.69767441860466,
+          "measure": {
+            "unit": "wain",
+            "content": "465 kg",
+            "kg": 465.1162790697675,
+            "liters": 1162.7906976744187,
+            "pack": "crate",
+            "source": "model"
+          }
+        }
+      ],
+      "output": {
+        "name": "Liquor",
+        "units": 1,
+        "kg": 95,
+        "liters": 100,
+        "measure": {
+          "unit": "vessel",
+          "content": "100 L",
+          "kg": 95,
+          "liters": 100,
+          "pack": "cask",
+          "source": "model"
+        }
+      },
+      "byproducts": [
+        {
+          "name": "Ash",
+          "units": 1,
+          "kg": 50,
+          "liters": 83.33333333333334,
+          "measure": {
+            "unit": "sack",
+            "content": "50 kg",
+            "kg": 50,
+            "liters": 83.33333333333334,
+            "pack": "sack",
+            "source": "model"
+          }
+        }
+      ],
+      "inputTotal": {
+        "kg": 7546.511627906977,
+        "liters": 11582.687338501293
+      },
+      "outputTotal": {
+        "kg": 145,
+        "liters": 183.33333333333334
+      },
+      "unaccountedKg": 7401.511627906977,
+      "mainOutputKgPerWoodKg": 0.014615384615384615,
+      "mainOutputLitersPerWoodLiter": 0.01
+    },
+    {
+      "good": "Liquor",
+      "recipeIndex": 6,
+      "woodRole": "distillation-fuel",
+      "inputs": [
+        {
+          "name": "Barley",
+          "units": 2,
+          "kg": 930.232558139535,
+          "liters": 1500.3750937734435,
+          "measure": {
+            "unit": "wain",
+            "content": "465 kg",
+            "kg": 465.1162790697675,
+            "liters": 750.1875468867217,
+            "pack": "sack",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Wood",
+          "units": 1,
+          "kg": 6500,
+          "liters": 10000,
+          "measure": {
+            "unit": "pile",
+            "content": "10 m³",
+            "kg": 6500,
+            "liters": 10000,
+            "pack": "stack",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Ceramics",
+          "units": 0.25,
+          "kg": 116.27906976744187,
+          "liters": 290.69767441860466,
+          "measure": {
+            "unit": "wain",
+            "content": "465 kg",
+            "kg": 465.1162790697675,
+            "liters": 1162.7906976744187,
+            "pack": "crate",
+            "source": "model"
+          }
+        }
+      ],
+      "output": {
+        "name": "Liquor",
+        "units": 1,
+        "kg": 95,
+        "liters": 100,
+        "measure": {
+          "unit": "vessel",
+          "content": "100 L",
+          "kg": 95,
+          "liters": 100,
+          "pack": "cask",
+          "source": "model"
+        }
+      },
+      "byproducts": [
+        {
+          "name": "Ash",
+          "units": 1,
+          "kg": 50,
+          "liters": 83.33333333333334,
+          "measure": {
+            "unit": "sack",
+            "content": "50 kg",
+            "kg": 50,
+            "liters": 83.33333333333334,
+            "pack": "sack",
+            "source": "model"
+          }
+        }
+      ],
+      "inputTotal": {
+        "kg": 7546.511627906977,
+        "liters": 11791.072768192049
+      },
+      "outputTotal": {
+        "kg": 145,
+        "liters": 183.33333333333334
+      },
+      "unaccountedKg": 7401.511627906977,
+      "mainOutputKgPerWoodKg": 0.014615384615384615,
+      "mainOutputLitersPerWoodLiter": 0.01
+    },
+    {
+      "good": "Liquor",
+      "recipeIndex": 7,
+      "woodRole": "distillation-fuel",
+      "inputs": [
+        {
+          "name": "Wine",
+          "units": 1,
+          "kg": 198,
+          "liters": 200,
+          "measure": {
+            "unit": "200 L cask",
+            "content": "200 L",
+            "kg": 198,
+            "liters": 200,
+            "pack": "cask",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Wood",
+          "units": 1,
+          "kg": 6500,
+          "liters": 10000,
+          "measure": {
+            "unit": "pile",
+            "content": "10 m³",
+            "kg": 6500,
+            "liters": 10000,
+            "pack": "stack",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Ceramics",
+          "units": 0.25,
+          "kg": 116.27906976744187,
+          "liters": 290.69767441860466,
+          "measure": {
+            "unit": "wain",
+            "content": "465 kg",
+            "kg": 465.1162790697675,
+            "liters": 1162.7906976744187,
+            "pack": "crate",
+            "source": "model"
+          }
+        }
+      ],
+      "output": {
+        "name": "Liquor",
+        "units": 1,
+        "kg": 95,
+        "liters": 100,
+        "measure": {
+          "unit": "vessel",
+          "content": "100 L",
+          "kg": 95,
+          "liters": 100,
+          "pack": "cask",
+          "source": "model"
+        }
+      },
+      "byproducts": [
+        {
+          "name": "Ash",
+          "units": 1,
+          "kg": 50,
+          "liters": 83.33333333333334,
+          "measure": {
+            "unit": "sack",
+            "content": "50 kg",
+            "kg": 50,
+            "liters": 83.33333333333334,
+            "pack": "sack",
+            "source": "model"
+          }
+        }
+      ],
+      "inputTotal": {
+        "kg": 6814.279069767442,
+        "liters": 10490.697674418605
+      },
+      "outputTotal": {
+        "kg": 145,
+        "liters": 183.33333333333334
+      },
+      "unaccountedKg": 6669.279069767442,
+      "mainOutputKgPerWoodKg": 0.014615384615384615,
+      "mainOutputLitersPerWoodLiter": 0.01
+    },
+    {
+      "good": "Liquor",
+      "recipeIndex": 8,
+      "woodRole": "distillation-fuel",
+      "inputs": [
+        {
+          "name": "Wheat",
+          "units": 2,
+          "kg": 930.232558139535,
+          "liters": 1208.0942313500454,
+          "measure": {
+            "unit": "wain",
+            "content": "465 kg",
+            "kg": 465.1162790697675,
+            "liters": 604.0471156750227,
+            "pack": "sack",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Wood",
+          "units": 1,
+          "kg": 6500,
+          "liters": 10000,
+          "measure": {
+            "unit": "pile",
+            "content": "10 m³",
+            "kg": 6500,
+            "liters": 10000,
+            "pack": "stack",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Glass",
+          "units": 0.25,
+          "kg": 116.27906976744187,
+          "liters": 193.79844961240312,
+          "measure": {
+            "unit": "wain",
+            "content": "465 kg",
+            "kg": 465.1162790697675,
+            "liters": 775.1937984496125,
+            "pack": "crate",
+            "source": "model"
+          }
+        }
+      ],
+      "output": {
+        "name": "Liquor",
+        "units": 1,
+        "kg": 95,
+        "liters": 100,
+        "measure": {
+          "unit": "vessel",
+          "content": "100 L",
+          "kg": 95,
+          "liters": 100,
+          "pack": "cask",
+          "source": "model"
+        }
+      },
+      "byproducts": [
+        {
+          "name": "Ash",
+          "units": 1,
+          "kg": 50,
+          "liters": 83.33333333333334,
+          "measure": {
+            "unit": "sack",
+            "content": "50 kg",
+            "kg": 50,
+            "liters": 83.33333333333334,
+            "pack": "sack",
+            "source": "model"
+          }
+        }
+      ],
+      "inputTotal": {
+        "kg": 7546.511627906977,
+        "liters": 11401.892680962448
+      },
+      "outputTotal": {
+        "kg": 145,
+        "liters": 183.33333333333334
+      },
+      "unaccountedKg": 7401.511627906977,
+      "mainOutputKgPerWoodKg": 0.014615384615384615,
+      "mainOutputLitersPerWoodLiter": 0.01
+    },
+    {
+      "good": "Liquor",
+      "recipeIndex": 9,
+      "woodRole": "distillation-fuel",
+      "inputs": [
+        {
+          "name": "Rye",
+          "units": 2,
+          "kg": 930.232558139535,
+          "liters": 1291.9896640826876,
+          "measure": {
+            "unit": "wain",
+            "content": "465 kg",
+            "kg": 465.1162790697675,
+            "liters": 645.9948320413438,
+            "pack": "sack",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Wood",
+          "units": 1,
+          "kg": 6500,
+          "liters": 10000,
+          "measure": {
+            "unit": "pile",
+            "content": "10 m³",
+            "kg": 6500,
+            "liters": 10000,
+            "pack": "stack",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Glass",
+          "units": 0.25,
+          "kg": 116.27906976744187,
+          "liters": 193.79844961240312,
+          "measure": {
+            "unit": "wain",
+            "content": "465 kg",
+            "kg": 465.1162790697675,
+            "liters": 775.1937984496125,
+            "pack": "crate",
+            "source": "model"
+          }
+        }
+      ],
+      "output": {
+        "name": "Liquor",
+        "units": 1,
+        "kg": 95,
+        "liters": 100,
+        "measure": {
+          "unit": "vessel",
+          "content": "100 L",
+          "kg": 95,
+          "liters": 100,
+          "pack": "cask",
+          "source": "model"
+        }
+      },
+      "byproducts": [
+        {
+          "name": "Ash",
+          "units": 1,
+          "kg": 50,
+          "liters": 83.33333333333334,
+          "measure": {
+            "unit": "sack",
+            "content": "50 kg",
+            "kg": 50,
+            "liters": 83.33333333333334,
+            "pack": "sack",
+            "source": "model"
+          }
+        }
+      ],
+      "inputTotal": {
+        "kg": 7546.511627906977,
+        "liters": 11485.788113695091
+      },
+      "outputTotal": {
+        "kg": 145,
+        "liters": 183.33333333333334
+      },
+      "unaccountedKg": 7401.511627906977,
+      "mainOutputKgPerWoodKg": 0.014615384615384615,
+      "mainOutputLitersPerWoodLiter": 0.01
+    },
+    {
+      "good": "Liquor",
+      "recipeIndex": 10,
+      "woodRole": "distillation-fuel",
+      "inputs": [
+        {
+          "name": "Barley",
+          "units": 2,
+          "kg": 930.232558139535,
+          "liters": 1500.3750937734435,
+          "measure": {
+            "unit": "wain",
+            "content": "465 kg",
+            "kg": 465.1162790697675,
+            "liters": 750.1875468867217,
+            "pack": "sack",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Wood",
+          "units": 1,
+          "kg": 6500,
+          "liters": 10000,
+          "measure": {
+            "unit": "pile",
+            "content": "10 m³",
+            "kg": 6500,
+            "liters": 10000,
+            "pack": "stack",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Glass",
+          "units": 0.25,
+          "kg": 116.27906976744187,
+          "liters": 193.79844961240312,
+          "measure": {
+            "unit": "wain",
+            "content": "465 kg",
+            "kg": 465.1162790697675,
+            "liters": 775.1937984496125,
+            "pack": "crate",
+            "source": "model"
+          }
+        }
+      ],
+      "output": {
+        "name": "Liquor",
+        "units": 1,
+        "kg": 95,
+        "liters": 100,
+        "measure": {
+          "unit": "vessel",
+          "content": "100 L",
+          "kg": 95,
+          "liters": 100,
+          "pack": "cask",
+          "source": "model"
+        }
+      },
+      "byproducts": [
+        {
+          "name": "Ash",
+          "units": 1,
+          "kg": 50,
+          "liters": 83.33333333333334,
+          "measure": {
+            "unit": "sack",
+            "content": "50 kg",
+            "kg": 50,
+            "liters": 83.33333333333334,
+            "pack": "sack",
+            "source": "model"
+          }
+        }
+      ],
+      "inputTotal": {
+        "kg": 7546.511627906977,
+        "liters": 11694.173543385847
+      },
+      "outputTotal": {
+        "kg": 145,
+        "liters": 183.33333333333334
+      },
+      "unaccountedKg": 7401.511627906977,
+      "mainOutputKgPerWoodKg": 0.014615384615384615,
+      "mainOutputLitersPerWoodLiter": 0.01
+    },
+    {
+      "good": "Liquor",
+      "recipeIndex": 11,
+      "woodRole": "distillation-fuel",
+      "inputs": [
+        {
+          "name": "Wine",
+          "units": 1,
+          "kg": 198,
+          "liters": 200,
+          "measure": {
+            "unit": "200 L cask",
+            "content": "200 L",
+            "kg": 198,
+            "liters": 200,
+            "pack": "cask",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Wood",
+          "units": 1,
+          "kg": 6500,
+          "liters": 10000,
+          "measure": {
+            "unit": "pile",
+            "content": "10 m³",
+            "kg": 6500,
+            "liters": 10000,
+            "pack": "stack",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Glass",
+          "units": 0.25,
+          "kg": 116.27906976744187,
+          "liters": 193.79844961240312,
+          "measure": {
+            "unit": "wain",
+            "content": "465 kg",
+            "kg": 465.1162790697675,
+            "liters": 775.1937984496125,
+            "pack": "crate",
+            "source": "model"
+          }
+        }
+      ],
+      "output": {
+        "name": "Liquor",
+        "units": 1,
+        "kg": 95,
+        "liters": 100,
+        "measure": {
+          "unit": "vessel",
+          "content": "100 L",
+          "kg": 95,
+          "liters": 100,
+          "pack": "cask",
+          "source": "model"
+        }
+      },
+      "byproducts": [
+        {
+          "name": "Ash",
+          "units": 1,
+          "kg": 50,
+          "liters": 83.33333333333334,
+          "measure": {
+            "unit": "sack",
+            "content": "50 kg",
+            "kg": 50,
+            "liters": 83.33333333333334,
+            "pack": "sack",
+            "source": "model"
+          }
+        }
+      ],
+      "inputTotal": {
+        "kg": 6814.279069767442,
+        "liters": 10393.798449612403
+      },
+      "outputTotal": {
+        "kg": 145,
+        "liters": 183.33333333333334
+      },
+      "unaccountedKg": 6669.279069767442,
+      "mainOutputKgPerWoodKg": 0.014615384615384615,
+      "mainOutputLitersPerWoodLiter": 0.01
+    },
+    {
+      "good": "Liquor",
+      "recipeIndex": 12,
+      "woodRole": "distillation-fuel",
+      "inputs": [
+        {
+          "name": "Pomace",
+          "units": 1.5,
+          "kg": 1500,
+          "liters": 2500,
+          "measure": {
+            "unit": "1,000 kg pomace lot",
+            "content": "1,000 kg",
+            "kg": 1000,
+            "liters": 1666.6666666666667,
+            "pack": "bulk",
+            "source": "label"
+          }
+        },
+        {
+          "name": "Wood",
+          "units": 1,
+          "kg": 6500,
+          "liters": 10000,
+          "measure": {
+            "unit": "pile",
+            "content": "10 m³",
+            "kg": 6500,
+            "liters": 10000,
+            "pack": "stack",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Barrels",
+          "units": 0.5,
+          "kg": 12.5,
+          "liters": 60,
+          "measure": {
+            "unit": "barrel",
+            "content": "1 empty barrel",
+            "kg": 25,
+            "liters": 120,
+            "pack": "barrel",
+            "source": "model"
+          }
+        }
+      ],
+      "output": {
+        "name": "Liquor",
+        "units": 1,
+        "kg": 95,
+        "liters": 100,
+        "measure": {
+          "unit": "vessel",
+          "content": "100 L",
+          "kg": 95,
+          "liters": 100,
+          "pack": "cask",
+          "source": "model"
+        }
+      },
+      "byproducts": [
+        {
+          "name": "Ash",
+          "units": 1,
+          "kg": 50,
+          "liters": 83.33333333333334,
+          "measure": {
+            "unit": "sack",
+            "content": "50 kg",
+            "kg": 50,
+            "liters": 83.33333333333334,
+            "pack": "sack",
+            "source": "model"
+          }
+        }
+      ],
+      "inputTotal": {
+        "kg": 8012.5,
+        "liters": 12560
+      },
+      "outputTotal": {
+        "kg": 145,
+        "liters": 183.33333333333334
+      },
+      "unaccountedKg": 7867.5,
+      "mainOutputKgPerWoodKg": 0.014615384615384615,
+      "mainOutputLitersPerWoodLiter": 0.01
+    },
+    {
+      "good": "Liquor",
+      "recipeIndex": 13,
+      "woodRole": "distillation-fuel",
+      "inputs": [
+        {
+          "name": "Pomace",
+          "units": 1.5,
+          "kg": 1500,
+          "liters": 2500,
+          "measure": {
+            "unit": "1,000 kg pomace lot",
+            "content": "1,000 kg",
+            "kg": 1000,
+            "liters": 1666.6666666666667,
+            "pack": "bulk",
+            "source": "label"
+          }
+        },
+        {
+          "name": "Wood",
+          "units": 1,
+          "kg": 6500,
+          "liters": 10000,
+          "measure": {
+            "unit": "pile",
+            "content": "10 m³",
+            "kg": 6500,
+            "liters": 10000,
+            "pack": "stack",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Ceramics",
+          "units": 0.25,
+          "kg": 116.27906976744187,
+          "liters": 290.69767441860466,
+          "measure": {
+            "unit": "wain",
+            "content": "465 kg",
+            "kg": 465.1162790697675,
+            "liters": 1162.7906976744187,
+            "pack": "crate",
+            "source": "model"
+          }
+        }
+      ],
+      "output": {
+        "name": "Liquor",
+        "units": 1,
+        "kg": 95,
+        "liters": 100,
+        "measure": {
+          "unit": "vessel",
+          "content": "100 L",
+          "kg": 95,
+          "liters": 100,
+          "pack": "cask",
+          "source": "model"
+        }
+      },
+      "byproducts": [
+        {
+          "name": "Ash",
+          "units": 1,
+          "kg": 50,
+          "liters": 83.33333333333334,
+          "measure": {
+            "unit": "sack",
+            "content": "50 kg",
+            "kg": 50,
+            "liters": 83.33333333333334,
+            "pack": "sack",
+            "source": "model"
+          }
+        }
+      ],
+      "inputTotal": {
+        "kg": 8116.279069767442,
+        "liters": 12790.697674418605
+      },
+      "outputTotal": {
+        "kg": 145,
+        "liters": 183.33333333333334
+      },
+      "unaccountedKg": 7971.279069767442,
+      "mainOutputKgPerWoodKg": 0.014615384615384615,
+      "mainOutputLitersPerWoodLiter": 0.01
+    },
+    {
+      "good": "Liquor",
+      "recipeIndex": 14,
+      "woodRole": "distillation-fuel",
+      "inputs": [
+        {
+          "name": "Pomace",
+          "units": 1.5,
+          "kg": 1500,
+          "liters": 2500,
+          "measure": {
+            "unit": "1,000 kg pomace lot",
+            "content": "1,000 kg",
+            "kg": 1000,
+            "liters": 1666.6666666666667,
+            "pack": "bulk",
+            "source": "label"
+          }
+        },
+        {
+          "name": "Wood",
+          "units": 1,
+          "kg": 6500,
+          "liters": 10000,
+          "measure": {
+            "unit": "pile",
+            "content": "10 m³",
+            "kg": 6500,
+            "liters": 10000,
+            "pack": "stack",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Glass",
+          "units": 0.25,
+          "kg": 116.27906976744187,
+          "liters": 193.79844961240312,
+          "measure": {
+            "unit": "wain",
+            "content": "465 kg",
+            "kg": 465.1162790697675,
+            "liters": 775.1937984496125,
+            "pack": "crate",
+            "source": "model"
+          }
+        }
+      ],
+      "output": {
+        "name": "Liquor",
+        "units": 1,
+        "kg": 95,
+        "liters": 100,
+        "measure": {
+          "unit": "vessel",
+          "content": "100 L",
+          "kg": 95,
+          "liters": 100,
+          "pack": "cask",
+          "source": "model"
+        }
+      },
+      "byproducts": [
+        {
+          "name": "Ash",
+          "units": 1,
+          "kg": 50,
+          "liters": 83.33333333333334,
+          "measure": {
+            "unit": "sack",
+            "content": "50 kg",
+            "kg": 50,
+            "liters": 83.33333333333334,
+            "pack": "sack",
+            "source": "model"
+          }
+        }
+      ],
+      "inputTotal": {
+        "kg": 8116.279069767442,
+        "liters": 12693.798449612403
+      },
+      "outputTotal": {
+        "kg": 145,
+        "liters": 183.33333333333334
+      },
+      "unaccountedKg": 7971.279069767442,
+      "mainOutputKgPerWoodKg": 0.014615384615384615,
+      "mainOutputLitersPerWoodLiter": 0.01
+    },
+    {
+      "good": "Timber",
+      "recipeIndex": 0,
+      "woodRole": "sawlogs",
+      "inputs": [
+        {
+          "name": "Wood",
+          "units": 1.5,
+          "kg": 9750,
+          "liters": 15000,
+          "measure": {
+            "unit": "pile",
+            "content": "10 m³",
+            "kg": 6500,
+            "liters": 10000,
+            "pack": "stack",
+            "source": "code"
+          }
+        }
+      ],
+      "output": {
+        "name": "Timber",
+        "units": 1,
+        "kg": 4500,
+        "liters": 7500,
+        "measure": {
+          "unit": "beam",
+          "content": "7.5 m³",
+          "kg": 4500,
+          "liters": 7500,
+          "pack": "stack",
+          "source": "recipe"
+        }
+      },
+      "byproducts": [],
+      "inputTotal": {
+        "kg": 9750,
+        "liters": 15000
+      },
+      "outputTotal": {
+        "kg": 4500,
+        "liters": 7500
+      },
+      "unaccountedKg": 5250,
+      "mainOutputKgPerWoodKg": 0.46153846153846156,
+      "mainOutputLitersPerWoodLiter": 0.5
+    },
+    {
+      "good": "Spinning Wheel",
+      "recipeIndex": 0,
+      "woodRole": "wooden-body",
+      "inputs": [
+        {
+          "name": "Wood",
+          "units": 1.5,
+          "kg": 9750,
+          "liters": 15000,
+          "measure": {
+            "unit": "pile",
+            "content": "10 m³",
+            "kg": 6500,
+            "liters": 10000,
+            "pack": "stack",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Iron Ingot",
+          "units": 0.2,
+          "kg": 200,
+          "liters": 36.36363636363637,
+          "measure": {
+            "unit": "wagon",
+            "content": "1 t",
+            "kg": 1000,
+            "liters": 181.8181818181818,
+            "pack": "crate",
+            "source": "code"
+          }
+        }
+      ],
+      "output": {
+        "name": "Spinning Wheel",
+        "units": 1,
+        "kg": 8,
+        "liters": 80,
+        "measure": {
+          "unit": "wheel",
+          "content": "1 wheel",
+          "kg": 8,
+          "liters": 80,
+          "pack": "crate",
+          "source": "model"
+        }
+      },
+      "byproducts": [],
+      "inputTotal": {
+        "kg": 9950,
+        "liters": 15036.363636363636
+      },
+      "outputTotal": {
+        "kg": 8,
+        "liters": 80
+      },
+      "unaccountedKg": 9942,
+      "mainOutputKgPerWoodKg": 0.0008205128205128205,
+      "mainOutputLitersPerWoodLiter": 0.005333333333333333
+    },
+    {
+      "good": "Instruments",
+      "recipeIndex": 0,
+      "woodRole": "wooden-body",
+      "inputs": [
+        {
+          "name": "Wood",
+          "units": 1,
+          "kg": 6500,
+          "liters": 10000,
+          "measure": {
+            "unit": "pile",
+            "content": "10 m³",
+            "kg": 6500,
+            "liters": 10000,
+            "pack": "stack",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Copper Ingot",
+          "units": 0.2,
+          "kg": 200,
+          "liters": 32.25806451612903,
+          "measure": {
+            "unit": "wagon",
+            "content": "1 t",
+            "kg": 1000,
+            "liters": 161.29032258064515,
+            "pack": "crate",
+            "source": "code"
+          }
+        }
+      ],
+      "output": {
+        "name": "Instruments",
+        "units": 1,
+        "kg": 10,
+        "liters": 50,
+        "measure": {
+          "unit": "set",
+          "content": "10 kg",
+          "kg": 10,
+          "liters": 50,
+          "pack": "crate",
+          "source": "model"
+        }
+      },
+      "byproducts": [],
+      "inputTotal": {
+        "kg": 6700,
+        "liters": 10032.258064516129
+      },
+      "outputTotal": {
+        "kg": 10,
+        "liters": 50
+      },
+      "unaccountedKg": 6690,
+      "mainOutputKgPerWoodKg": 0.0015384615384615385,
+      "mainOutputLitersPerWoodLiter": 0.005
+    },
+    {
+      "good": "Rail",
+      "recipeIndex": 0,
+      "woodRole": "undocumented-fuel-or-sleepers",
+      "inputs": [
+        {
+          "name": "Steel",
+          "units": 1,
+          "kg": 1000,
+          "liters": 181.8181818181818,
+          "measure": {
+            "unit": "bar",
+            "content": "1 t",
+            "kg": 1000,
+            "liters": 181.8181818181818,
+            "pack": "crate",
+            "source": "recipe"
+          }
+        },
+        {
+          "name": "Machine Parts",
+          "units": 0.2,
+          "kg": 200,
+          "liters": 66.66666666666667,
+          "measure": {
+            "unit": "crate",
+            "content": "1 t",
+            "kg": 1000,
+            "liters": 333.3333333333333,
+            "pack": "crate",
+            "source": "recipe"
+          }
+        },
+        {
+          "name": "Wood",
+          "units": 0.4,
+          "kg": 2600,
+          "liters": 4000,
+          "measure": {
+            "unit": "pile",
+            "content": "10 m³",
+            "kg": 6500,
+            "liters": 10000,
+            "pack": "stack",
+            "source": "code"
+          }
+        }
+      ],
+      "output": {
+        "name": "Rail",
+        "units": 1,
+        "kg": 1000,
+        "liters": 333.3333333333333,
+        "measure": {
+          "unit": "length",
+          "content": "1 t",
+          "kg": 1000,
+          "liters": 333.3333333333333,
+          "pack": "bundle",
+          "source": "recipe"
+        }
+      },
+      "byproducts": [],
+      "inputTotal": {
+        "kg": 3800,
+        "liters": 4248.484848484848
+      },
+      "outputTotal": {
+        "kg": 1000,
+        "liters": 333.3333333333333
+      },
+      "unaccountedKg": 2800,
+      "mainOutputKgPerWoodKg": 0.38461538461538464,
+      "mainOutputLitersPerWoodLiter": 0.08333333333333333
+    },
+    {
+      "good": "Steamship",
+      "recipeIndex": 0,
+      "woodRole": "undocumented-hull-or-fuel",
+      "inputs": [
+        {
+          "name": "Wood",
+          "units": 4,
+          "kg": 26000,
+          "liters": 40000,
+          "measure": {
+            "unit": "pile",
+            "content": "10 m³",
+            "kg": 6500,
+            "liters": 10000,
+            "pack": "stack",
+            "source": "code"
+          }
+        },
+        {
+          "name": "Sails",
+          "units": 1,
+          "kg": 1000,
+          "liters": 2500,
+          "measure": {
+            "unit": "set",
+            "content": "one ship's sails, 1 t",
+            "kg": 1000,
+            "liters": 2500,
+            "pack": "bale",
+            "source": "recipe"
+          }
+        },
+        {
+          "name": "Ropes",
+          "units": 2,
+          "kg": 900,
+          "liters": 1500,
+          "measure": {
+            "unit": "coil",
+            "content": "450 kg",
+            "kg": 450,
+            "liters": 750,
+            "pack": "bundle",
+            "source": "recipe"
+          }
+        },
+        {
+          "name": "Tar",
+          "units": 1,
+          "kg": 144,
+          "liters": 120,
+          "measure": {
+            "unit": "barrel",
+            "content": "120 L",
+            "kg": 144,
+            "liters": 120,
+            "pack": "barrel",
+            "source": "model"
+          }
+        },
+        {
+          "name": "Marine Steam Engine",
+          "units": 1,
+          "kg": 10000,
+          "liters": 10000,
+          "measure": {
+            "unit": "engine",
+            "content": "10 t",
+            "kg": 10000,
+            "liters": 10000,
+            "pack": "crate",
+            "source": "model"
+          }
+        }
+      ],
+      "output": {
+        "name": "Steamship",
+        "units": 1,
+        "kg": 1000000,
+        "liters": 5000000,
+        "measure": {
+          "unit": "ship",
+          "content": "1 ship",
+          "kg": 1000000,
+          "liters": 5000000,
+          "pack": "self",
+          "source": "model"
+        }
+      },
+      "byproducts": [],
+      "inputTotal": {
+        "kg": 38044,
+        "liters": 54120
+      },
+      "outputTotal": {
+        "kg": 1000000,
+        "liters": 5000000
+      },
+      "unaccountedKg": -961956,
+      "mainOutputKgPerWoodKg": 38.46153846153846,
+      "mainOutputLitersPerWoodLiter": 125
+    }
+  ]
+}

@@ -120,6 +120,106 @@ describe("ProductionModule byproducts", () => {
     ]);
   });
 
+  it.each([0.5, 1, 2])("keeps material and co-product ratios fixed at productivity %s", productivity => {
+    setEconomyCalibrationState({ applyCalibration: false });
+    const state = {
+      burg: { i: 1, cell: 0, treasury: 0 },
+      market: { i: 1, goods: {} },
+      inventory: [0, 2, 0.01],
+      demandCoverage: [],
+      records: [] as ProductionRecord[],
+      ingredientCosts: 0,
+      smithingProgramByGood: new Map<string, never>(),
+      strategicLaborMarket: undefined,
+      strategicDemandByGood: new Map<number, never>()
+    };
+    const result = (new ProductionModule() as unknown as ManufactureHarness).executeManufacture(
+      state,
+      { demandCoverageByGood: [] },
+      {
+        action: {
+          good: Goods.get(3)!,
+          ingredients: [
+            { goodId: 1, amount: 1 },
+            { goodId: 2, amount: 0.005 }
+          ],
+          byproducts: [{ goodId: 4, amount: 0.004 }],
+          maxYield: 2,
+          ingredientCostPerUnit: 0,
+          smithingProgram: null
+        },
+        candidates: [],
+        goalGoodId: 3,
+        laborProductivity: productivity
+      },
+      1
+    );
+    expect(result.yieldLots).toBeCloseTo(productivity, 8);
+    expect(result.laborUsed).toBeCloseTo(1, 8);
+    expect(2 - state.inventory[1]).toBeCloseTo(productivity, 8);
+    expect(0.01 - state.inventory[2]).toBeCloseTo(productivity * 0.005, 8);
+    const record = state.records.find((row): row is MfgRecord => "recipe" in row)!;
+    expect(record.recipe[1].units).toBeCloseTo(result.yieldLots * 0.005, 10);
+    expect(state.market.goods[4].stock).toBeCloseTo(result.yieldLots * 0.004, 10);
+  });
+
+  it.each([0, 0.005])("requires and pays for sub-hundredth Wood, available=%s", stock => {
+    setEconomyCalibrationState({ applyCalibration: false });
+    const market: Market = {
+      i: 1,
+      centerBurgId: 1,
+      color: "#000",
+      goods: { 1: { stock: 1, price: 1 }, 2: { stock, price: 1 } }
+    };
+    const burg = { i: 1, cell: 0, treasury: 10, market: 1 };
+    worldContext.pack = { burgs: [{ i: 0 }, burg], states: [{ i: 0 }] } as unknown as PackedGraph;
+    setMarkets([market]);
+    Markets.sync();
+    const state = {
+      burg,
+      market,
+      inventory: [] as number[],
+      demandCoverage: [],
+      records: [] as ProductionRecord[],
+      ingredientCosts: 0,
+      smithingProgramByGood: new Map<string, never>(),
+      strategicLaborMarket: undefined,
+      strategicDemandByGood: new Map<number, never>()
+    };
+    const result = (new ProductionModule() as unknown as ManufactureHarness).executeManufacture(
+      state,
+      { demandCoverageByGood: [] },
+      {
+        action: {
+          good: Goods.get(3)!,
+          ingredients: [
+            { goodId: 1, amount: 1 },
+            { goodId: 2, amount: 0.005 }
+          ],
+          byproducts: [],
+          maxYield: 1,
+          ingredientCostPerUnit: 1.005,
+          smithingProgram: null
+        },
+        candidates: [],
+        goalGoodId: 3,
+        laborProductivity: 1
+      },
+      1
+    );
+    if (stock === 0) {
+      expect(result.yieldLots).toBe(0);
+      expect(market.goods[1].stock).toBe(1);
+      expect(burg.treasury).toBe(10);
+    } else {
+      expect(result.yieldLots).toBe(1);
+      expect(market.goods[2].stock).toBe(0);
+      expect(state.ingredientCosts).toBeCloseTo(1.005 * 1.1, 10);
+      expect(10 - burg.treasury).toBeCloseTo(state.ingredientCosts, 10);
+      expect(market.marketTreasury?.balance).toBeCloseTo(state.ingredientCosts, 10);
+    }
+  });
+
   it("credits byproducts to getBurgProduction alongside the primary manufactured good", () => {
     // Regression guard: tooltips, the burg economy summary, economyTotals.ts's world/state
     // production totals (Goods editor table, Balance History), and the Goods map layer all read

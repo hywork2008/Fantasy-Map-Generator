@@ -321,10 +321,9 @@ export function domainShare(goodName: string, port: boolean): number {
  * uncapped batching; without an entry here such a Good costs a whole labour point (1,000
  * person-months) a lot, and its wages alone exceed its price.
  *
- * Charcoal: the colliers' year adds 1.3 labourers' wages of value (the extraction rule,
- * mineOperations.ts EXTRACTION_OUTPUT_PER_WORKER_IN_WAGE_YEARS); a lot adds its value 3 less 1.5
- * Wood = 1.5, and a labour point earns 1.5 × 0.43 × 1,000 / 12 ≈ 53.75 a month at grain price 1,
- * so 1.5 / (1.3 × 53.75) ≈ 0.0215 (docs/plan/farm-labour-calibration.md §17).
+ * Charcoal: preserve the existing work time (0.0215 points/50 kg) during the physical recipe
+ * correction. Its former price-minus-Wood derivation used an invalid 9.75 t input and is retired.
+ * Do not increase work time simply to absorb the lower feedstock bill (§37).
  */
 export const UNCALIBRATED_LABOR_POINTS_PER_LOT: Readonly<Record<string, number>> = {
   Charcoal: 0.0215

@@ -135,6 +135,7 @@ import { TradeSecurity } from "./tradeSecurity";
 import { TransportAssetOrders } from "./transportAssetOrders";
 import { advanceViticultureAllocationShares, getViticultureAllocationMultiplier } from "./viticultureAllocation";
 import { VolcanicOperations } from "./volcanicOperations";
+import { hasPhysicalWoodRecipe } from "./woodRecipeContracts";
 
 export type {
   DealRecord,
@@ -1128,9 +1129,30 @@ export class ProductionModule {
     laborBudget: number
   ): { yieldLots: number; laborUsed: number } {
     const { good, ingredients, byproducts, maxYield, ingredientCostPerUnit, smithingProgram } = decision.action;
+    const cultureModifier = getModifiers(good, state.burg.cell);
+    // The Burg's craft guild for this Good's domain (GuildKnowledge.settleAnnual()) applies as an
+    // efficiency multiplier alongside culture — docs/plan/knowledge-guild-system.md §6, §9 Phase 2.
+    const domain = getCraftDomainForGood(good.name);
+    const guildBonus = domain && state.burg.i ? getGuildBonus(state.burg.i, domain) : 1;
+    // Mechanized spinning/weaving (docs/plan/technology-development-roadmap.md §8) stacks on top of
+    // the guild-technique bonus for the whole textiles domain (Cloth/Garments/Sails), not just Cloth
+    // itself — mechanization improved the whole weaving trade, and Garments/Sails are woven from it.
+    const technologyBonus =
+      domain === "textiles" && state.burg.state ? getMechanizedTextilesOutputMultiplier(state.burg.state) : 1;
+    const discontentMultiplier = getDiscontentLaborMultiplier(state.burg.discontent);
+    const outputMultiplier =
+      cultureModifier *
+      guildBonus *
+      technologyBonus *
+      decision.laborProductivity *
+      discontentMultiplier *
+      (smithingProgram?.outputMultiplier ?? 1);
+    const physicalRecipe = hasPhysicalWoodRecipe(good.name);
+    if (!(outputMultiplier > 0)) return { yieldLots: 0, laborUsed: 0 };
     const applyCalibration = getEconomyCalibrationState().applyCalibration;
     const populationRate = Math.max(0, this.worldContext.populationRate ?? 0) || 1;
-    const laborPerLot = applyCalibration ? Math.max(1e-9, laborPointsForLots(good.name, 1, populationRate)) : 1;
+    const baseLaborPerLot = applyCalibration ? Math.max(1e-9, laborPointsForLots(good.name, 1, populationRate)) : 1;
+    const laborPerLot = baseLaborPerLot / (physicalRecipe ? outputMultiplier : 1);
     const desiredLots = laborBudget / laborPerLot;
     let actualYield = Math.min(desiredLots, maxYield);
     const fundingState = this.getStateMilitaryManufacturingFund(state, decision.goalGoodId);
@@ -1160,32 +1182,25 @@ export class ProductionModule {
     if (actualYield <= 0.001) return { yieldLots: 0, laborUsed: 0 };
     const laborUsed = actualYield * laborPerLot;
 
-    const cultureModifier = getModifiers(good, state.burg.cell);
-    // The Burg's craft guild for this Good's domain (GuildKnowledge.settleAnnual()) applies as an
-    // efficiency multiplier alongside culture — docs/plan/knowledge-guild-system.md §6, §9 Phase 2.
-    const domain = getCraftDomainForGood(good.name);
-    const guildBonus = domain && state.burg.i ? getGuildBonus(state.burg.i, domain) : 1;
-    // Mechanized spinning/weaving (docs/plan/technology-development-roadmap.md §8) stacks on top of
-    // the guild-technique bonus for the whole textiles domain (Cloth/Garments/Sails), not just Cloth
-    // itself — mechanization improved the whole weaving trade, and Garments/Sails are woven from it.
-    const technologyBonus =
-      domain === "textiles" && state.burg.state ? getMechanizedTextilesOutputMultiplier(state.burg.state) : 1;
-    const discontentMultiplier = getDiscontentLaborMultiplier(state.burg.discontent);
-    const produced = rn(
-      actualYield *
-        cultureModifier *
-        guildBonus *
-        technologyBonus *
-        decision.laborProductivity *
-        discontentMultiplier *
-        (smithingProgram?.outputMultiplier ?? 1),
-      2
-    );
+    // Physical recipes improve work speed, never create material through an output bonus.
+    const produced = physicalRecipe ? actualYield : rn(actualYield * outputMultiplier, 2);
     if (!produced) return { yieldLots: 0, laborUsed: 0 };
 
     // Plan all ingredient sourcing first; bail out before mutating state if any market buy fails.
     type Plan = { ingredientId: number; amount: number; fromInventory: number; deal: Deal | null };
     const plans: Plan[] = [];
+    // Validate all physical inputs with fresh customer quotes before the first purchase.
+    if (physicalRecipe) {
+      let requiredBudget = 0;
+      for (const ingredient of ingredients) {
+        const amount = Math.max(0, actualYield * ingredient.amount - (state.inventory[ingredient.goodId] || 0));
+        const quote = Markets.quoteMarket(state.market, ingredient.goodId, state.burg.i);
+        if (amount > quote.stock + 1e-9) return { yieldLots: 0, laborUsed: 0 };
+        requiredBudget += amount * quote.buyPrice;
+      }
+      if (requiredBudget + laborUsed * wageRate > Math.max(0, availableFunds) + 1e-9)
+        return { yieldLots: 0, laborUsed: 0 };
+    }
     let remainingBudget = Math.max(0, availableFunds);
     for (const ingredient of ingredients) {
       const ingredientId = ingredient.goodId;
@@ -1194,15 +1209,16 @@ export class ProductionModule {
       const fromMarket = Math.max(0, amount - fromInventory);
 
       let deal: Deal | null = null;
-      if (fromMarket > 0.01) {
+      if (fromMarket > (physicalRecipe ? 1e-12 : 0.01)) {
         deal = Markets.buy({
           burg: state.burg,
           good: Goods.get(ingredientId)!,
           units: fromMarket,
+          exactUnits: physicalRecipe,
           budget: remainingBudget,
           flow: { category: "recipeInput", guildDomain: domain, relatedGoodId: good.i }
         });
-        if (!deal || deal.units < fromMarket - 0.01) {
+        if (!deal || deal.units < fromMarket - (physicalRecipe ? 1e-9 : 0.01)) {
           // Null deal: no stock or no budget left at all. Partial deal: budget ran out mid-purchase
           // (the affordableYield cap above is an estimate and can drift from execution-time prices).
           // Either way, bail out before producing more than the ingredients actually paid for.
@@ -1223,10 +1239,16 @@ export class ProductionModule {
         const marketCost = deal.units * deal.price;
         materialCost += marketCost;
         state.ingredientCosts += marketCost;
-        if (fundingState) fundingState.treasury = rn(Math.max(0, (fundingState.treasury ?? 0) - marketCost), 2);
-        else state.burg.treasury = rn((state.burg.treasury || 0) - marketCost, 2);
+        if (fundingState)
+          fundingState.treasury = physicalRecipe
+            ? Math.max(0, (fundingState.treasury ?? 0) - marketCost)
+            : rn(Math.max(0, (fundingState.treasury ?? 0) - marketCost), 2);
+        else
+          state.burg.treasury = physicalRecipe
+            ? (state.burg.treasury || 0) - marketCost
+            : rn((state.burg.treasury || 0) - marketCost, 2);
       }
-      recipe.push({ goodId: ingredientId, units: rn(amount, 2) });
+      recipe.push({ goodId: ingredientId, units: physicalRecipe ? amount : rn(amount, 2) });
 
       const ingredient = Goods.get(ingredientId);
       if (ingredient) recordFoodProcessingConsumption(state.market, ingredient.name, amount);
@@ -1247,11 +1269,11 @@ export class ProductionModule {
     const producedByproducts: ProductionRecipeEntry[] = [];
     for (const byproduct of byproducts) {
       // Byproducts follow consumed input (actualYield), not master/guild-enhanced sale output.
-      const units = rn(actualYield * byproduct.amount, 2);
+      const units = physicalRecipe ? actualYield * byproduct.amount : rn(actualYield * byproduct.amount, 2);
       if (units <= 0) continue;
       const byproductGood = Goods.get(byproduct.goodId);
       if (!byproductGood) continue;
-      this.depositByproductInMarket(state, byproductGood, units);
+      this.depositByproductInMarket(state, byproductGood, units, physicalRecipe);
       producedByproducts.push({ goodId: byproduct.goodId, units });
     }
 
@@ -1302,11 +1324,12 @@ export class ProductionModule {
   private depositByproductInMarket(
     state: Pick<BurgProductionState, "burg" | "market">,
     good: Good,
-    units: number
+    units: number,
+    exactUnits = false
   ): void {
     const marketGood = state.market.goods[good.i] ?? { stock: 0, price: good.value };
     state.market.goods[good.i] = marketGood;
-    marketGood.stock = rn(marketGood.stock + units, 2);
+    marketGood.stock = exactUnits ? marketGood.stock + units : rn(marketGood.stock + units, 2);
     recordGoodFlow({
       direction: "source",
       category: "burgCraft",
@@ -1338,7 +1361,14 @@ export class ProductionModule {
 
       const good = Goods.get(goodId);
       if (!good || !isGoodEnabled(good)) continue;
-      const deal = Markets.sell({ burg: state.burg, good, units, taxRate, budget: remainingBudget });
+      const deal = Markets.sell({
+        burg: state.burg,
+        good,
+        units,
+        taxRate,
+        budget: remainingBudget,
+        exactUnits: hasPhysicalWoodRecipe(good.name)
+      });
       if (!deal) continue;
 
       remainingBudget = rn(Math.max(0, remainingBudget - deal.units * deal.price), 2);
@@ -1624,7 +1654,9 @@ export class ProductionModule {
     const modifier = getModifiers(recipe.good, state.burg.cell);
     const smithingProgram = state.smithingProgramByGood.get(recipe.good.name) ?? null;
     const outQuote = Markets.quoteMarket(state.market, recipe.good.i);
-    const sellValue = (outQuote.sellPrice || recipe.good.value) * modifier * (smithingProgram?.outputMultiplier ?? 1);
+    const sellValue =
+      (outQuote.sellPrice || recipe.good.value) *
+      (hasPhysicalWoodRecipe(recipe.good.name) ? 1 : modifier * (smithingProgram?.outputMultiplier ?? 1));
     const ingredientCost = marketCostTotal / actualUnits;
     const salesTaxRate = this.getSalesTax(state.burg);
     const postTaxSellValue = sellValue * (1 - salesTaxRate);
@@ -1675,7 +1707,9 @@ export class ProductionModule {
     const modifier = getModifiers(good, state.burg.cell);
     const smithingProgram = state.smithingProgramByGood.get(good.name) ?? null;
     const sellQuote = Markets.quoteMarket(state.market, good.i);
-    const sellValuePerUnit = (sellQuote.sellPrice || good.value) * modifier * (smithingProgram?.outputMultiplier ?? 1);
+    const sellValuePerUnit =
+      (sellQuote.sellPrice || good.value) *
+      (hasPhysicalWoodRecipe(good.name) ? 1 : modifier * (smithingProgram?.outputMultiplier ?? 1));
     const totalProjectedGain = sellValuePerUnit * targetUnits * demandEffect.multiplier;
 
     const recipeList = index.recipesByOutput[good.i];

@@ -41,6 +41,13 @@ import {
 } from "./goodsGeneratorTypes";
 import { RENNET_BARRELS_PER_CHEESE_LOT } from "./rennet";
 import { getDefaultGoodCargoProfile } from "./tradeCargo";
+import {
+  CHARCOAL_WOOD_PER_LOT,
+  LEGACY_WOOD_RECIPES,
+  PRESERVED_FISH_ASH,
+  PRESERVED_FISH_WOOD_RECIPE,
+  WOOD_RECIPE_CONTRACTS
+} from "./woodRecipeContracts";
 
 /** Raw, un-refrigerated foods introduced before the `freshFood` catalogue tag existed. */
 const FRESH_FOOD_GOOD_NAMES = new Set(["Fish", "Game", "Milk", "Shellfish", "Grapes"]);
@@ -198,11 +205,8 @@ type GoodData = Omit<Good, "i" | "recipes" | "byproducts"> & {
   byproducts?: (Record<string, number> | undefined)[];
 };
 
-/** Matches Ash's dedicated Wood-burning recipe for processes that fully burn their fuel. */
-const ASH_YIELD_PER_WOOD_FULL_COMBUSTION = 1;
-/** Charcoal and tar kilns retain most of the Wood as a useful product, leaving little ash. */
-const ASH_YIELD_PER_WOOD_PARTIAL_PYROLYSIS = 0.15;
-const CHARCOAL_WOOD_PER_UNIT = 1.5;
+/** Whole-kiln material contract; no independently recovered ash from carbonization. */
+const CHARCOAL_WOOD_PER_UNIT = CHARCOAL_WOOD_PER_LOT;
 const POTASH_ASH_PER_UNIT = 1.5;
 /** A tun (1,000 L) of cider or perry uses about 1.5 t of pressed orchard fruit. */
 const ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK = ORCHARD_FRUIT_LOTS_PER_DRINK_LOT;
@@ -1107,6 +1111,7 @@ export const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Tar",
+    ...WOOD_RECIPE_CONTRACTS.Tar,
     warEconomyType: "strategic",
     tags: ["naval"],
     icon: "good-tar",
@@ -1115,9 +1120,7 @@ export const GOODS_DATA: GoodData[] = [
     chance: 0,
     unit: "barrel",
     demandCoverage: { utilities: 0.4, military: 0.1 },
-    multipliers: { cultureType: { Hunting: 1.2 } },
-    recipes: [{ Wood: 1 }, { Resin: 0.75 }],
-    byproducts: [{ Ash: ASH_YIELD_PER_WOOD_PARTIAL_PYROLYSIS }]
+    multipliers: { cultureType: { Hunting: 1.2 } }
   },
   {
     name: "Sulfur",
@@ -1183,14 +1186,14 @@ export const GOODS_DATA: GoodData[] = [
     // Charcoal is a deliberately carbonized Wood fuel. It powers medieval furnaces and
     // smithies, while its production keeps their fuel demand coupled to standing forests.
     name: "Charcoal",
+    ...WOOD_RECIPE_CONTRACTS.Charcoal,
     warEconomyType: "strategic",
     tags: ["fuel"],
     icon: "good-coal",
     color: "#343434",
     value: 3,
     chance: 0,
-    recipes: [{ Wood: CHARCOAL_WOOD_PER_UNIT }],
-    byproducts: [{ Ash: CHARCOAL_WOOD_PER_UNIT * ASH_YIELD_PER_WOOD_PARTIAL_PYROLYSIS }],
+
     unit: "sack",
     demandCoverage: { utilities: 0.5 }
   },
@@ -1284,15 +1287,15 @@ export const GOODS_DATA: GoodData[] = [
   {
     // docs/plan/urban-housing-system.md K6/PR-M: construction brick distinct from Ceramics (utilities).
     name: "Brick",
+    ...WOOD_RECIPE_CONTRACTS.Brick,
     warEconomyType: "strategic",
     tags: ["construction"],
     icon: "good-clay",
     color: "#a65d3f",
     value: 2,
     chance: 0,
-    // Clay body + Wood firing fuel; manufacture pulls Clay/Wood via the recipe pipeline.
-    recipes: [{ Clay: 1, Wood: 0.1 }],
-    byproducts: [{ Ash: 0.1 * ASH_YIELD_PER_WOOD_FULL_COMBUSTION }],
+    // Dry clay loses 5% on firing; Wood supplies the modeled process heat.
+
     unit: "wain",
     demandCoverage: { construction: 1 },
     multipliers: { cultureType: { River: 1.3, Lake: 1.3 } }
@@ -1622,12 +1625,13 @@ export const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Barrels",
+    ...WOOD_RECIPE_CONTRACTS.Barrels,
     tags: ["naval", "storage"],
     icon: "good-barrels",
     color: "#b46e3b",
     value: 2,
     chance: 0,
-    recipes: [{ Wood: 1 }],
+
     unit: "barrel",
     // Catalogue coverage is kept for applyCalibration=false. When the flag is on,
     // craftDemandCalibration residualWeight 0 removes Barrels from the consumer denominator.
@@ -1681,6 +1685,7 @@ export const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Arrows",
+    ...WOOD_RECIPE_CONTRACTS.Arrows,
     // Always available (not gated by gunpowderEraEnabled): fletching predates and outlasts
     // firearms, and hunters keep buying them for game alongside archer regiments (see the
     // "hunting" DemandCategory above). Consumed by archer units in militaryResources.ts.
@@ -1690,7 +1695,7 @@ export const GOODS_DATA: GoodData[] = [
     color: "#8b5a2b",
     value: 3,
     chance: 0,
-    recipes: [{ Wood: 0.4, "Iron Ingot": 0.1 }],
+
     unit: "quiver",
     demandCoverage: { military: 0.5, hunting: 0.5 }
   },
@@ -1747,6 +1752,7 @@ export const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Muskets",
+    ...WOOD_RECIPE_CONTRACTS.Muskets,
     // Gunpowder-era good (see GUNPOWDER_ERA_GOODS above): the personal firearm itself, distinct
     // from Gunpowder (propellant) and Bullets (shot) above and from Artillery (the crew-served
     // heavy gun) below. Firearm units draw this per head instead of the generic Arms set —
@@ -1761,7 +1767,7 @@ export const GOODS_DATA: GoodData[] = [
     color: "#5a3d2b",
     value: 35,
     chance: 0,
-    recipes: [{ "Iron Ingot": 1, Charcoal: 1, Wood: 0.5 }],
+
     unit: "piece",
     // Economy production is aggregated by market, so one trade lot represents a small batch
     // of firearms rather than an indivisible real-world musket.
@@ -1868,7 +1874,7 @@ export const GOODS_DATA: GoodData[] = [
       { Game: 1, Vinegar: 0.5 },
       { Sheep: 1, Vinegar: 0.5 },
       { Pig: 1, Vinegar: 0.5 },
-      { Fish: 1, Wood: 1 }
+      PRESERVED_FISH_WOOD_RECIPE
     ],
     byproducts: [
       undefined,
@@ -1882,7 +1888,7 @@ export const GOODS_DATA: GoodData[] = [
       undefined,
       undefined,
       undefined,
-      { Ash: ASH_YIELD_PER_WOOD_FULL_COMBUSTION }
+      PRESERVED_FISH_ASH
     ],
     unit: "wain",
     demandCoverage: { food: 1 }
@@ -1959,18 +1965,15 @@ export const GOODS_DATA: GoodData[] = [
     // gives Cheese-making a near-universally available fallback input when Salt/Vinegar/Rennet are
     // locally scarce.
     name: "Ash",
+    ...WOOD_RECIPE_CONTRACTS.Ash,
     tags: ["construction"],
     // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
     icon: "good-unknown",
     color: "#b8b8b0",
-    // 2026-08-12 (goods-generator.test.ts margin regression test): was 1, tying { Wood: 1 }'s cost of
-    // 1 exactly — burning Wood into Ash added no priceable value, so the recipe was mathematically dead
-    // per hasViableFoodProcessingMargin()'s strict saleValue > ingredientCost check (same failure class
-    // as Preserved food/Jewelry/Vinegar above). Raised to 1.5 for a 50% margin, matching Flour's own
-    // { Grain: 1 } -> value 1.5 single-ingredient-burn pattern below.
+    // Retain the existing price during the material correction; Wood/ash yield is now explicit.
     value: 1.5,
     chance: 0,
-    recipes: [{ Wood: 1 }],
+
     unit: "sack",
     demandCoverage: { construction: 0.2 }
   },
@@ -2004,14 +2007,14 @@ export const GOODS_DATA: GoodData[] = [
     // (even after this session's yield-rate cut, see dairy.ts) still outpacing what plain Cheese
     // demand alone could absorb.
     name: "Smoked Cheese",
+    ...WOOD_RECIPE_CONTRACTS["Smoked Cheese"],
     tags: ["food", "luxury"],
     // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
     icon: "good-unknown",
     color: "#c68642",
     value: 20,
     chance: 0,
-    recipes: [{ Cheese: 1, Wood: 0.5 }],
-    byproducts: [{ Ash: 0.5 * ASH_YIELD_PER_WOOD_FULL_COMBUSTION }],
+
     unit: "wain",
     demandCoverage: { food: 0.5, luxury: 0.5 }
   },
@@ -2093,29 +2096,13 @@ export const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Liquor",
+    ...WOOD_RECIPE_CONTRACTS.Liquor,
     tags: ["food", "luxury", "beverage"],
     icon: "good-liquor",
     color: "#8a0303",
     value: 12,
     chance: 0,
-    recipes: [
-      { Wheat: 2, Wood: 1, Barrels: 0.5 },
-      { Rye: 2, Wood: 1, Barrels: 0.5 },
-      { Barley: 2, Wood: 1, Barrels: 0.5 },
-      { Wine: 1, Wood: 1, Barrels: 0.5 },
-      { Wheat: 2, Wood: 1, Ceramics: 0.25 },
-      { Rye: 2, Wood: 1, Ceramics: 0.25 },
-      { Barley: 2, Wood: 1, Ceramics: 0.25 },
-      { Wine: 1, Wood: 1, Ceramics: 0.25 },
-      { Wheat: 2, Wood: 1, Glass: 0.25 },
-      { Rye: 2, Wood: 1, Glass: 0.25 },
-      { Barley: 2, Wood: 1, Glass: 0.25 },
-      { Wine: 1, Wood: 1, Glass: 0.25 },
-      { Pomace: 1.5, Wood: 1, Barrels: 0.5 },
-      { Pomace: 1.5, Wood: 1, Ceramics: 0.25 },
-      { Pomace: 1.5, Wood: 1, Glass: 0.25 }
-    ],
-    byproducts: Array.from({ length: 15 }, () => ({ Ash: ASH_YIELD_PER_WOOD_FULL_COMBUSTION })),
+
     unit: "vessel",
     demandCoverage: { luxury: 1 }
   },
@@ -2405,6 +2392,7 @@ export const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Timber",
+    ...WOOD_RECIPE_CONTRACTS.Timber,
     warEconomyType: "strategic",
     tags: ["construction"],
     // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
@@ -2412,7 +2400,7 @@ export const GOODS_DATA: GoodData[] = [
     color: "#7a5230",
     value: 3,
     chance: 0,
-    recipes: [{ Wood: 1.5 }],
+
     unit: "beam",
     demandCoverage: { construction: 0.5 }
   },
@@ -2499,13 +2487,14 @@ export const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Spinning Wheel",
+    ...WOOD_RECIPE_CONTRACTS["Spinning Wheel"],
     tags: ["construction"],
     // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
     icon: "good-unknown",
     color: "#6b4226",
     value: 12,
     chance: 0,
-    recipes: [{ Wood: 1.5, "Iron Ingot": 0.2 }],
+
     unit: "wheel",
     demandCoverage: { utilities: 0.5 }
   },
@@ -2558,16 +2547,14 @@ export const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Instruments",
+    ...WOOD_RECIPE_CONTRACTS.Instruments,
     warEconomyType: "luxury",
     tags: ["luxury", "gift", "art"],
     icon: "good-unknown",
     color: "#8b5a2b",
     value: 24,
     chance: 0,
-    recipes: [
-      { Wood: 1, "Copper Ingot": 0.2 },
-      { Mahogany: 1, "Copper Ingot": 0.1 }
-    ],
+
     unit: "set",
     demandCoverage: { luxury: 1 }
   },
@@ -2838,13 +2825,14 @@ export const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Rail",
+    ...WOOD_RECIPE_CONTRACTS.Rail,
     warEconomyType: "strategic",
     tags: ["industrial", "construction"],
     icon: "good-unknown",
     color: "#5c5c5c",
     value: 24,
     chance: 0,
-    recipes: [{ Steel: 1, "Machine Parts": 0.2, Wood: 0.4 }],
+
     unit: "length",
     demandCoverage: { construction: 0.02 },
     requiredTechnology: "railEngineering"
@@ -2884,7 +2872,7 @@ export const GOODS_DATA: GoodData[] = [
     color: "#3a4a55",
     value: Math.max(shipGoodValue("steamship"), 120),
     chance: 0,
-    recipes: [{ Wood: 4, Sails: 1, Ropes: 2, Tar: 1, "Marine Steam Engine": 1 }],
+
     unit: "ship",
     demandCoverage: { military: 2 },
     multipliers: { cultureType: { Naval: 2 } },
@@ -4457,7 +4445,7 @@ export function migrateSmeltingFuelAndAshGoods(): boolean {
     if (!charcoal) throw new Error("Charcoal must be present in the shipped goods catalogue");
     charcoal.i = nextId++;
     charcoal.recipes = [{ [wood.i]: CHARCOAL_WOOD_PER_UNIT }];
-    charcoal.byproducts = [{ [ash.i]: CHARCOAL_WOOD_PER_UNIT * ASH_YIELD_PER_WOOD_PARTIAL_PYROLYSIS }];
+    delete charcoal.byproducts;
     goods.push(charcoal);
     changed = true;
   }
@@ -4569,48 +4557,90 @@ export function migratePomaceDistillationGoods(): boolean {
 
   setByproducts("Wine", [{ Pomace: GRAPES_LOTS_PER_WINE_LOT * POMACE_SHARE_OF_PRESSED_GRAPE_MASS }]);
   setRecipes("Pomace Wine", [{ Pomace: POMACE_LOTS_PER_POMACE_WINE_CASK, Barrels: 0.08 }]);
-  setByproducts("Brick", [{ Ash: 0.1 * ASH_YIELD_PER_WOOD_FULL_COMBUSTION }]);
-  setByproducts("Charcoal", [{ Ash: CHARCOAL_WOOD_PER_UNIT * ASH_YIELD_PER_WOOD_PARTIAL_PYROLYSIS }]);
-  setByproducts("Preserved food", [
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    undefined,
-    { Ash: ASH_YIELD_PER_WOOD_FULL_COMBUSTION }
-  ]);
-  setByproducts("Smoked Cheese", [{ Ash: 0.5 * ASH_YIELD_PER_WOOD_FULL_COMBUSTION }]);
-  setByproducts("Tar", [{ Ash: ASH_YIELD_PER_WOOD_PARTIAL_PYROLYSIS }]);
 
-  const liquorRecipes: Readonly<Record<string, number>>[] = [
-    { Wheat: 2, Wood: 1, Barrels: 0.5 },
-    { Rye: 2, Wood: 1, Barrels: 0.5 },
-    { Barley: 2, Wood: 1, Barrels: 0.5 },
-    { Wine: 1, Wood: 1, Barrels: 0.5 },
-    { Wheat: 2, Wood: 1, Ceramics: 0.25 },
-    { Rye: 2, Wood: 1, Ceramics: 0.25 },
-    { Barley: 2, Wood: 1, Ceramics: 0.25 },
-    { Wine: 1, Wood: 1, Ceramics: 0.25 },
-    { Wheat: 2, Wood: 1, Glass: 0.25 },
-    { Rye: 2, Wood: 1, Glass: 0.25 },
-    { Barley: 2, Wood: 1, Glass: 0.25 },
-    { Wine: 1, Wood: 1, Glass: 0.25 },
-    { Pomace: 1.5, Wood: 1, Barrels: 0.5 },
-    { Pomace: 1.5, Wood: 1, Ceramics: 0.25 },
-    { Pomace: 1.5, Wood: 1, Glass: 0.25 }
-  ];
-  setRecipes("Liquor", liquorRecipes);
-  setByproducts(
-    "Liquor",
-    Array.from({ length: liquorRecipes.length }, () => ({ Ash: 1 }))
-  );
+  return changed;
+}
 
+/** Upgrade recognized shipped Wood recipes using saved ids; retain edited recipes and stocks. */
+export function migrateWoodPhysicalRecipes(): boolean {
+  const goods = getGoods();
+  const byName = new Map(goods.map(good => [good.name, good]));
+  const resolve = (recipe: Record<string, number>): Record<number, number> | null => {
+    const result: Record<number, number> = {};
+    for (const [name, amount] of Object.entries(recipe)) {
+      const good = byName.get(name);
+      if (!good) return null;
+      result[good.i] = amount;
+    }
+    return result;
+  };
+  const key = (value: unknown): string =>
+    JSON.stringify(value, (_key, entry) =>
+      typeof entry === "number" && Number.isFinite(entry)
+        ? Number(entry.toPrecision(12))
+        : entry && !Array.isArray(entry) && typeof entry === "object"
+          ? Object.fromEntries(Object.entries(entry).sort(([a], [b]) => a.localeCompare(b)))
+          : entry
+    );
+  let changed = false;
+  const ashId = byName.get("Ash")?.i;
+  for (const [name, legacy] of Object.entries(LEGACY_WOOD_RECIPES)) {
+    const good = byName.get(name);
+    if (!good?.recipes) continue;
+    const oldRecipes = legacy.map(resolve);
+    const contract = WOOD_RECIPE_CONTRACTS[name];
+    const newRecipes = contract?.recipes.map(resolve);
+    if (oldRecipes.some(recipe => recipe === null) || newRecipes?.some(recipe => recipe === null)) continue;
+    const matchesOld =
+      key(good.recipes) === key(oldRecipes) ||
+      (name === "Liquor" && key(good.recipes) === key(oldRecipes.slice(0, 12)));
+    const matchesNew =
+      newRecipes &&
+      (key(good.recipes) === key(newRecipes) ||
+        (name === "Liquor" && key(good.recipes) === key(newRecipes.slice(0, 12))));
+    if (!matchesOld && !matchesNew) continue;
+    // A custom co-product is part of a user's recipe; do not silently replace that recipe.
+    const oldWood = legacy[0]?.Wood ?? 0;
+    const oldAsh = name === "Charcoal" || name === "Tar" ? oldWood * 0.15 : oldWood;
+    const expectedOldByproducts = ["Charcoal", "Tar", "Brick", "Smoked Cheese", "Liquor"].includes(name)
+      ? Array.from({ length: name === "Liquor" ? good.recipes.length : 1 }, () => ({ [ashId!]: oldAsh }))
+      : undefined;
+    const resolvedByproducts = contract?.byproducts?.map(entry => (entry ? resolve(entry) : undefined));
+    if (resolvedByproducts?.some(entry => entry === null)) continue;
+    if (
+      good.byproducts &&
+      key(good.byproducts) !== key(expectedOldByproducts) &&
+      key(good.byproducts) !== key(resolvedByproducts)
+    )
+      continue;
+    if (name === "Steamship") {
+      // Vessels are built by the shipyard, like Sloop/Caravel/Galleon, never by a Burg recipe.
+      delete good.recipes;
+      delete good.byproducts;
+      changed = true;
+      continue;
+    }
+    if (key(good.recipes) !== key(newRecipes) || key(good.byproducts) !== key(resolvedByproducts)) {
+      good.recipes = newRecipes as Good["recipes"];
+      if (resolvedByproducts) good.byproducts = resolvedByproducts as Good["byproducts"];
+      else delete good.byproducts;
+      changed = true;
+    }
+  }
+  const preserved = byName.get("Preserved food");
+  const oldSmoking = resolve({ Fish: 1, Wood: 1 });
+  const newSmoking = resolve(PRESERVED_FISH_WOOD_RECIPE);
+  const newAsh = resolve(PRESERVED_FISH_ASH);
+  if (preserved?.recipes && oldSmoking && newSmoking && newAsh && ashId !== undefined) {
+    preserved.recipes.forEach((recipe, index) => {
+      const coproduct = preserved.byproducts?.[index];
+      if (key(recipe) !== key(oldSmoking) || (coproduct && key(coproduct) !== key({ [ashId]: 1 }))) return;
+      preserved.recipes![index] = newSmoking;
+      preserved.byproducts ??= [];
+      preserved.byproducts[index] = newAsh;
+      changed = true;
+    });
+  }
   return changed;
 }
 

@@ -45,10 +45,17 @@ import {
   migrateSyntheticAmmoniaGoods,
   migrateWeightRepricing,
   migrateWineRecipe,
+  migrateWoodPhysicalRecipes,
   SMELTED_METAL_REPRICING,
   WEIGHT_REPRICING
 } from "./goods-generator";
 import { getDefaultGoodsUnitFlavor } from "./goodsUnitFlavor";
+import {
+  ASH_LOTS_PER_WOOD_LOT,
+  CHARCOAL_WOOD_PER_LOT,
+  LEGACY_WOOD_RECIPES,
+  LIQUOR_WOOD_PER_LOT
+} from "./woodRecipeContracts";
 
 describe("GoodsModule", () => {
   let goodsModule: GoodsModule;
@@ -211,7 +218,7 @@ describe("GoodsModule", () => {
     expect(getGoods().find(good => good.name === "Fish")?.trade?.timeValueTrend).toBe(-2);
   });
 
-  it("keeps every default manufacturing recipe above production-generator's own viability margin", () => {
+  it("keeps default manufacturing viable, including Tar's cheap-resin fallback", () => {
     // Regression guard for the Preserved food / Jewelry bug class (docs/simulation/salt-logistics.md
     // value audit, 2026-08-12): a recipe whose ingredient cost merely ties its output's value (rather
     // than staying strictly below it) is not "break-even and fine" — production-generator.ts's
@@ -240,6 +247,12 @@ describe("GoodsModule", () => {
           .map(([goodId, amount]) => `${goodsById.get(Number(goodId))?.name ?? goodId}:${amount}`)
           .join(", ");
 
+        // The physical resin route costs more than Tar at baseline prices; it is a fallback
+        // for locally cheap resin, rather than a reason to create 45 kg of material for free.
+        if (good.name === "Tar" && Object.keys(recipe).some(id => goodsById.get(+id)?.name === "Resin")) {
+          expect(hasViableFoodProcessingMargin(good.name, good.value, ingredientCost * 0.5, 0)).toBe(true);
+          continue;
+        }
         expect(
           hasViableFoodProcessingMargin(good.name, good.value, ingredientCost, 0),
           `${good.name} recipe { ${recipeLabel} } costs ${ingredientCost} against a value of ${good.value} — no viable production margin`
@@ -844,6 +857,58 @@ describe("GoodsModule", () => {
     expect(wine?.byproducts).toEqual([{ [pomace!.i]: 0.0572 }]);
   });
 
+  it("migrates recognized Wood recipes with saved ids, preserves edited recipes and repeats without changes", () => {
+    goodsModule.restoreDefaults();
+    const goods = getGoods();
+    const idMap = new Map(goods.map(good => [good.i, good.i + 300]));
+    for (const good of goods) {
+      good.i += 300;
+      for (const rows of [good.recipes, good.byproducts])
+        if (rows) {
+          for (let index = 0; index < rows.length; index++) {
+            const row = rows[index];
+            if (row)
+              rows[index] = Object.fromEntries(Object.entries(row).map(([id, amount]) => [idMap.get(+id)!, amount]));
+          }
+        }
+    }
+    const byName = new Map(goods.map(good => [good.name, good]));
+    for (const [name, recipes] of Object.entries(LEGACY_WOOD_RECIPES)) {
+      const good = byName.get(name)!;
+      good.recipes = recipes.map(recipe =>
+        Object.fromEntries(Object.entries(recipe).map(([name, amount]) => [byName.get(name)!.i, amount]))
+      );
+      delete good.byproducts;
+    }
+    const edited = byName.get("Instruments")!;
+    edited.recipes = [{ [byName.get("Wood")!.i]: 0.123 }];
+    const editedBefore = structuredClone(edited);
+    const markets = [{ i: 1, goods: { [byName.get("Wood")!.i]: { stock: 2.5, price: 7 } } }];
+    setMarkets(markets as never);
+    const stockBefore = structuredClone(markets);
+    expect(migrateWoodPhysicalRecipes()).toBe(true);
+    expect(byName.get("Charcoal")!.recipes).toEqual([{ [byName.get("Wood")!.i]: CHARCOAL_WOOD_PER_LOT }]);
+    expect(byName.get("Steamship")!.recipes).toBeUndefined();
+    expect(edited).toEqual(editedBefore);
+    expect(markets).toEqual(stockBefore);
+    setGoods(JSON.parse(JSON.stringify(getGoods())));
+    expect(migrateWoodPhysicalRecipes()).toBe(false);
+    expect(migratePomaceDistillationGoods()).toBe(false);
+    expect(migrateWoodPhysicalRecipes()).toBe(false);
+  });
+
+  it("retains a custom Wood co-product instead of silently replacing the process", () => {
+    goodsModule.restoreDefaults();
+    const charcoal = getGoods().find(good => good.name === "Charcoal")!;
+    const wood = getGoods().find(good => good.name === "Wood")!;
+    const ash = getGoods().find(good => good.name === "Ash")!;
+    charcoal.recipes = [{ [wood.i]: 1.5 }];
+    charcoal.byproducts = [{ [ash.i]: 2 }];
+    const before = structuredClone(charcoal);
+    migrateWoodPhysicalRecipes();
+    expect(charcoal).toEqual(before);
+  });
+
   it("adds Grapes once to catalogues saved before Phase 4", () => {
     setGoods([{ i: 7, name: "Legacy good", tags: [], value: 1, unit: "unit", icon: "legacy", color: "#000000" }]);
 
@@ -885,12 +950,15 @@ describe("GoodsModule", () => {
     const pomace = getGoods().find(good => good.name === "Pomace")!;
     const pomaceWine = getGoods().find(good => good.name === "Pomace Wine")!;
     const ash = getGoods().find(good => good.name === "Ash")!;
+    migrateWoodPhysicalRecipes();
     const upgradedLiquor = getGoods().find(good => good.name === "Liquor")!;
     expect(pomace.i).toBeGreaterThan(Math.max(...preservedIds.values()));
     expect(pomaceWine.recipes).toEqual([{ [pomace.i]: 0.12, [preservedIds.get("Barrels")!]: 0.08 }]);
     expect(getGoods().find(good => good.name === "Wine")?.byproducts).toEqual([{ [pomace.i]: 0.0572 }]);
     expect(upgradedLiquor.recipes).toHaveLength(15);
-    expect(upgradedLiquor.byproducts).toEqual(Array.from({ length: 15 }, () => ({ [ash.i]: 1 })));
+    expect(upgradedLiquor.byproducts).toEqual(
+      Array.from({ length: 15 }, () => ({ [ash.i]: LIQUOR_WOOD_PER_LOT * ASH_LOTS_PER_WOOD_LOT }))
+    );
     expect(migratePomaceDistillationGoods()).toBe(false);
   });
 
@@ -1048,8 +1116,8 @@ describe("GoodsModule", () => {
 
     expect(upgradedCoal.recipes).toBeUndefined();
     expect(upgradedCoal.byproducts).toBeUndefined();
-    expect(upgradedCharcoal.recipes).toEqual([{ [wood.i]: 1.5 }]);
-    expect(upgradedCharcoal.byproducts?.[0]?.[ash.i]).toBeCloseTo(0.225, 8);
+    expect(upgradedCharcoal.recipes).toEqual([{ [wood.i]: CHARCOAL_WOOD_PER_LOT }]);
+    expect(upgradedCharcoal.byproducts).toBeUndefined();
     expect(upgradedPotash.recipes).toEqual([{ [ash.i]: 1.5 }]);
     expect(upgradedTools.recipes).toEqual([{ [upgradedCharcoal.i]: 1 }]);
     expect(upgradedSlag.i).toBeGreaterThan(charcoal.i);

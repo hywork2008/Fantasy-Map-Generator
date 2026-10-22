@@ -1772,14 +1772,18 @@ export class MarketsModule {
     return true;
   }
 
-  quoteMarket(market: Market, goodId: number): { stock: number; buyPrice: number; sellPrice: number } {
+  quoteMarket(
+    market: Market,
+    goodId: number,
+    customerBurgId = market.centerBurgId
+  ): { stock: number; buyPrice: number; sellPrice: number } {
     const good = Goods.get(goodId);
     if (!good || !isGoodEnabled(good)) return { stock: 0, buyPrice: 0, sellPrice: 0 };
     const row = this.getMarketGood(market, good);
     return {
       stock: row.stock,
-      buyPrice: this.customerBuyPrice(row.price, market.centerBurgId, goodId),
-      sellPrice: this.customerSellPrice(row.price, market.centerBurgId, goodId)
+      buyPrice: this.customerBuyPrice(row.price, customerBurgId, goodId),
+      sellPrice: this.customerSellPrice(row.price, customerBurgId, goodId)
     };
   }
 
@@ -1788,12 +1792,15 @@ export class MarketsModule {
     good,
     units,
     budget = Infinity,
+    exactUnits = false,
     flow
   }: {
     burg: Burg;
     good: Good;
     units: number;
     budget?: number;
+    /** Preserve fractional process materials, instead of rounding to retail hundredths. */
+    exactUnits?: boolean;
     flow?: {
       category: GoodFlowCategory;
       guildDomain?: ReturnType<typeof getCraftDomainForGood>;
@@ -1810,8 +1817,9 @@ export class MarketsModule {
     const marketGood = this.getMarketGood(market, good);
     const unitPrice = this.customerBuyPrice(marketGood.price, burg.i, good.i);
 
-    const actualUnits = rn(Math.min(units, marketGood.stock, budget / unitPrice), 2);
-    if (actualUnits < 0.01) return null;
+    const available = Math.min(units, marketGood.stock, budget / unitPrice);
+    const actualUnits = exactUnits ? available : rn(available, 2);
+    if (actualUnits < (exactUnits ? 1e-12 : 0.01)) return null;
 
     const deals = getDeals();
     const deal: Deal = {
@@ -1827,11 +1835,15 @@ export class MarketsModule {
     };
     deals.push(deal);
 
-    marketGood.stock = rn(Math.max(0, marketGood.stock - actualUnits), 2);
+    marketGood.stock = exactUnits
+      ? Math.max(0, marketGood.stock - actualUnits)
+      : rn(Math.max(0, marketGood.stock - actualUnits), 2);
     // A Burg purchase is the Market's cash receipt. Without this counterpart, a Market
     // could pay producers but never replenish the purchasing power required next cycle.
     const treasury = market.marketTreasury ?? { balance: 0, ruralGrainPayable: 0 };
-    treasury.balance = rn(treasury.balance + actualUnits * unitPrice, 2);
+    treasury.balance = exactUnits
+      ? treasury.balance + actualUnits * unitPrice
+      : rn(treasury.balance + actualUnits * unitPrice, 2);
     market.marketTreasury = treasury;
     recordGoodFlow({
       direction: "sink",
@@ -1852,7 +1864,8 @@ export class MarketsModule {
     good,
     units,
     taxRate,
-    budget = Infinity
+    budget = Infinity,
+    exactUnits = false
   }: {
     burg: Burg;
     good: Good;
@@ -1860,6 +1873,7 @@ export class MarketsModule {
     taxRate: number;
     /** Producer-purchase cash reserved for this Burg in the current production cycle. */
     budget?: number;
+    exactUnits?: boolean;
   }): Deal | null {
     if (!isGoodEnabled(good)) return null;
     const market = this.get(burg.market);
@@ -1873,13 +1887,16 @@ export class MarketsModule {
     // `budget` additionally prevents an earlier Burg from consuming another Burg's
     // population-weighted share of that cash.
     const maintenanceReach = 0.25 + 0.75 * (market.maintenanceCondition ?? 1);
-    const actualUnits = rn(Math.min(units, budget / price, (treasury.balance * maintenanceReach) / price), 2);
-    if (actualUnits < 0.01) return null;
-    const grossRevenue = rn(actualUnits * price, 2);
-    const tax = rn(actualUnits * price * taxRate, 2);
-    treasury.balance = rn(Math.max(0, treasury.balance - grossRevenue), 2);
+    const available = Math.min(units, budget / price, (treasury.balance * maintenanceReach) / price);
+    const actualUnits = exactUnits ? available : rn(available, 2);
+    if (actualUnits < (exactUnits ? 1e-12 : 0.01)) return null;
+    const grossRevenue = exactUnits ? actualUnits * price : rn(actualUnits * price, 2);
+    const tax = exactUnits ? actualUnits * price * taxRate : rn(actualUnits * price * taxRate, 2);
+    treasury.balance = exactUnits
+      ? Math.max(0, treasury.balance - grossRevenue)
+      : rn(Math.max(0, treasury.balance - grossRevenue), 2);
     market.marketTreasury = treasury;
-    marketGood.stock = rn(marketGood.stock + actualUnits, 2);
+    marketGood.stock = exactUnits ? marketGood.stock + actualUnits : rn(marketGood.stock + actualUnits, 2);
     recordGoodFlow({
       direction: "source",
       category: "burgCraft",

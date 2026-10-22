@@ -25,6 +25,7 @@ import {
   LITERS_PER_WINE_LOT
 } from "./foodLots";
 import { HORSES_PER_MARKET_HEAD } from "./liveAnimalScale";
+import { WOOD_KG_PER_LITER } from "./woodRecipeContracts";
 
 /** One wain of staple crops: the gross food a person needs a year is 0.43 wain, 200 kg. */
 export const WAIN_KG = STAPLE_NEED_KG_PER_PERSON_YEAR / GROSS_FOOD_NEED;
@@ -51,6 +52,7 @@ export type GoodPack =
   | "bale"
   | "bundle"
   | "barrel"
+  | "emptyBarrel"
   | "cask"
   | "crate"
   | "bulk"
@@ -68,6 +70,7 @@ export const PACK_PROFILES: Readonly<
   bale: { stowage: 1.1, tareKgPerKg: 0.01, tareKgPerLiter: 0 },
   bundle: { stowage: 1.1, tareKgPerKg: 0.01, tareKgPerLiter: 0 },
   // A 120 L barrel stows in some 180 L and weighs about 25 kg; a 200 L cask 300 L and 40 kg.
+  emptyBarrel: { stowage: 1.5, tareKgPerKg: 0, tareKgPerLiter: 0 },
   barrel: { stowage: 1.5, tareKgPerKg: 0, tareKgPerLiter: 25 / 120 },
   cask: { stowage: 1.5, tareKgPerKg: 0, tareKgPerLiter: 0.2 },
   crate: { stowage: 1.25, tareKgPerKg: 0.08, tareKgPerLiter: 0 },
@@ -206,10 +209,10 @@ export const GOOD_MEASURES: Readonly<Record<string, GoodMeasure>> = {
   Stone: tonne("pallet", 1.6),
   Marble: tonne("pallet", 2.0),
   "Roman Concrete": byMass("pallet", "1 t", TONNE_KG, 1.4, "sack", "model"),
-  Wood: byVolume("pile", `${WOOD_M3_PER_UNIT} m³`, WOOD_M3_PER_UNIT * 1000, 0.65, "stack", "code"),
+  Wood: byVolume("pile", `${WOOD_M3_PER_UNIT} m³`, WOOD_M3_PER_UNIT * 1000, WOOD_KG_PER_LITER, "stack", "code"),
   Mahogany: byVolume("pile", `${WOOD_M3_PER_UNIT} m³`, WOOD_M3_PER_UNIT * 1000, 0.7, "stack", "label"),
   // A Timber beam is sawn from 1.5 Wood: half of 15 m³ of roundwood.
-  Timber: byVolume("beam", "7.5 m³", 7500, 0.6, "stack", "recipe"),
+  Timber: byVolume("beam", "7.5 m³", 7500, WOOD_KG_PER_LITER, "stack", "recipe"),
   // Food lots and casks.
   Wine: byVolume("200 L cask", `${LITERS_PER_WINE_LOT} L`, LITERS_PER_WINE_LOT, 0.99, "cask", "code"),
   "Pomace Wine": byVolume("200 L cask", "200 L", 200, 1.0, "cask", "label"),
@@ -327,7 +330,7 @@ export const GOOD_MEASURES: Readonly<Record<string, GoodMeasure>> = {
   Kerosene: barrelOf(0.8),
   "Synthetic Resin": barrelOf(1.1),
   "Synthetic Ammonia": barrelOf(0.68),
-  Barrels: { unit: "barrel", content: "1 empty barrel", kg: 25, liters: 120, pack: "barrel", source: "model" },
+  Barrels: { unit: "barrel", content: "1 empty barrel", kg: 25, liters: 120, pack: "emptyBarrel", source: "model" },
   // Flasks: the mercury flask of 76 lb; lubricating oil in the same small iron flask.
   Mercury: byMass("flask", "34.5 kg", 34.5, 13.5, "crate", "model"),
   "Lubricating Oil": byVolume("flask", "20 L", 20, 0.9, "crate", "model"),
