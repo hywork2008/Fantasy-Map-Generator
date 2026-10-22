@@ -21,6 +21,7 @@ import {
 import { setEconomyCalibrationState } from "../store/economyCalibrationState";
 import { MONEY_PRICE_CEILING, MONEY_PRICE_FLOOR } from "./currencySufficiency";
 import { DEMAND_TARGET_FACTORS, type Good, Goods } from "./goods-generator";
+import { setGoodFlowObserver } from "./goodsBalanceLedger";
 import {
   getCommercialRecipeByproducts,
   isWartimeImportDemandGood,
@@ -47,6 +48,7 @@ vi.mock("./goods-generator", async importOriginal => {
 });
 
 vi.mock("./production-utils", () => ({
+  getRuralCellPopulation: vi.fn(() => 100),
   getRuralProductionContributions: vi.fn(() => []),
   getSeasonalFoodProductionMultiplier: vi.fn(() => 1)
 }));
@@ -116,6 +118,64 @@ describe("MarketsModule", () => {
         deals: [],
         states: [{ i: 0, salesTax: 0 }]
       } as unknown as PackedGraph;
+    });
+
+    it.each(["Cider", "Perry"])("makes %s only from surplus fruit and shared repair material", drinkName => {
+      const fruitName = drinkName === "Cider" ? "Apples" : "Pears";
+      const goods = [
+        {
+          i: 1,
+          name: fruitName,
+          tags: ["food", "freshFood"],
+          value: 0.7,
+          freshFood: { householdDemandPerPopulationMonth: 0.0005, preservationLaborPerUnit: 0.05 }
+        },
+        { i: 2, name: drinkName, tags: ["food", "orchardDrink"], value: 2.4, recipes: [{ 1: 1.5, 3: 0.4 }] },
+        { i: 3, name: "Barrels", tags: [], value: 1 },
+        { i: 4, name: "Dried Fruits", tags: ["food", "preservedFood"], value: 14, recipes: [{ 1: 2.4 }] }
+      ] as Good[];
+      setGoods(goods);
+      Goods.sync();
+      worldContext.populationRate = 1;
+      worldContext.urbanization = 1;
+      worldContext.pack.cells = { i: [0, 1], h: [30, 30], pop: [100, 100], state: [1, 1] } as never;
+      worldContext.pack.burgs = [{ i: 1, market: 1, population: 100 }] as Burg[];
+      setMarketCellColumn(new Uint16Array([1, 1]));
+      const market = { i: 1, centerBurgId: 1, color: "#fff", goods: { 3: { stock: 0.001, price: 1 } } } as Market;
+      setMarkets([market]);
+      // biome-ignore lint/complexity/useLiteralKeys: private access for the production integration fixture
+      marketsModule["indexMarkets"]();
+      const flows: { goodId: number; units: number }[] = [];
+      setGoodFlowObserver(flow => {
+        if (flow.category === "recipeInput") flows.push(flow);
+      });
+      try {
+        // biome-ignore lint/complexity/useLiteralKeys: exercise the source-cell production stage
+        marketsModule["settleCellFreshFood"](
+          [0, 1].map(cellId => ({
+            cellId,
+            marketId: 1,
+            collectionBurgId: 0,
+            goodId: 1,
+            monthlyUnits: [10]
+          })),
+          0
+        );
+      } finally {
+        setGoodFlowObserver(null);
+      }
+      // Small batches must not round 2.5 litres into zero or duplicate the material across cells.
+      expect(market.goods[2].stock).toBeCloseTo(0.0025, 12);
+      expect(market.goods[3].stock).toBeCloseTo(0, 12);
+      expect(flows).toEqual([expect.objectContaining({ goodId: 3, units: 0.001 })]);
+      expect(market.foodProcessingLedger?.[fruitName]?.processingConsumption).toBeCloseTo(0.3 + 0.0025 * 1.5);
+      expect(market.foodProcessingLedger?.[fruitName]?.householdConsumption).toBeCloseTo(0.1);
+      expect(market.foodProcessingLedger?.[drinkName]?.marketIntake).toBeCloseTo(0.0025);
+      expect(market.returnableContainerLedger?.orchardCasks?.[drinkName]).toEqual({
+        inService: 0.0025,
+        returns: 0,
+        replacement: 0.001
+      });
     });
 
     it("sells conversion timber the market draws, burns the rest, and settles the receipt once", () => {
@@ -579,6 +639,17 @@ describe("MarketsModule", () => {
       expect(market1.goods[0].price).not.toBe(market2.goods[0].price);
       expect(market1.goods[0].price).toBeGreaterThan(0);
       expect(market2.goods[0].price).toBeGreaterThan(0);
+    });
+
+    it("reprices empty source-cell fruit quotes toward the farmgate reference", () => {
+      const fruit = { ...getGoods()[0], name: "Apples", tags: ["food", "freshFood"], value: 0.7 };
+      delete fruit.distribution;
+      setGoods([fruit]);
+      const market = { i: 1, centerBurgId: 1, color: "#fff", goods: { 0: { stock: 0, price: 2.1 } } } as Market;
+      setMarkets([market]);
+      for (let month = 0; month < 12; month++) marketsModule.initializeMarketPrices();
+      expect(market.goods[0].price).toBeLessThan(1);
+      expect(market.goods[0].stock).toBe(0);
     });
 
     it("initializeMarketPrices() should leave stapleFood-tagged goods' price untouched", () => {

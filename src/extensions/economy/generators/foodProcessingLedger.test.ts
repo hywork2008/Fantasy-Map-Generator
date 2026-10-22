@@ -27,7 +27,11 @@ vi.mock("../economyContext", () => ({
     { i: 4, name: "Raisins", tags: ["food"] },
     { i: 5, name: "Wine", tags: ["food"] },
     { i: 6, name: "Game", tags: ["food", "freshFood"] },
-    { i: 7, name: "Beer", tags: ["food", "beverage"] }
+    { i: 7, name: "Beer", tags: ["food", "beverage"] },
+    { i: 8, name: "Apples", tags: ["food", "freshFood"] },
+    { i: 9, name: "Pears", tags: ["food", "freshFood"] },
+    { i: 10, name: "Cider", tags: ["food", "beverage"] },
+    { i: 11, name: "Perry", tags: ["food", "beverage"] }
   ],
   recordCumulativeCellFoodProcessing: () => undefined,
   getWorldContext: () => ({
@@ -47,6 +51,7 @@ import {
   recordFoodDeliveredExport,
   recordFoodMarketIntake,
   recordFoodProcessingConsumption,
+  recordOrchardCaskFilling,
   recordWineCaskFilling,
   refreshAleHouseholdDemand,
   settleFoodProcessingHouseholds
@@ -61,9 +66,37 @@ describe("foodProcessingLedger", () => {
     market.goods[5].stock = 1;
     market.goods[6].stock = 4;
     market.goods[7].stock = 0;
+    for (const id of [8, 9, 10, 11]) market.goods[id] = { stock: 0, price: 1 };
     market.foodProcessingLedger = undefined;
     market.returnableContainerLedger = undefined;
     urbanWaterSystems.length = 0;
+  });
+
+  it("holds seasonal orchard drinks to annual demand and returns only the casks actually consumed", () => {
+    expect(getFoodProcessingProductionHeadroom(market, "Cider", 0)).toBeCloseTo(3.9);
+    expect(getFoodProcessingProductionHeadroom(market, "Perry", 0)).toBeCloseTo(1.95);
+    market.goods[10].stock = 3.9;
+    market.goods[11].stock = 1.95;
+    recordOrchardCaskFilling(market, "Cider", 3.9, 1.56);
+    recordOrchardCaskFilling(market, "Perry", 1.95, 0.78);
+    expect(getFoodProcessingProductionHeadroom(market, "Cider", 0)).toBeCloseTo(0);
+    expect(getFoodProcessingProductionHeadroom(market, "Perry", 0.1)).toBe(0);
+    settleFoodProcessingHouseholds();
+    expect(market.foodProcessingLedger?.Cider?.householdConsumption).toBeCloseTo(3.9 / 12);
+    expect(market.foodProcessingLedger?.Perry?.householdConsumption).toBeCloseTo(1.95 / 12);
+    expect(market.returnableContainerLedger?.orchardCasks?.Cider?.returns).toBeCloseTo(3.9 / 12);
+    expect(market.returnableContainerLedger?.orchardCasks?.Cider?.inService).toBeCloseTo((3.9 * 11) / 12);
+    expect(market.returnableContainerLedger?.orchardCasks?.Perry?.replacement).toBeCloseTo(0.78);
+  });
+
+  it("counts local orchard fruit processing and avoids buying the same fresh ration twice", () => {
+    market.goods[8].stock = 1;
+    recordCellFoodHouseholdConsumption(market, "Apples", 0.5);
+    recordFoodProcessingConsumption(market, "Apples", 1.5);
+    settleFoodProcessingHouseholds();
+    expect(market.foodProcessingLedger?.Apples?.processingConsumption).toBe(1.5);
+    expect(market.foodProcessingLedger?.Apples?.householdConsumption).toBe(0.5);
+    expect(market.goods[8].stock).toBe(0);
   });
 
   it("keeps market intake distinct from processing, household use, and fresh spoilage", () => {

@@ -197,10 +197,24 @@ export type FoodProcessingGoodLedger = {
 };
 
 export type FoodProcessingLedger = Partial<
-  Record<"Milk" | "Cheese" | "Grapes" | "Raisins" | "Wine" | "Beer", FoodProcessingGoodLedger>
+  Record<
+    "Milk" | "Cheese" | "Grapes" | "Raisins" | "Wine" | "Beer" | "Apples" | "Pears" | "Cider" | "Perry",
+    FoodProcessingGoodLedger
+  >
 >;
 
 export type ReturnableContainerLedger = {
+  /** Filled orchard drink lots and their repairs/returns; absent in older saves. */
+  orchardCasks?: Partial<
+    Record<
+      "Cider" | "Perry",
+      {
+        inService: number;
+        returns: number;
+        replacement: number;
+      }
+    >
+  >;
   /** Filled 200 L wine casks currently outside the cooper's empty-cask pool. */
   wineCasksInService: number;
   /** Casks returned after Wine is consumed locally. */

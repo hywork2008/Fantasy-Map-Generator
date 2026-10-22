@@ -733,6 +733,10 @@ describe("GoodsModule", () => {
     );
     const driedFruits = getGoods().find(good => good.name === "Dried Fruits");
     expect(driedFruits?.recipes).toHaveLength(4);
+    const apples = getGoods().find(good => good.name === "Apples")!;
+    const pears = getGoods().find(good => good.name === "Pears")!;
+    expect(driedFruits?.recipes?.find(recipe => recipe[apples.i])?.[apples.i]).toBeCloseTo(2.4);
+    expect(driedFruits?.recipes?.find(recipe => recipe[pears.i])?.[pears.i]).toBeCloseTo(7 / 3);
     expect(migratePerennialFruitGoods()).toBe(false);
   });
 
@@ -775,6 +779,7 @@ describe("GoodsModule", () => {
     ]);
 
     expect(migratePerennialFruitGoods()).toBe(true);
+    expect(getGoods().find(good => good.name === "Cider")?.tags).toContain("orchardDrink");
     expect(getGoods().find(good => good.name === "Cider")?.recipes).toEqual([{ 7: 1.5, 19: 0.4 }]);
     expect(getGoods().find(good => good.name === "Perry")?.recipes).toEqual([{ 11: 1.5, 19: 0.4 }]);
     expect(migratePerennialFruitGoods()).toBe(false);

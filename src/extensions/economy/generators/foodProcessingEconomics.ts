@@ -1,7 +1,7 @@
 /** The minimum post-tax value added required to fund one unit of food-processing craft work. */
 export const FOOD_PROCESSING_MINIMUM_MARGIN_RATIO = 0.1;
 
-const FOOD_PROCESSING_GOODS = new Set(["Cheese", "Wine", "Raisins"]);
+const FOOD_PROCESSING_GOODS = new Set(["Cheese", "Wine", "Raisins", "Cider", "Perry"]);
 
 export function hasViableFoodProcessingMargin(
   goodName: string,

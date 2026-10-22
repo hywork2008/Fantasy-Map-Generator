@@ -22,7 +22,12 @@ import {
   GRAPE_TARGETS,
   GRAPES_LOTS_PER_RAISINS_LOT,
   GRAPES_LOTS_PER_WINE_LOT,
+  KILOGRAMS_PER_ORCHARD_FRUIT_LOT,
   MILK_LOTS_PER_CHEESE_LOT,
+  ORCHARD_DRINK_BARRELS_PER_LOT,
+  ORCHARD_FRUIT_LOTS_PER_DRIED_LOT,
+  ORCHARD_FRUIT_LOTS_PER_DRINK_LOT,
+  ORCHARD_TARGETS,
   POMACE_SHARE_OF_PRESSED_GRAPE_MASS
 } from "./foodLots";
 import { measuredCargoSlotsPerUnit } from "./goodCargoMeasure";
@@ -200,7 +205,7 @@ const ASH_YIELD_PER_WOOD_PARTIAL_PYROLYSIS = 0.15;
 const CHARCOAL_WOOD_PER_UNIT = 1.5;
 const POTASH_ASH_PER_UNIT = 1.5;
 /** A tun (1,000 L) of cider or perry uses about 1.5 t of pressed orchard fruit. */
-const ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK = 1.5;
+const ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK = ORCHARD_FRUIT_LOTS_PER_DRINK_LOT;
 /** Grain in a tun (1,000 L) of ale: some 465 kg of malt, a wain (goods-physical-units.md §29). */
 const GRAIN_WAINS_PER_ALE_CASK = 1;
 /** Barrel wear for a tun: five casks at 0.08 each. */
@@ -2052,7 +2057,7 @@ export const GOODS_DATA: GoodData[] = [
     // not use Pomace, which represents the grape skins and seeds left after
     // wine pressing and has its own low-cost secondary beverage path.
     name: "Cider",
-    tags: ["food", "beverage"],
+    tags: ["food", "beverage", "orchardDrink"],
     icon: "good-beer",
     color: "#d99a32",
     // Priced as ale, per kilogram, by the tun (§29); the 200 L cask was 4.
@@ -2064,7 +2069,7 @@ export const GOODS_DATA: GoodData[] = [
   },
   {
     name: "Perry",
-    tags: ["food", "beverage"],
+    tags: ["food", "beverage", "orchardDrink"],
     icon: "good-beer",
     color: "#d7b84a",
     // Priced as ale, per kilogram, a little over cider, by the tun (§29); the 200 L cask was 4.5.
@@ -2638,11 +2643,15 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["food", "fruit", "freshFood", "perennialCrop"],
     icon: "good-unknown",
     color: "#bf4d3f",
-    // A third of the grain price per kilogram, which cider can bear (§29); it was 2.2, as much as grain.
+    // Bulk farmgate reference (model value); historical piece prices do not establish a kg price.
     value: 0.7,
     chance: 0,
     unit: "1,000 kg apple lot",
-    freshFood: { householdDemandPerPopulationMonth: 6 / 12 / 1000, preservationLaborPerUnit: 0.05 },
+    freshFood: {
+      householdDemandPerPopulationMonth:
+        ORCHARD_TARGETS.freshAppleKilogramsPerPersonYear / 12 / KILOGRAMS_PER_ORCHARD_FRUIT_LOT,
+      preservationLaborPerUnit: 0.05
+    },
     perennialCrop: PERENNIAL_CROP_PROFILES.Apples
   },
   {
@@ -2650,11 +2659,15 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["food", "fruit", "freshFood", "perennialCrop"],
     icon: "good-unknown",
     color: "#b8b947",
-    // About as Apples, a little dearer (§29); it was 2.4.
+    // Bulk farmgate reference (model value), distinct from royal dessert-pear purchases.
     value: 0.8,
     chance: 0,
     unit: "1,000 kg pear lot",
-    freshFood: { householdDemandPerPopulationMonth: 3 / 12 / 1000, preservationLaborPerUnit: 0.055 },
+    freshFood: {
+      householdDemandPerPopulationMonth:
+        ORCHARD_TARGETS.freshPearKilogramsPerPersonYear / 12 / KILOGRAMS_PER_ORCHARD_FRUIT_LOT,
+      preservationLaborPerUnit: 0.055
+    },
     perennialCrop: PERENNIAL_CROP_PROFILES.Pears
   },
   {
@@ -2697,7 +2710,12 @@ export const GOODS_DATA: GoodData[] = [
     color: "#965c35",
     value: 14,
     chance: 0,
-    recipes: [{ Apples: 4 }, { Pears: 4 }, { Plums: 4 }, { Figs: 4 }],
+    recipes: [
+      { Apples: ORCHARD_FRUIT_LOTS_PER_DRIED_LOT.Apples },
+      { Pears: ORCHARD_FRUIT_LOTS_PER_DRIED_LOT.Pears },
+      { Plums: 4 },
+      { Figs: 4 }
+    ],
     unit: "250 kg dried-fruit lot"
   },
   {
@@ -4316,7 +4334,14 @@ export function migratePerennialFruitGoods(): boolean {
     const recipes = ["Apples", "Pears", "Plums", "Figs"]
       .map(name => goods.find(good => good.name === name))
       .filter((good): good is Good => Boolean(good))
-      .map(good => ({ [good.i]: 4 }));
+      .map(good => ({
+        [good.i]:
+          good.name === "Apples"
+            ? ORCHARD_FRUIT_LOTS_PER_DRIED_LOT.Apples
+            : good.name === "Pears"
+              ? ORCHARD_FRUIT_LOTS_PER_DRIED_LOT.Pears
+              : 4
+      }));
     if (JSON.stringify(driedFruits.recipes) !== JSON.stringify(recipes)) {
       driedFruits.recipes = recipes;
       changed = true;
@@ -4341,7 +4366,11 @@ export function migratePerennialFruitGoods(): boolean {
       }
       continue;
     }
-    const recipes = [{ [fruit.i]: ORCHARD_FRUIT_LOTS_PER_FERMENTED_CASK, [barrels.i]: BARRELS_PER_TUN }];
+    if (!beverage.tags.includes("orchardDrink")) {
+      beverage.tags.push("orchardDrink");
+      changed = true;
+    }
+    const recipes = [{ [fruit.i]: ORCHARD_FRUIT_LOTS_PER_DRINK_LOT, [barrels.i]: ORCHARD_DRINK_BARRELS_PER_LOT }];
     const tunUnit = `1,000 L ${beverageName.toLowerCase()} tun`;
     if (JSON.stringify(beverage.recipes) === JSON.stringify(recipes) && beverage.unit === tunUnit) continue;
     if (beverage.unit !== tunUnit) {

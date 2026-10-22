@@ -12,6 +12,28 @@ export const KILOGRAMS_PER_GRAPES_LOT = 1_000;
 /** Ale, cider and perry are traded by the tun of 1,000 L, five casks, so that a lot earns what the other goods' do. */
 export const LITERS_PER_BEER_LOT = 1_000;
 export const LITERS_PER_ORCHARD_DRINK_LOT = 1_000;
+export const KILOGRAMS_PER_ORCHARD_FRUIT_LOT = 1_000;
+/** Model pressing contract: 1.5 kg of fresh fruit per litre of finished drink. */
+export const ORCHARD_FRUIT_LOTS_PER_DRINK_LOT = (LITERS_PER_ORCHARD_DRINK_LOT * 1.5) / KILOGRAMS_PER_ORCHARD_FRUIT_LOT;
+/** Replacement/repair material for five circulating 200 L casks, not five new casks. */
+export const ORCHARD_DRINK_BARRELS_PER_LOT = 0.4;
+/** CSU Extension: 12 lb apples -> 1.25 lb dried; 14 lb pears -> 1.5 lb dried. */
+export const ORCHARD_FRUIT_LOTS_PER_DRIED_LOT = {
+  Apples: (250 * 12) / 1.25 / KILOGRAMS_PER_ORCHARD_FRUIT_LOT,
+  Pears: (250 * 14) / 1.5 / KILOGRAMS_PER_ORCHARD_FRUIT_LOT
+} as const;
+export const ORCHARD_TARGETS = {
+  freshAppleKilogramsPerPersonYear: 6,
+  freshPearKilogramsPerPersonYear: 3,
+  ciderLitersPerAdultYear: 6,
+  perryLitersPerAdultYear: 3,
+  adultShare: 0.65,
+  reserveMonths: 12
+} as const;
+
+export function isOrchardDrink(name: string): name is "Cider" | "Perry" {
+  return name === "Cider" || name === "Perry";
+}
 export const LITERS_PER_WINE_LOT = 200;
 export const KILOGRAMS_PER_RAISINS_LOT = 250;
 

@@ -10,13 +10,17 @@ import {
   ALE_TARGETS,
   DAIRY_TARGETS,
   GRAPE_TARGETS,
+  isOrchardDrink,
   KILOGRAMS_PER_CHEESE_LOT,
   KILOGRAMS_PER_GRAPES_LOT,
+  KILOGRAMS_PER_ORCHARD_FRUIT_LOT,
   KILOGRAMS_PER_RAISINS_LOT,
   LITERS_PER_BEER_LOT,
   LITERS_PER_MILK_LOT,
+  LITERS_PER_ORCHARD_DRINK_LOT,
   LITERS_PER_WINE_LOT,
   MILK_LOTS_PER_CHEESE_LOT,
+  ORCHARD_TARGETS,
   WINE_TARGETS
 } from "./foodLots";
 import { isFreshFoodGood } from "./goods-generator";
@@ -24,7 +28,18 @@ import { recordGoodFlow } from "./goodsBalanceLedger";
 import { getMarketRuralPopulation } from "./marketPopulation";
 import type { FoodProcessingGoodLedger, Market } from "./marketTypes";
 
-const TRACKED_GOODS = new Set(["Milk", "Cheese", "Grapes", "Raisins", "Wine", "Beer"]);
+const TRACKED_GOODS = new Set([
+  "Milk",
+  "Cheese",
+  "Grapes",
+  "Raisins",
+  "Wine",
+  "Beer",
+  "Apples",
+  "Pears",
+  "Cider",
+  "Perry"
+]);
 const BEER_RESERVE_MONTHS = 1;
 
 export type AleDemandSnapshot = {
@@ -141,6 +156,32 @@ export function recordBeerCaskFilling(market: Market, beerLots: number, replacem
   market.returnableContainerLedger = containers;
 }
 
+export function recordOrchardCaskFilling(
+  market: Market,
+  name: "Cider" | "Perry",
+  lots: number,
+  replacements: number
+): void {
+  if (!(lots > 0)) return;
+  // Initialize the shared legacy-compatible ledger without recording a fictitious Beer lot.
+  if (!market.returnableContainerLedger) {
+    market.returnableContainerLedger = {
+      wineCasksInService: 0,
+      cumulativeWineCaskReturns: 0,
+      cumulativeWineCaskReplacement: 0,
+      beerCasksInService: 0,
+      cumulativeBeerCaskReturns: 0,
+      cumulativeBeerCaskReplacement: 0
+    };
+  }
+  market.returnableContainerLedger.orchardCasks ??= {};
+  const orchard = market.returnableContainerLedger.orchardCasks;
+  orchard[name] ??= { inService: 0, returns: 0, replacement: 0 };
+  const row = orchard[name];
+  row.inService += lots;
+  row.replacement += Math.max(0, replacements);
+}
+
 function getMarketPeople(market: Market): number {
   const world = getWorldContext();
   const urban = world.pack.burgs.reduce((total, burg) => {
@@ -200,9 +241,22 @@ export function getAleDemandSnapshot(market: Market): AleDemandSnapshot {
   return aleDemandByMarket.get(market.i) ?? calculateAleDemand(market);
 }
 
-function getMonthlyHouseholdDemand(market: Market, goodName: string): number {
+export function getMonthlyHouseholdDemand(market: Market, goodName: string): number {
   const people = getMarketPeople(market);
   switch (goodName) {
+    case "Apples":
+      return (people * ORCHARD_TARGETS.freshAppleKilogramsPerPersonYear) / 12 / KILOGRAMS_PER_ORCHARD_FRUIT_LOT;
+    case "Pears":
+      return (people * ORCHARD_TARGETS.freshPearKilogramsPerPersonYear) / 12 / KILOGRAMS_PER_ORCHARD_FRUIT_LOT;
+    case "Cider":
+    case "Perry":
+      return (
+        (people *
+          ORCHARD_TARGETS.adultShare *
+          (goodName === "Cider" ? ORCHARD_TARGETS.ciderLitersPerAdultYear : ORCHARD_TARGETS.perryLitersPerAdultYear)) /
+        12 /
+        LITERS_PER_ORCHARD_DRINK_LOT
+      );
     case "Milk":
       return (people * DAIRY_TARGETS.freshMilkLitersPerPersonYear) / 12 / LITERS_PER_MILK_LOT;
     case "Cheese":
@@ -237,14 +291,24 @@ export function getFoodProcessingProductionHeadroom(
   goodName: string,
   privateInventory: number
 ): number {
-  if (goodName !== "Beer" && goodName !== "Cheese" && goodName !== "Raisins" && goodName !== "Wine") {
+  if (
+    goodName !== "Beer" &&
+    goodName !== "Cheese" &&
+    goodName !== "Raisins" &&
+    goodName !== "Wine" &&
+    !isOrchardDrink(goodName)
+  ) {
     return Number.POSITIVE_INFINITY;
   }
   const good = getGoods().find(candidate => candidate.name === goodName);
   if (!good) return 0;
   const marketStock = Math.max(0, market.goods[good.i]?.stock ?? 0);
   const heldStock = marketStock + Math.max(0, privateInventory);
-  const reserveMonths = goodName === "Beer" ? BEER_RESERVE_MONTHS : 3;
+  const reserveMonths = isOrchardDrink(goodName)
+    ? ORCHARD_TARGETS.reserveMonths
+    : goodName === "Beer"
+      ? BEER_RESERVE_MONTHS
+      : 3;
   const householdHeadroom = Math.max(0, getMonthlyHouseholdDemand(market, goodName) * reserveMonths - heldStock);
   if (goodName !== "Cheese") return householdHeadroom;
 
@@ -280,6 +344,14 @@ function drawHouseholdDemand(market: Market, goodName: string, demand: number): 
   }
   ledger.householdConsumption += consumed;
   ledger.unmetDemand += Math.max(0, remainingDemand - consumed);
+  if (isOrchardDrink(goodName) && consumed > 0) {
+    const row = market.returnableContainerLedger?.orchardCasks?.[goodName];
+    if (row) {
+      const returned = Math.min(row.inService, consumed);
+      row.inService -= returned;
+      row.returns += returned;
+    }
+  }
   if (goodName === "Wine" && consumed > 0 && market.returnableContainerLedger) {
     const containers = market.returnableContainerLedger;
     const returned = Math.min(containers.wineCasksInService, consumed);
@@ -306,6 +378,8 @@ export function settleFoodProcessingHouseholds(): void {
     drawHouseholdDemand(market, "Grapes", getMonthlyHouseholdDemand(market, "Grapes"));
     drawHouseholdDemand(market, "Raisins", getMonthlyHouseholdDemand(market, "Raisins"));
     drawHouseholdDemand(market, "Wine", getMonthlyHouseholdDemand(market, "Wine"));
+    for (const name of ["Apples", "Pears", "Cider", "Perry"] as const)
+      drawHouseholdDemand(market, name, getMonthlyHouseholdDemand(market, name));
     const aleDemand = getAleDemandSnapshot(market);
     const beerLedger = getGoodLedger(market, "Beer");
     if (beerLedger) {
