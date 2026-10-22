@@ -152,6 +152,30 @@ describe("husbandry", () => {
       expect(demand.value).toBeCloseTo(11 / 7, 5);
     });
 
+    it.each(["unsuitable", "no pasture", "no residents", "disabled", "unregistered"])(
+      "counts existing animals even with %s, without creating new land capacity",
+      exclusion => {
+        grasslandCellWorld(exclusion === "no residents" ? 0 : 600);
+        let cattle = { ...CATTLE_GOOD };
+        if (exclusion === "unsuitable") cattle = { ...cattle, biomeOutputByTag: {} };
+        if (exclusion === "disabled")
+          cattle = { ...cattle, requiredTechnology: "unavailableGrazingTestTechnology" } as typeof cattle;
+        setGoods(exclusion === "unregistered" ? [] : ([cattle] as never));
+        if (exclusion === "no pasture") {
+          worldContext.pack.landUse = { cells: [{ diagnostics: ["resolved-livestock-land"], patches: [] }] } as never;
+        }
+        const stock = getOrCreateFaunaStockTable()!;
+        stock["0:Cattle"] = { young: 20, breeding: 80, old: 20 };
+        const demand = calculateHusbandryDemand(worldContext, 0);
+        expect(demand.requiredWorkers).toBeCloseTo(120 / 60, 8);
+        expect(demand.monthlyLaborWeights!.reduce((sum, weight) => sum + weight, 0)).toBeCloseTo(1, 8);
+        expect(stock["0:Cattle"]).toEqual({ young: 20, breeding: 80, old: 20 });
+        if (exclusion !== "no residents") expect(calculateGrazingLandAllocation(worldContext, 0)).toEqual([]);
+        delete stock["0:Cattle"];
+        expect(calculateHusbandryDemand(worldContext, 0)).toEqual({ requiredWorkers: 0, value: 0 });
+      }
+    );
+
     it("is bounded by population, not just land suitability, avoiding the 2026-08-06 'tiny population owns a huge herd' bug", () => {
       // ceiling = 7,650 ha regardless of population; a small population must NOT be able to claim it.
       grasslandCellWorld(50);

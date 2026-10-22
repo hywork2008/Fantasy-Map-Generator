@@ -33,6 +33,7 @@ import {
   getWildCullSelectivity,
   hasWildGameHabitat,
   MIN_NON_FOOD_DEMAND_CAPACITY_FRACTION,
+  MIN_UNSUPPORTED_GRAZED_HERD_HEADS,
   previewDomesticatedFaunaOfftake,
   previewWildFaunaOfftake,
   recordQuarterlyNonFoodDemand,
@@ -41,6 +42,7 @@ import {
   WILD_GAME_DENSITY_PER_HECTARE_BY_TAG,
   WILD_SPECIES_KEY
 } from "./faunaPopulation";
+import { calculateHusbandryDemand, getGrazedCarryingCapacity, getHusbandryWorkerFactor } from "./husbandry";
 import { HORSES_PER_MARKET_HEAD } from "./liveAnimalScale";
 
 const CATTLE_GOOD = {
@@ -679,6 +681,66 @@ describe("faunaPopulation", () => {
         expect(table["0:Cattle"]).toEqual(after);
       }
     );
+
+    it.each(["no pasture", "no habitat", "disabled"])("cleans up an unsupported sub-animal herd with %s", exclusion => {
+      forestCellWorld();
+      worldContext.options = { ruralEcosystemDetail: "detailed" } as typeof worldContext.options;
+      worldContext.biomesData = biomesData({ 1: exclusion === "no habitat" ? ["forest"] : ["grassland"] }) as never;
+      simulationContext.currentYear = 500;
+      const cattle =
+        exclusion === "disabled"
+          ? { ...CATTLE_GOOD, requiredTechnology: "unavailableGrazingTestTechnology" }
+          : CATTLE_GOOD;
+      setGoods([cattle] as never);
+      setHusbandryRequiredWorkers(Float32Array.from([10]));
+      setHusbandryWorkers(Float32Array.from([exclusion === "no pasture" ? 0 : 10]));
+      const table = getOrCreateFaunaStockTable()!;
+      table["0:Cattle"] = { young: 0, breeding: MIN_UNSUPPORTED_GRAZED_HERD_HEADS / 2, old: 0 };
+      expect(updateAnnualFaunaCohorts()).toBe(true);
+      expect(table["0:Cattle"]).toBeUndefined();
+    });
+
+    it("retains a sub-animal herd when its habitat still supports growth", () => {
+      forestCellWorld();
+      worldContext.options = { ruralEcosystemDetail: "detailed" } as typeof worldContext.options;
+      worldContext.biomesData = biomesData({ 1: ["grassland"] }) as never;
+      simulationContext.currentYear = 500;
+      setGoods([CATTLE_GOOD] as never);
+      setHusbandryRequiredWorkers(Float32Array.from([10]));
+      setHusbandryWorkers(Float32Array.from([10]));
+      const table = getOrCreateFaunaStockTable()!;
+      table["0:Cattle"] = { young: 0, breeding: 0.5, old: 0 };
+      updateAnnualFaunaCohorts();
+      expect(table["0:Cattle"]).toBeDefined();
+      expect(table["0:Cattle"].young).toBeGreaterThan(0);
+    });
+
+    it("does not amplify herder shortage as an excessive herd declines with a fixed labor allocation", () => {
+      forestCellWorld();
+      worldContext.populationRate = 1;
+      worldContext.options = { ruralEcosystemDetail: "detailed" } as typeof worldContext.options;
+      worldContext.biomesData = biomesData({ 1: ["grassland"] }) as never;
+      setGoods([CATTLE_GOOD] as never);
+      const table = getOrCreateFaunaStockTable()!;
+      table["0:Cattle"] = { young: 0, breeding: 1000, old: 0 };
+      setHusbandryWorkers(Float32Array.from([0.5]));
+      let previousFactor = 0;
+      let previousHeads = 1000;
+      for (let year = 500; year < 512; year++) {
+        simulationContext.currentYear = year;
+        const demand = calculateHusbandryDemand(worldContext, 0);
+        setHusbandryRequiredWorkers(Float32Array.from([demand.requiredWorkers]));
+        const factor = getHusbandryWorkerFactor(0);
+        expect(factor).toBeGreaterThanOrEqual(previousFactor);
+        expect(getGrazedCarryingCapacity(0, CATTLE_GOOD as never)).toBeLessThan(previousHeads);
+        updateAnnualFaunaCohorts();
+        const herd = table["0:Cattle"];
+        const heads = herd.young + herd.breeding + herd.old;
+        expect(heads).toBeLessThan(previousHeads);
+        previousFactor = factor;
+        previousHeads = heads;
+      }
+    });
 
     it("shrinks stock toward a newly-reduced carrying capacity instead of leaving it stranded above it", () => {
       forestCellWorld();

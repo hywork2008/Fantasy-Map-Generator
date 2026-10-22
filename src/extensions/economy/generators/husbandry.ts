@@ -284,11 +284,9 @@ export function calculateGrazingLandAllocation(
 export function calculateHusbandryDemand(world: Readonly<WorldContext>, cellId: number): HusbandryDemand {
   const cells = world.pack.cells;
   const population = Math.max(0, cells.pop[cellId] ?? 0);
-  if (population <= 0) return { requiredWorkers: 0, value: 0 };
-
-  const desiredArea = calculateDesiredPastureAreaHectares(world, cellId);
-  if (desiredArea <= 0) return { requiredWorkers: 0, value: 0 };
-
+  const plannedHeads = new Map(
+    (population > 0 ? calculateGrazingLandAllocation(world, cellId) : []).map(row => [row.goodName, row.capacityHeads])
+  );
   const goodsByName = new Map(getGoods().map(good => [good.name, good]));
   const stock = getOrCreateFaunaStockTable();
   const perGoodDemand: { careHeads: number; profile: HusbandrySpeciesProfile }[] = [];
@@ -296,15 +294,15 @@ export function calculateHusbandryDemand(world: Readonly<WorldContext>, cellId: 
   let workersNoDogs = 0;
   let weightedValue = 0;
 
-  for (const row of calculateGrazingLandAllocation(world, cellId, desiredArea)) {
-    const good = goodsByName.get(row.goodName)!;
-    const profile = HUSBANDRY_SPECIES_PROFILES[row.goodName];
-    const herd = stock?.[`${cellId}:${row.goodName}`];
+  // Habitat and land constrain new targets, not the care owed to animals already present.
+  for (const [name, profile] of Object.entries(HUSBANDRY_SPECIES_PROFILES)) {
+    const herd = stock?.[`${cellId}:${name}`];
     const existingHeads = herd ? Math.max(0, herd.young) + Math.max(0, herd.breeding) + Math.max(0, herd.old) : 0;
-    const careHeads = Math.max(row.capacityHeads, existingHeads);
+    const careHeads = Math.max(plannedHeads.get(name) ?? 0, existingHeads);
+    if (!(careHeads > 0)) continue;
     totalCareHeads += careHeads;
     workersNoDogs += careHeads / profile.baselineHeadsPerHerder;
-    weightedValue += careHeads * good.value;
+    weightedValue += careHeads * (goodsByName.get(name)?.value ?? 0);
     perGoodDemand.push({ careHeads, profile });
   }
 

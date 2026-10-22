@@ -570,6 +570,8 @@ export function previewDomesticatedFaunaOfftake(cellId: number, good: Good, desi
 
 /** Annual adjustment of excess grazed animals, after ordinary age-related deaths. Model policy. */
 export const GRAZED_EXCESS_ANNUAL_ADJUSTMENT = 0.1;
+/** A sub-animal remnant with no carrying capacity cannot maintain a herd. Real animals, not market lots. */
+export const MIN_UNSUPPORTED_GRAZED_HERD_HEADS = 1;
 
 function advanceCohortsOneYear(
   cohorts: FaunaCohorts,
@@ -626,7 +628,9 @@ function advanceStockOneYear(
     carryingCapacity,
     isGrazedLivestockGood(speciesKey)
   );
-  if (cohortTotal(next) <= 0 && carryingCapacity <= 0)
+  const unsupportedRemnant =
+    isGrazedLivestockGood(speciesKey) && carryingCapacity <= 0 && cohortTotal(next) < MIN_UNSUPPORTED_GRAZED_HERD_HEADS;
+  if ((cohortTotal(next) <= 0 && carryingCapacity <= 0) || unsupportedRemnant)
     delete table[key]; // Habitat/demand gone — stop tracking.
   else table[key] = next;
 }
@@ -648,7 +652,9 @@ export function updateAnnualFaunaCohorts(): boolean {
   const table = getOrCreateFaunaStockTable();
   if (!table) return false;
 
-  const domesticatedGoods = getGoods().filter(good => good.tags.includes("liveAnimal") && isGoodEnabled(good));
+  const domesticatedGoods = getGoods().filter(
+    good => good.tags.includes("liveAnimal") && (isGoodEnabled(good) || isGrazedLivestockGood(good.name))
+  );
 
   for (const cellId of cells.i) {
     if ((cells.h[cellId] ?? 0) < 20) continue;
@@ -659,7 +665,9 @@ export function updateAnnualFaunaCohorts(): boolean {
     const biomeCode = cells.biomeCode[cellId] ?? 0;
     for (const good of domesticatedGoods) {
       const rate = resolveBiomeOutputRate(biomeCode, good.biomeOutput, good.biomeOutputByTag, world.biomesData);
-      if (rate <= 0) continue;
+      // Existing grazed animals still age and adjust after habitat or technology eligibility is lost.
+      const existingGrazedHerd = isGrazedLivestockGood(good.name) && table[getStockKey(cellId, good.name)];
+      if ((!isGoodEnabled(good) || rate <= 0) && !existingGrazedHerd) continue;
       const flatRateAmount = Math.max(0, cells.pop[cellId] ?? 0) * rate;
       advanceStockOneYear(table, cellId, good.name, getDomesticatedCarryingCapacity(cellId, good, flatRateAmount));
     }
