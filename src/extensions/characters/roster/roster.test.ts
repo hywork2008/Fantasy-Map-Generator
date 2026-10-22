@@ -245,6 +245,46 @@ describe("organization roster", () => {
     expect(ensureRoster().family.filter(f => f.parentId === "legacy:9")).toHaveLength(3);
     expect(ensureRoster().links.filter(l => l.kind === "spouse")).toHaveLength(1);
   });
+  it("migrates commanders by their regiment assignment rather than their shared title", () => {
+    const r = ensureRoster();
+    materializeSlots({ roleId: "steward", mode: "simulation" });
+    const people = getCharacters();
+    for (const c of people) c.titles = [{ title: "Commander", entityType: "state", entityId: 1, landed: false }];
+    api.worldContext.pack.states[1].military = people.map((c, i) => ({ i, commanderId: c.i })) as never;
+    r.slots = [];
+    r.appointments = [];
+    r.roles = [];
+    for (let i = 0; i < 4; i++) putRole(r, { ...role(`commander:${i}`), name: "Commander", count: 1, regimentId: i });
+    migrateCharacters(r);
+    expect(r.appointments).toHaveLength(3);
+    for (let i = 0; i < 3; i++) {
+      const a = r.appointments.find(a => a.roleId === `commander:${i}`)!;
+      expect(r.slots.find(s => s.id === a.slotId)?.characterId).toBe(people[i].i);
+      expect(a.ordinal).toBe(0);
+    }
+    expect(r.roles.every(role => role.count === 1)).toBe(true);
+    migrateCharacters(r);
+    validateWorldRoster(r);
+  });
+  it("allocates a separate ordinal for each migrated appointment", () => {
+    const r = ensureRoster();
+    materializeSlots({ roleId: "steward", mode: "simulation" });
+    const people = getCharacters();
+    for (let i = 0; i < people.length; i++)
+      people[i].titles = [
+        { title: `Office ${i}`, entityType: "state", entityId: 1, landed: false },
+        { title: "Councilor", entityType: "state", entityId: 1, landed: false }
+      ];
+    r.slots = [];
+    r.appointments = [];
+    r.roles = [];
+    for (let i = 0; i < people.length; i++) putRole(r, { ...role(`office:${i}`), name: `Office ${i}`, count: 1 });
+    putRole(r, { ...role("council"), name: "Councilor", count: 1 });
+    migrateCharacters(r);
+    expect(r.appointments.filter(a => a.roleId === "council").map(a => a.ordinal)).toEqual([0, 1, 2]);
+    expect(r.roles.find(role => role.id === "council")?.count).toBe(3);
+    validateWorldRoster(r);
+  });
   it("does not invent births after an observed parent's early death", () => {
     const r = ensureRoster();
     materializeSlots({ organizationId: "a", limit: 1, mode: "simulation" });

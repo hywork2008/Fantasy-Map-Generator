@@ -1410,7 +1410,21 @@ Linen・酒樽5品・Ink・Rennet・Leather・Beeswax は、いずれも「値�
 
 - 集計は前後でほぼ同じ(0.1% 未満)。Books の原価が下がった影響は集計には見えない。
 - 試験: `goods-generator.test.ts`(Ink の移行を追加)を含む `economy/generators` は、前から失敗している6件(`tradeTransportRoom.test.ts` 5件・`foodClimateCalibration.test.ts` 1件)だけが失敗。`tsc` は通る。
-- 3年後の保存(`--out`)は、`Invalid character organization roster` で失敗した。この作業の前のコードでも起きるかは未確認。
+- 3年後の保存(`--out`)は、`Invalid character organization roster` で失敗した。旧人物の組織名簿への移行に原因があり、§25.4 で修正した。
+
+### 25.4 保存エラーと計測時の人物(2026-10-22、修正)
+
+`province-101.fmg` は、組織名簿・master 初期人物の参照データがない旧形式で、人物54人が保存されている。この地図では、3年進めた後だけでなく、読み込んで0日で保存してもエラーを再現した。Ink の生産や単位変更によって起きるエラーではない。
+
+原因は `roster/runtime.ts migrateCharacters`。旧人物の `Commander` という肩書きと国家だけで役職を照合するため、同じ国の指揮官3人を、各連隊の指揮官役職に重複して登録していた。組織の再構築で各役職の定員が1人に戻り、保存時の名簿検証で「在任人数が定員を超える」として失敗した。
+
+- 指揮官は肩書きではなく、連隊の `commanderId` によって照合するように修正した。
+- 兼職の移行では、最初の役職の番号を使い回さず、役職ごとに在任者の番号と必要な定員を計算するように修正した。
+- `sim` は `--out` または `--hash` を指定した場合だけ保存処理を呼ぶようにした。`--samples` のみの計測では不要な保存を行わない。
+
+修正後は、同じ入力・`--years 3 --world-setting fmg-caravan-raids=off --out ...` で 590-1-1 → 593-1-1(1,096 tick)の進行と保存に成功した。回帰テストは `roster.test.ts` に追加し、`reference.test.ts` と合わせて25件成功。`tsc --noEmit` も成功した。
+
+人物の作製については、旧保存では保存済みの人物をそのまま移行するため、All master opening characters を実行する必要はない。新形式の master 初期人物も、画面に人物シートを作製する前から `getSimulationCharacters` / `operationalWorld` を通じてシミュレーションに参加する。All master opening characters は、それらの人物シートを表示用に実体化する操作であり、全初期人物を計測に参加させるための必須操作ではない。`sim` の拡張機能は既定で全4種類が有効。
 
 #### 残る課題
 

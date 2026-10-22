@@ -139,12 +139,14 @@ async function main() {
   }
   log(`advanced to ${date()} (tick ${host.simulation.tickCount}) in ${ms(started)}`);
 
-  const result = await host.saveArchive();
-  if (options.out) {
-    writeFileSync(options.out, result);
-    log(`wrote ${options.out} (${result.byteLength} bytes)`);
+  if (options.out || options.hash) {
+    const result = await host.saveArchive();
+    if (options.out) {
+      writeFileSync(options.out, result);
+      log(`wrote ${options.out} (${result.byteLength} bytes)`);
+    }
+    if (options.hash) console.log((await hashArchiveBytes(result)).digest);
   }
-  if (options.hash) console.log((await hashArchiveBytes(result)).digest);
   host.dispose();
 }
 

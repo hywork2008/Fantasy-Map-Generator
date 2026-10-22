@@ -446,12 +446,16 @@ export function migrateCharacters(roster: WorldRoster): void {
     const stateId = character.state || character.nationalityStateId || 0;
     const matchingRoles = roster.roles.filter(
       r =>
-        character.titles.some(
-          t =>
-            t.entityType === r.entityType &&
-            t.entityId === r.entityId &&
-            (t.title === r.name || t.title === r.femaleName)
-        ) ||
+        (r.regimentId !== undefined
+          ? getWorldContext().pack.states[r.entityId]?.military?.some(
+              regiment => regiment.i === r.regimentId && regiment.commanderId === character.i
+            )
+          : character.titles.some(
+              t =>
+                t.entityType === r.entityType &&
+                t.entityId === r.entityId &&
+                (t.title === r.name || t.title === r.femaleName)
+            )) ||
         (r.characterRole &&
           character.roles?.some(
             cr =>
@@ -494,10 +498,11 @@ export function migrateCharacters(roster: WorldRoster): void {
     };
     roster.slots.push(slot);
     for (const match of matchingRoles) {
-      match.count = Math.max(match.count, (slot.ordinal ?? 0) + 1);
+      const ordinal = roster.appointments.filter(a => a.roleId === match.id && a.endYear === undefined).length;
+      match.count = Math.max(match.count, ordinal + 1);
       roster.appointments.push({
         roleId: match.id,
-        ordinal: slot.ordinal,
+        ordinal,
         slotId: id,
         startYear: birthYear + profile.maturity,
         endYear: slot.deathYear
