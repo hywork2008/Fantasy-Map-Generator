@@ -16,6 +16,16 @@ export interface TriangleSoup {
 export interface BuildingSurfaces {
   walls: TriangleSoup;
   roofs: TriangleSoup;
+  wallPanels?: WallPanel[];
+}
+
+/** Exact floor facades, including the existing convex upper-floor offsets. */
+export interface WallPanel {
+  a: Point;
+  b: Point;
+  base: number;
+  height: number;
+  level: number;
 }
 
 const JETTY_CAP_METERS = 1.2;
@@ -444,7 +454,7 @@ function addLeanTo(
 export function buildingSurfaces(
   polygon: readonly Point[],
   massing: BuildingMassing,
-  options: { maximumRoofRiseMeters?: number } = {}
+  options: { maximumRoofRiseMeters?: number; includeWallPanels?: boolean } = {}
 ): BuildingSurfaces | null {
   const base = cleanRing(polygon);
   if (!base.length || !massing.floors.length) return null;
@@ -452,6 +462,7 @@ export function buildingSurfaces(
   const jetty = convex ? massing.jettyMeters : 0;
   const walls: Bucket = { positions: [], normals: [] };
   const roofs: Bucket = { positions: [], normals: [] };
+  const wallPanels: WallPanel[] | undefined = options.includeWallPanels ? [] : undefined;
   const centre = centroid(base);
   const eave = massing.eaveHeightMeters;
   const interior = planVertex(centre, Math.min(eave * 0.5, Math.max(eave * 0.45, 0.5)));
@@ -462,7 +473,12 @@ export function buildingSurfaces(
     const ring = distance > 0 ? offsetConvex(base, distance) : base;
     const height = massing.floors[level].heightMeters;
     if (!(height > 0)) return null;
-    for (let i = 0; i < ring.length; i++) addWall(walls, ring[i], ring[(i + 1) % ring.length], y, y + height, interior);
+    for (let i = 0; i < ring.length; i++) {
+      const a = ring[i],
+        b = ring[(i + 1) % ring.length];
+      addWall(walls, a, b, y, y + height, interior);
+      wallPanels?.push({ a, b, base: y, height, level });
+    }
     if (level > 0 && distance > 0) addSoffit(walls, previous, ring, y);
     previous = ring;
     y += height;
@@ -483,7 +499,7 @@ export function buildingSurfaces(
       options.maximumRoofRiseMeters ?? 4
     );
   if (!walls.positions.length) return null;
-  return { walls: toSoup(walls), roofs: toSoup(roofs) };
+  return { walls: toSoup(walls), roofs: toSoup(roofs), ...(wallPanels ? { wallPanels } : {}) };
 }
 
 /** Every directed edge has a matching reverse edge, within `quant` metres. */

@@ -1,0 +1,119 @@
+{
+  "date": "2026-10-22T09:51:02.293Z",
+  "cpu": "Apple M4",
+  "node": "v22.23.1",
+  "environment": "Node CPU wall time, 1 warmup + median of 3; 1000 repeated CE preview lots, no rasterization or GPU timing",
+  "budget": {
+    "buildings": 50,
+    "triangles": 30000,
+    "enterPixels": 64,
+    "exitPixels": 48,
+    "cache": 100
+  },
+  "base": {
+    "buildings": 1000,
+    "meshes": 2,
+    "triangles": 32000
+  },
+  "results": [
+    {
+      "mode": "far",
+      "buildings": 0,
+      "triangles": 0,
+      "builds": 0,
+      "cached": 0,
+      "meshes": 0,
+      "bufferBytes": 0,
+      "prepareMs": 0.7036669999999958,
+      "coldMs": 0.2706670000000031,
+      "idleMs": 0.002066660000000411,
+      "warmMoveMs": 0.06629200000003266,
+      "samples": [
+        {
+          "prepareMs": 0.558667000000014,
+          "coldMs": 0.2706670000000031,
+          "idleMs": 0.0069845799999995965,
+          "warmMoveMs": 0.20054199999998445
+        },
+        {
+          "prepareMs": 0.7036669999999958,
+          "coldMs": 0.13720900000004121,
+          "idleMs": 0.001865839999999821,
+          "warmMoveMs": 0.06629200000003266
+        },
+        {
+          "prepareMs": 0.7039169999999899,
+          "coldMs": 0.448791999999969,
+          "idleMs": 0.002066660000000411,
+          "warmMoveMs": 0.05037499999997408
+        }
+      ]
+    },
+    {
+      "mode": "near",
+      "buildings": 50,
+      "triangles": 12500,
+      "builds": 1,
+      "cached": 50,
+      "meshes": 1,
+      "bufferBytes": 1350000,
+      "prepareMs": 0.2729999999999677,
+      "coldMs": 5.6620829999999955,
+      "idleMs": 0.0016358300000001691,
+      "warmMoveMs": 0.059332999999980984,
+      "samples": [
+        {
+          "prepareMs": 0.2729999999999677,
+          "coldMs": 6.194834000000014,
+          "idleMs": 0.0016062500000003864,
+          "warmMoveMs": 0.08283399999999119
+        },
+        {
+          "prepareMs": 0.3507910000000152,
+          "coldMs": 5.6620829999999955,
+          "idleMs": 0.0016358300000001691,
+          "warmMoveMs": 0.059332999999980984
+        },
+        {
+          "prepareMs": 0.26741600000002563,
+          "coldMs": 4.869917000000044,
+          "idleMs": 0.0016774999999995543,
+          "warmMoveMs": 0.05762499999997317
+        }
+      ]
+    },
+    {
+      "mode": "budget",
+      "buildings": 50,
+      "triangles": 12500,
+      "builds": 1,
+      "cached": 50,
+      "meshes": 1,
+      "bufferBytes": 1350000,
+      "prepareMs": 0.26670799999999417,
+      "coldMs": 5.01887499999998,
+      "idleMs": 0.0016825000000000045,
+      "warmMoveMs": 0.09899999999998954,
+      "samples": [
+        {
+          "prepareMs": 0.6878330000000119,
+          "coldMs": 5.37624999999997,
+          "idleMs": 0.0016825000000000045,
+          "warmMoveMs": 0.10762499999998454
+        },
+        {
+          "prepareMs": 0.26670799999999417,
+          "coldMs": 4.567334000000017,
+          "idleMs": 0.004675000000000295,
+          "warmMoveMs": 0.09720799999996643
+        },
+        {
+          "prepareMs": 0.25912500000004,
+          "coldMs": 5.01887499999998,
+          "idleMs": 0.0016187499999995225,
+          "warmMoveMs": 0.09899999999998954
+        }
+      ]
+    }
+  ]
+}

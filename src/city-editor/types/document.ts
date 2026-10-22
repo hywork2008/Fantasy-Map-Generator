@@ -459,6 +459,11 @@ export interface CityDocument {
   appearance?: "town";
   /** Historical backdrop / technological era. Defaults to "ageOfExploration". */
   historicalPeriod?: HistoricalPeriod;
+  /** Missing on saved legacy cities: keep their original building appearance. */
+  buildingAppearanceVersion?: typeof import("../../buildings/appearance/types").BUILDING_APPEARANCE_VERSION;
+  buildingAppearanceProfile?: import("../../buildings/appearance/types").BuildingAppearanceProfile;
+  /** Captured on generation or explicit appearance refresh, never on load. */
+  buildingAppearanceContext?: import("../../buildings/appearance/types").BuildingAppearanceContext;
   /**
    * Economy profile from FMG. Absent documents keep the period-only landmarks.
    * A guild chapter in this profile is drawn even when its craftsman count is zero.

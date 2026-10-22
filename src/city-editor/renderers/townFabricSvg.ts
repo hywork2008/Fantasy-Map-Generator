@@ -1,3 +1,4 @@
+import { buildingAppearanceColors } from "../../buildings/appearance/colors";
 import { editorText } from "../../i18n/editorMessages";
 import type { AerialLandmarkPlan } from "../generators/aerialLandmarks";
 import { farmSheds } from "../generators/farmSheds";
@@ -379,9 +380,11 @@ export function renderTownFabric(
   }
   mark("buildings", { buildings: lots.length });
   if (!hideBuildings) {
-    const batches = new Map<Id, string[]>();
+    const batches = new Map<string, { faceId: Id; color?: string; paths: string[] }>();
     const faceOrdinals = new Map<Id, number>();
+    const displayed = new Map<Id, number>();
     for (const lot of lots) {
+      const color = lot.landmark ? undefined : buildingAppearanceColors(lot.appearance)?.roof;
       // Selected districts expand to individual buildings, retaining parcel inspection.
       if (
         lightweight &&
@@ -395,11 +398,13 @@ export function renderTownFabric(
         const ordinal = faceOrdinals.get(lot.faceId) ?? 0;
         faceOrdinals.set(lot.faceId, ordinal + 1);
         if (minimal && ordinal % 2 !== 0) continue;
-        const paths = batches.get(lot.faceId) ?? [];
-        paths.push(
+        const key = JSON.stringify([lot.faceId, color]);
+        const batch = batches.get(key) ?? { faceId: lot.faceId, color, paths: [] };
+        batch.paths.push(
           `${lot.polygon.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)} ${(-p[1]).toFixed(1)}`).join(" ")} Z`
         );
-        batches.set(lot.faceId, paths);
+        batches.set(key, batch);
+        displayed.set(lot.faceId, (displayed.get(lot.faceId) ?? 0) + 1);
         continue;
       }
       const bldId = lot.residentialCluster?.id ?? lot.parcelId ?? `bld-${lot.faceId}`;
@@ -449,6 +454,7 @@ export function renderTownFabric(
         d: polygon(lot.polygon),
         class: `ce-building${lot.landmark ? " ce-building--landmark" : ""}${isPickSelected ? " ce-is-selected cg-is-selected" : ""}`,
         "data-building-face": lot.faceId,
+        ...(color ? { style: `--ce-roof-color:${color}` } : {}),
         ...(lot.residentialCluster
           ? {
               "data-residential-cluster": lot.residentialCluster.id,
@@ -468,7 +474,7 @@ export function renderTownFabric(
       if (tool === "select") bldNode.style.cursor = "pointer";
       buildings.appendChild(bldNode);
     }
-    for (const [faceId, paths] of batches) {
+    for (const { faceId, color, paths } of batches.values()) {
       buildings.appendChild(
         element("path", {
           d: paths.join(" "),
@@ -482,10 +488,10 @@ export function renderTownFabric(
               faceId,
               label: editorText("cityEditor.messages.blockSelectToShowBuildingDetails", { value0: faceId }),
               buildings: faceOrdinals.get(faceId),
-              displayedBuildings: paths.length
+              displayedBuildings: displayed.get(faceId)
             })
           ),
-          style: "cursor:pointer"
+          style: `${color ? `--ce-roof-color:${color};` : ""}cursor:pointer`
         })
       );
     }

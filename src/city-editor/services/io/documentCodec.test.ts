@@ -1,10 +1,26 @@
 import { describe, expect, it } from "vitest";
 import { historicLandmarkPrototypes } from "../../assets/catalog";
+import { withBuildingAppearance } from "../../generators/buildingAppearance";
 import { createDocument } from "../../generators/document";
 import { parseDocument, serializeDocument } from "./documentCodec";
 
 // These are the same bytes used by exportCityMap, not a test-only JSON path.
 describe("native document codec", () => {
+  it("round-trips appearance snapshots without upgrading old cities on load", () => {
+    const document = createDocument("appearance-codec", 400);
+    delete document.buildingAppearanceVersion;
+    const legacy = parseDocument(serializeDocument(document))!;
+    expect(legacy.buildingAppearanceVersion).toBeUndefined();
+    expect(legacy.buildingAppearanceContext).toBeUndefined();
+    const upgraded = withBuildingAppearance(legacy, "stone-upland");
+    expect(parseDocument(serializeDocument(upgraded))).toEqual(upgraded);
+    for (const invalid of [
+      { buildingAppearanceVersion: 2 },
+      { buildingAppearanceProfile: "unknown" },
+      { buildingAppearanceContext: { period: "highMedieval", forest: "yes" } }
+    ])
+      expect(parseDocument(JSON.stringify({ ...document, ...invalid }))).toBeNull();
+  });
   it.each([2, 3, 4] as const)("preserves persisted fields and order for schema %i", version => {
     const document = createDocument("codec-phase6", 400);
     document.buildingPattern = "medieval";

@@ -1,3 +1,4 @@
+import { BUILDING_APPEARANCE_VERSION } from "../../buildings/appearance/types";
 import { editorText } from "../../i18n/editorMessages";
 import { populationWindowMeters, type RequiredSiteBounds, requiredSiteExtent } from "../../utils/requiredSiteBounds";
 import type { GridKind } from "../types/contracts/document";
@@ -361,6 +362,7 @@ function documentFromCells(
       ...(settlementExtentMeters ? { settlementExtentMeters } : {})
     },
     historicalPeriod: "ageOfExploration",
+    buildingAppearanceVersion: BUILDING_APPEARANCE_VERSION,
     mesh: meshFromCells(cells),
     featureGroups: [],
     gates: [],

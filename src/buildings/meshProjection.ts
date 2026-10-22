@@ -21,6 +21,17 @@ export function meshProjection(model: CityStructureMeshes, view: "side" | "top")
       const normal = points[1].clone().sub(points[0]).cross(points[2].clone().sub(points[0])).normalize();
       if ((view === "side" ? normal.z : normal.y) <= 0.001) continue;
       const color = material.color.clone().multiplyScalar(0.8 + 0.2 * Math.max(0, normal.y));
+      const vertexColors = mesh.geometry.getAttribute("color");
+      if (material.vertexColors && vertexColors) {
+        const vertexColor = new THREE.Color(0, 0, 0);
+        for (let j = 0; j < 3; j++) {
+          const k = indices ? indices.getX(i + j) : i + j;
+          vertexColor.r += vertexColors.getX(k) / 3;
+          vertexColor.g += vertexColors.getY(k) / 3;
+          vertexColor.b += vertexColors.getZ(k) / 3;
+        }
+        color.multiply(vertexColor);
+      }
       const fill = `#${color.getHexString()}`;
       faces.push({
         depth: points.reduce((sum, p) => sum + (view === "side" ? p.z : p.y), 0) / 3,

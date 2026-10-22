@@ -25,7 +25,7 @@ export const STANDALONE_SVG_STYLE = `
   .ce-svg--town .ce-edge { stroke: transparent; }
   .ce-svg--town .ce-feature { opacity: 1; }
   .ce-svg--town .ce-feature--wall { stroke-dasharray: none; }
-  .ce-building { fill: #b2afa2; stroke: #49483f; stroke-width: 0.35px; stroke-linejoin: miter; stroke-miterlimit: 2; }
+  .ce-building { fill: var(--ce-roof-color, #b2afa2); stroke: #49483f; stroke-width: 0.35px; stroke-linejoin: miter; stroke-miterlimit: 2; }
   .ce-building--landmark { fill: #373831; }
   .ce-road-casing, .ce-road--cobble, .ce-road-cobble-casing { stroke-linecap: round; stroke-linejoin: round; }
   .ce-road-cobble-joints { stroke-linecap: butt; }

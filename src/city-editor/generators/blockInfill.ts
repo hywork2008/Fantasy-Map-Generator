@@ -4,6 +4,7 @@ import type { Id, Point } from "../types/primitives";
 import { aerialLandmarkFootprints } from "./aerialFootprints";
 import { buildAerialLandmarkPlan, prevailingWindKey } from "./aerialLandmarks";
 import type { DistrictFabric } from "./blockInfill.types";
+import { assignBuildingAppearances, buildingAppearanceKey } from "./buildingAppearance";
 import { assignBuildingMassing } from "./buildingMassing";
 import { absorbCellars } from "./cellarAbsorption";
 import { buildCirculadeTownFabric } from "./circuladeFabric";
@@ -190,6 +191,8 @@ export function documentFabricFingerprint(doc: CityDocument): string {
     doc.fabric?.version ?? "",
     doc.buildingPattern ?? "",
     doc.historicalPeriod ?? "",
+    buildingAppearanceKey(doc),
+    JSON.stringify([doc.biome, doc.civilization, doc.urbanMorphology?.period]),
     doc.layout ?? "",
     doc.gridKind ?? "",
     faces.length,
@@ -372,7 +375,10 @@ export function buildBlockFabric(
       });
     fabricResult = { ...fabricResult, farms };
   }
-  fabricResult = { ...fabricResult, buildings: assignBuildingMassing(document, fabricResult.buildings) };
+  fabricResult = {
+    ...fabricResult,
+    buildings: assignBuildingAppearances(document, assignBuildingMassing(document, fabricResult.buildings))
+  };
   const fingerprint = documentFabricFingerprint(document);
   if (!profiler) {
     fabricByDocument.set(document, { fingerprint, fabric: fabricResult });

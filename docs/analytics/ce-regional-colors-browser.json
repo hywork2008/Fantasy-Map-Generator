@@ -1,0 +1,95 @@
+{
+  "date": "2026-10-22T09:05:03.081Z",
+  "browser": "151.0.7922.34",
+  "errors": [],
+  "results": [
+    {
+      "profile": "mediterranean",
+      "exportComputedFill": "rgb(184, 115, 80)",
+      "expectedHex": "#B87350"
+    },
+    {
+      "profile": "northern-wooded",
+      "exportComputedFill": "rgb(165, 149, 114)",
+      "expectedHex": "#A59572"
+    },
+    {
+      "profile": "northern-urban",
+      "exportComputedFill": "rgb(167, 101, 73)",
+      "expectedHex": "#A76549"
+    },
+    {
+      "profile": "stone-upland",
+      "exportComputedFill": "rgb(119, 117, 107)",
+      "expectedHex": "#77756B"
+    },
+    {
+      "profile": "mediterranean",
+      "contextLost": false,
+      "glError": 0,
+      "planColors": [
+        "#d1c8b3",
+        "#c7baa0",
+        "#b26f4d",
+        "#a45c41"
+      ]
+    },
+    {
+      "profile": "northern-wooded",
+      "contextLost": false,
+      "glError": 0,
+      "planColors": [
+        "#85745f",
+        "#756551",
+        "#a0906e",
+        "#907f5e"
+      ]
+    },
+    {
+      "profile": "northern-urban",
+      "contextLost": false,
+      "glError": 0,
+      "planColors": [
+        "#cdc1aa",
+        "#c1b498",
+        "#a26247",
+        "#904e3d"
+      ]
+    },
+    {
+      "profile": "stone-upland",
+      "contextLost": false,
+      "glError": 0,
+      "planColors": [
+        "#cdc1aa",
+        "#c1b498",
+        "#737168",
+        "#656966"
+      ]
+    },
+    {
+      "profile": "mediterranean",
+      "view": "CE full city and live profile update",
+      "contextLost": false,
+      "glError": 0
+    },
+    {
+      "profile": "northern-wooded",
+      "view": "CE full city and live profile update",
+      "contextLost": false,
+      "glError": 0
+    },
+    {
+      "profile": "northern-urban",
+      "view": "CE full city and live profile update",
+      "contextLost": false,
+      "glError": 0
+    },
+    {
+      "profile": "stone-upland",
+      "view": "CE full city and live profile update",
+      "contextLost": false,
+      "glError": 0
+    }
+  ]
+}

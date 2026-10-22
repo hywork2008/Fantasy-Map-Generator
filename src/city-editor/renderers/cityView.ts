@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { buildingSurfaces } from "../../city3d/core/massingGeometry";
 import { structureSurfaces } from "../../city3d/core/structureGeometry";
+import { createTownBuildingDetails, type TownBuildingDetails } from "../../city3d/three/buildingDetails";
 import { type CityMassingMeshes, createCityMassing } from "../../city3d/three/cityMeshes";
 import { createTownFarms, type TownFarmMeshes } from "../../city3d/three/farmMeshes";
 import { createTownFriaries } from "../../city3d/three/friaryMeshes";
@@ -121,6 +122,7 @@ export function mountCity3d(options: {
   let camera: THREE.PerspectiveCamera | null = null;
   let controls: OrbitControls | null = null;
   let massing: CityMassingMeshes | null = null;
+  let buildingDetails: TownBuildingDetails | null = null;
   let structures: CityStructureMeshes | null = null;
   let wells: CityStructureMeshes | null = null;
   let openSpaces: CityStructureMeshes | null = null;
@@ -242,18 +244,27 @@ export function mountCity3d(options: {
     outline(positions);
   };
 
-  const rebuild = (city: CityDocument, fabric: DistrictFabric) => {
+  const rebuild = (city: CityDocument, fabric: DistrictFabric, allowColorUpdate = false) => {
     if (!scene) return;
     clearHighlight();
     readout.hidden = true;
-    massing?.dispose();
-    if (massing) scene.remove(massing.group);
+    const reused = allowColorUpdate && massing?.updateAppearance?.(fabric.buildings);
+    if (buildingDetails) {
+      scene.remove(buildingDetails.group);
+      buildingDetails.dispose();
+    }
+    buildingDetails = createTownBuildingDetails(fabric.buildings, terrain?.relief ? terrain.foundationAt : undefined);
+    scene.add(buildingDetails.group);
+    if (!reused) {
+      massing?.dispose();
+      if (massing) scene.remove(massing.group);
+      massing = createCityMassing(fabric.buildings, terrain?.relief ? terrain.foundationAt : undefined);
+      scene.add(massing.group);
+    }
     structures?.dispose();
     if (structures) scene.remove(structures.group);
     wells?.dispose();
     if (wells) scene.remove(wells.group);
-    massing = createCityMassing(fabric.buildings, terrain?.relief ? terrain.foundationAt : undefined);
-    scene.add(massing.group);
     const parts = [...collectCityStructures(city), ...landmarkLotStructures(fabric.buildings)];
     structureList = terrain
       ? [...groundStructures(parts, terrain), ...lotFoundations(fabric.buildings, terrain)]
@@ -299,6 +310,7 @@ export function mountCity3d(options: {
   const tick = () => {
     if (!running || !renderer || !scene || !camera) return;
     controls?.update();
+    buildingDetails?.update(camera, renderer.domElement.clientHeight);
     renderer.render(scene, camera);
     raf = requestAnimationFrame(tick);
   };
@@ -387,7 +399,7 @@ export function mountCity3d(options: {
     }
     if (plan.buildings) {
       built = fabric;
-      rebuild(city, fabric);
+      rebuild(city, fabric, !terrainChanged);
     }
     if (plan.water) {
       placeWater(city);
@@ -504,6 +516,7 @@ export function mountCity3d(options: {
     observer?.disconnect();
     clearHighlight();
     massing?.dispose();
+    buildingDetails?.dispose();
     structures?.dispose();
     waterMeshes?.dispose();
     wells?.dispose();

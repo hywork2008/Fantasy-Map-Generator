@@ -1,6 +1,7 @@
 import "./viewer.css";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { BUILDING_APPEARANCE_PROFILES } from "../buildings/appearance/types";
 import { createPontDuGard, PONT_DU_GARD, pontDuGardElevation } from "../buildings/aqueducts/pontDuGard";
 import { contentDigest } from "../buildings/canonicalJson";
 import { createStGeorgesChapel, ST_GEORGES_CHAPEL } from "../buildings/chapels/stGeorgesChapel";
@@ -60,8 +61,11 @@ import {
   WATER_BASIN_KINDS
 } from "../buildings/wells/publicWaterBasin";
 import { createMedievalLumberYard, MEDIEVAL_LUMBER_YARD } from "../buildings/yards/medievalLumberYard";
+import { buildingAppearancePreview } from "../city-editor/generators/buildingAppearancePreview";
 import { catalogueMassing } from "../city3d/core/catalogueMassing";
 import { structureSurfaces } from "../city3d/core/structureGeometry";
+import { createTownBuildingDetails, type TownBuildingDetails } from "../city3d/three/buildingDetails";
+import { createCityMassing } from "../city3d/three/cityMeshes";
 import { type CityStructureMeshes, createStructureMassing } from "../city3d/three/structureMeshes";
 import type { TownWaterMeshes } from "../city3d/three/waterMeshes";
 import type { HistoricalPeriod } from "../types/historicalPeriod";
@@ -202,6 +206,7 @@ scene.add(ground);
 const controls = new OrbitControls(camera, canvas);
 controls.maxPolarAngle = Math.PI / 2 - 0.05;
 let massing: CityStructureMeshes | null = null;
+let regionalDetails: TownBuildingDetails | null = null;
 let studyWater: TownWaterMeshes | null = null;
 let selection = 0;
 
@@ -231,6 +236,11 @@ function frame(record: Pick<BuildingRecord, "occupancyMeters">, height: number):
 }
 
 function clearMesh(): void {
+  if (regionalDetails) {
+    scene.remove(regionalDetails.group);
+    regionalDetails.dispose();
+    regionalDetails = null;
+  }
   optionFields.replaceChildren();
   modelOptions.hidden = true;
   ground.visible = false;
@@ -1561,6 +1571,40 @@ for (const template of [
   signsHeading.append(button);
 }
 
+const regionalHeading = modelCategory("CE regional houses");
+for (const profile of BUILDING_APPEARANCE_PROFILES.filter(id => id !== "legacy")) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = label(profile);
+  button.dataset.appearanceProfile = profile;
+  button.addEventListener("click", () => {
+    selection++;
+    for (const item of list.querySelectorAll("button")) item.setAttribute("aria-current", String(item === button));
+    clearMesh();
+    floors.replaceChildren();
+    facts.replaceChildren();
+    banner.hidden = true;
+    roofTitle.textContent = "Front elevation";
+    levelTitle.textContent = "Roof plan";
+    const lots = buildingAppearancePreview(profile);
+    const model = createCityMassing(lots);
+    regionalDetails = createTownBuildingDetails(lots);
+    scene.add(regionalDetails.group);
+    massing = model;
+    scene.add(model.group);
+    ground.visible = true;
+    frame({ occupancyMeters: { width: 24, depth: 10 } }, 10);
+    mountPlan(roofHost, meshProjection(model, "side"));
+    mountPlan(levelHost, meshProjection(model, "top"));
+    facts.append(
+      fact("Profile", label(profile)),
+      fact("Roof coverings", [...new Set(lots.map(lot => lot.massing!.roof.material))].join(", ")),
+      fact("Construction", "CE shared massing and regional colors; no separate detailed model.")
+    );
+  });
+  regionalHeading.append(button);
+}
+
 const medievalModules = import.meta.glob<{ models: MedievalModel[] }>("../buildings/medieval/*Models.ts", {
   eager: true
 });
@@ -1628,5 +1672,6 @@ resize();
 new ResizeObserver(resize).observe(stage);
 renderer.setAnimationLoop(() => {
   controls.update();
+  regionalDetails?.update(camera, renderer.domElement.clientHeight);
   renderer.render(scene, camera);
 });

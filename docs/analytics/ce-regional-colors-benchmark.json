@@ -1,0 +1,115 @@
+{
+  "date": "2026-10-22T08:59:04.714Z",
+  "seed": "regional-appearance",
+  "period": "highMedieval",
+  "node": "v22.23.1",
+  "cpu": "Apple M4",
+  "environment": "Node + jsdom; warmed median of 5, rotating order; excludes layout, paint and GPU time",
+  "results": [
+    {
+      "profile": "legacy",
+      "lots": 511,
+      "renderMedianMs": 97.07041600000048,
+      "renderSamplesMs": [
+        97.07041600000048,
+        99.13200000000052,
+        84.48312499999975,
+        94.39629200000036,
+        103.67345800000021
+      ],
+      "svgNodes": 7712,
+      "buildingPaths": 35,
+      "maxPathsPerBlock": 1,
+      "svgBytes": 1318068,
+      "meshes": 2,
+      "triangles": 8330,
+      "bufferBytes": 999600,
+      "appearance1000MedianMs": 0.001833000000260654,
+      "colorUpdateMedianMs": 1.4063329999999041
+    },
+    {
+      "profile": "mediterranean",
+      "lots": 511,
+      "renderMedianMs": 98.11883399999988,
+      "renderSamplesMs": [
+        149.85641699999996,
+        98.11883399999988,
+        83.63208299999951,
+        108.80129099999976,
+        91.44508399999995
+      ],
+      "svgNodes": 7742,
+      "buildingPaths": 65,
+      "maxPathsPerBlock": 5,
+      "svgBytes": 1330646,
+      "meshes": 2,
+      "triangles": 8330,
+      "bufferBytes": 999600,
+      "appearance1000MedianMs": 1.7433329999994385,
+      "colorUpdateMedianMs": 1.1775829999996859
+    },
+    {
+      "profile": "northern-wooded",
+      "lots": 511,
+      "renderMedianMs": 96.48808300000019,
+      "renderSamplesMs": [
+        147.53270900000007,
+        111.59095799999977,
+        90.5527919999995,
+        96.48808300000019,
+        66.80400000000009
+      ],
+      "svgNodes": 7774,
+      "buildingPaths": 97,
+      "maxPathsPerBlock": 5,
+      "svgBytes": 1343234,
+      "meshes": 2,
+      "triangles": 8330,
+      "bufferBytes": 999600,
+      "appearance1000MedianMs": 1.6145830000004935,
+      "colorUpdateMedianMs": 0.9562079999996058
+    },
+    {
+      "profile": "northern-urban",
+      "lots": 511,
+      "renderMedianMs": 99.1545840000008,
+      "renderSamplesMs": [
+        113.41349999999966,
+        96.81387499999983,
+        144.92041599999993,
+        99.1545840000008,
+        68.7729159999999
+      ],
+      "svgNodes": 7777,
+      "buildingPaths": 100,
+      "maxPathsPerBlock": 6,
+      "svgBytes": 1344423,
+      "meshes": 2,
+      "triangles": 8330,
+      "bufferBytes": 999600,
+      "appearance1000MedianMs": 1.556166000000303,
+      "colorUpdateMedianMs": 0.8666670000002341
+    },
+    {
+      "profile": "stone-upland",
+      "lots": 511,
+      "renderMedianMs": 91.15054200000031,
+      "renderSamplesMs": [
+        104.85941700000058,
+        90.80183399999987,
+        91.15054200000031,
+        92.8410419999991,
+        69.75120799999968
+      ],
+      "svgNodes": 7742,
+      "buildingPaths": 65,
+      "maxPathsPerBlock": 5,
+      "svgBytes": 1330646,
+      "meshes": 2,
+      "triangles": 8330,
+      "bufferBytes": 999600,
+      "appearance1000MedianMs": 1.4595829999998386,
+      "colorUpdateMedianMs": 0.841415999999299
+    }
+  ]
+}
