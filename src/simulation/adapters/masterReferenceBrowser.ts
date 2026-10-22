@@ -17,7 +17,12 @@ const browserRunner: MasterReferenceRunner = (request, progress, current) =>
     };
     worker.onerror = event => {
       finish();
-      reject(Error(event.message));
+      const location = event.filename ? ` (${event.filename}:${event.lineno}:${event.colno})` : "";
+      reject(
+        event.error instanceof Error
+          ? event.error
+          : Error(event.message || `Master reference worker failed to start or execute${location}`)
+      );
     };
     worker.onmessage = (event: MessageEvent<MasterReferenceMessage>) => {
       const value = event.data;
