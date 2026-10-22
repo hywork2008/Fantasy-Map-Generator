@@ -16,11 +16,14 @@ import {
 import { Goods } from "./goods-generator";
 import { type GoodFlowRecord, setGoodFlowObserver } from "./goodsBalanceLedger";
 import type { FoodLedger } from "./marketTypes";
+import { settleRuralTextileProduction } from "./ruralTextileProduction";
 import {
   getMarketBlanketDemandProfile,
   getMarketTextileDemandProfile,
   settleTextileHouseholdDemand
 } from "./textileDemand";
+import { getRuralTextileRequiredWorkers } from "./textileHouseholdPolicy";
+import { TEXTILE_RECIPES } from "./textileRecipeContracts";
 
 const byName = (name: string) => getGoods().find(good => good.name === name)!;
 
@@ -67,6 +70,102 @@ describe("rural household wool processing", () => {
   afterEach(() => {
     setGoodFlowObserver(null);
     clearEconomyContext();
+  });
+
+  const addPlantRoutes = () => {
+    setGoods(
+      [
+        "Wool",
+        "Wool Cloth",
+        "Wool Garments",
+        "Wool Blankets",
+        "Flax",
+        "Linen",
+        "Linen Garments",
+        "Hemp",
+        "Cotton",
+        "Cloth",
+        "Garments"
+      ].map(name => Goods.getDefaultGood(name)!)
+    );
+    Goods.sync();
+    const market = getMarkets()[0];
+    market.goods = Object.fromEntries(getGoods().map(good => [good.i, { stock: 0, price: good.value }]));
+    return market;
+  };
+
+  it.each([
+    ["Flax", "Linen", "Linen Garments"],
+    ["Hemp", "Cloth", "Garments"],
+    ["Cotton", "Cloth", "Garments"]
+  ])(
+    "self-supplies from paid %s with both processing stages and the shared wardrobe target",
+    (fiber, cloth, product) => {
+      const market = addPlantRoutes();
+      market.goods[byName(fiber).i].stock = 5000;
+      const before = market.foodLedger!.ruralHouseholdWealth!;
+      settleTextileHouseholdDemand();
+      const home = market.ruralTextileProduction!;
+      expect(home.garments).toBeGreaterThan(0);
+      expect(home.garments).toBeLessThanOrEqual(getMarketTextileDemandProfile(1).monthlyDemand);
+      expect(home.blankets).toBe(0);
+      const fiberPerProduct =
+        TEXTILE_RECIPES[cloth].find(recipe => recipe[fiber])![fiber] * TEXTILE_RECIPES[product][0][cloth];
+      const used = 5000 - market.goods[byName(fiber).i].stock;
+      expect(used).toBeCloseTo(home.garments * fiberPerProduct, 8);
+      expect(used * byName(fiber).value).toBeCloseTo(home.garmentSpending, 8);
+      expect(market.foodLedger!.ruralHouseholdWealth).toBeCloseTo(before - home.garmentSpending, 8);
+      expect(market.marketTreasury!.balance).toBeCloseTo(10 + home.garmentSpending, 8);
+      expect(home.laborUsed).toBeLessThanOrEqual(home.laborCapacity);
+      for (const name of [cloth, product]) {
+        expect(market.goods[byName(name).i].stock).toBe(0);
+        const balance = flows
+          .filter(flow => flow.goodId === byName(name).i)
+          .reduce((sum, flow) => sum + (flow.direction === "source" ? flow.units : -flow.units), 0);
+        expect(balance).toBeCloseTo(0, 8);
+      }
+      expect(flows.some(flow => flow.goodId === byName(product).i && flow.category === "householdTextiles")).toBe(true);
+    }
+  );
+
+  it("uses cheaper fiber first then falls back within one need, budget and labor limit", () => {
+    const market = addPlantRoutes();
+    const cottonPerGarment = TEXTILE_RECIPES.Cloth[2].Cotton * TEXTILE_RECIPES.Garments[0].Cloth;
+    market.goods[byName("Cotton").i] = { stock: cottonPerGarment / 4, price: 1 };
+    market.goods[byName("Wool").i] = { stock: 100, price: 100 };
+    const home = settleRuralTextileProduction(market, 1, 0, 1000, 0);
+    expect(home.garments).toBeCloseTo(1, 3);
+    expect(home.garments).toBeLessThanOrEqual(1);
+    expect(home.garmentSpending).toBeLessThanOrEqual(1000);
+    expect(home.laborUsed).toBeLessThanOrEqual(home.laborCapacity);
+    expect(market.goods[byName("Cotton").i].stock).toBeLessThan(0.01);
+    expect(market.goods[byName("Wool").i].stock).toBeLessThan(100);
+    expect(market.foodLedger!.ruralHouseholdWealth).toBeCloseTo(100_000 - home.garmentSpending, 8);
+  });
+
+  it("reserves labor with no wool chain and counts alternative fibers only once", () => {
+    addPlantRoutes();
+    const goods = getGoods();
+    const linenOnly = goods.filter(good => ["Flax", "Linen", "Linen Garments"].includes(good.name));
+    const woolOnly = goods.filter(good => ["Wool", "Wool Cloth", "Wool Garments"].includes(good.name));
+    const linen = getRuralTextileRequiredWorkers(worldContext, 0, linenOnly);
+    const wool = getRuralTextileRequiredWorkers(worldContext, 0, woolOnly);
+    expect(linen).toBeGreaterThan(0);
+    expect(getRuralTextileRequiredWorkers(worldContext, 0, [...linenOnly, ...woolOnly])).toBeCloseTo(
+      Math.max(linen, wool),
+      8
+    );
+  });
+
+  it.each(["technology", "byproduct", "multiple inputs"])("leaves linen recipes with %s to workshops", gate => {
+    const market = addPlantRoutes();
+    market.goods[byName("Flax").i].stock = 5000;
+    const linen = byName("Linen");
+    if (gate === "technology") linen.recipeTechnologies = ["restricted"];
+    if (gate === "byproduct") linen.byproducts = [{ 12345: 1 }];
+    if (gate === "multiple inputs") linen.recipes![0][12345] = 1;
+    expect(settleRuralTextileProduction(market, 1, 0, 1000, 0).garments).toBe(0);
+    expect(market.goods[byName("Flax").i].stock).toBe(5000);
   });
 
   it("pays for real fiber and uses shared labor to self-supply independent replacements without buying them twice", () => {

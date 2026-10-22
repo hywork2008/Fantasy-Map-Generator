@@ -7,12 +7,12 @@ import {
   getMarketCellColumn,
   getWorldContext
 } from "../economyContext";
-import { getGoodDemandCalibration } from "./craftDemandCalibration";
 import { isGoodEnabled } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
-import type { Good } from "./goodsGeneratorTypes";
 import { debitRuralHouseholdWealth } from "./householdWealth";
 import type { Market } from "./marketTypes";
+import { getRuralTextileChains, type RuralTextileChain } from "./ruralTextileChains";
+import { HOUSEHOLD_GARMENT_NAMES } from "./textileRecipeContracts";
 
 export interface RuralTextileProduction {
   garments: number;
@@ -42,18 +42,6 @@ function getLaborCapacity(market: Market): number {
   return capacity;
 }
 
-/** Only the authored single-input wool chain is supported; custom byproducts or gates stay with workshops. */
-function inputAmount(good: Good, inputId: number): number | null {
-  if (good.requiredTechnology) return null;
-  if (good.byproducts?.some(row => row && Object.keys(row).length) || good.recipeTechnologies?.some(Boolean))
-    return null;
-  if (good.recipes?.length !== 1) return null;
-  const entries = Object.entries(good.recipes[0]);
-  if (entries.length !== 1 || +entries[0][0] !== inputId) return null;
-  const amount = entries[0][1];
-  return Number.isFinite(amount) && amount > 0 ? amount : null;
-}
-
 export function settleRuralTextileProduction(
   market: Market,
   garmentNeed: number,
@@ -70,35 +58,37 @@ export function settleRuralTextileProduction(
     laborCapacity: getLaborCapacity(market)
   };
   const goods = getGoods().filter(isGoodEnabled);
-  const wool = goods.find(good => good.name === "Wool");
-  const cloth = goods.find(good => good.name === "Wool Cloth");
-  if (!wool || !cloth || !(result.laborCapacity > 0)) return result;
-  const woolPerCloth = inputAmount(cloth, wool.i);
-  const woolRow = market.goods[wool.i];
-  if (woolPerCloth === null || !woolRow || !(woolRow.price > 0) || !Number.isFinite(woolRow.price)) return result;
-  const labor = (good: Good): number =>
-    (getGoodDemandCalibration(good.name)?.laborPointsPerLotAtDefaultRate ?? 0) * 1000;
-  if (!(labor(cloth) > 0)) return result;
-
-  const produce = (name: string, need: number, budget: number): { units: number; cost: number } => {
-    const good = goods.find(entry => entry.name === name);
-    if (!good || !(need > 0) || !(budget > 0)) return { units: 0, cost: 0 };
-    const clothPerProduct = inputAmount(good, cloth.i);
-    if (clothPerProduct === null || !(labor(good) > 0)) return { units: 0, cost: 0 };
-    const woolPerProduct = clothPerProduct * woolPerCloth;
-    const laborPerProduct = labor(good) + clothPerProduct * labor(cloth);
+  if (!(result.laborCapacity > 0)) return result;
+  const chains = getRuralTextileChains(goods);
+  const fiberCost = (chain: RuralTextileChain): number => {
+    const price = market.goods[chain.fiber.i]?.price;
+    return price > 0 && Number.isFinite(price) ? chain.clothPerProduct * chain.fiberPerCloth * price : Infinity;
+  };
+  // One wardrobe target across all fibers. Deterministic ties retain the declared route order.
+  chains.sort(
+    (a, b) =>
+      Number(b.product.name !== "Wool Blankets") - Number(a.product.name !== "Wool Blankets") ||
+      fiberCost(a) - fiberCost(b) ||
+      a.laborPerProduct - b.laborPerProduct
+  );
+  const produce = (chain: RuralTextileChain, need: number, budget: number): { units: number; cost: number } => {
+    const { fiber, cloth, product: good, clothPerProduct, laborPerProduct } = chain;
+    const fiberRow = market.goods[fiber.i];
+    const costPerProduct = fiberCost(chain);
+    if (!(need > 0) || !(budget > 0) || !Number.isFinite(costPerProduct) || !fiberRow) return { units: 0, cost: 0 };
+    const fiberPerProduct = clothPerProduct * chain.fiberPerCloth;
     const units = Math.min(
       need,
-      Math.max(0, woolRow.stock) / woolPerProduct,
+      Math.max(0, fiberRow.stock) / fiberPerProduct,
       Math.max(0, result.laborCapacity - result.laborUsed) / laborPerProduct,
-      budget / (woolPerProduct * woolRow.price)
+      budget / (fiberPerProduct * fiberRow.price)
     );
-    const cost = Math.floor(Math.max(0, units) * woolPerProduct * woolRow.price * 100 + 1e-9) / 100;
+    const cost = Math.floor(Math.max(0, units) * fiberPerProduct * fiberRow.price * 100 + 1e-9) / 100;
     if (!(cost > 0)) return { units: 0, cost: 0 };
     const paid = debitRuralHouseholdWealth(market, cost);
-    const produced = paid / (woolPerProduct * woolRow.price);
+    const produced = paid / (fiberPerProduct * fiberRow.price);
     if (!(produced > 0)) return { units: 0, cost: 0 };
-    woolRow.stock = Math.max(0, woolRow.stock - produced * woolPerProduct);
+    fiberRow.stock = Math.max(0, fiberRow.stock - produced * fiberPerProduct);
     market.marketTreasury ??= { balance: 0, ruralGrainPayable: 0 };
     market.marketTreasury.balance = rn(market.marketTreasury.balance + paid, 2);
     result.laborUsed += produced * laborPerProduct;
@@ -106,8 +96,8 @@ export function settleRuralTextileProduction(
     recordGoodFlow({
       direction: "sink",
       category: "recipeInput",
-      goodId: wool.i,
-      units: produced * woolPerProduct,
+      goodId: fiber.i,
+      units: produced * fiberPerProduct,
       marketId: market.i,
       relatedGoodId: cloth.i
     });
@@ -142,11 +132,23 @@ export function settleRuralTextileProduction(
     });
     return { units: produced, cost: paid };
   };
-  const garments = produce("Wool Garments", garmentNeed, garmentBudget);
-  result.garments = garments.units;
-  result.garmentSpending = garments.cost;
-  const blankets = produce("Wool Blankets", blanketNeed, blanketBudget);
-  result.blankets = blankets.units;
-  result.blanketSpending = blankets.cost;
+  for (const chain of chains) {
+    const garment = HOUSEHOLD_GARMENT_NAMES.has(chain.product.name);
+    const produced = produce(
+      chain,
+      Math.max(0, (garment ? garmentNeed : blanketNeed) - (garment ? result.garments : result.blankets)),
+      Math.max(
+        0,
+        (garment ? garmentBudget : blanketBudget) - (garment ? result.garmentSpending : result.blanketSpending)
+      )
+    );
+    if (garment) {
+      result.garments += produced.units;
+      result.garmentSpending += produced.cost;
+    } else {
+      result.blankets += produced.units;
+      result.blanketSpending += produced.cost;
+    }
+  }
   return result;
 }

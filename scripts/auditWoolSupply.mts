@@ -17,7 +17,7 @@ const months = Number(length);
 if (!input || !output || !Number.isSafeInteger(months) || months < 1) throw new Error("Invalid arguments");
 const paths = ["scripts/auditWoolSupply.mts", "src/extensions/economy/generators/woolProduction.ts", "src/extensions/economy/generators/husbandry.ts", "src/extensions/economy/generators/faunaPopulation.ts", "src/extensions/economy/generators/developmentPotential.ts"];
 paths.push("src/extensions/economy/generators/textileDemand.ts", "src/extensions/economy/generators/textileRecipeContracts.ts", "src/extensions/economy/generators/goods-generator.ts", "src/extensions/economy/generators/production-generator.ts", "src/extensions/economy/generators/markets-generator.ts");
-paths.push("src/extensions/economy/generators/ruralTextileProduction.ts", "src/extensions/economy/generators/textileHouseholdPolicy.ts", "src/extensions/economy/generators/ruralOccupationAllocation.ts");
+paths.push("src/extensions/economy/generators/ruralTextileProduction.ts", "src/extensions/economy/generators/ruralTextileChains.ts", "src/extensions/economy/generators/textileHouseholdPolicy.ts", "src/extensions/economy/generators/ruralOccupationAllocation.ts");
 paths.push(...["woolProductionPolicy.ts", "livestockFeed.ts", "livestockFeedPolicy.ts", "livestockFeedState.ts", "dairy.ts", "production-utils.ts"].map(name => `src/extensions/economy/generators/${name}`));
 const sourceHashes = Object.fromEntries(paths.map(path => [path, createHash("sha256").update(readFileSync(path)).digest("hex")]));
 const bytes = readFileSync(input);
