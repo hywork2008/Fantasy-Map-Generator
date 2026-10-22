@@ -13,6 +13,7 @@ import {
   setMarkets
 } from "../economyContext";
 import { hasViableFoodProcessingMargin } from "./foodProcessingEconomics";
+import { GOOD_MEASURES } from "./goodMeasureCatalog";
 import {
   GOODS_DATA,
   GoodsModule,
@@ -43,6 +44,7 @@ import {
   migrateSmeltingFuelAndAshGoods,
   migrateStapleCropGoods,
   migrateSyntheticAmmoniaGoods,
+  migrateTextileQualityGoods,
   migrateWeightRepricing,
   migrateWineRecipe,
   migrateWoodPhysicalRecipes,
@@ -50,6 +52,7 @@ import {
   WEIGHT_REPRICING
 } from "./goods-generator";
 import { getDefaultGoodsUnitFlavor } from "./goodsUnitFlavor";
+import { COTTON_LOTS_PER_CLOTH, HEMP_LOTS_PER_CLOTH } from "./textileRecipeContracts";
 import {
   ASH_LOTS_PER_WOOD_LOT,
   CHARCOAL_WOOD_PER_LOT,
@@ -274,8 +277,8 @@ describe("GoodsModule", () => {
     expect(cloth).toMatchObject({ value: 98, unit: "wardrobe bolt", recipes: expect.any(Array) });
     expect(cloth.recipes).toEqual([
       { [byName.get("Wool")!.i]: 6 },
-      { [byName.get("Hemp")!.i]: 6 },
-      { [byName.get("Cotton")!.i]: 6 },
+      { [byName.get("Hemp")!.i]: HEMP_LOTS_PER_CLOTH },
+      { [byName.get("Cotton")!.i]: COTTON_LOTS_PER_CLOTH },
       { [byName.get("Wool")!.i]: 6, [byName.get("Synthetic Dye")!.i]: 0.1 }
     ]);
     expect(garments.recipes).toEqual([
@@ -286,6 +289,56 @@ describe("GoodsModule", () => {
     ]);
     expect(garments).toMatchObject({ value: 130, unit: "wardrobe lot", demandCoverage: { clothing: 1 } });
     expect(cloth.recipes?.some(recipe => Object.hasOwn(recipe, silk.i))).toBe(false);
+  });
+
+  it("keeps every cloth route within material input and separates fine wool from ordinary wardrobe demand", () => {
+    for (const name of ["Cloth", "Fine Wool Cloth", "Fine Wool Garments"]) {
+      const good = GOODS_DATA.find(good => good.name === name)!;
+      for (const recipe of good.recipes!) {
+        const inputKg = Object.entries(recipe).reduce(
+          (total, [input, units]) => total + GOOD_MEASURES[input].kg * units,
+          0
+        );
+        expect(inputKg, name).toBeGreaterThanOrEqual(GOOD_MEASURES[name].kg);
+      }
+    }
+    const ordinary = GOODS_DATA.find(good => good.name === "Garments")!;
+    const fine = GOODS_DATA.find(good => good.name === "Fine Wool Garments")!;
+    expect(fine.demandCoverage?.clothing).toBeUndefined();
+    expect(fine.demandCoverage?.luxury).toBeGreaterThan(0);
+    expect(fine.value / GOOD_MEASURES[fine.name].kg).toBeGreaterThan(ordinary.value / GOOD_MEASURES[ordinary.name].kg);
+  });
+
+  it("migrates legacy Cloth by saved ids once, without changing custom recipes or stocks", () => {
+    goodsModule.restoreDefaults();
+    const saved = getGoods().filter(good => !good.name.startsWith("Fine Wool"));
+    // Deliberately invalidate all default ids.
+    const idMap = new Map(saved.map(good => [good.i, good.i + 1000]));
+    for (const good of saved) {
+      good.i = idMap.get(good.i)!;
+      if (good.recipes)
+        good.recipes = good.recipes.map(recipe =>
+          Object.fromEntries(Object.entries(recipe).map(([id, amount]) => [idMap.get(+id)!, amount]))
+        );
+    }
+    setGoods(saved);
+    const byName = new Map(saved.map(good => [good.name, good]));
+    const cloth = byName.get("Cloth")!;
+    cloth.value = 101;
+    cloth.recipes = ["Wool", "Hemp", "Cotton"].map(name => ({ [byName.get(name)!.i]: 6 }));
+    cloth.recipes.push({ [byName.get("Wool")!.i]: 6, [byName.get("Synthetic Dye")!.i]: 0.1 });
+    setMarkets([{ i: 1, goods: { [cloth.i]: { stock: 7, price: 103 } } }] as never);
+    expect(migrateTextileQualityGoods()).toBe(true);
+    expect(cloth.recipes[1][byName.get("Hemp")!.i]).toBeCloseTo(HEMP_LOTS_PER_CLOTH);
+    const fine = saved.find(good => good.name === "Fine Wool Cloth")!;
+    expect(fine.recipes).toEqual([{ [byName.get("Wool")!.i]: 0.3 }]);
+    expect(saved.find(good => good.name === "Fine Wool Garments")!.recipes).toEqual([{ [fine.i]: 1 }]);
+    expect(cloth.value).toBe(101);
+    expect(getMarkets()[0].goods[cloth.i]).toEqual({ stock: 7, price: 103 });
+    expect(migrateTextileQualityGoods()).toBe(false);
+    cloth.recipes = [{ [byName.get("Hemp")!.i]: 2 }];
+    expect(migrateTextileQualityGoods()).toBe(false);
+    expect(cloth.recipes).toEqual([{ [byName.get("Hemp")!.i]: 2 }]);
   });
 
   it("defines display-only batch and tavern references without changing Goods", () => {

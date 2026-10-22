@@ -163,6 +163,47 @@ describe("ProductionModule byproducts", () => {
     expect(state.market.goods[4].stock).toBeCloseTo(result.yieldLots * 0.004, 10);
   });
 
+  it.each(["Cloth", "Fine Wool Cloth", "Fine Wool Garments"])(
+    "does not multiply %s material when productivity doubles",
+    name => {
+      setEconomyCalibrationState({ applyCalibration: false });
+      const good = { i: 3, name, value: 12, tags: [], unit: "bale", icon: "", color: "" } as Good;
+      const state = {
+        burg: { i: 1, cell: 0, treasury: 0 },
+        market: { i: 1, goods: {} },
+        inventory: [0, 1],
+        demandCoverage: [],
+        records: [] as ProductionRecord[],
+        ingredientCosts: 0,
+        smithingProgramByGood: new Map<string, never>(),
+        strategicLaborMarket: undefined,
+        strategicDemandByGood: new Map<number, never>()
+      };
+      const result = (new ProductionModule() as unknown as ManufactureHarness).executeManufacture(
+        state,
+        { demandCoverageByGood: [] },
+        {
+          action: {
+            good,
+            ingredients: [{ goodId: 1, amount: 1 }],
+            byproducts: [],
+            maxYield: 1,
+            ingredientCostPerUnit: 0,
+            smithingProgram: null
+          },
+          candidates: [],
+          goalGoodId: 3,
+          laborProductivity: 2
+        },
+        1
+      );
+      expect(result.yieldLots).toBe(1);
+      expect(result.laborUsed).toBe(0.5);
+      expect(state.inventory[1]).toBe(0);
+      expect(state.inventory[3]).toBe(1);
+    }
+  );
+
   it.each([0, 0.005])("requires and pays for sub-hundredth Wood, available=%s", stock => {
     setEconomyCalibrationState({ applyCalibration: false });
     const market: Market = {

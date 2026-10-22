@@ -627,7 +627,7 @@ export const TASTE_GOOD_MATCH: Readonly<Record<string, readonly string[]>> = {
   wine: ["Wine", "Liquor", "Beer"],
   feast: ["Spices", "Wine", "Cheese", "Honey"],
   salon: ["Honey", "Spices", "Perfume", "Silk", "Cheese"],
-  luxury: ["Silk", "Jewelry", "Perfume", "Garments"],
+  luxury: ["Silk", "Jewelry", "Perfume", "Garments", "Fine Wool Garments"],
   art: ["Artworks", "Sculptures", "Tapestries", "Marble", "Ivory", "Ceramics", "Glass"],
   music: ["Instruments"],
   books: ["Books", "Paper", "Ink"],

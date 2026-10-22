@@ -118,6 +118,8 @@ const MEASURED_SLOT_GOODS: ReadonlySet<string> = new Set([
   // Textiles, flour and bread, priced by weight with the slot switch (§21).
   "Wool",
   "Cloth",
+  "Fine Wool Cloth",
+  "Fine Wool Garments",
   "Garments",
   "Flour",
   "Bread",

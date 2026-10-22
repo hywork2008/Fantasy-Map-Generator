@@ -40,6 +40,7 @@ import {
   type TradeTrend
 } from "./goodsGeneratorTypes";
 import { RENNET_BARRELS_PER_CHEESE_LOT } from "./rennet";
+import { TEXTILE_RECIPES } from "./textileRecipeContracts";
 import { getDefaultGoodCargoProfile } from "./tradeCargo";
 import {
   CHARCOAL_WOOD_PER_LOT,
@@ -1387,11 +1388,12 @@ export const GOODS_DATA: GoodData[] = [
     // A market lot of everyday woven cloth, sufficient for 1,000 common wardrobe sets. The six
     // fibre lots represent the five-to-ten fleece range adopted for the textile balance model.
     // Silk remains a luxury textile rather than an input that can be downgraded into common cloth.
+    // Plant routes take 5 t of usable fibre at a modeled 80% weaving recovery (§38).
     // Priced by weight (docs/plan/goods-physical-units.md §21): 4 t at 11.4 times the grain price per
     // kilogram, keeping the 25% margin over the six fleece lots (6 x 13).
     value: 98,
     chance: 0,
-    recipes: [{ Wool: 6 }, { Hemp: 6 }, { Cotton: 6 }, { Wool: 6, "Synthetic Dye": 0.1 }],
+    recipes: TEXTILE_RECIPES.Cloth,
     unit: "wardrobe bolt"
   },
   {
@@ -3348,6 +3350,31 @@ export const GOODS_DATA: GoodData[] = [
     chance: 0,
     unit: "1,000 kg chestnut lot",
     perennialCrop: PERENNIAL_CROP_PROFILES.Chestnuts
+  },
+  {
+    // A selected, carefully finished wool fabric; coarse wool still serves everyday Cloth.
+    name: "Fine Wool Cloth",
+    warEconomyType: "strategic",
+    tags: ["clothing"],
+    icon: "good-cloth",
+    color: "#b5a2bd",
+    value: 7,
+    chance: 0,
+    recipes: TEXTILE_RECIPES["Fine Wool Cloth"],
+    unit: "bale"
+  },
+  {
+    // 50 upper-market outfits, 180 kg after 10% cutting loss. Budgeted luxury purchases only.
+    name: "Fine Wool Garments",
+    warEconomyType: "luxury",
+    tags: ["clothing", "luxury"],
+    icon: "good-garments",
+    color: "#754b8e",
+    value: 12,
+    chance: 0,
+    recipes: TEXTILE_RECIPES["Fine Wool Garments"],
+    unit: "wardrobe lot",
+    demandCoverage: { luxury: 1 }
   }
 ];
 
@@ -3461,6 +3488,8 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   "White sand": tradeProfile(5, 5, 1, -2, 0, 5, 1),
   Leather: tradeProfile(3, 3, 2, 0, 0, 4, 2),
   Cloth: tradeProfile(2, 3, 2, 1, 0, 3, 2),
+  "Fine Wool Cloth": tradeProfile(2, 2, 3, 2, 0, 3, 2),
+  "Fine Wool Garments": tradeProfile(2, 2, 3, 2, 0, 3, 2),
   Garments: tradeProfile(2, 3, 3, 2, 0, 3, 2),
   Ceramics: tradeProfile(4, 4, 3, 1, 0, 2, 4),
   Glass: tradeProfile(3, 4, 4, 2, 0, 1, 5),
@@ -5071,4 +5100,50 @@ export function migrateLegacyOreIngotGoods(): boolean {
   }
 
   return true;
+}
+
+/** Adds quality-separated wool goods and repairs only the complete legacy Cloth recipe set.
+ * Saved ids are resolved by name; custom recipes/prices and all existing stocks stay intact.
+ */
+export function migrateTextileQualityGoods(): boolean {
+  const goods = getGoods();
+  const added = new Set<string>();
+  let nextId = Math.max(0, ...goods.map(good => good.i)) + 1;
+  for (const name of ["Fine Wool Cloth", "Fine Wool Garments"]) {
+    if (goods.some(good => good.name === name)) continue;
+    const good = Goods.getDefaultGood(name)!;
+    good.i = nextId++;
+    goods.push(good);
+    added.add(name);
+  }
+  const byName = new Map(goods.map(good => [good.name, good]));
+  const resolve = (recipe: Record<string, number>): Record<number, number> | null => {
+    if (Object.keys(recipe).some(name => !byName.has(name))) return null;
+    return Object.fromEntries(Object.entries(recipe).map(([name, amount]) => [byName.get(name)!.i, amount]));
+  };
+  for (const name of added) {
+    const recipes = TEXTILE_RECIPES[name].map(resolve);
+    // A partial/custom catalogue may not contain Wool. Keep the new good inert until it does.
+    byName.get(name)!.recipes = recipes.filter((recipe): recipe is Record<number, number> => recipe !== null);
+  }
+  const cloth = byName.get("Cloth");
+  const legacyRecipes: Record<string, number>[] = [
+    { Wool: 6 },
+    { Hemp: 6 },
+    { Cotton: 6 },
+    { Wool: 6, "Synthetic Dye": 0.1 }
+  ];
+  const legacy = legacyRecipes.map(resolve);
+  const key = (recipes: unknown): string =>
+    JSON.stringify(recipes, (_key, value) =>
+      value && !Array.isArray(value) && typeof value === "object"
+        ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)))
+        : value
+    );
+  let changed = added.size > 0;
+  if (cloth && !cloth.byproducts && legacy.every(Boolean) && key(cloth.recipes) === key(legacy)) {
+    cloth.recipes = TEXTILE_RECIPES.Cloth.map(resolve) as Record<number, number>[];
+    changed = true;
+  }
+  return changed;
 }

@@ -130,6 +130,7 @@ import {
   type StrategicProductionDemand
 } from "./strategicProductionDemand";
 import { getGarmentProductionHeadroom, settleTextileHouseholdDemand } from "./textileDemand";
+import { hasPhysicalTextileRecipe } from "./textileRecipeContracts";
 import { buyTownLuxuries } from "./townLuxuryPurchases";
 import { TradeSecurity } from "./tradeSecurity";
 import { TransportAssetOrders } from "./transportAssetOrders";
@@ -1147,7 +1148,7 @@ export class ProductionModule {
       decision.laborProductivity *
       discontentMultiplier *
       (smithingProgram?.outputMultiplier ?? 1);
-    const physicalRecipe = hasPhysicalWoodRecipe(good.name);
+    const physicalRecipe = hasPhysicalWoodRecipe(good.name) || hasPhysicalTextileRecipe(good.name);
     if (!(outputMultiplier > 0)) return { yieldLots: 0, laborUsed: 0 };
     const applyCalibration = getEconomyCalibrationState().applyCalibration;
     const populationRate = Math.max(0, this.worldContext.populationRate ?? 0) || 1;
@@ -1367,7 +1368,7 @@ export class ProductionModule {
         units,
         taxRate,
         budget: remainingBudget,
-        exactUnits: hasPhysicalWoodRecipe(good.name)
+        exactUnits: hasPhysicalWoodRecipe(good.name) || hasPhysicalTextileRecipe(good.name)
       });
       if (!deal) continue;
 
@@ -1656,7 +1657,9 @@ export class ProductionModule {
     const outQuote = Markets.quoteMarket(state.market, recipe.good.i);
     const sellValue =
       (outQuote.sellPrice || recipe.good.value) *
-      (hasPhysicalWoodRecipe(recipe.good.name) ? 1 : modifier * (smithingProgram?.outputMultiplier ?? 1));
+      (hasPhysicalWoodRecipe(recipe.good.name) || hasPhysicalTextileRecipe(recipe.good.name)
+        ? 1
+        : modifier * (smithingProgram?.outputMultiplier ?? 1));
     const ingredientCost = marketCostTotal / actualUnits;
     const salesTaxRate = this.getSalesTax(state.burg);
     const postTaxSellValue = sellValue * (1 - salesTaxRate);
@@ -1709,7 +1712,9 @@ export class ProductionModule {
     const sellQuote = Markets.quoteMarket(state.market, good.i);
     const sellValuePerUnit =
       (sellQuote.sellPrice || good.value) *
-      (hasPhysicalWoodRecipe(good.name) ? 1 : modifier * (smithingProgram?.outputMultiplier ?? 1));
+      (hasPhysicalWoodRecipe(good.name) || hasPhysicalTextileRecipe(good.name)
+        ? 1
+        : modifier * (smithingProgram?.outputMultiplier ?? 1));
     const totalProjectedGain = sellValuePerUnit * targetUnits * demandEffect.multiplier;
 
     const recipeList = index.recipesByOutput[good.i];

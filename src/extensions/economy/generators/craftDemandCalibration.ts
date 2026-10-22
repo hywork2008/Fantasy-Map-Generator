@@ -79,8 +79,8 @@ export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
   {
     goodName: "Garments",
     domain: "textiles",
-    inlandShare: 0.75,
-    portShare: 0.6,
+    inlandShare: 0.73,
+    portShare: 0.58,
     provenances: ["householdPerCapita"],
     annualLotsPerPerson: 0.00025,
     fixtureLotsPerMonth: 0.1875,
@@ -91,14 +91,42 @@ export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
   {
     goodName: "Cloth",
     domain: "textiles",
-    inlandShare: 0.2,
-    portShare: 0.15,
+    inlandShare: 0.18,
+    portShare: 0.14,
     provenances: ["recipeDerived"],
     fixtureLotsPerMonth: 0.1875,
     laborPointsPerLotAtDefaultRate: 0.259,
     residualWeight: 0,
     typicalRecipeIndex: 0,
     sources: ["Garments+Sails recipe input"]
+  },
+  {
+    goodName: "Fine Wool Cloth",
+    domain: "textiles",
+    inlandShare: 0.02,
+    portShare: 0.01,
+    provenances: ["recipeDerived"],
+    fixtureLotsPerMonth: 0.1,
+    laborPointsPerLotAtDefaultRate: 0.019425,
+    residualWeight: 0,
+    typicalRecipeIndex: 0,
+    sources: [
+      "model: Cloth labor / 20 bales, with 50% extra finishing work; 0.1 bale/month per 9000 people is a provisional production ceiling"
+    ]
+  },
+  {
+    goodName: "Fine Wool Garments",
+    domain: "textiles",
+    inlandShare: 0.02,
+    portShare: 0.02,
+    provenances: ["categoryResidual"],
+    fixtureLotsPerMonth: 0.1,
+    laborPointsPerLotAtDefaultRate: 0.0729,
+    residualWeight: 1,
+    residualCategory: "luxury",
+    sources: [
+      "model: Garments labor / 20 wardrobe groups, with 50% extra tailoring work; 0.1 lot/month per 9000 people ceiling"
+    ]
   },
   {
     goodName: "Sails",

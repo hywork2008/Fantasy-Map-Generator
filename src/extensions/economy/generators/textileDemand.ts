@@ -5,6 +5,7 @@ import { getEconomyCalibrationState } from "../state/economyCalibrationStore";
 import { laborPeople } from "./craftScale";
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import type { Market, TextileLedger } from "./marketTypes";
+import { COTTON_LOTS_PER_CLOTH, HEMP_LOTS_PER_CLOTH } from "./textileRecipeContracts";
 
 export const PEOPLE_PER_TEXTILE_MARKET_LOT = 1_000;
 export const WARDROBE_REPLACEMENT_YEARS = 4;
@@ -175,8 +176,8 @@ export function getTextileGuildWorkPlan(burg: Burg): TextileGuildWorkPlan {
   }
 
   const woolOrders = Math.max(0, market.goods[wool.i]?.stock ?? 0) / 6;
-  const hempOrders = Math.max(0, market.goods[hemp.i]?.stock ?? 0) / 6;
-  const cottonOrders = Math.max(0, market.goods[cotton.i]?.stock ?? 0) / 6;
+  const hempOrders = Math.max(0, market.goods[hemp.i]?.stock ?? 0) / HEMP_LOTS_PER_CLOTH;
+  const cottonOrders = Math.max(0, market.goods[cotton.i]?.stock ?? 0) / COTTON_LOTS_PER_CLOTH;
   const clothOrders = Math.max(0, market.goods[cloth.i]?.stock ?? 0);
   const linenOrders = Math.max(0, market.goods[linen.i]?.stock ?? 0) / LINEN_BALES_PER_GARMENT_LOT;
   const availableInputOrders = woolOrders + hempOrders + cottonOrders + clothOrders + linenOrders;

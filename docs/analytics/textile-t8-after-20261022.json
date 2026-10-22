@@ -1,0 +1,5586 @@
+{
+  "label": "after",
+  "inputSha256": "c4e2d3bae09117d9f9be2a3bcc88456a52d72228fcda579dfa9c39adfeebfb10",
+  "seed": "101",
+  "populationRate": 1000,
+  "settlementPattern": "standard",
+  "sourceHashes": {
+    "scripts/observeTextileRecipes.mts": "b59ba598a37fca59f1d3fe47cd5cdc4625c6f028160510ccc7970b12aaa93a39",
+    "src/extensions/economy/generators/goods-generator.ts": "7ad98265149855d03d8e062b4c5a0e2d77c8caf5957ae93e4e988fb25db160db",
+    "src/extensions/economy/generators/production-generator.ts": "3009c8236647414dfb735fab4ea90cb23581c3debda863a5752019d0283724f8",
+    "src/extensions/economy/generators/markets-generator.ts": "337ff084c1c0b7e980fe5ce5570953828f4f1220373191a4341ea0c8b5a2a0da",
+    "src/extensions/economy/generators/goodMeasureCatalog.ts": "16ec6840f12026fb8602e927b69ca0006013fd566ea3d43508df494528a12f88",
+    "src/extensions/economy/generators/craftDemandCalibration.ts": "8f5e2818191052651460b7e00839f6d66f21b2b57cb27381601c5b7af68eb9c1",
+    "src/extensions/economy/generators/textileRecipeContracts.ts": "6abd8b499364568d2b4d3fcab094429a014b3375abf3bce174589987ff6e518a"
+  },
+  "notes": [
+    "Market flow values are stock valuations, not cash payments.",
+    "Manufacture is intercepted at successful executeManufacture calls, including inventory inputs; quantities have the precision of production records.",
+    "Stocks cover markets only; private and in-transit inventory is excluded."
+  ],
+  "contract": [
+    {
+      "i": 53,
+      "name": "Hemp",
+      "tags": [
+        "clothing",
+        "naval"
+      ],
+      "icon": "good-hemp",
+      "color": "#069a06",
+      "value": 1,
+      "chance": 3,
+      "distribution": "biomeTag(\"forest\")",
+      "unit": "wain",
+      "multipliers": {
+        "cultureType": {
+          "River": 1.4,
+          "Lake": 1.4
+        }
+      },
+      "biomeOutputByTag": {
+        "forest": 0.08
+      },
+      "trade": {
+        "weight": 3,
+        "bulk": 4,
+        "rarity": 2,
+        "distancePremium": 0,
+        "timeValueTrend": 0,
+        "durability": 3,
+        "lossRisk": 2
+      },
+      "cargo": {
+        "cargoSlotsPerUnit": 4,
+        "handlingClass": "loose"
+      }
+    },
+    {
+      "i": 86,
+      "name": "Cloth",
+      "warEconomyType": "strategic",
+      "tags": [
+        "clothing"
+      ],
+      "icon": "good-cloth",
+      "color": "#e8e69c",
+      "value": 98,
+      "chance": 0,
+      "recipes": [
+        {
+          "138": 6
+        },
+        {
+          "53": 10.75
+        },
+        {
+          "141": 25
+        },
+        {
+          "138": 6,
+          "187": 0.1
+        }
+      ],
+      "unit": "wardrobe bolt",
+      "trade": {
+        "weight": 2,
+        "bulk": 3,
+        "rarity": 2,
+        "distancePremium": 1,
+        "timeValueTrend": 0,
+        "durability": 3,
+        "lossRisk": 2
+      },
+      "cargo": {
+        "handlingClass": "loose",
+        "cargoSlotsPerUnit": 44
+      }
+    },
+    {
+      "i": 87,
+      "name": "Garments",
+      "warEconomyType": "essential",
+      "tags": [
+        "clothing"
+      ],
+      "icon": "good-garments",
+      "color": "#bd21ec",
+      "value": 130,
+      "chance": 0,
+      "recipes": [
+        {
+          "86": 1
+        },
+        {
+          "140": 12
+        },
+        {
+          "64": 1,
+          "86": 0.5
+        },
+        {
+          "86": 1,
+          "187": 0.15
+        }
+      ],
+      "unit": "wardrobe lot",
+      "demandCoverage": {
+        "clothing": 1
+      },
+      "trade": {
+        "weight": 2,
+        "bulk": 3,
+        "rarity": 3,
+        "distancePremium": 2,
+        "timeValueTrend": 0,
+        "durability": 3,
+        "lossRisk": 2
+      },
+      "cargo": {
+        "handlingClass": "loose",
+        "cargoSlotsPerUnit": 70.4
+      }
+    },
+    {
+      "i": 138,
+      "name": "Wool",
+      "tags": [
+        "clothing"
+      ],
+      "icon": "good-unknown",
+      "color": "#f2e9d8",
+      "value": 13,
+      "chance": 0,
+      "unit": "fleece",
+      "trade": {
+        "weight": 3,
+        "bulk": 4,
+        "rarity": 2,
+        "distancePremium": 1,
+        "timeValueTrend": 0,
+        "durability": 4,
+        "lossRisk": 1
+      },
+      "cargo": {
+        "handlingClass": "loose",
+        "cargoSlotsPerUnit": 22
+      }
+    },
+    {
+      "i": 140,
+      "name": "Linen",
+      "warEconomyType": "strategic",
+      "tags": [
+        "clothing"
+      ],
+      "icon": "good-unknown",
+      "color": "#f5f0e6",
+      "value": 8,
+      "chance": 0,
+      "recipes": [
+        {
+          "139": 10
+        }
+      ],
+      "unit": "bale",
+      "demandCoverage": {
+        "utilities": 0.2
+      },
+      "trade": {
+        "weight": 2,
+        "bulk": 3,
+        "rarity": 3,
+        "distancePremium": 2,
+        "timeValueTrend": 0,
+        "durability": 3,
+        "lossRisk": 2
+      },
+      "cargo": {
+        "handlingClass": "loose",
+        "cargoSlotsPerUnit": 2.2
+      }
+    },
+    {
+      "i": 141,
+      "name": "Cotton",
+      "tags": [
+        "clothing"
+      ],
+      "icon": "good-unknown",
+      "color": "#f5f5f0",
+      "value": 2,
+      "chance": 3,
+      "distribution": "biomeTag(\"arable\") && minTemp(20) && random(50)",
+      "unit": "bale",
+      "biomeOutputByTag": {
+        "arable": 0.03
+      },
+      "trade": {
+        "weight": 3,
+        "bulk": 4,
+        "rarity": 3,
+        "distancePremium": 1,
+        "timeValueTrend": 0,
+        "durability": 3,
+        "lossRisk": 2
+      },
+      "cargo": {
+        "cargoSlotsPerUnit": 4,
+        "handlingClass": "loose"
+      }
+    },
+    {
+      "i": 208,
+      "name": "Fine Wool Cloth",
+      "warEconomyType": "strategic",
+      "tags": [
+        "clothing"
+      ],
+      "icon": "good-cloth",
+      "color": "#b5a2bd",
+      "value": 7,
+      "chance": 0,
+      "recipes": [
+        {
+          "138": 0.3
+        }
+      ],
+      "unit": "bale",
+      "trade": {
+        "weight": 2,
+        "bulk": 2,
+        "rarity": 3,
+        "distancePremium": 2,
+        "timeValueTrend": 0,
+        "durability": 3,
+        "lossRisk": 2
+      },
+      "cargo": {
+        "cargoSlotsPerUnit": 2.2,
+        "handlingClass": "loose"
+      }
+    },
+    {
+      "i": 209,
+      "name": "Fine Wool Garments",
+      "warEconomyType": "luxury",
+      "tags": [
+        "clothing",
+        "luxury"
+      ],
+      "icon": "good-garments",
+      "color": "#754b8e",
+      "value": 12,
+      "chance": 0,
+      "recipes": [
+        {
+          "208": 1
+        }
+      ],
+      "unit": "wardrobe lot",
+      "demandCoverage": {
+        "luxury": 1
+      },
+      "trade": {
+        "weight": 2,
+        "bulk": 2,
+        "rarity": 3,
+        "distancePremium": 2,
+        "timeValueTrend": 0,
+        "durability": 3,
+        "lossRisk": 2
+      },
+      "cargo": {
+        "cargoSlotsPerUnit": 3.1680000000000006,
+        "handlingClass": "loose"
+      }
+    }
+  ],
+  "initial": {
+    "date": [
+      590,
+      1,
+      1
+    ],
+    "stock": {
+      "Hemp": {
+        "units": 530.1,
+        "value": 224.07160000000002,
+        "kg": 246558.13953488375,
+        "liters": 821860.4651162792,
+        "meanPrice": 0.392
+      },
+      "Cloth": {
+        "units": 1.27,
+        "value": 41.681400000000004,
+        "kg": 5080,
+        "liters": 12700,
+        "meanPrice": 35.988
+      },
+      "Garments": {
+        "units": 0,
+        "value": 0,
+        "kg": 0,
+        "liters": 0,
+        "meanPrice": 83.664
+      },
+      "Wool": {
+        "units": 39.44,
+        "value": 128.18,
+        "kg": 59160,
+        "liters": 197200,
+        "meanPrice": 3.25
+      },
+      "Linen": {
+        "units": 0.619,
+        "value": 5.728269999999999,
+        "kg": 123.8,
+        "liters": 309.5,
+        "meanPrice": 8.11
+      },
+      "Cotton": {
+        "units": 143.34,
+        "value": 100.1172,
+        "kg": 28668,
+        "liters": 81908.57142857143,
+        "meanPrice": 0.952
+      },
+      "Fine Wool Cloth": {
+        "units": 0,
+        "value": 0,
+        "kg": 0,
+        "liters": 0,
+        "meanPrice": 5.95
+      },
+      "Fine Wool Garments": {
+        "units": 0,
+        "value": 0,
+        "kg": 0,
+        "liters": 0,
+        "meanPrice": 13.2
+      }
+    },
+    "flows": {},
+    "manufactured": {}
+  },
+  "samples": [
+    {
+      "date": [
+        590,
+        2,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 1041.1977991732222,
+          "value": 418.7953944753022,
+          "kg": 484278.0461270801,
+          "liters": 1614260.1537569338,
+          "meanPrice": 0.34400000000000003
+        },
+        "Cloth": {
+          "units": 1.1539333544884172,
+          "value": 52.77583101168316,
+          "kg": 4615.733417953668,
+          "liters": 11539.333544884172,
+          "meanPrice": 49.682
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 125.99600000000001
+        },
+        "Wool": {
+          "units": 78.88,
+          "value": 256.5726,
+          "kg": 118320,
+          "liters": 394400,
+          "meanPrice": 3.348
+        },
+        "Linen": {
+          "units": 2.7729999999999997,
+          "value": 23.75038,
+          "kg": 554.5999999999999,
+          "liters": 1386.4999999999998,
+          "meanPrice": 8.136
+        },
+        "Cotton": {
+          "units": 287.43,
+          "value": 156.9615,
+          "kg": 57486,
+          "liters": 164245.7142857143,
+          "meanPrice": 0.7000000000000001
+        },
+        "Fine Wool Cloth": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 5.452
+        },
+        "Fine Wool Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 13.790000000000001
+        }
+      },
+      "flows": {
+        "Linen:source:importArrival": {
+          "units": 2.31,
+          "value": 21.1365
+        },
+        "Garments:source:importArrival": {
+          "units": 0.3,
+          "value": 34.314
+        },
+        "Cloth:source:importArrival": {
+          "units": 0.3,
+          "value": 9.846
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 539.193792574406,
+          "value": 228.19510593474868
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 144.1016058173776,
+          "value": 100.99781100595595
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 39.43434802989749,
+          "value": 128.16163109716683
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 28.063955440677507,
+          "value": 9.645911247293274
+        },
+        "Cloth:source:burgCraft": {
+          "units": 1.270645090062358,
+          "value": 59.156636031142014
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 1.6899999999999997,
+          "value": 74.8732
+        },
+        "Garments:source:burgCraft": {
+          "units": 1.87,
+          "value": 217.43419999999998
+        },
+        "Linen:sink:recipeInput": {
+          "units": 0.11,
+          "value": 0.9141
+        },
+        "Linen:sink:burgDemand": {
+          "units": 0.04,
+          "value": 0.39640000000000003
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 2.17,
+          "value": 270.1498
+        }
+      },
+      "manufactured": {
+        "Cloth": {
+          "units": 2.3957650233840364,
+          "labor": 0.6067393433483335,
+          "inputs": {
+            "Hemp": 25.754474001378387
+          },
+          "byproducts": {}
+        },
+        "Garments": {
+          "units": 1.87,
+          "labor": 1.7695745999999994,
+          "inputs": {
+            "Furs": 1.81,
+            "Cloth": 0.9299999999999999
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        590,
+        3,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 1041.1977991732222,
+          "value": 418.7953944753022,
+          "kg": 484278.0461270801,
+          "liters": 1614260.1537569338,
+          "meanPrice": 0.34400000000000003
+        },
+        "Cloth": {
+          "units": 1.717983190596847,
+          "value": 79.32840987323199,
+          "kg": 6871.932762387388,
+          "liters": 17179.83190596847,
+          "meanPrice": 49.682
+        },
+        "Garments": {
+          "units": 1.19,
+          "value": 124.75959999999999,
+          "kg": 4760,
+          "liters": 19040,
+          "meanPrice": 125.99600000000001
+        },
+        "Wool": {
+          "units": 78.88,
+          "value": 256.5726,
+          "kg": 118320,
+          "liters": 394400,
+          "meanPrice": 3.348
+        },
+        "Linen": {
+          "units": 2.7729999999999997,
+          "value": 23.75038,
+          "kg": 554.5999999999999,
+          "liters": 1386.4999999999998,
+          "meanPrice": 8.136
+        },
+        "Cotton": {
+          "units": 288.14,
+          "value": 157.58630000000002,
+          "kg": 57628,
+          "liters": 164651.42857142858,
+          "meanPrice": 0.7000000000000001
+        },
+        "Fine Wool Cloth": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 5.452
+        },
+        "Fine Wool Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 13.790000000000001
+        }
+      },
+      "flows": {
+        "Cloth:source:importArrival": {
+          "units": 0.560852668649874,
+          "value": 26.434180740140846
+        },
+        "Garments:source:importArrival": {
+          "units": 1.19,
+          "value": 124.75959999999999
+        }
+      },
+      "manufactured": {}
+    },
+    {
+      "date": [
+        590,
+        4,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 2061.7371515799814,
+          "value": 831.291700383088,
+          "kg": 958947.5123627821,
+          "liters": 3196491.7078759405,
+          "meanPrice": 0.33
+        },
+        "Cloth": {
+          "units": 0.9431515161423784,
+          "value": 53.86394426038872,
+          "kg": 3772.6060645695134,
+          "liters": 9431.515161423784,
+          "meanPrice": 63.696000000000005
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 178.032
+        },
+        "Wool": {
+          "units": 157.76,
+          "value": 513.6608,
+          "kg": 236640,
+          "liters": 788800,
+          "meanPrice": 3.4899999999999998
+        },
+        "Linen": {
+          "units": 2.3329999999999997,
+          "value": 17.15813,
+          "kg": 466.59999999999997,
+          "liters": 1166.4999999999998,
+          "meanPrice": 7.354000000000001
+        },
+        "Cotton": {
+          "units": 576.4399999999999,
+          "value": 291.4002,
+          "kg": 115287.99999999999,
+          "liters": 329394.2857142857,
+          "meanPrice": 0.512
+        },
+        "Fine Wool Cloth": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 5.014000000000001
+        },
+        "Fine Wool Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 14.24
+        }
+      },
+      "flows": {
+        "Hemp:source:ruralHarvest": {
+          "units": 1078.7332634458542,
+          "value": 431.48156841534376
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 288.3579619199038,
+          "value": 153.7952679387868
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 78.86233697190556,
+          "value": 256.59066072511234
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 3.7899999999999987,
+          "value": 221.314
+        },
+        "Garments:source:burgCraft": {
+          "units": 4.4399999999999995,
+          "value": 683.0292000000001
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 58.22680450606839,
+          "value": 19.966606679050464
+        },
+        "Cloth:source:burgCraft": {
+          "units": 2.998862173502022,
+          "value": 178.8430598355256
+        },
+        "Linen:sink:recipeInput": {
+          "units": 0.35999999999999993,
+          "value": 2.5794
+        },
+        "Linen:sink:burgDemand": {
+          "units": 0.08,
+          "value": 0.6265
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 5.630000000000001,
+          "value": 822.6055
+        }
+      },
+      "manufactured": {
+        "Garments": {
+          "units": 4.4399999999999995,
+          "labor": 4.2025095,
+          "inputs": {
+            "Furs": 4.319999999999999,
+            "Cloth": 2.1800000000000006
+          },
+          "byproducts": {}
+        },
+        "Cloth": {
+          "units": 5.888700995913339,
+          "labor": 1.4919896141566669,
+          "inputs": {
+            "Hemp": 63.30353570606839
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        590,
+        5,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 2571.6205854293144,
+          "value": 1037.0842070912338,
+          "kg": 1196102.5978740999,
+          "liters": 3987008.6595803327,
+          "meanPrice": 0.33
+        },
+        "Cloth": {
+          "units": 1.3628731011114985,
+          "value": 80.8918160721596,
+          "kg": 5451.492404445994,
+          "liters": 13628.731011114985,
+          "meanPrice": 66.28599999999999
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 192.60000000000002
+        },
+        "Wool": {
+          "units": 197.2,
+          "value": 642.1425,
+          "kg": 295800,
+          "liters": 986000,
+          "meanPrice": 3.528
+        },
+        "Linen": {
+          "units": 2.1,
+          "value": 14.9208,
+          "kg": 420,
+          "liters": 1050,
+          "meanPrice": 7.042
+        },
+        "Cotton": {
+          "units": 720.66,
+          "value": 360.33,
+          "kg": 144132,
+          "liters": 411805.71428571426,
+          "meanPrice": 0.5
+        },
+        "Fine Wool Cloth": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 4.938
+        },
+        "Fine Wool Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 14.325999999999999
+        }
+      },
+      "flows": {
+        "Garments:source:importArrival": {
+          "units": 2.8800000000000003,
+          "value": 439.9311999999998
+        },
+        "Cloth:source:importArrival": {
+          "units": 1.282216376666651,
+          "value": 80.99785205146571
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 539.4532273080349,
+          "value": 217.4946188392424
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 144.21930281460288,
+          "value": 72.90561763095262
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 39.42798838619748,
+          "value": 128.37097688248514
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 2.43,
+          "value": 160.85229999999999
+        },
+        "Garments:source:burgCraft": {
+          "units": 2.65,
+          "value": 473.14230000000003
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 29.60941457068665,
+          "value": 10.161359029529125
+        },
+        "Cloth:source:burgCraft": {
+          "units": 1.5708247047016908,
+          "value": 103.84634003592912
+        },
+        "Linen:sink:recipeInput": {
+          "units": 0.18,
+          "value": 1.1826
+        },
+        "Linen:sink:burgDemand": {
+          "units": 0.05,
+          "value": 0.3477
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 5.53,
+          "value": 930.9008
+        }
+      },
+      "manufactured": {
+        "Garments": {
+          "units": 2.6500000000000004,
+          "labor": 2.5130223,
+          "inputs": {
+            "Furs": 2.5800000000000005,
+            "Cloth": 1.3
+          },
+          "byproducts": {}
+        },
+        "Cloth": {
+          "units": 2.9633942961103865,
+          "labor": 0.7508993385333332,
+          "inputs": {
+            "Hemp": 31.856488683186658
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        590,
+        6,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 3081.517504819379,
+          "value": 1242.8802120506,
+          "kg": 1433263.955729944,
+          "liters": 4777546.519099813,
+          "meanPrice": 0.33
+        },
+        "Cloth": {
+          "units": 1.9103933383799079,
+          "value": 114.42945053440538,
+          "kg": 7641.573353519631,
+          "liters": 19103.933383799078,
+          "meanPrice": 67.86800000000001
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 203.00799999999998
+        },
+        "Wool": {
+          "units": 236.64,
+          "value": 770.4318,
+          "kg": 354960,
+          "liters": 1183200,
+          "meanPrice": 3.5439999999999996
+        },
+        "Linen": {
+          "units": 1.98,
+          "value": 13.8334,
+          "kg": 396,
+          "liters": 990,
+          "meanPrice": 6.837999999999999
+        },
+        "Cotton": {
+          "units": 864.92,
+          "value": 432.46,
+          "kg": 172984,
+          "liters": 494240,
+          "meanPrice": 0.5
+        },
+        "Fine Wool Cloth": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 4.898000000000001
+        },
+        "Fine Wool Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 14.376
+        }
+      },
+      "flows": {
+        "Cloth:source:importArrival": {
+          "units": 0.9399746933987508,
+          "value": 60.69800134386471
+        },
+        "Garments:source:importArrival": {
+          "units": 1.5600000000000003,
+          "value": 265.40579999999994
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 539.5520141458511,
+          "value": 217.53144499304778
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 144.26253281235694,
+          "value": 72.13126640617847
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 39.425867542929616,
+          "value": 128.37660467851757
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 2.2300000000000004,
+          "value": 151.70579999999998
+        },
+        "Garments:source:burgCraft": {
+          "units": 2.57,
+          "value": 467.61879999999996
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 29.662495180621164,
+          "value": 10.179597103082045
+        },
+        "Cloth:source:burgCraft": {
+          "units": 1.7109387569401027,
+          "value": 115.39408994594051
+        },
+        "Linen:sink:recipeInput": {
+          "units": 0.17,
+          "value": 1.0948000000000002
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 4.13,
+          "value": 740.8275999999998
+        }
+      },
+      "manufactured": {
+        "Garments": {
+          "units": 2.5700000000000003,
+          "labor": 2.4392123999999997,
+          "inputs": {
+            "Furs": 2.5000000000000004,
+            "Cloth": 1.26
+          },
+          "byproducts": {}
+        },
+        "Cloth": {
+          "units": 2.9686517956830185,
+          "labor": 0.7522311697633334,
+          "inputs": {
+            "Hemp": 31.913006803592456
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        590,
+        7,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 3591.416617845559,
+          "value": 1434.7983707723454,
+          "kg": 1670426.3338816555,
+          "liters": 5568087.779605518,
+          "meanPrice": 0.32799999999999996
+        },
+        "Cloth": {
+          "units": 2.225116556527868,
+          "value": 132.92469769490424,
+          "kg": 8900.466226111472,
+          "liters": 22251.16556527868,
+          "meanPrice": 68.646
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 210.03400000000002
+        },
+        "Wool": {
+          "units": 276.08,
+          "value": 898.4310999999999,
+          "kg": 414120,
+          "liters": 1380400,
+          "meanPrice": 3.536
+        },
+        "Linen": {
+          "units": 1.81,
+          "value": 12.6507,
+          "kg": 362,
+          "liters": 905,
+          "meanPrice": 6.709999999999999
+        },
+        "Cotton": {
+          "units": 1009.23,
+          "value": 504.615,
+          "kg": 201846,
+          "liters": 576702.8571428572,
+          "meanPrice": 0.5
+        },
+        "Fine Wool Cloth": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 4.8759999999999994
+        },
+        "Fine Wool Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 14.411999999999997
+        }
+      },
+      "flows": {
+        "Cloth:source:importArrival": {
+          "units": 0.9648601750354199,
+          "value": 64.36350270460788
+        },
+        "Garments:source:importArrival": {
+          "units": 1.5600000000000003,
+          "value": 276.32390000000004
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 539.6491599586011,
+          "value": 217.56766589221243
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 144.30510593891142,
+          "value": 72.15255296945571
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 39.42374611526666,
+          "value": 128.34624281048525
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 29.743382154441846,
+          "value": 10.134344383320808
+        },
+        "Cloth:source:burgCraft": {
+          "units": 1.6883353063275413,
+          "value": 117.80612787843089
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 2.3600000000000003,
+          "value": 164.29070000000004
+        },
+        "Garments:source:burgCraft": {
+          "units": 2.9899999999999998,
+          "value": 601.7065999999999
+        },
+        "Linen:sink:recipeInput": {
+          "units": 0.17,
+          "value": 1.0931
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 4.55,
+          "value": 882.0374000000002
+        }
+      },
+      "manufactured": {
+        "Cloth": {
+          "units": 2.976559577164342,
+          "labor": 0.7549953082849999,
+          "inputs": {
+            "Hemp": 31.99801545451668
+          },
+          "byproducts": {}
+        },
+        "Garments": {
+          "units": 2.99,
+          "labor": 2.8358991000000002,
+          "inputs": {
+            "Furs": 2.9100000000000006,
+            "Cloth": 1.4600000000000002
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        590,
+        8,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 4101.358071549635,
+          "value": 1638.623084282736,
+          "kg": 1907608.4053719232,
+          "liters": 6358694.684573078,
+          "meanPrice": 0.32799999999999996
+        },
+        "Cloth": {
+          "units": 3.719491429936442,
+          "value": 240.88441945526986,
+          "kg": 14877.96571974577,
+          "liters": 37194.91429936442,
+          "meanPrice": 68.864
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 214.698
+        },
+        "Wool": {
+          "units": 315.46006166666666,
+          "value": 1025.9388842833332,
+          "kg": 473190.09249999997,
+          "liters": 1577300.3083333333,
+          "meanPrice": 3.522
+        },
+        "Linen": {
+          "units": 1.6400000000000001,
+          "value": 11.597299999999999,
+          "kg": 328,
+          "liters": 820.0000000000001,
+          "meanPrice": 6.636
+        },
+        "Cotton": {
+          "units": 1153.59,
+          "value": 576.795,
+          "kg": 230717.99999999997,
+          "liters": 659194.2857142857,
+          "meanPrice": 0.5
+        },
+        "Fine Wool Cloth": {
+          "units": 0.16646111111111112,
+          "value": 0.7440811666666667,
+          "kg": 33.29222222222222,
+          "liters": 83.23055555555555,
+          "meanPrice": 4.858
+        },
+        "Fine Wool Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 14.431999999999999
+        }
+      },
+      "flows": {
+        "Cloth:source:importArrival": {
+          "units": 0.8369001600715524,
+          "value": 54.51891482914575
+        },
+        "Garments:source:importArrival": {
+          "units": 1.9400000000000004,
+          "value": 382.9585
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 539.7471499390603,
+          "value": 215.55073034215454
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 144.34950725197788,
+          "value": 72.17475362598894
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 39.42162407263182,
+          "value": 128.2816317601878
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 29.791928450365376,
+          "value": 10.150437959479826
+        },
+        "Cloth:source:burgCraft": {
+          "units": 2.175517050104887,
+          "value": 149.10380291197527
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 1.6199999999999999,
+          "value": 99.50379999999998
+        },
+        "Garments:source:burgCraft": {
+          "units": 2.97,
+          "value": 607.6112999999999
+        },
+        "Linen:sink:recipeInput": {
+          "units": 0.17,
+          "value": 1.1066999999999998
+        },
+        "Wool:sink:recipeInput": {
+          "units": 0.049938333333333335,
+          "value": 0.22971633333333333
+        },
+        "Fine Wool Cloth:source:burgCraft": {
+          "units": 0.16646111111111112,
+          "value": 0.7457457777777778
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 4.909999999999999,
+          "value": 994.4322
+        }
+      },
+      "manufactured": {
+        "Cloth": {
+          "units": 2.981538260451585,
+          "labor": 0.7562588313183333,
+          "inputs": {
+            "Hemp": 32.05153629985453
+          },
+          "byproducts": {}
+        },
+        "Garments": {
+          "units": 2.97,
+          "labor": 2.8220292,
+          "inputs": {
+            "Furs": 2.9000000000000004,
+            "Cloth": 1.4500000000000002
+          },
+          "byproducts": {}
+        },
+        "Fine Wool Cloth": {
+          "units": 0.16646111111111112,
+          "labor": 0.0031166333333333338,
+          "inputs": {
+            "Wool": 0.049938333333333335
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        590,
+        9,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 4613.320509137767,
+          "value": 1864.4043322473628,
+          "kg": 2145730.4693664033,
+          "liters": 7152434.897888011,
+          "meanPrice": 0.33
+        },
+        "Cloth": {
+          "units": 4.83668900393288,
+          "value": 301.7646625552561,
+          "kg": 19346.75601573152,
+          "liters": 48366.8900393288,
+          "meanPrice": 67.52799999999999
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 217.564
+        },
+        "Wool": {
+          "units": 354.8061143541667,
+          "value": 1153.9037323306252,
+          "kg": 532209.1715312501,
+          "liters": 1774030.5717708336,
+          "meanPrice": 3.566
+        },
+        "Linen": {
+          "units": 1.4700000000000002,
+          "value": 10.578899999999999,
+          "kg": 294.00000000000006,
+          "liters": 735.0000000000001,
+          "meanPrice": 6.602000000000001
+        },
+        "Cotton": {
+          "units": 1297.96,
+          "value": 648.98,
+          "kg": 259592,
+          "liters": 741691.4285714286,
+          "meanPrice": 0.5
+        },
+        "Fine Wool Cloth": {
+          "units": 0.4066319444444445,
+          "value": 1.789180555555556,
+          "kg": 81.3263888888889,
+          "liters": 203.31597222222226,
+          "meanPrice": 4.82
+        },
+        "Fine Wool Garments": {
+          "units": 0.20298687500000004,
+          "value": 3.8689298375000005,
+          "kg": 36.53763750000001,
+          "liters": 146.15055000000004,
+          "meanPrice": 14.430000000000001
+        }
+      },
+      "flows": {
+        "Cloth:source:importArrival": {
+          "units": 1.184143232714026,
+          "value": 78.2396100875707
+        },
+        "Garments:source:importArrival": {
+          "units": 1.9200000000000006,
+          "value": 384.29019999999997
+        },
+        "Fine Wool Cloth:source:importArrival": {
+          "units": 0.16646111111111112,
+          "value": 0.7440811666666667
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 539.8532688109877,
+          "value": 215.58976406035652
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 144.39533653378493,
+          "value": 72.19766826689246
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 39.41950139901042,
+          "value": 128.20307687811263
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 1.8600000000000005,
+          "value": 124.6987
+        },
+        "Garments:source:burgCraft": {
+          "units": 3.3700000000000006,
+          "value": 712.0025
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 27.889490862233362,
+          "value": 9.810693493198386
+        },
+        "Cloth:source:burgCraft": {
+          "units": 1.7715894686855445,
+          "value": 115.12687392627139
+        },
+        "Linen:sink:recipeInput": {
+          "units": 0.16,
+          "value": 1.0624
+        },
+        "Wool:sink:recipeInput": {
+          "units": 0.08388564583333334,
+          "value": 0.4043288129166667
+        },
+        "Fine Wool Cloth:source:burgCraft": {
+          "units": 0.2796188194444445,
+          "value": 1.2314532298611114
+        },
+        "Fine Wool Cloth:sink:recipeInput": {
+          "units": 0.20298687500000004,
+          "value": 0.8917543055555557
+        },
+        "Fine Wool Garments:source:burgCraft": {
+          "units": 0.20298687500000004,
+          "value": 3.8729895750000005
+        },
+        "Linen:sink:burgDemand": {
+          "units": 0.01,
+          "value": 0.0718
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 5.289999999999999,
+          "value": 1096.9218
+        }
+      },
+      "manufactured": {
+        "Garments": {
+          "units": 3.370000000000001,
+          "labor": 3.1994379000000004,
+          "inputs": {
+            "Furs": 3.290000000000001,
+            "Cloth": 1.6500000000000004
+          },
+          "byproducts": {}
+        },
+        "Cloth": {
+          "units": 2.8041642813178234,
+          "labor": 0.7103016179150001,
+          "inputs": {
+            "Hemp": 30.144766024166593
+          },
+          "byproducts": {}
+        },
+        "Fine Wool Cloth": {
+          "units": 0.2796188194444445,
+          "labor": 0.005244750000000001,
+          "inputs": {
+            "Wool": 0.08388564583333334
+          },
+          "byproducts": {}
+        },
+        "Fine Wool Garments": {
+          "units": 0.20298687500000004,
+          "labor": 0.014262885000000003,
+          "inputs": {
+            "Fine Wool Cloth": 0.20298687500000004
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        590,
+        10,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 5125.91810333083,
+          "value": 2095.102126185522,
+          "kg": 2384147.9550375952,
+          "liters": 7947159.850125317,
+          "meanPrice": 0.33199999999999996
+        },
+        "Cloth": {
+          "units": 5.058237452041629,
+          "value": 313.70739795767474,
+          "kg": 20232.949808166515,
+          "liters": 50582.37452041629,
+          "meanPrice": 66.204
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 219.12400000000002
+        },
+        "Wool": {
+          "units": 394.0837351275,
+          "value": 1281.53909974515,
+          "kg": 591125.60269125,
+          "liters": 1970418.6756375001,
+          "meanPrice": 3.6119999999999997
+        },
+        "Linen": {
+          "units": 1.31,
+          "value": 9.6405,
+          "kg": 262,
+          "liters": 655,
+          "meanPrice": 6.6
+        },
+        "Cotton": {
+          "units": 1442.37,
+          "value": 721.185,
+          "kg": 288474,
+          "liters": 824211.4285714285,
+          "meanPrice": 0.5
+        },
+        "Fine Wool Cloth": {
+          "units": 0.7683678041666667,
+          "value": 3.3116652359583334,
+          "kg": 153.67356083333334,
+          "liters": 384.18390208333335,
+          "meanPrice": 4.788
+        },
+        "Fine Wool Garments": {
+          "units": 0.5688353125000001,
+          "value": 10.773740818750003,
+          "kg": 102.39035625000001,
+          "liters": 409.56142500000004,
+          "meanPrice": 14.384
+        }
+      },
+      "flows": {
+        "Cloth:source:importArrival": {
+          "units": 1.0221732071945924,
+          "value": 68.33752511276283
+        },
+        "Garments:source:importArrival": {
+          "units": 2.0300000000000007,
+          "value": 415.0954000000001
+        },
+        "Fine Wool Cloth:source:importArrival": {
+          "units": 0.2796188194444445,
+          "value": 1.2303228055555557
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 539.9524355950357,
+          "value": 218.13297507873537
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 144.4398216819763,
+          "value": 72.21991084098815
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 39.417378106399866,
+          "value": 128.21068139605012
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 2.7000000000000006,
+          "value": 166.4095
+        },
+        "Garments:source:burgCraft": {
+          "units": 3.4900000000000007,
+          "value": 738.4590999999999
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 28.251896669169103,
+          "value": 10.061266121381104
+        },
+        "Cloth:source:burgCraft": {
+          "units": 1.8311320613642956,
+          "value": 115.59385754796746
+        },
+        "Linen:sink:recipeInput": {
+          "units": 0.16,
+          "value": 1.0896
+        },
+        "Wool:sink:recipeInput": {
+          "units": 0.13626487250000002,
+          "value": 0.688137606125
+        },
+        "Fine Wool Cloth:source:burgCraft": {
+          "units": 0.29157947083333335,
+          "value": 1.2584083385833333
+        },
+        "Fine Wool Garments:source:burgCraft": {
+          "units": 0.36584843750000007,
+          "value": 6.939739110416667
+        },
+        "Fine Wool Cloth:sink:recipeInput": {
+          "units": 0.20321166666666668,
+          "value": 0.8744528018518518
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 5.52,
+          "value": 1152.1014
+        }
+      },
+      "manufactured": {
+        "Garments": {
+          "units": 3.4900000000000007,
+          "labor": 3.3146171999999994,
+          "inputs": {
+            "Furs": 3.420000000000001,
+            "Cloth": 1.7200000000000006
+          },
+          "byproducts": {}
+        },
+        "Cloth": {
+          "units": 2.8375504091238852,
+          "labor": 0.7189197842283332,
+          "inputs": {
+            "Hemp": 30.50366689808177
+          },
+          "byproducts": {}
+        },
+        "Fine Wool Cloth": {
+          "units": 0.45421624166666674,
+          "labor": 0.008577216666666668,
+          "inputs": {
+            "Wool": 0.13626487250000002
+          },
+          "byproducts": {}
+        },
+        "Fine Wool Garments": {
+          "units": 0.36584843750000007,
+          "labor": 0.025706362500000003,
+          "inputs": {
+            "Fine Wool Cloth": 0.36584843750000007
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        590,
+        11,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 5638.568824214738,
+          "value": 2304.4538918321164,
+          "kg": 2622590.150797553,
+          "liters": 8741967.169325177,
+          "meanPrice": 0.33199999999999996
+        },
+        "Cloth": {
+          "units": 5.7928506868610805,
+          "value": 364.7633380531768,
+          "kg": 23171.40274744432,
+          "liters": 57928.506868610806,
+          "meanPrice": 65.28200000000001
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 220.01
+        },
+        "Wool": {
+          "units": 433.41590731666673,
+          "value": 1409.4378678515,
+          "kg": 650123.8609750001,
+          "liters": 2167079.5365833337,
+          "meanPrice": 3.662
+        },
+        "Linen": {
+          "units": 1.15,
+          "value": 8.663499999999999,
+          "kg": 229.99999999999997,
+          "liters": 575,
+          "meanPrice": 6.609999999999999
+        },
+        "Cotton": {
+          "units": 1586.8200000000002,
+          "value": 793.4100000000001,
+          "kg": 317364.00000000006,
+          "liters": 906754.2857142858,
+          "meanPrice": 0.5
+        },
+        "Fine Wool Cloth": {
+          "units": 0.8039566284398149,
+          "value": 3.3926969720160187,
+          "kg": 160.79132568796297,
+          "liters": 401.9783142199074,
+          "meanPrice": 4.758
+        },
+        "Fine Wool Garments": {
+          "units": 1.2563523160046297,
+          "value": 23.26764489240574,
+          "kg": 226.14341688083334,
+          "liters": 904.5736675233334,
+          "meanPrice": 14.278
+        }
+      },
+      "flows": {
+        "Cloth:source:importArrival": {
+          "units": 1.1897713736436164,
+          "value": 75.24859029255623
+        },
+        "Garments:source:importArrival": {
+          "units": 2.1200000000000006,
+          "value": 450.6229000000001
+        },
+        "Fine Wool Garments:source:importArrival": {
+          "units": 0.16263677083333336,
+          "value": 3.0803404395833343
+        },
+        "Fine Wool Cloth:source:importArrival": {
+          "units": 0.29157947083333335,
+          "value": 1.2567075192916666
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 540.0636206490992,
+          "value": 220.68143416831015
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 144.48726331025358,
+          "value": 72.24363165512679
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 39.41525415843525,
+          "value": 128.21894196989717
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 2.3200000000000016,
+          "value": 136.10049999999998
+        },
+        "Garments:source:burgCraft": {
+          "units": 3.35,
+          "value": 714.2511999999999
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 28.301175785261705,
+          "value": 10.077766595653515
+        },
+        "Cloth:source:burgCraft": {
+          "units": 1.7868540561720354,
+          "value": 116.57861628524647
+        },
+        "Linen:sink:recipeInput": {
+          "units": 0.16,
+          "value": 1.1184
+        },
+        "Fine Wool Cloth:sink:recipeInput": {
+          "units": 0.5263523160046296,
+          "value": 2.2174543784469445
+        },
+        "Fine Wool Garments:source:burgCraft": {
+          "units": 0.5263523160046296,
+          "value": 9.767124573067083
+        },
+        "Wool:sink:recipeInput": {
+          "units": 0.08409268333333333,
+          "value": 0.44569122166666664
+        },
+        "Fine Wool Cloth:source:burgCraft": {
+          "units": 0.28030894444444443,
+          "value": 1.1829037455555556
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 5.470000000000001,
+          "value": 1162.7147000000002
+        }
+      },
+      "manufactured": {
+        "Garments": {
+          "units": 3.3500000000000005,
+          "labor": 3.1838454,
+          "inputs": {
+            "Furs": 3.2800000000000007,
+            "Cloth": 1.6500000000000004
+          },
+          "byproducts": {}
+        },
+        "Cloth": {
+          "units": 2.8428019824175603,
+          "labor": 0.7202538429583334,
+          "inputs": {
+            "Hemp": 30.560121310988777
+          },
+          "byproducts": {}
+        },
+        "Fine Wool Garments": {
+          "units": 0.5263523160046296,
+          "labor": 0.037072860299999996,
+          "inputs": {
+            "Fine Wool Cloth": 0.5263523160046296
+          },
+          "byproducts": {}
+        },
+        "Fine Wool Cloth": {
+          "units": 0.28030894444444443,
+          "labor": 0.005257700000000001,
+          "inputs": {
+            "Wool": 0.08409268333333333
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        590,
+        12,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 6150.990911277287,
+          "value": 2513.7256810042095,
+          "kg": 2860926.0052452497,
+          "liters": 9536420.017484166,
+          "meanPrice": 0.33199999999999996
+        },
+        "Cloth": {
+          "units": 6.656254719711735,
+          "value": 420.0270752657384,
+          "kg": 26625.018878846942,
+          "liters": 66562.54719711735,
+          "meanPrice": 64.026
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 220.224
+        },
+        "Wool": {
+          "units": 472.7458383041667,
+          "value": 1537.3191193542082,
+          "kg": 709118.75745625,
+          "liters": 2363729.1915208334,
+          "meanPrice": 3.714
+        },
+        "Linen": {
+          "units": 1.0099999999999998,
+          "value": 7.7906,
+          "kg": 201.99999999999994,
+          "liters": 504.9999999999999,
+          "meanPrice": 6.632
+        },
+        "Cotton": {
+          "units": 1731.32,
+          "value": 865.66,
+          "kg": 346264,
+          "liters": 989325.7142857143,
+          "meanPrice": 0.5
+        },
+        "Fine Wool Cloth": {
+          "units": 0.8101705947326389,
+          "value": 3.394614791929757,
+          "kg": 162.03411894652777,
+          "liters": 405.0852973663194,
+          "meanPrice": 4.7379999999999995
+        },
+        "Fine Wool Garments": {
+          "units": 2.130368391378472,
+          "value": 37.984468418278155,
+          "kg": 383.466310448125,
+          "liters": 1533.8652417925,
+          "meanPrice": 14.106
+        }
+      },
+      "flows": {
+        "Garments:source:importArrival": {
+          "units": 2.1200000000000006,
+          "value": 451.9618
+        },
+        "Cloth:source:importArrival": {
+          "units": 1.1538795934157426,
+          "value": 77.43008807144487
+        },
+        "Fine Wool Garments:source:importArrival": {
+          "units": 0.32291585767129627,
+          "value": 5.980401684072407
+        },
+        "Fine Wool Cloth:source:importArrival": {
+          "units": 0.28030894444444443,
+          "value": 1.1829037455555556
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 540.1727699203492,
+          "value": 220.7221863451362
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 144.5338527390361,
+          "value": 72.26692636951805
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 39.41312956516123,
+          "value": 128.22851799457078
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 2.520000000000001,
+          "value": 143.935
+        },
+        "Garments:source:burgCraft": {
+          "units": 3.3600000000000003,
+          "value": 717.9082000000001
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 28.63908872271401,
+          "value": 10.17534764542528
+        },
+        "Cloth:source:burgCraft": {
+          "units": 1.9843777808998004,
+          "value": 122.57480003841175
+        },
+        "Linen:sink:recipeInput": {
+          "units": 0.14,
+          "value": 1.0066000000000002
+        },
+        "Fine Wool Cloth:sink:recipeInput": {
+          "units": 0.5503683913784723,
+          "value": 2.302052072302975
+        },
+        "Fine Wool Garments:source:burgCraft": {
+          "units": 0.5503683913784723,
+          "value": 9.833581197225465
+        },
+        "Wool:sink:recipeInput": {
+          "units": 0.08416169583333334,
+          "value": 0.4679390288333333
+        },
+        "Fine Wool Cloth:source:burgCraft": {
+          "units": 0.28053898611111117,
+          "value": 1.1754583518055557
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 5.48,
+          "value": 1166.3476
+        }
+      },
+      "manufactured": {
+        "Garments": {
+          "units": 3.3600000000000003,
+          "labor": 3.1822604999999995,
+          "inputs": {
+            "Furs": 3.2700000000000005,
+            "Cloth": 1.6500000000000004
+          },
+          "byproducts": {}
+        },
+        "Cloth": {
+          "units": 2.8461312282167737,
+          "labor": 0.7210968698133333,
+          "inputs": {
+            "Hemp": 30.59591070333032
+          },
+          "byproducts": {}
+        },
+        "Fine Wool Garments": {
+          "units": 0.5503683913784723,
+          "labor": 0.03878624047500001,
+          "inputs": {
+            "Fine Wool Cloth": 0.5503683913784723
+          },
+          "byproducts": {}
+        },
+        "Fine Wool Cloth": {
+          "units": 0.28053898611111117,
+          "labor": 0.005262016666666668,
+          "inputs": {
+            "Wool": 0.08416169583333334
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        591,
+        1,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 6660.454211577288,
+          "value": 2805.6349770794504,
+          "kg": 3097885.67980339,
+          "liters": 10326285.599344634,
+          "meanPrice": 0.40714285714285714
+        },
+        "Cloth": {
+          "units": 8.534156619836217,
+          "value": 518.8383343233088,
+          "kg": 34136.62647934487,
+          "liters": 85341.56619836217,
+          "meanPrice": 74.75285714285714
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 201.46857142857147
+        },
+        "Wool": {
+          "units": 515.118920835,
+          "value": 1925.4772084680499,
+          "kg": 772678.3812525001,
+          "liters": 2575594.604175,
+          "meanPrice": 5.8357142857142845
+        },
+        "Linen": {
+          "units": 0.9400000000000001,
+          "value": 7.3548,
+          "kg": 188,
+          "liters": 470.00000000000006,
+          "meanPrice": 7.054285714285713
+        },
+        "Cotton": {
+          "units": 1875.6499999999999,
+          "value": 1003.8041000000001,
+          "kg": 375130,
+          "liters": 1071800,
+          "meanPrice": 0.692857142857143
+        },
+        "Fine Wool Cloth": {
+          "units": 0.8976363008650003,
+          "value": 3.7610961006243517,
+          "kg": 179.52726017300006,
+          "liters": 448.81815043250015,
+          "meanPrice": 5.514285714285713
+        },
+        "Fine Wool Garments": {
+          "units": 2.92,
+          "value": 49.669200000000004,
+          "kg": 525.6,
+          "liters": 2102.4,
+          "meanPrice": 13.138571428571428
+        }
+      },
+      "flows": {
+        "Cloth:source:importArrival": {
+          "units": 1.3541122828491294,
+          "value": 85.18660169451438
+        },
+        "Garments:source:importArrival": {
+          "units": 2.1300000000000003,
+          "value": 455.7445
+        },
+        "Fine Wool Garments:source:importArrival": {
+          "units": 0.3468195372118056,
+          "value": 6.183792348486493
+        },
+        "Fine Wool Cloth:source:importArrival": {
+          "units": 0.28053898611111117,
+          "value": 1.1754583518055557
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 540.2112941994667,
+          "value": 391.88307957427986
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 144.35289667367937,
+          "value": 228.0775844925642
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 42.45565603774197,
+          "value": 460.39206754049474
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 1.7300000000000002,
+          "value": 101.60990000000001
+        },
+        "Garments:source:burgCraft": {
+          "units": 2.9800000000000004,
+          "value": 591.7951
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 31.62578842271078,
+          "value": 12.28350992938566
+        },
+        "Cloth:source:burgCraft": {
+          "units": 1.9365266642714853,
+          "value": 120.74776147959372
+        },
+        "Linen:sink:recipeInput": {
+          "units": 0.07,
+          "value": 0.5145
+        },
+        "Fine Wool Cloth:sink:recipeInput": {
+          "units": 0.48208859635722223,
+          "value": 2.0165835884034276
+        },
+        "Wool:sink:recipeInput": {
+          "units": 0.08691746916666668,
+          "value": 0.50585967055
+        },
+        "Fine Wool Cloth:source:burgCraft": {
+          "units": 0.2897248972222223,
+          "value": 1.2139473193611112
+        },
+        "Fine Wool Garments:source:burgCraft": {
+          "units": 0.48208859635722223,
+          "value": 8.216623427144143
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 5.11,
+          "value": 1043.5129
+        },
+        "Fine Wool Garments:sink:characterLuxury": {
+          "units": 0.03,
+          "value": 0.5103
+        }
+      },
+      "manufactured": {
+        "Garments": {
+          "units": 2.98,
+          "labor": 2.7572642999999997,
+          "inputs": {
+            "Furs": 2.8400000000000003,
+            "Cloth": 1.44
+          },
+          "byproducts": {}
+        },
+        "Cloth": {
+          "units": 3.1239583532205875,
+          "labor": 0.7659104555699999,
+          "inputs": {
+            "Hemp": 33.5825522971213
+          },
+          "byproducts": {}
+        },
+        "Fine Wool Garments": {
+          "units": 0.48208859635722223,
+          "labor": 0.03289247487000001,
+          "inputs": {
+            "Fine Wool Cloth": 0.48208859635722223
+          },
+          "byproducts": {}
+        },
+        "Fine Wool Cloth": {
+          "units": 0.2897248972222223,
+          "labor": 0.005270650000000001,
+          "inputs": {
+            "Wool": 0.08691746916666668
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        591,
+        2,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 7167.188926877207,
+          "value": 2966.0506437572953,
+          "kg": 3333576.2450591666,
+          "liters": 11111920.816863889,
+          "meanPrice": 0.35285714285714287
+        },
+        "Cloth": {
+          "units": 10.145246774841649,
+          "value": 580.4442336651754,
+          "kg": 40580.9870993666,
+          "liters": 101452.46774841649,
+          "meanPrice": 73.48857142857142
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 204.5142857142857
+        },
+        "Wool": {
+          "units": 557.5582778958333,
+          "value": 2192.585312385625,
+          "kg": 836337.4168437499,
+          "liters": 2787791.3894791664,
+          "meanPrice": 5.384285714285714
+        },
+        "Linen": {
+          "units": 1.98,
+          "value": 16.470100000000002,
+          "kg": 396,
+          "liters": 990,
+          "meanPrice": 6.967142857142856
+        },
+        "Cotton": {
+          "units": 2020.05,
+          "value": 1054.6889999999999,
+          "kg": 404010,
+          "liters": 1154314.2857142857,
+          "meanPrice": 0.5728571428571428
+        },
+        "Fine Wool Cloth": {
+          "units": 0.9165625278059721,
+          "value": 3.812900115672844,
+          "kg": 183.31250556119443,
+          "liters": 458.2812639029861,
+          "meanPrice": 5.507142857142857
+        },
+        "Fine Wool Garments": {
+          "units": 3.72,
+          "value": 59.9292,
+          "kg": 669.6,
+          "liters": 2678.4,
+          "meanPrice": 12.83285714285714
+        }
+      },
+      "flows": {
+        "Garments:source:importArrival": {
+          "units": 2.0100000000000007,
+          "value": 388.354
+        },
+        "Cloth:source:importArrival": {
+          "units": 1.0445432912330748,
+          "value": 60.616546374337034
+        },
+        "Fine Wool Garments:source:importArrival": {
+          "units": 0.2766321025204167,
+          "value": 4.7055120638722885
+        },
+        "Fine Wool Cloth:source:importArrival": {
+          "units": 0.2897248972222223,
+          "value": 1.2139473193611112
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 540.3299405608178,
+          "value": 277.2146341524696
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 144.40148848950867,
+          "value": 138.2039031606317
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 42.45353007762843,
+          "value": 388.51138666117737
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 1.9100000000000004,
+          "value": 110.5473
+        },
+        "Garments:source:burgCraft": {
+          "units": 2.9800000000000004,
+          "value": 586.136
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 34.471073122791296,
+          "value": 13.116663561005968
+        },
+        "Cloth:source:burgCraft": {
+          "units": 2.22030040075395,
+          "value": 128.8972731015239
+        },
+        "Fine Wool Cloth:sink:recipeInput": {
+          "units": 0.5558444860829167,
+          "value": 2.306348324846847
+        },
+        "Fine Wool Garments:source:burgCraft": {
+          "units": 0.5558444860829167,
+          "value": 8.97537642728712
+        },
+        "Linen:source:burgCraft": {
+          "units": 1,
+          "value": 8.9
+        },
+        "Wool:sink:recipeInput": {
+          "units": 0.05172210416666667,
+          "value": 0.3144703933333334
+        },
+        "Fine Wool Cloth:source:burgCraft": {
+          "units": 0.1724070138888889,
+          "value": 0.7172131777777778
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 4.99,
+          "value": 967.6363000000001
+        },
+        "Fine Wool Garments:sink:characterLuxury": {
+          "units": 0.03,
+          "value": 0.48329999999999995
+        }
+      },
+      "manufactured": {
+        "Garments": {
+          "units": 2.98,
+          "labor": 2.7600048000000004,
+          "inputs": {
+            "Furs": 2.8400000000000003,
+            "Cloth": 1.44
+          },
+          "byproducts": {}
+        },
+        "Cloth": {
+          "units": 3.3886996533671847,
+          "labor": 0.83444059132,
+          "inputs": {
+            "Hemp": 36.42852127369723
+          },
+          "byproducts": {}
+        },
+        "Fine Wool Garments": {
+          "units": 0.5558444860829167,
+          "labor": 0.03798474844500001,
+          "inputs": {
+            "Fine Wool Cloth": 0.5558444860829167
+          },
+          "byproducts": {}
+        },
+        "Linen": {
+          "units": 1,
+          "labor": 1,
+          "inputs": {
+            "Flax": 10
+          },
+          "byproducts": {}
+        },
+        "Fine Wool Cloth": {
+          "units": 0.1724070138888889,
+          "labor": 0.003131741666666667,
+          "inputs": {
+            "Wool": 0.05172210416666667
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        591,
+        3,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 7673.640376358518,
+          "value": 3098.5970429999093,
+          "kg": 3569135.058771404,
+          "liters": 11897116.862571346,
+          "meanPrice": 0.33285714285714285
+        },
+        "Cloth": {
+          "units": 11.881543248595245,
+          "value": 631.5683162131537,
+          "kg": 47526.17299438098,
+          "liters": 118815.43248595245,
+          "meanPrice": 71.05857142857143
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 205.29714285714286
+        },
+        "Wool": {
+          "units": 599.9312892658332,
+          "value": 2369.2670739453833,
+          "kg": 899896.9338987499,
+          "liters": 2999656.446329166,
+          "meanPrice": 5.008571428571429
+        },
+        "Linen": {
+          "units": 2.9800000000000004,
+          "value": 23.198600000000003,
+          "kg": 596.0000000000001,
+          "liters": 1490.0000000000002,
+          "meanPrice": 6.76
+        },
+        "Cotton": {
+          "units": 2164.51,
+          "value": 1088.2160000000001,
+          "kg": 432902.00000000006,
+          "liters": 1236862.8571428573,
+          "meanPrice": 0.5142857142857143
+        },
+        "Fine Wool Cloth": {
+          "units": 0.8464956839459723,
+          "value": 3.5468169157336242,
+          "kg": 169.29913678919445,
+          "liters": 423.2478419729861,
+          "meanPrice": 5.435714285714285
+        },
+        "Fine Wool Garments": {
+          "units": 4.56,
+          "value": 69.4032,
+          "kg": 820.8,
+          "liters": 3283.2,
+          "meanPrice": 12.564285714285715
+        }
+      },
+      "flows": {
+        "Cloth:source:importArrival": {
+          "units": 1.3640029041258113,
+          "value": 77.22894576807047
+        },
+        "Garments:source:importArrival": {
+          "units": 1.9200000000000004,
+          "value": 350.29240000000004
+        },
+        "Fine Wool Garments:source:importArrival": {
+          "units": 0.35038799224611117,
+          "value": 5.64475055508485
+        },
+        "Fine Wool Cloth:source:importArrival": {
+          "units": 0.1724070138888889,
+          "value": 0.7172131777777778
+        },
+        "Linen:source:importArrival": {
+          "units": 1,
+          "value": 8.82
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 540.4388385286331,
+          "value": 223.63575753428938
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 144.44725038796665,
+          "value": 94.56722833955885
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 42.45140348465707,
+          "value": 327.7958308765808
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 2.170000000000001,
+          "value": 125.9023
+        },
+        "Garments:source:burgCraft": {
+          "units": 3.1100000000000003,
+          "value": 598.9373
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 34.839623641482476,
+          "value": 12.710044166720133
+        },
+        "Cloth:source:burgCraft": {
+          "units": 2.3679036473171444,
+          "value": 125.1476601475696
+        },
+        "Fine Wool Cloth:sink:recipeInput": {
+          "units": 0.5334664160540278,
+          "value": 2.231343558803413
+        },
+        "Fine Wool Garments:source:burgCraft": {
+          "units": 0.5334664160540278,
+          "value": 8.13873452597226
+        },
+        "Wool:sink:recipeInput": {
+          "units": 0.08698863,
+          "value": 0.5506380278999999
+        },
+        "Fine Wool Cloth:source:burgCraft": {
+          "units": 0.2899621,
+          "value": 1.214941199
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 5.029999999999999,
+          "value": 941.2121000000001
+        },
+        "Fine Wool Garments:sink:characterLuxury": {
+          "units": 0.03,
+          "value": 0.4566
+        }
+      },
+      "manufactured": {
+        "Garments": {
+          "units": 3.11,
+          "labor": 2.885562899999999,
+          "inputs": {
+            "Furs": 2.9600000000000004,
+            "Cloth": 1.5000000000000002
+          },
+          "byproducts": {}
+        },
+        "Cloth": {
+          "units": 3.5161327537693894,
+          "labor": 0.8673907907099999,
+          "inputs": {
+            "Hemp": 37.798427103020934
+          },
+          "byproducts": {}
+        },
+        "Fine Wool Garments": {
+          "units": 0.5334664160540278,
+          "labor": 0.03643954681500001,
+          "inputs": {
+            "Fine Wool Cloth": 0.5334664160540278
+          },
+          "byproducts": {}
+        },
+        "Fine Wool Cloth": {
+          "units": 0.2899621,
+          "labor": 0.005274966666666667,
+          "inputs": {
+            "Wool": 0.08698863
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        591,
+        4,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 8180.487650729098,
+          "value": 3256.7018194331495,
+          "kg": 3804877.9770833016,
+          "liters": 12682926.590277674,
+          "meanPrice": 0.32571428571428573
+        },
+        "Cloth": {
+          "units": 13.699093662253793,
+          "value": 683.2434009166356,
+          "kg": 54796.37464901517,
+          "liters": 136990.93662253793,
+          "meanPrice": 68.25571428571429
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 204.54285714285714
+        },
+        "Wool": {
+          "units": 642.3294958700001,
+          "value": 2479.0201777833004,
+          "kg": 963494.2438050001,
+          "liters": 3211647.47935,
+          "meanPrice": 4.694285714285714
+        },
+        "Linen": {
+          "units": 2.9800000000000004,
+          "value": 21.5538,
+          "kg": 596.0000000000001,
+          "liters": 1490.0000000000002,
+          "meanPrice": 6.6
+        },
+        "Cotton": {
+          "units": 2309,
+          "value": 1154.5,
+          "kg": 461800,
+          "liters": 1319428.5714285714,
+          "meanPrice": 0.5
+        },
+        "Fine Wool Cloth": {
+          "units": 0.8298763244922222,
+          "value": 3.5103768526021,
+          "kg": 165.97526489844444,
+          "liters": 414.93816224611106,
+          "meanPrice": 5.338571428571428
+        },
+        "Fine Wool Garments": {
+          "units": 5.33,
+          "value": 76.8053,
+          "kg": 959.4,
+          "liters": 3837.6,
+          "meanPrice": 12.314285714285713
+        }
+      },
+      "flows": {
+        "Cloth:source:importArrival": {
+          "units": 1.439656484654199,
+          "value": 72.36147338568158
+        },
+        "Garments:source:importArrival": {
+          "units": 1.9200000000000004,
+          "value": 345.64779999999996
+        },
+        "Fine Wool Garments:source:importArrival": {
+          "units": 0.32800992221722225,
+          "value": 4.992311016146122
+        },
+        "Fine Wool Cloth:source:importArrival": {
+          "units": 0.2899621,
+          "value": 1.214941199
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 540.5587080116272,
+          "value": 204.15716580034496
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 144.4982926002145,
+          "value": 74.23725293782354
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 42.44927618204003,
+          "value": 277.5568753934067
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 1.8100000000000007,
+          "value": 95.02040000000002
+        },
+        "Garments:source:burgCraft": {
+          "units": 3.1100000000000003,
+          "value": 584.7738999999999
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 34.59234927090203,
+          "value": 12.339702505360632
+        },
+        "Cloth:source:burgCraft": {
+          "units": 2.015518168522782,
+          "value": 100.4835415437153
+        },
+        "Fine Wool Cloth:sink:recipeInput": {
+          "units": 0.4332049258839351,
+          "value": 1.8279602057050326
+        },
+        "Fine Wool Garments:source:burgCraft": {
+          "units": 0.48276832828555555,
+          "value": 6.973012934375452
+        },
+        "Wool:sink:recipeInput": {
+          "units": 0.05179339583333334,
+          "value": 0.34080054458333336
+        },
+        "Fine Wool Cloth:source:burgCraft": {
+          "units": 0.1230812503761574,
+          "value": 0.5206336890911458
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 5.029999999999999,
+          "value": 920.9208000000001
+        },
+        "Fine Wool Garments:sink:characterLuxury": {
+          "units": 0.03,
+          "value": 0.43229999999999996
+        }
+      },
+      "manufactured": {
+        "Garments": {
+          "units": 3.14,
+          "labor": 2.9170152000000003,
+          "inputs": {
+            "Furs": 2.9800000000000004,
+            "Cloth": 1.5200000000000002
+          },
+          "byproducts": {}
+        },
+        "Cloth": {
+          "units": 3.493332399230236,
+          "labor": 0.861414882275,
+          "inputs": {
+            "Hemp": 37.55332329172503
+          },
+          "byproducts": {}
+        },
+        "Fine Wool Garments": {
+          "units": 0.48276832828555555,
+          "labor": 0.03293886951,
+          "inputs": {
+            "Fine Wool Cloth": 0.48276832828555555
+          },
+          "byproducts": {}
+        },
+        "Fine Wool Cloth": {
+          "units": 0.1726446527777778,
+          "labor": 0.0031360583333333338,
+          "inputs": {
+            "Wool": 0.05179339583333334
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        591,
+        5,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 8686.923080522958,
+          "value": 3422.582431800054,
+          "kg": 4040429.33977812,
+          "liters": 13468097.799260402,
+          "meanPrice": 0.3228571428571429
+        },
+        "Cloth": {
+          "units": 15.359353391727112,
+          "value": 729.9941688580985,
+          "kg": 61437.41356690845,
+          "liters": 153593.53391727112,
+          "meanPrice": 65.60285714285715
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 203.3328571428571
+        },
+        "Wool": {
+          "units": 684.7045427158334,
+          "value": 2543.143008457775,
+          "kg": 1027056.8140737502,
+          "liters": 3423522.713579167,
+          "meanPrice": 4.444285714285715
+        },
+        "Linen": {
+          "units": 2.9800000000000004,
+          "value": 20.494300000000003,
+          "kg": 596.0000000000001,
+          "liters": 1490.0000000000002,
+          "meanPrice": 6.5042857142857144
+        },
+        "Cotton": {
+          "units": 2453.56,
+          "value": 1226.78,
+          "kg": 490712,
+          "liters": 1402034.2857142857,
+          "meanPrice": 0.5
+        },
+        "Fine Wool Cloth": {
+          "units": 0.9224187948995833,
+          "value": 3.975625006017204,
+          "kg": 184.48375897991667,
+          "liters": 461.20939744979165,
+          "meanPrice": 5.239999999999999
+        },
+        "Fine Wool Garments": {
+          "units": 5.84,
+          "value": 80.4752,
+          "kg": 1051.2,
+          "liters": 4204.8,
+          "meanPrice": 12.111428571428572
+        }
+      },
+      "flows": {
+        "Cloth:source:importArrival": {
+          "units": 1.3196739968071465,
+          "value": 66.33141230941776
+        },
+        "Garments:source:importArrival": {
+          "units": 1.9300000000000006,
+          "value": 340.9512
+        },
+        "Fine Wool Cloth:source:importArrival": {
+          "units": 0.1230812503761574,
+          "value": 0.5206336890911458
+        },
+        "Fine Wool Garments:source:importArrival": {
+          "units": 0.27708518635847224,
+          "value": 3.9927975354255847
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 540.6810232717992,
+          "value": 195.94983453804974
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 144.5488742780685,
+          "value": 72.27443713903425
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 42.44714817935223,
+          "value": 235.67775009355583
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 2.0700000000000007,
+          "value": 100.2569
+        },
+        "Garments:source:burgCraft": {
+          "units": 3.12,
+          "value": 582.6452999999999
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 35.14691947704346,
+          "value": 12.430577625989548
+        },
+        "Cloth:source:burgCraft": {
+          "units": 2.14379907957447,
+          "value": 101.14836491703095
+        },
+        "Wool:sink:recipeInput": {
+          "units": 0.07495315416666667,
+          "value": 0.5141786375833334
+        },
+        "Fine Wool Cloth:source:burgCraft": {
+          "units": 0.08495736154513889,
+          "value": 0.3661662282595486
+        },
+        "Fine Wool Cloth:sink:recipeInput": {
+          "units": 0.11253856664555556,
+          "value": 0.4842567353534555
+        },
+        "Fine Wool Garments:source:burgCraft": {
+          "units": 0.2774250523226389,
+          "value": 3.8295911077188727
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 5.050000000000001,
+          "value": 915.0888000000001
+        },
+        "Fine Wool Garments:sink:characterLuxury": {
+          "units": 0.04,
+          "value": 0.5512
+        }
+      },
+      "manufactured": {
+        "Garments": {
+          "units": 3.1199999999999997,
+          "labor": 2.8970595,
+          "inputs": {
+            "Furs": 2.97,
+            "Cloth": 1.5100000000000002
+          },
+          "byproducts": {}
+        },
+        "Cloth": {
+          "units": 3.5451852286603205,
+          "labor": 0.874528957055,
+          "inputs": {
+            "Hemp": 38.11074120809844
+          },
+          "byproducts": {}
+        },
+        "Fine Wool Cloth": {
+          "units": 0.24984384722222225,
+          "labor": 0.004556241666666667,
+          "inputs": {
+            "Wool": 0.07495315416666667
+          },
+          "byproducts": {}
+        },
+        "Fine Wool Garments": {
+          "units": 0.2774250523226389,
+          "labor": 0.018940511205000003,
+          "inputs": {
+            "Fine Wool Cloth": 0.2774250523226389
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        591,
+        6,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 9208.485848648963,
+          "value": 3022.7692728353545,
+          "kg": 4283016.6737902155,
+          "liters": 14276722.245967386,
+          "meanPrice": 0.29714285714285715
+        },
+        "Cloth": {
+          "units": 16.35421528758925,
+          "value": 739.1168036567958,
+          "kg": 65416.86115035699,
+          "liters": 163542.1528758925,
+          "meanPrice": 62.97714285714286
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 201.36285714285714
+        },
+        "Wool": {
+          "units": 727.1252160491667,
+          "value": 2571.9292324700664,
+          "kg": 1090687.82407375,
+          "liters": 3635626.080245834,
+          "meanPrice": 4.231428571428571
+        },
+        "Linen": {
+          "units": 2.9800000000000004,
+          "value": 19.7065,
+          "kg": 596.0000000000001,
+          "liters": 1490.0000000000002,
+          "meanPrice": 6.425714285714285
+        },
+        "Cotton": {
+          "units": 2598.1700000000005,
+          "value": 1299.0850000000003,
+          "kg": 519634.0000000001,
+          "liters": 1484668.5714285718,
+          "meanPrice": 0.5
+        },
+        "Fine Wool Cloth": {
+          "units": 1.1077555555555556,
+          "value": 5.048462222222222,
+          "kg": 221.5511111111111,
+          "liters": 553.8777777777779,
+          "meanPrice": 5.122857142857143
+        },
+        "Fine Wool Garments": {
+          "units": 6.07,
+          "value": 80.36680000000001,
+          "kg": 1092.6000000000001,
+          "liters": 4370.400000000001,
+          "meanPrice": 11.902857142857142
+        }
+      },
+      "flows": {
+        "Cloth:source:importArrival": {
+          "units": 1.3222793641207122,
+          "value": 62.89550806357455
+        },
+        "Garments:source:importArrival": {
+          "units": 1.9300000000000002,
+          "value": 335.8582
+        },
+        "Fine Wool Garments:source:importArrival": {
+          "units": 0.2774250523226389,
+          "value": 3.822917221005964
+        },
+        "Fine Wool Cloth:source:importArrival": {
+          "units": 0.08495736154513889,
+          "value": 0.3661662282595486
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 540.8101351058484,
+          "value": 192.6915166471672
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 144.6019133386016,
+          "value": 72.3009566693008
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 42.44501944210472,
+          "value": 201.4576559174624
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 1.8000000000000003,
+          "value": 84.78569999999998
+        },
+        "Garments:source:burgCraft": {
+          "units": 2.9699999999999998,
+          "value": 554.2623000000001
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 20.14415135103591,
+          "value": 5.625600806329298
+        },
+        "Cloth:source:burgCraft": {
+          "units": 1.263306993018353,
+          "value": 59.560546406828436
+        },
+        "Wool:sink:recipeInput": {
+          "units": 0.029326666666666668,
+          "value": 0.09531166666666667
+        },
+        "Fine Wool Cloth:source:burgCraft": {
+          "units": 0.09775555555555557,
+          "value": 0.6559397777777779
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 4.9,
+          "value": 881.589
+        },
+        "Fine Wool Garments:sink:characterLuxury": {
+          "units": 0.04,
+          "value": 0.5296000000000001
+        }
+      },
+      "manufactured": {
+        "Garments": {
+          "units": 2.9699999999999998,
+          "labor": 2.7546939,
+          "inputs": {
+            "Furs": 2.83,
+            "Cloth": 1.43
+          },
+          "byproducts": {}
+        },
+        "Cloth": {
+          "units": 2.1489787971030405,
+          "labor": 0.530898934,
+          "inputs": {
+            "Hemp": 23.10152206885769
+          },
+          "byproducts": {}
+        },
+        "Fine Wool Cloth": {
+          "units": 0.09775555555555557,
+          "labor": 0.001830266666666667,
+          "inputs": {
+            "Wool": 0.029326666666666668
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        591,
+        7,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 9714.15707630795,
+          "value": 3461.3470955867947,
+          "kg": 4518212.593631606,
+          "liters": 15060708.645438684,
+          "meanPrice": 0.3071428571428571
+        },
+        "Cloth": {
+          "units": 18.234484113206516,
+          "value": 780.5829489194609,
+          "kg": 72937.93645282606,
+          "liters": 182344.84113206516,
+          "meanPrice": 60.892857142857146
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 199.43428571428575
+        },
+        "Wool": {
+          "units": 769.5645427158332,
+          "value": 2648.92972524285,
+          "kg": 1154346.8140737498,
+          "liters": 3847822.713579166,
+          "meanPrice": 4.124285714285714
+        },
+        "Linen": {
+          "units": 2.9800000000000004,
+          "value": 19.172800000000006,
+          "kg": 596.0000000000001,
+          "liters": 1490.0000000000002,
+          "meanPrice": 6.374285714285713
+        },
+        "Cotton": {
+          "units": 2742.84,
+          "value": 1371.42,
+          "kg": 548568,
+          "liters": 1567337.142857143,
+          "meanPrice": 0.5
+        },
+        "Fine Wool Cloth": {
+          "units": 1.21,
+          "value": 5.7459,
+          "kg": 242,
+          "liters": 605,
+          "meanPrice": 5.005714285714285
+        },
+        "Fine Wool Garments": {
+          "units": 6.04,
+          "value": 77.73479999999999,
+          "kg": 1087.2,
+          "liters": 4348.8,
+          "meanPrice": 11.725714285714284
+        }
+      },
+      "flows": {
+        "Garments:source:importArrival": {
+          "units": 1.5700000000000003,
+          "value": 284.52819999999997
+        },
+        "Cloth:source:importArrival": {
+          "units": 0.5759795781905567,
+          "value": 28.83769580777064
+        },
+        "Fine Wool Cloth:source:importArrival": {
+          "units": 0.09775555555555557,
+          "value": 0.6549622222222223
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 540.9316640701294,
+          "value": 168.73962890414242
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 144.65327306360007,
+          "value": 72.32663653180003
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 42.44288998727801,
+          "value": 172.68731443810137
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 1.5000000000000002,
+          "value": 63.65950000000001
+        },
+        "Garments:source:burgCraft": {
+          "units": 3.13,
+          "value": 567.6487000000001
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 35.30292369205017,
+          "value": 11.050801920810336
+        },
+        "Cloth:source:burgCraft": {
+          "units": 2.661360556320739,
+          "value": 112.61726046091368
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 4.7,
+          "value": 844.9106
+        },
+        "Fine Wool Garments:sink:characterLuxury": {
+          "units": 0.03,
+          "value": 0.38609999999999994
+        }
+      },
+      "manufactured": {
+        "Garments": {
+          "units": 3.13,
+          "labor": 2.9069333999999993,
+          "inputs": {
+            "Furs": 2.99,
+            "Cloth": 1.5100000000000002
+          },
+          "byproducts": {}
+        },
+        "Cloth": {
+          "units": 3.559503207983136,
+          "labor": 0.8781167563500001,
+          "inputs": {
+            "Hemp": 38.26465948581872
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        591,
+        8,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 10219.881741935587,
+          "value": 3739.0906917658813,
+          "kg": 4753433.368342134,
+          "liters": 15844777.89447378,
+          "meanPrice": 0.31142857142857144
+        },
+        "Cloth": {
+          "units": 20.890632239056185,
+          "value": 835.1531082612021,
+          "kg": 83562.52895622473,
+          "liters": 208906.32239056184,
+          "meanPrice": 58.95142857142857
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 197.78714285714287
+        },
+        "Wool": {
+          "units": 811.9945427158333,
+          "value": 2751.9837517761252,
+          "kg": 1217991.81407375,
+          "liters": 4059972.7135791667,
+          "meanPrice": 4.0685714285714285
+        },
+        "Linen": {
+          "units": 2.9800000000000004,
+          "value": 18.8239,
+          "kg": 596.0000000000001,
+          "liters": 1490.0000000000002,
+          "meanPrice": 6.342857142857143
+        },
+        "Cotton": {
+          "units": 2887.56,
+          "value": 1443.78,
+          "kg": 577512,
+          "liters": 1650034.2857142857,
+          "meanPrice": 0.5
+        },
+        "Fine Wool Cloth": {
+          "units": 1.21,
+          "value": 5.788500000000001,
+          "kg": 242,
+          "liters": 605,
+          "meanPrice": 4.917142857142857
+        },
+        "Fine Wool Garments": {
+          "units": 6,
+          "value": 75.96000000000001,
+          "kg": 1080,
+          "liters": 4320,
+          "meanPrice": 11.59
+        }
+      },
+      "flows": {
+        "Cloth:source:importArrival": {
+          "units": 1.8472017459545007,
+          "value": 77.36398634703549
+        },
+        "Garments:source:importArrival": {
+          "units": 1.9400000000000002,
+          "value": 327.15
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 541.0649049293994,
+          "value": 177.4733124064946
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 144.70770183026798,
+          "value": 72.35385091513399
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 42.44075977672817,
+          "value": 159.01228167425143
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 1.9100000000000004,
+          "value": 78.8861
+        },
+        "Garments:source:burgCraft": {
+          "units": 3.1000000000000005,
+          "value": 557.3697999999999
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 35.37825806441397,
+          "value": 11.541985910524428
+        },
+        "Cloth:source:burgCraft": {
+          "units": 2.5739883440274465,
+          "value": 102.23105597956967
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 5.039999999999999,
+          "value": 877.2228
+        },
+        "Fine Wool Garments:sink:characterLuxury": {
+          "units": 0.04,
+          "value": 0.5064
+        }
+      },
+      "manufactured": {
+        "Garments": {
+          "units": 3.1,
+          "labor": 2.8867455000000004,
+          "inputs": {
+            "Furs": 2.9800000000000004,
+            "Cloth": 1.5000000000000002
+          },
+          "byproducts": {}
+        },
+        "Cloth": {
+          "units": 3.566979389069487,
+          "labor": 0.8799659663733332,
+          "inputs": {
+            "Hemp": 38.345028432496974
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        591,
+        9,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 10725.44973667977,
+          "value": 3984.761943452564,
+          "kg": 4988581.272874312,
+          "liters": 16628604.242914373,
+          "meanPrice": 0.31428571428571433
+        },
+        "Cloth": {
+          "units": 23.770040689219687,
+          "value": 899.2419303364946,
+          "kg": 95080.16275687875,
+          "liters": 237700.4068921969,
+          "meanPrice": 57.198571428571434
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 196.37571428571428
+        },
+        "Wool": {
+          "units": 854.4245427158335,
+          "value": 2848.6874691637163,
+          "kg": 1281636.8140737503,
+          "liters": 4272122.713579168,
+          "meanPrice": 4.027142857142858
+        },
+        "Linen": {
+          "units": 2.9800000000000004,
+          "value": 18.614800000000002,
+          "kg": 596.0000000000001,
+          "liters": 1490.0000000000002,
+          "meanPrice": 6.327142857142858
+        },
+        "Cotton": {
+          "units": 3032.3199999999997,
+          "value": 1516.1599999999999,
+          "kg": 606464,
+          "liters": 1732754.2857142857,
+          "meanPrice": 0.5
+        },
+        "Fine Wool Cloth": {
+          "units": 1.21,
+          "value": 5.8593,
+          "kg": 242,
+          "liters": 605,
+          "meanPrice": 4.857142857142857
+        },
+        "Fine Wool Garments": {
+          "units": 5.96,
+          "value": 74.8576,
+          "kg": 1072.8,
+          "liters": 4291.2,
+          "meanPrice": 11.491428571428571
+        }
+      },
+      "flows": {
+        "Cloth:source:importArrival": {
+          "units": 1.6537990217706806,
+          "value": 63.657606944584415
+        },
+        "Garments:source:importArrival": {
+          "units": 1.9400000000000002,
+          "value": 323.22720000000004
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 541.2001283864976,
+          "value": 181.39461486324552
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 144.7628021389246,
+          "value": 72.3814010694623
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 42.43862880010129,
+          "value": 152.01336236745055
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 1.7000000000000002,
+          "value": 69.9103
+        },
+        "Garments:source:burgCraft": {
+          "units": 3.1399999999999997,
+          "value": 557.0050000000001
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 35.670263320228926,
+          "value": 11.92998255358491
+        },
+        "Cloth:source:burgCraft": {
+          "units": 2.9412146132909394,
+          "value": 120.1567484721946
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 5.08,
+          "value": 873.5004
+        },
+        "Fine Wool Garments:sink:characterLuxury": {
+          "units": 0.04,
+          "value": 0.5024000000000001
+        }
+      },
+      "manufactured": {
+        "Garments": {
+          "units": 3.1399999999999997,
+          "labor": 2.9085479999999997,
+          "inputs": {
+            "Furs": 3,
+            "Cloth": 1.5200000000000002
+          },
+          "byproducts": {}
+        },
+        "Cloth": {
+          "units": 3.5946761193666865,
+          "labor": 0.8869561957133334,
+          "inputs": {
+            "Hemp": 38.64276828319189
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        591,
+        10,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 11231.090875928825,
+          "value": 4195.003148231721,
+          "kg": 5223763.1981064305,
+          "liters": 17412543.993688103,
+          "meanPrice": 0.3157142857142857
+        },
+        "Cloth": {
+          "units": 26.851785004564945,
+          "value": 966.0092686692112,
+          "kg": 107407.14001825979,
+          "liters": 268517.85004564945,
+          "meanPrice": 55.51142857142857
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 195.22857142857143
+        },
+        "Wool": {
+          "units": 896.8545427158334,
+          "value": 2942.6424228327833,
+          "kg": 1345281.81407375,
+          "liters": 4484272.713579167,
+          "meanPrice": 4.002857142857143
+        },
+        "Linen": {
+          "units": 2.9800000000000004,
+          "value": 18.5224,
+          "kg": 596.0000000000001,
+          "liters": 1490.0000000000002,
+          "meanPrice": 6.322857142857144
+        },
+        "Cotton": {
+          "units": 3177.1400000000003,
+          "value": 1588.5700000000002,
+          "kg": 635428.0000000001,
+          "liters": 1815508.5714285716,
+          "meanPrice": 0.5
+        },
+        "Fine Wool Cloth": {
+          "units": 1.21,
+          "value": 5.936100000000001,
+          "kg": 242,
+          "liters": 605,
+          "meanPrice": 4.817142857142857
+        },
+        "Fine Wool Garments": {
+          "units": 5.92,
+          "value": 74.296,
+          "kg": 1065.6,
+          "liters": 4262.4,
+          "meanPrice": 11.429999999999998
+        }
+      },
+      "flows": {
+        "Cloth:source:importArrival": {
+          "units": 1.9162817276418036,
+          "value": 73.99644039279642
+        },
+        "Garments:source:importArrival": {
+          "units": 1.9400000000000002,
+          "value": 319.97399999999993
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 541.327674896717,
+          "value": 184.02051599163772
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 144.8161359080672,
+          "value": 72.4080679540336
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 42.43649707581045,
+          "value": 145.86247984968838
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 1.7400000000000002,
+          "value": 69.15700000000001
+        },
+        "Garments:source:burgCraft": {
+          "units": 3.4300000000000006,
+          "value": 600.4977
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 35.729124071178255,
+          "value": 12.104844206496555
+        },
+        "Cloth:source:burgCraft": {
+          "units": 2.9189886726309604,
+          "value": 115.69020360024163
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 5.37,
+          "value": 914.6505999999999
+        },
+        "Fine Wool Garments:sink:characterLuxury": {
+          "units": 0.04,
+          "value": 0.502
+        }
+      },
+      "manufactured": {
+        "Garments": {
+          "units": 3.4299999999999997,
+          "labor": 3.178450799999999,
+          "inputs": {
+            "Furs": 3.27,
+            "Cloth": 1.6600000000000004
+          },
+          "byproducts": {}
+        },
+        "Cloth": {
+          "units": 3.600759118976531,
+          "labor": 0.8884583602816668,
+          "inputs": {
+            "Hemp": 38.70816052899769
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        591,
+        11,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 11737.340068273339,
+          "value": 4407.689068711788,
+          "kg": 5459227.938731786,
+          "liters": 18197426.462439287,
+          "meanPrice": 0.31714285714285717
+        },
+        "Cloth": {
+          "units": 29.19142928998411,
+          "value": 1032.3842031685383,
+          "kg": 116765.71715993644,
+          "liters": 291914.2928998411,
+          "meanPrice": 53.980000000000004
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 194.07142857142858
+        },
+        "Wool": {
+          "units": 939.2845427158334,
+          "value": 3053.0200673561667,
+          "kg": 1408926.81407375,
+          "liters": 4696422.713579167,
+          "meanPrice": 4.014285714285714
+        },
+        "Linen": {
+          "units": 2.9800000000000004,
+          "value": 18.43,
+          "kg": 596.0000000000001,
+          "liters": 1490.0000000000002,
+          "meanPrice": 6.318571428571429
+        },
+        "Cotton": {
+          "units": 3322.03,
+          "value": 1661.015,
+          "kg": 664406,
+          "liters": 1898302.8571428573,
+          "meanPrice": 0.5
+        },
+        "Fine Wool Cloth": {
+          "units": 1.21,
+          "value": 6.023,
+          "kg": 242,
+          "liters": 605,
+          "meanPrice": 4.785714285714286
+        },
+        "Fine Wool Garments": {
+          "units": 5.88,
+          "value": 74.1468,
+          "kg": 1058.4,
+          "liters": 4233.6,
+          "meanPrice": 11.39
+        }
+      },
+      "flows": {
+        "Cloth:source:importArrival": {
+          "units": 1.895094961576138,
+          "value": 68.37590500768498
+        },
+        "Garments:source:importArrival": {
+          "units": 2.06,
+          "value": 337.4484
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 541.4667894899843,
+          "value": 185.35733102974407
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 144.87254478335382,
+          "value": 72.43627239167691
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 42.43436456539045,
+          "value": 140.6654210547963
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 2.3800000000000003,
+          "value": 84.1642
+        },
+        "Garments:source:burgCraft": {
+          "units": 3.670000000000001,
+          "value": 636.9068
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 35.259931726662046,
+          "value": 12.14597888213064
+        },
+        "Cloth:source:burgCraft": {
+          "units": 2.7435950707637033,
+          "value": 116.31434442305994
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 5.7299999999999995,
+          "value": 968.2707
+        },
+        "Fine Wool Garments:sink:characterLuxury": {
+          "units": 0.04,
+          "value": 0.5044
+        }
+      },
+      "manufactured": {
+        "Garments": {
+          "units": 3.670000000000001,
+          "labor": 3.4042491000000004,
+          "inputs": {
+            "Furs": 3.4900000000000007,
+            "Cloth": 1.7800000000000005
+          },
+          "byproducts": {}
+        },
+        "Cloth": {
+          "units": 3.5577794170524584,
+          "labor": 0.877313525696667,
+          "inputs": {
+            "Hemp": 38.24612873331393
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        591,
+        12,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 12244.108748958435,
+          "value": 4622.808114146091,
+          "kg": 5694934.301841133,
+          "liters": 18983114.339470442,
+          "meanPrice": 0.31857142857142856
+        },
+        "Cloth": {
+          "units": 31.058059777697835,
+          "value": 1066.6266051225757,
+          "kg": 124232.23911079134,
+          "liters": 310580.59777697833,
+          "meanPrice": 52.00857142857143
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 192.52285714285713
+        },
+        "Wool": {
+          "units": 981.7145427158332,
+          "value": 3190.93951187955,
+          "kg": 1472571.8140737498,
+          "liters": 4908572.713579166,
+          "meanPrice": 4.062857142857142
+        },
+        "Linen": {
+          "units": 3.7,
+          "value": 23.0898,
+          "kg": 740,
+          "liters": 1850,
+          "meanPrice": 6.291428571428573
+        },
+        "Cotton": {
+          "units": 3466.9599999999996,
+          "value": 1733.4799999999998,
+          "kg": 693391.9999999999,
+          "liters": 1981119.9999999998,
+          "meanPrice": 0.5
+        },
+        "Fine Wool Cloth": {
+          "units": 1.21,
+          "value": 6.0998,
+          "kg": 242,
+          "liters": 605,
+          "meanPrice": 4.755714285714286
+        },
+        "Fine Wool Garments": {
+          "units": 5.84,
+          "value": 74.1096,
+          "kg": 1051.2,
+          "liters": 4204.8,
+          "meanPrice": 11.34
+        }
+      },
+      "flows": {
+        "Cloth:source:importArrival": {
+          "units": 1.5467047054900147,
+          "value": 59.74300531751715
+        },
+        "Garments:source:importArrival": {
+          "units": 2.250000000000001,
+          "value": 367.97
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 541.6026412162782,
+          "value": 186.69331853690147
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 144.9276793089509,
+          "value": 72.46383965447545
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 42.43223128512265,
+          "value": 137.9047516766486
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 2.4400000000000004,
+          "value": 90.40420000000002
+        },
+        "Garments:source:burgCraft": {
+          "units": 3.750000000000001,
+          "value": 644.7841
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 34.86125104156647,
+          "value": 12.201155066185386
+        },
+        "Cloth:source:burgCraft": {
+          "units": 2.750168297850041,
+          "value": 105.06964636823176
+        },
+        "Linen:source:burgCraft": {
+          "units": 1,
+          "value": 6.64
+        },
+        "Linen:sink:exportDeparture": {
+          "units": 0.28,
+          "value": 1.8368
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 5.999999999999999,
+          "value": 1006.1312
+        },
+        "Fine Wool Garments:sink:characterLuxury": {
+          "units": 0.04,
+          "value": 0.5075999999999999
+        }
+      },
+      "manufactured": {
+        "Garments": {
+          "units": 3.750000000000001,
+          "labor": 3.4898930999999993,
+          "inputs": {
+            "Furs": 3.5700000000000007,
+            "Cloth": 1.8200000000000005
+          },
+          "byproducts": {}
+        },
+        "Cloth": {
+          "units": 3.521424461377974,
+          "labor": 0.86783681337,
+          "inputs": {
+            "Hemp": 37.85531295981321
+          },
+          "byproducts": {}
+        },
+        "Linen": {
+          "units": 1,
+          "labor": 1,
+          "inputs": {
+            "Flax": 10
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        592,
+        1,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 12749.075029356945,
+          "value": 4769.315591730918,
+          "kg": 5929802.339235789,
+          "liters": 19766007.79745263,
+          "meanPrice": 0.37
+        },
+        "Cloth": {
+          "units": 33.16940037697607,
+          "value": 1099.453002483028,
+          "kg": 132677.6015079043,
+          "liters": 331694.0037697607,
+          "meanPrice": 61.907777777777774
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 190.0388888888889
+        },
+        "Wool": {
+          "units": 1028.324542715833,
+          "value": 3423.775065548617,
+          "kg": 1542486.8140737496,
+          "liters": 5141622.713579166,
+          "meanPrice": 5.54
+        },
+        "Linen": {
+          "units": 3.77,
+          "value": 23.174200000000003,
+          "kg": 754,
+          "liters": 1885,
+          "meanPrice": 6.558888888888889
+        },
+        "Cotton": {
+          "units": 3504.3700000000003,
+          "value": 3837.8881,
+          "kg": 700874.0000000001,
+          "liters": 2002497.1428571432,
+          "meanPrice": 0.7955555555555556
+        },
+        "Fine Wool Cloth": {
+          "units": 1.21,
+          "value": 6.164499999999999,
+          "kg": 242,
+          "liters": 605,
+          "meanPrice": 5.321111111111112
+        },
+        "Fine Wool Garments": {
+          "units": 5.8,
+          "value": 73.892,
+          "kg": 1044,
+          "liters": 4176,
+          "meanPrice": 11.744444444444445
+        }
+      },
+      "flows": {
+        "Cloth:source:importArrival": {
+          "units": 1.8405418298771088,
+          "value": 69.27406252538596
+        },
+        "Garments:source:importArrival": {
+          "units": 2.250000000000001,
+          "value": 365.1152
+        },
+        "Linen:source:importArrival": {
+          "units": 0.28,
+          "value": 2.1084
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 541.143909818888,
+          "value": 278.7639359959316
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 144.77061556398863,
+          "value": 132.04046856522555
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 46.59740692998261,
+          "value": 279.81667947337445
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 2.2800000000000002,
+          "value": 83.7588
+        },
+        "Garments:source:burgCraft": {
+          "units": 3.3600000000000003,
+          "value": 576.3006
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 36.174970643052816,
+          "value": 13.688012401571196
+        },
+        "Cloth:source:burgCraft": {
+          "units": 2.7888554879120573,
+          "value": 115.37981478091825
+        },
+        "Cloth:sink:exportDeparture": {
+          "units": 0.3,
+          "value": 15.783
+        },
+        "Garments:sink:exportDeparture": {
+          "units": 0.12,
+          "value": 18.615599999999997
+        },
+        "Linen:sink:exportDeparture": {
+          "units": 0.21,
+          "value": 1.2558
+        },
+        "Cotton:sink:exportDeparture": {
+          "units": 107.35,
+          "value": 53.675
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 5.49,
+          "value": 914.9496
+        },
+        "Fine Wool Garments:sink:characterLuxury": {
+          "units": 0.04,
+          "value": 0.5096
+        }
+      },
+      "manufactured": {
+        "Garments": {
+          "units": 3.3600000000000008,
+          "labor": 3.0193640999999993,
+          "inputs": {
+            "Furs": 3.0900000000000003,
+            "Cloth": 1.5799999999999998
+          },
+          "byproducts": {}
+        },
+        "Cloth": {
+          "units": 3.6436201760407423,
+          "labor": 0.8745966338999999,
+          "inputs": {
+            "Hemp": 39.16891689243797
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        592,
+        2,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 13250.972934591153,
+          "value": 4913.372872745492,
+          "kg": 6163243.225391234,
+          "liters": 20544144.08463745,
+          "meanPrice": 0.3244444444444445
+        },
+        "Cloth": {
+          "units": 33.92881963812293,
+          "value": 1124.5765677364195,
+          "kg": 135715.2785524917,
+          "liters": 339288.1963812293,
+          "meanPrice": 60.5488888888889
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 196.45222222222222
+        },
+        "Wool": {
+          "units": 1074.9245427158335,
+          "value": 3586.4580103732583,
+          "kg": 1612386.8140737503,
+          "liters": 5374622.713579168,
+          "meanPrice": 5.125555555555556
+        },
+        "Linen": {
+          "units": 3.8200000000000003,
+          "value": 23.0995,
+          "kg": 764,
+          "liters": 1910.0000000000002,
+          "meanPrice": 6.377777777777777
+        },
+        "Cotton": {
+          "units": 3653.65,
+          "value": 4561.3364,
+          "kg": 730730,
+          "liters": 2087800,
+          "meanPrice": 0.8366666666666667
+        },
+        "Fine Wool Cloth": {
+          "units": 1.21,
+          "value": 6.1768,
+          "kg": 242,
+          "liters": 605,
+          "meanPrice": 5.288888888888889
+        },
+        "Fine Wool Garments": {
+          "units": 5.76,
+          "value": 73.0944,
+          "kg": 1036.8,
+          "liters": 4147.2,
+          "meanPrice": 11.838888888888889
+        }
+      },
+      "flows": {
+        "Cloth:source:importArrival": {
+          "units": 1.8579792274511573,
+          "value": 84.86829682912493
+        },
+        "Garments:source:importArrival": {
+          "units": 2.1400000000000006,
+          "value": 346.1964
+        },
+        "Cotton:source:importArrival": {
+          "units": 107.35,
+          "value": 53.675
+        },
+        "Linen:source:importArrival": {
+          "units": 0.21,
+          "value": 1.5288
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 541.3056994857789,
+          "value": 219.48128151842354
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 144.82957593262202,
+          "value": 215.77770301314897
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 46.595254423299735,
+          "value": 232.746562084965
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 3.690000000000001,
+          "value": 162.37299999999996
+        },
+        "Garments:source:burgCraft": {
+          "units": 4.1000000000000005,
+          "value": 723.2474
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 39.437065408852696,
+          "value": 13.762289096465336
+        },
+        "Cloth:source:burgCraft": {
+          "units": 2.6591762940304497,
+          "value": 130.11227367349417
+        },
+        "Cloth:sink:exportDeparture": {
+          "units": 0.23,
+          "value": 12.330300000000001
+        },
+        "Linen:sink:exportDeparture": {
+          "units": 0.16,
+          "value": 0.912
+        },
+        "Cotton:sink:exportDeparture": {
+          "units": 102.9,
+          "value": 143.031
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 6.24,
+          "value": 1064.1169
+        },
+        "Fine Wool Garments:sink:characterLuxury": {
+          "units": 0.04,
+          "value": 0.5075999999999999
+        }
+      },
+      "manufactured": {
+        "Garments": {
+          "units": 4.1000000000000005,
+          "labor": 3.6950094,
+          "inputs": {
+            "Furs": 3.7900000000000014,
+            "Cloth": 1.9300000000000008
+          },
+          "byproducts": {}
+        },
+        "Cloth": {
+          "units": 3.800149956245956,
+          "labor": 0.9150051220400001,
+          "inputs": {
+            "Hemp": 40.851612029644045
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        592,
+        3,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 13753.171774004613,
+          "value": 5054.520166259013,
+          "kg": 6396824.080932379,
+          "liters": 21322746.93644126,
+          "meanPrice": 0.30444444444444446
+        },
+        "Cloth": {
+          "units": 35.669961364188026,
+          "value": 1183.4622542940358,
+          "kg": 142679.8454567521,
+          "liters": 356699.6136418803,
+          "meanPrice": 58.84
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 199.59444444444443
+        },
+        "Wool": {
+          "units": 1121.5245427158334,
+          "value": 3707.766628062108,
+          "kg": 1682286.81407375,
+          "liters": 5607622.713579167,
+          "meanPrice": 4.796666666666667
+        },
+        "Linen": {
+          "units": 3.9799999999999995,
+          "value": 23.652,
+          "kg": 795.9999999999999,
+          "liters": 1989.9999999999998,
+          "meanPrice": 6.214444444444444
+        },
+        "Cotton": {
+          "units": 3802.560000000001,
+          "value": 4793.6825,
+          "kg": 760512.0000000001,
+          "liters": 2172891.428571429,
+          "meanPrice": 0.8611111111111112
+        },
+        "Fine Wool Cloth": {
+          "units": 1.21,
+          "value": 6.1770000000000005,
+          "kg": 242,
+          "liters": 605,
+          "meanPrice": 5.22
+        },
+        "Fine Wool Garments": {
+          "units": 5.72,
+          "value": 72.1292,
+          "kg": 1029.6,
+          "liters": 4118.4,
+          "meanPrice": 11.835555555555555
+        }
+      },
+      "flows": {
+        "Cloth:source:importArrival": {
+          "units": 1.7107620720557628,
+          "value": 101.54497415613967
+        },
+        "Garments:source:importArrival": {
+          "units": 2.3300000000000005,
+          "value": 386.0472
+        },
+        "Cotton:source:importArrival": {
+          "units": 102.91,
+          "value": 51.455
+        },
+        "Linen:source:importArrival": {
+          "units": 0.16,
+          "value": 1.1152
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 541.4584123568535,
+          "value": 191.21551843769075
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 144.88545972347262,
+          "value": 259.0126643603863
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 46.59310114582534,
+          "value": 197.71048882318743
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 2.9900000000000007,
+          "value": 147.6302
+        },
+        "Garments:source:burgCraft": {
+          "units": 4.2700000000000005,
+          "value": 759.5218
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 39.25822599538742,
+          "value": 13.239359010342977
+        },
+        "Cloth:source:burgCraft": {
+          "units": 2.9898886278575567,
+          "value": 132.92227154895298
+        },
+        "Cotton:sink:exportDeparture": {
+          "units": 98.89,
+          "value": 175.0353
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 6.6,
+          "value": 1142.7884
+        },
+        "Fine Wool Garments:sink:characterLuxury": {
+          "units": 0.04,
+          "value": 0.5044
+        }
+      },
+      "manufactured": {
+        "Garments": {
+          "units": 4.2700000000000005,
+          "labor": 3.8654172,
+          "inputs": {
+            "Furs": 3.9700000000000015,
+            "Cloth": 2.010000000000001
+          },
+          "byproducts": {}
+        },
+        "Cloth": {
+          "units": 3.783627320277387,
+          "labor": 0.9108799329733333,
+          "inputs": {
+            "Hemp": 40.67399369298191
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        592,
+        4,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 13952.478936004552,
+          "value": 12336.376920487452,
+          "kg": 6489525.086513746,
+          "liters": 21631750.28837915,
+          "meanPrice": 0.5977777777777777
+        },
+        "Cloth": {
+          "units": 35.37569045159785,
+          "value": 1060.8754131524317,
+          "kg": 141502.76180639138,
+          "liters": 353756.9045159785,
+          "meanPrice": 57.49666666666667
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 201.04333333333332
+        },
+        "Wool": {
+          "units": 1168.1145427158333,
+          "value": 3806.9070457509583,
+          "kg": 1752171.81407375,
+          "liters": 5840572.713579167,
+          "meanPrice": 4.53888888888889
+        },
+        "Linen": {
+          "units": 3.9799999999999995,
+          "value": 23.276,
+          "kg": 795.9999999999999,
+          "liters": 1989.9999999999998,
+          "meanPrice": 6.096666666666668
+        },
+        "Cotton": {
+          "units": 3951.1200000000003,
+          "value": 4822.4932,
+          "kg": 790224.0000000001,
+          "liters": 2257782.8571428573,
+          "meanPrice": 0.8688888888888889
+        },
+        "Fine Wool Cloth": {
+          "units": 1.21,
+          "value": 6.1832,
+          "kg": 242,
+          "liters": 605,
+          "meanPrice": 5.144444444444444
+        },
+        "Fine Wool Garments": {
+          "units": 5.68,
+          "value": 71.3976,
+          "kg": 1022.4,
+          "liters": 4089.6,
+          "meanPrice": 11.793333333333331
+        }
+      },
+      "flows": {
+        "Cloth:source:importArrival": {
+          "units": 1.858172127945177,
+          "value": 83.19085010755236
+        },
+        "Garments:source:importArrival": {
+          "units": 2.3300000000000005,
+          "value": 387.41420000000005
+        },
+        "Cotton:source:importArrival": {
+          "units": 98.89,
+          "value": 49.445
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 541.6203215475082,
+          "value": 179.3719847956276
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 144.94538716614247,
+          "value": 276.6440681570024
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 46.59094703764824,
+          "value": 172.22931706893712
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 4.010000000000001,
+          "value": 266.72880000000004
+        },
+        "Garments:source:burgCraft": {
+          "units": 4.110000000000001,
+          "value": 735.6889
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 39.360795377005815,
+          "value": 13.272722475753367
+        },
+        "Cloth:source:burgCraft": {
+          "units": 2.739150653964585,
+          "value": 108.68511508781877
+        },
+        "Hemp:sink:exportDeparture": {
+          "units": 302.93,
+          "value": 106.0255
+        },
+        "Cloth:sink:exportDeparture": {
+          "units": 1,
+          "value": 24.83
+        },
+        "Cotton:sink:exportDeparture": {
+          "units": 95.28,
+          "value": 181.9848
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 6.4399999999999995,
+          "value": 1118.9406
+        },
+        "Fine Wool Garments:sink:characterLuxury": {
+          "units": 0.04,
+          "value": 0.5028
+        }
+      },
+      "manufactured": {
+        "Garments": {
+          "units": 4.110000000000001,
+          "labor": 3.7210616999999995,
+          "inputs": {
+            "Furs": 3.8200000000000016,
+            "Cloth": 1.9300000000000008
+          },
+          "byproducts": {}
+        },
+        "Cloth": {
+          "units": 3.7924248840870214,
+          "labor": 0.9130054053583332,
+          "inputs": {
+            "Hemp": 40.76856750393549
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        592,
+        5,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 14764.012905004667,
+          "value": 8878.640707647892,
+          "kg": 6866982.746513799,
+          "liters": 22889942.48837933,
+          "meanPrice": 0.4455555555555554
+        },
+        "Cloth": {
+          "units": 37.45459596946851,
+          "value": 1152.4920675742214,
+          "kg": 149818.38387787403,
+          "liters": 374545.95969468507,
+          "meanPrice": 56.50777777777779
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 201.4077777777778
+        },
+        "Wool": {
+          "units": 1214.66839559,
+          "value": 3949.81988528085,
+          "kg": 1822002.593385,
+          "liters": 6073341.97795,
+          "meanPrice": 4.4255555555555555
+        },
+        "Linen": {
+          "units": 3.9799999999999995,
+          "value": 22.9968,
+          "kg": 795.9999999999999,
+          "liters": 1989.9999999999998,
+          "meanPrice": 6.012222222222222
+        },
+        "Cotton": {
+          "units": 4099.37,
+          "value": 4766.574600000001,
+          "kg": 819874,
+          "liters": 2342497.1428571427,
+          "meanPrice": 0.8644444444444443
+        },
+        "Fine Wool Cloth": {
+          "units": 1.3304904194444445,
+          "value": 6.656134168722223,
+          "kg": 266.0980838888889,
+          "liters": 665.2452097222223,
+          "meanPrice": 5.064444444444444
+        },
+        "Fine Wool Garments": {
+          "units": 5.64,
+          "value": 70.8948,
+          "kg": 1015.1999999999999,
+          "liters": 4060.7999999999997,
+          "meanPrice": 11.72
+        }
+      },
+      "flows": {
+        "Cloth:source:importArrival": {
+          "units": 2.7367299112209937,
+          "value": 112.87943837281871
+        },
+        "Garments:source:importArrival": {
+          "units": 2.3400000000000003,
+          "value": 388.5336000000001
+        },
+        "Cotton:source:importArrival": {
+          "units": 95.26696319999998,
+          "value": 47.63348159999999
+        },
+        "Hemp:source:importArrival": {
+          "units": 302.93,
+          "value": 75.7325
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 541.7829998319149,
+          "value": 301.38936434131386
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 145.0044197809696,
+          "value": 281.1515070705055
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 46.58879211433351,
+          "value": 153.9486669207207
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 2.98,
+          "value": 121.01579999999998
+        },
+        "Garments:source:burgCraft": {
+          "units": 3.960000000000001,
+          "value": 683.944
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 33.187094995335215,
+          "value": 11.381206526992013
+        },
+        "Cloth:source:burgCraft": {
+          "units": 2.2071405957806944,
+          "value": 103.01600167959326
+        },
+        "Wool:sink:recipeInput": {
+          "units": 0.036147125833333335,
+          "value": 0.11747815895833334
+        },
+        "Fine Wool Cloth:source:burgCraft": {
+          "units": 0.12049041944444445,
+          "value": 0.4518390729166667
+        },
+        "Cotton:sink:exportDeparture": {
+          "units": 92.04,
+          "value": 178.5576
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 6.300000000000001,
+          "value": 1068.134
+        },
+        "Fine Wool Garments:sink:characterLuxury": {
+          "units": 0.04,
+          "value": 0.5028
+        }
+      },
+      "manufactured": {
+        "Garments": {
+          "units": 3.9600000000000013,
+          "labor": 3.5602712999999993,
+          "inputs": {
+            "Furs": 3.6500000000000017,
+            "Cloth": 1.8400000000000005
+          },
+          "byproducts": {}
+        },
+        "Cloth": {
+          "units": 3.422097997528977,
+          "labor": 0.8274521129016668,
+          "inputs": {
+            "Hemp": 36.78755347343651
+          },
+          "byproducts": {}
+        },
+        "Fine Wool Cloth": {
+          "units": 0.12049041944444445,
+          "labor": 0.0021345916666666667,
+          "inputs": {
+            "Wool": 0.036147125833333335
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        592,
+        6,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 15272.346473705697,
+          "value": 7185.468271704745,
+          "kg": 7103416.964514278,
+          "liters": 23678056.548380926,
+          "meanPrice": 0.36999999999999994
+        },
+        "Cloth": {
+          "units": 37.44010052510099,
+          "value": 1131.6656825493505,
+          "kg": 149760.40210040394,
+          "liters": 374401.0052510099,
+          "meanPrice": 55.65
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 201.09444444444446
+        },
+        "Wool": {
+          "units": 1261.2945427158336,
+          "value": 4101.195481128658,
+          "kg": 1891941.8140737503,
+          "liters": 6306472.713579168,
+          "meanPrice": 4.34
+        },
+        "Linen": {
+          "units": 3.9799999999999995,
+          "value": 22.804499999999997,
+          "kg": 795.9999999999999,
+          "liters": 1989.9999999999998,
+          "meanPrice": 5.953333333333333
+        },
+        "Cotton": {
+          "units": 4336.48,
+          "value": 3433.7298,
+          "kg": 867295.9999999999,
+          "liters": 2477988.5714285714,
+          "meanPrice": 0.6577777777777778
+        },
+        "Fine Wool Cloth": {
+          "units": 1.45,
+          "value": 7.1119,
+          "kg": 290,
+          "liters": 725,
+          "meanPrice": 4.987777777777778
+        },
+        "Fine Wool Garments": {
+          "units": 5.6,
+          "value": 70.448,
+          "kg": 1007.9999999999999,
+          "liters": 4031.9999999999995,
+          "meanPrice": 11.628888888888888
+        }
+      },
+      "flows": {
+        "Cloth:source:importArrival": {
+          "units": 1.2917174086009373,
+          "value": 50.14672197876448
+        },
+        "Garments:source:importArrival": {
+          "units": 2.3500000000000005,
+          "value": 390.72989999999993
+        },
+        "Fine Wool Cloth:source:importArrival": {
+          "units": 0.12049041944444445,
+          "value": 0.4506341687222223
+        },
+        "Cotton:source:importArrival": {
+          "units": 92.04,
+          "value": 46.02
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 541.9492671031952,
+          "value": 237.96535243440152
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 145.0655096331239,
+          "value": 278.7504843512357
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 46.586636342700075,
+          "value": 151.75473103263278
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 3.8,
+          "value": 160.8238
+        },
+        "Garments:source:burgCraft": {
+          "units": 4.120000000000001,
+          "value": 740.3668000000001
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 33.64352629430364,
+          "value": 12.946409682622502
+        },
+        "Cloth:source:burgCraft": {
+          "units": 2.3398437331854334,
+          "value": 98.66616740858973
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 6.47,
+          "value": 1126.0902999999998
+        },
+        "Fine Wool Garments:sink:characterLuxury": {
+          "units": 0.04,
+          "value": 0.5032
+        }
+      },
+      "manufactured": {
+        "Garments": {
+          "units": 4.240000000000001,
+          "labor": 3.8185830000000003,
+          "inputs": {
+            "Furs": 3.930000000000001,
+            "Cloth": 1.9800000000000009
+          },
+          "byproducts": {}
+        },
+        "Cloth": {
+          "units": 3.4648851996246903,
+          "labor": 0.8344361727849999,
+          "inputs": {
+            "Hemp": 37.24751589596542
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        592,
+        7,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 15777.244034584768,
+          "value": 6460.259925907945,
+          "kg": 7338253.039341753,
+          "liters": 24460843.46447251,
+          "meanPrice": 0.3344444444444445
+        },
+        "Cloth": {
+          "units": 38.65207133057788,
+          "value": 1131.0956986158149,
+          "kg": 154608.28532231154,
+          "liters": 386520.7133057788,
+          "meanPrice": 54.63666666666667
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 200.73333333333335
+        },
+        "Wool": {
+          "units": 1307.8745427158335,
+          "value": 4252.319398817508,
+          "kg": 1961811.8140737503,
+          "liters": 6539372.713579168,
+          "meanPrice": 4.266666666666667
+        },
+        "Linen": {
+          "units": 5.9799999999999995,
+          "value": 41.38249999999999,
+          "kg": 1196,
+          "liters": 2989.9999999999995,
+          "meanPrice": 5.904444444444445
+        },
+        "Cotton": {
+          "units": 4481.62,
+          "value": 2765.5595000000003,
+          "kg": 896324,
+          "liters": 2560925.714285714,
+          "meanPrice": 0.5611111111111111
+        },
+        "Fine Wool Cloth": {
+          "units": 1.45,
+          "value": 7.1367,
+          "kg": 290,
+          "liters": 725,
+          "meanPrice": 4.928888888888888
+        },
+        "Fine Wool Garments": {
+          "units": 5.56,
+          "value": 70.1672,
+          "kg": 1000.8,
+          "liters": 4003.2,
+          "meanPrice": 11.552222222222222
+        }
+      },
+      "flows": {
+        "Cloth:source:importArrival": {
+          "units": 1.4451594094358928,
+          "value": 61.65615091610816
+        },
+        "Garments:source:importArrival": {
+          "units": 2.4100000000000006,
+          "value": 396.64899999999994
+        },
+        "Cotton:source:importArrival": {
+          "units": 0.01,
+          "value": 0.005
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 542.1152588613035,
+          "value": 206.70653226996177
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 145.12565426141018,
+          "value": 161.87505870190853
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 46.584479738941006,
+          "value": 151.66067132792378
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 2.910000000000001,
+          "value": 159.68329999999997
+        },
+        "Garments:source:burgCraft": {
+          "units": 3.920000000000001,
+          "value": 681.9956
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 37.225965415234505,
+          "value": 14.11233048459532
+        },
+        "Cloth:source:burgCraft": {
+          "units": 2.6879625184671982,
+          "value": 114.76149616676666
+        },
+        "Linen:source:burgCraft": {
+          "units": 2,
+          "value": 19.02
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 6.33,
+          "value": 1073.9778000000001
+        },
+        "Fine Wool Garments:sink:characterLuxury": {
+          "units": 0.04,
+          "value": 0.5048
+        }
+      },
+      "manufactured": {
+        "Garments": {
+          "units": 4.19,
+          "labor": 3.7690352999999996,
+          "inputs": {
+            "Furs": 3.880000000000001,
+            "Cloth": 1.9500000000000008
+          },
+          "byproducts": {}
+        },
+        "Cloth": {
+          "units": 3.798519496804014,
+          "labor": 0.9143450559816668,
+          "inputs": {
+            "Hemp": 40.834084590643144
+          },
+          "byproducts": {}
+        },
+        "Linen": {
+          "units": 2,
+          "labor": 2,
+          "inputs": {
+            "Flax": 20
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        592,
+        8,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 16279.816073121943,
+          "value": 6207.260220723647,
+          "kg": 7572007.475870672,
+          "liters": 25240024.919568907,
+          "meanPrice": 0.3188888888888889
+        },
+        "Cloth": {
+          "units": 40.1894623680579,
+          "value": 1159.2628294412193,
+          "kg": 160757.8494722316,
+          "liters": 401894.623680579,
+          "meanPrice": 53.77
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 200.36
+        },
+        "Wool": {
+          "units": 1354.4545427158332,
+          "value": 4403.356916506358,
+          "kg": 2031681.8140737498,
+          "liters": 6772272.713579166,
+          "meanPrice": 4.203333333333333
+        },
+        "Linen": {
+          "units": 5.9799999999999995,
+          "value": 37.4114,
+          "kg": 1196,
+          "liters": 2989.9999999999995,
+          "meanPrice": 5.672222222222222
+        },
+        "Cotton": {
+          "units": 4626.8,
+          "value": 2465.9515,
+          "kg": 925360,
+          "liters": 2643885.7142857146,
+          "meanPrice": 0.5166666666666667
+        },
+        "Fine Wool Cloth": {
+          "units": 1.45,
+          "value": 7.1808,
+          "kg": 290,
+          "liters": 725,
+          "meanPrice": 4.884444444444444
+        },
+        "Fine Wool Garments": {
+          "units": 5.52,
+          "value": 69.93839999999999,
+          "kg": 993.5999999999999,
+          "liters": 3974.3999999999996,
+          "meanPrice": 11.488888888888889
+        }
+      },
+      "flows": {
+        "Cloth:source:importArrival": {
+          "units": 1.5895826419727572,
+          "value": 59.7348507547447
+        },
+        "Garments:source:importArrival": {
+          "units": 2.2400000000000007,
+          "value": 351.2647
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 542.2889008677006,
+          "value": 192.0200594424748
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 145.18840825349093,
+          "value": 107.2011336273998
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 46.5823222665447,
+          "value": 151.5766930994137
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 3.17,
+          "value": 150.0408
+        },
+        "Garments:source:burgCraft": {
+          "units": 3.9400000000000004,
+          "value": 673.9995
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 39.74392687805518,
+          "value": 13.97802980231313
+        },
+        "Cloth:source:burgCraft": {
+          "units": 3.0485303046851477,
+          "value": 134.42721705749403
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 6.180000000000001,
+          "value": 1020.5971000000001
+        },
+        "Fine Wool Garments:sink:characterLuxury": {
+          "units": 0.04,
+          "value": 0.5068
+        }
+      },
+      "manufactured": {
+        "Garments": {
+          "units": 3.940000000000001,
+          "labor": 3.5279333999999998,
+          "inputs": {
+            "Furs": 3.6200000000000006,
+            "Cloth": 1.8200000000000007
+          },
+          "byproducts": {}
+        },
+        "Cloth": {
+          "units": 4.033194786492173,
+          "labor": 0.9744084791633334,
+          "inputs": {
+            "Hemp": 43.35684395479086
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        592,
+        9,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 16783.15038608025,
+          "value": 6142.365950110878,
+          "kg": 7806116.458641978,
+          "liters": 26020388.19547326,
+          "meanPrice": 0.31
+        },
+        "Cloth": {
+          "units": 41.44354708967637,
+          "value": 1185.5974739609044,
+          "kg": 165774.1883587055,
+          "liters": 414435.4708967637,
+          "meanPrice": 52.94333333333334
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 199.58333333333337
+        },
+        "Wool": {
+          "units": 1401.0345427158334,
+          "value": 4554.324879622366,
+          "kg": 2101551.8140737503,
+          "liters": 7005172.713579167,
+          "meanPrice": 4.1499999999999995
+        },
+        "Linen": {
+          "units": 5.9799999999999995,
+          "value": 34.8043,
+          "kg": 1196,
+          "liters": 2989.9999999999995,
+          "meanPrice": 5.52
+        },
+        "Cotton": {
+          "units": 4772.06,
+          "value": 2386.03,
+          "kg": 954412.0000000001,
+          "liters": 2726891.428571429,
+          "meanPrice": 0.5
+        },
+        "Fine Wool Cloth": {
+          "units": 1.45,
+          "value": 7.2269000000000005,
+          "kg": 290,
+          "liters": 725,
+          "meanPrice": 4.846666666666668
+        },
+        "Fine Wool Garments": {
+          "units": 5.48,
+          "value": 69.8152,
+          "kg": 986.4000000000001,
+          "liters": 3945.6000000000004,
+          "meanPrice": 11.437777777777779
+        }
+      },
+      "flows": {
+        "Cloth:source:importArrival": {
+          "units": 1.829049872649606,
+          "value": 73.62616871703416
+        },
+        "Garments:source:importArrival": {
+          "units": 2.2600000000000002,
+          "value": 364.97659999999996
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 542.4602366304398,
+          "value": 185.9548520878887
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 145.25117559313767,
+          "value": 82.06770942945774
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 46.5801639200862,
+          "value": 151.50096294815387
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 3.4699999999999993,
+          "value": 155.1674
+        },
+        "Garments:source:burgCraft": {
+          "units": 4.140000000000001,
+          "value": 717.9852999999999
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 39.09961391974759,
+          "value": 13.410751838631956
+        },
+        "Cloth:source:burgCraft": {
+          "units": 2.819131432588514,
+          "value": 113.93587510186265
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 6.3999999999999995,
+          "value": 1078.2171999999998
+        },
+        "Fine Wool Garments:sink:characterLuxury": {
+          "units": 0.04,
+          "value": 0.5096
+        }
+      },
+      "manufactured": {
+        "Garments": {
+          "units": 4.14,
+          "labor": 3.7160127000000003,
+          "inputs": {
+            "Furs": 3.810000000000001,
+            "Cloth": 1.9000000000000006
+          },
+          "byproducts": {}
+        },
+        "Cloth": {
+          "units": 3.973782201327732,
+          "labor": 0.9591456616966666,
+          "inputs": {
+            "Hemp": 42.71815866427314
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        592,
+        10,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 17287.25819919028,
+          "value": 6160.544394334989,
+          "kg": 8040585.208925713,
+          "liters": 26801950.69641904,
+          "meanPrice": 0.30444444444444446
+        },
+        "Cloth": {
+          "units": 43.017547336138534,
+          "value": 1237.363110411356,
+          "kg": 172070.18934455415,
+          "liters": 430175.47336138535,
+          "meanPrice": 52.654444444444444
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 198.75555555555553
+        },
+        "Wool": {
+          "units": 1447.6145427158335,
+          "value": 4705.244242738375,
+          "kg": 2171421.8140737503,
+          "liters": 7238072.713579168,
+          "meanPrice": 4.105555555555556
+        },
+        "Linen": {
+          "units": 5.9799999999999995,
+          "value": 33.2923,
+          "kg": 1196,
+          "liters": 2989.9999999999995,
+          "meanPrice": 5.43
+        },
+        "Cotton": {
+          "units": 4917.4,
+          "value": 2458.7,
+          "kg": 983479.9999999999,
+          "liters": 2809942.857142857,
+          "meanPrice": 0.5
+        },
+        "Fine Wool Cloth": {
+          "units": 1.45,
+          "value": 7.2749999999999995,
+          "kg": 290,
+          "liters": 725,
+          "meanPrice": 4.811111111111111
+        },
+        "Fine Wool Garments": {
+          "units": 5.44,
+          "value": 69.74080000000001,
+          "kg": 979.2,
+          "liters": 3916.8,
+          "meanPrice": 11.39111111111111
+        }
+      },
+      "flows": {
+        "Cloth:source:importArrival": {
+          "units": 1.8490606466338786,
+          "value": 69.86725955569077
+        },
+        "Garments:source:importArrival": {
+          "units": 2.4200000000000004,
+          "value": 396.13469999999995
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 542.6308671488761,
+          "value": 182.31879905178548
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 145.312880435586,
+          "value": 72.656440217793
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 46.57800471728109,
+          "value": 151.43256390836453
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 2.8500000000000005,
+          "value": 124.9431
+        },
+        "Garments:source:burgCraft": {
+          "units": 4.12,
+          "value": 722.987
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 38.471800809720904,
+          "value": 13.002540409091054
+        },
+        "Cloth:source:burgCraft": {
+          "units": 2.583114162453299,
+          "value": 104.65487346377262
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 6.54,
+          "value": 1114.0901
+        },
+        "Fine Wool Garments:sink:characterLuxury": {
+          "units": 0.04,
+          "value": 0.5128
+        }
+      },
+      "manufactured": {
+        "Garments": {
+          "units": 4.12,
+          "labor": 3.7129535999999996,
+          "inputs": {
+            "Furs": 3.8200000000000007,
+            "Cloth": 1.9000000000000008
+          },
+          "byproducts": {}
+        },
+        "Cloth": {
+          "units": 3.91595793468084,
+          "labor": 0.9443236428083335,
+          "inputs": {
+            "Hemp": 42.09654779781903
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        592,
+        11,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 17790.111478770148,
+          "value": 6325.245261406011,
+          "kg": 8274470.45524193,
+          "liters": 27581568.184139766,
+          "meanPrice": 0.30444444444444446
+        },
+        "Cloth": {
+          "units": 44.06920111850935,
+          "value": 1257.5486405141426,
+          "kg": 176276.8044740374,
+          "liters": 440692.0111850935,
+          "meanPrice": 52.221111111111114
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 198.14999999999998
+        },
+        "Wool": {
+          "units": 1494.1491570625,
+          "value": 4856.495293335366,
+          "kg": 2241223.73559375,
+          "liters": 7470745.785312501,
+          "meanPrice": 4.128888888888889
+        },
+        "Linen": {
+          "units": 5.9799999999999995,
+          "value": 32.403400000000005,
+          "kg": 1196,
+          "liters": 2989.9999999999995,
+          "meanPrice": 5.378888888888889
+        },
+        "Cotton": {
+          "units": 5062.8,
+          "value": 2531.4,
+          "kg": 1012560,
+          "liters": 2893028.571428572,
+          "meanPrice": 0.5
+        },
+        "Fine Wool Cloth": {
+          "units": 1.601285511111111,
+          "value": 8.531732668444445,
+          "kg": 320.2571022222222,
+          "liters": 800.6427555555555,
+          "meanPrice": 4.77888888888889
+        },
+        "Fine Wool Garments": {
+          "units": 5.4,
+          "value": 69.876,
+          "kg": 972.0000000000001,
+          "liters": 3888.0000000000005,
+          "meanPrice": 11.36
+        }
+      },
+      "flows": {
+        "Cloth:source:importArrival": {
+          "units": 1.5537787926034794,
+          "value": 60.88283326919633
+        },
+        "Garments:source:importArrival": {
+          "units": 2.4200000000000004,
+          "value": 395.26820000000015
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 542.8092213551997,
+          "value": 180.06671563388585
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 145.377234044373,
+          "value": 72.6886170221865
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 46.57584462111144,
+          "value": 151.37149501861222
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 3.1500000000000004,
+          "value": 144.94719999999995
+        },
+        "Garments:source:burgCraft": {
+          "units": 4.28,
+          "value": 754.6320000000001
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 39.928521229851235,
+          "value": 13.386643938199015
+        },
+        "Cloth:source:burgCraft": {
+          "units": 2.6577926446872278,
+          "value": 102.51818620239268
+        },
+        "Wool:sink:recipeInput": {
+          "units": 0.04538565333333334,
+          "value": 0.14750337333333335
+        },
+        "Fine Wool Cloth:source:burgCraft": {
+          "units": 0.15128551111111113,
+          "value": 1.2057455235555556
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 6.7,
+          "value": 1145.2274
+        },
+        "Fine Wool Garments:sink:characterLuxury": {
+          "units": 0.04,
+          "value": 0.5176
+        }
+      },
+      "manufactured": {
+        "Garments": {
+          "units": 4.28,
+          "labor": 3.8464875,
+          "inputs": {
+            "Furs": 3.9500000000000006,
+            "Cloth": 1.9700000000000009
+          },
+          "byproducts": {}
+        },
+        "Cloth": {
+          "units": 3.910706338436526,
+          "labor": 0.9425710907766667,
+          "inputs": {
+            "Hemp": 42.04009313819265
+          },
+          "byproducts": {}
+        },
+        "Fine Wool Cloth": {
+          "units": 0.15128551111111113,
+          "labor": 0.0028187833333333336,
+          "inputs": {
+            "Wool": 0.04538565333333334
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        592,
+        12,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 18291.77942105724,
+          "value": 6459.003051865805,
+          "kg": 8507804.38188709,
+          "liters": 28359347.939623628,
+          "meanPrice": 0.3033333333333334
+        },
+        "Cloth": {
+          "units": 46.14105083288352,
+          "value": 1329.7050689846822,
+          "kg": 184564.20333153408,
+          "liters": 461410.50832883525,
+          "meanPrice": 51.77666666666667
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 197.53
+        },
+        "Wool": {
+          "units": 1540.7345427158334,
+          "value": 5007.9132869605,
+          "kg": 2311101.8140737503,
+          "liters": 7703672.713579167,
+          "meanPrice": 4.155555555555555
+        },
+        "Linen": {
+          "units": 5.9799999999999995,
+          "value": 31.8378,
+          "kg": 1196,
+          "liters": 2989.9999999999995,
+          "meanPrice": 5.345555555555555
+        },
+        "Cotton": {
+          "units": 5208.25,
+          "value": 2604.125,
+          "kg": 1041650,
+          "liters": 2976142.8571428573,
+          "meanPrice": 0.5
+        },
+        "Fine Wool Cloth": {
+          "units": 1.67,
+          "value": 9.072000000000001,
+          "kg": 334,
+          "liters": 835,
+          "meanPrice": 4.745555555555556
+        },
+        "Fine Wool Garments": {
+          "units": 5.36,
+          "value": 70.0552,
+          "kg": 964.8000000000001,
+          "liters": 3859.2000000000003,
+          "meanPrice": 11.321111111111113
+        }
+      },
+      "flows": {
+        "Cloth:source:importArrival": {
+          "units": 1.706781123636658,
+          "value": 65.3055881989524
+        },
+        "Garments:source:importArrival": {
+          "units": 2.43,
+          "value": 397.45200000000006
+        },
+        "Fine Wool Cloth:source:importArrival": {
+          "units": 0.07017440000000001,
+          "value": 0.5585882240000001
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 542.9789567532539,
+          "value": 180.11825165440794
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 145.43940252095467,
+          "value": 72.71970126047734
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 46.57368365618605,
+          "value": 151.36447188260465
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 2.1300000000000003,
+          "value": 61.85899999999999
+        },
+        "Garments:source:burgCraft": {
+          "units": 3.64,
+          "value": 580.7222
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 41.33057894276173,
+          "value": 13.690744134498711
+        },
+        "Cloth:source:burgCraft": {
+          "units": 2.3458595186711455,
+          "value": 69.03164249724776
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 6.07,
+          "value": 974.0318
+        },
+        "Fine Wool Garments:sink:characterLuxury": {
+          "units": 0.04,
+          "value": 0.5228
+        }
+      },
+      "manufactured": {
+        "Garments": {
+          "units": 3.6400000000000006,
+          "labor": 3.2587487999999993,
+          "inputs": {
+            "Furs": 3.3400000000000003,
+            "Cloth": 1.6700000000000004
+          },
+          "byproducts": {}
+        },
+        "Cloth": {
+          "units": 4.044631379776024,
+          "labor": 0.9770583088700002,
+          "inputs": {
+            "Hemp": 43.47978733259224
+          },
+          "byproducts": {}
+        }
+      }
+    },
+    {
+      "date": [
+        593,
+        1,
+        1
+      ],
+      "stock": {
+        "Hemp": {
+          "units": 18792.460768492667,
+          "value": 6441.321387263736,
+          "kg": 8740679.427205892,
+          "liters": 29135598.090686306,
+          "meanPrice": 0.3436363636363637
+        },
+        "Cloth": {
+          "units": 48.99824722465113,
+          "value": 1413.8832239671885,
+          "kg": 195992.98889860453,
+          "liters": 489982.4722465113,
+          "meanPrice": 62.56272727272728
+        },
+        "Garments": {
+          "units": 0,
+          "value": 0,
+          "kg": 0,
+          "liters": 0,
+          "meanPrice": 190.7318181818181
+        },
+        "Wool": {
+          "units": 1590.3245427158336,
+          "value": 5382.022895503667,
+          "kg": 2385486.8140737503,
+          "liters": 7951622.713579168,
+          "meanPrice": 5.534545454545455
+        },
+        "Linen": {
+          "units": 5.879999999999999,
+          "value": 30.8054,
+          "kg": 1175.9999999999998,
+          "liters": 2939.9999999999995,
+          "meanPrice": 5.673636363636365
+        },
+        "Cotton": {
+          "units": 5226.2300000000005,
+          "value": 5576.2618999999995,
+          "kg": 1045246.0000000001,
+          "liters": 2986417.142857143,
+          "meanPrice": 0.9118181818181817
+        },
+        "Fine Wool Cloth": {
+          "units": 1.67,
+          "value": 9.040700000000001,
+          "kg": 334,
+          "liters": 835,
+          "meanPrice": 5.334545454545455
+        },
+        "Fine Wool Garments": {
+          "units": 5.32,
+          "value": 69.53240000000001,
+          "kg": 957.6,
+          "liters": 3830.4,
+          "meanPrice": 11.456363636363635
+        }
+      },
+      "flows": {
+        "Cloth:source:importArrival": {
+          "units": 1.558059095720258,
+          "value": 44.2330413306863
+        },
+        "Garments:source:importArrival": {
+          "units": 2.1,
+          "value": 311.07869999999997
+        },
+        "Hemp:source:ruralHarvest": {
+          "units": 542.7762155628205,
+          "value": 291.5142617695571
+        },
+        "Cotton:source:ruralHarvest": {
+          "units": 145.2976766654849,
+          "value": 156.74006711259483
+        },
+        "Wool:source:ruralHarvest": {
+          "units": 49.58465593435891,
+          "value": 409.4610095716563
+        },
+        "Hemp:sink:recipeInput": {
+          "units": 42.0892315073322,
+          "value": 14.259289092516466
+        },
+        "Cloth:source:burgCraft": {
+          "units": 3.0990539401768524,
+          "value": 168.85271328973323
+        },
+        "Cloth:sink:recipeInput": {
+          "units": 1.8800000000000001,
+          "value": 71.5037
+        },
+        "Garments:source:burgCraft": {
+          "units": 3.78,
+          "value": 686.894
+        },
+        "Linen:sink:exportDeparture": {
+          "units": 0.1,
+          "value": 0.447
+        },
+        "Cotton:sink:exportDeparture": {
+          "units": 127.31,
+          "value": 63.655
+        },
+        "Garments:sink:householdTextiles": {
+          "units": 5.880000000000001,
+          "value": 995.1177
+        },
+        "Fine Wool Garments:sink:characterLuxury": {
+          "units": 0.04,
+          "value": 0.5228
+        }
+      },
+      "manufactured": {
+        "Cloth": {
+          "units": 4.1161089084118965,
+          "labor": 0.9705947726500002,
+          "inputs": {
+            "Hemp": 44.2481707654279
+          },
+          "byproducts": {}
+        },
+        "Garments": {
+          "units": 3.7800000000000002,
+          "labor": 3.3324507000000003,
+          "inputs": {
+            "Furs": 3.4400000000000004,
+            "Cloth": 1.7100000000000004
+          },
+          "byproducts": {}
+        }
+      }
+    }
+  ]
+}

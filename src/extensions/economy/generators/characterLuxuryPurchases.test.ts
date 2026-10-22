@@ -7,6 +7,7 @@ import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
 import { clearEconomyContext, initEconomyContext, setGoods, setMarkets } from "../economyContext";
 import { getHouseholdWealth } from "./burgMarketLedgers";
 import { applyCharacterLivingCosts } from "./characterLivingCosts";
+import { buyCharacterLuxuries } from "./characterLuxuryPurchases";
 import { Goods } from "./goods-generator";
 import type { Good } from "./goodsGeneratorTypes";
 import { LUXURY_VALUE_DEMAND_SETTING } from "./luxuryDemand";
@@ -89,6 +90,17 @@ describe("character luxury purchases", () => {
     expect(bought(JEWELRY, 100)).toBeGreaterThan(bought(SCULPTURES, 1000) * 5);
     expect(market.marketTreasury!.balance).toBeGreaterThan(0);
     expect(market.marketTreasury!.balance + getHouseholdWealth(1) - households).toBeCloseTo(paid, 1);
+  });
+
+  it("buys default fine wool apparel from the character budget while leaving ordinary garments in stock", () => {
+    const fine = Goods.getDefaultGood("Fine Wool Garments")!;
+    const ordinary = Goods.getDefaultGood("Garments")!;
+    setGoods([fine, ordinary]);
+    Goods.sync();
+    market.goods = { [fine.i]: { stock: 10, price: fine.value }, [ordinary.i]: { stock: 10, price: ordinary.value } };
+    expect(buyCharacterLuxuries(ruler, "guildMaster", 3)).toBeGreaterThan(0);
+    expect(market.goods[fine.i].stock).toBeLessThan(10);
+    expect(market.goods[ordinary.i].stock).toBe(10);
   });
 
   it("spends only cash in the town when the value demand is off", () => {
