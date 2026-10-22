@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { formatPrice } from "../../../hostUtils";
 import { getCharacters, getViewApi, getWorldContext } from "../../charactersContext";
+import { describeCharacterFinance, previewZeroCashCorrection } from "../../financialLifecycle";
 import { resolveRaceAgeProfile } from "../../raceAge";
 import { summarizeRoster } from "../../roster/model";
 import { clockYear, readRoster } from "../../roster/runtime";
@@ -29,6 +31,9 @@ export function OrganizationRosterPanel() {
   const generationCancelled = useRef(false);
   const [cancelled, cancel] = useState(false);
   const [preview, setPreview] = useState<RosterSelection>();
+  const [correction, setCorrection] = useState<{ count: number; amount: number; token: string }>();
+  const [removal, setRemoval] = useState<"detachDetails" | "cancelPerson">();
+  const [recipientSlotId, setRecipientSlotId] = useState("");
   const [notes, setNotes] = useState("");
   const [personName, setPersonName] = useState("");
   const [relatedId, setRelatedId] = useState("");
@@ -78,6 +83,7 @@ export function OrganizationRosterPanel() {
   const slot = roster?.slots.find(s => s.id === slotId);
   // biome-ignore lint/correctness/useExhaustiveDependencies: revision refreshes records mutated in place by simulation commands.
   useEffect(() => {
+    setRemoval(undefined);
     setNotes(slot?.notes ?? organization?.notes ?? "");
     setPersonName(getCharacters().find(c => c.i === slot?.characterId)?.name ?? "");
     setTags(slot?.tags.join(", ") ?? "");
@@ -90,6 +96,7 @@ export function OrganizationRosterPanel() {
     setSuccessors(organization?.generateSuccessors ?? false);
   }, [slot, organization, revision]);
   if (!roster) return <p>{tr("loading")}</p>;
+  const cash = describeCharacterFinance(slot);
   const selection: RosterSelection = {
     organizationId,
     roleId,
@@ -195,6 +202,46 @@ export function OrganizationRosterPanel() {
         </button>
       </nav>
       <p>{tr("summary", summary)}</p>
+      {cash && (
+        <p>
+          {tr("cashSummary", {
+            total: formatPrice(cash.total),
+            abstract: formatPrice(cash.abstract),
+            estates: formatPrice(cash.estates)
+          })}
+          {slot && cash.balance !== undefined && ` · ${tr("personalCash", { amount: formatPrice(cash.balance) })}`}
+        </p>
+      )}
+      {cash && (
+        <details>
+          <summary>{tr("cashPolicyTitle")}</summary>
+          <p>{tr("cashPolicy")}</p>
+        </details>
+      )}
+      {cash && (
+        <details>
+          <summary>{tr("legacyCashCorrection")}</summary>
+          <p>{tr("legacyCashCorrectionHelp")}</p>
+          <button type="button" onClick={() => setCorrection(previewZeroCashCorrection())}>
+            {tr("previewCashCorrection")}
+          </button>
+          {correction && (
+            <div>
+              <p>{tr("cashCorrectionCounts", { count: correction.count, amount: formatPrice(correction.amount) })}</p>
+              <button
+                type="button"
+                disabled={!correction.count}
+                onClick={() => {
+                  command({ action: "correctLegacyCash", token: correction.token });
+                  setCorrection(undefined);
+                }}
+              >
+                {tr("confirmCashCorrection")}
+              </button>
+            </div>
+          )}
+        </details>
+      )}
       <RosterPresetPanel roster={roster} organizationId={organizationId} command={command} />
       {!slot &&
         organization?.polity &&
@@ -363,7 +410,13 @@ export function OrganizationRosterPanel() {
           </button>
           <button
             type="button"
-            disabled={busy || slot.characterId !== undefined || slot.cancelledBirth || slot.birthYear > clockYear()}
+            disabled={
+              busy ||
+              slot.characterId !== undefined ||
+              slot.cancelledBirth ||
+              slot.removedFromWorld ||
+              slot.birthYear > clockYear()
+            }
             onClick={() => setPreview({ slotIds: [slot.id], mode: slot.mode })}
           >
             {tr("generatePerson")}
@@ -378,6 +431,52 @@ export function OrganizationRosterPanel() {
             >
               {tr("characterSheet")}
             </button>
+          )}
+          {slot.characterId !== undefined && (
+            <button type="button" onClick={() => setRemoval("detachDetails")}>
+              {tr("detachDetails")}
+            </button>
+          )}
+          {!slot.removedFromWorld && (
+            <button type="button" onClick={() => setRemoval("cancelPerson")}>
+              {tr("cancelPerson")}
+            </button>
+          )}
+          {removal && (
+            <div role="alert" style={{ border: "1px solid #a66", padding: 8 }}>
+              <p>
+                {tr(removal === "detachDetails" ? "detachCashHelp" : "cancelCashHelp", {
+                  amount: cash?.balance ?? getCharacters().find(c => c.i === slot.characterId)?.wealth ?? 0
+                })}
+              </p>
+              {removal === "cancelPerson" && (
+                <label>
+                  {tr("cashRecipient")}{" "}
+                  <select value={recipientSlotId} onChange={e => setRecipientSlotId(e.target.value)}>
+                    <option value="">{tr("originalHousehold")}</option>
+                    {roster.slots
+                      .filter(s => s.id !== slot.id && !s.removedFromWorld && s.deathYear === undefined)
+                      .map(s => (
+                        <option key={s.id} value={s.id}>
+                          {label(s)}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  command({ action: removal, slotId: slot.id, recipientSlotId: recipientSlotId || undefined });
+                  setRemoval(undefined);
+                }}
+              >
+                {tr("confirmRemoval")}
+              </button>
+              <button type="button" onClick={() => setRemoval(undefined)}>
+                {tr("cancelRemoval")}
+              </button>
+            </div>
           )}
           <label>
             <input type="checkbox" checked={simulate} onChange={e => setSimulate(e.target.checked)} />

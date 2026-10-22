@@ -24,6 +24,7 @@ import { Markets } from "./markets-generator";
 import type { Deal } from "./marketTypes";
 import { getStateMilitaryUpkeep } from "./militaryLogistics";
 import { nominal } from "./moneyScale";
+import { settleRosterCash } from "./personalCash";
 import { applyFormRevenueMix } from "./revenueMix";
 import { recordStateFiscalReport } from "./stateFiscalReport";
 import { getStateMoneyStocks } from "./stateMoneySupply";
@@ -443,6 +444,8 @@ export class TaxesModule {
     // state.treasury — global passes, not part of the per-state loop above.
     measureTickStep("taxes:guildStipends", () => payGuildStipends());
     measureTickStep("taxes:marketStipends", () => payMarketStipends());
+
+    settleRosterCash();
 
     // After all personal stipends: consume lifestyle (+ soft wealth upkeep) from Character.wealth
     // so purses do not grow unbounded. Order matters — pay first, then spend.

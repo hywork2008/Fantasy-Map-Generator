@@ -626,6 +626,7 @@ export interface Character {
    * inheritance) read/write this field directly.
    */
   wealth: number;
+  cashAccountId?: string;
   /**
    * Personal good holdings (good id → amount), distinct from market/burg stocks.
    * Used for gifts and private property; optional until a gift is received or granted.

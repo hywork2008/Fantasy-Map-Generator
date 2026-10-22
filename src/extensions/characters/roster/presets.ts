@@ -162,7 +162,7 @@ export function previewPreset(roster: WorldRoster, query: PresetQuery, year: num
       const status = role.unresolved
         ? "unresolved"
         : slot
-          ? slot.deathYear !== undefined || slot.cancelledBirth || slot.birthYear > year
+          ? slot.deathYear !== undefined || slot.removedFromWorld || slot.cancelledBirth || slot.birthYear > year
             ? "vacant"
             : slot.characterId === undefined
               ? "new"

@@ -1,7 +1,8 @@
 import { getDayOfYear, getDaysInMonth, isLeapYear } from "../../../utils/seasonUtils";
-import { getApi, getCharacters, getWorldContext, hasCharactersContext } from "../charactersContext";
+import { getApi, getCharacters, getWorldContext, hasCharactersContext, nextCharacterId } from "../charactersContext";
 import type { Character } from "../characterTypes";
 import { lifetimeExpectedBirths, resolveFertilityForRace } from "../fertility";
+import { prepareCharacterFinance } from "../financialLifecycle";
 import { createPerson } from "../personFactory";
 import { resolveRaceAgeProfile } from "../raceAge";
 import {
@@ -164,7 +165,7 @@ export function materializeSlots(selection: RosterSelection): number[] {
   const roster = ensureRoster();
   const ids: number[] = [];
   for (const slot of selectedSlots(roster, selection)) {
-    if (slot.cancelledBirth || slot.birthYear > clockYear()) continue;
+    if (slot.cancelledBirth || slot.removedFromWorld || slot.birthYear > clockYear()) continue;
     if (slot.characterId !== undefined) {
       ids.push(slot.characterId);
       continue;
@@ -173,7 +174,8 @@ export function materializeSlots(selection: RosterSelection): number[] {
     Math.random = rosterRandom(roster, `${slot.id}:person`);
     try {
       const characters = getCharacters();
-      const id = characters.reduce((max, c) => Math.max(max, c.i), 0) + 1;
+      const id = slot.retainedCharacterId ?? nextCharacterId();
+      if (characters.some(c => c.i === id)) throw Error("Retained character id is already occupied");
       const role = roster.roles.find(r => r.id === slot.roleId);
       const org = roster.organizations.find(o => o.id === slot.organizationId)!;
       const targetYear = slot.deathYear ?? clockYear();
@@ -204,6 +206,8 @@ export function materializeSlots(selection: RosterSelection): number[] {
         character.dead = true;
         character.deathYear = slot.deathYear;
       }
+      if (slot.retainedAssets) Object.assign(character, structuredClone(slot.retainedAssets));
+      prepareCharacterFinance(character, slot);
       // Assign to the canonical slot before exposing the person, so retries reuse it.
       slot.characterId = id;
       characters.push(character);

@@ -5,6 +5,7 @@ import { isRepairAtVersion } from "../../simulation/loadRepairs";
 import { uiPreferencesStore } from "../../state/uiPreferencesStore";
 import type { SimulationExtension, SimulationExtensionAPI } from "../../types/extension-api";
 import { getCharacters, hasCharactersContext } from "../characters/charactersContext";
+import { buildWorldRoster } from "../characters/roster/build";
 import {
   FAST_ADVANCE_COARSE_GATE_DAYS,
   FUNERAL_DEMAND_EVENT,
@@ -188,6 +189,7 @@ import { payNavyCrew, settleNavyVoyageTrade } from "./generators/navyTrade";
 import { NitrogenFertilizerInvestment } from "./generators/nitrogenFertilizerInvestment";
 import { OilRefineryPlants } from "./generators/oilRefineryPlants";
 import { OverseasRelations } from "./generators/overseasRelations";
+import { initializeRosterCash, registerPersonalCash } from "./generators/personalCash";
 import { PhosphateFertilizerPlants } from "./generators/phosphateFertilizerPlants";
 import { clearPlayerMarketCommerce, executePlayerMarketTrade } from "./generators/playerCommerce";
 import { PotashFertilizerInvestment } from "./generators/potashFertilizerInvestment";
@@ -1478,6 +1480,7 @@ function register(api: SimulationExtensionAPI): () => void {
   const _unregisterTickSystems: (() => void)[] = [];
 
   initEconomyContext(api);
+  const unregisterPersonalCash = registerPersonalCash(api);
   // Frontier works and settlement are paid to the State's people (docs/plan/money-supply-mint.md §4.2).
   setFrontierSpendingPayee((stateId, amount) =>
     api.isExtensionEnabled(ECONOMY_EXTENSION_ID) ? payStateHouseholds(stateId, amount) : 0
@@ -1578,10 +1581,19 @@ function register(api: SimulationExtensionAPI): () => void {
       // Data generation is deliberately deferred. During core map generation the
       // coordinator will run this task after the map is complete; for a live map
       // it runs only Economy's task, without resetting unrelated extensions.
-      api.requestMapReadyTask("economy.initialization");
+      if (getMarkets().length) {
+        // Reconcile geography and caches after edits made while paused, retaining wallets
+        // and stocks. Full initialization would reset the existing economy.
+        Markets.sync();
+        Markets.expandTerritories();
+        for (const ledger of getBurgMarketLedgers()) {
+          const burg = getWorldContext().pack.burgs[ledger.burgId];
+          if (burg && !burg.removed) ledger.marketId = burg.market || ledger.marketId;
+        }
+        if (api.isExtensionEnabled("characters")) initializeRosterCash(buildWorldRoster());
+      } else api.requestMapReadyTask("economy.initialization");
     } else if (!isEnabled && wasEnabled) {
-      // Clear economy data through the extension-owned command after disabling.
-      api.dispatchExtensionCommand({ extensionId: ECONOMY_EXTENSION_ID, name: "clear", payload: undefined });
+      // Pausing an extension must not destroy private wallets or reissue bootstrap money on resume.
       unregisterUrbanPregnancyBirthFloor();
     }
   });
@@ -2641,6 +2653,7 @@ function register(api: SimulationExtensionAPI): () => void {
 
     clearUrbanPregnancyBirthFloorRegistration();
     setFrontierSpendingPayee(null);
+    unregisterPersonalCash();
     clearEconomyContext();
   };
 }

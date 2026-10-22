@@ -1,5 +1,6 @@
 import type { SimulationExtensionAPI } from "../../../types/extension-api";
-import { getCharacters } from "../charactersContext";
+import { getCharacters, replaceCharacters } from "../charactersContext";
+import { applyZeroCashCorrection, cancelPersonFinance } from "../financialLifecycle";
 import { resolveRaceAgeProfile } from "../raceAge";
 import { buildWorldRoster } from "./build";
 import { addPatronage, establishChurch } from "./institutions";
@@ -373,6 +374,41 @@ export function registerRosterCommands(api: SimulationExtensionAPI): () => void 
             )
           )
             roster.links.push({ fromId: person.id, toId: partner.id, kind: "spouse" });
+          break;
+        }
+        case "correctLegacyCash":
+          if (typeof v.token !== "string") throw Error("Cash correction preview required");
+          applyZeroCashCorrection(v.token);
+          break;
+        case "detachDetails":
+        case "cancelPerson": {
+          const person = needSlot(),
+            character = getCharacters().find(c => c.i === person.characterId);
+          if (person.removedFromWorld) throw Error("Person was already removed from this world");
+          if (character?.roles?.some(r => r.endYear === undefined))
+            throw Error("Resolve active contracts and roles before removing details");
+          if (
+            person.protection.fields.some(f => !["notes", "birthYear", "organizationId", "familyRelations"].includes(f))
+          )
+            throw Error("Unlock protected character details before removing them");
+          if (v.action === "cancelPerson") {
+            if (character && (Object.values(character.inventory ?? {}).some(n => n > 0) || character.loadout))
+              throw Error("Transfer inventory and equipment before cancelling this person");
+            cancelPersonFinance(
+              person,
+              typeof v.recipientSlotId === "string" ? v.recipientSlotId : undefined,
+              character?.wealth ?? 0
+            );
+            person.removedFromWorld = true;
+            for (const a of roster.appointments)
+              if (a.slotId === person.id && a.endYear === undefined) a.endYear = clockYear();
+            invalidateRosterIndex(roster);
+          } else if (character) {
+            person.retainedCharacterId = character.i;
+            person.retainedAssets = structuredClone({ inventory: character.inventory, loadout: character.loadout });
+          }
+          if (character) replaceCharacters(getCharacters().filter(c => c !== character));
+          person.characterId = undefined;
           break;
         }
         case "rename": {

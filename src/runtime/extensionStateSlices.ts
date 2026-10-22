@@ -2,6 +2,7 @@ import type { ExtensionStateSlices, SimulationContext } from "../context/simulat
 import type { WorldContext } from "../context/worldContext";
 import { validateWorldRoster } from "../extensions/characters/roster/model";
 import { validateSpecializationProfile } from "../extensions/characters/specializationValidation";
+import { validatePersonalCash } from "../extensions/economy/generators/personalCashLedger";
 import {
   HOLDER_KINDS,
   HOLDING_DIGNITIES,
@@ -418,6 +419,7 @@ function validateCharactersSlice(slice: Record<string, unknown>): void {
 }
 
 function validateEconomySlice(slice: Record<string, unknown>, world: WorldContext): void {
+  if (slice.personalCash !== undefined) validatePersonalCash(slice.personalCash);
   for (const field of [
     "goods",
     "markets",
@@ -922,6 +924,18 @@ export function assertValidExtensionStateSlices(world: WorldContext, simulation:
 
   const economy = simulation.extensions.economy;
   if (economy) validateEconomySlice(economy, world);
+  if (economy?.personalCash && Array.isArray(characters?.characters)) {
+    const cash =
+      economy.personalCash as import("../extensions/economy/generators/personalCashLedger").PersonalCashState;
+    const connected = new Set<string>();
+    for (const character of characters.characters) {
+      if (!isRecord(character) || character.cashAccountId === undefined) continue;
+      const id = character.cashAccountId;
+      if (typeof id !== "string" || !Object.hasOwn(cash.accounts, id) || connected.has(id))
+        throw Error("Invalid character cash account reference");
+      connected.add(id);
+    }
+  }
 
   const nobility = simulation.extensions.nobility;
   if (nobility) validateNobilitySlice(nobility, world);

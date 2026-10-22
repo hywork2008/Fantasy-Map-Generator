@@ -1,3 +1,5 @@
+import { simulationView } from "../../simulation/viewPort";
+import { canRemoveCharacterFinance } from "./financialLifecycle";
 import { registerRosterCommands } from "./roster/commands";
 import { registerRosterLifecycle, registerRosterWatches } from "./roster/lifecycle";
 import "./types"; // activate module augmentation for PackedGraph.characters
@@ -146,6 +148,12 @@ function register(api: SimulationExtensionAPI): () => void {
       if (value !== undefined) throw new Error("characters.clear does not accept a payload");
       const characters = getCharacters();
       if (!characters?.length) return { changed: false };
+      if (characters.some(character => !canRemoveCharacterFinance(character))) {
+        const message =
+          "Bulk clear is blocked by unresolved roles or assets. Transfer them first, or detach individual details in Organizations & families. Funded characters require financial custody.";
+        simulationView.tip(message, false, "warn", 8000);
+        return { changed: false, result: { blocked: true, message } };
+      }
       clearCharacters();
       return { changed: true };
     }

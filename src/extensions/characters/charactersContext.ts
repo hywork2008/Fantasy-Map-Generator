@@ -1,4 +1,5 @@
 import { bindRaceService } from "../hostRaces";
+import { canRemoveCharacterFinance, preserveCharacterFinance, synchronizeCharacterFinance } from "./financialLifecycle";
 
 /**
  * Module-level context holder for the characters extension.
@@ -144,7 +145,7 @@ export function getCharacters(): Character[] {
   if (!simulation?.extensions) {
     const pack = getWorldContext().pack;
     if (!pack.characters) pack.characters = [];
-    return migrateDemonAges(pack.characters);
+    return synchronizeCharacterFinance(migrateDemonAges(pack.characters));
   }
   const extensions = simulation.extensions;
   let slice = extensions.characters;
@@ -153,19 +154,28 @@ export function getCharacters(): Character[] {
     extensions.characters = slice;
   }
   const characters = slice.characters;
-  if (Array.isArray(characters)) return migrateDemonAges(characters as Character[]);
+  if (Array.isArray(characters)) return synchronizeCharacterFinance(migrateDemonAges(characters as Character[]));
   const next: Character[] = [];
   slice.characters = next;
   return next;
 }
 
 export function replaceCharacters(characters: Character[]): void {
+  const survivors = new Set(characters);
+  const removed = getCharacters().filter(character => !survivors.has(character));
+  if (removed.some(character => !canRemoveCharacterFinance(character)))
+    throw Error("Transfer unresolved assets before removing character details");
+  for (const character of removed) preserveCharacterFinance(character);
   const simulation = getApi().simulationContext;
   if (!simulation?.extensions) {
     getWorldContext().pack.characters = characters;
     return;
   }
   simulation.extensions.characters ??= {};
+  simulation.extensions.characters.nextCharacterId = Math.max(
+    Number(simulation.extensions.characters.nextCharacterId) || 1,
+    removed.reduce((next, c) => Math.max(next, c.i + 1), 1)
+  );
   simulation.extensions.characters.characters = characters;
 }
 
@@ -378,4 +388,19 @@ export function setPersonalTechnologyKnowledge(value: PersonalTechnologyKnowledg
     extensions.characters = slice;
   }
   slice.personalTechnologyKnowledge = value;
+}
+
+/** Details can be detached; their numeric ids must never be reused for another person. */
+export function nextCharacterId(characters: readonly Character[] = getCharacters()): number {
+  let max = characters.reduce((max, c) => Math.max(max, c.i), 0);
+  // Regeneration may supply a filtered working list while old details still exist.
+  const existing = _api ? getCharacters() : [];
+  max = existing.reduce((max, c) => Math.max(max, c.i), max);
+  const simulation = _api?.simulationContext;
+  if (simulation?.extensions) simulation.extensions.characters ??= {};
+  const slice = simulation?.extensions?.characters;
+  if (!slice) return max + 1;
+  const next = Math.max(max + 1, Number(slice.nextCharacterId) || 1);
+  slice.nextCharacterId = next + 1;
+  return next;
 }

@@ -1,5 +1,5 @@
 import { applyCharacterBackstory, seedRelationsWithPeers } from "../../characters/backstoryProfile";
-import { isOnDemandRosterEnabled } from "../../characters/charactersContext";
+import { isOnDemandRosterEnabled, nextCharacterId } from "../../characters/charactersContext";
 import type { Character, CharacterRole } from "../../characters/characterTypes";
 import { finalizeCharacterSocietyForPeer } from "../../characters/finalizeCharacterSociety";
 import { createPerson, resolveRaceIdForCulture } from "../../characters/personFactory";
@@ -109,10 +109,6 @@ function createApprenticeRole(burgId: number, domain: CraftKnowledgeDomain, mast
   };
 }
 
-function getNextCharacterId(characters: Character[]): number {
-  return Math.max(0, ...characters.map(c => c.i), -1) + 1;
-}
-
 /** Enemy-dedicated races (goblins) have no peaceful craft guild masters. */
 function cultureAllowsGuildCharacters(cultureId: number): boolean {
   const { pack } = getWorldContext();
@@ -157,7 +153,7 @@ function createMaster(characters: Character[], burgId: number, domain: CraftKnow
   const burg = pack.burgs[burgId] as Burg | undefined;
   const cultureId = resolveBurgCulture(burg);
   if (!cultureAllowsGuildCharacters(cultureId)) return null;
-  const character = createPerson(getNextCharacterId(characters), cultureId, {
+  const character = createPerson(nextCharacterId(characters), cultureId, {
     // Engineering is retained as a broad technical trait and seeds the initial
     // blacksmithing record below; it is no longer the practical craft skill.
     primarySkill: "engineering",
@@ -196,7 +192,7 @@ function createApprentice(
   const { pack } = getWorldContext();
   const burg = pack.burgs[burgId] as Burg | undefined;
   const cultureId = resolveBurgCulture(burg);
-  const character = createPerson(getNextCharacterId(characters), cultureId, {
+  const character = createPerson(nextCharacterId(characters), cultureId, {
     primarySkill: "engineering",
     roleClass: "ordinary",
     ageOverride: rollApprenticeAge(resolveRaceIdForCulture(cultureId)),

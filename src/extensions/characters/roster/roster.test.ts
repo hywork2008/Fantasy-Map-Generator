@@ -90,6 +90,11 @@ afterEach(() => {
 });
 
 describe("organization roster", () => {
+  it("waits for core world collections during initial dialog mounting", () => {
+    api.worldContext.pack.states = undefined as never;
+    expect(buildWorldRoster()).toBe(ensureRoster());
+    expect(getCharacters()).toHaveLength(0);
+  });
   it("builds and displays necessary staffs without generating characters or individual records for every seat", () => {
     const r = buildWorldRoster();
     expect(getCharacters()).toHaveLength(0);

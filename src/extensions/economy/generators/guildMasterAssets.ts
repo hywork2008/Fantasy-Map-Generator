@@ -2,6 +2,7 @@ import type { Character } from "../../characters/characterTypes";
 import { rn } from "../../hostUtils";
 import type { GuildKnowledgeStock } from "./guildKnowledgeTypes";
 import { nominal } from "./moneyScale";
+import { preserveGuildPrivateEstate } from "./personalCash";
 
 /**
  * A successor receives only the portable working kit needed to continue the trade. The bulk of a
@@ -39,6 +40,7 @@ export function settleGuildMasterEstate(
   if (successor && !successor.dead) {
     const inheritedBySuccessor = rn(estate * GUILD_MASTER_SUCCESSOR_ESTATE_SHARE, 2);
     successor.wealth = rn((successor.wealth || 0) + inheritedBySuccessor, 2);
+    preserveGuildPrivateEstate(deceasedMaster, rn(estate - inheritedBySuccessor, 2));
     return {
       inheritedBySuccessor,
       revertedToGuild: 0,
@@ -48,6 +50,7 @@ export function settleGuildMasterEstate(
 
   const revertedToGuild = guild ? rn(estate * GUILD_MASTER_GUILD_REVERSION_SHARE, 2) : 0;
   if (guild && revertedToGuild > 0) guild.treasury = rn((guild.treasury || 0) + revertedToGuild, 2);
+  preserveGuildPrivateEstate(deceasedMaster, rn(estate - revertedToGuild, 2));
   return {
     inheritedBySuccessor: 0,
     revertedToGuild,

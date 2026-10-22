@@ -1,6 +1,6 @@
 import { pow } from "../../../simulation/deterministicMath";
 import { applyCharacterBackstory, seedRelationsWithPeers } from "../../characters/backstoryProfile";
-import { isOnDemandRosterEnabled } from "../../characters/charactersContext";
+import { isOnDemandRosterEnabled, nextCharacterId } from "../../characters/charactersContext";
 import type { Character, CharacterRole, CharacterSkills } from "../../characters/characterTypes";
 import { finalizeCharacterSocietyForPeer } from "../../characters/finalizeCharacterSociety";
 import { createPerson } from "../../characters/personFactory";
@@ -452,7 +452,7 @@ function createOrganizationStaff(
   const { pack } = getWorldContext();
   pack.characters ??= [];
   const burg = getBurg(burgId);
-  const character = createPerson(getNextCharacterId(pack.characters), resolveBurgCulture(burg), {
+  const character = createPerson(nextCharacterId(pack.characters), resolveBurgCulture(burg), {
     primarySkill,
     roleClass: "merchant",
     homeStateId: burg?.state ?? organization.homeStateId,
@@ -580,10 +580,6 @@ function setProwess(character: Character, value: number): void {
 
 function uniqueCharacterIds(ids: (number | undefined)[]): number[] {
   return [...new Set(ids.filter((id): id is number => id !== undefined))];
-}
-
-function getNextCharacterId(characters: Character[]): number {
-  return Math.max(0, ...characters.map(c => c.i), -1) + 1;
 }
 
 function getBurg(burgId: number): Burg | undefined {

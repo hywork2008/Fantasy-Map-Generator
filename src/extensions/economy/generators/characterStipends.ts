@@ -175,7 +175,7 @@ export function payProvinceLordStipends(state: Pick<State, "i">): void {
   const { pack } = getWorldContext();
   if (!pack.provinces?.length) return;
 
-  const characters = getCharacters();
+  const characters = getCharacters().filter(c => !c.cashAccountId?.startsWith("person:"));
 
   for (const province of pack.provinces) {
     if (!province?.i || province.removed || province.state !== state.i || !province.burg) continue;
@@ -207,7 +207,7 @@ export function payGuildStipends(): void {
   const stocks = getGuildKnowledgeStocks();
   if (!stocks.length) return;
 
-  const characters = getCharacters();
+  const characters = getCharacters().filter(c => !c.cashAccountId?.startsWith("person:"));
   let changed = false;
 
   for (const entry of stocks) {
@@ -248,7 +248,7 @@ export function payMarketStipends(): void {
   const markets = getMarkets();
   if (!markets.length) return;
 
-  const characters = getCharacters();
+  const characters = getCharacters().filter(c => !c.cashAccountId?.startsWith("person:"));
 
   for (const market of markets) {
     const treasury = market.marketTreasury;
@@ -312,7 +312,7 @@ export function backPayCycles(): number {
  */
 export function seedMissingCharacterWealth(): void {
   if (!isEconomyContextReady() || !hasCharactersContext()) return;
-  const characters = getCharacters();
+  const characters = getCharacters().filter(c => !c.cashAccountId);
   const { pack } = getWorldContext();
 
   for (const state of pack.states ?? []) {

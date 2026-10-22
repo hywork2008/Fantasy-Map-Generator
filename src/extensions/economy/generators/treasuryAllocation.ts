@@ -364,7 +364,7 @@ export function payRulerHouseholdStipend(state: State, domesticIncome: number): 
   const rulerId = getRulerId(state);
   if (rulerId === undefined) return 0;
   const ruler = getCharacters().find(character => character.i === rulerId && !character.dead);
-  if (!ruler) return 0;
+  if (!ruler || ruler.cashAccountId?.startsWith("person:")) return 0;
 
   const desired = getRulerHouseholdStipend(state, domesticIncome);
   const purse = state.householdPurse || 0;
@@ -619,7 +619,7 @@ export function payCentralOfficeStipends(state: State, breakdown: TreasuryAlloca
     if (!(desired > 0)) continue;
 
     const holder = findLivingOfficeHolder(characters, state.i, office.title);
-    if (!holder) continue;
+    if (!holder || holder.cashAccountId?.startsWith("person:")) continue;
 
     const available = balances[departmentKey] || 0;
     const paid = rn(Math.min(desired, available), 2);
@@ -736,7 +736,7 @@ export function payFieldCommanderStipends(state: State): number {
     if (!regimentQualifiesForDedicatedOfficer(regiment)) continue;
 
     const commander = getRegimentCommander(characters, regiment);
-    if (!commander) continue;
+    if (!commander || commander.cashAccountId?.startsWith("person:")) continue;
 
     const amount = getFieldCommanderStipend(regiment);
     if (!(amount > 0)) continue;

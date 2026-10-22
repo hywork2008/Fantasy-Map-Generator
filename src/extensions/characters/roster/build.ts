@@ -1,4 +1,5 @@
 import { getApi, getWorldContext } from "../charactersContext";
+import { prepareRosterFinance } from "../financialLifecycle";
 import { ensureRoster, migrateCharacters, putOrganization, putRole } from "./runtime";
 import type { RosterRole, WorldRoster } from "./types";
 
@@ -11,6 +12,8 @@ export function buildWorldRoster(): WorldRoster {
   const roster = ensureRoster();
   const world = getWorldContext(),
     pack = world.pack;
+  // The dialog can mount before core generation has populated world collections.
+  if (!Array.isArray(pack.states) || !Array.isArray(pack.burgs)) return roster;
   const states = new Set(pack.states.filter(s => s.i && !s.removed).map(s => s.i));
   for (const o of roster.organizations) if (o.stateId && !states.has(o.stateId)) o.archived = true;
   for (const state of pack.states) {
@@ -193,5 +196,6 @@ export function buildWorldRoster(): WorldRoster {
     }
   for (const provider of providers) provider(roster);
   migrateCharacters(roster);
+  prepareRosterFinance(roster);
   return roster;
 }

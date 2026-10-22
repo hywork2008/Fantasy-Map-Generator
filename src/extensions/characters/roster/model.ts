@@ -265,6 +265,12 @@ export function validateWorldRoster(value: unknown): asserts value is WorldRoste
   }
   const characterIds = new Set<number>();
   for (const slot of r.slots) {
+    if (slot.removedFromWorld !== undefined && typeof slot.removedFromWorld !== "boolean") fail();
+    if (
+      slot.retainedCharacterId !== undefined &&
+      (!Number.isSafeInteger(slot.retainedCharacterId) || slot.retainedCharacterId < 1)
+    )
+      fail();
     if (
       !orgs.has(slot.organizationId) ||
       (slot.roleId && !roles.has(slot.roleId)) ||

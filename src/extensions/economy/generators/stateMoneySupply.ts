@@ -1,3 +1,5 @@
+import { readPersonalCash } from "./personalCash";
+import { poolBalance } from "./personalCashLedger";
 /**
  * The money a State actually holds (docs/plan/money-supply-mint.md §4.1): every cash stock held by
  * its government, towns, markets, households and people, counted where the holder lives. The mint
@@ -112,7 +114,15 @@ export function getStateMoneyStocks(): Map<number, StateMoneyStock> {
   }
 
   if (hasCharactersContext())
-    for (const character of getCharacters()) if (!character.dead) add(character.state, positive(character.wealth));
+    for (const character of getCharacters())
+      if (!character.cashAccountId) add(character.state, positive(character.wealth));
+  const cash = readPersonalCash();
+  if (cash) {
+    for (const account of Object.values(cash.accounts))
+      add((account.burgId ? burgState.get(account.burgId) : undefined) ?? account.stateId, account.balance / 100);
+    for (const pool of Object.values(cash.pools))
+      add((pool.burgId ? burgState.get(pool.burgId) : undefined) ?? pool.stateId, poolBalance(pool) / 100);
+  }
 
   return stocks;
 }
@@ -120,4 +130,28 @@ export function getStateMoneyStocks(): Map<number, StateMoneyStock> {
 /** One State's money stock; undefined for a removed State or without an Economy context. */
 export function getStateMoneyStock(stateId: number): StateMoneyStock | undefined {
   return getStateMoneyStocks().get(stateId);
+}
+
+/** Cash in neutral, removed-state or otherwise unassigned custody is still world money. */
+export function getUnassignedPersonalCash(): number {
+  const states = new Set(
+    getWorldContext()
+      .pack.states.filter(s => s?.i && !s.removed)
+      .map(s => s.i)
+  );
+  if (hasCharactersContext()) getCharacters();
+  const cash = readPersonalCash();
+  if (!cash) return 0;
+  const location = (a: { stateId: number; burgId?: number }) =>
+    (a.burgId ? getWorldContext().pack.burgs.find(b => b?.i === a.burgId && !b.removed)?.state : undefined) ??
+    a.stateId;
+  return (
+    (Object.values(cash.accounts)
+      .filter(a => !states.has(location(a)))
+      .reduce((sum, a) => sum + a.balance, 0) +
+      Object.values(cash.pools)
+        .filter(p => !states.has(location(p)))
+        .reduce((sum, p) => sum + poolBalance(p), 0)) /
+    100
+  );
 }
