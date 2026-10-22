@@ -18,7 +18,7 @@ import { type Good, Goods } from "./goods-generator";
 import { type GoodFlowRecord, setGoodFlowObserver } from "./goodsBalanceLedger";
 import { Markets } from "./markets-generator";
 import type { FoodLedger } from "./marketTypes";
-import { settleRuralTextileProduction } from "./ruralTextileProduction";
+import { estimateRuralTextileProduction, settleRuralTextileProduction } from "./ruralTextileProduction";
 import {
   getMarketBlanketDemandProfile,
   getMarketTextileDemandProfile,
@@ -344,6 +344,7 @@ describe("rural household wool processing", () => {
       expect(home.laborUsed).toBeLessThanOrEqual(home.laborCapacity);
       if (blanketStock === 100) {
         expect(home.blankets).toBe(0);
+        expect(home.beddingDiagnostic!.beddingLaborReserved).toBe(0);
         expect(orders.blankets).toBeGreaterThan(0);
         expect(market.goods[byName("Wool Blankets").i].stock).toBeLessThan(100);
       } else {
@@ -399,6 +400,98 @@ describe("rural household wool processing", () => {
       }
     }
   );
+
+  it("shares scarce work between independent garment and blanket needs without increasing total capacity", () => {
+    const market = getMarkets()[0];
+    market.goods[byName("Wool").i].price = 1;
+    setHouseholdTextileWorkers(Float32Array.from([10]));
+    const before = market.goods[byName("Wool").i].stock;
+    const home = settleRuralTextileProduction(market, 1, 10, 1000, 1000);
+    expect(home.garments).toBeGreaterThan(0);
+    expect(home.blankets).toBeGreaterThan(0);
+    expect(home.garments).toBeLessThanOrEqual(1);
+    expect(home.blankets).toBeLessThanOrEqual(10);
+    expect(home.beddingDiagnostic!.beddingLaborReserved).toBeGreaterThan(0);
+    expect(home.laborUsed).toBeLessThanOrEqual(10);
+    const bill = home.garmentSpending + home.blanketSpending;
+    expect(before - market.goods[byName("Wool").i].stock).toBeCloseTo(bill, 8);
+    expect(market.foodLedger!.ruralHouseholdWealth).toBeCloseTo(100_000 - bill, 8);
+  });
+
+  it("does not hold work for bedding without usable material", () => {
+    const market = addPlantRoutes();
+    market.goods[byName("Cotton").i] = { stock: 1000, price: 1 };
+    setHouseholdTextileWorkers(Float32Array.from([10]));
+    const home = settleRuralTextileProduction(market, 1, 10, 1000, 1000);
+    expect(home.garments).toBeGreaterThan(0);
+    expect(home.blankets).toBe(0);
+    expect(home.beddingDiagnostic!.beddingLaborReserved).toBe(0);
+  });
+
+  it("returns reserved work to garments when reduced garment output leaves no bedding cash", () => {
+    const market = getMarkets()[0];
+    market.goods[byName("Wool").i].price = 0.01;
+    setHouseholdTextileWorkers(Float32Array.from([1000]));
+    const home = settleRuralTextileProduction(market, 1, 10000, 4, 0, {
+      wardrobeNeed: 1,
+      wardrobePrice: 10,
+      blanketNeed: 10000,
+      blanketStock: 0,
+      blanketPrice: 8
+    });
+    expect(home.beddingDiagnostic!.beddingLaborReserved).toBeGreaterThan(0);
+    expect(home.beddingDiagnostic!.beddingBudget).toBe(0);
+    expect(home.beddingDiagnostic!.releasedLaborToGarments).toBeGreaterThan(0);
+    expect(home.blankets).toBe(0);
+    expect(home.garments).toBeGreaterThan(0.7);
+    expect(home.laborUsed).toBeLessThanOrEqual(1000);
+    expect(home.garmentSpending).toBeLessThanOrEqual(4);
+  });
+
+  it("quotes available cloth before a cheaper missing fiber instead of ordering a second wardrobe", () => {
+    const market = addPlantRoutes();
+    market.goods[byName("Cotton").i] = { stock: 0, price: 0.01 };
+    market.goods[byName("Linen").i] = { stock: 100, price: 10 };
+    const before = structuredClone(market);
+    const plan = estimateRuralTextileProduction(market, 1, 0, 1000, 0);
+    expect(plan.garments).toBeCloseTo(1, 8);
+    expect(plan.inputOrders![byName("Linen").i]).toBeCloseTo(12, 8);
+    expect(plan.inputOrders![byName("Cotton").i] ?? 0).toBe(0);
+    expect(plan.garmentSpending).toBeCloseTo(120, 8);
+    expect(market).toEqual(before);
+    expect(flows).toHaveLength(0);
+    const actual = settleRuralTextileProduction(market, 1, 0, 1000, 0);
+    expect(plan.inputOrders).toEqual(actual.inputOrders);
+    expect(plan.laborUsed).toBeCloseTo(actual.laborUsed, 8);
+  });
+
+  it.each([
+    [300, 1000],
+    [2000, 40]
+  ])("orders only residual work and cash after local material use (%s workers, %s cash)", (workers, budget) => {
+    const market = addPlantRoutes();
+    for (const good of getGoods()) market.goods[good.i].price = 1000;
+    market.goods[byName("Cotton").i] = { stock: 0, price: 1 };
+    market.goods[byName("Linen").i] = { stock: 3, price: 10 };
+    setHouseholdTextileWorkers(Float32Array.from([workers]));
+    const before = structuredClone(market);
+    const plan = estimateRuralTextileProduction(market, 1, 0, budget, 0);
+    // Gross orders can also include a small residual import of the same cloth.
+    expect(plan.inputOrders![byName("Linen").i]).toBeGreaterThanOrEqual(3);
+    expect(plan.inputOrders![byName("Cotton").i]).toBeGreaterThan(0);
+    expect(plan.garments).toBeGreaterThan(0.25);
+    expect(plan.garments).toBeLessThanOrEqual(1);
+    expect(plan.garmentSpending).toBeLessThanOrEqual(budget);
+    expect(plan.laborUsed).toBeLessThanOrEqual(workers);
+    const bill = Object.entries(plan.inputOrders!).reduce(
+      (sum, [id, units]) => sum + units * market.goods[+id].price,
+      0
+    );
+    expect(bill).toBeCloseTo(plan.garmentSpending, 8);
+    expect(market).toEqual(before);
+    expect(estimateRuralTextileProduction(market, 1, 0, budget, 0)).toEqual(plan);
+    expect(flows).toHaveLength(0);
+  });
 
   it("pays for real fiber and uses shared labor to self-supply independent replacements without buying them twice", () => {
     const market = getMarkets()[0];
