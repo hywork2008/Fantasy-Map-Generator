@@ -28,6 +28,11 @@ import { getWoolOutput } from "./woolProduction";
 export const BONUS_RURAL_PRODUCTION = 0.25;
 export const MAX_BONUS_PRODUCTION = 5;
 /**
+ * Rolls (hides of 25 kg) of leather per lot of game: a lot is some 230 kg of carcasses, about four deer, whose
+ * hides are 3 kg each (goods-physical-units.md §28).
+ */
+export const LEATHER_ROLLS_PER_GAME_LOT = 0.5;
+/**
  * Lots (100 kg) of beeswax per barrel of honey: a 168 kg barrel gives 1 kg of wax for every 20 kg of honey
  * (goods-physical-units.md §26).
  */
@@ -223,7 +228,14 @@ export function getRuralProductionContributions(
     // actual assigned workers instead of raw population — Phase 1 of that redesign.
     if (good.name === "Game") {
       const amount = preview ? previewHuntingGameOutput(cellId) : getHuntingGameOutput(cellId);
-      if (amount > 0) contributions.push({ goodId, amount: amount * getModifiers(good, cellId) });
+      if (amount > 0) {
+        const hunted = amount * getModifiers(good, cellId);
+        contributions.push({ goodId, amount: hunted });
+        const leather = getGoods().find(candidate => candidate.name === "Leather");
+        if (leather && isGoodEnabled(leather)) {
+          contributions.push({ goodId: leather.i, amount: hunted * LEATHER_ROLLS_PER_GAME_LOT });
+        }
+      }
       continue;
     }
 

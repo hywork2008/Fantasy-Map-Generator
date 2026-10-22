@@ -1501,5 +1501,53 @@ Linen・酒樽5品・Ink・Rennet・Leather・Beeswax は、いずれも「値�
 #### 残る課題
 
 - Rennet の胃1つあたりの量と値の史料を探す。
-- Leather(Boots・Harnesses と一緒)・酒樽5品。
+- 酒樽5品。
+
+## 28. Leather: 皮はと畜と狩りの副産物へ(2026-10-22、実装)
+
+方針は「ファンタジー要素以外の校正データは常に史料を基準とする」。
+
+### 28.1 史料と、史料のない部分
+
+- 値: 皮1枚(25 kg)は牛1頭の約1/30〜1/90。Leather を Grain の約3倍/kg(§13 の調べ)にすると 25 kg で 0.16、牛(5)の1/31になり、この比と合う。今の6は牛より高く、1 kg で Grain の 112 倍だった。比の参考: [Late-Medieval English Prices](https://mail.mseffie.com/assignments/canterbury_tales/medieval_prices.html)(牛 9s 5d、皮10枚 1s の孤立した記載。年代が違い、一次史料ではないので目安に留める)。
+- 皮は牛1頭の副産物で、その原価は肉に付く。Leather を Cattle から作る recipe にすると、1 lot の入力(5)が出力(0.16)を超える。Beeswax(§26)と同じ型。
+- 狩りの Game 1 lot(約 230 kg、鹿4頭)から皮 0.5 枚(鹿の皮は3 kg)は、モデルの値で、史料ではない。
+
+### 28.2 変えたもの
+
+| 項目 | 今まで → 後 |
+| :--- | :--- |
+| Leather の値 | 6 → 0.16(単位は roll = 皮1枚のまま) |
+| Leather の recipe | Cattle 1・Game 1・Horses 0.5・Camels 0.25 → なし |
+| 皮の出どころ | と畜(`slaughter.ts`、牛1頭 = 1 roll。古い保存の recipe があればそれを優先)、狩り(`production-utils.ts`、Game 1 lot に 0.5 roll。`LEATHER_ROLLS_PER_GAME_LOT`) |
+| 枠 | `MEASURED_SLOT_GOODS` に Leather を加えた(皮1枚 25 kg が0.16なので、旧枠だと運賃が値を超える) |
+| Harnesses の Leather | 0.5 → 20 roll(100組・約1 t の馬具に革 500 kg) |
+| Books の Leather | 1 → 0.02 roll(1冊の装丁に 0.5 kg) |
+| 荷車・隊商の資材(`transportAssetOrders.ts`) | 隊商(50個の荷鞍)の Leather 0.5 → 4、代用 1 → 12(300 kg)。荷車・馬車の革(0.2・0.6)は端の革紐で、そのまま |
+| Boots・Arms | 変えない(Boots 1 roll は 20 足 30 kg、Arms 0.5 roll は 12.5 kg で質量に合う) |
+
+- Horses・Camels からの皮は外れた(と畜は食用の家畜だけ)。
+
+### 28.3 古い保存と計測
+
+`migrateLeatherByproduct` が recipe を消す。値(6 → 0.16)・Harnesses と Books の脚は `WEIGHT_REPRICING`・`WEIGHT_RECIPE_REPRICING` が直す。市場の在庫は同じ roll のまま。
+
+盗賊なし、province-101、3年(前 → 後)。
+
+| 項目 | 前 → 後 |
+| :--- | :--- |
+| 国庫の合計 | 548,995 → 549,181 |
+| 贅沢品の充足 | 2.893 → 2.930 |
+| 市場の在庫 Leather(roll) | 1,964 → 10,323 |
+| 市場の在庫 Boots | 36 → 88 |
+| 市場の在庫 Harnesses | 1.2 → 0 |
+
+- 皮が5倍に溜まった。と畜と狩りの副産物は労働を使わず、使う側(Boots・Harnesses・Arms)の需要は小さい。Game の 0.5 roll は仮の値で、溜まり方は未調整。
+- Harnesses の在庫が0になった。1 lot に皮 20 roll 要るようになったが、在庫は足りている。原因は未調べ(Harnesses は軍の需要が消費するため、在庫が元から小さい)。
+- 試験: `src/extensions` で前から失敗している6件に加え、`RosterPresetPanel.test.tsx`(characters の `getApi` モック)が失敗。Leather と無関係な変更の失敗と考えられるが、変更前では確かめていない。`tsc` は通る。
+
+#### 残る課題
+
+- 皮の溜まり方(Game の 0.5 roll、使い道)、Harnesses の在庫が0になった原因。
+- 酒樽5品、Rennet の史料。
 

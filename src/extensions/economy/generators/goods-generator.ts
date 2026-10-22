@@ -1370,9 +1370,11 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["clothing", "military"],
     icon: "good-leather",
     color: "#8b5a2b",
-    value: 6,
+    // A hide of 25 kg at 3 times the grain price per kilogram, as the sources have it, a thirtieth of a head of
+    // cattle; it was 6, more than the head, and 112 times (goods-physical-units.md §28). A hide comes with the
+    // carcass (slaughter.ts) and the hunt (production-utils.ts), so Leather has no recipe.
+    value: 0.16,
     chance: 0,
-    recipes: [{ Cattle: 1 }, { Game: 1 }, { Horses: 0.5 }, { Camels: 0.25 }],
     unit: "roll",
     multipliers: { cultureType: { Naval: 0.6 } }
   },
@@ -1534,7 +1536,7 @@ export const GOODS_DATA: GoodData[] = [
     chance: 0,
     recipes: [
       { Paper: 1, Ink: INK_BARRELS_PER_BOOK },
-      { Leather: 1, Ink: INK_BARRELS_PER_BOOK }
+      { Leather: 0.02, Ink: INK_BARRELS_PER_BOOK }
     ],
     unit: "volume",
     demandCoverage: { luxury: 1 },
@@ -1613,9 +1615,9 @@ export const GOODS_DATA: GoodData[] = [
     value: 10,
     chance: 0,
     recipes: [
-      { Leather: 0.5, "Iron Ingot": 0.25 },
-      { Leather: 0.5, Bronze: 0.25 },
-      { Leather: 0.5, "Copper Ingot": 0.25 }
+      { Leather: 20, "Iron Ingot": 0.25 },
+      { Leather: 20, Bronze: 0.25 },
+      { Leather: 20, "Copper Ingot": 0.25 }
     ],
     unit: "set",
     demandCoverage: { military: 1 },
@@ -4744,6 +4746,14 @@ export function migrateBeeswaxByproduct(): boolean {
   return true;
 }
 
+/** Drops a saved catalogue's Leather recipes: a hide comes with the carcass and the hunt now (§28). */
+export function migrateLeatherByproduct(): boolean {
+  const leather = getGoods().find(good => good.name === "Leather");
+  if (!leather?.recipes?.length) return false;
+  delete leather.recipes;
+  return true;
+}
+
 /** Moves a saved catalogue's Rennet from the 1 L vial to the 120 L barrel, a 120th of the stock (§27). */
 export function migrateRennetBarrel(): boolean {
   return migrateLargerUnit("Rennet", "vial", "barrel", 120);
@@ -4773,6 +4783,7 @@ export const WEIGHT_REPRICING: Readonly<Record<string, readonly [before: number,
   Ink: [7, 3.4],
   Beeswax: [5, 9.7],
   Rennet: [4, 40],
+  Leather: [6, 0.16],
   Candles: [10, 14]
 };
 
@@ -4794,6 +4805,8 @@ const WEIGHT_RECIPE_REPRICING: readonly { good: string; input: string; before: n
   { good: "Ink", input: "Dyes", before: 0.5, after: 0.1 },
   { good: "Books", input: "Ink", before: 0.5, after: INK_BARRELS_PER_BOOK },
   { good: "Artworks", input: "Ink", before: 0.5, after: INK_BARRELS_PER_BOOK },
+  { good: "Harnesses", input: "Leather", before: 0.5, after: 20 },
+  { good: "Books", input: "Leather", before: 1, after: 0.02 },
   { good: "Rennet", input: "Cattle", before: 0.03, after: 4.8 },
   { good: "Rennet", input: "Sheep", before: 0.03, after: 12 },
   { good: "Rennet", input: "Goats", before: 0.03, after: 10 }

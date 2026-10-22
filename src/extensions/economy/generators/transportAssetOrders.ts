@@ -79,9 +79,10 @@ const BLUEPRINTS: readonly TransportAssetBlueprint[] = [
     id: "pack-train",
     outputAssetId: "pack-train",
     outputMode: "land",
-    // Fifty pack saddles on wooden trees, with halters, girths and breeching.
-    materialNames: { Leather: 0.5, Wood: 0.1, Harnesses: convoyAnimals("pack-train") / HARNESS_SETS_PER_LOT },
-    substituteMaterialNames: [{ Leather: 1, Wood: 0.1 }],
+    // Fifty pack saddles on wooden trees, with halters, girths and breeching: some 12 hides (300 kg) of leather,
+    // or 4 beside the harness sets.
+    materialNames: { Leather: 4, Wood: 0.1, Harnesses: convoyAnimals("pack-train") / HARNESS_SETS_PER_LOT },
+    substituteMaterialNames: [{ Leather: 12, Wood: 0.1 }],
     requiredWorkPoints: 5,
     draftAnimalHeads: convoyAnimals("pack-train") / HORSES_PER_MARKET_HEAD,
     requiredCraft: "leather",

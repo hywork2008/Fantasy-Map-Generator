@@ -130,7 +130,9 @@ const MEASURED_SLOT_GOODS: ReadonlySet<string> = new Set([
   // Beeswax and candles, priced by weight (§26).
   "Beeswax",
   // Rennet, in the 120 L barrel (§27).
-  "Rennet"
+  "Rennet",
+  // Leather, a 25 kg hide priced by weight (§28).
+  "Leather"
 ]);
 
 /** Slots one packed unit of `good` fills, from its measure; undefined for goods that walk or move themselves. */

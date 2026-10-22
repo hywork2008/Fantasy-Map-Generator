@@ -30,6 +30,13 @@ import { isGoodEnabled } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import type { Market } from "./marketTypes";
 
+/**
+ * Heads that give one roll (a hide) of Leather when the catalogue's Leather has no recipe: a hide is
+ * a byproduct of the carcass, not a craft (goods-physical-units.md §28). Only cattle are slaughtered
+ * for one; an older catalogue's Leather recipe, if it has one, wins.
+ */
+const LEATHER_HEADS_PER_ROLL: Readonly<Record<string, number>> = { Cattle: 1 };
+
 export interface SlaughterResult {
   heads: number;
   tallow: number;
@@ -87,7 +94,9 @@ export function settleSlaughter(): SlaughterResult {
   for (const market of getMarkets()) {
     for (const animal of animals) {
       const tallowHeads = tallow ? singleIngredientHeads(tallow, animal.i) : undefined;
-      const leatherHeads = leather ? singleIngredientHeads(leather, animal.i) : undefined;
+      const leatherHeads = leather
+        ? (singleIngredientHeads(leather, animal.i) ?? LEATHER_HEADS_PER_ROLL[animal.name])
+        : undefined;
       if (tallowHeads === undefined && leatherHeads === undefined) continue;
       const row = market.goods[animal.i];
       const heads = row?.stock ?? 0;

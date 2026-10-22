@@ -25,6 +25,7 @@ import {
   migrateFreshFoodTags,
   migrateGrapesGood,
   migrateInkBarrel,
+  migrateLeatherByproduct,
   migrateLegacyOreIngotGoods,
   migrateLinenBale,
   migrateLiveAnimalTags,
@@ -964,6 +965,17 @@ describe("GoodsModule", () => {
     expect(rennet.unit).toBe("barrel");
     expect(getMarkets()[0].goods[rennet.i].stock).toBe(2);
     expect(migrateRennetBarrel()).toBe(false);
+  });
+
+  it("drops saved Leather recipes, since a hide comes with the carcass, once", () => {
+    goodsModule.restoreDefaults();
+    const leather = getGoods().find(good => good.name === "Leather")!;
+    const cattle = getGoods().find(good => good.name === "Cattle")!;
+    leather.recipes = [{ [cattle.i]: 1 }];
+
+    expect(migrateLeatherByproduct()).toBe(true);
+    expect(leather.recipes).toBeUndefined();
+    expect(migrateLeatherByproduct()).toBe(false);
   });
 
   it("turns saved Beeswax into a recipe-less 100 kg block with a tenth of the stock, once", () => {
