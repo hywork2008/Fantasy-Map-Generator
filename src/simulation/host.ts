@@ -134,7 +134,7 @@ function createHostMapReadyTasks(): MapReadyTaskPort & { run(all: boolean): Prom
           const task = tasks.get(id);
           if (task) visit(task);
         }
-      for (const task of ordered) await task.run({ isCurrent: () => true, reportProgress: () => {} });
+      for (const task of ordered) await task.run({ generation: all, isCurrent: () => true, reportProgress: () => {} });
     }
   };
 }

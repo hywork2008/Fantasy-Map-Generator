@@ -1,5 +1,5 @@
 import type { RNGService } from "../../../context/appServices";
-import { getCharacters, hasCharactersContext } from "../../characters/charactersContext";
+import { getSimulationCharacters as getCharacters, hasCharactersContext } from "../../characters/charactersContext";
 import {
   getCultureKnowledgeValue,
   isFastAdvanceRunActive,

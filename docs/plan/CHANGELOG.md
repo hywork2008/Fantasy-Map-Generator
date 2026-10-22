@@ -3,6 +3,8 @@
 2026-10-22
 
 - docs/plan/ce-manual-city-authoring.md - CE手動編集のセル境界由来の細街路・仕上げ後の枠付近の道路・共有時の再生成を調査し、手動補完ポリシー、選択区域の仕上げ、文書共有と生成条件共有の分離、実装順序と受入条件を設計
+- docs/plan/character-wealth-lifecycle.md - 人物の遅延生成・詳細削除・死亡・相続から現金口座を独立させ、初期資金の配分と抽象家計の分割、通貨量の保存、旧セーブ移行・削除前精算を定義する設計
+- docs/plan/master-character-generation-compatibility.md - 全拡張ONの固定masterを基準に、初期人物の種類・人数・兼任・所持金・家族構成を選択生成で再現するプロファイル、初期予算・乱数再生・家族集計・移行・差分検証の設計
 
 2026-10-21
 
@@ -25,6 +27,7 @@
 
 - docs/calibration/farmland-area-pilot-20261019.json - 経済有効の3世界・10年ずつの耕地統計、学習・検証の分離、都市側配分で悪化した研究モデルの評価と入力・実装ハッシュ
 - docs/plan/ce-road-network-normalization.md - CE道路の同一edge重複・孤立・折り返しを調査し、物理区間と路線の分離、接続済み網への追加、需要と新設延長による採否、平滑化前の経路正規化を提案
+- docs/plan/character-generation-presets.md - 国家元首・首脳・軍事指揮官・領主・越境宗教組織の聖職者・御用商人・ギルド長等を種類別/組織別に選択生成するプリセットと、役職定員・兼任・新規人数の設計
 - docs/plan/farmland-area-estimation.md - sim:serverの年次耕地観測、5年統計、経済無効時の静的推定の校正・独立世界による評価・純粋推論を分けたAPIとFMG/RE/CEへの接続設計
 - docs/plan/long-distance-merchant-reach-capital.md - 遠距離交易を止めている商会の到達範囲(支店があれば本拠の範囲を問わない、高額品は 90 日まで、外地の商館)と運転資金(対価のない 8% の利益の廃止、市場間の代金の決済、commenda 型の出資、動かない荷の取り消し)の見直し(approach-commerce-quarters.md §10 の候補 (2) と §4.5 で見つかった資本の関門)
 - docs/plan/luxury-value-demand.md - 高額品の需要を個数ではなく予算と価格帯(並・上・極上)で決め、人物の生活費・余剰の一部で居住都市の市場から高額品を実際に買う設計。計測で、買い手のお金は足りているのに安い毛皮・香が需要を満たし、価値 20 以上の品が都市に一度も買われていないことを示した(initial-wealth-calibration.md §5.4 の対応)

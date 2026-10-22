@@ -1,5 +1,6 @@
 import { pow } from "../../../simulation/deterministicMath";
 import { applyCharacterBackstory, seedRelationsWithPeers } from "../../characters/backstoryProfile";
+import { isOnDemandRosterEnabled, nextCharacterId } from "../../characters/charactersContext";
 import type { Character, CharacterRole, CharacterSkills } from "../../characters/characterTypes";
 import { finalizeCharacterSocietyForPeer } from "../../characters/finalizeCharacterSociety";
 import { createPerson } from "../../characters/personFactory";
@@ -92,26 +93,30 @@ export function syncMerchantOrganizations(
   for (const market of markets) {
     const burg = pack.burgs[market.centerBurgId] as Burg | undefined;
     const manager = getCharacter(market.managerCharacterId);
-    if (!burg || !manager) continue;
+    if (!burg || (!manager && !isOnDemandRosterEnabled())) continue;
 
     const memberCharacterIds = uniqueCharacterIds([
-      manager.i,
+      manager?.i,
       ...(market.rivalCharacterIds ?? []).filter(characterId => Boolean(getCharacter(characterId)))
     ]);
     profiles.push({ burg, market, memberCharacterIds });
   }
 
+  const prior = isOnDemandRosterEnabled() ? getMerchantOrganizations() : [];
+  let nextId = prior.reduce((max, o) => Math.max(max, o.i), 0) + 1;
   const organizations: MerchantOrganization[] = [];
   for (const profile of profiles) {
+    const previous = prior.find(o => o.homeMarketId === profile.market.i);
     const organization: MerchantOrganization = {
-      i: organizations.length + 1,
+      ...previous,
+      i: isOnDemandRosterEnabled() ? (previous?.i ?? nextId++) : organizations.length + 1,
       name: getOrganizationName(profile.market.managerCharacterId ?? 0, profile.burg, "major"),
       scale: "major",
       homeBurgId: profile.burg.i ?? profile.market.centerBurgId,
       homeMarketId: profile.market.i,
       homeStateId: profile.burg.state ?? 0,
-      chairpersonCharacterId: profile.market.managerCharacterId ?? 0,
-      memberCharacterIds: profile.memberCharacterIds,
+      chairpersonCharacterId: previous?.chairpersonCharacterId || profile.market.managerCharacterId || 0,
+      memberCharacterIds: uniqueCharacterIds([...profile.memberCharacterIds, ...(previous?.memberCharacterIds ?? [])]),
       tradeRangeKm: getTradeRangeKm("major"),
       urbanPreference: getUrbanPreference("major"),
       ruralFocus: getRuralFocus("major")
@@ -319,6 +324,8 @@ function syncMerchantOrganizationCharacters(organizations: MerchantOrganization[
       activeRoleKeys.add(getRoleKey(chairperson.i, MERCHANT_ORGANIZATION_HEAD_ROLE_KIND, organization.i));
     }
 
+    if (isOnDemandRosterEnabled()) continue;
+
     if (!MERCHANT_ORGANIZATION_STAFF_ENABLED) {
       delete organization.secretaryCharacterId;
       delete organization.bodyguardCharacterId;
@@ -445,7 +452,7 @@ function createOrganizationStaff(
   const { pack } = getWorldContext();
   pack.characters ??= [];
   const burg = getBurg(burgId);
-  const character = createPerson(getNextCharacterId(pack.characters), resolveBurgCulture(burg), {
+  const character = createPerson(nextCharacterId(pack.characters), resolveBurgCulture(burg), {
     primarySkill,
     roleClass: "merchant",
     homeStateId: burg?.state ?? organization.homeStateId,
@@ -573,10 +580,6 @@ function setProwess(character: Character, value: number): void {
 
 function uniqueCharacterIds(ids: (number | undefined)[]): number[] {
   return [...new Set(ids.filter((id): id is number => id !== undefined))];
-}
-
-function getNextCharacterId(characters: Character[]): number {
-  return Math.max(0, ...characters.map(c => c.i), -1) + 1;
 }
 
 function getBurg(burgId: number): Burg | undefined {

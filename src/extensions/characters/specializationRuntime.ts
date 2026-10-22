@@ -1,7 +1,7 @@
 import type { SimulationExtensionAPI } from "../../types/extension-api";
 import type { WorldLanguages } from "../../types/worldLanguages";
 import { assertObject, validateWorldLanguages } from "../../utils/worldLanguages";
-import { getApi, getCharacters, getCurrentYear, getWorldContext } from "./charactersContext";
+import { getApi, getSimulationCharacters as getCharacters, getCurrentYear, getWorldContext } from "./charactersContext";
 import type { Character } from "./characterTypes";
 import { advanceSpecializationLearning } from "./specializationLearning";
 import { decaySpecializations, emptySpecializations, recordSpecializationExperience } from "./specializations";
@@ -175,7 +175,7 @@ export function registerSpecializationSimulation(api: SimulationExtensionAPI): (
       const year = getCurrentYear();
       let changed = false;
       for (const character of characters) {
-        if (!character.specializations || character.dead) continue;
+        if (!character.specializations || character.dead || character.rosterMode === "memo") continue;
         advanceSpecializationLearning(character, characters, year, deltaYears, api.worldContext.pack.languageWorld);
         advanceProfessionalExperience(character, deltaYears);
         decaySpecializations(character, year);

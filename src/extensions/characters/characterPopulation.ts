@@ -4,6 +4,7 @@ import {
   getCurrentYear,
   getPersonalTechnologyKnowledge,
   getWorldContext,
+  nextCharacterId,
   setPersonalTechnologyKnowledge
 } from "./charactersContext";
 import type { Character, CharacterPersonality, CharacterRole, CharacterSkills } from "./characterTypes";
@@ -53,10 +54,6 @@ export interface CreatePlayerCharacterOptions {
   personalTechnologyKnowledge?: "all" | string[];
 }
 
-function getNextCharacterId(characters: readonly Character[]): number {
-  return Math.max(-1, ...characters.map(character => character.i)) + 1;
-}
-
 function getStateNames(): Record<number, string> {
   const names: Record<number, string> = {};
   for (const state of getWorldContext().pack.states ?? []) {
@@ -83,12 +80,11 @@ export function generateBurgResidents(options: GenerateBurgResidentsOptions): Ch
   const stateId = burg.state ?? 0;
   const occupationPool = options.isFantasy ? FANTASY_OCCUPATIONS : HISTORICAL_OCCUPATIONS;
   const characters = getCharacters();
-  let nextId = getNextCharacterId(characters);
   const created: Character[] = [];
 
   for (let index = 0; index < count; index += 1) {
     const occupation = occupationPool[index % occupationPool.length]!;
-    const character = createPerson(nextId++, cultureId, {
+    const character = createPerson(nextCharacterId(characters), cultureId, {
       homeStateId: stateId,
       primarySkill: occupation.primarySkill,
       roleClass: occupation.roleClass ?? "ordinary"
@@ -131,7 +127,7 @@ export function createPlayerCharacter(options: CreatePlayerCharacterOptions): Ch
   const stateId = burg.state ?? 0;
   const state = pack.states?.[stateId];
   const age = Number.isFinite(options.age) ? Math.max(1, Math.floor(options.age)) : 25;
-  const character = createPerson(getNextCharacterId(characters), options.cultureId, {
+  const character = createPerson(nextCharacterId(characters), options.cultureId, {
     homeStateId: stateId,
     ageOverride: age,
     genderOverride: options.gender,
@@ -202,7 +198,6 @@ export function generateIndependentBurgRulers(burgId: number): Character[] {
 
   const cultureId = burg.culture ?? pack.cultures?.find(c => c.i > 0)?.i ?? 0;
   const characters = getCharacters();
-  let nextId = getNextCharacterId(characters);
   const created: Character[] = [];
   const currentYear = getCurrentYear();
 
@@ -221,7 +216,7 @@ export function generateIndependentBurgRulers(burgId: number): Character[] {
             ? "Consul"
             : "Tribune";
 
-    const character = createPerson(nextId++, cultureId, {
+    const character = createPerson(nextCharacterId(characters), cultureId, {
       homeStateId: 0,
       primarySkill: form === "patrician_council" ? "stewardship" : form === "autocracy" ? "martial" : "diplomacy",
       roleClass: form === "patrician_council" ? "merchant" : "ruler",

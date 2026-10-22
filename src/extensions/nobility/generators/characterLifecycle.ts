@@ -12,7 +12,11 @@ import {
   resolveCorruptionEvents,
   tryCourtBribe
 } from "../../characters/characterSimulationHooks";
-import { getSelectedAbilityPresetId } from "../../characters/charactersContext";
+import {
+  getSelectedAbilityPresetId,
+  isOnDemandRosterEnabled,
+  nextCharacterId
+} from "../../characters/charactersContext";
 import { type Character, type CharacterSkills, isCk3Character } from "../../characters/characterTypes";
 import { finalizeCharacterSociety, finalizeCharacterSocietyForPeer } from "../../characters/finalizeCharacterSociety";
 import { resolveChildRaceId } from "../../characters/hybridChild";
@@ -44,6 +48,7 @@ import {
 } from "../../characters/raceRoster";
 import { filterOfficesForEnemyRace, isEnemyDedicatedRaceKey } from "../../characters/raceSkillBias";
 import { isReligiousStateForm } from "../../characters/religiousForms";
+import { buildWorldRoster } from "../../characters/roster/build";
 import { EXPERTISE_TASKS, evaluateExpertise, specializationScore } from "../../characters/specializations";
 import { calculateCharacterTraits } from "../../characters/utils/personalityUtils";
 import { isEconomyContextReady } from "../../economy/economyContext";
@@ -96,10 +101,6 @@ export type {
   TitleHolding
 } from "../../characters/characterTypes";
 
-function getNextCharacterId(characters: Character[]): number {
-  return Math.max(0, ...characters.map(c => c.i), -1) + 1;
-}
-
 function clearStateRulerIds(): void {
   const { pack } = getWorldContext();
   for (const state of pack.states ?? []) setRulerId(state, undefined);
@@ -127,6 +128,10 @@ function isReligiousForm(
 }
 
 function generate(options: { randomSeed?: string | number } = {}): void {
+  if (isOnDemandRosterEnabled()) {
+    buildWorldRoster();
+    return;
+  }
   TIME && console.time("generateCharacters");
   const worldContext = getWorldContext();
   Math.random = Alea(options.randomSeed ?? worldContext.seed);
@@ -142,7 +147,6 @@ function generate(options: { randomSeed?: string | number } = {}): void {
   clearStateRulerIds();
   const characters: Character[] = [...preserveNonPoliticalCharacters(pack.characters)];
   pack.dynasties = [];
-  let nextId = getNextCharacterId(characters);
 
   const currentYear = getCurrentYear();
   const states = pack.states.filter(s => s.i && !s.removed);
@@ -154,7 +158,7 @@ function generate(options: { randomSeed?: string | number } = {}): void {
     const density = densityForState(state, pack);
 
     const rulerIds = resolvePersonCultureAndRace(state, pack);
-    const ruler = createPerson(nextId++, rulerIds.cultureId, {
+    const ruler = createPerson(nextCharacterId(characters), rulerIds.cultureId, {
       homeStateId: state.i,
       formName: state.formName,
       marriageExpectation: "dynastic",
@@ -206,7 +210,7 @@ function generate(options: { randomSeed?: string | number } = {}): void {
           ? "commander"
           : "central_officer";
       const ids = resolvePersonCultureAndRace(state, pack, { roleClass: officerRoleClass });
-      const officer = createPerson(nextId++, ids.cultureId, {
+      const officer = createPerson(nextCharacterId(characters), ids.cultureId, {
         homeStateId: state.i,
         formName: state.formName,
         marriageExpectation: "elite",
@@ -352,7 +356,7 @@ function createOfficer(
   title: "Commander" | "Admiral"
 ): Character {
   const { pack } = getWorldContext();
-  const nextId = getNextCharacterId(pack.characters);
+  const nextId = nextCharacterId(pack.characters);
   const ids = resolvePersonCultureAndRace(state, pack, { roleClass: "commander" });
   const officer = createPerson(nextId, ids.cultureId, {
     homeStateId: state.i,
@@ -398,7 +402,7 @@ function createProvinceLord(
   province: Pick<Province, "i" | "formName" | "burg">
 ): Character {
   const { pack } = getWorldContext();
-  const nextId = getNextCharacterId(pack.characters);
+  const nextId = nextCharacterId(pack.characters);
   const ids = resolvePersonCultureAndRace(state, pack);
   const lord = createPerson(nextId, ids.cultureId, {
     homeStateId: state.i,
@@ -453,7 +457,7 @@ function createHoldingNoble(
   }
 ): Character {
   const { pack } = getWorldContext();
-  const nextId = getNextCharacterId(pack.characters);
+  const nextId = nextCharacterId(pack.characters);
   const ids = resolvePersonCultureAndRace(state, pack, { roleClass: spec.roleClass });
   const location = spec.locationBurgId > 0 ? spec.locationBurgId : (state.capital ?? 0);
   const noble = createPerson(nextId, ids.cultureId, {
@@ -507,6 +511,7 @@ function clear(): void {
  * see docs/plan/char-economy.md for the two-pass split rationale.
  */
 function processResignationsAndSuccessions(deltaYears: number): void {
+  if (isOnDemandRosterEnabled()) return;
   const { pack } = getWorldContext();
   if (!pack.characters?.length) return;
 
@@ -730,7 +735,6 @@ function evaluateOfficeAttractiveness(
 function processSuccessions(): void {
   const { pack } = getWorldContext();
   const states = pack.states.filter(s => s.i && !s.removed);
-  let nextId = Math.max(0, ...pack.characters.map(c => c.i)) + 1;
   const generationBias = getCharacterGenerationBias();
 
   for (const state of states) {
@@ -759,7 +763,7 @@ function processSuccessions(): void {
         }
       }
 
-      const heir = createPerson(nextId++, heirIds.cultureId, {
+      const heir = createPerson(nextCharacterId(pack.characters), heirIds.cultureId, {
         homeStateId: state.i,
         formName: state.formName,
         marriageExpectation: "dynastic",
@@ -915,7 +919,7 @@ function processSuccessions(): void {
           ? "commander"
           : "central_officer";
       const ids = resolvePersonCultureAndRace(state, pack, { roleClass: officerRoleClass });
-      const officer = createPerson(nextId++, ids.cultureId, {
+      const officer = createPerson(nextCharacterId(pack.characters), ids.cultureId, {
         homeStateId: state.i,
         formName: state.formName,
         marriageExpectation: "elite",

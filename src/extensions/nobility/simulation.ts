@@ -1,3 +1,13 @@
+import { isReferenceEvaluation } from "../characters/reference/evaluation";
+import { registerReferenceTitleNames } from "../characters/reference/roster";
+import { buildWorldRoster, registerRosterProvider } from "../characters/roster/build";
+import { readRoster } from "../characters/roster/runtime";
+import { seedMissingCharacterWealth } from "../economy/generators/characterStipends";
+import { resolveProvinceLordTitle, resolveRulerTitle } from "./data/titleTable";
+import { applyPersonalityToCapitalGuard } from "./generators/capitalGuardModifier";
+import { applyAffinitiesToDiplomacy } from "./generators/diplomacy-modifier";
+import { buildNobilityRoster } from "./holdings/rosterProvider";
+import { gaelicTitles } from "./holdings/titles";
 import "./types"; // activate module augmentation for PackedGraph/State
 
 import { simEvents } from "../../simulation/events";
@@ -6,7 +16,6 @@ import type { SimulationExtension, SimulationExtensionAPI } from "../../types/ex
 import { advanceCharacterAging } from "../characters/advanceAge";
 import { advanceCharacterHealth } from "../characters/characterHealth";
 import { getSelectedAbilityPresetId } from "../characters/charactersContext";
-import { seedMissingCharacterWealth } from "../economy/generators/characterStipends";
 import { advanceAllRegimentMovement, advanceFrontierGovernance, Military, raiseUndeadOnCellEntered } from "../hostCore";
 import { measureGenerationStep } from "../hostUtils";
 import {
@@ -17,11 +26,9 @@ import {
   shouldSuppressConflictAdvance,
   startPlayerConflict
 } from "./conflictDirector";
-import { applyPersonalityToCapitalGuard } from "./generators/capitalGuardModifier";
 import { Characters } from "./generators/characterLifecycle";
 import { pruneDeadCharactersAnnual } from "./generators/characterPruning";
 import { repairDemonInfiltrationTrueIdentities } from "./generators/demonInfiltration";
-import { applyAffinitiesToDiplomacy } from "./generators/diplomacy-modifier";
 import { addVoyageIntel, clearVoyageIntel, Espionage } from "./generators/espionage-generator";
 import { tryRecaptureHomeBurg } from "./generators/homeRecapture";
 import { HumanCapitalAllocation } from "./generators/humanCapitalAllocation";
@@ -31,7 +38,7 @@ import { Mobilization } from "./generators/mobilization";
 import { assignOfficers } from "./generators/officerAssignment";
 import { assignProvinceLords } from "./generators/provinceLordGenerator";
 import { StrategicPlanner } from "./generators/strategic-planner";
-import { clearNobilityContext, initNobilityContext } from "./nobilityContext";
+import { clearNobilityContext, getHoldingsLedger, initNobilityContext } from "./nobilityContext";
 import { refreshPlayerCharacterSelection } from "./playerCharacterFocus";
 import { clearPendingPlayerTravel, tickPlayerTravel } from "./playerTravel";
 import { NOBILITY_TICK_SYSTEM_IDS, NOBILITY_TICK_TOPIC_CONTRACTS, type NobilityTickSystemId } from "./tickSystemIds";
@@ -71,35 +78,46 @@ function isNobilityRegenerationRequest(value: unknown): value is NobilityRegener
   return true;
 }
 
-function regenerateNobilityData(mode: NobilityRegenerationMode, randomSeed?: string | number): void {
-  Characters.generate(randomSeed !== undefined ? { randomSeed } : {});
-  if (getSelectedAbilityPresetId() !== "ck3e") {
+function regenerateNobilityData(_mode: NobilityRegenerationMode, _randomSeed?: string | number): void {
+  if (isReferenceEvaluation()) {
+    Characters.generate(_randomSeed !== undefined ? { randomSeed: _randomSeed } : {});
+    if (getSelectedAbilityPresetId() === "ck3e") {
+      applyAffinitiesToDiplomacy();
+      applyPersonalityToCapitalGuard();
+      if (_mode === "full") {
+        assignOfficers();
+        assignProvinceLords();
+      }
+      Espionage.generate();
+      if (mayAdvanceAutonomousConflict()) StrategicPlanner.generate();
+      seedMissingCharacterWealth();
+    }
     refreshPlayerCharacterSelection();
     notifyCourtChanged();
     return;
   }
-  applyAffinitiesToDiplomacy();
-  applyPersonalityToCapitalGuard();
-  if (mode === "full") {
-    assignOfficers();
-    assignProvinceLords();
-  }
-  Espionage.generate();
-  if (mayAdvanceAutonomousConflict()) StrategicPlanner.generate();
-  // Fabricate starting wealth for any newly-created titled/roled character so they aren't
-  // stuck at 0 until the next Advance Time tick (docs/plan/state-treasury-department-budget.md
-  // §7 item 8). Only ever touches characters still at wealth=0, so re-running this on every
-  // regenerate is safe.
-  seedMissingCharacterWealth();
-  // Government rebuilds must not replace a living player character created by
-  // Characters. When none is focused, the controller picks a political focus.
+  buildWorldRoster();
   refreshPlayerCharacterSelection();
-  // Overview reads pack via getCharacters() on render; bump so an open dialog refreshes.
   notifyCourtChanged();
 }
 
 function register(api: SimulationExtensionAPI): () => void {
   initNobilityContext(api);
+  const unregisterRosterProvider = registerRosterProvider(buildNobilityRoster);
+  const unregisterTitleNames = registerReferenceTitleNames((title, stateId) => {
+    const state = api.worldContext.pack.states[stateId];
+    if (title.entityType === "state" && title.landed && state)
+      return { name: resolveRulerTitle(state, "male"), femaleName: resolveRulerTitle(state, "female") };
+    const province = title.entityType === "province" ? api.worldContext.pack.provinces[title.entityId] : undefined;
+    if (province)
+      return {
+        name: resolveProvinceLordTitle(province, "male"),
+        femaleName: resolveProvinceLordTitle(province, "female")
+      };
+    const holding = title.entityType === "holding" ? getHoldingsLedger().find(h => h.id === title.entityId) : undefined;
+    const names = holding && gaelicTitles(holding);
+    return names ? { name: names.male, femaleName: names.female } : undefined;
+  });
   const listeners: [string, (event: Event) => void][] = [];
   const on = (type: string, listener: (event: Event) => void) => {
     api.events.addEventListener(type, listener);
@@ -131,7 +149,7 @@ function register(api: SimulationExtensionAPI): () => void {
       api.requestMapReadyTask("nobility.initialization");
     } else if (!isEnabled && wasEnabled) {
       clearPendingPlayerTravel();
-      Characters.clear();
+      // Disabling political simulation preserves authored people and their notes.
     }
   });
 
@@ -292,16 +310,18 @@ function register(api: SimulationExtensionAPI): () => void {
     // a long session.
     if (isAnnualBoundary()) pruneDeadCharactersAnnual();
     if (!usesCourtSystems()) return;
-    Characters.processResignationsAndSuccessions(effectiveDeltaYears);
-    if (isAnnualBoundary()) Characters.replenishDemonInfiltrationCentury();
+    if (!readRoster()) Characters.processResignationsAndSuccessions(effectiveDeltaYears);
+    if (!readRoster() && isAnnualBoundary()) Characters.replenishDemonInfiltrationCentury();
     // Phase D: greed/commitment-driven skimming and court bribes.
     Characters.processCharacterCorruption(effectiveDeltaYears);
   });
 
   registerNobilityTickSystem("nobility.appointments", (_context, _writer) => {
     if (!usesCourtSystems()) return;
-    assignOfficers();
-    assignProvinceLords();
+    if (!readRoster()) {
+      assignOfficers();
+      assignProvinceLords();
+    }
     // A capable, humane court (or a culture that values learning) can correct one obvious
     // named-personnel mismatch each year. It runs after ordinary officer vacancy assignment
     // so it only fills a command the regular system left open.
@@ -392,6 +412,8 @@ function register(api: SimulationExtensionAPI): () => void {
     unregisterRegenerateCommand();
     // Reverse order: the registry refuses to remove a system another one still declares `after`.
     while (_unregisterTickSystems.length) _unregisterTickSystems.pop()?.();
+    unregisterRosterProvider();
+    unregisterTitleNames();
     clearNobilityContext();
   };
 }

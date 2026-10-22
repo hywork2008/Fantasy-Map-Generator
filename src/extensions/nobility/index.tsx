@@ -1,13 +1,12 @@
+import { useCharactersUiState } from "../characters/ui/charactersUiState";
 import "./types"; // activate module augmentation for PackedGraph/State
 
 import type { ExtensionAPI } from "../../types/extension-api";
 import { refreshCharactersOverviewIfOpen } from "../characters/controllers/characters-overview";
 import { CHARACTERS_EXTENSION_ID } from "../characters/simulation";
 import { tip } from "../hostServices";
-import { openDialog, type RegenerateConfirmConfig } from "../hostUi";
 import { exitPlayerMoveMode, requestTravelToBurg } from "./controllers/playerCharacterTravel";
-import { bindNobilityView, getWorldContext } from "./nobilityContext";
-import { resolveCharacterRegenerationSeed } from "./resolveCharacterRegenerationSeed";
+import { bindNobilityView } from "./nobilityContext";
 import { NOBILITY_COURT_CHANGED_EVENT, NOBILITY_EXTENSION_ID, nobilitySimulation } from "./simulation";
 import { StatesEditorPersonalityTab } from "./ui/components/StatesEditorPersonalityTab";
 
@@ -29,7 +28,7 @@ export function init(api: ExtensionAPI): void {
     {
       id: NOBILITY_EXTENSION_ID,
       name: "Nobility & Characters",
-      description: "Adds ruler characters and central government offices for each state.",
+      description: "Defines government institutions and generates selected people on demand.",
       // Nobility assigns titles/offices to, and runs political AI over, characters generated
       // by the Characters extension — it never generates or stores character data itself.
       //
@@ -67,26 +66,16 @@ export function init(api: ExtensionAPI): void {
     extensionId: NOBILITY_EXTENSION_ID,
     tab: "tools",
     section: "regenerate",
-    label: "Characters",
-    tooltip: "Click to regenerate rulers and government offices",
+    label: "Organizations",
+    tooltip: "Refresh government roles and browse people without replacing existing characters",
     onClick: () => {
-      // Same host confirm dialog as Routes regenerate: options live inside the dialog,
-      // and "do not ask again" is suppressed because seed policy is chosen each time.
-      const regenerateConfig: RegenerateConfirmConfig = {
-        featureName: "characters",
-        showDontAskAgain: false,
-        characterEntropy: "mapSeed",
-        onProceed: (_dontAskAgain, options) => {
-          const entropy = options?.characterEntropy ?? "mapSeed";
-          const randomSeed = resolveCharacterRegenerationSeed(entropy, String(getWorldContext().seed));
-          api.dispatchExtensionCommand({
-            extensionId: NOBILITY_EXTENSION_ID,
-            name: "regenerate",
-            payload: { mode: "full", randomSeed }
-          });
-        }
-      };
-      openDialog("regenerateConfirm", regenerateConfig);
+      api.dispatchExtensionCommand({
+        extensionId: NOBILITY_EXTENSION_ID,
+        name: "regenerate",
+        payload: { mode: "full" }
+      });
+      useCharactersUiState.getState().setActiveTab("organizations");
+      api.openDialog("charactersOverview");
     }
   });
 

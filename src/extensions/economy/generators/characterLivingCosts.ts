@@ -1,4 +1,4 @@
-import { getCharacters, hasCharactersContext } from "../../characters/charactersContext";
+import { getSimulationCharacters as getCharacters, hasCharactersContext } from "../../characters/charactersContext";
 import type { Character, CharacterRole, TitleHolding } from "../../characters/characterTypes";
 import { rn } from "../../hostUtils";
 import { CENTRAL_OFFICES } from "../../nobility/data/titleTable";
@@ -174,7 +174,7 @@ export function applyCharacterLivingCosts(): LivingCostSummary {
   let totalSpent = 0;
 
   for (const character of characters) {
-    if (!character || character.dead) continue;
+    if (!character || character.dead || character.cashAccountId?.startsWith("person:")) continue;
     const wealth = character.wealth || 0;
     if (!(wealth > 0)) continue;
 

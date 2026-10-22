@@ -1,5 +1,6 @@
 import { getCharacters, getCurrentYear, replaceCharacters } from "./charactersContext";
 import type { Character } from "./characterTypes";
+import { canRemoveCharacterFinance } from "./financialLifecycle";
 
 /**
  * Years a dead character must stay untouched before becoming eligible for removal. Gives
@@ -69,7 +70,7 @@ function isPrunable(
   graceYears: number,
   protectedIds: ReadonlySet<number> | undefined
 ): boolean {
-  if (!character.dead) return false;
+  if (!character.dead || character.rosterSlotId || !canRemoveCharacterFinance(character)) return false;
   if (protectedIds?.has(character.i)) return false;
   // No recorded death year — don't guess an age, just leave it for a future pass.
   if (character.deathYear === undefined) return false;

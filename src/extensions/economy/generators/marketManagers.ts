@@ -1,4 +1,5 @@
 import { applyCharacterBackstory, seedRelationsWithPeers } from "../../characters/backstoryProfile";
+import { isOnDemandRosterEnabled, nextCharacterId } from "../../characters/charactersContext";
 import type { Character, CharacterRole } from "../../characters/characterTypes";
 import { finalizeCharacterSocietyForPeer } from "../../characters/finalizeCharacterSociety";
 import { createPerson, resolveRaceIdForCulture } from "../../characters/personFactory";
@@ -48,10 +49,6 @@ function createMarketRivalRole(marketId: number): CharacterRole {
   };
 }
 
-function getNextCharacterId(characters: Character[]): number {
-  return Math.max(0, ...characters.map(c => c.i), -1) + 1;
-}
-
 function getMarketManager(characterId: number | undefined): Character | undefined {
   if (characterId === undefined) return undefined;
   return getWorldContext().pack.characters?.find(c => c.i === characterId && !c.dead);
@@ -92,13 +89,14 @@ function cultureAllowsMerchantCharacters(cultureId: number): boolean {
 }
 
 function createMarketManager(market: Market): Character | null {
+  if (isOnDemandRosterEnabled()) return null;
   const { pack } = getWorldContext();
   const centerBurg = pack.burgs[market.centerBurgId] as Burg | undefined;
   pack.characters ??= [];
   const characters = pack.characters;
   const cultureId = resolveManagerCulture(centerBurg);
   if (!cultureAllowsMerchantCharacters(cultureId)) return null;
-  const character = createPerson(getNextCharacterId(characters), cultureId, {
+  const character = createPerson(nextCharacterId(characters), cultureId, {
     primarySkill: "stewardship",
     roleClass: "merchant",
     homeStateId: centerBurg?.state ?? 0,
@@ -135,13 +133,14 @@ function createMarketManager(market: Market): Character | null {
 }
 
 function createMarketRival(market: Market): Character | null {
+  if (isOnDemandRosterEnabled()) return null;
   const { pack } = getWorldContext();
   const centerBurg = pack.burgs[market.centerBurgId] as Burg | undefined;
   pack.characters ??= [];
   const characters = pack.characters;
   const cultureId = resolveManagerCulture(centerBurg);
   if (!cultureAllowsMerchantCharacters(cultureId)) return null;
-  const character = createPerson(getNextCharacterId(characters), cultureId, {
+  const character = createPerson(nextCharacterId(characters), cultureId, {
     primarySkill: "stewardship",
     roleClass: "merchant",
     homeStateId: centerBurg?.state ?? 0,

@@ -1,4 +1,4 @@
-import { getCharacters, hasCharactersContext } from "../../characters/charactersContext";
+import { getSimulationCharacters as getCharacters, hasCharactersContext } from "../../characters/charactersContext";
 import type { Character } from "../../characters/characterTypes";
 import { stateHasEnemy } from "../../hostCore";
 import type { State } from "../../hostTypes";

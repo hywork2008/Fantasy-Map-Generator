@@ -1,3 +1,4 @@
+import { operationalWorld } from "../../characters/reference/operational";
 import { bindRaceService } from "../../hostRaces";
 /**
  * Extension API handle, simulation clock, and the shared economy-slice plumbing every other
@@ -93,7 +94,10 @@ export function isEconomyContextReady(): boolean {
 }
 
 export function getWorldContext() {
-  return getApi().worldContext;
+  const api = getApi();
+  return api.simulationContext?.extensions
+    ? operationalWorld(api.worldContext, api.simulationContext)
+    : api.worldContext;
 }
 
 /**

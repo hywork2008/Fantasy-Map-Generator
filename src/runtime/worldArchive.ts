@@ -9,6 +9,7 @@ import {
 import type { WorldContext } from "../context/worldContext";
 import { ensureBiomeCatalogFields } from "../data/biomeCatalog";
 import { ensureCoreMilitaryUnits } from "../data/coreMilitaryUnits";
+import { flushReference } from "../extensions/characters/reference/model";
 import { assertValidLandUseSnapshot } from "../types/landUse";
 import type { BiomesData } from "../types/WorldState";
 import { normalizeFrontierPolitySpacing, normalizeFrontierStartMode } from "../utils/frontierStartMode";
@@ -1336,6 +1337,7 @@ export function createWorldDocument(
   presentation: PresentationData,
   opaqueExtensionChunks: readonly OpaqueExtensionChunk[]
 ): WorldDocument {
+  flushReference(simulation);
   const now = new Date().toISOString();
   const document = structuredClone({
     format: WORLD_ARCHIVE_FORMAT,

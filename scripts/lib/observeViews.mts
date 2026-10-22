@@ -1,3 +1,5 @@
+import { personalCashTotal, readPersonalCash } from "../../src/extensions/economy/generators/personalCash";
+import { poolBalance } from "../../src/extensions/economy/generators/personalCashLedger";
 /**
  * Read-only observation views for the Approach Traffic Observatory
  * (docs/plan/approach-traffic-observatory.md §5–§6). Shared by the channel worker and `npm run sim`
@@ -20,7 +22,7 @@ import {
 } from "../../src/extensions/economy/context/trade";
 import { getGuildChapters, getGuildKnowledgeStocks } from "../../src/extensions/economy/context/knowledge";
 import { getMintLedgers } from "../../src/extensions/economy/context/fiscal";
-import { getStateMoneyStocks } from "../../src/extensions/economy/generators/stateMoneySupply";
+import { getUnassignedPersonalCash, getStateMoneyStocks } from "../../src/extensions/economy/generators/stateMoneySupply";
 import { getBurgMarketLedgers } from "../../src/extensions/economy/context/trade";
 import { getGoodCargoSlotsPerUnit } from "../../src/extensions/economy/generators/tradeCargo";
 import { getCharacters } from "../../src/extensions/characters/charactersContext";
@@ -408,6 +410,8 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
         return [role, { count: sorted.length, total: r3(sum(sorted)), median: r3(at(0.5)), p90: r3(at(0.9)), zero: sorted.filter(v => v <= 0).length }];
       })
     );
+    const cashLedger=economy()?readPersonalCash():undefined;
+    const personalCash=cashLedger ? {total:r3(personalCashTotal()),abstract:r3(Object.values(cashLedger.pools).reduce((sum,p)=>sum+poolBalance(p),0)/100),estates:r3(Object.values(cashLedger.accounts).filter(a=>a.status==="estate").reduce((sum,a)=>sum+a.balance,0)/100),unassigned:r3(getUnassignedPersonalCash())} : undefined;
     const ruralPop = (pack.cells.pop ? Array.from(pack.cells.pop as ArrayLike<number>) : []).reduce((a, b) => a + b, 0);
     const urbanPop = sum(burgs.map(b => b.pop));
     return {
@@ -426,6 +430,7 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
         ruralHouseholds: r3(sum(markets.map(m => m.ruralHouseholds))),
         characters: r3(sum(Object.values(characters).map(c => c.total)))
       },
+      personalCash,
       characters,
       states,
       burgs,

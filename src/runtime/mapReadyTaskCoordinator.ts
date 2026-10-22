@@ -2,6 +2,8 @@ import { markGenerationProfile, measureGenerationStep } from "../generators/gene
 import { useMapReadyTaskState } from "../store/mapReadyTaskState";
 
 export type MapReadyTaskContext = {
+  /** True only for the full post-core new-world run, not load/enable repairs. */
+  generation?: boolean;
   isCurrent(): boolean;
   reportProgress(progress: number): void;
 };
@@ -178,6 +180,7 @@ export async function startMapReadyTasks(): Promise<void> {
       const task = ordered[index];
       useMapReadyTaskState.getState().begin(task.label, index + 1);
       await task.run({
+        generation: true,
         isCurrent,
         reportProgress: progress => {
           if (isCurrent()) useMapReadyTaskState.getState().report(progress);

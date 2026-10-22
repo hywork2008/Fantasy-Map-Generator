@@ -11,6 +11,7 @@ import {
   getCharacterOverviewRoleFilterLabel
 } from "../../utils/characterLabels";
 import { useCharactersUiState } from "../charactersUiState";
+import { OrganizationRosterPanel } from "../components/OrganizationRosterPanel";
 import { CharactersStatsTable } from "../components/tables/CharactersStatsTable";
 import { CharactersTable } from "../components/tables/CharactersTable";
 
@@ -149,9 +150,18 @@ export const CharactersOverviewDialog: React.FC = () => {
           >
             {t("extensions.charactersOverview.stats")}
           </button>
+          <button
+            type="button"
+            className={`options ${activeTab === "organizations" ? "active" : ""}`}
+            onClick={() => setActiveTab("organizations")}
+          >
+            {t("roster.organizations")}
+          </button>
         </div>
 
-        {activeTab === "overview" ? (
+        {activeTab === "organizations" ? (
+          <OrganizationRosterPanel />
+        ) : activeTab === "overview" ? (
           <CharactersTable
             rows={filteredCharacters}
             sortBy={sortBy}
@@ -177,7 +187,7 @@ export const CharactersOverviewDialog: React.FC = () => {
           id="charactersFilters"
           data-tip={t("extensions.charactersOverview.filterTip")}
           className="d-flex"
-          style={{ padding: "5px" }}
+          style={{ padding: "5px", display: activeTab === "organizations" ? "none" : "flex" }}
         >
           <label htmlFor="charactersSearch" data-tip={t("extensions.charactersOverview.searchTip")}>
             {t("extensions.charactersOverview.search")}{" "}
@@ -231,7 +241,12 @@ export const CharactersOverviewDialog: React.FC = () => {
         <div
           id="charactersTotal"
           className="totalLine"
-          style={{ padding: "5px", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+          style={{
+            padding: "5px",
+            display: activeTab === "organizations" ? "none" : "flex",
+            justifyContent: "space-between",
+            alignItems: "center"
+          }}
         >
           <div data-tip={t("extensions.charactersOverview.countTip")}>
             {t("extensions.charactersOverview.count", {

@@ -1,9 +1,19 @@
+import { prepareMasterReference } from "../../simulation/masterReference";
+import { simulationView } from "../../simulation/viewPort";
+import { canRemoveCharacterFinance } from "./financialLifecycle";
+import { isReferenceEvaluation } from "./reference/evaluation";
+import { registerRosterCommands } from "./roster/commands";
+import { registerRosterLifecycle, registerRosterWatches } from "./roster/lifecycle";
 import "./types"; // activate module augmentation for PackedGraph.characters
 
 import type { SimulationExtension, SimulationExtensionAPI } from "../../types/extension-api";
 import { clearCharacters } from "./advanceAge";
 import { applyPrepTemplateLoadout, PREP_TEMPLATES, type PrepTemplateId } from "./adventurerTemplates";
-import { clearCharactersContext, getCharacters, initCharactersContext } from "./charactersContext";
+import {
+  clearCharactersContext,
+  getSimulationCharacters as getCharacters,
+  initCharactersContext
+} from "./charactersContext";
 import type { CharacterLoadout, CharacterSkills, LoadoutSlotId } from "./characterTypes";
 import {
   equipFromInventory,
@@ -120,6 +130,24 @@ function register(api: SimulationExtensionAPI): () => void {
     api.events.dispatchEvent(new CustomEvent(CHARACTERS_SPECIALIZATIONS_CHANGED_EVENT))
   );
   const unregisterExpertiseSimulation = registerSpecializationSimulation(api);
+  const unregisterRosterCommands = registerRosterCommands(api);
+  const unregisterRosterWatches = registerRosterWatches(api);
+  const unregisterRosterLifecycle = registerRosterLifecycle(api);
+  const unregisterRosterInitialization = api.registerMapReadyTask({
+    id: "characters.roster",
+    label: "Preparing organizations",
+    run: async context => {
+      if (!isReferenceEvaluation() && context.isCurrent() && api.isExtensionEnabled("characters")) {
+        if (!api.isExtensionEnabled("economy")) await prepareMasterReference(api, context);
+        if (!context.isCurrent()) return;
+        api.dispatchExtensionCommand({ extensionId: "characters", name: "roster", payload: { action: "build" } });
+      }
+    }
+  });
+  const onWorldLoaded = () => {
+    if (api.isExtensionEnabled("characters")) api.requestMapReadyTask("characters.roster");
+  };
+  api.events.addEventListener("fmg:world-loaded", onWorldLoaded);
 
   const unregisterClearCommand = api.registerExtensionCommand({
     extensionId: CHARACTERS_EXTENSION_ID,
@@ -128,6 +156,12 @@ function register(api: SimulationExtensionAPI): () => void {
       if (value !== undefined) throw new Error("characters.clear does not accept a payload");
       const characters = getCharacters();
       if (!characters?.length) return { changed: false };
+      if (characters.some(character => !canRemoveCharacterFinance(character))) {
+        const message =
+          "Bulk clear is blocked by unresolved roles or assets. Transfer them first, or detach individual details in Organizations & families. Funded characters require financial custody.";
+        simulationView.tip(message, false, "warn", 8000);
+        return { changed: false, result: { blocked: true, message } };
+      }
       clearCharacters();
       return { changed: true };
     }
@@ -265,14 +299,20 @@ function register(api: SimulationExtensionAPI): () => void {
   const unsubscribe = api.subscribeExtensionState((state, prevState) => {
     const isEnabled = state.enabledExtensions[CHARACTERS_EXTENSION_ID];
     const wasEnabled = prevState.enabledExtensions[CHARACTERS_EXTENSION_ID];
+    if (isEnabled && !wasEnabled) api.requestMapReadyTask("characters.roster");
     if (!isEnabled && wasEnabled) {
-      api.dispatchExtensionCommand({ extensionId: CHARACTERS_EXTENSION_ID, name: "clear", payload: undefined });
+      // Turning off an extension does not erase authored settings or family history.
     }
   });
 
   return () => {
     unsubscribe();
     unregisterSkillModifier();
+    api.events.removeEventListener("fmg:world-loaded", onWorldLoaded);
+    unregisterRosterInitialization();
+    unregisterRosterLifecycle();
+    unregisterRosterWatches();
+    unregisterRosterCommands();
     unregisterExpertiseSimulation();
     unregisterSpecializations();
     unregisterClearCommand();

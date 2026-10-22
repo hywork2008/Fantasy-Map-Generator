@@ -3,6 +3,7 @@ import type { CalendarDuration } from "../../runtime/calendarDuration";
 import { hashArchiveBytes, type WorldHashReport } from "../goldenHash";
 import { createSimulationHost, type SimulationHost } from "../host";
 import { createMemorySettings, installSimulationScheduler, installSimulationSettings } from "../ports";
+import { installNodeMasterReference } from "./masterReferenceNode";
 
 /**
  * Node Adapter (docs/plan/simulation-core-separation.md §20, S6): a SimulationHost without DOM.
@@ -25,6 +26,7 @@ export const BUILTIN_SIMULATION_EXTENSION_IDS: readonly string[] = BUILTIN_SIMUL
 const nextMacrotask = () => new Promise<void>(resolve => setImmediate(resolve));
 
 export function createNodeSimulationHost(options: NodeSimulationHostOptions = {}): SimulationHost {
+  installNodeMasterReference();
   const wanted = options.extensions ?? BUILTIN_SIMULATION_EXTENSION_IDS;
   const unknown = wanted.filter(id => !BUILTIN_SIMULATION_EXTENSION_IDS.includes(id));
   if (unknown.length) throw new Error(`Unknown simulation extension(s): ${unknown.join(", ")}`);

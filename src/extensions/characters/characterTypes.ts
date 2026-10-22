@@ -626,6 +626,7 @@ export interface Character {
    * inheritance) read/write this field directly.
    */
   wealth: number;
+  cashAccountId?: string;
   /**
    * Personal good holdings (good id → amount), distinct from market/burg stocks.
    * Used for gifts and private property; optional until a gift is received or granted.
@@ -642,6 +643,9 @@ export interface Character {
    * Populated by applyCharacterBackstory() after titles/roles/location are known.
    */
   backstory?: CharacterBackstory;
+  /** Stable on-demand roster identity; absent on legacy characters. */
+  rosterSlotId?: string;
+  rosterMode?: "memo" | "simulation";
   dead?: boolean;
   deathYear?: number;
   location?: number;

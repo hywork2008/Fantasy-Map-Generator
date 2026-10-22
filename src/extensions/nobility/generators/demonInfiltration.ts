@@ -2,6 +2,7 @@ import { DECLINE_AGE_THRESHOLD } from "../../characters/advanceAge";
 import { rollLooksForRace } from "../../characters/appearance";
 import { rollCharacterArcane } from "../../characters/arcane";
 import { applyCharacterBackstory } from "../../characters/backstoryProfile";
+import { nextCharacterId } from "../../characters/charactersContext";
 import type {
   Character,
   CharacterRole,
@@ -253,7 +254,6 @@ export function seedDemonInfiltration(options: SeedDemonInfiltrationOptions): Ch
   const quota = allocateDemonStrata(total);
   const desired = (Object.keys(quota) as DemonCoverStratum[]).flatMap(stratum => Array(quota[stratum]).fill(stratum));
   const created: Character[] = [];
-  let nextId = Math.max(0, ...characters.map(character => character.i), -1) + 1;
 
   for (const [index, stratum] of shuffled(desired).entries()) {
     const hostStateId = hosts[index]!;
@@ -267,7 +267,7 @@ export function seedDemonInfiltration(options: SeedDemonInfiltrationOptions): Ch
       const burg = pack.burgs?.find(candidate => !candidate.removed && candidate.state === hostStateId);
       const burgId = burg?.i ?? state.capital;
       const cultureId = humanCultureId(pack, burg?.culture ?? state.culture);
-      infiltrator = createPerson(nextId++, cultureId, {
+      infiltrator = createPerson(nextCharacterId(characters), cultureId, {
         homeStateId: hostStateId,
         raceOverride: HUMAN_RACE_ID,
         roleClass: stratum === "military" ? "commander" : stratum === "influential" ? "merchant" : "ordinary",

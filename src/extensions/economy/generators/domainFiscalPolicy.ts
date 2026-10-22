@@ -1,4 +1,4 @@
-import { getCharacters, hasCharactersContext } from "../../characters/charactersContext";
+import { getSimulationCharacters as getCharacters, hasCharactersContext } from "../../characters/charactersContext";
 import type { Burg, State } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";

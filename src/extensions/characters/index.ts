@@ -34,6 +34,8 @@ export function init(api: ExtensionAPI): void {
   _unregisterSimulation = api.registerSimulationExtension(charactersSimulation);
   bindCharactersView(api);
   document.addEventListener(CHARACTERS_SPECIALIZATIONS_CHANGED_EVENT, bumpCharactersRefreshToken);
+  document.addEventListener("fmg:roster-changed", bumpCharactersRefreshToken);
+  document.addEventListener("fmg:roster-stopped", bumpCharactersRefreshToken);
 
   api.registerEditorTab({
     id: "burg-characters",
@@ -163,6 +165,8 @@ export function cleanup(api: ExtensionAPI): void {
     _unsubscribe = null;
   }
   document.removeEventListener(CHARACTERS_SPECIALIZATIONS_CHANGED_EVENT, bumpCharactersRefreshToken);
+  document.removeEventListener("fmg:roster-changed", bumpCharactersRefreshToken);
+  document.removeEventListener("fmg:roster-stopped", bumpCharactersRefreshToken);
   _unregisterSimulation?.();
   _unregisterSimulation = null;
   bindCharactersView(null);

@@ -53,3 +53,29 @@ describe("charactersUiState details history", () => {
     expect(state.detailsHistoryIndex).toBe(-1);
   });
 });
+
+describe("organization browsing state", () => {
+  it("retains the organization, person and role selection across both other tabs", () => {
+    const store = useCharactersUiState.getState();
+    const navigation = { organizationId: "state:1:court", slotId: "child:1", roleId: "role:1", includeChildren: true };
+    store.setRosterNavigation(navigation);
+    store.setActiveTab("overview");
+    store.setActiveTab("stats");
+    store.setActiveTab("organizations");
+    expect(useCharactersUiState.getState().rosterNavigation).toEqual(navigation);
+  });
+
+  it("consumes external person focus without resetting subsequent navigation", () => {
+    const store = useCharactersUiState.getState();
+    store.setRosterFocus("child:1");
+    expect(useCharactersUiState.getState().activeTab).toBe("organizations");
+    store.setRosterNavigation({ organizationId: "state:1:court", slotId: "child:1", roleId: undefined });
+    store.clearRosterFocus();
+    store.setRosterNavigation({ organizationId: "state:1", slotId: undefined });
+    store.setActiveTab("overview");
+    store.setActiveTab("organizations");
+    expect(useCharactersUiState.getState().rosterFocus).toBeUndefined();
+    expect(useCharactersUiState.getState().rosterNavigation.organizationId).toBe("state:1");
+    expect(useCharactersUiState.getState().rosterNavigation.slotId).toBeUndefined();
+  });
+});

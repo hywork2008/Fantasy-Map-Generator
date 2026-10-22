@@ -95,6 +95,8 @@ export interface NobleHolding {
   knightFees: number;
   holderKind: HolderKind;
   holderCharacterId?: number;
+  holderSlotId?: string;
+  retiredYear?: number;
   officeTitle?: string;
   hereditary: boolean;
   frontier: boolean;
