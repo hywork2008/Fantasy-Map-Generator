@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-10-23
+
+- docs/plan/wool-products-and-sheep-husbandry.md - 羊毛製品の追加を確定方針として、Gemini回答の用途・史料を照合。普通の羊毛衣料・毛布からの実装順、共有牧草地・年齢別採毛・農村の加工供給の見直し、同一入力12か月の実頭数・土地要求・羊毛・衣服需要の監査を記録
+
 2026-10-22
 
 - docs/analytics/goods-physical-units-observation-20261022.json - 同じStandard設定のprovince-101を酒樽変更前後で36か月ずつ進めた、Ink・Linen・Beer・果物と果実酒の生産・消費・在庫・照合・出発の集計と入力ハッシュ

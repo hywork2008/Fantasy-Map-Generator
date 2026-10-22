@@ -1,0 +1,2163 @@
+{
+  "inputSha256": "c4e2d3bae09117d9f9be2a3bcc88456a52d72228fcda579dfa9c39adfeebfb10",
+  "seed": "101",
+  "settlementPattern": "standard",
+  "worldSettings": {
+    "fmg-luxury-value-demand": "on",
+    "fmg-long-distance-trade": "on",
+    "fmg-caravan-raids": "off"
+  },
+  "sourceHashes": {
+    "scripts/auditWoolSupply.mts": "519117124c826baa9535030a5b1b6d12f0d3c517627cd3faa8fd6cf679145ab8",
+    "src/extensions/economy/generators/woolProduction.ts": "a3caa4f5d87c8427393b3bf3a3944a72e6a1f1845419e9aa5079b84132fa7426",
+    "src/extensions/economy/generators/husbandry.ts": "9b08c1e3d566af6d1eded7b25428d9e5d135fc0e9e526c6c79deb82b258aeada",
+    "src/extensions/economy/generators/faunaPopulation.ts": "1b97c675a680514723e334488cb6dc0e697778d9e6851c8f4b532fe74786e72c",
+    "src/extensions/economy/generators/developmentPotential.ts": "b8d330f3c4d2ef34efbfbde053b894ef478203b64ef99658fe026137c715ee72"
+  },
+  "modelDensity": {
+    "Sheep": 3,
+    "Cattle": 0.5,
+    "Goats": 2.5,
+    "Horses": 0.4,
+    "Camels": 0.15
+  },
+  "notes": [
+    "Footprint is sum(heads/model heads per hectare); it diagnoses simultaneous claims against the code's own ceilings, not an empirical carrying-capacity estimate.",
+    "Headcounts include young cohorts. Monthly yield is a smoothed forecast; recorded ruralHarvest is actual market inflow.",
+    "Stocks are market-only. Population is real residents; claims and occupied-cell examples are snapshots."
+  ],
+  "initial": {
+    "date": [
+      590,
+      1,
+      1
+    ],
+    "ruralPeople": 8979655.31615913,
+    "urbanPeople": 222296.56990729654,
+    "heads": {
+      "Sheep": 9438598.263559848,
+      "Cattle": 1580449.174070992,
+      "Goats": 4088339.5610534083,
+      "Horses": 1264364.1344425227,
+      "Camels": 234340.27144512243
+    },
+    "sheepPerResident": 1.0257169761832543,
+    "pastureHa": 8850201.567394616,
+    "footprintHa": 12665612.40615712,
+    "aggregateOccupancy": 1.4311100498342333,
+    "occupiedCells": 1461,
+    "cellsOverModelFootprint": 1395,
+    "worstCells": [
+      {
+        "cellId": 18,
+        "pastureHa": 3279.3517112731934,
+        "footprintHa": 9838.05513381958,
+        "occupancy": 3,
+        "heads": {
+          "Sheep": 5902.833080291748,
+          "Cattle": 983.805513381958,
+          "Goats": 4919.02756690979,
+          "Horses": 787.0444107055664,
+          "Camels": 295.1416540145874
+        }
+      },
+      {
+        "cellId": 19,
+        "pastureHa": 6022.082328796387,
+        "footprintHa": 18066.24698638916,
+        "occupancy": 3,
+        "heads": {
+          "Sheep": 10839.748191833496,
+          "Cattle": 1806.624698638916,
+          "Goats": 9033.12349319458,
+          "Horses": 1445.2997589111328,
+          "Camels": 541.9874095916748
+        }
+      },
+      {
+        "cellId": 20,
+        "pastureHa": 6166.259765625,
+        "footprintHa": 18498.779296875,
+        "occupancy": 3,
+        "heads": {
+          "Sheep": 11099.267578125,
+          "Cattle": 1849.8779296875,
+          "Goats": 9249.3896484375,
+          "Horses": 1479.90234375,
+          "Camels": 554.96337890625
+        }
+      },
+      {
+        "cellId": 21,
+        "pastureHa": 5119.588375091553,
+        "footprintHa": 15358.765125274658,
+        "occupancy": 3,
+        "heads": {
+          "Sheep": 9215.259075164795,
+          "Cattle": 1535.8765125274658,
+          "Goats": 7679.382562637329,
+          "Horses": 1228.7012100219727,
+          "Camels": 460.76295375823975
+        }
+      },
+      {
+        "cellId": 22,
+        "pastureHa": 4857.9206466674805,
+        "footprintHa": 14573.761940002441,
+        "occupancy": 3,
+        "heads": {
+          "Sheep": 8744.257164001465,
+          "Cattle": 1457.3761940002441,
+          "Goats": 7286.880970001221,
+          "Horses": 1165.9009552001953,
+          "Camels": 437.21285820007324
+        }
+      },
+      {
+        "cellId": 23,
+        "pastureHa": 7485.975742340088,
+        "footprintHa": 22457.927227020264,
+        "occupancy": 3,
+        "heads": {
+          "Sheep": 13474.756336212158,
+          "Cattle": 2245.7927227020264,
+          "Goats": 11228.963613510132,
+          "Horses": 1796.634178161621,
+          "Camels": 673.7378168106079
+        }
+      },
+      {
+        "cellId": 24,
+        "pastureHa": 7141.826152801514,
+        "footprintHa": 21425.47845840454,
+        "occupancy": 3,
+        "heads": {
+          "Sheep": 12855.287075042725,
+          "Cattle": 2142.547845840454,
+          "Goats": 10712.73922920227,
+          "Horses": 1714.0382766723633,
+          "Camels": 642.7643537521362
+        }
+      },
+      {
+        "cellId": 34,
+        "pastureHa": 7147.514343261719,
+        "footprintHa": 21442.543029785156,
+        "occupancy": 3,
+        "heads": {
+          "Sheep": 12865.525817871094,
+          "Cattle": 2144.2543029785156,
+          "Goats": 10721.271514892578,
+          "Horses": 1715.4034423828125,
+          "Camels": 643.2762908935547
+        }
+      },
+      {
+        "cellId": 35,
+        "pastureHa": 5276.020050048828,
+        "footprintHa": 15828.060150146484,
+        "occupancy": 3,
+        "heads": {
+          "Sheep": 9496.83609008789,
+          "Cattle": 1582.8060150146484,
+          "Goats": 7914.030075073242,
+          "Horses": 1266.2448120117188,
+          "Camels": 474.84180450439453
+        }
+      },
+      {
+        "cellId": 37,
+        "pastureHa": 7349.453926086426,
+        "footprintHa": 22048.361778259277,
+        "occupancy": 3,
+        "heads": {
+          "Sheep": 13229.017066955566,
+          "Cattle": 2204.8361778259277,
+          "Goats": 11024.180889129639,
+          "Horses": 1763.8689422607422,
+          "Camels": 661.4508533477783
+        }
+      }
+    ],
+    "monthlyWardrobeDemandLots": 191.7073309597172,
+    "householdWardrobeConsumptionLots": 0,
+    "effectiveWoolLaborCoverage": 0.05222765283320517,
+    "woolLotsPerMonth": 39.436466667303755,
+    "woolKgPerMonth": 59154.70000095563,
+    "woolStockLots": 39.44,
+    "woolStockKg": 59160,
+    "woolFlows": {}
+  },
+  "samples": [
+    {
+      "date": [
+        590,
+        2,
+        1
+      ],
+      "ruralPeople": 8981163.367018104,
+      "urbanPeople": 222512.96312645028,
+      "heads": {
+        "Sheep": 9438571.780592278,
+        "Cattle": 1580421.7595000241,
+        "Goats": 4088332.824218304,
+        "Horses": 1263935.7508231732,
+        "Camels": 234337.41035258182
+      },
+      "sheepPerResident": 1.025521915593487,
+      "pastureHa": 7543583.201108037,
+      "footprintHa": 12664456.021626612,
+      "aggregateOccupancy": 1.6788382502053398,
+      "occupiedCells": 1461,
+      "cellsOverModelFootprint": 1395,
+      "worstCells": [
+        {
+          "cellId": 18,
+          "pastureHa": 2459.513783454895,
+          "footprintHa": 9838.05513381958,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 5902.833080291748,
+            "Cattle": 983.805513381958,
+            "Goats": 4919.02756690979,
+            "Horses": 787.0444107055664,
+            "Camels": 295.1416540145874
+          }
+        },
+        {
+          "cellId": 19,
+          "pastureHa": 4516.56174659729,
+          "footprintHa": 18066.24698638916,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 10839.748191833496,
+            "Cattle": 1806.624698638916,
+            "Goats": 9033.12349319458,
+            "Horses": 1445.2997589111328,
+            "Camels": 541.9874095916748
+          }
+        },
+        {
+          "cellId": 20,
+          "pastureHa": 4624.69482421875,
+          "footprintHa": 18498.779296875,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 11099.267578125,
+            "Cattle": 1849.8779296875,
+            "Goats": 9249.3896484375,
+            "Horses": 1479.90234375,
+            "Camels": 554.96337890625
+          }
+        },
+        {
+          "cellId": 21,
+          "pastureHa": 3839.6912813186646,
+          "footprintHa": 15358.765125274658,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 9215.259075164795,
+            "Cattle": 1535.8765125274658,
+            "Goats": 7679.382562637329,
+            "Horses": 1228.7012100219727,
+            "Camels": 460.76295375823975
+          }
+        },
+        {
+          "cellId": 22,
+          "pastureHa": 3643.4404850006104,
+          "footprintHa": 14573.761940002441,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 8744.257164001465,
+            "Cattle": 1457.3761940002441,
+            "Goats": 7286.880970001221,
+            "Horses": 1165.9009552001953,
+            "Camels": 437.21285820007324
+          }
+        },
+        {
+          "cellId": 23,
+          "pastureHa": 5614.481806755066,
+          "footprintHa": 22457.927227020264,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 13474.756336212158,
+            "Cattle": 2245.7927227020264,
+            "Goats": 11228.963613510132,
+            "Horses": 1796.634178161621,
+            "Camels": 673.7378168106079
+          }
+        },
+        {
+          "cellId": 24,
+          "pastureHa": 5356.369614601135,
+          "footprintHa": 21425.47845840454,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 12855.287075042725,
+            "Cattle": 2142.547845840454,
+            "Goats": 10712.73922920227,
+            "Horses": 1714.0382766723633,
+            "Camels": 642.7643537521362
+          }
+        },
+        {
+          "cellId": 34,
+          "pastureHa": 5360.635757446289,
+          "footprintHa": 21442.543029785156,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 12865.525817871094,
+            "Cattle": 2144.2543029785156,
+            "Goats": 10721.271514892578,
+            "Horses": 1715.4034423828125,
+            "Camels": 643.2762908935547
+          }
+        },
+        {
+          "cellId": 35,
+          "pastureHa": 3957.015037536621,
+          "footprintHa": 15828.060150146484,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 9496.83609008789,
+            "Cattle": 1582.8060150146484,
+            "Goats": 7914.030075073242,
+            "Horses": 1266.2448120117188,
+            "Camels": 474.84180450439453
+          }
+        },
+        {
+          "cellId": 37,
+          "pastureHa": 5512.090444564819,
+          "footprintHa": 22048.361778259277,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 13229.017066955566,
+            "Cattle": 2204.8361778259277,
+            "Goats": 11024.180889129639,
+            "Horses": 1763.8689422607422,
+            "Camels": 661.4508533477783
+          }
+        }
+      ],
+      "monthlyWardrobeDemandLots": 191.74325687801152,
+      "householdWardrobeConsumptionLots": 2.3351484330866317,
+      "effectiveWoolLaborCoverage": 0.052224993551173375,
+      "woolLotsPerMonth": 39.4343480298975,
+      "woolKgPerMonth": 59151.52204484625,
+      "woolStockLots": 78.88,
+      "woolStockKg": 118320,
+      "woolFlows": {
+        "source:ruralHarvest": 39.43434802989749
+      }
+    },
+    {
+      "date": [
+        590,
+        3,
+        1
+      ],
+      "ruralPeople": 8982776.11426264,
+      "urbanPeople": 222718.9807352196,
+      "heads": {
+        "Sheep": 9438571.780592278,
+        "Cattle": 1580421.7595000241,
+        "Goats": 4088332.824218304,
+        "Horses": 1263935.7508231732,
+        "Camels": 234337.41035258182
+      },
+      "sheepPerResident": 1.0253192993086344,
+      "pastureHa": 7543583.201108037,
+      "footprintHa": 12664456.021626612,
+      "aggregateOccupancy": 1.6788382502053398,
+      "occupiedCells": 1461,
+      "cellsOverModelFootprint": 1395,
+      "worstCells": [
+        {
+          "cellId": 18,
+          "pastureHa": 2459.513783454895,
+          "footprintHa": 9838.05513381958,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 5902.833080291748,
+            "Cattle": 983.805513381958,
+            "Goats": 4919.02756690979,
+            "Horses": 787.0444107055664,
+            "Camels": 295.1416540145874
+          }
+        },
+        {
+          "cellId": 19,
+          "pastureHa": 4516.56174659729,
+          "footprintHa": 18066.24698638916,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 10839.748191833496,
+            "Cattle": 1806.624698638916,
+            "Goats": 9033.12349319458,
+            "Horses": 1445.2997589111328,
+            "Camels": 541.9874095916748
+          }
+        },
+        {
+          "cellId": 20,
+          "pastureHa": 4624.69482421875,
+          "footprintHa": 18498.779296875,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 11099.267578125,
+            "Cattle": 1849.8779296875,
+            "Goats": 9249.3896484375,
+            "Horses": 1479.90234375,
+            "Camels": 554.96337890625
+          }
+        },
+        {
+          "cellId": 21,
+          "pastureHa": 3839.6912813186646,
+          "footprintHa": 15358.765125274658,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 9215.259075164795,
+            "Cattle": 1535.8765125274658,
+            "Goats": 7679.382562637329,
+            "Horses": 1228.7012100219727,
+            "Camels": 460.76295375823975
+          }
+        },
+        {
+          "cellId": 22,
+          "pastureHa": 3643.4404850006104,
+          "footprintHa": 14573.761940002441,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 8744.257164001465,
+            "Cattle": 1457.3761940002441,
+            "Goats": 7286.880970001221,
+            "Horses": 1165.9009552001953,
+            "Camels": 437.21285820007324
+          }
+        },
+        {
+          "cellId": 23,
+          "pastureHa": 5614.481806755066,
+          "footprintHa": 22457.927227020264,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 13474.756336212158,
+            "Cattle": 2245.7927227020264,
+            "Goats": 11228.963613510132,
+            "Horses": 1796.634178161621,
+            "Camels": 673.7378168106079
+          }
+        },
+        {
+          "cellId": 24,
+          "pastureHa": 5356.369614601135,
+          "footprintHa": 21425.47845840454,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 12855.287075042725,
+            "Cattle": 2142.547845840454,
+            "Goats": 10712.73922920227,
+            "Horses": 1714.0382766723633,
+            "Camels": 642.7643537521362
+          }
+        },
+        {
+          "cellId": 34,
+          "pastureHa": 5360.635757446289,
+          "footprintHa": 21442.543029785156,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 12865.525817871094,
+            "Cattle": 2144.2543029785156,
+            "Goats": 10721.271514892578,
+            "Horses": 1715.4034423828125,
+            "Camels": 643.2762908935547
+          }
+        },
+        {
+          "cellId": 35,
+          "pastureHa": 3957.015037536621,
+          "footprintHa": 15828.060150146484,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 9496.83609008789,
+            "Cattle": 1582.8060150146484,
+            "Goats": 7914.030075073242,
+            "Horses": 1266.2448120117188,
+            "Camels": 474.84180450439453
+          }
+        },
+        {
+          "cellId": 37,
+          "pastureHa": 5512.090444564819,
+          "footprintHa": 22048.361778259277,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 13229.017066955566,
+            "Cattle": 2204.8361778259277,
+            "Goats": 11024.180889129639,
+            "Horses": 1763.8689422607422,
+            "Camels": 661.4508533477783
+          }
+        }
+      ],
+      "monthlyWardrobeDemandLots": 191.7811478124554,
+      "householdWardrobeConsumptionLots": 0,
+      "effectiveWoolLaborCoverage": 0.052224993551173375,
+      "woolLotsPerMonth": 39.4343480298975,
+      "woolKgPerMonth": 59151.52204484625,
+      "woolStockLots": 78.88,
+      "woolStockKg": 118320,
+      "woolFlows": {}
+    },
+    {
+      "date": [
+        590,
+        4,
+        1
+      ],
+      "ruralPeople": 8984654.249109328,
+      "urbanPeople": 223166.37106689403,
+      "heads": {
+        "Sheep": 9438518.788193198,
+        "Cattle": 1580366.903366129,
+        "Goats": 4088319.3433429035,
+        "Horses": 1263078.561457369,
+        "Camels": 234331.68522925416
+      },
+      "sheepPerResident": 1.0250545897377137,
+      "pastureHa": 7543583.201108037,
+      "footprintHa": 12662142.111972274,
+      "aggregateOccupancy": 1.6785315114059325,
+      "occupiedCells": 1461,
+      "cellsOverModelFootprint": 1395,
+      "worstCells": [
+        {
+          "cellId": 18,
+          "pastureHa": 2459.513783454895,
+          "footprintHa": 9838.05513381958,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 5902.833080291748,
+            "Cattle": 983.805513381958,
+            "Goats": 4919.02756690979,
+            "Horses": 787.0444107055664,
+            "Camels": 295.1416540145874
+          }
+        },
+        {
+          "cellId": 19,
+          "pastureHa": 4516.56174659729,
+          "footprintHa": 18066.24698638916,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 10839.748191833496,
+            "Cattle": 1806.624698638916,
+            "Goats": 9033.12349319458,
+            "Horses": 1445.2997589111328,
+            "Camels": 541.9874095916748
+          }
+        },
+        {
+          "cellId": 20,
+          "pastureHa": 4624.69482421875,
+          "footprintHa": 18498.779296875,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 11099.267578125,
+            "Cattle": 1849.8779296875,
+            "Goats": 9249.3896484375,
+            "Horses": 1479.90234375,
+            "Camels": 554.96337890625
+          }
+        },
+        {
+          "cellId": 21,
+          "pastureHa": 3839.6912813186646,
+          "footprintHa": 15358.765125274658,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 9215.259075164795,
+            "Cattle": 1535.8765125274658,
+            "Goats": 7679.382562637329,
+            "Horses": 1228.7012100219727,
+            "Camels": 460.76295375823975
+          }
+        },
+        {
+          "cellId": 22,
+          "pastureHa": 3643.4404850006104,
+          "footprintHa": 14573.761940002441,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 8744.257164001465,
+            "Cattle": 1457.3761940002441,
+            "Goats": 7286.880970001221,
+            "Horses": 1165.9009552001953,
+            "Camels": 437.21285820007324
+          }
+        },
+        {
+          "cellId": 23,
+          "pastureHa": 5614.481806755066,
+          "footprintHa": 22457.927227020264,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 13474.756336212158,
+            "Cattle": 2245.7927227020264,
+            "Goats": 11228.963613510132,
+            "Horses": 1796.634178161621,
+            "Camels": 673.7378168106079
+          }
+        },
+        {
+          "cellId": 24,
+          "pastureHa": 5356.369614601135,
+          "footprintHa": 21425.47845840454,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 12855.287075042725,
+            "Cattle": 2142.547845840454,
+            "Goats": 10712.73922920227,
+            "Horses": 1714.0382766723633,
+            "Camels": 642.7643537521362
+          }
+        },
+        {
+          "cellId": 34,
+          "pastureHa": 5360.635757446289,
+          "footprintHa": 21442.543029785156,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 12865.525817871094,
+            "Cattle": 2144.2543029785156,
+            "Goats": 10721.271514892578,
+            "Horses": 1715.4034423828125,
+            "Camels": 643.2762908935547
+          }
+        },
+        {
+          "cellId": 35,
+          "pastureHa": 3957.015037536621,
+          "footprintHa": 15828.060150146484,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 9496.83609008789,
+            "Cattle": 1582.8060150146484,
+            "Goats": 7914.030075073242,
+            "Horses": 1266.2448120117188,
+            "Camels": 474.84180450439453
+          }
+        },
+        {
+          "cellId": 37,
+          "pastureHa": 5512.090444564819,
+          "footprintHa": 22048.361778259277,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 13229.017066955566,
+            "Cattle": 2204.8361778259277,
+            "Goats": 11024.180889129639,
+            "Horses": 1763.8689422607422,
+            "Camels": 661.4508533477783
+          }
+        }
+      ],
+      "monthlyWardrobeDemandLots": 191.82959625367127,
+      "householdWardrobeConsumptionLots": 6.1590304975994865,
+      "effectiveWoolLaborCoverage": 0.052219672284933905,
+      "woolLotsPerMonth": 39.43010863797122,
+      "woolKgPerMonth": 59145.16295695683,
+      "woolStockLots": 157.76,
+      "woolStockKg": 236640,
+      "woolFlows": {
+        "source:ruralHarvest": 78.86233697190556
+      }
+    },
+    {
+      "date": [
+        590,
+        5,
+        1
+      ],
+      "ruralPeople": 8986441.057741642,
+      "urbanPeople": 223392.73685669646,
+      "heads": {
+        "Sheep": 9438492.285046015,
+        "Cattle": 1580339.4682073994,
+        "Goats": 4088312.6010223604,
+        "Horses": 1262649.8558708238,
+        "Camels": 234328.82189733876
+      },
+      "sheepPerResident": 1.024827645704289,
+      "pastureHa": 7543583.201108037,
+      "footprintHa": 12660984.857498406,
+      "aggregateOccupancy": 1.678378102284164,
+      "occupiedCells": 1461,
+      "cellsOverModelFootprint": 1395,
+      "worstCells": [
+        {
+          "cellId": 18,
+          "pastureHa": 2459.513783454895,
+          "footprintHa": 9838.05513381958,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 5902.833080291748,
+            "Cattle": 983.805513381958,
+            "Goats": 4919.02756690979,
+            "Horses": 787.0444107055664,
+            "Camels": 295.1416540145874
+          }
+        },
+        {
+          "cellId": 19,
+          "pastureHa": 4516.56174659729,
+          "footprintHa": 18066.24698638916,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 10839.748191833496,
+            "Cattle": 1806.624698638916,
+            "Goats": 9033.12349319458,
+            "Horses": 1445.2997589111328,
+            "Camels": 541.9874095916748
+          }
+        },
+        {
+          "cellId": 20,
+          "pastureHa": 4624.69482421875,
+          "footprintHa": 18498.779296875,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 11099.267578125,
+            "Cattle": 1849.8779296875,
+            "Goats": 9249.3896484375,
+            "Horses": 1479.90234375,
+            "Camels": 554.96337890625
+          }
+        },
+        {
+          "cellId": 21,
+          "pastureHa": 3839.6912813186646,
+          "footprintHa": 15358.765125274658,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 9215.259075164795,
+            "Cattle": 1535.8765125274658,
+            "Goats": 7679.382562637329,
+            "Horses": 1228.7012100219727,
+            "Camels": 460.76295375823975
+          }
+        },
+        {
+          "cellId": 22,
+          "pastureHa": 3643.4404850006104,
+          "footprintHa": 14573.761940002441,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 8744.257164001465,
+            "Cattle": 1457.3761940002441,
+            "Goats": 7286.880970001221,
+            "Horses": 1165.9009552001953,
+            "Camels": 437.21285820007324
+          }
+        },
+        {
+          "cellId": 23,
+          "pastureHa": 5614.481806755066,
+          "footprintHa": 22457.927227020264,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 13474.756336212158,
+            "Cattle": 2245.7927227020264,
+            "Goats": 11228.963613510132,
+            "Horses": 1796.634178161621,
+            "Camels": 673.7378168106079
+          }
+        },
+        {
+          "cellId": 24,
+          "pastureHa": 5356.369614601135,
+          "footprintHa": 21425.47845840454,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 12855.287075042725,
+            "Cattle": 2142.547845840454,
+            "Goats": 10712.73922920227,
+            "Horses": 1714.0382766723633,
+            "Camels": 642.7643537521362
+          }
+        },
+        {
+          "cellId": 34,
+          "pastureHa": 5360.635757446289,
+          "footprintHa": 21442.543029785156,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 12865.525817871094,
+            "Cattle": 2144.2543029785156,
+            "Goats": 10721.271514892578,
+            "Horses": 1715.4034423828125,
+            "Camels": 643.2762908935547
+          }
+        },
+        {
+          "cellId": 35,
+          "pastureHa": 3957.015037536621,
+          "footprintHa": 15828.060150146484,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 9496.83609008789,
+            "Cattle": 1582.8060150146484,
+            "Goats": 7914.030075073242,
+            "Horses": 1266.2448120117188,
+            "Camels": 474.84180450439453
+          }
+        },
+        {
+          "cellId": 37,
+          "pastureHa": 5512.090444564819,
+          "footprintHa": 22048.361778259277,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 13229.017066955566,
+            "Cattle": 2204.8361778259277,
+            "Goats": 11024.180889129639,
+            "Horses": 1763.8689422607422,
+            "Camels": 661.4508533477783
+          }
+        }
+      ],
+      "monthlyWardrobeDemandLots": 191.87153738746542,
+      "householdWardrobeConsumptionLots": 5.14151207303085,
+      "effectiveWoolLaborCoverage": 0.05221701093174816,
+      "woolLotsPerMonth": 39.42798838619748,
+      "woolKgPerMonth": 59141.982579296215,
+      "woolStockLots": 197.13774999999998,
+      "woolStockKg": 295706.625,
+      "woolFlows": {
+        "source:ruralHarvest": 39.42798838619748,
+        "sink:recipeInput": 0.06225
+      }
+    },
+    {
+      "date": [
+        590,
+        6,
+        1
+      ],
+      "ruralPeople": 8988415.307119489,
+      "urbanPeople": 223850.95638986607,
+      "heads": {
+        "Sheep": 9438465.774505174,
+        "Cattle": 1580312.0255058291,
+        "Goats": 4088305.856690089,
+        "Horses": 1262221.0323236096,
+        "Camels": 234325.95774475916
+      },
+      "sheepPerResident": 1.0245541655576995,
+      "pastureHa": 7543583.201108037,
+      "footprintHa": 12659827.284296846,
+      "aggregateOccupancy": 1.6782246509108976,
+      "occupiedCells": 1461,
+      "cellsOverModelFootprint": 1395,
+      "worstCells": [
+        {
+          "cellId": 18,
+          "pastureHa": 2459.513783454895,
+          "footprintHa": 9838.05513381958,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 5902.833080291748,
+            "Cattle": 983.805513381958,
+            "Goats": 4919.02756690979,
+            "Horses": 787.0444107055664,
+            "Camels": 295.1416540145874
+          }
+        },
+        {
+          "cellId": 19,
+          "pastureHa": 4516.56174659729,
+          "footprintHa": 18066.24698638916,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 10839.748191833496,
+            "Cattle": 1806.624698638916,
+            "Goats": 9033.12349319458,
+            "Horses": 1445.2997589111328,
+            "Camels": 541.9874095916748
+          }
+        },
+        {
+          "cellId": 20,
+          "pastureHa": 4624.69482421875,
+          "footprintHa": 18498.779296875,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 11099.267578125,
+            "Cattle": 1849.8779296875,
+            "Goats": 9249.3896484375,
+            "Horses": 1479.90234375,
+            "Camels": 554.96337890625
+          }
+        },
+        {
+          "cellId": 21,
+          "pastureHa": 3839.6912813186646,
+          "footprintHa": 15358.765125274658,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 9215.259075164795,
+            "Cattle": 1535.8765125274658,
+            "Goats": 7679.382562637329,
+            "Horses": 1228.7012100219727,
+            "Camels": 460.76295375823975
+          }
+        },
+        {
+          "cellId": 22,
+          "pastureHa": 3643.4404850006104,
+          "footprintHa": 14573.761940002441,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 8744.257164001465,
+            "Cattle": 1457.3761940002441,
+            "Goats": 7286.880970001221,
+            "Horses": 1165.9009552001953,
+            "Camels": 437.21285820007324
+          }
+        },
+        {
+          "cellId": 23,
+          "pastureHa": 5614.481806755066,
+          "footprintHa": 22457.927227020264,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 13474.756336212158,
+            "Cattle": 2245.7927227020264,
+            "Goats": 11228.963613510132,
+            "Horses": 1796.634178161621,
+            "Camels": 673.7378168106079
+          }
+        },
+        {
+          "cellId": 24,
+          "pastureHa": 5356.369614601135,
+          "footprintHa": 21425.47845840454,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 12855.287075042725,
+            "Cattle": 2142.547845840454,
+            "Goats": 10712.73922920227,
+            "Horses": 1714.0382766723633,
+            "Camels": 642.7643537521362
+          }
+        },
+        {
+          "cellId": 34,
+          "pastureHa": 5360.635757446289,
+          "footprintHa": 21442.543029785156,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 12865.525817871094,
+            "Cattle": 2144.2543029785156,
+            "Goats": 10721.271514892578,
+            "Horses": 1715.4034423828125,
+            "Camels": 643.2762908935547
+          }
+        },
+        {
+          "cellId": 35,
+          "pastureHa": 3957.015037536621,
+          "footprintHa": 15828.060150146484,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 9496.83609008789,
+            "Cattle": 1582.8060150146484,
+            "Goats": 7914.030075073242,
+            "Horses": 1266.2448120117188,
+            "Camels": 474.84180450439453
+          }
+        },
+        {
+          "cellId": 37,
+          "pastureHa": 5512.090444564819,
+          "footprintHa": 22048.361778259277,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 13229.017066955566,
+            "Cattle": 2204.8361778259277,
+            "Goats": 11024.180889129639,
+            "Horses": 1763.8689422607422,
+            "Camels": 661.4508533477783
+          }
+        }
+      ],
+      "monthlyWardrobeDemandLots": 191.92221382311155,
+      "householdWardrobeConsumptionLots": 3.8080493228140417,
+      "effectiveWoolLaborCoverage": 0.05221434882116283,
+      "woolLotsPerMonth": 39.425867542929595,
+      "woolKgPerMonth": 59138.80131439439,
+      "woolStockLots": 236.57,
+      "woolStockKg": 354855,
+      "woolFlows": {
+        "source:ruralHarvest": 39.425867542929616
+      }
+    },
+    {
+      "date": [
+        590,
+        7,
+        1
+      ],
+      "ruralPeople": 8990359.018608928,
+      "urbanPeople": 224295.13979190576,
+      "heads": {
+        "Sheep": 9438439.256659394,
+        "Cattle": 1580284.5753489216,
+        "Goats": 4088299.1103739743,
+        "Horses": 1261792.0921865809,
+        "Camels": 234323.092781936
+      },
+      "sheepPerResident": 1.0242857837539718,
+      "pastureHa": 7543583.201108037,
+      "footprintHa": 12658669.396079924,
+      "aggregateOccupancy": 1.6780711577782506,
+      "occupiedCells": 1461,
+      "cellsOverModelFootprint": 1395,
+      "worstCells": [
+        {
+          "cellId": 18,
+          "pastureHa": 2459.513783454895,
+          "footprintHa": 9838.05513381958,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 5902.833080291748,
+            "Cattle": 983.805513381958,
+            "Goats": 4919.02756690979,
+            "Horses": 787.0444107055664,
+            "Camels": 295.1416540145874
+          }
+        },
+        {
+          "cellId": 19,
+          "pastureHa": 4516.56174659729,
+          "footprintHa": 18066.24698638916,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 10839.748191833496,
+            "Cattle": 1806.624698638916,
+            "Goats": 9033.12349319458,
+            "Horses": 1445.2997589111328,
+            "Camels": 541.9874095916748
+          }
+        },
+        {
+          "cellId": 20,
+          "pastureHa": 4624.69482421875,
+          "footprintHa": 18498.779296875,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 11099.267578125,
+            "Cattle": 1849.8779296875,
+            "Goats": 9249.3896484375,
+            "Horses": 1479.90234375,
+            "Camels": 554.96337890625
+          }
+        },
+        {
+          "cellId": 21,
+          "pastureHa": 3839.6912813186646,
+          "footprintHa": 15358.765125274658,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 9215.259075164795,
+            "Cattle": 1535.8765125274658,
+            "Goats": 7679.382562637329,
+            "Horses": 1228.7012100219727,
+            "Camels": 460.76295375823975
+          }
+        },
+        {
+          "cellId": 22,
+          "pastureHa": 3643.4404850006104,
+          "footprintHa": 14573.761940002441,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 8744.257164001465,
+            "Cattle": 1457.3761940002441,
+            "Goats": 7286.880970001221,
+            "Horses": 1165.9009552001953,
+            "Camels": 437.21285820007324
+          }
+        },
+        {
+          "cellId": 23,
+          "pastureHa": 5614.481806755066,
+          "footprintHa": 22457.927227020264,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 13474.756336212158,
+            "Cattle": 2245.7927227020264,
+            "Goats": 11228.963613510132,
+            "Horses": 1796.634178161621,
+            "Camels": 673.7378168106079
+          }
+        },
+        {
+          "cellId": 24,
+          "pastureHa": 5356.369614601135,
+          "footprintHa": 21425.47845840454,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 12855.287075042725,
+            "Cattle": 2142.547845840454,
+            "Goats": 10712.73922920227,
+            "Horses": 1714.0382766723633,
+            "Camels": 642.7643537521362
+          }
+        },
+        {
+          "cellId": 34,
+          "pastureHa": 5360.635757446289,
+          "footprintHa": 21442.543029785156,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 12865.525817871094,
+            "Cattle": 2144.2543029785156,
+            "Goats": 10721.271514892578,
+            "Horses": 1715.4034423828125,
+            "Camels": 643.2762908935547
+          }
+        },
+        {
+          "cellId": 35,
+          "pastureHa": 3957.015037536621,
+          "footprintHa": 15828.060150146484,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 9496.83609008789,
+            "Cattle": 1582.8060150146484,
+            "Goats": 7914.030075073242,
+            "Horses": 1266.2448120117188,
+            "Camels": 474.84180450439453
+          }
+        },
+        {
+          "cellId": 37,
+          "pastureHa": 5512.090444564819,
+          "footprintHa": 22048.361778259277,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 13229.017066955566,
+            "Cattle": 2204.8361778259277,
+            "Goats": 11024.180889129639,
+            "Horses": 1763.8689422607422,
+            "Camels": 661.4508533477783
+          }
+        }
+      ],
+      "monthlyWardrobeDemandLots": 191.97196163335067,
+      "householdWardrobeConsumptionLots": 3.8136396837899302,
+      "effectiveWoolLaborCoverage": 0.05221168596207626,
+      "woolLotsPerMonth": 39.423746115266624,
+      "woolKgPerMonth": 59135.61917289993,
+      "woolStockLots": 276.01,
+      "woolStockKg": 414015,
+      "woolFlows": {
+        "source:ruralHarvest": 39.42374611526666
+      }
+    },
+    {
+      "date": [
+        590,
+        8,
+        1
+      ],
+      "ruralPeople": 8992354.815930128,
+      "urbanPeople": 224739.2605862947,
+      "heads": {
+        "Sheep": 9438412.73112645,
+        "Cattle": 1580257.1173420846,
+        "Goats": 4088292.3619783823,
+        "Horses": 1261363.029293574,
+        "Camels": 234320.22696772692
+      },
+      "sheepPerResident": 1.024011760406559,
+      "pastureHa": 7543583.201108037,
+      "footprintHa": 12657511.17620311,
+      "aggregateOccupancy": 1.677917620679774,
+      "occupiedCells": 1461,
+      "cellsOverModelFootprint": 1395,
+      "worstCells": [
+        {
+          "cellId": 18,
+          "pastureHa": 2459.513783454895,
+          "footprintHa": 9838.05513381958,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 5902.833080291748,
+            "Cattle": 983.805513381958,
+            "Goats": 4919.02756690979,
+            "Horses": 787.0444107055664,
+            "Camels": 295.1416540145874
+          }
+        },
+        {
+          "cellId": 19,
+          "pastureHa": 4516.56174659729,
+          "footprintHa": 18066.24698638916,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 10839.748191833496,
+            "Cattle": 1806.624698638916,
+            "Goats": 9033.12349319458,
+            "Horses": 1445.2997589111328,
+            "Camels": 541.9874095916748
+          }
+        },
+        {
+          "cellId": 20,
+          "pastureHa": 4624.69482421875,
+          "footprintHa": 18498.779296875,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 11099.267578125,
+            "Cattle": 1849.8779296875,
+            "Goats": 9249.3896484375,
+            "Horses": 1479.90234375,
+            "Camels": 554.96337890625
+          }
+        },
+        {
+          "cellId": 21,
+          "pastureHa": 3839.6912813186646,
+          "footprintHa": 15358.765125274658,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 9215.259075164795,
+            "Cattle": 1535.8765125274658,
+            "Goats": 7679.382562637329,
+            "Horses": 1228.7012100219727,
+            "Camels": 460.76295375823975
+          }
+        },
+        {
+          "cellId": 22,
+          "pastureHa": 3643.4404850006104,
+          "footprintHa": 14573.761940002441,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 8744.257164001465,
+            "Cattle": 1457.3761940002441,
+            "Goats": 7286.880970001221,
+            "Horses": 1165.9009552001953,
+            "Camels": 437.21285820007324
+          }
+        },
+        {
+          "cellId": 23,
+          "pastureHa": 5614.481806755066,
+          "footprintHa": 22457.927227020264,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 13474.756336212158,
+            "Cattle": 2245.7927227020264,
+            "Goats": 11228.963613510132,
+            "Horses": 1796.634178161621,
+            "Camels": 673.7378168106079
+          }
+        },
+        {
+          "cellId": 24,
+          "pastureHa": 5356.369614601135,
+          "footprintHa": 21425.47845840454,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 12855.287075042725,
+            "Cattle": 2142.547845840454,
+            "Goats": 10712.73922920227,
+            "Horses": 1714.0382766723633,
+            "Camels": 642.7643537521362
+          }
+        },
+        {
+          "cellId": 34,
+          "pastureHa": 5360.635757446289,
+          "footprintHa": 21442.543029785156,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 12865.525817871094,
+            "Cattle": 2144.2543029785156,
+            "Goats": 10721.271514892578,
+            "Horses": 1715.4034423828125,
+            "Camels": 643.2762908935547
+          }
+        },
+        {
+          "cellId": 35,
+          "pastureHa": 3957.015037536621,
+          "footprintHa": 15828.060150146484,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 9496.83609008789,
+            "Cattle": 1582.8060150146484,
+            "Goats": 7914.030075073242,
+            "Horses": 1266.2448120117188,
+            "Camels": 474.84180450439453
+          }
+        },
+        {
+          "cellId": 37,
+          "pastureHa": 5512.090444564819,
+          "footprintHa": 22048.361778259277,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 13229.017066955566,
+            "Cattle": 2204.8361778259277,
+            "Goats": 11024.180889129639,
+            "Horses": 1763.8689422607422,
+            "Camels": 661.4508533477783
+          }
+        }
+      ],
+      "monthlyWardrobeDemandLots": 192.02279326075882,
+      "householdWardrobeConsumptionLots": 3.8632153744027775,
+      "effectiveWoolLaborCoverage": 0.05220902231609523,
+      "woolLotsPerMonth": 39.42162407263185,
+      "woolKgPerMonth": 59132.436108947775,
+      "woolStockLots": 315.3775425,
+      "woolStockKg": 473066.31375000003,
+      "woolFlows": {
+        "source:ruralHarvest": 39.42162407263182,
+        "sink:recipeInput": 0.062457500000000006
+      }
+    },
+    {
+      "date": [
+        590,
+        9,
+        1
+      ],
+      "ruralPeople": 8994463.833257556,
+      "urbanPeople": 225031.44517277402,
+      "heads": {
+        "Sheep": 9438386.197706174,
+        "Cattle": 1580229.651284022,
+        "Goats": 4088285.6114428244,
+        "Horses": 1260933.8404942895,
+        "Camels": 234317.36027920683
+      },
+      "sheepPerResident": 1.0237421803108848,
+      "pastureHa": 7543583.201108037,
+      "footprintHa": 12656352.616144337,
+      "aggregateOccupancy": 1.6777640384857573,
+      "occupiedCells": 1461,
+      "cellsOverModelFootprint": 1395,
+      "worstCells": [
+        {
+          "cellId": 18,
+          "pastureHa": 2459.513783454895,
+          "footprintHa": 9838.05513381958,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 5902.833080291748,
+            "Cattle": 983.805513381958,
+            "Goats": 4919.02756690979,
+            "Horses": 787.0444107055664,
+            "Camels": 295.1416540145874
+          }
+        },
+        {
+          "cellId": 19,
+          "pastureHa": 4516.56174659729,
+          "footprintHa": 18066.24698638916,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 10839.748191833496,
+            "Cattle": 1806.624698638916,
+            "Goats": 9033.12349319458,
+            "Horses": 1445.2997589111328,
+            "Camels": 541.9874095916748
+          }
+        },
+        {
+          "cellId": 20,
+          "pastureHa": 4624.69482421875,
+          "footprintHa": 18498.779296875,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 11099.267578125,
+            "Cattle": 1849.8779296875,
+            "Goats": 9249.3896484375,
+            "Horses": 1479.90234375,
+            "Camels": 554.96337890625
+          }
+        },
+        {
+          "cellId": 21,
+          "pastureHa": 3839.6912813186646,
+          "footprintHa": 15358.765125274658,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 9215.259075164795,
+            "Cattle": 1535.8765125274658,
+            "Goats": 7679.382562637329,
+            "Horses": 1228.7012100219727,
+            "Camels": 460.76295375823975
+          }
+        },
+        {
+          "cellId": 22,
+          "pastureHa": 3643.4404850006104,
+          "footprintHa": 14573.761940002441,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 8744.257164001465,
+            "Cattle": 1457.3761940002441,
+            "Goats": 7286.880970001221,
+            "Horses": 1165.9009552001953,
+            "Camels": 437.21285820007324
+          }
+        },
+        {
+          "cellId": 23,
+          "pastureHa": 5614.481806755066,
+          "footprintHa": 22457.927227020264,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 13474.756336212158,
+            "Cattle": 2245.7927227020264,
+            "Goats": 11228.963613510132,
+            "Horses": 1796.634178161621,
+            "Camels": 673.7378168106079
+          }
+        },
+        {
+          "cellId": 24,
+          "pastureHa": 5356.369614601135,
+          "footprintHa": 21425.47845840454,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 12855.287075042725,
+            "Cattle": 2142.547845840454,
+            "Goats": 10712.73922920227,
+            "Horses": 1714.0382766723633,
+            "Camels": 642.7643537521362
+          }
+        },
+        {
+          "cellId": 34,
+          "pastureHa": 5360.635757446289,
+          "footprintHa": 21442.543029785156,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 12865.525817871094,
+            "Cattle": 2144.2543029785156,
+            "Goats": 10721.271514892578,
+            "Horses": 1715.4034423828125,
+            "Camels": 643.2762908935547
+          }
+        },
+        {
+          "cellId": 35,
+          "pastureHa": 3957.015037536621,
+          "footprintHa": 15828.060150146484,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 9496.83609008789,
+            "Cattle": 1582.8060150146484,
+            "Goats": 7914.030075073242,
+            "Horses": 1266.2448120117188,
+            "Camels": 474.84180450439453
+          }
+        },
+        {
+          "cellId": 37,
+          "pastureHa": 5512.090444564819,
+          "footprintHa": 22048.361778259277,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 13229.017066955566,
+            "Cattle": 2204.8361778259277,
+            "Goats": 11024.180889129639,
+            "Horses": 1763.8689422607422,
+            "Camels": 661.4508533477783
+          }
+        }
+      ],
+      "monthlyWardrobeDemandLots": 192.07281830063187,
+      "householdWardrobeConsumptionLots": 3.802577934052951,
+      "effectiveWoolLaborCoverage": 0.052206357863104014,
+      "woolLotsPerMonth": 39.419501399010414,
+      "woolKgPerMonth": 59129.25209851562,
+      "woolStockLots": 354.75002708333335,
+      "woolStockKg": 532125.040625,
+      "woolFlows": {
+        "source:ruralHarvest": 39.41950139901042,
+        "sink:recipeInput": 0.049972916666666665
+      }
+    },
+    {
+      "date": [
+        590,
+        10,
+        1
+      ],
+      "ruralPeople": 8996474.599808455,
+      "urbanPeople": 225476.22877552963,
+      "heads": {
+        "Sheep": 9438359.65654855,
+        "Cattle": 1580202.177320059,
+        "Goats": 4088278.8588195713,
+        "Horses": 1260504.5280678454,
+        "Camels": 234314.4927346975
+      },
+      "sheepPerResident": 1.0234667080737185,
+      "pastureHa": 7543583.201108037,
+      "footprintHa": 12655193.722085057,
+      "aggregateOccupancy": 1.6776104120156325,
+      "occupiedCells": 1461,
+      "cellsOverModelFootprint": 1395,
+      "worstCells": [
+        {
+          "cellId": 18,
+          "pastureHa": 2459.513783454895,
+          "footprintHa": 9838.05513381958,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 5902.833080291748,
+            "Cattle": 983.805513381958,
+            "Goats": 4919.02756690979,
+            "Horses": 787.0444107055664,
+            "Camels": 295.1416540145874
+          }
+        },
+        {
+          "cellId": 19,
+          "pastureHa": 4516.56174659729,
+          "footprintHa": 18066.24698638916,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 10839.748191833496,
+            "Cattle": 1806.624698638916,
+            "Goats": 9033.12349319458,
+            "Horses": 1445.2997589111328,
+            "Camels": 541.9874095916748
+          }
+        },
+        {
+          "cellId": 20,
+          "pastureHa": 4624.69482421875,
+          "footprintHa": 18498.779296875,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 11099.267578125,
+            "Cattle": 1849.8779296875,
+            "Goats": 9249.3896484375,
+            "Horses": 1479.90234375,
+            "Camels": 554.96337890625
+          }
+        },
+        {
+          "cellId": 21,
+          "pastureHa": 3839.6912813186646,
+          "footprintHa": 15358.765125274658,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 9215.259075164795,
+            "Cattle": 1535.8765125274658,
+            "Goats": 7679.382562637329,
+            "Horses": 1228.7012100219727,
+            "Camels": 460.76295375823975
+          }
+        },
+        {
+          "cellId": 22,
+          "pastureHa": 3643.4404850006104,
+          "footprintHa": 14573.761940002441,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 8744.257164001465,
+            "Cattle": 1457.3761940002441,
+            "Goats": 7286.880970001221,
+            "Horses": 1165.9009552001953,
+            "Camels": 437.21285820007324
+          }
+        },
+        {
+          "cellId": 23,
+          "pastureHa": 5614.481806755066,
+          "footprintHa": 22457.927227020264,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 13474.756336212158,
+            "Cattle": 2245.7927227020264,
+            "Goats": 11228.963613510132,
+            "Horses": 1796.634178161621,
+            "Camels": 673.7378168106079
+          }
+        },
+        {
+          "cellId": 24,
+          "pastureHa": 5356.369614601135,
+          "footprintHa": 21425.47845840454,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 12855.287075042725,
+            "Cattle": 2142.547845840454,
+            "Goats": 10712.73922920227,
+            "Horses": 1714.0382766723633,
+            "Camels": 642.7643537521362
+          }
+        },
+        {
+          "cellId": 34,
+          "pastureHa": 5360.635757446289,
+          "footprintHa": 21442.543029785156,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 12865.525817871094,
+            "Cattle": 2144.2543029785156,
+            "Goats": 10721.271514892578,
+            "Horses": 1715.4034423828125,
+            "Camels": 643.2762908935547
+          }
+        },
+        {
+          "cellId": 35,
+          "pastureHa": 3957.015037536621,
+          "footprintHa": 15828.060150146484,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 9496.83609008789,
+            "Cattle": 1582.8060150146484,
+            "Goats": 7914.030075073242,
+            "Horses": 1266.2448120117188,
+            "Camels": 474.84180450439453
+          }
+        },
+        {
+          "cellId": 37,
+          "pastureHa": 5512.090444564819,
+          "footprintHa": 22048.361778259277,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 13229.017066955566,
+            "Cattle": 2204.8361778259277,
+            "Goats": 11024.180889129639,
+            "Horses": 1763.8689422607422,
+            "Camels": 661.4508533477783
+          }
+        }
+      ],
+      "monthlyWardrobeDemandLots": 192.12397559549964,
+      "householdWardrobeConsumptionLots": 3.7984606739131945,
+      "effectiveWoolLaborCoverage": 0.05220369261814893,
+      "woolLotsPerMonth": 39.41737810639986,
+      "woolKgPerMonth": 59126.06715959979,
+      "woolStockLots": 394.22,
+      "woolStockKg": 591330,
+      "woolFlows": {
+        "source:ruralHarvest": 39.417378106399866
+      }
+    },
+    {
+      "date": [
+        590,
+        11,
+        1
+      ],
+      "ruralPeople": 8998672.302104533,
+      "urbanPeople": 225920.20536905224,
+      "heads": {
+        "Sheep": 9438333.107198998,
+        "Cattle": 1580174.6949895897,
+        "Goats": 4088272.103978489,
+        "Horses": 1260075.0848085652,
+        "Camels": 234311.62428299314
+      },
+      "sheepPerResident": 1.0231707362197566,
+      "pastureHa": 7543583.201108037,
+      "footprintHa": 12654034.474544942,
+      "aggregateOccupancy": 1.6774567386870285,
+      "occupiedCells": 1461,
+      "cellsOverModelFootprint": 1395,
+      "worstCells": [
+        {
+          "cellId": 18,
+          "pastureHa": 2459.513783454895,
+          "footprintHa": 9838.05513381958,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 5902.833080291748,
+            "Cattle": 983.805513381958,
+            "Goats": 4919.02756690979,
+            "Horses": 787.0444107055664,
+            "Camels": 295.1416540145874
+          }
+        },
+        {
+          "cellId": 19,
+          "pastureHa": 4516.56174659729,
+          "footprintHa": 18066.24698638916,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 10839.748191833496,
+            "Cattle": 1806.624698638916,
+            "Goats": 9033.12349319458,
+            "Horses": 1445.2997589111328,
+            "Camels": 541.9874095916748
+          }
+        },
+        {
+          "cellId": 20,
+          "pastureHa": 4624.69482421875,
+          "footprintHa": 18498.779296875,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 11099.267578125,
+            "Cattle": 1849.8779296875,
+            "Goats": 9249.3896484375,
+            "Horses": 1479.90234375,
+            "Camels": 554.96337890625
+          }
+        },
+        {
+          "cellId": 21,
+          "pastureHa": 3839.6912813186646,
+          "footprintHa": 15358.765125274658,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 9215.259075164795,
+            "Cattle": 1535.8765125274658,
+            "Goats": 7679.382562637329,
+            "Horses": 1228.7012100219727,
+            "Camels": 460.76295375823975
+          }
+        },
+        {
+          "cellId": 22,
+          "pastureHa": 3643.4404850006104,
+          "footprintHa": 14573.761940002441,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 8744.257164001465,
+            "Cattle": 1457.3761940002441,
+            "Goats": 7286.880970001221,
+            "Horses": 1165.9009552001953,
+            "Camels": 437.21285820007324
+          }
+        },
+        {
+          "cellId": 23,
+          "pastureHa": 5614.481806755066,
+          "footprintHa": 22457.927227020264,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 13474.756336212158,
+            "Cattle": 2245.7927227020264,
+            "Goats": 11228.963613510132,
+            "Horses": 1796.634178161621,
+            "Camels": 673.7378168106079
+          }
+        },
+        {
+          "cellId": 24,
+          "pastureHa": 5356.369614601135,
+          "footprintHa": 21425.47845840454,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 12855.287075042725,
+            "Cattle": 2142.547845840454,
+            "Goats": 10712.73922920227,
+            "Horses": 1714.0382766723633,
+            "Camels": 642.7643537521362
+          }
+        },
+        {
+          "cellId": 34,
+          "pastureHa": 5360.635757446289,
+          "footprintHa": 21442.543029785156,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 12865.525817871094,
+            "Cattle": 2144.2543029785156,
+            "Goats": 10721.271514892578,
+            "Horses": 1715.4034423828125,
+            "Camels": 643.2762908935547
+          }
+        },
+        {
+          "cellId": 35,
+          "pastureHa": 3957.015037536621,
+          "footprintHa": 15828.060150146484,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 9496.83609008789,
+            "Cattle": 1582.8060150146484,
+            "Goats": 7914.030075073242,
+            "Horses": 1266.2448120117188,
+            "Camels": 474.84180450439453
+          }
+        },
+        {
+          "cellId": 37,
+          "pastureHa": 5512.090444564819,
+          "footprintHa": 22048.361778259277,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 13229.017066955566,
+            "Cattle": 2204.8361778259277,
+            "Goats": 11024.180889129639,
+            "Horses": 1763.8689422607422,
+            "Camels": 661.4508533477783
+          }
+        }
+      ],
+      "monthlyWardrobeDemandLots": 192.17901057236634,
+      "householdWardrobeConsumptionLots": 3.8038739720026045,
+      "effectiveWoolLaborCoverage": 0.052201026535569635,
+      "woolLotsPerMonth": 39.41525415843523,
+      "woolKgPerMonth": 59122.88123765285,
+      "woolStockLots": 433.64000000000004,
+      "woolStockKg": 650460.0000000001,
+      "woolFlows": {
+        "source:ruralHarvest": 39.41525415843525
+      }
+    },
+    {
+      "date": [
+        590,
+        12,
+        1
+      ],
+      "ruralPeople": 9000830.980464816,
+      "urbanPeople": 226225.6830686413,
+      "heads": {
+        "Sheep": 9438306.549783073,
+        "Cattle": 1580147.204418233,
+        "Goats": 4088265.346956618,
+        "Horses": 1259645.5126824747,
+        "Camels": 234308.75493845393
+      },
+      "sheepPerResident": 1.0228946124374096,
+      "pastureHa": 7543583.201108037,
+      "footprintHa": 12652874.878842684,
+      "aggregateOccupancy": 1.6773030192050074,
+      "occupiedCells": 1461,
+      "cellsOverModelFootprint": 1395,
+      "worstCells": [
+        {
+          "cellId": 18,
+          "pastureHa": 2459.513783454895,
+          "footprintHa": 9838.05513381958,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 5902.833080291748,
+            "Cattle": 983.805513381958,
+            "Goats": 4919.02756690979,
+            "Horses": 787.0444107055664,
+            "Camels": 295.1416540145874
+          }
+        },
+        {
+          "cellId": 19,
+          "pastureHa": 4516.56174659729,
+          "footprintHa": 18066.24698638916,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 10839.748191833496,
+            "Cattle": 1806.624698638916,
+            "Goats": 9033.12349319458,
+            "Horses": 1445.2997589111328,
+            "Camels": 541.9874095916748
+          }
+        },
+        {
+          "cellId": 20,
+          "pastureHa": 4624.69482421875,
+          "footprintHa": 18498.779296875,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 11099.267578125,
+            "Cattle": 1849.8779296875,
+            "Goats": 9249.3896484375,
+            "Horses": 1479.90234375,
+            "Camels": 554.96337890625
+          }
+        },
+        {
+          "cellId": 21,
+          "pastureHa": 3839.6912813186646,
+          "footprintHa": 15358.765125274658,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 9215.259075164795,
+            "Cattle": 1535.8765125274658,
+            "Goats": 7679.382562637329,
+            "Horses": 1228.7012100219727,
+            "Camels": 460.76295375823975
+          }
+        },
+        {
+          "cellId": 22,
+          "pastureHa": 3643.4404850006104,
+          "footprintHa": 14573.761940002441,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 8744.257164001465,
+            "Cattle": 1457.3761940002441,
+            "Goats": 7286.880970001221,
+            "Horses": 1165.9009552001953,
+            "Camels": 437.21285820007324
+          }
+        },
+        {
+          "cellId": 23,
+          "pastureHa": 5614.481806755066,
+          "footprintHa": 22457.927227020264,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 13474.756336212158,
+            "Cattle": 2245.7927227020264,
+            "Goats": 11228.963613510132,
+            "Horses": 1796.634178161621,
+            "Camels": 673.7378168106079
+          }
+        },
+        {
+          "cellId": 24,
+          "pastureHa": 5356.369614601135,
+          "footprintHa": 21425.47845840454,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 12855.287075042725,
+            "Cattle": 2142.547845840454,
+            "Goats": 10712.73922920227,
+            "Horses": 1714.0382766723633,
+            "Camels": 642.7643537521362
+          }
+        },
+        {
+          "cellId": 34,
+          "pastureHa": 5360.635757446289,
+          "footprintHa": 21442.543029785156,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 12865.525817871094,
+            "Cattle": 2144.2543029785156,
+            "Goats": 10721.271514892578,
+            "Horses": 1715.4034423828125,
+            "Camels": 643.2762908935547
+          }
+        },
+        {
+          "cellId": 35,
+          "pastureHa": 3957.015037536621,
+          "footprintHa": 15828.060150146484,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 9496.83609008789,
+            "Cattle": 1582.8060150146484,
+            "Goats": 7914.030075073242,
+            "Horses": 1266.2448120117188,
+            "Camels": 474.84180450439453
+          }
+        },
+        {
+          "cellId": 37,
+          "pastureHa": 5512.090444564819,
+          "footprintHa": 22048.361778259277,
+          "occupancy": 4,
+          "heads": {
+            "Sheep": 13229.017066955566,
+            "Cattle": 2204.8361778259277,
+            "Goats": 11024.180889129639,
+            "Horses": 1763.8689422607422,
+            "Camels": 661.4508533477783
+          }
+        }
+      ],
+      "monthlyWardrobeDemandLots": 192.23034715694703,
+      "householdWardrobeConsumptionLots": 3.735691845358508,
+      "effectiveWoolLaborCoverage": 0.052198359627960884,
+      "woolLotsPerMonth": 39.41312956516125,
+      "woolKgPerMonth": 59119.694347741875,
+      "woolStockLots": 473.06,
+      "woolStockKg": 709590,
+      "woolFlows": {
+        "source:ruralHarvest": 39.41312956516123
+      }
+    },
+    {
+      "date": [
+        591,
+        1,
+        1
+      ],
+      "ruralPeople": 8989534.153752029,
+      "urbanPeople": 240204.9104844467,
+      "heads": {
+        "Sheep": 8730867.928172119,
+        "Cattle": 1490422.2603862039,
+        "Goats": 3769546.3187167514,
+        "Horses": 1164849.3419519656,
+        "Camels": 155741.2202867617
+      },
+      "sheepPerResident": 0.9459495948268581,
+      "pastureHa": 6563108.026054314,
+      "footprintHa": 11349350.514441505,
+      "aggregateOccupancy": 1.7292646211804987,
+      "occupiedCells": 1461,
+      "cellsOverModelFootprint": 1395,
+      "worstCells": [
+        {
+          "cellId": 47,
+          "pastureHa": 2710.182309150696,
+          "footprintHa": 13430.458998680115,
+          "occupancy": 4.955555555555556,
+          "heads": {
+            "Sheep": 7949.868106842041,
+            "Cattle": 1355.091154575348,
+            "Goats": 6624.890089035034,
+            "Horses": 1084.0729236602783,
+            "Camels": 406.52734637260437
+          }
+        },
+        {
+          "cellId": 48,
+          "pastureHa": 3596.5107679367065,
+          "footprintHa": 17822.708916664124,
+          "occupancy": 4.955555555555556,
+          "heads": {
+            "Sheep": 10549.764919281006,
+            "Cattle": 1798.2553839683533,
+            "Goats": 8791.470766067505,
+            "Horses": 1438.6043071746826,
+            "Camels": 539.476615190506
+          }
+        },
+        {
+          "cellId": 49,
+          "pastureHa": 3225.3405153751373,
+          "footprintHa": 15983.35410952568,
+          "occupancy": 4.955555555555556,
+          "heads": {
+            "Sheep": 9460.998845100403,
+            "Cattle": 1612.6702576875687,
+            "Goats": 7884.165704250336,
+            "Horses": 1290.136206150055,
+            "Camels": 483.80107730627066
+          }
+        },
+        {
+          "cellId": 51,
+          "pastureHa": 3538.9151573181152,
+          "footprintHa": 17537.29066848755,
+          "occupancy": 4.955555555555556,
+          "heads": {
+            "Sheep": 10380.817794799805,
+            "Cattle": 1769.4575786590576,
+            "Goats": 8650.681495666504,
+            "Horses": 1415.5660629272459,
+            "Camels": 530.8372735977173
+          }
+        },
+        {
+          "cellId": 52,
+          "pastureHa": 3090.9516513347626,
+          "footprintHa": 15317.382627725601,
+          "occupancy": 4.955555555555556,
+          "heads": {
+            "Sheep": 9066.79151058197,
+            "Cattle": 1545.4758256673813,
+            "Goats": 7555.659592151642,
+            "Horses": 1236.380660533905,
+            "Camels": 463.6427477002144
+          }
+        },
+        {
+          "cellId": 53,
+          "pastureHa": 4159.665763378143,
+          "footprintHa": 20613.4547829628,
+          "occupancy": 4.955555555555556,
+          "heads": {
+            "Sheep": 12201.686239242554,
+            "Cattle": 2079.8328816890717,
+            "Goats": 10168.071866035461,
+            "Horses": 1663.8663053512573,
+            "Camels": 623.9498645067215
+          }
+        },
+        {
+          "cellId": 55,
+          "pastureHa": 859.1309264302254,
+          "footprintHa": 4257.471035420895,
+          "occupancy": 4.955555555555556,
+          "heads": {
+            "Sheep": 2520.1173841953278,
+            "Cattle": 429.5654632151127,
+            "Goats": 2100.097820162773,
+            "Horses": 343.65237057209015,
+            "Camels": 128.8696389645338
+          }
+        },
+        {
+          "cellId": 56,
+          "pastureHa": 1631.868839263916,
+          "footprintHa": 8086.816692352295,
+          "occupancy": 4.955555555555556,
+          "heads": {
+            "Sheep": 4786.81526184082,
+            "Cattle": 815.934419631958,
+            "Goats": 3989.0127182006836,
+            "Horses": 652.7475357055664,
+            "Camels": 244.7803258895874
+          }
+        },
+        {
+          "cellId": 57,
+          "pastureHa": 1651.0672867298126,
+          "footprintHa": 8181.95566534996,
+          "occupancy": 4.955555555555556,
+          "heads": {
+            "Sheep": 4843.130707740784,
+            "Cattle": 825.5336433649063,
+            "Goats": 4035.942256450653,
+            "Horses": 660.426914691925,
+            "Camels": 247.6600930094719
+          }
+        },
+        {
+          "cellId": 58,
+          "pastureHa": 1175.9055107831955,
+          "footprintHa": 5827.265086770058,
+          "occupancy": 4.955555555555556,
+          "heads": {
+            "Sheep": 3449.322831630707,
+            "Cattle": 587.9527553915977,
+            "Goats": 2874.435693025589,
+            "Horses": 470.3622043132782,
+            "Camels": 176.38582661747932
+          }
+        }
+      ],
+      "monthlyWardrobeDemandLots": 189.4303041102005,
+      "householdWardrobeConsumptionLots": 3.889528250130344,
+      "effectiveWoolLaborCoverage": 0.06078384243556868,
+      "woolLotsPerMonth": 42.45565603774193,
+      "woolKgPerMonth": 63683.4840566129,
+      "woolStockLots": 515.485993875,
+      "woolStockKg": 773228.9908124999,
+      "woolFlows": {
+        "source:ruralHarvest": 42.45565603774197,
+        "sink:recipeInput": 0.034006125
+      }
+    }
+  ]
+}
