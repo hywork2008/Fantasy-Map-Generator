@@ -26,6 +26,9 @@ import {
 } from "./foodLots";
 import { HORSES_PER_MARKET_HEAD } from "./liveAnimalScale";
 import { WOOD_KG_PER_LITER } from "./woodRecipeContracts";
+import { FLEECES_PER_WOOL_MARKET_LOT, WOOL_KG_PER_MARKET_LOT } from "./woolProductionPolicy";
+
+export { FLEECES_PER_WOOL_MARKET_LOT } from "./woolProductionPolicy";
 
 /** One wain of staple crops: the gross food a person needs a year is 0.43 wain, 200 kg. */
 export const WAIN_KG = STAPLE_NEED_KG_PER_PERSON_YEAR / GROSS_FOOD_NEED;
@@ -37,11 +40,8 @@ const SACK_KG = 50;
 const BALE_KG = 200;
 const CHEST_KG = 50;
 const BUNDLE_KG = 25;
-const FLEECE_KG = 1.5;
 /** saltLogistics.ts `SALT_KILOGRAMS_PER_BAG` (not imported: that module needs the catalogue). */
 export const SALT_KILOGRAMS_PER_BAG = 60;
-/** woolProduction.ts `FLEECES_PER_WOOL_MARKET_LOT` (not imported for the same reason). */
-export const FLEECES_PER_WOOL_MARKET_LOT = 1_000;
 
 /**
  * How a unit is packed for the road and the hold. Packed room is net room × `stowage`; gross weight
@@ -291,14 +291,7 @@ export const GOOD_MEASURES: Readonly<Record<string, GoodMeasure>> = {
   Rubber: byMass("bale", "200 kg", BALE_KG, 0.9, "bale", "model"),
   Peat: byMass("bale", "200 kg", BALE_KG, 0.35, "bale", "model"),
   Cotton: byMass("bale", "200 kg", BALE_KG, 0.35, "bale", "model"),
-  Wool: byMass(
-    "fleece",
-    `${FLEECES_PER_WOOL_MARKET_LOT} fleeces`,
-    FLEECES_PER_WOOL_MARKET_LOT * FLEECE_KG,
-    0.3,
-    "bale",
-    "code"
-  ),
+  Wool: byMass("fleece", `${FLEECES_PER_WOOL_MARKET_LOT} fleeces`, WOOL_KG_PER_MARKET_LOT, 0.3, "bale", "code"),
   Flax: byMass("bundle", "25 kg", BUNDLE_KG, 0.2, "bundle", "model"),
   Reeds: byMass("bundle", "25 kg", BUNDLE_KG, 0.1, "bundle", "model"),
   "Medicinal herbs": byMass("bundle", "25 kg", BUNDLE_KG, 0.15, "bundle", "model"),

@@ -20,43 +20,28 @@
 import { getOrCreateFaunaStockTable } from "../economyContext";
 import { getHusbandryWorkerFactor } from "./husbandry";
 import { getLivestockFeedCoverage } from "./livestockFeedState";
+import { SHEEP_ANNUAL_WOOL_KG, WOOL_KG_PER_MARKET_LOT } from "./woolProductionPolicy";
 
-/** One Wool market unit is a bale of one thousand annual-fleece equivalents. */
-export const FLEECES_PER_WOOL_MARKET_LOT = 1_000;
+export { FLEECES_PER_WOOL_MARKET_LOT } from "./woolProductionPolicy";
 
-/**
- * Fleece yield per head per month — order-of-magnitude placeholder (§9.3 policy: relative
- * ordering/scale matters more than the exact value here). A sheep is realistically sheared once a
- * year for one fleece; spread over 12 months as a smoothed trickle the same way Milk is, ~1
- * fleece/head/year ≈ 0.08/month. Output is then converted to the same 1,000-person market lot
- * used by Cloth and Garments, instead of injecting raw individual fleeces into abstract markets.
- */
-const WOOL_YIELD_PER_HEAD_PER_MONTH: Record<string, number> = {
-  Sheep: 0.08
-};
-
-/** `cellId:speciesKey`-keyed lookup, duplicated from dairy.ts's `getLocalHeadcount` (itself
- * mirroring husbandry.ts's `getDogsHeadcount`) rather than imported, to avoid a cross-module
- * dependency for a two-line helper — same precedent those modules document. */
-function getLocalHeadcount(cellId: number, speciesKey: string): number {
-  const table = getOrCreateFaunaStockTable();
-  if (!table) return 0;
-  const cohorts = table[`${cellId}:${speciesKey}`];
+/** Annual local greasy-wool potential before labor/feed modifiers; never seeds or changes stock. */
+export function getAnnualWoolPotentialKg(cellId: number): number {
+  const cohorts = getOrCreateFaunaStockTable()?.[`${cellId}:Sheep`];
   if (!cohorts) return 0;
-  return cohorts.young + cohorts.breeding + cohorts.old;
+  return (
+    Math.max(0, cohorts.young) * SHEEP_ANNUAL_WOOL_KG.young +
+    Math.max(0, cohorts.breeding) * SHEEP_ANNUAL_WOOL_KG.breeding +
+    Math.max(0, cohorts.old) * SHEEP_ANNUAL_WOOL_KG.old
+  );
 }
 
 /**
- * Wool's monthly output (pre-modifier) at `cellId`, driven entirely by that same cell's own Sheep
- * headcount — never another cell's or a pooled market's stock. Read-only: shearing doesn't cull
- * the herd, so there is no separate preview/draw split (AGENTS.md §1's Renderer-purity rule is
- * satisfied for free, same as getMilkOutput()).
+ * Monthly smoothed output in fixed-mass market lots. Age classes determine annual raw mass;
+ * labor and recent feeding limit recoverable output. No shearing-date or birth-month stock exists.
+ * This read-only forecast neither culls animals nor moves market/private inventory.
  */
 export function getWoolOutput(cellId: number): number {
-  let rawYield = 0;
-  for (const [species, yieldPerHead] of Object.entries(WOOL_YIELD_PER_HEAD_PER_MONTH)) {
-    rawYield += getLocalHeadcount(cellId, species) * yieldPerHead;
-  }
-  if (rawYield <= 0) return 0;
-  return (rawYield * getHusbandryWorkerFactor(cellId) * getLivestockFeedCoverage(cellId)) / FLEECES_PER_WOOL_MARKET_LOT;
+  const annualKg = getAnnualWoolPotentialKg(cellId);
+  if (annualKg <= 0) return 0;
+  return (annualKg * getHusbandryWorkerFactor(cellId) * getLivestockFeedCoverage(cellId)) / 12 / WOOL_KG_PER_MARKET_LOT;
 }

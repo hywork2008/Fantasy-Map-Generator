@@ -8,7 +8,7 @@ import {
   setHusbandryRequiredWorkers,
   setHusbandryWorkers
 } from "../economyContext";
-import { getWoolOutput } from "./woolProduction";
+import { getAnnualWoolPotentialKg, getWoolOutput } from "./woolProduction";
 
 describe("woolProduction (Wool -> Cloth, 2026-08-08 docs/plan/fauna-biome-realism.md Wool/Sheep investigation)", () => {
   beforeEach(() => {
@@ -41,8 +41,34 @@ describe("woolProduction (Wool -> Cloth, 2026-08-08 docs/plan/fauna-biome-realis
       table["0:Sheep"] = { young: 200, breeding: 600, old: 200 }; // 1000 head
       setHusbandryRequiredWorkers(new Float32Array([10]));
       setHusbandryWorkers(new Float32Array([5])); // workerFactor 0.5
-      // 1000 head * 0.08 fleece/head/month * 0.5 worker factor / 1000 fleeces per market lot = 0.04.
-      expect(getWoolOutput(0)).toBeCloseTo(0.04, 5);
+      // 200 young * 0.72 + 800 adults * 1.44 = 1296 kg/year before labor.
+      expect(getWoolOutput(0)).toBeCloseTo(0.036, 5);
+    });
+
+    it("accounts for age without treating old sheep as non-producing or lambs as full adults", () => {
+      const table = getOrCreateFaunaStockTable()!;
+      setHusbandryRequiredWorkers(new Float32Array([10]));
+      setHusbandryWorkers(new Float32Array([10]));
+      table["0:Sheep"] = { young: 1000, breeding: 0, old: 0 };
+      expect(getAnnualWoolPotentialKg(0)).toBeCloseTo(720);
+      expect(getWoolOutput(0)).toBeCloseTo(0.04);
+      table["0:Sheep"] = { young: 0, breeding: 1000, old: 0 };
+      expect(getAnnualWoolPotentialKg(0)).toBeCloseTo(1440);
+      expect(getWoolOutput(0)).toBeCloseTo(0.08);
+      table["0:Sheep"] = { young: 0, breeding: 0, old: 1000 };
+      expect(getWoolOutput(0)).toBeCloseTo(0.08);
+    });
+
+    it("delivers the annual raw mass over twelve smoothed months without changing the lot contract", () => {
+      getOrCreateFaunaStockTable()!["0:Sheep"] = { young: 200, breeding: 600, old: 200 };
+      setHusbandryRequiredWorkers(new Float32Array([10]));
+      setHusbandryWorkers(new Float32Array([10]));
+      let lots = 0;
+      for (let month = 1; month <= 12; month++) {
+        simulationContext.currentMonth = month;
+        lots += getWoolOutput(0);
+      }
+      expect(lots * 1500).toBeCloseTo(1296);
     });
 
     it("does not cull the herd — read-only like getMilkOutput", () => {
