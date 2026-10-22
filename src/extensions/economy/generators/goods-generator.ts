@@ -34,6 +34,7 @@ import {
   type TradeScale,
   type TradeTrend
 } from "./goodsGeneratorTypes";
+import { RENNET_BARRELS_PER_CHEESE_LOT } from "./rennet";
 import { getDefaultGoodCargoProfile } from "./tradeCargo";
 
 /** Raw, un-refrigerated foods introduced before the `freshFood` catalogue tag existed. */
@@ -212,9 +213,6 @@ const shipGoodValue = (shipClassId: string): number => {
   if (!shipClass) throw new Error(`Unknown ship class: ${shipClassId}`);
   return shipClass.buildPointsRequired * SHIP_VALUE_PER_BUILD_POINT;
 };
-
-/** Liquid rennet in a 1,000 kg cheese lot: 25 mL to 100 L of milk, so 2.5 L for its 10,000 L, in 120 L barrels. */
-const RENNET_BARRELS_PER_CHEESE_LOT = 2.5 / 120;
 
 /** Ink in a book or an artwork: the half litre it took of the 1 L bottle, in 120 L barrels. */
 const INK_BARRELS_PER_BOOK = 0.5 / 120;
@@ -1934,25 +1932,16 @@ export const GOODS_DATA: GoodData[] = [
     }
   },
   {
-    // Real cheesemaking curdles Milk with an acid (Salt-brined whey/Vinegar, already modeled below)
-    // or rennet (an enzyme, historically extracted from a slaughtered calf/lamb/kid's stomach), not
-    // literally the salt/vinegar itself acting alone — added 2026-08-07 (docs/plan/
-    // fauna-biome-realism.md §3 Phase N, docs/temp/0807-cheese.md) as a second, independent
-    // coagulant path for Cheese's recipe below, alongside Ash. A cheap byproduct of animals already
-    // being culled for other liveAnimal goods — modeled as a small direct headcount draw (not tied
-    // to dairy specifically; a calf/lamb/kid doesn't have to come from a milking herd) via the
-    // standard recipe/Market pipeline, unlike Milk itself.
+    // Standardized 1:10,000 liquid rennet recovered from eligible slaughtered calves.
+    // Unspecified live-animal market heads cannot substitute for unweaned calf stomachs.
     name: "Rennet",
     tags: ["preservative"],
     // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
     icon: "good-unknown",
     color: "#e8d5c4",
-    // A 120 L barrel of liquid rennet from the vells (fourth stomachs) of slaughtered young stock: a calf's makes
-    // some 3 L (0.12 head), so 4.8 head for a barrel; a lamb's or kid's a quarter of that (goods-physical-units.md §27).
-    // The yield per vell is a model figure, unsourced. The 1 L vial was worth 4, 1,860 times the grain price per kilogram.
+    // Price remains a model value pending quantity-linked historical evidence (T13).
     value: 40,
     chance: 0,
-    recipes: [{ Cattle: 4.8 }, { Sheep: 12 }, { Goats: 10 }],
     unit: "barrel",
     demandCoverage: {}
   },
@@ -4768,6 +4757,25 @@ export function migrateLeatherByproduct(): boolean {
   return true;
 }
 
+/** Removes age-blind livestock recipes without changing existing rennet stock or custom non-animal recipes. */
+export function migrateRennetCalfContract(): boolean {
+  const goods = getGoods();
+  const rennet = goods.find(good => good.name === "Rennet");
+  if (!rennet?.recipes?.length) return false;
+  const animals = new Set(goods.filter(good => ["Cattle", "Sheep", "Goats"].includes(good.name)).map(good => good.i));
+  const retained = rennet.recipes
+    .map((recipe, index) => ({ recipe, index }))
+    .filter(({ recipe }) => !Object.keys(recipe).some(id => animals.has(Number(id))));
+  if (retained.length === rennet.recipes.length) return false;
+  if (rennet.byproducts) rennet.byproducts = retained.map(({ index }) => rennet.byproducts![index] ?? {});
+  if (retained.length) rennet.recipes = retained.map(({ recipe }) => recipe);
+  else {
+    delete rennet.recipes;
+    delete rennet.byproducts;
+  }
+  return true;
+}
+
 /** Moves a saved catalogue's Rennet from the 1 L vial to the 120 L barrel, a 120th of the stock (§27). */
 export function migrateRennetBarrel(): boolean {
   return migrateLargerUnit("Rennet", "vial", "barrel", 120);
@@ -4827,10 +4835,7 @@ const WEIGHT_RECIPE_REPRICING: readonly { good: string; input: string; before: n
   { good: "Books", input: "Ink", before: 0.5, after: INK_BARRELS_PER_BOOK },
   { good: "Artworks", input: "Ink", before: 0.5, after: INK_BARRELS_PER_BOOK },
   { good: "Harnesses", input: "Leather", before: 0.5, after: 20 },
-  { good: "Books", input: "Leather", before: 1, after: 0.02 },
-  { good: "Rennet", input: "Cattle", before: 0.03, after: 4.8 },
-  { good: "Rennet", input: "Sheep", before: 0.03, after: 12 },
-  { good: "Rennet", input: "Goats", before: 0.03, after: 10 }
+  { good: "Books", input: "Leather", before: 1, after: 0.02 }
 ];
 
 /** The food a sack of flour and a loaf lot cover, before and after §21: the 50 kg and 20 kg they weigh. */

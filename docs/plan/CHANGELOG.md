@@ -3,6 +3,7 @@
 2026-10-22
 
 - docs/analytics/goods-physical-units-observation-20261022.json - 同じStandard設定のprovince-101を酒樽変更前後で36か月ずつ進めた、Ink・Linen・Beer・果物と果実酒の生産・消費・在庫・照合・出発の集計と入力ハッシュ
+- docs/analytics/rennet-historical-yield-and-price.md - T13の中世レンネット購入支出、18世紀の抽出法、1916年の相対力価と1919年の数量付き費用を照合し、現行レシピの25 L/Cattle市場頭と未確定の単価・胃からの換算を監査
 - docs/plan/ce-manual-city-authoring.md - CE手動編集のセル境界由来の細街路・仕上げ後の枠付近の道路・共有時の再生成を調査し、手動補完ポリシー、選択区域の仕上げ、文書共有と生成条件共有の分離、実装順序と受入条件を設計
 - docs/plan/ce-regional-building-appearance.md - CEの2D・3D共通の地域別屋根・壁パレット、既存BV住宅と簡易マッシングのベンチマーク、街区の色別SVG集約、軽量描画とBVの分担・導出と保存・実装順序を設計
 - docs/plan/character-wealth-lifecycle.md - 人物の遅延生成・詳細削除・死亡・相続から現金口座を独立させ、初期資金の配分と抽象家計の分割、通貨量の保存、旧セーブ移行・削除前精算を定義する設計

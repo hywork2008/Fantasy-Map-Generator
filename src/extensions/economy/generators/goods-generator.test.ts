@@ -38,6 +38,7 @@ import {
   migratePomaceDistillationGoods,
   migrateRaisinsGood,
   migrateRennetBarrel,
+  migrateRennetCalfContract,
   migrateSmeltedMetalValues,
   migrateSmeltingFuelAndAshGoods,
   migrateStapleCropGoods,
@@ -965,6 +966,28 @@ describe("GoodsModule", () => {
     expect(rennet.unit).toBe("barrel");
     expect(getMarkets()[0].goods[rennet.i].stock).toBe(2);
     expect(migrateRennetBarrel()).toBe(false);
+  });
+
+  it("removes age-blind Rennet recipes once, preserving stock and unrelated custom recipes", () => {
+    goodsModule.restoreDefaults();
+    const byName = (name: string) => getGoods().find(good => good.name === name)!;
+    const rennet = byName("Rennet");
+    expect(rennet.recipes).toBeUndefined();
+    rennet.recipes = [{ [byName("Cattle").i]: 4.8 }, { [byName("Sheep").i]: 12 }, { [byName("Goats").i]: 10 }];
+    setMarkets([{ i: 1, centerBurgId: 1, color: "#fff", goods: { [rennet.i]: { stock: 0.25, price: 40 } } }]);
+    expect(migrateRennetCalfContract()).toBe(true);
+    expect(rennet.recipes).toBeUndefined();
+    expect(getMarkets()[0].goods[rennet.i]).toEqual({ stock: 0.25, price: 40 });
+    expect(migrateWeightRepricing()).toBe(false);
+    expect(migrateRennetCalfContract()).toBe(false);
+
+    const customRecipe = { [byName("Ash").i]: 0.1 };
+    rennet.recipes = [{ [byName("Cattle").i]: 0.03 }, customRecipe];
+    rennet.byproducts = [{ [byName("Leather").i]: 1 }, { [byName("Salt").i]: 0.01 }];
+    expect(migrateRennetCalfContract()).toBe(true);
+    expect(rennet.recipes).toEqual([customRecipe]);
+    expect(rennet.byproducts).toEqual([{ [byName("Salt").i]: 0.01 }]);
+    expect(migrateRennetCalfContract()).toBe(false);
   });
 
   it("drops saved Leather recipes, since a hide comes with the carcass, once", () => {

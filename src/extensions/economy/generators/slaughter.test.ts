@@ -39,7 +39,7 @@ describe("settleSlaughter", () => {
 
     expect(singleIngredientHeads(goods[5], 1)).toBe(0.5);
     const result = settleSlaughter();
-    expect(result).toEqual({ heads: 4, tallow: 9.33, leather: 1 });
+    expect(result).toEqual({ heads: 4, tallow: 9.33, leather: 1, rennet: 0 });
     expect(stall.goods[1].stock).toBe(0);
     expect(stall.goods[2].stock).toBe(0);
     expect(stall.goods[3].stock).toBe(0);
@@ -47,5 +47,26 @@ describe("settleSlaughter", () => {
     expect(stall.goods[5].stock).toBe(3);
     expect(stall.goods[6].stock).toBe(9.33);
     expect(stall.goods[7].stock).toBe(1);
+  });
+  it("recovers rennet only from explicitly eligible calves, without consuming extra cattle or rounding it away", () => {
+    const cattle = { i: 1, name: "Cattle", tags: ["food", "liveAnimal"], value: 5 } as Good;
+    const leather = { i: 2, name: "Leather", tags: ["clothing"], value: 6 } as Good;
+    const rennet = { i: 3, name: "Rennet", tags: ["preservative"], value: 40 } as Good;
+    setGoods([cattle, leather, rennet]);
+    const stall = market({ 1: { stock: 2, price: 5 } });
+    setMarkets([stall]);
+    const result = settleSlaughter(new Map([[stall.i, 1]]));
+    expect(result).toEqual({ heads: 2, leather: 2, tallow: 0, rennet: 1 / 240 });
+    expect(stall.goods[1].stock).toBe(0);
+    expect(stall.goods[3].stock).toBe(1 / 240);
+    expect(settleSlaughter(new Map([[stall.i, 1]])).rennet).toBe(0);
+    expect(stall.goods[3].stock).toBe(1 / 240);
+
+    stall.goods[1].stock = 1;
+    expect(settleSlaughter().rennet).toBe(0);
+    expect(stall.goods[3].stock).toBe(1 / 240);
+    stall.goods[1].stock = 1;
+    expect(settleSlaughter(new Map([[stall.i, 240]])).rennet).toBe(1 / 240);
+    expect(stall.goods[3].stock).toBe(2 / 240);
   });
 });

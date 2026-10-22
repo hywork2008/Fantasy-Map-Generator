@@ -29,6 +29,7 @@ import type { Good } from "./goods-generator";
 import { isGoodEnabled } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import type { Market } from "./marketTypes";
+import { rennetBarrelsFromCalfAbomasa } from "./rennet";
 
 /**
  * Heads that give one roll (a hide) of Leather when the catalogue's Leather has no recipe: a hide is
@@ -41,6 +42,7 @@ export interface SlaughterResult {
   heads: number;
   tallow: number;
   leather: number;
+  rennet: number;
 }
 
 /** Heads of `animal` one unit of `output` consumes, when the recipe is that animal alone. */
@@ -58,7 +60,9 @@ function credit(market: Market, good: Good, units: number): void {
   if (!(units > 0) || !isGoodEnabled(good)) return;
   const row = market.goods[good.i] ?? { stock: 0, price: good.value };
   market.goods[good.i] = row;
-  row.stock = rn(row.stock + units, 2);
+  // A calf yields only 1/240 barrel. Preserve small byproduct quantities in stock and counters.
+  const quantity = (value: number) => (good.name === "Rennet" ? value : rn(value, 2));
+  row.stock = quantity(row.stock + units);
   recordGoodFlow({
     direction: "source",
     category: "burgCraft",
@@ -69,26 +73,30 @@ function credit(market: Market, good: Good, units: number): void {
   });
   recordFoodMarketIntake(market, good.name, units);
   const sales = getOrCreateCumulativeGoodsSales();
-  if (sales) sales[good.i] = rn((sales[good.i] ?? 0) + units, 2);
+  if (sales) sales[good.i] = quantity((sales[good.i] ?? 0) + units);
   const produced = getOrCreateMarketGoodProductionTotals();
   if (produced) {
     const key = `${market.i}:${good.i}`;
-    produced[key] = rn((produced[key] ?? 0) + units, 2);
+    produced[key] = quantity((produced[key] ?? 0) + units);
   }
 }
 
 /**
- * Converts remaining food-herd stock into tallow and leather.
+ * Converts remaining food-herd stock into joint carcass byproducts.
+ * The optional map identifies the unweaned calves among each market's Cattle stock.
+ * Its caller must supply verified cohort provenance; unknown ages produce no rennet.
+ * The current aggregate herd pipeline does not yet provide this provenance.
  * Returns the heads taken and the units credited.
  */
-export function settleSlaughter(): SlaughterResult {
+export function settleSlaughter(eligibleCalfHeadsByMarket?: ReadonlyMap<number, number>): SlaughterResult {
   const goods = getGoods();
   const tallow = goods.find(good => good.name === "Tallow");
   const leather = goods.find(good => good.name === "Leather");
+  const rennet = goods.find(good => good.name === "Rennet" && isGoodEnabled(good));
   const animals = goods.filter(
     good => good.tags?.includes("liveAnimal") && good.tags.includes("food") && isGoodEnabled(good)
   );
-  const result: SlaughterResult = { heads: 0, tallow: 0, leather: 0 };
+  const result: SlaughterResult = { heads: 0, tallow: 0, leather: 0, rennet: 0 };
   if (!animals.length || (!tallow && !leather)) return result;
 
   for (const market of getMarkets()) {
@@ -113,11 +121,18 @@ export function settleSlaughter(): SlaughterResult {
       });
       const tallowUnits = tallow && tallowHeads ? rn(heads / tallowHeads, 2) : 0;
       const leatherUnits = leather && leatherHeads ? rn(heads / leatherHeads, 2) : 0;
+      const eligibleCalves = eligibleCalfHeadsByMarket?.get(market.i) ?? 0;
+      const rennetUnits =
+        rennet && animal.name === "Cattle" && Number.isFinite(eligibleCalves)
+          ? rennetBarrelsFromCalfAbomasa(Math.min(heads, eligibleCalves))
+          : 0;
       if (tallow) credit(market, tallow, tallowUnits);
       if (leather) credit(market, leather, leatherUnits);
+      if (rennet) credit(market, rennet, rennetUnits);
       result.heads = rn(result.heads + heads, 2);
       result.tallow = rn(result.tallow + tallowUnits, 2);
       result.leather = rn(result.leather + leatherUnits, 2);
+      result.rennet += rennetUnits;
     }
   }
   return result;
