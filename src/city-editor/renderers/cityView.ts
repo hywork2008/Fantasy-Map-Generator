@@ -3,6 +3,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { buildingSurfaces } from "../../city3d/core/massingGeometry";
 import { structureSurfaces } from "../../city3d/core/structureGeometry";
 import { createTownBuildingDetails, type TownBuildingDetails } from "../../city3d/three/buildingDetails";
+import { createBvPrototypeCache } from "../../city3d/three/bvInstances";
 import { type CityMassingMeshes, createCityMassing } from "../../city3d/three/cityMeshes";
 import { createTownFarms, type TownFarmMeshes } from "../../city3d/three/farmMeshes";
 import { createTownFriaries } from "../../city3d/three/friaryMeshes";
@@ -10,6 +11,7 @@ import { createTownOpenSpaces } from "../../city3d/three/openSpaceMeshes";
 import { createTownPiers } from "../../city3d/three/pierMeshes";
 import { createTownRoads, roadStampChanged, type TownRoadMeshes } from "../../city3d/three/roadMeshes";
 import { createTownShips } from "../../city3d/three/shipMeshes";
+import { createTownSpecialBuildings, type TownSpecialBuildings } from "../../city3d/three/specialBuildingMeshes";
 import { type CityStructureMeshes, createStructureMassing } from "../../city3d/three/structureMeshes";
 import {
   createTownWater,
@@ -18,7 +20,7 @@ import {
   townWaterHeightAt,
   waterStampChanged
 } from "../../city3d/three/waterMeshes";
-import { createTownWells } from "../../city3d/three/wellMeshes";
+import { createTownWells, type TownWells } from "../../city3d/three/wellMeshes";
 import type { EditorMessageKey } from "../../i18n/editorMessages";
 import { editorText } from "../../i18n/editorMessages";
 import { buildBlockFabric, type DistrictFabric } from "../generators/blockInfill";
@@ -124,7 +126,9 @@ export function mountCity3d(options: {
   let massing: CityMassingMeshes | null = null;
   let buildingDetails: TownBuildingDetails | null = null;
   let structures: CityStructureMeshes | null = null;
-  let wells: CityStructureMeshes | null = null;
+  let wells: TownWells | null = null;
+  let specialBuildings: TownSpecialBuildings | null = null;
+  const bvPrototypes = createBvPrototypeCache();
   let openSpaces: CityStructureMeshes | null = null;
   let farmland: TownFarmMeshes | null = null;
   let farmlandSource: DistrictFabric["farms"] | null = null;
@@ -263,15 +267,27 @@ export function mountCity3d(options: {
     }
     structures?.dispose();
     if (structures) scene.remove(structures.group);
-    wells?.dispose();
-    if (wells) scene.remove(wells.group);
     const parts = [...collectCityStructures(city), ...landmarkLotStructures(fabric.buildings)];
-    structureList = terrain
+    const grounded = terrain
       ? [...groundStructures(parts, terrain), ...lotFoundations(fabric.buildings, terrain)]
       : parts;
+    // Acquire the next layer before releasing the old one, so prototypes survive refreshes.
+    const nextSpecial = createTownSpecialBuildings(city, grounded, bvPrototypes);
+    if (specialBuildings) {
+      scene.remove(specialBuildings.group);
+      specialBuildings.dispose();
+    }
+    specialBuildings = nextSpecial;
+    scene.add(specialBuildings.group);
+    structureList = grounded.filter(part => !specialBuildings!.replaced.has(part.id));
     structures = createStructureMassing(structureList);
     scene.add(structures.group);
-    wells = createTownWells(collectWellSites(city, fabric), terrain?.heightAt);
+    const nextWells = createTownWells(collectWellSites(city, fabric), terrain?.heightAt, bvPrototypes);
+    if (wells) {
+      scene.remove(wells.group);
+      wells.dispose();
+    }
+    wells = nextWells;
     scene.add(wells.group);
     if (ground?.parent) {
       ground.geometry.dispose();
@@ -483,10 +499,38 @@ export function mountCity3d(options: {
       -((event.clientY - rect.top) / rect.height) * 2 + 1
     );
     raycaster.setFromCamera(pointerNdc, camera);
-    const hit = raycaster.intersectObjects([...(massing?.pickables ?? []), ...(structures?.pickables ?? [])], false)[0];
+    const hit = raycaster.intersectObjects(
+      [
+        ...(massing?.pickables ?? []),
+        ...(structures?.pickables ?? []),
+        ...(specialBuildings?.pickables ?? []),
+        ...(wells?.pickables ?? [])
+      ],
+      false
+    )[0];
     if (!hit?.face) {
       clearHighlight();
       readout.hidden = true;
+      return;
+    }
+    const special = specialBuildings?.resolve(hit);
+    const well = wells?.resolve(hit);
+    if (special || well) {
+      clearHighlight();
+      const mesh = hit.object as THREE.InstancedMesh;
+      const matrix = new THREE.Matrix4();
+      mesh.getMatrixAt(hit.instanceId!, matrix);
+      matrix.premultiply(mesh.matrixWorld);
+      const geometry = mesh.geometry.clone().applyMatrix4(matrix);
+      geometry.computeBoundingBox();
+      readout.hidden = false;
+      readout.textContent = `${editorText("cityEditor.messages.structureReadout", {
+        value0: editorText(STRUCTURE_KEY.landmark),
+        value1: editorText(STRUCTURE_MATERIAL.stone),
+        value2: geometry.boundingBox!.max.y.toFixed(1)
+      })}\n${special?.structure.name ?? special?.id ?? well!.id}`;
+      outline(new Float32Array(geometry.getAttribute("position").array));
+      geometry.dispose();
       return;
     }
     const attribute = (hit.object as THREE.Mesh).geometry.getAttribute("buildingIndex");
@@ -520,6 +564,7 @@ export function mountCity3d(options: {
     structures?.dispose();
     waterMeshes?.dispose();
     wells?.dispose();
+    specialBuildings?.dispose();
     ships?.dispose();
     openSpaces?.dispose();
     friaries?.dispose();

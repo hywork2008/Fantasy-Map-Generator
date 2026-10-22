@@ -1,0 +1,112 @@
+{
+  "date": "2026-10-22T10:08:30.550Z",
+  "cpu": "Apple M4",
+  "node": "v22.23.1",
+  "environment": "Node CPU wall time; one warmup, median of 3; no GPU timing or FPS measurement",
+  "results": [
+    {
+      "id": "village-chapel",
+      "count": 1,
+      "sourceMeshes": 96,
+      "sourceMaterials": 11,
+      "sourceTriangles": 1136,
+      "meshes": 1,
+      "triangles": 1136,
+      "bufferBytes": 122752,
+      "coldMs": 5.371708000000012,
+      "refreshMs": 0.2524999999999977,
+      "samples": [
+        {
+          "coldMs": 3.504458999999997,
+          "refreshMs": 0.08945799999997917
+        },
+        {
+          "coldMs": 6.075958000000014,
+          "refreshMs": 0.2524999999999977
+        },
+        {
+          "coldMs": 5.371708000000012,
+          "refreshMs": 0.3632920000000013
+        }
+      ]
+    },
+    {
+      "id": "village-chapel",
+      "count": 10,
+      "sourceMeshes": 96,
+      "sourceMaterials": 11,
+      "sourceTriangles": 1136,
+      "meshes": 1,
+      "triangles": 11360,
+      "bufferBytes": 123328,
+      "coldMs": 2.727458000000013,
+      "refreshMs": 0.07400000000001228,
+      "samples": [
+        {
+          "coldMs": 3.3019590000000107,
+          "refreshMs": 0.0775000000000432
+        },
+        {
+          "coldMs": 2.727458000000013,
+          "refreshMs": 0.07400000000001228
+        },
+        {
+          "coldMs": 2.578292000000033,
+          "refreshMs": 0.07216700000003584
+        }
+      ]
+    },
+    {
+      "id": "well",
+      "count": 1,
+      "sourceMeshes": 319,
+      "sourceMaterials": 16,
+      "sourceTriangles": 11284,
+      "meshes": 1,
+      "triangles": 11284,
+      "bufferBytes": 1218736,
+      "coldMs": 12.855750000000057,
+      "refreshMs": 0.017500000000040927,
+      "samples": [
+        {
+          "coldMs": 12.855750000000057,
+          "refreshMs": 0.01925000000005639
+        },
+        {
+          "coldMs": 17.739417000000003,
+          "refreshMs": 0.017500000000040927
+        },
+        {
+          "coldMs": 9.771749999999997,
+          "refreshMs": 0.016417000000046755
+        }
+      ]
+    },
+    {
+      "id": "well",
+      "count": 1000,
+      "sourceMeshes": 319,
+      "sourceMaterials": 16,
+      "sourceTriangles": 11284,
+      "meshes": 1,
+      "triangles": 11284000,
+      "bufferBytes": 1282672,
+      "coldMs": 9.461208000000056,
+      "refreshMs": 0.35120899999992616,
+      "samples": [
+        {
+          "coldMs": 30.637707999999975,
+          "refreshMs": 0.8915830000000824
+        },
+        {
+          "coldMs": 9.446166999999946,
+          "refreshMs": 0.35120899999992616
+        },
+        {
+          "coldMs": 9.461208000000056,
+          "refreshMs": 0.24262499999997544
+        }
+      ]
+    }
+  ]
+}
