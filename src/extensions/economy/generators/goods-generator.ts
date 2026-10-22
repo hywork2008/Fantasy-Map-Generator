@@ -794,7 +794,9 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["preservative", "mineral"],
     icon: "good-salt",
     color: "#E5E4E5",
-    value: 3,
+    // A 60 kg bag at 3.5 times the grain price per kilogram, as the sources put it
+    // (goods-physical-units.md §22); it was 3, 23 times.
+    value: 0.45,
     // Salt is supplied only by the state saltworks network. Keeping it out of the ordinary
     // per-cell bonus-good roll prevents climate-independent salt appearing in every market.
     chance: 0,
@@ -4672,15 +4674,16 @@ export function migrateMeasuredCargoSlots(): boolean {
  * Base values before and after docs/plan/goods-physical-units.md §21, which prices the goods by
  * weight as it switches their cargo slots: the textiles, whose unit was 5 to 23 times a wain of
  * grain at a price per kilogram below the sources' (the Wool -> Cloth -> Garments chain keeps its
- * margins), and the Flour and Bread whose sack and loaf lot cost 14 and 47 times as much per
- * kilogram.
+ * margins), the Flour and Bread whose sack and loaf lot cost 14 and 47 times as much per
+ * kilogram, and Salt, whose bag cost 23 times as much (§22).
  */
 export const WEIGHT_REPRICING: Readonly<Record<string, readonly [before: number, after: number]>> = {
   Wool: [2, 13],
   Cloth: [15, 98],
   Garments: [20, 130],
   Flour: [1.5, 0.16],
-  Bread: [2, 0.08]
+  Bread: [2, 0.08],
+  Salt: [3, 0.45]
 };
 
 /**

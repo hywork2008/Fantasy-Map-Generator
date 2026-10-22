@@ -120,7 +120,9 @@ const MEASURED_SLOT_GOODS: ReadonlySet<string> = new Set([
   "Cloth",
   "Garments",
   "Flour",
-  "Bread"
+  "Bread",
+  // Salt, priced by weight with the slot switch (§22).
+  "Salt"
 ]);
 
 /** Slots one packed unit of `good` fills, from its measure; undefined for goods that walk or move themselves. */

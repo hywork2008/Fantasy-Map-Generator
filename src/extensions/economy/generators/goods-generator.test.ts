@@ -916,6 +916,7 @@ describe("GoodsModule", () => {
     expect(migrateWeightRepricing()).toBe(true);
     expect(byName("Wool").value).toBe(3);
     expect(byName("Cloth").value).toBe(98);
+    expect(byName("Salt").value).toBe(0.45);
     expect(byName("Sails").recipes).toEqual([{ [byName("Cloth").i]: 0.15 }, { [byName("Linen").i]: 1 }]);
     expect(byName("Tapestries").recipes).toEqual([{ [byName("Cloth").i]: 0.3, [byName("Dyes").i]: 1 }]);
     expect(byName("Flour")).toMatchObject({ recipes: [{ [byName("Grain").i]: 0.134 }], demandCoverage: { food: 0.1 } });
