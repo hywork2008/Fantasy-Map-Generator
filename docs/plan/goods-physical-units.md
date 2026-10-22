@@ -1248,7 +1248,7 @@ Cloth の入力に Hemp・Cotton がある経路は変えていない。Hemp は
 | 品 | 理由 |
 | :--- | :--- |
 | ~~Salt~~ | 当初は産出が多すぎると見て残したが、見直した結果、産出は多すぎなかった。§22 で切り替えた |
-| Linen・Flax | Linen を 0.65(Grain の15倍)・Flax を 0.4 にすると、Linen の生産(burgCraft)が 31.8 → 0 になった。原因は未確認。候補の点数は1 lotあたりの利益(売値 − 入力、`production-generator.ts buildImmediateManufactureCandidate`)なので、1 lot の利益 0.25 が Cloth・Garments の数十に負けたと見ている。`laborPointsForLots` も Linen は未校正で、1 lot = 1 労働点のまま(Charcoal は 0.0215 に校正済み)。Garments の linen 脚(0.75、20 kg の bolt で 4 t の衣服)も質量で合わない(正しくは約 190 bolt)。先に Linen の労働点と、候補の並べ方(労働点あたりの利益)を直す |
+| Linen・Flax | Linen を 0.65(Grain の15倍)・Flax を 0.4 にすると、Linen の生産(burgCraft)が 31.8 → 0 になった。原因はコードを読んで確かめた(計測での再確認はしていない)。候補の点数は1 lotあたりの利益(売値 − 入力)で、必要な労働者は 1 lot あたり 1 人と数える(`production-generator.ts buildImmediateManufactureCandidate`・`planGoodAction` の `workersNeeded = targetUnits`)。重さの違う lot がそのまま比べられるので、1 lot の利益 0.25 が Cloth・Garments の数十に負ける。`laborPointsForLots` も Linen は未校正で、1 lot = 1 労働点のまま(Charcoal は 0.0215 に校正済み)。Garments の linen 脚(0.75、20 kg の bolt で 4 t の衣服)も質量で合わない(正しくは約 190 bolt)。先に Linen の労働点と、候補の並べ方(労働点あたりの利益)を直す |
 | 酒樽5品(Beer・Cider・Perry・Pomace Wine・Wine) | Beer(0.48 = 200 L ale の目安)にすると、入力 Barley 1 wain(0.9)と樽 0.16 で赤字になる。ale 200 L に要る麦は約 0.2 wain(§18.1)で、レシピを質量で直す必要がある。Cider・Perry も、入力の果実の lot(Apples 2.2 / 1,000 kg、1 kg あたり Grain の約1倍)が、史料の酒の値(Grain の0.7〜1.5倍/kg)に対して 1 L の酒に 1.5 kg 要るので、果物の lot の値から見直す。`migrateFoodProcessingLotContracts` が Wine の値・Beer のレシピを毎回上書きするので、そこも変える |
 | Ink・Rennet | 1 L の瓶が Grain の 2,960 倍・1,860 倍。Ink は Oil 1 barrel(120 L)から 1 L、Rennet は牛 0.03 頭から 1 L を作るレシピで、量が質量と合わない(§5.7) |
 | Leather・Beeswax | Leather は 1 hide(25 kg)の値 6 が牛1頭(5)より高い。Boots(20足で 20 kg)の入力 1 roll と、Harnesses・鎧の入力が同じ単位でつながる。Beeswax は Honey 0.5 barrel(84 kg)から 10 kg を作る。どちらも消費する側のレシピを一緒に直す |
@@ -1299,3 +1299,12 @@ Cloth の入力に Hemp・Cotton がある経路は変えていない。Hemp は
 #### 残る課題
 
 - Salt の市場の値が床に張り付いたまま動かない(今までと同じ)。国の製塩所が備蓄を保つので、市場の需給の信号を持たない。値を動かすなら、製塩所の出力を市場の値に応じさせる必要がある。
+
+### 22.4 次の課題の調べ(2026-10-22)
+
+Linen・酒樽5品・Ink・Rennet・Leather・Beeswax は、いずれも「値を重さに合わせると 1 lot の利益が小さくなる」品で、§21.5 の Linen と同じ壁に当たる。
+
+- 生産の候補は 1 lot の利益で並び、1 lot を 1 人と数える(§21.5)。Beer を 0.48、Ink を 0.05 前後にすると、利益が Cloth・Garments の 1/100 以下になり、労働を取れなくなる見込み。Flour・Bread が残ったのは、`demandCoverage`(食料)が利益に掛かるため(`getDemandEffect`)。
+- 労働の計算は別にある。`laborPointsForLots` は校正済みの品の労働点を持つ(Cloth 0.259、Garments 0.972)が、候補の並べ方は使っていない。並べ方を労働点あたりの利益に変えると全品目の生産の配分が変わるので、単独の品の切り替えとは別の変更として計測する。
+- 先にこれを直してから、残る品の値とレシピを質量で直す。
+
