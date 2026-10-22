@@ -171,6 +171,28 @@ describe("foodProcessingLedger", () => {
     expect(market.returnableContainerLedger!.cumulativeBeerCaskReturns).toBeCloseTo(unsafeDemand.monthlyDemand);
   });
 
+  it.each([0.25, 2])("settles ale by demand and supply regardless of price (stock share %s)", stockShare => {
+    const outcomes = [0.01, 100].map(price => {
+      market.foodProcessingLedger = undefined;
+      market.goods[7].price = price;
+      refreshAleHouseholdDemand();
+      const demand = getAleDemandSnapshot(market).monthlyDemand;
+      market.goods[7].stock = demand * stockShare;
+      settleFoodProcessingHouseholds();
+      const ledger = market.foodProcessingLedger!.Beer!;
+      expect(ledger.householdConsumption).toBeCloseTo(demand * Math.min(1, stockShare));
+      expect(ledger.unmetDemand).toBeCloseTo(demand * Math.max(0, 1 - stockShare));
+      return {
+        demand,
+        consumption: ledger.householdConsumption,
+        unmet: ledger.unmetDemand,
+        stock: market.goods[7].stock
+      };
+    });
+    expect(outcomes[0]).toEqual(outcomes[1]);
+    market.goods[7].price = 1;
+  });
+
   it("turns part of same-market Milk surplus into a one-year Cheese reserve", () => {
     market.goods[1].stock = 500;
     market.goods[2].stock = 0;
