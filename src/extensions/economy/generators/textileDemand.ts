@@ -23,6 +23,8 @@ export const MIN_TEXTILE_ORDER_LOTS = 2;
 export const MIN_TEXTILE_MARGIN_FLOOR = MIN_TEXTILE_ORDER_LOTS * MIN_TEXTILE_MONTHLY_MARGIN_PER_WORKER;
 /** Legacy points-scale burg-size floor, restored when applyCalibration is off. */
 const MIN_TEXTILE_WORKERS = 2;
+/** Bales of linen in a Garments lot (goods-generator.ts). */
+const LINEN_BALES_PER_GARMENT_LOT = 12;
 
 export type TextileDemandProfile = {
   populationLots: number;
@@ -176,7 +178,7 @@ export function getTextileGuildWorkPlan(burg: Burg): TextileGuildWorkPlan {
   const hempOrders = Math.max(0, market.goods[hemp.i]?.stock ?? 0) / 6;
   const cottonOrders = Math.max(0, market.goods[cotton.i]?.stock ?? 0) / 6;
   const clothOrders = Math.max(0, market.goods[cloth.i]?.stock ?? 0);
-  const linenOrders = Math.max(0, market.goods[linen.i]?.stock ?? 0) / 0.75;
+  const linenOrders = Math.max(0, market.goods[linen.i]?.stock ?? 0) / LINEN_BALES_PER_GARMENT_LOT;
   const availableInputOrders = woolOrders + hempOrders + cottonOrders + clothOrders + linenOrders;
   const expectedOrders = Math.min(profile.monthlyDemand * INITIAL_TEXTILE_WORK_MONTHS, availableInputOrders);
   const garmentPrice = market.goods[garments.i]?.price ?? garments.value;

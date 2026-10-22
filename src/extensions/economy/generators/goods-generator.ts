@@ -9,7 +9,14 @@ import { isTechnologyStageAtLeast, type TechnologyStage } from "../../../generat
 import type { BiomeTag } from "../../../types/biome";
 import { type PackedGraph, SHIP_CLASS_DEFINITIONS, SHIP_VALUE_PER_BUILD_POINT } from "../../hostTypes";
 import { rn, TIME } from "../../hostUtils";
-import { getGoodCellColumn, getGoods, getWorldContext, setGoodCellColumn, setGoods } from "../economyContext";
+import {
+  getGoodCellColumn,
+  getGoods,
+  getMarkets,
+  getWorldContext,
+  setGoodCellColumn,
+  setGoods
+} from "../economyContext";
 import {
   DAIRY_TARGETS,
   GRAPE_TARGETS,
@@ -1392,7 +1399,8 @@ export const GOODS_DATA: GoodData[] = [
     // garment. Dyed apparel belongs with luxury consumption rather than making every household's
     // replacement clothing depend on expensive dye and alum. Silk remains an independently traded
     // luxury good and is used directly by high-status character loadouts and luxury crafts.
-    recipes: [{ Cloth: 1 }, { Linen: 0.75 }, { Cloth: 0.5, Furs: 1 }, { Cloth: 1, "Synthetic Dye": 0.15 }],
+    // The linen leg is the 4 t of a lot in 200 kg bales: 12 of them (2.4 t, linen being the lighter cloth), where it took 0.75 bolt.
+    recipes: [{ Cloth: 1 }, { Linen: 12 }, { Cloth: 0.5, Furs: 1 }, { Cloth: 1, "Synthetic Dye": 0.15 }],
     unit: "wardrobe lot",
     demandCoverage: { clothing: 1 }
   },
@@ -2291,7 +2299,8 @@ export const GOODS_DATA: GoodData[] = [
     // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
     icon: "good-unknown",
     color: "#8faee0",
-    value: 1,
+    // A 25 kg bundle at 5.6 times the grain price per kilogram: fibre, below the linen it makes (§24).
+    value: 0.3,
     chance: 3,
     distribution: '(biomeTag("arable") && river()) || (biomeTag("wetland") && random(40))',
     unit: "bundle",
@@ -2305,10 +2314,12 @@ export const GOODS_DATA: GoodData[] = [
     // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
     icon: "good-unknown",
     color: "#f5f0e6",
-    value: 6,
+    // A 200 kg bale (10 bolts of 20 kg) at 18.6 times the grain price per kilogram, in the sources' range
+    // (goods-physical-units.md §24); the bolt was worth 6, 140 times. Linen keeps a lot's gain of about 5.
+    value: 8,
     chance: 0,
-    recipes: [{ Flax: 1 }],
-    unit: "bolt",
+    recipes: [{ Flax: 10 }],
+    unit: "bale",
     demandCoverage: { utilities: 0.2 }
   },
   {
@@ -4670,6 +4681,26 @@ export function migrateMeasuredCargoSlots(): boolean {
   return changed;
 }
 
+/** Bolts of linen in a bale (goods-physical-units.md §24). */
+const LINEN_BOLTS_PER_BALE = 10;
+
+/**
+ * Moves a saved catalogue's Linen from the 20 kg bolt to the 200 kg bale: the unit changes and
+ * the market stock is counted in bales, a tenth of the bolts. The value (6) is kept, so a lot keeps
+ * its worth. Cargo already under way and orders keep their figures; they are a few bolts.
+ */
+export function migrateLinenBale(): boolean {
+  const linen = getGoods().find(good => good.name === "Linen");
+  if (!linen) return false;
+  if (linen.unit !== "bolt") return false;
+  linen.unit = "bale";
+  for (const market of getMarkets()) {
+    const row = market.goods[linen.i];
+    if (row) row.stock = rn(row.stock / LINEN_BOLTS_PER_BALE, 4);
+  }
+  return true;
+}
+
 /**
  * Base values before and after docs/plan/goods-physical-units.md §21, which prices the goods by
  * weight as it switches their cargo slots: the textiles, whose unit was 5 to 23 times a wain of
@@ -4683,7 +4714,9 @@ export const WEIGHT_REPRICING: Readonly<Record<string, readonly [before: number,
   Garments: [20, 130],
   Flour: [1.5, 0.16],
   Bread: [2, 0.08],
-  Salt: [3, 0.45]
+  Salt: [3, 0.45],
+  Flax: [1, 0.3],
+  Linen: [6, 8]
 };
 
 /**
@@ -4697,7 +4730,9 @@ const WEIGHT_RECIPE_REPRICING: readonly { good: string; input: string; before: n
   { good: "Artworks", input: "Cloth", before: 1, after: 0.15 },
   { good: "Tapestries", input: "Cloth", before: 2, after: 0.3 },
   { good: "Flour", input: "Grain", before: 1, after: 0.134 },
-  { good: "Bread", input: "Flour", before: 1, after: 0.3 }
+  { good: "Bread", input: "Flour", before: 1, after: 0.3 },
+  { good: "Linen", input: "Flax", before: 1, after: 10 },
+  { good: "Garments", input: "Linen", before: 0.75, after: 12 }
 ];
 
 /** The food a sack of flour and a loaf lot cover, before and after §21: the 50 kg and 20 kg they weigh. */

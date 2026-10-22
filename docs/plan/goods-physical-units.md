@@ -1331,3 +1331,48 @@ Linen・酒樽5品・Ink・Rennet・Leather・Beeswax は、いずれも「値�
 #### 残る課題
 
 - Linen・酒樽5品・Ink・Rennet・Leather・Beeswax: 単位を大きくして、1 lot の値を保つ(上記)。
+
+## 24. Linen: 20 kg の bolt から 200 kg の bale へ(2026-10-22、実装)
+
+§23 の方針の最初の品。値を下げずに単位を10倍にして、1 lot の利益の大きさを保ちつつ、1 kg の値を史料の幅に収めた(`goodCargoMeasure.ts MEASURED_SLOT_GOODS` に Linen を加えた)。
+
+### 24.1 変えたもの
+
+| 項目 | 今まで → 後 |
+| :--- | :--- |
+| Linen の単位 | bolt(20 kg) → bale(200 kg = 10 bolt)。`goodMeasureCatalog.ts` |
+| Linen の値 | 6 → 8(1 kg で Grain の 140 倍 → 18.6 倍。史料 10〜20) |
+| Linen の枠 | 0.22(量から出した値) → 2.2 |
+| Flax の値 | 1 → 0.3(25 kg の束。1 kg で Grain の 5.6 倍。繊維は織物より安い) |
+| Linen のレシピ | Flax 1 → 10(250 kg の亜麻から 200 kg の麻布) |
+| Garments の linen の脚 | Linen 0.75 → 12(bale。2.4 t) |
+| `textileDemand.ts` の Linen 在庫の換算 | ÷0.75 → ÷12 |
+
+- Linen の値を 6 のままにすると 1 lot の利益が 3 に、5 にすると 2 に下がり、Linen の生産が止まった(province-101 の3年目で 30.7 → 0〜1)。8 にして、レシピの原価 3(Flax 10 × 0.3)を引いた利益 5 を、今までの 1 lot の利益と同じにした。
+- Garments の脚は質量では 3.8 t(19 bale)になるが、そうすると原価 152 が Garments の値 130 を超え、レシピの利幅の試験(`goods-generator.test.ts`)に通らない。亜麻布は織りが軽いとして 12 bale(原価 96、Cloth の脚 98 の下)にした。
+- Sails の linen の脚は 1 のまま(原価は 6 → 8)。
+- 需要の充足(`utilities` 0.2)は変えない。1 lot の役割を保つ。
+
+### 24.2 古い保存
+
+`migrateLinenBale`(`simulation.ts GOODS_CATALOG_MIGRATIONS`、`migrateMeasuredCargoSlots` の前)が、Linen の単位が bolt のとき bale にして、市場の在庫を1/10にする。値・レシピ・Garments の脚は `migrateWeightRepricing` が直す(Flax と Linen の値、Linen の Flax、Garments の Linen の量)。移動中の荷・注文・葬儀の亜麻・キャラクターの装備の亜麻は、数が少ないので数を直さない(今までの数が bale になる)。
+
+### 24.3 計測
+
+盗賊なし、3年。§22 の後 → 本節の後:
+
+| 地図 | Linen の生産(3年目、lot) | Linen の取引(件) | 衣服の家計の消費(累計) | 取引の件数(3年目) |
+| :--- | :--- | :--- | :--- | :--- |
+| province-101 | 30.7 → 4.6 | 17 → 15 | 178 → 162 | 531 → 551 |
+| world-102 | 59.5 → 8.8 | — | 550 → 518 | 257 → 291 |
+
+- Linen の生産が約1/7に減った。主な使い道だった Garments の linen の脚(1 lot に Linen 0.75、原価 4.5 で Cloth の脚 78 より安かった)が、12 bale、原価 96(Cloth の脚 98 とほぼ同じ)になり、投入が 29.7 → 0.4(province-101)に減ったため。今までの linen の脚は、質量で見て1/16の亜麻で 4 t の衣服ができるレシピだった。
+- Linen の価格は 4.2 → 5.8 に上がり、取引の額は同じ(29.2 → 29.6)。
+- 衣服の家計の消費は約5〜6%減った（province-101 で 178 → 162、world-102 で 550 → 518）。満たされない分の増えは 0.2〜0.7%。安すぎる linen の脚が無くなった分。Cloth の脚が代わりに使われている（Cloth の投入が増えた）。
+
+#### 残る課題
+
+- 酒樽5品・Ink・Rennet・Leather・Beeswax: 同じ方法（単位を大きくし、1 lot の利益を保つ）で、1 品ずつ。
+- Garments の linen の脚が実際にはほとんど使われない（Linen の在庫が 0 に近く、Linen の生産が Garments の需要で起きない）。
+- `tradeTransportRoom.test.ts`（5件）と `foodClimateCalibration.test.ts`（1件）は、この作業の前から失敗している（§17〜§20 の途中の変更で、枠が変わったのに試験の値が変わっていない）。
+

@@ -328,7 +328,7 @@ export const GOOD_MEASURES: Readonly<Record<string, GoodMeasure>> = {
   Leather: byMass("roll", "1 hide, 25 kg", 25, 0.8, "bale", "recipe"),
   Cloth: byMass("wardrobe bolt", "1,000 wardrobes of cloth, 4 t", 4000, 0.4, "bale", "recipe"),
   Garments: byMass("wardrobe lot", "1,000 wardrobes, 4 t", 4000, 0.25, "bale", "recipe"),
-  Linen: byMass("bolt", "20 kg", 20, 0.4, "bale", "recipe"),
+  Linen: byMass("bale", "200 kg, 10 bolts", 200, 0.4, "bale", "recipe"),
   Silk: byMass("bolt", "10 kg", 10, 0.4, "bale", "model"),
   Sails: byMass("set", "one ship's sails, 1 t", 1000, 0.4, "bale", "recipe"),
   Furs: byMass("pelt", "10 pelts, 15 kg", 15, 0.15, "bale", "model"),

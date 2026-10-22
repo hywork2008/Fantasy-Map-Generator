@@ -6,9 +6,11 @@ import {
   clearEconomyContext,
   getGoodCellColumn,
   getGoods,
+  getMarkets,
   initEconomyContext,
   setGoodCellColumn,
-  setGoods
+  setGoods,
+  setMarkets
 } from "../economyContext";
 import { hasViableFoodProcessingMargin } from "./foodProcessingEconomics";
 import {
@@ -22,6 +24,7 @@ import {
   migrateFreshFoodTags,
   migrateGrapesGood,
   migrateLegacyOreIngotGoods,
+  migrateLinenBale,
   migrateLiveAnimalTags,
   migrateLiveCatsGood,
   migrateLiveDogsGood,
@@ -259,7 +262,7 @@ describe("GoodsModule", () => {
     ]);
     expect(garments.recipes).toEqual([
       { [cloth.i]: 1 },
-      { [linen.i]: 0.75 },
+      { [linen.i]: 12 },
       { [cloth.i]: 0.5, [furs.i]: 1 },
       { [cloth.i]: 1, [byName.get("Synthetic Dye")!.i]: 0.15 }
     ]);
@@ -922,6 +925,18 @@ describe("GoodsModule", () => {
     expect(byName("Flour")).toMatchObject({ recipes: [{ [byName("Grain").i]: 0.134 }], demandCoverage: { food: 0.1 } });
     expect(byName("Bread")).toMatchObject({ recipes: [{ [byName("Flour").i]: 0.3 }], demandCoverage: { food: 0.03 } });
     expect(migrateWeightRepricing()).toBe(false);
+  });
+
+  it("moves saved Linen from bolts to 200 kg bales, a tenth of the stock, once", () => {
+    goodsModule.restoreDefaults();
+    const linen = getGoods().find(good => good.name === "Linen")!;
+    linen.unit = "bolt";
+    setMarkets([{ i: 1, centerBurgId: 1, color: "#fff", goods: { [linen.i]: { stock: 50, price: 6 } } }] as never);
+
+    expect(migrateLinenBale()).toBe(true);
+    expect(linen.unit).toBe("bale");
+    expect(getMarkets()[0].goods[linen.i].stock).toBe(5);
+    expect(migrateLinenBale()).toBe(false);
   });
 
   it("upgrades legacy Wood-to-Coal fuel into Charcoal, Ash-to-Potash, and Slag without inventing stock", () => {
