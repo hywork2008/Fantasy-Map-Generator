@@ -58,18 +58,27 @@ function dwelling(id: string, storeys: number, corner = false, shop = false) {
           k.box("window-frame-post", [wx + side * 0.5, base + floorHeight / 2, front], [0.15, floorHeight, 0.18]);
         for (const yy of [base + 0.875, base + 1.925]) k.box("window-frame-rail", [wx, yy, front], [1.15, 0.15, 0.18]);
       }
+      const previousFront = front - projection;
+      const previousRight = right - (corner ? projection : 0);
+      const previousLeftPost = -width / 2 + 0.1;
+      // Continuous floor joists bear on both lower wall plates, with only their ends cantilevered.
       for (let i = 0; i <= 8; i++) {
-        const bx = x - w / 2 + 0.12 + (i * (w - 0.24)) / 8;
-        k.box("jetty-joist", [bx, base - 0.06, front - 0.38], [0.14, 0.24, 1.05]);
-        if (i % 2 === 0)
-          k.beam("jetty-bracket", [bx, base - 0.65, front - projection], [bx, base - 0.1, front - 0.08], 0.13);
+        const bx = previousLeftPost + (i * (previousRight - 0.1 - previousLeftPost)) / 8;
+        k.box("jetty-joist", [bx, base - 0.06, z], [0.18, 0.3, d + 0.12]);
       }
+      k.box("jetty-bressummer", [x, base + 0.08, front], [w + 0.12, 0.3, 0.24]);
+      const bracketPosts = [previousLeftPost, previousRight - 0.1];
+      if (floor > 1) bracketPosts.push((previousLeftPost + previousRight - 0.1) / 2);
+      for (const bx of bracketPosts)
+        k.beam("jetty-bracket", [bx, base - 0.7, previousFront], [bx, base - 0.02, front], 0.18);
       if (corner) {
-        for (let i = 0; i <= 6; i++) {
-          const bz = -depth / 2 + 0.2 + (i * (d - 0.4)) / 6;
-          k.box("side-jetty-joist", [right - 0.38, base - 0.06, bz], [1.05, 0.24, 0.14]);
-          k.beam("side-jetty-bracket", [right - projection, base - 0.65, bz], [right - 0.08, base - 0.1, bz], 0.13);
+        // Cross beams carry the side jetty back to the opposite wall; the diagonal carries the corner.
+        for (const bz of [-depth / 2, (previousFront - depth / 2) / 2, previousFront]) {
+          k.box("side-jetty-joist", [x, base - 0.06, bz], [w + 0.12, 0.3, 0.18]);
+          k.beam("side-jetty-bracket", [previousRight, base - 0.7, bz], [right, base - 0.02, bz], 0.18);
         }
+        k.box("side-jetty-bressummer", [right, base + 0.08, z], [0.24, 0.3, d + 0.12]);
+        k.beam("corner-dragon-beam", [right - 2, base - 0.06, front - 2], [right, base - 0.06, front], 0.3);
       }
     }
     for (const zz of [-depth / 2, front]) {
@@ -90,12 +99,18 @@ function dwelling(id: string, storeys: number, corner = false, shop = false) {
     }
     for (const xx of [x - w / 2, right]) {
       for (const yy of [base + 0.12, base + floorHeight]) k.box("side-storey-rail", [xx, yy, z], [0.18, 0.18, d]);
-      const bays = [-depth / 2, -1, 1, front];
+      const bays = [-depth / 2, z, front];
       for (const bz of bays) {
         k.box("side-frame-post", [xx, base + floorHeight / 2, bz], [0.18, floorHeight, 0.18]);
       }
+      // Mirror the two braces about the central post instead of leaning the entire elevation one way.
       for (let bay = 0; bay < bays.length - 1; bay++)
-        k.beam("side-frame-brace", [xx, base + 0.12, bays[bay]], [xx, base + floorHeight, bays[bay + 1]], 0.13);
+        k.beam(
+          "side-frame-brace",
+          [xx, base + 0.12, bay === 0 ? bays[0] : bays[2]],
+          [xx, base + floorHeight, bays[1]],
+          0.16
+        );
     }
   }
   const offset = (storeys - 1) * projection;
