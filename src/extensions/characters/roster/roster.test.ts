@@ -295,3 +295,46 @@ describe("organization roster", () => {
     expect(() => validateWorldRoster(r)).toThrow();
   });
 });
+
+it("retains appointed offices in memo mode, including after mode changes and rebuilding", () => {
+  const r = ensureRoster();
+  r.roles[0].id = "state:1:court:ruler";
+  r.roles[0].name = "King";
+  materializeSlots({ roleId: r.roles[0].id, limit: 1 });
+  const person = getCharacters()[0];
+  expect(person.rosterMode).toBe("memo");
+  expect(person.titles).toEqual([expect.objectContaining({ title: "King", entityId: 1 })]);
+  expect(api.simulationContext.extensions.nobility?.rulerIdByState).toEqual({});
+  setScope(r, { slotIds: [person.rosterSlotId!] }, true, false);
+  expect(api.simulationContext.extensions.nobility?.rulerIdByState).toEqual({ 1: person.i });
+  setScope(r, { slotIds: [person.rosterSlotId!] }, false, false);
+  expect(person.titles).toHaveLength(1);
+  expect(person.pastTitles).toHaveLength(0);
+  expect(api.simulationContext.extensions.nobility?.rulerIdByState).toEqual({});
+  person.titles = []; // Simulate a memo sheet saved by the affected version.
+  buildWorldRoster();
+  buildWorldRoster();
+  expect(person.titles).toEqual([expect.objectContaining({ title: "King" })]);
+});
+it("retains organization roles on memo sheets without publishing operational membership", () => {
+  const r = ensureRoster();
+  r.roles[0].characterRole = {
+    source: "economy",
+    kind: "marketManager",
+    entityType: "market",
+    entityId: 1,
+    label: "Market Manager"
+  };
+  api.simulationContext.extensions.economy = { markets: [{ i: 1, managerCharacterId: 999 }] };
+  materializeSlots({ roleId: "steward", limit: 1 });
+  const person = getCharacters()[0];
+  expect(person.roles).toEqual([expect.objectContaining({ kind: "marketManager" })]);
+  const markets = api.simulationContext.extensions.economy.markets as { managerCharacterId?: number }[];
+  expect(markets[0].managerCharacterId).toBe(999);
+  setScope(r, { slotIds: [person.rosterSlotId!] }, true, false);
+  expect(markets[0].managerCharacterId).toBe(person.i);
+  setScope(r, { slotIds: [person.rosterSlotId!] }, false, false);
+  expect(markets[0].managerCharacterId).toBeUndefined();
+  expect(person.roles).toHaveLength(1);
+  expect(person.roles![0].endYear).toBeUndefined();
+});

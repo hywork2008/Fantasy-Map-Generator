@@ -5381,14 +5381,14 @@
     }
   },
   "roster": {
-    "legacyCashCorrection": "Review legacy zero balances",
-    "legacyCashCorrectionHelp": "A zero balance may mean savings were spent. Only use this correction for legacy paid-office holders you intend to fund. Money is transferred from existing households, with no new issuance; each person can be corrected once.",
+    "legacyCashCorrection": "Review existing zero balances",
+    "legacyCashCorrectionHelp": "A zero balance may mean savings were spent. Only use this correction for existing paid-office holders you intend to fund, including those left unfunded by the former allocation policy. Money is transferred from existing households, with no new issuance; each person can be corrected once.",
     "previewCashCorrection": "Preview correction",
     "cashCorrectionCounts": "{{count}} people · Transfer {{amount}} from existing household cash",
     "confirmCashCorrection": "Apply this correction",
 
     "cashPolicyTitle": "How starting cash is funded",
-    "cashPolicy": "Paid offices target six stipend cycles, funded within 25% of the original urban household cash. Rank groups receive allocations in order; shortages are shared within each group. Unpaid positions do not automatically receive money. Later appointments receive current pay, not fabricated back-pay.",
+    "cashPolicy": "Paid offices target six stipend cycles, funded within 25% of the original urban household cash. When funds are short, all paid offices share the budget in proportion to their target amounts. Unpaid positions do not automatically receive money. Later appointments receive current pay, not fabricated back-pay.",
 
     "cashSummary": "Private cash {{total}} · Abstract holders {{abstract}} · Estates {{estates}}. Detailing issues no new money.",
     "personalCash": "Personal balance {{amount}}",

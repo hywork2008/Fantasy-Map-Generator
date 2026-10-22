@@ -181,7 +181,7 @@ export function personalRoleStipend(role: RosterRole, roster: WorldRoster): numb
   const income = state ? (state.pollTax || 0) * ((state.rural || 0) + (state.urban || 0)) : 0;
   const p = role.purposes ?? [];
   if (p.includes("headOfState") && state) return getRulerHouseholdStipend(state, income);
-  if (p.includes("centralExecutive") && state) {
+  if ((p.includes("centralExecutive") || p.includes("headOfGovernment")) && state) {
     const department = DEPARTMENT_BY_PRIMARY_SKILL[role.primarySkill];
     return getCentralOfficePersonalStipend(
       income * (department ? getDepartmentBaselineAllocation(state)[department] : 0)
@@ -195,7 +195,7 @@ export function personalRoleStipend(role: RosterRole, roster: WorldRoster): numb
   if (p.includes("guildHead")) return nominal(1.05);
   if (p.includes("marketHead") || p.includes("companyHead")) return nominal(2.1);
   if (p.includes("marketMerchant")) return nominal(0.9);
-  // Non-stipendiary roles receive a modest share of the household's existing private cash.
+  // Unpaid offices have no stipend-based starting cash target.
   return 0;
 }
 export function initializeRosterCash(roster: WorldRoster): void {
@@ -219,18 +219,9 @@ export function initializeRosterCash(roster: WorldRoster): void {
     groups.set(burgId, roles);
   }
   for (const [burgId, roles] of groups) {
-    const ranks: LifestyleTier[] = [
-      "ruler",
-      "centralOffice",
-      "provinceLord",
-      "fieldCommander",
-      "marketManager",
-      "guildMaster",
-      "marketRival",
-      "common",
-      "apprenticeBoarded"
-    ];
-    roles.sort((a, b) => ranks.indexOf(tier(a)) - ranks.indexOf(tier(b)) || a.id.localeCompare(b.id));
+    // Stable rounding order; every paid office shares a shortage, rather than
+    // letting the ruler consume the entire private household allocation first.
+    roles.sort((a, b) => a.id.localeCompare(b.id));
     const desires = roles.map(role => minor(personalRoleStipend(role, roster) * 6) * role.count);
     const desired = desires.reduce((a, b) => a + b, 0);
     // Private cash remains private: no draw from the public treasury, no issuance.
@@ -240,21 +231,14 @@ export function initializeRosterCash(roster: WorldRoster): void {
     const payment = { burgId, amount: paid, refund: 0 };
     funding.push(payment);
     const allocations = new Map<string, number>();
-    let remaining = paid;
-    for (const rank of ranks) {
-      const indices = roles.map((role, index) => ({ role, index })).filter(entry => tier(entry.role) === rank);
-      const wanted = indices.reduce((sum, entry) => sum + desires[entry.index], 0);
-      const funded = Math.min(remaining, wanted);
-      remaining -= funded;
-      let prefix = 0;
-      for (const { role, index } of indices) {
-        const amount = wanted
-          ? Number((BigInt(funded) * BigInt(prefix + desires[index])) / BigInt(wanted)) -
-            Number((BigInt(funded) * BigInt(prefix)) / BigInt(wanted))
-          : 0;
-        allocations.set(role.id, amount);
-        prefix += desires[index];
-      }
+    let prefix = 0;
+    for (const [index, role] of roles.entries()) {
+      const amount = desired
+        ? Number((BigInt(paid) * BigInt(prefix + desires[index])) / BigInt(desired)) -
+          Number((BigInt(paid) * BigInt(prefix)) / BigInt(desired))
+        : 0;
+      allocations.set(role.id, amount);
+      prefix += desires[index];
     }
     for (const role of roles) {
       const amount = allocations.get(role.id) ?? 0;
@@ -432,7 +416,7 @@ export function settleRosterCash(): void {
           state.householdPurse = value;
         }
       };
-    else if (role.purposes?.includes("centralExecutive") && state && department)
+    else if (role.purposes?.some(p => p === "centralExecutive" || p === "headOfGovernment") && state && department)
       source = {
         get: () => state.departmentBalances?.[department] || 0,
         set: value => {
@@ -557,7 +541,6 @@ export function previewLegacyCashCorrection() {
   const groups = new Map<number, { id: string; target: number }[]>();
   for (const account of Object.values(s?.accounts ?? {})) {
     if (
-      account.managed ||
       account.balance !== 0 ||
       account.status !== "active" ||
       account.fundingCorrected ||

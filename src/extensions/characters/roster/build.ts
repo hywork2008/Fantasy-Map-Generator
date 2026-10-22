@@ -1,6 +1,6 @@
-import { getApi, getWorldContext } from "../charactersContext";
+import { getApi, getCharacters, getWorldContext } from "../charactersContext";
 import { prepareRosterFinance } from "../financialLifecycle";
-import { ensureRoster, migrateCharacters, putOrganization, putRole } from "./runtime";
+import { ensureRoster, migrateCharacters, putOrganization, putRole, synchronizeTitle } from "./runtime";
 import type { RosterRole, WorldRoster } from "./types";
 
 const providers = new Set<(roster: WorldRoster) => void>();
@@ -196,6 +196,12 @@ export function buildWorldRoster(): WorldRoster {
     }
   for (const provider of providers) provider(roster);
   migrateCharacters(roster);
+  // Repair previously generated memo sheets that were missing their appointed offices.
+  const people = new Map(getCharacters().map(character => [character.i, character]));
+  for (const slot of roster.slots) {
+    const character = people.get(slot.characterId ?? -1);
+    if (character) synchronizeTitle(roster, slot, character);
+  }
   prepareRosterFinance(roster);
   return roster;
 }

@@ -233,10 +233,12 @@ export function synchronizeTitle(roster: WorldRoster, slot: PersonSlot, characte
 }
 function synchronizeRoleTitle(roster: WorldRoster, slot: PersonSlot, character: Character, role: RosterRole): void {
   const org = roster.organizations.find(o => o.id === role.organizationId)!;
-  const live =
+  const appointed =
     !character.dead &&
-    slot.mode === "simulation" &&
+    !slot.removedFromWorld &&
     roster.appointments.some(a => a.slotId === slot.id && a.roleId === role.id && a.endYear === undefined);
+  // Memo sheets retain their office; only simulation mode publishes operational references.
+  const live = appointed && slot.mode === "simulation";
   if (role.id === `state:${org.stateId}:court:ruler`) {
     const extensions = getApi().simulationContext.extensions;
     extensions.nobility ??= {};
@@ -247,7 +249,8 @@ function synchronizeRoleTitle(roster: WorldRoster, slot: PersonSlot, character: 
   }
   if (role.regimentId !== undefined) {
     const regiment = getWorldContext().pack.states[org.stateId]?.military?.find(r => r.i === role.regimentId);
-    if (regiment) regiment.commanderId = live ? character.i : undefined;
+    if (regiment && (live || regiment.commanderId === character.i))
+      regiment.commanderId = live ? character.i : undefined;
   }
   if (role.characterRole) {
     character.roles ??= [];
@@ -260,16 +263,18 @@ function synchronizeRoleTitle(roster: WorldRoster, slot: PersonSlot, character: 
         r.organizationId === role.characterRole!.organizationId &&
         r.endYear === undefined
     );
-    if (live && !match) character.roles.push({ ...role.characterRole, startYear: Math.floor(clockYear()) });
-    if (!live && match) match.endYear = Math.floor(clockYear());
+    if (appointed && !match) character.roles.push({ ...role.characterRole, startYear: Math.floor(clockYear()) });
+    if (!appointed && match) match.endYear = Math.floor(clockYear());
     if (role.characterRole.kind === "marketManager" || role.characterRole.kind === "marketRivalMerchant") {
       const economy = getApi().simulationContext.extensions.economy;
       const market = (
         economy?.markets as { i: number; managerCharacterId?: number; rivalCharacterIds?: number[] }[] | undefined
       )?.find(m => m.i === role.characterRole!.entityId);
       if (market) {
-        if (role.characterRole.kind === "marketManager") market.managerCharacterId = live ? character.i : undefined;
-        else
+        if (role.characterRole.kind === "marketManager") {
+          if (live || market.managerCharacterId === character.i)
+            market.managerCharacterId = live ? character.i : undefined;
+        } else
           market.rivalCharacterIds = [
             ...new Set([
               ...(market.rivalCharacterIds ?? []).filter(id => id !== character.i),
@@ -290,11 +295,20 @@ function synchronizeRoleTitle(roster: WorldRoster, slot: PersonSlot, character: 
         | undefined;
       const company = companies?.find(o => o.i === role.characterRole!.organizationId);
       if (company) {
-        if (role.characterRole.kind === "merchantOrganizationHead")
+        if (
+          role.characterRole.kind === "merchantOrganizationHead" &&
+          (live || company.chairpersonCharacterId === character.i)
+        )
           company.chairpersonCharacterId = live ? character.i : 0;
-        if (role.characterRole.kind === "merchantOrganizationSecretary")
+        if (
+          role.characterRole.kind === "merchantOrganizationSecretary" &&
+          (live || company.secretaryCharacterId === character.i)
+        )
           company.secretaryCharacterId = live ? character.i : undefined;
-        if (role.characterRole.kind === "merchantOrganizationBodyguard")
+        if (
+          role.characterRole.kind === "merchantOrganizationBodyguard" &&
+          (live || company.bodyguardCharacterId === character.i)
+        )
           company.bodyguardCharacterId = live ? character.i : undefined;
         company.memberCharacterIds = [
           ...new Set([...company.memberCharacterIds.filter(id => id !== character.i), ...(live ? [character.i] : [])])
@@ -309,7 +323,7 @@ function synchronizeRoleTitle(roster: WorldRoster, slot: PersonSlot, character: 
       t.entityId === role.entityId &&
       t.title === (character.gender === "female" ? (role.femaleName ?? role.name) : role.name)
   );
-  if (!live) {
+  if (!appointed) {
     if (existing) {
       character.titles.splice(character.titles.indexOf(existing), 1);
       character.pastTitles.push({ ...existing, endYear: Math.floor(clockYear()) });

@@ -9,6 +9,8 @@ import {
 } from "../../characters/charactersContext";
 import { registerRosterCommands } from "../../characters/roster/commands";
 import { invalidateRosterIndex } from "../../characters/roster/model";
+import { createPresetPlan, executePresetBatch } from "../../characters/roster/presetRuntime";
+import { defaultPresetQuery } from "../../characters/roster/presetTypes";
 import { ensureRoster, ensureSlot, materializeSlots, putOrganization, putRole } from "../../characters/roster/runtime";
 import type { RosterRole } from "../../characters/roster/types";
 import { clearEconomyContext, getBurgMarketLedgers, initEconomyContext } from "../economyContext";
@@ -422,4 +424,59 @@ it("rejects invalid projected balances without changing canonical cash", () => {
     }).toThrow("Cash must");
     expect(total()).toBe(before);
   }
+});
+
+it.each(["centralExecutive", "headOfGovernment"] as const)(
+  "shares scarce starting cash across both leadership presets (%s)",
+  purpose => {
+    const r = ensureRoster();
+    r.roles[0].purposes = ["headOfState"];
+    r.roles[0].count = 1;
+    r.roles[1].purposes = [purpose];
+    getBurgMarketLedgers()[0].householdWealth = 10;
+    const before = total();
+    initializeRosterCash(r);
+    const plan = createPresetPlan(
+      r,
+      {
+        ...defaultPresetQuery(),
+        presets: ["state-heads", "national-leadership"]
+      },
+      "memo"
+    );
+    executePresetBatch(r, plan.id);
+    expect(getCharacters()).toHaveLength(4);
+    expect(getCharacters().every(c => c.wealth > 0)).toBe(true);
+    expect(getHouseholdWealth(1)).toBe(7.5);
+    expect(total()).toBe(before);
+    const department = api.worldContext.pack.states[1];
+    department.departmentBalances = { stewardship: 100 } as never;
+    settleRosterCash();
+    expect(department.departmentBalances!.stewardship).toBeLessThan(100);
+  }
+);
+it("explicitly funds existing managed zero balances once without taking savings from the ruler", () => {
+  const r = ensureRoster();
+  r.roles[0].purposes = ["headOfState"];
+  r.roles[0].count = 1;
+  getBurgMarketLedgers()[0].householdWealth = 10;
+  initializeRosterCash(r);
+  materializeSlots({ organizationId: "a", descendants: true });
+  const ruler = getCharacters().find(c => c.rosterSlotId!.startsWith("steward:"))!;
+  const officers = getCharacters().filter(c => c !== ruler);
+  // Reproduce a saved allocation where all initial money went to the ruler.
+  for (const officer of officers) {
+    ruler.wealth += officer.wealth;
+    officer.wealth = 0;
+  }
+  const before = total(),
+    rulerBalance = ruler.wealth;
+  const preview = previewLegacyCashCorrection();
+  expect(preview.count).toBe(3);
+  applyLegacyCashCorrection(preview.token);
+  expect(officers.every(c => c.wealth > 0)).toBe(true);
+  expect(ruler.wealth).toBe(rulerBalance);
+  expect(total()).toBe(before);
+  for (const officer of officers) officer.wealth = 0;
+  expect(previewLegacyCashCorrection().count).toBe(0);
 });
