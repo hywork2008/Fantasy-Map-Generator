@@ -1094,3 +1094,13 @@ it("exposes wall drawing, passage preparation, and gate placement as separate sl
 const originalLanguage = i18n.language;
 beforeAll(() => i18n.changeLanguage("ja"));
 afterAll(() => i18n.changeLanguage(originalLanguage));
+
+it("offers finishing the current edits from the generation panel as one undoable operation", () => {
+  const button = root.querySelector<HTMLButtonElement>(".ce-generate-from-edits")!;
+  expect(button).not.toBeNull();
+  expect(button.textContent).toBe(i18n.t("cityEditor.messages.generateFromEdits"));
+  const entries = root.querySelectorAll(".ce-history-row").length;
+  button.click();
+  expect(root.querySelectorAll(".ce-history-row").length).toBe(entries + 1);
+  expect(root.querySelector<HTMLInputElement>(".ce-generate-stage-slider")!.value).toBe("18");
+});

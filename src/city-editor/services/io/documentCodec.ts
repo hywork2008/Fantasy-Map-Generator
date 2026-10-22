@@ -12,6 +12,8 @@ import { validateLandmarks } from "../../generators/landmarks";
 import { validate } from "../../generators/mesh";
 import { populationHousingFacts } from "../../generators/populationHousing";
 import { validPopulationDocument } from "../../generators/populationValidation";
+import { validRuralFieldSettings } from "../../generators/ruralFieldProfile";
+import { validRuralFieldSnapshot } from "../../generators/ruralFieldSnapshot";
 import { validRegionalFrameRoads, validSceneRegions } from "../../generators/sceneRegions";
 import { validUrbanGrowth } from "../../generators/urbanGrowth";
 import type { FixedApproachProvider } from "../../types/contracts/fixedApproachAdoption";
@@ -37,6 +39,15 @@ export function parseDocument(text: string, fixedApproachProvider?: FixedApproac
     // documents simply have no gates until the user adds one on a wall vertex.
     if (!Array.isArray(value.gates)) value.gates = [];
     for (const face of Object.values(value.mesh.faces)) {
+      const quality = face.properties.farming;
+      if (
+        quality !== undefined &&
+        (!quality ||
+          typeof quality !== "object" ||
+          Array.isArray(quality) ||
+          [quality.soilQuality, quality.wetness].some(n => n !== undefined && (!Number.isFinite(n) || n < 0 || n > 1)))
+      )
+        return null;
       if (
         face.properties.ward !== null &&
         ![
@@ -72,6 +83,9 @@ function isDocument(value: unknown): value is CityDocument {
   return (
     doc.format === "fmg-city-editor" &&
     validFacilityCounts(doc.facilityCounts) &&
+    (doc.ruralFieldVersion === undefined || doc.ruralFieldVersion === 1 || doc.ruralFieldVersion === 2) &&
+    validRuralFieldSettings(doc.ruralFieldSettings) &&
+    validRuralFieldSnapshot(doc.ruralFieldSnapshot) &&
     (doc.vacantLotTrees === undefined ||
       (doc.vacantLotTrees !== null &&
         typeof doc.vacantLotTrees === "object" &&

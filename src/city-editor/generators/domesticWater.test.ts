@@ -67,6 +67,26 @@ function scenario() {
 }
 
 describe("domestic water source and access policy", () => {
+  it("places one public basin in each accessible plaza with a street connection", () => {
+    const { site, routes, document } = scenario();
+    document.elements.push({ id: "plaza", kind: "plaza", faceIds: [], point: [0, 0], sizeMeters: 16, locked: false });
+    const plan = placeDomesticWater(site, routes, 80);
+    const basins = plan.filter(water => water.placement === "plaza");
+    expect(basins).toHaveLength(1);
+    expect(basins[0]).toMatchObject({ kind: "publicBasin", center: [0, 0], radius: 1.7, use: "domestic" });
+    expect(basins[0].access).toHaveLength(2);
+    expect(plan.filter(water => water.kind === "well")).toHaveLength(0);
+  });
+  it("omits a plaza basin when its ground or street access is obstructed", () => {
+    for (const blocked of [true, false]) {
+      const { site, routes, document } = scenario();
+      document.elements.push({ id: "plaza", kind: "plaza", faceIds: [], point: [0, 0], locked: false });
+      if (blocked) site.hitsBlocked = () => true;
+      expect(placeDomesticWater(site, blocked ? routes : [], 80).some(water => water.kind === "publicBasin")).toBe(
+        false
+      );
+    }
+  });
   it("requires a reachable street even when vacant ground exists", () => {
     const { site } = scenario();
     expect(placeDomesticWater(site, [], 500)).toEqual([]);

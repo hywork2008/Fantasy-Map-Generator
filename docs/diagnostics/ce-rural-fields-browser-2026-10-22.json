@@ -1,0 +1,369 @@
+{
+  "completed": true,
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+  "viewport": {
+    "width": 1485,
+    "height": 1126
+  },
+  "generation": {
+    "generationMs": 3186,
+    "receivedAt": 1792600513773.6,
+    "completedAt": 1792600516959.6,
+    "counts": {
+      "accessNodes": 61330,
+      "reachableNodes": 61330,
+      "groups": 40,
+      "gridMeters": 4,
+      "rawBoundaryVertices": 28108,
+      "components": 568,
+      "finalBoundaryVertices": 2871,
+      "landFaces": 332,
+      "reservationPolygons": 7982,
+      "farms": 568,
+      "rows": 41576,
+      "rowPoints": 83152,
+      "lanes": 611
+    },
+    "timings": [
+      {
+        "path": "generation/layout/access-mask/blocked",
+        "kind": "operation",
+        "calls": 65640,
+        "elapsedMs": 625.3999984264374,
+        "selfMs": 625.3999984264374
+      },
+      {
+        "path": "generation/layout/reconstruct-boundaries/simplify-and-validate/overlap/convex-decomposition",
+        "kind": "operation",
+        "calls": 565,
+        "elapsedMs": 581.0999963283539,
+        "selfMs": 581.0999963283539
+      },
+      {
+        "path": "generation/layout/reconstruct-boundaries/simplify-and-validate/convex-decomposition",
+        "kind": "operation",
+        "calls": 2845,
+        "elapsedMs": 569.2999966144562,
+        "selfMs": 569.2999966144562
+      },
+      {
+        "path": "generation/layout/reconstruct-boundaries/simplify-and-validate/overlap",
+        "kind": "operation",
+        "calls": 44463,
+        "elapsedMs": 1024.8000066280365,
+        "selfMs": 443.7000102996826
+      },
+      {
+        "path": "generation/layout/reconstruct-boundaries/simplify-and-validate/clearance/blocked",
+        "kind": "operation",
+        "calls": 22382,
+        "elapsedMs": 262.300000667572,
+        "selfMs": 262.300000667572
+      },
+      {
+        "path": "generation/layout/access-mask",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 755.1000001430511,
+        "selfMs": 129.70000171661377
+      },
+      {
+        "path": "generation/layout/reconstruct-boundaries/simplify-and-validate/clearance",
+        "kind": "operation",
+        "calls": 22387,
+        "elapsedMs": 351.4999997615814,
+        "selfMs": 89.1999990940094
+      },
+      {
+        "path": "generation/layout/boundary-routes",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 60.10000014305115,
+        "selfMs": 55.40000081062317
+      },
+      {
+        "path": "generation/layout/group-seeds",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 47.5,
+        "selfMs": 47.5
+      },
+      {
+        "path": "generation/layout/track-reservations",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 78.09999990463257,
+        "selfMs": 47.20000123977661
+      },
+      {
+        "path": "generation/layout/reconstruct-boundaries/simplify-and-validate",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 2000.5,
+        "selfMs": 40.99999690055847
+      },
+      {
+        "path": "generation/layout/trace-components",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 39.200000047683716,
+        "selfMs": 39.200000047683716
+      },
+      {
+        "path": "generation/layout/territory-ownership",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 34.700000047683716,
+        "selfMs": 34.700000047683716
+      },
+      {
+        "path": "generation/layout/track-reservations/blocked",
+        "kind": "operation",
+        "calls": 2925,
+        "elapsedMs": 30.899998664855957,
+        "selfMs": 30.899998664855957
+      },
+      {
+        "path": "generation/layout/plots-rows-and-boundaries/rows",
+        "kind": "operation",
+        "calls": 568,
+        "elapsedMs": 28.80000329017639,
+        "selfMs": 28.80000329017639
+      },
+      {
+        "path": "generation/layout/strip-labels",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 26.299999952316284,
+        "selfMs": 26.299999952316284
+      },
+      {
+        "path": "generation/layout/reachability",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 23.799999952316284,
+        "selfMs": 23.799999952316284
+      },
+      {
+        "path": "generation/layout/plots-rows-and-boundaries",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 54.90000009536743,
+        "selfMs": 22.49999713897705
+      },
+      {
+        "path": "generation/layout/reconstruct-boundaries/graph-and-index",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 19.100000143051147,
+        "selfMs": 19.100000143051147
+      },
+      {
+        "path": "generation/layout/interior-tracks/blocked",
+        "kind": "operation",
+        "calls": 1715,
+        "elapsedMs": 17.799999713897705,
+        "selfMs": 17.799999713897705
+      },
+      {
+        "path": "generation/layout/reconstruct-boundaries/simplify-and-validate/simple-polygon",
+        "kind": "operation",
+        "calls": 2936,
+        "elapsedMs": 13.900000095367432,
+        "selfMs": 13.900000095367432
+      },
+      {
+        "path": "generation/roads-and-reservations",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 9.799999952316284,
+        "selfMs": 9.799999952316284
+      },
+      {
+        "path": "generation/terrain-and-land",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 8.800000190734863,
+        "selfMs": 8.800000190734863
+      },
+      {
+        "path": "generation/layout/boundary-routes/blocked",
+        "kind": "operation",
+        "calls": 80,
+        "elapsedMs": 4.6999993324279785,
+        "selfMs": 4.6999993324279785
+      },
+      {
+        "path": "generation/layout/interior-tracks",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 22.299999952316284,
+        "selfMs": 4.500000238418579
+      },
+      {
+        "path": "generation/layout/plots-rows-and-boundaries/source-faces",
+        "kind": "operation",
+        "calls": 568,
+        "elapsedMs": 3.09999942779541,
+        "selfMs": 3.09999942779541
+      },
+      {
+        "path": "generation/layout/approach-tracks",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 2.4000000953674316,
+        "selfMs": 1.3000001907348633
+      },
+      {
+        "path": "generation/layout/approach-tracks/blocked",
+        "kind": "operation",
+        "calls": 54,
+        "elapsedMs": 1.0999999046325684,
+        "selfMs": 1.0999999046325684
+      },
+      {
+        "path": "generation/layout/land-and-road-index",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 1,
+        "selfMs": 1
+      },
+      {
+        "path": "generation/layout",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 3166.5999999046326,
+        "selfMs": 0.7999997138977051
+      },
+      {
+        "path": "generation/layout/plots-rows-and-boundaries/field-boundaries",
+        "kind": "operation",
+        "calls": 568,
+        "elapsedMs": 0.5000002384185791,
+        "selfMs": 0.5000002384185791
+      },
+      {
+        "path": "generation/layout/lanes-and-diagnostics",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 0.5,
+        "selfMs": 0.5
+      },
+      {
+        "path": "generation/assemble-result",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 0.40000009536743164,
+        "selfMs": 0.40000009536743164
+      },
+      {
+        "path": "generation/layout/reconstruct-boundaries",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 2019.8999998569489,
+        "selfMs": 0.2999997138977051
+      }
+    ],
+    "constructionMs": 0.09999990463256836,
+    "postMessageMs": 6,
+    "roundTripMs": 3284.7999999523163,
+    "startupAndInputMs": 82.699951171875,
+    "returnTransferAndSchedulingMs": 16.10009765625
+  },
+  "render": {
+    "baseline": {
+      "svgMs": 43,
+      "attachMs": 0.40000009536743164,
+      "layoutMs": 7.699999809265137,
+      "nextPaintOpportunityMs": 8,
+      "svgNodes": 4892,
+      "timings": [
+        {
+          "path": "render/farm-sheds/shed-plan",
+          "kind": "operation",
+          "calls": 1,
+          "elapsedMs": 0.09999990463256836,
+          "selfMs": 0.09999990463256836
+        },
+        {
+          "path": "render/farm-svg",
+          "kind": "stage",
+          "calls": 1,
+          "elapsedMs": 0,
+          "selfMs": 0
+        },
+        {
+          "path": "render/farm-sheds",
+          "kind": "stage",
+          "calls": 1,
+          "elapsedMs": 0.09999990463256836,
+          "selfMs": 0
+        },
+        {
+          "path": "render/all-lanes-svg",
+          "kind": "stage",
+          "calls": 1,
+          "elapsedMs": 0,
+          "selfMs": 0
+        }
+      ]
+    },
+    "full": {
+      "svgMs": 101.59999990463257,
+      "attachMs": 2.5999999046325684,
+      "layoutMs": 17.200000047683716,
+      "nextPaintOpportunityMs": 17.299999952316284,
+      "svgNodes": 10887,
+      "timings": [
+        {
+          "path": "render/farm-sheds/shed-plan",
+          "kind": "operation",
+          "calls": 1,
+          "elapsedMs": 41.299999952316284,
+          "selfMs": 41.299999952316284
+        },
+        {
+          "path": "render/all-lanes-svg",
+          "kind": "stage",
+          "calls": 1,
+          "elapsedMs": 8.900000095367432,
+          "selfMs": 8.900000095367432
+        },
+        {
+          "path": "render/farm-svg/row-path",
+          "kind": "operation",
+          "calls": 568,
+          "elapsedMs": 6.799999237060547,
+          "selfMs": 6.799999237060547
+        },
+        {
+          "path": "render/farm-svg",
+          "kind": "stage",
+          "calls": 1,
+          "elapsedMs": 13.700000047683716,
+          "selfMs": 5.900000095367432
+        },
+        {
+          "path": "render/farm-svg/outline-path",
+          "kind": "operation",
+          "calls": 568,
+          "elapsedMs": 1.0000007152557373,
+          "selfMs": 1.0000007152557373
+        },
+        {
+          "path": "render/farm-sheds",
+          "kind": "stage",
+          "calls": 1,
+          "elapsedMs": 41.39999985694885,
+          "selfMs": 0.09999990463256836
+        }
+      ]
+    }
+  },
+  "inputSha256": "4a15af950c0cf447f4c794e0898f69b41de30e4a95db788b945ff0df09ed347b",
+  "seed": "phase7",
+  "settings": {},
+  "historicalPeriod": "ageOfExploration",
+  "system": "planned",
+  "note": "Single diagnostic sample on Vite development server. Startup includes input transfer; postMessageMs is a subset. Paint opportunity is not GPU paint duration."
+}

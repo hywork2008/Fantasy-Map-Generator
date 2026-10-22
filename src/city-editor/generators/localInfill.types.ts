@@ -1,13 +1,9 @@
 import type { InfillLane } from "../types/contracts/localInfill";
+import type { FarmPlot } from "../types/contracts/ruralFields";
 import type { Id, Point } from "../types/primitives";
 import type { BuildingLot } from "./buildingLots.types";
 
-export interface FarmPlot {
-  faceId: Id;
-  polygon: Point[];
-  rows: Point[][];
-  kind?: "open-field" | "kitchen-garden";
-}
+export type { FarmPlot } from "../types/contracts/ruralFields";
 
 export interface CityFabric {
   parcels?: import("./parcelTypes").ParcelPlan[];

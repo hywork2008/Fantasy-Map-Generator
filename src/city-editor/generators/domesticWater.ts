@@ -1,3 +1,4 @@
+import { PUBLIC_WATER_BASINS } from "../../buildings/wells/publicWaterBasinSpec";
 import type { CityDocument, Point } from "../types/document";
 import { FixedRoadReservation } from "./fixedRoadReservation";
 import { nearestOnPolyline, pointInPolygon, polygonCentroid } from "./geom";
@@ -7,7 +8,7 @@ import { NearbyPolylineIndex } from "./nearbyPolylineIndex";
 
 export interface DomesticWaterPoint {
   id: string;
-  kind: "well" | "cistern" | "spring" | "pond";
+  kind: "well" | "publicBasin" | "cistern" | "spring" | "pond";
   name: string;
   center: Point;
   radius: number;
@@ -68,7 +69,14 @@ export function placeDomesticWater(
       preferred === "well" && sourcePoints.some(p => Math.hypot(p[0] - center[0], p[1] - center[1]) < 12)
         ? "spring"
         : preferred;
-    const radius = kind === "pond" ? 5 : kind === "cistern" ? 2 : 1.2;
+    const radius =
+      kind === "publicBasin"
+        ? PUBLIC_WATER_BASINS.publicBasin.radius
+        : kind === "pond"
+          ? 5
+          : kind === "cistern"
+            ? 2
+            : 1.2;
     const footprint = ring(center, radius + 1);
     if (!free(footprint)) return false;
     let access: Point[] | undefined;
@@ -106,6 +114,7 @@ export function placeDomesticWater(
       kind,
       name: {
         well: "Community Well",
+        publicBasin: "Public Water Basin",
         cistern: "Rainwater Cistern",
         spring: "Spring Basin",
         pond: "Service Water Pond"
@@ -142,8 +151,12 @@ export function placeDomesticWater(
     const center = plaza.point!;
     const r = Math.max(3, (plaza.sizeMeters ?? 16) * 0.3);
     for (const p of [center, ...ring(center, r)]) {
-      if (Math.hypot(p[0] - center[0], p[1] - center[1]) > (plaza.sizeMeters ?? 16) / 2) continue;
-      if (add(p, "plaza", "well")) break;
+      if (
+        Math.hypot(p[0] - center[0], p[1] - center[1]) + PUBLIC_WATER_BASINS.publicBasin.radius >
+        (plaza.sizeMeters ?? 16) / 2
+      )
+        continue;
+      if (add(p, "plaza", "publicBasin")) break;
     }
   }
   const target = Math.min(64, Math.max(1, Math.ceil(buildingCount / 80)));

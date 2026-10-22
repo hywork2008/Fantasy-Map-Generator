@@ -47,6 +47,8 @@ import {
 } from "./polygonalCirculadeLayout";
 import { populationFabricSource, populationHousingFabric } from "./populationHousing";
 import { roadTrafficKey } from "./roadTraffic";
+import { ruralFieldOverlay } from "./ruralFieldOverlay";
+import { applyRuralFields } from "./ruralFields";
 import { enforceDefenseClearance, shapeSuburbanFabric } from "./suburbanLanduse";
 import { shapeUrbanGrowthFabric } from "./urbanGrowth";
 import { documentWaterTest, dryRuns, lineHitsDocumentWater, waterPolygons } from "./waterGeometry";
@@ -163,7 +165,7 @@ export function clearBlockFabricCache(document?: CityDocument): void {
   defaultCache?.clear();
 }
 
-function documentFabricFingerprint(doc: CityDocument): string {
+export function documentFabricFingerprint(doc: CityDocument): string {
   const faces = Object.values(doc.mesh.faces);
   const facePart = faces
     .map(
@@ -201,6 +203,36 @@ function documentFabricFingerprint(doc: CityDocument): string {
     doc.fixedCrossingApproaches?.length ?? 0,
     siteEconomyKey(economyOnDocument(doc)),
     doc.farmlandAreaHectares ?? "",
+    doc.ruralFieldVersion ?? "",
+    doc.ruralFieldVersion === 2 ? "independent-river-banks-v1" : "",
+    doc.ruralFieldVersion !== undefined
+      ? JSON.stringify([
+          Object.values(doc.mesh.vertices).map(v => [v.id, v.point, v.locked]),
+          Object.values(doc.mesh.edges).map(e => [e.id, e.locked]),
+          doc.elements,
+          doc.frame,
+          doc.landmarks,
+          doc.waterAreas,
+          doc.regionalWaterAreas,
+          doc.regionalSurface,
+          doc.frameRoads,
+          doc.riverConnections,
+          doc.defenseCircuits,
+          doc.castles,
+          doc.cemeteries,
+          doc.importedFixedCrossings,
+          doc.fixedCrossingApproaches,
+          doc.ruralFieldSettings,
+          doc.biome,
+          doc.civilization,
+          Object.values(doc.mesh.faces).map(face => [
+            face.id,
+            face.boundary,
+            face.properties.elevation,
+            face.properties.farming
+          ])
+        ])
+      : "",
     JSON.stringify(doc.facilityCounts ?? {}),
     roadTrafficKey(doc),
     prevailingWindKey(doc),
@@ -262,7 +294,8 @@ export function buildBlockFabric(
       const fp = documentFabricFingerprint(document);
       if (cached.fingerprint === fp) {
         fabricBuildRecorder?.(true);
-        return cached.fabric;
+        const overlay = ruralFieldOverlay(document, fp);
+        return overlay ? { ...cached.fabric, ...overlay } : cached.fabric;
       }
     }
   }
@@ -313,7 +346,16 @@ export function buildBlockFabric(
   if (document.urbanMorphology && !document.populationPlan)
     fabricResult = shapeUrbanGrowthFabric(document, fabricResult);
   const farmlandArea = document.farmlandAreaHectares;
-  if (farmlandArea !== undefined && Number.isFinite(farmlandArea)) {
+  if (document.ruralFieldVersion === 2) {
+    fabricResult = {
+      ...fabricResult,
+      farms: fabricResult.farms.filter(farm =>
+        (farm.sourceFaceIds ?? [farm.faceId]).some(id => document.mesh.faces[id]?.properties.locked)
+      )
+    };
+  } else if (document.ruralFieldVersion === 1) {
+    fabricResult = measureProcessing(profiler, "rural-fields", () => applyRuralFields(document, fabricResult));
+  } else if (farmlandArea !== undefined && Number.isFinite(farmlandArea)) {
     let remaining = Math.max(0, farmlandArea) * 10_000;
     // Keep complete plots nearest the town first, without changing their geometry or rows.
     const farms = [...fabricResult.farms]
@@ -331,10 +373,12 @@ export function buildBlockFabric(
     fabricResult = { ...fabricResult, farms };
   }
   fabricResult = { ...fabricResult, buildings: assignBuildingMassing(document, fabricResult.buildings) };
+  const fingerprint = documentFabricFingerprint(document);
   if (!profiler) {
-    fabricByDocument.set(document, { fingerprint: documentFabricFingerprint(document), fabric: fabricResult });
+    fabricByDocument.set(document, { fingerprint, fabric: fabricResult });
   }
-  return fabricResult;
+  const overlay = ruralFieldOverlay(document, fingerprint);
+  return overlay ? { ...fabricResult, ...overlay } : fabricResult;
 }
 
 /**
@@ -762,6 +806,7 @@ function buildLegacyBlockFabric(
   }
   for (const district of districts) {
     const face = merged.mesh.faces[district.id];
+    if (document.ruralFieldVersion === 2 && !face.properties.locked) continue;
     if (face.properties.water !== "land" || face.properties.ward !== "farm") continue;
     const outline = facePoints(merged.mesh, face);
     const nearby = rivers.filter(r => {

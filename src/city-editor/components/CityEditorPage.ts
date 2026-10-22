@@ -32,6 +32,7 @@ import { DEFAULT_HEX_SIZE_METERS } from "../generators/hexGrid";
 import { DocumentHistory } from "../generators/history";
 import { clone } from "../generators/mesh";
 import { DEFAULT_PATCH_PARAMS } from "../generators/patches";
+import { regenerateRuralLand } from "../generators/roadsideFarms";
 import { CASTLE_STYLE_PROFILES } from "../renderers/castlePatterns";
 import { mountCity3d } from "../renderers/cityView";
 import { clearRenderDerivedCaches } from "../renderers/derivedCaches";
@@ -409,6 +410,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   function getMapDisplayController() {
     if (!mapDisplayController)
       mapDisplayController = createMapDisplayController({
+        get syncCity3d() {
+          return syncCity3d;
+        },
         get scope() {
           return scope;
         },
@@ -561,6 +565,30 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         },
         get vacantTreesInput() {
           return vacantTreesInput;
+        },
+        get farmlandSystemSelect() {
+          return farmlandSystemSelect;
+        },
+        get farmlandYearInput() {
+          return farmlandYearInput;
+        },
+        get farmlandModeSelect() {
+          return farmlandModeSelect;
+        },
+        get farmlandRangeSelect() {
+          return farmlandRangeSelect;
+        },
+        get farmlandDirectionSelect() {
+          return farmlandDirectionSelect;
+        },
+        get farmlandCoverageInput() {
+          return farmlandCoverageInput;
+        },
+        get farmlandSummary() {
+          return farmlandSummary;
+        },
+        get regenerateFarmlandButton() {
+          return regenerateFarmlandButton;
         },
         get generateVacantTreesButton() {
           return generateVacantTreesButton;
@@ -2092,10 +2120,91 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       editorText("cityEditor.messages.generateVacantLotTrees")
     );
   });
+  const regenerateFarmlandButton = makeButton(editorText("cityEditor.messages.regenerateFarmland"), () => {
+    if (documents.documentState.appearance !== "town" || display.hideBuildings) return;
+    const current = documents.documentState;
+    commit(
+      regenerateRuralLand({
+        ...current,
+        ruralFieldSettings: {
+          ...current.ruralFieldSettings,
+          mode: current.ruralFieldSettings?.mode === "off" ? "manual" : current.ruralFieldSettings?.mode,
+          coveragePercent: current.ruralFieldSettings?.coveragePercent ?? 70
+        }
+      }),
+      editorText("cityEditor.messages.regenerateFarmland")
+    );
+    getMapDisplayController().generateFarmland();
+  });
+  const farmlandSystemSelect = select(["auto", "open-field", "bocage", "planned", "mechanized"], "auto");
+  const farmlandSystems = ["auto", "open-field", "bocage", "planned", "mechanized"] as const;
+  for (const [index, option] of Array.from(farmlandSystemSelect.options).entries())
+    option.textContent = editorText(`cityEditor.messages.farmlandSystem_${farmlandSystems[index]}`);
+  farmlandSystemSelect.setAttribute("aria-label", editorText("cityEditor.messages.farmlandSystem"));
+  const farmlandYearInput = document.createElement("input");
+  farmlandYearInput.type = "number";
+  farmlandYearInput.min = "0";
+  farmlandYearInput.step = "1";
+  farmlandYearInput.style.width = "5em";
+  farmlandYearInput.setAttribute("aria-label", editorText("cityEditor.messages.farmlandYear"));
+  const farmlandModeSelect = select(["manual", "background", "off"], "manual");
+  for (const [i, value] of (["manual", "background", "off"] as const).entries())
+    farmlandModeSelect.options[i].textContent = editorText(`cityEditor.messages.farmlandMode_${value}`);
+  farmlandModeSelect.setAttribute("aria-label", editorText("cityEditor.messages.farmlandGeneration"));
+  const farmlandRangeSelect = select(["whole-frame", "near-city"], "whole-frame");
+  for (const [i, value] of (["whole-frame", "near-city"] as const).entries())
+    farmlandRangeSelect.options[i].textContent = editorText(`cityEditor.messages.farmlandRange_${value}`);
+  farmlandRangeSelect.setAttribute("aria-label", editorText("cityEditor.messages.farmlandRange"));
+  const farmlandDirectionSelect = select(["all", "north", "east", "south", "west"], "all");
+  for (const [i, value] of (["all", "north", "east", "south", "west"] as const).entries())
+    farmlandDirectionSelect.options[i].textContent = editorText(`cityEditor.messages.farmlandDirection_${value}`);
+  farmlandDirectionSelect.setAttribute("aria-label", editorText("cityEditor.messages.farmlandDirection"));
+  const farmlandCoverageInput = document.createElement("input");
+  Object.assign(farmlandCoverageInput, { type: "number", min: "0", max: "100", step: "10", value: "70" });
+  farmlandCoverageInput.style.width = "5em";
+  farmlandCoverageInput.setAttribute("aria-label", editorText("cityEditor.messages.farmlandCoverage"));
+  const farmlandSummary = document.createElement("output");
+  farmlandSummary.hidden = true;
+  const updateFarmland = () => {
+    const current = documents.documentState;
+    const year = Number(farmlandYearInput.value);
+    const coverage = Number(farmlandCoverageInput.value);
+    if (!Number.isSafeInteger(year) || year < 0 || !Number.isFinite(coverage) || coverage < 0 || coverage > 100) return;
+    const system = farmlandSystemSelect.value as NonNullable<CityDocument["ruralFieldSettings"]>["system"] | "auto";
+    commit(
+      regenerateRuralLand({
+        ...current,
+        ruralFieldSettings: {
+          ...current.ruralFieldSettings,
+          system: system === "auto" ? undefined : system,
+          rotationYear: year,
+          mode: farmlandModeSelect.value as "manual" | "background" | "off",
+          range: farmlandRangeSelect.value as "near-city" | "whole-frame",
+          direction: farmlandDirectionSelect.value as "all" | "north" | "east" | "south" | "west",
+          coveragePercent: coverage
+        }
+      }),
+      editorText("cityEditor.messages.regenerateFarmland")
+    );
+  };
+  scope.listen(farmlandSystemSelect, "change", updateFarmland);
+  scope.listen(farmlandYearInput, "change", updateFarmland);
+  for (const input of [farmlandModeSelect, farmlandRangeSelect, farmlandDirectionSelect, farmlandCoverageInput])
+    scope.listen(input, "change", updateFarmland);
   const decorationControls = div("ce-city-decoration");
   decorationControls.append(
     text(editorText("cityEditor.messages.cityDecoration")),
     generateVacantTreesButton,
+    regenerateFarmlandButton,
+    farmlandModeSelect,
+    farmlandRangeSelect,
+    farmlandDirectionSelect,
+    text(editorText("cityEditor.messages.farmlandCoverage")),
+    farmlandCoverageInput,
+    farmlandSystemSelect,
+    text(editorText("cityEditor.messages.farmlandYear")),
+    farmlandYearInput,
+    farmlandSummary,
     toggleLabel(editorText("cityEditor.messages.showVacantLotTrees"), vacantTreesInput)
   );
 
@@ -2172,6 +2281,14 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     ),
     text(editorText("cityEditor.generationStages.title")),
     stageContainer,
+    Object.assign(
+      makeButton(editorText("cityEditor.messages.generateFromEdits"), () => {
+        getMapDisplayController().cancelFarmland();
+        getGenerationController().generateFromEdits();
+      }),
+      { className: "ce-generate-from-edits", title: editorText("cityEditor.messages.generateFromEditsHelp") }
+    ),
+    text(editorText("cityEditor.messages.generateFromEditsHelp")),
     divider(),
     label(editorText("cityEditor.messages.urbanCoreAllocationMode"), urbanCoreModeSelect),
     label(editorText("cityEditor.messages.3NPatchesBlankAuto"), urbanNPatchesInput),
@@ -2759,14 +2876,17 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   }
 
   function rerunLastStage(): void {
+    getMapDisplayController().cancelFarmland();
     getGenerationController().rerunLastStage();
   }
 
   function runCompleteGeneration(): void {
+    getMapDisplayController().cancelFarmland();
     getGenerationController().runCompleteGeneration();
   }
 
   function runGenerationStage(stage: GenerationStage): void {
+    getMapDisplayController().cancelFarmland();
     getGenerationController().runGenerationStage(stage);
   }
 

@@ -8,6 +8,7 @@ import { buildVacantLotTrees } from "../generators/vacantLotTrees";
 import type { WatermillPlan } from "../generators/watermillFabric";
 import type { Id } from "../types/document";
 import type { SvgPickInfo } from "../types/selection";
+import { ruralRenderProfiler } from "../utils/ruralFieldProfiler";
 import { type FallbackPier, fallbackHarborPiers, plannedHarborPiers } from "./harborPierFacts";
 import { openSpaceBoundary } from "./openSpaceBoundary";
 import type { RenderContext } from "./renderContext";
@@ -80,36 +81,85 @@ export function renderTownFabric(
     )
   );
   if (fabric) {
+    if (fabric.ruralFields) svg.setAttribute("data-rural-fields", JSON.stringify(fabric.ruralFields));
+    const profiler = ruralRenderProfiler(document);
+    const timing = profiler?.stages("render");
+    timing?.next("farm-svg");
+    const outline = profiler?.wrap("outline-path", roundedFarmPolygon) ?? roundedFarmPolygon;
+    const rowPath = (rows: import("../types/document").Point[][]) => rows.map(row => line(row)).join(" ");
+    const rowsPath = profiler?.wrap("row-path", rowPath) ?? rowPath;
+    const boundaryPath = profiler?.wrap("boundary-path", rowPath) ?? rowPath;
+    const shedsPlan = profiler?.wrap("shed-plan", farmSheds) ?? farmSheds;
     const farms = element("g", { class: "ce-farms", "pointer-events": "none" });
     fabric.farms.forEach((farm, index) => {
       const tone = Math.abs(Math.round(farm.polygon[0][0] / 17) + Math.round(farm.polygon[0][1] / 13) + index) % 2;
-      const garden = farm.kind === "kitchen-garden";
+      const garden = farm.kind === "kitchen-garden" || farm.system === "market-garden";
+      const fallow = farm.cropState === "fallow";
       farms.appendChild(
         element("path", {
-          d: roundedFarmPolygon(farm.polygon),
-          fill: garden ? (tone ? "#bccd9c" : "#aec392") : tone ? "#d4ceb2" : "#c4bf9a",
-          stroke: garden ? "#536c45" : "#8f8a74",
+          d: outline(farm.polygon),
+          fill: garden
+            ? tone
+              ? "#bccd9c"
+              : "#aec392"
+            : fallow
+              ? "#b8bd98"
+              : farm.cropState === "spring-crop"
+                ? "#c5ce9d"
+                : tone
+                  ? "#d4ceb2"
+                  : "#c4bf9a",
+          stroke: farm.clippedByFrame ? "none" : garden ? "#536c45" : "#8f8a74",
           "stroke-width": garden ? "1.8" : "0.6",
-          "stroke-dasharray": garden ? "3 1.2" : "none",
+          "stroke-dasharray": garden && !farm.system ? "3 1.2" : "none",
           class: garden ? "ce-kitchen-garden" : "ce-open-field",
-          "data-farm-face": farm.faceId
+          "data-farm-face": farm.faceId,
+          "data-field-system": farm.system ?? "legacy",
+          ...(farm.managementGroupId ? { "data-field-group": farm.managementGroupId } : {}),
+          "data-crop-state": farm.cropState ?? "crop",
+          ...(farm.plotId
+            ? { "data-farm-plot": farm.plotId, "data-farm-faces": farm.sourceFaceIds?.join(" ") ?? farm.faceId }
+            : {})
         })
       );
       if (!lightweight)
         farms.appendChild(
           element("path", {
-            d: farm.rows.map(row => line(row)).join(" "),
+            d: rowsPath(farm.rows),
             fill: "none",
             stroke: garden ? "#617b4d" : "#5e5948",
             "stroke-width": garden ? "0.8" : "0.65",
             class: "ce-farm-rows"
           })
         );
+      if (!lightweight && farm.tenureStrips?.length)
+        farms.appendChild(
+          element("path", {
+            d: farm.tenureStrips.map(row => line(row)).join(" "),
+            fill: "none",
+            stroke: "#95896f",
+            "stroke-width": "0.7",
+            "stroke-dasharray": "2 2",
+            class: "ce-tenure-strips"
+          })
+        );
+      if (farm.boundaries?.length && (farm.boundaryKind || farm.clippedByFrame))
+        farms.appendChild(
+          element("path", {
+            d: boundaryPath(farm.boundaries),
+            fill: "none",
+            stroke: farm.boundaryKind === "hedge" ? "#536c45" : "#8f8a74",
+            "stroke-width": farm.boundaryKind === "hedge" ? "1.8" : farm.boundaryKind === "wall" ? "1.2" : "0.6",
+            "stroke-dasharray": farm.boundaryKind === "wall" ? "2 1" : "none",
+            class: `ce-field-boundary ce-field-boundary--${farm.boundaryKind ?? "open"}`
+          })
+        );
     });
     svg.appendChild(farms);
+    timing?.next("farm-sheds");
     if (!hideBuildings && !minimal) {
       const sheds = element("g", { class: "ce-farm-sheds", "pointer-events": "none" });
-      for (const shed of farmSheds(document, fabric.farms, lots)) {
+      for (const shed of shedsPlan(document, fabric.farms, lots, fabric.lanes)) {
         sheds.appendChild(
           element("path", {
             d: polygon(shed.polygon),
@@ -123,6 +173,7 @@ export function renderTownFabric(
       }
       svg.appendChild(sheds);
     }
+    timing?.end();
     if (!hideBuildings && fabric.openSpaces?.length) {
       const spaces = element("g", { class: "ce-open-spaces", "pointer-events": "none" });
       const green = new Set(["kitchen-garden", "formal-garden"]);
@@ -197,6 +248,8 @@ export function renderTownFabric(
     }
     // Stage ⑩ hides the lane strokes that cut blocks apart. The houses stay;
     // the ground colour still reads as the gap between them.
+    const laneTiming = profiler?.stages("render");
+    laneTiming?.next("all-lanes-svg");
     if (!hideStreetLines) {
       const lanes = element("g", { class: "ce-infill-lanes", "pointer-events": "none" });
       const trails = element("g", { class: "ce-infill-trails", "pointer-events": "none" });
@@ -212,7 +265,7 @@ export function renderTownFabric(
           lanes.appendChild(
             element("path", {
               d: path,
-              class: "ce-infill-lane",
+              class: lane.kind ? `ce-infill-lane ce-${lane.kind}` : "ce-infill-lane",
               ...(fixedMode ? { "stroke-linejoin": "round" } : {}),
               fill: "none",
               stroke: "#d5cfbf",
@@ -275,6 +328,7 @@ export function renderTownFabric(
       svg.appendChild(lanes);
       svg.appendChild(trails);
     }
+    laneTiming?.end();
   }
   const townParkLawns = facts.parks;
   if (townParkLawns.length) {

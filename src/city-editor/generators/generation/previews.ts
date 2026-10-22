@@ -11,6 +11,7 @@ import { spawnHarborShips } from "../harborShips";
 import { clone, facePoints } from "../mesh";
 import { preparePopulationGeneration } from "../populationGeneration";
 import { cultivateRoadside } from "../roadsideFarms";
+import { generateRuralFieldStage } from "../ruralFieldStage";
 import { townExtentMeters } from "../settlementExtent";
 import { applyPlan } from "./assembly/applyPlan";
 import type { Plan } from "./contracts";
@@ -99,16 +100,20 @@ export function generateStageOnDocument(
       const res = clone(full);
       delete res.appearance;
       delete res.fabric;
+      delete res.ruralFieldSnapshot;
       syncDocumentCemeteries(res);
       res.generationSeed = full.generationSeed ?? seed;
       return res;
     }
     if (stageStep === 8) {
       const res = clone(full);
+      delete res.ruralFieldSnapshot;
       syncDocumentCemeteries(res);
       res.generationSeed = full.generationSeed ?? seed;
       return res;
     }
+    if (stageStep >= 10) return generateRuralFieldStage(full);
+    delete full.ruralFieldSnapshot;
     return full;
   }
 

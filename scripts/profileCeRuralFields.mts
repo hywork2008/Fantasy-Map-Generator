@@ -1,0 +1,24 @@
+import fs from "node:fs";
+import { createHash } from "node:crypto";
+import { buildBlockFabric } from "../src/city-editor/generators/blockInfill";
+import { applyRuralFields } from "../src/city-editor/generators/ruralFields";
+import { profileRuralFieldGeneration } from "../src/city-editor/services/analysis/ruralFieldPerformance";
+import { parseDocument } from "../src/city-editor/services/io/documentCodec";
+
+const [input, output] = process.argv.slice(2);
+if (!input) throw new Error("Usage: node --import tsx scripts/profileCeRuralFields.mts city.json [report.json]");
+const document = parseDocument(fs.readFileSync(input, "utf8"));
+if (!document) throw new Error("Invalid CE document");
+const coreStarted = performance.now();
+const fabric = buildBlockFabric(document);
+const coreMs = performance.now() - coreStarted;
+const { result, report } = profileRuralFieldGeneration(document, fabric);
+const baselineStarted = performance.now();
+const unprofiled = applyRuralFields(document, fabric);
+const unprofiledMs = performance.now() - baselineStarted;
+const digest = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
+const geometryUnchanged = digest([result.farms, result.lanes]) === digest([unprofiled.farms, unprofiled.lanes]);
+const payload = { input, seed: document.generationSeed, settings: document.ruralFieldSettings ?? {}, extentMeters: document.frame.extentMeters, buildings: fabric.buildings.length, coreMs, ...report, unprofiledMs, geometryUnchanged, note: "Instrumented first run and uninstrumented warm run: their difference includes JIT/cache effects. Stage times include child operations; use selfMs to avoid double counting." };
+if (output) fs.writeFileSync(output, `${JSON.stringify(payload, null, 2)}\n`);
+console.table(report.timings.map(t => ({ phase: t.path, calls: t.calls, ms: +t.elapsedMs.toFixed(2), selfMs: +t.selfMs.toFixed(2) })));
+console.log(JSON.stringify({ ...payload, timings: undefined }, null, 2));

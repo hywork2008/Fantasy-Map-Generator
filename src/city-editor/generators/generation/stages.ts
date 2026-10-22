@@ -122,9 +122,16 @@ export const GENERATION_STAGE_DEFINITIONS: GenerationStageDefinition[] = [
     hintKey: "cityEditor.generationStages.buildings.hint"
   },
   {
-    id: "conceal",
+    id: "farmland",
     step: 17,
     processStep: 10,
+    labelKey: "cityEditor.generationStages.farmland.label",
+    hintKey: "cityEditor.generationStages.farmland.hint"
+  },
+  {
+    id: "conceal",
+    step: 18,
+    processStep: 11,
     labelKey: "cityEditor.generationStages.conceal.label",
     hintKey: "cityEditor.generationStages.conceal.hint"
   }
@@ -158,6 +165,7 @@ export function generationStageDefinitions(settings: GenerationSettings): Genera
     "geometry",
     "blocks",
     "buildings",
+    "farmland",
     "conceal"
   ];
   return ids.map((id, index) => {
@@ -194,6 +202,6 @@ export const SKELETON_STAGE_DEFINITIONS: GenerationStageDefinition[] = [
     hintKey: `cityEditor.generationStages.${id}.hint` as GenerationStageDefinition["hintKey"]
   })),
   ...GENERATION_STAGE_DEFINITIONS.filter(s =>
-    ["wards", "centerRoads", "townStreets", "geometry", "blocks", "buildings", "conceal"].includes(s.id)
+    ["wards", "centerRoads", "townStreets", "geometry", "blocks", "buildings", "farmland", "conceal"].includes(s.id)
   ).map((s, i) => ({ ...s, step: (i + 7) as GenerationStageDefinition["step"] }))
 ];

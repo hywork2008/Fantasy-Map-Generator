@@ -4,19 +4,31 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { createPontDuGard, PONT_DU_GARD, pontDuGardElevation } from "../buildings/aqueducts/pontDuGard";
 import { contentDigest } from "../buildings/canonicalJson";
 import { createStGeorgesChapel, ST_GEORGES_CHAPEL } from "../buildings/chapels/stGeorgesChapel";
+import { BARBICANS, createBarbican } from "../buildings/fortresses/barbicans";
 import { BOJNICE, bojnicePlan, createBojnice } from "../buildings/fortresses/bojnice";
 import { CHAMBORD, createChambord } from "../buildings/fortresses/chambord";
 import { KRAK, type KrakPhase } from "../buildings/fortresses/krak";
+import type { LandmarkModel } from "../buildings/landmarks/architectureKit";
+import type { MedievalModel } from "../buildings/medieval/modelKit";
 import { meshProjection } from "../buildings/meshProjection";
 import { createPostMill, POST_MILL } from "../buildings/mills/postMill";
 import { createTowerMill, TOWER_MILL } from "../buildings/mills/towerMill";
 import { createWaterMill, WATER_MILL } from "../buildings/mills/waterMill";
 import { committedSvgHash, levelPlanSvg, planSvg } from "../buildings/planSvg";
+import {
+  CONTAINER_KINDS,
+  CONTAINER_STATES,
+  createMedievalContainer,
+  MEDIEVAL_CONTAINER_NOTE,
+  MEDIEVAL_CONTAINERS
+} from "../buildings/props/medievalContainers";
 import { type BuildingRecord, TRIANGLE_BUDGET } from "../buildings/record";
 import { BARGE, createBarge } from "../buildings/ships/barge";
 import { CARRACK, createCarrack } from "../buildings/ships/carrack";
 import { createGalleon, GALLEON } from "../buildings/ships/galleon";
 import { createSloop, SLOOP } from "../buildings/ships/sloop";
+import { BATTERING_RAM, createBatteringRam } from "../buildings/siege/batteringRam";
+import { createEarlyFieldCannon, EARLY_FIELD_CANNON } from "../buildings/siege/earlyFieldCannon";
 import { createTrebuchet, TREBUCHET } from "../buildings/siege/trebuchet";
 import {
   createHangingSign,
@@ -27,8 +39,26 @@ import {
   SIGN_SYMBOLS
 } from "../buildings/signs/hangingSign";
 import { validateBuildingRecord } from "../buildings/validate";
+import { COVERED_WAGON, createCoveredWagon } from "../buildings/vehicles/coveredWagon";
+import {
+  AIRSHIP,
+  createAirship,
+  createHotAirBalloon,
+  createSteamLocomotive,
+  HOT_AIR_BALLOON,
+  STEAM_LOCOMOTIVE
+} from "../buildings/vehicles/industrialVehicles";
 import { createMedievalWagon, MEDIEVAL_WAGON } from "../buildings/vehicles/medievalWagon";
+import { createMinecart, MINECART } from "../buildings/vehicles/minecart";
+import { createNobleCarriage, NOBLE_CARRIAGE } from "../buildings/vehicles/nobleCarriage";
+import { createWarWagon, WAR_WAGON } from "../buildings/vehicles/warWagon";
 import { createMedievalWell, MEDIEVAL_WELL } from "../buildings/wells/medievalWell";
+import {
+  createPublicWaterBasin,
+  PUBLIC_WATER_BASIN_NOTE,
+  PUBLIC_WATER_BASINS,
+  WATER_BASIN_KINDS
+} from "../buildings/wells/publicWaterBasin";
 import { createMedievalLumberYard, MEDIEVAL_LUMBER_YARD } from "../buildings/yards/medievalLumberYard";
 import { catalogueMassing } from "../city3d/core/catalogueMassing";
 import { structureSurfaces } from "../city3d/core/structureGeometry";
@@ -108,6 +138,7 @@ const app = document.createElement("div");
 app.className = "bv-app";
 const list = document.createElement("nav");
 list.className = "bv-list";
+list.setAttribute("aria-label", "Model catalogue");
 const heading = document.createElement("h1");
 heading.textContent = "Building viewer";
 list.append(heading);
@@ -136,8 +167,19 @@ levelPane.append(levelTitle, floors, levelHost);
 plans.append(roofPane, levelPane);
 const facts = document.createElement("section");
 facts.className = "bv-facts";
-main.append(stage, plans, facts);
-app.append(list, main);
+const inspector = document.createElement("aside");
+inspector.className = "bv-inspector";
+inspector.setAttribute("aria-label", "Model options and details");
+const modelOptions = document.createElement("section");
+modelOptions.className = "bv-options";
+modelOptions.hidden = true;
+const optionsTitle = document.createElement("h2");
+optionsTitle.textContent = "Model options";
+const optionFields = document.createElement("div");
+modelOptions.append(optionsTitle, optionFields);
+inspector.append(modelOptions, facts);
+main.append(stage, plans);
+app.append(list, main, inspector);
 root.append(app);
 
 const canvas = document.createElement("canvas");
@@ -189,6 +231,8 @@ function frame(record: Pick<BuildingRecord, "occupancyMeters">, height: number):
 }
 
 function clearMesh(): void {
+  optionFields.replaceChildren();
+  modelOptions.hidden = true;
   ground.visible = false;
   studyWater?.dispose();
   studyWater = null;
@@ -337,10 +381,22 @@ async function showFortress(phase: KrakPhase): Promise<void> {
   facts.append(download);
 }
 
+function modelCategory(title: string, open = false): HTMLDetailsElement {
+  const category = document.createElement("details");
+  category.className = "bv-category";
+  category.open = open;
+  const summary = document.createElement("summary");
+  summary.textContent = title;
+  category.append(summary);
+  list.append(category);
+  return category;
+}
+
+const catalogue = modelCategory("Building catalogue", true);
 if (!entries.length) {
   const empty = document.createElement("p");
   empty.textContent = "No buildings are in the catalogue.";
-  list.append(empty);
+  catalogue.append(empty);
 } else {
   for (const entry of entries) {
     const button = document.createElement("button");
@@ -354,15 +410,12 @@ if (!entries.length) {
     meta.textContent = `${PERIOD[entry.record.period] ?? entry.record.period} · ${label(entry.record.planFamily ?? "unspecified")} · ${entry.record.occupancyMeters.width} × ${entry.record.occupancyMeters.depth} m`;
     button.append(name, meta);
     button.addEventListener("click", () => show(entry));
-    list.append(button);
+    catalogue.append(button);
   }
   show(entries[0]);
 }
 
-const assemblies = document.createElement("h2");
-const aqueducts = document.createElement("h2");
-aqueducts.textContent = "Aqueduct assemblies";
-list.append(aqueducts);
+const aqueducts = modelCategory("Aqueduct assemblies");
 const aqueductButton = document.createElement("button");
 aqueductButton.type = "button";
 aqueductButton.textContent = "Pont du Gard · Roman aqueduct";
@@ -402,10 +455,8 @@ aqueductButton.addEventListener("click", () => {
     fact("Omitted", "Modern road bridge, damage, weathering, terrain and individual masonry blocks")
   );
 });
-list.append(aqueductButton);
-const chapels = document.createElement("h2");
-chapels.textContent = "Chapel assemblies";
-list.append(chapels);
+aqueducts.append(aqueductButton);
+const chapels = modelCategory("Chapel assemblies");
 const stGeorgesButton = document.createElement("button");
 stGeorgesButton.type = "button";
 stGeorgesButton.textContent = "St George's Chapel · Windsor Castle";
@@ -445,9 +496,94 @@ stGeorgesButton.addEventListener("click", () => {
   source.rel = "noreferrer";
   facts.append(source);
 });
-list.append(stGeorgesButton);
-assemblies.textContent = "Fortress assemblies";
-list.append(assemblies);
+chapels.append(stGeorgesButton);
+const landmarkModules = import.meta.glob<LandmarkModel>(
+  [
+    "../buildings/landmarks/*.ts",
+    "!../buildings/landmarks/*.test.ts",
+    "!../buildings/landmarks/architectureKit.ts",
+    "!../buildings/landmarks/landmarkTestSupport.ts"
+  ],
+  { eager: true, import: "model" }
+);
+for (const style of ["Gothic", "Romanesque"] as const) {
+  const category = modelCategory(`${style} landmarks`);
+  for (const model of Object.values(landmarkModules)
+    .filter(model => model.style === style)
+    .sort((a, b) => a.task.localeCompare(b.task))) {
+    const button = document.createElement("button");
+    button.type = "button";
+    category.append(button);
+    button.textContent = `${model.task} · ${model.name}`;
+    button.dataset.id = model.id;
+    const showLandmark = (definition: LandmarkModel = model) => {
+      selection++;
+      for (const other of list.querySelectorAll("button")) other.setAttribute("aria-current", String(other === button));
+      clearMesh();
+      floors.replaceChildren();
+      facts.replaceChildren();
+      banner.hidden = true;
+      roofTitle.textContent = "Exterior roof plan";
+      levelTitle.textContent = "South elevation";
+      if (model.highDetail) {
+        modelOptions.hidden = false;
+        const row = document.createElement("label");
+        row.textContent = "Resolution: ";
+        const resolution = document.createElement("select");
+        for (const [value, title] of [
+          ["low", "Low resolution (default)"],
+          ["high", "High resolution"]
+        ]) {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = title;
+          resolution.append(option);
+        }
+        resolution.value = definition === model ? "low" : "high";
+        resolution.addEventListener("change", () =>
+          showLandmark(resolution.value === "high" ? model.highDetail : model)
+        );
+        row.append(resolution);
+        const paragraph = document.createElement("p");
+        paragraph.append(row);
+        optionFields.append(paragraph);
+      }
+      massing = definition.create();
+      scene.add(massing.group);
+      ground.visible = true;
+      frame({ occupancyMeters: { width: definition.size[0], depth: definition.size[1] } }, definition.size[2]);
+      // Fit the actual bounding sphere to both viewport axes, including very tall spires.
+      const sphere = new THREE.Box3().setFromObject(massing.group).getBoundingSphere(new THREE.Sphere());
+      const halfFov = Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * Math.min(1, camera.aspect));
+      const distance = (sphere.radius / Math.sin(halfFov)) * 1.08;
+      camera.position.copy(new THREE.Vector3(-1, 0.7, 1.1).normalize().multiplyScalar(distance).add(sphere.center));
+      controls.target.copy(sphere.center);
+      controls.update();
+      mountPlan(roofHost, meshProjection(massing, "top"));
+      mountPlan(levelHost, meshProjection(massing, "side"));
+      facts.append(
+        fact("Model", definition.name),
+        fact("Style", definition.style),
+        fact("State", definition.state),
+        fact("Study envelope", `${definition.size.join(" × ")} m`),
+        fact("Dimensions", definition.dimensions),
+        fact("Note", definition.note)
+      );
+      for (const source of definition.sources) {
+        const row = document.createElement("p");
+        const link = document.createElement("a");
+        link.href = source.url;
+        link.textContent = source.title;
+        link.target = "_blank";
+        link.rel = "noreferrer";
+        row.append(link);
+        facts.append(row);
+      }
+    };
+    button.addEventListener("click", () => showLandmark());
+  }
+}
+const assemblies = modelCategory("Fortress assemblies");
 const bojniceButton = document.createElement("button");
 bojniceButton.type = "button";
 bojniceButton.textContent = "Bojnice Castle · Romantic reconstruction";
@@ -486,7 +622,7 @@ bojniceButton.addEventListener("click", () => {
   source.rel = "noreferrer";
   facts.append(source);
 });
-list.append(bojniceButton);
+assemblies.append(bojniceButton);
 const chambordButton = document.createElement("button");
 chambordButton.type = "button";
 chambordButton.textContent = "Château de Chambord · French Renaissance";
@@ -529,7 +665,7 @@ chambordButton.addEventListener("click", () => {
   source.rel = "noreferrer";
   facts.append(source);
 });
-list.append(chambordButton);
+assemblies.append(chambordButton);
 for (const phase of ["hospitalier-1270", "mamluk-1302"] as const) {
   const button = document.createElement("button");
   button.type = "button";
@@ -541,12 +677,10 @@ for (const phase of ["hospitalier-1270", "mamluk-1302"] as const) {
       banner.textContent = error instanceof Error ? error.message : String(error);
     });
   });
-  list.append(button);
+  assemblies.append(button);
 }
 
-const shipsHeading = document.createElement("h2");
-shipsHeading.textContent = "Ships";
-list.append(shipsHeading);
+const shipsHeading = modelCategory("Ships");
 const carrackButton = document.createElement("button");
 carrackButton.type = "button";
 carrackButton.textContent = "Carrack · High-castled merchant ship";
@@ -588,7 +722,7 @@ carrackButton.addEventListener("click", () => {
   source.rel = "noreferrer";
   facts.append(source);
 });
-list.append(carrackButton);
+shipsHeading.append(carrackButton);
 
 const galleonButton = document.createElement("button");
 galleonButton.type = "button";
@@ -625,7 +759,7 @@ galleonButton.addEventListener("click", () => {
     fact("Note", GALLEON.note)
   );
 });
-list.append(galleonButton);
+shipsHeading.append(galleonButton);
 
 const sloopButton = document.createElement("button");
 sloopButton.type = "button";
@@ -662,7 +796,7 @@ sloopButton.addEventListener("click", () => {
     fact("Note", SLOOP.note)
   );
 });
-list.append(sloopButton);
+shipsHeading.append(sloopButton);
 
 const bargeButton = document.createElement("button");
 bargeButton.type = "button";
@@ -700,11 +834,9 @@ bargeButton.addEventListener("click", () => {
     fact("Note", BARGE.note)
   );
 });
-list.append(bargeButton);
+shipsHeading.append(bargeButton);
 
-const siegeHeading = document.createElement("h2");
-siegeHeading.textContent = "Siege engines";
-list.append(siegeHeading);
+const siegeHeading = modelCategory("Siege engines");
 const trebuchetButton = document.createElement("button");
 trebuchetButton.type = "button";
 trebuchetButton.textContent = "Trebuchet · Hinged counterweight";
@@ -738,11 +870,87 @@ trebuchetButton.addEventListener("click", () => {
     fact("Note", TREBUCHET.note)
   );
 });
-list.append(trebuchetButton);
+siegeHeading.append(trebuchetButton);
 
-const millsHeading = document.createElement("h2");
-millsHeading.textContent = "Mills";
-list.append(millsHeading);
+const ramButton = document.createElement("button");
+ramButton.type = "button";
+ramButton.textContent = "Battering ram · Medieval European covered ram";
+ramButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === ramButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Battering ram side elevation";
+  levelTitle.textContent = "Battering ram plan";
+  const model = createBatteringRam();
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: BATTERING_RAM.length, depth: BATTERING_RAM.width } }, BATTERING_RAM.height);
+  camera.position.set(8, 5, 9);
+  controls.target.set(0.3, 1.65, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", BATTERING_RAM.name),
+    fact("Style", "Medieval Europe · Covered siege ram"),
+    fact("Study envelope", `${BATTERING_RAM.length} × ${BATTERING_RAM.width} × ${BATTERING_RAM.height} m`),
+    fact("Ram", "Suspended oak log, rope cradles, iron bindings, blunt iron head and crew hand grips"),
+    fact("Protection", "Hide-covered timber roof, braced open frame and four iron-bound wooden wheels"),
+    fact("Note", BATTERING_RAM.note)
+  );
+});
+siegeHeading.append(ramButton);
+
+const artilleryHeading = modelCategory("Artillery");
+const cannonButton = document.createElement("button");
+cannonButton.type = "button";
+cannonButton.textContent = "Early field cannon · Europe c. 1500";
+cannonButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === cannonButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Field cannon side elevation";
+  levelTitle.textContent = "Field cannon plan";
+  const model = createEarlyFieldCannon();
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame(
+    { occupancyMeters: { width: EARLY_FIELD_CANNON.length, depth: EARLY_FIELD_CANNON.width } },
+    EARLY_FIELD_CANNON.height
+  );
+  camera.position.set(4.6, 3.1, 5.2);
+  controls.target.set(-0.2, 0.8, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", EARLY_FIELD_CANNON.name),
+    fact("Period", "Late medieval / Age of Discovery · Europe, circa 1500"),
+    fact("Type", "Muzzle-loading land artillery on a two-wheeled field carriage"),
+    fact(
+      "Study envelope",
+      `${EARLY_FIELD_CANNON.length} × ${EARLY_FIELD_CANNON.width} × ${EARLY_FIELD_CANNON.height} m`
+    ),
+    fact("Barrel", "Tapered bronze tube, open muzzle, reinforcing mouldings, trunnions and cascabel"),
+    fact("Carriage", "Iron-bound oak wheels, timber cheeks, ground-resting trail and wooden elevation quoin"),
+    fact("Note", EARLY_FIELD_CANNON.note)
+  );
+});
+artilleryHeading.append(cannonButton);
+
+const millsHeading = modelCategory("Mills");
 const postMillButton = document.createElement("button");
 postMillButton.type = "button";
 postMillButton.textContent = "Medieval windmill · Timber post mill";
@@ -776,7 +984,7 @@ postMillButton.addEventListener("click", () => {
     fact("Note", POST_MILL.note)
   );
 });
-list.append(postMillButton);
+millsHeading.append(postMillButton);
 
 const towerMillButton = document.createElement("button");
 towerMillButton.type = "button";
@@ -811,7 +1019,7 @@ towerMillButton.addEventListener("click", () => {
     fact("Note", TOWER_MILL.note)
   );
 });
-list.append(towerMillButton);
+millsHeading.append(towerMillButton);
 
 const waterMillButton = document.createElement("button");
 waterMillButton.type = "button";
@@ -846,11 +1054,9 @@ waterMillButton.addEventListener("click", () => {
     fact("Note", WATER_MILL.note)
   );
 });
-list.append(waterMillButton);
+millsHeading.append(waterMillButton);
 
-const wellsHeading = document.createElement("h2");
-wellsHeading.textContent = "Wells";
-list.append(wellsHeading);
+const wellsHeading = modelCategory("Wells");
 const wellButton = document.createElement("button");
 wellButton.type = "button";
 wellButton.textContent = "Medieval European well · Stone and timber";
@@ -884,11 +1090,94 @@ wellButton.addEventListener("click", () => {
     fact("Note", MEDIEVAL_WELL.note)
   );
 });
-list.append(wellButton);
+wellsHeading.append(wellButton);
 
-const yardsHeading = document.createElement("h2");
-yardsHeading.textContent = "Work yards";
-list.append(yardsHeading);
+for (const kind of WATER_BASIN_KINDS) {
+  const spec = PUBLIC_WATER_BASINS[kind];
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = spec.name;
+  button.addEventListener("click", () => {
+    selection++;
+    for (const item of list.querySelectorAll("button")) {
+      item.setAttribute("aria-current", item === button ? "true" : "false");
+    }
+    clearMesh();
+    floors.replaceChildren();
+    facts.replaceChildren();
+    banner.hidden = true;
+    roofTitle.textContent = "Waterworks front elevation";
+    levelTitle.textContent = "Waterworks top view";
+    const model = createPublicWaterBasin(kind);
+    massing = model;
+    scene.add(model.group);
+    ground.visible = true;
+    frame({ occupancyMeters: { width: spec.width, depth: spec.depth } }, spec.height);
+    camera.position.set(5.5, 4.7, 6.5);
+    controls.target.set(0, spec.height * 0.4, 0);
+    controls.update();
+    mountPlan(roofHost, model.elevation);
+    mountPlan(levelHost, model.plan);
+    facts.append(
+      fact("Model", spec.name),
+      fact("Study envelope", `${spec.width} × ${spec.depth} × ${spec.height} m`),
+      fact("Ground contact", "Base Y = 0 m"),
+      fact("Note", PUBLIC_WATER_BASIN_NOTE)
+    );
+  });
+  wellsHeading.append(button);
+}
+
+const containersHeading = modelCategory("Storage props");
+for (const kind of CONTAINER_KINDS) {
+  for (const state of CONTAINER_STATES) {
+    const spec = MEDIEVAL_CONTAINERS[kind];
+    const button = document.createElement("button");
+    button.type = "button";
+    const stateLabel = state === "closed" && kind === "sack" ? "Tied" : label(state);
+    button.textContent = `${spec.name} · ${stateLabel}`;
+    button.addEventListener("click", () => {
+      selection++;
+      for (const item of list.querySelectorAll("button")) {
+        item.setAttribute("aria-current", item === button ? "true" : "false");
+      }
+      clearMesh();
+      floors.replaceChildren();
+      facts.replaceChildren();
+      banner.hidden = true;
+      roofTitle.textContent = "Container front elevation";
+      levelTitle.textContent = "Container top view";
+      const model = createMedievalContainer(kind, state);
+      massing = model;
+      scene.add(model.group);
+      ground.visible = true;
+      const size = Math.max(spec.width, spec.depth, spec.height);
+      ground.geometry.dispose();
+      ground.geometry = new THREE.CircleGeometry(size * 1.3, 48);
+      camera.position.set(size * 1.65, size * 1.6, size * 1.9);
+      controls.target.set(0, spec.height * 0.43, 0);
+      controls.update();
+      mountPlan(roofHost, model.elevation);
+      mountPlan(levelHost, model.plan);
+      const bounds = new THREE.Box3().setFromObject(model.group);
+      const dimensions = bounds.getSize(new THREE.Vector3());
+      facts.append(
+        fact("Model", spec.name),
+        fact("State", stateLabel),
+        fact("Study envelope", `${spec.width} × ${spec.depth} × ${spec.height} m`),
+        fact(
+          "Mesh dimensions",
+          `${dimensions.x.toFixed(3)} × ${dimensions.z.toFixed(3)} × ${dimensions.y.toFixed(3)} m`
+        ),
+        fact("Ground contact", `Base Y = ${(Math.abs(bounds.min.y) < 0.0005 ? 0 : bounds.min.y).toFixed(3)} m`),
+        fact("Note", MEDIEVAL_CONTAINER_NOTE)
+      );
+    });
+    containersHeading.append(button);
+  }
+}
+
+const yardsHeading = modelCategory("Work yards");
 const lumberYardButton = document.createElement("button");
 lumberYardButton.type = "button";
 lumberYardButton.textContent = "Medieval European lumber yard · Timber storage";
@@ -928,11 +1217,85 @@ lumberYardButton.addEventListener("click", () => {
     fact("Note", MEDIEVAL_LUMBER_YARD.note)
   );
 });
-list.append(lumberYardButton);
+yardsHeading.append(lumberYardButton);
 
-const vehiclesHeading = document.createElement("h2");
-vehiclesHeading.textContent = "Vehicles";
-list.append(vehiclesHeading);
+const vehiclesHeading = modelCategory("Vehicles");
+for (const [definition, create] of [
+  [HOT_AIR_BALLOON, createHotAirBalloon],
+  [AIRSHIP, createAirship],
+  [STEAM_LOCOMOTIVE, createSteamLocomotive]
+] as const) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = definition.name;
+  button.addEventListener("click", () => {
+    selection++;
+    for (const entry of list.querySelectorAll("button")) {
+      entry.setAttribute("aria-current", entry === button ? "true" : "false");
+    }
+    clearMesh();
+    floors.replaceChildren();
+    facts.replaceChildren();
+    banner.hidden = true;
+    roofTitle.textContent = `${definition.name} side elevation`;
+    levelTitle.textContent = `${definition.name} plan`;
+    const model = create();
+    massing = model;
+    scene.add(model.group);
+    ground.visible = true;
+    frame({ occupancyMeters: { width: definition.length, depth: definition.width } }, definition.height);
+    mountPlan(roofHost, model.elevation);
+    mountPlan(levelHost, model.plan);
+    const triangles = model.pickables.reduce(
+      (sum, mesh) => sum + (mesh.geometry.index?.count ?? mesh.geometry.getAttribute("position").count) / 3,
+      0
+    );
+    facts.append(
+      fact("Model", definition.name),
+      fact("Style", "Low-poly · Untextured flat-shaded geometry"),
+      fact("Study envelope", `${definition.length} × ${definition.width} × ${definition.height} m`),
+      fact("Triangles", triangles.toLocaleString("en-US")),
+      fact("Note", definition.note)
+    );
+  });
+  vehiclesHeading.append(button);
+}
+
+const minecartButton = document.createElement("button");
+minecartButton.type = "button";
+minecartButton.textContent = "Minecart · Timber mining cart";
+minecartButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === minecartButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Minecart side elevation";
+  levelTitle.textContent = "Minecart plan";
+  const model = createMinecart();
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: MINECART.length, depth: MINECART.width } }, MINECART.height);
+  camera.position.set(3.5, 2.7, 3.8);
+  controls.target.set(0, 0.7, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", MINECART.name),
+    fact("Type", "Hand-pushed mining cart"),
+    fact("Study envelope", `${MINECART.length} × ${MINECART.width} × ${MINECART.height} m, including display track`),
+    fact("Body", "Empty sloping plank box, iron straps, rivets and end handles"),
+    fact("Running gear", "Four flanged iron wheels on two axles; short narrow-gauge track on timber sleepers"),
+    fact("Note", MINECART.note)
+  );
+});
+vehiclesHeading.append(minecartButton);
+
 const wagonButton = document.createElement("button");
 wagonButton.type = "button";
 wagonButton.textContent = "Medieval European wagon · Four-wheeled freight wagon";
@@ -966,11 +1329,172 @@ wagonButton.addEventListener("click", () => {
     fact("Note", MEDIEVAL_WAGON.note)
   );
 });
-list.append(wagonButton);
+vehiclesHeading.append(wagonButton);
 
-const signsHeading = document.createElement("h2");
-signsHeading.textContent = "Hanging shop signs";
-list.append(signsHeading);
+const coveredWagonButton = document.createElement("button");
+coveredWagonButton.type = "button";
+coveredWagonButton.textContent = "Covered wagon · Canvas-covered freight wagon";
+coveredWagonButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === coveredWagonButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Covered wagon side elevation";
+  levelTitle.textContent = "Covered wagon canopy plan";
+  const model = createCoveredWagon();
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: COVERED_WAGON.length, depth: COVERED_WAGON.width } }, COVERED_WAGON.height);
+  camera.position.set(7, 4.8, 8);
+  controls.target.set(0.55, 1.65, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", COVERED_WAGON.name),
+    fact("Style", "Pre-industrial · Timber freight wagon with a canvas cover"),
+    fact("Study envelope", `${COVERED_WAGON.length} × ${COVERED_WAGON.width} × ${COVERED_WAGON.height} m`),
+    fact("Cover", "Unbleached canvas on five wooden bows; stitched seams, rope lashings and rolled end curtains"),
+    fact("Body", "Empty plank bed; open front and rear above the end boards"),
+    fact("Running gear", "Four iron-bound spoked wheels, driver's bench and twin shafts; no animals"),
+    fact("Note", COVERED_WAGON.note)
+  );
+});
+vehiclesHeading.append(coveredWagonButton);
+
+const nobleCarriageButton = document.createElement("button");
+nobleCarriageButton.type = "button";
+nobleCarriageButton.textContent = "Noble carriage · Medieval European covered carriage";
+nobleCarriageButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === nobleCarriageButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Carriage side elevation";
+  levelTitle.textContent = "Carriage canopy plan";
+  const model = createNobleCarriage();
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: NOBLE_CARRIAGE.length, depth: NOBLE_CARRIAGE.width } }, NOBLE_CARRIAGE.height);
+  camera.position.set(7, 4.8, 8);
+  controls.target.set(0.55, 1.65, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", NOBLE_CARRIAGE.name),
+    fact("Style", "Late medieval Europe · Noble household traveling wagon"),
+    fact("Study envelope", `${NOBLE_CARRIAGE.length} × ${NOBLE_CARRIAGE.width} × ${NOBLE_CARRIAGE.height} m`),
+    fact("Body", "Blue painted timber, burgundy textile canopy, tied curtains and gilded heraldic shields"),
+    fact("Interior", "Facing cushioned benches, low side doors and boarding steps; unglazed openings"),
+    fact("Running gear", "Four iron-bound spoked wheels, front axle pivot, driver's bench and twin shafts; no animals"),
+    fact("Note", NOBLE_CARRIAGE.note)
+  );
+});
+vehiclesHeading.append(nobleCarriageButton);
+
+const warWagonButton = document.createElement("button");
+warWagonButton.type = "button";
+warWagonButton.textContent = "War wagon · Medieval European defensive wagon";
+warWagonButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === warWagonButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "War wagon side elevation";
+  levelTitle.textContent = "War wagon plan";
+  const model = createWarWagon();
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: WAR_WAGON.length, depth: WAR_WAGON.width } }, WAR_WAGON.height);
+  camera.position.set(8, 6, 9);
+  controls.target.set(0.6, 1.45, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", WAR_WAGON.name),
+    fact("Style", "Late medieval Europe · Wagon-fort inspired defensive wagon"),
+    fact("Study envelope", `${WAR_WAGON.length} × ${WAR_WAGON.width} × ${WAR_WAGON.height} m`),
+    fact(
+      "Defenses",
+      "High iron-strapped timber walls with four firing apertures on each side; open fighting compartment"
+    ),
+    fact("Running gear", "Four iron-bound spoked wheels, front axle kingpin and wooden drawbar; no animals"),
+    fact("Access", "Closed rear double doors, iron hinges and latch, and a boarding step"),
+    fact("Note", WAR_WAGON.note)
+  );
+});
+vehiclesHeading.append(warWagonButton);
+
+const barbicansHeading = modelCategory("Barbicans");
+for (const definition of BARBICANS) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = definition.name;
+  button.dataset.barbicanId = definition.id;
+  button.addEventListener("click", () => {
+    selection++;
+    for (const item of list.querySelectorAll("button"))
+      item.setAttribute("aria-current", item === button ? "true" : "false");
+    clearMesh();
+    floors.replaceChildren();
+    facts.replaceChildren();
+    banner.hidden = true;
+    roofTitle.textContent = "Barbican front elevation";
+    levelTitle.textContent = "Barbican top view";
+    const model = createBarbican(definition);
+    massing = model;
+    scene.add(model.group);
+    ground.visible = true;
+    const bounds = new THREE.Box3().setFromObject(model.group, true);
+    const center = bounds.getCenter(new THREE.Vector3());
+    const size = bounds.getSize(new THREE.Vector3());
+    const radius = Math.max(size.x, size.y, size.z);
+    camera.position.copy(center).add(new THREE.Vector3(radius * 0.9, radius, radius * 1.2));
+    controls.target.copy(center);
+    controls.update();
+    ground.geometry.dispose();
+    ground.geometry = new THREE.CircleGeometry(radius, 48);
+    mountPlan(roofHost, meshProjection(model, "side"));
+    mountPlan(levelHost, meshProjection(model, "top"));
+    facts.append(
+      fact("Model", definition.name),
+      fact("Period", definition.period),
+      fact("Mesh dimensions", `${size.x.toFixed(2)} × ${size.z.toFixed(2)} × ${size.y.toFixed(2)} m`),
+      fact("Construction", definition.note),
+      fact("Connection", "Castle gate attaches at negative Z. Both entrances are open; the court is unroofed."),
+      fact(
+        "Scope",
+        "Illustrative independent forework; dimensions are invented. Top view projects the actual 3D mesh. CE placement is separate."
+      )
+    );
+    const reference = document.createElement("a");
+    reference.href = definition.reference.url;
+    reference.textContent = definition.reference.title;
+    reference.target = "_blank";
+    reference.rel = "noopener noreferrer";
+    facts.append(reference);
+  });
+  barbicansHeading.append(button);
+}
+
+const signsHeading = modelCategory("Hanging shop signs");
 function showSign(options: HangingSignOptions, activeButton: HTMLButtonElement): void {
   selection++;
   for (const button of list.querySelectorAll("button")) {
@@ -991,6 +1515,7 @@ function showSign(options: HangingSignOptions, activeButton: HTMLButtonElement):
   mountPlan(roofHost, model.elevation);
   mountPlan(levelHost, model.plan);
   facts.append(fact("Model", "Modular hanging shop sign"));
+  modelOptions.hidden = false;
   function selector<T extends string>(name: string, values: readonly T[], selected: T, change: (value: T) => void) {
     const row = document.createElement("label");
     row.textContent = `${name}: `;
@@ -1006,7 +1531,7 @@ function showSign(options: HangingSignOptions, activeButton: HTMLButtonElement):
     row.append(select);
     const paragraph = document.createElement("p");
     paragraph.append(row);
-    facts.append(paragraph);
+    optionFields.append(paragraph);
   }
   selector("Shape", SIGN_SHAPES, options.shape ?? "rectangle", shape => showSign({ ...options, shape }, activeButton));
   selector("Material", SIGN_MATERIALS, options.material ?? "oak", material =>
@@ -1033,7 +1558,70 @@ for (const template of [
   button.type = "button";
   button.textContent = `${label(template.id)} · Hanging sign`;
   button.addEventListener("click", () => showSign(template, button));
-  list.append(button);
+  signsHeading.append(button);
+}
+
+const medievalModules = import.meta.glob<{ models: MedievalModel[] }>("../buildings/medieval/*Models.ts", {
+  eager: true
+});
+for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => a.localeCompare(b))) {
+  const task = module.models[0].task;
+  const category = modelCategory(
+    `Medieval ${String(task).padStart(2, "0")} · ${label(
+      file
+        .split("/")
+        .at(-1)!
+        .replace(/^\d+-|Models.ts$/g, "")
+    )}`
+  );
+  for (const definition of module.models) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = definition.name;
+    button.dataset.medievalId = definition.id;
+    button.addEventListener("click", () => {
+      selection++;
+      for (const item of list.querySelectorAll("button"))
+        item.setAttribute("aria-current", item === button ? "true" : "false");
+      clearMesh();
+      floors.replaceChildren();
+      facts.replaceChildren();
+      banner.hidden = true;
+      roofTitle.textContent = "Front elevation";
+      levelTitle.textContent = "Top view";
+      const model = definition.create();
+      massing = model;
+      scene.add(model.group);
+      ground.visible = true;
+      const bounds = new THREE.Box3().setFromObject(model.group, true);
+      const center = bounds.getCenter(new THREE.Vector3());
+      const size = bounds.getSize(new THREE.Vector3());
+      const radius = Math.max(size.x, size.y, size.z, 0.6);
+      camera.position.copy(center).add(new THREE.Vector3(radius * 1.15, radius * 0.9, radius * 1.3));
+      controls.target.copy(center);
+      controls.update();
+      ground.geometry.dispose();
+      ground.geometry = new THREE.CircleGeometry(radius * 0.85, 48);
+      mountPlan(roofHost, meshProjection(model, "side"));
+      mountPlan(levelHost, meshProjection(model, "top"));
+      facts.append(
+        fact("Model", definition.name),
+        fact("Task", String(task).padStart(2, "0")),
+        fact("Mesh dimensions", `${size.x.toFixed(2)} × ${size.z.toFixed(2)} × ${size.y.toFixed(2)} m`),
+        fact("Ground contact", `Base Y = ${(Math.abs(bounds.min.y) < 0.0005 ? 0 : bounds.min.y).toFixed(3)} m`),
+        fact("Construction", definition.note),
+        fact(
+          "Scope",
+          definition.task === 33
+            ? "CE-fitted friary assembly; meter units. BV and CE share the same construction."
+            : definition.task === 43 || definition.task === 44
+              ? "Schematic landscape or funerary model; meter units. Shared with CE park and cemetery 3D placement."
+              : "Illustrative medieval or early modern model; meter units. CE automatic placement is separate."
+        )
+      );
+    });
+    category.append(button);
+  }
 }
 
 resize();

@@ -20,7 +20,7 @@
  */
 
 import { circuitRing, townCircuits } from "../generators/fortifications";
-import { polygonCentroid } from "../generators/geom";
+import { polygonArea, polygonCentroid } from "../generators/geom";
 import { facePoints } from "../generators/mesh";
 import type { CastleStyle } from "../types/contracts/castlePatterns";
 import type { CastlePart, CastlePlan, CityDocument, Point } from "../types/document";
@@ -76,6 +76,49 @@ export interface FortressPlan {
 }
 
 const BASE_CASTLE_WALL_METERS = 4.2;
+
+/** Signed turns use polygon winding, so concave corners are rejected in either order. */
+function outwardCorner(ring: Point[], index: number): boolean {
+  const a = ring[(index + ring.length - 1) % ring.length];
+  const b = ring[index];
+  const c = ring[(index + 1) % ring.length];
+  const ux = b[0] - a[0];
+  const uy = b[1] - a[1];
+  const vx = c[0] - b[0];
+  const vy = c[1] - b[1];
+  const lengths = Math.hypot(ux, uy) * Math.hypot(vx, vy);
+  return lengths > 1e-8 && ((ux * vy - uy * vx) * -Math.sign(polygonArea(ring))) / lengths > 1e-6;
+}
+
+/** Keep original wall anchors instead of merging towers into an off-wall midpoint. */
+function fitTowers(plan: FortressPlan, ring: Point[]): FortressPlan {
+  const rings = [ring, ...plan.ramparts.filter(r => r.kind === "inner_wall").map(r => r.polygon)];
+  const candidates = plan.towers.filter(tower =>
+    rings.every(boundary => {
+      const index = boundary.findIndex(p => Math.hypot(p[0] - tower.point[0], p[1] - tower.point[1]) < 1e-6);
+      return index < 0 || outwardCorner(boundary, index);
+    })
+  );
+  const radius = (tower: TowerGeometry): number =>
+    tower.polygon
+      ? Math.max(...tower.polygon.map(p => Math.hypot(p[0] - tower.point[0], p[1] - tower.point[1])))
+      : (tower.radius ?? 0);
+  // Larger footprints first, with coordinate tie-breaks independent of boundary winding.
+  candidates.sort((a, b) => radius(b) - radius(a) || a.point[0] - b.point[0] || a.point[1] - b.point[1]);
+  const accepted: TowerGeometry[] = [];
+  for (const tower of candidates) {
+    if (
+      accepted.every(
+        other =>
+          Math.hypot(tower.point[0] - other.point[0], tower.point[1] - other.point[1]) >=
+          radius(tower) + radius(other) + 1
+      )
+    )
+      accepted.push(tower);
+  }
+  plan.towers = accepted;
+  return plan;
+}
 
 /**
  * 城の防壁が市壁より弱く見えないよう、城郭回路と市街回路の壁群のうち最大の厚みを返す。
@@ -456,7 +499,16 @@ function buildBastionCitadel(ring: Point[], center: Point, gatePoint: Point, _pa
   // Star Bastions on outer corners
   for (let i = 0; i < ring.length; i++) {
     const p = ring[i];
-    const outAngle = Math.atan2(p[1] - center[1], p[0] - center[0]);
+    if (!outwardCorner(ring, i)) continue;
+    const previous = ring[(i + ring.length - 1) % ring.length];
+    const next = ring[(i + 1) % ring.length];
+    const incoming = Math.hypot(p[0] - previous[0], p[1] - previous[1]);
+    const outgoing = Math.hypot(next[0] - p[0], next[1] - p[1]);
+    const winding = -Math.sign(polygonArea(ring));
+    // Average adjacent outward unit normals; the centroid may lie outside a concave site.
+    const nx = winding * ((p[1] - previous[1]) / incoming + (next[1] - p[1]) / outgoing);
+    const ny = -winding * ((p[0] - previous[0]) / incoming + (next[0] - p[0]) / outgoing);
+    const outAngle = Math.atan2(ny, nx);
     const bastionPoly = createBastionPolygon(p, 8.5, outAngle);
     plan.towers.push({
       kind: "star_bastion",
@@ -1058,6 +1110,10 @@ export function buildFortressPlan(
   if (ring.length < 3 && castle.courtyards.length > 0) {
     ring = castle.courtyards[0];
   }
+  ring = ring.filter((p, i) => {
+    const previous = ring[(i + ring.length - 1) % ring.length];
+    return Math.hypot(p[0] - previous[0], p[1] - previous[1]) > 1e-6;
+  });
   const center = ring.length >= 3 ? polygonCentroid(ring) : ([0, 0] as Point);
 
   const gate = document.gates?.find(g => g.ownerCastleId === castle.id);
@@ -1095,9 +1151,12 @@ export function buildFortressPlan(
       plan = buildNormanKeep(ring, center, gatePoint, castle.parts);
       break;
   }
-  return scaleToWallWidth(
-    applySavedBuildings(plan, castle.parts, profile),
-    castleWallWidthMeters(document, castle),
-    castleTowerRadiusMeters(document, castle)
+  return fitTowers(
+    scaleToWallWidth(
+      applySavedBuildings(plan, castle.parts, profile),
+      castleWallWidthMeters(document, castle),
+      castleTowerRadiusMeters(document, castle)
+    ),
+    ring
   );
 }

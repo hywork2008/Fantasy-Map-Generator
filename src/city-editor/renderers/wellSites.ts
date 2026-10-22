@@ -2,17 +2,24 @@ import type { WellSite } from "../../city3d/three/wellMeshes";
 import type { DistrictFabric } from "../generators/blockInfill";
 import type { CityDocument } from "../types/document";
 
-/** Reuse the same well locations as the town SVG; cisterns, springs and ponds stay distinct. */
+/** Use planned waterworks for both views; older fabrics fall back to plaza basins. */
 export function collectWellSites(city: CityDocument, fabric: DistrictFabric): WellSite[] {
   const aerial = fabric.aerialLandmarks;
   const sites: WellSite[] = (aerial?.domesticWater ?? [])
-    .filter(water => water.kind === "well")
-    .map(water => ({ id: water.id, point: water.center }));
+    .filter(water => water.kind === "well" || water.kind === "publicBasin")
+    .map(water => ({
+      id: water.id,
+      point: water.center,
+      ...(water.kind === "publicBasin" ? { kind: "publicBasin" as const } : {})
+    }));
   for (const element of city.elements) {
-    if (element.kind === "plaza" && element.point) sites.push({ id: element.id, point: element.point });
+    if (!aerial?.domesticWater && element.kind === "plaza" && element.point)
+      sites.push({ id: element.id, point: element.point, kind: "publicBasin" });
   }
   for (const monastery of aerial?.monasteries ?? []) {
-    if (monastery.well) sites.push({ id: `${monastery.id}:well`, point: monastery.well });
+    // Friaries own their courtyard well so it shares the raised precinct foundation.
+    if (monastery.kind !== "friary" && monastery.well)
+      sites.push({ id: `${monastery.id}:well`, point: monastery.well });
   }
   return sites.filter((site, index) =>
     sites

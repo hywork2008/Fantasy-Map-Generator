@@ -48,6 +48,65 @@ function town(parts: Partial<CityDocument>): CityDocument {
 }
 
 describe("city structures", () => {
+  it.each(["walkway", "none"] as const)("keeps artillery curtains below bastions (walkway: %s)", walkway => {
+    const document = town({
+      gates: [],
+      castles: [
+        {
+          id: "castle",
+          version: 1,
+          seed: "bastion",
+          position: "edge",
+          relationship: "integrated",
+          form: "keep-bailey",
+          castleStyle: "bastion-citadel",
+          circuitId: "c",
+          parts: [],
+          courtyards: [
+            [
+              [-40, -40],
+              [40, -40],
+              [40, 40],
+              [-40, 40]
+            ]
+          ]
+        }
+      ],
+      defenseCircuits: [
+        {
+          id: "c",
+          scope: "castle",
+          state: "standing",
+          areaFaceIds: [],
+          wallGroupIds: ["w"],
+          naturalBarriers: [],
+          locked: false
+        }
+      ]
+    });
+    document.featureGroups[0].walkway = walkway;
+    const structures = collectCityStructures(document);
+    const walls = structures.filter(item => item.id.startsWith("wall:"));
+    const bastions = structures.filter(item => item.id.startsWith("tower:castle:"));
+    const parapets = structures.filter(item => item.id.startsWith("bastion-parapet:"));
+    expect(walls.length).toBeGreaterThan(0);
+    expect(bastions.length).toBeGreaterThan(0);
+    expect(parapets).toHaveLength(bastions.length);
+    for (const parapet of parapets) {
+      expect(parapet.baseElevationMeters).toBeCloseTo(4.9);
+      expect(parapet.heightMeters).toBeCloseTo(1.1);
+      expect(parapet.centerline![0]).not.toEqual(parapet.centerline!.at(-1));
+      expect(structureSurfaces(parapet)).not.toBeNull();
+    }
+    for (const wall of walls) {
+      expect(wall.heightMeters + wall.parapetMeters).toBeCloseTo(6);
+      for (const bastion of bastions) {
+        expect(bastion.heightMeters).toBeCloseTo(4.9);
+        if (walkway === "walkway") expect(wall.heightMeters).toBeCloseTo(bastion.heightMeters);
+      }
+    }
+  });
+
   it("opens the curtain at a gate and flanks it with towers", () => {
     const structures = collectCityStructures(town({}));
     const walls = structures.filter(item => item.kind === "wall");

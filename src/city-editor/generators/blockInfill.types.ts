@@ -5,6 +5,7 @@ import type { WatermillPlan } from "./watermillFabric";
 
 export interface DistrictFabric extends CityFabric {
   farms: FarmPlot[];
+  ruralFields?: import("./ruralFieldPlan").RuralFieldPlan["diagnostics"];
   parks?: ParkLawn[];
   watermills?: WatermillPlan;
   /** Monasteries, windmills, barbicans, tanneries and gallows (aerialLandmarks.ts). */

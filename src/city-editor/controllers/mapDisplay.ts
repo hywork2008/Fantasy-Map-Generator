@@ -1,9 +1,10 @@
 import { editorText } from "../../i18n/editorMessages";
 import { historicLandmarkPrototypes } from "../assets/catalog";
-import { buildBlockFabric } from "../generators/blockInfill";
+import { buildBlockFabric, documentFabricFingerprint } from "../generators/blockInfill";
 import { buildLandmarkLaneNetwork } from "../generators/landmarkLaneNetwork";
 import { placeLandmark, transformLandmarkPolygons } from "../generators/landmarks";
 import { facePoints, validate } from "../generators/mesh";
+import { ruralFieldOverlay, storeRuralFieldOverlay } from "../generators/ruralFieldOverlay";
 import { defaultWalledAreaShare } from "../generators/settlementExtent";
 import { renderApproachLabels } from "../renderers/approachLabelSvg";
 import { type RenderQuality, renderEditorSvg } from "../renderers/editorSvg";
@@ -17,6 +18,7 @@ import {
 } from "../renderers/overlays/editorOverlays";
 import { featureGroupPickInfo, parsePickInfo } from "../renderers/pickInfo";
 import { renderShipRotationHandle, renderShipSvg } from "../renderers/shipSvg";
+import { startRuralFields } from "../services/ruralFieldWorkerClient";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
 import type { InfillLane } from "../types/contracts/localInfill";
 import type { CityDocument, Id, LandmarkAsset, Tool, WardKind } from "../types/document";
@@ -66,12 +68,21 @@ export interface MapDisplayContext {
   wardLandmarksGroup: SVGGElement | null;
   wardLandmarkElementsById: Map<string, SVGGElement>;
   documentForOutput: (current: CityDocument) => CityDocument;
+  syncCity3d: () => void;
   gridOverlayForRender: () => GridOverlay | null;
   root: HTMLElement;
   renderQualitySelect: HTMLSelectElement;
   coreLayerInput: HTMLInputElement;
   vacantTreesInput: HTMLInputElement;
   generateVacantTreesButton: HTMLButtonElement;
+  regenerateFarmlandButton: HTMLButtonElement;
+  farmlandSystemSelect: HTMLSelectElement;
+  farmlandYearInput: HTMLInputElement;
+  farmlandSummary: HTMLOutputElement;
+  farmlandModeSelect: HTMLSelectElement;
+  farmlandRangeSelect: HTMLSelectElement;
+  farmlandDirectionSelect: HTMLSelectElement;
+  farmlandCoverageInput: HTMLInputElement;
   regionalLayerInput: HTMLInputElement;
   scaleLine: HTMLDivElement;
   scaleLabel: HTMLOutputElement;
@@ -79,6 +90,72 @@ export interface MapDisplayContext {
   junctionGapLength: HTMLSpanElement;
 }
 export function createMapDisplayController(ctx: MapDisplayContext) {
+  let ruralRun: ReturnType<typeof startRuralFields> | undefined;
+  let ruralDocument: CityDocument | undefined;
+  let ruralFingerprint = "";
+  let ruralRequest = 0;
+  const ruralStatus = new WeakMap<CityDocument, "running" | "stopped">();
+  ctx.scope.own(() => ruralRun?.cancel());
+  function cancelFarmland() {
+    ruralRequest++;
+    ruralRun?.cancel();
+    ruralRun = undefined;
+    if (ruralDocument) ruralStatus.delete(ruralDocument);
+    ruralDocument = undefined;
+  }
+  function generateFarmland() {
+    const document = ctx.documents.documentState;
+    if (
+      document.ruralFieldVersion !== 2 ||
+      document.appearance !== "town" ||
+      document.ruralFieldSettings?.mode === "off" ||
+      (ctx.generation.generationJob && !ctx.generation.acceptingResult)
+    )
+      return;
+    cancelFarmland();
+    const request = ruralRequest;
+    ruralDocument = document;
+    ruralFingerprint = documentFabricFingerprint(document);
+    const fingerprint = ruralFingerprint;
+    ruralStatus.set(document, "running");
+    ctx.farmlandSummary.hidden = false;
+    ctx.farmlandSummary.textContent = editorText("cityEditor.messages.farmlandRunning");
+    // Two frames let the completed town paint before cloning input for the worker.
+    ctx.scope.frame(() =>
+      ctx.scope.frame(() => {
+        if (
+          request !== ruralRequest ||
+          ctx.generation.generationJob ||
+          ctx.documents.documentState !== document ||
+          !ctx.scope.active ||
+          ruralStatus.get(document) !== "running"
+        )
+          return;
+        const outputDocument = ctx.documentForOutput(document);
+        const outputFingerprint = documentFabricFingerprint(outputDocument);
+        const run = startRuralFields(outputDocument, buildBlockFabric(outputDocument));
+        ruralRun = run;
+        void run.result.then(overlay => {
+          if (
+            ruralRun !== run ||
+            ctx.documents.documentState !== document ||
+            !ctx.scope.active ||
+            fingerprint !== documentFabricFingerprint(document)
+          )
+            return;
+          ruralRun = undefined;
+          if (overlay) {
+            storeRuralFieldOverlay(document, fingerprint, overlay);
+            storeRuralFieldOverlay(outputDocument, outputFingerprint, overlay);
+            ruralStatus.delete(document);
+          } else ruralStatus.set(document, "stopped");
+          redrawMap();
+          ctx.syncCity3d();
+        });
+      })
+    );
+  }
+
   function refresh(): void {
     if (!ctx.scope.active) return;
     redrawMap();
@@ -130,6 +207,23 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
     });
     ctx.vacantTreesInput.checked = !!ctx.documents.documentState.vacantLotTrees?.visible;
     ctx.vacantTreesInput.disabled = !ctx.documents.documentState.vacantLotTrees;
+    ctx.regenerateFarmlandButton.disabled =
+      ctx.documents.documentState.appearance !== "town" || ctx.display.hideBuildings;
+    ctx.farmlandModeSelect.value = ctx.documents.documentState.ruralFieldSettings?.mode ?? "manual";
+    ctx.farmlandRangeSelect.value = ctx.documents.documentState.ruralFieldSettings?.range ?? "whole-frame";
+    ctx.farmlandDirectionSelect.value = ctx.documents.documentState.ruralFieldSettings?.direction ?? "all";
+    ctx.farmlandCoverageInput.value = String(ctx.documents.documentState.ruralFieldSettings?.coveragePercent ?? 70);
+    for (const input of [
+      ctx.farmlandModeSelect,
+      ctx.farmlandRangeSelect,
+      ctx.farmlandDirectionSelect,
+      ctx.farmlandCoverageInput
+    ])
+      input.disabled = ctx.regenerateFarmlandButton.disabled;
+    ctx.farmlandSystemSelect.value = ctx.documents.documentState.ruralFieldSettings?.system ?? "auto";
+    ctx.farmlandYearInput.value = String(ctx.documents.documentState.ruralFieldSettings?.rotationYear ?? 0);
+    ctx.farmlandSystemSelect.disabled = ctx.regenerateFarmlandButton.disabled;
+    ctx.farmlandYearInput.disabled = ctx.regenerateFarmlandButton.disabled;
     ctx.generateVacantTreesButton.disabled =
       ctx.documents.documentState.appearance !== "town" || ctx.display.hideBuildings;
     ctx.map.classList.toggle("ce-map--select", ctx.interaction.tool === "select");
@@ -228,6 +322,7 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
         })
       );
       ctx.housingSummary.hidden = true;
+      ctx.farmlandSummary.hidden = true;
       ctx.faceElementsById.clear();
       ctx.wardLandmarksGroup = null;
       ctx.wardLandmarkElementsById.clear();
@@ -268,6 +363,49 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
       svg.querySelector(".ce-map-scene")!.append(highlights);
     }
     ctx.scope.replaceChildren(ctx.map, svg);
+    const rural = svg.getAttribute("data-rural-fields");
+    ctx.farmlandSummary.hidden = !rural;
+    if (rural) {
+      const diagnostic = JSON.parse(rural) as {
+        cultivatedAreaM2: number;
+        shortfallAreaM2: number;
+        shortfallReason?: "terrain" | "access" | "space" | "minimum-plot";
+        suitabilitySource?: "survey" | "biome-estimate" | "unknown";
+      };
+      ctx.farmlandSummary.textContent = editorText("cityEditor.messages.farmlandSummary", {
+        area: (diagnostic.cultivatedAreaM2 / 10_000).toFixed(1),
+        shortfall: (diagnostic.shortfallAreaM2 / 10_000).toFixed(1)
+      });
+      if (diagnostic.shortfallAreaM2 > 1 && diagnostic.shortfallReason)
+        ctx.farmlandSummary.textContent += ` · ${editorText(`cityEditor.messages.farmlandReason_${diagnostic.shortfallReason}`)}`;
+      if (diagnostic.suitabilitySource)
+        ctx.farmlandSummary.textContent += ` · ${editorText(`cityEditor.messages.farmlandSource_${diagnostic.suitabilitySource}`)}`;
+    }
+    const current = ctx.documents.documentState;
+    if (ruralDocument && (ruralDocument !== current || ruralFingerprint !== documentFabricFingerprint(current))) {
+      ruralRun?.cancel();
+      ruralRun = undefined;
+      ruralStatus.delete(ruralDocument);
+      ruralDocument = undefined;
+    }
+    if (current.ruralFieldVersion === 2 && !rural) {
+      ctx.farmlandSummary.hidden = false;
+      const status = ruralStatus.get(current);
+      ctx.farmlandSummary.textContent = editorText(
+        status === "running"
+          ? "cityEditor.messages.farmlandRunning"
+          : status === "stopped"
+            ? "cityEditor.messages.farmlandStopped"
+            : "cityEditor.messages.farmlandOptional"
+      );
+      if (
+        current.ruralFieldSettings?.mode === "background" &&
+        !status &&
+        !ctx.display.hideBuildings &&
+        !ruralFieldOverlay(current, documentFabricFingerprint(current))
+      )
+        generateFarmland();
+    }
     const coreBuildings = Number(svg.getAttribute("data-core-buildings") ?? 0);
     const outerBuildings = Number(svg.getAttribute("data-outskirts-buildings") ?? 0);
     const oldTownBuildings = Number(svg.getAttribute("data-old-town-buildings") ?? 0);
@@ -648,6 +786,8 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
     svg.querySelector(".ce-map-scene")!.append(layer);
   }
   return {
+    cancelFarmland,
+    generateFarmland,
     refresh,
     refreshUiOnly,
     scheduleRedraw,

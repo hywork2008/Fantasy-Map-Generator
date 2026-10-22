@@ -33,3 +33,18 @@ it("keeps stage selection language-independent and preserves lazy labels versus 
     await i18n.changeLanguage(originalLanguage);
   }
 });
+
+it("places farmland immediately before concealment for every generation order", () => {
+  const settings = defaultGenerationSettings();
+  for (const value of [
+    settings,
+    { ...settings, townWallRings: "double" as const, townWallBuildOrder: "inner-first" as const },
+    { ...settings, generationMethod: "skeleton-first" as const }
+  ]) {
+    const stages = generationStages(value);
+    expect(stages.slice(-3).map(stage => stage.id)).toEqual(["buildings", "farmland", "conceal"]);
+    expect(stages.map(stage => stage.step)).toEqual(stages.map((_, i) => i + 1));
+    expect(stages.at(-2)!.processStep).toBe(10);
+    expect(stages.at(-1)!.processStep).toBe(11);
+  }
+});

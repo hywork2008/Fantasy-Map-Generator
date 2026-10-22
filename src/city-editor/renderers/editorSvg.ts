@@ -337,7 +337,7 @@ export function renderEditorSvg(
 
   renderGateLayer(ctx, svg);
 
-  renderCityElements(ctx, svg, castleFaces);
+  renderCityElements(ctx, svg, castleFaces, townPlans.aerial?.domesticWater);
 
   if (showSelectionLabels && selection.faceId) appendFaceSelectionLabels(svg, document, selection.faceId, zoom);
 

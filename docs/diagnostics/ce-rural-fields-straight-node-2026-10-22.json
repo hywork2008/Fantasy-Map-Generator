@@ -1,0 +1,655 @@
+{
+  "note": "Single saved city, Node local measurements. Layout and default access resolution both changed. Timings include JIT, GC, and host load; not a statistical benchmark. geometryUnchanged compares profiled and unprofiled runs within each version, not old and new layouts.",
+  "before": {
+    "input": "/private/tmp/ce-rural-perf.json",
+    "seed": "phase7",
+    "settings": {},
+    "extentMeters": 1200,
+    "buildings": 6171,
+    "coreMs": 451.94624999999996,
+    "generationMs": 3411.698583,
+    "counts": {
+      "accessNodes": 61330,
+      "reachableNodes": 61330,
+      "groups": 40,
+      "gridMeters": 4,
+      "rawBoundaryVertices": 28108,
+      "components": 568,
+      "finalBoundaryVertices": 2871,
+      "landFaces": 332,
+      "reservationPolygons": 7982,
+      "farms": 568,
+      "rows": 41576,
+      "rowPoints": 83152,
+      "lanes": 611
+    },
+    "timings": [
+      {
+        "path": "generation/layout/access-mask/blocked",
+        "kind": "operation",
+        "calls": 65640,
+        "elapsedMs": 950.8771030000462,
+        "selfMs": 950.8771030000462
+      },
+      {
+        "path": "generation/layout/reconstruct-boundaries/simplify-and-validate/convex-decomposition",
+        "kind": "operation",
+        "calls": 2845,
+        "elapsedMs": 862.480701999993,
+        "selfMs": 862.480701999993
+      },
+      {
+        "path": "generation/layout/reconstruct-boundaries/simplify-and-validate/clearance/blocked",
+        "kind": "operation",
+        "calls": 22382,
+        "elapsedMs": 381.3960830000342,
+        "selfMs": 381.3960830000342
+      },
+      {
+        "path": "generation/layout/access-mask",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 1141.1803330000002,
+        "selfMs": 190.30322999995406
+      },
+      {
+        "path": "generation/layout/reconstruct-boundaries/simplify-and-validate/clearance",
+        "kind": "operation",
+        "calls": 22387,
+        "elapsedMs": 492.27027600002975,
+        "selfMs": 110.87419299999556
+      },
+      {
+        "path": "generation/layout/reconstruct-boundaries/simplify-and-validate/overlap",
+        "kind": "operation",
+        "calls": 44463,
+        "elapsedMs": 119.78827400004593,
+        "selfMs": 108.4380460000466
+      },
+      {
+        "path": "generation/layout/boundary-routes",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 98.66129099999989,
+        "selfMs": 96.9017479999984
+      },
+      {
+        "path": "generation/layout/track-reservations",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 140.10758299999998,
+        "selfMs": 93.50585099999626
+      },
+      {
+        "path": "generation/layout/territory-ownership",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 86.96141699999998,
+        "selfMs": 86.96141699999998
+      },
+      {
+        "path": "generation/layout/group-seeds",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 72.41183300000012,
+        "selfMs": 72.41183300000012
+      },
+      {
+        "path": "generation/layout/reconstruct-boundaries/simplify-and-validate",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 1559.7261250000001,
+        "selfMs": 71.98156899994319
+      },
+      {
+        "path": "generation/layout/trace-components",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 61.06575000000021,
+        "selfMs": 61.06575000000021
+      },
+      {
+        "path": "generation/layout/plots-rows-and-boundaries/rows",
+        "kind": "operation",
+        "calls": 568,
+        "elapsedMs": 47.939417999996294,
+        "selfMs": 47.939417999996294
+      },
+      {
+        "path": "generation/layout/strip-labels",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 46.93016699999998,
+        "selfMs": 46.93016699999998
+      },
+      {
+        "path": "generation/layout/track-reservations/blocked",
+        "kind": "operation",
+        "calls": 2925,
+        "elapsedMs": 46.60173200000372,
+        "selfMs": 46.60173200000372
+      },
+      {
+        "path": "generation/layout/reachability",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 33.00249999999983,
+        "selfMs": 33.00249999999983
+      },
+      {
+        "path": "generation/layout/plots-rows-and-boundaries",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 82.36212500000056,
+        "selfMs": 29.900175000000672
+      },
+      {
+        "path": "generation/layout/reconstruct-boundaries/graph-and-index",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 29.758749999999964,
+        "selfMs": 29.758749999999964
+      },
+      {
+        "path": "generation/layout/interior-tracks/blocked",
+        "kind": "operation",
+        "calls": 1715,
+        "elapsedMs": 29.123376000009557,
+        "selfMs": 29.123376000009557
+      },
+      {
+        "path": "generation/layout/reconstruct-boundaries/simplify-and-validate/simple-polygon",
+        "kind": "operation",
+        "calls": 2936,
+        "elapsedMs": 13.205303999988246,
+        "selfMs": 13.205303999988246
+      },
+      {
+        "path": "generation/layout/reconstruct-boundaries/simplify-and-validate/overlap/intersection-triangulation",
+        "kind": "operation",
+        "calls": 1334,
+        "elapsedMs": 11.350227999999333,
+        "selfMs": 11.350227999999333
+      },
+      {
+        "path": "generation/roads-and-reservations",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 8.252333000000021,
+        "selfMs": 8.252333000000021
+      },
+      {
+        "path": "generation/terrain-and-land",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 7.286916999999903,
+        "selfMs": 7.286916999999903
+      },
+      {
+        "path": "generation/layout/interior-tracks",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 36.113292,
+        "selfMs": 6.989915999990444
+      },
+      {
+        "path": "generation/layout/plots-rows-and-boundaries/source-faces",
+        "kind": "operation",
+        "calls": 568,
+        "elapsedMs": 2.9212469999947643,
+        "selfMs": 2.9212469999947643
+      },
+      {
+        "path": "generation/layout/approach-tracks",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 3.3670830000000933,
+        "selfMs": 2.0299970000005487
+      },
+      {
+        "path": "generation/layout/boundary-routes/blocked",
+        "kind": "operation",
+        "calls": 80,
+        "elapsedMs": 1.7595430000014858,
+        "selfMs": 1.7595430000014858
+      },
+      {
+        "path": "generation/layout/plots-rows-and-boundaries/field-boundaries",
+        "kind": "operation",
+        "calls": 568,
+        "elapsedMs": 1.6012850000088292,
+        "selfMs": 1.6012850000088292
+      },
+      {
+        "path": "generation/layout/land-and-road-index",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 1.5833749999999327,
+        "selfMs": 1.5833749999999327
+      },
+      {
+        "path": "generation/layout/approach-tracks/blocked",
+        "kind": "operation",
+        "calls": 54,
+        "elapsedMs": 1.3370859999995446,
+        "selfMs": 1.3370859999995446
+      },
+      {
+        "path": "generation/layout",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 3395.354333,
+        "selfMs": 1.0024579999999332
+      },
+      {
+        "path": "generation/layout/lanes-and-diagnostics",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 0.6838339999994787,
+        "selfMs": 0.6838339999994787
+      },
+      {
+        "path": "generation/assemble-result",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 0.4553330000007918,
+        "selfMs": 0.4553330000007918
+      },
+      {
+        "path": "generation/layout/reconstruct-boundaries",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 1589.921292,
+        "selfMs": 0.43641699999989214
+      }
+    ],
+    "unprofiledMs": 3234.2535,
+    "geometryUnchanged": true,
+    "note": "Instrumented first run and uninstrumented warm run: their difference includes JIT/cache effects. Stage times include child operations; use selfMs to avoid double counting."
+  },
+  "after": {
+    "input": "/private/tmp/ce-rural-perf.json",
+    "seed": "phase7",
+    "settings": {},
+    "extentMeters": 1200,
+    "buildings": 6171,
+    "coreMs": 565.8700839999999,
+    "generationMs": 812.7365,
+    "counts": {
+      "accessNodes": 15173,
+      "reachableNodes": 15173,
+      "groups": 39,
+      "gridMeters": 8,
+      "components": 672,
+      "finalBoundaryVertices": 3236,
+      "landFaces": 332,
+      "reservationPolygons": 7982,
+      "farms": 672,
+      "rows": 42008,
+      "rowPoints": 84016,
+      "lanes": 169
+    },
+    "timings": [
+      {
+        "path": "generation/layout/access-mask/blocked",
+        "kind": "operation",
+        "calls": 16387,
+        "elapsedMs": 320.8164220000159,
+        "selfMs": 320.8164220000159
+      },
+      {
+        "path": "generation/layout/strip-labels",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 135.24145799999997,
+        "selfMs": 135.24145799999997
+      },
+      {
+        "path": "generation/layout/plots-rows-and-boundaries/rows",
+        "kind": "operation",
+        "calls": 672,
+        "elapsedMs": 84.15445400000226,
+        "selfMs": 84.15445400000226
+      },
+      {
+        "path": "generation/layout/access-mask",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 393.883375,
+        "selfMs": 73.0669529999841
+      },
+      {
+        "path": "generation/layout/plots-rows-and-boundaries",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 147.77470800000015,
+        "selfMs": 50.96249700000271
+      },
+      {
+        "path": "generation/layout/boundary-routes/blocked",
+        "kind": "operation",
+        "calls": 1197,
+        "elapsedMs": 33.42018399999756,
+        "selfMs": 33.42018399999756
+      },
+      {
+        "path": "generation/layout/group-seeds",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 22.500959000000194,
+        "selfMs": 22.500959000000194
+      },
+      {
+        "path": "generation/layout/interior-tracks/blocked",
+        "kind": "operation",
+        "calls": 852,
+        "elapsedMs": 18.11207800000011,
+        "selfMs": 18.11207800000011
+      },
+      {
+        "path": "generation/layout/reachability",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 14.021792000000005,
+        "selfMs": 14.021792000000005
+      },
+      {
+        "path": "generation/roads-and-reservations",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 12.235791999999947,
+        "selfMs": 12.235791999999947
+      },
+      {
+        "path": "generation/terrain-and-land",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 8.844208999999978,
+        "selfMs": 8.844208999999978
+      },
+      {
+        "path": "generation/layout/plots-rows-and-boundaries/source-faces",
+        "kind": "operation",
+        "calls": 672,
+        "elapsedMs": 8.795581999997694,
+        "selfMs": 8.795581999997694
+      },
+      {
+        "path": "generation/layout/boundary-routes",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 41.50691700000016,
+        "selfMs": 8.086733000002596
+      },
+      {
+        "path": "generation/layout/interior-tracks",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 23.05529200000001,
+        "selfMs": 4.943213999999898
+      },
+      {
+        "path": "generation/layout/plots-rows-and-boundaries/field-boundaries",
+        "kind": "operation",
+        "calls": 672,
+        "elapsedMs": 3.862174999997478,
+        "selfMs": 3.862174999997478
+      },
+      {
+        "path": "generation/layout/land-and-road-index",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 3.397790999999984,
+        "selfMs": 3.397790999999984
+      },
+      {
+        "path": "generation/layout/territory-ownership",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 3.2949999999998454,
+        "selfMs": 3.2949999999998454
+      },
+      {
+        "path": "generation/layout",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 790.6630829999999,
+        "selfMs": 1.6460829999994075
+      },
+      {
+        "path": "generation/layout/approach-tracks",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 3.0634580000000824,
+        "selfMs": 1.6195400000005975
+      },
+      {
+        "path": "generation/layout/approach-tracks/blocked",
+        "kind": "operation",
+        "calls": 50,
+        "elapsedMs": 1.443917999999485,
+        "selfMs": 1.443917999999485
+      },
+      {
+        "path": "generation/layout/track-reservations",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 0.6758330000000115,
+        "selfMs": 0.6758330000000115
+      },
+      {
+        "path": "generation/assemble-result",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 0.6299169999999776,
+        "selfMs": 0.6299169999999776
+      },
+      {
+        "path": "generation/layout/lanes-and-diagnostics",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 0.6004170000001068,
+        "selfMs": 0.6004170000001068
+      }
+    ],
+    "unprofiledMs": 680.075458,
+    "geometryUnchanged": true,
+    "note": "Instrumented first run and uninstrumented warm run: their difference includes JIT/cache effects. Stage times include child operations; use selfMs to avoid double counting."
+  },
+  "marginStraightening": {
+    "input": "/private/tmp/ce-rural-perf.json",
+    "seed": "phase7",
+    "settings": {},
+    "extentMeters": 1200,
+    "buildings": 6171,
+    "coreMs": 516.529417,
+    "generationMs": 662.6283750000001,
+    "counts": {
+      "accessNodes": 15173,
+      "reachableNodes": 15173,
+      "groups": 39,
+      "gridMeters": 8,
+      "components": 672,
+      "finalBoundaryVertices": 2985,
+      "landFaces": 332,
+      "reservationPolygons": 7982,
+      "farms": 672,
+      "rows": 41512,
+      "rowPoints": 83024,
+      "lanes": 169
+    },
+    "timings": [
+      {
+        "path": "generation/layout/access-mask/blocked",
+        "kind": "operation",
+        "calls": 16387,
+        "elapsedMs": 285.86959000001116,
+        "selfMs": 285.86959000001116
+      },
+      {
+        "path": "generation/layout/strip-labels",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 104.64537500000006,
+        "selfMs": 96.88204300000098
+      },
+      {
+        "path": "generation/layout/access-mask",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 352.65416700000014,
+        "selfMs": 66.78457699998899
+      },
+      {
+        "path": "generation/layout/plots-rows-and-boundaries/rows",
+        "kind": "operation",
+        "calls": 672,
+        "elapsedMs": 45.6034480000003,
+        "selfMs": 45.6034480000003
+      },
+      {
+        "path": "generation/layout/plots-rows-and-boundaries",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 87.38141599999994,
+        "selfMs": 35.47719599999641
+      },
+      {
+        "path": "generation/layout/boundary-routes/blocked",
+        "kind": "operation",
+        "calls": 1197,
+        "elapsedMs": 22.691781000004084,
+        "selfMs": 22.691781000004084
+      },
+      {
+        "path": "generation/layout/group-seeds",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 21.472082999999884,
+        "selfMs": 21.472082999999884
+      },
+      {
+        "path": "generation/layout/reachability",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 18.284167000000025,
+        "selfMs": 18.284167000000025
+      },
+      {
+        "path": "generation/layout/interior-tracks/blocked",
+        "kind": "operation",
+        "calls": 852,
+        "elapsedMs": 16.551519000002372,
+        "selfMs": 16.551519000002372
+      },
+      {
+        "path": "generation/roads-and-reservations",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 10.12087500000007,
+        "selfMs": 10.12087500000007
+      },
+      {
+        "path": "generation/terrain-and-land",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 9.004417000000103,
+        "selfMs": 9.004417000000103
+      },
+      {
+        "path": "generation/layout/strip-labels/blocked",
+        "kind": "operation",
+        "calls": 234,
+        "elapsedMs": 7.763331999999082,
+        "selfMs": 7.763331999999082
+      },
+      {
+        "path": "generation/layout/boundary-routes",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 27.63712499999997,
+        "selfMs": 4.945343999995885
+      },
+      {
+        "path": "generation/layout/interior-tracks",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 21.245792000000165,
+        "selfMs": 4.694272999997793
+      },
+      {
+        "path": "generation/layout/plots-rows-and-boundaries/source-faces",
+        "kind": "operation",
+        "calls": 672,
+        "elapsedMs": 4.1999880000041685,
+        "selfMs": 4.1999880000041685
+      },
+      {
+        "path": "generation/layout/territory-ownership",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 2.7637500000000728,
+        "selfMs": 2.7637500000000728
+      },
+      {
+        "path": "generation/layout/plots-rows-and-boundaries/field-boundaries",
+        "kind": "operation",
+        "calls": 672,
+        "elapsedMs": 2.1007839999990665,
+        "selfMs": 2.1007839999990665
+      },
+      {
+        "path": "generation/layout/approach-tracks/blocked",
+        "kind": "operation",
+        "calls": 50,
+        "elapsedMs": 1.5641299999999774,
+        "selfMs": 1.5641299999999774
+      },
+      {
+        "path": "generation/layout/land-and-road-index",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 1.5608749999998963,
+        "selfMs": 1.5608749999998963
+      },
+      {
+        "path": "generation/layout/approach-tracks",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 2.860791000000063,
+        "selfMs": 1.2966610000000856
+      },
+      {
+        "path": "generation/layout",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 642.70325,
+        "selfMs": 0.9169600000000173
+      },
+      {
+        "path": "generation/layout/lanes-and-diagnostics",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 0.8634159999999156,
+        "selfMs": 0.8634159999999156
+      },
+      {
+        "path": "generation/assemble-result",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 0.4729580000000624,
+        "selfMs": 0.4729580000000624
+      },
+      {
+        "path": "generation/layout/track-reservations",
+        "kind": "stage",
+        "calls": 1,
+        "elapsedMs": 0.4173329999998714,
+        "selfMs": 0.4173329999998714
+      }
+    ],
+    "unprofiledMs": 516.108,
+    "geometryUnchanged": true,
+    "note": "Instrumented first run and uninstrumented warm run: their difference includes JIT/cache effects. Stage times include child operations; use selfMs to avoid double counting."
+  }
+}

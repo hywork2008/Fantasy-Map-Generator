@@ -1,4 +1,5 @@
 import { editorText } from "../../i18n/editorMessages";
+import type { DomesticWaterPoint } from "../generators/domesticWater";
 import { templeFootprintMeters } from "../generators/housing";
 import { accessCorridor, transformLandmarkPolygons } from "../generators/landmarks";
 import { townExtentMeters } from "../generators/settlementExtent";
@@ -12,7 +13,12 @@ import { element, polygon } from "./svgPrimitives";
 import { renderTempleSvg } from "./templeSvg";
 
 /** City element markers (wells, temples, ships, etc.) and historic landmarks. */
-export function renderCityElements(ctx: RenderContext, svg: SVGSVGElement, castleFaces: Set<Id>): void {
+export function renderCityElements(
+  ctx: RenderContext,
+  svg: SVGSVGElement,
+  castleFaces: Set<Id>,
+  domesticWater?: readonly DomesticWaterPoint[]
+): void {
   const { document, tool, selection, town } = ctx;
   const elements = element("g", { class: "ce-elements" });
   for (const cityElement of document.elements) {
@@ -69,10 +75,10 @@ export function renderCityElements(ctx: RenderContext, svg: SVGSVGElement, castl
       continue;
     }
     if (town && (cityElement.id.startsWith("gc:") || cityElement.kind === "temple" || cityElement.kind === "plaza")) {
-      if (cityElement.kind === "plaza") {
+      if (cityElement.kind === "plaza" && !domesticWater) {
         const plazaWell = element("g", {
           transform: `translate(${p[0]} ${-p[1]})`,
-          class: `ce-plaza-well${isPickSelected ? " ce-is-selected cg-is-selected" : ""}`,
+          class: `ce-plaza-basin${isPickSelected ? " ce-is-selected cg-is-selected" : ""}`,
           "data-element": cityElement.id,
           "data-pick": encodeURIComponent(JSON.stringify(pickInfo)),
           "pointer-events": tool === "select" ? "all" : "none"
@@ -81,7 +87,7 @@ export function renderCityElements(ctx: RenderContext, svg: SVGSVGElement, castl
           element("circle", {
             cx: "0",
             cy: "0",
-            r: "2.5",
+            r: "1.65",
             fill: "#d0c8b7",
             stroke: "#49483f",
             "stroke-width": "0.4"
@@ -91,18 +97,20 @@ export function renderCityElements(ctx: RenderContext, svg: SVGSVGElement, castl
           element("circle", {
             cx: "0",
             cy: "0",
-            r: "1.65",
+            r: "1.2",
             fill: "#719ca8",
             stroke: "#49483f",
             "stroke-width": "0.2"
           })
         );
         plazaWell.appendChild(
-          element("path", {
-            d: "M -2.5 0 L 2.5 0",
-            fill: "none",
-            stroke: "#74583d",
-            "stroke-width": "0.55"
+          element("circle", {
+            cx: "0",
+            cy: "0",
+            r: "0.3",
+            fill: "#b7ad97",
+            stroke: "#49483f",
+            "stroke-width": "0.1"
           })
         );
         if (tool === "select") plazaWell.style.cursor = "pointer";

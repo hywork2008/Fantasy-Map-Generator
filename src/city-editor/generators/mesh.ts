@@ -1159,7 +1159,7 @@ function segmentBox(a: Point, b: Point): [number, number, number, number] {
   return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])];
 }
 
-/** Descriptor payloads are copy-on-write. Mesh edits replace the property;
+/** Descriptor payloads and generated snapshots are copy-on-write. Mesh edits replace the property;
  * they do not mutate the surveyed rivers, so clones share that object. */
 const SHARED_CITY_FIELDS = [
   "importedFixedCrossings",
@@ -1169,6 +1169,7 @@ const SHARED_CITY_FIELDS = [
   "siteEconomy",
   "civilization",
   "burialProfile",
+  "ruralFieldSnapshot",
   "landmarkAssets",
   "riverFlows",
   "waterAccess",
