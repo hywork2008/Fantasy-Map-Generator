@@ -3,7 +3,7 @@ import { nearestOnPolyline, polygonArea } from "./geom";
 import { convexInfillParts } from "./lotGeometry";
 import { bounds, corridor, intersectConvex, PlotIndex } from "./parcelGeometry";
 import { ruralAccessRegions } from "./ruralFieldBanks";
-import type { DetailedRuralFieldInput } from "./ruralFieldDetails";
+import type { DetailedRuralFieldInput } from "./ruralFieldDetails.types";
 import type { RuralFieldPlan } from "./ruralFieldPlan";
 import { finishRuralTerritories } from "./ruralFieldTerritories";
 

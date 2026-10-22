@@ -35,7 +35,6 @@ import {
   setStrategicLaborMarkets
 } from "../economyContext";
 import { getEconomyCalibrationState } from "../state/economyCalibrationStore";
-import { getFarmToolsDemandByMarket } from "./agTechInvestment";
 import { getBurgMarketLedger, syncBurgMarketLedgers } from "./burgMarketLedgers";
 import { CaravanMovement } from "./caravanMovement";
 import { getChilledFreshFoodExportUnits, planCellFoodRescue } from "./cellFoodRescue";
@@ -49,6 +48,7 @@ import {
 import { laborPeople } from "./craftScale";
 import { getMarketPriceLevel, getMintPriceFloor, getMoneyPriceLevelForMarket } from "./currencySufficiency";
 import { ExportStaging } from "./exportStaging";
+import { getFarmToolsDemandByMarket } from "./farmToolsDemand";
 import {
   recordCellFoodHouseholdConsumption,
   recordFoodMarketIntake,
@@ -82,6 +82,8 @@ import {
   getDefaultMonthsOfCover
 } from "./marketFlowBudget";
 import { syncMarketManagers } from "./marketManagers";
+import { customerBuyPrice, getWarPriceModifier, MARKET_MARGIN } from "./marketPricing";
+import { consumeForSmelting } from "./marketStockConsumption";
 import type { Deal, Market, TradeRouteSegment } from "./marketTypes";
 import {
   forgetLapsedRumours,
@@ -168,7 +170,7 @@ export const RURAL_BUILDING_TIMBER_PER_1000_RESIDENTS_ANNUAL = 40;
 const PRICE_CEILING_FACTOR = 3.0;
 const LAPLACE_PRICE_SMOOTHING = 5;
 const MARKET_PRESSURE_FACTOR = 0.01;
-const MARKET_MARGIN = 0.1;
+
 /** Extra import-reserve share per point of burg warIntensity for military/essential goods. */
 export const WARTIME_TRADE_RESERVE_PER_INTENSITY = 0.5;
 
@@ -455,14 +457,7 @@ export class MarketsModule {
     stockShare: number,
     category: "smelting" | "construction" = "smelting"
   ): number {
-    const market = this.get(marketId);
-    const marketGood = market?.goods[goodId];
-    if (!marketGood || requestedUnits <= 0 || stockShare <= 0) return 0;
-    const consumed = rn(Math.min(requestedUnits, marketGood.stock * Math.min(1, stockShare)), 4);
-    if (consumed <= 0) return 0;
-    marketGood.stock = rn(Math.max(0, marketGood.stock - consumed), 4);
-    recordGoodFlow({ direction: "sink", category, goodId, units: consumed, marketId });
-    return consumed;
+    return consumeForSmelting(marketId, goodId, requestedUnits, stockShare, category);
   }
 
   /**
@@ -2944,64 +2939,11 @@ export class MarketsModule {
   }
 
   getWarPriceModifier(burgId: number | undefined, goodId: number | undefined): number {
-    if (!burgId || goodId === undefined || goodId === null) {
-      return 1;
-    }
-    const ledger = getBurgMarketLedger(burgId);
-    if (!ledger) {
-      return 1;
-    }
-
-    const good = Goods.get(goodId);
-    if (!good) {
-      return 1;
-    }
-
-    const intensity = ledger.warIntensity || 0;
-    if (intensity === 0) {
-      return 1;
-    }
-
-    const durationTicks = ledger.warDurationTicks || 0;
-    const durationFactor = Math.min(1.0, durationTicks / 10);
-
-    let warType = good.warEconomyType;
-    if (!warType) {
-      const defaultGood = GOODS_DATA.find((g: { name: string; warEconomyType?: string }) => g.name === good.name);
-      warType = defaultGood?.warEconomyType;
-    }
-
-    if (!warType) {
-      return 1;
-    }
-
-    let baseMultiplier = 0;
-    switch (warType) {
-      case "military":
-        baseMultiplier = 1.5;
-        break;
-      case "essential":
-        baseMultiplier = 1.2;
-        break;
-      case "strategic":
-        baseMultiplier = 0.8;
-        break;
-      case "luxury": {
-        const dropFactor = 0.3;
-        const luxuryMod = Math.max(0.1, 1 - dropFactor * intensity);
-        return luxuryMod; // food stress does not apply to luxuries
-      }
-      default:
-        return 1;
-    }
-
-    const warMod = 1 + baseMultiplier * intensity * (1 + durationFactor);
-    return warMod;
+    return getWarPriceModifier(burgId, goodId);
   }
 
   customerBuyPrice(midPrice: number, burgId?: number, goodId?: number): number {
-    const warMod = this.getWarPriceModifier(burgId, goodId);
-    return rn(midPrice * warMod * (1 + MARKET_MARGIN), 2);
+    return customerBuyPrice(midPrice, burgId, goodId);
   }
 
   customerSellPrice(midPrice: number, burgId?: number, goodId?: number): number {

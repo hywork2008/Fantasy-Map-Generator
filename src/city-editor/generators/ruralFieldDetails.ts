@@ -1,22 +1,16 @@
-import type { RuralFieldSettings, RuralFieldSystem } from "../types/contracts/ruralFields";
 import type { Point } from "../types/document";
 import { isSimplePolygon, polygonArea, polygonCentroid } from "./geom";
 import type { FarmPlot } from "./localInfill.types";
 import { convexInfillParts } from "./lotGeometry";
 import { bounds, corridor, intersectConvex, PlotIndex } from "./parcelGeometry";
 import { ruralBankKey } from "./ruralFieldBanks";
+import type { DetailedRuralFieldInput } from "./ruralFieldDetails.types";
 import { clipLines, curvedRows, gatedBoundary, nearestOnSegment } from "./ruralFieldGeometry";
 import { planRuralFieldGroups } from "./ruralFieldGroups";
 import { planRuralFields, type RuralFieldInput, type RuralFieldPlan } from "./ruralFieldPlan";
 
-export interface DetailedRuralFieldInput extends RuralFieldInput {
-  profiler?: import("../utils/ruralFieldProfiler").RuralFieldProfiler;
-  system: RuralFieldSystem;
-  settings?: RuralFieldSettings;
-  /** The physical domain can extend beyond this rendering window. */
-  visibleFrame?: Point[];
-  unsuitableAreaM2?: number;
-}
+export type { DetailedRuralFieldInput } from "./ruralFieldDetails.types";
+
 const area = (p: Point[]) => Math.abs(polygonArea(p));
 const hash = (s: string) => {
   let n = [...s].reduce((n, c) => (Math.imul(n, 33) + c.charCodeAt(0)) >>> 0, 5381);

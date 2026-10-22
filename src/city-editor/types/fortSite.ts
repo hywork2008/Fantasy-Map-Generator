@@ -1,4 +1,4 @@
-import type { Id, Point } from "./document";
+import type { Id, Point } from "./primitives";
 
 /** Authoring data in metres. Render meshes and sampled profiles are never persisted. */
 export interface FortSite {

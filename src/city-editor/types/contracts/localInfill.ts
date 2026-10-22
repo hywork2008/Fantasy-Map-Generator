@@ -1,4 +1,4 @@
-import type { Id, Point } from "../document";
+import type { Id, Point } from "../primitives";
 
 export interface InfillLane {
   kind?: "farm-track" | "headland";

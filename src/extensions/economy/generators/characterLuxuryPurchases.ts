@@ -9,7 +9,7 @@ import { TASTE_GOOD_MATCH } from "../../characters/backstoryProfile";
 import type { Character } from "../../characters/characterTypes";
 import { rn } from "../../hostUtils";
 import { getWorldContext } from "../economyContext";
-import type { LifestyleTier } from "./characterLivingCosts";
+import type { LifestyleTier } from "./characterLifestyleTypes";
 import { luxuryGoodsByTier } from "./luxuryDemand";
 import { LUXURY_TIERS, type LuxuryTier } from "./luxuryTiers";
 import { Markets } from "./markets-generator";

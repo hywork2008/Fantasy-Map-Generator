@@ -14,10 +14,10 @@ import {
   setMerchantOrganizations
 } from "../economyContext";
 import { rollBalancedEconomyGender } from "./economyCharacterGender";
+import { isLongDistanceTradeEnabled } from "./longDistanceTradeSettings";
 import type { Market } from "./marketTypes";
 import { housesPresentIn } from "./merchantIntelligence";
 import type { MerchantOrganization, MerchantOrganizationScale } from "./merchantOrganizationsTypes";
-import { isLongDistanceTradeEnabled } from "./merchantTradeCapital";
 import { resolveBurgCulture } from "./resolveBurgCulture";
 import type { MarketReachRefusal } from "./tradeStageObserver";
 

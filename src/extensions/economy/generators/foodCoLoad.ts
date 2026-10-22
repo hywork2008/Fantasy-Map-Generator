@@ -12,7 +12,7 @@
 
 import { rn } from "../../hostUtils";
 import { getGoods, getMarkets } from "../economyContext";
-import { FOOD_SPOILAGE_HALF_LIFE_DAYS } from "./foodImportNetwork";
+import { FOOD_SPOILAGE_HALF_LIFE_DAYS } from "./foodConstants";
 import { isFreshFoodGood } from "./goods-generator";
 import type { Caravan, FoodLedger, Market } from "./marketTypes";
 import { markRetailInventoryDirty } from "./retailInventory";

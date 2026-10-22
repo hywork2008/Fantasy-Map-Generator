@@ -4,7 +4,7 @@ import { clipHalfPlane, insetConvexKernel } from "./lotGeometry";
 import { bounds, corridor, intersectConvex, PlotIndex, subtractConvex } from "./parcelGeometry";
 import { clipRuralAccess } from "./ruralFieldAccessGeometry";
 import { ruralBankKey } from "./ruralFieldBanks";
-import type { DetailedRuralFieldInput } from "./ruralFieldDetails";
+import type { DetailedRuralFieldInput } from "./ruralFieldDetails.types";
 import { clipLines, curvedRows, gatedBoundary } from "./ruralFieldGeometry";
 import type { RuralFieldPlan } from "./ruralFieldPlan";
 

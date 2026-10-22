@@ -3,6 +3,7 @@ import type { Character, CharacterRole, TitleHolding } from "../../characters/ch
 import { rn } from "../../hostUtils";
 import { CENTRAL_OFFICES } from "../../nobility/data/titleTable";
 import { getMarkets } from "../economyContext";
+import type { LifestyleTier } from "./characterLifestyleTypes";
 import { buyCharacterLuxuries, characterLuxuryBudget } from "./characterLuxuryPurchases";
 import { payStateHouseholds, spendInBurg } from "./householdWealth";
 import { isLuxuryValueDemandEnabled } from "./luxuryDemand";
@@ -33,17 +34,7 @@ import { nominal } from "./moneyScale";
 const CENTRAL_OFFICE_TITLES = new Set(CENTRAL_OFFICES.map(office => office.title));
 const FIELD_COMMANDER_TITLES = new Set(["Commander", "Admiral"]);
 
-/** Lifestyle tiers ordered from cheapest to dearest (used as rank for multi-role characters). */
-export type LifestyleTier =
-  | "apprenticeBoarded"
-  | "common"
-  | "marketRival"
-  | "guildMaster"
-  | "marketManager"
-  | "fieldCommander"
-  | "provinceLord"
-  | "centralOffice"
-  | "ruler";
+export type { LifestyleTier } from "./characterLifestyleTypes";
 
 /**
  * Fixed personal living cost (silver pieces / production cycle) by lifestyle tier.

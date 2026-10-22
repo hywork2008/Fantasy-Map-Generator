@@ -1,24 +1,11 @@
 import type { CityDocument, Point } from "../types/document";
+import type { CityTerrain, TerrainPatch as Patch } from "../types/terrain";
 import { fortSiteTerrain } from "./fortSiteTerrain";
 import { pointInPolygon, polygonCentroid } from "./geom";
 import { triangularInfillParts } from "./lotGeometry";
 import { faceVertices } from "./mesh";
 
-interface Patch {
-  faceId: string;
-  points: [Point, Point, Point];
-  heights: [number, number, number];
-}
-
-export interface CityTerrain {
-  /** Absolute elevation represented by local Y=0. Uniform legacy land stays flat. */
-  datumMeters: number;
-  relief: boolean;
-  heightAt(point: Point): number;
-  /** Horizontal foundation above all terrain beneath this footprint. */
-  foundationAt(ring: readonly Point[]): number;
-  triangles: Patch[];
-}
+export type { CityTerrain } from "../types/terrain";
 
 const cross = (a: Point, b: Point, c: Point) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
 

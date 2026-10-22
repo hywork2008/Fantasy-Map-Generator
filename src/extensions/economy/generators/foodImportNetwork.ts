@@ -9,15 +9,15 @@ import { rn } from "../../hostUtils";
 import { getGoods, getMarkets } from "../economyContext";
 import { getBurgMarketLedger } from "./burgMarketLedgers";
 import { drawFoodForExport, receiveFoodImport, syncStapleFoodMarketStock } from "./foodCoLoad";
-import { GROSS_FOOD_NEED } from "./foodConstants";
+import { FOOD_SPOILAGE_HALF_LIFE_DAYS, GROSS_FOOD_NEED } from "./foodConstants";
 import { applyHeatingCapacityBonus } from "./heating";
-import { Markets } from "./markets-generator";
+import { customerBuyPrice } from "./marketPricing";
 import type { FoodLedger, Market } from "./marketTypes";
 import { calculateRouteDurationFromDistances } from "./tradeRouteDuration";
 import { TradeSecurity } from "./tradeSecurity";
 
-/** Grains and other durable staples remain usable for roughly one season in transit. */
-export const FOOD_SPOILAGE_HALF_LIFE_DAYS = 90;
+export { FOOD_SPOILAGE_HALF_LIFE_DAYS } from "./foodConstants";
+
 const QUARTERS_PER_YEAR = 4;
 
 /** A resolved quarterly food shipment between two market hubs. */
@@ -218,7 +218,7 @@ export function resetEffectiveCapacities(
 
 function getImportPriority(market: Market, foodGoodId: number | undefined): number {
   const price = foodGoodId === undefined ? 1 : (market.goods[foodGoodId]?.price ?? 1);
-  return Markets.customerBuyPrice(price, market.centerBurgId, foodGoodId);
+  return customerBuyPrice(price, market.centerBurgId, foodGoodId);
 }
 
 function getFoodRoute(

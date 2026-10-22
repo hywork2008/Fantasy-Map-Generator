@@ -7,29 +7,16 @@
  * @see docs/plan/merchant-logistics-warehouses.md Phase D
  */
 
-import { worldSettings } from "../../../simulation/worldSettings";
 import type { Burg } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getCaravans, getExportStagingLots, getMarkets, getWorldContext } from "../economyContext";
 import { creditHouseholdWealth } from "./burgMarketLedgers";
 import { getMoneyTradeCapacityFactorForMarket } from "./currencySufficiency";
 import { getEconomyStartProfile } from "./economyStartMode";
+import { isLongDistanceTradeEnabled } from "./longDistanceTradeSettings";
 import type { Market, MarketTreasury, TradeCapitalAccount } from "./marketTypes";
 
-export const LONG_DISTANCE_TRADE_SETTING = "fmg-long-distance-trade";
-
-/**
- * "on": inter-market cargo is paid for — the house pays the exporting market at booking and the
- * importing market pays the house on arrival, with no soft arrival profit; warehouse lots that
- * never load are cancelled (docs/plan/long-distance-merchant-reach-capital.md §5.1, §5.3).
- */
-export function isLongDistanceTradeEnabled(): boolean {
-  try {
-    return worldSettings.getItem(LONG_DISTANCE_TRADE_SETTING) === "on";
-  } catch {
-    return false;
-  }
-}
+export { isLongDistanceTradeEnabled, LONG_DISTANCE_TRADE_SETTING } from "./longDistanceTradeSettings";
 
 /** What a booking pays out besides the taxes, which the deal carries to the treasuries (§5.1). */
 export type TradeBookingPayments = {

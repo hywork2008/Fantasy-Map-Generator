@@ -1,9 +1,9 @@
 import type { CityDocument, Point } from "../types/document";
+import type { CityTerrain } from "../types/terrain";
 import { fortCircle, fortHeight } from "./fortSiteGeometry";
 import { nearestOnPolyline, polygonArea, polygonCentroid } from "./geom";
 import { facePoints } from "./mesh";
 import { intersectConvex, subtractConvex } from "./parcelGeometry";
-import type { CityTerrain } from "./terrainElevation";
 
 /** A separate, fine drawing mesh follows the authored earthworks without touching editor topology. */
 export function fortSiteTerrain(document: CityDocument): CityTerrain {

@@ -22,7 +22,7 @@ import {
   type InnFacility,
   type InnFacilityTotals
 } from "./innFacilityTypes";
-import { Markets } from "./markets-generator";
+import { consumeForSmelting } from "./marketStockConsumption";
 
 export type { InnClass, InnConstructionOrder, InnFacility, InnFacilityTotals } from "./innFacilityTypes";
 export { INN_CLASSES } from "./innFacilityTypes";
@@ -328,7 +328,7 @@ function createConstructionOrders(desired: readonly InnFacility[]): InnConstruct
 
 function consumeConstructionMaterial(marketId: number, goodId: number | undefined, requested: number): number {
   if (goodId === undefined || requested <= 0) return 0;
-  return Markets.consumeForConstruction(marketId, goodId, requested, INN_CONSTRUCTION_STOCK_SHARE);
+  return consumeForSmelting(marketId, goodId, requested, INN_CONSTRUCTION_STOCK_SHARE, "construction");
 }
 
 function advanceConstructionOrders(orders: readonly InnConstructionOrder[]): {
