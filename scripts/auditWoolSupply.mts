@@ -5,7 +5,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { createNodeSimulationHost } from "../src/simulation/adapters/node";
 import { getGoods, getMarkets } from "../src/extensions/economy/context/trade";
 import { getOrCreateFaunaStockTable } from "../src/extensions/economy/context/cellTables";
-import { getPastureAreaUsedHectares } from "../src/extensions/economy/generators/husbandry";
+import { calculateGrazingLandAllocation, getPastureAreaUsedHectares, STOCKING_DENSITY_PER_HECTARE } from "../src/extensions/economy/generators/husbandry";
 import { HOUSEHOLD_GARMENT_NAMES } from "../src/extensions/economy/generators/textileRecipeContracts";
 import { getMarketBlanketDemandProfile, getMarketTextileDemandProfile } from "../src/extensions/economy/generators/textileDemand";
 import { getWoolOutput } from "../src/extensions/economy/generators/woolProduction";
@@ -26,8 +26,8 @@ if (host.world.options.initialSettlementPattern !== "standard") throw new Error(
 const sim = host.simulation as { worldSettings?: Record<string, string> };
 sim.worldSettings = { ...sim.worldSettings, "fmg-long-distance-trade": "on", "fmg-caravan-raids": "off" };
 const wool = getGoods().find(good => good.name === "Wool")!;
-// Mirror the private ecological ceilings in husbandry.ts, not observed historical densities.
-const modelDensity: Record<string, number> = { Sheep: 3, Cattle: 0.5, Goats: 2.5, Horses: 0.4, Camels: 0.15 };
+// Model ecological densities, not observed historical stocking rates.
+const modelDensity = STOCKING_DENSITY_PER_HECTARE;
 let woolFlows: Record<string, number> = {};
 const wardrobeIds = new Set(getGoods().filter(good => HOUSEHOLD_GARMENT_NAMES.has(good.name)).map(good => good.i));
 const blanket = getGoods().find(good => good.name === "Wool Blankets");
@@ -49,10 +49,15 @@ function snapshot() {
  const occupied = [];
  let pastureHa = 0;
  let footprintHa = 0;
+ let allocatedPastureHa = 0;
+ const landCapacityHeads: Record<string, number> = {};
  let woolLotsPerMonth = 0;
  for (const cellId of world.pack.cells.i) {
   const ha = getPastureAreaUsedHectares(cellId);
   pastureHa += ha;
+  const allocations = calculateGrazingLandAllocation(world, cellId, ha);
+  allocatedPastureHa += allocations.reduce((sum, row) => sum + row.areaHa, 0);
+  for (const row of allocations) landCapacityHeads[row.goodName] = (landCapacityHeads[row.goodName] ?? 0) + row.capacityHeads;
   let claim = 0;
   const localHeads: Record<string, number> = {};
   for (const [name, density] of Object.entries(modelDensity)) {
@@ -64,13 +69,13 @@ function snapshot() {
   }
   footprintHa += claim;
   woolLotsPerMonth += getWoolOutput(cellId);
-  if (claim > 0) occupied.push({cellId, pastureHa: ha, footprintHa: claim, occupancy: ha > 0 ? claim / ha : null, heads: localHeads});
+  if (claim > 0) occupied.push({cellId, pastureHa: ha, footprintHa: claim, occupancy: ha > 0 ? claim / ha : null, heads: localHeads, allocations});
  }
  const ruralPeople = Array.from(world.pack.cells.pop).reduce((sum, points) => sum + Math.max(0, points), 0) * world.populationRate;
  const urbanPeople = world.pack.burgs.reduce((sum, burg) => sum + (burg?.i && !burg.removed ? Math.max(0, burg.population ?? 0) : 0), 0) * world.populationRate * (world.urbanization ?? 1);
  const stockLots = getMarkets().reduce((sum, market) => sum + Math.max(0, market.goods[wool.i]?.stock ?? 0), 0);
  const result = { date: [host.simulation.currentYear, host.simulation.currentMonth, host.simulation.currentDay], ruralPeople, urbanPeople,
-  heads, sheepPerResident: heads.Sheep / (ruralPeople + urbanPeople), pastureHa, footprintHa,
+  heads, sheepPerResident: heads.Sheep / (ruralPeople + urbanPeople), pastureHa, footprintHa, allocatedPastureHa, landCapacityHeads,
   aggregateOccupancy: pastureHa > 0 ? footprintHa / pastureHa : null,
   occupiedCells: occupied.length, cellsOverModelFootprint: occupied.filter(cell => cell.occupancy === null || cell.occupancy > 1.01).length,
   worstCells: occupied.sort((a,b) => (b.occupancy ?? Infinity) - (a.occupancy ?? Infinity)).slice(0, 10),

@@ -11,6 +11,8 @@ import {
   initEconomyContext,
   setCultivatedArea,
   setGoods,
+  setHusbandryRequiredWorkers,
+  setHusbandryWorkers,
   setMarketCellColumn,
   setMarkets,
   setMerchantTransportLedgers
@@ -22,6 +24,7 @@ import {
   DOMESTICATED_CAPACITY_MONTHS_PROXY,
   drawDomesticatedFaunaOfftake,
   drawWildFaunaOfftake,
+  GRAZED_EXCESS_ANNUAL_ADJUSTMENT,
   getDomesticatedCarryingCapacity,
   getDomesticatedCullSelectivity,
   getRealNonMarketDemand,
@@ -649,6 +652,33 @@ describe("faunaPopulation", () => {
       // Breeding cohort with room under capacity should have produced young.
       expect(grown.young).toBeGreaterThan(0);
     });
+
+    it.each([true, false])(
+      "adjusts an existing grazed herd gradually after a capacity reduction, pasture=%s",
+      pasture => {
+        forestCellWorld();
+        worldContext.biomesData = biomesData({ 1: ["grassland"] }) as never;
+        worldContext.options = { ruralEcosystemDetail: "detailed" } as typeof worldContext.options;
+        simulationContext.currentYear = 500;
+        setGoods([CATTLE_GOOD] as never);
+        setHusbandryRequiredWorkers(Float32Array.from([10]));
+        setHusbandryWorkers(Float32Array.from([pasture ? 10 : 0]));
+        const table = getOrCreateFaunaStockTable()!;
+        table["0:Cattle"] = { young: 0, breeding: 1000, old: 0 };
+        const capacity = getDomesticatedCarryingCapacity(0, CATTLE_GOOD as never, 1);
+        expect(capacity).toBeLessThan(1000);
+        expect(table["0:Cattle"].breeding).toBe(1000);
+        expect(updateAnnualFaunaCohorts()).toBe(true);
+        const after = table["0:Cattle"];
+        const total = after.young + after.breeding + after.old;
+        // No old animals die in this first year: only the explicit excess adjustment reduces the herd.
+        expect(total).toBeCloseTo(1000 - (1000 - capacity) * GRAZED_EXCESS_ANNUAL_ADJUSTMENT, 8);
+        expect(total).toBeGreaterThan(capacity);
+        expect(after.young).toBe(0);
+        expect(updateAnnualFaunaCohorts()).toBe(false);
+        expect(table["0:Cattle"]).toEqual(after);
+      }
+    );
 
     it("shrinks stock toward a newly-reduced carrying capacity instead of leaving it stranded above it", () => {
       forestCellWorld();

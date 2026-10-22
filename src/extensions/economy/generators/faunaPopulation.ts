@@ -388,10 +388,8 @@ function getNonFoodDemandAbsorptionCapacity(cellId: number, good: Good): number 
  * population × biomeOutput). Non-food species are capped further by market demand either way (§4.5).
  */
 export function getDomesticatedCarryingCapacity(cellId: number, good: Good, flatRateAmount: number): number {
-  // Grazed species recompute their own ungated population x biome-rate demand internally (see
-  // getGrazedLaborCapacityHeads()'s doc-comment) rather than trusting `flatRateAmount` here — at
-  // production-utils.ts's call site it has already been multiplied by getHusbandryWorkerFactor(),
-  // which would double-gate the labour-based herd ceiling below.
+  // Grazed capacity is a share of one land budget, in real animals. This month's offtake
+  // (`flatRateAmount`) must not become a standing-herd target or gate the same pasture twice.
   const rawCapacity = isGrazedLivestockGood(good.name)
     ? getGrazedCarryingCapacity(cellId, good)
     : Math.max(0, flatRateAmount) * animalsPerMarketHead(good.name) * DOMESTICATED_CAPACITY_MONTHS_PROXY;
@@ -570,15 +568,19 @@ export function previewDomesticatedFaunaOfftake(cellId: number, good: Good, desi
 
 // ---- Annual cohort update (§4.3) ----
 
+/** Annual adjustment of excess grazed animals, after ordinary age-related deaths. Model policy. */
+export const GRAZED_EXCESS_ANNUAL_ADJUSTMENT = 0.1;
+
 function advanceCohortsOneYear(
   cohorts: FaunaCohorts,
   profile: FaunaSpeciesProfile,
-  carryingCapacity: number
+  carryingCapacity: number,
+  gradualGrazingAdjustment = false
 ): FaunaCohorts {
-  if (carryingCapacity <= 0) return { young: 0, breeding: 0, old: 0 };
+  if (carryingCapacity <= 0 && !gradualGrazingAdjustment) return { young: 0, breeding: 0, old: 0 };
 
   const total = cohortTotal(cohorts);
-  const room = Math.max(0, 1 - total / carryingCapacity);
+  const room = carryingCapacity > 0 ? Math.max(0, 1 - total / carryingCapacity) : 0;
   const born = cohorts.breeding * profile.annualBreedingRate * room;
 
   const youngMaturing = cohorts.young / Math.max(0.1, profile.youngMaturityYears);
@@ -595,7 +597,11 @@ function advanceCohortsOneYear(
   if (nextTotal > carryingCapacity) {
     // Habitat/demand ceiling shrank faster than natural attrition (e.g. cropland just expanded,
     // or a non-food species' demand cap just collapsed) — model the excess as die-off/emigration.
-    const scale = carryingCapacity / nextTotal;
+    const target = Math.max(0, carryingCapacity);
+    const adjustedTotal = gradualGrazingAdjustment
+      ? nextTotal - (nextTotal - target) * GRAZED_EXCESS_ANNUAL_ADJUSTMENT
+      : target;
+    const scale = adjustedTotal / nextTotal;
     next = { young: next.young * scale, breeding: next.breeding * scale, old: next.old * scale };
   }
   return next;
@@ -614,7 +620,12 @@ function advanceStockOneYear(
     return; // Freshly seeded — breeding/aging starts from here next year.
   }
 
-  const next = advanceCohortsOneYear(existing, getSpeciesProfile(speciesKey), carryingCapacity);
+  const next = advanceCohortsOneYear(
+    existing,
+    getSpeciesProfile(speciesKey),
+    carryingCapacity,
+    isGrazedLivestockGood(speciesKey)
+  );
   if (cohortTotal(next) <= 0 && carryingCapacity <= 0)
     delete table[key]; // Habitat/demand gone — stop tracking.
   else table[key] = next;

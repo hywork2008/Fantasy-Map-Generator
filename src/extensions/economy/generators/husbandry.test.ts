@@ -11,6 +11,7 @@ import {
   setHusbandryWorkers
 } from "../economyContext";
 import {
+  calculateGrazingLandAllocation,
   calculateHusbandryDemand,
   getGrazedCarryingCapacity,
   getHusbandryWorkerFactor,
@@ -87,6 +88,7 @@ describe("husbandry", () => {
   beforeEach(() => {
     simulationContext.extensions = {};
     initEconomyContext({ worldContext, simulationContext } as unknown as ExtensionAPI);
+    setGoods([CATTLE_GOOD] as never);
   });
 
   afterEach(() => {
@@ -144,8 +146,8 @@ describe("husbandry", () => {
     it("weights value by each grazed good's share of land capacity", () => {
       grasslandCellWorld(600);
       setGoods([CATTLE_GOOD, SHEEP_GOOD] as never);
-      // desiredArea = 600 ha for both; landCapacity_Cattle = 600*0.5 = 300, landCapacity_Sheep = 600*3 = 1800
-      // (Sheep's stocking density is much higher); weighted value = (300*5 + 1800*1) / 2100 = 11/7.
+      // Equal suitability gives each species 300 ha. Capacity is 150 cattle + 900 sheep.
+      // Weighted value = (150 * 5 + 900) / 1050 = 11 / 7.
       const demand = calculateHusbandryDemand(worldContext, 0);
       expect(demand.value).toBeCloseTo(11 / 7, 5);
     });
@@ -159,6 +161,107 @@ describe("husbandry", () => {
       const demand = calculateHusbandryDemand(worldContext, 0);
       expect(demand.requiredWorkers).toBeCloseTo((50 * 0.5) / 60, 5);
       expect(demand.requiredWorkers).toBeLessThan((7650 * 0.5) / 60);
+    });
+  });
+
+  describe("shared grazing budget", () => {
+    it("partitions one pasture across all grazed species using real-animal stocking densities", () => {
+      grasslandCellWorld(600);
+      const goods = ["Cattle", "Sheep", "Goats", "Horses", "Camels"].map((name, i) => ({
+        ...CATTLE_GOOD,
+        name,
+        i: i + 1
+      }));
+      setGoods([...goods, PIG_GOOD] as never);
+      const allocation = calculateGrazingLandAllocation(worldContext, 0);
+      expect(allocation).toHaveLength(5);
+      expect(allocation.reduce((sum, row) => sum + row.areaHa, 0)).toBeCloseTo(600, 8);
+      expect(allocation.reduce((sum, row) => sum + row.capacityHeads / row.density, 0)).toBeCloseTo(600, 8);
+      const heads = Object.fromEntries(allocation.map(row => [row.goodName, row.capacityHeads]));
+      expect(heads.Cattle).toBeCloseTo(120 * 0.5, 8);
+      expect(heads.Sheep).toBeCloseTo(120 * 3, 8);
+      expect(heads.Horses).toBeCloseTo(120 * 0.4, 8);
+      setHusbandryRequiredWorkers(Float32Array.from([10]));
+      setHusbandryWorkers(Float32Array.from([5]));
+      const usedHa = goods.reduce((sum, good) => {
+        const row = allocation.find(row => row.goodName === good.name)!;
+        return sum + getGrazedCarryingCapacity(0, good as never) / row.density;
+      }, 0);
+      expect(usedHa).toBeCloseTo(300, 8);
+    });
+
+    it("normalizes suitability within each species so market-lot redefinition does not change land shares", () => {
+      grasslandCellWorld(600);
+      setGoods([CATTLE_GOOD, SHEEP_GOOD] as never);
+      const before = calculateGrazingLandAllocation(worldContext, 0);
+      setGoods([{ ...CATTLE_GOOD, biomeOutputByTag: { grassland: 2.5 } }, SHEEP_GOOD] as never);
+      expect(calculateGrazingLandAllocation(worldContext, 0)).toEqual(before);
+      setGoods([{ ...CATTLE_GOOD, biomeOutputByTag: { grassland: 0.05, arable: 0.1 } }, SHEEP_GOOD] as never);
+      const allocation = calculateGrazingLandAllocation(worldContext, 0);
+      expect(allocation.find(row => row.goodName === "Cattle")!.areaHa).toBeCloseTo(200, 8);
+      expect(allocation.find(row => row.goodName === "Sheep")!.areaHa).toBeCloseTo(400, 8);
+    });
+
+    it("computes herders from partitioned targets and retains care for existing excess animals", () => {
+      grasslandCellWorld(600);
+      setGoods([CATTLE_GOOD, SHEEP_GOOD] as never);
+      expect(calculateHusbandryDemand(worldContext, 0).requiredWorkers).toBeCloseTo(150 / 60 + 900 / 200, 8);
+      const stock = getOrCreateFaunaStockTable()!;
+      stock["0:Cattle"] = { young: 100, breeding: 800, old: 100 };
+      expect(calculateHusbandryDemand(worldContext, 0).requiredWorkers).toBeCloseTo(1000 / 60 + 900 / 200, 8);
+      expect(stock["0:Cattle"]).toEqual({ young: 100, breeding: 800, old: 100 });
+    });
+
+    it("keeps capacity independent of herd seeding, catalog order and repeated queries", () => {
+      grasslandCellWorld(600);
+      setGoods([CATTLE_GOOD, SHEEP_GOOD] as never);
+      setHusbandryRequiredWorkers(Float32Array.from([10]));
+      setHusbandryWorkers(Float32Array.from([10]));
+      const before = getGrazedCarryingCapacity(0, SHEEP_GOOD as never);
+      const stock = getOrCreateFaunaStockTable()!;
+      stock["0:Cattle"] = { young: 5000, breeding: 5000, old: 5000 };
+      getGrazedCarryingCapacity(0, CATTLE_GOOD as never);
+      setGoods([SHEEP_GOOD, CATTLE_GOOD] as never);
+      expect(getGrazedCarryingCapacity(0, SHEEP_GOOD as never)).toBeCloseTo(before, 8);
+      expect(stock["0:Cattle"].breeding).toBe(5000);
+    });
+
+    it("uses resolved pasture once despite low labor coverage, without taking cropland or woodland twice", () => {
+      grasslandCellWorld(600);
+      worldContext.pack.landUse = {
+        cells: [
+          {
+            diagnostics: ["resolved-livestock-land"],
+            allocatedAreaHa: 1000,
+            patches: [
+              { kind: "pasture", areaHa: 60 },
+              { kind: "wood_pasture", areaHa: 40 },
+              { kind: "field", areaHa: 900 }
+            ]
+          }
+        ]
+      } as never;
+      setGoods([CATTLE_GOOD, SHEEP_GOOD] as never);
+      setHusbandryRequiredWorkers(Float32Array.from([100]));
+      setHusbandryWorkers(Float32Array.from([5]));
+      expect(getPastureAreaUsedHectares(0)).toBe(100);
+      expect(
+        getGrazedCarryingCapacity(0, CATTLE_GOOD as never) / 0.5 + getGrazedCarryingCapacity(0, SHEEP_GOOD as never) / 3
+      ).toBeCloseTo(100, 8);
+    });
+
+    it("excludes disabled or unsuitable species without redistributing through a disabled direct query", () => {
+      grasslandCellWorld(600);
+      const disabled = { ...SHEEP_GOOD, requiredTechnology: "unavailableGrazingTestTechnology" };
+      const unsuitable = { ...CATTLE_GOOD, name: "Camels", biomeOutputByTag: { desert: 0.1 } };
+      setGoods([CATTLE_GOOD, disabled, unsuitable] as never);
+      setHusbandryRequiredWorkers(Float32Array.from([10]));
+      setHusbandryWorkers(Float32Array.from([10]));
+      expect(calculateGrazingLandAllocation(worldContext, 0).map(row => row.goodName)).toEqual(["Cattle"]);
+      expect(getGrazedCarryingCapacity(0, disabled as never)).toBe(0);
+      expect(getGrazedCarryingCapacity(0, unsuitable as never)).toBe(0);
+      expect(getGrazedCarryingCapacity(0, CATTLE_GOOD as never)).toBe(300);
+      expect(calculateGrazingLandAllocation(worldContext, 0, 0)).toEqual([]);
     });
   });
 
