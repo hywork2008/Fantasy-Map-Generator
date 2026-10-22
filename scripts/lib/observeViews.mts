@@ -32,11 +32,14 @@ import {
   type LotDispatchEvent,
   type LotDispatchOutcome,
   setLotDispatchObserver,
+  setCargoDepartureObserver,
   setTradeStageObserver,
   type TradeStageEvent
 } from "../../src/extensions/economy/generators/tradeStageObserver";
 import { getStaleLotDays } from "../../src/extensions/economy/generators/exportStaging";
 import { setGoodFlowObserver, type GoodFlowRecord } from "../../src/extensions/economy/generators/goodsBalanceLedger";
+import { createGoodsFlowObservation } from "../../src/extensions/economy/generators/goodsFlowObservation";
+import { GOOD_MEASURES } from "../../src/extensions/economy/generators/goodMeasureCatalog";
 import { DEMAND_TARGET_FACTORS } from "../../src/extensions/economy/generators/goods-generator";
 import { townStanding } from "../../src/extensions/economy/generators/luxuryDemand";
 import { characterLuxuryBudget } from "../../src/extensions/economy/generators/characterLuxuryPurchases";
@@ -461,7 +464,19 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
   let luxuryCovered = 0;
   let luxuryByStanding = new Map<string, number>();
   let luxurySince: ObserveClock | null = null;
+  const goodsFlow = createGoodsFlowObservation();
+  let flowCatalogue: readonly Good[] | null = null;
+  let flowGoods = new Map<number, Good>();
+  setCargoDepartureObserver(event => goodsFlow.departure(event));
   setGoodFlowObserver((flow: GoodFlowRecord) => {
+    const catalogue = getGoods();
+    if (catalogue !== flowCatalogue) {
+      flowCatalogue = catalogue;
+      flowGoods = new Map(catalogue.map(g => [g.i, g]));
+    }
+    const observedGood = flowGoods.get(flow.goodId);
+    const observedPrice = (flow.marketId !== undefined ? getMarketById(flow.marketId)?.goods[flow.goodId]?.price : undefined) ?? observedGood?.value ?? 0;
+    goodsFlow.flow(flow, observedPrice);
     const good = trackedLuxuryGoods().get(flow.goodId);
     if (!good) return;
     const price = (flow.marketId !== undefined ? getMarketById(flow.marketId)?.goods[flow.goodId]?.price : undefined) ?? good.value;
@@ -662,6 +677,7 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
   };
   let noCapitalByExporter = new Map<number, number>();
   setTradeStageObserver((event: TradeStageEvent) => {
+    goodsFlow.stage(event);
     if (event.stage === "noCapital")
       noCapitalByExporter.set(event.exporterId, (noCapitalByExporter.get(event.exporterId) ?? 0) + 1);
     const keys = [classOfGood(event.goodId)];
@@ -759,6 +775,7 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
 
   /** Trade matching since the previous call (or since these views were created). */
   function trade() {
+    const goodRows = goodsFlow.take();
     const counts = stageCounts;
     const deals = dealRows;
     stageCounts = new Map();
@@ -782,6 +799,23 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
       stages: Object.fromEntries(
         [...counts].map(([key, row]) => [key, Object.fromEntries(Object.entries(row).map(([k, v]) => [k, r3(v)]))])
       ),
+      byGood: getGoods().map(good => {
+        const marketRows = getMarkets().map(market => ({
+          marketId: market.i,
+          stock: market.goods[good.i]?.stock ?? 0,
+          price: market.goods[good.i]?.price ?? good.value
+        }));
+        const observed = goodRows.get(good.i);
+        return {
+          id: good.i,
+          name: good.name,
+          unit: good.unit,
+          measure: GOOD_MEASURES[good.name]?.unit === good.unit ? GOOD_MEASURES[good.name] : null,
+          stock: marketRows.reduce((total, market) => total + market.stock, 0),
+          markets: marketRows,
+          ...observed
+        };
+      }),
       warehouse: warehouseLots(),
       /** Agents of each house (home market → markets with an agent) and pending price rumours (§4.3). */
       branches: merchantIntelligenceSummary(),

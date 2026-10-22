@@ -2,9 +2,11 @@
 
 2026-10-22
 
+- docs/analytics/goods-physical-units-observation-20261022.json - 同じStandard設定のprovince-101を酒樽変更前後で36か月ずつ進めた、Ink・Linen・Beer・果物と果実酒の生産・消費・在庫・照合・出発の集計と入力ハッシュ
 - docs/plan/ce-manual-city-authoring.md - CE手動編集のセル境界由来の細街路・仕上げ後の枠付近の道路・共有時の再生成を調査し、手動補完ポリシー、選択区域の仕上げ、文書共有と生成条件共有の分離、実装順序と受入条件を設計
 - docs/plan/ce-regional-building-appearance.md - CEの2D・3D共通の地域別屋根・壁パレット、既存BV住宅と簡易マッシングのベンチマーク、街区の色別SVG集約、軽量描画とBVの分担・導出と保存・実装順序を設計
 - docs/plan/character-wealth-lifecycle.md - 人物の遅延生成・詳細削除・死亡・相続から現金口座を独立させ、初期資金の配分と抽象家計の分割、通貨量の保存、旧セーブ移行・削除前精算を定義する設計
+- docs/plan/goods-physical-units-remaining-tasks.md - goods-physical-units.md の §29 までの「残る課題」を後続の対応と照合し、輸送・レシピ・需要・史料・計測・基本単位移行の未対応事項、完了条件、対応済み項目、進める順を整理したタスクリスト
 - docs/plan/master-character-generation-compatibility.md - 全拡張ONの固定masterを基準に、初期人物の種類・人数・兼任・所持金・家族構成を選択生成で再現するプロファイル、初期予算・乱数再生・家族集計・移行・差分検証の設計
 
 2026-10-21

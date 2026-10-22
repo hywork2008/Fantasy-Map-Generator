@@ -19,6 +19,9 @@ import type { Good } from "./goods-generator";
 import type { Caravan } from "./marketTypes";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
 import { TradeAnimation } from "./trade-animation";
+import { setCargoDepartureObserver } from "./tradeStageObserver";
+
+afterEach(() => setCargoDepartureObserver(null));
 
 const SLOOP_SLOTS = SHIP_CLASS_DEFINITIONS.find(shipClass => shipClass.id === "sloop")?.cargoCapacitySlots ?? 0;
 
@@ -349,6 +352,8 @@ describe("caravan loading accumulation", () => {
   });
 
   it("sends a short road consignment immediately instead of waiting to fill a hold", () => {
+    const departures = vi.fn();
+    setCargoDepartureObserver(departures);
     vi.spyOn(TradeAnimation, "findRoutePath").mockReturnValue({
       points: [
         [0, 0],
@@ -379,6 +384,7 @@ describe("caravan loading accumulation", () => {
     expect(getCaravans()).toHaveLength(1);
     expect(getCaravans()[0].state).toBe("transit");
     expect(getCaravans()[0].departReason).toBe("depart-local");
+    expect(departures).toHaveBeenCalledExactlyOnceWith(getCaravans()[0]);
   });
 
   it("does not reissue the id of a caravan that has already arrived", () => {
@@ -896,6 +902,8 @@ describe("finite sea fleet departure gate (P0)", () => {
   });
 
   it("departs a sea hold with a concrete hull and refuses a second concurrent sea voyage", () => {
+    const departures = vi.fn();
+    setCargoDepartureObserver(departures);
     MerchantTransportAssets.reconcileMerchantHulls([
       { id: 20, shipClassId: "sloop", homeBurgId: 1, ownerId: 1, status: "voyage" }
     ]);
@@ -919,6 +927,7 @@ describe("finite sea fleet departure gate (P0)", () => {
     const transit = getCaravans().find(c => c.state === "transit");
     expect(transit?.transportAllocations?.some(a => a.shipHullIds?.includes(20))).toBe(true);
     expect(reservedHullIds).toEqual([20]);
+    expect(departures).toHaveBeenCalledExactlyOnceWith(transit);
   });
 
   it("keeps a thin paid hold in port for more freight, then sails it as it is (§10.25)", () => {

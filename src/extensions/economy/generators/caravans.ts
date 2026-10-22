@@ -100,7 +100,7 @@ import {
   sailDecisionFromReason
 } from "./tradeSailSchedule";
 import { TradeSecurity } from "./tradeSecurity";
-import { getLotDispatchObserver, type LotDispatchOutcome } from "./tradeStageObserver";
+import { getCargoDepartureObserver, getLotDispatchObserver, type LotDispatchOutcome } from "./tradeStageObserver";
 import { TransportAssetOrders } from "./transportAssetOrders";
 
 export type CaravanTravelLeg = { endKm: number; speedKmPerDay: number };
@@ -773,6 +773,7 @@ function tryDepartLoadingCaravan(caravan: Caravan): "departed" | "waiting" | "ca
   if (atOrigin) recordCaravanCorridor(caravan);
   if (routeNeedsSeaHulls(segments)) recordSeaDeparture(caravan, caravan.transportDispatcherMarketId);
   caravan.loading = undefined;
+  getCargoDepartureObserver()?.(caravan);
   if (reservation) MerchantTransportAssets.depart(reservation.reservation.id);
   return "departed";
 }
@@ -788,6 +789,7 @@ function departDrove(caravan: Caravan, segments: readonly TradeRouteSegment[]): 
   );
   caravan.state = "transit";
   caravan.departReason = "depart-local";
+  getCargoDepartureObserver()?.(caravan);
   recordRouteTraffic(segments);
   recordCaravanCorridor(caravan);
   caravan.loading = undefined;
@@ -1269,6 +1271,7 @@ export class CaravansModule {
     recordRouteTraffic(routeSegments);
     recordCaravanCorridor(caravan);
     recordSeaDeparture(caravan, reservation?.dispatcherMarketId ?? dispatcherMarketId);
+    getCargoDepartureObserver()?.(caravan);
     if (reservation) MerchantTransportAssets.depart(reservation.reservation.id);
     setNextCaravanId(caravan.i + 1);
     deal.remainingUnits = 0;

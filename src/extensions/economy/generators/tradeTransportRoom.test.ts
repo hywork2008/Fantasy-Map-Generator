@@ -126,7 +126,7 @@ describe("trade transport room", () => {
       { id: 8, shipClassId: "sloop", homeBurgId: 1, ownerId: 1, status: "docked", currentBurgId: 1 }
     ]);
     // Market 2 is inland; its cargo goes overland to market 1's port and sails from there.
-    expect(seaRoomSlots(build(), 2, LAND_AND_SEA, 10)).toBeCloseTo(100);
+    expect(seaRoomSlots(build(), 2, LAND_AND_SEA, 10)).toBeCloseTo(280);
   });
 
   it("counts another market's free hull lying in the exporter's port", () => {
@@ -134,7 +134,7 @@ describe("trade transport room", () => {
     MerchantTransportAssets.reconcileMerchantHulls([
       { id: 7, shipClassId: "sloop", homeBurgId: 2, ownerId: 2, status: "docked", currentBurgId: 1 }
     ]);
-    expect(seaRoomSlots(build(), 1, LAND_AND_SEA, 10)).toBeCloseTo(100);
+    expect(seaRoomSlots(build(), 1, LAND_AND_SEA, 10)).toBeCloseTo(280);
   });
   it("keeps a whole hull for one destination, including top-ups across goods and exporters (T9)", () => {
     Object.assign(worldContext.pack.burgs[1], { x: 100, y: 0, port: 1 });
@@ -149,11 +149,11 @@ describe("trade transport room", () => {
     ];
     const room = build();
     takeTransportRoom(room, 1, LAND_AND_SEA, 10, 10);
-    expect(seaRoomSlots(room, 1, LAND_AND_SEA, 10)).toBe(90);
+    expect(seaRoomSlots(room, 1, LAND_AND_SEA, 10)).toBe(270);
     expect(seaRoomSlots(room, 1, otherDestination, 10)).toBe(0);
     // The inland exporter cannot charter the very same hull for its own consignment.
     expect(seaRoomSlots(room, 2, LAND_AND_SEA, 10)).toBe(0);
-    takeTransportRoom(room, 1, LAND_AND_SEA, 10, 90);
+    takeTransportRoom(room, 1, LAND_AND_SEA, 10, 270);
     expect(seaRoomSlots(room, 1, LAND_AND_SEA, 10)).toBe(0);
   });
 
@@ -176,7 +176,7 @@ describe("trade transport room", () => {
       () => LAND_AND_SEA,
       () => 10
     );
-    expect(seaRoomSlots(room, 1, LAND_AND_SEA, 10)).toBe(90);
+    expect(seaRoomSlots(room, 1, LAND_AND_SEA, 10)).toBe(270);
     expect(seaRoomSlots(room, 2, LAND_AND_SEA, 10)).toBe(0);
   });
   it("exchanges a small reserved hull for a larger free one when a destination's load grows", () => {
@@ -188,8 +188,8 @@ describe("trade transport room", () => {
     ]);
     const room = build();
     takeTransportRoom(room, 1, LAND_AND_SEA, 10, 10);
-    takeTransportRoom(room, 1, LAND_AND_SEA, 10, 100);
+    takeTransportRoom(room, 1, LAND_AND_SEA, 10, 280);
     // Only the larger hull is held; the sloop can serve another exporting house.
-    expect(seaRoomSlots(room, 2, LAND_AND_SEA, 10)).toBe(100);
+    expect(seaRoomSlots(room, 2, LAND_AND_SEA, 10)).toBe(280);
   });
 });

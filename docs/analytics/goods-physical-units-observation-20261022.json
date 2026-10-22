@@ -1,0 +1,554 @@
+{
+  "created": "2026-10-22",
+  "input": {
+    "name": "province-101.fmg",
+    "sha256": "c4e2d3bae09117d9f9be2a3bcc88456a52d72228fcda579dfa9c39adfeebfb10",
+    "initialSettlementPattern": "standard",
+    "populationRate": 1000
+  },
+  "settings": {
+    "fmg-long-distance-trade": "on",
+    "fmg-caravan-raids": "off"
+  },
+  "strideMonths": 1,
+  "months": 36,
+  "notes": [
+    "Flow values are stock valuations at observation-time market prices, not cash spending.",
+    "Departures count physical legs, including local cargo; deals count global trade matching only.",
+    "Before and after differ in all drink changes of goods-physical-units section 29, not price alone."
+  ],
+  "runs": {
+    "before": {
+      "revision": "25670636c",
+      "samplesSha256": "7af6775d1f652734b818b3c8a11060d41f115321b6fa06edeaa28f892ed705b0",
+      "dates": [
+        "590-02-01",
+        "593-01-01"
+      ],
+      "goods": {
+        "Ink": {
+          "unit": "barrel",
+          "measure": {
+            "unit": "barrel",
+            "content": "120 L",
+            "kg": 132,
+            "liters": 120,
+            "pack": "barrel",
+            "source": "model"
+          },
+          "closingStock": 0,
+          "flows": {},
+          "stages": {},
+          "deals": {
+            "count": 0,
+            "units": 0,
+            "value": 0
+          },
+          "departures": {
+            "legs": 0,
+            "units": 0,
+            "value": 0,
+            "slots": 0
+          },
+          "productionPer12Samples": [
+            0,
+            0,
+            0
+          ]
+        },
+        "Linen": {
+          "unit": "bale",
+          "measure": {
+            "unit": "bale",
+            "content": "200 kg, 10 bolts",
+            "kg": 200,
+            "liters": 500,
+            "pack": "bale",
+            "source": "recipe"
+          },
+          "closingStock": 7.56,
+          "flows": {
+            "source:importArrival": {
+              "units": 6.609999999999999,
+              "value": 57.6721
+            },
+            "sink:recipeInput": {
+              "units": 4.4,
+              "value": 23.399100000000004
+            },
+            "sink:burgDemand": {
+              "units": 0.5900000000000002,
+              "value": 3.0634
+            },
+            "source:burgCraft": {
+              "units": 5.59,
+              "value": 50.2309
+            },
+            "sink:exportDeparture": {
+              "units": 0.32,
+              "value": 1.7728000000000002
+            }
+          },
+          "stages": {
+            "speculative": 20,
+            "noBuyerCash": 13,
+            "pair": 56,
+            "shipmentRule": 29,
+            "orgReach": 27,
+            "routeNotViable": 3,
+            "quoteUnprofitable": 3,
+            "deal": 1
+          },
+          "deals": {
+            "count": 1,
+            "units": 0.32,
+            "value": 2.104448
+          },
+          "departures": {
+            "legs": 21,
+            "units": 7.64,
+            "value": 57.650568,
+            "slots": 20.966
+          },
+          "productionPer12Samples": [
+            3.57,
+            0.73,
+            1.29
+          ]
+        },
+        "Beer": {
+          "unit": "200 L ale cask",
+          "measure": {
+            "unit": "200 L ale cask",
+            "content": "200 L",
+            "kg": 202,
+            "liters": 200,
+            "pack": "cask",
+            "source": "code"
+          },
+          "closingStock": 0,
+          "flows": {
+            "source:burgCraft": {
+              "units": 351.13000000000005,
+              "value": 1728.4452
+            },
+            "sink:householdFood": {
+              "units": 410.39,
+              "value": 1955.1638999999998
+            },
+            "source:importArrival": {
+              "units": 59.260000000000026,
+              "value": 256.59090000000003
+            }
+          },
+          "stages": {
+            "speculative": 6,
+            "routeNotViable": 6
+          },
+          "deals": {
+            "count": 0,
+            "units": 0,
+            "value": 0
+          },
+          "departures": {
+            "legs": 197,
+            "units": 59.45000000000001,
+            "value": 233.87560000000002,
+            "slots": 237.80000000000004
+          },
+          "productionPer12Samples": [
+            106.06,
+            117.45000000000005,
+            127.61999999999998
+          ]
+        },
+        "Apples": {
+          "unit": "1,000 kg apple lot",
+          "measure": {
+            "unit": "1,000 kg apple lot",
+            "content": "1,000 kg",
+            "kg": 1000,
+            "liters": 2000,
+            "pack": "crate",
+            "source": "label"
+          },
+          "closingStock": 0,
+          "flows": {},
+          "stages": {},
+          "deals": {
+            "count": 0,
+            "units": 0,
+            "value": 0
+          },
+          "departures": {
+            "legs": 0,
+            "units": 0,
+            "value": 0,
+            "slots": 0
+          },
+          "productionPer12Samples": [
+            0,
+            0,
+            0
+          ]
+        },
+        "Pears": {
+          "unit": "1,000 kg pear lot",
+          "measure": {
+            "unit": "1,000 kg pear lot",
+            "content": "1,000 kg",
+            "kg": 1000,
+            "liters": 2000,
+            "pack": "crate",
+            "source": "label"
+          },
+          "closingStock": 0,
+          "flows": {},
+          "stages": {},
+          "deals": {
+            "count": 0,
+            "units": 0,
+            "value": 0
+          },
+          "departures": {
+            "legs": 0,
+            "units": 0,
+            "value": 0,
+            "slots": 0
+          },
+          "productionPer12Samples": [
+            0,
+            0,
+            0
+          ]
+        },
+        "Cider": {
+          "unit": "200 L cider cask",
+          "measure": {
+            "unit": "200 L cider cask",
+            "content": "200 L",
+            "kg": 202,
+            "liters": 200,
+            "pack": "cask",
+            "source": "label"
+          },
+          "closingStock": 0,
+          "flows": {},
+          "stages": {},
+          "deals": {
+            "count": 0,
+            "units": 0,
+            "value": 0
+          },
+          "departures": {
+            "legs": 0,
+            "units": 0,
+            "value": 0,
+            "slots": 0
+          },
+          "productionPer12Samples": [
+            0,
+            0,
+            0
+          ]
+        },
+        "Perry": {
+          "unit": "200 L perry cask",
+          "measure": {
+            "unit": "200 L perry cask",
+            "content": "200 L",
+            "kg": 202,
+            "liters": 200,
+            "pack": "cask",
+            "source": "label"
+          },
+          "closingStock": 0,
+          "flows": {},
+          "stages": {},
+          "deals": {
+            "count": 0,
+            "units": 0,
+            "value": 0
+          },
+          "departures": {
+            "legs": 0,
+            "units": 0,
+            "value": 0,
+            "slots": 0
+          },
+          "productionPer12Samples": [
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    },
+    "after": {
+      "revision": "b18e8ac582453a9bb62b6b6f96302561e74faeee",
+      "samplesSha256": "2f46e595caadc820b4b25c8e892e830d95004f300217ebbce84baaa425146c2a",
+      "dates": [
+        "590-02-01",
+        "593-01-01"
+      ],
+      "goods": {
+        "Ink": {
+          "unit": "barrel",
+          "measure": {
+            "unit": "barrel",
+            "content": "120 L",
+            "kg": 132,
+            "liters": 120,
+            "pack": "barrel",
+            "source": "model"
+          },
+          "closingStock": 0,
+          "flows": {},
+          "stages": {},
+          "deals": {
+            "count": 0,
+            "units": 0,
+            "value": 0
+          },
+          "departures": {
+            "legs": 0,
+            "units": 0,
+            "value": 0,
+            "slots": 0
+          },
+          "productionPer12Samples": [
+            0,
+            0,
+            0
+          ]
+        },
+        "Linen": {
+          "unit": "bale",
+          "measure": {
+            "unit": "bale",
+            "content": "200 kg, 10 bolts",
+            "kg": 200,
+            "liters": 500,
+            "pack": "bale",
+            "source": "recipe"
+          },
+          "closingStock": 5.72,
+          "flows": {
+            "source:importArrival": {
+              "units": 4.37,
+              "value": 37.125400000000006
+            },
+            "sink:recipeInput": {
+              "units": 2.5900000000000003,
+              "value": 17.133000000000003
+            },
+            "sink:burgDemand": {
+              "units": 0.2800000000000001,
+              "value": 1.9737
+            },
+            "source:burgCraft": {
+              "units": 4.36,
+              "value": 35.3909
+            },
+            "sink:exportDeparture": {
+              "units": 0.81,
+              "value": 3.9442000000000004
+            }
+          },
+          "stages": {
+            "speculative": 22,
+            "noBuyerCash": 13,
+            "pair": 67,
+            "shipmentRule": 38,
+            "orgReach": 29,
+            "routeNotViable": 3,
+            "quoteUnprofitable": 3,
+            "deal": 3
+          },
+          "deals": {
+            "count": 3,
+            "units": 0.81,
+            "value": 4.652671999999999
+          },
+          "departures": {
+            "legs": 25,
+            "units": 5.640000000000001,
+            "value": 38.939291999999995,
+            "slots": 16.565999999999995
+          },
+          "productionPer12Samples": [
+            0.53,
+            1.54,
+            2.29
+          ]
+        },
+        "Beer": {
+          "unit": "1,000 L ale tun",
+          "measure": {
+            "unit": "1,000 L ale tun",
+            "content": "1000 L",
+            "kg": 1010,
+            "liters": 1000,
+            "pack": "cask",
+            "source": "code"
+          },
+          "closingStock": 0,
+          "flows": {
+            "source:burgCraft": {
+              "units": 89.73000000000002,
+              "value": 269.6866
+            },
+            "sink:householdFood": {
+              "units": 99.34,
+              "value": 299.11850000000004
+            },
+            "source:importArrival": {
+              "units": 9.610000000000003,
+              "value": 33.555600000000005
+            }
+          },
+          "stages": {
+            "speculative": 7,
+            "routeNotViable": 7
+          },
+          "deals": {
+            "count": 0,
+            "units": 0,
+            "value": 0
+          },
+          "departures": {
+            "legs": 30,
+            "units": 9.610000000000001,
+            "value": 31.037200000000006,
+            "slots": 38.440000000000005
+          },
+          "productionPer12Samples": [
+            36.670000000000016,
+            26.18,
+            26.88
+          ]
+        },
+        "Apples": {
+          "unit": "1,000 kg apple lot",
+          "measure": {
+            "unit": "1,000 kg apple lot",
+            "content": "1,000 kg",
+            "kg": 1000,
+            "liters": 2000,
+            "pack": "crate",
+            "source": "label"
+          },
+          "closingStock": 0,
+          "flows": {},
+          "stages": {},
+          "deals": {
+            "count": 0,
+            "units": 0,
+            "value": 0
+          },
+          "departures": {
+            "legs": 0,
+            "units": 0,
+            "value": 0,
+            "slots": 0
+          },
+          "productionPer12Samples": [
+            0,
+            0,
+            0
+          ]
+        },
+        "Pears": {
+          "unit": "1,000 kg pear lot",
+          "measure": {
+            "unit": "1,000 kg pear lot",
+            "content": "1,000 kg",
+            "kg": 1000,
+            "liters": 2000,
+            "pack": "crate",
+            "source": "label"
+          },
+          "closingStock": 0,
+          "flows": {},
+          "stages": {},
+          "deals": {
+            "count": 0,
+            "units": 0,
+            "value": 0
+          },
+          "departures": {
+            "legs": 0,
+            "units": 0,
+            "value": 0,
+            "slots": 0
+          },
+          "productionPer12Samples": [
+            0,
+            0,
+            0
+          ]
+        },
+        "Cider": {
+          "unit": "1,000 L cider tun",
+          "measure": {
+            "unit": "1,000 L cider tun",
+            "content": "1000 L",
+            "kg": 1010,
+            "liters": 1000,
+            "pack": "cask",
+            "source": "label"
+          },
+          "closingStock": 0,
+          "flows": {},
+          "stages": {},
+          "deals": {
+            "count": 0,
+            "units": 0,
+            "value": 0
+          },
+          "departures": {
+            "legs": 0,
+            "units": 0,
+            "value": 0,
+            "slots": 0
+          },
+          "productionPer12Samples": [
+            0,
+            0,
+            0
+          ]
+        },
+        "Perry": {
+          "unit": "1,000 L perry tun",
+          "measure": {
+            "unit": "1,000 L perry tun",
+            "content": "1000 L",
+            "kg": 1010,
+            "liters": 1000,
+            "pack": "cask",
+            "source": "label"
+          },
+          "closingStock": 0,
+          "flows": {},
+          "stages": {},
+          "deals": {
+            "count": 0,
+            "units": 0,
+            "value": 0
+          },
+          "departures": {
+            "legs": 0,
+            "units": 0,
+            "value": 0,
+            "slots": 0
+          },
+          "productionPer12Samples": [
+            0,
+            0,
+            0
+          ]
+        }
+      }
+    }
+  }
+}

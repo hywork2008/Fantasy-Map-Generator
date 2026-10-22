@@ -114,3 +114,20 @@ export function setLotDispatchObserver(next: LotDispatchObserver | null): void {
 export function getLotDispatchObserver(): LotDispatchObserver | null {
   return lotDispatchObserver;
 }
+
+/** A physical departure, including unreserved droves; transshipment counts once per leg. */
+export interface CargoDepartureEvent {
+  readonly payload: readonly {
+    readonly goodId: number;
+    readonly units: number;
+    readonly value: number;
+    readonly cargoSlotsPerUnit?: number;
+  }[];
+}
+let cargoDepartureObserver: ((event: CargoDepartureEvent) => void) | null = null;
+export function setCargoDepartureObserver(next: typeof cargoDepartureObserver): void {
+  cargoDepartureObserver = next;
+}
+export function getCargoDepartureObserver(): typeof cargoDepartureObserver {
+  return cargoDepartureObserver;
+}
