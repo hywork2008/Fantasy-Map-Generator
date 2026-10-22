@@ -31,11 +31,20 @@ const wool = getGoods().find(good => good.name === "Wool")!;
 // Model ecological densities, not observed historical stocking rates.
 const modelDensity = STOCKING_DENSITY_PER_HECTARE;
 let woolFlows: Record<string, number> = {};
+let textileFlows: Record<string, Record<string, number>> = {};
+const textileNames = new Set(["Wool", "Flax", "Hemp", "Cotton", "Cloth", "Linen", "Wool Cloth", "Wool Garments", "Linen Garments", "Garments", "Wool Blankets"]);
+const textileNameById = new Map(getGoods().filter(good => textileNames.has(good.name)).map(good => [good.i, good.name]));
 const wardrobeIds = new Set(getGoods().filter(good => HOUSEHOLD_GARMENT_NAMES.has(good.name)).map(good => good.i));
 const blanket = getGoods().find(good => good.name === "Wool Blankets");
 let householdBlankets = 0;
 let householdWardrobes = 0;
 setGoodFlowObserver(flow => {
+ const textileName = textileNameById.get(flow.goodId);
+ if (textileName && flow.direction !== "transfer") {
+  const totals = textileFlows[textileName] ??= {};
+  const key = `${flow.direction}:${flow.category}`;
+  totals[key] = (totals[key] ?? 0) + flow.units;
+ }
  if (flow.direction === "sink" && flow.category === "householdTextiles") {
    if (wardrobeIds.has(flow.goodId)) householdWardrobes += flow.units;
    if (flow.goodId === blanket?.i) householdBlankets += flow.units;
@@ -112,8 +121,14 @@ function snapshot() {
   worstCells: occupied.sort((a,b) => (b.occupancy ?? Infinity) - (a.occupancy ?? Infinity)).slice(0, 10),
   monthlyWardrobeDemandLots: getMarkets().reduce((sum, market) => sum + getMarketTextileDemandProfile(market.i).monthlyDemand, 0),
   householdWardrobeConsumptionLots: householdWardrobes,
+  householdWardrobeLedgerDemandLots: getMarkets().reduce((sum, market) => sum + (market.textileLedger?.monthlyDemand ?? 0), 0),
+  householdWardrobeUrbanConsumptionLots: getMarkets().reduce((sum, market) => sum + (market.textileLedger?.urbanConsumption ?? 0), 0),
+  householdWardrobeRuralConsumptionLots: getMarkets().reduce((sum, market) => sum + (market.textileLedger?.ruralConsumption ?? 0), 0),
+  householdWardrobeUnmetLots: getMarkets().reduce((sum, market) => sum + (market.textileLedger?.unmetDemand ?? 0), 0),
   monthlyBlanketDemandLots: getMarkets().reduce((sum, market) => sum + getMarketBlanketDemandProfile(market.i).monthlyDemand, 0),
   householdBlanketConsumptionLots: householdBlankets,
+  householdBlanketLedgerDemandLots: getMarkets().reduce((sum, market) => sum + (market.blanketLedger?.monthlyDemand ?? 0), 0),
+  householdBlanketUnmetLots: getMarkets().reduce((sum, market) => sum + (market.blanketLedger?.unmetDemand ?? 0), 0),
   ruralHomeWardrobesLots: getMarkets().reduce((sum, market) => sum + (market.ruralTextileProduction?.garments ?? 0), 0),
   ruralHomeBlanketsLots: getMarkets().reduce((sum, market) => sum + (market.ruralTextileProduction?.blankets ?? 0), 0),
   ruralPurchasedClothWardrobesLots: getMarkets().reduce((sum, market) => sum + (market.ruralTextileProduction?.purchasedClothGarments ?? 0), 0),
@@ -126,8 +141,8 @@ function snapshot() {
   householdBlanketSpending: getMarkets().reduce((sum, market) => sum + (market.blanketLedger?.householdSpending ?? 0), 0),
   annualWoolPotentialKg,
   effectiveWoolLaborAndFeedCoverage: annualWoolPotentialKg > 0 ? woolLotsPerMonth * WOOL_KG_PER_MARKET_LOT * 12 / annualWoolPotentialKg : 0,
-  woolLotsPerMonth, woolKgPerMonth: woolLotsPerMonth * WOOL_KG_PER_MARKET_LOT, woolStockLots: stockLots, woolStockKg: stockLots * WOOL_KG_PER_MARKET_LOT, woolFlows };
- woolFlows = {}; householdWardrobes = 0; householdBlankets = 0;
+  woolLotsPerMonth, woolKgPerMonth: woolLotsPerMonth * WOOL_KG_PER_MARKET_LOT, woolStockLots: stockLots, woolStockKg: stockLots * WOOL_KG_PER_MARKET_LOT, woolFlows, textileFlows };
+ woolFlows = {}; textileFlows = {}; householdWardrobes = 0; householdBlankets = 0;
  return result;
 }
 const initial = snapshot();
