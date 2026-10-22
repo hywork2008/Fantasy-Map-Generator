@@ -331,6 +331,12 @@ describe("rural household wool processing", () => {
       const home = market.ruralTextileProduction!;
       expect(home.garments).toBeGreaterThan(0);
       expect(market.blanketLedger!.householdConsumption).toBeGreaterThan(0);
+      expect(home.beddingDiagnostic!.beddingBudget).toBeGreaterThan(0);
+      expect(home.beddingDiagnostic!.wardrobeHomeLots).toBe(home.garments);
+      expect(home.beddingDiagnostic!.routes.reduce((sum, route) => sum + route.producedLots, 0)).toBeCloseTo(
+        home.blankets,
+        10
+      );
       const spent = market.textileLedger!.householdSpending! + market.blanketLedger!.householdSpending!;
       expect(spent).toBeLessThanOrEqual(100);
       expect(market.foodLedger!.ruralHouseholdWealth).toBeCloseTo(2000 - spent, 2);
@@ -358,9 +364,41 @@ describe("rural household wool processing", () => {
     settleTextileHouseholdDemand();
     expect(market.ruralTextileProduction!.garments).toBeGreaterThan(0);
     expect(market.ruralTextileProduction!.blankets).toBe(0);
+    expect(market.ruralTextileProduction!.beddingDiagnostic!.beddingBudget).toBe(0);
+    expect(market.ruralTextileProduction!.beddingDiagnostic!.remainingWardrobeCost).toBeGreaterThan(100);
     expect(market.blanketLedger!.householdConsumption).toBe(0);
     expect(market.goods[byName("Wool Blankets").i].stock).toBe(100);
   });
+
+  it.each(["labor", "stock", "cash", "price", "rounding"])(
+    "captures the actual bedding %s constraint without inventing production",
+    constraint => {
+      const market = getMarkets()[0];
+      market.goods[byName("Wool").i].price = 1;
+      market.goods[byName("Wool Cloth").i] = { stock: 0, price: 100 };
+      if (constraint === "labor") setHouseholdTextileWorkers(new Float32Array());
+      if (constraint === "stock") market.goods[byName("Wool").i].stock = 0;
+      if (constraint === "price") {
+        market.goods[byName("Wool").i].price = 0;
+        market.goods[byName("Wool Cloth").i].price = 0;
+      }
+      if (constraint === "rounding") market.goods[byName("Wool").i].stock = 0.000001;
+      const result = settleRuralTextileProduction(market, 0, 1, 0, constraint === "cash" ? 0 : 100);
+      const diagnostic = result.beddingDiagnostic!;
+      expect(result.blankets).toBe(0);
+      if (constraint === "labor") {
+        expect(diagnostic.laborAfterGarments).toBe(0);
+        expect(diagnostic.routes).toHaveLength(0);
+      } else {
+        const route = diagnostic.routes.find(route => route.weavesCloth)!;
+        if (constraint === "stock") expect(route.stockLimitLots).toBe(0);
+        if (constraint === "cash") expect(route.cashLimitLots).toBe(0);
+        if (constraint === "price") expect(route.inputPrice).toBeNull();
+        if (constraint === "rounding") expect(route.belowPaymentPrecision).toBe(true);
+        expect(route.producedLots).toBe(0);
+      }
+    }
+  );
 
   it("pays for real fiber and uses shared labor to self-supply independent replacements without buying them twice", () => {
     const market = getMarkets()[0];

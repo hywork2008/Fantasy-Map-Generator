@@ -135,6 +135,11 @@ function snapshot() {
   ruralPurchasedClothBlanketsLots: getMarkets().reduce((sum, market) => sum + (market.ruralTextileProduction?.purchasedClothBlankets ?? 0), 0),
   ruralPurchasedClothSpending: getMarkets().reduce((sum, market) => sum + (market.ruralTextileProduction?.purchasedClothSpending ?? 0), 0),
   ruralTextileInputOrders, ruralTextileInputPurchases,
+  beddingDiagnostics: getMarkets().flatMap(market => market.ruralTextileProduction?.beddingDiagnostic
+    ? [{ marketId: market.i, ...market.ruralTextileProduction.beddingDiagnostic,
+         householdBlanketConsumptionLots: market.blanketLedger?.householdConsumption ?? 0,
+         householdBlanketUnmetLots: market.blanketLedger?.unmetDemand ?? 0 }]
+    : []),
   ruralTextileLaborCapacity: getMarkets().reduce((sum, market) => sum + (market.ruralTextileProduction?.laborCapacity ?? 0), 0),
   ruralTextileLaborUsed: getMarkets().reduce((sum, market) => sum + (market.ruralTextileProduction?.laborUsed ?? 0), 0),
   householdWardrobeSpending: getMarkets().reduce((sum, market) => sum + (market.textileLedger?.householdSpending ?? 0), 0),

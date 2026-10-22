@@ -107,6 +107,31 @@ describe("ChunkedWorldCodecAdapter", () => {
               purchasedClothGarments: 0.1,
               purchasedClothBlankets: 0.5,
               purchasedClothSpending: 1,
+              beddingDiagnostic: {
+                householdBudget: 10,
+                wardrobeNeedLots: 1,
+                wardrobeHomeLots: 0.25,
+                wardrobeSpending: 2,
+                remainingWardrobeCost: 7.5,
+                beddingBudget: 0.5,
+                laborAfterGarments: 2.5,
+                blanketNeedLots: 1,
+                finishedBlanketStock: 0,
+                routes: [
+                  {
+                    inputGoodId: 1,
+                    weavesCloth: true,
+                    inputPrice: 1,
+                    inputStock: 1,
+                    needLimitLots: 1,
+                    cashLimitLots: 0.5,
+                    stockLimitLots: 1,
+                    laborLimitLots: 0.25,
+                    producedLots: 0.25,
+                    belowPaymentPrecision: false
+                  }
+                ]
+              },
               laborUsed: 10,
               laborCapacity: 12.5
             }
