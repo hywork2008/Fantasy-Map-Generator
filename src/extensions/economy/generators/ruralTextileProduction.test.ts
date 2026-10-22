@@ -13,6 +13,7 @@ import {
   setMarketCellColumn,
   setMarkets
 } from "../economyContext";
+import { getGoodDemandCalibration } from "./craftDemandCalibration";
 import { Goods } from "./goods-generator";
 import { type GoodFlowRecord, setGoodFlowObserver } from "./goodsBalanceLedger";
 import type { FoodLedger } from "./marketTypes";
@@ -166,6 +167,71 @@ describe("rural household wool processing", () => {
     if (gate === "multiple inputs") linen.recipes![0][12345] = 1;
     expect(settleRuralTextileProduction(market, 1, 0, 1000, 0).garments).toBe(0);
     expect(market.goods[byName("Flax").i].stock).toBe(5000);
+  });
+
+  it.each([
+    ["Wool Cloth", "Wool Garments"],
+    ["Cloth", "Garments"],
+    ["Linen", "Linen Garments"],
+    ["Wool Cloth", "Wool Blankets"]
+  ])("buys %s for %s and charges tailoring without repeating weaving", (cloth, product) => {
+    const market = addPlantRoutes();
+    const bedding = product === "Wool Blankets";
+    market.goods[byName(cloth).i] = { stock: 100, price: 10 };
+    const home = settleRuralTextileProduction(market, bedding ? 0 : 1, bedding ? 1 : 0, 1000, 1000);
+    const produced = bedding ? home.blankets : home.garments;
+    expect(produced).toBeGreaterThan(0);
+    const clothPerProduct = TEXTILE_RECIPES[product][0][cloth];
+    expect(100 - market.goods[byName(cloth).i].stock).toBeCloseTo(produced * clothPerProduct, 8);
+    expect(home.laborUsed).toBeCloseTo(
+      produced * getGoodDemandCalibration(product)!.laborPointsPerLotAtDefaultRate * 1000,
+      8
+    );
+    expect(home.purchasedClothSpending).toBeCloseTo(produced * clothPerProduct * 10, 8);
+    expect(home.purchasedClothGarments).toBe(home.garments);
+    expect(home.purchasedClothBlankets).toBe(home.blankets);
+    expect(market.foodLedger!.ruralHouseholdWealth).toBeCloseTo(100_000 - home.purchasedClothSpending!, 8);
+    expect(market.marketTreasury!.balance).toBeCloseTo(10 + home.purchasedClothSpending!, 8);
+    expect(flows.filter(flow => flow.goodId === byName(cloth).i && flow.direction === "source")).toHaveLength(0);
+    expect(flows.filter(flow => flow.goodId === byName(cloth).i && flow.direction === "sink")).toHaveLength(1);
+    expect(market.goods[byName(product).i].stock).toBe(0);
+  });
+
+  it("shares the target and labor between home weaving and bought cloth without recreating market cloth", () => {
+    const market = addPlantRoutes();
+    const wool = byName("Wool");
+    const cloth = byName("Wool Cloth");
+    const woolPerProduct = 6 * TEXTILE_RECIPES["Wool Garments"][0]["Wool Cloth"];
+    market.goods[wool.i] = { stock: woolPerProduct / 4, price: 1 };
+    market.goods[cloth.i] = { stock: 100, price: 100 };
+    const home = settleRuralTextileProduction(market, 1, 0, 1000, 0);
+    expect(home.garments).toBeCloseTo(1, 3);
+    expect(home.garments).toBeLessThanOrEqual(1);
+    expect(home.purchasedClothGarments).toBeGreaterThan(0);
+    expect(home.purchasedClothGarments).toBeLessThan(home.garments);
+    expect(home.garmentSpending).toBeLessThanOrEqual(1000);
+    const woven = flows
+      .filter(flow => flow.goodId === cloth.i && flow.direction === "source")
+      .reduce((sum, flow) => sum + flow.units, 0);
+    const consumed = flows
+      .filter(flow => flow.goodId === cloth.i && flow.direction === "sink")
+      .reduce((sum, flow) => sum + flow.units, 0);
+    expect(woven + 100 - market.goods[cloth.i].stock).toBeCloseTo(consumed, 8);
+    expect(home.laborUsed).toBeCloseTo(home.garments * 972 + woven * 259, 8);
+  });
+
+  it("plans tailoring with no raw fiber and limits bought-cloth output by the remaining work and cash", () => {
+    const market = addPlantRoutes();
+    const supported = getGoods().filter(good => ["Linen", "Linen Garments"].includes(good.name));
+    expect(getRuralTextileRequiredWorkers(worldContext, 0, supported)).toBeGreaterThan(0);
+    setHouseholdTextileWorkers(Float32Array.from([1]));
+    setFarmLaborRequired(Float32Array.from([0]));
+    market.goods[byName("Linen").i] = { stock: 100, price: 10 };
+    const home = settleRuralTextileProduction(market, 1, 0, 0.01, 0);
+    expect(home.garments).toBeGreaterThan(0);
+    expect(home.garmentSpending).toBeLessThanOrEqual(0.01);
+    expect(home.laborUsed).toBeLessThanOrEqual(1);
+    expect(home.garments).toBeLessThanOrEqual(1 / 972);
   });
 
   it("pays for real fiber and uses shared labor to self-supply independent replacements without buying them twice", () => {

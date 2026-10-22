@@ -3,10 +3,11 @@ import { getGoodDemandCalibration } from "./craftDemandCalibration";
 import type { Good } from "./goodsGeneratorTypes";
 
 export interface RuralTextileChain {
-  fiber: Good;
+  input: Good;
   cloth: Good;
   product: Good;
-  fiberPerCloth: number;
+  inputPerCloth: number;
+  weavesCloth: boolean;
   clothPerProduct: number;
   laborPerProduct: number;
 }
@@ -22,7 +23,7 @@ function singleInputAmounts(good: Good, inputId: number): number[] {
   });
 }
 
-/** Callers supply enabled goods. Only plain single-fiber recipes are eligible for home processing. */
+/** Callers supply enabled goods. Only plain single-input recipes are eligible for home processing. */
 export function getRuralTextileChains(goods: readonly Good[]): RuralTextileChain[] {
   const labor = (good: Good) => (getGoodDemandCalibration(good.name)?.laborPointsPerLotAtDefaultRate ?? 0) * 1000;
   const routes = [
@@ -42,14 +43,37 @@ export function getRuralTextileChains(goods: readonly Good[]): RuralTextileChain
     for (const fiberPerCloth of singleInputAmounts(cloth, fiber.i)) {
       for (const clothPerProduct of singleInputAmounts(product, cloth.i)) {
         chains.push({
-          fiber,
+          input: fiber,
           cloth,
           product,
-          fiberPerCloth,
+          inputPerCloth: fiberPerCloth,
+          weavesCloth: true,
           clothPerProduct,
           laborPerProduct: labor(product) + clothPerProduct * labor(cloth)
         });
       }
+    }
+  }
+  // Purchased cloth has already incurred weaving work at its producer, wherever it was made.
+  for (const [clothName, productName] of [
+    ["Wool Cloth", "Wool Garments"],
+    ["Cloth", "Garments"],
+    ["Linen", "Linen Garments"],
+    ["Wool Cloth", "Wool Blankets"]
+  ]) {
+    const cloth = goods.find(good => good.name === clothName);
+    const product = goods.find(good => good.name === productName);
+    if (!cloth || !product || !(labor(product) > 0)) continue;
+    for (const clothPerProduct of singleInputAmounts(product, cloth.i)) {
+      chains.push({
+        input: cloth,
+        cloth,
+        product,
+        inputPerCloth: 1,
+        weavesCloth: false,
+        clothPerProduct,
+        laborPerProduct: labor(product)
+      });
     }
   }
   return chains;

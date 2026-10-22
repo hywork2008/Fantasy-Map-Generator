@@ -1,4 +1,4 @@
-/** Rural families buy actual fiber and use their reserved handcraft labor for their own needs. */
+/** Rural families buy fiber or cloth and use their reserved handcraft labor for their own needs. */
 import { rn } from "../../hostUtils";
 import {
   getFarmLaborRequired,
@@ -19,6 +19,10 @@ export interface RuralTextileProduction {
   blankets: number;
   garmentSpending: number;
   blanketSpending: number;
+  /** Subsets of garment/blanket totals; absent on older saves. */
+  purchasedClothGarments?: number;
+  purchasedClothBlankets?: number;
+  purchasedClothSpending?: number;
   laborUsed: number;
   laborCapacity: number;
 }
@@ -54,60 +58,69 @@ export function settleRuralTextileProduction(
     blankets: 0,
     garmentSpending: 0,
     blanketSpending: 0,
+    purchasedClothGarments: 0,
+    purchasedClothBlankets: 0,
+    purchasedClothSpending: 0,
     laborUsed: 0,
     laborCapacity: getLaborCapacity(market)
   };
   const goods = getGoods().filter(isGoodEnabled);
   if (!(result.laborCapacity > 0)) return result;
   const chains = getRuralTextileChains(goods);
-  const fiberCost = (chain: RuralTextileChain): number => {
-    const price = market.goods[chain.fiber.i]?.price;
-    return price > 0 && Number.isFinite(price) ? chain.clothPerProduct * chain.fiberPerCloth * price : Infinity;
+  const inputCost = (chain: RuralTextileChain): number => {
+    const price = market.goods[chain.input.i]?.price;
+    return price > 0 && Number.isFinite(price) ? chain.clothPerProduct * chain.inputPerCloth * price : Infinity;
   };
   // One wardrobe target across all fibers. Deterministic ties retain the declared route order.
   chains.sort(
     (a, b) =>
       Number(b.product.name !== "Wool Blankets") - Number(a.product.name !== "Wool Blankets") ||
-      fiberCost(a) - fiberCost(b) ||
+      inputCost(a) - inputCost(b) ||
       a.laborPerProduct - b.laborPerProduct
   );
   const produce = (chain: RuralTextileChain, need: number, budget: number): { units: number; cost: number } => {
-    const { fiber, cloth, product: good, clothPerProduct, laborPerProduct } = chain;
-    const fiberRow = market.goods[fiber.i];
-    const costPerProduct = fiberCost(chain);
-    if (!(need > 0) || !(budget > 0) || !Number.isFinite(costPerProduct) || !fiberRow) return { units: 0, cost: 0 };
-    const fiberPerProduct = clothPerProduct * chain.fiberPerCloth;
+    const { input, cloth, product: good, clothPerProduct, laborPerProduct } = chain;
+    const inputRow = market.goods[input.i];
+    const costPerProduct = inputCost(chain);
+    if (!(need > 0) || !(budget > 0) || !Number.isFinite(costPerProduct) || !inputRow) return { units: 0, cost: 0 };
+    const inputPerProduct = clothPerProduct * chain.inputPerCloth;
     const units = Math.min(
       need,
-      Math.max(0, fiberRow.stock) / fiberPerProduct,
+      Math.max(0, inputRow.stock) / inputPerProduct,
       Math.max(0, result.laborCapacity - result.laborUsed) / laborPerProduct,
-      budget / (fiberPerProduct * fiberRow.price)
+      budget / (inputPerProduct * inputRow.price)
     );
-    const cost = Math.floor(Math.max(0, units) * fiberPerProduct * fiberRow.price * 100 + 1e-9) / 100;
+    const cost = Math.floor(Math.max(0, units) * inputPerProduct * inputRow.price * 100 + 1e-9) / 100;
     if (!(cost > 0)) return { units: 0, cost: 0 };
     const paid = debitRuralHouseholdWealth(market, cost);
-    const produced = paid / (fiberPerProduct * fiberRow.price);
+    const produced = paid / (inputPerProduct * inputRow.price);
     if (!(produced > 0)) return { units: 0, cost: 0 };
-    fiberRow.stock = Math.max(0, fiberRow.stock - produced * fiberPerProduct);
+    inputRow.stock = Math.max(0, inputRow.stock - produced * inputPerProduct);
     market.marketTreasury ??= { balance: 0, ruralGrainPayable: 0 };
     market.marketTreasury.balance = rn(market.marketTreasury.balance + paid, 2);
     result.laborUsed += produced * laborPerProduct;
-    // Intermediates are made and used at home, never added to market stock.
-    recordGoodFlow({
-      direction: "sink",
-      category: "recipeInput",
-      goodId: fiber.i,
-      units: produced * fiberPerProduct,
-      marketId: market.i,
-      relatedGoodId: cloth.i
-    });
-    recordGoodFlow({
-      direction: "source",
-      category: "ruralCraft",
-      goodId: cloth.i,
-      units: produced * clothPerProduct,
-      marketId: market.i
-    });
+    if (chain.weavesCloth) {
+      recordGoodFlow({
+        direction: "sink",
+        category: "recipeInput",
+        goodId: input.i,
+        units: produced * inputPerProduct,
+        marketId: market.i,
+        relatedGoodId: cloth.i
+      });
+      // Home-woven cloth is consumed immediately, never added to market stock.
+      recordGoodFlow({
+        direction: "source",
+        category: "ruralCraft",
+        goodId: cloth.i,
+        units: produced * clothPerProduct,
+        marketId: market.i
+      });
+    } else {
+      result.purchasedClothSpending! += paid;
+      if (HOUSEHOLD_GARMENT_NAMES.has(good.name)) result.purchasedClothGarments! += produced;
+      else result.purchasedClothBlankets! += produced;
+    }
     recordGoodFlow({
       direction: "sink",
       category: "recipeInput",

@@ -104,6 +104,9 @@ describe("ChunkedWorldCodecAdapter", () => {
               blankets: 1,
               garmentSpending: 2,
               blanketSpending: 1,
+              purchasedClothGarments: 0.1,
+              purchasedClothBlankets: 0.5,
+              purchasedClothSpending: 1,
               laborUsed: 10,
               laborCapacity: 12.5
             }
