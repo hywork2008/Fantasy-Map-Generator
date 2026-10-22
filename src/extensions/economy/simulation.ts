@@ -143,6 +143,7 @@ import {
   migrateSmeltingFuelAndAshGoods,
   migrateStapleCropGoods,
   migrateSyntheticAmmoniaGoods,
+  migrateWeightRepricing,
   migrateWineRecipe
 } from "./generators/goods-generator";
 import { GreatLibrary } from "./generators/greatLibrary";
@@ -322,7 +323,8 @@ const GOODS_CATALOG_MIGRATIONS: readonly (() => boolean)[] = [
   migrateFoodProcessingLotContracts,
   migrateFreshFoodTags,
   migrateLiveAnimalTags,
-  migrateMeasuredCargoSlots
+  migrateMeasuredCargoSlots,
+  migrateWeightRepricing
 ];
 
 /**

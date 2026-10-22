@@ -35,8 +35,10 @@ import {
   migrateSmeltingFuelAndAshGoods,
   migrateStapleCropGoods,
   migrateSyntheticAmmoniaGoods,
+  migrateWeightRepricing,
   migrateWineRecipe,
-  SMELTED_METAL_REPRICING
+  SMELTED_METAL_REPRICING,
+  WEIGHT_REPRICING
 } from "./goods-generator";
 import { getDefaultGoodsUnitFlavor } from "./goodsUnitFlavor";
 
@@ -248,7 +250,7 @@ describe("GoodsModule", () => {
     const furs = byName.get("Furs");
     if (!cloth || !garments || !silk || !linen || !furs) throw new Error("Missing default textile goods");
 
-    expect(cloth).toMatchObject({ value: 15, unit: "wardrobe bolt", recipes: expect.any(Array) });
+    expect(cloth).toMatchObject({ value: 98, unit: "wardrobe bolt", recipes: expect.any(Array) });
     expect(cloth.recipes).toEqual([
       { [byName.get("Wool")!.i]: 6 },
       { [byName.get("Hemp")!.i]: 6 },
@@ -261,7 +263,7 @@ describe("GoodsModule", () => {
       { [cloth.i]: 0.5, [furs.i]: 1 },
       { [cloth.i]: 1, [byName.get("Synthetic Dye")!.i]: 0.15 }
     ]);
-    expect(garments).toMatchObject({ value: 20, unit: "wardrobe lot", demandCoverage: { clothing: 1 } });
+    expect(garments).toMatchObject({ value: 130, unit: "wardrobe lot", demandCoverage: { clothing: 1 } });
     expect(cloth.recipes?.some(recipe => Object.hasOwn(recipe, silk.i))).toBe(false);
   });
 
@@ -897,6 +899,28 @@ describe("GoodsModule", () => {
     expect(byName("Bullets").value).toBeCloseTo(9 * 1.8, 2);
     expect(byName("Tin Ingot").value).toBe(12);
     expect(migrateSmeltedMetalValues()).toBe(false);
+  });
+
+  it("reprices the textiles, flour and bread of a saved catalogue only where the old figures are still in place", () => {
+    goodsModule.restoreDefaults();
+    const byName = (name: string) => getGoods().find(good => good.name === name)!;
+    for (const [name, [before]] of Object.entries(WEIGHT_REPRICING)) byName(name).value = before;
+    byName("Wool").value = 3; // set by the player in the Goods editor
+    byName("Sails").recipes = [{ [byName("Cloth").i]: 1 }, { [byName("Linen").i]: 1 }];
+    byName("Tapestries").recipes = [{ [byName("Cloth").i]: 2, [byName("Dyes").i]: 1 }];
+    byName("Flour").recipes = [{ [byName("Grain").i]: 1 }];
+    byName("Flour").demandCoverage = { food: 0.3 };
+    byName("Bread").recipes = [{ [byName("Flour").i]: 1 }];
+    byName("Bread").demandCoverage = { food: 1 };
+
+    expect(migrateWeightRepricing()).toBe(true);
+    expect(byName("Wool").value).toBe(3);
+    expect(byName("Cloth").value).toBe(98);
+    expect(byName("Sails").recipes).toEqual([{ [byName("Cloth").i]: 0.15 }, { [byName("Linen").i]: 1 }]);
+    expect(byName("Tapestries").recipes).toEqual([{ [byName("Cloth").i]: 0.3, [byName("Dyes").i]: 1 }]);
+    expect(byName("Flour")).toMatchObject({ recipes: [{ [byName("Grain").i]: 0.134 }], demandCoverage: { food: 0.1 } });
+    expect(byName("Bread")).toMatchObject({ recipes: [{ [byName("Flour").i]: 0.3 }], demandCoverage: { food: 0.03 } });
+    expect(migrateWeightRepricing()).toBe(false);
   });
 
   it("upgrades legacy Wood-to-Coal fuel into Charcoal, Ash-to-Potash, and Slag without inventing stock", () => {

@@ -14,7 +14,7 @@ export { CARGO_SLOT_KG, CARGO_SLOT_LITERS };
  * crops by the wain and Wood by 10 m³ (§12.6), then everything mined, smelted or quarried, which
  * the mines and smelters already count in tonnes (precious metals in kg) (§14), then the food lots
  * whose size foodLots.ts or the unit name fixes (§18), then the light dear goods (§19) and the
- * art, craft and other light goods (§20).
+ * art, craft and other light goods (§20), then the textiles, flour and bread repriced by weight (§21).
  */
 const MEASURED_SLOT_GOODS: ReadonlySet<string> = new Set([
   // Staple crops and wood (§12.6).
@@ -114,7 +114,13 @@ const MEASURED_SLOT_GOODS: ReadonlySet<string> = new Set([
   "Tobacco",
   "Liquor",
   "Soap",
-  "Candles"
+  "Candles",
+  // Textiles, flour and bread, priced by weight with the slot switch (§21).
+  "Wool",
+  "Cloth",
+  "Garments",
+  "Flour",
+  "Bread"
 ]);
 
 /** Slots one packed unit of `good` fills, from its measure; undefined for goods that walk or move themselves. */

@@ -718,7 +718,7 @@ Crude Oil の1単位は約1,180 L(42ガロン樽の7本分)、Natural Gas の1�
 1. 鉱石・地金・鉱物・石・燃料(`code`、1 t)。Coal・Iron Ore など。
 2. 食品の lot と酒樽(`code`・`label`)。Wine・Beer・Cheese・Milk・果物。Milk は1 kg の値が Grain の0.45で、遠くへ運ばない品なので枠が大きくなっても影響は小さい見込み。
 3. 軽い高額品(宝飾・香辛料・薬・香)。枠が1/4〜1/1000になるので、高額品の遠距離交易が大きく増える。照合で荷の数量に上限(1回の荷の価値の上限など)がないかを先に確かめる。
-4. Wool・Cloth・Garments・Salt・Bread・Flour・Linen など §13.4 の品は、値の見直し(§5.6 の日当比での再校正)と一緒に行う。
+4. Wool・Cloth・Garments・Salt・Bread・Flour・Linen など §13.4 の品は、値の見直し(§5.6 の日当比での再校正)と一緒に行う。Wool・Cloth・Garments・Flour・Bread は §21 で行った。Salt・Linen・酒樽5品・Ink・Rennet・Leather・Beeswax は、先に直すものが見つかったので残した(§21.5)。
 
 ### 12.7 校正用に盗賊の出没を止める(2026-10-21、実装)
 
@@ -1179,6 +1179,86 @@ Beer の値は、レシピ(大麦1 wain = 465 kg から ale 200 L、史料では
 
 #### 残る課題
 
-- §13.5 の4: Wool・Cloth・Garments・Salt・Bread・Flour・Linen、酒樽5品、Ink・Rennet・Leather・Beeswax。値の見直し(§5.6)と一緒に行う。
+- ~~§13.5 の4: Wool・Cloth・Garments・Salt・Bread・Flour・Linen、酒樽5品、Ink・Rennet・Leather・Beeswax。値の見直し(§5.6)と一緒に行う。~~ Wool・Cloth・Garments・Flour・Bread は §21 で切り替えた。残りは §21.5。
 - world-102 で、船が港にいないことによる `noTransport`(`sea`)が、取引が増えるたびに増える。回航の需要(port-freight-queue-and-warehouses.md §10.10)が予約の増えに追いついているかを確かめる。
 - 計測の道具(出発した荷の記録)は、車両・船を予約した荷しか数えない。品ごとの流れは、生産・在庫・照合の段で見る。
+
+## 21. 枠の切り替え 第5群: 値を重さに合わせた品(2026-10-22、実装)
+
+§13.5 の4。値が 1 kg あたりで史料と桁が合わない品のうち、Wool・Cloth・Garments・Flour・Bread の5品を、値を重さに合わせ直して、量から出す枠に切り替えた(`goodCargoMeasure.ts MEASURED_SLOT_GOODS`)。値は §5.6 の方針で、1 kg あたりの値を Grain(1 wain = 465 kg で値1)の何倍かで決めた。単位変換ではなく**明示した値のバランス変更**で、単位の量(kg)は変えていない。
+
+### 21.1 切り替えた品と値
+
+| 品 | 1単位 | 枠(今まで → 量から) | 値(今まで → 後) | 1 kg の値(Grain = 1、今まで → 後) | 史料の目安(Grain = 1) |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| Wool | 1,000枚 = 1.5 t | 4 → 22 | 2 → 13 | 0.6 → 4.0 | 3〜6 |
+| Cloth | 4 t | 3 → 44 | 15 → 98 | 1.7 → 11.4 | 10〜50 |
+| Garments | 4 t | 3 → 70.4 | 20 → 130 | 2.3 → 15.1 | Cloth 以上 |
+| Flour | 50 kg | 4 → 0.38 | 1.5 → 0.16 | 14 → 1.5 | 1.2〜1.5 |
+| Bread | 20 kg | 3 → 0.33 | 2 → 0.08 | 47 → 1.9 | 1.5〜3 |
+
+- Cloth は Wool 6 lot(6 × 13 = 78)の1.25倍、Garments は Cloth の4/3倍。今までの利幅の比(15/12、20/15)を保った。
+- Cloth は史料の幅(10〜50)の下端に近い。上げすぎて Garments・Sails・Tapestries の入力が割に合わなくならないよう、Wool 6 lot の1.25倍に抑えた。
+- 日当比(§5.6)で見ると、Garments 1揃いは 0.13 SP、年 0.25 揃い(`textileDemand.ts`)で年 0.033 SP。穀物価格1での年の賃金 0.645 SP の約5%になる(今までは0.5%)。
+
+### 21.2 値に連動して変えたレシピと充足
+
+値だけを変えると、入力が高くなった品が赤字になる。次を変えた。
+
+| 品 | 変更 | 理由 |
+| :--- | :--- | :--- |
+| Sails・Artworks | Cloth 1 → 0.15 | Cloth 1 lot(4 t)が15から98になった。利幅を今までの Cloth 15 のときと同じにする |
+| Tapestries | Cloth 2 → 0.3 | 同上 |
+| Flour | Grain 1 → 0.134 | 50 kg の粉を挽く穀物。粉 50 kg ÷ 挽き歩留まり 0.8 = 62.5 kg = 0.134 wain。今までは 1 wain(465 kg)から 50 kg だった(§5.7) |
+| Bread | Flour 1 → 0.3 | 20 kg のパンを焼く粉。粉 1 kg から約 1.3 kg のパン |
+| Flour の `demandCoverage` | food 0.3 → 0.1 | 50 kg の粉が賄う食料(50 kg ÷ 465 kg ≈ 0.1 wain) |
+| Bread の `demandCoverage` | food 1 → 0.03 | 20 kg のパン(約 5 万 kcal)が、穀物 1 wain(約 160 万 kcal)に対して賄う分 |
+
+Flour と Bread の充足を直さないと、値が1/9〜1/25になったのに充足は変わらず、burg の食料の需要が穀物から粉に移る。
+
+Cloth の入力に Hemp・Cotton がある経路は変えていない。Hemp は 465 kg で値1、Cotton は 200 kg で値2で、6 lot の量が Cloth 4 t に対して質量で合わない(§5.7 の段階4)。
+
+### 21.3 古い保存
+
+`migrateWeightRepricing`(`goods-generator.ts`、`simulation.ts GOODS_CATALOG_MIGRATIONS`)が、保存済みの品の値・レシピの量・充足を直す。値が今までの既定のままのもの、量が今までのままのものだけを変え、Goods エディタで利用者が変えた値と量は残す(`migrateSmeltedMetalValues` と同じ方針)。直したときは市場の値が `Markets.initializeMarketPrices()` で引き直される。
+
+### 21.4 計測
+
+盗賊なし(§12.7)。province-101・world-102 を3年進め、取引の成立(`tradeStageObserver` の `deal`)、品ごとの生産と消費(`goodsBalanceLedger`)を比べた。
+
+| 地図・年 | 取引(件) | 取引の額 | 衣服の家計の消費(累計、lot) |
+| :--- | :--- | :--- | :--- |
+| province-101・1年 | 174 → 126 | 2,666 → 2,232 | 36 → 32 |
+| province-101・2年 | 209 → 217 | 11,033 → 11,372 | 99 → 99 |
+| province-101・3年 | 601 → 511 | 33,267 → 31,423 | 166 → 173 |
+| world-102・1年 | 120 → 137 | 4,330 → 4,426 | 113 → 122 |
+| world-102・2年 | 181 → 181 | 9,875 → 10,943 | 283 → 331 |
+| world-102・3年 | 376 → 264 | 15,898 → 13,781 | 452 → 551 |
+
+- 衣服の家計の消費は前後で同じか増えた(world-102 の3年目 +22%)。満たされない分(`unmet`)はどちらも同じ桁(province-101 の3年目 6,821 → 6,815)。値が6.5倍になっても、家計の衣服は止まらない。
+- 取引の件数・額の差は、Silver Ingot・Dyes・Medicines など切り替えていない品に散っている(world-102 の3年目は Silver Ingot 28 → 1件が最大)。切り替えた品そのものの取引は少なく(Cloth は province-101 の3年目 23 → 9件)、件数の減りと結びつけられない。この地図は盗賊なしで再現するので、揺れではなく、少しの違いが広がった結果。
+- Flour の生産は同じ(province-101 の3年目 1,546 → 1,561 sack)で、穀物の消費が 1,546 → 209 wain に減った。粉の在庫は world-102 で 10,074 → 4,149、burg の需要は 710 → 2,901 sack に増えた(充足が1/3になったので同じ食料に3倍の袋が要る)。Grain の輸出は 390 → 429 wain。
+- Tapestries・Artworks の生産が増えた(province-101 の3年目 10 → 61、15.6 → 60.4)。在庫も増えて値が下がった(Tapestries 40.7 → 30.8、Artworks 25.7 → 19.0)。今までは1個に Cloth 2 lot・1 lot(8 t・4 t)を要し、Cloth の在庫(約 8〜46 lot)がそれを満たせなかったと考えられる(生産が縛られていたかは未確認)。入力が1/7になった。
+- Linen の流れ(生産・Garments と Sails への投入・取引)は前後でほとんど同じ(province-101 の3年目 生産 31.8 → 20.6、投入 43 → 31)。
+
+### 21.5 切り替えなかった品と理由
+
+調べると、値を直す前に直すものが見つかった。次の品は残す。
+
+| 品 | 理由 |
+| :--- | :--- |
+| Salt | 値を 3 → 0.45 にすると、province-101 の3年目の取引の額が 33,267 → 17,070 に半減した(Salt の取引 16,077 が消えた)。計測の Salt は、1 年に約 50 万(`mineSupply`)が供給され、世帯が約 38 万を食べ、在庫が約 14 万ある(単位は台帳の units)。人口 9,300 の地図に対して桁が大きく、値は今までも床(`PRICE_FLOOR_FACTOR` 0.25)に張り付いている。値を下げると遠くへ運ぶ取引が成り立たなくなった(原因の詳細は未調査)。先に Salt の産出の量を見直す |
+| Linen・Flax | Linen を 0.65(Grain の15倍)・Flax を 0.4 にすると、Linen の生産(burgCraft)が 31.8 → 0 になった。原因は未確認。候補の点数は1 lotあたりの利益(売値 − 入力、`production-generator.ts buildImmediateManufactureCandidate`)なので、1 lot の利益 0.25 が Cloth・Garments の数十に負けたと見ている。`laborPointsForLots` も Linen は未校正で、1 lot = 1 労働点のまま(Charcoal は 0.0215 に校正済み)。Garments の linen 脚(0.75、20 kg の bolt で 4 t の衣服)も質量で合わない(正しくは約 190 bolt)。先に Linen の労働点と、候補の並べ方(労働点あたりの利益)を直す |
+| 酒樽5品(Beer・Cider・Perry・Pomace Wine・Wine) | Beer(0.48 = 200 L ale の目安)にすると、入力 Barley 1 wain(0.9)と樽 0.16 で赤字になる。ale 200 L に要る麦は約 0.2 wain(§18.1)で、レシピを質量で直す必要がある。Cider・Perry も、入力の果実の lot(Apples 2.2 / 1,000 kg、1 kg あたり Grain の約1倍)が、史料の酒の値(Grain の0.7〜1.5倍/kg)に対して 1 L の酒に 1.5 kg 要るので、果物の lot の値から見直す。`migrateFoodProcessingLotContracts` が Wine の値・Beer のレシピを毎回上書きするので、そこも変える |
+| Ink・Rennet | 1 L の瓶が Grain の 2,960 倍・1,860 倍。Ink は Oil 1 barrel(120 L)から 1 L、Rennet は牛 0.03 頭から 1 L を作るレシピで、量が質量と合わない(§5.7) |
+| Leather・Beeswax | Leather は 1 hide(25 kg)の値 6 が牛1頭(5)より高い。Boots(20足で 20 kg)の入力 1 roll と、Harnesses・鎧の入力が同じ単位でつながる。Beeswax は Honey 0.5 barrel(84 kg)から 10 kg を作る。どちらも消費する側のレシピを一緒に直す |
+
+#### 残る課題
+
+- Salt の産出量(鉱山の `mineSupply`)の見直しと、そのあとの値(§21.5)。
+- Linen の労働点の校正と、候補の並べ方(1 lot あたりの利益か、労働点あたりの利益か。`production-generator.ts`)の確認。
+- 酒樽5品: レシピを質量で直し、果物の lot の値を見直す(§21.5)。
+- Ink・Rennet・Leather・Beeswax: レシピの量を質量で直す(§5.7)。Leather は Boots・Harnesses のレシピと一緒に。
+- Wool の使い道: 3年の計測では Wool を入力にする Cloth の経路は前後とも 0 件(`recipeInput` なし)。Hemp(6 wain = 2.8 t、値6)・Cotton(6 bale = 1.2 t、値12)で 4 t の Cloth ができる量の合わないレシピの方が安く、Wool の在庫(province-101 で 1,703)は床の値のまま溜まる。Cloth のレシピを質量で直す(§5.7)と一緒に直す。
+- Tapestries・Artworks は、入力の縛りが外れた分だけ在庫が増えた(§21.4)。需要の側(`characterLuxury`・`luxuryPurchase`)との釣り合いを、次の計測で見る。
+

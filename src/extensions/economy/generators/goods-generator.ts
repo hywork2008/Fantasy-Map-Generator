@@ -1370,7 +1370,9 @@ export const GOODS_DATA: GoodData[] = [
     // A market lot of everyday woven cloth, sufficient for 1,000 common wardrobe sets. The six
     // fibre lots represent the five-to-ten fleece range adopted for the textile balance model.
     // Silk remains a luxury textile rather than an input that can be downgraded into common cloth.
-    value: 15,
+    // Priced by weight (docs/plan/goods-physical-units.md §21): 4 t at 11.4 times the grain price per
+    // kilogram, keeping the 25% margin over the six fleece lots (6 x 13).
+    value: 98,
     chance: 0,
     recipes: [{ Wool: 6 }, { Hemp: 6 }, { Cotton: 6 }, { Wool: 6, "Synthetic Dye": 0.1 }],
     unit: "wardrobe bolt"
@@ -1381,7 +1383,8 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["clothing"],
     icon: "good-garments",
     color: "#bd21ec",
-    value: 20,
+    // 4 t at 15 times the grain price per kilogram (goods-physical-units.md §21): the 4/3 premium over Cloth it had.
+    value: 130,
     chance: 0,
     // Utility demand represents ordinary clothing: an undyed wool/cotton/hemp cloth or linen
     // garment. Dyed apparel belongs with luxury consumption rather than making every household's
@@ -1523,11 +1526,11 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["naval"],
     icon: "good-sails",
     color: "#ffffff",
-    // Cloth is now a 1,000-person wardrobe-fibre lot (value 15), so a sail lot must remain above
-    // its ordinary-cloth recipe cost as well as its linen alternative.
+    // Cloth is a 1,000-person wardrobe-fibre lot (value 98), so the ordinary-cloth leg takes a
+    // fifteenth of a lot to keep the recipe cost it had at Cloth 15 (goods-physical-units.md §21).
     value: 18,
     chance: 0,
-    recipes: [{ Cloth: 1 }, { Linen: 1 }],
+    recipes: [{ Cloth: 0.15 }, { Linen: 1 }],
     unit: "set",
     demandCoverage: { military: 1 }
   },
@@ -2275,7 +2278,8 @@ export const GOODS_DATA: GoodData[] = [
     // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
     icon: "good-unknown",
     color: "#f2e9d8",
-    value: 2,
+    // 1,000 fleeces = 1.5 t at 4 times the grain price per kilogram (goods-physical-units.md §21).
+    value: 13,
     chance: 0,
     unit: "fleece"
   },
@@ -2353,11 +2357,13 @@ export const GOODS_DATA: GoodData[] = [
     // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
     icon: "good-unknown",
     color: "#efe1c1",
-    value: 1.5,
+    // A 50 kg sack at 1.5 times the grain price per kilogram (goods-physical-units.md §21). It is milled
+    // from 62.5 kg of grain (0.134 wain), and covers the 0.1 wain of food that 50 kg of flour does.
+    value: 0.16,
     chance: 0,
-    recipes: [{ Grain: 1 }],
+    recipes: [{ Grain: 0.134 }],
     unit: "sack",
-    demandCoverage: { food: 0.3 }
+    demandCoverage: { food: 0.1 }
   },
   {
     name: "Bread",
@@ -2366,11 +2372,13 @@ export const GOODS_DATA: GoodData[] = [
     // TODO: placeholder icon — no hand-drawn SVG symbol exists for this good yet (see good-unknown).
     icon: "good-unknown",
     color: "#d9a66c",
-    value: 2,
+    // 20 kg at 1.9 times the grain price per kilogram (goods-physical-units.md §21). It is baked from
+    // 15 kg of flour (0.3 sack) and covers the 0.03 wain of food that 20 kg of bread does.
+    value: 0.08,
     chance: 0,
-    recipes: [{ Flour: 1 }],
+    recipes: [{ Flour: 0.3 }],
     unit: "loaf",
-    demandCoverage: { food: 1 }
+    demandCoverage: { food: 0.03 }
   },
   {
     name: "Timber",
@@ -2489,7 +2497,7 @@ export const GOODS_DATA: GoodData[] = [
     chance: 0,
     recipes: [
       { Dyes: 1, Paper: 1, Ink: 0.5 },
-      { Dyes: 1, Cloth: 1 }
+      { Dyes: 1, Cloth: 0.15 }
     ],
     unit: "piece",
     demandCoverage: { luxury: 1 }
@@ -2519,7 +2527,7 @@ export const GOODS_DATA: GoodData[] = [
     value: 45,
     chance: 0,
     recipes: [
-      { Cloth: 2, Dyes: 1 },
+      { Cloth: 0.3, Dyes: 1 },
       { Silk: 1, Dyes: 1 }
     ],
     unit: "hanging",
@@ -4655,6 +4663,75 @@ export function migrateMeasuredCargoSlots(): boolean {
     const slots = measuredCargoSlotsPerUnit(good);
     if (slots === undefined || good.cargo?.cargoSlotsPerUnit === slots) continue;
     good.cargo = { handlingClass: "loose", ...good.cargo, cargoSlotsPerUnit: slots };
+    changed = true;
+  }
+  return changed;
+}
+
+/**
+ * Base values before and after docs/plan/goods-physical-units.md §21, which prices the goods by
+ * weight as it switches their cargo slots: the textiles, whose unit was 5 to 23 times a wain of
+ * grain at a price per kilogram below the sources' (the Wool -> Cloth -> Garments chain keeps its
+ * margins), and the Flour and Bread whose sack and loaf lot cost 14 and 47 times as much per
+ * kilogram.
+ */
+export const WEIGHT_REPRICING: Readonly<Record<string, readonly [before: number, after: number]>> = {
+  Wool: [2, 13],
+  Cloth: [15, 98],
+  Garments: [20, 130],
+  Flour: [1.5, 0.16],
+  Bread: [2, 0.08]
+};
+
+/**
+ * Recipe amounts that follow those prices, before and after §21. A Cloth lot is 4 t and now costs 98,
+ * so the small goods keep the cloth cost they had at 15 (Sails and Artworks 1 -> 0.15, Tapestries
+ * 2 -> 0.3). The two food legs are set by weight: 0.134 wain of grain for a 50 kg sack of flour (62.5 kg
+ * at 80% milled), 0.3 sack of flour for 20 kg of bread.
+ */
+const WEIGHT_RECIPE_REPRICING: readonly { good: string; input: string; before: number; after: number }[] = [
+  { good: "Sails", input: "Cloth", before: 1, after: 0.15 },
+  { good: "Artworks", input: "Cloth", before: 1, after: 0.15 },
+  { good: "Tapestries", input: "Cloth", before: 2, after: 0.3 },
+  { good: "Flour", input: "Grain", before: 1, after: 0.134 },
+  { good: "Bread", input: "Flour", before: 1, after: 0.3 }
+];
+
+/** The food a sack of flour and a loaf lot cover, before and after §21: the 50 kg and 20 kg they weigh. */
+const WEIGHT_COVERAGE_REPRICING: readonly { good: string; category: DemandCategory; before: number; after: number }[] =
+  [
+    { good: "Flour", category: "food", before: 0.3, after: 0.1 },
+    { good: "Bread", category: "food", before: 1, after: 0.03 }
+  ];
+
+/**
+ * Applies WEIGHT_REPRICING, WEIGHT_RECIPE_REPRICING and WEIGHT_COVERAGE_REPRICING to a saved
+ * catalogue. Only a value still at its old default and an amount still at its old figure are
+ * changed, so what the player set in the Goods editor is kept.
+ */
+export function migrateWeightRepricing(): boolean {
+  const goods = getGoods();
+  let changed = false;
+  for (const good of goods) {
+    const repricing = WEIGHT_REPRICING[good.name];
+    if (!repricing || good.value !== repricing[0]) continue;
+    good.value = repricing[1];
+    changed = true;
+  }
+  for (const { good: goodName, input, before, after } of WEIGHT_RECIPE_REPRICING) {
+    const good = goods.find(candidate => candidate.name === goodName);
+    const inputId = goods.find(candidate => candidate.name === input)?.i;
+    if (!good?.recipes || inputId === undefined) continue;
+    for (const recipe of good.recipes) {
+      if (recipe[inputId] !== before) continue;
+      recipe[inputId] = after;
+      changed = true;
+    }
+  }
+  for (const { good: goodName, category, before, after } of WEIGHT_COVERAGE_REPRICING) {
+    const coverage = goods.find(candidate => candidate.name === goodName)?.demandCoverage;
+    if (!coverage || coverage[category] !== before) continue;
+    coverage[category] = after;
     changed = true;
   }
   return changed;
