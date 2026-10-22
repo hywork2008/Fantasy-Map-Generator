@@ -140,6 +140,7 @@ import { HOUSEHOLD_GARMENT_NAMES, hasPhysicalTextileRecipe } from "./textileReci
 import { buyTownLuxuries } from "./townLuxuryPurchases";
 import { TradeSecurity } from "./tradeSecurity";
 import { TransportAssetOrders } from "./transportAssetOrders";
+import { recordUrbanCraftCapacity } from "./urbanCraftCapacity";
 import { advanceViticultureAllocationShares, getViticultureAllocationMultiplier } from "./viticultureAllocation";
 import { VolcanicOperations } from "./volcanicOperations";
 import { hasPhysicalWoodRecipe } from "./woodRecipeContracts";
@@ -411,6 +412,14 @@ export class ProductionModule {
       getCraftWorkforce(burg, cycle.basicWorkersByBurg.get(burg.i) ?? 0, cycle.childLabourEquivalent)
     );
     const craftWorkersUsed = this.runWorkerLoop(cycle.index, state);
+    recordUrbanCraftCapacity(
+      burg.i,
+      market.i,
+      state.workforce,
+      craftWorkersUsed.total,
+      craftWorkersUsed.byDomain.get("textiles") ?? 0,
+      getEconomyCalibrationState().applyCalibration
+    );
     const populationRate = Math.max(0, this.worldContext.populationRate ?? 0) || 1;
     cycle.craftWorkersByBurg.set(
       burg.i,

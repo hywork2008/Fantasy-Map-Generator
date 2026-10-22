@@ -10,6 +10,7 @@ import { HOUSEHOLD_GARMENT_NAMES } from "../src/extensions/economy/generators/te
 import { getMarketBlanketDemandProfile, getMarketTextileDemandProfile, getTextileMarketOrders } from "../src/extensions/economy/generators/textileDemand";
 import { getAnnualWoolPotentialKg, getWoolOutput } from "../src/extensions/economy/generators/woolProduction";
 import { SHEEP_ANNUAL_WOOL_KG, WOOL_KG_PER_MARKET_LOT } from "../src/extensions/economy/generators/woolProductionPolicy";
+import { getUrbanCraftCapacityRecords, getUrbanTextileHandworkReference } from "../src/extensions/economy/generators/urbanCraftCapacity";
 import { setGoodFlowObserver } from "../src/extensions/economy/generators/goodsBalanceLedger";
 
 const [input, output, length = "12"] = process.argv.slice(2);
@@ -19,6 +20,7 @@ const paths = ["scripts/auditWoolSupply.mts", "src/extensions/economy/generators
 paths.push("src/extensions/economy/generators/textileDemand.ts", "src/extensions/economy/generators/textileRecipeContracts.ts", "src/extensions/economy/generators/goods-generator.ts", "src/extensions/economy/generators/production-generator.ts", "src/extensions/economy/generators/markets-generator.ts");
 paths.push("src/extensions/economy/generators/ruralTextileProduction.ts", "src/extensions/economy/generators/ruralTextileChains.ts", "src/extensions/economy/generators/textileHouseholdPolicy.ts", "src/extensions/economy/generators/ruralOccupationAllocation.ts");
 paths.push(...["woolProductionPolicy.ts", "livestockFeed.ts", "livestockFeedPolicy.ts", "livestockFeedState.ts", "dairy.ts", "production-utils.ts"].map(name => `src/extensions/economy/generators/${name}`));
+paths.push("src/extensions/economy/generators/urbanCraftCapacity.ts", "src/extensions/economy/generators/urbanCraftCapacityTypes.ts", "src/extensions/economy/context/trade.ts", "src/extensions/economy/generators/craftDemandCalibration.ts", "src/extensions/economy/generators/craftScale.ts");
 const sourceHashes = Object.fromEntries(paths.map(path => [path, createHash("sha256").update(readFileSync(path)).digest("hex")]));
 const bytes = readFileSync(input);
 const host = createNodeSimulationHost();
@@ -140,6 +142,12 @@ function snapshot() {
          householdBlanketConsumptionLots: market.blanketLedger?.householdConsumption ?? 0,
          householdBlanketUnmetLots: market.blanketLedger?.unmetDemand ?? 0 }]
     : []),
+  urbanCraftCapacity: getUrbanCraftCapacityRecords().map(row => ({ ...row,
+    workforcePeople: row.workforcePoints * row.populationRate,
+    chargedPeople: row.chargedPoints * row.populationRate,
+    unusedPeople: row.unusedPoints * row.populationRate,
+    textilePeople: row.textilePoints * row.populationRate,
+    handworkReferenceLots: getUrbanTextileHandworkReference(row) })),
   ruralTextileLaborCapacity: getMarkets().reduce((sum, market) => sum + (market.ruralTextileProduction?.laborCapacity ?? 0), 0),
   ruralTextileLaborUsed: getMarkets().reduce((sum, market) => sum + (market.ruralTextileProduction?.laborUsed ?? 0), 0),
   householdWardrobeSpending: getMarkets().reduce((sum, market) => sum + (market.textileLedger?.householdSpending ?? 0), 0),

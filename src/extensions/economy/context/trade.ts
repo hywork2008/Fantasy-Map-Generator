@@ -46,8 +46,28 @@ import type { LaborMarket } from "../generators/strategicLaborMarketsTypes";
 import type { StrategicGoodsPolicy } from "../generators/strategicProcurementPolicy";
 import type { ProcurementOrder } from "../generators/strategicProcurementTypes";
 import type { TradeCorridor } from "../generators/tradeCorridorLedgerTypes";
+import type { UrbanCraftCapacity } from "../generators/urbanCraftCapacityTypes";
 import type { MerchantVesselOwnership } from "../generators/vesselOwnershipTypes";
-import { getProductionTable, getSliceArray, getSliceNumber, setSliceArray, setSliceNumber } from "./economyApi";
+import {
+  getEconomySlice,
+  getProductionTable,
+  getSliceArray,
+  getSliceNumber,
+  setSliceArray,
+  setSliceNumber
+} from "./economyApi";
+
+/** Latest completed urban worker-loop budgets, keyed by stable Burg id. */
+export function getOrCreateUrbanCraftCapacityTable(): Record<number, UrbanCraftCapacity> | null {
+  const slice = getEconomySlice();
+  if (!slice) return null;
+  const existing = slice.urbanCraftCapacity;
+  if (existing && typeof existing === "object" && !Array.isArray(existing))
+    return existing as Record<number, UrbanCraftCapacity>;
+  const table: Record<number, UrbanCraftCapacity> = {};
+  slice.urbanCraftCapacity = table;
+  return table;
+}
 
 /** Economy-owned production records keyed by stable burg id. */
 export function getBurgProductionRecords(burg: Burg): ProductionRecord[] {
