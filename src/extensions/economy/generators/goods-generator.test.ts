@@ -23,6 +23,7 @@ import {
   migrateFoodProcessingLotContracts,
   migrateFreshFoodTags,
   migrateGrapesGood,
+  migrateInkBarrel,
   migrateLegacyOreIngotGoods,
   migrateLinenBale,
   migrateLiveAnimalTags,
@@ -937,6 +938,18 @@ describe("GoodsModule", () => {
     expect(linen.unit).toBe("bale");
     expect(getMarkets()[0].goods[linen.i].stock).toBe(5);
     expect(migrateLinenBale()).toBe(false);
+  });
+
+  it("moves saved Ink from 1 L bottles to 120 L barrels, a 120th of the stock, once", () => {
+    goodsModule.restoreDefaults();
+    const ink = getGoods().find(good => good.name === "Ink")!;
+    ink.unit = "bottle";
+    setMarkets([{ i: 1, centerBurgId: 1, color: "#fff", goods: { [ink.i]: { stock: 240, price: 7 } } }] as never);
+
+    expect(migrateInkBarrel()).toBe(true);
+    expect(ink.unit).toBe("barrel");
+    expect(getMarkets()[0].goods[ink.i].stock).toBe(2);
+    expect(migrateInkBarrel()).toBe(false);
   });
 
   it("upgrades legacy Wood-to-Coal fuel into Charcoal, Ash-to-Potash, and Slag without inventing stock", () => {

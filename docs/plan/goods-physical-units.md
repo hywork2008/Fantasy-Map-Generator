@@ -1376,3 +1376,43 @@ Linen・酒樽5品・Ink・Rennet・Leather・Beeswax は、いずれも「値�
 - Garments の linen の脚が実際にはほとんど使われない（Linen の在庫が 0 に近く、Linen の生産が Garments の需要で起きない）。
 - `tradeTransportRoom.test.ts`（5件）と `foodClimateCalibration.test.ts`（1件）は、この作業の前から失敗している（§17〜§20 の途中の変更で、枠が変わったのに試験の値が変わっていない）。
 
+## 25. Ink: 1 L の瓶から 120 L の樽へ(2026-10-22、実装)
+
+§24 と同じ方法の2品目。`MEASURED_SLOT_GOODS` に Ink を加えた。
+
+### 25.1 変えたもの
+
+| 項目 | 今まで → 後 |
+| :--- | :--- |
+| Ink の単位 | bottle(1 L) → barrel(120 L、132 kg)。`goodMeasureCatalog.ts`(`barrelOf(1.1)`) |
+| Ink の値 | 7 → 3.4(1 kg で Grain の 2,960 倍 → 約12倍) |
+| Ink のレシピ | Oil 1 → 0.1、Dyes 0.5 → 0.1(油 0.1 樽で煤を取る。顔料 6 kg) |
+| Books・Artworks の ink の脚 | 0.5 瓶 → 0.5/120 樽(同じ 0.5 L) |
+| 工房(`experimentalWorkshops.ts`)の消費 | 0.1 → 0.1/120 |
+| `craftDemandCalibration.ts` の Ink | 月の lot 0.2 → 0.2/120、労働点 0.0169 → 0.0169 × 120 |
+
+- 1 lot の利益は 7 − 4(Oil 1)= 3 から 3.4 − 0.4 = 3 に保った(Dyes の脚は 3.4 − 0.8)。
+- Books の原価は ink の分(3.5)が 0.015 になり、その分 Books の利幅が上がる。Books の値(18)は変えていない。
+
+### 25.2 古い保存
+
+`migrateInkBarrel`(`GOODS_CATALOG_MIGRATIONS`、`migrateMeasuredCargoSlots` の前)が、Ink の単位が bottle のとき barrel にして、市場の在庫を 1/120 にする(`migrateLinenBale` と共通の `migrateLargerUnit`)。値・レシピは `migrateWeightRepricing`(`WEIGHT_REPRICING`・`WEIGHT_RECIPE_REPRICING`)が、元の値のままのものだけ直す。移動中の荷・注文は直さない。
+
+### 25.3 計測
+
+盗賊なし、province-101、3年(前 → 後)。品別の生産は取っていない。集計だけ見た。
+
+| 項目 | 前 → 後 |
+| :--- | :--- |
+| 3年目の終わりの国庫の合計 | 548,369 → 548,239 |
+| 贅沢品の充足(12か月) | 2.896 → 2.914 |
+| 贅沢品の支出 | 3,095.9 → 3,104.0 |
+
+- 集計は前後でほぼ同じ(0.1% 未満)。Books の原価が下がった影響は集計には見えない。
+- 試験: `goods-generator.test.ts`(Ink の移行を追加)を含む `economy/generators` は、前から失敗している6件(`tradeTransportRoom.test.ts` 5件・`foodClimateCalibration.test.ts` 1件)だけが失敗。`tsc` は通る。
+- 3年後の保存(`--out`)は、`Invalid character organization roster` で失敗した。この作業の前のコードでも起きるかは未確認。
+
+#### 残る課題
+
+- 酒樽5品・Rennet・Leather・Beeswax: 同じ方法で、1 品ずつ。
+- Ink・Linen の品別の生産・取引を集計に出す(今回は集計だけ)。

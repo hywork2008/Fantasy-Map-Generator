@@ -107,7 +107,7 @@ export class ExperimentalWorkshopsModule {
       const marketId = marketIdForBurg(workshop.burgId);
       consumeNamed(marketId, "Books", 0.1);
       consumeNamed(marketId, "Paper", 0.2);
-      consumeNamed(marketId, "Ink", 0.1);
+      consumeNamed(marketId, "Ink", 0.1 / 120);
       const labGlass = consumeNamed(marketId, "Lab Glassware", 0.15);
       const glass = labGlass > 0 ? labGlass : consumeNamed(marketId, "Glass", 0.2);
       const tools = consumeNamed(marketId, "Tools", 0.1);

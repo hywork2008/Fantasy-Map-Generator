@@ -318,7 +318,7 @@ export const GOOD_MEASURES: Readonly<Record<string, GoodMeasure>> = {
   "Lubricating Oil": byVolume("flask", "20 L", 20, 0.9, "crate", "model"),
   "Synthetic Dye": byMass("vat", "100 kg", 100, 1.0, "barrel", "model"),
   Rennet: byVolume("vial", "1 L", 1, 1.0, "crate", "model"),
-  Ink: byVolume("bottle", "1 L", 1, 1.1, "crate", "model"),
+  Ink: barrelOf(1.1),
   Perfume: byVolume("bottle", "1 L", 1, 0.9, "crate", "model"),
   Liquor: byVolume("vessel", "100 L", 100, 0.95, "cask", "model"),
   Egg: byMass("basket", "30 kg (about 500 eggs)", 30, 0.35, "crate", "model"),

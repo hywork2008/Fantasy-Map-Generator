@@ -281,11 +281,11 @@ export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
     inlandShare: 0.15,
     portShare: 0.15,
     provenances: ["recipeDerived"],
-    fixtureLotsPerMonth: 0.2,
-    laborPointsPerLotAtDefaultRate: 0.0169,
+    fixtureLotsPerMonth: 0.2 / 120,
+    laborPointsPerLotAtDefaultRate: 0.0169 * 120,
     residualWeight: 0,
     typicalRecipeIndex: 0,
-    sources: ["Books × 0.5"]
+    sources: ["Books × 0.5 L, in 120 L barrels"]
   },
   {
     goodName: "Liquor",

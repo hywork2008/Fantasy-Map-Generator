@@ -207,6 +207,9 @@ const shipGoodValue = (shipClassId: string): number => {
   return shipClass.buildPointsRequired * SHIP_VALUE_PER_BUILD_POINT;
 };
 
+/** Ink in a book or an artwork: the half litre it took of the 1 L bottle, in 120 L barrels. */
+const INK_BARRELS_PER_BOOK = 0.5 / 120;
+
 export const GOODS_DATA: GoodData[] = [
   {
     name: "Wood",
@@ -1509,10 +1512,13 @@ export const GOODS_DATA: GoodData[] = [
     tags: ["ritual", "educational"],
     icon: "good-ink",
     color: "#000000",
-    value: 7,
+    // A 120 L barrel (132 kg) at 12 times the grain price per kilogram, which was 2,960 times in the 1 L bottle
+    // worth 7 (goods-physical-units.md §25). Ink keeps a lot's gain of about 3.
+    value: 3.4,
     chance: 0,
-    recipes: [{ Oil: 1 }, { Dyes: 0.5 }],
-    unit: "bottle",
+    // Soot ink: a tenth of a barrel of oil burned for lampblack, or a tenth of a 60 kg bag of pigment.
+    recipes: [{ Oil: 0.1 }, { Dyes: 0.1 }],
+    unit: "barrel",
     demandCoverage: {}
   },
   {
@@ -1524,8 +1530,8 @@ export const GOODS_DATA: GoodData[] = [
     value: 18,
     chance: 0,
     recipes: [
-      { Paper: 1, Ink: 0.5 },
-      { Leather: 1, Ink: 0.5 }
+      { Paper: 1, Ink: INK_BARRELS_PER_BOOK },
+      { Leather: 1, Ink: INK_BARRELS_PER_BOOK }
     ],
     unit: "volume",
     demandCoverage: { luxury: 1 },
@@ -2509,7 +2515,7 @@ export const GOODS_DATA: GoodData[] = [
     value: 32,
     chance: 0,
     recipes: [
-      { Dyes: 1, Paper: 1, Ink: 0.5 },
+      { Dyes: 1, Paper: 1, Ink: INK_BARRELS_PER_BOOK },
       { Dyes: 1, Cloth: 0.15 }
     ],
     unit: "piece",
@@ -4683,6 +4689,20 @@ export function migrateMeasuredCargoSlots(): boolean {
 
 /** Bolts of linen in a bale (goods-physical-units.md §24). */
 const LINEN_BOLTS_PER_BALE = 10;
+/** Bottles of ink in a barrel (§25). */
+const INK_BOTTLES_PER_BARREL = 120;
+
+/** Changes a saved good's unit from `from` to `to` and counts the market stock in units `perUnit` times larger. */
+function migrateLargerUnit(goodName: string, from: string, to: string, perUnit: number): boolean {
+  const good = getGoods().find(candidate => candidate.name === goodName);
+  if (!good || good.unit !== from) return false;
+  good.unit = to;
+  for (const market of getMarkets()) {
+    const row = market.goods[good.i];
+    if (row) row.stock = rn(row.stock / perUnit, 4);
+  }
+  return true;
+}
 
 /**
  * Moves a saved catalogue's Linen from the 20 kg bolt to the 200 kg bale: the unit changes and
@@ -4690,15 +4710,12 @@ const LINEN_BOLTS_PER_BALE = 10;
  * its worth. Cargo already under way and orders keep their figures; they are a few bolts.
  */
 export function migrateLinenBale(): boolean {
-  const linen = getGoods().find(good => good.name === "Linen");
-  if (!linen) return false;
-  if (linen.unit !== "bolt") return false;
-  linen.unit = "bale";
-  for (const market of getMarkets()) {
-    const row = market.goods[linen.i];
-    if (row) row.stock = rn(row.stock / LINEN_BOLTS_PER_BALE, 4);
-  }
-  return true;
+  return migrateLargerUnit("Linen", "bolt", "bale", LINEN_BOLTS_PER_BALE);
+}
+
+/** Moves a saved catalogue's Ink from the 1 L bottle to the 120 L barrel, a 120th of the stock (§25). */
+export function migrateInkBarrel(): boolean {
+  return migrateLargerUnit("Ink", "bottle", "barrel", INK_BOTTLES_PER_BARREL);
 }
 
 /**
@@ -4716,7 +4733,8 @@ export const WEIGHT_REPRICING: Readonly<Record<string, readonly [before: number,
   Bread: [2, 0.08],
   Salt: [3, 0.45],
   Flax: [1, 0.3],
-  Linen: [6, 8]
+  Linen: [6, 8],
+  Ink: [7, 3.4]
 };
 
 /**
@@ -4732,7 +4750,11 @@ const WEIGHT_RECIPE_REPRICING: readonly { good: string; input: string; before: n
   { good: "Flour", input: "Grain", before: 1, after: 0.134 },
   { good: "Bread", input: "Flour", before: 1, after: 0.3 },
   { good: "Linen", input: "Flax", before: 1, after: 10 },
-  { good: "Garments", input: "Linen", before: 0.75, after: 12 }
+  { good: "Garments", input: "Linen", before: 0.75, after: 12 },
+  { good: "Ink", input: "Oil", before: 1, after: 0.1 },
+  { good: "Ink", input: "Dyes", before: 0.5, after: 0.1 },
+  { good: "Books", input: "Ink", before: 0.5, after: INK_BARRELS_PER_BOOK },
+  { good: "Artworks", input: "Ink", before: 0.5, after: INK_BARRELS_PER_BOOK }
 ];
 
 /** The food a sack of flour and a loaf lot cover, before and after §21: the 50 kg and 20 kg they weigh. */
