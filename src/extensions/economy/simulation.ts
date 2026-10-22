@@ -154,7 +154,8 @@ import {
   migrateTextileQualityGoods,
   migrateWeightRepricing,
   migrateWineRecipe,
-  migrateWoodPhysicalRecipes
+  migrateWoodPhysicalRecipes,
+  migrateWoolBlanketGoods
 } from "./generators/goods-generator";
 import { GreatLibrary } from "./generators/greatLibrary";
 import { GuildChapters } from "./generators/guildChapters";
@@ -344,6 +345,7 @@ const GOODS_CATALOG_MIGRATIONS: readonly (() => boolean)[] = [
   migrateTextileQualityGoods,
   migrateLinenGarmentGoods,
   migrateOrdinaryWoolGoods,
+  migrateWoolBlanketGoods,
   migrateWoodPhysicalRecipes
 ];
 

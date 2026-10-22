@@ -2,8 +2,11 @@ import type { Burg } from "../../hostTypes";
 import { rn } from "../../hostUtils";
 import { getGoods, getMarketCellColumn, getMarkets, getWorldContext } from "../economyContext";
 import { getEconomyCalibrationState } from "../state/economyCalibrationStore";
+import { debitHouseholdWealth, getHouseholdWealth } from "./burgMarketLedgers";
 import { laborPeople } from "./craftScale";
+import { isGoodEnabled } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
+import { debitRuralHouseholdWealth, getRuralHouseholdWealth } from "./householdWealth";
 import type { Market, TextileLedger } from "./marketTypes";
 import {
   CLOTH_LOTS_PER_GARMENT,
@@ -15,6 +18,11 @@ import {
 
 export const PEOPLE_PER_TEXTILE_MARKET_LOT = 1_000;
 export const WARDROBE_REPLACEMENT_YEARS = 4;
+// Authored bedding and cash-budget assumptions, not historical measurements.
+export const BEDDING_HOUSEHOLD_SIZE = 5;
+export const BLANKETS_PER_LOT = 100;
+export const BLANKET_REPLACEMENT_YEARS = 8;
+export const MONTHLY_HOUSEHOLD_TEXTILE_CASH_SHARE = 0.05;
 export const INITIAL_TEXTILE_WORK_MONTHS = 3;
 export const MIN_TEXTILE_MONTHLY_MARGIN_PER_WORKER = 1.05;
 
@@ -121,38 +129,179 @@ function emptyLedger(profile: TextileDemandProfile): TextileLedger {
   };
 }
 
-/** Settles household wardrobe replacement after manufacturing and trade have supplied the market. */
-export function settleTextileHouseholdDemand(): void {
-  const garments = getGoods().filter(good => HOUSEHOLD_GARMENT_NAMES.has(good.name));
-  if (!garments.length) return;
+/** Two blankets per household, plus one below 5 C and another below freezing. */
+export function getMarketBlanketDemandProfile(marketId: number): TextileDemandProfile {
+  const { populationLots } = getMarketTextileDemandProfile(marketId);
+  const temperature = getMarketTemperature(marketId);
+  const blanketsPerHousehold = 2 + (temperature < 5 ? 1 : 0) + (temperature < 0 ? 1 : 0);
+  const annualDemand =
+    (((populationLots * PEOPLE_PER_TEXTILE_MARKET_LOT) / BEDDING_HOUSEHOLD_SIZE) * blanketsPerHousehold) /
+    BLANKET_REPLACEMENT_YEARS /
+    BLANKETS_PER_LOT;
+  return {
+    populationLots,
+    climateMultiplier: blanketsPerHousehold / 2,
+    annualDemand,
+    monthlyDemand: annualDemand / 12
+  };
+}
 
-  for (const market of getMarkets()) {
-    const profile = getMarketTextileDemandProfile(market.i);
-    const previous = market.textileLedger ?? emptyLedger(profile);
-    let remaining = profile.monthlyDemand;
-    const available = garments
-      .filter(good => (market.goods[good.i]?.stock ?? 0) > 0)
-      .sort((a, b) => market.goods[a.i].price - market.goods[b.i].price || a.i - b.i);
-    for (const good of available) {
-      const row = market.goods[good.i];
-      const units = Math.min(remaining, Math.max(0, row.stock));
-      if (units <= 0) continue;
+type TextileBuyer = {
+  populationLots: number;
+  budget: number;
+  rural: boolean;
+  debit: (amount: number) => number;
+};
+
+function getTextileBuyers(market: Market): TextileBuyer[] {
+  const buyers: TextileBuyer[] = getWorldContext()
+    .pack.burgs.filter((burg): burg is Burg => Boolean(burg?.i && !burg.removed && burg.market === market.i))
+    .map(burg => ({
+      populationLots: actualUrbanPopulation(burg) / PEOPLE_PER_TEXTILE_MARKET_LOT,
+      budget: Math.floor(getHouseholdWealth(burg.i) * MONTHLY_HOUSEHOLD_TEXTILE_CASH_SHARE * 100) / 100,
+      rural: false,
+      debit: amount => debitHouseholdWealth(burg.i, amount)
+    }));
+  buyers.push({
+    populationLots: actualRuralPopulation(market.i) / PEOPLE_PER_TEXTILE_MARKET_LOT,
+    budget: Math.floor(getRuralHouseholdWealth(market) * MONTHLY_HOUSEHOLD_TEXTILE_CASH_SHARE * 100) / 100,
+    rural: true,
+    debit: amount => debitRuralHouseholdWealth(market, amount)
+  });
+  return buyers.filter(buyer => buyer.populationLots > 0);
+}
+
+function textilePrice(market: Market, names: ReadonlySet<string>): number {
+  const prices = getGoods()
+    .filter(good => names.has(good.name) && isGoodEnabled(good))
+    .map(good => market.goods[good.i]?.price ?? good.value)
+    .filter(price => Number.isFinite(price) && price > 0);
+  return prices.length ? Math.min(...prices) : Infinity;
+}
+
+const BLANKET_NAMES: ReadonlySet<string> = new Set(["Wool Blankets"]);
+
+/** Read-only order quantities, bounded by each buyer's own monthly purse allocation.
+ * Wardrobes have first call on the same cash allocation; bedding never reuses that money.
+ */
+export function getAffordableTextileDemand(market: Market, blankets: boolean): number {
+  const wardrobe = getMarketTextileDemandProfile(market.i);
+  if (!(wardrobe.populationLots > 0)) return 0;
+  const bedding = blankets ? getMarketBlanketDemandProfile(market.i) : undefined;
+  const garmentPrice = textilePrice(market, HOUSEHOLD_GARMENT_NAMES);
+  const blanketPrice = textilePrice(market, BLANKET_NAMES);
+  return getTextileBuyers(market).reduce((sum, buyer) => {
+    const share = buyer.populationLots / wardrobe.populationLots;
+    const wardrobeNeed = wardrobe.monthlyDemand * share;
+    if (!blankets) return sum + Math.min(wardrobeNeed, buyer.budget / garmentPrice);
+    const wardrobeReserve = Number.isFinite(garmentPrice) ? Math.min(buyer.budget, wardrobeNeed * garmentPrice) : 0;
+    return sum + Math.min(bedding!.monthlyDemand * share, Math.max(0, buyer.budget - wardrobeReserve) / blanketPrice);
+  }, 0);
+}
+
+function settleHouseholdTextiles(
+  market: Market,
+  buyers: TextileBuyer[],
+  names: ReadonlySet<string>,
+  profile: TextileDemandProfile,
+  previous: TextileLedger | undefined
+): TextileLedger {
+  const consumptionByBuyer = new Map<TextileBuyer, number>();
+  let consumed = 0;
+  let spending = 0;
+  let ruralConsumption = 0;
+  const available = getGoods()
+    .filter(
+      good =>
+        names.has(good.name) &&
+        isGoodEnabled(good) &&
+        (market.goods[good.i]?.stock ?? 0) > 0 &&
+        Number.isFinite(market.goods[good.i].price) &&
+        market.goods[good.i].price > 0
+    )
+    .sort((a, b) => market.goods[a.i].price - market.goods[b.i].price || a.i - b.i);
+  // Divide each available lot by outstanding paid orders so the first town cannot take all stock.
+  for (const good of available) {
+    const row = market.goods[good.i];
+    const orders = buyers.map(buyer => {
+      const need =
+        profile.populationLots > 0 ? (profile.monthlyDemand * buyer.populationLots) / profile.populationLots : 0;
+      return Math.min(Math.max(0, need - (consumptionByBuyer.get(buyer) ?? 0)), buyer.budget / row.price);
+    });
+    const totalOrders = orders.reduce((sum, units) => sum + units, 0);
+    const stockShare = totalOrders > 0 ? Math.min(1, Math.max(0, row.stock) / totalOrders) : 0;
+    for (const [index, buyer] of buyers.entries()) {
+      // Whole cents cap the purchase before either goods or money move. No free fractional goods.
+      const cost = Math.floor(Math.min(buyer.budget, orders[index] * stockShare * row.price) * 100 + 1e-9) / 100;
+      if (!(cost > 0)) continue;
+      const paid = buyer.debit(cost);
+      const units = paid / row.price;
+      if (!(units > 0)) continue;
+      buyer.budget = Math.max(0, buyer.budget - paid);
+      consumptionByBuyer.set(buyer, (consumptionByBuyer.get(buyer) ?? 0) + units);
       row.stock = Math.max(0, row.stock - units);
-      remaining = Math.max(0, remaining - units);
+      market.marketTreasury ??= { balance: 0, ruralGrainPayable: 0 };
+      const treasury = market.marketTreasury;
+      treasury.balance = rn(treasury.balance + paid, 2);
+      consumed += units;
+      spending += paid;
+      if (buyer.rural) ruralConsumption += units;
       recordGoodFlow({ direction: "sink", category: "householdTextiles", goodId: good.i, units, marketId: market.i });
     }
-    const consumed = profile.monthlyDemand - remaining;
-    const unmetDemand = remaining;
-
-    market.textileLedger = {
-      ...previous,
-      ...profile,
-      householdConsumption: rn(consumed, 2),
-      unmetDemand: rn(unmetDemand, 2),
-      cumulativeHouseholdConsumption: rn(previous.cumulativeHouseholdConsumption + consumed, 2),
-      cumulativeUnmetDemand: rn(previous.cumulativeUnmetDemand + unmetDemand, 2)
-    };
   }
+  const unmetDemand = Math.max(0, profile.monthlyDemand - consumed);
+  return {
+    ...(previous ?? emptyLedger(profile)),
+    ...profile,
+    householdConsumption: rn(consumed, 2),
+    unmetDemand: rn(unmetDemand, 2),
+    householdSpending: rn(spending, 2),
+    urbanConsumption: rn(consumed - ruralConsumption, 2),
+    ruralConsumption: rn(ruralConsumption, 2),
+    cumulativeHouseholdConsumption: rn((previous?.cumulativeHouseholdConsumption ?? 0) + consumed, 2),
+    cumulativeUnmetDemand: rn((previous?.cumulativeUnmetDemand ?? 0) + unmetDemand, 2),
+    cumulativeHouseholdSpending: rn((previous?.cumulativeHouseholdSpending ?? 0) + spending, 2)
+  };
+}
+
+/** Settles paid wardrobes first and independent bedding second after manufacturing and trade. */
+export function settleTextileHouseholdDemand(): void {
+  for (const market of getMarkets()) {
+    const buyers = getTextileBuyers(market);
+    const wardrobe = getMarketTextileDemandProfile(market.i);
+    const garmentPrice = textilePrice(market, HOUSEHOLD_GARMENT_NAMES);
+    const beddingBudgets = buyers.map(buyer => {
+      const wardrobeNeed =
+        wardrobe.populationLots > 0 ? (wardrobe.monthlyDemand * buyer.populationLots) / wardrobe.populationLots : 0;
+      return Number.isFinite(garmentPrice) ? Math.max(0, buyer.budget - wardrobeNeed * garmentPrice) : buyer.budget;
+    });
+    market.textileLedger = settleHouseholdTextiles(
+      market,
+      buyers,
+      HOUSEHOLD_GARMENT_NAMES,
+      getMarketTextileDemandProfile(market.i),
+      market.textileLedger
+    );
+    for (const [index, buyer] of buyers.entries()) buyer.budget = Math.min(buyer.budget, beddingBudgets[index]);
+    market.blanketLedger = settleHouseholdTextiles(
+      market,
+      buyers,
+      BLANKET_NAMES,
+      getMarketBlanketDemandProfile(market.i),
+      market.blanketLedger
+    );
+  }
+}
+
+export function getBlanketProductionHeadroom(market: Market, localInventory: number): number {
+  const blanket = getGoods().find(good => good.name === "Wool Blankets");
+  if (!blanket) return 0;
+  return Math.max(
+    0,
+    getAffordableTextileDemand(market, true) -
+      Math.max(0, market.goods[blanket.i]?.stock ?? 0) -
+      Math.max(0, localInventory)
+  );
 }
 
 /** Caps a single burg's Garment output to the market's next month of actual household replacement demand. */
@@ -161,7 +310,12 @@ export function getGarmentProductionHeadroom(market: Market, localInventory: num
   if (!garments.length) return 0;
   const profile = getMarketTextileDemandProfile(market.i);
   const marketStock = garments.reduce((sum, good) => sum + Math.max(0, market.goods[good.i]?.stock ?? 0), 0);
-  return Math.max(0, profile.monthlyDemand - marketStock - Math.max(0, localInventory));
+  return Math.max(
+    0,
+    Math.min(profile.monthlyDemand, getAffordableTextileDemand(market, false)) -
+      marketStock -
+      Math.max(0, localInventory)
+  );
 }
 
 /**
@@ -197,7 +351,10 @@ export function getTextileGuildWorkPlan(burg: Burg): TextileGuildWorkPlan {
     woolCloth && woolGarments ? Math.max(0, market.goods[woolCloth.i]?.stock ?? 0) / CLOTH_LOTS_PER_GARMENT : 0;
   // Raw wool is already included once above; alternative recipes must not duplicate that stock.
   const availableInputOrders = woolOrders + hempOrders + cottonOrders + clothOrders + linenOrders + woolClothOrders;
-  const expectedOrders = Math.min(profile.monthlyDemand * INITIAL_TEXTILE_WORK_MONTHS, availableInputOrders);
+  const expectedOrders = Math.min(
+    getAffordableTextileDemand(market, false) * INITIAL_TEXTILE_WORK_MONTHS,
+    availableInputOrders
+  );
   const garmentPrice = market.goods[garments.i]?.price ?? garments.value;
   const clothPrice = market.goods[cloth.i]?.price ?? cloth.value;
   const linenGarments = getGoods().find(good => good.name === "Linen Garments");

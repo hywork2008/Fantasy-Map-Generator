@@ -69,6 +69,7 @@ export const CRAFT_DOMAIN_BY_GOOD_NAME: Readonly<Record<string, CraftKnowledgeDo
   Lime: "masonry",
   "Roman Concrete": "masonry",
   Cloth: "textiles",
+  "Wool Blankets": "textiles",
   "Wool Cloth": "textiles",
   "Wool Garments": "textiles",
   "Fine Wool Cloth": "textiles",

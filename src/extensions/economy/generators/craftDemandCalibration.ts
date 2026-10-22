@@ -79,8 +79,8 @@ export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
   {
     goodName: "Garments",
     domain: "textiles",
-    inlandShare: 0.43,
-    portShare: 0.34,
+    inlandShare: 0.41,
+    portShare: 0.32,
     provenances: ["householdPerCapita"],
     annualLotsPerPerson: 0.00025,
     fixtureLotsPerMonth: 0.1875,
@@ -111,6 +111,20 @@ export const GOOD_DEMAND_CALIBRATION: readonly GoodDemandCalibrationRow[] = [
     laborPointsPerLotAtDefaultRate: 0.972,
     residualWeight: 1,
     sources: ["model: ordinary wool shares the four-year wardrobe replacement ceiling with Garments and Linen Garments"]
+  },
+  {
+    goodName: "Wool Blankets",
+    domain: "textiles",
+    inlandShare: 0.02,
+    portShare: 0.02,
+    provenances: ["householdPerCapita"],
+    annualLotsPerPerson: 2 / 5 / 8 / 100,
+    fixtureLotsPerMonth: 0.375,
+    laborPointsPerLotAtDefaultRate: 0.0151875,
+    residualWeight: 0,
+    sources: [
+      "model: 100 blankets of 2.5 kg; two per five-person household, eight-year replacement; separate bedding orders"
+    ]
   },
   {
     goodName: "Wool Cloth",

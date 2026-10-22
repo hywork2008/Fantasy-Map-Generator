@@ -121,7 +121,7 @@ import {
 } from "./production-utils";
 import { addWholesaleGoodStock, getRetailLocalityMultiplier } from "./retailInventory";
 import { seaDeparturePortBurgId } from "./seaRoutePorts";
-import { getMarketTextileDemandProfile } from "./textileDemand";
+import { getAffordableTextileDemand, getMarketTextileDemandProfile } from "./textileDemand";
 import { getGoodCargoSlotsPerUnit, getRouteCargoSlotsPerUnit } from "./tradeCargo";
 import { TradeLogisticsSettings } from "./tradeLogisticsSettings";
 import {
@@ -1566,7 +1566,8 @@ export class MarketsModule {
             textilePopulationByMarket[market.i] || population,
             consumerDemand,
             industrialDemand,
-            marketGood.price
+            marketGood.price,
+            market.i
           ) + (mineOrFurnaceGood ? (metalDemandByMarket.get(market.i)?.get(good.i) ?? 0) : 0);
         const ratio = (demand + LAPLACE_PRICE_SMOOTHING) / (marketGood.stock + LAPLACE_PRICE_SMOOTHING);
         const baseValue = good.value * priceLevel;
@@ -1613,7 +1614,8 @@ export class MarketsModule {
               textilePopulationByMarket[market.i] || population,
               consumerDemand,
               industrialDemand,
-              marketGood.price
+              marketGood.price,
+              market.i
             );
         const supplyRatio = (demand + LAPLACE_PRICE_SMOOTHING) / (marketGood.stock + LAPLACE_PRICE_SMOOTHING);
         const demandMarkup = baseMarkup * minmax(supplyRatio, PRICE_FLOOR_FACTOR, PRICE_CEILING_FACTOR);
@@ -2172,7 +2174,8 @@ export class MarketsModule {
         textilePopulation,
         consumerDemandFactor,
         industrialDemandFactor,
-        laggedPrice
+        laggedPrice,
+        marketId
       ) +
       this.getStrategicFinishedGoodDemand(ctx, marketId, good.i) +
       this.getLuxuryBudgetDemand(ctx, marketId, good)
@@ -3186,8 +3189,11 @@ export class MarketsModule {
     textilePopulation: number,
     consumerDemand: number,
     industrialDemand: number,
-    laggedPrice?: number
+    laggedPrice?: number,
+    marketId?: number
   ): number {
+    const market = marketId === undefined ? undefined : this.get(marketId);
+    if (good.name === "Wool Blankets") return market ? getAffordableTextileDemand(market, true) : 0;
     const calibrated = getEconomyCalibrationState().applyCalibration;
     const clothingCoverage = consumerCoverageForCategory(good, "clothing", calibrated);
     const totalClothingCoverage =
@@ -3197,10 +3203,19 @@ export class MarketsModule {
     const clothingFactor =
       totalClothingCoverage > 0 ? (DEMAND_TARGET_FACTORS.clothing * clothingCoverage) / totalClothingCoverage : 0;
     const nonClothingConsumerDemand = Math.max(0, consumerDemand - clothingFactor);
-    const baseDemand =
-      urbanPopulation * (nonClothingConsumerDemand + industrialDemand) + textilePopulation * clothingFactor;
+    const clothingDemand =
+      market && totalClothingCoverage > 0
+        ? (getAffordableTextileDemand(market, false) * clothingCoverage) / totalClothingCoverage
+        : textilePopulation * clothingFactor;
+    const baseDemand = urbanPopulation * (nonClothingConsumerDemand + industrialDemand) + clothingDemand;
     // 1-period lag: this cycle's demand uses last cycle's price (Stewardship-style).
     // docs/plan/economy-coupling-audit.md L1.
+    if (market && clothingCoverage > 0) {
+      return (
+        clothingDemand +
+        applyPriceElasticity(urbanPopulation * (nonClothingConsumerDemand + industrialDemand), good, laggedPrice)
+      );
+    }
     return applyPriceElasticity(baseDemand, good, laggedPrice);
   }
 }

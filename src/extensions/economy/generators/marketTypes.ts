@@ -83,6 +83,8 @@ export interface Market {
   electricityStock?: number;
   /** Household clothing demand and consumption, separate from wholesale market intake. */
   textileLedger?: TextileLedger;
+  /** Bedding replacements are independent of wardrobe replacements. */
+  blanketLedger?: TextileLedger;
   /** Household fuel use and cold-climate technical knowledge for this market territory. */
   heatingLedger?: HeatingLedger;
   /** Rural woodcutting for own fuel and for sale (docs/plan/farm-labour-calibration.md §19). */
@@ -94,17 +96,22 @@ export interface Market {
 }
 
 export interface TextileLedger {
-  /** Real residents served by this market, divided into 1,000-person clothing lots. */
+  /** Paid household purchases this cycle; optional for older saves. */
+  householdSpending?: number;
+  cumulativeHouseholdSpending?: number;
+  urbanConsumption?: number;
+  ruralConsumption?: number;
+  /** Real residents served by this market, divided into 1,000-person population lots. */
   populationLots: number;
   /** Temperature-derived multiplier for outerwear and replacement needs. */
   climateMultiplier: number;
-  /** Full-year Garments demand in 1,000-person wardrobe lots. */
+  /** Full-year replacement demand: 1,000-person wardrobe lots or 100-blanket lots. */
   annualDemand: number;
   /** This production cycle's household demand. */
   monthlyDemand: number;
-  /** Garments removed from market stock by households this cycle. */
+  /** Product lots removed from market stock by households this cycle. */
   householdConsumption: number;
-  /** Household demand that could not be met from market stock this cycle. */
+  /** Household demand that stock or purchasing power could not meet this cycle. */
   unmetDemand: number;
   /** Cumulative household consumption since market creation or map generation. */
   cumulativeHouseholdConsumption: number;

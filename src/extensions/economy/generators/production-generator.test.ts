@@ -8,7 +8,14 @@ import { simulationContext } from "../../../context/simulationContext";
 import { createEmptyTechnologySimulationState } from "../../../generators/technologyTypes";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph, State } from "../../hostTypes";
-import { clearEconomyContext, getBurgMarketLedgers, initEconomyContext, setGoods, setMarkets } from "../economyContext";
+import {
+  clearEconomyContext,
+  getBurgMarketLedgers,
+  initEconomyContext,
+  setBurgMarketLedgers,
+  setGoods,
+  setMarkets
+} from "../economyContext";
 import { setEconomyCalibrationState } from "../store/economyCalibrationState";
 import { getBurgMarketLedger } from "./burgMarketLedgers";
 import { getGoodDemandCalibration, laborPointsForLots } from "./craftDemandCalibration";
@@ -740,6 +747,59 @@ describe("linen clothing preparation", () => {
   afterEach(() => {
     setEconomyCalibrationState({ applyCalibration: false });
     clearEconomyContext();
+  });
+
+  it("manufactures bedding only for paid orders and consumes its fabric without a productivity material bonus", () => {
+    setEconomyCalibrationState({ applyCalibration: false });
+    const cloth = { ...Goods.getDefaultGood("Wool Cloth")!, i: 1 };
+    const blanket = { ...Goods.getDefaultGood("Wool Blankets")!, i: 2 };
+    const fabricPerLot = 250 / 0.95 / 4000;
+    blanket.recipes = [{ 1: fabricPerLot }];
+    setGoods([cloth, blanket]);
+    Goods.sync();
+    const burg = { i: 1, cell: 0, market: 1, population: 10, treasury: 1000 };
+    worldContext.urbanization = 1;
+    worldContext.pack.burgs = [burg as Burg];
+    const market = {
+      i: 1,
+      centerBurgId: 1,
+      color: "",
+      goods: { 1: { stock: 0, price: 98 }, 2: { stock: 0, price: 8 } }
+    };
+    setMarkets([market]);
+    setBurgMarketLedgers([{ burgId: 1, marketId: 1, merchants: [], householdWealth: 0 }]);
+    const state = {
+      burg,
+      market,
+      inventory: [0, 1],
+      demandCoverage: [],
+      records: [] as ProductionRecord[],
+      ingredientCosts: 0,
+      smithingProgramByGood: new Map<string, never>(),
+      strategicLaborMarket: undefined,
+      strategicDemandByGood: new Map<number, never>()
+    };
+    const decision = {
+      action: {
+        good: blanket,
+        ingredients: [{ goodId: 1, amount: fabricPerLot }],
+        byproducts: [],
+        maxYield: 1,
+        ingredientCostPerUnit: 0,
+        smithingProgram: null
+      },
+      candidates: [] as [],
+      goalGoodId: 2,
+      laborProductivity: 2
+    };
+    const planner = new ProductionModule() as unknown as ManufactureHarness;
+    expect(planner.executeManufacture(state, { demandCoverageByGood: [] }, decision, 1).yieldLots).toBe(0);
+    expect(state.inventory[1]).toBe(1);
+    setBurgMarketLedgers([{ burgId: 1, marketId: 1, merchants: [], householdWealth: 1000 }]);
+    const result = planner.executeManufacture(state, { demandCoverageByGood: [] }, decision, 1);
+    expect(result.yieldLots).toBeCloseTo(((10_000 / 5) * 2) / 8 / 100 / 12, 8);
+    expect(1 - state.inventory[1]).toBeCloseTo(result.yieldLots * fabricPerLot, 8);
+    expect(state.inventory[2]).toBeCloseTo(result.yieldLots, 8);
   });
 
   it("shares the basic clothing production ceiling without touching luxury apparel", () => {

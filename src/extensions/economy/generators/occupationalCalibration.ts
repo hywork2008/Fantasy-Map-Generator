@@ -51,6 +51,7 @@ export const OCCUPATIONAL_CALIBRATION: readonly OccupationalCalibrationRow[] = [
     goodNames: [
       "Cloth",
       "Garments",
+      "Wool Blankets",
       "Wool Cloth",
       "Wool Garments",
       "Linen",

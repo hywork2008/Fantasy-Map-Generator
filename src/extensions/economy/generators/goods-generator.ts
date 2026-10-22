@@ -3409,6 +3409,18 @@ export const GOODS_DATA: GoodData[] = [
     recipes: TEXTILE_RECIPES["Wool Garments"],
     unit: "wardrobe lot",
     demandCoverage: { clothing: 1 }
+  },
+  {
+    name: "Wool Blankets",
+    warEconomyType: "essential",
+    tags: ["clothing"],
+    icon: "good-cloth",
+    color: "#a69b89",
+    value: 8,
+    chance: 0,
+    recipes: TEXTILE_RECIPES["Wool Blankets"],
+    unit: "blanket lot",
+    demandCoverage: {}
   }
 ];
 
@@ -3522,6 +3534,7 @@ const GOOD_TRADE_PROFILES: Record<string, GoodTradeProfile> = {
   "White sand": tradeProfile(5, 5, 1, -2, 0, 5, 1),
   Leather: tradeProfile(3, 3, 2, 0, 0, 4, 2),
   Cloth: tradeProfile(2, 3, 2, 1, 0, 3, 2),
+  "Wool Blankets": tradeProfile(2, 3, 2, 1, 0, 3, 2),
   "Wool Cloth": tradeProfile(2, 3, 2, 1, 0, 3, 2),
   "Wool Garments": tradeProfile(2, 3, 3, 2, 0, 3, 2),
   "Fine Wool Cloth": tradeProfile(2, 2, 3, 2, 0, 3, 2),
@@ -5240,4 +5253,16 @@ export function migrateOrdinaryWoolGoods(): boolean {
       .map(recipe => Object.fromEntries(Object.entries(recipe).map(([name, amount]) => [byName.get(name)!.i, amount])));
   }
   return added.length > 0;
+}
+
+/** Adds bedding without reinterpreting existing garment or fabric inventories. */
+export function migrateWoolBlanketGoods(): boolean {
+  const goods = getGoods();
+  if (goods.some(good => good.name === "Wool Blankets")) return false;
+  const good = Goods.getDefaultGood("Wool Blankets")!;
+  good.i = Math.max(0, ...goods.map(entry => entry.i)) + 1;
+  const cloth = goods.find(entry => entry.name === "Wool Cloth");
+  good.recipes = cloth ? [{ [cloth.i]: TEXTILE_RECIPES[good.name][0]["Wool Cloth"] }] : [];
+  goods.push(good);
+  return true;
 }

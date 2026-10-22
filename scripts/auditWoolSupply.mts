@@ -6,7 +6,8 @@ import { createNodeSimulationHost } from "../src/simulation/adapters/node";
 import { getGoods, getMarkets } from "../src/extensions/economy/context/trade";
 import { getOrCreateFaunaStockTable } from "../src/extensions/economy/context/cellTables";
 import { getPastureAreaUsedHectares } from "../src/extensions/economy/generators/husbandry";
-import { getMarketTextileDemandProfile } from "../src/extensions/economy/generators/textileDemand";
+import { HOUSEHOLD_GARMENT_NAMES } from "../src/extensions/economy/generators/textileRecipeContracts";
+import { getMarketBlanketDemandProfile, getMarketTextileDemandProfile } from "../src/extensions/economy/generators/textileDemand";
 import { getWoolOutput } from "../src/extensions/economy/generators/woolProduction";
 import { setGoodFlowObserver } from "../src/extensions/economy/generators/goodsBalanceLedger";
 
@@ -14,6 +15,7 @@ const [input, output, length = "12"] = process.argv.slice(2);
 const months = Number(length);
 if (!input || !output || !Number.isSafeInteger(months) || months < 1) throw new Error("Invalid arguments");
 const paths = ["scripts/auditWoolSupply.mts", "src/extensions/economy/generators/woolProduction.ts", "src/extensions/economy/generators/husbandry.ts", "src/extensions/economy/generators/faunaPopulation.ts", "src/extensions/economy/generators/developmentPotential.ts"];
+paths.push("src/extensions/economy/generators/textileDemand.ts", "src/extensions/economy/generators/textileRecipeContracts.ts", "src/extensions/economy/generators/goods-generator.ts", "src/extensions/economy/generators/production-generator.ts", "src/extensions/economy/generators/markets-generator.ts");
 const sourceHashes = Object.fromEntries(paths.map(path => [path, createHash("sha256").update(readFileSync(path)).digest("hex")]));
 const bytes = readFileSync(input);
 const host = createNodeSimulationHost();
@@ -26,9 +28,15 @@ const wool = getGoods().find(good => good.name === "Wool")!;
 // Mirror the private ecological ceilings in husbandry.ts, not observed historical densities.
 const modelDensity: Record<string, number> = { Sheep: 3, Cattle: 0.5, Goats: 2.5, Horses: 0.4, Camels: 0.15 };
 let woolFlows: Record<string, number> = {};
+const wardrobeIds = new Set(getGoods().filter(good => HOUSEHOLD_GARMENT_NAMES.has(good.name)).map(good => good.i));
+const blanket = getGoods().find(good => good.name === "Wool Blankets");
+let householdBlankets = 0;
 let householdWardrobes = 0;
 setGoodFlowObserver(flow => {
- if (flow.direction === "sink" && flow.category === "householdTextiles") householdWardrobes += flow.units;
+ if (flow.direction === "sink" && flow.category === "householdTextiles") {
+   if (wardrobeIds.has(flow.goodId)) householdWardrobes += flow.units;
+   if (flow.goodId === blanket?.i) householdBlankets += flow.units;
+ }
  if (flow.goodId !== wool.i || flow.direction === "transfer") return;
  const key = `${flow.direction}:${flow.category}`;
  woolFlows[key] = (woolFlows[key] ?? 0) + flow.units;
@@ -67,9 +75,13 @@ function snapshot() {
   worstCells: occupied.sort((a,b) => (b.occupancy ?? Infinity) - (a.occupancy ?? Infinity)).slice(0, 10),
   monthlyWardrobeDemandLots: getMarkets().reduce((sum, market) => sum + getMarketTextileDemandProfile(market.i).monthlyDemand, 0),
   householdWardrobeConsumptionLots: householdWardrobes,
+  monthlyBlanketDemandLots: getMarkets().reduce((sum, market) => sum + getMarketBlanketDemandProfile(market.i).monthlyDemand, 0),
+  householdBlanketConsumptionLots: householdBlankets,
+  householdWardrobeSpending: getMarkets().reduce((sum, market) => sum + (market.textileLedger?.householdSpending ?? 0), 0),
+  householdBlanketSpending: getMarkets().reduce((sum, market) => sum + (market.blanketLedger?.householdSpending ?? 0), 0),
   effectiveWoolLaborCoverage: heads.Sheep > 0 ? woolLotsPerMonth * 1000 / 0.08 / heads.Sheep : 0,
   woolLotsPerMonth, woolKgPerMonth: woolLotsPerMonth * 1500, woolStockLots: stockLots, woolStockKg: stockLots * 1500, woolFlows };
- woolFlows = {}; householdWardrobes = 0;
+ woolFlows = {}; householdWardrobes = 0; householdBlankets = 0;
  return result;
 }
 const initial = snapshot();

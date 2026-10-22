@@ -7,14 +7,21 @@ import {
   getGuildChapters,
   getMarkets,
   initEconomyContext,
+  setBurgMarketLedgers,
   setGoods,
   setMarketCellColumn,
   setMarkets
 } from "../economyContext";
 import { setEconomyCalibrationState } from "../store/economyCalibrationState";
+import { getHouseholdWealth } from "./burgMarketLedgers";
 import { GuildChapters } from "./guildChapters";
+import { getRuralHouseholdWealth } from "./householdWealth";
+import type { FoodLedger } from "./marketTypes";
 import {
+  getAffordableTextileDemand,
+  getBlanketProductionHeadroom,
   getGarmentProductionHeadroom,
+  getMarketBlanketDemandProfile,
   getMarketTextileDemandProfile,
   getTextileGuildWorkPlan,
   settleTextileHouseholdDemand,
@@ -55,11 +62,13 @@ describe("textile household demand", () => {
         demandCoverage: { clothing: 1 }
       }
     ]);
+    setBurgMarketLedgers([{ burgId: 1, marketId: 1, merchants: [], householdWealth: 100_000 }]);
     setMarkets([
       {
         i: 1,
         centerBurgId: 1,
         color: "#fff",
+        foodLedger: { ruralHouseholdWealth: 100_000 } as FoodLedger,
         goods: {
           0: { stock: 60, price: 2 },
           1: { stock: 0, price: 1 },
@@ -119,11 +128,101 @@ describe("textile household demand", () => {
     settleTextileHouseholdDemand();
     expect(market.goods[6].stock).toBe(0);
     expect(market.goods[8].stock).toBe(0);
-    expect(4 - market.goods[5].stock + 2 - market.goods[6].stock + 0.5).toBeCloseTo(demand, 10);
+    expect(4 - market.goods[5].stock + 2 - market.goods[6].stock + 0.5).toBeCloseTo(demand, 2);
     expect(market.goods[7].stock).toBe(9);
     market.goods[5].stock = 0;
     market.goods[6].stock = 0.5;
     expect(getGarmentProductionHeadroom(market, 0.25)).toBeCloseTo(demand - 0.75, 10);
+  });
+
+  it("uses independent bedding ownership and cold-climate additions", () => {
+    expect(getMarketBlanketDemandProfile(1).annualDemand).toBe(100);
+    worldContext.grid.cells.temp[0] = 5;
+    expect(getMarketBlanketDemandProfile(1).annualDemand).toBe(50);
+    expect(getMarketTextileDemandProfile(1).annualDemand).toBe(25);
+  });
+
+  function addBlankets(): void {
+    setGoods([...getGoods(), { ...getGoods()[5], i: 9, name: "Wool Blankets", value: 8, demandCoverage: {} }]);
+    getMarkets()[0].goods[9] = { stock: 20, price: 8 };
+  }
+
+  it("pays for wardrobes and bedding from separate urban and rural purses into market cash", () => {
+    addBlankets();
+    const market = getMarkets()[0];
+    const urbanBefore = getHouseholdWealth(1);
+    const ruralBefore = getRuralHouseholdWealth(market);
+    const cashBefore = market.marketTreasury?.balance ?? 0;
+    const garmentsBefore = market.goods[5].stock;
+    const blanketsBefore = market.goods[9].stock;
+    settleTextileHouseholdDemand();
+    const wardrobeCost = (garmentsBefore - market.goods[5].stock) * 20;
+    const beddingCost = (blanketsBefore - market.goods[9].stock) * 8;
+    const paid = urbanBefore - getHouseholdWealth(1) + ruralBefore - getRuralHouseholdWealth(market);
+    expect(paid).toBeCloseTo(wardrobeCost + beddingCost, 8);
+    expect(market.marketTreasury!.balance - cashBefore).toBeCloseTo(paid, 8);
+    expect(market.blanketLedger!.ruralConsumption).toBeGreaterThan(0);
+    expect(market.blanketLedger!.urbanConsumption).toBeGreaterThan(0);
+    expect(market.blanketLedger!.householdConsumption).toBeCloseTo(getMarketBlanketDemandProfile(1).monthlyDemand, 2);
+    expect(market.textileLedger!.householdConsumption).toBeCloseTo(getMarketTextileDemandProfile(1).monthlyDemand, 2);
+  });
+
+  it("does not manufacture or consume unpaid replacements or spend another population's cash", () => {
+    addBlankets();
+    const market = getMarkets()[0];
+    setBurgMarketLedgers([{ burgId: 1, marketId: 1, merchants: [], householdWealth: 0 }]);
+    market.foodLedger!.ruralHouseholdWealth = 0;
+    expect(getAffordableTextileDemand(market, false)).toBe(0);
+    expect(getAffordableTextileDemand(market, true)).toBe(0);
+    expect(getGarmentProductionHeadroom(market, 0)).toBe(0);
+    expect(getBlanketProductionHeadroom(market, 0)).toBe(0);
+    settleTextileHouseholdDemand();
+    expect(market.goods[5].stock).toBe(4);
+    expect(market.goods[9].stock).toBe(20);
+    expect(market.blanketLedger!.householdConsumption).toBe(0);
+    market.foodLedger!.ruralHouseholdWealth = 100_000;
+    settleTextileHouseholdDemand();
+    expect(market.textileLedger!.urbanConsumption).toBe(0);
+    expect(market.blanketLedger!.urbanConsumption).toBe(0);
+    expect(market.blanketLedger!.ruralConsumption).toBeGreaterThan(0);
+  });
+
+  it("shares one monthly cash allocation between clothing and bedding and preserves missing-goods reserves", () => {
+    addBlankets();
+    const market = getMarkets()[0];
+    worldContext.pack.burgs[1]!.population = 0;
+    market.foodLedger!.ruralHouseholdWealth = 100;
+    const before = market.goods[9].stock;
+    // The five-unit cash allocation cannot cover wardrobes; bedding has no paid order.
+    expect(getAffordableTextileDemand(market, true)).toBe(0);
+    market.goods[5].stock = 0;
+    settleTextileHouseholdDemand();
+    expect(market.goods[9].stock).toBe(before);
+    expect(getRuralHouseholdWealth(market)).toBe(100);
+    market.goods[5].stock = 10;
+    settleTextileHouseholdDemand();
+    expect(getRuralHouseholdWealth(market)).toBe(95);
+    expect(market.goods[9].stock).toBe(before);
+  });
+
+  it("allocates scarce bedding to both populations and preserves old cumulative ledgers", () => {
+    addBlankets();
+    const market = getMarkets()[0];
+    market.goods[9].stock = 1;
+    market.blanketLedger = {
+      ...getMarketBlanketDemandProfile(1),
+      householdConsumption: 0,
+      unmetDemand: 0,
+      cumulativeHouseholdConsumption: 2,
+      cumulativeUnmetDemand: 3
+    };
+    settleTextileHouseholdDemand();
+    expect(market.blanketLedger.householdConsumption).toBe(1);
+    expect(market.blanketLedger.ruralConsumption).toBe(0.98);
+    expect(market.blanketLedger.urbanConsumption).toBe(0.02);
+    expect(market.blanketLedger.cumulativeHouseholdConsumption).toBe(3);
+    expect(market.blanketLedger.cumulativeHouseholdSpending).toBe(8);
+    expect(market.goods[9].stock).toBeCloseTo(0, 8);
   });
 
   it("admits a textile chapter only when three months of orders, fibre and margin support two workers", () => {

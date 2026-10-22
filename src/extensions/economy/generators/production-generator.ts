@@ -130,6 +130,7 @@ import {
   type StrategicProductionDemand
 } from "./strategicProductionDemand";
 import {
+  getBlanketProductionHeadroom,
   getGarmentProductionHeadroom,
   getHouseholdGarmentInventory,
   settleTextileHouseholdDemand
@@ -1183,6 +1184,9 @@ export class ProductionModule {
         getGarmentProductionHeadroom(state.market, getHouseholdGarmentInventory(state.inventory))
       );
     }
+    if (good.name === "Wool Blankets") {
+      actualYield = Math.min(actualYield, getBlanketProductionHeadroom(state.market, state.inventory[good.i] || 0));
+    }
     actualYield = Math.min(
       actualYield,
       getFoodProcessingProductionHeadroom(state.market, good.name, state.inventory[good.i] || 0)
@@ -1906,6 +1910,8 @@ export class ProductionModule {
             getGarmentProductionHeadroom(state.market, getHouseholdGarmentInventory(state.inventory))
           );
       }
+      if (good.name === "Wool Blankets")
+        units = Math.min(units, getBlanketProductionHeadroom(state.market, state.inventory[good.i] || 0));
       return this.planGoodAction(index, state, good, units, units, workersLeft, effect);
     };
     let chosenGoal: GoalActionPlan | null = null;

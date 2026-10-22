@@ -50,6 +50,7 @@ import {
   migrateWeightRepricing,
   migrateWineRecipe,
   migrateWoodPhysicalRecipes,
+  migrateWoolBlanketGoods,
   SMELTED_METAL_REPRICING,
   WEIGHT_REPRICING
 } from "./goods-generator";
@@ -303,6 +304,7 @@ describe("GoodsModule", () => {
       "Garments",
       "Linen",
       "Linen Garments",
+      "Wool Blankets",
       "Wool Cloth",
       "Wool Garments",
       "Fine Wool Cloth",
@@ -376,6 +378,27 @@ describe("GoodsModule", () => {
     expect(migrateOrdinaryWoolGoods()).toBe(false);
     expect(garments.value).toBe(500);
     expect(garments.recipes).toEqual([{ 3000: 1 }]);
+  });
+
+  it("adds ancient-available bedding by saved fabric id once without resetting custom prices or stocks", () => {
+    goodsModule.restoreDefaults();
+    const goods = getGoods().filter(good => good.name !== "Wool Blankets");
+    const cloth = goods.find(good => good.name === "Wool Cloth")!;
+    cloth.i = 3000;
+    setGoods(goods);
+    setMarkets([{ i: 1, goods: { 3000: { stock: 7, price: 101 } } }] as never);
+    expect(migrateWoolBlanketGoods()).toBe(true);
+    const blanket = goods.find(good => good.name === "Wool Blankets")!;
+    expect(blanket.i).toBeGreaterThan(3000);
+    expect(blanket.requiredTechnology).toBeUndefined();
+    expect(blanket.demandCoverage).toEqual({});
+    expect(blanket.recipes).toEqual([{ 3000: 250 / 0.95 / 4000 }]);
+    expect(getMarkets()[0].goods[3000]).toEqual({ stock: 7, price: 101 });
+    blanket.value = 10;
+    blanket.recipes = [{ 3000: 1 }];
+    expect(migrateWoolBlanketGoods()).toBe(false);
+    expect(blanket.value).toBe(10);
+    expect(blanket.recipes).toEqual([{ 3000: 1 }]);
   });
 
   it("splits only unchanged legacy linen wardrobes and resolves the saved material ids", () => {

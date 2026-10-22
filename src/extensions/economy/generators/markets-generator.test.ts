@@ -1705,6 +1705,51 @@ describe("MarketsModule craft calibration demand", () => {
 describe("shared clothing trade demand", () => {
   beforeEach(() => initEconomyContext({ worldContext } as unknown as ExtensionAPI));
   afterEach(() => clearEconomyContext());
+  it("uses paid bedding orders for trade without borrowing from another household purse", () => {
+    worldContext.populationRate = 1000;
+    worldContext.urbanization = 1;
+    worldContext.pack = {
+      burgs: [{ i: 1, market: 1, population: 10 }],
+      cells: { i: [] },
+      states: []
+    } as unknown as PackedGraph;
+    const blankets: Good = {
+      i: 1,
+      name: "Wool Blankets",
+      tags: ["clothing"],
+      unit: "blanket lot",
+      value: 8,
+      icon: "",
+      color: "",
+      demandCoverage: {}
+    };
+    const garments: Good = { ...blankets, i: 2, name: "Wool Garments", value: 130, demandCoverage: { clothing: 1 } };
+    setGoods([blankets, garments]);
+    setMarkets([
+      { i: 1, centerBurgId: 1, color: "", goods: { 1: { stock: 0, price: 8 }, 2: { stock: 0, price: 130 } } }
+    ]);
+    setBurgMarketLedgers([{ burgId: 1, marketId: 1, merchants: [], householdWealth: 0 }]);
+    const market = new MarketsModule() as unknown as {
+      calculateGoodDemand(
+        good: Good,
+        urban: number,
+        textile: number,
+        consumer: number,
+        industrial: number,
+        price: number,
+        marketId: number
+      ): number;
+    };
+    expect(market.calculateGoodDemand(blankets, 10, 10, 0, 0, 8, 1)).toBe(0);
+    expect(market.calculateGoodDemand(garments, 10, 10, DEMAND_TARGET_FACTORS.clothing, 0, 130, 1)).toBe(0);
+    setBurgMarketLedgers([{ burgId: 1, marketId: 1, merchants: [], householdWealth: 1000 }]);
+    expect(market.calculateGoodDemand(blankets, 10, 10, 0, 0, 8, 1)).toBeCloseTo(((10_000 / 5) * 2) / 8 / 100 / 12, 10);
+    expect(market.calculateGoodDemand(garments, 10, 10, DEMAND_TARGET_FACTORS.clothing, 0, 130, 1)).toBeCloseTo(
+      10 / 4 / 12,
+      10
+    );
+  });
+
   it("keeps the total population demand unchanged when linen and wool wardrobes are added", () => {
     const good = (i: number, name: string): Good => ({
       i,
