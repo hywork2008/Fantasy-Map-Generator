@@ -11,8 +11,14 @@ export const BASILICA_TEMPLE = {
   note: "Detailed Romanesque reading of the catalogue basilica footprint: aisled nave with clerestory, twin-towered westwork, transepts, octagonal crossing lantern, apsed choir with ambulatory and three radiating chapels. Lesenes, Lombard bands, round-arched windows, rose windows, a recessed archivolt portal and coursed tile roofs are modelled; dimensions follow the catalogue plan, heights are illustrative."
 } as const;
 
+export const BASILICA_QUALITIES = ["high", "low"] as const;
+export type BasilicaQuality = (typeof BASILICA_QUALITIES)[number];
+
 /** Plan follows the catalogue record: long axis east–west on X, west front at negative X, Y up. */
-export function createBasilicaTemple(): CityStructureMeshes {
+export function createBasilicaTemple(quality: BasilicaQuality = "high"): CityStructureMeshes {
+  // Low quality keeps every mass and opening but drops mouldings, tile courses and small ornament.
+  const detailed = quality === "high";
+  const arcSegments = detailed ? 10 : 3;
   const wall = new THREE.MeshLambertMaterial({ color: 0xd6ccb4 });
   const dressed = new THREE.MeshLambertMaterial({ color: 0xe8dfc8 });
   const plinth = new THREE.MeshLambertMaterial({ color: 0xa99d85 });
@@ -100,21 +106,26 @@ export function createBasilicaTemple(): CityStructureMeshes {
       hole.lineTo(w / 2, 0);
       hole.lineTo(-w / 2, 0);
       outer.holes.push(hole);
-      return new THREE.ExtrudeGeometry(outer, { depth, bevelEnabled: false, curveSegments: 10 });
+      return new THREE.ExtrudeGeometry(outer, { depth, bevelEnabled: false, curveSegments: arcSegments });
     });
   }
   function archPane(w: number, h: number): THREE.BufferGeometry {
-    return cached(`pane:${w}:${h}`, () => new THREE.ShapeGeometry(archShape(w, h), 10));
+    return cached(`pane:${w}:${h}`, () => new THREE.ShapeGeometry(archShape(w, h), arcSegments));
   }
 
   /** Round-arched window: splayed dark opening, dressed surround and a sill. */
   function window(x: number, y: number, z: number, w: number, h: number, angle: number, u = 0): void {
     onFacade(archPane(w, h), glass, x, y, z, angle, u, 0.03);
+    if (!detailed) return;
     onFacade(archRing(w, h, 0.22, 0.16), dressed, x, y, z, angle, u, 0);
     onFacade(unitBox, dressed, x, y - 0.12, z, angle, u, 0.1, [w + 0.6, 0.14, 0.24]);
   }
   /** Twin belfry opening divided by a colonnette under a relieving arch. */
   function bifora(x: number, y: number, z: number, w: number, h: number, angle: number, u = 0): void {
+    if (!detailed) {
+      onFacade(archPane(w * 0.85, h), glass, x, y, z, angle, u, 0.03);
+      return;
+    }
     const light = w * 0.42;
     for (const side of [-1, 1]) {
       onFacade(archPane(light, h * 0.82), glass, x, y, z, angle, u + side * w * 0.25, 0.03);
@@ -128,8 +139,9 @@ export function createBasilicaTemple(): CityStructureMeshes {
   }
   /** Wheel window: dark disc, moulded rim, spokes and a central boss. */
   function rose(x: number, y: number, z: number, r: number, angle: number): void {
-    const disc = cached(`disc:${r}`, () => new THREE.CircleGeometry(r, 28));
+    const disc = cached(`disc:${r}`, () => new THREE.CircleGeometry(r, detailed ? 28 : 10));
     onFacade(disc, glass, x, y, z, angle, 0, 0.03);
+    if (!detailed) return;
     const rim = cached(`rim:${r}`, () => {
       const shape = new THREE.Shape();
       shape.absarc(0, 0, r + 0.32, 0, Math.PI * 2, false);
@@ -146,6 +158,7 @@ export function createBasilicaTemple(): CityStructureMeshes {
   }
   /** Lombard band: a row of small blind arches hanging from the cornice, on a straight wall. */
   function lombard(x: number, y: number, z: number, length: number, angle: number): void {
+    if (!detailed) return;
     const count = Math.max(2, Math.round(length / 0.9));
     const pitch = length / count;
     for (let i = 0; i < count; i++) {
@@ -156,6 +169,7 @@ export function createBasilicaTemple(): CityStructureMeshes {
   }
   /** Same band wrapped around a curved wall, centred on (cx, cz). */
   function lombardRound(cx: number, cz: number, r: number, y: number, from: number, to: number): void {
+    if (!detailed) return;
     const count = Math.max(3, Math.round((r * (to - from)) / 0.9));
     const step = (to - from) / count;
     for (let i = 0; i < count; i++) {
@@ -179,6 +193,10 @@ export function createBasilicaTemple(): CityStructureMeshes {
     const along = top.clone().sub(eave);
     const normal = new THREE.Vector2(-along.y, along.x).normalize();
     if (normal.y < 0) normal.negate();
+    if (!detailed) {
+      points.push(eave.clone().addScaledVector(normal, 0.05), top.clone().addScaledVector(normal, 0.05));
+      return;
+    }
     for (let k = 0; k < courses; k++) {
       const a = eave.clone().addScaledVector(along, k / courses);
       const b = eave.clone().addScaledVector(along, (k + 1) / courses);
@@ -212,6 +230,7 @@ export function createBasilicaTemple(): CityStructureMeshes {
     const y = eave - Math.tan(pitch) * overhang;
     if (alongX) put(section, material, [start, y, centre], [0, Math.PI / 2, 0]);
     else put(section, material, [centre, y, start]);
+    if (!detailed) return y + rise;
     const cap = cached("ridge-cap", () => new THREE.CylinderGeometry(0.2, 0.2, 1, 8));
     if (alongX) put(cap, ridge, [start + length / 2, y + rise + 0.12, centre], [0, 0, Math.PI / 2], [1, length, 1]);
     else put(cap, ridge, [centre, y + rise + 0.12, start + length / 2], [Math.PI / 2, 0, 0], [1, length, 1]);
@@ -249,12 +268,14 @@ export function createBasilicaTemple(): CityStructureMeshes {
     segments = 24,
     turn = 0
   ): void {
-    const geometry = cached(`lathe:${rOuter}:${rInner}:${rise}:${from}:${sweep}:${segments}`, () => {
+    // Round roofs coarsen in low quality; square and octagonal spires keep their facet count.
+    const facets = detailed || segments <= 8 ? segments : Math.max(6, Math.round(segments / 3));
+    const geometry = cached(`lathe:${rOuter}:${rInner}:${rise}:${from}:${sweep}:${facets}`, () => {
       const points: THREE.Vector2[] = [
         new THREE.Vector2(Math.max(rInner, 0.01), -0.2),
         new THREE.Vector2(rOuter, -0.2)
       ];
-      const courses = Math.max(4, Math.round(Math.hypot(rOuter - rInner, rise) / 0.45));
+      const courses = detailed ? Math.max(4, Math.round(Math.hypot(rOuter - rInner, rise) / 0.45)) : 1;
       const eave = new THREE.Vector2(rOuter, 0);
       const top = new THREE.Vector2(rInner, rise);
       const along = top.clone().sub(eave);
@@ -273,19 +294,22 @@ export function createBasilicaTemple(): CityStructureMeshes {
         );
       }
       if (rInner === 0) points.push(new THREE.Vector2(0, rise + 0.05));
-      return new THREE.LatheGeometry(points, segments, from, sweep);
+      return new THREE.LatheGeometry(points, facets, from, sweep);
     });
     put(geometry, material, [cx, y, cz], [0, turn, 0]);
+  }
+  function curveFacets(r: number): number {
+    return detailed ? Math.max(12, Math.round(r * 5)) : Math.max(6, Math.round(r * 1.5));
   }
   function curvedWall(cx: number, cz: number, r: number, y0: number, h: number, from: number, sweep: number, turn = 0) {
     const geometry = cached(
       `curve:${r}:${h}:${from}:${sweep}`,
-      () => new THREE.CylinderGeometry(r, r, h, Math.max(12, Math.round(r * 5)), 1, true, from, sweep)
+      () => new THREE.CylinderGeometry(r, r, h, curveFacets(r), 1, true, from, sweep)
     );
     put(geometry, wall, [cx, y0 + h / 2, cz], [0, turn, 0]);
     const base = cached(
       `curve-plinth:${r}:${from}:${sweep}`,
-      () => new THREE.CylinderGeometry(r + 0.22, r + 0.22, 0.7, Math.max(12, Math.round(r * 5)), 1, true, from, sweep)
+      () => new THREE.CylinderGeometry(r + 0.22, r + 0.22, 0.7, curveFacets(r), 1, true, from, sweep)
     );
     put(base, plinth, [cx, 0.35, cz], [0, turn, 0]);
   }
@@ -300,6 +324,7 @@ export function createBasilicaTemple(): CityStructureMeshes {
       return new THREE.ExtrudeGeometry(shape, { depth: 0.8, bevelEnabled: false });
     });
     onFacade(geometry, wall, x, y, z, angle, 0, -0.8);
+    if (!detailed) return;
     // Raking coping stones follow both edges of the gable.
     const slope = Math.atan2(rise, halfSpan);
     const edge = Math.hypot(halfSpan, rise) + 0.3;
@@ -326,9 +351,10 @@ export function createBasilicaTemple(): CityStructureMeshes {
     const z = (z0 + z1) / 2;
     box(x, 0, z, w, h, d);
     box(x, 0, z, w + 0.44, 0.7, d + 0.44, plinth);
-    for (const cx of [x0, x1]) for (const cz of [z0, z1]) box(cx, 0.7, cz, 0.7, h - 0.7, 0.7, dressed);
+    if (detailed) for (const cx of [x0, x1]) for (const cz of [z0, z1]) box(cx, 0.7, cz, 0.7, h - 0.7, 0.7, dressed);
   }
   function lesene(x: number, z: number, h: number, angle: number, y0 = 0.7): void {
+    if (!detailed) return;
     box(
       x,
       y0,
@@ -340,6 +366,7 @@ export function createBasilicaTemple(): CityStructureMeshes {
     );
   }
   function finial(x: number, y: number, z: number, scale = 1): void {
+    if (!detailed) return;
     const ball = cached("finial-ball", () => new THREE.SphereGeometry(0.28, 12, 8));
     const rod = cached("finial-rod", () => new THREE.CylinderGeometry(0.05, 0.05, 1, 6));
     put(rod, metal, [x, y + 0.6 * scale, z], [0, 0, 0], [scale, 1.2 * scale, scale]);
@@ -379,7 +406,8 @@ export function createBasilicaTemple(): CityStructureMeshes {
     lombard(-10.5, aisle.eave - 0.25, side * aisle.outer, nave.x1 - nave.x0, angle);
     for (let i = 0; i < 6; i++) {
       window(nave.x0 + bay * (i + 0.5), 2.6, side * aisle.outer, 1.15, 2.7, angle);
-      if (i > 0) box(nave.x0 + bay * i, 0.7, side * (aisle.outer + 0.35), 0.75, aisle.eave - 1.6, 0.7, dressed);
+      if (detailed && i > 0)
+        box(nave.x0 + bay * i, 0.7, side * (aisle.outer + 0.35), 0.75, aisle.eave - 1.6, 0.7, dressed);
     }
   }
 
@@ -395,7 +423,7 @@ export function createBasilicaTemple(): CityStructureMeshes {
   box(westwork.x0 - 0.7, 5.9, 0, 1.4, 0.7, 7.2);
   gableWall(westwork.x0 - 1.4, 6.6, 0, 3.6, 1.2, west);
   gableRoof(westwork.x0 - 1.6, 1.6, 0, 3.6, 6.6, Math.atan2(1.2, 3.6), true);
-  for (let k = 0; k < 4; k++) {
+  for (let k = 0; k < (detailed ? 4 : 0); k++) {
     const w = 2.6 + k * 0.62;
     onFacade(
       archRing(w, 4.6 + k * 0.31, 0.3, 0.3),
@@ -412,7 +440,7 @@ export function createBasilicaTemple(): CityStructureMeshes {
   for (const u of [-0.66, 0.66]) onFacade(unitBox, wood, westwork.x0 - 0.42, 1.65, 0, west, u, 0, [1.28, 3.3, 0.12]);
   onFacade(unitBox, dressed, westwork.x0 - 0.42, 3.3, 0, west, 0, 0.02, [2.6, 0.32, 0.2]);
   const shaft = cached("jamb-shaft", () => new THREE.CylinderGeometry(0.16, 0.16, 1, 10));
-  for (let k = 0; k < 3; k++) {
+  for (let k = 0; k < (detailed ? 3 : 0); k++) {
     for (const side of [-1, 1]) {
       onFacade(shaft, dressed, westwork.x0 - 0.5 - k * 0.33, 2, 0, west, side * (1.62 + k * 0.31), 0, [1, 3.4, 1]);
     }
@@ -460,7 +488,7 @@ export function createBasilicaTemple(): CityStructureMeshes {
     lombard(tx, transept.eave - 0.25, face, transept.x1 - transept.x0, angle);
     rose(tx, 12.2, face + side * 0.05, 1.2, angle);
     for (const u of [-2.1, 2.1]) window(tx, 6.4, face, 1.2, 3, angle, u);
-    onFacade(archRing(1.8, 3.4, 0.35, 0.3), dressed, tx, 0.7, face, angle);
+    if (detailed) onFacade(archRing(1.8, 3.4, 0.35, 0.3), dressed, tx, 0.7, face, angle);
     onFacade(unitBox, wood, tx, 0.7 + 1.35, face, angle, 0, 0.05, [1.7, 2.7, 0.1]);
     onFacade(archPane(1.8, 3.4), wall, tx, 0.7, face, angle, 0, 0.04);
     for (const x of [transept.x0, transept.x1]) {
@@ -491,7 +519,7 @@ export function createBasilicaTemple(): CityStructureMeshes {
     const fz = Math.cos(phi) * apothem;
     bifora(fx, 25.6, fz, 2.2, 3.4, phi);
     const corner = phi + Math.PI / 8;
-    box(cx + Math.sin(corner) * 4.35, 23.4, Math.cos(corner) * 4.35, 0.36, 7.3, 0.36, dressed, corner);
+    if (detailed) box(cx + Math.sin(corner) * 4.35, 23.4, Math.cos(corner) * 4.35, 0.36, 7.3, 0.36, dressed, corner);
   }
   const lanternCornice = cached(
     "lantern-cornice",
@@ -520,7 +548,7 @@ export function createBasilicaTemple(): CityStructureMeshes {
     const phi = (Math.PI * (i + 0.5)) / 5;
     window(choir.x1 + Math.sin(phi) * apse.r, 9.6, Math.cos(phi) * apse.r, 1.0, 2.4, phi);
     const corner = (Math.PI * i) / 5;
-    if (i > 0)
+    if (detailed && i > 0)
       box(
         choir.x1 + Math.sin(corner) * (apse.r + 0.1),
         ambulatory.high,

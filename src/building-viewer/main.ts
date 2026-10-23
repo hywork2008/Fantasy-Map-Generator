@@ -39,7 +39,12 @@ import {
   SIGN_SHAPES,
   SIGN_SYMBOLS
 } from "../buildings/signs/hangingSign";
-import { BASILICA_TEMPLE, createBasilicaTemple } from "../buildings/temples/basilicaTemple";
+import {
+  BASILICA_QUALITIES,
+  BASILICA_TEMPLE,
+  type BasilicaQuality,
+  createBasilicaTemple
+} from "../buildings/temples/basilicaTemple";
 import { validateBuildingRecord } from "../buildings/validate";
 import { COVERED_WAGON, createCoveredWagon } from "../buildings/vehicles/coveredWagon";
 import {
@@ -203,8 +208,8 @@ function listAuthors(id: string): void {
     authorSelect.append(option);
   }
   authorSelect.value = DEFAULT_AUTHOR;
+  showQuality(false);
 }
-listAuthors(selectedId);
 authorSelect.addEventListener("change", () => {
   const variant = AUTHORED_VARIANTS[selectedId];
   if (variant && authorSelect.value === variant.author) return variant.show();
@@ -213,7 +218,24 @@ authorSelect.addEventListener("change", () => {
 const selectedName = document.createElement("h2");
 selectedName.className = "bv-selected";
 selectedName.textContent = entries[0]?.record.name ?? "";
-authorPane.append(authorTitle, authorSelect, selectedName);
+// Render quality applies only to variants that ship more than one level of detail.
+const qualityTitle = document.createElement("h2");
+qualityTitle.textContent = "Quality";
+const qualitySelect = document.createElement("select");
+qualitySelect.setAttribute("aria-label", "Model render quality");
+for (const quality of BASILICA_QUALITIES) {
+  const option = document.createElement("option");
+  option.value = quality;
+  option.textContent = quality === "high" ? "High" : "Low (light rendering)";
+  qualitySelect.append(option);
+}
+qualitySelect.addEventListener("change", () => showBasilicaTemple());
+function showQuality(visible: boolean): void {
+  qualityTitle.hidden = !visible;
+  qualitySelect.hidden = !visible;
+}
+listAuthors(selectedId);
+authorPane.append(authorTitle, authorSelect, qualityTitle, qualitySelect, selectedName);
 // Mirror whichever list button was chosen, whatever model family it belongs to.
 list.addEventListener("click", event => {
   const button = (event.target as HTMLElement).closest("button");
@@ -474,7 +496,8 @@ function showBasilicaTemple(): void {
   banner.hidden = true;
   roofTitle.textContent = "Roof plan";
   levelTitle.textContent = "South elevation";
-  massing = createBasilicaTemple();
+  showQuality(true);
+  massing = createBasilicaTemple(qualitySelect.value as BasilicaQuality);
   scene.add(massing.group);
   ground.visible = true;
   frame({ occupancyMeters: { width: BASILICA_TEMPLE.width, depth: BASILICA_TEMPLE.depth } }, 30);
@@ -486,6 +509,7 @@ function showBasilicaTemple(): void {
   facts.append(
     fact("Model", `${BASILICA_TEMPLE.name} — detailed Romanesque study`),
     fact("Period", "High medieval"),
+    fact("Quality", qualitySelect.value === "high" ? "High" : "Low — mouldings, tile courses and ornament omitted"),
     fact("Dimensions", `${BASILICA_TEMPLE.width} × ${BASILICA_TEMPLE.depth} × ${BASILICA_TEMPLE.height} m (approx.)`),
     fact("Construction", BASILICA_TEMPLE.note),
     fact("Omitted", "Interior, vaults, bells, sculpture programme, weathering and individual masonry blocks")

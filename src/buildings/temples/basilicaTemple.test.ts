@@ -40,3 +40,19 @@ it("stacks towers over nave over aisles, faces roofs outward and releases resour
   model.dispose();
   for (const dispose of [...disposals, ...materialDisposals]) expect(dispose).toHaveBeenCalledTimes(1);
 });
+
+it("low quality keeps the silhouette with a fraction of the triangles", () => {
+  const triangles = (quality: "high" | "low") => {
+    const model = createBasilicaTemple(quality);
+    model.group.updateMatrixWorld(true);
+    const count = model.pickables.reduce((sum, mesh) => sum + mesh.geometry.getAttribute("position").count / 3, 0);
+    const bounds = new THREE.Box3().setFromObject(model.group);
+    model.dispose();
+    return { count, bounds };
+  };
+  const high = triangles("high");
+  const low = triangles("low");
+  expect(low.count).toBeLessThan(high.count / 4);
+  expect(low.bounds.max.y).toBeGreaterThan(high.bounds.max.y - 2);
+  expect(low.bounds.max.x - low.bounds.min.x).toBeGreaterThan(high.bounds.max.x - high.bounds.min.x - 2);
+});

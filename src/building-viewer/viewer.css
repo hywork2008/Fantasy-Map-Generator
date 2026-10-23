@@ -234,6 +234,10 @@ select {
   width: 100%;
 }
 
+.bv-author select + h2 {
+  margin-top: 10px;
+}
+
 .bv-author .bv-selected {
   margin: 10px 0 0;
   font-size: 1.05rem;
