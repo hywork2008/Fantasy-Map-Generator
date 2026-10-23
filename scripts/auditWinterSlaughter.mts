@@ -6,7 +6,8 @@ import { getOrCreateFaunaStockTable, getOrCreateLivestockFeedTable } from "../sr
 import { getWinterSlaughterState } from "../src/extensions/economy/context/winterSlaughter";
 import { livestockFeedPeriod } from "../src/extensions/economy/generators/livestockFeedState";
 import { getGoods, getMarkets } from "../src/extensions/economy/context/trade";
-import { observeWinterSlaughter } from "../src/extensions/economy/generators/winterSlaughterObservation";
+import { observeWinterSlaughter, summarizeWinterSlaughterDecisions } from "../src/extensions/economy/generators/winterSlaughterObservation";
+import type { WinterSlaughterSample } from "../src/extensions/economy/generators/winterSlaughter";
 import { WINTER_SLAUGHTER_POLICY, EXPERIMENTAL_CARCASS_PROFILES } from "../src/extensions/economy/generators/winterSlaughterPolicy";
 import { setTickStepObserver } from "../src/generators/tickProfiler";
 
@@ -22,7 +23,7 @@ const sourceHashes = Object.fromEntries(paths.map(path => [path, createHash("sha
 const runs = [];
 for (const mode of ["off", "experimental-temperate"] as const) {
   const host = createNodeSimulationHost();
-  const samples: unknown[] = [];
+  const samples: WinterSlaughterSample[] = [];
   const feedSamples: Record<string, number>[] = [];
   const seen = new Set<string>();
   const seenFeedPeriods = new Set<number>();
@@ -62,7 +63,7 @@ for (const mode of ["off", "experimental-temperate"] as const) {
         if (seenFeedPeriods.has(period)) return;
         seenFeedPeriods.add(period);
         const rows = Object.values(getOrCreateLivestockFeedTable() ?? {}).filter(row => row.feedPeriod === period);
-        feedSamples.push(Object.fromEntries(["requiredKg", "pastureConsumedKg", "hayConsumedKg", "unmetKg", "purchasedKg"].map(key => [key, rows.reduce((sum, row) => sum + Number(row[key as keyof typeof row] ?? 0), 0)])));
+        feedSamples.push({ period, ...Object.fromEntries(["requiredKg", "pastureConsumedKg", "hayConsumedKg", "unmetKg", "purchasedKg"].map(key => [key, rows.reduce((sum, row) => sum + Number(row[key as keyof typeof row] ?? 0), 0)])) });
       }
     } });
     snapshots.push(snapshot(0));
@@ -72,15 +73,16 @@ for (const mode of ["off", "experimental-temperate"] as const) {
       if (month % 6 === 0) process.stderr.write(`[winter-slaughter] ${mode} ${month}/${months}\n`);
     }
     const fields = ["carcassKg", "edibleRecoveredKg", "nonFoodKg", "preservationInputKg", "completedKg", "processingLossKg", "freshConsumedKg", "preservedConsumedKg", "spoilageKg", "saltKg", "woodKg", "spending", "workDays"];
-    const totals = Object.fromEntries(fields.map(key => [key, (samples as Record<string, unknown>[]).reduce((sum, row) => sum + Number(row[key] ?? 0), 0)]));
+    const totals = Object.fromEntries(fields.map(key => [key, samples.reduce((sum, row) => sum + Number(row[key as keyof WinterSlaughterSample] ?? 0), 0)]));
     runs.push({ mode, snapshots, totals,
+      decisions: summarizeWinterSlaughterDecisions(samples),
       feedTotals: Object.fromEntries(["requiredKg", "pastureConsumedKg", "hayConsumedKg", "unmetKg", "purchasedKg"].map(key => [key, feedSamples.reduce((sum, row) => sum + row[key], 0)])),
       sampleCount: samples.length, samples, feedSamples });
   } finally { setTickStepObserver(null); host.dispose(); }
 }
 const raw = JSON.stringify({ inputSha256: createHash("sha256").update(bytes).digest("hex"), sourceHashes, policy: WINTER_SLAUGHTER_POLICY, profiles: EXPERIMENTAL_CARCASS_PROFILES, runs });
 writeFileSync(rawOutput, raw);
-writeFileSync(output, JSON.stringify({ schemaVersion: 1, input, inputSha256: createHash("sha256").update(bytes).digest("hex"), months,
+writeFileSync(output, JSON.stringify({ schemaVersion: 2, input, inputSha256: createHash("sha256").update(bytes).digest("hex"), months,
   sourceTreeSha256: createHash("sha256").update(JSON.stringify(sourceHashes)).digest("hex"),
   rawOutput, rawSha256: createHash("sha256").update(raw).digest("hex"),
   runs: runs.map(({ samples, feedSamples, snapshots, ...run }) => ({ ...run, snapshots: snapshots.map(({ meat, ...snapshot }) => ({ ...snapshot, meat: meat ? { ...meat, samples: undefined } : null })) }))

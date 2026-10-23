@@ -148,3 +148,13 @@ node --import tsx scripts/auditWoolSupply.mts docs/analytics/inputs/salt-s0-alig
 | ファイル（docs/analytics/raw/） | バイト数 | SHA-256 |
 | --- | ---: | --- |
 | winter-slaughter-province-101-20261024.json | 5280087 | `2349ed7b13c0fcbbcaca6974f6d4afc581af057235d2b52428968d004d77e499` |
+
+## 冬前屠畜の月別労働予約とWorld比較（同日追補）
+
+[検証記録](winter-slaughter-monthly-work-20261024.md)。修正前Worldは12か月、修正後World/Provinceは各36か月、いずれもoff/on比較。
+
+| ファイル（docs/analytics/raw/） | バイト数 | SHA-256 |
+| --- | ---: | --- |
+| winter-slaughter-world-102-before-monthly-work-20261024.json | 55242495 | `376cdd87905771636bb5b46ff7db7446d0ee1b3960ae4f6f5dc4956cf32b3016` |
+| winter-slaughter-province-101-monthly-work-20261024.json | 6095763 | `03efa7aa83681d19c86c1a887c5dac976fa9f68f0f69966b40a9f82e8470386e` |
+| winter-slaughter-world-102-monthly-work-20261024.json | 206784263 | `8fa3faf2923e98fcfb1dcaef1cd09d4e897a8a6967610b813256c5689698678d` |

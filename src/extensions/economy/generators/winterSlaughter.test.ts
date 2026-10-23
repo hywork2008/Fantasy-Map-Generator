@@ -6,6 +6,7 @@ import {
   settleWinterSlaughterCell,
   type WinterSlaughterInput
 } from "./winterSlaughter";
+import { summarizeWinterSlaughterDecisions } from "./winterSlaughterObservation";
 import { WINTER_SLAUGHTER_POLICY as policy } from "./winterSlaughterPolicy";
 
 const temperatures = [0, 2, 6, 12, 17, 21, 23, 22, 16, 10, 4, 1];
@@ -29,6 +30,35 @@ const input = (): WinterSlaughterInput => ({
 });
 
 describe("winter slaughter and private preservation", () => {
+  it("audits physical balances and distinguishes old missing diagnostics from observed zeroes", () => {
+    const state = createWinterSlaughterState();
+    const sample = settleWinterSlaughterCell(state, input())!;
+    sample.workBudgetBasis = "calendar";
+    sample.workReservedDays = sample.workDays + 5;
+    sample.careWorkDays = 2;
+    sample.hayWorkDays = 3;
+    const result = summarizeWinterSlaughterDecisions([sample]);
+    expect(result.headsBySpecies.Sheep).toBe(30);
+    expect(result.activeSamples).toBe(1);
+    expect(result.workOverdraftSamples).toBe(0);
+    expect(result.maximumHeadBalanceError).toBeCloseTo(0);
+    expect(result.maximumCarcassBalanceErrorKg).toBeCloseTo(0);
+    expect(result.maximumEdibleBalanceErrorKg).toBeCloseTo(0);
+    sample.workDays += 1;
+    sample.edibleRecoveredKg += 1;
+    sample.sourceClosingCohorts.Sheep.old += 1;
+    expect(summarizeWinterSlaughterDecisions([sample])).toMatchObject({
+      workOverdraftSamples: 1,
+      maximumWorkOverdraftDays: 1,
+      maximumHeadBalanceError: 1
+    });
+    delete sample.decisions;
+    delete sample.workBudgetBasis;
+    expect(summarizeWinterSlaughterDecisions([sample])).toMatchObject({
+      missingDecisionDiagnostics: 1,
+      missingWorkDiagnostics: 1
+    });
+  });
   it("refuses a rewound cell marker rather than reusing a committed batch to debit more animals", () => {
     const state = createWinterSlaughterState();
     const resources = input();

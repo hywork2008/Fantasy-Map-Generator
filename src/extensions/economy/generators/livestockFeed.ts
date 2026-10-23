@@ -2,18 +2,17 @@
 import { rn } from "../../hostUtils";
 import {
   getGoods,
-  getHusbandryWorkers,
   getMarketCellColumn,
   getMarkets,
   getOrCreateFaunaStockTable,
   getOrCreateLivestockFeedTable,
   getWorldContext
 } from "../economyContext";
-import { WORKABLE_DAYS_PER_ADULT } from "./agriculturalLandUse";
 import { isGoodEnabled } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import { creditRuralHouseholdWealth, debitRuralHouseholdWealth, getRuralHouseholdWealth } from "./householdWealth";
 import { calculateHusbandryDemand, getPastureAreaUsedHectares } from "./husbandry";
+import { getHusbandryLaborBudget } from "./husbandryLabor";
 import {
   ANNUAL_FEED_DM_KG_PER_HEAD,
   FODDER_DM_KG_PER_LOT,
@@ -96,12 +95,7 @@ export function harvestLivestockForage(): void {
     const grazing = Math.min(grown, need);
     const surplus = Math.max(0, grown - grazing);
     const demand = calculateHusbandryDemand(world, cell);
-    const hayShare = demand.requiredWorkers > 0 ? (demand.hayWorkers ?? 0) / demand.requiredWorkers : 0;
-    const workDays =
-      Math.max(0, getHusbandryWorkers()[cell] ?? 0) *
-      hayShare *
-      WORKABLE_DAYS_PER_ADULT *
-      (demand.hayMonthlyLaborWeights ?? growth.weights)[month];
+    const workDays = getHusbandryLaborBudget(cell, month, demand).hayCapacityDays;
     const harvested = Math.min(surplus, (workDays / HAY_WORK_DAYS_PER_TONNE_DM) * 1000);
     const received = harvested * HAY_DRY_MATTER_RETENTION;
     const storageLoss = Math.max(0, row.hayKg) * HAY_STORAGE_LOSS_PER_MONTH;

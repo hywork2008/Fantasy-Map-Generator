@@ -2,7 +2,12 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { expect, it } from "vitest";
-import { getHusbandryWorkers, setHusbandryWorkers } from "../extensions/economy/context/agriculture";
+import {
+  getHusbandryMonthlyWorkDays,
+  getHusbandryWorkers,
+  setHusbandryMonthlyWorkDays,
+  setHusbandryWorkers
+} from "../extensions/economy/context/agriculture";
 import { getOrCreateFaunaStockTable } from "../extensions/economy/context/cellTables";
 import { getWinterSlaughterState } from "../extensions/economy/context/winterSlaughter";
 import { getGoods, getMarketCellColumn, getMarkets } from "../extensions/economy/economyContext";
@@ -35,6 +40,10 @@ it("keeps private processing, source debits and payments exactly once across rea
     const workers = getHusbandryWorkers().slice();
     workers[cell] = 10;
     setHusbandryWorkers(workers);
+    const calendar = new Float32Array(host.world.pack.cells.i.length * 12);
+    calendar[cell * 12 + month] = 100;
+    calendar[cell * 12 + ((month + 1) % 12)] = 100;
+    setHusbandryMonthlyWorkDays(calendar);
     getOrCreateFaunaStockTable()![`${cell}:Pig`] = { young: 5, breeding: 10, old: 100 };
     const marketId = getMarketCellColumn()[cell];
     let market = getMarkets().find(market => market.i === marketId)!;
@@ -55,6 +64,7 @@ it("keeps private processing, source debits and payments exactly once across rea
     await loadWorld(host, await host.saveArchive());
     expect(host.world.options.winterLivestockSlaughter).toBe("experimental-temperate");
     expect(getWinterSlaughterState()).toEqual(saved);
+    expect(getHusbandryMonthlyWorkDays()).toEqual(calendar);
     market = getMarkets().find(market => market.i === marketId)!;
     withLivestockFeedPeriod(period, () => settleWinterSlaughter());
     expect(getWinterSlaughterState()).toEqual(saved);

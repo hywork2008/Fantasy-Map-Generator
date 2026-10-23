@@ -42,6 +42,17 @@ export interface WinterPreservationJob {
 }
 
 export interface WinterSlaughterSample {
+  decisions?: {
+    species: string;
+    cohort: "young" | "old";
+    eligibleHeads: number;
+    laborHeads: number;
+    handlingHeads: number;
+    outletHeads: number;
+    selectedHeads: number;
+    freshCapacityKg: number;
+    preservationCapacityKg: number;
+  }[];
   cellId: number;
   period: number;
   ownerId: string;
@@ -72,6 +83,10 @@ export interface WinterSlaughterSample {
   spending: number;
   workDays: number;
   workCapacityDays: number;
+  workBudgetBasis?: "calendar" | "legacy-average";
+  workReservedDays?: number;
+  careWorkDays?: number;
+  hayWorkDays?: number;
   handlingCapacityKg: number;
   storageCapacityKg: number;
   dietaryKcal: number;
@@ -227,6 +242,7 @@ export function settleWinterSlaughterCell(
     policyId: p.id,
     eligibleSeason: isWinterPreparationSeason(input.temperaturesC, month),
     reason: "none",
+    decisions: [],
     heads: {},
     cohortHeads: {},
     sourceOpeningCohorts: structuredClone(input.herds),
@@ -354,12 +370,19 @@ export function settleWinterSlaughterCell(
               fuelPerKg > 0 ? woodLeft / fuelPerKg : Infinity,
               costPerKg > 0 ? cashLeft / costPerKg : 0
             );
-        let heads = Math.min(
-          eligible,
-          Math.floor(handlingLeft / profile.carcassKgPerHead),
-          Math.floor(workLeft / (profile.carcassKgPerHead * p.workDaysPerKg)),
-          Math.floor((foodNeed + preserveCap + 1e-9) / ediblePerHead)
-        );
+        const decision = {
+          species,
+          cohort,
+          eligibleHeads: eligible,
+          handlingHeads: Math.floor(handlingLeft / profile.carcassKgPerHead),
+          laborHeads: Math.floor(workLeft / (profile.carcassKgPerHead * p.workDaysPerKg)),
+          outletHeads: Math.floor((foodNeed + preserveCap + 1e-9) / ediblePerHead),
+          selectedHeads: 0,
+          freshCapacityKg: foodNeed,
+          preservationCapacityKg: preserveCap
+        };
+        sample.decisions!.push(decision);
+        let heads = Math.min(eligible, decision.handlingHeads, decision.laborHeads, decision.outletHeads);
         if (heads <= 0) continue;
         if (perHeadFeed > 0) {
           let low = 1,
@@ -374,6 +397,7 @@ export function settleWinterSlaughterCell(
           }
           heads = low;
         }
+        decision.selectedHeads = heads;
         const id = `winter:${input.period}:${input.cellId}:${species}:${cohort}`;
         if (state.receipts[id] || state.jobs[id] || state.lots[id] || state.stocks[id]) {
           throw new Error("Conflicting winter slaughter batch");

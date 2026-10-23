@@ -9,13 +9,13 @@ import {
   getOrCreateLivestockFeedTable,
   getWorldContext
 } from "../economyContext";
-import { WORKABLE_DAYS_PER_ADULT } from "./agriculturalLandUse";
 import type { FaunaCohorts } from "./faunaPopulationTypes";
 import { SALT_KILOGRAMS_PER_BAG } from "./goodMeasureCatalog";
 import { isGoodEnabled } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import { getRuralHouseholdWealth } from "./householdWealth";
 import { calculateHusbandryDemand, getPastureAreaUsedHectares } from "./husbandry";
+import { getHusbandryLaborBudget } from "./husbandryLabor";
 import { getPastureGrowth, HAY_WORK_DAYS_PER_TONNE_DM } from "./livestockFeedPolicy";
 import { livestockFeedPeriod } from "./livestockFeedState";
 import type { Market } from "./marketTypes";
@@ -107,15 +107,9 @@ export function settleWinterSlaughter(): void {
     const demand = calculateHusbandryDemand(world, cell);
     const hay = feed[cell];
     // Routine care and the actual haymaking work retain priority over meat processing.
-    const monthlyPlan =
-      demand.requiredWorkers * WORKABLE_DAYS_PER_ADULT * (demand.monthlyLaborWeights?.[month] ?? 1 / 12);
-    const plannedHay =
-      (demand.hayWorkers ?? 0) * WORKABLE_DAYS_PER_ADULT * (demand.hayMonthlyLaborWeights?.[month] ?? 0);
-    const plannedSlaughter =
-      (demand.slaughterWorkers ?? 0) * WORKABLE_DAYS_PER_ADULT * (demand.slaughterMonthlyLaborWeights?.[month] ?? 0);
-    const careDays = Math.max(0, monthlyPlan - plannedHay - plannedSlaughter);
+    const labor = getHusbandryLaborBudget(cell, month, demand);
     const hayDays = hay?.harvestPeriod === period ? (hay.harvestedKg / 1000) * HAY_WORK_DAYS_PER_TONNE_DM : 0;
-    const availableDays = Math.max(0, (assigned * WORKABLE_DAYS_PER_ADULT) / 12 - careDays - hayDays);
+    const availableDays = Math.max(0, labor.reservedDays - labor.careDays - hayDays);
     const growth = getPastureGrowth(world, cell);
     const forage = getPastureAreaUsedHectares(cell) * growth.annualKgPerHa;
     const allowedSpecies =
@@ -155,6 +149,10 @@ export function settleWinterSlaughter(): void {
         : 0
     });
     if (!sample) continue;
+    sample.workBudgetBasis = labor.basis;
+    sample.workReservedDays = labor.reservedDays;
+    sample.careWorkDays = labor.careDays;
+    sample.hayWorkDays = hayDays;
     changed = true;
     for (const [species, herd] of Object.entries(localHerds)) changes.push({ key: `${cell}:${species}`, herd });
     if (account) {

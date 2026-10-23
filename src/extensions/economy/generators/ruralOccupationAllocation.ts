@@ -127,6 +127,7 @@ export interface RuralOccupationAllocation {
   /** Assigned/required husbandry workers (§5.4), keyed by the (land) producing cell. */
   readonly husbandryWorkers: Float32Array;
   readonly husbandryRequiredWorkers: Float32Array;
+  readonly husbandryMonthlyWorkDays: Float32Array;
   /** Handcraft capacity reserved after existing occupations, in real worker-months per month. */
   readonly householdTextileWorkers: Float32Array;
   /** Peak common rural workload after allocated occupations, in population points. */
@@ -236,6 +237,8 @@ function allocateRuralOccupationsFromSurplus(
   const viticultureRequiredWorkers = new Float32Array(count);
   const husbandryWorkers = new Float32Array(count);
   const husbandryRequiredWorkers = new Float32Array(count);
+  // This legacy allocator has no monthly crop calendar; do not invent peak reservations.
+  const husbandryMonthlyWorkDays = new Float32Array();
   const householdTextileWorkers = new Float32Array(count);
   const farmLaborRequired = new Float32Array(count);
   const seasonalLaborShortage = new Float32Array(count * 12);
@@ -249,6 +252,7 @@ function allocateRuralOccupationsFromSurplus(
       viticultureRequiredWorkers,
       husbandryWorkers,
       husbandryRequiredWorkers,
+      husbandryMonthlyWorkDays,
       householdTextileWorkers,
       farmLaborRequired,
       migratableAdults,
@@ -315,8 +319,9 @@ function allocateRuralOccupationsFromSurplus(
       const assign = Math.min(budget, candidate.required);
       if (assign <= 0) continue;
       if (candidate.kind === "viticulture") viticultureWorkers[cellId] += assign;
-      else if (candidate.kind === "husbandry") husbandryWorkers[cellId] += assign;
-      else fishingWorkers[candidate.holderId!] += assign;
+      else if (candidate.kind === "husbandry") {
+        husbandryWorkers[cellId] += assign;
+      } else fishingWorkers[candidate.holderId!] += assign;
       budget -= assign;
     }
 
@@ -339,6 +344,7 @@ function allocateRuralOccupationsFromSurplus(
     viticultureRequiredWorkers,
     husbandryWorkers,
     husbandryRequiredWorkers,
+    husbandryMonthlyWorkDays,
     householdTextileWorkers,
     farmLaborRequired,
     migratableAdults,
@@ -387,6 +393,7 @@ function allocateRuralOccupationsFromCalendar(
   const viticultureRequiredWorkers = new Float32Array(count);
   const husbandryWorkers = new Float32Array(count);
   const husbandryRequiredWorkers = new Float32Array(count);
+  const husbandryMonthlyWorkDays = new Float32Array(count * 12);
   const householdTextileWorkers = new Float32Array(count);
   const farmLaborRequired = new Float32Array(count);
   const migratableAdults = new Float32Array(count);
@@ -480,8 +487,13 @@ function allocateRuralOccupationsFromCalendar(
       );
       const assigned = candidate.requiredWorkers * factor;
       if (candidate.kind === "viticulture") viticultureWorkers[cellId] += assigned;
-      else if (candidate.kind === "husbandry") husbandryWorkers[cellId] += assigned;
-      else fishingWorkers[candidate.holderId!] += assigned;
+      else if (candidate.kind === "husbandry") {
+        husbandryWorkers[cellId] += assigned;
+        for (let month = 0; month < 12; month++) {
+          husbandryMonthlyWorkDays[cellId * 12 + month] =
+            assigned * WORKABLE_DAYS_PER_ADULT * candidate.monthlyWeights[month];
+        }
+      } else fishingWorkers[candidate.holderId!] += assigned;
       addWorkerDays(currentDays, assigned, candidate.monthlyWeights);
       addWorkerDays(minimumDays, assigned, candidate.monthlyWeights);
     }
@@ -572,6 +584,7 @@ function allocateRuralOccupationsFromCalendar(
     viticultureRequiredWorkers,
     husbandryWorkers,
     husbandryRequiredWorkers,
+    husbandryMonthlyWorkDays,
     householdTextileWorkers,
     farmLaborRequired,
     migratableAdults,

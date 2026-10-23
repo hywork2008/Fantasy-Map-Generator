@@ -60,6 +60,7 @@ import {
   setFoodPotential,
   setHouseholdTextileWorkers,
   setHuntingWorkers,
+  setHusbandryMonthlyWorkDays,
   setHusbandryRequiredWorkers,
   setHusbandryWorkers,
   setIrrigatedArea,
@@ -423,6 +424,7 @@ export class DevelopmentPotentialModule {
     setViticultureWorkers(occupations.viticultureWorkers);
     setViticultureRequiredWorkers(occupations.viticultureRequiredWorkers);
     setHusbandryWorkers(occupations.husbandryWorkers);
+    setHusbandryMonthlyWorkDays(occupations.husbandryMonthlyWorkDays);
     setHouseholdTextileWorkers(occupations.householdTextileWorkers);
     setHusbandryRequiredWorkers(occupations.husbandryRequiredWorkers);
     setFarmLaborRequired(occupations.farmLaborRequired);

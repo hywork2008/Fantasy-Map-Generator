@@ -3,6 +3,7 @@ import { LIVELIHOOD_CODE, simulationContext, worldContext } from "../../hostCore
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
   clearEconomyContext,
+  getOrCreateFaunaStockTable,
   initEconomyContext,
   setFishingRequiredWorkers,
   setFishingWorkers,
@@ -13,8 +14,9 @@ import {
   setViticultureRequiredWorkers,
   setViticultureWorkers
 } from "../economyContext";
-import { WORKABLE_DAYS_PER_ADULT_PER_MONTH } from "./agriculturalLandUse";
+import { WORKABLE_DAYS_PER_ADULT, WORKABLE_DAYS_PER_ADULT_PER_MONTH } from "./agriculturalLandUse";
 import { Goods } from "./goods-generator";
+import { calculateHusbandryDemand } from "./husbandry";
 import {
   allocateRuralOccupations,
   GAME_YIELD_PER_HUNTER_PER_MONTH,
@@ -69,6 +71,47 @@ function biomesData(tagsByCode: Record<number, string[]>) {
 }
 
 describe("ruralOccupationAllocation", () => {
+  it("exports the same seasonal husbandry work that the rural calendar actually reserves", () => {
+    worldContext.options = { ...worldContext.options, winterLivestockSlaughter: "off" };
+    worldContext.pack = {
+      cells: {
+        i: Uint16Array.from([0]),
+        h: Uint8Array.from([30]),
+        biomeCode: Uint8Array.from([0]),
+        pop: Float32Array.from([100]),
+        maleAdults: Float32Array.from([20]),
+        femaleAdults: Float32Array.from([20]),
+        area: Float32Array.from([100]),
+        state: Uint16Array.from([0]),
+        burg: Uint16Array.from([0]),
+        c: [[]]
+      },
+      burgs: [],
+      states: []
+    } as unknown as PackedGraph;
+    worldContext.populationRate = 1;
+    worldContext.biomesData = { tags: [["grassland"]], habitability: [100] } as never;
+    setGoods([Goods.getDefaultGood("Sheep")!]);
+    getOrCreateFaunaStockTable()!["0:Sheep"] = { young: 30, breeding: 40, old: 20 };
+    const days = new Float32Array(12);
+    const allocation = allocateRuralOccupations(worldContext, {
+      cropLaborDaysByMonth: days,
+      minimumCropLaborDaysByMonth: days.slice(),
+      farmLaborRequired: new Float32Array([0]),
+      migratableAdults: new Float32Array([40])
+    });
+    const demand = calculateHusbandryDemand(worldContext, 0);
+    expect(allocation.husbandryWorkers[0]).toBeGreaterThan(0);
+    for (let month = 0; month < 12; month++) {
+      expect(allocation.husbandryMonthlyWorkDays[month]).toBeCloseTo(
+        allocation.husbandryWorkers[0] * WORKABLE_DAYS_PER_ADULT * demand.monthlyLaborWeights![month],
+        4
+      );
+    }
+    expect(Math.max(...allocation.husbandryMonthlyWorkDays)).toBeGreaterThan(
+      Math.min(...allocation.husbandryMonthlyWorkDays)
+    );
+  });
   beforeEach(() => {
     simulationContext.extensions = {};
     initEconomyContext({ worldContext, simulationContext } as unknown as ExtensionAPI);

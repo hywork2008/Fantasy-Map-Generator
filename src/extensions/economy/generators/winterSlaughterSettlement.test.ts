@@ -17,6 +17,7 @@ import {
   getOrCreateLivestockFeedTable,
   initEconomyContext,
   setGoods,
+  setHusbandryMonthlyWorkDays,
   setHusbandryRequiredWorkers,
   setHusbandryWorkers,
   setMarketCellColumn,
@@ -32,6 +33,26 @@ const goods = (name: string) => getGoods().find(good => good.name === name)!;
 const period = 1300 * 12 + 9;
 
 describe("physical winter preparation settlement", () => {
+  it("spends the saved seasonal work reservation and cannot charge an unreserved neighbour", () => {
+    setHusbandryWorkers(Float32Array.from([0.2, 0.2]));
+    const calendar = new Float32Array(24);
+    calendar[9] = 25;
+    setHusbandryMonthlyWorkDays(calendar);
+    withLivestockFeedPeriod(period, () => {
+      harvestLivestockForage();
+      settleWinterSlaughter();
+    });
+    const samples = getWinterSlaughterState()!.samples;
+    const peak = samples.find(sample => sample.cellId === 0)!;
+    const idle = samples.find(sample => sample.cellId === 1)!;
+    expect(peak.workBudgetBasis).toBe("calendar");
+    expect(peak.workReservedDays).toBe(25);
+    expect(peak.heads.Sheep).toBeGreaterThan(0);
+    expect(peak.workDays + peak.hayWorkDays! + peak.careWorkDays!).toBeLessThanOrEqual(25);
+    expect(idle.workReservedDays).toBe(0);
+    expect(idle.heads).toEqual({});
+    expect(idle.workDays + idle.hayWorkDays! + idle.careWorkDays!).toBe(0);
+  });
   beforeEach(() => {
     simulationContext.extensions = {};
     simulationContext.currentYear = 1300;
