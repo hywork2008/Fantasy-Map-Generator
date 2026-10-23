@@ -39,6 +39,7 @@ import {
   SIGN_SHAPES,
   SIGN_SYMBOLS
 } from "../buildings/signs/hangingSign";
+import { BASILICA_TEMPLE, createBasilicaTemple } from "../buildings/temples/basilicaTemple";
 import { validateBuildingRecord } from "../buildings/validate";
 import { COVERED_WAGON, createCoveredWagon } from "../buildings/vehicles/coveredWagon";
 import {
@@ -181,21 +182,34 @@ const optionsTitle = document.createElement("h2");
 optionsTitle.textContent = "Model options";
 const optionFields = document.createElement("div");
 modelOptions.append(optionsTitle, optionFields);
-// Every existing model was created by Codex; add entries (e.g. "Claude") when other AIs contribute.
-const AUTHOR_MODELS = ["Codex"];
+const DEFAULT_AUTHOR = "Codex";
+/** Alternative versions of a list item made by other AI models, keyed by the list button's data-id. */
+const AUTHORED_VARIANTS: Record<string, { author: string; show: () => void }> = {
+  "basilica-temple": { author: BASILICA_TEMPLE.author, show: () => showBasilicaTemple() }
+};
+let selectedId = entries[0]?.record.id ?? "";
 const authorPane = document.createElement("section");
 authorPane.className = "bv-author";
 const authorTitle = document.createElement("h2");
 authorTitle.textContent = "Created by";
 const authorSelect = document.createElement("select");
 authorSelect.setAttribute("aria-label", "AI model that created this object");
-for (const name of AUTHOR_MODELS) {
-  const option = document.createElement("option");
-  option.value = name;
-  option.textContent = name;
-  authorSelect.append(option);
+function listAuthors(id: string): void {
+  authorSelect.replaceChildren();
+  for (const name of [DEFAULT_AUTHOR, AUTHORED_VARIANTS[id]?.author].filter(Boolean) as string[]) {
+    const option = document.createElement("option");
+    option.value = name;
+    option.textContent = name;
+    authorSelect.append(option);
+  }
+  authorSelect.value = DEFAULT_AUTHOR;
 }
-authorSelect.value = "Codex";
+listAuthors(selectedId);
+authorSelect.addEventListener("change", () => {
+  const variant = AUTHORED_VARIANTS[selectedId];
+  if (variant && authorSelect.value === variant.author) return variant.show();
+  list.querySelector<HTMLButtonElement>(`button[data-id="${CSS.escape(selectedId)}"]`)?.click();
+});
 const selectedName = document.createElement("h2");
 selectedName.className = "bv-selected";
 selectedName.textContent = entries[0]?.record.name ?? "";
@@ -205,6 +219,8 @@ list.addEventListener("click", event => {
   const button = (event.target as HTMLElement).closest("button");
   if (!button) return;
   selectedName.textContent = button.querySelector(".bv-name")?.textContent ?? button.textContent ?? "";
+  selectedId = button.dataset.id ?? "";
+  listAuthors(selectedId);
 });
 inspector.append(authorPane, modelOptions, facts);
 main.append(stage, plans);
@@ -448,6 +464,32 @@ if (!entries.length) {
     catalogue.append(button);
   }
   show(entries[0]);
+}
+
+function showBasilicaTemple(): void {
+  selection++;
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Roof plan";
+  levelTitle.textContent = "South elevation";
+  massing = createBasilicaTemple();
+  scene.add(massing.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: BASILICA_TEMPLE.width, depth: BASILICA_TEMPLE.depth } }, 30);
+  camera.position.set(-70, 42, 62);
+  controls.target.set(0, 12, 0);
+  controls.update();
+  mountPlan(roofHost, meshProjection(massing, "top"));
+  mountPlan(levelHost, meshProjection(massing, "side"));
+  facts.append(
+    fact("Model", `${BASILICA_TEMPLE.name} — detailed Romanesque study`),
+    fact("Period", "High medieval"),
+    fact("Dimensions", `${BASILICA_TEMPLE.width} × ${BASILICA_TEMPLE.depth} × ${BASILICA_TEMPLE.height} m (approx.)`),
+    fact("Construction", BASILICA_TEMPLE.note),
+    fact("Omitted", "Interior, vaults, bells, sculpture programme, weathering and individual masonry blocks")
+  );
 }
 
 const aqueducts = modelCategory("Aqueduct assemblies");
