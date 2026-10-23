@@ -91,7 +91,11 @@ Wool Clothの材料主因は2,598回、Wool Garmentsは2,484回、Wool Blankets�
 
 市場ごとの全理由・実支払・労働は比較JSONの`textileByMarket`、同時点の材料在庫・家計残高・自家加工の労働診断は各全観測JSONの`textileSettlements`と`markets/wealth`で照合する。期末Woolは全市場で極めて小さく、今回の入力で「原毛が大量に余り続ける」現象は確認していない。月次在庫・仕掛け・他の原料は同じ区間で別に確認する。
 
-## 検証と次の作業
+## 後続の食料境界監査
+
+[セル内食料と対象人口の監査](economy-e0-food-boundaries-20261023.md)で、乳の実収穫を市場搬入と別に取得した。Worldの期末対象外人口は新市場17の台帳未生成によるもので、1300年の全12回の実食料決済では対象外0人だった。翌月の初回消費が台帳生成より先に走る欠測も別の継続観測で確認した。期末値を年間全体へ外挿しない。
+
+## 検証と次の作業（本診断時点。後続進捗は上記監査を参照）
 
 - `production-generator.test.ts`、`productionDiagnostics.test.ts`、`textileDemand.test.ts`、`urbanCraftCapacity.test.ts`、`textileCommissions.test.ts`、計65件成功。支払賃金と診断の一致、無資金時に出力・賃金を作らないこと、複数制約を一つの主因で数えること、家計不足の分割と旧台帳互換を確認。
 - 併存条件の追記後に変更対象の`textileDemand.test.ts` 12件を再実行して成功。型チェック成功。

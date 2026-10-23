@@ -7,7 +7,7 @@ const hash = (bytes: string | Uint8Array) => createHash("sha256").update(bytes).
 const worlds = inputs.map(path => {
  const bytes = readFileSync(path);
  const run = JSON.parse(bytes.toString());
- if (run.samples.length !== 12 || ![2, 3].includes(run.schemaVersion)) throw new Error(`Incomplete E0 run: ${path}`);
+ if (run.samples.length !== 12 || ![2, 3, 4].includes(run.schemaVersion)) throw new Error(`Incomplete E0 run: ${path}`);
  const totals: Record<string, number> = {};
  const byMarket: Record<string, Record<string, number>> = {};
  const intervals = run.samples.map((sample: any) => {
@@ -81,6 +81,22 @@ const worlds = inputs.map(path => {
    }
   }
  }
+ const initialSource = run.initial.food?.cellFoodFlows;
+ const finalSource = run.samples.at(-1).food?.cellFoodFlows;
+ const sourceDelta = (closing: number | undefined, opening: number | undefined) =>
+  typeof closing === "number" && closing >= (opening ?? 0) ? closing - (opening ?? 0) : null;
+ const sourceFoodChanges = initialSource && finalSource ? finalSource.map((row: any) => {
+  const opening = initialSource.find((old: any) => old.goodId === row.goodId);
+  return {goodId: row.goodId, name: row.name,
+   harvested: sourceDelta(row.harvested, opening?.harvested), processed: sourceDelta(row.processed, opening?.processed),
+   privateReserveOutput: sourceDelta(row.privateReserveOutput, opening?.privateReserveOutput)};
+ }) : null;
+ const foodSettlementCoverage = run.samples.flatMap((sample: any) => sample.foodSettlements)
+  .filter((event: any) => event.food).map((event: any) => ({date: event.date,
+   rural: event.food.coverage.rural, urban: event.food.coverage.urban, byReason: event.food.coverage.byReason,
+   uncoveredCells: event.food.coverage.uncoveredCells, uncoveredBurgs: event.food.coverage.uncoveredBurgs}));
+ const foodCoverage = [run.initial, ...run.samples].filter((sample: any) => sample.food)
+  .map((sample: any) => ({date: sample.date, ...sample.food.coverage}));
  const annualKg = (key: string, denominator: string) => totals[denominator] > 0
   ? totals[key] * run.foodLedgerKgPerUnit * 12 / totals[denominator] : null;
  return {path, sha256: hash(bytes), inputSha256: run.inputSha256, sourceTreeSha256: run.sourceTreeSha256,
@@ -90,7 +106,7 @@ const worlds = inputs.map(path => {
    ruralSupplied: annualKg("ruralSupplied", "ruralPeopleMonths"), ruralHome: annualKg("ruralFromHousehold", "ruralPeopleMonths"),
    ruralMarket: annualKg("ruralFromMarket", "ruralPeopleMonths"), urbanNeed: annualKg("urbanNeed", "urbanPeopleMonths"),
    urbanSupplied: annualKg("urbanSupplied", "urbanPeopleMonths")},
-  primaryFlows: flows, textileSettlementCount, textileByMarket,
+  primaryFlows: flows, sourceFoodChanges, foodCoverage, foodSettlementCoverage, textileSettlementCount, textileByMarket,
   snapshots: [run.initial, run.samples.at(-1)].map((sample: any) => Object.fromEntries([
    "date", "ruralPeople", "urbanPeople", "ruralFoodUncoveredPeople", "ruralFoodStock", "cultivatedHa", "pastureHa", "heads",
    "aggregateOccupancy", "sheepPerResident", "annualWoolPotentialKg", "effectiveWoolLaborAndFeedCoverage", "woolStockKg", "feedTotals"
@@ -104,4 +120,5 @@ writeFileSync(output, JSON.stringify({schemaVersion: 1, summarizerSha256: hash(r
  "Rural unmet is measured per market per settlement, before aggregation; rounding excess is retained separately in supplied totals.",
  "Urban budget gap is the first binding constraint; stock gap is the remaining affordable but unavailable quantity, not a counterfactual attribution.",
  "Schema 3 textileByMarket uses every actual household textile settlement. textileSnapshotTotals remains the old endpoint-only series and is not an exact demand denominator.",
+ "Source food counters cover source-planner harvest, not chilled additions. Recorded processing is incomplete for goods outside foodProcessingLedger tracking; zero counters do not prove zero processing.",
  "Grain-equivalent mass is a model contract, not a historical or nutritional benchmark. Non-grain rural self-consumption is not measured."], worlds}, null, 2) + "\n");

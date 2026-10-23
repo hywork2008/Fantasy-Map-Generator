@@ -1,3 +1,6 @@
+import { observeFoodSystem } from "../../src/extensions/economy/generators/foodObservation";
+import { getMarketCellColumn, type CumulativeCellFoodFlow } from "../../src/extensions/economy/context/cellTables";
+import { getRuralHouseholdFoodStock } from "../../src/extensions/economy/context/agriculture";
 import { aggregateProductionDiagnostics } from "../../src/extensions/economy/generators/productionDiagnostics";
 import { getUrbanCraftCapacityRecords } from "../../src/extensions/economy/generators/urbanCraftCapacity";
 import { personalCashTotal, readPersonalCash } from "../../src/extensions/economy/generators/personalCash";
@@ -916,6 +919,15 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
     return collectFarmlandSnapshot(getWorld(), clock().year, enabled, enabled ? getCultivatedArea() : undefined);
   }
 
+  function food() {
+    if (!economy()) return null;
+    const flows = getEconomySlice()?.cumulativeCellFoodFlows;
+    return observeFoodSystem({world: getWorld(), markets: getMarkets(), goods: getGoods(),
+      marketByCell: getMarketCellColumn(), ruralFoodStock: getRuralHouseholdFoodStock(),
+      cellFoodFlows: flows && typeof flows === "object" && !Array.isArray(flows)
+        ? flows as Record<number, CumulativeCellFoodFlow> : null});
+  }
+
   function textiles() {
     if (!economy()) return null;
     return {
@@ -927,7 +939,7 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
       production: aggregateProductionDiagnostics(getUrbanCraftCapacityRecords())
     };
   }
-  return { sample, routes, approaches, corridors, markets, goods, gates, wealth, luxury, trade, salt, textiles, farmland, staticInfo, networkKey };
+  return { sample, routes, approaches, corridors, markets, goods, gates, wealth, luxury, trade, salt, textiles, food, farmland, staticInfo, networkKey };
 }
 
 export interface SampledAdvanceHost {
