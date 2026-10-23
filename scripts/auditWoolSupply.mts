@@ -1,8 +1,9 @@
 #!/usr/bin/env tsx
 /** Audits wool supply, real herd heads and the shared grazing footprint; no calibration changes. */
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
-import { createNodeSimulationHost } from "../src/simulation/adapters/node";
+import { advanceWorld, createNodeSimulationHost } from "../src/simulation/adapters/node";
 import { getGoods, getMarkets, getOrCreateTextileCommissionTable } from "../src/extensions/economy/context/trade";
 import { getOrCreateFaunaStockTable, getOrCreateLivestockFeedTable } from "../src/extensions/economy/context/cellTables";
 import { calculateGrazingLandAllocation, getGrazedCarryingCapacity, getPastureAreaUsedHectares, STOCKING_DENSITY_PER_HECTARE } from "../src/extensions/economy/generators/husbandry";
@@ -13,6 +14,13 @@ import { SHEEP_ANNUAL_WOOL_KG, WOOL_KG_PER_MARKET_LOT } from "../src/extensions/
 import { getUrbanCraftCapacityRecords, getUrbanTextileHandworkReference } from "../src/extensions/economy/generators/urbanCraftCapacity";
 import { setGoodFlowObserver } from "../src/extensions/economy/generators/goodsBalanceLedger";
 
+import { createObserveViews } from "./lib/observeViews.mts";
+import { setTickStepObserver } from "../src/generators/tickProfiler";
+import { getCultivatedArea } from "../src/extensions/economy/context/agriculture";
+import { getRuralHouseholdFoodStock } from "../src/extensions/economy/context/agriculture";
+import { getMarketCellColumn } from "../src/extensions/economy/context/cellTables";
+import { GOOD_MEASURES, WAIN_KG } from "../src/extensions/economy/generators/goodMeasureCatalog";
+
 const [input, output, length = "12"] = process.argv.slice(2);
 const months = Number(length);
 if (!input || !output || !Number.isSafeInteger(months) || months < 1) throw new Error("Invalid arguments");
@@ -22,7 +30,9 @@ paths.push("src/extensions/economy/generators/ruralTextileProduction.ts", "src/e
 paths.push(...["woolProductionPolicy.ts", "livestockFeed.ts", "livestockFeedPolicy.ts", "livestockFeedState.ts", "dairy.ts", "production-utils.ts"].map(name => `src/extensions/economy/generators/${name}`));
 paths.push("src/extensions/economy/generators/urbanCraftCapacity.ts", "src/extensions/economy/generators/urbanCraftCapacityTypes.ts", "src/extensions/economy/context/trade.ts", "src/extensions/economy/generators/craftDemandCalibration.ts", "src/extensions/economy/generators/craftScale.ts");
 paths.push("src/extensions/economy/generators/textileCommissions.ts", "src/extensions/economy/generators/textileCommissionTypes.ts", "src/extensions/economy/generators/strategicLaborMarkets.ts", "src/extensions/economy/generators/subsistenceWage.ts");
-const sourceHashes = Object.fromEntries(paths.map(path => [path, createHash("sha256").update(readFileSync(path)).digest("hex")]));
+paths.push(...execFileSync("git", ["ls-files", "-z", "src", "scripts", "public", "package-lock.json"])
+ .toString().split("\0").filter(path => path && !path.startsWith("src/city-generator/")));
+const sourceHashes = Object.fromEntries([...new Set(paths)].sort().map(path => [path, createHash("sha256").update(readFileSync(path)).digest("hex")]));
 const bytes = readFileSync(input);
 const host = createNodeSimulationHost();
 await host.loadArchive(new Uint8Array(bytes));
@@ -30,6 +40,23 @@ await host.prepare();
 if (host.world.options.initialSettlementPattern !== "standard") throw new Error("Expected Standard settlement pattern");
 const sim = host.simulation as { worldSettings?: Record<string, string> };
 sim.worldSettings = { ...sim.worldSettings, "fmg-long-distance-trade": "on", "fmg-caravan-raids": "off" };
+const clock = () => ({year: host.simulation.currentYear, month: host.simulation.currentMonth, day: host.simulation.currentDay, tick: host.simulation.tickCount});
+const views = createObserveViews(() => host.world, clock);
+const initialProfile = { options: structuredClone(host.world.options), populationRate: host.world.populationRate,
+ urbanization: host.world.urbanization, extensions: Object.fromEntries(["economy", "characters", "nobility", "shipbuilding"].map(id => [id, host.enablement.isEnabled(id)])) };
+let foodSettlements: {date: ReturnType<typeof clock>; markets: unknown}[] = [];
+setTickStepObserver({ enter() {}, exit(label) {
+ if (label === "production:foodConsumption" || label === "food:consumption") {
+  foodSettlements.push({date: clock(), markets: views.wealth().markets.map(market => ({ ...market,
+   ruralPeople: Array.from(host.world.pack.cells.i).reduce((sum, id) => sum +
+    (host.world.pack.cells.h[id] >= 20 && getMarketCellColumn()[id] === market.id ? Math.max(0, host.world.pack.cells.pop[id]) * host.world.populationRate : 0), 0),
+   urbanPeople: host.world.pack.burgs.reduce((sum, burg) => sum +
+    (burg?.i && !burg.removed && burg.market === market.id ? Math.max(0, burg.population ?? 0) * host.world.populationRate * (host.world.urbanization ?? 1) : 0), 0)
+  }))});
+ }
+}});
+let primaryFlows: Record<string, Record<string, number>> = {};
+const namesById = new Map(getGoods().map(good => [good.i, good.name]));
 const wool = getGoods().find(good => good.name === "Wool")!;
 // Model ecological densities, not observed historical stocking rates.
 const modelDensity = STOCKING_DENSITY_PER_HECTARE;
@@ -42,6 +69,11 @@ const blanket = getGoods().find(good => good.name === "Wool Blankets");
 let householdBlankets = 0;
 let householdWardrobes = 0;
 setGoodFlowObserver(flow => {
+ if (flow.direction !== "transfer") {
+  const totals = primaryFlows[namesById.get(flow.goodId) ?? String(flow.goodId)] ??= {};
+  const key = `${flow.direction}:${flow.category}`;
+  totals[key] = (totals[key] ?? 0) + flow.units;
+ }
  const textileName = textileNameById.get(flow.goodId);
  if (textileName && flow.direction !== "transfer") {
   const totals = textileFlows[textileName] ??= {};
@@ -117,7 +149,21 @@ function snapshot() {
  const ruralPeople = Array.from(world.pack.cells.pop).reduce((sum, points) => sum + Math.max(0, points), 0) * world.populationRate;
  const urbanPeople = world.pack.burgs.reduce((sum, burg) => sum + (burg?.i && !burg.removed ? Math.max(0, burg.population ?? 0) : 0), 0) * world.populationRate * (world.urbanization ?? 1);
  const stockLots = getMarkets().reduce((sum, market) => sum + Math.max(0, market.goods[wool.i]?.stock ?? 0), 0);
- const result = { date: [host.simulation.currentYear, host.simulation.currentMonth, host.simulation.currentDay], ruralPeople, urbanPeople,
+ const intervalFood = foodSettlements; foodSettlements = [];
+ const intervalPrimary = primaryFlows; primaryFlows = {};
+ const marketIds = new Set(getMarkets().filter(market => market.foodLedger).map(market => market.i));
+ const marketColumn = getMarketCellColumn();
+ const ruralFoodUncoveredPeople = Array.from(world.pack.cells.i).reduce((sum, id) => sum +
+  (world.pack.cells.h[id] >= 20 && !marketIds.has(marketColumn[id]) ? Math.max(0, world.pack.cells.pop[id]) * world.populationRate : 0), 0);
+ const result = { foodSettlements: intervalFood, primaryFlows: intervalPrimary,
+  cultivatedHa: Array.from(getCultivatedArea()).reduce((sum, ha) => sum + Math.max(0, ha), 0),
+  ruralFoodUncoveredPeople,
+  ruralFoodStock: Array.from(getRuralHouseholdFoodStock()).reduce((sum, units) => sum + Math.max(0, units), 0),
+  markets: getMarkets().map(market => ({id: market.i, food: structuredClone(market.foodLedger ?? null),
+   textile: structuredClone(market.textileLedger ?? null), blanket: structuredClone(market.blanketLedger ?? null),
+   ruralTextiles: structuredClone(market.ruralTextileProduction ?? null), goods: structuredClone(market.goods)})),
+  wealth: views.wealth(),
+  date: [host.simulation.currentYear, host.simulation.currentMonth, host.simulation.currentDay], ruralPeople, urbanPeople,
   heads, sheepCohorts, sheepPerResident: heads.Sheep / (ruralPeople + urbanPeople), pastureHa, footprintHa, allocatedPastureHa, landCapacityHeads, feedCapacityHeads, feedTotals,
   aggregateOccupancy: pastureHa > 0 ? footprintHa / pastureHa : null,
   occupiedCells: occupied.length, cellsOverModelFootprint: occupied.filter(cell => cell.occupancy === null || cell.occupancy > 1.01).length,
@@ -164,12 +210,12 @@ const initial = snapshot();
 const samples = [];
 try {
  for (let i = 0; i < months; i++) {
-  host.advance({ months: 1 });
+  await advanceWorld(host, { months: 1 });
   await new Promise(done => setImmediate(done));
   samples.push(snapshot());
   console.error(`[wool-supply] ${i + 1}/${months}`);
  }
- writeFileSync(output, JSON.stringify({ inputSha256: createHash("sha256").update(bytes).digest("hex"), seed: host.world.seed,
+ writeFileSync(output, JSON.stringify({ schemaVersion: 2, initialProfile, foodLedgerKgPerUnit: WAIN_KG, goodMeasures: GOOD_MEASURES, sourceTreeSha256: createHash("sha256").update(JSON.stringify(sourceHashes)).digest("hex"), inputSha256: createHash("sha256").update(bytes).digest("hex"), seed: host.world.seed,
   settlementPattern: host.world.options.initialSettlementPattern, worldSettings: sim.worldSettings, sourceHashes, modelDensity, sheepAnnualWoolKg: SHEEP_ANNUAL_WOOL_KG, woolKgPerLot: WOOL_KG_PER_MARKET_LOT,
   notes: ["Footprint is sum(heads/model heads per hectare); it diagnoses simultaneous claims against the code's own ceilings, not an empirical carrying-capacity estimate.", "Headcounts include young cohorts. Monthly yield is a smoothed forecast; recorded ruralHarvest is actual market inflow.", "Stocks are market-only. Population is real residents; claims and occupied-cell examples are snapshots."], initial, samples }, null, 2) + "\n");
-} finally { setGoodFlowObserver(null); host.dispose(); }
+} finally { setTickStepObserver(null); setGoodFlowObserver(null); host.dispose(); }

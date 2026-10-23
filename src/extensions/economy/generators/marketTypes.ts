@@ -309,6 +309,23 @@ export interface TradeCapitalAccount {
 export type TradePaymentTerms = "escrow" | "openAccount";
 
 export interface FoodLedger {
+  /** Latest actual settlement in food-ledger units; diagnostic only, never an input to allocation. */
+  monthlyConsumption?: {
+    month: number;
+    ruralNeed: number;
+    ruralSupplied: number;
+    ruralFromHousehold: number;
+    ruralFromMarket: number;
+    ruralPaid: number;
+    urbanNeed: number;
+    urbanSupplied: number;
+    urbanPaid: number;
+    urbanBudgetGap: number;
+    urbanStockGap: number;
+    lodgerNeed: number;
+    lodgerSupplied: number;
+    lodgerPaid: number;
+  };
   /** Current quarter's Grain physically sold by rural households into this Market. */
   foodProduced: number;
   /** Total rural staple requirement this quarter, including food met from household stores. */

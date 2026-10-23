@@ -381,6 +381,7 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
           urbanFoodStressQuarters: m.foodLedger?.urbanFoodStressQuarters ?? 0,
           food: m.foodLedger
             ? {
+                monthlyConsumption: m.foodLedger.monthlyConsumption ? { ...m.foodLedger.monthlyConsumption } : null,
                 produced: r3(m.foodLedger.foodProduced),
                 ruralNeed: r3(m.foodLedger.ruralNeed),
                 urbanNeed: r3(m.foodLedger.urbanNeed),

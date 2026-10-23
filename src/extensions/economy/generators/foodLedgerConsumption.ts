@@ -235,6 +235,22 @@ export function settleMonthlyFoodConsumption(settlementMonth = getSimulationMont
     let urbanMonthlyNeed = 0;
     let urbanDrawn = 0;
     let urbanRevenue = 0;
+    const observation = {
+      month: settlementMonth,
+      ruralNeed: ruralMonthlyNeed,
+      ruralSupplied: ruralDrawn,
+      ruralFromHousehold: rn(ruralDrawn - ruralSettlement.fromMarket, 2),
+      ruralFromMarket: ruralSettlement.fromMarket,
+      ruralPaid: 0,
+      urbanNeed: 0,
+      urbanSupplied: 0,
+      urbanPaid: 0,
+      urbanBudgetGap: 0,
+      urbanStockGap: 0,
+      lodgerNeed: 0,
+      lodgerSupplied: 0,
+      lodgerPaid: 0
+    };
     const retailPrice = settleGrainPrice(
       ledger,
       marketBurgs,
@@ -254,7 +270,14 @@ export function settleMonthlyFoodConsumption(settlementMonth = getSimulationMont
       const { satisfied, needed } = drawBurgMonthlyNeed(burg, ledger, monthlyNeed, affordableUnits);
       urbanMonthlyNeed += needed;
       urbanDrawn += satisfied;
-      urbanRevenue += debitHouseholdWealth(burgId, rn(satisfied * retailPrice, 2));
+      const paid = debitHouseholdWealth(burgId, rn(satisfied * retailPrice, 2));
+      urbanRevenue += paid;
+      observation.urbanNeed += needed;
+      observation.urbanSupplied += satisfied;
+      observation.urbanPaid += paid;
+      const budgetGap = Math.min(needed, Math.max(0, rn(needed - affordableUnits, 2)));
+      observation.urbanBudgetGap += budgetGap;
+      observation.urbanStockGap += Math.max(0, rn(needed - satisfied - budgetGap, 2));
 
       const temporaryMonthlyNeed =
         getTemporaryLodgerDailyNeed(temporaryLodgersByBurg.get(burgId) ?? 0, populationRate, urbanization) *
@@ -265,12 +288,18 @@ export function settleMonthlyFoodConsumption(settlementMonth = getSimulationMont
       // Lodgers are mostly people of the surrounding countryside in town for the market, carting or
       // a pilgrimage: their meals are paid from the market's rural purse, as far as it holds. They
       // used to be paid with money from nowhere (docs/plan/initial-wealth-calibration.md §8).
-      urbanRevenue += debitRuralHouseholdWealth(market, rn(temporaryDraw.satisfied * retailPrice, 2));
+      const lodgerPaid = debitRuralHouseholdWealth(market, rn(temporaryDraw.satisfied * retailPrice, 2));
+      urbanRevenue += lodgerPaid;
+      observation.lodgerNeed += temporaryDraw.needed;
+      observation.lodgerSupplied += temporaryDraw.satisfied;
+      observation.lodgerPaid += lodgerPaid;
     }
     // Farm families whose own larder ran out buy the rest from the market, as far as their purse
     // allows (docs/plan/initial-wealth-calibration.md §5.2). What they cannot pay is still supplied,
     // as before; only the paid part reaches the market and repays its farmgate debt.
-    urbanRevenue += debitRuralHouseholdWealth(market, rn(ruralSettlement.fromMarket * retailPrice, 2));
+    observation.ruralPaid = debitRuralHouseholdWealth(market, rn(ruralSettlement.fromMarket * retailPrice, 2));
+    urbanRevenue += observation.ruralPaid;
+    ledger.monthlyConsumption = observation;
     urbanMonthlyNeed = rn(urbanMonthlyNeed, 2);
     urbanDrawn = rn(urbanDrawn, 2);
 
