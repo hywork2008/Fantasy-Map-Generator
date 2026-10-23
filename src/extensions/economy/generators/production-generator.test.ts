@@ -28,6 +28,7 @@ import {
   ProductionModule,
   settlePomaceWineMarketProcessing
 } from "./production-generator";
+import type { ProductionCycleDiagnostic } from "./productionDiagnostics";
 import type { MfgRecord, ProductionRecord } from "./productionRecordTypes";
 
 type ManufactureHarness = {
@@ -93,6 +94,7 @@ describe("ProductionModule byproducts", () => {
       demandCoverage: [],
       records: [] as ProductionRecord[],
       ingredientCosts: 0,
+      productionDiagnostics: { rows: [], steps: 0, maxSteps: 0 } as ProductionCycleDiagnostic,
       smithingProgramByGood: new Map<string, never>(),
       strategicLaborMarket: undefined,
       strategicDemandByGood: new Map<number, never>()
@@ -137,6 +139,7 @@ describe("ProductionModule byproducts", () => {
       demandCoverage: [],
       records: [] as ProductionRecord[],
       ingredientCosts: 0,
+      productionDiagnostics: { rows: [], steps: 0, maxSteps: 0 } as ProductionCycleDiagnostic,
       smithingProgramByGood: new Map<string, never>(),
       strategicLaborMarket: undefined,
       strategicDemandByGood: new Map<number, never>()
@@ -231,6 +234,7 @@ describe("ProductionModule byproducts", () => {
       demandCoverage: [],
       records: [] as ProductionRecord[],
       ingredientCosts: 0,
+      productionDiagnostics: { rows: [], steps: 0, maxSteps: 0 } as ProductionCycleDiagnostic,
       smithingProgramByGood: new Map<string, never>(),
       strategicLaborMarket: undefined,
       strategicDemandByGood: new Map<number, never>()
@@ -307,6 +311,7 @@ describe("ProductionModule byproducts", () => {
       demandCoverage: [],
       records: [] as ProductionRecord[],
       ingredientCosts: 0,
+      productionDiagnostics: { rows: [], steps: 0, maxSteps: 0 } as ProductionCycleDiagnostic,
       smithingProgramByGood: new Map<string, never>(),
       strategicLaborMarket: undefined,
       strategicDemandByGood: new Map([[3, { stateFunded: true }]])
@@ -518,6 +523,7 @@ describe("ProductionModule byproducts", () => {
       demandCoverage: [] as number[],
       records: [] as ProductionRecord[],
       ingredientCosts: 0,
+      productionDiagnostics: { rows: [], steps: 0, maxSteps: 0 } as ProductionCycleDiagnostic,
       smithingProgramByGood: new Map<string, never>(),
       strategicLaborMarket: undefined,
       strategicDemandByGood: new Map<number, never>()
@@ -600,6 +606,7 @@ describe("executeManufacture wages (docs/plan/economy-coupling-audit.md L2 Phase
       demandCoverage: [] as number[],
       records: [] as ProductionRecord[],
       ingredientCosts: 0,
+      productionDiagnostics: { rows: [], steps: 0, maxSteps: 0 } as ProductionCycleDiagnostic,
       smithingProgramByGood: new Map<string, never>(),
       strategicLaborMarket: {
         marketId: 1,
@@ -633,6 +640,32 @@ describe("executeManufacture wages (docs/plan/economy-coupling-audit.md L2 Phase
     expect(laborUsed).toBeCloseTo(1, 6);
     expect(worldContext.pack.burgs[1].treasury).toBeCloseTo(6, 6);
     expect(getBurgMarketLedger(1)?.householdWealth).toBeCloseTo(4, 6);
+    expect(state.productionDiagnostics.rows).toContainEqual(
+      expect.objectContaining({
+        stage: "execution",
+        goodId: 1,
+        primary: null,
+        wagesPaid: 4,
+        outputLots: 1,
+        laborPoints: 1
+      })
+    );
+  });
+
+  it("records the actual funding guard without creating output or wages", () => {
+    const state = stateWithWage(4, 0);
+    const before = getBurgMarketLedger(1)?.householdWealth ?? 0;
+    const result = (new ProductionModule() as unknown as ManufactureHarness).executeManufacture(
+      state,
+      { demandCoverageByGood: [] },
+      decision(),
+      1
+    );
+    expect(result).toEqual({ yieldLots: 0, laborUsed: 0 });
+    expect(state.productionDiagnostics.rows).toMatchObject([
+      { stage: "execution", goodId: 1, primary: "funds", count: 1 }
+    ]);
+    expect(getBurgMarketLedger(1)?.householdWealth ?? 0).toBe(before);
   });
 
   it("produces more in a cheap-labor market than a tight one on the same purse", () => {
@@ -801,6 +834,7 @@ describe("linen clothing preparation", () => {
       demandCoverage: [],
       records: [] as ProductionRecord[],
       ingredientCosts: 0,
+      productionDiagnostics: { rows: [], steps: 0, maxSteps: 0 } as ProductionCycleDiagnostic,
       smithingProgramByGood: new Map<string, never>(),
       strategicLaborMarket: undefined,
       strategicDemandByGood: new Map<number, never>()

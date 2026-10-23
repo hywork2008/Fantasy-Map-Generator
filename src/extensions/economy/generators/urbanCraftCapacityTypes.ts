@@ -1,3 +1,4 @@
+import type { ProductionCycleDiagnostic } from "./productionDiagnostics";
 /** A completed Burg worker-loop observation, not a reservation of labor for another producer. */
 export interface UrbanCraftCapacity {
   burgId: number;
@@ -12,4 +13,5 @@ export interface UrbanCraftCapacity {
   overusedPoints: number;
   textilePoints: number;
   commissionPoints?: number;
+  productionDiagnostics?: ProductionCycleDiagnostic;
 }

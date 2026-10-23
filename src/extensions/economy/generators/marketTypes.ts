@@ -105,6 +105,27 @@ export interface Market {
 }
 
 export interface TextileLedger {
+  /** Exact settlement-time buyer records; endpoint rounding in summary fields is separate. */
+  settlementDiagnostics?: {
+    buyers: {
+      burgId: number | null;
+      rural: boolean;
+      need: number;
+      supplied: number;
+      marketSupplied: number;
+      marketPaid: number;
+      remainingBudget: number;
+      priorityAllocatedBudget: number;
+      unmet: number;
+      priorityGap: number;
+      budgetGap: number;
+      stockGap: number;
+      allocationOrRoundingGap: number;
+      noPricedRouteGap: number;
+      /** Overlapping observed constraints, separate from the non-overlapping gap partition. */
+      constraints: ("priority" | "budget" | "stock" | "noPricedRoute" | "allocationOrRounding")[];
+    }[];
+  };
   /** Paid household purchases this cycle; optional for older saves. */
   householdSpending?: number;
   cumulativeHouseholdSpending?: number;

@@ -98,6 +98,11 @@ import { expectedWorkerPoints, getOccupationalRow } from "./occupationalCalibrat
 import { OverseasRelations } from "./overseasRelations";
 import { beginPortProductionCycle } from "./portWarehouses";
 import { getModifiers, MAX_BONUS_PRODUCTION } from "./production-utils";
+import {
+  type ProductionConstraint,
+  type ProductionCycleDiagnostic,
+  recordProductionDiagnostic
+} from "./productionDiagnostics";
 import type {
   DealRecord,
   Ingredient,
@@ -131,9 +136,12 @@ import {
   type StrategicProductionDemand
 } from "./strategicProductionDemand";
 import {
+  getAffordableTextileDemand,
   getBlanketProductionHeadroom,
   getGarmentProductionHeadroom,
   getHouseholdGarmentInventory,
+  getMarketBlanketDemandProfile,
+  getMarketTextileDemandProfile,
   settleTextileHouseholdDemand
 } from "./textileDemand";
 import { HOUSEHOLD_GARMENT_NAMES, hasPhysicalTextileRecipe } from "./textileRecipeContracts";
@@ -424,7 +432,8 @@ export class ProductionModule {
       state.workforce,
       craftWorkersUsed.total,
       craftWorkersUsed.byDomain.get("textiles") ?? 0,
-      getEconomyCalibrationState().applyCalibration
+      getEconomyCalibrationState().applyCalibration,
+      state.productionDiagnostics
     );
     const populationRate = Math.max(0, this.worldContext.populationRate ?? 0) || 1;
     cycle.craftObservationsByBurg.set(burg.i, {
@@ -500,7 +509,9 @@ export class ProductionModule {
 
       // Garments are durable household purchases, not an ordinary Burg utility input. Settle their
       // market-wide (urban + rural) replacement demand after this cycle's production and trade.
-      settleTextileHouseholdDemand((burgId, points) => this.recordCommissionEmployment(cycle, burgId, points));
+      measureTickStep("production:householdTextiles", () =>
+        settleTextileHouseholdDemand((burgId, points) => this.recordCommissionEmployment(cycle, burgId, points))
+      );
       settleFoodProcessingHouseholds();
 
       // A0: record market×good demand / production estimate / trade / end stock for the year rollup.
@@ -575,7 +586,9 @@ export class ProductionModule {
 
       // Garments are durable household purchases, not an ordinary Burg utility input. Settle their
       // market-wide (urban + rural) replacement demand after this cycle's production and trade.
-      settleTextileHouseholdDemand((burgId, points) => this.recordCommissionEmployment(cycle, burgId, points));
+      measureTickStep("production:householdTextiles", () =>
+        settleTextileHouseholdDemand((burgId, points) => this.recordCommissionEmployment(cycle, burgId, points))
+      );
       settleFoodProcessingHouseholds();
 
       // A0: record market×good demand / production estimate / trade / end stock for the year rollup.
@@ -842,6 +855,7 @@ export class ProductionModule {
    * unrelated categories to get a turn at all.
    */
   private runWorkerLoop(index: ProductionIndex, state: BurgProductionState): CraftWorkerUsage {
+    state.productionDiagnostics = { rows: [], steps: 0, maxSteps: Math.max(0, Math.ceil(state.population)) };
     const applyCalibration = getEconomyCalibrationState().applyCalibration;
     const populationRate = Math.max(0, this.worldContext.populationRate ?? 0) || 1;
     const burgId = state.burg.i;
@@ -1075,6 +1089,13 @@ export class ProductionModule {
       if (domain) byDomain.set(domain, (byDomain.get(domain) ?? 0) + spent);
     }
 
+    state.productionDiagnostics.steps = step;
+    recordProductionDiagnostic(
+      state.productionDiagnostics,
+      "loop",
+      null,
+      step >= maxSteps ? ["stepLimit"] : workersUsed >= state.workforce - 1e-9 ? ["otherWork"] : []
+    );
     return { total: workersUsed, byDomain };
   }
 
@@ -1204,7 +1225,12 @@ export class ProductionModule {
       discontentMultiplier *
       (smithingProgram?.outputMultiplier ?? 1);
     const physicalRecipe = hasPhysicalWoodRecipe(good.name) || hasPhysicalTextileRecipe(good.name);
-    if (!(outputMultiplier > 0)) return { yieldLots: 0, laborUsed: 0 };
+    const failed = (reason: ProductionConstraint) => {
+      recordProductionDiagnostic(state.productionDiagnostics, "execution", good.i, [reason]);
+      return { yieldLots: 0, laborUsed: 0 };
+    };
+    if (!(outputMultiplier > 0)) return failed("labor");
+    if (laborBudget <= 0) return failed("domainCap");
     const applyCalibration = getEconomyCalibrationState().applyCalibration;
     const populationRate = Math.max(0, this.worldContext.populationRate ?? 0) || 1;
     const baseLaborPerLot = applyCalibration ? Math.max(1e-9, laborPointsForLots(good.name, 1, populationRate)) : 1;
@@ -1241,12 +1267,13 @@ export class ProductionModule {
       const affordableYield = Math.max(0, availableFunds) / costPerLot;
       actualYield = Math.min(actualYield, affordableYield);
     }
-    if (actualYield <= 0.001) return { yieldLots: 0, laborUsed: 0 };
+    if (actualYield <= 0.001)
+      return failed(costPerLot > 0 && availableFunds / costPerLot <= 0.001 ? "funds" : "outputTarget");
     const laborUsed = actualYield * laborPerLot;
 
     // Physical recipes improve work speed, never create material through an output bonus.
     const produced = physicalRecipe ? actualYield : rn(actualYield * outputMultiplier, 2);
-    if (!produced) return { yieldLots: 0, laborUsed: 0 };
+    if (!produced) return failed("outputTarget");
 
     // Plan all ingredient sourcing first; bail out before mutating state if any market buy fails.
     type Plan = { ingredientId: number; amount: number; fromInventory: number; deal: Deal | null };
@@ -1257,11 +1284,10 @@ export class ProductionModule {
       for (const ingredient of ingredients) {
         const amount = Math.max(0, actualYield * ingredient.amount - (state.inventory[ingredient.goodId] || 0));
         const quote = Markets.quoteMarket(state.market, ingredient.goodId, state.burg.i);
-        if (amount > quote.stock + 1e-9) return { yieldLots: 0, laborUsed: 0 };
+        if (amount > quote.stock + 1e-9) return failed("materials");
         requiredBudget += amount * quote.buyPrice;
       }
-      if (requiredBudget + laborUsed * wageRate > Math.max(0, availableFunds) + 1e-9)
-        return { yieldLots: 0, laborUsed: 0 };
+      if (requiredBudget + laborUsed * wageRate > Math.max(0, availableFunds) + 1e-9) return failed("funds");
     }
     let remainingBudget = Math.max(0, availableFunds);
     for (const ingredient of ingredients) {
@@ -1286,7 +1312,7 @@ export class ProductionModule {
           // Either way, bail out before producing more than the ingredients actually paid for.
           const message = `Failed to acquire ${rn(fromMarket, 2)} units of ${Goods.get(ingredientId)?.name} from market for production of ${good.name}`;
           ERROR && console.error(message);
-          return { yieldLots: 0, laborUsed: 0 };
+          return failed("procurementFailed");
         }
         remainingBudget = Math.max(0, remainingBudget - deal.units * deal.price);
       }
@@ -1367,6 +1393,12 @@ export class ProductionModule {
       });
     }
 
+    recordProductionDiagnostic(state.productionDiagnostics, "execution", good.i, [], {
+      outputLots: produced,
+      laborPoints: laborUsed,
+      wagesPaid: wageBill,
+      materialCost
+    });
     return { yieldLots: produced, laborUsed };
   }
 
@@ -1688,7 +1720,8 @@ export class ProductionModule {
     recipe: Recipe,
     demandEffect: DemandEffect,
     units: number,
-    goalGoodId?: number
+    goalGoodId?: number,
+    constraints?: Set<ProductionConstraint>
   ): { action: PlannedAction; candidate: ProductionCandidate } | null {
     let maxYield = Infinity;
     let marketCostTotal = 0;
@@ -1698,7 +1731,10 @@ export class ProductionModule {
       const inventoryAvailable = state.inventory[ingredient.goodId] || 0;
       const marketAvailable = quote.stock || 0;
       const totalAvailable = inventoryAvailable + marketAvailable;
-      if (totalAvailable < ingredient.amount * units - 0.001) return null;
+      if (totalAvailable < ingredient.amount * units - 0.001) {
+        constraints?.add("materials");
+        return null;
+      }
       maxYield = Math.min(maxYield, totalAvailable / ingredient.amount);
     }
 
@@ -1724,7 +1760,10 @@ export class ProductionModule {
     const ingredientCost = marketCostTotal / actualUnits;
     const salesTaxRate = this.getSalesTax(state.burg);
     const postTaxSellValue = sellValue * (1 - salesTaxRate);
-    if (!hasViableFoodProcessingMargin(recipe.good.name, sellValue, ingredientCost, salesTaxRate)) return null;
+    if (!hasViableFoodProcessingMargin(recipe.good.name, sellValue, ingredientCost, salesTaxRate)) {
+      constraints?.add("profitability");
+      return null;
+    }
     const projectedGain = (postTaxSellValue - ingredientCost) * demandEffect.multiplier;
     const score = projectedGain;
 
@@ -1761,9 +1800,13 @@ export class ProductionModule {
     stepUnits: number,
     workersLeft: number,
     demandEffect: DemandEffect,
-    path: boolean[] = []
+    path: boolean[] = [],
+    constraints?: Set<ProductionConstraint>
   ): GoalActionPlan | null {
-    if (workersLeft <= 0 || targetUnits <= 0) return null;
+    if (workersLeft <= 0 || targetUnits <= 0) {
+      constraints?.add(workersLeft <= 0 ? "labor" : "outputTarget");
+      return null;
+    }
     if (path[good.i]) return null;
 
     const physicalTextile = hasPhysicalTextileRecipe(good.name);
@@ -1787,6 +1830,7 @@ export class ProductionModule {
 
     const recipeList = index.recipesByOutput[good.i];
     if (!recipeList?.length) {
+      constraints?.add("recipeUnavailable");
       path[good.i] = false;
       return null;
     }
@@ -1798,6 +1842,7 @@ export class ProductionModule {
         recipe.requiredTechnology &&
         !isTechnologyStageAtLeast(getTechnologyStage(recipe.requiredTechnology, state.burg.state || 0), "adopted")
       ) {
+        constraints?.add("technology");
         continue;
       }
       const immediate = this.buildImmediateManufactureCandidate(
@@ -1805,7 +1850,8 @@ export class ProductionModule {
         recipe,
         demandEffect,
         Math.min(stepUnits, targetUnits),
-        good.i
+        good.i,
+        constraints
       );
       if (immediate && targetLabor <= workersLeft + 0.001) {
         const perUnitNetGain = immediate.candidate.score;
@@ -1823,6 +1869,7 @@ export class ProductionModule {
         continue;
       }
 
+      if (targetLabor > workersLeft + 0.001) constraints?.add("labor");
       let workersNeeded = targetLabor;
       let marketCost = 0;
       let feasible = true;
@@ -1844,6 +1891,7 @@ export class ProductionModule {
 
         const ingredientGood = Goods.get(ingredient.goodId);
         if (!ingredientGood) {
+          constraints?.add("recipeUnavailable");
           feasible = false;
           break;
         }
@@ -1853,6 +1901,7 @@ export class ProductionModule {
             ? laborFor(ingredientGood, remaining)
             : remaining * (index.minWorkersByGood[ingredient.goodId] ?? Infinity);
         if (workersNeeded + lowerBoundWorkers > workersLeft + 0.001) {
+          constraints?.add("labor");
           feasible = false;
           break;
         }
@@ -1865,7 +1914,8 @@ export class ProductionModule {
           stepUnits,
           physicalTextile ? workersLeft - workersNeeded : workersLeft - targetUnits,
           demandEffect,
-          path
+          path,
+          constraints
         );
 
         if (!subPlan) {
@@ -1932,7 +1982,11 @@ export class ProductionModule {
     const demandFocus = this.getDemandFocus(demandTargets, demandCoverage);
     const luxuryWeights = isLuxuryValueDemandEnabled() ? luxuryTierWeights(state.burg) : null;
 
-    const planGoal = (good: Good, effect: DemandEffect): GoalActionPlan | null => {
+    const planGoal = (
+      good: Good,
+      effect: DemandEffect,
+      constraints?: Set<ProductionConstraint>
+    ): GoalActionPlan | null => {
       let units = fraction;
       if (hasPhysicalTextileRecipe(good.name)) {
         if (getEconomyCalibrationState().applyCalibration) {
@@ -1950,12 +2004,33 @@ export class ProductionModule {
       }
       if (good.name === "Wool Blankets")
         units = Math.min(units, getBlanketProductionHeadroom(state.market, state.inventory[good.i] || 0));
-      return this.planGoodAction(index, state, good, units, units, workersLeft, effect);
+      if (units <= 0 && (HOUSEHOLD_GARMENT_NAMES.has(good.name) || good.name === "Wool Blankets")) {
+        const blankets = good.name === "Wool Blankets";
+        const demand = blankets
+          ? getMarketBlanketDemandProfile(state.market.i)
+          : getMarketTextileDemandProfile(state.market.i);
+        const headroom = blankets
+          ? getBlanketProductionHeadroom(state.market, state.inventory[good.i] || 0)
+          : getGarmentProductionHeadroom(state.market, getHouseholdGarmentInventory(state.inventory));
+        if (headroom <= 0)
+          constraints?.add(
+            demand.monthlyDemand <= 0
+              ? "noDemand"
+              : getAffordableTextileDemand(state.market, blankets) <= 0
+                ? "householdBudget"
+                : "excessStock"
+          );
+      }
+      return this.planGoodAction(index, state, good, units, units, workersLeft, effect, [], constraints);
     };
     let chosenGoal: GoalActionPlan | null = null;
     let activeGoal: GoalActionPlan | null = null;
+    const feasibleGoodIds: number[] = [];
     for (const good of candidateGoods) {
-      if (!isGoodManufacturableInState(good, state.burg.state || 0)) continue;
+      if (!isGoodManufacturableInState(good, state.burg.state || 0)) {
+        recordProductionDiagnostic(state.productionDiagnostics, "planning", good.i, ["technology"]);
+        continue;
+      }
       const populationDemandEffect = this.getDemandEffect(good, demandFocus, index.demandCoverageByGood, luxuryWeights);
       const strategicDemandMultiplier = getStrategicDemandMultiplier(
         state.strategicDemandByGood.get(good.i),
@@ -1967,8 +2042,18 @@ export class ProductionModule {
         multiplier: populationDemandEffect.multiplier * strategicDemandMultiplier * viticultureAllocationMultiplier,
         category: populationDemandEffect.category
       };
-      const goalPlan = planGoal(good, demandEffect);
-      if (!goalPlan || goalPlan.projectedGain <= 0) continue;
+      const constraints = new Set<ProductionConstraint>();
+      const goalPlan = planGoal(good, demandEffect, constraints);
+      if (!goalPlan || goalPlan.projectedGain <= 0) {
+        if (goalPlan) {
+          constraints.clear();
+          constraints.add("profitability");
+        }
+        if (!constraints.size) constraints.add("unknown");
+        recordProductionDiagnostic(state.productionDiagnostics, "planning", good.i, constraints);
+        continue;
+      }
+      feasibleGoodIds.push(good.i);
       if (collectCandidates) candidates.push(goalPlan.candidate);
       if (good.i === activeGoalGoodId) activeGoal = goalPlan;
       if (!chosenGoal || goalPlan.normalizedGain > chosenGoal.normalizedGain + 0.001) chosenGoal = goalPlan;
@@ -1995,6 +2080,13 @@ export class ProductionModule {
     }
 
     if (activeGoal && chosenGoal && activeGoal.normalizedGain >= chosenGoal.normalizedGain) chosenGoal = activeGoal;
+    for (const goodId of feasibleGoodIds)
+      recordProductionDiagnostic(
+        state.productionDiagnostics,
+        "planning",
+        goodId,
+        goodId === chosenGoal?.goalGoodId ? [] : ["ranking"]
+      );
     if (!chosenGoal) return null;
 
     const goalGood = Goods.get(chosenGoal.goalGoodId);
@@ -2171,6 +2263,7 @@ type BurgProductionState = {
   demandCoverage: number[];
   records: ProductionRecord[];
   ingredientCosts: number;
+  productionDiagnostics?: ProductionCycleDiagnostic;
   activeGoalGoodId: number | null;
   /** Resolved once per Burg so production candidate ranking does not repeatedly scan characters. */
   smithingProgramByGood: ReadonlyMap<string, SmithingProductProgram>;

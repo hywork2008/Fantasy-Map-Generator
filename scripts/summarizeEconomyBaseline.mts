@@ -7,7 +7,7 @@ const hash = (bytes: string | Uint8Array) => createHash("sha256").update(bytes).
 const worlds = inputs.map(path => {
  const bytes = readFileSync(path);
  const run = JSON.parse(bytes.toString());
- if (run.samples.length !== 12 || run.schemaVersion !== 2) throw new Error(`Incomplete E0 run: ${path}`);
+ if (run.samples.length !== 12 || ![2, 3].includes(run.schemaVersion)) throw new Error(`Incomplete E0 run: ${path}`);
  const totals: Record<string, number> = {};
  const byMarket: Record<string, Record<string, number>> = {};
  const intervals = run.samples.map((sample: any) => {
@@ -35,6 +35,52 @@ const worlds = inputs.map(path => {
   const row = flows[name] ??= {};
   for (const [key, units] of Object.entries(entries as Record<string, number>)) row[key] = (row[key] ?? 0) + units;
  }
+ const textileByMarket: Record<string, any> = {};
+ let textileSettlementCount = 0;
+ for (const sample of run.samples) for (const settlement of sample.textileSettlements ?? []) {
+  textileSettlementCount++;
+  for (const market of settlement.textiles.markets) {
+   const local = textileByMarket[market.marketId] ??= {garments: {}, blankets: {}, production: {rows: []}};
+   for (const category of ["garments", "blankets"]) {
+    const ledger = market[category];
+    if (!ledger?.settlementDiagnostics) continue;
+    const totals = local[category];
+    for (const row of ledger.settlementDiagnostics.buyers) {
+     const sector = row.rural ? "rural" : "urban";
+     const target = totals[sector] ??= {};
+     const flags = target.constraintBuyerSettlements ??= {};
+     for (const reason of row.constraints) flags[reason] = (flags[reason] ?? 0) + 1;
+     for (const key of ["need", "supplied", "marketSupplied", "marketPaid", "unmet", "priorityGap", "budgetGap",
+       "stockGap", "allocationOrRoundingGap", "noPricedRouteGap"])
+      target[key] = (target[key] ?? 0) + row[key];
+    }
+    for (const key of ["ruralHomeProduction", "commissionDeliveries", "householdSpending"])
+     totals[key] = (totals[key] ?? 0) + (ledger[key] ?? 0);
+   }
+  }
+  for (const commission of Object.values(settlement.textiles.commissions ?? {}) as any[]) {
+   const local = textileByMarket[commission.marketId] ??= {garments: {}, blankets: {}, production: {rows: []}};
+   const target = local.commissions ??= {};
+   // Same-calendar guards can retain the prior ledger. Only capture jobs from this exact settlement's deliveries.
+   const current = settlement.textiles.markets.find((market: any) => market.marketId === commission.marketId);
+   if ((current?.garments?.commissionDeliveries ?? 0) + (current?.blankets?.commissionDeliveries ?? 0) <= 0) continue;
+   for (const key of ["garments", "blankets", "materialSpending", "serviceSpending"])
+    target[key] = (target[key] ?? 0) + commission[key];
+  }
+  for (const market of settlement.textiles.production) {
+   const local = textileByMarket[market.marketId] ??= {garments: {}, blankets: {}, production: {rows: []}};
+   const target = local.production;
+   for (const key of ["steps", "maxSteps", "workforcePoints", "chargedPoints", "unusedPoints"])
+    target[key] = (target[key] ?? 0) + market[key];
+   for (const row of market.rows) {
+    let merged = target.rows.find((other: any) => other.stage === row.stage && other.goodId === row.goodId
+      && other.constraints.join(",") === row.constraints.join(","));
+    if (!merged) {merged = {...row, count: 0, outputLots: 0, laborPoints: 0, wagesPaid: 0, materialCost: 0}; target.rows.push(merged);}
+    for (const key of ["count", "outputLots", "laborPoints", "wagesPaid", "materialCost"])
+     merged[key] += row[key] ?? 0;
+   }
+  }
+ }
  const annualKg = (key: string, denominator: string) => totals[denominator] > 0
   ? totals[key] * run.foodLedgerKgPerUnit * 12 / totals[denominator] : null;
  return {path, sha256: hash(bytes), inputSha256: run.inputSha256, sourceTreeSha256: run.sourceTreeSha256,
@@ -44,7 +90,7 @@ const worlds = inputs.map(path => {
    ruralSupplied: annualKg("ruralSupplied", "ruralPeopleMonths"), ruralHome: annualKg("ruralFromHousehold", "ruralPeopleMonths"),
    ruralMarket: annualKg("ruralFromMarket", "ruralPeopleMonths"), urbanNeed: annualKg("urbanNeed", "urbanPeopleMonths"),
    urbanSupplied: annualKg("urbanSupplied", "urbanPeopleMonths")},
-  primaryFlows: flows,
+  primaryFlows: flows, textileSettlementCount, textileByMarket,
   snapshots: [run.initial, run.samples.at(-1)].map((sample: any) => Object.fromEntries([
    "date", "ruralPeople", "urbanPeople", "ruralFoodUncoveredPeople", "ruralFoodStock", "cultivatedHa", "pastureHa", "heads",
    "aggregateOccupancy", "sheepPerResident", "annualWoolPotentialKg", "effectiveWoolLaborAndFeedCoverage", "woolStockKg", "feedTotals"
@@ -57,5 +103,5 @@ writeFileSync(output, JSON.stringify({schemaVersion: 1, summarizerSha256: hash(r
  notes: ["Food totals include every actual settlement. Quantities are food-ledger units unless labelled kg; payments are cash.",
  "Rural unmet is measured per market per settlement, before aggregation; rounding excess is retained separately in supplied totals.",
  "Urban budget gap is the first binding constraint; stock gap is the remaining affordable but unavailable quantity, not a counterfactual attribution.",
- "Textile consumption flows are interval totals; textile demand/spending are endpoint snapshot sums and cannot establish exact annual fulfilment.",
+ "Schema 3 textileByMarket uses every actual household textile settlement. textileSnapshotTotals remains the old endpoint-only series and is not an exact demand denominator.",
  "Grain-equivalent mass is a model contract, not a historical or nutritional benchmark. Non-grain rural self-consumption is not measured."], worlds}, null, 2) + "\n");

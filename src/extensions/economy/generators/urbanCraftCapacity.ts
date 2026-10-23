@@ -18,7 +18,8 @@ export function recordUrbanCraftCapacity(
   workforcePoints: number,
   chargedPoints: number,
   textilePoints: number,
-  calibrated: boolean
+  calibrated: boolean,
+  productionDiagnostics?: UrbanCraftCapacity["productionDiagnostics"]
 ): void {
   const table = getOrCreateUrbanCraftCapacityTable();
   if (!table || !burgId) return;
@@ -30,6 +31,7 @@ export function recordUrbanCraftCapacity(
     year: getSimulationYear(),
     month: getSimulationMonth(),
     calibrated,
+    productionDiagnostics,
     populationRate: Math.max(1, getWorldContext().populationRate || 1),
     workforcePoints: workforce,
     chargedPoints: charged,

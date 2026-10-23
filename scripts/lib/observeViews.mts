@@ -1,3 +1,5 @@
+import { aggregateProductionDiagnostics } from "../../src/extensions/economy/generators/productionDiagnostics";
+import { getUrbanCraftCapacityRecords } from "../../src/extensions/economy/generators/urbanCraftCapacity";
 import { personalCashTotal, readPersonalCash } from "../../src/extensions/economy/generators/personalCash";
 import { poolBalance } from "../../src/extensions/economy/generators/personalCashLedger";
 /**
@@ -8,7 +10,7 @@ import { poolBalance } from "../../src/extensions/economy/generators/personalCas
 import type { WorldContext } from "../../src/context/worldContext";
 import { collectFarmlandSnapshot } from "../../src/services/farmlandObservation";
 import { getCultivatedArea } from "../../src/extensions/economy/context/agriculture";
-import { isEconomyContextReady } from "../../src/extensions/economy/context/economyApi";
+import { getEconomySlice, isEconomyContextReady } from "../../src/extensions/economy/context/economyApi";
 import {
   getApproachLedgerDecays,
   getApproachTraffic,
@@ -914,7 +916,18 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
     return collectFarmlandSnapshot(getWorld(), clock().year, enabled, enabled ? getCultivatedArea() : undefined);
   }
 
-  return { sample, routes, approaches, corridors, markets, goods, gates, wealth, luxury, trade, salt, farmland, staticInfo, networkKey };
+  function textiles() {
+    if (!economy()) return null;
+    return {
+      markets: getMarkets().map(market => ({marketId: market.i,
+        garments: structuredClone(market.textileLedger ?? null),
+        blankets: structuredClone(market.blanketLedger ?? null),
+        ruralProduction: structuredClone(market.ruralTextileProduction ?? null)})),
+      commissions: structuredClone(getEconomySlice()?.textileCommissions ?? null),
+      production: aggregateProductionDiagnostics(getUrbanCraftCapacityRecords())
+    };
+  }
+  return { sample, routes, approaches, corridors, markets, goods, gates, wealth, luxury, trade, salt, textiles, farmland, staticInfo, networkKey };
 }
 
 export interface SampledAdvanceHost {
