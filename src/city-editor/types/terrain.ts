@@ -23,6 +23,8 @@ export interface CityTerrain {
   ramps: Array<{ ramp: TerrainRamp; elevations: number[] }>;
   roads?: {
     ribbons: import("../../utils/roadSurface").RoadRibbon[];
+    /** Flights of steps on lanes and paths too steep to walk as a slope, heights in the local frame. */
+    stairs: Array<{ centerline: Point[]; elevations: number[]; widthMeters: number }>;
     /** Where a road met a cliff between levels and was stopped. */
     cliffBreaks: Point[];
   };
@@ -42,6 +44,11 @@ export interface TerrainPlatform {
   id: Id;
   /** The castle (or other plan) that created this earthwork and removes it with itself. */
   ownerId?: Id;
+  /**
+   * A terrace of a hill town: its edge is a retaining wall that roads may cross, graded as a ramp or climbed by
+   * stairs. Absent: a platform that only a ramp may climb (a castle rock).
+   */
+  role?: "terrace";
   summit: TerrainShape;
   /** Absolute level of the flat summit. */
   levelMeters: number;

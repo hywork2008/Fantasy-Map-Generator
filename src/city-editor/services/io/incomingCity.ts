@@ -484,6 +484,11 @@ function asSettings(raw: unknown): Omit<GenerationSettings, "descriptor"> | null
       return null;
     settings.moats = { town, castle };
   }
+  if (raw.terraces !== undefined) {
+    if (!isRecord(raw.terraces) || !isFiniteNumber(raw.terraces.stepMeters) || raw.terraces.stepMeters <= 0)
+      return null;
+    settings.terraces = { stepMeters: raw.terraces.stepMeters };
+  }
   if (raw.buildingPattern !== undefined) settings.buildingPattern = raw.buildingPattern as "legacy" | "medieval";
   if (["auto", "organic", "classic", "circulade", "bram"].includes(String(raw.layout)))
     settings.layout = raw.layout as GenerationSettings["layout"];

@@ -33,6 +33,8 @@ export interface GenerationSettings {
   burialProfile?: import("../../data/burialCultures").BurialCultureProfile;
   buildingPattern?: import("./primitives").BuildingPattern;
   castle?: Partial<import("./castle").CastleSettings>;
+  /** Level the site's relief into flat terraces this many metres apart. Absent leaves the ground as generated. */
+  terraces?: { stepMeters: number };
   /** Castle siting also checks C4 on street edges. Set by the attempt loop
    * after a castle town failed with unconnected gates. */
   castleStreetLinks?: boolean;

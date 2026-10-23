@@ -17,7 +17,15 @@ export interface TerrainOutline {
   faceIds: ReadonlySet<Id>;
   segments: OutlineSegment[];
   bounds: { minX: number; minY: number; maxX: number; maxY: number };
+  /** Segments by grid cell, each entered in every cell within `reach` of it, for nearby-edge queries. */
+  bins: Map<string, OutlineSegment[]>;
+  reach: number;
+  /** Face lookup: membership of the containing cell, or null on a cell edge or corner no cell claims. */
+  contains?: (point: Point) => boolean | null;
 }
+
+const OUTLINE_BIN_METERS = 8;
+const outlineBin = (x: number, y: number) => `${x},${y}`;
 
 export type ResolvedTerrainPlatform = Omit<TerrainPlatform, "summit"> & {
   summit: ({ kind: "circle" } & TerrainCircle) | TerrainOutline;
@@ -30,7 +38,8 @@ const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
 /** Replaces cell-shaped summits by their outline. Fort features, being analytic, need no resolver. */
 export function resolveTerrainFeatures(
   features: readonly TerrainFeature[],
-  outline?: (faceIds: readonly Id[]) => OutlineSegment[]
+  outline?: (faceIds: readonly Id[]) => OutlineSegment[],
+  locate?: (point: Point) => Id | null
 ): ResolvedTerrainFeature[] {
   return features.flatMap((feature): ResolvedTerrainFeature[] => {
     if (feature.kind !== "platform" || feature.summit.kind !== "faces") return [feature as ResolvedTerrainFeature];
@@ -38,14 +47,43 @@ export function resolveTerrainFeatures(
     if (!segments.length) return [];
     const xs = segments.flatMap(s => [s.a[0], s.b[0]]),
       ys = segments.flatMap(s => [s.a[1], s.b[1]]);
+    const reach = Math.max(CLIFF_BAND_METERS, feature.edge.kind === "slope" ? feature.edge.runMeters : 0) + 0.01;
+    const bins = new Map<string, OutlineSegment[]>();
+    for (const segment of segments)
+      for (
+        let x = Math.floor((Math.min(segment.a[0], segment.b[0]) - reach) / OUTLINE_BIN_METERS);
+        x <= Math.floor((Math.max(segment.a[0], segment.b[0]) + reach) / OUTLINE_BIN_METERS);
+        x++
+      )
+        for (
+          let y = Math.floor((Math.min(segment.a[1], segment.b[1]) - reach) / OUTLINE_BIN_METERS);
+          y <= Math.floor((Math.max(segment.a[1], segment.b[1]) + reach) / OUTLINE_BIN_METERS);
+          y++
+        ) {
+          const id = outlineBin(x, y);
+          const list = bins.get(id);
+          if (list) list.push(segment);
+          else bins.set(id, [segment]);
+        }
+    const faceIds = new Set(feature.summit.faceIds);
     return [
       {
         ...feature,
         summit: {
           kind: "outline",
-          faceIds: new Set(feature.summit.faceIds),
+          faceIds,
           segments,
-          bounds: { minX: Math.min(...xs), minY: Math.min(...ys), maxX: Math.max(...xs), maxY: Math.max(...ys) }
+          bounds: { minX: Math.min(...xs), minY: Math.min(...ys), maxX: Math.max(...xs), maxY: Math.max(...ys) },
+          bins,
+          reach,
+          ...(locate
+            ? {
+                contains: (point: Point) => {
+                  const id = locate(point);
+                  return id === null ? null : faceIds.has(id);
+                }
+              }
+            : {})
         }
       }
     ];
@@ -61,8 +99,20 @@ function segmentDistance(point: Point, segment: OutlineSegment): number {
   return Math.hypot(point[0] - a[0] - dx * t, point[1] - a[1] - dy * t);
 }
 
+/** Distance to the nearest outline edge, or Infinity beyond the outline's reach. */
+function edgeDistance(outline: TerrainOutline, point: Point): number {
+  let best = Number.POSITIVE_INFINITY;
+  for (const segment of outline.bins.get(
+    outlineBin(Math.floor(point[0] / OUTLINE_BIN_METERS), Math.floor(point[1] / OUTLINE_BIN_METERS))
+  ) ?? [])
+    best = Math.min(best, segmentDistance(point, segment));
+  return best <= outline.reach ? best : Number.POSITIVE_INFINITY;
+}
+
 /** Even-odd test over the outline; it encloses holes and separate islands alike. */
 function insideOutline(point: Point, outline: TerrainOutline): boolean {
+  const located = outline.contains?.(point);
+  if (located !== undefined && located !== null) return located;
   let inside = false;
   for (const { a, b } of outline.segments)
     if (a[1] > point[1] !== b[1] > point[1] && point[0] < a[0] + ((point[1] - a[1]) * (b[0] - a[0])) / (b[1] - a[1]))
@@ -96,7 +146,7 @@ function platformLevel(feature: ResolvedTerrainPlatform, base: number, point: Po
     point[1] > bounds.maxY + reach
   )
     return null;
-  const d = Math.min(...summit.segments.map(segment => segmentDistance(point, segment)));
+  const d = edgeDistance(summit, point);
   if (insideOutline(point, summit))
     return feature.edge.kind === "cliff"
       ? base + clamp01(d / CLIFF_BAND_METERS) * (feature.levelMeters - base)
@@ -178,7 +228,7 @@ export function onTerrainEscarpment(features: readonly ResolvedTerrainFeature[],
       feature.edge.kind === "cliff" &&
       feature.summit.kind === "outline" &&
       feature.summit.faceIds.has(faceId) &&
-      Math.min(...feature.summit.segments.map(segment => segmentDistance(point, segment))) < CLIFF_BAND_METERS - 1e-6
+      edgeDistance(feature.summit, point) < CLIFF_BAND_METERS - 1e-6
   );
 }
 
@@ -196,30 +246,35 @@ export function terrainFeatureFoci(features: readonly ResolvedTerrainFeature[]):
  */
 export function terrainLevelAt(features: readonly ResolvedTerrainFeature[], point: Point): string | null {
   for (const feature of features) {
-    if (feature.kind !== "platform" || feature.edge.kind !== "cliff" || feature.summit.kind !== "outline") continue;
+    // Terrace walls do not separate levels: streets are graded or stepped across them.
+    if (
+      feature.kind !== "platform" ||
+      feature.role === "terrace" ||
+      feature.edge.kind !== "cliff" ||
+      feature.summit.kind !== "outline"
+    )
+      continue;
     const { bounds } = feature.summit;
     if (point[0] < bounds.minX || point[0] > bounds.maxX || point[1] < bounds.minY || point[1] > bounds.maxY) continue;
-    const d = Math.min(...feature.summit.segments.map(segment => segmentDistance(point, segment)));
+    const d = edgeDistance(feature.summit, point);
     if (d < CLIFF_BAND_METERS) return "cliff";
     if (insideOutline(point, feature.summit)) return feature.id;
   }
   return null;
 }
 
-/** True on the flat summit of any platform, where graded roads keep the platform level instead of cutting it. */
+/** True on the flat summit of a castle platform, where graded roads keep its level instead of cutting it. */
 export function onPlatformSummit(features: readonly ResolvedTerrainFeature[], point: Point): boolean {
   return features.some(feature => {
-    if (feature.kind !== "platform") return false;
+    // A street keeps climbing over a terrace; only a platform that roads may not cross holds them level.
+    if (feature.kind !== "platform" || feature.role === "terrace") return false;
     const summit = feature.summit;
     if (summit.kind === "circle") return distance(point, summit.center) <= summit.radiusMeters;
     const { bounds } = summit;
     if (point[0] < bounds.minX || point[0] > bounds.maxX || point[1] < bounds.minY || point[1] > bounds.maxY)
       return false;
     if (!insideOutline(point, summit)) return false;
-    return (
-      feature.edge.kind !== "cliff" ||
-      Math.min(...summit.segments.map(segment => segmentDistance(point, segment))) >= CLIFF_BAND_METERS
-    );
+    return feature.edge.kind !== "cliff" || edgeDistance(summit, point) >= CLIFF_BAND_METERS;
   });
 }
 

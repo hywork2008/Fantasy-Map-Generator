@@ -8,6 +8,7 @@ import type { GenerationSettings } from "../../types/generation";
 import { tagExternalGateRoads } from "../approachBeyond";
 import { buildBlockFabric } from "../blockInfill";
 import { withBuildingAppearance } from "../buildingAppearance";
+import { terrainHeight } from "../castlePlacement";
 import { finalizeCastles } from "../castles";
 import {
   MIN_CEMETERY_GROUND_M2,
@@ -59,8 +60,10 @@ import {
   resolveWalledAreaShare,
   townExtentMeters
 } from "../settlementExtent";
+import { synthSite } from "../site/synthSite";
 import { farNodeFor } from "../streets";
 import { approachBands } from "../suburbanLanduse";
+import { planTerraces } from "../terracePlanning";
 import { generatedCastleTerrain } from "../terrainEditing";
 import { consolidateThinRoadCells } from "../thinRoadCells";
 import { auditTownDefenseClosure } from "../townDefenseClosure";
@@ -68,7 +71,7 @@ import { connectUrbanRiverDistricts } from "../urbanBridges";
 import { planUrbanGrowth } from "../urbanGrowth";
 import { applyPlan } from "./assembly/applyPlan";
 import { settleTempleOnDocument } from "./assembly/temple";
-import { GEN_PREFIX } from "./constants";
+import { GEN_PREFIX, NOMINAL_PRESET } from "./constants";
 import { planningDebugDocument } from "./debugPreview";
 import { runPlan } from "./pipeline";
 import { plazaApproachPoint, requiredExternalRoads } from "./planning/roadGeometry";
@@ -246,6 +249,19 @@ export function generateCityOnDocument(
       result.farmlandAreaHectares = settings.descriptor
         ? settings.descriptor.farmlandAreaHectares
         : document.farmlandAreaHectares;
+      // A terraced hill town is levelled from the site's relief before the castle earthworks stand on it.
+      if (settings.terraces) {
+        const site =
+          settings.descriptor ??
+          synthSite(NOMINAL_PRESET, settings.config, attemptSeed, {
+            extentMeters: result.frame.extentMeters,
+            cityRadiusMeters: result.frame.cityRadiusMeters
+          });
+        const terraces = measureProcessing(profiler, "terraces", () =>
+          planTerraces(result, point => terrainHeight(site.terrain, point), settings.terraces!.stepMeters)
+        );
+        result.terrain = terraces.length ? { version: 1, features: terraces } : undefined;
+      } else delete result.terrain;
       // Castle platforms and ramps name cells, so they are rebuilt on the new mesh before the fabric is drawn.
       const terrain = measureProcessing(profiler, "castle-ground", () =>
         generatedCastleTerrain(result, document, settings.castle)

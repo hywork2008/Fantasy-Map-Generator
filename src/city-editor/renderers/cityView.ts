@@ -41,7 +41,7 @@ import { collectOpenSpacePlan } from "./openSpaceSites";
 import { collectPierSites } from "./pierSites";
 import { collectShipSites } from "./shipSites";
 import { collectCityStructures, landmarkLotStructures } from "./structureMassing";
-import { groundStructures, lotFoundations, rampStructures } from "./terrainMassing";
+import { groundStructures, lotFoundations, rampStructures, stairStructures } from "./terrainMassing";
 import { resolveCemeteryPlans } from "./townFacts";
 import { collectWellSites } from "./wellSites";
 
@@ -297,7 +297,12 @@ export function mountCity3d(options: {
     if (structures) scene.remove(structures.group);
     const parts = [...collectCityStructures(city), ...landmarkLotStructures(fabric.buildings)];
     const grounded = terrain
-      ? [...groundStructures(parts, terrain), ...lotFoundations(fabric.buildings, terrain), ...rampStructures(terrain)]
+      ? [
+          ...groundStructures(parts, terrain),
+          ...lotFoundations(fabric.buildings, terrain),
+          ...rampStructures(terrain),
+          ...stairStructures(terrain)
+        ]
       : parts;
     // Acquire the next layer before releasing the old one, so prototypes survive refreshes.
     const nextSpecial = createTownSpecialBuildings(city, grounded, bvPrototypes, quality);

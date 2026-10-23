@@ -82,19 +82,29 @@ export function removeOwnedTerrain(document: CityDocument, ownerId: Id): void {
 
 export const DEFAULT_CASTLE_RISE_METERS = 12;
 
-/** Highest elevation among a castle's land cells. */
+/** Highest ground among a castle's land cells: the cell elevation, or the terrace the cell was levelled to. */
 function castleSiteTop(document: CityDocument, castle: CastlePlan): number | null {
+  const terraces = (document.terrain?.features ?? []).filter(
+    feature => feature.role === "terrace" && feature.summit.kind === "faces"
+  );
   const levels = castleSiteFaceIds(document, castle)
     .map(id => document.mesh.faces[id])
     .filter(face => face?.properties.water === "land")
-    .map(face => face.properties.elevation);
+    .map(face =>
+      Math.max(
+        face.properties.elevation,
+        ...terraces
+          .filter(terrace => terrace.summit.kind === "faces" && terrace.summit.faceIds.includes(face.id))
+          .map(terrace => terrace.levelMeters)
+      )
+    );
   return levels.length ? Math.max(...levels) : null;
 }
 
 /**
  * Earthworks for a freshly generated town. The requested castle ground applies to every castle; otherwise a platform
  * the input document gave a castle of the same id is rebuilt at the same height above its new cells. Saved earthworks
- * name cells, which generation replaces, so nothing else carries over.
+ * name cells, which generation replaces, so nothing else carries over; terraces already levelled on `result` stay.
  */
 export function generatedCastleTerrain(
   result: CityDocument,
@@ -108,7 +118,9 @@ export function generatedCastleTerrain(
     const top = castle ? castleSiteTop(input, castle) : null;
     if (castle && top !== null) previous.set(castle.id, { rise: feature.levelMeters - top, edge: feature.edge });
   }
-  let next: CityDocument = { ...result, terrain: undefined };
+  // Terraces were levelled for this mesh just before; castle earthworks stand on them.
+  const terraces = result.terrain?.features.filter(feature => feature.role === "terrace") ?? [];
+  let next: CityDocument = { ...result, terrain: terraces.length ? { version: 1, features: terraces } : undefined };
   for (const castle of result.castles ?? []) {
     const top = castleSiteTop(next, castle);
     if (top === null) continue;

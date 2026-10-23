@@ -26,12 +26,14 @@ export function renderTerrainEarthworks(document: CityDocument): SVGElement {
   for (const feature of document.terrain?.features ?? []) {
     if (feature.edge.kind !== "cliff" || feature.summit.kind !== "faces") continue;
     const segments = platformOutline(document, feature.summit.faceIds);
+    // Terrace walls of a hill town are many and low; a castle scarp is drawn heavier.
+    const terrace = feature.role === "terrace";
     // Short ticks on the low side read as a scarp, as on survey maps.
     group.append(
       element("path", {
         d: segments.map(s => line([s.a, s.b])).join(" "),
         stroke: "#5d5446",
-        "stroke-width": "1.2",
+        "stroke-width": terrace ? "0.5" : "1.2",
         fill: "none",
         "pointer-events": "none"
       }),
@@ -40,9 +42,10 @@ export function renderTerrainEarthworks(document: CityDocument): SVGElement {
           .flatMap(s => {
             const length = Math.hypot(s.b[0] - s.a[0], s.b[1] - s.a[1]);
             const ticks: string[] = [];
-            for (let at = 2; at < length; at += 4) {
+            for (let at = 2; at < length; at += terrace ? 6 : 4) {
               const p: Point = [s.a[0] + ((s.b[0] - s.a[0]) * at) / length, s.a[1] + ((s.b[1] - s.a[1]) * at) / length];
-              ticks.push(line([p, [p[0] - s.inward[0] * 3, p[1] - s.inward[1] * 3]]));
+              const tick = terrace ? 1.5 : 3;
+              ticks.push(line([p, [p[0] - s.inward[0] * tick, p[1] - s.inward[1] * tick]]));
             }
             return ticks;
           })

@@ -25,6 +25,13 @@ import {
 
 export type { CityTerrain } from "../types/terrain";
 
+/** Triangles near a graded road are split at least down to this edge, so a corridor cannot slip between samples. */
+const COARSE_CORRIDOR_EDGE_METERS = 8;
+/** Below that, split only where the graded ground departs this far from the flat triangle. */
+const REFINE_TOLERANCE_METERS = 0.25;
+const MIN_REFINE_EDGE_METERS = 2;
+const MAX_REFINE_DEPTH = 8;
+
 const cross = (a: Point, b: Point, c: Point) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
 
 /** A fort site grades flat ground; every other document adds its saved earthworks to the cell elevations. */
@@ -37,6 +44,30 @@ export function cityTerrainModel(document: CityDocument): TerrainModel {
         ramps: []
       }
     : { base: { kind: "cells" }, features: document.terrain?.features ?? [], ramps: document.terrain?.ramps ?? [] };
+}
+
+/** The cell containing a point, through a grid of cell bounding boxes. */
+function faceLocator(document: CityDocument): (point: Point) => Id | null {
+  const size = Math.max(10, document.frame.blockSizeMeters || 50);
+  const bins = new Map<string, Array<{ id: Id; ring: Point[] }>>();
+  for (const face of Object.values(document.mesh.faces)) {
+    const ring = facePoints(document.mesh, face);
+    if (ring.length < 3) continue;
+    const xs = ring.map(p => p[0]),
+      ys = ring.map(p => p[1]);
+    for (let x = Math.floor(Math.min(...xs) / size); x <= Math.floor(Math.max(...xs) / size); x++)
+      for (let y = Math.floor(Math.min(...ys) / size); y <= Math.floor(Math.max(...ys) / size); y++) {
+        const key = `${x},${y}`;
+        const list = bins.get(key);
+        if (list) list.push({ id: face.id, ring });
+        else bins.set(key, [{ id: face.id, ring }]);
+      }
+  }
+  return point => {
+    for (const { id, ring } of bins.get(`${Math.floor(point[0] / size)},${Math.floor(point[1] / size)}`) ?? [])
+      if (pointInPolygon(point, ring)) return id;
+    return null;
+  };
 }
 
 /** Edges between the given cells and any other cell or the frame, oriented by their inward normal. */
@@ -218,24 +249,45 @@ function gradedPatches(
   }));
   const triangles: Patch[] = [];
   const midpoint = (a: Point, b: Point): Point => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-  const push = (faceId: string, points: [Point, Point, Point], depth = 0) => {
-    // Road corridors are narrower than cells: split until the triangles can follow the graded ground.
-    if (depth < 7 && needsRefinement(points)) {
+  const push = (
+    faceId: string,
+    points: [Point, Point, Point],
+    heights = points.map(heightAt) as [number, number, number],
+    depth = 0
+  ) => {
+    // Road corridors are narrower than cells. Split near them until the triangles are small enough to meet the
+    // corridor, then only where the graded ground still departs from the flat triangle.
+    // A cliff or retaining-wall face is drawn as one near-vertical sheet; splitting it never makes it flatter.
+    // Corner pieces of the face at a reflex corner reach into it only with a vertex.
+    const escarpment = [polygonCentroid(points), ...points].some(point => onTerrainEscarpment(features, faceId, point));
+    const longest = Math.max(
+      ...points.map((p, k) => Math.hypot(p[0] - points[(k + 1) % 3][0], p[1] - points[(k + 1) % 3][1]))
+    );
+    if (!escarpment && depth < MAX_REFINE_DEPTH && longest > MIN_REFINE_EDGE_METERS && needsRefinement(points)) {
       const [a, b, c] = points,
         ab = midpoint(a, b),
         bc = midpoint(b, c),
         ca = midpoint(c, a);
-      for (const part of [
-        [a, ab, ca],
-        [ab, b, bc],
-        [ca, bc, c],
-        [ab, bc, ca]
-      ] as Array<[Point, Point, Point]>)
-        push(faceId, part, depth + 1);
-      return;
+      const [ha, hb, hc] = heights;
+      const mids = [heightAt(ab), heightAt(bc), heightAt(ca)];
+      const center = heightAt(polygonCentroid(points));
+      const error = Math.max(
+        Math.abs(mids[0] - (ha + hb) / 2),
+        Math.abs(mids[1] - (hb + hc) / 2),
+        Math.abs(mids[2] - (hc + ha) / 2),
+        Math.abs(center - (ha + hb + hc) / 3)
+      );
+      if (longest > COARSE_CORRIDOR_EDGE_METERS || error > REFINE_TOLERANCE_METERS) {
+        const [hab, hbc, hca] = mids;
+        push(faceId, [a, ab, ca], [ha, hab, hca], depth + 1);
+        push(faceId, [ab, b, bc], [hab, hb, hbc], depth + 1);
+        push(faceId, [ca, bc, c], [hca, hbc, hc], depth + 1);
+        push(faceId, [ab, bc, ca], [hab, hbc, hca], depth + 1);
+        return;
+      }
     }
-    const patch: Patch = { faceId, points, heights: points.map(heightAt) as [number, number, number] };
-    if (onTerrainEscarpment(features, faceId, polygonCentroid(points))) patch.escarpment = true;
+    const patch: Patch = { faceId, points, heights };
+    if (escarpment) patch.escarpment = true;
     triangles.push(patch);
   };
   const emit = (faceId: string, triangle: [Point, Point, Point]) => {
@@ -305,7 +357,11 @@ function gradedPatches(
  */
 export function cityTerrain(document: CityDocument, options: { roads?: readonly RoadRibbon[] } = {}): CityTerrain {
   const model = cityTerrainModel(document);
-  const features = resolveTerrainFeatures(model.features, faceIds => platformOutline(document, faceIds));
+  const features = resolveTerrainFeatures(
+    model.features,
+    faceIds => platformOutline(document, faceIds),
+    model.features.length ? faceLocator(document) : undefined
+  );
   const surface =
     model.base.kind === "flat" ? flatSurface(document, model.base.elevationMeters) : cellSurface(document);
   const { datumMeters } = surface;
@@ -333,7 +389,8 @@ export function cityTerrain(document: CityDocument, options: { roads?: readonly 
           groundAt,
           point => terrainLevelAt(features, point),
           point => onPlatformSummit(features, point),
-          deckAt
+          deckAt,
+          features.some(feature => feature.kind === "platform" && feature.role === "terrace")
         )
       : null;
   const heightAt = grading ? (point: Point) => grading.apply(point, groundAt(point)) : groundAt;
@@ -345,10 +402,17 @@ export function cityTerrain(document: CityDocument, options: { roads?: readonly 
     datumMeters,
     relief,
     heightAt,
-    surfaceAt: point => deckAt(point) ?? heightAt(point),
+    // Roads ride ramp decks, and in a terraced town the steps and ramps built over the ground.
+    surfaceAt: point => deckAt(point) ?? grading?.roadAt(point) ?? heightAt(point),
     ramps: ramps.map(ramp => ({ ramp, elevations: ramp.elevationsMeters.map(level => level - datumMeters) })),
     ...(options.roads
-      ? { roads: { ribbons: grading?.ribbons ?? [...options.roads], cliffBreaks: grading?.cliffBreaks ?? [] } }
+      ? {
+          roads: {
+            ribbons: grading?.ribbons ?? [...options.roads],
+            stairs: grading?.stairs ?? [],
+            cliffBreaks: grading?.cliffBreaks ?? []
+          }
+        }
       : {}),
     triangles: [...graded.patches],
     foundationAt(ring) {

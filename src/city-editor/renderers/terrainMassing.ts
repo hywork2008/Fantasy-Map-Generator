@@ -1,4 +1,6 @@
 import type { BuildingLot } from "../generators/buildingLots.types";
+import { polygonArea } from "../generators/geom";
+import { STAIR_RISER_METERS } from "../generators/roadGrading";
 import type { CityTerrain } from "../generators/terrainElevation";
 import type { StructureMassing } from "../types/contracts/structureMassing";
 import type { Point } from "../types/document";
@@ -137,5 +139,55 @@ export function rampStructures(terrain: CityTerrain): StructureMassing[] {
       }
     }
   }
+  return parts;
+}
+
+/** Stone steps for each flight: one block per riser, standing on the graded ground. */
+export function stairStructures(terrain: CityTerrain): StructureMassing[] {
+  const parts: StructureMassing[] = [];
+  (terrain.roads?.stairs ?? []).forEach((flight, f) => {
+    const half = flight.widthMeters / 2;
+    for (let i = 1; i < flight.centerline.length; i++) {
+      const a = flight.centerline[i - 1],
+        b = flight.centerline[i];
+      const za = flight.elevations[i - 1],
+        zb = flight.elevations[i];
+      const dx = b[0] - a[0],
+        dy = b[1] - a[1];
+      const length = Math.hypot(dx, dy);
+      if (length < 1e-6) continue;
+      const nx = -dy / length,
+        ny = dx / length;
+      const steps = Math.max(1, Math.ceil(Math.abs(zb - za) / STAIR_RISER_METERS));
+      for (let k = 0; k < steps; k++) {
+        const t0 = k / steps,
+          t1 = (k + 1) / steps;
+        const p0: Point = [a[0] + dx * t0, a[1] + dy * t0],
+          p1: Point = [a[0] + dx * t1, a[1] + dy * t1];
+        // Each tread is level at the height reached on the way up across it.
+        const top = Math.max(za + (zb - za) * t0, za + (zb - za) * t1);
+        const footprint: Point[] = [
+          [p0[0] + nx * half, p0[1] + ny * half],
+          [p1[0] + nx * half, p1[1] + ny * half],
+          [p1[0] - nx * half, p1[1] - ny * half],
+          [p0[0] - nx * half, p0[1] - ny * half]
+        ];
+        const bottom = Math.min(...footprint.map(terrain.heightAt), top) - 0.3;
+        parts.push({
+          id: `stairs:${f}:${i}:${k}`,
+          kind: "landmark",
+          material: "stone",
+          footprint: polygonArea(footprint) < 0 ? [...footprint].reverse() : footprint,
+          baseElevationMeters: bottom,
+          heightMeters: top - bottom,
+          roof: "flat",
+          parapet: "none",
+          parapetMeters: 0,
+          parapetWidthMeters: 0,
+          spire: false
+        });
+      }
+    }
+  });
   return parts;
 }

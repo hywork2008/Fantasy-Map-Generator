@@ -9,6 +9,8 @@ export function ruralSuitability(document: CityDocument) {
   const terrain = cityTerrain(document);
   const steep = new PlotIndex<Point[]>();
   for (const patch of terrain.triangles) {
+    // A cliff or retaining-wall face is the edge between two flat levels, not a slope to plough.
+    if (patch.escarpment) continue;
     const [a, b, c] = patch.points,
       [za, zb, zc] = patch.heights;
     const dx = b[0] - a[0],

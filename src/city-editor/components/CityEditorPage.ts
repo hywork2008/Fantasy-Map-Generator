@@ -33,6 +33,7 @@ import { DocumentHistory } from "../generators/history";
 import { clone } from "../generators/mesh";
 import { DEFAULT_PATCH_PARAMS } from "../generators/patches";
 import { regenerateRuralLand } from "../generators/roadsideFarms";
+import { DEFAULT_TERRACE_STEP_METERS } from "../generators/terracePlanning";
 import { DEFAULT_CASTLE_RISE_METERS } from "../generators/terrainEditing";
 import { CASTLE_STYLE_PROFILES } from "../renderers/castlePatterns";
 import { mountCity3d } from "../renderers/cityView";
@@ -2111,6 +2112,25 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     syncGenerateControls();
   });
   castleControls.append(label(editorText("cityEditor.messages.castleGroundRise"), riseInput));
+  // Terraces level the site's relief into flat steps; streets cross them as ramps or stairs.
+  const terraceSelect = select(["natural", "terraces"], generation.generateSettings.terraces ? "terraces" : "natural");
+  for (const option of terraceSelect.options)
+    option.textContent = editorText(
+      option.value === "terraces" ? "cityEditor.messages.terracesOn" : "cityEditor.messages.terracesOff"
+    );
+  const terraceStepInput = numberInput(
+    String(generation.generateSettings.terraces?.stepMeters ?? DEFAULT_TERRACE_STEP_METERS),
+    "1",
+    "0.5"
+  );
+  const applyTerraces = () => {
+    const step = Number(terraceStepInput.value);
+    if (terraceSelect.value === "terraces" && Number.isFinite(step) && step > 0)
+      generation.generateSettings.terraces = { stepMeters: step };
+    else delete generation.generateSettings.terraces;
+  };
+  scope.listen(terraceSelect, "change", applyTerraces);
+  scope.listen(terraceStepInput, "change", applyTerraces);
   const synthControls = div("ce-generate-synth");
   synthControls.append(
     label(editorText("cityEditor.messages.cityLayout"), layoutSelect),
@@ -2119,6 +2139,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     label(editorText("cityEditor.messages.rivers"), riversSelect),
     label(editorText("cityEditor.messages.riverPlacement"), riverPlacementSelect),
     toggleLabel(editorText("cityEditor.messages.reliefHilltop"), reliefInput),
+    label(editorText("cityEditor.messages.terraces"), terraceSelect),
+    label(editorText("cityEditor.messages.terraceStep"), terraceStepInput),
     text(editorText("cityEditor.messages.features")),
     featureGrid,
     makeButton(editorText("cityEditor.messages.randomizeGeography"), () => {

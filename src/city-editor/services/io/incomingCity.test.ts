@@ -93,6 +93,17 @@ describe("share codec", () => {
     });
     expect(decodeShare(encodeShare(share))?.settings.moats).toEqual({ town: true, castle: false });
   });
+  it("preserves terraces and rejects a terrace step that is not positive", () => {
+    const share = buildShare({
+      seed: "terraces",
+      grid: "evolution",
+      size: "tiny",
+      settings: { config: DEFAULT_SITE_CONFIG, terraces: { stepMeters: 3.5 } }
+    });
+    expect(decodeShare(encodeShare(share))?.settings.terraces).toEqual({ stepMeters: 3.5 });
+    const broken = { ...share, settings: { ...share.settings, terraces: { stepMeters: 0 } } };
+    expect(decodeShare(encodeShare(broken))).toBeNull();
+  });
 
   it("compresses and restores the exact input mesh and failed checkpoint", () => {
     const input = createGridDocument({ size: "micro", grid: "voronoi", seed: "original-grid" });

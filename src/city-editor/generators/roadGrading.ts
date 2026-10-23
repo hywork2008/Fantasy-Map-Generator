@@ -6,6 +6,13 @@ import type { Point } from "../types/primitives";
 
 /** Steepest grade a profile may take. Loaded wagons preferred 5-8 %; wheel ruts survive on ~10 % Alpine stretches. */
 export const MAX_ROAD_GRADE: Record<RoadGradeClass, number> = { cart: 0.1, lane: 0.15, path: 0.25 };
+/**
+ * Pitch of outdoor stairs: Blondel's rule (two risers and one tread make about 63 cm) gives 16 cm risers on 31 cm
+ * treads. Lanes and paths may climb this steeply as flights of steps; carts may not.
+ */
+export const STAIR_GRADE = 0.5;
+/** Height of one step when stairs are drawn. */
+export const STAIR_RISER_METERS = 0.16;
 /** Horizontal run per metre of height on cut and fill side slopes (1:1.5). */
 export const SIDE_SLOPE_RATIO = 1.5;
 
@@ -16,7 +23,8 @@ const SMOOTH_ITERATIONS = 60;
 const ATTACH_SLACK_METERS = 0.5;
 const ACTIVE_DEVIATION_METERS = 0.05;
 const BIN_METERS = 8;
-const REFINE_EDGE_METERS = 2;
+/** Triangles at most this long are never split for a corridor: the terrain refines them by error alone. */
+const REFINE_EDGE_METERS = 1;
 
 interface Link {
   to: number;
@@ -35,16 +43,34 @@ interface Corridor {
   active: boolean;
 }
 
+/** A flight of steps where a lane or path climbs more steeply than it could as a sloping street. */
+export interface RoadStairs {
+  centerline: Point[];
+  /** Height at each centre-line point, in the same frame as the terrain given to the grading. */
+  elevations: number[];
+  widthMeters: number;
+}
+
 export interface RoadGrading {
-  /** Ribbons split where they would cross a cliff, so no road is drawn down a cliff face. */
+  /** Ribbons split where they would cross a cliff, so no road is drawn down a cliff face, and where stairs begin. */
   ribbons: RoadRibbon[];
+  stairs: RoadStairs[];
   /** Where a road met a cliff and was stopped. */
   cliffBreaks: Point[];
+  /** Height of the road surface within a road's width, or null off every road. */
+  roadAt(point: Point): number | null;
   /** The graded height at a point, given the ungraded terrain height there. */
   apply(point: Point, terrain: number): number;
   /** True when a triangle is too coarse to follow a corridor that departs from the terrain. */
   needsRefinement(triangle: readonly Point[]): boolean;
 }
+
+/**
+ * Steepest climb a ribbon may take: people on foot may take steps; carts stay within their grade, except in a stepped
+ * (terraced) town, where every street climbs the retaining walls as stairs rather than cutting through them.
+ */
+const climbLimit = (ribbon: RoadRibbon, stepped: boolean) =>
+  ribbon.connectsLevels || ((ribbon.gradeClass ?? "cart") === "cart" && !stepped) ? MAX_ROAD_GRADE.cart : STAIR_GRADE;
 
 const key = (point: Point) => `${Math.round(point[0] * 100)},${Math.round(point[1] * 100)}`;
 const binKey = (x: number, y: number) => `${x},${y}`;
@@ -164,13 +190,15 @@ function limitedEnvelope(links: readonly Link[][], z: readonly number[], sign: 1
  * than the road's grade class. Ribbons stop where they would cross between levels separated by a cliff.
  * Pinned nodes (platform summits) keep the terrain height, so a ramp is built as fill outside the platform.
  * Ribbons that connect levels (castle ramps) are never stopped; their nodes follow `deckAt` and grade no ground.
+ * Wherever a lane, a path, or in a `stepped` town any street, must climb faster than it can walk, it becomes stairs.
  */
 export function gradeRoads(
   ribbons: readonly RoadRibbon[],
   terrainAt: (point: Point) => number,
   levelAt: (point: Point) => string | null,
   pinnedAt: (point: Point) => boolean = () => false,
-  deckAt: (point: Point) => number | null = () => null
+  deckAt: (point: Point) => number | null = () => null,
+  stepped = false
 ): RoadGrading {
   const points: Point[] = [];
   const levels: Array<string | null> = [];
@@ -196,19 +224,19 @@ export function gradeRoads(
     links[j].push({ to: i, length, grade });
   };
 
-  const graded: RoadRibbon[] = [];
+  const pieces: Array<{ ribbon: number; nodes: number[] }> = [];
   const cliffBreaks: Point[] = [];
   const edges: Array<{ i: number; j: number; halfWidth: number; ribbon: number }> = [];
   const ends: Array<{ i: number; ribbon: number }> = [];
   ribbons.forEach((ribbon, r) => {
     if (ribbon.centerline.length < 2) return;
-    const grade = MAX_ROAD_GRADE[ribbon.gradeClass ?? "cart"];
+    const grade = climbLimit(ribbon, stepped);
     const samples = resample(ribbon.centerline).map(node);
     if (ribbon.connectsLevels) for (const i of samples) onDeck.add(i);
     let piece: number[] = [];
     const flush = () => {
       if (piece.length >= 2) {
-        graded.push({ ...ribbon, centerline: piece.map(i => points[i]) });
+        pieces.push({ ribbon: r, nodes: piece });
         ends.push({ i: piece[0], ribbon: r }, { i: piece[piece.length - 1], ribbon: r });
       }
       piece = [];
@@ -247,10 +275,7 @@ export function gradeRoads(
       if (host.ribbon === end.ribbon || levels[host.i] !== levels[end.i]) continue;
       const hit = nearestOnSegment(points[end.i], host.a, host.b);
       if (hit.distance > host.halfWidth + ATTACH_SLACK_METERS || (best && hit.distance >= best.distance)) continue;
-      const grade = Math.min(
-        MAX_ROAD_GRADE[ribbons[host.ribbon].gradeClass ?? "cart"],
-        MAX_ROAD_GRADE[ribbons[end.ribbon].gradeClass ?? "cart"]
-      );
+      const grade = Math.min(climbLimit(ribbons[host.ribbon], stepped), climbLimit(ribbons[end.ribbon], stepped));
       best = { node: hit.t < 0.5 ? host.i : host.j, distance: hit.distance, grade };
     }
     if (best) link(end.i, best.node, best.grade);
@@ -281,6 +306,12 @@ export function gradeRoads(
   for (let i = 0; i < z.length; i++) {
     const mid = (above[i] + below[i]) / 2;
     z[i] = Math.min(ceiling[i], Math.max(floor[i], mid));
+  }
+  // A terraced town is never cut into: every street climbs on steps or ramps built out from the retaining walls,
+  // which is the lowest grade-limited profile that stays on or above the terraces.
+  if (stepped) {
+    const built = limitedEnvelope(links, targets, 1);
+    for (let i = 0; i < z.length; i++) z[i] = built[i];
   }
 
   // A ramp deck carries its road; only roads on the ground grade the ground.
@@ -316,10 +347,56 @@ export function gradeRoads(
     corridor => corridor.reach
   );
 
+  // Lanes and paths steeper than they could walk as a slope become stairs, and their ribbons end there.
+  const graded: RoadRibbon[] = [];
+  const stairs: RoadStairs[] = [];
+  for (const { ribbon: r, nodes } of pieces) {
+    const ribbon = ribbons[r];
+    const walk = MAX_ROAD_GRADE[ribbon.gradeClass ?? "cart"];
+    const steep = (i: number, j: number) =>
+      climbLimit(ribbon, stepped) > walk &&
+      Math.abs(z[i] - z[j]) > walk * Math.hypot(points[i][0] - points[j][0], points[i][1] - points[j][1]) + 1e-6;
+    let run: number[] = [nodes[0]],
+      inStairs = false;
+    const close = () => {
+      if (run.length >= 2) {
+        if (inStairs)
+          stairs.push({
+            centerline: run.map(i => points[i]),
+            elevations: run.map(i => z[i]),
+            widthMeters: ribbon.widthMeters
+          });
+        else graded.push({ ...ribbon, centerline: run.map(i => points[i]) });
+      }
+    };
+    for (let k = 1; k < nodes.length; k++) {
+      const isStair = steep(nodes[k - 1], nodes[k]);
+      if (isStair !== inStairs) {
+        close();
+        run = [nodes[k - 1]];
+        inStairs = isStair;
+      }
+      run.push(nodes[k]);
+    }
+    close();
+  }
+
   return {
     ribbons: graded,
+    stairs,
     cliffBreaks,
+    roadAt(point) {
+      let best: { corridor: Corridor; slack: number; t: number } | null = null;
+      for (const corridor of bins.at(point)) {
+        const hit = nearestOnSegment(point, corridor.a, corridor.b);
+        const slack = hit.distance - corridor.halfWidth;
+        if (slack <= 0 && (!best || slack < best.slack)) best = { corridor, slack, t: hit.t };
+      }
+      return best ? best.corridor.za + (best.corridor.zb - best.corridor.za) * best.t : null;
+    },
     apply(point, terrain) {
+      // Steps and ramps in a terraced town stand on the terraces; the ground itself is left as levelled.
+      if (stepped) return terrain;
       let best: { corridor: Corridor; slack: number; t: number } | null = null;
       for (const corridor of bins.at(point)) {
         const hit = nearestOnSegment(point, corridor.a, corridor.b);
@@ -337,6 +414,7 @@ export function gradeRoads(
       return Math.max(road - rise, Math.min(road + rise, terrain));
     },
     needsRefinement(triangle) {
+      if (stepped) return false;
       let longest = 0;
       for (let k = 0; k < 3; k++) {
         const a = triangle[k],

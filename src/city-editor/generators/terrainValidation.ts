@@ -31,6 +31,7 @@ export function validateTerrainLayer(document: CityDocument): string[] {
       typeof feature.id === "string" &&
       !ids.has(feature.id) &&
       (feature.ownerId === undefined || typeof feature.ownerId === "string") &&
+      (feature.role === undefined || (feature.role === "terrace" && feature.edge?.kind === "cliff")) &&
       summit?.kind === "faces" &&
       Array.isArray(summit.faceIds) &&
       summit.faceIds.length > 0 &&
