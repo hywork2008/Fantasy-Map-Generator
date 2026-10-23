@@ -185,7 +185,7 @@ describe("shared BV city instances", () => {
     const layer = createTownSpecialBuildings(city, parts, cache);
     expect([...layer.replaced].sort()).toEqual(["temple:b:apse", "temple:b:nave"]);
     const mesh = layer.pickables[0];
-    expect(mesh.name).toBe("basilica-temple-instances");
+    expect(mesh.name).toBe("basilica-temple:low-instances");
     mesh.updateMatrixWorld(true);
     mesh.computeBoundingBox();
     const bounds = mesh.boundingBox!;

@@ -38,7 +38,7 @@ import { mountCity3d } from "../renderers/cityView";
 import { clearRenderDerivedCaches } from "../renderers/derivedCaches";
 import type { GridOverlay } from "../renderers/overlays/editorOverlays";
 import { SHIP_SPECS } from "../renderers/shipSpecifications";
-import { readMaxPatchesPreference } from "../services/browserPreferences";
+import { readMaxPatchesPreference, readModelQualityPreference } from "../services/browserPreferences";
 import { beginEditorMount } from "../services/editorLifetime";
 import { type ImportedCityMap, pickCityMap } from "../services/io/cityEditorFile";
 import { type CityEditorShare, readIncomingCity } from "../services/io/incomingCity";
@@ -1905,6 +1905,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     get select() {
       return select;
     },
+    get syncCity3d() {
+      return syncCity3d;
+    },
     get documents() {
       return documents;
     },
@@ -2523,7 +2526,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     canvasHost: canvas,
     map,
     scope,
-    getDocument: () => documents.documentState
+    getDocument: () => documents.documentState,
+    getModelQuality: readModelQualityPreference
   });
   syncCity3d = () => city3d.sync();
   scope.own(() => city3d.dispose());

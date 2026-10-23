@@ -1,7 +1,8 @@
 import * as THREE from "three";
 import { buildingAppearanceProfile, normalizeBuildingAppearanceContext } from "../../buildings/appearance/resolver";
 import { models as churches } from "../../buildings/medieval/14-parish-churchesModels";
-import { createBasilicaTemple } from "../../buildings/temples/basilicaTemple";
+import { type ModelQuality, resolveModelQuality } from "../../buildings/modelQuality";
+import { BASILICA_QUALITIES, createBasilicaTemple } from "../../buildings/temples/basilicaTemple";
 import { templeFootprintMeters } from "../../city-editor/generators/housing";
 import { townExtentMeters } from "../../city-editor/generators/settlementExtent";
 import { BASILICA_LENGTH, BASILICA_ORIGIN_X, BASILICA_WIDTH } from "../../city-editor/renderers/structureMassing";
@@ -12,7 +13,10 @@ import { fitBvBuilding } from "./bvPlacement";
 
 export const CE_CHAPEL = churches[1];
 /** The detailed basilica shares the catalogue record's plan frame, so it maps onto CE with the same transform. */
-export const CE_BASILICA = { id: "basilica-temple", create: () => createBasilicaTemple("high") };
+export const CE_BASILICAS = {
+  high: { id: "basilica-temple:high", create: () => createBasilicaTemple("high") },
+  low: { id: "basilica-temple:low", create: () => createBasilicaTemple("low") }
+} as const;
 const PERIODS = new Set([
   "earlyMedieval",
   "highMedieval",
@@ -26,7 +30,8 @@ const PERIODS = new Set([
 export function createTownSpecialBuildings(
   city: CityDocument,
   structures: readonly StructureMassing[],
-  cache: BvPrototypeCache
+  cache: BvPrototypeCache,
+  quality: ModelQuality = "standard"
 ) {
   const context =
     city.buildingAppearanceContext ??
@@ -92,7 +97,12 @@ export function createTownSpecialBuildings(
       .multiply(new THREE.Matrix4().makeTranslation(-BASILICA_ORIGIN_X, 0, 0));
     const id = `temple:${element.id}`;
     parts.set(id, own);
-    sites.push({ id, definition: CE_BASILICA, matrix, structure: own[0] });
+    sites.push({
+      id,
+      definition: CE_BASILICAS[resolveModelQuality(quality, BASILICA_QUALITIES)],
+      matrix,
+      structure: own[0]
+    });
   }
   const layer = createBvInstances(sites, cache);
   prototype?.release();

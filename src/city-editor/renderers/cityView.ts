@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import type { ModelQuality } from "../../buildings/modelQuality";
 import { buildingSurfaces } from "../../city3d/core/massingGeometry";
 import { structureSurfaces } from "../../city3d/core/structureGeometry";
 import { createTownBuildingDetails, type TownBuildingDetails } from "../../city3d/three/buildingDetails";
@@ -107,6 +108,8 @@ export function mountCity3d(options: {
   map: HTMLElement;
   scope: Mount;
   getDocument: () => CityDocument;
+  /** Requested detailed-model quality; each model falls back to the tiers it ships. */
+  getModelQuality?: () => ModelQuality;
 }): { sync(): void; dispose(): void } {
   const viewport = document.createElement("div");
   viewport.className = "ce-3d";
@@ -152,6 +155,7 @@ export function mountCity3d(options: {
   let terrainStamp: string | null = null;
   let highlight: THREE.LineSegments | null = null;
   let built: DistrictFabric | null = null;
+  let builtQuality: ModelQuality | null = null;
   let framedRadius = 0;
   let running = false;
   let raf = 0;
@@ -250,7 +254,12 @@ export function mountCity3d(options: {
     outline(positions);
   };
 
-  const rebuild = (city: CityDocument, fabric: DistrictFabric, allowColorUpdate = false) => {
+  const rebuild = (
+    city: CityDocument,
+    fabric: DistrictFabric,
+    allowColorUpdate = false,
+    quality: ModelQuality = "standard"
+  ) => {
     if (!scene) return;
     clearHighlight();
     readout.hidden = true;
@@ -258,7 +267,8 @@ export function mountCity3d(options: {
     const nextHouses = createTownRegionalHouses(
       fabric.buildings,
       bvPrototypes,
-      terrain?.relief ? terrain.foundationAt : undefined
+      terrain?.relief ? terrain.foundationAt : undefined,
+      quality
     );
     if (regionalHouses) {
       scene.remove(regionalHouses.group);
@@ -289,7 +299,7 @@ export function mountCity3d(options: {
       ? [...groundStructures(parts, terrain), ...lotFoundations(fabric.buildings, terrain)]
       : parts;
     // Acquire the next layer before releasing the old one, so prototypes survive refreshes.
-    const nextSpecial = createTownSpecialBuildings(city, grounded, bvPrototypes);
+    const nextSpecial = createTownSpecialBuildings(city, grounded, bvPrototypes, quality);
     if (specialBuildings) {
       scene.remove(specialBuildings.group);
       specialBuildings.dispose();
@@ -377,10 +387,11 @@ export function mountCity3d(options: {
     }
     // Fabric first: lane geometry is part of the road stamp.
     const fabric = buildBlockFabric(city);
+    const quality = options.getModelQuality?.() ?? "standard";
     const stamp = townWaterStamp(city);
     const roads = townRoadStamp(city, fabric.lanes);
     const plan = planCity3dRefresh({
-      fabricChanged: fabric !== built || terrainChanged,
+      fabricChanged: fabric !== built || terrainChanged || quality !== builtQuality,
       stampChanged: terrainChanged || waterStampChanged(waterStamp, stamp, Boolean(scene.getObjectByName("ce-water"))),
       roadStampChanged:
         terrainChanged || roadStampChanged(roadStamp, roads, Boolean(scene.getObjectByName("ce-roads"))),
@@ -432,7 +443,8 @@ export function mountCity3d(options: {
     }
     if (plan.buildings) {
       built = fabric;
-      rebuild(city, fabric, !terrainChanged);
+      builtQuality = quality;
+      rebuild(city, fabric, !terrainChanged, quality);
     }
     if (plan.water) {
       placeWater(city);

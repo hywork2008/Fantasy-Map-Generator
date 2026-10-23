@@ -4,8 +4,10 @@ import {
   type BuildingAppearanceClimate,
   type BuildingAppearanceProfile
 } from "../../buildings/appearance/types";
+import { MODEL_QUALITIES, type ModelQuality } from "../../buildings/modelQuality";
 import { type EditorMessageKey, editorText } from "../../i18n/editorMessages";
 import { withBuildingAppearance } from "../generators/buildingAppearance";
+import { readModelQualityPreference, writeModelQualityPreference } from "../services/browserPreferences";
 import type { EditorLifetime } from "../services/editorLifetime";
 import type { CityDocument } from "../types/document";
 import { div, text } from "./editorControls";
@@ -17,6 +19,11 @@ const PROFILE_LABELS: Record<BuildingAppearanceProfile, EditorMessageKey> = {
   "northern-wooded": "cityEditor.messages.housingCultureNorthernWooded",
   "northern-urban": "cityEditor.messages.housingCultureNorthernUrban",
   "stone-upland": "cityEditor.messages.housingCultureStoneUpland"
+};
+const QUALITY_LABELS: Record<ModelQuality, EditorMessageKey> = {
+  low: "cityEditor.messages.modelQualityLow",
+  standard: "cityEditor.messages.modelQualityStandard",
+  high: "cityEditor.messages.modelQualityHigh"
 };
 const CLIMATE_LABELS: Record<BuildingAppearanceClimate, EditorMessageKey> = {
   temperate: "cityEditor.messages.housingClimateTemperate",
@@ -32,8 +39,14 @@ export function buildBuildingAppearanceControls(ctx: {
   updateDocument(next: CityDocument): void;
   select(values: string[], selected: string): HTMLSelectElement;
   label(value: string, control: HTMLElement): HTMLLabelElement;
+  /** 3D model quality is a viewer preference, not part of the document. */
+  modelQualityChanged(): void;
 }) {
   const root = div("ce-building-appearance-controls");
+  const quality = ctx.select([...MODEL_QUALITIES], readModelQualityPreference());
+  quality.className = "ce-model-quality";
+  quality.setAttribute("aria-label", editorText("cityEditor.messages.modelQuality"));
+  for (const option of quality.options) option.textContent = editorText(QUALITY_LABELS[option.value as ModelQuality]);
   const culture = ctx.select(["auto", ...BUILDING_APPEARANCE_PROFILES.filter(p => p !== "legacy"), "legacy"], "auto");
   culture.className = "ce-housing-culture";
   culture.setAttribute("aria-label", editorText("cityEditor.messages.housingCulture"));
@@ -53,6 +66,7 @@ export function buildBuildingAppearanceControls(ctx: {
         : CLIMATE_LABELS[option.value as BuildingAppearanceClimate]
     );
   root.append(
+    ctx.label(editorText("cityEditor.messages.modelQuality"), quality),
     ctx.label(editorText("cityEditor.messages.housingCulture"), culture),
     ctx.label(editorText("cityEditor.messages.housingClimate"), climate),
     text(editorText("cityEditor.messages.housingAppearanceHelp"))
@@ -66,6 +80,10 @@ export function buildBuildingAppearanceControls(ctx: {
     });
     ctx.updateDocument(next);
   };
+  ctx.scope.listen(quality, "change", () => {
+    writeModelQualityPreference(quality.value as ModelQuality);
+    ctx.modelQualityChanged();
+  });
   ctx.scope.listen(culture, "change", change);
   ctx.scope.listen(climate, "change", change);
   const sync = () => {

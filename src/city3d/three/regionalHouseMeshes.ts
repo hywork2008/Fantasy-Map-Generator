@@ -1,11 +1,14 @@
 import * as THREE from "three";
 import {
   createRegionalHouse,
+  REGIONAL_HOUSE_QUALITIES,
   REGIONAL_HOUSES,
   type RegionalCover,
+  type RegionalHouseQuality,
   type RegionalHouseSpec,
   regionalHouseSpecKey
 } from "../../buildings/houses/regionalHouses";
+import { type ModelQuality, resolveModelQuality } from "../../buildings/modelQuality";
 import type { BuildingLot } from "../../city-editor/generators/buildingLots.types";
 import type { Point } from "../../city-editor/types/primitives";
 import { growthRandom } from "../../utils/urbanMorphology";
@@ -13,11 +16,11 @@ import { type BvDefinition, type BvPlacement, type BvPrototypeCache, createBvIns
 
 // Prototypes are shared by every lot with the same spec; the cache disposes them with their last layer.
 const definitions = new Map<string, BvDefinition>();
-function definitionFor(spec: RegionalHouseSpec): BvDefinition {
-  const key = regionalHouseSpecKey(spec);
+function definitionFor(spec: RegionalHouseSpec, quality: RegionalHouseQuality): BvDefinition {
+  const key = `${regionalHouseSpecKey(spec)}|${quality}`;
   let definition = definitions.get(key);
   if (!definition) {
-    definition = { id: `regional-house:${key}`, create: () => createRegionalHouse(spec) };
+    definition = { id: `regional-house:${key}`, create: () => createRegionalHouse(spec, quality) };
     definitions.set(key, definition);
   }
   return definition;
@@ -57,7 +60,12 @@ export interface RegionalHouseSite extends BvPlacement {
  * Place the detailed regional house on every rectangular gable or hipped lot with a regional appearance.
  * Each lot keeps its own footprint, eave height, roof pitch, coverings and colours; other lots keep CE massing.
  */
-export function regionalHouseSite(lot: BuildingLot, lotIndex: number, elevation = 0): RegionalHouseSite | undefined {
+export function regionalHouseSite(
+  lot: BuildingLot,
+  lotIndex: number,
+  elevation = 0,
+  quality: ModelQuality = "standard"
+): RegionalHouseSite | undefined {
   const massing = lot.massing;
   const appearance = lot.appearance;
   if (!massing || !appearance || lot.landmark || appearance.profileId === "legacy") return;
@@ -126,17 +134,23 @@ export function regionalHouseSite(lot: BuildingLot, lotIndex: number, elevation 
     new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), angle),
     new THREE.Vector3(sx, sy, sz)
   );
-  return { id, lotIndex, definition: definitionFor(spec), matrix };
+  return {
+    id,
+    lotIndex,
+    definition: definitionFor(spec, resolveModelQuality(quality, REGIONAL_HOUSE_QUALITIES)),
+    matrix
+  };
 }
 
 export function createTownRegionalHouses(
   lots: readonly BuildingLot[],
   cache: BvPrototypeCache,
-  foundationAt?: (ring: Point[]) => number
+  foundationAt?: (ring: Point[]) => number,
+  quality: ModelQuality = "standard"
 ) {
   const sites: RegionalHouseSite[] = [];
   lots.forEach((lot, index) => {
-    const site = regionalHouseSite(lot, index, lot.massing ? (foundationAt?.(lot.polygon) ?? 0) : 0);
+    const site = regionalHouseSite(lot, index, lot.massing ? (foundationAt?.(lot.polygon) ?? 0) : 0, quality);
     if (site) sites.push(site);
   });
   const layer = createBvInstances(sites, cache);
