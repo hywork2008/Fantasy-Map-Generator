@@ -1,0 +1,144 @@
+{
+  "schemaVersion": 1,
+  "checkedDate": "2026-10-24",
+  "purpose": "historical research references and explicit arithmetic, not runtime coefficients",
+  "kgPerAvoirdupoisLb": 0.45359237,
+  "sources": {
+    "gibson1988": {
+      "url": "https://www.bahs.org.uk/AGHR/ARTICLES/36n2a4.pdf",
+      "locator": "pp.168,170",
+      "status": "research working estimates; extracted text checked, page images unavailable"
+    },
+    "biddick1989": {
+      "url": "https://publishing.cdlib.org/ucpressebooks/public/book/the-other-economy-pastoral-husbandry-on-a-medieval-estate.html",
+      "locator": "pp.121-125, pork estimate and note 8",
+      "status": "publisher HTML checked; underlying weight calculation unresolved"
+    },
+    "menagier1393": {
+      "url": "https://www.pbm.com/~lindahl/menagier/menagier5.html",
+      "locator": "Pichon 1846 pp.132-133",
+      "status": "original-language transcription"
+    },
+    "smith1753viaBrandau1983": {
+      "url": "https://research.colonialwilliamsburg.org/DigitalLibrary/view/index.cfm?doc=ResearchReports%5CRR0031.xml",
+      "locator": "printed p.49, To Salt Bacon",
+      "status": "historical recipe transcribed in research report; original image not checked"
+    },
+    "fulton1900": {
+      "url": "https://www.gutenberg.org/cache/epub/32414/pg32414-images.html",
+      "locator": "ch.III pp.9-10; ch.V p.18",
+      "status": "later equipped farm comparison, not medieval labor calibration"
+    }
+  },
+  "ruminants": [
+    {
+      "source": "gibson1988",
+      "species": "Cattle",
+      "profile": "early-modern-unimproved-Scotland",
+      "cohortEligibility": null,
+      "lb": {
+        "carcass": 310,
+        "flesh": 242,
+        "lean": 206,
+        "edibleFat": 36
+      },
+      "kg": {
+        "carcass": 140.6136347,
+        "flesh": 109.76935354000001,
+        "lean": 93.44002822,
+        "edibleFat": 16.329325320000002
+      },
+      "derivedCarcassRemainderKg": 30.84428116,
+      "productionEnabled": false
+    },
+    {
+      "source": "gibson1988",
+      "species": "Sheep",
+      "profile": "early-modern-unimproved-Scotland",
+      "cohortEligibility": null,
+      "lb": {
+        "carcass": 30,
+        "flesh": 23.5,
+        "lean": 20,
+        "edibleFat": 3.5
+      },
+      "kg": {
+        "carcass": 13.6077711,
+        "flesh": 10.659420695,
+        "lean": 9.071847400000001,
+        "edibleFat": 1.587573295
+      },
+      "derivedCarcassRemainderKg": 2.9483504050000002,
+      "productionEnabled": false
+    }
+  ],
+  "pig": {
+    "source": "biddick1989",
+    "profile": "Peterborough-1309-1310",
+    "localHeads": 144,
+    "incomingHeads": 512,
+    "totalHeads": 656,
+    "estimatedDressedMeatLb": 42280,
+    "printedEstimatedKg": 19218.2,
+    "strictConvertedKg": 19177.8854036,
+    "derivedKgPerHead": 29.234581407926832,
+    "formula": "42280 * 0.45359237 / (144 + 512)",
+    "massBasis": "estimated dressed meat; inclusion of bone, skin and fat unresolved",
+    "productionEnabled": false
+  },
+  "curing": [
+    {
+      "source": "menagier1393",
+      "cut": "sheep quarters in Beziers",
+      "saltStageElapsedDays": [
+        8,
+        8
+      ],
+      "totalProcessDays": null
+    },
+    {
+      "source": "menagier1393",
+      "cut": "beef tongue",
+      "saltStageElapsedDays": [
+        8,
+        10
+      ],
+      "totalProcessDays": null
+    },
+    {
+      "source": "smith1753viaBrandau1983",
+      "profile": "18th-century-English-bacon-recipe",
+      "porkLb": 60,
+      "statedSaltLb": 10,
+      "statedSaltToMeatRatio": 0.16666666666666666,
+      "saltMassBasis": "stated recipe allocation, not net consumption or retained salt; later volume dose unresolved",
+      "sequentialElapsedDays": [
+        9,
+        9,
+        1,
+        21
+      ],
+      "derivedMinimumElapsedDays": 40,
+      "laborHours": null,
+      "productionEnabled": false
+    }
+  ],
+  "labor": {
+    "source": "fulton1900",
+    "workers": 2,
+    "heads": 12,
+    "elapsedMornings": 1,
+    "derivedWorkerMorningsPerHead": 0.16666666666666666,
+    "formula": "active worker-hours per head = H / 6 only if morning duration H hours is separately assumed",
+    "morningHours": null,
+    "scope": "equipment-assisted slaughter/dressing; excludes full cutting/preservation workflow",
+    "productionEnabled": false
+  },
+  "unknowns": [
+    "age-specific live and edible weights",
+    "net salt use and recovery",
+    "process-specific active labor and fuel",
+    "finished cured mass and spoilage",
+    "legacy Tallow and Leather conversion compatibility"
+  ]
+}
