@@ -219,20 +219,25 @@ describe("CE rural field integration", () => {
     expect(parseDocument(JSON.stringify({ ...document, ruralFieldSettings: { mode: "sync" } }))).toBeNull();
   });
 
-  it("uses the continuous terrain model and labels biome inference without inventing soil measurements", () => {
+  it("uses the cell terrain and labels biome inference without inventing soil measurements", () => {
     const document = city();
     document.ruralFieldVersion = 2;
     document.mesh.faces.f0.properties.elevation = 0;
-    document.mesh.faces.f1.properties.elevation = 200;
-    const suitability = ruralSuitability(document);
+    document.mesh.faces.f1.properties.elevation = 6;
+    // Beside the shared edge at x = 240.
     const polygon: Point[] = [
-      [200, 100],
-      [230, 100],
-      [230, 200],
-      [200, 200]
+      [225, 100],
+      [238, 100],
+      [238, 200],
+      [225, 200]
     ];
+    // A small step between cells is an earth bank, steep enough to keep the plough off.
+    const suitability = ruralSuitability(document);
     expect(suitability.steep(polygon)).toBe(true);
     expect(suitability.steepArea(polygon)).toBeGreaterThan(0);
+    // A large one is a retaining wall between two level fields.
+    document.mesh.faces.f1.properties.elevation = 200;
+    expect(ruralSuitability(document).steep(polygon)).toBe(false);
     document.biome = { id: 1, key: "wetland", name: "Wetland", color: "green" };
     expect(ruralSuitability(document).source).toBe("biome-estimate");
     expect(ruralSuitability(document).accepts("f0")).toBe(false);

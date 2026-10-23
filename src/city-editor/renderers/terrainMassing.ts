@@ -5,14 +5,30 @@ import type { CityTerrain } from "../generators/terrainElevation";
 import type { StructureMassing } from "../types/contracts/structureMassing";
 import type { Point } from "../types/document";
 
+/** The building a part belongs to, when several parts make one building (`temple:<element>:<part>`). */
+function multipartBuilding(id: string): string | null {
+  return /^temple:[^:]+:/.exec(id)?.[0] ?? null;
+}
+
 /** Horizontal building floors and vertical plinths absorb the terrain, never tilt buildings. */
 export function groundStructures(parts: StructureMassing[], terrain: CityTerrain): StructureMassing[] {
   if (!terrain.relief) return parts;
+  const skipped = (part: StructureMassing) =>
+    !!part.sections || part.id.startsWith("fort-site:") || part.id.includes(":krak:");
+  // A temple is one building in many parts: all stand on one floor, the highest any of them needs.
+  const buildingLevels = new Map<string, number>();
+  for (const part of parts) {
+    const building = multipartBuilding(part.id);
+    const ring = part.footprint ?? part.centerline ?? [];
+    if (!building || skipped(part) || !ring.length) continue;
+    buildingLevels.set(building, Math.max(buildingLevels.get(building) ?? -Infinity, terrain.foundationAt(ring)));
+  }
   return parts.flatMap(part => {
-    if (part.sections || part.id.startsWith("fort-site:") || part.id.includes(":krak:")) return [part];
+    if (skipped(part)) return [part];
     const ring = part.footprint ?? part.centerline ?? [];
     if (!ring.length) return [part];
-    const level = terrain.foundationAt(ring);
+    const building = multipartBuilding(part.id);
+    const level = (building ? buildingLevels.get(building) : undefined) ?? terrain.foundationAt(ring);
     const low = Math.min(...ring.map(terrain.heightAt));
     const raised = { ...part, baseElevationMeters: part.baseElevationMeters + level };
     if (level - low < 0.1 || part.kind === "bridge" || part.baseElevationMeters > 0) return [raised];

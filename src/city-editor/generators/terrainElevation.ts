@@ -2,6 +2,7 @@ import type { RoadRibbon } from "../../utils/roadSurface";
 import type { CityDocument, Face, Point } from "../types/document";
 import type { Id } from "../types/primitives";
 import type { CityTerrain, TerrainPatch as Patch, TerrainModel } from "../types/terrain";
+import { type CellRelief, cellRelief, faceLocator } from "./cellRelief";
 import { fortCircle } from "./fortSiteGeometry";
 import { fortSiteTerrainFeatures } from "./fortSiteTerrain";
 import { clipPolygonHalfPlane, nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "./geom";
@@ -46,30 +47,6 @@ export function cityTerrainModel(document: CityDocument): TerrainModel {
     : { base: { kind: "cells" }, features: document.terrain?.features ?? [], ramps: document.terrain?.ramps ?? [] };
 }
 
-/** The cell containing a point, through a grid of cell bounding boxes. */
-function faceLocator(document: CityDocument): (point: Point) => Id | null {
-  const size = Math.max(10, document.frame.blockSizeMeters || 50);
-  const bins = new Map<string, Array<{ id: Id; ring: Point[] }>>();
-  for (const face of Object.values(document.mesh.faces)) {
-    const ring = facePoints(document.mesh, face);
-    if (ring.length < 3) continue;
-    const xs = ring.map(p => p[0]),
-      ys = ring.map(p => p[1]);
-    for (let x = Math.floor(Math.min(...xs) / size); x <= Math.floor(Math.max(...xs) / size); x++)
-      for (let y = Math.floor(Math.min(...ys) / size); y <= Math.floor(Math.max(...ys) / size); y++) {
-        const key = `${x},${y}`;
-        const list = bins.get(key);
-        if (list) list.push({ id: face.id, ring });
-        else bins.set(key, [{ id: face.id, ring }]);
-      }
-  }
-  return point => {
-    for (const { id, ring } of bins.get(`${Math.floor(point[0] / size)},${Math.floor(point[1] / size)}`) ?? [])
-      if (pointInPolygon(point, ring)) return id;
-    return null;
-  };
-}
-
 /** Edges between the given cells and any other cell or the frame, oriented by their inward normal. */
 export function platformOutline(document: CityDocument, faceIds: readonly Id[]): OutlineSegment[] {
   const { mesh } = document;
@@ -103,61 +80,33 @@ interface BaseSurface {
   seeds: Array<{ face: Face; center: Point; patches: Patch[] }>;
 }
 
-/** Continuous shared-edge heights and cell-centre elevations, without altering the mesh. */
-function cellSurface(document: CityDocument): BaseSurface {
+/** Cell seed triangles; their heights come from `cellRelief`, which levels each cell and joins it to its neighbours. */
+function cellSurface(document: CityDocument, relief: CellRelief): BaseSurface {
   const faces = Object.values(document.mesh.faces).filter(
     face => face.properties.water === "land" && Number.isFinite(face.properties.elevation)
   );
-  const elevations = faces.map(face => face.properties.elevation);
-  const datumMeters = elevations.length ? Math.min(...elevations) : 1;
-  const relief = elevations.some(height => Math.abs(height - datumMeters) > 1e-6);
-  const sums = new Map<string, { sum: number; count: number }>();
-  for (const face of faces)
-    for (const id of faceVertices(document.mesh, face)) {
-      const entry = sums.get(id) ?? { sum: 0, count: 0 };
-      entry.sum += face.properties.elevation - datumMeters;
-      entry.count++;
-      sums.set(id, entry);
-    }
   const seeds: BaseSurface["seeds"] = [];
   for (const face of faces) {
-    const ids = faceVertices(document.mesh, face);
-    const points = ids.map(id => document.mesh.vertices[id].point);
+    const points = faceVertices(document.mesh, face).map(id => document.mesh.vertices[id].point);
     if (points.length < 3) continue;
-    const heights = ids.map(id => {
-      const entry = sums.get(id)!;
-      return entry.sum / entry.count;
-    });
     const center = polygonCentroid(points);
     const patches: Patch[] = [];
-    const add = (patch: Patch) => {
-      if (Math.abs(cross(...patch.points)) >= 1e-8) patches.push(patch);
+    const add = (tri: [Point, Point, Point]) => {
+      if (Math.abs(cross(...tri)) >= 1e-8) patches.push({ faceId: face.id, points: tri, heights: [0, 0, 0] });
     };
     const signs = points
       .map((point, i) => Math.sign(cross(center, point, points[(i + 1) % points.length])))
       .filter(sign => sign !== 0);
-    if (signs.every(sign => sign === signs[0])) {
+    if (signs.every(sign => sign === signs[0]))
       points.forEach((point, i) => {
-        add({
-          faceId: face.id,
-          points: [center, point, points[(i + 1) % points.length]],
-          heights: [face.properties.elevation - datumMeters, heights[i], heights[(i + 1) % points.length]]
-        });
+        add([center, point, points[(i + 1) % points.length]]);
       });
-    } else {
+    else
       for (const part of triangularInfillParts(points))
-        for (let i = 1; i < part.length - 1; i++) {
-          const tri: [Point, Point, Point] = [part[0], part[i], part[i + 1]];
-          add({
-            faceId: face.id,
-            points: tri,
-            heights: tri.map(point => heights[points.indexOf(point)]) as Patch["heights"]
-          });
-        }
-    }
+        for (let i = 1; i < part.length - 1; i++) add([part[0], part[i], part[i + 1]]);
     seeds.push({ face, center, patches });
   }
-  return { datumMeters, relief, seeds };
+  return { datumMeters: relief.datumMeters, relief: relief.relief, seeds };
 }
 
 /** Level ground under every face, fanned from the original convex cell centres. */
@@ -229,7 +178,8 @@ function gradedPatches(
   seeds: BaseSurface["seeds"],
   features: readonly ResolvedTerrainFeature[],
   heightAt: (point: Point) => number,
-  needsRefinement: (triangle: readonly Point[]) => boolean = () => false
+  needsRefinement: (triangle: readonly Point[]) => boolean = () => false,
+  cells?: CellRelief
 ): Patch[] {
   const blockSize = document.frame.blockSizeMeters;
   const foci = terrainFeatureFoci(features);
@@ -238,9 +188,16 @@ function gradedPatches(
     radius: circle.radiusMeters,
     ring: fortCircle(circle.center, circle.radiusMeters)
   }));
-  const creases = terrainFeatureCreases(features).map(({ segment, offsetMeters }) => ({
-    origin: [segment.a[0] + segment.inward[0] * offsetMeters, segment.a[1] + segment.inward[1] * offsetMeters] as Point,
-    normal: segment.inward,
+  const creases = [
+    ...terrainFeatureCreases(features).map(({ segment, offsetMeters }) => ({
+      segment,
+      normal: segment.inward,
+      offsetMeters
+    })),
+    ...(cells?.creases ?? [])
+  ].map(({ segment, normal, offsetMeters }) => ({
+    origin: [segment.a[0] + normal[0] * offsetMeters, segment.a[1] + normal[1] * offsetMeters] as Point,
+    normal,
     reach: Math.abs(offsetMeters) + 1e-6,
     minX: Math.min(segment.a[0], segment.b[0]),
     maxX: Math.max(segment.a[0], segment.b[0]),
@@ -259,7 +216,12 @@ function gradedPatches(
     // corridor, then only where the graded ground still departs from the flat triangle.
     // A cliff or retaining-wall face is drawn as one near-vertical sheet; splitting it never makes it flatter.
     // Corner pieces of the face at a reflex corner reach into it only with a vertex.
-    const escarpment = [polygonCentroid(points), ...points].some(point => onTerrainEscarpment(features, faceId, point));
+    // A band covered by a higher platform is not a face of its own.
+    const escarpment =
+      Math.max(...heights) - Math.min(...heights) > 0.01 &&
+      [polygonCentroid(points), ...points].some(
+        point => onTerrainEscarpment(features, faceId, point) || !!cells?.onWall(faceId, point)
+      );
     const longest = Math.max(
       ...points.map((p, k) => Math.hypot(p[0] - points[(k + 1) % 3][0], p[1] - points[(k + 1) % 3][1]))
     );
@@ -357,13 +319,16 @@ function gradedPatches(
  */
 export function cityTerrain(document: CityDocument, options: { roads?: readonly RoadRibbon[] } = {}): CityTerrain {
   const model = cityTerrainModel(document);
+  const locate = faceLocator(document);
   const features = resolveTerrainFeatures(
     model.features,
     faceIds => platformOutline(document, faceIds),
-    model.features.length ? faceLocator(document) : undefined
+    model.features.length ? locate : undefined
   );
-  const surface =
-    model.base.kind === "flat" ? flatSurface(document, model.base.elevationMeters) : cellSurface(document);
+  const cells = model.base.kind === "cells" ? cellRelief(document, locate) : undefined;
+  const surface = cells
+    ? cellSurface(document, cells)
+    : flatSurface(document, (model.base as { elevationMeters: number }).elevationMeters);
   const { datumMeters } = surface;
   const { ramps } = model;
   const relief = surface.relief || features.length > 0 || ramps.length > 0;
@@ -372,7 +337,7 @@ export function cityTerrain(document: CityDocument, options: { roads?: readonly 
     surface.seeds.flatMap(seed => seed.patches),
     step
   );
-  const baseAt = (point: Point) => (model.base.kind === "flat" ? 0 : base.interpolate(point));
+  const baseAt = (point: Point) => cells?.heightAt(point) ?? 0;
   const groundAt = (point: Point): number => {
     if (!relief) return 0;
     if (!features.length) return baseAt(point);
@@ -390,13 +355,16 @@ export function cityTerrain(document: CityDocument, options: { roads?: readonly 
           point => terrainLevelAt(features, point),
           point => onPlatformSummit(features, point),
           deckAt,
-          features.some(feature => feature.kind === "platform" && feature.role === "terrace")
+          features.some(feature => feature.kind === "platform" && feature.role === "terrace") || !!cells?.walled
         )
       : null;
   const heightAt = grading ? (point: Point) => grading.apply(point, groundAt(point)) : groundAt;
   const graded =
-    features.length || grading
-      ? new PatchIndex(gradedPatches(document, surface.seeds, features, heightAt, grading?.needsRefinement), step)
+    features.length || grading || surface.relief
+      ? new PatchIndex(
+          gradedPatches(document, surface.seeds, features, heightAt, grading?.needsRefinement, cells),
+          step
+        )
       : base;
   return {
     datumMeters,

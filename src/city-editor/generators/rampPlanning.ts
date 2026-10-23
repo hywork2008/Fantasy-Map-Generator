@@ -347,34 +347,53 @@ export function planPlatformRamp(
   if (platform.levelMeters - ground(outside) < MIN_RISE_METERS) return "no-rise";
 
   // Top down: landing, then runs along the cliff, each further out and turning back on the one above.
+  // Lay the runs out long enough to reach the lowest ground of the town, then end the ramp where its deck, falling
+  // at the ramp grade from the landing, first comes down to the ground across its whole width.
   const build = (direction: 1 | -1, runLimit: number) => {
-    let required = (platform.levelMeters - ground(outside)) / RAMP_GRADE;
-    let path: Point[] = [];
-    for (let attempt = 0; attempt < 12; attempt++) {
-      path = [outside];
-      let remaining = required,
-        u = located.u,
-        heading = direction;
-      for (let run = 0; run < MAX_RUNS && remaining > 1e-6; run++) {
-        if (run > 0) {
-          const turn = atParameter(rings[run], u);
-          remaining -= len(sub(turn, path[path.length - 1]));
-          path.push(turn);
-          if (remaining <= 0) break;
-        }
-        const leg = walk(rings[run], u, heading, Math.min(runLimit, remaining));
-        path.push(...leg.points.slice(1));
-        remaining -= Math.min(runLimit, remaining);
-        u = leg.end;
-        heading = heading > 0 ? -1 : 1;
+    let remaining = (platform.levelMeters - terrain.datumMeters) / RAMP_GRADE + RAMP_WIDTH_METERS;
+    const route: Point[] = [outside];
+    let u = located.u,
+      heading = direction;
+    for (let run = 0; run < MAX_RUNS && remaining > 1e-6; run++) {
+      if (run > 0) {
+        const turn = atParameter(rings[run], u);
+        remaining -= len(sub(turn, route[route.length - 1]));
+        route.push(turn);
+        if (remaining <= 0) break;
       }
-      if (remaining > 1e-6) return null;
-      const foot = path[path.length - 1];
-      const next = (platform.levelMeters - ground(foot)) / RAMP_GRADE;
-      if (Math.abs(next - required) < 0.05) break;
-      required = next;
+      const leg = walk(rings[run], u, heading, Math.min(runLimit, remaining));
+      route.push(...leg.points.slice(1));
+      remaining -= Math.min(runLimit, remaining);
+      u = leg.end;
+      heading = heading > 0 ? -1 : 1;
     }
-    return path;
+    const path: Point[] = [route[0]];
+    let along = 0;
+    for (let i = 1; i < route.length; i++) {
+      const a = route[i - 1],
+        b = route[i];
+      const d = sub(b, a),
+        length = len(d);
+      if (length < 1e-9) continue;
+      const normal: Point = [-d[1] / length, d[0] / length];
+      for (let k = 1; k <= Math.ceil(length); k++) {
+        const s = Math.min(length, k);
+        const center = lerp(a, b, s / length);
+        const deck = platform.levelMeters - RAMP_GRADE * (along + s);
+        const highest = Math.max(
+          ...[-1, 0, 1].map(side =>
+            ground([center[0] + normal[0] * side * halfWidth, center[1] + normal[1] * side * halfWidth])
+          )
+        );
+        if (deck <= highest + 0.05) {
+          path.push(center);
+          return path;
+        }
+      }
+      path.push(b);
+      along += length;
+    }
+    return null;
   };
 
   let best: { line: Point[]; levels: number[]; score: number } | null = null;
@@ -385,12 +404,12 @@ export function planPlatformRamp(
       const path = build(direction, runLimit);
       if (!path || path.length < 2 || !fits(path, halfWidth) || selfOverlaps(path)) continue;
       const total = polylineLength(path);
-      // Deck levels fall at the ramp grade from the landing; the foot meets the ground.
+      // Deck levels fall at the ramp grade from the landing until the foot meets the ground.
       const levels: number[] = [];
       let along = 0;
       path.forEach((point, i) => {
         if (i) along += len(sub(point, path[i - 1]));
-        levels.push(platform.levelMeters - (platform.levelMeters - ground(path[path.length - 1])) * (along / total));
+        levels.push(platform.levelMeters - RAMP_GRADE * along);
       });
       if (!withinGrade(path, levels) || sinks(path, levels, halfWidth, ground)) continue;
       const foot = path[path.length - 1];

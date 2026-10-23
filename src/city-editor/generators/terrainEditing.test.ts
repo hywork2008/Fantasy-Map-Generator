@@ -27,6 +27,19 @@ const study = () => {
   return { doc, castle, faceIds, top };
 };
 
+/** The study levelled to one elevation, so roads are graded into the ground rather than stepped over walls. */
+const flatStudy = () => {
+  const { doc, castle, faceIds } = study();
+  const base = Math.min(
+    ...Object.values(doc.mesh.faces)
+      .filter(face => face.properties.water === "land")
+      .map(face => face.properties.elevation)
+  );
+  for (const face of Object.values(doc.mesh.faces))
+    if (face.properties.water === "land") face.properties.elevation = base;
+  return { doc, castle, faceIds, top: base + 12 };
+};
+
 /** Midpoints of edges between platform cells and other cells, with the normal into the platform. */
 function rim(doc: CityDocument, faceIds: string[]) {
   const set = new Set(faceIds);
@@ -69,7 +82,7 @@ describe("castle platform", () => {
     meshes.dispose();
   });
   it("runs an earth slope outside the cells, survives saving and goes with its castle", () => {
-    const { doc, castle, faceIds, top } = study();
+    const { doc, castle, faceIds, top } = flatStudy();
     const next = setCastlePlatform(doc, castle.id, { levelMeters: top, edge: { kind: "slope", runMeters: 20 } })!;
     const terrain = cityTerrain(next),
       level = top - terrain.datumMeters;
@@ -139,7 +152,7 @@ describe("graded roads over a castle platform", () => {
       return out;
     });
   it("ramps the gate road up an earth slope within the cart grade, level across its width", () => {
-    const { doc, castle, top } = study();
+    const { doc, castle, top } = flatStudy();
     const next = setCastlePlatform(doc, castle.id, { levelMeters: top, edge: { kind: "slope", runMeters: 20 } })!;
     const roads = collectTownRoads(next, []);
     expect(roads.length).toBeGreaterThan(0);
@@ -181,7 +194,10 @@ describe("castle ramp up a cliff", () => {
     expect(ramp.elevationsMeters.at(-1)).toBeCloseTo(top, 6);
     const terrain = cityTerrain(next);
     const foot = ramp.centerline[0];
-    expect(ramp.elevationsMeters[0]).toBeCloseTo(terrain.heightAt(foot) + terrain.datumMeters, 1);
+    // The foot comes down to the ground across the ramp's width, so its centre may stand a little above a bank.
+    const footGround = terrain.heightAt(foot) + terrain.datumMeters;
+    expect(ramp.elevationsMeters[0]).toBeGreaterThanOrEqual(footGround - 0.05);
+    expect(ramp.elevationsMeters[0]).toBeLessThan(footGround + 1);
     for (let i = 1; i < ramp.centerline.length; i++) {
       const run = Math.hypot(
         ramp.centerline[i][0] - ramp.centerline[i - 1][0],
