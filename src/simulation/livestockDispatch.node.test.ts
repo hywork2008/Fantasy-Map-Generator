@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import { expect, it } from "vitest";
 import { getLivestockDispatchTable } from "../extensions/economy/context/cellTables";
 import { getGoods, getMarkets } from "../extensions/economy/context/trade";
+import { getLivestockLotLedger } from "../extensions/economy/generators/livestockLots";
 import { advanceWorld, createNodeSimulationHost, loadWorld } from "./adapters/node";
 
 it("preserves live dispatch, herds and market stocks across a mid-cycle archive reload", async () => {
@@ -23,12 +24,17 @@ it("preserves live dispatch, herds and market stocks across a mid-cycle archive 
         expect(Object.values(getLivestockDispatchTable()!).every(row => !row.observation)).toBe(true);
       }
       await advanceWorld(host, { days: 30 });
+      const ledger = getLivestockLotLedger();
+      expect(ledger).not.toBeNull();
+      expect(Object.keys(ledger!.exits).length).toBeGreaterThan(0);
+      expect(Object.values(ledger!.lots).every(lot => Number.isFinite(lot.heads) && lot.heads >= 0)).toBe(true);
       const economy = host.simulation.extensions?.economy as Record<string, unknown>;
       const liveIds = getGoods()
         .filter(good => good.tags.includes("liveAnimal"))
         .map(good => good.i);
       return JSON.parse(
         JSON.stringify({
+          lots: economy.livestockLots,
           dispatch: economy.livestockDispatch,
           herds: economy.faunaStock,
           phases: economy.cadencePhases,

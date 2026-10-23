@@ -21,7 +21,7 @@ import {
 import { setEconomyCalibrationState } from "../store/economyCalibrationState";
 import { MONEY_PRICE_CEILING, MONEY_PRICE_FLOOR } from "./currencySufficiency";
 import { DEMAND_TARGET_FACTORS, type Good, Goods } from "./goods-generator";
-import { setGoodFlowObserver } from "./goodsBalanceLedger";
+import { type GoodFlowRecord, setGoodFlowObserver } from "./goodsBalanceLedger";
 import {
   getCommercialRecipeByproducts,
   isWartimeImportDemandGood,
@@ -261,6 +261,25 @@ describe("MarketsModule", () => {
       expect(deal!.units * deal!.price).toBeLessThanOrEqual(15);
       expect(market1.goods[0].stock).toBeCloseTo(100 - 1.36, 2);
       expect(market1.marketTreasury?.balance).toBeCloseTo(deal!.units * deal!.price, 2);
+    });
+
+    it("records an explicit live buyer and rejects assigning recipe inputs as live property", () => {
+      const good = { ...getGoods()[0], name: "Pig", tags: ["liveAnimal", "food"] };
+      setGoods([good]);
+      const market: Market = { i: 1, centerBurgId: 1, color: "", goods: { [good.i]: { stock: 2, price: 1 } } };
+      setMarkets([market]);
+      marketsModule.sync();
+      const burg = { i: 1, market: 1 } as Burg;
+      const flows: GoodFlowRecord[] = [];
+      setGoodFlowObserver(flow => flows.push(flow));
+      expect(
+        marketsModule.buy({ burg, good, units: 1, liveBuyerId: "burg:1", flow: { category: "recipeInput" } })
+      ).toBeNull();
+      expect(market.goods[good.i].stock).toBe(2);
+      expect(marketsModule.buy({ burg, good, units: 1, liveBuyerId: "burg:1" })).not.toBeNull();
+      expect(flows.at(-1)?.livestockBuyerId).toBe("burg:1");
+      expect(market.goods[good.i].stock).toBe(1);
+      setGoodFlowObserver(null);
     });
 
     it("buy() should return null if units floor below 0.01 due to low budget", () => {

@@ -104,3 +104,15 @@ node --import tsx scripts/summarizeEconomyE1.mts docs/analytics/economy-e1-feed-
 | economy-e1-dispatch-final-province-101-20261024.json | 2553395 | `bc50ebd310429255fc9dc034af785122d91fd9e82eac85c4b5451a750588f43b` |
 
 再生成は`node --import tsx scripts/auditWoolSupply.mts <固定入力.fmg> <上記raw出力> 12`。固定入力は`docs/analytics/inputs/salt-s0-aligned-20261023/`の同名World/Province。比較は`scripts/summarizeEconomyE1.mts`に前回calendar-finalと今回dispatch-finalのWorld/Province計4出力を渡す。
+
+## E1 生体由来lot台帳（同日追補）
+
+[比較JSON](economy-e1-live-lots-comparison-20261024.json)。Province101のみ12か月。前回dispatch-finalの初期/全区間の既存経済観測値と一致。新台帳自体は既存監査の観測列外で、関連テストが保存復元と数量を確認する。
+
+| ファイル（docs/analytics/raw/） | バイト数 | SHA-256 |
+| --- | ---: | --- |
+| economy-e1-live-lots-province-101-20261024.json | 2553915 | `2938c956610b424e1c3c6ded07aaac3ce21a81b8978618da9661b66302bc7077` |
+
+```sh
+node --import tsx scripts/auditWoolSupply.mts docs/analytics/inputs/salt-s0-aligned-20261023/province-101.fmg docs/analytics/raw/economy-e1-live-lots-province-101-20261024.json 12
+```

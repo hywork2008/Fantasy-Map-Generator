@@ -904,7 +904,7 @@ export class MarketsModule {
       if (!marketId || !marketIds.has(marketId)) continue;
       const collection = this.getCollectionBurgId(cellId, marketId, collectionBurgs);
       for (const contribution of getRuralLiveAnimalContributions(cellId, biomeProduction))
-        this.addRuralOutput(marketId, collection, contribution.goodId, contribution.amount);
+        this.addRuralOutput(marketId, collection, contribution.goodId, contribution.amount, cellId);
     }
     const monthIndex = Math.max(0, Math.min(11, getSimulationMonth() - 1));
 
@@ -1428,7 +1428,13 @@ export class MarketsModule {
     return residentWorkforce * 0.1 * Math.min(1, pricePressure);
   }
 
-  private addRuralOutput(marketId: number, collectionBurgId: number, goodId: number, amount: number): void {
+  private addRuralOutput(
+    marketId: number,
+    collectionBurgId: number,
+    goodId: number,
+    amount: number,
+    sourceCellId?: number
+  ): void {
     if (amount <= 0) return;
     const market = this.get(marketId);
     const good = Goods.get(goodId);
@@ -1446,6 +1452,7 @@ export class MarketsModule {
     recordGoodFlow({
       direction: "source",
       category: "ruralHarvest",
+      livestockSourceCellId: good.tags.includes("liveAnimal") ? sourceCellId : undefined,
       goodId,
       units: resolvedAmount,
       marketId,
@@ -1813,6 +1820,7 @@ export class MarketsModule {
     units,
     budget = Infinity,
     exactUnits = false,
+    liveBuyerId,
     flow
   }: {
     burg: Burg;
@@ -1821,6 +1829,8 @@ export class MarketsModule {
     budget?: number;
     /** Preserve fractional process materials, instead of rounding to retail hundredths. */
     exactUnits?: boolean;
+    /** Explicit live-property acquisition; recipe purchases remain terminal inputs. */
+    liveBuyerId?: string;
     flow?: {
       category: GoodFlowCategory;
       guildDomain?: ReturnType<typeof getCraftDomainForGood>;
@@ -1828,6 +1838,7 @@ export class MarketsModule {
     };
   }): Deal | null {
     if (!isGoodEnabled(good)) return null;
+    if (liveBuyerId && (!good.tags.includes("liveAnimal") || flow?.category === "recipeInput")) return null;
     // Grain's market row is a mirror of the Food Ledger. Milling debits the tradeable
     // surplus itself. A purchase here would shrink the mirror and leave the reserve.
     if (good.tags?.includes("stapleFood")) return null;
@@ -1868,6 +1879,7 @@ export class MarketsModule {
     recordGoodFlow({
       direction: "sink",
       category: flow?.category ?? "burgDemand",
+      livestockBuyerId: liveBuyerId,
       goodId: good.i,
       units: actualUnits,
       marketId: market.i,

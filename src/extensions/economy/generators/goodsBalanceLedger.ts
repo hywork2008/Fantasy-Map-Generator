@@ -11,6 +11,7 @@ import { rn } from "../../hostUtils";
 import { getGoods, getMarkets } from "../economyContext";
 import { isGoodEnabled } from "./goods-generator";
 import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";
+import { recordLivestockLotFlow } from "./livestockLots";
 
 export type GoodFlowDirection = "source" | "sink" | "transfer";
 export type GoodFlowCategory =
@@ -46,6 +47,10 @@ export type GoodFlowCategory =
   | "theft";
 
 export interface GoodFlowRecord {
+  /** Recorded source cell; absent for legacy stock, imports and unknown origins. */
+  readonly livestockSourceCellId?: number;
+  /** Explicit live ownership transfer, never inferred from a recipe purchase. */
+  readonly livestockBuyerId?: string;
   readonly direction: GoodFlowDirection;
   readonly category: GoodFlowCategory;
   readonly goodId: number;
@@ -195,6 +200,11 @@ export function recordGoodFlow(flow: GoodFlowRecord): void {
   ) {
     const market = getMarkets().find(market => market.i === flow.marketId);
     if (market) market.saltProcessingInputBags = (market.saltProcessingInputBags ?? 0) + flow.units;
+  }
+  const live = getGoods().find(good => good.i === flow.goodId && good.tags?.includes("liveAnimal"));
+  if (live && flow.marketId !== undefined) {
+    const market = getMarkets().find(market => market.i === flow.marketId);
+    if (market) recordLivestockLotFlow(flow, live.name, market.goods[live.i]?.stock ?? 0);
   }
   flowObserver?.(flow);
   if (!activeInterval) return;
