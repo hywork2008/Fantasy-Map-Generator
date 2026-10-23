@@ -1,12 +1,16 @@
 type Point = [number, number];
-/** Remove zero-length edges without merging distinct, potentially very thin vertices. */
+/** Collapse clipping roundoff at vertices while preserving representable thin parcels. */
 function normalizePolygon(poly: Point[]): Point[] {
+  const samePoint = (a: Point, b: Point) =>
+    a.every(
+      (value, axis) => Math.abs(value - b[axis]) <= Number.EPSILON * 4 * Math.max(1, Math.abs(value), Math.abs(b[axis]))
+    );
   const result: Point[] = [];
   for (const p of poly) {
     const last = result.at(-1);
-    if (!last || p[0] !== last[0] || p[1] !== last[1]) result.push(p);
+    if (!last || !samePoint(p, last)) result.push(p);
   }
-  if (result.length > 1 && result[0][0] === result.at(-1)![0] && result[0][1] === result.at(-1)![1]) result.pop();
+  if (result.length > 1 && samePoint(result[0], result.at(-1)!)) result.pop();
   return result;
 }
 export function signedArea(poly: Point[]): number {
