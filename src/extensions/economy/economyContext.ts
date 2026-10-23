@@ -50,4 +50,5 @@ export * from "./context/industry";
 export * from "./context/knowledge";
 export * from "./context/population";
 export * from "./context/settlements";
+export * from "./context/slaughter";
 export * from "./context/trade";
