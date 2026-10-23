@@ -7,7 +7,7 @@ const hash = (bytes: string | Uint8Array) => createHash("sha256").update(bytes).
 const worlds = inputs.map(path => {
  const bytes = readFileSync(path);
  const run = JSON.parse(bytes.toString());
- if (run.samples.length !== 12 || ![2, 3, 4, 5].includes(run.schemaVersion)) throw new Error(`Incomplete E0 run: ${path}`);
+ if (run.samples.length !== 12 || ![2, 3, 4, 5, 6].includes(run.schemaVersion)) throw new Error(`Incomplete E0 run: ${path}`);
  const totals: Record<string, number> = {};
  const byMarket: Record<string, Record<string, number>> = {};
  const intervals = run.samples.map((sample: any) => {
@@ -41,6 +41,20 @@ const worlds = inputs.map(path => {
   textileSettlementCount++;
   for (const market of settlement.textiles.markets) {
    const local = textileByMarket[market.marketId] ??= {garments: {}, blankets: {}, production: {rows: []}};
+   const home = market.ruralProduction?.homeDiagnostic;
+   if (home) {
+    const target = local.home ??= {statuses: {}, routes: []};
+    target.statuses[home.status] = (target.statuses[home.status] ?? 0) + 1;
+    for (const key of ["garmentNeed", "blanketNeed", "garmentUnmetAfterHome", "blanketUnmetAfterHome"])
+     target[key] = (target[key] ?? 0) + home[key];
+    for (const route of home.routes) {
+     let row = target.routes.find((row: any) => row.productGoodId === route.productGoodId && row.inputGoodId === route.inputGoodId
+      && row.pass === route.pass && row.primary === route.primary && row.constraints.join(",") === route.constraints.join(","));
+     if (!row) {row = {productGoodId: route.productGoodId, inputGoodId: route.inputGoodId, pass: route.pass,
+      primary: route.primary, constraints: route.constraints, count: 0, producedLots: 0}; target.routes.push(row);}
+     row.count++; row.producedLots += route.producedLots;
+    }
+   }
    for (const category of ["garments", "blankets"]) {
     const ledger = market[category];
     if (!ledger?.settlementDiagnostics) continue;

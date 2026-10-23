@@ -1738,7 +1738,10 @@ export class ProductionModule {
       maxYield = Math.min(maxYield, totalAvailable / ingredient.amount);
     }
 
-    if (!Number.isFinite(maxYield) || maxYield <= 0) return null;
+    if (!Number.isFinite(maxYield) || maxYield <= 0) {
+      constraints?.add(!Number.isFinite(maxYield) ? "unboundedRecipeYield" : "nonPositiveRecipeYield");
+      return null;
+    }
 
     const actualUnits = Math.min(units, maxYield);
     for (const ingredient of recipe.ingredients) {
@@ -1807,7 +1810,10 @@ export class ProductionModule {
       constraints?.add(workersLeft <= 0 ? "labor" : "outputTarget");
       return null;
     }
-    if (path[good.i]) return null;
+    if (path[good.i]) {
+      constraints?.add("recipeCycle");
+      return null;
+    }
 
     const physicalTextile = hasPhysicalTextileRecipe(good.name);
     const calibratedTextile = physicalTextile && getEconomyCalibrationState().applyCalibration;
@@ -1931,7 +1937,11 @@ export class ProductionModule {
         }
       }
 
-      if (!feasible || !nextActionPlan || workersNeeded > workersLeft + 0.001) continue;
+      if (!feasible || !nextActionPlan || workersNeeded > workersLeft + 0.001) {
+        if (feasible && !nextActionPlan) constraints?.add("noPreparationAction");
+        if (workersNeeded > workersLeft + 0.001) constraints?.add("labor");
+        continue;
+      }
 
       const projectedGain = totalProjectedGain - marketCost;
       // Textile feasibility uses calibrated work, but ranking remains profit per output lot (§23).

@@ -28,7 +28,7 @@ import {
   ProductionModule,
   settlePomaceWineMarketProcessing
 } from "./production-generator";
-import type { ProductionCycleDiagnostic } from "./productionDiagnostics";
+import type { ProductionConstraint, ProductionCycleDiagnostic } from "./productionDiagnostics";
 import type { MfgRecord, ProductionRecord } from "./productionRecordTypes";
 
 type ManufactureHarness = {
@@ -806,6 +806,24 @@ describe("linen clothing preparation", () => {
   afterEach(() => {
     setEconomyCalibrationState({ applyCalibration: false });
     clearEconomyContext();
+  });
+
+  it.each([false, true])("explains unchanged null plans at the yield guard, empty recipe=%s", empty => {
+    const module = new ProductionModule() as unknown as {
+      buildImmediateManufactureCandidate(...args: unknown[]): unknown;
+    };
+    const quote = vi.spyOn(Markets, "quoteMarket").mockReturnValue({ stock: 0, buyPrice: 1, sellPrice: 1 });
+    try {
+      const recipe = { good: { i: 1, name: "Test" }, ingredients: empty ? [] : [{ goodId: 2, amount: 0.01 }] };
+      const state = { market: {}, inventory: [] };
+      const reasons = new Set<ProductionConstraint>();
+      const args = [state, recipe, { multiplier: 1, category: null }, 0.01, 1];
+      expect(module.buildImmediateManufactureCandidate(...args)).toBeNull();
+      expect(module.buildImmediateManufactureCandidate(...args, reasons)).toBeNull();
+      expect([...reasons]).toEqual([empty ? "unboundedRecipeYield" : "nonPositiveRecipeYield"]);
+    } finally {
+      quote.mockRestore();
+    }
   });
 
   it("manufactures bedding only for paid orders and consumes its fabric without a productivity material bonus", () => {

@@ -2,6 +2,10 @@
 export type ProductionConstraint =
   | "technology"
   | "recipeUnavailable"
+  | "recipeCycle"
+  | "unboundedRecipeYield"
+  | "nonPositiveRecipeYield"
+  | "noPreparationAction"
   | "materials"
   | "procurementFailed"
   | "funds"
