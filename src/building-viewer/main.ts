@@ -9,6 +9,12 @@ import { BARBICANS, createBarbican } from "../buildings/fortresses/barbicans";
 import { BOJNICE, bojnicePlan, createBojnice } from "../buildings/fortresses/bojnice";
 import { CHAMBORD, createChambord } from "../buildings/fortresses/chambord";
 import { KRAK, type KrakPhase } from "../buildings/fortresses/krak";
+import {
+  createRegionalHouses,
+  REGIONAL_HOUSES,
+  type RegionalHouseProfile,
+  regionalHouseNote
+} from "../buildings/houses/regionalHouses";
 import type { LandmarkModel } from "../buildings/landmarks/architectureKit";
 import type { MedievalModel } from "../buildings/medieval/modelKit";
 import { meshProjection } from "../buildings/meshProjection";
@@ -1668,6 +1674,11 @@ for (const profile of BUILDING_APPEARANCE_PROFILES.filter(id => id !== "legacy")
   button.type = "button";
   button.textContent = label(profile);
   button.dataset.appearanceProfile = profile;
+  button.dataset.id = `regional-${profile}`;
+  AUTHORED_VARIANTS[button.dataset.id] = {
+    author: REGIONAL_HOUSES.author,
+    show: () => showDetailedRegionalHouses(profile)
+  };
   button.addEventListener("click", () => {
     selection++;
     for (const item of list.querySelectorAll("button")) item.setAttribute("aria-current", String(item === button));
@@ -1694,6 +1705,35 @@ for (const profile of BUILDING_APPEARANCE_PROFILES.filter(id => id !== "legacy")
     );
   });
   regionalHeading.append(button);
+}
+
+function showDetailedRegionalHouses(profile: RegionalHouseProfile): void {
+  selection++;
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Front elevation";
+  levelTitle.textContent = "Roof plan";
+  massing = createRegionalHouses(profile);
+  scene.add(massing.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: 24, depth: 10 } }, 10);
+  camera.position.set(12, 8, 17);
+  controls.target.set(0, 3.5, 0);
+  controls.update();
+  mountPlan(roofHost, meshProjection(massing, "side"));
+  mountPlan(levelHost, meshProjection(massing, "top"));
+  const { width, depth, ground: groundStorey, upper, pitchDeg } = REGIONAL_HOUSES;
+  facts.append(
+    fact("Profile", label(profile)),
+    fact(
+      "Envelope",
+      `${width} × ${depth} m lots, ${groundStorey} + ${upper} m storeys, ${pitchDeg}° gable — same as the CE massing`
+    ),
+    fact("Construction", regionalHouseNote(profile)),
+    fact("Omitted", "Interiors, outbuildings, signage and weathering")
+  );
 }
 
 const medievalModules = import.meta.glob<{ models: MedievalModel[] }>("../buildings/medieval/*Models.ts", {
