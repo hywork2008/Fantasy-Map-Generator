@@ -23,7 +23,9 @@ export function groundStructures(parts: StructureMassing[], terrain: CityTerrain
     if (!building || skipped(part) || !ring.length) continue;
     buildingLevels.set(building, Math.max(buildingLevels.get(building) ?? -Infinity, terrain.foundationAt(ring)));
   }
-  return parts.flatMap(part => {
+  return parts.flatMap(whole => splitWallOnTerrain(whole, terrain).flatMap(groundPart));
+
+  function groundPart(part: StructureMassing): StructureMassing[] {
     if (skipped(part)) return [part];
     const ring = part.footprint ?? part.centerline ?? [];
     if (!ring.length) return [part];
@@ -46,7 +48,41 @@ export function groundStructures(parts: StructureMassing[], terrain: CityTerrain
       },
       raised
     ];
-  });
+  }
+}
+
+/** Longest ground-height spread one wall run may span before it is cut and grounded on its own. */
+const WALL_RUN_MAX_SPREAD_METERS = 2;
+
+/**
+ * A curtain wall follows the ground along its length. One level for the whole centerline would let a distant
+ * hill raise the entire wall and turn its plinth into a cliff, so the centerline is cut into runs of similar ground.
+ */
+function splitWallOnTerrain(part: StructureMassing, terrain: CityTerrain): StructureMassing[] {
+  const line = part.centerline;
+  if (part.kind !== "wall" || part.footprint || part.sections || !line || line.length < 3) return [part];
+  const runs: Point[][] = [];
+  let run: Point[] = [line[0]];
+  let top = -Infinity;
+  let bottom = Infinity;
+  for (let i = 1; i < line.length; i++) {
+    const a = line[i - 1],
+      b = line[i];
+    const segTop = terrain.foundationAt([a, b]);
+    const segBottom = Math.min(terrain.heightAt(a), terrain.heightAt(b));
+    if (run.length > 1 && Math.max(top, segTop) - Math.min(bottom, segBottom) > WALL_RUN_MAX_SPREAD_METERS) {
+      runs.push(run);
+      run = [a];
+      top = -Infinity;
+      bottom = Infinity;
+    }
+    run.push(b);
+    top = Math.max(top, segTop);
+    bottom = Math.min(bottom, segBottom);
+  }
+  runs.push(run);
+  if (runs.length === 1) return [part];
+  return runs.map((centerline, k) => ({ ...part, id: `${part.id}:run${k}`, centerline }));
 }
 
 export function lotFoundations(lots: readonly BuildingLot[], terrain: CityTerrain): StructureMassing[] {
