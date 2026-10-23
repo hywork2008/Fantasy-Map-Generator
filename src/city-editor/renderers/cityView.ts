@@ -9,6 +9,7 @@ import { createTownFarms, type TownFarmMeshes } from "../../city3d/three/farmMes
 import { createTownFriaries } from "../../city3d/three/friaryMeshes";
 import { createTownOpenSpaces } from "../../city3d/three/openSpaceMeshes";
 import { createTownPiers } from "../../city3d/three/pierMeshes";
+import { createTownRegionalHouses, type TownRegionalHouses } from "../../city3d/three/regionalHouseMeshes";
 import { createTownRoads, roadStampChanged, type TownRoadMeshes } from "../../city3d/three/roadMeshes";
 import { createTownShips } from "../../city3d/three/shipMeshes";
 import { createTownSpecialBuildings, type TownSpecialBuildings } from "../../city3d/three/specialBuildingMeshes";
@@ -128,6 +129,7 @@ export function mountCity3d(options: {
   let structures: CityStructureMeshes | null = null;
   let wells: TownWells | null = null;
   let specialBuildings: TownSpecialBuildings | null = null;
+  let regionalHouses: TownRegionalHouses | null = null;
   const bvPrototypes = createBvPrototypeCache();
   let openSpaces: CityStructureMeshes | null = null;
   let farmland: TownFarmMeshes | null = null;
@@ -252,17 +254,32 @@ export function mountCity3d(options: {
     if (!scene) return;
     clearHighlight();
     readout.hidden = true;
-    const reused = allowColorUpdate && massing?.updateAppearance?.(fabric.buildings);
+    // Detailed regional houses replace their lots' plain massing; acquire before releasing the old layer.
+    const nextHouses = createTownRegionalHouses(
+      fabric.buildings,
+      bvPrototypes,
+      terrain?.relief ? terrain.foundationAt : undefined
+    );
+    if (regionalHouses) {
+      scene.remove(regionalHouses.group);
+      regionalHouses.dispose();
+    }
+    regionalHouses = nextHouses;
+    scene.add(regionalHouses.group);
+    const plainLots = fabric.buildings.map((lot, index) =>
+      nextHouses.replaced.has(index) ? { ...lot, massing: undefined } : lot
+    );
+    const reused = allowColorUpdate && massing?.updateAppearance?.(plainLots);
     if (buildingDetails) {
       scene.remove(buildingDetails.group);
       buildingDetails.dispose();
     }
-    buildingDetails = createTownBuildingDetails(fabric.buildings, terrain?.relief ? terrain.foundationAt : undefined);
+    buildingDetails = createTownBuildingDetails(plainLots, terrain?.relief ? terrain.foundationAt : undefined);
     scene.add(buildingDetails.group);
     if (!reused) {
       massing?.dispose();
       if (massing) scene.remove(massing.group);
-      massing = createCityMassing(fabric.buildings, terrain?.relief ? terrain.foundationAt : undefined);
+      massing = createCityMassing(plainLots, terrain?.relief ? terrain.foundationAt : undefined);
       scene.add(massing.group);
     }
     structures?.dispose();
@@ -504,6 +521,7 @@ export function mountCity3d(options: {
         ...(massing?.pickables ?? []),
         ...(structures?.pickables ?? []),
         ...(specialBuildings?.pickables ?? []),
+        ...(regionalHouses?.pickables ?? []),
         ...(wells?.pickables ?? [])
       ],
       false
@@ -511,6 +529,11 @@ export function mountCity3d(options: {
     if (!hit?.face) {
       clearHighlight();
       readout.hidden = true;
+      return;
+    }
+    const house = regionalHouses?.resolve(hit);
+    if (house) {
+      showLot(built?.buildings[house.lotIndex]);
       return;
     }
     const special = specialBuildings?.resolve(hit);
@@ -565,6 +588,7 @@ export function mountCity3d(options: {
     waterMeshes?.dispose();
     wells?.dispose();
     specialBuildings?.dispose();
+    regionalHouses?.dispose();
     ships?.dispose();
     openSpaces?.dispose();
     friaries?.dispose();

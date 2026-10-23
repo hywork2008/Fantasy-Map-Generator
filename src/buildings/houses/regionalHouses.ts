@@ -17,12 +17,12 @@ export const REGIONAL_HOUSES = {
   spacing: 8
 } as const;
 
-type Cover = "coppi" | "thatch" | "tile" | "stone";
+export type RegionalCover = "coppi" | "thatch" | "tile" | "stone";
 interface HouseStyle {
   note: string;
   wall: BuildingPaletteId;
   roof: BuildingPaletteId;
-  cover: Cover;
+  cover: RegionalCover;
   frame?: BuildingPaletteId;
   /** Vertical board-and-batten cladding instead of an infilled frame. */
   boarding?: boolean;
@@ -119,9 +119,83 @@ interface Face {
   angle: number;
 }
 
+export type RegionalWallFinish = "frame" | "boarding" | "stone" | "masonry";
+/** Everything that shapes one house; CE derives it from a lot's massing and appearance. */
+export interface RegionalHouseSpec {
+  profile: RegionalHouseProfile;
+  storeys: number;
+  pitchDeg: number;
+  roofForm: "gable" | "hip";
+  cover: RegionalCover;
+  roof: BuildingPaletteId;
+  wall: BuildingPaletteId;
+  frame?: BuildingPaletteId;
+  finish: RegionalWallFinish;
+  quoins: boolean;
+  jetty: number;
+  shade: 0 | 1 | 2;
+  /** Door side, chimney position and per-profile extras (balcony, gallery). */
+  variant: 0 | 1 | 2;
+}
+
+export function regionalHouseSpecKey(spec: RegionalHouseSpec): string {
+  return [
+    spec.profile,
+    spec.storeys,
+    spec.pitchDeg,
+    spec.roofForm,
+    spec.cover,
+    spec.roof,
+    spec.wall,
+    spec.frame ?? "",
+    spec.finish,
+    spec.quoins,
+    spec.jetty,
+    spec.shade,
+    spec.variant
+  ].join("|");
+}
+
+/** The profile's own house, as shown in the BV preview row. */
+export function defaultRegionalHouseSpec(profile: RegionalHouseProfile, variant: 0 | 1 | 2): RegionalHouseSpec {
+  const style = STYLES[profile];
+  return {
+    profile,
+    storeys: 2,
+    pitchDeg: REGIONAL_HOUSES.pitchDeg,
+    roofForm: "gable",
+    cover: style.cover,
+    roof: style.roof,
+    wall: style.wall,
+    frame: style.frame,
+    finish: style.boarding ? "boarding" : style.frame ? "frame" : "masonry",
+    quoins: !style.frame && !style.boarding,
+    jetty: style.jetty,
+    shade: ([2, 0, 1] as const)[variant],
+    variant
+  };
+}
+
 /** A row of three regional houses on the CE preview lots (x = −8, 0, 8), fronts facing +Z. */
 export function createRegionalHouses(profile: RegionalHouseProfile): CityStructureMeshes {
-  const style = STYLES[profile];
+  return buildHouses(
+    `regional-houses-${profile}`,
+    ([0, 1, 2] as const).map(variant => ({
+      spec: defaultRegionalHouseSpec(profile, variant),
+      ox: (variant - 1) * REGIONAL_HOUSES.spacing
+    }))
+  );
+}
+
+/** One house centred on the origin: 5 m wide on X, 8 m deep on Z with its front gable toward +Z. */
+export function createRegionalHouse(spec: RegionalHouseSpec): CityStructureMeshes {
+  return buildHouses(`regional-house-${spec.profile}`, [{ spec, ox: 0 }]);
+}
+
+function buildHouses(
+  name: string,
+  houses: ReadonlyArray<{ spec: RegionalHouseSpec; ox: number }>
+): CityStructureMeshes {
   const materials = new Map<string, THREE.MeshLambertMaterial>();
   const buckets = new Map<THREE.MeshLambertMaterial, THREE.BufferGeometry[]>();
   const cache = new Map<string, THREE.BufferGeometry>();
@@ -298,8 +372,15 @@ export function createRegionalHouses(profile: RegionalHouseProfile): CityStructu
     }
   }
   /** Coursed rubble: offset stones standing proud of the wall, with dressed quoins at the ends. */
-  function rubbleWall(face: Face, width: number, y0: number, y1: number, openings: readonly Opening[], seed: number) {
-    const tones = BUILDING_PALETTES["upland-stone"];
+  function rubbleWall(
+    face: Face,
+    width: number,
+    y0: number,
+    y1: number,
+    openings: readonly Opening[],
+    seed: number,
+    tones: readonly string[]
+  ) {
     let course = 0;
     for (let y = y0; y < y1 - 0.1; y += 0.34, course++) {
       const h = Math.min(0.3, y1 - y - 0.04);
@@ -378,7 +459,7 @@ export function createRegionalHouses(profile: RegionalHouseProfile): CityStructu
   }
 
   /** Coursed covering: each course proud at its butt, flush at its head, extruded along the ridge. */
-  function roofSection(run: number, rise: number, length: number, cover: Cover): THREE.BufferGeometry {
+  function roofSection(run: number, rise: number, length: number, cover: RegionalCover): THREE.BufferGeometry {
     return cached(`roof:${run}:${rise}:${length}:${cover}`, () => {
       const points: THREE.Vector2[] = [];
       if (cover === "thatch") {
@@ -423,26 +504,36 @@ export function createRegionalHouses(profile: RegionalHouseProfile): CityStructu
     });
   }
 
-  function house(index: number): void {
+  function house(spec: RegionalHouseSpec, ox: number): void {
+    const style = STYLES[spec.profile];
+    const profile = spec.profile;
     const { width: w, depth: d, ground, upper } = REGIONAL_HOUSES;
-    const ox = (index - 1) * REGIONAL_HOUSES.spacing;
-    const shade = [2, 0, 1][index];
-    const wall = BUILDING_PALETTES[style.wall][shade];
-    const roof = BUILDING_PALETTES[style.roof][shade];
-    const frame = style.frame ? BUILDING_PALETTES[style.frame][shade] : BUILDING_PALETTES.timber[0];
+    const variant = spec.variant;
+    const shade = spec.shade;
+    const storeys = Math.max(1, Math.min(5, Math.round(spec.storeys)));
+    const wall = BUILDING_PALETTES[spec.wall][shade];
+    const roof = BUILDING_PALETTES[spec.roof][shade];
+    const capColor = BUILDING_PALETTES[spec.roof][Math.max(0, shade - 1)];
+    const frame = spec.frame ? BUILDING_PALETTES[spec.frame][shade] : BUILDING_PALETTES.timber[0];
     const plinth = BUILDING_PALETTES[style.plinth][1];
-    const shutter = style.shutters?.[index];
-    const doorSide = index === 1 ? -1 : 1;
-    const j = style.jetty;
-    const eave = ground + upper;
-    const pitch = THREE.MathUtils.degToRad(REGIONAL_HOUSES.pitchDeg);
+    const shutter = style.shutters?.[variant];
+    const doorSide = variant === 1 ? -1 : 1;
+    const j = storeys > 1 ? spec.jetty : 0;
+    const eave = ground + (storeys - 1) * upper;
+    const pitch = THREE.MathUtils.degToRad(spec.pitchDeg);
     const front = d / 2;
-    const plinthH = style.boarding ? 0.6 : 0.35;
+    const boarding = spec.finish === "boarding";
+    const masonry = spec.finish === "masonry" || spec.finish === "stone";
+    const stoneGround = spec.finish === "frame" && profile === "stone-upland";
+    const trim = masonry ? DRESSED : frame;
+    const cover = spec.cover;
+    const gable = spec.roofForm === "gable";
+    const plinthH = boarding ? 0.6 : 0.35;
 
-    // Masses: ground storey, jettied upper storey, plinth.
+    // Masses: ground storey, jettied upper storeys, plinth.
     box(ox, 0, 0, w + 0.12, plinthH, d + 0.12, plinth);
-    box(ox, 0, 0, w, ground, d, style.stoneGround ? BUILDING_PALETTES[style.stoneGround][0] : wall);
-    box(ox, ground, j / 2, w, upper, d + j, wall);
+    box(ox, 0, 0, w, ground, d, stoneGround ? BUILDING_PALETTES["upland-stone"][0] : wall);
+    if (storeys > 1) box(ox, ground, j / 2, w, eave - ground, d + j, wall);
     if (j > 0) {
       // Projecting joist ends carry the jetty; a moulded bressumer caps them.
       for (let k = 0; k < 9; k++)
@@ -450,76 +541,76 @@ export function createRegionalHouses(profile: RegionalHouseProfile): CityStructu
       box(ox, ground - 0.02, front + j - 0.04, w + 0.04, 0.2, 0.16, frame);
     }
 
-    const faces = {
-      front0: { x: ox, z: front, angle: 0 },
-      front1: { x: ox, z: front + j, angle: 0 },
-      back0: { x: ox, z: -front, angle: Math.PI },
-      back1: { x: ox, z: -front, angle: Math.PI },
-      east0: { x: ox + w / 2, z: 0, angle: Math.PI / 2 },
-      east1: { x: ox + w / 2, z: j / 2, angle: Math.PI / 2 },
-      west0: { x: ox - w / 2, z: 0, angle: -Math.PI / 2 },
-      west1: { x: ox - w / 2, z: j / 2, angle: -Math.PI / 2 }
-    } satisfies Record<string, Face>;
-    const upperSill = ground + 0.85;
-    const openings: Record<keyof typeof faces, Opening[]> = {
-      front0: [
-        { u: doorSide * 1.25, y: plinthH * 0.5, w: 1.0, h: 2.15, door: true },
-        { u: -doorSide * 1.1, y: 1.0, w: 0.9, h: 1.15 }
-      ],
-      front1:
-        index === 1 && style.cover === "coppi"
-          ? [{ u: 0, y: ground + 0.1, w: 1.0, h: 2.2, door: true }]
-          : [
-              { u: -1.15, y: upperSill, w: 0.8, h: 1.1 },
-              { u: 1.15, y: upperSill, w: 0.8, h: 1.1 }
-            ],
-      back0: [{ u: 0, y: 1.05, w: 0.8, h: 1.0 }],
-      back1: [{ u: 0, y: upperSill, w: 0.8, h: 1.0 }],
-      east0: [{ u: -1.8, y: 1.05, w: 0.8, h: 1.0 }],
-      east1: [
-        { u: -1.8 - j / 2, y: upperSill, w: 0.75, h: 1.0 },
-        { u: 1.6 - j / 2, y: upperSill, w: 0.75, h: 1.0 }
-      ],
-      west0: [{ u: 1.8, y: 1.05, w: 0.8, h: 1.0 }],
-      west1: [{ u: 1.8 + j / 2, y: upperSill, w: 0.75, h: 1.0 }]
-    };
-    if (style.boarding)
-      for (const o of [...openings.front1, ...openings.east1, ...openings.west1, ...openings.back1]) o.h = 0.8;
-    for (const [key, face] of Object.entries(faces) as [keyof typeof faces, Face][]) {
-      const upperStorey = key.endsWith("1");
-      const length = key.startsWith("front") || key.startsWith("back") ? w : upperStorey ? d + j : d;
-      const y0 = upperStorey ? ground : plinthH;
-      const y1 = upperStorey ? eave : ground;
-      const list = openings[key];
-      if (style.boarding) boardWall(face, length, y0, () => y1, list, frame);
-      else if (style.stoneGround && !upperStorey) rubbleWall(face, length, y0, y1, list, index);
-      else if (style.frame) frameWall(face, length, y0, y1, list, frame, profile === "northern-urban" && upperStorey);
-      else if (!upperStorey) {
-        // Masonry: quoins on the corners of the whole height.
-        for (let y = plinthH, k = 0; y < eave - 0.2; y += 0.36, k++)
-          for (const side of [-1, 1])
-            onFace(
-              face,
-              unitBox,
-              BUILDING_PALETTES.limestone[2],
-              side * (length / 2 - (k % 2 ? 0.2 : 0.3)),
-              y + 0.16,
-              0.02,
-              [k % 2 ? 0.4 : 0.6, 0.3, 0.05]
-            );
-      }
-      for (const o of list) {
-        if (o.door)
-          door(
-            face,
-            o,
-            style.cover === "coppi" ? DRESSED : frame,
-            style.cover === "coppi" || style.stoneGround !== undefined
-          );
-        else window(face, o, style.cover === "coppi" ? DRESSED : frame, shutter, profile === "atlantic");
+    for (let s = 0; s < storeys; s++) {
+      const upperStorey = s > 0;
+      const base = upperStorey ? ground + (s - 1) * upper : 0;
+      const shift = upperStorey ? j : 0;
+      const sill = base + 0.85;
+      const small = boarding ? 0.8 : 1.0;
+      const faces: Array<[Face, number, Opening[]]> = [
+        [
+          { x: ox, z: front + shift, angle: 0 },
+          w,
+          !upperStorey
+            ? [
+                { u: doorSide * 1.25, y: plinthH * 0.5, w: 1.0, h: 2.15, door: true },
+                { u: -doorSide * 1.1, y: 1.0, w: 0.9, h: 1.15 }
+              ]
+            : s === 1 && variant === 1 && profile === "mediterranean"
+              ? [{ u: 0, y: base + 0.1, w: 1.0, h: 2.2, door: true }]
+              : [
+                  { u: -1.15, y: sill, w: 0.8, h: boarding ? 0.8 : 1.1 },
+                  { u: 1.15, y: sill, w: 0.8, h: boarding ? 0.8 : 1.1 }
+                ]
+        ],
+        [{ x: ox, z: -front, angle: Math.PI }, w, [{ u: 0, y: upperStorey ? sill : 1.05, w: 0.8, h: small }]],
+        [
+          { x: ox + w / 2, z: shift / 2, angle: Math.PI / 2 },
+          d + shift,
+          upperStorey
+            ? [
+                { u: -1.8 - shift / 2, y: sill, w: 0.75, h: small },
+                { u: 1.6 - shift / 2, y: sill, w: 0.75, h: small }
+              ]
+            : [{ u: -1.8, y: 1.05, w: 0.8, h: small }]
+        ],
+        [
+          { x: ox - w / 2, z: shift / 2, angle: -Math.PI / 2 },
+          d + shift,
+          [{ u: 1.8 + shift / 2, y: upperStorey ? sill : 1.05, w: upperStorey ? 0.75 : 0.8, h: small }]
+        ]
+      ];
+      const y0 = upperStorey ? base : plinthH;
+      const y1 = upperStorey ? base + upper : ground;
+      for (const [face, length, list] of faces) {
+        if (boarding) boardWall(face, length, y0, () => y1, list, frame);
+        else if (spec.finish === "stone")
+          rubbleWall(face, length, y0, y1, list, variant + s, BUILDING_PALETTES[spec.wall]);
+        else if (stoneGround && !upperStorey)
+          rubbleWall(face, length, y0, y1, list, variant, BUILDING_PALETTES["upland-stone"]);
+        else if (spec.finish === "frame")
+          frameWall(face, length, y0, y1, list, frame, profile === "northern-urban" && upperStorey);
+        else if (!upperStorey && spec.quoins) {
+          // Masonry: quoins on the corners of the whole height.
+          for (let y = plinthH, k = 0; y < eave - 0.2; y += 0.36, k++)
+            for (const side of [-1, 1])
+              onFace(
+                face,
+                unitBox,
+                BUILDING_PALETTES.limestone[2],
+                side * (length / 2 - (k % 2 ? 0.2 : 0.3)),
+                y + 0.16,
+                0.02,
+                [k % 2 ? 0.4 : 0.6, 0.3, 0.05]
+              );
+        }
+        for (const o of list) {
+          if (o.door) door(face, o, trim, masonry || stoneGround);
+          else window(face, o, trim, shutter, profile === "atlantic");
+        }
       }
     }
-    if (style.cover === "coppi" && index === 1) {
+    if (profile === "mediterranean" && variant === 1 && storeys > 1) {
       // Balcony on the upper door: stone slab on brackets with an iron railing.
       box(ox, ground, front + 0.45, 1.8, 0.12, 0.9, DRESSED);
       for (const u of [-0.7, 0.7]) box(ox + u, ground - 0.3, front + 0.2, 0.12, 0.3, 0.4, DRESSED);
@@ -532,158 +623,158 @@ export function createRegionalHouses(profile: RegionalHouseProfile): CityStructu
           box(ox + side * 0.88, ground + 0.12, front + (k * 0.88) / 6, 0.025, 0.9, 0.025, IRON);
     }
 
-    // Gable ends: infill triangle, then frame, boards or masonry detailing above the eave.
     const run = w / 2 + style.overhang;
     const rise = Math.tan(pitch) * (w / 2);
-    for (const face of [faces.front1, faces.back1]) {
-      const triangle = cached(`gable:${w}:${rise}`, () => {
-        const shape = new THREE.Shape([
-          new THREE.Vector2(-w / 2, 0),
-          new THREE.Vector2(w / 2, 0),
-          new THREE.Vector2(0, rise)
-        ]);
-        return new THREE.ExtrudeGeometry(shape, { depth: 0.3, bevelEnabled: false });
-      });
-      onFace(face, triangle, wall, 0, eave, -0.3, [1, 1, 1]);
-      const top = (u: number) => eave + rise * (1 - Math.abs(u) / (w / 2)) - 0.08;
-      const loft: Opening[] =
-        profile === "northern-urban" && face === faces.front1
-          ? [{ u: 0, y: eave + 0.3, w: 0.9, h: 1.3, door: true }]
-          : [{ u: 0, y: eave + 0.55, w: 0.5, h: 0.7 }];
-      if (style.boarding) boardWall(face, w - 0.1, eave, top, loft, frame);
-      else if (style.frame) {
-        member(face, -w / 2, eave + 0.09, w / 2, eave + 0.09, frame);
-        member(face, 0, eave + loft[0].y - eave + loft[0].h, 0, eave + rise - 0.1, frame);
-        const collar = eave + rise * 0.55;
-        member(face, -w * 0.22, collar, -loft[0].w / 2 - 0.08, collar, frame, 0.15);
-        member(face, loft[0].w / 2 + 0.08, collar, w * 0.22, collar, frame, 0.15);
-        for (const side of [-1, 1]) {
-          member(face, side * w * 0.42, eave + 0.17, side * w * 0.42, top(side * w * 0.42), frame, 0.15);
-          member(face, side * w * 0.42, eave + 0.2, side * (loft[0].w / 2 + 0.1), collar - 0.05, frame, 0.14);
-        }
-      }
-      for (const o of loft) {
-        if (o.door) {
-          onFace(face, unitBox, DOOR, o.u, o.y + o.h / 2, 0.01, [o.w, o.h, 0.06]);
-          member(face, -o.w / 2 - 0.08, o.y, -o.w / 2 - 0.08, o.y + o.h, frame);
-          member(face, o.w / 2 + 0.08, o.y, o.w / 2 + 0.08, o.y + o.h, frame);
-          // Hoist beam with pulley block above the loft door.
-          onFace(face, unitBox, frame, 0, o.y + o.h + 0.45, 0.6, [0.18, 0.2, 1.3]);
-          onFace(face, unitCylinder, IRON, 0, o.y + o.h + 0.2, 1.15, [0.1, 0.12, 0.1], Math.PI / 2);
-          onFace(face, unitBox, "#8C7A5A", 0, o.y + o.h - 0.4, 1.15, [0.015, 0.9, 0.015]);
-        } else window(face, o, style.cover === "coppi" ? DRESSED : frame, undefined, profile === "atlantic");
-      }
-    }
-
-    // Roof covering with verges past both gables, plus ridge treatment.
+    const roofY = eave - Math.tan(pitch) * style.overhang;
+    const ridgeY = roofY + Math.tan(pitch) * run;
     const zFront = front + j + style.verge;
     const zBack = -front - style.verge;
     const length = zFront - zBack;
-    const roofY = eave - Math.tan(pitch) * style.overhang;
-    const ridgeY = roofY + Math.tan(pitch) * run;
-    const thatch = style.cover === "thatch";
-    put(
-      roofSection(run, Math.tan(pitch) * run, length, style.cover),
-      roof,
-      [ox, roofY, zBack],
-      [0, 0, 0],
-      [1, 1, 1],
-      thatch
-    );
     const midZ = (zFront + zBack) / 2;
-    if (thatch) {
-      put(
-        unitCylinder,
-        BUILDING_PALETTES[style.roof][Math.max(0, shade - 1)],
-        [ox, ridgeY + 0.45, midZ],
-        [Math.PI / 2, 0, 0],
-        [0.32, length + 0.1, 0.32]
-      );
-      // Liggers: hazel rods pinning the ridge roll, with cross spars between them.
-      for (const side of [-1, 1]) {
-        const surface = (u: number) => ridgeY + 0.5 - u * Math.tan(pitch) + 0.03;
-        put(unitBox, "#6E5C3E", [ox + side * 0.62, surface(0.62), midZ], [0, 0, side * -pitch], [0.04, 0.04, length]);
-        for (let k = 0; k < Math.floor(length / 0.35); k++) {
-          const z = zBack + 0.2 + k * 0.35;
-          put(unitBox, "#6E5C3E", [ox + side * 0.45, surface(0.45), z], [0, 0, side * -pitch], [0.35, 0.03, 0.03]);
-        }
-      }
-      if (profile === "northern-wooded") {
-        // Crossed gable horns at both ends.
-        // Each verge board follows its slope and runs on past the apex, so the pair crosses.
-        for (const z of [zFront - 0.05, zBack + 0.05])
-          for (const side of [-1, 1])
-            put(
-              unitBox,
-              frame,
-              [ox - side * Math.cos(pitch) * 0.2, ridgeY + 0.5 + Math.sin(pitch) * 0.2, z],
-              [0, 0, side * (Math.PI / 2 - pitch)],
-              [0.14, 1.6, 0.08]
-            );
-      }
-    } else {
-      // Ridge capping: barrel coppi, half-round ridge tiles or a stone ridge.
-      const capColor = BUILDING_PALETTES[style.roof][Math.max(0, shade - 1)];
-      const cap = cached("ridge", () => new THREE.CylinderGeometry(1, 1, 1, 10));
-      put(
-        cap,
-        capColor,
-        [ox, ridgeY + 0.08, midZ],
-        [Math.PI / 2, 0, 0],
-        [style.cover === "stone" ? 0.2 : 0.15, length + 0.05, 0.15]
-      );
-      if (style.cover === "coppi") {
-        // Barrel tiles run down each slope in channels.
-        const slopeLength = Math.hypot(run, Math.tan(pitch) * run);
-        // Full barrels: the lower half is buried in the coursed underlayer.
-        const rib = cached("coppo", () => new THREE.CylinderGeometry(0.075, 0.09, 1, 6));
-        for (let k = 0; k < Math.floor(length / 0.3); k++) {
-          const z = zBack + 0.15 + k * 0.3;
+    const thatch = cover === "thatch";
+
+    if (gable) {
+      // Gable ends: infill triangle, then frame, boards or masonry detailing above the eave.
+      for (const face of [
+        { x: ox, z: front + j, angle: 0 },
+        { x: ox, z: -front, angle: Math.PI }
+      ]) {
+        const triangle = cached(`gable:${w}:${rise}`, () => {
+          const shape = new THREE.Shape([
+            new THREE.Vector2(-w / 2, 0),
+            new THREE.Vector2(w / 2, 0),
+            new THREE.Vector2(0, rise)
+          ]);
+          return new THREE.ExtrudeGeometry(shape, { depth: 0.3, bevelEnabled: false });
+        });
+        onFace(face, triangle, wall, 0, eave, -0.3, [1, 1, 1]);
+        const top = (u: number) => eave + rise * (1 - Math.abs(u) / (w / 2)) - 0.08;
+        const loftFits = rise > 1.6;
+        const loft: Opening[] = !loftFits
+          ? []
+          : profile === "northern-urban" && face.angle === 0 && rise > 2.1
+            ? [{ u: 0, y: eave + 0.3, w: 0.9, h: 1.3, door: true }]
+            : [{ u: 0, y: eave + 0.55, w: 0.5, h: 0.7 }];
+        const opening = loft[0] ?? { u: 0, y: eave, w: 0, h: 0 };
+        if (boarding) boardWall(face, w - 0.1, eave, top, loft, frame);
+        else if (spec.finish === "frame") {
+          member(face, -w / 2, eave + 0.09, w / 2, eave + 0.09, frame);
+          member(face, 0, opening.y + opening.h, 0, eave + rise - 0.1, frame);
+          const collar = eave + rise * 0.55;
+          member(face, -w * 0.22, collar, -opening.w / 2 - 0.08, collar, frame, 0.15);
+          member(face, opening.w / 2 + 0.08, collar, w * 0.22, collar, frame, 0.15);
           for (const side of [-1, 1]) {
-            put(
-              rib,
-              capColor,
-              [ox + (side * run) / 2, roofY + (Math.tan(pitch) * run) / 2 + 0.13, z],
-              [0, 0, side * (Math.PI / 2 - pitch)],
-              [1, slopeLength, 1]
-            );
+            member(face, side * w * 0.42, eave + 0.17, side * w * 0.42, top(side * w * 0.42), frame, 0.15);
+            member(face, side * w * 0.42, eave + 0.2, side * (opening.w / 2 + 0.1), collar - 0.05, frame, 0.14);
           }
         }
-        // Double tile-course eave (genoise) under each eave line.
-        for (const side of [-1, 1])
-          for (let r = 0; r < 2; r++)
-            box(ox + side * (w / 2 + 0.08 + r * 0.1), eave - 0.18 - r * 0.12, 0, 0.16, 0.1, d + 0.1, capColor);
+        for (const o of loft) {
+          if (o.door) {
+            onFace(face, unitBox, DOOR, o.u, o.y + o.h / 2, 0.01, [o.w, o.h, 0.06]);
+            member(face, -o.w / 2 - 0.08, o.y, -o.w / 2 - 0.08, o.y + o.h, frame);
+            member(face, o.w / 2 + 0.08, o.y, o.w / 2 + 0.08, o.y + o.h, frame);
+            // Hoist beam with pulley block above the loft door.
+            onFace(face, unitBox, frame, 0, o.y + o.h + 0.45, 0.6, [0.18, 0.2, 1.3]);
+            onFace(face, unitCylinder, IRON, 0, o.y + o.h + 0.2, 1.15, [0.1, 0.12, 0.1], Math.PI / 2);
+            onFace(face, unitBox, "#8C7A5A", 0, o.y + o.h - 0.4, 1.15, [0.015, 0.9, 0.015]);
+          } else window(face, o, trim, undefined, profile === "atlantic");
+        }
       }
-    }
+      // Roof covering with verges past both gables, plus ridge treatment.
+      put(
+        roofSection(run, Math.tan(pitch) * run, length, cover),
+        roof,
+        [ox, roofY, zBack],
+        [0, 0, 0],
+        [1, 1, 1],
+        thatch
+      );
+      if (thatch) {
+        put(unitCylinder, capColor, [ox, ridgeY + 0.45, midZ], [Math.PI / 2, 0, 0], [0.32, length + 0.1, 0.32]);
+        // Liggers: hazel rods pinning the ridge roll, with cross spars between them.
+        for (const side of [-1, 1]) {
+          const surface = (u: number) => ridgeY + 0.5 - u * Math.tan(pitch) + 0.03;
+          put(unitBox, "#6E5C3E", [ox + side * 0.62, surface(0.62), midZ], [0, 0, side * -pitch], [0.04, 0.04, length]);
+          for (let k = 0; k < Math.floor(length / 0.35); k++) {
+            const z = zBack + 0.2 + k * 0.35;
+            put(unitBox, "#6E5C3E", [ox + side * 0.45, surface(0.45), z], [0, 0, side * -pitch], [0.35, 0.03, 0.03]);
+          }
+        }
+        if (profile === "northern-wooded") {
+          // Each verge board follows its slope and runs on past the apex, so the pair crosses.
+          for (const z of [zFront - 0.05, zBack + 0.05])
+            for (const side of [-1, 1])
+              put(
+                unitBox,
+                frame,
+                [ox - side * Math.cos(pitch) * 0.2, ridgeY + 0.5 + Math.sin(pitch) * 0.2, z],
+                [0, 0, side * (Math.PI / 2 - pitch)],
+                [0.14, 1.6, 0.08]
+              );
+        }
+      } else {
+        // Ridge capping: barrel coppi, half-round ridge tiles or a stone ridge.
+        const cap = cached("ridge", () => new THREE.CylinderGeometry(1, 1, 1, 10));
+        put(
+          cap,
+          capColor,
+          [ox, ridgeY + 0.08, midZ],
+          [Math.PI / 2, 0, 0],
+          [cover === "stone" ? 0.2 : 0.15, length + 0.05, 0.15]
+        );
+        if (cover === "coppi") {
+          // Barrel tiles run down each slope in channels; the lower half is buried in the coursed underlayer.
+          const slopeLength = Math.hypot(run, Math.tan(pitch) * run);
+          const rib = cached("coppo", () => new THREE.CylinderGeometry(0.075, 0.09, 1, 6));
+          for (let k = 0; k < Math.floor(length / 0.3); k++) {
+            const z = zBack + 0.15 + k * 0.3;
+            for (const side of [-1, 1])
+              put(
+                rib,
+                capColor,
+                [ox + (side * run) / 2, roofY + (Math.tan(pitch) * run) / 2 + 0.13, z],
+                [0, 0, side * (Math.PI / 2 - pitch)],
+                [1, slopeLength, 1]
+              );
+          }
+        }
+      }
+      if (profile === "northern-urban") {
+        // Gable apex finial.
+        put(unitCylinder, frame, [ox, ridgeY + 0.5, zFront - 0.1], [0, 0, 0], [0.06, 0.8, 0.06]);
+        put(
+          cached("knob", () => new THREE.SphereGeometry(0.12, 8, 6)),
+          frame,
+          [ox, ridgeY + 0.95, zFront - 0.1]
+        );
+      }
+    } else hipRoof(ox, roofY, run, zBack, zFront, Math.tan(pitch) * run, roof, capColor, cover);
+    if (cover === "coppi")
+      // Double tile-course eave (genoise) under each eave line.
+      for (const side of [-1, 1])
+        for (let r = 0; r < 2; r++)
+          box(ox + side * (w / 2 + 0.08 + r * 0.1), eave - 0.18 - r * 0.12, j / 2, 0.16, 0.1, d + j + 0.1, capColor);
 
-    // Chimney stack through the roof slope.
-    const cz = [-2.1, 1.4, -0.9][index];
-    const cxOff = style.cover === "thatch" ? 0 : 0.7 * doorSide;
+    // Chimney stack through the roof slope, kept inside the ridge on hipped roofs.
+    const cz = [-2.1, 1.4, -0.9][variant] * (gable ? 1 : 0.5);
+    const cxOff = thatch ? 0 : 0.7 * doorSide;
     const stackColor =
-      style.cover === "coppi"
+      masonry && cover === "coppi"
         ? wall
-        : style.cover === "stone" || profile === "northern-wooded"
+        : cover === "stone" || profile === "northern-wooded"
           ? BUILDING_PALETTES["upland-stone"][1]
           : BRICK;
-    const stackTop = ridgeY + (style.cover === "thatch" ? 1.2 : 0.8);
-    const stackSize = style.cover === "stone" ? 1.0 : 0.7;
+    const stackTop = ridgeY + (thatch ? 1.2 : 0.8);
+    const stackSize = cover === "stone" ? 1.0 : 0.7;
     box(ox + cxOff, eave - 1, cz, stackSize, stackTop - eave + 1, stackSize, stackColor);
-    box(
-      ox + cxOff,
-      stackTop,
-      cz,
-      stackSize + 0.16,
-      0.12,
-      stackSize + 0.16,
-      style.cover === "coppi" ? DRESSED : stackColor
-    );
-    if (style.cover === "coppi") {
+    box(ox + cxOff, stackTop, cz, stackSize + 0.16, 0.12, stackSize + 0.16, cover === "coppi" ? DRESSED : stackColor);
+    if (cover === "coppi") {
       put(
         cached("chimney-cap", () => new THREE.CylinderGeometry(0.0, 0.62, 0.4, 4, 1, false, Math.PI / 4)),
         roof,
         [ox + cxOff, stackTop + 0.32, cz]
       );
-    } else if (style.cover === "stone") {
+    } else if (cover === "stone") {
       for (const side of [-1, 1]) box(ox + cxOff + side * 0.32, stackTop + 0.12, cz, 0.16, 0.35, 0.8, stackColor);
       box(ox + cxOff, stackTop + 0.47, cz, 1.2, 0.1, 1.0, BUILDING_PALETTES["local-stone-roof"][0]);
     } else {
@@ -691,22 +782,13 @@ export function createRegionalHouses(profile: RegionalHouseProfile): CityStructu
         put(unitCylinder, "#7A4434", [ox + cxOff + side * 0.16, stackTop + 0.3, cz], [0, 0, 0], [0.11, 0.4, 0.11]);
     }
 
-    if (profile === "stone-upland" && index !== 1) {
-      // Gable gallery: timber balcony along the upper storey of the front gable.
+    if (profile === "stone-upland" && variant !== 1 && storeys > 1) {
+      // Gable gallery: timber balcony along the first upper storey of the front.
       box(ox, ground + 0.05, front + 0.55, w + 0.4, 0.1, 1.1, frame);
       for (const u of [-w / 2 - 0.1, w / 2 + 0.1]) box(ox + u, 0.35, front + 1.0, 0.18, ground - 0.3, 0.18, frame);
       box(ox, ground + 1.0, front + 1.05, w + 0.4, 0.08, 0.08, frame);
       for (let k = 0; k <= 16; k++)
         box(ox - w / 2 - 0.15 + (k * (w + 0.3)) / 16, ground + 0.15, front + 1.05, 0.1, 0.85, 0.03, frame);
-    }
-    if (profile === "northern-urban") {
-      // Gable apex finial.
-      put(unitCylinder, frame, [ox, ridgeY + 0.5, zFront - 0.1], [0, 0, 0], [0.06, 0.8, 0.06]);
-      put(
-        cached("knob", () => new THREE.SphereGeometry(0.12, 8, 6)),
-        frame,
-        [ox, ridgeY + 0.95, zFront - 0.1]
-      );
     }
     // Rainwater barrel by the door for a lived-in touch.
     put(unitCylinder, "#6B5235", [ox + doorSide * 2.2, 0.4, front + 0.45], [0, 0, 0], [0.3, 0.8, 0.3]);
@@ -714,10 +796,101 @@ export function createRegionalHouses(profile: RegionalHouseProfile): CityStructu
       put(unitCylinder, IRON, [ox + doorSide * 2.2, y, front + 0.45], [0, 0, 0], [0.315, 0.04, 0.315]);
   }
 
-  for (let i = 0; i < 3; i++) house(i);
+  /** Hipped roof: two trapezoids and two triangles, coursed by strips parallel to each eave. */
+  function hipRoof(
+    ox: number,
+    y: number,
+    run: number,
+    zB: number,
+    zF: number,
+    rise: number,
+    color: string,
+    capColor: string,
+    cover: RegionalCover
+  ): void {
+    const inset = Math.min(run, (zF - zB) / 2);
+    const v = (x: number, h: number, z: number) => new THREE.Vector3(ox + x, y + h, z);
+    const A = v(-run, 0, zB);
+    const B = v(run, 0, zB);
+    const C = v(run, 0, zF);
+    const D = v(-run, 0, zF);
+    const R1 = v(0, rise, zB + inset);
+    const R2 = v(0, rise, zF - inset);
+    const positions: number[] = [];
+    const tri = (a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3) => {
+      // Keep every facet wound so its normal points up and out.
+      const n = b.clone().sub(a).cross(c.clone().sub(a));
+      const [p, q] = n.y >= 0 ? [b, c] : [c, b];
+      positions.push(a.x, a.y, a.z, p.x, p.y, p.z, q.x, q.y, q.z);
+    };
+    tri(B, C, R2);
+    tri(B, R2, R1);
+    tri(D, A, R1);
+    tri(D, R1, R2);
+    tri(C, D, R2);
+    tri(A, B, R1);
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    geometry.computeVertexNormals();
+    buckets.get(material(color, true))?.push(geometry);
+    const thick = cover === "thatch" ? 0.45 : cover === "stone" ? 0.22 : 0.16;
+    // Fascia gives the eaves their covering thickness.
+    box(ox, -thick + y, zB, run * 2, thick, 0.1, color);
+    box(ox, -thick + y, zF, run * 2, thick, 0.1, color);
+    for (const side of [-1, 1]) box(ox + side * run, -thick + y, (zB + zF) / 2, 0.1, thick, zF - zB, color);
+    const pitch = Math.atan2(rise, run);
+    if (cover !== "thatch") {
+      const step = cover === "stone" ? 0.45 : cover === "coppi" ? 0.36 : 0.24;
+      const courses = Math.max(3, Math.round(Math.hypot(run, rise) / step));
+      for (let k = 0; k < courses; k++) {
+        const f = k / courses;
+        const h = y + f * rise + 0.03;
+        const along = zF - zB - 2 * f * inset;
+        for (const side of [-1, 1])
+          put(
+            unitBox,
+            capColor,
+            [ox + side * run * (1 - f), h, (zB + zF) / 2],
+            [0, 0, side * -pitch],
+            [0.2, 0.05, Math.max(0.1, along)]
+          );
+        const across = 2 * run * (1 - f);
+        for (const [z, side] of [
+          [zB + f * inset, -1],
+          [zF - f * inset, 1]
+        ] as const)
+          put(unitBox, capColor, [ox, h, z], [side * pitch, 0, 0], [Math.max(0.1, across), 0.05, 0.2]);
+      }
+    }
+    // Ridge and hip rolls.
+    const radius = cover === "thatch" ? 0.3 : 0.14;
+    const roll = (p: THREE.Vector3, q: THREE.Vector3) => {
+      const dir = q.clone().sub(p);
+      const len = dir.length();
+      if (len < 0.05) return;
+      const mid = p.clone().add(q).multiplyScalar(0.5);
+      mid.y += cover === "thatch" ? 0.25 : 0.06;
+      quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+      matrix.compose(mid, quaternion, new THREE.Vector3(radius, len, radius));
+      const copy = unitCylinder.toNonIndexed();
+      copy.deleteAttribute("uv");
+      copy.applyMatrix4(matrix);
+      buckets.get(material(capColor))?.push(copy);
+    };
+    roll(R1, R2);
+    for (const [corner, top] of [
+      [A, R1],
+      [B, R1],
+      [C, R2],
+      [D, R2]
+    ] as const)
+      roll(corner, top);
+  }
+
+  for (const { spec, ox } of houses) house(spec, ox);
 
   const group = new THREE.Group();
-  group.name = `regional-houses-${profile}`;
+  group.name = name;
   const pickables: THREE.Mesh[] = [];
   const merged: THREE.BufferGeometry[] = [];
   for (const [mat, parts] of buckets) {
