@@ -1,0 +1,1034 @@
+{
+  "schemaVersion": 1,
+  "input": "docs/analytics/inputs/salt-s0-aligned-20261023/province-101.fmg",
+  "initialProfile": {
+    "options": {
+      "pinNotes": false,
+      "winds": [
+        225,
+        45,
+        225,
+        315,
+        135,
+        315
+      ],
+      "temperatureEquator": 27,
+      "temperatureNorthPole": -18,
+      "temperatureSouthPole": -18,
+      "axialTilt": 23.5,
+      "stateLabelsMode": "auto",
+      "showBurgPreview": true,
+      "initialSettlementPattern": "standard",
+      "biomeRegionProfile": "global",
+      "volcanicSoilStrength": 50,
+      "ruralEcosystemDetail": "detailed",
+      "ironDepositsPerState": 0.4,
+      "burgs": {
+        "groups": [
+          {
+            "name": "capital",
+            "active": true,
+            "order": 9,
+            "features": {
+              "capital": true
+            },
+            "preview": "watabou-city"
+          },
+          {
+            "name": "city",
+            "active": true,
+            "order": 8,
+            "percentile": 90,
+            "min": 5,
+            "preview": "watabou-city"
+          },
+          {
+            "name": "fort",
+            "active": true,
+            "features": {
+              "citadel": true,
+              "walls": false,
+              "plaza": false,
+              "port": false
+            },
+            "order": 6,
+            "max": 1
+          },
+          {
+            "name": "monastery",
+            "active": true,
+            "features": {
+              "temple": true,
+              "walls": false,
+              "plaza": false,
+              "port": false
+            },
+            "order": 5,
+            "max": 0.8
+          },
+          {
+            "name": "caravanserai",
+            "active": true,
+            "features": {
+              "port": false,
+              "plaza": true
+            },
+            "order": 4,
+            "max": 0.8,
+            "biomeTags": [
+              "desert",
+              "nomadic",
+              "scrub"
+            ]
+          },
+          {
+            "name": "trading_post",
+            "active": true,
+            "order": 3,
+            "features": {
+              "plaza": true
+            },
+            "max": 0.8,
+            "biomeTags": [
+              "forest",
+              "wetland",
+              "cold",
+              "mountain"
+            ]
+          },
+          {
+            "name": "village",
+            "active": true,
+            "order": 2,
+            "minZoom": 9.5,
+            "min": 0.1,
+            "max": 2,
+            "preview": "watabou-village"
+          },
+          {
+            "name": "hamlet",
+            "active": true,
+            "order": 1,
+            "features": {
+              "plaza": false
+            },
+            "max": 0.1,
+            "preview": "watabou-village"
+          },
+          {
+            "name": "town",
+            "active": true,
+            "order": 7,
+            "isDefault": true,
+            "preview": "watabou-city"
+          }
+        ]
+      },
+      "gunpowderEraEnabled": false,
+      "year": 1300,
+      "era": "Bunverke Era",
+      "eraShort": "BE",
+      "initialFirearmsUnstocked": false,
+      "historicalPeriod": "highMedieval",
+      "forceIndustrialCultures": false,
+      "conflictAutonomy": "playerDirected",
+      "initialPolityRealmSize": 30,
+      "frontierStartMode": "landOrigin",
+      "frontierPolitySpacing": "dispersed",
+      "portCoastPlacement": "pinned",
+      "climateVariability": {
+        "start": "off",
+        "mode": "irregular",
+        "periodYears": 450,
+        "depthC": 0.5,
+        "volcanicPerCentury": 0.8,
+        "anchorYear": 1300
+      },
+      "economyStartMode": "balanced",
+      "moneyScaleBase": 16,
+      "loadRepairs": {
+        "routes": 1,
+        "dualPortPlacement": 1,
+        "economy.developmentPotential": 7
+      },
+      "seaRouteGenerationMode": "augmented",
+      "landRouteGenerationMode": "elevationAware",
+      "landRouteElevationAversion": 1,
+      "military": [
+        {
+          "icon": "⚔️",
+          "name": "infantry",
+          "rural": 0.08,
+          "urban": 0.06,
+          "crew": 1,
+          "power": 1,
+          "type": "melee",
+          "separate": 0
+        },
+        {
+          "icon": "🔱",
+          "name": "spearmen",
+          "rural": 0.07,
+          "urban": 0.06,
+          "crew": 1,
+          "power": 1,
+          "type": "melee",
+          "separate": 0
+        },
+        {
+          "icon": "🏹",
+          "name": "archers",
+          "rural": 0.12,
+          "urban": 0.2,
+          "crew": 1,
+          "power": 1,
+          "type": "ranged",
+          "separate": 0
+        },
+        {
+          "icon": "🔫",
+          "name": "musketeers",
+          "rural": 0.1,
+          "urban": 0.08,
+          "crew": 1,
+          "power": 1,
+          "type": "ranged",
+          "separate": 0,
+          "requiresTechnology": {
+            "id": "massFirearms",
+            "minimum": "demonstrated"
+          }
+        },
+        {
+          "icon": "🎯",
+          "name": "riflemen",
+          "rural": 0.1,
+          "urban": 0.08,
+          "crew": 1,
+          "power": 1.6,
+          "type": "ranged",
+          "separate": 0,
+          "requiresTechnology": {
+            "id": "standardMachineWorks",
+            "minimum": "adopted"
+          },
+          "obsoletes": [
+            "musketeers",
+            "archers"
+          ]
+        },
+        {
+          "icon": "🐴",
+          "name": "cavalry",
+          "rural": 0.12,
+          "urban": 0.03,
+          "crew": 2,
+          "power": 2,
+          "type": "mounted",
+          "separate": 0
+        },
+        {
+          "icon": "🪨",
+          "name": "siegeEngines",
+          "rural": 0,
+          "urban": 0.015,
+          "crew": 6,
+          "power": 6,
+          "type": "machinery",
+          "separate": 0
+        },
+        {
+          "icon": "💣",
+          "name": "artillery",
+          "rural": 0,
+          "urban": 0.03,
+          "crew": 8,
+          "power": 12,
+          "type": "machinery",
+          "separate": 0,
+          "requiresTechnology": {
+            "id": "cannonFoundry",
+            "minimum": "known"
+          }
+        },
+        {
+          "icon": "🧨",
+          "name": "fieldArtillery",
+          "rural": 0,
+          "urban": 0.03,
+          "crew": 8,
+          "power": 20,
+          "type": "machinery",
+          "separate": 0,
+          "requiresTechnology": {
+            "id": "modernSteelmaking",
+            "minimum": "adopted"
+          },
+          "obsoletes": "artillery"
+        },
+        {
+          "icon": "🔥",
+          "name": "machineGunners",
+          "rural": 0,
+          "urban": 0.015,
+          "crew": 4,
+          "power": 10,
+          "type": "machinery",
+          "separate": 0,
+          "requiresTechnology": {
+            "id": "modernSteelmaking",
+            "minimum": "demonstrated"
+          }
+        },
+        {
+          "icon": "🛡️",
+          "name": "armored",
+          "rural": 0,
+          "urban": 0.008,
+          "crew": 4,
+          "power": 40,
+          "type": "armored",
+          "separate": 0,
+          "requiresTechnology": {
+            "id": "internalCombustionEngine",
+            "minimum": "adopted"
+          }
+        },
+        {
+          "icon": "✈️",
+          "name": "aviation",
+          "rural": 0,
+          "urban": 0.005,
+          "crew": 2,
+          "power": 25,
+          "type": "aviation",
+          "separate": 1
+        },
+        {
+          "icon": "🚀",
+          "name": "rocketArtillery",
+          "rural": 0,
+          "urban": 0.02,
+          "crew": 6,
+          "power": 35,
+          "type": "machinery",
+          "separate": 0,
+          "requiresTechnology": {
+            "id": "militarySignalRockets",
+            "minimum": "adopted"
+          },
+          "obsoletes": "fieldArtillery"
+        },
+        {
+          "icon": "🌊",
+          "name": "fleet",
+          "rural": 0,
+          "urban": 0.015,
+          "crew": 100,
+          "power": 30,
+          "type": "naval",
+          "separate": 1
+        },
+        {
+          "icon": "💀",
+          "name": "skeletons",
+          "rural": 0,
+          "urban": 0,
+          "crew": 1,
+          "power": 0.7,
+          "type": "melee",
+          "separate": 0
+        },
+        {
+          "icon": "🧟",
+          "name": "zombies",
+          "rural": 0,
+          "urban": 0,
+          "crew": 1,
+          "power": 0.55,
+          "type": "melee",
+          "separate": 0
+        }
+      ],
+      "mapName": "Portel"
+    },
+    "populationRate": 1000,
+    "urbanization": 1
+  },
+  "start": {
+    "year": 1300,
+    "month": 1,
+    "day": 1
+  },
+  "end": {
+    "year": 1300,
+    "month": 2,
+    "day": 1
+  },
+  "inputSha256": "a3209cca3c88ebf8f84b4f5d9321be8ad3bdc5b3766ca92994f0eb198a52e4e7",
+  "sourceHashes": {
+    "scripts/auditSaltOwnership.mts": "9d9f528145b386d715962e1a18d9a1694a5a159a8e035dda227fff35af2294ae",
+    "scripts/lib/observeViews.mts": "a49544813ad149232f01a8e6d5257f0f91e16fc638e5d5859a6def14aee5dd99",
+    "src/extensions/economy/generators/saltLogisticsTypes.ts": "2d35f5a4bc15d7c097304f4403dc317f79e78dddefbfbc64d2a6ec477095723c",
+    "src/extensions/economy/simulation.ts": "a900f071392cf06a432cd4fda840381adaa4b53435b4ecf3a16cc0fd571e5023",
+    "src/extensions/economy/controllers/market-overview.ts": "f439686c26dcc2ba5fa4fbdfa2de1fdef9eb6d28de69611d74cc4febd80b083a",
+    "src/extensions/economy/ui/dialogs/MarketOverviewDialog.tsx": "f2820d33ac28f0e8cc80446824701ed3cfef20b50c63564fb222cda490923325",
+    "src/extensions/economy/generators/saltOwnership.ts": "135128b8ac1d3854e04ffe7d46dac3d550b2b45af7efe02611a56c5f6759f518",
+    "src/extensions/economy/generators/saltFinance.ts": "bec265fd074dbe9a5a44a704568fddab22f1646fd6216a7ff32b21adf6b585fe",
+    "src/extensions/economy/generators/saltLogistics.ts": "de96c74f081bd686227f76603e03ad5c2cae9aed559db277a2452a9f30b92e62",
+    "src/extensions/economy/generators/saltProduction.ts": "cc4b9e220928a145451c127db52239ad2615bd05e9b76a0ed34223601fb74a92"
+  },
+  "selected": [
+    {
+      "workId": 1,
+      "owner": {
+        "kind": "state",
+        "id": 1
+      },
+      "name": "Abralhalia"
+    },
+    {
+      "workId": 2,
+      "owner": {
+        "kind": "burg",
+        "id": 1
+      },
+      "name": "Carvalmei"
+    },
+    {
+      "workId": 3,
+      "owner": {
+        "kind": "church",
+        "id": 1
+      },
+      "name": "Abralhalia"
+    },
+    {
+      "workId": 4,
+      "owner": {
+        "kind": "private",
+        "id": 1
+      },
+      "name": "Sanhais"
+    }
+  ],
+  "legacyMigration": "all missing owners defaulted to their territorial state",
+  "assignmentRoundtrip": true,
+  "settlementRoundtrip": true,
+  "saltMoney": [
+    {
+      "step": "production:saltLogistics",
+      "net": 0,
+      "stateTreasury": 312.45,
+      "stateDepartments": 1.9,
+      "burgTreasury": 29.06,
+      "urbanHouseholds": -9.35,
+      "ruralHouseholds": -681.24,
+      "marketBalance": 318.12,
+      "characters": 29.06
+    }
+  ],
+  "assignedCash": {
+    "state:1": 8830.47,
+    "burg:1": 2929.91,
+    "church:1": 0.26,
+    "private:1": 216.17,
+    "state:2": 6767.22
+  },
+  "settledCash": {
+    "state:1": 8395.31,
+    "burg:1": 3567.63,
+    "church:1": 1.44,
+    "private:1": 293.72,
+    "state:2": 6626.74
+  },
+  "works": [
+    {
+      "i": 1,
+      "stateId": 1,
+      "marketId": 1,
+      "cellId": 17,
+      "kind": "saltPan",
+      "annualCapacityBags": 977.8,
+      "monthlyOutputBags": 81.4833,
+      "active": true,
+      "owner": {
+        "kind": "state",
+        "id": 1
+      },
+      "settlementOwner": {
+        "kind": "state",
+        "id": 1
+      },
+      "productionMethod": "boiling",
+      "monthlyLaborHours": 11620.231884057972,
+      "monthlyFuelWoodUnits": 1.3080936454849494,
+      "monthlyWagesPaid": 3.13,
+      "monthlyFuelPaid": 0.54,
+      "monthlyWholesaleReceived": 32.73,
+      "monthlyFreightPaid": 0,
+      "monthlyCapacityBags": 81.48333333333332
+    },
+    {
+      "i": 2,
+      "stateId": 1,
+      "marketId": 1,
+      "cellId": 19,
+      "kind": "saltPan",
+      "annualCapacityBags": 977.8,
+      "monthlyOutputBags": 81.4833,
+      "active": true,
+      "owner": {
+        "kind": "burg",
+        "id": 1
+      },
+      "settlementOwner": {
+        "kind": "burg",
+        "id": 1
+      },
+      "productionMethod": "boiling",
+      "monthlyLaborHours": 11620.231884057972,
+      "monthlyFuelWoodUnits": 1.3080936454849494,
+      "monthlyWagesPaid": 3.13,
+      "monthlyFuelPaid": 0.54,
+      "monthlyWholesaleReceived": 32.73,
+      "monthlyFreightPaid": 0,
+      "monthlyCapacityBags": 81.48333333333332
+    },
+    {
+      "i": 3,
+      "stateId": 1,
+      "marketId": 1,
+      "cellId": 20,
+      "kind": "saltPan",
+      "annualCapacityBags": 977.8,
+      "monthlyOutputBags": 5.3443,
+      "active": true,
+      "owner": {
+        "kind": "church",
+        "id": 1
+      },
+      "settlementOwner": {
+        "kind": "church",
+        "id": 1
+      },
+      "productionMethod": "boiling",
+      "monthlyLaborHours": 762.1374045801529,
+      "monthlyFuelWoodUnits": 0.08579407931483896,
+      "monthlyWagesPaid": 0.21,
+      "monthlyFuelPaid": 0.04,
+      "monthlyWholesaleReceived": 2.15,
+      "monthlyFreightPaid": 0,
+      "monthlyCapacityBags": 81.48333333333332
+    },
+    {
+      "i": 4,
+      "stateId": 1,
+      "marketId": 1,
+      "cellId": 23,
+      "kind": "saltPan",
+      "annualCapacityBags": 977.8,
+      "monthlyOutputBags": 81.4833,
+      "active": true,
+      "owner": {
+        "kind": "private",
+        "id": 1
+      },
+      "settlementOwner": {
+        "kind": "private",
+        "id": 1
+      },
+      "productionMethod": "boiling",
+      "monthlyLaborHours": 11620.231884057972,
+      "monthlyFuelWoodUnits": 1.3080936454849494,
+      "monthlyWagesPaid": 3.13,
+      "monthlyFuelPaid": 0.54,
+      "monthlyWholesaleReceived": 32.73,
+      "monthlyFreightPaid": 0,
+      "monthlyCapacityBags": 81.48333333333332
+    },
+    {
+      "i": 5,
+      "stateId": 1,
+      "marketId": 1,
+      "cellId": 24,
+      "kind": "saltPan",
+      "annualCapacityBags": 977.8,
+      "monthlyOutputBags": 81.4833,
+      "active": true,
+      "owner": {
+        "kind": "state",
+        "id": 1
+      },
+      "settlementOwner": {
+        "kind": "state",
+        "id": 1
+      },
+      "productionMethod": "boiling",
+      "monthlyLaborHours": 11620.231884057972,
+      "monthlyFuelWoodUnits": 1.3080936454849494,
+      "monthlyWagesPaid": 3.13,
+      "monthlyFuelPaid": 0.54,
+      "monthlyWholesaleReceived": 32.73,
+      "monthlyFreightPaid": 0,
+      "monthlyCapacityBags": 81.48333333333332
+    },
+    {
+      "i": 6,
+      "stateId": 1,
+      "marketId": 1,
+      "cellId": 34,
+      "kind": "saltPan",
+      "annualCapacityBags": 977.8,
+      "monthlyOutputBags": 81.4833,
+      "active": true,
+      "owner": {
+        "kind": "state",
+        "id": 1
+      },
+      "settlementOwner": {
+        "kind": "state",
+        "id": 1
+      },
+      "productionMethod": "boiling",
+      "monthlyLaborHours": 11620.231884057972,
+      "monthlyFuelWoodUnits": 1.3080936454849494,
+      "monthlyWagesPaid": 3.13,
+      "monthlyFuelPaid": 0.54,
+      "monthlyWholesaleReceived": 32.73,
+      "monthlyFreightPaid": 0,
+      "monthlyCapacityBags": 81.48333333333332
+    },
+    {
+      "i": 7,
+      "stateId": 1,
+      "marketId": 1,
+      "cellId": 35,
+      "kind": "saltPan",
+      "annualCapacityBags": 977.8,
+      "monthlyOutputBags": 81.4833,
+      "active": true,
+      "owner": {
+        "kind": "state",
+        "id": 1
+      },
+      "settlementOwner": {
+        "kind": "state",
+        "id": 1
+      },
+      "productionMethod": "boiling",
+      "monthlyLaborHours": 11620.231884057972,
+      "monthlyFuelWoodUnits": 1.3080936454849494,
+      "monthlyWagesPaid": 3.13,
+      "monthlyFuelPaid": 0.54,
+      "monthlyWholesaleReceived": 32.73,
+      "monthlyFreightPaid": 0,
+      "monthlyCapacityBags": 81.48333333333332
+    },
+    {
+      "i": 8,
+      "stateId": 1,
+      "marketId": 1,
+      "cellId": 37,
+      "kind": "saltPan",
+      "annualCapacityBags": 977.8,
+      "monthlyOutputBags": 81.4833,
+      "active": true,
+      "owner": {
+        "kind": "state",
+        "id": 1
+      },
+      "settlementOwner": {
+        "kind": "state",
+        "id": 1
+      },
+      "productionMethod": "boiling",
+      "monthlyLaborHours": 11620.231884057972,
+      "monthlyFuelWoodUnits": 1.3080936454849494,
+      "monthlyWagesPaid": 3.13,
+      "monthlyFuelPaid": 0.54,
+      "monthlyWholesaleReceived": 32.73,
+      "monthlyFreightPaid": 0,
+      "monthlyCapacityBags": 81.48333333333332
+    },
+    {
+      "i": 9,
+      "stateId": 2,
+      "marketId": 1,
+      "cellId": 234,
+      "kind": "saltPan",
+      "annualCapacityBags": 1283.27,
+      "monthlyOutputBags": 106.9392,
+      "active": true,
+      "owner": {
+        "kind": "state",
+        "id": 2
+      },
+      "settlementOwner": {
+        "kind": "state",
+        "id": 2
+      },
+      "productionMethod": "boiling",
+      "monthlyLaborHours": 15250.455072463767,
+      "monthlyFuelWoodUnits": 1.7167491638795984,
+      "monthlyWagesPaid": 4.1,
+      "monthlyFuelPaid": 0.71,
+      "monthlyWholesaleReceived": 42.95,
+      "monthlyFreightPaid": 0,
+      "monthlyCapacityBags": 106.93916666666667
+    },
+    {
+      "i": 10,
+      "stateId": 2,
+      "marketId": 1,
+      "cellId": 272,
+      "kind": "saltPan",
+      "annualCapacityBags": 1283.27,
+      "monthlyOutputBags": 106.9392,
+      "active": true,
+      "owner": {
+        "kind": "state",
+        "id": 2
+      },
+      "settlementOwner": {
+        "kind": "state",
+        "id": 2
+      },
+      "productionMethod": "boiling",
+      "monthlyLaborHours": 15250.455072463767,
+      "monthlyFuelWoodUnits": 1.7167491638795984,
+      "monthlyWagesPaid": 4.1,
+      "monthlyFuelPaid": 0.71,
+      "monthlyWholesaleReceived": 42.95,
+      "monthlyFreightPaid": 0,
+      "monthlyCapacityBags": 106.93916666666667
+    },
+    {
+      "i": 11,
+      "stateId": 2,
+      "marketId": 1,
+      "cellId": 273,
+      "kind": "saltPan",
+      "annualCapacityBags": 1283.27,
+      "monthlyOutputBags": 106.9392,
+      "active": true,
+      "owner": {
+        "kind": "state",
+        "id": 2
+      },
+      "settlementOwner": {
+        "kind": "state",
+        "id": 2
+      },
+      "productionMethod": "boiling",
+      "monthlyLaborHours": 15250.455072463767,
+      "monthlyFuelWoodUnits": 1.7167491638795984,
+      "monthlyWagesPaid": 4.1,
+      "monthlyFuelPaid": 0.71,
+      "monthlyWholesaleReceived": 42.95,
+      "monthlyFreightPaid": 0,
+      "monthlyCapacityBags": 106.93916666666667
+    },
+    {
+      "i": 12,
+      "stateId": 2,
+      "marketId": 1,
+      "cellId": 274,
+      "kind": "saltPan",
+      "annualCapacityBags": 1283.27,
+      "monthlyOutputBags": 106.9392,
+      "active": true,
+      "owner": {
+        "kind": "state",
+        "id": 2
+      },
+      "settlementOwner": {
+        "kind": "state",
+        "id": 2
+      },
+      "productionMethod": "boiling",
+      "monthlyLaborHours": 15250.455072463767,
+      "monthlyFuelWoodUnits": 1.7167491638795984,
+      "monthlyWagesPaid": 4.1,
+      "monthlyFuelPaid": 0.71,
+      "monthlyWholesaleReceived": 42.95,
+      "monthlyFreightPaid": 0,
+      "monthlyCapacityBags": 106.93916666666667
+    },
+    {
+      "i": 13,
+      "stateId": 2,
+      "marketId": 1,
+      "cellId": 275,
+      "kind": "saltPan",
+      "annualCapacityBags": 1283.27,
+      "monthlyOutputBags": 40.8937,
+      "active": true,
+      "owner": {
+        "kind": "state",
+        "id": 2
+      },
+      "settlementOwner": {
+        "kind": "state",
+        "id": 2
+      },
+      "productionMethod": "boiling",
+      "monthlyLaborHours": 5831.793688175681,
+      "monthlyFuelWoodUnits": 0.6564870943537353,
+      "monthlyWagesPaid": 1.57,
+      "monthlyFuelPaid": 0.27,
+      "monthlyWholesaleReceived": 16.43,
+      "monthlyFreightPaid": 0,
+      "monthlyCapacityBags": 106.93916666666667
+    }
+  ],
+  "shipments": [
+    {
+      "i": 1,
+      "exporterStateId": 1,
+      "importerStateId": 1,
+      "saltworksId": 1,
+      "fromMarketId": 1,
+      "toMarketId": 1,
+      "bags": 81.4833,
+      "sellerOwner": {
+        "kind": "state",
+        "id": 1
+      },
+      "wholesalePaid": 32.73,
+      "freightPaid": 0,
+      "travelDays": 0,
+      "remainingDays": 0,
+      "status": "delivered",
+      "unitPrice": 0.502
+    },
+    {
+      "i": 2,
+      "exporterStateId": 1,
+      "importerStateId": 1,
+      "saltworksId": 2,
+      "fromMarketId": 1,
+      "toMarketId": 1,
+      "bags": 81.4833,
+      "sellerOwner": {
+        "kind": "burg",
+        "id": 1
+      },
+      "wholesalePaid": 32.73,
+      "freightPaid": 0,
+      "travelDays": 0,
+      "remainingDays": 0,
+      "status": "delivered",
+      "unitPrice": 0.502
+    },
+    {
+      "i": 3,
+      "exporterStateId": 1,
+      "importerStateId": 1,
+      "saltworksId": 3,
+      "fromMarketId": 1,
+      "toMarketId": 1,
+      "bags": 5.3443,
+      "sellerOwner": {
+        "kind": "church",
+        "id": 1
+      },
+      "wholesalePaid": 2.15,
+      "freightPaid": 0,
+      "travelDays": 0,
+      "remainingDays": 0,
+      "status": "delivered",
+      "unitPrice": 0.502
+    },
+    {
+      "i": 4,
+      "exporterStateId": 1,
+      "importerStateId": 1,
+      "saltworksId": 4,
+      "fromMarketId": 1,
+      "toMarketId": 1,
+      "bags": 81.4833,
+      "sellerOwner": {
+        "kind": "private",
+        "id": 1
+      },
+      "wholesalePaid": 32.73,
+      "freightPaid": 0,
+      "travelDays": 0,
+      "remainingDays": 0,
+      "status": "delivered",
+      "unitPrice": 0.502
+    },
+    {
+      "i": 5,
+      "exporterStateId": 1,
+      "importerStateId": 1,
+      "saltworksId": 5,
+      "fromMarketId": 1,
+      "toMarketId": 1,
+      "bags": 81.4833,
+      "sellerOwner": {
+        "kind": "state",
+        "id": 1
+      },
+      "wholesalePaid": 32.73,
+      "freightPaid": 0,
+      "travelDays": 0,
+      "remainingDays": 0,
+      "status": "delivered",
+      "unitPrice": 0.502
+    },
+    {
+      "i": 6,
+      "exporterStateId": 1,
+      "importerStateId": 1,
+      "saltworksId": 6,
+      "fromMarketId": 1,
+      "toMarketId": 1,
+      "bags": 81.4833,
+      "sellerOwner": {
+        "kind": "state",
+        "id": 1
+      },
+      "wholesalePaid": 32.73,
+      "freightPaid": 0,
+      "travelDays": 0,
+      "remainingDays": 0,
+      "status": "delivered",
+      "unitPrice": 0.502
+    },
+    {
+      "i": 7,
+      "exporterStateId": 1,
+      "importerStateId": 1,
+      "saltworksId": 7,
+      "fromMarketId": 1,
+      "toMarketId": 1,
+      "bags": 81.4833,
+      "sellerOwner": {
+        "kind": "state",
+        "id": 1
+      },
+      "wholesalePaid": 32.73,
+      "freightPaid": 0,
+      "travelDays": 0,
+      "remainingDays": 0,
+      "status": "delivered",
+      "unitPrice": 0.502
+    },
+    {
+      "i": 8,
+      "exporterStateId": 1,
+      "importerStateId": 1,
+      "saltworksId": 8,
+      "fromMarketId": 1,
+      "toMarketId": 1,
+      "bags": 81.4833,
+      "sellerOwner": {
+        "kind": "state",
+        "id": 1
+      },
+      "wholesalePaid": 32.73,
+      "freightPaid": 0,
+      "travelDays": 0,
+      "remainingDays": 0,
+      "status": "delivered",
+      "unitPrice": 0.502
+    },
+    {
+      "i": 9,
+      "exporterStateId": 2,
+      "importerStateId": 2,
+      "saltworksId": 9,
+      "fromMarketId": 1,
+      "toMarketId": 1,
+      "bags": 106.9392,
+      "sellerOwner": {
+        "kind": "state",
+        "id": 2
+      },
+      "wholesalePaid": 42.95,
+      "freightPaid": 0,
+      "travelDays": 0,
+      "remainingDays": 0,
+      "status": "delivered",
+      "unitPrice": 0.502
+    },
+    {
+      "i": 10,
+      "exporterStateId": 2,
+      "importerStateId": 2,
+      "saltworksId": 10,
+      "fromMarketId": 1,
+      "toMarketId": 1,
+      "bags": 106.9392,
+      "sellerOwner": {
+        "kind": "state",
+        "id": 2
+      },
+      "wholesalePaid": 42.95,
+      "freightPaid": 0,
+      "travelDays": 0,
+      "remainingDays": 0,
+      "status": "delivered",
+      "unitPrice": 0.502
+    },
+    {
+      "i": 11,
+      "exporterStateId": 2,
+      "importerStateId": 2,
+      "saltworksId": 11,
+      "fromMarketId": 1,
+      "toMarketId": 1,
+      "bags": 106.9392,
+      "sellerOwner": {
+        "kind": "state",
+        "id": 2
+      },
+      "wholesalePaid": 42.95,
+      "freightPaid": 0,
+      "travelDays": 0,
+      "remainingDays": 0,
+      "status": "delivered",
+      "unitPrice": 0.502
+    },
+    {
+      "i": 12,
+      "exporterStateId": 2,
+      "importerStateId": 2,
+      "saltworksId": 12,
+      "fromMarketId": 1,
+      "toMarketId": 1,
+      "bags": 106.9392,
+      "sellerOwner": {
+        "kind": "state",
+        "id": 2
+      },
+      "wholesalePaid": 42.95,
+      "freightPaid": 0,
+      "travelDays": 0,
+      "remainingDays": 0,
+      "status": "delivered",
+      "unitPrice": 0.502
+    },
+    {
+      "i": 13,
+      "exporterStateId": 2,
+      "importerStateId": 2,
+      "saltworksId": 13,
+      "fromMarketId": 1,
+      "toMarketId": 1,
+      "bags": 40.8937,
+      "sellerOwner": {
+        "kind": "state",
+        "id": 2
+      },
+      "wholesalePaid": 16.43,
+      "freightPaid": 0,
+      "travelDays": 0,
+      "remainingDays": 0,
+      "status": "delivered",
+      "unitPrice": 0.502
+    }
+  ]
+}

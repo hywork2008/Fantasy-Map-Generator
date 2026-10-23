@@ -780,8 +780,8 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
       populationCoverage: auditSaltPopulationCoverage(),
       kilogramsPerBag: SALT_KILOGRAMS_PER_BAG,
       states: getStateSaltLedgers().map(row => ({ ...row, saltworksIds: [...row.saltworksIds] })),
-      works: getSaltworks().map(row => ({ ...row })),
-      shipments: getSaltShipments().map(row => ({ ...row }))
+      works: getSaltworks().map(row => ({ ...row, ...(row.owner ? { owner: { ...row.owner } } : {}), ...(row.settlementOwner ? { settlementOwner: { ...row.settlementOwner } } : {}) })),
+      shipments: getSaltShipments().map(row => ({ ...row, ...(row.sellerOwner ? { sellerOwner: { ...row.sellerOwner } } : {}) }))
     } : null;
   }
 
@@ -988,7 +988,8 @@ function moneyTotals(world: WorldContext): MoneyTotals {
       totals.ruralHouseholds += m.foodLedger?.ruralHouseholdWealth ?? 0;
     }
   }
-  for (const ch of getCharacters()) totals.characters += ch.wealth ?? 0;
+  if (readPersonalCash()) totals.characters = personalCashTotal();
+  else for (const ch of getCharacters()) totals.characters += ch.wealth ?? 0;
   return totals;
 }
 

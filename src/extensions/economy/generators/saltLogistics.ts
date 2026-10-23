@@ -28,6 +28,7 @@ import {
   saltMarketCash
 } from "./saltFinance";
 import type { SaltShipment, Saltworks, StateSaltLedger } from "./saltLogisticsTypes";
+import { getSaltworksOwner, migrateSaltworksOwnership } from "./saltOwnership";
 import { createSaltProductionBudget } from "./saltProduction";
 
 /** The normalized physical quantity represented by Salt's `bag` Good unit. */
@@ -367,6 +368,7 @@ export class SaltLogisticsModule {
         operations.push({
           i: operations.length + 1,
           stateId,
+          owner: { kind: "state", id: stateId },
           marketId,
           cellId,
           kind: getSaltworkKind(cellId),
@@ -393,6 +395,7 @@ export class SaltLogisticsModule {
    * physical stock: the next batch is made only after household sales or recipe inputs create room for it.
    */
   settleMonth(): Map<number, number> {
+    migrateSaltworksOwnership();
     const production = createSaltProductionBudget();
     const salt = getSaltGood();
     if (!salt) return production.charged;
@@ -414,6 +417,7 @@ export class SaltLogisticsModule {
       operations.push({
         i: Math.max(0, ...operations.map(o => o.i)) + 1,
         stateId: state.i,
+        owner: { kind: "state", id: state.i },
         marketId: getMarketCellColumn()[cellId],
         cellId,
         kind: getSaltworkKind(cellId),
@@ -628,6 +632,7 @@ export class SaltLogisticsModule {
             fromMarketId: source.i,
             toMarketId: demand.market.i,
             bags: rn(output, 4),
+            sellerOwner: { ...getSaltworksOwner(operation) },
             wholesalePaid: payment.goods,
             freightPaid: payment.freight,
             travelDays,

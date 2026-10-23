@@ -221,6 +221,7 @@ import {
 } from "./generators/retailInventory";
 import { releaseRuralLaborSurplus } from "./generators/ruralLaborRelease";
 import { SaltLogistics } from "./generators/saltLogistics";
+import { migrateSaltworksOwnership } from "./generators/saltOwnership";
 import { seedShipbuildingInitialStock } from "./generators/shipbuildingInitialStock";
 import { SmelterOperations } from "./generators/smelterOperations";
 import { refreshStateEconomySummaries } from "./generators/stateEconomySummary";
@@ -1780,6 +1781,7 @@ function register(api: SimulationExtensionAPI): () => void {
   // newly added Ingots/Cats begin at zero stock (no duplicated wealth).
   on("fmg:world-loaded", () => {
     if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+    migrateSaltworksOwnership();
     Goods.sync();
     Markets.sync();
     clearStateFiscalReports();
@@ -2575,6 +2577,7 @@ function register(api: SimulationExtensionAPI): () => void {
   // The view rebuilt its layers for a loaded or regenerated map; upgrade the loaded economy data.
   on("fmg:map-layers-reinitialized", () => {
     if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+    migrateSaltworksOwnership();
     Goods.sync();
     Markets.sync();
     const migratedGoodsCatalog = runGoodsCatalogMigrations();

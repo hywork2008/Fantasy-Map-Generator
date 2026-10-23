@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { createObserveViews } from "../../../../scripts/lib/observeViews.mts";
+import { createMoneyFlowRecorder, createObserveViews } from "../../../../scripts/lib/observeViews.mts";
+import { clearCharactersContext, initCharactersContext } from "../../characters/charactersContext";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
   clearEconomyContext,
+  getApi,
   getMarkets,
   getOrCreateCumulativeMarketIntake,
   getOrCreateFaunaStockTable,
@@ -24,6 +26,7 @@ import { recordGoodFlow, setGoodFlowObserver } from "./goodsBalanceLedger";
 import { getRuralHouseholdWealth } from "./householdWealth";
 import { Markets } from "./markets-generator";
 import type { Market } from "./marketTypes";
+import { createPersonalCashState } from "./personalCashLedger";
 import { buyHouseholdSalt, priceSalt } from "./saltFinance";
 import {
   auditSaltPopulationCoverage,
@@ -31,6 +34,13 @@ import {
   SALT_KILOGRAMS_PER_BAG,
   SaltLogistics
 } from "./saltLogistics";
+import type { SaltworksOwner } from "./saltLogisticsTypes";
+import {
+  getSaltOwnerAccount,
+  getSaltworksOwnerOptions,
+  migrateSaltworksOwnership,
+  setSaltworksOwner
+} from "./saltOwnership";
 import { createSaltProductionBudget, SALT_PRODUCTION_POLICY, saltSolarWeights } from "./saltProduction";
 import { setCargoDepartureObserver, setLotDispatchObserver, setTradeStageObserver } from "./tradeStageObserver";
 import { WOOD_KG_PER_LOT } from "./woodRecipeContracts";
@@ -99,6 +109,7 @@ describe("SaltLogisticsModule", () => {
     setUpWorld();
   });
   afterEach(() => {
+    clearCharactersContext();
     setGoodFlowObserver(null);
     setCargoDepartureObserver(null);
     setLotDispatchObserver(null);
@@ -108,11 +119,158 @@ describe("SaltLogisticsModule", () => {
 
   function cash(): number {
     return (
-      worldContext.pack.states.reduce((sum, s) => sum + (s?.treasury ?? 0), 0) +
+      worldContext.pack.states.reduce(
+        (sum, s) =>
+          sum +
+          (s?.treasury ?? 0) +
+          Object.values(s?.departmentBalances ?? {}).reduce((total, value) => total + value, 0),
+        0
+      ) +
       getMarkets().reduce((sum, m) => sum + (m.marketTreasury?.balance ?? 0) + getRuralHouseholdWealth(m), 0) +
-      worldContext.pack.burgs.reduce((sum, b) => sum + (b?.i ? getHouseholdWealth(b.i) : 0), 0)
+      worldContext.pack.burgs.reduce((sum, b) => sum + (b?.i ? getHouseholdWealth(b.i) + (b.treasury ?? 0) : 0), 0) +
+      (worldContext.pack.characters ?? []).reduce((sum, person) => sum + (person.wealth ?? 0), 0)
     );
   }
+
+  function seedOwners(): void {
+    worldContext.pack.burgs[1].treasury = 1e8;
+    worldContext.pack.states[1].departmentBalances = {
+      marshalcy: 0,
+      chancery: 0,
+      stewardship: 0,
+      spymastery: 0,
+      ecclesiastica: 1e8,
+      publicWorks: 0
+    };
+    worldContext.pack.characters = [
+      { i: 100, name: "Salt Merchant", state: 1, dead: false, wealth: 1e8 }
+    ] as typeof worldContext.pack.characters;
+  }
+
+  it.each<SaltworksOwner>([
+    { kind: "state", id: 1 },
+    { kind: "burg", id: 1 },
+    { kind: "church", id: 1 },
+    { kind: "private", id: 100 }
+  ])("routes costs and receipts to $kind ownership without creating cash", owner => {
+    seedOwners();
+    SaltLogistics.generate();
+    const operation = getSaltworks()[0];
+    expect(setSaltworksOwner(operation.i, owner)).toBe(true);
+    const before = cash();
+    operation.kind = "brineWell";
+    setGoods([Goods.get(1)!, { i: 2, name: "Wood", tags: [], value: 1, unit: "pile", icon: "", color: "" }]);
+    getMarkets()[0].goods[2] = { stock: 100, price: 3 };
+    const ownerBefore = getSaltOwnerAccount(operation)!.balance;
+    const stateBefore = worldContext.pack.states[1].treasury;
+    SaltLogistics.settleMonth();
+    expect(operation.monthlyOutputBags).toBeGreaterThan(0);
+    expect(operation.monthlyFuelPaid).toBeGreaterThan(0);
+    expect(getSaltOwnerAccount(operation)!.balance).toBeCloseTo(
+      ownerBefore + operation.monthlyWholesaleReceived! - operation.monthlyWagesPaid! - operation.monthlyFuelPaid!,
+      4
+    );
+    if (owner.kind !== "state") expect(worldContext.pack.states[1].treasury).toBeCloseTo(stateBefore!, 4);
+    expect(operation.settlementOwner).toEqual(owner);
+    expect(getSaltShipments().find(sh => sh.saltworksId === operation.i)?.sellerOwner).toEqual(owner);
+    expect(cash()).toBeCloseTo(before, 4);
+  });
+
+  it("uses authoritative Characters cash rather than the compatibility pack copy", () => {
+    seedOwners();
+    const actualPerson = { ...worldContext.pack.characters![0], name: "Actual Merchant", wealth: 2e8 };
+    initCharactersContext({
+      worldContext,
+      simulationContext: { extensions: { characters: { characters: [actualPerson] } } }
+    } as unknown as ExtensionAPI);
+    SaltLogistics.generate();
+    const operation = getSaltworks()[0];
+    expect(setSaltworksOwner(operation.i, { kind: "private", id: 100 })).toBe(true);
+    expect(getSaltworksOwnerOptions(operation).find(o => o.owner.kind === "private")?.name).toBe("Actual Merchant");
+    SaltLogistics.settleMonth();
+    expect(actualPerson.wealth).toBeCloseTo(
+      2e8 + operation.monthlyWholesaleReceived! - operation.monthlyWagesPaid! - operation.monthlyFuelPaid!,
+      4
+    );
+    expect(worldContext.pack.characters![0].wealth).toBe(1e8);
+    expect(setSaltworksOwner(operation.i, undefined as unknown as SaltworksOwner)).toBe(false);
+    expect(operation.owner).toEqual({ kind: "private", id: 100 });
+  });
+
+  it("counts reference-backed private money once in the cash-flow observer", () => {
+    seedOwners();
+    const ledger = createPersonalCashState();
+    ledger.accounts.dormant = {
+      id: "dormant",
+      stateId: 1,
+      balance: 1000,
+      status: "active",
+      managed: true,
+      initialized: true
+    };
+    const extensions = getApi().simulationContext.extensions;
+    extensions.economy ??= {};
+    extensions.economy.personalCash = ledger;
+    const money = createMoneyFlowRecorder(() => worldContext);
+    expect(money.totals().characters).toBe(10);
+    money.observer.enter("salt");
+    worldContext.pack.states[1].treasury! -= 3;
+    ledger.accounts.dormant.balance += 300;
+    money.observer.exit("salt");
+    expect(money.flush()).toEqual([{ step: "salt", net: 0, stateTreasury: -3, characters: 3 }]);
+  });
+
+  it("migrates absent legacy rights once without resetting money, capacity, or explicit owners", () => {
+    seedOwners();
+    SaltLogistics.generate();
+    delete getSaltworks()[0].owner;
+    expect(setSaltworksOwner(getSaltworks()[1].i, { kind: "burg", id: 2 })).toBe(true);
+    const before = cash();
+    const capacity = getSaltworks().map(o => o.annualCapacityBags);
+    migrateSaltworksOwnership();
+    migrateSaltworksOwnership();
+    expect(getSaltworks().map(o => o.owner)).toEqual([
+      { kind: "state", id: 1 },
+      { kind: "burg", id: 2 }
+    ]);
+    expect(getSaltworks().map(o => o.annualCapacityBags)).toEqual(capacity);
+    expect(cash()).toBe(before);
+  });
+
+  it("rejects foreign or missing rights and never uses the state purse for an invalid private owner", () => {
+    seedOwners();
+    SaltLogistics.generate();
+    const operation = getSaltworks()[0];
+    expect(setSaltworksOwner(operation.i, { kind: "burg", id: 2 })).toBe(false);
+    expect(setSaltworksOwner(operation.i, { kind: "private", id: 999 })).toBe(false);
+    expect(setSaltworksOwner(operation.i, { kind: "private", id: 100 })).toBe(true);
+    worldContext.pack.characters![0].dead = true;
+    expect(getSaltworksOwnerOptions(operation).some(o => o.owner.kind === "private")).toBe(false);
+    const before = cash();
+    const stateBefore = worldContext.pack.states[1].treasury;
+    SaltLogistics.settleMonth();
+    expect(operation.monthlyOutputBags).toBe(0);
+    expect(operation.owner).toEqual({ kind: "private", id: 100 });
+    expect(worldContext.pack.states[1].treasury).toBe(stateBefore);
+    expect(cash()).toBeCloseTo(before, 4);
+  });
+
+  it("changes rights without moving old cash, market stock, prepaid receipts or settlement attribution", () => {
+    seedOwners();
+    SaltLogistics.generate();
+    SaltLogistics.settleMonth();
+    const operation = getSaltworks()[0];
+    const receipts = structuredClone(getSaltShipments());
+    const stock = getMarkets().map(m => m.goods[1]?.stock);
+    const before = cash();
+    const oldOwnerCash = worldContext.pack.states[1].treasury;
+    expect(setSaltworksOwner(operation.i, { kind: "private", id: 100 })).toBe(true);
+    expect(operation.settlementOwner).toEqual({ kind: "state", id: 1 });
+    expect(getSaltShipments()).toEqual(receipts);
+    expect(getMarkets().map(m => m.goods[1]?.stock)).toEqual(stock);
+    expect(worldContext.pack.states[1].treasury).toBe(oldOwnerCash);
+    expect(cash()).toBe(before);
+  });
 
   it("conserves cash across state production, wholesale, fuel, wages and retail", () => {
     SaltLogistics.generate();
@@ -167,12 +325,16 @@ describe("SaltLogisticsModule", () => {
   it("prepays international cargo and freight once, never again when cargo arrives", () => {
     worldContext.pack.cells.c[1] = [0];
     SaltLogistics.generate();
+    seedOwners();
+    expect(setSaltworksOwner(getSaltworks()[0].i, { kind: "private", id: 100 })).toBe(true);
     const before = cash();
     SaltLogistics.settleMonth();
     SaltLogistics.settleMonth();
     const shipment = getSaltShipments().find(sh => sh.importerStateId === 2)!;
     expect(shipment.wholesalePaid).toBeGreaterThan(0);
     expect(shipment.freightPaid).toBeGreaterThan(0);
+    expect(shipment.sellerOwner).toEqual({ kind: "private", id: 100 });
+    expect(worldContext.pack.states[1].treasury).toBeCloseTo(1e8, 4);
     expect(getStateSaltLedgers().find(s => s.stateId === 2)?.monthlyImportsPaid).toBe(shipment.wholesalePaid);
     expect(cash()).toBeCloseTo(before, 5);
     getSaltworks().forEach(w => {
@@ -327,6 +489,9 @@ describe("SaltLogisticsModule", () => {
     first.states[0].saltworksIds.push(-1);
     first.states[0].population = 0;
     first.works[0].monthlyOutputBags = -1;
+    first.works[0].owner!.id = -1;
+    first.works[0].settlementOwner!.id = -1;
+    first.shipments[0].sellerOwner!.id = -1;
     first.shipments[0].bags = -1;
     expect(
       JSON.stringify({ works: getSaltworks(), shipments: getSaltShipments(), states: getStateSaltLedgers() })

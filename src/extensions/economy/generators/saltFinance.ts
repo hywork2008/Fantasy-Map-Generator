@@ -5,6 +5,7 @@ import type { Good } from "./goods-generator";
 import { debitRuralHouseholdWealth, getRuralHouseholdWealth } from "./householdWealth";
 import type { Market } from "./marketTypes";
 import type { Saltworks } from "./saltLogisticsTypes";
+import { getSaltOwnerAccount } from "./saltOwnership";
 import { getTransportCost } from "./tradeOpportunityEstimator";
 
 /** Settle positive invoices in cents, never below the physical purchase's quoted value. */
@@ -25,10 +26,10 @@ function creditMarket(market: Market, amount: number): void {
   market.marketTreasury.balance += amount;
 }
 export function saltOwnerCash(operation: Saltworks): number {
-  return Math.max(0, getWorldContext().pack.states[operation.stateId]?.treasury ?? 0);
+  return Math.max(0, getSaltOwnerAccount(operation)?.balance ?? 0);
 }
 
-/** State pays only actual input purchases; every debit has an existing wallet as counterparty. */
+/** Owner pays only actual input purchases; every debit has an existing wallet as counterparty. */
 export function paySaltInputs(
   operation: Saltworks,
   market: Market,
@@ -36,8 +37,9 @@ export function paySaltInputs(
   fuel: number,
   workers: readonly { burgId: number; share: number }[]
 ): void {
-  const state = getWorldContext().pack.states[operation.stateId];
-  state.treasury = (state.treasury ?? 0) - wages - fuel;
+  const account = getSaltOwnerAccount(operation);
+  if (!account || account.balance + 1e-8 < wages + fuel) throw new Error("Unfunded Salt production inputs");
+  account.change(-wages - fuel);
   creditMarket(market, fuel);
   let paid = 0;
   workers.forEach((worker, index) => {
@@ -73,6 +75,8 @@ export function paySaltWholesale(
   const goods = saltInvoice(bags * unitPrice);
   const freight = saltInvoice(bags * freightPerBag);
   if (from.i === to.i && !fresh) return { goods: 0, freight: 0 };
+  const account = fresh ? getSaltOwnerAccount(operation) : null;
+  if (fresh && !account) throw new Error("Invalid Salt seller ownership");
   creditMarket(to, -goods - freight);
   const states = getWorldContext().pack.states;
   const exporter = states[operation.stateId];
@@ -86,8 +90,13 @@ export function paySaltWholesale(
   if (!fresh) {
     exporter.treasury -= goods;
     creditMarket(from, goods);
-  } else operation.monthlyWholesaleReceived = cents((operation.monthlyWholesaleReceived ?? 0) + goods);
-  exporter.treasury -= freight;
+    exporter.treasury -= freight;
+  } else {
+    exporter.treasury -= goods + freight;
+    account!.change(goods + freight);
+    account!.change(-freight);
+    operation.monthlyWholesaleReceived = cents((operation.monthlyWholesaleReceived ?? 0) + goods);
+  }
   // The explicit Salt carrier uses the same local-household recipient as ordinary freight.
   creditHouseholdWealth(from.centerBurgId, freight);
   operation.monthlyFreightPaid = cents((operation.monthlyFreightPaid ?? 0) + freight);

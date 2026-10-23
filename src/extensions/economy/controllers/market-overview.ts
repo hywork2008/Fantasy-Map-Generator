@@ -8,6 +8,7 @@ import {
   getExportStagingLots,
   getMarketCellColumn,
   getMerchantOrganizations,
+  getSaltworks,
   getWorldContext
 } from "../economyContext";
 import {
@@ -22,6 +23,13 @@ import { Markets } from "../generators/markets-generator";
 import type { TransportAssetOrder } from "../generators/marketTypes";
 import { getUncommittedTradeCapital, MerchantTradeCapital } from "../generators/merchantTradeCapital";
 import { MerchantTransportAssets } from "../generators/merchantTransportAssets";
+import type { SaltworksOwner } from "../generators/saltLogisticsTypes";
+import {
+  getSaltOwnerAccount,
+  getSaltworksOwner,
+  getSaltworksOwnerOptions,
+  setSaltworksOwner
+} from "../generators/saltOwnership";
 import { TradeLogisticsSettings } from "../generators/tradeLogisticsSettings";
 import { TransportAssetOrders } from "../generators/transportAssetOrders";
 import {
@@ -103,6 +111,19 @@ export function createPlayerTransportOrder({
 
 export function cancelTransportAssetOrder(orderId: number): boolean {
   if (!TransportAssetOrders.cancel(orderId)) return false;
+  refreshMarketOverview();
+  return true;
+}
+
+export function assignSaltworksOwner(operationId: number, value: string): boolean {
+  const match = /^(state|burg|church|private):([1-9]\d*)$/.exec(value);
+  const operation = getSaltworks().find(o => o.i === operationId && o.marketId === activeMarketId);
+  if (!operation || !match) return false;
+  if (!setSaltworksOwner(operationId, { kind: match[1] as SaltworksOwner["kind"], id: Number(match[2]) })) {
+    tip("The selected Salt owner is unavailable. Ownership has not changed", true, "error", 5000);
+    refreshMarketOverview();
+    return false;
+  }
   refreshMarketOverview();
   return true;
 }
@@ -202,6 +223,18 @@ export function refreshMarketOverview(): void {
     defaultName: centerBurg.name || `Market ${market.i}`,
     owner: state ? { coaId, name: state.fullName || state.name } : null,
     rows,
+    saltworksRows: getSaltworks()
+      .filter(o => o.marketId === market.i)
+      .map(o => ({
+        id: o.i,
+        owner: { ...getSaltworksOwner(o) },
+        settlementOwner: o.settlementOwner ? { ...o.settlementOwner } : undefined,
+        cash: getSaltOwnerAccount(o)?.balance ?? null,
+        output: o.monthlyOutputBags,
+        receipts: o.monthlyWholesaleReceived ?? 0,
+        expenses: (o.monthlyWagesPaid ?? 0) + (o.monthlyFuelPaid ?? 0) + (o.monthlyFreightPaid ?? 0),
+        options: getSaltworksOwnerOptions(o)
+      })),
     burgMerchantRows,
     transportAssetRows,
     transportOrderRows,

@@ -1,10 +1,17 @@
+/** Church ids identify the existing state ecclesiastica account, not a cleric's personal purse. */
+export type SaltworksOwner = { kind: "state" | "burg" | "church" | "private"; id: number };
+
 /**
- * State-operated source of Salt. Capacity and output use the Salt Good's `bag` unit.
+ * Owned source of Salt. Capacity and output use the Salt Good's `bag` unit.
  * A bag is normalized to 60 kg; see saltLogistics.ts and docs/simulation/salt-logistics.md.
  */
 export interface Saltworks {
   i: number;
   stateId: number;
+  /** Missing in legacy saves: the territorial state retains ownership. */
+  owner?: SaltworksOwner;
+  /** Owner of the latest production settlement, retained across later editor assignments. */
+  settlementOwner?: SaltworksOwner;
   /** Market where the works deposits its wholesale output. */
   marketId: number;
   /** Cell containing the pan, brine well, or rock-salt working. */
@@ -31,7 +38,7 @@ export interface SaltShipment {
   i: number;
   /** Compatibility field for shipments saved before exporter/importer states were split. */
   stateId?: number;
-  /** State that owns the saltworks and receives the wholesale proceeds. */
+  /** Territorial exporting state; the actual owner is separate. */
   exporterStateId: number;
   /** State whose city market ordered the cargo. */
   importerStateId: number;
@@ -49,6 +56,8 @@ export interface SaltShipment {
   unitPrice: number;
   /** Prepaid at dispatch. Absent on legacy cargo, which is never retroactively charged. */
   wholesalePaid?: number;
+  /** Owner paid at dispatch for fresh output; later assignments never rewrite this receipt. */
+  sellerOwner?: SaltworksOwner;
   freightPaid?: number;
 }
 

@@ -13,6 +13,7 @@ import {
 import { formatPrice } from "../../../hostUtils";
 
 import {
+  assignSaltworksOwner,
   cancelTransportAssetOrder,
   createPlayerTransportOrder,
   downloadStockCsv,
@@ -74,6 +75,7 @@ export const MarketOverviewDialog: React.FC = () => {
   const defaultName = useMarketOverviewState(state => state.defaultName);
   const owner = useMarketOverviewState(state => state.owner);
   const rows = useMarketOverviewState(state => state.rows);
+  const saltworksRows = useMarketOverviewState(state => state.saltworksRows);
   const burgMerchantRows = useMarketOverviewState(state => state.burgMerchantRows);
   const transportAssetRows = useMarketOverviewState(state => state.transportAssetRows);
   const transportOrderRows = useMarketOverviewState(state => state.transportOrderRows);
@@ -93,7 +95,9 @@ export const MarketOverviewDialog: React.FC = () => {
   const merchantOrganizationName = useMarketOverviewState(state => state.merchantOrganizationName);
   const foodLedger = useMarketOverviewState(state => state.foodLedger);
   const headerRef = React.useRef<HTMLTableSectionElement | null>(null);
-  const [activeTab, setActiveTab] = React.useState<"goods" | "burgMerchants" | "transportAssets">("goods");
+  const [activeTab, setActiveTab] = React.useState<"goods" | "burgMerchants" | "transportAssets" | "saltworks">(
+    "goods"
+  );
   const [transportBlueprintId, setTransportBlueprintId] = React.useState<TransportAssetOrder["blueprintId"]>("cart");
   const [transportQuantity, setTransportQuantity] = React.useState("1");
   const [transportBudgetLimit, setTransportBudgetLimit] = React.useState("");
@@ -321,7 +325,80 @@ export const MarketOverviewDialog: React.FC = () => {
           >
             {t("extensions.marketOverview.tabTransport")}
           </button>
+          <button
+            type="button"
+            className={`options ${activeTab === "saltworks" ? "active" : ""}`}
+            onClick={() => setActiveTab("saltworks")}
+          >
+            {t("extensions.marketOverview.tabSaltworks")}
+          </button>
         </div>
+
+        {activeTab === "saltworks" && (
+          <div className="table">
+            <p>{t("extensions.marketOverview.saltOwnershipTip")}</p>
+            <table className="fmg-table">
+              <thead>
+                <tr>
+                  <th>{t("extensions.marketOverview.tabSaltworks")}</th>
+                  <th>{t("extensions.marketOverview.saltOwner")}</th>
+                  <th>{t("extensions.marketOverview.saltSettlementOwner")}</th>
+                  <th>{t("extensions.marketOverview.saltCash")}</th>
+                  <th>{t("extensions.marketOverview.saltOutput")}</th>
+                  <th>{t("extensions.marketOverview.saltReceipts")}</th>
+                  <th>{t("extensions.marketOverview.saltExpenses")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {saltworksRows.map(row => {
+                  const ownerKey = `${row.owner.kind}:${row.owner.id}`;
+                  const available = row.options.some(option => `${option.owner.kind}:${option.owner.id}` === ownerKey);
+                  return (
+                    <tr key={row.id}>
+                      <td>#{row.id}</td>
+                      <td>
+                        <select
+                          aria-label={`${t("extensions.marketOverview.saltOwner")} #${row.id}`}
+                          value={ownerKey}
+                          onChange={event => {
+                            assignSaltworksOwner(row.id, event.target.value);
+                          }}
+                        >
+                          {!available && (
+                            <option value={ownerKey} disabled>
+                              {t("extensions.marketOverview.saltOwnerUnavailable")}
+                            </option>
+                          )}
+                          {row.options.map(option => (
+                            <option
+                              key={`${option.owner.kind}:${option.owner.id}`}
+                              value={`${option.owner.kind}:${option.owner.id}`}
+                            >
+                              {t(`extensions.marketOverview.saltOwner_${option.owner.kind}`)}: {option.name}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td>
+                        {row.settlementOwner
+                          ? `${t(`extensions.marketOverview.saltOwner_${row.settlementOwner.kind}`)} #${row.settlementOwner.id}`
+                          : "—"}
+                      </td>
+                      <td>
+                        {row.cash === null
+                          ? t("extensions.marketOverview.saltOwnerUnavailable")
+                          : formatPrice(row.cash)}
+                      </td>
+                      <td>{row.output.toFixed(2)}</td>
+                      <td>{formatPrice(row.receipts)}</td>
+                      <td>{formatPrice(row.expenses)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {activeTab === "goods" && (
           <>
