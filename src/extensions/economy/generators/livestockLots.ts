@@ -129,6 +129,7 @@ export function recordLivestockLotFlow(flow: GoodFlowRecord, species: string, cl
       species,
       units: flow.units,
       fromOwnerId: flow.livestockSellerId,
+      fromLocationId: flow.livestockOwnerLocationId,
       openingUnits: flow.livestockOwnerOpeningUnits,
       marketId: flow.marketId,
       locationId: `market:${flow.marketId}`
@@ -242,9 +243,11 @@ export function moveOwnedLivestock(input: {
   species: string;
   units: number;
   fromOwnerId: string;
+  fromLocationId?: string;
   toOwnerId?: string;
   openingUnits?: number;
-  marketId: number;
+  destinationOpeningUnits?: number;
+  marketId?: number;
   locationId: string;
 }): void {
   if (!Number.isFinite(input.units) || input.units <= 0) return;
@@ -254,34 +257,54 @@ export function moveOwnedLivestock(input: {
   const heads = input.units * scale;
   const matching = () =>
     Object.values(ledger.lots).filter(
-      lot => lot.status === "owned" && lot.ownerId === input.fromOwnerId && lot.species === input.species
+      lot =>
+        lot.status === "owned" &&
+        lot.ownerId === input.fromOwnerId &&
+        lot.species === input.species &&
+        (input.fromLocationId === undefined || lot.locationId === input.fromLocationId)
     );
-  const tracked = matching().reduce((sum, lot) => sum + lot.heads, 0);
-  if (input.openingUnits !== undefined && Number.isFinite(input.openingUnits)) {
-    const opening = Math.max(0, input.openingUnits * scale);
-    if (tracked > opening + 1e-9) {
-      for (const lot of matching()) terminal(ledger, lot, lot.heads, "unattributedOwnerReconciliation");
+  const reconcile = (ownerId: string, locationId: string | undefined, openingUnits: number | undefined) => {
+    if (openingUnits === undefined || !Number.isFinite(openingUnits)) return;
+    const rows = () =>
+      Object.values(ledger.lots).filter(
+        lot =>
+          lot.status === "owned" &&
+          lot.ownerId === ownerId &&
+          lot.species === input.species &&
+          (locationId === undefined || lot.locationId === locationId)
+      );
+    const opening = Math.max(0, openingUnits * scale);
+    if (rows().reduce((sum, lot) => sum + lot.heads, 0) > opening + 1e-9) {
+      for (const lot of rows()) terminal(ledger, lot, lot.heads, "unattributedOwnerReconciliation");
     }
-    const retained = matching().reduce((sum, lot) => sum + lot.heads, 0);
+    const retained = rows().reduce((sum, lot) => sum + lot.heads, 0);
     if (opening > retained + 1e-9) {
       const unknown = addLot(
         ledger,
         input.species,
-        input.marketId,
+        input.marketId ?? 0,
         opening - retained,
         null,
         "",
-        input.fromOwnerId,
+        ownerId,
         "owned"
       );
-      unknown.locationId = input.fromOwnerId;
+      unknown.locationId = locationId ?? ownerId;
     }
-  }
+  };
+  reconcile(input.fromOwnerId, input.fromLocationId, input.openingUnits);
+  if (input.toOwnerId) reconcile(input.toOwnerId, input.locationId, input.destinationOpeningUnits);
   let remaining = heads;
   for (const lot of matching()) {
     const taken = Math.min(lot.heads, remaining);
     if (!(taken > 0)) continue;
-    const moved = copyLotShare(ledger, lot, taken, input.toOwnerId ? "owned" : "market", input.marketId);
+    const moved = copyLotShare(
+      ledger,
+      lot,
+      taken,
+      input.toOwnerId ? "owned" : "market",
+      input.marketId ?? lot.marketId
+    );
     moved.ownerId = input.toOwnerId ?? null;
     moved.locationId = input.locationId;
     terminal(ledger, lot, taken, input.toOwnerId ? "ownershipTransfer" : "ownedReturn");
@@ -293,7 +316,7 @@ export function moveOwnedLivestock(input: {
     const unknown = addLot(
       ledger,
       input.species,
-      input.marketId,
+      input.marketId ?? 0,
       remaining,
       null,
       "",

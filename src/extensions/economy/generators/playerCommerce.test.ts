@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { simEvents } from "../../../simulation/events";
 import { clearCharactersContext, initCharactersContext } from "../../characters/charactersContext";
 import type { Character } from "../../characters/characterTypes";
+import { equipFromInventory } from "../../characters/loadoutEquip";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
 import { getEconomySlice } from "../context/economyApi";
@@ -16,6 +18,7 @@ import {
   setGoods,
   setMarkets
 } from "../economyContext";
+import { registerCharacterLivestockTransfers } from "./characterLivestockTransfers";
 import { getAllStockData } from "./economyTotals";
 import { Goods } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
@@ -128,6 +131,39 @@ describe("player commerce", () => {
     expect(held[0].sourceCellId).toBe(7);
     expect(lots.filter(lot => lot.status === "market").reduce((sum, lot) => sum + lot.heads, 0)).toBe(99);
     expect(lots.every(lot => lot.sourceCellId === 7 && lot.cohortHeads?.breeding === lot.heads)).toBe(true);
+  });
+
+  it("retains the equipped team when the player sells the remaining bag stock", () => {
+    Object.assign(getGoods()[0], { name: "Horses", tags: ["liveAnimal"] });
+    recordGoodFlow({
+      direction: "source",
+      category: "ruralHarvest",
+      goodId: 1,
+      units: 100,
+      marketId: 1,
+      livestockSourceCellId: 7,
+      livestockCohorts: { young: 0, breeding: 2500, old: 0 }
+    });
+    const unregister = registerCharacterLivestockTransfers(simEvents, () => true);
+    try {
+      expect(executePlayerMarketTrade({ characterId: 1, goodId: 1, units: 2, direction: "buy" }).ok).toBe(true);
+      expect(
+        equipFromInventory({ character: worldContext.pack.characters![0], slot: "mount", goodId: 1, goods: getGoods() })
+          .ok
+      ).toBe(true);
+      expect(executePlayerMarketTrade({ characterId: 1, goodId: 1, units: 1, direction: "sell" }).ok).toBe(true);
+      const personal = Object.values(getLivestockLotLedger()!.lots).filter(lot => lot.ownerId === "character:1");
+      expect(personal).toHaveLength(1);
+      expect(personal[0]).toMatchObject({
+        locationId: "loadout:1:mount",
+        heads: 25,
+        sourceCellId: 7,
+        cohortProvenance: "aggregate",
+        cohortHeads: { young: 0, breeding: 25, old: 0 }
+      });
+    } finally {
+      unregister();
+    }
   });
 
   it("leaves all balances and stock untouched when a purchase exceeds locally held stock", () => {

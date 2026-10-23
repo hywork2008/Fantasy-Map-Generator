@@ -69,6 +69,7 @@ import { ApothecaryWorkshops } from "./generators/apothecaryWorkshops";
 import { reconcileAnnualBasicEmploymentWorkers } from "./generators/basicEmployment";
 import { clearBurgMarketLedgers, syncBurgMarketLedgers } from "./generators/burgMarketLedgers";
 import { Caravans } from "./generators/caravans";
+import { registerCharacterLivestockTransfers } from "./generators/characterLivestockTransfers";
 import { settleChemMedPracticeDecay } from "./generators/chemMedPractice";
 import { ChlorAlkaliPlants } from "./generators/chlorAlkaliPlants";
 import { ChlorinePlants } from "./generators/chlorinePlants";
@@ -1519,6 +1520,9 @@ function register(api: SimulationExtensionAPI): () => void {
 
   initEconomyContext(api);
   const unregisterPersonalCash = registerPersonalCash(api);
+  const unregisterCharacterLivestockTransfers = registerCharacterLivestockTransfers(api.events, () =>
+    api.isExtensionEnabled(ECONOMY_EXTENSION_ID)
+  );
   // Frontier works and settlement are paid to the State's people (docs/plan/money-supply-mint.md §4.2).
   setFrontierSpendingPayee((stateId, amount) =>
     api.isExtensionEnabled(ECONOMY_EXTENSION_ID) ? payStateHouseholds(stateId, amount) : 0
@@ -2706,6 +2710,7 @@ function register(api: SimulationExtensionAPI): () => void {
 
     clearUrbanPregnancyBirthFloorRegistration();
     setFrontierSpendingPayee(null);
+    unregisterCharacterLivestockTransfers();
     unregisterPersonalCash();
     clearEconomyContext();
   };

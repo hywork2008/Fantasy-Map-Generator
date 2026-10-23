@@ -355,6 +355,7 @@ export function executePlayerMarketTrade(args: {
         marketId: market.i,
         burgId: quote.burgId,
         livestockSellerId: `character:${character.i}`,
+        livestockOwnerLocationId: `character:${character.i}`,
         livestockOwnerOpeningUnits: ownerOpeningUnits
       });
     Markets.applyPlayerTradePressure(market, good, -units);
