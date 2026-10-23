@@ -1,0 +1,152 @@
+{
+  "schemaVersion": 1,
+  "notes": [
+    "Derived from formal S1/S2 fixed-input observation JSONs; not an independent ledger.",
+    "Residual boundary: markets plus SaltShipment inTransit; generic cargo has separate boundaries.",
+    "S2 assumes market urban crews for all sites; no additional rural slack or stock is injected."
+  ],
+  "worlds": [
+    {
+      "label": "province-101",
+      "inputSha256": "a3209cca3c88ebf8f84b4f5d9321be8ad3bdc5b3766ca92994f0eb198a52e4e7",
+      "beforeObservationSha256": "c8c6b242afb010ffd27f6fb275b01dbeb52ec660e5e4271a77b3a45e29d570cf",
+      "afterObservationSha256": "48bb313030ed7554d516947e9cad7f835ceba9c8ee762817768fa420a737d41c",
+      "sourceTreeSha256": "9795ca0e947260a4a90e566025464c88558865bd555a4988846a0333e2ce3ee9",
+      "beforeTotals": {
+        "personMonths": 5436868,
+        "householdDemandKg": 1631060.172,
+        "householdSuppliedKg": 870459.816,
+        "unmetHouseholdKg": 760600.3559999999,
+        "productionKg": 842364.7559999998,
+        "recipeInputKg": 0,
+        "livestockDemandKg": 8576.676000000001,
+        "livestockSuppliedKg": 0,
+        "livestockUnmetKg": 8576.676000000001
+      },
+      "afterTotals": {
+        "saltLaborHours": 1782456.3066975405,
+        "saltFuelWoodUnits": 200.65174184212492,
+        "personMonths": 5436868,
+        "householdDemandKg": 1631060.172,
+        "householdSuppliedKg": 778030.824,
+        "unmetHouseholdKg": 853029.3479999999,
+        "productionKg": 749935.764,
+        "recipeInputKg": 0,
+        "livestockDemandKg": 8576.676000000001,
+        "livestockSuppliedKg": 0,
+        "livestockUnmetKg": 8576.676000000001
+      },
+      "householdGroups": {
+        "neutral": {
+          "personMonths": 3955153,
+          "demandKg": 1186545.816,
+          "suppliedKg": 333516.468,
+          "unmetKg": 853029.3479999999,
+          "annualizedSuppliedKgPerResident": 1.01189451229826
+        },
+        "stateResidents": {
+          "personMonths": 1481715,
+          "demandKg": 444514.356,
+          "suppliedKg": 444514.356,
+          "unmetKg": 0,
+          "annualizedSuppliedKgPerResident": 3.599998833783825
+        }
+      },
+      "productionMethods": {
+        "boiling": {
+          "outputKg": 749935.7640000009,
+          "laborHours": 1782456.3066975405,
+          "fuelWoodUnits": 200.65174184212492,
+          "siteSettlements": 156
+        }
+      },
+      "beforeMassBalance": {
+        "openingMarketAndSaltTransitKg": 33800.53877116425,
+        "closingMarketAndSaltTransitKg": 0,
+        "sourcesKg": 842364.834515147,
+        "sinksKg": 876165.270786589,
+        "residualKg": -0.10249972227029502
+      },
+      "afterMassBalance": {
+        "openingMarketAndSaltTransitKg": 33800.53877116425,
+        "closingMarketAndSaltTransitKg": 0,
+        "sourcesKg": 749935.8851349428,
+        "sinksKg": 783736.278786589,
+        "residualKg": -0.14511951804161072
+      },
+      "initialSites": 13,
+      "finalSites": 13
+    },
+    {
+      "label": "world-102",
+      "inputSha256": "5e73a27785881bf553d37404442d7ead0f7bb68457208cc33c88c88f7c6a5999",
+      "beforeObservationSha256": "41d9bc3f52607528dc04d9e70a94c8c5d79bd9a59a327b217b8aa256e7f050a4",
+      "afterObservationSha256": "f06ec0c9c1ffae12c04b06982ae8fc437ecfd2f01a840837bfdf6c5fc816a0d2",
+      "sourceTreeSha256": "9795ca0e947260a4a90e566025464c88558865bd555a4988846a0333e2ce3ee9",
+      "beforeTotals": {
+        "personMonths": 50277591,
+        "householdDemandKg": 15083278.02599999,
+        "householdSuppliedKg": 14883028.63199999,
+        "unmetHouseholdKg": 200249.388,
+        "productionKg": 17517891.018,
+        "recipeInputKg": 19630.71681970083,
+        "livestockDemandKg": 1475190.2399999998,
+        "livestockSuppliedKg": 1402684.637999999,
+        "livestockUnmetKg": 72505.674
+      },
+      "afterTotals": {
+        "saltLaborHours": 40508385.14414369,
+        "saltFuelWoodUnits": 4560.043355813494,
+        "personMonths": 50277590,
+        "householdDemandKg": 15083277.965999994,
+        "householdSuppliedKg": 14559617.831999997,
+        "unmetHouseholdKg": 523660.134,
+        "productionKg": 17043163.272000007,
+        "recipeInputKg": 18052.23274127328,
+        "livestockDemandKg": 1475190.2399999998,
+        "livestockSuppliedKg": 1402688.2379999992,
+        "livestockUnmetKg": 72502.07400000001
+      },
+      "householdGroups": {
+        "neutral": {
+          "personMonths": 323461,
+          "demandKg": 97038.48000000001,
+          "suppliedKg": 89715.99000000002,
+          "unmetKg": 7322.49,
+          "annualizedSuppliedKgPerResident": 3.3283514241284125
+        },
+        "stateResidents": {
+          "personMonths": 49954129,
+          "demandKg": 14986239.486,
+          "suppliedKg": 14469901.842,
+          "unmetKg": 516337.64400000003,
+          "annualizedSuppliedKgPerResident": 3.47596536222261
+        }
+      },
+      "productionMethods": {
+        "boiling": {
+          "outputKg": 17043163.271999866,
+          "laborHours": 40508385.14414369,
+          "fuelWoodUnits": 4560.043355813494,
+          "siteSettlements": 5064
+        }
+      },
+      "beforeMassBalance": {
+        "openingMarketAndSaltTransitKg": 1312720.9216770576,
+        "closingMarketAndSaltTransitKg": 2390174.700872154,
+        "sourcesKg": 17678512.17498116,
+        "sinksKg": 16601400.057361329,
+        "residualKg": 341.6615752670914
+      },
+      "afterMassBalance": {
+        "openingMarketAndSaltTransitKg": 1312720.9216770576,
+        "closingMarketAndSaltTransitKg": 2308266.5583694275,
+        "sourcesKg": 17205444.642352916,
+        "sinksKg": 16210206.811525946,
+        "residualKg": 307.80586539953947
+      },
+      "initialSites": 422,
+      "finalSites": 422
+    }
+  ]
+}

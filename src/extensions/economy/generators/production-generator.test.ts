@@ -694,6 +694,31 @@ describe("runWorkerLoop steps (port-freight-queue-and-warehouses.md §10.23)", (
   };
   const good = (i: number, name: string) => ({ i, name, tags: [], value: 1, unit: "lot", icon: "", color: "" }) as Good;
 
+  it("removes the current salt crew before giving labor to workshops and commissions", () => {
+    const burg = { i: 1, market: 1, population: 10 } as Burg;
+    setMarkets([{ i: 1, centerBurgId: 1, color: "", goods: {} }]);
+    Markets.sync();
+    const production = new ProductionModule() as unknown as {
+      produceForBurg(burg: Burg, cycle: unknown): void;
+      createBurgProductionState(...args: unknown[]): never;
+    };
+    const stop = new Error("Stop before manufacturing");
+    const createState = vi.spyOn(production, "createBurgProductionState").mockImplementation(() => {
+      throw stop;
+    });
+    expect(() =>
+      production.produceForBurg(burg, {
+        index: {},
+        strategicLaborMarketById: new Map(),
+        constructionOperationByBurg: new Map(),
+        basicWorkersByBurg: new Map([[1, 2]]),
+        saltWorkersByBurg: new Map([[1, 2.5]]),
+        childLabourEquivalent: 0
+      })
+    ).toThrow(stop);
+    expect(createState.mock.calls[0][5]).toBe(5.5);
+  });
+
   it("gives a failed attempt's step back and skips its goal, so a small town's steps reach its work", () => {
     setEconomyCalibrationState({ applyCalibration: true });
     const failingGoal = good(1, "Failing Goal");

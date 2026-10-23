@@ -329,7 +329,7 @@ export class ProductionModule {
     });
     // Salt is neither generic rural output nor a discretionary utilities demand. State saltworks
     // produce, wholesale-dispatch, and retail household supply it before processors price recipes.
-    measureTickStep("production:saltLogistics", () => SaltLogistics.settleMonth());
+    const saltWorkersByBurg = measureTickStep("production:saltLogistics", () => SaltLogistics.settleMonth());
     measureTickStep("production:monthlyLedgers", () => {
       Minting.settleMonthly();
       MilitaryResources.settleMonthly();
@@ -394,6 +394,7 @@ export class ProductionModule {
       craftDomainWorkersByKey,
       saleBudgetByBurg,
       basicWorkersByBurg,
+      saltWorkersByBurg,
       childLabourEquivalent,
       craftObservationsByBurg: new Map()
     };
@@ -410,7 +411,11 @@ export class ProductionModule {
       cycle.index,
       cycle.strategicLaborMarketById.get(market.i),
       cycle.constructionOperationByBurg.get(burg.i),
-      getCraftWorkforce(burg, cycle.basicWorkersByBurg.get(burg.i) ?? 0, cycle.childLabourEquivalent)
+      Math.max(
+        0,
+        getCraftWorkforce(burg, cycle.basicWorkersByBurg.get(burg.i) ?? 0, cycle.childLabourEquivalent) -
+          (cycle.saltWorkersByBurg.get(burg.i) ?? 0)
+      )
     );
     const craftWorkersUsed = this.runWorkerLoop(cycle.index, state);
     recordUrbanCraftCapacity(
@@ -2116,6 +2121,8 @@ type ProductionCycle = {
   saleBudgetByBurg: ReadonlyMap<number, number>;
   /** Population points each Burg gives to its basic industries (craftWorkforce.ts). */
   basicWorkersByBurg: ReadonlyMap<number, number>;
+  /** Current-cycle salt crews already charged against the same craft workforce. */
+  saltWorkersByBurg: ReadonlyMap<number, number>;
   /** A child's work as a share of an adult's in this map's historical period. */
   childLabourEquivalent: number;
 };

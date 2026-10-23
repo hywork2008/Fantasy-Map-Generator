@@ -3,6 +3,7 @@ import {
   getGoods,
   getMarketCellColumn,
   getMarkets,
+  getMineralDeposits,
   getOrCreateCumulativeMarketIntake,
   getOrCreateFaunaStockTable,
   getOrCreateMarketGoodProductionTotals,
@@ -17,6 +18,7 @@ import { isGoodEnabled } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import type { Market } from "./marketTypes";
 import type { SaltShipment, Saltworks, StateSaltLedger } from "./saltLogisticsTypes";
+import { createSaltProductionBudget } from "./saltProduction";
 
 /** The normalized physical quantity represented by Salt's `bag` Good unit. */
 export const SALT_KILOGRAMS_PER_BAG = 60;
@@ -186,10 +188,10 @@ function stateMarketDemands(stateId: number): MarketDemand[] {
 }
 
 function getSaltworkKind(cellId: number): Saltworks["kind"] {
-  const cells = getWorldContext().pack.cells;
   if (hasSaltSourceWaterAccess(cellId)) return "saltPan";
-  if ((cells.h[cellId] ?? 0) >= 50) return "rockSaltMine";
-  return "brineWell";
+  // Evaporite is a geological candidate, not a conversion of saltpeter into edible Salt.
+  const deposit = getMineralDeposits().find(d => d.cell === cellId && d.type === "evaporite");
+  return deposit?.groundwaterPressure && deposit.groundwaterPressure >= 0.5 ? "brineWell" : "rockSaltMine";
 }
 
 /** True only for a sea shore or a shore of a feature classified by the host as a salt lake. */
@@ -207,22 +209,20 @@ function hasSaltSourceWaterAccess(cellId: number): boolean {
   return false;
 }
 
-function stateHasSaltSourceWaterAccess(stateId: number): boolean {
-  const { cells } = getWorldContext().pack;
-  return cells.i.some(
-    cellId => cells.state[cellId] === stateId && cells.h[cellId] >= 20 && hasSaltSourceWaterAccess(cellId)
-  );
-}
-
 function stateCandidateCells(stateId: number): number[] {
   const world = getWorldContext();
   const marketColumn = getMarketCellColumn();
   const marketIds = new Set(getMarkets().map(market => market.i));
   const candidates: { cellId: number; score: number }[] = [];
+  const evaporites = new Set(
+    getMineralDeposits()
+      .filter(d => d.type === "evaporite")
+      .map(d => d.cell)
+  );
   for (const cellId of world.pack.cells.i) {
     if (world.pack.cells.h[cellId] < 20 || world.pack.cells.state[cellId] !== stateId) continue;
     if (!marketIds.has(marketColumn[cellId])) continue;
-    if (!hasSaltSourceWaterAccess(cellId)) continue;
+    if (!hasSaltSourceWaterAccess(cellId) && !evaporites.has(cellId)) continue;
     const kind = getSaltworkKind(cellId);
     const score = kind === "saltPan" ? 3 : kind === "rockSaltMine" ? 2 : 1;
     candidates.push({ cellId, score });
@@ -304,7 +304,7 @@ export class SaltLogisticsModule {
       const demands = stateMarketDemands(state.i);
       if (demands.length) demandsByStateId.set(state.i, demands);
     }
-    const producerStateIds = [...demandsByStateId.keys()].filter(id => id > 0 && stateHasSaltSourceWaterAccess(id));
+    const producerStateIds = [...demandsByStateId.keys()].filter(id => id > 0 && stateCandidateCells(id).length > 0);
     const annualCapacityNeedByProducerId = new Map<number, number>();
     for (const stateId of producerStateIds) {
       const annualNeed = (demandsByStateId.get(stateId) ?? []).reduce(
@@ -382,9 +382,10 @@ export class SaltLogisticsModule {
    * Processing forecasts follow actual prior recipe inputs; unused capacity never becomes
    * physical stock: the next batch is made only after household sales or recipe inputs create room for it.
    */
-  settleMonth(): void {
+  settleMonth(): Map<number, number> {
+    const production = createSaltProductionBudget();
     const salt = getSaltGood();
-    if (!salt) return;
+    if (!salt) return production.charged;
 
     for (const market of getMarkets()) {
       market.saltProcessingForecastBags = Math.max(0, market.saltProcessingInputBags ?? 0);
@@ -392,11 +393,29 @@ export class SaltLogisticsModule {
     }
     const marketsById = new Map(getMarkets().map(market => [market.i, market]));
     const operations = getSaltworks();
+    // Discover inland sources on legacy maps without resetting works, cargo, or installed capacity.
+    for (const state of getWorldContext().pack.states ?? []) {
+      if (!state?.i || state.removed || operations.some(o => o.stateId === state.i)) continue;
+      const cellId = stateCandidateCells(state.i).find(cell => !hasSaltSourceWaterAccess(cell));
+      if (cellId === undefined) continue;
+      const annualNeed = stateMarketDemands(state.i).reduce((sum, d) => sum + d.provisionBags * 12, 0);
+      if (!(annualNeed > 0)) continue;
+      operations.push({
+        i: Math.max(0, ...operations.map(o => o.i)) + 1,
+        stateId: state.i,
+        marketId: getMarketCellColumn()[cellId],
+        cellId,
+        kind: getSaltworkKind(cellId),
+        annualCapacityBags: Math.min(SALTWORK_ANNUAL_CAPACITY_BAGS, annualNeed * SALTWORK_OPERATING_RESERVE),
+        monthlyOutputBags: 0,
+        active: true
+      });
+    }
     const advanced = advanceShipments(getSaltShipments(), marketsById, salt.i, salt.value);
     const shipments: SaltShipment[] = [...advanced.inTransit, ...advanced.delivered];
     let nextShipmentId = shipments.reduce((maximum, shipment) => Math.max(maximum, shipment.i), 0) + 1;
     const remainingCapacityBySaltworksId = new Map(
-      operations.map(operation => [operation.i, Math.max(0, operation.annualCapacityBags / 12)])
+      operations.map(operation => [operation.i, production.capacity(operation)])
     );
 
     for (const operation of operations) {
@@ -540,7 +559,7 @@ export class SaltLogisticsModule {
           const source = marketsById.get(operation.marketId);
           if (!source) continue;
           const remainingCapacity = remainingCapacityBySaltworksId.get(operation.i) ?? 0;
-          const output = Math.min(remaining, remainingCapacity);
+          const output = production.produce(operation, Math.min(remaining, remainingCapacity));
           if (output <= 0) continue;
           const sourceGood = getMarketGood(source, salt.i, salt.value);
           sourceGood.stock = rn(sourceGood.stock + output, 4);
@@ -714,6 +733,7 @@ export class SaltLogisticsModule {
     }
     setSaltShipments(shipments);
     setStateSaltLedgers(ledgers.toSorted((left, right) => left.stateId - right.stateId));
+    return production.charged;
   }
 }
 

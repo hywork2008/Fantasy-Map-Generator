@@ -14,6 +14,7 @@ import {
   setGoods,
   setMarketCellColumn,
   setMarkets,
+  setMineralDeposits,
   setSaltShipments
 } from "../economyContext";
 import { Goods } from "./goods-generator";
@@ -25,7 +26,9 @@ import {
   SALT_KILOGRAMS_PER_BAG,
   SaltLogistics
 } from "./saltLogistics";
+import { createSaltProductionBudget, SALT_PRODUCTION_POLICY, saltSolarWeights } from "./saltProduction";
 import { setCargoDepartureObserver, setLotDispatchObserver, setTradeStageObserver } from "./tradeStageObserver";
+import { WOOD_KG_PER_LOT } from "./woodRecipeContracts";
 
 function setUpWorld(): void {
   worldContext.pack = {
@@ -92,6 +95,100 @@ describe("SaltLogisticsModule", () => {
       inactiveStatePeople: 0,
       unmarketedPeople: 20_000
     });
+  });
+
+  it("requires geological evidence for inland mines and brine wells, including legacy discovery", () => {
+    worldContext.pack.cells.c[1] = [0];
+    SaltLogistics.generate();
+    expect(getSaltworks().some(w => w.stateId === 2)).toBe(false);
+    setMineralDeposits([
+      {
+        i: 1,
+        districtId: 1,
+        cell: 1,
+        type: "evaporite",
+        primaryCommodity: "sulfur",
+        commodities: ["sulfur"],
+        yields: [],
+        richness: 1,
+        depth: "shallow",
+        groundwaterPressure: 0.8
+      }
+    ]);
+    const existingCapacity = getSaltworks()[0].annualCapacityBags;
+    SaltLogistics.settleMonth();
+    expect(getSaltworks().find(w => w.stateId === 2)?.kind).toBe("brineWell");
+    expect(getSaltworks()[0].annualCapacityBags).toBe(existingCapacity);
+    SaltLogistics.settleMonth();
+    expect(getSaltworks().filter(w => w.stateId === 2)).toHaveLength(1);
+    setMineralDeposits([
+      {
+        i: 1,
+        districtId: 1,
+        cell: 1,
+        type: "evaporite",
+        primaryCommodity: "sulfur",
+        commodities: ["sulfur"],
+        yields: [],
+        richness: 1,
+        depth: "shallow",
+        groundwaterPressure: 0
+      }
+    ]);
+    SaltLogistics.generate();
+    expect(getSaltworks().find(w => w.stateId === 2)?.kind).toBe("rockSaltMine");
+  });
+
+  it("shares real crews across sites and returns their exact debit to the craft cycle", () => {
+    SaltLogistics.generate();
+    const operation = getSaltworks()[0];
+    operation.kind = "rockSaltMine";
+    const budget = createSaltProductionBudget();
+    budget.capacity(operation);
+    const maximumBags =
+      (10 * 1000 * SALT_PRODUCTION_POLICY.hoursPerWorkerMonth) / (60 * SALT_PRODUCTION_POLICY.miningHoursPerKg);
+    expect(budget.produce(operation, maximumBags / 2)).toBeCloseTo(maximumBags / 2);
+    expect(budget.produce({ ...operation, i: 99 }, maximumBags)).toBeCloseTo(maximumBags / 2);
+    expect(budget.produce(operation, 1)).toBe(0);
+    expect(budget.charged.get(1)).toBeCloseTo(10);
+    expect(budget.charged.has(2)).toBe(false);
+    worldContext.pack.burgs[1].population = 0;
+    const noCrew = createSaltProductionBudget();
+    noCrew.capacity(operation);
+    expect(noCrew.produce(operation, 1)).toBe(0);
+  });
+
+  it("caps boiling by physical Wood and charges only actual output once", () => {
+    SaltLogistics.generate();
+    const operation = getSaltworks()[0];
+    operation.kind = "brineWell";
+    const budget = createSaltProductionBudget();
+    budget.capacity(operation);
+    expect(budget.produce(operation, 10)).toBe(0);
+    const salt = Goods.get(1)!;
+    setGoods([salt, { i: 2, name: "Wood", tags: [], value: 1, unit: "pile", icon: "", color: "" }]);
+    const fuelForTwoBags = (120 * SALT_PRODUCTION_POLICY.boilingWoodKgPerKg) / WOOD_KG_PER_LOT;
+    getMarkets()[0].goods[2] = { stock: fuelForTwoBags, price: 1 };
+    const flows: { goodId: number; units: number }[] = [];
+    setGoodFlowObserver(flow => {
+      if (flow.direction === "sink") flows.push(flow);
+    });
+    expect(budget.produce(operation, 10)).toBeCloseTo(2);
+    expect(getMarkets()[0].goods[2].stock).toBe(0);
+    expect(budget.produce(operation, 1)).toBe(0);
+    expect(operation.monthlyLaborHours).toBeCloseTo(120 * SALT_PRODUCTION_POLICY.boilingHoursPerKg);
+    expect(operation.monthlyFuelWoodUnits).toBeCloseTo(fuelForTwoBags);
+    expect(flows).toMatchObject([{ goodId: 2, units: fuelForTwoBags }]);
+  });
+
+  it("allocates solar capacity to the dry warm season without winter or rainy output", () => {
+    const temperatures = [0, 0, 5, 10, 20, 25, 30, 25, 20, 10, 5, 0];
+    const weights = saltSolarWeights(temperatures, [0, 0, 0, 0, 200, 0, 0, 0, 0, 0, 0, 0]);
+    expect(weights.reduce((a, b) => a + b, 0)).toBeCloseTo(1);
+    expect(weights[0]).toBe(0);
+    expect(weights[4]).toBe(0);
+    expect(weights[6]).toBeGreaterThan(weights[5]);
+    expect(saltSolarWeights(new Array(12).fill(0), new Array(12).fill(0))).toEqual(new Array(12).fill(0));
   });
 
   it("observes monthly salt records without consuming or exposing mutable ledger state", () => {

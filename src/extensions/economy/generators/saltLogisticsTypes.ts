@@ -14,6 +14,11 @@ export interface Saltworks {
   annualCapacityBags: number;
   /** Output actually placed on the origin market during the latest production month. */
   monthlyOutputBags: number;
+  /** Recomputed each settlement; legacy saves need no synthetic inputs. */
+  productionMethod?: "solar" | "boiling" | "mining";
+  monthlyCapacityBags?: number;
+  monthlyLaborHours?: number;
+  monthlyFuelWoodUnits?: number;
   active: boolean;
 }
 

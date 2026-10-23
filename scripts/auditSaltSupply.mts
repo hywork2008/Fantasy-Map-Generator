@@ -11,6 +11,8 @@ import { setCargoDepartureObserver, setLotDispatchObserver, setTradeStageObserve
 import { setTickStepObserver } from "../src/generators/tickProfiler";
 import { SALT_LIVESTOCK_ANNUAL_KG, SALT_LIVESTOCK_NATURAL_SHARE } from "../src/extensions/economy/generators/saltLogistics";
 
+import { SALT_PRODUCTION_POLICY } from "../src/extensions/economy/generators/saltProduction";
+
 const [input, output, length = "12"] = process.argv.slice(2);
 const months = Number(length);
 if (!input || !output || !Number.isSafeInteger(months) || months < 1) {
@@ -19,7 +21,7 @@ if (!input || !output || !Number.isSafeInteger(months) || months < 1) {
 const sha256 = (bytes: string | Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const sourcePaths = execFileSync("git", ["ls-files", "-z", "src", "scripts", "public", "package-lock.json"])
   .toString().split("\0").filter(path => path && !path.startsWith("src/city-generator/"));
-sourcePaths.push("scripts/auditSaltSupply.mts");
+sourcePaths.push("scripts/auditSaltSupply.mts", "src/extensions/economy/generators/saltProduction.ts");
 const sourceHashes = Object.fromEntries([...new Set(sourcePaths)].sort().map(path => [path, sha256(readFileSync(path))]));
 const bytes = readFileSync(input);
 const host = createNodeSimulationHost();
@@ -44,12 +46,12 @@ try {
   const clock = () => ({ year: host.simulation.currentYear, month: host.simulation.currentMonth,
     day: host.simulation.currentDay, tick: host.simulation.tickCount });
   const views = createObserveViews(() => host.world, clock);
-  type SaltSettlement = { date: ReturnType<typeof clock>; states: NonNullable<ReturnType<typeof views.salt>>["states"] };
+  type SaltSettlement = { date: ReturnType<typeof clock>; states: NonNullable<ReturnType<typeof views.salt>>["states"]; works: NonNullable<ReturnType<typeof views.salt>>["works"] };
   let settlements: SaltSettlement[] = [];
   setTickStepObserver({
     enter() {},
     exit(label) {
-      if (label === "production:saltLogistics") settlements.push({ date: clock(), states: views.salt()?.states ?? [] });
+      if (label === "production:saltLogistics") settlements.push({ date: clock(), states: views.salt()?.states ?? [], works: views.salt()?.works ?? [] });
     }
   });
   function snapshot() {
@@ -85,22 +87,26 @@ try {
       sum.livestockSuppliedKg += (row.monthlyLivestockSuppliedBags ?? 0) * sample.logistics.kilogramsPerBag;
       sum.livestockUnmetKg += (row.monthlyUnmetLivestockBags ?? 0) * sample.logistics.kilogramsPerBag;
     }
+    for (const work of sample.settlements.flatMap(settlement => settlement.works)) {
+      sum.saltLaborHours += work.monthlyLaborHours ?? 0;
+      sum.saltFuelWoodUnits += work.monthlyFuelWoodUnits ?? 0;
+    }
     sum.recipeInputKg += (sample.salt.flows?.["sink:recipeInput"]?.units ?? 0) * sample.logistics.kilogramsPerBag;
     return sum;
-  }, { personMonths: 0, householdDemandKg: 0, householdSuppliedKg: 0, unmetHouseholdKg: 0, productionKg: 0, recipeInputKg: 0, livestockDemandKg: 0, livestockSuppliedKg: 0, livestockUnmetKg: 0 });
+  }, { saltLaborHours: 0, saltFuelWoodUnits: 0, personMonths: 0, householdDemandKg: 0, householdSuppliedKg: 0, unmetHouseholdKg: 0, productionKg: 0, recipeInputKg: 0, livestockDemandKg: 0, livestockSuppliedKg: 0, livestockUnmetKg: 0 });
   const annualizedKgPerServedPerson = Object.fromEntries(Object.entries(totals)
     .filter(([key]) => key.endsWith("Kg"))
     .map(([key, value]) => [key, totals.personMonths > 0 ? value * 12 / totals.personMonths : null]));
-  writeFileSync(output, JSON.stringify({ schemaVersion: 3, input: basename(input), inputSha256: sha256(bytes),
+  writeFileSync(output, JSON.stringify({ schemaVersion: 4, input: basename(input), inputSha256: sha256(bytes),
     gitHead: execFileSync("git", ["rev-parse", "HEAD"]).toString().trim(),
     sourceTreeSha256: sha256(JSON.stringify(sourceHashes)),
-    sourceHashScope: "git-tracked src (excluding deprecated city-generator), scripts, public, package-lock.json, plus this runner",
+    sourceHashScope: "git-tracked src (excluding deprecated city-generator), scripts, public, package-lock.json, plus this runner and saltProduction.ts",
     sourceHashes: Object.fromEntries(["scripts/auditSaltSupply.mts", "scripts/lib/observeViews.mts",
-      "src/extensions/economy/generators/saltLogistics.ts", "src/extensions/economy/generators/production-generator.ts"]
+      "src/extensions/economy/generators/saltLogistics.ts", "src/extensions/economy/generators/saltProduction.ts", "src/extensions/economy/generators/production-generator.ts"]
       .map(path => [path, sourceHashes[path]])),
     seed: host.world.seed, settlementPattern: host.world.options.initialSettlementPattern, initialProfile,
     worldSettings: sim.worldSettings, months,
-    modelPolicy: { livestockAnnualKg: SALT_LIVESTOCK_ANNUAL_KG, livestockNaturalCreditShare: SALT_LIVESTOCK_NATURAL_SHARE,
+    modelPolicy: { saltProduction: SALT_PRODUCTION_POLICY, livestockAnnualKg: SALT_LIVESTOCK_ANNUAL_KG, livestockNaturalCreditShare: SALT_LIVESTOCK_NATURAL_SHARE,
       youngHeadEquivalent: 0.5, note: "Uncalibrated supplementary-salt planning assumptions, not observed historical purchases or physiological requirements." },
     notes: ["Flows are interval totals; logistics states and works are latest-month records, not cumulative. settlements captures every actual salt settlement via the read-only tick observer.",
       "Salt bag = 60 kg. A household sale is physical delivery, with no payment in the current implementation.",
@@ -108,7 +114,7 @@ try {
       "Processing forecast uses prior actual recipe inputs and is not another consumption. recipeInput is actual recorded processing, without an assumed 2.4 kg sink.",
       "Shipments are internal transfers. Never add dispatch, arrival or imports to world production.",
       "Initial stocks and in-transit cargo are retained; no warmup. The 12-month run includes initial reserve filling.",
-      "Flow values are price valuations, not evidence of cash payments. No historical coefficient is changed."],
+      "Flow values are price valuations, not evidence of cash payments. S2 production labor, fuel and solar-season limits apply; no free stocks or labor are injected."],
     denominatorScope: "All state ledger residents, including neutral and unmarketed households; not just served people.",
     totals, annualizedKgPerLedgerResident: annualizedKgPerServedPerson, initial, samples }, null, 2) + "\n");
 } finally {
