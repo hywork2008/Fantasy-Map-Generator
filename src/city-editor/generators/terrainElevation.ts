@@ -1,3 +1,4 @@
+import type { RoadRibbon } from "../../utils/roadSurface";
 import type { CityDocument, Face, Point } from "../types/document";
 import type { Id } from "../types/primitives";
 import type { CityTerrain, TerrainPatch as Patch, TerrainModel } from "../types/terrain";
@@ -7,15 +8,18 @@ import { clipPolygonHalfPlane, nearestOnPolyline, pointInPolygon, polygonArea, p
 import { triangularInfillParts } from "./lotGeometry";
 import { facePoints, faceVertices } from "./mesh";
 import { intersectConvex, subtractConvex } from "./parcelGeometry";
+import { gradeRoads } from "./roadGrading";
 import {
   evaluateTerrainFeatures,
   type OutlineSegment,
+  onPlatformSummit,
   onTerrainEscarpment,
   type ResolvedTerrainFeature,
   resolveTerrainFeatures,
   terrainFeatureBreaklines,
   terrainFeatureCreases,
-  terrainFeatureFoci
+  terrainFeatureFoci,
+  terrainLevelAt
 } from "./terrainModel";
 
 export type { CityTerrain } from "../types/terrain";
@@ -188,7 +192,8 @@ function gradedPatches(
   document: CityDocument,
   seeds: BaseSurface["seeds"],
   features: readonly ResolvedTerrainFeature[],
-  heightAt: (point: Point) => number
+  heightAt: (point: Point) => number,
+  needsRefinement: (triangle: readonly Point[]) => boolean = () => false
 ): Patch[] {
   const blockSize = document.frame.blockSizeMeters;
   const foci = terrainFeatureFoci(features);
@@ -207,6 +212,27 @@ function gradedPatches(
     maxY: Math.max(segment.a[1], segment.b[1])
   }));
   const triangles: Patch[] = [];
+  const midpoint = (a: Point, b: Point): Point => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+  const push = (faceId: string, points: [Point, Point, Point], depth = 0) => {
+    // Road corridors are narrower than cells: split until the triangles can follow the graded ground.
+    if (depth < 7 && needsRefinement(points)) {
+      const [a, b, c] = points,
+        ab = midpoint(a, b),
+        bc = midpoint(b, c),
+        ca = midpoint(c, a);
+      for (const part of [
+        [a, ab, ca],
+        [ab, b, bc],
+        [ca, bc, c],
+        [ab, bc, ca]
+      ] as Array<[Point, Point, Point]>)
+        push(faceId, part, depth + 1);
+      return;
+    }
+    const patch: Patch = { faceId, points, heights: points.map(heightAt) as [number, number, number] };
+    if (onTerrainEscarpment(features, faceId, polygonCentroid(points))) patch.escarpment = true;
+    triangles.push(patch);
+  };
   const emit = (faceId: string, triangle: [Point, Point, Point]) => {
     let pieces: Point[][] = [triangle];
     const xs = triangle.map(p => p[0]),
@@ -245,13 +271,9 @@ function gradedPatches(
     for (const piece of pieces)
       for (let i = 1; i < piece.length - 1; i++) {
         const points: [Point, Point, Point] = [piece[0], piece[i], piece[i + 1]];
-        if (Math.abs(polygonArea(points)) <= 1e-9) continue;
-        const patch: Patch = { faceId, points, heights: points.map(heightAt) as [number, number, number] };
-        if (onTerrainEscarpment(features, faceId, polygonCentroid(points))) patch.escarpment = true;
-        triangles.push(patch);
+        if (Math.abs(polygonArea(points)) > 1e-9) push(faceId, points);
       }
   };
-  const midpoint = (a: Point, b: Point): Point => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
   const add = (faceId: string, a: Point, b: Point, c: Point, depth: number) => {
     if (depth > 0) {
       const ab = midpoint(a, b),
@@ -272,8 +294,11 @@ function gradedPatches(
   return triangles;
 }
 
-/** The base field and its earthworks as one surface relative to the lowest base level. */
-export function cityTerrain(document: CityDocument): CityTerrain {
+/**
+ * The base field and its earthworks as one surface relative to the lowest base level.
+ * Given the drawn road ribbons, roads get graded profiles and the ground is cut and filled to them.
+ */
+export function cityTerrain(document: CityDocument, options: { roads?: readonly RoadRibbon[] } = {}): CityTerrain {
   const model = cityTerrainModel(document);
   const features = resolveTerrainFeatures(model.features, faceIds => platformOutline(document, faceIds));
   const surface =
@@ -286,18 +311,32 @@ export function cityTerrain(document: CityDocument): CityTerrain {
     step
   );
   const baseAt = (point: Point) => (model.base.kind === "flat" ? 0 : base.interpolate(point));
-  const heightAt = (point: Point): number => {
+  const groundAt = (point: Point): number => {
     if (!relief) return 0;
     if (!features.length) return baseAt(point);
     return evaluateTerrainFeatures(features, p => datumMeters + baseAt(p), point) - datumMeters;
   };
-  const graded = features.length
-    ? new PatchIndex(gradedPatches(document, surface.seeds, features, heightAt), step)
-    : base;
+  const grading =
+    relief && options.roads?.length
+      ? gradeRoads(
+          options.roads,
+          groundAt,
+          point => terrainLevelAt(features, point),
+          point => onPlatformSummit(features, point)
+        )
+      : null;
+  const heightAt = grading ? (point: Point) => grading.apply(point, groundAt(point)) : groundAt;
+  const graded =
+    features.length || grading
+      ? new PatchIndex(gradedPatches(document, surface.seeds, features, heightAt, grading?.needsRefinement), step)
+      : base;
   return {
     datumMeters,
     relief,
     heightAt,
+    ...(options.roads
+      ? { roads: { ribbons: grading?.ribbons ?? [...options.roads], cliffBreaks: grading?.cliffBreaks ?? [] } }
+      : {}),
     triangles: [...graded.patches],
     foundationAt(ring) {
       if (!relief || !ring.length) return 0;

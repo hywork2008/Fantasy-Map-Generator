@@ -25,6 +25,7 @@ import {
 import { createTownWells, type TownWells } from "../../city3d/three/wellMeshes";
 import type { EditorMessageKey } from "../../i18n/editorMessages";
 import { editorText } from "../../i18n/editorMessages";
+import type { RoadRibbon } from "../../utils/roadSurface";
 import { buildBlockFabric, type DistrictFabric } from "../generators/blockInfill";
 import { riverRibbons } from "../generators/bridgeDeck";
 import type { BuildingLot } from "../generators/buildingLots.types";
@@ -379,17 +380,23 @@ export function mountCity3d(options: {
     ensure();
     if (!scene) return;
     const city = options.getDocument();
-    const nextTerrainStamp = cityTerrainStamp(city);
-    const terrainChanged = nextTerrainStamp !== terrainStamp;
-    if (terrainChanged) {
-      terrain = cityTerrain(city);
-      terrainStamp = nextTerrainStamp;
-    }
-    // Fabric first: lane geometry is part of the road stamp.
+    // Fabric first: lane geometry is part of the road stamp, and graded roads shape the terrain.
     const fabric = buildBlockFabric(city);
     const quality = options.getModelQuality?.() ?? "standard";
     const stamp = townWaterStamp(city);
     const roads = townRoadStamp(city, fabric.lanes);
+    const nextTerrainStamp = `${cityTerrainStamp(city)}|${roads}`;
+    const terrainChanged = nextTerrainStamp !== terrainStamp;
+    if (terrainChanged) {
+      let ribbons: RoadRibbon[] | undefined;
+      try {
+        ribbons = collectTownRoads(city, fabric.lanes);
+      } catch {
+        // Reported once by the road meshes below; the terrain stays ungraded.
+      }
+      terrain = cityTerrain(city, { roads: ribbons });
+      terrainStamp = nextTerrainStamp;
+    }
     const plan = planCity3dRefresh({
       fabricChanged: fabric !== built || terrainChanged || quality !== builtQuality,
       stampChanged: terrainChanged || waterStampChanged(waterStamp, stamp, Boolean(scene.getObjectByName("ce-water"))),
@@ -477,7 +484,7 @@ export function mountCity3d(options: {
     if (plan.roads) {
       try {
         const next = createTownRoads(
-          collectTownRoads(city, fabric.lanes),
+          terrain?.roads?.ribbons ?? collectTownRoads(city, fabric.lanes),
           {
             polygons: waterPolygons(city),
             ribbons: riverRibbons(city).map(ribbon => ({ points: ribbon.points, width: ribbon.width }))

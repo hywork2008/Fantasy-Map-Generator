@@ -119,10 +119,15 @@ const STONE_OR_MACADAM = new Set<RoadSurfaceId>(["gravel", "setts", "flags", "ma
 const CORVEE_SPHERES = new Set<RoadSphere>(["sinitic", "japanese", "andean", "indic"]);
 
 /** One ribbon of wearing course. Plan metres, independent of the CE point type. */
+/** Who must climb a road: wheeled carts, people and pack animals in town lanes, or walkers on a path. */
+export type RoadGradeClass = "cart" | "lane" | "path";
+
 export interface RoadRibbon {
   centerline: readonly (readonly [number, number])[];
   widthMeters: number;
   surface: RoadSurfaceId;
+  /** Absent reads as "cart". Bounds the longitudinal grade when roads are graded into relief. */
+  gradeClass?: RoadGradeClass;
 }
 
 type Band = "antiquity" | "early" | "high" | "late" | "industrial";

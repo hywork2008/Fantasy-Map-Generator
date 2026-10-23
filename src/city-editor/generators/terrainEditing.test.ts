@@ -6,8 +6,10 @@ import { deleteCastle } from "./castles";
 import { createFortressStudy } from "./fortressStudy";
 import { polygonCentroid } from "./geom";
 import { facePoints } from "./mesh";
+import { MAX_ROAD_GRADE } from "./roadGrading";
 import { castleSiteFaceIds, setCastlePlatform } from "./terrainEditing";
 import { cityTerrain } from "./terrainElevation";
+import { collectTownRoads } from "./townRoads";
 
 const study = () => {
   const doc = createFortressStudy();
@@ -108,5 +110,50 @@ describe("castle platform", () => {
     expect(terrain.heightAt([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2])).toBeCloseTo(level, 6);
     for (const { mid, inward } of rim(next, pair))
       expect(terrain.heightAt([mid[0] - inward[0], mid[1] - inward[1]])).toBeLessThan(level - 5);
+  });
+});
+
+describe("graded roads over a castle platform", () => {
+  const along = (terrain: ReturnType<typeof cityTerrain>) =>
+    terrain.roads!.ribbons.flatMap(ribbon => {
+      const out: Array<{ point: [number, number]; normal: [number, number]; half: number }> = [];
+      for (let k = 1; k < ribbon.centerline.length; k++) {
+        const a = ribbon.centerline[k - 1],
+          b = ribbon.centerline[k];
+        const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        for (let s = 0; s < length; s += 1)
+          out.push({
+            point: [a[0] + ((b[0] - a[0]) * s) / length, a[1] + ((b[1] - a[1]) * s) / length],
+            normal: [-(b[1] - a[1]) / length, (b[0] - a[0]) / length],
+            half: ribbon.widthMeters / 2
+          });
+      }
+      return out;
+    });
+  it("ramps the gate road up an earth slope within the cart grade, level across its width", () => {
+    const { doc, castle, top } = study();
+    const next = setCastlePlatform(doc, castle.id, { levelMeters: top, edge: { kind: "slope", runMeters: 20 } })!;
+    const roads = collectTownRoads(next, []);
+    expect(roads.length).toBeGreaterThan(0);
+    const terrain = cityTerrain(next, { roads });
+    const samples = along(terrain);
+    for (let k = 1; k < samples.length; k++) {
+      const a = samples[k - 1].point,
+        b = samples[k].point;
+      const run = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (run > 1.01 || run < 0.5) continue;
+      expect(Math.abs(terrain.heightAt(b) - terrain.heightAt(a))).toBeLessThanOrEqual(MAX_ROAD_GRADE.cart * run + 0.02);
+    }
+    for (const { point, normal, half } of samples) {
+      const edge = (side: number) =>
+        terrain.heightAt([point[0] + normal[0] * side * half * 0.95, point[1] + normal[1] * side * half * 0.95]);
+      expect(edge(1)).toBeCloseTo(edge(-1), 1);
+    }
+  });
+  it("stops the gate road at a cliff edge", () => {
+    const { doc, castle, top } = study();
+    const next = setCastlePlatform(doc, castle.id, { levelMeters: top, edge: { kind: "cliff" } })!;
+    const terrain = cityTerrain(next, { roads: collectTownRoads(next, []) });
+    expect(terrain.roads!.cliffBreaks.length).toBeGreaterThan(0);
   });
 });

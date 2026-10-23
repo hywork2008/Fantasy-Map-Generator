@@ -1,7 +1,14 @@
 // Wearing-course ribbons for the CE 3D view. The surface is derived at draw
 // time. three.js stays out of this file, and Route.surface is not read.
 
-import { classifyRoadSurface, type RoadPlace, type RoadRibbon, roadMeans, roadSphere } from "../../utils/roadSurface";
+import {
+  classifyRoadSurface,
+  type RoadGradeClass,
+  type RoadPlace,
+  type RoadRibbon,
+  roadMeans,
+  roadSphere
+} from "../../utils/roadSurface";
 import type { InfillLane } from "../types/contracts/localInfill";
 import type { CityDocument, Edge, Face, Id, Point } from "../types/document";
 import { riverConnectionFacts } from "./approachFacts";
@@ -62,7 +69,7 @@ export function collectTownRoads(document: CityDocument, lanes: readonly InfillL
   const width = defaultRoadWidthMeters(townExtentMeters(document.frame));
   const ribbons: RoadRibbon[] = [];
 
-  const emit = (parts: Part[], group: LineGroup, meters: number) => {
+  const emit = (parts: Part[], group: LineGroup, meters: number, grade: RoadGradeClass = "cart") => {
     for (const part of applyCivic(parts, anchors)) {
       if (polylineLength(part.points) < MIN_RUN_METERS) continue;
       const draw = part.place === "trail" ? meters * TRAIL_WIDTH_SCALE : meters;
@@ -70,6 +77,7 @@ export function collectTownRoads(document: CityDocument, lanes: readonly InfillL
       ribbons.push({
         centerline: part.points.map(point => [point[0], point[1]]),
         widthMeters: draw,
+        gradeClass: part.place === "trail" ? "path" : grade,
         surface: classifyRoadSurface({
           period: context.period,
           sphere: context.sphere,
@@ -130,7 +138,7 @@ export function collectTownRoads(document: CityDocument, lanes: readonly InfillL
     const place: RoadPlace = face?.properties.settlement === "outskirts" ? "trail" : "street";
     for (const run of dryRuns(lane.points, water)) {
       if (run.length < 2) continue;
-      emit([{ points: run, place }], "local", lane.widthMeters);
+      emit([{ points: run, place }], "local", lane.widthMeters, "lane");
     }
   }
 

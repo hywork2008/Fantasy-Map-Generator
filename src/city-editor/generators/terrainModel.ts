@@ -188,3 +188,36 @@ export function terrainFeatureFoci(features: readonly ResolvedTerrainFeature[]):
     feature.kind === "platform" && feature.summit.kind === "circle" ? [feature.summit.center] : []
   );
 }
+
+/**
+ * The level a point stands on, as far as cliffs separate levels: a cliff-edged cell platform's id on its summit,
+ * `"cliff"` on its cliff face, and null on the ground they rise from. Slopes join their levels and are not split.
+ */
+export function terrainLevelAt(features: readonly ResolvedTerrainFeature[], point: Point): string | null {
+  for (const feature of features) {
+    if (feature.kind !== "platform" || feature.edge.kind !== "cliff" || feature.summit.kind !== "outline") continue;
+    const { bounds } = feature.summit;
+    if (point[0] < bounds.minX || point[0] > bounds.maxX || point[1] < bounds.minY || point[1] > bounds.maxY) continue;
+    const d = Math.min(...feature.summit.segments.map(segment => segmentDistance(point, segment)));
+    if (d < CLIFF_BAND_METERS) return "cliff";
+    if (insideOutline(point, feature.summit)) return feature.id;
+  }
+  return null;
+}
+
+/** True on the flat summit of any platform, where graded roads keep the platform level instead of cutting it. */
+export function onPlatformSummit(features: readonly ResolvedTerrainFeature[], point: Point): boolean {
+  return features.some(feature => {
+    if (feature.kind !== "platform") return false;
+    const summit = feature.summit;
+    if (summit.kind === "circle") return distance(point, summit.center) <= summit.radiusMeters;
+    const { bounds } = summit;
+    if (point[0] < bounds.minX || point[0] > bounds.maxX || point[1] < bounds.minY || point[1] > bounds.maxY)
+      return false;
+    if (!insideOutline(point, summit)) return false;
+    return (
+      feature.edge.kind !== "cliff" ||
+      Math.min(...summit.segments.map(segment => segmentDistance(point, segment))) >= CLIFF_BAND_METERS
+    );
+  });
+}

@@ -16,6 +16,12 @@ export interface CityTerrain {
   /** Horizontal foundation above all terrain beneath this footprint. */
   foundationAt(ring: readonly Point[]): number;
   triangles: TerrainPatch[];
+  /** Present when built with road ribbons: those to draw, split where they would cross a cliff. */
+  roads?: {
+    ribbons: import("../../utils/roadSurface").RoadRibbon[];
+    /** Where a road met a cliff between levels and was stopped. */
+    cliffBreaks: Point[];
+  };
 }
 
 export interface TerrainCircle {
