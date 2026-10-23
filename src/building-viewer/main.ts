@@ -13,6 +13,7 @@ import {
   createRegionalHouses,
   REGIONAL_HOUSES,
   type RegionalHouseProfile,
+  type RegionalHouseQuality,
   regionalHouseNote
 } from "../buildings/houses/regionalHouses";
 import type { LandmarkModel } from "../buildings/landmarks/architectureKit";
@@ -235,7 +236,7 @@ for (const quality of BASILICA_QUALITIES) {
   option.textContent = quality === "high" ? "High" : "Low (light rendering)";
   qualitySelect.append(option);
 }
-qualitySelect.addEventListener("change", () => showBasilicaTemple());
+qualitySelect.addEventListener("change", () => AUTHORED_VARIANTS[selectedId]?.show());
 function showQuality(visible: boolean): void {
   qualityTitle.hidden = !visible;
   qualitySelect.hidden = !visible;
@@ -1715,7 +1716,9 @@ function showDetailedRegionalHouses(profile: RegionalHouseProfile): void {
   banner.hidden = true;
   roofTitle.textContent = "Front elevation";
   levelTitle.textContent = "Roof plan";
-  massing = createRegionalHouses(profile);
+  showQuality(true);
+  const quality = qualitySelect.value as RegionalHouseQuality;
+  massing = createRegionalHouses(profile, quality);
   scene.add(massing.group);
   ground.visible = true;
   frame({ occupancyMeters: { width: 24, depth: 10 } }, 10);
@@ -1727,6 +1730,10 @@ function showDetailedRegionalHouses(profile: RegionalHouseProfile): void {
   const { width, depth, ground: groundStorey, upper, pitchDeg } = REGIONAL_HOUSES;
   facts.append(
     fact("Profile", label(profile)),
+    fact(
+      "Quality",
+      quality === "high" ? "High" : "Low — frame studs, cladding, mouldings, roof courses and props omitted"
+    ),
     fact(
       "Envelope",
       `${width} × ${depth} m lots, ${groundStorey} + ${upper} m storeys, ${pitchDeg}° gable — same as the CE massing`

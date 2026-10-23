@@ -34,3 +34,19 @@ it.each(PROFILES)("%s row keeps the CE envelope, roofs face the sky and resource
   model.dispose();
   for (const dispose of [...disposals, ...materialDisposals]) expect(dispose).toHaveBeenCalledTimes(1);
 });
+
+it.each(PROFILES)("%s low quality keeps the silhouette with far fewer triangles", profile => {
+  const measure = (quality: "high" | "low") => {
+    const model = createRegionalHouses(profile, quality);
+    model.group.updateMatrixWorld(true);
+    const triangles = model.pickables.reduce((sum, mesh) => sum + mesh.geometry.getAttribute("position").count / 3, 0);
+    const bounds = new THREE.Box3().setFromObject(model.group);
+    model.dispose();
+    return { triangles, bounds };
+  };
+  const high = measure("high");
+  const low = measure("low");
+  expect(low.triangles).toBeLessThan(high.triangles / 4);
+  expect(low.bounds.max.y).toBeGreaterThan(high.bounds.max.y - 1);
+  expect(low.bounds.max.x - low.bounds.min.x).toBeGreaterThan(high.bounds.max.x - high.bounds.min.x - 0.5);
+});

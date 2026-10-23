@@ -176,26 +176,39 @@ export function defaultRegionalHouseSpec(profile: RegionalHouseProfile, variant:
   };
 }
 
+export const REGIONAL_HOUSE_QUALITIES = ["high", "low"] as const;
+export type RegionalHouseQuality = (typeof REGIONAL_HOUSE_QUALITIES)[number];
+
 /** A row of three regional houses on the CE preview lots (x = −8, 0, 8), fronts facing +Z. */
-export function createRegionalHouses(profile: RegionalHouseProfile): CityStructureMeshes {
+export function createRegionalHouses(
+  profile: RegionalHouseProfile,
+  quality: RegionalHouseQuality = "high"
+): CityStructureMeshes {
   return buildHouses(
     `regional-houses-${profile}`,
     ([0, 1, 2] as const).map(variant => ({
       spec: defaultRegionalHouseSpec(profile, variant),
       ox: (variant - 1) * REGIONAL_HOUSES.spacing
-    }))
+    })),
+    quality
   );
 }
 
 /** One house centred on the origin: 5 m wide on X, 8 m deep on Z with its front gable toward +Z. */
-export function createRegionalHouse(spec: RegionalHouseSpec): CityStructureMeshes {
-  return buildHouses(`regional-house-${spec.profile}`, [{ spec, ox: 0 }]);
+export function createRegionalHouse(
+  spec: RegionalHouseSpec,
+  quality: RegionalHouseQuality = "high"
+): CityStructureMeshes {
+  return buildHouses(`regional-house-${spec.profile}`, [{ spec, ox: 0 }], quality);
 }
 
 function buildHouses(
   name: string,
-  houses: ReadonlyArray<{ spec: RegionalHouseSpec; ox: number }>
+  houses: ReadonlyArray<{ spec: RegionalHouseSpec; ox: number }>,
+  quality: RegionalHouseQuality
 ): CityStructureMeshes {
+  // Low quality keeps every mass, opening, colour and roof form, and drops mouldings, courses and small props.
+  const detailed = quality === "high";
   const materials = new Map<string, THREE.MeshLambertMaterial>();
   const buckets = new Map<THREE.MeshLambertMaterial, THREE.BufferGeometry[]>();
   const cache = new Map<string, THREE.BufferGeometry>();
@@ -291,6 +304,10 @@ function buildHouses(
     const edge = width / 2 - t / 2;
     member(face, -width / 2, y0 + t / 2, width / 2, y0 + t / 2, color, t * 1.15);
     member(face, -width / 2, y1 - t / 2, width / 2, y1 - t / 2, color, t * 1.15);
+    if (!detailed) {
+      for (const u of [-edge, edge]) member(face, u, y0 + t, u, y1 - t, color);
+      return;
+    }
     const posts = new Set<number>([-edge, edge]);
     for (const o of openings) {
       posts.add(Math.max(-edge, o.u - o.w / 2 - t / 2));
@@ -352,6 +369,7 @@ function buildHouses(
     openings: readonly Opening[],
     color: string
   ) {
+    if (!detailed) return;
     const count = Math.floor(width / 0.3);
     for (let i = 0; i <= count; i++) {
       const u = -width / 2 + (width * i) / count;
@@ -381,6 +399,7 @@ function buildHouses(
     seed: number,
     tones: readonly string[]
   ) {
+    if (!detailed) return;
     let course = 0;
     for (let y = y0; y < y1 - 0.1; y += 0.34, course++) {
       const h = Math.min(0.3, y1 - y - 0.04);
@@ -411,6 +430,7 @@ function buildHouses(
 
   function window(face: Face, o: Opening, frame: string, shutter?: string, leaded = false): void {
     onFace(face, unitBox, GLASS, o.u, o.y + o.h / 2, 0.005, [o.w, o.h, 0.04]);
+    if (!detailed) return;
     const f = 0.08;
     for (const side of [-1, 1])
       onFace(face, unitBox, frame, o.u + side * (o.w / 2 + f / 2), o.y + o.h / 2, 0.05, [f, o.h + f * 2, 0.1]);
@@ -435,6 +455,7 @@ function buildHouses(
   }
   function door(face: Face, o: Opening, frame: string, arched: boolean): void {
     onFace(face, unitBox, DOOR, o.u, o.y + o.h / 2, 0.01, [o.w, o.h, 0.06]);
+    if (!detailed) return;
     for (let k = 1; k < 4; k++)
       onFace(face, unitBox, "#47301F", o.u - o.w / 2 + (o.w * k) / 4, o.y + o.h / 2, 0.045, [0.025, o.h - 0.05, 0.02]);
     for (const y of [0.3, o.h - 0.4])
@@ -481,7 +502,7 @@ function buildHouses(
       const pitchLength = Math.hypot(run, rise);
       const step = cover === "stone" ? 0.5 : cover === "coppi" ? 0.38 : 0.24;
       const proud = cover === "stone" ? 0.11 : cover === "coppi" ? 0.08 : 0.05;
-      const courses = Math.max(4, Math.round(pitchLength / step));
+      const courses = detailed ? Math.max(4, Math.round(pitchLength / step)) : 1;
       const side = (sign: number) => {
         const list: THREE.Vector2[] = [];
         const along = new THREE.Vector2(-sign * run, rise);
@@ -536,7 +557,7 @@ function buildHouses(
     if (storeys > 1) box(ox, ground, j / 2, w, eave - ground, d + j, wall);
     if (j > 0) {
       // Projecting joist ends carry the jetty; a moulded bressumer caps them.
-      for (let k = 0; k < 9; k++)
+      for (let k = 0; k < (detailed ? 9 : 0); k++)
         box(ox - w / 2 + 0.2 + (k * (w - 0.4)) / 8, ground - 0.16, front + j / 2, 0.12, 0.16, j + 0.1, frame);
       box(ox, ground - 0.02, front + j - 0.04, w + 0.04, 0.2, 0.16, frame);
     }
@@ -590,7 +611,7 @@ function buildHouses(
           rubbleWall(face, length, y0, y1, list, variant, BUILDING_PALETTES["upland-stone"]);
         else if (spec.finish === "frame")
           frameWall(face, length, y0, y1, list, frame, profile === "northern-urban" && upperStorey);
-        else if (!upperStorey && spec.quoins) {
+        else if (detailed && !upperStorey && spec.quoins) {
           // Masonry: quoins on the corners of the whole height.
           for (let y = plinthH, k = 0; y < eave - 0.2; y += 0.36, k++)
             for (const side of [-1, 1])
@@ -616,9 +637,9 @@ function buildHouses(
       for (const u of [-0.7, 0.7]) box(ox + u, ground - 0.3, front + 0.2, 0.12, 0.3, 0.4, DRESSED);
       box(ox, ground + 1.0, front + 0.88, 1.8, 0.05, 0.05, IRON);
       for (const side of [-1, 1]) box(ox + side * 0.88, ground + 1.0, front + 0.45, 0.05, 0.05, 0.9, IRON);
-      for (let k = 0; k <= 12; k++)
+      for (let k = 0; k <= (detailed ? 12 : 0); k++)
         box(ox - 0.88 + (k * 1.76) / 12, ground + 0.12, front + 0.88, 0.025, 0.9, 0.025, IRON);
-      for (let k = 1; k < 6; k++)
+      for (let k = 1; k < (detailed ? 6 : 0); k++)
         for (const side of [-1, 1])
           box(ox + side * 0.88, ground + 0.12, front + (k * 0.88) / 6, 0.025, 0.9, 0.025, IRON);
     }
@@ -675,6 +696,7 @@ function buildHouses(
             member(face, o.w / 2 + 0.08, o.y, o.w / 2 + 0.08, o.y + o.h, frame);
             // Hoist beam with pulley block above the loft door.
             onFace(face, unitBox, frame, 0, o.y + o.h + 0.45, 0.6, [0.18, 0.2, 1.3]);
+            if (!detailed) continue;
             onFace(face, unitCylinder, IRON, 0, o.y + o.h + 0.2, 1.15, [0.1, 0.12, 0.1], Math.PI / 2);
             onFace(face, unitBox, "#8C7A5A", 0, o.y + o.h - 0.4, 1.15, [0.015, 0.9, 0.015]);
           } else window(face, o, trim, undefined, profile === "atlantic");
@@ -692,7 +714,7 @@ function buildHouses(
       if (thatch) {
         put(unitCylinder, capColor, [ox, ridgeY + 0.45, midZ], [Math.PI / 2, 0, 0], [0.32, length + 0.1, 0.32]);
         // Liggers: hazel rods pinning the ridge roll, with cross spars between them.
-        for (const side of [-1, 1]) {
+        for (const side of detailed ? [-1, 1] : []) {
           const surface = (u: number) => ridgeY + 0.5 - u * Math.tan(pitch) + 0.03;
           put(unitBox, "#6E5C3E", [ox + side * 0.62, surface(0.62), midZ], [0, 0, side * -pitch], [0.04, 0.04, length]);
           for (let k = 0; k < Math.floor(length / 0.35); k++) {
@@ -722,7 +744,7 @@ function buildHouses(
           [Math.PI / 2, 0, 0],
           [cover === "stone" ? 0.2 : 0.15, length + 0.05, 0.15]
         );
-        if (cover === "coppi") {
+        if (detailed && cover === "coppi") {
           // Barrel tiles run down each slope in channels; the lower half is buried in the coursed underlayer.
           const slopeLength = Math.hypot(run, Math.tan(pitch) * run);
           const rib = cached("coppo", () => new THREE.CylinderGeometry(0.075, 0.09, 1, 6));
@@ -739,7 +761,7 @@ function buildHouses(
           }
         }
       }
-      if (profile === "northern-urban") {
+      if (detailed && profile === "northern-urban") {
         // Gable apex finial.
         put(unitCylinder, frame, [ox, ridgeY + 0.5, zFront - 0.1], [0, 0, 0], [0.06, 0.8, 0.06]);
         put(
@@ -777,7 +799,7 @@ function buildHouses(
     } else if (cover === "stone") {
       for (const side of [-1, 1]) box(ox + cxOff + side * 0.32, stackTop + 0.12, cz, 0.16, 0.35, 0.8, stackColor);
       box(ox + cxOff, stackTop + 0.47, cz, 1.2, 0.1, 1.0, BUILDING_PALETTES["local-stone-roof"][0]);
-    } else {
+    } else if (detailed) {
       for (const side of [-1, 1])
         put(unitCylinder, "#7A4434", [ox + cxOff + side * 0.16, stackTop + 0.3, cz], [0, 0, 0], [0.11, 0.4, 0.11]);
     }
@@ -787,10 +809,11 @@ function buildHouses(
       box(ox, ground + 0.05, front + 0.55, w + 0.4, 0.1, 1.1, frame);
       for (const u of [-w / 2 - 0.1, w / 2 + 0.1]) box(ox + u, 0.35, front + 1.0, 0.18, ground - 0.3, 0.18, frame);
       box(ox, ground + 1.0, front + 1.05, w + 0.4, 0.08, 0.08, frame);
-      for (let k = 0; k <= 16; k++)
+      for (let k = 0; k <= (detailed ? 16 : 0); k++)
         box(ox - w / 2 - 0.15 + (k * (w + 0.3)) / 16, ground + 0.15, front + 1.05, 0.1, 0.85, 0.03, frame);
     }
     // Rainwater barrel by the door for a lived-in touch.
+    if (!detailed) return;
     put(unitCylinder, "#6B5235", [ox + doorSide * 2.2, 0.4, front + 0.45], [0, 0, 0], [0.3, 0.8, 0.3]);
     for (const y of [0.15, 0.65])
       put(unitCylinder, IRON, [ox + doorSide * 2.2, y, front + 0.45], [0, 0, 0], [0.315, 0.04, 0.315]);
@@ -839,7 +862,7 @@ function buildHouses(
     box(ox, -thick + y, zF, run * 2, thick, 0.1, color);
     for (const side of [-1, 1]) box(ox + side * run, -thick + y, (zB + zF) / 2, 0.1, thick, zF - zB, color);
     const pitch = Math.atan2(rise, run);
-    if (cover !== "thatch") {
+    if (detailed && cover !== "thatch") {
       const step = cover === "stone" ? 0.45 : cover === "coppi" ? 0.36 : 0.24;
       const courses = Math.max(3, Math.round(Math.hypot(run, rise) / step));
       for (let k = 0; k < courses; k++) {
