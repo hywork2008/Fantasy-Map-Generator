@@ -11,7 +11,7 @@
  * Phase K (2026-08-07, this revision) restores both by inserting a `Milk` good as the local,
  * short-lived intermediate — mirroring how Grapes feeds Wine, but at one more remove:
  *   - `getMilkOutput()` (this file) computes Milk the exact same way Phase J computed Cheese: from
- *     *this cell's own* dairy-species headcount only, gated by `getHusbandryWorkerFactor()`. It is
+ *     *this cell's own* dairy-species headcount only, gated by `getHusbandryCareFactor()`. It is
  *     wired into production-utils.ts's `getRuralProductionContributions()` as a Grapes-style
  *     special case, so Milk enters the regular market/goods system as a physical Good rather than
  *     staying purely internal.
@@ -31,7 +31,7 @@
 
 import { getOrCreateFaunaStockTable, getSimulationMonth } from "../economyContext";
 import { LITERS_PER_MILK_LOT } from "./foodLots";
-import { getHusbandryWorkerFactor } from "./husbandry";
+import { getHusbandryCareFactor } from "./husbandry";
 import { getLivestockFeedCoverage } from "./livestockFeedState";
 
 /**
@@ -81,5 +81,5 @@ export function getMilkOutput(cellId: number): number {
       LITERS_PER_MILK_LOT;
   }
   if (rawYield <= 0) return 0;
-  return rawYield * getHusbandryWorkerFactor(cellId) * getLivestockFeedCoverage(cellId);
+  return rawYield * getHusbandryCareFactor(cellId) * getLivestockFeedCoverage(cellId);
 }

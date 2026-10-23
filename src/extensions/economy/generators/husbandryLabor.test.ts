@@ -80,4 +80,14 @@ describe("shared reserved husbandry work", () => {
     expect(budget.careRequiredDays).toBeCloseTo((WORKABLE_DAYS_PER_ADULT * 0.5) / 12);
     expect(budget.reservedDays - budget.careDays - budget.hayCapacityDays).toBeGreaterThan(0);
   });
+  it("uses the actual monthly hay reservation rather than capping it by annual mean employment", () => {
+    setHusbandryWorkers(Float32Array.from([0.01]));
+    const calendar = new Float32Array(12);
+    calendar[9] = 20;
+    setHusbandryMonthlyWorkDays(calendar);
+    const labor = getHusbandryLaborBudget(0, 9, demand);
+    expect(labor.hayCapacityDays).toBeCloseTo((WORKABLE_DAYS_PER_ADULT * 0.2) / 12);
+    expect(labor.workerMonths).toBeCloseTo(20 / (WORKABLE_DAYS_PER_ADULT / 12));
+    expect(getHusbandryLaborBudget(0, 8, demand).workerMonths).toBe(0);
+  });
 });

@@ -7,6 +7,7 @@ import {
   initEconomyContext,
   setCultivatedArea,
   setGoods,
+  setHusbandryMonthlyWorkDays,
   setHusbandryRequiredWorkers,
   setHusbandryWorkers
 } from "../economyContext";
@@ -14,10 +15,12 @@ import {
   calculateGrazingLandAllocation,
   calculateHusbandryDemand,
   getGrazedCarryingCapacity,
+  getHusbandryCareFactor,
   getHusbandryWorkerFactor,
   getPastureAreaUsedHectares,
   isGrazedLivestockGood
 } from "./husbandry";
+import { withLivestockFeedPeriod } from "./livestockFeedState";
 
 const CATTLE_GOOD = {
   i: 1,
@@ -324,6 +327,21 @@ describe("husbandry", () => {
       setHusbandryWorkers(new Float32Array([20]));
       expect(getHusbandryWorkerFactor(0)).toBe(1);
     });
+  });
+
+  it("gates current production by funded care while retaining the annual planning factor", () => {
+    grasslandCellWorld(100);
+    worldContext.options = { ...worldContext.options, winterLivestockSlaughter: "off" };
+    getOrCreateFaunaStockTable()!["0:Cattle"] = { young: 0, breeding: 60, old: 0 };
+    const demand = calculateHusbandryDemand(worldContext, 0);
+    setHusbandryRequiredWorkers(Float32Array.from([demand.requiredWorkers]));
+    setHusbandryWorkers(Float32Array.from([demand.requiredWorkers / 2]));
+    const calendar = new Float32Array(12);
+    calendar[1] = 1000;
+    setHusbandryMonthlyWorkDays(calendar);
+    expect(getHusbandryWorkerFactor(0)).toBeCloseTo(0.5);
+    withLivestockFeedPeriod(12000, () => expect(getHusbandryCareFactor(0)).toBe(0));
+    withLivestockFeedPeriod(12001, () => expect(getHusbandryCareFactor(0)).toBe(1));
   });
 
   describe("getPastureAreaUsedHectares", () => {

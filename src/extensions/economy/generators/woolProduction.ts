@@ -18,7 +18,7 @@
  */
 
 import { getOrCreateFaunaStockTable } from "../economyContext";
-import { getHusbandryWorkerFactor } from "./husbandry";
+import { getHusbandryCareFactor } from "./husbandry";
 import { getLivestockFeedCoverage } from "./livestockFeedState";
 import { SHEEP_ANNUAL_WOOL_KG, WOOL_KG_PER_MARKET_LOT } from "./woolProductionPolicy";
 
@@ -43,5 +43,5 @@ export function getAnnualWoolPotentialKg(cellId: number): number {
 export function getWoolOutput(cellId: number): number {
   const annualKg = getAnnualWoolPotentialKg(cellId);
   if (annualKg <= 0) return 0;
-  return (annualKg * getHusbandryWorkerFactor(cellId) * getLivestockFeedCoverage(cellId)) / 12 / WOOL_KG_PER_MARKET_LOT;
+  return (annualKg * getHusbandryCareFactor(cellId) * getLivestockFeedCoverage(cellId)) / 12 / WOOL_KG_PER_MARKET_LOT;
 }

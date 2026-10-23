@@ -105,7 +105,6 @@ export function settleWinterSlaughter(): void {
       };
       accounts.set(market.i, account);
     }
-    const assigned = Math.max(0, getHusbandryWorkers()[cell] ?? 0);
     const demand = calculateHusbandryDemand(world, cell);
     const hay = feed[cell];
     // Routine care and the actual haymaking work retain priority over meat processing.
@@ -143,8 +142,8 @@ export function settleWinterSlaughter(): void {
       hayKg: hay?.hayKg ?? 0,
       cropResidues: getCropResidueForecast(residue, period),
       workDays: availableDays,
-      handlingKg: assigned * policy.handlingKgPerWorkerMonth,
-      storageKg: assigned * policy.storageKgPerWorker,
+      handlingKg: labor.workerMonths * policy.handlingKgPerWorkerMonth,
+      storageKg: Math.max(0, getHusbandryWorkers()[cell] ?? 0) * policy.storageKgPerWorker,
       saltKg: account?.saltKg ?? 0,
       woodKg: account?.woodKg ?? 0,
       saltPricePerKg: account?.saltPrice ?? 0,

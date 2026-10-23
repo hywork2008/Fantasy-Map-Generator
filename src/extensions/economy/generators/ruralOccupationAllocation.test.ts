@@ -111,6 +111,26 @@ describe("ruralOccupationAllocation", () => {
     expect(Math.max(...allocation.husbandryMonthlyWorkDays)).toBeGreaterThan(
       Math.min(...allocation.husbandryMonthlyWorkDays)
     );
+    // A fully occupied harvest month cannot cancel all other monthly reservations.
+    const busy = new Float32Array(12);
+    busy[6] = 10_000;
+    const seasonal = allocateRuralOccupations(worldContext, {
+      cropLaborDaysByMonth: busy,
+      minimumCropLaborDaysByMonth: busy.slice(),
+      farmLaborRequired: new Float32Array([0]),
+      migratableAdults: new Float32Array([40])
+    });
+    expect(seasonal.husbandryMonthlyWorkDays[6]).toBe(0);
+    expect(seasonal.husbandryMonthlyWorkDays[0]).toBeCloseTo(allocation.husbandryMonthlyWorkDays[0], 4);
+    expect(seasonal.husbandryWorkers[0]).toBeGreaterThan(0);
+    expect(seasonal.husbandryWorkers[0]).toBeCloseTo(
+      seasonal.husbandryMonthlyWorkDays.reduce((sum, days) => sum + days, 0) / WORKABLE_DAYS_PER_ADULT,
+      5
+    );
+    for (let month = 0; month < 12; month++) {
+      if (month !== 6)
+        expect(seasonal.husbandryMonthlyWorkDays[month]).toBeLessThanOrEqual(40 * WORKABLE_DAYS_PER_ADULT_PER_MONTH);
+    }
   });
   beforeEach(() => {
     simulationContext.extensions = {};

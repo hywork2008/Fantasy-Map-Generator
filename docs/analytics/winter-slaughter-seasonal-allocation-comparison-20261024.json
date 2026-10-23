@@ -1,0 +1,341 @@
+{
+  "schemaVersion": 1,
+  "months": 12,
+  "comparisons": {
+    "world": {
+      "inputSha256": "5e73a27785881bf553d37404442d7ead0f7bb68457208cc33c88c88f7c6a5999",
+      "beforeSourceTreeSha256": "ed8d16f77af973ebfdccf3bb1adb167b9982e35ebec29dd34c5c9ee720c6856c",
+      "afterSourceTreeSha256": "521d1ca40d10038c9cfe1c8b4f5592c3ae88ce23013785aa2d22932d81fdb837",
+      "runs": [
+        {
+          "mode": "off",
+          "beforeFeed": {
+            "requiredKg": 322599006.8093784,
+            "pastureConsumedKg": 154785944.64407516,
+            "hayConsumedKg": 12990177.98178776,
+            "cropResidueFeedKg": 0,
+            "unmetKg": 154822884.18351555,
+            "purchasedKg": 215567.5174316879
+          },
+          "afterFeed": {
+            "requiredKg": 305452974.4782825,
+            "pastureConsumedKg": 151421369.2441156,
+            "hayConsumedKg": 38036557.00656449,
+            "cropResidueFeedKg": 0,
+            "unmetKg": 115995048.22760245,
+            "purchasedKg": 755553.2199721227
+          },
+          "feedUnmetReductionKg": 38827835.9559131,
+          "feedUnmetReductionPercent": 25.078873940811917,
+          "beforeMeat": {
+            "carcassKg": 0,
+            "edibleRecoveredKg": 0,
+            "nonFoodKg": 0,
+            "preservationInputKg": 0,
+            "completedKg": 0,
+            "processingLossKg": 0,
+            "freshConsumedKg": 0,
+            "preservedConsumedKg": 0,
+            "spoilageKg": 0,
+            "saltKg": 0,
+            "woodKg": 0,
+            "spending": 0,
+            "workDays": 0
+          },
+          "afterMeat": {
+            "carcassKg": 0,
+            "edibleRecoveredKg": 0,
+            "nonFoodKg": 0,
+            "preservationInputKg": 0,
+            "completedKg": 0,
+            "processingLossKg": 0,
+            "freshConsumedKg": 0,
+            "preservedConsumedKg": 0,
+            "spoilageKg": 0,
+            "saltKg": 0,
+            "woodKg": 0,
+            "spending": 0,
+            "workDays": 0
+          },
+          "afterResidues": null,
+          "sourceActivity": null,
+          "decisions": {
+            "eligibleSeasonSamples": 0,
+            "forecastShortageSamples": 0,
+            "seasonalShortageSamples": 0,
+            "activeSamples": 0,
+            "calendarSamples": 0,
+            "legacyWorkSamples": 0,
+            "missingWorkDiagnostics": 0,
+            "missingDecisionDiagnostics": 0,
+            "eligibleDecisions": 0,
+            "laborBlockedDecisions": 0,
+            "handlingBlockedDecisions": 0,
+            "outletBlockedDecisions": 0,
+            "workOverdraftSamples": 0,
+            "maximumWorkOverdraftDays": 0,
+            "maximumHeadBalanceError": 0,
+            "maximumCarcassBalanceErrorKg": 0,
+            "maximumEdibleBalanceErrorKg": 0,
+            "firstPeriodFeedNeedReductionKg": 0,
+            "headsBySpecies": {}
+          }
+        },
+        {
+          "mode": "experimental-temperate",
+          "beforeFeed": {
+            "requiredKg": 322328697.41515684,
+            "pastureConsumedKg": 154623426.9165203,
+            "hayConsumedKg": 12988521.306015156,
+            "cropResidueFeedKg": 0,
+            "unmetKg": 154716749.1926215,
+            "purchasedKg": 216706.88887812448
+          },
+          "afterFeed": {
+            "requiredKg": 304382794.46230704,
+            "pastureConsumedKg": 150919254.38975626,
+            "hayConsumedKg": 38035348.57582954,
+            "cropResidueFeedKg": 90320.70493755181,
+            "unmetKg": 115337870.79178369,
+            "purchasedKg": 753673.1368104954
+          },
+          "feedUnmetReductionKg": 39378878.40083781,
+          "feedUnmetReductionPercent": 25.452240049208452,
+          "beforeMeat": {
+            "carcassKg": 25827.549547800005,
+            "edibleRecoveredKg": 20172.613471010005,
+            "nonFoodKg": 5654.93607679,
+            "preservationInputKg": 219.8905057954398,
+            "completedKg": 142.92882876703587,
+            "processingLossKg": 76.96167702840391,
+            "freshConsumedKg": 19952.722965214565,
+            "preservedConsumedKg": 142.92882876703587,
+            "spoilageKg": 0,
+            "saltKg": 36.6484176325733,
+            "woodKg": 109.9452528977199,
+            "spending": 0.7000000000000001,
+            "workDays": 645.688738695
+          },
+          "afterMeat": {
+            "carcassKg": 90850.01578729994,
+            "edibleRecoveredKg": 70979.49483470999,
+            "nonFoodKg": 19870.52095258998,
+            "preservationInputKg": 0,
+            "completedKg": 0,
+            "processingLossKg": 0,
+            "freshConsumedKg": 70979.49483470999,
+            "preservedConsumedKg": 0,
+            "spoilageKg": 0,
+            "saltKg": 0,
+            "woodKg": 0,
+            "spending": 0,
+            "workDays": 2271.250394682498
+          },
+          "afterResidues": {
+            "schemaVersion": 1,
+            "policyId": "temperate-cereal-residue-experiment-v1",
+            "receiptCount": 84,
+            "sampleCount": 989,
+            "generatedKg": 8189683.755573655,
+            "soilReservedKg": 4094841.8777868273,
+            "otherUsesReservedKg": 1637936.7511147317,
+            "collectedKg": 60391.01986549852,
+            "lossKg": 2264758.517007681,
+            "strawConsumedKg": 57525.99894655707,
+            "stubbleConsumedKg": 134620.61071785796,
+            "feedEquivalentKg": 90320.7049375518,
+            "workDays": 515.389449488426,
+            "remainingKg": 0,
+            "maximumAllocationErrorKg": 1.4551915228366852e-11,
+            "maximumStockBalanceErrorKg": 1.4551915228366852e-11,
+            "workOverdraftSamples": 0
+          },
+          "sourceActivity": {
+            "sourceCellPeriodsWithHerds": 336,
+            "sourceCellPeriodsWithReservedWork": 297,
+            "residueWorkingCellPeriods": 80
+          },
+          "decisions": {
+            "eligibleSeasonSamples": 1409,
+            "forecastShortageSamples": 4664,
+            "seasonalShortageSamples": 321,
+            "activeSamples": 225,
+            "calendarSamples": 15996,
+            "legacyWorkSamples": 0,
+            "missingWorkDiagnostics": 0,
+            "missingDecisionDiagnostics": 0,
+            "eligibleDecisions": 743,
+            "laborBlockedDecisions": 309,
+            "handlingBlockedDecisions": 256,
+            "outletBlockedDecisions": 0,
+            "workOverdraftSamples": 0,
+            "maximumWorkOverdraftDays": 5.684341886080802e-14,
+            "maximumHeadBalanceError": 3.552713678800501e-15,
+            "maximumCarcassBalanceErrorKg": 2.2737367544323206e-13,
+            "maximumEdibleBalanceErrorKg": 0,
+            "firstPeriodFeedNeedReductionKg": 189166.6666666665,
+            "headsBySpecies": {
+              "Cattle": 493,
+              "Sheep": 1582
+            }
+          }
+        }
+      ]
+    },
+    "province": {
+      "inputSha256": "a3209cca3c88ebf8f84b4f5d9321be8ad3bdc5b3766ca92994f0eb198a52e4e7",
+      "beforeSourceTreeSha256": "ed8d16f77af973ebfdccf3bb1adb167b9982e35ebec29dd34c5c9ee720c6856c",
+      "afterSourceTreeSha256": "521d1ca40d10038c9cfe1c8b4f5592c3ae88ce23013785aa2d22932d81fdb837",
+      "runs": [
+        {
+          "mode": "off",
+          "beforeFeed": {
+            "requiredKg": 1896193.4890695973,
+            "pastureConsumedKg": 1796316.1437435555,
+            "hayConsumedKg": 99877.3453260418,
+            "cropResidueFeedKg": 0,
+            "unmetKg": 0,
+            "purchasedKg": 0
+          },
+          "afterFeed": {
+            "requiredKg": 1896209.5409061657,
+            "pastureConsumedKg": 1796332.195580124,
+            "hayConsumedKg": 99877.3453260418,
+            "cropResidueFeedKg": 0,
+            "unmetKg": 0,
+            "purchasedKg": 0
+          },
+          "feedUnmetReductionKg": 0,
+          "feedUnmetReductionPercent": null,
+          "beforeMeat": {
+            "carcassKg": 0,
+            "edibleRecoveredKg": 0,
+            "nonFoodKg": 0,
+            "preservationInputKg": 0,
+            "completedKg": 0,
+            "processingLossKg": 0,
+            "freshConsumedKg": 0,
+            "preservedConsumedKg": 0,
+            "spoilageKg": 0,
+            "saltKg": 0,
+            "woodKg": 0,
+            "spending": 0,
+            "workDays": 0
+          },
+          "afterMeat": {
+            "carcassKg": 0,
+            "edibleRecoveredKg": 0,
+            "nonFoodKg": 0,
+            "preservationInputKg": 0,
+            "completedKg": 0,
+            "processingLossKg": 0,
+            "freshConsumedKg": 0,
+            "preservedConsumedKg": 0,
+            "spoilageKg": 0,
+            "saltKg": 0,
+            "woodKg": 0,
+            "spending": 0,
+            "workDays": 0
+          },
+          "afterResidues": null,
+          "sourceActivity": null,
+          "decisions": {
+            "eligibleSeasonSamples": 0,
+            "forecastShortageSamples": 0,
+            "seasonalShortageSamples": 0,
+            "activeSamples": 0,
+            "calendarSamples": 0,
+            "legacyWorkSamples": 0,
+            "missingWorkDiagnostics": 0,
+            "missingDecisionDiagnostics": 0,
+            "eligibleDecisions": 0,
+            "laborBlockedDecisions": 0,
+            "handlingBlockedDecisions": 0,
+            "outletBlockedDecisions": 0,
+            "workOverdraftSamples": 0,
+            "maximumWorkOverdraftDays": 0,
+            "maximumHeadBalanceError": 0,
+            "maximumCarcassBalanceErrorKg": 0,
+            "maximumEdibleBalanceErrorKg": 0,
+            "firstPeriodFeedNeedReductionKg": 0,
+            "headsBySpecies": {}
+          }
+        },
+        {
+          "mode": "experimental-temperate",
+          "beforeFeed": {
+            "requiredKg": 1896194.149028886,
+            "pastureConsumedKg": 1796316.8037028443,
+            "hayConsumedKg": 99877.3453260418,
+            "cropResidueFeedKg": 0,
+            "unmetKg": 0,
+            "purchasedKg": 0
+          },
+          "afterFeed": {
+            "requiredKg": 1896209.183822722,
+            "pastureConsumedKg": 1796331.8384966801,
+            "hayConsumedKg": 99877.3453260418,
+            "cropResidueFeedKg": 0,
+            "unmetKg": 0,
+            "purchasedKg": 0
+          },
+          "feedUnmetReductionKg": 0,
+          "feedUnmetReductionPercent": null,
+          "beforeMeat": {
+            "carcassKg": 0,
+            "edibleRecoveredKg": 0,
+            "nonFoodKg": 0,
+            "preservationInputKg": 0,
+            "completedKg": 0,
+            "processingLossKg": 0,
+            "freshConsumedKg": 0,
+            "preservedConsumedKg": 0,
+            "spoilageKg": 0,
+            "saltKg": 0,
+            "woodKg": 0,
+            "spending": 0,
+            "workDays": 0
+          },
+          "afterMeat": {
+            "carcassKg": 0,
+            "edibleRecoveredKg": 0,
+            "nonFoodKg": 0,
+            "preservationInputKg": 0,
+            "completedKg": 0,
+            "processingLossKg": 0,
+            "freshConsumedKg": 0,
+            "preservedConsumedKg": 0,
+            "spoilageKg": 0,
+            "saltKg": 0,
+            "woodKg": 0,
+            "spending": 0,
+            "workDays": 0
+          },
+          "afterResidues": null,
+          "sourceActivity": null,
+          "decisions": {
+            "eligibleSeasonSamples": 180,
+            "forecastShortageSamples": 0,
+            "seasonalShortageSamples": 0,
+            "activeSamples": 0,
+            "calendarSamples": 576,
+            "legacyWorkSamples": 0,
+            "missingWorkDiagnostics": 0,
+            "missingDecisionDiagnostics": 0,
+            "eligibleDecisions": 10,
+            "laborBlockedDecisions": 10,
+            "handlingBlockedDecisions": 10,
+            "outletBlockedDecisions": 0,
+            "workOverdraftSamples": 0,
+            "maximumWorkOverdraftDays": 0,
+            "maximumHeadBalanceError": 0,
+            "maximumCarcassBalanceErrorKg": 0,
+            "maximumEdibleBalanceErrorKg": 0,
+            "firstPeriodFeedNeedReductionKg": 0,
+            "headsBySpecies": {}
+          }
+        }
+      ]
+    }
+  }
+}

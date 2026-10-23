@@ -1,4 +1,5 @@
 import { getCropResidueWorkPlan } from "./cropResidueWorkPlan";
+import { getHusbandryLaborBudget } from "./husbandryLabor";
 /**
  * Open-pasture husbandry: one shared land budget for Cattle, Sheep, Goats, Horses and Camels.
  * Pig, Chicken, Cats and Dogs retain their separate yard/woodland models.
@@ -27,6 +28,7 @@ import type { WorldContext } from "../../hostCore";
 import {
   getCultivatedArea,
   getGoods,
+  getHusbandryMonthlyWorkDays,
   getHusbandryRequiredWorkers,
   getHusbandryWorkers,
   getOrCreateFaunaStockTable,
@@ -41,7 +43,7 @@ import {
 import type { Good } from "./goods-generator";
 import { isGoodEnabled } from "./goods-generator";
 import { ANNUAL_FEED_DM_KG_PER_HEAD, getLivestockHayPlan, HAY_WORK_DAYS_PER_TONNE_DM } from "./livestockFeedPolicy";
-import { getAnnualLivestockFeedFactor } from "./livestockFeedState";
+import { getAnnualLivestockFeedFactor, livestockFeedMonth } from "./livestockFeedState";
 import { readAgriculturalClimate } from "./seasonalCropClimate";
 import { getWinterSlaughterWorkPlan } from "./winterSlaughter";
 import { EXPERIMENTAL_CARCASS_PROFILES } from "./winterSlaughterPolicy";
@@ -407,12 +409,21 @@ function normalizeMonthlyWeights(weights: readonly number[]): MonthlyWeights {
   return weights.map(value => value / total) as unknown as MonthlyWeights;
 }
 
-/** 0..1 labour-sufficiency ratio gating grazed-species output at `cellId` (mirrors getViticultureWorkerFactor). */
+/** Annual-equivalent labor coverage for land/stock planning; production reads current care instead. */
 export function getHusbandryWorkerFactor(cellId: number): number {
   const required = getHusbandryRequiredWorkers()[cellId] ?? 0;
   if (required <= 0) return 0;
   const assigned = getHusbandryWorkers()[cellId] ?? 0;
   return Math.min(1, assigned / required);
+}
+
+/** Actual care coverage this period; seasonal processing workers do not license unfunded care. */
+export function getHusbandryCareFactor(cellId: number): number {
+  const world = getWorldContext();
+  const calendar = getHusbandryMonthlyWorkDays();
+  if (!calendar.length || calendar.length !== world.pack.cells.i.length * 12) return getHusbandryWorkerFactor(cellId);
+  const labor = getHusbandryLaborBudget(cellId, livestockFeedMonth() - 1, calculateHusbandryDemand(world, cellId));
+  return labor.careRequiredDays > 0 ? Math.min(1, labor.careDays / labor.careRequiredDays) : 0;
 }
 
 /**

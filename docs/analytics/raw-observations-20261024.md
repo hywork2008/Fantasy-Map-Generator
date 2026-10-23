@@ -168,3 +168,12 @@ node --import tsx scripts/auditWoolSupply.mts docs/analytics/inputs/salt-s0-alig
 | winter-slaughter-crop-residues-world-102-before-labor-request-20261024.json | 60801032 | `b01d2c17857700a0f4072f50d6e09011d1ff4f55daffe01202edf789796713a3` |
 | winter-slaughter-crop-residues-province-101-20261024.json | 2085502 | `e3918c630ed63966283ef8b8b519bddb5a9a1a622074c156cd645d54c0cb3275` |
 | winter-slaughter-crop-residues-world-102-20261024.json | 60801118 | `a2275538a2dde0dbfde53569641ba0201b7642459d34e8173091f60ec2af9ce8` |
+
+## 牧畜の月別作業配分（同日追補）
+
+[検証記録](winter-slaughter-seasonal-allocation-20261024.md)、[派生比較](winter-slaughter-seasonal-allocation-comparison-20261024.json)。固定World/Province各12か月のoff/on比較。修正前の同じ設定との差と、修正後の設定間差を区別する。
+
+| ファイル（docs/analytics/raw/） | バイト数 | SHA-256 |
+| --- | ---: | --- |
+| winter-slaughter-seasonal-allocation-province-101-20261024.json | 2085523 | `d6d3252d8e8d35081df4186a9e034980a9b6dab3cbd4a1717cb0e94a09a22644` |
+| winter-slaughter-seasonal-allocation-world-102-20261024.json | 61764165 | `478d77c031e99956aa84a8173d75a1879c5af8b64f7ef7bb6e26c685a024d364` |

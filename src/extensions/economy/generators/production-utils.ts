@@ -18,7 +18,7 @@ import { getMilkOutput } from "./dairy";
 import { dispatchDomesticatedFauna } from "./faunaPopulation";
 import { getForestStockMultiplier } from "./forestStock";
 import { type Good, Goods, isGoodEnabled } from "./goods-generator";
-import { getHusbandryWorkerFactor, isGrazedLivestockGood } from "./husbandry";
+import { getHusbandryCareFactor, isGrazedLivestockGood } from "./husbandry";
 import { livestockFeedMonth } from "./livestockFeedState";
 import { isMineSuppliedGoodName } from "./mineralResources";
 import { getFishingWorkerFactor, getHuntingGameOutput, previewHuntingGameOutput } from "./ruralOccupationAllocation";
@@ -214,7 +214,7 @@ export function getRuralLiveAnimalContributions(
   for (const [goodId, base] of desired) {
     const good = Goods.get(goodId);
     if (!good?.tags.includes("liveAnimal") || !isGoodEnabled(good)) continue;
-    const workers = isGrazedLivestockGood(good.name) ? getHusbandryWorkerFactor(cellId) : 1;
+    const workers = isGrazedLivestockGood(good.name) ? getHusbandryCareFactor(cellId) : 1;
     const seasonal = good.tags.includes("food")
       ? getSeasonalFoodProductionMultiplier(good, cellId, livestockFeedMonth())
       : 1;

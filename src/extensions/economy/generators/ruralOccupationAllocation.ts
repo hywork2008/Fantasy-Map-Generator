@@ -478,6 +478,23 @@ function allocateRuralOccupationsFromCalendar(
     for (const candidate of candidates) addWorkerDays(desiredDays, candidate.requiredWorkers, candidate.monthlyWeights);
     candidates.sort((a, b) => b.value - a.value);
     for (const candidate of candidates) {
+      if (candidate.kind === "husbandry") {
+        // These are month-local household tasks. One busy crop month must not cancel
+        // care and seasonal work in every other month, or spend another month's slack.
+        let annualAssignedDays = 0;
+        for (let month = 0; month < 12; month++) {
+          const requestedDays =
+            candidate.requiredWorkers * WORKABLE_DAYS_PER_ADULT * (candidate.monthlyWeights[month] ?? 0);
+          const remainingDays = Math.max(0, residentAdults * workDaysPerAdult[month] - currentDays[month]);
+          const assignedDays = Math.min(requestedDays, remainingDays);
+          husbandryMonthlyWorkDays[cellId * 12 + month] = assignedDays;
+          currentDays[month] += assignedDays;
+          minimumDays[month] += assignedDays;
+          annualAssignedDays += assignedDays;
+        }
+        husbandryWorkers[cellId] = annualAssignedDays / WORKABLE_DAYS_PER_ADULT;
+        continue;
+      }
       const factor = getMaximumAssignableFactor(
         currentDays,
         candidate.requiredWorkers,
@@ -487,13 +504,7 @@ function allocateRuralOccupationsFromCalendar(
       );
       const assigned = candidate.requiredWorkers * factor;
       if (candidate.kind === "viticulture") viticultureWorkers[cellId] += assigned;
-      else if (candidate.kind === "husbandry") {
-        husbandryWorkers[cellId] += assigned;
-        for (let month = 0; month < 12; month++) {
-          husbandryMonthlyWorkDays[cellId * 12 + month] =
-            assigned * WORKABLE_DAYS_PER_ADULT * candidate.monthlyWeights[month];
-        }
-      } else fishingWorkers[candidate.holderId!] += assigned;
+      else fishingWorkers[candidate.holderId!] += assigned;
       addWorkerDays(currentDays, assigned, candidate.monthlyWeights);
       addWorkerDays(minimumDays, assigned, candidate.monthlyWeights);
     }
