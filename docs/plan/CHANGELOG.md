@@ -2,7 +2,11 @@
 
 2026-10-23
 
-- docs/analytics/salt-s0-baseline-20261023.md - Salt S0の用途別史料・基準なしの範囲、2世界の入力ハッシュ付き12か月観測、人口倍率・台帳対象外人口・固定加工枠と実投入の差、物量残差と同一年比較の未達を記録
+- docs/analytics/inputs/salt-s0-aligned-20261023/ - 同一年比較に使用した1300年・High MedievalのProvince seed101とWorld seed102の固定入力アーカイブ、および共通生成設定を保存
+- docs/analytics/salt-s0-aligned-comparison-20261023.json - 同条件の2世界の派生比較集計、生成コマンド・条件の一致検証、固定入力/観測出力のハッシュと物量照合残
+- docs/analytics/salt-s0-aligned-province-101-20261023.json - 1300年・High Medievalの新規Provinceを12か月観測したSalt S0基準。初期プロファイルと実決済ごとの台帳を記録
+- docs/analytics/salt-s0-aligned-world-102-20261023.json - 同じ1300年・High Medievalの新規Worldの12か月観測。Provinceと同じ年月・尺度・設定・実装で比較
+- docs/analytics/salt-s0-baseline-20261023.md - Salt S0の用途別史料・基準なしの範囲、旧2世界の観測と人口/物量境界を記録。同日追補で原典・原研究の採否、1300年の共通設定による比較、S0完了と次のS1を明記
 - docs/analytics/salt-s0-province-101-20261023.json - Standard・populationRate1000のprovince-101を590年1月から12か月進めた塩の品別フロー・実決済ごとの国家台帳・輸送と入力/ソースハッシュ
 - docs/analytics/salt-s0-world-102-20261023.json - Standard・populationRate1000のworld-102を1929年1月から12か月進めた同形式の塩観測。provinceと保存年が異なる条件を明記
 - docs/plan/historical-economy-production-consumption-circulation.md - 2026年10月追加の経済計画と最新追補を照合し、生活必需品の需要・予算、生産・実支払賃金、資本回収・輸送を接続する作業を再構成。食料優先と土地・月別労働・複合生産の補正を含む配分原則、材料余剰時の判定順、E0で確定する史実の桁の基準、食料と一次生産(牧草地・群れ・採毛)の規模を独立段階とした作業順、成果物付きの完了条件と比較観測・関連テストの方針を整理

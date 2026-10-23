@@ -29,6 +29,17 @@ try {
   // Same explicit settings as the wool baseline; never inject stocks, money or population.
   const sim = host.simulation as { worldSettings?: Record<string, string> };
   sim.worldSettings = { ...sim.worldSettings, "fmg-long-distance-trade": "on", "fmg-caravan-raids": "off" };
+  // Preserve the actual loaded profile so a shared date cannot hide different historical settings.
+  const initialProfile = {
+    worldOptions: structuredClone(host.world.options),
+    populationRate: host.world.populationRate,
+    urbanization: host.world.urbanization,
+    gridScope: structuredClone(host.world.grid.scope ?? null),
+    extensions: Object.fromEntries(["economy", "characters", "nobility", "shipbuilding"]
+      .map(id => [id, host.enablement.isEnabled(id)])),
+    cultures: host.world.pack.cultures.filter(culture => culture?.i && !culture.removed)
+      .map(culture => ({ id: culture.i, name: culture.name, base: culture.base }))
+  };
   const clock = () => ({ year: host.simulation.currentYear, month: host.simulation.currentMonth,
     day: host.simulation.currentDay, tick: host.simulation.tickCount });
   const views = createObserveViews(() => host.world, clock);
@@ -76,14 +87,14 @@ try {
   const annualizedKgPerServedPerson = Object.fromEntries(Object.entries(totals)
     .filter(([key]) => key.endsWith("Kg"))
     .map(([key, value]) => [key, totals.personMonths > 0 ? value * 12 / totals.personMonths : null]));
-  writeFileSync(output, JSON.stringify({ schemaVersion: 1, input: basename(input), inputSha256: sha256(bytes),
+  writeFileSync(output, JSON.stringify({ schemaVersion: 2, input: basename(input), inputSha256: sha256(bytes),
     gitHead: execFileSync("git", ["rev-parse", "HEAD"]).toString().trim(),
     sourceTreeSha256: sha256(JSON.stringify(sourceHashes)),
     sourceHashScope: "git-tracked src (excluding deprecated city-generator), scripts, public, package-lock.json, plus this runner",
     sourceHashes: Object.fromEntries(["scripts/auditSaltSupply.mts", "scripts/lib/observeViews.mts",
       "src/extensions/economy/generators/saltLogistics.ts", "src/extensions/economy/generators/production-generator.ts"]
       .map(path => [path, sourceHashes[path]])),
-    seed: host.world.seed, settlementPattern: host.world.options.initialSettlementPattern,
+    seed: host.world.seed, settlementPattern: host.world.options.initialSettlementPattern, initialProfile,
     worldSettings: sim.worldSettings, months,
     notes: ["Flows are interval totals; logistics states and works are latest-month records, not cumulative. settlements captures every actual salt settlement via the read-only tick observer.",
       "Salt bag = 60 kg. A household sale is physical delivery, with no payment in the current implementation.",
