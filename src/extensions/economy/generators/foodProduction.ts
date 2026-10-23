@@ -1,4 +1,5 @@
 import { getSeasonalAmplitude, minmax, rn } from "../../hostUtils";
+import { getSimulationYear } from "../context/economyApi";
 import {
   getCropLaborCoverage,
   getCultivableArea,
@@ -12,6 +13,7 @@ import {
   getWorldContext,
   setRuralHouseholdFoodStock
 } from "../economyContext";
+import { recordCropResidueHarvest } from "./cropResidueHarvest";
 import { getEconomyStartProfile } from "./economyStartMode";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import { resolveFoodImportNetwork } from "./foodImportNetwork";
@@ -422,15 +424,20 @@ export class FoodProductionModule {
   }
 
   /** Adds one month's crop-specific harvest after that month's consumption settlement. */
-  generateMonthlyLedger(month: number) {
+  generateMonthlyLedger(month: number, period?: number) {
     const safeMonth = Math.max(1, Math.min(12, Math.floor(month)));
     // Age buckets retain their three-month bands for save compatibility; only the final month of
     // each band advances them. Harvest itself is credited every month, so price and stock now
     // follow monthly calendars without shrinking the legacy nine-month storage horizon.
-    this.generateLedger([safeMonth], 1, safeMonth % 3 === 0);
+    this.generateLedger([safeMonth], 1, safeMonth % 3 === 0, period);
   }
 
-  private generateLedger(months: readonly number[], periodMonths: number, advanceAgeBuckets: boolean): void {
+  private generateLedger(
+    months: readonly number[],
+    periodMonths: number,
+    advanceAgeBuckets: boolean,
+    settlementPeriod?: number
+  ): void {
     const pack = this.worldContext.pack;
     const markets = getMarkets();
     const marketCellColumn = getMarketCellColumn();
@@ -507,6 +514,19 @@ export class FoodProductionModule {
             }, 0)
           : periodMonths / 12;
         const harvest = annualHarvest * harvestWeight;
+        for (const harvestMonth of cropMix.length ? months : []) {
+          recordCropResidueHarvest(
+            cellId,
+            settlementPeriod ?? getSimulationYear() * 12 + harvestMonth - 1,
+            cropMix.map(entry => ({
+              good: entry.good,
+              units:
+                annualHarvest *
+                entry.share *
+                (getCropHarvestWeight(entry.good, cellId, harvestMonth, entry.irrigated) ?? 0)
+            }))
+          );
+        }
 
         const hasCellHouseholdFoodStock =
           hasRuralHouseholdFoodStock && cellId >= 0 && cellId < ruralHouseholdFoodStock.length;

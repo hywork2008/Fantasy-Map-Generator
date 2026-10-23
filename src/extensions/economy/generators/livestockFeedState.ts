@@ -39,7 +39,7 @@ export function getLivestockFeedCoverage(cellId: number): number {
   return age >= 0 && age <= 1 ? (row?.coverage ?? 1) : 1;
 }
 
-/** Annual potential forage plus actual net purchases, never a second copy of stored local hay. */
+/** Annual potential forage plus actual net purchases and consumed residue equivalents; local hay is not added twice. */
 export function getAnnualLivestockFeedFactor(
   cellId: number,
   pastureHa: number,
@@ -55,7 +55,13 @@ export function getAnnualLivestockFeedFactor(
   const netExternal = samples
     .filter(sample => sample.period <= period && sample.period > period - 12)
     .reduce(
-      (sum, sample) => sum + sample.purchasedKg - sample.soldKg - sample.harvestLossKg - (sample.storageLossKg ?? 0),
+      (sum, sample) =>
+        sum +
+        sample.purchasedKg +
+        (sample.cropResidueFeedKg ?? 0) -
+        sample.soldKg -
+        sample.harvestLossKg -
+        (sample.storageLossKg ?? 0),
       0
     );
   const available = pastureHa * getPastureGrowth(getWorldContext(), cellId).annualKgPerHa + netExternal;

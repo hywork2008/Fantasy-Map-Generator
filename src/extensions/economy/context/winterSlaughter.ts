@@ -1,4 +1,5 @@
 import type { WinterSlaughterState } from "../generators/winterSlaughter";
+import { cropResiduesNeedPhysicalSettlement } from "./cropResidues";
 import { getWorldContext, peekEconomySlice } from "./economyApi";
 
 export function isWinterSlaughterExperimentEnabled(): boolean {
@@ -17,7 +18,7 @@ export function getWinterSlaughterState(): WinterSlaughterState | null {
 
 /** Coarse economic rates cannot replace outstanding physical curing and feeding periods. */
 export function winterSlaughterNeedsPhysicalSettlement(): boolean {
-  if (isWinterSlaughterExperimentEnabled()) return true;
+  if (isWinterSlaughterExperimentEnabled() || cropResiduesNeedPhysicalSettlement()) return true;
   const state = getWinterSlaughterState();
   return Boolean(
     state &&

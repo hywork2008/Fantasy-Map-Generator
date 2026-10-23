@@ -1,6 +1,7 @@
 /** Read-only food boundaries. Missing ledgers and unmeasured flows are never consumption zeroes. */
 import type { WorldContext } from "../../../context/worldContext";
 import type { CumulativeCellFoodFlow } from "../context/cellTables";
+import { type CropResidueState, observeCropResidues } from "./cropResidues";
 import type { Good } from "./goodsGeneratorTypes";
 import type { Market } from "./marketTypes";
 import type { WinterSlaughterState } from "./winterSlaughter";
@@ -14,6 +15,7 @@ export function observeFoodSystem(input: {
   ruralFoodStock: ArrayLike<number>;
   cellFoodFlows: Readonly<Record<number, CumulativeCellFoodFlow>> | null;
   winterSlaughter?: WinterSlaughterState | null;
+  cropResidues?: CropResidueState | null;
 }) {
   const { world, markets, goods, marketByCell, ruralFoodStock, cellFoodFlows } = input;
   const rate = world.populationRate ?? 1000;
@@ -92,6 +94,7 @@ export function observeFoodSystem(input: {
   const meat = observeWinterSlaughter(input.winterSlaughter ?? null);
   return {
     winterSlaughter: meat,
+    cropResidues: observeCropResidues(input.cropResidues ?? null),
     coverage: { rural, urban, byReason, uncoveredCells, uncoveredBurgs, cellMembership },
     // These are source-cell harvest counters, not market inflows. Processed is a raw-input unit.
     cellFoodFlows:

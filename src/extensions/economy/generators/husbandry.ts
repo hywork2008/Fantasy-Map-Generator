@@ -1,3 +1,4 @@
+import { getCropResidueWorkPlan } from "./cropResidueWorkPlan";
 /**
  * Open-pasture husbandry: one shared land budget for Cattle, Sheep, Goats, Horses and Camels.
  * Pig, Chicken, Cats and Dogs retain their separate yard/woodland models.
@@ -188,6 +189,8 @@ export function isGrazedLivestockGood(goodName: string): boolean {
 }
 
 export interface HusbandryDemand {
+  readonly residueWorkers?: number;
+  readonly residueMonthlyLaborWeights?: readonly number[];
   readonly slaughterWorkers?: number;
   readonly slaughterMonthlyLaborWeights?: readonly number[];
   /** Aggregate herders this cell could use across every grazed species present in its biome. */
@@ -368,7 +371,14 @@ export function calculateHusbandryDemand(world: Readonly<WorldContext>, cellId: 
   requiredWorkers += slaughterWorkers;
   for (let month = 0; month < 12; month++)
     weightedMonthlyLabor[month] += slaughterWorkers * slaughterPlan.monthlyWeights[month];
+  const residuePlan = getCropResidueWorkPlan(world, cellId, annualFeedNeedKg);
+  const residueWorkers = residuePlan.annualDays / WORKABLE_DAYS_PER_ADULT;
+  requiredWorkers += residueWorkers;
+  for (let month = 0; month < 12; month++)
+    weightedMonthlyLabor[month] += residueWorkers * residuePlan.monthlyWeights[month];
   return {
+    residueWorkers,
+    residueMonthlyLaborWeights: residuePlan.monthlyWeights,
     requiredWorkers,
     slaughterWorkers,
     slaughterMonthlyLaborWeights: slaughterPlan.monthlyWeights,

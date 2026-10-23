@@ -1,3 +1,4 @@
+import { getCropResidueState } from "../context/cropResidues";
 import { getEconomySlice } from "../context/economyApi";
 import { getWinterSlaughterState, isWinterSlaughterExperimentEnabled } from "../context/winterSlaughter";
 import {
@@ -9,6 +10,7 @@ import {
   getOrCreateLivestockFeedTable,
   getWorldContext
 } from "../economyContext";
+import { getCropResidueForecast } from "./cropResidues";
 import type { FaunaCohorts } from "./faunaPopulationTypes";
 import { SALT_KILOGRAMS_PER_BAG } from "./goodMeasureCatalog";
 import { isGoodEnabled } from "./goods-generator";
@@ -109,7 +111,9 @@ export function settleWinterSlaughter(): void {
     // Routine care and the actual haymaking work retain priority over meat processing.
     const labor = getHusbandryLaborBudget(cell, month, demand);
     const hayDays = hay?.harvestPeriod === period ? (hay.harvestedKg / 1000) * HAY_WORK_DAYS_PER_TONNE_DM : 0;
-    const availableDays = Math.max(0, labor.reservedDays - labor.careDays - hayDays);
+    const residue = getCropResidueState()?.cells[cell];
+    const residueDays = residue?.samples.find(sample => sample.period === period)?.workDays ?? 0;
+    const availableDays = Math.max(0, labor.reservedDays - labor.careDays - hayDays - residueDays);
     const growth = getPastureGrowth(world, cell);
     const forage = getPastureAreaUsedHectares(cell) * growth.annualKgPerHa;
     const allowedSpecies =
@@ -137,6 +141,7 @@ export function settleWinterSlaughter(): void {
         (_, ahead) => forage * growth.weights[(month + ahead) % 12]
       ),
       hayKg: hay?.hayKg ?? 0,
+      cropResidues: getCropResidueForecast(residue, period),
       workDays: availableDays,
       handlingKg: assigned * policy.handlingKgPerWorkerMonth,
       storageKg: assigned * policy.storageKgPerWorker,
@@ -153,6 +158,7 @@ export function settleWinterSlaughter(): void {
     sample.workReservedDays = labor.reservedDays;
     sample.careWorkDays = labor.careDays;
     sample.hayWorkDays = hayDays;
+    sample.cropResidueWorkDays = residueDays;
     changed = true;
     for (const [species, herd] of Object.entries(localHerds)) changes.push({ key: `${cell}:${species}`, herd });
     if (account) {

@@ -46,7 +46,11 @@ export function summarizeWinterSlaughterDecisions(samples: readonly WinterSlaugh
     ) {
       const overdraft = Math.max(
         0,
-        sample.workDays + sample.careWorkDays + sample.hayWorkDays - sample.workReservedDays
+        sample.workDays +
+          sample.careWorkDays +
+          sample.hayWorkDays +
+          (sample.cropResidueWorkDays ?? 0) -
+          sample.workReservedDays
       );
       result.maximumWorkOverdraftDays = Math.max(result.maximumWorkOverdraftDays, overdraft);
       if (overdraft > 1e-6) result.workOverdraftSamples++;

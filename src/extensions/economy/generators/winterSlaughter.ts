@@ -1,4 +1,5 @@
 import { pow } from "../../../simulation/deterministicMath";
+import { CROP_RESIDUE_POLICY, type CropResidueForecast } from "./cropResidues";
 import type { FaunaCohorts } from "./faunaPopulationTypes";
 import { ANNUAL_FEED_DM_KG_PER_HEAD, HAY_STORAGE_LOSS_PER_MONTH } from "./livestockFeedPolicy";
 import { commitSlaughter, type SlaughterTransactionState } from "./slaughterTransactions";
@@ -87,6 +88,7 @@ export interface WinterSlaughterSample {
   workReservedDays?: number;
   careWorkDays?: number;
   hayWorkDays?: number;
+  cropResidueWorkDays?: number;
   handlingCapacityKg: number;
   storageCapacityKg: number;
   dietaryKcal: number;
@@ -113,6 +115,7 @@ export interface WinterSlaughterInput {
   /** Current month first. No uncontracted purchases or future hay harvests. */
   forageKg: readonly number[];
   hayKg: number;
+  cropResidues?: CropResidueForecast;
   workDays: number;
   handlingKg: number;
   storageKg: number;
@@ -136,15 +139,34 @@ export function createWinterSlaughterState(): WinterSlaughterState {
   };
 }
 
-export function forecastWinterFeedGap(monthlyNeedKg: number, forageKg: readonly number[], hayKg: number): number {
+export function forecastWinterFeedGap(
+  monthlyNeedKg: number,
+  forageKg: readonly number[],
+  hayKg: number,
+  residues?: CropResidueForecast
+): number {
   let hay = Math.max(0, hayKg);
   let gap = 0;
+  const straw = residues?.storedLots.map(lot => ({ ...lot })) ?? [];
   for (const [index, grown] of forageKg.entries()) {
     if (index > 0) hay *= 1 - HAY_STORAGE_LOSS_PER_MONTH;
     const need = Math.max(0, monthlyNeedKg - grown);
     const fed = Math.min(hay, need);
     hay -= fed;
-    gap += need - fed;
+    let remaining = need - fed;
+    let allowance = monthlyNeedKg * CROP_RESIDUE_POLICY.maximumRationShare;
+    const stubble = index === 0 ? Math.min(remaining, allowance, residues?.currentStubbleFeedKg ?? 0) : 0;
+    remaining -= stubble;
+    allowance -= stubble;
+    for (const lot of straw) {
+      if (index > 0) lot.feedKg *= 1 - CROP_RESIDUE_POLICY.storageLoss;
+      if ((residues?.period ?? 0) + index >= lot.expiresPeriod) continue;
+      const used = Math.min(remaining, allowance, lot.feedKg);
+      lot.feedKg -= used;
+      allowance -= used;
+      remaining -= used;
+    }
+    gap += remaining;
   }
   return gap;
 }
@@ -274,7 +296,12 @@ export function settleWinterSlaughterCell(
     stockEndKg: 0,
     processingEndKg: 0
   };
-  sample.forecastUnmetBeforeKg = forecastWinterFeedGap(sample.feedNeedBeforeKg, input.forageKg, input.hayKg);
+  sample.forecastUnmetBeforeKg = forecastWinterFeedGap(
+    sample.feedNeedBeforeKg,
+    input.forageKg,
+    input.hayKg,
+    input.cropResidues
+  );
   // Age only previously completed stocks. Jobs complete into new stocks AFTER this pass.
   const previousPeriod = state.lastPeriodByCell[input.cellId];
   for (const stock of Object.values(state.stocks)) {
@@ -334,7 +361,7 @@ export function settleWinterSlaughterCell(
         const herd = input.herds[species];
         const adult = EXPERIMENTAL_CARCASS_PROFILES[species];
         if (!herd || !adult || !input.allowedSpecies.includes(species)) continue;
-        const gap = forecastWinterFeedGap(monthlyNeed, input.forageKg, input.hayKg);
+        const gap = forecastWinterFeedGap(monthlyNeed, input.forageKg, input.hayKg, input.cropResidues);
         const perHeadFeed = (ANNUAL_FEED_DM_KG_PER_HEAD[species] ?? 0) / 12;
         // Pig season is an authored mast-finish scenario, NOT a saving of the grazing ledger.
         if (species !== "Pig" && !(gap > 0)) continue;
@@ -390,7 +417,12 @@ export function settleWinterSlaughterCell(
           while (low < high) {
             const mid = Math.floor((low + high) / 2);
             if (
-              forecastWinterFeedGap(Math.max(0, monthlyNeed - mid * perHeadFeed), input.forageKg, input.hayKg) <= 1e-8
+              forecastWinterFeedGap(
+                Math.max(0, monthlyNeed - mid * perHeadFeed),
+                input.forageKg,
+                input.hayKg,
+                input.cropResidues
+              ) <= 1e-8
             )
               high = mid;
             else low = mid + 1;
@@ -481,7 +513,12 @@ export function settleWinterSlaughterCell(
     }
   sample.feedNeedAfterKg = feedNeed(input.herds);
   sample.sourceClosingCohorts = structuredClone(input.herds);
-  sample.forecastUnmetAfterKg = forecastWinterFeedGap(sample.feedNeedAfterKg, input.forageKg, input.hayKg);
+  sample.forecastUnmetAfterKg = forecastWinterFeedGap(
+    sample.feedNeedAfterKg,
+    input.forageKg,
+    input.hayKg,
+    input.cropResidues
+  );
   sample.stockEndKg = ownStocks.reduce((sum, stock) => sum + stock.remainingKg, 0);
   sample.processingEndKg = Object.values(state.jobs).reduce(
     (sum, job) => sum + (job.cellId === input.cellId && job.status === "processing" ? job.inputKg : 0),

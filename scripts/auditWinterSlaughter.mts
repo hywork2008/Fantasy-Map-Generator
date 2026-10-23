@@ -1,3 +1,5 @@
+import { getCropResidueState } from "../src/extensions/economy/context/cropResidues";
+import { observeCropResidues, CROP_RESIDUE_POLICY } from "../src/extensions/economy/generators/cropResidues";
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
@@ -63,7 +65,7 @@ for (const mode of ["off", "experimental-temperate"] as const) {
         if (seenFeedPeriods.has(period)) return;
         seenFeedPeriods.add(period);
         const rows = Object.values(getOrCreateLivestockFeedTable() ?? {}).filter(row => row.feedPeriod === period);
-        feedSamples.push({ period, ...Object.fromEntries(["requiredKg", "pastureConsumedKg", "hayConsumedKg", "unmetKg", "purchasedKg"].map(key => [key, rows.reduce((sum, row) => sum + Number(row[key as keyof typeof row] ?? 0), 0)])) });
+        feedSamples.push({ period, ...Object.fromEntries(["requiredKg", "pastureConsumedKg", "hayConsumedKg", "cropResidueFeedKg", "unmetKg", "purchasedKg"].map(key => [key, rows.reduce((sum, row) => sum + Number(row[key as keyof typeof row] ?? 0), 0)])) });
       }
     } });
     snapshots.push(snapshot(0));
@@ -76,14 +78,15 @@ for (const mode of ["off", "experimental-temperate"] as const) {
     const totals = Object.fromEntries(fields.map(key => [key, samples.reduce((sum, row) => sum + Number(row[key as keyof WinterSlaughterSample] ?? 0), 0)]));
     runs.push({ mode, snapshots, totals,
       decisions: summarizeWinterSlaughterDecisions(samples),
-      feedTotals: Object.fromEntries(["requiredKg", "pastureConsumedKg", "hayConsumedKg", "unmetKg", "purchasedKg"].map(key => [key, feedSamples.reduce((sum, row) => sum + row[key], 0)])),
+      feedTotals: Object.fromEntries(["requiredKg", "pastureConsumedKg", "hayConsumedKg", "cropResidueFeedKg", "unmetKg", "purchasedKg"].map(key => [key, feedSamples.reduce((sum, row) => sum + row[key], 0)])),
+      cropResidues: observeCropResidues(getCropResidueState()), cropResidueState: structuredClone(getCropResidueState()),
       sampleCount: samples.length, samples, feedSamples });
   } finally { setTickStepObserver(null); host.dispose(); }
 }
-const raw = JSON.stringify({ inputSha256: createHash("sha256").update(bytes).digest("hex"), sourceHashes, policy: WINTER_SLAUGHTER_POLICY, profiles: EXPERIMENTAL_CARCASS_PROFILES, runs });
+const raw = JSON.stringify({ inputSha256: createHash("sha256").update(bytes).digest("hex"), sourceHashes, policy: WINTER_SLAUGHTER_POLICY, residuePolicy: CROP_RESIDUE_POLICY, profiles: EXPERIMENTAL_CARCASS_PROFILES, runs });
 writeFileSync(rawOutput, raw);
-writeFileSync(output, JSON.stringify({ schemaVersion: 2, input, inputSha256: createHash("sha256").update(bytes).digest("hex"), months,
+writeFileSync(output, JSON.stringify({ schemaVersion: 3, input, inputSha256: createHash("sha256").update(bytes).digest("hex"), months,
   sourceTreeSha256: createHash("sha256").update(JSON.stringify(sourceHashes)).digest("hex"),
   rawOutput, rawSha256: createHash("sha256").update(raw).digest("hex"),
-  runs: runs.map(({ samples, feedSamples, snapshots, ...run }) => ({ ...run, snapshots: snapshots.map(({ meat, ...snapshot }) => ({ ...snapshot, meat: meat ? { ...meat, samples: undefined } : null })) }))
+  runs: runs.map(({ samples, feedSamples, snapshots, cropResidueState, ...run }) => ({ ...run, snapshots: snapshots.map(({ meat, ...snapshot }) => ({ ...snapshot, meat: meat ? { ...meat, samples: undefined } : null })) }))
 }, null, 2) + "\n");

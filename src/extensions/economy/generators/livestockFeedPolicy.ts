@@ -96,6 +96,7 @@ export interface LivestockFeedSample {
   period: number;
   requiredKg: number;
   fedKg: number;
+  cropResidueFeedKg?: number;
   purchasedKg: number;
   soldKg: number;
   harvestLossKg: number;
@@ -116,6 +117,8 @@ export interface LivestockFeedLedger {
   requiredKg: number;
   pastureConsumedKg: number;
   hayConsumedKg: number;
+  /** Quality-discounted feed equivalent, distinct from physical residue DM. */
+  cropResidueFeedKg?: number;
   unmetKg: number;
   coverage: number;
   spending: number;

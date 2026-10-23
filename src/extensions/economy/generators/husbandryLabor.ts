@@ -15,7 +15,9 @@ export function getHusbandryLaborBudget(cellId: number, month: number, demand: H
     (demand.hayWorkers ?? 0) * WORKABLE_DAYS_PER_ADULT * (demand.hayMonthlyLaborWeights?.[month] ?? 0);
   const plannedMeatDays =
     (demand.slaughterWorkers ?? 0) * WORKABLE_DAYS_PER_ADULT * (demand.slaughterMonthlyLaborWeights?.[month] ?? 0);
-  const careRequiredDays = Math.max(0, totalPlannedDays - plannedHayDays - plannedMeatDays);
+  const plannedResidueDays =
+    (demand.residueWorkers ?? 0) * WORKABLE_DAYS_PER_ADULT * (demand.residueMonthlyLaborWeights?.[month] ?? 0);
+  const careRequiredDays = Math.max(0, totalPlannedDays - plannedHayDays - plannedMeatDays - plannedResidueDays);
   const careDays = Math.min(reservedDays, careRequiredDays);
   const hayShare = demand.requiredWorkers > 0 ? (demand.hayWorkers ?? 0) / demand.requiredWorkers : 0;
   const requestedHayDays =

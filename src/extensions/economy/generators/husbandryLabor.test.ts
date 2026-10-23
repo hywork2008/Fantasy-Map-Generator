@@ -70,4 +70,14 @@ describe("shared reserved husbandry work", () => {
     expect(labor.careDays).toBe(0.5);
     expect(labor.hayCapacityDays).toBe(0);
   });
+  it("keeps explicitly requested residue work available rather than charging it again as routine care", () => {
+    setHusbandryMonthlyWorkDays(new Float32Array(12).fill(20));
+    const budget = getHusbandryLaborBudget(0, 9, {
+      ...demand,
+      residueWorkers: 0.1,
+      residueMonthlyLaborWeights: Array(12).fill(1 / 12)
+    });
+    expect(budget.careRequiredDays).toBeCloseTo((WORKABLE_DAYS_PER_ADULT * 0.5) / 12);
+    expect(budget.reservedDays - budget.careDays - budget.hayCapacityDays).toBeGreaterThan(0);
+  });
 });

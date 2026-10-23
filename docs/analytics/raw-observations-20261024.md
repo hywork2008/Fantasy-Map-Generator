@@ -158,3 +158,13 @@ node --import tsx scripts/auditWoolSupply.mts docs/analytics/inputs/salt-s0-alig
 | winter-slaughter-world-102-before-monthly-work-20261024.json | 55242495 | `376cdd87905771636bb5b46ff7db7446d0ee1b3960ae4f6f5dc4956cf32b3016` |
 | winter-slaughter-province-101-monthly-work-20261024.json | 6095763 | `03efa7aa83681d19c86c1a887c5dac976fa9f68f0f69966b40a9f82e8470386e` |
 | winter-slaughter-world-102-monthly-work-20261024.json | 206784263 | `8fa3faf2923e98fcfb1dcaef1cd09d4e897a8a6967610b813256c5689698678d` |
+
+## 冬前屠畜・作物残渣と労働要求（同日追補）
+
+[検証記録](winter-slaughter-crop-residues-20261024.md)、[派生比較](winter-slaughter-crop-residues-comparison-20261024.json)。固定World/Province各12か月のoff/on比較。before-labor-requestは労働要求接続前の別ソースの診断であり、最終結果と混ぜない。
+
+| ファイル（docs/analytics/raw/） | バイト数 | SHA-256 |
+| --- | ---: | --- |
+| winter-slaughter-crop-residues-world-102-before-labor-request-20261024.json | 60801032 | `b01d2c17857700a0f4072f50d6e09011d1ff4f55daffe01202edf789796713a3` |
+| winter-slaughter-crop-residues-province-101-20261024.json | 2085502 | `e3918c630ed63966283ef8b8b519bddb5a9a1a622074c156cd645d54c0cb3275` |
+| winter-slaughter-crop-residues-world-102-20261024.json | 60801118 | `a2275538a2dde0dbfde53569641ba0201b7642459d34e8173091f60ec2af9ce8` |

@@ -1,5 +1,6 @@
 /** One physical pasture/hay budget per cell; farmers and the army share real Fodder market stock. */
 import { rn } from "../../hostUtils";
+import { getCropResidueState } from "../context/cropResidues";
 import {
   getGoods,
   getMarketCellColumn,
@@ -8,6 +9,7 @@ import {
   getOrCreateLivestockFeedTable,
   getWorldContext
 } from "../economyContext";
+import { consumeCropResidues } from "./cropResidues";
 import { isGoodEnabled } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import { creditRuralHouseholdWealth, debitRuralHouseholdWealth, getRuralHouseholdWealth } from "./householdWealth";
@@ -113,6 +115,7 @@ export function harvestLivestockForage(): void {
       unharvestedKg: surplus - ownHarvest,
       soldKg: 0,
       purchasedKg: 0,
+      cropResidueFeedKg: 0,
       spending: 0,
       revenue: 0
     });
@@ -205,12 +208,22 @@ export function settleLivestockFeed(): void {
   const marketCells = getMarketCellColumn();
   const groups = new Map<number, number[]>();
   const active: number[] = [];
+  const residues = getCropResidueState();
   for (const cell of getWorldContext().pack.cells?.i ?? []) {
     const row = table[cell];
     if (!row || row.harvestPeriod !== period || (row.feedPeriod !== undefined && row.feedPeriod >= period)) continue;
     row.requiredKg = getLivestockMonthlyFeedNeedKg(cell);
     row.pastureConsumedKg = Math.min(row.requiredKg, row.grazingReservedKg);
     row.hayConsumedKg = 0;
+    const residue = residues?.cells[cell];
+    row.cropResidueFeedKg = residue
+      ? consumeCropResidues(
+          residue,
+          period,
+          row.requiredKg,
+          Math.max(0, row.requiredKg - row.pastureConsumedKg - row.hayKg)
+        )
+      : 0;
     active.push(cell);
     const list = groups.get(marketCells[cell]) ?? [];
     list.push(cell);
@@ -222,30 +235,47 @@ export function settleLivestockFeed(): void {
     let budget = Math.floor(getRuralHouseholdWealth(market) * LIVESTOCK_FEED_CASH_SHARE * 100) / 100;
     const shortage = cells.map(cell => ({
       cell,
-      kg: Math.max(0, table[cell].requiredKg - table[cell].pastureConsumedKg - table[cell].hayKg)
+      kg: Math.max(
+        0,
+        table[cell].requiredKg -
+          table[cell].pastureConsumedKg -
+          (table[cell].cropResidueFeedKg ?? 0) -
+          table[cell].hayKg
+      )
     }));
     budget = Math.max(0, budget - buyFeed(market, shortage, budget));
     const reserves = cells.map(cell => ({
       cell,
       kg: Math.max(
         0,
-        table[cell].requiredKg + reserveAfterFeedingKg(cell) - table[cell].pastureConsumedKg - table[cell].hayKg
+        table[cell].requiredKg +
+          reserveAfterFeedingKg(cell) -
+          table[cell].pastureConsumedKg -
+          (table[cell].cropResidueFeedKg ?? 0) -
+          table[cell].hayKg
       )
     }));
     buyFeed(market, reserves, budget);
   }
   for (const cell of active) {
     const row = table[cell];
-    row.hayConsumedKg = Math.min(Math.max(0, row.requiredKg - row.pastureConsumedKg), row.hayKg);
+    row.hayConsumedKg = Math.min(
+      Math.max(0, row.requiredKg - row.pastureConsumedKg - (row.cropResidueFeedKg ?? 0)),
+      row.hayKg
+    );
     row.hayKg = Math.max(0, row.hayKg - row.hayConsumedKg);
-    row.unmetKg = Math.max(0, row.requiredKg - row.pastureConsumedKg - row.hayConsumedKg);
+    row.unmetKg = Math.max(
+      0,
+      row.requiredKg - row.pastureConsumedKg - row.hayConsumedKg - (row.cropResidueFeedKg ?? 0)
+    );
     row.coverage = row.requiredKg > 0 ? Math.max(0, Math.min(1, 1 - row.unmetKg / row.requiredKg)) : 1;
     row.feedPeriod = period;
     row.samples = row.samples.filter(sample => sample.period > period - 12 && sample.period !== period);
     row.samples.push({
       period,
       requiredKg: row.requiredKg,
-      fedKg: row.pastureConsumedKg + row.hayConsumedKg,
+      fedKg: row.pastureConsumedKg + row.hayConsumedKg + (row.cropResidueFeedKg ?? 0),
+      cropResidueFeedKg: row.cropResidueFeedKg,
       purchasedKg: row.purchasedKg,
       soldKg: row.soldKg,
       harvestLossKg: row.harvestLossKg,

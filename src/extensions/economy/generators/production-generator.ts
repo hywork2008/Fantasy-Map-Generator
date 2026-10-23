@@ -48,6 +48,7 @@ import {
 import { smoothCraftWorkers } from "./craftEmployment";
 import { laborPeople } from "./craftScale";
 import { getBasicWorkersByBurg, getChildLabourEquivalent, getCraftWorkforce } from "./craftWorkforce";
+import { settleCropResiduePreparation } from "./cropResidueSettlement";
 import { ExportStaging } from "./exportStaging";
 import { isOrchardDrink } from "./foodLots";
 import { hasViableFoodProcessingMargin } from "./foodProcessingEconomics";
@@ -334,6 +335,7 @@ export class ProductionModule {
 
     measureTickStep("production:rural", () => Markets.collectRuralProduction());
     measureTickStep("production:forageHarvest", () => harvestLivestockForage());
+    measureTickStep("production:cropResidues", () => settleCropResiduePreparation());
     measureTickStep("production:minesSmelters", () => {
       if (MineOperations.reanchorOperations()) SmelterOperations.generate();
       MineOperations.produceMonth();

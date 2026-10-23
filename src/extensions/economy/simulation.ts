@@ -2547,7 +2547,12 @@ function register(api: SimulationExtensionAPI): () => void {
         daysSinceLastProduction -= 30;
         const settlementMonth = (firstSettlementMonth + settledMonths) % 12 || 12;
         measureTickStep("food:consumption", () => settleMonthlyFoodConsumption(settlementMonth));
-        measureTickStep("food:production", () => FoodProduction.generateMonthlyLedger(settlementMonth));
+        measureTickStep("food:production", () =>
+          FoodProduction.generateMonthlyLedger(
+            settlementMonth,
+            getCadencePhase("livestockFeedNextPeriod") + settledMonths
+          )
+        );
         settledMonths++;
         foodSettlementsThisTick++;
         if (settlementMonth % 3 === 0) {
