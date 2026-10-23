@@ -34,6 +34,32 @@ const worlds = inputs.map(path => {
   }
   const feedRequired = annual.reduce((sum: number, row: any) => sum + row.feedTotals.requiredKg, 0);
   const feedUnmet = annual.reduce((sum: number, row: any) => sum + row.feedTotals.unmetKg, 0);
+  const foodImports: Record<string, {
+    outcomes: Record<string, number>; loaded: number; deliveredBeforeRounding: number;
+    produced: number; imported: number; productionPasses: number; minBalance: number; maxBalance: number
+  }> = {};
+  const importRow = (id: number) => foodImports[id] ??= {
+    outcomes: {}, loaded: 0, deliveredBeforeRounding: 0, produced: 0, imported: 0,
+    productionPasses: 0, minBalance: Infinity, maxBalance: -Infinity
+  };
+  for (const sample of annual) {
+    for (const settlement of sample.foodImportSettlements ?? []) {
+      for (const market of settlement.markets) {
+        const row = importRow(market.id);
+        row.produced += market.food?.produced ?? 0;
+        row.imported += market.food?.imported ?? 0;
+        row.productionPasses++;
+        row.minBalance = Math.min(row.minBalance, market.balance);
+        row.maxBalance = Math.max(row.maxBalance, market.balance);
+      }
+      for (const attempt of settlement.attempts) {
+        const row = importRow(attempt.toMarketId);
+        row.outcomes[attempt.outcome] = (row.outcomes[attempt.outcome] ?? 0) + 1;
+        row.loaded += attempt.loaded ?? 0;
+        row.deliveredBeforeRounding += attempt.delivered ?? 0;
+      }
+    }
+  }
   const goods: Record<string, Record<string, number>> = {};
   for (const name of ["Wool", "Milk", "Cheese", "Leather", "Fodder"]) {
     const flows: Record<string, number> = {};
@@ -75,6 +101,7 @@ const worlds = inputs.map(path => {
       foodLedgerKgPerUnit: run.foodLedgerKgPerUnit,
       foodTotals,
       foodByMarket: food,
+      foodImports,
       feedRequiredKg: feedRequired,
       feedUnmetKg: feedUnmet,
       feedUnmetShare: feedRequired > 0 ? feedUnmet / feedRequired : null,
@@ -108,7 +135,9 @@ writeFileSync(output, `${JSON.stringify({
     "Food is ledger units unless labelled kg; feed is dry-matter kg. Goods flows retain catalog units.",
     "Feed totals are endpoint samples, not a tick-exact feeding history. Wool is actual market inflow.",
     "World aggregate pasture occupancy cannot rule out individual-cell or seasonal shortages.",
-    "Before/food-only/food-plus-occupation/final are distinct source variants. Load repair 8 recomputes saved columns once.",
+    "Inputs are independent source variants labelled by their paths; compare recorded source hashes and experimental notes.",
+    "foodImports is empty for older audits without import observations, not evidence of zero imports.",
+    "Import outcomes count evaluated supplier opportunities, not people. DeliveredBeforeRounding is not the rounded inventory credit.",
     "A ledger created at consumption time does not transfer public stocks from the former market."
   ],
   worlds

@@ -21,6 +21,7 @@ import { getCultivatedArea } from "../src/extensions/economy/context/agriculture
 import { getRuralHouseholdFoodStock } from "../src/extensions/economy/context/agriculture";
 import { getMarketCellColumn } from "../src/extensions/economy/context/cellTables";
 import { GOOD_MEASURES, WAIN_KG } from "../src/extensions/economy/generators/goodMeasureCatalog";
+import { getFoodImportAttempts, getFoodImportFlows } from "../src/extensions/economy/generators/foodImportNetwork";
 
 const [input, output, length = "12"] = process.argv.slice(2);
 const months = Number(length);
@@ -48,7 +49,11 @@ const initialProfile = { options: structuredClone(host.world.options), populatio
  urbanization: host.world.urbanization, goods: getGoods().map(good => ({id: good.i, name: good.name, enabled: isGoodEnabled(good)})), extensions: Object.fromEntries(["economy", "characters", "nobility", "shipbuilding"].map(id => [id, host.enablement.isEnabled(id)])) };
 let textileSettlements: {date: ReturnType<typeof clock>; textiles: ReturnType<typeof views.textiles>}[] = [];
 let foodSettlements: {date: ReturnType<typeof clock>; markets: unknown; food: ReturnType<typeof views.food>}[] = [];
+let foodImportSettlements: unknown[] = [];
 setTickStepObserver({ enter() {}, exit(label) {
+ if (label === "food:production") foodImportSettlements.push({date: clock(),
+  attempts: structuredClone(getFoodImportAttempts()), flows: structuredClone(getFoodImportFlows()),
+  markets: views.wealth().markets});
  if (label === "production:householdTextiles") textileSettlements.push({date: clock(), textiles: views.textiles()});
  if (label === "production:foodConsumption" || label === "food:consumption") {
   foodSettlements.push({date: clock(), food: views.food(), markets: views.wealth().markets.map(market => ({ ...market,
@@ -155,12 +160,14 @@ function snapshot() {
  const stockLots = getMarkets().reduce((sum, market) => sum + Math.max(0, market.goods[wool.i]?.stock ?? 0), 0);
  const intervalTextiles = textileSettlements; textileSettlements = [];
  const intervalFood = foodSettlements; foodSettlements = [];
+ const intervalFoodImports = foodImportSettlements; foodImportSettlements = [];
  const intervalPrimary = primaryFlows; primaryFlows = {};
  const marketIds = new Set(getMarkets().filter(market => market.foodLedger).map(market => market.i));
  const marketColumn = getMarketCellColumn();
  const ruralFoodUncoveredPeople = Array.from(world.pack.cells.i).reduce((sum, id) => sum +
   (world.pack.cells.h[id] >= 20 && !marketIds.has(marketColumn[id]) ? Math.max(0, world.pack.cells.pop[id]) * world.populationRate : 0), 0);
- const result = { food: views.food(), textileSettlements: intervalTextiles, foodSettlements: intervalFood, primaryFlows: intervalPrimary,
+ const result = { food: views.food(), textileSettlements: intervalTextiles, foodSettlements: intervalFood,
+  foodImportSettlements: intervalFoodImports, primaryFlows: intervalPrimary,
   cultivatedHa: Array.from(getCultivatedArea()).reduce((sum, ha) => sum + Math.max(0, ha), 0),
   ruralFoodUncoveredPeople,
   ruralFoodStock: Array.from(getRuralHouseholdFoodStock()).reduce((sum, units) => sum + Math.max(0, units), 0),

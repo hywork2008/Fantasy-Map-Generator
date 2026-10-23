@@ -1,0 +1,190 @@
+{
+  "input": "docs/analytics/inputs/salt-s0-aligned-20261023/world-102.fmg",
+  "inputSha256": "5e73a27785881bf553d37404442d7ead0f7bb68457208cc33c88c88f7c6a5999",
+  "inspectorSha256": "b72dbd2196a158bfc44431dd18d5facc69f54f27bae3b63789c74143a2dc97cf",
+  "date": [
+    1300,
+    1,
+    1
+  ],
+  "marketId": 16,
+  "hubBurgId": 263,
+  "hubCell": 439,
+  "routeMonth": 7,
+  "note": "Prepared initial columns and crop-calendar forecast, not measured annual production. Pure land OR pure sea reachability uses charted routes in the stated month. Distances are map units.",
+  "localProduction": {
+    "cells": 67,
+    "zeroMix": 0,
+    "population": 86629.16603684425,
+    "cultivatedHa": 634652.2333984375,
+    "annualHarvestBeforeLabor": 35885.20202636719,
+    "annualHarvestAfterLabor": 10061.028190355006,
+    "annualCropMixBeforeLabor": {
+      "Wheat": 0,
+      "Peas": 3516.621690326001,
+      "Barley": 4905.8865262365225,
+      "Broad Beans": 3413.6227545956635,
+      "Potatoes": 24049.071055209
+    },
+    "monthlyHarvestForecast": [
+      4841.351939011604,
+      2709.1988162760063,
+      1472.3010591362397,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1038.1763759311564
+    ]
+  },
+  "ports": [
+    {
+      "burgId": 8,
+      "name": "Maringle",
+      "cell": 171,
+      "roadDistanceFromHub": 172.48766195643856
+    },
+    {
+      "burgId": 43,
+      "name": "Ricoceta",
+      "cell": 384,
+      "roadDistanceFromHub": 93.21127683290574
+    },
+    {
+      "burgId": 72,
+      "name": "Vileila",
+      "cell": 267,
+      "roadDistanceFromHub": 63.09881761802618
+    },
+    {
+      "burgId": 125,
+      "name": "Tungranna",
+      "cell": 325,
+      "roadDistanceFromHub": 56.57741759042477
+    }
+  ],
+  "reachability": [
+    {
+      "burgId": 8,
+      "name": "Maringle",
+      "reachablePureRouteMarkets": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        11,
+        15
+      ]
+    },
+    {
+      "burgId": 43,
+      "name": "Ricoceta",
+      "reachablePureRouteMarkets": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        11,
+        15
+      ]
+    },
+    {
+      "burgId": 72,
+      "name": "Vileila",
+      "reachablePureRouteMarkets": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        11,
+        15
+      ]
+    },
+    {
+      "burgId": 97,
+      "name": "Maromanoria",
+      "reachablePureRouteMarkets": []
+    },
+    {
+      "burgId": 101,
+      "name": "Calpianivis",
+      "reachablePureRouteMarkets": []
+    },
+    {
+      "burgId": 113,
+      "name": "Evedeia",
+      "reachablePureRouteMarkets": []
+    },
+    {
+      "burgId": 122,
+      "name": "Rockewich",
+      "reachablePureRouteMarkets": []
+    },
+    {
+      "burgId": 125,
+      "name": "Tungranna",
+      "reachablePureRouteMarkets": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        11,
+        15
+      ]
+    },
+    {
+      "burgId": 137,
+      "name": "Auratuatum",
+      "reachablePureRouteMarkets": []
+    },
+    {
+      "burgId": 156,
+      "name": "Saringford",
+      "reachablePureRouteMarkets": []
+    },
+    {
+      "burgId": 190,
+      "name": "Bovium",
+      "reachablePureRouteMarkets": []
+    },
+    {
+      "burgId": 200,
+      "name": "Asctomaven",
+      "reachablePureRouteMarkets": []
+    },
+    {
+      "burgId": 210,
+      "name": "Standomyard",
+      "reachablePureRouteMarkets": []
+    },
+    {
+      "burgId": 263,
+      "name": "Victocorvio",
+      "reachablePureRouteMarkets": []
+    }
+  ]
+}

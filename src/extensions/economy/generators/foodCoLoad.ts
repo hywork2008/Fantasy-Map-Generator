@@ -19,7 +19,7 @@ import { markRetailInventoryDirty } from "./retailInventory";
 import {
   creditStapleCropHarvest,
   drawStapleCropForTransport,
-  getTradeableStapleCropUnits,
+  getTransportableStapleCropUnits,
   refreshLegacyFoodLedgerTotals
 } from "./stapleCropInventory";
 import { getGoodCargoSlotsPerUnit } from "./tradeCargo";
@@ -84,7 +84,8 @@ export function foodDeliveredShare(travelDays: number, halfLifeDays: number = FO
  * aggregate-only Food Ledgers) fall back to the shared bucket set below.
  */
 export function drawFoodForExport(ledger: FoodLedger, goodId: number, amount: number): FoodDrawResult {
-  if (ledger.stapleCropInventories?.[goodId]) return drawStapleCropForTransport(ledger, goodId, amount);
+  if (ledger.stapleCropInventories && Object.keys(ledger.stapleCropInventories).length)
+    return drawStapleCropForTransport(ledger, goodId, amount);
 
   const totalStock = ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2 + (ledger.foodStockAge3 ?? 0);
   const maxDraw = Math.min(Math.max(0, amount), Math.max(0, ledger.exportable), totalStock);
@@ -180,7 +181,7 @@ export function creditFoodStockAge0(ledger: FoodLedger, units: number, unitCost:
  * would overwrite. Falls back to the aggregate-only bucket for legacy Food Ledgers.
  */
 function creditStapleFood(ledger: FoodLedger, goodId: number, units: number, unitCost: number): void {
-  if (ledger.stapleCropInventories?.[goodId]) {
+  if (ledger.stapleCropInventories && Object.keys(ledger.stapleCropInventories).length) {
     creditStapleCropHarvest(ledger, goodId, units, unitCost);
     refreshLegacyFoodLedgerTotals(ledger);
     return;
@@ -401,7 +402,7 @@ function getExportCrop(market: Market) {
       // Prefer the real tradeable amount for a market-tracked crop; market.goods[...].stock is
       // only a write-only production accumulator for crops the Food Ledger already owns, so
       // ranking by it can pick a crop that looks large but has nothing left to actually load.
-      stock: (ledger ? getTradeableStapleCropUnits(ledger, good.i) : null) ?? market.goods[good.i]?.stock ?? 0
+      stock: (ledger ? getTransportableStapleCropUnits(ledger, good.i) : null) ?? market.goods[good.i]?.stock ?? 0
     }))
     .filter(candidate => candidate.stock > UNIT_EPSILON)
     .sort((left, right) => right.stock - left.stock || left.good.i - right.good.i);
