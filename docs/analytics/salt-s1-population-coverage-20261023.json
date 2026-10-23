@@ -1,0 +1,20 @@
+[
+  {
+    "name": "province-101",
+    "coverage": {
+      "coveredPeople": 123815.06291724819,
+      "neutralPeople": 329556.9200515747,
+      "inactiveStatePeople": 0,
+      "unmarketedPeople": 0
+    }
+  },
+  {
+    "name": "world-102",
+    "coverage": {
+      "coveredPeople": 4167169.7689843704,
+      "neutralPeople": 26952.31345295906,
+      "inactiveStatePeople": 0,
+      "unmarketedPeople": 0
+    }
+  }
+]

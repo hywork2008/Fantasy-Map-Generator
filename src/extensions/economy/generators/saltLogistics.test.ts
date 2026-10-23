@@ -18,7 +18,12 @@ import {
 import { Goods } from "./goods-generator";
 import { setGoodFlowObserver } from "./goodsBalanceLedger";
 import { Markets } from "./markets-generator";
-import { SALT_HOUSEHOLD_KILOGRAMS_PER_PERSON_YEAR, SALT_KILOGRAMS_PER_BAG, SaltLogistics } from "./saltLogistics";
+import {
+  auditSaltPopulationCoverage,
+  SALT_HOUSEHOLD_KILOGRAMS_PER_PERSON_YEAR,
+  SALT_KILOGRAMS_PER_BAG,
+  SaltLogistics
+} from "./saltLogistics";
 import { setCargoDepartureObserver, setLotDispatchObserver, setTradeStageObserver } from "./tradeStageObserver";
 
 function setUpWorld(): void {
@@ -75,6 +80,17 @@ describe("SaltLogisticsModule", () => {
     setLotDispatchObserver(null);
     setTradeStageObserver(null);
     clearEconomyContext();
+  });
+
+  it("partitions all residents without hiding neutral or unmarketed demand", () => {
+    worldContext.pack.cells.state[0] = 0;
+    setMarketCellColumn(Uint16Array.from([1, 0, 0]));
+    expect(auditSaltPopulationCoverage()).toEqual({
+      coveredPeople: 30_000,
+      neutralPeople: 10_000,
+      inactiveStatePeople: 0,
+      unmarketedPeople: 20_000
+    });
   });
 
   it("observes monthly salt records without consuming or exposing mutable ledger state", () => {

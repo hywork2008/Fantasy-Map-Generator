@@ -23,7 +23,7 @@ import {
 import { getGuildChapters, getGuildKnowledgeStocks } from "../../src/extensions/economy/context/knowledge";
 import { getMintLedgers } from "../../src/extensions/economy/context/fiscal";
 import { getSaltShipments, getSaltworks, getStateSaltLedgers } from "../../src/extensions/economy/context/industry";
-import { SALT_KILOGRAMS_PER_BAG } from "../../src/extensions/economy/generators/saltLogistics";
+import { auditSaltPopulationCoverage, SALT_KILOGRAMS_PER_BAG } from "../../src/extensions/economy/generators/saltLogistics";
 import { getUnassignedPersonalCash, getStateMoneyStocks } from "../../src/extensions/economy/generators/stateMoneySupply";
 import { getBurgMarketLedgers } from "../../src/extensions/economy/context/trade";
 import { getGoodCargoSlotsPerUnit } from "../../src/extensions/economy/generators/tradeCargo";
@@ -777,6 +777,7 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
 
   function salt() {
     return economy() ? {
+      populationCoverage: auditSaltPopulationCoverage(),
       kilogramsPerBag: SALT_KILOGRAMS_PER_BAG,
       states: getStateSaltLedgers().map(row => ({ ...row, saltworksIds: [...row.saltworksIds] })),
       works: getSaltworks().map(row => ({ ...row })),

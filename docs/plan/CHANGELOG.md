@@ -9,6 +9,7 @@
 - docs/analytics/salt-s0-baseline-20261023.md - Salt S0の用途別史料・基準なしの範囲、旧2世界の観測と人口/物量境界を記録。同日追補で原典・原研究の採否、1300年の共通設定による比較、S0完了と次のS1を明記
 - docs/analytics/salt-s0-province-101-20261023.json - Standard・populationRate1000のprovince-101を590年1月から12か月進めた塩の品別フロー・実決済ごとの国家台帳・輸送と入力/ソースハッシュ
 - docs/analytics/salt-s0-world-102-20261023.json - Standard・populationRate1000のworld-102を1929年1月から12か月進めた同形式の塩観測。provinceと保存年が異なる条件を明記
+- docs/analytics/salt-s1-population-coverage-20261023.json - S1の人口境界監査。固定した1300年の2世界で対象外人口は無所属住民であり、有効国家内の市場未割当は0人であることを確認
 - docs/plan/historical-economy-production-consumption-circulation.md - 2026年10月追加の経済計画と最新追補を照合し、生活必需品の需要・予算、生産・実支払賃金、資本回収・輸送を接続する作業を再構成。食料優先と土地・月別労働・複合生産の補正を含む配分原則、材料余剰時の判定順、E0で確定する史実の桁の基準、食料と一次生産(牧草地・群れ・採毛)の規模を独立段階とした作業順、成果物付きの完了条件と比較観測・関連テストの方針を整理
 - docs/plan/wool-products-and-sheep-husbandry.md - 羊毛製品の追加を確定方針として、Gemini回答の用途・史料を照合。普通の羊毛衣料・毛布からの実装順、共有牧草地・年齢別採毛・農村の加工供給の見直し、同一入力12か月の実頭数・土地要求・羊毛・衣服需要の監査を記録
 

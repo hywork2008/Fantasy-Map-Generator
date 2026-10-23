@@ -44,6 +44,30 @@ function getSaltGood() {
   return getGoods().find(good => good.name === "Salt" && isGoodEnabled(good));
 }
 
+/** Read-only demand boundary audit. Unserved residents are not silently assigned free state salt. */
+export function auditSaltPopulationCoverage() {
+  const world = getWorldContext();
+  const markets = new Set(getMarkets().map(market => market.i));
+  const states = new Set((world.pack.states ?? []).filter(state => state?.i && !state.removed).map(state => state.i));
+  const column = getMarketCellColumn();
+  const rate = Math.max(1, world.populationRate ?? 1);
+  const urbanization = Math.max(1, world.urbanization ?? 1);
+  const result = { coveredPeople: 0, neutralPeople: 0, inactiveStatePeople: 0, unmarketedPeople: 0 };
+  const add = (people: number, state: number, market: number) => {
+    if (!state) result.neutralPeople += people;
+    else if (!states.has(state)) result.inactiveStatePeople += people;
+    else if (!markets.has(market)) result.unmarketedPeople += people;
+    else result.coveredPeople += people;
+  };
+  for (const id of world.pack.cells.i) {
+    if (world.pack.cells.h[id] >= 20) add(world.pack.cells.pop[id] * rate, world.pack.cells.state[id], column[id]);
+  }
+  for (const burg of world.pack.burgs) {
+    if (burg?.i && !burg.removed) add((burg.population ?? 0) * rate * urbanization, burg.state ?? 0, burg.market ?? 0);
+  }
+  return result;
+}
+
 function stateMarketDemands(stateId: number): MarketDemand[] {
   const world = getWorldContext();
   const markets = getMarkets();
