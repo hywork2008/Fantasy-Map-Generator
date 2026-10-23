@@ -20,6 +20,7 @@ import { LAND_Y, WATER_Y, waterSurfaceGeometry } from "../core/waterGeometry";
 
 const LAND_COLOR = 0xd5cfbf;
 const UNKNOWN_COLOR = 0xcfcdc6;
+const ESCARPMENT_COLOR = 0x9a9284;
 const KINDS: readonly TownWaterKind[] = ["ocean", "lake", "channel", "river"];
 
 export interface City3dRefreshPlan {
@@ -82,10 +83,11 @@ export function createTownWater(document: CityDocument, terrain: CityTerrain = c
   parent.name = "ce-water";
   const water = classifyTownWater(document);
   const patches = new Map<string, Point[][]>();
+  const escarpment: Point[][] = [];
   if (terrain.relief)
     for (const patch of terrain.triangles) {
       const parts = patches.get(patch.faceId) ?? [];
-      parts.push(patch.points);
+      (patch.escarpment ? escarpment : parts).push(patch.points);
       patches.set(patch.faceId, parts);
     }
   const ground = townGroundPolygons(document, water, terrain.relief ? patches : undefined);
@@ -112,6 +114,10 @@ export function createTownWater(document: CityDocument, terrain: CityTerrain = c
     LAND_COLOR,
     THREE.FrontSide
   );
+  const cliff = land
+    ? meshFrom("ce-escarpment", soupAt(escarpment, LAND_Y, terrain.heightAt), ESCARPMENT_COLOR, THREE.DoubleSide)
+    : null;
+  if (cliff) parent.add(cliff);
   const unknown = land ? meshFrom("ce-unknown", soupAt(ground.unknown, LAND_Y), UNKNOWN_COLOR, THREE.FrontSide) : null;
   const bank = land
     ? bankMesh(

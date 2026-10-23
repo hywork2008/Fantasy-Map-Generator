@@ -1,23 +1,59 @@
 import type { CityDocument, Face, Point } from "../types/document";
-import type { CityTerrain, TerrainPatch as Patch, TerrainFeature, TerrainModel } from "../types/terrain";
+import type { Id } from "../types/primitives";
+import type { CityTerrain, TerrainPatch as Patch, TerrainModel } from "../types/terrain";
 import { fortCircle } from "./fortSiteGeometry";
 import { fortSiteTerrainFeatures } from "./fortSiteTerrain";
-import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "./geom";
+import { clipPolygonHalfPlane, nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "./geom";
 import { triangularInfillParts } from "./lotGeometry";
 import { facePoints, faceVertices } from "./mesh";
 import { intersectConvex, subtractConvex } from "./parcelGeometry";
-import { evaluateTerrainFeatures, terrainFeatureBreaklines, terrainFeatureFoci } from "./terrainModel";
+import {
+  evaluateTerrainFeatures,
+  type OutlineSegment,
+  onTerrainEscarpment,
+  type ResolvedTerrainFeature,
+  resolveTerrainFeatures,
+  terrainFeatureBreaklines,
+  terrainFeatureCreases,
+  terrainFeatureFoci
+} from "./terrainModel";
 
 export type { CityTerrain } from "../types/terrain";
 
 const cross = (a: Point, b: Point, c: Point) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
 
-/** A fort site grades flat ground; every other document uses its cell elevations as they are. */
+/** A fort site grades flat ground; every other document adds its saved earthworks to the cell elevations. */
 export function cityTerrainModel(document: CityDocument): TerrainModel {
   const site = document.fortSite;
   return site
     ? { base: { kind: "flat", elevationMeters: site.groundElevationMeters }, features: fortSiteTerrainFeatures(site) }
-    : { base: { kind: "cells" }, features: [] };
+    : { base: { kind: "cells" }, features: document.terrain?.features ?? [] };
+}
+
+/** Edges between the given cells and any other cell or the frame, oriented by their inward normal. */
+function platformOutline(document: CityDocument, faceIds: readonly Id[]): OutlineSegment[] {
+  const { mesh } = document;
+  const set = new Set(faceIds.filter(id => mesh.faces[id]));
+  const segments: OutlineSegment[] = [];
+  for (const id of set) {
+    const face = mesh.faces[id],
+      ring = facePoints(mesh, face);
+    for (const ref of face.boundary) {
+      const edge = mesh.edges[ref.edgeId];
+      if (!edge) continue;
+      const other = edge.leftFace === id ? edge.rightFace : edge.leftFace;
+      if (other && set.has(other)) continue;
+      const a = mesh.vertices[edge.a].point,
+        b = mesh.vertices[edge.b].point;
+      const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (length < 1e-9) continue;
+      let inward: Point = [-(b[1] - a[1]) / length, (b[0] - a[0]) / length];
+      const probe: Point = [(a[0] + b[0]) / 2 + inward[0] * 1e-3, (a[1] + b[1]) / 2 + inward[1] * 1e-3];
+      if (!pointInPolygon(probe, ring)) inward = [-inward[0], -inward[1]];
+      segments.push({ a, b, inward });
+    }
+  }
+  return segments;
 }
 
 interface BaseSurface {
@@ -151,7 +187,7 @@ class PatchIndex {
 function gradedPatches(
   document: CityDocument,
   seeds: BaseSurface["seeds"],
-  features: readonly TerrainFeature[],
+  features: readonly ResolvedTerrainFeature[],
   heightAt: (point: Point) => number
 ): Patch[] {
   const blockSize = document.frame.blockSizeMeters;
@@ -161,9 +197,36 @@ function gradedPatches(
     radius: circle.radiusMeters,
     ring: fortCircle(circle.center, circle.radiusMeters)
   }));
+  const creases = terrainFeatureCreases(features).map(({ segment, offsetMeters }) => ({
+    origin: [segment.a[0] + segment.inward[0] * offsetMeters, segment.a[1] + segment.inward[1] * offsetMeters] as Point,
+    normal: segment.inward,
+    reach: Math.abs(offsetMeters) + 1e-6,
+    minX: Math.min(segment.a[0], segment.b[0]),
+    maxX: Math.max(segment.a[0], segment.b[0]),
+    minY: Math.min(segment.a[1], segment.b[1]),
+    maxY: Math.max(segment.a[1], segment.b[1])
+  }));
   const triangles: Patch[] = [];
   const emit = (faceId: string, triangle: [Point, Point, Point]) => {
     let pieces: Point[][] = [triangle];
+    const xs = triangle.map(p => p[0]),
+      ys = triangle.map(p => p[1]);
+    for (const crease of creases) {
+      if (
+        Math.min(...xs) > crease.maxX + crease.reach ||
+        Math.max(...xs) < crease.minX - crease.reach ||
+        Math.min(...ys) > crease.maxY + crease.reach ||
+        Math.max(...ys) < crease.minY - crease.reach
+      )
+        continue;
+      const back: Point = [-crease.normal[0], -crease.normal[1]];
+      pieces = pieces.flatMap(piece =>
+        [
+          clipPolygonHalfPlane(piece, crease.origin, crease.normal),
+          clipPolygonHalfPlane(piece, crease.origin, back)
+        ].filter(part => part.length >= 3 && Math.abs(polygonArea(part)) > 1e-9)
+      );
+    }
     for (const circle of circles) {
       const radii = triangle.map(p => Math.hypot(p[0] - circle.center[0], p[1] - circle.center[1]));
       if (
@@ -182,8 +245,10 @@ function gradedPatches(
     for (const piece of pieces)
       for (let i = 1; i < piece.length - 1; i++) {
         const points: [Point, Point, Point] = [piece[0], piece[i], piece[i + 1]];
-        if (Math.abs(polygonArea(points)) > 1e-9)
-          triangles.push({ faceId, points, heights: points.map(heightAt) as [number, number, number] });
+        if (Math.abs(polygonArea(points)) <= 1e-9) continue;
+        const patch: Patch = { faceId, points, heights: points.map(heightAt) as [number, number, number] };
+        if (onTerrainEscarpment(features, faceId, polygonCentroid(points))) patch.escarpment = true;
+        triangles.push(patch);
       }
   };
   const midpoint = (a: Point, b: Point): Point => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
@@ -210,10 +275,11 @@ function gradedPatches(
 /** The base field and its earthworks as one surface relative to the lowest base level. */
 export function cityTerrain(document: CityDocument): CityTerrain {
   const model = cityTerrainModel(document);
+  const features = resolveTerrainFeatures(model.features, faceIds => platformOutline(document, faceIds));
   const surface =
     model.base.kind === "flat" ? flatSurface(document, model.base.elevationMeters) : cellSurface(document);
   const { datumMeters } = surface;
-  const relief = surface.relief || model.features.length > 0;
+  const relief = surface.relief || features.length > 0;
   const step = Math.max(10, document.frame.blockSizeMeters || 50);
   const base = new PatchIndex(
     surface.seeds.flatMap(seed => seed.patches),
@@ -222,11 +288,11 @@ export function cityTerrain(document: CityDocument): CityTerrain {
   const baseAt = (point: Point) => (model.base.kind === "flat" ? 0 : base.interpolate(point));
   const heightAt = (point: Point): number => {
     if (!relief) return 0;
-    if (!model.features.length) return baseAt(point);
-    return evaluateTerrainFeatures(model.features, p => datumMeters + baseAt(p), point) - datumMeters;
+    if (!features.length) return baseAt(point);
+    return evaluateTerrainFeatures(features, p => datumMeters + baseAt(p), point) - datumMeters;
   };
-  const graded = model.features.length
-    ? new PatchIndex(gradedPatches(document, surface.seeds, model.features, heightAt), step)
+  const graded = features.length
+    ? new PatchIndex(gradedPatches(document, surface.seeds, features, heightAt), step)
     : base;
   return {
     datumMeters,
@@ -276,6 +342,7 @@ export function cityTerrainStamp(document: CityDocument): string {
     document.castles,
     document.gates,
     document.defenseCircuits,
-    document.fortSite
+    document.fortSite,
+    document.terrain
   ]);
 }

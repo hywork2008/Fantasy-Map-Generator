@@ -5,6 +5,7 @@ import { reservedCastleFaces, validateFortifications } from "./fortifications";
 import { scaleFortSite, validateFortSite } from "./fortSiteGeometry";
 import { isSimplePolygon, segmentsIntersect } from "./geom";
 import { probed } from "./meshOpProbe";
+import { validateTerrainLayer } from "./terrainEditing";
 
 /** Voronoi clipping can leave sub-metre sliver corners along the frame. Merge
  * them before assigning IDs so every face shares the same cleaned topology. */
@@ -1051,7 +1052,7 @@ export function validate(document: CityDocument): string[] {
 }
 
 function validateUnprobed(document: CityDocument): string[] {
-  const errors: string[] = validateFortSite(document);
+  const errors: string[] = [...validateFortSite(document), ...validateTerrainLayer(document)];
   const { mesh } = document;
   const hasEdge = (a: Id, b: Id): boolean => edgeBetween(mesh, a, b) !== null;
   for (const edge of Object.values(mesh.edges)) {

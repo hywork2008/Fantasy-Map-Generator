@@ -11,14 +11,14 @@ export function fortSiteTerrainFeatures(site: FortSite): TerrainFeature[] {
     {
       kind: "platform",
       id: `${site.id}:motte`,
-      summit: { center: motte.center, radiusMeters: motte.summitRadiusMeters },
+      summit: { kind: "circle", center: motte.center, radiusMeters: motte.summitRadiusMeters },
       levelMeters: site.groundElevationMeters + motte.heightMeters,
       edge: { kind: "slope", runMeters: motte.baseRadiusMeters - motte.summitRadiusMeters }
     },
     {
       kind: "platform",
       id: `${site.id}:bailey`,
-      summit: { center: bailey.center, radiusMeters: bailey.radiusMeters },
+      summit: { kind: "circle", center: bailey.center, radiusMeters: bailey.radiusMeters },
       levelMeters: bailey.elevationMeters,
       edge: { kind: "cliff" }
     },

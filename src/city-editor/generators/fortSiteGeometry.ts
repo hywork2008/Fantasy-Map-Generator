@@ -4,7 +4,7 @@ import type { FortSite } from "../types/fortSite";
 import { fortSiteTerrainFeatures } from "./fortSiteTerrain";
 import { nearestOnPolyline, polygonArea } from "./geom";
 import { bounds, boundsOverlap, subtractConvex } from "./parcelGeometry";
-import { evaluateTerrainFeatures } from "./terrainModel";
+import { evaluateTerrainFeatures, resolveTerrainFeatures } from "./terrainModel";
 
 export const FORT_CIRCLE_SEGMENTS = 64;
 export function fortCircle(center: Point, radius: number, count = FORT_CIRCLE_SEGMENTS): Point[] {
@@ -17,7 +17,11 @@ const distance = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 
 /** A flat summit, an explicit slope and excavations over the original, unmodified cells. */
 export function fortHeight(site: FortSite, point: Point): number {
-  return evaluateTerrainFeatures(fortSiteTerrainFeatures(site), () => site.groundElevationMeters, point);
+  return evaluateTerrainFeatures(
+    resolveTerrainFeatures(fortSiteTerrainFeatures(site)),
+    () => site.groundElevationMeters,
+    point
+  );
 }
 
 /** Disjoint water polygons: union the annuli, subtract the two dry islands. */

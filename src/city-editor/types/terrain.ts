@@ -4,6 +4,8 @@ export interface TerrainPatch {
   faceId: string;
   points: [Point, Point, Point];
   heights: [number, number, number];
+  /** Near-vertical face of a cliff-edged platform, drawn as rock or masonry rather than ground. */
+  escarpment?: true;
 }
 
 export interface CityTerrain {
@@ -21,11 +23,16 @@ export interface TerrainCircle {
   radiusMeters: number;
 }
 
+/** A platform summit: an analytic circle, or the union of editor cells so its edge follows mesh edges. */
+export type TerrainShape = ({ kind: "circle" } & TerrainCircle) | { kind: "faces"; faceIds: Id[] };
+
 /** Raised ground. Platforms take priority over cuts inside their whole footprint. */
 export interface TerrainPlatform {
   kind: "platform";
   id: Id;
-  summit: TerrainCircle;
+  /** The castle (or other plan) that created this earthwork and removes it with itself. */
+  ownerId?: Id;
+  summit: TerrainShape;
   /** Absolute level of the flat summit. */
   levelMeters: number;
   /** A cliff edge stops at the summit; a slope falls linearly back to the base field over runMeters. */
@@ -50,6 +57,12 @@ export type TerrainFeature = TerrainPlatform | TerrainRingCut;
 
 /** Height source before earthworks. Cell elevations are interpolated across the editor mesh. */
 export type TerrainBase = { kind: "cells" } | { kind: "flat"; elevationMeters: number };
+
+/** Saved earthworks. Only cell-shaped platforms are persisted; their edges follow the editor mesh. */
+export interface CityTerrainLayer {
+  version: 1;
+  features: TerrainPlatform[];
+}
 
 /** Derived, unpersisted grading model: a base field plus vector earthworks in absolute metres. */
 export interface TerrainModel {
