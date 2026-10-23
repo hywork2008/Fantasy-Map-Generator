@@ -1,0 +1,187 @@
+{
+  "schemaVersion": 1,
+  "notes": [
+    "Derived from fixed-input S2/S3 observations, not an independent ledger.",
+    "saltMoneyNet is the observatory net for production:saltLogistics, rounded to 0.001 coin per interval; other world steps are excluded.",
+    "Inputs and initialProfile must match; S3 source hashes must match across both runs.",
+    "Gross international payments are intermediated by states and financed by destination markets. They are not additional world income."
+  ],
+  "worlds": [
+    {
+      "label": "province-101",
+      "inputSha256": "a3209cca3c88ebf8f84b4f5d9321be8ad3bdc5b3766ca92994f0eb198a52e4e7",
+      "beforeObservationSha256": "48bb313030ed7554d516947e9cad7f835ceba9c8ee762817768fa420a737d41c",
+      "afterObservationSha256": "29a9a06e134155d87fb3e40e663f9411a2e47601f233d571ded65de9a77dac8d",
+      "sourceTreeSha256": "5f9888d9a5c5d51ae5d916e0db3a1f8384b46d1db9c745f445f361749334806c",
+      "beforeTotals": {
+        "saltLaborHours": 1782456.3066975405,
+        "saltFuelWoodUnits": 200.65174184212492,
+        "personMonths": 5436868,
+        "householdDemandKg": 1631060.172,
+        "householdSuppliedKg": 778030.824,
+        "unmetHouseholdKg": 853029.3479999999,
+        "productionKg": 749935.764,
+        "recipeInputKg": 0,
+        "livestockDemandKg": 8576.676000000001,
+        "livestockSuppliedKg": 0,
+        "livestockUnmetKg": 8576.676000000001
+      },
+      "afterTotals": {
+        "householdPaid": 12988.809999999996,
+        "livestockPaid": 0,
+        "importsPaid": 0,
+        "wagesPaid": 482.01000000000005,
+        "fuelPaid": 60.39999999999992,
+        "wholesaleReceived": 10226.329999999996,
+        "freightPaid": 0,
+        "saltMoneyNet": 0,
+        "saltLaborHours": 1790606.6218279754,
+        "saltFuelWoodUnits": 201.56922572172357,
+        "personMonths": 5436868,
+        "householdDemandKg": 1631060.172,
+        "householdSuppliedKg": 778030.824,
+        "unmetHouseholdKg": 853029.3479999999,
+        "productionKg": 753364.8599999999,
+        "recipeInputKg": 0,
+        "livestockDemandKg": 8576.676000000001,
+        "livestockSuppliedKg": 0,
+        "livestockUnmetKg": 8576.676000000001
+      },
+      "saltMoneyByHolder": {
+        "net": 0,
+        "stateTreasury": 9683.92,
+        "urbanHouseholds": -702.03,
+        "ruralHouseholds": -11804.769999999999,
+        "marketBalance": 2822.88
+      },
+      "householdGroups": {
+        "neutral": {
+          "personMonths": 3955153,
+          "demandKg": 1186545.816,
+          "suppliedKg": 333516.468,
+          "unmetKg": 853029.3479999999,
+          "paid": 5426.97,
+          "annualizedSuppliedKgPerResident": 1.01189451229826
+        },
+        "stateResidents": {
+          "personMonths": 1481715,
+          "demandKg": 444514.356,
+          "suppliedKg": 444514.356,
+          "unmetKg": 0,
+          "paid": 7561.84,
+          "annualizedSuppliedKgPerResident": 3.599998833783825
+        }
+      },
+      "initialPrices": {
+        "min": 0.29,
+        "max": 0.29
+      },
+      "finalPrices": {
+        "min": 1.2771573546598403,
+        "max": 1.2771573546598403
+      },
+      "beforeMassBalance": {
+        "openingKg": 33800.53877116425,
+        "closingKg": 0,
+        "sourcesKg": 749935.8851349428,
+        "sinksKg": 783736.278786589,
+        "residualKg": -0.14511951804161072
+      },
+      "afterMassBalance": {
+        "openingKg": 33800.53877116425,
+        "closingKg": 0,
+        "sourcesKg": 753364.9811349428,
+        "sinksKg": 787165.5868283289,
+        "residualKg": 0.06692222179844975
+      }
+    },
+    {
+      "label": "world-102",
+      "inputSha256": "5e73a27785881bf553d37404442d7ead0f7bb68457208cc33c88c88f7c6a5999",
+      "beforeObservationSha256": "f06ec0c9c1ffae12c04b06982ae8fc437ecfd2f01a840837bfdf6c5fc816a0d2",
+      "afterObservationSha256": "60ede63b9fb31a0e9b1354db176f114726b0eb1e2c1f63fbac8ac3b852db0c0b",
+      "sourceTreeSha256": "5f9888d9a5c5d51ae5d916e0db3a1f8384b46d1db9c745f445f361749334806c",
+      "beforeTotals": {
+        "saltLaborHours": 40508385.14414369,
+        "saltFuelWoodUnits": 4560.043355813494,
+        "personMonths": 50277590,
+        "householdDemandKg": 15083277.965999994,
+        "householdSuppliedKg": 14559617.831999997,
+        "unmetHouseholdKg": 523660.134,
+        "productionKg": 17043163.272000007,
+        "recipeInputKg": 18052.23274127328,
+        "livestockDemandKg": 1475190.2399999998,
+        "livestockSuppliedKg": 1402688.2379999992,
+        "livestockUnmetKg": 72502.07400000001
+      },
+      "afterTotals": {
+        "householdPaid": 193717.92000000022,
+        "livestockPaid": 18531.07,
+        "importsPaid": 0,
+        "wagesPaid": 11055.080000000145,
+        "fuelPaid": 1517.7800000000036,
+        "wholesaleReceived": 185183.43000000037,
+        "freightPaid": 3927.390000000034,
+        "saltMoneyNet": 0,
+        "saltLaborHours": 40272758.21118933,
+        "saltFuelWoodUnits": 4533.518747976237,
+        "personMonths": 50277625,
+        "householdDemandKg": 15083287.571999999,
+        "householdSuppliedKg": 14559553.320000002,
+        "unmetHouseholdKg": 523734.252,
+        "productionKg": 16944027.456000008,
+        "recipeInputKg": 14731.957503250676,
+        "livestockDemandKg": 1475190.2399999998,
+        "livestockSuppliedKg": 1396991.9939999992,
+        "livestockUnmetKg": 78198.312
+      },
+      "saltMoneyByHolder": {
+        "net": 0,
+        "stateTreasury": 172610.57,
+        "urbanHouseholds": -13325.57,
+        "ruralHouseholds": -183940.95000000004,
+        "marketBalance": 24655.949999999997
+      },
+      "householdGroups": {
+        "neutral": {
+          "personMonths": 323461,
+          "demandKg": 97038.48000000001,
+          "suppliedKg": 89715.99000000002,
+          "unmetKg": 7322.49,
+          "paid": 727.6999999999999,
+          "annualizedSuppliedKgPerResident": 3.3283514241284125
+        },
+        "stateResidents": {
+          "personMonths": 49954164,
+          "demandKg": 14986249.092000004,
+          "suppliedKg": 14469837.330000006,
+          "unmetKg": 516411.762,
+          "paid": 192990.2200000002,
+          "annualizedSuppliedKgPerResident": 3.4759474297277815
+        }
+      },
+      "initialPrices": {
+        "min": 0.24,
+        "max": 0.57
+      },
+      "finalPrices": {
+        "min": 0.48,
+        "max": 1.2744085755904004
+      },
+      "beforeMassBalance": {
+        "openingKg": 1312720.9216770576,
+        "closingKg": 2308266.5583694275,
+        "sourcesKg": 17205444.642352916,
+        "sinksKg": 16210206.811525946,
+        "residualKg": 307.80586539953947
+      },
+      "afterMassBalance": {
+        "openingKg": 1312720.9216770576,
+        "closingKg": 2192742.5348788355,
+        "sourcesKg": 17029822.720561147,
+        "sinksKg": 16150077.948169945,
+        "residualKg": 276.8408105764538
+      }
+    }
+  ]
+}

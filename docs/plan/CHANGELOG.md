@@ -18,6 +18,10 @@
 - docs/analytics/salt-s2-production-20261023.md - 製塩の共通労働・燃料・天日季節・内陸地質の接続、暫定係数、12か月の不足増加と残課題、検証、S2完了と次のS3を記録
 - docs/analytics/salt-s2-province-101-20261023.json - S2後のProvince固定入力の正式12か月観測。実決済ごとの生産方法・労働・Wood消費を追加
 - docs/analytics/salt-s2-world-102-20261023.json - 同期間・設定・実装でWorld固定入力を進めたS2正式観測。生産制約による不足と入力/ソースハッシュを保持
+- docs/analytics/salt-s3-comparison-20261023.json - 固定2入力のS2/S3比較。実支払、保有者別現金純増減、人口区分、物量照合残、観測ハッシュを保存
+- docs/analytics/salt-s3-finance-20261023.md - 家計購入・製塩賃金/燃料・卸/国際購入/運賃の決済、価格と出力の方針、12か月の現金保存と不足、S3完了と次のS4を記録
+- docs/analytics/salt-s3-province-101-20261023.json - S3後のProvince固定入力の正式12か月観測。実支払と製塩ステップの保有者別現金変化を追加
+- docs/analytics/salt-s3-world-102-20261023.json - 同期間・設定・ソースのWorld固定入力の正式S3観測。現金移転・不足・物量照合用フローとハッシュを保持
 - docs/plan/historical-economy-production-consumption-circulation.md - 2026年10月追加の経済計画と最新追補を照合し、生活必需品の需要・予算、生産・実支払賃金、資本回収・輸送を接続する作業を再構成。食料優先と土地・月別労働・複合生産の補正を含む配分原則、材料余剰時の判定順、E0で確定する史実の桁の基準、食料と一次生産(牧草地・群れ・採毛)の規模を独立段階とした作業順、成果物付きの完了条件と比較観測・関連テストの方針を整理
 - docs/plan/wool-products-and-sheep-husbandry.md - 羊毛製品の追加を確定方針として、Gemini回答の用途・史料を照合。普通の羊毛衣料・毛布からの実装順、共有牧草地・年齢別採毛・農村の加工供給の見直し、同一入力12か月の実頭数・土地要求・羊毛・衣服需要の監査を記録
 

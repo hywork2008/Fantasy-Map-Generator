@@ -11,15 +11,20 @@ import {
   getSaltworks,
   getStateSaltLedgers,
   initEconomyContext,
+  setBurgMarketLedgers,
   setGoods,
   setMarketCellColumn,
   setMarkets,
   setMineralDeposits,
   setSaltShipments
 } from "../economyContext";
+import { getHouseholdWealth } from "./burgMarketLedgers";
 import { Goods } from "./goods-generator";
 import { recordGoodFlow, setGoodFlowObserver } from "./goodsBalanceLedger";
+import { getRuralHouseholdWealth } from "./householdWealth";
 import { Markets } from "./markets-generator";
+import type { Market } from "./marketTypes";
+import { buyHouseholdSalt, priceSalt } from "./saltFinance";
 import {
   auditSaltPopulationCoverage,
   SALT_HOUSEHOLD_KILOGRAMS_PER_PERSON_YEAR,
@@ -39,8 +44,8 @@ function setUpWorld(): void {
     ],
     states: [
       { i: 0, name: "Neutral", removed: true },
-      { i: 1, name: "North", capital: 1 },
-      { i: 2, name: "South", capital: 2 }
+      { i: 1, name: "North", capital: 1, treasury: 1e8 },
+      { i: 2, name: "South", capital: 2, treasury: 1e8 }
     ],
     cells: {
       i: [0, 1, 2],
@@ -65,9 +70,24 @@ function setUpWorld(): void {
     { i: 1, name: "Salt", tags: ["preservative", "mineral"], value: 3, unit: "bag", icon: "salt", color: "#fff" }
   ]);
   setMarkets([
-    { i: 1, centerBurgId: 1, color: "#111", goods: {} },
-    { i: 2, centerBurgId: 2, color: "#222", goods: {} }
-  ]);
+    {
+      i: 1,
+      centerBurgId: 1,
+      color: "#111",
+      goods: {},
+      marketTreasury: { balance: 1e8, ruralGrainPayable: 0 },
+      foodLedger: { ruralHouseholdWealth: 1e8 }
+    },
+    {
+      i: 2,
+      centerBurgId: 2,
+      color: "#222",
+      goods: {},
+      marketTreasury: { balance: 1e8, ruralGrainPayable: 0 },
+      foodLedger: { ruralHouseholdWealth: 1e8 }
+    }
+  ] as unknown as Market[]);
+  setBurgMarketLedgers([1, 2].map(burgId => ({ burgId, marketId: burgId, merchants: [], householdWealth: 1e8 })));
   setMarketCellColumn(Uint16Array.from([1, 2, 0]));
   Goods.sync();
   Markets.sync();
@@ -84,6 +104,103 @@ describe("SaltLogisticsModule", () => {
     setLotDispatchObserver(null);
     setTradeStageObserver(null);
     clearEconomyContext();
+  });
+
+  function cash(): number {
+    return (
+      worldContext.pack.states.reduce((sum, s) => sum + (s?.treasury ?? 0), 0) +
+      getMarkets().reduce((sum, m) => sum + (m.marketTreasury?.balance ?? 0) + getRuralHouseholdWealth(m), 0) +
+      worldContext.pack.burgs.reduce((sum, b) => sum + (b?.i ? getHouseholdWealth(b.i) : 0), 0)
+    );
+  }
+
+  it("conserves cash across state production, wholesale, fuel, wages and retail", () => {
+    SaltLogistics.generate();
+    getSaltworks()[0].kind = "brineWell";
+    setGoods([Goods.get(1)!, { i: 2, name: "Wood", tags: [], value: 1, unit: "pile", icon: "", color: "" }]);
+    getMarkets()[0].goods[2] = { stock: 100, price: 3 };
+    worldContext.pack.states[1].treasury! += 0.003;
+    getMarkets()[0].marketTreasury!.balance += 0.004;
+    const before = cash();
+    SaltLogistics.settleMonth();
+    expect(cash()).toBeCloseTo(before, 5);
+    const works = getSaltworks()[0];
+    expect(works.monthlyWagesPaid).toBeGreaterThan(0);
+    expect(works.monthlyFuelPaid).toBeGreaterThan(0);
+    expect(works.monthlyWholesaleReceived).toBeGreaterThan(0);
+    expect(getStateSaltLedgers()[0].monthlyHouseholdPaid).toBeGreaterThan(0);
+    expect(worldContext.pack.states[1].treasury).toBeCloseTo(
+      1e8 + 0.003 + works.monthlyWholesaleReceived! - works.monthlyWagesPaid! - works.monthlyFuelPaid!,
+      2
+    );
+  });
+
+  it("does not manufacture or charge inputs without operating cash or a funded buyer", () => {
+    SaltLogistics.generate();
+    worldContext.pack.states[1].treasury = 0;
+    getMarkets()[1].marketTreasury!.balance = 0;
+    const before = cash();
+    SaltLogistics.settleMonth();
+    expect(getSaltworks().every(w => w.monthlyOutputBags === 0 && w.monthlyWagesPaid === 0)).toBe(true);
+    expect(cash()).toBeCloseTo(before, 5);
+  });
+
+  it("leaves unpaid households unmet even with stock, without charging the state", () => {
+    SaltLogistics.generate();
+    getSaltworks().forEach(w => {
+      w.active = false;
+    });
+    setBurgMarketLedgers([1, 2].map(burgId => ({ burgId, marketId: burgId, merchants: [], householdWealth: 0 })));
+    for (const market of getMarkets()) {
+      market.foodLedger!.ruralHouseholdWealth = 0;
+      market.goods[1] = { stock: 1000, price: 1 };
+    }
+    const before = cash();
+    SaltLogistics.settleMonth();
+    expect(getStateSaltLedgers().every(s => s.monthlyHouseholdSalesBags === 0 && s.monthlyUnmetHouseholdBags > 0)).toBe(
+      true
+    );
+    expect(getMarkets().every(m => m.goods[1].stock === 1000)).toBe(true);
+    expect(cash()).toBe(before);
+  });
+
+  it("prepays international cargo and freight once, never again when cargo arrives", () => {
+    worldContext.pack.cells.c[1] = [0];
+    SaltLogistics.generate();
+    const before = cash();
+    SaltLogistics.settleMonth();
+    SaltLogistics.settleMonth();
+    const shipment = getSaltShipments().find(sh => sh.importerStateId === 2)!;
+    expect(shipment.wholesalePaid).toBeGreaterThan(0);
+    expect(shipment.freightPaid).toBeGreaterThan(0);
+    expect(getStateSaltLedgers().find(s => s.stateId === 2)?.monthlyImportsPaid).toBe(shipment.wholesalePaid);
+    expect(cash()).toBeCloseTo(before, 5);
+    getSaltworks().forEach(w => {
+      w.active = false;
+    });
+    const ownerCash = worldContext.pack.states[1].treasury;
+    for (let i = 0; i < 10; i++) SaltLogistics.settleMonth();
+    expect(worldContext.pack.states[1].treasury).toBe(ownerCash);
+    expect(cash()).toBeCloseTo(before, 5);
+  });
+
+  it("keeps physical need inelastic and reduces the same wallet's other spending room", () => {
+    const market = getMarkets()[0];
+    const before = getHouseholdWealth(1);
+    const low = buyHouseholdSalt(market, 1, 10, 100, 1);
+    const afterLow = getHouseholdWealth(1);
+    const high = buyHouseholdSalt(market, 1, 10, 100, 2);
+    expect(high.bags).toBe(low.bags);
+    expect(afterLow - getHouseholdWealth(1)).toBeCloseTo(2 * (before - afterLow), 2);
+    market.goods[1] = { stock: 0, price: 3 };
+    priceSalt(market, Goods.get(1)!, 100);
+    const scarce = market.goods[1].price;
+    market.goods[1].stock = 10000;
+    priceSalt(market, Goods.get(1)!, 100);
+    expect(market.goods[1].price).toBeLessThan(scarce);
+    const saltPrice = market.goods[1].price;
+    Markets.initializeMarketPrices();
+    expect(market.goods[1].price).toBe(saltPrice);
   });
 
   it("partitions all residents without hiding neutral or unmarketed demand", () => {

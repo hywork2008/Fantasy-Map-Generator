@@ -3,8 +3,10 @@ import { getGoods, getMarkets, getSimulationMonth, getSimulationYear, getWorldCo
 import { getBasicWorkersByBurg, getChildLabourEquivalent, getCraftWorkforce } from "./craftWorkforce";
 import { isGoodEnabled } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
+import { paySaltInputs, saltInvoice, saltOwnerCash } from "./saltFinance";
 import type { Saltworks } from "./saltLogisticsTypes";
 import { readAgriculturalClimate } from "./seasonalCropClimate";
+import { getSubsistenceWage } from "./subsistenceWage";
 import { WOOD_KG_PER_LOT } from "./woodRecipeContracts";
 
 /** Explicit planning assumptions, not universal historical yields. See salt-logistics.md. */
@@ -56,8 +58,29 @@ export function createSaltProductionBudget() {
     }
     return weights;
   };
+  const inputs = (operation: Saltworks) => {
+    const hoursPerKg =
+      operation.productionMethod === "solar"
+        ? SALT_PRODUCTION_POLICY.solarHoursPerKg
+        : operation.productionMethod === "mining"
+          ? SALT_PRODUCTION_POLICY.miningHoursPerKg
+          : SALT_PRODUCTION_POLICY.boilingHoursPerKg;
+    const pointsPerBag = (60 * hoursPerKg) / SALT_PRODUCTION_POLICY.hoursPerWorkerMonth / rate;
+    const market = getMarkets().find(m => m.i === operation.marketId);
+    const wood = getGoods().find(g => g.name === "Wood" && isGoodEnabled(g));
+    const fuel = wood && market?.goods[wood.i];
+    const fuelPerBag =
+      operation.productionMethod === "boiling" ? (60 * SALT_PRODUCTION_POLICY.boilingWoodKgPerKg) / WOOD_KG_PER_LOT : 0;
+    const wagesPerBag = ((pointsPerBag * rate) / 1000) * getSubsistenceWage(market);
+    const fuelCostPerBag = fuelPerBag * Math.max(0, fuel?.price ?? wood?.value ?? 0);
+    return { pointsPerBag, market, wood, fuel, fuelPerBag, wagesPerBag, fuelCostPerBag };
+  };
   return {
     charged,
+    unitCost(operation: Saltworks): number {
+      const input = inputs(operation);
+      return input.wagesPerBag + input.fuelCostPerBag;
+    },
     capacity(operation: Saltworks): number {
       const weights = solarWeights(operation.cellId);
       operation.productionMethod =
@@ -68,6 +91,10 @@ export function createSaltProductionBudget() {
             : "boiling";
       operation.monthlyLaborHours = 0;
       operation.monthlyFuelWoodUnits = 0;
+      operation.monthlyWagesPaid = 0;
+      operation.monthlyFuelPaid = 0;
+      operation.monthlyWholesaleReceived = 0;
+      operation.monthlyFreightPaid = 0;
       operation.monthlyCapacityBags =
         Math.max(0, operation.annualCapacityBags) *
         (operation.productionMethod === "solar" ? weights[Math.max(0, (getSimulationMonth() || 1) - 1)] : 1 / 12);
@@ -76,29 +103,28 @@ export function createSaltProductionBudget() {
     produce(operation: Saltworks, requestedBags: number): number {
       const crews = world.pack.burgs.filter(b => b?.i && !b.removed && b.market === operation.marketId);
       const availablePoints = crews.reduce((sum, b) => sum + (remaining.get(b.i ?? 0) ?? 0), 0);
-      const hoursPerKg =
-        operation.productionMethod === "solar"
-          ? SALT_PRODUCTION_POLICY.solarHoursPerKg
-          : operation.productionMethod === "mining"
-            ? SALT_PRODUCTION_POLICY.miningHoursPerKg
-            : SALT_PRODUCTION_POLICY.boilingHoursPerKg;
-      const pointsPerBag = (60 * hoursPerKg) / SALT_PRODUCTION_POLICY.hoursPerWorkerMonth / rate;
-      const wood = getGoods().find(g => g.name === "Wood" && isGoodEnabled(g));
-      const market = getMarkets().find(m => m.i === operation.marketId);
-      const fuel = wood && market?.goods[wood.i];
-      const fuelPerBag =
-        operation.productionMethod === "boiling"
-          ? (60 * SALT_PRODUCTION_POLICY.boilingWoodKgPerKg) / WOOD_KG_PER_LOT
-          : 0;
+      const { pointsPerBag, market, wood, fuel, fuelPerBag, wagesPerBag, fuelCostPerBag } = inputs(operation);
+      if (!market) return 0;
+      const cashLimit = Math.max(0, saltOwnerCash(operation) - 0.02) / Math.max(1e-12, wagesPerBag + fuelCostPerBag);
       const output = Math.max(
         0,
         Math.min(
           requestedBags,
+          cashLimit,
           availablePoints / pointsPerBag,
           fuelPerBag > 0 ? Math.max(0, fuel?.stock ?? 0) / fuelPerBag : Infinity
         )
       );
       if (!(output > 0)) return 0;
+      const wages = saltInvoice(output * wagesPerBag);
+      const fuelCost = saltInvoice(output * fuelCostPerBag);
+      paySaltInputs(
+        operation,
+        market,
+        wages,
+        fuelCost,
+        crews.map(b => ({ burgId: b.i!, share: (remaining.get(b.i ?? 0) ?? 0) / availablePoints }))
+      );
       const points = output * pointsPerBag;
       for (const burg of crews) {
         const available = remaining.get(burg.i ?? 0) ?? 0;

@@ -19,6 +19,10 @@ export interface Saltworks {
   monthlyCapacityBags?: number;
   monthlyLaborHours?: number;
   monthlyFuelWoodUnits?: number;
+  monthlyWagesPaid?: number;
+  monthlyFuelPaid?: number;
+  monthlyWholesaleReceived?: number;
+  monthlyFreightPaid?: number;
   active: boolean;
 }
 
@@ -43,12 +47,19 @@ export interface SaltShipment {
   status: "inTransit" | "delivered";
   /** Destination retail price at the moment of delivery. */
   unitPrice: number;
+  /** Prepaid at dispatch. Absent on legacy cargo, which is never retroactively charged. */
+  wholesalePaid?: number;
+  freightPaid?: number;
 }
 
 /** Current-month population requirement and fulfillment for one state. */
 export interface StateSaltLedger {
   /** Unmapped households have demand but no implied delivery. State zero represents neutral residents. */
   unmarketedPeople?: number;
+  monthlyHouseholdPaid?: number;
+  monthlyLivestockPaid?: number;
+  monthlyImportsPaid?: number;
+  monthlyExportsReceived?: number;
   monthlyProcessingForecastBags?: number;
   monthlyLivestockTotalRequirementBags?: number;
   monthlyLivestockNaturalBags?: number;

@@ -16,7 +16,17 @@ import {
 } from "../economyContext";
 import { isGoodEnabled } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
+import { debitRuralHouseholdWealth, getRuralHouseholdWealth } from "./householdWealth";
 import type { Market } from "./marketTypes";
+import { getOpenAccountCommitments } from "./merchantTradeCapital";
+import {
+  buyHouseholdSalt,
+  paySaltWholesale,
+  priceSalt,
+  saltFreightPerBag,
+  saltInvoice,
+  saltMarketCash
+} from "./saltFinance";
 import type { SaltShipment, Saltworks, StateSaltLedger } from "./saltLogisticsTypes";
 import { createSaltProductionBudget } from "./saltProduction";
 
@@ -392,6 +402,7 @@ export class SaltLogisticsModule {
       market.saltProcessingInputBags = 0;
     }
     const marketsById = new Map(getMarkets().map(market => [market.i, market]));
+    const committedCash = getOpenAccountCommitments();
     const operations = getSaltworks();
     // Discover inland sources on legacy maps without resetting works, cargo, or installed capacity.
     for (const state of getWorldContext().pack.states ?? []) {
@@ -452,6 +463,8 @@ export class SaltLogisticsModule {
       const rightProduces = operations.some(operation => operation.active && operation.stateId === right);
       return Number(left === 0) - Number(right === 0) || Number(rightProduces) - Number(leftProduces) || left - right;
     });
+    for (const market of getMarkets())
+      priceSalt(market, salt, (marketReserveBagsById.get(market.i) ?? 0) / SALT_MARKET_RESERVE_MONTHS);
     const dispatchedShipmentIds = new Set<number>();
     for (const stateId of stateIds) {
       const stateOperations = operations.filter(operation => operation.active && operation.stateId === stateId);
@@ -467,6 +480,8 @@ export class SaltLogisticsModule {
 
       let dispatched = 0;
       let householdSales = 0;
+      let householdPaid = 0;
+      let livestockPaid = 0;
       const unmarketedPeople = Math.max(
         0,
         statePopulation(stateId) - demands.reduce((sum, demand) => sum + demand.population, 0)
@@ -506,7 +521,13 @@ export class SaltLogisticsModule {
             ? []
             : stateOperations.length
               ? stateOperations
-              : operations.filter(operation => operation.active && operation.stateId !== stateId)
+              : operations.filter(
+                  operation =>
+                    operation.active &&
+                    operation.stateId !== stateId &&
+                    getWorldContext().pack.states[operation.stateId]?.i &&
+                    !getWorldContext().pack.states[operation.stateId].removed
+                )
         ).toSorted((left, right) => {
           const leftMarket = marketsById.get(left.marketId);
           const rightMarket = marketsById.get(right.marketId);
@@ -524,12 +545,20 @@ export class SaltLogisticsModule {
           if (!source) continue;
           const sourceGood = getMarketGood(source, salt.i, salt.value);
           const sourceReserve = marketReserveBagsById.get(source.i) ?? 0;
-          const bags = Math.min(remaining, Math.max(0, sourceGood.stock - sourceReserve));
+          const travelDays = marketTravelDays(source, demand.market);
+          const freight = saltFreightPerBag(source, demand.market, salt);
+          const quote = Math.max(0.0001, sourceGood.price);
+          const cashLimit =
+            source.i === demand.market.i
+              ? Infinity
+              : Math.max(0, saltMarketCash(demand.market, committedCash) - 0.02) / (quote + freight);
+          const bags = Math.min(remaining, Math.max(0, sourceGood.stock - sourceReserve), cashLimit);
           if (bags <= 0) continue;
           sourceGood.stock = rn(sourceGood.stock - bags, 4);
           remaining -= bags;
           dispatched += bags;
-          const travelDays = marketTravelDays(source, demand.market);
+          const payment = paySaltWholesale(operation, source, demand.market, stateId, bags, quote, freight, false);
+          if (source.i !== demand.market.i) demand.market.saltLandedUnitCost = quote + freight;
           const shipment: SaltShipment = {
             i: nextShipmentId++,
             exporterStateId: operation.stateId,
@@ -538,6 +567,8 @@ export class SaltLogisticsModule {
             fromMarketId: source.i,
             toMarketId: demand.market.i,
             bags: rn(bags, 4),
+            wholesalePaid: payment.goods,
+            freightPaid: payment.freight,
             travelDays,
             remainingDays: travelDays,
             status: travelDays === 0 ? "delivered" : "inTransit",
@@ -559,8 +590,19 @@ export class SaltLogisticsModule {
           const source = marketsById.get(operation.marketId);
           if (!source) continue;
           const remainingCapacity = remainingCapacityBySaltworksId.get(operation.i) ?? 0;
-          const output = production.produce(operation, Math.min(remaining, remainingCapacity));
+          const freight = saltFreightPerBag(source, demand.market, salt);
+          // Inelastic provision is fulfilled when funded; a low retail quote does not erase need.
+          // Require cost recovery for new wholesale batches, not a speculative profit maximizer.
+          const quote = Math.max(
+            salt.value * 0.5,
+            (source.goods[salt.i]?.price ?? salt.value) * 0.8,
+            production.unitCost(operation) * 1.05
+          );
+          const cashLimit = Math.max(0, saltMarketCash(demand.market, committedCash) - 0.02) / (quote + freight);
+          const output = production.produce(operation, Math.min(remaining, remainingCapacity, cashLimit));
           if (output <= 0) continue;
+          const payment = paySaltWholesale(operation, source, demand.market, stateId, output, quote, freight, true);
+          demand.market.saltLandedUnitCost = production.unitCost(operation) * 1.05 + freight;
           const sourceGood = getMarketGood(source, salt.i, salt.value);
           sourceGood.stock = rn(sourceGood.stock + output, 4);
           operation.monthlyOutputBags = rn(operation.monthlyOutputBags + output, 4);
@@ -586,6 +628,8 @@ export class SaltLogisticsModule {
             fromMarketId: source.i,
             toMarketId: demand.market.i,
             bags: rn(output, 4),
+            wholesalePaid: payment.goods,
+            freightPaid: payment.freight,
             travelDays,
             remainingDays: travelDays,
             status: travelDays === 0 ? "delivered" : "inTransit",
@@ -597,7 +641,15 @@ export class SaltLogisticsModule {
           dispatchedShipmentIds.add(shipment.i);
         }
 
-        const sold = Math.min(demand.householdBags, Math.max(0, destinationGood.stock));
+        const purchase = buyHouseholdSalt(
+          demand.market,
+          stateId,
+          demand.householdBags,
+          destinationGood.stock,
+          destinationGood.price
+        );
+        const sold = purchase.bags;
+        householdPaid += purchase.paid;
         destinationGood.stock = rn(destinationGood.stock - sold, 4);
         householdSales += sold;
         unmetHousehold += Math.max(0, demand.householdBags - sold);
@@ -615,7 +667,17 @@ export class SaltLogisticsModule {
           (remainingHouseholdByMarket.get(demand.market.i) ?? 0) - demand.householdBags
         );
         remainingHouseholdByMarket.set(demand.market.i, pendingHouseholds);
-        const livestock = Math.min(demand.livestockBags, Math.max(0, destinationGood.stock - pendingHouseholds));
+        const livestockLimit = Math.min(
+          demand.livestockBags,
+          Math.max(0, destinationGood.stock - pendingHouseholds),
+          getRuralHouseholdWealth(demand.market) / Math.max(0.0001, destinationGood.price)
+        );
+        const livestockBill = saltInvoice(livestockLimit * destinationGood.price);
+        const paid = debitRuralHouseholdWealth(demand.market, livestockBill);
+        const livestock = livestockBill > 0 ? (livestockLimit * paid) / livestockBill : 0;
+        livestockPaid += paid;
+        demand.market.marketTreasury ??= { balance: 0, ruralGrainPayable: 0 };
+        demand.market.marketTreasury.balance += paid;
         destinationGood.stock = rn(destinationGood.stock - livestock, 4);
         livestockSupplied += livestock;
         livestockUnmet += demand.livestockBags - livestock;
@@ -639,6 +701,8 @@ export class SaltLogisticsModule {
       ledgers.push({
         stateId,
         population: rn(population, 0),
+        monthlyHouseholdPaid: rn(householdPaid, 2),
+        monthlyLivestockPaid: rn(livestockPaid, 2),
         unmarketedPeople: rn(unmarketedPeople, 0),
         monthlyProcessingForecastBags: rn(
           demands.reduce((sum, demand) => sum + demand.processingBags, 0),
@@ -694,6 +758,28 @@ export class SaltLogisticsModule {
       });
     }
     for (const ledger of ledgers) {
+      ledger.monthlyImportsPaid = rn(
+        shipments
+          .filter(
+            sh =>
+              dispatchedShipmentIds.has(sh.i) &&
+              getShipmentImporterStateId(sh) === ledger.stateId &&
+              getShipmentExporterStateId(sh) !== ledger.stateId
+          )
+          .reduce((sum, sh) => sum + (sh.wholesalePaid ?? 0), 0),
+        2
+      );
+      ledger.monthlyExportsReceived = rn(
+        shipments
+          .filter(
+            sh =>
+              dispatchedShipmentIds.has(sh.i) &&
+              getShipmentExporterStateId(sh) === ledger.stateId &&
+              getShipmentImporterStateId(sh) !== ledger.stateId
+          )
+          .reduce((sum, sh) => sum + (sh.wholesalePaid ?? 0), 0),
+        2
+      );
       ledger.monthlyOutputBags = rn(
         operations
           .filter(operation => operation.active && operation.stateId === ledger.stateId)
