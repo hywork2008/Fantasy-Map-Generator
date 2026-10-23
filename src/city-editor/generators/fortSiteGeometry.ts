@@ -1,8 +1,10 @@
 import { bridgeSkewDegrees, resolveBridgeSkewLimit, withinBridgeSkewLimit } from "../../utils/bridgeSkewPolicy";
 import type { CityDocument, Point } from "../types/document";
 import type { FortSite } from "../types/fortSite";
+import { fortSiteTerrainFeatures } from "./fortSiteTerrain";
 import { nearestOnPolyline, polygonArea } from "./geom";
 import { bounds, boundsOverlap, subtractConvex } from "./parcelGeometry";
+import { evaluateTerrainFeatures } from "./terrainModel";
 
 export const FORT_CIRCLE_SEGMENTS = 64;
 export function fortCircle(center: Point, radius: number, count = FORT_CIRCLE_SEGMENTS): Point[] {
@@ -15,23 +17,7 @@ const distance = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 
 /** A flat summit, an explicit slope and excavations over the original, unmodified cells. */
 export function fortHeight(site: FortSite, point: Point): number {
-  const d = distance(point, site.motte.center),
-    motte = site.motte;
-  const slope = Math.max(
-    0,
-    Math.min(1, (motte.baseRadiusMeters - d) / (motte.baseRadiusMeters - motte.summitRadiusMeters))
-  );
-  let level = site.groundElevationMeters + slope * motte.heightMeters;
-  if (distance(point, site.bailey.center) <= site.bailey.radiusMeters)
-    level = Math.max(level, site.bailey.elevationMeters);
-  // Dry islands take priority where the two moat loops meet.
-  if (d <= motte.baseRadiusMeters || distance(point, site.bailey.center) <= site.bailey.radiusMeters) return level;
-  for (const moat of site.moats) {
-    const t = Math.abs(distance(point, moat.center) - moat.radiusMeters) / (moat.widthMeters / 2);
-    const cut = moat.depthMeters * Math.max(0, Math.min(1, (1 - t) / 0.35));
-    level = Math.min(level, site.groundElevationMeters - cut);
-  }
-  return level;
+  return evaluateTerrainFeatures(fortSiteTerrainFeatures(site), () => site.groundElevationMeters, point);
 }
 
 /** Disjoint water polygons: union the annuli, subtract the two dry islands. */
