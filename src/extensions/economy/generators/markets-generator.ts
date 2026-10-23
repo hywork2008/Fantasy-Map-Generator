@@ -79,7 +79,6 @@ import { getMonthlyHouseholdFuelDemands, getWoodSupplyMonthKey } from "./heating
 import { moveRuralPursesWithFarms } from "./householdWealth";
 import { getHouseTimberShare, getHousingRecipe } from "./housingRecipes";
 import { type IncrementalBatchOptions, runBatchedYielding } from "./incrementalBatching";
-import { getLiveAnimalCatchKey, rollLiveAnimalCatch } from "./liveAnimalCatch";
 import { getLivestockFodderOrderLots } from "./livestockFeed";
 import { isLuxuryValueDemandEnabled, luxuryBudgetByMarketTier, luxuryStockTarget } from "./luxuryDemand";
 import { isHighValueTradeGood, isLuxuryDemandGood, type LuxuryTier } from "./luxuryTiers";
@@ -118,6 +117,7 @@ import { expectedPortStorageUnitCost } from "./portWarehouses";
 import { applyPriceElasticity, relaxMarketPrice } from "./priceElasticity";
 import {
   getRuralCellPopulation,
+  getRuralLiveAnimalContributions,
   getRuralProductionContributions,
   getSeasonalFoodProductionMultiplier
 } from "./production-utils";
@@ -893,6 +893,19 @@ export class MarketsModule {
       this.ruralProductionIndex?.populationSnapshotPeriod === populationSnapshotPeriod
         ? this.ruralProductionIndex
         : this.buildRuralProductionIndex(populationSnapshotPeriod);
+    // Reuse topology/rate forecasts only for non-live output. Each real dispatch
+    // must debit its source herd once, including repeated cycles in one quarter.
+    const cells = this.worldContext.pack.cells;
+    const marketIds = new Set(getMarkets().map(market => market.i));
+    const collectionBurgs = this.getCollectionBurgsByMarket();
+    const biomeProduction = Goods.getBiomesProduction();
+    for (const cellId of cells.i) {
+      const marketId = getMarketCellColumn()[cellId];
+      if (!marketId || !marketIds.has(marketId)) continue;
+      const collection = this.getCollectionBurgId(cellId, marketId, collectionBurgs);
+      for (const contribution of getRuralLiveAnimalContributions(cellId, biomeProduction))
+        this.addRuralOutput(marketId, collection, contribution.goodId, contribution.amount);
+    }
     const monthIndex = Math.max(0, Math.min(11, getSimulationMonth() - 1));
 
     const wood = getGoods().find(g => g.name === "Wood");
@@ -1083,7 +1096,9 @@ export class MarketsModule {
         index.buildingTimberByMarket.set(marketId, (index.buildingTimberByMarket.get(marketId) ?? 0) + timber);
       }
 
-      for (const contribution of getRuralProductionContributions(cellId, biomeProduction)) {
+      for (const contribution of getRuralProductionContributions(cellId, biomeProduction, {
+        excludeLiveAnimals: true
+      })) {
         const good = Goods.get(contribution.goodId);
         if (!good || !isGoodEnabled(good) || contribution.amount <= 0) continue;
         // stapleFood (Grain in v1) is produced/consumed by the Food Ledger's own quarterly/monthly
@@ -1419,18 +1434,15 @@ export class MarketsModule {
     const good = Goods.get(goodId);
     if (!market || !good || !isGoodEnabled(good)) return;
 
-    // Live creatures arrive as lumpy integer catches, not a continuous trickle — see
-    // liveAnimalCatch.ts. Banking `amount` below its 1-unit threshold most months is what
-    // produces the "catch one, then quiet for a while" pattern instead of a flat monthly gain.
-    const resolvedAmount = good.tags.includes("liveAnimal")
-      ? rollLiveAnimalCatch(getLiveAnimalCatchKey(marketId, collectionBurgId, goodId), amount)
-      : amount;
+    // Live arrivals have already been selected and debited in real animals at source.
+    const resolvedAmount = amount;
     if (resolvedAmount <= 0) return;
 
     const marketGood = this.getMarketGood(market, good);
-    marketGood.stock = isOrchardDrink(good.name)
-      ? marketGood.stock + resolvedAmount
-      : rn(marketGood.stock + resolvedAmount, 2);
+    marketGood.stock =
+      isOrchardDrink(good.name) || good.tags.includes("liveAnimal")
+        ? marketGood.stock + resolvedAmount
+        : rn(marketGood.stock + resolvedAmount, 2);
     recordGoodFlow({
       direction: "source",
       category: "ruralHarvest",

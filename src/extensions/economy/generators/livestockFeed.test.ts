@@ -160,6 +160,24 @@ describe("physical livestock feed budget", () => {
     expect(livestockFeedPeriod()).toBe(before);
   });
 
+  it("applies live modifiers and the dominant-good bonus before the stock cap", () => {
+    worldContext.pack.cells.culture = Uint16Array.from([0, 0]);
+    worldContext.pack.cells.religion = Uint16Array.from([0, 0]);
+    worldContext.pack.cultures = [{ i: 0, type: "Naval" }] as never;
+    const sheep = good("Sheep");
+    sheep.multipliers = { cultureType: { Naval: 1.4 } };
+    setGoodCellColumn(Uint16Array.from([sheep.i, 0]));
+    getOrCreateFaunaStockTable()!["0:Sheep"] = { young: 0, breeding: 0, old: 1 };
+    const contributions = getRuralProductionContributions(0, { 1: [{ goodId: sheep.i, production: 10 }] });
+    expect(contributions.filter(row => row.goodId === sheep.i)).toEqual([{ goodId: sheep.i, amount: 1 }]);
+    expect(getOrCreateFaunaStockTable()!["0:Sheep"].old).toBe(0);
+    expect(
+      getRuralProductionContributions(0, { 1: [{ goodId: sheep.i, production: 10 }] }).filter(
+        row => row.goodId === sheep.i
+      )
+    ).toEqual([]);
+  });
+
   afterEach(() => {
     setGoodFlowObserver(null);
     clearEconomyContext();

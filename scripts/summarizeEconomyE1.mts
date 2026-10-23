@@ -126,9 +126,20 @@ const worlds = inputs.map(path => {
       woolMarketInflowKg: intervals.reduce((sum: number, row: any) => sum + (row.primaryFlows.Wool?.["source:ruralHarvest"] ?? 0) * run.woolKgPerLot, 0)
     });
   }
+  const dispatchEvents = annual.flatMap((sample: any) => sample.livestockDispatchSettlements ?? []);
+  const dispatchBySpecies: Record<string, Record<string, number>> = {};
+  for (const event of dispatchEvents) for (const [name, values] of Object.entries(event.bySpecies)) {
+    const totals = dispatchBySpecies[name] ??= {};
+    for (const [key, value] of Object.entries(values as Record<string, number>)) {
+      totals[key] = key === "maxCellErrorHeads" ? Math.max(totals[key] ?? 0, value) : (totals[key] ?? 0) + value;
+    }
+  }
   return {
     path,
     feedYears,
+    livestockDispatch: annual.some((sample: any) => sample.livestockDispatchSettlements !== undefined)
+      ? { settlementCount: dispatchEvents.length, periods: dispatchEvents.map((event: any) => event.period), bySpecies: dispatchBySpecies }
+      : null,
     bytes: bytes.length,
     sha256: hash(bytes),
     inputSha256: run.inputSha256,
@@ -180,6 +191,7 @@ writeFileSync(output, `${JSON.stringify({
     "Feed totals are endpoint samples, not a tick-exact feeding history. Wool is actual market inflow.",
     "World aggregate pasture occupancy cannot rule out individual-cell or seasonal shortages.",
     "Inputs are independent source variants labelled by their paths; compare recorded source hashes and experimental notes.",
+    "livestockDispatch is null for older audits. It reconciles source herd debit to actual rural market credit, not later processing or transport ownership.",
     "foodImports is empty for older audits without import observations, not evidence of zero imports.",
     "Import outcomes count evaluated supplier opportunities, not people. DeliveredBeforeRounding is not the rounded inventory credit.",
     "A ledger created at consumption time does not transfer public stocks from the former market."

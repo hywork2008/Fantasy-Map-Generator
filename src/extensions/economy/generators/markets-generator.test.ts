@@ -50,6 +50,7 @@ vi.mock("./goods-generator", async importOriginal => {
 vi.mock("./production-utils", () => ({
   getRuralCellPopulation: vi.fn(() => 100),
   getRuralProductionContributions: vi.fn(() => []),
+  getRuralLiveAnimalContributions: vi.fn(() => []),
   getSeasonalFoodProductionMultiplier: vi.fn(() => 1)
 }));
 
@@ -1173,38 +1174,23 @@ describe("MarketsModule", () => {
       expect(validateRetailInventory()).toEqual([]);
     });
 
-    it("collectRuralProduction() should convert liveAnimal-tagged goods to integer catches instead of a continuous trickle", async () => {
-      const { getRuralProductionContributions } = await import("./production-utils");
-      const liveAnimalGood = { ...getGoods()[0], i: 999, name: "Cats", tags: ["liveAnimal"] };
-
-      const market1: Market = { i: 1, centerBurgId: 1, color: "#ff0000", goods: {} };
-      setMarkets([market1]);
-      // biome-ignore lint/complexity/useLiteralKeys: private access for testing
-      marketsModule["marketById"] = [market1, market1];
-      worldContext.pack.cells = {
-        i: [0],
-        market: Uint16Array.from([1])
-      } as unknown as PackedGraph["cells"];
-      vi.mocked(Goods.get).mockImplementation((id: number) => (id === liveAnimalGood.i ? liveAnimalGood : undefined));
-      vi.mocked(getRuralProductionContributions).mockReturnValue([{ goodId: liveAnimalGood.i, amount: 0.2 }]);
-
-      // Fixed at 0.999 so only the deterministic "guaranteed" branch of the accumulator (once
-      // the banked amount reaches 1) ever produces a catch — the fractional Bernoulli bonus never wins.
-      const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.999);
-
-      for (let i = 0; i < 4; i++) {
-        marketsModule.invalidateRuralProductionCache();
-        marketsModule.collectRuralProduction();
-        // 0.2/month banked but never reaches the 1-unit threshold -> no stock yet, not a fractional trickle.
-        expect(market1.goods[liveAnimalGood.i]?.stock ?? 0).toBe(0);
-      }
-
-      marketsModule.invalidateRuralProductionCache();
+    it("credits already debited live arrivals exactly without a second catch roll", async () => {
+      const { getRuralLiveAnimalContributions } = await import("./production-utils");
+      const live = { ...getGoods()[0], i: 999, name: "Horses", tags: ["liveAnimal"] };
+      const market: Market = { i: 1, centerBurgId: 1, color: "", goods: { 999: { stock: 0.005, price: 1 } } };
+      setMarkets([market]);
+      marketsModule.sync();
+      worldContext.pack.cells = { i: [0], market: Uint16Array.from([1]) } as unknown as PackedGraph["cells"];
+      vi.mocked(Goods.get).mockImplementation(id => (id === live.i ? live : undefined));
+      vi.mocked(getRuralLiveAnimalContributions)
+        .mockClear()
+        .mockReturnValueOnce([{ goodId: live.i, amount: 0.04 }])
+        .mockReturnValue([]);
       marketsModule.collectRuralProduction();
-      // 5th month: 0.2 * 5 = 1.0 banked -> one whole catch lands at once.
-      expect(market1.goods[liveAnimalGood.i].stock).toBe(1);
-
-      randomSpy.mockRestore();
+      expect(market.goods[999].stock).toBeCloseTo(0.045, 12);
+      marketsModule.collectRuralProduction();
+      expect(market.goods[999].stock).toBeCloseTo(0.045, 12);
+      expect(getRuralLiveAnimalContributions).toHaveBeenCalledTimes(2);
     });
 
     it("getName() should prefer a custom name, fall back to the center burg, then to a generic label", () => {

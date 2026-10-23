@@ -1,3 +1,10 @@
+import {
+  getFaunaStockTable,
+  getLivestockDispatchTable,
+  getOrCreateLivestockDispatchTable
+} from "../context/cellTables";
+import { getEconomySlice } from "../context/economyApi";
+import { livestockFeedPeriod } from "./livestockFeedState";
 /**
  * Fauna Population Stock Model — docs/plan/biome-goods-producer-ecosystem.md §4 (Phase 2).
  *
@@ -375,7 +382,8 @@ function getNonFoodDemandAbsorptionCapacity(cellId: number, good: Good): number 
   const realDemand = getRealNonMarketDemand(cellId, good) * NON_FOOD_DEMAND_BUFFER;
   const marketId = getMarketCellColumn()[cellId];
   if (!marketId) return Number.POSITIVE_INFINITY;
-  const history = getOrCreateNonFoodFaunaDemandHistory()?.[getDemandHistoryKey(marketId, good.i)];
+  const histories = getEconomySlice()?.nonFoodFaunaDemandHistory as Record<string, number[]> | undefined;
+  const history = histories?.[getDemandHistoryKey(marketId, good.i)];
   if (!history?.length) return Number.POSITIVE_INFINITY;
   const average = history.reduce((sum, value) => sum + value, 0) / history.length;
   return Math.max(realDemand, average * animalsPerMarketHead(good.name) * NON_FOOD_DEMAND_BUFFER);
@@ -532,6 +540,54 @@ export function drawDomesticatedFaunaOfftake(cellId: number, good: Good, desired
   return (
     drawOfftake(cellId, good.name, desiredAmount * scale, getDomesticatedCullSelectivity(cellId), capacity) / scale
   );
+}
+
+/**
+ * Settle source-cell live dispatch before market aggregation. Whole animals are selected
+ * from real stock; only fractional demand is carried, never unmet whole-head backlog.
+ * Preview uses the same plan without initializing stock or writing a receipt.
+ */
+export function dispatchDomesticatedFauna(
+  cellId: number,
+  good: Good,
+  desiredMarketUnits: number,
+  preview = false
+): number {
+  if (!Number.isFinite(desiredMarketUnits) || desiredMarketUnits <= 0) return 0;
+  const dispatches = preview ? getLivestockDispatchTable() : getOrCreateLivestockDispatchTable();
+  const key = getStockKey(cellId, good.name);
+  const prior = dispatches?.[key];
+  const period = livestockFeedPeriod();
+  if (prior && prior.period >= period) return 0;
+  const scale = animalsPerMarketHead(good.name);
+  const demandHeads = Math.max(0, prior?.remainderHeads ?? 0) + desiredMarketUnits * scale;
+  const requestedHeads = Math.floor(demandHeads);
+  const stockTracked = getRuralEcosystemDetail() === "detailed" && getEconomySlice() !== null;
+  const capacity = stockTracked ? getDomesticatedCarryingCapacity(cellId, good, desiredMarketUnits) : 0;
+  const stock = stockTracked ? (preview ? getFaunaStockTable() : getOrCreateFaunaStockTable()) : null;
+  const cohorts = stock ? stock[key] : undefined;
+  const before = stockTracked ? (cohorts ? cohortTotal(cohorts) : cohortTotal(initializeStock(capacity))) : null;
+  const heads = Math.min(requestedHeads, before === null ? requestedHeads : Math.floor(Math.max(0, before)));
+  if (preview) return heads / scale;
+  if (stock) {
+    const herd = ensureStock(stock, cellId, good.name, capacity);
+    applyCull(herd, heads, getDomesticatedCullSelectivity(cellId));
+  }
+  if (dispatches) {
+    const receipt = { period, remainderHeads: demandHeads - requestedHeads };
+    Object.defineProperty(receipt, "observation", {
+      enumerable: false,
+      value: {
+        heads,
+        marketUnits: heads / scale,
+        stockTracked,
+        herdBeforeHeads: before,
+        herdAfterHeads: stock ? cohortTotal(stock[key]) : null
+      }
+    });
+    dispatches[key] = receipt;
+  }
+  return heads / scale;
 }
 
 /**

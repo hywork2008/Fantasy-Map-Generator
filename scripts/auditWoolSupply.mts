@@ -24,6 +24,9 @@ import { GOOD_MEASURES, WAIN_KG } from "../src/extensions/economy/generators/goo
 import { getFoodImportAttempts, getFoodImportFlows } from "../src/extensions/economy/generators/foodImportNetwork";
 import { observeLivestockFeedSettlement } from "./lib/livestockFeedObservation.mts";
 
+import { observeLivestockDispatch } from "./lib/livestockDispatchObservation.mts";
+import { animalsPerMarketHead } from "../src/extensions/economy/generators/liveAnimalScale";
+
 const [input, output, length = "12"] = process.argv.slice(2);
 const months = Number(length);
 if (!input || !output || !Number.isSafeInteger(months) || months < 1) throw new Error("Invalid arguments");
@@ -36,7 +39,7 @@ paths.push("src/extensions/economy/generators/textileCommissions.ts", "src/exten
 paths.push("src/extensions/economy/generators/productionDiagnostics.ts", "src/extensions/economy/generators/foodObservation.ts");
 paths.push(...execFileSync("git", ["ls-files", "-z", "src", "scripts", "public", "package-lock.json"])
  .toString().split("\0").filter(path => path && !path.startsWith("src/city-generator/")));
-paths.push("scripts/lib/livestockFeedObservation.mts", "src/extensions/economy/generators/livestockFeedSchedule.ts");
+paths.push("scripts/lib/livestockDispatchObservation.mts", "scripts/lib/livestockFeedObservation.mts", "src/extensions/economy/generators/livestockFeedSchedule.ts");
 const sourceHashes = Object.fromEntries([...new Set(paths)].sort().map(path => [path, createHash("sha256").update(readFileSync(path)).digest("hex")]));
 const bytes = readFileSync(input);
 const host = createNodeSimulationHost();
@@ -54,7 +57,19 @@ let foodSettlements: {date: ReturnType<typeof clock>; markets: unknown; food: Re
 let foodImportSettlements: unknown[] = [];
 let livestockFeedSettlements: unknown[] = [];
 const observedFeedPeriods = new Set<number>();
-setTickStepObserver({ enter() {}, exit(label) {
+const observedDispatches = new Set<string>();
+let livestockDispatchSettlements: unknown[] = [];
+let dispatchArrivals: Record<string, number> = {};
+let collectingLive = false;
+const liveNames = new Map(getGoods().filter(good => good.tags.includes("liveAnimal")).map(good => [good.i, good.name]));
+setTickStepObserver({ enter(label) {
+ if (label === "production:rural") { collectingLive = true; dispatchArrivals = {}; }
+}, exit(label) {
+ if (label === "production:rural") {
+  collectingLive = false;
+  const observation = observeLivestockDispatch(dispatchArrivals, observedDispatches);
+  if (Object.keys(observation.bySpecies).length) livestockDispatchSettlements.push({date: clock(), ...observation});
+ }
  if (label === "production:livestockFeed") {
   const observation = observeLivestockFeedSettlement();
   if (observation.markets.length && !observedFeedPeriods.has(observation.period)) {
@@ -89,6 +104,9 @@ const blanket = getGoods().find(good => good.name === "Wool Blankets");
 let householdBlankets = 0;
 let householdWardrobes = 0;
 setGoodFlowObserver(flow => {
+ const liveName = liveNames.get(flow.goodId);
+ if (collectingLive && liveName && flow.direction === "source" && flow.category === "ruralHarvest")
+  dispatchArrivals[liveName] = (dispatchArrivals[liveName] ?? 0) + flow.units * animalsPerMarketHead(liveName);
  if (flow.direction !== "transfer") {
   const totals = primaryFlows[namesById.get(flow.goodId) ?? String(flow.goodId)] ??= {};
   const key = `${flow.direction}:${flow.category}`;
@@ -173,13 +191,14 @@ function snapshot() {
  const intervalFood = foodSettlements; foodSettlements = [];
  const intervalFoodImports = foodImportSettlements; foodImportSettlements = [];
  const intervalFeed = livestockFeedSettlements; livestockFeedSettlements = [];
+ const intervalDispatch = livestockDispatchSettlements; livestockDispatchSettlements = [];
  const intervalPrimary = primaryFlows; primaryFlows = {};
  const marketIds = new Set(getMarkets().filter(market => market.foodLedger).map(market => market.i));
  const marketColumn = getMarketCellColumn();
  const ruralFoodUncoveredPeople = Array.from(world.pack.cells.i).reduce((sum, id) => sum +
   (world.pack.cells.h[id] >= 20 && !marketIds.has(marketColumn[id]) ? Math.max(0, world.pack.cells.pop[id]) * world.populationRate : 0), 0);
  const result = { food: views.food(), textileSettlements: intervalTextiles, foodSettlements: intervalFood,
-  foodImportSettlements: intervalFoodImports, livestockFeedSettlements: intervalFeed, primaryFlows: intervalPrimary,
+  foodImportSettlements: intervalFoodImports, livestockFeedSettlements: intervalFeed, livestockDispatchSettlements: intervalDispatch, primaryFlows: intervalPrimary,
   cultivatedHa: Array.from(getCultivatedArea()).reduce((sum, ha) => sum + Math.max(0, ha), 0),
   ruralFoodUncoveredPeople,
   ruralFoodStock: Array.from(getRuralHouseholdFoodStock()).reduce((sum, units) => sum + Math.max(0, units), 0),

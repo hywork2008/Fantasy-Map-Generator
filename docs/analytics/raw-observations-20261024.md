@@ -95,3 +95,12 @@ node --import tsx scripts/auditWoolSupply.mts docs/analytics/inputs/salt-s0-alig
 node --import tsx scripts/auditWoolSupply.mts docs/analytics/inputs/salt-s0-aligned-20261023/province-101.fmg docs/analytics/raw/economy-e1-feed-calendar-final-province-101-20261024.json 12
 node --import tsx scripts/summarizeEconomyE1.mts docs/analytics/economy-e1-feed-calendar-comparison-20261024.json docs/analytics/raw/economy-e1-feed-seasonal36-world-102-20261024.json docs/analytics/raw/economy-e1-feed-calendar-final-world-102-20261024.json docs/analytics/raw/economy-e1-feed-seasonal-province-101-20261024.json docs/analytics/raw/economy-e1-feed-calendar-final-province-101-20261024.json
 ```
+
+## E1 生体出荷と市場入荷（同日追補）
+
+| ファイル（docs/analytics/raw/） | バイト数 | SHA-256 |
+| --- | ---: | --- |
+| economy-e1-dispatch-final-world-102-20261024.json | 57305607 | `472c4a7ef65500b3d5a2988507ec6dbb7bd1ce8b04d5c6b85eb221a28ed0abfd` |
+| economy-e1-dispatch-final-province-101-20261024.json | 2553395 | `bc50ebd310429255fc9dc034af785122d91fd9e82eac85c4b5451a750588f43b` |
+
+再生成は`node --import tsx scripts/auditWoolSupply.mts <固定入力.fmg> <上記raw出力> 12`。固定入力は`docs/analytics/inputs/salt-s0-aligned-20261023/`の同名World/Province。比較は`scripts/summarizeEconomyE1.mts`に前回calendar-finalと今回dispatch-finalのWorld/Province計4出力を渡す。

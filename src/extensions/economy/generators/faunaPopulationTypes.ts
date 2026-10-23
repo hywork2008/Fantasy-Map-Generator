@@ -16,3 +16,19 @@ export interface FaunaCohorts {
   breeding: number;
   old: number;
 }
+
+/** Latest source-cell dispatch receipt and fractional demand, never a bank of real animals. */
+export interface LivestockDispatchState {
+  period: number;
+  remainderHeads: number;
+  /** Latest read-only observation, excluded from archive serialization. */
+  observation?: LivestockDispatchObservation;
+}
+
+export interface LivestockDispatchObservation {
+  heads: number;
+  marketUnits: number;
+  stockTracked: boolean;
+  herdBeforeHeads: number | null;
+  herdAfterHeads: number | null;
+}

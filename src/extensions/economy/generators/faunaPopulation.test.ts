@@ -3,6 +3,7 @@ import { simulationContext, worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
   clearEconomyContext,
+  getLivestockDispatchTable,
   getOrCreateFaunaStockTable,
   getOrCreateMarketGoodProductionTotals,
   getOrCreateNonFoodFaunaDemandHistory,
@@ -22,6 +23,7 @@ import {
   AMBIENT_DOGS_DEMAND_PER_PERSON,
   clearFaunaPopulation,
   DOMESTICATED_CAPACITY_MONTHS_PROXY,
+  dispatchDomesticatedFauna,
   drawDomesticatedFaunaOfftake,
   drawWildFaunaOfftake,
   GRAZED_EXCESS_ANNUAL_ADJUSTMENT,
@@ -532,6 +534,55 @@ describe("faunaPopulation", () => {
 
       expect(getRealNonMarketDemand(0, HORSES_GOOD as never)).toBe(190);
       expect(getRealNonMarketDemand(0, CAMELS_GOOD as never)).toBe(0); // convoys go with horses only
+    });
+  });
+
+  describe("source-cell live dispatch", () => {
+    beforeEach(() => {
+      forestCellWorld();
+      worldContext.options = { ...worldContext.options, ruralEcosystemDetail: "detailed" };
+      simulationContext.currentYear = 1300;
+      simulationContext.currentMonth = 1;
+      getOrCreateFaunaStockTable()!["0:Pig"] = { young: 0, breeding: 0, old: 2 };
+    });
+
+    it("withdraws only whole available animals and cannot replay a period after serialization", () => {
+      const table = getOrCreateFaunaStockTable()!;
+      expect(dispatchDomesticatedFauna(0, PIG_GOOD as never, 100)).toBe(2);
+      expect(table["0:Pig"].old).toBe(0);
+      expect(getLivestockDispatchTable()!["0:Pig"].observation?.heads).toBe(2);
+      const saved = JSON.stringify(getLivestockDispatchTable());
+      expect(saved).not.toContain("observation");
+      Object.assign(getLivestockDispatchTable()!, JSON.parse(saved));
+      expect(dispatchDomesticatedFauna(0, PIG_GOOD as never, 100)).toBe(0);
+      simulationContext.currentMonth = 2;
+      expect(dispatchDomesticatedFauna(0, PIG_GOOD as never, 100)).toBe(0);
+    });
+
+    it("carries fractional demand, not real animals or an unmet whole-head backlog", () => {
+      for (let month = 1; month <= 5; month++) {
+        simulationContext.currentMonth = month;
+        expect(dispatchDomesticatedFauna(0, PIG_GOOD as never, 0.2)).toBe(month === 5 ? 1 : 0);
+      }
+      simulationContext.currentMonth = 6;
+      expect(dispatchDomesticatedFauna(0, PIG_GOOD as never, 50)).toBe(1);
+      getOrCreateFaunaStockTable()!["0:Pig"] = { young: 0, breeding: 0, old: 10 };
+      simulationContext.currentMonth = 7;
+      expect(dispatchDomesticatedFauna(0, PIG_GOOD as never, 0.2)).toBe(0);
+    });
+
+    it("previews without writing a dispatch table or reducing the herd", () => {
+      const before = JSON.stringify(simulationContext.extensions);
+      expect(dispatchDomesticatedFauna(0, PIG_GOOD as never, 2, true)).toBe(2);
+      expect(dispatchDomesticatedFauna(0, PIG_GOOD as never, 2, true)).toBe(2);
+      expect(JSON.stringify(simulationContext.extensions)).toBe(before);
+      expect(getLivestockDispatchTable()).toBeNull();
+    });
+
+    it("converts whole physical horses to fractional market bundles exactly", () => {
+      getOrCreateFaunaStockTable()!["0:Horses"] = { young: 0, breeding: 0, old: 2 };
+      expect(dispatchDomesticatedFauna(0, HORSES_GOOD as never, 1)).toBe(2 / HORSES_PER_MARKET_HEAD);
+      expect(getOrCreateFaunaStockTable()!["0:Horses"].old).toBe(0);
     });
   });
 
