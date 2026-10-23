@@ -36,7 +36,7 @@ paths.push("src/extensions/economy/generators/textileCommissions.ts", "src/exten
 paths.push("src/extensions/economy/generators/productionDiagnostics.ts", "src/extensions/economy/generators/foodObservation.ts");
 paths.push(...execFileSync("git", ["ls-files", "-z", "src", "scripts", "public", "package-lock.json"])
  .toString().split("\0").filter(path => path && !path.startsWith("src/city-generator/")));
-paths.push("scripts/lib/livestockFeedObservation.mts");
+paths.push("scripts/lib/livestockFeedObservation.mts", "src/extensions/economy/generators/livestockFeedSchedule.ts");
 const sourceHashes = Object.fromEntries([...new Set(paths)].sort().map(path => [path, createHash("sha256").update(readFileSync(path)).digest("hex")]));
 const bytes = readFileSync(input);
 const host = createNodeSimulationHost();

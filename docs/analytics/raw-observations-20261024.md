@@ -78,3 +78,20 @@ node --import tsx scripts/auditWoolSupply.mts docs/analytics/inputs/salt-s0-alig
 ```sh
 node --import tsx scripts/summarizeEconomyE1.mts docs/analytics/economy-e1-seasonal-feed-comparison-20261024.json docs/analytics/raw/economy-e1-feed-before36-world-102-20261024.json docs/analytics/raw/economy-e1-feed-seasonal36-world-102-20261024.json docs/analytics/raw/economy-e1-food-routes-final-province-101-20261024.json docs/analytics/raw/economy-e1-feed-seasonal-province-101-20261024.json
 ```
+
+## E1 飼料決済の期間（同日追補）
+
+[記録](economy-e1-feed-calendar-20261024.md)、[派生比較](economy-e1-feed-calendar-comparison-20261024.json)。同じ固定2入力・設定で12か月。変更前Worldは既存seasonal36の最初の12区間、Provinceは既存seasonal出力。変更前11期間、変更後12期間で分母が異なる。最終版とその直前の観測の初期/全区間が一致し、重複出力は削除した。
+
+| ファイル（docs/analytics/raw/） | バイト数 | SHA-256 |
+| --- | ---: | --- |
+| economy-e1-feed-calendar-final-world-102-20261024.json | 57083630 | `18d83b20f643b98591e8db6b69bb248818d48db1137ccb9149c21b086db79018` |
+| economy-e1-feed-calendar-final-province-101-20261024.json | 2522714 | `a2d87f994e8d4ce48069c60525ce674f7cd76b3d6d645e7a9e01d29f5bdade02` |
+
+最終版の再実行:
+
+```sh
+node --import tsx scripts/auditWoolSupply.mts docs/analytics/inputs/salt-s0-aligned-20261023/world-102.fmg docs/analytics/raw/economy-e1-feed-calendar-final-world-102-20261024.json 12
+node --import tsx scripts/auditWoolSupply.mts docs/analytics/inputs/salt-s0-aligned-20261023/province-101.fmg docs/analytics/raw/economy-e1-feed-calendar-final-province-101-20261024.json 12
+node --import tsx scripts/summarizeEconomyE1.mts docs/analytics/economy-e1-feed-calendar-comparison-20261024.json docs/analytics/raw/economy-e1-feed-seasonal36-world-102-20261024.json docs/analytics/raw/economy-e1-feed-calendar-final-world-102-20261024.json docs/analytics/raw/economy-e1-feed-seasonal-province-101-20261024.json docs/analytics/raw/economy-e1-feed-calendar-final-province-101-20261024.json
+```

@@ -79,6 +79,8 @@ import {
 } from "./guildKnowledgeTypes";
 import { GUILD_PROFIT_SHARE, GuildTreasury } from "./guildTreasury";
 import { harvestLivestockForage, settleLivestockFeed } from "./livestockFeed";
+import { scheduleLivestockFeedPeriods } from "./livestockFeedSchedule";
+import { withLivestockFeedPeriod } from "./livestockFeedState";
 import { isLuxuryValueDemandEnabled, luxuryTierWeights } from "./luxuryDemand";
 import { type LuxuryTier, luxuryTierOf } from "./luxuryTiers";
 import { beginFlowCycleCapture, recordFlowCycleEnd } from "./marketFlowDiagnostics";
@@ -259,7 +261,11 @@ export class ProductionModule {
     return this.worldContext.pack.states?.[stateId]?.salesTax ?? 0;
   }
 
-  produce(): void {
+  produce(feedPeriod?: number): void {
+    withLivestockFeedPeriod(feedPeriod, () => this.produceCycle());
+  }
+
+  private produceCycle(): void {
     TIME && console.time("generateProduction");
     try {
       const cycle = measureTickStep("production:startCycle", () => this.startProductionCycle());
@@ -309,6 +315,7 @@ export class ProductionModule {
   }
 
   private startProductionCycle(): ProductionCycle {
+    scheduleLivestockFeedPeriods(0);
     // Cleared here (start of cycle) rather than after Taxes.collectTaxes() so the previous
     // cycle's deals stay visible to transaction-history UI (markets-overview.ts,
     // market-deals-overview.ts, production-overview.ts) for the whole ~30-day interval between

@@ -7,7 +7,6 @@ import {
   getMarkets,
   getOrCreateFaunaStockTable,
   getOrCreateLivestockFeedTable,
-  getSimulationMonth,
   getWorldContext
 } from "../economyContext";
 import { WORKABLE_DAYS_PER_ADULT } from "./agriculturalLandUse";
@@ -26,7 +25,7 @@ import {
   LIVESTOCK_FEED_CASH_SHARE,
   type LivestockFeedLedger
 } from "./livestockFeedPolicy";
-import { livestockFeedPeriod } from "./livestockFeedState";
+import { livestockFeedMonth, livestockFeedPeriod } from "./livestockFeedState";
 import type { Market } from "./marketTypes";
 
 export function getLivestockMonthlyFeedNeedKg(cellId: number): number {
@@ -67,7 +66,7 @@ function reserveAfterFeedingKg(cellId: number): number {
     cellId,
     getLivestockMonthlyFeedNeedKg(cellId) * 12,
     getPastureAreaUsedHectares(cellId)
-  ).reserveAfterMonthKg[getSimulationMonth() - 1];
+  ).reserveAfterMonthKg[livestockFeedMonth() - 1];
 }
 
 /** Runs before military procurement. Only unused pasture growth can become hay or market Fodder. */
@@ -76,7 +75,7 @@ export function harvestLivestockForage(): void {
   if (!table) return;
   const world = getWorldContext();
   const period = livestockFeedPeriod();
-  const month = getSimulationMonth() - 1;
+  const month = livestockFeedMonth() - 1;
   const marketCells = getMarketCellColumn();
   const fodder = getGoods().find(good => good.name === "Fodder" && isGoodEnabled(good));
   const offers = new Map<number, { cell: number; kg: number }[]>();
@@ -90,7 +89,7 @@ export function harvestLivestockForage(): void {
       continue;
     table[cell] ??= emptyLedger();
     const row = table[cell];
-    if (row.harvestPeriod === period) continue;
+    if (row.harvestPeriod !== undefined && row.harvestPeriod >= period) continue;
     const growth = getPastureGrowth(world, cell);
     const grown = getPastureAreaUsedHectares(cell) * growth.annualKgPerHa * growth.weights[month];
     const need = getLivestockMonthlyFeedNeedKg(cell);
@@ -214,7 +213,7 @@ export function settleLivestockFeed(): void {
   const active: number[] = [];
   for (const cell of getWorldContext().pack.cells?.i ?? []) {
     const row = table[cell];
-    if (!row || row.harvestPeriod !== period || row.feedPeriod === period) continue;
+    if (!row || row.harvestPeriod !== period || (row.feedPeriod !== undefined && row.feedPeriod >= period)) continue;
     row.requiredKg = getLivestockMonthlyFeedNeedKg(cell);
     row.pastureConsumedKg = Math.min(row.requiredKg, row.grazingReservedKg);
     row.hayConsumedKg = 0;

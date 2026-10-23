@@ -2,17 +2,17 @@
 import { getGoods, getMarkets } from "../../src/extensions/economy/context/trade";
 import { getOrCreateLivestockFeedTable, getMarketCellColumn } from "../../src/extensions/economy/context/cellTables";
 import { getHusbandryWorkers } from "../../src/extensions/economy/context/agriculture";
-import { getWorldContext, getSimulationMonth } from "../../src/extensions/economy/economyContext";
+import { getWorldContext } from "../../src/extensions/economy/economyContext";
 import { calculateHusbandryDemand, getPastureAreaUsedHectares } from "../../src/extensions/economy/generators/husbandry";
 import { getLivestockMonthlyFeedNeedKg } from "../../src/extensions/economy/generators/livestockFeed";
-import { livestockFeedPeriod } from "../../src/extensions/economy/generators/livestockFeedState";
+import { livestockFeedMonth, livestockFeedPeriod } from "../../src/extensions/economy/generators/livestockFeedState";
 import { FODDER_DM_KG_PER_LOT, getPastureGrowth, getLivestockHayPlan, HAY_WORK_DAYS_PER_TONNE_DM } from "../../src/extensions/economy/generators/livestockFeedPolicy";
 import { WORKABLE_DAYS_PER_ADULT } from "../../src/extensions/economy/generators/agriculturalLandUse";
 
 export function observeLivestockFeedSettlement() {
   const table = getOrCreateLivestockFeedTable() ?? {};
   const world = getWorldContext();
-  const month = getSimulationMonth() - 1;
+  const month = livestockFeedMonth() - 1;
   const period = livestockFeedPeriod();
   const column = getMarketCellColumn();
   const fodder = getGoods().find(good => good.name === "Fodder");

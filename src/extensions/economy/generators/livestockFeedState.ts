@@ -1,3 +1,5 @@
+import { getCadencePhase } from "../context/cadencePhases";
+import { registerContextFallbackReset } from "../context/economyApi";
 import {
   getOrCreateLivestockFeedTable,
   getSimulationMonth,
@@ -6,8 +8,28 @@ import {
 } from "../economyContext";
 import { ANNUAL_FEED_DM_KG_PER_HEAD, getPastureGrowth } from "./livestockFeedPolicy";
 
+let activeFeedPeriod: number | undefined;
+registerContextFallbackReset(() => {
+  activeFeedPeriod = undefined;
+});
+
+export function withLivestockFeedPeriod<T>(period: number | undefined, run: () => T): T {
+  const previous = activeFeedPeriod;
+  activeFeedPeriod = period ?? previous;
+  try {
+    return run();
+  } finally {
+    activeFeedPeriod = previous;
+  }
+}
+
 export function livestockFeedPeriod(): number {
-  return getSimulationYear() * 12 + getSimulationMonth() - 1;
+  const next = getCadencePhase("livestockFeedNextPeriod");
+  return activeFeedPeriod ?? (next > 0 ? next - 1 : getSimulationYear() * 12 + getSimulationMonth() - 1);
+}
+
+export function livestockFeedMonth(): number {
+  return (((livestockFeedPeriod() % 12) + 12) % 12) + 1;
 }
 
 /** Before the first real settlement, missing history is neutral rather than fabricated fodder. */

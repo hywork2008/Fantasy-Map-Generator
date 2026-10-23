@@ -135,7 +135,7 @@ const worlds = inputs.map(path => {
     sourceTreeSha256: run.sourceTreeSha256,
     relevantSourceHashes: Object.fromEntries(
       Object.entries(run.sourceHashes).filter(([name]) =>
-        /\/(developmentPotential|foodLedgerConsumption|foodProduction|husbandry|livestockFeed|livestockFeedPolicy|livestockFeedState)\.ts$/.test(name)
+        /\/(developmentPotential|foodLedgerConsumption|foodProduction|husbandry|livestockFeed|livestockFeedPolicy|livestockFeedState|livestockFeedSchedule|production-generator|simulation|cadencePhases)\.ts$/.test(name)
       )
     ),
     initial: point(run.initial),

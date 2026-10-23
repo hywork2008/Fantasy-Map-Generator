@@ -182,6 +182,7 @@ import { InnStays } from "./generators/innStays";
 import { LeveeSites } from "./generators/leveeSites";
 import { Levees } from "./generators/levees";
 import { clearLiveAnimalCatchAccumulators } from "./generators/liveAnimalCatch";
+import { scheduleLivestockFeedPeriods } from "./generators/livestockFeedSchedule";
 import { LNGPlants } from "./generators/lngPlants";
 import { clearFlowDiagnostics } from "./generators/marketFlowDiagnostics";
 import { clearMarketManagers, syncMarketManagers } from "./generators/marketManagers";
@@ -527,12 +528,17 @@ function isFastForwardSettlementPayload(value: unknown): value is { readonly mon
   return typeof monthsElapsed === "number" && Number.isFinite(monthsElapsed) && monthsElapsed > 0;
 }
 
-function isSkipFoodConsumptionPayload(value: unknown): value is { readonly skipFoodConsumption: true } {
+function isSkipFoodConsumptionPayload(
+  value: unknown
+): value is { readonly skipFoodConsumption: true; readonly livestockFeedPeriod?: number } {
   return (
     typeof value === "object" &&
     value !== null &&
     !Array.isArray(value) &&
-    Object.keys(value).length === 1 &&
+    Object.keys(value).every(key => key === "skipFoodConsumption" || key === "livestockFeedPeriod") &&
+    ((value as Record<string, unknown>).livestockFeedPeriod === undefined ||
+      (Number.isSafeInteger((value as Record<string, unknown>).livestockFeedPeriod) &&
+        Number((value as Record<string, unknown>).livestockFeedPeriod) >= 0)) &&
     (value as Record<string, unknown>).skipFoodConsumption === true
   );
 }
@@ -826,7 +832,9 @@ function registerEconomyCommands(api: SimulationExtensionAPI): void {
         throw new Error("economy.production.settle does not accept a payload");
       }
 
-      measureTickStep("production:produce", () => Production.produce());
+      measureTickStep("production:produce", () =>
+        Production.produce(skipFoodConsumption ? value.livestockFeedPeriod : undefined)
+      );
       measureTickStep("production:householdHeating", () => settleMonthlyHeating());
       // Completed forge Goods are transferred from market stock to the queue before the next
       // planning pass refreshes maintenance and consumable demand.
@@ -1781,6 +1789,7 @@ function register(api: SimulationExtensionAPI): () => void {
   // newly added Ingots/Cats begin at zero stock (no duplicated wealth).
   on("fmg:world-loaded", () => {
     if (!api.isExtensionEnabled(ECONOMY_EXTENSION_ID)) return;
+    scheduleLivestockFeedPeriods(0);
     migrateSaltworksOwnership();
     Goods.sync();
     Markets.sync();
@@ -1835,6 +1844,7 @@ function register(api: SimulationExtensionAPI): () => void {
   // due month instead of collapsing a whole year into one settle.
   let productionDirty = false;
   let productionSettlementsDue = 0;
+  let productionFeedPeriods: number[] = [];
   let productionSettlementScheduled = false;
   let foodSettlementsAlreadyApplied = 0;
   // Fast-Forward (docs/plan/advance-time-fast-forward.md §4.3(b)): captures whether the due months
@@ -1857,12 +1867,12 @@ function register(api: SimulationExtensionAPI): () => void {
     productionDirty = true;
   };
 
-  const runOneProductionSettlement = (skipFoodConsumption = false) => {
+  const runOneProductionSettlement = (skipFoodConsumption = false, livestockFeedPeriod?: number) => {
     measureTickStep("production:settle", () => {
       const commit = api.dispatchExtensionCommand({
         extensionId: ECONOMY_EXTENSION_ID,
         name: "production.settle",
-        payload: skipFoodConsumption ? { skipFoodConsumption: true } : undefined
+        payload: skipFoodConsumption ? { skipFoodConsumption: true, livestockFeedPeriod } : undefined
       });
       if (!commit) return;
       notifyEconomyGoodsChanged(false);
@@ -1901,6 +1911,8 @@ function register(api: SimulationExtensionAPI): () => void {
       const settlementsWithFoodAlreadyApplied = Math.min(dueSettlements, foodSettlementsAlreadyApplied);
       const fastForward = productionSettlementsFastForward;
       if (times === 0) return;
+      const feedPeriods = productionFeedPeriods;
+      productionFeedPeriods = [];
       productionSettlementsDue = 0;
       productionDirty = false;
       productionSettlementsFastForward = false;
@@ -1911,7 +1923,8 @@ function register(api: SimulationExtensionAPI): () => void {
         if (fastForward) {
           runOneFastForwardSettlement(times);
         } else {
-          for (let i = 0; i < times; i++) runOneProductionSettlement(i < settlementsWithFoodAlreadyApplied);
+          for (let i = 0; i < times; i++)
+            runOneProductionSettlement(i < settlementsWithFoodAlreadyApplied, feedPeriods[i]);
         }
       });
     });
@@ -2507,6 +2520,7 @@ function register(api: SimulationExtensionAPI): () => void {
   });
 
   registerEconomyTickSystem("economy.foodCalendar", (context, _writer) => {
+    scheduleLivestockFeedPeriods(0);
     const { years: deltaYears, months: deltaMonths, days: deltaDays } = context.delta;
     const effectiveDays = deltaDays + deltaMonths * 30 + deltaYears * 365;
     let daysSinceLastProduction = getCadencePhase("productionDays");
@@ -2545,6 +2559,7 @@ function register(api: SimulationExtensionAPI): () => void {
 
     if (settledMonths > 0) {
       productionSettlementsDue += settledMonths;
+      productionFeedPeriods.push(...scheduleLivestockFeedPeriods(settledMonths));
       foodSettlementsAlreadyApplied += foodSettlementsThisTick;
       // Fast-Forward (docs/plan/advance-time-fast-forward.md §4.3(b)): captured here, the one place
       // in this chain that still has `context` (and therefore isBulkAdvance), for

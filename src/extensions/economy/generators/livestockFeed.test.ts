@@ -8,6 +8,7 @@ vi.mock("./seasonalCropClimate", async original => ({
 
 import { simulationContext, worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
+import { getCadencePhase, setCadencePhase } from "../context/cadencePhases";
 import {
   clearEconomyContext,
   getGoods,
@@ -30,7 +31,14 @@ import { type GoodFlowRecord, setGoodFlowObserver } from "./goodsBalanceLedger";
 import { getGrazedCarryingCapacity } from "./husbandry";
 import { getLivestockFodderOrderLots, harvestLivestockForage, settleLivestockFeed } from "./livestockFeed";
 import { FODDER_DM_KG_PER_LOT } from "./livestockFeedPolicy";
-import { getAnnualLivestockFeedFactor, getLivestockFeedCoverage } from "./livestockFeedState";
+import { scheduleLivestockFeedPeriods } from "./livestockFeedSchedule";
+import {
+  getAnnualLivestockFeedFactor,
+  getLivestockFeedCoverage,
+  livestockFeedMonth,
+  livestockFeedPeriod,
+  withLivestockFeedPeriod
+} from "./livestockFeedState";
 import { Markets } from "./markets-generator";
 import type { FoodLedger } from "./marketTypes";
 import { MilitaryResources } from "./militaryResources";
@@ -96,6 +104,62 @@ describe("physical livestock feed budget", () => {
     flows = [];
     setGoodFlowObserver(flow => flows.push(flow));
   });
+  it("settles every deferred cadence period once, using its season rather than the execution month", () => {
+    simulationContext.currentMonth = 1;
+    const schedule = scheduleLivestockFeedPeriods;
+    schedule(0);
+    simulationContext.currentMonth = 4;
+    const periods = schedule(3);
+    expect(periods).toEqual([12001, 12002, 12003]);
+    climate.temperatures = [0, 12, 22, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    for (const period of periods)
+      withLivestockFeedPeriod(period, () => {
+        expect(livestockFeedMonth()).toBe((period % 12) + 1);
+        harvestLivestockForage();
+        settleLivestockFeed();
+        const row = rows()[0];
+        const expectedGrowth = period === 12001 ? 12500 : period === 12002 ? 25000 : 0;
+        expect(row.pastureGrownKg).toBeCloseTo(expectedGrowth);
+        const settled = structuredClone(row);
+        harvestLivestockForage();
+        settleLivestockFeed();
+        expect(row).toEqual(settled);
+      });
+    expect(rows()[0].samples.map(sample => sample.period)).toEqual(periods);
+    const final = structuredClone(rows()[0]);
+    withLivestockFeedPeriod(periods[0], () => {
+      harvestLivestockForage();
+      settleLivestockFeed();
+    });
+    expect(rows()[0]).toEqual(final);
+    expect(livestockFeedPeriod()).toBe(periods[2]);
+  });
+
+  it("continues the saved next period after reload and across the year boundary", () => {
+    simulationContext.currentMonth = 11;
+    const schedule = scheduleLivestockFeedPeriods;
+    schedule(0);
+    expect(schedule(2)).toEqual([12011, 12012]);
+    // The cadence column is serialized on the Economy slice; reconstruct the scheduler
+    // against its restored value rather than anchoring again to the execution date.
+    const savedNext = getCadencePhase("livestockFeedNextPeriod");
+    simulationContext.currentYear = 1001;
+    simulationContext.currentMonth = 3;
+    setCadencePhase("livestockFeedNextPeriod", savedNext);
+    expect(scheduleLivestockFeedPeriods(2)).toEqual([12013, 12014]);
+    expect(getCadencePhase("livestockFeedNextPeriod")).toBe(12015);
+  });
+
+  it("restores the active period when a production cycle throws", () => {
+    const before = livestockFeedPeriod();
+    expect(() =>
+      withLivestockFeedPeriod(11999, () => {
+        throw new Error("interrupted");
+      })
+    ).toThrow("interrupted");
+    expect(livestockFeedPeriod()).toBe(before);
+  });
+
   afterEach(() => {
     setGoodFlowObserver(null);
     clearEconomyContext();
