@@ -7,7 +7,7 @@ const hash = (bytes: string | Uint8Array) => createHash("sha256").update(bytes).
 const worlds = inputs.map(path => {
  const bytes = readFileSync(path);
  const run = JSON.parse(bytes.toString());
- if (run.samples.length !== 12 || ![2, 3, 4].includes(run.schemaVersion)) throw new Error(`Incomplete E0 run: ${path}`);
+ if (run.samples.length !== 12 || ![2, 3, 4, 5].includes(run.schemaVersion)) throw new Error(`Incomplete E0 run: ${path}`);
  const totals: Record<string, number> = {};
  const byMarket: Record<string, Record<string, number>> = {};
  const intervals = run.samples.map((sample: any) => {
@@ -100,6 +100,7 @@ const worlds = inputs.map(path => {
  const annualKg = (key: string, denominator: string) => totals[denominator] > 0
   ? totals[key] * run.foodLedgerKgPerUnit * 12 / totals[denominator] : null;
  return {path, sha256: hash(bytes), inputSha256: run.inputSha256, sourceTreeSha256: run.sourceTreeSha256,
+  processingCounterPolicy: run.processingCounterPolicy ?? "Legacy tracked-retail-only processing counters; untracked fresh-food processing is incomplete",
   initialProfile: run.initialProfile, worldSettings: run.worldSettings, start: run.initial.date, end: run.samples.at(-1).date,
   foodLedgerKgPerUnit: run.foodLedgerKgPerUnit, foodTotals: totals, foodByMarket: byMarket, foodIntervals: intervals,
   foodKgPerResidentYear: {ruralNeed: annualKg("ruralNeed", "ruralPeopleMonths"),
@@ -120,5 +121,5 @@ writeFileSync(output, JSON.stringify({schemaVersion: 1, summarizerSha256: hash(r
  "Rural unmet is measured per market per settlement, before aggregation; rounding excess is retained separately in supplied totals.",
  "Urban budget gap is the first binding constraint; stock gap is the remaining affordable but unavailable quantity, not a counterfactual attribution.",
  "Schema 3 textileByMarket uses every actual household textile settlement. textileSnapshotTotals remains the old endpoint-only series and is not an exact demand denominator.",
- "Source food counters cover source-planner harvest, not chilled additions. Recorded processing is incomplete for goods outside foodProcessingLedger tracking; zero counters do not prove zero processing.",
+ "Source food counters cover source-planner harvest, not chilled additions. Processing coverage depends on the recorded run policy; legacy omissions are never backfilled.",
  "Grain-equivalent mass is a model contract, not a historical or nutritional benchmark. Non-grain rural self-consumption is not measured."], worlds}, null, 2) + "\n");

@@ -220,7 +220,7 @@ try {
   samples.push(snapshot());
   console.error(`[wool-supply] ${i + 1}/${months}`);
  }
- writeFileSync(output, JSON.stringify({ schemaVersion: 4, initialProfile, foodLedgerKgPerUnit: WAIN_KG, goodMeasures: GOOD_MEASURES, sourceTreeSha256: createHash("sha256").update(JSON.stringify(sourceHashes)).digest("hex"), inputSha256: createHash("sha256").update(bytes).digest("hex"), seed: host.world.seed,
+ writeFileSync(output, JSON.stringify({ schemaVersion: 5, processingCounterPolicy: "Tracked retail goods and all fresh-food inputs; legacy missing history is not backfilled", initialProfile, foodLedgerKgPerUnit: WAIN_KG, goodMeasures: GOOD_MEASURES, sourceTreeSha256: createHash("sha256").update(JSON.stringify(sourceHashes)).digest("hex"), inputSha256: createHash("sha256").update(bytes).digest("hex"), seed: host.world.seed,
   settlementPattern: host.world.options.initialSettlementPattern, worldSettings: sim.worldSettings, sourceHashes, modelDensity, sheepAnnualWoolKg: SHEEP_ANNUAL_WOOL_KG, woolKgPerLot: WOOL_KG_PER_MARKET_LOT,
   notes: ["Footprint is sum(heads/model heads per hectare); it diagnoses simultaneous claims against the code's own ceilings, not an empirical carrying-capacity estimate.", "Headcounts include young cohorts. Monthly yield is a smoothed forecast; recorded ruralHarvest is actual market inflow.", "Stocks are market-only. Population is real residents; claims and occupied-cell examples are snapshots."], initial, samples }, null, 2) + "\n");
 } finally { setTickStepObserver(null); setGoodFlowObserver(null); host.dispose(); }

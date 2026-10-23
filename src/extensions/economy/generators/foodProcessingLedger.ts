@@ -97,10 +97,12 @@ export function recordFoodDeliveredExport(market: Market, goodName: string, unit
 /** Called by the manufacturing path after recipe ingredients have actually been acquired. */
 export function recordFoodProcessingConsumption(market: Market, goodName: string, units: number): void {
   const ledger = getGoodLedger(market, goodName);
-  if (!ledger || units <= 0) return;
-  ledger.processingConsumption += units;
+  if (!Number.isFinite(units) || units <= 0) return;
+  if (ledger) ledger.processingConsumption += units;
   const good = getGoods().find(candidate => candidate.name === goodName);
-  if (good) recordCumulativeCellFoodProcessing(good.i, units);
+  // Source-cell preservation also handles Fish/Game/Shellfish outside the retail ledger.
+  // Keep their raw inputs visible without creating a new retail demand or duplicating tracked inputs.
+  if (good && (ledger || isFreshFoodGood(good))) recordCumulativeCellFoodProcessing(good.i, units);
 }
 
 /**
