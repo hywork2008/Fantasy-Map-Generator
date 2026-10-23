@@ -9,7 +9,13 @@ import { pointInPolygon, polygonCentroid } from "./geom";
 import { facePoints } from "./mesh";
 import { RAMP_GRADE } from "./rampPlanning";
 import { MAX_ROAD_GRADE } from "./roadGrading";
-import { castleGatePoint, castleRamp, castleSiteFaceIds, setCastlePlatform } from "./terrainEditing";
+import {
+  castleGatePoint,
+  castleRamp,
+  castleSiteFaceIds,
+  generatedCastleTerrain,
+  setCastlePlatform
+} from "./terrainEditing";
 import { cityTerrain } from "./terrainElevation";
 import { collectTownRoads } from "./townRoads";
 
@@ -213,5 +219,23 @@ describe("castle ramp up a cliff", () => {
     expect(parseDocument(JSON.stringify(broken))).toBeNull();
     expect(setCastlePlatform(next, castle.id, null)!.terrain).toBeUndefined();
     expect(deleteCastle(next, castle.id)!.terrain).toBeUndefined();
+  });
+});
+
+describe("castle ground through generation", () => {
+  it("rebuilds an edited platform at the same rise, or the requested ground, on the generated castles", () => {
+    const { doc, castle, faceIds } = study();
+    const top = Math.max(...faceIds.map(id => doc.mesh.faces[id].properties.elevation));
+    const edited = setCastlePlatform(doc, castle.id, { levelMeters: top + 9, edge: { kind: "cliff" } })!;
+    const regenerated: CityDocument = { ...structuredClone(doc), terrain: undefined };
+    const kept = generatedCastleTerrain(regenerated, edited, undefined)!;
+    expect(kept.features[0].levelMeters).toBeCloseTo(top + 9, 6);
+    expect(kept.features[0].edge).toEqual({ kind: "cliff" });
+    expect(kept.ramps?.length).toBe(1);
+    expect(generatedCastleTerrain(regenerated, edited, { ground: "natural" })).toBeUndefined();
+    const slope = generatedCastleTerrain(regenerated, doc, { ground: "slope", groundRiseMeters: 6 })!;
+    expect(slope.features[0].levelMeters).toBeCloseTo(top + 6, 6);
+    expect(slope.features[0].edge).toEqual({ kind: "slope", runMeters: 10 });
+    expect(slope.ramps).toBeUndefined();
   });
 });

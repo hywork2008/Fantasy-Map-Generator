@@ -22,6 +22,12 @@ const SAMPLE_METERS = 2;
 const CONNECT_METERS = 80;
 const MIN_RISE_METERS = 0.5;
 
+/**
+ * Vitruvius (De architectura I.5.2) has the approach run so that climbers keep their right side, which the shield
+ * does not cover, toward the wall. The other way round costs as much as this many metres of extra connection.
+ */
+const LEFT_HANDED_PENALTY_METERS = 30;
+
 export type RampFailure = "no-rise" | "no-room";
 
 interface Loop {
@@ -233,6 +239,14 @@ function selfOverlaps(path: readonly Point[]): boolean {
   return false;
 }
 
+/** True when someone climbing the first run, the one along the cliff below the gate, has the cliff on the right. */
+function climbsRightSideToWall(path: readonly Point[], outward: Point): boolean {
+  if (path.length < 2) return true;
+  const up = sub(path[0], path[1]);
+  // Plan coordinates have y north, so the right of (x, y) is (y, -x); the wall lies against the outward normal.
+  return up[1] * -outward[0] + -up[0] * -outward[1] > 0;
+}
+
 /** True when every stretch of the deck stays within the ramp grade. */
 function withinGrade(path: readonly Point[], levels: readonly number[]): boolean {
   for (let i = 1; i < path.length; i++)
@@ -388,7 +402,10 @@ export function planPlatformRamp(
       }
       const line = [inside, ...path, ...(joint ? [joint] : [])];
       const deck = [platform.levelMeters, ...levels, ...(joint ? [ground(joint)] : [])];
-      const score = (joint ? len(sub(joint, foot)) : CONNECT_METERS * 2) + 0.05 * total;
+      const score =
+        (joint ? len(sub(joint, foot)) : CONNECT_METERS * 2) +
+        0.05 * total +
+        (climbsRightSideToWall(path, normal) ? 0 : LEFT_HANDED_PENALTY_METERS);
       if (!best || score < best.score) best = { line, levels: deck, score };
     }
   if (!best) return "no-room";

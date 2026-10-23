@@ -1,4 +1,4 @@
-import type { CastlePlan, CityDocument, Point } from "../types/document";
+import type { CastlePlan, CastleSettings, CityDocument, Point } from "../types/document";
 import type { Id } from "../types/primitives";
 import type { TerrainPlatform, TerrainRamp } from "../types/terrain";
 import { planPlatformRamp } from "./rampPlanning";
@@ -78,4 +78,53 @@ export function removeOwnedTerrain(document: CityDocument, ownerId: Id): void {
   if (ramps?.length) document.terrain.ramps = ramps;
   else delete document.terrain.ramps;
   if (!document.terrain.features.length && !document.terrain.ramps) delete document.terrain;
+}
+
+export const DEFAULT_CASTLE_RISE_METERS = 12;
+
+/** Highest elevation among a castle's land cells. */
+function castleSiteTop(document: CityDocument, castle: CastlePlan): number | null {
+  const levels = castleSiteFaceIds(document, castle)
+    .map(id => document.mesh.faces[id])
+    .filter(face => face?.properties.water === "land")
+    .map(face => face.properties.elevation);
+  return levels.length ? Math.max(...levels) : null;
+}
+
+/**
+ * Earthworks for a freshly generated town. The requested castle ground applies to every castle; otherwise a platform
+ * the input document gave a castle of the same id is rebuilt at the same height above its new cells. Saved earthworks
+ * name cells, which generation replaces, so nothing else carries over.
+ */
+export function generatedCastleTerrain(
+  result: CityDocument,
+  input: CityDocument,
+  settings: Partial<CastleSettings> | undefined
+): CityDocument["terrain"] {
+  if (result.fortSite) return undefined;
+  const previous = new Map<Id, { rise: number; edge: PlatformEdge }>();
+  for (const feature of input.terrain?.features ?? []) {
+    const castle = feature.ownerId ? input.castles?.find(item => item.id === feature.ownerId) : undefined;
+    const top = castle ? castleSiteTop(input, castle) : null;
+    if (castle && top !== null) previous.set(castle.id, { rise: feature.levelMeters - top, edge: feature.edge });
+  }
+  let next: CityDocument = { ...result, terrain: undefined };
+  for (const castle of result.castles ?? []) {
+    const top = castleSiteTop(next, castle);
+    if (top === null) continue;
+    const requested =
+      settings?.ground === "cliff" || settings?.ground === "slope"
+        ? (() => {
+            const rise = settings.groundRiseMeters ?? DEFAULT_CASTLE_RISE_METERS;
+            const edge: PlatformEdge =
+              settings.ground === "cliff" ? { kind: "cliff" } : { kind: "slope", runMeters: Math.max(10, rise * 1.5) };
+            return { rise, edge };
+          })()
+        : settings?.ground === "natural"
+          ? null
+          : previous.get(castle.id);
+    if (!requested || !(requested.rise > 0)) continue;
+    next = setCastlePlatform(next, castle.id, { levelMeters: top + requested.rise, edge: requested.edge }) ?? next;
+  }
+  return next.terrain;
 }

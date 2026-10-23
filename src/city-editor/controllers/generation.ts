@@ -13,6 +13,7 @@ import { generationPhaseLabel, logGenerationFailures } from "../generators/gener
 import { clone } from "../generators/mesh";
 import { generateRuralFieldStage } from "../generators/ruralFieldStage";
 import { WALL_COAST_CHOICES, WALL_MATERIAL_CHOICES } from "../generators/site/siteConfig";
+import { DEFAULT_CASTLE_RISE_METERS } from "../generators/terrainEditing";
 import { startCityGeneration } from "../services/generationWorkerClient";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
 import type { GenerationDebugPreview } from "../types/contracts/generationDebug";
@@ -48,7 +49,7 @@ export interface GenerationContext {
   seedInput: HTMLInputElement;
   syncSkeletonControls?: () => void;
   moatInputs: Map<"town" | "castle", HTMLInputElement>;
-  castleInputs: Map<keyof CastleSettings, HTMLSelectElement>;
+  castleInputs: Map<keyof CastleSettings, HTMLSelectElement | HTMLInputElement>;
   buildingPatternSelect: HTMLSelectElement;
   layoutSelect: HTMLSelectElement;
   coastSelect: HTMLSelectElement;
@@ -699,7 +700,11 @@ export function createGenerationController(ctx: GenerationContext) {
     ctx.seedInput.value = ctx.generation.generateSeed;
     for (const [scope, input] of ctx.moatInputs) input.checked = !!ctx.generation.generateSettings.moats?.[scope];
     for (const [key, input] of ctx.castleInputs)
-      input.value = ctx.generation.generateSettings.castle?.[key] ?? DEFAULT_CASTLE_SETTINGS[key] ?? "auto";
+      input.value = String(
+        ctx.generation.generateSettings.castle?.[key] ??
+          DEFAULT_CASTLE_SETTINGS[key] ??
+          (key === "groundRiseMeters" ? DEFAULT_CASTLE_RISE_METERS : "auto")
+      );
     ctx.buildingPatternSelect.value = ctx.generation.generateSettings.buildingPattern ?? "legacy";
     ctx.layoutSelect.value =
       ctx.generation.generateSettings.layout ?? ctx.generation.generateSettings.config.layout ?? "auto";

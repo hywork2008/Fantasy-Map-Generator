@@ -33,6 +33,7 @@ import { DocumentHistory } from "../generators/history";
 import { clone } from "../generators/mesh";
 import { DEFAULT_PATCH_PARAMS } from "../generators/patches";
 import { regenerateRuralLand } from "../generators/roadsideFarms";
+import { DEFAULT_CASTLE_RISE_METERS } from "../generators/terrainEditing";
 import { CASTLE_STYLE_PROFILES } from "../renderers/castlePatterns";
 import { mountCity3d } from "../renderers/cityView";
 import { clearRenderDerivedCaches } from "../renderers/derivedCaches";
@@ -2028,16 +2029,20 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   }
 
   const castleControls = div("ce-castle-settings");
-  const castleInputs = new Map<keyof CastleSettings, HTMLSelectElement>();
+  const castleInputs = new Map<keyof CastleSettings, HTMLSelectElement | HTMLInputElement>();
   const castleChoices: Array<[keyof CastleSettings, string, string[]]> = [
     ["position", editorText("cityEditor.messages.castlePosition"), ["auto", "edge", "central"]],
     ["relationship", editorText("cityEditor.messages.relationshipToTownWalls"), ["auto", "integrated", "detached"]],
     ["form", editorText("cityEditor.messages.castleForm"), ["auto", "keep-bailey", "courtyard"]],
     ["size", editorText("cityEditor.messages.castleSize"), ["auto", "small", "standard", "large"]],
-    ["style", editorText("cityEditor.messages.castleStyle"), ["auto", ...Object.keys(CASTLE_STYLE_PROFILES)]]
+    ["style", editorText("cityEditor.messages.castleStyle"), ["auto", ...Object.keys(CASTLE_STYLE_PROFILES)]],
+    ["ground", editorText("cityEditor.messages.castlePlatform"), ["auto", "natural", "cliff", "slope"]]
   ];
   for (const [key, title, choices] of castleChoices) {
-    const input = select(choices, generation.generateSettings.castle?.[key] ?? DEFAULT_CASTLE_SETTINGS[key] ?? "auto");
+    const input = select(
+      choices,
+      String(generation.generateSettings.castle?.[key] ?? DEFAULT_CASTLE_SETTINGS[key] ?? "auto")
+    );
     const titles: Record<string, string> = {
       get auto() {
         return editorText("cityEditor.messages.automaticPeriodAndCulture");
@@ -2067,12 +2072,22 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       get large() {
         return editorText("cityEditor.messages.largeShipSvg");
       },
-      ...Object.fromEntries(Object.entries(CASTLE_STYLE_PROFILES).map(([k, p]) => [k, p.label]))
+      ...Object.fromEntries(Object.entries(CASTLE_STYLE_PROFILES).map(([k, p]) => [k, p.label])),
+      ...(key === "ground"
+        ? {
+            auto: editorText("cityEditor.messages.castleGroundKeep"),
+            natural: editorText("cityEditor.messages.castlePlatformNatural"),
+            cliff: editorText("cityEditor.messages.castlePlatformCliff"),
+            slope: editorText("cityEditor.messages.castlePlatformSlope")
+          }
+        : {})
     };
     for (const option of input.options) option.textContent = titles[option.value] ?? option.value;
     castleInputs.set(key, input);
     scope.listen(input, "change", () => {
       generation.generateSettings.castle = { ...generation.generateSettings.castle, [key]: input.value };
+      // "auto" ground keeps whatever platform the edited castle had.
+      if (key === "ground" && input.value === "auto") delete generation.generateSettings.castle.ground;
       if (
         generation.generateSettings.castle.position === "central" &&
         generation.generateSettings.castle.relationship === "integrated"
@@ -2083,6 +2098,19 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     });
     castleControls.append(label(title, input));
   }
+  const riseInput = numberInput(
+    String(generation.generateSettings.castle?.groundRiseMeters ?? DEFAULT_CASTLE_RISE_METERS),
+    "1",
+    "1"
+  );
+  castleInputs.set("groundRiseMeters", riseInput);
+  scope.listen(riseInput, "change", () => {
+    const rise = Number(riseInput.value);
+    if (!(Number.isFinite(rise) && rise > 0)) return;
+    generation.generateSettings.castle = { ...generation.generateSettings.castle, groundRiseMeters: rise };
+    syncGenerateControls();
+  });
+  castleControls.append(label(editorText("cityEditor.messages.castleGroundRise"), riseInput));
   const synthControls = div("ce-generate-synth");
   synthControls.append(
     label(editorText("cityEditor.messages.cityLayout"), layoutSelect),

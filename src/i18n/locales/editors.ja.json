@@ -438,6 +438,8 @@
       "castlePlatformSlopeRun": "斜面の水平長 (m)",
       "castleRamp": "城の登城路",
       "castleRampNone": "崖を登る斜路を置く場所がなく、城門へ上がれません。",
+      "castleGroundKeep": "編集した台地を保つ",
+      "castleGroundRise": "台地の高さ (m)",
       "fortDeletePart": "選択した部品を削除",
       "fortUsekeep": "Keep",
       "fortUsehall": "領主の広間",

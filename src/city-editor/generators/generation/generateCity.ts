@@ -61,6 +61,7 @@ import {
 } from "../settlementExtent";
 import { farNodeFor } from "../streets";
 import { approachBands } from "../suburbanLanduse";
+import { generatedCastleTerrain } from "../terrainEditing";
 import { consolidateThinRoadCells } from "../thinRoadCells";
 import { auditTownDefenseClosure } from "../townDefenseClosure";
 import { connectUrbanRiverDistricts } from "../urbanBridges";
@@ -245,6 +246,12 @@ export function generateCityOnDocument(
       result.farmlandAreaHectares = settings.descriptor
         ? settings.descriptor.farmlandAreaHectares
         : document.farmlandAreaHectares;
+      // Castle platforms and ramps name cells, so they are rebuilt on the new mesh before the fabric is drawn.
+      const terrain = measureProcessing(profiler, "castle-ground", () =>
+        generatedCastleTerrain(result, document, settings.castle)
+      );
+      if (terrain) result.terrain = terrain;
+      else delete result.terrain;
       const prevailingWindDeg = settings.descriptor?.climate?.prevailingWindDeg;
       if (typeof prevailingWindDeg === "number" && Number.isFinite(prevailingWindDeg))
         result.prevailingWindDeg = prevailingWindDeg;
