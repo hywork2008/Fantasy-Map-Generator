@@ -11,7 +11,7 @@ import {
 import { debitHouseholdWealth, getHouseholdWealth } from "./burgMarketLedgers";
 import { getMarketPriceLevel } from "./currencySufficiency";
 import { GROSS_FOOD_NEED } from "./foodConstants";
-import { BURG_TARGET_RESERVE_DAYS, getStapleFoodGood } from "./foodProduction";
+import { BURG_TARGET_RESERVE_DAYS, emptyFoodLedger, getStapleFoodGood } from "./foodProduction";
 import { creditRuralHouseholdWealth, debitRuralHouseholdWealth } from "./householdWealth";
 import { getTemporaryLodgerPopulationPointsByBurg } from "./innStays";
 import type { FoodLedger, Market } from "./marketTypes";
@@ -221,8 +221,10 @@ export function settleMonthlyFoodConsumption(settlementMonth = getSimulationMont
   const isQuarterEnd = settlementMonth % 3 === 0;
 
   for (const market of getMarkets()) {
+    // A market founded between monthly cycles must settle its residents before production.
+    // Keep existing cell/burg provisions and wallets; never run initial-world bootstrap here.
+    market.foodLedger ??= emptyFoodLedger();
     const ledger = market.foodLedger;
-    if (!ledger) continue;
 
     const marketBurgs = pack.burgs.filter(b => b.i && !b.removed && b.market === market.i);
     for (const burg of marketBurgs) topUpBurgFoodReserve(burg, ledger, populationRate, urbanization);

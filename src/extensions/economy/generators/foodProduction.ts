@@ -161,7 +161,8 @@ function recordOfferedIntake(ledger: FoodLedger, months: readonly number[], offe
   ledger.offeredIntakeByMonth = history;
 }
 
-function emptyFoodLedger(): FoodLedger {
+/** Empty accounting only: no bootstrap food, household provisions or cash. */
+export function emptyFoodLedger(): FoodLedger {
   return {
     foodProduced: 0,
     ruralNeed: 0,

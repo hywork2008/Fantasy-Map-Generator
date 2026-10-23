@@ -240,6 +240,23 @@ describe("husbandry", () => {
       expect(stock["0:Cattle"]).toEqual({ young: 100, breeding: 800, old: 100 });
     });
 
+    it("staffs observed herds rather than vacant pasture and does not recreate an empty herd", () => {
+      grasslandCellWorld(600);
+      setGoods([CATTLE_GOOD] as never);
+      const stock = getOrCreateFaunaStockTable()!;
+      stock["0:Cattle"] = { young: 10, breeding: 40, old: 10 };
+      const before = structuredClone(stock);
+      const capacity = calculateGrazingLandAllocation(worldContext, 0);
+      const demand = calculateHusbandryDemand(worldContext, 0);
+      expect(demand.careWorkers).toBeCloseTo(1, 8);
+      expect(calculateGrazingLandAllocation(worldContext, 0)).toEqual(capacity);
+      expect(stock).toEqual(before);
+
+      stock["0:Cattle"] = { young: 0, breeding: 0, old: 0 };
+      expect(calculateHusbandryDemand(worldContext, 0)).toEqual({ requiredWorkers: 0, value: 0 });
+      expect(stock["0:Cattle"]).toEqual({ young: 0, breeding: 0, old: 0 });
+    });
+
     it("keeps capacity independent of herd seeding, catalog order and repeated queries", () => {
       grasslandCellWorld(600);
       setGoods([CATTLE_GOOD, SHEEP_GOOD] as never);

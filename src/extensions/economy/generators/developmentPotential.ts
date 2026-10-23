@@ -85,7 +85,8 @@ import {
   advanceAgriculturalSoils,
   calculateAgriculturalLandProfile,
   IRRIGATION_ANNUAL_WATER_PER_FLUX,
-  reconcileForestClearanceForAgriculture
+  reconcileForestClearanceForAgriculture,
+  WORKABLE_DAYS_PER_ADULT
 } from "./agriculturalLandUse";
 import { isGoodEnabled } from "./goods-generator";
 import { calculateDesiredPastureAreaHectares, getHusbandryWorkerFactor, isGrazedLivestockGood } from "./husbandry";
@@ -227,7 +228,7 @@ export interface DevelopmentPotentials {
  * last built by an older version. Bump when the columns' formula changes.
  */
 export const DEVELOPMENT_POTENTIAL_LOAD_REPAIR = "economy.developmentPotential";
-export const DEVELOPMENT_POTENTIAL_LOAD_REPAIR_VERSION = 7;
+export const DEVELOPMENT_POTENTIAL_LOAD_REPAIR_VERSION = 8;
 
 /**
  * Share of each cell's crop work-days actually done. The monthly shortage left after peak-month
@@ -490,7 +491,8 @@ export class DevelopmentPotentialModule {
           ...input.workforce!,
           otherOccupationDays:
             settings?.otherOccupationDays ??
-            occupationDays.reduce((s, a) => s + (a[input.id] ?? 0) * (world.populationRate || 1) * 140, 0)
+            // Occupation columns already contain real workers, unlike cells.pop/adult columns.
+            occupationDays.reduce((s, a) => s + (a[input.id] ?? 0) * WORKABLE_DAYS_PER_ADULT, 0)
         },
         // Forestry profiles use an explicit estimated compartment area when no wood plan is supplied.
         managedForestAreaHa:

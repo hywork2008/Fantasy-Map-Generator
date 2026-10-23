@@ -292,7 +292,7 @@ export function calculateGrazingLandAllocation(
   });
 }
 
-/** Planned, land-partitioned herds and existing animals share one herder/dog budget. */
+/** Existing herds use one herder/dog budget; land targets are only a pre-seeding fallback. */
 export function calculateHusbandryDemand(world: Readonly<WorldContext>, cellId: number): HusbandryDemand {
   const cells = world.pack.cells;
   const population = Math.max(0, cells.pop[cellId] ?? 0);
@@ -311,7 +311,10 @@ export function calculateHusbandryDemand(world: Readonly<WorldContext>, cellId: 
   for (const [name, profile] of Object.entries(HUSBANDRY_SPECIES_PROFILES)) {
     const herd = stock?.[`${cellId}:${name}`];
     const existingHeads = herd ? Math.max(0, herd.young) + Math.max(0, herd.breeding) + Math.max(0, herd.old) : 0;
-    const careHeads = Math.max(plannedHeads.get(name) ?? 0, existingHeads);
+    // An observed herd (including an empty cohort) needs care for its actual animals.
+    // Ecological capacity is not a second herd or a standing job vacancy. Until the first
+    // stock is seeded, retain the land plan so initial occupation allocation can run.
+    const careHeads = herd ? existingHeads : (plannedHeads.get(name) ?? 0);
     if (!(careHeads > 0)) continue;
     totalCareHeads += careHeads;
     annualFeedNeedKg += careHeads * (ANNUAL_FEED_DM_KG_PER_HEAD[name] ?? 0);
