@@ -26,14 +26,14 @@ E0を進めた。食料の実決済を既存のFoodLedgerとwealth観測へ接�
 実行:
 
 ```sh
-node --import tsx scripts/auditWoolSupply.mts docs/analytics/inputs/salt-s0-aligned-20261023/province-101.fmg docs/analytics/economy-e0-province-101-20261023.json
-node --import tsx scripts/auditWoolSupply.mts docs/analytics/inputs/salt-s0-aligned-20261023/world-102.fmg docs/analytics/economy-e0-world-102-20261023.json
-node --import tsx scripts/summarizeEconomyBaseline.mts docs/analytics/economy-e0-comparison-20261023.json docs/analytics/economy-e0-province-101-20261023.json docs/analytics/economy-e0-world-102-20261023.json
+node --import tsx scripts/auditWoolSupply.mts docs/analytics/inputs/salt-s0-aligned-20261023/province-101.fmg docs/analytics/raw/economy-e0-province-101-20261023.json
+node --import tsx scripts/auditWoolSupply.mts docs/analytics/inputs/salt-s0-aligned-20261023/world-102.fmg docs/analytics/raw/economy-e0-world-102-20261023.json
+node --import tsx scripts/summarizeEconomyBaseline.mts docs/analytics/economy-e0-comparison-20261023.json docs/analytics/raw/economy-e0-province-101-20261023.json docs/analytics/raw/economy-e0-world-102-20261023.json
 ```
 
 ## 同期間の結果と判定
 
-[比較JSON](economy-e0-comparison-20261023.json)、[Province全観測](economy-e0-province-101-20261023.json)、[World全観測](economy-e0-world-102-20261023.json)を保存した。両実行のソースツリーハッシュは一致し、各12回の実食料決済を捕捉した。
+[比較JSON](economy-e0-comparison-20261023.json)、[Province全観測](raw/economy-e0-province-101-20261023.json)、[World全観測](raw/economy-e0-world-102-20261023.json)を保存した。両実行のソースツリーハッシュは一致し、各12回の実食料決済を捕捉した。
 
 | 指標 | Province | World | 判定・境界 |
 | --- | ---: | ---: | --- |

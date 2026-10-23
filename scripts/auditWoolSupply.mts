@@ -9,7 +9,7 @@ import { getGoods, getMarkets, getOrCreateTextileCommissionTable } from "../src/
 import { getOrCreateFaunaStockTable, getOrCreateLivestockFeedTable } from "../src/extensions/economy/context/cellTables";
 import { calculateGrazingLandAllocation, getGrazedCarryingCapacity, getPastureAreaUsedHectares, STOCKING_DENSITY_PER_HECTARE } from "../src/extensions/economy/generators/husbandry";
 import { HOUSEHOLD_GARMENT_NAMES } from "../src/extensions/economy/generators/textileRecipeContracts";
-import { getMarketBlanketDemandProfile, getMarketTextileDemandProfile, getTextileMarketOrders } from "../src/extensions/economy/generators/textileDemand";
+import { cloneTextileLedgerObservation, getMarketBlanketDemandProfile, getMarketTextileDemandProfile, getTextileMarketOrders } from "../src/extensions/economy/generators/textileDemand";
 import { getAnnualWoolPotentialKg, getWoolOutput } from "../src/extensions/economy/generators/woolProduction";
 import { SHEEP_ANNUAL_WOOL_KG, WOOL_KG_PER_MARKET_LOT } from "../src/extensions/economy/generators/woolProductionPolicy";
 import { getUrbanCraftCapacityRecords, getUrbanTextileHandworkReference } from "../src/extensions/economy/generators/urbanCraftCapacity";
@@ -165,7 +165,7 @@ function snapshot() {
   ruralFoodUncoveredPeople,
   ruralFoodStock: Array.from(getRuralHouseholdFoodStock()).reduce((sum, units) => sum + Math.max(0, units), 0),
   markets: getMarkets().map(market => ({id: market.i, food: structuredClone(market.foodLedger ?? null),
-   textile: structuredClone(market.textileLedger ?? null), blanket: structuredClone(market.blanketLedger ?? null),
+   textile: cloneTextileLedgerObservation(market.textileLedger), blanket: cloneTextileLedgerObservation(market.blanketLedger),
    ruralTextiles: structuredClone(market.ruralTextileProduction ?? null), goods: structuredClone(market.goods)})),
   wealth: views.wealth(),
   date: [host.simulation.currentYear, host.simulation.currentMonth, host.simulation.currentDay], ruralPeople, urbanPeople,

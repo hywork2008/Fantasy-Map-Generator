@@ -53,7 +53,7 @@ Worldで材料と労働の数値上の制約が併存した場合も保持する
 
 ## 同一入力比較と検証
 
-[比較JSON](economy-e0-planner-home-comparison-20261023.json)、[Province](economy-e0-planner-home-province-101-20261023.json)、[World](economy-e0-planner-home-world-102-20261023.json)。従来の固定.fmgを1300-01-01から1301-01-01まで12か月。Standard、populationRate1000、urbanization1、遠距離交易ON・隊商襲撃OFF。schemaVersion 6で家内作業と追加停止理由を収録し、初期過渡を含めて準備期間なし。
+[比較JSON](raw/economy-e0-planner-home-comparison-20261023.json)、[Province](raw/economy-e0-planner-home-province-101-20261023.json)、[World](raw/economy-e0-planner-home-world-102-20261023.json)。従来の固定.fmgを1300-01-01から1301-01-01まで12か月。Standard、populationRate1000、urbanization1、遠距離交易ON・隊商襲撃OFF。schemaVersion 6で家内作業と追加停止理由を収録し、初期過渡を含めて準備期間なし。
 
 前回のschemaVersion 5と全12区間で次が一致した。
 

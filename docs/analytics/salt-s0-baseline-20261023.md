@@ -40,15 +40,15 @@
 | seed / Settlement pattern / populationRate | 101 / Standard / 1000 | 102 / Standard / 1000 |
 | 都市倍率urbanization | JSONの各標本に保存 | JSONの各標本に保存 |
 | 設定 | 遠隔交易on、隊商襲撃off、その他は保存設定 | 同左 |
-| 正式終了JSON | [province-101](salt-s0-province-101-20261023.json) | [world-102](salt-s0-world-102-20261023.json) |
+| 正式終了JSON | [province-101](raw/salt-s0-province-101-20261023.json) | [world-102](raw/salt-s0-world-102-20261023.json) |
 
 入力は過去作業の一時保存から復元し、provinceは羊毛の基準入力とハッシュを照合した。入力ファイル自体はリポジトリに追加していない。JSONには入力名・ハッシュ、実行開始時のソースツリーハッシュと対象範囲、主要ファイルの個別ハッシュ、全worldSettings、開始標本と12か月の終了標本を保存する。
 
 再実行:
 
 ```sh
-node --import tsx scripts/auditSaltSupply.mts /path/to/province-101.fmg docs/analytics/salt-s0-province-101-20261023.json 12
-node --import tsx scripts/auditSaltSupply.mts /path/to/world-102.fmg docs/analytics/salt-s0-world-102-20261023.json 12
+node --import tsx scripts/auditSaltSupply.mts /path/to/province-101.fmg docs/analytics/raw/salt-s0-province-101-20261023.json 12
+node --import tsx scripts/auditSaltSupply.mts /path/to/world-102.fmg docs/analytics/raw/salt-s0-world-102-20261023.json 12
 ```
 
 全住民は「陸セルのpop×populationRate＋有効都市のpopulation×populationRate×urbanization」。国家塩台帳のpopulationは実人数だが、有効国家と市場に属する住民だけである。この二つを混ぜない。
@@ -137,7 +137,7 @@ S1の最初の監査対象は、需要台帳から漏れる住民、固定加工
 | --- | --- |
 | 生成に使った設定 | [storage.json](inputs/salt-s0-aligned-20261023/storage.json) |
 | 固定した入力アーカイブ | [province-101.fmg](inputs/salt-s0-aligned-20261023/province-101.fmg)、[world-102.fmg](inputs/salt-s0-aligned-20261023/world-102.fmg) |
-| 正式終了の月次観測 | [Province JSON](salt-s0-aligned-province-101-20261023.json)、[World JSON](salt-s0-aligned-world-102-20261023.json) |
+| 正式終了の月次観測 | [Province JSON](raw/salt-s0-aligned-province-101-20261023.json)、[World JSON](raw/salt-s0-aligned-world-102-20261023.json) |
 | 比較集計・実行コマンド・入力/出力ハッシュ・検証結果 | [比較JSON](salt-s0-aligned-comparison-20261023.json) |
 
 入力SHA-256はProvince `a3209cca3c88ebf8f84b4f5d9321be8ad3bdc5b3766ca92994f0eb198a52e4e7`、World `5e73a27785881bf553d37404442d7ead0f7bb68457208cc33c88c88f7c6a5999`。将来のS1比較で一時保存の消失に依存しないよう、入力自体も保存した。
@@ -145,8 +145,8 @@ S1の最初の監査対象は、需要台帳から漏れる住民、固定加工
 同じ固定入力からの再観測:
 
 ```sh
-node --import tsx scripts/auditSaltSupply.mts docs/analytics/inputs/salt-s0-aligned-20261023/province-101.fmg docs/analytics/salt-s0-aligned-province-101-20261023.json 12
-node --import tsx scripts/auditSaltSupply.mts docs/analytics/inputs/salt-s0-aligned-20261023/world-102.fmg docs/analytics/salt-s0-aligned-world-102-20261023.json 12
+node --import tsx scripts/auditSaltSupply.mts docs/analytics/inputs/salt-s0-aligned-20261023/province-101.fmg docs/analytics/raw/salt-s0-aligned-province-101-20261023.json 12
+node --import tsx scripts/auditSaltSupply.mts docs/analytics/inputs/salt-s0-aligned-20261023/world-102.fmg docs/analytics/raw/salt-s0-aligned-world-102-20261023.json 12
 ```
 
 | 指標（新規生成の同条件入力） | province-101 | world-102 |

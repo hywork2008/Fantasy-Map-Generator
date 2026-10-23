@@ -64,7 +64,7 @@ Saltの小売単価範囲は、Provinceの開始0.29→期末1.277、Worldの開
 
 市場とSaltShipment輸送中在庫を境界にした物量照合残「期末−期首−source＋sink」はProvince **+0.067 kg**（S2 −0.145）、World **+276.841 kg**（S2 +307.806）。一般貨物の別境界と丸めを含む未説明分を残し、補正供給でゼロにしない。現金の保存と物量の境界残差は別の判定である。
 
-[派生比較JSON](salt-s3-comparison-20261023.json)、[Province全観測](salt-s3-province-101-20261023.json)、[World全観測](salt-s3-world-102-20261023.json)に元データとハッシュを保存した。
+[派生比較JSON](salt-s3-comparison-20261023.json)、[Province全観測](raw/salt-s3-province-101-20261023.json)、[World全観測](raw/salt-s3-world-102-20261023.json)に元データとハッシュを保存した。
 
 ## 検証と次の作業
 

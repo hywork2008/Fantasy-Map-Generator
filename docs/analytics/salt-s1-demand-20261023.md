@@ -44,7 +44,7 @@ S0で中世の年間購入給塩量は「基準なし」としたため、以下
 
 ## 4. 同じ固定入力の12か月観測
 
-入力・設定・期間はS0の同条件比較と同じ。正式終了データは[Province](salt-s1-province-101-20261023.json)と[World](salt-s1-world-102-20261023.json)。観測schemaVersionは3で、`annualizedKgPerLedgerResident`の分母は今回の国家台帳人口（無所属・市場未割当を含む）の実決済平均である。S0の`annualizedKgPerServedPerson`と分母を黙って同一視しない。
+入力・設定・期間はS0の同条件比較と同じ。正式終了データは[Province](raw/salt-s1-province-101-20261023.json)と[World](raw/salt-s1-world-102-20261023.json)。観測schemaVersionは3で、`annualizedKgPerLedgerResident`の分母は今回の国家台帳人口（無所属・市場未割当を含む）の実決済平均である。S0の`annualizedKgPerServedPerson`と分母を黙って同一視しない。
 
 [比較JSON](salt-s1-comparison-20261023.json)に旧/新の集計、国家住民/無所属の内訳、入力・出力ハッシュ、物量照合残を保存した。入力ハッシュ・開始/終了日・worldSettingsの一致、各12標本/12決済、主要ソースのハッシュ一致、家計/家畜の引落しフローと丸め済み台帳の差が1 kg未満であることを確認した。
 

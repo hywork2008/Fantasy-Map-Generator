@@ -8,6 +8,7 @@ import { isGoodEnabled } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import { debitRuralHouseholdWealth, getRuralHouseholdWealth } from "./householdWealth";
 import type { Market, TextileLedger } from "./marketTypes";
+import { setRuntimeOnly } from "./runtimeOnly";
 import {
   estimateRuralTextileProduction,
   type RuralTextileProduction,
@@ -159,6 +160,12 @@ export function getMarketBlanketDemandProfile(marketId: number): TextileDemandPr
   };
 }
 
+/** Read-only observation copy that keeps the runtime-only settlement diagnostics a plain clone drops. */
+export function cloneTextileLedgerObservation(ledger: TextileLedger | undefined): TextileLedger | null {
+  if (!ledger) return null;
+  return { ...structuredClone(ledger), settlementDiagnostics: structuredClone(ledger.settlementDiagnostics) };
+}
+
 type TextileBuyer = {
   burgId: number | null;
   priorityAllocatedBudget?: number;
@@ -290,52 +297,52 @@ function settleHouseholdTextiles(
     }
   }
   const unmetDemand = Math.max(0, profile.monthlyDemand - consumed);
-  return {
+  const settlementDiagnostics: NonNullable<TextileLedger["settlementDiagnostics"]> = {
+    buyers: buyers.map(buyer => {
+      const need =
+        profile.populationLots > 0 ? (profile.monthlyDemand * buyer.populationLots) / profile.populationLots : 0;
+      const supplied = consumptionByBuyer.get(buyer) ?? 0;
+      const unmet = Math.max(0, need - supplied);
+      const held = buyer.priorityAllocatedBudget ?? 0;
+      const priorityGap = referencePrice ? Math.min(unmet, held / referencePrice) : 0;
+      const budgetGap = referencePrice
+        ? Math.min(unmet - priorityGap, Math.max(0, unmet - (Math.max(0, buyer.budget) + held) / referencePrice))
+        : 0;
+      const remaining = Math.max(0, unmet - priorityGap - budgetGap);
+      const remainingStock = pricedGoods.reduce((sum, good) => sum + Math.max(0, market.goods[good.i].stock), 0);
+      const stockGap = referencePrice ? Math.max(0, remaining - remainingStock) : 0;
+      const constraints: NonNullable<TextileLedger["settlementDiagnostics"]>["buyers"][number]["constraints"] = [];
+      if (unmet > 1e-12) {
+        if (!referencePrice) constraints.push("noPricedRoute");
+        else {
+          if (held > 0) constraints.push("priority");
+          if (buyer.budget < unmet * referencePrice) constraints.push("budget");
+          if (remainingStock < unmet) constraints.push("stock");
+          if (remaining - stockGap > 1e-12) constraints.push("allocationOrRounding");
+        }
+      }
+      return {
+        burgId: buyer.burgId,
+        rural: buyer.rural,
+        need,
+        supplied,
+        marketSupplied: marketUnitsByBuyer.get(buyer) ?? 0,
+        marketPaid: paidByBuyer.get(buyer) ?? 0,
+        remainingBudget: buyer.budget,
+        priorityAllocatedBudget: held,
+        unmet,
+        priorityGap,
+        budgetGap,
+        stockGap,
+        allocationOrRoundingGap: referencePrice ? remaining - stockGap : 0,
+        constraints,
+        noPricedRouteGap: referencePrice ? 0 : unmet
+      };
+    })
+  };
+  const ledger: TextileLedger = {
     ...(previous ?? emptyLedger(profile)),
     ...profile,
-    settlementDiagnostics: {
-      buyers: buyers.map(buyer => {
-        const need =
-          profile.populationLots > 0 ? (profile.monthlyDemand * buyer.populationLots) / profile.populationLots : 0;
-        const supplied = consumptionByBuyer.get(buyer) ?? 0;
-        const unmet = Math.max(0, need - supplied);
-        const held = buyer.priorityAllocatedBudget ?? 0;
-        const priorityGap = referencePrice ? Math.min(unmet, held / referencePrice) : 0;
-        const budgetGap = referencePrice
-          ? Math.min(unmet - priorityGap, Math.max(0, unmet - (Math.max(0, buyer.budget) + held) / referencePrice))
-          : 0;
-        const remaining = Math.max(0, unmet - priorityGap - budgetGap);
-        const remainingStock = pricedGoods.reduce((sum, good) => sum + Math.max(0, market.goods[good.i].stock), 0);
-        const stockGap = referencePrice ? Math.max(0, remaining - remainingStock) : 0;
-        const constraints: NonNullable<TextileLedger["settlementDiagnostics"]>["buyers"][number]["constraints"] = [];
-        if (unmet > 1e-12) {
-          if (!referencePrice) constraints.push("noPricedRoute");
-          else {
-            if (held > 0) constraints.push("priority");
-            if (buyer.budget < unmet * referencePrice) constraints.push("budget");
-            if (remainingStock < unmet) constraints.push("stock");
-            if (remaining - stockGap > 1e-12) constraints.push("allocationOrRounding");
-          }
-        }
-        return {
-          burgId: buyer.burgId,
-          rural: buyer.rural,
-          need,
-          supplied,
-          marketSupplied: marketUnitsByBuyer.get(buyer) ?? 0,
-          marketPaid: paidByBuyer.get(buyer) ?? 0,
-          remainingBudget: buyer.budget,
-          priorityAllocatedBudget: held,
-          unmet,
-          priorityGap,
-          budgetGap,
-          stockGap,
-          allocationOrRoundingGap: referencePrice ? remaining - stockGap : 0,
-          constraints,
-          noPricedRouteGap: referencePrice ? 0 : unmet
-        };
-      })
-    },
     householdConsumption: rn(consumed, 2),
     unmetDemand: rn(unmetDemand, 2),
     householdSpending: rn(spending, 2),
@@ -349,6 +356,8 @@ function settleHouseholdTextiles(
     cumulativeUnmetDemand: rn((previous?.cumulativeUnmetDemand ?? 0) + unmetDemand, 2),
     cumulativeHouseholdSpending: rn((previous?.cumulativeHouseholdSpending ?? 0) + spending, 2)
   };
+  setRuntimeOnly(ledger, "settlementDiagnostics", settlementDiagnostics);
+  return ledger;
 }
 
 function textileSettlementRequest(market: Market) {

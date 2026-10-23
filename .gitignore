@@ -27,3 +27,6 @@ docs/temp/
 # Simulation channel server data (npm run sim:server)
 /data/channels/
 /data/observatory/
+
+# Full-world economy observation outputs (regenerable; hashes in docs/analytics/raw-observations-*.md)
+/docs/analytics/raw/

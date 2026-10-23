@@ -65,6 +65,7 @@ import {
 } from "../../src/extensions/economy/generators/merchantTradeCapital";
 import { getMoneyTradeCapacityFactorForMarket } from "../../src/extensions/economy/generators/currencySufficiency";
 import type { Good } from "../../src/extensions/economy/generators/goodsGeneratorTypes";
+import { cloneTextileLedgerObservation } from "../../src/extensions/economy/generators/textileDemand";
 import type { Burg, Route } from "../../src/types/models";
 
 export const SAMPLE_VERSION = 1;
@@ -932,8 +933,8 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
     if (!economy()) return null;
     return {
       markets: getMarkets().map(market => ({marketId: market.i,
-        garments: structuredClone(market.textileLedger ?? null),
-        blankets: structuredClone(market.blanketLedger ?? null),
+        garments: cloneTextileLedgerObservation(market.textileLedger),
+        blankets: cloneTextileLedgerObservation(market.blanketLedger),
         ruralProduction: structuredClone(market.ruralTextileProduction ?? null)})),
       commissions: structuredClone(getEconomySlice()?.textileCommissions ?? null),
       production: aggregateProductionDiagnostics(getUrbanCraftCapacityRecords())

@@ -13,5 +13,6 @@ export interface UrbanCraftCapacity {
   overusedPoints: number;
   textilePoints: number;
   commissionPoints?: number;
+  /** Latest worker-loop observation; runtime-only, omitted from saves. */
   productionDiagnostics?: ProductionCycleDiagnostic;
 }

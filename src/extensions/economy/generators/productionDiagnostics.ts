@@ -11,6 +11,7 @@ export type ProductionConstraint =
   | "funds"
   | "profitability"
   | "labor"
+  | "productivity"
   | "outputTarget"
   | "noDemand"
   | "householdBudget"
@@ -36,6 +37,21 @@ export interface ProductionCycleDiagnostic {
   steps: number;
   maxSteps: number;
 }
+// Runtime lookup only; rows stay the persisted shape and the index is rebuilt for loaded or replaced rows.
+const rowIndexes = new WeakMap<ProductionDiagnostic[], Map<string, ProductionDiagnostic>>();
+
+function rowKey(stage: ProductionDiagnostic["stage"], goodId: number | null, reasons: readonly ProductionConstraint[]) {
+  return `${stage}|${goodId ?? ""}|${reasons.join(",")}`;
+}
+
+function getRowIndex(target: ProductionCycleDiagnostic): Map<string, ProductionDiagnostic> {
+  let index = rowIndexes.get(target.rows);
+  if (index && index.size === target.rows.length) return index;
+  index = new Map(target.rows.map(row => [rowKey(row.stage, row.goodId, row.constraints), row]));
+  rowIndexes.set(target.rows, index);
+  return index;
+}
+
 export function recordProductionDiagnostic(
   target: ProductionCycleDiagnostic | undefined,
   stage: ProductionDiagnostic["stage"],
@@ -48,17 +64,14 @@ export function recordProductionDiagnostic(
   const reasons = [...new Set(constraints)];
   const primary = reasons[0] ?? null;
   // Primary follows the actual guard traversal. Secondary counts are overlapping, not opportunities.
-  let row = target.rows.find(
-    row =>
-      row.stage === stage &&
-      row.goodId === goodId &&
-      row.primary === primary &&
-      row.constraints.join(",") === reasons.join(",")
-  );
+  const index = getRowIndex(target);
+  const key = rowKey(stage, goodId, reasons);
+  let row = index.get(key);
   if (row) row.count += count;
   else {
     row = { stage, goodId, primary, constraints: reasons, count };
     target.rows.push(row);
+    index.set(key, row);
   }
   if (amounts)
     for (const key of ["outputLots", "laborPoints", "wagesPaid", "materialCost"] as const)

@@ -1229,7 +1229,7 @@ export class ProductionModule {
       recordProductionDiagnostic(state.productionDiagnostics, "execution", good.i, [reason]);
       return { yieldLots: 0, laborUsed: 0 };
     };
-    if (!(outputMultiplier > 0)) return failed("labor");
+    if (!(outputMultiplier > 0)) return failed("productivity");
     if (laborBudget <= 0) return failed("domainCap");
     const applyCalibration = getEconomyCalibrationState().applyCalibration;
     const populationRate = Math.max(0, this.worldContext.populationRate ?? 0) || 1;

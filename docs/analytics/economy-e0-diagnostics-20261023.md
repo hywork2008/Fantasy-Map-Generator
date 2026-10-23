@@ -25,7 +25,7 @@
 
 ## 固定2入力による12か月観測
 
-[比較JSON](economy-e0-diagnostics-comparison-20261023.json)、[Province](economy-e0-diagnostics-province-101-20261023.json)、[World](economy-e0-diagnostics-world-102-20261023.json)。初回と同じ1300-01-01〜1301-01-01、Standard・populationRate1000・urbanization1、遠距離交易ON・隊商襲撃OFF、準備期間なし。schemaVersion 3で食料と繊維の各12回の実決済を記録した。両世界の実装ハッシュは一致する。
+[比較JSON](economy-e0-diagnostics-comparison-20261023.json)、[Province](raw/economy-e0-diagnostics-province-101-20261023.json)、[World](raw/economy-e0-diagnostics-world-102-20261023.json)。初回と同じ1300-01-01〜1301-01-01、Standard・populationRate1000・urbanization1、遠距離交易ON・隊商襲撃OFF、準備期間なし。schemaVersion 3で食料と繊維の各12回の実決済を記録した。両世界の実装ハッシュは一致する。
 
 初回のschemaVersion 2終了JSONを残した。全12区間で家計残高を含むwealth、家畜頭数、自家食料備蓄、Wool市場在庫、衣服/毛布の納品フロー、全商品フローが初回と完全一致した。新診断が供給・資金・労働を増やしていないことを確認した。記録対象の全ソースファイルのハッシュも終了時のファイルと照合した。
 

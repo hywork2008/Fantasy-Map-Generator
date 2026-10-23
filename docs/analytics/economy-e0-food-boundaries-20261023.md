@@ -17,7 +17,7 @@
 
 ## 同じ12か月の結果
 
-[比較JSON](economy-e0-food-boundaries-comparison-20261023.json)、[Province](economy-e0-food-boundaries-province-101-20261023.json)、[World](economy-e0-food-boundaries-world-102-20261023.json)。従来の固定.fmgから1300-01-01〜1301-01-01、Standard、populationRate1000、urbanization1、遠距離交易ON、隊商襲撃OFF。初回過渡を含み、準備期間なし。
+[比較JSON](raw/economy-e0-food-boundaries-comparison-20261023.json)、[Province](raw/economy-e0-food-boundaries-province-101-20261023.json)、[World](raw/economy-e0-food-boundaries-world-102-20261023.json)。従来の固定.fmgから1300-01-01〜1301-01-01、Standard、populationRate1000、urbanization1、遠距離交易ON、隊商襲撃OFF。初回過渡を含み、準備期間なし。
 
 両世界の全12区間で、前回のschemaVersion 3とwealth・家畜頭数・食料備蓄・Wool在庫・全商品フロー・衣服/毛布の納品が一致した。シミュレーション実装と実行スクリプトのハッシュも照合した。累計差・人口範囲を追加した集計スクリプトには、終了後の拡張を含む別の`summarizerSha256`を記録している。
 
@@ -55,7 +55,7 @@ Provinceは開始時、全12回の決済、期末のすべてで対象外0人。
 
 ## 年境界後の初回決済の再現
 
-[継続観測JSON](economy-e0-food-transition-world-102-20261023.json)を保存した。追加の1か月は新市場の初回決済だけを確認するためで、基準の12か月へ混ぜない。`auditFoodLedgerTransition.mts`が同じ入力を月ごとに12回進め、1301-01-01の食料観測が基準JSONと完全一致することを確認してから、そのまま1か月進めた。途中の保存再読込やbootstrapを行っていない。
+[継続観測JSON](raw/economy-e0-food-transition-world-102-20261023.json)を保存した。追加の1か月は新市場の初回決済だけを確認するためで、基準の12か月へ混ぜない。`auditFoodLedgerTransition.mts`が同じ入力を月ごとに12回進め、1301-01-01の食料観測が基準JSONと完全一致することを確認してから、そのまま1か月進めた。途中の保存再読込やbootstrapを行っていない。
 
 | 時点 | 新市場17の食料台帳 | 対象外の農村/都市人口 |
 | --- | --- | ---: |
@@ -81,8 +81,8 @@ Provinceは開始時、全12回の決済、期末のすべてで対象外0人。
 再実行:
 
 ```sh
-node --import tsx scripts/auditWoolSupply.mts docs/analytics/inputs/salt-s0-aligned-20261023/province-101.fmg docs/analytics/economy-e0-food-boundaries-province-101-20261023.json
-node --import tsx scripts/auditWoolSupply.mts docs/analytics/inputs/salt-s0-aligned-20261023/world-102.fmg docs/analytics/economy-e0-food-boundaries-world-102-20261023.json
-node --import tsx scripts/summarizeEconomyBaseline.mts docs/analytics/economy-e0-food-boundaries-comparison-20261023.json docs/analytics/economy-e0-food-boundaries-province-101-20261023.json docs/analytics/economy-e0-food-boundaries-world-102-20261023.json
-node --import tsx scripts/auditFoodLedgerTransition.mts docs/analytics/inputs/salt-s0-aligned-20261023/world-102.fmg docs/analytics/economy-e0-food-boundaries-world-102-20261023.json docs/analytics/economy-e0-food-transition-world-102-20261023.json
+node --import tsx scripts/auditWoolSupply.mts docs/analytics/inputs/salt-s0-aligned-20261023/province-101.fmg docs/analytics/raw/economy-e0-food-boundaries-province-101-20261023.json
+node --import tsx scripts/auditWoolSupply.mts docs/analytics/inputs/salt-s0-aligned-20261023/world-102.fmg docs/analytics/raw/economy-e0-food-boundaries-world-102-20261023.json
+node --import tsx scripts/summarizeEconomyBaseline.mts docs/analytics/raw/economy-e0-food-boundaries-comparison-20261023.json docs/analytics/raw/economy-e0-food-boundaries-province-101-20261023.json docs/analytics/raw/economy-e0-food-boundaries-world-102-20261023.json
+node --import tsx scripts/auditFoodLedgerTransition.mts docs/analytics/inputs/salt-s0-aligned-20261023/world-102.fmg docs/analytics/raw/economy-e0-food-boundaries-world-102-20261023.json docs/analytics/raw/economy-e0-food-transition-world-102-20261023.json
 ```

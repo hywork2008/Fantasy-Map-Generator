@@ -2,33 +2,43 @@
 
 2026-10-23
 
+- docs/analytics/economy-e0-baseline-20261023.md - E0の§4.0基準表（出典範囲/基準なし）、固定2入力12か月の食料・一次生産・繊維の現状判定表と実決済観測の範囲を記録
+- docs/analytics/economy-e0-comparison-20261023.json - E0基準観測のProvince/World派生比較。食料決済・一次生産・繊維・家計残高の集計と入力/ソースハッシュ
+- docs/analytics/economy-e0-diagnostics-20261023.md - 都市作業の計画/実行の停止理由と主因、繊維の実決済の未充足内訳、市場別判定と製造/委託賃金の分離を記録
+- docs/analytics/economy-e0-diagnostics-catalogues-20261023.json - 固定.fmgの保存商品カタログを無移行で抽出した入力カタログ対応表。入力ハッシュ付きで商品IDを照合
+- docs/analytics/economy-e0-diagnostics-comparison-20261023.json - E0診断の固定2入力派生比較。旧観測との経済結果一致と市場別の計画/実行診断
+- docs/analytics/economy-e0-food-boundaries-20261023.md - セル内食料の実収穫・加工と市場搬入の境界、食料台帳の対象人口、新市場17の初回決済スキップの継続観測を記録
+- docs/analytics/economy-e0-fresh-processing-20261023.md - Fish/Game/Shellfishの加工記録の欠測補完、同一入力比較、E0完了条件の照合表を記録
+- docs/analytics/economy-e0-planner-home-20261023.md - 計画診断unknownの停止箇所、家内作業の材料/労働/予算/丸め制約、E0の完了判定と未モデル化項目の持越しを記録
+- docs/analytics/raw/economy-e0-*-20261023.json - Git管理外（ハッシュはraw-observations-20261023.md）。E0各段階のProvince/World全量観測、6 MB前後の派生比較3件、1301年1月の継続観測
 - docs/analytics/inputs/salt-s0-aligned-20261023/ - 同一年比較に使用した1300年・High MedievalのProvince seed101とWorld seed102の固定入力アーカイブ、および共通生成設定を保存
+- docs/analytics/raw-observations-20261023.md - Git管理外にした全量観測JSONの一覧、バイト数、SHA-256と再生成の方針
 - docs/analytics/salt-s0-aligned-comparison-20261023.json - 同条件の2世界の派生比較集計、生成コマンド・条件の一致検証、固定入力/観測出力のハッシュと物量照合残
-- docs/analytics/salt-s0-aligned-province-101-20261023.json - 1300年・High Medievalの新規Provinceを12か月観測したSalt S0基準。初期プロファイルと実決済ごとの台帳を記録
-- docs/analytics/salt-s0-aligned-world-102-20261023.json - 同じ1300年・High Medievalの新規Worldの12か月観測。Provinceと同じ年月・尺度・設定・実装で比較
+- docs/analytics/raw/salt-s0-aligned-province-101-20261023.json - Git管理外（ハッシュはraw-observations-20261023.md）。1300年・High Medievalの新規Provinceを12か月観測したSalt S0基準。初期プロファイルと実決済ごとの台帳を記録
+- docs/analytics/raw/salt-s0-aligned-world-102-20261023.json - Git管理外（ハッシュはraw-observations-20261023.md）。同じ1300年・High Medievalの新規Worldの12か月観測。Provinceと同じ年月・尺度・設定・実装で比較
 - docs/analytics/salt-s0-baseline-20261023.md - Salt S0の用途別史料・基準なしの範囲、旧2世界の観測と人口/物量境界を記録。同日追補で原典・原研究の採否、1300年の共通設定による比較、S0完了と次のS1を明記
-- docs/analytics/salt-s0-province-101-20261023.json - Standard・populationRate1000のprovince-101を590年1月から12か月進めた塩の品別フロー・実決済ごとの国家台帳・輸送と入力/ソースハッシュ
-- docs/analytics/salt-s0-world-102-20261023.json - Standard・populationRate1000のworld-102を1929年1月から12か月進めた同形式の塩観測。provinceと保存年が異なる条件を明記
+- docs/analytics/raw/salt-s0-province-101-20261023.json - Git管理外（ハッシュはraw-observations-20261023.md）。Standard・populationRate1000のprovince-101を590年1月から12か月進めた塩の品別フロー・実決済ごとの国家台帳・輸送と入力/ソースハッシュ
+- docs/analytics/raw/salt-s0-world-102-20261023.json - Git管理外（ハッシュはraw-observations-20261023.md）。Standard・populationRate1000のworld-102を1929年1月から12か月進めた同形式の塩観測。provinceと保存年が異なる条件を明記
 - docs/analytics/salt-s1-comparison-20261023.json - 固定2入力のS0/S1比較。人口分母の違い、国家住民/無所属の内訳、家畜の補給、物量照合残と観測ハッシュを保存
 - docs/analytics/salt-s1-demand-20261023.md - 無所属の取得経路、固定加工枠から実投入見込みへの置換、放牧5種の暫定補給計画と自然控除、保存互換・テスト・12か月比較、S1完了と次のS2を記録
 - docs/analytics/salt-s1-population-coverage-20261023.json - S1の人口境界監査。固定した1300年の2世界で対象外人口は無所属住民であり、有効国家内の市場未割当は0人であることを確認
-- docs/analytics/salt-s1-province-101-20261023.json - S1後のProvince固定入力の正式12か月観測。無所属も含む需要分母、加工履歴と家畜の補給仮定を明記
-- docs/analytics/salt-s1-world-102-20261023.json - 同じ設定・期間のWorld固定入力のS1後の観測。家計/家畜の不足を分離して保存
+- docs/analytics/raw/salt-s1-province-101-20261023.json - Git管理外（ハッシュはraw-observations-20261023.md）。S1後のProvince固定入力の正式12か月観測。無所属も含む需要分母、加工履歴と家畜の補給仮定を明記
+- docs/analytics/raw/salt-s1-world-102-20261023.json - Git管理外（ハッシュはraw-observations-20261023.md）。同じ設定・期間のWorld固定入力のS1後の観測。家計/家畜の不足を分離して保存
 - docs/analytics/salt-s2-comparison-20261023.json - 同じ固定入力のS1/S2派生比較。労働・Wood実使用、方法別生産、家計区分、観測ハッシュと物量照合残を保存
 - docs/analytics/salt-s2-production-20261023.md - 製塩の共通労働・燃料・天日季節・内陸地質の接続、暫定係数、12か月の不足増加と残課題、検証、S2完了と次のS3を記録
-- docs/analytics/salt-s2-province-101-20261023.json - S2後のProvince固定入力の正式12か月観測。実決済ごとの生産方法・労働・Wood消費を追加
-- docs/analytics/salt-s2-world-102-20261023.json - 同期間・設定・実装でWorld固定入力を進めたS2正式観測。生産制約による不足と入力/ソースハッシュを保持
+- docs/analytics/raw/salt-s2-province-101-20261023.json - Git管理外（ハッシュはraw-observations-20261023.md）。S2後のProvince固定入力の正式12か月観測。実決済ごとの生産方法・労働・Wood消費を追加
+- docs/analytics/raw/salt-s2-world-102-20261023.json - Git管理外（ハッシュはraw-observations-20261023.md）。同期間・設定・実装でWorld固定入力を進めたS2正式観測。生産制約による不足と入力/ソースハッシュを保持
 - docs/analytics/salt-s3-comparison-20261023.json - 固定2入力のS2/S3比較。実支払、保有者別現金純増減、人口区分、物量照合残、観測ハッシュを保存
 - docs/analytics/salt-s3-finance-20261023.md - 家計購入・製塩賃金/燃料・卸/国際購入/運賃の決済、価格と出力の方針、12か月の現金保存と不足、S3完了と次のS4を記録
-- docs/analytics/salt-s3-province-101-20261023.json - S3後のProvince固定入力の正式12か月観測。実支払と製塩ステップの保有者別現金変化を追加
-- docs/analytics/salt-s3-world-102-20261023.json - 同期間・設定・ソースのWorld固定入力の正式S3観測。現金移転・不足・物量照合用フローとハッシュを保持
+- docs/analytics/raw/salt-s3-province-101-20261023.json - Git管理外（ハッシュはraw-observations-20261023.md）。S3後のProvince固定入力の正式12か月観測。実支払と製塩ステップの保有者別現金変化を追加
+- docs/analytics/raw/salt-s3-world-102-20261023.json - Git管理外（ハッシュはraw-observations-20261023.md）。同期間・設定・ソースのWorld固定入力の正式S3観測。現金移転・不足・物量照合用フローとハッシュを保持
 - docs/analytics/salt-s4-ownership-20261023.json - Province固定入力で4区分の既存所有者を割り当てた1か月の検証。国営移行、変更後/決済後の保存再読込、口座残高、現金保存とソースハッシュを保持
 - docs/analytics/salt-s4-ownership-20261023.md - 私営・都市・教会・国の口座帰属、市場画面の所有者選択、旧保存の国営移行、失効参照と決済時所有者の扱い、検証、S4完了と次のS5を記録
 - docs/analytics/salt-s5-comparison-20261023.json - 通常固定2入力のS3/S5年次比較。政策の非発動、供給・支払・現金保存・物量照合残と観測ハッシュを保存
 - docs/analytics/salt-s5-policy-20261023.md - 専売営業権、財政/性格と議会、実税と徴税請負、密売・義務未達・不満・租税反乱の接続、政策比較と年次観測、S5完了と次のE0残作業を記録
 - docs/analytics/salt-s5-policy-cases-20261023.json - Province固定入力の通常/税50%の12か月比較と、初期政治不満を明記した1か月の義務/反乱ストレス検証。保存・現金・イベント・ソースハッシュを保持
-- docs/analytics/salt-s5-province-101-20261023.json - 通常自動判断でProvince固定入力を12か月観測したS5回帰結果。税・密売・義務未達・反乱・議会判断を追加
-- docs/analytics/salt-s5-world-102-20261023.json - 同期間・設定・ソースでWorld固定入力を進めたS5年次観測。自動政策が発動しなかったことも含めて保持
+- docs/analytics/raw/salt-s5-province-101-20261023.json - Git管理外（ハッシュはraw-observations-20261023.md）。通常自動判断でProvince固定入力を12か月観測したS5回帰結果。税・密売・義務未達・反乱・議会判断を追加
+- docs/analytics/raw/salt-s5-world-102-20261023.json - Git管理外（ハッシュはraw-observations-20261023.md）。同期間・設定・ソースでWorld固定入力を進めたS5年次観測。自動政策が発動しなかったことも含めて保持
 - docs/plan/historical-economy-production-consumption-circulation.md - 2026年10月追加の経済計画と最新追補を照合し、生活必需品の需要・予算、生産・実支払賃金、資本回収・輸送を接続する作業を再構成。食料優先と土地・月別労働・複合生産の補正を含む配分原則、材料余剰時の判定順、E0で確定する史実の桁の基準、食料と一次生産(牧草地・群れ・採毛)の規模を独立段階とした作業順、成果物付きの完了条件と比較観測・関連テストの方針を整理
 - docs/plan/wool-products-and-sheep-husbandry.md - 羊毛製品の追加を確定方針として、Gemini回答の用途・史料を照合。普通の羊毛衣料・毛布からの実装順、共有牧草地・年齢別採毛・農村の加工供給の見直し、同一入力12か月の実頭数・土地要求・羊毛・衣服需要の監査を記録
 

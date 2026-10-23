@@ -12,7 +12,7 @@ Fish・Game・Shellfishを新しい小売需要へ加えない。鉄等の非食
 
 ## 同じ12か月での比較
 
-[比較JSON](economy-e0-fresh-processing-comparison-20261023.json)、[Province](economy-e0-fresh-processing-province-101-20261023.json)、[World](economy-e0-fresh-processing-world-102-20261023.json)。1300-01-01〜1301-01-01、Standard、populationRate1000、urbanization1、遠距離交易ON・隊商襲撃OFF。追加の在庫・現金・人口を与えず、準備期間も設けていない。
+[比較JSON](raw/economy-e0-fresh-processing-comparison-20261023.json)、[Province](raw/economy-e0-fresh-processing-province-101-20261023.json)、[World](raw/economy-e0-fresh-processing-world-102-20261023.json)。1300-01-01〜1301-01-01、Standard、populationRate1000、urbanization1、遠距離交易ON・隊商襲撃OFF。追加の在庫・現金・人口を与えず、準備期間も設けていない。
 
 | 原料加工の12か月差 lot | Province・修正前→後 | World・修正前→後 |
 | --- | ---: | ---: |
@@ -50,7 +50,7 @@ Fish・Game・Shellfishを新しい小売需要へ加えない。鉄等の非食
 **次はE0の残る計画診断`unknown`の実際の停止箇所を記録し、家内作業の制約と結ぶ。** 家畜肉の新しい歩留り、所得階層の新しい配分モデル、供給係数、衣服/毛布の配分変更はここへ混ぜない。新市場17の初回食料決済スキップは前回の再現記録を維持してE1へ引き継ぐ。
 
 ```sh
-node --import tsx scripts/auditWoolSupply.mts docs/analytics/inputs/salt-s0-aligned-20261023/province-101.fmg docs/analytics/economy-e0-fresh-processing-province-101-20261023.json
-node --import tsx scripts/auditWoolSupply.mts docs/analytics/inputs/salt-s0-aligned-20261023/world-102.fmg docs/analytics/economy-e0-fresh-processing-world-102-20261023.json
-node --import tsx scripts/summarizeEconomyBaseline.mts docs/analytics/economy-e0-fresh-processing-comparison-20261023.json docs/analytics/economy-e0-fresh-processing-province-101-20261023.json docs/analytics/economy-e0-fresh-processing-world-102-20261023.json
+node --import tsx scripts/auditWoolSupply.mts docs/analytics/inputs/salt-s0-aligned-20261023/province-101.fmg docs/analytics/raw/economy-e0-fresh-processing-province-101-20261023.json
+node --import tsx scripts/auditWoolSupply.mts docs/analytics/inputs/salt-s0-aligned-20261023/world-102.fmg docs/analytics/raw/economy-e0-fresh-processing-world-102-20261023.json
+node --import tsx scripts/summarizeEconomyBaseline.mts docs/analytics/raw/economy-e0-fresh-processing-comparison-20261023.json docs/analytics/raw/economy-e0-fresh-processing-province-101-20261023.json docs/analytics/raw/economy-e0-fresh-processing-world-102-20261023.json
 ```

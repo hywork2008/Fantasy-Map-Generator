@@ -105,7 +105,7 @@ export interface Market {
 }
 
 export interface TextileLedger {
-  /** Exact settlement-time buyer records; endpoint rounding in summary fields is separate. */
+  /** Exact settlement-time buyer records (runtime-only, omitted from saves); endpoint rounding in summary fields is separate. */
   settlementDiagnostics?: {
     buyers: {
       burgId: number | null;

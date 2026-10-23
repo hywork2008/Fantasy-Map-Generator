@@ -72,7 +72,7 @@ S5を実装した。国庫の逼迫と為政者の性格による提案を既存
 
 物量照合残は一般貨物の別境界・丸めを含む未説明分として保持し、補正供給でゼロにしない。現金保存と物量の境界残差は別の確認である。
 
-[派生比較](salt-s5-comparison-20261023.json)、[Province全観測](salt-s5-province-101-20261023.json)、[World全観測](salt-s5-world-102-20261023.json)を保存。年次観測は`node --import tsx scripts/auditSaltSupply.mts <input> <output>`。schemaVersion 6で政策の結果・税・密売・義務未達・税込購入余力差を追加した。
+[派生比較](salt-s5-comparison-20261023.json)、[Province全観測](raw/salt-s5-province-101-20261023.json)、[World全観測](raw/salt-s5-world-102-20261023.json)を保存。年次観測は`node --import tsx scripts/auditSaltSupply.mts <input> <output>`。schemaVersion 6で政策の結果・税・密売・義務未達・税込購入余力差を追加した。
 
 ## 検証と次の作業
 
