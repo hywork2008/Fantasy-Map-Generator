@@ -569,9 +569,16 @@ export function dispatchDomesticatedFauna(
   const before = stockTracked ? (cohorts ? cohortTotal(cohorts) : cohortTotal(initializeStock(capacity))) : null;
   const heads = Math.min(requestedHeads, before === null ? requestedHeads : Math.floor(Math.max(0, before)));
   if (preview) return heads / scale;
+  let cohortHeads: FaunaCohorts | null = null;
   if (stock) {
     const herd = ensureStock(stock, cellId, good.name, capacity);
+    const opening = { ...herd };
     applyCull(herd, heads, getDomesticatedCullSelectivity(cellId));
+    cohortHeads = {
+      young: opening.young - herd.young,
+      breeding: opening.breeding - herd.breeding,
+      old: opening.old - herd.old
+    };
   }
   if (dispatches) {
     const receipt = { period, remainderHeads: demandHeads - requestedHeads };
@@ -581,6 +588,7 @@ export function dispatchDomesticatedFauna(
         heads,
         marketUnits: heads / scale,
         stockTracked,
+        cohortHeads,
         herdBeforeHeads: before,
         herdAfterHeads: stock ? cohortTotal(stock[key]) : null
       }

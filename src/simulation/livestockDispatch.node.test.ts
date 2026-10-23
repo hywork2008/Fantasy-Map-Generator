@@ -27,6 +27,12 @@ it("preserves live dispatch, herds and market stocks across a mid-cycle archive 
       const ledger = getLivestockLotLedger();
       expect(ledger).not.toBeNull();
       expect(Object.keys(ledger!.exits).length).toBeGreaterThan(0);
+      const aged = Object.values(ledger!.shipments).filter(row => row.cohortHeads);
+      expect(aged.length).toBeGreaterThan(0);
+      for (const shipment of aged) {
+        const ages = shipment.cohortHeads!;
+        expect(ages.young + ages.breeding + ages.old).toBeCloseTo(shipment.heads, 8);
+      }
       expect(Object.values(ledger!.lots).every(lot => Number.isFinite(lot.heads) && lot.heads >= 0)).toBe(true);
       const economy = host.simulation.extensions?.economy as Record<string, unknown>;
       const liveIds = getGoods()

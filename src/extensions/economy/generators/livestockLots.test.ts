@@ -2,9 +2,12 @@ import { afterEach, beforeEach, expect, it } from "vitest";
 import { simulationContext, worldContext } from "../../hostCore";
 import type { ExtensionAPI } from "../../hostTypes";
 import { getEconomySlice } from "../context/economyApi";
-import { clearEconomyContext, initEconomyContext, setGoods, setMarkets } from "../economyContext";
+import { clearEconomyContext, initEconomyContext, setCaravans, setGoods, setMarkets } from "../economyContext";
+import { Caravans } from "./caravans";
+import { ExportStaging } from "./exportStaging";
 import { recordGoodFlow } from "./goodsBalanceLedger";
-import { getLivestockLotLedger } from "./livestockLots";
+import { discardLivestockCargo, getLivestockLotLedger } from "./livestockLots";
+import type { Caravan } from "./marketTypes";
 import { commitSlaughter } from "./slaughterTransactions";
 
 beforeEach(() => {
@@ -96,4 +99,79 @@ it("drops attribution on unrecorded depletion and never invents import provenanc
   const lots = Object.values(getLivestockLotLedger()!.lots);
   expect(lots.reduce((sum, lot) => sum + lot.heads, 0)).toBe(2);
   expect(lots.every(lot => lot.sourceCellId === null && !lot.shipmentId && lot.ownerId === null)).toBe(true);
+});
+
+it("preserves aggregate ages through staging, partial loading, reload, arrival and cancellation", () => {
+  move("source", 4, 4, { livestockSourceCellId: 7, livestockCohorts: { young: 1, breeding: 2, old: 1 } });
+  const lot = ExportStaging.bookFromRetail({
+    marketId: 1,
+    destinationMarketId: 2,
+    goodId: 1,
+    units: 3,
+    unitCost: 0,
+    requireCapital: false
+  })!;
+  const loaded = ExportStaging.takeFromLot(lot.id, 1);
+  getEconomySlice()!.livestockLots = JSON.parse(JSON.stringify(getLivestockLotLedger()));
+  const ledger = getLivestockLotLedger()!;
+  const transit = loaded.livestockCargoIds!.map(id => ledger.lots[id]);
+  expect(transit[0].cohortHeads).toEqual({ young: 0.25, breeding: 0.5, old: 0.25 });
+  expect(transit[0].status).toBe("transit");
+  // Return at another market uses the same arrival path as unloaded cargo.
+  const markets = getEconomySlice()!.markets as {
+    i: number;
+    centerBurgId?: number;
+    goods: Record<number, { stock: number; price: number }>;
+  }[];
+  markets.push({ i: 2, goods: { 1: { stock: 0, price: 1 } } });
+  worldContext.distanceScale = 1;
+  worldContext.pack.burgs = [{ i: 0 }, { i: 1, cell: 1, x: 0, y: 0, market: 2 }] as never;
+  worldContext.pack.states = [];
+  markets[1].centerBurgId = 1;
+  setCaravans([
+    {
+      i: 1,
+      seller: 1,
+      sellerType: "market",
+      buyer: 2,
+      buyerType: "market",
+      payload: [{ goodId: 1, dealId: 1, units: 1, value: 1, livestockCargoIds: loaded.livestockCargoIds }],
+      units: 1,
+      value: 1,
+      routeSegments: [],
+      totalDistance: 0,
+      currentDistance: 0,
+      travelLegs: [{ endKm: 0, speedKmPerDay: 1 }],
+      state: "transit"
+    } as unknown as Caravan
+  ]);
+  expect(Caravans.tick(1).arrived).toHaveLength(1);
+  const arrived = Object.values(ledger.lots).find(row => row.status === "market" && row.marketId === 2)!;
+  expect(arrived.sourceCellId).toBe(7);
+  expect(arrived.cohortProvenance).toBe("aggregate");
+  expect(arrived.cohortHeads).toEqual({ young: 0.25, breeding: 0.5, old: 0.25 });
+  expect(ExportStaging.cancelLot(lot.id)).toBe(2);
+  expect(Object.values(ledger.lots).filter(row => row.status === "transit")).toEqual([]);
+  expect(Object.values(ledger.lots).reduce((sum, row) => sum + row.heads, 0)).toBe(4);
+  discardLivestockCargo(loaded.livestockCargoIds);
+  expect(arrived.heads).toBe(1);
+});
+
+it("removes transport losses from cargo without debiting market stock again", () => {
+  move("source", 3, 3, { livestockSourceCellId: 7, livestockCohorts: { young: 0, breeding: 2, old: 1 } });
+  const lot = ExportStaging.bookFromRetail({
+    marketId: 1,
+    destinationMarketId: 2,
+    goodId: 1,
+    units: 2,
+    unitCost: 0,
+    requireCapital: false
+  })!;
+  const loaded = ExportStaging.takeFromLot(lot.id, 2);
+  discardLivestockCargo(loaded.livestockCargoIds, 0.5);
+  ExportStaging.returnUnitsToRetail(1, 1, 1.5, loaded.livestockCargoIds);
+  const ledger = getLivestockLotLedger()!;
+  expect(Object.values(ledger.lots).reduce((sum, row) => sum + row.heads, 0)).toBe(2.5);
+  expect(Object.values(ledger.lots).filter(row => row.status === "transit")).toEqual([]);
+  expect(Object.values(ledger.exits).reduce((sum, row) => sum + (row.transportLoss ?? 0), 0)).toBe(0.5);
 });

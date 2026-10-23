@@ -38,6 +38,7 @@ import { recordFoodDeliveredExport } from "./foodProcessingLedger";
 import { type Good, isFreshFoodGood } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import { type IncrementalBatchOptions, runBatchedYielding } from "./incrementalBatching";
+import { discardLivestockCargo } from "./livestockLots";
 import { utilizationOf } from "./marketFlowBudget";
 import { Markets } from "./markets-generator";
 import type {
@@ -134,6 +135,7 @@ function discardFreshPayload(caravan: Caravan): boolean {
     recordGoodFlow({
       direction: "sink",
       category: "spoilage",
+      livestockCargoIds: item.livestockCargoIds,
       goodId: item.goodId,
       units: item.units,
       marketId: caravan.sellerType === "market" ? caravan.seller : undefined
@@ -186,6 +188,7 @@ function appendPayloadFromManifest(
     let paymentTerms: TradePaymentTerms | undefined;
     let escrowAmount = 0;
     let freshnessAgeDays: number | undefined;
+    let livestockCargoIds: string[] | undefined;
     const good = getGoods().find(candidate => candidate.i === item.deal.good);
     // selectRouteCargo normally prevents this. Keep this boundary fail-closed so a stale
     // manifest, strategic caller, or user-edited catalogue cannot put raw food on a caravan.
@@ -200,6 +203,7 @@ function appendPayloadFromManifest(
       paymentTerms = taken.paymentTerms;
       escrowAmount = taken.escrowAmount ?? 0;
       freshnessAgeDays = taken.freshnessAgeDays;
+      livestockCargoIds = taken.livestockCargoIds;
       if (units <= UNIT_EPSILON) continue;
       item.deal.remainingUnits = Math.max(0, (item.deal.remainingUnits ?? item.deal.units) - units);
     } else {
@@ -217,6 +221,8 @@ function appendPayloadFromManifest(
         entry.dealId === item.deal.i && entry.goodId === item.deal.good && entry.stagingLotId === item.deal.stagingLotId
     );
     if (existing) {
+      if (livestockCargoIds?.length)
+        existing.livestockCargoIds = [...(existing.livestockCargoIds ?? []), ...livestockCargoIds];
       existing.goodsUnitCost = mergeUnitPrice(existing.goodsUnitCost, existing.units, goodsUnitCost, units);
       existing.saleUnitPrice = mergeUnitPrice(existing.saleUnitPrice, existing.units, saleUnitPrice, units);
       if (escrowAmount > 0) existing.escrowAmount = rn((existing.escrowAmount ?? 0) + escrowAmount, 2);
@@ -228,6 +234,7 @@ function appendPayloadFromManifest(
       }
     } else {
       caravan.payload.push({
+        livestockCargoIds,
         goodId: item.deal.good,
         dealId: item.deal.i,
         units,
@@ -255,7 +262,7 @@ function restoreLoadingCargoToOrigin(caravan: Caravan): void {
   restoreFoodCoLoadToOrigin(caravan);
   for (const item of caravan.payload) {
     if (item.isFoodCoLoad) continue;
-    ExportStaging.returnUnitsToRetail(caravan.seller, item.goodId, item.units);
+    ExportStaging.returnUnitsToRetail(caravan.seller, item.goodId, item.units, item.livestockCargoIds);
     if ((item.lockedCapital ?? 0) > UNIT_EPSILON) {
       const goodsRefund = item.goodsUnitCost === undefined ? undefined : rn(item.units * item.goodsUnitCost, 2);
       MerchantTradeCapital.unlock(caravan.seller, item.lockedCapital ?? 0, goodsRefund);
@@ -269,6 +276,7 @@ function settlePayloadCapital(caravan: Caravan, outcome: "arrived" | "lost"): vo
   const buyerMarket = caravan.buyerType === "market" ? getMarketById(caravan.buyer) : undefined;
   for (const item of caravan.payload) {
     if (item.isFoodCoLoad) continue;
+    if (outcome === "lost") discardLivestockCargo(item.livestockCargoIds);
     const locked = item.lockedCapital ?? 0;
     if (!(locked > UNIT_EPSILON)) continue;
     if (outcome === "lost") {
@@ -577,6 +585,7 @@ function takePortSpoilage(caravan: Caravan): void {
       recordGoodFlow({
         direction: "sink",
         category: "spoilage",
+        livestockCargoIds: item.livestockCargoIds,
         goodId,
         units: lost,
         marketId: caravan.sellerType === "market" ? caravan.seller : undefined
@@ -629,17 +638,10 @@ function sellStaleCargoAtPort(caravan: Caravan, portBurgId: number): void {
     const locked = item.lockedCapital ?? 0;
     cost += locked;
     saleValue += sale;
-    ExportStaging.returnUnitsToRetail(portMarket.i, item.goodId, item.units);
+    ExportStaging.returnUnitsToRetail(portMarket.i, item.goodId, item.units, item.livestockCargoIds);
     if (portMarket.i === caravan.seller) {
       if (locked > UNIT_EPSILON) MerchantTradeCapital.unlock(caravan.seller, locked, sale);
     } else {
-      recordGoodFlow({
-        direction: "source",
-        category: "importArrival",
-        goodId: item.goodId,
-        units: item.units,
-        marketId: portMarket.i
-      });
       if (locked > UNIT_EPSILON)
         MerchantTradeCapital.settleArrival(caravan.seller, locked, portMarket.i, sale, 0, false);
     }
@@ -1793,12 +1795,13 @@ export class CaravansModule {
                 recordGoodFlow({
                   direction: "source",
                   category: "importArrival",
+                  livestockCargoIds: item.livestockCargoIds,
                   goodId: item.goodId,
                   units: item.units,
                   marketId: buyerMarket.i
                 });
                 stockChanged = true;
-              }
+              } else discardLivestockCargo(item.livestockCargoIds, Infinity, "missingDestinationStock");
             }
             // Market.goods stock moved; daily retail tick re-layouts only this market.
             if (stockChanged) markRetailInventoryDirty(buyerMarket.i);
@@ -1814,6 +1817,10 @@ export class CaravansModule {
           deliveryMarket.caravanArrivalVolume = rn((deliveryMarket.caravanArrivalVolume ?? 0) + caravan.units, 2);
         }
 
+        if (caravan.buyerType !== "market" || !markets.some(market => market.i === caravan.buyer)) {
+          for (const item of caravan.payload)
+            discardLivestockCargo(item.livestockCargoIds, Infinity, "untrackedRecipient");
+        }
         arrived.push(caravan);
       }
     }

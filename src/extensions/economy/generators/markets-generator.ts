@@ -13,6 +13,7 @@ import {
   type ShipbuildingMaterials
 } from "../../hostTypes";
 import { getColors, getRandomColor, minmax, rn, TIME } from "../../hostUtils";
+import { getLivestockDispatchTable } from "../context/cellTables";
 import { getMilitaryResourceLedgers } from "../context/fiscal";
 import {
   getColdStorageDepots,
@@ -1453,6 +1454,10 @@ export class MarketsModule {
       direction: "source",
       category: "ruralHarvest",
       livestockSourceCellId: good.tags.includes("liveAnimal") ? sourceCellId : undefined,
+      livestockCohorts:
+        sourceCellId === undefined
+          ? undefined
+          : getLivestockDispatchTable()?.[`${sourceCellId}:${good.name}`]?.observation?.cohortHeads,
       goodId,
       units: resolvedAmount,
       marketId,

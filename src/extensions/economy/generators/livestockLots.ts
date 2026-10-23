@@ -1,5 +1,6 @@
 /** Provenance overlay for recorded market movements; never changes physical stock or cash. */
 import { getEconomySlice } from "../context/economyApi";
+import type { FaunaCohorts } from "./faunaPopulationTypes";
 import type { GoodFlowRecord } from "./goodsBalanceLedger";
 import { animalsPerMarketHead } from "./liveAnimalScale";
 import { livestockFeedPeriod } from "./livestockFeedState";
@@ -8,14 +9,24 @@ import type { OwnedLiveLot } from "./slaughterTransactions";
 export interface LivestockLot extends OwnedLiveLot {
   sourceCellId: number | null;
   marketId: number;
-  status: "market" | "owned";
+  status: "market" | "owned" | "transit";
 }
 export interface LivestockLotLedger {
   nextId: number;
-  shipments: Record<string, { sourceCellId: number; species: string; marketId: number; period: number; heads: number }>;
+  shipments: Record<
+    string,
+    {
+      sourceCellId: number;
+      species: string;
+      marketId: number;
+      period: number;
+      heads: number;
+      cohortHeads?: FaunaCohorts | null;
+    }
+  >;
 
   lots: Record<string, LivestockLot>;
-  /** Terminal quantities have no reusable live lot. Historical origin is retained by source. */
+  /** Movements by origin; transport splits and arrivals are bookkeeping, not physical losses. */
   exits: Record<string, Record<string, number>>;
   reconciledUnknownHeads: number;
 }
@@ -36,7 +47,7 @@ function addLot(
   sourceCellId: number | null,
   shipmentId = "",
   ownerId: string | null = null,
-  status: "market" | "owned" = "market"
+  status: "market" | "owned" | "transit" = "market"
 ) {
   const id = `live-${ledger.nextId++}`;
   ledger.lots[id] = {
@@ -58,6 +69,10 @@ function terminal(ledger: LivestockLotLedger, lot: LivestockLot, heads: number, 
   ledger.exits[key] ??= {};
   const totals = ledger.exits[key];
   totals[reason] = (totals[reason] ?? 0) + heads;
+  if (lot.cohortHeads) {
+    const share = heads / lot.heads;
+    for (const age of ["young", "breeding", "old"] as const) lot.cohortHeads[age] *= 1 - share;
+  }
   lot.heads -= heads;
   if (lot.heads <= 1e-12) delete ledger.lots[lot.id];
 }
@@ -71,6 +86,10 @@ export function recordLivestockLotFlow(flow: GoodFlowRecord, species: string, cl
   if (flow.marketId === undefined || flow.direction === "transfer") return;
   const ledger = getOrCreateLedger();
   if (!ledger) return;
+  if (flow.direction === "sink" && flow.category !== "exportDeparture" && flow.livestockCargoIds) {
+    discardLivestockCargo(flow.livestockCargoIds, flow.units * animalsPerMarketHead(species), flow.category);
+    return;
+  }
   const scale = animalsPerMarketHead(species);
   const moved = flow.units * scale;
   const closing = Math.max(0, closingUnits * scale);
@@ -90,6 +109,21 @@ export function recordLivestockLotFlow(flow: GoodFlowRecord, species: string, cl
     if (opening > 0) addLot(ledger, species, flow.marketId, opening, null);
     ledger.reconciledUnknownHeads += opening;
   }
+  if (flow.direction === "source" && flow.livestockCargoIds) {
+    let remaining = moved;
+    for (const id of flow.livestockCargoIds) {
+      const cargo = ledger.lots[id];
+      if (cargo?.status !== "transit" || cargo.species !== species) continue;
+      const heads = Math.min(remaining, cargo.heads);
+      if (!(heads > 0)) continue;
+      const arrived = copyLotShare(ledger, cargo, heads, "market", flow.marketId);
+      arrived.ownerId = null;
+      terminal(ledger, cargo, heads, "transportArrival");
+      remaining -= heads;
+    }
+    if (remaining > 1e-9) addLot(ledger, species, flow.marketId, remaining, null);
+    return;
+  }
   if (flow.direction === "source") {
     const cell = flow.livestockSourceCellId ?? null;
     const known = flow.category === "ruralHarvest" && cell !== null;
@@ -100,9 +134,14 @@ export function recordLivestockLotFlow(flow: GoodFlowRecord, species: string, cl
         species,
         marketId: flow.marketId,
         period: livestockFeedPeriod(),
-        heads: moved
+        heads: moved,
+        cohortHeads: flow.livestockCohorts ? { ...flow.livestockCohorts } : null
       };
-    addLot(ledger, species, flow.marketId, moved, known ? cell : null, shipmentId);
+    const lot = addLot(ledger, species, flow.marketId, moved, known ? cell : null, shipmentId);
+    if (known && flow.livestockCohorts) {
+      lot.cohortHeads = { ...flow.livestockCohorts };
+      lot.cohortProvenance = "aggregate";
+    }
     return;
   }
   let remaining = moved;
@@ -111,10 +150,77 @@ export function recordLivestockLotFlow(flow: GoodFlowRecord, species: string, cl
     if (!(heads > 0)) continue;
     // Recipe purchases are consumed by the legacy processing path, not reusable live property.
     // Only an explicitly identified live buyer creates an owned lot.
-    if (flow.livestockBuyerId)
-      addLot(ledger, species, flow.marketId, heads, lot.sourceCellId, lot.shipmentId, flow.livestockBuyerId, "owned");
+    if (flow.livestockBuyerId) {
+      const owned = copyLotShare(ledger, lot, heads, "owned", flow.marketId);
+      owned.ownerId = flow.livestockBuyerId;
+    }
+    if (flow.category === "exportDeparture" && flow.livestockCargoIds) {
+      const cargo = copyLotShare(ledger, lot, heads, "transit", flow.marketId);
+      cargo.locationId = "transport";
+      flow.livestockCargoIds.push(cargo.id);
+    }
     terminal(ledger, lot, heads, flow.livestockBuyerId ? "liveSale" : flow.category);
     remaining -= heads;
+    if (remaining <= 1e-12) break;
+  }
+}
+
+/** Split only aggregate age allocations; never assert individual calf eligibility. */
+function copyLotShare(
+  ledger: LivestockLotLedger,
+  source: LivestockLot,
+  heads: number,
+  status: LivestockLot["status"],
+  marketId: number
+): LivestockLot {
+  const lot = addLot(
+    ledger,
+    source.species,
+    marketId,
+    heads,
+    source.sourceCellId,
+    source.shipmentId,
+    source.ownerId,
+    status
+  );
+  lot.cohortProvenance = source.cohortProvenance;
+  if (source.cohortHeads)
+    lot.cohortHeads = {
+      young: (source.cohortHeads.young * heads) / source.heads,
+      breeding: (source.cohortHeads.breeding * heads) / source.heads,
+      old: (source.cohortHeads.old * heads) / source.heads
+    };
+  return lot;
+}
+
+/** Move a proportional share of transit lots into a new, independently consumable cargo. */
+export function splitLivestockCargo(ids: string[] | undefined, share: number): string[] | undefined {
+  const ledger = getLivestockLotLedger();
+  if (!ids || !ledger) return undefined;
+  const result: string[] = [];
+  for (const id of ids) {
+    const lot = ledger.lots[id];
+    if (lot?.status !== "transit") continue;
+    const heads = lot.heads * Math.max(0, Math.min(1, share));
+    if (!(heads > 0)) continue;
+    const split = copyLotShare(ledger, lot, heads, "transit", lot.marketId);
+    split.locationId = "transport";
+    terminal(ledger, lot, heads, "transportSplit");
+    result.push(split.id);
+  }
+  return result;
+}
+
+export function discardLivestockCargo(ids: string[] | undefined, heads = Infinity, reason = "transportLoss"): void {
+  const ledger = getLivestockLotLedger();
+  if (!ids || !ledger) return;
+  let remaining = heads;
+  for (const id of ids) {
+    const lot = ledger.lots[id];
+    if (lot?.status !== "transit") continue;
+    const taken = Math.min(lot.heads, remaining);
+    terminal(ledger, lot, taken, reason);
+    remaining -= taken;
     if (remaining <= 1e-12) break;
   }
 }

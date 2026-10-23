@@ -116,3 +116,15 @@ node --import tsx scripts/summarizeEconomyE1.mts docs/analytics/economy-e1-feed-
 ```sh
 node --import tsx scripts/auditWoolSupply.mts docs/analytics/inputs/salt-s0-aligned-20261023/province-101.fmg docs/analytics/raw/economy-e1-live-lots-province-101-20261024.json 12
 ```
+
+## E1 生体の年齢群と輸送由来（同日追補）
+
+[比較JSON](economy-e1-live-cargo-comparison-20261024.json)。固定Province101のみ12か月、既存live-lots出力と初期/全区間の既存経済観測値が一致。由来台帳自体は関連テストで検証。実行後の`livestockLots.ts`のコメント1行の訂正は、記録済み実行時source hashとの差分として残る（実行動作の変更なし）。
+
+| ファイル（docs/analytics/raw/） | バイト数 | SHA-256 |
+| --- | ---: | --- |
+| economy-e1-live-cargo-province-101-20261024.json | 2554046 | `0dfd5b7b55e91d9b674c0501f871a542cbc9d71c51b20740b0e6f0eec6aed04f` |
+
+```sh
+node --import tsx scripts/auditWoolSupply.mts docs/analytics/inputs/salt-s0-aligned-20261023/province-101.fmg docs/analytics/raw/economy-e1-live-cargo-province-101-20261024.json 12
+```

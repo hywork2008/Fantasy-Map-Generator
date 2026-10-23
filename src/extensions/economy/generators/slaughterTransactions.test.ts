@@ -78,3 +78,15 @@ describe("atomic carcass transactions", () => {
     expect(state.lots["lot-1"].heads).toBe(0);
   });
 });
+
+it("keeps age allocations in the committed batch and rejects inconsistent allocations before mutation", () => {
+  const state = createState();
+  state.lots["lot-1"].cohortHeads = { young: 0.5, breeding: 1, old: 0.5 };
+  const receipt = commitSlaughter(state, request, profile);
+  expect(receipt.cohortHeads).toEqual({ young: 0.25, breeding: 0.5, old: 0.25 });
+  expect(state.lots["lot-1"].cohortHeads).toEqual(receipt.cohortHeads);
+  state.lots["lot-1"].cohortHeads!.old = 99;
+  const before = structuredClone(state);
+  expect(() => commitSlaughter(state, { ...request, id: "bad-ages" }, profile)).toThrow();
+  expect(state).toEqual(before);
+});

@@ -551,12 +551,26 @@ describe("faunaPopulation", () => {
       expect(dispatchDomesticatedFauna(0, PIG_GOOD as never, 100)).toBe(2);
       expect(table["0:Pig"].old).toBe(0);
       expect(getLivestockDispatchTable()!["0:Pig"].observation?.heads).toBe(2);
+      expect(getLivestockDispatchTable()!["0:Pig"].observation?.cohortHeads).toEqual({ young: 0, breeding: 0, old: 2 });
       const saved = JSON.stringify(getLivestockDispatchTable());
       expect(saved).not.toContain("observation");
       Object.assign(getLivestockDispatchTable()!, JSON.parse(saved));
       expect(dispatchDomesticatedFauna(0, PIG_GOOD as never, 100)).toBe(0);
       simulationContext.currentMonth = 2;
       expect(dispatchDomesticatedFauna(0, PIG_GOOD as never, 100)).toBe(0);
+    });
+
+    it("records the actual age-group debit rather than estimating it from the dispatched total", () => {
+      const herd = { young: 3, breeding: 5, old: 2 };
+      getOrCreateFaunaStockTable()!["0:Pig"] = herd;
+      const before = { ...herd };
+      expect(dispatchDomesticatedFauna(0, PIG_GOOD as never, 4)).toBe(4);
+      const ages = getLivestockDispatchTable()!["0:Pig"].observation!.cohortHeads!;
+      expect(ages.young).toBeCloseTo(before.young - herd.young);
+      expect(ages.breeding).toBeCloseTo(before.breeding - herd.breeding);
+      expect(ages.old).toBeCloseTo(before.old - herd.old);
+      expect(ages.young + ages.breeding + ages.old).toBeCloseTo(4);
+      expect(ages.old).toBeGreaterThan(ages.young);
     });
 
     it("carries fractional demand, not real animals or an unmet whole-head backlog", () => {

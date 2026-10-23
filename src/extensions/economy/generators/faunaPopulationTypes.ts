@@ -31,4 +31,5 @@ export interface LivestockDispatchObservation {
   stockTracked: boolean;
   herdBeforeHeads: number | null;
   herdAfterHeads: number | null;
+  cohortHeads: FaunaCohorts | null;
 }

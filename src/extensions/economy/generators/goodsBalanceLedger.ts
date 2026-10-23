@@ -9,6 +9,7 @@
 
 import { rn } from "../../hostUtils";
 import { getGoods, getMarkets } from "../economyContext";
+import type { FaunaCohorts } from "./faunaPopulationTypes";
 import { isGoodEnabled } from "./goods-generator";
 import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";
 import { recordLivestockLotFlow } from "./livestockLots";
@@ -49,6 +50,9 @@ export type GoodFlowCategory =
 export interface GoodFlowRecord {
   /** Recorded source cell; absent for legacy stock, imports and unknown origins. */
   readonly livestockSourceCellId?: number;
+  readonly livestockCohorts?: FaunaCohorts | null;
+  /** Persistent transit-lot references; filled on export, consumed on arrival/loss. */
+  readonly livestockCargoIds?: string[];
   /** Explicit live ownership transfer, never inferred from a recipe purchase. */
   readonly livestockBuyerId?: string;
   readonly direction: GoodFlowDirection;

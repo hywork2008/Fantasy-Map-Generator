@@ -454,6 +454,7 @@ export interface Deal {
  * @see docs/plan/merchant-logistics-warehouses.md Phase C
  */
 export type ExportStagingLot = {
+  livestockCargoIds?: string[];
   id: number;
   /** Origin market (warehouse location). */
   marketId: number;
@@ -729,6 +730,7 @@ export interface Caravan {
   buyer: number;
   buyerType: "burg" | "market";
   payload: {
+    livestockCargoIds?: string[];
     goodId: number;
     dealId: number;
     units: number;

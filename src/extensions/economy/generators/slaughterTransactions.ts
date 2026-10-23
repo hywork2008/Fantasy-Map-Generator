@@ -1,3 +1,5 @@
+import type { FaunaCohorts } from "./faunaPopulationTypes";
+
 /** Atomic carcass transactions. Catalog conversion and live-market migration are separate. */
 export interface OwnedLiveLot {
   id: string;
@@ -8,6 +10,7 @@ export interface OwnedLiveLot {
   heads: number;
   /** Aggregate cohort allocation is not evidence of individual age or calf eligibility. */
   cohortProvenance: "aggregate" | "unknown";
+  cohortHeads?: FaunaCohorts | null;
 }
 
 export interface CarcassProfile {
@@ -42,6 +45,7 @@ export interface SlaughterReceipt {
   profileVersion: number;
   /** Frozen at commit: later profile edits cannot change an applied yield. */
   portionsKg: { lean: number; edibleFat: number; otherCarcass: number };
+  cohortHeads: FaunaCohorts | null;
 }
 
 export interface SlaughterTransactionState {
@@ -123,6 +127,14 @@ export function commitSlaughter(
       1e-8 * profile.carcassKgPerHead,
     "Carcass compartments do not balance"
   );
+  if (lot.cohortHeads) {
+    const ages = Object.values(lot.cohortHeads);
+    requireCondition(
+      ages.every(value => Number.isFinite(value) && value >= 0) &&
+        Math.abs(ages.reduce((sum, value) => sum + value, 0) - lot.heads) <= 1e-8 * Math.max(1, lot.heads),
+      "Invalid livestock cohort allocation"
+    );
+  }
   const portionsKg = {
     lean: request.heads * profile.leanKgPerHead,
     edibleFat: request.heads * profile.edibleFatKgPerHead,
@@ -141,8 +153,19 @@ export function commitSlaughter(
     shipmentId: lot.shipmentId,
     profileId: profile.id,
     profileVersion: profile.version,
-    portionsKg
+    portionsKg,
+    cohortHeads: lot.cohortHeads
+      ? {
+          young: (lot.cohortHeads.young * request.heads) / lot.heads,
+          breeding: (lot.cohortHeads.breeding * request.heads) / lot.heads,
+          old: (lot.cohortHeads.old * request.heads) / lot.heads
+        }
+      : null
   };
+  if (lot.cohortHeads) {
+    const share = request.heads / lot.heads;
+    for (const age of ["young", "breeding", "old"] as const) lot.cohortHeads[age] *= 1 - share;
+  }
   lot.heads -= request.heads;
   for (const [key, portion] of portions) state.portions[key] = portion as CarcassPortion;
   state.receipts[request.id] = receipt;
