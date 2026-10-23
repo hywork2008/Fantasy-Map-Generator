@@ -28,7 +28,8 @@ import {
   saltMarketCash
 } from "./saltFinance";
 import type { SaltShipment, Saltworks, StateSaltLedger } from "./saltLogisticsTypes";
-import { getSaltworksOwner, migrateSaltworksOwnership } from "./saltOwnership";
+import { getSaltworksOperator, migrateSaltworksOwnership } from "./saltOwnership";
+import { settleSaltResistance, updateSaltPolicies } from "./saltPolicy";
 import { createSaltProductionBudget } from "./saltProduction";
 
 /** The normalized physical quantity represented by Salt's `bag` Good unit. */
@@ -395,10 +396,11 @@ export class SaltLogisticsModule {
    * physical stock: the next batch is made only after household sales or recipe inputs create room for it.
    */
   settleMonth(): Map<number, number> {
+    const salt = getSaltGood();
+    if (!salt) return new Map();
+    updateSaltPolicies();
     migrateSaltworksOwnership();
     const production = createSaltProductionBudget();
-    const salt = getSaltGood();
-    if (!salt) return production.charged;
 
     for (const market of getMarkets()) {
       market.saltProcessingForecastBags = Math.max(0, market.saltProcessingInputBags ?? 0);
@@ -485,6 +487,11 @@ export class SaltLogisticsModule {
       let dispatched = 0;
       let householdSales = 0;
       let householdPaid = 0;
+      let saltTaxPaid = 0,
+        saltFarmPaid = 0,
+        smuggledBags = 0,
+        legalBags = 0,
+        taxAffordabilityGap = 0;
       let livestockPaid = 0;
       const unmarketedPeople = Math.max(
         0,
@@ -568,6 +575,9 @@ export class SaltLogisticsModule {
             exporterStateId: operation.stateId,
             importerStateId: stateId,
             saltworksId: operation.i,
+            ...(getWorldContext().pack.states[operation.stateId]?.saltPolicy?.mode === "monopoly"
+              ? { monopolyStateId: operation.stateId }
+              : {}),
             fromMarketId: source.i,
             toMarketId: demand.market.i,
             bags: rn(bags, 4),
@@ -629,10 +639,13 @@ export class SaltLogisticsModule {
             exporterStateId: operation.stateId,
             importerStateId: stateId,
             saltworksId: operation.i,
+            ...(getWorldContext().pack.states[operation.stateId]?.saltPolicy?.mode === "monopoly"
+              ? { monopolyStateId: operation.stateId }
+              : {}),
             fromMarketId: source.i,
             toMarketId: demand.market.i,
             bags: rn(output, 4),
-            sellerOwner: { ...getSaltworksOwner(operation) },
+            sellerOwner: { ...getSaltworksOperator(operation) },
             wholesalePaid: payment.goods,
             freightPaid: payment.freight,
             travelDays,
@@ -655,6 +668,11 @@ export class SaltLogisticsModule {
         );
         const sold = purchase.bags;
         householdPaid += purchase.paid;
+        saltTaxPaid += purchase.tax;
+        saltFarmPaid += purchase.farm;
+        smuggledBags += purchase.smuggled;
+        legalBags += purchase.legal;
+        taxAffordabilityGap += purchase.affordabilityGap;
         destinationGood.stock = rn(destinationGood.stock - sold, 4);
         householdSales += sold;
         unmetHousehold += Math.max(0, demand.householdBags - sold);
@@ -707,6 +725,15 @@ export class SaltLogisticsModule {
         stateId,
         population: rn(population, 0),
         monthlyHouseholdPaid: rn(householdPaid, 2),
+        monthlySaltTaxPaid: rn(saltTaxPaid, 2),
+        monthlySaltTaxFarmPaid: rn(saltFarmPaid, 2),
+        monthlySaltTaxNet: rn(saltTaxPaid - saltFarmPaid, 2),
+        monthlySmuggledBags: rn(smuggledBags, 4),
+        monthlyLegalHouseholdBags: rn(legalBags, 4),
+        monthlyTaxAffordabilityGapBags: rn(taxAffordabilityGap, 4),
+        monthlyUnmetQuotaBags: getWorldContext().pack.states[stateId]?.saltPolicy?.compulsoryPurchase
+          ? rn(unmetHousehold + smuggledBags, 4)
+          : 0,
         monthlyLivestockPaid: rn(livestockPaid, 2),
         unmarketedPeople: rn(unmarketedPeople, 0),
         monthlyProcessingForecastBags: rn(
@@ -821,6 +848,10 @@ export class SaltLogisticsModule {
           .reduce((sum, shipment) => sum + shipment.bags, 0),
         4
       );
+    }
+    for (const ledger of ledgers) {
+      const state = getWorldContext().pack.states[ledger.stateId];
+      if (state?.i && !state.removed) settleSaltResistance(state, ledger);
     }
     setSaltShipments(shipments);
     setStateSaltLedgers(ledgers.toSorted((left, right) => left.stateId - right.stateId));

@@ -779,6 +779,7 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
     return economy() ? {
       populationCoverage: auditSaltPopulationCoverage(),
       kilogramsPerBag: SALT_KILOGRAMS_PER_BAG,
+      policies: getWorld().pack.states.filter(state => state?.i && !state.removed).map(state => ({stateId:state.i, ...(state.saltPolicy ?? {})})),
       states: getStateSaltLedgers().map(row => ({ ...row, saltworksIds: [...row.saltworksIds] })),
       works: getSaltworks().map(row => ({ ...row, ...(row.owner ? { owner: { ...row.owner } } : {}), ...(row.settlementOwner ? { settlementOwner: { ...row.settlementOwner } } : {}) })),
       shipments: getSaltShipments().map(row => ({ ...row, ...(row.sellerOwner ? { sellerOwner: { ...row.sellerOwner } } : {}) }))

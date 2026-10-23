@@ -5,7 +5,7 @@ import { isGoodEnabled } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import { paySaltInputs, saltInvoice, saltOwnerCash } from "./saltFinance";
 import type { Saltworks } from "./saltLogisticsTypes";
-import { getSaltworksOwner } from "./saltOwnership";
+import { getSaltworksOperator } from "./saltOwnership";
 import { readAgriculturalClimate } from "./seasonalCropClimate";
 import { getSubsistenceWage } from "./subsistenceWage";
 import { WOOD_KG_PER_LOT } from "./woodRecipeContracts";
@@ -92,7 +92,7 @@ export function createSaltProductionBudget() {
             : "boiling";
       operation.monthlyLaborHours = 0;
       operation.monthlyFuelWoodUnits = 0;
-      operation.settlementOwner = { ...getSaltworksOwner(operation) };
+      operation.settlementOwner = { ...getSaltworksOperator(operation) };
       operation.monthlyWagesPaid = 0;
       operation.monthlyFuelPaid = 0;
       operation.monthlyWholesaleReceived = 0;

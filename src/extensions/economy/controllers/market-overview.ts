@@ -9,6 +9,7 @@ import {
   getMarketCellColumn,
   getMerchantOrganizations,
   getSaltworks,
+  getStateSaltLedgers,
   getWorldContext
 } from "../economyContext";
 import {
@@ -26,10 +27,12 @@ import { MerchantTransportAssets } from "../generators/merchantTransportAssets";
 import type { SaltworksOwner } from "../generators/saltLogisticsTypes";
 import {
   getSaltOwnerAccount,
+  getSaltworksOperator,
   getSaltworksOwner,
   getSaltworksOwnerOptions,
   setSaltworksOwner
 } from "../generators/saltOwnership";
+import { configureSaltPolicy, setSaltPolicyAutomatic } from "../generators/saltPolicy";
 import { TradeLogisticsSettings } from "../generators/tradeLogisticsSettings";
 import { TransportAssetOrders } from "../generators/transportAssetOrders";
 import {
@@ -113,6 +116,36 @@ export function cancelTransportAssetOrder(orderId: number): boolean {
   if (!TransportAssetOrders.cancel(orderId)) return false;
   refreshMarketOverview();
   return true;
+}
+
+function saltPolicyStateIds(): Set<number> {
+  const { pack } = getWorldContext();
+  const ids = new Set(pack.burgs.filter(b => b?.i && !b.removed && b.market === activeMarketId).map(b => b.state ?? 0));
+  const column = getMarketCellColumn();
+  for (const cell of pack.cells.i)
+    if (column[cell] === activeMarketId && pack.cells.h[cell] >= 20) ids.add(pack.cells.state[cell]);
+  for (const work of getSaltworks()) if (work.marketId === activeMarketId) ids.add(work.stateId);
+  ids.delete(0);
+  return ids;
+}
+
+export function proposeActiveSaltPolicy(
+  stateId: number,
+  mode: "open" | "monopoly",
+  taxRate: number,
+  compulsory: boolean
+): boolean {
+  if (!saltPolicyStateIds().has(stateId)) return false;
+  const accepted = configureSaltPolicy(stateId, mode, taxRate, compulsory);
+  if (!accepted)
+    tip("The Salt policy proposal was rejected or invalid. The current policy remains in force", true, "error", 5000);
+  refreshMarketOverview();
+  return accepted;
+}
+export function automateActiveSaltPolicy(stateId: number, automated: boolean): void {
+  if (!saltPolicyStateIds().has(stateId)) return;
+  setSaltPolicyAutomatic(stateId, automated);
+  refreshMarketOverview();
 }
 
 export function assignSaltworksOwner(operationId: number, value: string): boolean {
@@ -229,12 +262,37 @@ export function refreshMarketOverview(): void {
         id: o.i,
         owner: { ...getSaltworksOwner(o) },
         settlementOwner: o.settlementOwner ? { ...o.settlementOwner } : undefined,
-        cash: getSaltOwnerAccount(o)?.balance ?? null,
+        cash: getSaltOwnerAccount(o, false)?.balance ?? null,
+        operator: { ...getSaltworksOperator(o) },
+        operatingCash: getSaltOwnerAccount(o)?.balance ?? null,
         output: o.monthlyOutputBags,
         receipts: o.monthlyWholesaleReceived ?? 0,
         expenses: (o.monthlyWagesPaid ?? 0) + (o.monthlyFuelPaid ?? 0) + (o.monthlyFreightPaid ?? 0),
         options: getSaltworksOwnerOptions(o)
       })),
+    saltPolicyRows: [...saltPolicyStateIds()].flatMap(id => {
+      const country = getWorldContext().pack.states[id];
+      if (!country?.i || country.removed) return [];
+      const policy = country.saltPolicy;
+      const ledger = getStateSaltLedgers().find(l => l.stateId === id);
+      return [
+        {
+          stateId: id,
+          name: country.name,
+          mode: policy?.mode ?? "open",
+          taxRate: policy?.taxRate ?? 0,
+          automated: policy?.automated ?? true,
+          compulsoryPurchase: policy?.compulsoryPurchase ?? false,
+          unrest: policy?.unrest ?? 0,
+          revolt: policy?.revolt ?? false,
+          decision: policy?.lastDecision,
+          taxPaid: ledger?.monthlySaltTaxPaid ?? 0,
+          taxFarmPaid: ledger?.monthlySaltTaxFarmPaid ?? 0,
+          smuggled: ledger?.monthlySmuggledBags ?? 0,
+          unmetQuota: ledger?.monthlyUnmetQuotaBags ?? 0
+        }
+      ];
+    }),
     burgMerchantRows,
     transportAssetRows,
     transportOrderRows,

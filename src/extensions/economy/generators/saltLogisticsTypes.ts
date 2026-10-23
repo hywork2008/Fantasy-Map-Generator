@@ -58,6 +58,8 @@ export interface SaltShipment {
   wholesalePaid?: number;
   /** Owner paid at dispatch for fresh output; later assignments never rewrite this receipt. */
   sellerOwner?: SaltworksOwner;
+  /** Government holding exclusive wholesale rights when this cargo departed. */
+  monopolyStateId?: number;
   freightPaid?: number;
 }
 
@@ -66,6 +68,20 @@ export interface StateSaltLedger {
   /** Unmapped households have demand but no implied delivery. State zero represents neutral residents. */
   unmarketedPeople?: number;
   monthlyHouseholdPaid?: number;
+  monthlySaltTaxPaid?: number;
+  monthlySaltTaxFarmPaid?: number;
+  monthlySaltTaxNet?: number;
+  monthlySmuggledBags?: number;
+  monthlyLegalHouseholdBags?: number;
+  monthlyTaxAffordabilityGapBags?: number;
+  monthlyUnmetQuotaBags?: number;
+  saltMonopoly?: boolean;
+  saltAutomated?: boolean;
+  saltCompulsoryPurchase?: boolean;
+  saltTaxRate?: number;
+  saltUnrest?: number;
+  saltRevolt?: boolean;
+  saltCouncilDecision?: "approved" | "rejected" | "unchanged";
   monthlyLivestockPaid?: number;
   monthlyImportsPaid?: number;
   monthlyExportsReceived?: number;

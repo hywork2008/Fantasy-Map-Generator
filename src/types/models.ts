@@ -1416,6 +1416,17 @@ export interface State {
    * docs/plan/department-budget-spending-effects.md §3.3.
    */
   religiousUnrest?: number;
+  /** Salt trading rights and retail levy; absent legacy policy starts open and untaxed. */
+  saltPolicy?: {
+    mode: "open" | "monopoly";
+    taxRate: number;
+    automated: boolean;
+    compulsoryPurchase: boolean;
+    unrest: number;
+    revolt: boolean;
+    lastDecisionMonth?: number;
+    lastDecision?: "approved" | "rejected" | "unchanged";
+  };
 
   // ── Manpower simulation ──
   /**

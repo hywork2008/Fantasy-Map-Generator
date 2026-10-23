@@ -6,6 +6,7 @@ import { debitRuralHouseholdWealth, getRuralHouseholdWealth } from "./householdW
 import type { Market } from "./marketTypes";
 import type { Saltworks } from "./saltLogisticsTypes";
 import { getSaltOwnerAccount } from "./saltOwnership";
+import { collectSaltTax, saltSmugglingShare } from "./saltPolicy";
 import { getTransportCost } from "./tradeOpportunityEstimator";
 
 /** Settle positive invoices in cents, never below the physical purchase's quoted value. */
@@ -110,7 +111,15 @@ export function buyHouseholdSalt(
   requested: number,
   stock: number,
   price: number
-): { bags: number; paid: number } {
+): {
+  bags: number;
+  paid: number;
+  tax: number;
+  farm: number;
+  smuggled: number;
+  legal: number;
+  affordabilityGap: number;
+} {
   const world = getWorldContext();
   const rate = Math.max(1, world.populationRate ?? 1);
   const column = getMarketCellColumn();
@@ -124,17 +133,40 @@ export function buyHouseholdSalt(
     (sum, b) => sum + (b.population ?? 0) * rate * Math.max(1, world.urbanization ?? 1),
     ruralPeople
   );
-  if (!(people > 0) || !(price > 0)) return { bags: 0, paid: 0 };
+  if (!(people > 0) || !(price > 0))
+    return { bags: 0, paid: 0, tax: 0, farm: 0, smuggled: 0, legal: 0, affordabilityGap: 0 };
   const limit = Math.min(requested, Math.max(0, stock));
+  const state = world.pack.states[stateId];
+  const taxRate = Math.max(0, state?.saltPolicy?.taxRate ?? 0);
+  const bypass = saltSmugglingShare(stateId, market);
   let bags = 0,
-    paid = 0;
+    paid = 0,
+    tax = 0,
+    smuggled = 0,
+    legal = 0,
+    affordabilityGap = 0;
   const buy = (share: number, wallet: number, debit: (amount: number) => number) => {
-    const quantity = Math.min(limit * share, Math.floor(wallet * 100) / 100 / price);
-    const cost = saltInvoice(quantity * price);
-    if (!(quantity > 0) || cost > wallet + 1e-8) return;
-    const actual = debit(cost);
-    paid = cents(paid + actual);
-    bags += (quantity * actual) / cost;
+    const desired = limit * share;
+    let remainingCash = wallet,
+      bought = 0;
+    const channel = (quantityLimit: number, rate: number) => {
+      const unitPrice = price * (1 + rate);
+      const quantity = Math.min(quantityLimit, Math.floor(remainingCash * 100 + 1e-8) / 100 / unitPrice);
+      const cost = saltInvoice(quantity * unitPrice);
+      if (!(quantity > 0) || cost > remainingCash + 1e-8) return 0;
+      const actual = debit(cost);
+      const supplied = (quantity * actual) / cost;
+      const levy = Math.floor(((actual * rate) / (1 + rate)) * 100 + 1e-8) / 100;
+      tax = cents(tax + levy);
+      paid = cents(paid + actual);
+      remainingCash = cents(remainingCash - actual);
+      bought += supplied;
+      return supplied;
+    };
+    smuggled += channel(desired * bypass, 0);
+    legal += channel(Math.max(0, desired - bought), taxRate);
+    affordabilityGap += taxRate > 0 ? Math.max(0, Math.min(desired, wallet / price) - bought) : 0;
+    bags += bought;
   };
   for (const burg of towns)
     buy(
@@ -144,8 +176,9 @@ export function buyHouseholdSalt(
     );
   if (ruralPeople > 0)
     buy(ruralPeople / people, getRuralHouseholdWealth(market), amount => debitRuralHouseholdWealth(market, amount));
-  creditMarket(market, paid);
-  return { bags, paid };
+  creditMarket(market, cents(paid - tax));
+  const receipt = collectSaltTax(stateId, tax);
+  return { bags, paid, tax: receipt.tax, farm: receipt.farm, smuggled, legal, affordabilityGap };
 }
 
 /** Inelastic physical demand drives prices; inability to pay is not erased from that demand. */

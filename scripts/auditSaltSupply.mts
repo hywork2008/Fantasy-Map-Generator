@@ -11,6 +11,7 @@ import { setCargoDepartureObserver, setLotDispatchObserver, setTradeStageObserve
 import { setTickStepObserver } from "../src/generators/tickProfiler";
 import { SALT_LIVESTOCK_ANNUAL_KG, SALT_LIVESTOCK_NATURAL_SHARE } from "../src/extensions/economy/generators/saltLogistics";
 
+import { SALT_POLICY_RULES } from "../src/extensions/economy/generators/saltPolicy";
 import { SALT_PRODUCTION_POLICY } from "../src/extensions/economy/generators/saltProduction";
 
 const [input, output, length = "12"] = process.argv.slice(2);
@@ -21,7 +22,7 @@ if (!input || !output || !Number.isSafeInteger(months) || months < 1) {
 const sha256 = (bytes: string | Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const sourcePaths = execFileSync("git", ["ls-files", "-z", "src", "scripts", "public", "package-lock.json"])
   .toString().split("\0").filter(path => path && !path.startsWith("src/city-generator/"));
-sourcePaths.push("scripts/auditSaltSupply.mts", "src/extensions/economy/generators/saltProduction.ts", "src/extensions/economy/generators/saltFinance.ts");
+sourcePaths.push("scripts/auditSaltSupply.mts", "src/extensions/economy/generators/saltProduction.ts", "src/extensions/economy/generators/saltFinance.ts", "src/extensions/economy/generators/saltPolicy.ts");
 const sourceHashes = Object.fromEntries([...new Set(sourcePaths)].sort().map(path => [path, sha256(readFileSync(path))]));
 const bytes = readFileSync(input);
 const host = createNodeSimulationHost();
@@ -81,6 +82,13 @@ try {
   const totals = samples.reduce((sum, sample) => {
     for (const row of sample.settlements.flatMap(settlement => settlement.states)) {
       sum.personMonths += row.population;
+      sum.saltTaxPaid += row.monthlySaltTaxPaid ?? 0;
+      sum.saltTaxFarmPaid += row.monthlySaltTaxFarmPaid ?? 0;
+      sum.smuggledKg += (row.monthlySmuggledBags ?? 0) * sample.logistics.kilogramsPerBag;
+      sum.unmetQuotaKg += (row.monthlyUnmetQuotaBags ?? 0) * sample.logistics.kilogramsPerBag;
+      sum.taxAffordabilityGapKg += (row.monthlyTaxAffordabilityGapBags ?? 0) * sample.logistics.kilogramsPerBag;
+      sum.revoltStateSettlements += row.saltRevolt ? 1 : 0;
+      sum.monopolyStateSettlements += row.saltMonopoly ? 1 : 0;
       sum.householdPaid += row.monthlyHouseholdPaid ?? 0;
       sum.livestockPaid += row.monthlyLivestockPaid ?? 0;
       sum.importsPaid += row.monthlyImportsPaid ?? 0;
@@ -103,20 +111,20 @@ try {
     sum.saltMoneyNet += sample.saltMoney.reduce((net, row) => net + row.net, 0);
     sum.recipeInputKg += (sample.salt.flows?.["sink:recipeInput"]?.units ?? 0) * sample.logistics.kilogramsPerBag;
     return sum;
-  }, { householdPaid: 0, livestockPaid: 0, importsPaid: 0, wagesPaid: 0, fuelPaid: 0, wholesaleReceived: 0, freightPaid: 0, saltMoneyNet: 0, saltLaborHours: 0, saltFuelWoodUnits: 0, personMonths: 0, householdDemandKg: 0, householdSuppliedKg: 0, unmetHouseholdKg: 0, productionKg: 0, recipeInputKg: 0, livestockDemandKg: 0, livestockSuppliedKg: 0, livestockUnmetKg: 0 });
+  }, { saltTaxPaid: 0, saltTaxFarmPaid: 0, smuggledKg: 0, unmetQuotaKg: 0, taxAffordabilityGapKg: 0, revoltStateSettlements: 0, monopolyStateSettlements: 0, householdPaid: 0, livestockPaid: 0, importsPaid: 0, wagesPaid: 0, fuelPaid: 0, wholesaleReceived: 0, freightPaid: 0, saltMoneyNet: 0, saltLaborHours: 0, saltFuelWoodUnits: 0, personMonths: 0, householdDemandKg: 0, householdSuppliedKg: 0, unmetHouseholdKg: 0, productionKg: 0, recipeInputKg: 0, livestockDemandKg: 0, livestockSuppliedKg: 0, livestockUnmetKg: 0 });
   const annualizedKgPerServedPerson = Object.fromEntries(Object.entries(totals)
     .filter(([key]) => key.endsWith("Kg"))
     .map(([key, value]) => [key, totals.personMonths > 0 ? value * 12 / totals.personMonths : null]));
-  writeFileSync(output, JSON.stringify({ schemaVersion: 5, input: basename(input), inputSha256: sha256(bytes),
+  writeFileSync(output, JSON.stringify({ schemaVersion: 6, input: basename(input), inputSha256: sha256(bytes),
     gitHead: execFileSync("git", ["rev-parse", "HEAD"]).toString().trim(),
     sourceTreeSha256: sha256(JSON.stringify(sourceHashes)),
-    sourceHashScope: "git-tracked src (excluding deprecated city-generator), scripts, public, package-lock.json, plus this runner and saltProduction.ts/saltFinance.ts",
+    sourceHashScope: "git-tracked src (excluding deprecated city-generator), scripts, public, package-lock.json, plus this runner and saltProduction.ts/saltFinance.ts/saltPolicy.ts",
     sourceHashes: Object.fromEntries(["scripts/auditSaltSupply.mts", "scripts/lib/observeViews.mts",
-      "src/extensions/economy/generators/saltLogistics.ts", "src/extensions/economy/generators/saltProduction.ts", "src/extensions/economy/generators/saltFinance.ts", "src/extensions/economy/generators/production-generator.ts"]
+      "src/extensions/economy/generators/saltLogistics.ts", "src/extensions/economy/generators/saltProduction.ts", "src/extensions/economy/generators/saltFinance.ts", "src/extensions/economy/generators/saltPolicy.ts", "src/extensions/economy/generators/production-generator.ts"]
       .map(path => [path, sourceHashes[path]])),
     seed: host.world.seed, settlementPattern: host.world.options.initialSettlementPattern, initialProfile,
     worldSettings: sim.worldSettings, months,
-    modelPolicy: { saltProduction: SALT_PRODUCTION_POLICY, livestockAnnualKg: SALT_LIVESTOCK_ANNUAL_KG, livestockNaturalCreditShare: SALT_LIVESTOCK_NATURAL_SHARE,
+    modelPolicy: { saltPolicy: SALT_POLICY_RULES, saltProduction: SALT_PRODUCTION_POLICY, livestockAnnualKg: SALT_LIVESTOCK_ANNUAL_KG, livestockNaturalCreditShare: SALT_LIVESTOCK_NATURAL_SHARE,
       youngHeadEquivalent: 0.5, note: "Uncalibrated supplementary-salt planning assumptions, not observed historical purchases or physiological requirements." },
     notes: ["Flows are interval totals; logistics states and works are latest-month records, not cumulative. settlements captures every actual salt settlement via the read-only tick observer.",
       "Salt bag = 60 kg. S3 household deliveries are purchases from existing wallets; input, wholesale and freight payments have explicit counterparties.",

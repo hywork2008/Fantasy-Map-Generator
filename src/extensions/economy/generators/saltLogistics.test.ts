@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createMoneyFlowRecorder, createObserveViews } from "../../../../scripts/lib/observeViews.mts";
+import { simEvents } from "../../../simulation/events";
 import { clearCharactersContext, initCharactersContext } from "../../characters/charactersContext";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
+import { clearNobilityContext, initNobilityContext, setRulerId } from "../../nobility/nobilityContext";
 import {
   clearEconomyContext,
   getApi,
@@ -20,7 +22,9 @@ import {
   setMineralDeposits,
   setSaltShipments
 } from "../economyContext";
+import { getDiscontentLaborMultiplier } from "./burgDiscontent";
 import { getHouseholdWealth } from "./burgMarketLedgers";
+import { getCouncilSupport } from "./councilAssembly";
 import { Goods } from "./goods-generator";
 import { recordGoodFlow, setGoodFlowObserver } from "./goodsBalanceLedger";
 import { getRuralHouseholdWealth } from "./householdWealth";
@@ -37,10 +41,12 @@ import {
 import type { SaltworksOwner } from "./saltLogisticsTypes";
 import {
   getSaltOwnerAccount,
+  getSaltworksOperator,
   getSaltworksOwnerOptions,
   migrateSaltworksOwnership,
   setSaltworksOwner
 } from "./saltOwnership";
+import { configureSaltPolicy, shouldAdoptSaltMonopoly, updateSaltPolicies } from "./saltPolicy";
 import { createSaltProductionBudget, SALT_PRODUCTION_POLICY, saltSolarWeights } from "./saltProduction";
 import { setCargoDepartureObserver, setLotDispatchObserver, setTradeStageObserver } from "./tradeStageObserver";
 import { WOOD_KG_PER_LOT } from "./woodRecipeContracts";
@@ -110,6 +116,7 @@ describe("SaltLogisticsModule", () => {
   });
   afterEach(() => {
     clearCharactersContext();
+    clearNobilityContext();
     setGoodFlowObserver(null);
     setCargoDepartureObserver(null);
     setLotDispatchObserver(null);
@@ -131,6 +138,187 @@ describe("SaltLogisticsModule", () => {
       (worldContext.pack.characters ?? []).reduce((sum, person) => sum + (person.wealth ?? 0), 0)
     );
   }
+
+  it("requires fiscal distress and an exploitative ruler, and reviews automatic policy once per month", () => {
+    expect(shouldAdoptSaltMonopoly(0, 10, { greed: 90, honor: 10, compassion: 10 })).toBe(true);
+    expect(shouldAdoptSaltMonopoly(100, 10, { greed: 90, honor: 10, compassion: 10 })).toBe(false);
+    expect(shouldAdoptSaltMonopoly(0, 10, { greed: 90, honor: 90, compassion: 90 })).toBe(false);
+    seedOwners();
+    worldContext.pack.characters![0].personality = {
+      greed: 90,
+      honor: 10,
+      compassion: 10,
+      rationality: 50
+    } as (typeof NonNullable<typeof worldContext.pack.characters>)[0]["personality"];
+    worldContext.pack.characters![0].titles = [];
+    const api = getApi();
+    api.simulationContext.extensions.characters = { characters: worldContext.pack.characters! };
+    initCharactersContext(api as unknown as ExtensionAPI);
+    initNobilityContext(api as unknown as ExtensionAPI);
+    setRulerId(worldContext.pack.states[1], 100);
+    const state = worldContext.pack.states[1];
+    state.treasury = 0;
+    updateSaltPolicies();
+    expect(state.saltPolicy?.mode).toBe("monopoly");
+    expect(state.saltPolicy?.compulsoryPurchase).toBe(false);
+    const logCount = state.councilSessionLog!.length;
+    state.treasury = 1e8;
+    updateSaltPolicies();
+    expect(state.saltPolicy?.mode).toBe("monopoly");
+    expect(state.councilSessionLog).toHaveLength(logCount);
+    api.simulationContext.currentMonth = 2;
+    updateSaltPolicies();
+    expect(state.saltPolicy?.mode).toBe("open");
+    expect(state.saltPolicy?.taxRate).toBe(0);
+  });
+
+  it("does not introduce a salt policy when the Good is disabled", () => {
+    setGoods([]);
+    SaltLogistics.settleMonth();
+    expect(worldContext.pack.states[1].saltPolicy).toBeUndefined();
+  });
+
+  it("lets the assembly veto an extraction policy without changing rights or cash", () => {
+    SaltLogistics.generate();
+    const state = worldContext.pack.states[1];
+    state.debtCoupSupportPenalty = 60;
+    const before = cash();
+    expect(configureSaltPolicy(1, "monopoly", 1, true)).toBe(false);
+    expect(state.saltPolicy?.mode).toBe("open");
+    expect(state.saltPolicy?.taxRate).toBe(0);
+    expect(state.councilSessionLog?.at(-1)?.kind).toBe("veto");
+    expect(cash()).toBe(before);
+  });
+
+  it("reserves state operating rights temporarily without seizing the private title or past receipts", () => {
+    seedOwners();
+    SaltLogistics.generate();
+    const operation = getSaltworks()[0];
+    expect(setSaltworksOwner(operation.i, { kind: "private", id: 100 })).toBe(true);
+    expect(configureSaltPolicy(1, "monopoly", 0.5, false)).toBe(true);
+    expect(getSaltworksOperator(operation)).toEqual({ kind: "state", id: 1 });
+    SaltLogistics.settleMonth();
+    expect(operation.owner).toEqual({ kind: "private", id: 100 });
+    expect(operation.settlementOwner).toEqual({ kind: "state", id: 1 });
+    expect(worldContext.pack.characters![0].wealth).toBe(1e8);
+    expect(getSaltShipments().find(sh => sh.saltworksId === operation.i)?.monopolyStateId).toBe(1);
+    const receipts = structuredClone(getSaltShipments());
+    expect(configureSaltPolicy(1, "open", 0, false)).toBe(true);
+    expect(getSaltworksOperator(operation)).toEqual({ kind: "private", id: 100 });
+    expect(getSaltShipments()).toEqual(receipts);
+  });
+
+  it("splits actual household tax through existing tax farmers and conserves money", () => {
+    worldContext.pack.states[1].form = "Monarchy";
+    worldContext.pack.burgs[1].security = 100;
+    getMarkets()[0].marketTreasury!.balance += 0.004;
+    worldContext.pack.states[1].treasury! += 0.003;
+    expect(configureSaltPolicy(1, "open", 1, false)).toBe(true);
+    const before = cash();
+    const stateBefore = worldContext.pack.states[1].treasury!;
+    const purchase = buyHouseholdSalt(getMarkets()[0], 1, 100, 100, 1);
+    expect(purchase.bags).toBeCloseTo(100);
+    expect(purchase.tax).toBeGreaterThan(0);
+    expect(purchase.farm).toBeGreaterThan(0);
+    expect(purchase.legal + purchase.smuggled).toBeCloseTo(purchase.bags);
+    expect(worldContext.pack.states[1].treasury).toBeCloseTo(stateBefore + purchase.tax - purchase.farm, 4);
+    expect(cash()).toBeCloseTo(before, 4);
+  });
+
+  it("reduces purchasable quantity through the same wallets while keeping physical need unchanged", () => {
+    const market = getMarkets()[0];
+    const resetWallets = () => {
+      setBurgMarketLedgers([1, 2].map(burgId => ({ burgId, marketId: burgId, merchants: [], householdWealth: 10 })));
+      market.foodLedger!.ruralHouseholdWealth = 10;
+    };
+    resetWallets();
+    const untaxed = buyHouseholdSalt(market, 1, 20, 20, 1);
+    resetWallets();
+    expect(configureSaltPolicy(1, "open", 1, false)).toBe(true);
+    const taxed = buyHouseholdSalt(market, 1, 20, 20, 1);
+    expect(taxed.bags).toBeLessThan(untaxed.bags);
+    expect(taxed.affordabilityGap).toBeGreaterThan(0);
+    expect(taxed.tax).toBeGreaterThan(0);
+    expect(taxed.paid).toBeCloseTo(untaxed.paid);
+  });
+
+  it("treats compulsory legal purchase separately from consumption and counts smuggled stock only once", () => {
+    SaltLogistics.generate();
+    getSaltworks().forEach(w => {
+      w.active = false;
+    });
+    for (const market of getMarkets()) market.goods[1] = { stock: 1000, price: 1 };
+    expect(configureSaltPolicy(1, "monopoly", 1, true)).toBe(true);
+    let consumed = 0;
+    setGoodFlowObserver(flow => {
+      if (flow.goodId === 1 && flow.category === "householdFood") consumed += flow.units;
+    });
+    const before = cash();
+    SaltLogistics.settleMonth();
+    const row = getStateSaltLedgers().find(l => l.stateId === 1)!;
+    expect(row.monthlyHouseholdDemandBags).toBe(100);
+    expect(row.monthlyUnmetHouseholdBags).toBe(0);
+    expect(row.monthlySmuggledBags).toBeGreaterThan(0);
+    expect(row.monthlyUnmetQuotaBags).toBeCloseTo(row.monthlySmuggledBags!);
+    expect(consumed).toBeCloseTo(
+      getStateSaltLedgers().reduce((sum, l) => sum + l.monthlyHouseholdSalesBags, 0),
+      3
+    );
+    expect(getMarkets()[0].goods[1].stock).toBeCloseTo(900);
+    expect(cash()).toBeCloseTo(before, 4);
+  });
+
+  it("records revolt once on crossing and connects tax resistance to civic production and assembly support", () => {
+    SaltLogistics.generate();
+    expect(configureSaltPolicy(1, "monopoly", 2, true)).toBe(true);
+    const p = worldContext.pack.states[1].saltPolicy!;
+    p.unrest = 79;
+    getSaltworks().forEach(w => {
+      w.active = false;
+    });
+    setBurgMarketLedgers([1, 2].map(burgId => ({ burgId, marketId: burgId, merchants: [], householdWealth: 0 })));
+    getMarkets().forEach(m => {
+      m.foodLedger!.ruralHouseholdWealth = 0;
+      m.goods[1] = { stock: 1000, price: 1 };
+    });
+    worldContext.pack.burgs[1].discontent = 70;
+    let revoltEvents = 0;
+    const handler = () => {
+      revoltEvents += 1;
+    };
+    simEvents.addEventListener("fmg:salt-revolt", handler);
+    try {
+      SaltLogistics.settleMonth();
+      SaltLogistics.settleMonth();
+      const row = getStateSaltLedgers().find(l => l.stateId === 1)!;
+      expect(row.saltRevolt).toBe(true);
+      expect(row.monthlyUnmetQuotaBags).toBeGreaterThan(0);
+      expect(row.monthlySaltTaxPaid).toBe(0);
+      expect(revoltEvents).toBe(1);
+      expect(getDiscontentLaborMultiplier(worldContext.pack.burgs[1].discontent)).toBeLessThan(1);
+      expect(getCouncilSupport(worldContext.pack.states[1]).support).toBeLessThan(62);
+    } finally {
+      simEvents.removeEventListener("fmg:salt-revolt", handler);
+    }
+  });
+
+  it("keeps taxes assigned to the buyer's state in a shared market", () => {
+    worldContext.pack.burgs[2].market = 1;
+    setMarketCellColumn(Uint16Array.from([1, 1, 0]));
+    setMarkets([getMarkets()[0]]);
+    Markets.sync();
+    SaltLogistics.generate();
+    getSaltworks().forEach(w => {
+      w.active = false;
+    });
+    getMarkets()[0].goods[1] = { stock: 1000, price: 1 };
+    expect(configureSaltPolicy(1, "open", 0.5, false)).toBe(true);
+    const otherStateCash = worldContext.pack.states[2].treasury;
+    SaltLogistics.settleMonth();
+    expect(getStateSaltLedgers().find(l => l.stateId === 1)?.monthlySaltTaxPaid).toBeGreaterThan(0);
+    expect(getStateSaltLedgers().find(l => l.stateId === 2)?.monthlySaltTaxPaid).toBe(0);
+    expect(worldContext.pack.states[2].treasury).toBe(otherStateCash);
+  });
 
   function seedOwners(): void {
     worldContext.pack.burgs[1].treasury = 1e8;

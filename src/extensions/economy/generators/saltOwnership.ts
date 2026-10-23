@@ -20,9 +20,19 @@ export function migrateSaltworksOwnership(): void {
   }
 }
 
+/** A temporary state operating right never overwrites the underlying title. */
+export function getSaltworksOperator(operation: Saltworks): SaltworksOwner {
+  return getWorldContext().pack.states[operation.stateId]?.saltPolicy?.mode === "monopoly"
+    ? { kind: "state", id: operation.stateId }
+    : getSaltworksOwner(operation);
+}
+
 /** Existing spendable accounts only; never seed a new owner or fall back from invalid rights. */
-export function getSaltOwnerAccount(operation: Saltworks): { balance: number; change: (delta: number) => void } | null {
-  const owner = getSaltworksOwner(operation);
+export function getSaltOwnerAccount(
+  operation: Saltworks,
+  operating = true
+): { balance: number; change: (delta: number) => void } | null {
+  const owner = operating ? getSaltworksOperator(operation) : getSaltworksOwner(operation);
   if (!owner || !Number.isSafeInteger(owner.id) || owner.id <= 0) return null;
   const { pack } = getWorldContext();
   const state = pack.states[operation.stateId];
@@ -68,7 +78,7 @@ export function getSaltOwnerAccount(operation: Saltworks): { balance: number; ch
 export function setSaltworksOwner(operationId: number, owner: SaltworksOwner): boolean {
   if (!owner || !["state", "burg", "church", "private"].includes(owner.kind)) return false;
   const operation = getSaltworks().find(o => o.i === operationId);
-  if (!operation || !getSaltOwnerAccount({ ...operation, owner })) return false;
+  if (!operation || !getSaltOwnerAccount({ ...operation, owner }, false)) return false;
   if (!operation.settlementOwner && operation.monthlyOutputBags > 0)
     operation.settlementOwner = { ...getSaltworksOwner(operation) };
   operation.owner = { ...owner };
