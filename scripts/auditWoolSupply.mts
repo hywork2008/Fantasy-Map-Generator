@@ -22,6 +22,7 @@ import { getRuralHouseholdFoodStock } from "../src/extensions/economy/context/ag
 import { getMarketCellColumn } from "../src/extensions/economy/context/cellTables";
 import { GOOD_MEASURES, WAIN_KG } from "../src/extensions/economy/generators/goodMeasureCatalog";
 import { getFoodImportAttempts, getFoodImportFlows } from "../src/extensions/economy/generators/foodImportNetwork";
+import { observeLivestockFeedSettlement } from "./lib/livestockFeedObservation.mts";
 
 const [input, output, length = "12"] = process.argv.slice(2);
 const months = Number(length);
@@ -35,6 +36,7 @@ paths.push("src/extensions/economy/generators/textileCommissions.ts", "src/exten
 paths.push("src/extensions/economy/generators/productionDiagnostics.ts", "src/extensions/economy/generators/foodObservation.ts");
 paths.push(...execFileSync("git", ["ls-files", "-z", "src", "scripts", "public", "package-lock.json"])
  .toString().split("\0").filter(path => path && !path.startsWith("src/city-generator/")));
+paths.push("scripts/lib/livestockFeedObservation.mts");
 const sourceHashes = Object.fromEntries([...new Set(paths)].sort().map(path => [path, createHash("sha256").update(readFileSync(path)).digest("hex")]));
 const bytes = readFileSync(input);
 const host = createNodeSimulationHost();
@@ -50,7 +52,16 @@ const initialProfile = { options: structuredClone(host.world.options), populatio
 let textileSettlements: {date: ReturnType<typeof clock>; textiles: ReturnType<typeof views.textiles>}[] = [];
 let foodSettlements: {date: ReturnType<typeof clock>; markets: unknown; food: ReturnType<typeof views.food>}[] = [];
 let foodImportSettlements: unknown[] = [];
+let livestockFeedSettlements: unknown[] = [];
+const observedFeedPeriods = new Set<number>();
 setTickStepObserver({ enter() {}, exit(label) {
+ if (label === "production:livestockFeed") {
+  const observation = observeLivestockFeedSettlement();
+  if (observation.markets.length && !observedFeedPeriods.has(observation.period)) {
+   observedFeedPeriods.add(observation.period);
+   livestockFeedSettlements.push({date: clock(), ...observation});
+  }
+ }
  if (label === "food:production") foodImportSettlements.push({date: clock(),
   attempts: structuredClone(getFoodImportAttempts()), flows: structuredClone(getFoodImportFlows()),
   markets: views.wealth().markets});
@@ -161,13 +172,14 @@ function snapshot() {
  const intervalTextiles = textileSettlements; textileSettlements = [];
  const intervalFood = foodSettlements; foodSettlements = [];
  const intervalFoodImports = foodImportSettlements; foodImportSettlements = [];
+ const intervalFeed = livestockFeedSettlements; livestockFeedSettlements = [];
  const intervalPrimary = primaryFlows; primaryFlows = {};
  const marketIds = new Set(getMarkets().filter(market => market.foodLedger).map(market => market.i));
  const marketColumn = getMarketCellColumn();
  const ruralFoodUncoveredPeople = Array.from(world.pack.cells.i).reduce((sum, id) => sum +
   (world.pack.cells.h[id] >= 20 && !marketIds.has(marketColumn[id]) ? Math.max(0, world.pack.cells.pop[id]) * world.populationRate : 0), 0);
  const result = { food: views.food(), textileSettlements: intervalTextiles, foodSettlements: intervalFood,
-  foodImportSettlements: intervalFoodImports, primaryFlows: intervalPrimary,
+  foodImportSettlements: intervalFoodImports, livestockFeedSettlements: intervalFeed, primaryFlows: intervalPrimary,
   cultivatedHa: Array.from(getCultivatedArea()).reduce((sum, ha) => sum + Math.max(0, ha), 0),
   ruralFoodUncoveredPeople,
   ruralFoodStock: Array.from(getRuralHouseholdFoodStock()).reduce((sum, units) => sum + Math.max(0, units), 0),

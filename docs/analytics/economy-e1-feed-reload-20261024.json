@@ -1,0 +1,7 @@
+{
+  "input": "docs/analytics/inputs/salt-s0-aligned-20261023/province-101.fmg",
+  "repair": 9,
+  "columnsAndLandAndHerdsPreserved": true,
+  "beforeSha256": "812fd258b6e1fd6bc76398f0f87fea9b255048a6dfe76580167f14d32b156152",
+  "afterSha256": "812fd258b6e1fd6bc76398f0f87fea9b255048a6dfe76580167f14d32b156152"
+}

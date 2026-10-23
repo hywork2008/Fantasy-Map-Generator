@@ -185,6 +185,26 @@ describe("physical livestock feed budget", () => {
     expect(rows()[0].storageLossKg).toBeCloseTo(before * 0.01, 8);
   });
 
+  it("retains enough real harvest for a six-month winter and feeds it without purchases", () => {
+    climate.temperatures = [...Array(6).fill(22), ...Array(6).fill(0)];
+    simulationContext.currentMonth = 6;
+    harvestLivestockForage();
+    settleLivestockFeed();
+    expect(rows()[0].hayKg).toBeGreaterThan(15000);
+    const market = getMarkets()[0];
+    market.foodLedger!.ruralHouseholdWealth = 0;
+    market.goods[good("Fodder").i].stock = 0;
+    for (let month = 7; month <= 12; month++) {
+      simulationContext.currentMonth = month;
+      harvestLivestockForage();
+      settleLivestockFeed();
+      expect(rows()[0].unmetKg).toBeLessThan(1e-8);
+      expect(rows()[0].purchasedKg).toBe(0);
+      expect(rows()[0].pastureGrownKg).toBe(0);
+    }
+    expect(rows()[0].hayKg).toBeCloseTo(0, 7);
+  });
+
   it("shares scarce purchases across cells, pays from rural cash and gates milk/wool after actual shortage", () => {
     climate.temperatures = Array(12).fill(0);
     const market = getMarkets()[0];

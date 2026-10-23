@@ -53,3 +53,28 @@ node --import tsx scripts/inspectFoodMarket.mts docs/analytics/inputs/salt-s0-al
 ```sh
 node --import tsx scripts/summarizeEconomyE1.mts docs/analytics/economy-e1-food-routes-comparison-20261024.json docs/analytics/raw/economy-e1-food-routes-before-world-102-20261024.json docs/analytics/raw/economy-e1-food-routes-mixed-world-102-20261024.json docs/analytics/raw/economy-e1-food-routes-final-world-102-20261024.json docs/analytics/raw/economy-e1-food-routes-final-province-101-20261024.json
 ```
+
+## E1 季節飼料（同日追補）
+
+[分析記録](economy-e1-seasonal-feed-20261024.md)、[派生比較](economy-e1-seasonal-feed-comparison-20261024.json)。同じ固定入力と設定。Worldは乾草持越しのため修正前後36か月、Provinceは12か月。全量出力はGit管理外。
+
+| ファイル（docs/analytics/raw/） | バイト数 | SHA-256 |
+| --- | ---: | --- |
+| economy-e1-feed-before36-world-102-20261024.json | 171045744 | `848c3d1d525f493160f53af8e1484815ef20626ff7e8e3c1ad8dc2831c40e48f` |
+| economy-e1-feed-seasonal36-world-102-20261024.json | 171296510 | `67784263574989a7b940210c188258730a4cae18ae6494c5ae0c18a3ba42b7cc` |
+| economy-e1-feed-seasonal-province-101-20261024.json | 2520470 | `5d08f4bc171cb4e6997f23dc735ca2b6a8eaddfcd160bbb60a1cfcfaf8b0b68e` |
+
+`before36`は636a0729f時点の経済に実決済観測だけを追加した基準。初期/最初の12区間の経済値が前回の最終Worldと完全一致することを照合した。重複する診断確認用の12か月全量出力は削除した。修正前後の各年の飼料決済期間も一致する。`seasonal36`は季節備蓄・採草計画・修復9を含む最終版。各全量出力に実行時ソースハッシュがあり、最終Worldの全記録済みsrcと監査本体/ヘルパーが現在のファイルと一致することを確認した。派生スクリプトは実行後に36か月集計へ拡張し、比較JSON自身にそのハッシュを保存する。
+
+最終版の再実行（修正前は記録済みソースへの復元が必要）:
+
+```sh
+node --import tsx scripts/auditWoolSupply.mts docs/analytics/inputs/salt-s0-aligned-20261023/world-102.fmg docs/analytics/raw/economy-e1-feed-seasonal36-world-102-20261024.json 36
+node --import tsx scripts/auditWoolSupply.mts docs/analytics/inputs/salt-s0-aligned-20261023/province-101.fmg docs/analytics/raw/economy-e1-feed-seasonal-province-101-20261024.json 12
+```
+
+段階別出力が揃った状態で比較を再生成:
+
+```sh
+node --import tsx scripts/summarizeEconomyE1.mts docs/analytics/economy-e1-seasonal-feed-comparison-20261024.json docs/analytics/raw/economy-e1-feed-before36-world-102-20261024.json docs/analytics/raw/economy-e1-feed-seasonal36-world-102-20261024.json docs/analytics/raw/economy-e1-food-routes-final-province-101-20261024.json docs/analytics/raw/economy-e1-feed-seasonal-province-101-20261024.json
+```

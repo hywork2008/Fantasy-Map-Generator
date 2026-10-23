@@ -128,7 +128,8 @@ describe("husbandry", () => {
       // requiredWorkers = 300 / 60 (Cattle's dogless baseline) = 5.
       const demand = calculateHusbandryDemand(worldContext, 0);
       expect(demand.careWorkers).toBeCloseTo(5, 5);
-      expect(demand.hayWorkers).toBeGreaterThan(0);
+      // At this density every pasture kilogram is needed for grazing; none can also become hay.
+      expect(demand.hayWorkers).toBe(0);
       expect(demand.requiredWorkers).toBeCloseTo(demand.careWorkers! + demand.hayWorkers!, 8);
       expect(demand.value).toBeCloseTo(5, 5);
     });

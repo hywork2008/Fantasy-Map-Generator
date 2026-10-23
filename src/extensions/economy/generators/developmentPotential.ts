@@ -228,7 +228,7 @@ export interface DevelopmentPotentials {
  * last built by an older version. Bump when the columns' formula changes.
  */
 export const DEVELOPMENT_POTENTIAL_LOAD_REPAIR = "economy.developmentPotential";
-export const DEVELOPMENT_POTENTIAL_LOAD_REPAIR_VERSION = 8;
+export const DEVELOPMENT_POTENTIAL_LOAD_REPAIR_VERSION = 9;
 
 /**
  * Share of each cell's crop work-days actually done. The monthly shortage left after peak-month

@@ -39,13 +39,7 @@ import {
 } from "./agriculturalLandUse";
 import type { Good } from "./goods-generator";
 import { isGoodEnabled } from "./goods-generator";
-import {
-  ANNUAL_FEED_DM_KG_PER_HEAD,
-  getPastureGrowth,
-  HAY_DRY_MATTER_RETENTION,
-  HAY_WORK_DAYS_PER_TONNE_DM,
-  WINTER_HAY_PLAN_SHARE
-} from "./livestockFeedPolicy";
+import { ANNUAL_FEED_DM_KG_PER_HEAD, getLivestockHayPlan, HAY_WORK_DAYS_PER_TONNE_DM } from "./livestockFeedPolicy";
 import { getAnnualLivestockFeedFactor } from "./livestockFeedState";
 
 // ---- Placeholder constants (calibration TBD, §9.3 policy; see module doc-comment for sourcing) ----
@@ -195,6 +189,7 @@ export interface HusbandryDemand {
   readonly requiredWorkers: number;
   /** Additional haymaking crew, unaffected by herding-dog efficiency. */
   readonly hayWorkers?: number;
+  readonly hayMonthlyLaborWeights?: readonly number[];
   readonly careWorkers?: number;
   /** Care-headcount-weighted average good.value, for the greedy allocator's value-ranking (§3.1). */
   readonly value: number;
@@ -340,16 +335,20 @@ export function calculateHusbandryDemand(world: Readonly<WorldContext>, cellId: 
     for (let month = 0; month < 12; month++) weightedMonthlyLabor[month] += speciesWorkers * weights[month];
   }
 
-  const growth = getPastureGrowth(world, cellId);
-  const forageKg = calculateDesiredPastureAreaHectares(world, cellId) * growth.annualKgPerHa;
-  const hayKg = (Math.min(forageKg, annualFeedNeedKg) * WINTER_HAY_PLAN_SHARE) / HAY_DRY_MATTER_RETENTION;
-  const hayWorkers = ((hayKg / 1000) * HAY_WORK_DAYS_PER_TONNE_DM) / WORKABLE_DAYS_PER_ADULT;
-  for (let month = 0; month < 12; month++) weightedMonthlyLabor[month] += hayWorkers * growth.weights[month];
+  const hayPlan = getLivestockHayPlan(
+    world,
+    cellId,
+    annualFeedNeedKg,
+    calculateDesiredPastureAreaHectares(world, cellId)
+  );
+  const hayWorkers = ((hayPlan.rawHarvestKg / 1000) * HAY_WORK_DAYS_PER_TONNE_DM) / WORKABLE_DAYS_PER_ADULT;
+  for (let month = 0; month < 12; month++) weightedMonthlyLabor[month] += hayWorkers * hayPlan.harvestWeights[month];
   const careWorkers = requiredWorkers;
   requiredWorkers += hayWorkers;
   return {
     requiredWorkers,
     hayWorkers,
+    hayMonthlyLaborWeights: hayPlan.harvestWeights,
     careWorkers,
     value: weightedValue / totalCareHeads,
     monthlyLaborWeights: normalizeMonthlyWeights(weightedMonthlyLabor)

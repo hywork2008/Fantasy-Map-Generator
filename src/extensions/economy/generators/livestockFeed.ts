@@ -18,9 +18,9 @@ import { calculateHusbandryDemand, getPastureAreaUsedHectares } from "./husbandr
 import {
   ANNUAL_FEED_DM_KG_PER_HEAD,
   FODDER_DM_KG_PER_LOT,
+  getLivestockHayPlan,
   getPastureGrowth,
   HAY_DRY_MATTER_RETENTION,
-  HAY_RESERVE_MONTHS,
   HAY_STORAGE_LOSS_PER_MONTH,
   HAY_WORK_DAYS_PER_TONNE_DM,
   LIVESTOCK_FEED_CASH_SHARE,
@@ -29,7 +29,7 @@ import {
 import { livestockFeedPeriod } from "./livestockFeedState";
 import type { Market } from "./marketTypes";
 
-function monthlyNeed(cellId: number): number {
+export function getLivestockMonthlyFeedNeedKg(cellId: number): number {
   const table = getOrCreateFaunaStockTable();
   return Object.entries(ANNUAL_FEED_DM_KG_PER_HEAD).reduce((sum, [name, kg]) => {
     const herd = table?.[`${cellId}:${name}`];
@@ -60,6 +60,16 @@ function emptyLedger(): LivestockFeedLedger {
   };
 }
 
+/** Same forecast as the worker plan, evaluated against actual animals and maintained land. */
+function reserveAfterFeedingKg(cellId: number): number {
+  return getLivestockHayPlan(
+    getWorldContext(),
+    cellId,
+    getLivestockMonthlyFeedNeedKg(cellId) * 12,
+    getPastureAreaUsedHectares(cellId)
+  ).reserveAfterMonthKg[getSimulationMonth() - 1];
+}
+
 /** Runs before military procurement. Only unused pasture growth can become hay or market Fodder. */
 export function harvestLivestockForage(): void {
   const table = getOrCreateLivestockFeedTable();
@@ -72,24 +82,32 @@ export function harvestLivestockForage(): void {
   const offers = new Map<number, { cell: number; kg: number }[]>();
   for (const cell of world.pack.cells?.i ?? []) {
     if (world.pack.cells.h[cell] < 20) continue;
-    if (!(getPastureAreaUsedHectares(cell) > 0) && !(monthlyNeed(cell) > 0) && !(table[cell]?.hayKg > 0)) continue;
+    if (
+      !(getPastureAreaUsedHectares(cell) > 0) &&
+      !(getLivestockMonthlyFeedNeedKg(cell) > 0) &&
+      !(table[cell]?.hayKg > 0)
+    )
+      continue;
     table[cell] ??= emptyLedger();
     const row = table[cell];
     if (row.harvestPeriod === period) continue;
     const growth = getPastureGrowth(world, cell);
     const grown = getPastureAreaUsedHectares(cell) * growth.annualKgPerHa * growth.weights[month];
-    const need = monthlyNeed(cell);
+    const need = getLivestockMonthlyFeedNeedKg(cell);
     const grazing = Math.min(grown, need);
     const surplus = Math.max(0, grown - grazing);
     const demand = calculateHusbandryDemand(world, cell);
     const hayShare = demand.requiredWorkers > 0 ? (demand.hayWorkers ?? 0) / demand.requiredWorkers : 0;
     const workDays =
-      Math.max(0, getHusbandryWorkers()[cell] ?? 0) * hayShare * WORKABLE_DAYS_PER_ADULT * growth.weights[month];
+      Math.max(0, getHusbandryWorkers()[cell] ?? 0) *
+      hayShare *
+      WORKABLE_DAYS_PER_ADULT *
+      (demand.hayMonthlyLaborWeights ?? growth.weights)[month];
     const harvested = Math.min(surplus, (workDays / HAY_WORK_DAYS_PER_TONNE_DM) * 1000);
     const received = harvested * HAY_DRY_MATTER_RETENTION;
     const storageLoss = Math.max(0, row.hayKg) * HAY_STORAGE_LOSS_PER_MONTH;
     const remainingHay = Math.max(0, row.hayKg - storageLoss);
-    const ownHay = Math.min(received, Math.max(0, need * HAY_RESERVE_MONTHS - remainingHay));
+    const ownHay = Math.min(received, Math.max(0, reserveAfterFeedingKg(cell) - remainingHay));
     const ownHarvest = ownHay / HAY_DRY_MATTER_RETENTION;
     row.hayKg = remainingHay + ownHay;
     Object.assign(row, {
@@ -197,7 +215,7 @@ export function settleLivestockFeed(): void {
   for (const cell of getWorldContext().pack.cells?.i ?? []) {
     const row = table[cell];
     if (!row || row.harvestPeriod !== period || row.feedPeriod === period) continue;
-    row.requiredKg = monthlyNeed(cell);
+    row.requiredKg = getLivestockMonthlyFeedNeedKg(cell);
     row.pastureConsumedKg = Math.min(row.requiredKg, row.grazingReservedKg);
     row.hayConsumedKg = 0;
     active.push(cell);
@@ -218,7 +236,7 @@ export function settleLivestockFeed(): void {
       cell,
       kg: Math.max(
         0,
-        table[cell].requiredKg * (HAY_RESERVE_MONTHS + 1) - table[cell].pastureConsumedKg - table[cell].hayKg
+        table[cell].requiredKg + reserveAfterFeedingKg(cell) - table[cell].pastureConsumedKg - table[cell].hayKg
       )
     }));
     buyFeed(market, reserves, budget);
@@ -257,7 +275,10 @@ export function getLivestockFodderOrderLots(market: Market): number {
     const row = table[cell];
     need += Math.max(
       0,
-      monthlyNeed(cell) * (HAY_RESERVE_MONTHS + 1) - (row?.grazingReservedKg ?? 0) - (row?.hayKg ?? 0)
+      getLivestockMonthlyFeedNeedKg(cell) +
+        reserveAfterFeedingKg(cell) -
+        (row?.grazingReservedKg ?? 0) -
+        (row?.hayKg ?? 0)
     );
   }
   return Math.min(need / FODDER_DM_KG_PER_LOT, (getRuralHouseholdWealth(market) * LIVESTOCK_FEED_CASH_SHARE) / price);

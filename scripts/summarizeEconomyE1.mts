@@ -9,8 +9,8 @@ const sourceHash = hash(readFileSync("scripts/summarizeEconomyE1.mts"));
 const worlds = inputs.map(path => {
   const bytes = readFileSync(path);
   const run = JSON.parse(bytes.toString());
-  if (run.schemaVersion !== 6 || ![12, 13].includes(run.samples.length))
-    throw new Error(`Expected a completed 12/13-month schema 6 replay: ${path}`);
+  if (run.schemaVersion !== 6 || ![12, 13, 36].includes(run.samples.length))
+    throw new Error(`Expected a completed 12/13/36-month schema 6 replay: ${path}`);
   const annual = run.samples.slice(0, 12);
   const final = annual.at(-1);
   const food: Record<string, Record<string, number>> = {};
@@ -84,15 +84,58 @@ const worlds = inputs.map(path => {
     woolStockKg: sample.woolStockKg,
     wealth: sample.wealth.totals
   });
+  const feedYears = [];
+  for (let start = 0; start + 12 <= run.samples.length; start += 12) {
+    const intervals = run.samples.slice(start, start + 12);
+    const events = intervals.flatMap((sample: any) => sample.livestockFeedSettlements ?? []);
+    const totals: Record<string, number> = {};
+    const byMarket: Record<string, any> = {};
+    const fields = ["requiredKg", "pastureGrownKg", "pastureConsumedKg", "harvestedKg", "harvestLossKg",
+      "storageLossKg", "hayConsumedKg", "unharvestedKg", "purchasedKg", "soldKg", "unmetKg", "spending", "revenue", "referenceHarvestCapacityKg"];
+    for (const event of events) for (const market of event.markets) {
+      const row = byMarket[market.marketId] ??= { totals: {}, minRuralCash: null, minMarketCash: null, peakMarketFodderKg: 0 };
+      for (const name of fields) {
+        totals[name] = (totals[name] ?? 0) + (market.totals[name] ?? 0);
+        row.totals[name] = (row.totals[name] ?? 0) + (market.totals[name] ?? 0);
+      }
+      for (const [source, target] of [["ruralCash", "minRuralCash"], ["marketCash", "minMarketCash"]])
+        if (market[source] != null) row[target] = row[target] == null ? market[source] : Math.min(row[target], market[source]);
+      row.peakMarketFodderKg = Math.max(row.peakMarketFodderKg, market.marketFodderKg ?? 0);
+      row.end = { hayKg: market.totals.hayKg, marketFodderKg: market.marketFodderKg,
+        ruralCash: market.ruralCash, marketCash: market.marketCash,
+        assignedWorkers: market.totals.assignedWorkers, requiredWorkers: market.totals.requiredWorkers,
+        seasonalGapKg: market.totals.seasonalGapKg,
+        annualPlannedRawHayKg: market.totals.annualPlannedRawHayKg ?? null };
+    }
+    const foodUnmet = { rural: 0, urban: 0 };
+    for (const sample of intervals) for (const event of sample.foodSettlements) for (const market of event.markets) {
+      const row = market.food?.monthlyConsumption;
+      if (row) {
+        foodUnmet.rural += Math.max(0, row.ruralNeed - row.ruralSupplied);
+        foodUnmet.urban += Math.max(0, row.urbanNeed - row.urbanSupplied);
+      }
+    }
+    feedYears.push({ year: start / 12 + 1, end: point(intervals.at(-1)), settlementCount: events.length,
+      periods: events.map((event: any) => event.period),
+      settlements: events.map((event: any) => ({ date: event.date, period: event.period, month: event.month,
+        totals: Object.fromEntries(fields.map(name => [name, event.markets.reduce((sum: number, market: any) => sum + (market.totals[name] ?? 0), 0)])) })), totals,
+      unmetShare: totals.requiredKg > 0 ? totals.unmetKg / totals.requiredKg : null,
+      byMarket, foodUnmetLedgerUnits: foodUnmet,
+      garmentDeliveriesLots: intervals.reduce((sum: number, row: any) => sum + row.householdWardrobeConsumptionLots, 0),
+      blanketDeliveriesLots: intervals.reduce((sum: number, row: any) => sum + row.householdBlanketConsumptionLots, 0),
+      woolMarketInflowKg: intervals.reduce((sum: number, row: any) => sum + (row.primaryFlows.Wool?.["source:ruralHarvest"] ?? 0) * run.woolKgPerLot, 0)
+    });
+  }
   return {
     path,
+    feedYears,
     bytes: bytes.length,
     sha256: hash(bytes),
     inputSha256: run.inputSha256,
     sourceTreeSha256: run.sourceTreeSha256,
     relevantSourceHashes: Object.fromEntries(
       Object.entries(run.sourceHashes).filter(([name]) =>
-        /\/(developmentPotential|foodLedgerConsumption|foodProduction|husbandry)\.ts$/.test(name)
+        /\/(developmentPotential|foodLedgerConsumption|foodProduction|husbandry|livestockFeed|livestockFeedPolicy|livestockFeedState)\.ts$/.test(name)
       )
     ),
     initial: point(run.initial),
@@ -111,7 +154,7 @@ const worlds = inputs.map(path => {
       garmentDeliveriesLots: annual.reduce((sum: number, row: any) => sum + row.householdWardrobeConsumptionLots, 0),
       blanketDeliveriesLots: annual.reduce((sum: number, row: any) => sum + row.householdBlanketConsumptionLots, 0)
     },
-    extraMonth: run.samples[12]
+    extraMonth: run.samples.length === 13 && run.samples[12]
       ? {
           end: point(run.samples[12]),
           foodSettlements: run.samples[12].foodSettlements.map((settlement: any) => ({
@@ -131,6 +174,7 @@ writeFileSync(output, `${JSON.stringify({
   schemaVersion: 1,
   summarizerSha256: sourceHash,
   notes: [
+    "feedYears uses distinct actual feed settlements in each 12 calendar intervals; missing periods are not assumed fed. Forecast fields in market end are not summed actual flows.",
     "Annual totals use exactly the first 12 intervals; the 13th month is a separate transition check.",
     "Food is ledger units unless labelled kg; feed is dry-matter kg. Goods flows retain catalog units.",
     "Feed totals are endpoint samples, not a tick-exact feeding history. Wool is actual market inflow.",
