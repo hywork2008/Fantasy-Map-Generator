@@ -6,6 +6,7 @@ import {
   clearEconomyContext,
   getMarkets,
   getOrCreateCumulativeMarketIntake,
+  getOrCreateFaunaStockTable,
   getSaltShipments,
   getSaltworks,
   getStateSaltLedgers,
@@ -16,7 +17,7 @@ import {
   setSaltShipments
 } from "../economyContext";
 import { Goods } from "./goods-generator";
-import { setGoodFlowObserver } from "./goodsBalanceLedger";
+import { recordGoodFlow, setGoodFlowObserver } from "./goodsBalanceLedger";
 import { Markets } from "./markets-generator";
 import {
   auditSaltPopulationCoverage,
@@ -207,9 +208,94 @@ describe("SaltLogisticsModule", () => {
     });
   });
 
+  it("records unmarketed neutral households as unmet instead of silently omitting them", () => {
+    worldContext.pack.cells.state[0] = 0;
+    setMarketCellColumn(Uint16Array.from([0, 2, 0]));
+    SaltLogistics.generate();
+    SaltLogistics.settleMonth();
+    expect(getStateSaltLedgers().find(row => row.stateId === 0)).toMatchObject({
+      population: 10_000,
+      unmarketedPeople: 10_000,
+      monthlyHouseholdDemandBags: 50,
+      monthlyHouseholdSalesBags: 0,
+      monthlyUnmetHouseholdBags: 50
+    });
+    expect(getStateSaltLedgers().reduce((sum, row) => sum + row.population, 0)).toBe(60_000);
+  });
+
+  it("forecasts actual processing once without withdrawing its ingredients again", () => {
+    SaltLogistics.generate();
+    const market = getMarkets()[0];
+    market.goods[1] = { stock: 10_000, price: 3 };
+    market.goods[1].stock -= 2;
+    recordGoodFlow({ direction: "sink", category: "recipeInput", goodId: 1, units: 2, marketId: market.i });
+    SaltLogistics.settleMonth();
+    expect(market.saltProcessingInputBags).toBe(0);
+    expect(getStateSaltLedgers().find(row => row.stateId === 1)?.monthlyProcessingForecastBags).toBe(2);
+    expect(market.goods[1].stock).toBeCloseTo(9898, 4);
+    SaltLogistics.settleMonth();
+    expect(getStateSaltLedgers().find(row => row.stateId === 1)?.monthlyProcessingForecastBags).toBe(0);
+  });
+
+  it("uses real herd heads without fabricating an unmeasured natural salt credit", () => {
+    getOrCreateFaunaStockTable()!["0:Cattle"] = { young: 0, breeding: 1200, old: 0 };
+    SaltLogistics.generate();
+    const market = getMarkets()[0];
+    market.goods[1] = { stock: 10_000, price: 3 };
+    SaltLogistics.settleMonth();
+    const row = getStateSaltLedgers().find(row => row.stateId === 1)!;
+    expect(row.monthlyLivestockTotalRequirementBags).toBeCloseTo(33.3333, 4);
+    expect(row.monthlyLivestockNaturalBags).toBe(0);
+    expect(row.monthlyLivestockSuppliedBags).toBeCloseTo(33.3333, 4);
+    expect(row.monthlyUnmetLivestockBags).toBe(0);
+    expect(market.goods[1].stock).toBeCloseTo(10_000 - 100 - 33.3333, 4);
+  });
+
+  it("shares one processing forecast across states using the same market", () => {
+    worldContext.pack.burgs[2].market = 1;
+    setMarketCellColumn(Uint16Array.from([1, 1, 0]));
+    SaltLogistics.generate();
+    getMarkets()[0].saltProcessingInputBags = 3;
+    SaltLogistics.settleMonth();
+    expect(getStateSaltLedgers().reduce((sum, row) => sum + (row.monthlyProcessingForecastBags ?? 0), 0)).toBeCloseTo(
+      3,
+      4
+    );
+  });
+
+  it("lets neutral households use local stock without commissioning state cargo", () => {
+    worldContext.pack.cells.state[0] = 0;
+    SaltLogistics.generate();
+    getMarkets()[0].goods[1] = { stock: 60, price: 3 };
+    SaltLogistics.settleMonth();
+    expect(getStateSaltLedgers().find(row => row.stateId === 0)?.monthlyHouseholdSalesBags).toBe(10);
+    expect(getSaltShipments().some(shipment => shipment.importerStateId === 0)).toBe(false);
+    expect(getSaltworks().some(works => works.stateId === 0)).toBe(false);
+  });
+
+  it("reserves shared stock for all households before livestock", () => {
+    worldContext.pack.burgs[2].market = 1;
+    setMarketCellColumn(Uint16Array.from([1, 1, 0]));
+    getOrCreateFaunaStockTable()!["0:Cattle"] = { young: 0, breeding: 1200, old: 0 };
+    SaltLogistics.generate();
+    for (const works of getSaltworks()) works.active = false;
+    getMarkets()[0].goods[1] = { stock: 300, price: 3 };
+    SaltLogistics.settleMonth();
+    expect(getStateSaltLedgers().reduce((sum, row) => sum + row.monthlyHouseholdSalesBags, 0)).toBe(300);
+    expect(getStateSaltLedgers().find(row => row.stateId === 1)?.monthlyLivestockSuppliedBags).toBe(0);
+  });
+
+  it("uses horse fauna heads without applying the market lot conversion", () => {
+    getOrCreateFaunaStockTable()!["0:Horses"] = { young: 0, breeding: 120, old: 0 };
+    SaltLogistics.generate();
+    SaltLogistics.settleMonth();
+    expect(getStateSaltLedgers().find(row => row.stateId === 1)?.monthlyLivestockDemandBags).toBeCloseTo(3.8889, 4);
+  });
+
   it("caps stock at the market reserve while output continues to replace household sales", () => {
     SaltLogistics.generate();
-    for (let month = 0; month < 6; month++) SaltLogistics.settleMonth();
+    // A 15% capacity margin fills the three-month reserve over twenty settlements.
+    for (let month = 0; month < 24; month++) SaltLogistics.settleMonth();
     const initialStock = getMarkets().reduce((sum, market) => sum + (market.goods[1]?.stock ?? 0), 0);
     const initialOutput = getOrCreateCumulativeMarketIntake()?.[1] ?? 0;
 

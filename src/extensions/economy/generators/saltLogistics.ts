@@ -4,6 +4,7 @@ import {
   getMarketCellColumn,
   getMarkets,
   getOrCreateCumulativeMarketIntake,
+  getOrCreateFaunaStockTable,
   getOrCreateMarketGoodProductionTotals,
   getSaltShipments,
   getSaltworks,
@@ -21,11 +22,52 @@ import type { SaltShipment, Saltworks, StateSaltLedger } from "./saltLogisticsTy
 export const SALT_KILOGRAMS_PER_BAG = 60;
 /** Ordinary household cooking and dietary use: 3.6 kg/person/year (10 g/day planning baseline). */
 export const SALT_HOUSEHOLD_KILOGRAMS_PER_PERSON_YEAR = 3.6;
-/** Additional market allocation retained for curing, dairying, and other food processing. */
-export const SALT_PROCESSING_KILOGRAMS_PER_PERSON_YEAR = 2.4;
-/** Total national provision target: 6 kg/person/year, or one tenth of a bag. */
-export const SALT_PROVISION_KILOGRAMS_PER_PERSON_YEAR =
-  SALT_HOUSEHOLD_KILOGRAMS_PER_PERSON_YEAR + SALT_PROCESSING_KILOGRAMS_PER_PERSON_YEAR;
+/** Provisional model assumptions, not calibrated medieval purchase rates (Salt S0). */
+export const SALT_LIVESTOCK_ANNUAL_KG: Readonly<Record<string, number>> = {
+  Cattle: 20,
+  Sheep: 1.4,
+  Goats: 1.4,
+  // Uncalibrated forage-intake scaling from the cattle assumption; fauna cohorts are real heads.
+  Horses: (20 * 3500) / 3000,
+  Camels: (20 * 6000) / 3000
+};
+/** No measured natural salt source exists yet; never fabricate a credit from forage mass alone. */
+export const SALT_LIVESTOCK_NATURAL_SHARE = 0;
+
+function livestockSalt(cellId: number): { total: number; natural: number; purchase: number } {
+  const stocks = getOrCreateFaunaStockTable();
+  let total = 0;
+  for (const [name, annualKg] of Object.entries(SALT_LIVESTOCK_ANNUAL_KG)) {
+    const herd = stocks?.[`${cellId}:${name}`];
+    if (herd)
+      total +=
+        ((Math.max(0, herd.young) * 0.5 + Math.max(0, herd.breeding) + Math.max(0, herd.old)) * annualKg) /
+        12 /
+        SALT_KILOGRAMS_PER_BAG;
+  }
+  return { total, natural: total * SALT_LIVESTOCK_NATURAL_SHARE, purchase: total * (1 - SALT_LIVESTOCK_NATURAL_SHARE) };
+}
+
+function statePopulation(stateId: number): number {
+  const world = getWorldContext();
+  const rate = Math.max(1, world.populationRate ?? 1);
+  return (
+    Array.from(world.pack.cells.i).reduce(
+      (sum, id) =>
+        sum +
+        (world.pack.cells.h[id] >= 20 && world.pack.cells.state[id] === stateId ? world.pack.cells.pop[id] * rate : 0),
+      0
+    ) +
+    world.pack.burgs.reduce(
+      (sum, burg) =>
+        sum +
+        (burg?.i && !burg.removed && (burg.state ?? 0) === stateId
+          ? (burg.population ?? 0) * rate * Math.max(1, world.urbanization ?? 1)
+          : 0),
+      0
+    )
+  );
+}
 
 const SALTWORK_ANNUAL_CAPACITY_BAGS = 900;
 const SALTWORK_OPERATING_RESERVE = 1.15;
@@ -38,6 +80,8 @@ type MarketDemand = {
   population: number;
   provisionBags: number;
   householdBags: number;
+  livestockBags: number;
+  processingBags: number;
 };
 
 function getSaltGood() {
@@ -68,6 +112,27 @@ export function auditSaltPopulationCoverage() {
   return result;
 }
 
+function getMarketPopulation(marketId: number): number {
+  const world = getWorldContext();
+  const column = getMarketCellColumn();
+  const rate = Math.max(1, world.populationRate ?? 1);
+  return (
+    Array.from(world.pack.cells.i).reduce(
+      (sum, id) =>
+        sum + (world.pack.cells.h[id] >= 20 && column[id] === marketId ? world.pack.cells.pop[id] * rate : 0),
+      0
+    ) +
+    world.pack.burgs.reduce(
+      (sum, burg) =>
+        sum +
+        (burg?.i && !burg.removed && burg.market === marketId
+          ? (burg.population ?? 0) * rate * Math.max(1, world.urbanization ?? 1)
+          : 0),
+      0
+    )
+  );
+}
+
 function stateMarketDemands(stateId: number): MarketDemand[] {
   const world = getWorldContext();
   const markets = getMarkets();
@@ -87,7 +152,7 @@ function stateMarketDemands(stateId: number): MarketDemand[] {
     );
   }
   for (const burg of world.pack.burgs) {
-    if (!burg.i || burg.removed || burg.state !== stateId || !burg.market || !byId.has(burg.market)) continue;
+    if (!burg.i || burg.removed || (burg.state ?? 0) !== stateId || !burg.market || !byId.has(burg.market)) continue;
     populationByMarket.set(
       burg.market,
       (populationByMarket.get(burg.market) ?? 0) + (burg.population ?? 0) * populationRate * urbanization
@@ -101,11 +166,22 @@ function stateMarketDemands(stateId: number): MarketDemand[] {
       return {
         market,
         population,
-        provisionBags: (population * SALT_PROVISION_KILOGRAMS_PER_PERSON_YEAR) / SALT_KILOGRAMS_PER_BAG / 12,
+        provisionBags: 0,
+        livestockBags: Array.from(world.pack.cells.i).reduce(
+          (sum, id) =>
+            sum +
+            (world.pack.cells.h[id] >= 20 && world.pack.cells.state[id] === stateId && marketColumn[id] === marketId
+              ? livestockSalt(id).purchase
+              : 0),
+          0
+        ),
+        processingBags:
+          ((market.saltProcessingForecastBags ?? 0) * population) / Math.max(1, getMarketPopulation(marketId)),
         householdBags: (population * SALT_HOUSEHOLD_KILOGRAMS_PER_PERSON_YEAR) / SALT_KILOGRAMS_PER_BAG / 12
       };
     })
     .filter((demand): demand is MarketDemand => demand !== null)
+    .map(demand => ({ ...demand, provisionBags: demand.householdBags + demand.livestockBags + demand.processingBags }))
     .sort((a, b) => a.market.i - b.market.i);
 }
 
@@ -228,7 +304,7 @@ export class SaltLogisticsModule {
       const demands = stateMarketDemands(state.i);
       if (demands.length) demandsByStateId.set(state.i, demands);
     }
-    const producerStateIds = [...demandsByStateId.keys()].filter(stateHasSaltSourceWaterAccess);
+    const producerStateIds = [...demandsByStateId.keys()].filter(id => id > 0 && stateHasSaltSourceWaterAccess(id));
     const annualCapacityNeedByProducerId = new Map<number, number>();
     for (const stateId of producerStateIds) {
       const annualNeed = (demandsByStateId.get(stateId) ?? []).reduce(
@@ -303,13 +379,17 @@ export class SaltLogisticsModule {
 
   /**
    * Advances merchant cargo, dispatches only the stock each market can absorb, and records household sales.
-   * Saltworks keep enough capacity for preservation demand, but do not turn unused theoretical capacity into
+   * Processing forecasts follow actual prior recipe inputs; unused capacity never becomes
    * physical stock: the next batch is made only after household sales or recipe inputs create room for it.
    */
   settleMonth(): void {
     const salt = getSaltGood();
     if (!salt) return;
 
+    for (const market of getMarkets()) {
+      market.saltProcessingForecastBags = Math.max(0, market.saltProcessingInputBags ?? 0);
+      market.saltProcessingInputBags = 0;
+    }
     const marketsById = new Map(getMarkets().map(market => [market.i, market]));
     const operations = getSaltworks();
     const advanced = advanceShipments(getSaltShipments(), marketsById, salt.i, salt.value);
@@ -326,12 +406,20 @@ export class SaltLogisticsModule {
     const ledgers: StateSaltLedger[] = [];
     const demandsByStateId = new Map<number, MarketDemand[]>();
     const marketReserveBagsById = new Map<number, number>();
-    for (const state of getWorldContext().pack.states ?? []) {
-      if (!state?.i || state.removed) continue;
+    const remainingHouseholdByMarket = new Map<number, number>();
+    for (const state of [
+      { i: 0, removed: false },
+      ...(getWorldContext().pack.states ?? []).filter(state => state?.i)
+    ]) {
+      if (state.removed) continue;
       const demands = stateMarketDemands(state.i);
-      if (!demands.length) continue;
+      if (!demands.length && statePopulation(state.i) <= 0) continue;
       demandsByStateId.set(state.i, demands);
       for (const demand of demands) {
+        remainingHouseholdByMarket.set(
+          demand.market.i,
+          (remainingHouseholdByMarket.get(demand.market.i) ?? 0) + demand.householdBags
+        );
         marketReserveBagsById.set(
           demand.market.i,
           (marketReserveBagsById.get(demand.market.i) ?? 0) + demand.provisionBags * SALT_MARKET_RESERVE_MONTHS
@@ -343,7 +431,7 @@ export class SaltLogisticsModule {
     const stateIds = [...demandsByStateId.keys()].sort((left, right) => {
       const leftProduces = operations.some(operation => operation.active && operation.stateId === left);
       const rightProduces = operations.some(operation => operation.active && operation.stateId === right);
-      return Number(rightProduces) - Number(leftProduces) || left - right;
+      return Number(left === 0) - Number(right === 0) || Number(rightProduces) - Number(leftProduces) || left - right;
     });
     const dispatchedShipmentIds = new Set<number>();
     for (const stateId of stateIds) {
@@ -360,17 +448,46 @@ export class SaltLogisticsModule {
 
       let dispatched = 0;
       let householdSales = 0;
-      let unmetHousehold = 0;
+      const unmarketedPeople = Math.max(
+        0,
+        statePopulation(stateId) - demands.reduce((sum, demand) => sum + demand.population, 0)
+      );
+      const unmarketedHouseholdBags =
+        (unmarketedPeople * SALT_HOUSEHOLD_KILOGRAMS_PER_PERSON_YEAR) / SALT_KILOGRAMS_PER_BAG / 12;
+      let unmetHousehold = unmarketedHouseholdBags;
+      let livestockSupplied = 0;
+      const livestockTotals = Array.from(getWorldContext().pack.cells.i).reduce(
+        (sum, id) => {
+          if (getWorldContext().pack.cells.h[id] >= 20 && getWorldContext().pack.cells.state[id] === stateId) {
+            const need = livestockSalt(id);
+            sum.total += need.total;
+            sum.natural += need.natural;
+            sum.purchase += need.purchase;
+          }
+          return sum;
+        },
+        { total: 0, natural: 0, purchase: 0 }
+      );
+      let livestockUnmet = Math.max(
+        0,
+        livestockTotals.purchase - demands.reduce((sum, demand) => sum + demand.livestockBags, 0)
+      );
 
       for (const demand of demands) {
         const destinationGood = getMarketGood(demand.market, salt.i, salt.value);
         const reserveBags = demand.provisionBags * SALT_MARKET_RESERVE_MONTHS;
         const inboundBags = inboundBagsByMarketId.get(demand.market.i) ?? 0;
-        let remaining = Math.max(0, demand.householdBags + reserveBags - destinationGood.stock - inboundBags);
+        let remaining = Math.max(
+          0,
+          demand.householdBags + demand.livestockBags + reserveBags - destinationGood.stock - inboundBags
+        );
+        // Neutral households can use existing local retail stock, but do not order state-funded cargo.
         const supplierOperations = (
-          stateOperations.length
-            ? stateOperations
-            : operations.filter(operation => operation.active && operation.stateId !== stateId)
+          stateId === 0
+            ? []
+            : stateOperations.length
+              ? stateOperations
+              : operations.filter(operation => operation.active && operation.stateId !== stateId)
         ).toSorted((left, right) => {
           const leftMarket = marketsById.get(left.marketId);
           const rightMarket = marketsById.get(right.marketId);
@@ -474,9 +591,26 @@ export class SaltLogisticsModule {
             marketId: demand.market.i
           });
         }
+        const pendingHouseholds = Math.max(
+          0,
+          (remainingHouseholdByMarket.get(demand.market.i) ?? 0) - demand.householdBags
+        );
+        remainingHouseholdByMarket.set(demand.market.i, pendingHouseholds);
+        const livestock = Math.min(demand.livestockBags, Math.max(0, destinationGood.stock - pendingHouseholds));
+        destinationGood.stock = rn(destinationGood.stock - livestock, 4);
+        livestockSupplied += livestock;
+        livestockUnmet += demand.livestockBags - livestock;
+        if (livestock > 0)
+          recordGoodFlow({
+            direction: "sink",
+            category: "livestockFeed",
+            goodId: salt.i,
+            units: livestock,
+            marketId: demand.market.i
+          });
       }
 
-      const population = demands.reduce((sum, demand) => sum + demand.population, 0);
+      const population = statePopulation(stateId);
       const delivered = shipments
         .filter(shipment => shipment.status === "delivered" && getShipmentImporterStateId(shipment) === stateId)
         .reduce((sum, shipment) => sum + shipment.bags, 0);
@@ -486,12 +620,24 @@ export class SaltLogisticsModule {
       ledgers.push({
         stateId,
         population: rn(population, 0),
+        unmarketedPeople: rn(unmarketedPeople, 0),
+        monthlyProcessingForecastBags: rn(
+          demands.reduce((sum, demand) => sum + demand.processingBags, 0),
+          4
+        ),
+        monthlyLivestockTotalRequirementBags: rn(livestockTotals.total, 4),
+        monthlyLivestockNaturalBags: rn(livestockTotals.natural, 4),
+        monthlyLivestockDemandBags: rn(livestockSupplied + livestockUnmet, 4),
+        monthlyLivestockSuppliedBags: rn(livestockSupplied, 4),
+        monthlyUnmetLivestockBags: rn(livestockUnmet, 4),
         monthlyProvisionBags: rn(
-          demands.reduce((sum, demand) => sum + demand.provisionBags, 0),
+          demands.reduce((sum, demand) => sum + demand.provisionBags, 0) +
+            unmarketedHouseholdBags +
+            Math.max(0, livestockTotals.purchase - demands.reduce((sum, demand) => sum + demand.livestockBags, 0)),
           4
         ),
         monthlyHouseholdDemandBags: rn(
-          demands.reduce((sum, demand) => sum + demand.householdBags, 0),
+          demands.reduce((sum, demand) => sum + demand.householdBags, 0) + unmarketedHouseholdBags,
           4
         ),
         monthlyOutputBags: rn(

@@ -9,6 +9,7 @@ import { createObserveViews } from "./lib/observeViews.mts";
 import { setGoodFlowObserver } from "../src/extensions/economy/generators/goodsBalanceLedger";
 import { setCargoDepartureObserver, setLotDispatchObserver, setTradeStageObserver } from "../src/extensions/economy/generators/tradeStageObserver";
 import { setTickStepObserver } from "../src/generators/tickProfiler";
+import { SALT_LIVESTOCK_ANNUAL_KG, SALT_LIVESTOCK_NATURAL_SHARE } from "../src/extensions/economy/generators/saltLogistics";
 
 const [input, output, length = "12"] = process.argv.slice(2);
 const months = Number(length);
@@ -80,14 +81,17 @@ try {
       sum.householdSuppliedKg += row.monthlyHouseholdSalesBags * sample.logistics.kilogramsPerBag;
       sum.unmetHouseholdKg += row.monthlyUnmetHouseholdBags * sample.logistics.kilogramsPerBag;
       sum.productionKg += row.monthlyOutputBags * sample.logistics.kilogramsPerBag;
+      sum.livestockDemandKg += (row.monthlyLivestockDemandBags ?? 0) * sample.logistics.kilogramsPerBag;
+      sum.livestockSuppliedKg += (row.monthlyLivestockSuppliedBags ?? 0) * sample.logistics.kilogramsPerBag;
+      sum.livestockUnmetKg += (row.monthlyUnmetLivestockBags ?? 0) * sample.logistics.kilogramsPerBag;
     }
     sum.recipeInputKg += (sample.salt.flows?.["sink:recipeInput"]?.units ?? 0) * sample.logistics.kilogramsPerBag;
     return sum;
-  }, { personMonths: 0, householdDemandKg: 0, householdSuppliedKg: 0, unmetHouseholdKg: 0, productionKg: 0, recipeInputKg: 0 });
+  }, { personMonths: 0, householdDemandKg: 0, householdSuppliedKg: 0, unmetHouseholdKg: 0, productionKg: 0, recipeInputKg: 0, livestockDemandKg: 0, livestockSuppliedKg: 0, livestockUnmetKg: 0 });
   const annualizedKgPerServedPerson = Object.fromEntries(Object.entries(totals)
     .filter(([key]) => key.endsWith("Kg"))
     .map(([key, value]) => [key, totals.personMonths > 0 ? value * 12 / totals.personMonths : null]));
-  writeFileSync(output, JSON.stringify({ schemaVersion: 2, input: basename(input), inputSha256: sha256(bytes),
+  writeFileSync(output, JSON.stringify({ schemaVersion: 3, input: basename(input), inputSha256: sha256(bytes),
     gitHead: execFileSync("git", ["rev-parse", "HEAD"]).toString().trim(),
     sourceTreeSha256: sha256(JSON.stringify(sourceHashes)),
     sourceHashScope: "git-tracked src (excluding deprecated city-generator), scripts, public, package-lock.json, plus this runner",
@@ -96,14 +100,17 @@ try {
       .map(path => [path, sourceHashes[path]])),
     seed: host.world.seed, settlementPattern: host.world.options.initialSettlementPattern, initialProfile,
     worldSettings: sim.worldSettings, months,
+    modelPolicy: { livestockAnnualKg: SALT_LIVESTOCK_ANNUAL_KG, livestockNaturalCreditShare: SALT_LIVESTOCK_NATURAL_SHARE,
+      youngHeadEquivalent: 0.5, note: "Uncalibrated supplementary-salt planning assumptions, not observed historical purchases or physiological requirements." },
     notes: ["Flows are interval totals; logistics states and works are latest-month records, not cumulative. settlements captures every actual salt settlement via the read-only tick observer.",
       "Salt bag = 60 kg. A household sale is physical delivery, with no payment in the current implementation.",
-      "personMonths sums demand-time state ledger population once per actual settlement, including zero or multiple settlements per calendar sample. Neutral/unmarketed residents can be absent; realPeople includes all land residents.",
-      "Processing allocation is a reserve target, not observed consumption. recipeInput is actual recorded processing, without an assumed 2.4 kg sink.",
+      "personMonths sums demand-time state ledger population once per actual settlement, including zero or multiple settlements per calendar sample. Neutral and unmarketed residents are now included in demand; realPeople includes all land residents.",
+      "Processing forecast uses prior actual recipe inputs and is not another consumption. recipeInput is actual recorded processing, without an assumed 2.4 kg sink.",
       "Shipments are internal transfers. Never add dispatch, arrival or imports to world production.",
       "Initial stocks and in-transit cargo are retained; no warmup. The 12-month run includes initial reserve filling.",
       "Flow values are price valuations, not evidence of cash payments. No historical coefficient is changed."],
-    totals, annualizedKgPerServedPerson, initial, samples }, null, 2) + "\n");
+    denominatorScope: "All state ledger residents, including neutral and unmarketed households; not just served people.",
+    totals, annualizedKgPerLedgerResident: annualizedKgPerServedPerson, initial, samples }, null, 2) + "\n");
 } finally {
   setTickStepObserver(null);
   setGoodFlowObserver(null);

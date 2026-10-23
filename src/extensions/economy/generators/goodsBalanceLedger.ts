@@ -187,6 +187,15 @@ export function clearGoodsBalanceLedger(): void {
 /** Records an aggregate physical stock movement. Calls before the first baseline are ignored. */
 export function recordGoodFlow(flow: GoodFlowRecord): void {
   if (!Number.isFinite(flow.units) || flow.units <= 0) return;
+  if (
+    flow.direction === "sink" &&
+    flow.category === "recipeInput" &&
+    flow.marketId !== undefined &&
+    getGoods().find(good => good.i === flow.goodId)?.name === "Salt"
+  ) {
+    const market = getMarkets().find(market => market.i === flow.marketId);
+    if (market) market.saltProcessingInputBags = (market.saltProcessingInputBags ?? 0) + flow.units;
+  }
   flowObserver?.(flow);
   if (!activeInterval) return;
   const key = flowKey(flow);

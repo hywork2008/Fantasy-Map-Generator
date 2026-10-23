@@ -42,6 +42,14 @@ export interface SaltShipment {
 
 /** Current-month population requirement and fulfillment for one state. */
 export interface StateSaltLedger {
+  /** Unmapped households have demand but no implied delivery. State zero represents neutral residents. */
+  unmarketedPeople?: number;
+  monthlyProcessingForecastBags?: number;
+  monthlyLivestockTotalRequirementBags?: number;
+  monthlyLivestockNaturalBags?: number;
+  monthlyLivestockDemandBags?: number;
+  monthlyLivestockSuppliedBags?: number;
+  monthlyUnmetLivestockBags?: number;
   stateId: number;
   population: number;
   monthlyProvisionBags: number;

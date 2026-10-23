@@ -2,6 +2,10 @@ import type { RuralTextileProduction } from "./ruralTextileProduction";
 import type { StapleCropInventory } from "./stapleCropInventoryTypes";
 
 export interface Market {
+  /** Actual Salt recipe inputs since the last salt settlement; persisted, never a second stock. */
+  saltProcessingInputBags?: number;
+  /** Prior interval's actual processing inputs, used only as a replenishment forecast. */
+  saltProcessingForecastBags?: number;
   i: number;
   centerBurgId: number;
   color: string;
