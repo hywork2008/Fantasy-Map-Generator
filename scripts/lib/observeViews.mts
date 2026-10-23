@@ -22,6 +22,8 @@ import {
 } from "../../src/extensions/economy/context/trade";
 import { getGuildChapters, getGuildKnowledgeStocks } from "../../src/extensions/economy/context/knowledge";
 import { getMintLedgers } from "../../src/extensions/economy/context/fiscal";
+import { getSaltShipments, getSaltworks, getStateSaltLedgers } from "../../src/extensions/economy/context/industry";
+import { SALT_KILOGRAMS_PER_BAG } from "../../src/extensions/economy/generators/saltLogistics";
 import { getUnassignedPersonalCash, getStateMoneyStocks } from "../../src/extensions/economy/generators/stateMoneySupply";
 import { getBurgMarketLedgers } from "../../src/extensions/economy/context/trade";
 import { getGoodCargoSlotsPerUnit } from "../../src/extensions/economy/generators/tradeCargo";
@@ -773,6 +775,15 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
     };
   }
 
+  function salt() {
+    return economy() ? {
+      kilogramsPerBag: SALT_KILOGRAMS_PER_BAG,
+      states: getStateSaltLedgers().map(row => ({ ...row, saltworksIds: [...row.saltworksIds] })),
+      works: getSaltworks().map(row => ({ ...row })),
+      shipments: getSaltShipments().map(row => ({ ...row }))
+    } : null;
+  }
+
   /** Trade matching since the previous call (or since these views were created). */
   function trade() {
     const goodRows = goodsFlow.take();
@@ -796,6 +807,9 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
         paidShare: settlement.saleValue > 0 ? r3((settlement.paidOnArrival + settlement.payableRepaid) / settlement.saleValue) : null,
         payablesOutstanding: r3(payablesOutstanding)
       },
+      // Latest monthly state records, not interval totals. Consumption and production flows
+      // remain in byGood; shipments are a separate stock boundary, never additional output.
+      salt: salt(),
       stages: Object.fromEntries(
         [...counts].map(([key, row]) => [key, Object.fromEntries(Object.entries(row).map(([k, v]) => [k, r3(v)]))])
       ),
@@ -897,7 +911,7 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
     return collectFarmlandSnapshot(getWorld(), clock().year, enabled, enabled ? getCultivatedArea() : undefined);
   }
 
-  return { sample, routes, approaches, corridors, markets, goods, gates, wealth, luxury, trade, farmland, staticInfo, networkKey };
+  return { sample, routes, approaches, corridors, markets, goods, gates, wealth, luxury, trade, salt, farmland, staticInfo, networkKey };
 }
 
 export interface SampledAdvanceHost {

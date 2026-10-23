@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { createObserveViews } from "../../../../scripts/lib/observeViews.mts";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
@@ -15,8 +16,10 @@ import {
   setSaltShipments
 } from "../economyContext";
 import { Goods } from "./goods-generator";
+import { setGoodFlowObserver } from "./goodsBalanceLedger";
 import { Markets } from "./markets-generator";
 import { SALT_HOUSEHOLD_KILOGRAMS_PER_PERSON_YEAR, SALT_KILOGRAMS_PER_BAG, SaltLogistics } from "./saltLogistics";
+import { setCargoDepartureObserver, setLotDispatchObserver, setTradeStageObserver } from "./tradeStageObserver";
 
 function setUpWorld(): void {
   worldContext.pack = {
@@ -66,7 +69,38 @@ describe("SaltLogisticsModule", () => {
     initEconomyContext({ worldContext, simulationContext: { extensions: {} } } as unknown as ExtensionAPI);
     setUpWorld();
   });
-  afterEach(() => clearEconomyContext());
+  afterEach(() => {
+    setGoodFlowObserver(null);
+    setCargoDepartureObserver(null);
+    setLotDispatchObserver(null);
+    setTradeStageObserver(null);
+    clearEconomyContext();
+  });
+
+  it("observes monthly salt records without consuming or exposing mutable ledger state", () => {
+    SaltLogistics.generate();
+    SaltLogistics.settleMonth();
+    const views = createObserveViews(
+      () => worldContext,
+      () => ({ year: 590, month: 1, day: 1, tick: 0 })
+    );
+    const before = JSON.stringify({
+      works: getSaltworks(),
+      shipments: getSaltShipments(),
+      states: getStateSaltLedgers()
+    });
+    const first = views.salt()!;
+    expect(views.salt()).toEqual(first);
+    expect(first.kilogramsPerBag).toBe(60);
+    expect(first.states.reduce((sum, row) => sum + row.population, 0)).toBe(60_000);
+    first.states[0].saltworksIds.push(-1);
+    first.states[0].population = 0;
+    first.works[0].monthlyOutputBags = -1;
+    first.shipments[0].bags = -1;
+    expect(
+      JSON.stringify({ works: getSaltworks(), shipments: getSaltShipments(), states: getStateSaltLedgers() })
+    ).toBe(before);
+  });
 
   it("creates at least one population-scaled saltworks for every populated state", () => {
     SaltLogistics.generate();
