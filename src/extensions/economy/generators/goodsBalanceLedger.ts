@@ -55,6 +55,9 @@ export interface GoodFlowRecord {
   readonly livestockCargoIds?: string[];
   /** Explicit live ownership transfer, never inferred from a recipe purchase. */
   readonly livestockBuyerId?: string;
+  readonly livestockSellerId?: string;
+  readonly livestockOwnerOpeningUnits?: number;
+  readonly livestockOwnerLocationId?: string;
   readonly direction: GoodFlowDirection;
   readonly category: GoodFlowCategory;
   readonly goodId: number;

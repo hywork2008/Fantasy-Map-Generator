@@ -5,6 +5,7 @@ import {
   getGoods,
   getMarketById,
   getMarkets,
+  getMerchantTransportLedgers,
   getNextTransportAssetOrderId,
   getTransportAssetOrders,
   getWorldContext,
@@ -15,10 +16,12 @@ import { getEconomyCalibrationState } from "../state/economyCalibrationStore";
 import { creditHouseholdWealth } from "./burgMarketLedgers";
 import { HARNESS_SETS_PER_LOT } from "./craftDemandCalibration";
 import { DEFAULT_PEOPLE_PER_POPULATION_POINT, laborPeople, peopleToPoints } from "./craftScale";
+import { recordGoodFlow } from "./goodsBalanceLedger";
 import { getGuildBonus } from "./guildKnowledge";
 import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";
 import { creditRuralHouseholdWealth } from "./householdWealth";
 import { HORSES_PER_MARKET_HEAD } from "./liveAnimalScale";
+import { moveOwnedLivestock } from "./livestockLots";
 import { getMarketRuralPopulation } from "./marketPopulation";
 import type { Caravan, Market, MerchantLandAssetBalance, TransportAssetOrder } from "./marketTypes";
 import { getUncommittedTradeCapital } from "./merchantTradeCapital";
@@ -277,7 +280,18 @@ export class TransportAssetOrdersModule {
         if (!(units > 0)) continue;
         const id = +goodId;
         const row = market.goods[id];
-        if (row) row.stock = rn(row.stock + units, 4);
+        if (row) {
+          row.stock = rn(row.stock + units, 4);
+          recordGoodFlow({
+            direction: "source",
+            category: "importArrival",
+            goodId: id,
+            units,
+            marketId: market.i,
+            livestockSellerId: `transport-order:${order.id}`,
+            livestockOwnerOpeningUnits: units
+          });
+        }
       }
     }
     this.refundWages(order);
@@ -570,11 +584,23 @@ export class TransportAssetOrdersModule {
     }
     const costs = Object.entries(best.materials).map(([goodId, units]) => {
       const row = market.goods[+goodId];
-      return { row, units, cost: (row?.price ?? 0) * units };
+      return { goodId: +goodId, row, units, cost: (row?.price ?? 0) * units };
     });
     const wages = rn(wagesPerUnit * order.quantity, 2);
     const totalCost = costs.reduce((sum, item) => sum + item.cost, 0) + wages;
-    for (const item of costs) if (item.row) item.row.stock = rn(Math.max(0, item.row.stock - item.units), 4);
+    for (const item of costs)
+      if (item.row) {
+        item.row.stock = rn(Math.max(0, item.row.stock - item.units), 4);
+        recordGoodFlow({
+          direction: "sink",
+          category: "marketInvestment",
+          goodId: item.goodId,
+          units: item.units,
+          marketId: market.i,
+          livestockBuyerId: `transport-order:${order.id}`,
+          livestockOwnerLocationId: `transport-order:${order.id}`
+        });
+      }
     const fromPurse = Math.min(Math.max(0, treasury.balance), totalCost);
     treasury.balance = rn(treasury.balance - fromPurse, 2);
     if (totalCost - fromPurse > 0)
@@ -734,11 +760,27 @@ export class TransportAssetOrdersModule {
     released: Partial<Record<MerchantLandAssetBalance["assetId"], { count: number; draftAnimalHeads: number }>>
   ): void {
     const horses = getGoods().find(good => good.name === DRAFT_ANIMAL_GOOD_NAME);
-    const heads = Object.values(released).reduce((sum, entry) => sum + (entry?.draftAnimalHeads ?? 0), 0);
-    if (!horses || !(heads > 0)) return;
-    const row = market.goods[horses.i] ?? { stock: 0, price: horses.value };
-    row.stock = rn(row.stock + heads, 4);
-    market.goods[horses.i] = row;
+    if (!horses) return;
+    for (const [assetId, entry] of Object.entries(released)) {
+      const heads = entry?.draftAnimalHeads ?? 0;
+      if (!(heads > 0)) continue;
+      const row = market.goods[horses.i] ?? { stock: 0, price: horses.value };
+      row.stock = rn(row.stock + heads, 4);
+      market.goods[horses.i] = row;
+      recordGoodFlow({
+        direction: "source",
+        category: "importArrival",
+        goodId: horses.i,
+        units: heads,
+        marketId: market.i,
+        livestockSellerId: `fleet:${market.i}:${assetId}`,
+        livestockOwnerOpeningUnits:
+          heads +
+          (getMerchantTransportLedgers()
+            .find(ledger => ledger.marketId === market.i)
+            ?.landAssets.find(asset => asset.assetId === assetId)?.draftAnimalHeads ?? 0)
+      });
+    }
   }
 
   private refundWages(order: TransportAssetOrder): void {
@@ -769,6 +811,18 @@ export class TransportAssetOrdersModule {
     const newlyCompleted = completed - order.completedQuantity;
     if (newlyCompleted > 0) {
       if (blueprint.outputMode === "land") {
+        if ((blueprint.draftAnimalHeads ?? 0) > 0) {
+          const horses = getGoods().find(good => good.name === DRAFT_ANIMAL_GOOD_NAME);
+          moveOwnedLivestock({
+            species: DRAFT_ANIMAL_GOOD_NAME,
+            units: (blueprint.draftAnimalHeads ?? 0) * newlyCompleted,
+            openingUnits: horses ? order.reservedMaterials[horses.i] : undefined,
+            fromOwnerId: `transport-order:${order.id}`,
+            toOwnerId: `fleet:${order.marketId}:${blueprint.outputAssetId}`,
+            marketId: order.marketId,
+            locationId: `fleet:${order.marketId}:${blueprint.outputAssetId}`
+          });
+        }
         MerchantTransportAssets.addAvailableLandAssets(
           order.marketId,
           blueprint.outputAssetId as MerchantLandAssetBalance["assetId"],

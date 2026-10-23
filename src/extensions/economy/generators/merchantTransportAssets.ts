@@ -20,6 +20,7 @@ import {
 import { CaravanMovement, getDraftAnimalType } from "./caravanMovement";
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import { getLocalCarrierSeasonFactor } from "./harvestCarriers";
+import { moveOwnedLivestock } from "./livestockLots";
 import {
   type LandFleetSeedCounts,
   landFleetCountsFromBurgScale,
@@ -1444,7 +1445,18 @@ export class MerchantTransportAssetsModule {
     const to = this.ensureLedger(toMarketId)?.landAssets.find(asset => asset.assetId === assetId);
     const count = Math.min(Math.floor(quantity), from?.available ?? 0);
     if (!from || !to || !(count > 0)) return 0;
+    const openingUnits = from.draftAnimalHeads ?? 0;
     const heads = takeDraftAnimalHeads(from, count);
+    if (heads > 0)
+      moveOwnedLivestock({
+        species: "Horses",
+        units: heads,
+        openingUnits,
+        fromOwnerId: `fleet:${fromMarketId}:${assetId}`,
+        toOwnerId: `fleet:${toMarketId}:${assetId}`,
+        marketId: toMarketId,
+        locationId: `fleet:${toMarketId}:${assetId}`
+      });
     if (heads > 0) to.draftAnimalHeads = (to.draftAnimalHeads ?? 0) + heads;
     from.available -= count;
     to.available += count;

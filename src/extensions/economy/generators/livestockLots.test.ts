@@ -175,3 +175,21 @@ it("removes transport losses from cargo without debiting market stock again", ()
   expect(Object.values(ledger.lots).filter(row => row.status === "transit")).toEqual([]);
   expect(Object.values(ledger.exits).reduce((sum, row) => sum + (row.transportLoss ?? 0), 0)).toBe(0.5);
 });
+
+it("invalidates stale owner provenance when physical owner inventory was consumed outside the ledger", () => {
+  move("source", 2, 2, { livestockSourceCellId: 7 });
+  move("sink", 2, 0, { category: "burgDemand", livestockBuyerId: "character:1" });
+  // Only one of the two purchased heads remains in the character's physical inventory.
+  move("source", 1, 1, { category: "importArrival", livestockSellerId: "character:1", livestockOwnerOpeningUnits: 1 });
+  const lots = Object.values(getLivestockLotLedger()!.lots);
+  expect(lots).toHaveLength(1);
+  expect(lots[0]).toMatchObject({ status: "market", heads: 1, sourceCellId: null, shipmentId: "" });
+});
+
+it("keeps legacy owner inventory unknown while preserving the unsold owner's remainder", () => {
+  move("source", 1, 1, { category: "importArrival", livestockSellerId: "character:1", livestockOwnerOpeningUnits: 3 });
+  const lots = Object.values(getLivestockLotLedger()!.lots);
+  expect(lots.filter(lot => lot.ownerId === "character:1").reduce((sum, lot) => sum + lot.heads, 0)).toBe(2);
+  expect(lots.filter(lot => lot.status === "market").reduce((sum, lot) => sum + lot.heads, 0)).toBe(1);
+  expect(lots.every(lot => lot.sourceCellId === null && lot.shipmentId === "")).toBe(true);
+});

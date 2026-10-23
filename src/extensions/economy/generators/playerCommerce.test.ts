@@ -3,11 +3,13 @@ import { clearCharactersContext, initCharactersContext } from "../../characters/
 import type { Character } from "../../characters/characterTypes";
 import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
+import { getEconomySlice } from "../context/economyApi";
 import { getCharacterMarketSnapshot } from "../controllers/characterMarket";
 import {
   clearEconomyContext,
   getBurgRetailInventories,
   getCharacterInventoryCostBases,
+  getGoods,
   getMarkets,
   getMerchantGoodSalesLedgers,
   initEconomyContext,
@@ -16,6 +18,8 @@ import {
 } from "../economyContext";
 import { getAllStockData } from "./economyTotals";
 import { Goods } from "./goods-generator";
+import { recordGoodFlow } from "./goodsBalanceLedger";
+import { getLivestockLotLedger } from "./livestockLots";
 import type { Market } from "./marketTypes";
 import { syncMarketMerchantPortfolios } from "./merchantPortfolios";
 import { executePlayerMarketTrade, migrateLegacyPlayerGrainInventory, quotePlayerMarketTrade } from "./playerCommerce";
@@ -101,6 +105,29 @@ describe("player commerce", () => {
     expect(worldContext.pack.states[1].treasury).toBe(2.2);
     expect(getMerchantGoodSalesLedgers()).toMatchObject([{ merchantId: 2, goodId: 1, playerUnitsSold: 2 }]);
     expect(validateRetailInventory()).toEqual([]);
+  });
+
+  it("preserves live ownership and origin on a character purchase, reload and partial resale", () => {
+    Object.assign(getGoods()[0], { name: "Pig", tags: ["liveAnimal", "food"] });
+    recordGoodFlow({
+      direction: "source",
+      category: "ruralHarvest",
+      goodId: 1,
+      units: 100,
+      marketId: 1,
+      livestockSourceCellId: 7,
+      livestockCohorts: { young: 0, breeding: 100, old: 0 }
+    });
+    expect(executePlayerMarketTrade({ characterId: 1, goodId: 1, units: 2, direction: "buy" }).ok).toBe(true);
+    getEconomySlice()!.livestockLots = JSON.parse(JSON.stringify(getLivestockLotLedger()));
+    expect(executePlayerMarketTrade({ characterId: 1, goodId: 1, units: 1, direction: "sell" }).ok).toBe(true);
+    const lots = Object.values(getLivestockLotLedger()!.lots);
+    const held = lots.filter(lot => lot.ownerId === "character:1");
+    expect(held.reduce((sum, lot) => sum + lot.heads, 0)).toBe(1);
+    expect(held[0].locationId).toBe("character:1");
+    expect(held[0].sourceCellId).toBe(7);
+    expect(lots.filter(lot => lot.status === "market").reduce((sum, lot) => sum + lot.heads, 0)).toBe(99);
+    expect(lots.every(lot => lot.sourceCellId === 7 && lot.cohortHeads?.breeding === lot.heads)).toBe(true);
   });
 
   it("leaves all balances and stock untouched when a purchase exceeds locally held stock", () => {

@@ -16,6 +16,7 @@ import {
 import { syncStapleFoodMarketStock } from "./foodCoLoad";
 import { getStapleFoodGood } from "./foodProduction";
 import { Goods, isGoodEnabled } from "./goods-generator";
+import { recordGoodFlow } from "./goodsBalanceLedger";
 import { floorToRetailLot, formatRetailQuantity, getRetailLotSize, isRetailLotQuantity } from "./goodsTradeLots";
 import { Markets } from "./markets-generator";
 import { getMerchantPortfolio, recordMerchantPlayerSale, syncMarketMerchantPortfolios } from "./merchantPortfolios";
@@ -310,6 +311,17 @@ export function executePlayerMarketTrade(args: {
     merchant.wealth = rn((merchant.wealth ?? 0) + merchantProfit, 2);
     treasury.balance = rn(treasury.balance + quote.goodsValue - merchantProfit, 2);
     if (!ledgerBackedStapleCrop) market.goods[good.i].stock = rn(Math.max(0, market.goods[good.i].stock - units), 2);
+    if (!ledgerBackedStapleCrop)
+      recordGoodFlow({
+        direction: "sink",
+        category: "burgDemand",
+        goodId: good.i,
+        units,
+        marketId: market.i,
+        burgId: quote.burgId,
+        livestockBuyerId: `character:${character.i}`,
+        livestockOwnerLocationId: `character:${character.i}`
+      });
     Markets.applyPlayerTradePressure(market, good, units);
     recordMerchantPlayerSale({
       marketId: market.i,
@@ -321,7 +333,8 @@ export function executePlayerMarketTrade(args: {
       tick: getTick()
     });
   } else {
-    character.inventory![good.i] = rn((character.inventory![good.i] ?? 0) - units, 2);
+    const ownerOpeningUnits = character.inventory![good.i] ?? 0;
+    character.inventory![good.i] = rn(ownerOpeningUnits - units, 2);
     if (!(character.inventory![good.i] > 0)) delete character.inventory![good.i];
     updateInventoryCostBasis(character.i, good.i, units, "sell", quote.unitPrice, character.inventory![good.i] ?? 0);
     character.wealth = rn((character.wealth ?? 0) + quote.totalPaid, 2);
@@ -333,6 +346,17 @@ export function executePlayerMarketTrade(args: {
       addWholesaleGoodStock(quote.burgId, market.i, good.i, units);
       market.goods[good.i].stock = rn(market.goods[good.i].stock + units, 2);
     }
+    if (!ledgerBackedStapleCrop)
+      recordGoodFlow({
+        direction: "source",
+        category: "importArrival",
+        goodId: good.i,
+        units,
+        marketId: market.i,
+        burgId: quote.burgId,
+        livestockSellerId: `character:${character.i}`,
+        livestockOwnerOpeningUnits: ownerOpeningUnits
+      });
     Markets.applyPlayerTradePressure(market, good, -units);
   }
   if (state) state.treasury = rn((state.treasury ?? 0) + quote.salesTax, 2);

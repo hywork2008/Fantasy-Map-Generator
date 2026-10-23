@@ -128,3 +128,15 @@ node --import tsx scripts/auditWoolSupply.mts docs/analytics/inputs/salt-s0-alig
 ```sh
 node --import tsx scripts/auditWoolSupply.mts docs/analytics/inputs/salt-s0-aligned-20261023/province-101.fmg docs/analytics/raw/economy-e1-live-cargo-province-101-20261024.json 12
 ```
+
+## E1 使役馬・人物売買・徴発の由来（同日追補）
+
+[比較JSON](economy-e1-live-owners-comparison-20261024.json)。固定Province101のみ12か月。live-cargoの初期/全区間の既存経済観測値と一致。所有者別lotは監査の観測列外で、関連テストが数量/由来を確認。
+
+| ファイル（docs/analytics/raw/） | バイト数 | SHA-256 |
+| --- | ---: | --- |
+| economy-e1-live-owners-province-101-20261024.json | 2554046 | `032dbde99c799568868cd7e808ccbfac6cb7c89d511e40884cf5e365f4549243` |
+
+```sh
+node --import tsx scripts/auditWoolSupply.mts docs/analytics/inputs/salt-s0-aligned-20261023/province-101.fmg docs/analytics/raw/economy-e1-live-owners-province-101-20261024.json 12
+```

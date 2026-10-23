@@ -124,6 +124,17 @@ export function recordLivestockLotFlow(flow: GoodFlowRecord, species: string, cl
     if (remaining > 1e-9) addLot(ledger, species, flow.marketId, remaining, null);
     return;
   }
+  if (flow.direction === "source" && flow.livestockSellerId) {
+    moveOwnedLivestock({
+      species,
+      units: flow.units,
+      fromOwnerId: flow.livestockSellerId,
+      openingUnits: flow.livestockOwnerOpeningUnits,
+      marketId: flow.marketId,
+      locationId: `market:${flow.marketId}`
+    });
+    return;
+  }
   if (flow.direction === "source") {
     const cell = flow.livestockSourceCellId ?? null;
     const known = flow.category === "ruralHarvest" && cell !== null;
@@ -153,6 +164,7 @@ export function recordLivestockLotFlow(flow: GoodFlowRecord, species: string, cl
     if (flow.livestockBuyerId) {
       const owned = copyLotShare(ledger, lot, heads, "owned", flow.marketId);
       owned.ownerId = flow.livestockBuyerId;
+      owned.locationId = flow.livestockOwnerLocationId ?? owned.locationId;
     }
     if (flow.category === "exportDeparture" && flow.livestockCargoIds) {
       const cargo = copyLotShare(ledger, lot, heads, "transit", flow.marketId);
@@ -222,5 +234,72 @@ export function discardLivestockCargo(ids: string[] | undefined, heads = Infinit
     terminal(ledger, lot, taken, reason);
     remaining -= taken;
     if (remaining <= 1e-12) break;
+  }
+}
+
+/** Move only attribution; the caller owns the matching physical inventory update. */
+export function moveOwnedLivestock(input: {
+  species: string;
+  units: number;
+  fromOwnerId: string;
+  toOwnerId?: string;
+  openingUnits?: number;
+  marketId: number;
+  locationId: string;
+}): void {
+  if (!Number.isFinite(input.units) || input.units <= 0) return;
+  const ledger = getOrCreateLedger();
+  if (!ledger) return;
+  const scale = animalsPerMarketHead(input.species);
+  const heads = input.units * scale;
+  const matching = () =>
+    Object.values(ledger.lots).filter(
+      lot => lot.status === "owned" && lot.ownerId === input.fromOwnerId && lot.species === input.species
+    );
+  const tracked = matching().reduce((sum, lot) => sum + lot.heads, 0);
+  if (input.openingUnits !== undefined && Number.isFinite(input.openingUnits)) {
+    const opening = Math.max(0, input.openingUnits * scale);
+    if (tracked > opening + 1e-9) {
+      for (const lot of matching()) terminal(ledger, lot, lot.heads, "unattributedOwnerReconciliation");
+    }
+    const retained = matching().reduce((sum, lot) => sum + lot.heads, 0);
+    if (opening > retained + 1e-9) {
+      const unknown = addLot(
+        ledger,
+        input.species,
+        input.marketId,
+        opening - retained,
+        null,
+        "",
+        input.fromOwnerId,
+        "owned"
+      );
+      unknown.locationId = input.fromOwnerId;
+    }
+  }
+  let remaining = heads;
+  for (const lot of matching()) {
+    const taken = Math.min(lot.heads, remaining);
+    if (!(taken > 0)) continue;
+    const moved = copyLotShare(ledger, lot, taken, input.toOwnerId ? "owned" : "market", input.marketId);
+    moved.ownerId = input.toOwnerId ?? null;
+    moved.locationId = input.locationId;
+    terminal(ledger, lot, taken, input.toOwnerId ? "ownershipTransfer" : "ownedReturn");
+    remaining -= taken;
+    if (remaining <= 1e-12) break;
+  }
+  // A physical legacy owner inventory may exist without a provenance ledger.
+  if (remaining > 1e-9) {
+    const unknown = addLot(
+      ledger,
+      input.species,
+      input.marketId,
+      remaining,
+      null,
+      "",
+      input.toOwnerId ?? null,
+      input.toOwnerId ? "owned" : "market"
+    );
+    unknown.locationId = input.locationId;
   }
 }

@@ -16,11 +16,14 @@ import {
 } from "../economyContext";
 import {
   applyConquestDisruption,
+  applyConquestPhysicalLoot,
   CONQUEST_BASE_LOOT_SHARE,
   CONQUEST_CONFISCATE_FRACTION,
   getConquestLootShare
 } from "./conquestDisruption";
+import { recordGoodFlow } from "./goodsBalanceLedger";
 import type { GreatLibraryProject } from "./greatLibraryTypes";
+import { getLivestockLotLedger } from "./livestockLots";
 import type { Market } from "./marketTypes";
 
 describe("applyConquestDisruption()", () => {
@@ -194,6 +197,34 @@ describe("applyConquestDisruption()", () => {
       const taken = 20 * CONQUEST_BASE_LOOT_SHARE;
       expect(getMarkets()[0].goods[1].stock).toBeCloseTo(20 - taken, 6);
       expect(conqueror.treasury).toBeCloseTo(taken * CONQUEST_CONFISCATE_FRACTION * 5, 6);
+    });
+
+    it("ends looted live lots without creating a second herd for monetized confiscation", () => {
+      initEconomyContext({
+        worldContext,
+        simulationContext: { currentYear: 1300, currentMonth: 1, extensions: {} }
+      } as unknown as ExtensionAPI);
+      worldContext.pack = {
+        burgs: [{ i: 0 }, { i: 1, state: 2 }],
+        states: [{ i: 0 }, { i: 1 }, { i: 2, treasury: 0 }]
+      } as unknown as PackedGraph;
+      setGoods([{ i: 1, name: "Pig", value: 5, tags: ["liveAnimal", "food"] }] as never);
+      setMarkets([{ i: 1, centerBurgId: 1, goods: { 1: { stock: 20, price: 5 } } }] as never);
+      recordGoodFlow({
+        direction: "source",
+        category: "ruralHarvest",
+        goodId: 1,
+        units: 20,
+        marketId: 1,
+        livestockSourceCellId: 7,
+        livestockCohorts: { young: 0, breeding: 20, old: 0 }
+      });
+      applyConquestPhysicalLoot(1);
+      const ledger = getLivestockLotLedger()!;
+      expect(Object.values(ledger.lots).reduce((sum, lot) => sum + lot.heads, 0)).toBe(13);
+      expect(Object.values(ledger.lots).every(lot => lot.status === "market" && lot.sourceCellId === 7)).toBe(true);
+      expect(Object.values(ledger.exits).reduce((sum, row) => sum + (row.theft ?? 0), 0)).toBe(7);
+      expect(worldContext.pack.states[2].treasury).toBe(21);
     });
 
     it("sacks less of the treasury when the occupying army is well led", () => {
