@@ -251,6 +251,7 @@ const options = {
   biomeRegionProfile: "global" as const,
   volcanicSoilStrength: 50,
   ruralEcosystemDetail: "detailed" as const,
+  winterLivestockSlaughter: "off" as const,
   ironDepositsPerState: 0.4,
   burgs: {
     groups: (safeParseJSON(localStorage.getItem("burg-groups") ?? "") as BurgGroup[] | null) || Burgs.getDefaultGroups()
@@ -1174,6 +1175,7 @@ function prepareGenerationStage(request: GenerateRequest): GenerateRequest {
     useOptionsState.getState().year
   );
   worldContext.options.ruralEcosystemDetail = useOptionsState.getState().ruralEcosystemDetail;
+  worldContext.options.winterLivestockSlaughter = useOptionsState.getState().winterLivestockSlaughter;
   worldContext.options.economyStartMode = useOptionsState.getState().economyStartMode;
   worldContext.options.moneyScaleBase = useOptionsState.getState().moneyScaleBase;
   worldContext.options.ironDepositsPerState = useOptionsState.getState().ironDepositsPerState;

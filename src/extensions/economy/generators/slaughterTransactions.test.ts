@@ -90,3 +90,16 @@ it("keeps age allocations in the committed batch and rejects inconsistent alloca
   expect(() => commitSlaughter(state, { ...request, id: "bad-ages" }, profile)).toThrow();
   expect(state).toEqual(before);
 });
+
+it("requires explicit experimental authorization without promoting unknown calibrations", () => {
+  const state = createState();
+  const experimental = { ...profile, calibration: "experimental" as const };
+  const before = structuredClone(state);
+  expect(() => commitSlaughter(state, request, experimental)).toThrow("Missing calibrated carcass profile");
+  expect(state).toEqual(before);
+  expect(() =>
+    commitSlaughter(state, request, { ...profile, calibration: "unknown" }, { allowExperimental: true })
+  ).toThrow();
+  expect(state).toEqual(before);
+  expect(commitSlaughter(state, request, experimental, { allowExperimental: true }).heads).toBe(1);
+});

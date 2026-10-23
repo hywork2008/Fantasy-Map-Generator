@@ -41,6 +41,9 @@ import type { Good } from "./goods-generator";
 import { isGoodEnabled } from "./goods-generator";
 import { ANNUAL_FEED_DM_KG_PER_HEAD, getLivestockHayPlan, HAY_WORK_DAYS_PER_TONNE_DM } from "./livestockFeedPolicy";
 import { getAnnualLivestockFeedFactor } from "./livestockFeedState";
+import { readAgriculturalClimate } from "./seasonalCropClimate";
+import { getWinterSlaughterWorkPlan } from "./winterSlaughter";
+import { EXPERIMENTAL_CARCASS_PROFILES } from "./winterSlaughterPolicy";
 
 // ---- Placeholder constants (calibration TBD, §9.3 policy; see module doc-comment for sourcing) ----
 
@@ -185,6 +188,8 @@ export function isGrazedLivestockGood(goodName: string): boolean {
 }
 
 export interface HusbandryDemand {
+  readonly slaughterWorkers?: number;
+  readonly slaughterMonthlyLaborWeights?: readonly number[];
   /** Aggregate herders this cell could use across every grazed species present in its biome. */
   readonly requiredWorkers: number;
   /** Additional haymaking crew, unaffected by herding-dog efficiency. */
@@ -345,8 +350,28 @@ export function calculateHusbandryDemand(world: Readonly<WorldContext>, cellId: 
   for (let month = 0; month < 12; month++) weightedMonthlyLabor[month] += hayWorkers * hayPlan.harvestWeights[month];
   const careWorkers = requiredWorkers;
   requiredWorkers += hayWorkers;
+  const slaughterPlan =
+    world.options.winterLivestockSlaughter === "experimental-temperate" &&
+    world.options.ruralEcosystemDetail !== "simplified"
+      ? getWinterSlaughterWorkPlan(
+          Object.fromEntries(
+            Object.keys(EXPERIMENTAL_CARCASS_PROFILES).flatMap(species => {
+              const herd = stock?.[`${cellId}:${species}`];
+              return herd ? [[species, herd]] : [];
+            })
+          ),
+          Array.from(readAgriculturalClimate(world, cellId).monthlyMeanTemperatureC),
+          population * (world.populationRate ?? 1000)
+        )
+      : { annualDays: 0, monthlyWeights: Array(12).fill(0) };
+  const slaughterWorkers = slaughterPlan.annualDays / WORKABLE_DAYS_PER_ADULT;
+  requiredWorkers += slaughterWorkers;
+  for (let month = 0; month < 12; month++)
+    weightedMonthlyLabor[month] += slaughterWorkers * slaughterPlan.monthlyWeights[month];
   return {
     requiredWorkers,
+    slaughterWorkers,
+    slaughterMonthlyLaborWeights: slaughterPlan.monthlyWeights,
     hayWorkers,
     hayMonthlyLaborWeights: hayPlan.harvestWeights,
     careWorkers,

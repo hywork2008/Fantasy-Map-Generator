@@ -201,6 +201,8 @@ export interface WorldOptions {
    * Undefined preserves legacy maps as "detailed".
    */
   ruralEcosystemDetail?: "detailed" | "simplified";
+  /** Opt-in authored household slaughter/preservation model; missing retains legacy production. */
+  winterLivestockSlaughter?: "off" | "experimental-temperate";
   /** Missing values identify legacy maps and retain the former provisioned setup. */
   economyStartMode?: EconomyStartMode;
   /**

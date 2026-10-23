@@ -7,6 +7,7 @@ import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import { yieldToHost } from "../../../simulation/ports";
 import type { Burg, State } from "../../hostTypes";
 import { DEBUG, ERROR, measureTickStep, measureTickStepAsync, rn, TIME } from "../../hostUtils";
+import { isWinterSlaughterExperimentEnabled } from "../context/winterSlaughter";
 import {
   getBurgProductionRecords,
   getConstructionOperations,
@@ -153,6 +154,7 @@ import { TransportAssetOrders } from "./transportAssetOrders";
 import { recordUrbanCraftCapacity } from "./urbanCraftCapacity";
 import { advanceViticultureAllocationShares, getViticultureAllocationMultiplier } from "./viticultureAllocation";
 import { VolcanicOperations } from "./volcanicOperations";
+import { settleWinterSlaughter } from "./winterSlaughterSettlement";
 import { hasPhysicalWoodRecipe } from "./woodRecipeContracts";
 
 export type {
@@ -345,6 +347,7 @@ export class ProductionModule {
     // Salt is neither generic rural output nor a discretionary utilities demand. State saltworks
     // produce, wholesale-dispatch, and retail household supply it before processors price recipes.
     const saltWorkersByBurg = measureTickStep("production:saltLogistics", () => SaltLogistics.settleMonth());
+    measureTickStep("production:winterSlaughter", () => settleWinterSlaughter());
     measureTickStep("production:monthlyLedgers", () => {
       Minting.settleMonthly();
       MilitaryResources.settleMonthly();
@@ -1569,6 +1572,8 @@ export class ProductionModule {
 
     for (const good of goods) {
       const coverage = demandCoverageByGood[good.i];
+      if (isWinterSlaughterExperimentEnabled() && good.tags.includes("liveAnimal") && good.tags.includes("food"))
+        continue;
       if (!coverage) continue;
 
       for (let category = 0; category < DEMAND_PRIORITY.length; category++) {
@@ -2124,6 +2129,15 @@ export class ProductionModule {
           goodId: +goodId,
           amount
         }));
+        // Experimental carcasses have one joint material balance, never a second live-input recipe.
+        if (
+          isWinterSlaughterExperimentEnabled() &&
+          entries.some(entry => {
+            const ingredient = Goods.get(entry.goodId);
+            return ingredient?.tags.includes("liveAnimal") && ingredient.tags.includes("food");
+          })
+        )
+          continue;
         if (
           !entries.length ||
           entries.some(entry => {

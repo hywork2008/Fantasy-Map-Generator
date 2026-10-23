@@ -3,6 +3,8 @@ import type { WorldContext } from "../../../context/worldContext";
 import type { CumulativeCellFoodFlow } from "../context/cellTables";
 import type { Good } from "./goodsGeneratorTypes";
 import type { Market } from "./marketTypes";
+import type { WinterSlaughterState } from "./winterSlaughter";
+import { observeWinterSlaughter } from "./winterSlaughterObservation";
 
 export function observeFoodSystem(input: {
   world: WorldContext;
@@ -11,6 +13,7 @@ export function observeFoodSystem(input: {
   marketByCell: ArrayLike<number>;
   ruralFoodStock: ArrayLike<number>;
   cellFoodFlows: Readonly<Record<number, CumulativeCellFoodFlow>> | null;
+  winterSlaughter?: WinterSlaughterState | null;
 }) {
   const { world, markets, goods, marketByCell, ruralFoodStock, cellFoodFlows } = input;
   const rate = world.populationRate ?? 1000;
@@ -86,7 +89,9 @@ export function observeFoodSystem(input: {
     const target = byReason[row.reason];
     target.urbanPeople += row.people;
   }
+  const meat = observeWinterSlaughter(input.winterSlaughter ?? null);
   return {
+    winterSlaughter: meat,
     coverage: { rural, urban, byReason, uncoveredCells, uncoveredBurgs, cellMembership },
     // These are source-cell harvest counters, not market inflows. Processed is a raw-input unit.
     cellFoodFlows:
@@ -103,7 +108,7 @@ export function observeFoodSystem(input: {
       hasFoodLedger: Boolean(market.foodLedger),
       processing: structuredClone(market.foodProcessingLedger ?? null)
     })),
-    // Slaughter supplies live-head inputs and carcass byproducts, with no authored meat-mass yield.
-    livestockMeatKilograms: null
+    // Only the explicit carcass ledger has a meat mass; legacy catalog units remain unknown.
+    livestockMeatKilograms: meat?.totals.edibleRecoveredKg ?? null
   };
 }

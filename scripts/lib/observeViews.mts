@@ -1,4 +1,5 @@
 import { observeFoodSystem } from "../../src/extensions/economy/generators/foodObservation";
+import { getWinterSlaughterState } from "../../src/extensions/economy/context/winterSlaughter";
 import { getMarketCellColumn, type CumulativeCellFoodFlow } from "../../src/extensions/economy/context/cellTables";
 import { getRuralHouseholdFoodStock } from "../../src/extensions/economy/context/agriculture";
 import { aggregateProductionDiagnostics } from "../../src/extensions/economy/generators/productionDiagnostics";
@@ -924,6 +925,7 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
     if (!economy()) return null;
     const flows = getEconomySlice()?.cumulativeCellFoodFlows;
     return observeFoodSystem({world: getWorld(), markets: getMarkets(), goods: getGoods(),
+      winterSlaughter: getWinterSlaughterState(),
       marketByCell: getMarketCellColumn(), ruralFoodStock: getRuralHouseholdFoodStock(),
       cellFoodFlows: flows && typeof flows === "object" && !Array.isArray(flows)
         ? flows as Record<number, CumulativeCellFoodFlow> : null});

@@ -140,3 +140,11 @@ node --import tsx scripts/auditWoolSupply.mts docs/analytics/inputs/salt-s0-alig
 ```sh
 node --import tsx scripts/auditWoolSupply.mts docs/analytics/inputs/salt-s0-aligned-20261023/province-101.fmg docs/analytics/raw/economy-e1-live-owners-province-101-20261024.json 12
 ```
+
+## 冬前屠畜・保存加工の試験実装比較（同日追補）
+
+[検証記録](winter-slaughter-implementation-20261024.md)、[派生比較](winter-slaughter-comparison-20261024.json)。固定Province101をoff/experimental-temperateで各36か月。12/36か月snapshotを含む。
+
+| ファイル（docs/analytics/raw/） | バイト数 | SHA-256 |
+| --- | ---: | --- |
+| winter-slaughter-province-101-20261024.json | 5280087 | `2349ed7b13c0fcbbcaca6974f6d4afc581af057235d2b52428968d004d77e499` |

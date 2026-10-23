@@ -17,7 +17,7 @@ export interface CarcassProfile {
   id: string;
   version: number;
   species: string;
-  calibration: "verified" | "unknown";
+  calibration: "verified" | "experimental" | "unknown";
   /** Disjoint carcass compartments; hide and blood are outside this balance. */
   carcassKgPerHead: number;
   leanKgPerHead: number;
@@ -71,7 +71,8 @@ function requireCondition(condition: boolean, message: string): asserts conditio
 export function commitSlaughter(
   state: SlaughterTransactionState,
   request: SlaughterRequest,
-  profile: CarcassProfile
+  profile: CarcassProfile,
+  options: { allowExperimental?: boolean } = {}
 ): SlaughterReceipt {
   const prior = state.receipts[request.id];
   if (prior) {
@@ -103,7 +104,8 @@ export function commitSlaughter(
     "Insufficient whole livestock heads"
   );
   requireCondition(
-    profile.calibration === "verified" &&
+    (profile.calibration === "verified" ||
+      (profile.calibration === "experimental" && options.allowExperimental === true)) &&
       Boolean(profile.id) &&
       Number.isSafeInteger(profile.version) &&
       profile.version > 0 &&

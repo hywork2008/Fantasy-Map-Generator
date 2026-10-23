@@ -27,6 +27,7 @@ import {
 } from "../hostTypes";
 import { measureTickStep, measureTickStepAsync, rn, TIME } from "../hostUtils";
 import { getCadencePhase, setCadencePhase } from "./context/cadencePhases";
+import { winterSlaughterNeedsPhysicalSettlement } from "./context/winterSlaughter";
 import {
   ANNUAL_GATE,
   clearAnnualGateYear,
@@ -1913,7 +1914,7 @@ function register(api: SimulationExtensionAPI): () => void {
       const dueSettlements = productionSettlementsDue;
       const times = Math.max(dueSettlements, productionDirty ? 1 : 0);
       const settlementsWithFoodAlreadyApplied = Math.min(dueSettlements, foodSettlementsAlreadyApplied);
-      const fastForward = productionSettlementsFastForward;
+      const fastForward = productionSettlementsFastForward && !winterSlaughterNeedsPhysicalSettlement();
       if (times === 0) return;
       const feedPeriods = productionFeedPeriods;
       productionFeedPeriods = [];

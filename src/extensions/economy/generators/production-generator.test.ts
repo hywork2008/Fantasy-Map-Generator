@@ -63,6 +63,35 @@ type ManufactureHarness = {
 };
 
 describe("ProductionModule byproducts", () => {
+  it("routes food animals away from legacy recipes while retaining draft-animal manufacture", () => {
+    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    const previous = worldContext.options;
+    try {
+      worldContext.options = {
+        ...previous,
+        winterLivestockSlaughter: "experimental-temperate",
+        ruralEcosystemDetail: "detailed"
+      };
+      const goods = [
+        { i: 1, name: "Pig", tags: ["food", "liveAnimal"], value: 2 },
+        { i: 2, name: "Horses", tags: ["draft", "liveAnimal"], value: 8 },
+        { i: 3, name: "Salt", tags: [], value: 3 },
+        { i: 4, name: "Preserved food", tags: ["food"], value: 6, recipes: [{ 1: 1, 3: 1 }] },
+        { i: 5, name: "Harness team", tags: [], value: 12, recipes: [{ 2: 1 }] }
+      ] as Good[];
+      setGoods(goods);
+      Goods.sync();
+      const production = new ProductionModule() as unknown as { buildRecipesArray(goods: Good[]): { good: Good }[] };
+      expect(production.buildRecipesArray(goods).map(recipe => recipe.good.name)).toEqual(["Harness team"]);
+      worldContext.options.winterLivestockSlaughter = "off";
+      expect(production.buildRecipesArray(goods).map(recipe => recipe.good.name)).toEqual([
+        "Preserved food",
+        "Harness team"
+      ]);
+    } finally {
+      worldContext.options = previous;
+    }
+  });
   beforeEach(() => {
     initEconomyContext({ worldContext } as unknown as ExtensionAPI);
     simulationContext.technology = createEmptyTechnologySimulationState();
