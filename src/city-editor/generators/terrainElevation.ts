@@ -15,6 +15,7 @@ import {
   onPlatformSummit,
   onTerrainEscarpment,
   type ResolvedTerrainFeature,
+  rampDeckAt,
   resolveTerrainFeatures,
   terrainFeatureBreaklines,
   terrainFeatureCreases,
@@ -30,12 +31,16 @@ const cross = (a: Point, b: Point, c: Point) => (b[0] - a[0]) * (c[1] - a[1]) - 
 export function cityTerrainModel(document: CityDocument): TerrainModel {
   const site = document.fortSite;
   return site
-    ? { base: { kind: "flat", elevationMeters: site.groundElevationMeters }, features: fortSiteTerrainFeatures(site) }
-    : { base: { kind: "cells" }, features: document.terrain?.features ?? [] };
+    ? {
+        base: { kind: "flat", elevationMeters: site.groundElevationMeters },
+        features: fortSiteTerrainFeatures(site),
+        ramps: []
+      }
+    : { base: { kind: "cells" }, features: document.terrain?.features ?? [], ramps: document.terrain?.ramps ?? [] };
 }
 
 /** Edges between the given cells and any other cell or the frame, oriented by their inward normal. */
-function platformOutline(document: CityDocument, faceIds: readonly Id[]): OutlineSegment[] {
+export function platformOutline(document: CityDocument, faceIds: readonly Id[]): OutlineSegment[] {
   const { mesh } = document;
   const set = new Set(faceIds.filter(id => mesh.faces[id]));
   const segments: OutlineSegment[] = [];
@@ -304,7 +309,8 @@ export function cityTerrain(document: CityDocument, options: { roads?: readonly 
   const surface =
     model.base.kind === "flat" ? flatSurface(document, model.base.elevationMeters) : cellSurface(document);
   const { datumMeters } = surface;
-  const relief = surface.relief || features.length > 0;
+  const { ramps } = model;
+  const relief = surface.relief || features.length > 0 || ramps.length > 0;
   const step = Math.max(10, document.frame.blockSizeMeters || 50);
   const base = new PatchIndex(
     surface.seeds.flatMap(seed => seed.patches),
@@ -316,13 +322,18 @@ export function cityTerrain(document: CityDocument, options: { roads?: readonly 
     if (!features.length) return baseAt(point);
     return evaluateTerrainFeatures(features, p => datumMeters + baseAt(p), point) - datumMeters;
   };
+  const deckAt = (point: Point): number | null => {
+    const deck = ramps.length ? rampDeckAt(ramps, point) : null;
+    return deck === null ? null : deck - datumMeters;
+  };
   const grading =
     relief && options.roads?.length
       ? gradeRoads(
           options.roads,
           groundAt,
           point => terrainLevelAt(features, point),
-          point => onPlatformSummit(features, point)
+          point => onPlatformSummit(features, point),
+          deckAt
         )
       : null;
   const heightAt = grading ? (point: Point) => grading.apply(point, groundAt(point)) : groundAt;
@@ -334,6 +345,8 @@ export function cityTerrain(document: CityDocument, options: { roads?: readonly 
     datumMeters,
     relief,
     heightAt,
+    surfaceAt: point => deckAt(point) ?? heightAt(point),
+    ramps: ramps.map(ramp => ({ ramp, elevations: ramp.elevationsMeters.map(level => level - datumMeters) })),
     ...(options.roads
       ? { roads: { ribbons: grading?.ribbons ?? [...options.roads], cliffBreaks: grading?.cliffBreaks ?? [] } }
       : {}),

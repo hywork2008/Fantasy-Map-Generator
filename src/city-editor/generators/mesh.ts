@@ -5,7 +5,7 @@ import { reservedCastleFaces, validateFortifications } from "./fortifications";
 import { scaleFortSite, validateFortSite } from "./fortSiteGeometry";
 import { isSimplePolygon, segmentsIntersect } from "./geom";
 import { probed } from "./meshOpProbe";
-import { validateTerrainLayer } from "./terrainEditing";
+import { validateTerrainLayer } from "./terrainValidation";
 
 /** Voronoi clipping can leave sub-metre sliver corners along the frame. Merge
  * them before assigning IDs so every face shares the same cleaned topology. */

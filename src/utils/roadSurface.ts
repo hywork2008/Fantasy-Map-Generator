@@ -128,6 +128,8 @@ export interface RoadRibbon {
   surface: RoadSurfaceId;
   /** Absent reads as "cart". Bounds the longitudinal grade when roads are graded into relief. */
   gradeClass?: RoadGradeClass;
+  /** A ramp deck that may pass between levels a cliff separates. */
+  connectsLevels?: true;
 }
 
 type Band = "antiquity" | "early" | "high" | "late" | "industrial";

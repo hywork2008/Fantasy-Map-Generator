@@ -1,5 +1,5 @@
 import type { Id, Point } from "../types/primitives";
-import type { TerrainCircle, TerrainFeature, TerrainPlatform, TerrainRingCut } from "../types/terrain";
+import type { TerrainCircle, TerrainFeature, TerrainPlatform, TerrainRamp, TerrainRingCut } from "../types/terrain";
 
 /** Horizontal width of a cliff face, inside the platform, so heights stay single-valued. */
 export const CLIFF_BAND_METERS = 0.25;
@@ -191,7 +191,8 @@ export function terrainFeatureFoci(features: readonly ResolvedTerrainFeature[]):
 
 /**
  * The level a point stands on, as far as cliffs separate levels: a cliff-edged cell platform's id on its summit,
- * `"cliff"` on its cliff face, and null on the ground they rise from. Slopes join their levels and are not split.
+ * `"cliff"` on its cliff face, and null on the ground they rise from. Slopes join their levels and are not split;
+ * only a road marked as connecting levels (a castle ramp) may pass between them.
  */
 export function terrainLevelAt(features: readonly ResolvedTerrainFeature[], point: Point): string | null {
   for (const feature of features) {
@@ -220,4 +221,78 @@ export function onPlatformSummit(features: readonly ResolvedTerrainFeature[], po
       Math.min(...summit.segments.map(segment => segmentDistance(point, segment))) >= CLIFF_BAND_METERS
     );
   });
+}
+
+/** The ramp whose deck covers a point, and the deck's absolute level there. */
+function rampAt(
+  ramps: readonly TerrainRamp[],
+  point: Point
+): { ramp: TerrainRamp; levelMeters: number; offset: number } | null {
+  let best: { ramp: TerrainRamp; levelMeters: number; offset: number } | null = null;
+  for (const ramp of ramps) {
+    const half = ramp.widthMeters / 2;
+    for (let i = 1; i < ramp.centerline.length; i++) {
+      const a = ramp.centerline[i - 1],
+        b = ramp.centerline[i];
+      if (
+        point[0] < Math.min(a[0], b[0]) - half ||
+        point[0] > Math.max(a[0], b[0]) + half ||
+        point[1] < Math.min(a[1], b[1]) - half ||
+        point[1] > Math.max(a[1], b[1]) + half
+      )
+        continue;
+      const dx = b[0] - a[0],
+        dy = b[1] - a[1];
+      const lengthSq = dx * dx + dy * dy;
+      const t = lengthSq ? clamp01(((point[0] - a[0]) * dx + (point[1] - a[1]) * dy) / lengthSq) : 0;
+      const offset = Math.hypot(point[0] - a[0] - dx * t, point[1] - a[1] - dy * t);
+      if (offset > half || (best && best.offset <= offset)) continue;
+      const levelMeters = ramp.elevationsMeters[i - 1] + (ramp.elevationsMeters[i] - ramp.elevationsMeters[i - 1]) * t;
+      best = { ramp, levelMeters, offset };
+    }
+  }
+  return best;
+}
+
+/** Absolute deck level of the ramp under a point, or null off every ramp. */
+export function rampDeckAt(ramps: readonly TerrainRamp[], point: Point): number | null {
+  return rampAt(ramps, point)?.levelMeters ?? null;
+}
+
+function segmentGap(a: Point, b: Point, c: Point, d: Point): number {
+  const cross = (o: Point, p: Point, q: Point) => (p[0] - o[0]) * (q[1] - o[1]) - (p[1] - o[1]) * (q[0] - o[0]);
+  const d1 = cross(c, d, a),
+    d2 = cross(c, d, b),
+    d3 = cross(a, b, c),
+    d4 = cross(a, b, d);
+  if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) return 0;
+  const toSegment = (p: Point, s: Point, e: Point) => segmentDistance(p, { a: s, b: e, inward: [0, 0] });
+  return Math.min(toSegment(a, c, d), toSegment(b, c, d), toSegment(c, a, b), toSegment(d, a, b));
+}
+
+/** True when a ring touches a ramp's deck, so a building or field there would stand in the ramp. */
+export function overlapsRamp(ring: readonly Point[], ramps: readonly TerrainRamp[]): boolean {
+  if (ring.length < 3) return false;
+  for (const ramp of ramps) {
+    const half = ramp.widthMeters / 2;
+    for (let i = 1; i < ramp.centerline.length; i++) {
+      const a = ramp.centerline[i - 1],
+        b = ramp.centerline[i];
+      for (let k = 0; k < ring.length; k++)
+        if (segmentGap(a, b, ring[k], ring[(k + 1) % ring.length]) < half) return true;
+      if (pointInRing(a, ring)) return true;
+    }
+  }
+  return false;
+}
+
+function pointInRing(point: Point, ring: readonly Point[]): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const a = ring[i],
+      b = ring[j];
+    if (a[1] > point[1] !== b[1] > point[1] && point[0] < a[0] + ((point[1] - a[1]) * (b[0] - a[0])) / (b[1] - a[1]))
+      inside = !inside;
+  }
+  return inside;
 }

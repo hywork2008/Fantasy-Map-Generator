@@ -1,14 +1,30 @@
-import type { CastlePlan, CityDocument } from "../types/document";
+import type { CastlePlan, CityDocument, Point } from "../types/document";
 import type { Id } from "../types/primitives";
-import type { TerrainPlatform } from "../types/terrain";
+import type { TerrainPlatform, TerrainRamp } from "../types/terrain";
+import { planPlatformRamp } from "./rampPlanning";
+import type { PlatformEdge } from "./terrainValidation";
+import { validPlatformEdge, validTerrainLevel } from "./terrainValidation";
 
-export type PlatformEdge = TerrainPlatform["edge"];
+export type { PlatformEdge } from "./terrainValidation";
 
 const platformId = (castleId: Id) => `castle-platform:${castleId}`;
 
 /** The cells a castle stands on: its site cells, or the area its own circuit encloses. */
 export function castleSiteFaceIds(document: CityDocument, castle: CastlePlan): Id[] {
   return castle.siteFaceIds ?? document.defenseCircuits?.find(c => c.id === castle.circuitId)?.areaFaceIds ?? [];
+}
+
+/** The castle's main gate, or any gate it owns, as a point on its circuit. */
+export function castleGatePoint(document: CityDocument, castle: CastlePlan): Point | undefined {
+  const gates = document.gates.filter(
+    gate => gate.ownerCastleId === castle.id || castle.accesses.some(access => access.gateId === gate.id)
+  );
+  const gate = gates.find(item => item.role === "castle-main") ?? gates[0];
+  return gate ? document.mesh.vertices[gate.vertexId]?.point : undefined;
+}
+
+export function castleRamp(document: CityDocument, castleId: Id): TerrainRamp | undefined {
+  return document.terrain?.ramps?.find(ramp => ramp.ownerId === castleId);
 }
 
 export function castlePlatform(document: CityDocument, castleId: Id): TerrainPlatform | undefined {
@@ -26,19 +42,30 @@ export function setCastlePlatform(
   const faceIds = castleSiteFaceIds(document, castle).filter(
     id => document.mesh.faces[id]?.properties.water === "land"
   );
-  if (platform && (!faceIds.length || !validLevel(platform.levelMeters) || !validEdge(platform.edge))) return null;
+  if (platform && (!faceIds.length || !validTerrainLevel(platform.levelMeters) || !validPlatformEdge(platform.edge)))
+    return null;
   const next = structuredClone(document);
   removeOwnedTerrain(next, castleId);
   if (platform) {
     next.terrain ??= { version: 1, features: [] };
-    next.terrain.features.push({
+    const feature: TerrainPlatform = {
       kind: "platform",
       id: platformId(castleId),
       ownerId: castleId,
       summit: { kind: "faces", faceIds },
       levelMeters: platform.levelMeters,
       edge: platform.edge
-    });
+    };
+    next.terrain.features.push(feature);
+    // A cliff shuts the gate off from the town; a ramp climbs to it along the cliff foot.
+    if (platform.edge.kind === "cliff") {
+      const ramp = planPlatformRamp(next, feature, {
+        id: `castle-ramp:${castleId}`,
+        ownerId: castleId,
+        landing: castleGatePoint(next, castle)
+      });
+      if (typeof ramp !== "string") next.terrain.ramps = [...(next.terrain.ramps ?? []), ramp];
+    }
   }
   return next;
 }
@@ -47,44 +74,8 @@ export function setCastlePlatform(
 export function removeOwnedTerrain(document: CityDocument, ownerId: Id): void {
   if (!document.terrain) return;
   document.terrain.features = document.terrain.features.filter(feature => feature.ownerId !== ownerId);
-  if (!document.terrain.features.length) delete document.terrain;
-}
-
-const validLevel = (value: unknown) => typeof value === "number" && Number.isFinite(value) && value > 0;
-
-function validEdge(edge: unknown): edge is PlatformEdge {
-  if (!edge || typeof edge !== "object") return false;
-  const value = edge as { kind?: unknown; runMeters?: unknown };
-  return (
-    value.kind === "cliff" ||
-    (value.kind === "slope" && typeof value.runMeters === "number" && value.runMeters > 0 && value.runMeters <= 200)
-  );
-}
-
-/** Structure only: cells missing after mesh edits are skipped when the terrain is evaluated. */
-export function validateTerrainLayer(document: CityDocument): string[] {
-  const layer = document.terrain as unknown;
-  if (layer === undefined) return [];
-  const value = layer as { version?: unknown; features?: unknown };
-  if (!layer || typeof layer !== "object" || value.version !== 1 || !Array.isArray(value.features))
-    return ["Invalid terrain layer"];
-  const ids = new Set<string>();
-  return value.features.flatMap((item: unknown, index): string[] => {
-    const feature = item as Partial<TerrainPlatform> | null;
-    const summit = feature?.summit as { kind?: unknown; faceIds?: unknown } | undefined;
-    const valid =
-      !!feature &&
-      feature.kind === "platform" &&
-      typeof feature.id === "string" &&
-      !ids.has(feature.id) &&
-      (feature.ownerId === undefined || typeof feature.ownerId === "string") &&
-      summit?.kind === "faces" &&
-      Array.isArray(summit.faceIds) &&
-      summit.faceIds.length > 0 &&
-      summit.faceIds.every(id => typeof id === "string") &&
-      validLevel(feature.levelMeters) &&
-      validEdge(feature.edge);
-    if (feature && typeof feature.id === "string") ids.add(feature.id);
-    return valid ? [] : [`Invalid terrain feature ${index}`];
-  });
+  const ramps = document.terrain.ramps?.filter(ramp => ramp.ownerId !== ownerId);
+  if (ramps?.length) document.terrain.ramps = ramps;
+  else delete document.terrain.ramps;
+  if (!document.terrain.features.length && !document.terrain.ramps) delete document.terrain;
 }

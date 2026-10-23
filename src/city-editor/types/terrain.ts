@@ -17,6 +17,10 @@ export interface CityTerrain {
   foundationAt(ring: readonly Point[]): number;
   triangles: TerrainPatch[];
   /** Present when built with road ribbons: those to draw, split where they would cross a cliff. */
+  /** Walkable top: a ramp deck where one stands, otherwise the ground. Roads are drawn on it. */
+  surfaceAt(point: Point): number;
+  /** Ramps in the same local frame as heightAt. */
+  ramps: Array<{ ramp: TerrainRamp; elevations: number[] }>;
   roads?: {
     ribbons: import("../../utils/roadSurface").RoadRibbon[];
     /** Where a road met a cliff between levels and was stopped. */
@@ -64,14 +68,32 @@ export type TerrainFeature = TerrainPlatform | TerrainRingCut;
 /** Height source before earthworks. Cell elevations are interpolated across the editor mesh. */
 export type TerrainBase = { kind: "cells" } | { kind: "flat"; elevationMeters: number };
 
-/** Saved earthworks. Only cell-shaped platforms are persisted; their edges follow the editor mesh. */
+/**
+ * A masonry ramp climbing a cliff-edged platform: a raised deck along its centre line, walled on both sides.
+ * The ground beneath keeps its own height; roads ride the deck.
+ */
+export interface TerrainRamp {
+  kind: "ramp";
+  id: Id;
+  ownerId?: Id;
+  /** The platform it climbs onto. Its last point lies just inside that platform's edge. */
+  platformId: Id;
+  centerline: Point[];
+  /** Absolute deck level at each centre-line point. */
+  elevationsMeters: number[];
+  widthMeters: number;
+}
+
+/** Saved earthworks. Platforms are cell-shaped, so their edges follow the editor mesh. */
 export interface CityTerrainLayer {
   version: 1;
   features: TerrainPlatform[];
+  ramps?: TerrainRamp[];
 }
 
 /** Derived, unpersisted grading model: a base field plus vector earthworks in absolute metres. */
 export interface TerrainModel {
   base: TerrainBase;
   features: TerrainFeature[];
+  ramps: TerrainRamp[];
 }

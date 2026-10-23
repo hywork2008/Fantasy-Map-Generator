@@ -436,6 +436,8 @@
       "castlePlatformSlope": "Flat platform, earth slope",
       "castlePlatformLevel": "Platform elevation (m)",
       "castlePlatformSlopeRun": "Slope run (m)",
+      "castleRamp": "Castle ramp",
+      "castleRampNone": "No room for a ramp up the cliff: the gate cannot be reached.",
       "fortDeletePart": "Delete selected part",
       "fortUsekeep": "Keep",
       "fortUsehall": "Lord’s hall",

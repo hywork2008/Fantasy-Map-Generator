@@ -163,16 +163,19 @@ function limitedEnvelope(links: readonly Link[][], z: readonly number[], sign: 1
  * Solve one height per road node: close to the terrain, smooth along the road, equal at junctions and never steeper
  * than the road's grade class. Ribbons stop where they would cross between levels separated by a cliff.
  * Pinned nodes (platform summits) keep the terrain height, so a ramp is built as fill outside the platform.
+ * Ribbons that connect levels (castle ramps) are never stopped; their nodes follow `deckAt` and grade no ground.
  */
 export function gradeRoads(
   ribbons: readonly RoadRibbon[],
   terrainAt: (point: Point) => number,
   levelAt: (point: Point) => string | null,
-  pinnedAt: (point: Point) => boolean = () => false
+  pinnedAt: (point: Point) => boolean = () => false,
+  deckAt: (point: Point) => number | null = () => null
 ): RoadGrading {
   const points: Point[] = [];
   const levels: Array<string | null> = [];
   const links: Link[][] = [];
+  const onDeck = new Set<number>();
   const index = new Map<string, number>();
   const node = (point: Point) => {
     const id = key(point);
@@ -201,6 +204,7 @@ export function gradeRoads(
     if (ribbon.centerline.length < 2) return;
     const grade = MAX_ROAD_GRADE[ribbon.gradeClass ?? "cart"];
     const samples = resample(ribbon.centerline).map(node);
+    if (ribbon.connectsLevels) for (const i of samples) onDeck.add(i);
     let piece: number[] = [];
     const flush = () => {
       if (piece.length >= 2) {
@@ -211,13 +215,14 @@ export function gradeRoads(
     };
     for (let s = 0; s < samples.length; s++) {
       const i = samples[s];
-      if (levels[i] === "cliff") {
+      // Other roads stop at a cliff face, and pass under no ramp: the ramp is built over them.
+      if (!ribbon.connectsLevels && (levels[i] === "cliff" || deckAt(points[i]) !== null)) {
         cliffBreaks.push(points[i]);
         flush();
         continue;
       }
       const previous = piece[piece.length - 1];
-      if (previous !== undefined && levels[previous] !== levels[i]) {
+      if (previous !== undefined && levels[previous] !== levels[i] && !ribbon.connectsLevels) {
         cliffBreaks.push([(points[previous][0] + points[i][0]) / 2, (points[previous][1] + points[i][1]) / 2]);
         flush();
       }
@@ -251,7 +256,7 @@ export function gradeRoads(
     if (best) link(end.i, best.node, best.grade);
   }
 
-  const targets = points.map(terrainAt);
+  const targets = points.map((point, i) => (onDeck.has(i) ? (deckAt(point) ?? terrainAt(point)) : terrainAt(point)));
   const pinned = points.map(pinnedAt);
   const z = [...targets];
   for (let iteration = 0; iteration < SMOOTH_ITERATIONS; iteration++)
@@ -278,7 +283,9 @@ export function gradeRoads(
     z[i] = Math.min(ceiling[i], Math.max(floor[i], mid));
   }
 
-  const corridors: Corridor[] = edges.map(({ i, j, halfWidth }) => {
+  // A ramp deck carries its road; only roads on the ground grade the ground.
+  const grounded = edges.filter(({ i, j }) => !onDeck.has(i) && !onDeck.has(j));
+  const corridors: Corridor[] = grounded.map(({ i, j, halfWidth }) => {
     const a = points[i],
       b = points[j];
     const length = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;

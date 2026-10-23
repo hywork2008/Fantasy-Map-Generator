@@ -51,6 +51,7 @@ import { roadTrafficKey } from "./roadTraffic";
 import { ruralFieldOverlay } from "./ruralFieldOverlay";
 import { applyRuralFields } from "./ruralFields";
 import { enforceDefenseClearance, shapeSuburbanFabric } from "./suburbanLanduse";
+import { overlapsRamp } from "./terrainModel";
 import { shapeUrbanGrowthFabric } from "./urbanGrowth";
 import { documentWaterTest, dryRuns, lineHitsDocumentWater, waterPolygons } from "./waterGeometry";
 import { buildWatermillPlan } from "./watermillFabric";
@@ -184,6 +185,7 @@ export function documentFabricFingerprint(doc: CityDocument): string {
     .map(c => `${c.scope}:${c.moat?.enabled}:${c.moat?.widthMeters}:${c.wallGroupIds.join(",")}`)
     .join(";");
   const landmarksPart = (doc.landmarks ?? []).map(l => `${l.id}:${l.assetId}:${l.locked}`).join(";");
+  const rampsPart = JSON.stringify(doc.terrain?.ramps ?? []);
   return [
     JSON.stringify(doc.populationPlan ?? null),
     doc.generationSeed ?? "",
@@ -242,7 +244,8 @@ export function documentFabricFingerprint(doc: CityDocument): string {
     facePart,
     groupPart,
     circuitsPart,
-    landmarksPart
+    landmarksPart,
+    rampsPart
   ].join("|");
 }
 
@@ -375,6 +378,14 @@ export function buildBlockFabric(
       });
     fabricResult = { ...fabricResult, farms };
   }
+  const ramps = document.terrain?.ramps ?? [];
+  if (ramps.length)
+    // Castle ramps are built over whatever stood at the cliff foot.
+    fabricResult = {
+      ...fabricResult,
+      buildings: fabricResult.buildings.filter(building => !overlapsRamp(building.polygon, ramps)),
+      farms: fabricResult.farms.filter(farm => !overlapsRamp(farm.polygon, ramps))
+    };
   fabricResult = {
     ...fabricResult,
     buildings: assignBuildingAppearances(document, assignBuildingMassing(document, fabricResult.buildings))

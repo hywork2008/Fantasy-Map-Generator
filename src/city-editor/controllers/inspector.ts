@@ -44,7 +44,7 @@ import {
   splitFace
 } from "../generators/mesh";
 import { openGatePassage } from "../generators/passages";
-import { castlePlatform, castleSiteFaceIds, setCastlePlatform } from "../generators/terrainEditing";
+import { castlePlatform, castleRamp, castleSiteFaceIds, setCastlePlatform } from "../generators/terrainEditing";
 import { CASTLE_STYLE_PROFILES, resolveCastleStyle } from "../renderers/castlePatterns";
 import { SHIP_SPECS } from "../renderers/shipSpecifications";
 import type { DocumentsState, InteractionState } from "../state/editorSession";
@@ -407,6 +407,8 @@ export function createInspectorController(ctx: InspectorContext) {
     if (current) container.append(label(editorText("cityEditor.messages.castlePlatformLevel"), levelInput));
     if (current?.edge.kind === "slope")
       container.append(label(editorText("cityEditor.messages.castlePlatformSlopeRun"), runInput));
+    if (current?.edge.kind === "cliff" && !castleRamp(state, castle.id))
+      container.append(text(editorText("cityEditor.messages.castleRampNone")));
   }
 
   function populateInspectorEditControls(container: HTMLElement): void {

@@ -112,6 +112,13 @@ export function collectTownRoads(document: CityDocument, lanes: readonly InfillL
     emitLine(line, lineGroup, group.style.widthMeters, true);
   }
 
+  // Castle ramps carry a road between their parapets.
+  for (const ramp of document.terrain?.ramps ?? []) {
+    const first = ribbons.length;
+    emit([{ points: ramp.centerline, place: "street" }], "local", Math.max(MIN_RUN_METERS, ramp.widthMeters - 0.8));
+    for (const ribbon of ribbons.slice(first)) ribbon.connectsLevels = true;
+  }
+
   for (const leg of document.frameRoads ?? []) {
     const lineGroup = importedGroup(document, leg.sourceIndex, leg.routeId);
     const stub = frameRoadTownConnection(document, leg);
