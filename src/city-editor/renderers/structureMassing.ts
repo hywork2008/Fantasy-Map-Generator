@@ -43,13 +43,13 @@ const STONE_LIP = 1.1;
 const BASTION_HEIGHT = 6;
 const WOOD_LIP = 0.8;
 const SACRED = /church|cathedral|basilica|chapel|shrine|abbey|mosque|temple|stupa|minster/i;
-const BASILICA_LENGTH = 54;
-const BASILICA_WIDTH = 28;
+export const BASILICA_LENGTH = 54;
+export const BASILICA_WIDTH = 28;
 const basilica = validateBuildingRecord(basilicaRecord);
 if (!basilica.ok) throw new Error(`Invalid basilica catalogue record: ${basilica.errors.join("; ")}`);
 const BASILICA_PARTS = catalogueMassing(basilica.record);
 // The BV record is centred on its full bounds; CE anchors the nominal nave length.
-const BASILICA_ORIGIN_X =
+export const BASILICA_ORIGIN_X =
   Math.min(...BASILICA_PARTS.flatMap(part => part.footprint!.map(point => point[0]))) + BASILICA_LENGTH / 2;
 
 function blank(

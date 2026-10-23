@@ -162,6 +162,40 @@ describe("shared BV city instances", () => {
     expect(cache.size).toBe(0);
   });
 
+  it("swaps every catalogue basilica part for the detailed model, keeping terrain foundations", () => {
+    const city = createGridDocument({ size: "tiny", grid: "hex", seed: "bv-basilica" });
+    city.elements = [
+      { id: "b", kind: "temple", point: [10, 20], templeType: "basilica", sizeMeters: 54, rotation: 0.3 }
+    ];
+    const base: StructureMassing = {
+      id: "temple:b:nave",
+      kind: "landmark",
+      material: "stone",
+      footprint: createRotatedRect([10, 20], 20, 10, 0.3),
+      heightMeters: 12,
+      baseElevationMeters: 4,
+      roof: "gable",
+      parapet: "none",
+      parapetMeters: 0,
+      parapetWidthMeters: 0,
+      spire: false
+    };
+    const parts = [base, { ...base, id: "temple:b:apse" }, { ...base, id: "temple:b:nave:foundation" }];
+    const cache = createBvPrototypeCache();
+    const layer = createTownSpecialBuildings(city, parts, cache);
+    expect([...layer.replaced].sort()).toEqual(["temple:b:apse", "temple:b:nave"]);
+    const mesh = layer.pickables[0];
+    expect(mesh.name).toBe("basilica-temple-instances");
+    mesh.updateMatrixWorld(true);
+    mesh.computeBoundingBox();
+    const bounds = mesh.boundingBox!;
+    expect(bounds.min.y).toBeGreaterThan(3.5);
+    expect(bounds.getCenter(new THREE.Vector3()).x).toBeCloseTo(10, -1);
+    expect(bounds.getCenter(new THREE.Vector3()).z).toBeCloseTo(-20, -1);
+    layer.dispose();
+    expect(cache.size).toBe(0);
+  });
+
   it("raycasts repeated wells to their original CE IDs, independent of batch order", () => {
     const layer = createTownWells(
       [
