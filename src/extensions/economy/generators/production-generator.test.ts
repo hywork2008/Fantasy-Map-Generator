@@ -19,6 +19,7 @@ import {
 import { setEconomyCalibrationState } from "../store/economyCalibrationState";
 import { getBurgMarketLedger } from "./burgMarketLedgers";
 import { getGoodDemandCalibration, laborPointsForLots } from "./craftDemandCalibration";
+import { smoothCraftWorkers } from "./craftEmployment";
 import { type Good, Goods } from "./goods-generator";
 import { Markets } from "./markets-generator";
 import type { Market } from "./marketTypes";
@@ -908,4 +909,26 @@ describe("linen clothing preparation", () => {
       } else expect(plan).toBeNull();
     }
   );
+});
+
+describe("commission employment", () => {
+  it("smooths combined normal and paid work once from the original observation", () => {
+    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    worldContext.populationRate = 1000;
+    const module = new ProductionModule() as unknown as {
+      recordCommissionEmployment(cycle: unknown, burgId: number, points: number): void;
+    };
+    const cycle = {
+      craftObservationsByBurg: new Map([
+        [1, { priorTotal: 1, priorTextiles: 0.25, observedTotal: 2, observedTextiles: 0.5 }]
+      ]),
+      craftWorkersByBurg: new Map([[1, smoothCraftWorkers(1, 2, 1000)]]),
+      craftDomainWorkersByKey: new Map([["1:textiles", smoothCraftWorkers(0.25, 0.5, 1000)]])
+    };
+    module.recordCommissionEmployment(cycle, 1, 0.1);
+    module.recordCommissionEmployment(cycle, 1, 0.2);
+    expect(cycle.craftWorkersByBurg.get(1)).toBe(smoothCraftWorkers(1, 2.3, 1000));
+    expect(cycle.craftDomainWorkersByKey.get("1:textiles")).toBe(smoothCraftWorkers(0.25, 0.8, 1000));
+    clearEconomyContext();
+  });
 });

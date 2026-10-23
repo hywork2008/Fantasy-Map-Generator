@@ -105,6 +105,8 @@ export interface TextileLedger {
   urbanConsumption?: number;
   ruralConsumption?: number;
   ruralHomeProduction?: number;
+  commissionDeliveries?: number;
+  cumulativeCommissionDeliveries?: number;
   cumulativeRuralHomeProduction?: number;
   /** Real residents served by this market, divided into 1,000-person population lots. */
   populationLots: number;

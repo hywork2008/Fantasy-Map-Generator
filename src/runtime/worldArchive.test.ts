@@ -73,6 +73,32 @@ describe("ChunkedWorldCodecAdapter", () => {
     simulation.extensions = {
       economy: {
         householdTextileWorkers: Float32Array.from([12.5, 0]),
+        textileCommissions: {
+          1: {
+            marketId: 1,
+            year: 1000,
+            month: 4,
+            garments: 0.1,
+            blankets: 0,
+            garmentSpending: 2,
+            blanketSpending: 0,
+            materialSpending: 1.5,
+            serviceSpending: 0.5,
+            jobs: [
+              {
+                burgId: 1,
+                inputGoodId: 1,
+                inputUnits: 0.1,
+                productGoodId: 2,
+                productUnits: 0.1,
+                materialPayment: 1.5,
+                servicePayment: 0.5,
+                laborPoints: 0.0972,
+                status: "delivered"
+              }
+            ]
+          }
+        },
         urbanCraftCapacity: {
           1: {
             burgId: 1,

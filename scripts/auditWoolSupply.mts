@@ -3,7 +3,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { createNodeSimulationHost } from "../src/simulation/adapters/node";
-import { getGoods, getMarkets } from "../src/extensions/economy/context/trade";
+import { getGoods, getMarkets, getOrCreateTextileCommissionTable } from "../src/extensions/economy/context/trade";
 import { getOrCreateFaunaStockTable, getOrCreateLivestockFeedTable } from "../src/extensions/economy/context/cellTables";
 import { calculateGrazingLandAllocation, getGrazedCarryingCapacity, getPastureAreaUsedHectares, STOCKING_DENSITY_PER_HECTARE } from "../src/extensions/economy/generators/husbandry";
 import { HOUSEHOLD_GARMENT_NAMES } from "../src/extensions/economy/generators/textileRecipeContracts";
@@ -21,6 +21,7 @@ paths.push("src/extensions/economy/generators/textileDemand.ts", "src/extensions
 paths.push("src/extensions/economy/generators/ruralTextileProduction.ts", "src/extensions/economy/generators/ruralTextileChains.ts", "src/extensions/economy/generators/textileHouseholdPolicy.ts", "src/extensions/economy/generators/ruralOccupationAllocation.ts");
 paths.push(...["woolProductionPolicy.ts", "livestockFeed.ts", "livestockFeedPolicy.ts", "livestockFeedState.ts", "dairy.ts", "production-utils.ts"].map(name => `src/extensions/economy/generators/${name}`));
 paths.push("src/extensions/economy/generators/urbanCraftCapacity.ts", "src/extensions/economy/generators/urbanCraftCapacityTypes.ts", "src/extensions/economy/context/trade.ts", "src/extensions/economy/generators/craftDemandCalibration.ts", "src/extensions/economy/generators/craftScale.ts");
+paths.push("src/extensions/economy/generators/textileCommissions.ts", "src/extensions/economy/generators/textileCommissionTypes.ts", "src/extensions/economy/generators/strategicLaborMarkets.ts", "src/extensions/economy/generators/subsistenceWage.ts");
 const sourceHashes = Object.fromEntries(paths.map(path => [path, createHash("sha256").update(readFileSync(path)).digest("hex")]));
 const bytes = readFileSync(input);
 const host = createNodeSimulationHost();
@@ -142,6 +143,7 @@ function snapshot() {
          householdBlanketConsumptionLots: market.blanketLedger?.householdConsumption ?? 0,
          householdBlanketUnmetLots: market.blanketLedger?.unmetDemand ?? 0 }]
     : []),
+  textileCommissions: Object.values(getOrCreateTextileCommissionTable() ?? {}),
   urbanCraftCapacity: getUrbanCraftCapacityRecords().map(row => ({ ...row,
     workforcePeople: row.workforcePoints * row.populationRate,
     chargedPeople: row.chargedPoints * row.populationRate,

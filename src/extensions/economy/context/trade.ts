@@ -45,6 +45,7 @@ import type {
 import type { LaborMarket } from "../generators/strategicLaborMarketsTypes";
 import type { StrategicGoodsPolicy } from "../generators/strategicProcurementPolicy";
 import type { ProcurementOrder } from "../generators/strategicProcurementTypes";
+import type { TextileCommissionLedger } from "../generators/textileCommissionTypes";
 import type { TradeCorridor } from "../generators/tradeCorridorLedgerTypes";
 import type { UrbanCraftCapacity } from "../generators/urbanCraftCapacityTypes";
 import type { MerchantVesselOwnership } from "../generators/vesselOwnershipTypes";
@@ -56,6 +57,18 @@ import {
   setSliceArray,
   setSliceNumber
 } from "./economyApi";
+
+/** Latest monthly paid textile deliveries by rural market. */
+export function getOrCreateTextileCommissionTable(): Record<number, TextileCommissionLedger> | null {
+  const slice = getEconomySlice();
+  if (!slice) return null;
+  const existing = slice.textileCommissions;
+  if (existing && typeof existing === "object" && !Array.isArray(existing))
+    return existing as Record<number, TextileCommissionLedger>;
+  const table: Record<number, TextileCommissionLedger> = {};
+  slice.textileCommissions = table;
+  return table;
+}
 
 /** Latest completed urban worker-loop budgets, keyed by stable Burg id. */
 export function getOrCreateUrbanCraftCapacityTable(): Record<number, UrbanCraftCapacity> | null {

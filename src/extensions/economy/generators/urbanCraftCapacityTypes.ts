@@ -11,4 +11,5 @@ export interface UrbanCraftCapacity {
   unusedPoints: number;
   overusedPoints: number;
   textilePoints: number;
+  commissionPoints?: number;
 }

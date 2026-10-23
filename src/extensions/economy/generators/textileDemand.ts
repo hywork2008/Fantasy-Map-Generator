@@ -13,6 +13,7 @@ import {
   type RuralTextileProduction,
   settleRuralTextileProduction
 } from "./ruralTextileProduction";
+import { estimateTextileCommissions, settleTextileCommissions } from "./textileCommissions";
 import {
   BEDDING_HOUSEHOLD_SIZE,
   BLANKET_REPLACEMENT_YEARS,
@@ -223,14 +224,16 @@ function settleHouseholdTextiles(
   profile: TextileDemandProfile,
   previous: TextileLedger | undefined,
   homeProduction = 0,
-  homeSpending = 0
+  homeSpending = 0,
+  commissionProduction = 0,
+  commissionSpending = 0
 ): TextileLedger {
   const consumptionByBuyer = new Map<TextileBuyer, number>();
   const rural = buyers.find(buyer => buyer.rural);
-  if (rural) consumptionByBuyer.set(rural, homeProduction);
-  let consumed = homeProduction;
-  let spending = homeSpending;
-  let ruralConsumption = homeProduction;
+  if (rural) consumptionByBuyer.set(rural, homeProduction + commissionProduction);
+  let consumed = homeProduction + commissionProduction;
+  let spending = homeSpending + commissionSpending;
+  let ruralConsumption = homeProduction + commissionProduction;
   const available = getGoods()
     .filter(
       good =>
@@ -278,6 +281,8 @@ function settleHouseholdTextiles(
     unmetDemand: rn(unmetDemand, 2),
     householdSpending: rn(spending, 2),
     ruralHomeProduction: homeProduction,
+    commissionDeliveries: commissionProduction,
+    cumulativeCommissionDeliveries: (previous?.cumulativeCommissionDeliveries ?? 0) + commissionProduction,
     cumulativeRuralHomeProduction: (previous?.cumulativeRuralHomeProduction ?? 0) + homeProduction,
     urbanConsumption: rn(consumed - ruralConsumption, 2),
     ruralConsumption: rn(ruralConsumption, 2),
@@ -330,12 +335,26 @@ export interface TextileMarketOrders {
 
 /** One cash/labor-constrained rural plan, shared by finished and intermediate demand. No settlement. */
 export function getTextileMarketOrders(market: Market): TextileMarketOrders {
-  const { request } = textileSettlementRequest(market);
+  const { request, rural } = textileSettlementRequest(market);
   const home = estimateRuralTextileProduction(...request);
+  const commission = estimateTextileCommissions(market, home, {
+    ...request[5]!,
+    budget: rural?.budget ?? 0,
+    garmentNeed: request[1]
+  });
+  const delivered = {
+    ...home,
+    garments: home.garments + commission.garments,
+    blankets: home.blankets + commission.blankets,
+    garmentSpending: home.garmentSpending + commission.garmentSpending,
+    blanketSpending: home.blanketSpending + commission.blanketSpending
+  };
+  const inputs = { ...home.inputOrders };
+  for (const job of commission.jobs) inputs[job.inputGoodId] = (inputs[job.inputGoodId] ?? 0) + job.inputUnits;
   return {
-    wardrobes: affordableFinishedDemand(market, false, home),
-    blankets: affordableFinishedDemand(market, true, home),
-    inputs: home.inputOrders ?? {}
+    wardrobes: affordableFinishedDemand(market, false, delivered),
+    blankets: affordableFinishedDemand(market, true, delivered),
+    inputs
   };
 }
 
@@ -345,24 +364,43 @@ export function getAffordableTextileDemand(market: Market, blankets: boolean): n
 }
 
 /** Settles paid wardrobes first and independent bedding second after manufacturing and trade. */
-export function settleTextileHouseholdDemand(): void {
+export function settleTextileHouseholdDemand(onCommissionLabor?: (burgId: number, points: number) => void): void {
   for (const market of getMarkets()) {
     const { buyers, rural, ruralIndex, beddingBudgets, request } = textileSettlementRequest(market);
     const home = settleRuralTextileProduction(...request);
     market.ruralTextileProduction = home;
+    const reservation = request[5]!;
+    const commission = settleTextileCommissions(
+      market,
+      home,
+      {
+        ...reservation,
+        budget: rural?.budget ?? 0,
+        garmentNeed: request[1]
+      },
+      onCommissionLabor
+    );
     if (rural) {
-      const reservation = request[5]!;
       beddingBudgets[ruralIndex] = Math.max(
         0,
         getBeddingCashBudget(
           rural.budget,
           reservation.wardrobeNeed,
           reservation.wardrobePrice,
-          home.garments,
-          home.garmentSpending
-        ) - home.blanketSpending
+          home.garments + commission.garments,
+          home.garmentSpending + commission.garmentSpending
+        ) -
+          home.blanketSpending -
+          commission.blanketSpending
       );
-      rural.budget = Math.max(0, rural.budget - home.garmentSpending - home.blanketSpending);
+      rural.budget = Math.max(
+        0,
+        rural.budget -
+          home.garmentSpending -
+          home.blanketSpending -
+          commission.garmentSpending -
+          commission.blanketSpending
+      );
     }
     market.textileLedger = settleHouseholdTextiles(
       market,
@@ -371,7 +409,9 @@ export function settleTextileHouseholdDemand(): void {
       getMarketTextileDemandProfile(market.i),
       market.textileLedger,
       home.garments,
-      home.garmentSpending
+      home.garmentSpending,
+      commission.garments,
+      commission.garmentSpending
     );
     for (const [index, buyer] of buyers.entries()) buyer.budget = Math.min(buyer.budget, beddingBudgets[index]);
     market.blanketLedger = settleHouseholdTextiles(
@@ -381,7 +421,9 @@ export function settleTextileHouseholdDemand(): void {
       getMarketBlanketDemandProfile(market.i),
       market.blanketLedger,
       home.blankets,
-      home.blanketSpending
+      home.blanketSpending,
+      commission.blankets,
+      commission.blanketSpending
     );
   }
 }

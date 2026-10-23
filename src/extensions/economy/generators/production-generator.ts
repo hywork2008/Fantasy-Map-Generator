@@ -394,7 +394,8 @@ export class ProductionModule {
       craftDomainWorkersByKey,
       saleBudgetByBurg,
       basicWorkersByBurg,
-      childLabourEquivalent
+      childLabourEquivalent,
+      craftObservationsByBurg: new Map()
     };
   }
 
@@ -421,6 +422,12 @@ export class ProductionModule {
       getEconomyCalibrationState().applyCalibration
     );
     const populationRate = Math.max(0, this.worldContext.populationRate ?? 0) || 1;
+    cycle.craftObservationsByBurg.set(burg.i, {
+      priorTotal: cycle.craftWorkersByBurg.get(burg.i) ?? 0,
+      priorTextiles: cycle.craftDomainWorkersByKey.get(craftDomainKey(burg.i, "textiles")) ?? 0,
+      observedTotal: craftWorkersUsed.total,
+      observedTextiles: craftWorkersUsed.byDomain.get("textiles") ?? 0
+    });
     cycle.craftWorkersByBurg.set(
       burg.i,
       smoothCraftWorkers(cycle.craftWorkersByBurg.get(burg.i) ?? 0, craftWorkersUsed.total, populationRate)
@@ -446,6 +453,19 @@ export class ProductionModule {
     GuildTreasury.payoutStrugglingBurg(burg);
 
     setBurgProductionRecords(burg, state.records);
+  }
+
+  private recordCommissionEmployment(cycle: ProductionCycle, burgId: number, points: number): void {
+    const observation = cycle.craftObservationsByBurg.get(burgId);
+    if (!observation) return;
+    observation.observedTotal += points;
+    observation.observedTextiles += points;
+    const rate = Math.max(1, this.worldContext.populationRate || 1);
+    cycle.craftWorkersByBurg.set(burgId, smoothCraftWorkers(observation.priorTotal, observation.observedTotal, rate));
+    cycle.craftDomainWorkersByKey.set(
+      craftDomainKey(burgId, "textiles"),
+      smoothCraftWorkers(observation.priorTextiles, observation.observedTextiles, rate)
+    );
   }
 
   private finishProductionCycle(cycle: ProductionCycle): void {
@@ -475,7 +495,7 @@ export class ProductionModule {
 
       // Garments are durable household purchases, not an ordinary Burg utility input. Settle their
       // market-wide (urban + rural) replacement demand after this cycle's production and trade.
-      settleTextileHouseholdDemand();
+      settleTextileHouseholdDemand((burgId, points) => this.recordCommissionEmployment(cycle, burgId, points));
       settleFoodProcessingHouseholds();
 
       // A0: record market×good demand / production estimate / trade / end stock for the year rollup.
@@ -550,7 +570,7 @@ export class ProductionModule {
 
       // Garments are durable household purchases, not an ordinary Burg utility input. Settle their
       // market-wide (urban + rural) replacement demand after this cycle's production and trade.
-      settleTextileHouseholdDemand();
+      settleTextileHouseholdDemand((burgId, points) => this.recordCommissionEmployment(cycle, burgId, points));
       settleFoodProcessingHouseholds();
 
       // A0: record market×good demand / production estimate / trade / end stock for the year rollup.
@@ -2081,6 +2101,10 @@ type ProductionIndex = {
 
 type ProductionCycle = {
   index: ProductionIndex;
+  craftObservationsByBurg: Map<
+    number,
+    { priorTotal: number; priorTextiles: number; observedTotal: number; observedTextiles: number }
+  >;
   sortedBurgs: Burg[];
   strategicLaborMarketById: ReadonlyMap<number, LaborMarket>;
   constructionOperationByBurg: ReadonlyMap<number, ConstructionOperation>;
