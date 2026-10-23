@@ -133,6 +133,7 @@ describe("same-market paid textile commissions", () => {
     );
     for (const job of result.jobs) {
       expect(job.status).toBe("delivered");
+      expect(job.weavingLaborPoints).toBe(0);
       expect(job.inputUnits * 10).toBeCloseTo(job.materialPayment, 8);
       expect(job.servicePayment).toBeGreaterThan(0);
       expect(market.goods[job.productGoodId].stock).toBe(0);
@@ -140,6 +141,69 @@ describe("same-market paid textile commissions", () => {
     const after = structuredClone({ market, worker, ledger: getOrCreateTextileCommissionTable() });
     expect(settleTextileCommissions(market, home, request).jobs).toHaveLength(0);
     expect({ market, worker, ledger: getOrCreateTextileCommissionTable() }).toEqual(after);
+  });
+
+  it("weaves purchased raw wool privately and charges both stages against the same work budget", () => {
+    const wool = Goods.getDefaultGood("Wool")!;
+    setGoods([...getGoods(), wool]);
+    const market = getMarkets()[0];
+    market.goods[wool.i] = { stock: 100, price: 1 };
+    market.goods[good("Wool Cloth").i].stock = 0;
+    const initial = structuredClone(market);
+    const quote = estimateTextileCommissions(market, home, { ...request, blanketNeed: 0 });
+    expect(market).toEqual(initial);
+    expect(flows).toHaveLength(0);
+    const result = settleTextileCommissions(market, home, { ...request, blanketNeed: 0 });
+    expect(result.jobs).toEqual(quote.jobs);
+    expect(result.jobs).toHaveLength(1);
+    const job = result.jobs[0];
+    expect(job.inputGoodId).toBe(wool.i);
+    expect(job.inputUnits).toBeCloseTo((job.productUnits * 6) / 0.9, 8);
+    expect(job.clothUnits).toBeCloseTo(job.productUnits / 0.9, 8);
+    expect(job.weavingLaborPoints).toBeCloseTo(job.clothUnits! * 0.259, 8);
+    expect(job.tailoringLaborPoints).toBeCloseTo(job.productUnits * 0.972, 8);
+    expect(job.laborPoints).toBeCloseTo(job.weavingLaborPoints! + job.tailoringLaborPoints!, 8);
+    expect(job.laborPoints).toBeLessThanOrEqual(1);
+    expect(job.servicePayment).toBeCloseTo(Math.ceil(job.laborPoints * 100 - 1e-9) / 100, 8);
+    expect(market.goods[wool.i].stock).toBeCloseTo(100 - job.inputUnits, 8);
+    expect(market.goods[good("Wool Cloth").i].stock).toBe(0);
+    expect(market.goods[job.productGoodId].stock).toBe(0);
+    const clothFlows = flows.filter(flow => flow.goodId === good("Wool Cloth").i);
+    expect(clothFlows.map(flow => [flow.direction, flow.category])).toEqual([
+      ["source", "burgCraft"],
+      ["sink", "recipeInput"]
+    ]);
+    expect(clothFlows.every(flow => Math.abs(flow.units - job.clothUnits!) < 1e-8)).toBe(true);
+  });
+
+  it("reserves home raw inputs in quotes and shares remaining wool across garments and bedding", () => {
+    const wool = Goods.getDefaultGood("Wool")!;
+    setGoods([...getGoods(), wool]);
+    const market = getMarkets()[0];
+    market.goods[wool.i] = { stock: 1, price: 1 };
+    market.goods[good("Wool Cloth").i].stock = 0;
+    const reservedHome = { ...home, inputOrders: { [wool.i]: 0.5 } };
+    const smallRequest = { ...request, garmentNeed: 0.01, wardrobeNeed: 0.01 };
+    const quote = estimateTextileCommissions(market, reservedHome, smallRequest);
+    expect(quote.garments).toBeGreaterThan(0);
+    expect(quote.blankets).toBeGreaterThan(0);
+    expect(quote.jobs.reduce((sum, job) => sum + job.inputUnits, 0)).toBeLessThanOrEqual(0.5 + 1e-9);
+    expect(market.goods[wool.i].stock).toBe(1);
+    market.goods[wool.i].stock -= 0.5;
+    const actual = settleTextileCommissions(market, reservedHome, smallRequest);
+    expect(actual.jobs).toEqual(quote.jobs);
+    expect(market.goods[wool.i].stock).toBeGreaterThanOrEqual(0);
+  });
+
+  it("does not weave through a technology-gated intermediate recipe", () => {
+    const wool = Goods.getDefaultGood("Wool")!;
+    setGoods([...getGoods(), wool]);
+    const market = getMarkets()[0];
+    market.goods[wool.i] = { stock: 100, price: 1 };
+    market.goods[good("Wool Cloth").i].stock = 0;
+    good("Wool Cloth").requiredTechnology = "restricted";
+    expect(settleTextileCommissions(market, home, request).jobs).toHaveLength(0);
+    expect(market.goods[wool.i].stock).toBe(100);
   });
 
   it.each(["old work", "no work", "uncalibrated", "no cash", "no cloth", "no wage", "gated recipe"])(

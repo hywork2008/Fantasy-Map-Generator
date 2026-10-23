@@ -1,4 +1,4 @@
-/** Same-market, same-cycle paid tailoring. Materials are household-owned during the atomic job. */
+/** Same-market, same-cycle paid textile processing. Materials are household-owned during the atomic job. */
 export interface TextileCommissionJob {
   burgId: number;
   inputGoodId: number;
@@ -8,6 +8,10 @@ export interface TextileCommissionJob {
   materialPayment: number;
   servicePayment: number;
   laborPoints: number;
+  weavingLaborPoints?: number;
+  tailoringLaborPoints?: number;
+  clothGoodId?: number;
+  clothUnits?: number;
   status: "delivered";
 }
 export interface TextileCommissionLedger {

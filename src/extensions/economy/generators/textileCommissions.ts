@@ -1,4 +1,4 @@
-/** Rural households own paid cloth and receive private products; cities earn only the tailoring fee. */
+/** Rural households own paid materials and receive private products; cities earn only the processing fee. */
 import { rn } from "../../hostUtils";
 import {
   getGoods,
@@ -65,12 +65,12 @@ function runTextileCommissions(
     .sort((a, b) => a.burgId - b.burgId)
     .map(row => (estimate ? { ...row } : row));
   const laborMarket = getStrategicLaborMarkets().find(row => row.marketId === market.i);
-  const chains = getRuralTextileChains(getGoods().filter(isGoodEnabled)).filter(chain => !chain.weavesCloth);
+  const chains = getRuralTextileChains(getGoods().filter(isGoodEnabled));
   chains.sort(
     (a, b) =>
       Number(b.product.name !== "Wool Blankets") - Number(a.product.name !== "Wool Blankets") ||
-      a.clothPerProduct * (market.goods[a.input.i]?.price ?? Infinity) -
-        b.clothPerProduct * (market.goods[b.input.i]?.price ?? Infinity)
+      a.clothPerProduct * a.inputPerCloth * (market.goods[a.input.i]?.price ?? Infinity) -
+        b.clothPerProduct * b.inputPerCloth * (market.goods[b.input.i]?.price ?? Infinity)
   );
   const previewStocks = new Map<number, { stock: number; price: number }>();
   let cash = Math.max(
@@ -80,19 +80,28 @@ function runTextileCommissions(
   for (const chain of chains) {
     const garment = HOUSEHOLD_GARMENT_NAMES.has(chain.product.name);
     for (const worker of workers) {
-      const row = market.goods[chain.cloth.i];
-      if (estimate && row && !previewStocks.has(chain.cloth.i))
-        previewStocks.set(chain.cloth.i, {
+      const row = market.goods[chain.input.i];
+      if (estimate && row && !previewStocks.has(chain.input.i))
+        previewStocks.set(chain.input.i, {
           price: row.price,
-          stock: Math.max(0, row.stock - (home.inputOrders?.[chain.cloth.i] ?? 0))
+          stock: Math.max(0, row.stock - (home.inputOrders?.[chain.input.i] ?? 0))
         });
-      const stock = estimate ? previewStocks.get(chain.cloth.i) : row;
+      const stock = estimate ? previewStocks.get(chain.input.i) : row;
       if (!stock || !(stock.price > 0) || !Number.isFinite(stock.price)) continue;
       const wage = getManufactureWageRate(laborMarket, chain.product, getSubsistenceWage(market));
       if (!(wage > 0) || !Number.isFinite(wage)) continue;
-      const workPerLot = laborPointsForLots(chain.product.name, 1, worker.populationRate);
-      const materialPerLot = stock.price * chain.clothPerProduct;
-      const servicePerLot = workPerLot * wage;
+      const weavingWage = chain.weavesCloth
+        ? getManufactureWageRate(laborMarket, chain.cloth, getSubsistenceWage(market))
+        : 0;
+      if (chain.weavesCloth && (!(weavingWage > 0) || !Number.isFinite(weavingWage))) continue;
+      const tailoringWork = laborPointsForLots(chain.product.name, 1, worker.populationRate);
+      const weavingWork = chain.weavesCloth
+        ? chain.clothPerProduct * laborPointsForLots(chain.cloth.name, 1, worker.populationRate)
+        : 0;
+      const workPerLot = tailoringWork + weavingWork;
+      const inputPerLot = chain.clothPerProduct * chain.inputPerCloth;
+      const materialPerLot = stock.price * inputPerLot;
+      const servicePerLot = tailoringWork * wage + weavingWork * weavingWage;
       const remainingBudget = Math.max(
         0,
         request.budget - home.garmentSpending - home.blanketSpending - result.garmentSpending - result.blanketSpending
@@ -121,7 +130,7 @@ function runTextileCommissions(
       const budget = Math.min(cash, remainingBudget, garment ? remainingBudget : beddingBudget);
       const units = Math.min(
         need,
-        Math.max(0, stock.stock) / chain.clothPerProduct,
+        Math.max(0, stock.stock) / inputPerLot,
         worker.unusedPoints / workPerLot,
         budget / (materialPerLot + servicePerLot)
       );
@@ -143,7 +152,7 @@ function runTextileCommissions(
         market.marketTreasury.balance = rn(market.marketTreasury.balance + material, 2);
         creditHouseholdWealth(worker.burgId, fee);
       }
-      const inputUnits = made * chain.clothPerProduct;
+      const inputUnits = made * inputPerLot;
       const work = made * workPerLot;
       stock.stock = Math.max(0, stock.stock - inputUnits);
       worker.chargedPoints += work;
@@ -162,25 +171,48 @@ function runTextileCommissions(
       }
       result.jobs.push({
         burgId: worker.burgId,
-        inputGoodId: chain.cloth.i,
+        inputGoodId: chain.input.i,
         inputUnits,
         productGoodId: chain.product.i,
         productUnits: made,
         materialPayment: material,
         servicePayment: fee,
         laborPoints: work,
+        weavingLaborPoints: made * weavingWork,
+        tailoringLaborPoints: made * tailoringWork,
+        clothGoodId: chain.cloth.i,
+        clothUnits: made * chain.clothPerProduct,
         status: "delivered"
       });
       if (!estimate) {
         recordGoodFlow({
           direction: "sink",
           category: "recipeInput",
-          goodId: chain.cloth.i,
+          goodId: chain.input.i,
           units: inputUnits,
           marketId: market.i,
           burgId: worker.burgId,
-          relatedGoodId: chain.product.i
+          relatedGoodId: chain.weavesCloth ? chain.cloth.i : chain.product.i
         });
+        if (chain.weavesCloth) {
+          recordGoodFlow({
+            direction: "source",
+            category: "burgCraft",
+            goodId: chain.cloth.i,
+            units: made * chain.clothPerProduct,
+            marketId: market.i,
+            burgId: worker.burgId
+          });
+          recordGoodFlow({
+            direction: "sink",
+            category: "recipeInput",
+            goodId: chain.cloth.i,
+            units: made * chain.clothPerProduct,
+            marketId: market.i,
+            burgId: worker.burgId,
+            relatedGoodId: chain.product.i
+          });
+        }
         recordGoodFlow({
           direction: "source",
           category: "burgCraft",
