@@ -116,6 +116,8 @@ const FISHING_BONUS_OUTPUT_SHARE = 0.25;
 const FISHING_BONUS_OUTPUT_CAP = 5;
 
 export interface RuralOccupationAllocation {
+  /** Unworked crop days, excluding vacancies in other occupations. Absent on the legacy surplus path. */
+  readonly cropLaborShortage?: Float32Array;
   /** Fixed subsistence hunter headcount per (forest) cell — not gated by a "required" cap. */
   readonly huntingWorkers: Float32Array;
   /** Assigned/required fishing workers, keyed by the cell that holds the Fish bonus-good slot (may be water). */
@@ -398,6 +400,7 @@ function allocateRuralOccupationsFromCalendar(
   const farmLaborRequired = new Float32Array(count);
   const migratableAdults = new Float32Array(count);
   const seasonalLaborShortage = new Float32Array(count * 12);
+  const cropLaborShortage = new Float32Array(count * 12);
   const ruralReleasePressure = new Float32Array(count);
   const currentDaysByCell = new Float32Array(count * 12);
   const desiredDaysByCell = new Float32Array(count * 12);
@@ -584,10 +587,23 @@ function allocateRuralOccupationsFromCalendar(
           helperDays -
           (aidReceivedByCell[cellId * 12 + month] ?? 0)
       );
+      // Desired jobs can remain unfilled after staple work has already been reserved.
+      // Those vacancies must not erase a crop that the actual calendar can harvest.
+      cropLaborShortage[cellId * 12 + month] = Math.min(
+        Math.max(0, laborPlan.cropLaborDaysByMonth[cellId * 12 + month]),
+        Math.max(
+          0,
+          currentDays[month] -
+            adultsAfterMigration * workDays -
+            helperDays -
+            (aidReceivedByCell[cellId * 12 + month] ?? 0)
+        )
+      );
     }
   }
 
   return {
+    cropLaborShortage,
     huntingWorkers,
     fishingWorkers,
     fishingRequiredWorkers,

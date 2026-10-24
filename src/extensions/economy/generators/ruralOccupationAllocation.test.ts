@@ -111,6 +111,18 @@ describe("ruralOccupationAllocation", () => {
     expect(Math.max(...allocation.husbandryMonthlyWorkDays)).toBeGreaterThan(
       Math.min(...allocation.husbandryMonthlyWorkDays)
     );
+    // Unfunded herd-care vacancies are not unworked staple days.
+    getOrCreateFaunaStockTable()!["0:Sheep"] = { young: 0, breeding: 100_000, old: 0 };
+    const modestCrop = new Float32Array(12).fill(100);
+    const vacancies = allocateRuralOccupations(worldContext, {
+      cropLaborDaysByMonth: modestCrop,
+      minimumCropLaborDaysByMonth: modestCrop.slice(),
+      farmLaborRequired: new Float32Array([0]),
+      migratableAdults: new Float32Array([40])
+    });
+    expect(vacancies.seasonalLaborShortage.some(days => days > 100)).toBe(true);
+    expect(Array.from(vacancies.cropLaborShortage!)).toEqual(Array(12).fill(0));
+    getOrCreateFaunaStockTable()!["0:Sheep"] = { young: 30, breeding: 40, old: 20 };
     // A fully occupied harvest month cannot cancel all other monthly reservations.
     const busy = new Float32Array(12);
     busy[6] = 10_000;
@@ -121,6 +133,7 @@ describe("ruralOccupationAllocation", () => {
       migratableAdults: new Float32Array([40])
     });
     expect(seasonal.husbandryMonthlyWorkDays[6]).toBe(0);
+    expect(seasonal.cropLaborShortage![6]).toBeGreaterThan(0);
     expect(seasonal.husbandryMonthlyWorkDays[0]).toBeCloseTo(allocation.husbandryMonthlyWorkDays[0], 4);
     expect(seasonal.husbandryWorkers[0]).toBeGreaterThan(0);
     expect(seasonal.husbandryWorkers[0]).toBeCloseTo(

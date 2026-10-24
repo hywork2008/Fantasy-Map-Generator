@@ -235,7 +235,7 @@ export const DEVELOPMENT_POTENTIAL_LOAD_REPAIR_VERSION = 9;
  * Share of each cell's crop work-days actually done. The monthly shortage left after peak-month
  * hours, household help and neighbour aid (allocateRuralOccupations) leaves that part of the
  * existing fields unharvested; new clearance has its own labour budget (settlementClearance.ts).
- * Shortage is charged to crops first (docs/plan/farm-labour-calibration.md §3 proposal 4).
+ * Callers supply crop-specific shortage, excluding unfilled jobs in other occupations.
  */
 export function getCropLaborCoverageByCell(
   cropLaborDaysByMonth: ArrayLike<number>,
@@ -432,7 +432,10 @@ export class DevelopmentPotentialModule {
     setRuralReleasePressure(occupations.ruralReleasePressure);
     setSeasonalLaborShortage(occupations.seasonalLaborShortage);
     setCropLaborCoverage(
-      getCropLaborCoverageByCell(agriculture.cropLaborDaysByMonth, occupations.seasonalLaborShortage)
+      getCropLaborCoverageByCell(
+        agriculture.cropLaborDaysByMonth,
+        occupations.cropLaborShortage ?? occupations.seasonalLaborShortage
+      )
     );
     return occupations;
   }

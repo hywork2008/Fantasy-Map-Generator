@@ -1,0 +1,1786 @@
+{
+  "schemaVersion": 1,
+  "baselineCommit": "eec5f4c278c1dde8a7a032af9c62da2061a59093",
+  "province": {
+    "before": {
+      "path": "docs/analytics/raw/e1-staple-supply-20261024/province-before.json",
+      "bytes": 221219,
+      "sha256": "934e412b718a66e1cde68f2abbc4a7d3b464aceedf0b33b02e1d8d68765c2664",
+      "initial": {
+        "date": [
+          1300,
+          1,
+          1
+        ],
+        "householdStock": 97495.9744796753,
+        "fieldHa": 946159.208984375,
+        "annualRuralNeed": 97495.97403611867,
+        "annualBeforeLabor": 83779.11291503906,
+        "annualAfterLabor": 53281.55809510793,
+        "worstCells": [
+          {
+            "id": 208,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 3672.691177368164,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 34,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 2188.280471801758,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 198,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 2130.5100479125977,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 17,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 2123.7647247314453,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 157,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 1919.6764602661133,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 126,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 1572.5042457580566,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 234,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 1423.6266860961914,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 96,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 1362.2678985595703,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 246,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 1289.211498260498,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 226,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 1288.3853511810303,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 272,
+            "marketId": 1,
+            "fieldHa": 110187.6171875,
+            "annualNeed": 5038.533832773052,
+            "annualBeforeLabor": 7091.62744140625,
+            "coverage": 0.5290016531944275,
+            "annualAfterLabor": 3751.482640342874
+          },
+          {
+            "id": 39,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 1183.168758392334,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 209,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 1132.2036933898926,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 215,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 1126.1641178131104,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 240,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 973.2283248901367,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 115,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 904.8762798309326,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 19,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 864.1570625305176,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 140,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 804.7927398681641,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 279,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 780.6892242431641,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 44,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 770.6690845489502,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          }
+        ]
+      },
+      "foodAll36": {
+        "ruralNeed": 294548.69000000006,
+        "ruralSupplied": 211437.65999999995,
+        "urbanNeed": 24236.969999999998,
+        "urbanSupplied": 9642.090000000002,
+        "urbanBudgetGap": 0,
+        "urbanStockGap": 14594.88
+      },
+      "years": [
+        {
+          "retained": 28166.22557067871,
+          "offered": 6395.11,
+          "end": {
+            "stage": "production",
+            "date": [
+              1300,
+              12,
+              27
+            ],
+            "householdStock": 28098.7751094196,
+            "fieldHa": 943171.56640625,
+            "annualRuralNeed": 98161.4845728531,
+            "annualBeforeLabor": 83796.29382324219,
+            "annualAfterLabor": 54072.99884020114,
+            "worstCells": [
+              {
+                "id": 208,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 3752.6495513916016,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 34,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 2200.5195541381836,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 198,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 2157.3036880493164,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 17,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 2128.045795440674,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 157,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1919.6766242980957,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 272,
+                "marketId": 1,
+                "fieldHa": 110187.609375,
+                "annualNeed": 5555.209500572373,
+                "annualBeforeLabor": 7121.17529296875,
+                "coverage": 0.5404843688011169,
+                "annualAfterLabor": 3848.883933342324
+              },
+              {
+                "id": 126,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1572.5040817260742,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 234,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1423.6268501281738,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 96,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1374.6605968475342,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 246,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1331.0447387695312,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 226,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1291.5450172424316,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 39,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1192.5965785980225,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 209,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1145.5028324127197,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 215,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1137.5428524017334,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 240,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1061.2186889648438,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 115,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 904.8762798309326,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 19,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 875.5466232299805,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 140,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 804.7929039001465,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 279,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 792.4237442016602,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 44,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 770.6690845489502,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              }
+            ],
+            "retained": 7551.285095214844,
+            "markets": [
+              {
+                "id": 1,
+                "produced": 17.83,
+                "unsold": 0,
+                "imported": 0
+              }
+            ]
+          },
+          "food": {
+            "ruralNeed": 98135.68,
+            "ruralSupplied": 98135.77999999998,
+            "urbanNeed": 8332.02,
+            "urbanSupplied": 8332.02,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0
+          }
+        },
+        {
+          "retained": 50927.675678253174,
+          "offered": 4215.97,
+          "end": {
+            "stage": "production",
+            "date": [
+              1301,
+              12,
+              22
+            ],
+            "householdStock": 24187.55789375305,
+            "fieldHa": 938597.2734375,
+            "annualRuralNeed": 98250.04622693865,
+            "annualBeforeLabor": 83985.42114257812,
+            "annualAfterLabor": 55143.64137271649,
+            "worstCells": [
+              {
+                "id": 208,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 3755.405616760254,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 34,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 2203.4061889648438,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 198,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 2157.303852081299,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 17,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 2134.009998321533,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 157,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1919.6766242980957,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 272,
+                "marketId": 1,
+                "fieldHa": 110187.609375,
+                "annualNeed": 5565.334453309572,
+                "annualBeforeLabor": 7150.7236328125,
+                "coverage": 0.5516586899757385,
+                "annualAfterLabor": 3944.7588316558977
+              },
+              {
+                "id": 126,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1572.5039176940918,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 234,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1423.6270141601562,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 96,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1374.6605968475342,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 246,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1344.8583641052246,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 226,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1292.4571990966797,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 39,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1192.5964965820312,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 209,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1145.5028324127197,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 215,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1137.5429344177246,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 240,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1061.2186889648438,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 115,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 904.8763618469238,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 19,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 877.3546657562256,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 140,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 804.7928218841553,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 279,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 792.4237442016602,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 44,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 770.6691665649414,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              }
+            ],
+            "retained": 7657.307956695557,
+            "markets": [
+              {
+                "id": 1,
+                "produced": 93.46,
+                "unsold": 0,
+                "imported": 0
+              }
+            ]
+          },
+          "food": {
+            "ruralNeed": 98210.65000000001,
+            "ruralSupplied": 59747.76000000001,
+            "urbanNeed": 8042.09,
+            "urbanSupplied": 762.1400000000001,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 7279.949999999999
+          }
+        },
+        {
+          "retained": 49817.42963409424,
+          "offered": 6244.32,
+          "end": {
+            "stage": "production",
+            "date": [
+              1302,
+              12,
+              17
+            ],
+            "householdStock": 22371.27695465088,
+            "fieldHa": 937163.2407226562,
+            "annualRuralNeed": 98260.90655641825,
+            "annualBeforeLabor": 84278.39086914062,
+            "annualAfterLabor": 56061.743449093636,
+            "worstCells": [
+              {
+                "id": 208,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 3760.671371459961,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 34,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 2210.8612785339355,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 198,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 2157.303852081299,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 17,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 2144.4926261901855,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 157,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1919.6766242980957,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 272,
+                "marketId": 1,
+                "fieldHa": 110187.609375,
+                "annualNeed": 5579.448760722961,
+                "annualBeforeLabor": 7180.27197265625,
+                "coverage": 0.5468312501907349,
+                "annualAfterLabor": 3926.397099517111
+              },
+              {
+                "id": 126,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1572.5039176940918,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 234,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1423.6271781921387,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 96,
+                "marketId": 2,
+                "fieldHa": 0,
+                "annualNeed": 1374.6629753112793,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 246,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1351.618860244751,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 226,
+                "marketId": 2,
+                "fieldHa": 0,
+                "annualNeed": 1294.2340755462646,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 209,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1145.5027503967285,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 215,
+                "marketId": 2,
+                "fieldHa": 0,
+                "annualNeed": 1142.0072288513184,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 240,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1061.2188529968262,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 39,
+                "marketId": 2,
+                "fieldHa": 0,
+                "annualNeed": 1059.201259613037,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 115,
+                "marketId": 2,
+                "fieldHa": 0,
+                "annualNeed": 904.8761978149414,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 19,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 881.0006046295166,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 140,
+                "marketId": 2,
+                "fieldHa": 0,
+                "annualNeed": 804.7927398681641,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 279,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 792.4238262176514,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 44,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 770.669412612915,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              }
+            ],
+            "retained": 7737.6269454956055,
+            "markets": [
+              {
+                "id": 1,
+                "produced": 0,
+                "unsold": 0,
+                "imported": 4.56
+              },
+              {
+                "id": 2,
+                "produced": 125.93,
+                "unsold": 0,
+                "imported": 0
+              }
+            ]
+          },
+          "food": {
+            "ruralNeed": 98202.36,
+            "ruralSupplied": 53554.12,
+            "urbanNeed": 7862.860000000002,
+            "urbanSupplied": 547.93,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 7314.930000000002
+          }
+        }
+      ]
+    },
+    "after": {
+      "path": "docs/analytics/raw/e1-staple-supply-20261024/province-after.json",
+      "bytes": 221277,
+      "sha256": "21fcc9803f305a27452d42a091fdcf1c8350d87831200384b703354813b5a125",
+      "initial": {
+        "date": [
+          1300,
+          1,
+          1
+        ],
+        "householdStock": 97495.9744796753,
+        "fieldHa": 946159.208984375,
+        "annualRuralNeed": 97495.97403611867,
+        "annualBeforeLabor": 83779.11291503906,
+        "annualAfterLabor": 53578.87220886098,
+        "worstCells": [
+          {
+            "id": 208,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 3672.691177368164,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 34,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 2188.280471801758,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 198,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 2130.5100479125977,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 17,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 2123.7647247314453,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 157,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 1919.6764602661133,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 126,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 1572.5042457580566,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 234,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 1423.6266860961914,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 96,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 1362.2678985595703,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 246,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 1289.211498260498,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 226,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 1288.3853511810303,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 272,
+            "marketId": 1,
+            "fieldHa": 110187.6171875,
+            "annualNeed": 5038.533832773052,
+            "annualBeforeLabor": 7091.62744140625,
+            "coverage": 0.5309114456176758,
+            "annualAfterLabor": 3765.0261766989715
+          },
+          {
+            "id": 39,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 1183.168758392334,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 209,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 1132.2036933898926,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 215,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 1126.1641178131104,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 240,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 973.2283248901367,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 115,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 904.8762798309326,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 19,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 864.1570625305176,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 140,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 804.7927398681641,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 279,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 780.6892242431641,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 44,
+            "marketId": 1,
+            "fieldHa": 0,
+            "annualNeed": 770.6690845489502,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          }
+        ]
+      },
+      "foodAll36": {
+        "ruralNeed": 294548.7699999999,
+        "ruralSupplied": 211926.45999999996,
+        "urbanNeed": 24239.120000000003,
+        "urbanSupplied": 9653.330000000002,
+        "urbanBudgetGap": 0,
+        "urbanStockGap": 14585.789999999995
+      },
+      "years": [
+        {
+          "retained": 28274.491256713867,
+          "offered": 6464.1900000000005,
+          "end": {
+            "stage": "production",
+            "date": [
+              1300,
+              12,
+              27
+            ],
+            "householdStock": 28207.033196577802,
+            "fieldHa": 943171.56640625,
+            "annualRuralNeed": 98161.4845728531,
+            "annualBeforeLabor": 83796.29382324219,
+            "annualAfterLabor": 54378.861338381066,
+            "worstCells": [
+              {
+                "id": 208,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 3752.6495513916016,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 34,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 2200.5195541381836,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 198,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 2157.3036880493164,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 17,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 2128.045795440674,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 157,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1919.6766242980957,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 272,
+                "marketId": 1,
+                "fieldHa": 110187.609375,
+                "annualNeed": 5555.209500572373,
+                "annualBeforeLabor": 7121.17529296875,
+                "coverage": 0.5425878763198853,
+                "annualAfterLabor": 3863.8633791135508
+              },
+              {
+                "id": 126,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1572.5040817260742,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 234,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1423.6268501281738,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 96,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1374.6605968475342,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 246,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1331.0447387695312,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 226,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1291.5450172424316,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 39,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1192.5965785980225,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 209,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1145.5028324127197,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 215,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1137.5428524017334,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 240,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1061.2186889648438,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 115,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 904.8762798309326,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 19,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 875.5466232299805,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 140,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 804.7929039001465,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 279,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 792.4237442016602,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 44,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 770.6690845489502,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              }
+            ],
+            "retained": 7587.22314453125,
+            "markets": [
+              {
+                "id": 1,
+                "produced": 21.01,
+                "unsold": 0,
+                "imported": 0
+              }
+            ]
+          },
+          "food": {
+            "ruralNeed": 98135.68,
+            "ruralSupplied": 98135.77999999998,
+            "urbanNeed": 8332.02,
+            "urbanSupplied": 8332.02,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0
+          }
+        },
+        {
+          "retained": 51122.53632354736,
+          "offered": 4333.85,
+          "end": {
+            "stage": "production",
+            "date": [
+              1301,
+              12,
+              22
+            ],
+            "householdStock": 24490.633348464966,
+            "fieldHa": 938597.2734375,
+            "annualRuralNeed": 98250.04622693865,
+            "annualBeforeLabor": 83985.42114257812,
+            "annualAfterLabor": 55456.394931948416,
+            "worstCells": [
+              {
+                "id": 208,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 3755.405616760254,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 34,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 2203.4061889648438,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 198,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 2157.303852081299,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 17,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 2134.009998321533,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 157,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1919.6766242980957,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 272,
+                "marketId": 1,
+                "fieldHa": 110187.609375,
+                "annualNeed": 5565.334453309572,
+                "annualBeforeLabor": 7150.7236328125,
+                "coverage": 0.5538263320922852,
+                "annualAfterLabor": 3960.2590413661674
+              },
+              {
+                "id": 126,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1572.5039176940918,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 234,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1423.6270141601562,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 96,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1374.6605968475342,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 246,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1344.8583641052246,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 226,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1292.4571990966797,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 39,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1192.5964965820312,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 209,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1145.5028324127197,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 215,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1137.5429344177246,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 240,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1061.2186889648438,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 115,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 904.8763618469238,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 19,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 877.3546657562256,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 140,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 804.7928218841553,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 279,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 792.4237442016602,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 44,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 770.6691665649414,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              }
+            ],
+            "retained": 7693.873352050781,
+            "markets": [
+              {
+                "id": 1,
+                "produced": 97.17,
+                "unsold": 0,
+                "imported": 0
+              }
+            ]
+          },
+          "food": {
+            "ruralNeed": 98210.65000000001,
+            "ruralSupplied": 59899.21000000001,
+            "urbanNeed": 8042.2300000000005,
+            "urbanSupplied": 765.8700000000001,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 7276.36
+          }
+        },
+        {
+          "retained": 49823.045585632324,
+          "offered": 6557.61,
+          "end": {
+            "stage": "production",
+            "date": [
+              1302,
+              12,
+              17
+            ],
+            "householdStock": 22539.643196105957,
+            "fieldHa": 937163.2407226562,
+            "annualRuralNeed": 98260.97938661845,
+            "annualBeforeLabor": 84278.39086914062,
+            "annualAfterLabor": 56380.65378856797,
+            "worstCells": [
+              {
+                "id": 208,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 3760.671371459961,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 34,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 2210.8612785339355,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 198,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 2157.303852081299,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 17,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 2144.4926261901855,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 157,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1919.6766242980957,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 272,
+                "marketId": 1,
+                "fieldHa": 110187.609375,
+                "annualNeed": 5579.448760722961,
+                "annualBeforeLabor": 7180.27197265625,
+                "coverage": 0.549058198928833,
+                "annualAfterLabor": 3942.3871971258195
+              },
+              {
+                "id": 126,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1572.5039176940918,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 234,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1423.6271781921387,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 96,
+                "marketId": 2,
+                "fieldHa": 0,
+                "annualNeed": 1374.6629753112793,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 246,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1351.618860244751,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 226,
+                "marketId": 2,
+                "fieldHa": 0,
+                "annualNeed": 1294.2340755462646,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 209,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1145.5027503967285,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 215,
+                "marketId": 2,
+                "fieldHa": 0,
+                "annualNeed": 1142.0072288513184,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 240,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 1061.2188529968262,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 39,
+                "marketId": 2,
+                "fieldHa": 0,
+                "annualNeed": 1059.2740898132324,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 115,
+                "marketId": 2,
+                "fieldHa": 0,
+                "annualNeed": 904.8761978149414,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 19,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 881.0006046295166,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 140,
+                "marketId": 2,
+                "fieldHa": 0,
+                "annualNeed": 804.7927398681641,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 279,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 792.4238262176514,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              },
+              {
+                "id": 44,
+                "marketId": 1,
+                "fieldHa": 0,
+                "annualNeed": 770.669412612915,
+                "annualBeforeLabor": 0,
+                "coverage": 1,
+                "annualAfterLabor": 0
+              }
+            ],
+            "retained": 7774.943244934082,
+            "markets": [
+              {
+                "id": 1,
+                "produced": 0,
+                "unsold": 0,
+                "imported": 8.32
+              },
+              {
+                "id": 2,
+                "produced": 129.8,
+                "unsold": 0,
+                "imported": 0
+              }
+            ]
+          },
+          "food": {
+            "ruralNeed": 98202.44,
+            "ruralSupplied": 53891.47,
+            "urbanNeed": 7864.870000000001,
+            "urbanSupplied": 555.44,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 7309.430000000001
+          }
+        }
+      ]
+    }
+  },
+  "world": {
+    "baselineRuntimeFilesMatch": [
+      "src/extensions/economy/generators/foodProduction.ts",
+      "src/extensions/economy/generators/ruralOccupationAllocation.ts",
+      "src/extensions/economy/generators/developmentPotential.ts",
+      "src/extensions/economy/generators/agriculturalLandUse.ts"
+    ],
+    "before": {
+      "path": "docs/analytics/raw/e1-pasture-20261024/world-after.json",
+      "bytes": 1217976,
+      "sha256": "2f78b151933c6768989c4d54ec5591f7f879174ceb1a1b548fede972e0e0a566",
+      "sourceTreeSha256": "18110c014ea95476727c0aa408c013b69dbb7ba2b1e43d96b240826adb1a3793",
+      "foodAll36": {
+        "ruralNeed": 3250100.289999995,
+        "ruralSupplied": 3138439.909999998,
+        "urbanNeed": 777783.6699999999,
+        "urbanSupplied": 673332.3700000001,
+        "urbanBudgetGap": 22387.799999999996,
+        "urbanStockGap": 82064.19999999997
+      },
+      "land": {
+        "cultivatedHa": 11628656.663009746,
+        "pastureHa": 1202197.349291606,
+        "hayMeadowHa": 0,
+        "unresolvedFoodPeople": 11271.154075860977,
+        "unallocatedFieldHa": 5403752.169638806,
+        "stapleProtectedCells": 0,
+        "livestockLandShortfallCells": 0
+      }
+    },
+    "after": {
+      "path": "docs/analytics/raw/e1-staple-supply-20261024/world-after.json",
+      "bytes": 1217975,
+      "sha256": "30423e7ced3da3fb2a6745f950a68853f2f81ba8ec7eeb1292ed4a0b3b7221f9",
+      "sourceTreeSha256": "826f444daf75a4fea29569680e73efe6c640be85c79a7025a0f76beb929ce600",
+      "foodAll36": {
+        "ruralNeed": 3250049.1699999943,
+        "ruralSupplied": 3141091.419999996,
+        "urbanNeed": 777972.1499999997,
+        "urbanSupplied": 675260.0699999994,
+        "urbanBudgetGap": 23063.179999999997,
+        "urbanStockGap": 79649.65999999997
+      },
+      "land": {
+        "cultivatedHa": 11628571.561903762,
+        "pastureHa": 1202195.890879233,
+        "hayMeadowHa": 0,
+        "unresolvedFoodPeople": 11271.150767803192,
+        "unallocatedFieldHa": 5408859.391359032,
+        "stapleProtectedCells": 0,
+        "livestockLandShortfallCells": 0
+      }
+    }
+  }
+}
