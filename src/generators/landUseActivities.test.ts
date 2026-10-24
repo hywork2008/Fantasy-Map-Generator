@@ -20,6 +20,31 @@ const input = (changes: Partial<ClearanceCellInput> = {}): ClearanceCellInput =>
 const plan = (inputs: ClearanceCellInput[], year = 100, previous?: ReturnType<typeof planSettlementLandUse>) =>
   planSettlementLandUse(inputs, { seed: "activities", year, previous, annual: !!previous });
 describe("resolved land-use activities", () => {
+  it("protects potential fields from grazing when a reachable consumer lacks staples", () => {
+    const previous = plan([input({ ruralPeople: 0 }), input({ id: 1, ruralPeople: 0 })]);
+    const snapshot = plan(
+      [
+        input({ ruralPeople: 0, laborAffordableAreaHa: 0, access: [], livestock: { grazingAreaHa: 100 } }),
+        input({ id: 1, ruralPeople: 1000, cultivableAreaHa: 0, access: [{ cellId: 0, cost: 1 }] })
+      ],
+      101,
+      previous
+    );
+    const supplier = snapshot.cells[0];
+    const pasture = supplier.patches.filter(p => p.kind === "pasture").reduce((sum, p) => sum + p.areaHa, 0);
+    expect(snapshot.cells[1].unallocatedAreaHa).toBeGreaterThan(0);
+    expect(pasture).toBeLessThanOrEqual(20);
+    expect(supplier.diagnostics).toContain("staple-arable-protected");
+    assertValidLandUseSnapshot(snapshot);
+  });
+
+  it("allows surplus arable grazing after accessible staple demand is satisfied", () => {
+    const snapshot = plan([input({ ruralPeople: 0, livestock: { grazingAreaHa: 90 } })]);
+    expect(snapshot.cells[0].patches.find(p => p.kind === "pasture")?.areaHa).toBe(90);
+    expect(snapshot.cells[0].diagnostics).not.toContain("staple-arable-protected");
+    assertValidLandUseSnapshot(snapshot);
+  });
+
   it("finishes allocation for the European Standard cell that froze generation", () => {
     const snapshot = planSettlementLandUse(
       [
