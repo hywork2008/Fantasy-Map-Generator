@@ -141,7 +141,7 @@ function blocks(
   }
 }
 
-function curtain(m: Masonry, x0: number, x1: number) {
+function curtain(m: Masonry, x0: number, x1: number, walkway = true) {
   // Sloping field plinth, a vertical town face, and coursed limestone above it.
   for (let row = 0; row < 20; row++) {
     const y = row * 0.4;
@@ -163,6 +163,7 @@ function curtain(m: Masonry, x0: number, x1: number) {
     );
   }
   for (const y of [1.6, 7.7]) blocks(m, "curtain-string-course", x0, x1, y, 0.16, 0, 2.72, 0, DRESSED);
+  if (!walkway) return;
   blocks(m, "wall-walk-paving", x0, x1, WALK, 0.14, -0.08, 1.85, 0, DRESSED);
   for (let row = 0; row < 2; row++) {
     blocks(m, "outer-parapet", x0, x1, 8.12 + row * 0.32, 0.32, 1.08, 0.64, row);
@@ -319,7 +320,7 @@ function archPoint(t: number, half: number, spring: number): THREE.Vector2 {
   return new THREE.Vector2(-half + radius * Math.cos(a), spring + radius * Math.sin(a));
 }
 
-function gate(m: Masonry) {
+function gate(m: Masonry, wings = true) {
   const half = 1.9,
     spring = 3.75,
     depth = 5.6,
@@ -484,8 +485,31 @@ function gate(m: Masonry) {
   blocks(m, "gate-gallery-coping", -2.16, 2.16, 8.6, 0.14, 3.55, 0.56, 0, DRESSED);
   for (const side of [-1, 1]) {
     drum(m, side * 5.2, 0.45, 12.4, [side > 0 ? -Math.PI / 2 : Math.PI / 2]);
-    curtain(m, side > 0 ? 8.3 : -13.5, side > 0 ? 13.5 : -8.3);
+    if (wings) curtain(m, side > 0 ? 8.3 : -13.5, side > 0 ? 13.5 : -8.3);
   }
+}
+
+/** Circuit-ready parts omit the illustrative curtain wings supplied in BV studies. */
+export function createCodexTownWallPart(kind: "wall" | "tower" | "gate", walkway = true): CityStructureMeshes {
+  const masonry = new Masonry();
+  if (kind === "wall") curtain(masonry, -7, 7, walkway);
+  else if (kind === "tower") drum(masonry, 0, 0, 11.6, [Math.PI / 2, -Math.PI / 2]);
+  else gate(masonry, false);
+  const model = masonry.finish(`town-${kind}`);
+  if (kind === "gate") {
+    // The battered tower feet must stop at the jamb plane, preserving CE's full road opening.
+    for (const mesh of model.pickables) {
+      if (mesh.name !== "tower-ashlar") continue;
+      const positions = mesh.geometry.getAttribute("position");
+      for (let i = 0; i < positions.count; i++) {
+        const x = positions.getX(i);
+        if (Math.abs(x) < 1.9) positions.setX(i, Math.sign(x) * 1.9);
+      }
+      mesh.geometry.computeVertexNormals();
+      mesh.geometry.computeBoundingSphere();
+    }
+  }
+  return model;
 }
 
 const sources = [
