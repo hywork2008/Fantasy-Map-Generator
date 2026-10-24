@@ -119,6 +119,7 @@ export interface CityEditorOptions {
 export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = {}): () => void {
   const scope = beginEditorMount(root);
   let syncCity3d = (): void => {};
+  let resetCity3dCamera = (): void => {};
   let editingController: ReturnType<typeof createEditingController> | undefined;
   function getEditingController() {
     if (!editingController)
@@ -766,6 +767,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     if (!generationController)
       generationController = createGenerationController({
         root,
+        resetCity3dCamera: () => resetCity3dCamera(),
         get scope() {
           return scope;
         },
@@ -2743,10 +2745,12 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     scope,
     getDocument: () => documents.documentState,
     getViewHalfSize: () => display.halfView,
+    getViewCenter: () => display.viewCenter,
     getModelQuality: readModelQualityPreference,
     getTerrainSpacing: readTerrainSpacingPreference
   });
   syncCity3d = () => city3d.sync();
+  resetCity3dCamera = () => city3d.resetCamera();
   scope.own(() => city3d.dispose());
   try {
     const incoming = readIncomingCity();

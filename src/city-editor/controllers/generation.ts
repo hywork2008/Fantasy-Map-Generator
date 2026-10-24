@@ -46,6 +46,7 @@ export interface GenerationContext {
   syncStageUi: (step: number) => void;
   rebuildEditorIndexes: () => void;
   refresh: () => void;
+  resetCity3dCamera?: () => void;
   wallFallbackNotice: (doc: CityDocument, checkpoint?: boolean) => string;
   redrawMap: () => void;
   seedInput: HTMLInputElement;
@@ -347,6 +348,7 @@ export function createGenerationController(ctx: GenerationContext) {
       ctx.generation.completeResultSettings = JSON.stringify(ctx.generation.generateSettings);
       ctx.rememberGenerationState();
       ctx.rebuildEditorIndexes();
+      ctx.resetCity3dCamera?.();
       ctx.refresh();
       // Double walls fall back to one curtain when the mesh has no room for an old
       // town (docs/plan/ce-multi-ring-walls.md §5); say why instead of staying silent.

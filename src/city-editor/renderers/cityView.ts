@@ -111,11 +111,12 @@ export function mountCity3d(options: {
   getDocument: () => CityDocument;
   /** Current 2D viewBox half-size in plan meters. */
   getViewHalfSize?: () => number;
+  getViewCenter?: () => readonly [number, number];
   /** Requested detailed-model quality; each model falls back to the tiers it ships. */
   getModelQuality?: () => ModelQuality;
   /** Draw-grid spacing for a height field. Absent uses the automatic spacing. */
   getTerrainSpacing?: () => number | "auto";
-}): { sync(): void; dispose(): void } {
+}): { sync(): void; resetCamera(): void; dispose(): void } {
   const viewport = document.createElement("div");
   viewport.className = "ce-3d";
   viewport.hidden = true;
@@ -183,14 +184,18 @@ export function mountCity3d(options: {
   const frameCamera = (document: CityDocument) => {
     if (!camera || !controls) return;
     const radius = Math.max(30, document.frame.cityRadiusMeters);
-    const elevation = terrain?.heightAt([0, 0]) ?? 0;
+    const center = options.getViewCenter?.() ?? [0, 0];
+    const elevation = terrain?.heightAt([center[0], center[1]]) ?? 0;
     // Keep the OrbitControls world-up axis on +Y, as before the nadir view.
     // A tiny +Z offset defines screen-up at the pole without a visible tilt.
     const halfView = Math.max(1, options.getViewHalfSize?.() ?? document.frame.extentMeters / 2);
     // Perspective projection at nadir: distance * tan(fov/2) is the visible half-height.
-    const distance = halfView / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
-    camera.position.set(0, elevation + distance, 0.001);
-    controls.target.set(0, elevation + 4, 0);
+    // SVG fits its square viewBox into the shorter viewport dimension.
+    const distance = halfView / Math.min(1, camera.aspect) / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+    camera.zoom = 1;
+    camera.updateProjectionMatrix();
+    camera.position.set(center[0], elevation + distance, -center[1] + 0.001);
+    controls.target.set(center[0], elevation, -center[1]);
     camera.up.set(0, 1, 0);
     camera.lookAt(controls.target);
     controls.update();
@@ -640,5 +645,10 @@ export function mountCity3d(options: {
     readout.remove();
     options.map.hidden = false;
   };
-  return { sync, dispose };
+  // Defer framing until the new terrain is built, including when 3D is hidden.
+  const resetCamera = () => {
+    framedRadius = 0;
+  };
+
+  return { sync, resetCamera, dispose };
 }
