@@ -737,7 +737,9 @@ describe("shareable link and FMG site", () => {
       i18n.t("cityEditor.messages.oldTownWallStageFailed")
     );
     expect(root.querySelectorAll(".ce-feature--road, .ce-feature--wall")).toHaveLength(0);
-    expect(root.querySelector(".ce-generate-stage-hint")?.textContent).toContain(
+    root.querySelector<HTMLButtonElement>(".ce-help-launcher")!.click();
+    root.querySelector<HTMLButtonElement>('[data-help-topic="stage-innerWall"]')!.click();
+    expect(root.querySelector(".ce-help-article")?.textContent).toContain(
       i18n.t("cityEditor.generationStages.firstInnerWall.hint")
     );
     const debugInput = () =>

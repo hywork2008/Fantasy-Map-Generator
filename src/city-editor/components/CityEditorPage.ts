@@ -81,6 +81,7 @@ import { buildDocumentPanel } from "./documentPanel";
 import { createEditorControls, div, text } from "./editorControls";
 import { buildFacilityPanel } from "./facilityPanel";
 import { buildGenerationPanel } from "./generationPanel";
+import { mountOperationHelp } from "./operationHelp";
 
 const TOOLS: Array<[Tool, EditorMessageKey, string]> = [
   ["select", "cityEditor.messages.selectAndMove", "↖"],
@@ -1949,7 +1950,6 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     coreLayerInput,
     regionalLayerInput,
     renderQualitySelect,
-    renderQualityHelp,
     meshToggleRow,
     importedBox,
     importedText,
@@ -2402,8 +2402,6 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   completeGenerationButton.classList.add("ce-complete-generation");
   const newGenerationButton = makeButton(editorText("cityEditor.messages.newCity"), () => rollNewTown());
   newGenerationButton.classList.add("ce-new-generation");
-  const fortHelp = text(editorText("cityEditor.messages.motteBaileyHelp"));
-  fortHelp.className = "ce-fort-help";
   const elevationPresetSelect = select([...ELEVATION_PRESETS], generation.generateSettings.elevationPreset ?? "flat");
   elevationPresetSelect.className = "ce-elevation-preset";
   elevationPresetSelect.title = editorText("cityEditor.messages.elevationPresetHelp");
@@ -2493,13 +2491,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     label(editorText("cityEditor.messages.townWallRings"), townWallRingsSelect),
     label(editorText("cityEditor.messages.townWallBuildOrder"), townWallBuildOrderSelect),
     label(editorText("cityEditor.messages.urbanAreaInsideWalls"), walledShareInput),
-    text(editorText("cityEditor.messages.blankUsesTinySmall100Medium45Large20Approximate")),
     housingSummary,
     divider(),
-    Object.assign(
-      text(editorText("cityEditor.messages.completeGenerationBuildsWallsStreetsAndBuildingsUseTheSlider")),
-      { className: "ce-generation-process-help" }
-    ),
     text(editorText("cityEditor.generationStages.title")),
     stageContainer,
     Object.assign(
@@ -2509,21 +2502,18 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       }),
       { className: "ce-generate-from-edits", title: editorText("cityEditor.messages.generateFromEditsHelp") }
     ),
-    text(editorText("cityEditor.messages.generateFromEditsHelp")),
     divider(),
     label(editorText("cityEditor.messages.urbanCoreAllocationMode"), urbanCoreModeSelect),
     label(editorText("cityEditor.messages.3NPatchesBlankAuto"), urbanNPatchesInput),
     toggleLabel(editorText("cityEditor.messages.avoidSea"), avoidSeaInput),
     label(editorText("cityEditor.messages.streetFarEnd"), farNodeSelect),
     bearingsLabel,
-    text(editorText("cityEditor.messages.stepThroughTheLastPressedProcessOneLoopIterationAt")),
     stepRow
   );
   generatePanel.content.append(
     generationProgress,
     cancelGeneration,
     label(editorText("cityEditor.messages.generationMode"), generationModeSelect),
-    fortHelp,
     completeGenerationButton,
     newGenerationButton,
     copyLinkButton,
@@ -2534,13 +2524,13 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     decorationControls,
     meshToggleRow,
     label(editorText("cityEditor.messages.renderQuality"), renderQualitySelect),
-    renderQualityHelp,
     toggleLabel(editorText("cityEditor.messages.showUrbanCore"), coreLayerInput),
     toggleLabel(editorText("cityEditor.messages.showFMGSurroundings"), regionalLayerInput),
     divider(),
     cityGenerationControls
   );
   syncGenerateControls();
+  mountOperationHelp(root, scope, () => generation.generateSettings);
 
   bindPointerMove({
     get scope() {

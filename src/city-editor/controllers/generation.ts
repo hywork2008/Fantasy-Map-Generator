@@ -693,7 +693,6 @@ export function createGenerationController(ctx: GenerationContext) {
     if (modeSelect) modeSelect.value = fort ? "fort" : "city";
     for (const selector of [".ce-city-generation-controls", ".ce-city-decoration"])
       ctx.root.querySelector<HTMLElement>(selector)?.toggleAttribute("hidden", fort);
-    ctx.root.querySelector<HTMLElement>(".ce-fort-help")?.toggleAttribute("hidden", !fort);
     const complete = ctx.root.querySelector<HTMLElement>(".ce-complete-generation");
     if (complete)
       complete.textContent = editorText(

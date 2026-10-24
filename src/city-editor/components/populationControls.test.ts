@@ -63,6 +63,9 @@ describe("population generation controls", () => {
     const root = mount();
     const input = root.querySelector<HTMLInputElement>(".ce-population-input")!;
     expect(input.value).toBe("5000");
+    const estimate = () => root.querySelector(".ce-population-estimate")!.textContent!;
+    expect(estimate()).toMatch(/\d+\.\d{2}\s*km²/);
+    expect(estimate()).not.toContain("{{");
     expect(root.querySelector<HTMLSelectElement>(".ce-generate-town-wall-rings")!.value).toBe("single");
     expect(input.max).toBe("220000");
     expect(root.querySelector<HTMLInputElement>(".ce-population-enabled")!.checked).toBe(true);

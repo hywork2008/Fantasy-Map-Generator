@@ -40,6 +40,20 @@
       .ce-panel { position:absolute; z-index:4; display:flex; flex-direction:column; width:max-content; max-width:270px; min-width:150px; max-height:calc(100vh - 28px); border:1px solid #9da8a7; border-radius:8px; background:var(--panel); box-shadow:0 10px 26px #23313628,0 1px 2px #23313625; overflow:hidden; backdrop-filter:blur(12px); } .ce-panel--dragging { box-shadow:0 18px 38px #23313640; } .ce-panel--collapsed .ce-panel-titlebar { border-bottom:0; }
       .ce-panel-titlebar { display:flex; align-items:center; justify-content:space-between; flex:0 0 auto; height:29px; padding:0 8px 0 10px; border-bottom:1px solid #cbd2d0; background:linear-gradient(#fff,#edf1ed); cursor:grab; user-select:none; } .ce-panel-titlebar:active { cursor:grabbing; } .ce-panel h1 { margin:0; min-width:0; overflow:hidden; color:#25383c; font-size:10px; font-weight:800; letter-spacing:.13em; text-overflow:ellipsis; text-transform:uppercase; white-space:nowrap; } .ce-panel-titlebar span { color:#8b9796; font-size:15px; line-height:1; } .ce-panel-titlebar-actions { display:flex; align-items:center; gap:2px; flex:0 0 auto; } .ce-panel-collapse { display:inline-grid; place-items:center; width:18px; min-width:18px; height:18px; min-height:18px; margin:0 2px 0 6px; padding:0; border:0; border-radius:4px; color:#5c6b6a; background:transparent; font-size:11px; line-height:1; cursor:pointer; } .ce-panel-collapse:hover,.ce-panel-collapse:focus-visible { color:#fff; border-color:transparent; background:var(--accent-dark); }
       .ce-panel-content { display:grid; gap:8px; flex:1 1 auto; min-height:0; padding:9px; overflow:auto; overscroll-behavior:contain; } .ce-panel-content[hidden] { display:none; } .ce-panel-content > span { color:var(--muted); font-size:11px; } .ce-toolbar { top:14px; left:14px; width:260px; } .ce-document { top:14px; left:288px; width:238px; } .ce-inspector { top:14px; right:14px; width:min(280px, calc(100vw - 24px)); max-height:min(85vh, 780px); } .ce-groups { left:14px; bottom:36px; width:224px; max-height:35vh; } .ce-history { top:14px; right:244px; width:224px; } .ce-generate { top:14px; left:534px; width:248px; max-height:min(80vh,780px); }
+      .ce-help { top:48px; left:max(8px, calc((100vw - 860px) / 2)); width:min(860px, calc(100vw - 16px)); max-width:none; height:min(640px, calc(100vh - 96px)); max-height:calc(100vh - 96px); }
+      .ce-help[hidden] { display:none; }
+      .ce-help .ce-panel-content { display:flex; padding:0; overflow:hidden; }
+      .ce-help .ce-panel-content[hidden] { display:none; }
+      .ce-help-layout { display:grid; grid-template-columns:minmax(130px, 30%) minmax(0, 1fr); width:100%; min-height:0; }
+      .ce-help-navigation { display:flex; flex-direction:column; gap:4px; overflow:auto; padding:10px; border-right:1px solid var(--line); }
+      .ce-help-navigation button { flex-shrink:0; text-align:left; overflow-wrap:anywhere; }
+      .ce-help-article { overflow:auto; padding:16px 20px; font-size:13px; line-height:1.8; overflow-wrap:anywhere; }
+      .ce-help-article h2 { margin:0 0 14px; font-size:17px; }
+      .ce-help-article p { margin:0 0 14px; white-space:pre-line; }
+      .ce-help-launcher { position:absolute; right:14px; bottom:76px; z-index:6; }
+      .ce-panel-help { min-height:18px; height:18px; width:18px; padding:0; margin-right:4px; font-size:11px; }
+      .ce-help .ce-panel-titlebar-actions > button { min-height:18px; height:18px; padding:0 4px; }
+      .ce-help.ce-panel--collapsed { height:auto; }
       .ce-inspector-kind, .cg-inspector-kind { font-size:12px; color:#25383c; font-weight:700; }
       .ce-inspector-content, .cg-inspector-content { box-sizing:border-box; min-height:min(40vh,300px); max-height:min(40vh,300px); margin:0; padding:6px 8px; overflow:auto; border:1px solid var(--line); border-radius:4px; background:rgb(255 255 255 / 45%); font:10.5px/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight:500; white-space:pre-wrap; word-break:break-all; }
       .ce-inspector-edit-section { display:grid; gap:8px; }
