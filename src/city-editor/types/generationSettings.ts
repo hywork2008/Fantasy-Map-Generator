@@ -53,6 +53,11 @@ export interface GenerationSettings {
    * Values above 1 scale the clamped 12–80 m base, so the span can exceed 80 m.
    */
   elevationRelief?: number;
+  /**
+   * How many metres the 3D river surface sits below the land it touches.
+   * Unset is 1, the flat-map gap. A value as large as the land puts the river at 0 m.
+   */
+  riverDropMeters?: number;
   /** Castle siting also checks C4 on street edges. Set by the attempt loop
    * after a castle town failed with unconnected gates. */
   castleStreetLinks?: boolean;

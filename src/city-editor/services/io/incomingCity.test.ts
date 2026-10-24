@@ -97,6 +97,13 @@ describe("share codec", () => {
     expect(decoded).not.toBeNull();
     expect(decoded?.settings.elevationRelief).toBeUndefined();
     expect(decoded?.settings.elevationPreset).toBe("slope");
+    const deep = buildShare({
+      seed: "river-drop",
+      grid: "hex",
+      size: "micro",
+      settings: { config: DEFAULT_SITE_CONFIG, riverDropMeters: 100.4 }
+    });
+    expect(decodeShare(encodeShare(deep))?.settings.riverDropMeters).toBe(100);
   });
 
   it("preserves independent moat options in share links", () => {

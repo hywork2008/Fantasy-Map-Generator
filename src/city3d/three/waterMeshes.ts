@@ -3,6 +3,7 @@
 import * as THREE from "three";
 import { clipEscarpmentTriangles } from "../../city-editor/generators/cellPlateClip";
 import { fortWaterPolygons } from "../../city-editor/generators/fortSiteGeometry";
+import { riverDropMeters, townWaterElevations } from "../../city-editor/generators/riverSurface";
 import { type CityTerrain, cityTerrain } from "../../city-editor/generators/terrainElevation";
 import {
   classifyTownWater,
@@ -85,8 +86,16 @@ export function townWaterHeightAt(water: TownWaterMeshes, point: Point): number 
   return hits[0]?.point.y ?? WATER_Y;
 }
 
-/** Classify the document and build the meshes. Does not touch the scene. */
-export function createTownWater(document: CityDocument, terrain: CityTerrain = cityTerrain(document)): TownWaterMeshes {
+/**
+ * Classify the document and build the meshes. Does not touch the scene.
+ * `dropMeters` is how far a river sits below the land it touches. 1 keeps the
+ * flat-map gap. A drop as large as the land puts the river back at elevation 0.
+ */
+export function createTownWater(
+  document: CityDocument,
+  terrain: CityTerrain = cityTerrain(document),
+  dropMeters?: number
+): TownWaterMeshes {
   if (document.fortSite) return createFortGround(document, terrain);
   const parent = new THREE.Object3D();
   parent.name = "ce-water";
@@ -142,17 +151,31 @@ export function createTownWater(document: CityDocument, terrain: CityTerrain = c
       return bed + WATER_Y;
     };
   };
-  const partHeight = (part: TownWaterPart): ((point: Point) => number) =>
-    terrain.field && terrain.waterAt && (part.kind === "river" || part.kind === "channel")
-      ? point => {
-          const level = terrain.waterAt?.(point);
-          return level === null || level === undefined ? rimAt(point) : level + WATER_Y;
-        }
-      : terrain.field && (part.kind === "river" || part.kind === "channel")
-        ? rimAt
-        : terrain.relief && (part.kind === "river" || part.kind === "channel")
-          ? cellBedAt(part)
-          : () => partLevel(part);
+  // Relief used to pin every river to the datum, so a high bank became a trench down to 0.
+  // The profile follows the centre line: highest upstream, never above the bank.
+  const absoluteWater =
+    terrain.relief && !terrain.field ? townWaterElevations(document, riverDropMeters(dropMeters)) : null;
+  const sceneY = (absolute: number) => LAND_Y + (absolute - terrain.datumMeters);
+  const partHeight = (part: TownWaterPart): ((point: Point) => number) => {
+    if (terrain.field && terrain.waterAt && (part.kind === "river" || part.kind === "channel"))
+      return point => {
+        const level = terrain.waterAt?.(point);
+        return level === null || level === undefined ? rimAt(point) : level + WATER_Y;
+      };
+    if (terrain.field && (part.kind === "river" || part.kind === "channel")) return rimAt;
+    if (absoluteWater && part.kind === "river")
+      return point => {
+        const absolute = absoluteWater.riverAt(point);
+        return absolute === null ? cellBedAt(part)(point) : sceneY(absolute);
+      };
+    if (absoluteWater && part.kind === "channel") {
+      const absolute = absoluteWater.channelAt(part.polygon);
+      if (absolute === null) return cellBedAt(part);
+      const y = sceneY(absolute);
+      return () => y;
+    }
+    return () => partLevel(part);
+  };
   const heights = water.parts.map(partHeight);
   const fieldMeshes = terrain.grid ? terrainFieldMeshes(document, terrain) : [];
   for (const mesh of fieldMeshes) parent.add(mesh);

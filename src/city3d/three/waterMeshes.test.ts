@@ -400,3 +400,37 @@ it("keeps a river surface level across banks of different cell elevation", () =>
   expect(Math.max(...ys) - Math.min(...ys)).toBeLessThan(0.5);
   drawn.dispose();
 });
+
+it("sets a river 1 m under its banks, or back at elevation 0 when the drop equals the land", () => {
+  const mesh = emptyMesh();
+  addRect(mesh, "high", -40, -12, -8, 12, "land");
+  mesh.faces.high.properties.elevation = 100;
+  addRect(mesh, "low", 8, -12, 40, 12, "land");
+  mesh.faces.low.properties.elevation = 40;
+  mesh.vertices.up = { id: "up", point: [-24, 0], locked: false };
+  mesh.vertices.down = { id: "down", point: [24, 0], locked: false };
+  const city = document({
+    mesh,
+    featureGroups: [
+      {
+        id: "river",
+        kind: "river",
+        name: "River",
+        vertices: ["up", "down"],
+        source: null,
+        mouth: null,
+        style: { widthMeters: 4, color: "#527f8b" },
+        locked: false
+      }
+    ]
+  });
+  const shallow = createTownWater(city, undefined, 1);
+  // Datum is the low bank, 40 m. Land at 100 m is 60 m above it; the river is 1 m under that land.
+  expect(townWaterHeightAt(shallow, [-24, 1])).toBeCloseTo(LAND_Y + 59, 0);
+  expect(townWaterHeightAt(shallow, [24, 1])).toBeLessThan(townWaterHeightAt(shallow, [-24, 1]));
+  shallow.dispose();
+  const deep = createTownWater(city, undefined, 100);
+  expect(townWaterHeightAt(deep, [-24, 1])).toBeCloseTo(LAND_Y - 40, 0);
+  expect(townWaterHeightAt(deep, [24, 1])).toBeCloseTo(LAND_Y - 40, 0);
+  deep.dispose();
+});

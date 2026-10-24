@@ -17,6 +17,7 @@ import {
   MAX_CITY_POPULATION,
   validPopulationSettings
 } from "../../generators/populationPlan";
+import { riverDropMeters } from "../../generators/riverSurface";
 import { joinStrandedRoadsToCrossings } from "../../generators/site/strandedRoads";
 import { repairRiverBeds } from "../../generators/terrainField/corridor";
 import type { IncomingOrigin } from "../../types/contracts/incomingCity";
@@ -521,6 +522,7 @@ function asSettings(raw: unknown): Omit<GenerationSettings, "descriptor"> | null
   )
     settings.elevationPreset = raw.elevationPreset;
   if (isFiniteNumber(raw.elevationRelief)) settings.elevationRelief = elevationReliefScale(raw.elevationRelief);
+  if (isFiniteNumber(raw.riverDropMeters)) settings.riverDropMeters = riverDropMeters(raw.riverDropMeters);
   if (isFiniteNumber(raw.walledAreaShare)) settings.walledAreaShare = raw.walledAreaShare;
   if (raw.townWallRings === "single" || raw.townWallRings === "double") settings.townWallRings = raw.townWallRings;
   if (raw.innerWallState === "standing" || raw.innerWallState === "razed") settings.innerWallState = raw.innerWallState;

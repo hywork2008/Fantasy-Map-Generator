@@ -30,6 +30,7 @@ import { buildBlockFabric, type DistrictFabric } from "../generators/blockInfill
 import { riverRibbons } from "../generators/bridgeDeck";
 import type { BuildingLot } from "../generators/buildingLots.types";
 import { buildParkLawns } from "../generators/parkFabric";
+import { RIVER_DROP_MIN, riverDropMeters } from "../generators/riverSurface";
 import { type CityTerrain, cityTerrain, cityTerrainStamp } from "../generators/terrainElevation";
 import { collectTownRoads, townRoadStamp } from "../generators/townRoads";
 import { townWaterStamp } from "../generators/townWater";
@@ -116,6 +117,8 @@ export function mountCity3d(options: {
   getModelQuality?: () => ModelQuality;
   /** Draw-grid spacing for a height field. Absent uses the automatic spacing. */
   getTerrainSpacing?: () => number | "auto";
+  /** Metres the river surface sits below the land it touches. Absent keeps 1 m. */
+  getRiverDropMeters?: () => number;
 }): { sync(): void; resetCamera(): void; dispose(): void } {
   const viewport = document.createElement("div");
   viewport.className = "ce-3d";
@@ -379,10 +382,11 @@ export function mountCity3d(options: {
     raf = requestAnimationFrame(tick);
   };
 
+  const riverDrop = () => options.getRiverDropMeters?.() ?? RIVER_DROP_MIN;
   const placeWater = (city: CityDocument) => {
     if (!scene || !ground) return;
     waterMeshes?.dispose();
-    waterMeshes = createTownWater(city, terrain ?? undefined);
+    waterMeshes = createTownWater(city, terrain ?? undefined, riverDrop());
     if (waterMeshes.replacesDisc) scene.remove(ground);
     else {
       if (!ground.parent) scene.add(ground);
@@ -403,7 +407,7 @@ export function mountCity3d(options: {
     // Fabric first: lane geometry is part of the road stamp, and graded roads shape the terrain.
     const fabric = buildBlockFabric(city);
     const quality = options.getModelQuality?.() ?? "standard";
-    const stamp = townWaterStamp(city);
+    const stamp = `${townWaterStamp(city)}|${riverDropMeters(riverDrop())}`;
     const roads = townRoadStamp(city, fabric.lanes);
     const spacing = options.getTerrainSpacing?.() ?? "auto";
     const nextTerrainStamp = `${cityTerrainStamp(city)}|${roads}|${spacing}`;
