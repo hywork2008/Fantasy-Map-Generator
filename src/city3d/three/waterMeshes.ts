@@ -19,6 +19,12 @@ import { planVertex } from "../core/planFrame";
 import { LAND_Y, WATER_Y, waterSurfaceGeometry } from "../core/waterGeometry";
 import { terrainFieldMeshes } from "./terrainFieldMesh";
 
+/** Highest the river surface may stand above the carved bed under it, in metres. */
+const RIVER_RISE_MAX = 1.2;
+
+/** Corners this close share one river-bed level. */
+const BED_REACH_METERS = 30;
+
 const LAND_COLOR = 0xd5cfbf;
 const UNKNOWN_COLOR = 0xcfcdc6;
 const ESCARPMENT_COLOR = 0x9a9284;
@@ -104,22 +110,37 @@ export function createTownWater(document: CityDocument, terrain: CityTerrain = c
     part.kind === "ocean" || !terrain.relief
       ? waterY(part.kind)
       : Math.min(...part.polygon.map(terrain.heightAt)) + WATER_Y;
+  // A carved valley keeps its water near the bed. The rim only lifts the surface to the nearby bank, and
+  // never more than RIVER_RISE_MAX above the local bed, so a deep gorge does not hold a floating sheet.
   const rimAt = (point: Point) => {
-    let rim = terrain.heightAt(point);
+    const bed = terrain.heightAt(point);
+    let rim = bed;
     for (const delta of [
-      [8, 0],
-      [-8, 0],
-      [0, 8],
-      [0, -8]
+      [4, 0],
+      [-4, 0],
+      [0, 4],
+      [0, -4]
     ] as const)
       rim = Math.max(rim, terrain.heightAt([point[0] + delta[0], point[1] + delta[1]]));
-    return rim + WATER_Y;
+    return Math.min(rim, bed + RIVER_RISE_MAX) + WATER_Y;
+  };
+  // Cell relief steps between banks, so the river's own corners can read different cells. The surface takes
+  // the lowest ground among corners within BED_REACH_METERS, which keeps it level across the width and
+  // still follows the river's fall along its length.
+  const cellBedAt = (part: TownWaterPart) => {
+    const corners = part.polygon.map(corner => ({ corner, ground: terrain.heightAt(corner) }));
+    return (point: Point) => {
+      let bed = terrain.heightAt(point);
+      for (const { corner, ground } of corners)
+        if (ground < bed && Math.hypot(corner[0] - point[0], corner[1] - point[1]) <= BED_REACH_METERS) bed = ground;
+      return bed + WATER_Y;
+    };
   };
   const partHeight = (part: TownWaterPart): ((point: Point) => number) =>
     terrain.field && (part.kind === "river" || part.kind === "channel")
       ? rimAt
       : terrain.relief && (part.kind === "river" || part.kind === "channel")
-        ? point => terrain.heightAt(point) + WATER_Y
+        ? cellBedAt(part)
         : () => partLevel(part);
   const heights = water.parts.map(partHeight);
   const fieldMeshes = terrain.grid ? terrainFieldMeshes(document, terrain) : [];
