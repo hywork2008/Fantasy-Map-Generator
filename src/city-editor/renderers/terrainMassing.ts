@@ -2,6 +2,7 @@ import type { BuildingLot } from "../generators/buildingLots.types";
 import { polygonArea } from "../generators/geom";
 import { STAIR_RISER_METERS } from "../generators/roadGrading";
 import type { CityTerrain } from "../generators/terrainElevation";
+import { BRIDGE_WATER_CLEARANCE_METERS } from "../generators/terrainField/constants";
 import type { StructureMassing } from "../types/contracts/structureMassing";
 import type { Point } from "../types/document";
 
@@ -34,12 +35,17 @@ export function groundStructures(parts: StructureMassing[], terrain: CityTerrain
     if (part.kind === "bridge" && terrain.waterAt) {
       const ends = [ring[0], ring[ring.length - 1]];
       let water = Number.NEGATIVE_INFINITY;
-      for (const point of ring) {
-        const surface = terrain.waterAt(point);
-        if (surface !== null) water = Math.max(water, surface);
+      for (let i = 1; i < ring.length; i++) {
+        const a = ring[i - 1],
+          b = ring[i];
+        const steps = Math.max(2, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 0.5));
+        for (let j = 0; j <= steps; j++) {
+          const surface = terrain.waterAt([a[0] + ((b[0] - a[0]) * j) / steps, a[1] + ((b[1] - a[1]) * j) / steps]);
+          if (surface !== null) water = Math.max(water, surface);
+        }
       }
       const banks = Math.max(terrain.heightAt(ends[0]), terrain.heightAt(ends[1]));
-      level = Math.max(banks, Number.isFinite(water) ? water + 0.3 : banks);
+      level = Math.max(banks, Number.isFinite(water) ? water + BRIDGE_WATER_CLEARANCE_METERS : banks);
     }
     const low = Math.min(...ring.map(terrain.heightAt));
     const raised = { ...part, baseElevationMeters: part.baseElevationMeters + level };

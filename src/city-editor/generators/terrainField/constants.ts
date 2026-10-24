@@ -53,3 +53,6 @@ export function fieldModeAllowed(extentMeters: number): boolean {
 
 /** Rise/run above which farmland is not ploughed on a height field. */
 export const FARM_SLOPE_LIMIT = 0.18;
+
+/** Minimum bridge clearance above the corridor water surface. */
+export const BRIDGE_WATER_CLEARANCE_METERS = 1;

@@ -22,7 +22,7 @@ export function reliefShade(elevation: number): { fill: string; opacity: string 
 }
 
 export function renderCellReliefOverlay(mesh: Mesh): SVGGElement | null {
-  const group = element("g", { class: "ce-cell-relief", "pointer-events": "none" });
+  const group = element("g", { class: "ce-cell-relief", "pointer-events": "none" }) as SVGGElement;
   let drawn = 0;
   for (const face of Object.values(mesh.faces)) {
     const path = reliefPath(mesh, face);

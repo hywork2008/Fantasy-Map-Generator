@@ -105,7 +105,7 @@ function sameLine(a: readonly Point[], b: readonly Point[]): boolean {
 
 /**
  * Replace corridors whose centre line no longer matches the document.
- * Unchanged lines keep their saved beds. Returns true when the layer changed.
+ * Unchanged lines, widths and depths keep their saved beds and manually edited banks. Returns true when the layer changed.
  */
 export function syncRiverCorridors(document: CityDocument, field: TerrainField): boolean {
   if (!document.terrain?.field) return false;
@@ -115,7 +115,9 @@ export function syncRiverCorridors(document: CityDocument, field: TerrainField):
       feature =>
         feature.sourceId === fresh.sourceId &&
         sameLine(feature.centerline, fresh.centerline) &&
-        feature.widthsMeters.length === fresh.widthsMeters.length
+        feature.widthsMeters.length === fresh.widthsMeters.length &&
+        feature.widthsMeters.every((width, index) => Math.abs(width - fresh.widthsMeters[index]) < 0.05) &&
+        Math.abs(feature.depthMeters - fresh.depthMeters) < 1e-6
     );
     return kept ?? fresh;
   });
@@ -178,7 +180,7 @@ export function corridorWaterAt(corridors: readonly TerrainRiverCorridor[], poin
   let level: number | null = null;
   for (const corridor of corridors) {
     const station = corridorStation(corridor, point);
-    if (!station || station.distance > station.width / 2) continue;
+    if (!station || station.distance > station.width / 2 + 0.05) continue;
     const surface = station.bed + corridor.depthMeters;
     level = level === null ? surface : Math.min(level, surface);
   }
@@ -249,7 +251,7 @@ export function clipPieces(subject: readonly Point[], clips: readonly Point[][])
   return pieces.filter(piece => piece.length >= 3 && plotArea(piece) >= 0.05);
 }
 
-/** Rebuild corridors after a river edit. Unchanged centre lines keep their saved beds. */
+/** Rebuild corridors after a river edit. Unchanged lines, widths and depths keep their saved beds and banks. */
 export function refreshRiverCorridors(document: CityDocument): void {
   if (!document.terrain?.field) return;
   const field = terrainFieldForDocument(document);

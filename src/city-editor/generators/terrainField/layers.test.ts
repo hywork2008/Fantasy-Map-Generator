@@ -5,14 +5,54 @@ import { clipEscarpmentTriangles } from "../cellPlateClip";
 import { createGridDocument } from "../document";
 import { pointInPolygon, polygonCentroid } from "../geom";
 import { facePoints } from "../mesh";
+import { riverRibbonRing } from "../riverRibbonRing";
 import { gradeRoads } from "../roadGrading";
 import { cityTerrain } from "../terrainElevation";
 import { validateTerrainLayer } from "../terrainValidation";
-import { repairRiverBeds } from "./corridor";
+import { refreshRiverCorridors, repairRiverBeds } from "./corridor";
 import { editFaceElevation } from "./pads";
 import { createCliffFortressStudy, createTerraceRiverStudy } from "./study";
 
 describe("terrain layers", () => {
+  it("refreshes changed widths and depths while preserving unchanged corridors and banks", () => {
+    const document = createTerraceRiverStudy();
+    const river = document.featureGroups.find(group => group.kind === "river")!;
+    if (river.kind !== "river") throw new Error("Missing river");
+    river.style.widthMeters = 6;
+    refreshRiverCorridors(document);
+    const corridor = document.terrain!.features.find(feature => feature.kind === "riverCorridor")!;
+    if (corridor.kind !== "riverCorridor") throw new Error("Missing corridor");
+    corridor.bank = { kind: "slope", runMeters: 9 };
+    refreshRiverCorridors(document);
+    expect(document.terrain!.features.find(feature => feature.kind === "riverCorridor")).toBe(corridor);
+    expect(corridor.bank).toEqual({ kind: "slope", runMeters: 9 });
+    river.style.widthMeters = 12;
+    refreshRiverCorridors(document);
+    const next = document.terrain!.features.find(feature => feature.kind === "riverCorridor")!;
+    expect(next).not.toBe(corridor);
+    if (next.kind !== "riverCorridor") throw new Error("Missing corridor");
+    expect(next.widthsMeters.every(width => width === 12)).toBe(true);
+    expect(next.depthMeters).toBe(1.4);
+    // Wider rivers also replace the saved bed when their depth increases.
+    river.style.widthMeters = 20;
+    refreshRiverCorridors(document);
+    const deep = document.terrain!.features.find(feature => feature.kind === "riverCorridor")!;
+    if (deep.kind !== "riverCorridor") throw new Error("Missing corridor");
+    expect(deep.depthMeters).toBe(2);
+    expect(deep.bedMeters[0]).toBeCloseTo(next.bedMeters[0] - 0.6);
+  });
+
+  it("returns water at every vertex of the mitered river ribbon", () => {
+    const document = createTerraceRiverStudy();
+    const terrain = cityTerrain(document, { renderSpacing: 8 });
+    for (const corridor of document.terrain!.features) {
+      if (corridor.kind !== "riverCorridor") continue;
+      const ring = riverRibbonRing(corridor.centerline, corridor.widthsMeters[0]);
+      expect(ring).not.toBeNull();
+      for (const point of ring!) expect(terrain.waterAt!(point)).not.toBeNull();
+    }
+  });
+
   it("keeps a river descending and level across its width, under pads of different heights", () => {
     const document = createTerraceRiverStudy();
     const terrain = cityTerrain(document, { renderSpacing: 8 });
