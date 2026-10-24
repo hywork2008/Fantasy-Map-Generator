@@ -44,6 +44,17 @@ describe("seasonal livestock hay planning", () => {
     expect(plan.harvestWeights[5]).toBeGreaterThan(plan.harvestWeights[7]);
     const firstUnused = plan.harvestWeights.findIndex((weight, month) => month >= 5 && weight === 0);
     expect(plan.harvestWeights.slice(firstUnused).every(weight => weight === 0)).toBe(true);
+    // Reserves count only the scheduled cuts, so planned hay alone carries the herd to the next main cut.
+    let hay = plan.reserveAfterMonthKg[5];
+    for (let step = 1; step < 12; step++) {
+      const month = (5 + step) % 12;
+      const grown = 24000 * weights[month];
+      hay =
+        hay * (1 - HAY_STORAGE_LOSS_PER_MONTH) +
+        plan.rawHarvestKg * plan.harvestWeights[month] * HAY_DRY_MATTER_RETENTION;
+      hay -= Math.max(0, 1000 - grown);
+      expect(hay).toBeGreaterThanOrEqual(-1e-6);
+    }
     expect(plan.harvestWeights.reduce((sum, value) => sum + value, 0)).toBeCloseTo(1);
   });
 

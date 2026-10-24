@@ -50,22 +50,24 @@ export function calculateLivestockHayPlan(
     cuttable[shutUpMonth] = 0;
   }
   const available = cuttable.reduce((sum, kg) => sum + kg, 0);
-  const reserveAfterMonthKg = grown.map((_, month) => {
-    let required = 0;
-    // Without a local harvest season, keep the existing purchase buffer rather than
-    // ordering a year of permanent deficits as though a later local harvest would repay it.
-    if (available > 0) {
-      for (let ahead = 12; ahead >= 1; ahead--) {
-        const index = (month + ahead) % 12;
-        required = Math.max(
-          0,
-          (required + gaps[index] - cuttable[index] * HAY_DRY_MATTER_RETENTION) / (1 - HAY_STORAGE_LOSS_PER_MONTH)
-        );
+  const reserveFor = (inflowKg: readonly number[]) =>
+    grown.map((_, month) => {
+      let required = 0;
+      // Without a local harvest season, keep the existing purchase buffer rather than
+      // ordering a year of permanent deficits as though a later local harvest would repay it.
+      if (available > 0) {
+        for (let ahead = 12; ahead >= 1; ahead--) {
+          const index = (month + ahead) % 12;
+          required = Math.max(
+            0,
+            (required + gaps[index] - inflowKg[index] * HAY_DRY_MATTER_RETENTION) / (1 - HAY_STORAGE_LOSS_PER_MONTH)
+          );
+        }
       }
-    }
-    return Math.max(need * HAY_RESERVE_MONTHS, required);
-  });
-  const storageAllowance = reserveAfterMonthKg.reduce((sum, kg) => sum + kg * HAY_STORAGE_LOSS_PER_MONTH, 0);
+      return Math.max(need * HAY_RESERVE_MONTHS, required);
+    });
+  const sizingReserveKg = reserveFor(cuttable);
+  const storageAllowance = sizingReserveKg.reduce((sum, kg) => sum + kg * HAY_STORAGE_LOSS_PER_MONTH, 0);
   const retainedTarget = Math.max(need * HAY_RESERVE_MONTHS, seasonalGapKg) + storageAllowance;
   const rawHarvestKg = Math.min(available, retainedTarget / HAY_DRY_MATTER_RETENTION);
   const harvested = new Array<number>(12).fill(0);
@@ -80,6 +82,8 @@ export function calculateLivestockHayPlan(
     for (let month = 0; month < 12; month++)
       harvested[month] = available > 0 ? (rawHarvestKg * cuttable[month]) / available : 0;
   }
+  // The early-first schedule leaves later grass uncut, so reserves must not count it as future hay.
+  const reserveAfterMonthKg = shutUpMonth >= 0 ? reserveFor(harvested) : sizingReserveKg;
   return {
     seasonalGapKg,
     rawHarvestKg,
