@@ -25,9 +25,16 @@ export interface SkeletonPlanData {
 }
 
 /** Shared K1 preparation for complete and vector-only previews. */
-export function prepareSkeletonRun(document: CityDocument, settings: GenerationSettings, seed: string) {
-  const unsupported = skeletonUnsupportedSettings(settings);
-  if (unsupported.length) throw new Error(`Skeleton-first does not support: ${unsupported.join(", ")}`);
+export function prepareSkeletonRun(
+  document: CityDocument,
+  settings: GenerationSettings,
+  seed: string,
+  options?: { skipUnsupported?: boolean }
+) {
+  if (!options?.skipUnsupported) {
+    const unsupported = skeletonUnsupportedSettings(settings);
+    if (unsupported.length) throw new Error(`Skeleton-first does not support: ${unsupported.join(", ")}`);
+  }
   const prepared = prepareRun(document, settings, seed, false);
   const { geo, program } = prepared;
   let params = prepared.params;
@@ -50,26 +57,40 @@ export function planSkeletonCity(
   settings: GenerationSettings,
   seed: string,
   observer?: GenerationObserver,
-  attempt = 1
+  attempt = 1,
+  preset?: Skeleton
 ) {
   const mark = generationTimer(observer, attempt);
-  const { prepared, inputs } = prepareSkeletonRun(document, settings, seed);
+  const { prepared, inputs } = prepareSkeletonRun(
+    document,
+    settings,
+    seed,
+    preset ? { skipUnsupported: true } : undefined
+  );
   const { geo, program, params } = prepared;
   mark("skeletonInputs");
-  const result = planSkeleton(inputs, settings, seed);
-  for (const failure of result.failures)
-    reportGenerationFailure(
-      observer,
-      attempt,
-      "skeletonCheck",
-      failure.reason,
-      failure.message,
-      { skeletonAttempt: failure.attempt + 1 },
-      failure.details
-    );
-  if (!result.skeleton) return null;
-  const skeleton = result.skeleton;
-  mark("skeletonCheck", { skeletonAttempts: skeleton.attempt + 1 });
+  let skeleton: Skeleton;
+  if (preset) {
+    skeleton = preset;
+    mark("skeletonCheck", { skeletonAttempts: skeleton.attempt + 1 });
+  } else {
+    const result = planSkeleton(inputs, settings, seed);
+    for (const failure of result.failures)
+      reportGenerationFailure(
+        observer,
+        attempt,
+        "skeletonCheck",
+        failure.reason,
+        failure.message,
+        { skeletonAttempt: failure.attempt + 1 },
+        failure.details
+      );
+    if (!result.skeleton) return null;
+    skeleton = result.skeleton;
+    mark("skeletonCheck", { skeletonAttempts: skeleton.attempt + 1 });
+  }
+  const roadSeed = preset ? `${seed}:bastioned-town:streets` : `${seed}:skeleton:${skeleton.attempt}:roads`;
+  const wardSeed = preset ? `${seed}:bastioned-town:wards` : `${seed}:skeleton:${skeleton.attempt}:wards`;
   const conforming = buildConformingMesh(inputs, skeleton, seed);
   mark("conformingMesh", { faces: Object.keys(conforming.mesh.faces).length, ...conforming.diagnostics });
   const { mesh, lines } = conforming;
@@ -160,7 +181,7 @@ export function planSkeletonCity(
     canPlaceTownGate: p => gates.some(g => Math.hypot(p[0] - g.point[0], p[1] - g.point[1]) < 1),
     settings,
     params,
-    seed: `${seed}:skeleton:${skeleton.attempt}:roads`,
+    seed: roadSeed,
     coasts,
     appliedChannels: [],
     streetHub: () => skeleton.core.core
@@ -172,7 +193,7 @@ export function planSkeletonCity(
   const { warded, fmgElevations } = planWards({
     settings,
     sourceDocument: document,
-    seed: `${seed}:skeleton:${skeleton.attempt}:wards`,
+    seed: wardSeed,
     half: inputs.half,
     params,
     currentCells: cells,

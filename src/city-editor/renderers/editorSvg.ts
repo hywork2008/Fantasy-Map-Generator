@@ -10,6 +10,7 @@ import { waterPolygons } from "../generators/waterGeometry";
 import type { CityDocument, Tool } from "../types/document";
 import type { Id, Point } from "../types/primitives";
 import type { RenderSelection, SvgPickInfo } from "../types/selection";
+import { renderBastionedTown } from "./bastionedTownSvg";
 import { renderCastles } from "./castleLayerSvg";
 import { renderCellReliefOverlay } from "./cellElevationSvg";
 import { renderCemeteries } from "./cemeterySvg";
@@ -317,6 +318,7 @@ export function renderEditorSvg(
   }
   svg.appendChild(edges);
 
+  svg.appendChild(renderBastionedTown(document));
   svg.appendChild(renderMoats(document));
   svg.appendChild(renderCemeteries(document, selection.inspectedId));
   const features = renderFeatureLayer(ctx, svg);

@@ -79,7 +79,7 @@ export function buildPopulationControls(ctx: GenerationPanelContext) {
       const period = settings().historicalPeriod ?? settings().descriptor?.historicalPeriod ?? "lateMedieval";
       const p = planPopulation(candidate, period, ctx.documents.documentState.frame.extentMeters);
       if (
-        settings().generationMethod === "skeleton-first" ||
+        (settings().generationMethod === "skeleton-first" && !settings().townFortification) ||
         ["bram", "circulade", "classic"].includes(settings().layout ?? settings().config.layout ?? "")
       )
         throw new Error("unsupported");

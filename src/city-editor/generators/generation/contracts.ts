@@ -88,4 +88,6 @@ export interface Plan {
   mesh?: Mesh;
   faceIdOf?: string[];
   cells?: Cell[];
+  /** Present only while a bastioned fortress town is being assembled. Not saved. */
+  bastionedTown?: import("../bastionedTown/draft").BastionedTownDraft;
 }

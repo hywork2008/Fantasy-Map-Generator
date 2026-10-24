@@ -371,7 +371,8 @@ export function validateLandmarks(document: CityDocument): string[] {
   if (
     (document.landmarks?.length || document.landmarkAssets?.length) &&
     document.version !== 3 &&
-    document.version !== 4
+    document.version !== 4 &&
+    document.version !== 5
   )
     errors.push("Landmarks require document version 3 or 4");
   const assets = new Map<string, LandmarkAsset>();

@@ -35,6 +35,12 @@ export interface ConformingMeshResult {
 export function skeletonMeshLines(inputs: SkeletonInputs, skeleton: Skeleton): SkeletonMeshLine[] {
   return [
     ...(skeleton.wall ? [{ id: "wall", kind: "wall" as const, points: skeleton.wall.polygon, closed: true }] : []),
+    ...(skeleton.closedLines ?? []).map(line => ({
+      id: line.id,
+      kind: "wall" as const,
+      points: line.points,
+      closed: true
+    })),
     ...inputs.water.map((w, i) => ({ id: `water:${i}`, kind: "water" as const, points: w.polygon, closed: true })),
     ...inputs.rivers.map(r => ({
       id: `river:${r.index}`,

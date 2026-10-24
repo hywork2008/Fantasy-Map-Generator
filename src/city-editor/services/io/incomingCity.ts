@@ -65,7 +65,7 @@ export const CITY_EDITOR_SHARE_VERSION = 1;
 
 export interface CityEditorShare {
   kind: typeof CITY_EDITOR_SHARE_KIND;
-  version: 1;
+  version: 1 | 2;
   seed: string;
   grid: GridKind;
   size: CitySizePreset;
@@ -229,9 +229,10 @@ export function buildShare(input: {
   descriptor?: BurgSiteDescriptor;
 }): CityEditorShare {
   const { descriptor: _ignored, ...settings } = input.settings;
+  const fortressShare = !!input.settings.townFortification || !!input.input?.bastionedTown;
   const share: CityEditorShare = {
     kind: CITY_EDITOR_SHARE_KIND,
-    version: CITY_EDITOR_SHARE_VERSION,
+    version: fortressShare ? 2 : 1,
     seed: input.seed,
     grid: input.grid,
     size: input.size,
@@ -408,7 +409,7 @@ function asDescriptor(raw: unknown): BurgSiteDescriptor | null {
 function asShare(raw: unknown): CityEditorShare | null {
   if (!isRecord(raw)) return null;
   if (raw.kind !== CITY_EDITOR_SHARE_KIND) return null;
-  if (raw.version !== CITY_EDITOR_SHARE_VERSION) {
+  if (raw.version !== 1 && raw.version !== 2) {
     console.warn(
       `City Editor: incoming share version ${String(raw.version)} != expected ${CITY_EDITOR_SHARE_VERSION}; ignoring`
     );
@@ -421,7 +422,7 @@ function asShare(raw: unknown): CityEditorShare | null {
   if (!settings) return warnShape("share.settings");
   const share: CityEditorShare = {
     kind: CITY_EDITOR_SHARE_KIND,
-    version: CITY_EDITOR_SHARE_VERSION,
+    version: raw.version,
     seed: raw.seed,
     grid: raw.grid,
     size: raw.size,
@@ -554,6 +555,23 @@ function asSettings(raw: unknown): Omit<GenerationSettings, "descriptor"> | null
   if (raw.burialProfile !== undefined) {
     if (!isBurialCultureProfile(raw.burialProfile)) return null;
     settings.burialProfile = structuredClone(raw.burialProfile);
+  }
+  if (raw.townFortification !== undefined) {
+    const fort = raw.townFortification;
+    if (
+      !isRecord(fort) ||
+      fort.kind !== "bastioned" ||
+      (fort.outworks !== "none" && fort.outworks !== "ravelins") ||
+      (fort.ditch !== "dry" && fort.ditch !== "wet") ||
+      (fort.streetPlan !== "radial" && fort.streetPlan !== "organic")
+    )
+      return null;
+    settings.townFortification = {
+      kind: "bastioned",
+      outworks: fort.outworks,
+      ditch: fort.ditch,
+      streetPlan: fort.streetPlan
+    };
   }
   return settings;
 }

@@ -1,5 +1,6 @@
 import type { CityDocument, Point } from "../types/document";
 import { normalizeApproachBeyond } from "./approachBeyond";
+import { polygonReserved } from "./bastionedTown/reserve";
 import { cultivableParts, oceanShoreSegments } from "./coastalSuitability";
 import { nearestOnPolyline, polygonCentroid } from "./geom";
 import { facePoints } from "./mesh";
@@ -85,8 +86,13 @@ function cultivateCountryside(document: CityDocument): void {
       face.properties.settlement === "core"
     )
       continue;
-    if (face.properties.ward && face.properties.ward !== "empty" && face.properties.ward !== "farm") continue;
     const polygon = facePoints(document.mesh, face);
+    if (polygonReserved(document.bastionedTown, polygon)) {
+      face.properties.buildable = false;
+      if (face.properties.ward === "farm" || face.properties.ward === "park") face.properties.ward = "empty";
+      continue;
+    }
+    if (face.properties.ward && face.properties.ward !== "empty" && face.properties.ward !== "farm") continue;
     const center = polygonCentroid(polygon);
     if (budget === 0 || Math.hypot(...center) > reach || !cultivableParts(polygon, shore).length) {
       if (face.properties.ward === "farm") face.properties.ward = "empty";

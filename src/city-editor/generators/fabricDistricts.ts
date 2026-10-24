@@ -277,11 +277,18 @@ export function validFabricPlan(plan: FabricPlan): boolean {
   const g = plan.generation,
     config = g.settings?.config;
   return (
-    ["evolution-city-v3", "castle-city-v1", "skeleton-city-v1", "fort-v1"].includes(g.algorithm) &&
+    ["evolution-city-v3", "castle-city-v1", "skeleton-city-v1", "fort-v1", "bastioned-city-v1"].includes(g.algorithm) &&
     (g.settings?.mode === undefined || ["city", "fort"].includes(g.settings.mode)) &&
     (g.settings?.generationMethod === undefined ||
       ["mesh-first", "skeleton-first"].includes(g.settings.generationMethod)) &&
     (g.algorithm !== "skeleton-city-v1" || g.settings.generationMethod === "skeleton-first") &&
+    (g.algorithm !== "bastioned-city-v1" ||
+      (g.settings.generationMethod === "skeleton-first" &&
+        g.settings.townFortification?.kind === "bastioned" &&
+        g.settings.wallShape === "bastioned" &&
+        g.settings.walledAreaShare === 1 &&
+        (g.settings.wallSides === undefined ||
+          (Number.isInteger(g.settings.wallSides) && g.settings.wallSides >= 5 && g.settings.wallSides <= 9)))) &&
     (g.settings?.wallShape === undefined ||
       ["auto", "organic", "round", "oval", "square", "polygon", "bastioned"].includes(g.settings.wallShape)) &&
     (g.settings?.wallSides === undefined ||

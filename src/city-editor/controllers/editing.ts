@@ -1,4 +1,5 @@
 import { editorText } from "../../i18n/editorMessages";
+import { bastionedEditRejection } from "../generators/bastionedTown/edit";
 import { refreshCastleLayouts } from "../generators/castleLayout";
 import { sizePresetForExtent } from "../generators/document";
 import { validateFortifications } from "../generators/fortifications";
@@ -50,6 +51,10 @@ export function createEditingController(ctx: EditingContext) {
       ctx.showNotice(editorText("cityEditor.messages.thisEditCannotPreserveCastleIntegrityCheckTheCastleArea"));
       return;
     }
+    if (bastionedEditRejection(ctx.documents.documentState, next)) {
+      ctx.showNotice(editorText("cityEditor.messages.bastionedEditRejected"));
+      return;
+    }
     // Any real edit invalidates a Grid-evolution preview built against the old
     // mesh/frame — dismiss it rather than leave a stale overlay on screen.
     ctx.clearGridEvo();
@@ -57,6 +62,7 @@ export function createEditingController(ctx: EditingContext) {
     ctx.rememberFailureGenerationState();
     ctx.rebuildEditorIndexes();
     ctx.refresh();
+    ctx.syncGenerateControls();
   }
   function restore(next: CityDocument | null): void {
     if (!next) return;

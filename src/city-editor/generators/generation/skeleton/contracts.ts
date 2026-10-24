@@ -116,6 +116,8 @@ export interface Skeleton {
   routes: SkeletonRoute[];
   gates: SkeletonGate[];
   bridges: SkeletonBridge[];
+  /** Extra closed lines cut into the mesh. Omitted by ordinary skeletons. */
+  closedLines?: { id: string; points: Point[] }[];
 }
 
 export type SkeletonFailureReason =

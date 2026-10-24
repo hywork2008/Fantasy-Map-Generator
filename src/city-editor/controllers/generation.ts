@@ -262,9 +262,12 @@ export function createGenerationController(ctx: GenerationContext) {
             value0: roadIssues.map(issue => issue.routeId).join(", ")
           })
         : "";
+      const fortressFailure = [...ctx.generation.generationSamples]
+        .reverse()
+        .find(sample => sample.failure?.reason?.startsWith("fortress-"))?.failure;
       ctx.generationProgress.textContent = next
         ? roadWarning || editorText("cityEditor.messages.generationComplete")
-        : editorText("cityEditor.messages.cityGenerationFailed");
+        : fortressFailure?.message || editorText("cityEditor.messages.cityGenerationFailed");
       ctx.root.dispatchEvent(
         new CustomEvent("city-generation-diagnostics", { detail: ctx.generation.generationSamples.slice() })
       );
@@ -294,7 +297,7 @@ export function createGenerationController(ctx: GenerationContext) {
           );
         }
         ctx.generation.pendingFailurePreview = null;
-        ctx.showNotice(editorText("cityEditor.messages.cityGenerationFailed"));
+        ctx.showNotice(fortressFailure?.message || editorText("cityEditor.messages.cityGenerationFailed"));
         return;
       }
       ctx.generation.pendingFailurePreview = null;
@@ -351,6 +354,7 @@ export function createGenerationController(ctx: GenerationContext) {
       ctx.rebuildEditorIndexes();
       ctx.resetCity3dCamera?.();
       ctx.refresh();
+      ctx.syncSkeletonControls?.();
       // Double walls fall back to one curtain when the mesh has no room for an old
       // town (docs/plan/ce-multi-ring-walls.md §5); say why instead of staying silent.
       const doubleFallback =

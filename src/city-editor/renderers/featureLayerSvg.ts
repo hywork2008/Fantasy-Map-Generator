@@ -1,5 +1,6 @@
 import { editorText } from "../../i18n/editorMessages";
 import { riverConnectionFacts } from "../generators/approachFacts";
+import { fortressOwnsTownWall } from "../generators/bastionedTown/reserve";
 import { riverRibbons, roadRunsOutsideRivers } from "../generators/bridgeDeck";
 import { clipPolylineToExterior, outerWallRing } from "../generators/concealStreets";
 import { wallRunsOutsideGates } from "../generators/fortifications";
@@ -108,7 +109,9 @@ export function renderFeatureLayer(ctx: RenderContext, svg: SVGSVGElement): SVGG
       }
       if (
         group.kind === "wall" &&
-        (isNewStyleCastleWall(document, group.id) || modularFortressOwnsWall(document, group.id))
+        (isNewStyleCastleWall(document, group.id) ||
+          modularFortressOwnsWall(document, group.id) ||
+          fortressOwnsTownWall(document, group.id))
       ) {
         continue;
       }

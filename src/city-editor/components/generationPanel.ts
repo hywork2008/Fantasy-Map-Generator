@@ -3,6 +3,8 @@ import { inferredWallSettings, supportsUrbanMorphology } from "../../utils/urban
 import { GENERATION_STAGES, generationStages } from "../controllers/generationStages";
 import type { PanelEventsContext } from "../controllers/panelEvents";
 import { bindPanelEvents } from "../controllers/panelEvents";
+import { removeBastionedTown } from "../generators/bastionedTown/edit";
+import { bastionedTownSettingConflicts, fortressSettingsMessage } from "../generators/bastionedTown/validate";
 import { inheritBuildingAppearance } from "../generators/buildingAppearance";
 import { clearGenerationPreviewCache } from "../generators/generation/previews";
 import { bastionEra, skeletonUnsupportedSettings } from "../generators/generation/settings";
@@ -618,8 +620,49 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
   sidesInput.className = "ce-wall-sides";
   const shapeLabel = ctx.label(editorText("cityEditor.messages.skeletonWallShape"), shapeSelect);
   const sidesLabel = ctx.label(editorText("cityEditor.messages.skeletonWallSides"), sidesInput);
+  const fortSelect = ctx.select(
+    ["ordinary", "bastioned"],
+    ctx.generation.generateSettings.townFortification ? "bastioned" : "ordinary"
+  );
+  fortSelect.className = "ce-town-fortification";
+  fortSelect.options[0].textContent = editorText("cityEditor.messages.townFortificationOrdinary");
+  fortSelect.options[1].textContent = editorText("cityEditor.messages.townFortificationBastioned");
+  const outworksSelect = ctx.select(
+    ["none", "ravelins"],
+    ctx.generation.generateSettings.townFortification?.outworks ?? "ravelins"
+  );
+  outworksSelect.className = "ce-fortress-outworks";
+  outworksSelect.options[0].textContent = editorText("cityEditor.messages.townFortificationOutworksNone");
+  outworksSelect.options[1].textContent = editorText("cityEditor.messages.townFortificationOutworksRavelins");
+  const ditchSelect = ctx.select(["dry", "wet"], ctx.generation.generateSettings.townFortification?.ditch ?? "dry");
+  ditchSelect.className = "ce-fortress-ditch";
+  ditchSelect.options[0].textContent = editorText("cityEditor.messages.townFortificationDitchDry");
+  ditchSelect.options[1].textContent = editorText("cityEditor.messages.townFortificationDitchWet");
+  const streetsSelect = ctx.select(
+    ["radial", "organic"],
+    ctx.generation.generateSettings.townFortification?.streetPlan ?? "radial"
+  );
+  streetsSelect.className = "ce-fortress-streets";
+  streetsSelect.options[0].textContent = editorText("cityEditor.messages.townFortificationStreetsRadial");
+  streetsSelect.options[1].textContent = editorText("cityEditor.messages.townFortificationStreetsOrganic");
+  const outworksLabel = ctx.label(editorText("cityEditor.messages.townFortificationOutworks"), outworksSelect);
+  const ditchLabel = ctx.label(editorText("cityEditor.messages.townFortificationDitch"), ditchSelect);
+  const streetsLabel = ctx.label(editorText("cityEditor.messages.townFortificationStreets"), streetsSelect);
+  const fortressNotice = div("ce-fortress-notice");
+  const removeFortressButton = ctx.makeButton(editorText("cityEditor.messages.removeBastionedTown"), () => {
+    const city = ctx.documents.documentState;
+    if (!city.bastionedTown) return;
+    ctx.panelEventContext().commit(removeBastionedTown(city), editorText("cityEditor.messages.bastionedTownRemoved"));
+  });
+  removeFortressButton.classList.add("ce-remove-bastioned-town");
   skeletonControls.append(
     ctx.label(editorText("cityEditor.messages.generationMethod"), methodSelect),
+    ctx.label(editorText("cityEditor.messages.townFortification"), fortSelect),
+    outworksLabel,
+    ditchLabel,
+    streetsLabel,
+    fortressNotice,
+    removeFortressButton,
     shapeLabel,
     sidesLabel
   );
@@ -645,10 +688,28 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
     populationControls.sync();
     const settings = ctx.generation.generateSettings;
     const active = settings.generationMethod === "skeleton-first";
+    const fortress = !!settings.townFortification;
     methodSelect.value = settings.generationMethod ?? "mesh-first";
     shapeSelect.value = settings.wallShape ?? "auto";
     sidesInput.value = String(settings.wallSides ?? "");
-    const unsupported = skeletonUnsupportedSettings({ ...settings, generationMethod: "skeleton-first" });
+    fortSelect.value = fortress ? "bastioned" : "ordinary";
+    outworksLabel.hidden = !fortress;
+    ditchLabel.hidden = !fortress;
+    streetsLabel.hidden = !fortress;
+    if (fortress && settings.townFortification) {
+      outworksSelect.value = settings.townFortification.outworks;
+      ditchSelect.value = settings.townFortification.ditch;
+      streetsSelect.value = settings.townFortification.streetPlan;
+    }
+    const conflicts = bastionedTownSettingConflicts(settings);
+    fortressNotice.hidden = !conflicts;
+    fortressNotice.textContent = conflicts ? fortressSettingsMessage(conflicts) : "";
+    removeFortressButton.hidden = !ctx.documents.documentState.bastionedTown;
+    sidesInput.min = fortress ? "5" : "3";
+    sidesInput.max = fortress ? "9" : "12";
+    const unsupported = fortress
+      ? []
+      : skeletonUnsupportedSettings({ ...settings, generationMethod: "skeleton-first" });
     methodSelect.options[1].disabled = !active && unsupported.length > 0;
     methodSelect.options[1].title = unsupported.length
       ? editorText("cityEditor.messages.skeletonUnsupported", { features: unsupported.join(", ") })
@@ -661,7 +722,8 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
     sidesLabel.hidden = !active || !["polygon", "bastioned"].includes(shapeSelect.value);
     if (active && settings.townWallRings !== "double") townWallRingsSelect.value = "single";
     if (active && settings.urbanCoreMode === undefined) urbanCoreModeSelect.value = "compact";
-    unavailable(featureInputs.get("citadel")!, active);
+    unavailable(featureInputs.get("citadel")!, active && !fortress);
+    layoutSelect.disabled = fortress;
     for (const option of layoutSelect.options) {
       option.disabled = active && ["bram", "circulade"].includes(option.value);
       option.title = option.disabled ? editorText("cityEditor.messages.skeletonLater") : "";
@@ -710,13 +772,47 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
   });
   ctx.panelEventContext().scope.listen(sidesInput, "change", () => {
     const value = Number(sidesInput.value);
-    if (sidesInput.value && (!Number.isInteger(value) || value < 3 || value > 12)) {
+    const fortress = !!ctx.generation.generateSettings.townFortification;
+    const min = fortress ? 5 : 3;
+    const max = fortress ? 9 : 12;
+    if (sidesInput.value && (!Number.isInteger(value) || value < min || value > max)) {
       syncSkeletonControls();
       return;
     }
     ctx.generation.generateSettings.wallSides = sidesInput.value ? value : undefined;
     invalidateSkeletonSelection();
   });
+  const rememberFortress = () => {
+    const current = ctx.generation.generateSettings.townFortification;
+    if (!current) return;
+    current.outworks = outworksSelect.value === "none" ? "none" : "ravelins";
+    current.ditch = ditchSelect.value === "wet" ? "wet" : "dry";
+    current.streetPlan = streetsSelect.value === "organic" ? "organic" : "radial";
+    if (current.streetPlan === "radial") delete ctx.generation.generateSettings.layout;
+    else ctx.generation.generateSettings.layout = "organic";
+    invalidateSkeletonSelection();
+  };
+  ctx.panelEventContext().scope.listen(fortSelect, "change", () => {
+    const settings = ctx.generation.generateSettings;
+    if (fortSelect.value === "ordinary") delete settings.townFortification;
+    else {
+      settings.townFortification = { kind: "bastioned", outworks: "ravelins", ditch: "dry", streetPlan: "radial" };
+      settings.generationMethod = "skeleton-first";
+      settings.wallShape = "bastioned";
+      settings.walledAreaShare = 1;
+      settings.config.features.walls = true;
+      delete settings.layout;
+      const walls = featureInputs.get("walls");
+      if (walls) walls.checked = true;
+      walledShareInput.value = "100";
+      methodSelect.value = "skeleton-first";
+      shapeSelect.value = "bastioned";
+    }
+    invalidateSkeletonSelection();
+  });
+  ctx.panelEventContext().scope.listen(outworksSelect, "change", rememberFortress);
+  ctx.panelEventContext().scope.listen(ditchSelect, "change", rememberFortress);
+  ctx.panelEventContext().scope.listen(streetsSelect, "change", rememberFortress);
   return {
     appearanceControls,
     populationControls: populationControls.panel,

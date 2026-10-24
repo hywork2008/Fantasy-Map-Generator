@@ -1197,7 +1197,7 @@ export function buildAerialLandmarkPlan(
   const root = `${document.fabric?.seed ?? document.generationSeed ?? "aerial"}:${seed}`;
   // Large fixed works first (the gate outworks and river trades), then free-standing pieces.
   // Guild yards claim land before the tannery, so a bleaching field stays upstream of it.
-  const barbicans = placeBarbicans(site, makeRng(`${root}:barbican`));
+  const barbicans = document.bastionedTown ? [] : placeBarbicans(site, makeRng(`${root}:barbican`));
   site.setBarbicans(barbicans);
   const guildWorks = placeGuildWorks(site, worksPlan, economy?.year ?? 0);
   const tanneries = placeTanneries(

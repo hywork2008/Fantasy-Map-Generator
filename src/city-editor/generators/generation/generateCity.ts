@@ -6,6 +6,14 @@ import type { GenerationSample } from "../../types/contracts/generationDiagnosti
 import type { CityDocument, Point } from "../../types/document";
 import type { GenerationSettings } from "../../types/generation";
 import { tagExternalGateRoads } from "../approachBeyond";
+import { applyBastionedTown, lockBastionedRoads } from "../bastionedTown/apply";
+import { planBastionedCity } from "../bastionedTown/plan";
+import { markReservedFaces } from "../bastionedTown/reserve";
+import {
+  bastionedTownSettingConflicts,
+  fortressFailureMessage,
+  fortressSettingsMessage
+} from "../bastionedTown/validate";
 import { buildBlockFabric } from "../blockInfill";
 import { withBuildingAppearance } from "../buildingAppearance";
 import { terrainHeight } from "../castlePlacement";
@@ -104,6 +112,13 @@ export function generateCityOnDocument(
   profiler?: ProcessingProfiler,
   stopAfter?: "streets" | "innerWall" | "innerGates" | "firstInnerGates"
 ): CityDocument | null {
+  if (settings.townFortification) {
+    const conflicts = bastionedTownSettingConflicts(settings);
+    if (conflicts) {
+      reportGenerationFailure(observer, 1, "prepare", "fortress-settings", fortressSettingsMessage(conflicts));
+      return null;
+    }
+  }
   if (settings.mode === "fort") return generateFortOnDocument(document, settings, seed);
   try {
     ({ document, settings } = measureProcessing(profiler, "population-prepare", () =>
@@ -127,7 +142,8 @@ export function generateCityOnDocument(
   // (no fabric), so a roll from that recipe input gets the same key.
   const keyOfInput = () => (inputKey ??= generationInputKey({ ...document, fabric: undefined }, settings));
   const skeletonFirst = resolveGenerationMethod(settings) === "skeleton-first";
-  const unsupported = skeletonUnsupportedSettings(settings);
+  const fortress = !!settings.townFortification;
+  const unsupported = fortress ? [] : skeletonUnsupportedSettings(settings);
   if (unsupported.length) {
     reportGenerationFailure(
       observer,
@@ -199,7 +215,7 @@ export function generateCityOnDocument(
     !onRejected &&
     Number.isSafeInteger(retry.attempt) &&
     retry.attempt > 0 &&
-    retry.attempt < COMPLETE_CITY_ATTEMPTS &&
+    retry.attempt < (settings.townFortification ? 1 : COMPLETE_CITY_ATTEMPTS) &&
     retry.seed === `${seed}:junction-retry:${retry.attempt}` &&
     retry.inputKey === keyOfInput()
       ? retry
@@ -220,7 +236,8 @@ export function generateCityOnDocument(
     singleWallFallback = resume.singleWallFallback;
     attemptSettings = retrySettings();
   }
-  for (let attempt = resume?.attempt ?? 0; attempt < COMPLETE_CITY_ATTEMPTS; attempt++) {
+  const attemptLimit = settings.townFortification ? 1 : COMPLETE_CITY_ATTEMPTS;
+  for (let attempt = resume?.attempt ?? 0; attempt < attemptLimit; attempt++) {
     const attemptSeed = attempt ? `${seed}:junction-retry:${attempt}` : seed;
     const failed = failures.length;
     const result = measureProcessing(profiler, `attempt-${attempt + 1}`, () =>
@@ -276,6 +293,7 @@ export function generateCityOnDocument(
       if (typeof prevailingWindDeg === "number" && Number.isFinite(prevailingWindDeg))
         result.prevailingWindDeg = prevailingWindDeg;
       result.generationSeed = attemptSeed;
+      if (result.bastionedTown) result.version = 5;
       if (singleWallFallback)
         result.townWallGeneration = {
           requestedOrder: settings.townWallBuildOrder ?? "outer-first",
@@ -293,15 +311,17 @@ export function generateCityOnDocument(
         delete input.fabric;
         delete input.ruralFieldSnapshot;
         result.fabric.generation = {
-          algorithm: skeletonFirst
-            ? "skeleton-city-v1"
-            : settings.legacyCastles
-              ? "evolution-city-v3"
-              : "castle-city-v1",
+          algorithm: result.bastionedTown
+            ? "bastioned-city-v1"
+            : skeletonFirst
+              ? "skeleton-city-v1"
+              : settings.legacyCastles
+                ? "evolution-city-v3"
+                : "castle-city-v1",
           seed: attemptSeed,
           settings: {
             ...measureProcessing(profiler, "recipe-settings-clone", () => structuredClone(attemptSettings)),
-            layout: result.layout,
+            layout: result.bastionedTown ? attemptSettings.layout : result.layout,
             ...(skeletonFirst
               ? { generationMethod: "skeleton-first" as const, wallShape: attemptSettings.wallShape ?? "auto" }
               : {}),
@@ -392,6 +412,23 @@ export function generateCityOnDocument(
         measureProcessing(profiler, "population-housing", () =>
           fitPopulationHousing(result, fabricCache, sample => observe({ ...sample, attempt: attempt + 1 }))
         );
+      if (
+        settings.townFortification &&
+        result.populationReport &&
+        (result.populationReport.unplacedPopulation > 0 ||
+          (attemptSettings.population !== undefined &&
+            !!result.populationPlan &&
+            result.populationPlan.settings.targetPopulation < attemptSettings.population.targetPopulation))
+      ) {
+        reportGenerationFailure(
+          observe,
+          attempt + 1,
+          "bastioned-town",
+          "fortress-housing-shortfall",
+          fortressFailureMessage("fortress-housing-shortfall")
+        );
+        return null;
+      }
       if (skeletonFirst) {
         const errors = measureProcessing(profiler, "validate", () => validate(result));
         if (errors.length) {
@@ -428,7 +465,7 @@ export function generateCityOnDocument(
         });
       return measureProcessing(profiler, "farmland", () => generateRuralFieldStage(result, { createLotPads: true }));
     }
-    if (onRejected) return null;
+    if (onRejected || settings.townFortification) return null;
     // A castle can leave the gate streets no way past it while the face
     // graph still links them (Breistattlin), or cut an FMG road off from the
     // town (Dossiepoy, Courvilliers). Every attempt would site it again, so
@@ -451,11 +488,11 @@ export function generateCityOnDocument(
   observe({
     phase: "complete",
     elapsedMs: 0,
-    attempt: COMPLETE_CITY_ATTEMPTS,
-    counts: { attempts: COMPLETE_CITY_ATTEMPTS, rejected: failures.length },
+    attempt: attemptLimit,
+    counts: { attempts: attemptLimit, rejected: failures.length },
     failure: {
       reason: "all-attempts-rejected",
-      message: editorText("cityEditor.messages.allCandidatesWereRejected", { value0: COMPLETE_CITY_ATTEMPTS }),
+      message: editorText("cityEditor.messages.allCandidatesWereRejected", { value0: attemptLimit }),
       details: failures.map(sample =>
         editorText("cityEditor.messages.candidate", {
           value0: sample.attempt,
@@ -535,7 +572,12 @@ export function generateCityAttempt(
     return null;
   };
   const skeletonFirst = resolveGenerationMethod(settings) === "skeleton-first";
-  const unsupported = skeletonUnsupportedSettings(settings);
+  const fortress = !!settings.townFortification;
+  if (fortress) {
+    const conflicts = bastionedTownSettingConflicts(settings);
+    if (conflicts) return reject("prepare", "fortress-settings", fortressSettingsMessage(conflicts));
+  }
+  const unsupported = fortress ? [] : skeletonUnsupportedSettings(settings);
   if (unsupported.length)
     return reject(
       "prepare",
@@ -554,7 +596,9 @@ export function generateCityAttempt(
   if (skeletonFirst) {
     try {
       skeletonRun = measureProcessing(profiler, "skeleton-plan", () =>
-        planSkeletonCity(document, settings, seed, observer, attempt)
+        fortress
+          ? planBastionedCity(document, settings, seed, observer, attempt)
+          : planSkeletonCity(document, settings, seed, observer, attempt)
       );
     } catch (error) {
       return reject("conformingMesh", "invalid-mesh", String(error));
@@ -787,6 +831,7 @@ export function generateCityAttempt(
     });
   }
   if (stopAfter) return next;
+  if (plan.bastionedTown) lockBastionedRoads(next, true);
   const coarse = document.gridKind === "evolution";
   const hexagonal = !coarse && isHexagonalDocument(document);
   const routed =
@@ -845,13 +890,25 @@ export function generateCityAttempt(
         )
       : straightenGateCrossings(retractProtrudingGates(straightenBridges(connected)))
   );
-  const settled = skeletonFirst
+  let settled = skeletonFirst
     ? crossingSettled
     : measureProcessing(
         profiler,
         "thin-road-cells",
         () => consolidateThinRoadCells(crossingSettled, new Set(roads.map((_, i) => `${GEN_PREFIX}road-${i}`))).document
       );
+  if (plan.bastionedTown) {
+    const applied = applyBastionedTown(settled, plan.bastionedTown);
+    if (!("document" in applied))
+      return reject(
+        "bastioned-town",
+        applied.reason,
+        fortressFailureMessage(applied.reason),
+        undefined,
+        applied.details
+      );
+    settled = applied.document;
+  }
   debugDocument = () => settled;
   measureProcessing(profiler, "temple", () => settleTempleOnDocument(settled));
   if (
@@ -1002,6 +1059,7 @@ export function generateCityAttempt(
   settled.ruralFieldVersion = 2;
   delete settled.ruralFieldSnapshot;
   measureProcessing(profiler, "rural-land", () => cultivateRoadside(settled));
+  if (settled.bastionedTown) markReservedFaces(settled);
   measureProcessing(profiler, "cemetery-sync", () => syncDocumentCemeteries(settled));
   measureProcessing(profiler, "cemetery-layouts", () => refreshCemeteryLayouts(settled));
   measureProcessing(profiler, "cemetery-relocation", () =>

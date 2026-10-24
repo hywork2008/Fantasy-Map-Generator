@@ -113,6 +113,19 @@ export interface GenerationSettings {
   wallShape?: WallShapeChoice;
   /** skeleton-first `polygon` wall: number of sides. Unset = chosen from the seed (5–8). */
   wallSides?: number;
+  /**
+   * Bastioned fortress town. Unset keeps the ordinary town curtain, including a
+   * skeleton `wallShape: "bastioned"` outline. Independent of castle style.
+   */
+  townFortification?: BastionedTownSettings;
+}
+
+/** Town-wide bastioned defense. Not a citadel style and not a second town wall ring. */
+export interface BastionedTownSettings {
+  kind: "bastioned";
+  outworks: "none" | "ravelins";
+  ditch: "dry" | "wet";
+  streetPlan: "radial" | "organic";
 }
 
 /** What the attempt loop had changed when it accepted attempt `attempt` (0 = first). */

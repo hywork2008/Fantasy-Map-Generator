@@ -1058,27 +1058,26 @@ export function validate(document: CityDocument): string[] {
   return probed("validate", () => validateUnprobed(document));
 }
 
+function skeletonSliverTolerance(document: CityDocument): boolean {
+  const algorithm = document.fabric?.generation?.algorithm;
+  return algorithm === "skeleton-city-v1" || algorithm === "bastioned-city-v1" || !!document.bastionedTown;
+}
+
 function validateUnprobed(document: CityDocument): string[] {
   const errors: string[] = [...validateFortSite(document), ...validateTerrainLayer(document)];
   const { mesh } = document;
   const hasEdge = (a: Id, b: Id): boolean => edgeBetween(mesh, a, b) !== null;
+  const sliver = skeletonSliverTolerance(document);
   for (const edge of Object.values(mesh.edges)) {
     if (!mesh.vertices[edge.a] || !mesh.vertices[edge.b]) errors.push(`Missing endpoint on ${edge.id}`);
-    else if (
-      distance(mesh.vertices[edge.a].point, mesh.vertices[edge.b].point) <
-      (document.fabric?.generation?.algorithm === "skeleton-city-v1" ? 1e-5 : 1)
-    )
+    else if (distance(mesh.vertices[edge.a].point, mesh.vertices[edge.b].point) < (sliver ? 1e-5 : 1))
       errors.push(`Edge ${edge.id} is too short`);
   }
   for (const face of Object.values(mesh.faces)) {
     const points = facePoints(mesh, face);
     if (face.properties.depth !== undefined && (!Number.isFinite(face.properties.depth) || face.properties.depth < 0))
       errors.push(`Face ${face.id} has invalid depth`);
-    if (
-      points.length < 3 ||
-      Math.abs(area(points)) <
-        (document.fabric?.generation?.algorithm === "skeleton-city-v1" && !face.properties.buildable ? 1e-8 : 1)
-    )
+    if (points.length < 3 || Math.abs(area(points)) < (sliver && !face.properties.buildable ? 1e-8 : 1))
       errors.push(`Face ${face.id} has no area`);
   }
   for (const group of document.featureGroups) {
