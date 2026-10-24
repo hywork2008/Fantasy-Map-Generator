@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createGridDocument } from "../document";
 import { polygonCentroid } from "../geom";
 import { facePoints } from "../mesh";
 import { cityTerrain } from "../terrainElevation";
+import * as terrainModel from "../terrainModel";
 import {
   buildTerrainFieldRecipe,
   clearTerrainFieldCache,
@@ -19,6 +20,31 @@ import { createCliffFortressStudy } from "./study";
 import { templateParts } from "./templates";
 
 describe("terrain field", () => {
+  it("defers draw triangles through field height, slope, foundation and grid queries", () => {
+    const document = createCliffFortressStudy();
+    const split = vi.spyOn(terrainModel, "terrainFeatureCreases");
+    try {
+      const terrain = cityTerrain(document, { renderSpacing: 8 });
+      const ring: [number, number][] = [
+        [-20, -20],
+        [-10, -20],
+        [-10, -10],
+        [-20, -10]
+      ];
+      expect(Number.isFinite(terrain.heightAt([0, 0]))).toBe(true);
+      expect(Number.isFinite(terrain.slopeAt!([0, 0]))).toBe(true);
+      expect(Number.isFinite(terrain.foundationAt(ring))).toBe(true);
+      expect(terrain.grid!.elevationsMeters.length).toBeGreaterThan(0);
+      expect(split).not.toHaveBeenCalled();
+      const triangles = terrain.triangles;
+      expect(triangles.length).toBeGreaterThan(0);
+      expect(terrain.triangles).toBe(triangles);
+      expect(split).toHaveBeenCalledTimes(1);
+    } finally {
+      split.mockRestore();
+    }
+  });
+
   it("bilinear-samples the lattice and repeats the edge outside it", () => {
     const grid = { origin: [0, 0] as [number, number], sampleMeters: 10, columns: 2, rows: 2 };
     expect(sampleGrid(grid, [0, 10, 20, 40], [5, 5])).toBeCloseTo(17.5, 5);

@@ -1,6 +1,41 @@
 # CE elevation / Height field 性能調査
 
-調査日: 2026-10-24。対象: `4c3ee77b1`。今回は調査・計測スクリプトの追加のみで、生成・描画の実装は変更していない。
+調査日: 2026-10-24。初回調査対象: `4c3ee77b1`。同日の追加チューニング結果を以下に記す。「結論」以降の初回調査値は比較用に残す。
+
+## 追加チューニング結果（2026-10-24）
+
+固定seedの600 m Crag都市（644 pad）で、生成全体は **6,803 ms → 910 ms（約87%減）**、農地適性の単独問い合わせは **5,963 ms → 21 ms**、地面チャンク構築は **1,887 ms → 66 ms（約97%減）** となった。これらは別々の呼出しの時間であり、合計しない。
+
+| 処理 (ms、最初の診断) | 変更前 | 変更後 |
+| --- | ---: | ---: |
+| 生成全体（入力グリッド作成を含む） | 6,803.3 | 910.3 |
+| 地形モデル＋描画三角形 | 6,035.8 | 1,333.3 |
+| うちモデルのみ | 分離前 | 39.6 |
+| うち描画三角形の初回取得 | 分離前 | 1,293.7 |
+| 描画格子 | 458.4 | 13.6 |
+| 実傾斜チャンク | 1,886.7 | 65.9 |
+| ruralSuitability（独立したモデル再構築込み） | 5,963.1 | 20.8 |
+
+変更後の後半2回は三角形1,152–1,229 ms、格子約15 ms、チャンク64–70 ms。CPU・GCによるばらつきがある。生成自体は各条件1回なので、統計的なp95やあらゆる都市の改善率は主張しない。
+
+実装した内容:
+
+1. `CityTerrain.triangles` とその `PatchIndex` を初回参照時に生成して保持する。fieldの高さ・傾斜・基礎・農地判定では描画用三角形を作らない。セル標高の基礎判定や3Dの壁描画では、これまでと同じ三角形を取得する。
+2. 解決済みplatformを32 mの空間バケットに格納し、高さ・崖・道路レベル・基礎の判定を近傍に限定。バケット内でも元のfeature順を維持し、後のpad優先・castle優先を保持する。川とringCutは従来どおり全体評価し、巨大platformはバケット数に上限を設けて全体候補にする。モデルごとに作るため、編集間のキャッシュ無効化は増やさない。
+3. 種三角形に近いcreaseだけを既存 `PlotIndex` で取得し、元の順でクリップする。
+4. 各creaseの両側へのクリップを `splitPolygonHalfPlane` の1回の頂点走査にまとめる。許容誤差・頂点順・短辺の整理は従来と同じ。
+5. 計測スクリプトに `patchesMs` を追加。遅延化後も三角形生成費用を隠さず、`modelMs + patchesMs` を変更前のモデル時間と比較する。
+
+検証結果:
+
+- 生成文書全体のSHA-256は変更前後で完全一致（建物・農地・padを含む）。
+- 同じ生成文書と、cliff / riverの2つのstudy（studyには実際の道路リボンを渡した）で、5.25 m間隔の高さ・傾斜・歩行面・水面・4 m角の基礎高さを比較。三角形の座標・高さ・崖フラグ・順序、描画格子、チャンクの座標・頂点色・index、道路造成結果もそれぞれSHA-256が完全一致。生成都市の局所三角形数は75,233枚のまま。
+- Vitest: geom、terrainModel、terrainField、terrainEditing、terracePlanning、fortSiteGeometry、ruralFields、terrainMassing、waterMeshesの **10ファイル・66件成功**。追加テストは遅延生成の境界、空間候補による合成結果の保持、同時クリップの互換性を検証する。
+- Biome: 変更した7つのTypeScriptファイルで成功。
+- `npx tsc --noEmit -p .`: `generation/planning/defenses.ts:234` で、`Pick<GenerationSettings, ...>` に含まれない `population` を読む型エラーが1件。今回の変更ファイルをGit HEADの内容として読むTypeScript compiler hostでも同じ1件のみが出ることを確認した。既存不整合として本改修には含めていない。
+- 生データ・一致確認のハッシュ: [ce-terrain-tuning-2026-10-24.json](../../diagnostics/ce-terrain-tuning-2026-10-24.json)。
+
+spacing・高さ・細分化精度・傾斜サンプルは変更していない。傾斜のキャッシュは今回は追加せず、不要な三角形生成と全走査の削減を優先した。なお、3Dで初めて必要になる境界三角形の生成は約1.2秒残る。道路造成を含む大都市のブラウザ総時間・GPUフレーム時間は別途測定が必要。
 
 ## 結論
 
@@ -124,4 +159,4 @@ node --cpu-prof --cpu-prof-dir=temp --import tsx scripts/profileCeTerrain.ts --d
 - 農地・建物数と配置・川水面・橋余裕・壁と地面の境界を維持。橋の角度判定は `bridgeSkewPolicy.ts` に従う。
 - 関連テストのみ実行し、ブラウザで3Dの岩色・擁壁・道路造成・水面を確認。描画精度変更時だけ継ぎ目誤差も比較する。
 - 本調査時: `npx vitest run src/city-editor/generators/terrainField/field.test.ts src/city-editor/generators/terrainField/layers.test.ts src/city-editor/generators/ruralFields.test.ts` → 3ファイル / 29件成功。
-- スクリプトはstudy 0 / 64 / 256 pad、通常生成なし / Crag、保存文書読込、CPUプロファイルで実行確認済み。性能改善の実装・ブラウザGPU検証はまだ行っていない。
+- 初回調査のスクリプトはstudy 0 / 64 / 256 pad、通常生成なし / Crag、保存文書読込、CPUプロファイルで実行確認済み。その後の性能改善の実装は冒頭の追加チューニング結果を参照。ブラウザGPU検証は未実施。

@@ -498,6 +498,34 @@ export function clipPolygonHalfPlane(poly: Point[], origin: Point, normal: Point
   return cleanRing(out);
 }
 
+function halfPlaneIntersection(a: Point, b: Point, da: number, db: number): Point {
+  const t = Math.abs(da - db) < 1e-12 ? 0.5 : da / (da - db);
+  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+}
+
+/** Both half-plane clips in one traversal, with the same tolerance and ring order as separate clips. */
+export function splitPolygonHalfPlane(poly: Point[], origin: Point, normal: Point): [Point[], Point[]] {
+  if (poly.length < 3) return [[], []];
+  const positive: Point[] = [],
+    negative: Point[] = [];
+  let prev = poly[poly.length - 1];
+  let prevDistance = (prev[0] - origin[0]) * normal[0] + (prev[1] - origin[1]) * normal[1];
+  for (const cur of poly) {
+    const distance = (cur[0] - origin[0]) * normal[0] + (cur[1] - origin[1]) * normal[1];
+    if (distance >= -1e-9) {
+      if (prevDistance < -1e-9) positive.push(halfPlaneIntersection(prev, cur, prevDistance, distance));
+      positive.push(cur);
+    } else if (prevDistance >= -1e-9) positive.push(halfPlaneIntersection(prev, cur, prevDistance, distance));
+    if (distance <= 1e-9) {
+      if (prevDistance > 1e-9) negative.push(halfPlaneIntersection(prev, cur, -prevDistance, -distance));
+      negative.push(cur);
+    } else if (prevDistance <= 1e-9) negative.push(halfPlaneIntersection(prev, cur, -prevDistance, -distance));
+    prev = cur;
+    prevDistance = distance;
+  }
+  return [cleanRing(positive), cleanRing(negative)];
+}
+
 /**
  * Convex inset: clip against each edge's inward-offset half-plane. `dists[i]` is
  * the inset of edge `poly[i] → poly[i+1]`. Collapses to [] when the offsets eat

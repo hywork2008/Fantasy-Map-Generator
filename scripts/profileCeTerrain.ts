@@ -122,6 +122,7 @@ const runs = [];
 for (let run = 0; run < repeat; run++) {
   const ms: Record<string, number> = {};
   const terrain = time(ms, "modelMs", () => cityTerrain(city, { renderSpacing: spacing }));
+  const patches = time(ms, "patchesMs", () => terrain.triangles.length);
   time(ms, "stampMs", () => cityTerrainStamp(city));
   const grid = time(ms, "drawGridMs", () => terrain.grid);
   let slopeCalls = 0;
@@ -165,7 +166,7 @@ for (let run = 0; run < repeat; run++) {
     run,
     cache: run ? "warm-field" : "cold-field",
     ms,
-    patches: terrain.triangles.length,
+    patches,
     gridVertices: grid ? grid.columns * grid.rows : 0,
     vertices,
     triangles,
