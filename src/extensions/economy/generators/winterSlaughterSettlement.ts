@@ -16,7 +16,7 @@ import { SALT_KILOGRAMS_PER_BAG } from "./goodMeasureCatalog";
 import { isGoodEnabled } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import { getRuralHouseholdWealth } from "./householdWealth";
-import { calculateHusbandryDemand, getPastureAreaUsedHectares } from "./husbandry";
+import { calculateHusbandryDemand, getForageAreaHectares } from "./husbandry";
 import { getHusbandryLaborBudget } from "./husbandryLabor";
 import { getPastureGrowth, HAY_WORK_DAYS_PER_TONNE_DM } from "./livestockFeedPolicy";
 import { livestockFeedPeriod } from "./livestockFeedState";
@@ -114,7 +114,7 @@ export function settleWinterSlaughter(): void {
     const residueDays = residue?.samples.find(sample => sample.period === period)?.workDays ?? 0;
     const availableDays = Math.max(0, labor.reservedDays - labor.careDays - hayDays - residueDays);
     const growth = getPastureGrowth(world, cell);
-    const forage = getPastureAreaUsedHectares(cell) * growth.annualKgPerHa;
+    const forage = getForageAreaHectares(cell) * growth.annualKgPerHa;
     const allowedSpecies =
       enabled && year >= policy.firstYear && year <= policy.lastYear
         ? goods

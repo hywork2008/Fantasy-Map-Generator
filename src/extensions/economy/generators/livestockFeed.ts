@@ -13,7 +13,7 @@ import { consumeCropResidues } from "./cropResidues";
 import { isGoodEnabled } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import { creditRuralHouseholdWealth, debitRuralHouseholdWealth, getRuralHouseholdWealth } from "./householdWealth";
-import { calculateHusbandryDemand, getPastureAreaUsedHectares } from "./husbandry";
+import { calculateHusbandryDemand, getForageAreaHectares } from "./husbandry";
 import { getHusbandryLaborBudget } from "./husbandryLabor";
 import {
   ANNUAL_FEED_DM_KG_PER_HEAD,
@@ -66,7 +66,7 @@ function reserveAfterFeedingKg(cellId: number): number {
     getWorldContext(),
     cellId,
     getLivestockMonthlyFeedNeedKg(cellId) * 12,
-    getPastureAreaUsedHectares(cellId)
+    getForageAreaHectares(cellId)
   ).reserveAfterMonthKg[livestockFeedMonth() - 1];
 }
 
@@ -82,17 +82,13 @@ export function harvestLivestockForage(): void {
   const offers = new Map<number, { cell: number; kg: number }[]>();
   for (const cell of world.pack.cells?.i ?? []) {
     if (world.pack.cells.h[cell] < 20) continue;
-    if (
-      !(getPastureAreaUsedHectares(cell) > 0) &&
-      !(getLivestockMonthlyFeedNeedKg(cell) > 0) &&
-      !(table[cell]?.hayKg > 0)
-    )
+    if (!(getForageAreaHectares(cell) > 0) && !(getLivestockMonthlyFeedNeedKg(cell) > 0) && !(table[cell]?.hayKg > 0))
       continue;
     table[cell] ??= emptyLedger();
     const row = table[cell];
     if (row.harvestPeriod !== undefined && row.harvestPeriod >= period) continue;
     const growth = getPastureGrowth(world, cell);
-    const grown = getPastureAreaUsedHectares(cell) * growth.annualKgPerHa * growth.weights[month];
+    const grown = getForageAreaHectares(cell) * growth.annualKgPerHa * growth.weights[month];
     const need = getLivestockMonthlyFeedNeedKg(cell);
     const grazing = Math.min(grown, need);
     const surplus = Math.max(0, grown - grazing);

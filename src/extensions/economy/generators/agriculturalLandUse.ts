@@ -674,7 +674,7 @@ export function reconcileForestClearanceForAgriculture(
       }),
       cultivableAreaHa:
         constraints.biomeTags.includes("wetland") && !((conditions.fieldDrainageByCell?.[cellId] ?? 0) > 0)
-          ? 0
+          ? constraints.terrainAndBiomeCeiling * UNDRAINED_WETLAND_ARABLE_SHARE
           : constraints.terrainAndBiomeCeiling,
       yieldKgPerSownHa: yieldKgPerHa,
       annualSownShare: calculateEffectiveSownShare(conditions, cellId),
@@ -790,6 +790,15 @@ export function calculateBurgBuiltAreaHectares(world: Readonly<WorldContext>, ce
     })
   );
 }
+
+/**
+ * Share of a wetland cell's drained ceiling that can be ploughed before field drainage: islands,
+ * silt ridges, levees and fen edges (E1-6, historical-economy plan §7.41). Medieval fenland and
+ * floodplain parishes kept arable on such ground before large-scale drainage (Darby 1940, The
+ * Medieval Fenland; Hallam 1965 on the Lincolnshire siltlands). Previously 0 left wetland residents
+ * with no fields of their own. Model policy, not a measured share.
+ */
+export const UNDRAINED_WETLAND_ARABLE_SHARE = 0.3;
 
 function calculateCultivableAreaHectares(world: Readonly<WorldContext>, cellId: number): number {
   const cells = world.pack.cells;

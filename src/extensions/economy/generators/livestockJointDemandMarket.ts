@@ -8,7 +8,7 @@ import { getMonthlyHouseholdDemand } from "./foodProcessingLedger";
 import { assessJointHerdDemand, type RenewableHerdOutput } from "./livestockJointDemand";
 import type { Market } from "./marketTypes";
 import { getTextileMarketOrders } from "./textileDemand";
-import { SHEEP_ANNUAL_WOOL_KG, WOOL_KG_PER_MARKET_LOT } from "./woolProductionPolicy";
+import { getSheepAnnualWoolKg, WOOL_KG_PER_MARKET_LOT } from "./woolProductionPolicy";
 
 /** Physical planning assessment. Never changes herds, demand, stock or household entitlements. */
 export function getJointLivestockMarketDemand(market: Market) {
@@ -54,7 +54,7 @@ export function getJointLivestockMarketDemand(market: Market) {
       cohorts,
       yields: {
         milkLiters: { young: 0, breeding: liters * LACTATING_SHARE_OF_BREEDING_COHORT, old: 0 },
-        ...(species === "Sheep" ? { woolKg: SHEEP_ANNUAL_WOOL_KG } : {})
+        ...(species === "Sheep" ? { woolKg: getSheepAnnualWoolKg(world.options?.historicalPeriod) } : {})
       }
     });
     renewal.push({ species, ...annual });

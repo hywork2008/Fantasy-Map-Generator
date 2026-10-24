@@ -101,16 +101,21 @@ export function requiredJointOfftakeHeads(
   return heads;
 }
 
-/** Annual natural change before culling; internal age transfers do not change total heads. */
+/**
+ * Annual natural change before culling; internal age transfers do not change total heads.
+ * Wild stock breeds logistically toward capacity. A managed herd breeds at full rate while it has
+ * any supported place, and the keeper sells or slaughters the surplus instead.
+ */
 export function assessAnnualHerdRenewal(
   cohorts: FaunaCohorts,
   capacityHeads: number,
   annualBreedingRate: number,
   oldLifespanYears: number,
-  annualOfftakeHeads: number | null
+  annualOfftakeHeads: number | null,
+  managed = false
 ) {
   const heads = cohorts.young + cohorts.breeding + cohorts.old;
-  const room = capacityHeads > 0 ? Math.max(0, 1 - heads / capacityHeads) : 0;
+  const room = !(capacityHeads > 0) ? 0 : managed ? 1 : Math.max(0, 1 - heads / capacityHeads);
   const birthsHeads = cohorts.breeding * annualBreedingRate * room;
   const naturalDeathsHeads = cohorts.old / Math.max(0.1, oldLifespanYears);
   const naturalNetHeads = birthsHeads - naturalDeathsHeads;

@@ -20,6 +20,7 @@ import {
   DevelopmentPotentialModule
 } from "./developmentPotential";
 import { Goods } from "./goods-generator";
+import { calculateDesiredPastureAreaHectares } from "./husbandry";
 
 function createWorld(): WorldContext {
   return {
@@ -94,7 +95,7 @@ describe("development potential", () => {
 describe("rural occupation labor in clearance planning", () => {
   afterEach(() => clearEconomyContext());
 
-  it("retires excess pasture gradually toward the recorded footprint without removing animals", () => {
+  it("moves pasture gradually toward the demand-based herd plan without removing animals", () => {
     const world = createWorld();
     world.options = {} as WorldContext["options"];
     world.grid = { cells: {} } as WorldContext["grid"];
@@ -112,8 +113,10 @@ describe("rural occupation labor in clearance planning", () => {
     const module = new DevelopmentPotentialModule();
     // biome-ignore lint/complexity/useLiteralKeys: Exercise the private planning boundary without exposing a public API.
     const conditions = module["getAgriculturalConditions"](world);
-    // Sixty cattle request 120 ha; the existing annual policy closes one quarter of the gap.
-    expect(conditions.landUseByCell![1].livestock?.grazingAreaHa).toBeCloseTo(480);
+    // The plan follows the herd target, not the sixty recorded cattle; one quarter of the gap closes a year.
+    const planned = calculateDesiredPastureAreaHectares(world, 1, true);
+    expect(planned).not.toBeCloseTo(600);
+    expect(conditions.landUseByCell![1].livestock?.grazingAreaHa).toBeCloseTo(600 + (planned - 600) * 0.25);
     expect(stock["1:Cattle"]).toEqual({ young: 10, breeding: 40, old: 10 });
   });
 

@@ -15,10 +15,11 @@ import {
 } from "../economyContext";
 import { getCropOutputMix } from "./agriculturalLandUse";
 import { getMilkOutput } from "./dairy";
-import { dispatchDomesticatedFauna } from "./faunaPopulation";
+import { dispatchDomesticatedFauna, getGrazedMonthlyOfftakeHeads, getRuralEcosystemDetail } from "./faunaPopulation";
 import { getForestStockMultiplier } from "./forestStock";
 import { type Good, Goods, isGoodEnabled } from "./goods-generator";
 import { getHusbandryCareFactor, isGrazedLivestockGood } from "./husbandry";
+import { animalsPerMarketHead } from "./liveAnimalScale";
 import { livestockFeedMonth } from "./livestockFeedState";
 import { isMineSuppliedGoodName } from "./mineralResources";
 import { getFishingWorkerFactor, getHuntingGameOutput, previewHuntingGameOutput } from "./ruralOccupationAllocation";
@@ -210,18 +211,25 @@ export function getRuralLiveAnimalContributions(
       bonusId,
       (desired.get(bonusId) ?? 0) + Math.min(population * BONUS_RURAL_PRODUCTION, MAX_BONUS_PRODUCTION)
     );
+  // Managed grazed herds sell their natural increase and surplus, wherever the herd is kept.
+  const herdBased = getRuralEcosystemDetail() === "detailed";
+  if (herdBased)
+    for (const good of getGoods())
+      if (isGrazedLivestockGood(good.name) && isGoodEnabled(good))
+        desired.set(good.i, getGrazedMonthlyOfftakeHeads(cellId, good) / animalsPerMarketHead(good.name));
   const result: RuralProductionContribution[] = [];
   for (const [goodId, base] of desired) {
     const good = Goods.get(goodId);
     if (!good?.tags.includes("liveAnimal") || !isGoodEnabled(good)) continue;
-    const workers = isGrazedLivestockGood(good.name) ? getHusbandryCareFactor(cellId) : 1;
+    const grazed = isGrazedLivestockGood(good.name);
+    const workers = grazed && !herdBased ? getHusbandryCareFactor(cellId) : 1;
     const seasonal = good.tags.includes("food")
       ? getSeasonalFoodProductionMultiplier(good, cellId, livestockFeedMonth())
       : 1;
     const units = dispatchDomesticatedFauna(
       cellId,
       good,
-      base * workers * getModifiers(good, cellId) * seasonal,
+      grazed && herdBased ? base : base * workers * getModifiers(good, cellId) * seasonal,
       preview
     );
     if (units > 0) result.push({ goodId, amount: units });

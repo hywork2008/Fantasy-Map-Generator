@@ -39,6 +39,7 @@ import {
   MIN_UNSUPPORTED_GRAZED_HERD_HEADS,
   previewDomesticatedFaunaOfftake,
   previewWildFaunaOfftake,
+  rebaseGrazedHerdsToDemandScale,
   recordQuarterlyNonFoodDemand,
   updateAnnualFaunaCohorts,
   WILD_GAME_DEFAULT_DENSITY_PER_HECTARE,
@@ -814,15 +815,37 @@ describe("faunaPopulation", () => {
         expect(table["0:Cattle"].breeding).toBe(1000);
         expect(updateAnnualFaunaCohorts()).toBe(true);
         const after = table["0:Cattle"];
-        const total = after.young + after.breeding + after.old;
-        // No old animals die in this first year: only the explicit excess adjustment reduces the herd.
-        expect(total).toBeCloseTo(1000 - (1000 - capacity) * GRAZED_EXCESS_ANNUAL_ADJUSTMENT, 8);
-        expect(total).toBeGreaterThan(capacity);
-        expect(after.young).toBe(0);
+        const older = after.breeding + after.old;
+        // No old animals die in this first year: only the explicit excess adjustment reduces the
+        // older stock. A managed herd with any supported place breeds at full rate for this year's sales.
+        expect(older).toBeCloseTo(1000 - (1000 - capacity) * GRAZED_EXCESS_ANNUAL_ADJUSTMENT, 8);
+        expect(older).toBeGreaterThan(capacity);
+        expect(after.young).toBeCloseTo(capacity > 0 ? 1000 * 0.5 : 0, 8);
         expect(updateAnnualFaunaCohorts()).toBe(false);
         expect(table["0:Cattle"]).toEqual(after);
       }
     );
+
+    it("raises herds left by the former biome-weight seeding once, then never again", () => {
+      forestCellWorld();
+      worldContext.pack.landUse = {
+        cells: [{ allocatedAreaHa: 0, diagnostics: [], patches: [{ kind: "pasture", areaHa: 50 }] }]
+      } as never;
+      worldContext.biomesData = biomesData({ 1: ["grassland"] }) as never;
+      worldContext.options = { ruralEcosystemDetail: "detailed" } as typeof worldContext.options;
+      setGoods([CATTLE_GOOD] as never);
+      setHusbandryRequiredWorkers(Float32Array.from([10]));
+      setHusbandryWorkers(Float32Array.from([10]));
+      const table = getOrCreateFaunaStockTable()!;
+      table["0:Cattle"] = { young: 0, breeding: 1, old: 0 };
+      const capacity = getDomesticatedCarryingCapacity(0, CATTLE_GOOD as never, 0);
+      expect(rebaseGrazedHerdsToDemandScale()).toBe(true);
+      const herd = table["0:Cattle"];
+      expect(herd.young + herd.breeding + herd.old).toBeCloseTo(capacity * 0.6, 8);
+      table["0:Cattle"] = { young: 0, breeding: 1, old: 0 };
+      expect(rebaseGrazedHerdsToDemandScale()).toBe(false);
+      expect(table["0:Cattle"]).toEqual({ young: 0, breeding: 1, old: 0 });
+    });
 
     it.each(["no pasture", "no habitat", "disabled"])("cleans up an unsupported sub-animal herd with %s", exclusion => {
       forestCellWorld();

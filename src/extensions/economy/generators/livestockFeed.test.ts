@@ -26,6 +26,7 @@ import {
   setMilitaryResourceLedgers
 } from "../economyContext";
 import { getMilkOutput } from "./dairy";
+import { getDomesticatedCarryingCapacity } from "./faunaPopulation";
 import { type Good, Goods } from "./goods-generator";
 import { type GoodFlowRecord, setGoodFlowObserver } from "./goodsBalanceLedger";
 import { getGrazedCarryingCapacity } from "./husbandry";
@@ -118,7 +119,9 @@ describe("physical livestock feed budget", () => {
         harvestLivestockForage();
         settleLivestockFeed();
         const row = rows()[0];
-        const expectedGrowth = period === 12001 ? 12500 : period === 12002 ? 25000 : 0;
+        // 100 ha of pasture plus 33 ha of grazed fallow, which in this short season grows as much as pasture.
+        const forageHa = 133;
+        const expectedGrowth = (period === 12001 ? 125 : period === 12002 ? 250 : 0) * forageHa;
         expect(row.pastureGrownKg).toBeCloseTo(expectedGrowth);
         const settled = structuredClone(row);
         harvestLivestockForage();
@@ -160,28 +163,18 @@ describe("physical livestock feed budget", () => {
     expect(livestockFeedPeriod()).toBe(before);
   });
 
-  it("applies live modifiers and the dominant-good bonus before the stock cap", () => {
-    worldContext.pack.cells.culture = Uint16Array.from([0, 0]);
-    worldContext.pack.cells.religion = Uint16Array.from([0, 0]);
-    worldContext.pack.cultures = [{ i: 0, type: "Naval" }] as never;
+  it("sells a grazed herd's increase and surplus rather than population x biome rate", () => {
     const sheep = good("Sheep");
-    sheep.multipliers = { cultureType: { Naval: 1.4 } };
     setGoodCellColumn(Uint16Array.from([sheep.i, 0]));
-    getOrCreateFaunaStockTable()!["0:Sheep"] = { young: 0, breeding: 0, old: 1 };
-    const contributions = getRuralProductionContributions(0, { 1: [{ goodId: sheep.i, production: 10 }] });
-    expect(contributions.filter(row => row.goodId === sheep.i)).toEqual([{ goodId: sheep.i, amount: 1 }]);
-    expect(getOrCreateFaunaStockTable()!["0:Sheep"].old).toBe(0);
-    expect(
-      getRuralProductionContributions(0, { 1: [{ goodId: sheep.i, production: 10 }] }).filter(
-        row => row.goodId === sheep.i
-      )
-    ).toEqual([]);
-  });
-
-  afterEach(() => {
-    setGoodFlowObserver(null);
-    clearEconomyContext();
-    simulationContext.extensions = {};
+    const herd = { young: 0, breeding: 0, old: 3000 };
+    getOrCreateFaunaStockTable()!["0:Sheep"] = { ...herd };
+    const capacity = getDomesticatedCarryingCapacity(0, sheep, 0);
+    // Old ewes die at 1/3 a year and do not breed; the rest above the supported flock is sold.
+    const expected = Math.floor((3000 - 1000 - capacity) / 12);
+    expect(expected).toBeGreaterThan(0);
+    const contributions = getRuralProductionContributions(0, { 1: [{ goodId: sheep.i, production: 0 }] });
+    expect(contributions.filter(row => row.goodId === sheep.i)).toEqual([{ goodId: sheep.i, amount: expected }]);
+    expect(getOrCreateFaunaStockTable()!["0:Sheep"].old).toBeCloseTo(3000 - expected, 8);
   });
 
   it("adds retained custom consumer and industrial demand to farm and military Fodder orders", () => {
@@ -350,7 +343,7 @@ describe("physical livestock feed budget", () => {
       storageLoss += row.storageLossKg;
       hayConsumed += row.hayConsumedKg;
     }
-    expect(grown).toBeCloseTo(150000, 8);
+    expect(grown).toBeCloseTo(1500 * (100 + (33 * 400) / 1500), 8);
     expect(rows()[0].hayKg + hayConsumed + storageLoss + loss).toBeCloseTo(harvested, 7);
     expect(pasture + harvested).toBeLessThanOrEqual(grown + 1e-8);
     expect(rows()[0].samples).toHaveLength(12);
