@@ -1,5 +1,5 @@
 import { isInitialLandUsePending, resolveStaticLandUseInputs } from "../../../generators/landUse";
-import type { ClearanceCellInput } from "../../../generators/settlementClearance";
+import { type ClearanceCellInput, requiredFieldAreaHectares } from "../../../generators/settlementClearance";
 import { markRepairAtVersion } from "../../../simulation/loadRepairs";
 import {
   applyRiverResidualFlows,
@@ -469,7 +469,30 @@ export class DevelopmentPotentialModule {
         world.pack.cultures?.[world.pack.cells.culture?.[input.id] ?? 0]?.landUseSettings;
       const previous = world.pack.landUse?.cells[input.id];
       const hasGrazed = goods.some(g => isGrazedLivestockGood(g.name));
-      const pasture = hasGrazed ? calculateDesiredPastureAreaHectares(world, input.id, true) : 0;
+      const workforce = input.workforce!;
+      const staplePeople =
+        Math.max(
+          0,
+          input.ruralPeople +
+            (input.includeUrbanFoodDemand === false ? 0 : input.urbanPeople) -
+            (input.importedStaplePeople ?? 0)
+        ) * (input.localStapleShare ?? 1);
+      const stapleArea = Math.max(
+        previous?.allocatedAreaHa ?? 0,
+        Math.min(
+          input.cultivableAreaHa,
+          requiredFieldAreaHectares(staplePeople, input.yieldKgPerSownHa, input.annualSownShare) *
+            (input.subsistenceReserve ?? 1.1)
+        )
+      );
+      const bootstrapLaborDays = Math.max(
+        0,
+        workforce.adultPeople * workforce.workableDays -
+          stapleArea * workforce.maintenanceDaysPerHa -
+          (settings?.otherOccupationDays ??
+            occupationDays.reduce((s, a) => s + (a[input.id] ?? 0) * WORKABLE_DAYS_PER_ADULT, 0))
+      );
+      const pasture = hasGrazed ? calculateDesiredPastureAreaHectares(world, input.id, true, bootstrapLaborDays) : 0;
       const workersKnown = getHusbandryWorkers().length === cellCount;
       const staffedPasture =
         pasture *

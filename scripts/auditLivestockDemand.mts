@@ -16,6 +16,8 @@ import { setGoodFlowObserver } from "../src/extensions/economy/generators/goodsB
 import { animalsPerMarketHead } from "../src/extensions/economy/generators/liveAnimalScale";
 import { getDairyCalibrationAssessment } from "../src/extensions/economy/generators/dairyHistoricalReferences";
 import { getJointLivestockMarketDemand } from "../src/extensions/economy/generators/livestockJointDemandMarket";
+import { setTickStepObserver } from "../src/generators/tickProfiler";
+import { WAIN_KG } from "../src/extensions/economy/generators/goodMeasureCatalog";
 
 const [input, output, length = "0"] = process.argv.slice(2);
 const months = Number(length);
@@ -34,6 +36,14 @@ try {
   sim.worldSettings = { ...sim.worldSettings, "fmg-long-distance-trade": "on", "fmg-caravan-raids": "off" };
   const liveGoods = new Map(getGoods().filter(good => good.tags.includes("liveAnimal")).map(good => [good.i, good.name]));
   const observedLiveDispatch: Record<string, {marketId: number | null; species: string; heads: number; untrackedCohortHeads: number}> = {};
+  const foodSettlements: unknown[] = [];
+  setTickStepObserver({ enter() {}, exit(label) {
+    if (label !== "production:foodConsumption" && label !== "food:consumption") return;
+    foodSettlements.push({
+      date: [host.simulation.currentYear, host.simulation.currentMonth, host.simulation.currentDay],
+      markets: getMarkets().map(market => ({ marketId: market.i, consumption: structuredClone(market.foodLedger?.monthlyConsumption ?? null) }))
+    });
+  } });
   setGoodFlowObserver(flow => {
     const species = liveGoods.get(flow.goodId);
     if (!species || flow.direction !== "source" || flow.category !== "ruralHarvest") return;
@@ -79,7 +89,19 @@ try {
       }
       return row;
     });
-    return { date: [host.simulation.currentYear, host.simulation.currentMonth, host.simulation.currentDay], species, dairyCalibration: getDairyCalibrationAssessment(), jointProductMarkets: getMarkets().map(getJointLivestockMarketDemand), observedLiveDispatchSincePreparedStart: structuredClone(observedLiveDispatch) };
+    const land = { cultivatedHa: 0, pastureHa: 0, hayMeadowHa: 0, unresolvedFoodPeople: 0, unallocatedFieldHa: 0, stapleProtectedCells: 0, livestockLandShortfallCells: 0 };
+    for (const cell of Object.values(world.pack.landUse?.cells ?? {})) {
+      land.cultivatedHa += cell.allocatedAreaHa;
+      land.unresolvedFoodPeople += cell.unresolvedFoodPeople;
+      land.unallocatedFieldHa += cell.unallocatedAreaHa;
+      land.stapleProtectedCells += Number(cell.diagnostics.includes("staple-arable-protected"));
+      land.livestockLandShortfallCells += Number(cell.diagnostics.includes("livestock-land-shortfall"));
+      for (const patch of cell.patches) {
+        if (patch.kind === "pasture" || patch.kind === "wood_pasture") land.pastureHa += patch.areaHa;
+        if (patch.kind === "hay_meadow") land.hayMeadowHa += patch.areaHa;
+      }
+    }
+    return { date: [host.simulation.currentYear, host.simulation.currentMonth, host.simulation.currentDay], land, species, dairyCalibration: getDairyCalibrationAssessment(), jointProductMarkets: getMarkets().map(getJointLivestockMarketDemand), observedLiveDispatchSincePreparedStart: structuredClone(observedLiveDispatch) };
   }
   const initial = snapshot();
   const samples = [];
@@ -90,7 +112,7 @@ try {
     console.error(`[livestock-demand] ${month}/${months}`);
   }
   writeFileSync(output, `${JSON.stringify({
-    schemaVersion: 3, inputSha256: hash(bytes), sourceTreeSha256: hash(JSON.stringify(sourceHashes)), sourceHashes,
+    schemaVersion: 4, inputSha256: hash(bytes), sourceTreeSha256: hash(JSON.stringify(sourceHashes)), sourceHashes,
     boundary: "Prepared initial snapshot and yearly samples; recorded rural grazed herds in inhabited land cells only",
     months, settlementPattern: host.world.options.initialSettlementPattern, worldSettings: sim.worldSettings,
     notes: [
@@ -101,6 +123,6 @@ try {
       "Population weights among compatible production biomes partition shared demand once but do not optimize the location of production. Unusable local shares are not reassigned.",
       "The legacy 5% resource-capacity floor may exceed observed demand; floorAddedHeads identifies this contribution.",
       "Current target excess is not an instruction to delete animals; existing annual cohort transition applies."
-    ], initial, samples
+    ], foodLedgerKgPerUnit: WAIN_KG, foodSettlements, initial, samples
   }, null, 2)}\n`);
-} finally { setGoodFlowObserver(null); host.dispose(); }
+} finally { setTickStepObserver(null); setGoodFlowObserver(null); host.dispose(); }

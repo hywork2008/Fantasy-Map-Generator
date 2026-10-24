@@ -38,6 +38,8 @@ import {
   calculateBurgBuiltAreaHectares,
   calculatePhysicalAreaHectares,
   calculateTerrainWorkableShare,
+  FARM_LABOUR_SAFETY_MARGIN,
+  LABOUR_DAYS_PER_HECTARE,
   WORKABLE_DAYS_PER_ADULT
 } from "./agriculturalLandUse";
 import type { Good } from "./goods-generator";
@@ -60,24 +62,6 @@ const PASTURE_BIOME_TAG_CEILING: Partial<Record<BiomeTag, number>> = {
 };
 /** Marginal grazing ceiling for land without a dedicated pasture-suitable tag. */
 const PASTURE_DEFAULT_CEILING = 0.1;
-
-/**
- * Hectares of pasture one REAL resident's worth of local demand could realistically keep stocked
- * — mirrors viticulture.ts's `VINEYARD_AREA_HECTARES_PER_PERSON` in spirit (see module doc-comment's
- * "requiredWorkers redefinition" entry), but per actual person, not per raw `cells.pop` unit. Found
- * 2026-08-07 (real-map verification via Playwright after this constant still produced a near-empty
- * herd everywhere): `cells.pop[cellId]` is a "population point" — `agriculturalLandUse.ts`'s own
- * `currentPeople = cells.pop[cellId] * populationRate` is the established real-headcount conversion
- * (`populationRate` was 1000 on a real generated map, with `cells.pop` typically 1-20 per cell — i.e.
- * a raw-point-based desiredArea of "population x 1 ha" was on the order of a few HECTARES per cell,
- * not a few THOUSAND, making every grazed species' capacity round to ~0). Multiplying by
- * `populationRate` first fixes the unit mismatch; this constant itself stays a placeholder,
- * calibration TBD (§9.3). `viticulture.ts`'s `VINEYARD_AREA_PER_POPULATION_POINT` had the identical
- * raw-`cells.pop` pattern — confirmed under-scaled the same way and fixed the same day
- * (renamed `VINEYARD_AREA_HECTARES_PER_PERSON`) as part of the labour-scarcity investigation in
- * docs/plan/fauna-biome-realism.md §2.5.
- */
-const HUSBANDRY_LAND_HECTARES_PER_PERSON = 1;
 
 /**
  * Heads sustainably supported per hectare of actively-used pasture (ecological ceiling,
@@ -242,24 +226,58 @@ function calculatePastureCeilingAreaHectares(world: Readonly<WorldContext>, cell
   return unclaimedArea * terrainShare * ceiling;
 }
 
-/** The land-suitability ceiling clamped by population-scaled local demand — mirrors
- * viticulture.ts's `calculateDesiredVineyardAreaHectares()` (see module doc-comment). */
+/**
+ * Annual planning follows recorded herd footprints; ordinary capacity queries use
+ * the committed land contract and never read or seed a herd. Before herds are
+ * recorded, preserve established pasture or bound a new plan by residual labor.
+ * A footprint is a maintenance request, not a calibrated product-demand target.
+ */
 export function calculateDesiredPastureAreaHectares(
   world: Readonly<WorldContext>,
   cellId: number,
-  planning = false
+  planning = false,
+  bootstrapLaborDays?: number
 ): number {
   const reserved = world.pack.landUse?.cells[cellId]?.patches
     .filter(p => p.kind === "pasture" || p.kind === "wood_pasture")
     .reduce((s, p) => s + p.areaHa, 0);
-  // New ledgers contain an explicit husbandry contract; legacy ledgers retain old suitability.
+  // New ledgers contain an explicit husbandry contract, including an intentional zero.
   if (!planning && world.pack.landUse?.cells[cellId]?.diagnostics.includes("resolved-livestock-land"))
     return reserved ?? 0;
   const ceiling = calculatePastureCeilingAreaHectares(world, cellId);
   if (ceiling <= 0) return 0;
-  const populationPoints = Math.max(0, world.pack.cells.pop[cellId] ?? 0);
-  const realPopulation = populationPoints * Math.max(1, world.populationRate || 1);
-  return Math.min(ceiling, realPopulation * HUSBANDRY_LAND_HECTARES_PER_PERSON);
+  if (!planning && reserved !== undefined && reserved > 0) return Math.min(ceiling, reserved);
+  const allocation = calculateGrazingLandAllocation(world, cellId, 1);
+  if (!allocation.length) return 0;
+  if (planning) {
+    const stock = getOrCreateFaunaStockTable();
+    let observed = false;
+    let footprint = 0;
+    for (const row of allocation) {
+      const herd = stock?.[`${cellId}:${row.goodName}`];
+      if (!herd) continue;
+      observed = true;
+      footprint += (Math.max(0, herd.young) + Math.max(0, herd.breeding) + Math.max(0, herd.old)) / row.density;
+    }
+    // An observed empty herd is not a request to recreate the bootstrap stock.
+    if (observed) return Math.min(ceiling, footprint);
+  }
+  if (reserved !== undefined && reserved > 0) return Math.min(ceiling, reserved);
+  const cells = world.pack.cells;
+  const adults = Math.max(0, cells.maleAdults?.[cellId] ?? 0) + Math.max(0, cells.femaleAdults?.[cellId] ?? 0);
+  const availableDays = Math.max(
+    0,
+    bootstrapLaborDays ??
+      adults * Math.max(1, world.populationRate || 1) * WORKABLE_DAYS_PER_ADULT -
+        Math.max(0, getCultivatedArea()[cellId] ?? 0) * LABOUR_DAYS_PER_HECTARE * FARM_LABOUR_SAFETY_MARGIN
+  );
+  const daysPerHa = allocation.reduce(
+    (sum, row) =>
+      sum +
+      (row.capacityHeads / HUSBANDRY_SPECIES_PROFILES[row.goodName].baselineHeadsPerHerder) * WORKABLE_DAYS_PER_ADULT,
+    0
+  );
+  return daysPerHa > 0 ? Math.min(ceiling, availableDays / daysPerHa) : 0;
 }
 
 export interface GrazingLandAllocation {

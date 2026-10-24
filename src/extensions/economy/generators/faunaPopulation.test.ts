@@ -798,6 +798,9 @@ describe("faunaPopulation", () => {
       "adjusts an existing grazed herd gradually after a capacity reduction, pasture=%s",
       pasture => {
         forestCellWorld();
+        worldContext.pack.landUse = {
+          cells: [{ allocatedAreaHa: 0, diagnostics: [], patches: [{ kind: "pasture", areaHa: 50 }] }]
+        } as never;
         worldContext.biomesData = biomesData({ 1: ["grassland"] }) as never;
         worldContext.options = { ruralEcosystemDetail: "detailed" } as typeof worldContext.options;
         simulationContext.currentYear = 500;
@@ -841,6 +844,9 @@ describe("faunaPopulation", () => {
 
     it("retains a sub-animal herd when its habitat still supports growth", () => {
       forestCellWorld();
+      worldContext.pack.landUse = {
+        cells: [{ allocatedAreaHa: 0, diagnostics: [], patches: [{ kind: "pasture", areaHa: 50 }] }]
+      } as never;
       worldContext.options = { ruralEcosystemDetail: "detailed" } as typeof worldContext.options;
       worldContext.biomesData = biomesData({ 1: ["grassland"] }) as never;
       simulationContext.currentYear = 500;

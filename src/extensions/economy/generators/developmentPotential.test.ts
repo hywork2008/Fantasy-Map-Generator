@@ -5,8 +5,10 @@ import type { WorldContext } from "../../hostCore";
 import type { ExtensionAPI } from "../../hostTypes";
 import {
   clearEconomyContext,
+  getOrCreateFaunaStockTable,
   initEconomyContext,
   setFishingWorkers,
+  setGoods,
   setHouseholdTextileWorkers,
   setHuntingWorkers,
   setHusbandryWorkers,
@@ -17,6 +19,7 @@ import {
   calculateSettlementDevelopmentPotential,
   DevelopmentPotentialModule
 } from "./developmentPotential";
+import { Goods } from "./goods-generator";
 
 function createWorld(): WorldContext {
   return {
@@ -90,6 +93,29 @@ describe("development potential", () => {
 
 describe("rural occupation labor in clearance planning", () => {
   afterEach(() => clearEconomyContext());
+
+  it("retires excess pasture gradually toward the recorded footprint without removing animals", () => {
+    const world = createWorld();
+    world.options = {} as WorldContext["options"];
+    world.grid = { cells: {} } as WorldContext["grid"];
+    world.distanceScale = 10;
+    world.biomesData.tags = [[], ["grassland"], ["grassland"]];
+    world.pack.landUse = {
+      cells: {
+        1: { allocatedAreaHa: 0, diagnostics: ["resolved-livestock-land"], patches: [{ kind: "pasture", areaHa: 600 }] }
+      }
+    } as never;
+    initEconomyContext({ worldContext: world, simulationContext: { extensions: {} } } as unknown as ExtensionAPI);
+    setGoods([Goods.getDefaultGood("Cattle")!]);
+    const stock = getOrCreateFaunaStockTable()!;
+    stock["1:Cattle"] = { young: 10, breeding: 40, old: 10 };
+    const module = new DevelopmentPotentialModule();
+    // biome-ignore lint/complexity/useLiteralKeys: Exercise the private planning boundary without exposing a public API.
+    const conditions = module["getAgriculturalConditions"](world);
+    // Sixty cattle request 120 ha; the existing annual policy closes one quarter of the gap.
+    expect(conditions.landUseByCell![1].livestock?.grazingAreaHa).toBeCloseTo(480);
+    expect(stock["1:Cattle"]).toEqual({ young: 10, breeding: 40, old: 10 });
+  });
 
   it.each([1, 1000])("preserves available clearance labor at populationRate %s", populationRate => {
     const world = createWorld();

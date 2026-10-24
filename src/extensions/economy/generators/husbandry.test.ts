@@ -12,6 +12,7 @@ import {
   setHusbandryWorkers
 } from "../economyContext";
 import {
+  calculateDesiredPastureAreaHectares,
   calculateGrazingLandAllocation,
   calculateHusbandryDemand,
   getGrazedCarryingCapacity,
@@ -68,7 +69,7 @@ function biomesData(tagsByCode: Record<number, string[]>) {
   return { tags, habitability: tags.map(() => 100) };
 }
 
-/** physicalHectares = area(100) * distanceScale(1)^2 * 100 = 10,000 ha. */
+/** 10,000 physical hectares with an explicit legacy pasture footprint for capacity tests. */
 function grasslandCellWorld(population = 50): void {
   worldContext.pack = {
     cells: {
@@ -80,7 +81,8 @@ function grasslandCellWorld(population = 50): void {
       burg: new Uint16Array([0]),
       c: [[]]
     },
-    burgs: []
+    burgs: [],
+    landUse: { cells: [{ allocatedAreaHa: 0, diagnostics: [], patches: [{ kind: "pasture", areaHa: population }] }] }
   } as unknown as PackedGraph;
   worldContext.distanceScale = 1;
   worldContext.biomesData = biomesData({ 1: ["grassland"] }) as never;
@@ -97,6 +99,37 @@ describe("husbandry", () => {
   afterEach(() => {
     clearEconomyContext();
     simulationContext.extensions = {};
+  });
+
+  describe("annual pasture planning", () => {
+    it("uses recorded physical footprints without changing committed capacity or seeding herds", () => {
+      grasslandCellWorld(600);
+      setGoods([CATTLE_GOOD, SHEEP_GOOD] as never);
+      const stock = getOrCreateFaunaStockTable()!;
+      stock["0:Cattle"] = { young: 10, breeding: 40, old: 10 };
+      stock["0:Sheep"] = { young: 50, breeding: 200, old: 50 };
+      const before = structuredClone(stock);
+      expect(calculateDesiredPastureAreaHectares(worldContext, 0, true)).toBeCloseTo(60 / 0.5 + 300 / 3);
+      expect(calculateDesiredPastureAreaHectares(worldContext, 0)).toBe(600);
+      expect(stock).toEqual(before);
+      stock["0:Cattle"] = { young: 0, breeding: 0, old: 0 };
+      stock["0:Sheep"] = { young: 0, breeding: 0, old: 0 };
+      expect(calculateDesiredPastureAreaHectares(worldContext, 0, true)).toBe(0);
+    });
+
+    it("bounds an unrecorded initial herd by residual labor rather than resident count", () => {
+      grasslandCellWorld(50);
+      delete worldContext.pack.landUse;
+      worldContext.populationRate = 1;
+      worldContext.pack.cells.maleAdults = Float32Array.from([1]);
+      worldContext.pack.cells.femaleAdults = Float32Array.from([0]);
+      expect(calculateDesiredPastureAreaHectares(worldContext, 0, true, 0)).toBe(0);
+      expect(calculateDesiredPastureAreaHectares(worldContext, 0, true, 70)).toBeCloseTo(60);
+      expect(calculateDesiredPastureAreaHectares(worldContext, 0)).toBeCloseTo(120);
+      worldContext.pack.cells.pop[0] = 5000;
+      expect(calculateDesiredPastureAreaHectares(worldContext, 0)).toBeCloseTo(120);
+      expect(Object.keys(getOrCreateFaunaStockTable()!)).toHaveLength(0);
+    });
   });
 
   describe("isGrazedLivestockGood", () => {
@@ -126,8 +159,8 @@ describe("husbandry", () => {
     it("computes required workers from land capacity over the dogless baseline heads-per-herder (2026-08-07 Phase B)", () => {
       grasslandCellWorld(600);
       setGoods([CATTLE_GOOD] as never);
-      // ceiling = 10,000 * terrainShare(0.9) * grassland(0.85) = 7,650 ha; desiredArea =
-      // min(7650, 600*HUSBANDRY_LAND_AREA_PER_POPULATION_POINT(1)) = 600 ha; landCapacity = 600*0.5 = 300;
+      // The fixture has 600 ha of established pasture, below its 7,650 ha ecological ceiling.
+      // landCapacity = 600*0.5 = 300;
       // requiredWorkers = 300 / 60 (Cattle's dogless baseline) = 5.
       const demand = calculateHusbandryDemand(worldContext, 0);
       expect(demand.careWorkers).toBeCloseTo(5, 5);
@@ -184,11 +217,11 @@ describe("husbandry", () => {
       }
     );
 
-    it("is bounded by population, not just land suitability, avoiding the 2026-08-06 'tiny population owns a huge herd' bug", () => {
+    it("uses the established pasture instead of claiming the entire suitable landscape", () => {
       // ceiling = 7,650 ha regardless of population; a small population must NOT be able to claim it.
       grasslandCellWorld(50);
       setGoods([CATTLE_GOOD] as never);
-      // desiredArea = min(7650, 50*1) = 50 ha -> requiredWorkers = 50*0.5/60, far below what the full
+      // Established pasture is 50 ha -> requiredWorkers = 50*0.5/60, far below what the full
       // 7,650 ha ceiling would imply (7650*0.5/60 = 63.75).
       const demand = calculateHusbandryDemand(worldContext, 0);
       expect(demand.careWorkers).toBeCloseTo((50 * 0.5) / 60, 5);
@@ -356,16 +389,15 @@ describe("husbandry", () => {
           burg: new Uint16Array([0]),
           c: [[]]
         },
-        burgs: []
+        burgs: [],
+        landUse: { cells: [{ allocatedAreaHa: 0, diagnostics: [], patches: [{ kind: "pasture", areaHa: 50 }] }] }
       } as unknown as PackedGraph;
       worldContext.distanceScale = 1;
       worldContext.biomesData = biomesData({ 1: ["forest"] }) as never; // no PASTURE_BIOME_TAG_CEILING entry
       setCultivatedArea(new Float32Array([0]));
       setHusbandryRequiredWorkers(new Float32Array([10]));
       setHusbandryWorkers(new Float32Array([10])); // full coverage
-      // ceiling = 10,000 * terrainShare(0.9) * PASTURE_DEFAULT_CEILING(0.1) = 900 ha; desiredArea =
-      // min(900, population(50)*HUSBANDRY_LAND_AREA_PER_POPULATION_POINT(1)) = 50 ha (2026-08-07
-      // Phase B — population-bounded, not the raw land ceiling).
+      // The 50 ha legacy pasture stays below the marginal forest ceiling of 900 ha.
       expect(getPastureAreaUsedHectares(0)).toBeCloseTo(50, 1);
     });
 
@@ -374,16 +406,15 @@ describe("husbandry", () => {
       expect(getPastureAreaUsedHectares(0)).toBe(0);
     });
 
-    it("scales the population-bounded desired area by the husbandry worker factor", () => {
+    it("scales legacy pasture by the husbandry worker factor", () => {
       grasslandCellWorld(); // population defaults to 50
-      // ceiling = 10,000 * terrainShare(0.9) * grassland-tag ceiling(0.85) = 7,650 ha; desiredArea =
-      // min(7650, 50*1) = 50 ha.
+      // Established pasture is 50 ha, below the 7,650 ha ecological ceiling.
       setHusbandryRequiredWorkers(new Float32Array([10]));
       setHusbandryWorkers(new Float32Array([5])); // workerFactor 0.5
       expect(getPastureAreaUsedHectares(0)).toBeCloseTo(25, 1);
     });
 
-    it("is bounded well below the land ceiling for a small population even at full staffing", () => {
+    it("keeps the established footprint below the land ceiling even at full staffing", () => {
       grasslandCellWorld(50);
       setHusbandryRequiredWorkers(new Float32Array([10]));
       setHusbandryWorkers(new Float32Array([10])); // full coverage
@@ -397,19 +428,19 @@ describe("husbandry", () => {
       expect(getGrazedCarryingCapacity(0, CATTLE_GOOD as never)).toBe(0);
     });
 
-    it("multiplies the used (population-bounded, labour-gated) pasture area by the species' stocking density", () => {
+    it("multiplies the used legacy pasture by the species' stocking density", () => {
       grasslandCellWorld(600);
       setHusbandryRequiredWorkers(new Float32Array([10]));
-      setHusbandryWorkers(new Float32Array([10])); // full coverage -> pastureAreaUsed = min(7650, 600) = 600 ha
+      setHusbandryWorkers(new Float32Array([10])); // full coverage -> established pastureAreaUsed = 600 ha
       expect(getGrazedCarryingCapacity(0, CATTLE_GOOD as never)).toBeCloseTo(600 * 0.5, 5);
     });
 
-    it("does not let a tiny population claim a land-ceiling-sized herd, even at full staffing (2026-08-06 bug)", () => {
+    it("does not expand established pasture to the ecological ceiling at full staffing", () => {
       grasslandCellWorld(50); // far below the 7,650 ha ceiling's population-equivalent
       setHusbandryRequiredWorkers(new Float32Array([10]));
       setHusbandryWorkers(new Float32Array([10])); // full coverage
       const capacity = getGrazedCarryingCapacity(0, CATTLE_GOOD as never);
-      expect(capacity).toBeCloseTo(50 * 0.5, 5); // population-bounded desiredArea(50) x density(0.5)
+      expect(capacity).toBeCloseTo(50 * 0.5, 5); // established pasture(50) x density(0.5)
       expect(capacity).toBeLessThan(7650 * 0.5); // nowhere near the full ecological ceiling
     });
 
