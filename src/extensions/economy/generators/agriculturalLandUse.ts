@@ -1290,7 +1290,9 @@ export function getCellSoilType(world: Readonly<WorldContext>, cellId: number): 
   const tags = world.biomesData.tags?.[world.pack.cells.biomeCode[cellId] ?? 0] ?? [];
   if (world.pack.cells.r?.[cellId]) return "alluvial";
   if (tags.includes("wetland")) return "clay";
-  if (tags.includes("forest")) return "humus";
+  // Cleared temperate forest gives brown-earth loams, the cereal soils of medieval Europe.
+  // Boreal forest keeps the acid, organic soils where oats, turnips and potatoes did best.
+  if (tags.includes("forest")) return tags.includes("cold") ? "humus" : "loam";
   if (tags.includes("desert")) return "sandy";
   if (tags.includes("mountain")) return "thin";
   return "loam";

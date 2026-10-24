@@ -113,9 +113,9 @@ describe("husbandry", () => {
     it("sizes pasture for the demand-based herd, not the recorded herd, without seeding herds", () => {
       grasslandCellWorld(600);
       setGoods([CATTLE_GOOD, SHEEP_GOOD] as never);
-      // Pastoral grassland: 0.5 cattle and 1 + 2 sheep per person.
-      expect(getLivestockHerdTargets(worldContext, 0)).toEqual({ Cattle: 300, Sheep: 1800 });
-      const planned = 300 * CATTLE_HA + 1800 * SHEEP_HA;
+      // Pastoral grassland: 0.5 cattle and 1.3 + 2 sheep per person.
+      expect(getLivestockHerdTargets(worldContext, 0)).toEqual({ Cattle: 300, Sheep: 600 * 3.3 });
+      const planned = 300 * CATTLE_HA + 1980 * SHEEP_HA;
       expect(calculateDesiredPastureAreaHectares(worldContext, 0, true)).toBeCloseTo(planned);
       expect(calculateDesiredPastureAreaHectares(worldContext, 0)).toBe(600);
       const stock = getOrCreateFaunaStockTable()!;
@@ -134,16 +134,17 @@ describe("husbandry", () => {
       const goats = { ...CATTLE_GOOD, i: 5, name: "Goats", biomeOutputByTag: { scrub: 0.1 } };
       setGoods([CATTLE_GOOD, SHEEP_GOOD, horses, goats] as never);
       worldContext.pack.landUse!.cells[0]!.allocatedAreaHa = 200;
-      // 16 working beasts, a quarter horses; each ox has one follower. No pastoral herds in forest.
+      // 0.29 x 200 ha = 58 working beasts, capped at 0.36 per person = 36; 40% horses, each ox
+      // with two followers. No pastoral herds in forest.
       const targets = getLivestockHerdTargets(worldContext, 0);
-      expect(targets.Horses).toBeCloseTo(4);
-      expect(targets.Cattle).toBeCloseTo(24);
-      expect(targets.Sheep).toBeCloseTo(100);
+      expect(targets.Horses).toBeCloseTo(14.4);
+      expect(targets.Cattle).toBeCloseTo(21.6 * 3);
+      expect(targets.Sheep).toBeCloseTo(130);
       expect(targets.Goats).toBeUndefined();
       const fallowHa = (200 * 0.33 * 400) / 1500;
       expect(getGrazedFallowPastureEquivalentHectares(worldContext, 0)).toBeCloseTo(fallowHa);
       expect(calculateDesiredPastureAreaHectares(worldContext, 0, true)).toBeCloseTo(
-        24 * CATTLE_HA + 4 * (3500 / 1200) + 100 * SHEEP_HA - fallowHa
+        64.8 * CATTLE_HA + 14.4 * (3500 / 1200) + 130 * SHEEP_HA - fallowHa
       );
     });
 
@@ -216,10 +217,10 @@ describe("husbandry", () => {
     it("weights value by each grazed good's share of land capacity", () => {
       grasslandCellWorld(600);
       setGoods([CATTLE_GOOD, SHEEP_GOOD] as never);
-      // Each target needs 750 ha; 600 ha feeds 40% of each: 120 cattle + 720 sheep.
-      // Weighted value = (120 * 5 + 720) / 840 = 11 / 7.
+      // 300 cattle need 750 ha and 1,980 sheep 825 ha; 600 ha feeds the same share of each.
+      const share = 600 / (750 + 825);
       const demand = calculateHusbandryDemand(worldContext, 0);
-      expect(demand.value).toBeCloseTo(11 / 7, 5);
+      expect(demand.value).toBeCloseTo((300 * share * 5 + 1980 * share) / (2280 * share), 5);
     });
 
     it.each(["unsuitable", "no pasture", "no residents", "disabled", "unregistered"])(
@@ -296,10 +297,14 @@ describe("husbandry", () => {
     it("computes herders from partitioned targets and retains care for existing excess animals", () => {
       grasslandCellWorld(600);
       setGoods([CATTLE_GOOD, SHEEP_GOOD] as never);
-      expect(calculateHusbandryDemand(worldContext, 0).careWorkers).toBeCloseTo(120 / 60 + 720 / 200, 8);
+      const sheep = (1980 * 600) / 1575;
+      expect(calculateHusbandryDemand(worldContext, 0).careWorkers).toBeCloseTo(
+        (300 * 600) / 1575 / 60 + sheep / 200,
+        8
+      );
       const stock = getOrCreateFaunaStockTable()!;
       stock["0:Cattle"] = { young: 100, breeding: 800, old: 100 };
-      expect(calculateHusbandryDemand(worldContext, 0).careWorkers).toBeCloseTo(1000 / 60 + 720 / 200, 8);
+      expect(calculateHusbandryDemand(worldContext, 0).careWorkers).toBeCloseTo(1000 / 60 + sheep / 200, 8);
       expect(stock["0:Cattle"]).toEqual({ young: 100, breeding: 800, old: 100 });
     });
 

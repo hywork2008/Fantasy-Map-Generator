@@ -413,12 +413,13 @@ describe("faunaPopulation", () => {
   });
 
   describe("getDomesticatedCarryingCapacity", () => {
-    it("non-grazed food species (e.g. Pig) use the flat-rate x months proxy directly", () => {
-      const flatRate = 2;
-      expect(getDomesticatedCarryingCapacity(0, PIG_GOOD as never, flatRate)).toBeCloseTo(
-        flatRate * DOMESTICATED_CAPACITY_MONTHS_PROXY,
-        5
-      );
+    it("sizes yard pigs from real residents rather than population points or the monthly flow", () => {
+      forestCellWorld();
+      worldContext.populationRate = 1000;
+      // 50 population points x 1,000 = 50,000 people at 0.2 pigs each.
+      expect(getDomesticatedCarryingCapacity(0, PIG_GOOD as never, 2)).toBeCloseTo(10_000, 5);
+      expect(getDomesticatedCarryingCapacity(0, PIG_GOOD as never, 200)).toBeCloseTo(10_000, 5);
+      worldContext.populationRate = 1;
     });
 
     it("caps non-food species by the demand-absorption history once it exists, down to the floor", () => {

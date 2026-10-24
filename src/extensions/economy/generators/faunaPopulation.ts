@@ -73,6 +73,7 @@ import {
   isGrazedLivestockGood
 } from "./husbandry";
 import { animalsPerMarketHead } from "./liveAnimalScale";
+import { YARD_HEADS_PER_RURAL_PERSON } from "./livestockHerdTargetPolicy";
 import { assessAnnualHerdRenewal } from "./livestockJointDemand";
 import { getLandTransportDefinition } from "./tradeCargo";
 import { getVineyardAreaUsedHectares } from "./viticulture";
@@ -189,8 +190,18 @@ function getSpeciesProfile(speciesKey: string): FaunaSpeciesProfile {
   return SPECIES_PROFILES[speciesKey] ?? DEFAULT_SPECIES_PROFILE;
 }
 
+/** Kept herds whose keepers sell the surplus: grazed species and household yard animals. */
+export function isManagedHerdGood(goodName: string): boolean {
+  return isGrazedLivestockGood(goodName) || goodName in YARD_HEADS_PER_RURAL_PERSON;
+}
+
+/** Household yard herd target in real animals; no pasture, fed on pannage and scraps. */
+function getYardHerdTarget(cellId: number, good: Good): number {
+  return isGoodEnabled(good) ? getRealPopulation(cellId) * (YARD_HEADS_PER_RURAL_PERSON[good.name] ?? 0) : 0;
+}
+
 export function getAnnualHerdRenewal(cellId: number, good: Good) {
-  if (!isGrazedLivestockGood(good.name)) return null;
+  if (!isManagedHerdGood(good.name)) return null;
   const cohorts = getFaunaStockTable()?.[`${cellId}:${good.name}`];
   if (!cohorts) return null;
   const profile = getSpeciesProfile(good.name);
@@ -472,7 +483,9 @@ export function getDomesticatedCarryingCapacity(cellId: number, good: Good, flat
   // (`flatRateAmount`) must not become a standing-herd target or gate the same pasture twice.
   const rawCapacity = isGrazedLivestockGood(good.name)
     ? getGrazedCarryingCapacity(cellId, good)
-    : Math.max(0, flatRateAmount) * animalsPerMarketHead(good.name) * DOMESTICATED_CAPACITY_MONTHS_PROXY;
+    : good.name in YARD_HEADS_PER_RURAL_PERSON
+      ? getYardHerdTarget(cellId, good)
+      : Math.max(0, flatRateAmount) * animalsPerMarketHead(good.name) * DOMESTICATED_CAPACITY_MONTHS_PROXY;
   if (good.tags.includes("food")) return rawCapacity;
 
   const demandCapacity = getNonFoodDemandAbsorptionCapacity(cellId, good);
@@ -775,10 +788,10 @@ function advanceStockOneYear(
     existing,
     getSpeciesProfile(speciesKey),
     carryingCapacity,
-    isGrazedLivestockGood(speciesKey)
+    isManagedHerdGood(speciesKey)
   );
   const unsupportedRemnant =
-    isGrazedLivestockGood(speciesKey) && carryingCapacity <= 0 && cohortTotal(next) < MIN_UNSUPPORTED_GRAZED_HERD_HEADS;
+    isManagedHerdGood(speciesKey) && carryingCapacity <= 0 && cohortTotal(next) < MIN_UNSUPPORTED_GRAZED_HERD_HEADS;
   if ((cohortTotal(next) <= 0 && carryingCapacity <= 0) || unsupportedRemnant)
     delete table[key]; // Habitat/demand gone — stop tracking.
   else table[key] = next;
@@ -786,7 +799,8 @@ function advanceStockOneYear(
 
 /** Saved in the economy slice once the grazed herds of a world have been put on the E1 scale. */
 const HERD_SCALE_BASELINE_KEY = "livestockHerdScaleBaseline";
-const HERD_SCALE_BASELINE_VERSION = 1;
+// Version 2 adds yard animals (§7.43), whose former capacity used population points.
+const HERD_SCALE_BASELINE_VERSION = 2;
 
 /**
  * One-time correction of herds seeded under the former biome-weight capacity (E1-5, §7.41). Those
@@ -802,7 +816,7 @@ export function rebaseGrazedHerdsToDemandScale(): boolean {
   const world = getWorldContext();
   const cells = world.pack.cells;
   if (!table || !cells?.i?.length) return false;
-  const grazed = getGoods().filter(good => isGrazedLivestockGood(good.name) && isGoodEnabled(good));
+  const grazed = getGoods().filter(good => isManagedHerdGood(good.name) && isGoodEnabled(good));
   for (const cellId of cells.i) {
     if ((cells.h[cellId] ?? 0) < 20 || !(cells.pop[cellId] > 0)) continue;
     for (const good of grazed) {
@@ -836,7 +850,7 @@ export function updateAnnualFaunaCohorts(): boolean {
   if (!table) return false;
 
   const domesticatedGoods = getGoods().filter(
-    good => good.tags.includes("liveAnimal") && (isGoodEnabled(good) || isGrazedLivestockGood(good.name))
+    good => good.tags.includes("liveAnimal") && (isGoodEnabled(good) || isManagedHerdGood(good.name))
   );
 
   for (const cellId of cells.i) {
@@ -850,7 +864,7 @@ export function updateAnnualFaunaCohorts(): boolean {
       const rate = resolveBiomeOutputRate(biomeCode, good.biomeOutput, good.biomeOutputByTag, world.biomesData);
       // Existing grazed animals still age and adjust after habitat or technology eligibility is lost.
       // Grazed herds follow the mixed-farming targets, which do not require a biome output rate.
-      const grazed = isGrazedLivestockGood(good.name);
+      const grazed = isManagedHerdGood(good.name);
       const existingGrazedHerd = grazed && table[getStockKey(cellId, good.name)];
       if ((!isGoodEnabled(good) || (rate <= 0 && !grazed)) && !existingGrazedHerd) continue;
       const flatRateAmount = Math.max(0, cells.pop[cellId] ?? 0) * rate;

@@ -54,6 +54,7 @@ import {
   CATTLE_FOLLOWERS_PER_DRAUGHT_OX,
   DEFAULT_ANNUAL_SOWN_SHARE,
   DRAUGHT_HEADS_PER_CULTIVATED_HA,
+  DRAUGHT_HEADS_PER_RURAL_PERSON_MAX,
   FALLOW_GRAZING_DM_KG_PER_HA,
   GOAT_SHARE_OF_SMALL_STOCK_IN_BROWSE,
   getHorseDraughtShare,
@@ -286,7 +287,7 @@ export function getLivestockHerdTargets(world: Readonly<WorldContext>, cellId: n
   };
   const pastoralHeads = (name: string) =>
     pastoral && suited(name) ? people * (PASTORAL_HEADS_PER_RURAL_PERSON[name] ?? 0) : 0;
-  const draught = cultivated * DRAUGHT_HEADS_PER_CULTIVATED_HA;
+  const draught = Math.min(cultivated * DRAUGHT_HEADS_PER_CULTIVATED_HA, people * DRAUGHT_HEADS_PER_RURAL_PERSON_MAX);
   const horseShare = kept("Horses") ? getHorseDraughtShare(world.options?.historicalPeriod) : 0;
   const goatShare = suited("Goats") ? GOAT_SHARE_OF_SMALL_STOCK_IN_BROWSE : 0;
   const targets: Record<string, number> = {};

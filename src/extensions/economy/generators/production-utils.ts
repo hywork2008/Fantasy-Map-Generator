@@ -15,7 +15,12 @@ import {
 } from "../economyContext";
 import { getCropOutputMix } from "./agriculturalLandUse";
 import { getMilkOutput } from "./dairy";
-import { dispatchDomesticatedFauna, getGrazedMonthlyOfftakeHeads, getRuralEcosystemDetail } from "./faunaPopulation";
+import {
+  dispatchDomesticatedFauna,
+  getGrazedMonthlyOfftakeHeads,
+  getRuralEcosystemDetail,
+  isManagedHerdGood
+} from "./faunaPopulation";
 import { getForestStockMultiplier } from "./forestStock";
 import { type Good, Goods, isGoodEnabled } from "./goods-generator";
 import { getHusbandryCareFactor, isGrazedLivestockGood } from "./husbandry";
@@ -215,14 +220,14 @@ export function getRuralLiveAnimalContributions(
   const herdBased = getRuralEcosystemDetail() === "detailed";
   if (herdBased)
     for (const good of getGoods())
-      if (isGrazedLivestockGood(good.name) && isGoodEnabled(good))
+      if (isManagedHerdGood(good.name) && isGoodEnabled(good))
         desired.set(good.i, getGrazedMonthlyOfftakeHeads(cellId, good) / animalsPerMarketHead(good.name));
   const result: RuralProductionContribution[] = [];
   for (const [goodId, base] of desired) {
     const good = Goods.get(goodId);
     if (!good?.tags.includes("liveAnimal") || !isGoodEnabled(good)) continue;
-    const grazed = isGrazedLivestockGood(good.name);
-    const workers = grazed && !herdBased ? getHusbandryCareFactor(cellId) : 1;
+    const grazed = isManagedHerdGood(good.name);
+    const workers = isGrazedLivestockGood(good.name) && !herdBased ? getHusbandryCareFactor(cellId) : 1;
     const seasonal = good.tags.includes("food")
       ? getSeasonalFoodProductionMultiplier(good, cellId, livestockFeedMonth())
       : 1;

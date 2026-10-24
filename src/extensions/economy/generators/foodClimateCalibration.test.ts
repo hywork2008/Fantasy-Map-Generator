@@ -57,7 +57,7 @@ function fixture(): WorldContext {
     distanceScale: 1,
     biomesData: {
       habitability: [100, 100, 100, 100, 100, 100],
-      tags: [["arable"], ["arable"], ["forest", "arable"], ["wetland"], ["desert"], ["mountain"]]
+      tags: [["arable"], ["arable"], ["forest", "cold"], ["wetland"], ["desert"], ["mountain"]]
     },
     grid: { cells: { temp: new Float32Array(count), prec: new Float32Array(count) } },
     pack: {

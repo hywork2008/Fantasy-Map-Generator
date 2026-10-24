@@ -8,6 +8,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { getOrCreateFaunaStockTable, getOrCreateLivestockFeedTable } from "../src/extensions/economy/context/cellTables";
 import { getWorldContext } from "../src/extensions/economy/context/economyApi";
 import { getGoods, getMarkets } from "../src/extensions/economy/context/trade";
+import { getCultivatedArea, getYieldPerArea } from "../src/extensions/economy/context/agriculture";
 import { getDomesticatedCarryingCapacity } from "../src/extensions/economy/generators/faunaPopulation";
 import * as husbandry from "../src/extensions/economy/generators/husbandry";
 import { getAnnualWoolPotentialKg } from "../src/extensions/economy/generators/woolProduction";
@@ -88,6 +89,15 @@ try {
         }
         return { ...row, perHundredRuralPeople: (100 * row.heads) / land.ruralPeople };
       });
+    const fields = getCultivatedArea();
+    const yields = getYieldPerArea();
+    let fieldHa = 0;
+    let weightedYield = 0;
+    for (const cell of cells.i) {
+      if (cells.h[cell] < 20 || !(fields[cell] > 0)) continue;
+      fieldHa += fields[cell];
+      weightedYield += fields[cell] * yields[cell];
+    }
     let woolKg = 0;
     for (const cell of cells.i) woolKg += getAnnualWoolPotentialKg(cell);
     const feedYear = { requiredKg: 0, fedKg: 0 };
@@ -99,6 +109,8 @@ try {
     return {
       date: [host.simulation.currentYear, host.simulation.currentMonth, host.simulation.currentDay],
       land,
+      cultivatedHaPerRuralPerson: land.cultivatedHa / land.ruralPeople,
+      meanNetYieldKgPerSownHa: fieldHa > 0 ? weightedYield / fieldHa : 0,
       draughtPerCultivatedHa:
         (species.find(row => row.species === "Horses")?.heads ?? 0) / land.cultivatedHa +
         (species.find(row => row.species === "Cattle")?.heads ?? 0) / 2 / land.cultivatedHa,
@@ -123,7 +135,7 @@ try {
     output,
     `${JSON.stringify(
       {
-        schemaVersion: 1,
+        schemaVersion: 2,
         inputSha256: hash(bytes),
         sourceTreeSha256,
         months,
