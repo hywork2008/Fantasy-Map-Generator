@@ -29,6 +29,7 @@ export interface ApplyTerrainInput {
     | "castleFailure"
     | "fmgElevations"
     | "elevationPreset"
+    | "elevationRelief"
     | "elevationSeed"
     | "waterPolygon"
     | "urban"

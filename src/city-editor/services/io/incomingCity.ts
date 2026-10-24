@@ -10,6 +10,7 @@ import {
 } from "../../../utils/fixedBurgCrossings";
 import { isRequiredSiteBounds, populationWindowMeters, requiredSiteExtent } from "../../../utils/requiredSiteBounds";
 import { validUrbanMorphology } from "../../../utils/urbanMorphology";
+import { elevationReliefScale } from "../../generators/elevationPreset";
 import { generationStageDefinitions } from "../../generators/generation/stages";
 import {
   defaultPopulationSettings,
@@ -519,6 +520,7 @@ function asSettings(raw: unknown): Omit<GenerationSettings, "descriptor"> | null
     raw.elevationPreset === "valley"
   )
     settings.elevationPreset = raw.elevationPreset;
+  if (isFiniteNumber(raw.elevationRelief)) settings.elevationRelief = elevationReliefScale(raw.elevationRelief);
   if (isFiniteNumber(raw.walledAreaShare)) settings.walledAreaShare = raw.walledAreaShare;
   if (raw.townWallRings === "single" || raw.townWallRings === "double") settings.townWallRings = raw.townWallRings;
   if (raw.innerWallState === "standing" || raw.innerWallState === "razed") settings.innerWallState = raw.innerWallState;

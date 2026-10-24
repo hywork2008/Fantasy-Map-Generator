@@ -86,6 +86,7 @@ export function runPlan(
     templeHarbor: [],
     fmgElevations: fmgCellElevations(cells, settings.descriptor),
     elevationPreset: settings.elevationPreset ?? "flat",
+    elevationRelief: settings.elevationRelief,
     elevationSeed: seed
   };
   if (!cells.length) return empty;
@@ -372,6 +373,7 @@ export function runPlan(
     innerWall,
     fmgElevations,
     elevationPreset: empty.elevationPreset,
+    elevationRelief: empty.elevationRelief,
     elevationSeed: empty.elevationSeed,
     burialProfile: empty.burialProfile,
     urbanCoreMode: settings.urbanCoreMode,

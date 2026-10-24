@@ -3,8 +3,11 @@ import { reliefShade } from "../renderers/cellElevationSvg";
 import type { CityDocument, Id, RiverGroup } from "../types/document";
 import { createGridDocument } from "./document";
 import {
+  applyElevationRelief,
   downhillAzimuth,
+  elevationReliefScale,
   elevationSampler,
+  presetAmplitude,
   presetElevation,
   reliefAmplitude,
   settleRiverGrades
@@ -69,6 +72,17 @@ describe("elevation presets", () => {
     expect(reliefAmplitude(600)).toBe(24);
     expect(reliefAmplitude(1200)).toBe(48);
     expect(reliefAmplitude(4800)).toBe(80);
+  });
+
+  it("multiplies the clamped base and snaps the slider scale", () => {
+    expect(elevationReliefScale(undefined)).toBe(1);
+    expect(elevationReliefScale(8.4)).toBe(8);
+    expect(elevationReliefScale(0.2)).toBe(1);
+    expect(presetAmplitude(1200, 1)).toBe(48);
+    expect(presetAmplitude(1200, 2)).toBe(96);
+    expect(presetAmplitude(4800, 1)).toBe(80);
+    expect(presetAmplitude(4800, 4)).toBe(320);
+    expect(presetAmplitude(300, 2)).toBe(24);
   });
 
   it("shapes a slope, a dome, a basin, and a valley", () => {
@@ -149,6 +163,25 @@ describe("elevation presets", () => {
     );
     expect(slope([150, 0], 0, 1)).toBe(2);
     expect(slope([-150, 0], 0, 1)).toBe(14);
+    const doubled = elevationSampler(
+      {
+        elevationPreset: "slope",
+        elevationRelief: 2,
+        elevationSeed: "seed",
+        rivers: [
+          {
+            resolvedEdgePoints: [
+              [0, 0],
+              [10, 0]
+            ]
+          }
+        ],
+        waterPolygon: null
+      },
+      { extentMeters: 300 }
+    );
+    expect(doubled([-150, 0], 0, 1)).toBe(26);
+    expect(doubled([150, 0], 0, 1)).toBe(2);
   });
 
   it("paints a tint only once a land cell is visibly above 1 m", () => {
@@ -257,7 +290,72 @@ describe("elevation presets", () => {
     const closed = settleRiverGrades(document);
     for (const face of incidentFaces(closed.mesh, middle)) expect(face.properties.elevation).toBe(10);
   });
+
+  it("rewrites only land relief and leaves a second pass unchanged", () => {
+    const document = grid();
+    const road = {
+      id: "road-kept",
+      kind: "road" as const,
+      name: "Street",
+      segments: [],
+      style: { widthMeters: 4, color: "#888" },
+      locked: false
+    };
+    document.featureGroups = [road];
+    const faces = Object.values(document.mesh.faces);
+    const wardFace = faces[0];
+    const locked = faces[1];
+    const sea = faces[2];
+    const reserved = faces[3];
+    wardFace.properties.ward = "market";
+    locked.properties.locked = true;
+    locked.properties.elevation = 7;
+    sea.properties.water = "sea";
+    sea.properties.elevation = 0;
+    reserved.properties.elevation = 9;
+    document.defenseCircuits = [
+      {
+        id: "castle-circuit",
+        scope: "castle",
+        areaFaceIds: [reserved.id],
+        wallGroupIds: [],
+        naturalBarriers: [],
+        locked: false
+      }
+    ];
+    const skip = new Set([locked.id, sea.id, reserved.id]);
+    const mild = applyElevationRelief(document, {
+      elevationPreset: "slope",
+      elevationRelief: 1,
+      elevationSeed: "seed"
+    });
+    const steep = applyElevationRelief(document, {
+      elevationPreset: "slope",
+      elevationRelief: 4,
+      elevationSeed: "seed"
+    });
+    expect(landRange(steep, skip)).toBeGreaterThan(landRange(mild, skip) * 3);
+    expect(steep.featureGroups).toBe(document.featureGroups);
+    expect(steep.mesh.faces[wardFace.id].properties.ward).toBe("market");
+    expect(steep.mesh.faces[locked.id]).toBe(locked);
+    expect(steep.mesh.faces[locked.id].properties.elevation).toBe(7);
+    expect(steep.mesh.faces[sea.id].properties.water).toBe("sea");
+    expect(steep.mesh.faces[sea.id].properties.elevation).toBe(0);
+    expect(steep.mesh.faces[reserved.id].properties.elevation).toBe(9);
+    expect(wardFace.properties.elevation).toBe(1);
+    expect(applyElevationRelief(steep, { elevationPreset: "slope", elevationRelief: 4, elevationSeed: "seed" })).toBe(
+      steep
+    );
+    expect(applyElevationRelief(document, { elevationPreset: "flat", elevationRelief: 8 })).toBe(document);
+  });
 });
+
+function landRange(document: CityDocument, skip: ReadonlySet<Id>): number {
+  const heights = Object.values(document.mesh.faces)
+    .filter(face => face.properties.water === "land" && !skip.has(face.id))
+    .map(face => face.properties.elevation);
+  return Math.max(...heights) - Math.min(...heights);
+}
 
 describe("generated cell elevations", () => {
   const features = { walls: false, citadel: false, plaza: false, temple: false, port: false, shanty: false };

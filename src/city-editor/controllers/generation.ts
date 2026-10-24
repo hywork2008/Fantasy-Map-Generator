@@ -3,6 +3,7 @@ import { describeImportedSite } from "../components/importedSite";
 import { inheritBuildingAppearance, withBuildingAppearance } from "../generators/buildingAppearance";
 import { DEFAULT_CASTLE_SETTINGS } from "../generators/castlePlacement";
 import { sizePresetForExtent } from "../generators/document";
+import { elevationReliefScale, presetAmplitude } from "../generators/elevationPreset";
 import { createFabricPlan, resolveDistricts } from "../generators/fabricDistricts";
 import { townCircuits } from "../generators/fortifications";
 import { COMPLETE_CITY_ATTEMPTS, generateCityOnDocument } from "../generators/generation/generateCity";
@@ -726,6 +727,19 @@ export function createGenerationController(ctx: GenerationContext) {
     ctx.reliefInput.checked = ctx.generation.generateSettings.config.relief;
     const elevationPreset = ctx.root.querySelector<HTMLSelectElement>(".ce-elevation-preset");
     if (elevationPreset) elevationPreset.value = ctx.generation.generateSettings.elevationPreset ?? "flat";
+    const elevationRelief = ctx.root.querySelector<HTMLInputElement>(".ce-elevation-relief");
+    const elevationReliefValue = ctx.root.querySelector<HTMLElement>(".ce-elevation-relief-value");
+    const updateElevationRelief = ctx.root.querySelector<HTMLButtonElement>(".ce-update-elevation-relief");
+    const reliefScale = elevationReliefScale(ctx.generation.generateSettings.elevationRelief);
+    if (elevationRelief) elevationRelief.value = String(reliefScale);
+    if (elevationReliefValue) {
+      elevationReliefValue.textContent = editorText("cityEditor.messages.elevationReliefValue", {
+        value0: reliefScale.toFixed(1),
+        value1: String(presetAmplitude(ctx.documents.documentState.frame.extentMeters, reliefScale))
+      });
+    }
+    if (updateElevationRelief)
+      updateElevationRelief.disabled = (ctx.generation.generateSettings.elevationPreset ?? "flat") === "flat";
     const terrainField = ctx.root.querySelector<HTMLSelectElement>(".ce-terrain-field");
     if (terrainField) {
       const allowed = fieldModeAllowed(ctx.documents.documentState.frame.extentMeters);

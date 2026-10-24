@@ -242,6 +242,7 @@ export function planSkeletonCity(
     templeHarbor: warded.precincts,
     fmgElevations,
     elevationPreset: settings.elevationPreset ?? "flat",
+    elevationRelief: settings.elevationRelief,
     elevationSeed: seed
   };
   return { plan, prepared: { ...prepared, params, cells, faceIdOf, cellSize: inputs.cellSize, half: inputs.half } };

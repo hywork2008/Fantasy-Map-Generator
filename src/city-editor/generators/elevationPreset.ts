@@ -2,9 +2,10 @@
 
 import type { CityDocument, Id, Mesh, Point, RiverGroup } from "../types/document";
 import type { ElevationPreset } from "../types/generationSettings";
+import { reservedCastleFaces } from "./fortifications";
 import { landElevation } from "./generation/assembly/documentProperties";
 import { polygonCentroid } from "./geom";
-import { incidentFaces } from "./mesh";
+import { facePoints, incidentFaces } from "./mesh";
 
 export type { ElevationPreset };
 export const ELEVATION_PRESETS = [
@@ -24,13 +25,32 @@ export function isElevationPreset(value: unknown): value is ElevationPreset {
   return typeof value === "string" && (ELEVATION_PRESETS as readonly string[]).includes(value);
 }
 
-/** Relief across the frame, in metres. 4% of the side, clamped to 12–80 m. */
+/** Relief across the frame, in metres, before the relief multiplier. 4% of the side, clamped to 12–80 m. */
 export function reliefAmplitude(extentMeters: number): number {
   return roundTenth(Math.min(80, Math.max(12, extentMeters * 0.04)));
 }
 
+/** Slider bounds. 1 keeps the clamped base amplitude; higher values scale that base past 80 m. */
+export const ELEVATION_RELIEF_MIN = 1;
+export const ELEVATION_RELIEF_MAX = 8;
+export const ELEVATION_RELIEF_STEP = 0.1;
+
+/** Unset or non-finite values are 1. Other numbers snap to 0.1 and stay inside 1–8. */
+export function elevationReliefScale(value: number | undefined): number {
+  if (value === undefined || !Number.isFinite(value)) return ELEVATION_RELIEF_MIN;
+  const stepped = Math.round(value * 10) / 10;
+  return Math.min(ELEVATION_RELIEF_MAX, Math.max(ELEVATION_RELIEF_MIN, stepped));
+}
+
+/** Preset height span in metres. The 12–80 m clamp applies at 1×, then the multiplier scales it. */
+export function presetAmplitude(extentMeters: number, relief?: number): number {
+  return roundTenth(reliefAmplitude(extentMeters) * elevationReliefScale(relief));
+}
+
 export interface ElevationSamplePlan {
   elevationPreset?: ElevationPreset;
+  /** Multiplier on {@link presetAmplitude}. Unset is 1. */
+  elevationRelief?: number;
   elevationSeed?: string;
   fmgElevations?: Map<number, number>;
   rivers: ReadonlyArray<{ resolvedEdgePoints: Point[] }>;
@@ -41,7 +61,7 @@ export interface ElevationSamplePlan {
 export function elevationSampler(plan: ElevationSamplePlan, frame: { extentMeters: number }) {
   const preset = plan.elevationPreset ?? "flat";
   const half = Math.max(1, frame.extentMeters / 2);
-  const amplitude = reliefAmplitude(frame.extentMeters);
+  const amplitude = presetAmplitude(frame.extentMeters, plan.elevationRelief);
   const azimuth = downhillAzimuth(plan.rivers, plan.waterPolygon, plan.elevationSeed ?? "");
   return (point: Point, cellId: number, current: number): number => {
     if (preset === "flat") return landElevation(plan, cellId, current);
@@ -96,6 +116,49 @@ export function presetElevation(
   }
   const across = Math.abs(point[0] * -Math.sin(azimuth) + point[1] * Math.cos(azimuth)) / half;
   return roundTenth(low + (high - low) * clamp(across, 0, 1));
+}
+
+export interface ElevationReliefUpdate {
+  elevationPreset?: ElevationPreset;
+  elevationRelief?: number;
+  elevationSeed?: string;
+}
+
+/**
+ * Rewrite land elevations with the current preset and relief, then keep river
+ * beds from climbing. Streets, wards, and buildings stay. A flat preset, and a
+ * map that already matches, return the same document.
+ */
+export function applyElevationRelief(document: CityDocument, update: ElevationReliefUpdate): CityDocument {
+  const preset = update.elevationPreset ?? "flat";
+  if (preset === "flat") return document;
+  const sample = elevationSampler(
+    {
+      elevationPreset: preset,
+      elevationRelief: update.elevationRelief,
+      elevationSeed: update.elevationSeed,
+      rivers: documentRivers(document),
+      waterPolygon: seaReliefPolygon(document)
+    },
+    document.frame
+  );
+  const reserved = reservedCastleFaces(document);
+  let faces = document.mesh.faces;
+  let copied = false;
+  for (const face of Object.values(document.mesh.faces)) {
+    if (face.properties.locked || face.properties.water !== "land" || reserved.has(face.id)) continue;
+    const next = sample(polygonCentroid(facePoints(document.mesh, face)), 0, face.properties.elevation);
+    if (face.properties.elevation === next) continue;
+    if (!copied) {
+      faces = { ...faces };
+      copied = true;
+    }
+    faces[face.id] = { ...face, properties: { ...face.properties, elevation: next } };
+  }
+  const sampled = copied ? { ...document, mesh: { ...document.mesh, faces } } : document;
+  const settled = settleRiverGrades(sampled);
+  if (sameElevations(document, settled) && sameRiverOrder(document, settled)) return document;
+  return settled;
 }
 
 /**
@@ -219,6 +282,69 @@ function endKind(document: CityDocument, vertexId: Id): "water" | "mapBoundary" 
   const half = document.frame.extentMeters / 2;
   const onFrame = Math.abs(Math.abs(point[0]) - half) <= 1 || Math.abs(Math.abs(point[1]) - half) <= 1;
   return onFrame ? "mapBoundary" : "spring";
+}
+
+/** River groups already run upstream to downstream. Their vertices orient the preset. */
+function documentRivers(document: CityDocument): { resolvedEdgePoints: Point[] }[] {
+  const courses: { resolvedEdgePoints: Point[] }[] = [];
+  for (const group of document.featureGroups) {
+    if (group.kind !== "river" || group.vertices.length < 2) continue;
+    const points: Point[] = [];
+    for (const vertexId of group.vertices) {
+      const point = document.mesh.vertices[vertexId]?.point;
+      if (point) points.push(point);
+    }
+    if (points.length >= 2) courses.push({ resolvedEdgePoints: points });
+  }
+  return courses;
+}
+
+/**
+ * A tiny triangle whose centroid is the mean of the sea-face sites.
+ * River channels in `waterAreas` are not a coast.
+ */
+function seaReliefPolygon(document: CityDocument): Point[] | null {
+  let x = 0;
+  let y = 0;
+  let count = 0;
+  for (const face of Object.values(document.mesh.faces)) {
+    if (face.properties.water === "land") continue;
+    const site = face.site ?? polygonCentroid(facePoints(document.mesh, face));
+    x += site[0];
+    y += site[1];
+    count += 1;
+  }
+  if (count === 0) return null;
+  const mx = x / count;
+  const my = y / count;
+  return [
+    [mx - 1, my - 1],
+    [mx + 2, my - 1],
+    [mx - 1, my + 2]
+  ];
+}
+
+function sameElevations(before: CityDocument, after: CityDocument): boolean {
+  if (before.mesh.faces === after.mesh.faces) return true;
+  for (const id in before.mesh.faces) {
+    if (before.mesh.faces[id].properties.elevation !== after.mesh.faces[id]?.properties.elevation) return false;
+  }
+  return true;
+}
+
+function sameRiverOrder(before: CityDocument, after: CityDocument): boolean {
+  if (before.featureGroups === after.featureGroups) return true;
+  if (before.featureGroups.length !== after.featureGroups.length) return false;
+  for (let index = 0; index < before.featureGroups.length; index++) {
+    const left = before.featureGroups[index];
+    const right = after.featureGroups[index];
+    if (left === right) continue;
+    if (left.kind !== "river" || right.kind !== "river" || left.vertices.length !== right.vertices.length) return false;
+    for (let vertex = 0; vertex < left.vertices.length; vertex++) {
+      if (left.vertices[vertex] !== right.vertices[vertex]) return false;
+    }
+  }
+  return true;
 }
 
 function roundTenth(value: number): number {

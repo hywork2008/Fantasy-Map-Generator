@@ -48,6 +48,11 @@ export interface GenerationSettings {
    * Unset and `flat` keep the current plane, or the linked FMG heightfield.
    */
   elevationPreset?: ElevationPreset;
+  /**
+   * Multiplier on the preset height span. Unset is 1.
+   * Values above 1 scale the clamped 12–80 m base, so the span can exceed 80 m.
+   */
+  elevationRelief?: number;
   /** Castle siting also checks C4 on street edges. Set by the attempt loop
    * after a castle town failed with unconnected gates. */
   castleStreetLinks?: boolean;

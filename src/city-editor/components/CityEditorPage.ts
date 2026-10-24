@@ -25,7 +25,16 @@ import { createSelectionController } from "../controllers/tools/selection";
 import { cityFixedApproachProvider } from "../generators/automaticFixedApproaches";
 import { DEFAULT_CASTLE_SETTINGS } from "../generators/castlePlacement";
 import { createGridDocument, DEFAULT_CITY_SIZE, DEFAULT_GRID_KIND } from "../generators/document";
-import { ELEVATION_PRESETS, isElevationPreset } from "../generators/elevationPreset";
+import {
+  applyElevationRelief,
+  ELEVATION_PRESETS,
+  ELEVATION_RELIEF_MAX,
+  ELEVATION_RELIEF_MIN,
+  ELEVATION_RELIEF_STEP,
+  elevationReliefScale,
+  isElevationPreset,
+  presetAmplitude
+} from "../generators/elevationPreset";
 import { restoreFixedCrossingApproaches } from "../generators/fixedApproachAdoption";
 import { clearGenerationPreviewCache } from "../generators/generation/previews";
 import { defaultGenerationSettings, randomGeography, randomSeed } from "../generators/generation/settings";
@@ -2412,12 +2421,65 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     if (generation.generateSettings.elevationPreset !== "flat") delete generation.generateSettings.terrainField;
     syncGenerateControls();
   });
+  const elevationReliefInput = rangeInput(
+    String(elevationReliefScale(generation.generateSettings.elevationRelief)),
+    String(ELEVATION_RELIEF_MIN),
+    String(ELEVATION_RELIEF_MAX),
+    String(ELEVATION_RELIEF_STEP)
+  );
+  elevationReliefInput.className = "ce-elevation-relief";
+  elevationReliefInput.title = editorText("cityEditor.messages.elevationReliefHelp");
+  const elevationReliefValue = document.createElement("span");
+  elevationReliefValue.className = "ce-elevation-relief-value";
+  const elevationReliefControl = div("ce-elevation-relief-control");
+  elevationReliefControl.append(elevationReliefInput, elevationReliefValue);
+  const updateElevationReliefButton = makeButton(editorText("cityEditor.messages.updateElevationRelief"), () => {
+    applyElevationReliefToDocument();
+  });
+  updateElevationReliefButton.className = "ce-update-elevation-relief";
+  updateElevationReliefButton.title = editorText("cityEditor.messages.elevationReliefHelp");
+  updateElevationReliefButton.disabled = (generation.generateSettings.elevationPreset ?? "flat") === "flat";
+  function paintElevationReliefReadout(): void {
+    const scale = elevationReliefScale(Number(elevationReliefInput.value));
+    elevationReliefValue.textContent = editorText("cityEditor.messages.elevationReliefValue", {
+      value0: scale.toFixed(1),
+      value1: String(presetAmplitude(documents.documentState.frame.extentMeters, scale))
+    });
+  }
+  function rememberElevationRelief(): void {
+    const scale = elevationReliefScale(Number(elevationReliefInput.value));
+    if (scale === ELEVATION_RELIEF_MIN) delete generation.generateSettings.elevationRelief;
+    else generation.generateSettings.elevationRelief = scale;
+    paintElevationReliefReadout();
+  }
+  function applyElevationReliefToDocument(): void {
+    rememberElevationRelief();
+    const preset = generation.generateSettings.elevationPreset ?? "flat";
+    if (preset === "flat") return;
+    const next = applyElevationRelief(documents.documentState, {
+      elevationPreset: preset,
+      elevationRelief: generation.generateSettings.elevationRelief,
+      elevationSeed: generation.generateSeed
+    });
+    if (next !== documents.documentState) {
+      commit(next, editorText("cityEditor.messages.updateElevationRelief"));
+    }
+  }
+  scope.listen(elevationReliefInput, "input", () => {
+    rememberElevationRelief();
+  });
+  scope.listen(elevationReliefInput, "change", () => {
+    applyElevationReliefToDocument();
+  });
+  paintElevationReliefReadout();
   const cityGenerationControls = div("ce-city-generation-controls");
   cityGenerationControls.append(
     importedBox,
     populationControls,
     skeletonControls,
     label(editorText("cityEditor.messages.elevationPreset"), elevationPresetSelect),
+    label(editorText("cityEditor.messages.elevationRelief"), elevationReliefControl),
+    updateElevationReliefButton,
     synthControls,
     label(editorText("cityEditor.messages.wallMaterial"), wallMaterialSelect),
     label(editorText("cityEditor.messages.coastalWalls"), seaWallSelect),

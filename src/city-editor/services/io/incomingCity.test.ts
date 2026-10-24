@@ -84,6 +84,21 @@ describe("parseDescriptor", () => {
 });
 
 describe("share codec", () => {
+  it("clamps elevation relief and keeps the share when the value is not a number", () => {
+    const share = buildShare({
+      seed: "relief",
+      grid: "hex",
+      size: "micro",
+      settings: { config: DEFAULT_SITE_CONFIG, elevationPreset: "slope", elevationRelief: 8.4 }
+    });
+    expect(decodeShare(encodeShare(share))?.settings.elevationRelief).toBe(8);
+    const text = { ...share, settings: { ...share.settings, elevationRelief: "steep" } };
+    const decoded = decodeShare(encodeShare(text));
+    expect(decoded).not.toBeNull();
+    expect(decoded?.settings.elevationRelief).toBeUndefined();
+    expect(decoded?.settings.elevationPreset).toBe("slope");
+  });
+
   it("preserves independent moat options in share links", () => {
     const share = buildShare({
       seed: "moats",
