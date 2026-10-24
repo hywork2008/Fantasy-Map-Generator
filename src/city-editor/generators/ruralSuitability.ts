@@ -2,6 +2,7 @@ import type { CityDocument, Point } from "../types/document";
 import { polygonArea } from "./geom";
 import { bounds, intersectConvex, PlotIndex } from "./parcelGeometry";
 import { cityTerrain } from "./terrainElevation";
+import { FARM_SLOPE_LIMIT } from "./terrainField/constants";
 
 /** Use supplied soil/wetness first; biome inference is deliberately labelled.
  * Terrain triangles share the renderer's elevation model, including edited relief. */
@@ -13,7 +14,7 @@ export function ruralSuitability(document: CityDocument) {
     const half = document.frame.extentMeters / 2;
     for (let y = -half; y < half; y += step)
       for (let x = -half; x < half; x += step) {
-        if (terrain.slopeAt([x + step / 2, y + step / 2]) <= 0.18) continue;
+        if (terrain.slopeAt([x + step / 2, y + step / 2]) <= FARM_SLOPE_LIMIT) continue;
         const square: Point[] = [
           [x, y],
           [x + step, y],

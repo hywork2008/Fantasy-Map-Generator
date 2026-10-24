@@ -71,7 +71,7 @@ export function buildBuildingAppearanceControls(ctx: {
         ? "cityEditor.messages.housingSiteAuto"
         : CLIMATE_LABELS[option.value as BuildingAppearanceClimate]
     );
-  const spacing = ctx.select(["auto", "1", "2", "4", "8"], readTerrainSpacingPreference());
+  const spacing = ctx.select(["auto", "1", "2", "4", "8"], String(readTerrainSpacingPreference()));
   spacing.className = "ce-terrain-spacing";
   spacing.setAttribute("aria-label", editorText("cityEditor.messages.terrainSpacing"));
   for (const option of spacing.options)

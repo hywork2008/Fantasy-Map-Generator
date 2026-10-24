@@ -1,49 +1,42 @@
 #!/usr/bin/env node
 /**
- * Height-field mesh build time (docs/plan/ce-terrain-field-mode.md §9).
+ * Height-field ground build time through the real terrain model (docs/plan/ce-terrain-field-mode.md §9).
  *
  *   npm run ce:terrain-perf
  *
- * Frame time needs a GPU and is not measured here. The mesh-build gate is 500 ms.
+ * Uses the cliff-fortress study (castle platform, ramp) so heightAt includes earthworks, and the real slopeAt
+ * for vertex colours. Frame time needs a GPU and is not measured here.
  */
 import { performance } from "node:perf_hooks";
-import { buildTerrainFieldRecipe } from "../src/city-editor/generators/terrainField/build";
-import { fieldFromParts } from "../src/city-editor/generators/terrainField/conform";
-import { suburbSpacingFactor, type RenderSpacing } from "../src/city-editor/generators/terrainField/constants";
-import { buildDrawGrid, drawSeamError, terrainChunkGeometry } from "../src/city-editor/generators/terrainField/drawGrid";
-import { sampleField } from "../src/city-editor/generators/terrainField/sample";
+import { type RenderSpacing, suburbSpacingFactor } from "../src/city-editor/generators/terrainField/constants";
+import { drawSeamError, terrainChunkGeometry } from "../src/city-editor/generators/terrainField/drawGrid";
+import { createCliffFortressStudy } from "../src/city-editor/generators/terrainField/study";
+import { cityTerrain } from "../src/city-editor/generators/terrainElevation";
 
-const extents = [300, 600, 1200, 2400];
+const extents = [300, 600, 1200];
 const spacings: RenderSpacing[] = [1, 2, 4, 8];
 
 function main(): void {
-  const rows: string[] = ["extent spacing vertices buildMs seamP95"];
+  const rows = ["extent spacing vertices gridMs chunkMs seamP95"];
   for (const extent of extents) {
-    const recipe = buildTerrainFieldRecipe({ template: "crag", seed: 11, extentMeters: extent, sampleMeters: 4 });
-    const started = performance.now();
-    const field = fieldFromParts(extent, recipe.sampleMeters, recipe.parts);
-    const fieldMs = performance.now() - started;
-    let min = Infinity;
-    for (const value of field.elevationsMeters) if (value < min) min = value;
-    const heightAt = (point: [number, number]) => sampleField(field, point) - min;
-    console.log(`field ${extent} m sample ${recipe.sampleMeters} m generated in ${fieldMs.toFixed(1)} ms`);
+    const document = createCliffFortressStudy();
+    document.frame.extentMeters = extent;
     for (const spacing of spacings) {
       const vertices = (Math.floor(extent / spacing) + 1) ** 2;
-      if (vertices > 1_500_000) {
-        rows.push(`${extent} ${spacing} ${vertices} skipped`);
-        continue;
-      }
-      const buildStarted = performance.now();
-      const grid = buildDrawGrid(extent, spacing, heightAt);
-      const chunks = terrainChunkGeometry(grid, () => 0, extent * 0.2, suburbSpacingFactor(extent));
-      const buildMs = performance.now() - buildStarted;
-      const seam = drawSeamError(grid, heightAt);
-      void chunks;
-      rows.push(`${extent} ${spacing} ${vertices} ${buildMs.toFixed(1)} ${seam.p95.toFixed(3)}`);
+      const gridStarted = performance.now();
+      const terrain = cityTerrain(document, { renderSpacing: spacing });
+      const grid = terrain.grid;
+      const gridMs = performance.now() - gridStarted;
+      if (!grid || !terrain.slopeAt) continue;
+      const chunkStarted = performance.now();
+      terrainChunkGeometry(grid, terrain.slopeAt, 120, suburbSpacingFactor(extent));
+      const chunkMs = performance.now() - chunkStarted;
+      const seam = drawSeamError(grid, terrain.heightAt);
+      rows.push(`${extent} ${spacing} ${vertices} ${gridMs.toFixed(0)} ${chunkMs.toFixed(0)} ${seam.p95.toFixed(3)}`);
     }
   }
   console.log(rows.join("\n"));
-  console.log("Frame p95 was not measured. Mesh build at or under 500 ms is the gate used here.");
+  console.log("Frame p95 was not measured.");
 }
 
 main();

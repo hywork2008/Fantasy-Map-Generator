@@ -313,6 +313,8 @@ interface TerrainField {
 
 ### 9.4 2026-10-24 の計測
 
+**再計測（レビュー後）:** `scripts/ceTerrainPerf.ts` を、崖の城塞スタディ（城の台地・登城路を含む）の `cityTerrain` と実際の `slopeAt` で測り直した。格子の構築＋頂点・添字・色の構築は、1,200 m・2 m で 31 + 33 ms、1,200 m・1 m で 136 + 149 ms。水面・川の整合（`conformWater`・`carveRivers`）は含まない。1フレームの時間は未計測のままなので、受入基準の7は未達である。以下の表は最初の計測（勾配色なし・素の高さ場）の記録。
+
 `npm run ce:terrain-perf`（`scripts/ceTerrainPerf.ts`）。テンプレート `crag`、生成の標本 4 m、シード 11。描画の勾配色は `slopeAt` を 0 に固定したので、頂点色の計算は含まない。頂点と添字の構築が本体で、いずれも 500 ms 未満だった。継ぎ目の95パーセンタイルは、測った格子では 0〜0.054 m。1フレームの時間は Playwright で測っていない。セル標高の地面との同日比較も行っていない。
 
 生成（`fieldFromParts`）: 300 m 9.4 ms、600 m 17.1 ms、1,200 m 18.7 ms、2,400 m 69.5 ms。

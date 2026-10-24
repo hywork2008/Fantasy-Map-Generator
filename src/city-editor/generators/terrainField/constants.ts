@@ -50,3 +50,6 @@ export function suburbSpacingFactor(extentMeters: number): number {
 export function fieldModeAllowed(extentMeters: number): boolean {
   return extentMeters <= FIELD_MODE_MAX_EXTENT_METERS + 1e-6;
 }
+
+/** Rise/run above which farmland is not ploughed on a height field. */
+export const FARM_SLOPE_LIMIT = 0.18;

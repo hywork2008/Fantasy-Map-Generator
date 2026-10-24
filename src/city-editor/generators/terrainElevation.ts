@@ -453,7 +453,7 @@ export function cityTerrain(
       }
     : undefined;
   let drawGrid: TerrainGrid | undefined;
-  return {
+  const result: CityTerrain = {
     datumMeters,
     relief,
     ...(field ? { field: true as const } : {}),
@@ -472,17 +472,6 @@ export function cityTerrain(
         }
       : {}),
     triangles: [...graded.patches],
-    ...(field
-      ? {
-          get grid(): TerrainGrid {
-            if (!drawGrid) {
-              const spacing = resolveRenderSpacing(document.frame.extentMeters, options.renderSpacing ?? "auto");
-              drawGrid = buildDrawGrid(document.frame.extentMeters, spacing, heightAt);
-            }
-            return drawGrid;
-          }
-        }
-      : {}),
     foundationAt(ring) {
       if (!relief || !ring.length) return 0;
       if (field && slopeAt) {
@@ -516,6 +505,19 @@ export function cityTerrain(
       return top;
     }
   };
+  // A spread would run the getter at once. Defining it here keeps the grid lazy.
+  if (field)
+    Object.defineProperty(result, "grid", {
+      enumerable: true,
+      get(): TerrainGrid {
+        if (!drawGrid) {
+          const spacing = resolveRenderSpacing(document.frame.extentMeters, options.renderSpacing ?? "auto");
+          drawGrid = buildDrawGrid(document.frame.extentMeters, spacing, heightAt);
+        }
+        return drawGrid;
+      }
+    });
+  return result;
 }
 
 /** Draw-time stamp includes edits even when the building fabric is reused. */

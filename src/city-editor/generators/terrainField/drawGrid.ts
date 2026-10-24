@@ -1,6 +1,6 @@
 import type { Point } from "../../types/primitives";
 import type { TerrainGrid } from "../../types/terrain";
-import { CHUNK_VERTEX_COUNT, defaultRenderSpacing, type RenderSpacing } from "./constants";
+import { CHUNK_VERTEX_COUNT, defaultRenderSpacing, type RenderSpacing, ROCK_SLOPE } from "./constants";
 import { fieldGrid, fieldIndex, fieldPoint } from "./sample";
 
 const LAND_COLOR: [number, number, number] = [0.835, 0.812, 0.749];
@@ -36,7 +36,7 @@ function lerp(a: number, b: number, t: number): number {
 }
 
 function colorAt(slope: number, out: [number, number, number]): void {
-  const t = Math.max(0, Math.min(1, (slope - 0.7) / 0.3));
+  const t = Math.max(0, Math.min(1, (slope - ROCK_SLOPE * 0.9) / (ROCK_SLOPE * 0.2)));
   out[0] = lerp(LAND_COLOR[0], ROCK_COLOR[0], t);
   out[1] = lerp(LAND_COLOR[1], ROCK_COLOR[1], t);
   out[2] = lerp(LAND_COLOR[2], ROCK_COLOR[2], t);
@@ -82,7 +82,7 @@ function chunkGeometry(
   if (rows[rows.length - 1] !== row1) rows.push(row1);
   const width = columns.length;
   const height = rows.length;
-  const skirt = 1.5;
+  const skirt = 3;
   const topCount = width * height;
   const positions = new Float32Array((topCount + (width + height) * 2) * 3);
   const colors = new Float32Array((topCount + (width + height) * 2) * 3);

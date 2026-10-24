@@ -412,8 +412,8 @@ function placeCastlePass(
       )
         return false;
       if (Math.abs(polygonArea(facePoints(document.mesh, face))) < minArea * 0.15) return false;
-      if (prefer && insideRing(prefer, facePoints(document.mesh, face))) return true;
       if (relationship === "integrated" || outward) return !urban.has(face.id) && border.has(face.id);
+      if (prefer && insideRing(prefer, facePoints(document.mesh, face))) return true;
       // A tiny evolution town can be all edge cells. The strict pass keeps the
       // old interior-only central rule; the retry may cut a box out of the
       // cell nearest the middle.
