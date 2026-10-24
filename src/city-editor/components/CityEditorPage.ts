@@ -2521,13 +2521,13 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     toggleLabel(editorText("cityEditor.messages.debugShowGenerationFailurePreview"), failureDebugInput),
     failureDebugSummary,
     closeFailurePreview,
-    decorationControls,
     meshToggleRow,
     label(editorText("cityEditor.messages.renderQuality"), renderQualitySelect),
     toggleLabel(editorText("cityEditor.messages.showUrbanCore"), coreLayerInput),
     toggleLabel(editorText("cityEditor.messages.showFMGSurroundings"), regionalLayerInput),
     divider(),
-    cityGenerationControls
+    cityGenerationControls,
+    decorationControls
   );
   syncGenerateControls();
   mountOperationHelp(root, scope, () => generation.generateSettings);
