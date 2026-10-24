@@ -1,6 +1,61 @@
 import { describe, expect, it } from "vitest";
 import type { Point } from "../types/geometry";
-import { inwardNormal, simplifyPolyline } from "./geom";
+import { clipPolygonHalfPlane, inwardNormal, simplifyPolyline, splitPolygonHalfPlane } from "./geom";
+
+describe("splitPolygonHalfPlane", () => {
+  it("matches separate clips through corners, tolerance bands and nearly duplicate vertices", () => {
+    const rings: Point[][] = [
+      [
+        [-2, -2],
+        [2, -2],
+        [2, 2],
+        [-2, 2]
+      ],
+      [
+        [0, 0],
+        [1e-5, 0],
+        [2, 0],
+        [1, 2]
+      ],
+      [
+        [-2e-9, -1],
+        [0.5e-9, 0],
+        [2e-9, 1],
+        [2, 0]
+      ],
+      [
+        [-2, -2],
+        [2, -2],
+        [2, -1],
+        [-1, -1],
+        [-1, 2],
+        [-2, 2]
+      ],
+      [
+        [0, 0],
+        [0, 0]
+      ],
+      []
+    ];
+    for (const ring of rings)
+      for (const normal of [
+        [1, 0],
+        [0, 1],
+        [0.6, 0.8],
+        [-0.8, 0.6]
+      ] as Point[])
+        for (const origin of [
+          [0, 0],
+          [2, 2],
+          [-10, -10],
+          [1e-9, 0]
+        ] as Point[])
+          expect(splitPolygonHalfPlane(ring, origin, normal)).toEqual([
+            clipPolygonHalfPlane(ring, origin, normal),
+            clipPolygonHalfPlane(ring, origin, [-normal[0], -normal[1]])
+          ]);
+  });
+});
 
 describe("inwardNormal", () => {
   // C shape whose centroid lies in the notch, outside the polygon.

@@ -134,6 +134,68 @@ export function resolveTerrainFeatures(
   });
 }
 
+/** Local platform candidates in source order; later overlapping pads must still win. */
+export function indexTerrainFeatures(
+  features: readonly ResolvedTerrainFeature[]
+): (point: Point) => readonly ResolvedTerrainFeature[] {
+  if (features.length < 8) return () => features;
+  const step = 32;
+  type Entry = { feature: ResolvedTerrainFeature; order: number };
+  const buckets = new Map<string, Entry[]>();
+  const global: Entry[] = [];
+  features.forEach((feature, order) => {
+    const entry = { feature, order };
+    // Ring cuts also cap distant ground at their rim. Keep non-platform semantics unchanged.
+    if (feature.kind !== "platform") {
+      global.push(entry);
+      return;
+    }
+    const summit = feature.summit;
+    const reach = Math.max(CLIFF_BAND_METERS, platformReach(feature));
+    const box =
+      summit.kind === "circle"
+        ? {
+            minX: summit.center[0] - summit.radiusMeters - reach,
+            minY: summit.center[1] - summit.radiusMeters - reach,
+            maxX: summit.center[0] + summit.radiusMeters + reach,
+            maxY: summit.center[1] + summit.radiusMeters + reach
+          }
+        : {
+            minX: summit.bounds.minX - summit.reach,
+            minY: summit.bounds.minY - summit.reach,
+            maxX: summit.bounds.maxX + summit.reach,
+            maxY: summit.bounds.maxY + summit.reach
+          };
+    const x0 = Math.floor(box.minX / step),
+      y0 = Math.floor(box.minY / step);
+    const x1 = Math.floor(box.maxX / step),
+      y1 = Math.floor(box.maxY / step);
+    // Very large platforms are cheaper to keep global than duplicate into thousands of buckets.
+    if (![x0, y0, x1, y1].every(Number.isFinite) || (x1 - x0 + 1) * (y1 - y0 + 1) > 4096) {
+      global.push(entry);
+      return;
+    }
+    for (let x = x0; x <= x1; x++)
+      for (let y = y0; y <= y1; y++) {
+        const key = `${x},${y}`;
+        const entries = buckets.get(key);
+        if (entries) entries.push(entry);
+        else buckets.set(key, [entry]);
+      }
+  });
+  const candidates = new Map<string, readonly ResolvedTerrainFeature[]>();
+  for (const [key, entries] of buckets)
+    candidates.set(
+      key,
+      [...entries, ...global].sort((a, b) => a.order - b.order).map(entry => entry.feature)
+    );
+  const fallback = global.map(entry => entry.feature);
+  return point => {
+    if (!Number.isFinite(point[0]) || !Number.isFinite(point[1])) return features;
+    return candidates.get(`${Math.floor(point[0] / step)},${Math.floor(point[1] / step)}`) ?? fallback;
+  };
+}
+
 function segmentDistance(point: Point, segment: OutlineSegment): number {
   const { a, b } = segment;
   const dx = b[0] - a[0],

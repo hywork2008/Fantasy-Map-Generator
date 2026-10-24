@@ -5,10 +5,10 @@ import type { CityTerrain, TerrainPatch as Patch, TerrainGrid, TerrainModel } fr
 import { type CellRelief, cellRelief, faceLocator } from "./cellRelief";
 import { fortCircle } from "./fortSiteGeometry";
 import { fortSiteTerrainFeatures } from "./fortSiteTerrain";
-import { clipPolygonHalfPlane, nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "./geom";
+import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid, splitPolygonHalfPlane } from "./geom";
 import { triangularInfillParts } from "./lotGeometry";
 import { facePoints, faceVertices } from "./mesh";
-import { intersectConvex, subtractConvex } from "./parcelGeometry";
+import { intersectConvex, PlotIndex, subtractConvex } from "./parcelGeometry";
 import { gradeRoads } from "./roadGrading";
 import { terrainFieldForDocument } from "./terrainField/build";
 import { RETAINING_MAX_METERS } from "./terrainField/constants";
@@ -18,6 +18,7 @@ import { fieldFoundation } from "./terrainField/lots";
 import { sampleField } from "./terrainField/sample";
 import {
   evaluateTerrainFeatures,
+  indexTerrainFeatures,
   type OutlineSegment,
   onPlatformSummit,
   onTerrainEscarpment,
@@ -240,14 +241,14 @@ class PatchIndex {
 
 /** Splits seed triangles near earthworks and along their breaklines, sampling the graded height. */
 function gradedPatches(
-  document: CityDocument,
+  blockSize: number,
   seeds: BaseSurface["seeds"],
   features: readonly ResolvedTerrainFeature[],
   heightAt: (point: Point) => number,
   needsRefinement: (triangle: readonly Point[]) => boolean = () => false,
-  cells?: CellRelief
+  cells?: CellRelief,
+  featuresAt = indexTerrainFeatures(features)
 ): Patch[] {
-  const blockSize = document.frame.blockSizeMeters;
   const foci = terrainFeatureFoci(features);
   const circles = terrainFeatureBreaklines(features).map(circle => ({
     center: circle.center,
@@ -261,7 +262,8 @@ function gradedPatches(
       offsetMeters
     })),
     ...(cells?.creases ?? [])
-  ].map(({ segment, normal, offsetMeters }) => ({
+  ].map(({ segment, normal, offsetMeters }, order) => ({
+    order,
     origin: [segment.a[0] + normal[0] * offsetMeters, segment.a[1] + normal[1] * offsetMeters] as Point,
     normal,
     reach: Math.abs(offsetMeters) + 1e-6,
@@ -270,6 +272,14 @@ function gradedPatches(
     minY: Math.min(segment.a[1], segment.b[1]),
     maxY: Math.max(segment.a[1], segment.b[1])
   }));
+  const creaseIndex = new PlotIndex<(typeof creases)[number]>(32);
+  for (const crease of creases)
+    creaseIndex.add(crease, [
+      crease.minX - crease.reach,
+      crease.minY - crease.reach,
+      crease.maxX + crease.reach,
+      crease.maxY + crease.reach
+    ]);
   const triangles: Patch[] = [];
   const midpoint = (a: Point, b: Point): Point => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
   const push = (
@@ -286,7 +296,7 @@ function gradedPatches(
     const escarpment =
       Math.max(...heights) - Math.min(...heights) > 0.01 &&
       [polygonCentroid(points), ...points].some(
-        point => onTerrainEscarpment(features, faceId, point) || !!cells?.onWall(faceId, point)
+        point => onTerrainEscarpment(featuresAt(point), faceId, point) || !!cells?.onWall(faceId, point)
       );
     const longest = Math.max(
       ...points.map((p, k) => Math.hypot(p[0] - points[(k + 1) % 3][0], p[1] - points[(k + 1) % 3][1]))
@@ -322,7 +332,10 @@ function gradedPatches(
     let pieces: Point[][] = [triangle];
     const xs = triangle.map(p => p[0]),
       ys = triangle.map(p => p[1]);
-    for (const crease of creases) {
+    const candidates = creaseIndex.query([Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]);
+    // Clipping order affects triangulation, even when the final polygon areas are identical.
+    candidates.sort((a, b) => a.order - b.order);
+    for (const crease of candidates) {
       if (
         Math.min(...xs) > crease.maxX + crease.reach ||
         Math.max(...xs) < crease.minX - crease.reach ||
@@ -330,12 +343,10 @@ function gradedPatches(
         Math.max(...ys) < crease.minY - crease.reach
       )
         continue;
-      const back: Point = [-crease.normal[0], -crease.normal[1]];
       pieces = pieces.flatMap(piece =>
-        [
-          clipPolygonHalfPlane(piece, crease.origin, crease.normal),
-          clipPolygonHalfPlane(piece, crease.origin, back)
-        ].filter(part => part.length >= 3 && Math.abs(polygonArea(part)) > 1e-9)
+        splitPolygonHalfPlane(piece, crease.origin, crease.normal).filter(
+          part => part.length >= 3 && Math.abs(polygonArea(part)) > 1e-9
+        )
       );
     }
     for (const circle of circles) {
@@ -394,6 +405,7 @@ export function cityTerrain(
     faceIds => platformOutline(document, faceIds),
     model.features.length ? locate : undefined
   );
+  const featuresAt = indexTerrainFeatures(features);
   const field = model.base.kind === "field" ? model.base.field : undefined;
   const cells = model.base.kind === "cells" ? cellRelief(document, locate) : undefined;
   let fieldDatum = 0;
@@ -416,16 +428,13 @@ export function cityTerrain(
   const { datumMeters } = surface;
   const { ramps } = model;
   const relief = surface.relief || features.length > 0 || ramps.length > 0;
-  const step = Math.max(10, document.frame.blockSizeMeters || 50);
-  const base = new PatchIndex(
-    surface.seeds.flatMap(seed => seed.patches),
-    step
-  );
+  const blockSize = document.frame.blockSizeMeters;
+  const step = Math.max(10, blockSize || 50);
   const baseAt = (point: Point) => (field ? sampleField(field, point) - fieldDatum : (cells?.heightAt(point) ?? 0));
   const groundAt = (point: Point): number => {
     if (!relief) return 0;
     if (!features.length) return baseAt(point);
-    return evaluateTerrainFeatures(features, p => datumMeters + baseAt(p), point) - datumMeters;
+    return evaluateTerrainFeatures(featuresAt(point), p => datumMeters + baseAt(p), point) - datumMeters;
   };
   const deckAt = (point: Point): number | null => {
     const deck = ramps.length ? rampDeckAt(ramps, point) : null;
@@ -436,8 +445,8 @@ export function cityTerrain(
       ? gradeRoads(
           options.roads,
           groundAt,
-          point => terrainLevelAt(features, point),
-          point => onPlatformSummit(features, point),
+          point => terrainLevelAt(featuresAt(point), point),
+          point => onPlatformSummit(featuresAt(point), point),
           deckAt,
           features.some(feature => feature.kind === "platform" && feature.role === "terrace") || !!cells?.walled,
           features.some(feature => feature.kind === "platform" && feature.role === "pad")
@@ -446,13 +455,17 @@ export function cityTerrain(
         )
       : null;
   const heightAt = grading ? (point: Point) => grading.apply(point, groundAt(point)) : groundAt;
-  const graded =
-    features.length || grading || surface.relief
-      ? new PatchIndex(
-          gradedPatches(document, surface.seeds, features, heightAt, grading?.needsRefinement, cells),
-          step
-        )
-      : base;
+  let graded: PatchIndex | undefined;
+  const gradedSurface = (): PatchIndex => {
+    if (!graded)
+      graded = new PatchIndex(
+        features.length || grading || surface.relief
+          ? gradedPatches(blockSize, surface.seeds, features, heightAt, grading?.needsRefinement, cells, featuresAt)
+          : surface.seeds.flatMap(seed => seed.patches),
+        step
+      );
+    return graded;
+  };
   const surfaceAt = (point: Point) => deckAt(point) ?? grading?.roadAt(point) ?? heightAt(point);
   const slopeAt = field
     ? (point: Point) => {
@@ -470,6 +483,7 @@ export function cityTerrain(
       }
     : undefined;
   let drawGrid: TerrainGrid | undefined;
+  let triangles: Patch[] | undefined;
   const result: CityTerrain = {
     datumMeters,
     relief,
@@ -489,18 +503,22 @@ export function cityTerrain(
           }
         }
       : {}),
-    triangles: [...graded.patches],
+    // Field foundations and farming query heights without needing draw-time boundary splits.
+    get triangles() {
+      if (!triangles) triangles = [...gradedSurface().patches];
+      return triangles;
+    },
     foundationAt(ring) {
       if (!relief || !ring.length) return 0;
       if (field && slopeAt) {
         const center = polygonCentroid([...ring]);
-        if (onPlatformSummit(features, center)) return heightAt(center);
+        if (onPlatformSummit(featuresAt(center), center)) return heightAt(center);
         return fieldFoundation(ring, heightAt, surfaceAt);
       }
       let top = Math.max(0, ...ring.map(heightAt), heightAt(polygonCentroid([...ring])));
       const footprint = [...ring];
       // Include patch vertices inside the footprint, so a broad building cannot cut through a hilltop.
-      for (const patch of graded.near(ring))
+      for (const patch of gradedSurface().near(ring))
         for (let i = 0; i < 3; i++) {
           if (patch.heights[i] > top && pointInPolygon(patch.points[i], footprint)) top = patch.heights[i];
           const a = patch.points[i],

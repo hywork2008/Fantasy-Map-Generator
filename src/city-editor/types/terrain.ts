@@ -32,6 +32,7 @@ export interface CityTerrain {
   slopeAt?(point: Point): number;
   /** Horizontal foundation above all terrain beneath this footprint. */
   foundationAt(ring: readonly Point[]): number;
+  /** Draw triangles, built on first read; field height/foundation queries do not need them. */
   triangles: TerrainPatch[];
   /**
    * Draw grid for a height field. Built on first read so generation can ignore it.
