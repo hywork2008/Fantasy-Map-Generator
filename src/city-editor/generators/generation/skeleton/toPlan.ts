@@ -221,6 +221,7 @@ export function planSkeletonCity(
     replaceFixedCrossings: !!settings.descriptor,
     wallMaterial: resolveWallMaterial(document, {
       choice: settings.config.wall?.material,
+      population: settings.population?.targetPopulation,
       descriptor: settings.descriptor
     }),
     rivers,

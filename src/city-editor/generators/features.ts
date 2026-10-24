@@ -735,33 +735,27 @@ function nextId(document: CityDocument, prefix: string): Id {
 
 /**
  * Resolves wall material ("stone" or "wood").
- * In large cities, defaults to "stone". In small villages / hamlets, defaults to "wood".
+ * Uses population rather than map dimensions; unknown populations default to stone.
  */
 export function resolveWallMaterial(
   document: CityDocument,
   options?: {
     choice?: WallMaterialChoice;
+    population?: number;
     descriptor?: import("../types/contracts/burgSiteDescriptor").BurgSiteDescriptor;
   }
 ): WallMaterial {
   if (options?.choice === "stone") return "stone";
   if (options?.choice === "wood") return "wood";
 
-  // Capital / urban groups take precedence over population. Otherwise use the
-  // absolute population supplied by FMG; 1,500 inhabitants is the stone threshold.
   const burg = options?.descriptor?.burg;
-  if (burg) {
-    if (burg.capital || burg.group === "city" || burg.group === "town") return "stone";
-    if (Number.isFinite(burg.population)) return burg.population >= 1500 ? "stone" : "wood";
-    if (burg.group === "hamlet" || burg.group === "village") return "wood";
-  }
+  const population = options?.population ?? burg?.population ?? document.populationPlan?.settings.targetPopulation;
+  if (population !== undefined && Number.isFinite(population)) return population >= 1500 ? "stone" : "wood";
 
-  // Check document frame and extent
-  const effectiveExtent = document.frame.settlementExtentMeters ?? document.frame.extentMeters;
-  if (effectiveExtent <= 700) return "wood";
-  if (document.frame.cityRadiusMeters <= 140) return "wood";
+  // Settlement classification is only a fallback when no population is available.
+  if (burg?.capital || burg?.group === "city" || burg?.group === "town") return "stone";
+  if (burg?.group === "hamlet" || burg?.group === "village") return "wood";
 
-  // Default for large settlements
   return "stone";
 }
 

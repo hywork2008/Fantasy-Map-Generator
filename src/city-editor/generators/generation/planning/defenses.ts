@@ -228,7 +228,11 @@ export function planDefenses(input: PlanDefensesInput) {
         gates: [],
         elements: []
       },
-      { choice: settings.config.wall.material, descriptor: settings.descriptor }
+      {
+        choice: settings.config.wall.material,
+        descriptor: settings.descriptor,
+        population: settings.population?.targetPopulation
+      }
     );
     const isPlanningWallWood = planningWallMaterial === "wood";
     const temp: CityDocument = {

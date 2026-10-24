@@ -65,7 +65,11 @@ export function runPlan(
         gates: [],
         elements: []
       },
-      { choice: settings.config?.wall?.material, descriptor: settings.descriptor }
+      {
+        choice: settings.config?.wall?.material,
+        descriptor: settings.descriptor,
+        population: settings.population?.targetPopulation
+      }
     ),
     importedRoads: geo.importedRoads,
     frameRoads: outerFrameRoads(settings.descriptor),
