@@ -19,6 +19,7 @@ import { Goods } from "./goods-generator";
 import { calculateHusbandryDemand } from "./husbandry";
 import {
   allocateRuralOccupations,
+  CHILD_HAYMAKING_SHARE,
   GAME_YIELD_PER_HUNTER_PER_MONTH,
   getFishingWorkerFactor,
   getHuntingGameOutput,
@@ -132,10 +133,13 @@ describe("ruralOccupationAllocation", () => {
       farmLaborRequired: new Float32Array([0]),
       migratableAdults: new Float32Array([40])
     });
-    // Adults are all in the harvest; only the children's routine herding remains that month.
+    // Adults are all in the harvest; only the children's herding and hay raking remain that month.
     const routineCareDays = (demand.careWorkers! * WORKABLE_DAYS_PER_ADULT * 0.8) / 12;
+    const childDays = 60 * 0.35 * (WORKABLE_DAYS_PER_ADULT / 12);
+    const careChildDays = Math.min(routineCareDays, childDays);
+    const hayDays = (demand.hayWorkers ?? 0) * WORKABLE_DAYS_PER_ADULT * (demand.hayMonthlyLaborWeights?.[6] ?? 0);
     expect(seasonal.husbandryMonthlyWorkDays[6]).toBeCloseTo(
-      Math.min(routineCareDays, 60 * 0.35 * (WORKABLE_DAYS_PER_ADULT / 12)),
+      careChildDays + Math.min(childDays - careChildDays, hayDays * CHILD_HAYMAKING_SHARE),
       4
     );
     expect(seasonal.cropLaborShortage![6]).toBeGreaterThan(0);

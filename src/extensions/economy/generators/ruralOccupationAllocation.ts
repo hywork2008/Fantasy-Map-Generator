@@ -219,6 +219,12 @@ function collectFishingOffers(
  * The Ties That Bound, ch.10; Orme 2001, Medieval Children, ch.9). Model policy, not a measured share.
  */
 export const CHILD_HERDING_SHARE = 0.35;
+/**
+ * Share of haymaking work children can take: tedding, raking and leading carts, while adults mow
+ * and pitch (Hanawalt 1986, ch.10; Fox 1996, "Exploitation of the landless by lords and tenants").
+ * Model policy (E1 §7.47), not a measured share.
+ */
+export const CHILD_HAYMAKING_SHARE = 0.3;
 /** Routine, year-round share of herding work; matches the species profiles' seasonal event share. */
 const HUSBANDRY_SEASONAL_EVENT_SHARE = 0.2;
 
@@ -507,7 +513,15 @@ function allocateRuralOccupationsFromCalendar(
         for (let month = 0; month < 12; month++) {
           const requestedDays =
             candidate.requiredWorkers * WORKABLE_DAYS_PER_ADULT * (candidate.monthlyWeights[month] ?? 0);
-          const childDays = Math.min(childDaysPerMonth, routineCareDaysPerMonth, requestedDays);
+          const careChildDays = Math.min(childDaysPerMonth, routineCareDaysPerMonth, requestedDays);
+          const hayDays =
+            (husbandryDemand.hayWorkers ?? 0) *
+            WORKABLE_DAYS_PER_ADULT *
+            (husbandryDemand.hayMonthlyLaborWeights?.[month] ?? 0);
+          const childDays = Math.min(
+            requestedDays,
+            careChildDays + Math.min(childDaysPerMonth - careChildDays, hayDays * CHILD_HAYMAKING_SHARE)
+          );
           const remainingDays = Math.max(0, residentAdults * workDaysPerAdult[month] - currentDays[month]);
           const adultDays = Math.min(requestedDays - childDays, remainingDays);
           const assignedDays = childDays + adultDays;
