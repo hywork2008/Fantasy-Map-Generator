@@ -1343,7 +1343,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   generation.generateSettings = {
     ...defaultGenerationSettings(),
     buildingPattern: "medieval",
-    townWallRings: "double"
+    townWallRings: "single"
   };
   // Shown in the Generate panel and encoded in a shareable `city-editor/#…`
   // link. Re-rolled by "🎲 新しい都市"; every stage regenerates THIS town so
