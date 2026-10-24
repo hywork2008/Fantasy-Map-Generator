@@ -557,9 +557,22 @@ function allocateRuralOccupationsFromCalendar(
     farmLaborRequired[cellId] = annualCurrentAdults / populationRate;
     // Honour the land-use reserve (this year's urban-bound outflow). Harvest
     // mutual aid must not reclassify that cohort as year-round farm employment.
+    // An annual average surplus is not safe to release if those residents are
+    // still needed in a harvest month, including the work they do as helpers.
+    let peakSafeOutflow = residentAdults;
+    for (let month = 0; month < 12; month++) {
+      const index = cellId * 12 + month;
+      const workDays = workDaysPerAdultByCell[index] || WORKABLE_DAYS_PER_ADULT_PER_MONTH;
+      const helperDays = getHouseholdHarvestHelperDays(cells, cellId, populationRate, workDays);
+      const residentDays = Math.max(0, currentDays[month] - helperDays - (aidReceivedByCell[index] ?? 0));
+      peakSafeOutflow = Math.min(peakSafeOutflow, Math.max(0, residentAdults - residentDays / workDays));
+    }
     migratableAdults[cellId] = Math.max(
       reservedLaborExport,
-      ruralAdultPoints - (annualCurrentAdults / populationRate) * FARM_LABOUR_SAFETY_MARGIN
+      Math.min(
+        peakSafeOutflow / populationRate,
+        ruralAdultPoints - (annualCurrentAdults / populationRate) * FARM_LABOUR_SAFETY_MARGIN
+      )
     );
     ruralReleasePressure[cellId] = Math.max(
       0,
@@ -672,9 +685,9 @@ function applyHarvestMutualAid(
       const capacity = ruralAdultPoints * populationRate * workDays;
       const helperDays = getHouseholdHarvestHelperDays(cells, cellId, populationRate, workDays);
       const current = currentDaysByCell[cellId * 12 + month] ?? 0;
-      const desired = desiredDaysByCell[cellId * 12 + month] ?? 0;
       slack[cellId] = Math.max(0, capacity - current);
-      shortage[cellId] = Math.max(0, desired - capacity - helperDays);
+      // Unfilled occupation requests are not booked work and cannot claim harvest hands.
+      shortage[cellId] = Math.max(0, current - capacity - helperDays);
     }
 
     for (const cellId of cells.i) {
@@ -785,7 +798,7 @@ function applyRegionalHarvestHelp(
         Math.max(0, cells.maleAdults?.[cellId] ?? 0) + Math.max(0, cells.femaleAdults?.[cellId] ?? 0);
       const capacity = ruralAdultPoints * populationRate * workDays;
       const helperDays = getHouseholdHarvestHelperDays(cells, cellId, populationRate, workDays);
-      const remaining = (desiredDaysByCell[index] ?? 0) - capacity - helperDays - (aidReceivedByCell[index] ?? 0);
+      const remaining = (currentDaysByCell[index] ?? 0) - capacity - helperDays - (aidReceivedByCell[index] ?? 0);
       if (remaining > 0) {
         shortage[cellId] = remaining;
         shortageByMarket.set(marketId, (shortageByMarket.get(marketId) ?? 0) + remaining);
@@ -816,7 +829,11 @@ function applyRegionalHarvestHelp(
     }
     for (const cellId of cells.i) {
       const share = usedRuralShare.get(marketCellColumn[cellId] ?? 0) ?? 0;
-      if (share > 0 && slack[cellId] > 0) currentDaysByCell[cellId * 12 + month] += slack[cellId] * share;
+      if (share > 0 && slack[cellId] > 0) {
+        const transferred = slack[cellId] * share;
+        currentDaysByCell[cellId * 12 + month] += transferred;
+        desiredDaysByCell[cellId * 12 + month] += transferred;
+      }
     }
   }
 }

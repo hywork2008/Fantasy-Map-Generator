@@ -17,6 +17,7 @@ import { getRuralGrainDietShare } from "../src/extensions/economy/generators/rur
 import { GROSS_FOOD_NEED } from "../src/extensions/economy/generators/foodConstants";
 import { WAIN_KG } from "../src/extensions/economy/generators/goodMeasureCatalog";
 import { setTickStepObserver } from "../src/generators/tickProfiler";
+import { getCroplandConstraints } from "../src/extensions/economy/generators/agriculturalLandUse";
 const [input, output, length = "36"] = process.argv.slice(2);
 const months = Number(length);
 if (!input || !output || !Number.isSafeInteger(months) || months < 1)
@@ -56,6 +57,9 @@ try {
         return {
           id,
           marketId: getMarketCellColumn()[id],
+          stateId: c.state?.[id] ?? 0,
+          terrainCeilingHa: getCroplandConstraints(w, id)?.terrainAndBiomeCeiling ?? 0,
+          landDiagnostics: w.pack.landUse?.cells[id]?.diagnostics ?? [],
           fieldHa: used[id],
           annualNeed: need,
           annualBeforeLabor: beforeLabor,
@@ -63,7 +67,20 @@ try {
           annualAfterLabor: beforeLabor * (coverage[id] ?? 1)
         };
       });
+    const regions = [...new Set(rows.map(row => row.marketId))].map(marketId => {
+      const local = rows.filter(row => row.marketId === marketId);
+      return {
+        marketId,
+        fieldHa: local.reduce((s, r) => s + r.fieldHa, 0),
+        terrainCeilingHa: local.reduce((s, r) => s + r.terrainCeilingHa, 0),
+        annualRuralNeed: local.reduce((s, r) => s + r.annualNeed, 0),
+        annualBeforeLabor: local.reduce((s, r) => s + r.annualBeforeLabor, 0),
+        annualAfterLabor: local.reduce((s, r) => s + r.annualAfterLabor, 0),
+        inhabitedCellsWithoutFields: local.filter(r => r.annualNeed > 0 && !(r.fieldHa > 0)).length
+      };
+    });
     return {
+      regions,
       date: clock(),
       householdStock: sum(getRuralHouseholdFoodStock()),
       fieldHa: sum(used),

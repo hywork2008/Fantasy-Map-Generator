@@ -410,6 +410,42 @@ describe("ruralOccupationAllocation", () => {
     expect(getHuntingGameOutput(0)).toBeCloseTo(3 * GAME_YIELD_PER_HUNTER_PER_MONTH, 5);
   });
 
+  it.each(["neighbor", "market"])("reserves %s harvest helpers for booked work instead of vacant herd jobs", scope => {
+    worldContext.pack = {
+      cells: {
+        i: Uint16Array.from([0, 1, 2]),
+        h: Uint8Array.from([30, 30, 30]),
+        biomeCode: Uint8Array.from([0, 0, 0]),
+        pop: Float32Array.from([4, 4, 20]),
+        maleAdults: Float32Array.from([1, 1, 10]),
+        femaleAdults: new Float32Array(3),
+        state: Uint16Array.from([1, 1, 1]),
+        area: Float32Array.from([100, 100, 100]),
+        c: scope === "neighbor" ? [[2], [2], [0, 1]] : [[], [], []]
+      },
+      burgs: []
+    } as unknown as PackedGraph;
+    worldContext.populationRate = 1;
+    worldContext.biomesData = { tags: [["grassland"]], habitability: [100] } as never;
+    setGoods([Goods.getDefaultGood("Sheep")!]);
+    setGoodCellColumn(new Uint16Array(3));
+    setMarketCellColumn(Uint16Array.from(scope === "market" ? [1, 1, 1] : [0, 0, 0]));
+    const stock = getOrCreateFaunaStockTable()!;
+    stock["0:Sheep"] = { young: 0, breeding: 100_000, old: 0 };
+    stock["1:Sheep"] = stock["2:Sheep"] = { young: 0, breeding: 0, old: 0 };
+    const days = new Float32Array(36);
+    days[18] = 24; // One resident can work 23.33 peak days; a helper can finish the crop.
+    const result = allocateRuralOccupations(worldContext, {
+      cropLaborDaysByMonth: days,
+      minimumCropLaborDaysByMonth: days.slice(),
+      farmLaborRequired: new Float32Array(3),
+      migratableAdults: new Float32Array(3)
+    });
+    expect(result.seasonalLaborShortage[6]).toBeGreaterThan(0);
+    expect(result.cropLaborShortage![18]).toBeCloseTo(0, 5);
+    expect(result.farmLaborRequired[2]).toBeGreaterThan(0);
+  });
+
   it("lets a slack neighbour absorb a same-state harvest shortage as mutual-aid employment", () => {
     worldContext.pack = {
       cells: {
