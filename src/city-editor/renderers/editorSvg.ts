@@ -11,6 +11,7 @@ import type { CityDocument, Tool } from "../types/document";
 import type { Id, Point } from "../types/primitives";
 import type { RenderSelection, SvgPickInfo } from "../types/selection";
 import { renderCastles } from "./castleLayerSvg";
+import { renderCellReliefOverlay } from "./cellElevationSvg";
 import { renderCemeteries } from "./cemeterySvg";
 import { renderCityElements } from "./cityElementsSvg";
 import { renderCoastalShore } from "./coastalShoreSvg";
@@ -181,6 +182,8 @@ export function renderEditorSvg(
     svg.appendChild(waterCells);
   }
   svg.appendChild(cells);
+  const relief = renderCellReliefOverlay(document.mesh);
+  if (relief) svg.appendChild(relief);
   const continuousWater = element("g", { class: "ce-continuous-water", "pointer-events": "none" });
   for (const [index, ring] of (fixedMode ? [] : waterPolygons(document)).entries()) {
     continuousWater.appendChild(

@@ -240,7 +240,9 @@ export function planSkeletonCity(
     wards: new Map(warded.wards.map(w => [w.cellId, w.kind])),
     wardOrder: warded.assignmentOrder,
     templeHarbor: warded.precincts,
-    fmgElevations
+    fmgElevations,
+    elevationPreset: settings.elevationPreset ?? "flat",
+    elevationSeed: seed
   };
   return { plan, prepared: { ...prepared, params, cells, faceIdOf, cellSize: inputs.cellSize, half: inputs.half } };
 }

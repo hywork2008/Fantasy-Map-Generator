@@ -3,6 +3,7 @@
 import type { CityDocument, Id, Point } from "../../types/document";
 import type { TerrainPlatform, TerrainRiverCorridor } from "../../types/terrain";
 import type { BuildingLot } from "../buildingLots.types";
+import { settleRiverGrades } from "../elevationPreset";
 import { polygonArea } from "../geom";
 import { facePoints, setFaceElevation } from "../mesh";
 import { terrainFieldForDocument } from "./build";
@@ -40,7 +41,7 @@ function isHandPad(document: CityDocument, feature: TerrainPlatform): boolean {
  * The stored cell elevation stays the derived mean.
  */
 export function editFaceElevation(document: CityDocument, faceId: Id, elevation: number): CityDocument {
-  if (!document.terrain?.field) return setFaceElevation(document, faceId, elevation);
+  if (!document.terrain?.field) return settleRiverGrades(setFaceElevation(document, faceId, elevation));
   const face = document.mesh.faces[faceId];
   if (!face || face.properties.locked || !Number.isFinite(elevation)) return document;
   const next = structuredClone(document);

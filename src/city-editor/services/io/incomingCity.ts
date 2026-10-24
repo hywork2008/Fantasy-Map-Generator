@@ -511,6 +511,14 @@ function asSettings(raw: unknown): Omit<GenerationSettings, "descriptor"> | null
     settings.layout = raw.layout as GenerationSettings["layout"];
   if (raw.riverPlacement === "through" || raw.riverPlacement === "outside" || raw.riverPlacement === "outsideNear")
     settings.riverPlacement = raw.riverPlacement;
+  if (
+    raw.elevationPreset === "flat" ||
+    raw.elevationPreset === "slope" ||
+    raw.elevationPreset === "dome" ||
+    raw.elevationPreset === "basin" ||
+    raw.elevationPreset === "valley"
+  )
+    settings.elevationPreset = raw.elevationPreset;
   if (isFiniteNumber(raw.walledAreaShare)) settings.walledAreaShare = raw.walledAreaShare;
   if (raw.townWallRings === "single" || raw.townWallRings === "double") settings.townWallRings = raw.townWallRings;
   if (raw.innerWallState === "standing" || raw.innerWallState === "razed") settings.innerWallState = raw.innerWallState;

@@ -510,6 +510,7 @@ export type Tool =
   | "river"
   | "ward"
   | "sea"
+  | "elevation"
   | "wardWall"
   | "junction"
   | "face"

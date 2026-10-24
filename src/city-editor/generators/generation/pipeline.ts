@@ -84,7 +84,9 @@ export function runPlan(
     wards: new Map(),
     wardOrder: [],
     templeHarbor: [],
-    fmgElevations: fmgCellElevations(cells, settings.descriptor)
+    fmgElevations: fmgCellElevations(cells, settings.descriptor),
+    elevationPreset: settings.elevationPreset ?? "flat",
+    elevationSeed: seed
   };
   if (!cells.length) return empty;
   const graph = buildEdgeGraph(cells);
@@ -369,6 +371,8 @@ export function runPlan(
     townWallBuildOrder: empty.townWallBuildOrder,
     innerWall,
     fmgElevations,
+    elevationPreset: empty.elevationPreset,
+    elevationSeed: empty.elevationSeed,
     burialProfile: empty.burialProfile,
     urbanCoreMode: settings.urbanCoreMode,
     layout: effectiveLayout,

@@ -12,6 +12,7 @@ import type {
   RiverGroup,
   WallMaterial
 } from "../types/document";
+import { settleRiverGrades } from "./elevationPreset";
 import { castleWallIds, refreshTownWallReferences } from "./fortifications";
 import {
   clone,
@@ -225,7 +226,7 @@ export function finishRiver(document: CityDocument, groupId: Id): CityDocument |
     if (Math.abs(Math.abs(p[0]) - half) > 0.01 && Math.abs(Math.abs(p[1]) - half) > 0.01) return null;
     group.mouth = { vertexId, kind: "mapBoundary" };
   }
-  return next;
+  return settleRiverGrades(next);
 }
 
 /** Add or remove a gate at a vertex shared by at least one wall segment. */

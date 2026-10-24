@@ -95,6 +95,7 @@ export interface GenerationStage extends GenerationStageDefinition {
 }
 
 export type {
+  ElevationPreset,
   GenerationMethod,
   GenerationRetry,
   GenerationSettings,

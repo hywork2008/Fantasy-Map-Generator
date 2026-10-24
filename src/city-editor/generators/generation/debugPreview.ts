@@ -1,7 +1,9 @@
 import type { CityDocument } from "../../types/document";
 import type { CityProgram } from "../../types/geometry";
-import { clone } from "../mesh";
-import { assignFrameRoads, editorWard, landElevation } from "./assembly/documentProperties";
+import { elevationSampler, settleRiverGrades } from "../elevationPreset";
+import { polygonCentroid } from "../geom";
+import { clone, facePoints } from "../mesh";
+import { assignFrameRoads, editorWard } from "./assembly/documentProperties";
 import { polylineToVertexPath } from "./assembly/riverPath";
 import { GEN_PREFIX } from "./constants";
 import type { Plan } from "./contracts";
@@ -36,11 +38,17 @@ export function planningDebugDocument(
   next.featureGroups = next.featureGroups.filter(g => g.locked || !g.id.startsWith(GEN_PREFIX));
   next.gates = next.gates.filter(g => g.locked || !g.id.startsWith(GEN_PREFIX));
   next.elements = next.elements.filter(e => e.locked || !e.id.startsWith(GEN_PREFIX));
+  const sampleElevation = elevationSampler(plan, next.frame);
   for (const [index, id] of ids.entries()) {
     const face = next.mesh.faces[id];
     if (!face || face.properties.locked) continue;
     face.properties.water = plan.sea.has(index) ? "sea" : "land";
-    if (!plan.sea.has(index)) face.properties.elevation = landElevation(plan, index, face.properties.elevation);
+    if (!plan.sea.has(index))
+      face.properties.elevation = sampleElevation(
+        polygonCentroid(facePoints(next.mesh, face)),
+        index,
+        face.properties.elevation
+      );
     face.properties.buildable = !plan.sea.has(index) && (plan.urban.has(index) || plan.outskirts.has(index));
     face.properties.settlement = plan.urban.has(index) ? "core" : "outskirts";
     face.properties.ward = editorWard(plan.wards.get(index) ?? "empty");
@@ -87,5 +95,5 @@ export function planningDebugDocument(
       locked: false
     });
   }
-  return next;
+  return settleRiverGrades(next);
 }

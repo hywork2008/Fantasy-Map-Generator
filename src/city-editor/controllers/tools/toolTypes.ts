@@ -17,8 +17,8 @@ export function isRoutePaintTool(tool: Tool): tool is RoutePaintKind {
   return tool === "river" || tool === "road" || tool === "wall";
 }
 
-export function isBrushTool(tool: Tool): tool is "ward" | "sea" | "junction" {
-  return isPaintBrushTool(tool) || tool === "junction";
+export function isBrushTool(tool: Tool): tool is "ward" | "sea" | "junction" | "elevation" {
+  return isPaintBrushTool(tool) || tool === "junction" || tool === "elevation";
 }
 
 export function isPaintBrushTool(tool: Tool): tool is "ward" | "sea" {

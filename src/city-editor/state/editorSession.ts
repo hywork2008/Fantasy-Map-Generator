@@ -57,6 +57,12 @@ export interface InteractionState {
   wardBrush: WardKind | null;
   eraseTarget: EraseTarget;
   brushSizeCells: number;
+  /** Elevation brush: raise, lower, or blend toward the brush average. */
+  elevationBrush: "raise" | "lower" | "smooth";
+  /** Metres added or removed at the brush centre. */
+  elevationPowerMeters: number;
+  /** Previous elevation-brush sample, so a held pointer does not stack every frame. */
+  elevationStampPoint: Point | null;
   junctionMaxGapMeters: number;
   wardBrushPointer: { clientX: number; clientY: number } | null;
   circularWallPointer: { clientX: number; clientY: number } | null;

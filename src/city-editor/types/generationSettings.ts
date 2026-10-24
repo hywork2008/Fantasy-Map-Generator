@@ -15,6 +15,9 @@ export interface StreetSettings {
 
 export type GenerationMethod = "mesh-first" | "skeleton-first";
 
+/** Cell-elevation shape written at generation. `flat` keeps today's ground. */
+export type ElevationPreset = "flat" | "slope" | "dome" | "basin" | "valley";
+
 /** Skeleton-first wall shape families (§4.3). `bastioned` needs the age of exploration or later. */
 export type WallShape = "organic" | "round" | "oval" | "square" | "polygon" | "bastioned";
 
@@ -40,6 +43,11 @@ export interface GenerationSettings {
    * The recipe is saved on the document; this is only the generation choice.
    */
   terrainField?: { template: import("./terrain").TerrainTemplateId; sampleMeters?: number };
+  /**
+   * Cell elevations written when the map is generated.
+   * Unset and `flat` keep the current plane, or the linked FMG heightfield.
+   */
+  elevationPreset?: ElevationPreset;
   /** Castle siting also checks C4 on street edges. Set by the attempt loop
    * after a castle town failed with unconnected gates. */
   castleStreetLinks?: boolean;

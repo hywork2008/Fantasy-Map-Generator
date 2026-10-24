@@ -724,6 +724,8 @@ export function createGenerationController(ctx: GenerationContext) {
     ctx.riversSelect.value = String(Math.min(2, ctx.generation.generateSettings.config.rivers.length));
     ctx.riverPlacementSelect.value = ctx.generation.generateSettings.riverPlacement ?? "through";
     ctx.reliefInput.checked = ctx.generation.generateSettings.config.relief;
+    const elevationPreset = ctx.root.querySelector<HTMLSelectElement>(".ce-elevation-preset");
+    if (elevationPreset) elevationPreset.value = ctx.generation.generateSettings.elevationPreset ?? "flat";
     const terrainField = ctx.root.querySelector<HTMLSelectElement>(".ce-terrain-field");
     if (terrainField) {
       const allowed = fieldModeAllowed(ctx.documents.documentState.frame.extentMeters);

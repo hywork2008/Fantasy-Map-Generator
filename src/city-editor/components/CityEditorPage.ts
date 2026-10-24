@@ -25,6 +25,7 @@ import { createSelectionController } from "../controllers/tools/selection";
 import { cityFixedApproachProvider } from "../generators/automaticFixedApproaches";
 import { DEFAULT_CASTLE_SETTINGS } from "../generators/castlePlacement";
 import { createGridDocument, DEFAULT_CITY_SIZE, DEFAULT_GRID_KIND } from "../generators/document";
+import { ELEVATION_PRESETS, isElevationPreset } from "../generators/elevationPreset";
 import { restoreFixedCrossingApproaches } from "../generators/fixedApproachAdoption";
 import { clearGenerationPreviewCache } from "../generators/generation/previews";
 import { defaultGenerationSettings, randomGeography, randomSeed } from "../generators/generation/settings";
@@ -82,7 +83,8 @@ const TOOLS: Array<[Tool, EditorMessageKey, string]> = [
   ["river", "cityEditor.messages.drawRiver", "〰"],
   ["wardWall", "cityEditor.messages.drawCircularWardWall", "◯"],
   ["junction", "cityEditor.messages.cleanShortJunctions", "⌬"],
-  ["face", "cityEditor.messages.editCell", "⬡"]
+  ["face", "cityEditor.messages.editCell", "⬡"],
+  ["elevation", "cityEditor.messages.editElevation", "▴"]
 ];
 
 const PAINT_BRUSHES: Array<{ kind: WardKind | "sea" | "erase"; label: string }> = [
@@ -436,6 +438,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         },
         get shipControls() {
           return shipControls;
+        },
+        get elevationControls() {
+          return elevationControls;
         },
         get currentBuildingPatternSelect() {
           return currentBuildingPatternSelect;
@@ -1311,6 +1316,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   // The brush is expressed in macro cells, so its size stays meaningful when
   // switching between city presets or changing the map scale.
   interaction.brushSizeCells = 1;
+  interaction.elevationBrush = "raise";
+  interaction.elevationPowerMeters = 2;
+  interaction.elevationStampPoint = null;
   interaction.junctionMaxGapMeters = 8;
   interaction.wardBrushPointer = null;
   interaction.circularWallPointer = null;
@@ -1696,6 +1704,33 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     label(editorText("cityEditor.messages.angle"), shipAngle)
   );
   toolbar.content.appendChild(shipControls);
+
+  const elevationControls = div("ce-elevation-controls");
+  const elevationMode = select(["raise", "lower", "smooth"], interaction.elevationBrush);
+  elevationMode.setAttribute("aria-label", editorText("cityEditor.messages.elevationBrush"));
+  const elevationModeLabel = (value: string) =>
+    editorText(
+      value === "lower"
+        ? "cityEditor.messages.elevationLower"
+        : value === "smooth"
+          ? "cityEditor.messages.elevationSmooth"
+          : "cityEditor.messages.elevationRaise"
+    );
+  for (const option of elevationMode.options) option.textContent = elevationModeLabel(option.value);
+  scope.listen(elevationMode, "change", () => {
+    interaction.elevationBrush =
+      elevationMode.value === "lower" || elevationMode.value === "smooth" ? elevationMode.value : "raise";
+  });
+  const elevationPower = numberInput(String(interaction.elevationPowerMeters), "0.1", "0.1");
+  elevationPower.title = editorText("cityEditor.messages.elevationPower");
+  scope.listen(elevationPower, "input", () => {
+    const power = Number(elevationPower.value);
+    if (Number.isFinite(power) && power >= 0.1) interaction.elevationPowerMeters = power;
+  });
+  elevationControls.hidden = true;
+  elevationControls.append(elevationMode, label(editorText("cityEditor.messages.elevationPower"), elevationPower));
+  toolbar.content.appendChild(elevationControls);
+
   const paintButtons = new Map<WardKind | "sea" | "erase", HTMLButtonElement>();
   const paintGrid = div("ce-icon-row");
   for (const { kind, label: paintLabel } of PAINT_BRUSHES) {
@@ -2144,6 +2179,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       generation.generateSettings.terrainField = {
         template: template as "noise" | "crag" | "spur" | "meander" | "escarpment"
       };
+      generation.generateSettings.elevationPreset = "flat";
       const castle = generation.generateSettings.castle ?? {};
       generation.generateSettings.castle = {
         ...castle,
@@ -2354,11 +2390,34 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   newGenerationButton.classList.add("ce-new-generation");
   const fortHelp = text(editorText("cityEditor.messages.motteBaileyHelp"));
   fortHelp.className = "ce-fort-help";
+  const elevationPresetSelect = select([...ELEVATION_PRESETS], generation.generateSettings.elevationPreset ?? "flat");
+  elevationPresetSelect.className = "ce-elevation-preset";
+  elevationPresetSelect.title = editorText("cityEditor.messages.elevationPresetHelp");
+  const elevationPresetLabel = (value: string) =>
+    editorText(
+      value === "slope"
+        ? "cityEditor.messages.elevationSlope"
+        : value === "dome"
+          ? "cityEditor.messages.elevationDome"
+          : value === "basin"
+            ? "cityEditor.messages.elevationBasin"
+            : value === "valley"
+              ? "cityEditor.messages.elevationValley"
+              : "cityEditor.messages.elevationFlat"
+    );
+  for (const option of elevationPresetSelect.options) option.textContent = elevationPresetLabel(option.value);
+  scope.listen(elevationPresetSelect, "change", () => {
+    const value = elevationPresetSelect.value;
+    generation.generateSettings.elevationPreset = isElevationPreset(value) ? value : "flat";
+    if (generation.generateSettings.elevationPreset !== "flat") delete generation.generateSettings.terrainField;
+    syncGenerateControls();
+  });
   const cityGenerationControls = div("ce-city-generation-controls");
   cityGenerationControls.append(
     importedBox,
     populationControls,
     skeletonControls,
+    label(editorText("cityEditor.messages.elevationPreset"), elevationPresetSelect),
     synthControls,
     label(editorText("cityEditor.messages.wallMaterial"), wallMaterialSelect),
     label(editorText("cityEditor.messages.coastalWalls"), seaWallSelect),

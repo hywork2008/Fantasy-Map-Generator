@@ -75,6 +75,10 @@ export interface Plan {
   /** FMG land elevation (metres) per cell id, sampled from the linked burg's
    * heightfield. Absent for standalone cities. */
   fmgElevations?: Map<number, number>;
+  /** Cell-elevation preset. Unset behaves as `flat`. */
+  elevationPreset?: GenerationSettings["elevationPreset"];
+  /** Seed used when a preset has no river or coast to orient itself. */
+  elevationSeed?: string;
   /** `wards`' source data, in decision order rather than sorted by cell id. Empty
    * before S6 runs. See `generateWardStep`. */
   wardOrder: WardAssignment[];
