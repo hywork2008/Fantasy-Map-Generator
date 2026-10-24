@@ -559,9 +559,9 @@ export function createGenerationController(ctx: GenerationContext) {
     }
     ctx.generation.lastGeneratedStep = stage.step;
     ctx.generation.currentStageStep = stage.step;
-    ctx.syncStageUi(stage.step);
     // This stage becomes the ◀/▶ scrub's target, reset to "not stepped yet".
     ctx.generation.activeStepStage = stage.id;
+    ctx.syncStageUi(stage.step);
     ctx.generation.stepIndex = -1;
     ctx.stepStatus.textContent = "";
     // ③ itself keeps showing the debug tint on its finished core (nothing else

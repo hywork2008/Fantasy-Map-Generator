@@ -409,6 +409,7 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
     stageSlider.value = String(step);
     stagePrevBtn.disabled = step <= 1;
     stageNextBtn.disabled = step >= total;
+    syncStepControls();
   };
   const changeStageStep = (delta: number) => {
     const target = Math.max(
@@ -425,7 +426,6 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
     ctx.syncStageUi(step);
     ctx.runGenerationStage(stage);
   };
-  ctx.syncStageUi(ctx.generation.currentStageStep);
   const urbanNPatchesInput = ctx.numberInput("", "1", "1");
   bindPanelEvents(events, "urbanNPatchesInput:change");
   urbanNPatchesInput.className = "ce-generate-npatches";
@@ -532,8 +532,20 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
   stepStatus.className = "ce-generate-step-status";
   const stepPrevButton = ctx.makeIconButton("◀", editorText("cityEditor.messages.previousStep"), () => ctx.runStep(-1));
   const stepNextButton = ctx.makeIconButton("▶", editorText("cityEditor.messages.nextStep"), () => ctx.runStep(1));
-  const stepRow = div("ce-icon-row");
+  const stepRow = div("ce-icon-row ce-generation-step-row");
   stepRow.append(stepPrevButton, stepStatus, stepNextButton);
+  function syncStepControls(): void {
+    const stage = ctx.generation.activeStepStage;
+    const enabled =
+      ctx.generation.generateSettings.mode !== "fort" &&
+      stage != null &&
+      ["coast", "river", "urban", "gates", "streets", "wards"].includes(stage) &&
+      generationStages(ctx.generation.generateSettings).find(s => s.step === ctx.generation.currentStageStep)?.id ===
+        stage;
+    stepPrevButton.disabled = !enabled;
+    stepNextButton.disabled = !enabled;
+  }
+  ctx.syncStageUi(ctx.generation.currentStageStep);
   const blockMeshInput = ctx.checkbox(false, checked => {
     ctx.display.showBlockMesh = checked;
     if (!checked && ctx.interaction.tool !== "select") {
@@ -741,6 +753,7 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
     syncBearingsRow,
     stepStatus,
     stepRow,
+    syncStepControls,
     blockMeshInput,
     gridLinesInput,
     coreLayerInput,

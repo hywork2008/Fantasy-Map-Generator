@@ -1945,6 +1945,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     syncBearingsRow,
     stepStatus,
     stepRow,
+    syncStepControls,
     blockMeshInput,
     gridLinesInput,
     coreLayerInput,
@@ -2495,6 +2496,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     divider(),
     text(editorText("cityEditor.generationStages.title")),
     stageContainer,
+    stepRow,
     Object.assign(
       makeButton(editorText("cityEditor.messages.generateFromEdits"), () => {
         getMapDisplayController().cancelFarmland();
@@ -2507,8 +2509,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     label(editorText("cityEditor.messages.3NPatchesBlankAuto"), urbanNPatchesInput),
     toggleLabel(editorText("cityEditor.messages.avoidSea"), avoidSeaInput),
     label(editorText("cityEditor.messages.streetFarEnd"), farNodeSelect),
-    bearingsLabel,
-    stepRow
+    bearingsLabel
   );
   generatePanel.content.append(
     generationProgress,
@@ -2822,6 +2823,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   }
 
   function refresh(): void {
+    syncStepControls();
     appearanceControls.sync();
     getMapDisplayController().refresh();
     syncCity3d();
@@ -2834,6 +2836,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
    * redo, over the whole mesh, work already done for the touched cells.
    */
   function refreshUiOnly(): void {
+    syncStepControls();
     appearanceControls.sync();
     getMapDisplayController().refreshUiOnly();
   }
@@ -3070,6 +3073,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
 
   function syncGenerateControls(): void {
     getGenerationController().syncGenerateControls();
+    syncStepControls();
   }
 
   function importedFrame() {

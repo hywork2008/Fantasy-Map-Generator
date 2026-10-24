@@ -409,10 +409,28 @@ describe("③ urban-core patch tuning (towngen-comparison.md §2.1)", () => {
 });
 
 describe("step-by-step process scrub — all six stages (towngen-comparison.md)", () => {
-  it("◀ / ▶ do nothing (with a notice) until a stage button has activated one", () => {
-    nextStep();
-    expect(root.querySelector(".ce-status")?.textContent).toContain("Press a stage button");
-    expect(stepStatusText()).toBe("");
+  it("enables internal stepping only for supported active stages directly below the stage selector", () => {
+    const previous = iconButton("Previous step");
+    const next = iconButton("Next step");
+    const stages = root.querySelector(".ce-generate-stages")!;
+    expect(stages.nextElementSibling).toBe(next.parentElement);
+    expect(previous.disabled).toBe(true);
+    expect(next.disabled).toBe(true);
+
+    stageButton("③").click();
+    expect(previous.disabled).toBe(false);
+    expect(next.disabled).toBe(false);
+
+    selectStage(15);
+    expect(previous.disabled).toBe(true);
+    expect(next.disabled).toBe(true);
+
+    stageButton("③").click();
+    expect(previous.disabled).toBe(false);
+    expect(next.disabled).toBe(false);
+    panelButton("新しい都市").click();
+    expect(previous.disabled).toBe(true);
+    expect(next.disabled).toBe(true);
   });
 
   it("③ ▶ / ◀ scrub the flood-fill one admitted cell at a time (needs its stage pressed first)", () => {
@@ -539,9 +557,9 @@ describe("step-by-step process scrub — all six stages (towngen-comparison.md)"
     expect(count(".ce-face--urban-step")).toBe(0);
     expect(stepStatusText()).toBe("");
 
-    // The scrub is deactivated, not just reset to step 0 — ▶ needs a stage press again.
-    nextStep();
-    expect(root.querySelector(".ce-status")?.textContent).toContain("Press a stage button");
+    // The scrub stays disabled until a supported stage is activated again.
+    expect(iconButton("Previous step").disabled).toBe(true);
+    expect(iconButton("Next step").disabled).toBe(true);
   });
 
   it("generates evolution infill lanes without turning them into editable road groups", () => {
