@@ -36,6 +36,7 @@ import { scheduleLivestockFeedPeriods } from "./livestockFeedSchedule";
 import {
   getAnnualLivestockFeedFactor,
   getLivestockFeedCoverage,
+  getRecentlyFedHerdShare,
   livestockFeedMonth,
   livestockFeedPeriod,
   withLivestockFeedPeriod
@@ -357,5 +358,28 @@ describe("physical livestock feed budget", () => {
     harvestLivestockForage();
     settleLivestockFeed();
     expect(rows()[0].samples).toHaveLength(12);
+  });
+
+  it("caps the next winter's herd at the share of animals actually fed over the last year", () => {
+    const sheep = good("Sheep");
+    setHusbandryRequiredWorkers(Float32Array.from([1, 1]));
+    setHusbandryWorkers(Float32Array.from([1, 1]));
+    const unlimited = getGrazedCarryingCapacity(0, sheep);
+    expect(getRecentlyFedHerdShare(0)).toBeNull();
+    const period = livestockFeedPeriod();
+    rows()[0] = {
+      ...(rows()[0] ?? {}),
+      samples: Array.from({ length: 12 }, (_, i) => ({
+        period: period - i,
+        requiredKg: 100,
+        fedKg: 50,
+        purchasedKg: 0,
+        soldKg: 0,
+        harvestLossKg: 0
+      }))
+    } as never;
+    expect(getRecentlyFedHerdShare(0)).toBeCloseTo(0.5);
+    // Sixty sheep were kept and half of them fed: thirty can be wintered.
+    expect(getGrazedCarryingCapacity(0, sheep)).toBeCloseTo(Math.min(unlimited, 30), 6);
   });
 });

@@ -44,11 +44,12 @@ import type { Good } from "./goods-generator";
 import { isGoodEnabled } from "./goods-generator";
 import {
   ANNUAL_FEED_DM_KG_PER_HEAD,
+  calculateWinterFeedShare,
   getLivestockHayPlan,
   getPastureGrowth,
   HAY_WORK_DAYS_PER_TONNE_DM
 } from "./livestockFeedPolicy";
-import { getAnnualLivestockFeedFactor, livestockFeedMonth } from "./livestockFeedState";
+import { getAnnualLivestockFeedFactor, getRecentlyFedHerdShare, livestockFeedMonth } from "./livestockFeedState";
 import {
   CAMELS_PER_RURAL_PERSON,
   CATTLE_FOLLOWERS_PER_DRAUGHT_OX,
@@ -543,5 +544,23 @@ export function getGrazedCarryingCapacity(
   const area = getForageAreaHectares(cellId);
   const targets = calculateGrazingLandAllocation(world, cellId, area);
   const heads = targets.find(row => row.goodName === good.name)?.capacityHeads ?? 0;
-  return heads * getAnnualLivestockFeedFactor(cellId, area, targets);
+  const annualNeedKg = targets.reduce(
+    (sum, row) => sum + row.capacityHeads * (ANNUAL_FEED_DM_KG_PER_HEAD[row.goodName] ?? 0),
+    0
+  );
+  const growth = getPastureGrowth(world, cellId);
+  // Winter, not the annual total, limits the herd a cell can keep (E1 §7.45).
+  const winterShare = calculateWinterFeedShare(annualNeedKg, area * growth.annualKgPerHa, growth.weights);
+  const landShare = Math.min(getAnnualLivestockFeedFactor(cellId, area, targets), winterShare);
+  // Where last year's herd went hungry, keepers winter only as many as they actually fed.
+  const fedShare = getRecentlyFedHerdShare(cellId);
+  if (fedShare === null) return heads * landShare;
+  const stock = getOrCreateFaunaStockTable();
+  const herdHeads = targets.reduce((sum, row) => {
+    const herd = stock?.[`${cellId}:${row.goodName}`];
+    return sum + (herd ? Math.max(0, herd.young) + Math.max(0, herd.breeding) + Math.max(0, herd.old) : 0);
+  }, 0);
+  const plannedHeads = targets.reduce((sum, row) => sum + row.capacityHeads * landShare, 0);
+  const fedLimit = plannedHeads > 0 ? Math.min(1, (herdHeads * fedShare) / plannedHeads) : 1;
+  return heads * landShare * fedLimit;
 }

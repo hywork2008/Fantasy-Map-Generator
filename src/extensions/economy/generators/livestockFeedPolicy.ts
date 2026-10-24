@@ -61,6 +61,34 @@ export function calculateLivestockHayPlan(
   };
 }
 
+/**
+ * Largest share of a planned herd that its own forage can carry through the lean season: summer
+ * surplus cut as hay, after drying and storage losses, must cover the months when grass does not
+ * grow. Above it, keepers slaughter or sell before winter (E1 §7.45). Bisection over the share;
+ * a smaller herd both eats less in winter and leaves more summer grass to cut.
+ */
+export function calculateWinterFeedShare(
+  annualNeedKg: number,
+  annualForageKg: number,
+  growthWeights: readonly number[]
+): number {
+  const carried = (share: number) => {
+    const plan = calculateLivestockHayPlan(annualNeedKg * share, annualForageKg, growthWeights);
+    const storedKg =
+      plan.rawHarvestKg * HAY_DRY_MATTER_RETENTION * (1 - HAY_STORAGE_LOSS_PER_MONTH * HAY_RESERVE_MONTHS);
+    return storedKg >= plan.seasonalGapKg - 1e-6;
+  };
+  if (!(annualNeedKg > 0) || carried(1)) return 1;
+  let low = 0;
+  let high = 1;
+  for (let step = 0; step < 24; step++) {
+    const mid = (low + high) / 2;
+    if (carried(mid)) low = mid;
+    else high = mid;
+  }
+  return low;
+}
+
 const hayPlans = new WeakMap<object, Map<number, { key: string; plan: LivestockHayPlan }>>();
 
 /** Number-keyed memoization only; a change in herd, land or any climate weight invalidates it. */

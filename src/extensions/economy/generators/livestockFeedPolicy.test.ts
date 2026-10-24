@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { calculateLivestockHayPlan, HAY_DRY_MATTER_RETENTION, HAY_STORAGE_LOSS_PER_MONTH } from "./livestockFeedPolicy";
+import {
+  calculateLivestockHayPlan,
+  calculateWinterFeedShare,
+  HAY_DRY_MATTER_RETENTION,
+  HAY_STORAGE_LOSS_PER_MONTH
+} from "./livestockFeedPolicy";
 
 describe("seasonal livestock hay planning", () => {
   it("bridges a six-month dormant season including storage losses, rather than assuming three months", () => {
@@ -44,5 +49,18 @@ describe("seasonal livestock hay planning", () => {
     expect(plan.reserveAfterMonthKg.every(kg => kg === 3000)).toBe(true);
     expect(plan.rawHarvestKg).toBeLessThan(12000);
     expect(plan.rawHarvestKg).toBeGreaterThan(3000);
+  });
+
+  it("keeps only the herd its own summer surplus can carry through a long dormant season", () => {
+    const longWinter = [...Array(4).fill(1 / 4), ...Array(8).fill(0)];
+    expect(calculateWinterFeedShare(12000, 12000 / 0.8, Array(12).fill(1 / 12))).toBe(1);
+    const share = calculateWinterFeedShare(12000, 12000, longWinter);
+    expect(share).toBeGreaterThan(0);
+    expect(share).toBeLessThan(1);
+    // At the share, eight lean months are covered by stored hay; slightly more animals are not.
+    const plan = calculateLivestockHayPlan(12000 * share, 12000, longWinter);
+    expect(plan.seasonalGapKg).toBeCloseTo((12000 * share * 8) / 12, 3);
+    const larger = calculateLivestockHayPlan(12000 * (share + 0.02), 12000, longWinter);
+    expect(larger.rawHarvestKg * HAY_DRY_MATTER_RETENTION).toBeLessThan(larger.seasonalGapKg);
   });
 });

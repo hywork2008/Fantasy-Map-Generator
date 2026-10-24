@@ -67,3 +67,21 @@ export function getAnnualLivestockFeedFactor(
   const available = pastureHa * getPastureGrowth(getWorldContext(), cellId).annualKgPerHa + netExternal;
   return Math.max(0, Math.min(1, available / required));
 }
+
+/**
+ * Animals the cell actually fed over the last twelve settled months, in heads of its current herd:
+ * current heads x fed/required. Null until most of a year is recorded or when the year was fully fed.
+ * The annual herd update can run before the last month's feed settles, so ten months suffice.
+ * Grass that stood uncut for want of hands in haymaking does not feed animals in winter (E1 §7.45).
+ */
+export function getRecentlyFedHerdShare(cellId: number): number | null {
+  const period = livestockFeedPeriod();
+  const samples = (getOrCreateLivestockFeedTable()?.[cellId]?.samples ?? []).filter(
+    sample => sample.period <= period && sample.period > period - 12
+  );
+  if (samples.length < 10) return null;
+  const required = samples.reduce((sum, sample) => sum + sample.requiredKg, 0);
+  if (!(required > 0)) return null;
+  const share = samples.reduce((sum, sample) => sum + sample.fedKg, 0) / required;
+  return share < 1 ? Math.max(0, share) : null;
+}
