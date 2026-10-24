@@ -529,6 +529,7 @@
       "farmlandSource_biome-estimate": "Suitability: biome estimate",
       "farmlandSource_unknown": "Soil and wetness: unknown",
       "generateVacantLotTrees": "Generate vacant-lot trees",
+      "showElevationTint": "Show elevation tint",
       "showVacantLotTrees": "Show vacant-lot trees",
       "showUrbanCore": "Show urban core",
       "showFMGSurroundings": "Show FMG surroundings",

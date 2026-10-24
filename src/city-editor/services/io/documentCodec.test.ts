@@ -95,3 +95,13 @@ describe("native document codec", () => {
     expect(parseDocument(JSON.stringify({ ...document, version: 99 }))).toBeNull();
   });
 });
+
+it("persists the elevation tint switch and rejects invalid values", () => {
+  const document = createDocument("elevation-tint-codec", 400);
+  for (const showElevationTint of [false, true]) {
+    expect(parseDocument(serializeDocument({ ...document, showElevationTint }))?.showElevationTint).toBe(
+      showElevationTint
+    );
+  }
+  expect(parseDocument(JSON.stringify({ ...document, showElevationTint: "false" }))).toBeNull();
+});

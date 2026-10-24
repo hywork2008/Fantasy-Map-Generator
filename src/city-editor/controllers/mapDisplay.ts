@@ -75,6 +75,7 @@ export interface MapDisplayContext {
   root: HTMLElement;
   renderQualitySelect: HTMLSelectElement;
   coreLayerInput: HTMLInputElement;
+  elevationTintInput: HTMLInputElement;
   vacantTreesInput: HTMLInputElement;
   generateVacantTreesButton: HTMLButtonElement;
   regenerateFarmlandButton: HTMLButtonElement;
@@ -208,6 +209,7 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
           defaultWalledAreaShare(ctx.documents.documentState.frame.extentMeters)) * 100
       )
     });
+    ctx.elevationTintInput.checked = ctx.documents.documentState.showElevationTint !== false;
     ctx.vacantTreesInput.checked = !!ctx.documents.documentState.vacantLotTrees?.visible;
     ctx.vacantTreesInput.disabled = !ctx.documents.documentState.vacantLotTrees;
     ctx.regenerateFarmlandButton.disabled =
@@ -582,7 +584,8 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
     const path = ctx.faceElementsById.get(faceId);
     if (path) path.setAttribute("class", faceClassName(face, ctx.interaction.selection.faceId === faceId));
     const svg = ctx.map.querySelector("svg");
-    if (svg) syncCellReliefFace(svg, ctx.documents.documentState.mesh, face);
+    if (svg && ctx.documents.documentState.showElevationTint !== false)
+      syncCellReliefFace(svg, ctx.documents.documentState.mesh, face);
     ctx.wardLandmarkElementsById.get(faceId)?.remove();
     ctx.wardLandmarkElementsById.delete(faceId);
     const landmark = renderFaceWardLandmark(ctx.documents.documentState.mesh, face, ctx.documents.documentState);

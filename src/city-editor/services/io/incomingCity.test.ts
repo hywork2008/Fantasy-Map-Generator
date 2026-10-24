@@ -214,6 +214,7 @@ describe("share codec", () => {
 
   it("cityLinkFor produces a decodable fragment", () => {
     const share = shareFromDescriptor(sample);
+    expect(cityEditorDocument(share).showElevationTint).toBe(false);
     const url = cityLinkFor(share, "https://example.test/city-editor/");
     const token = url.slice(url.indexOf("#") + 1);
     expect(decodeShare(token)?.descriptor).toEqual(sample);

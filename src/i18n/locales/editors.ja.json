@@ -529,6 +529,7 @@
       "farmlandSource_biome-estimate": "適性：バイオームからの推定",
       "farmlandSource_unknown": "土壌・湿潤：未取得",
       "generateVacantLotTrees": "空き地の木を生成（再配置）",
+      "showElevationTint": "標高による着色を表示",
       "showVacantLotTrees": "空き地の木を表示",
       "showUrbanCore": "中心部を表示",
       "showFMGSurroundings": "FMG郊外を表示",

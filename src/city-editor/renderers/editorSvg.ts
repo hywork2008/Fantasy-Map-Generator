@@ -182,7 +182,7 @@ export function renderEditorSvg(
     svg.appendChild(waterCells);
   }
   svg.appendChild(cells);
-  const relief = renderCellReliefOverlay(document.mesh);
+  const relief = document.showElevationTint === false ? null : renderCellReliefOverlay(document.mesh);
   if (relief) svg.appendChild(relief);
   const continuousWater = element("g", { class: "ce-continuous-water", "pointer-events": "none" });
   for (const [index, ring] of (fixedMode ? [] : waterPolygons(document)).entries()) {

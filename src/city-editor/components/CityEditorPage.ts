@@ -589,6 +589,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         get renderQualitySelect() {
           return renderQualitySelect;
         },
+        get elevationTintInput() {
+          return elevationTintInput;
+        },
         get vacantTreesInput() {
           return vacantTreesInput;
         },
@@ -2251,6 +2254,12 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     })
   );
 
+  const elevationTintInput = checkbox(documents.documentState.showElevationTint !== false, visible => {
+    commit(
+      { ...documents.documentState, showElevationTint: visible },
+      editorText("cityEditor.messages.showElevationTint")
+    );
+  });
   const vacantTreesInput = checkbox(false, visible => {
     const current = documents.documentState;
     if (!current.vacantLotTrees) return;
@@ -2352,6 +2361,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     text(editorText("cityEditor.messages.farmlandYear")),
     farmlandYearInput,
     farmlandSummary,
+    toggleLabel(editorText("cityEditor.messages.showElevationTint"), elevationTintInput),
     toggleLabel(editorText("cityEditor.messages.showVacantLotTrees"), vacantTreesInput)
   );
 
