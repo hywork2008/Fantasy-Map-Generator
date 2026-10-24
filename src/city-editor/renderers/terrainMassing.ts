@@ -87,6 +87,7 @@ function splitWallOnTerrain(part: StructureMassing, terrain: CityTerrain): Struc
 
 export function lotFoundations(lots: readonly BuildingLot[], terrain: CityTerrain): StructureMassing[] {
   if (!terrain.relief) return [];
+  if (terrain.field) return lots.flatMap((lot, i) => fieldLotPad(lot, i, terrain));
   return lots.flatMap((lot, i) => {
     if (!lot.massing || lot.landmark || lot.polygon.length < 3) return [];
     const level = terrain.foundationAt(lot.polygon);
@@ -108,6 +109,85 @@ export function lotFoundations(lots: readonly BuildingLot[], terrain: CityTerrai
       }
     ];
   });
+}
+
+const PAD_EXPAND_METERS = 0.35;
+const PAD_THICKNESS_METERS = 0.12;
+const SKIRT_GAP_METERS = 0.15;
+
+/** A horizontal pad and a skirt down to the height field. The skirt hides the seam without cutting the mesh. */
+function fieldLotPad(lot: BuildingLot, index: number, terrain: CityTerrain): StructureMassing[] {
+  if (!lot.massing || lot.landmark || lot.polygon.length < 3) return [];
+  const ring = lot.polygon as Point[];
+  const level = terrain.foundationAt(ring);
+  const area = polygonArea(ring);
+  const sign = area >= 0 ? 1 : -1;
+  const expanded = ring.map((point, i) => {
+    const prev = ring[(i + ring.length - 1) % ring.length];
+    const next = ring[(i + 1) % ring.length];
+    const left = outward(prev, point, sign);
+    const right = outward(point, next, sign);
+    let ox = left[0] + right[0];
+    let oy = left[1] + right[1];
+    const length = Math.hypot(ox, oy) || 1;
+    ox /= length;
+    oy /= length;
+    return [point[0] + ox * PAD_EXPAND_METERS, point[1] + oy * PAD_EXPAND_METERS] as Point;
+  });
+  const parts: StructureMassing[] = [
+    {
+      id: `lot-pad:${lot.id ?? index}`,
+      kind: "landmark",
+      material: "stone",
+      footprint: expanded,
+      baseElevationMeters: level,
+      heightMeters: PAD_THICKNESS_METERS,
+      roof: "flat",
+      parapet: "none",
+      parapetMeters: 0,
+      parapetWidthMeters: 0,
+      spire: false
+    }
+  ];
+  expanded.forEach((a, i) => {
+    const b = expanded[(i + 1) % expanded.length];
+    const groundA = terrain.heightAt(a);
+    const groundB = terrain.heightAt(b);
+    if (Math.max(Math.abs(groundA - level), Math.abs(groundB - level)) <= SKIRT_GAP_METERS) return;
+    const normal = outward(a, b, sign);
+    const aOut: Point = [a[0] + normal[0] * 0.2, a[1] + normal[1] * 0.2];
+    const bOut: Point = [b[0] + normal[0] * 0.2, b[1] + normal[1] * 0.2];
+    const footprint = [a, b, bOut, aOut];
+    const groundOutA = terrain.heightAt(aOut);
+    const groundOutB = terrain.heightAt(bOut);
+    parts.push({
+      id: `lot-skirt:${lot.id ?? index}:${i}`,
+      kind: "wall",
+      material: "stone",
+      footprint,
+      sections: [
+        { footprint, elevationsMeters: [groundA, groundB, groundOutB, groundOutA] },
+        { footprint, elevationsMeters: [level, level, level, level] }
+      ],
+      baseElevationMeters: Math.min(level, groundA, groundB, groundOutA, groundOutB),
+      heightMeters:
+        Math.max(level, groundA, groundB, groundOutA, groundOutB) -
+        Math.min(level, groundA, groundB, groundOutA, groundOutB),
+      roof: "none",
+      parapet: "none",
+      parapetMeters: 0,
+      parapetWidthMeters: 0,
+      spire: false
+    });
+  });
+  return parts;
+}
+
+function outward(a: Point, b: Point, sign: number): Point {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const length = Math.hypot(dx, dy) || 1;
+  return [(dy / length) * sign, (-dx / length) * sign];
 }
 
 const RAMP_PARAPET_WIDTH_METERS = 0.4;

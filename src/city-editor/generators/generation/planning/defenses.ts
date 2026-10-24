@@ -21,6 +21,7 @@ import { bramCoreRadiusMeters, planPolygonalCirculadeLayout } from "../../polygo
 import type { RoutedRiver } from "../../riverPath";
 import { defaultRoadWidthMeters, innerWalledAreaShare, townExtentMeters } from "../../settlementExtent";
 import { synthSite } from "../../site/synthSite";
+import { sitingTerrainFromField } from "../../terrainField/attach";
 import { dryRuns, lineHitsDocumentWater, lineHitsWater } from "../../waterGeometry";
 import type { Plan } from "../contracts";
 import { cellsFromMesh, componentBorderLoops } from "../meshGeometry";
@@ -51,6 +52,7 @@ export interface PlanDefensesInput {
     | "castleStreetLinks"
     | "castleOutward"
     | "castle"
+    | "terrainField"
   >;
   program: CityProgram;
   effectiveLayout: "organic" | "circulade" | "bram" | "classic";
@@ -262,13 +264,16 @@ export function planDefenses(input: PlanDefensesInput) {
       gates: [],
       elements: []
     };
-    const terrain = (
-      settings.descriptor ??
-      synthSite(NOMINAL_PRESET, settings.config, seed, {
-        extentMeters: half * 2,
-        cityRadiusMeters: params.cityRadiusMeters
-      })
-    ).terrain;
+    const fieldSiting = sitingTerrainFromField(settings, half * 2, seed);
+    const terrain =
+      fieldSiting?.terrain ??
+      (
+        settings.descriptor ??
+        synthSite(NOMINAL_PRESET, settings.config, seed, {
+          extentMeters: half * 2,
+          cityRadiusMeters: params.cityRadiusMeters
+        })
+      ).terrain;
     const siting: CastleSitingConstraints = {
       corridors,
       sectors: planGateSectors(corridors, genBorders, cellSize, true),
@@ -287,7 +292,8 @@ export function planDefenses(input: PlanDefensesInput) {
         seed,
         settings.castle,
         terrain,
-        siting
+        siting,
+        fieldSiting?.summit
       );
     castleSite = null;
     // §4.4/§5.2: the castle stands in the old town (a third ring when walled)

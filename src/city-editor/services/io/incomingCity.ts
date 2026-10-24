@@ -489,6 +489,21 @@ function asSettings(raw: unknown): Omit<GenerationSettings, "descriptor"> | null
       return null;
     settings.terraces = { stepMeters: raw.terraces.stepMeters };
   }
+  if (raw.terrainField !== undefined) {
+    if (!isRecord(raw.terrainField)) return null;
+    const template = raw.terrainField.template;
+    if (
+      template !== "noise" &&
+      template !== "crag" &&
+      template !== "spur" &&
+      template !== "meander" &&
+      template !== "escarpment"
+    )
+      return null;
+    const sample = raw.terrainField.sampleMeters;
+    if (sample !== undefined && (!isFiniteNumber(sample) || sample <= 0 || sample > 16)) return null;
+    settings.terrainField = { template, ...(sample !== undefined ? { sampleMeters: sample } : {}) };
+  }
   if (raw.buildingPattern !== undefined) settings.buildingPattern = raw.buildingPattern as "legacy" | "medieval";
   if (["auto", "organic", "classic", "circulade", "bram"].includes(String(raw.layout)))
     settings.layout = raw.layout as GenerationSettings["layout"];

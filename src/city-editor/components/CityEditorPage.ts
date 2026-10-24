@@ -40,7 +40,11 @@ import { mountCity3d } from "../renderers/cityView";
 import { clearRenderDerivedCaches } from "../renderers/derivedCaches";
 import type { GridOverlay } from "../renderers/overlays/editorOverlays";
 import { SHIP_SPECS } from "../renderers/shipSpecifications";
-import { readMaxPatchesPreference, readModelQualityPreference } from "../services/browserPreferences";
+import {
+  readMaxPatchesPreference,
+  readModelQualityPreference,
+  readTerrainSpacingPreference
+} from "../services/browserPreferences";
 import { beginEditorMount } from "../services/editorLifetime";
 import { type ImportedCityMap, pickCityMap } from "../services/io/cityEditorFile";
 import { type CityEditorShare, readIncomingCity } from "../services/io/incomingCity";
@@ -2101,18 +2105,54 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   }
   const riseInput = numberInput(
     String(generation.generateSettings.castle?.groundRiseMeters ?? DEFAULT_CASTLE_RISE_METERS),
-    "1",
+    "0",
     "1"
   );
   castleInputs.set("groundRiseMeters", riseInput);
   scope.listen(riseInput, "change", () => {
     const rise = Number(riseInput.value);
-    if (!(Number.isFinite(rise) && rise > 0)) return;
+    if (!(Number.isFinite(rise) && rise >= 0)) return;
     generation.generateSettings.castle = { ...generation.generateSettings.castle, groundRiseMeters: rise };
     syncGenerateControls();
   });
   castleControls.append(label(editorText("cityEditor.messages.castleGroundRise"), riseInput));
   // Terraces level the site's relief into flat steps; streets cross them as ramps or stairs.
+  const terrainFieldSelect = select(
+    ["off", "crag", "spur", "meander", "escarpment", "noise"],
+    generation.generateSettings.terrainField?.template ?? "off"
+  );
+  terrainFieldSelect.className = "ce-terrain-field";
+  const terrainFieldLabel = (value: string) =>
+    editorText(
+      value === "off"
+        ? "cityEditor.messages.terrainFieldOff"
+        : value === "crag"
+          ? "cityEditor.messages.terrainFieldCrag"
+          : value === "spur"
+            ? "cityEditor.messages.terrainFieldSpur"
+            : value === "meander"
+              ? "cityEditor.messages.terrainFieldMeander"
+              : value === "escarpment"
+                ? "cityEditor.messages.terrainFieldEscarpment"
+                : "cityEditor.messages.terrainFieldNoise"
+    );
+  for (const option of terrainFieldSelect.options) option.textContent = terrainFieldLabel(option.value);
+  scope.listen(terrainFieldSelect, "change", () => {
+    const template = terrainFieldSelect.value;
+    if (template === "off") delete generation.generateSettings.terrainField;
+    else {
+      generation.generateSettings.terrainField = {
+        template: template as "noise" | "crag" | "spur" | "meander" | "escarpment"
+      };
+      const castle = generation.generateSettings.castle ?? {};
+      generation.generateSettings.castle = {
+        ...castle,
+        ground: castle.ground ?? "cliff",
+        groundRiseMeters: castle.groundRiseMeters ?? 0
+      };
+    }
+    syncGenerateControls();
+  });
   const terraceSelect = select(["natural", "terraces"], generation.generateSettings.terraces ? "terraces" : "natural");
   for (const option of terraceSelect.options)
     option.textContent = editorText(
@@ -2139,6 +2179,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     label(editorText("cityEditor.messages.rivers"), riversSelect),
     label(editorText("cityEditor.messages.riverPlacement"), riverPlacementSelect),
     toggleLabel(editorText("cityEditor.messages.reliefHilltop"), reliefInput),
+    label(editorText("cityEditor.messages.terrainField"), terrainFieldSelect),
     label(editorText("cityEditor.messages.terraces"), terraceSelect),
     label(editorText("cityEditor.messages.terraceStep"), terraceStepInput),
     text(editorText("cityEditor.messages.features")),
@@ -2577,7 +2618,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     map,
     scope,
     getDocument: () => documents.documentState,
-    getModelQuality: readModelQualityPreference
+    getModelQuality: readModelQualityPreference,
+    getTerrainSpacing: readTerrainSpacingPreference
   });
   syncCity3d = () => city3d.sync();
   scope.own(() => city3d.dispose());

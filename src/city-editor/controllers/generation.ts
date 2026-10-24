@@ -14,6 +14,7 @@ import { clone } from "../generators/mesh";
 import { generateRuralFieldStage } from "../generators/ruralFieldStage";
 import { WALL_COAST_CHOICES, WALL_MATERIAL_CHOICES } from "../generators/site/siteConfig";
 import { DEFAULT_CASTLE_RISE_METERS } from "../generators/terrainEditing";
+import { fieldModeAllowed } from "../generators/terrainField/constants";
 import { startCityGeneration } from "../services/generationWorkerClient";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
 import type { GenerationDebugPreview } from "../types/contracts/generationDebug";
@@ -723,6 +724,14 @@ export function createGenerationController(ctx: GenerationContext) {
     ctx.riversSelect.value = String(Math.min(2, ctx.generation.generateSettings.config.rivers.length));
     ctx.riverPlacementSelect.value = ctx.generation.generateSettings.riverPlacement ?? "through";
     ctx.reliefInput.checked = ctx.generation.generateSettings.config.relief;
+    const terrainField = ctx.root.querySelector<HTMLSelectElement>(".ce-terrain-field");
+    if (terrainField) {
+      const allowed = fieldModeAllowed(ctx.documents.documentState.frame.extentMeters);
+      terrainField.disabled = !allowed;
+      const template = ctx.generation.generateSettings.terrainField?.template ?? "off";
+      terrainField.value = allowed ? template : "off";
+      if (!allowed) delete ctx.generation.generateSettings.terrainField;
+    }
     for (const [key, input] of ctx.featureInputs) input.checked = ctx.generation.generateSettings.config.features[key];
     ctx.urbanCoreModeSelect.value = ctx.generation.generateSettings.urbanCoreMode ?? "legacy";
     ctx.urbanNPatchesInput.value =

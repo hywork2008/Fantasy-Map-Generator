@@ -421,9 +421,17 @@ export function planPlatformRamp(
       }
       const line = [inside, ...path, ...(joint ? [joint] : [])];
       const deck = [platform.levelMeters, ...levels, ...(joint ? [ground(joint)] : [])];
+      let gradePenalty = 0;
+      for (let i = 1; i < path.length; i++) {
+        const run = len(sub(path[i], path[i - 1]));
+        if (run < 1e-6) continue;
+        const grade = Math.abs(ground(path[i]) - ground(path[i - 1])) / run;
+        if (grade > RAMP_GRADE) gradePenalty += (grade - RAMP_GRADE) * run * 4;
+      }
       const score =
         (joint ? len(sub(joint, foot)) : CONNECT_METERS * 2) +
         0.05 * total +
+        gradePenalty +
         (climbsRightSideToWall(path, normal) ? 0 : LEFT_HANDED_PENALTY_METERS);
       if (!best || score < best.score) best = { line, levels: deck, score };
     }

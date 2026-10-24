@@ -35,6 +35,11 @@ export interface GenerationSettings {
   castle?: Partial<import("./castle").CastleSettings>;
   /** Level the site's relief into flat terraces this many metres apart. Absent leaves the ground as generated. */
   terraces?: { stepMeters: number };
+  /**
+   * Height-field ground for micro, tiny, and small frames.
+   * The recipe is saved on the document; this is only the generation choice.
+   */
+  terrainField?: { template: import("./terrain").TerrainTemplateId; sampleMeters?: number };
   /** Castle siting also checks C4 on street edges. Set by the attempt loop
    * after a castle town failed with unconnected gates. */
   castleStreetLinks?: boolean;

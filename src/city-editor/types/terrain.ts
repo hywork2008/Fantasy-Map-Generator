@@ -8,14 +8,36 @@ export interface TerrainPatch {
   escarpment?: true;
 }
 
+/** Regular height grid. Generation samples (`TerrainField`) and the draw grid share this shape. */
+export interface TerrainField {
+  origin: Point;
+  sampleMeters: number;
+  columns: number;
+  rows: number;
+  /** Row-major, row 0 at `origin[1]` (south). Absolute metres. */
+  elevationsMeters: Float32Array;
+}
+
+/** Draw-only copy of a height field. Same layout as `TerrainField`. */
+export type TerrainGrid = TerrainField;
+
 export interface CityTerrain {
   /** Absolute elevation represented by local Y=0. Uniform legacy land stays flat. */
   datumMeters: number;
   relief: boolean;
+  /** True when the base is a height field rather than cell elevations. */
+  field?: boolean;
   heightAt(point: Point): number;
+  /** Rise/run of the finished ground. Present for a height field. */
+  slopeAt?(point: Point): number;
   /** Horizontal foundation above all terrain beneath this footprint. */
   foundationAt(ring: readonly Point[]): number;
   triangles: TerrainPatch[];
+  /**
+   * Draw grid for a height field. Built on first read so generation can ignore it.
+   * Spacing is a local view setting, not part of the document.
+   */
+  grid?: TerrainGrid;
   /** Present when built with road ribbons: those to draw, split where they would cross a cliff. */
   /** Walkable top: a ramp deck where one stands, otherwise the ground. Roads are drawn on it. */
   surfaceAt(point: Point): number;
@@ -73,7 +95,67 @@ export interface TerrainRingCut {
 export type TerrainFeature = TerrainPlatform | TerrainRingCut;
 
 /** Height source before earthworks. Cell elevations are interpolated across the editor mesh. */
-export type TerrainBase = { kind: "cells" } | { kind: "flat"; elevationMeters: number };
+export type TerrainBase =
+  | { kind: "cells" }
+  | { kind: "flat"; elevationMeters: number }
+  | { kind: "field"; field: TerrainField };
+
+export type TerrainTemplateId = "noise" | "crag" | "spur" | "meander" | "escarpment";
+
+export type TerrainFieldPart =
+  | { kind: "offset"; meters: number }
+  | { kind: "hill"; center: Point; radiusMeters: number; heightMeters: number }
+  | { kind: "range"; points: Point[]; radiusMeters: number; heightMeters: number }
+  | { kind: "trough"; points: Point[]; radiusMeters: number; depthMeters: number }
+  | { kind: "pit"; center: Point; radiusMeters: number; depthMeters: number }
+  | {
+      kind: "crag";
+      center: Point;
+      topRadiusMeters: number;
+      cliffRunMeters: number;
+      heightMeters: number;
+      /** Fractional radius wobble, typically under 0.08, so the lip is not a perfect circle. */
+      wobble?: number;
+    }
+  | {
+      kind: "spur";
+      root: Point;
+      tip: Point;
+      topWidthMeters: number;
+      cliffRunMeters: number;
+      heightMeters: number;
+      /** Run of the gentle slope on the plateau side of `root`. The other sides are cliffs. */
+      gentleRunMeters: number;
+    }
+  | {
+      kind: "scarp";
+      origin: Point;
+      /** Horizontal direction from the high ground toward the low ground. */
+      downhill: Point;
+      cliffRunMeters: number;
+      heightMeters: number;
+      gentleRunMeters: number;
+    }
+  | { kind: "noise"; amplitudeMeters: number; wavelengthMeters: number; octaves?: number; seed: number }
+  | { kind: "smooth"; radiusMeters: number }
+  | { kind: "mask"; dropMeters: number; inner?: number }
+  | {
+      kind: "coarse" | "correct";
+      origin: Point;
+      spacingMeters: number;
+      columns: number;
+      rows: number;
+      elevationsMeters: number[];
+    };
+
+/** Saved height-field recipe. The grid is rebuilt from this; it is not stored. */
+export interface TerrainFieldRecipe {
+  version: 1;
+  template: TerrainTemplateId;
+  seed: number;
+  sampleMeters: number;
+  parts: TerrainFieldPart[];
+}
 
 /**
  * A masonry ramp climbing a cliff-edged platform: a raised deck along its centre line, walled on both sides.
@@ -96,6 +178,8 @@ export interface CityTerrainLayer {
   version: 1;
   features: TerrainPlatform[];
   ramps?: TerrainRamp[];
+  /** Height-field recipe. Absent documents keep cell elevations. */
+  field?: TerrainFieldRecipe;
 }
 
 /** Derived, unpersisted grading model: a base field plus vector earthworks in absolute metres. */

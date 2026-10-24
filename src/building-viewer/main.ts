@@ -461,6 +461,57 @@ async function showFortress(phase: KrakPhase): Promise<void> {
   facts.append(download);
 }
 
+async function showCliffStudy(): Promise<void> {
+  const token = ++selection;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button.dataset.study === "cliff" ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Cliff fortress";
+  levelTitle.textContent = "Summit";
+  const [{ createCliffFortressStudy }, { cityTerrain }, { createTownWater }] = await Promise.all([
+    import("../city-editor/generators/terrainField/study"),
+    import("../city-editor/generators/terrainElevation"),
+    import("../city3d/three/waterMeshes")
+  ]);
+  if (token !== selection) return;
+  const city = createCliffFortressStudy();
+  const terrain = cityTerrain(city);
+  studyWater = createTownWater(city, terrain);
+  for (const mesh of [studyWater.land, studyWater.bank, studyWater.unknown]) if (mesh) scene.add(mesh);
+  scene.add(studyWater.parent);
+  const castle = city.castles?.[0];
+  const platform = city.terrain?.features.find(feature => feature.kind === "platform");
+  const top = platform?.levelMeters ?? terrain.datumMeters + terrain.heightAt([0, 0]);
+  frame({ occupancyMeters: { width: 240, depth: 240 } }, Math.max(24, top));
+  camera.position.set(180, top + 80, 220);
+  controls.target.set(0, top * 0.4, 0);
+  controls.update();
+  facts.append(
+    fact("Model", "Cliff fortress study"),
+    fact("Template", city.terrain?.field?.template ?? "crag"),
+    fact("Frame", `${city.frame.extentMeters} m`),
+    fact("Summit sample", `${top.toFixed(1)} m`),
+    fact("Castle", castle ? castle.id : "none"),
+    fact("Ramp", city.terrain?.ramps?.length ? "planned" : "none")
+  );
+  const download = document.createElement("button");
+  download.type = "button";
+  download.textContent = "Download editable CE cliff study";
+  download.addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify(city, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "cliff-fortress.city.json";
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+  facts.append(download);
+}
+
 function modelCategory(title: string, open = false): HTMLDetailsElement {
   const category = document.createElement("details");
   category.className = "bv-category";
@@ -787,6 +838,17 @@ for (const phase of ["hospitalier-1270", "mamluk-1302"] as const) {
   });
   assemblies.append(button);
 }
+const cliffButton = document.createElement("button");
+cliffButton.type = "button";
+cliffButton.dataset.study = "cliff";
+cliffButton.textContent = "Cliff fortress · crag study";
+cliffButton.addEventListener("click", () => {
+  void showCliffStudy().catch(error => {
+    banner.hidden = false;
+    banner.textContent = error instanceof Error ? error.message : String(error);
+  });
+});
+assemblies.append(cliffButton);
 
 const shipsHeading = modelCategory("Ships");
 const carrackButton = document.createElement("button");

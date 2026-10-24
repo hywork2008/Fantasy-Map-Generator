@@ -17,6 +17,7 @@ import type { Point } from "../../city-editor/types/primitives";
 import type { TriangleSoup } from "../core/massingGeometry";
 import { planVertex } from "../core/planFrame";
 import { LAND_Y, WATER_Y, waterSurfaceGeometry } from "../core/waterGeometry";
+import { terrainFieldMeshes } from "./terrainFieldMesh";
 
 const LAND_COLOR = 0xd5cfbf;
 const UNKNOWN_COLOR = 0xcfcdc6;
@@ -103,23 +104,41 @@ export function createTownWater(document: CityDocument, terrain: CityTerrain = c
     part.kind === "ocean" || !terrain.relief
       ? waterY(part.kind)
       : Math.min(...part.polygon.map(terrain.heightAt)) + WATER_Y;
+  const rimAt = (point: Point) => {
+    let rim = terrain.heightAt(point);
+    for (const delta of [
+      [8, 0],
+      [-8, 0],
+      [0, 8],
+      [0, -8]
+    ] as const)
+      rim = Math.max(rim, terrain.heightAt([point[0] + delta[0], point[1] + delta[1]]));
+    return rim + WATER_Y;
+  };
   const partHeight = (part: TownWaterPart): ((point: Point) => number) =>
-    terrain.relief && (part.kind === "river" || part.kind === "channel")
-      ? point => terrain.heightAt(point) + WATER_Y
-      : () => partLevel(part);
+    terrain.field && (part.kind === "river" || part.kind === "channel")
+      ? rimAt
+      : terrain.relief && (part.kind === "river" || part.kind === "channel")
+        ? point => terrain.heightAt(point) + WATER_Y
+        : () => partLevel(part);
   const heights = water.parts.map(partHeight);
-  const land = meshFrom(
-    "ce-land",
-    soupAt(ground.land, LAND_Y, terrain.relief ? terrain.heightAt : undefined),
-    LAND_COLOR,
-    THREE.FrontSide
-  );
-  const cliff = land
+  const fieldMeshes = terrain.grid ? terrainFieldMeshes(document, terrain) : [];
+  for (const mesh of fieldMeshes) parent.add(mesh);
+  const land = fieldMeshes.length
+    ? null
+    : meshFrom(
+        "ce-land",
+        soupAt(ground.land, LAND_Y, terrain.relief ? terrain.heightAt : undefined),
+        LAND_COLOR,
+        THREE.FrontSide
+      );
+  const hasGround = land !== null || fieldMeshes.length > 0;
+  const cliff = hasGround
     ? meshFrom("ce-escarpment", soupAt(escarpment, LAND_Y, terrain.heightAt), ESCARPMENT_COLOR, THREE.DoubleSide)
     : null;
   if (cliff) parent.add(cliff);
   const unknown = land ? meshFrom("ce-unknown", soupAt(ground.unknown, LAND_Y), UNKNOWN_COLOR, THREE.FrontSide) : null;
-  const bank = land
+  const bank = hasGround
     ? bankMesh(
         water.parts.map(part => part.polygon),
         water.parts.map(partLevel),
@@ -127,7 +146,7 @@ export function createTownWater(document: CityDocument, terrain: CityTerrain = c
         terrain.relief ? (point, index) => heights[index](point) : undefined
       )
     : null;
-  if (land) {
+  if (land || fieldMeshes.length) {
     for (const kind of KINDS) {
       const parts = water.parts.filter(part => part.kind === kind);
       if (!parts.length) continue;
@@ -153,8 +172,8 @@ export function createTownWater(document: CityDocument, terrain: CityTerrain = c
     unknown,
     bank,
     pickables: [],
-    replacesDisc: land !== null,
-    wetPolygons: land ? water.parts.map(part => part.polygon) : [],
+    replacesDisc: land !== null || fieldMeshes.length > 0,
+    wetPolygons: land || fieldMeshes.length ? water.parts.map(part => part.polygon) : [],
     dispose() {
       parent.removeFromParent();
       land?.removeFromParent();

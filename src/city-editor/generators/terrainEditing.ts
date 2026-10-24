@@ -1,7 +1,11 @@
 import type { CastlePlan, CastleSettings, CityDocument, Point } from "../types/document";
 import type { Id } from "../types/primitives";
 import type { TerrainPlatform, TerrainRamp } from "../types/terrain";
+import { polygonCentroid } from "./geom";
+import { facePoints } from "./mesh";
 import { planPlatformRamp } from "./rampPlanning";
+import { terrainFieldForDocument } from "./terrainField/build";
+import { sampleField } from "./terrainField/sample";
 import type { PlatformEdge } from "./terrainValidation";
 import { validPlatformEdge, validTerrainLevel } from "./terrainValidation";
 
@@ -77,13 +81,27 @@ export function removeOwnedTerrain(document: CityDocument, ownerId: Id): void {
   const ramps = document.terrain.ramps?.filter(ramp => ramp.ownerId !== ownerId);
   if (ramps?.length) document.terrain.ramps = ramps;
   else delete document.terrain.ramps;
-  if (!document.terrain.features.length && !document.terrain.ramps) delete document.terrain;
+  if (!document.terrain.features.length && !document.terrain.ramps && !document.terrain.field) delete document.terrain;
 }
 
 export const DEFAULT_CASTLE_RISE_METERS = 12;
 
-/** Highest ground among a castle's land cells: the cell elevation, or the terrace the cell was levelled to. */
+/** Highest ground among a castle's land cells: the height field, or the cell elevation and any terrace. */
 function castleSiteTop(document: CityDocument, castle: CastlePlan): number | null {
+  if (document.terrain?.field) {
+    const field = terrainFieldForDocument(document);
+    if (field) {
+      const samples: number[] = [];
+      for (const id of castleSiteFaceIds(document, castle)) {
+        const face = document.mesh.faces[id];
+        if (face?.properties.water !== "land") continue;
+        const ring = facePoints(document.mesh, face);
+        for (const point of ring) samples.push(sampleField(field, point));
+        if (ring.length) samples.push(sampleField(field, polygonCentroid(ring)));
+      }
+      if (samples.length) return Math.max(...samples);
+    }
+  }
   const terraces = (document.terrain?.features ?? []).filter(
     feature => feature.role === "terrace" && feature.summit.kind === "faces"
   );
@@ -120,22 +138,29 @@ export function generatedCastleTerrain(
   }
   // Terraces were levelled for this mesh just before; castle earthworks stand on them.
   const terraces = result.terrain?.features.filter(feature => feature.role === "terrace") ?? [];
-  let next: CityDocument = { ...result, terrain: terraces.length ? { version: 1, features: terraces } : undefined };
+  const field = result.terrain?.field;
+  const fieldMode = !!field;
+  let next: CityDocument = {
+    ...result,
+    terrain: terraces.length || field ? { version: 1, features: terraces, ...(field ? { field } : {}) } : undefined
+  };
   for (const castle of result.castles ?? []) {
     const top = castleSiteTop(next, castle);
     if (top === null) continue;
     const requested =
       settings?.ground === "cliff" || settings?.ground === "slope"
         ? (() => {
-            const rise = settings.groundRiseMeters ?? DEFAULT_CASTLE_RISE_METERS;
+            const rise = fieldMode
+              ? (settings.groundRiseMeters ?? 0)
+              : (settings.groundRiseMeters ?? DEFAULT_CASTLE_RISE_METERS);
             const edge: PlatformEdge =
               settings.ground === "cliff" ? { kind: "cliff" } : { kind: "slope", runMeters: Math.max(10, rise * 1.5) };
             return { rise, edge };
           })()
         : settings?.ground === "natural"
           ? null
-          : previous.get(castle.id);
-    if (!requested || !(requested.rise > 0)) continue;
+          : (previous.get(castle.id) ?? (fieldMode ? { rise: 0, edge: { kind: "cliff" as const } } : undefined));
+    if (!requested || (!(requested.rise > 0) && !fieldMode)) continue;
     next = setCastlePlatform(next, castle.id, { levelMeters: top + requested.rise, edge: requested.edge }) ?? next;
   }
   return next.terrain;

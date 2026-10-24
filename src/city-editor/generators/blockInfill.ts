@@ -51,6 +51,8 @@ import { roadTrafficKey } from "./roadTraffic";
 import { ruralFieldOverlay } from "./ruralFieldOverlay";
 import { applyRuralFields } from "./ruralFields";
 import { enforceDefenseClearance, shapeSuburbanFabric } from "./suburbanLanduse";
+import { cityTerrain } from "./terrainElevation";
+import { lotFitsField } from "./terrainField/lots";
 import { overlapsRamp } from "./terrainModel";
 import { shapeUrbanGrowthFabric } from "./urbanGrowth";
 import { documentWaterTest, dryRuns, lineHitsDocumentWater, waterPolygons } from "./waterGeometry";
@@ -520,12 +522,16 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
     aerialLandmarks.barbicans,
     "building"
   );
+  const fieldTerrain = document.terrain?.field ? cityTerrain(document) : undefined;
+  const keptBuildings = fieldTerrain
+    ? nonMillBuildings.filter(building => lotFitsField(document, fieldTerrain, building))
+    : nonMillBuildings;
   const openSpaces = fabric.openSpaces?.filter(
     space =>
       !landmarkReservationHits(document, space.polygon) && !moat.hitsPolygon(space.polygon) && !displaced(space.polygon)
   );
-  const parcelBuildings = new Map<string, typeof nonMillBuildings>();
-  for (const building of nonMillBuildings) {
+  const parcelBuildings = new Map<string, typeof keptBuildings>();
+  for (const building of keptBuildings) {
     if (!building.parcelId) continue;
     const members = parcelBuildings.get(building.parcelId) ?? [];
     members.push(building);
@@ -537,7 +543,7 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
   const openWater = document.importedFixedCrossings ? undefined : waterPolygons(document);
   return {
     ...fabric,
-    buildings: nonMillBuildings,
+    buildings: keptBuildings,
     lanes: fabric.lanes
       .filter(
         lane =>

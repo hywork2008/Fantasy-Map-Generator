@@ -101,6 +101,13 @@ describe("share codec", () => {
       settings: { config: DEFAULT_SITE_CONFIG, terraces: { stepMeters: 3.5 } }
     });
     expect(decodeShare(encodeShare(share))?.settings.terraces).toEqual({ stepMeters: 3.5 });
+    const fieldShare = {
+      ...share,
+      settings: { ...share.settings, terrainField: { template: "crag" as const, sampleMeters: 2 } }
+    };
+    expect(decodeShare(encodeShare(fieldShare))?.settings.terrainField).toEqual({ template: "crag", sampleMeters: 2 });
+    const brokenField = { ...share, settings: { ...share.settings, terrainField: { template: "mesa" } } };
+    expect(decodeShare(encodeShare(brokenField))).toBeNull();
     const broken = { ...share, settings: { ...share.settings, terraces: { stepMeters: 0 } } };
     expect(decodeShare(encodeShare(broken))).toBeNull();
   });

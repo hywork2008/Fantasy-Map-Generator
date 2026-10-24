@@ -65,6 +65,8 @@ import { farNodeFor } from "../streets";
 import { approachBands } from "../suburbanLanduse";
 import { planTerraces } from "../terracePlanning";
 import { generatedCastleTerrain } from "../terrainEditing";
+import { attachTerrainField } from "../terrainField/attach";
+import { fieldModeAllowed } from "../terrainField/constants";
 import { consolidateThinRoadCells } from "../thinRoadCells";
 import { auditTownDefenseClosure } from "../townDefenseClosure";
 import { connectUrbanRiverDistricts } from "../urbanBridges";
@@ -249,8 +251,10 @@ export function generateCityOnDocument(
       result.farmlandAreaHectares = settings.descriptor
         ? settings.descriptor.farmlandAreaHectares
         : document.farmlandAreaHectares;
-      // A terraced hill town is levelled from the site's relief before the castle earthworks stand on it.
-      if (settings.terraces) {
+      // A height field replaces cell elevations. Terraces are cell steps, so they stay off in that mode.
+      if (settings.terrainField && fieldModeAllowed(result.frame.extentMeters)) {
+        measureProcessing(profiler, "terrain-field", () => attachTerrainField(result, settings, attemptSeed));
+      } else if (settings.terraces) {
         const site =
           settings.descriptor ??
           synthSite(NOMINAL_PRESET, settings.config, attemptSeed, {

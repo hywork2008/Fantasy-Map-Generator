@@ -1,7 +1,7 @@
 import type { RoadRibbon } from "../../utils/roadSurface";
 import type { CityDocument, Face, Point } from "../types/document";
 import type { Id } from "../types/primitives";
-import type { CityTerrain, TerrainPatch as Patch, TerrainModel } from "../types/terrain";
+import type { CityTerrain, TerrainPatch as Patch, TerrainGrid, TerrainModel } from "../types/terrain";
 import { type CellRelief, cellRelief, faceLocator } from "./cellRelief";
 import { fortCircle } from "./fortSiteGeometry";
 import { fortSiteTerrainFeatures } from "./fortSiteTerrain";
@@ -10,6 +10,10 @@ import { triangularInfillParts } from "./lotGeometry";
 import { facePoints, faceVertices } from "./mesh";
 import { intersectConvex, subtractConvex } from "./parcelGeometry";
 import { gradeRoads } from "./roadGrading";
+import { terrainFieldForDocument } from "./terrainField/build";
+import { buildDrawGrid, resolveRenderSpacing } from "./terrainField/drawGrid";
+import { fieldFoundation } from "./terrainField/lots";
+import { sampleField } from "./terrainField/sample";
 import {
   evaluateTerrainFeatures,
   type OutlineSegment,
@@ -35,16 +39,21 @@ const MAX_REFINE_DEPTH = 8;
 
 const cross = (a: Point, b: Point, c: Point) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
 
-/** A fort site grades flat ground; every other document adds its saved earthworks to the cell elevations. */
+/** A fort site grades flat ground; a height-field recipe replaces cell elevations; every other document uses the cells. */
 export function cityTerrainModel(document: CityDocument): TerrainModel {
   const site = document.fortSite;
-  return site
-    ? {
-        base: { kind: "flat", elevationMeters: site.groundElevationMeters },
-        features: fortSiteTerrainFeatures(site),
-        ramps: []
-      }
-    : { base: { kind: "cells" }, features: document.terrain?.features ?? [], ramps: document.terrain?.ramps ?? [] };
+  if (site)
+    return {
+      base: { kind: "flat", elevationMeters: site.groundElevationMeters },
+      features: fortSiteTerrainFeatures(site),
+      ramps: []
+    };
+  const field = document.terrain?.field ? terrainFieldForDocument(document) : null;
+  return {
+    base: field ? { kind: "field", field } : { kind: "cells" },
+    features: document.terrain?.features ?? [],
+    ramps: document.terrain?.ramps ?? []
+  };
 }
 
 /** Edges between the given cells and any other cell or the frame, oriented by their inward normal. */
@@ -107,6 +116,56 @@ function cellSurface(document: CityDocument, relief: CellRelief): BaseSurface {
     seeds.push({ face, center, patches });
   }
   return { datumMeters: relief.datumMeters, relief: relief.relief, seeds };
+}
+
+/**
+ * Seed triangles only beside earthworks, ramps, and roads. The draw grid carries the rest of a height field,
+ * so the whole frame is not triangulated.
+ */
+function fieldSeedSurface(
+  document: CityDocument,
+  datumMeters: number,
+  relief: boolean,
+  features: readonly ResolvedTerrainFeature[],
+  ramps: readonly { centerline: readonly Point[] }[],
+  roads: readonly RoadRibbon[] | undefined
+): BaseSurface {
+  const reach = Math.max(80, (document.frame.blockSizeMeters || 50) * 2);
+  const foci: Point[] = [];
+  for (const feature of features) {
+    if (feature.kind === "ringCut") {
+      foci.push(feature.axis.center);
+      continue;
+    }
+    if (feature.summit.kind === "circle") foci.push(feature.summit.center);
+    else for (const segment of feature.summit.segments) foci.push(segment.a, segment.b);
+  }
+  for (const ramp of ramps) foci.push(...ramp.centerline);
+  for (const road of roads ?? []) for (const point of road.centerline) foci.push([point[0], point[1]]);
+  const near = (point: Point) => foci.some(focus => Math.hypot(point[0] - focus[0], point[1] - focus[1]) <= reach);
+  const seeds: BaseSurface["seeds"] = [];
+  if (foci.length)
+    for (const face of Object.values(document.mesh.faces)) {
+      if (face.properties.water !== "land") continue;
+      const points = facePoints(document.mesh, face);
+      if (points.length < 3) continue;
+      const center = polygonCentroid(points);
+      if (!near(center) && !points.some(near)) continue;
+      const patches: Patch[] = [];
+      const add = (tri: [Point, Point, Point]) => {
+        if (Math.abs(cross(...tri)) >= 1e-8) patches.push({ faceId: face.id, points: tri, heights: [0, 0, 0] });
+      };
+      const signs = points
+        .map((point, i) => Math.sign(cross(center, point, points[(i + 1) % points.length])))
+        .filter(sign => sign !== 0);
+      if (signs.every(sign => sign === signs[0]))
+        for (let i = 0; i < points.length; i++) add([center, points[i], points[(i + 1) % points.length]]);
+      else
+        for (const part of triangularInfillParts(points))
+          for (let i = 1; i < part.length - 1; i++) add([part[0], part[i], part[i + 1]]);
+      seeds.push({ face, center, patches });
+    }
+  return { datumMeters, relief, seeds };
 }
 
 /** Level ground under every face, fanned from the original convex cell centres. */
@@ -317,7 +376,10 @@ function gradedPatches(
  * The base field and its earthworks as one surface relative to the lowest base level.
  * Given the drawn road ribbons, roads get graded profiles and the ground is cut and filled to them.
  */
-export function cityTerrain(document: CityDocument, options: { roads?: readonly RoadRibbon[] } = {}): CityTerrain {
+export function cityTerrain(
+  document: CityDocument,
+  options: { roads?: readonly RoadRibbon[]; renderSpacing?: number | "auto" } = {}
+): CityTerrain {
   const model = cityTerrainModel(document);
   const locate = faceLocator(document);
   const features = resolveTerrainFeatures(
@@ -325,10 +387,25 @@ export function cityTerrain(document: CityDocument, options: { roads?: readonly 
     faceIds => platformOutline(document, faceIds),
     model.features.length ? locate : undefined
   );
+  const field = model.base.kind === "field" ? model.base.field : undefined;
   const cells = model.base.kind === "cells" ? cellRelief(document, locate) : undefined;
-  const surface = cells
-    ? cellSurface(document, cells)
-    : flatSurface(document, (model.base as { elevationMeters: number }).elevationMeters);
+  let fieldDatum = 0;
+  let fieldRelief = false;
+  if (field) {
+    let min = Infinity;
+    let max = -Infinity;
+    for (const value of field.elevationsMeters) {
+      if (value < min) min = value;
+      if (value > max) max = value;
+    }
+    fieldDatum = Number.isFinite(min) ? min : 0;
+    fieldRelief = max - min > 1e-6;
+  }
+  const surface = field
+    ? fieldSeedSurface(document, fieldDatum, fieldRelief, features, model.ramps, options.roads)
+    : cells
+      ? cellSurface(document, cells)
+      : flatSurface(document, model.base.kind === "flat" ? model.base.elevationMeters : 0);
   const { datumMeters } = surface;
   const { ramps } = model;
   const relief = surface.relief || features.length > 0 || ramps.length > 0;
@@ -337,7 +414,7 @@ export function cityTerrain(document: CityDocument, options: { roads?: readonly 
     surface.seeds.flatMap(seed => seed.patches),
     step
   );
-  const baseAt = (point: Point) => cells?.heightAt(point) ?? 0;
+  const baseAt = (point: Point) => (field ? sampleField(field, point) - fieldDatum : (cells?.heightAt(point) ?? 0));
   const groundAt = (point: Point): number => {
     if (!relief) return 0;
     if (!features.length) return baseAt(point);
@@ -366,12 +443,24 @@ export function cityTerrain(document: CityDocument, options: { roads?: readonly 
           step
         )
       : base;
+  const surfaceAt = (point: Point) => deckAt(point) ?? grading?.roadAt(point) ?? heightAt(point);
+  const slopeAt = field
+    ? (point: Point) => {
+        const probe = 1;
+        const zx = (heightAt([point[0] + probe, point[1]]) - heightAt([point[0] - probe, point[1]])) / (2 * probe);
+        const zy = (heightAt([point[0], point[1] + probe]) - heightAt([point[0], point[1] - probe])) / (2 * probe);
+        return Math.hypot(zx, zy);
+      }
+    : undefined;
+  let drawGrid: TerrainGrid | undefined;
   return {
     datumMeters,
     relief,
+    ...(field ? { field: true as const } : {}),
     heightAt,
+    ...(slopeAt ? { slopeAt } : {}),
     // Roads ride ramp decks, and in a terraced town the steps and ramps built over the ground.
-    surfaceAt: point => deckAt(point) ?? grading?.roadAt(point) ?? heightAt(point),
+    surfaceAt,
     ramps: ramps.map(ramp => ({ ramp, elevations: ramp.elevationsMeters.map(level => level - datumMeters) })),
     ...(options.roads
       ? {
@@ -383,8 +472,24 @@ export function cityTerrain(document: CityDocument, options: { roads?: readonly 
         }
       : {}),
     triangles: [...graded.patches],
+    ...(field
+      ? {
+          get grid(): TerrainGrid {
+            if (!drawGrid) {
+              const spacing = resolveRenderSpacing(document.frame.extentMeters, options.renderSpacing ?? "auto");
+              drawGrid = buildDrawGrid(document.frame.extentMeters, spacing, heightAt);
+            }
+            return drawGrid;
+          }
+        }
+      : {}),
     foundationAt(ring) {
       if (!relief || !ring.length) return 0;
+      if (field && slopeAt) {
+        const center = polygonCentroid([...ring]);
+        if (onPlatformSummit(features, center)) return heightAt(center);
+        return fieldFoundation(ring, heightAt, surfaceAt);
+      }
       let top = Math.max(0, ...ring.map(heightAt), heightAt(polygonCentroid([...ring])));
       const footprint = [...ring];
       // Include patch vertices inside the footprint, so a broad building cannot cut through a hilltop.

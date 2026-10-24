@@ -7,7 +7,13 @@ import {
 import { MODEL_QUALITIES, type ModelQuality } from "../../buildings/modelQuality";
 import { type EditorMessageKey, editorText } from "../../i18n/editorMessages";
 import { withBuildingAppearance } from "../generators/buildingAppearance";
-import { readModelQualityPreference, writeModelQualityPreference } from "../services/browserPreferences";
+import {
+  readModelQualityPreference,
+  readTerrainSpacingPreference,
+  type TerrainSpacingPreference,
+  writeModelQualityPreference,
+  writeTerrainSpacingPreference
+} from "../services/browserPreferences";
 import type { EditorLifetime } from "../services/editorLifetime";
 import type { CityDocument } from "../types/document";
 import { div, text } from "./editorControls";
@@ -65,8 +71,15 @@ export function buildBuildingAppearanceControls(ctx: {
         ? "cityEditor.messages.housingSiteAuto"
         : CLIMATE_LABELS[option.value as BuildingAppearanceClimate]
     );
+  const spacing = ctx.select(["auto", "1", "2", "4", "8"], readTerrainSpacingPreference());
+  spacing.className = "ce-terrain-spacing";
+  spacing.setAttribute("aria-label", editorText("cityEditor.messages.terrainSpacing"));
+  for (const option of spacing.options)
+    option.textContent =
+      option.value === "auto" ? editorText("cityEditor.messages.terrainSpacingAuto") : `${option.value} m`;
   root.append(
     ctx.label(editorText("cityEditor.messages.modelQuality"), quality),
+    ctx.label(editorText("cityEditor.messages.terrainSpacing"), spacing),
     ctx.label(editorText("cityEditor.messages.housingCulture"), culture),
     ctx.label(editorText("cityEditor.messages.housingClimate"), climate),
     text(editorText("cityEditor.messages.housingAppearanceHelp"))
@@ -82,6 +95,10 @@ export function buildBuildingAppearanceControls(ctx: {
   };
   ctx.scope.listen(quality, "change", () => {
     writeModelQualityPreference(quality.value as ModelQuality);
+    ctx.modelQualityChanged();
+  });
+  ctx.scope.listen(spacing, "change", () => {
+    writeTerrainSpacingPreference(spacing.value as TerrainSpacingPreference);
     ctx.modelQualityChanged();
   });
   ctx.scope.listen(culture, "change", change);

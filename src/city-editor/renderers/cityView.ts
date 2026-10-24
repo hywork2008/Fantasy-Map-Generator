@@ -111,6 +111,8 @@ export function mountCity3d(options: {
   getDocument: () => CityDocument;
   /** Requested detailed-model quality; each model falls back to the tiers it ships. */
   getModelQuality?: () => ModelQuality;
+  /** Draw-grid spacing for a height field. Absent uses the automatic spacing. */
+  getTerrainSpacing?: () => number | "auto";
 }): { sync(): void; dispose(): void } {
   const viewport = document.createElement("div");
   viewport.className = "ce-3d";
@@ -390,7 +392,8 @@ export function mountCity3d(options: {
     const quality = options.getModelQuality?.() ?? "standard";
     const stamp = townWaterStamp(city);
     const roads = townRoadStamp(city, fabric.lanes);
-    const nextTerrainStamp = `${cityTerrainStamp(city)}|${roads}`;
+    const spacing = options.getTerrainSpacing?.() ?? "auto";
+    const nextTerrainStamp = `${cityTerrainStamp(city)}|${roads}|${spacing}`;
     const terrainChanged = nextTerrainStamp !== terrainStamp;
     if (terrainChanged) {
       let ribbons: RoadRibbon[] | undefined;
@@ -399,7 +402,7 @@ export function mountCity3d(options: {
       } catch {
         // Reported once by the road meshes below; the terrain stays ungraded.
       }
-      terrain = cityTerrain(city, { roads: ribbons });
+      terrain = cityTerrain(city, { roads: ribbons, renderSpacing: spacing });
       terrainStamp = nextTerrainStamp;
     }
     const plan = planCity3dRefresh({
@@ -494,7 +497,8 @@ export function mountCity3d(options: {
             polygons: waterPolygons(city),
             ribbons: riverRibbons(city).map(ribbon => ({ points: ribbon.points, width: ribbon.width }))
           },
-          terrain?.relief ? terrain.surfaceAt : undefined
+          terrain?.relief ? terrain.surfaceAt : undefined,
+          terrain?.field ? terrain.heightAt : undefined
         );
         roadMeshes?.dispose();
         scene.add(next.parent);

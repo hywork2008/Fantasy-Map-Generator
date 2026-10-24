@@ -37,6 +37,7 @@ import type { RenderQuality } from "./renderQuality";
 import { renderRiverWallSvg } from "./riverWallSvg";
 import { frameScene } from "./sceneFrameSvg";
 import { element, line, polygon } from "./svgPrimitives";
+import { renderTerrainFieldOverlay } from "./terrainFieldSvg";
 import { renderTerrainEarthworks } from "./terrainSvg";
 import { renderTownFabric, type TownLayerPlans } from "./townFabricSvg";
 import { renderTownStructures } from "./townStructuresSvg";
@@ -318,6 +319,7 @@ export function renderEditorSvg(
   const features = renderFeatureLayer(ctx, svg);
   if (fixedLayers) renderFixedCrossingLayers(ctx, svg, fixedLayers, fixedEpoch);
   svg.appendChild(renderRiverWallSvg(document));
+  if (document.terrain?.field) svg.appendChild(renderTerrainFieldOverlay(document));
   if (document.terrain) svg.appendChild(renderTerrainEarthworks(document));
   if (town) renderTownStructures(ctx, svg, townPlans, features);
   // Castle curtains and towers cover town walls that meet or overlap them.

@@ -8,7 +8,22 @@ import { cityTerrain } from "./terrainElevation";
 export function ruralSuitability(document: CityDocument) {
   const terrain = cityTerrain(document);
   const steep = new PlotIndex<Point[]>();
-  for (const patch of terrain.triangles) {
+  if (terrain.field && terrain.slopeAt) {
+    const step = 8;
+    const half = document.frame.extentMeters / 2;
+    for (let y = -half; y < half; y += step)
+      for (let x = -half; x < half; x += step) {
+        if (terrain.slopeAt([x + step / 2, y + step / 2]) <= 0.18) continue;
+        const square: Point[] = [
+          [x, y],
+          [x + step, y],
+          [x + step, y + step],
+          [x, y + step]
+        ];
+        steep.add(square, bounds(square));
+      }
+  }
+  for (const patch of terrain.field ? [] : terrain.triangles) {
     // A cliff or retaining-wall face is the edge between two flat levels, not a slope to plough.
     if (patch.escarpment) continue;
     const [a, b, c] = patch.points,

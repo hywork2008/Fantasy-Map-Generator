@@ -3,6 +3,29 @@ import { resolveMaxPatches } from "../generators/document";
 
 const MAX_PATCHES_KEY = "fmg-city-editor:max-patches";
 const MODEL_QUALITY_KEY = "fmg-city-editor:model-quality";
+const TERRAIN_SPACING_KEY = "fmg-city-editor:terrain-spacing";
+
+export type TerrainSpacingPreference = 1 | 2 | 4 | 8 | "auto";
+
+/** Draw-grid spacing for height-field ground. Not part of the city document. */
+export function readTerrainSpacingPreference(): TerrainSpacingPreference {
+  try {
+    const raw = typeof localStorage === "undefined" ? null : localStorage.getItem(TERRAIN_SPACING_KEY);
+    if (raw === "1" || raw === "2" || raw === "4" || raw === "8") return Number(raw) as 1 | 2 | 4 | 8;
+  } catch {
+    // Storage blocked: automatic spacing stays in effect.
+  }
+  return "auto";
+}
+
+export function writeTerrainSpacingPreference(value: TerrainSpacingPreference): void {
+  try {
+    if (typeof localStorage !== "undefined")
+      localStorage.setItem(TERRAIN_SPACING_KEY, value === "auto" ? "auto" : String(value));
+  } catch {
+    // Storage blocked: the choice lasts for this page only.
+  }
+}
 
 /** Per-viewer nPatches ceiling (Grid evolution). Default 48 when unset or unreadable. */
 export function readMaxPatchesPreference(): number {

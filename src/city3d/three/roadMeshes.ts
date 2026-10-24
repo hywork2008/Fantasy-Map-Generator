@@ -15,11 +15,12 @@ export function roadStampChanged(previous: string | null, next: string, parentPr
   return previous !== next || !parentPresent;
 }
 
-/** One Lambert mesh per surface. Roads are not pickable. */
+/** One Lambert mesh per surface. Roads are not pickable. `groundAt` adds a skirt where the ribbon leaves the ground. */
 export function createTownRoads(
   ribbons: readonly RoadRibbon[],
   water: RoadWaterCut,
-  heightAt?: (point: Point) => number
+  heightAt?: (point: Point) => number,
+  groundAt?: (point: Point) => number
 ): TownRoadMeshes {
   const parent = new THREE.Object3D();
   parent.name = "ce-roads";
@@ -48,6 +49,13 @@ export function createTownRoads(
     parent.add(mesh);
     owned.push(mesh);
   }
+  if (heightAt && groundAt) {
+    const skirt = roadSkirt(ribbons, heightAt, groundAt);
+    if (skirt) {
+      parent.add(skirt);
+      owned.push(skirt);
+    }
+  }
   return {
     parent,
     dispose() {
@@ -60,4 +68,52 @@ export function createTownRoads(
       }
     }
   };
+}
+
+const SKIRT_GAP_METERS = 0.3;
+
+/** Quads from a ribbon edge down or up to the ground, where the seam would show. */
+function roadSkirt(
+  ribbons: readonly RoadRibbon[],
+  roadAt: (point: Point) => number,
+  groundAt: (point: Point) => number
+): THREE.Mesh | null {
+  const positions: number[] = [];
+  const push = (point: Point, y: number) => positions.push(point[0], y, -point[1]);
+  for (const ribbon of ribbons) {
+    const line = ribbon.centerline;
+    const half = ribbon.widthMeters / 2;
+    for (let i = 0; i < line.length - 1; i++) {
+      const a = line[i];
+      const b = line[i + 1];
+      const dx = b[0] - a[0];
+      const dy = b[1] - a[1];
+      const length = Math.hypot(dx, dy) || 1;
+      const nx = -dy / length;
+      const ny = dx / length;
+      for (const side of [1, -1]) {
+        const aEdge: Point = [a[0] + nx * half * side, a[1] + ny * half * side];
+        const bEdge: Point = [b[0] + nx * half * side, b[1] + ny * half * side];
+        const roadA = roadAt(aEdge);
+        const roadB = roadAt(bEdge);
+        const groundA = groundAt(aEdge);
+        const groundB = groundAt(bEdge);
+        if (Math.max(Math.abs(roadA - groundA), Math.abs(roadB - groundB)) <= SKIRT_GAP_METERS) continue;
+        push(aEdge, roadA);
+        push(bEdge, roadB);
+        push(aEdge, groundA);
+        push(bEdge, roadB);
+        push(bEdge, groundB);
+        push(aEdge, groundA);
+      }
+    }
+  }
+  if (positions.length < 9) return null;
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(Float32Array.from(positions), 3));
+  geometry.computeVertexNormals();
+  const mesh = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({ color: 0xc4b8a4, side: THREE.DoubleSide }));
+  mesh.name = "ce-road-skirt";
+  mesh.raycast = () => {};
+  return mesh;
 }

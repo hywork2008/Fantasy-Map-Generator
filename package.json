@@ -68,6 +68,7 @@
     "lab:csv": "node scripts/labCsv.mjs",
     "map:server": "node scripts/mapServer.mjs",
     "ce:wall-lab": "node --import tsx scripts/wallRingLab.ts",
+    "ce:terrain-perf": "node --import tsx scripts/ceTerrainPerf.ts",
     "ce:wall-order": "node scripts/compareTownWallOrders.mjs",
     "audit:fmg-cities": "node --import tsx scripts/auditFmgCityContext.ts",
     "test:fmg-audit": "node --import tsx --test scripts/lib/fmgCityAudit/audit.test.ts"
