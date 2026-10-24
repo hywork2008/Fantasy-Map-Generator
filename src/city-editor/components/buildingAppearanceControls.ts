@@ -16,7 +16,7 @@ import {
 } from "../services/browserPreferences";
 import type { EditorLifetime } from "../services/editorLifetime";
 import type { CityDocument } from "../types/document";
-import { div, text } from "./editorControls";
+import { div } from "./editorControls";
 
 const PROFILE_LABELS: Record<BuildingAppearanceProfile, EditorMessageKey> = {
   legacy: "cityEditor.messages.housingCultureLegacy",
@@ -81,8 +81,7 @@ export function buildBuildingAppearanceControls(ctx: {
     ctx.label(editorText("cityEditor.messages.modelQuality"), quality),
     ctx.label(editorText("cityEditor.messages.terrainSpacing"), spacing),
     ctx.label(editorText("cityEditor.messages.housingCulture"), culture),
-    ctx.label(editorText("cityEditor.messages.housingClimate"), climate),
-    text(editorText("cityEditor.messages.housingAppearanceHelp"))
+    ctx.label(editorText("cityEditor.messages.housingClimate"), climate)
   );
   const change = () => {
     const current = ctx.getDocument();

@@ -139,7 +139,6 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
     stageHeader: { get: () => stageHeader },
     stageBadge: { get: () => stageBadge },
     stageProgress: { get: () => stageProgress },
-    stageHint: { get: () => stageHint },
     stageSlider: { get: () => stageSlider },
     stagePrevBtn: { get: () => stagePrevBtn },
     stageNextBtn: { get: () => stageNextBtn },
@@ -170,7 +169,6 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
     coreLayerInput: { get: () => coreLayerInput },
     regionalLayerInput: { get: () => regionalLayerInput },
     renderQualitySelect: { get: () => renderQualitySelect },
-    renderQualityHelp: { get: () => renderQualityHelp },
     meshToggleRow: { get: () => meshToggleRow },
     importedBox: { get: () => importedBox },
     importedHeading: { get: () => importedHeading },
@@ -266,9 +264,7 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
     appearanceControls.root,
     ctx.label(editorText("cityEditor.messages.scale"), ctx.scaleInput),
     ctx.label(editorText("cityEditor.messages.smoothing"), ctx.smoothingModeInput),
-    text(editorText("cityEditor.messages.chooseAGridThenPressToStartANewCity")),
     ctx.divider(),
-    text(editorText("cityEditor.messages.gridEvolutionSpiralScatterIncrementalVoronoiCentralRelaxationOneIteration")),
     ctx.gridEvoControls
   );
   ctx.syncGridEvoUi();
@@ -381,7 +377,6 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
   const stageProgress = document.createElement("span");
   stageProgress.className = "ce-generate-stage-num";
   stageHeader.append(stageBadge, stageProgress);
-  const stageHint = div("ce-generate-stage-hint");
   const stageSlider = document.createElement("input");
   bindPanelEvents(events, "stageSlider:input");
   stageSlider.type = "range";
@@ -401,21 +396,20 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
   stageNextBtn.className += " ce-stage-next";
   const stageSliderRow = div("ce-generate-slider-row");
   stageSliderRow.append(stagePrevBtn, stageSlider, stageNextBtn);
-  stageContainer.append(stageHeader, stageSliderRow, stageHint);
+  stageContainer.append(stageHeader, stageSliderRow);
   ctx.syncStageUi = (step: number) => {
     ctx.generation.currentStageStep = step;
     const stage = generationStages(ctx.generation.generateSettings).find(s => s.step === step);
     if (!stage) return;
     stageBadge.textContent = stage.label;
     stageBadge.dataset.i18nKey = stage.labelKey;
-    stageHint.dataset.i18nKey = stage.hintKey;
     const total = generationStages(ctx.generation.generateSettings).length;
     stageSlider.max = String(total);
     stageProgress.textContent = `${step}/${total}`;
-    stageHint.textContent = stage.hint;
     stageSlider.value = String(step);
     stagePrevBtn.disabled = step <= 1;
     stageNextBtn.disabled = step >= total;
+    syncStepControls();
   };
   const changeStageStep = (delta: number) => {
     const target = Math.max(
@@ -432,7 +426,6 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
     ctx.syncStageUi(step);
     ctx.runGenerationStage(stage);
   };
-  ctx.syncStageUi(ctx.generation.currentStageStep);
   const urbanNPatchesInput = ctx.numberInput("", "1", "1");
   bindPanelEvents(events, "urbanNPatchesInput:change");
   urbanNPatchesInput.className = "ce-generate-npatches";
@@ -539,8 +532,20 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
   stepStatus.className = "ce-generate-step-status";
   const stepPrevButton = ctx.makeIconButton("◀", editorText("cityEditor.messages.previousStep"), () => ctx.runStep(-1));
   const stepNextButton = ctx.makeIconButton("▶", editorText("cityEditor.messages.nextStep"), () => ctx.runStep(1));
-  const stepRow = div("ce-icon-row");
+  const stepRow = div("ce-icon-row ce-generation-step-row");
   stepRow.append(stepPrevButton, stepStatus, stepNextButton);
+  function syncStepControls(): void {
+    const stage = ctx.generation.activeStepStage;
+    const enabled =
+      ctx.generation.generateSettings.mode !== "fort" &&
+      stage != null &&
+      ["coast", "river", "urban", "gates", "streets", "wards"].includes(stage) &&
+      generationStages(ctx.generation.generateSettings).find(s => s.step === ctx.generation.currentStageStep)?.id ===
+        stage;
+    stepPrevButton.disabled = !enabled;
+    stepNextButton.disabled = !enabled;
+  }
+  ctx.syncStageUi(ctx.generation.currentStageStep);
   const blockMeshInput = ctx.checkbox(false, checked => {
     ctx.display.showBlockMesh = checked;
     if (!checked && ctx.interaction.tool !== "select") {
@@ -566,9 +571,6 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
   ].forEach((text, i) => {
     renderQualitySelect.options[i].textContent = text;
   });
-  const renderQualityHelp = text(
-    editorText("cityEditor.messages.lightweightRenderingOmitsFieldRowsAndPlantingDetailsMinimalRendering")
-  );
   const meshToggleRow = div("ce-icon-row");
   meshToggleRow.append(
     ctx.toggleLabel(editorText("cityEditor.messages.blockEditingView"), blockMeshInput),
@@ -616,14 +618,10 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
   sidesInput.className = "ce-wall-sides";
   const shapeLabel = ctx.label(editorText("cityEditor.messages.skeletonWallShape"), shapeSelect);
   const sidesLabel = ctx.label(editorText("cityEditor.messages.skeletonWallSides"), sidesInput);
-  const gridNotice = text(editorText("cityEditor.messages.skeletonGridNotice"));
-  const documentGridNotice = text(editorText("cityEditor.messages.skeletonGridNotice"));
-  ctx.documentPanel.content.append(documentGridNotice);
   skeletonControls.append(
     ctx.label(editorText("cityEditor.messages.generationMethod"), methodSelect),
     shapeLabel,
-    sidesLabel,
-    gridNotice
+    sidesLabel
   );
   const unavailable = (control: HTMLInputElement | HTMLSelectElement, active: boolean) => {
     if (active) {
@@ -661,7 +659,6 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
     bastioned.disabled = !bastionEra(settings.historicalPeriod ?? settings.descriptor?.historicalPeriod);
     bastioned.title = bastioned.disabled ? editorText("cityEditor.messages.skeletonBastionEra") : "";
     sidesLabel.hidden = !active || !["polygon", "bastioned"].includes(shapeSelect.value);
-    gridNotice.hidden = documentGridNotice.hidden = !active;
     if (active && settings.townWallRings !== "double") townWallRingsSelect.value = "single";
     if (active && settings.urbanCoreMode === undefined) urbanCoreModeSelect.value = "compact";
     unavailable(featureInputs.get("citadel")!, active);
@@ -685,8 +682,6 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
     ])
       unavailable(control, active);
     const container = skeletonControls.parentElement;
-    const legacyHelp = container?.querySelector<HTMLElement>(".ce-generation-process-help");
-    if (legacyHelp) legacyHelp.hidden = active;
     if (container && !skeletonParents.has(container)) {
       skeletonParents.add(container);
       ctx.panelEventContext().scope.listen(container, "change", syncSkeletonControls);
@@ -758,12 +753,12 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
     syncBearingsRow,
     stepStatus,
     stepRow,
+    syncStepControls,
     blockMeshInput,
     gridLinesInput,
     coreLayerInput,
     regionalLayerInput,
     renderQualitySelect,
-    renderQualityHelp,
     meshToggleRow,
     importedBox,
     importedText,
