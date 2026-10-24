@@ -45,6 +45,38 @@ describe("resolved land-use activities", () => {
     assertValidLandUseSnapshot(snapshot);
   });
 
+  it("conserves fully allocated forest land when clipping creates near-duplicate vertices", () => {
+    const snapshot = planSettlementLandUse(
+      [
+        input({
+          polygon: [
+            [1153, 76],
+            [1153, 75],
+            [1157, 73],
+            [1163, 71],
+            [1166, 77],
+            [1162, 83]
+          ],
+          anchor: [1160.85, 77.37],
+          physicalLandAreaHa: 157492.32470569038,
+          forestCover: 1,
+          ruralPeople: 200000,
+          cultivableAreaHa: 157492.32470569038,
+          yieldKgPerSownHa: 465.42852783203125
+        })
+      ],
+      { seed: "496838201", year: 100 }
+    );
+    assertValidLandUseSnapshot(snapshot, 1);
+    const cell = snapshot.cells[0];
+    const fields = cell.patches.find(p => p.kind === "cultivation")!;
+    expect(fields.areaHa).toBe(cell.physicalLandAreaHa);
+    expect(Math.abs(fields.convertedForestAreaHa - fields.areaHa)).toBeLessThan(1e-6);
+    for (const patch of cell.patches) {
+      const measured = patch.polygons!.reduce((sum, poly) => sum + polygonArea(poly) * cell.geometryHaPerUnit!, 0);
+      expect(Math.abs(measured - patch.areaHa)).toBeLessThan(1e-6);
+    }
+  });
   it("finishes allocation for the European Standard cell that froze generation", () => {
     const snapshot = planSettlementLandUse(
       [
