@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "boundary": "Independent 12-month fixed-input comparisons at populationRate=1000; other population rates verified by integration tests",
+  "runs": {
+    "province": {
+      "inputSha256": "a3209cca3c88ebf8f84b4f5d9321be8ad3bdc5b3766ca92994f0eb198a52e4e7",
+      "sourceTreeSha256": "28eae907ca8756763343b7e0f6092f0077c9fcf039668ca534ec76fbcc3b7a1e",
+      "observationPath": "docs/analytics/e1-dairy-calibration-province-20261024.json",
+      "observationSha256": "6c56f201c7f5f96996b145dcefeaa70fff298c60f8a086ad4ac836806854788c",
+      "populationRate": 1000,
+      "preexistingInitialAnd12MonthDiagnosticsUnchanged": true,
+      "historicalStandingHerdTarget": null,
+      "relativeMilkYield": {
+        "Sheep": {
+          "modelRatio": 0.15,
+          "sourceRatio": 0.1,
+          "modelToSourceRatio": 1.4999999999999998
+        },
+        "Goats": {
+          "modelRatio": 0.3,
+          "sourceRatio": 0.18,
+          "modelToSourceRatio": 1.6666666666666667
+        }
+      }
+    },
+    "world": {
+      "inputSha256": "5e73a27785881bf553d37404442d7ead0f7bb68457208cc33c88c88f7c6a5999",
+      "sourceTreeSha256": "28eae907ca8756763343b7e0f6092f0077c9fcf039668ca534ec76fbcc3b7a1e",
+      "observationPath": "docs/analytics/e1-dairy-calibration-world-20261024.json",
+      "observationSha256": "f48dcd81756a7112af8a9512dec191c4ce284f347fd2c1def23c8e8e70c122ca",
+      "populationRate": 1000,
+      "preexistingInitialAnd12MonthDiagnosticsUnchanged": true,
+      "historicalStandingHerdTarget": null,
+      "relativeMilkYield": {
+        "Sheep": {
+          "modelRatio": 0.15,
+          "sourceRatio": 0.1,
+          "modelToSourceRatio": 1.4999999999999998
+        },
+        "Goats": {
+          "modelRatio": 0.3,
+          "sourceRatio": 0.18,
+          "modelToSourceRatio": 1.6666666666666667
+        }
+      }
+    }
+  }
+}

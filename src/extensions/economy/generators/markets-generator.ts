@@ -69,6 +69,7 @@ import {
   expandRecipeByproducts,
   GOODS_DATA,
   Goods,
+  getCellFreshFoodHouseholdDemand,
   getFreshFoodProfile,
   isGoodEnabled,
   isPreservedFoodGood
@@ -1223,15 +1224,17 @@ export class MarketsModule {
             : commercialPath
               ? this.getCellPreservedFoodExportDemand(market, commercialPath.outputGoodId, residentWorkforce)
               : 0;
+        const householdDemandUnits = getCellFreshFoodHouseholdDemand(
+          sourceGood,
+          residentWorkforce,
+          this.worldContext.populationRate
+        );
         inputs.push({
           sourceGoodId: sourceGood.i,
           harvestedUnits: entry.monthlyUnits[monthIndex] ?? 0,
-          householdDemandUnits: residentWorkforce * freshFoodProfile.householdDemandPerPopulationMonth,
+          householdDemandUnits,
           maxFreshHouseholdShare: freshFoodProfile.maxFreshHouseholdShare,
-          emergencyReserveDemandUnits:
-            (market.foodLedger?.ruralFoodStressQuarters ?? 0) > 0
-              ? residentWorkforce * freshFoodProfile.householdDemandPerPopulationMonth
-              : 0,
+          emergencyReserveDemandUnits: (market.foodLedger?.ruralFoodStressQuarters ?? 0) > 0 ? householdDemandUnits : 0,
           preservationLaborPerUnit: freshFoodProfile.preservationLaborPerUnit,
           reservePath,
           commercialPath,

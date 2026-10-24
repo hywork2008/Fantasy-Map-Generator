@@ -121,6 +121,40 @@ describe("MarketsModule", () => {
       } as unknown as PackedGraph;
     });
 
+    it.each([1, 100, 1000])("uses real people for cell-local Milk demand at populationRate=%s", populationRate => {
+      setGoods([
+        {
+          i: 1,
+          name: "Milk",
+          tags: ["food", "freshFood"],
+          value: 1,
+          freshFood: {
+            householdDemandPerPopulationMonth: 20 / 12,
+            maxFreshHouseholdShare: 1,
+            preservationLaborPerUnit: 0.08
+          }
+        }
+      ] as Good[]);
+      Goods.sync();
+      worldContext.populationRate = populationRate;
+      worldContext.urbanization = 1;
+      worldContext.pack.cells = { i: [0], h: [30], pop: [100], state: [0] } as never;
+      setMarketCellColumn(new Uint16Array([1]));
+      const market = { i: 1, centerBurgId: 0, color: "#fff", goods: {} } as Market;
+      setMarkets([market]);
+      // biome-ignore lint/complexity/useLiteralKeys: source-cell integration fixture
+      marketsModule["indexMarkets"]();
+      // biome-ignore lint/complexity/useLiteralKeys: exercise physical household allocation
+      marketsModule["settleCellFreshFood"](
+        [{ cellId: 0, marketId: 1, collectionBurgId: 0, goodId: 1, monthlyUnits: [1000] }],
+        0
+      );
+      expect(market.foodProcessingLedger?.Milk.householdConsumption).toBeCloseTo(
+        (100 * populationRate * 20) / 12 / 1000,
+        8
+      );
+    });
+
     it.each(["Cider", "Perry"])("makes %s only from surplus fruit and shared repair material", drinkName => {
       const fruitName = drinkName === "Cider" ? "Apples" : "Pears";
       const goods = [

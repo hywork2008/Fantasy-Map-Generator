@@ -14,6 +14,7 @@ import { advanceWorld, createNodeSimulationHost } from "../src/simulation/adapte
 
 import { setGoodFlowObserver } from "../src/extensions/economy/generators/goodsBalanceLedger";
 import { animalsPerMarketHead } from "../src/extensions/economy/generators/liveAnimalScale";
+import { getDairyCalibrationAssessment } from "../src/extensions/economy/generators/dairyHistoricalReferences";
 import { getJointLivestockMarketDemand } from "../src/extensions/economy/generators/livestockJointDemandMarket";
 
 const [input, output, length = "0"] = process.argv.slice(2);
@@ -78,7 +79,7 @@ try {
       }
       return row;
     });
-    return { date: [host.simulation.currentYear, host.simulation.currentMonth, host.simulation.currentDay], species, jointProductMarkets: getMarkets().map(getJointLivestockMarketDemand), observedLiveDispatchSincePreparedStart: structuredClone(observedLiveDispatch) };
+    return { date: [host.simulation.currentYear, host.simulation.currentMonth, host.simulation.currentDay], species, dairyCalibration: getDairyCalibrationAssessment(), jointProductMarkets: getMarkets().map(getJointLivestockMarketDemand), observedLiveDispatchSincePreparedStart: structuredClone(observedLiveDispatch) };
   }
   const initial = snapshot();
   const samples = [];
@@ -89,7 +90,7 @@ try {
     console.error(`[livestock-demand] ${month}/${months}`);
   }
   writeFileSync(output, `${JSON.stringify({
-    schemaVersion: 2, inputSha256: hash(bytes), sourceTreeSha256: hash(JSON.stringify(sourceHashes)), sourceHashes,
+    schemaVersion: 3, inputSha256: hash(bytes), sourceTreeSha256: hash(JSON.stringify(sourceHashes)), sourceHashes,
     boundary: "Prepared initial snapshot and yearly samples; recorded rural grazed herds in inhabited land cells only",
     months, settlementPattern: host.world.options.initialSettlementPattern, worldSettings: sim.worldSettings,
     notes: [

@@ -51,8 +51,9 @@ export const GRAPES_LOTS_PER_RAISINS_LOT = KILOGRAMS_PER_RAISINS_LOT / (KILOGRAM
 
 export const DAIRY_TARGETS = {
   /**
-   * Cheese is the affordable, durable animal-protein complement to grain: a substantial dietary
-   * staple rather than the former luxury-sized 5 kg annual ration.
+   * Authored simulation targets, not verified historical per-person consumption.
+   * Source scopes and unresolved denominators are recorded in dairyHistoricalReferences.ts.
+   * These values must not independently establish a historically calibrated herd target.
    */
   cheeseKilogramsPerPersonYear: 25,
   freshMilkLitersPerPersonYear: 20
