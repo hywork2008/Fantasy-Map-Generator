@@ -5,6 +5,8 @@ import { reservedCastleFaces, validateFortifications } from "./fortifications";
 import { scaleFortSite, validateFortSite } from "./fortSiteGeometry";
 import { isSimplePolygon, segmentsIntersect } from "./geom";
 import { probed } from "./meshOpProbe";
+import { refreshRiverCorridors } from "./terrainField/corridor";
+import { validateTerrainLayer } from "./terrainValidation";
 
 /** Voronoi clipping can leave sub-metre sliver corners along the frame. Merge
  * them before assigning IDs so every face shares the same cleaned topology. */
@@ -740,10 +742,15 @@ function moveVerticesUnprobed(
   // by allowExistingErrors.
   if (movedGeometryErrors(document, next, points.keys()).length) return null;
   const errors = validate(next);
-  if (!errors.length) return next;
+  if (!errors.length) {
+    refreshRiverCorridors(next);
+    return next;
+  }
   if (!allowExistingErrors) return null;
   const existing = new Set(validate(document));
-  return errors.every(error => existing.has(error)) ? next : null;
+  if (!errors.every(error => existing.has(error))) return null;
+  refreshRiverCorridors(next);
+  return next;
 }
 
 /**
@@ -858,6 +865,7 @@ export function mergeVertices(document: CityDocument, keepVertexId: Id, removeVe
   delete next.mesh.vertices[removeVertexId];
   rebuildFaceSides(next.mesh);
   if (!refreshCastleLayouts(next)) return null;
+  refreshRiverCorridors(next);
   return validate(next).length ? null : next;
 }
 
@@ -1051,7 +1059,7 @@ export function validate(document: CityDocument): string[] {
 }
 
 function validateUnprobed(document: CityDocument): string[] {
-  const errors: string[] = validateFortSite(document);
+  const errors: string[] = [...validateFortSite(document), ...validateTerrainLayer(document)];
   const { mesh } = document;
   const hasEdge = (a: Id, b: Id): boolean => edgeBetween(mesh, a, b) !== null;
   for (const edge of Object.values(mesh.edges)) {

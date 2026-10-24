@@ -10,6 +10,7 @@ import {
 } from "../../../utils/fixedBurgCrossings";
 import { isRequiredSiteBounds, populationWindowMeters, requiredSiteExtent } from "../../../utils/requiredSiteBounds";
 import { validUrbanMorphology } from "../../../utils/urbanMorphology";
+import { elevationReliefScale } from "../../generators/elevationPreset";
 import { generationStageDefinitions } from "../../generators/generation/stages";
 import {
   defaultPopulationSettings,
@@ -17,6 +18,7 @@ import {
   validPopulationSettings
 } from "../../generators/populationPlan";
 import { joinStrandedRoadsToCrossings } from "../../generators/site/strandedRoads";
+import { repairRiverBeds } from "../../generators/terrainField/corridor";
 import type { IncomingOrigin } from "../../types/contracts/incomingCity";
 import type { CityDocument } from "../../types/document";
 import type { GenerationStage } from "../../types/generation";
@@ -425,6 +427,7 @@ function asShare(raw: unknown): CityEditorShare | null {
     settings
   };
   if (raw.input !== undefined) {
+    if (isRecord(raw.input)) repairRiverBeds(raw.input as unknown as CityDocument);
     const input = parseDocument(JSON.stringify(raw.input));
     if (!input || input.fabric) return warnShape("share.input");
     share.input = input;
@@ -484,11 +487,40 @@ function asSettings(raw: unknown): Omit<GenerationSettings, "descriptor"> | null
       return null;
     settings.moats = { town, castle };
   }
+  if (raw.terraces !== undefined) {
+    if (!isRecord(raw.terraces) || !isFiniteNumber(raw.terraces.stepMeters) || raw.terraces.stepMeters <= 0)
+      return null;
+    settings.terraces = { stepMeters: raw.terraces.stepMeters };
+  }
+  if (raw.terrainField !== undefined) {
+    if (!isRecord(raw.terrainField)) return null;
+    const template = raw.terrainField.template;
+    if (
+      template !== "noise" &&
+      template !== "crag" &&
+      template !== "spur" &&
+      template !== "meander" &&
+      template !== "escarpment"
+    )
+      return null;
+    const sample = raw.terrainField.sampleMeters;
+    if (sample !== undefined && (!isFiniteNumber(sample) || sample <= 0 || sample > 16)) return null;
+    settings.terrainField = { template, ...(sample !== undefined ? { sampleMeters: sample } : {}) };
+  }
   if (raw.buildingPattern !== undefined) settings.buildingPattern = raw.buildingPattern as "legacy" | "medieval";
   if (["auto", "organic", "classic", "circulade", "bram"].includes(String(raw.layout)))
     settings.layout = raw.layout as GenerationSettings["layout"];
   if (raw.riverPlacement === "through" || raw.riverPlacement === "outside" || raw.riverPlacement === "outsideNear")
     settings.riverPlacement = raw.riverPlacement;
+  if (
+    raw.elevationPreset === "flat" ||
+    raw.elevationPreset === "slope" ||
+    raw.elevationPreset === "dome" ||
+    raw.elevationPreset === "basin" ||
+    raw.elevationPreset === "valley"
+  )
+    settings.elevationPreset = raw.elevationPreset;
+  if (isFiniteNumber(raw.elevationRelief)) settings.elevationRelief = elevationReliefScale(raw.elevationRelief);
   if (isFiniteNumber(raw.walledAreaShare)) settings.walledAreaShare = raw.walledAreaShare;
   if (raw.townWallRings === "single" || raw.townWallRings === "double") settings.townWallRings = raw.townWallRings;
   if (raw.innerWallState === "standing" || raw.innerWallState === "razed") settings.innerWallState = raw.innerWallState;

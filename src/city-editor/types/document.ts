@@ -375,6 +375,8 @@ export interface FabricPlan {
 
 export interface CityDocument {
   fortSite?: import("./fortSite").FortSite;
+  /** Earthworks over the cell elevations, such as a castle platform. Ignored by fort sites. */
+  terrain?: import("./terrain").CityTerrainLayer;
   /** Optional finishing decoration, independent of city generation stages. */
   vacantLotTrees?: { seed: string; visible: boolean };
   /** CE overrides for automatically placed facilities; absent entries follow FMG/defaults. */
@@ -508,6 +510,7 @@ export type Tool =
   | "river"
   | "ward"
   | "sea"
+  | "elevation"
   | "wardWall"
   | "junction"
   | "face"

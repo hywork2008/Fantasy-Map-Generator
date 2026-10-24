@@ -39,7 +39,7 @@ describe("double town walls (P1)", () => {
       buildingPattern: "medieval" as const,
       townWallRings: "double" as const,
       historicalPeriod: "ageOfExploration" as const,
-      population: defaultPopulationSettings()
+      population: defaultPopulationSettings(15_000)
     };
     const input = preparePopulationGeneration(
       createGridDocument({ size: "small", grid: "voronoi", seed: gridSeed }),

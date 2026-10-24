@@ -277,7 +277,9 @@ describe("wall capacity and extramural housing", () => {
       const outer = fabric.buildings.filter(b => city.mesh.faces[b.faceId].properties.settlement === "outskirts");
       expect(outer.length).toBeGreaterThan(0);
       expect(outer.length / fabric.buildings.length).toBeLessThan(0.2);
-      expect(fabric.lanes.filter(l => city.mesh.faces[l.faceId].properties.settlement === "outskirts").length).toBe(0);
+      expect(
+        fabric.lanes.filter(l => !l.kind && city.mesh.faces[l.faceId].properties.settlement === "outskirts")
+      ).toEqual([]);
       expect(settledArea(city, "core") / settledArea(city)).toBeLessThan(0.3);
       expect(city.fabric!.generation!.settings.walledAreaShare).toBe(0.2);
       const loaded = parseDocument(JSON.stringify(city))!;

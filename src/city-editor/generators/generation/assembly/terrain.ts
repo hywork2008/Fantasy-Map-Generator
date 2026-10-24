@@ -1,13 +1,15 @@
 import { editorText } from "../../../../i18n/editorMessages";
 import type { CityDocument } from "../../../types/document";
 import type { Cell } from "../../../types/geometry";
+import { elevationSampler, settleRiverGrades } from "../../elevationPreset";
 import { castleWallIds, reservedCastleFaces } from "../../fortifications";
+import { polygonCentroid } from "../../geom";
 import { clone, faceNeighbors, facePoints } from "../../mesh";
 import { GEN_PREFIX } from "../constants";
 import type { Plan } from "../contracts";
 import { nearestVertexLookup } from "../planning/meshLookup";
 import type { AssemblyCheckpoint } from "./contracts";
-import { assignFrameRoads, editorWard, faceFor, landElevation, settingsLegacy } from "./documentProperties";
+import { assignFrameRoads, editorWard, faceFor, settingsLegacy } from "./documentProperties";
 import { appendGeneratedGroup } from "./generatedFeatures";
 import { polylineToVertexPath } from "./riverPath";
 
@@ -26,6 +28,10 @@ export interface ApplyTerrainInput {
     | "layout"
     | "castleFailure"
     | "fmgElevations"
+    | "elevationPreset"
+    | "elevationRelief"
+    | "elevationSeed"
+    | "waterPolygon"
     | "urban"
     | "sea"
     | "ocean"
@@ -98,12 +104,16 @@ export function applyTerrain(input: ApplyTerrainInput) {
     delete face.properties.settlement;
     delete face.properties.wallRing;
   }
-  if (plan.fmgElevations)
-    for (const [cellId, faceId] of faceIdOf.entries()) {
-      const face = mesh.faces[faceId];
-      if (!face || face.properties.locked || reservedCastleFaces(next).has(face.id)) continue;
-      face.properties.elevation = landElevation(plan, cellId, face.properties.elevation);
-    }
+  const sampleElevation = elevationSampler(plan, next.frame);
+  for (const [cellId, faceId] of faceIdOf.entries()) {
+    const face = mesh.faces[faceId];
+    if (!face || face.properties.locked || reservedCastleFaces(next).has(face.id)) continue;
+    face.properties.elevation = sampleElevation(
+      polygonCentroid(facePoints(mesh, face)),
+      cellId,
+      face.properties.elevation
+    );
+  }
   const nearest = nearestVertexLookup(mesh, Math.max(1, source.frame.blockSizeMeters));
   const urbanRegions = [...plan.urban]
     .map(id => faceFor(mesh, faceIdOf, id))
@@ -211,7 +221,10 @@ export function applyTerrain(input: ApplyTerrainInput) {
     }
   }
 
-  return { stopped: false as const, mesh, nearest, urbanRegions, cells, faceIdOf };
+  const graded = settleRiverGrades(next);
+  next.mesh = graded.mesh;
+  next.featureGroups = graded.featureGroups;
+  return { stopped: false as const, mesh: next.mesh, nearest, urbanRegions, cells, faceIdOf };
 }
 
 export type ApplyTerrainResult = ReturnType<typeof applyTerrain>;

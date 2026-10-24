@@ -48,7 +48,7 @@ describe("skeleton-first generation panel", () => {
     select(".ce-generation-method", "skeleton-first");
     select(".ce-generate-river-count", "0");
     const slider = root.querySelector<HTMLInputElement>(".ce-generate-stage-slider")!;
-    expect(slider.max).toBe("13");
+    expect(slider.max).toBe("14");
     slider.value = "1";
     slider.dispatchEvent(new Event("input", { bubbles: true }));
     expect(root.querySelector(".ce-generate-stage-badge")!.textContent).toContain("K1");

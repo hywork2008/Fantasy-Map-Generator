@@ -2,13 +2,31 @@ import type { CityDocument, Point } from "../types/document";
 import { polygonArea } from "./geom";
 import { bounds, intersectConvex, PlotIndex } from "./parcelGeometry";
 import { cityTerrain } from "./terrainElevation";
+import { FARM_SLOPE_LIMIT } from "./terrainField/constants";
 
 /** Use supplied soil/wetness first; biome inference is deliberately labelled.
  * Terrain triangles share the renderer's elevation model, including edited relief. */
 export function ruralSuitability(document: CityDocument) {
   const terrain = cityTerrain(document);
   const steep = new PlotIndex<Point[]>();
-  for (const patch of terrain.triangles) {
+  if (terrain.field && terrain.slopeAt) {
+    const step = 8;
+    const half = document.frame.extentMeters / 2;
+    for (let y = -half; y < half; y += step)
+      for (let x = -half; x < half; x += step) {
+        if (terrain.slopeAt([x + step / 2, y + step / 2]) <= FARM_SLOPE_LIMIT) continue;
+        const square: Point[] = [
+          [x, y],
+          [x + step, y],
+          [x + step, y + step],
+          [x, y + step]
+        ];
+        steep.add(square, bounds(square));
+      }
+  }
+  for (const patch of terrain.field ? [] : terrain.triangles) {
+    // A cliff or retaining-wall face is the edge between two flat levels, not a slope to plough.
+    if (patch.escarpment) continue;
     const [a, b, c] = patch.points,
       [za, zb, zc] = patch.heights;
     const dx = b[0] - a[0],

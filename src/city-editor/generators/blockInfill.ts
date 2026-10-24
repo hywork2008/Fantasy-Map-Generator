@@ -5,6 +5,7 @@ import { aerialLandmarkFootprints } from "./aerialFootprints";
 import { buildAerialLandmarkPlan, prevailingWindKey } from "./aerialLandmarks";
 import type { DistrictFabric } from "./blockInfill.types";
 import { assignBuildingAppearances, buildingAppearanceKey } from "./buildingAppearance";
+import type { BuildingLot } from "./buildingLots.types";
 import { assignBuildingMassing } from "./buildingMassing";
 import { absorbCellars } from "./cellarAbsorption";
 import { buildCirculadeTownFabric } from "./circuladeFabric";
@@ -51,6 +52,10 @@ import { roadTrafficKey } from "./roadTraffic";
 import { ruralFieldOverlay } from "./ruralFieldOverlay";
 import { applyRuralFields } from "./ruralFields";
 import { enforceDefenseClearance, shapeSuburbanFabric } from "./suburbanLanduse";
+import { cityTerrain } from "./terrainElevation";
+import { lotFitsField } from "./terrainField/lots";
+import { dryBuildingPolygon } from "./terrainField/pads";
+import { overlapsRamp } from "./terrainModel";
 import { shapeUrbanGrowthFabric } from "./urbanGrowth";
 import { documentWaterTest, dryRuns, lineHitsDocumentWater, waterPolygons } from "./waterGeometry";
 import { buildWatermillPlan } from "./watermillFabric";
@@ -184,6 +189,7 @@ export function documentFabricFingerprint(doc: CityDocument): string {
     .map(c => `${c.scope}:${c.moat?.enabled}:${c.moat?.widthMeters}:${c.wallGroupIds.join(",")}`)
     .join(";");
   const landmarksPart = (doc.landmarks ?? []).map(l => `${l.id}:${l.assetId}:${l.locked}`).join(";");
+  const rampsPart = JSON.stringify(doc.terrain?.ramps ?? []);
   return [
     JSON.stringify(doc.populationPlan ?? null),
     doc.generationSeed ?? "",
@@ -242,7 +248,8 @@ export function documentFabricFingerprint(doc: CityDocument): string {
     facePart,
     groupPart,
     circuitsPart,
-    landmarksPart
+    landmarksPart,
+    rampsPart
   ].join("|");
 }
 
@@ -375,10 +382,31 @@ export function buildBlockFabric(
       });
     fabricResult = { ...fabricResult, farms };
   }
+  const ramps = document.terrain?.ramps ?? [];
+  if (ramps.length)
+    // Castle ramps are built over whatever stood at the cliff foot.
+    fabricResult = {
+      ...fabricResult,
+      buildings: fabricResult.buildings.filter(building => !overlapsRamp(building.polygon, ramps)),
+      farms: fabricResult.farms.filter(farm => !overlapsRamp(farm.polygon, ramps))
+    };
   fabricResult = {
     ...fabricResult,
     buildings: assignBuildingAppearances(document, assignBuildingMassing(document, fabricResult.buildings))
   };
+  if (fabricResult.parcels) {
+    const buildingsByParcel = new Map<string, BuildingLot[]>();
+    for (const building of fabricResult.buildings) {
+      if (!building.parcelId) continue;
+      const members = buildingsByParcel.get(building.parcelId) ?? [];
+      members.push(building);
+      buildingsByParcel.set(building.parcelId, members);
+    }
+    fabricResult = {
+      ...fabricResult,
+      parcels: fabricResult.parcels.map(parcel => ({ ...parcel, buildings: buildingsByParcel.get(parcel.id) ?? [] }))
+    };
+  }
   const fingerprint = documentFabricFingerprint(document);
   if (!profiler) {
     fabricByDocument.set(document, { fingerprint, fabric: fabricResult });
@@ -509,12 +537,21 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
     aerialLandmarks.barbicans,
     "building"
   );
+  const fieldTerrain = document.terrain?.field ? cityTerrain(document) : undefined;
+  const keptBuildings = fieldTerrain
+    ? nonMillBuildings.flatMap(building => {
+        const polygon = dryBuildingPolygon(document, building.polygon);
+        if (!polygon) return [];
+        const next = polygon === building.polygon ? building : { ...building, polygon };
+        return lotFitsField(document, fieldTerrain, next) ? [next] : [];
+      })
+    : nonMillBuildings;
   const openSpaces = fabric.openSpaces?.filter(
     space =>
       !landmarkReservationHits(document, space.polygon) && !moat.hitsPolygon(space.polygon) && !displaced(space.polygon)
   );
-  const parcelBuildings = new Map<string, typeof nonMillBuildings>();
-  for (const building of nonMillBuildings) {
+  const parcelBuildings = new Map<string, typeof keptBuildings>();
+  for (const building of keptBuildings) {
     if (!building.parcelId) continue;
     const members = parcelBuildings.get(building.parcelId) ?? [];
     members.push(building);
@@ -526,7 +563,7 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
   const openWater = document.importedFixedCrossings ? undefined : waterPolygons(document);
   return {
     ...fabric,
-    buildings: nonMillBuildings,
+    buildings: keptBuildings,
     lanes: fabric.lanes
       .filter(
         lane =>

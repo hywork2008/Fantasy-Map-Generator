@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import type { ModelQuality } from "../../buildings/modelQuality";
 import { buildingSurfaces } from "../../city3d/core/massingGeometry";
 import { structureSurfaces } from "../../city3d/core/structureGeometry";
 import { createTownBuildingDetails, type TownBuildingDetails } from "../../city3d/three/buildingDetails";
@@ -9,6 +10,7 @@ import { createTownFarms, type TownFarmMeshes } from "../../city3d/three/farmMes
 import { createTownFriaries } from "../../city3d/three/friaryMeshes";
 import { createTownOpenSpaces } from "../../city3d/three/openSpaceMeshes";
 import { createTownPiers } from "../../city3d/three/pierMeshes";
+import { createTownRegionalHouses, type TownRegionalHouses } from "../../city3d/three/regionalHouseMeshes";
 import { createTownRoads, roadStampChanged, type TownRoadMeshes } from "../../city3d/three/roadMeshes";
 import { createTownShips } from "../../city3d/three/shipMeshes";
 import { createTownSpecialBuildings, type TownSpecialBuildings } from "../../city3d/three/specialBuildingMeshes";
@@ -23,6 +25,7 @@ import {
 import { createTownWells, type TownWells } from "../../city3d/three/wellMeshes";
 import type { EditorMessageKey } from "../../i18n/editorMessages";
 import { editorText } from "../../i18n/editorMessages";
+import type { RoadRibbon } from "../../utils/roadSurface";
 import { buildBlockFabric, type DistrictFabric } from "../generators/blockInfill";
 import { riverRibbons } from "../generators/bridgeDeck";
 import type { BuildingLot } from "../generators/buildingLots.types";
@@ -38,7 +41,7 @@ import { collectOpenSpacePlan } from "./openSpaceSites";
 import { collectPierSites } from "./pierSites";
 import { collectShipSites } from "./shipSites";
 import { collectCityStructures, landmarkLotStructures } from "./structureMassing";
-import { groundStructures, lotFoundations } from "./terrainMassing";
+import { groundStructures, lotFoundations, rampStructures, stairStructures } from "./terrainMassing";
 import { resolveCemeteryPlans } from "./townFacts";
 import { collectWellSites } from "./wellSites";
 
@@ -106,7 +109,14 @@ export function mountCity3d(options: {
   map: HTMLElement;
   scope: Mount;
   getDocument: () => CityDocument;
-}): { sync(): void; dispose(): void } {
+  /** Current 2D viewBox half-size in plan meters. */
+  getViewHalfSize?: () => number;
+  getViewCenter?: () => readonly [number, number];
+  /** Requested detailed-model quality; each model falls back to the tiers it ships. */
+  getModelQuality?: () => ModelQuality;
+  /** Draw-grid spacing for a height field. Absent uses the automatic spacing. */
+  getTerrainSpacing?: () => number | "auto";
+}): { sync(): void; resetCamera(): void; dispose(): void } {
   const viewport = document.createElement("div");
   viewport.className = "ce-3d";
   viewport.hidden = true;
@@ -128,6 +138,7 @@ export function mountCity3d(options: {
   let structures: CityStructureMeshes | null = null;
   let wells: TownWells | null = null;
   let specialBuildings: TownSpecialBuildings | null = null;
+  let regionalHouses: TownRegionalHouses | null = null;
   const bvPrototypes = createBvPrototypeCache();
   let openSpaces: CityStructureMeshes | null = null;
   let farmland: TownFarmMeshes | null = null;
@@ -150,6 +161,7 @@ export function mountCity3d(options: {
   let terrainStamp: string | null = null;
   let highlight: THREE.LineSegments | null = null;
   let built: DistrictFabric | null = null;
+  let builtQuality: ModelQuality | null = null;
   let framedRadius = 0;
   let running = false;
   let raf = 0;
@@ -172,10 +184,20 @@ export function mountCity3d(options: {
   const frameCamera = (document: CityDocument) => {
     if (!camera || !controls) return;
     const radius = Math.max(30, document.frame.cityRadiusMeters);
-    camera.position.set(radius * 0.85, radius * 0.62, radius * 0.85);
-    const elevation = terrain?.heightAt([0, 0]) ?? 0;
-    camera.position.y += elevation;
-    controls.target.set(0, elevation + 4, 0);
+    const center = options.getViewCenter?.() ?? [0, 0];
+    const elevation = terrain?.heightAt([center[0], center[1]]) ?? 0;
+    // Keep the OrbitControls world-up axis on +Y, as before the nadir view.
+    // A tiny +Z offset defines screen-up at the pole without a visible tilt.
+    const halfView = Math.max(1, options.getViewHalfSize?.() ?? document.frame.extentMeters / 2);
+    // Perspective projection at nadir: distance * tan(fov/2) is the visible half-height.
+    // SVG fits its square viewBox into the shorter viewport dimension.
+    const distance = halfView / Math.min(1, camera.aspect) / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+    camera.zoom = 1;
+    camera.updateProjectionMatrix();
+    camera.position.set(center[0], elevation + distance, -center[1] + 0.001);
+    controls.target.set(center[0], elevation, -center[1]);
+    camera.up.set(0, 1, 0);
+    camera.lookAt(controls.target);
     controls.update();
     framedRadius = radius;
   };
@@ -248,31 +270,57 @@ export function mountCity3d(options: {
     outline(positions);
   };
 
-  const rebuild = (city: CityDocument, fabric: DistrictFabric, allowColorUpdate = false) => {
+  const rebuild = (
+    city: CityDocument,
+    fabric: DistrictFabric,
+    allowColorUpdate = false,
+    quality: ModelQuality = "standard"
+  ) => {
     if (!scene) return;
     clearHighlight();
     readout.hidden = true;
-    const reused = allowColorUpdate && massing?.updateAppearance?.(fabric.buildings);
+    // Detailed regional houses replace their lots' plain massing; acquire before releasing the old layer.
+    const nextHouses = createTownRegionalHouses(
+      fabric.buildings,
+      bvPrototypes,
+      terrain?.relief ? terrain.foundationAt : undefined,
+      quality
+    );
+    if (regionalHouses) {
+      scene.remove(regionalHouses.group);
+      regionalHouses.dispose();
+    }
+    regionalHouses = nextHouses;
+    scene.add(regionalHouses.group);
+    const plainLots = fabric.buildings.map((lot, index) =>
+      nextHouses.replaced.has(index) ? { ...lot, massing: undefined } : lot
+    );
+    const reused = allowColorUpdate && massing?.updateAppearance?.(plainLots);
     if (buildingDetails) {
       scene.remove(buildingDetails.group);
       buildingDetails.dispose();
     }
-    buildingDetails = createTownBuildingDetails(fabric.buildings, terrain?.relief ? terrain.foundationAt : undefined);
+    buildingDetails = createTownBuildingDetails(plainLots, terrain?.relief ? terrain.foundationAt : undefined);
     scene.add(buildingDetails.group);
     if (!reused) {
       massing?.dispose();
       if (massing) scene.remove(massing.group);
-      massing = createCityMassing(fabric.buildings, terrain?.relief ? terrain.foundationAt : undefined);
+      massing = createCityMassing(plainLots, terrain?.relief ? terrain.foundationAt : undefined);
       scene.add(massing.group);
     }
     structures?.dispose();
     if (structures) scene.remove(structures.group);
     const parts = [...collectCityStructures(city), ...landmarkLotStructures(fabric.buildings)];
     const grounded = terrain
-      ? [...groundStructures(parts, terrain), ...lotFoundations(fabric.buildings, terrain)]
+      ? [
+          ...groundStructures(parts, terrain),
+          ...lotFoundations(fabric.buildings, terrain),
+          ...rampStructures(terrain),
+          ...stairStructures(terrain)
+        ]
       : parts;
     // Acquire the next layer before releasing the old one, so prototypes survive refreshes.
-    const nextSpecial = createTownSpecialBuildings(city, grounded, bvPrototypes);
+    const nextSpecial = createTownSpecialBuildings(city, grounded, bvPrototypes, quality);
     if (specialBuildings) {
       scene.remove(specialBuildings.group);
       specialBuildings.dispose();
@@ -352,18 +400,26 @@ export function mountCity3d(options: {
     ensure();
     if (!scene) return;
     const city = options.getDocument();
-    const nextTerrainStamp = cityTerrainStamp(city);
-    const terrainChanged = nextTerrainStamp !== terrainStamp;
-    if (terrainChanged) {
-      terrain = cityTerrain(city);
-      terrainStamp = nextTerrainStamp;
-    }
-    // Fabric first: lane geometry is part of the road stamp.
+    // Fabric first: lane geometry is part of the road stamp, and graded roads shape the terrain.
     const fabric = buildBlockFabric(city);
+    const quality = options.getModelQuality?.() ?? "standard";
     const stamp = townWaterStamp(city);
     const roads = townRoadStamp(city, fabric.lanes);
+    const spacing = options.getTerrainSpacing?.() ?? "auto";
+    const nextTerrainStamp = `${cityTerrainStamp(city)}|${roads}|${spacing}`;
+    const terrainChanged = nextTerrainStamp !== terrainStamp;
+    if (terrainChanged) {
+      let ribbons: RoadRibbon[] | undefined;
+      try {
+        ribbons = collectTownRoads(city, fabric.lanes);
+      } catch {
+        // Reported once by the road meshes below; the terrain stays ungraded.
+      }
+      terrain = cityTerrain(city, { roads: ribbons, renderSpacing: spacing });
+      terrainStamp = nextTerrainStamp;
+    }
     const plan = planCity3dRefresh({
-      fabricChanged: fabric !== built || terrainChanged,
+      fabricChanged: fabric !== built || terrainChanged || quality !== builtQuality,
       stampChanged: terrainChanged || waterStampChanged(waterStamp, stamp, Boolean(scene.getObjectByName("ce-water"))),
       roadStampChanged:
         terrainChanged || roadStampChanged(roadStamp, roads, Boolean(scene.getObjectByName("ce-roads"))),
@@ -415,7 +471,8 @@ export function mountCity3d(options: {
     }
     if (plan.buildings) {
       built = fabric;
-      rebuild(city, fabric, !terrainChanged);
+      builtQuality = quality;
+      rebuild(city, fabric, !terrainChanged, quality);
     }
     if (plan.water) {
       placeWater(city);
@@ -448,12 +505,13 @@ export function mountCity3d(options: {
     if (plan.roads) {
       try {
         const next = createTownRoads(
-          collectTownRoads(city, fabric.lanes),
+          terrain?.roads?.ribbons ?? collectTownRoads(city, fabric.lanes),
           {
             polygons: waterPolygons(city),
             ribbons: riverRibbons(city).map(ribbon => ({ points: ribbon.points, width: ribbon.width }))
           },
-          terrain?.relief ? terrain.heightAt : undefined
+          terrain?.relief ? terrain.surfaceAt : undefined,
+          terrain?.field ? terrain.heightAt : undefined
         );
         roadMeshes?.dispose();
         scene.add(next.parent);
@@ -504,6 +562,7 @@ export function mountCity3d(options: {
         ...(massing?.pickables ?? []),
         ...(structures?.pickables ?? []),
         ...(specialBuildings?.pickables ?? []),
+        ...(regionalHouses?.pickables ?? []),
         ...(wells?.pickables ?? [])
       ],
       false
@@ -511,6 +570,11 @@ export function mountCity3d(options: {
     if (!hit?.face) {
       clearHighlight();
       readout.hidden = true;
+      return;
+    }
+    const house = regionalHouses?.resolve(hit);
+    if (house) {
+      showLot(built?.buildings[house.lotIndex]);
       return;
     }
     const special = specialBuildings?.resolve(hit);
@@ -565,6 +629,7 @@ export function mountCity3d(options: {
     waterMeshes?.dispose();
     wells?.dispose();
     specialBuildings?.dispose();
+    regionalHouses?.dispose();
     ships?.dispose();
     openSpaces?.dispose();
     friaries?.dispose();
@@ -580,5 +645,10 @@ export function mountCity3d(options: {
     readout.remove();
     options.map.hidden = false;
   };
-  return { sync, dispose };
+  // Defer framing until the new terrain is built, including when 3D is hidden.
+  const resetCamera = () => {
+    framedRadius = 0;
+  };
+
+  return { sync, resetCamera, dispose };
 }

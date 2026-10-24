@@ -12,6 +12,7 @@ import type {
   RiverGroup,
   WallMaterial
 } from "../types/document";
+import { settleRiverGrades } from "./elevationPreset";
 import { castleWallIds, refreshTownWallReferences } from "./fortifications";
 import {
   clone,
@@ -24,6 +25,7 @@ import {
   validate,
   vertexTouchesWater
 } from "./mesh";
+import { refreshRiverCorridors } from "./terrainField/corridor";
 
 export function createGroup(document: CityDocument, kind: FeatureGroup["kind"], material?: WallMaterial): CityDocument {
   const next = clone(document);
@@ -224,7 +226,7 @@ export function finishRiver(document: CityDocument, groupId: Id): CityDocument |
     if (Math.abs(Math.abs(p[0]) - half) > 0.01 && Math.abs(Math.abs(p[1]) - half) > 0.01) return null;
     group.mouth = { vertexId, kind: "mapBoundary" };
   }
-  return next;
+  return settleRiverGrades(next);
 }
 
 /** Add or remove a gate at a vertex shared by at least one wall segment. */
@@ -552,6 +554,7 @@ export function rerouteGroupVertex(
     if (group.source?.vertexId === fromVertexId) group.source.vertexId = toVertexId;
     if (group.mouth?.vertexId === fromVertexId)
       group.mouth = vertexTouchesWater(next.mesh, toVertexId) ? { vertexId: toVertexId, kind: "water" } : null;
+    refreshRiverCorridors(next);
   } else {
     const segments = edgeRefsForVertices(next.mesh, rerouted);
     if (!segments) return null;
@@ -732,33 +735,27 @@ function nextId(document: CityDocument, prefix: string): Id {
 
 /**
  * Resolves wall material ("stone" or "wood").
- * In large cities, defaults to "stone". In small villages / hamlets, defaults to "wood".
+ * Uses population rather than map dimensions; unknown populations default to stone.
  */
 export function resolveWallMaterial(
   document: CityDocument,
   options?: {
     choice?: WallMaterialChoice;
+    population?: number;
     descriptor?: import("../types/contracts/burgSiteDescriptor").BurgSiteDescriptor;
   }
 ): WallMaterial {
   if (options?.choice === "stone") return "stone";
   if (options?.choice === "wood") return "wood";
 
-  // Capital / urban groups take precedence over population. Otherwise use the
-  // absolute population supplied by FMG; 1,500 inhabitants is the stone threshold.
   const burg = options?.descriptor?.burg;
-  if (burg) {
-    if (burg.capital || burg.group === "city" || burg.group === "town") return "stone";
-    if (Number.isFinite(burg.population)) return burg.population >= 1500 ? "stone" : "wood";
-    if (burg.group === "hamlet" || burg.group === "village") return "wood";
-  }
+  const population = options?.population ?? burg?.population ?? document.populationPlan?.settings.targetPopulation;
+  if (population !== undefined && Number.isFinite(population)) return population >= 1500 ? "stone" : "wood";
 
-  // Check document frame and extent
-  const effectiveExtent = document.frame.settlementExtentMeters ?? document.frame.extentMeters;
-  if (effectiveExtent <= 700) return "wood";
-  if (document.frame.cityRadiusMeters <= 140) return "wood";
+  // Settlement classification is only a fallback when no population is available.
+  if (burg?.capital || burg?.group === "city" || burg?.group === "town") return "stone";
+  if (burg?.group === "hamlet" || burg?.group === "village") return "wood";
 
-  // Default for large settlements
   return "stone";
 }
 

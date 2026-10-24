@@ -1,5 +1,6 @@
 import { editorText } from "../../i18n/editorMessages";
 import { refreshCastleLayouts } from "../generators/castleLayout";
+import { sizePresetForExtent } from "../generators/document";
 import { validateFortifications } from "../generators/fortifications";
 import { clearGenerationPreviewCache } from "../generators/generation/previews";
 import { defaultGenerationSettings } from "../generators/generation/settings";
@@ -18,6 +19,7 @@ export interface EditingContext {
   rebuildEditorIndexes: () => void;
   stepStatus: HTMLOutputElement;
   display: DisplayState;
+  size: HTMLSelectElement;
   syncStageUi: (step: number) => void;
   syncGenerateControls: () => void;
   interaction: InteractionState;
@@ -61,6 +63,11 @@ export function createEditingController(ctx: EditingContext) {
     clearGenerationPreviewCache();
     ctx.documents.lastOutputDocInput = null;
     ctx.documents.lastOutputDocResult = null;
+    if (next.frame.extentMeters !== ctx.documents.documentState.frame.extentMeters) {
+      ctx.display.halfView = next.frame.extentMeters / 2;
+      ctx.display.viewCenter = [0, 0];
+      ctx.size.value = sizePresetForExtent(next.frame.extentMeters);
+    }
     ctx.documents.documentState = next;
     const playback = ctx.generation.generationHistory.get(ctx.documents.history.currentEntryKey);
     if (playback) {

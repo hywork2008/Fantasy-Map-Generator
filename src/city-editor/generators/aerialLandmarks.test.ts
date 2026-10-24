@@ -436,7 +436,13 @@ describe("aerial landmarks (1008-wards-and-features priority list)", () => {
             .filter(f => f.properties.water === "land" && f.properties.settlement === "core")
             .flatMap(f => facePoints(city.mesh, f))
         );
-    const [yard] = fabric.aerialLandmarks!.tanneries;
+    // Isolate river/town separation from mills that may occupy the short downstream reach.
+    const [yard] = buildAerialLandmarkPlan(city, {
+      buildings: fabric.buildings,
+      lanes: fabric.lanes,
+      farms: fabric.farms.map(f => f.polygon),
+      reserved: []
+    }).tanneries;
     expect(yard).toBeDefined();
     const river = flowingRivers(city).find(r => r.id === yard.riverId)!;
     // The former contact-only rule finds no exit and silently omits this yard.
@@ -929,7 +935,14 @@ describe("FMG-linked rivers (riverFlows)", () => {
       { share_json: string }
     >;
     const share = parseIncomingPayload(inputs["224"].share_json)!;
-    const city = generateCityOnDocument(cityEditorDocument(share), cityEditorSettings(share), share.seed, () => {})!;
+    const generated = generateCityOnDocument(
+      cityEditorDocument(share),
+      cityEditorSettings(share),
+      share.seed,
+      () => {}
+    )!;
+    // Keep the exported downstream bank inside the placement window.
+    const city = { ...generated, frame: { ...generated.frame, extentMeters: 1500 } };
     expect(city.featureGroups.some(g => g.kind === "river")).toBe(false);
     expect(city.riverFlows?.length).toBeGreaterThan(0);
     const fabric = buildBlockFabric(city);

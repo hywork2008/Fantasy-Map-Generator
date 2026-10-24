@@ -84,6 +84,21 @@ describe("parseDescriptor", () => {
 });
 
 describe("share codec", () => {
+  it("clamps elevation relief and keeps the share when the value is not a number", () => {
+    const share = buildShare({
+      seed: "relief",
+      grid: "hex",
+      size: "micro",
+      settings: { config: DEFAULT_SITE_CONFIG, elevationPreset: "slope", elevationRelief: 8.4 }
+    });
+    expect(decodeShare(encodeShare(share))?.settings.elevationRelief).toBe(8);
+    const text = { ...share, settings: { ...share.settings, elevationRelief: "steep" } };
+    const decoded = decodeShare(encodeShare(text));
+    expect(decoded).not.toBeNull();
+    expect(decoded?.settings.elevationRelief).toBeUndefined();
+    expect(decoded?.settings.elevationPreset).toBe("slope");
+  });
+
   it("preserves independent moat options in share links", () => {
     const share = buildShare({
       seed: "moats",
@@ -92,6 +107,24 @@ describe("share codec", () => {
       settings: { config: DEFAULT_SITE_CONFIG, moats: { town: true, castle: false } }
     });
     expect(decodeShare(encodeShare(share))?.settings.moats).toEqual({ town: true, castle: false });
+  });
+  it("preserves terraces and rejects a terrace step that is not positive", () => {
+    const share = buildShare({
+      seed: "terraces",
+      grid: "evolution",
+      size: "tiny",
+      settings: { config: DEFAULT_SITE_CONFIG, terraces: { stepMeters: 3.5 } }
+    });
+    expect(decodeShare(encodeShare(share))?.settings.terraces).toEqual({ stepMeters: 3.5 });
+    const fieldShare = {
+      ...share,
+      settings: { ...share.settings, terrainField: { template: "crag" as const, sampleMeters: 2 } }
+    };
+    expect(decodeShare(encodeShare(fieldShare))?.settings.terrainField).toEqual({ template: "crag", sampleMeters: 2 });
+    const brokenField = { ...share, settings: { ...share.settings, terrainField: { template: "mesa" } } };
+    expect(decodeShare(encodeShare(brokenField))).toBeNull();
+    const broken = { ...share, settings: { ...share.settings, terraces: { stepMeters: 0 } } };
+    expect(decodeShare(encodeShare(broken))).toBeNull();
   });
 
   it("compresses and restores the exact input mesh and failed checkpoint", () => {

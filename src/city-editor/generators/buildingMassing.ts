@@ -255,7 +255,7 @@ export function assignBuildingMassing(document: CityDocument, lots: readonly Bui
   const climate = climateOf(document);
   const tradition = traditionOf(document);
   const seed = document.generationSeed || document.fabric?.seed || "massing";
-  return lots.map((lot, index) => {
+  return lots.map(lot => {
     if (lot.landmark || lot.polygon.length < 3) return lot;
     const { storeys, write } = resolveStoreys(document, lot);
     const uses = floorUses(lot, storeys);
@@ -288,7 +288,8 @@ export function assignBuildingMassing(document: CityDocument, lots: readonly Bui
       },
       wall,
       baseElevationMeters: 0,
-      tint: growthRandom(`${seed}:massing:${lot.id ?? `${lot.faceId}:${index}`}:tint`)
+      // Editing another district must not change this lot's color.
+      tint: growthRandom(`${seed}:massing:${lot.id ?? `${lot.faceId}:${JSON.stringify(lot.polygon)}`}:tint`)
     };
     return next;
   });

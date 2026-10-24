@@ -105,9 +105,9 @@ describe("wall material resolution", () => {
     { population: 1499, group: "", capital: false, material: "wood" },
     { population: 1500, group: "", capital: false, material: "stone" },
     { population: 8000, group: "village", capital: false, material: "stone" },
-    { population: 180, group: "", capital: true, material: "stone" },
-    { population: 180, group: "city", capital: false, material: "stone" },
-    { population: 180, group: "town", capital: false, material: "stone" }
+    { population: 180, group: "", capital: true, material: "wood" },
+    { population: 180, group: "city", capital: false, material: "wood" },
+    { population: 180, group: "town", capital: false, material: "wood" }
   ])(
     "resolves $material for population=$population, group=$group, capital=$capital",
     ({ population, group, capital, material }) => {
@@ -136,18 +136,22 @@ describe("wall material resolution", () => {
     }
   );
 
-  it("resolves from standalone document frame extent and radius", () => {
+  it("uses standalone population independently of frame extent and radius", () => {
     const smallDoc: CityDocument = {
       ...createDocument("test-seed", 600),
       frame: { extentMeters: 600, cityRadiusMeters: 120, blockSizeMeters: 40 }
     };
-    expect(resolveWallMaterial(smallDoc)).toBe("wood");
+    expect(resolveWallMaterial(smallDoc)).toBe("stone");
+    expect(resolveWallMaterial(smallDoc, { population: 1499 })).toBe("wood");
+    expect(resolveWallMaterial(smallDoc, { population: 1500 })).toBe("stone");
+    expect(resolveWallMaterial(smallDoc, { population: 5000 })).toBe("stone");
 
     const largeDoc: CityDocument = {
       ...createDocument("test-seed", 1500),
       frame: { extentMeters: 1500, cityRadiusMeters: 350, blockSizeMeters: 50 }
     };
     expect(resolveWallMaterial(largeDoc)).toBe("stone");
+    expect(resolveWallMaterial(largeDoc, { population: 1499 })).toBe("wood");
   });
 
   it("respects explicit choice over defaults", () => {
@@ -171,7 +175,7 @@ describe("wall creation and generation with material", () => {
       ...createDocument("test-seed", 500),
       frame: { extentMeters: 500, cityRadiusMeters: 80, blockSizeMeters: 30 }
     };
-    const nextSmall = createGroup(smallDoc, "wall");
+    const nextSmall = createGroup(smallDoc, "wall", "wood");
     const wallSmall = nextSmall.featureGroups.find(g => g.kind === "wall") as EdgeFeatureGroup;
     expect(wallSmall.wallMaterial).toBe("wood");
     expect(wallSmall.style.color).toBe("#7a522c");
@@ -188,7 +192,7 @@ describe("wall creation and generation with material", () => {
     expect(wallLarge.style.widthMeters).toBe(4.5);
   });
 
-  it("generates wood walls for small villages and stone walls for large cities", () => {
+  it("defaults to stone when population is unknown regardless of map size", () => {
     const microDoc = createSizedDocument("micro", "village-seed");
     const microSettings = defaultGenerationSettings();
     microSettings.config.features.walls = true;
@@ -196,8 +200,8 @@ describe("wall creation and generation with material", () => {
     if (generatedMicro) {
       const walls = generatedMicro.featureGroups.filter(g => g.kind === "wall") as EdgeFeatureGroup[];
       if (walls.length > 0) {
-        expect(walls[0].wallMaterial).toBe("wood");
-        expect(walls[0].style.color).toBe("#634327");
+        expect(walls[0].wallMaterial).toBe("stone");
+        expect(walls[0].style.color).toBe("#41382e");
       }
     }
 

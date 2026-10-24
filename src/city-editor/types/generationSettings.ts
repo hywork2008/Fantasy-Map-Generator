@@ -15,6 +15,9 @@ export interface StreetSettings {
 
 export type GenerationMethod = "mesh-first" | "skeleton-first";
 
+/** Cell-elevation shape written at generation. `flat` keeps today's ground. */
+export type ElevationPreset = "flat" | "slope" | "dome" | "basin" | "valley";
+
 /** Skeleton-first wall shape families (§4.3). `bastioned` needs the age of exploration or later. */
 export type WallShape = "organic" | "round" | "oval" | "square" | "polygon" | "bastioned";
 
@@ -33,6 +36,23 @@ export interface GenerationSettings {
   burialProfile?: import("../../data/burialCultures").BurialCultureProfile;
   buildingPattern?: import("./primitives").BuildingPattern;
   castle?: Partial<import("./castle").CastleSettings>;
+  /** Level the site's relief into flat terraces this many metres apart. Absent leaves the ground as generated. */
+  terraces?: { stepMeters: number };
+  /**
+   * Height-field ground for micro, tiny, and small frames.
+   * The recipe is saved on the document; this is only the generation choice.
+   */
+  terrainField?: { template: import("./terrain").TerrainTemplateId; sampleMeters?: number };
+  /**
+   * Cell elevations written when the map is generated.
+   * Unset and `flat` keep the current plane, or the linked FMG heightfield.
+   */
+  elevationPreset?: ElevationPreset;
+  /**
+   * Multiplier on the preset height span. Unset is 1.
+   * Values above 1 scale the clamped 12–80 m base, so the span can exceed 80 m.
+   */
+  elevationRelief?: number;
   /** Castle siting also checks C4 on street edges. Set by the attempt loop
    * after a castle town failed with unconnected gates. */
   castleStreetLinks?: boolean;

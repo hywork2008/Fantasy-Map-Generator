@@ -39,11 +39,12 @@ import {
   faceVertices,
   mergeFaces,
   setFaceDepth,
-  setFaceElevation,
   setFaceWater,
   splitFace
 } from "../generators/mesh";
 import { openGatePassage } from "../generators/passages";
+import { castlePlatform, castleRamp, castleSiteFaceIds, setCastlePlatform } from "../generators/terrainEditing";
+import { editFaceElevation } from "../generators/terrainField/pads";
 import { CASTLE_STYLE_PROFILES, resolveCastleStyle } from "../renderers/castlePatterns";
 import { SHIP_SPECS } from "../renderers/shipSpecifications";
 import type { DocumentsState, InteractionState } from "../state/editorSession";
@@ -53,6 +54,7 @@ import type {
   ApproachBeyond,
   ApproachBeyondData,
   BeyondRealmRelation,
+  CastlePlan,
   CityDocument,
   EdgeFeatureGroup,
   Id,
@@ -355,6 +357,60 @@ export function createInspectorController(ctx: InspectorContext) {
     container.appendChild(wrap);
   }
 
+  /** Flat castle ground over the cell elevations: none, a cliff-edged platform, or one with an earth slope. */
+  function appendCastlePlatform(container: HTMLElement, castle: CastlePlan): void {
+    const state = ctx.documents.documentState;
+    const current = castlePlatform(state, castle.id);
+    const siteLevels = castleSiteFaceIds(state, castle)
+      .map(id => state.mesh.faces[id]?.properties.elevation)
+      .filter((value): value is number => Number.isFinite(value));
+    const level = current?.levelMeters ?? Math.round(Math.max(1, ...siteLevels) + 10);
+    const run = current?.edge.kind === "slope" ? current.edge.runMeters : 15;
+    const mode = document.createElement("select");
+    mode.className = "ce-select";
+    for (const [value, key] of [
+      ["natural", "cityEditor.messages.castlePlatformNatural"],
+      ["cliff", "cityEditor.messages.castlePlatformCliff"],
+      ["slope", "cityEditor.messages.castlePlatformSlope"]
+    ] as const) {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = editorText(key);
+      mode.append(option);
+    }
+    mode.value = current?.edge.kind ?? "natural";
+    const levelInput = numberInput(String(level), "1", "0.5");
+    const runInput = numberInput(String(run), "1", "1");
+    for (const control of [mode, levelInput, runInput]) control.disabled = castle.locked;
+    const apply = () => {
+      const levelMeters = Number(levelInput.value),
+        runMeters = Number(runInput.value);
+      if (mode.value !== "natural" && !(Number.isFinite(levelMeters) && levelMeters > 0)) return;
+      if (mode.value === "slope" && !(Number.isFinite(runMeters) && runMeters > 0)) return;
+      ctx.runContextAction(
+        () =>
+          setCastlePlatform(
+            ctx.documents.documentState,
+            castle.id,
+            mode.value === "natural"
+              ? null
+              : {
+                  levelMeters,
+                  edge: mode.value === "slope" ? { kind: "slope", runMeters } : { kind: "cliff" }
+                }
+          ),
+        editorText("cityEditor.messages.castlePlatform")
+      );
+    };
+    for (const control of [mode, levelInput, runInput]) ctx.scope.listen(control, "change", apply);
+    container.append(label(editorText("cityEditor.messages.castlePlatform"), mode));
+    if (current) container.append(label(editorText("cityEditor.messages.castlePlatformLevel"), levelInput));
+    if (current?.edge.kind === "slope")
+      container.append(label(editorText("cityEditor.messages.castlePlatformSlopeRun"), runInput));
+    if (current?.edge.kind === "cliff" && !castleRamp(state, castle.id))
+      container.append(text(editorText("cityEditor.messages.castleRampNone")));
+  }
+
   function populateInspectorEditControls(container: HTMLElement): void {
     if (
       populateFortSiteInspector(
@@ -421,12 +477,13 @@ export function createInspectorController(ctx: InspectorContext) {
           const height = Number(elevation.value);
           if (!Number.isFinite(height) || height <= 0) return;
           ctx.runContextAction(
-            () => setFaceElevation(ctx.documents.documentState, faceId, height),
+            () => editFaceElevation(ctx.documents.documentState, faceId, height),
             editorText("cityEditor.messages.elevation")
           );
         });
         container.append(label(`${editorText("cityEditor.messages.elevation")} (${faceId})`, elevation));
       }
+      if (ctx.documents.documentState.fortSite?.castleId !== castle.id) appendCastlePlatform(container, castle);
       const currentProfile = resolveCastleStyle(ctx.documents.documentState, castle);
       const styleSelect = document.createElement("select");
       styleSelect.className = "ce-select";
@@ -751,7 +808,7 @@ export function createInspectorController(ctx: InspectorContext) {
       const elevation = numberInput(String(face.properties.elevation), "-1000", "1");
       ctx.scope.listen(elevation, "change", () =>
         ctx.commit(
-          setFaceElevation(ctx.documents.documentState, face.id, Number(elevation.value)),
+          editFaceElevation(ctx.documents.documentState, face.id, Number(elevation.value)),
           editorText("cityEditor.messages.setElevation")
         )
       );

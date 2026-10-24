@@ -237,7 +237,9 @@ export function placeCastleRegion(
   seed: string,
   options: Partial<CastleSettings> = {},
   terrain?: BurgSiteTerrain,
-  constraints?: CastleSitingConstraints
+  constraints?: CastleSitingConstraints,
+  /** When set, the cell that contains this point outranks edge-distance scoring. */
+  prefer?: Point
 ): CastleSite | null {
   const settings = { ...DEFAULT_CASTLE_SETTINGS, ...options };
   if (settings.position === "central" && settings.relationship === "integrated") return null;
@@ -285,7 +287,8 @@ export function placeCastleRegion(
             terrain,
             relaxed,
             constraints && { ...constraints, outward },
-            judge
+            judge,
+            prefer
           );
           if (site) return site;
         }
@@ -321,7 +324,8 @@ function placeCastlePass(
   terrain: BurgSiteTerrain | undefined,
   relaxed: boolean,
   constraints: CastleSitingConstraints | undefined,
-  judge: CastleJudge | undefined
+  judge: CastleJudge | undefined,
+  prefer?: Point
 ): CastleSite | null {
   const hasWalls = document.featureGroups.some(g => g.kind === "wall");
   const rng = makeRng(`${seed}:castle:placement`);
@@ -409,6 +413,7 @@ function placeCastlePass(
         return false;
       if (Math.abs(polygonArea(facePoints(document.mesh, face))) < minArea * 0.15) return false;
       if (relationship === "integrated" || outward) return !urban.has(face.id) && border.has(face.id);
+      if (prefer && insideRing(prefer, facePoints(document.mesh, face))) return true;
       // A tiny evolution town can be all edge cells. The strict pass keeps the
       // old interior-only central rule; the retry may cut a box out of the
       // cell nearest the middle.
@@ -421,7 +426,12 @@ function placeCastlePass(
           center = polygonCentroid(pts);
         const d = Math.hypot(center[0] - cityCenter[0], center[1] - cityCenter[1]);
         const height = terrainHeight(terrain, center) ?? 0;
-        const areaFit = -Math.abs(Math.abs(polygonArea(pts)) - target) * 0.001;
+        const summit = prefer
+          ? insideRing(prefer, pts)
+            ? 8000
+            : Math.max(0, 500 - Math.hypot(center[0] - prefer[0], center[1] - prefer[1]))
+          : 0;
+        const areaFit = -Math.abs(Math.abs(polygonArea(pts)) - target) * 0.001 + summit;
         if (position === "central") return height * 2 - d * 0.2 + areaFit;
         if (!corridors.length) return height * 2 + d * 0.05 + areaFit;
         // S_landFront replaces the old "farther is better" term, which pulled

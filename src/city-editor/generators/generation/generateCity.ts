@@ -8,6 +8,7 @@ import type { GenerationSettings } from "../../types/generation";
 import { tagExternalGateRoads } from "../approachBeyond";
 import { buildBlockFabric } from "../blockInfill";
 import { withBuildingAppearance } from "../buildingAppearance";
+import { terrainHeight } from "../castlePlacement";
 import { finalizeCastles } from "../castles";
 import {
   MIN_CEMETERY_GROUND_M2,
@@ -59,15 +60,20 @@ import {
   resolveWalledAreaShare,
   townExtentMeters
 } from "../settlementExtent";
+import { synthSite } from "../site/synthSite";
 import { farNodeFor } from "../streets";
 import { approachBands } from "../suburbanLanduse";
+import { planTerraces } from "../terracePlanning";
+import { generatedCastleTerrain } from "../terrainEditing";
+import { attachTerrainField } from "../terrainField/attach";
+import { fieldModeAllowed } from "../terrainField/constants";
 import { consolidateThinRoadCells } from "../thinRoadCells";
 import { auditTownDefenseClosure } from "../townDefenseClosure";
 import { connectUrbanRiverDistricts } from "../urbanBridges";
 import { planUrbanGrowth } from "../urbanGrowth";
 import { applyPlan } from "./assembly/applyPlan";
 import { settleTempleOnDocument } from "./assembly/temple";
-import { GEN_PREFIX } from "./constants";
+import { GEN_PREFIX, NOMINAL_PRESET } from "./constants";
 import { planningDebugDocument } from "./debugPreview";
 import { runPlan } from "./pipeline";
 import { plazaApproachPoint, requiredExternalRoads } from "./planning/roadGeometry";
@@ -245,6 +251,27 @@ export function generateCityOnDocument(
       result.farmlandAreaHectares = settings.descriptor
         ? settings.descriptor.farmlandAreaHectares
         : document.farmlandAreaHectares;
+      // A height field replaces cell elevations. Terraces are cell steps, so they stay off in that mode.
+      if (settings.terrainField && fieldModeAllowed(result.frame.extentMeters)) {
+        measureProcessing(profiler, "terrain-field", () => attachTerrainField(result, settings, attemptSeed));
+      } else if (settings.terraces) {
+        const site =
+          settings.descriptor ??
+          synthSite(NOMINAL_PRESET, settings.config, attemptSeed, {
+            extentMeters: result.frame.extentMeters,
+            cityRadiusMeters: result.frame.cityRadiusMeters
+          });
+        const terraces = measureProcessing(profiler, "terraces", () =>
+          planTerraces(result, point => terrainHeight(site.terrain, point), settings.terraces!.stepMeters)
+        );
+        result.terrain = terraces.length ? { version: 1, features: terraces } : undefined;
+      } else delete result.terrain;
+      // Castle platforms and ramps name cells, so they are rebuilt on the new mesh before the fabric is drawn.
+      const terrain = measureProcessing(profiler, "castle-ground", () =>
+        generatedCastleTerrain(result, document, settings.castle)
+      );
+      if (terrain) result.terrain = terrain;
+      else delete result.terrain;
       const prevailingWindDeg = settings.descriptor?.climate?.prevailingWindDeg;
       if (typeof prevailingWindDeg === "number" && Number.isFinite(prevailingWindDeg))
         result.prevailingWindDeg = prevailingWindDeg;
@@ -399,7 +426,7 @@ export function generateCityOnDocument(
             ...(singleWallApplied && singleWallFallback !== undefined ? { singleWallFallback } : {})
           }
         });
-      return measureProcessing(profiler, "farmland", () => generateRuralFieldStage(result));
+      return measureProcessing(profiler, "farmland", () => generateRuralFieldStage(result, { createLotPads: true }));
     }
     if (onRejected) return null;
     // A castle can leave the gate streets no way past it while the face
@@ -454,7 +481,17 @@ export function generateCityOnDocument(
 /** Identifies the input of a roll: the document and the requested settings (without any retry record). */
 export function generationInputKey(document: CityDocument, settings: GenerationSettings): string {
   const { generationRetry: _retry, ...requested } = settings;
-  const { ruralFieldSnapshot: _snapshot, ...input } = document;
+  // Generation derives these defaults after accepting a candidate. Their explicit
+  // presence on later rolls must not invalidate the same input's retry record.
+  const { ruralFieldSnapshot: _snapshot, ...input } = withBuildingAppearance(
+    document,
+    document.buildingAppearanceProfile,
+    settings.descriptor
+  );
+  input.ruralFieldSettings = {
+    ...input.ruralFieldSettings,
+    coveragePercent: input.ruralFieldSettings?.coveragePercent ?? 70
+  };
   const text = JSON.stringify([input, requested]);
   // FNV-1a, 2 × 32 bits: a stale record must not match by accident, but this is no security boundary.
   let a = 0x811c9dc5,

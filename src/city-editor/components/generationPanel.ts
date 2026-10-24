@@ -17,6 +17,7 @@ import { div, text } from "./editorControls";
 import { buildPopulationControls } from "./populationControls";
 export interface GenerationPanelContext {
   select: (values: string[], selected: string) => HTMLSelectElement;
+  syncCity3d: () => void;
   documents: DocumentsState;
   panelEventContext: () => {
     readonly scope: import("../services/editorLifetime").EditorLifetime;
@@ -245,6 +246,7 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
     getDocument: () => ctx.documents.documentState,
     select: ctx.select,
     label: ctx.label,
+    modelQualityChanged: () => ctx.syncCity3d(),
     updateDocument(next) {
       clearGenerationPreviewCache();
       if (ctx.generation.completeSource)

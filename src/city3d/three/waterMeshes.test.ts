@@ -356,3 +356,47 @@ it("samples the rendered sea and inland water surfaces at ship locations", () =>
   expect(townWaterHeightAt(water, [25, 25])).toBeCloseTo(LAND_Y - 1);
   water.dispose();
 });
+
+it("keeps a river surface level across banks of different cell elevation", () => {
+  const mesh = emptyMesh();
+  addRect(mesh, "high", -60, -40, 20, 40, "land");
+  mesh.faces.high.properties.elevation = 10;
+  addRect(mesh, "low", 24, -40, 80, 40, "land");
+  mesh.faces.low.properties.elevation = 2;
+  mesh.vertices.up = { id: "up", point: [22, 30], locked: false };
+  mesh.vertices.down = { id: "down", point: [22, -30], locked: false };
+  const drawn = createTownWater(
+    document({
+      mesh,
+      waterAreas: [
+        {
+          kind: "river",
+          polygon: [
+            [20, -30],
+            [24, -30],
+            [24, 30],
+            [20, 30]
+          ]
+        }
+      ],
+      featureGroups: [
+        {
+          id: "river",
+          kind: "river",
+          name: "River",
+          vertices: ["up", "down"],
+          source: null,
+          mouth: null,
+          style: { widthMeters: 4, color: "#527f8b" },
+          locked: false
+        }
+      ]
+    })
+  );
+  const water = drawn.parent.getObjectByName("ce-water-channel") as THREE.Mesh;
+  const positions = water.geometry.getAttribute("position");
+  const ys = Array.from({ length: positions.count }, (_, i) => positions.getY(i));
+  // The 8 m step between the banks must not tilt the water.
+  expect(Math.max(...ys) - Math.min(...ys)).toBeLessThan(0.5);
+  drawn.dispose();
+});

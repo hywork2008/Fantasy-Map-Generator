@@ -221,6 +221,7 @@ export function planSkeletonCity(
     replaceFixedCrossings: !!settings.descriptor,
     wallMaterial: resolveWallMaterial(document, {
       choice: settings.config.wall?.material,
+      population: settings.population?.targetPopulation,
       descriptor: settings.descriptor
     }),
     rivers,
@@ -240,7 +241,10 @@ export function planSkeletonCity(
     wards: new Map(warded.wards.map(w => [w.cellId, w.kind])),
     wardOrder: warded.assignmentOrder,
     templeHarbor: warded.precincts,
-    fmgElevations
+    fmgElevations,
+    elevationPreset: settings.elevationPreset ?? "flat",
+    elevationRelief: settings.elevationRelief,
+    elevationSeed: seed
   };
   return { plan, prepared: { ...prepared, params, cells, faceIdOf, cellSize: inputs.cellSize, half: inputs.half } };
 }

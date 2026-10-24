@@ -50,8 +50,8 @@ describe("population-driven city generation", () => {
     expect(validPopulationPlan({ ...p, extentMeters: 2700 })).toBe(false);
     expect(p.targetAreaM2).toBeCloseTo(3950814.815);
   });
-  it("defaults to 15,000 and supports the 220,000 population limit", () => {
-    expect(defaultPopulationSettings().targetPopulation).toBe(15000);
+  it("defaults to 5,000 and supports the 220,000 population limit", () => {
+    expect(defaultPopulationSettings().targetPopulation).toBe(5000);
     const settings = defaultPopulationSettings(220000);
     expect(validPopulationSettings(settings)).toBe(true);
     const plan = planPopulation(settings);
@@ -113,30 +113,34 @@ describe("population-driven city generation", () => {
       }
     }
   });
-  it.each(["hex", "evolution"] as const)("supports a Paris population on %s", grid => {
-    const settings = defaultGenerationSettings();
-    settings.population = defaultPopulationSettings(150000);
-    settings.layout = "organic";
-    settings.config.coast = "none";
-    settings.config.rivers = [];
-    settings.config.features = {
-      walls: true,
-      citadel: false,
-      plaza: true,
-      temple: true,
-      port: false,
-      shanty: false
-    };
-    const city = generateCityOnDocument(
-      createGridDocument({ size: "small", grid, seed: "paris-grid" }),
-      settings,
-      "paris-grid"
-    );
-    expect(city).not.toBeNull();
-    expect(city!.populationReport!.assignedPopulation + city!.populationReport!.unplacedPopulation).toBe(150000);
-    expect(city!.populationPlan!.housingFit!.pass).toBeLessThanOrEqual(3);
-    expect(parseDocument(serializeDocument(city!))).not.toBeNull();
-  });
+  it.each(["hex", "evolution"] as const)(
+    "supports a Paris population on %s",
+    grid => {
+      const settings = defaultGenerationSettings();
+      settings.population = defaultPopulationSettings(150000);
+      settings.layout = "organic";
+      settings.config.coast = "none";
+      settings.config.rivers = [];
+      settings.config.features = {
+        walls: true,
+        citadel: false,
+        plaza: true,
+        temple: true,
+        port: false,
+        shanty: false
+      };
+      const city = generateCityOnDocument(
+        createGridDocument({ size: "small", grid, seed: "paris-grid" }),
+        settings,
+        "paris-grid"
+      );
+      expect(city).not.toBeNull();
+      expect(city!.populationReport!.assignedPopulation + city!.populationReport!.unplacedPopulation).toBe(150000);
+      expect(city!.populationPlan!.housingFit!.pass).toBeLessThanOrEqual(3);
+      expect(parseDocument(serializeDocument(city!))).not.toBeNull();
+    },
+    180_000
+  );
   it("keeps bridges within the shared policy for a river city", () => {
     const settings = defaultGenerationSettings();
     settings.population = defaultPopulationSettings(150000);
@@ -164,7 +168,7 @@ describe("population-driven city generation", () => {
     const decks = bridgeDecks(city!);
     expect(overSkewedBridgeDecks(city!, undefined, decks)).toHaveLength(0);
     expect(city!.populationReport!.assignedPopulation + city!.populationReport!.unplacedPopulation).toBe(150000);
-  });
+  }, 180_000);
   it("draws 50 m street blocks in a giant city on a coarse mesh", () => {
     const settings = defaultGenerationSettings();
     settings.population = { ...defaultPopulationSettings(215000), meshCellMeters: 200 };

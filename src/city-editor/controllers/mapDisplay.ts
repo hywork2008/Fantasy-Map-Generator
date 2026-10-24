@@ -7,6 +7,7 @@ import { facePoints, validate } from "../generators/mesh";
 import { ruralFieldOverlay, storeRuralFieldOverlay } from "../generators/ruralFieldOverlay";
 import { defaultWalledAreaShare } from "../generators/settlementExtent";
 import { renderApproachLabels } from "../renderers/approachLabelSvg";
+import { syncCellReliefFace } from "../renderers/cellElevationSvg";
 import { type RenderQuality, renderEditorSvg } from "../renderers/editorSvg";
 import { renderGenerationDebugSvg } from "../renderers/generationDebugSvg";
 import { faceClassName, renderFaceWardLandmark } from "../renderers/landmarkSvg";
@@ -31,6 +32,7 @@ export interface MapDisplayContext {
   interaction: InteractionState;
   landmarkControls: HTMLDivElement;
   shipControls: HTMLDivElement;
+  elevationControls: HTMLDivElement;
   currentBuildingPatternSelect: HTMLSelectElement;
   historicalPeriodSelect: HTMLSelectElement;
   walledShareInput: HTMLInputElement;
@@ -192,6 +194,7 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
     ctx.landmarkSelect.value = ctx.interaction.landmarkAssetId;
     ctx.landmarkControls.hidden = ctx.interaction.tool !== "landmark";
     ctx.shipControls.hidden = ctx.interaction.tool !== "ship";
+    ctx.elevationControls.hidden = ctx.interaction.tool !== "elevation";
     ctx.currentBuildingPatternSelect.value =
       ctx.documents.documentState.buildingPattern ??
       (ctx.documents.documentState.fabric?.version === 5 ? "medieval" : "legacy");
@@ -578,6 +581,8 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
     if (!face) return;
     const path = ctx.faceElementsById.get(faceId);
     if (path) path.setAttribute("class", faceClassName(face, ctx.interaction.selection.faceId === faceId));
+    const svg = ctx.map.querySelector("svg");
+    if (svg) syncCellReliefFace(svg, ctx.documents.documentState.mesh, face);
     ctx.wardLandmarkElementsById.get(faceId)?.remove();
     ctx.wardLandmarkElementsById.delete(faceId);
     const landmark = renderFaceWardLandmark(ctx.documents.documentState.mesh, face, ctx.documents.documentState);

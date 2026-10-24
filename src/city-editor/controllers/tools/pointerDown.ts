@@ -66,9 +66,10 @@ export function bindPointerDown(ctx: PointerDownContext) {
       ctx.map.setPointerCapture(event.pointerId);
       return;
     }
-    if (isPaintBrushTool(ctx.interaction.tool)) {
+    if (isPaintBrushTool(ctx.interaction.tool) || ctx.interaction.tool === "elevation") {
       if (!ctx.canPaintAtPoint(point)) return;
       event.preventDefault();
+      if (ctx.interaction.tool === "elevation") ctx.interaction.elevationStampPoint = null;
       ctx.interaction.isWardPainting = true;
       ctx.interaction.wardPaintChanged = false;
       ctx.interaction.edgePaintChanged = false;

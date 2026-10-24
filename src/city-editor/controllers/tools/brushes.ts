@@ -1,6 +1,7 @@
 import { editorText } from "../../../i18n/editorMessages";
 import { syncDocumentCemeteries } from "../../generators/cemeteryLayout";
 import { removeEdgesFromGroups } from "../../generators/features";
+import { polygonCentroid } from "../../generators/geom";
 import { facePoints, optimizeJunctions } from "../../generators/mesh";
 import { renderCemeteries } from "../../renderers/cemeterySvg";
 import type { DisplayState, DocumentsState, InteractionState } from "../../state/editorSession";
@@ -40,6 +41,9 @@ export interface BrushesContext {
     | "wardBrushPointer"
     | "circularWallPointer"
     | "circularWallStroke"
+    | "elevationBrush"
+    | "elevationPowerMeters"
+    | "elevationStampPoint"
   >;
   display: Pick<DisplayState, "halfView">;
 }
@@ -72,6 +76,10 @@ export function createBrushesController(ctx: BrushesContext) {
   }
 
   function paintCellsAtPoint(point: Point): void {
+    if (ctx.interaction.tool === "elevation") {
+      stampElevation(point);
+      return;
+    }
     const erasing = ctx.interaction.tool === "ward" && ctx.interaction.wardBrush === null;
     const eraseCells = !erasing || ctx.interaction.eraseTarget !== "edges";
     const eraseEdges = erasing && ctx.interaction.eraseTarget !== "cells";
@@ -136,6 +144,12 @@ export function createBrushesController(ctx: BrushesContext) {
   }
 
   function canPaintAtPoint(point: Point): boolean {
+    if (ctx.interaction.tool === "elevation") {
+      return faceIdsWithinBrush(point, paintBrushRadiusMeters()).some(faceId => {
+        const face = ctx.documents.documentState.mesh.faces[faceId];
+        return !!face && !face.properties.locked && face.properties.water === "land";
+      });
+    }
     if (ctx.interaction.tool !== "ward" || ctx.interaction.wardBrush !== null)
       return faceIdsWithinWardBrush(point).length > 0;
     return (
@@ -173,7 +187,65 @@ export function createBrushesController(ctx: BrushesContext) {
     ctx.scheduleRedraw();
   }
 
+  function stampElevation(point: Point): void {
+    const block = Math.max(1, ctx.documents.documentState.frame.blockSizeMeters);
+    const last = ctx.interaction.elevationStampPoint;
+    const travel = last ? Math.hypot(point[0] - last[0], point[1] - last[1]) : block;
+    // A slow drag is many short events. Keep the last applied dab until the
+    // pointer has moved, or a held brush never stacks and a crawl never paints.
+    if (last && travel < 0.5) return;
+    ctx.interaction.elevationStampPoint = point;
+    const scale = Math.min(1, travel / block);
+    const radius = paintBrushRadiusMeters();
+    const power = ctx.interaction.elevationPowerMeters;
+    const mode = ctx.interaction.elevationBrush;
+    const samples: Array<{ id: Id; falloff: number; elevation: number }> = [];
+    for (const faceId of faceIdsWithinBrush(point, radius)) {
+      const face = ctx.documents.documentState.mesh.faces[faceId];
+      if (!face || face.properties.locked || face.properties.water !== "land") continue;
+      const center = polygonCentroid(facePoints(ctx.documents.documentState.mesh, face));
+      const falloff =
+        radius <= 0 ? 1 : Math.max(0, 1 - Math.hypot(center[0] - point[0], center[1] - point[1]) / radius);
+      if (falloff <= 0) continue;
+      samples.push({ id: faceId, falloff, elevation: face.properties.elevation });
+    }
+    if (!samples.length) return;
+    const mean = samples.reduce((sum, sample) => sum + sample.elevation, 0) / samples.length;
+    let faces: CityDocument["mesh"]["faces"] | null = null;
+    const touched: Id[] = [];
+    for (const sample of samples) {
+      const face = ctx.documents.documentState.mesh.faces[sample.id];
+      if (!face) continue;
+      const delta =
+        mode === "smooth"
+          ? (mean - sample.elevation) * sample.falloff * scale
+          : (mode === "lower" ? -power : power) * sample.falloff * scale;
+      const elevation = Math.max(1, Math.round((sample.elevation + delta) * 10) / 10);
+      if (Math.abs(elevation - face.properties.elevation) < 1e-6) continue;
+      if (!faces) faces = { ...ctx.documents.documentState.mesh.faces };
+      faces[sample.id] = { ...face, properties: { ...face.properties, elevation } };
+      touched.push(sample.id);
+    }
+    if (!faces) return;
+    ctx.documents.documentState = {
+      ...ctx.documents.documentState,
+      mesh: { ...ctx.documents.documentState.mesh, faces }
+    };
+    ctx.interaction.wardPaintChanged = true;
+    for (const faceId of touched) ctx.patchFaceRender(faceId);
+    ctx.syncCity3d();
+  }
+
   function paintHistoryLabel(): string {
+    if (ctx.interaction.tool === "elevation") {
+      return editorText(
+        ctx.interaction.elevationBrush === "lower"
+          ? "cityEditor.messages.paintElevationLower"
+          : ctx.interaction.elevationBrush === "smooth"
+            ? "cityEditor.messages.paintElevationSmooth"
+            : "cityEditor.messages.paintElevationRaise"
+      );
+    }
     if (ctx.interaction.tool === "sea") return editorText("cityEditor.messages.paintSea");
     if (ctx.interaction.wardBrush)
       return editorText("cityEditor.messages.paintWard", { value0: ctx.interaction.wardBrush });

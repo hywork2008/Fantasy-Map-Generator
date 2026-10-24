@@ -3,6 +3,7 @@ import { describeImportedSite } from "../components/importedSite";
 import { inheritBuildingAppearance, withBuildingAppearance } from "../generators/buildingAppearance";
 import { DEFAULT_CASTLE_SETTINGS } from "../generators/castlePlacement";
 import { sizePresetForExtent } from "../generators/document";
+import { elevationReliefScale, presetAmplitude } from "../generators/elevationPreset";
 import { createFabricPlan, resolveDistricts } from "../generators/fabricDistricts";
 import { townCircuits } from "../generators/fortifications";
 import { COMPLETE_CITY_ATTEMPTS, generateCityOnDocument } from "../generators/generation/generateCity";
@@ -13,6 +14,8 @@ import { generationPhaseLabel, logGenerationFailures } from "../generators/gener
 import { clone } from "../generators/mesh";
 import { generateRuralFieldStage } from "../generators/ruralFieldStage";
 import { WALL_COAST_CHOICES, WALL_MATERIAL_CHOICES } from "../generators/site/siteConfig";
+import { DEFAULT_CASTLE_RISE_METERS } from "../generators/terrainEditing";
+import { fieldModeAllowed } from "../generators/terrainField/constants";
 import { startCityGeneration } from "../services/generationWorkerClient";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
 import type { GenerationDebugPreview } from "../types/contracts/generationDebug";
@@ -43,12 +46,13 @@ export interface GenerationContext {
   syncStageUi: (step: number) => void;
   rebuildEditorIndexes: () => void;
   refresh: () => void;
+  resetCity3dCamera?: () => void;
   wallFallbackNotice: (doc: CityDocument, checkpoint?: boolean) => string;
   redrawMap: () => void;
   seedInput: HTMLInputElement;
   syncSkeletonControls?: () => void;
   moatInputs: Map<"town" | "castle", HTMLInputElement>;
-  castleInputs: Map<keyof CastleSettings, HTMLSelectElement>;
+  castleInputs: Map<keyof CastleSettings, HTMLSelectElement | HTMLInputElement>;
   buildingPatternSelect: HTMLSelectElement;
   layoutSelect: HTMLSelectElement;
   coastSelect: HTMLSelectElement;
@@ -344,6 +348,7 @@ export function createGenerationController(ctx: GenerationContext) {
       ctx.generation.completeResultSettings = JSON.stringify(ctx.generation.generateSettings);
       ctx.rememberGenerationState();
       ctx.rebuildEditorIndexes();
+      ctx.resetCity3dCamera?.();
       ctx.refresh();
       // Double walls fall back to one curtain when the mesh has no room for an old
       // town (docs/plan/ce-multi-ring-walls.md §5); say why instead of staying silent.
@@ -699,7 +704,11 @@ export function createGenerationController(ctx: GenerationContext) {
     ctx.seedInput.value = ctx.generation.generateSeed;
     for (const [scope, input] of ctx.moatInputs) input.checked = !!ctx.generation.generateSettings.moats?.[scope];
     for (const [key, input] of ctx.castleInputs)
-      input.value = ctx.generation.generateSettings.castle?.[key] ?? DEFAULT_CASTLE_SETTINGS[key] ?? "auto";
+      input.value = String(
+        ctx.generation.generateSettings.castle?.[key] ??
+          DEFAULT_CASTLE_SETTINGS[key] ??
+          (key === "groundRiseMeters" ? DEFAULT_CASTLE_RISE_METERS : "auto")
+      );
     ctx.buildingPatternSelect.value = ctx.generation.generateSettings.buildingPattern ?? "legacy";
     ctx.layoutSelect.value =
       ctx.generation.generateSettings.layout ?? ctx.generation.generateSettings.config.layout ?? "auto";
@@ -718,6 +727,29 @@ export function createGenerationController(ctx: GenerationContext) {
     ctx.riversSelect.value = String(Math.min(2, ctx.generation.generateSettings.config.rivers.length));
     ctx.riverPlacementSelect.value = ctx.generation.generateSettings.riverPlacement ?? "through";
     ctx.reliefInput.checked = ctx.generation.generateSettings.config.relief;
+    const elevationPreset = ctx.root.querySelector<HTMLSelectElement>(".ce-elevation-preset");
+    if (elevationPreset) elevationPreset.value = ctx.generation.generateSettings.elevationPreset ?? "flat";
+    const elevationRelief = ctx.root.querySelector<HTMLInputElement>(".ce-elevation-relief");
+    const elevationReliefValue = ctx.root.querySelector<HTMLElement>(".ce-elevation-relief-value");
+    const updateElevationRelief = ctx.root.querySelector<HTMLButtonElement>(".ce-update-elevation-relief");
+    const reliefScale = elevationReliefScale(ctx.generation.generateSettings.elevationRelief);
+    if (elevationRelief) elevationRelief.value = String(reliefScale);
+    if (elevationReliefValue) {
+      elevationReliefValue.textContent = editorText("cityEditor.messages.elevationReliefValue", {
+        value0: reliefScale.toFixed(1),
+        value1: String(presetAmplitude(ctx.documents.documentState.frame.extentMeters, reliefScale))
+      });
+    }
+    if (updateElevationRelief)
+      updateElevationRelief.disabled = (ctx.generation.generateSettings.elevationPreset ?? "flat") === "flat";
+    const terrainField = ctx.root.querySelector<HTMLSelectElement>(".ce-terrain-field");
+    if (terrainField) {
+      const allowed = fieldModeAllowed(ctx.documents.documentState.frame.extentMeters);
+      terrainField.disabled = !allowed;
+      const template = ctx.generation.generateSettings.terrainField?.template ?? "off";
+      terrainField.value = allowed ? template : "off";
+      if (!allowed) delete ctx.generation.generateSettings.terrainField;
+    }
     for (const [key, input] of ctx.featureInputs) input.checked = ctx.generation.generateSettings.config.features[key];
     ctx.urbanCoreModeSelect.value = ctx.generation.generateSettings.urbanCoreMode ?? "legacy";
     ctx.urbanNPatchesInput.value =

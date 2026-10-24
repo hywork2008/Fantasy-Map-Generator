@@ -92,9 +92,14 @@ export function generateStageOnDocument(
         wallCheckpoint === "firstInnerGates")
         ? wallCheckpoint
         : undefined;
+    // Farmland replays the finished town, including appearance and housing fitting.
     const full =
-      generateCityAttempt(document, settings, seed, observer, 1, onRejected, undefined, stopAfter) ??
-      (onRejected ? null : generateCityOnDocument(document, settings, seed, observer, undefined, undefined, stopAfter));
+      stageStep >= 10
+        ? generateCityOnDocument(document, settings, seed, observer, onRejected)
+        : (generateCityAttempt(document, settings, seed, observer, 1, onRejected, undefined, stopAfter) ??
+          (onRejected
+            ? null
+            : generateCityOnDocument(document, settings, seed, observer, undefined, undefined, stopAfter)));
     if (!full) return null;
     if (stageStep === 7) {
       const res = clone(full);

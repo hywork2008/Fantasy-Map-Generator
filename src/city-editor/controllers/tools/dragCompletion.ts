@@ -1,4 +1,5 @@
 import { editorText } from "../../../i18n/editorMessages";
+import { settleRiverGrades } from "../../generators/elevationPreset";
 import { encloseCircleWithWalls, rerouteGroupAcrossFace } from "../../generators/features";
 import { mergeVertices } from "../../generators/mesh";
 import type { DocumentsState, InteractionState } from "../../state/editorSession";
@@ -100,9 +101,12 @@ export function createDragCompletionController(ctx: DragCompletionContext) {
     }
     ctx.interaction.selection.hoverVertexId = null;
     if (wasWardPainting && ctx.interaction.wardPaintChanged) {
+      if (ctx.interaction.tool === "elevation")
+        ctx.documents.documentState = settleRiverGrades(ctx.documents.documentState);
       ctx.documents.history.commit(ctx.documents.documentState, ctx.paintHistoryLabel());
       ctx.rememberFailureGenerationState();
-      if (ctx.interaction.edgePaintChanged) ctx.rebuildEditorIndexes();
+      if (ctx.interaction.tool === "elevation") ctx.refresh();
+      else if (ctx.interaction.edgePaintChanged) ctx.rebuildEditorIndexes();
     }
     if (wasJunctionPainting && ctx.interaction.junctionPaintChanged) {
       ctx.documents.history.commit(ctx.documents.documentState, editorText("cityEditor.messages.cleanJunctions"));

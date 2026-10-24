@@ -26,6 +26,7 @@ import {
   splitFace,
   validate
 } from "./mesh";
+import { removeOwnedTerrain } from "./terrainEditing";
 import { documentWaterTest, lineHitsDocumentWater } from "./waterGeometry";
 
 /** Explicit town area is independent of standalone castle walls. */
@@ -508,6 +509,7 @@ export function deleteCastle(document: CityDocument, id: Id): CityDocument | nul
       next.fortSite.routes = next.fortSite.routes.filter(route => !ids.has(route.from) && !ids.has(route.to));
     }
     next.castles = next.castles!.filter(c => c.id !== id);
+    removeOwnedTerrain(next, id);
     for (const faceId of castle.siteFaceIds) {
       const face = next.mesh.faces[faceId];
       if (face && !face.properties.locked) face.properties.ward = "park";
@@ -523,6 +525,7 @@ export function deleteCastle(document: CityDocument, id: Id): CityDocument | nul
   next.featureGroups = next.featureGroups.filter(g => !ownedWalls.has(g.id));
   next.gates = next.gates.filter(g => g.ownerCastleId !== id);
   next.castles = next.castles!.filter(c => c.id !== id);
+  removeOwnedTerrain(next, id);
   next.defenseCircuits = next.defenseCircuits!.filter(c => c.id !== castle.circuitId);
   for (const faceId of circuit.areaFaceIds) {
     const face = next.mesh.faces[faceId];

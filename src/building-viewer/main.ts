@@ -9,6 +9,13 @@ import { BARBICANS, createBarbican } from "../buildings/fortresses/barbicans";
 import { BOJNICE, bojnicePlan, createBojnice } from "../buildings/fortresses/bojnice";
 import { CHAMBORD, createChambord } from "../buildings/fortresses/chambord";
 import { KRAK, type KrakPhase } from "../buildings/fortresses/krak";
+import {
+  createRegionalHouses,
+  REGIONAL_HOUSES,
+  type RegionalHouseProfile,
+  type RegionalHouseQuality,
+  regionalHouseNote
+} from "../buildings/houses/regionalHouses";
 import type { LandmarkModel } from "../buildings/landmarks/architectureKit";
 import type { MedievalModel } from "../buildings/medieval/modelKit";
 import { meshProjection } from "../buildings/meshProjection";
@@ -39,6 +46,12 @@ import {
   SIGN_SHAPES,
   SIGN_SYMBOLS
 } from "../buildings/signs/hangingSign";
+import {
+  BASILICA_QUALITIES,
+  BASILICA_TEMPLE,
+  type BasilicaQuality,
+  createBasilicaTemple
+} from "../buildings/temples/basilicaTemple";
 import { validateBuildingRecord } from "../buildings/validate";
 import { COVERED_WAGON, createCoveredWagon } from "../buildings/vehicles/coveredWagon";
 import {
@@ -181,7 +194,64 @@ const optionsTitle = document.createElement("h2");
 optionsTitle.textContent = "Model options";
 const optionFields = document.createElement("div");
 modelOptions.append(optionsTitle, optionFields);
-inspector.append(modelOptions, facts);
+const DEFAULT_AUTHOR = "Codex";
+/** Alternative versions of a list item made by other AI models, keyed by the list button's data-id. */
+const AUTHORED_VARIANTS: Record<string, { author: string; show: () => void }> = {
+  "basilica-temple": { author: BASILICA_TEMPLE.author, show: () => showBasilicaTemple() }
+};
+let selectedId = entries[0]?.record.id ?? "";
+const authorPane = document.createElement("section");
+authorPane.className = "bv-author";
+const authorTitle = document.createElement("h2");
+authorTitle.textContent = "Created by";
+const authorSelect = document.createElement("select");
+authorSelect.setAttribute("aria-label", "AI model that created this object");
+function listAuthors(id: string): void {
+  authorSelect.replaceChildren();
+  for (const name of [DEFAULT_AUTHOR, AUTHORED_VARIANTS[id]?.author].filter(Boolean) as string[]) {
+    const option = document.createElement("option");
+    option.value = name;
+    option.textContent = name;
+    authorSelect.append(option);
+  }
+  authorSelect.value = DEFAULT_AUTHOR;
+  showQuality(false);
+}
+authorSelect.addEventListener("change", () => {
+  const variant = AUTHORED_VARIANTS[selectedId];
+  if (variant && authorSelect.value === variant.author) return variant.show();
+  list.querySelector<HTMLButtonElement>(`button[data-id="${CSS.escape(selectedId)}"]`)?.click();
+});
+const selectedName = document.createElement("h2");
+selectedName.className = "bv-selected";
+selectedName.textContent = entries[0]?.record.name ?? "";
+// Render quality applies only to variants that ship more than one level of detail.
+const qualityTitle = document.createElement("h2");
+qualityTitle.textContent = "Quality";
+const qualitySelect = document.createElement("select");
+qualitySelect.setAttribute("aria-label", "Model render quality");
+for (const quality of BASILICA_QUALITIES) {
+  const option = document.createElement("option");
+  option.value = quality;
+  option.textContent = quality === "high" ? "High" : "Low (light rendering)";
+  qualitySelect.append(option);
+}
+qualitySelect.addEventListener("change", () => AUTHORED_VARIANTS[selectedId]?.show());
+function showQuality(visible: boolean): void {
+  qualityTitle.hidden = !visible;
+  qualitySelect.hidden = !visible;
+}
+listAuthors(selectedId);
+authorPane.append(authorTitle, authorSelect, qualityTitle, qualitySelect, selectedName);
+// Mirror whichever list button was chosen, whatever model family it belongs to.
+list.addEventListener("click", event => {
+  const button = (event.target as HTMLElement).closest("button");
+  if (!button) return;
+  selectedName.textContent = button.querySelector(".bv-name")?.textContent ?? button.textContent ?? "";
+  selectedId = button.dataset.id ?? "";
+  listAuthors(selectedId);
+});
+inspector.append(authorPane, modelOptions, facts);
 main.append(stage, plans);
 app.append(list, main, inspector);
 root.append(app);
@@ -391,6 +461,108 @@ async function showFortress(phase: KrakPhase): Promise<void> {
   facts.append(download);
 }
 
+async function showCliffStudy(): Promise<void> {
+  const token = ++selection;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button.dataset.study === "cliff" ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Cliff fortress";
+  levelTitle.textContent = "Summit";
+  const [{ createCliffFortressStudy }, { cityTerrain }, { createTownWater }] = await Promise.all([
+    import("../city-editor/generators/terrainField/study"),
+    import("../city-editor/generators/terrainElevation"),
+    import("../city3d/three/waterMeshes")
+  ]);
+  if (token !== selection) return;
+  const city = createCliffFortressStudy();
+  const terrain = cityTerrain(city);
+  studyWater = createTownWater(city, terrain);
+  for (const mesh of [studyWater.land, studyWater.bank, studyWater.unknown]) if (mesh) scene.add(mesh);
+  scene.add(studyWater.parent);
+  const castle = city.castles?.[0];
+  const platform = city.terrain?.features.find(feature => feature.kind === "platform");
+  const top = platform?.levelMeters ?? terrain.datumMeters + terrain.heightAt([0, 0]);
+  frame({ occupancyMeters: { width: 240, depth: 240 } }, Math.max(24, top));
+  camera.position.set(180, top + 80, 220);
+  controls.target.set(0, top * 0.4, 0);
+  controls.update();
+  facts.append(
+    fact("Model", "Cliff fortress study"),
+    fact("Template", city.terrain?.field?.template ?? "crag"),
+    fact("Frame", `${city.frame.extentMeters} m`),
+    fact("Summit sample", `${top.toFixed(1)} m`),
+    fact("Castle", castle ? castle.id : "none"),
+    fact("Ramp", city.terrain?.ramps?.length ? "planned" : "none")
+  );
+  const download = document.createElement("button");
+  download.type = "button";
+  download.textContent = "Download editable CE cliff study";
+  download.addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify(city, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "cliff-fortress.city.json";
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+  facts.append(download);
+}
+
+async function showTerraceStudy(): Promise<void> {
+  const token = ++selection;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button.dataset.study === "terrace" ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Terraced river";
+  levelTitle.textContent = "Pads";
+  const [{ createTerraceRiverStudy }, { cityTerrain }, { createTownWater }] = await Promise.all([
+    import("../city-editor/generators/terrainField/study"),
+    import("../city-editor/generators/terrainElevation"),
+    import("../city3d/three/waterMeshes")
+  ]);
+  if (token !== selection) return;
+  const city = createTerraceRiverStudy();
+  const terrain = cityTerrain(city);
+  studyWater = createTownWater(city, terrain);
+  for (const mesh of [studyWater.land, studyWater.bank, studyWater.unknown]) if (mesh) scene.add(mesh);
+  scene.add(studyWater.parent);
+  const pads = (city.terrain?.features ?? []).flatMap(feature =>
+    feature.kind === "platform" && feature.role === "pad" ? [feature.levelMeters.toFixed(0)] : []
+  );
+  const corridor = city.terrain?.features.find(feature => feature.kind === "riverCorridor");
+  frame({ occupancyMeters: { width: 280, depth: 220 } }, 28);
+  camera.position.set(160, 90, 200);
+  controls.target.set(0, 8, 0);
+  controls.update();
+  facts.append(
+    fact("Model", "Terraced river study"),
+    fact("Template", city.terrain?.field?.template ?? "escarpment"),
+    fact("Frame", `${city.frame.extentMeters} m`),
+    fact("Pads", pads.map(level => `${level} m`).join(", ")),
+    fact("River", corridor?.bank.kind ?? "none")
+  );
+  const download = document.createElement("button");
+  download.type = "button";
+  download.textContent = "Download editable CE terrace study";
+  download.addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify(city, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "terrace-river.city.json";
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+  facts.append(download);
+}
+
 function modelCategory(title: string, open = false): HTMLDetailsElement {
   const category = document.createElement("details");
   category.className = "bv-category";
@@ -423,6 +595,34 @@ if (!entries.length) {
     catalogue.append(button);
   }
   show(entries[0]);
+}
+
+function showBasilicaTemple(): void {
+  selection++;
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Roof plan";
+  levelTitle.textContent = "South elevation";
+  showQuality(true);
+  massing = createBasilicaTemple(qualitySelect.value as BasilicaQuality);
+  scene.add(massing.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: BASILICA_TEMPLE.width, depth: BASILICA_TEMPLE.depth } }, 30);
+  camera.position.set(-70, 42, 62);
+  controls.target.set(0, 12, 0);
+  controls.update();
+  mountPlan(roofHost, meshProjection(massing, "top"));
+  mountPlan(levelHost, meshProjection(massing, "side"));
+  facts.append(
+    fact("Model", `${BASILICA_TEMPLE.name} — detailed Romanesque study`),
+    fact("Period", "High medieval"),
+    fact("Quality", qualitySelect.value === "high" ? "High" : "Low — mouldings, tile courses and ornament omitted"),
+    fact("Dimensions", `${BASILICA_TEMPLE.width} × ${BASILICA_TEMPLE.depth} × ${BASILICA_TEMPLE.height} m (approx.)`),
+    fact("Construction", BASILICA_TEMPLE.note),
+    fact("Omitted", "Interior, vaults, bells, sculpture programme, weathering and individual masonry blocks")
+  );
 }
 
 const aqueducts = modelCategory("Aqueduct assemblies");
@@ -689,6 +889,28 @@ for (const phase of ["hospitalier-1270", "mamluk-1302"] as const) {
   });
   assemblies.append(button);
 }
+const cliffButton = document.createElement("button");
+cliffButton.type = "button";
+cliffButton.dataset.study = "cliff";
+cliffButton.textContent = "Cliff fortress · crag study";
+cliffButton.addEventListener("click", () => {
+  void showCliffStudy().catch(error => {
+    banner.hidden = false;
+    banner.textContent = error instanceof Error ? error.message : String(error);
+  });
+});
+assemblies.append(cliffButton);
+const terraceButton = document.createElement("button");
+terraceButton.type = "button";
+terraceButton.dataset.study = "terrace";
+terraceButton.textContent = "Terraced river · escarpment study";
+terraceButton.addEventListener("click", () => {
+  void showTerraceStudy().catch(error => {
+    banner.hidden = false;
+    banner.textContent = error instanceof Error ? error.message : String(error);
+  });
+});
+assemblies.append(terraceButton);
 
 const shipsHeading = modelCategory("Ships");
 const carrackButton = document.createElement("button");
@@ -1577,6 +1799,11 @@ for (const profile of BUILDING_APPEARANCE_PROFILES.filter(id => id !== "legacy")
   button.type = "button";
   button.textContent = label(profile);
   button.dataset.appearanceProfile = profile;
+  button.dataset.id = `regional-${profile}`;
+  AUTHORED_VARIANTS[button.dataset.id] = {
+    author: REGIONAL_HOUSES.author,
+    show: () => showDetailedRegionalHouses(profile)
+  };
   button.addEventListener("click", () => {
     selection++;
     for (const item of list.querySelectorAll("button")) item.setAttribute("aria-current", String(item === button));
@@ -1603,6 +1830,41 @@ for (const profile of BUILDING_APPEARANCE_PROFILES.filter(id => id !== "legacy")
     );
   });
   regionalHeading.append(button);
+}
+
+function showDetailedRegionalHouses(profile: RegionalHouseProfile): void {
+  selection++;
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Front elevation";
+  levelTitle.textContent = "Roof plan";
+  showQuality(true);
+  const quality = qualitySelect.value as RegionalHouseQuality;
+  massing = createRegionalHouses(profile, quality);
+  scene.add(massing.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: 24, depth: 10 } }, 10);
+  camera.position.set(12, 8, 17);
+  controls.target.set(0, 3.5, 0);
+  controls.update();
+  mountPlan(roofHost, meshProjection(massing, "side"));
+  mountPlan(levelHost, meshProjection(massing, "top"));
+  const { width, depth, ground: groundStorey, upper, pitchDeg } = REGIONAL_HOUSES;
+  facts.append(
+    fact("Profile", label(profile)),
+    fact(
+      "Quality",
+      quality === "high" ? "High" : "Low — frame studs, cladding, mouldings, roof courses and props omitted"
+    ),
+    fact(
+      "Envelope",
+      `${width} × ${depth} m lots, ${groundStorey} + ${upper} m storeys, ${pitchDeg}° gable — same as the CE massing`
+    ),
+    fact("Construction", regionalHouseNote(profile)),
+    fact("Omitted", "Interiors, outbuildings, signage and weathering")
+  );
 }
 
 const medievalModules = import.meta.glob<{ models: MedievalModel[] }>("../buildings/medieval/*Models.ts", {

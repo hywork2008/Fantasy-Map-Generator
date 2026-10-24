@@ -65,7 +65,11 @@ export function runPlan(
         gates: [],
         elements: []
       },
-      { choice: settings.config?.wall?.material, descriptor: settings.descriptor }
+      {
+        choice: settings.config?.wall?.material,
+        descriptor: settings.descriptor,
+        population: settings.population?.targetPopulation
+      }
     ),
     importedRoads: geo.importedRoads,
     frameRoads: outerFrameRoads(settings.descriptor),
@@ -84,7 +88,10 @@ export function runPlan(
     wards: new Map(),
     wardOrder: [],
     templeHarbor: [],
-    fmgElevations: fmgCellElevations(cells, settings.descriptor)
+    fmgElevations: fmgCellElevations(cells, settings.descriptor),
+    elevationPreset: settings.elevationPreset ?? "flat",
+    elevationRelief: settings.elevationRelief,
+    elevationSeed: seed
   };
   if (!cells.length) return empty;
   const graph = buildEdgeGraph(cells);
@@ -369,6 +376,9 @@ export function runPlan(
     townWallBuildOrder: empty.townWallBuildOrder,
     innerWall,
     fmgElevations,
+    elevationPreset: empty.elevationPreset,
+    elevationRelief: empty.elevationRelief,
+    elevationSeed: empty.elevationSeed,
     burialProfile: empty.burialProfile,
     urbanCoreMode: settings.urbanCoreMode,
     layout: effectiveLayout,

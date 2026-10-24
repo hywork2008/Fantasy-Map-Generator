@@ -3,7 +3,7 @@ import { residentialStoreys, supportsUrbanMorphology } from "../../utils/urbanMo
 import type { PopulationGenerationSettings, PopulationPlan } from "../types/contracts/population";
 import { dwellingCapacity } from "./residentialCapacity";
 
-export const DEFAULT_CITY_POPULATION = 15_000;
+export const DEFAULT_CITY_POPULATION = 5_000;
 export const MAX_CITY_POPULATION = 220_000;
 export function defaultPopulationSettings(population = DEFAULT_CITY_POPULATION): PopulationGenerationSettings {
   return {

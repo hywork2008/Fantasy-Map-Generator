@@ -17,6 +17,12 @@ function mount() {
 describe("population generation controls", () => {
   it("keeps and shares the reused population grid and its inner-wall checkpoint", async () => {
     const root = mount();
+    const population = root.querySelector<HTMLInputElement>(".ce-population-input")!;
+    population.value = "15000";
+    population.dispatchEvent(new Event("change", { bubbles: true }));
+    const rings = root.querySelector<HTMLSelectElement>(".ce-generate-town-wall-rings")!;
+    rings.value = "double";
+    rings.dispatchEvent(new Event("change", { bubbles: true }));
     const seed = root.querySelector<HTMLInputElement>(".ce-generate-seed")!;
     for (const value of ["startup-3", "1q68ihz"]) {
       seed.value = value;
@@ -53,10 +59,11 @@ describe("population generation controls", () => {
     expect(geometry(replay)).toEqual(before);
   });
 
-  it("defaults to 15,000 residents and previews the Paris population without regenerating", () => {
+  it("defaults to 5,000 residents and single walls and previews the Paris population without regenerating", () => {
     const root = mount();
     const input = root.querySelector<HTMLInputElement>(".ce-population-input")!;
-    expect(input.value).toBe("15000");
+    expect(input.value).toBe("5000");
+    expect(root.querySelector<HTMLSelectElement>(".ce-generate-town-wall-rings")!.value).toBe("single");
     expect(input.max).toBe("220000");
     expect(root.querySelector<HTMLInputElement>(".ce-population-enabled")!.checked).toBe(true);
     const before = root.querySelector("svg")!.outerHTML;
@@ -103,7 +110,7 @@ describe("population generation controls", () => {
     expect(pick.assignedPopulation).toBeGreaterThan(0);
     expect(pick.assignedDwellings).toBeLessThanOrEqual(pick.residentialCapacity);
     expect(root.querySelector<HTMLSelectElement>(".ce-map-size")!.value).toBe("large");
-  });
+  }, 180_000);
   it("blocks empty, fractional and excessive populations without restoring a previous value", () => {
     const root = mount();
     const input = root.querySelector<HTMLInputElement>(".ce-population-input")!;

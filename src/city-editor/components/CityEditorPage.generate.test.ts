@@ -276,11 +276,11 @@ describe("Generate panel", () => {
     expect(iconButton("Select and move").classList.contains("is-active")).toBe(true);
   });
 
-  it("renders a 17-stage process slider, a seed field, and no map-size control", () => {
+  it("renders an 18-stage process slider, a seed field, and no map-size control", () => {
     const slider = root.querySelector<HTMLInputElement>(".ce-generate-stage-slider");
     expect(slider).toBeTruthy();
     expect(slider?.min).toBe("1");
-    expect(slider?.max).toBe("17");
+    expect(slider?.max).toBe("18");
     expect(slider?.value).toBe("16");
     expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("住居・完成都市");
     expect(nPatchesInput().placeholder).toBe("auto");
@@ -690,7 +690,7 @@ describe("shareable link and FMG site", () => {
     expect(share?.seed).toBe("share-seed");
     expect(share?.grid).toBe("voronoi");
     expect(share?.size).toBe("small");
-    expect(share?.settings.townWallRings).toBe("double");
+    expect(share?.settings.townWallRings).toBe("single");
     expect(share?.settings.historicalPeriod).toBe("steamEra");
     expect(share?.descriptor).toBeUndefined();
     window.history.replaceState(null, "", writes[0]);
@@ -806,6 +806,9 @@ describe("shareable link and FMG site", () => {
     restoreCoastRandom = undefined;
     const seedInput = root.querySelector<HTMLInputElement>(".ce-generate-seed")!;
     expect(seedInput.value).toBe("1eaygix");
+    const rings = root.querySelector<HTMLSelectElement>(".ce-generate-town-wall-rings")!;
+    rings.value = "double";
+    rings.dispatchEvent(new Event("change", { bubbles: true }));
     const rolls: Array<Array<{ attempt: number; failure?: unknown }>> = [];
     root.addEventListener("city-generation-diagnostics", event =>
       rolls.push((event as CustomEvent<Array<{ attempt: number; failure?: unknown }>>).detail)
@@ -906,9 +909,9 @@ describe("shareable link and FMG site", () => {
       expect(deck.getAttribute("stroke-linecap")).toBe("butt");
     }
 
-    // Stage 17: same town, intramural roads and block-lane lines hidden.
+    // Stage 18: same town, intramural roads and block-lane lines hidden.
     // The river-width deck stays; the gate-to-plaza road that uses the crossing does not.
-    selectStage(17);
+    selectStage(18);
     expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("道路・小道を隠す");
     expect(count(".ce-infill-lane")).toBe(0);
     expect(count(".ce-infill-trail")).toBe(0);
@@ -929,10 +932,10 @@ describe("shareable link and FMG site", () => {
     expect(has(".ce-buildings .ce-building")).toBe(false);
     panelButton("新しい都市").click();
 
-    // After "新しい都市", dwellings must be generated and slider reset to stage 16
+    // After "新しい都市", dwellings and farmland are generated through stage 17.
     const slider = root.querySelector<HTMLInputElement>(".ce-generate-stage-slider");
-    expect(slider?.value).toBe("16");
-    expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("住居・完成都市");
+    expect(slider?.value).toBe("17");
+    expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("耕作地");
     expect(has(".ce-buildings .ce-building")).toBe(true);
   });
 

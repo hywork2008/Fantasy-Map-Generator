@@ -11,6 +11,7 @@ import type { CityDocument, Tool } from "../types/document";
 import type { Id, Point } from "../types/primitives";
 import type { RenderSelection, SvgPickInfo } from "../types/selection";
 import { renderCastles } from "./castleLayerSvg";
+import { renderCellReliefOverlay } from "./cellElevationSvg";
 import { renderCemeteries } from "./cemeterySvg";
 import { renderCityElements } from "./cityElementsSvg";
 import { renderCoastalShore } from "./coastalShoreSvg";
@@ -37,6 +38,8 @@ import type { RenderQuality } from "./renderQuality";
 import { renderRiverWallSvg } from "./riverWallSvg";
 import { frameScene } from "./sceneFrameSvg";
 import { element, line, polygon } from "./svgPrimitives";
+import { renderTerrainFieldOverlay } from "./terrainFieldSvg";
+import { renderTerrainEarthworks } from "./terrainSvg";
 import { renderTownFabric, type TownLayerPlans } from "./townFabricSvg";
 import { renderTownStructures } from "./townStructuresSvg";
 
@@ -179,6 +182,8 @@ export function renderEditorSvg(
     svg.appendChild(waterCells);
   }
   svg.appendChild(cells);
+  const relief = renderCellReliefOverlay(document.mesh);
+  if (relief) svg.appendChild(relief);
   const continuousWater = element("g", { class: "ce-continuous-water", "pointer-events": "none" });
   for (const [index, ring] of (fixedMode ? [] : waterPolygons(document)).entries()) {
     continuousWater.appendChild(
@@ -317,6 +322,8 @@ export function renderEditorSvg(
   const features = renderFeatureLayer(ctx, svg);
   if (fixedLayers) renderFixedCrossingLayers(ctx, svg, fixedLayers, fixedEpoch);
   svg.appendChild(renderRiverWallSvg(document));
+  if (document.terrain?.field) svg.appendChild(renderTerrainFieldOverlay(document));
+  if (document.terrain) svg.appendChild(renderTerrainEarthworks(document));
   if (town) renderTownStructures(ctx, svg, townPlans, features);
   // Castle curtains and towers cover town walls that meet or overlap them.
   // SVG stacking follows paint order, including the raised town-wall layer.
