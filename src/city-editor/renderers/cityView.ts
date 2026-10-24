@@ -184,13 +184,14 @@ export function mountCity3d(options: {
     if (!camera || !controls) return;
     const radius = Math.max(30, document.frame.cityRadiusMeters);
     const elevation = terrain?.heightAt([0, 0]) ?? 0;
-    // Match the 2D plan: look straight down, with plan +y (SVG up) at screen top.
+    // Keep the OrbitControls world-up axis on +Y, as before the nadir view.
+    // A tiny +Z offset defines screen-up at the pole without a visible tilt.
     const halfView = Math.max(1, options.getViewHalfSize?.() ?? document.frame.extentMeters / 2);
     // Perspective projection at nadir: distance * tan(fov/2) is the visible half-height.
     const distance = halfView / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
-    camera.position.set(0, elevation + distance, 0);
+    camera.position.set(0, elevation + distance, 0.001);
     controls.target.set(0, elevation + 4, 0);
-    camera.up.set(0, 0, -1);
+    camera.up.set(0, 1, 0);
     camera.lookAt(controls.target);
     controls.update();
     framedRadius = radius;
