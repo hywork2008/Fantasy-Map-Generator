@@ -40,7 +40,8 @@ export function calculateLivestockHayPlan(
   const surplus = grown.map(kg => Math.max(0, kg - need));
   const seasonalGapKg = gaps.reduce((sum, kg) => sum + kg, 0);
   // The main cut comes in the month before peak growth, ahead of the grain harvest (E1 §7.46);
-  // the meadow is shut up for one month before it. Later surplus is cut as it grows, earliest first.
+  // the meadow is shut up for one month before it. Later surplus is cut as it grows, earliest first
+  // (E1 §7.48: the hay season continues through the peak month).
   const peak = grown.indexOf(Math.max(...grown));
   const mainCut = (peak + 11) % 12;
   const shutUpMonth = seasonalGapKg > 0 && surplus[mainCut] > 0 ? (mainCut + 11) % 12 : -1;
@@ -72,8 +73,13 @@ export function calculateLivestockHayPlan(
   const rawHarvestKg = Math.min(available, retainedTarget / HAY_DRY_MATTER_RETENTION);
   const harvested = new Array<number>(12).fill(0);
   if (shutUpMonth >= 0) {
-    let remaining = rawHarvestKg;
-    for (let step = 0; step < 12 && remaining > 0; step++) {
+    // Haymaking spans the main cut and the peak month (about six weeks), in proportion to the grass.
+    const season = [mainCut, peak];
+    const seasonKg = cuttable[mainCut] + cuttable[peak];
+    const seasonHarvest = Math.min(seasonKg, rawHarvestKg);
+    for (const month of season) harvested[month] = seasonKg > 0 ? (seasonHarvest * cuttable[month]) / seasonKg : 0;
+    let remaining = rawHarvestKg - seasonHarvest;
+    for (let step = 2; step < 12 && remaining > 0; step++) {
       const month = (mainCut + step) % 12;
       harvested[month] = Math.min(cuttable[month], remaining);
       remaining -= harvested[month];
