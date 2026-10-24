@@ -311,7 +311,7 @@ function isNomadicState(stateId: number): boolean {
  * Horses in the convoys of the merchants of `cellId`'s market, as animals (tradeCargo.ts
  * `convoyDraftAnimals`; horses draw every convoy today). Real demand for Horses (§4.5 extension):
  * merchants use their own teams rather than selling them, so the market stock-flow signal never
- * sees this use. Applied to every cell feeding the market, as the stock-flow signal is.
+ * sees this use. The caller partitions this market-wide count among its inhabited land cells.
  */
 function getMerchantConvoyHorses(cellId: number): number {
   const marketId = getMarketCellColumn()[cellId];
@@ -335,6 +335,38 @@ function getRealPopulation(cellId: number): number {
 }
 
 /**
+ * Partition a shared demand once, using rural residents in compatible production biomes as a provisional weight.
+ * This is an accounting allocation, not evidence of historical herd suitability. Land, feed and
+ * labour limits still apply separately. Recompute from current columns so reassignment and
+ * population changes cannot leave stale shares. An uninhabited region has no assigned demand.
+ */
+function getRegionalDemandShare(cellId: number, domain: "state" | "market", good: Good): number {
+  const world = getWorldContext();
+  const cells = world.pack.cells;
+  const regions = domain === "state" ? cells.state : getMarketCellColumn();
+  const regionId = regions?.[cellId];
+  if (!regionId || cells.h[cellId] < 20) return 0;
+  const weight = (cell: number): number => {
+    const population = cells.pop[cell] ?? 0;
+    if (!(population > 0) || !Number.isFinite(population) || cells.h[cell] < 20) return 0;
+    const rate = resolveBiomeOutputRate(
+      cells.biomeCode[cell] ?? 0,
+      good.biomeOutput,
+      good.biomeOutputByTag,
+      world.biomesData
+    );
+    return Number.isFinite(rate) && rate > 0 ? population : 0;
+  };
+  const local = weight(cellId);
+  if (!(local > 0)) return 0;
+  let total = 0;
+  for (const cell of cells.i) {
+    if (regions?.[cell] === regionId) total += weight(cell);
+  }
+  return total > 0 ? local / total : 0;
+}
+
+/**
  * Real (non-market-resale) demand for a non-food liveAnimal good — layered on top of the market
  * stock-flow signal below because some species are consumed through USE, not sale, which never
  * shows up as a market "sell" event (§4.5 extension, found 2026-08-08 via a real-map report of
@@ -355,8 +387,11 @@ export function getRealNonMarketDemand(cellId: number, good: Good): number {
       const stateId = getWorldContext().pack.cells.state?.[cellId] ?? 0;
       const nomadic = isNomadicState(stateId);
       const wantsThisSpecies = good.name === "Camels" ? nomadic : !nomadic;
-      const mountDemand = wantsThisSpecies ? getStateMountedHeadcount(stateId) : 0;
-      const convoyDemand = good.name === "Horses" ? getMerchantConvoyHorses(cellId) : 0;
+      const mountDemand = wantsThisSpecies
+        ? getStateMountedHeadcount(stateId) * getRegionalDemandShare(cellId, "state", good)
+        : 0;
+      const convoyDemand =
+        good.name === "Horses" ? getMerchantConvoyHorses(cellId) * getRegionalDemandShare(cellId, "market", good) : 0;
       return mountDemand + convoyDemand;
     }
     case "Cats":
@@ -372,13 +407,12 @@ export function getRealNonMarketDemand(cellId: number, good: Good): number {
  * 0..1+ ceiling on a non-food species' capacity, the greater of two independent demand signals
  * (§4.5): how much of it the local market has actually absorbed over the last few quarters, and
  * `getRealNonMarketDemand()`'s off-market real uses (military mounts, draft teams, ambient
- * settlement upkeep) the market stock-flow signal can't see. Simplification: applied identically to
- * every cell feeding the same market rather than distributed proportionally across them —
- * conservative (each cell alone could reach the market's full cap) but avoids a separate per-market
- * aggregation pass. Returns +Infinity (uncapped) until at least one quarter of consumption history
+ * settlement upkeep) the market stock-flow signal can't see. Shared regional counts are
+ * partitioned among inhabited land cells rather than repeated at each supplier. Returns +Infinity
+ * (uncapped) until at least one quarter of consumption history
  * exists, so a fresh market doesn't instantly starve a species nobody has had a chance to buy yet.
  */
-function getNonFoodDemandAbsorptionCapacity(cellId: number, good: Good): number {
+export function getNonFoodDemandAbsorptionCapacity(cellId: number, good: Good): number {
   const realDemand = getRealNonMarketDemand(cellId, good) * NON_FOOD_DEMAND_BUFFER;
   const marketId = getMarketCellColumn()[cellId];
   if (!marketId) return Number.POSITIVE_INFINITY;
@@ -386,7 +420,9 @@ function getNonFoodDemandAbsorptionCapacity(cellId: number, good: Good): number 
   const history = histories?.[getDemandHistoryKey(marketId, good.i)];
   if (!history?.length) return Number.POSITIVE_INFINITY;
   const average = history.reduce((sum, value) => sum + value, 0) / history.length;
-  return Math.max(realDemand, average * animalsPerMarketHead(good.name) * NON_FOOD_DEMAND_BUFFER);
+  const marketDemand =
+    average * animalsPerMarketHead(good.name) * NON_FOOD_DEMAND_BUFFER * getRegionalDemandShare(cellId, "market", good);
+  return Math.max(realDemand, marketDemand);
 }
 
 /**

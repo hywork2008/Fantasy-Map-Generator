@@ -1,0 +1,156 @@
+{
+  "schemaVersion": 1,
+  "sourceRevision": "4c738dfbbabf2d8bfeadc37e0a4bd2844d569aa7",
+  "assessment": "Historical appropriateness unverified. Prepared initial recorded grazed herds do not exceed the model land/potential-forage limits in these two inputs; realized feeding is insufficient in World102. This does not determine a demand-based optimum or validate model coefficients.",
+  "snapshotBoundary": "Current-code prepare at input start; recorded rural Cattle/Sheep/Goats/Horses/Camels only. Required hectares use authored stocking densities; annual pasture potential is not harvested/delivered feed. No new time advancement or behavior changes.",
+  "inputSha256": {
+    "province-101": "a3209cca3c88ebf8f84b4f5d9321be8ad3bdc5b3766ca92994f0eb198a52e4e7",
+    "world-102": "5e73a27785881bf553d37404442d7ead0f7bb68457208cc33c88c88f7c6a5999"
+  },
+  "preparedInitialSnapshots": [
+    {
+      "area": "province-101",
+      "boundary": "current-code prepared start snapshot; rural grazed animals only; excludes purchased feed and residues from potential comparison",
+      "totals": {
+        "population": 433614.9302124977,
+        "pastureHa": 408033.1397084409,
+        "requiredHa": 1318.2397989407182,
+        "annualFeedKg": 1939060.1517737787,
+        "annualPasturePotentialKg": 612049709.5626614,
+        "localAnnualPotentialShortfallKg": 0,
+        "herdCells": 4,
+        "localAreaExceededCells": 0,
+        "headsInAreaExceededCells": 0,
+        "localPotentialExceededCells": 0
+      },
+      "urban": 19757.05275632519,
+      "totalPopulation": 453371.9829688229,
+      "species": {
+        "Cattle": 233.7190234328017,
+        "Sheep": 1403.418857106391,
+        "Goats": 0,
+        "Horses": 153.1981865491937,
+        "Camels": 0
+      },
+      "globalAreaRatio": 0.0032307174850617847,
+      "annualPotentialDeficitShare": 0,
+      "worst": [
+        {
+          "cell": 266,
+          "heads": 265.9700978454421,
+          "requiredHa": 195.83606382807093,
+          "pastureHa": 328.230619430542,
+          "annualNeedKg": 288064.3627619042,
+          "annualPotentialKg": 492345.929145813
+        },
+        {
+          "cell": 267,
+          "heads": 317.57624560471845,
+          "requiredHa": 233.8341129635771,
+          "pastureHa": 391.9171690940857,
+          "annualNeedKg": 343957.45822375314,
+          "annualPotentialKg": 587875.7536411285
+        },
+        {
+          "cell": 264,
+          "heads": 345.3641713212518,
+          "requiredHa": 254.2946009596189,
+          "pastureHa": 426.2099266052246,
+          "annualNeedKg": 374053.7403955179,
+          "annualPotentialKg": 639314.8899078369
+        }
+      ]
+    },
+    {
+      "area": "world-102",
+      "boundary": "current-code prepared start snapshot; rural grazed animals only; excludes purchased feed and residues from potential comparison",
+      "totals": {
+        "population": 3579209.4272747636,
+        "pastureHa": 3575789.321455163,
+        "requiredHa": 228718.76342020463,
+        "annualFeedKg": 327107738.9154423,
+        "annualPasturePotentialKg": 2053822096.7239866,
+        "localAnnualPotentialShortfallKg": 0,
+        "herdCells": 658,
+        "localAreaExceededCells": 0,
+        "headsInAreaExceededCells": 0,
+        "localPotentialExceededCells": 0
+      },
+      "urban": 614912.6551625652,
+      "totalPopulation": 4194122.082437329,
+      "species": {
+        "Cattle": 32044.245689714026,
+        "Sheep": 192316.17895239624,
+        "Goats": 38845.35411176436,
+        "Horses": 28017.30898583879,
+        "Camels": 2241.5197421012895
+      },
+      "globalAreaRatio": 0.06396315410638562,
+      "annualPotentialDeficitShare": 0,
+      "worst": [
+        {
+          "cell": 1785,
+          "heads": 40.738529053625946,
+          "requiredHa": 27.218418695326093,
+          "pastureHa": 445.61654329299927,
+          "annualNeedKg": 33855.495868174854,
+          "annualPotentialKg": 56595.16073340942
+        },
+        {
+          "cell": 1894,
+          "heads": 44.19389273163164,
+          "requiredHa": 29.5026602763987,
+          "pastureHa": 637.3605132102966,
+          "annualNeedKg": 36706.05221220696,
+          "annualPotentialKg": 61418.95068203152
+        },
+        {
+          "cell": 1786,
+          "heads": 50.44332925818607,
+          "requiredHa": 33.70243570473977,
+          "pastureHa": 551.7720580101013,
+          "annualNeedKg": 41920.60844979135,
+          "annualPotentialKg": 70077.35413169609
+        }
+      ]
+    }
+  ],
+  "existing12MonthFeedObservations": {
+    "province": {
+      "source": "docs/analytics/winter-slaughter-seasonal-allocation-province-20261024.json",
+      "months": 12,
+      "runs": [
+        {
+          "mode": "off",
+          "requiredKg": 1896209.5409061657,
+          "unmetKg": 0,
+          "unmetFraction": 0.0
+        },
+        {
+          "mode": "experimental-temperate",
+          "requiredKg": 1896209.183822722,
+          "unmetKg": 0,
+          "unmetFraction": 0.0
+        }
+      ]
+    },
+    "world": {
+      "source": "docs/analytics/winter-slaughter-seasonal-allocation-world-20261024.json",
+      "months": 12,
+      "runs": [
+        {
+          "mode": "off",
+          "requiredKg": 305452974.4782825,
+          "unmetKg": 115995048.22760245,
+          "unmetFraction": 0.37974764667367683
+        },
+        {
+          "mode": "experimental-temperate",
+          "requiredKg": 304382794.46230704,
+          "unmetKg": 115337870.79178369,
+          "unmetFraction": 0.3789237528866516
+        }
+      ]
+    }
+  }
+}

@@ -177,3 +177,13 @@ node --import tsx scripts/auditWoolSupply.mts docs/analytics/inputs/salt-s0-alig
 | --- | ---: | --- |
 | winter-slaughter-seasonal-allocation-province-101-20261024.json | 2085523 | `d6d3252d8e8d35081df4186a9e034980a9b6dab3cbd4a1717cb0e94a09a22644` |
 | winter-slaughter-seasonal-allocation-world-102-20261024.json | 61764165 | `478d77c031e99956aa84a8173d75a1879c5af8b64f7ef7bb6e26c685a024d364` |
+
+
+## E1の地域需要重複修正（同日追補）
+
+[派生比較](e1-demand-comparison-20261024.json)。固定World102の修正前後各12か月。冬前屠畜はアーカイブ既定の未指定/off、Standard、遠隔交易on・襲撃off。
+
+| ファイル（docs/analytics/raw/） | バイト数 | SHA-256 |
+| --- | ---: | --- |
+| e1-demand-after-world-20261024.json | 57334797 | `ae3ad5c258e67e3646e14dc9576a2c5c53e27402603b911e66c67322c21e9b6d` |
+| e1-demand-before-world-20261024.json | 57338573 | `a81e1d83b44a462deb2cfe82427daa0c4bd6226fbe57d2d2e3cb314712ef507c` |

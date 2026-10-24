@@ -29,6 +29,7 @@ import {
   GRAZED_EXCESS_ANNUAL_ADJUSTMENT,
   getDomesticatedCarryingCapacity,
   getDomesticatedCullSelectivity,
+  getNonFoodDemandAbsorptionCapacity,
   getRealNonMarketDemand,
   getRuralEcosystemDetail,
   getWildCarryingCapacity,
@@ -461,11 +462,13 @@ describe("faunaPopulation", () => {
   describe("getRealNonMarketDemand", () => {
     it("is 0 for a species with no modeled real (off-market) use, e.g. Elephants", () => {
       forestCellWorld();
+      worldContext.biomesData = biomesData({ 1: ["grassland", "dry", "forest"] }) as never;
       expect(getRealNonMarketDemand(0, ELEPHANTS_GOOD as never)).toBe(0);
     });
 
     it("scales Cats/Dogs ambient demand with real population, Cats higher than Dogs", () => {
-      forestCellWorld(); // pop = 50 population points, populationRate unset -> real population 50
+      forestCellWorld();
+      worldContext.biomesData = biomesData({ 1: ["grassland", "dry", "forest"] }) as never; // pop = 50 population points, populationRate unset -> real population 50
       expect(getRealNonMarketDemand(0, CATS_GOOD as never)).toBeCloseTo(50 * AMBIENT_CATS_DEMAND_PER_PERSON, 5);
       expect(getRealNonMarketDemand(0, DOGS_GOOD as never)).toBeCloseTo(50 * AMBIENT_DOGS_DEMAND_PER_PERSON, 5);
       expect(getRealNonMarketDemand(0, CATS_GOOD as never)).toBeGreaterThan(
@@ -473,8 +476,77 @@ describe("faunaPopulation", () => {
       );
     });
 
+    it("conserves state mounts and market teams across cells with independent boundaries", () => {
+      forestCellWorld();
+      worldContext.biomesData = biomesData({ 1: ["grassland", "dry", "forest"] }) as never;
+      const cells = worldContext.pack.cells;
+      cells.i = new Uint16Array([0, 1, 2, 3, 4, 5]);
+      cells.h = new Uint8Array([30, 30, 30, 30, 10, 30]);
+      cells.pop = new Float32Array([10, 30, 20, 40, 100, 0]);
+      cells.state = new Uint16Array([1, 1, 2, 2, 1, 1]);
+      cells.biomeCode = new Uint8Array([1, 1, 1, 1, 1, 1]);
+      setMarketCellColumn(new Uint16Array([1, 2, 1, 2, 1, 1]));
+      worldContext.pack.cultures = [{ type: "Generic" }, { type: "Nomadic" }] as never;
+      worldContext.options = { military: [{ name: "cavalry", type: "mounted" }] } as typeof worldContext.options;
+      worldContext.pack.states = [
+        {},
+        { culture: 0, military: [{ u: { cavalry: 300 } }] },
+        { culture: 1, military: [{ u: { cavalry: 120 } }] }
+      ] as never;
+      setMerchantTransportLedgers([
+        {
+          marketId: 1,
+          landAssets: [{ assetId: "pack-train", available: 3, reserved: 0, inTransit: 0, maintenance: 0 }],
+          riverAssets: [],
+          waterAssets: [],
+          lastReconciledTick: 0
+        }
+      ] as never);
+      const horses = Array.from(cells.i, cell => getRealNonMarketDemand(cell, HORSES_GOOD as never));
+      const camels = Array.from(cells.i, cell => getRealNonMarketDemand(cell, CAMELS_GOOD as never));
+      expect(horses).toEqual([125, 225, 100, 0, 0, 0]);
+      expect(camels).toEqual([0, 0, 40, 80, 0, 0]);
+      expect(horses.reduce((sum, value) => sum + value, 0)).toBe(450);
+      expect(camels.reduce((sum, value) => sum + value, 0)).toBe(120);
+      // Changes inside the same month must be visible without a cached allocation rebuild.
+      cells.pop[0] = 30;
+      expect(getRealNonMarketDemand(0, HORSES_GOOD as never)).toBe(240);
+      expect(getRealNonMarketDemand(1, HORSES_GOOD as never)).toBe(150);
+      expect(getRealNonMarketDemand(2, HORSES_GOOD as never)).toBe(60);
+      // Demand belongs to producers: an incompatible biome must not absorb a rural share.
+      worldContext.biomesData = biomesData({ 1: ["grassland", "dry"], 2: ["forest"] }) as never;
+      cells.biomeCode[0] = 2;
+      expect(getRealNonMarketDemand(0, HORSES_GOOD as never)).toBe(0);
+      expect(getRealNonMarketDemand(1, HORSES_GOOD as never)).toBe(300);
+      expect(getRealNonMarketDemand(2, HORSES_GOOD as never)).toBe(150);
+    });
+
+    it("partitions market absorption in real animals while keeping unknown history distinct from zero", () => {
+      forestCellWorld();
+      worldContext.biomesData = biomesData({ 1: ["grassland", "dry", "forest"] }) as never;
+      const cells = worldContext.pack.cells;
+      cells.i = new Uint16Array([0, 1, 2]);
+      cells.h = new Uint8Array([30, 30, 30]);
+      cells.pop = new Float32Array([10, 30, 20]);
+      cells.state = new Uint16Array([0, 0, 0]);
+      cells.biomeCode = new Uint8Array([1, 1, 1]);
+      setMarketCellColumn(new Uint16Array([1, 1, 2]));
+      expect(getNonFoodDemandAbsorptionCapacity(0, HORSES_GOOD as never)).toBe(Infinity);
+      const histories = getOrCreateNonFoodFaunaDemandHistory()!;
+      histories[`1:${HORSES_GOOD.i}`] = [4, 4];
+      histories[`2:${HORSES_GOOD.i}`] = [0];
+      expect(getNonFoodDemandAbsorptionCapacity(0, HORSES_GOOD as never)).toBe(30);
+      expect(getNonFoodDemandAbsorptionCapacity(1, HORSES_GOOD as never)).toBe(90);
+      expect(getNonFoodDemandAbsorptionCapacity(2, HORSES_GOOD as never)).toBe(0);
+      // A market reassignment changes the denominator and does not carry the old share along.
+      setMarketCellColumn(new Uint16Array([1, 2, 2]));
+      expect(getNonFoodDemandAbsorptionCapacity(0, HORSES_GOOD as never)).toBe(120);
+      expect(getNonFoodDemandAbsorptionCapacity(1, HORSES_GOOD as never)).toBe(0);
+    });
+
     it("attributes a non-Nomadic state's mounted regiment headcount to Horses, not Camels", () => {
       forestCellWorld();
+      worldContext.biomesData = biomesData({ 1: ["grassland", "dry", "forest"] }) as never;
       worldContext.pack.cells.state = new Uint16Array([1]);
       worldContext.pack.cultures = [{ i: 0, type: "Generic" }] as never;
       // getStateMountedHeadcount() sums regiment.u[unitName] for unit names options.military tags
@@ -497,6 +569,7 @@ describe("faunaPopulation", () => {
 
     it("attributes a Nomadic state's mounted regiment headcount to Camels, not Horses", () => {
       forestCellWorld();
+      worldContext.biomesData = biomesData({ 1: ["grassland", "dry", "forest"] }) as never;
       worldContext.pack.cells.state = new Uint16Array([1]);
       worldContext.pack.cultures = [{ i: 0, type: "Nomadic" }] as never;
       worldContext.options = { military: [{ name: "cavalry", type: "mounted" }] } as typeof worldContext.options;
@@ -510,6 +583,7 @@ describe("faunaPopulation", () => {
 
     it("adds the horses of the cell's market's own convoys to Horses' demand, as animals", () => {
       forestCellWorld();
+      worldContext.biomesData = biomesData({ 1: ["grassland", "dry", "forest"] }) as never;
       setMarketCellColumn(new Uint16Array([1]));
       const balance = { available: 1, reserved: 0, inTransit: 1, maintenance: 1, recoveryDays: 0 };
       setMerchantTransportLedgers([

@@ -1,0 +1,145 @@
+{
+  "after": {
+    "endCellsOverModelFootprint": 0,
+    "endDate": [
+      1301,
+      1,
+      1
+    ],
+    "endFootprintHa": 196127.9498758507,
+    "endHeads": {
+      "Camels": 1935.901052792924,
+      "Cattle": 31541.05253139246,
+      "Goats": 40401.36637221571,
+      "Horses": 15746.592206707732,
+      "Sheep": 193838.4321863721
+    },
+    "endPastureHa": 3362673.6064069294,
+    "feedKg": {
+      "harvestedKg": 101003527.84388968,
+      "hayConsumedKg": 38036557.0065645,
+      "pastureConsumedKg": 150819711.48423254,
+      "purchasedKg": 811362.027540523,
+      "requiredKg": 304851316.71839947,
+      "unmetFraction": 0.3804971206168372,
+      "unmetKg": 115995048.22760248
+    },
+    "initialHeads": {
+      "Camels": 2241.5197421012895,
+      "Cattle": 32044.245689714026,
+      "Goats": 38845.35411176436,
+      "Horses": 28017.30898583879,
+      "Sheep": 192316.17895239624
+    },
+    "stapleLedgerMarketUnitTotals": {
+      "ruralNeed": 987568.6300000002,
+      "ruralSupplied": 987568.8600000003,
+      "urbanBudgetGap": 0.0,
+      "urbanNeed": 239855.30000000002,
+      "urbanStockGap": 0.0,
+      "urbanSupplied": 239855.30000000002
+    }
+  },
+  "baselineRevision": "4c738dfbbabf2d8bfeadc37e0a4bd2844d569aa7",
+  "before": {
+    "endCellsOverModelFootprint": 0,
+    "endDate": [
+      1301,
+      1,
+      1
+    ],
+    "endFootprintHa": 201285.5799115519,
+    "endHeads": {
+      "Camels": 1936.137732208257,
+      "Cattle": 31541.05253139246,
+      "Goats": 40401.36637221571,
+      "Horses": 17809.013075880695,
+      "Sheep": 193838.4321863721
+    },
+    "endPastureHa": 3362673.6064069294,
+    "feedKg": {
+      "harvestedKg": 101203242.84963544,
+      "hayConsumedKg": 38036557.0065645,
+      "pastureConsumedKg": 151421369.24411568,
+      "purchasedKg": 755553.219972123,
+      "requiredKg": 305452974.4782826,
+      "unmetFraction": 0.37974764667367683,
+      "unmetKg": 115995048.22760248
+    },
+    "initialHeads": {
+      "Camels": 2241.5197421012895,
+      "Cattle": 32044.245689714026,
+      "Goats": 38845.35411176436,
+      "Horses": 28017.30898583879,
+      "Sheep": 192316.17895239624
+    },
+    "stapleLedgerMarketUnitTotals": {
+      "ruralNeed": 987568.6300000002,
+      "ruralSupplied": 987568.8600000003,
+      "urbanBudgetGap": 0.0,
+      "urbanNeed": 239855.30000000002,
+      "urbanStockGap": 0.0,
+      "urbanSupplied": 239855.30000000002
+    }
+  },
+  "changedTrackedSources": {
+    "src/extensions/economy/generators/faunaPopulation.test.ts": {
+      "after": "4939b2d354dc4a3d4a8ef01ce202765c37a469aaadfe678400041b8ba7f4a816",
+      "before": "ce3549e3fa4065adec50ddab4ec32f9d06f09da33d722471f519a6dc0676a87c"
+    },
+    "src/extensions/economy/generators/faunaPopulation.ts": {
+      "after": "eb23a662ac3fe97f359d6f6965b986eef6fc8b08b1acd50934cf9fb1abb8f1b4",
+      "before": "cacde0e775ccdb320f20904dc4d4db40c21eef6d605c5d6e0453505b92286393"
+    }
+  },
+  "deltaAfterMinusBefore": {
+    "endHeads": {
+      "Camels": -0.23667941533290104,
+      "Cattle": 0.0,
+      "Goats": 0.0,
+      "Horses": -2062.4208691729636,
+      "Sheep": 0.0
+    },
+    "feedKg": {
+      "harvestedKg": -199715.00574575365,
+      "hayConsumedKg": 0.0,
+      "pastureConsumedKg": -601657.7598831356,
+      "purchasedKg": 55808.807568399934,
+      "requiredKg": -601657.7598831058,
+      "unmetFraction": 0.0007494739431603836,
+      "unmetKg": 0.0
+    },
+    "stapleLedgerMarketUnitTotals": {
+      "ruralNeed": 0.0,
+      "ruralSupplied": 0.0,
+      "urbanBudgetGap": 0.0,
+      "urbanNeed": 0.0,
+      "urbanStockGap": 0.0,
+      "urbanSupplied": 0.0
+    }
+  },
+  "inputSha256": "5e73a27785881bf553d37404442d7ead0f7bb68457208cc33c88c88f7c6a5999",
+  "months": 12,
+  "notes": [
+    "Headcounts include young cohorts and rural recorded grazed animals only.",
+    "Food ledger market-unit totals are not physical kg or a historical nutrition adequacy finding; markets without ledgers are excluded.",
+    "12-month before/after comparison; 36-month post-change target trajectory is in the separate demand diagnostic.",
+    "Shared demand partition is an accounting repair. Joint-product food-animal demand and historical coefficient calibration remain unresolved."
+  ],
+  "raw": {
+    "after": {
+      "bytes": 57334797,
+      "path": "docs/analytics/raw/e1-demand-after-world-20261024.json",
+      "sha256": "ae3ad5c258e67e3646e14dc9576a2c5c53e27402603b911e66c67322c21e9b6d",
+      "sourceTreeSha256": "c757c4d5cef0ccd020a0dc1252a8acf12c6fa0a785e4b8cf5e14c9e8b15b9644"
+    },
+    "before": {
+      "bytes": 57338573,
+      "path": "docs/analytics/raw/e1-demand-before-world-20261024.json",
+      "sha256": "a81e1d83b44a462deb2cfe82427daa0c4bd6226fbe57d2d2e3cb314712ef507c",
+      "sourceTreeSha256": "521d1ca40d10038c9cfe1c8b4f5592c3ae88ce23013785aa2d22932d81fdb837"
+    }
+  },
+  "schemaVersion": 1,
+  "setting": "archive default winter slaughter (unset/off); Standard; long-distance trade on; caravan raids off"
+}
