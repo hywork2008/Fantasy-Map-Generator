@@ -171,7 +171,11 @@ export function createTownWater(
     if (absoluteWater && part.kind === "channel") {
       const absolute = absoluteWater.channelAt(part.polygon);
       if (absolute === null) return cellBedAt(part);
-      const y = sceneY(absolute);
+      // The stored cell elevation is the centre. On an empty slope the shore can be lower, and a sheet
+      // taken from the centre would float. Keep it level, under the lower of that centre and the shore.
+      let shore = Infinity;
+      for (const point of part.polygon) shore = Math.min(shore, terrain.heightAt(point));
+      const y = Math.min(sceneY(absolute), shore + WATER_Y);
       return () => y;
     }
     return () => partLevel(part);

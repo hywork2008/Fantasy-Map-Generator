@@ -4,6 +4,7 @@ import { KRAK } from "../../buildings/fortresses/krak";
 import { pointInRing } from "../../buildings/geometry";
 import { concatPositions, meshIsClosed } from "../../city3d/core/massingGeometry";
 import { structureSurfaces } from "../../city3d/core/structureGeometry";
+import { WATER_Y } from "../../city3d/core/waterGeometry";
 import { createCityMassing } from "../../city3d/three/cityMeshes";
 import { createTownRoads } from "../../city3d/three/roadMeshes";
 import { createTownWater } from "../../city3d/three/waterMeshes";
@@ -159,8 +160,19 @@ describe("CE cell elevation in the fortress study", () => {
     const channel = water.parent.getObjectByName("ce-water-channel") as import("three").Mesh;
     const positions = channel.geometry.getAttribute("position");
     expect(positions.count).toBeGreaterThan(0);
-    for (let i = 0; i < positions.count; i++)
-      expect(positions.getY(i)).toBeCloseTo(terrain.heightAt([positions.getX(i), -positions.getZ(i)]) - 1.2, 4);
+    // Standing water stays level. Empty land slopes, so the sheet sits the inland drop under the lowest shore
+    // rather than tilting with the ground.
+    const shores: Point[] = [
+      [100, 20],
+      [200, 20],
+      [200, 28],
+      [100, 28]
+    ];
+    const surface = positions.getY(0);
+    for (let i = 0; i < positions.count; i++) expect(positions.getY(i)).toBeCloseTo(surface, 4);
+    const lowestShore = Math.min(...shores.map(point => terrain.heightAt(point)));
+    expect(surface).toBeLessThanOrEqual(lowestShore + WATER_Y + 1e-3);
+    expect(surface).toBeGreaterThan(lowestShore + WATER_Y - 12);
     const roads = createTownRoads(
       [
         {
