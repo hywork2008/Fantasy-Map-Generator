@@ -15,6 +15,7 @@ import { createTownRoads, roadStampChanged, type TownRoadMeshes } from "../../ci
 import { createTownShips } from "../../city3d/three/shipMeshes";
 import { createTownSpecialBuildings, type TownSpecialBuildings } from "../../city3d/three/specialBuildingMeshes";
 import { type CityStructureMeshes, createStructureMassing } from "../../city3d/three/structureMeshes";
+import { createTownWalls, type TownWalls } from "../../city3d/three/townWallMeshes";
 import {
   createTownWater,
   planCity3dRefresh,
@@ -30,6 +31,7 @@ import { buildBlockFabric, type DistrictFabric } from "../generators/blockInfill
 import { riverRibbons } from "../generators/bridgeDeck";
 import type { BuildingLot } from "../generators/buildingLots.types";
 import { buildParkLawns } from "../generators/parkFabric";
+import { RIVER_DROP_MIN, riverDropMeters } from "../generators/riverSurface";
 import { type CityTerrain, cityTerrain, cityTerrainStamp } from "../generators/terrainElevation";
 import { collectTownRoads, townRoadStamp } from "../generators/townRoads";
 import { townWaterStamp } from "../generators/townWater";
@@ -116,6 +118,8 @@ export function mountCity3d(options: {
   getModelQuality?: () => ModelQuality;
   /** Draw-grid spacing for a height field. Absent uses the automatic spacing. */
   getTerrainSpacing?: () => number | "auto";
+  /** Metres the river surface sits below the land it touches. Absent keeps 1 m. */
+  getRiverDropMeters?: () => number;
 }): { sync(): void; resetCamera(): void; dispose(): void } {
   const viewport = document.createElement("div");
   viewport.className = "ce-3d";
@@ -136,6 +140,7 @@ export function mountCity3d(options: {
   let massing: CityMassingMeshes | null = null;
   let buildingDetails: TownBuildingDetails | null = null;
   let structures: CityStructureMeshes | null = null;
+  let townWalls: TownWalls | null = null;
   let wells: TownWells | null = null;
   let specialBuildings: TownSpecialBuildings | null = null;
   let regionalHouses: TownRegionalHouses | null = null;
@@ -327,7 +332,16 @@ export function mountCity3d(options: {
     }
     specialBuildings = nextSpecial;
     scene.add(specialBuildings.group);
-    structureList = grounded.filter(part => !specialBuildings!.replaced.has(part.id));
+    const nextWalls = createTownWalls(city, grounded, bvPrototypes, quality);
+    if (townWalls) {
+      scene.remove(townWalls.group);
+      townWalls.dispose();
+    }
+    townWalls = nextWalls;
+    scene.add(townWalls.group);
+    structureList = grounded.filter(
+      part => !specialBuildings!.replaced.has(part.id) && !townWalls!.replaced.has(part.id)
+    );
     structures = createStructureMassing(structureList);
     scene.add(structures.group);
     const nextWells = createTownWells(collectWellSites(city, fabric), terrain?.heightAt, bvPrototypes);
@@ -379,10 +393,11 @@ export function mountCity3d(options: {
     raf = requestAnimationFrame(tick);
   };
 
+  const riverDrop = () => options.getRiverDropMeters?.() ?? RIVER_DROP_MIN;
   const placeWater = (city: CityDocument) => {
     if (!scene || !ground) return;
     waterMeshes?.dispose();
-    waterMeshes = createTownWater(city, terrain ?? undefined);
+    waterMeshes = createTownWater(city, terrain ?? undefined, riverDrop());
     if (waterMeshes.replacesDisc) scene.remove(ground);
     else {
       if (!ground.parent) scene.add(ground);
@@ -403,7 +418,7 @@ export function mountCity3d(options: {
     // Fabric first: lane geometry is part of the road stamp, and graded roads shape the terrain.
     const fabric = buildBlockFabric(city);
     const quality = options.getModelQuality?.() ?? "standard";
-    const stamp = townWaterStamp(city);
+    const stamp = `${townWaterStamp(city)}|${riverDropMeters(riverDrop())}`;
     const roads = townRoadStamp(city, fabric.lanes);
     const spacing = options.getTerrainSpacing?.() ?? "auto";
     const nextTerrainStamp = `${cityTerrainStamp(city)}|${roads}|${spacing}`;
@@ -561,6 +576,7 @@ export function mountCity3d(options: {
       [
         ...(massing?.pickables ?? []),
         ...(structures?.pickables ?? []),
+        ...(townWalls?.pickables ?? []),
         ...(specialBuildings?.pickables ?? []),
         ...(regionalHouses?.pickables ?? []),
         ...(wells?.pickables ?? [])
@@ -570,6 +586,11 @@ export function mountCity3d(options: {
     if (!hit?.face) {
       clearHighlight();
       readout.hidden = true;
+      return;
+    }
+    const defense = townWalls?.resolve(hit);
+    if (defense) {
+      showStructure(defense);
       return;
     }
     const house = regionalHouses?.resolve(hit);
@@ -626,6 +647,7 @@ export function mountCity3d(options: {
     massing?.dispose();
     buildingDetails?.dispose();
     structures?.dispose();
+    townWalls?.dispose();
     waterMeshes?.dispose();
     wells?.dispose();
     specialBuildings?.dispose();

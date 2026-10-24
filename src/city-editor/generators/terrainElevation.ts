@@ -92,7 +92,7 @@ interface BaseSurface {
   seeds: Array<{ face: Face; center: Point; patches: Patch[] }>;
 }
 
-/** Cell seed triangles; their heights come from `cellRelief`, which levels each cell and joins it to its neighbours. */
+/** Cell seed triangles; their heights come from `cellRelief`. Empty land slopes; occupied cells stay level. */
 function cellSurface(document: CityDocument, relief: CellRelief): BaseSurface {
   const faces = Object.values(document.mesh.faces).filter(
     face => face.properties.water === "land" && Number.isFinite(face.properties.elevation)

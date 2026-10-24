@@ -97,6 +97,13 @@ describe("share codec", () => {
     expect(decoded).not.toBeNull();
     expect(decoded?.settings.elevationRelief).toBeUndefined();
     expect(decoded?.settings.elevationPreset).toBe("slope");
+    const deep = buildShare({
+      seed: "river-drop",
+      grid: "hex",
+      size: "micro",
+      settings: { config: DEFAULT_SITE_CONFIG, riverDropMeters: 100.4 }
+    });
+    expect(decodeShare(encodeShare(deep))?.settings.riverDropMeters).toBe(100);
   });
 
   it("preserves independent moat options in share links", () => {
@@ -207,6 +214,7 @@ describe("share codec", () => {
 
   it("cityLinkFor produces a decodable fragment", () => {
     const share = shareFromDescriptor(sample);
+    expect(cityEditorDocument(share).showElevationTint).toBe(false);
     const url = cityLinkFor(share, "https://example.test/city-editor/");
     const token = url.slice(url.indexOf("#") + 1);
     expect(decodeShare(token)?.descriptor).toEqual(sample);

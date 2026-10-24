@@ -5,6 +5,8 @@ import { BUILDING_APPEARANCE_PROFILES } from "../buildings/appearance/types";
 import { createPontDuGard, PONT_DU_GARD, pontDuGardElevation } from "../buildings/aqueducts/pontDuGard";
 import { contentDigest } from "../buildings/canonicalJson";
 import { createStGeorgesChapel, ST_GEORGES_CHAPEL } from "../buildings/chapels/stGeorgesChapel";
+import { CODEX_TOWN_WALL_PERIOD, CODEX_TOWN_WALLS } from "../buildings/fortifications/codexTownWalls";
+import { TOWN_WALL_AUTHOR, TOWN_WALLS, type TownWallModel } from "../buildings/fortifications/townWalls";
 import { BARBICANS, createBarbican } from "../buildings/fortresses/barbicans";
 import { BOJNICE, bojnicePlan, createBojnice } from "../buildings/fortresses/bojnice";
 import { CHAMBORD, createChambord } from "../buildings/fortresses/chambord";
@@ -195,8 +197,11 @@ optionsTitle.textContent = "Model options";
 const optionFields = document.createElement("div");
 modelOptions.append(optionsTitle, optionFields);
 const DEFAULT_AUTHOR = "Codex";
-/** Alternative versions of a list item made by other AI models, keyed by the list button's data-id. */
-const AUTHORED_VARIANTS: Record<string, { author: string; show: () => void }> = {
+/**
+ * Alternative versions of a list item made by other AI models, keyed by the list button's data-id.
+ * `primary` means that author made the only prepared model, so it is selected on open.
+ */
+const AUTHORED_VARIANTS: Record<string, { author: string; primary?: boolean; show: () => void }> = {
   "basilica-temple": { author: BASILICA_TEMPLE.author, show: () => showBasilicaTemple() }
 };
 let selectedId = entries[0]?.record.id ?? "";
@@ -208,13 +213,15 @@ const authorSelect = document.createElement("select");
 authorSelect.setAttribute("aria-label", "AI model that created this object");
 function listAuthors(id: string): void {
   authorSelect.replaceChildren();
-  for (const name of [DEFAULT_AUTHOR, AUTHORED_VARIANTS[id]?.author].filter(Boolean) as string[]) {
+  const variant = AUTHORED_VARIANTS[id];
+  const names = variant?.primary ? [variant.author] : ([DEFAULT_AUTHOR, variant?.author].filter(Boolean) as string[]);
+  for (const name of names) {
     const option = document.createElement("option");
     option.value = name;
     option.textContent = name;
     authorSelect.append(option);
   }
-  authorSelect.value = DEFAULT_AUTHOR;
+  authorSelect.value = variant?.primary ? variant.author : DEFAULT_AUTHOR;
   showQuality(false);
 }
 authorSelect.addEventListener("change", () => {
@@ -1673,6 +1680,84 @@ warWagonButton.addEventListener("click", () => {
   );
 });
 vehiclesHeading.append(warWagonButton);
+
+function showTownWall(model: TownWallModel, button: HTMLButtonElement, codex = false): void {
+  selection++;
+  for (const item of list.querySelectorAll("button")) item.setAttribute("aria-current", String(item === button));
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Field elevation";
+  levelTitle.textContent = "Plan";
+  modelOptions.hidden = false;
+  const row = document.createElement("label");
+  row.textContent = "Resolution: ";
+  const resolution = document.createElement("select");
+  resolution.setAttribute("aria-label", "Model resolution");
+  const option = document.createElement("option");
+  option.value = "high";
+  option.textContent = "High resolution (default)";
+  resolution.append(option);
+  resolution.value = "high";
+  row.append(resolution);
+  const paragraph = document.createElement("p");
+  paragraph.append(row);
+  optionFields.append(paragraph);
+  const built = model.create();
+  massing = built;
+  scene.add(built.group);
+  ground.visible = true;
+  built.group.updateMatrixWorld(true);
+  const bounds = new THREE.Box3().setFromObject(built.group, true);
+  const center = bounds.getCenter(new THREE.Vector3());
+  const extent = bounds.getSize(new THREE.Vector3());
+  const radius = Math.max(extent.x, extent.y, extent.z, 1);
+  camera.position.copy(center).add(new THREE.Vector3(radius * 0.85, radius * 0.62, radius * 1.25));
+  controls.target.copy(center);
+  controls.update();
+  ground.geometry.dispose();
+  ground.geometry = new THREE.CircleGeometry(Math.max(radius * 0.85, 8), 48);
+  mountPlan(roofHost, meshProjection(built, "side"));
+  mountPlan(levelHost, meshProjection(built, "top"));
+  facts.append(
+    fact("Model", `${model.task} · ${model.name}`),
+    fact("Part", model.part),
+    fact("Period", codex ? CODEX_TOWN_WALL_PERIOD : "High medieval Europe"),
+    fact("Resolution", "High — low and standard tiers are not prepared"),
+    fact("Mesh dimensions", `${extent.x.toFixed(2)} × ${extent.z.toFixed(2)} × ${extent.y.toFixed(2)} m`),
+    fact("Construction", model.note),
+    fact(
+      "Scope",
+      "Illustrative study of a part CE places around a town when Features → Walls is on. Metre units. Circuit placement is separate."
+    )
+  );
+  for (const source of model.sources) {
+    const row = document.createElement("p");
+    const link = document.createElement("a");
+    link.href = source.url;
+    link.textContent = source.title;
+    link.target = "_blank";
+    link.rel = "noreferrer";
+    row.append(link);
+    facts.append(row);
+  }
+}
+
+const townWallsHeading = modelCategory("Town walls");
+for (const model of TOWN_WALLS) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = `${model.task} · ${model.name}`;
+  button.dataset.id = model.id;
+  AUTHORED_VARIANTS[model.id] = {
+    author: TOWN_WALL_AUTHOR,
+    show: () => showTownWall(model, button)
+  };
+  const codexModel = CODEX_TOWN_WALLS.find(candidate => candidate.id === model.id)!;
+  button.addEventListener("click", () => showTownWall(codexModel, button, true));
+  townWallsHeading.append(button);
+}
 
 const barbicansHeading = modelCategory("Barbicans");
 for (const definition of BARBICANS) {

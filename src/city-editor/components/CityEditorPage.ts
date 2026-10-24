@@ -42,6 +42,7 @@ import { DEFAULT_HEX_SIZE_METERS } from "../generators/hexGrid";
 import { DocumentHistory } from "../generators/history";
 import { clone } from "../generators/mesh";
 import { DEFAULT_PATCH_PARAMS } from "../generators/patches";
+import { RIVER_DROP_MIN, riverDropMeters, riverDropUpperFor } from "../generators/riverSurface";
 import { regenerateRuralLand } from "../generators/roadsideFarms";
 import { DEFAULT_TERRACE_STEP_METERS } from "../generators/terracePlanning";
 import { DEFAULT_CASTLE_RISE_METERS } from "../generators/terrainEditing";
@@ -587,6 +588,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         },
         get renderQualitySelect() {
           return renderQualitySelect;
+        },
+        get elevationTintInput() {
+          return elevationTintInput;
         },
         get vacantTreesInput() {
           return vacantTreesInput;
@@ -2250,6 +2254,12 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     })
   );
 
+  const elevationTintInput = checkbox(documents.documentState.showElevationTint !== false, visible => {
+    commit(
+      { ...documents.documentState, showElevationTint: visible },
+      editorText("cityEditor.messages.showElevationTint")
+    );
+  });
   const vacantTreesInput = checkbox(false, visible => {
     const current = documents.documentState;
     if (!current.vacantLotTrees) return;
@@ -2351,6 +2361,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     text(editorText("cityEditor.messages.farmlandYear")),
     farmlandYearInput,
     farmlandSummary,
+    toggleLabel(editorText("cityEditor.messages.showElevationTint"), elevationTintInput),
     toggleLabel(editorText("cityEditor.messages.showVacantLotTrees"), vacantTreesInput)
   );
 
@@ -2455,6 +2466,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     if (scale === ELEVATION_RELIEF_MIN) delete generation.generateSettings.elevationRelief;
     else generation.generateSettings.elevationRelief = scale;
     paintElevationReliefReadout();
+    showRiverDrop(riverDropMeters(generation.generateSettings.riverDropMeters));
   }
   function applyElevationReliefToDocument(): void {
     rememberElevationRelief();
@@ -2476,6 +2488,39 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     applyElevationReliefToDocument();
   });
   paintElevationReliefReadout();
+  const riverDropInput = rangeInput(
+    String(riverDropMeters(generation.generateSettings.riverDropMeters)),
+    String(RIVER_DROP_MIN),
+    String(RIVER_DROP_MIN),
+    "1"
+  );
+  riverDropInput.className = "ce-river-drop";
+  riverDropInput.title = editorText("cityEditor.messages.riverDropHelp");
+  const riverDropValue = document.createElement("span");
+  riverDropValue.className = "ce-river-drop-value";
+  const riverDropControl = div("ce-river-drop-control");
+  riverDropControl.append(riverDropInput, riverDropValue);
+  function riverDropMax(): number {
+    const planned =
+      (generation.generateSettings.elevationPreset ?? "flat") === "flat"
+        ? 0
+        : 2 + presetAmplitude(documents.documentState.frame.extentMeters, generation.generateSettings.elevationRelief);
+    return riverDropUpperFor(documents.documentState, planned);
+  }
+  function showRiverDrop(drop: number): void {
+    const max = riverDropMax();
+    const shown = Math.min(max, drop);
+    riverDropInput.max = String(max);
+    riverDropInput.value = String(shown);
+    if (shown === RIVER_DROP_MIN) delete generation.generateSettings.riverDropMeters;
+    else generation.generateSettings.riverDropMeters = shown;
+    riverDropValue.textContent = editorText("cityEditor.messages.riverDropValue", { value0: String(shown) });
+  }
+  scope.listen(riverDropInput, "input", () => {
+    showRiverDrop(riverDropMeters(Number(riverDropInput.value)));
+    syncCity3d();
+  });
+  showRiverDrop(riverDropMeters(generation.generateSettings.riverDropMeters));
   const cityGenerationControls = div("ce-city-generation-controls");
   cityGenerationControls.append(
     importedBox,
@@ -2483,6 +2528,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     skeletonControls,
     label(editorText("cityEditor.messages.elevationPreset"), elevationPresetSelect),
     label(editorText("cityEditor.messages.elevationRelief"), elevationReliefControl),
+    label(editorText("cityEditor.messages.riverDrop"), riverDropControl),
     updateElevationReliefButton,
     synthControls,
     label(editorText("cityEditor.messages.wallMaterial"), wallMaterialSelect),
@@ -2738,7 +2784,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     getViewHalfSize: () => display.halfView,
     getViewCenter: () => display.viewCenter,
     getModelQuality: readModelQualityPreference,
-    getTerrainSpacing: readTerrainSpacingPreference
+    getTerrainSpacing: readTerrainSpacingPreference,
+    getRiverDropMeters: () => riverDropMeters(generation.generateSettings.riverDropMeters)
   });
   syncCity3d = () => city3d.sync();
   resetCity3dCamera = () => city3d.resetCamera();

@@ -1350,3 +1350,21 @@ describe("harbor piers", () => {
     });
   });
 });
+
+describe("elevation tint visibility", () => {
+  it("keeps the biome ground visible when disabled, including SVG exports", () => {
+    const doc = createDocument("elevation-tint", 400);
+    for (const face of Object.values(doc.mesh.faces)) {
+      face.properties.water = "land";
+      face.properties.elevation = 101;
+    }
+    const selection = { faceId: null, edgeId: null, vertexId: null, groupId: null };
+    const render = () => renderEditorSvg(doc, "select", selection, "-200 -200 400 400", 1);
+    expect(render().querySelector(".ce-cell-relief")).not.toBeNull();
+    doc.showElevationTint = false;
+    expect(render().querySelector(".ce-cell-relief")).toBeNull();
+    expect(renderStandaloneCitySvg(doc).querySelector(".ce-cell-relief")).toBeNull();
+    doc.showElevationTint = true;
+    expect(render().querySelector(".ce-cell-relief")).not.toBeNull();
+  });
+});

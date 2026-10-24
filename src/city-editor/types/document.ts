@@ -374,6 +374,8 @@ export interface FabricPlan {
 }
 
 export interface CityDocument {
+  /** Show the elevation tint in 2D; omitted preserves the legacy enabled state. */
+  showElevationTint?: boolean;
   fortSite?: import("./fortSite").FortSite;
   /** Earthworks over the cell elevations, such as a castle platform. Ignored by fort sites. */
   terrain?: import("./terrain").CityTerrainLayer;

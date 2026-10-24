@@ -30,8 +30,9 @@ interface Parts {
 
 function append(parts: Parts, soup: TriangleSoup, color: readonly [number, number, number], index: number): void {
   if (!soup.positions.length) return;
-  parts.positions.push(...soup.positions);
-  parts.normals.push(...soup.normals);
+  // Terrain-following curtains can exceed the argument limit of Array.push(...values).
+  for (const value of soup.positions) parts.positions.push(value);
+  for (const value of soup.normals) parts.normals.push(value);
   const vertices = soup.positions.length / 3;
   for (let i = 0; i < vertices; i++) {
     parts.colors.push(color[0], color[1], color[2]);

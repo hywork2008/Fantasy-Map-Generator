@@ -307,6 +307,7 @@ export function createDocumentIOController(ctx: DocumentIOContext) {
             measureBlockSize: ctx.documents.measureTownCells,
             biome: share.descriptor?.biome
           });
+    if (share.descriptor && !share.input) ctx.documents.documentState.showElevationTint = false;
     ctx.documents.history = new DocumentHistory(
       ctx.documents.documentState,
       share.descriptor ? editorText("cityEditor.messages.importedSite") : editorText("cityEditor.messages.sharedCity"),

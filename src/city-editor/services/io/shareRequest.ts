@@ -34,21 +34,24 @@ export function cityEditorDocument(share: CityEditorShare): CityDocument {
       return initial;
     } // The generator reports unsupported inputs without adopting a result.
   }
-  return createGridDocument({
-    size: share.size,
-    grid: share.grid,
-    seed: share.gridSeed ?? share.seed,
-    hexSizeMeters: share.hexSizeMeters,
-    patchParams: share.patchParams,
-    ...(share.descriptor
-      ? descriptorFrameGridOptions(
-          share.descriptor.frame,
-          share.descriptor.burg.waterAccess?.port.river === true,
-          share.descriptor.burg.riverPlacement?.bankDistanceMeters,
-          seaPortShoreDistanceMeters(share.descriptor)
-        )
-      : {}),
-    measureBlockSize: share.measureBlockSize === true,
-    biome: share.descriptor?.biome
-  });
+  return {
+    ...createGridDocument({
+      size: share.size,
+      grid: share.grid,
+      seed: share.gridSeed ?? share.seed,
+      hexSizeMeters: share.hexSizeMeters,
+      patchParams: share.patchParams,
+      ...(share.descriptor
+        ? descriptorFrameGridOptions(
+            share.descriptor.frame,
+            share.descriptor.burg.waterAccess?.port.river === true,
+            share.descriptor.burg.riverPlacement?.bankDistanceMeters,
+            seaPortShoreDistanceMeters(share.descriptor)
+          )
+        : {}),
+      measureBlockSize: share.measureBlockSize === true,
+      biome: share.descriptor?.biome
+    }),
+    ...(share.descriptor ? { showElevationTint: false } : {})
+  };
 }

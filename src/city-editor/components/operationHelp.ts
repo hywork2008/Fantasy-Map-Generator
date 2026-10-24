@@ -53,6 +53,7 @@ export const OPERATION_HELP_ENTRIES: HelpEntry[] = [
     content: ["cityEditor.messages.elevationPresetHelp"]
   },
   { id: "relief", title: "cityEditor.messages.elevationRelief", content: ["cityEditor.messages.elevationReliefHelp"] },
+  { id: "river-drop", title: "cityEditor.messages.riverDrop", content: ["cityEditor.messages.riverDropHelp"] },
   {
     id: "walls",
     title: "cityEditor.messages.urbanAreaInsideWalls",

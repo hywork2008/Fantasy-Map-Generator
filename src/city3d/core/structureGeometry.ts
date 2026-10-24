@@ -42,12 +42,22 @@ function pushOriented(bucket: Bucket, a: V3, b: V3, c: V3, interior: V3): void {
 }
 
 function addWall(bucket: Bucket, a: Point, b: Point, y0: number, y1: number, interior: V3): void {
-  const a0 = planVertex(a, y0);
-  const b0 = planVertex(b, y0);
-  const a1 = planVertex(a, y1);
-  const b1 = planVertex(b, y1);
-  pushOriented(bucket, a0, b0, b1, interior);
-  pushOriented(bucket, a0, b1, a1, interior);
+  addWallSpan(bucket, a, b, y0, y1, y0, y1, interior);
+}
+
+/** A span may rise from one end to the other. Each end keeps its own height. */
+function addWallSpan(
+  bucket: Bucket,
+  a: Point,
+  b: Point,
+  a0: number,
+  a1: number,
+  b0: number,
+  b1: number,
+  interior: V3
+): void {
+  pushOriented(bucket, planVertex(a, a0), planVertex(b, b0), planVertex(b, b1), interior);
+  pushOriented(bucket, planVertex(a, a0), planVertex(b, b1), planVertex(a, a1), interior);
 }
 
 function closedLine(points: readonly Point[]): boolean {
@@ -72,11 +82,17 @@ function segmentNormals(points: readonly Point[], closed: boolean): Point[] {
 }
 
 /** Left side of the centre line. Miter length stays within 4× the offset. */
-function offsetSide(points: readonly Point[], distance: number): Point[] | null {
+export function ribbonSidePoints(
+  points: readonly Point[],
+  distance: number,
+  offsets?: readonly Point[]
+): Point[] | null {
   if (points.length < 2 || !(Math.abs(distance) > 0)) return null;
   const closed = closedLine(points);
   const ring = closed ? points.slice(0, -1) : points;
   if (ring.length < 2) return null;
+  if (offsets?.length === points.length)
+    return ring.map((point, i) => [point[0] + offsets[i][0] * distance, point[1] + offsets[i][1] * distance]);
   const normals = segmentNormals(ring, closed);
   const side: Point[] = [];
   for (let i = 0; i < ring.length; i++) {
@@ -102,35 +118,56 @@ function offsetSide(points: readonly Point[], distance: number): Point[] | null 
   return side;
 }
 
-function extrudeRibbon(points: readonly Point[], width: number, y0: number, y1: number, bucket: Bucket): boolean {
-  if (!(width > 0) || !(y1 > y0 + 1e-4)) return false;
+function stationLevels(value: number | readonly number[], count: number): number[] | null {
+  if (typeof value === "number") return Array.from({ length: count }, () => value);
+  return value.length === count ? value.slice() : null;
+}
+
+/**
+ * `y0` and `y1` are one height for the whole ribbon, or one height per centre-line vertex.
+ * A closed line repeats its first point; the offset ring drops that repeat and keeps the first height.
+ */
+function extrudeRibbon(
+  points: readonly Point[],
+  width: number,
+  y0: number | readonly number[],
+  y1: number | readonly number[],
+  bucket: Bucket,
+  offsets?: readonly Point[]
+): boolean {
+  if (!(width > 0) || points.length < 2) return false;
+  const base = stationLevels(y0, points.length);
+  const top = stationLevels(y1, points.length);
+  if (!base || !top || base.some((level, index) => !(top[index] > level + 1e-4))) return false;
   const half = width / 2;
-  const left = offsetSide(points, half);
-  const right = offsetSide(points, -half);
+  const left = ribbonSidePoints(points, half, offsets);
+  const right = ribbonSidePoints(points, -half, offsets);
   if (!left || !right || left.length !== right.length || left.length < 2) return false;
   const closed = closedLine(points);
   const count = closed ? left.length : left.length - 1;
+  const level = (levels: number[], index: number) => levels[closed ? index % (points.length - 1) : index];
   for (let i = 0; i < count; i++) {
     const j = (i + 1) % left.length;
+    const low0 = level(base, i);
+    const low1 = level(base, j);
+    const high0 = level(top, i);
+    const high1 = level(top, j);
     const interior = planVertex(
       [
         (left[i][0] + right[i][0] + left[j][0] + right[j][0]) / 4,
         (left[i][1] + right[i][1] + left[j][1] + right[j][1]) / 4
       ],
-      (y0 + y1) / 2
+      (low0 + low1 + high0 + high1) / 4
     );
-    addWall(bucket, left[i], left[j], y0, y1, interior);
-    addWall(bucket, right[j], right[i], y0, y1, interior);
-    if (!closed && i === 0) addWall(bucket, right[i], left[i], y0, y1, interior);
-    if (!closed && i === count - 1) addWall(bucket, left[j], right[j], y0, y1, interior);
-    const top = (a: Point, b: Point, c: Point) =>
-      pushOriented(bucket, planVertex(a, y1), planVertex(b, y1), planVertex(c, y1), interior);
-    const bottom = (a: Point, b: Point, c: Point) =>
-      pushOriented(bucket, planVertex(a, y0), planVertex(b, y0), planVertex(c, y0), interior);
-    top(left[i], right[i], right[j]);
-    top(left[i], right[j], left[j]);
-    bottom(left[i], right[j], right[i]);
-    bottom(left[i], left[j], right[j]);
+    addWallSpan(bucket, left[i], left[j], low0, high0, low1, high1, interior);
+    addWallSpan(bucket, right[j], right[i], low1, high1, low0, high0, interior);
+    if (!closed && i === 0) addWallSpan(bucket, right[i], left[i], low0, high0, low0, high0, interior);
+    if (!closed && i === count - 1) addWallSpan(bucket, left[j], right[j], low1, high1, low1, high1, interior);
+    const at = (point: Point, y: number) => planVertex(point, y);
+    pushOriented(bucket, at(left[i], high0), at(right[i], high0), at(right[j], high1), interior);
+    pushOriented(bucket, at(left[i], high0), at(right[j], high1), at(left[j], high1), interior);
+    pushOriented(bucket, at(left[i], low0), at(right[j], low1), at(right[i], low0), interior);
+    pushOriented(bucket, at(left[i], low0), at(left[j], low1), at(right[j], low1), interior);
   }
   return true;
 }
@@ -156,7 +193,7 @@ function outwardSign(points: readonly Point[], anchor: Point): number {
 }
 
 function shiftLine(points: readonly Point[], distance: number): Point[] | null {
-  const side = offsetSide(points, distance);
+  const side = ribbonSidePoints(points, distance);
   if (!side) return null;
   return closedLine(points) ? [...side, side[0]] : side;
 }
@@ -242,19 +279,33 @@ function addSpire(structure: StructureMassing, roofs: Bucket): void {
   appendSoup(roofs, lift(surfaces.roofs, structure.baseElevationMeters + structure.heightMeters));
 }
 
+/** Explicit walk levels also allow a taller wall body beside a terrace. */
+function ribbonTops(structure: StructureMassing, count: number): number | number[] {
+  if (structure.topElevationsMeters?.length === count) return structure.topElevationsMeters;
+  if (structure.baseElevationsMeters?.length === count)
+    return structure.baseElevationsMeters.map(level => level + structure.heightMeters);
+  return structure.baseElevationMeters + structure.heightMeters;
+}
+
 function addParapet(structure: StructureMassing, roofs: Bucket): void {
   const line = structure.centerline;
   if (!line || structure.parapet === "none" || !(structure.parapetMeters > 0) || !(structure.parapetWidthMeters > 0))
     return;
   const width = structure.widthMeters ?? 0;
   const inset = Math.max(0, (width - structure.parapetWidthMeters) / 2);
-  const y0 = structure.baseElevationMeters + structure.heightMeters;
-  const y1 = y0 + structure.parapetMeters;
+  const y0 = ribbonTops(structure, line.length);
+  const y1 = typeof y0 === "number" ? y0 + structure.parapetMeters : y0.map(level => level + structure.parapetMeters);
   const shifts =
     structure.parapet === "both" ? [inset, -inset] : [outwardSign(line, structure.anchor ?? [0, 0]) * inset];
   for (const shift of shifts) {
-    const shifted = Math.abs(shift) > 0.05 ? shiftLine(line, shift) : line;
-    if (shifted) extrudeRibbon(shifted, structure.parapetWidthMeters, y0, y1, roofs);
+    const offsets = structure.ribbonOffsets;
+    const shifted =
+      offsets?.length === line.length
+        ? line.map((point, i): Point => [point[0] + offsets[i][0] * shift, point[1] + offsets[i][1] * shift])
+        : Math.abs(shift) > 0.05
+          ? shiftLine(line, shift)
+          : line;
+    if (shifted) extrudeRibbon(shifted, structure.parapetWidthMeters, y0, y1, roofs, offsets);
   }
 }
 
@@ -507,12 +558,15 @@ export function structureSurfaces(structure: StructureMassing): BuildingSurfaces
   const walls: Bucket = { positions: [], normals: [] };
   const roofs: Bucket = { positions: [], normals: [] };
   if (structure.centerline && structure.centerline.length >= 2 && structure.widthMeters) {
+    const bases = structure.baseElevationsMeters;
+    const sloped = bases !== undefined && bases.length === structure.centerline.length ? bases : undefined;
     const drawn = extrudeRibbon(
       structure.centerline,
       structure.widthMeters,
-      structure.baseElevationMeters,
-      structure.baseElevationMeters + structure.heightMeters,
-      walls
+      sloped ?? structure.baseElevationMeters,
+      ribbonTops(structure, structure.centerline.length),
+      walls,
+      structure.ribbonOffsets
     );
     if (!drawn) return null;
     addParapet(structure, roofs);

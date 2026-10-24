@@ -12,6 +12,7 @@ import { randomSeed } from "../generators/generation/settings";
 import { generateSkeletonPreview } from "../generators/generation/skeleton/previews";
 import { generationPhaseLabel, logGenerationFailures } from "../generators/generationDiagnostics";
 import { clone } from "../generators/mesh";
+import { RIVER_DROP_MIN, riverDropMeters, riverDropUpperFor } from "../generators/riverSurface";
 import { generateRuralFieldStage } from "../generators/ruralFieldStage";
 import { WALL_COAST_CHOICES, WALL_MATERIAL_CHOICES } from "../generators/site/siteConfig";
 import { DEFAULT_CASTLE_RISE_METERS } from "../generators/terrainEditing";
@@ -741,6 +742,26 @@ export function createGenerationController(ctx: GenerationContext) {
     }
     if (updateElevationRelief)
       updateElevationRelief.disabled = (ctx.generation.generateSettings.elevationPreset ?? "flat") === "flat";
+    const riverDrop = ctx.root.querySelector<HTMLInputElement>(".ce-river-drop");
+    const riverDropValue = ctx.root.querySelector<HTMLElement>(".ce-river-drop-value");
+    if (riverDrop) {
+      const planned =
+        (ctx.generation.generateSettings.elevationPreset ?? "flat") === "flat"
+          ? 0
+          : 2 +
+            presetAmplitude(
+              ctx.documents.documentState.frame.extentMeters,
+              ctx.generation.generateSettings.elevationRelief
+            );
+      const max = riverDropUpperFor(ctx.documents.documentState, planned);
+      const drop = Math.min(max, riverDropMeters(ctx.generation.generateSettings.riverDropMeters));
+      riverDrop.max = String(max);
+      riverDrop.value = String(drop);
+      if (drop === RIVER_DROP_MIN) delete ctx.generation.generateSettings.riverDropMeters;
+      else ctx.generation.generateSettings.riverDropMeters = drop;
+      if (riverDropValue)
+        riverDropValue.textContent = editorText("cityEditor.messages.riverDropValue", { value0: String(drop) });
+    }
     const terrainField = ctx.root.querySelector<HTMLSelectElement>(".ce-terrain-field");
     if (terrainField) {
       const allowed = fieldModeAllowed(ctx.documents.documentState.frame.extentMeters);
