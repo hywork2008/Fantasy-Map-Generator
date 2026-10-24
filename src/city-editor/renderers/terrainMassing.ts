@@ -1,3 +1,4 @@
+import { ribbonSidePoints } from "../../city3d/core/structureGeometry";
 import type { BuildingLot } from "../generators/buildingLots.types";
 import { polygonArea } from "../generators/geom";
 import { STAIR_RISER_METERS } from "../generators/roadGrading";
@@ -24,7 +25,7 @@ export function groundStructures(parts: StructureMassing[], terrain: CityTerrain
     if (!building || skipped(part) || !ring.length) continue;
     buildingLevels.set(building, Math.max(buildingLevels.get(building) ?? -Infinity, terrain.foundationAt(ring)));
   }
-  return parts.flatMap(whole => splitWallOnTerrain(whole, terrain).flatMap(groundPart));
+  return parts.flatMap(whole => (curtainFollowsGround(whole) ? [slopeCurtain(whole, terrain)] : groundPart(whole)));
 
   function groundPart(part: StructureMassing): StructureMassing[] {
     if (skipped(part)) return [part];
@@ -67,38 +68,114 @@ export function groundStructures(parts: StructureMassing[], terrain: CityTerrain
   }
 }
 
-/** Longest ground-height spread one wall run may span before it is cut and grounded on its own. */
-const WALL_RUN_MAX_SPREAD_METERS = 2;
+/** Sample narrow terrain changes even when the two ends and midpoint happen to be level. */
+const WALL_SAMPLE_METERS = 1;
+/** A 1:2 rise spreads terrace transitions into continuous inclined wall walks. */
+const WALL_WALK_MAX_GRADE = 0.5;
+const WALL_FOOTING_DEPTH_METERS = 0.3;
+const WALL_CLEARANCE_METERS = 0.2;
+
+/** Town and castle curtains follow relief; authored fortress sections keep their own geometry. */
+function curtainFollowsGround(part: StructureMassing): boolean {
+  return (
+    part.kind === "wall" &&
+    !part.sections &&
+    !part.footprint &&
+    !!part.centerline &&
+    part.centerline.length >= 2 &&
+    !!part.widthMeters &&
+    !part.id.startsWith("fort-site:") &&
+    !part.id.includes(":krak:")
+  );
+}
 
 /**
- * A curtain wall follows the ground along its length. One level for the whole centerline would let a distant
- * hill raise the entire wall and turn its plinth into a cliff, so the centerline is cut into runs of similar ground.
+ * Keep a full defensive height above both sides of the ribbon, including mitered corners.
+ * The walk is a continuous grade envelope above the terrain; the footing extends below it
+ * independently so raising the walk beside a terrace cannot leave a floating wall.
  */
-function splitWallOnTerrain(part: StructureMassing, terrain: CityTerrain): StructureMassing[] {
+function slopeCurtain(part: StructureMassing, terrain: CityTerrain): StructureMassing {
   const line = part.centerline;
-  if (part.kind !== "wall" || part.footprint || part.sections || !line || line.length < 3) return [part];
-  const runs: Point[][] = [];
-  let run: Point[] = [line[0]];
-  let top = -Infinity;
-  let bottom = Infinity;
+  if (!line) return part;
+  const originalSide = ribbonSidePoints(line, 1);
+  if (!originalSide) return part;
+  const originalOffsets = line.map(
+    (point, i): Point => [
+      originalSide[i % originalSide.length][0] - point[0],
+      originalSide[i % originalSide.length][1] - point[1]
+    ]
+  );
+  const centerline: Point[] = [[...line[0]]];
+  const ribbonOffsets: Point[] = [[...originalOffsets[0]]];
   for (let i = 1; i < line.length; i++) {
     const a = line[i - 1],
       b = line[i];
-    const segTop = terrain.foundationAt([a, b]);
-    const segBottom = Math.min(terrain.heightAt(a), terrain.heightAt(b));
-    if (run.length > 1 && Math.max(top, segTop) - Math.min(bottom, segBottom) > WALL_RUN_MAX_SPREAD_METERS) {
-      runs.push(run);
-      run = [a];
-      top = -Infinity;
-      bottom = Infinity;
+    const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (length < 1e-4) continue;
+    const steps = Math.ceil(length / WALL_SAMPLE_METERS);
+    for (let j = 1; j <= steps; j++) {
+      const t = j / steps;
+      centerline.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+      const u = originalOffsets[i - 1],
+        v = originalOffsets[i];
+      ribbonOffsets.push([u[0] + (v[0] - u[0]) * t, u[1] + (v[1] - u[1]) * t]);
     }
-    run.push(b);
-    top = Math.max(top, segTop);
-    bottom = Math.min(bottom, segBottom);
   }
-  runs.push(run);
-  if (runs.length === 1) return [part];
-  return runs.map((centerline, k) => ({ ...part, id: `${part.id}:run${k}`, centerline }));
+  const left = ribbonSidePoints(centerline, part.widthMeters! / 2, ribbonOffsets);
+  const right = ribbonSidePoints(centerline, -part.widthMeters! / 2, ribbonOffsets);
+  if (!left || !right) return part;
+  const band = (a: Point, b: Point) => {
+    const samples = Array.from({ length: 5 }, (_, i) =>
+      terrain.heightAt([a[0] + ((b[0] - a[0]) * i) / 4, a[1] + ((b[1] - a[1]) * i) / 4])
+    );
+    return { low: Math.min(...samples), high: Math.max(...samples) };
+  };
+  const bands = centerline.map((_, i) => band(left[i % left.length], right[i % right.length]));
+  const lows = bands.map(value => value.low);
+  const highs = bands.map(value => value.high);
+  // Include each span's interior, and lift both ends above any intervening crest.
+  for (let i = 1; i < centerline.length; i++) {
+    const a = (i - 1) % left.length,
+      b = i % left.length;
+    const mid = band(
+      [(left[a][0] + left[b][0]) / 2, (left[a][1] + left[b][1]) / 2],
+      [(right[a][0] + right[b][0]) / 2, (right[a][1] + right[b][1]) / 2]
+    );
+    const high = Math.max(bands[i - 1].high, bands[i].high, mid.high);
+    highs[i - 1] = Math.max(highs[i - 1], high);
+    highs[i] = Math.max(highs[i], high);
+    lows[i - 1] = Math.min(lows[i - 1], mid.low);
+    lows[i] = Math.min(lows[i], mid.low);
+  }
+  const closed = left.length < centerline.length;
+  // Two circuits propagate the grade envelope across the closure as well as along an open run.
+  for (let pass = 0; pass < (closed ? 2 : 1); pass++) {
+    if (closed) highs[0] = highs[highs.length - 1] = Math.max(highs[0], highs[highs.length - 1]);
+    for (let i = 1; i < highs.length; i++) {
+      const distance = Math.hypot(centerline[i][0] - centerline[i - 1][0], centerline[i][1] - centerline[i - 1][1]);
+      highs[i] = Math.max(highs[i], highs[i - 1] - WALL_WALK_MAX_GRADE * distance);
+    }
+    for (let i = highs.length - 2; i >= 0; i--) {
+      const distance = Math.hypot(centerline[i + 1][0] - centerline[i][0], centerline[i + 1][1] - centerline[i][1]);
+      highs[i] = Math.max(highs[i], highs[i + 1] - WALL_WALK_MAX_GRADE * distance);
+    }
+  }
+  if (closed) {
+    highs[0] = highs[highs.length - 1] = Math.max(highs[0], highs[highs.length - 1]);
+    lows[0] = lows[lows.length - 1] = Math.min(lows[0], lows[lows.length - 1]);
+  }
+  const baseElevationsMeters = lows.map(level => level + part.baseElevationMeters - WALL_FOOTING_DEPTH_METERS);
+  const topElevationsMeters = highs.map(
+    level => level + part.baseElevationMeters + part.heightMeters + WALL_CLEARANCE_METERS
+  );
+  return {
+    ...part,
+    centerline,
+    ribbonOffsets,
+    baseElevationsMeters,
+    topElevationsMeters,
+    baseElevationMeters: Math.max(...highs) + part.baseElevationMeters
+  };
 }
 
 export function lotFoundations(lots: readonly BuildingLot[], terrain: CityTerrain): StructureMassing[] {

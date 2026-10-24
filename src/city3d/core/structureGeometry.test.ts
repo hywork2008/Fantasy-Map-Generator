@@ -93,6 +93,59 @@ describe("structure geometry", () => {
     expect(range(withSpire.roofs.positions, 1).max).toBeCloseTo(expected, 4);
   });
 
+  it("slopes a curtain and keeps the parapet a fixed height above the wall", () => {
+    const surfaces = structureSurfaces({
+      ...wall,
+      baseElevationsMeters: [0, 6],
+      baseElevationMeters: 6
+    })!;
+    const positions = concatPositions(surfaces.walls, surfaces.roofs);
+    expect(meshIsClosed(positions)).toBe(true);
+    const ys = (xMin: number, xMax: number) => {
+      const found: number[] = [];
+      for (let i = 0; i < positions.length; i += 3)
+        if (positions[i] >= xMin && positions[i] <= xMax) found.push(positions[i + 1]);
+      return found;
+    };
+    const low = ys(-0.01, 0.01);
+    const high = ys(19.99, 20.01);
+    expect(Math.min(...low)).toBeCloseTo(0, 2);
+    expect(Math.max(...low)).toBeCloseTo(9.1, 2);
+    expect(Math.min(...high)).toBeCloseTo(6, 2);
+    expect(Math.max(...high)).toBeCloseTo(15.1, 2);
+  });
+
+  it("extends the footing below a raised walk and attaches the parapet to that walk", () => {
+    const surfaces = structureSurfaces({
+      ...wall,
+      baseElevationsMeters: [-0.3, 1.7],
+      topElevationsMeters: [8, 14]
+    })!;
+    expect(meshIsClosed(concatPositions(surfaces.walls, surfaces.roofs))).toBe(true);
+    expect(range(surfaces.walls.positions, 1)).toEqual({ min: expect.closeTo(-0.3, 4), max: 14 });
+    expect(range(surfaces.roofs.positions, 1)).toEqual({ min: 8, max: expect.closeTo(15.1, 4) });
+  });
+
+  it("closes a curtain that slopes around a ring", () => {
+    const surfaces = structureSurfaces({
+      ...wall,
+      centerline: [
+        [0, 0],
+        [20, 0],
+        [20, 16],
+        [0, 16],
+        [0, 0]
+      ],
+      baseElevationsMeters: [0, 4, 8, 4, 0],
+      baseElevationMeters: 8,
+      parapet: "none"
+    })!;
+    const positions = concatPositions(surfaces.walls, surfaces.roofs);
+    expect(meshIsClosed(positions)).toBe(true);
+    expect(range(positions, 1).min).toBeCloseTo(0, 2);
+    expect(range(positions, 1).max).toBeCloseTo(16, 2);
+  });
+
   it("closes a curtain and lifts the parapet above the wall", () => {
     const surfaces = structureSurfaces(wall);
     expect(surfaces).not.toBeNull();

@@ -21,6 +21,12 @@ export interface StructureMassing {
   color?: readonly [number, number, number];
   /** Ribbon centre line. Absent when `footprint` is set. */
   centerline?: Point[];
+  /** Ribbon footing levels in the local mesh frame, one per centre-line vertex. */
+  baseElevationsMeters?: number[];
+  /** Walk levels independent of the footing, preserving defensive height beside terraces. */
+  topElevationsMeters?: number[];
+  /** Unit-width miter offsets interpolated from the original ribbon before terrain sampling. */
+  ribbonOffsets?: Point[];
   widthMeters?: number;
   /** Closed ring. Absent or empty `holes` leaves a solid cap. */
   footprint?: Point[];
