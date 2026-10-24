@@ -67,6 +67,7 @@ import { planTerraces } from "../terracePlanning";
 import { generatedCastleTerrain } from "../terrainEditing";
 import { attachTerrainField } from "../terrainField/attach";
 import { fieldModeAllowed } from "../terrainField/constants";
+import { installLotPads } from "../terrainField/pads";
 import { consolidateThinRoadCells } from "../thinRoadCells";
 import { auditTownDefenseClosure } from "../townDefenseClosure";
 import { connectUrbanRiverDistricts } from "../urbanBridges";
@@ -426,6 +427,10 @@ export function generateCityOnDocument(
             ...(singleWallApplied && singleWallFallback !== undefined ? { singleWallFallback } : {})
           }
         });
+      if (result.terrain?.field)
+        measureProcessing(profiler, "lot-pads", () =>
+          installLotPads(result, buildBlockFabric(result, fabricCache).buildings)
+        );
       return measureProcessing(profiler, "farmland", () => generateRuralFieldStage(result));
     }
     if (onRejected) return null;

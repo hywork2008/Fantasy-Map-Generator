@@ -1,5 +1,6 @@
 import { terrainFieldForDocument } from "../generators/terrainField/build";
 import { fieldContours, fieldHachures } from "../generators/terrainField/contours";
+import { offsetPolyline } from "../generators/terrainField/corridor";
 import { sampleField } from "../generators/terrainField/sample";
 import type { CityDocument } from "../types/document";
 import type { TerrainField } from "../types/terrain";
@@ -34,6 +35,21 @@ export function renderTerrainFieldOverlay(document: CityDocument): SVGElement {
         "vector-effect": "non-scaling-stroke"
       })
     );
+  for (const feature of document.terrain?.features ?? []) {
+    if (feature.kind !== "riverCorridor" || feature.bank.kind !== "quay") continue;
+    const half = Math.max(...feature.widthsMeters) / 2;
+    for (const side of [half, -half])
+      group.appendChild(
+        element("path", {
+          d: line(offsetPolyline(feature.centerline, side)),
+          class: "ce-quay",
+          fill: "none",
+          stroke: "rgba(70, 64, 56, 0.85)",
+          "stroke-width": "1.1",
+          "vector-effect": "non-scaling-stroke"
+        })
+      );
+  }
   return group;
 }
 

@@ -24,6 +24,7 @@ import {
   validate,
   vertexTouchesWater
 } from "./mesh";
+import { refreshRiverCorridors } from "./terrainField/corridor";
 
 export function createGroup(document: CityDocument, kind: FeatureGroup["kind"], material?: WallMaterial): CityDocument {
   const next = clone(document);
@@ -552,6 +553,7 @@ export function rerouteGroupVertex(
     if (group.source?.vertexId === fromVertexId) group.source.vertexId = toVertexId;
     if (group.mouth?.vertexId === fromVertexId)
       group.mouth = vertexTouchesWater(next.mesh, toVertexId) ? { vertexId: toVertexId, kind: "water" } : null;
+    refreshRiverCorridors(next);
   } else {
     const segments = edgeRefsForVertices(next.mesh, rerouted);
     if (!segments) return null;

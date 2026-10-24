@@ -1,5 +1,14 @@
 import type { Id, Point } from "../types/primitives";
-import type { TerrainCircle, TerrainFeature, TerrainPlatform, TerrainRamp, TerrainRingCut } from "../types/terrain";
+import type {
+  TerrainCircle,
+  TerrainFeature,
+  TerrainPlatform,
+  TerrainRamp,
+  TerrainRingCut,
+  TerrainRiverCorridor
+} from "../types/terrain";
+import { pointInPolygon } from "./geom";
+import { corridorGround } from "./terrainField/corridor";
 
 /** Horizontal width of a cliff face, inside the platform, so heights stay single-valued. */
 export const CLIFF_BAND_METERS = 0.25;
@@ -30,63 +39,98 @@ const outlineBin = (x: number, y: number) => `${x},${y}`;
 export type ResolvedTerrainPlatform = Omit<TerrainPlatform, "summit"> & {
   summit: ({ kind: "circle" } & TerrainCircle) | TerrainOutline;
 };
-export type ResolvedTerrainFeature = ResolvedTerrainPlatform | TerrainRingCut;
+export type ResolvedTerrainFeature = ResolvedTerrainPlatform | TerrainRingCut | TerrainRiverCorridor;
+
+const verticalEdge = (edge: TerrainPlatform["edge"]) => edge.kind === "cliff" || edge.kind === "wall";
 
 const distance = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
 
-/** Replaces cell-shaped summits by their outline. Fort features, being analytic, need no resolver. */
+function polygonSegments(points: readonly Point[]): OutlineSegment[] {
+  const segments: OutlineSegment[] = [];
+  for (let i = 0; i < points.length; i++) {
+    const a = points[i];
+    const b = points[(i + 1) % points.length];
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    const length = Math.hypot(dx, dy);
+    if (length < 1e-9) continue;
+    let inward: Point = [-dy / length, dx / length];
+    const probe: Point = [(a[0] + b[0]) / 2 + inward[0] * 1e-3, (a[1] + b[1]) / 2 + inward[1] * 1e-3];
+    if (!pointInPolygon(probe, points as Point[])) inward = [-inward[0], -inward[1]];
+    segments.push({ a: [a[0], a[1]], b: [b[0], b[1]], inward });
+  }
+  return segments;
+}
+
+function packOutline(
+  segments: OutlineSegment[],
+  reach: number,
+  faceIds: ReadonlySet<Id>,
+  contains?: (point: Point) => boolean | null
+): TerrainOutline | null {
+  if (!segments.length) return null;
+  const xs = segments.flatMap(segment => [segment.a[0], segment.b[0]]);
+  const ys = segments.flatMap(segment => [segment.a[1], segment.b[1]]);
+  const bins = new Map<string, OutlineSegment[]>();
+  for (const segment of segments)
+    for (
+      let x = Math.floor((Math.min(segment.a[0], segment.b[0]) - reach) / OUTLINE_BIN_METERS);
+      x <= Math.floor((Math.max(segment.a[0], segment.b[0]) + reach) / OUTLINE_BIN_METERS);
+      x++
+    )
+      for (
+        let y = Math.floor((Math.min(segment.a[1], segment.b[1]) - reach) / OUTLINE_BIN_METERS);
+        y <= Math.floor((Math.max(segment.a[1], segment.b[1]) + reach) / OUTLINE_BIN_METERS);
+        y++
+      ) {
+        const id = outlineBin(x, y);
+        const list = bins.get(id);
+        if (list) list.push(segment);
+        else bins.set(id, [segment]);
+      }
+  return {
+    kind: "outline",
+    faceIds,
+    segments,
+    bounds: { minX: Math.min(...xs), minY: Math.min(...ys), maxX: Math.max(...xs), maxY: Math.max(...ys) },
+    bins,
+    reach,
+    ...(contains ? { contains } : {})
+  };
+}
+
+/** Replaces cell-shaped and polygon summits by their outline. Fort features, being analytic, need no resolver. */
 export function resolveTerrainFeatures(
   features: readonly TerrainFeature[],
   outline?: (faceIds: readonly Id[]) => OutlineSegment[],
   locate?: (point: Point) => Id | null
 ): ResolvedTerrainFeature[] {
   return features.flatMap((feature): ResolvedTerrainFeature[] => {
-    if (feature.kind !== "platform" || feature.summit.kind !== "faces") return [feature as ResolvedTerrainFeature];
-    const segments = outline?.(feature.summit.faceIds) ?? [];
-    if (!segments.length) return [];
-    const xs = segments.flatMap(s => [s.a[0], s.b[0]]),
-      ys = segments.flatMap(s => [s.a[1], s.b[1]]);
+    if (feature.kind !== "platform") return [feature];
     const reach = Math.max(CLIFF_BAND_METERS, feature.edge.kind === "slope" ? feature.edge.runMeters : 0) + 0.01;
-    const bins = new Map<string, OutlineSegment[]>();
-    for (const segment of segments)
-      for (
-        let x = Math.floor((Math.min(segment.a[0], segment.b[0]) - reach) / OUTLINE_BIN_METERS);
-        x <= Math.floor((Math.max(segment.a[0], segment.b[0]) + reach) / OUTLINE_BIN_METERS);
-        x++
-      )
-        for (
-          let y = Math.floor((Math.min(segment.a[1], segment.b[1]) - reach) / OUTLINE_BIN_METERS);
-          y <= Math.floor((Math.max(segment.a[1], segment.b[1]) + reach) / OUTLINE_BIN_METERS);
-          y++
-        ) {
-          const id = outlineBin(x, y);
-          const list = bins.get(id);
-          if (list) list.push(segment);
-          else bins.set(id, [segment]);
-        }
-    const faceIds = new Set(feature.summit.faceIds);
-    return [
-      {
-        ...feature,
-        summit: {
-          kind: "outline",
-          faceIds,
-          segments,
-          bounds: { minX: Math.min(...xs), minY: Math.min(...ys), maxX: Math.max(...xs), maxY: Math.max(...ys) },
-          bins,
-          reach,
-          ...(locate
-            ? {
-                contains: (point: Point) => {
-                  const id = locate(point);
-                  return id === null ? null : faceIds.has(id);
-                }
-              }
-            : {})
-        }
-      }
-    ];
+    const summit = feature.summit;
+    if (summit.kind === "polygon") {
+      const points = summit.points;
+      const packed = packOutline(polygonSegments(points), reach, new Set(), point => pointInPolygon(point, points));
+      return packed ? [{ ...feature, summit: packed }] : [];
+    }
+    if (summit.kind === "circle") return [{ ...feature, summit }];
+    if (summit.kind !== "faces") return [];
+    const segments = outline?.(summit.faceIds) ?? [];
+    const faceIds = new Set(summit.faceIds);
+    const packed = packOutline(
+      segments,
+      reach,
+      faceIds,
+      locate
+        ? point => {
+            const id = locate(point);
+            return id === null ? null : faceIds.has(id);
+          }
+        : undefined
+    );
+    return packed ? [{ ...feature, summit: packed }] : [];
   });
 }
 
@@ -148,27 +192,43 @@ function platformLevel(feature: ResolvedTerrainPlatform, base: number, point: Po
     return null;
   const d = edgeDistance(summit, point);
   if (insideOutline(point, summit))
-    return feature.edge.kind === "cliff"
+    return verticalEdge(feature.edge)
       ? base + clamp01(d / CLIFF_BAND_METERS) * (feature.levelMeters - base)
       : feature.levelMeters;
   if (reach <= 0 || d > reach) return null;
   return base + (1 - d / reach) * (feature.levelMeters - base);
 }
 
-/** Absolute height at a point: raise by platforms, then excavate outside every platform footprint. */
+/** Absolute height at a point: carve river corridors, then raise platforms, then excavate outside them. */
 export function evaluateTerrainFeatures(
   features: readonly ResolvedTerrainFeature[],
   baseAt: (point: Point) => number,
   point: Point
 ): number {
-  const base = baseAt(point);
+  const natural = baseAt(point);
+  let base = natural;
+  for (const feature of features) {
+    if (feature.kind !== "riverCorridor") continue;
+    const carved = corridorGround(feature, natural, point);
+    if (carved !== null) base = Math.min(base, carved);
+  }
   let level = base,
-    dry = false;
+    dry = false,
+    padLevel: number | null = null;
   for (const feature of features) {
     if (feature.kind !== "platform") continue;
     const raised = platformLevel(feature, base, point);
     if (raised === null) continue;
-    level = Math.max(level, raised);
+    // A pad is a cut and a fill, so it replaces the slope. A castle platform only raises,
+    // and it keeps that raise where a pad would otherwise cover the same point.
+    if (feature.role === "pad") padLevel = raised;
+    else {
+      level = Math.max(level, raised);
+      dry = true;
+    }
+  }
+  if (padLevel !== null && !dry) {
+    level = padLevel;
     dry = true;
   }
   if (dry) return level;
@@ -191,6 +251,7 @@ export function terrainFeatureBreaklines(features: readonly ResolvedTerrainFeatu
         ? [summit, { center: summit.center, radiusMeters: summit.radiusMeters + feature.edge.runMeters }]
         : [summit];
     }
+    if (feature.kind !== "ringCut") return [];
     const half = feature.widthMeters / 2,
       bank = half * (1 - feature.bankFraction);
     const offsets = [-half, -bank, bank, half];
@@ -214,7 +275,7 @@ export function terrainFeatureCreases(
     feature.kind === "platform" && feature.summit.kind === "outline"
       ? feature.summit.segments.map(segment => ({
           segment,
-          offsetMeters: feature.edge.kind === "cliff" ? CLIFF_BAND_METERS : -feature.edge.runMeters
+          offsetMeters: feature.edge.kind === "slope" ? -feature.edge.runMeters : CLIFF_BAND_METERS
         }))
       : []
   );
@@ -225,9 +286,9 @@ export function onTerrainEscarpment(features: readonly ResolvedTerrainFeature[],
   return features.some(
     feature =>
       feature.kind === "platform" &&
-      feature.edge.kind === "cliff" &&
+      verticalEdge(feature.edge) &&
       feature.summit.kind === "outline" &&
-      feature.summit.faceIds.has(faceId) &&
+      (feature.summit.faceIds.size === 0 || feature.summit.faceIds.has(faceId)) &&
       edgeDistance(feature.summit, point) < CLIFF_BAND_METERS - 1e-6
   );
 }
@@ -250,6 +311,7 @@ export function terrainLevelAt(features: readonly ResolvedTerrainFeature[], poin
     if (
       feature.kind !== "platform" ||
       feature.role === "terrace" ||
+      feature.role === "pad" ||
       feature.edge.kind !== "cliff" ||
       feature.summit.kind !== "outline"
     )
@@ -274,7 +336,7 @@ export function onPlatformSummit(features: readonly ResolvedTerrainFeature[], po
     if (point[0] < bounds.minX || point[0] > bounds.maxX || point[1] < bounds.minY || point[1] > bounds.maxY)
       return false;
     if (!insideOutline(point, summit)) return false;
-    return feature.edge.kind !== "cliff" || edgeDistance(summit, point) >= CLIFF_BAND_METERS;
+    return !verticalEdge(feature.edge) || edgeDistance(summit, point) >= CLIFF_BAND_METERS;
   });
 }
 

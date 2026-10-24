@@ -84,7 +84,9 @@ describe("terraces", () => {
     };
     const terraced = generate(true),
       natural = generate(false);
-    expect(terraced.terrain?.features.filter(feature => feature.role === "terrace").length).toBeGreaterThan(3);
+    expect(
+      terraced.terrain?.features.filter(feature => feature.kind === "platform" && feature.role === "terrace").length
+    ).toBeGreaterThan(3);
     expect(natural.terrain).toBeUndefined();
     expect(buildBlockFabric(terraced).farms.length).toBe(buildBlockFabric(natural).farms.length);
     const terrain = cityTerrain(terraced, { roads: collectTownRoads(terraced, buildBlockFabric(terraced).lanes) });

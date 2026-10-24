@@ -24,7 +24,7 @@ function sides(centerline: readonly Point[], half: number): [Point[], Point[]] {
 export function renderTerrainEarthworks(document: CityDocument): SVGElement {
   const group = element("g", { class: "ce-terrain-earthworks" });
   for (const feature of document.terrain?.features ?? []) {
-    if (feature.edge.kind !== "cliff" || feature.summit.kind !== "faces") continue;
+    if (feature.kind !== "platform" || feature.edge.kind !== "cliff" || feature.summit.kind !== "faces") continue;
     const segments = platformOutline(document, feature.summit.faceIds);
     // Terrace walls of a hill town are many and low; a castle scarp is drawn heavier.
     const terrace = feature.role === "terrace";

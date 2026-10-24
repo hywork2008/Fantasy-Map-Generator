@@ -16,6 +16,7 @@ import { validPopulationDocument } from "../../generators/populationValidation";
 import { validRuralFieldSettings } from "../../generators/ruralFieldProfile";
 import { validRuralFieldSnapshot } from "../../generators/ruralFieldSnapshot";
 import { validRegionalFrameRoads, validSceneRegions } from "../../generators/sceneRegions";
+import { repairRiverBeds } from "../../generators/terrainField/corridor";
 import { validUrbanGrowth } from "../../generators/urbanGrowth";
 import type { FixedApproachProvider } from "../../types/contracts/fixedApproachAdoption";
 import type { CityDocument } from "../../types/document";
@@ -25,6 +26,7 @@ export function parseDocument(text: string, fixedApproachProvider?: FixedApproac
   try {
     const value = JSON.parse(text) as unknown;
     if (!isDocument(value)) return null;
+    repairRiverBeds(value);
     if (value.burialProfile !== undefined && !isBurialCultureProfile(value.burialProfile)) return null;
     if (value.civilization !== undefined && !isCivilizationContext(value.civilization)) delete value.civilization;
     if (value.cemeteries?.some(c => c.burialProfile !== undefined && !isBurialCultureProfile(c.burialProfile)))

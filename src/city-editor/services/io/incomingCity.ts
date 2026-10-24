@@ -17,6 +17,7 @@ import {
   validPopulationSettings
 } from "../../generators/populationPlan";
 import { joinStrandedRoadsToCrossings } from "../../generators/site/strandedRoads";
+import { repairRiverBeds } from "../../generators/terrainField/corridor";
 import type { IncomingOrigin } from "../../types/contracts/incomingCity";
 import type { CityDocument } from "../../types/document";
 import type { GenerationStage } from "../../types/generation";
@@ -425,6 +426,7 @@ function asShare(raw: unknown): CityEditorShare | null {
     settings
   };
   if (raw.input !== undefined) {
+    if (isRecord(raw.input)) repairRiverBeds(raw.input as unknown as CityDocument);
     const input = parseDocument(JSON.stringify(raw.input));
     if (!input || input.fabric) return warnShape("share.input");
     share.input = input;

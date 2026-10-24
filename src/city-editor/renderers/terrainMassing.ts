@@ -30,7 +30,17 @@ export function groundStructures(parts: StructureMassing[], terrain: CityTerrain
     const ring = part.footprint ?? part.centerline ?? [];
     if (!ring.length) return [part];
     const building = multipartBuilding(part.id);
-    const level = (building ? buildingLevels.get(building) : undefined) ?? terrain.foundationAt(ring);
+    let level = (building ? buildingLevels.get(building) : undefined) ?? terrain.foundationAt(ring);
+    if (part.kind === "bridge" && terrain.waterAt) {
+      const ends = [ring[0], ring[ring.length - 1]];
+      let water = Number.NEGATIVE_INFINITY;
+      for (const point of ring) {
+        const surface = terrain.waterAt(point);
+        if (surface !== null) water = Math.max(water, surface);
+      }
+      const banks = Math.max(terrain.heightAt(ends[0]), terrain.heightAt(ends[1]));
+      level = Math.max(banks, Number.isFinite(water) ? water + 0.3 : banks);
+    }
     const low = Math.min(...ring.map(terrain.heightAt));
     const raised = { ...part, baseElevationMeters: part.baseElevationMeters + level };
     if (level - low < 0.1 || part.kind === "bridge" || part.baseElevationMeters > 0) return [raised];

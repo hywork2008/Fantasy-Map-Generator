@@ -11,6 +11,8 @@ import { facePoints, faceVertices } from "./mesh";
 import { intersectConvex, subtractConvex } from "./parcelGeometry";
 import { gradeRoads } from "./roadGrading";
 import { terrainFieldForDocument } from "./terrainField/build";
+import { RETAINING_MAX_METERS } from "./terrainField/constants";
+import { corridorWaterAt } from "./terrainField/corridor";
 import { buildDrawGrid, resolveRenderSpacing } from "./terrainField/drawGrid";
 import { fieldFoundation } from "./terrainField/lots";
 import { sampleField } from "./terrainField/sample";
@@ -133,10 +135,15 @@ function fieldSeedSurface(
   const reach = Math.max(80, (document.frame.blockSizeMeters || 50) * 2);
   const foci: Point[] = [];
   for (const feature of features) {
+    if (feature.kind === "riverCorridor") {
+      foci.push(...feature.centerline);
+      continue;
+    }
     if (feature.kind === "ringCut") {
       foci.push(feature.axis.center);
       continue;
     }
+    if (feature.kind !== "platform") continue;
     if (feature.summit.kind === "circle") foci.push(feature.summit.center);
     else for (const segment of feature.summit.segments) foci.push(segment.a, segment.b);
   }
@@ -432,7 +439,10 @@ export function cityTerrain(
           point => terrainLevelAt(features, point),
           point => onPlatformSummit(features, point),
           deckAt,
-          features.some(feature => feature.kind === "platform" && feature.role === "terrace") || !!cells?.walled
+          features.some(feature => feature.kind === "platform" && feature.role === "terrace") || !!cells?.walled,
+          features.some(feature => feature.kind === "platform" && feature.role === "pad")
+            ? RETAINING_MAX_METERS
+            : Number.POSITIVE_INFINITY
         )
       : null;
   const heightAt = grading ? (point: Point) => grading.apply(point, groundAt(point)) : groundAt;
@@ -452,6 +462,13 @@ export function cityTerrain(
         return Math.hypot(zx, zy);
       }
     : undefined;
+  const corridors = features.filter(feature => feature.kind === "riverCorridor");
+  const waterAt = corridors.length
+    ? (point: Point) => {
+        const absolute = corridorWaterAt(corridors, point);
+        return absolute === null ? null : absolute - datumMeters;
+      }
+    : undefined;
   let drawGrid: TerrainGrid | undefined;
   const result: CityTerrain = {
     datumMeters,
@@ -459,6 +476,7 @@ export function cityTerrain(
     ...(field ? { field: true as const } : {}),
     heightAt,
     ...(slopeAt ? { slopeAt } : {}),
+    ...(waterAt ? { waterAt } : {}),
     // Roads ride ramp decks, and in a terraced town the steps and ramps built over the ground.
     surfaceAt,
     ramps: ramps.map(ramp => ({ ramp, elevations: ramp.elevationsMeters.map(level => level - datumMeters) })),

@@ -1,6 +1,7 @@
 // CE 3D land, water, and bank meshes. WebGL is created by the view, not here.
 
 import * as THREE from "three";
+import { clipEscarpmentTriangles } from "../../city-editor/generators/cellPlateClip";
 import { fortWaterPolygons } from "../../city-editor/generators/fortSiteGeometry";
 import { type CityTerrain, cityTerrain } from "../../city-editor/generators/terrainElevation";
 import {
@@ -14,6 +15,7 @@ import {
 } from "../../city-editor/generators/townWater";
 import type { CityDocument } from "../../city-editor/types/document";
 import type { Point } from "../../city-editor/types/primitives";
+import type { TerrainRiverCorridor } from "../../city-editor/types/terrain";
 import type { TriangleSoup } from "../core/massingGeometry";
 import { planVertex } from "../core/planFrame";
 import { LAND_Y, WATER_Y, waterSurfaceGeometry } from "../core/waterGeometry";
@@ -97,6 +99,10 @@ export function createTownWater(document: CityDocument, terrain: CityTerrain = c
       (patch.escarpment ? escarpment : parts).push(patch.points);
       patches.set(patch.faceId, parts);
     }
+  const wetWalls = terrain.field
+    ? []
+    : water.parts.filter(part => part.kind === "river" || part.kind === "channel").map(part => part.polygon);
+  const wallTriangles = wetWalls.length ? clipEscarpmentTriangles(escarpment, wetWalls) : escarpment;
   const ground = townGroundPolygons(document, water, terrain.relief ? patches : undefined);
   // Preserve the legacy flat frame. Relief and sea level share the terrain datum.
   const elevations = Object.values(document.mesh.faces)
@@ -137,11 +143,16 @@ export function createTownWater(document: CityDocument, terrain: CityTerrain = c
     };
   };
   const partHeight = (part: TownWaterPart): ((point: Point) => number) =>
-    terrain.field && (part.kind === "river" || part.kind === "channel")
-      ? rimAt
-      : terrain.relief && (part.kind === "river" || part.kind === "channel")
-        ? cellBedAt(part)
-        : () => partLevel(part);
+    terrain.field && terrain.waterAt && (part.kind === "river" || part.kind === "channel")
+      ? point => {
+          const level = terrain.waterAt?.(point);
+          return level === null || level === undefined ? rimAt(point) : level + WATER_Y;
+        }
+      : terrain.field && (part.kind === "river" || part.kind === "channel")
+        ? rimAt
+        : terrain.relief && (part.kind === "river" || part.kind === "channel")
+          ? cellBedAt(part)
+          : () => partLevel(part);
   const heights = water.parts.map(partHeight);
   const fieldMeshes = terrain.grid ? terrainFieldMeshes(document, terrain) : [];
   for (const mesh of fieldMeshes) parent.add(mesh);
@@ -155,9 +166,11 @@ export function createTownWater(document: CityDocument, terrain: CityTerrain = c
       );
   const hasGround = land !== null || fieldMeshes.length > 0;
   const cliff = hasGround
-    ? meshFrom("ce-escarpment", soupAt(escarpment, LAND_Y, terrain.heightAt), ESCARPMENT_COLOR, THREE.DoubleSide)
+    ? meshFrom("ce-escarpment", soupAt(wallTriangles, LAND_Y, terrain.heightAt), ESCARPMENT_COLOR, THREE.DoubleSide)
     : null;
   if (cliff) parent.add(cliff);
+  const quay = hasGround ? quayMesh(document, terrain) : null;
+  if (quay) parent.add(quay);
   const unknown = land ? meshFrom("ce-unknown", soupAt(ground.unknown, LAND_Y), UNKNOWN_COLOR, THREE.FrontSide) : null;
   const bank = hasGround
     ? bankMesh(
@@ -203,6 +216,55 @@ export function createTownWater(document: CityDocument, terrain: CityTerrain = c
       for (const object of owned) disposeMesh(object);
     }
   };
+}
+
+/** Vertical quay from just below the corridor water to the bank ground. */
+function quayMesh(document: CityDocument, terrain: CityTerrain): THREE.Mesh | null {
+  const corridors = (document.terrain?.features ?? []).filter(
+    (feature): feature is TerrainRiverCorridor => feature.kind === "riverCorridor" && feature.bank.kind === "quay"
+  );
+  if (!corridors.length) return null;
+  const positions: number[] = [];
+  const normals: number[] = [];
+  const push = (point: Point, y: number) => {
+    const vertex = planVertex(point, y);
+    positions.push(vertex[0], vertex[1], vertex[2]);
+    normals.push(0, 1, 0);
+  };
+  for (const corridor of corridors) {
+    const line = corridor.centerline;
+    for (let i = 1; i < line.length; i++) {
+      const a = line[i - 1];
+      const b = line[i];
+      const dx = b[0] - a[0];
+      const dy = b[1] - a[1];
+      const length = Math.hypot(dx, dy) || 1;
+      const normal: Point = [-dy / length, dx / length];
+      const halfA = corridor.widthsMeters[Math.min(i - 1, corridor.widthsMeters.length - 1)] / 2;
+      const halfB = corridor.widthsMeters[Math.min(i, corridor.widthsMeters.length - 1)] / 2;
+      const waterA = corridor.bedMeters[i - 1] + corridor.depthMeters - terrain.datumMeters + WATER_Y - 0.15;
+      const waterB = corridor.bedMeters[i] + corridor.depthMeters - terrain.datumMeters + WATER_Y - 0.15;
+      for (const side of [-1, 1] as const) {
+        const left: Point = [a[0] + normal[0] * halfA * side, a[1] + normal[1] * halfA * side];
+        const right: Point = [b[0] + normal[0] * halfB * side, b[1] + normal[1] * halfB * side];
+        const outside = (point: Point): Point => [point[0] + normal[0] * 0.4 * side, point[1] + normal[1] * 0.4 * side];
+        const topA = terrain.heightAt(outside(left)) + LAND_Y;
+        const topB = terrain.heightAt(outside(right)) + LAND_Y;
+        push(left, waterA);
+        push(right, waterB);
+        push(left, topA);
+        push(right, waterB);
+        push(right, topB);
+        push(left, topA);
+      }
+    }
+  }
+  return meshFrom(
+    "ce-quay",
+    { positions: Float32Array.from(positions), normals: Float32Array.from(normals) },
+    ESCARPMENT_COLOR,
+    THREE.DoubleSide
+  );
 }
 
 function bankMesh(

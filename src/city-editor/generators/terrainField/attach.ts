@@ -8,6 +8,7 @@ import { facePoints } from "../mesh";
 import { buildTerrainFieldRecipe, coarseFromHeightfield } from "./build";
 import { fieldFromParts } from "./conform";
 import { FIELD_SAMPLE_METERS, fieldModeAllowed } from "./constants";
+import { buildRiverCorridors } from "./corridor";
 import { faceMeanElevation, markUnbuildableSlopes } from "./lots";
 import { sampleField, slopeField } from "./sample";
 
@@ -32,7 +33,8 @@ export function attachTerrainField(document: CityDocument, settings: FieldSettin
     sampleMeters: choice.sampleMeters ?? FIELD_SAMPLE_METERS,
     ...(coarse ? { coarse } : {})
   });
-  const features = document.terrain?.features.filter(feature => feature.role === "terrace") ?? [];
+  const features =
+    document.terrain?.features.filter(feature => feature.kind === "platform" && feature.role === "terrace") ?? [];
   const ramps = document.terrain?.ramps;
   document.terrain = {
     version: 1,
@@ -41,6 +43,7 @@ export function attachTerrainField(document: CityDocument, settings: FieldSettin
     field: recipe
   };
   const field = fieldFromParts(document.frame.extentMeters, recipe.sampleMeters, recipe.parts);
+  document.terrain.features.push(...buildRiverCorridors(document, field));
   for (const face of Object.values(document.mesh.faces)) {
     if (face.properties.water !== "land") continue;
     face.properties.elevation = faceMeanElevation(facePoints(document.mesh, face), point => sampleField(field, point));

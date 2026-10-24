@@ -1,15 +1,6 @@
 import type { CityDocument, Point } from "../../types/document";
 import type { TerrainField, TerrainFieldPart, TerrainFieldRecipe, TerrainTemplateId } from "../../types/terrain";
-import { facePoints } from "../mesh";
-import {
-  type CoarseHeightfield,
-  carveRivers,
-  conformWater,
-  fieldFromParts,
-  lowFrequencyError,
-  type RiverCarve,
-  type WaterRing
-} from "./conform";
+import { type CoarseHeightfield, conformWater, fieldFromParts, lowFrequencyError, type WaterRing } from "./conform";
 import { FIELD_SAMPLE_METERS } from "./constants";
 import { templateParts } from "./templates";
 
@@ -63,27 +54,10 @@ function waterRings(document: CityDocument): WaterRing[] {
   for (const ring of document.regionalWaterAreas ?? []) rings.push({ polygon: ring, elevation: 0 });
   for (const face of Object.values(document.mesh.faces)) {
     if (face.properties.water !== "sea" && face.properties.water !== "lake") continue;
-    const polygon = facePoints(document.mesh, face);
+    const polygon = faceRing(document, face);
     if (polygon.length >= 3) rings.push({ polygon, elevation: 0 });
   }
   return rings;
-}
-
-function riversOf(document: CityDocument): RiverCarve[] {
-  if (document.riverFlows?.length)
-    return document.riverFlows
-      .filter(flow => flow.points.length >= 2)
-      .map(flow => ({ points: flow.points, widthMeters: flow.widthMeters }));
-  const rivers: RiverCarve[] = [];
-  for (const group of document.featureGroups) {
-    if (group.kind !== "river") continue;
-    const points = group.vertices.flatMap(id => {
-      const point = document.mesh.vertices[id]?.point;
-      return point ? [point] : [];
-    });
-    if (points.length >= 2) rivers.push({ points, widthMeters: group.style.widthMeters });
-  }
-  return rivers;
 }
 
 function roundPoint(point: Point): string {
@@ -92,8 +66,7 @@ function roundPoint(point: Point): string {
 
 function fieldStamp(document: CityDocument, recipe: TerrainFieldRecipe): string {
   const water = waterRings(document).map(ring => `${ring.elevation}:${ring.polygon.map(roundPoint).join(" ")}`);
-  const rivers = riversOf(document).map(river => `${river.widthMeters}:${river.points.map(roundPoint).join(" ")}`);
-  return JSON.stringify([document.frame.extentMeters, recipe, water, rivers]);
+  return JSON.stringify([document.frame.extentMeters, recipe, water]);
 }
 
 const cache = new Map<string, TerrainField>();
@@ -107,7 +80,6 @@ export function terrainFieldForDocument(document: CityDocument): TerrainField | 
   if (hit) return hit;
   const field = fieldFromParts(document.frame.extentMeters, recipe.sampleMeters, recipe.parts);
   conformWater(field, waterRings(document));
-  carveRivers(field, riversOf(document));
   cache.set(key, field);
   if (cache.size > 4) cache.delete(cache.keys().next().value!);
   return field;
@@ -116,4 +88,12 @@ export function terrainFieldForDocument(document: CityDocument): TerrainField | 
 /** Drop a cached grid after a test replaces the recipe in place. */
 export function clearTerrainFieldCache(): void {
   cache.clear();
+}
+
+/** Local copy of mesh.facePoints: importing ../mesh here closes an import cycle through terrainModel. */
+function faceRing(document: CityDocument, face: CityDocument["mesh"]["faces"][string]): Point[] {
+  return face.boundary.map(ref => {
+    const edge = document.mesh.edges[ref.edgeId];
+    return document.mesh.vertices[ref.forward ? edge.a : edge.b].point;
+  });
 }

@@ -32,7 +32,9 @@ export function castleRamp(document: CityDocument, castleId: Id): TerrainRamp | 
 }
 
 export function castlePlatform(document: CityDocument, castleId: Id): TerrainPlatform | undefined {
-  return document.terrain?.features.find(feature => feature.ownerId === castleId);
+  return document.terrain?.features.find(
+    (feature): feature is TerrainPlatform => feature.kind === "platform" && feature.ownerId === castleId
+  );
 }
 
 /** Level the castle cells as one flat platform, or remove it with `null`. Fort sites grade their own ground. */
@@ -77,7 +79,9 @@ export function setCastlePlatform(
 /** Earthworks belong to the plan that made them; deleting that plan levels them again. */
 export function removeOwnedTerrain(document: CityDocument, ownerId: Id): void {
   if (!document.terrain) return;
-  document.terrain.features = document.terrain.features.filter(feature => feature.ownerId !== ownerId);
+  document.terrain.features = document.terrain.features.filter(
+    feature => feature.kind !== "platform" || feature.ownerId !== ownerId
+  );
   const ramps = document.terrain.ramps?.filter(ramp => ramp.ownerId !== ownerId);
   if (ramps?.length) document.terrain.ramps = ramps;
   else delete document.terrain.ramps;
@@ -103,7 +107,8 @@ function castleSiteTop(document: CityDocument, castle: CastlePlan): number | nul
     }
   }
   const terraces = (document.terrain?.features ?? []).filter(
-    feature => feature.role === "terrace" && feature.summit.kind === "faces"
+    (feature): feature is TerrainPlatform =>
+      feature.kind === "platform" && feature.role === "terrace" && feature.summit.kind === "faces"
   );
   const levels = castleSiteFaceIds(document, castle)
     .map(id => document.mesh.faces[id])
@@ -132,17 +137,23 @@ export function generatedCastleTerrain(
   if (result.fortSite) return undefined;
   const previous = new Map<Id, { rise: number; edge: PlatformEdge }>();
   for (const feature of input.terrain?.features ?? []) {
-    const castle = feature.ownerId ? input.castles?.find(item => item.id === feature.ownerId) : undefined;
+    if (feature.kind !== "platform" || !feature.ownerId) continue;
+    const castle = input.castles?.find(item => item.id === feature.ownerId);
     const top = castle ? castleSiteTop(input, castle) : null;
     if (castle && top !== null) previous.set(castle.id, { rise: feature.levelMeters - top, edge: feature.edge });
   }
-  // Terraces were levelled for this mesh just before; castle earthworks stand on them.
-  const terraces = result.terrain?.features.filter(feature => feature.role === "terrace") ?? [];
+  // Terraces, pads, and river corridors were levelled for this mesh just before. Castle earthworks stand on them.
+  const carried =
+    result.terrain?.features.filter(
+      feature =>
+        feature.kind === "riverCorridor" ||
+        (feature.kind === "platform" && (feature.role === "terrace" || feature.role === "pad"))
+    ) ?? [];
   const field = result.terrain?.field;
   const fieldMode = !!field;
   let next: CityDocument = {
     ...result,
-    terrain: terraces.length || field ? { version: 1, features: terraces, ...(field ? { field } : {}) } : undefined
+    terrain: carried.length || field ? { version: 1, features: carried, ...(field ? { field } : {}) } : undefined
   };
   for (const castle of result.castles ?? []) {
     const top = castleSiteTop(next, castle);

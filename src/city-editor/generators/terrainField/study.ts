@@ -1,10 +1,12 @@
 import type { CityDocument, Point } from "../../types/document";
+import type { TerrainPlatform } from "../../types/terrain";
 import { createCastleBuildingOnFace } from "../castles";
 import { polygonCentroid } from "../geom";
-import { facePoints, meshFromCells } from "../mesh";
+import { edgeBetween, facePoints, meshFromCells } from "../mesh";
 import { setCastlePlatform } from "../terrainEditing";
 import { buildTerrainFieldRecipe } from "./build";
 import { fieldFromParts } from "./conform";
+import { buildRiverCorridors } from "./corridor";
 import { faceMeanElevation, markUnbuildableSlopes } from "./lots";
 import { highestSample, sampleField, slopeField } from "./sample";
 
@@ -101,4 +103,97 @@ export function createCliffFortressStudy(seed = 11): CityDocument {
   const raised = setCastlePlatform(castle, castle.castles[0].id, { levelMeters: level, edge: { kind: "cliff" } });
   if (!raised) throw new Error("Could not raise the cliff study platform");
   return raised;
+}
+
+/** Editable slope with a river corridor and three pads at different heights. */
+export function createTerraceRiverStudy(seed = 5): CityDocument {
+  const extent = 600;
+  const step = 50;
+  const cells = [];
+  for (let y = -5; y <= 5; y++)
+    for (let x = -5; x <= 5; x++) {
+      const cx = x * step;
+      const cy = y * step;
+      const polygon: Point[] = [
+        [cx - step / 2, cy - step / 2],
+        [cx + step / 2, cy - step / 2],
+        [cx + step / 2, cy + step / 2],
+        [cx - step / 2, cy + step / 2]
+      ];
+      cells.push({
+        id: cells.length,
+        site: [cx, cy] as Point,
+        polygon,
+        centroid: [cx, cy] as Point,
+        neighbors: [],
+        onBorder: Math.abs(x) === 5 || Math.abs(y) === 5
+      });
+    }
+  const mesh = meshFromCells(cells);
+  const recipe = buildTerrainFieldRecipe({ template: "escarpment", seed, extentMeters: extent, sampleMeters: 4 });
+  const field = fieldFromParts(extent, recipe.sampleMeters, recipe.parts);
+  for (const face of Object.values(mesh.faces)) {
+    face.properties.water = "land";
+    face.properties.buildable = true;
+    face.properties.ward = "empty";
+    face.properties.elevation = faceMeanElevation(facePoints(mesh, face), point => sampleField(field, point));
+  }
+  const bank = Object.values(mesh.vertices)
+    .filter(vertex => Math.abs(vertex.point[1] + 75) < 0.5)
+    .sort((a, b) => a.point[0] - b.point[0]);
+  const vertices: string[] = [];
+  for (const vertex of bank) {
+    const previous = vertices[vertices.length - 1];
+    if (!previous || edgeBetween(mesh, previous, vertex.id)) vertices.push(vertex.id);
+  }
+  if (vertices.length < 4) throw new Error("Could not trace the terrace study river");
+  const document: CityDocument = {
+    format: "fmg-city-editor",
+    version: 2,
+    historicalPeriod: "highMedieval",
+    appearance: "town",
+    frame: { extentMeters: extent, cityRadiusMeters: 180, blockSizeMeters: step },
+    mesh,
+    featureGroups: [
+      {
+        id: "study-river",
+        name: "Study river",
+        kind: "river",
+        vertices,
+        source: { vertexId: vertices[0], kind: "spring" },
+        mouth: { vertexId: vertices[vertices.length - 1], kind: "mapBoundary" },
+        style: { widthMeters: 8, color: "#527f8b" },
+        locked: false
+      }
+    ],
+    gates: [],
+    elements: [],
+    castles: [],
+    defenseCircuits: [],
+    terrain: { version: 1, features: [], field: recipe }
+  };
+  const corridors = buildRiverCorridors(document, field);
+  const specs: Array<{ level: number; a: Point; b: Point }> = [
+    { level: 10, a: [-110, 10], b: [-40, 70] },
+    { level: 16, a: [-20, 10], b: [50, 70] },
+    { level: 22, a: [70, 10], b: [140, 70] }
+  ];
+  const pads: TerrainPlatform[] = specs.map((spec, index) => ({
+    kind: "platform",
+    id: `pad:study-${index}`,
+    role: "pad",
+    levelMeters: spec.level,
+    edge: { kind: "wall" },
+    summit: {
+      kind: "polygon",
+      points: [
+        [spec.a[0], spec.a[1]],
+        [spec.b[0], spec.a[1]],
+        [spec.b[0], spec.b[1]],
+        [spec.a[0], spec.b[1]]
+      ]
+    }
+  }));
+  document.terrain = { version: 1, features: [...corridors, ...pads], field: recipe };
+  return document;
 }

@@ -53,6 +53,7 @@ import { applyRuralFields } from "./ruralFields";
 import { enforceDefenseClearance, shapeSuburbanFabric } from "./suburbanLanduse";
 import { cityTerrain } from "./terrainElevation";
 import { lotFitsField } from "./terrainField/lots";
+import { dryBuildingPolygon } from "./terrainField/pads";
 import { overlapsRamp } from "./terrainModel";
 import { shapeUrbanGrowthFabric } from "./urbanGrowth";
 import { documentWaterTest, dryRuns, lineHitsDocumentWater, waterPolygons } from "./waterGeometry";
@@ -524,7 +525,12 @@ function finishCoastalBuildings(document: CityDocument, fabric: DistrictFabric):
   );
   const fieldTerrain = document.terrain?.field ? cityTerrain(document) : undefined;
   const keptBuildings = fieldTerrain
-    ? nonMillBuildings.filter(building => lotFitsField(document, fieldTerrain, building))
+    ? nonMillBuildings.flatMap(building => {
+        const polygon = dryBuildingPolygon(document, building.polygon);
+        if (!polygon) return [];
+        const next = polygon === building.polygon ? building : { ...building, polygon };
+        return lotFitsField(document, fieldTerrain, next) ? [next] : [];
+      })
     : nonMillBuildings;
   const openSpaces = fabric.openSpaces?.filter(
     space =>

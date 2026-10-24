@@ -512,6 +512,57 @@ async function showCliffStudy(): Promise<void> {
   facts.append(download);
 }
 
+async function showTerraceStudy(): Promise<void> {
+  const token = ++selection;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button.dataset.study === "terrace" ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Terraced river";
+  levelTitle.textContent = "Pads";
+  const [{ createTerraceRiverStudy }, { cityTerrain }, { createTownWater }] = await Promise.all([
+    import("../city-editor/generators/terrainField/study"),
+    import("../city-editor/generators/terrainElevation"),
+    import("../city3d/three/waterMeshes")
+  ]);
+  if (token !== selection) return;
+  const city = createTerraceRiverStudy();
+  const terrain = cityTerrain(city);
+  studyWater = createTownWater(city, terrain);
+  for (const mesh of [studyWater.land, studyWater.bank, studyWater.unknown]) if (mesh) scene.add(mesh);
+  scene.add(studyWater.parent);
+  const pads = (city.terrain?.features ?? []).flatMap(feature =>
+    feature.kind === "platform" && feature.role === "pad" ? [feature.levelMeters.toFixed(0)] : []
+  );
+  const corridor = city.terrain?.features.find(feature => feature.kind === "riverCorridor");
+  frame({ occupancyMeters: { width: 280, depth: 220 } }, 28);
+  camera.position.set(160, 90, 200);
+  controls.target.set(0, 8, 0);
+  controls.update();
+  facts.append(
+    fact("Model", "Terraced river study"),
+    fact("Template", city.terrain?.field?.template ?? "escarpment"),
+    fact("Frame", `${city.frame.extentMeters} m`),
+    fact("Pads", pads.map(level => `${level} m`).join(", ")),
+    fact("River", corridor?.bank.kind ?? "none")
+  );
+  const download = document.createElement("button");
+  download.type = "button";
+  download.textContent = "Download editable CE terrace study";
+  download.addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify(city, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "terrace-river.city.json";
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+  facts.append(download);
+}
+
 function modelCategory(title: string, open = false): HTMLDetailsElement {
   const category = document.createElement("details");
   category.className = "bv-category";
@@ -849,6 +900,17 @@ cliffButton.addEventListener("click", () => {
   });
 });
 assemblies.append(cliffButton);
+const terraceButton = document.createElement("button");
+terraceButton.type = "button";
+terraceButton.dataset.study = "terrace";
+terraceButton.textContent = "Terraced river · escarpment study";
+terraceButton.addEventListener("click", () => {
+  void showTerraceStudy().catch(error => {
+    banner.hidden = false;
+    banner.textContent = error instanceof Error ? error.message : String(error);
+  });
+});
+assemblies.append(terraceButton);
 
 const shipsHeading = modelCategory("Ships");
 const carrackButton = document.createElement("button");

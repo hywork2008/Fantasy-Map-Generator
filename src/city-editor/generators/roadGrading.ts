@@ -198,7 +198,8 @@ export function gradeRoads(
   levelAt: (point: Point) => string | null,
   pinnedAt: (point: Point) => boolean = () => false,
   deckAt: (point: Point) => number | null = () => null,
-  stepped = false
+  stepped = false,
+  wallStepMeters = Number.POSITIVE_INFINITY
 ): RoadGrading {
   const points: Point[] = [];
   const levels: Array<string | null> = [];
@@ -226,6 +227,7 @@ export function gradeRoads(
 
   const pieces: Array<{ ribbon: number; nodes: number[] }> = [];
   const cliffBreaks: Point[] = [];
+  const wallStairs: RoadStairs[] = [];
   const edges: Array<{ i: number; j: number; halfWidth: number; ribbon: number }> = [];
   const ends: Array<{ i: number; ribbon: number }> = [];
   ribbons.forEach((ribbon, r) => {
@@ -250,6 +252,20 @@ export function gradeRoads(
         continue;
       }
       const previous = piece[piece.length - 1];
+      // A retaining wall taller than a flight of stairs is not chamfered into the cart grade.
+      if (
+        previous !== undefined &&
+        Math.abs(terrainAt(points[previous]) - terrainAt(points[i])) > wallStepMeters + 1e-6
+      ) {
+        wallStairs.push({
+          centerline: [points[previous], points[i]],
+          elevations: [terrainAt(points[previous]), terrainAt(points[i])],
+          widthMeters: ribbon.widthMeters
+        });
+        flush();
+        piece = [i];
+        continue;
+      }
       if (previous !== undefined && levels[previous] !== levels[i] && !ribbon.connectsLevels) {
         cliffBreaks.push([(points[previous][0] + points[i][0]) / 2, (points[previous][1] + points[i][1]) / 2]);
         flush();
@@ -383,7 +399,7 @@ export function gradeRoads(
 
   return {
     ribbons: graded,
-    stairs,
+    stairs: [...stairs, ...wallStairs],
     cliffBreaks,
     roadAt(point) {
       let best: { corridor: Corridor; slack: number; t: number } | null = null;

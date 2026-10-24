@@ -41,6 +41,8 @@ export interface CityTerrain {
   /** Present when built with road ribbons: those to draw, split where they would cross a cliff. */
   /** Walkable top: a ramp deck where one stands, otherwise the ground. Roads are drawn on it. */
   surfaceAt(point: Point): number;
+  /** Local water-surface height where a river corridor covers the point. */
+  waterAt?(point: Point): number | null;
   /** Ramps in the same local frame as heightAt. */
   ramps: Array<{ ramp: TerrainRamp; elevations: number[] }>;
   roads?: {
@@ -57,8 +59,11 @@ export interface TerrainCircle {
   radiusMeters: number;
 }
 
-/** A platform summit: an analytic circle, or the union of editor cells so its edge follows mesh edges. */
-export type TerrainShape = ({ kind: "circle" } & TerrainCircle) | { kind: "faces"; faceIds: Id[] };
+/** A platform summit: an analytic circle, the union of editor cells, or an explicit polygon. */
+export type TerrainShape =
+  | ({ kind: "circle" } & TerrainCircle)
+  | { kind: "faces"; faceIds: Id[] }
+  | { kind: "polygon"; points: Point[] };
 
 /** Raised ground. Platforms take priority over cuts inside their whole footprint. */
 export interface TerrainPlatform {
@@ -67,15 +72,38 @@ export interface TerrainPlatform {
   /** The castle (or other plan) that created this earthwork and removes it with itself. */
   ownerId?: Id;
   /**
-   * A terrace of a hill town: its edge is a retaining wall that roads may cross, graded as a ramp or climbed by
-   * stairs. Absent: a platform that only a ramp may climb (a castle rock).
+   * A terrace of a hill town, or a building pad cut out of the slope.
+   * Both may be crossed by a road. Absent: a platform that only a ramp may climb (a castle rock).
    */
-  role?: "terrace";
+  role?: "terrace" | "pad";
   summit: TerrainShape;
   /** Absolute level of the flat summit. */
   levelMeters: number;
-  /** A cliff edge stops at the summit; a slope falls linearly back to the base field over runMeters. */
-  edge: { kind: "cliff" } | { kind: "slope"; runMeters: number };
+  /**
+   * A cliff edge stops roads. A slope falls back to the base field over runMeters.
+   * A wall is a vertical retaining face; roads may stair over it.
+   */
+  edge: { kind: "cliff" } | { kind: "slope"; runMeters: number } | { kind: "wall" };
+}
+
+/**
+ * A river as its own height layer: a centre line, a bed profile, and banks.
+ * The bed never rises downstream. Water level is the bed plus depth, not a guess from the ground.
+ */
+export interface TerrainRiverCorridor {
+  kind: "riverCorridor";
+  id: Id;
+  /** Source feature group or river flow, so an edit of that line can rebuild the corridor. */
+  sourceId: Id;
+  /** Upstream first. */
+  centerline: Point[];
+  /** Water width at each centre-line point, in metres. */
+  widthsMeters: number[];
+  /** Absolute bed height at each centre-line point. Never rises downstream. */
+  bedMeters: number[];
+  /** Water depth above the bed. The surface is level across the width. */
+  depthMeters: number;
+  bank: { kind: "slope"; runMeters: number } | { kind: "quay"; heightMeters: number };
 }
 
 /** A level-floored ring excavation, such as a moat, measured from an absolute rim. */
@@ -92,7 +120,7 @@ export interface TerrainRingCut {
   waterElevationMeters?: number;
 }
 
-export type TerrainFeature = TerrainPlatform | TerrainRingCut;
+export type TerrainFeature = TerrainPlatform | TerrainRingCut | TerrainRiverCorridor;
 
 /** Height source before earthworks. Cell elevations are interpolated across the editor mesh. */
 export type TerrainBase =
@@ -173,10 +201,10 @@ export interface TerrainRamp {
   widthMeters: number;
 }
 
-/** Saved earthworks. Platforms are cell-shaped, so their edges follow the editor mesh. */
+/** Saved earthworks. Pads and river corridors store their finished heights; the field stores a recipe. */
 export interface CityTerrainLayer {
   version: 1;
-  features: TerrainPlatform[];
+  features: Array<TerrainPlatform | TerrainRiverCorridor>;
   ramps?: TerrainRamp[];
   /** Height-field recipe. Absent documents keep cell elevations. */
   field?: TerrainFieldRecipe;

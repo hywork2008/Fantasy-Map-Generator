@@ -161,7 +161,8 @@ function project(loop: Loop, point: Point): { u: number; distance: number } {
 function siteChecker(document: CityDocument, platformFaces: ReadonlySet<Id>) {
   const blocked = new Set([...reservedCastleFaces(document), ...platformFaces]);
   for (const feature of document.terrain?.features ?? [])
-    if (feature.summit.kind === "faces") for (const id of feature.summit.faceIds) blocked.add(id);
+    if (feature.kind === "platform" && feature.summit.kind === "faces")
+      for (const id of feature.summit.faceIds) blocked.add(id);
   const faces = Object.values(document.mesh.faces).map(face => {
     const ring = facePoints(document.mesh, face);
     const xs = ring.map(p => p[0]),

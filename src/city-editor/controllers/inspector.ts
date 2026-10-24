@@ -39,12 +39,12 @@ import {
   faceVertices,
   mergeFaces,
   setFaceDepth,
-  setFaceElevation,
   setFaceWater,
   splitFace
 } from "../generators/mesh";
 import { openGatePassage } from "../generators/passages";
 import { castlePlatform, castleRamp, castleSiteFaceIds, setCastlePlatform } from "../generators/terrainEditing";
+import { editFaceElevation } from "../generators/terrainField/pads";
 import { CASTLE_STYLE_PROFILES, resolveCastleStyle } from "../renderers/castlePatterns";
 import { SHIP_SPECS } from "../renderers/shipSpecifications";
 import type { DocumentsState, InteractionState } from "../state/editorSession";
@@ -477,7 +477,7 @@ export function createInspectorController(ctx: InspectorContext) {
           const height = Number(elevation.value);
           if (!Number.isFinite(height) || height <= 0) return;
           ctx.runContextAction(
-            () => setFaceElevation(ctx.documents.documentState, faceId, height),
+            () => editFaceElevation(ctx.documents.documentState, faceId, height),
             editorText("cityEditor.messages.elevation")
           );
         });
@@ -808,7 +808,7 @@ export function createInspectorController(ctx: InspectorContext) {
       const elevation = numberInput(String(face.properties.elevation), "-1000", "1");
       ctx.scope.listen(elevation, "change", () =>
         ctx.commit(
-          setFaceElevation(ctx.documents.documentState, face.id, Number(elevation.value)),
+          editFaceElevation(ctx.documents.documentState, face.id, Number(elevation.value)),
           editorText("cityEditor.messages.setElevation")
         )
       );

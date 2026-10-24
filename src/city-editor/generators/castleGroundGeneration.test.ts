@@ -13,7 +13,9 @@ describe("castle ground requested in the generation settings", () => {
     const city = generateCityOnDocument(cityEditorDocument(value), settings, value.seed)!;
     expect(city).not.toBeNull();
     const castle = city.castles![0];
-    const platform = city.terrain!.features.find(feature => feature.ownerId === castle.id)!;
+    const platform = city.terrain!.features.find(
+      feature => feature.kind === "platform" && feature.ownerId === castle.id
+    )!;
     expect(platform.edge).toEqual({ kind: "cliff" });
     expect(city.terrain!.ramps?.some(ramp => ramp.ownerId === castle.id)).toBe(true);
     expect(city.fabric?.generation?.settings.castle?.ground).toBe("cliff");
