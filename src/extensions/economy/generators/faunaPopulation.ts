@@ -68,6 +68,7 @@ import type { FaunaCohorts } from "./faunaPopulationTypes";
 import { type Good, isGoodEnabled } from "./goods-generator";
 import { getGrazedCarryingCapacity, getPastureAreaUsedHectares, isGrazedLivestockGood } from "./husbandry";
 import { animalsPerMarketHead } from "./liveAnimalScale";
+import { assessAnnualHerdRenewal } from "./livestockJointDemand";
 import { getLandTransportDefinition } from "./tradeCargo";
 import { getVineyardAreaUsedHectares } from "./viticulture";
 
@@ -181,6 +182,20 @@ const SPECIES_PROFILES: Record<string, FaunaSpeciesProfile> = {
 
 function getSpeciesProfile(speciesKey: string): FaunaSpeciesProfile {
   return SPECIES_PROFILES[speciesKey] ?? DEFAULT_SPECIES_PROFILE;
+}
+
+export function getAnnualHerdRenewal(cellId: number, good: Good) {
+  if (!isGrazedLivestockGood(good.name)) return null;
+  const cohorts = getFaunaStockTable()?.[`${cellId}:${good.name}`];
+  if (!cohorts) return null;
+  const profile = getSpeciesProfile(good.name);
+  return assessAnnualHerdRenewal(
+    cohorts,
+    getDomesticatedCarryingCapacity(cellId, good, 0),
+    profile.annualBreedingRate,
+    profile.oldLifespanYears,
+    null
+  );
 }
 
 function getStockKey(cellId: number, speciesKey: string): string {
@@ -681,13 +696,18 @@ function advanceCohortsOneYear(
 ): FaunaCohorts {
   if (carryingCapacity <= 0 && !gradualGrazingAdjustment) return { young: 0, breeding: 0, old: 0 };
 
-  const total = cohortTotal(cohorts);
-  const room = carryingCapacity > 0 ? Math.max(0, 1 - total / carryingCapacity) : 0;
-  const born = cohorts.breeding * profile.annualBreedingRate * room;
+  const renewal = assessAnnualHerdRenewal(
+    cohorts,
+    carryingCapacity,
+    profile.annualBreedingRate,
+    profile.oldLifespanYears,
+    null
+  );
+  const born = renewal.birthsHeads;
 
   const youngMaturing = cohorts.young / Math.max(0.1, profile.youngMaturityYears);
   const breedingAging = cohorts.breeding / Math.max(0.1, profile.breedingTenureYears);
-  const oldDying = cohorts.old / Math.max(0.1, profile.oldLifespanYears);
+  const oldDying = renewal.naturalDeathsHeads;
 
   let next: FaunaCohorts = {
     young: Math.max(0, cohorts.young - youngMaturing + born),

@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { getOrCreateFaunaStockTable } from "../src/extensions/economy/context/cellTables";
 import { getWorldContext } from "../src/extensions/economy/context/economyApi";
-import { getGoods } from "../src/extensions/economy/context/trade";
+import { getGoods, getMarkets } from "../src/extensions/economy/context/trade";
 import {
   getDomesticatedCarryingCapacity,
   getNonFoodDemandAbsorptionCapacity,
@@ -11,6 +11,10 @@ import {
 } from "../src/extensions/economy/generators/faunaPopulation";
 import { getGrazedCarryingCapacity, STOCKING_DENSITY_PER_HECTARE } from "../src/extensions/economy/generators/husbandry";
 import { advanceWorld, createNodeSimulationHost } from "../src/simulation/adapters/node";
+
+import { setGoodFlowObserver } from "../src/extensions/economy/generators/goodsBalanceLedger";
+import { animalsPerMarketHead } from "../src/extensions/economy/generators/liveAnimalScale";
+import { getJointLivestockMarketDemand } from "../src/extensions/economy/generators/livestockJointDemandMarket";
 
 const [input, output, length = "0"] = process.argv.slice(2);
 const months = Number(length);
@@ -27,6 +31,17 @@ try {
   if (host.world.options.initialSettlementPattern !== "standard") throw new Error("Expected Standard settlement pattern");
   const sim = host.simulation as { worldSettings?: Record<string, string> };
   sim.worldSettings = { ...sim.worldSettings, "fmg-long-distance-trade": "on", "fmg-caravan-raids": "off" };
+  const liveGoods = new Map(getGoods().filter(good => good.tags.includes("liveAnimal")).map(good => [good.i, good.name]));
+  const observedLiveDispatch: Record<string, {marketId: number | null; species: string; heads: number; untrackedCohortHeads: number}> = {};
+  setGoodFlowObserver(flow => {
+    const species = liveGoods.get(flow.goodId);
+    if (!species || flow.direction !== "source" || flow.category !== "ruralHarvest") return;
+    const key = `${flow.marketId ?? "unknown"}:${species}`;
+    const row = observedLiveDispatch[key] ??= { marketId: flow.marketId ?? null, species, heads: 0, untrackedCohortHeads: 0 };
+    const heads = flow.units * animalsPerMarketHead(species);
+    row.heads += heads;
+    if (!flow.livestockCohorts) row.untrackedCohortHeads += heads;
+  });
   function snapshot() {
     const world = getWorldContext();
     const table = getOrCreateFaunaStockTable() ?? {};
@@ -63,7 +78,7 @@ try {
       }
       return row;
     });
-    return { date: [host.simulation.currentYear, host.simulation.currentMonth, host.simulation.currentDay], species };
+    return { date: [host.simulation.currentYear, host.simulation.currentMonth, host.simulation.currentDay], species, jointProductMarkets: getMarkets().map(getJointLivestockMarketDemand), observedLiveDispatchSincePreparedStart: structuredClone(observedLiveDispatch) };
   }
   const initial = snapshot();
   const samples = [];
@@ -74,11 +89,12 @@ try {
     console.error(`[livestock-demand] ${month}/${months}`);
   }
   writeFileSync(output, `${JSON.stringify({
-    schemaVersion: 1, inputSha256: hash(bytes), sourceTreeSha256: hash(JSON.stringify(sourceHashes)), sourceHashes,
+    schemaVersion: 2, inputSha256: hash(bytes), sourceTreeSha256: hash(JSON.stringify(sourceHashes)), sourceHashes,
     boundary: "Prepared initial snapshot and yearly samples; recorded rural grazed herds in inhabited land cells only",
     months, settlementPattern: host.world.options.initialSettlementPattern, worldSettings: sim.worldSettings,
     notes: [
       "Resource ceilings use authored land, feed and labour coefficients; they are not historical adequacy findings.",
+      "Live dispatch counters begin after prepare, count actual rural market inflows in real animals, and are not slaughter or carcass production. Snapshot renewal is a current annual forecast, not cumulative births over this interval.",
       "Food species have no joint-product demand ceiling. Unknown demand is not zero demand.",
       "Military and transport standing use is distinct from quarterly market flow. Their maximum remains the legacy target proxy, not a calibrated breeding-stock requirement.",
       "Population weights among compatible production biomes partition shared demand once but do not optimize the location of production. Unusable local shares are not reassigned.",
@@ -86,4 +102,4 @@ try {
       "Current target excess is not an instruction to delete animals; existing annual cohort transition applies."
     ], initial, samples
   }, null, 2)}\n`);
-} finally { host.dispose(); }
+} finally { setGoodFlowObserver(null); host.dispose(); }

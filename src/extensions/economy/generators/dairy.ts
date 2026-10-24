@@ -30,23 +30,10 @@
  */
 
 import { getOrCreateFaunaStockTable, getSimulationMonth } from "../economyContext";
+import { ANNUAL_LITERS_PER_LACTATING_FEMALE, LACTATING_SHARE_OF_BREEDING_COHORT } from "./dairyProductionPolicy";
 import { LITERS_PER_MILK_LOT } from "./foodLots";
 import { getHusbandryCareFactor } from "./husbandry";
 import { getLivestockFeedCoverage } from "./livestockFeedState";
-
-/**
- * Annual litres per lactating female. The model uses the breeding cohort as a proxy for the adult
- * herd, then applies a female/lactation share and an eight-month Central-European milk season.
- * Cattle give the most milk, followed by Goats and Sheep.
- */
-const ANNUAL_LITERS_PER_LACTATING_FEMALE: Record<string, number> = {
-  Cattle: 500,
-  Goats: 150,
-  Sheep: 75
-};
-
-/** Breeding cohorts include both sexes and not every adult is in lactation simultaneously. */
-const LACTATING_SHARE_OF_BREEDING_COHORT = 0.375;
 
 /** `cellId:speciesKey`-keyed lookup, mirroring husbandry.ts's `getDogsHeadcount` precedent. */
 function getLocalBreedingHeadcount(cellId: number, speciesKey: string): number {
