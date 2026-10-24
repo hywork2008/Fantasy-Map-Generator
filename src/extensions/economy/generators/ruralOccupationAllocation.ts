@@ -213,6 +213,20 @@ function collectFishingOffers(
  * `migratableAdults` must come from the same calculateAgriculturalLandProfile() pass that is
  * about to be persisted — this function only reallocates that budget, it does not recompute it.
  */
+/**
+ * Share of rural children who can mind animals: roughly those aged 7-14 of the under-adult cohort.
+ * Medieval herding of sheep, swine, geese and cows was a common child's task (Hanawalt 1986,
+ * The Ties That Bound, ch.10; Orme 2001, Medieval Children, ch.9). Model policy, not a measured share.
+ */
+export const CHILD_HERDING_SHARE = 0.35;
+/** Routine, year-round share of herding work; matches the species profiles' seasonal event share. */
+const HUSBANDRY_SEASONAL_EVENT_SHARE = 0.2;
+
+function getRuralChildren(cells: WorldContext["pack"]["cells"], cellId: number): number {
+  const adults = Math.max(0, cells.maleAdults?.[cellId] ?? 0) + Math.max(0, cells.femaleAdults?.[cellId] ?? 0);
+  return Math.max(0, (cells.pop[cellId] ?? 0) - adults);
+}
+
 export function allocateRuralOccupations(
   world: Readonly<WorldContext>,
   laborPlan: RuralLaborPlan | Float32Array
@@ -485,14 +499,21 @@ function allocateRuralOccupationsFromCalendar(
         // These are month-local household tasks. One busy crop month must not cancel
         // care and seasonal work in every other month, or spend another month's slack.
         let annualAssignedDays = 0;
+        // Children watch the flocks and herds day to day; adults take the seasonal work.
+        const childDaysPerMonth =
+          getRuralChildren(cells, cellId) * populationRate * CHILD_HERDING_SHARE * (WORKABLE_DAYS_PER_ADULT / 12);
+        const routineCareDaysPerMonth =
+          ((husbandryDemand.careWorkers ?? 0) * WORKABLE_DAYS_PER_ADULT * (1 - HUSBANDRY_SEASONAL_EVENT_SHARE)) / 12;
         for (let month = 0; month < 12; month++) {
           const requestedDays =
             candidate.requiredWorkers * WORKABLE_DAYS_PER_ADULT * (candidate.monthlyWeights[month] ?? 0);
+          const childDays = Math.min(childDaysPerMonth, routineCareDaysPerMonth, requestedDays);
           const remainingDays = Math.max(0, residentAdults * workDaysPerAdult[month] - currentDays[month]);
-          const assignedDays = Math.min(requestedDays, remainingDays);
+          const adultDays = Math.min(requestedDays - childDays, remainingDays);
+          const assignedDays = childDays + adultDays;
           husbandryMonthlyWorkDays[cellId * 12 + month] = assignedDays;
-          currentDays[month] += assignedDays;
-          minimumDays[month] += assignedDays;
+          currentDays[month] += adultDays;
+          minimumDays[month] += adultDays;
           annualAssignedDays += assignedDays;
         }
         husbandryWorkers[cellId] = annualAssignedDays / WORKABLE_DAYS_PER_ADULT;

@@ -17,6 +17,7 @@ import {
   requiredFieldAreaHectares as sharedRequiredFieldAreaHectares
 } from "../../../generators/settlementClearance";
 import { pow } from "../../../simulation/deterministicMath";
+import type { LandUseSnapshot } from "../../../types/landUse";
 import {
   allocateRiverWater,
   CHILD_COHORT_YEARS,
@@ -218,6 +219,8 @@ export interface AgriculturalConditions {
   readonly irrigationAtCell?: (cellId: number) => { irrigated: boolean; supplement: number; fraction?: number };
   /** Prepared by the economy adapter, in hectares and real labour days. */
   readonly landUseByCell?: Record<number, Partial<ClearanceCellInput>>;
+  /** Market town cell serving each cell, for staple demand that cannot be met within a cell's reach. */
+  readonly marketCenterCellByCell?: ArrayLike<number>;
   /** Staple crops available to the world. Omit for legacy/test callers' generic-Grain behavior. */
   readonly cropGoods?: readonly Good[];
   /** Persistent, cell-local soil organic fertility; 1 is the three-field baseline. */
@@ -701,6 +704,7 @@ export function reconcileForestClearanceForAgriculture(
       diagnostics: [...(staticInputs.get(cellId)?.diagnostics ?? []), "estimated-clearance-labour"]
     });
   }
+  routeUnreachableStapleDemandToMarkets(inputs, conditions.marketCenterCellByCell, previous);
   const plan = planSettlementLandUse(inputs, {
     seed: world.seed ?? "legacy",
     year,
@@ -714,6 +718,78 @@ export function reconcileForestClearanceForAgriculture(
     preserveStock: demandOptions.preserveLegacyStock,
     annual: demandOptions.annual
   });
+}
+
+/**
+ * Rural cells reach fields only within their own short transport limit, often less than one
+ * neighbouring cell on coarse maps. Households beyond that reach buy grain in their market town,
+ * so the part of their demand their own reachable cropland cannot feed is planned at the market
+ * town, whose wider catchment reaches the grain-growing cells (E1-6, §7.44). Without this, wetland
+ * villages had fields nowhere and grain growers planted only for themselves.
+ */
+function routeUnreachableStapleDemandToMarkets(
+  inputs: ClearanceCellInput[],
+  marketCenterCellByCell: ArrayLike<number> | undefined,
+  previous: Readonly<LandUseSnapshot> | undefined
+): void {
+  if (!marketCenterCellByCell) return;
+  const byId = new Map(inputs.map(input => [input.id, input]));
+  // This year's fields can only grow by the clearance the cell can do; potential land is not food.
+  const reachableFieldHa = (input: ClearanceCellInput) => {
+    const fields =
+      previous?.cells[input.id]?.patches.filter(p => p.kind === "cultivation").reduce((s, p) => s + p.areaHa, 0) ??
+      input.cultivableAreaHa;
+    return Math.min(Math.max(0, input.cultivableAreaHa), fields + Math.max(0, input.newClearanceAreaHa ?? 0));
+  };
+  const supportedPeople = (input: ClearanceCellInput) =>
+    input.yieldKgPerSownHa > 0
+      ? (reachableFieldHa(input) *
+          (input.annualSownShare ?? ANNUAL_SOWN_SHARE) *
+          input.yieldKgPerSownHa *
+          EDIBLE_SHARE_AFTER_SEED_LOSS_STOCK) /
+        STAPLE_NEED_KG_PER_PERSON_YEAR /
+        (input.subsistenceReserve ?? SUBSISTENCE_FIELD_RESERVE)
+      : 0;
+  for (const input of inputs) {
+    const center = byId.get(marketCenterCellByCell[input.id] ?? -1);
+    if (!center || center.id === input.id) continue;
+    const people =
+      Math.max(0, input.ruralPeople) +
+      (input.includeUrbanFoodDemand === false ? 0 : Math.max(0, input.urbanPeople)) -
+      Math.max(0, input.importedStaplePeople ?? 0);
+    const reachable = [input, ...(input.neighbors ?? []).map(id => byId.get(id))].filter(
+      (cell): cell is ClearanceCellInput =>
+        !!cell &&
+        (cell.id === input.id ||
+          (input.access ?? []).some(
+            edge => edge.cellId === cell.id && edge.allowed !== false && edge.cost <= (input.maxTransportCost ?? 30)
+          ))
+    );
+    const deficit = Math.max(
+      0,
+      people * (input.localStapleShare ?? 1) - reachable.reduce((s, c) => s + supportedPeople(c), 0)
+    );
+    if (!(deficit > 0)) continue;
+    input.importedStaplePeople = Math.max(0, input.importedStaplePeople ?? 0) + deficit;
+    center.marketStaplePeople = Math.max(0, center.marketStaplePeople ?? 0) + deficit;
+  }
+  // A market town buys from its whole region; members beyond its road catchment rank last.
+  const membersByCenter = new Map<number, number[]>();
+  for (const input of inputs) {
+    const centerId = marketCenterCellByCell[input.id] ?? -1;
+    if (centerId >= 0 && centerId !== input.id)
+      membersByCenter.set(centerId, [...(membersByCenter.get(centerId) ?? []), input.id]);
+  }
+  for (const [centerId, members] of membersByCenter) {
+    const center = byId.get(centerId);
+    if (!center) continue;
+    const limit = center.maxTransportCost ?? 30;
+    const linked = new Set((center.access ?? []).map(edge => edge.cellId));
+    center.access = [
+      ...(center.access ?? []),
+      ...members.filter(id => !linked.has(id)).map(cellId => ({ cellId, cost: limit }))
+    ];
+  }
 }
 
 function getCellFoodDemandPeople(

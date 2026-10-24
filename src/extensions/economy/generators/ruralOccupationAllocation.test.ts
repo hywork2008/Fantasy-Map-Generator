@@ -132,7 +132,12 @@ describe("ruralOccupationAllocation", () => {
       farmLaborRequired: new Float32Array([0]),
       migratableAdults: new Float32Array([40])
     });
-    expect(seasonal.husbandryMonthlyWorkDays[6]).toBe(0);
+    // Adults are all in the harvest; only the children's routine herding remains that month.
+    const routineCareDays = (demand.careWorkers! * WORKABLE_DAYS_PER_ADULT * 0.8) / 12;
+    expect(seasonal.husbandryMonthlyWorkDays[6]).toBeCloseTo(
+      Math.min(routineCareDays, 60 * 0.35 * (WORKABLE_DAYS_PER_ADULT / 12)),
+      4
+    );
     expect(seasonal.cropLaborShortage![6]).toBeGreaterThan(0);
     expect(seasonal.husbandryMonthlyWorkDays[0]).toBeCloseTo(allocation.husbandryMonthlyWorkDays[0], 4);
     expect(seasonal.husbandryWorkers[0]).toBeGreaterThan(0);

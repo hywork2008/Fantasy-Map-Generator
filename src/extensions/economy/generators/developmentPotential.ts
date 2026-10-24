@@ -112,6 +112,18 @@ function resolveAgTechStockByCell(cellCount: number): Float32Array {
   return stockByCell;
 }
 
+/** Cell of each market's centre town, or -1 where no market has been assigned yet. */
+function resolveMarketCenterCellByCell(world: Readonly<WorldContext>, cellCount: number): Int32Array {
+  const result = new Int32Array(cellCount).fill(-1);
+  const marketCellColumn = getMarketCellColumn();
+  if (marketCellColumn.length !== cellCount) return result;
+  const centers = new Map(
+    getMarkets().map(market => [market.i, world.pack.burgs?.[market.centerBurgId ?? 0]?.cell ?? -1])
+  );
+  for (let cellId = 0; cellId < cellCount; cellId++) result[cellId] = centers.get(marketCellColumn[cellId]) ?? -1;
+  return result;
+}
+
 /**
  * Broadcasts each Market's fertilizerStock (docs/plan/phosphate-fertilizer-vertical-slice.md §3.8)
  * to its cells, same shape as resolveAgTechStockByCell.
@@ -539,6 +551,7 @@ export class DevelopmentPotentialModule {
       irrigationDevelopmentByCell: getIrrigationDevelopment(),
       irrigationConveyanceEfficiencyByCell: getIrrigationConveyanceEfficiency(),
       fieldDrainageByCell: getFieldDrainage(),
+      marketCenterCellByCell: resolveMarketCenterCellByCell(world, cellCount),
       floodProtectionByCell: getFloodProtection(),
       climateFoodStressByCell: getClimateFoodStress(),
       fertilizerStockByCell: resolveFertilizerStockByCell(cellCount),

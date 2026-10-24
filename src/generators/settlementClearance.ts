@@ -107,7 +107,9 @@ export function planSettlementLandUse(
     const area = positive(input.physicalLandAreaHa);
     const built = Math.min(area, calculateBuiltAreaHa(input.urbanPeople, input.profile));
     const people =
-      positive(input.ruralPeople) + (input.includeUrbanFoodDemand === false ? 0 : positive(input.urbanPeople));
+      positive(input.ruralPeople) +
+      (input.includeUrbanFoodDemand === false ? 0 : positive(input.urbanPeople)) +
+      positive(input.marketStaplePeople ?? 0);
     const localPeople = Math.max(0, people - positive(input.importedStaplePeople ?? 0));
     const unresolvedEmbedded = input.profile === "embedded" && input.localStapleShare === undefined && localPeople > 0;
     const reachable = input.access
