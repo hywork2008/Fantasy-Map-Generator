@@ -1,0 +1,1186 @@
+{
+  "date": "2026-10-24",
+  "commit": "4c3ee77b1",
+  "notes": [
+    "CPU only; roads omitted; no GPU or frame timing.",
+    "Generated cases are one cold generation each; study warm values are runs 1 and 2.",
+    "CragNoPads removes pads after generation and changes the surface; diagnostic counterfactual only.",
+    "Node 22.23.1 is below package engines >=24; repeat on supported runtime before setting budgets.",
+    "CPU profile includes generation and one model/grid/chunk/rural diagnostic pass."
+  ],
+  "cpuProfileStackMs": {
+    "gradedPatches": 16469.533,
+    "terrainChunkGeometry": 1895.333,
+    "buildDrawGrid": 456.251,
+    "ruralSuitabilityExcludingGradedPatches": 289.959,
+    "padsForLots": 12.333,
+    "other": 2350.257
+  },
+  "cases": {
+    "study0": {
+      "node": "v22.23.1",
+      "cpu": "Apple M4",
+      "seed": "terrain-profile-20261024",
+      "source": "cliff-study-with-synthetic-pads",
+      "extent": 600,
+      "spacing": "auto",
+      "padCount": 0,
+      "inputMs": {},
+      "faces": 121,
+      "features": 1,
+      "roads": "not supplied (isolates terrain cost)",
+      "runs": [
+        {
+          "run": 0,
+          "cache": "cold-field",
+          "ms": {
+            "modelMs": 12.131665999999996,
+            "stampMs": 0.10999999999989996,
+            "drawGridMs": 8.16229199999998,
+            "chunksRealSlopeMs": 44.910249999999905,
+            "chunksZeroSlopeMs": 11.256833999999799,
+            "normalsMs": 17.714500000000044,
+            "ruralSuitabilityMs": 5.880000000000109
+          },
+          "patches": 236,
+          "gridVertices": 90601,
+          "vertices": 93620,
+          "triangles": 184800,
+          "slopeCalls": 93604,
+          "slopeHeightCalls": 374416
+        },
+        {
+          "run": 1,
+          "cache": "warm-field",
+          "ms": {
+            "modelMs": 1.986709000000019,
+            "stampMs": 0.07141700000011042,
+            "drawGridMs": 8.853624999999965,
+            "chunksRealSlopeMs": 36.91645799999992,
+            "chunksZeroSlopeMs": 9.92233299999998,
+            "normalsMs": 9.890999999999849,
+            "ruralSuitabilityMs": 3.573374999999942
+          },
+          "patches": 236,
+          "gridVertices": 90601,
+          "vertices": 93620,
+          "triangles": 184800,
+          "slopeCalls": 93604,
+          "slopeHeightCalls": 374416
+        },
+        {
+          "run": 2,
+          "cache": "warm-field",
+          "ms": {
+            "modelMs": 1.7057499999998527,
+            "stampMs": 0.07474999999999454,
+            "drawGridMs": 8.242042000000083,
+            "chunksRealSlopeMs": 36.037000000000035,
+            "chunksZeroSlopeMs": 6.267084000000068,
+            "normalsMs": 9.94137499999988,
+            "ruralSuitabilityMs": 4.41945799999985
+          },
+          "patches": 236,
+          "gridVertices": 90601,
+          "vertices": 93620,
+          "triangles": 184800,
+          "slopeCalls": 93604,
+          "slopeHeightCalls": 374416
+        }
+      ]
+    },
+    "study64": {
+      "node": "v22.23.1",
+      "cpu": "Apple M4",
+      "seed": "terrain-profile-20261024",
+      "source": "cliff-study-with-synthetic-pads",
+      "extent": 600,
+      "spacing": "auto",
+      "padCount": 64,
+      "inputMs": {},
+      "generationBreakdown": [],
+      "faces": 121,
+      "features": 65,
+      "roads": "not supplied (isolates terrain cost)",
+      "runs": [
+        {
+          "run": 0,
+          "cache": "cold-field",
+          "ms": {
+            "modelMs": 55.60850000000005,
+            "stampMs": 0.22658400000000256,
+            "drawGridMs": 51.159583,
+            "chunksRealSlopeMs": 219.5378750000001,
+            "chunksZeroSlopeMs": 10.061000000000035,
+            "normalsMs": 17.35187499999995,
+            "ruralSuitabilityMs": 50.085166999999956
+          },
+          "patches": 2116,
+          "gridVertices": 90601,
+          "vertices": 93620,
+          "triangles": 184800,
+          "slopeCalls": 93604,
+          "slopeHeightCalls": 374416
+        },
+        {
+          "run": 1,
+          "cache": "warm-field",
+          "ms": {
+            "modelMs": 34.645458000000076,
+            "stampMs": 0.1250840000000153,
+            "drawGridMs": 53.30150000000003,
+            "chunksRealSlopeMs": 215.32504100000006,
+            "chunksZeroSlopeMs": 6.100541999999905,
+            "normalsMs": 10.529291999999941,
+            "ruralSuitabilityMs": 47.574749999999995
+          },
+          "patches": 2116,
+          "gridVertices": 90601,
+          "vertices": 93620,
+          "triangles": 184800,
+          "slopeCalls": 93604,
+          "slopeHeightCalls": 374416
+        },
+        {
+          "run": 2,
+          "cache": "warm-field",
+          "ms": {
+            "modelMs": 34.14970799999992,
+            "stampMs": 0.13733300000012605,
+            "drawGridMs": 51.60487499999999,
+            "chunksRealSlopeMs": 216.4190000000001,
+            "chunksZeroSlopeMs": 6.377500000000055,
+            "normalsMs": 10.161582999999837,
+            "ruralSuitabilityMs": 47.78883300000007
+          },
+          "patches": 2116,
+          "gridVertices": 90601,
+          "vertices": 93620,
+          "triangles": 184800,
+          "slopeCalls": 93604,
+          "slopeHeightCalls": 374416
+        }
+      ]
+    },
+    "study256": {
+      "node": "v22.23.1",
+      "cpu": "Apple M4",
+      "seed": "terrain-profile-20261024",
+      "source": "cliff-study-with-synthetic-pads",
+      "extent": 600,
+      "spacing": "auto",
+      "padCount": 256,
+      "inputMs": {},
+      "generationBreakdown": [],
+      "faces": 121,
+      "features": 257,
+      "roads": "not supplied (isolates terrain cost)",
+      "runs": [
+        {
+          "run": 0,
+          "cache": "cold-field",
+          "ms": {
+            "modelMs": 504.31104199999993,
+            "stampMs": 0.30966699999999037,
+            "drawGridMs": 194.67487499999993,
+            "chunksRealSlopeMs": 766.754833,
+            "chunksZeroSlopeMs": 9.501874999999927,
+            "normalsMs": 17.025250000000142,
+            "ruralSuitabilityMs": 288.667375
+          },
+          "patches": 4888,
+          "gridVertices": 90601,
+          "vertices": 93620,
+          "triangles": 184800,
+          "slopeCalls": 93604,
+          "slopeHeightCalls": 374416
+        },
+        {
+          "run": 1,
+          "cache": "warm-field",
+          "ms": {
+            "modelMs": 248.22958299999982,
+            "stampMs": 0.19937500000014552,
+            "drawGridMs": 176.4701670000004,
+            "chunksRealSlopeMs": 728.1696659999998,
+            "chunksZeroSlopeMs": 7.737583000000086,
+            "normalsMs": 9.875874999999724,
+            "ruralSuitabilityMs": 284.2999170000003
+          },
+          "patches": 4888,
+          "gridVertices": 90601,
+          "vertices": 93620,
+          "triangles": 184800,
+          "slopeCalls": 93604,
+          "slopeHeightCalls": 374416
+        },
+        {
+          "run": 2,
+          "cache": "warm-field",
+          "ms": {
+            "modelMs": 235.83391699999993,
+            "stampMs": 0.2148749999996653,
+            "drawGridMs": 177.48654199999964,
+            "chunksRealSlopeMs": 738.0489589999997,
+            "chunksZeroSlopeMs": 6.022500000000036,
+            "normalsMs": 9.90808300000026,
+            "ruralSuitabilityMs": 287.7390000000005
+          },
+          "patches": 4888,
+          "gridVertices": 90601,
+          "vertices": 93620,
+          "triangles": 184800,
+          "slopeCalls": 93604,
+          "slopeHeightCalls": 374416
+        }
+      ]
+    },
+    "generatedNone": {
+      "node": "v22.23.1",
+      "cpu": "Apple M4",
+      "seed": "terrain-profile-20261024",
+      "source": "generated-none",
+      "extent": 600,
+      "spacing": "auto",
+      "padCount": 0,
+      "inputMs": {
+        "generationMs": 626.572125
+      },
+      "generationBreakdown": [
+        {
+          "path": "attempt-1",
+          "parent": null,
+          "depth": 0,
+          "calls": 1,
+          "elapsedMs": 94.85966600000006,
+          "selfMs": 2.4217489999994086
+        },
+        {
+          "path": "attempt-1/apply-plan",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 38.37520800000004,
+          "selfMs": 38.37520800000004
+        },
+        {
+          "path": "attempt-1/bridge-gate-links",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.24520800000004783,
+          "selfMs": 0.24520800000004783
+        },
+        {
+          "path": "attempt-1/cemetery-layouts",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.4635000000000673,
+          "selfMs": 0.4635000000000673
+        },
+        {
+          "path": "attempt-1/cemetery-relocation",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.20541599999990012,
+          "selfMs": 0.20541599999990012
+        },
+        {
+          "path": "attempt-1/cemetery-sync",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.017542000000048574,
+          "selfMs": 0.017542000000048574
+        },
+        {
+          "path": "attempt-1/crossing-validation",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.37312500000007276,
+          "selfMs": 0.37312500000007276
+        },
+        {
+          "path": "attempt-1/external-gate-roads",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.37816700000007586,
+          "selfMs": 0.37816700000007586
+        },
+        {
+          "path": "attempt-1/finish-geometry",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 21.834666999999968,
+          "selfMs": 21.834666999999968
+        },
+        {
+          "path": "attempt-1/fixed-crossing-approaches",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.08862500000009277,
+          "selfMs": 0.08862500000009277
+        },
+        {
+          "path": "attempt-1/frame-road-alignment",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.15308300000003783,
+          "selfMs": 0.15308300000003783
+        },
+        {
+          "path": "attempt-1/frame-road-junctions",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.02975000000003547,
+          "selfMs": 0.02975000000003547
+        },
+        {
+          "path": "attempt-1/frame-road-junctions-fixed",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.004292000000077678,
+          "selfMs": 0.004292000000077678
+        },
+        {
+          "path": "attempt-1/frame-road-repair",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.6084590000000389,
+          "selfMs": 0.6084590000000389
+        },
+        {
+          "path": "attempt-1/frame-road-terminals",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.1426250000000664,
+          "selfMs": 0.1426250000000664
+        },
+        {
+          "path": "attempt-1/gate-and-bridge-crossings",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 4.325458000000026,
+          "selfMs": 4.325458000000026
+        },
+        {
+          "path": "attempt-1/harbor-ships",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.5659579999999096,
+          "selfMs": 0.16599999999993997
+        },
+        {
+          "path": "attempt-1/harbor-ships/ship-plan",
+          "parent": "attempt-1/harbor-ships",
+          "depth": 2,
+          "calls": 1,
+          "elapsedMs": 0.3999579999999696,
+          "selfMs": 0.3999579999999696
+        },
+        {
+          "path": "attempt-1/plan",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 12.127417000000037,
+          "selfMs": 12.127417000000037
+        },
+        {
+          "path": "attempt-1/prepare",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 1.1563340000000153,
+          "selfMs": 1.1563340000000153
+        },
+        {
+          "path": "attempt-1/rectify-hex",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.23937499999999545,
+          "selfMs": 0.23937499999999545
+        },
+        {
+          "path": "attempt-1/regional-road-gates",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.06116600000007111,
+          "selfMs": 0.06116600000007111
+        },
+        {
+          "path": "attempt-1/rural-land",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.27083300000003874,
+          "selfMs": 0.27083300000003874
+        },
+        {
+          "path": "attempt-1/straighten-bridges",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.012875000000008185,
+          "selfMs": 0.012875000000008185
+        },
+        {
+          "path": "attempt-1/temple",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 7.651624999999967,
+          "selfMs": 7.651624999999967
+        },
+        {
+          "path": "attempt-1/thin-road-cells",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 1.4576250000000073,
+          "selfMs": 1.4576250000000073
+        },
+        {
+          "path": "attempt-1/through-streets",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 1.5976249999999936,
+          "selfMs": 1.5976249999999936
+        },
+        {
+          "path": "attempt-1/water-access",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.05195900000001075,
+          "selfMs": 0.05195900000001075
+        },
+        {
+          "path": "castle-ground",
+          "parent": null,
+          "depth": 0,
+          "calls": 1,
+          "elapsedMs": 0.060957999999914136,
+          "selfMs": 0.060957999999914136
+        },
+        {
+          "path": "farmland",
+          "parent": null,
+          "depth": 0,
+          "calls": 1,
+          "elapsedMs": 528.8289589999999,
+          "selfMs": 528.8289589999999
+        },
+        {
+          "path": "population-prepare",
+          "parent": null,
+          "depth": 0,
+          "calls": 1,
+          "elapsedMs": 0.10408399999994344,
+          "selfMs": 0.10408399999994344
+        }
+      ],
+      "faces": 72,
+      "features": 0,
+      "actualPads": 0,
+      "roads": "not supplied (isolates terrain cost)",
+      "runs": [
+        {
+          "run": 0,
+          "cache": "cold-field",
+          "ms": {
+            "modelMs": 0.791374999999789,
+            "stampMs": 0.1470409999999447,
+            "drawGridMs": 0.0031249999999545253,
+            "ruralSuitabilityMs": 1.3420839999998861
+          },
+          "patches": 380,
+          "gridVertices": 0,
+          "vertices": 0,
+          "triangles": 0,
+          "slopeCalls": 0,
+          "slopeHeightCalls": 0
+        }
+      ]
+    },
+    "generatedCrag": {
+      "node": "v22.23.1",
+      "cpu": "Apple M4",
+      "seed": "terrain-profile-20261024",
+      "source": "generated-crag",
+      "extent": 600,
+      "spacing": "auto",
+      "padCount": 0,
+      "inputMs": {
+        "generationMs": 6803.2725
+      },
+      "generationBreakdown": [
+        {
+          "path": "attempt-1",
+          "parent": null,
+          "depth": 0,
+          "calls": 1,
+          "elapsedMs": 96.72904199999999,
+          "selfMs": 2.3238759999999274
+        },
+        {
+          "path": "attempt-1/apply-plan",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 37.52604199999996,
+          "selfMs": 37.52604199999996
+        },
+        {
+          "path": "attempt-1/bridge-gate-links",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.23566700000003493,
+          "selfMs": 0.23566700000003493
+        },
+        {
+          "path": "attempt-1/cemetery-layouts",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.4060000000000059,
+          "selfMs": 0.4060000000000059
+        },
+        {
+          "path": "attempt-1/cemetery-relocation",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.3433329999999728,
+          "selfMs": 0.3433329999999728
+        },
+        {
+          "path": "attempt-1/cemetery-sync",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.016917000000034932,
+          "selfMs": 0.016917000000034932
+        },
+        {
+          "path": "attempt-1/crossing-validation",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.363584000000003,
+          "selfMs": 0.363584000000003
+        },
+        {
+          "path": "attempt-1/external-gate-roads",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.4057500000000118,
+          "selfMs": 0.4057500000000118
+        },
+        {
+          "path": "attempt-1/finish-geometry",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 23.30454100000003,
+          "selfMs": 23.30454100000003
+        },
+        {
+          "path": "attempt-1/fixed-crossing-approaches",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.09320900000000165,
+          "selfMs": 0.09320900000000165
+        },
+        {
+          "path": "attempt-1/frame-road-alignment",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.15416599999997516,
+          "selfMs": 0.15416599999997516
+        },
+        {
+          "path": "attempt-1/frame-road-junctions",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.03216700000001538,
+          "selfMs": 0.03216700000001538
+        },
+        {
+          "path": "attempt-1/frame-road-junctions-fixed",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.005666000000019267,
+          "selfMs": 0.005666000000019267
+        },
+        {
+          "path": "attempt-1/frame-road-repair",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.6101669999999331,
+          "selfMs": 0.6101669999999331
+        },
+        {
+          "path": "attempt-1/frame-road-terminals",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.13858300000003965,
+          "selfMs": 0.13858300000003965
+        },
+        {
+          "path": "attempt-1/gate-and-bridge-crossings",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 5.224083000000007,
+          "selfMs": 5.224083000000007
+        },
+        {
+          "path": "attempt-1/harbor-ships",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.6410829999999805,
+          "selfMs": 0.2134580000000028
+        },
+        {
+          "path": "attempt-1/harbor-ships/ship-plan",
+          "parent": "attempt-1/harbor-ships",
+          "depth": 2,
+          "calls": 1,
+          "elapsedMs": 0.4276249999999777,
+          "selfMs": 0.4276249999999777
+        },
+        {
+          "path": "attempt-1/plan",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 12.202916999999957,
+          "selfMs": 12.202916999999957
+        },
+        {
+          "path": "attempt-1/prepare",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 1.1154579999999896,
+          "selfMs": 1.1154579999999896
+        },
+        {
+          "path": "attempt-1/rectify-hex",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.24324999999998909,
+          "selfMs": 0.24324999999998909
+        },
+        {
+          "path": "attempt-1/regional-road-gates",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.06675000000007003,
+          "selfMs": 0.06675000000007003
+        },
+        {
+          "path": "attempt-1/rural-land",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.24675000000002,
+          "selfMs": 0.24675000000002
+        },
+        {
+          "path": "attempt-1/straighten-bridges",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.010790999999983342,
+          "selfMs": 0.010790999999983342
+        },
+        {
+          "path": "attempt-1/temple",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 8.27475000000004,
+          "selfMs": 8.27475000000004
+        },
+        {
+          "path": "attempt-1/thin-road-cells",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 1.303291999999999,
+          "selfMs": 1.303291999999999
+        },
+        {
+          "path": "attempt-1/through-streets",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 1.3804999999999836,
+          "selfMs": 1.3804999999999836
+        },
+        {
+          "path": "attempt-1/water-access",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.059750000000008185,
+          "selfMs": 0.059750000000008185
+        },
+        {
+          "path": "castle-ground",
+          "parent": null,
+          "depth": 0,
+          "calls": 1,
+          "elapsedMs": 0.12016700000003766,
+          "selfMs": 0.12016700000003766
+        },
+        {
+          "path": "farmland",
+          "parent": null,
+          "depth": 0,
+          "calls": 1,
+          "elapsedMs": 6615.930416,
+          "selfMs": 6615.930416
+        },
+        {
+          "path": "population-prepare",
+          "parent": null,
+          "depth": 0,
+          "calls": 1,
+          "elapsedMs": 0.10479200000003175,
+          "selfMs": 0.10479200000003175
+        },
+        {
+          "path": "terrain-field",
+          "parent": null,
+          "depth": 0,
+          "calls": 1,
+          "elapsedMs": 87.46120799999994,
+          "selfMs": 87.46120799999994
+        }
+      ],
+      "faces": 72,
+      "features": 644,
+      "roads": "not supplied (isolates terrain cost)",
+      "runs": [
+        {
+          "run": 0,
+          "cache": "cold-field",
+          "ms": {
+            "modelMs": 6035.80875,
+            "stampMs": 0.8025839999991149,
+            "drawGridMs": 458.35654199999954,
+            "chunksRealSlopeMs": 1886.7054590000007,
+            "chunksZeroSlopeMs": 9.564957999999024,
+            "normalsMs": 16.046040999999605,
+            "ruralSuitabilityMs": 5963.059166999999
+          },
+          "patches": 75233,
+          "gridVertices": 90601,
+          "vertices": 93620,
+          "triangles": 184800,
+          "slopeCalls": 93604,
+          "slopeHeightCalls": 374416
+        }
+      ]
+    },
+    "generatedCragNoPads": {
+      "node": "v22.23.1",
+      "cpu": "Apple M4",
+      "seed": "terrain-profile-20261024",
+      "source": "/tmp/ce-crag-profile-no-pads.json",
+      "extent": 600,
+      "spacing": "auto",
+      "padCount": 0,
+      "inputMs": {},
+      "generationBreakdown": [],
+      "faces": 72,
+      "features": 0,
+      "actualPads": 0,
+      "roads": "not supplied (isolates terrain cost)",
+      "runs": [
+        {
+          "run": 0,
+          "cache": "cold-field",
+          "ms": {
+            "modelMs": 47.708417,
+            "stampMs": 0.1094590000000153,
+            "drawGridMs": 4.681291999999985,
+            "chunksRealSlopeMs": 21.853541000000064,
+            "chunksZeroSlopeMs": 8.755833999999936,
+            "normalsMs": 16.87620800000002,
+            "ruralSuitabilityMs": 3.084959000000026
+          },
+          "patches": 0,
+          "gridVertices": 90601,
+          "vertices": 93620,
+          "triangles": 184800,
+          "slopeCalls": 93604,
+          "slopeHeightCalls": 374416
+        },
+        {
+          "run": 1,
+          "cache": "warm-field",
+          "ms": {
+            "modelMs": 0.9920829999999796,
+            "stampMs": 0.08654200000000856,
+            "drawGridMs": 4.164207999999917,
+            "chunksRealSlopeMs": 18.40787499999999,
+            "chunksZeroSlopeMs": 6.905000000000086,
+            "normalsMs": 10.078082999999992,
+            "ruralSuitabilityMs": 1.733041999999955
+          },
+          "patches": 0,
+          "gridVertices": 90601,
+          "vertices": 93620,
+          "triangles": 184800,
+          "slopeCalls": 93604,
+          "slopeHeightCalls": 374416
+        },
+        {
+          "run": 2,
+          "cache": "warm-field",
+          "ms": {
+            "modelMs": 1.0623329999999669,
+            "stampMs": 0.08025000000009186,
+            "drawGridMs": 2.8522910000000365,
+            "chunksRealSlopeMs": 16.32400000000007,
+            "chunksZeroSlopeMs": 6.272416000000021,
+            "normalsMs": 10.111541999999986,
+            "ruralSuitabilityMs": 1.6623329999999896
+          },
+          "patches": 0,
+          "gridVertices": 90601,
+          "vertices": 93620,
+          "triangles": 184800,
+          "slopeCalls": 93604,
+          "slopeHeightCalls": 374416
+        }
+      ]
+    },
+    "profiledCrag": {
+      "node": "v22.23.1",
+      "cpu": "Apple M4",
+      "seed": "terrain-profile-20261024",
+      "source": "generated-crag",
+      "extent": 600,
+      "spacing": "auto",
+      "padCount": 0,
+      "inputMs": {
+        "generationMs": 6810.296375
+      },
+      "generationBreakdown": [
+        {
+          "path": "attempt-1",
+          "parent": null,
+          "depth": 0,
+          "calls": 1,
+          "elapsedMs": 104.73541599999999,
+          "selfMs": 2.6078349999998522
+        },
+        {
+          "path": "attempt-1/apply-plan",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 41.24899999999997,
+          "selfMs": 41.24899999999997
+        },
+        {
+          "path": "attempt-1/bridge-gate-links",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.2450420000000122,
+          "selfMs": 0.2450420000000122
+        },
+        {
+          "path": "attempt-1/cemetery-layouts",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.40654200000000174,
+          "selfMs": 0.40654200000000174
+        },
+        {
+          "path": "attempt-1/cemetery-relocation",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.2423329999999737,
+          "selfMs": 0.2423329999999737
+        },
+        {
+          "path": "attempt-1/cemetery-sync",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.020167000000014923,
+          "selfMs": 0.020167000000014923
+        },
+        {
+          "path": "attempt-1/crossing-validation",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.3773750000000291,
+          "selfMs": 0.3773750000000291
+        },
+        {
+          "path": "attempt-1/external-gate-roads",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.8173330000000192,
+          "selfMs": 0.8173330000000192
+        },
+        {
+          "path": "attempt-1/finish-geometry",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 25.69399999999996,
+          "selfMs": 25.69399999999996
+        },
+        {
+          "path": "attempt-1/fixed-crossing-approaches",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.10383300000000872,
+          "selfMs": 0.10383300000000872
+        },
+        {
+          "path": "attempt-1/frame-road-alignment",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.9543330000000196,
+          "selfMs": 0.9543330000000196
+        },
+        {
+          "path": "attempt-1/frame-road-junctions",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.03950000000003229,
+          "selfMs": 0.03950000000003229
+        },
+        {
+          "path": "attempt-1/frame-road-junctions-fixed",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.005499999999983629,
+          "selfMs": 0.005499999999983629
+        },
+        {
+          "path": "attempt-1/frame-road-repair",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.6149580000000014,
+          "selfMs": 0.6149580000000014
+        },
+        {
+          "path": "attempt-1/frame-road-terminals",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.17012499999998454,
+          "selfMs": 0.17012499999998454
+        },
+        {
+          "path": "attempt-1/gate-and-bridge-crossings",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 4.884124999999983,
+          "selfMs": 4.884124999999983
+        },
+        {
+          "path": "attempt-1/harbor-ships",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.6645409999999856,
+          "selfMs": 0.19258300000001327
+        },
+        {
+          "path": "attempt-1/harbor-ships/ship-plan",
+          "parent": "attempt-1/harbor-ships",
+          "depth": 2,
+          "calls": 1,
+          "elapsedMs": 0.47195799999997234,
+          "selfMs": 0.47195799999997234
+        },
+        {
+          "path": "attempt-1/plan",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 12.394125000000031,
+          "selfMs": 12.394125000000031
+        },
+        {
+          "path": "attempt-1/prepare",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 1.3245410000000106,
+          "selfMs": 1.3245410000000106
+        },
+        {
+          "path": "attempt-1/rectify-hex",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.28199999999998226,
+          "selfMs": 0.28199999999998226
+        },
+        {
+          "path": "attempt-1/regional-road-gates",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.066208999999958,
+          "selfMs": 0.066208999999958
+        },
+        {
+          "path": "attempt-1/rural-land",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.2911250000000223,
+          "selfMs": 0.2911250000000223
+        },
+        {
+          "path": "attempt-1/straighten-bridges",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.013750000000015916,
+          "selfMs": 0.013750000000015916
+        },
+        {
+          "path": "attempt-1/temple",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 8.42904100000004,
+          "selfMs": 8.42904100000004
+        },
+        {
+          "path": "attempt-1/thin-road-cells",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 1.3910830000000374,
+          "selfMs": 1.3910830000000374
+        },
+        {
+          "path": "attempt-1/through-streets",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 1.3837500000000205,
+          "selfMs": 1.3837500000000205
+        },
+        {
+          "path": "attempt-1/water-access",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.06325000000003911,
+          "selfMs": 0.06325000000003911
+        },
+        {
+          "path": "castle-ground",
+          "parent": null,
+          "depth": 0,
+          "calls": 1,
+          "elapsedMs": 0.12158399999998437,
+          "selfMs": 0.12158399999998437
+        },
+        {
+          "path": "farmland",
+          "parent": null,
+          "depth": 0,
+          "calls": 1,
+          "elapsedMs": 6657.0556670000005,
+          "selfMs": 6657.0556670000005
+        },
+        {
+          "path": "population-prepare",
+          "parent": null,
+          "depth": 0,
+          "calls": 1,
+          "elapsedMs": 0.1119160000000079,
+          "selfMs": 0.1119160000000079
+        },
+        {
+          "path": "terrain-field",
+          "parent": null,
+          "depth": 0,
+          "calls": 1,
+          "elapsedMs": 45.09087499999998,
+          "selfMs": 45.09087499999998
+        }
+      ],
+      "faces": 72,
+      "features": 644,
+      "actualPads": 644,
+      "roads": "not supplied (isolates terrain cost)",
+      "runs": [
+        {
+          "run": 0,
+          "cache": "cold-field",
+          "ms": {
+            "modelMs": 5830.051791999999,
+            "stampMs": 0.8163330000006681,
+            "drawGridMs": 461.1085000000003,
+            "chunksRealSlopeMs": 1891.5200000000004,
+            "chunksZeroSlopeMs": 9.833624999999302,
+            "normalsMs": 17.773583000000144,
+            "ruralSuitabilityMs": 6150.131042000001
+          },
+          "patches": 75233,
+          "gridVertices": 90601,
+          "vertices": 93620,
+          "triangles": 184800,
+          "slopeCalls": 93604,
+          "slopeHeightCalls": 374416
+        }
+      ]
+    }
+  }
+}
