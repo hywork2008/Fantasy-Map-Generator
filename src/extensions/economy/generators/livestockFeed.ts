@@ -24,7 +24,8 @@ import {
   HAY_STORAGE_LOSS_PER_MONTH,
   HAY_WORK_DAYS_PER_TONNE_DM,
   LIVESTOCK_FEED_CASH_SHARE,
-  type LivestockFeedLedger
+  type LivestockFeedLedger,
+  STANDING_GRASS_LOSS_PER_MONTH
 } from "./livestockFeedPolicy";
 import { livestockFeedMonth, livestockFeedPeriod } from "./livestockFeedState";
 import type { Market } from "./marketTypes";
@@ -61,13 +62,17 @@ function emptyLedger(): LivestockFeedLedger {
 }
 
 /** Same forecast as the worker plan, evaluated against actual animals and maintained land. */
-function reserveAfterFeedingKg(cellId: number): number {
+function getCellHayPlan(cellId: number) {
   return getLivestockHayPlan(
     getWorldContext(),
     cellId,
     getLivestockMonthlyFeedNeedKg(cellId) * 12,
     getForageAreaHectares(cellId)
-  ).reserveAfterMonthKg[livestockFeedMonth() - 1];
+  );
+}
+
+function reserveAfterFeedingKg(cellId: number): number {
+  return getCellHayPlan(cellId).reserveAfterMonthKg[livestockFeedMonth() - 1];
 }
 
 /** Runs before military procurement. Only unused pasture growth can become hay or market Fodder. */
@@ -92,15 +97,20 @@ export function harvestLivestockForage(): void {
     const need = getLivestockMonthlyFeedNeedKg(cell);
     const grazing = Math.min(grown, need);
     const surplus = Math.max(0, grown - grazing);
+    const plan = getCellHayPlan(cell);
+    // Only last month's shut-up growth is still standing; older uncut grass has been lost.
+    const standingIn = (row.standingKg ?? 0) * (1 - STANDING_GRASS_LOSS_PER_MONTH);
     const demand = calculateHusbandryDemand(world, cell);
     const workDays = getHusbandryLaborBudget(cell, month, demand).hayCapacityDays;
-    const harvested = Math.min(surplus, (workDays / HAY_WORK_DAYS_PER_TONNE_DM) * 1000);
+    const harvested = Math.min(standingIn + surplus, (workDays / HAY_WORK_DAYS_PER_TONNE_DM) * 1000);
     const received = harvested * HAY_DRY_MATTER_RETENTION;
     const storageLoss = Math.max(0, row.hayKg) * HAY_STORAGE_LOSS_PER_MONTH;
     const remainingHay = Math.max(0, row.hayKg - storageLoss);
-    const ownHay = Math.min(received, Math.max(0, reserveAfterFeedingKg(cell) - remainingHay));
+    const ownHay = Math.min(received, Math.max(0, plan.reserveAfterMonthKg[month] - remainingHay));
     const ownHarvest = ownHay / HAY_DRY_MATTER_RETENTION;
     row.hayKg = remainingHay + ownHay;
+    const uncutGrowth = Math.min(surplus, standingIn + surplus - harvested);
+    const standingOut = plan.shutUpMonth === month ? uncutGrowth : 0;
     Object.assign(row, {
       harvestPeriod: period,
       pastureGrownKg: grown,
@@ -108,7 +118,9 @@ export function harvestLivestockForage(): void {
       harvestedKg: ownHarvest,
       harvestLossKg: ownHarvest - ownHay,
       storageLossKg: storageLoss,
-      unharvestedKg: surplus - ownHarvest,
+      standingInKg: standingIn,
+      standingKg: standingOut,
+      unharvestedKg: standingIn + surplus - ownHarvest - standingOut,
       soldKg: 0,
       purchasedKg: 0,
       cropResidueFeedKg: 0,

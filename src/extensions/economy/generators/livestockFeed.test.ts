@@ -210,7 +210,10 @@ describe("physical livestock feed budget", () => {
     const beforeMoney = market.marketTreasury!.balance + market.foodLedger!.ruralHouseholdWealth!;
     harvestLivestockForage();
     for (const row of Object.values(rows())) {
-      expect(row.pastureGrownKg).toBeCloseTo(row.grazingReservedKg + row.harvestedKg + row.unharvestedKg, 8);
+      expect(row.pastureGrownKg + (row.standingInKg ?? 0)).toBeCloseTo(
+        row.grazingReservedKg + row.harvestedKg + row.unharvestedKg + (row.standingKg ?? 0),
+        8
+      );
       expect(row.harvestedKg).toBeCloseTo(row.harvestLossKg + row.hayKg + row.soldKg, 8);
       expect(row.hayKg).toBeCloseTo(7500, 8);
     }
@@ -244,13 +247,14 @@ describe("physical livestock feed budget", () => {
 
   it("carries actual summer hay into winter with one storage loss and no invented opening reserve", () => {
     climate.temperatures = [0, 0, 0, 4, 12, 20, 24, 24, 16, 8, 4, 0];
-    simulationContext.currentMonth = 7;
+    // The main cut falls in June, the month before peak growth.
+    simulationContext.currentMonth = 6;
     harvestLivestockForage();
     settleLivestockFeed();
     const before = rows()[0].hayKg;
     expect(before).toBeGreaterThan(0);
-    simulationContext.currentMonth = 8;
-    climate.temperatures[7] = 0;
+    simulationContext.currentMonth = 7;
+    climate.temperatures[6] = 0;
     getMarkets()[0].foodLedger!.ruralHouseholdWealth = 0;
     getMarkets()[0].goods[good("Fodder").i].stock = 0;
     harvestLivestockForage();

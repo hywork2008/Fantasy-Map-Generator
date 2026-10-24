@@ -10,12 +10,16 @@ export const HAY_DRY_MATTER_RETENTION = 0.85;
 export const HAY_STORAGE_LOSS_PER_MONTH = 0.01;
 export const HAY_WORK_DAYS_PER_TONNE_DM = 3;
 export const HAY_RESERVE_MONTHS = 3;
+/** Monthly loss of grass left standing on a meadow shut up for the main cut (authored). */
+export const STANDING_GRASS_LOSS_PER_MONTH = 0.1;
 export const LIVESTOCK_FEED_CASH_SHARE = 0.05;
 
 export interface LivestockHayPlan {
   readonly seasonalGapKg: number;
   readonly rawHarvestKg: number;
   readonly harvestWeights: readonly number[];
+  /** Month whose uncut surplus stays standing for the next month's main cut; -1 without one. */
+  readonly shutUpMonth: number;
   /** Desired hay remaining AFTER this month's feeding, including the existing buffer floor. */
   readonly reserveAfterMonthKg: readonly number[];
 }
@@ -34,8 +38,18 @@ export function calculateLivestockHayPlan(
   const grown = Array.from({ length: 12 }, (_, month) => Math.max(0, annualForageKg * (growthWeights[month] ?? 0)));
   const gaps = grown.map(kg => Math.max(0, need - kg));
   const surplus = grown.map(kg => Math.max(0, kg - need));
-  const available = surplus.reduce((sum, kg) => sum + kg, 0);
   const seasonalGapKg = gaps.reduce((sum, kg) => sum + kg, 0);
+  // The main cut comes in the month before peak growth, ahead of the grain harvest (E1 §7.46);
+  // the meadow is shut up for one month before it. Later surplus is cut as it grows, earliest first.
+  const peak = grown.indexOf(Math.max(...grown));
+  const mainCut = (peak + 11) % 12;
+  const shutUpMonth = seasonalGapKg > 0 && surplus[mainCut] > 0 ? (mainCut + 11) % 12 : -1;
+  const cuttable = [...surplus];
+  if (shutUpMonth >= 0) {
+    cuttable[mainCut] += surplus[shutUpMonth] * (1 - STANDING_GRASS_LOSS_PER_MONTH);
+    cuttable[shutUpMonth] = 0;
+  }
+  const available = cuttable.reduce((sum, kg) => sum + kg, 0);
   const reserveAfterMonthKg = grown.map((_, month) => {
     let required = 0;
     // Without a local harvest season, keep the existing purchase buffer rather than
@@ -45,7 +59,7 @@ export function calculateLivestockHayPlan(
         const index = (month + ahead) % 12;
         required = Math.max(
           0,
-          (required + gaps[index] - surplus[index] * HAY_DRY_MATTER_RETENTION) / (1 - HAY_STORAGE_LOSS_PER_MONTH)
+          (required + gaps[index] - cuttable[index] * HAY_DRY_MATTER_RETENTION) / (1 - HAY_STORAGE_LOSS_PER_MONTH)
         );
       }
     }
@@ -53,10 +67,24 @@ export function calculateLivestockHayPlan(
   });
   const storageAllowance = reserveAfterMonthKg.reduce((sum, kg) => sum + kg * HAY_STORAGE_LOSS_PER_MONTH, 0);
   const retainedTarget = Math.max(need * HAY_RESERVE_MONTHS, seasonalGapKg) + storageAllowance;
+  const rawHarvestKg = Math.min(available, retainedTarget / HAY_DRY_MATTER_RETENTION);
+  const harvested = new Array<number>(12).fill(0);
+  if (shutUpMonth >= 0) {
+    let remaining = rawHarvestKg;
+    for (let step = 0; step < 12 && remaining > 0; step++) {
+      const month = (mainCut + step) % 12;
+      harvested[month] = Math.min(cuttable[month], remaining);
+      remaining -= harvested[month];
+    }
+  } else {
+    for (let month = 0; month < 12; month++)
+      harvested[month] = available > 0 ? (rawHarvestKg * cuttable[month]) / available : 0;
+  }
   return {
     seasonalGapKg,
-    rawHarvestKg: Math.min(available, retainedTarget / HAY_DRY_MATTER_RETENTION),
-    harvestWeights: surplus.map(kg => (available > 0 ? kg / available : 0)),
+    rawHarvestKg,
+    harvestWeights: harvested.map(kg => (rawHarvestKg > 0 ? kg / rawHarvestKg : 0)),
+    shutUpMonth,
     reserveAfterMonthKg
   };
 }
@@ -139,6 +167,10 @@ export interface LivestockFeedLedger {
   harvestedKg: number;
   harvestLossKg: number;
   storageLossKg: number;
+  /** Grass carried in from the shut-up month, after standing losses. */
+  standingInKg?: number;
+  /** Uncut growth left standing for next month's main cut. */
+  standingKg?: number;
   unharvestedKg: number;
   soldKg: number;
   purchasedKg: number;

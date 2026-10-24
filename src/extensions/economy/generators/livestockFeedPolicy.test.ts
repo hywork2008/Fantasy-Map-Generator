@@ -36,6 +36,17 @@ describe("seasonal livestock hay planning", () => {
     });
   });
 
+  it("takes the main cut before peak growth from a shut-up meadow, earliest months first", () => {
+    const weights = [0, 0, 0, 0.05, 0.1, 0.2, 0.3, 0.2, 0.1, 0.05, 0, 0];
+    const plan = calculateLivestockHayPlan(12000, 24000, weights);
+    expect(plan.shutUpMonth).toBe(4);
+    expect(plan.harvestWeights[4]).toBe(0);
+    expect(plan.harvestWeights[5]).toBeGreaterThan(plan.harvestWeights[7]);
+    const firstUnused = plan.harvestWeights.findIndex((weight, month) => month >= 5 && weight === 0);
+    expect(plan.harvestWeights.slice(firstUnused).every(weight => weight === 0)).toBe(true);
+    expect(plan.harvestWeights.reduce((sum, value) => sum + value, 0)).toBeCloseTo(1);
+  });
+
   it.each([0, 12000])("does not promise hay by reusing kilograms already needed for grazing (%s kg forage)", forage => {
     const plan = calculateLivestockHayPlan(12000, forage, Array(12).fill(1 / 12));
     expect(plan.rawHarvestKg).toBe(0);
