@@ -109,6 +109,8 @@ export function mountCity3d(options: {
   map: HTMLElement;
   scope: Mount;
   getDocument: () => CityDocument;
+  /** Current 2D viewBox half-size in plan meters. */
+  getViewHalfSize?: () => number;
   /** Requested detailed-model quality; each model falls back to the tiers it ships. */
   getModelQuality?: () => ModelQuality;
   /** Draw-grid spacing for a height field. Absent uses the automatic spacing. */
@@ -183,7 +185,10 @@ export function mountCity3d(options: {
     const radius = Math.max(30, document.frame.cityRadiusMeters);
     const elevation = terrain?.heightAt([0, 0]) ?? 0;
     // Match the 2D plan: look straight down, with plan +y (SVG up) at screen top.
-    camera.position.set(0, elevation + radius * 2, 0);
+    const halfView = Math.max(1, options.getViewHalfSize?.() ?? document.frame.extentMeters / 2);
+    // Perspective projection at nadir: distance * tan(fov/2) is the visible half-height.
+    const distance = halfView / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+    camera.position.set(0, elevation + distance, 0);
     controls.target.set(0, elevation + 4, 0);
     camera.up.set(0, 0, -1);
     camera.lookAt(controls.target);

@@ -2742,6 +2742,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     map,
     scope,
     getDocument: () => documents.documentState,
+    getViewHalfSize: () => display.halfView,
     getModelQuality: readModelQualityPreference,
     getTerrainSpacing: readTerrainSpacingPreference
   });
