@@ -5,6 +5,7 @@ import { aerialLandmarkFootprints } from "./aerialFootprints";
 import { buildAerialLandmarkPlan, prevailingWindKey } from "./aerialLandmarks";
 import type { DistrictFabric } from "./blockInfill.types";
 import { assignBuildingAppearances, buildingAppearanceKey } from "./buildingAppearance";
+import type { BuildingLot } from "./buildingLots.types";
 import { assignBuildingMassing } from "./buildingMassing";
 import { absorbCellars } from "./cellarAbsorption";
 import { buildCirculadeTownFabric } from "./circuladeFabric";
@@ -393,6 +394,19 @@ export function buildBlockFabric(
     ...fabricResult,
     buildings: assignBuildingAppearances(document, assignBuildingMassing(document, fabricResult.buildings))
   };
+  if (fabricResult.parcels) {
+    const buildingsByParcel = new Map<string, BuildingLot[]>();
+    for (const building of fabricResult.buildings) {
+      if (!building.parcelId) continue;
+      const members = buildingsByParcel.get(building.parcelId) ?? [];
+      members.push(building);
+      buildingsByParcel.set(building.parcelId, members);
+    }
+    fabricResult = {
+      ...fabricResult,
+      parcels: fabricResult.parcels.map(parcel => ({ ...parcel, buildings: buildingsByParcel.get(parcel.id) ?? [] }))
+    };
+  }
   const fingerprint = documentFabricFingerprint(document);
   if (!profiler) {
     fabricByDocument.set(document, { fingerprint, fabric: fabricResult });

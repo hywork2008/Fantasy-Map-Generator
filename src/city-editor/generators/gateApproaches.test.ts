@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import fixture from "../data/fixtures/river-gates-20260923.json";
 import type { CityDocument } from "../types/document";
-import { featureGroupVertices } from "./features";
 import { generateCityAttempt } from "./generation/generateCity";
 import { generateStageOnDocument, generateWardStep } from "./generation/previews";
 import { countExternalApproachRoads } from "./generation/routing/roadCounts";
@@ -95,10 +94,8 @@ describe("river-side gate preservation", () => {
               `${gate.vertexId} reaches frame`
             ).toBe(true);
           }
-          expect(
-            city.featureGroups.filter(g => g.kind === "road" && featureGroupVertices(city, g).includes(gate.vertexId))
-              .length
-          ).toBeGreaterThanOrEqual(2);
+          // Road ownership can combine both sides in one feature group.
+          expect(adjacency.get(gate.vertexId)!.size).toBeGreaterThanOrEqual(2);
         }
       }
     });

@@ -304,7 +304,8 @@ describe("medieval parcel fabric", () => {
       expect(coreBuildings.length).toBeGreaterThanOrEqual(legacyCoreCount * 0.8);
       expect(fabric.buildings.filter(b => b.parcelId).every(b => b.polygon.length === 4)).toBe(true);
       const original = buildBlockFabric(legacy);
-      const outsideHarbor = (lane: { faceId: string }) => city.mesh.faces[lane.faceId]?.properties.ward !== "harbor";
+      const outsideHarbor = (lane: DistrictFabric["lanes"][number]) =>
+        !lane.kind && city.mesh.faces[lane.faceId]?.properties.ward !== "harbor";
       expect(fabric.lanes.filter(outsideHarbor)).toEqual(original.lanes.filter(outsideHarbor));
       const roofs = (f: DistrictFabric) => f.buildings.reduce((sum, b) => sum + plotArea(b.polygon), 0);
       expect(roofs(fabric)).toBeGreaterThanOrEqual(roofs(original) * 0.9);

@@ -481,7 +481,17 @@ export function generateCityOnDocument(
 /** Identifies the input of a roll: the document and the requested settings (without any retry record). */
 export function generationInputKey(document: CityDocument, settings: GenerationSettings): string {
   const { generationRetry: _retry, ...requested } = settings;
-  const { ruralFieldSnapshot: _snapshot, ...input } = document;
+  // Generation derives these defaults after accepting a candidate. Their explicit
+  // presence on later rolls must not invalidate the same input's retry record.
+  const { ruralFieldSnapshot: _snapshot, ...input } = withBuildingAppearance(
+    document,
+    document.buildingAppearanceProfile,
+    settings.descriptor
+  );
+  input.ruralFieldSettings = {
+    ...input.ruralFieldSettings,
+    coveragePercent: input.ruralFieldSettings?.coveragePercent ?? 70
+  };
   const text = JSON.stringify([input, requested]);
   // FNV-1a, 2 × 32 bits: a stale record must not match by accident, but this is no security boundary.
   let a = 0x811c9dc5,

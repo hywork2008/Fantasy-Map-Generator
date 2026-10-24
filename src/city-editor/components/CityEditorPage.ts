@@ -153,6 +153,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         get display() {
           return display;
         },
+        get size() {
+          return size;
+        },
         get syncStageUi() {
           return syncStageUi;
         },
