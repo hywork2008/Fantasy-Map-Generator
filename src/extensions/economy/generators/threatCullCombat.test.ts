@@ -23,6 +23,7 @@ function rngSequence(values: number[]): RNGService {
       i += 1;
       return v;
     },
+    // biome-ignore lint/correctness/noComponentHookFactories: P is a probability stub, not a React component.
     P: () => false,
     each: () => () => false,
     gauss: () => 0,

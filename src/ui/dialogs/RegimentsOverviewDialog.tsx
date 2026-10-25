@@ -18,6 +18,44 @@ import { VirtualTableBody } from "../components/VirtualTableBody";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
+function SortHeader({
+  field,
+  label,
+  numeric,
+  sortBy,
+  sortOrder,
+  toggleSortBy
+}: {
+  field: string;
+  label: string;
+  numeric?: boolean;
+  sortBy: string;
+  sortOrder: "asc" | "desc";
+  toggleSortBy: (field: string) => void;
+}) {
+  let sortClass = "";
+  if (sortBy === field) {
+    sortClass =
+      sortOrder === "asc"
+        ? numeric
+          ? "icon-sort-number-up"
+          : "icon-sort-name-up"
+        : numeric
+          ? "icon-sort-number-down"
+          : "icon-sort-name-down";
+  }
+  return (
+    <th
+      data-tip={`${label}. Click to sort`}
+      className={`sortable ${numeric ? "" : "alphabetically"} ${sortClass}`}
+      onClick={() => toggleSortBy(field)}
+      data-sortby={field}
+    >
+      {label}
+    </th>
+  );
+}
+
 export const RegimentsOverviewDialog: React.FC = () => {
   const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("regimentsOverview"));
@@ -151,30 +189,6 @@ export const RegimentsOverviewDialog: React.FC = () => {
     return total ? `${Math.round((value / total) * 100)}%` : "0%";
   };
 
-  const SortHeader: React.FC<{ field: string; label: string; numeric?: boolean }> = ({ field, label, numeric }) => {
-    let sortClass = "";
-    if (sortBy === field) {
-      sortClass =
-        sortOrder === "asc"
-          ? numeric
-            ? "icon-sort-number-up"
-            : "icon-sort-name-up"
-          : numeric
-            ? "icon-sort-number-down"
-            : "icon-sort-name-down";
-    }
-    return (
-      <th
-        data-tip={`${label}. Click to sort`}
-        className={`sortable ${numeric ? "" : "alphabetically"} ${sortClass}`}
-        onClick={() => toggleSortBy(field)}
-        data-sortby={field}
-      >
-        {label}
-      </th>
-    );
-  };
-
   const sortedStates = useMemo(() => [...states].sort((a, b) => (a.name > b.name ? 1 : -1)), [states]);
 
   const parentRef = React.useRef<HTMLDivElement>(null);
@@ -204,10 +218,30 @@ export const RegimentsOverviewDialog: React.FC = () => {
             </colgroup>
             <thead id="regimentsHeader">
               <tr className="header">
-                <SortHeader field="state" label="State" />
-                <SortHeader field="name" label="Name" />
+                <SortHeader
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  toggleSortBy={toggleSortBy}
+                  field="state"
+                  label="State"
+                />
+                <SortHeader
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  toggleSortBy={toggleSortBy}
+                  field="name"
+                  label="Name"
+                />
                 {unitTypes.map(u => (
-                  <SortHeader key={u.name} field={u.name} label={capitalize(u.name.replace(/_/g, " "))} numeric />
+                  <SortHeader
+                    sortBy={sortBy}
+                    sortOrder={sortOrder}
+                    toggleSortBy={toggleSortBy}
+                    key={u.name}
+                    field={u.name}
+                    label={capitalize(u.name.replace(/_/g, " "))}
+                    numeric
+                  />
                 ))}
                 <th
                   id="regimentsTotal"

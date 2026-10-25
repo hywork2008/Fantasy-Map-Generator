@@ -15,6 +15,42 @@ import { VirtualTableBody } from "../components/VirtualTableBody";
 import { Dialog } from "./Dialog";
 import { closeDialog } from "./dialogService";
 
+function SortHeader({
+  label,
+  col,
+  tip,
+  hide = false,
+  hidden = false,
+  numeric = false,
+  width,
+  sortBy,
+  sortOrder
+}: {
+  label: string;
+  col: string;
+  tip: string;
+  hide?: boolean;
+  hidden?: boolean;
+  numeric?: boolean;
+  width?: string;
+  sortBy: string;
+  sortOrder: "asc" | "desc";
+}) {
+  return (
+    <SortableHeader
+      field={col}
+      label={label}
+      sortBy={sortBy}
+      sortOrder={sortOrder}
+      onSort={culturesEditorActions.changeSort}
+      numeric={numeric}
+      tip={tip}
+      className={`${hide ? "hide" : ""} ${hidden ? "hidden" : ""}`}
+      style={{ width }}
+    />
+  );
+}
+
 const cultureTypes: readonly string[] = CULTURE_TYPES;
 
 const shapeOptions: string[] = Object.keys(COA.shields.types).flatMap(type =>
@@ -101,36 +137,6 @@ export const CulturesEditorDialog: React.FC = () => {
 
   const sortOrder = sortDirection === 1 ? "asc" : "desc";
 
-  const SortHeader = ({
-    label,
-    col,
-    tip,
-    hide = false,
-    hidden = false,
-    numeric = false,
-    width
-  }: {
-    label: string;
-    col: string;
-    tip: string;
-    hide?: boolean;
-    hidden?: boolean;
-    numeric?: boolean;
-    width?: string;
-  }) => (
-    <SortableHeader
-      field={col}
-      label={label}
-      sortBy={sortBy}
-      sortOrder={sortOrder}
-      onSort={culturesEditorActions.changeSort}
-      numeric={numeric}
-      tip={tip}
-      className={`${hide ? "hide" : ""} ${hidden ? "hidden" : ""}`}
-      style={{ width }}
-    />
-  );
-
   return (
     <Dialog
       isOpen={isOpen}
@@ -148,22 +154,49 @@ export const CulturesEditorDialog: React.FC = () => {
           <table className="fmg-table">
             <thead>
               <tr id="culturesHeader">
-                <SortHeader label="Culture" col="name" tip="Click to sort by culture name" width="10em" />
-                <SortHeader label="Type" col="type" tip="Click to sort by type" width="7em" />
                 <SortHeader
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  label="Culture"
+                  col="name"
+                  tip="Click to sort by culture name"
+                  width="10em"
+                />
+                <SortHeader
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  label="Type"
+                  col="type"
+                  tip="Click to sort by type"
+                  width="7em"
+                />
+                <SortHeader
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
                   label={t("dialogs.culturesEditor.funeral")}
                   col="funeralRite"
                   tip={t("dialogs.culturesEditor.funeralTip")}
                   width="8em"
                 />
                 <SortHeader
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
                   label="Race"
                   col="race"
                   tip="Species / folk for this culture (independent of language and names). Click to sort"
                   width="8em"
                 />
-                <SortHeader label="Namesbase" col="base" tip="Click to sort by culture namesbase" width="9em" />
                 <SortHeader
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  label="Namesbase"
+                  col="base"
+                  tip="Click to sort by culture namesbase"
+                  width="9em"
+                />
+                <SortHeader
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
                   label="Cells"
                   col="cells"
                   tip="Click to sort by culture cells count"
@@ -172,6 +205,8 @@ export const CulturesEditorDialog: React.FC = () => {
                   width="4em"
                 />
                 <SortHeader
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
                   label="Expansion"
                   col="expansionism"
                   tip="Click to sort by expansionism"
@@ -180,6 +215,8 @@ export const CulturesEditorDialog: React.FC = () => {
                   width="8em"
                 />
                 <SortHeader
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
                   label="Lot occ."
                   col="lotOccupancy"
                   tip="City Editor Lot occupancy guide (%). Empty uses the 80% default. Click to sort"
@@ -187,8 +224,19 @@ export const CulturesEditorDialog: React.FC = () => {
                   numeric
                   width="5em"
                 />
-                <SortHeader label="Area" col="area" tip="Click to sort by culture area" hide numeric width="6em" />
                 <SortHeader
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
+                  label="Area"
+                  col="area"
+                  tip="Click to sort by culture area"
+                  hide
+                  numeric
+                  width="6em"
+                />
+                <SortHeader
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
                   label="Population"
                   col="population"
                   tip="Click to sort by culture population"
@@ -197,6 +245,8 @@ export const CulturesEditorDialog: React.FC = () => {
                   width="4em"
                 />
                 <SortHeader
+                  sortBy={sortBy}
+                  sortOrder={sortOrder}
                   label="Emblems"
                   col="emblems"
                   tip="Click to sort by culture emblems shape"

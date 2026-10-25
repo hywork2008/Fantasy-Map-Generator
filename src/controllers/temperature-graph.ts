@@ -85,10 +85,7 @@ export function showBurgTemperatureGraph(id: number): void {
   }
 
   const yearSig = lstOut[0] * 62.9466411977018 + 0.28613807855649165;
-  const yearDelTmpSig =
-    lstOut[1] * 13.541688670361175 + 0.1414213562373084 > yearSig
-      ? yearSig
-      : lstOut[1] * 13.541688670361175 + 0.1414213562373084;
+  const yearDelTmpSig = Math.min(lstOut[1] * 13.541688670361175 + 0.1414213562373084, yearSig);
   const yearDelTmpMu = lstOut[2] * 15.266666666666667 + 0.6416666666666663;
 
   const delT = yearDelTmpMu / 2 + (0.5 * yearDelTmpSig) / 2;

@@ -86,7 +86,7 @@ if (parseMapVersion(VERSION) !== VERSION) alert("versioning.js: Invalid format o
 
 document.title += ` v${VERSION}`;
 const loadingScreenVersion = document.getElementById("versionText");
-if (loadingScreenVersion) loadingScreenVersion.innerText = `v${VERSION}`;
+if (loadingScreenVersion) loadingScreenVersion.textContent = `v${VERSION}`;
 
 const storedVersion = localStorage.getItem("version");
 if (compareVersions(storedVersion ?? "", VERSION, { major: true, minor: true, patch: false }).isOlder) {

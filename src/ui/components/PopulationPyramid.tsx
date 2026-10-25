@@ -1,6 +1,41 @@
 import type React from "react";
 import type { PopulationAgeBands } from "../../services/populationAgeBands";
 
+function Row({ label, male, female, scale }: { label: string; male: number; female: number; scale: number }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", marginBottom: "2px", fontSize: "0.8em" }}>
+      {/* Male Side */}
+      <div style={{ flex: 1, display: "flex", justifyContent: "flex-end", paddingRight: "4px" }}>
+        <div
+          data-tip={`${male.toLocaleString()} Males`}
+          style={{
+            height: "14px",
+            backgroundColor: "#4a90e2",
+            width: `${male * scale}%`,
+            minWidth: male > 0 ? "2px" : "0",
+            transition: "width 0.3s ease"
+          }}
+        />
+      </div>
+      {/* Center Label */}
+      <div style={{ width: "40px", textAlign: "center", color: "var(--text-color-light)" }}>{label}</div>
+      {/* Female Side */}
+      <div style={{ flex: 1, display: "flex", justifyContent: "flex-start", paddingLeft: "4px" }}>
+        <div
+          data-tip={`${female.toLocaleString()} Females`}
+          style={{
+            height: "14px",
+            backgroundColor: "#e24a8d",
+            width: `${female * scale}%`,
+            minWidth: female > 0 ? "2px" : "0",
+            transition: "width 0.3s ease"
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
 interface PopulationPyramidProps {
   childrenCount: number;
   maleAdults: number;
@@ -33,39 +68,6 @@ export const PopulationPyramid: React.FC<PopulationPyramidProps> = ({
   // Avoid division by zero
   const scale = maxVal > 0 ? 100 / maxVal : 1;
 
-  const Row = ({ label, male, female }: { label: string; male: number; female: number }) => (
-    <div style={{ display: "flex", alignItems: "center", marginBottom: "2px", fontSize: "0.8em" }}>
-      {/* Male Side */}
-      <div style={{ flex: 1, display: "flex", justifyContent: "flex-end", paddingRight: "4px" }}>
-        <div
-          data-tip={`${male.toLocaleString()} Males`}
-          style={{
-            height: "14px",
-            backgroundColor: "#4a90e2",
-            width: `${male * scale}%`,
-            minWidth: male > 0 ? "2px" : "0",
-            transition: "width 0.3s ease"
-          }}
-        />
-      </div>
-      {/* Center Label */}
-      <div style={{ width: "40px", textAlign: "center", color: "var(--text-color-light)" }}>{label}</div>
-      {/* Female Side */}
-      <div style={{ flex: 1, display: "flex", justifyContent: "flex-start", paddingLeft: "4px" }}>
-        <div
-          data-tip={`${female.toLocaleString()} Females`}
-          style={{
-            height: "14px",
-            backgroundColor: "#e24a8d",
-            width: `${female * scale}%`,
-            minWidth: female > 0 ? "2px" : "0",
-            transition: "width 0.3s ease"
-          }}
-        />
-      </div>
-    </div>
-  );
-
   return (
     <div
       style={{
@@ -90,9 +92,9 @@ export const PopulationPyramid: React.FC<PopulationPyramidProps> = ({
         <span>Male</span>
         <span>Female</span>
       </div>
-      <Row label={ageBands.elders} male={maleElders} female={femaleElders} />
-      <Row label={ageBands.adults} male={mAdults} female={fAdults} />
-      <Row label={ageBands.children} male={maleChildren} female={femaleChildren} />
+      <Row scale={scale} label={ageBands.elders} male={maleElders} female={femaleElders} />
+      <Row scale={scale} label={ageBands.adults} male={mAdults} female={fAdults} />
+      <Row scale={scale} label={ageBands.children} male={maleChildren} female={femaleChildren} />
     </div>
   );
 };

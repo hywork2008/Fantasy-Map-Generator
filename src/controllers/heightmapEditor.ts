@@ -760,9 +760,9 @@ export function editHeightmap(options?: { mode?: string; tool?: string }): void 
   function updateStatistics(): void {
     const heights = getHeightmapEditingHeights(worldContext.grid);
     const landCells = heights.reduce((s, h) => (h >= 20 ? s + 1 : s), 0);
-    getElementById("landmassCounter")!.innerText =
+    getElementById("landmassCounter")!.textContent =
       `${landCells} (${rn((landCells / worldContext.grid.cells.i.length) * 100)}%)`;
-    getElementById("landmassAverage")!.innerText = String(rn(mean(Array.from(heights)) ?? 0));
+    getElementById("landmassAverage")!.textContent = String(rn(mean(Array.from(heights)) ?? 0));
   }
 
   function updateHistory(noStat?: string): void {

@@ -12,6 +12,35 @@ import {
 } from "../../generators/treasuryAllocation";
 
 /** PR-17f — maps each adjustable department to its council budget-cut line. */
+function SortHeader({
+  field,
+  label,
+  tip,
+  sortBy,
+  sortOrder,
+  handleSort
+}: {
+  field: string;
+  label: string;
+  tip: string;
+  sortBy: string;
+  sortOrder: "asc" | "desc";
+  handleSort: (field: string) => void;
+}) {
+  const isActive = sortBy === field;
+  const directionIcon = sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down";
+  return (
+    <th
+      data-tip={`Click to sort by ${tip}`}
+      className={`sortable ${isActive ? "sort-active" : ""}`}
+      onClick={() => handleSort(field)}
+    >
+      {label}
+      {isActive && <span className={directionIcon} />}
+    </th>
+  );
+}
+
 const COUNCIL_CUT_LINE_BY_DEPARTMENT: Record<NonMarshalcyDepartmentKey, keyof NonNullable<State["councilApprovals"]>> =
   {
     chancery: "cutChancery",
@@ -111,21 +140,6 @@ export const StatesEditorTreasuryTab: React.FC = () => {
 
   const totalTreasury = states.reduce((sum, s) => sum + (s.treasury || 0), 0);
 
-  function SortHeader({ field, label, tip }: { field: string; label: string; tip: string }) {
-    const isActive = sortBy === field;
-    const directionIcon = sortOrder === "asc" ? "icon-sort-number-up" : "icon-sort-number-down";
-    return (
-      <th
-        data-tip={`Click to sort by ${tip}`}
-        className={`sortable ${isActive ? "sort-active" : ""}`}
-        onClick={() => handleSort(field)}
-      >
-        {label}
-        {isActive && <span className={directionIcon} />}
-      </th>
-    );
-  }
-
   return (
     <div className="table" style={{ overflow: "auto" }}>
       <table className="fmg-table">
@@ -151,9 +165,30 @@ export const StatesEditorTreasuryTab: React.FC = () => {
                 <span className={sortOrder === "asc" ? "icon-sort-name-up" : "icon-sort-name-down"} />
               )}
             </th>
-            <SortHeader field="salesTax" label="Sales Tax" tip="sales tax rate" />
-            <SortHeader field="pollTax" label="Poll Tax" tip="poll tax rate" />
-            <SortHeader field="treasury" label="Treasury" tip="state treasury" />
+            <SortHeader
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              handleSort={handleSort}
+              field="salesTax"
+              label="Sales Tax"
+              tip="sales tax rate"
+            />
+            <SortHeader
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              handleSort={handleSort}
+              field="pollTax"
+              label="Poll Tax"
+              tip="poll tax rate"
+            />
+            <SortHeader
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              handleSort={handleSort}
+              field="treasury"
+              label="Treasury"
+              tip="state treasury"
+            />
             <th data-tip="Share of the total treasury held by all states">Share</th>
             <th data-tip="State-funded road and caravan security investment; paid monthly from the treasury">
               Trade Security

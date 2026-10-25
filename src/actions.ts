@@ -44,7 +44,7 @@ export function zoomIntoBurg(burgId: number): void {
   }
 
   const currentScale = viewContext.scale;
-  const scale = Math.max(currentScale >= 8 ? currentScale : 8, requiredScale);
+  const scale = Math.max(currentScale, 8, requiredScale);
 
   zoomTo(burg.x, burg.y, scale, 2000);
 }

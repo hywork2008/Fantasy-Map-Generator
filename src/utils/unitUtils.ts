@@ -75,6 +75,7 @@ export const convertTemperature = (temperatureInCelsius: number, targetScale: Te
   const temperatureConversionMap: { [key: string]: (temp: number) => string } = {
     "°C": (temp: number) => `${rn(temp)}°C`,
     "°F": (temp: number) => `${rn((temp * 9) / 5 + 32)}°F`,
+    // biome-ignore lint/correctness/noComponentHookFactories: K is the Kelvin unit formatter, not a component.
     K: (temp: number) => `${rn(temp + 273.15)}K`,
     "°R": (temp: number) => `${rn(((temp + 273.15) * 9) / 5)}°R`,
     "°De": (temp: number) => `${rn(((100 - temp) * 3) / 2)}°De`,

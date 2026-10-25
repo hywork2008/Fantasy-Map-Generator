@@ -171,7 +171,7 @@ export function ensureCellWindClimate(world: WorldContext): CellWindClimate {
   const points = grid.points;
   const winds = world.options.winds ?? [225, 45, 225, 315, 135, 315];
   const axialTilt = world.options.axialTilt ?? 23.5;
-  const kmPerUnit = world.distanceScale > 0 ? world.distanceScale : 0;
+  const kmPerUnit = Math.max(world.distanceScale, 0);
   const spacingKm = (grid.spacing ?? 0) * kmPerUnit;
   const meters = new Float32Array(n);
   const land = new Float32Array(n);

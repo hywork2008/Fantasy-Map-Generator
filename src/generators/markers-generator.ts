@@ -495,7 +495,7 @@ class MarkersModule {
   private getQuantity(array: number[], min: number, each: number, multiplier: number) {
     if (!array.length || array.length < min / multiplier) return 0;
     const requestQty = Math.ceil((array.length / each) * multiplier);
-    return array.length < requestQty ? array.length : requestQty;
+    return Math.min(array.length, requestQty);
   }
 
   private extractAnyElement(array: number[]) {

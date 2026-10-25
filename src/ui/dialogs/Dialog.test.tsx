@@ -6,24 +6,26 @@ import { Dialog } from "./Dialog";
 vi.mock("react-i18next", () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock("./dialogService", () => ({ closeAllDialogs: vi.fn() }));
 
+function Preview({ mount, cleanup }: { mount: () => void; cleanup: () => void }) {
+  useEffect(() => {
+    mount();
+    return cleanup;
+  }, [mount, cleanup]);
+  return <object data="about:blank" aria-label="preview" />;
+}
+
 it("preserves embedded previews and component state across minimize and restore", async () => {
   const host = document.createElement("div");
   document.body.append(host);
   const root = createRoot(host);
   const mount = vi.fn();
   const cleanup = vi.fn();
-  function Preview() {
-    useEffect(() => {
-      mount();
-      return cleanup;
-    }, []);
-    return <object data="about:blank" aria-label="preview" />;
-  }
+
   try {
     await act(async () => {
       root.render(
         <Dialog isOpen keepContentMountedOnMinimize>
-          <Preview />
+          <Preview mount={mount} cleanup={cleanup} />
         </Dialog>
       );
     });

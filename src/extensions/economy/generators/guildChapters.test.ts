@@ -87,6 +87,7 @@ describe("GuildChaptersModule", () => {
   it("uses an independent annual self-gate", () => {
     setGuildChapters([{ burgId: 1, domain: "metallurgy", foundedYear: 500, status: "chapter", suitability: 1 }]);
     worldContext.options = { year: 501 };
+    // biome-ignore lint/correctness/noComponentHookFactories: P is a probability stub, not a React component.
     const neverFound = { P: () => false };
 
     expect(GuildChapters.settleAnnual(neverFound)).toBe(true);
@@ -100,6 +101,7 @@ describe("GuildChaptersModule", () => {
       { burgId: 2, domain: "instruments", foundedYear: 500, status: "chapter", suitability: 0.9 }
     ]);
 
+    // biome-ignore lint/correctness/noComponentHookFactories: P is a probability stub, not a React component.
     expect(GuildChapters.settleAnnual({ P: () => false })).toBe(true);
 
     const halls = getGuildChapters().filter(chapter => chapter.domain === "instruments");
@@ -209,6 +211,7 @@ describe("GuildChaptersModule", () => {
       { burgId: 7, domain: "instruments", stock: 0.1, treasury: 0 }
     ]);
 
+    // biome-ignore lint/correctness/noComponentHookFactories: P is a probability stub, not a React component.
     expect(GuildChapters.settleAnnual({ P: () => false })).toBe(true);
 
     const chapters = getGuildChapters();
