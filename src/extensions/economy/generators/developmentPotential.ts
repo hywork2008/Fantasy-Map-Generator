@@ -271,6 +271,12 @@ export function getCropLaborCoverageByCell(
 
 /** Share of the gap between the pasture kept and the pasture its herders can work closed in one year (§23). */
 export const PASTURE_ANNUAL_ADJUSTMENT = 0.25;
+/**
+ * Expansion share of the same gap, used only when the herders can already work more pasture than is kept.
+ * Contraction keeps the slower rate that stopped the yearly flip; growth toward a staffed plan is not
+ * that flip and at 0.25 left the plan years behind (model policy).
+ */
+export const PASTURE_ANNUAL_EXPANSION = 0.5;
 
 export class DevelopmentPotentialModule {
   generate(): DevelopmentPotentials {
@@ -524,7 +530,9 @@ export class DevelopmentPotentialModule {
       const maintainedPasture =
         previousPasture === undefined
           ? staffedPasture
-          : previousPasture + (staffedPasture - previousPasture) * PASTURE_ANNUAL_ADJUSTMENT;
+          : previousPasture +
+            (staffedPasture - previousPasture) *
+              (staffedPasture > previousPasture ? PASTURE_ANNUAL_EXPANSION : PASTURE_ANNUAL_ADJUSTMENT);
       landUseByCell[input.id] = {
         livestock: input.livestock ?? { grazingAreaHa: maintainedPasture },
         workforce: {

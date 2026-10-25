@@ -17,7 +17,8 @@ import {
 import {
   calculateFoodPotential,
   calculateSettlementDevelopmentPotential,
-  DevelopmentPotentialModule
+  DevelopmentPotentialModule,
+  PASTURE_ANNUAL_EXPANSION
 } from "./developmentPotential";
 import { Goods } from "./goods-generator";
 import { calculateDesiredPastureAreaHectares } from "./husbandry";
@@ -116,7 +117,9 @@ describe("rural occupation labor in clearance planning", () => {
     // The plan follows the herd target, not the sixty recorded cattle; one quarter of the gap closes a year.
     const planned = calculateDesiredPastureAreaHectares(world, 1, true);
     expect(planned).not.toBeCloseTo(600);
-    expect(conditions.landUseByCell![1].livestock?.grazingAreaHa).toBeCloseTo(600 + (planned - 600) * 0.25);
+    expect(conditions.landUseByCell![1].livestock?.grazingAreaHa).toBeCloseTo(
+      600 + (planned - 600) * PASTURE_ANNUAL_EXPANSION
+    );
     expect(stock["1:Cattle"]).toEqual({ young: 10, breeding: 40, old: 10 });
   });
 
