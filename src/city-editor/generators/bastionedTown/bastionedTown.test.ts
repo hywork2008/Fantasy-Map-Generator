@@ -241,7 +241,7 @@ describe("bastioned fortress town", () => {
     const flooded = roll("fortress-river-wet", 900, 100, floodedSettings);
     expect(flooded.city).toBeNull();
     expect(flooded.failure?.reason).toBe("fortress-water-conflict");
-    expect(flooded.failure?.message).toContain("Rivers and the coast were not moved.");
+    expect(flooded.failure?.message).toContain("set Rivers to 0 and Coast to none");
     expect(JSON.stringify(flooded.input)).toBe(flooded.before);
   }, 180000);
 

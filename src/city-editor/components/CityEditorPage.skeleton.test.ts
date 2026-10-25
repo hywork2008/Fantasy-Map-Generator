@@ -25,6 +25,21 @@ function select(selector: string, value: string) {
 }
 
 describe("skeleton-first generation panel", () => {
+  it("marks wet ditch and rivers, links the explanation, and clears resolved conflicts", () => {
+    select(".ce-town-fortification", "bastioned");
+    select(".ce-generate-river-count", "1");
+    const ditch = select(".ce-fortress-ditch", "wet");
+    const rivers = root.querySelector<HTMLSelectElement>(".ce-generate-river-count")!;
+    expect(rivers.getAttribute("aria-invalid")).toBe("true");
+    expect(ditch.classList.contains("ce-setting-invalid")).toBe(true);
+    const explanation = document.getElementById(rivers.getAttribute("aria-describedby")!.split(" ")[0]);
+    expect(explanation?.textContent).toContain("dry");
+    select(".ce-fortress-ditch", "dry");
+    expect(rivers.hasAttribute("aria-invalid")).toBe(false);
+    expect(rivers.hasAttribute("aria-describedby")).toBe(false);
+    expect(ditch.classList.contains("ce-setting-invalid")).toBe(false);
+  });
+
   it("uses artillery dimensions for a new fortress and lets old proportions be selected explicitly", () => {
     select(".ce-town-fortification", "bastioned");
     const dimensions = root.querySelector<HTMLSelectElement>(".ce-fortress-dimensions")!;

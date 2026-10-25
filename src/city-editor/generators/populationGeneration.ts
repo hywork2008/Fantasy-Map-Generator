@@ -6,7 +6,7 @@ import { inheritBuildingAppearance } from "./buildingAppearance";
 import { hasBuildingHeightLimits } from "./buildingHeightLimits";
 import { supportsBuildingHeightVariation } from "./buildingHeightPolicy";
 import { createGridDocument, sizePresetForExtent } from "./document";
-import { planPopulation } from "./populationPlan";
+import { PopulationSettingError, planPopulation } from "./populationPlan";
 
 /** No synthetic burg, state, or economy is needed to generate a standalone population. */
 export function preparePopulationGeneration(document: CityDocument, settings: GenerationSettings, seed: string) {
@@ -25,51 +25,10 @@ export function preparePopulationGeneration(document: CityDocument, settings: Ge
     delete legacy.housingCapacity;
     return { document: legacy, settings };
   }
+  const { plan, period, protectedGeometry } = validatePopulationGeneration(document, settings);
   const fortress = !!settings.townFortification;
-  const period =
-    settings.historicalPeriod ??
-    settings.descriptor?.historicalPeriod ??
-    (fortress ? "ageOfExploration" : "lateMedieval");
   const population = settings.population;
-  const heightPolicyVersion =
-    settings.buildingHeightPolicy?.version === 1 &&
-    supportsBuildingHeightVariation(
-      period,
-      settings.descriptor?.civilization?.tradition ?? document.civilization?.tradition
-    )
-      ? 1
-      : hasBuildingHeightLimits({ ...document, buildingHeightLimit: settings.buildingHeightLimit })
-        ? 2
-        : undefined;
-  let plan = planPopulation(
-    population,
-    period,
-    document.frame.extentMeters,
-    heightPolicyVersion,
-    heightPolicyVersion ? (settings.housingAreaScale ?? 1) : 1
-  );
-  if (fortress && population.frameMode !== "manual") {
-    const extent = fortressFrameExtent(plan.cityRadiusMeters, settings);
-    if (extent > plan.extentMeters) plan = { ...plan, extentMeters: extent };
-  }
-  if (settings.descriptor && document.frame.extentMeters < 2 * plan.cityRadiusMeters * 1.3)
-    throw new Error("The imported terrain does not cover the population window. Import a larger terrain frame.");
-  if (settings.generationMethod === "skeleton-first" && !fortress)
-    throw new Error("Population generation currently requires mesh-first.");
-  if (!fortress && ["bram", "circulade", "classic"].includes(settings.layout ?? settings.config.layout ?? ""))
-    throw new Error("Population generation currently requires organic layout.");
   let next = document;
-  const protectedGeometry =
-    Object.values(document.mesh.faces).some(
-      f => f.properties.locked || f.properties.buildingHeightLimit !== undefined
-    ) ||
-    Object.values(document.mesh.vertices).some(v => v.locked) ||
-    Object.values(document.mesh.edges).some(e => e.locked) ||
-    document.featureGroups.some(g => g.locked) ||
-    document.elements.some(e => e.locked) ||
-    !!document.landmarks?.length;
-  if (protectedGeometry && document.frame.extentMeters < 2 * plan.cityRadiusMeters * 1.3)
-    throw new Error("The fixed geometry is inside a frame too small for this population.");
   if (!settings.descriptor && !protectedGeometry) {
     const key = (p: typeof plan | undefined) =>
       p && JSON.stringify([p.targetAreaM2, p.cellWidthMeters, p.extentMeters, seed]);
@@ -144,4 +103,59 @@ export function preparePopulationGeneration(document: CityDocument, settings: Ge
   delete next.populationReport;
   delete next.residentialClusters;
   return { document: next, settings: resolvedSettings };
+}
+
+/** Validate population constraints without creating or changing geometry. */
+export function validatePopulationGeneration(document: CityDocument, settings: GenerationSettings) {
+  const fortress = !!settings.townFortification;
+  const period =
+    settings.historicalPeriod ??
+    settings.descriptor?.historicalPeriod ??
+    (fortress ? "ageOfExploration" : "lateMedieval");
+  const population = settings.population!;
+  const heightPolicyVersion =
+    settings.buildingHeightPolicy?.version === 1 &&
+    supportsBuildingHeightVariation(
+      period,
+      settings.descriptor?.civilization?.tradition ?? document.civilization?.tradition
+    )
+      ? 1
+      : hasBuildingHeightLimits({ ...document, buildingHeightLimit: settings.buildingHeightLimit })
+        ? 2
+        : undefined;
+  let plan = planPopulation(
+    population,
+    period,
+    document.frame.extentMeters,
+    heightPolicyVersion,
+    heightPolicyVersion ? (settings.housingAreaScale ?? 1) : 1
+  );
+  if (fortress && population.frameMode !== "manual") {
+    const extent = fortressFrameExtent(plan.cityRadiusMeters, settings);
+    if (extent > plan.extentMeters) plan = { ...plan, extentMeters: extent };
+  }
+  if (settings.descriptor && document.frame.extentMeters < 2 * plan.cityRadiusMeters * 1.3)
+    throw new PopulationSettingError(
+      "The imported terrain does not cover the population window. Import a larger terrain frame.",
+      ["population", "frame"]
+    );
+  if (settings.generationMethod === "skeleton-first" && !fortress)
+    throw new PopulationSettingError("Population generation currently requires mesh-first.", ["generationMethod"]);
+  if (!fortress && ["bram", "circulade", "classic"].includes(settings.layout ?? settings.config.layout ?? ""))
+    throw new PopulationSettingError("Population generation currently requires organic layout.", ["layout"]);
+  const protectedGeometry =
+    Object.values(document.mesh.faces).some(
+      f => f.properties.locked || f.properties.buildingHeightLimit !== undefined
+    ) ||
+    Object.values(document.mesh.vertices).some(v => v.locked) ||
+    Object.values(document.mesh.edges).some(e => e.locked) ||
+    document.featureGroups.some(g => g.locked) ||
+    document.elements.some(e => e.locked) ||
+    !!document.landmarks?.length;
+  if (protectedGeometry && document.frame.extentMeters < 2 * plan.cityRadiusMeters * 1.3)
+    throw new PopulationSettingError("The fixed geometry is inside a frame too small for this population.", [
+      "population",
+      "frame"
+    ]);
+  return { plan, period, protectedGeometry };
 }

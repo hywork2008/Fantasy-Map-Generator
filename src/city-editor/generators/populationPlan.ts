@@ -4,6 +4,14 @@ import type { PopulationGenerationSettings, PopulationPlan } from "../types/cont
 import { residentialHeightWeights, supportsBuildingHeightVariation } from "./buildingHeightPolicy";
 import { dwellingCapacity } from "./residentialCapacity";
 
+export class PopulationSettingError extends Error {
+  constructor(
+    message: string,
+    readonly fields: string[]
+  ) {
+    super(message);
+  }
+}
 export const DEFAULT_CITY_POPULATION = 5_000;
 export const MAX_CITY_POPULATION = 220_000;
 export function defaultPopulationSettings(population = DEFAULT_CITY_POPULATION): PopulationGenerationSettings {
@@ -42,8 +50,12 @@ export function planPopulation(
   areaScale = 1
 ): PopulationPlan {
   if (!validPopulationSettings(settings))
-    throw new Error("Population must be an integer from 1 to 220,000; unsupported population profile or settings.");
-  if (!supportsUrbanMorphology(period)) throw new Error(`Population generation does not support ${period}.`);
+    throw new PopulationSettingError(
+      "Population must be an integer from 1 to 220,000; unsupported population profile or settings.",
+      ["population"]
+    );
+  if (!supportsUrbanMorphology(period))
+    throw new PopulationSettingError(`Population generation does not support ${period}.`, ["historicalPeriod"]);
   const requiredDwellings = getUrbanDwellings(settings.targetPopulation);
   const storeys = residentialStoreys(period).standard;
   const low = Math.max(1, storeys - (storeys >= 3 ? 1 : 0));
@@ -56,12 +68,17 @@ export function planPopulation(
       : (dwellingCapacity(80, low) + dwellingCapacity(80, storeys)) / 2;
   const estimatedBuildings = Math.ceil(requiredDwellings / meanCapacity);
   const residentialFootprintM2 = estimatedBuildings * 80;
-  if (!Number.isFinite(areaScale) || areaScale < 1 || areaScale > 64) throw new Error("Invalid housing area scale.");
+  if (!Number.isFinite(areaScale) || areaScale < 1 || areaScale > 64)
+    throw new PopulationSettingError("Invalid housing area scale.", ["housingAreaScale"]);
   const targetAreaM2 = (residentialFootprintM2 / 0.27) * areaScale;
   const cityRadiusMeters = Math.sqrt(targetAreaM2 / Math.PI);
   const neededExtent = Math.max(300, 2 * cityRadiusMeters * 1.3);
   if (settings.frameMode === "manual" && (!Number.isFinite(manualExtent) || manualExtent < neededExtent))
-    throw new Error(`The map needs at least ${Math.ceil(neededExtent)} metres for this population.`);
+    throw new PopulationSettingError(`The map needs at least ${Math.ceil(neededExtent)} metres for this population.`, [
+      "population",
+      "frameMode",
+      "frame"
+    ]);
   const extentMeters =
     settings.frameMode === "manual"
       ? manualExtent

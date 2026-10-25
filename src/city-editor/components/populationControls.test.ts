@@ -15,6 +15,20 @@ function mount() {
   return root;
 }
 describe("population generation controls", () => {
+  it("marks population and its checkbox while typing an invalid population and clears on correction", () => {
+    const root = mount();
+    const population = root.querySelector<HTMLInputElement>(".ce-population-input")!;
+    const enabled = root.querySelector<HTMLInputElement>(".ce-population-enabled")!;
+    population.value = "220001";
+    population.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(population.getAttribute("aria-invalid")).toBe("true");
+    expect(enabled.getAttribute("aria-invalid")).toBe("true");
+    population.value = "5000";
+    population.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(population.hasAttribute("aria-invalid")).toBe(false);
+    expect(enabled.hasAttribute("aria-invalid")).toBe(false);
+  });
+
   it("keeps and shares the reused population grid and its inner-wall checkpoint", async () => {
     const root = mount();
     const population = root.querySelector<HTMLInputElement>(".ce-population-input")!;

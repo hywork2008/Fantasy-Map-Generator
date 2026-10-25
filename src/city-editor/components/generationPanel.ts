@@ -4,10 +4,11 @@ import { GENERATION_STAGES, generationStages } from "../controllers/generationSt
 import type { PanelEventsContext } from "../controllers/panelEvents";
 import { bindPanelEvents } from "../controllers/panelEvents";
 import { removeBastionedTown } from "../generators/bastionedTown/edit";
-import { bastionedTownSettingConflicts, fortressSettingsMessage } from "../generators/bastionedTown/validate";
+import { bastionedTownSettingConflicts } from "../generators/bastionedTown/validate";
 import { inheritBuildingAppearance } from "../generators/buildingAppearance";
 import { clearGenerationPreviewCache } from "../generators/generation/previews";
 import { bastionEra, skeletonUnsupportedSettings } from "../generators/generation/settings";
+import { generationSettingIssues } from "../generators/generationSettingIssues";
 import { CITY_LAYOUTS, FEATURE_KEYS, WALL_MATERIAL_CHOICES } from "../generators/site/siteConfig";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
 import type { CityFeatureSet, WallCoastChoice, WallMaterialChoice } from "../types/contracts/siteConfig";
@@ -16,6 +17,7 @@ import type { CityDocument } from "../types/document";
 import type { GenerationStage } from "../types/generation";
 import { buildBuildingAppearanceControls } from "./buildingAppearanceControls";
 import { div, text } from "./editorControls";
+import { renderGenerationSettingFeedback } from "./generationSettingFeedback";
 import { buildPopulationControls } from "./populationControls";
 export interface GenerationPanelContext {
   select: (values: string[], selected: string) => HTMLSelectElement;
@@ -703,6 +705,48 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
       delete control.dataset.skeletonTitle;
     }
   };
+  const settingFeedback = div("ce-setting-feedback");
+  settingFeedback.id = `ce-setting-feedback-${crypto.randomUUID()}`;
+  settingFeedback.setAttribute("aria-live", "polite");
+  skeletonControls.append(settingFeedback);
+  function syncSettingFeedback() {
+    const container = skeletonControls.parentElement;
+    const find = (selector: string) => container?.querySelector<HTMLElement>(selector);
+    renderGenerationSettingFeedback(
+      settingFeedback,
+      {
+        townFortification: fortSelect,
+        ditch: ditchSelect,
+        rivers: riversSelect,
+        coast: coastSelect,
+        outworks: outworksSelect,
+        streetPlan: streetsSelect,
+        dimensionPolicy: dimensionsSelect,
+        generationMethod: methodSelect,
+        wallShape: shapeSelect,
+        wallSides: sidesInput,
+        historicalPeriod: historicalPeriodSelect,
+        layout: layoutSelect,
+        townWallRings: townWallRingsSelect,
+        walledAreaShare: walledShareInput,
+        walls: featureInputs.get("walls"),
+        citadel: featureInputs.get("citadel"),
+        riverPlacement: riverPlacementSelect,
+        avoidSea: avoidSeaInput,
+        coastalWall: seaWallSelect,
+        urbanNPatches: urbanNPatchesInput,
+        urbanCoreMode: urbanCoreModeSelect,
+        farNode: farNodeSelect,
+        manualBearings: bearingsInput,
+        populationEnabled: populationControls.panel.querySelector(".ce-population-enabled"),
+        population: populationControls.panel.querySelector(".ce-population-input"),
+        frameMode: populationControls.panel.querySelector(".ce-population-frame"),
+        moats: find(".ce-moat-town"),
+        frame: ctx.sizeLabel.querySelector("select")
+      },
+      generationSettingIssues(ctx.documents.documentState, ctx.generation.generateSettings)
+    );
+  }
   const skeletonParents = new WeakSet<HTMLElement>();
   const populationControls = buildPopulationControls(ctx);
   if (ctx.generation.generateSettings.population)
@@ -728,8 +772,8 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
       dimensionsSelect.value = settings.townFortification.dimensionPolicy ?? "legacy";
     }
     const conflicts = bastionedTownSettingConflicts(settings);
-    fortressNotice.hidden = !conflicts;
-    fortressNotice.textContent = conflicts ? fortressSettingsMessage(conflicts) : "";
+    fortressNotice.hidden = true;
+    fortressNotice.textContent = "";
     const military = ctx.documents.documentState.bastionedTown?.military;
     if (fortress && military && !conflicts) {
       fortressNotice.hidden = false;
@@ -779,10 +823,12 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
       seaWallSelect
     ])
       unavailable(control, active);
+    syncSettingFeedback();
     const container = skeletonControls.parentElement;
     if (container && !skeletonParents.has(container)) {
       skeletonParents.add(container);
       ctx.panelEventContext().scope.listen(container, "change", syncSkeletonControls);
+      ctx.panelEventContext().scope.listen(container, "input", syncSettingFeedback);
     }
     for (const control of container?.querySelectorAll<HTMLInputElement | HTMLSelectElement>(
       ".ce-moat-settings input, .ce-castle-settings select"
