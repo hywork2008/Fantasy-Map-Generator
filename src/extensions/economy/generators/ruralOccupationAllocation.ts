@@ -760,7 +760,8 @@ function applyHarvestMutualAid(
 
 /**
  * Hay boons: neighbours of the same state mow and cart hay that a cell's own adults cannot reach
- * that month (E1 §7.49). Runs after the grain harvest aid, so only hands the harvest left idle help.
+ * that month (E1 §7.49), then hired hands from the market area (E1 §7.50). Runs after the grain
+ * harvest aid, so only hands the harvest left idle help.
  */
 function applyHaymakingMutualAid(
   world: Readonly<WorldContext>,
@@ -774,6 +775,8 @@ function applyHaymakingMutualAid(
   const cells = world.pack.cells;
   if (!cells?.i || !cells.c) return;
   const populationRate = Math.max(1, world.populationRate || 1);
+  const marketCellColumn = getMarketCellColumn();
+  const mobility = getRegionalHarvestMobility(world.options?.historicalPeriod);
   for (let month = 0; month < 12; month++) {
     const slack = new Float32Array(cells.i.length);
     for (const cellId of cells.i) {
@@ -802,6 +805,35 @@ function applyHaymakingMutualAid(
         husbandryWorkers[cellId] += transfer / WORKABLE_DAYS_PER_ADULT;
         slack[neighborId] -= transfer;
         remaining -= transfer;
+      }
+      shortfallDays[cellId * 12 + month] = remaining;
+    }
+    // Hired hay hands from the rest of the market area, at the same travelling share as harvest gangs.
+    if (marketCellColumn.length !== cells.i.length) continue;
+    const pool = new Map<number, { slack: number; need: number }>();
+    for (const cellId of cells.i) {
+      const marketId = marketCellColumn[cellId] ?? 0;
+      if (!marketId || (cells.h[cellId] ?? 0) < 20) continue;
+      const row = pool.get(marketId) ?? { slack: 0, need: 0 };
+      row.slack += slack[cellId] * mobility;
+      row.need += Math.max(0, shortfallDays[cellId * 12 + month]);
+      pool.set(marketId, row);
+    }
+    for (const cellId of cells.i) {
+      const row = pool.get(marketCellColumn[cellId] ?? 0);
+      if (!row || !(row.need > 0) || (cells.h[cellId] ?? 0) < 20) continue;
+      const index = cellId * 12 + month;
+      const fill = Math.min(1, row.slack / row.need);
+      const hired = Math.max(0, shortfallDays[index]) * fill;
+      if (hired > 0) {
+        husbandryMonthlyWorkDays[index] += hired;
+        husbandryWorkers[cellId] += hired / WORKABLE_DAYS_PER_ADULT;
+        shortfallDays[index] -= hired;
+      }
+      const given = slack[cellId] * mobility * Math.min(1, row.need / Math.max(row.slack, 1e-9));
+      if (given > 0) {
+        currentDaysByCell[index] += given;
+        desiredDaysByCell[index] += given;
       }
     }
   }

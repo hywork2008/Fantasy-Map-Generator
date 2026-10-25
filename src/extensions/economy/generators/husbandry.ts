@@ -220,7 +220,7 @@ function getDogsHeadcount(cellId: number): number {
   return cohorts.young + cohorts.breeding + cohorts.old;
 }
 
-function calculatePastureCeilingAreaHectares(world: Readonly<WorldContext>, cellId: number): number {
+export function calculatePastureCeilingAreaHectares(world: Readonly<WorldContext>, cellId: number): number {
   const cells = world.pack.cells;
   const physicalHectares = calculatePhysicalAreaHectares(world, cellId);
   if (physicalHectares <= 0) return 0;
