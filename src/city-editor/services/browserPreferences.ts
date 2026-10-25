@@ -45,13 +45,13 @@ export function writeMaxPatchesPreference(value: number): void {
   }
 }
 
-/** Per-viewer 3D model quality. Default "standard" when unset or unreadable. */
+/** Per-viewer 3D model quality. Default "high" when unset or unreadable. */
 export function readModelQualityPreference(): ModelQuality {
   try {
     const raw = typeof localStorage === "undefined" ? null : localStorage.getItem(MODEL_QUALITY_KEY);
-    return MODEL_QUALITIES.find(quality => quality === raw) ?? "standard";
+    return MODEL_QUALITIES.find(quality => quality === raw) ?? "high";
   } catch {
-    return "standard";
+    return "high";
   }
 }
 
