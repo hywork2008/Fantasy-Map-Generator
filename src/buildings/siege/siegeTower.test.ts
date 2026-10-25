@@ -23,7 +23,7 @@ it("grounds four wheels and generates finite projections within the study envelo
   model.dispose();
 });
 
-it("uses transverse reversing ascents with real headroom through the deck and its supporting frame", () => {
+it("keeps lower ascents transverse and the exposed roof ascent facing the enemy with real headroom through the deck and its supporting frame", () => {
   const model = createSiegeTowerModel();
   model.group.updateMatrixWorld(true);
   const stiles = model.pickables.filter(mesh => mesh.name === "ladder-stile");
@@ -38,9 +38,13 @@ it("uses transverse reversing ascents with real headroom through the deck and it
       right = ends(stiles[level * 2 + 1]);
     const bottom = left[0].clone().add(right[0]).multiplyScalar(0.5);
     const top = left[1].clone().add(right[1]).multiplyScalar(0.5);
-    expect(top.x).toBeCloseTo(bottom.x);
+    if (level < 2) expect(top.x).toBeCloseTo(bottom.x);
+    else {
+      expect(top.x).toBeGreaterThan(bottom.x);
+      expect(top.z).toBeCloseTo(bottom.z);
+    }
     const directionZ = layout.ladderDirection[level];
-    expect((top.z - bottom.z) * directionZ).toBeGreaterThan(0);
+    if (level < 2) expect((top.z - bottom.z) * directionZ).toBeGreaterThan(0);
     expect(top.y).toBeGreaterThan(layout.decks[level + 1] + 0.8);
     ascentX.push(top.x);
     const floorY = layout.decks[level + 1] + 0.06;
@@ -58,17 +62,20 @@ it("uses transverse reversing ascents with real headroom through the deck and it
         foot.y + 1.85,
         Math.max(zA, zB)
       );
+      const clearance =
+        level < 2
+          ? body
+          : volume(foot.x - 0.33, foot.y + 0.12, foot.z - 0.28, foot.x + 0.18, foot.y + 1.85, foot.z + 0.28);
       for (const mesh of deckMembers)
-        expect(bounds(mesh).intersectsBox(body), `${mesh.name} blocks ascent ${level}`).toBe(false);
+        expect(bounds(mesh).intersectsBox(clearance), `${mesh.name} blocks ascent ${level}`).toBe(false);
     }
   }
   expect(Math.abs(ascentX[1] - ascentX[0])).toBeGreaterThan(1);
-  expect(Math.abs(ascentX[2] - ascentX[1])).toBeGreaterThan(1);
+
   for (const rung of model.pickables.filter(mesh => mesh.name === "ladder-rung")) {
     const [a, b] = ends(rung);
     expect(a.y).toBeCloseTo(b.y);
-    expect(a.z).toBeCloseTo(b.z);
-    expect(Math.abs(a.x - b.x)).toBeGreaterThan(0.6);
+    expect(Math.max(Math.abs(a.x - b.x), Math.abs(a.z - b.z))).toBeGreaterThan(0.6);
   }
   model.dispose();
 });
@@ -76,7 +83,7 @@ it("uses transverse reversing ascents with real headroom through the deck and it
 it("connects adjacent flights directly across a short landing without walking around a hatch", () => {
   const model = createSiegeTowerModel();
   model.group.updateMatrixWorld(true);
-  for (let level = 1; level < layout.decks.length; level++) {
+  for (let level = 1; level < 3; level++) {
     const y = layout.decks[level] + 0.06;
     const x = layout.ladderX[level - 1];
     const directionZ = layout.ladderDirection[level - 1];
@@ -85,17 +92,17 @@ it("connects adjacent flights directly across a short landing without walking ar
       z1 = landingZ + 0.28;
     const landing = volume(x - 0.28, y + 0.02, z0, x + 0.28, y + 1.85, z1);
     const transfer = volume(
-      Math.min(x, layout.ladderX[level] ?? 0) - 0.28,
+      Math.min(x, level === 2 ? -1.45 : layout.ladderX[level]) - 0.28,
       y + 0.02,
       z0,
-      Math.max(x, layout.ladderX[level] ?? 0) + 0.28,
+      Math.max(x, level === 2 ? -1.45 : layout.ladderX[level]) + 0.28,
       y + 1.85,
       z1
     );
     for (const space of [landing, transfer])
       for (const mesh of model.pickables)
         expect(bounds(mesh).intersectsBox(space), `${mesh.name} blocks landing ${level}`).toBe(false);
-    if (level < 3) {
+    if (level < 2) {
       const nextX = layout.ladderX[level];
       const nextFootZ = layout.ladderDirection[level] * layout.ladderFootZ;
       expect(layout.ladderDirection[level]).toBe(-directionZ);
@@ -129,6 +136,13 @@ it("keeps the assault corridor clear of winding shafts and ropes and fits the ra
   for (const mesh of model.pickables)
     expect(bounds(mesh).intersectsBox(landingToDoor), `${mesh.name} blocks the exit`).toBe(false);
   expect(parts("winch-drum")).toHaveLength(2);
+  expect(parts("winch-common-shaft")).toHaveLength(1);
+  expect(parts("winch-operating-wheel")).toHaveLength(1);
+  expect(parts("winch-hand-rope")).toHaveLength(1);
+  for (const drum of parts("winch-drum")) {
+    expect(drum.position.x).toBeCloseTo(parts("winch-common-shaft")[0].position.x);
+    expect(drum.position.y).toBeCloseTo(parts("winch-common-shaft")[0].position.y);
+  }
   expect(parts("bridge-hoist-rope")).toHaveLength(2);
   const threshold = bounds(parts("bridge-threshold")[0]);
   const bridge = new THREE.Box3();
@@ -149,8 +163,31 @@ it("keeps the assault corridor clear of winding shafts and ropes and fits the ra
   }
   const upperDeck = parts("floor-plank").filter(mesh => mesh.position.y === layout.decks[3]);
   expect(raised.max.y).toBeLessThan(Math.min(...upperDeck.map(mesh => bounds(mesh).min.y)));
+  for (const operatingPart of [...parts("winch-operating-wheel"), ...parts("winch-hand-rope")]) {
+    for (const deck of upperDeck)
+      expect(bounds(deck).intersectsBox(bounds(operatingPart)), `${operatingPart.name} clips the roof deck`).toBe(
+        false
+      );
+  }
   const pulleys = parts("hoist-pulley");
   for (const pulley of pulleys) expect(bounds(pulley).min.y).toBeGreaterThan(raised.max.y);
+  model.dispose();
+});
+
+it("connects the left boarding entry and the roof approach without an aft-facing climb", () => {
+  const model = createSiegeTowerModel();
+  model.group.updateMatrixWorld(true);
+  const stiles = model.pickables.filter(mesh => mesh.name === "boarding-stile");
+  expect(stiles.every(mesh => mesh.position.z < 0)).toBe(true);
+  expect(Math.abs(layout.boardingZ - layout.ladderFootZ)).toBeLessThan(0.3);
+  const routes = [
+    volume(-1.72, 1.73, -1.65, -0.8, 3.5, -1.12),
+    volume(-1.73, 7.53, -1.32, -1.17, 9.36, -0.34),
+    volume(-0.03, 10.43, -0.9, 0.53, 12.2, -0.34)
+  ];
+  for (const route of routes)
+    for (const mesh of model.pickables)
+      expect(bounds(mesh).intersectsBox(route), `${mesh.name} blocks the connected approach`).toBe(false);
   model.dispose();
 });
 

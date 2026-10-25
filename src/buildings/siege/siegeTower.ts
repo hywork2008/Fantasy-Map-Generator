@@ -8,17 +8,17 @@ export const SIEGE_TOWER = {
   length: 8.5,
   width: 5.6,
   height: 11.7,
-  note: "Interpretive medieval belfry informed by Viollet-le-Duc, Engin, fig. 32. Lower ladders connect by short switchback landings; the archer ladder ascends towards the enemy. The circulation layout, side windlasses and dimensions are modeling interpretations. A separate archer deck covers the assault bridge, shown resting on an implied castle wall."
+  note: "Interpretive medieval belfry informed by Viollet-le-Duc, Engin, fig. 32. Lower ladders connect by short switchback landings; the archer ladder ascends towards the enemy. The circulation layout, common-shaft windlass and dimensions are modeling interpretations. A separate archer deck covers the assault bridge, shown resting on an implied castle wall."
 } as const;
 
-// Positive X faces the wall. Transverse flights reverse direction at adjacent landing ends.
+// Positive X faces the wall. Lower flights are transverse; the roof flight ascends towards the wall.
 export const SIEGE_TOWER_LAYOUT = {
   decks: [1.65, 4.55, 7.45, 10.35],
   ladderX: [-1.08, 0, -1.08],
   ladderDirection: [1, -1, 1],
-  boardingZ: -1.2,
-  roofLadderZ: 0.85,
-  roofLadderExitX: -0.22,
+  boardingZ: -1.1,
+  roofLadderZ: -0.62,
+  roofLadderExitX: -0.9,
   hatchHalfWidth: 0.48,
   hatchRear: -1.1,
   hatchFront: 0.62,
@@ -107,8 +107,8 @@ export function createSiegeTowerModel(): CityStructureMeshes {
     const hatchX = level > 0 ? layout.ladderX[level - 1] : null;
     const incomingDirection = level > 0 ? layout.ladderDirection[level - 1] : 1;
     const roof = level === 3;
-    const hatchMinX = roof ? -1.4 : (hatchX ?? 0) - layout.hatchHalfWidth;
-    const hatchMaxX = roof ? 0.4 : (hatchX ?? 0) + layout.hatchHalfWidth;
+    const hatchMinX = roof ? -1.5 : (hatchX ?? 0) - layout.hatchHalfWidth;
+    const hatchMaxX = roof ? -0.45 : (hatchX ?? 0) + layout.hatchHalfWidth;
     const hatchRear = roof
       ? layout.roofLadderZ - layout.hatchHalfWidth
       : incomingDirection > 0
@@ -142,6 +142,7 @@ export function createSiegeTowerModel(): CityStructureMeshes {
       const right = left + (h * 2) / 20;
       const cuts = [left, right];
       if (hatchX !== null) for (const edge of [hatchMinX, hatchMaxX]) if (edge > left && edge < right) cuts.push(edge);
+      if (roof) for (const edge of [0.32, 1.48]) if (edge > left && edge < right) cuts.push(edge);
       cuts.sort((a, b) => a - b);
       for (let j = 0; j < cuts.length - 1; j++) {
         const x = (cuts[j] + cuts[j + 1]) / 2;
@@ -154,8 +155,11 @@ export function createSiegeTowerModel(): CityStructureMeshes {
               [hatchFront, 1.77]
             ]
           : [[-1.77, 1.77]];
-        for (const [start, end] of spans)
-          box("floor-plank", x, y, (start + end) / 2, width, 0.12, end - start, wood[i % 4]);
+        for (const [start, end] of spans) {
+          // The operating rope wheel rises through a narrow outer-edge slot at the archer deck.
+          const deckEnd = roof && x > 0.32 && x < 1.48 ? Math.min(end, 1.66) : end;
+          box("floor-plank", x, y, (start + deckEnd) / 2, width, 0.12, deckEnd - start, wood[i % 4]);
+        }
       }
     }
     // Side guards stop before the landing at the incoming flight's exit end.
@@ -234,7 +238,7 @@ export function createSiegeTowerModel(): CityStructureMeshes {
       const directionZ = layout.ladderDirection[level];
       const roofFlight = level === 2;
       const bottom = roofFlight
-        ? v(layout.roofLadderExitX - 0.96, y + 0.1, layout.roofLadderZ)
+        ? v(layout.roofLadderExitX - 0.2, y + 0.1, layout.roofLadderZ)
         : v(x, y + 0.1, directionZ * layout.ladderFootZ);
       const exit = roofFlight
         ? v(layout.roofLadderExitX, upperY + 0.06, layout.roofLadderZ)
@@ -305,7 +309,10 @@ export function createSiegeTowerModel(): CityStructureMeshes {
       2.55,
       wood[i % 4]
     );
-  // Two wall-side windlasses replace the transverse waist-high axle that previously blocked the sortie.
+  // A single overhead shaft winds both bridge ropes together. The operating loop stays at the side.
+  const shaftX = 0.9,
+    shaftY = 10.02;
+  beam("winch-common-shaft", v(shaftX, shaftY, -1.67), v(shaftX, shaftY, 1.8), 0.085, iron, true);
   for (const side of [-1, 1]) {
     const z = side * 1.48;
     box("assault-door-jamb", hingeX, 8.9, side * 1.63, 0.22, 2.8, 0.2);
@@ -313,26 +320,52 @@ export function createSiegeTowerModel(): CityStructureMeshes {
     box("bridge-lifting-lug", hingeX + layout.bridgeLength - 0.08, 7.44, side * 1.37, 0.14, 0.1, 0.32, iron);
     const sheave = v(hingeX, 10.2, z);
     beam("bridge-hoist-rope", v(hingeX + layout.bridgeLength - 0.08, 7.51, z), sheave, 0.035, rope, true);
-    beam("winch-rope", sheave, v(1.01, 8.55, z), 0.035, rope, true);
+    beam("winch-rope", sheave, v(shaftX + 0.13, shaftY, z), 0.035, rope, true);
     const pulley = add("hoist-pulley", new THREE.TorusGeometry(0.13, 0.035, 6, 16), iron);
     pulley.position.copy(sheave);
     box("pulley-cheek", hingeX, 10.2, z + side * 0.07, 0.36, 0.4, 0.04, dark);
     beam("pulley-axle", sheave.clone().add(v(0, 0, -0.12)), sheave.clone().add(v(0, 0, 0.12)), 0.045, iron, true);
-    beam("winch-drum", v(0.62, 8.35, z), v(1.4, 8.35, z), 0.17, dark, true);
-    for (const x of [0.62, 1.4]) box("winch-bearing", x, 7.96, z, 0.16, 0.94, 0.25);
-    for (let i = 0; i < 10; i++) {
-      const coil = add("winch-rope-coil", new THREE.TorusGeometry(0.19, 0.023, 5, 12), rope);
-      coil.rotation.y = Math.PI / 2;
-      coil.position.set(0.82 + i * 0.04, 8.35, z);
+    box("winch-bearing", shaftX, shaftY, side * 1.73, 0.32, 0.36, 0.16, dark);
+    beam("winch-drum", v(shaftX, shaftY, z - 0.14), v(shaftX, shaftY, z + 0.14), 0.12, dark, true);
+    for (let i = 0; i < 8; i++) {
+      const coil = add("winch-rope-coil", new THREE.TorusGeometry(0.14, 0.018, 5, 12), rope);
+      coil.position.set(shaftX, shaftY, z - 0.105 + i * 0.03);
     }
-    // A small crank and pawl remain inside the wall-side equipment strip.
-    beam("winch-crank", v(0.53, 8.35, z), v(0.53, 8.66, z), 0.055, iron);
-    beam("winch-grip", v(0.53, 8.66, z), v(0.35, 8.66, z), 0.07, wood[2], true);
-    const ratchet = add("winch-ratchet", new THREE.CylinderGeometry(0.23, 0.23, 0.07, 12), iron);
-    ratchet.rotation.z = Math.PI / 2;
-    ratchet.position.set(1.35, 8.35, z);
-    beam("winch-pawl", v(1.35, 8.65, z - side * 0.13), v(1.35, 8.47, z), 0.05, iron);
   }
+  const wheelZ = 1.75,
+    radius = 0.5;
+  const wheel = add("winch-operating-wheel", new THREE.TorusGeometry(radius, 0.045, 8, 24), wood[1]);
+  wheel.position.set(shaftX, shaftY, wheelZ);
+  for (let i = 0; i < 8; i++) {
+    const angle = (i * Math.PI) / 4;
+    beam(
+      "winch-wheel-spoke",
+      v(shaftX, shaftY, wheelZ),
+      v(shaftX + Math.cos(angle) * radius, shaftY + Math.sin(angle) * radius, wheelZ),
+      0.045
+    );
+  }
+  // One continuous hand-rope loop operates the common shaft without a waist-high crossbar.
+  const loop = new THREE.CurvePath<THREE.Vector3>();
+  const lowerY = 8.35;
+  const points: THREE.Vector3[] = [];
+  for (let i = 0; i <= 16; i++) {
+    const angle = (i * Math.PI) / 16;
+    points.push(v(shaftX + radius * Math.cos(angle), shaftY + radius * Math.sin(angle), wheelZ));
+  }
+  points.push(v(shaftX - radius, lowerY, wheelZ));
+  for (let i = 0; i <= 16; i++) {
+    const angle = Math.PI + (i * Math.PI) / 16;
+    points.push(v(shaftX + radius * Math.cos(angle), lowerY + radius * Math.sin(angle), wheelZ));
+  }
+  points.push(points[0]);
+  for (let i = 1; i < points.length; i++) loop.add(new THREE.LineCurve3(points[i - 1], points[i]));
+  add("winch-hand-rope", new THREE.TubeGeometry(loop, 80, 0.025, 6, true), rope);
+  const ratchet = add("winch-ratchet", new THREE.CylinderGeometry(0.22, 0.22, 0.07, 12), iron);
+  ratchet.rotation.x = Math.PI / 2;
+  ratchet.position.set(shaftX, shaftY, 1.35);
+  beam("winch-pawl", v(shaftX - 0.3, shaftY + 0.1, 1.35), v(shaftX - 0.1, shaftY + 0.18, 1.35), 0.05, iron);
+  beam("pawl-release-cord", v(shaftX - 0.3, shaftY + 0.1, 1.35), v(shaftX - 0.3, 8.4, 1.35), 0.018, rope, true);
   return {
     group,
     pickables,
