@@ -4,6 +4,7 @@ import { isCivilizationContext } from "../../../data/civilizationTraditions";
 import { FIXED_SITE_CROSSING_BUDGETS, validFixedBurgCrossings } from "../../../utils/fixedBurgCrossings";
 import { requiredSiteExtent } from "../../../utils/requiredSiteBounds";
 import { validUrbanMorphology } from "../../../utils/urbanMorphology";
+import { validBastionedTown } from "../../generators/bastionedTown/codec";
 import { buildBlockFabric } from "../../generators/blockInfill";
 import { BLOCK_SIZE_METERS } from "../../generators/document";
 import { upgradeFabricPlan, validFabricPlan } from "../../generators/fabricDistricts";
@@ -107,9 +108,12 @@ function isDocument(value: unknown): value is CityDocument {
     (doc.urbanGrowth === undefined || (doc.urbanMorphology !== undefined && validUrbanGrowth(doc.urbanGrowth))) &&
     (doc.fixedCrossingApproaches === undefined ||
       (!!doc.importedFixedCrossings && validSavedFixedApproaches(doc.fixedCrossingApproaches))) &&
-    (doc.version === 1 || doc.version === 2 || doc.version === 3 || doc.version === 4) &&
+    (doc.version === 1 || doc.version === 2 || doc.version === 3 || doc.version === 4 || doc.version === 5) &&
+    (doc.bastionedTown === undefined || (doc.version === 5 && validBastionedTown(doc as CityDocument))) &&
     (doc.sceneRegions === undefined ||
-      (doc.version === 4 && validSceneRegions(doc.sceneRegions) && validRegionalFrameRoads(doc.frameRoads))) &&
+      ((doc.version === 4 || doc.version === 5) &&
+        validSceneRegions(doc.sceneRegions) &&
+        validRegionalFrameRoads(doc.frameRoads))) &&
     (doc.landmarks === undefined || Array.isArray(doc.landmarks)) &&
     (doc.landmarkAssets === undefined || Array.isArray(doc.landmarkAssets)) &&
     (doc.showElevationTint === undefined || typeof doc.showElevationTint === "boolean") &&
@@ -203,7 +207,13 @@ export function serializeDocument(document: CityDocument): string {
   return JSON.stringify(
     {
       ...document,
-      version: document.sceneRegions ? 4 : document.landmarks?.length || document.landmarkAssets?.length ? 3 : 2
+      version: document.bastionedTown
+        ? 5
+        : document.sceneRegions
+          ? 4
+          : document.landmarks?.length || document.landmarkAssets?.length
+            ? 3
+            : 2
     },
     null,
     2

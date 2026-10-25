@@ -3,7 +3,7 @@ import type { CityDocument, EdgeRef, Point } from "../../../types/document";
 import { registerTownCircuit } from "../../castles";
 import { normalizeGeneratedRoadOwnership } from "../../generatedRoadOwnership";
 import type { GenerationObserver } from "../../generationDiagnostics";
-import { polygonArea } from "../../geom";
+import { pointInPolygon, polygonArea, polygonCentroid } from "../../geom";
 import { facePoints } from "../../mesh";
 import { defaultRoadWidthMeters, townExtentMeters } from "../../settlementExtent";
 import { clipSurveyedRiverWalls } from "../../surveyedRiverWalls";
@@ -56,6 +56,7 @@ export function applySkeletonFeatures(
   const wall = lines.find(l => l.id === "wall");
   if (wall && stageStep >= 4) {
     const riverPassages = skeleton.wall!.waterGates.map(g => nearest(g.point));
+    const fortress = !!plan.bastionedTown;
     next.featureGroups.push({
       id: `${GEN_PREFIX}wall-0`,
       kind: "wall",
@@ -64,15 +65,28 @@ export function applySkeletonFeatures(
       riverPassages,
       wallMaterial: plan.wallMaterial,
       style: { widthMeters: inputs.wallWidth, color: "#41382e" },
-      locked: false
+      locked: fortress
     });
     for (const [i, g] of skeleton.gates.entries())
-      next.gates.push({ id: `${GEN_PREFIX}gate-${i}`, vertexId: nearest(g.point), role: "town", locked: false });
+      next.gates.push({
+        id: `${GEN_PREFIX}gate-${i}`,
+        vertexId: nearest(g.point),
+        role: "town",
+        locked: fortress,
+        ...(fortress ? { circuitId: plan.bastionedTown!.plan.circuitId, passageWidthMeters: 6 } : {})
+      });
+    const urbanIds = [...plan.urban].map(id => faceIdOf[id]);
+    // The rampart is reserved out of the housing set, but it is still inside the town wall.
+    const interiorIds = fortress
+      ? Object.values(mesh.faces)
+          .filter(face => pointInPolygon(polygonCentroid(facePoints(mesh, face)), skeleton.wall!.polygon))
+          .map(face => face.id)
+      : urbanIds;
     registerTownCircuit(
       next,
-      [...plan.urban].map(id => facePoints(mesh, mesh.faces[faceIdOf[id]])),
+      interiorIds.map(id => facePoints(mesh, mesh.faces[id])),
       true,
-      [...plan.urban].map(id => faceIdOf[id])
+      interiorIds
     );
   }
   if (stageStep >= 5) {

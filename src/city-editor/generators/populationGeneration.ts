@@ -1,6 +1,7 @@
 import { getUrbanDwellings } from "../../utils/urbanDwellings";
 import type { CityDocument } from "../types/document";
 import type { GenerationSettings } from "../types/generation";
+import { fortressFrameExtent } from "./bastionedTown/validate";
 import { inheritBuildingAppearance } from "./buildingAppearance";
 import { createGridDocument, sizePresetForExtent } from "./document";
 import { planPopulation } from "./populationPlan";
@@ -22,14 +23,22 @@ export function preparePopulationGeneration(document: CityDocument, settings: Ge
     delete legacy.housingCapacity;
     return { document: legacy, settings };
   }
-  const period = settings.historicalPeriod ?? settings.descriptor?.historicalPeriod ?? "lateMedieval";
+  const fortress = !!settings.townFortification;
+  const period =
+    settings.historicalPeriod ??
+    settings.descriptor?.historicalPeriod ??
+    (fortress ? "ageOfExploration" : "lateMedieval");
   const population = settings.population;
-  const plan = planPopulation(population, period, document.frame.extentMeters);
+  let plan = planPopulation(population, period, document.frame.extentMeters);
+  if (fortress && population.frameMode !== "manual") {
+    const extent = fortressFrameExtent(plan.cityRadiusMeters, settings);
+    if (extent > plan.extentMeters) plan = { ...plan, extentMeters: extent };
+  }
   if (settings.descriptor && document.frame.extentMeters < 2 * plan.cityRadiusMeters * 1.3)
     throw new Error("The imported terrain does not cover the population window. Import a larger terrain frame.");
-  if (settings.generationMethod === "skeleton-first")
+  if (settings.generationMethod === "skeleton-first" && !fortress)
     throw new Error("Population generation currently requires mesh-first.");
-  if (["bram", "circulade", "classic"].includes(settings.layout ?? settings.config.layout ?? ""))
+  if (!fortress && ["bram", "circulade", "classic"].includes(settings.layout ?? settings.config.layout ?? ""))
     throw new Error("Population generation currently requires organic layout.");
   let next = document;
   const protectedGeometry =
@@ -91,7 +100,11 @@ export function preparePopulationGeneration(document: CityDocument, settings: Ge
     population,
     descriptor,
     historicalPeriod: period,
-    layout: "organic",
+    ...(fortress
+      ? settings.townFortification?.streetPlan === "organic"
+        ? { layout: "organic" as const }
+        : { layout: undefined }
+      : { layout: "organic" as const }),
     urbanCoreMode: "compact",
     urbanNPatches: undefined,
     ...(!descriptor ? { walledAreaShare: 1 } : {})

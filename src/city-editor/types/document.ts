@@ -366,11 +366,144 @@ export interface FabricPlan {
   districts: FabricDistrict[];
   /** Exact completed-generation settings; absent for manually upgraded maps. */
   generation?: {
-    algorithm: "evolution-city-v3" | "castle-city-v1" | "skeleton-city-v1" | "fort-v1";
+    algorithm: "evolution-city-v3" | "castle-city-v1" | "skeleton-city-v1" | "fort-v1" | "bastioned-city-v1";
     seed: string;
     settings: import("./generationSettings").GenerationSettings;
     input: Omit<CityDocument, "fabric">;
   };
+}
+
+/** One polygon of a defense band. Holes are the areas the band does not cover. */
+export interface DefensePolygon {
+  outer: Point[];
+  holes: Point[][];
+}
+
+/** One or more polygons. Indexes, triangles and meshes are derived, not saved. */
+export type DefenseRegion = DefensePolygon[];
+
+export interface DefenseElevations {
+  base: number[];
+  crest: number[];
+}
+
+export interface BastionPlan {
+  id: Id;
+  ownerId: Id;
+  wallEdgeIds: Id[];
+  rampart: Point[];
+  platform: Point[];
+  elevations: DefenseElevations;
+}
+
+export interface CurtainPlan {
+  id: Id;
+  ownerId: Id;
+  wallEdgeIds: Id[];
+  rampart: Point[];
+  elevations: DefenseElevations;
+  /** Absent means a filled rampart. A sluice or shore span is not a dam. */
+  closure?: "rampart" | "sluice" | "shore";
+}
+
+export interface RavelinPlan {
+  id: Id;
+  ownerId: Id;
+  curtainId: Id;
+  outline: Point[];
+  rampart: Point[];
+  platform: Point[];
+  ditchId: Id;
+  sally: Point;
+  elevations: DefenseElevations;
+}
+
+export interface DitchSupply {
+  kind: "closed-basin";
+  inlet: "none";
+  outlet: "none";
+}
+
+export interface DitchPlan {
+  id: Id;
+  ownerId: Id;
+  kind: "dry" | "wet";
+  region: DefenseRegion;
+  bed: number[];
+  bank: number[];
+  waterLevel?: number;
+  supply?: DitchSupply;
+}
+
+export interface DefensePathPlan {
+  id: Id;
+  ownerId: Id;
+  region: DefenseRegion;
+  elevations: number[];
+}
+
+export interface DefenseAccessPlan {
+  id: Id;
+  ownerId: Id;
+  role: "civic" | "defender";
+  gateId: Id;
+  roadId?: Id;
+  landBefore: Point[];
+  bridge: Point[];
+  landAfter: Point[];
+  widthMeters: number;
+  elevations: number[];
+}
+
+/** Water passes here. This is not a road bridge and not a filled curtain. */
+export interface SluicePlan {
+  id: Id;
+  ownerId: Id;
+  curtainId: Id;
+  kind: "sluice" | "shore";
+  opening: Point[];
+  banks: [Point, Point];
+}
+
+/** Barracks or magazine kept by the fortress, not by the town wall circuit. */
+export interface DefenseWorkPlan {
+  id: Id;
+  ownerId: Id;
+  kind: "barracks" | "magazine";
+  polygon: Point[];
+}
+
+/** Semantic bastioned town defense. Draw and edit from this plan, not from the outline. */
+export interface BastionedTownPlan {
+  military?: {
+    policy: "artillery-v1";
+    profile: "renaissance" | "mature" | "rifled-era";
+    minBastionDepthMeters: number;
+    minCurtainLengthMeters: number;
+    maxFlankingDistanceMeters: number;
+    flankingRangeMeters: number;
+    urbanSetbackMeters: number;
+    centerToDefenseEdgeMeters: number;
+    urbanToDefenseEdgeMeters: number;
+    /** Ranges, elevation, ballistics and enemy siege batteries are not simulated. */
+    bombardmentAssessed: false;
+  };
+  version: 1;
+  id: Id;
+  circuitId: Id;
+  boundaryKind: "inland-closed" | "waterfront";
+  bastions: BastionPlan[];
+  curtains: CurtainPlan[];
+  outworks: RavelinPlan[];
+  ditches: DitchPlan[];
+  coveredWays: DefensePathPlan[];
+  glacis: DefenseRegion[];
+  accesses: DefenseAccessPlan[];
+  /** Present when a river or the coast interrupts the main line. */
+  sluices?: SluicePlan[];
+  /** Barracks and magazine plots. Absent on plans saved before they existed. */
+  works?: DefenseWorkPlan[];
+  locked: boolean;
 }
 
 export interface CityDocument {
@@ -400,7 +533,7 @@ export interface CityDocument {
   importedFixedCrossings?: import("../../utils/fixedBurgCrossings").FixedBurgCrossings;
   waterAccess?: import("../../types/burgWater").BurgWaterAccess;
   format: "fmg-city-editor";
-  version: 1 | 2 | 3 | 4;
+  version: 1 | 2 | 3 | 4 | 5;
   /** Regional biome information derived from FMG world cell. */
   biome?: import("./contracts/burgSiteDescriptor").BurgSiteBiome;
   sceneRegions?: import("./contracts/sceneRegions").CitySceneRegions;
@@ -441,6 +574,8 @@ export interface CityDocument {
     currentMetersPerSecond?: number;
   }[];
   defenseCircuits?: DefenseCircuit[];
+  /** Town-wide bastioned defense. Absent on v1–v4 documents. */
+  bastionedTown?: BastionedTownPlan;
   castles?: CastlePlan[];
   cemeteries?: CemeteryPlan[];
   burialProfile?: import("../../data/burialCultures").BurialCultureProfile;

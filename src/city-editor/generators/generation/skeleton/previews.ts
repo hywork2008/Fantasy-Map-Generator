@@ -1,10 +1,12 @@
 import type { CityDocument, Point } from "../../../types/document";
 import type { GenerationSettings } from "../../../types/generation";
+import { planBastionedTown } from "../../bastionedTown/plan";
+import { bastionedTownSettingConflicts, fortressSettingsMessage } from "../../bastionedTown/validate";
 import type { GenerationObserver } from "../../generationDiagnostics";
 import { reportGenerationFailure } from "../../generationDiagnostics";
 import { planSkeletonCore } from "./cityCore";
 import { buildConformingMesh } from "./conformingMesh";
-import { planSkeleton } from "./pipeline";
+import { planSkeleton, type SkeletonPlanResult } from "./pipeline";
 import { prepareSkeletonRun } from "./toPlan";
 
 export function generateSkeletonPreview(
@@ -14,7 +16,13 @@ export function generateSkeletonPreview(
   step: number,
   observer?: GenerationObserver
 ): { document: CityDocument | null; overlayPaths: Point[][] } {
-  const { inputs } = prepareSkeletonRun(source, settings, seed);
+  const fortress = !!settings.townFortification;
+  const conflicts = bastionedTownSettingConflicts(settings);
+  if (conflicts) {
+    reportGenerationFailure(observer, 1, "prepare", "fortress-settings", fortressSettingsMessage(conflicts));
+    return { document: null, overlayPaths: [] };
+  }
+  const { inputs } = prepareSkeletonRun(source, settings, seed, { skipUnsupported: fortress });
   const document = structuredClone(source);
   document.mesh = { vertices: {}, edges: {}, faces: {} };
   document.featureGroups = [];
@@ -26,6 +34,7 @@ export function generateSkeletonPreview(
   document.generationSeed = seed;
   delete document.fabric;
   delete document.appearance;
+  delete document.bastionedTown;
   const closed = (p: Point[]) => [...p, p[0]];
   const overlayPaths: Point[][] = [
     ...inputs.water.map(w => closed(w.polygon)),
@@ -39,7 +48,15 @@ export function generateSkeletonPreview(
   }
   overlayPaths.push(closed(core.urban));
   if (step === 2) return { document, overlayPaths };
-  const result = planSkeleton(inputs, settings, seed);
+  let result: SkeletonPlanResult;
+  if (fortress) {
+    const planned = planBastionedTown(source, settings, seed);
+    if ("failure" in planned) {
+      reportGenerationFailure(observer, 1, "bastioned-town", planned.failure.reason, planned.failure.message);
+      return { document: null, overlayPaths };
+    }
+    result = { skeleton: planned.draft.skeleton, failures: [] };
+  } else result = planSkeleton(inputs, settings, seed);
   const skeleton = result.skeleton ?? result.rejected;
   if (!skeleton) return { document: null, overlayPaths };
   if (skeleton.wall) overlayPaths.push(closed(skeleton.wall.polygon));

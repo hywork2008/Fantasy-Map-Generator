@@ -3,9 +3,17 @@
 
 import type { CityDocument, Point, RiverGroup } from "../types/document";
 import type { WaterKind } from "../types/primitives";
+import { cutDitchGround } from "./bastionedTown/ditchGeometry";
 import { riverRibbons } from "./bridgeDeck";
 import { boundaryEdges, boundaryRings, refPoints } from "./fortifications";
-import { nearestOnPolyline, pointInPolygon, polygonArea, segmentPolylineIntersection } from "./geom";
+import {
+  isSimplePolygon,
+  nearestOnPolyline,
+  perpDistanceToLine,
+  pointInPolygon,
+  polygonArea,
+  segmentPolylineIntersection
+} from "./geom";
 import { convexInfillParts, triangularInfillParts } from "./lotGeometry";
 import { facePoints } from "./mesh";
 import { bounds, boundsOverlap, intersectConvex, plotArea, subtractConvex } from "./parcelGeometry";
@@ -87,12 +95,22 @@ export function classifyTownWater(document: CityDocument): TownWater {
     ...outside.water
   ];
   for (const ribbon of riverRibbons(document)) {
-    const ring = riverMouthRing(ribbon.points, ribbon.width, receivingWater);
-    if (!ring) continue;
-    commit(ring, "river", parts, reserved, drawn(parts), [], false, {
-      centerline: ribbon.points.map(copyPoint),
-      widthMeters: ribbon.width
-    });
+    const channel = riverChannelRing(ribbon.points, ribbon.width, receivingWater);
+    if (!channel) continue;
+    commit(
+      channel.ring,
+      "river",
+      parts,
+      reserved,
+      drawn(parts),
+      [],
+      false,
+      {
+        centerline: ribbon.points.map(copyPoint),
+        widthMeters: ribbon.width
+      },
+      channel.drawable
+    );
   }
 
   const drawnBeforeSea = drawn(parts);
@@ -104,6 +122,67 @@ export function classifyTownWater(document: CityDocument): TownWater {
   }
 
   return { parts, reserved, landRefill };
+}
+
+/**
+ * The document centre line is kept. A mesh chain can stair-step inside the
+ * river's own width, and the mitered ribbon then crosses itself. Ear clipping
+ * gives up on that whole ring, so 3D would draw no water. Straighten only the
+ * draw-time line, and only until the ribbon is a simple channel again.
+ */
+function riverChannelRing(
+  points: Point[],
+  width: number,
+  receivingWater: Point[][]
+): { ring: Point[]; drawable: boolean } | null {
+  const exact = riverMouthRing(points, width, receivingWater);
+  if (!exact) return null;
+  if (drawableRing(exact)) return { ring: exact, drawable: true };
+  const cap = Math.max(width / 2, 0.25);
+  for (let epsilon = 0.25; epsilon <= cap + 1e-9; epsilon *= 2) {
+    const simplified = riverMouthRing(simplifyPolyline(points, epsilon), width, receivingWater);
+    if (drawableRing(simplified)) return { ring: simplified, drawable: true };
+  }
+  return { ring: exact, drawable: false };
+}
+
+function drawableRing(ring: Point[] | null): ring is Point[] {
+  if (!ring) return false;
+  const pieces = triangularInfillParts(ring);
+  if (pieces.length === 0) return false;
+  // A self-crossing ribbon can still look convex to the ear test and would fill
+  // the land inside the bends. Require a simple outline before accepting that.
+  if (pieces.length === 1 && pieces[0].length === ring.length) return isSimplePolygon(ring, MIN_AREA);
+  return true;
+}
+
+/** Douglas–Peucker. Endpoints stay. A closed line stays closed. */
+function simplifyPolyline(points: readonly Point[], epsilon: number): Point[] {
+  const closed = closedLine(points);
+  const open = closed ? points.slice(0, -1) : points;
+  if (open.length < 3) return points.map(copyPoint);
+  const keep = open.map(() => false);
+  keep[0] = true;
+  keep[open.length - 1] = true;
+  const stack: [number, number][] = [[0, open.length - 1]];
+  while (stack.length > 0) {
+    const [start, end] = stack.pop()!;
+    let far = 0;
+    let index = -1;
+    for (let i = start + 1; i < end; i++) {
+      const gap = perpDistanceToLine(open[i], open[start], open[end]);
+      if (gap > far) {
+        far = gap;
+        index = i;
+      }
+    }
+    if (index >= 0 && far > epsilon) {
+      keep[index] = true;
+      stack.push([start, index], [index, end]);
+    }
+  }
+  const line = open.filter((_, i) => keep[i]).map(copyPoint);
+  return closed ? [...line, copyPoint(line[0])] : line;
 }
 
 /** A centreline ending on shore leaves a dry wedge when its square cap meets
@@ -229,12 +308,18 @@ export function townWaterStamp(document: CityDocument): string {
 export function townGroundPolygons(
   document: CityDocument,
   water: TownWater,
-  landTriangles?: ReadonlyMap<string, Point[][]>
+  landTriangles?: ReadonlyMap<string, Point[][]>,
+  cutExcavations = true
 ): { land: Point[][]; unknown: Point[][] } {
   if (Object.keys(document.mesh.faces).length === 0) {
     let remain = [frameSquare(document.frame.extentMeters)];
     for (const part of water.parts) remain = remain.flatMap(piece => subtractPolygons(piece, [part.polygon], []));
-    return { land: remain.flatMap(trianglesOf), unknown: [] };
+    return {
+      land: remain
+        .flatMap(p => cutDitchGround(cutExcavations ? document.bastionedTown : undefined, p))
+        .flatMap(trianglesOf),
+      unknown: []
+    };
   }
 
   const land: Point[][] = [];
@@ -268,7 +353,13 @@ export function townGroundPolygons(
     for (const piece of frame) land.push(...trianglesOf(piece));
   }
 
-  return { land, unknown: outside.unknown.flatMap(trianglesOf) };
+  return {
+    land:
+      cutExcavations && document.bastionedTown
+        ? land.flatMap(p => cutDitchGround(document.bastionedTown, p)).flatMap(trianglesOf)
+        : land,
+    unknown: outside.unknown.flatMap(trianglesOf)
+  };
 }
 
 /** 3-point rings of drawn parts. A ring that does not triangulate adds nothing. */
@@ -284,15 +375,22 @@ function commit(
   drawnRings: readonly Point[][],
   blockers: readonly Point[][],
   reserveOrigin: boolean,
-  extra?: { centerline: Point[]; widthMeters: number }
+  extra?: { centerline: Point[]; widthMeters: number },
+  drawable?: boolean
 ): void {
   if (!usable(ring)) return;
-  if ((reserveOrigin && coversOrigin(ring)) || triangularInfillParts(ring).length === 0) {
+  if (
+    (reserveOrigin && coversOrigin(ring)) ||
+    drawable === false ||
+    (drawable === undefined && triangularInfillParts(ring).length === 0)
+  ) {
     reserved.push(copyRing(ring));
     return;
   }
   for (const piece of subtractPolygons(ring, [...drawnRings, ...blockers], reserved)) {
-    if (triangularInfillParts(piece).length === 0) {
+    const unchanged =
+      piece.length === ring.length && piece.every((point, i) => point[0] === ring[i][0] && point[1] === ring[i][1]);
+    if (!unchanged && triangularInfillParts(piece).length === 0) {
       reserved.push(copyRing(piece));
       continue;
     }

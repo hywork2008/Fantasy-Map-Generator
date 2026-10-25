@@ -1,4 +1,5 @@
 import { editorText } from "../../i18n/editorMessages";
+import { fortressOwnsTownWall } from "../generators/bastionedTown/reserve";
 import { featureGroupVertices } from "../generators/features";
 import { boundaryEdges, boundaryRings, castleWallIds } from "../generators/fortifications";
 import { nearestOnPolyline } from "../generators/geom";
@@ -103,7 +104,12 @@ export function renderTownFortifications(
   }
   for (const group of document.featureGroups) {
     if (group.kind !== "wall") continue;
-    if (isNewStyleCastleWall(document, group.id) || modularFortressOwnsWall(document, group.id)) continue;
+    if (
+      isNewStyleCastleWall(document, group.id) ||
+      modularFortressOwnsWall(document, group.id) ||
+      fortressOwnsTownWall(document, group.id)
+    )
+      continue;
     const wallMat = group.wallMaterial ?? "stone";
     const towerFill = wallMat === "wood" ? "#634327" : "#292a26";
     const points = edgeGroupPoints(document, group.segments);
@@ -173,6 +179,24 @@ export function renderTownFortifications(
     );
     if (wall?.kind !== "wall") continue;
     const width = wall.style.widthMeters;
+    if (fortressOwnsTownWall(document, wall.id)) {
+      const marker = element("g", {
+        class: `ce-bastion-gate${inspectedId === gate.id ? " ce-is-selected cg-is-selected" : ""}`,
+        transform: `matrix(${frame.tangent[0]} ${-frame.tangent[1]} ${frame.inward[0]} ${-frame.inward[1]} ${frame.point[0]} ${-frame.point[1]})`
+      });
+      marker.appendChild(
+        element("rect", {
+          x: String(-(gate.passageWidthMeters ?? 6) / 2),
+          y: String(-width * 0.25),
+          width: String(gate.passageWidthMeters ?? 6),
+          height: String(width * 0.5),
+          class: "ce-bastion-gate",
+          fill: "#d5cfbf"
+        })
+      );
+      layer.appendChild(marker);
+      continue;
+    }
     let roadWidth = defaultRoadWidthMeters(townExtentMeters(document.frame));
     for (const group of document.featureGroups) {
       if (group.kind === "road" && featureGroupVertices(document, group).includes(gate.vertexId))

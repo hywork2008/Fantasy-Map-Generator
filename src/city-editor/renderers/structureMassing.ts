@@ -2,6 +2,7 @@ import basilicaRecord from "../../buildings/catalogue/basilica-temple.json";
 import { validateBuildingRecord } from "../../buildings/validate";
 import { catalogueMassing } from "../../city3d/core/catalogueMassing";
 import { withinBridgeSkewLimit } from "../../utils/bridgeSkewPolicy";
+import { fortressOwnsTownWall } from "../generators/bastionedTown/reserve";
 import { bridgeDecks, documentBridgeSkewLimit, riverRibbons } from "../generators/bridgeDeck";
 import type { BuildingLot } from "../generators/buildingLots.types";
 import { featureGroupVertices } from "../generators/features";
@@ -27,6 +28,7 @@ import type {
   LandmarkPolygon,
   Point
 } from "../types/document";
+import { bastionedTownStructures } from "./bastionedTownMassing";
 import { buildFortressPlan, createRotatedRect, type TowerGeometry } from "./castleLayoutBuilder";
 import { resolveCastleStyle } from "./castlePatterns";
 import { isNewStyleCastleCircuit, isNewStyleCastleGate, isNewStyleCastleWall } from "./castleStyle";
@@ -718,7 +720,13 @@ export function collectCityStructures(document: CityDocument): StructureMassing[
   const prepared = new Map<Id, { group: EdgeFeatureGroup; points: Point[]; height: number }>();
   const out: StructureMassing[] = [];
   for (const group of document.featureGroups) {
-    if (group.kind !== "wall" || !standing(document, group.id) || modularFortressOwnsWall(document, group.id)) continue;
+    if (
+      group.kind !== "wall" ||
+      !standing(document, group.id) ||
+      modularFortressOwnsWall(document, group.id) ||
+      fortressOwnsTownWall(document, group.id)
+    )
+      continue;
     const points = wallPoints(document, group);
     if (points.length < 2) continue;
     const material: StructureMaterial = group.wallMaterial === "wood" ? "wood" : "stone";
@@ -764,6 +772,7 @@ export function collectCityStructures(document: CityDocument): StructureMassing[
   addTemples(document, out);
   addFortress(document, out);
   out.push(...fortSiteStructures(document));
+  out.push(...bastionedTownStructures(document));
   return out;
 }
 

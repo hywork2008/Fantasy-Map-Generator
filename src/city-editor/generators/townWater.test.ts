@@ -4,6 +4,7 @@ import type { CityDocument, Mesh, Point, RiverGroup, WaterKind } from "../types/
 import { riverRibbons } from "./bridgeDeck";
 import { oceanShoreSegments } from "./coastalSuitability";
 import { nearestOnPolyline, pointInPolygon } from "./geom";
+import { triangularInfillParts } from "./lotGeometry";
 import { facePoints } from "./mesh";
 import {
   classifyTownWater,
@@ -301,6 +302,44 @@ describe("town water", () => {
         4
       )
     ).not.toBeNull();
+  });
+
+  it("draws a stair-stepped river when the mitered ribbon cannot be triangulated", () => {
+    const jog: Point[] = [
+      [-230.61, -92.72],
+      [-238.59, -86.85],
+      [-246.49, -81.03],
+      [-246.54, -80.99],
+      [-248.09, -79.85],
+      [-244.49, -76.06]
+    ];
+    const width = 15.9;
+    const mesh = emptyMesh();
+    jog.forEach((point, index) => {
+      const id = `j${index}`;
+      mesh.vertices[id] = { id, point, locked: false };
+    });
+    expect(triangularInfillParts(riverRibbonRing(jog, width)!).length).toBe(0);
+    const water = classifyTownWater(
+      document({
+        mesh,
+        featureGroups: [
+          river(
+            "jog",
+            jog.map((_, index) => `j${index}`),
+            width
+          )
+        ]
+      })
+    );
+    const drawn = water.parts.filter(part => part.kind === "river");
+    expect(drawn).toHaveLength(1);
+    expect(drawn[0].centerline).toEqual(jog);
+    expect(drawn[0].widthMeters).toBe(width);
+    const mid: Point = [(jog[0][0] + jog[1][0]) / 2, (jog[0][1] + jog[1][1]) / 2];
+    expect(pointInPolygon(mid, drawn[0].polygon)).toBe(true);
+    expect(pointInPolygon([0, 0], drawn[0].polygon)).toBe(false);
+    expect(water.reserved).toHaveLength(0);
   });
 
   it("cuts a river where it enters earlier water", () => {

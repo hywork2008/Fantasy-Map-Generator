@@ -65,7 +65,7 @@ export const CITY_EDITOR_SHARE_VERSION = 1;
 
 export interface CityEditorShare {
   kind: typeof CITY_EDITOR_SHARE_KIND;
-  version: 1;
+  version: 1 | 2 | 3;
   seed: string;
   grid: GridKind;
   size: CitySizePreset;
@@ -229,9 +229,15 @@ export function buildShare(input: {
   descriptor?: BurgSiteDescriptor;
 }): CityEditorShare {
   const { descriptor: _ignored, ...settings } = input.settings;
+  const fortressShare = !!input.settings.townFortification || !!input.input?.bastionedTown;
   const share: CityEditorShare = {
     kind: CITY_EDITOR_SHARE_KIND,
-    version: CITY_EDITOR_SHARE_VERSION,
+    version:
+      input.settings.townFortification?.dimensionPolicy === "artillery-v1" || input.input?.bastionedTown?.military
+        ? 3
+        : fortressShare
+          ? 2
+          : 1,
     seed: input.seed,
     grid: input.grid,
     size: input.size,
@@ -408,7 +414,7 @@ function asDescriptor(raw: unknown): BurgSiteDescriptor | null {
 function asShare(raw: unknown): CityEditorShare | null {
   if (!isRecord(raw)) return null;
   if (raw.kind !== CITY_EDITOR_SHARE_KIND) return null;
-  if (raw.version !== CITY_EDITOR_SHARE_VERSION) {
+  if (raw.version !== 1 && raw.version !== 2 && raw.version !== 3) {
     console.warn(
       `City Editor: incoming share version ${String(raw.version)} != expected ${CITY_EDITOR_SHARE_VERSION}; ignoring`
     );
@@ -419,9 +425,11 @@ function asShare(raw: unknown): CityEditorShare | null {
   if (!isSize(raw.size)) return warnShape("share.size");
   const settings = asSettings(raw.settings);
   if (!settings) return warnShape("share.settings");
+  if (settings.townFortification?.dimensionPolicy === "artillery-v1" && raw.version !== 3)
+    return warnShape("share.version");
   const share: CityEditorShare = {
     kind: CITY_EDITOR_SHARE_KIND,
-    version: CITY_EDITOR_SHARE_VERSION,
+    version: raw.version,
     seed: raw.seed,
     grid: raw.grid,
     size: raw.size,
@@ -432,6 +440,7 @@ function asShare(raw: unknown): CityEditorShare | null {
     const input = parseDocument(JSON.stringify(raw.input));
     if (!input || input.fabric) return warnShape("share.input");
     share.input = input;
+    if (input.bastionedTown?.military && raw.version !== 3) return warnShape("share.version");
   }
   if (raw.stage !== undefined) {
     const stage = generationStageDefinitions(settings).find(s => s.id === raw.stage);
@@ -554,6 +563,27 @@ function asSettings(raw: unknown): Omit<GenerationSettings, "descriptor"> | null
   if (raw.burialProfile !== undefined) {
     if (!isBurialCultureProfile(raw.burialProfile)) return null;
     settings.burialProfile = structuredClone(raw.burialProfile);
+  }
+  if (raw.townFortification !== undefined) {
+    const fort = raw.townFortification;
+    if (
+      !isRecord(fort) ||
+      fort.kind !== "bastioned" ||
+      (fort.outworks !== "none" && fort.outworks !== "ravelins") ||
+      (fort.ditch !== "dry" && fort.ditch !== "wet") ||
+      (fort.streetPlan !== "radial" && fort.streetPlan !== "organic") ||
+      (fort.dimensionPolicy !== undefined &&
+        fort.dimensionPolicy !== "legacy" &&
+        fort.dimensionPolicy !== "artillery-v1")
+    )
+      return null;
+    settings.townFortification = {
+      kind: "bastioned",
+      outworks: fort.outworks,
+      ditch: fort.ditch,
+      streetPlan: fort.streetPlan,
+      ...(fort.dimensionPolicy !== undefined ? { dimensionPolicy: fort.dimensionPolicy } : {})
+    };
   }
   return settings;
 }

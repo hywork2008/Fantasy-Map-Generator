@@ -112,7 +112,8 @@ export function createTownWater(
     ? []
     : water.parts.filter(part => part.kind === "river" || part.kind === "channel").map(part => part.polygon);
   const wallTriangles = wetWalls.length ? clipEscarpmentTriangles(escarpment, wetWalls) : escarpment;
-  const ground = townGroundPolygons(document, water, terrain.relief ? patches : undefined);
+  // The field chunks clip their own ground, so the unused cell surface needs no excavation pass.
+  const ground = townGroundPolygons(document, water, terrain.relief ? patches : undefined, !terrain.grid);
   // Preserve the legacy flat frame. Relief and sea level share the terrain datum.
   const elevations = Object.values(document.mesh.faces)
     .filter(face => face.properties.water === "land")

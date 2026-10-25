@@ -95,6 +95,7 @@ export interface GenerationStage extends GenerationStageDefinition {
 }
 
 export type {
+  BastionedTownSettings,
   ElevationPreset,
   GenerationMethod,
   GenerationRetry,

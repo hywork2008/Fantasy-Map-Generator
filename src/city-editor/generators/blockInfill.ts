@@ -3,6 +3,7 @@ import type { CityDocument } from "../types/document";
 import type { Id, Point } from "../types/primitives";
 import { aerialLandmarkFootprints } from "./aerialFootprints";
 import { buildAerialLandmarkPlan, prevailingWindKey } from "./aerialLandmarks";
+import { polygonReserved } from "./bastionedTown/reserve";
 import type { DistrictFabric } from "./blockInfill.types";
 import { assignBuildingAppearances, buildingAppearanceKey } from "./buildingAppearance";
 import type { BuildingLot } from "./buildingLots.types";
@@ -146,7 +147,9 @@ function finishFabric(document: CityDocument, fabric: DistrictFabric): DistrictF
     ...fabric,
     buildings: relieveGatePlazaBuildings(
       document,
-      fabric.buildings.filter(b => !reserved.some(r => polygonOverlaps(b.polygon, r)))
+      fabric.buildings.filter(
+        b => !reserved.some(r => polygonOverlaps(b.polygon, r)) && !polygonReserved(document.bastionedTown, b.polygon)
+      )
     ),
     lanes: fabric.lanes.filter(
       l =>
