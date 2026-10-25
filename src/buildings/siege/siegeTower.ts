@@ -5,10 +5,23 @@ import { meshProjection } from "../meshProjection";
 /** Illustrative medieval belfry, in meters, with the assault bridge facing positive X. */
 export const SIEGE_TOWER = {
   name: "Medieval European siege tower",
-  length: 9.2,
+  length: 8.5,
   width: 5.6,
-  height: 11.2,
-  note: "Illustrative medieval European timber belfry with four wheels, three fighting levels, internal ladders, hide protection and a lowered assault bridge supported by winch ropes. Inspired by historical siege-tower descriptions; dimensions and details are interpretive, not a reconstruction of a specific engine. Static model without crew."
+  height: 11.7,
+  note: "Interpretive medieval belfry informed by Viollet-le-Duc, Dictionnaire raisonne, Engin, fig. 32: transverse staggered ladders, a clear assault deck and an archer platform above it. Four wheels, timber framing and hide cladding. Side-mounted bridge windlasses and dimensions are modeling interpretations, not documented details of a surviving engine. Bridge shown resting on an implied wall; hoist ropes do not replace that support. Rear left open as in the reference. See docs/buildings/siege-tower.md for sources and circulation checks."
+} as const;
+
+// Positive X faces the wall. Ladder travel is transverse (+Z), with a separate landing at each level.
+export const SIEGE_TOWER_LAYOUT = {
+  decks: [1.65, 4.55, 7.45, 10.35],
+  ladderX: [-1.08, 0.08, -1.08],
+  hatchHalfWidth: 0.48,
+  hatchRear: -1.1,
+  hatchFront: 0.62,
+  ladderFootZ: -0.88,
+  ladderExitZ: 0.08,
+  bridgeLength: 2.6,
+  passageHalfWidth: 1.05
 } as const;
 
 export function createSiegeTowerModel(): CityStructureMeshes {
@@ -76,7 +89,8 @@ export function createSiegeTowerModel(): CityStructureMeshes {
   }
   for (const z of [-1.8, 1.8]) box("chassis-rail", 0, 1.4, z, 5.5, 0.45, 0.4, dark);
   const half = (y: number) => 2.12 - (y - 1.5) * 0.045;
-  const levels = [1.65, 4.55, 7.45];
+  const levels = SIEGE_TOWER_LAYOUT.decks;
+  const layout = SIEGE_TOWER_LAYOUT;
   // Slightly battered posts carry the floors; the rear remains open to reveal the joinery and ladders.
   for (const sx of [-1, 1])
     for (const sz of [-1, 1]) {
@@ -86,16 +100,65 @@ export function createSiegeTowerModel(): CityStructureMeshes {
   for (let level = 0; level < levels.length; level++) {
     const y = levels[level],
       h = half(y);
-    for (const z of [-1.65, 0, 1.65]) box("floor-joist", 0, y - 0.14, z, h * 2 + 0.3, 0.22, 0.18, dark);
-    for (let i = 0; i < 16; i++) {
-      const x = -h + (i + 0.5) * ((h * 2) / 16);
-      // A real hatch in each upper deck allows the ladder to emerge without crossing solid decking.
-      const hatch = level > 0 && x < -h + 0.85;
-      box("floor-plank", x, y, hatch ? 0.46 : 0, (h * 2) / 16 - 0.012, 0.12, hatch ? 2.48 : 3.4, wood[i % 4]);
+    const hatchX = level > 0 ? layout.ladderX[level - 1] : null;
+    // Joists stay outside the openings; transverse headers and trimmers carry the cut deck.
+    for (const z of [-1.56, 1.56]) box("floor-joist", 0, y - 0.17, z, h * 2 + 0.25, 0.22, 0.18, dark);
+    if (hatchX !== null) {
+      for (const z of [layout.hatchRear - 0.09, layout.hatchFront + 0.09])
+        box("hatch-header", 0, y - 0.17, z, h * 2, 0.22, 0.16, dark);
+      for (const x of [hatchX - layout.hatchHalfWidth - 0.08, hatchX + layout.hatchHalfWidth + 0.08])
+        box(
+          "hatch-trimmer",
+          x,
+          y - 0.17,
+          (layout.hatchRear + layout.hatchFront) / 2,
+          0.14,
+          0.22,
+          layout.hatchFront - layout.hatchRear,
+          dark
+        );
     }
+    // Split every affected plank at the exact hatch boundary, rather than cutting a cosmetic hole.
+    for (let i = 0; i < 20; i++) {
+      const left = -h + (i * h * 2) / 20;
+      const right = left + (h * 2) / 20;
+      const cuts = [left, right];
+      if (hatchX !== null)
+        for (const edge of [hatchX - layout.hatchHalfWidth, hatchX + layout.hatchHalfWidth])
+          if (edge > left && edge < right) cuts.push(edge);
+      cuts.sort((a, b) => a - b);
+      for (let j = 0; j < cuts.length - 1; j++) {
+        const x = (cuts[j] + cuts[j + 1]) / 2;
+        const width = cuts[j + 1] - cuts[j] - 0.006;
+        if (width <= 0) continue;
+        const overHatch = hatchX !== null && Math.abs(x - hatchX) < layout.hatchHalfWidth;
+        const spans = overHatch
+          ? [
+              [-1.77, layout.hatchRear],
+              [layout.hatchFront, 1.77]
+            ]
+          : [[-1.77, 1.77]];
+        for (const [start, end] of spans)
+          box("floor-plank", x, y, (start + end) / 2, width, 0.12, end - start, wood[i % 4]);
+      }
+    }
+    // Keep the hatch sides guarded; its +Z end is the unobstructed landing.
+    if (hatchX !== null)
+      for (const side of [-1, 1]) {
+        const x = hatchX + side * (layout.hatchHalfWidth + 0.08);
+        for (const z of [layout.hatchRear - 0.08, layout.hatchFront - 0.08])
+          box("hatch-guard-post", x, y + 0.55, z, 0.07, 1.05, 0.07);
+        beam(
+          "hatch-guard-rail",
+          v(x, y + 1.05, layout.hatchRear - 0.08),
+          v(x, y + 1.05, layout.hatchFront - 0.08),
+          0.065
+        );
+      }
     for (const side of [-1, 1]) {
       const z = side * 1.8;
-      box("level-tie", 0, y + 0.1, z, h * 2, 0.22, 0.22);
+      box("level-tie", 0, y - 0.16, z, h * 2, 0.22, 0.22);
+      if (level === levels.length - 1) continue;
       beam("side-diagonal-brace", v(-h + 0.1, y + 0.2, z), v(half(y + 2.7) - 0.1, y + 2.7, z), 0.16, dark);
       beam("side-diagonal-brace", v(h - 0.1, y + 0.2, z), v(-half(y + 2.7) + 0.1, y + 2.7, z), 0.16, dark);
       // Individually laid side planks and hide tiles leave narrow arrow slits in the middle tier.
@@ -144,59 +207,97 @@ export function createSiegeTowerModel(): CityStructureMeshes {
         for (let col = 0; col < 4; col++)
           box("front-hide-panel", half(py) + 0.17, py, -1.3 + col * 0.87, 0.035, 0.245, 0.83, hides[(row + col) % 4]);
       }
-    if (level < 2) {
-      const bottom = v(-0.6, y + 0.1, -1.1),
-        top = v(-half(levels[level + 1]) + 0.46, levels[level + 1] + 0.6, -1.1);
-      for (const dz of [-0.3, 0.3])
-        beam("ladder-stile", bottom.clone().add(v(0, 0, dz)), top.clone().add(v(0, 0, dz)), 0.075, wood[2]);
+    if (level < levels.length - 1) {
+      const x = layout.ladderX[level];
+      const upperY = levels[level + 1];
+      const bottom = v(x, y + 0.1, layout.ladderFootZ);
+      const exit = v(x, upperY + 0.06, layout.ladderExitZ);
+      const direction = exit.clone().sub(bottom);
+      const top = exit.clone().addScaledVector(direction, 0.85 / direction.y);
+      // Rungs run along X, keeping the ascent transverse to the wall behind the front cladding.
+      for (const dx of [-0.35, 0.35])
+        beam("ladder-stile", bottom.clone().add(v(dx, 0, 0)), top.clone().add(v(dx, 0, 0)), 0.075, wood[2]);
       for (let i = 0; i < 11; i++) {
-        const p = bottom.clone().lerp(top, i / 11);
-        beam("ladder-rung", p.clone().add(v(0, 0, -0.3)), p.clone().add(v(0, 0, 0.3)), 0.055, wood[1], true);
+        const p = bottom.clone().lerp(exit, i / 11);
+        beam("ladder-rung", p.clone().add(v(-0.35, 0, 0)), p.clone().add(v(0.35, 0, 0)), 0.055, wood[1], true);
       }
+      // Ladders are staggered across X. A soldier steps onto the +Z landing, moves sideways,
+      // and approaches the next foot along its own clear lane, rather than under the next climber.
     }
     // Rear safety rails frame the open access side.
-    for (const z of [-1.1, 1.1]) box("rear-rail", -half(y + 1), y + 1, z, 0.12, 0.15, 1.15);
+    if (level < levels.length - 1)
+      for (const z of [-1.1, 1.1]) box("rear-rail", -half(y + 1), y + 1, z, 0.12, 0.15, 1.15);
   }
-  // Crenellated shooting parapet and a light, pitched timber canopy over the top platform.
+  // Rear boarding ladder reaches the otherwise elevated chassis deck from ground level.
+  const entryFoot = v(-3.45, 0.1, 0);
+  const entryTop = v(-1.95, levels[0] + 0.06, 0);
+  box("boarding-foot", -3.45, 0.06, 0, 0.3, 0.12, 1.05, dark);
+  for (const side of [-1, 1])
+    beam(
+      "boarding-stile",
+      entryFoot.clone().add(v(0, 0, side * 0.43)),
+      entryTop.clone().add(v(0, 0, side * 0.43)),
+      0.08
+    );
+  for (let i = 1; i <= 7; i++) {
+    const p = entryFoot.clone().lerp(entryTop, i / 7);
+    beam("boarding-rung", p.clone().add(v(0, 0, -0.43)), p.clone().add(v(0, 0, 0.43)), 0.055, wood[1], true);
+  }
+  // A distinct upper shooting deck follows fig. 32: archers cover the assault from above.
   for (const side of [-1, 1]) {
-    box("upper-parapet", 0, 8, side * 1.88, 3.8, 1, 0.14);
+    box("upper-parapet", 0, 10.89, side * 1.88, 3.55, 1.08, 0.14);
     for (let i = 0; i < 6; i++)
-      box("parapet-merlon", -1.58 + i * 0.63, 8.77, side * 1.88, 0.4, 0.55, 0.16, wood[i % 4]);
-    for (const x of [-1.7, 1.7]) beam("canopy-rafter", v(x, 10.25, side * 2.05), v(x, 11, 0), 0.13);
-    const angle = Math.atan2(0.75, 2.05);
-    for (let i = 0; i < 18; i++) {
-      const roof = box(
-        "canopy-plank",
-        -1.98 + i * 0.233,
-        10.625,
-        side * 1.025,
-        0.225,
-        0.085,
-        Math.hypot(2.05, 0.75),
-        wood[i % 4]
-      );
-      roof.rotation.x = side * angle;
-    }
+      box("parapet-merlon", -1.5 + i * 0.6, 11.54, side * 1.88, 0.38, 0.28, 0.16, wood[i % 4]);
   }
-  box("canopy-ridge", 0, 11.04, 0, 4.3, 0.14, 0.16, dark);
-  // Hinged bridge is lowered horizontally; paired ropes lead to an actual transverse winch.
-  const hingeX = half(7.45) + 0.18;
-  beam("bridge-hinge", v(hingeX, 7.45, -1.35), v(hingeX, 7.45, 1.35), 0.12, iron, true);
-  for (const z of [-1.05, 1.05]) box("bridge-stringer", hingeX + 1.8, 7.3, z, 3.6, 0.22, 0.2, dark);
-  for (let i = 0; i < 18; i++) box("bridge-plank", hingeX + 0.1 + i * 0.2, 7.46, 0, 0.19, 0.12, 2.55, wood[i % 4]);
-  beam("winch-drum", v(0.8, 8.35, -1.52), v(0.8, 8.35, 1.52), 0.17, dark, true);
+  box("archer-rear-parapet", -half(10.35), 10.89, 0, 0.16, 1.08, 3.6);
+  box("archer-front-parapet", half(10.35), 10.89, 0, 0.16, 1.08, 3.6);
+  for (const z of [-1.55, -0.93, -0.31, 0.31, 0.93, 1.55])
+    box("archer-front-merlon", half(10.35), 11.54, z, 0.18, 0.28, 0.4);
+  // The lowered bridge rests on the target wall in use. Its hoists run outside the walking width.
+  const hingeX = half(7.45) + 0.08;
+  box("bridge-threshold", hingeX - 0.1, 7.45, 0, 0.45, 0.12, 2.55);
+  for (const side of [-1, 1])
+    beam("bridge-hinge", v(hingeX, 7.4, side * 1.29), v(hingeX, 7.4, side * 1.52), 0.09, iron, true);
+  for (const z of [-1.1, 1.1])
+    box("bridge-stringer", hingeX + layout.bridgeLength / 2, 7.28, z, layout.bridgeLength, 0.22, 0.2, dark);
+  for (let i = 0; i < 16; i++)
+    box(
+      "bridge-plank",
+      hingeX + ((i + 0.5) * layout.bridgeLength) / 16,
+      7.45,
+      0,
+      layout.bridgeLength / 16 - 0.006,
+      0.12,
+      2.55,
+      wood[i % 4]
+    );
+  // Two wall-side windlasses replace the transverse waist-high axle that previously blocked the sortie.
   for (const side of [-1, 1]) {
-    box("winch-bearing", 0.8, 7.95, side * 1.45, 0.22, 1, 0.22);
-    beam("bridge-hoist-rope", v(hingeX + 3.45, 7.55, side * 1.17), v(hingeX, 9.65, side * 1.4), 0.035, rope, true);
-    beam("winch-rope", v(hingeX, 9.65, side * 1.4), v(0.8, 8.5, side * 1.15), 0.035, rope, true);
+    const z = side * 1.48;
+    box("assault-door-jamb", hingeX, 8.9, side * 1.63, 0.22, 2.8, 0.2);
+    box("front-cheek", hingeX, 8.7, side * 1.48, 0.12, 2.4, 0.22);
+    box("bridge-lifting-lug", hingeX + layout.bridgeLength - 0.08, 7.44, side * 1.37, 0.14, 0.1, 0.32, iron);
+    const sheave = v(hingeX, 10.2, z);
+    beam("bridge-hoist-rope", v(hingeX + layout.bridgeLength - 0.08, 7.51, z), sheave, 0.035, rope, true);
+    beam("winch-rope", sheave, v(1.01, 8.55, z), 0.035, rope, true);
     const pulley = add("hoist-pulley", new THREE.TorusGeometry(0.13, 0.035, 6, 16), iron);
-    pulley.position.set(hingeX, 9.65, side * 1.4);
-    for (const dy of [-0.4, 0.4])
-      beam("winch-handspike", v(0.8, 8.35, side * 1.6), v(0.8 + dy, 8.35 + dy, side * 1.6), 0.06, wood[2]);
-  }
-  for (let i = 0; i < 12; i++) {
-    const coil = add("winch-rope-coil", new THREE.TorusGeometry(0.19, 0.023, 5, 12), rope);
-    coil.position.set(0.8, 8.35, -0.45 + i * 0.08);
+    pulley.position.copy(sheave);
+    box("pulley-cheek", hingeX, 10.2, z + side * 0.07, 0.36, 0.4, 0.04, dark);
+    beam("pulley-axle", sheave.clone().add(v(0, 0, -0.12)), sheave.clone().add(v(0, 0, 0.12)), 0.045, iron, true);
+    beam("winch-drum", v(0.62, 8.35, z), v(1.4, 8.35, z), 0.17, dark, true);
+    for (const x of [0.62, 1.4]) box("winch-bearing", x, 7.96, z, 0.16, 0.94, 0.25);
+    for (let i = 0; i < 10; i++) {
+      const coil = add("winch-rope-coil", new THREE.TorusGeometry(0.19, 0.023, 5, 12), rope);
+      coil.rotation.y = Math.PI / 2;
+      coil.position.set(0.82 + i * 0.04, 8.35, z);
+    }
+    // A small crank and pawl remain inside the wall-side equipment strip.
+    beam("winch-crank", v(0.53, 8.35, z), v(0.53, 8.66, z), 0.055, iron);
+    beam("winch-grip", v(0.53, 8.66, z), v(0.35, 8.66, z), 0.07, wood[2], true);
+    const ratchet = add("winch-ratchet", new THREE.CylinderGeometry(0.23, 0.23, 0.07, 12), iron);
+    ratchet.rotation.z = Math.PI / 2;
+    ratchet.position.set(1.35, 8.35, z);
+    beam("winch-pawl", v(1.35, 8.65, z - side * 0.13), v(1.35, 8.47, z), 0.05, iron);
   }
   return {
     group,

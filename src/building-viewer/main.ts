@@ -1176,9 +1176,12 @@ siegeTowerButton.addEventListener("click", () => {
     fact("Model", SIEGE_TOWER.name),
     fact("Style", "Medieval Europe · Timber belfry"),
     fact("Study envelope", `${SIEGE_TOWER.length} × ${SIEGE_TOWER.width} × ${SIEGE_TOWER.height} m`),
-    fact("Structure", "Battered timber frame, cross braces, three decks and internal ladders with open hatches"),
-    fact("Protection", "Overlapping hide panels, arrow slits, crenellated parapets and pitched canopy"),
-    fact("Equipment", "Four iron-bound spoked wheels, hinged assault bridge, pulleys and winding drum"),
+    fact("Structure", "Braced timber frame, four decks, transverse staggered ladders and guarded hatch landings"),
+    fact("Protection", "Hide panels, arrow slits and a separate upper archer platform"),
+    fact(
+      "Equipment",
+      "Four iron-bound wheels, flush assault bridge and paired wall-side windlasses outside the passage"
+    ),
     fact("Note", SIEGE_TOWER.note)
   );
 });
