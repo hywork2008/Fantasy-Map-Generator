@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
+import { BUILDING_PALETTES } from "../appearance/palette";
 import { CODEX_TOWN_WALLS } from "./codexTownWalls";
 
 function hits(
@@ -13,6 +14,36 @@ function hits(
 }
 
 describe("Codex late medieval town walls", () => {
+  for (const definition of CODEX_TOWN_WALLS.slice(1)) {
+    it(`${definition.task} applies the housing palette to every roof surface only`, () => {
+      const original = definition.create();
+      const terracotta = definition.create("mediterranean");
+      try {
+        const swatches = BUILDING_PALETTES.terracotta.map(hex => new THREE.Color(hex));
+        for (const mesh of terracotta.pickables) {
+          const colors = mesh.geometry.getAttribute("color");
+          if (/roof|slate/.test(mesh.name) && mesh.name !== "roof-finial" && mesh.name !== "roof-bearing-post") {
+            for (let i = 0; i < colors.count; i++) {
+              const color = new THREE.Color().fromBufferAttribute(colors, i);
+              expect(
+                swatches.some(
+                  swatch =>
+                    Math.abs(color.r - swatch.r) + Math.abs(color.g - swatch.g) + Math.abs(color.b - swatch.b) < 1e-6
+                )
+              ).toBe(true);
+            }
+          } else {
+            const before = original.pickables.find(candidate => candidate.name === mesh.name)!;
+            expect(colors.array).toEqual(before.geometry.getAttribute("color").array);
+          }
+        }
+      } finally {
+        original.dispose();
+        terracotta.dispose();
+      }
+    });
+  }
+
   for (const definition of CODEX_TOWN_WALLS) {
     it(`${definition.task} has finite coloured geometry within its envelope and batches its stones`, () => {
       const model = definition.create();

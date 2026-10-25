@@ -2,7 +2,7 @@ import { STANDARD_BIOME_DEFINITIONS } from "../data/biomeCatalog";
 import "./viewer.css";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { BUILDING_APPEARANCE_PROFILES } from "../buildings/appearance/types";
+import { BUILDING_APPEARANCE_PROFILES, type BuildingAppearanceProfile } from "../buildings/appearance/types";
 import { createPontDuGard, PONT_DU_GARD, pontDuGardElevation } from "../buildings/aqueducts/pontDuGard";
 import { contentDigest } from "../buildings/canonicalJson";
 import { createStGeorgesChapel, ST_GEORGES_CHAPEL } from "../buildings/chapels/stGeorgesChapel";
@@ -1687,6 +1687,8 @@ warWagonButton.addEventListener("click", () => {
 });
 vehiclesHeading.append(warWagonButton);
 
+let townWallHousingCulture: BuildingAppearanceProfile = "legacy";
+
 function showTownWall(model: TownWallModel, button: HTMLButtonElement, codex = false): void {
   selection++;
   for (const item of list.querySelectorAll("button")) item.setAttribute("aria-current", String(item === button));
@@ -1710,7 +1712,26 @@ function showTownWall(model: TownWallModel, button: HTMLButtonElement, codex = f
   const paragraph = document.createElement("p");
   paragraph.append(row);
   optionFields.append(paragraph);
-  const built = model.create();
+  if (model.task !== "W01") {
+    const cultureRow = document.createElement("label");
+    cultureRow.textContent = "Housing culture: ";
+    const culture = document.createElement("select");
+    culture.setAttribute("aria-label", "Housing culture");
+    for (const profile of BUILDING_APPEARANCE_PROFILES) {
+      const option = document.createElement("option");
+      option.value = profile;
+      option.textContent = label(profile);
+      culture.append(option);
+    }
+    culture.value = townWallHousingCulture;
+    culture.addEventListener("change", () => {
+      townWallHousingCulture = culture.value as BuildingAppearanceProfile;
+      showTownWall(model, button, codex);
+    });
+    cultureRow.append(culture);
+    optionFields.append(cultureRow);
+  }
+  const built = model.create(townWallHousingCulture);
   massing = built;
   scene.add(built.group);
   ground.visible = true;

@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
+import type { BuildingAppearanceProfile } from "../appearance/types";
 import { ModelKit, type Surface } from "../medieval/modelKit";
+import { townWallRoofPalette } from "./townWallRoof";
 
 /**
  * High-detail studies of the three parts CE places when Features → Walls is on:
@@ -22,7 +24,7 @@ export interface TownWallModel {
   size: readonly [number, number, number];
   note: string;
   sources: readonly { title: string; url: string }[];
-  create(): CityStructureMeshes;
+  create(profile?: BuildingAppearanceProfile): CityStructureMeshes;
 }
 
 const WALK = 8;
@@ -437,9 +439,17 @@ export const TOWN_WALLS: readonly TownWallModel[] = [
     size: [14.2, 4.8, 10],
     note: "One bay of a stone town curtain: battered plinth, arrow slits, string courses, corbel table, paved wall-walk, outer merlons and a lower inner parapet. Ends are a cut through a longer circuit.",
     sources: SOURCES,
-    create() {
+    create(profile = "legacy") {
       const kit = new ModelKit(this.id);
       addCurtain(kit, -7, 7);
+      if (profile !== "legacy") {
+        const color = townWallRoofPalette(profile)[1];
+        for (const mesh of kit.pickables) {
+          if (mesh.name === "tower-roof" || mesh.name === "roof-eave") {
+            (mesh.material as THREE.MeshLambertMaterial).color.setHex(color);
+          }
+        }
+      }
       return kit.finish();
     }
   },
@@ -451,11 +461,19 @@ export const TOWN_WALLS: readonly TownWallModel[] = [
     size: [17.2, 9.2, 16.6],
     note: "Round tower bonded into the curtain and projecting toward the field. Hollow drum, wall-walk doors on both returns, arrow slits, corbelled crenellations and a conical tiled roof. A timber stair stands inside.",
     sources: SOURCES,
-    create() {
+    create(profile = "legacy") {
       const kit = new ModelKit(this.id);
       addDrum(kit, [0, 0.55], 3.35, 2.45, 11.35, [Math.PI / 2, -Math.PI / 2]);
       addCurtain(kit, -8.3, -2.15);
       addCurtain(kit, 2.15, 8.3);
+      if (profile !== "legacy") {
+        const color = townWallRoofPalette(profile)[1];
+        for (const mesh of kit.pickables) {
+          if (mesh.name === "tower-roof" || mesh.name === "roof-eave") {
+            (mesh.material as THREE.MeshLambertMaterial).color.setHex(color);
+          }
+        }
+      }
       return kit.finish();
     }
   },
@@ -467,9 +485,17 @@ export const TOWN_WALLS: readonly TownWallModel[] = [
     size: [28, 12, 17.2],
     note: "Twin round towers flank a pointed passage. The portcullis is raised into the arch, the oak leaves are folded open against the jambs, and a machicolation projects over the field arch. The passage stays clear for a cart.",
     sources: SOURCES,
-    create() {
+    create(profile = "legacy") {
       const kit = new ModelKit(this.id);
       addGate(kit);
+      if (profile !== "legacy") {
+        const color = townWallRoofPalette(profile)[1];
+        for (const mesh of kit.pickables) {
+          if (mesh.name === "tower-roof" || mesh.name === "roof-eave") {
+            (mesh.material as THREE.MeshLambertMaterial).color.setHex(color);
+          }
+        }
+      }
       return kit.finish();
     }
   }

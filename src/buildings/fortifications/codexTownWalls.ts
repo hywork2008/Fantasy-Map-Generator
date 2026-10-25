@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
+import { townWallRoofPalette } from "./townWallRoof";
 import type { TownWallModel } from "./townWalls";
 
 /** Independent Codex studies: metres, +Z field, -Z town, 8 m connecting wall-walk. */
@@ -19,6 +20,7 @@ class Masonry {
   private readonly batches = new Map<string, THREE.BufferGeometry[]>();
   private readonly cube = new THREE.BoxGeometry();
   private index = 0;
+  constructor(readonly roofPalette = SLATE) {}
   add(name: string, geometry: THREE.BufferGeometry, palette = STONE) {
     const color = new THREE.Color(palette[(this.index++ * 7 + Math.floor(this.index / 5)) % palette.length]);
     const positions = geometry.getAttribute("position");
@@ -277,7 +279,7 @@ function drum(m: Masonry, cx: number, cz: number, platform: number, doors: reado
     radius = 2.48;
   const roof = new THREE.ConeGeometry(radius, rise, 64);
   roof.translate(cx, eave + rise / 2, cz);
-  m.add("tower-roof-underlay", roof, [0x39444c]);
+  m.add("tower-roof-underlay", roof, m.roofPalette);
   for (let row = 0; row < 19; row++) {
     const y = (row * rise) / 19;
     const bottom = radius * (1 - y / rise) + 0.035;
@@ -296,7 +298,7 @@ function drum(m: Masonry, cx: number, cz: number, platform: number, doors: reado
         (2 * Math.PI) / count - 0.016
       );
       geometry.translate(cx, eave + y + (rise / 19 + 0.035) / 2, cz);
-      m.add("individual-slate-shingles", geometry, SLATE);
+      m.add("individual-slate-shingles", geometry, m.roofPalette);
     }
   }
   const finial = new THREE.ConeGeometry(0.095, 0.62, 12);
@@ -464,11 +466,11 @@ function gate(m: Masonry, wings = true) {
         const g = new THREE.BufferGeometry();
         g.setAttribute("position", new THREE.Float32BufferAttribute([...p, ...q, ...r, ...q, ...s, ...r], 3));
         g.computeVertexNormals();
-        m.add("gatehouse-hipped-slate-roof", g, SLATE);
+        m.add("gatehouse-hipped-slate-roof", g, m.roofPalette);
       }
     }
   }
-  m.box("gatehouse-roof-ridge", [0, 14.55, 0], [2.12, 0.13, 0.18], SLATE);
+  m.box("gatehouse-roof-ridge", [0, 14.55, 0], [2.12, 0.13, 0.18], m.roofPalette);
   // Projecting murder-hole gallery above the field entrance.
   for (let i = 0; i < 7; i++) {
     const x = -1.8 + i * 0.6;
@@ -529,8 +531,8 @@ export const CODEX_TOWN_WALLS: readonly TownWallModel[] = [
     size: [14, 3.3, 10],
     note: "Coursed limestone curtain with staggered joints, battered foot, open arrow loops, paved 8 m wall-walk, stepped corbels, slit merlons and dressed coping. Field faces +Z. Illustrative c. 1450–1550 circuit surviving from medieval construction.",
     sources,
-    create() {
-      const m = new Masonry();
+    create(profile = "legacy") {
+      const m = new Masonry(profile === "legacy" ? undefined : townWallRoofPalette(profile));
       curtain(m, -7, 7);
       return m.finish(this.id);
     }
@@ -541,10 +543,10 @@ export const CODEX_TOWN_WALLS: readonly TownWallModel[] = [
     name: "Round mural tower",
     part: "Tower",
     size: [17, 8.5, 18],
-    note: "Hollow, battered ashlar drum with actual arrow loops and two wall-walk doorways. Open drop slots sit between stepped machicolation corbels. Curved crenellations surround a raised cap with individually modelled slate courses and a metal finial. Illustrative c. 1450–1550.",
+    note: "Hollow, battered ashlar drum with actual arrow loops and two wall-walk doorways. Open drop slots sit between stepped machicolation corbels. Curved crenellations surround a raised cap with individually modelled roof courses and a metal finial. Illustrative c. 1450–1550.",
     sources,
-    create() {
-      const m = new Masonry();
+    create(profile = "legacy") {
+      const m = new Masonry(profile === "legacy" ? undefined : townWallRoofPalette(profile));
       drum(m, 0, 0.55, 11.6, [Math.PI / 2, -Math.PI / 2]);
       curtain(m, -8.4, -3.25);
       curtain(m, 3.25, 8.4);
@@ -557,10 +559,10 @@ export const CODEX_TOWN_WALLS: readonly TownWallModel[] = [
     name: "Twin-tower town gate",
     part: "Gate",
     size: [27.2, 8.5, 19],
-    note: "Twin slate-capped mural towers frame a vaulted Gothic cart passage, with jointed arch stones on both faces, raised iron portcullis, open planked oak doors and riveted straps. A hipped gatehouse chamber and projecting machicolation defend the entry. Illustrative c. 1450–1550; not a reconstruction of one monument.",
+    note: "Twin roof-capped mural towers frame a vaulted Gothic cart passage, with jointed arch stones on both faces, raised iron portcullis, open planked oak doors and riveted straps. A hipped gatehouse chamber and projecting machicolation defend the entry. Illustrative c. 1450–1550; not a reconstruction of one monument.",
     sources,
-    create() {
-      const m = new Masonry();
+    create(profile = "legacy") {
+      const m = new Masonry(profile === "legacy" ? undefined : townWallRoofPalette(profile));
       gate(m);
       return m.finish(this.id);
     }
