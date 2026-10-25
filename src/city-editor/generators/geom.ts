@@ -332,7 +332,7 @@ function cross(o: Point, a: Point, b: Point): number {
 }
 
 function clamp01(v: number): number {
-  return v < 0 ? 0 : v > 1 ? 1 : v;
+  return v < 0 ? 0 : Math.min(v, 1);
 }
 
 // --- hulls & simplification -------------------------------------------------

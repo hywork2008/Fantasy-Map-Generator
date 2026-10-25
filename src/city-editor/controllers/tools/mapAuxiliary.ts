@@ -28,6 +28,10 @@ export function bindMapAuxiliary(ctx: MapAuxiliaryContext) {
     void ctx.importMapFile(event.dataTransfer?.files[0]);
   });
   ctx.scope.listen(ctx.map, "pointerleave", () => {
+    if (ctx.interaction.tool === "object") {
+      ctx.interaction.shipHoverPoint = null;
+      ctx.map.querySelector(".ce-ship-preview")?.remove();
+    }
     if (!ctx.interaction.isWardPainting && !ctx.interaction.isJunctionPainting) ctx.hideWardBrushPreview();
     if (!ctx.interaction.circularWallStroke) ctx.hideCircularWallPreview();
   });

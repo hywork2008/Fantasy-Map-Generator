@@ -122,7 +122,7 @@ export function splitDryWallRuns<T>(
   if (!dry.some(Boolean)) return [];
   const runs: T[][] = [];
   const start = dry.findIndex((d, i) => d && !dry[(i - 1 + n) % n]);
-  let i = start < 0 ? 0 : start;
+  let i = Math.max(start, 0);
   for (let step = 0; step < n; ) {
     while (step < n && !dry[i]) {
       i = (i + 1) % n;

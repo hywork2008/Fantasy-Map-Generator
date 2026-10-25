@@ -8,6 +8,7 @@ import { createBvPrototypeCache } from "../../city3d/three/bvInstances";
 import { type CityMassingMeshes, createCityMassing } from "../../city3d/three/cityMeshes";
 import { createTownFarms, type TownFarmMeshes } from "../../city3d/three/farmMeshes";
 import { createTownFriaries } from "../../city3d/three/friaryMeshes";
+import { createTownObjects } from "../../city3d/three/objectMeshes";
 import { createTownOpenSpaces } from "../../city3d/three/openSpaceMeshes";
 import { createTownPiers } from "../../city3d/three/pierMeshes";
 import { createTownRegionalHouses, type TownRegionalHouses } from "../../city3d/three/regionalHouseMeshes";
@@ -155,6 +156,8 @@ export function mountCity3d(options: {
   let openSpaceStamp: string | null = null;
   let ships: CityStructureMeshes | null = null;
   let shipStamp: string | null = null;
+  let objects: ReturnType<typeof createTownObjects> | null = null;
+  let objectStamp: string | null = null;
   let piers: CityStructureMeshes | null = null;
   let pierStamp: string | null = null;
   let waterMeshes: TownWaterMeshes | null = null;
@@ -362,11 +365,16 @@ export function mountCity3d(options: {
   };
 
   const ensure = () => {
-    if (renderer || disposed) return;
+    if (renderer || disposed) return Boolean(renderer);
     const canvas = document.createElement("canvas");
     canvas.className = "ce-3d-canvas";
     viewport.appendChild(canvas);
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    try {
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    } catch {
+      canvas.remove();
+      return false;
+    }
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setClearColor(0xc5c5bf);
@@ -385,6 +393,7 @@ export function mountCity3d(options: {
     controls.enableDamping = false;
     controls.maxPolarAngle = Math.PI / 2 - 0.05;
     resize();
+    return true;
   };
 
   const tick = () => {
@@ -414,8 +423,7 @@ export function mountCity3d(options: {
 
   const sync = () => {
     if (viewport.hidden || disposed) return;
-    ensure();
-    if (!scene) return;
+    if (!ensure() || !scene) return;
     const city = options.getDocument();
     // Fabric first: lane geometry is part of the road stamp, and graded roads shape the terrain.
     const quality = options.getModelQuality?.() ?? "standard";
@@ -445,6 +453,9 @@ export function mountCity3d(options: {
       open: true
     });
     const farmlandChanged = terrainChanged || plan.water || farmlandSource !== fabric.farms || !farmland;
+    const objectElements = city.elements.filter(item => item.kind === "object");
+    const nextObjectStamp = JSON.stringify(objectElements);
+    const objectsChanged = terrainChanged || objectStamp !== nextObjectStamp || !objects;
     const shipSites = collectShipSites(city);
     const nextShipStamp = JSON.stringify(shipSites);
     const shipsChanged = plan.water || shipStamp !== nextShipStamp || !scene.getObjectByName("ce-ships");
@@ -466,6 +477,7 @@ export function mountCity3d(options: {
       !plan.buildings &&
       !plan.water &&
       !plan.roads &&
+      !objectsChanged &&
       !shipsChanged &&
       !piersChanged &&
       !openSpacesChanged &&
@@ -504,6 +516,13 @@ export function mountCity3d(options: {
       farmland = next;
       farmlandSource = fabric.farms;
       scene.add(next.parent);
+    }
+    if (objectsChanged) {
+      if (objects) scene.remove(objects.group);
+      objects?.dispose();
+      objects = createTownObjects(objectElements, terrain?.heightAt, bvPrototypes);
+      scene.add(objects.group);
+      objectStamp = nextObjectStamp;
     }
     if (shipsChanged && waterMeshes) {
       ships?.dispose();
@@ -559,7 +578,15 @@ export function mountCity3d(options: {
       cancelAnimationFrame(raf);
       return;
     }
-    ensure();
+    if (!ensure()) {
+      viewport.hidden = true;
+      options.map.hidden = false;
+      button.textContent = editorText("cityEditor.messages.view3d");
+      button.setAttribute("aria-pressed", "false");
+      readout.textContent = editorText("cityEditor.messages.webglUnavailable");
+      readout.hidden = false;
+      return;
+    }
     resize();
     built = null;
     sync();
@@ -657,6 +684,7 @@ export function mountCity3d(options: {
     wells?.dispose();
     specialBuildings?.dispose();
     regionalHouses?.dispose();
+    objects?.dispose();
     ships?.dispose();
     openSpaces?.dispose();
     friaries?.dispose();

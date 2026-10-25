@@ -173,7 +173,7 @@ export interface RiverGroup {
 
 export type FeatureGroup = EdgeFeatureGroup | RiverGroup;
 
-export type ElementKind = "plaza" | "citadel" | "temple" | "harbor" | "gate" | "tower" | "tree" | "ship";
+export type ElementKind = "plaza" | "citadel" | "temple" | "harbor" | "gate" | "tower" | "tree" | "ship" | "object";
 
 export type TempleType = "basilica" | "chapel" | "shrine" | "megalith";
 
@@ -184,9 +184,13 @@ export interface CityElement {
   /** Point-anchored elements such as imported MFCG trees do not belong to a face. */
   point?: Point;
   sizeMeters?: number;
-  /** Angle in radians: temples are CCW from plan +X; ship bows are CCW from plan +Y. */
+  /** Angle in radians: temples and objects are CCW from plan +X; ship bows are CCW from plan +Y. */
   rotation?: number;
   locked: boolean;
+  /** BV model ID for a manually placed land object. */
+  objectType?: string;
+  /** Uniform multiplier of the authored meter dimensions. */
+  objectScale?: number;
   shipType?: "small" | "medium" | "large" | "barge";
   /** The dry harbour ward owning an element placed in a neighbouring water cell. */
   harborFaceId?: Id;
@@ -660,7 +664,8 @@ export type Tool =
   | "junction"
   | "face"
   | "landmark"
-  | "ship";
+  | "ship"
+  | "object";
 
 export type { CastleSettings } from "./castle";
 export type {

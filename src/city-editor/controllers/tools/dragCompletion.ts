@@ -36,11 +36,22 @@ export function createDragCompletionController(ctx: DragCompletionContext) {
       ctx.interaction.shipDragBefore = null;
       if (ctx.map.hasPointerCapture(event.pointerId)) ctx.map.releasePointerCapture(event.pointerId);
       if (wasMoved && before) {
+        // Live dragging updates the displayed document; commit against its pre-drag state.
+        const next = ctx.documents.documentState;
+        ctx.documents.documentState = before;
         ctx.commit(
-          ctx.documents.documentState,
+          next,
           dragMode === "move"
-            ? editorText("cityEditor.messages.moveShip")
-            : editorText("cityEditor.messages.rotateShip")
+            ? editorText(
+                before.elements.find(e => e.id === ctx.interaction.selection.inspectedId)?.kind === "object"
+                  ? "cityEditor.messages.moveObject"
+                  : "cityEditor.messages.moveShip"
+              )
+            : editorText(
+                before.elements.find(e => e.id === ctx.interaction.selection.inspectedId)?.kind === "object"
+                  ? "cityEditor.messages.rotateObject"
+                  : "cityEditor.messages.rotateShip"
+              )
         );
       } else {
         ctx.refresh();

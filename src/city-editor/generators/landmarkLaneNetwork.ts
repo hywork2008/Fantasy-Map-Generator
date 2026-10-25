@@ -19,6 +19,7 @@ export function landmarkLaneId(lane: Pick<InfillLane, "faceId" | "points" | "wid
   const coordinates = lane.points.map(point => point.map(value => Math.round(value * 100)).join(","));
   const forward = coordinates.join(";");
   const reverse = [...coordinates].reverse().join(";");
+  // biome-ignore lint/complexity/useMathMinMax: Compare string signatures lexicographically, not numerically.
   const signature = `${lane.faceId}|${Math.round(lane.widthMeters * 100)}|${forward < reverse ? forward : reverse}`;
   let hash = 2166136261;
   for (let i = 0; i < signature.length; i++) {

@@ -66,7 +66,7 @@ export function planGuildFacilities(
       practitioners: guild.practitioners,
       hall,
       belfry: hall && guild.domain === "textiles" && guild.prestige >= GUILD_BELFRY_PRESTIGE,
-      workshopWeight: guild.practitioners > 0 ? guild.practitioners : 0,
+      workshopWeight: Math.max(guild.practitioners, 0),
       ancillary: [...ANCILLARY[guild.domain]]
     };
   });

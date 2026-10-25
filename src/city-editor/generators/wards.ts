@@ -443,7 +443,7 @@ function fillInner(
       // This kind cannot sit anywhere left (e.g. MilitaryWard with no wall). Skip
       // it rather than forcing a slum in the middle of the mix.
       if (kind === "slum" || queue.length === 0) {
-        const fallback = remaining.reduce((a, b) => (a < b ? a : b));
+        const fallback = remaining.reduce((a, b) => Math.min(a, b));
         assigned.set(fallback, "slum");
         occupied.add(fallback);
         remaining.splice(remaining.indexOf(fallback), 1);

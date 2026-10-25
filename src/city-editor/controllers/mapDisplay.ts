@@ -11,6 +11,7 @@ import { syncCellReliefFace } from "../renderers/cellElevationSvg";
 import { type RenderQuality, renderEditorSvg } from "../renderers/editorSvg";
 import { renderGenerationDebugSvg } from "../renderers/generationDebugSvg";
 import { faceClassName, renderFaceWardLandmark } from "../renderers/landmarkSvg";
+import { renderObjectRotationHandle, renderObjectSvg } from "../renderers/objectSvg";
 import {
   appendFaceSelectionLabels,
   type GridOverlay,
@@ -33,6 +34,7 @@ export interface MapDisplayContext {
   interaction: InteractionState;
   landmarkControls: HTMLDivElement;
   shipControls: HTMLDivElement;
+  objectControls: HTMLDivElement;
   elevationControls: HTMLDivElement;
   currentBuildingPatternSelect: HTMLSelectElement;
   historicalPeriodSelect: HTMLSelectElement;
@@ -195,6 +197,7 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
       ctx.interaction.landmarkAssetId = assets.length ? `${assets[0].id}@${assets[0].revision}` : "";
     ctx.landmarkSelect.value = ctx.interaction.landmarkAssetId;
     ctx.landmarkControls.hidden = ctx.interaction.tool !== "landmark";
+    ctx.objectControls.hidden = ctx.interaction.tool !== "object";
     ctx.shipControls.hidden = ctx.interaction.tool !== "ship";
     ctx.elevationControls.hidden = ctx.interaction.tool !== "elevation";
     ctx.currentBuildingPatternSelect.value =
@@ -507,6 +510,23 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
     const svg = ctx.map.querySelector("svg");
     if (!svg) return;
     svg.querySelector(".ce-ship-preview")?.remove();
+    if (ctx.interaction.tool === "object" && ctx.interaction.shipHoverPoint) {
+      const preview = renderObjectSvg({
+        id: "object-preview",
+        kind: "object",
+        faceIds: [],
+        locked: false,
+        point: ctx.interaction.shipHoverPoint,
+        objectType: ctx.interaction.objectType,
+        objectScale: ctx.interaction.objectScale,
+        rotation: (ctx.interaction.objectAngleDegrees * Math.PI) / 180
+      });
+      preview.classList.add("ce-ship-preview");
+      preview.setAttribute("opacity", "0.65");
+      preview.style.pointerEvents = "none";
+      svg.querySelector(".ce-map-scene")?.appendChild(preview);
+      return;
+    }
     if (ctx.interaction.tool !== "ship" || !ctx.interaction.shipHoverPoint) return;
     const preview = renderShipSvg({
       type: ctx.interaction.shipType,
@@ -681,6 +701,16 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
       svg.querySelectorAll<SVGElement>(`[data-group="${ctx.interaction.selection.groupId}"]`).forEach(el => {
         el.classList.add("ce-active-group");
       });
+    }
+
+    svg.querySelectorAll(".ce-object-handle-group").forEach(handle => {
+      handle.remove();
+    });
+    const selectedObject = ctx.documents.documentState.elements.find(
+      e => e.kind === "object" && e.id === ctx.interaction.selection.inspectedId
+    );
+    if (selectedObject?.point && !selectedObject.locked) {
+      svg.querySelector(".ce-elements")?.appendChild(renderObjectRotationHandle(selectedObject));
     }
 
     svg.querySelectorAll(".ce-ship-handle-group").forEach(handle => {
