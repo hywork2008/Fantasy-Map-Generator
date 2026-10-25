@@ -7,6 +7,7 @@ import { planBastionedCity } from "../bastionedTown/plan";
 import { syncDocumentCemeteries } from "../cemeteryLayout";
 import { captureGenerationDebugPreview, type GenerationDebugObserver } from "../generationDebug";
 import { type GenerationObserver, reportGenerationFailure } from "../generationDiagnostics";
+import { generationSettingIssues } from "../generationSettingIssues";
 import { pointInPolygon, polygonCentroid } from "../geom";
 import { spawnHarborShips } from "../harborShips";
 import { clone, facePoints } from "../mesh";
@@ -60,6 +61,12 @@ export function generateStageOnDocument(
   wallCheckpoint?: StageCheckpoint,
   observer?: GenerationObserver
 ): CityDocument | null {
+  const settingIssues = generationSettingIssues(document, settings).filter(issue => issue.severity !== "warning");
+  if (settingIssues.length) {
+    for (const issue of settingIssues)
+      reportGenerationFailure(observer, 1, "prepare", issue.code, `${issue.message} ${issue.remedy}`);
+    return null;
+  }
   document = {
     ...document,
     buildingHeightPolicy: settings.buildingHeightPolicy,

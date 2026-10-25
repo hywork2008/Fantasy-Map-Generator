@@ -1,5 +1,6 @@
 import { editorText } from "../../i18n/editorMessages";
 import { clearGenerationPreviewCache } from "../generators/generation/previews";
+import { validatePopulationGeneration } from "../generators/populationGeneration";
 import {
   DEFAULT_CITY_POPULATION,
   defaultPopulationSettings,
@@ -77,12 +78,10 @@ export function buildPopulationControls(ctx: GenerationPanelContext) {
     };
     try {
       const period = settings().historicalPeriod ?? settings().descriptor?.historicalPeriod ?? "lateMedieval";
-      const p = planPopulation(candidate, period, ctx.documents.documentState.frame.extentMeters);
-      if (
-        (settings().generationMethod === "skeleton-first" && !settings().townFortification) ||
-        ["bram", "circulade", "classic"].includes(settings().layout ?? settings().config.layout ?? "")
-      )
-        throw new Error("unsupported");
+      const p =
+        candidate.source === "fmg"
+          ? planPopulation(candidate, period, ctx.documents.documentState.frame.extentMeters)
+          : validatePopulationGeneration(ctx.documents.documentState, { ...settings(), population: candidate }).plan;
       estimate.textContent = editorText("cityEditor.messages.populationEstimate", {
         dwellings: p.requiredDwellings.toLocaleString(),
         buildings: p.estimatedBuildings.toLocaleString(),
@@ -91,14 +90,8 @@ export function buildPopulationControls(ctx: GenerationPanelContext) {
         cell: p.cellWidthMeters,
         cells: Math.ceil(p.targetAreaM2 / p.cellWidthMeters ** 2)
       });
-    } catch {
-      input.setCustomValidity(
-        editorText(
-          settings().population?.frameMode === "manual"
-            ? "cityEditor.messages.populationFrameSmall"
-            : "cityEditor.messages.populationUnsupported"
-        )
-      );
+    } catch (error) {
+      input.setCustomValidity(error instanceof Error ? error.message : String(error));
       estimate.textContent = input.validationMessage;
     }
   }
