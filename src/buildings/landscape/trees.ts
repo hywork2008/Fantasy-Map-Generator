@@ -1,4 +1,5 @@
 import { ModelKit } from "../medieval/modelKit";
+import { createSmallLeavedLime } from "./smallLeavedLime";
 
 export const TREE_SPECIES = [
   "garden_parkland",
@@ -12,6 +13,7 @@ export type TreeSpecies = (typeof TREE_SPECIES)[number];
 
 /** Stylized meter-scale silhouettes shared by BV and CE. Radius is set by the saved canopy. */
 export function createLandscapeTree(species: TreeSpecies) {
+  if (species === "garden_parkland") return createSmallLeavedLime();
   const k = new ModelKit(species);
   k.cylinder("trunk", [0, 1.6, 0], 0.22, 3.2, "oak", 0.14);
   if (species === "mediterranean_cypress") {

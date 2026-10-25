@@ -1,3 +1,4 @@
+import { STANDARD_BIOME_DEFINITIONS } from "../data/biomeCatalog";
 import "./viewer.css";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -1958,18 +1959,23 @@ const medievalModules = import.meta.glob<{ models: MedievalModel[] }>("../buildi
 for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => a.localeCompare(b))) {
   const task = module.models[0].task;
   const category = modelCategory(
-    `Medieval ${String(task).padStart(2, "0")} · ${label(
-      file
-        .split("/")
-        .at(-1)!
-        .replace(/^\d+-|Models.ts$/g, "")
-    )}`
+    task === 43
+      ? "Trees"
+      : `Medieval ${String(task).padStart(2, "0")} · ${label(
+          file
+            .split("/")
+            .at(-1)!
+            .replace(/^\d+-|Models.ts$/g, "")
+        )}`
   );
   for (const definition of module.models) {
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = definition.name;
     button.dataset.medievalId = definition.id;
+    button.dataset.id = `medieval-${definition.id}`;
+    if (definition.author)
+      AUTHORED_VARIANTS[button.dataset.id] = { author: definition.author, primary: true, show: () => button.click() };
     button.addEventListener("click", () => {
       selection++;
       for (const item of list.querySelectorAll("button"))
@@ -1980,6 +1986,9 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
       banner.hidden = true;
       roofTitle.textContent = "Front elevation";
       levelTitle.textContent = "Top view";
+      selectedId = button.dataset.id!;
+      selectedName.textContent = definition.name;
+      listAuthors(selectedId);
       const model = definition.create();
       massing = model;
       scene.add(model.group);
@@ -1998,6 +2007,7 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
       facts.append(
         fact("Model", definition.name),
         fact("Task", String(task).padStart(2, "0")),
+        ...(definition.biomes ? [fact("Biomes", definition.biomes.join(", "))] : []),
         fact("Mesh dimensions", `${size.x.toFixed(2)} × ${size.z.toFixed(2)} × ${size.y.toFixed(2)} m`),
         fact("Ground contact", `Base Y = ${(Math.abs(bounds.min.y) < 0.0005 ? 0 : bounds.min.y).toFixed(3)} m`),
         fact("Construction", definition.note),
@@ -2006,13 +2016,23 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
           definition.task === 33
             ? "CE-fitted friary assembly; meter units. BV and CE share the same construction."
             : definition.task === 43 || definition.task === 44
-              ? "Schematic landscape or funerary model; meter units. Shared with CE park and cemetery 3D placement."
+              ? "Shared landscape or funerary model; meter units. Shared with CE park and cemetery 3D placement."
               : "Illustrative medieval or early modern model; meter units. CE automatic placement is separate."
         )
       );
     });
     category.append(button);
   }
+}
+
+const treeCoverage = modelCategory("Trees · biome coverage");
+for (const biome of STANDARD_BIOME_DEFINITIONS) {
+  const ready = Object.values(medievalModules)
+    .flatMap(module => module.models)
+    .filter(model => model.biomes?.includes(biome.key));
+  const row = document.createElement("p");
+  row.textContent = `${biome.label}: ${ready.length ? ready.map(model => model.name).join(", ") : Object.keys(biome.relief.icons).some(icon => ["acacia", "palm", "deciduous", "conifer", "swamp", "deadTree"].includes(icon)) ? "Tree models planned" : "No tree relief in FMG"}`;
+  treeCoverage.append(row);
 }
 
 resize();

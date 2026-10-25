@@ -5,6 +5,8 @@ export interface MedievalModel {
   id: string;
   name: string;
   task: number;
+  author?: string;
+  biomes?: readonly string[];
   /** Conservative width, depth and height envelopes in meters. */
   size: readonly [number, number, number];
   note: string;

@@ -141,9 +141,10 @@ export function createTownOpenSpaces(
       const transformed = mesh.geometry.clone().applyMatrix4(mesh.matrixWorld);
       const geometry = transformed.index ? transformed.toNonIndexed() : transformed;
       if (geometry !== transformed) transformed.dispose();
-      // BV roofs and primitives have different UV layouts; these solid-color batches only need positions and normals.
+      // BV roofs and primitives have different UV layouts; these solid-color batches retain vertex colors for shared botanical foliage.
       for (const attribute of Object.keys(geometry.attributes))
-        if (attribute !== "position" && attribute !== "normal") geometry.deleteAttribute(attribute);
+        if (attribute !== "position" && attribute !== "normal" && attribute !== "color")
+          geometry.deleteAttribute(attribute);
       geometry.translate(-center.x, -bounds.min.y, -center.z);
       const material = mesh.material as THREE.Material;
       const list = parts.get(material) ?? [];
