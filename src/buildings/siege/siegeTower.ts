@@ -8,7 +8,7 @@ export const SIEGE_TOWER = {
   length: 8.5,
   width: 5.6,
   height: 11.7,
-  note: "Interpretive medieval belfry informed by Viollet-le-Duc, Engin, fig. 32. Transverse ladders alternate direction, connecting adjacent flights by short landings. The circulation layout, side windlasses and dimensions are modeling interpretations. A separate archer deck covers the assault bridge, shown resting on an implied castle wall."
+  note: "Interpretive medieval belfry informed by Viollet-le-Duc, Engin, fig. 32. Lower ladders connect by short switchback landings; the archer ladder ascends towards the enemy. The circulation layout, side windlasses and dimensions are modeling interpretations. A separate archer deck covers the assault bridge, shown resting on an implied castle wall."
 } as const;
 
 // Positive X faces the wall. Transverse flights reverse direction at adjacent landing ends.
@@ -16,6 +16,9 @@ export const SIEGE_TOWER_LAYOUT = {
   decks: [1.65, 4.55, 7.45, 10.35],
   ladderX: [-1.08, 0, -1.08],
   ladderDirection: [1, -1, 1],
+  boardingZ: -1.2,
+  roofLadderZ: 0.85,
+  roofLadderExitX: -0.22,
   hatchHalfWidth: 0.48,
   hatchRear: -1.1,
   hatchFront: 0.62,
@@ -103,14 +106,34 @@ export function createSiegeTowerModel(): CityStructureMeshes {
       h = half(y);
     const hatchX = level > 0 ? layout.ladderX[level - 1] : null;
     const incomingDirection = level > 0 ? layout.ladderDirection[level - 1] : 1;
-    const hatchRear = incomingDirection > 0 ? layout.hatchRear : -layout.hatchFront;
-    const hatchFront = incomingDirection > 0 ? layout.hatchFront : -layout.hatchRear;
+    const roof = level === 3;
+    const hatchMinX = roof ? -1.4 : (hatchX ?? 0) - layout.hatchHalfWidth;
+    const hatchMaxX = roof ? 0.4 : (hatchX ?? 0) + layout.hatchHalfWidth;
+    const hatchRear = roof
+      ? layout.roofLadderZ - layout.hatchHalfWidth
+      : incomingDirection > 0
+        ? layout.hatchRear
+        : -layout.hatchFront;
+    const hatchFront = roof
+      ? layout.roofLadderZ + layout.hatchHalfWidth
+      : incomingDirection > 0
+        ? layout.hatchFront
+        : -layout.hatchRear;
     // Joists stay outside the openings; transverse headers and trimmers carry the cut deck.
     for (const z of [-1.56, 1.56]) box("floor-joist", 0, y - 0.17, z, h * 2 + 0.25, 0.22, 0.18, dark);
     if (hatchX !== null) {
       for (const z of [hatchRear - 0.09, hatchFront + 0.09])
-        box("hatch-header", 0, y - 0.17, z, h * 2, 0.22, 0.16, dark);
-      for (const x of [hatchX - layout.hatchHalfWidth - 0.08, hatchX + layout.hatchHalfWidth + 0.08])
+        box(
+          "hatch-header",
+          roof ? (hatchMinX + hatchMaxX) / 2 : 0,
+          y - 0.17,
+          z,
+          roof ? hatchMaxX - hatchMinX : h * 2,
+          0.22,
+          0.16,
+          dark
+        );
+      for (const x of [hatchMinX - 0.08, hatchMaxX + 0.08])
         box("hatch-trimmer", x, y - 0.17, (hatchRear + hatchFront) / 2, 0.14, 0.22, hatchFront - hatchRear, dark);
     }
     // Split every affected plank at the exact hatch boundary, rather than cutting a cosmetic hole.
@@ -118,15 +141,13 @@ export function createSiegeTowerModel(): CityStructureMeshes {
       const left = -h + (i * h * 2) / 20;
       const right = left + (h * 2) / 20;
       const cuts = [left, right];
-      if (hatchX !== null)
-        for (const edge of [hatchX - layout.hatchHalfWidth, hatchX + layout.hatchHalfWidth])
-          if (edge > left && edge < right) cuts.push(edge);
+      if (hatchX !== null) for (const edge of [hatchMinX, hatchMaxX]) if (edge > left && edge < right) cuts.push(edge);
       cuts.sort((a, b) => a - b);
       for (let j = 0; j < cuts.length - 1; j++) {
         const x = (cuts[j] + cuts[j + 1]) / 2;
         const width = cuts[j + 1] - cuts[j] - 0.006;
         if (width <= 0) continue;
-        const overHatch = hatchX !== null && Math.abs(x - hatchX) < layout.hatchHalfWidth;
+        const overHatch = hatchX !== null && x > hatchMinX && x < hatchMaxX;
         const spans = overHatch
           ? [
               [-1.77, hatchRear],
@@ -138,7 +159,7 @@ export function createSiegeTowerModel(): CityStructureMeshes {
       }
     }
     // Side guards stop before the landing at the incoming flight's exit end.
-    if (hatchX !== null)
+    if (hatchX !== null && !roof)
       for (const side of [-1, 1]) {
         const x = hatchX + side * (layout.hatchHalfWidth + 0.08);
         for (const z of [hatchRear - incomingDirection * 0.08, hatchFront - incomingDirection * 0.08])
@@ -149,6 +170,11 @@ export function createSiegeTowerModel(): CityStructureMeshes {
           v(x, y + 1.05, hatchFront - incomingDirection * 0.08),
           0.065
         );
+      }
+    if (roof)
+      for (const z of [hatchRear - 0.08, hatchFront + 0.08]) {
+        for (const x of [hatchMinX, hatchMaxX - 0.08]) box("hatch-guard-post", x, y + 0.55, z, 0.07, 1.05, 0.07);
+        beam("hatch-guard-rail", v(hatchMinX, y + 1.05, z), v(hatchMaxX - 0.08, y + 1.05, z), 0.065);
       }
     for (const side of [-1, 1]) {
       const z = side * 1.8;
@@ -206,28 +232,40 @@ export function createSiegeTowerModel(): CityStructureMeshes {
       const x = layout.ladderX[level];
       const upperY = levels[level + 1];
       const directionZ = layout.ladderDirection[level];
-      const bottom = v(x, y + 0.1, directionZ * layout.ladderFootZ);
-      const exit = v(x, upperY + 0.06, directionZ * layout.ladderExitZ);
+      const roofFlight = level === 2;
+      const bottom = roofFlight
+        ? v(layout.roofLadderExitX - 0.96, y + 0.1, layout.roofLadderZ)
+        : v(x, y + 0.1, directionZ * layout.ladderFootZ);
+      const exit = roofFlight
+        ? v(layout.roofLadderExitX, upperY + 0.06, layout.roofLadderZ)
+        : v(x, upperY + 0.06, directionZ * layout.ladderExitZ);
+      const rungOffset = roofFlight ? v(0, 0, 0.35) : v(0.35, 0, 0);
       const direction = exit.clone().sub(bottom);
       const top = exit.clone().addScaledVector(direction, 0.85 / direction.y);
-      // Rungs run along X, keeping the ascent transverse to the wall behind the front cladding.
-      for (const dx of [-0.35, 0.35])
-        beam("ladder-stile", bottom.clone().add(v(dx, 0, 0)), top.clone().add(v(dx, 0, 0)), 0.075, wood[2]);
+      // Lower flights are transverse; the exposed roof ascent faces the enemy (+X).
+      for (const side of [-1, 1])
+        beam(
+          "ladder-stile",
+          bottom.clone().addScaledVector(rungOffset, side),
+          top.clone().addScaledVector(rungOffset, side),
+          0.075,
+          wood[2]
+        );
       for (let i = 0; i < 11; i++) {
         const p = bottom.clone().lerp(exit, i / 11);
-        beam("ladder-rung", p.clone().add(v(-0.35, 0, 0)), p.clone().add(v(0.35, 0, 0)), 0.055, wood[1], true);
+        beam("ladder-rung", p.clone().sub(rungOffset), p.clone().add(rungOffset), 0.055, wood[1], true);
       }
-      // The next flight starts beside this exit landing, facing back across the tower.
-      // A short sideways transfer replaces the former walk around to the opposite end.
+      // Lower flights meet at adjacent landings; the roof flight keeps archers facing the enemy.
     }
     // Rear safety rails frame the open access side.
     if (level < levels.length - 1)
-      for (const z of [-1.1, 1.1]) box("rear-rail", -half(y + 1), y + 1, z, 0.12, 0.15, 1.15);
+      for (const z of level === 0 ? [0.45, 1.1] : [-1.1, 1.1])
+        box("rear-rail", -half(y + 1), y + 1, z, 0.12, 0.15, 1.15);
   }
   // Rear boarding ladder reaches the otherwise elevated chassis deck from ground level.
-  const entryFoot = v(-3.45, 0.1, 0);
-  const entryTop = v(-1.95, levels[0] + 0.06, 0);
-  box("boarding-foot", -3.45, 0.06, 0, 0.3, 0.12, 1.05, dark);
+  const entryFoot = v(-3.45, 0.1, layout.boardingZ);
+  const entryTop = v(-1.95, levels[0] + 0.06, layout.boardingZ);
+  box("boarding-foot", -3.45, 0.06, layout.boardingZ, 0.3, 0.12, 1.05, dark);
   for (const side of [-1, 1])
     beam(
       "boarding-stile",
