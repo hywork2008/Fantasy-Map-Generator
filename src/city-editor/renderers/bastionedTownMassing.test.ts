@@ -86,8 +86,9 @@ describe("bastioned town masses on a slope", () => {
     expect(bastion?.heightMeters).toBeCloseTo(5);
     expect(curtain?.baseElevationMeters).toBe(0);
     expect(curtain?.heightMeters).toBeCloseTo(5);
-    expect(ditch?.sections?.[0].elevationsMeters[0]).toBeCloseTo(36);
-    expect(ditch?.sections?.[1].elevationsMeters[0]).toBeCloseTo(36.2);
+    expect(ditch?.sections?.[1].elevationsMeters[0]).toBeCloseTo(33);
+    const bank = structures.find(item => item.id.startsWith("gc:ditch-main:bank:"));
+    expect(bank?.sections?.[1].elevationsMeters).toEqual([36, 36, 33, 33]);
     expect(bridge?.baseElevationMeters).toBeCloseTo(1.2);
     expect(bridge?.baseElevationsMeters).toBeUndefined();
 
@@ -157,11 +158,16 @@ describe("bastioned town masses on a slope", () => {
     ditch.region = [{ outer, holes: [hole] }];
     ditch.bed = outer.map(() => -3);
     ditch.bank = outer.map(() => 0);
+    ditch.waterLevel = -0.4;
     const parts = bastionedTownStructures(town).filter(item => item.id.startsWith("gc:ditch-main"));
-    expect(parts).toHaveLength(outer.length);
     const river = new THREE.Color(TOWN_WATER_COLOR.river);
+    const water = parts.filter(
+      item => item.color?.[0] === river.r && item.color[1] === river.g && item.color[2] === river.b
+    );
+    expect(water.length).toBeGreaterThan(0);
+    expect(water.every(part => part.sections?.[1].elevationsMeters.every(h => h === -0.4))).toBe(true);
     expect(
-      parts.every(item => item.color?.[0] === river.r && item.color[1] === river.g && item.color[2] === river.b)
+      parts.some(part => part.id.endsWith(":bed") && part.sections?.[1].elevationsMeters.every(h => h === -3))
     ).toBe(true);
     const plan = town.bastionedTown!;
     plan.coveredWays = [];
@@ -177,7 +183,7 @@ describe("bastioned town masses on a slope", () => {
     const grounded = groundStructures(parts, terrain);
     expect(covers(grounded, [20, 20])).toBe(false);
     expect(covers(grounded, [20, 5])).toBe(true);
-    expect(grounded[0].sections?.[0].elevationsMeters[0]).toBeCloseTo(0);
+    expect(grounded.find(part => part.id === "gc:ditch-main")?.sections?.[1].elevationsMeters[0]).toBeCloseTo(-0.4);
   });
 });
 

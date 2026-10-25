@@ -13,10 +13,9 @@ import { GEN_PREFIX } from "../generation/constants";
 import { pointInPolygon, polygonArea, polygonCentroid } from "../geom";
 import { facePoints } from "../mesh";
 import type { BastionedTownDraft } from "./draft";
+import { FORTRESS_WALL_BIND_METERS } from "./geometry";
 import { markReservedFaces } from "./reserve";
 import type { FortressFailureReason } from "./validate";
-
-const BIND_METERS = 3;
 
 export function lockBastionedRoads(document: CityDocument, locked: boolean): void {
   for (const group of document.featureGroups)
@@ -38,7 +37,7 @@ function chainPoints(document: CityDocument, segments: EdgeRef[]): Point[] {
 function matchChain(chain: Point[], ring: Point[]): number[] | null {
   if (chain.length < ring.length) return null;
   let start = -1;
-  let best = BIND_METERS;
+  let best = FORTRESS_WALL_BIND_METERS;
   chain.forEach((point, index) => {
     const gap = Math.hypot(point[0] - ring[0][0], point[1] - ring[0][1]);
     if (gap <= best) {
@@ -53,7 +52,7 @@ function matchChain(chain: Point[], ring: Point[]): number[] | null {
     let found = -1;
     for (let step = 1; step <= chain.length; step++) {
       const index = (cursor + step) % chain.length;
-      if (Math.hypot(chain[index][0] - ring[i][0], chain[index][1] - ring[i][1]) <= BIND_METERS) {
+      if (Math.hypot(chain[index][0] - ring[i][0], chain[index][1] - ring[i][1]) <= FORTRESS_WALL_BIND_METERS) {
         found = index;
         break;
       }

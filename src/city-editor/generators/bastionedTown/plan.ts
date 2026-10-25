@@ -6,11 +6,11 @@ import type { Plan } from "../generation/contracts";
 import { planSkeletonCore } from "../generation/skeleton/cityCore";
 import type { SkeletonGate, SkeletonInputs, SkeletonRoute } from "../generation/skeleton/contracts";
 import { planSkeletonCity, prepareSkeletonRun } from "../generation/skeleton/toPlan";
-import { add, dist, exitSquare, signedArea, sub, unit } from "../generation/skeleton/vector";
+import { add, dist, exitSquare, polylineCrossings, signedArea, sub, unit } from "../generation/skeleton/vector";
 import { unitWallShape } from "../generation/skeleton/wallShapes";
 import type { GenerationObserver } from "../generationDiagnostics";
 import { reportGenerationFailure } from "../generationDiagnostics";
-import { pointInPolygon } from "../geom";
+import { nearestOnPolyline, pointInPolygon } from "../geom";
 import { makeRng } from "../prng";
 import type { BastionedTownDraft } from "./draft";
 import {
@@ -42,7 +42,7 @@ import {
 } from "./waterGap";
 
 const TRACE_ATTEMPTS = 16;
-const MAX_EVALUATIONS = 64;
+export const MAX_FORTRESS_EVALUATIONS = 64;
 const GATE_SHIFTS = [0, 0.15, -0.15];
 const CREST = 5;
 const RAVELIN_CREST = 4.5;
@@ -50,6 +50,19 @@ const DITCH_BED = -3;
 const WATER_LEVEL = -0.4;
 const DECK = 1.2;
 const PASSAGE = 6;
+
+/** Keep every source segment outside the defense envelope, including its frame endpoint. */
+function fixedRoadParts(path: Point[], envelope: Point[]): { inside: Point[]; outside: Point[] } | null {
+  const hits = polylineCrossings(path, [...envelope, envelope[0]]);
+  if (!hits.length) return null;
+  hits.sort((a, b) => a.aIndex - b.aIndex || dist(path[a.aIndex], a.point) - dist(path[b.aIndex], b.point));
+  const first = hits[0],
+    last = hits[hits.length - 1];
+  return {
+    inside: clean([...path.slice(0, first.aIndex + 1), first.point]),
+    outside: clean([last.point, ...path.slice(last.aIndex + 1)])
+  };
+}
 
 export interface BastionedTownFailure {
   reason: FortressFailureReason;
@@ -187,6 +200,7 @@ interface Trace {
   unitApothem: number;
   urban: Point[];
   urbanRadius: number;
+  offsets: Map<string, Point[] | null>;
 }
 
 function makeTrace(
@@ -225,7 +239,7 @@ function makeTrace(
   }
   const outer = unitRing.map(point => [center[0] + point[0] * scale, center[1] + point[1] * scale] as Point);
   if (!(signedArea(outer) > 0)) return null;
-  return { center, outer, sides, unitApothem: minApothem, urban, urbanRadius };
+  return { center, outer, sides, unitApothem: minApothem, urban, urbanRadius, offsets: new Map() };
 }
 
 interface Built {
@@ -242,6 +256,10 @@ function buildWorks(
   glacisWidth: number
 ): { ok: Built } | { reason: FortressFailureReason } {
   const { center, outer, sides } = trace;
+  const cached = (key: string, build: () => Point[] | null) => {
+    if (!trace.offsets.has(key)) trace.offsets.set(key, build());
+    return trace.offsets.get(key)!;
+  };
   const fort = settings.townFortification!;
   const lengths: number[] = [];
   const curtains: { a: Point; b: Point; normal: Point; tangent: Point; length: number }[] = [];
@@ -257,7 +275,7 @@ function buildWorks(
   const rampartWidth = clamp(0.06 * minL, 10, 20);
   const ditchWidth = clamp(0.12 * meanL, 12, 30);
   const ravelinDitch = clamp(0.08 * meanL, 6, 12);
-  const inner = insetRing(outer, center, rampartWidth);
+  const inner = cached("inner", () => insetRing(outer, center, rampartWidth));
   if (!inner) return { reason: "fortress-invalid-bastion" };
   if (!trace.urban.every(point => pointInPolygon(point, inner))) return { reason: "fortress-insufficient-space" };
   for (let i = 0; i < sides; i++) {
@@ -272,11 +290,14 @@ function buildWorks(
     if (flanks.some(point => !outsideEdge(point, leftA, leftB) && !outsideEdge(point, rightA, rightB)))
       return { reason: "fortress-invalid-bastion" };
   }
-  const ditchOuter = offsetRing(outer, ditchWidth) ?? grow(outer, ditchWidth);
+  const ditchOuter = cached("ditch", () => offsetRing(outer, ditchWidth) ?? grow(outer, ditchWidth));
   if (!ditchOuter) return { reason: "fortress-invalid-bastion" };
-  const coveredOuter = offsetRing(ditchOuter, 5) ?? grow(ditchOuter, 5);
+  const coveredOuter = cached("covered", () => offsetRing(ditchOuter, 5) ?? grow(ditchOuter, 5));
   if (!coveredOuter) return { reason: "fortress-insufficient-space" };
-  const glacisOuter = offsetRing(coveredOuter, glacisWidth) ?? grow(coveredOuter, glacisWidth);
+  const glacisOuter = cached(
+    `glacis:${glacisWidth}`,
+    () => offsetRing(coveredOuter, glacisWidth) ?? grow(coveredOuter, glacisWidth)
+  );
   if (!glacisOuter) return { reason: "fortress-insufficient-space" };
 
   const water = classifyMainLine(outer, sides, inputs);
@@ -417,12 +438,13 @@ function buildWorks(
   for (const opening of water.openings)
     curtainVertices.push(openingVertexRange(opening, bastionStart, bastionEnd, sides));
 
-  const roadRing = insetRing(inner, center, 8);
+  const roadRing = cached("road", () => insetRing(inner, center, 8));
   if (!roadRing) return { reason: "fortress-insufficient-space" };
   const accessRng = makeRng(`${seed}:bastioned-town:access:${attempt}`);
   const gates: SkeletonGate[] = [];
   const routes: SkeletonRoute[] = [];
   const accesses: BastionedTownDraft["plan"]["accesses"] = [];
+  let accessFailed = false;
   assignment.forEach((item, index) => {
     const curtain = curtains[item.curtain];
     const gate = gatePoints.get(item.curtain)!;
@@ -438,10 +460,10 @@ function buildWorks(
     const beside = add(add(base, outward, ditchWidth + 2), curtain.tangent, side * half);
     const beyond = add(beside, outward, work ? dist(work.sally, work.outline[2]) + ravelinDitch + 8 : 12);
     const frame = exitSquare(beyond, unit(sub(beyond, center)), inputs.half * 0.98);
-    const outside = clean([bridge[1], beside, beyond, frame]);
+    let outside = clean([bridge[1], beside, beyond, frame]);
     const ravelin = work?.outline;
     if (ravelin && (pathEntersRing(outside, ravelin) || pathEntersRing([bridge[0], bridge[1]], ravelin))) {
-      accesses.length = -1;
+      accessFailed = true;
       return;
     }
     const inside =
@@ -450,13 +472,40 @@ function buildWorks(
         : clean([nearestRingPoint(roadRing, approach), approach]);
     const landAfter = outside.slice(1);
     if (!inside.length || !landAfter.length) {
-      accesses.length = -1;
+      accessFailed = true;
       return;
     }
+    let primaryInside = inside;
     for (const roadId of item.roadIds) {
+      const source = roads.find(road => road.id === roadId);
+      let routeInside = inside;
+      let routeOutside = outside;
+      if (source?.fixed) {
+        const tail = fixedRoadParts(source.path, glacisOuter);
+        const head = fixedRoadParts(source.path, roadRing);
+        if (!tail || !head) {
+          accessFailed = true;
+          return;
+        }
+        routeInside = clean([...head.inside, approach]);
+        routeOutside = clean([bridge[1], beside, beyond, ...tail.outside]);
+        if (pathEntersRing(routeOutside, outer) || ravelins.some(work => pathEntersRing(routeOutside, work.outline))) {
+          accessFailed = true;
+          return;
+        }
+        // A certified bridge must remain on an unchanged source segment.
+        if (inputs.fixedBridges.some(b => pointInPolygon(b.point, glacisOuter) && !pointInPolygon(b.point, roadRing))) {
+          accessFailed = true;
+          return;
+        }
+      }
+      if (roadId === item.roadIds[0]) {
+        primaryInside = routeInside;
+        outside = routeOutside;
+      }
       routes.push({
         id: roadId,
-        path: clean([...inside, gate, ...outside]),
+        path: clean([...routeInside, gate, ...routeOutside]),
         gateIndex: index,
         reachesFrame: true,
         dropped: false
@@ -468,16 +517,16 @@ function buildWorks(
       role: "civic",
       gateId: `${GEN_PREFIX}gate-${index}`,
       roadId: `${GEN_PREFIX}road-${item.roadIds[0]}`,
-      landBefore: inside,
+      landBefore: primaryInside,
       bridge,
-      landAfter,
+      landAfter: outside.slice(1),
       widthMeters: PASSAGE,
       elevations: [DECK, DECK]
     });
     if (work) {
       const defender = defenderApproach(curtain, ditchWidth, work.sally);
       if (pathEntersRing([...defender.bridge, ...defender.landAfter], work.outline)) {
-        accesses.length = -1;
+        accessFailed = true;
         return;
       }
       accesses.push({
@@ -493,13 +542,13 @@ function buildWorks(
       });
     }
   });
-  if (accesses.length < 0 || gates.length !== assignment.length) return { reason: "fortress-access-unreachable" };
+  if (accessFailed || gates.length !== assignment.length) return { reason: "fortress-access-unreachable" };
   for (let i = 0; i < sides; i++) {
     if (!rampartCurtain(i)) continue;
     if (accesses.some(access => access.id === `${GEN_PREFIX}access-defender-${i}`)) continue;
     if (fort.outworks !== "ravelins") break;
     const curtain = curtains[i];
-    const work = ravelins[i];
+    const work = ravelins.find(work => work.curtain === i);
     if (!work) return { reason: "fortress-access-unreachable" };
     const defender = defenderApproach(curtain, ditchWidth, work.sally);
     if (pathEntersRing([...defender.bridge, ...defender.landAfter], work.outline))
@@ -547,7 +596,20 @@ function buildWorks(
       return { reason: "fortress-insufficient-space" };
     const corner = [...citadelSquare].sort((a, b) => dist(a, center) - dist(b, center))[0];
     const door = add(corner, unit(sub(center, corner)), 8);
-    routes.push({ id: 1100, path: clean([door, corner]), gateIndex: null, reachesFrame: false, dropped: false });
+    const links = routes
+      .flatMap(route => {
+        const hit = nearestOnPolyline(door, route.path);
+        return hit && !pathEntersRing([hit.point, door], citadelSquare!) ? [hit] : [];
+      })
+      .sort((a, b) => a.dist - b.dist);
+    if (!links.length) return { reason: "fortress-access-unreachable" };
+    routes.push({
+      id: 1100,
+      path: clean([links[0].point, door, corner]),
+      gateIndex: null,
+      reachesFrame: false,
+      dropped: false
+    });
   }
 
   for (const route of routes) {
@@ -641,7 +703,7 @@ function buildWorks(
             ]
       ),
       curtains: [
-        ...curtains.flatMap((curtain, i) => {
+        ...curtains.flatMap((_curtain, i) => {
           if (!rampartCurtain(i)) return [];
           const a = i * 5 + 4;
           const b = ((i + 1) * 5) % outer.length;
@@ -772,7 +834,7 @@ export function planBastionedTown(
   let sawWater = false;
   let sawRelief = false;
   let sawWetLevel = false;
-  for (let attempt = 0; attempt < TRACE_ATTEMPTS && evaluations < MAX_EVALUATIONS; attempt++) {
+  for (let attempt = 0; attempt < TRACE_ATTEMPTS && evaluations < MAX_FORTRESS_EVALUATIONS; attempt++) {
     const trace = makeTrace(inputs, settings, seed, attempt, core.core, core.urban, core.urbanRadius);
     if (!trace) {
       sawDry = true;
@@ -780,10 +842,11 @@ export function planBastionedTown(
       continue;
     }
     for (const shift of GATE_SHIFTS) {
-      if (evaluations >= MAX_EVALUATIONS) break;
-      evaluations++;
+      if (evaluations >= MAX_FORTRESS_EVALUATIONS) break;
       let reason: FortressFailureReason = "fortress-insufficient-space";
       for (const glacis of [40, 32, 25]) {
+        if (evaluations >= MAX_FORTRESS_EVALUATIONS) break;
+        evaluations++;
         const built = buildWorks(trace, inputs, settings, seed, attempt, shift, glacis);
         if ("ok" in built) {
           built.ok.draft.evaluations = evaluations;

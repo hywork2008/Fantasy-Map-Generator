@@ -32,6 +32,7 @@ function onSea(point: Point, inputs: SkeletonInputs): boolean {
 }
 
 function segmentHitsChannel(a: Point, b: Point, inputs: SkeletonInputs): boolean {
+  if (!inputs.water.length && !inputs.rivers.length) return false;
   if (pointInChannel(a, inputs) || pointInChannel(b, inputs)) return true;
   const steps = Math.max(2, Math.ceil(dist(a, b) / 2));
   for (let step = 1; step < steps; step++) {
@@ -145,21 +146,14 @@ export function defenseBand(inner: Point[], outer: Point[], inputs: SkeletonInpu
     }
     if (innerPts.length >= 2) pieces.push({ outer: [...innerPts, ...outerPts.reverse()], holes: [] });
   };
-  for (let i = 0; i < count; i++) {
-    if (!wet[i]) {
+  // Start after a wet edge so a dry run crossing index zero is emitted once.
+  const first = wet.findIndex(Boolean) + 1;
+  for (let i = first; i < first + count; i++) {
+    if (!wet[i % count]) {
       if (start < 0) start = i;
     } else if (start >= 0) {
       flush(start, i);
       start = -1;
-    }
-  }
-  if (start >= 0) {
-    if (start === 0) flush(0, count);
-    else {
-      let end = count;
-      while (end > 0 && !wet[end - 1]) end--;
-      flush(start, count);
-      if (end > 0 && !wet[0]) flush(0, end);
     }
   }
   return pieces.length ? pieces : null;

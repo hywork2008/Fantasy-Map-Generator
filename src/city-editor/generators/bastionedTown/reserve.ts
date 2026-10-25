@@ -1,7 +1,7 @@
 // One reservation test for buildings, farms, landmarks and wards. The index is derived.
 import type { BastionedTownPlan, CityDocument, DefenseRegion, Point } from "../../types/document";
 import type { Plan } from "../generation/contracts";
-import { polygonCentroid } from "../geom";
+import { polygonCentroid, segmentSegmentHit } from "../geom";
 import { pointInRings } from "./geometry";
 
 const CELL = 32;
@@ -108,12 +108,28 @@ export function pointReserved(plan: BastionedTownPlan | undefined, point: Point)
   return covers(indexPlan(plan), point);
 }
 
-/** A lot is reserved when its centroid or any vertex lies on defense ground. */
+/** Query candidate bands, then check containment and boundary intersections, including holes. */
 export function polygonReserved(plan: BastionedTownPlan | undefined, points: Point[]): boolean {
   if (!plan || points.length < 1) return false;
   const index = indexPlan(plan);
   const centroid = polygonCentroid(points);
-  return covers(index, centroid) || points.some(point => covers(index, point));
+  if (covers(index, centroid) || points.some(point => covers(index, point))) return true;
+  const xs = points.map(p => p[0]),
+    ys = points.map(p => p[1]);
+  const candidates = new Set<number>();
+  for (let x = Math.floor(Math.min(...xs) / CELL); x <= Math.floor(Math.max(...xs) / CELL); x++)
+    for (let y = Math.floor(Math.min(...ys) / CELL); y <= Math.floor(Math.max(...ys) / CELL); y++)
+      for (const id of index.grid.get(`${x}:${y}`) ?? []) candidates.add(id);
+  for (const id of candidates) {
+    const band = index.bands[id];
+    if (band.outer.some(p => pointInRings(p, [points]))) return true;
+    for (const ring of [band.outer, ...band.holes])
+      for (let i = 0; i < points.length; i++)
+        for (let j = 0; j < ring.length; j++)
+          if (segmentSegmentHit(points[i], points[(i + 1) % points.length], ring[j], ring[(j + 1) % ring.length]))
+            return true;
+  }
+  return false;
 }
 
 export function excludeReserved(plan: Plan, town: BastionedTownPlan): void {

@@ -55,7 +55,16 @@ export function bastionedEditRejection(before: CityDocument, after: CityDocument
   const signature = (document: CityDocument) =>
     document.featureGroups
       .filter(group => wallIds.has(group.id) && group.kind === "wall")
-      .map(group => (group.kind === "wall" ? group.segments.map(ref => ref.edgeId).join(",") : ""))
+      .map(group =>
+        group.kind === "wall"
+          ? group.segments
+              .map(ref => {
+                const edge = document.mesh.edges[ref.edgeId];
+                return `${ref.edgeId}:${ref.forward}:${document.mesh.vertices[edge?.a]?.point}:${document.mesh.vertices[edge?.b]?.point}:${group.locked}`;
+              })
+              .join(",")
+          : ""
+      )
       .join("|");
   if (signature(before) !== signature(after)) return true;
   const gates = (document: CityDocument) =>

@@ -1,6 +1,7 @@
 // Load checks for a v5 bastioned town. Derived indexes are not accepted as fields.
 import type { BastionedTownPlan, CityDocument, DefenseRegion, Point } from "../../types/document";
-import { finitePoint, finiteRing } from "./geometry";
+import { distanceToPolyline } from "../generation/skeleton/vector";
+import { FORTRESS_WALL_BIND_METERS, finitePoint, finiteRing } from "./geometry";
 
 function regionOk(region: DefenseRegion | undefined): boolean {
   return (
@@ -38,9 +39,66 @@ export function validBastionedTown(document: CityDocument): boolean {
       .flatMap(g => (g.kind === "wall" ? g.segments.map(ref => ref.edgeId) : []))
   );
   const claimed = [...plan.bastions, ...plan.curtains].flatMap(part => part.wallEdgeIds);
-  if (!claimed.length || claimed.some(id => !wallEdges.has(id))) return false;
+  if (
+    !claimed.length ||
+    claimed.length !== wallEdges.size ||
+    new Set(claimed).size !== claimed.length ||
+    claimed.some(id => !wallEdges.has(id))
+  )
+    return false;
   const edgeIds = new Set(Object.keys(document.mesh.edges));
   if (claimed.some(id => !edgeIds.has(id))) return false;
+  for (const part of [...plan.bastions, ...plan.curtains]) {
+    const curtain = plan.curtains.find(c => c === part);
+    const line = curtain
+      ? (plan.sluices?.find(s => s.curtainId === curtain.id)?.opening ?? curtain.rampart.slice(0, 2))
+      : part.rampart.slice(0, 5);
+    for (const id of part.wallEdgeIds) {
+      const edge = document.mesh.edges[id];
+      for (const vertexId of [edge.a, edge.b]) {
+        const point = document.mesh.vertices[vertexId]?.point;
+        if (!point || distanceToPolyline(point, line) > FORTRESS_WALL_BIND_METERS) return false;
+      }
+    }
+  }
+  const parts = [
+    ...plan.bastions,
+    ...plan.curtains,
+    ...plan.outworks,
+    ...plan.ditches,
+    ...plan.coveredWays,
+    ...plan.accesses,
+    ...(plan.sluices ?? []),
+    ...(plan.works ?? [])
+  ];
+  const ids = [plan.id, plan.circuitId, ...parts.map(part => part.id)];
+  if (new Set(ids).size !== ids.length) return false;
+  for (const part of [...plan.bastions, ...plan.curtains]) if (part.ownerId !== circuit.id) return false;
+  for (const part of [
+    ...plan.outworks,
+    ...plan.ditches,
+    ...plan.accesses,
+    ...(plan.sluices ?? []),
+    ...(plan.works ?? [])
+  ])
+    if (part.ownerId !== plan.id) return false;
+  for (const access of plan.accesses) {
+    if (access.role === "civic") {
+      const gate = document.gates.find(g => g.id === access.gateId && g.circuitId === circuit.id);
+      const point = gate && document.mesh.vertices[gate.vertexId]?.point;
+      if (!point || Math.hypot(point[0] - access.bridge[0][0], point[1] - access.bridge[0][1]) > 0.75) return false;
+      if (!access.roadId) return false;
+    } else if (
+      !plan.curtains.some(c => c.id === access.gateId && c.closure !== "sluice" && c.closure !== "shore") ||
+      !plan.outworks.some(w => w.curtainId === access.gateId)
+    )
+      return false;
+    if (
+      access.roadId &&
+      !document.featureGroups.some(g => g.id === access.roadId && g.kind === "road" && g.segments.length)
+    )
+      return false;
+  }
   return true;
 }
 
@@ -52,10 +110,10 @@ function planShape(plan: BastionedTownPlan): boolean {
     (plan.boundaryKind !== "inland-closed" && plan.boundaryKind !== "waterfront") ||
     plan.locked !== true ||
     !Array.isArray(plan.bastions) ||
-    plan.bastions.length < (plan.boundaryKind === "waterfront" ? 3 : 5) ||
+    plan.bastions.length < (plan.boundaryKind === "waterfront" || plan.sluices?.length ? 3 : 5) ||
     plan.bastions.length > 9 ||
     !Array.isArray(plan.curtains) ||
-    ((!plan.sluices || !plan.sluices.length) && plan.curtains.length !== plan.bastions.length)
+    (!plan.sluices?.length && plan.curtains.length !== plan.bastions.length)
   )
     return false;
   const owners = new Set<string>([plan.id, plan.circuitId]);
@@ -142,11 +200,19 @@ function planShape(plan: BastionedTownPlan): boolean {
   }
   for (const ditch of plan.ditches) {
     if (!idOk(ditch.id) || (ditch.kind !== "dry" && ditch.kind !== "wet") || !regionOk(ditch.region)) return false;
-    if (!elevationsOk(ditch.bed) || !elevationsOk(ditch.bank) || ditch.bed.length !== ditch.bank.length) return false;
+    const count = ditch.region.reduce((sum, poly) => sum + poly.outer.length, 0);
+    if (
+      !elevationsOk(ditch.bed, count) ||
+      !elevationsOk(ditch.bank, count) ||
+      ditch.bed.some((h, i) => h >= ditch.bank[i])
+    )
+      return false;
     if (ditch.kind === "wet") {
       if (
         ditch.waterLevel === undefined ||
         !Number.isFinite(ditch.waterLevel) ||
+        ditch.bed.some(h => h >= ditch.waterLevel!) ||
+        ditch.bank.some(h => h <= ditch.waterLevel!) ||
         ditch.supply?.kind !== "closed-basin" ||
         ditch.supply.inlet !== "none" ||
         ditch.supply.outlet !== "none"
@@ -164,9 +230,11 @@ function planShape(plan: BastionedTownPlan): boolean {
       (access.role !== "civic" && access.role !== "defender") ||
       !idOk(access.gateId) ||
       !finiteRing(access.landBefore, 1) ||
+      !Array.isArray(access.bridge) ||
       access.bridge.length !== 2 ||
       !access.bridge.every(finitePoint) ||
       !finiteRing(access.landAfter, 1) ||
+      !Number.isFinite(access.widthMeters) ||
       !(access.widthMeters > 0) ||
       !elevationsOk(access.elevations, access.bridge.length)
     )

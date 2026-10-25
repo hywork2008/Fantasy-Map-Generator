@@ -218,6 +218,7 @@ describe("bastioned fortress town", () => {
     dry.config.rivers = ["through"];
     const river = roll("fortress-river", 900, 100, dry);
     expect(river.city, JSON.stringify(river.failure)).not.toBeNull();
+    expect(parseDocument(JSON.stringify(river.city))).not.toBeNull();
     expect(JSON.stringify(river.input)).toBe(river.before);
     const plan = river.city!.bastionedTown!;
     expect(plan.sluices?.length).toBeGreaterThan(0);
@@ -250,6 +251,7 @@ describe("bastioned fortress town", () => {
     for (const seed of ["az3ex8", "h"]) {
       const river = roll(seed, 900, 100, settings);
       expect(river.city, `${seed} ${JSON.stringify(river.failure)}`).not.toBeNull();
+      expect(parseDocument(JSON.stringify(river.city))).not.toBeNull();
       const sluices = river.city!.bastionedTown!.sluices ?? [];
       expect(sluices.length).toBeGreaterThan(0);
       expect(sluices.every(item => item.kind === "sluice")).toBe(true);
@@ -368,6 +370,7 @@ describe("bastioned fortress town", () => {
     expect(castle?.ownerCastleId).toBe("gc:castle-0");
     expect(castle?.wallGroupIds.some(id => townWalls.has(id))).toBe(false);
     expect(town.castles?.some(item => item.id === "gc:castle-0" && item.relationship === "detached")).toBe(true);
+    expect(parseDocument(JSON.stringify(town))).not.toBeNull();
     expect(validate(town)).toEqual([]);
     const removed = removeBastionedTown(town);
     expect(removed.bastionedTown).toBeUndefined();

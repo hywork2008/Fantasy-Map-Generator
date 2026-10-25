@@ -3,6 +3,8 @@
 // keeps only its height above the bank.
 
 import * as THREE from "three";
+import { defenseRegionPieces } from "../generators/bastionedTown/ditchGeometry";
+import { nearestOnPolyline, pointInPolygon } from "../generators/geom";
 import { TOWN_WATER_COLOR } from "../generators/townWater";
 import type { StructureMassing } from "../types/contracts/structureMassing";
 import type { CityDocument, Point } from "../types/document";
@@ -40,21 +42,6 @@ function mass(values: Partial<StructureMassing> & Pick<StructureMassing, "id" | 
     heightMeters: 0,
     ...values
   };
-}
-
-/**
- * One quad per edge when the rings match. A different hole stays a holed footprint.
- * Returning the outer ring alone would paint the town.
- */
-function ditchBands(outer: Point[], hole: Point[] | undefined): Point[][] | null {
-  if (!hole || hole.length < 3) return [outer];
-  if (hole.length !== outer.length) return null;
-  const bands: Point[][] = [];
-  for (let i = 0; i < outer.length; i++) {
-    const next = (i + 1) % outer.length;
-    bands.push([outer[i], outer[next], hole[next], hole[i]]);
-  }
-  return bands;
 }
 
 function onSegment(rampart: Point[], point: Point): boolean {
@@ -153,47 +140,74 @@ export function bastionedTownStructures(document: CityDocument): StructureMassin
   for (const ditch of plan.ditches) {
     let cursor = 0;
     ditch.region.forEach((poly, index) => {
-      const outer = poly.outer;
-      if (outer.length < 3) return;
-      const drop = (value: number) => value - frame.datum;
-      const bank = ditch.bank.slice(cursor, cursor + outer.length).map(drop);
-      cursor += outer.length;
-      const hole = poly.holes[0];
-      // The bank is already in the scene frame. A cap on the inner ring covers the town.
-      const level = bank.length ? Math.min(...bank) : drop(ditch.bank[0] ?? 0);
-      const surface = level + 0.2;
-      const color = ditch.kind === "wet" ? WET : DRY;
-      const bands = ditchBands(outer, hole);
-      if (!bands) {
+      const offset = cursor;
+      cursor += poly.outer.length;
+      const at = (point: Point, values: number[]) => {
+        const hit = nearestOnPolyline(point, [...poly.outer, poly.outer[0]]);
+        const i = hit.segIndex,
+          j = (i + 1) % poly.outer.length;
+        const a = poly.outer[i],
+          b = poly.outer[j];
+        const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        const t = length ? Math.min(1, Math.hypot(hit.point[0] - a[0], hit.point[1] - a[1]) / length) : 0;
+        return values[offset + i] * (1 - t) + values[offset + j] * t - frame.datum;
+      };
+      const surface = (id: string, footprint: Point[], levels: number[], color: readonly [number, number, number]) => {
         out.push(
           mass({
-            id: index === 0 ? ditch.id : `${ditch.id}:${index}`,
-            kind: "landmark",
-            footprint: outer,
-            holes: hole ? [hole] : undefined,
-            heightMeters: 0.2,
-            baseElevationMeters: level,
-            color
-          })
-        );
-        return;
-      }
-      bands.forEach((footprint, piece) => {
-        out.push(
-          mass({
-            id: index === 0 && piece === 0 ? ditch.id : `${ditch.id}:${index}:${piece}`,
+            id,
             kind: "landmark",
             footprint,
-            heightMeters: 0.2,
-            baseElevationMeters: level,
             color,
+            baseElevationMeters: Math.min(...levels) - 0.05,
+            heightMeters: 0.05,
             sections: [
-              { footprint, elevationsMeters: footprint.map(() => level) },
-              { footprint, elevationsMeters: footprint.map(() => surface) }
+              { footprint, elevationsMeters: levels.map(h => h - 0.05) },
+              { footprint, elevationsMeters: levels }
             ]
           })
         );
+      };
+      defenseRegionPieces([poly]).forEach((footprint, piece) => {
+        const id = index === 0 && piece === 0 ? ditch.id : `${ditch.id}:${index}:${piece}`;
+        surface(
+          ditch.kind === "wet" ? `${id}:bed` : id,
+          footprint,
+          footprint.map(p => at(p, ditch.bed)),
+          DRY
+        );
+        if (ditch.kind === "wet")
+          surface(
+            id,
+            footprint,
+            footprint.map(() => ditch.waterLevel! - frame.datum),
+            WET
+          );
       });
+      for (const [ringIndex, ring] of [poly.outer, ...poly.holes].entries()) {
+        for (let i = 0; i < ring.length; i++) {
+          const a = ring[i],
+            b = ring[(i + 1) % ring.length];
+          const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+          if (length < 1e-6) continue;
+          let nx = -(b[1] - a[1]) / length,
+            ny = (b[0] - a[0]) / length;
+          const mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+          const probe: Point = [mid[0] + nx * 0.01, mid[1] + ny * 0.01];
+          if (!pointInPolygon(probe, poly.outer) || poly.holes.some(h => pointInPolygon(probe, h))) {
+            nx = -nx;
+            ny = -ny;
+          }
+          const run = Math.min(1, length / 4);
+          const footprint: Point[] = [a, b, [b[0] + nx * run, b[1] + ny * run], [a[0] + nx * run, a[1] + ny * run]];
+          surface(
+            `${ditch.id}:bank:${index}:${ringIndex}:${i}`,
+            footprint,
+            [at(a, ditch.bank), at(b, ditch.bank), at(b, ditch.bed), at(a, ditch.bed)],
+            DRY
+          );
+        }
+      }
     });
   }
   for (const work of plan.works ?? []) {

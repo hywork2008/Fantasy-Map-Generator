@@ -4,6 +4,8 @@ import { add, dist, signedArea, sub, unit } from "../generation/skeleton/vector"
 import { pointInPolygon, segmentSegmentHit } from "../geom";
 
 export const clamp = (value: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, value));
+/** The mesh adapter may bind a trace corner to a nearby existing vertex. */
+export const FORTRESS_WALL_BIND_METERS = 3;
 
 export function ringCentroid(ring: Point[]): Point {
   const sum = ring.reduce<Point>((s, p) => [s[0] + p[0], s[1] + p[1]], [0, 0]);
