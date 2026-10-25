@@ -1,12 +1,12 @@
 // Plan a bastioned town as a skeleton the existing mesh can cut, without placeRing.
-import type { CityDocument, Point } from "../../types/document";
+import type { CityDocument, DefenseRegion, DefenseWorkPlan, Point } from "../../types/document";
 import type { GenerationSettings } from "../../types/generation";
 import { GEN_PREFIX } from "../generation/constants";
 import type { Plan } from "../generation/contracts";
 import { planSkeletonCore } from "../generation/skeleton/cityCore";
 import type { SkeletonGate, SkeletonInputs, SkeletonRoute } from "../generation/skeleton/contracts";
 import { planSkeletonCity, prepareSkeletonRun } from "../generation/skeleton/toPlan";
-import { add, dist, distanceToPolyline, exitSquare, signedArea, sub, unit } from "../generation/skeleton/vector";
+import { add, dist, exitSquare, signedArea, sub, unit } from "../generation/skeleton/vector";
 import { unitWallShape } from "../generation/skeleton/wallShapes";
 import type { GenerationObserver } from "../generationDiagnostics";
 import { reportGenerationFailure } from "../generationDiagnostics";
@@ -24,6 +24,7 @@ import {
   ringCentroid,
   ringSelfIntersects
 } from "./geometry";
+import { fortressGround, gradeTooSteep, groundVaries, profile, WET_DITCH_LEVEL_RANGE } from "./ground";
 import { excludeReserved } from "./reserve";
 import {
   citadelRequested,
@@ -31,6 +32,14 @@ import {
   type FortressFailureReason,
   fortressFailureMessage
 } from "./validate";
+import {
+  classifyMainLine,
+  defenseBand,
+  openingVertexRange,
+  pointInChannel,
+  squareRiverPath,
+  type WaterOpening
+} from "./waterGap";
 
 const TRACE_ATTEMPTS = 16;
 const MAX_EVALUATIONS = 64;
@@ -81,44 +90,83 @@ function outsideEdge(point: Point, a: Point, b: Point): boolean {
   return (point[0] - mid[0]) * normal[0] + (point[1] - mid[1]) * normal[1] > 0.4;
 }
 
-function hitsWater(rings: Point[][], inputs: SkeletonInputs): boolean {
-  for (const ring of rings) {
-    for (const point of ring) {
-      if (inputs.water.some(area => pointInPolygon(point, area.polygon))) return true;
-      if (inputs.rivers.some(river => distanceToPolyline(point, river.centerline) < river.halfWidth + 1)) return true;
-    }
-    for (const area of inputs.water) {
-      if (area.polygon.some(point => pointInPolygon(point, ring))) return true;
-      for (let i = 0; i < ring.length; i++)
-        for (let j = 0; j < area.polygon.length; j++) {
-          const a = ring[i];
-          const b = ring[(i + 1) % ring.length];
-          const c = area.polygon[j];
-          const d = area.polygon[(j + 1) % area.polygon.length];
-          if (segments(a, b, c, d)) return true;
-        }
-    }
-    for (const river of inputs.rivers)
-      for (let i = 0; i + 1 < river.centerline.length; i++)
-        for (let j = 0; j < ring.length; j++)
-          if (segments(ring[j], ring[(j + 1) % ring.length], river.centerline[i], river.centerline[i + 1])) return true;
-  }
-  return false;
-}
-
-function segments(a: Point, b: Point, c: Point, d: Point): boolean {
-  const ab = sub(b, a);
-  const cd = sub(d, c);
-  const denom = ab[0] * cd[1] - ab[1] * cd[0];
-  if (Math.abs(denom) < 1e-9) return false;
-  const t = ((c[0] - a[0]) * cd[1] - (c[1] - a[1]) * cd[0]) / denom;
-  const u = ((c[0] - a[0]) * ab[1] - (c[1] - a[1]) * ab[0]) / denom;
-  return t > 0.02 && t < 0.98 && u > 0.02 && u < 0.98;
-}
-
 function inFrame(rings: Point[][], half: number): boolean {
   const limit = half * 0.98;
   return rings.every(ring => ring.every(p => Math.abs(p[0]) <= limit && Math.abs(p[1]) <= limit));
+}
+
+function outlineHitsWater(ring: Point[], inputs: SkeletonInputs): boolean {
+  return ring.some((point, index) => {
+    const next = ring[(index + 1) % ring.length];
+    const mid: Point = [(point[0] + next[0]) / 2, (point[1] + next[1]) / 2];
+    return pointInChannel(point, inputs) || pointInChannel(mid, inputs);
+  });
+}
+
+function bankStub(land: Point, toward: Point): Point[] {
+  const dir = unit(sub(toward, land));
+  const side: Point = [-dir[1], dir[0]];
+  const nose = add(land, dir, 0.8);
+  return [land, nose, add(nose, side, 2), add(land, side, 2)];
+}
+
+function placeWorks(
+  inner: Point[],
+  curtains: { normal: Point; tangent: Point }[],
+  open: Set<number>,
+  center: Point,
+  citadel: Point[] | undefined
+): DefenseWorkPlan[] | null {
+  const placed: DefenseWorkPlan[] = [];
+  const kinds = ["barracks", "magazine"] as const;
+  for (const kind of kinds) {
+    let polygon: Point[] | null = null;
+    for (let i = 0; i < curtains.length && !polygon; i++) {
+      if (open.has(i)) continue;
+      const curtain = curtains[i];
+      const a = inner[(i * 5 + 4) % inner.length];
+      const b = inner[((i + 1) * 5) % inner.length];
+      const mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      const at = add(mid, curtain.normal, -8);
+      const rect = [-9, 9].flatMap(x =>
+        [-3.5, 3.5].map(y => add(add(at, curtain.tangent, x), curtain.normal, -y) as Point)
+      );
+      const ordered = [rect[0], rect[1], rect[3], rect[2]];
+      if (ordered.some(point => !pointInPolygon(point, inner) || dist(point, center) < 22)) continue;
+      if (citadel && ordered.some(point => pointInPolygon(point, citadel))) continue;
+      if (placed.some(work => ordered.some(point => pointInPolygon(point, work.polygon)))) continue;
+      polygon = ordered;
+    }
+    if (!polygon) return null;
+    placed.push({ id: `${GEN_PREFIX}${kind}`, ownerId: `${GEN_PREFIX}bastioned-town`, kind, polygon });
+  }
+  return placed;
+}
+
+function ditchLevels(
+  region: DefenseRegion,
+  ground: (point: Point) => number,
+  vary: boolean
+): { bed: number[]; bank: number[] } {
+  const points = region.flatMap(poly => poly.outer);
+  if (!vary) return { bed: points.map(() => DITCH_BED), bank: points.map(() => 0) };
+  return { bed: points.map(point => ground(point) + DITCH_BED), bank: points.map(point => ground(point)) };
+}
+
+function openingId(opening: WaterOpening, index: number): string {
+  const curtain = opening.slots.filter(slot => slot % 2 === 1).map(slot => (slot - 1) / 2)[0];
+  return curtain === undefined ? `${GEN_PREFIX}curtain-gap-${index}` : `${GEN_PREFIX}curtain-${curtain}`;
+}
+
+function meshWalk(mesh: Point[], start: number, end: number): Point[] {
+  const line: Point[] = [];
+  let index = start;
+  for (let step = 0; step <= mesh.length; step++) {
+    line.push(mesh[index]);
+    if (index === end) break;
+    index = (index + 1) % mesh.length;
+  }
+  return line;
 }
 
 function grow(ring: Point[], distance: number): Point[] | null {
@@ -231,11 +279,16 @@ function buildWorks(
   const glacisOuter = offsetRing(coveredOuter, glacisWidth) ?? grow(coveredOuter, glacisWidth);
   if (!glacisOuter) return { reason: "fortress-insufficient-space" };
 
+  const water = classifyMainLine(outer, sides, inputs);
+  if (!water) return { reason: "fortress-water-conflict" };
   const bastionPolys = Array.from({ length: sides }, (_, i) => [0, 1, 2, 3, 4].map(k => outer[i * 5 + k]));
+  const rampartCurtain = (index: number) => !water.wetCurtains.has(index);
   const ravelins: { outline: Point[]; rampart: Point[]; platform: Point[]; sally: Point; curtain: number }[] = [];
   if (fort.outworks === "ravelins") {
     for (let i = 0; i < sides; i++) {
+      if (!rampartCurtain(i)) continue;
       const curtain = curtains[i];
+      let blockedByWater = false;
       let widthRatio = 0.35;
       let outline: Point[] | null = null;
       for (let shrink = 0; shrink < 2 && !outline; shrink++) {
@@ -249,6 +302,10 @@ function buildWorks(
         const apex = add(baseCenter, curtain.normal, depth);
         const forward = [left, right, apex];
         const candidate = signedArea(forward) > 0 ? forward : [right, left, apex];
+        if (outlineHitsWater(candidate, inputs)) {
+          blockedByWater = true;
+          continue;
+        }
         if (ringSelfIntersects(candidate) || !(signedArea(candidate) > 0)) continue;
         const hitsBastion = bastionPolys.some(poly => polygonsOverlap(candidate, poly));
         const hitsNeighbor = ravelins.some(work => polygonsOverlap(candidate, work.outline));
@@ -266,7 +323,7 @@ function buildWorks(
         if (pathEntersRing([rightFlank, probe], candidate) || pathEntersRing([leftFlank, probe], candidate)) continue;
         outline = candidate;
       }
-      if (!outline) return { reason: "fortress-outwork-overlap" };
+      if (!outline) return { reason: blockedByWater ? "fortress-water-conflict" : "fortress-outwork-overlap" };
       const body = insetToward(outline, ringCentroid(outline), 1.2) ?? outline;
       ravelins.push({
         outline,
@@ -280,9 +337,12 @@ function buildWorks(
 
   const footprint = [outer, ditchOuter, coveredOuter, glacisOuter, ...ravelins.map(work => work.outline)];
   if (!inFrame(footprint, inputs.half)) return { reason: "fortress-insufficient-space" };
-  if (hitsWater(footprint, inputs)) return { reason: "fortress-water-conflict" };
   if (fort.ditch === "wet" && (inputs.rivers.length > 0 || inputs.water.length > 0))
     return { reason: "fortress-water-conflict" };
+  const mainDitch = defenseBand(outer, ditchOuter, inputs);
+  const coveredBand = defenseBand(ditchOuter, coveredOuter, inputs);
+  const glacisBand = defenseBand(coveredOuter, glacisOuter, inputs);
+  if (!mainDitch || !coveredBand || !glacisBand) return { reason: "fortress-water-conflict" };
 
   const roads = inputs.roads.length
     ? inputs.roads
@@ -306,17 +366,19 @@ function buildWorks(
       return { reason: "fortress-access-unreachable" };
     const far = road.path[road.path.length - 1];
     const aim = unit(sub(far, center));
-    let best = 0;
+    let best = -1;
     let bestDot = -Infinity;
     for (let i = 0; i < sides; i++) {
+      if (!rampartCurtain(i) || used.has(i)) continue;
       const dot = aim[0] * curtains[i].normal[0] + aim[1] * curtains[i].normal[1];
-      if (!used.has(i) && dot > bestDot) {
+      if (dot > bestDot) {
         best = i;
         bestDot = dot;
       }
     }
-    if (used.size >= sides) {
-      assignment[assignment.length - 1]?.roadIds.push(road.id);
+    if (best < 0) {
+      if (!assignment.length) return { reason: "fortress-access-unreachable" };
+      assignment[assignment.length - 1].roadIds.push(road.id);
       continue;
     }
     used.add(best);
@@ -336,18 +398,24 @@ function buildWorks(
       if (dist(gateList[i], gateList[j]) < inputs.minGateSpacing) return { reason: "fortress-access-unreachable" };
 
   const mesh: Point[] = [];
-  const bastionVertices: Array<[number, number]> = [];
+  const bastionStart: number[] = [];
+  const bastionEnd: number[] = [];
   for (let i = 0; i < sides; i++) {
-    const start = mesh.length;
+    bastionStart[i] = mesh.length;
     for (let k = 0; k < 5; k++) mesh.push(outer[i * 5 + k]);
-    bastionVertices.push([start, mesh.length - 1]);
+    bastionEnd[i] = mesh.length - 1;
     const gate = gatePoints.get(i);
     if (gate) mesh.push(gate);
   }
-  const curtainVertices: Array<[number, number]> = bastionVertices.map((range, i) => [
-    range[1],
-    bastionVertices[(i + 1) % sides][0]
-  ]);
+  const bastionVertices: Array<[number, number]> = [];
+  for (let i = 0; i < sides; i++) if (!water.wetBastions.has(i)) bastionVertices.push([bastionStart[i], bastionEnd[i]]);
+  const curtainVertices: Array<[number, number]> = [];
+  for (let i = 0; i < sides; i++) {
+    if (!rampartCurtain(i)) continue;
+    curtainVertices.push([bastionEnd[i], bastionStart[(i + 1) % sides]]);
+  }
+  for (const opening of water.openings)
+    curtainVertices.push(openingVertexRange(opening, bastionStart, bastionEnd, sides));
 
   const roadRing = insetRing(inner, center, 8);
   if (!roadRing) return { reason: "fortress-insufficient-space" };
@@ -360,7 +428,7 @@ function buildWorks(
     const gate = gatePoints.get(item.curtain)!;
     const outward = curtain.normal;
     if (ditchSpanDeviationDegrees([gate, add(gate, outward, ditchWidth)], outward) > 1) return;
-    gates.push({ point: gate, edge: curtainVertices[item.curtain][0], outward, roadIds: item.roadIds });
+    gates.push({ point: gate, edge: bastionEnd[item.curtain], outward, roadIds: item.roadIds });
     const bridge: [Point, Point] = [gate, add(gate, outward, ditchWidth)];
     const approach = add(gate, outward, -(rampartWidth + 10));
     const work = ravelins.find(entry => entry.curtain === item.curtain);
@@ -427,6 +495,7 @@ function buildWorks(
   });
   if (accesses.length < 0 || gates.length !== assignment.length) return { reason: "fortress-access-unreachable" };
   for (let i = 0; i < sides; i++) {
+    if (!rampartCurtain(i)) continue;
     if (accesses.some(access => access.id === `${GEN_PREFIX}access-defender-${i}`)) continue;
     if (fort.outworks !== "ravelins") break;
     const curtain = curtains[i];
@@ -481,16 +550,48 @@ function buildWorks(
     routes.push({ id: 1100, path: clean([door, corner]), gateIndex: null, reachesFrame: false, dropped: false });
   }
 
-  const profile = (count: number, crest: number) => ({
-    base: Array.from({ length: count }, () => 0),
-    crest: Array.from({ length: count }, () => crest)
-  });
+  for (const route of routes) {
+    const road = roads.find(item => item.id === route.id);
+    const squared = squareRiverPath(route.path, inputs, road?.fixed ?? false, inputs.bridgeSkewLimit);
+    if (!squared) return { reason: "fortress-access-unreachable" };
+    route.path = squared;
+  }
+  for (const access of accesses) {
+    if (access.role !== "civic") continue;
+    const route = routes.find(
+      item => item.gateIndex !== null && item.path.some(point => dist(point, access.bridge[0]) < 1.5)
+    );
+    if (!route) return { reason: "fortress-access-unreachable" };
+  }
+
+  const ground = fortressGround(settings, seed, inputs, inputs.half * 2);
+  const gradeEdges: Array<[Point, Point]> = [];
+  for (let i = 0; i < sides; i++) {
+    if (water.wetBastions.has(i)) continue;
+    for (let k = 0; k < 5; k++) gradeEdges.push([outer[i * 5 + k], outer[i * 5 + ((k + 1) % 5)]]);
+    if (rampartCurtain(i)) gradeEdges.push([outer[i * 5 + 4], outer[((i + 1) * 5) % outer.length]]);
+  }
+  if (gradeTooSteep(gradeEdges, ground)) return { reason: "fortress-relief-too-steep" };
+  const vary = groundVaries(gradeEdges.flat(), ground);
+  const bankPoints = mainDitch.flatMap(poly => poly.outer);
+  const bankHeights = bankPoints.map(point => (vary ? ground(point) : 0));
+  if (fort.ditch === "wet" && Math.max(...bankHeights) - Math.min(...bankHeights) > WET_DITCH_LEVEL_RANGE)
+    return { reason: "fortress-wet-ditch-level" };
+  const works = placeWorks(
+    inner,
+    curtains,
+    new Set(curtains.map((_, index) => index).filter(index => !rampartCurtain(index))),
+    center,
+    citadelSquare
+  );
+  if (!works) return { reason: "fortress-insufficient-space" };
+
   const townId = `${GEN_PREFIX}bastioned-town`;
   const circuitId = `${GEN_PREFIX}defense-town`;
   const mainDitchId = `${GEN_PREFIX}ditch-main`;
-  const band = (outerRing: Point[], hole: Point[]) => [{ outer: outerRing, holes: [hole] }];
   const wet = fort.ditch === "wet";
   const supply = wet ? { kind: "closed-basin" as const, inlet: "none" as const, outlet: "none" as const } : undefined;
+  const wetLevel = wet ? Math.min(...bankHeights) + WATER_LEVEL : undefined;
   const draft: BastionedTownDraft = {
     evaluations: 0,
     meshRing: mesh,
@@ -523,27 +624,51 @@ function buildWorks(
       version: 1,
       id: townId,
       circuitId,
-      boundaryKind: "inland-closed",
+      boundaryKind: water.boundaryKind,
       locked: true,
-      bastions: bastionPolys.map((poly, i) => ({
-        id: `${GEN_PREFIX}bastion-${i}`,
-        ownerId: circuitId,
-        wallEdgeIds: [],
-        rampart: [...poly, ...[4, 3, 2, 1, 0].map(k => inner[i * 5 + k])],
-        platform: insetToward(poly, ringCentroid(poly), 1.2) ?? poly,
-        elevations: profile(5, CREST)
-      })),
-      curtains: curtains.map((curtain, i) => {
-        const a = i * 5 + 4;
-        const b = ((i + 1) * 5) % outer.length;
-        return {
-          id: `${GEN_PREFIX}curtain-${i}`,
-          ownerId: circuitId,
-          wallEdgeIds: [],
-          rampart: [outer[a], outer[b], inner[b], inner[a]],
-          elevations: profile(2, CREST)
-        };
-      }),
+      bastions: bastionPolys.flatMap((poly, i) =>
+        water.wetBastions.has(i)
+          ? []
+          : [
+              {
+                id: `${GEN_PREFIX}bastion-${i}`,
+                ownerId: circuitId,
+                wallEdgeIds: [],
+                rampart: [...poly, ...[4, 3, 2, 1, 0].map(k => inner[i * 5 + k])],
+                platform: insetToward(poly, ringCentroid(poly), 1.2) ?? poly,
+                elevations: profile(5, CREST, poly, ground, vary)
+              }
+            ]
+      ),
+      curtains: [
+        ...curtains.flatMap((curtain, i) => {
+          if (!rampartCurtain(i)) return [];
+          const a = i * 5 + 4;
+          const b = ((i + 1) * 5) % outer.length;
+          return [
+            {
+              id: `${GEN_PREFIX}curtain-${i}`,
+              ownerId: circuitId,
+              wallEdgeIds: [] as string[],
+              closure: "rampart" as const,
+              rampart: [outer[a], outer[b], inner[b], inner[a]],
+              elevations: profile(2, CREST, [outer[a], outer[b]], ground, vary)
+            }
+          ];
+        }),
+        ...water.openings.map((opening, index) => {
+          const range = openingVertexRange(opening, bastionStart, bastionEnd, sides);
+          const line = meshWalk(mesh, range[0], range[1]);
+          return {
+            id: openingId(opening, index),
+            ownerId: circuitId,
+            wallEdgeIds: [] as string[],
+            closure: opening.closure,
+            rampart: bankStub(line[0], line[Math.min(1, line.length - 1)]),
+            elevations: profile(2, CREST, [line[0], line[line.length - 1]], ground, vary)
+          };
+        })
+      ],
       outworks: ravelins.map((work, i) => ({
         id: `${GEN_PREFIX}ravelin-${i}`,
         ownerId: townId,
@@ -553,28 +678,29 @@ function buildWorks(
         platform: work.platform,
         ditchId: `${GEN_PREFIX}ditch-ravelin-${i}`,
         sally: work.sally,
-        elevations: profile(3, RAVELIN_CREST)
+        elevations: profile(3, RAVELIN_CREST, work.outline, ground, vary)
       })),
       ditches: [
         {
           id: mainDitchId,
           ownerId: townId,
           kind: fort.ditch,
-          region: band(ditchOuter, outer),
-          bed: ditchOuter.map(() => DITCH_BED),
-          bank: ditchOuter.map(() => 0),
-          ...(wet ? { waterLevel: WATER_LEVEL, supply } : {})
+          region: mainDitch,
+          ...ditchLevels(mainDitch, ground, vary),
+          ...(wet ? { waterLevel: wetLevel, supply } : {})
         },
         ...ravelins.map((work, i) => {
           const outerDitch = offsetRing(work.outline, ravelinDitch) ?? grow(work.outline, ravelinDitch) ?? work.outline;
+          const region = defenseBand(work.outline, outerDitch, inputs) ?? [
+            { outer: outerDitch, holes: [work.outline] }
+          ];
           return {
             id: `${GEN_PREFIX}ditch-ravelin-${i}`,
             ownerId: townId,
             kind: fort.ditch,
-            region: band(outerDitch, work.outline),
-            bed: outerDitch.map(() => DITCH_BED),
-            bank: outerDitch.map(() => 0),
-            ...(wet ? { waterLevel: WATER_LEVEL, supply } : {})
+            region,
+            ...ditchLevels(region, ground, vary),
+            ...(wet ? { waterLevel: wetLevel, supply } : {})
           };
         })
       ],
@@ -582,19 +708,31 @@ function buildWorks(
         {
           id: `${GEN_PREFIX}covered-main`,
           ownerId: townId,
-          region: band(coveredOuter, ditchOuter),
-          elevations: coveredOuter.map(() => 0)
+          region: coveredBand,
+          elevations: coveredBand.flatMap(poly => poly.outer).map(point => (vary ? ground(point) : 0))
         }
       ],
-      glacis: [
-        [
-          {
-            outer: glacisOuter,
-            holes: [coveredOuter]
+      glacis: [glacisBand],
+      accesses: accesses.map(access =>
+        vary ? { ...access, elevations: [ground(access.bridge[0]) + DECK, ground(access.bridge[0]) + DECK] } : access
+      ),
+      ...(water.openings.length
+        ? {
+            sluices: water.openings.map((opening, index) => {
+              const range = openingVertexRange(opening, bastionStart, bastionEnd, sides);
+              const line = meshWalk(mesh, range[0], range[1]);
+              return {
+                id: `${GEN_PREFIX}sluice-${index}`,
+                ownerId: townId,
+                curtainId: openingId(opening, index),
+                kind: opening.closure,
+                opening: line,
+                banks: [line[0], line[line.length - 1]] as [Point, Point]
+              };
+            })
           }
-        ]
-      ],
-      accesses
+        : {}),
+      works
     }
   };
   // The skeleton core must stay the dry star the mesh measures, not the nudged centre alone.
@@ -632,6 +770,8 @@ export function planBastionedTown(
   let dryFailure: FortressFailureReason = "fortress-insufficient-space";
   let sawDry = false;
   let sawWater = false;
+  let sawRelief = false;
+  let sawWetLevel = false;
   for (let attempt = 0; attempt < TRACE_ATTEMPTS && evaluations < MAX_EVALUATIONS; attempt++) {
     const trace = makeTrace(inputs, settings, seed, attempt, core.core, core.urban, core.urbanRadius);
     if (!trace) {
@@ -655,13 +795,26 @@ export function planBastionedTown(
         if (reason !== "fortress-insufficient-space") break;
       }
       if (reason === "fortress-water-conflict") sawWater = true;
+      else if (reason === "fortress-relief-too-steep") sawRelief = true;
+      else if (reason === "fortress-wet-ditch-level") sawWetLevel = true;
       else {
         sawDry = true;
         dryFailure = reason;
       }
     }
   }
-  const reason = sawDry ? dryFailure : sawWater ? "fortress-water-conflict" : "fortress-insufficient-space";
+  const reason =
+    sawDry && dryFailure !== "fortress-insufficient-space"
+      ? dryFailure
+      : sawRelief
+        ? "fortress-relief-too-steep"
+        : sawWetLevel
+          ? "fortress-wet-ditch-level"
+          : sawDry
+            ? dryFailure
+            : sawWater
+              ? "fortress-water-conflict"
+              : "fortress-insufficient-space";
   return { failure: { reason, message: fortressFailureMessage(reason), evaluations } };
 }
 

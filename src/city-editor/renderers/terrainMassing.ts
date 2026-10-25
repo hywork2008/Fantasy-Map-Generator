@@ -15,8 +15,10 @@ function multipartBuilding(id: string): string | null {
 /** Horizontal building floors and vertical plinths absorb the terrain, never tilt buildings. */
 export function groundStructures(parts: StructureMassing[], terrain: CityTerrain): StructureMassing[] {
   if (!terrain.relief) return parts;
+  // A bastioned ditch is already at its bank in the scene frame. Adding the cell
+  // surface again lifts that water, and a plinth would follow the outer ring.
   const skipped = (part: StructureMassing) =>
-    !!part.sections || part.id.startsWith("fort-site:") || part.id.includes(":krak:");
+    !!part.sections || part.id.startsWith("fort-site:") || part.id.includes(":krak:") || part.id.includes("ditch-");
   // A temple is one building in many parts: all stand on one floor, the highest any of them needs.
   const buildingLevels = new Map<string, number>();
   for (const part of parts) {

@@ -1,3 +1,4 @@
+import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import { renderBastionedTown } from "../../renderers/bastionedTownSvg";
 import { collectCityStructures } from "../../renderers/structureMassing";
@@ -8,13 +9,16 @@ import type { GenerationSample } from "../../types/contracts/generationDiagnosti
 import type { CityDocument, Point } from "../../types/document";
 import type { GenerationSettings } from "../../types/generation";
 import { buildBlockFabric } from "../blockInfill";
+import { overSkewedBridgeDecks } from "../bridgeDeck";
 import { createGridDocument } from "../document";
 import { generateCityOnDocument } from "../generation/generateCity";
 import { defaultGenerationSettings } from "../generation/settings";
 import { pointInPolygon, polygonArea } from "../geom";
 import { DocumentHistory } from "../history";
 import { facePoints, validate } from "../mesh";
+import { defaultPopulationSettings } from "../populationPlan";
 import { MIN_SETTLEMENT_AREA_SHARE } from "../settlementExtent";
+import { TOWN_WATER_COLOR } from "../townWater";
 import { bastionedEditRejection, removeBastionedTown } from "./edit";
 import { edgeOutward, pathEntersRing } from "./geometry";
 import { fixedApproachHitsBastion } from "./plan";
@@ -71,6 +75,9 @@ describe("bastioned fortress town", () => {
     expect(JSON.stringify(input)).toBe(before);
     expect(bastionedTownSettingConflicts(fortressSettings({ townWallRings: "double" }))).toContain("double walls");
     expect(bastionedTownSettingConflicts(fortressSettings({ walledAreaShare: undefined }))).toContain("walled share");
+    const sloped = fortressSettings({ elevationPreset: "slope", elevationRelief: 2 });
+    sloped.config.relief = true;
+    expect(bastionedTownSettingConflicts(sloped)).toBeNull();
     expect(fortressFailureMessage("fortress-insufficient-space")).toBe(
       "The frame cannot hold the town and its defense band. Lower the population, enlarge the frame, or use fewer bastions."
     );
@@ -152,6 +159,13 @@ describe("bastioned fortress town", () => {
     const buildings = buildBlockFabric(town).buildings;
     expect(buildings.length).toBeGreaterThan(0);
     for (const building of buildings) expect(polygonReserved(plan, building.polygon)).toBe(false);
+    expect(plan.works?.map(work => work.kind).sort()).toEqual(["barracks", "magazine"]);
+    for (const work of plan.works ?? []) {
+      expect(work.ownerId).toBe(plan.id);
+      expect(polygonReserved(plan, work.polygon)).toBe(true);
+      for (const bastion of plan.bastions)
+        expect(work.polygon.some(point => pointInPolygon(point, bastion.rampart))).toBe(false);
+    }
     const townCircuit = town.defenseCircuits?.find(circuit => circuit.id === "gc:defense-town");
     expect(townCircuit?.scope).toBe("town");
     expect(townCircuit?.moat).toBeUndefined();
@@ -195,18 +209,77 @@ describe("bastioned fortress town", () => {
     expect(external.length).toBeGreaterThan(0);
   }, 180000);
 
-  it("fails a tight frame and a through river without changing the source", () => {
+  it("fails a tight frame and opens a sluice where a river already crosses", () => {
     const tight = roll("fortress-tight", 600, 198, fortressSettings());
     expect(tight.city).toBeNull();
     expect(tight.failure?.reason).toBe("fortress-insufficient-space");
     expect(JSON.stringify(tight.input)).toBe(tight.before);
-    const wet = fortressSettings();
-    wet.config.rivers = ["through"];
-    const river = roll("fortress-river", 900, 100, wet);
-    expect(river.city).toBeNull();
-    expect(river.failure?.reason).toBe("fortress-water-conflict");
-    expect(river.failure?.message).toContain("Rivers and the coast were not moved.");
+    const dry = fortressSettings();
+    dry.config.rivers = ["through"];
+    const river = roll("fortress-river", 900, 100, dry);
+    expect(river.city, JSON.stringify(river.failure)).not.toBeNull();
     expect(JSON.stringify(river.input)).toBe(river.before);
+    const plan = river.city!.bastionedTown!;
+    expect(plan.sluices?.length).toBeGreaterThan(0);
+    const courses = river.city!.featureGroups.flatMap(group =>
+      group.kind === "river" ? [group.vertices.map(id => river.city!.mesh.vertices[id].point)] : []
+    );
+    expect(courses.length).toBeGreaterThan(0);
+    for (const course of courses)
+      for (const point of course) {
+        for (const bastion of plan.bastions) expect(pointInPolygon(point, bastion.rampart)).toBe(false);
+        for (const curtain of plan.curtains) {
+          if (curtain.closure === "sluice" || curtain.closure === "shore") continue;
+          expect(pointInPolygon(point, curtain.rampart)).toBe(false);
+        }
+      }
+    const floodedSettings = fortressSettings({
+      townFortification: { kind: "bastioned", outworks: "ravelins", ditch: "wet", streetPlan: "radial" }
+    });
+    floodedSettings.config.rivers = ["through"];
+    const flooded = roll("fortress-river-wet", 900, 100, floodedSettings);
+    expect(flooded.city).toBeNull();
+    expect(flooded.failure?.reason).toBe("fortress-water-conflict");
+    expect(flooded.failure?.message).toContain("Rivers and the coast were not moved.");
+    expect(JSON.stringify(flooded.input)).toBe(flooded.before);
+  }, 180000);
+
+  it("squares every meander crossing on a populated town", () => {
+    const settings = fortressSettings({ elevationPreset: "dome", population: defaultPopulationSettings() });
+    settings.config.rivers = ["meander"];
+    for (const seed of ["az3ex8", "h"]) {
+      const river = roll(seed, 900, 100, settings);
+      expect(river.city, `${seed} ${JSON.stringify(river.failure)}`).not.toBeNull();
+      const sluices = river.city!.bastionedTown!.sluices ?? [];
+      expect(sluices.length).toBeGreaterThan(0);
+      expect(sluices.every(item => item.kind === "sluice")).toBe(true);
+      expect(overSkewedBridgeDecks(river.city!)).toEqual([]);
+    }
+  }, 180000);
+
+  it("follows a gentle dome and refuses a steep walk or a wet ditch on a slope", () => {
+    const gentleSettings = fortressSettings({ elevationPreset: "dome", elevationRelief: 1 });
+    const gentle = roll("fortress-dome", 900, 100, gentleSettings);
+    expect(gentle.city, JSON.stringify(gentle.failure)).not.toBeNull();
+    const bases = gentle.city!.bastionedTown!.bastions.flatMap(bastion => bastion.elevations.base);
+    expect(Math.max(...bases) - Math.min(...bases)).toBeGreaterThan(0.2);
+    const steep = roll("fortress-steep", 900, 100, fortressSettings({ elevationPreset: "dome", elevationRelief: 8 }));
+    expect(steep.city).toBeNull();
+    expect(steep.failure?.reason).toBe("fortress-relief-too-steep");
+    expect(JSON.stringify(steep.input)).toBe(steep.before);
+    const wetHill = roll(
+      "fortress-wet-slope",
+      900,
+      100,
+      fortressSettings({
+        elevationPreset: "slope",
+        elevationRelief: 2,
+        townFortification: { kind: "bastioned", outworks: "ravelins", ditch: "wet", streetPlan: "radial" }
+      })
+    );
+    expect(wetHill.city).toBeNull();
+    expect(wetHill.failure?.reason).toBe("fortress-wet-ditch-level");
+    expect(JSON.stringify(wetHill.input)).toBe(wetHill.before);
   }, 180000);
 
   it("round-trips the plan and replays the same defense from the recipe", () => {
@@ -270,9 +343,14 @@ describe("bastioned fortress town", () => {
     expect(wet.city!.bastionedTown!.ditches[0].kind).toBe("wet");
     expect(wet.city!.bastionedTown!.ditches[0].supply).toEqual({ kind: "closed-basin", inlet: "none", outlet: "none" });
     const wetSvg = renderBastionedTown(wet.city!);
-    expect(wetSvg.querySelector(".ce-bastion-ditch-wet")).toBeTruthy();
+    const wetDitch = wetSvg.querySelector(".ce-bastion-ditch-wet");
+    expect(wetDitch).toBeTruthy();
+    expect(wetDitch?.getAttribute("fill")).toBe(`#${TOWN_WATER_COLOR.river.toString(16).padStart(6, "0")}`);
+    const river = new THREE.Color(TOWN_WATER_COLOR.river);
     expect(collectCityStructures(wet.city!).find(item => item.id === "gc:ditch-main")?.color).toEqual([
-      0.31, 0.53, 0.66
+      river.r,
+      river.g,
+      river.b
     ]);
   }, 180000);
 

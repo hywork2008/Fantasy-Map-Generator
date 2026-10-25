@@ -917,6 +917,8 @@
       "fortressAccessUnreachable": "必要な道が、稜堡や外郭を横切らずにカーテンの門へ到達できません。",
       "fortressHousingShortfall": "要塞が確保した土地が、人口にまだ必要です。人口を下げるか、範囲を広げてください。",
       "fortressWaterConflict": "水が防御と交差しています。空堀にするか、閉じた星形が乾いた土地に収まる場所を選んでください。河川と海岸は動かしていません。",
+      "fortressReliefTooSteep": "土塁上の通路がこの起伏では15%より急です。より平らな地形か、低い起伏を選んでください。",
+      "fortressWetDitchLevel": "水堀は一つの水位を共有できる地面が必要です。この地面は平らではありません。空堀を選んでください。",
       "fortressSettingsConflict": "稜堡式要塞の設定が矛盾しています: {{features}}",
       "populationEnabled": "人口から都市を生成",
       "populationSource": "人口の取得元",

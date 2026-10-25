@@ -10,7 +10,9 @@ export type FortressFailureReason =
   | "fortress-outwork-overlap"
   | "fortress-access-unreachable"
   | "fortress-housing-shortfall"
-  | "fortress-water-conflict";
+  | "fortress-water-conflict"
+  | "fortress-relief-too-steep"
+  | "fortress-wet-ditch-level";
 
 const FAILURE_KEY = {
   "fortress-insufficient-space": "cityEditor.messages.fortressInsufficientSpace",
@@ -18,7 +20,9 @@ const FAILURE_KEY = {
   "fortress-outwork-overlap": "cityEditor.messages.fortressOutworkOverlap",
   "fortress-access-unreachable": "cityEditor.messages.fortressAccessUnreachable",
   "fortress-housing-shortfall": "cityEditor.messages.fortressHousingShortfall",
-  "fortress-water-conflict": "cityEditor.messages.fortressWaterConflict"
+  "fortress-water-conflict": "cityEditor.messages.fortressWaterConflict",
+  "fortress-relief-too-steep": "cityEditor.messages.fortressReliefTooSteep",
+  "fortress-wet-ditch-level": "cityEditor.messages.fortressWetDitchLevel"
 } as const;
 
 export function fortressFailureMessage(reason: FortressFailureReason): string {
@@ -58,8 +62,6 @@ export function bastionedTownSettingConflicts(settings: GenerationSettings): str
   if (settings.moats?.castle !== undefined) reasons.push("moat");
   if (settings.riverPlacement !== undefined && settings.riverPlacement !== "through") reasons.push("river");
   if (settings.streets?.avoidSea === false) reasons.push("coast roads");
-  if (settings.elevationPreset !== undefined && settings.elevationPreset !== "flat") reasons.push("elevation");
-  if (settings.config?.relief === true) reasons.push("relief");
   if (!bastionEra(settings.historicalPeriod ?? settings.descriptor?.historicalPeriod)) reasons.push("era");
   return reasons.length ? reasons : null;
 }

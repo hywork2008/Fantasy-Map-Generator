@@ -917,6 +917,8 @@
       "fortressAccessUnreachable": "A required road cannot reach a curtain gate without crossing a bastion or outwork.",
       "fortressHousingShortfall": "The fortress reserves ground the population still needs. Lower the population or enlarge the frame.",
       "fortressWaterConflict": "Water crosses the defense. Choose a dry ditch, or a site where a closed star fits on dry land. Rivers and the coast were not moved.",
+      "fortressReliefTooSteep": "The rampart walk is steeper than 15% on this relief. Choose a flatter preset or a lower relief.",
+      "fortressWetDitchLevel": "A wet ditch needs one shared water level. This ground is not flat enough. Choose a dry ditch.",
       "fortressSettingsConflict": "Bastioned fortress settings conflict: {{features}}.",
       "populationEnabled": "Generate from population",
       "populationSource": "Population source",

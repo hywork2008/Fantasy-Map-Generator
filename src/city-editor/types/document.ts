@@ -402,6 +402,8 @@ export interface CurtainPlan {
   wallEdgeIds: Id[];
   rampart: Point[];
   elevations: DefenseElevations;
+  /** Absent means a filled rampart. A sluice or shore span is not a dam. */
+  closure?: "rampart" | "sluice" | "shore";
 }
 
 export interface RavelinPlan {
@@ -453,6 +455,24 @@ export interface DefenseAccessPlan {
   elevations: number[];
 }
 
+/** Water passes here. This is not a road bridge and not a filled curtain. */
+export interface SluicePlan {
+  id: Id;
+  ownerId: Id;
+  curtainId: Id;
+  kind: "sluice" | "shore";
+  opening: Point[];
+  banks: [Point, Point];
+}
+
+/** Barracks or magazine kept by the fortress, not by the town wall circuit. */
+export interface DefenseWorkPlan {
+  id: Id;
+  ownerId: Id;
+  kind: "barracks" | "magazine";
+  polygon: Point[];
+}
+
 /** Semantic bastioned town defense. Draw and edit from this plan, not from the outline. */
 export interface BastionedTownPlan {
   version: 1;
@@ -466,6 +486,10 @@ export interface BastionedTownPlan {
   coveredWays: DefensePathPlan[];
   glacis: DefenseRegion[];
   accesses: DefenseAccessPlan[];
+  /** Present when a river or the coast interrupts the main line. */
+  sluices?: SluicePlan[];
+  /** Barracks and magazine plots. Absent on plans saved before they existed. */
+  works?: DefenseWorkPlan[];
   locked: boolean;
 }
 

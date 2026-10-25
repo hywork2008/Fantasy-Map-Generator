@@ -52,10 +52,10 @@ function planShape(plan: BastionedTownPlan): boolean {
     (plan.boundaryKind !== "inland-closed" && plan.boundaryKind !== "waterfront") ||
     plan.locked !== true ||
     !Array.isArray(plan.bastions) ||
-    plan.bastions.length < 5 ||
+    plan.bastions.length < (plan.boundaryKind === "waterfront" ? 3 : 5) ||
     plan.bastions.length > 9 ||
     !Array.isArray(plan.curtains) ||
-    plan.curtains.length !== plan.bastions.length
+    ((!plan.sluices || !plan.sluices.length) && plan.curtains.length !== plan.bastions.length)
   )
     return false;
   const owners = new Set<string>([plan.id, plan.circuitId]);
@@ -80,9 +80,49 @@ function planShape(plan: BastionedTownPlan): boolean {
       !curtain.wallEdgeIds.length ||
       !finiteRing(curtain.rampart, 4) ||
       !elevationsOk(curtain.elevations?.base, 2) ||
-      !elevationsOk(curtain.elevations?.crest, 2)
+      !elevationsOk(curtain.elevations?.crest, 2) ||
+      (curtain.closure !== undefined &&
+        curtain.closure !== "rampart" &&
+        curtain.closure !== "sluice" &&
+        curtain.closure !== "shore")
     )
       return false;
+    if (
+      (curtain.closure === "sluice" || curtain.closure === "shore") &&
+      !plan.sluices?.some(s => s.curtainId === curtain.id)
+    )
+      return false;
+  }
+  if (plan.sluices) {
+    if (!Array.isArray(plan.sluices) || !plan.sluices.length) return false;
+    for (const sluice of plan.sluices) {
+      if (
+        !idOk(sluice.id) ||
+        sluice.ownerId !== plan.id ||
+        (sluice.kind !== "sluice" && sluice.kind !== "shore") ||
+        !plan.curtains.some(curtain => curtain.id === sluice.curtainId && curtain.closure === sluice.kind) ||
+        !finiteRing(sluice.opening, 2) ||
+        !Array.isArray(sluice.banks) ||
+        sluice.banks.length !== 2 ||
+        !sluice.banks.every(finitePoint)
+      )
+        return false;
+    }
+  }
+  if (plan.works) {
+    if (!Array.isArray(plan.works)) return false;
+    const seen = new Set<string>();
+    for (const work of plan.works) {
+      if (
+        !idOk(work.id) ||
+        seen.has(work.kind) ||
+        work.ownerId !== plan.id ||
+        (work.kind !== "barracks" && work.kind !== "magazine") ||
+        !finiteRing(work.polygon, 4)
+      )
+        return false;
+      seen.add(work.kind);
+    }
   }
   if (!Array.isArray(plan.outworks) || !Array.isArray(plan.ditches) || !Array.isArray(plan.coveredWays)) return false;
   for (const work of plan.outworks) {

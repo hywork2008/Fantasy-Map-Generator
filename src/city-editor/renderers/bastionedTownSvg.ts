@@ -1,4 +1,5 @@
 // Paint a bastioned town from the saved plan, outside in, under the roads.
+import { TOWN_WATER_COLOR } from "../generators/townWater";
 import type { CityDocument, DefenseRegion, Point } from "../types/document";
 import { element, line, polygon } from "./svgPrimitives";
 
@@ -6,7 +7,8 @@ const FILL = {
   glacis: "#d9d3c3",
   covered: "#cfc6b4",
   ditchDry: "#8a7a62",
-  ditchWet: "#4f86a8",
+  // Same sRGB as the town river stroke.
+  ditchWet: `#${TOWN_WATER_COLOR.river.toString(16).padStart(6, "0")}`,
   ravelin: "#6e624f",
   rampart: "#5c5144",
   parapet: "#3e362d",
@@ -50,7 +52,23 @@ export function renderBastionedTown(document: CityDocument): SVGGElement {
     paint(layer, bastion.rampart, "ce-bastion-rampart", FILL.rampart);
     paint(layer, bastion.platform, "ce-bastion-parapet", FILL.parapet);
   }
-  for (const curtain of plan.curtains) paint(layer, curtain.rampart, "ce-bastion-rampart", FILL.rampart);
+  for (const curtain of plan.curtains) {
+    if (curtain.closure === "sluice" || curtain.closure === "shore") continue;
+    paint(layer, curtain.rampart, "ce-bastion-rampart", FILL.rampart);
+  }
+  for (const sluice of plan.sluices ?? []) {
+    layer.appendChild(
+      element("path", {
+        d: line(sluice.opening),
+        class: sluice.kind === "shore" ? "ce-bastion-shore" : "ce-bastion-sluice",
+        fill: "none",
+        stroke: "#2f4f5f",
+        "stroke-width": "3"
+      })
+    );
+  }
+  for (const work of plan.works ?? [])
+    paint(layer, work.polygon, work.kind === "barracks" ? "ce-bastion-barracks" : "ce-bastion-magazine", "#6b5344");
   for (const access of plan.accesses) {
     layer.appendChild(
       element("path", {

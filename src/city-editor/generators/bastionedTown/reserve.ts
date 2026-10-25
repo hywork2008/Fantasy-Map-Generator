@@ -18,6 +18,23 @@ interface ReservationIndex {
 
 const cache = new WeakMap<BastionedTownPlan, ReservationIndex>();
 
+function bufferLine(line: Point[], width: number): Point[] {
+  if (line.length < 2) return [];
+  const forward: Point[] = [];
+  const back: Point[] = [];
+  for (let i = 0; i + 1 < line.length; i++) {
+    const dx = line[i + 1][0] - line[i][0];
+    const dy = line[i + 1][1] - line[i][1];
+    const length = Math.hypot(dx, dy) || 1;
+    const side: Point = [(-dy / length) * width, (dx / length) * width];
+    if (!forward.length) forward.push([line[i][0] + side[0], line[i][1] + side[1]]);
+    forward.push([line[i + 1][0] + side[0], line[i + 1][1] + side[1]]);
+    if (!back.length) back.push([line[i][0] - side[0], line[i][1] - side[1]]);
+    back.push([line[i + 1][0] - side[0], line[i + 1][1] - side[1]]);
+  }
+  return [...forward, ...back.reverse()];
+}
+
 function pushBand(bands: Band[], region: DefenseRegion | undefined): void {
   for (const poly of region ?? []) if (poly.outer.length >= 3) bands.push({ outer: poly.outer, holes: poly.holes });
 }
@@ -26,7 +43,13 @@ function bandsOf(plan: BastionedTownPlan): Band[] {
   const bands: Band[] = [];
   for (const bastion of plan.bastions)
     bands.push({ outer: bastion.rampart, holes: [] }, { outer: bastion.platform, holes: [] });
-  for (const curtain of plan.curtains) bands.push({ outer: curtain.rampart, holes: [] });
+  for (const curtain of plan.curtains)
+    if (curtain.closure !== "sluice" && curtain.closure !== "shore") bands.push({ outer: curtain.rampart, holes: [] });
+  for (const sluice of plan.sluices ?? []) {
+    const quad = bufferLine(sluice.opening, 3);
+    if (quad.length >= 3) bands.push({ outer: quad, holes: [] });
+  }
+  for (const work of plan.works ?? []) bands.push({ outer: work.polygon, holes: [] });
   for (const work of plan.outworks)
     bands.push(
       { outer: work.outline, holes: [] },
