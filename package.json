@@ -82,7 +82,7 @@
     ]
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.6",
+    "@biomejs/biome": "^2.6.3",
     "@playwright/test": "^1.62.1",
     "@types/d3": "^7.4.3",
     "@types/delaunator": "^5.0.3",
