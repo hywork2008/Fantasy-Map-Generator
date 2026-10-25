@@ -7,7 +7,7 @@ it("builds a grounded, deterministic tree with independently owned resources", (
   const a = createSmallLeavedLime(),
     b = createSmallLeavedLime();
   const bounds = new THREE.Box3().setFromObject(a.group);
-  expect(bounds.min.y).toBeCloseTo(0, 2);
+  expect(bounds.min.y).toBeCloseTo(-0.35, 3);
   expect(bounds.max.y).toBeGreaterThan(10);
   expect(bounds.max.y).toBeLessThan(13);
   expect(bounds.max.x - bounds.min.x).toBeGreaterThan(8);

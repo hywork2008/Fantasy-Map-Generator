@@ -145,7 +145,7 @@ export function createTownOpenSpaces(
       for (const attribute of Object.keys(geometry.attributes))
         if (attribute !== "position" && attribute !== "normal" && attribute !== "color")
           geometry.deleteAttribute(attribute);
-      geometry.translate(-center.x, -bounds.min.y, -center.z);
+      geometry.translate(-center.x, isTreeModel(kind) ? 0 : -bounds.min.y, -center.z);
       const material = mesh.material as THREE.Material;
       const list = parts.get(material) ?? [];
       list.push(geometry);

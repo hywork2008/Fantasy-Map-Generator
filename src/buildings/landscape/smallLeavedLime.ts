@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
+import { createTreeBase } from "./treeBase";
 
 /** A summer, open-grown Tilia cordata. Meter scale; deterministic and texture-free. */
 export function createSmallLeavedLime(): CityStructureMeshes {
@@ -58,19 +59,20 @@ export function createSmallLeavedLime(): CityStructureMeshes {
       }
     }
   }
-  const base = new THREE.Vector3(0, 0, 0);
   const fork = new THREE.Vector3(0.12, 3.3, -0.08);
-  branch(base, new THREE.Vector3(0.04, 1.4, 0.06), 0.46, 0.31);
-  branch(new THREE.Vector3(0.04, 1.4, 0.06), fork, 0.31, 0.25);
-  for (let i = 0; i < 7; i++) {
-    const angle = i * 2.39996;
-    branch(
-      new THREE.Vector3(Math.cos(angle) * 0.85, 0.1, Math.sin(angle) * 0.85),
-      new THREE.Vector3(0, 0.8, 0),
-      0.035,
-      0.13
-    );
-  }
+  wood.push(
+    createTreeBase(
+      [
+        { center: [0, 0, 0], radius: 0.46 },
+        { center: [0.04, 1.4, 0.06], radius: 0.31 },
+        { center: [0.12, 3.3, -0.08], radius: 0.25 },
+        { center: [-0.25, 8.1, 0.15], radius: 0.045 },
+        { center: [0.08, 10.35, -0.12], radius: 0.009 }
+      ],
+      0.9,
+      7
+    )
+  );
   for (let i = 0; i < 19; i++) {
     const angle = i * 2.39996 + random() * 0.3;
     const level = i / 18;
@@ -98,11 +100,9 @@ export function createSmallLeavedLime(): CityStructureMeshes {
       spray(tip, 0.7 + random() * 0.3);
     }
   }
-  branch(fork, new THREE.Vector3(-0.25, 8.1, 0.15), 0.23, 0.045);
   // Continue the leader into a leafy upper crown rather than leaving a hollow ring.
   const leaderBase = new THREE.Vector3(-0.25, 8.1, 0.15);
   const leaderTip = new THREE.Vector3(0.08, 10.35, -0.12);
-  branch(leaderBase, leaderTip, 0.065, 0.009);
   spray(leaderTip, 0.9, 240);
   for (let i = 0; i < 14; i++) {
     const angle = i * 2.39996;
@@ -126,11 +126,8 @@ export function createSmallLeavedLime(): CityStructureMeshes {
   leaf.dispose();
   const barkMaterial = new THREE.MeshLambertMaterial({ color: 0x635747 });
   const leafMaterial = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
+  for (const geometry of wood) geometry.deleteAttribute("uv");
   const bark = mergeGeometries(wood)!;
-  const barkPositions = bark.getAttribute("position");
-  for (let i = 0; i < barkPositions.count; i++) {
-    if (barkPositions.getY(i) < 0) barkPositions.setY(i, 0);
-  }
   bark.computeVertexNormals();
   for (const geometry of wood) geometry.dispose();
   const trunk = new THREE.Mesh(bark, barkMaterial);

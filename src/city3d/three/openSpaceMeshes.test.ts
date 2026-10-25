@@ -141,3 +141,22 @@ it("uses saved tower openings even when an edited tower is not circular", () => 
   expect(bounds.max.z).toBeCloseTo(0);
   meshes.dispose();
 });
+
+it("keeps tree ground level at the site height while roots remain underground", () => {
+  for (const kind of ["garden_parkland", "sacred_yew"] as const) {
+    const model = createTownOpenSpaces(
+      { surfaces: [], sites: [{ model: kind, point: [0, 0], angle: 0 }] },
+      { heightAt: () => 10, foundationAt: () => 10 }
+    );
+    const wood =
+      model.pickables.find(
+        mesh => mesh.geometry.boundingBox?.min.y !== undefined && mesh.geometry.boundingBox.min.y < 0
+      ) ?? model.pickables[0];
+    wood.geometry.computeBoundingBox();
+    expect(wood.geometry.boundingBox!.min.y).toBeCloseTo(-0.35, 3);
+    const matrix = new THREE.Matrix4();
+    (wood as THREE.InstancedMesh).getMatrixAt(0, matrix);
+    expect(matrix.elements[13]).toBeCloseTo(10.05, 4);
+    model.dispose();
+  }
+});

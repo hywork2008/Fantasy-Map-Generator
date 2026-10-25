@@ -1409,7 +1409,12 @@ for (const kind of CONTAINER_KINDS) {
           "Mesh dimensions",
           `${dimensions.x.toFixed(3)} × ${dimensions.z.toFixed(3)} × ${dimensions.y.toFixed(3)} m`
         ),
-        fact("Ground contact", `Base Y = ${(Math.abs(bounds.min.y) < 0.0005 ? 0 : bounds.min.y).toFixed(3)} m`),
+        fact(
+          "Ground contact",
+          definition.task === 43 && bounds.min.y < -0.1
+            ? `Ground Y = 0 m; roots extend to ${bounds.min.y.toFixed(3)} m`
+            : `Base Y = ${(Math.abs(bounds.min.y) < 0.0005 ? 0 : bounds.min.y).toFixed(3)} m`
+        ),
         fact("Note", MEDIEVAL_CONTAINER_NOTE)
       );
     });
@@ -2009,7 +2014,12 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
         fact("Task", String(task).padStart(2, "0")),
         ...(definition.biomes ? [fact("Biomes", definition.biomes.join(", "))] : []),
         fact("Mesh dimensions", `${size.x.toFixed(2)} × ${size.z.toFixed(2)} × ${size.y.toFixed(2)} m`),
-        fact("Ground contact", `Base Y = ${(Math.abs(bounds.min.y) < 0.0005 ? 0 : bounds.min.y).toFixed(3)} m`),
+        fact(
+          "Ground contact",
+          definition.task === 43 && bounds.min.y < -0.1
+            ? `Ground Y = 0 m; roots extend to ${bounds.min.y.toFixed(3)} m`
+            : `Base Y = ${(Math.abs(bounds.min.y) < 0.0005 ? 0 : bounds.min.y).toFixed(3)} m`
+        ),
         fact("Construction", definition.note),
         fact(
           "Scope",
