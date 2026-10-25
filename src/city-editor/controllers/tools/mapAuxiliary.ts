@@ -42,11 +42,23 @@ export function bindMapAuxiliary(ctx: MapAuxiliaryContext) {
     "wheel",
     event => {
       event.preventDefault();
+      const previousHalfView = ctx.display.halfView;
       ctx.display.halfView = clamp(
         ctx.display.halfView * Math.exp(event.deltaY * 0.0012),
         ctx.documents.documentState.frame.extentMeters / 40,
         ctx.documents.documentState.frame.extentMeters / 2
       );
+      const rect = ctx.map.getBoundingClientRect();
+      const size = Math.min(rect.width, rect.height);
+      if (size > 0) {
+        // The square SVG viewBox is centered in the viewport's shorter dimension.
+        // Use current state so consecutive wheel events also work before a redraw.
+        const scaleDelta = (2 * (previousHalfView - ctx.display.halfView)) / size;
+        ctx.display.viewCenter = [
+          ctx.display.viewCenter[0] + (event.clientX - rect.left - rect.width / 2) * scaleDelta,
+          ctx.display.viewCenter[1] - (event.clientY - rect.top - rect.height / 2) * scaleDelta
+        ];
+      }
       if (ctx.display.showSelectionLabels) ctx.scheduleRedraw();
       else ctx.updateViewport(true);
       ctx.updateWardBrushPreview();

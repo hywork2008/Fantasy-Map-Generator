@@ -397,6 +397,7 @@ export function mountCity3d(options: {
     scene.add(ground);
     controls = new OrbitControls(camera, canvas);
     controls.enableDamping = false;
+    controls.zoomToCursor = true;
     controls.maxPolarAngle = Math.PI / 2 - 0.05;
     controls.addEventListener("change", requestRender);
     return true;

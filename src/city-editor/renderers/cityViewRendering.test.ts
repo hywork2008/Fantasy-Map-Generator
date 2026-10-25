@@ -1,4 +1,4 @@
-import type * as THREE from "three";
+import * as THREE from "three";
 import { expect, it, vi } from "vitest";
 import { buildBlockFabric, documentFabricFingerprint } from "../generators/blockInfill";
 import { createDocument } from "../generators/document";
@@ -101,7 +101,33 @@ it("renders on demand, retains unchanged scene layers on reopen, and reflects ca
     flush();
     expect((render.mock.lastCall![1] as THREE.PerspectiveCamera).position.x).toBeCloseTo(30);
 
-    host.querySelector("canvas")!.dispatchEvent(new WheelEvent("wheel", { deltaY: 100, cancelable: true }));
+    const canvas = host.querySelector("canvas")!;
+    vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
+      x: 40,
+      y: 60,
+      left: 40,
+      top: 60,
+      width: 800,
+      height: 600,
+      right: 840,
+      bottom: 660,
+      toJSON() {}
+    });
+    const camera = render.mock.lastCall![1] as THREE.PerspectiveCamera;
+    const anchor = new THREE.Vector3(0.5, 0.4, 0.5).unproject(camera);
+    const previousPosition = camera.position.clone();
+    canvas.dispatchEvent(
+      new WheelEvent("wheel", {
+        deltaY: 100,
+        clientX: 640,
+        clientY: 240,
+        cancelable: true
+      })
+    );
+    const projected = anchor.clone().project(camera);
+    expect(projected.x).toBeCloseTo(0.5, 8);
+    expect(projected.y).toBeCloseTo(0.4, 8);
+    expect(camera.position.distanceTo(previousPosition)).toBeGreaterThan(0);
     expect(frames.size).toBe(1);
     flush();
     expect(frames.size).toBe(0);
