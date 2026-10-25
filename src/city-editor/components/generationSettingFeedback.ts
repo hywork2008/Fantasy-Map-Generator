@@ -8,7 +8,7 @@ export function renderGenerationSettingFeedback(
 ) {
   for (const control of Object.values(controls)) {
     if (!control) continue;
-    control.classList.remove("ce-setting-invalid");
+    control.classList.remove("ce-setting-invalid", "ce-setting-warning");
     control.removeAttribute("aria-invalid");
     const descriptions = (control.getAttribute("aria-describedby") ?? "")
       .split(" ")
@@ -18,6 +18,10 @@ export function renderGenerationSettingFeedback(
   }
   output.replaceChildren();
   output.hidden = !issues.length;
+  output.classList.toggle(
+    "ce-setting-feedback-warning",
+    issues.every(issue => issue.severity === "warning")
+  );
   issues.forEach((issue, index) => {
     const item = document.createElement("p");
     item.id = `${output.id}-${index}`;
@@ -26,8 +30,8 @@ export function renderGenerationSettingFeedback(
     for (const field of issue.fields) {
       const control = controls[field];
       if (!control) continue;
-      control.classList.add("ce-setting-invalid");
-      control.setAttribute("aria-invalid", "true");
+      control.classList.add(issue.severity === "warning" ? "ce-setting-warning" : "ce-setting-invalid");
+      if (issue.severity !== "warning") control.setAttribute("aria-invalid", "true");
       control.setAttribute(
         "aria-describedby",
         [control.getAttribute("aria-describedby"), item.id].filter(Boolean).join(" ")

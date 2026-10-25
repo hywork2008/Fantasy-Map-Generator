@@ -926,6 +926,8 @@
       "fortressMilitarySummary": "稜堡の奥行き {{depth}} m、側防の距離 {{distance}} m、市街から外側の防御帯まで {{setback}} m。砲撃からの安全を保証する寸法ではありません。",
       "fortressRifledExposure": "施条砲に対して稜堡式防御は脆弱です。離れた堡塁群による防御は含まれていません。",
       "fortressWetDitchLevel": "水堀は一つの水位を共有できる地面が必要です。この地面は平らではありません。空堀を選んでください。",
+      "settingPortWithoutCoast": "Portが有効ですが、Coastがnoneです。単独CEの都市生成では、Riversが1以上でも河川港は生成されません。",
+      "settingFixPortWithoutCoast": "Coastをnone以外にして海岸港を指定するか、Portを無効にしてください。港なしで都市生成を続行できます。",
       "settingFixFortress": "星型要塞に対応する設定に変更するか、Town defenseをordinaryにしてください。",
       "settingFixPopulation": "人口を減らすか利用可能な範囲を広げ、時代・生成方式・レイアウトを確認してください。",
       "settingFixSkeleton": "mesh-firstに変更するか、競合する設定を解除してください。",

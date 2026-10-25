@@ -8,7 +8,14 @@ import { PopulationSettingError } from "./populationPlan";
 
 /** Semantic field names keep validation independent of DOM and React. */
 export interface GenerationSettingIssue {
-  code: "fortress-settings" | "population-settings" | "unsupported-skeleton-settings" | "fortress-water-conflict";
+  code:
+    | "fortress-settings"
+    | "population-settings"
+    | "unsupported-skeleton-settings"
+    | "fortress-water-conflict"
+    | "port-without-coast";
+  /** Omitted for blocking errors; warnings must not stop generation. */
+  severity?: "warning";
   fields: string[];
   message: string;
   remedy: string;
@@ -52,6 +59,14 @@ export function generationSettingIssues(
 ): GenerationSettingIssue[] {
   if (settings.mode === "fort" && !settings.townFortification) return [];
   const issues: GenerationSettingIssue[] = [];
+  if (!settings.descriptor && settings.config.features.port && settings.config.coast === "none")
+    issues.push({
+      code: "port-without-coast",
+      severity: "warning",
+      fields: ["port", "coast"],
+      message: editorText("cityEditor.messages.settingPortWithoutCoast"),
+      remedy: editorText("cityEditor.messages.settingFixPortWithoutCoast")
+    });
   const conflicts = bastionedTownSettingConflicts(settings);
   if (conflicts)
     issues.push({

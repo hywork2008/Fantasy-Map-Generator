@@ -315,6 +315,7 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
   buildingPatternSelect.options[0].textContent = editorText("cityEditor.messages.legacyHousing");
   buildingPatternSelect.options[1].textContent = editorText("cityEditor.messages.medievalLotsStoresHousesAndGardens");
   const coastSelect = ctx.select(["none", "straight", "bay", "cape"], ctx.generation.generateSettings.config.coast);
+  coastSelect.className = "ce-generate-coast";
   bindPanelEvents(events, "coastSelect:change");
   const SEA_WALL_LABELS: Record<WallCoastChoice, string> = {
     get auto() {
@@ -386,6 +387,7 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
     const input = ctx.checkbox(ctx.generation.generateSettings.config.features[key], checked => {
       ctx.generation.generateSettings.config.features[key] = checked;
     });
+    input.dataset.feature = key;
     featureInputs.set(key, input);
     featureGrid.appendChild(ctx.toggleLabel(editorOptionText(key), input));
   }
@@ -730,6 +732,7 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
         townWallRings: townWallRingsSelect,
         walledAreaShare: walledShareInput,
         walls: featureInputs.get("walls"),
+        port: featureInputs.get("port"),
         citadel: featureInputs.get("citadel"),
         riverPlacement: riverPlacementSelect,
         avoidSea: avoidSeaInput,

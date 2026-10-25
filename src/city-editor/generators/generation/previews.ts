@@ -61,7 +61,7 @@ export function generateStageOnDocument(
   wallCheckpoint?: StageCheckpoint,
   observer?: GenerationObserver
 ): CityDocument | null {
-  const settingIssues = generationSettingIssues(document, settings);
+  const settingIssues = generationSettingIssues(document, settings).filter(issue => issue.severity !== "warning");
   if (settingIssues.length) {
     for (const issue of settingIssues)
       reportGenerationFailure(observer, 1, "prepare", issue.code, `${issue.message} ${issue.remedy}`);

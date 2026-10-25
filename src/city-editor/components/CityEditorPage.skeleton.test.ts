@@ -25,6 +25,23 @@ function select(selector: string, value: string) {
 }
 
 describe("skeleton-first generation panel", () => {
+  it("warns when Port has no coast and clears the warning when a coast is selected", () => {
+    const port = root.querySelector<HTMLInputElement>('[data-feature="port"]')!;
+    port.click();
+    const coast = root.querySelector<HTMLSelectElement>(".ce-generate-coast")!;
+    expect(port.classList.contains("ce-setting-warning")).toBe(true);
+    expect(coast.classList.contains("ce-setting-warning")).toBe(true);
+    expect(port.hasAttribute("aria-invalid")).toBe(false);
+    expect(document.getElementById(port.getAttribute("aria-describedby")!)?.textContent).toContain("river ports");
+    select(".ce-generate-coast", "straight");
+    expect(port.classList.contains("ce-setting-warning")).toBe(false);
+    expect(port.hasAttribute("aria-describedby")).toBe(false);
+    expect(coast.classList.contains("ce-setting-warning")).toBe(false);
+    select(".ce-generate-coast", "none");
+    port.click();
+    expect(port.classList.contains("ce-setting-warning")).toBe(false);
+  });
+
   it("marks wet ditch and rivers, links the explanation, and clears resolved conflicts", () => {
     select(".ce-town-fortification", "bastioned");
     select(".ce-generate-river-count", "1");
