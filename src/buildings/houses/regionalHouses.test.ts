@@ -1,7 +1,15 @@
 import * as THREE from "three";
 import { expect, it, vi } from "vitest";
+import { createBvPrototypeCache } from "../../city3d/three/bvInstances";
 import { meshProjection } from "../meshProjection";
-import { createRegionalHouses, REGIONAL_HOUSES, type RegionalHouseProfile } from "./regionalHouses";
+import {
+  createRegionalHouse,
+  createRegionalHouseGeometry,
+  createRegionalHouses,
+  defaultRegionalHouseSpec,
+  REGIONAL_HOUSES,
+  type RegionalHouseProfile
+} from "./regionalHouses";
 
 const PROFILES: RegionalHouseProfile[] = [
   "mediterranean",
@@ -10,6 +18,38 @@ const PROFILES: RegionalHouseProfile[] = [
   "northern-urban",
   "stone-upland"
 ];
+
+it.each(PROFILES)("%s direct CE geometry preserves the BV prototype's triangles, normals and colors", profile => {
+  for (const [quality, roofForm] of [
+    ["low", "gable"],
+    ["high", "gable"],
+    ["low", "hip"],
+    ["high", "hip"]
+  ] as const) {
+    const spec = { ...defaultRegionalHouseSpec(profile, 1), roofForm };
+    const cache = createBvPrototypeCache();
+    const generic = cache.acquire({ id: "generic", create: () => createRegionalHouse(spec, quality) })!;
+    const direct = createRegionalHouseGeometry(spec, quality);
+    // Material buckets reorder triangles; compare complete oriented triangles, including vertex colors.
+    const triangles = (geometry: THREE.BufferGeometry) => {
+      const attributes = ["position", "normal", "color"].map(name => geometry.getAttribute(name));
+      const result: string[] = [];
+      for (let i = 0; i < attributes[0].count; i += 3) {
+        const values: string[] = [];
+        for (let v = i; v < i + 3; v++)
+          for (const attribute of attributes)
+            for (const value of [attribute.getX(v), attribute.getY(v), attribute.getZ(v)])
+              values.push(value.toFixed(5));
+        result.push(values.join(","));
+      }
+      return result.sort();
+    };
+    expect(triangles(direct)).toEqual(triangles(generic.geometry));
+    direct.dispose();
+    generic.release();
+    expect(cache.size).toBe(0);
+  }
+});
 
 it.each(PROFILES)("%s row keeps the CE envelope, roofs face the sky and resources release once", profile => {
   const model = createRegionalHouses(profile);

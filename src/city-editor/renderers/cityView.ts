@@ -173,12 +173,15 @@ export function mountCity3d(options: {
   let built: DistrictFabric | null = null;
   let builtQuality: ModelQuality | null = null;
   let framedRadius = 0;
-  let running = false;
   let raf = 0;
   let disposed = false;
   let pointer: { x: number; y: number } | null = null;
   const raycaster = new THREE.Raycaster();
   const pointerNdc = new THREE.Vector2();
+
+  const requestRender = () => {
+    if (!disposed && !viewport.hidden && !raf) raf = requestAnimationFrame(tick);
+  };
 
   const resize = () => {
     if (!renderer || !camera || viewport.hidden) return;
@@ -188,6 +191,7 @@ export function mountCity3d(options: {
     renderer.setSize(width, height, false);
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
+    requestRender();
   };
 
   // Stay on +Z. planVertex maps plan +y to -Z, so the far side matches SVG up.
@@ -218,6 +222,7 @@ export function mountCity3d(options: {
     highlight.geometry.dispose();
     (highlight.material as THREE.Material).dispose();
     highlight = null;
+    requestRender();
   };
 
   const outline = (positions: Float32Array) => {
@@ -230,6 +235,7 @@ export function mountCity3d(options: {
     );
     geometry.dispose();
     scene.add(highlight);
+    requestRender();
   };
 
   const showStructure = (structure: StructureMassing | undefined) => {
@@ -392,16 +398,15 @@ export function mountCity3d(options: {
     controls = new OrbitControls(camera, canvas);
     controls.enableDamping = false;
     controls.maxPolarAngle = Math.PI / 2 - 0.05;
-    resize();
+    controls.addEventListener("change", requestRender);
     return true;
   };
 
   const tick = () => {
-    if (!running || !renderer || !scene || !camera) return;
-    controls?.update();
+    raf = 0;
+    if (disposed || viewport.hidden || !renderer || !scene || !camera) return;
     buildingDetails?.update(camera, renderer.domElement.clientHeight);
     renderer.render(scene, camera);
-    raf = requestAnimationFrame(tick);
   };
 
   const riverDrop = () => options.getRiverDropMeters?.() ?? RIVER_DROP_MIN;
@@ -483,8 +488,10 @@ export function mountCity3d(options: {
       !openSpacesChanged &&
       !friariesChanged &&
       !farmlandChanged
-    )
+    ) {
+      if (!framedRadius) frameCamera(city);
       return;
+    }
     if (friariesChanged) {
       if (friaries) scene.remove(friaries.group);
       friaries?.dispose();
@@ -565,6 +572,7 @@ export function mountCity3d(options: {
         }
       }
     }
+    requestRender();
   };
 
   const setOpen = (open: boolean) => {
@@ -574,8 +582,9 @@ export function mountCity3d(options: {
     button.setAttribute("aria-pressed", open ? "true" : "false");
     readout.hidden = true;
     if (!open) {
-      running = false;
+      clearHighlight();
       cancelAnimationFrame(raf);
+      raf = 0;
       return;
     }
     if (!ensure()) {
@@ -588,12 +597,7 @@ export function mountCity3d(options: {
       return;
     }
     resize();
-    built = null;
     sync();
-    if (!running) {
-      running = true;
-      tick();
-    }
   };
 
   const pick = (event: PointerEvent) => {
@@ -672,8 +676,8 @@ export function mountCity3d(options: {
   const dispose = () => {
     if (disposed) return;
     disposed = true;
-    running = false;
     cancelAnimationFrame(raf);
+    raf = 0;
     observer?.disconnect();
     clearHighlight();
     massing?.dispose();
@@ -693,6 +697,7 @@ export function mountCity3d(options: {
     roadMeshes?.dispose();
     ground?.geometry.dispose();
     (ground?.material as THREE.Material | undefined)?.dispose();
+    controls?.removeEventListener("change", requestRender);
     controls?.dispose();
     renderer?.dispose();
     viewport.remove();

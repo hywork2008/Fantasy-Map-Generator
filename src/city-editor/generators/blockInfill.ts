@@ -163,7 +163,23 @@ function finishFabric(document: CityDocument, fabric: DistrictFabric): DistrictF
   };
 }
 
-let fabricByDocument = new WeakMap<CityDocument, { fingerprint: string; fabric: DistrictFabric }>();
+interface FabricEntry {
+  fingerprint: string;
+  fabric: DistrictFabric;
+  overlay?: ReturnType<typeof ruralFieldOverlay>;
+  combined?: DistrictFabric;
+}
+let fabricByDocument = new WeakMap<CityDocument, FabricEntry>();
+
+function overlayFabric(entry: FabricEntry, document: CityDocument): DistrictFabric {
+  const overlay = ruralFieldOverlay(document, entry.fingerprint);
+  if (!overlay) return entry.fabric;
+  if (entry.overlay !== overlay) {
+    entry.overlay = overlay;
+    entry.combined = { ...entry.fabric, ...overlay };
+  }
+  return entry.combined!;
+}
 
 /** Release every derived fabric. Results are re-derived on demand; nothing stored in a document changes. */
 export function clearBlockFabricCache(document?: CityDocument): void {
@@ -311,8 +327,7 @@ export function buildBlockFabric(
       const fp = documentFabricFingerprint(document);
       if (cached.fingerprint === fp) {
         fabricBuildRecorder?.(true);
-        const overlay = ruralFieldOverlay(document, fp);
-        return overlay ? { ...cached.fabric, ...overlay } : cached.fabric;
+        return overlayFabric(cached, document);
       }
     }
   }
@@ -420,11 +435,9 @@ export function buildBlockFabric(
     };
   }
   const fingerprint = documentFabricFingerprint(document);
-  if (!profiler) {
-    fabricByDocument.set(document, { fingerprint, fabric: fabricResult });
-  }
-  const overlay = ruralFieldOverlay(document, fingerprint);
-  return overlay ? { ...fabricResult, ...overlay } : fabricResult;
+  const entry: FabricEntry = { fingerprint, fabric: fabricResult };
+  if (!profiler) fabricByDocument.set(document, entry);
+  return overlayFabric(entry, document);
 }
 
 /**

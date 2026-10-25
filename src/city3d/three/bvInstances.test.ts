@@ -29,6 +29,26 @@ function fixture() {
 }
 
 describe("shared BV city instances", () => {
+  it("takes ownership of direct geometry without constructing a source model", () => {
+    const source = fixture();
+    const geometry = source.pickables[0].geometry.toNonIndexed();
+    const definition = { id: "direct", create: vi.fn(), createGeometry: vi.fn(() => geometry) };
+    const cache = createBvPrototypeCache();
+    const first = cache.acquire(definition)!,
+      second = cache.acquire(definition)!;
+    const dispose = vi.spyOn(geometry, "dispose");
+    expect(first.geometry).toBe(geometry);
+    expect(definition.createGeometry).toHaveBeenCalledOnce();
+    expect(definition.create).not.toHaveBeenCalled();
+    first.release();
+    expect(dispose).not.toHaveBeenCalled();
+    second.release();
+    second.release();
+    expect(dispose).toHaveBeenCalledOnce();
+    expect(cache.size).toBe(0);
+    source.dispose();
+  });
+
   it("bakes nested transforms and linear vertex/material colors, sharing resources until the last owner releases them", () => {
     const source = fixture();
     const definition = { id: "fixture", create: vi.fn(() => source) };
