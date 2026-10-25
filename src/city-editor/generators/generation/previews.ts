@@ -3,6 +3,7 @@ import type { CityDocument, Id } from "../../types/document";
 import type { GenerationSettings, GenerationStepResult, StageCheckpoint, UrbanPatchStep } from "../../types/generation";
 import type { WardAssignment } from "../../types/geometry";
 import { tagExternalGateRoads } from "../approachBeyond";
+import { planBastionedCity } from "../bastionedTown/plan";
 import { syncDocumentCemeteries } from "../cemeteryLayout";
 import { captureGenerationDebugPreview, type GenerationDebugObserver } from "../generationDebug";
 import { type GenerationObserver, reportGenerationFailure } from "../generationDiagnostics";
@@ -123,7 +124,11 @@ export function generateStageOnDocument(
   }
 
   const skeletonRun =
-    settings.generationMethod === "skeleton-first" ? planSkeletonCity(document, settings, seed, observer) : null;
+    settings.generationMethod === "skeleton-first"
+      ? settings.townFortification
+        ? planBastionedCity(document, settings, seed, observer)
+        : planSkeletonCity(document, settings, seed, observer)
+      : null;
   if (settings.generationMethod === "skeleton-first" && !skeletonRun) return null;
   const { cells, faceIdOf, geo, program, params, half, cellSize } =
     skeletonRun?.prepared ?? prepareRun(document, settings, seed);
@@ -534,7 +539,11 @@ export function generateWardStep(
   if (wardStepCache?.key !== key) {
     clearGenerationPreviewCache();
     const skeletonRun =
-      settings.generationMethod === "skeleton-first" ? planSkeletonCity(document, settings, seed) : null;
+      settings.generationMethod === "skeleton-first"
+        ? settings.townFortification
+          ? planBastionedCity(document, settings, seed)
+          : planSkeletonCity(document, settings, seed)
+        : null;
     if (settings.generationMethod === "skeleton-first" && !skeletonRun)
       return { document: null, total: 0, index: -1, detail: null };
     const { cells, faceIdOf, geo, program, params, half, cellSize } =

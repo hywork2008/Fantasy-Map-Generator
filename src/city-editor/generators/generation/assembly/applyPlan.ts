@@ -1,6 +1,7 @@
 import type { RoadRoutingTrace } from "../../../types/contracts/generationDiagnostics";
 import type { CityDocument, Id } from "../../../types/document";
 import type { Cell, CityProgram } from "../../../types/geometry";
+import { removeBastionedTown } from "../../bastionedTown/edit";
 import { type GenerationObserver, generationTimer, reportGenerationFailure } from "../../generationDiagnostics";
 import { clone } from "../../mesh";
 import type { Plan } from "../contracts";
@@ -32,7 +33,7 @@ export function applyPlan(
   wallCheckpoint?: AssemblyCheckpoint
 ): CityDocument | null {
   const mark = generationTimer(observer, attempt);
-  let next = clone(source);
+  let next = source.bastionedTown ? removeBastionedTown(source) : clone(source);
   if (plan.skeleton) {
     next.gridKind = "evolution";
     delete next.fabric;

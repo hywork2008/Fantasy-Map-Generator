@@ -34,10 +34,12 @@ import {
 import { fortressGround, gradeTooSteep, groundVaries, profile, WET_DITCH_LEVEL_RANGE } from "./ground";
 import { excludeReserved } from "./reserve";
 import {
+  bastionedTownSettingConflicts,
   citadelRequested,
   ditchSpanDeviationDegrees,
   type FortressFailureReason,
-  fortressFailureMessage
+  fortressFailureMessage,
+  fortressSettingsMessage
 } from "./validate";
 import {
   classifyMainLine,
@@ -956,6 +958,11 @@ export function planBastionedCity(
   observer?: GenerationObserver,
   attempt = 1
 ): ReturnType<typeof planSkeletonCity> {
+  const conflicts = bastionedTownSettingConflicts(settings);
+  if (conflicts) {
+    reportGenerationFailure(observer, attempt, "prepare", "fortress-settings", fortressSettingsMessage(conflicts));
+    return null;
+  }
   const planned = planBastionedTown(document, settings, seed);
   if ("failure" in planned) {
     reportGenerationFailure(observer, attempt, "bastioned-town", planned.failure.reason, planned.failure.message, {

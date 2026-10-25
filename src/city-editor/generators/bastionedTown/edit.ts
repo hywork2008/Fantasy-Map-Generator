@@ -74,6 +74,10 @@ export function bastionedEditRejection(before: CityDocument, after: CityDocument
       .sort()
       .join("|");
   if (gates(before) !== gates(after)) return true;
+  const roads = new Set(
+    after.featureGroups.flatMap(group => (group.kind === "road" && group.segments.length ? [group.id] : []))
+  );
+  if (plan.accesses.some(access => access.roadId && !roads.has(access.roadId))) return true;
   for (const face of Object.values(after.mesh.faces)) {
     const previous = before.mesh.faces[face.id];
     if (previous?.properties.buildable || !face.properties.buildable) continue;

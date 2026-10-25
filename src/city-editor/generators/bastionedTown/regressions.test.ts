@@ -1,11 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import { clipDitchChunk } from "../../../city3d/three/terrainFieldMesh";
-import { parseDocument } from "../../services/io/documentCodec";
+import { parseDocument, serializeDocument } from "../../services/io/documentCodec";
 import type { BastionedTownPlan, CityDocument, Point } from "../../types/document";
 import { createGridDocument } from "../document";
+import { removeGroup } from "../features";
 import { generateCityOnDocument } from "../generation/generateCity";
+import { generateStageOnDocument, generateWardStep } from "../generation/previews";
 import { defaultGenerationSettings } from "../generation/settings";
 import type { SkeletonInputs } from "../generation/skeleton/contracts";
+import { generateSkeletonPreview } from "../generation/skeleton/previews";
 import { prepareSkeletonRun } from "../generation/skeleton/toPlan";
 import { pointInPolygon } from "../geom";
 import * as lotGeometry from "../lotGeometry";
@@ -55,6 +58,64 @@ const bandOuter: Point[] = [
 ];
 
 describe("fortress review regressions", () => {
+  it("rejects deleting or emptying an access road while allowing its name to change", () => {
+    const city = generateCityOnDocument(grid("fortress-inland"), settings(), "fortress-inland")!;
+    expect(city).not.toBeNull();
+    const roadId = city.bastionedTown!.accesses.find(access => access.role === "civic")!.roadId!;
+    const removed = removeGroup(city, roadId);
+    expect(removed.featureGroups.some(group => group.id === roadId)).toBe(false);
+    expect(bastionedEditRejection(city, removed)).toBe(true);
+    const emptied = structuredClone(city);
+    const road = emptied.featureGroups.find(group => group.id === roadId)!;
+    if (road.kind !== "road") throw new Error("Missing access road");
+    road.segments = [];
+    expect(bastionedEditRejection(city, emptied)).toBe(true);
+    const renamed = structuredClone(city);
+    renamed.featureGroups.find(group => group.id === roadId)!.name = "Renamed approach";
+    expect(bastionedEditRejection(city, renamed)).toBe(false);
+    expect(parseDocument(serializeDocument(renamed))).not.toBeNull();
+  });
+
+  it("drops the old fortress when regenerating an edited town with ordinary walls", () => {
+    const s = settings();
+    const city = generateCityOnDocument(grid("fortress-inland"), s, "fortress-inland")!;
+    expect(city).not.toBeNull();
+    city.featureGroups[0].name = "Edited fortress feature";
+    const before = JSON.stringify(city);
+    const { townFortification: _fort, ...ordinary } = s;
+    const regenerated = generateCityOnDocument(city, { ...ordinary, wallShape: "round" }, "fortress-inland")!;
+    expect(regenerated).not.toBeNull();
+    expect(regenerated.bastionedTown).toBeUndefined();
+    expect(regenerated.fabric?.generation?.algorithm).toBe("skeleton-city-v1");
+    expect(parseDocument(serializeDocument(regenerated))).not.toBeNull();
+    expect(JSON.stringify(city)).toBe(before);
+  });
+
+  it("previews a fortress with a citadel using the same skeleton as complete generation", () => {
+    const s = settings();
+    s.config.features.citadel = true;
+    const seed = "fortress-citadel";
+    const input = grid(seed);
+    const planned = planBastionedTown(input, s, seed);
+    expect("draft" in planned).toBe(true);
+    if (!("draft" in planned)) return;
+    for (const step of [1, 2, 3, 4, 5, 6]) {
+      const preview = generateSkeletonPreview(input, s, seed, step);
+      expect(preview.document).not.toBeNull();
+      if (step >= 3)
+        expect(preview.overlayPaths).toContainEqual([
+          ...planned.draft.skeleton.wall!.polygon,
+          planned.draft.skeleton.wall!.polygon[0]
+        ]);
+      if (step === 6) expect(Object.keys(preview.document!.mesh.faces).length).toBeGreaterThan(0);
+    }
+    expect(generateStageOnDocument(input, s, seed, 6)).not.toBeNull();
+    expect(generateWardStep(input, s, seed, 0).document).not.toBeNull();
+    const invalid = { ...s, walledAreaShare: 0.5 };
+    expect(generateSkeletonPreview(input, invalid, seed, 1).document).toBeNull();
+    expect(generateStageOnDocument(input, invalid, seed, 6)).toBeNull();
+  }, 30000);
+
   it("triangulates an unchanged river outline only once", () => {
     const vertices = Object.fromEntries(
       Array.from({ length: 60 }, (_, i) => [
