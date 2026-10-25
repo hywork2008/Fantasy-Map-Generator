@@ -70,6 +70,13 @@ export const PASTORAL_HEADS_PER_RURAL_PERSON: Readonly<Record<string, number>> =
 export const PASTURE_FEED_UTILIZATION = 0.8;
 /** Weedy fallow grazing, dry matter per hectare per year; a fraction of permanent pasture. */
 export const FALLOW_GRAZING_DM_KG_PER_HA = 400;
+/**
+ * Grazing a settled, long-cleared landscape keeps per hectare of cropland, whatever the natural
+ * biome: meadow, permanent pasture, commons and wood-pasture. England c.1290 had roughly 0.3-0.4 ha
+ * of meadow and pasture per arable hectare besides grazed waste (Broadberry et al. 2015, British
+ * Economic Growth 1270-1870, ch.2; to be checked against the table). Model policy (E1 §7.50).
+ */
+export const CLEARED_PASTURE_PER_CULTIVATED_HA = 0.4;
 /** Share of maintained cropland sown in a year; the rest is grazed fallow. Matches landUseActivities. */
 export const DEFAULT_ANNUAL_SOWN_SHARE = 0.67;
 

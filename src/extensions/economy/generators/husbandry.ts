@@ -53,6 +53,7 @@ import { getAnnualLivestockFeedFactor, getRecentlyFedHerdShare, livestockFeedMon
 import {
   CAMELS_PER_RURAL_PERSON,
   CATTLE_FOLLOWERS_PER_DRAUGHT_OX,
+  CLEARED_PASTURE_PER_CULTIVATED_HA,
   DEFAULT_ANNUAL_SOWN_SHARE,
   DRAUGHT_HEADS_PER_CULTIVATED_HA,
   DRAUGHT_HEADS_PER_RURAL_PERSON_MAX,
@@ -240,7 +241,9 @@ export function calculatePastureCeilingAreaHectares(world: Readonly<WorldContext
     PASTURE_DEFAULT_CEILING
   );
   const terrainShare = calculateTerrainWorkableShare(cells.h[cellId] ?? 0);
-  return unclaimedArea * terrainShare * ceiling;
+  // Clearance for fields also opened grazing; the natural biome cover no longer sets the limit.
+  const cleared = Math.min(unclaimedArea, cultivated * CLEARED_PASTURE_PER_CULTIVATED_HA);
+  return Math.max(unclaimedArea * ceiling, cleared) * terrainShare;
 }
 
 function getCellCultivatedHectares(world: Readonly<WorldContext>, cellId: number): number {
