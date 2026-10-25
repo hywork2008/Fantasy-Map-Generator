@@ -31,7 +31,7 @@ export function preparePopulationGeneration(document: CityDocument, settings: Ge
   const population = settings.population;
   let plan = planPopulation(population, period, document.frame.extentMeters);
   if (fortress && population.frameMode !== "manual") {
-    const extent = fortressFrameExtent(plan.cityRadiusMeters);
+    const extent = fortressFrameExtent(plan.cityRadiusMeters, settings);
     if (extent > plan.extentMeters) plan = { ...plan, extentMeters: extent };
   }
   if (settings.descriptor && document.frame.extentMeters < 2 * plan.cityRadiusMeters * 1.3)

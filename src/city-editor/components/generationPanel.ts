@@ -645,6 +645,14 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
   streetsSelect.className = "ce-fortress-streets";
   streetsSelect.options[0].textContent = editorText("cityEditor.messages.townFortificationStreetsRadial");
   streetsSelect.options[1].textContent = editorText("cityEditor.messages.townFortificationStreetsOrganic");
+  const dimensionsSelect = ctx.select(
+    ["artillery-v1", "legacy"],
+    ctx.generation.generateSettings.townFortification?.dimensionPolicy ?? "legacy"
+  );
+  dimensionsSelect.className = "ce-fortress-dimensions";
+  dimensionsSelect.options[0].textContent = editorText("cityEditor.messages.fortressDimensionsArtillery");
+  dimensionsSelect.options[1].textContent = editorText("cityEditor.messages.fortressDimensionsLegacy");
+  const dimensionsLabel = ctx.label(editorText("cityEditor.messages.fortressDimensions"), dimensionsSelect);
   const outworksLabel = ctx.label(editorText("cityEditor.messages.townFortificationOutworks"), outworksSelect);
   const ditchLabel = ctx.label(editorText("cityEditor.messages.townFortificationDitch"), ditchSelect);
   const streetsLabel = ctx.label(editorText("cityEditor.messages.townFortificationStreets"), streetsSelect);
@@ -661,6 +669,7 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
     outworksLabel,
     ditchLabel,
     streetsLabel,
+    dimensionsLabel,
     fortressNotice,
     removeFortressButton,
     shapeLabel,
@@ -696,14 +705,26 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
     outworksLabel.hidden = !fortress;
     ditchLabel.hidden = !fortress;
     streetsLabel.hidden = !fortress;
+    dimensionsLabel.hidden = !fortress;
     if (fortress && settings.townFortification) {
       outworksSelect.value = settings.townFortification.outworks;
       ditchSelect.value = settings.townFortification.ditch;
       streetsSelect.value = settings.townFortification.streetPlan;
+      dimensionsSelect.value = settings.townFortification.dimensionPolicy ?? "legacy";
     }
     const conflicts = bastionedTownSettingConflicts(settings);
     fortressNotice.hidden = !conflicts;
     fortressNotice.textContent = conflicts ? fortressSettingsMessage(conflicts) : "";
+    const military = ctx.documents.documentState.bastionedTown?.military;
+    if (fortress && military && !conflicts) {
+      fortressNotice.hidden = false;
+      fortressNotice.textContent =
+        editorText("cityEditor.messages.fortressMilitarySummary", {
+          depth: Math.round(military.minBastionDepthMeters),
+          distance: Math.round(military.maxFlankingDistanceMeters),
+          setback: Math.round(military.urbanToDefenseEdgeMeters)
+        }) + (military.profile === "rifled-era" ? ` ${editorText("cityEditor.messages.fortressRifledExposure")}` : "");
+    }
     removeFortressButton.hidden = !ctx.documents.documentState.bastionedTown;
     sidesInput.min = fortress ? "5" : "3";
     sidesInput.max = fortress ? "9" : "12";
@@ -788,6 +809,7 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
     current.outworks = outworksSelect.value === "none" ? "none" : "ravelins";
     current.ditch = ditchSelect.value === "wet" ? "wet" : "dry";
     current.streetPlan = streetsSelect.value === "organic" ? "organic" : "radial";
+    current.dimensionPolicy = dimensionsSelect.value === "artillery-v1" ? "artillery-v1" : "legacy";
     if (current.streetPlan === "radial") delete ctx.generation.generateSettings.layout;
     else ctx.generation.generateSettings.layout = "organic";
     invalidateSkeletonSelection();
@@ -796,7 +818,13 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
     const settings = ctx.generation.generateSettings;
     if (fortSelect.value === "ordinary") delete settings.townFortification;
     else {
-      settings.townFortification = { kind: "bastioned", outworks: "ravelins", ditch: "dry", streetPlan: "radial" };
+      settings.townFortification = {
+        kind: "bastioned",
+        outworks: "ravelins",
+        ditch: "dry",
+        streetPlan: "radial",
+        dimensionPolicy: "artillery-v1"
+      };
       settings.generationMethod = "skeleton-first";
       settings.wallShape = "bastioned";
       settings.walledAreaShare = 1;
@@ -813,6 +841,7 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
   ctx.panelEventContext().scope.listen(outworksSelect, "change", rememberFortress);
   ctx.panelEventContext().scope.listen(ditchSelect, "change", rememberFortress);
   ctx.panelEventContext().scope.listen(streetsSelect, "change", rememberFortress);
+  ctx.panelEventContext().scope.listen(dimensionsSelect, "change", rememberFortress);
   return {
     appearanceControls,
     populationControls: populationControls.panel,

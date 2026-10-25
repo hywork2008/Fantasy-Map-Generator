@@ -279,6 +279,8 @@ export function validFabricPlan(plan: FabricPlan): boolean {
   return (
     ["evolution-city-v3", "castle-city-v1", "skeleton-city-v1", "fort-v1", "bastioned-city-v1"].includes(g.algorithm) &&
     (g.settings?.mode === undefined || ["city", "fort"].includes(g.settings.mode)) &&
+    (g.settings?.townFortification?.dimensionPolicy === undefined ||
+      ["legacy", "artillery-v1"].includes(g.settings.townFortification.dimensionPolicy)) &&
     (g.settings?.generationMethod === undefined ||
       ["mesh-first", "skeleton-first"].includes(g.settings.generationMethod)) &&
     (g.algorithm !== "skeleton-city-v1" || g.settings.generationMethod === "skeleton-first") &&

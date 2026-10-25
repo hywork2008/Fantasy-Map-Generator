@@ -122,6 +122,8 @@ export interface GenerationSettings {
 
 /** Town-wide bastioned defense. Not a citadel style and not a second town wall ring. */
 export interface BastionedTownSettings {
+  /** Omitted keeps old recipes; newly selected fortress towns use artillery-v1. */
+  dimensionPolicy?: "legacy" | "artillery-v1";
   kind: "bastioned";
   outworks: "none" | "ravelins";
   ditch: "dry" | "wet";

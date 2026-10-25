@@ -3,6 +3,7 @@ import { editorText } from "../../../i18n/editorMessages";
 import type { CityDocument } from "../../types/document";
 import type { BastionedTownSettings, GenerationSettings } from "../../types/generation";
 import { bastionEra } from "../generation/settings";
+import { resolveArtilleryDimensions } from "./dimensions";
 
 export type FortressFailureReason =
   | "fortress-insufficient-space"
@@ -12,7 +13,9 @@ export type FortressFailureReason =
   | "fortress-housing-shortfall"
   | "fortress-water-conflict"
   | "fortress-relief-too-steep"
-  | "fortress-wet-ditch-level";
+  | "fortress-wet-ditch-level"
+  | "fortress-flanking-range"
+  | "fortress-military-space";
 
 const FAILURE_KEY = {
   "fortress-insufficient-space": "cityEditor.messages.fortressInsufficientSpace",
@@ -22,7 +25,9 @@ const FAILURE_KEY = {
   "fortress-housing-shortfall": "cityEditor.messages.fortressHousingShortfall",
   "fortress-water-conflict": "cityEditor.messages.fortressWaterConflict",
   "fortress-relief-too-steep": "cityEditor.messages.fortressReliefTooSteep",
-  "fortress-wet-ditch-level": "cityEditor.messages.fortressWetDitchLevel"
+  "fortress-wet-ditch-level": "cityEditor.messages.fortressWetDitchLevel",
+  "fortress-flanking-range": "cityEditor.messages.fortressFlankingRange",
+  "fortress-military-space": "cityEditor.messages.fortressMilitarySpace"
 } as const;
 
 export function fortressFailureMessage(reason: FortressFailureReason): string {
@@ -30,8 +35,17 @@ export function fortressFailureMessage(reason: FortressFailureReason): string {
 }
 
 /** Smallest preset frame that can hold a star plus its outwork band around `cityRadius`. */
-export function fortressFrameExtent(cityRadius: number): number {
-  const needed = 2 * (cityRadius * 1.7 + 180);
+export function fortressFrameExtent(cityRadius: number, settings?: GenerationSettings): number {
+  const military = settings ? resolveArtilleryDimensions(settings) : null;
+  const needed = military
+    ? 2 *
+      (Math.max(cityRadius + military.urbanSetback + 20, military.curtainLength / (2 * Math.sin(Math.PI / 9) * 0.52)) *
+        1.6 +
+        military.ditchWidth +
+        military.ravelinDepth +
+        military.glacisWidth +
+        20)
+    : 2 * (cityRadius * 1.7 + 180);
   return [300, 600, 1200, 2400, 4800].find(n => n >= needed) ?? Math.ceil(needed / 100) * 100;
 }
 
@@ -43,6 +57,8 @@ export function bastionedTownSettingConflicts(settings: GenerationSettings): str
   if (!["none", "ravelins"].includes(fort.outworks)) reasons.push("outworks");
   if (!["dry", "wet"].includes(fort.ditch)) reasons.push("ditch");
   if (!["radial", "organic"].includes(fort.streetPlan)) reasons.push("street plan");
+  if (fort.dimensionPolicy !== undefined && !["legacy", "artillery-v1"].includes(fort.dimensionPolicy))
+    reasons.push("dimension policy");
   if (settings.mode === "fort") reasons.push("mode");
   if (settings.townWallRings === "double") reasons.push("double walls");
   if (settings.generationMethod !== "skeleton-first") reasons.push("generation method");
@@ -90,6 +106,9 @@ export function isBastionedTownSettings(value: unknown): value is BastionedTownS
   const fort = value as BastionedTownSettings;
   return (
     fort.kind === "bastioned" &&
+    (fort.dimensionPolicy === undefined ||
+      fort.dimensionPolicy === "legacy" ||
+      fort.dimensionPolicy === "artillery-v1") &&
     (fort.outworks === "none" || fort.outworks === "ravelins") &&
     (fort.ditch === "dry" || fort.ditch === "wet") &&
     (fort.streetPlan === "radial" || fort.streetPlan === "organic")

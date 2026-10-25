@@ -12,6 +12,13 @@ import type { GenerationObserver } from "../generationDiagnostics";
 import { reportGenerationFailure } from "../generationDiagnostics";
 import { nearestOnPolyline, pointInPolygon } from "../geom";
 import { makeRng } from "../prng";
+import {
+  type ArtilleryDimensions,
+  bastionDepth,
+  flankingDistance,
+  resolveArtilleryDimensions,
+  ringGap
+} from "./dimensions";
 import type { BastionedTownDraft } from "./draft";
 import {
   clamp,
@@ -201,6 +208,8 @@ interface Trace {
   urban: Point[];
   urbanRadius: number;
   offsets: Map<string, Point[] | null>;
+  military: ArtilleryDimensions | null;
+  urbanGap?: number;
 }
 
 function makeTrace(
@@ -219,6 +228,20 @@ function makeTrace(
     (rng() - 0.5) * Math.min(12, inputs.cellSize * 0.25)
   ]);
   const unitRing = unitWallShape("bastioned", rng, sides);
+  const military = resolveArtilleryDimensions(settings);
+  if (military) {
+    // Retain the existing shoulders/flanks; move each salient along its own outward ray.
+    for (let i = 0; i < sides; i++) {
+      const a = unitRing[i * 5],
+        b = unitRing[i * 5 + 4],
+        tip = unitRing[i * 5 + 2];
+      const mouthWidth = dist(a, b);
+      const current = bastionDepth(unitRing, i);
+      const extra = Math.max(0, military.depthToWidthRatio * mouthWidth - current);
+      const ray = unit(tip);
+      unitRing[i * 5 + 2] = add(tip, ray, extra);
+    }
+  }
   if (!(signedArea(unitRing) > 0) || unitRing.length !== sides * 5) return null;
   let minApothem = Number.POSITIVE_INFINITY;
   let minCurtain = Number.POSITIVE_INFINITY;
@@ -231,6 +254,16 @@ function makeTrace(
   }
   if (!(minApothem > 0.2) || !(minCurtain > 0.05)) return null;
   let scale = (urbanRadius + 28) / minApothem;
+  if (military) {
+    const minimumDepth = Math.min(...Array.from({ length: sides }, (_, i) => bastionDepth(unitRing, i)));
+    const inradius = nearestOnPolyline([0, 0], [...unitRing, unitRing[0]]).dist;
+    scale = Math.max(
+      scale,
+      military.bastionDepth / minimumDepth,
+      military.curtainLength / minCurtain,
+      (urbanRadius + military.urbanSetback + military.rampartWidth * 2 + dist(center, corePoint)) / inradius
+    );
+  }
   for (let bump = 0; bump < 4; bump++) {
     const rampart = clamp(0.06 * scale * minCurtain, 10, 20);
     const need = (urbanRadius + rampart + 8) / minApothem;
@@ -239,7 +272,7 @@ function makeTrace(
   }
   const outer = unitRing.map(point => [center[0] + point[0] * scale, center[1] + point[1] * scale] as Point);
   if (!(signedArea(outer) > 0)) return null;
-  return { center, outer, sides, unitApothem: minApothem, urban, urbanRadius, offsets: new Map() };
+  return { center, outer, sides, unitApothem: minApothem, urban, urbanRadius, offsets: new Map(), military };
 }
 
 interface Built {
@@ -272,12 +305,25 @@ function buildWorks(
   }
   const minL = Math.min(...lengths);
   const meanL = lengths.reduce((sum, n) => sum + n, 0) / lengths.length;
-  const rampartWidth = clamp(0.06 * minL, 10, 20);
-  const ditchWidth = clamp(0.12 * meanL, 12, 30);
+  const military = trace.military;
+  // Reject an overextended dry trace before constructing its offsets or outworks.
+  if (
+    military &&
+    !inputs.water.length &&
+    !inputs.rivers.length &&
+    flankingDistance(outer, sides) > military.flankingRange
+  )
+    return { reason: "fortress-flanking-range" };
+  const rampartWidth = Math.max(clamp(0.06 * minL, 10, 20), military?.rampartWidth ?? 0);
+  const ditchWidth = Math.max(clamp(0.12 * meanL, 12, 30), military?.ditchWidth ?? 0);
   const ravelinDitch = clamp(0.08 * meanL, 6, 12);
   const inner = cached("inner", () => insetRing(outer, center, rampartWidth));
   if (!inner) return { reason: "fortress-invalid-bastion" };
   if (!trace.urban.every(point => pointInPolygon(point, inner))) return { reason: "fortress-insufficient-space" };
+  if (military) {
+    trace.urbanGap ??= ringGap(trace.urban, inner);
+    if (trace.urbanGap < military.urbanSetback) return { reason: "fortress-insufficient-space" };
+  }
   for (let i = 0; i < sides; i++) {
     const salient = outer[i * 5 + 2];
     const leftA = outer[((i + sides - 1) * 5 + 4) % outer.length];
@@ -302,6 +348,8 @@ function buildWorks(
 
   const water = classifyMainLine(outer, sides, inputs);
   if (!water) return { reason: "fortress-water-conflict" };
+  if (military && flankingDistance(outer, sides, water.wetCurtains, water.wetBastions) > military.flankingRange)
+    return { reason: "fortress-flanking-range" };
   const bastionPolys = Array.from({ length: sides }, (_, i) => [0, 1, 2, 3, 4].map(k => outer[i * 5 + k]));
   const rampartCurtain = (index: number) => !water.wetCurtains.has(index);
   const ravelins: { outline: Point[]; rampart: Point[]; platform: Point[]; sally: Point; curtain: number }[] = [];
@@ -315,7 +363,7 @@ function buildWorks(
       for (let shrink = 0; shrink < 2 && !outline; shrink++) {
         if (shrink) widthRatio = 0.25;
         const half = (widthRatio * curtain.length) / 2;
-        const depth = 0.25 * curtain.length;
+        const depth = Math.max(0.25 * curtain.length, military?.ravelinDepth ?? 0);
         const base = add(curtain.a, sub(curtain.b, curtain.a), 0.5);
         const baseCenter = add(base, curtain.normal, ditchWidth + ravelinDitch + 2);
         const left = add(baseCenter, curtain.tangent, -half);
@@ -357,7 +405,8 @@ function buildWorks(
   }
 
   const footprint = [outer, ditchOuter, coveredOuter, glacisOuter, ...ravelins.map(work => work.outline)];
-  if (!inFrame(footprint, inputs.half)) return { reason: "fortress-insufficient-space" };
+  if (!inFrame(footprint, inputs.half))
+    return { reason: military ? "fortress-military-space" : "fortress-insufficient-space" };
   if (fort.ditch === "wet" && (inputs.rivers.length > 0 || inputs.water.length > 0))
     return { reason: "fortress-water-conflict" };
   const mainDitch = defenseBand(outer, ditchOuter, inputs);
@@ -688,6 +737,24 @@ function buildWorks(
       circuitId,
       boundaryKind: water.boundaryKind,
       locked: true,
+      ...(military
+        ? {
+            military: {
+              policy: "artillery-v1" as const,
+              profile: military.profile,
+              minBastionDepthMeters: Math.min(
+                ...bastionPolys.flatMap((_p, i) => (water.wetBastions.has(i) ? [] : [bastionDepth(outer, i)]))
+              ),
+              minCurtainLengthMeters: Math.min(...curtains.filter((_c, i) => rampartCurtain(i)).map(c => c.length)),
+              maxFlankingDistanceMeters: flankingDistance(outer, sides, water.wetCurtains, water.wetBastions),
+              flankingRangeMeters: military.flankingRange,
+              urbanSetbackMeters: trace.urbanGap!,
+              centerToDefenseEdgeMeters: nearestOnPolyline(center, [...glacisOuter, glacisOuter[0]]).dist,
+              urbanToDefenseEdgeMeters: ringGap(trace.urban, glacisOuter),
+              bombardmentAssessed: false as const
+            }
+          }
+        : {}),
       bastions: bastionPolys.flatMap((poly, i) =>
         water.wetBastions.has(i)
           ? []
@@ -844,7 +911,8 @@ export function planBastionedTown(
     for (const shift of GATE_SHIFTS) {
       if (evaluations >= MAX_FORTRESS_EVALUATIONS) break;
       let reason: FortressFailureReason = "fortress-insufficient-space";
-      for (const glacis of [40, 32, 25]) {
+      const minimumGlacis = trace.military?.glacisWidth;
+      for (const glacis of minimumGlacis ? [minimumGlacis + 20, minimumGlacis] : [40, 32, 25]) {
         if (evaluations >= MAX_FORTRESS_EVALUATIONS) break;
         evaluations++;
         const built = buildWorks(trace, inputs, settings, seed, attempt, shift, glacis);
@@ -855,7 +923,7 @@ export function planBastionedTown(
           return { draft: built.ok.draft };
         }
         reason = built.reason;
-        if (reason !== "fortress-insufficient-space") break;
+        if (reason !== "fortress-insufficient-space" && reason !== "fortress-military-space") break;
       }
       if (reason === "fortress-water-conflict") sawWater = true;
       else if (reason === "fortress-relief-too-steep") sawRelief = true;
@@ -903,7 +971,16 @@ export function planBastionedCity(
     phase: "bastioned-town",
     elapsedMs: 0,
     attempt,
-    counts: { evaluations: planned.draft.evaluations }
+    counts: {
+      evaluations: planned.draft.evaluations,
+      ...(planned.draft.plan.military
+        ? {
+            minBastionDepthMeters: planned.draft.plan.military.minBastionDepthMeters,
+            maxFlankingDistanceMeters: planned.draft.plan.military.maxFlankingDistanceMeters,
+            urbanToDefenseEdgeMeters: planned.draft.plan.military.urbanToDefenseEdgeMeters
+          }
+        : {})
+    }
   });
   return assembled;
 }

@@ -103,6 +103,25 @@ export function validBastionedTown(document: CityDocument): boolean {
 }
 
 function planShape(plan: BastionedTownPlan): boolean {
+  if (plan.military !== undefined) {
+    const m = plan.military;
+    if (
+      m?.policy !== "artillery-v1" ||
+      !["renaissance", "mature", "rifled-era"].includes(m.profile) ||
+      m.bombardmentAssessed !== false ||
+      [
+        m.minBastionDepthMeters,
+        m.minCurtainLengthMeters,
+        m.maxFlankingDistanceMeters,
+        m.flankingRangeMeters,
+        m.urbanSetbackMeters,
+        m.centerToDefenseEdgeMeters,
+        m.urbanToDefenseEdgeMeters
+      ].some(n => !Number.isFinite(n) || n <= 0) ||
+      m.maxFlankingDistanceMeters > m.flankingRangeMeters
+    )
+      return false;
+  }
   if (
     plan.version !== 1 ||
     !idOk(plan.id) ||

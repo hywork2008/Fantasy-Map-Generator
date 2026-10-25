@@ -25,6 +25,16 @@ function select(selector: string, value: string) {
 }
 
 describe("skeleton-first generation panel", () => {
+  it("uses artillery dimensions for a new fortress and lets old proportions be selected explicitly", () => {
+    select(".ce-town-fortification", "bastioned");
+    const dimensions = root.querySelector<HTMLSelectElement>(".ce-fortress-dimensions")!;
+    expect(dimensions.closest("label")!.hidden).toBe(false);
+    expect(dimensions.value).toBe("artillery-v1");
+    select(".ce-fortress-dimensions", "legacy");
+    expect(dimensions.value).toBe("legacy");
+    select(".ce-town-fortification", "ordinary");
+    expect(dimensions.closest("label")!.hidden).toBe(true);
+  });
   it("keeps the existing method by default and shows shapes only for skeleton-first", () => {
     const method = root.querySelector<HTMLSelectElement>(".ce-generation-method")!;
     const shape = root.querySelector<HTMLSelectElement>(".ce-wall-shape")!;

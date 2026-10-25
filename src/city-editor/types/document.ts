@@ -475,6 +475,19 @@ export interface DefenseWorkPlan {
 
 /** Semantic bastioned town defense. Draw and edit from this plan, not from the outline. */
 export interface BastionedTownPlan {
+  military?: {
+    policy: "artillery-v1";
+    profile: "renaissance" | "mature" | "rifled-era";
+    minBastionDepthMeters: number;
+    minCurtainLengthMeters: number;
+    maxFlankingDistanceMeters: number;
+    flankingRangeMeters: number;
+    urbanSetbackMeters: number;
+    centerToDefenseEdgeMeters: number;
+    urbanToDefenseEdgeMeters: number;
+    /** Ranges, elevation, ballistics and enemy siege batteries are not simulated. */
+    bombardmentAssessed: false;
+  };
   version: 1;
   id: Id;
   circuitId: Id;
