@@ -154,7 +154,7 @@ export function townWaterElevations(document: CityDocument, dropMeters?: number)
       let target = own;
       if (ahead !== null) target = target === null ? ahead : Math.min(target, ahead);
       if (target === null && running === null) continue;
-      let height = target === null ? running! : running === null ? target : Math.min(running, target);
+      let height: number = target === null ? running! : running === null ? target : Math.min(running, target);
       if (sample.bank !== null) height = Math.min(height, sample.bank);
       running = height;
       points.push(sample.point);

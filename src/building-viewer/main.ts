@@ -1409,12 +1409,7 @@ for (const kind of CONTAINER_KINDS) {
           "Mesh dimensions",
           `${dimensions.x.toFixed(3)} × ${dimensions.z.toFixed(3)} × ${dimensions.y.toFixed(3)} m`
         ),
-        fact(
-          "Ground contact",
-          definition.task === 43 && bounds.min.y < -0.1
-            ? `Ground Y = 0 m; roots extend to ${bounds.min.y.toFixed(3)} m`
-            : `Base Y = ${(Math.abs(bounds.min.y) < 0.0005 ? 0 : bounds.min.y).toFixed(3)} m`
-        ),
+        fact("Ground contact", `Base Y = ${(Math.abs(bounds.min.y) < 0.0005 ? 0 : bounds.min.y).toFixed(3)} m`),
         fact("Note", MEDIEVAL_CONTAINER_NOTE)
       );
     });

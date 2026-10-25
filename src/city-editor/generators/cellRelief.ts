@@ -297,7 +297,8 @@ export function cellRelief(document: CityDocument, locate = faceLocator(document
   const heightAt = (point: Point): number => {
     if (!relief) return 0;
     const cell = cellAt(point);
-    const own = cell === null ? undefined : level.get(cell);
+    if (cell === null) return 0;
+    const own = level.get(cell);
     if (own === undefined) return 0;
     const fan = fans.get(cell);
     if (fan) return fanHeight(fan, point) ?? own;

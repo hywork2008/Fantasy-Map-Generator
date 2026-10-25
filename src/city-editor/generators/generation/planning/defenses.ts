@@ -53,6 +53,7 @@ export interface PlanDefensesInput {
     | "castleOutward"
     | "castle"
     | "terrainField"
+    | "population"
   >;
   program: CityProgram;
   effectiveLayout: "organic" | "circulade" | "bram" | "classic";
