@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { buildingAppearanceProfile, normalizeBuildingAppearanceContext } from "../../buildings/appearance/resolver";
+import { BUILDING_APPEARANCE_VERSION, type BuildingAppearanceProfile } from "../../buildings/appearance/types";
 import { createCodexTownWallPart } from "../../buildings/fortifications/codexTownWalls";
 import type { ModelQuality } from "../../buildings/modelQuality";
 import { featureGroupVertices } from "../../city-editor/generators/features";
@@ -10,12 +12,29 @@ import type { CityDocument } from "../../city-editor/types/document";
 import { ribbonSidePoints } from "../core/structureGeometry";
 import type { BvDefinition, BvPrototypeCache } from "./bvInstances";
 
-const DEFINITIONS = {
+const LEGACY_DEFINITIONS = {
   wall: { id: "codex-town-wall", create: () => createCodexTownWallPart("wall") },
   bare: { id: "codex-town-bare-wall", create: () => createCodexTownWallPart("wall", false) },
   tower: { id: "codex-town-tower", create: () => createCodexTownWallPart("tower") },
   gate: { id: "codex-town-gate", create: () => createCodexTownWallPart("gate") }
 } satisfies Record<string, BvDefinition>;
+
+// Stable definition identities allow refreshes to reuse prototypes without sharing roof colors across cultures.
+const CULTURE_DEFINITIONS = new Map<BuildingAppearanceProfile, typeof LEGACY_DEFINITIONS>();
+function definitionsFor(profile: BuildingAppearanceProfile) {
+  if (profile === "legacy") return LEGACY_DEFINITIONS;
+  let definitions = CULTURE_DEFINITIONS.get(profile);
+  if (!definitions) {
+    definitions = {
+      wall: LEGACY_DEFINITIONS.wall,
+      bare: LEGACY_DEFINITIONS.bare,
+      tower: { id: `codex-town-tower:${profile}`, create: () => createCodexTownWallPart("tower", true, profile) },
+      gate: { id: `codex-town-gate:${profile}`, create: () => createCodexTownWallPart("gate", true, profile) }
+    };
+    CULTURE_DEFINITIONS.set(profile, definitions);
+  }
+  return definitions;
+}
 
 /** A sampled ribbon maps BV stonework onto the exact CE miter offsets and terrain levels. */
 function ribbon(part: StructureMassing) {
@@ -77,6 +96,18 @@ export function createTownWalls(
   cache: BvPrototypeCache,
   quality: ModelQuality = "standard"
 ) {
+  const context =
+    city.buildingAppearanceContext ??
+    normalizeBuildingAppearanceContext({
+      period: city.historicalPeriod,
+      tradition: city.civilization?.tradition,
+      biome: city.biome
+    });
+  const profile =
+    city.buildingAppearanceVersion === BUILDING_APPEARANCE_VERSION
+      ? buildingAppearanceProfile({ profile: city.buildingAppearanceProfile, context, rural: false })
+      : "legacy";
+  const definitions = definitionsFor(profile);
   const group = new THREE.Group();
   group.name = "ce-codex-town-walls";
   const replaced = new Set<string>();
@@ -122,7 +153,7 @@ export function createTownWalls(
         count = Math.ceil(path.total / 14),
         length = path.total / count;
       for (let i = 0; i < count; i++)
-        append(part.parapet === "none" ? DEFINITIONS.bare : DEFINITIONS.wall, index, (x, y, z) => {
+        append(part.parapet === "none" ? definitions.bare : definitions.wall, index, (x, y, z) => {
           const station = path.at(i * length + ((x + 7) * length) / 14);
           const offset = (z * part.widthMeters!) / 2.6;
           const height =
@@ -171,7 +202,7 @@ export function createTownWalls(
         }
       }
       if (
-        append(DEFINITIONS.tower, index, (x, y, z) => {
+        append(definitions.tower, index, (x, y, z) => {
           const along = (x * radius) / 3.3,
             field = ((z * radius) / 3.3) * outward;
           return [
@@ -209,7 +240,7 @@ export function createTownWalls(
       const base = Math.max(...flanks.map(part => part.baseElevationMeters));
       const wallHeight = flanks[0].heightMeters - 2.5;
       const sy = wallHeight / 8;
-      const success = append(DEFINITIONS.gate, structures.indexOf(lintel), (x, y, z) => {
+      const success = append(definitions.gate, structures.indexOf(lintel), (x, y, z) => {
         const xx =
           Math.abs(x) <= 1.9 ? (x * opening) / 3.8 : Math.sign(x) * (opening / 2 + ((Math.abs(x) - 1.9) * side) / 6.6);
         const zz = (z * side) / 6.6;

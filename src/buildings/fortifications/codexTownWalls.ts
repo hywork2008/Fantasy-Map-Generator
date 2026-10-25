@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
+import type { BuildingAppearanceProfile } from "../appearance/types";
 import { townWallRoofPalette } from "./townWallRoof";
 import type { TownWallModel } from "./townWalls";
 
@@ -492,8 +493,12 @@ function gate(m: Masonry, wings = true) {
 }
 
 /** Circuit-ready parts omit the illustrative curtain wings supplied in BV studies. */
-export function createCodexTownWallPart(kind: "wall" | "tower" | "gate", walkway = true): CityStructureMeshes {
-  const masonry = new Masonry();
+export function createCodexTownWallPart(
+  kind: "wall" | "tower" | "gate",
+  walkway = true,
+  profile: BuildingAppearanceProfile = "legacy"
+): CityStructureMeshes {
+  const masonry = new Masonry(profile === "legacy" ? undefined : townWallRoofPalette(profile));
   if (kind === "wall") curtain(masonry, -7, 7, walkway);
   else if (kind === "tower") drum(masonry, 0, 0, 11.6, [Math.PI / 2, -Math.PI / 2]);
   else gate(masonry, false);

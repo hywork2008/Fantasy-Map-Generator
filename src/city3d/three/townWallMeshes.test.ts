@@ -1,5 +1,8 @@
 import * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
+import { BUILDING_PALETTES } from "../../buildings/appearance/palette";
+import { townWallRoofPalette } from "../../buildings/fortifications/townWallRoof";
+import { standaloneHousingDocument } from "../../city-editor/renderers/standaloneHousingAppearance";
 import { collectCityStructures } from "../../city-editor/renderers/structureMassing";
 import type { StructureMassing } from "../../city-editor/types/contracts/structureMassing";
 import type { CityDocument } from "../../city-editor/types/document";
@@ -47,6 +50,66 @@ function cast(layer: ReturnType<typeof createTownWalls>, origin: THREE.Vector3, 
 }
 
 describe("CE Codex town defenses", () => {
+  it("refreshes tower and gate roofs from housing culture while preserving stonework and cached cities", () => {
+    const city = town(),
+      cache = createBvPrototypeCache(),
+      parts = collectCityStructures(city);
+    const legacy = createTownWalls(city, parts, cache, "high");
+    const southern = createTownWalls(
+      { ...city, buildingAppearanceVersion: 1, buildingAppearanceProfile: "mediterranean" },
+      parts,
+      cache,
+      "high"
+    );
+    const northern = createTownWalls(
+      { ...city, buildingAppearanceVersion: 1, buildingAppearanceProfile: "stone-upland" },
+      parts,
+      cache,
+      "high"
+    );
+    const automaticCity = standaloneHousingDocument(city, "high", false);
+    const automatic = createTownWalls(automaticCity, parts, cache, "high");
+    const restored = createTownWalls(city, parts, cache, "high");
+    try {
+      const geometry = legacy.pickables[0].geometry;
+      expect(restored.pickables[0].geometry.getAttribute("color").array).toEqual(geometry.getAttribute("color").array);
+      for (const [layer, palette] of [
+        [southern, BUILDING_PALETTES.terracotta],
+        [northern, BUILDING_PALETTES["local-stone-roof"]],
+        [automatic, townWallRoofPalette(automaticCity.buildingAppearanceProfile!)]
+      ] as const) {
+        const changed = new Set<string>();
+        const next = layer.pickables[0].geometry;
+        expect(next.getAttribute("position").array).toEqual(geometry.getAttribute("position").array);
+        const colors = next.getAttribute("color"),
+          before = geometry.getAttribute("color");
+        const swatches = palette.map(hex => new THREE.Color(hex));
+        for (let i = 0; i < colors.count; i++) {
+          if (
+            colors.getX(i) === before.getX(i) &&
+            colors.getY(i) === before.getY(i) &&
+            colors.getZ(i) === before.getZ(i)
+          )
+            continue;
+          expect(
+            swatches.some(
+              color =>
+                Math.abs(color.r - colors.getX(i)) +
+                  Math.abs(color.g - colors.getY(i)) +
+                  Math.abs(color.b - colors.getZ(i)) <
+                1e-6
+            )
+          ).toBe(true);
+          changed.add(parts[next.getAttribute("buildingIndex").getX(i)].kind);
+        }
+        expect(changed).toEqual(new Set(["tower", "gate"]));
+      }
+    } finally {
+      for (const layer of [legacy, southern, northern, automatic, restored]) layer.dispose();
+    }
+    expect(cache.size).toBe(0);
+  });
+
   it.each(["low", "standard"] as const)("keeps %s on the existing massing without acquiring prototypes", quality => {
     const city = town(),
       cache = createBvPrototypeCache();

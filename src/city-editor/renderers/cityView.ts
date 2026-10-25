@@ -42,7 +42,7 @@ import type { CityDocument } from "../types/document";
 import { collectOpenSpacePlan } from "./openSpaceSites";
 import { collectPierSites } from "./pierSites";
 import { collectShipSites } from "./shipSites";
-import { standaloneHousingAppearance } from "./standaloneHousingAppearance";
+import { standaloneHousingAppearance, standaloneHousingDocument } from "./standaloneHousingAppearance";
 import { collectCityStructures, landmarkLotStructures } from "./structureMassing";
 import { groundStructures, lotFoundations, rampStructures, stairStructures } from "./terrainMassing";
 import { resolveCemeteryPlans } from "./townFacts";
@@ -419,7 +419,9 @@ export function mountCity3d(options: {
     const city = options.getDocument();
     // Fabric first: lane geometry is part of the road stamp, and graded roads shape the terrain.
     const quality = options.getModelQuality?.() ?? "standard";
-    const fabric = standaloneHousingAppearance(city, buildBlockFabric(city), quality, options.isFmgLinked?.() ?? false);
+    const fmgLinked = options.isFmgLinked?.() ?? false;
+    const appearanceCity = standaloneHousingDocument(city, quality, fmgLinked);
+    const fabric = standaloneHousingAppearance(city, buildBlockFabric(city), quality, fmgLinked);
     const stamp = `${townWaterStamp(city)}|${riverDropMeters(riverDrop())}`;
     const roads = townRoadStamp(city, fabric.lanes);
     const spacing = options.getTerrainSpacing?.() ?? "auto";
@@ -489,7 +491,8 @@ export function mountCity3d(options: {
     if (plan.buildings) {
       built = fabric;
       builtQuality = quality;
-      rebuild(city, fabric, !terrainChanged, quality);
+      // Defenses and special buildings must use the same automatic culture as the housing preview.
+      rebuild(appearanceCity, fabric, !terrainChanged, quality);
     }
     if (plan.water) {
       placeWater(city);
