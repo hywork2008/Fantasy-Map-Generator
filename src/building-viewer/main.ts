@@ -40,6 +40,7 @@ import { createGalleon, GALLEON } from "../buildings/ships/galleon";
 import { createSloop, SLOOP } from "../buildings/ships/sloop";
 import { BATTERING_RAM, createBatteringRam } from "../buildings/siege/batteringRam";
 import { createEarlyFieldCannon, EARLY_FIELD_CANNON } from "../buildings/siege/earlyFieldCannon";
+import { createSiegeTower, SIEGE_TOWER } from "../buildings/siege/siegeTower";
 import { createTrebuchet, TREBUCHET } from "../buildings/siege/trebuchet";
 import {
   createHangingSign,
@@ -1146,6 +1147,45 @@ ramButton.addEventListener("click", () => {
   );
 });
 siegeHeading.append(ramButton);
+
+const siegeTowerButton = document.createElement("button");
+siegeTowerButton.type = "button";
+siegeTowerButton.textContent = "Siege tower · Medieval European belfry";
+siegeTowerButton.addEventListener("click", () => {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === siegeTowerButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Siege tower side elevation";
+  levelTitle.textContent = "Siege tower plan";
+  const model = createSiegeTower();
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: SIEGE_TOWER.length, depth: SIEGE_TOWER.width } }, SIEGE_TOWER.height);
+  camera.position.set(16, 12, 18);
+  controls.target.set(1, 5.2, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  facts.append(
+    fact("Model", SIEGE_TOWER.name),
+    fact("Style", "Medieval Europe · Timber belfry"),
+    fact("Study envelope", `${SIEGE_TOWER.length} × ${SIEGE_TOWER.width} × ${SIEGE_TOWER.height} m`),
+    fact("Structure", "Asymmetric timber frame, raked open rear, four decks and rear-set roof access"),
+    fact("Protection", "Hide panels, arrow slits and a clear 1.5 m deep forward archer strip"),
+    fact(
+      "Equipment",
+      "Four iron-bound wheels, flush assault bridge and one overhead windlass with linked drums and a wall-side hand-rope loop"
+    ),
+    fact("Note", SIEGE_TOWER.note)
+  );
+});
+siegeHeading.append(siegeTowerButton);
 
 const artilleryHeading = modelCategory("Artillery");
 const cannonButton = document.createElement("button");
