@@ -5,6 +5,7 @@ import { createTownFarms } from "./farmMeshes";
 
 const farm = (overrides: Partial<FarmPlot> = {}): FarmPlot => ({
   faceId: "field",
+  cropState: "spring-crop",
   polygon: [
     [10, 20],
     [30, 20],
@@ -167,5 +168,28 @@ it("leaves no soil or lines when water covers a field completely", () => {
   ];
   const meshes = createTownFarms([farm()], undefined, [water]);
   expect(meshes.parent.children).toHaveLength(0);
+  meshes.dispose();
+});
+
+it("renders wheat as a raised, batched canopy with bounded geometry rather than individual stalks", () => {
+  const plots = [farm({ cropState: "winter-crop" }), farm({ cropState: "crop" })];
+  const meshes = createTownFarms(plots, { relief: true, heightAt: ([x]) => x / 10 });
+  expect(meshes.parent.children).toHaveLength(1);
+  const surface = meshes.parent.children[0] as THREE.Mesh;
+  const positions = surface.geometry.getAttribute("position");
+  const crop = surface.geometry.getAttribute("crop");
+  expect(crop.count).toBe(positions.count);
+  expect(positions.count).toBeLessThan(2000);
+  let top = 0,
+    bottom = 0;
+  for (let i = 0; i < positions.count; i++) {
+    const offset = positions.getY(i) - positions.getX(i) / 10;
+    expect(crop.getX(i)).toBe(1);
+    expect(offset >= 0.03499 && offset <= 0.85001).toBe(true);
+    if (Math.abs(offset - 0.85) < 0.00001) top++;
+    if (Math.abs(offset - 0.035) < 0.00001) bottom++;
+  }
+  expect(top).toBeGreaterThan(0);
+  expect(bottom).toBeGreaterThan(0);
   meshes.dispose();
 });

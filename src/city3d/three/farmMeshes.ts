@@ -14,6 +14,43 @@ export interface TownFarmMeshes {
   dispose(): void;
 }
 
+const WHEAT_HEIGHT = 0.85;
+
+/** Shade a continuous crop canopy without stalk meshes, textures or extra draw calls. */
+function fieldMaterial(): THREE.MeshLambertMaterial {
+  const material = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
+  material.onBeforeCompile = shader => {
+    shader.vertexShader = `attribute vec3 crop;
+varying vec3 vCrop;
+varying vec2 vFieldPosition;
+${shader.vertexShader}`.replace(
+      "#include <begin_vertex>",
+      `#include <begin_vertex>
+      vCrop = crop;
+      vFieldPosition = vec2(position.x, -position.z);`
+    );
+    shader.fragmentShader = `varying vec3 vCrop;
+varying vec2 vFieldPosition;
+${shader.fragmentShader}`.replace(
+      "#include <color_fragment>",
+      `#include <color_fragment>
+      if (vCrop.x > 0.5) {
+        float across = dot(vFieldPosition, vCrop.yz);
+        float along = dot(vFieldPosition, vec2(-vCrop.z, vCrop.y));
+        // Derivative filtering fades fine detail before it can shimmer at distance.
+        float rowPhase = across * 5.0;
+        float rows = cos(rowPhase) * (1.0 - smoothstep(0.4, 2.0, fwidth(rowPhase)));
+        float grainPhase = along * 31.0 + sin(across * 43.0) * 2.0;
+        float grain = sin(grainPhase) * (1.0 - smoothstep(0.4, 2.0, fwidth(grainPhase)));
+        float patches = sin(across * 0.37 + sin(along * 0.23)) * sin(along * 0.41);
+        diffuseColor.rgb *= 0.93 + 0.09 * rows + 0.055 * grain + 0.06 * patches;
+      }`
+    );
+  };
+  material.customProgramCacheKey = () => "ce-field-canopy-v1";
+  return material;
+}
+
 /** Reuse the saved field footprints and working rows. Two batches keep large
  * rural layouts cheap to draw; neither batch participates in building picking. */
 export function createTownFarms(
@@ -63,6 +100,14 @@ export function createTownFarms(
   farms.forEach((farm, index) => {
     if (farm.polygon.length < 3) return;
     const garden = farm.kind === "kitchen-garden" || farm.system === "market-garden";
+    const wheat =
+      !garden && farm.cropState !== "fallow" && farm.cropState !== "spring-crop" && farm.cropState !== "horticulture";
+    const angle =
+      farm.orientationRadians ??
+      (() => {
+        const row = farm.rows.find(row => row.length >= 2);
+        return row ? Math.atan2(row[1][1] - row[0][1], row[1][0] - row[0][0]) : 0;
+      })();
     const tone = Math.abs(Math.round(farm.polygon[0][0] / 17) + Math.round(farm.polygon[0][1] / 13) + index) % 2;
     const color = new THREE.Color(
       garden
@@ -73,24 +118,50 @@ export function createTownFarms(
           ? "#b8bd98"
           : farm.cropState === "spring-crop"
             ? "#c5ce9d"
-            : tone
-              ? "#d4ceb2"
-              : "#c4bf9a"
+            : wheat
+              ? tone
+                ? "#e4b847"
+                : "#d5a437"
+              : "#aec392"
     );
     // Punch actual openings in the soil; water remains below the terrain.
     for (const polygon of dryPolygons(farm.polygon)) {
       const geometry = groundSurfaceGeometry(
-        { ring: polygon, offset: 0.035 },
+        { ring: polygon, offset: wheat ? WHEAT_HEIGHT : 0.035 },
         heightAt,
         terrain?.relief ? 8 : Infinity
       );
+      if (wheat) {
+        // Close the canopy down to the soil, including the clipped river banks.
+        const positions = Array.from(geometry.getAttribute("position").array);
+        for (let i = 0; i < polygon.length; i++) {
+          const a = polygon[i],
+            b = polygon[(i + 1) % polygon.length];
+          const steps = terrain?.relief ? Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 8)) : 1;
+          const at = (n: number): Point => [a[0] + ((b[0] - a[0]) * n) / steps, a[1] + ((b[1] - a[1]) * n) / steps];
+          for (let n = 0; n < steps; n++) {
+            const p = at(n),
+              q = at(n + 1);
+            const bottomA = planVertex(p, heightAt(p) + 0.035),
+              topA = planVertex(p, heightAt(p) + WHEAT_HEIGHT);
+            const bottomB = planVertex(q, heightAt(q) + 0.035),
+              topB = planVertex(q, heightAt(q) + WHEAT_HEIGHT);
+            positions.push(...bottomA, ...topA, ...topB, ...bottomA, ...topB, ...bottomB);
+          }
+        }
+        geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+        geometry.computeVertexNormals();
+      }
+      const crop = new Float32Array(geometry.getAttribute("position").count * 3);
+      for (let i = 0; i < crop.length; i += 3) crop.set([wheat ? 1 : 0, -Math.sin(angle), Math.cos(angle)], i);
+      geometry.setAttribute("crop", new THREE.BufferAttribute(crop, 3));
       const colors = new Float32Array(geometry.getAttribute("position").count * 3);
       for (let i = 0; i < colors.length; i += 3) colors.set([color.r, color.g, color.b], i);
       geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
       surfaces.push(geometry);
     }
     const rowColor = new THREE.Color(garden ? "#52653b" : "#78704e");
-    if (farm.cropState !== "fallow") for (const row of farm.rows) addLine(row, rowColor);
+    if (!wheat && farm.cropState !== "fallow") for (const row of farm.rows) addLine(row, rowColor);
     const boundaryColor = new THREE.Color(farm.boundaryKind === "hedge" ? "#405a35" : "#706955");
     const boundaries = farm.boundaries ?? (farm.clippedByFrame ? [] : [[...farm.polygon, farm.polygon[0]]]);
     for (const boundary of boundaries) addLine(boundary, boundaryColor);
@@ -99,10 +170,7 @@ export function createTownFarms(
     const geometry = mergeGeometries(surfaces)!;
     for (const part of surfaces) part.dispose();
     // A negative depth bias on the soil would hide the furrows above it.
-    const material = new THREE.MeshLambertMaterial({
-      vertexColors: true,
-      side: THREE.DoubleSide
-    });
+    const material = fieldMaterial();
     const mesh = new THREE.Mesh(geometry, material);
     mesh.name = "ce-field-surfaces";
     mesh.raycast = () => {};
