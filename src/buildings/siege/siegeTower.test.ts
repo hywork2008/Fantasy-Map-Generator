@@ -87,15 +87,15 @@ it("connects adjacent flights directly across a short landing without walking ar
     const y = layout.decks[level] + 0.06;
     const x = layout.ladderX[level - 1];
     const directionZ = layout.ladderDirection[level - 1];
-    const landingZ = directionZ * 1.32;
+    const landingZ = directionZ * (level === 2 ? 1.4 : 1.32);
     const z0 = landingZ - 0.28,
       z1 = landingZ + 0.28;
     const landing = volume(x - 0.28, y + 0.02, z0, x + 0.28, y + 1.85, z1);
     const transfer = volume(
-      Math.min(x, level === 2 ? -1.45 : layout.ladderX[level]) - 0.28,
+      Math.min(x, level === 2 ? -0.15 : layout.ladderX[level]) - 0.28,
       y + 0.02,
       z0,
-      Math.max(x, level === 2 ? -1.45 : layout.ladderX[level]) + 0.28,
+      Math.max(x, level === 2 ? -0.15 : layout.ladderX[level]) + 0.28,
       y + 1.85,
       z1
     );
@@ -132,7 +132,7 @@ it("keeps the assault corridor clear of winding shafts and ropes and fits the ra
   );
   for (const mesh of model.pickables)
     expect(bounds(mesh).intersectsBox(corridor), `${mesh.name} blocks the assault`).toBe(false);
-  const landingToDoor = volume(-0.2, 7.53, -1.25, 1.1, 9.4, -0.8);
+  const landingToDoor = volume(-0.65, 7.53, -1.68, 1.1, 9.4, -1.12);
   for (const mesh of model.pickables)
     expect(bounds(mesh).intersectsBox(landingToDoor), `${mesh.name} blocks the exit`).toBe(false);
   expect(parts("winch-drum")).toHaveLength(2);
@@ -181,13 +181,40 @@ it("connects the left boarding entry and the roof approach without an aft-facing
   expect(stiles.every(mesh => mesh.position.z < 0)).toBe(true);
   expect(Math.abs(layout.boardingZ - layout.ladderFootZ)).toBeLessThan(0.3);
   const routes = [
-    volume(-1.72, 1.73, -1.65, -0.8, 3.5, -1.12),
-    volume(-1.73, 7.53, -1.32, -1.17, 9.36, -0.34),
-    volume(-0.03, 10.43, -0.9, 0.53, 12.2, -0.34)
+    volume(-1.72, 1.73, -1.65, 0.28, 3.5, -1.12),
+    volume(-0.43, 7.53, -1.4, 0.13, 9.36, -0.4),
+    volume(0.87, 10.43, -0.96, 1.43, 12.2, -0.4)
   ];
   for (const route of routes)
     for (const mesh of model.pickables)
       expect(bounds(mesh).intersectsBox(route), `${mesh.name} blocks the connected approach`).toBe(false);
+  model.dispose();
+});
+
+it("never sends an archer aft between the assault-deck arrival and the roof ladder", () => {
+  const model = createSiegeTowerModel();
+  model.group.updateMatrixWorld(true);
+  const stiles = model.pickables.filter(mesh => mesh.name === "ladder-stile");
+  const pairCenter = (flight: number, end: number) =>
+    stiles
+      .slice(flight * 2, flight * 2 + 2)
+      .map(mesh => mesh.localToWorld(new THREE.Vector3(0, end, 0)))
+      .reduce((sum, p) => sum.add(p), new THREE.Vector3())
+      .multiplyScalar(0.5);
+  const arrival = pairCenter(1, 0.5);
+  const roofFoot = pairCenter(2, -0.5);
+  // The approach needs 0.35 m behind the foot for a body and must still be ahead of the arrival.
+  const approachX = roofFoot.x - 0.35;
+  expect(layout.ladderX[0]).toBeGreaterThan(layout.ladderX[1]);
+  expect(approachX).toBeGreaterThan(arrival.x + 0.3);
+  expect(roofFoot.x).toBeGreaterThan(approachX);
+  expect(pairCenter(2, 0.5).x).toBeGreaterThan(roofFoot.x);
+  const landingZ = -1.4;
+  const forwardTransfer = volume(arrival.x - 0.28, 7.53, landingZ - 0.28, approachX + 0.28, 9.36, landingZ + 0.28);
+  const sidewaysApproach = volume(approachX - 0.28, 7.53, landingZ, approachX + 0.28, 9.36, roofFoot.z + 0.28);
+  for (const space of [forwardTransfer, sidewaysApproach])
+    for (const mesh of model.pickables)
+      expect(bounds(mesh).intersectsBox(space), `${mesh.name} forces a detour on the archer route`).toBe(false);
   model.dispose();
 });
 

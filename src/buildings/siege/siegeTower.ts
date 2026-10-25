@@ -14,11 +14,11 @@ export const SIEGE_TOWER = {
 // Positive X faces the wall. Lower flights are transverse; the roof flight ascends towards the wall.
 export const SIEGE_TOWER_LAYOUT = {
   decks: [1.65, 4.55, 7.45, 10.35],
-  ladderX: [-1.08, 0, -1.08],
+  ladderX: [0, -1.08, -1.08],
   ladderDirection: [1, -1, 1],
   boardingZ: -1.1,
-  roofLadderZ: -0.62,
-  roofLadderExitX: -0.9,
+  roofLadderZ: -0.68,
+  roofLadderExitX: 0.4,
   hatchHalfWidth: 0.48,
   hatchRear: -1.1,
   hatchFront: 0.62,
@@ -107,8 +107,8 @@ export function createSiegeTowerModel(): CityStructureMeshes {
     const hatchX = level > 0 ? layout.ladderX[level - 1] : null;
     const incomingDirection = level > 0 ? layout.ladderDirection[level - 1] : 1;
     const roof = level === 3;
-    const hatchMinX = roof ? -1.5 : (hatchX ?? 0) - layout.hatchHalfWidth;
-    const hatchMaxX = roof ? -0.45 : (hatchX ?? 0) + layout.hatchHalfWidth;
+    const hatchMinX = roof ? -0.2 : (hatchX ?? 0) - layout.hatchHalfWidth;
+    const hatchMaxX = roof ? 0.85 : (hatchX ?? 0) + layout.hatchHalfWidth;
     const hatchRear = roof
       ? layout.roofLadderZ - layout.hatchHalfWidth
       : incomingDirection > 0

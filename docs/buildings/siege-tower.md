@@ -9,9 +9,9 @@
 
 ## Interpretation used in BV
 
-The ground boarding ladder is offset to the left when viewed from behind the tower facing the enemy (negative Z). It feeds the first internal ladder's entry side rather than the middle of the room. Lower internal flights retain their transverse switchback arrangement.
+The ground boarding ladder is offset to the left when viewed from behind the tower facing the enemy (negative Z). It feeds the first internal ladder's entry side rather than the middle of the room. Lower internal flights retain their transverse switchback arrangement, with the first flight forward (X = 0) and the second flight aft (X = -1.08).
 
-Positive X faces the castle wall. After arriving on the assault deck, an archer steps sideways across the rear landing to the adjacent roof-ladder approach. The roof ladder rises towards positive X. The approach remains beside the incoming hatch, so there is no need to walk around that hatch or turn to face away from the enemy. The rooftop opening and its side guards follow this new ascent axis. This is a steep ladder for the existing model, not a shallow stair intended for heavy equipment.
+Positive X faces the castle wall. After arriving on the assault deck at X = -1.08, an archer moves forward to X = -0.15 along the landing, then sideways to the roof ladder. The roof ladder foot is farther forward at X = 0.20 and its deck exit is X = 0.40. The entire transfer keeps X constant or increasing; no backward leg or turn to face aft is needed. The roof ladder rises towards positive X. The approach remains beside the incoming hatch, so there is no need to walk around that hatch or turn to face away from the enemy. The rooftop opening and its side guards follow this new ascent axis. This is a steep ladder for the existing model, not a shallow stair intended for heavy equipment.
 
 This compact circulation arrangement is an explicit design interpretation requested for the BV model. The historical text does not specify these ladder directions or landing connections, and the single illustration cannot establish a complete internal circulation plan. It does not document a light/heavy equipment classification for ladder or stair layouts.
 
