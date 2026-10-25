@@ -2,9 +2,10 @@ import { describe, expect, it } from "vitest";
 import { parseDocument } from "../services/io/documentCodec";
 import type { CityDocument, Point } from "../types/document";
 import { buildBlockFabric, documentFabricFingerprint } from "./blockInfill";
+import { ELEVATION_PRESETS, elevationSampler } from "./elevationPreset";
 import { polygonArea, polygonCentroid } from "./geom";
 import { DocumentHistory } from "./history";
-import { clone, meshFromCells } from "./mesh";
+import { clone, facePoints, meshFromCells } from "./mesh";
 import { corridor, intersectConvex } from "./parcelGeometry";
 import { cultivateRoadside, regenerateRuralLand } from "./roadsideFarms";
 import { storeRuralFieldOverlay } from "./ruralFieldOverlay";
@@ -219,7 +220,26 @@ describe("CE rural field integration", () => {
     expect(parseDocument(JSON.stringify({ ...document, ruralFieldSettings: { mode: "sync" } }))).toBeNull();
   });
 
-  it("uses the cell terrain and labels biome inference without inventing soil measurements", () => {
+  it("retains the same Farm ward plots across cell elevation presets", () => {
+    const document = city();
+    document.ruralFieldVersion = 2;
+    document.ruralFieldSettings = { system: "bocage", gardenRadiusMeters: 0 };
+    const flat = applyRuralFields(document, emptyFabric());
+    expect(flat.farms.length).toBeGreaterThan(0);
+    for (const elevationPreset of ELEVATION_PRESETS.filter(preset => preset !== "flat")) {
+      const elevated = structuredClone(document);
+      const sample = elevationSampler(
+        { elevationPreset, elevationRelief: 4, elevationSeed: "farm-relief", rivers: [], waterPolygon: null },
+        elevated.frame
+      );
+      for (const face of Object.values(elevated.mesh.faces))
+        face.properties.elevation = sample(polygonCentroid(facePoints(elevated.mesh, face)), 0, 0);
+      const result = applyRuralFields(elevated, emptyFabric());
+      expect(result.farms, elevationPreset).toEqual(flat.farms);
+    }
+  });
+
+  it("keeps synthetic cell banks cultivable and labels biome inference without inventing soil measurements", () => {
     const document = city();
     document.ruralFieldVersion = 2;
     document.mesh.faces.f0.properties.elevation = 0;
@@ -231,10 +251,10 @@ describe("CE rural field integration", () => {
       [238, 200],
       [225, 200]
     ];
-    // A small step between cells is an earth bank, steep enough to keep the plough off.
+    // A bank joins level Farm wards and must not discard entire plots that touch it.
     const suitability = ruralSuitability(document);
-    expect(suitability.steep(polygon)).toBe(true);
-    expect(suitability.steepArea(polygon)).toBeGreaterThan(0);
+    expect(suitability.steep(polygon)).toBe(false);
+    expect(suitability.steepArea(polygon)).toBe(0);
     // A large one is a retaining wall between two level fields.
     document.mesh.faces.f1.properties.elevation = 200;
     expect(ruralSuitability(document).steep(polygon)).toBe(false);

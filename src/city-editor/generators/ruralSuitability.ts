@@ -5,7 +5,7 @@ import { cityTerrain } from "./terrainElevation";
 import { FARM_SLOPE_LIMIT } from "./terrainField/constants";
 
 /** Use supplied soil/wetness first; biome inference is deliberately labelled.
- * Terrain triangles share the renderer's elevation model, including edited relief. */
+ * Height-field slopes constrain farming; synthetic banks between Farm cells do not. */
 export function ruralSuitability(document: CityDocument) {
   const terrain = cityTerrain(document);
   const steep = new PlotIndex<Point[]>();
@@ -24,21 +24,8 @@ export function ruralSuitability(document: CityDocument) {
         steep.add(square, bounds(square));
       }
   }
-  for (const patch of terrain.field ? [] : terrain.triangles) {
-    // A cliff or retaining-wall face is the edge between two flat levels, not a slope to plough.
-    if (patch.escarpment) continue;
-    const [a, b, c] = patch.points,
-      [za, zb, zc] = patch.heights;
-    const dx = b[0] - a[0],
-      dy = b[1] - a[1],
-      ex = c[0] - a[0],
-      ey = c[1] - a[1];
-    const det = dx * ey - dy * ex;
-    if (Math.abs(det) < 1e-8) continue;
-    const gx = ((zb - za) * ey - (zc - za) * dy) / det,
-      gy = (dx * (zc - za) - ex * (zb - za)) / det;
-    if (Math.hypot(gx, gy) > 0.18) steep.add(patch.points, bounds(patch.points));
-  }
+  // Cell elevations describe level wards joined by synthetic banks and retaining walls.
+  // Rejecting a whole plot that touches one of these seams erases otherwise cultivable Farm wards.
   const biome = [document.biome?.key, ...(document.biome?.tags ?? [])].filter(Boolean).join(" ").toLowerCase();
   const hostile = /wetland|swamp|marsh|glacier|ice|desert/.test(biome);
   const measured = Object.values(document.mesh.faces).some(

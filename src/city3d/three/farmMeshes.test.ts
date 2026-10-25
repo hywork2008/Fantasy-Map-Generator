@@ -193,3 +193,62 @@ it("renders wheat as a raised, batched canopy with bounded geometry rather than 
   expect(bottom).toBeGreaterThan(0);
   meshes.dispose();
 });
+
+it("drapes fields over cell boundary creases instead of burying them under the bank", () => {
+  const triangles = [
+    {
+      faceId: "low",
+      points: [
+        [10, 20],
+        [20, 20],
+        [20, 40]
+      ],
+      heights: [0, 10, 10]
+    },
+    {
+      faceId: "low",
+      points: [
+        [10, 20],
+        [20, 40],
+        [10, 40]
+      ],
+      heights: [0, 10, 0]
+    },
+    {
+      faceId: "high",
+      points: [
+        [20, 20],
+        [30, 20],
+        [30, 40]
+      ],
+      heights: [10, 0, 0]
+    },
+    {
+      faceId: "high",
+      points: [
+        [20, 20],
+        [30, 40],
+        [20, 40]
+      ],
+      heights: [10, 0, 10]
+    }
+  ] as import("../../city-editor/types/terrain").TerrainPatch[];
+  for (const cropState of ["spring-crop", "winter-crop", "fallow"] as const) {
+    const meshes = createTownFarms([farm({ cropState, rows: [] })], {
+      relief: true,
+      heightAt: ([x]) => 10 - Math.abs(x - 20),
+      triangles
+    });
+    const surface = meshes.parent.getObjectByName("ce-field-surfaces") as THREE.Mesh;
+    surface.raycast = THREE.Mesh.prototype.raycast;
+    surface.updateMatrixWorld(true);
+    for (const x of [19.9, 20, 20.1]) {
+      const hits = new THREE.Raycaster(new THREE.Vector3(x, 30, -30), new THREE.Vector3(0, -1, 0)).intersectObject(
+        surface
+      );
+      expect(hits.length).toBeGreaterThan(0);
+      expect(hits[0].point.y).toBeCloseTo(10 - Math.abs(x - 20) + (cropState === "winter-crop" ? 0.85 : 0.035), 4);
+    }
+    meshes.dispose();
+  }
+});

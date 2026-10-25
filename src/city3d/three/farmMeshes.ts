@@ -1,11 +1,12 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { triangularInfillParts } from "../../city-editor/generators/lotGeometry";
-import { bounds, PlotIndex, subtractConvex } from "../../city-editor/generators/parcelGeometry";
+import { bounds, intersectConvex, PlotIndex, subtractConvex } from "../../city-editor/generators/parcelGeometry";
 import type { CityTerrain } from "../../city-editor/generators/terrainElevation";
 import { dryRuns } from "../../city-editor/generators/waterGeometry";
 import type { FarmPlot } from "../../city-editor/types/contracts/ruralFields";
 import type { Point } from "../../city-editor/types/primitives";
+import type { TerrainPatch } from "../../city-editor/types/terrain";
 import { planVertex } from "../core/planFrame";
 import { groundSurfaceGeometry } from "./groundSurfaceGeometry";
 
@@ -55,12 +56,41 @@ ${shader.fragmentShader}`.replace(
  * rural layouts cheap to draw; neither batch participates in building picking. */
 export function createTownFarms(
   farms: readonly FarmPlot[],
-  terrain?: Pick<CityTerrain, "heightAt" | "relief">,
+  terrain?: Pick<CityTerrain, "heightAt" | "relief"> & Partial<Pick<CityTerrain, "triangles" | "field">>,
   wetPolygons: readonly Point[][] = []
 ): TownFarmMeshes {
   const parent = new THREE.Group();
   parent.name = "ce-farmland";
   const heightAt = terrain?.heightAt ?? (() => 0);
+  // Cell banks have explicit creases that uniform sampling can bridge below the ground.
+  const patches = new PlotIndex<TerrainPatch>();
+  if (terrain?.relief && !terrain.field)
+    for (const patch of terrain.triangles ?? []) patches.add(patch, bounds(patch.points));
+  const surfaceGeometry = (polygon: Point[], offset: number): THREE.BufferGeometry => {
+    const candidates = patches.query(bounds(polygon));
+    if (!candidates.length)
+      return groundSurfaceGeometry({ ring: polygon, offset }, heightAt, terrain?.relief ? 8 : Infinity);
+    const positions: number[] = [];
+    for (const part of triangularInfillParts(polygon))
+      for (const patch of candidates) {
+        const clipped = intersectConvex(part, patch.points);
+        const [a, b, c] = patch.points;
+        const cross = (p: Point, q: Point, r: Point) => (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]);
+        const area = cross(a, b, c);
+        if (Math.abs(area) < 1e-10) continue;
+        for (let i = 1; i < clipped.length - 1; i++)
+          for (const point of [clipped[0], clipped[i], clipped[i + 1]]) {
+            const u = cross(point, b, c) / area;
+            const v = cross(a, point, c) / area;
+            const height = u * patch.heights[0] + v * patch.heights[1] + (1 - u - v) * patch.heights[2];
+            positions.push(...planVertex(point, height + offset));
+          }
+      }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    geometry.computeVertexNormals();
+    return geometry;
+  };
   const wetParts = new PlotIndex<Point[]>(),
     wetRings = new PlotIndex<Point[]>();
   for (const polygon of wetPolygons) {
@@ -84,9 +114,25 @@ export function createTownFarms(
       const a = line[i - 1],
         b = line[i];
       const steps = terrain?.relief ? Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 8)) : 1;
-      const at = (n: number): Point => [a[0] + ((b[0] - a[0]) * n) / steps, a[1] + ((b[1] - a[1]) * n) / steps];
-      for (let n = 0; n < steps; n++)
-        for (const p of [at(n), at(n + 1)]) {
+      const cuts = Array.from({ length: steps + 1 }, (_, n) => n / steps);
+      for (const patch of patches.query(bounds([a, b])))
+        for (let edge = 0; edge < 3; edge++) {
+          const c = patch.points[edge],
+            d = patch.points[(edge + 1) % 3];
+          const dx = b[0] - a[0],
+            dy = b[1] - a[1];
+          const ex = d[0] - c[0],
+            ey = d[1] - c[1];
+          const denominator = dx * ey - dy * ex;
+          if (Math.abs(denominator) < 1e-10) continue;
+          const t = ((c[0] - a[0]) * ey - (c[1] - a[1]) * ex) / denominator;
+          const u = ((c[0] - a[0]) * dy - (c[1] - a[1]) * dx) / denominator;
+          if (t > 0 && t < 1 && u >= 0 && u <= 1) cuts.push(t);
+        }
+      const sorted = [...new Set(cuts)].sort((a, b) => a - b);
+      for (let n = 1; n < sorted.length; n++)
+        for (const t of [sorted[n - 1], sorted[n]]) {
+          const p: Point = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
           lines.push(...planVertex(p, heightAt(p) + 0.07));
           lineColors.push(color.r, color.g, color.b);
         }
@@ -126,11 +172,7 @@ export function createTownFarms(
     );
     // Punch actual openings in the soil; water remains below the terrain.
     for (const polygon of dryPolygons(farm.polygon)) {
-      const geometry = groundSurfaceGeometry(
-        { ring: polygon, offset: wheat ? WHEAT_HEIGHT : 0.035 },
-        heightAt,
-        terrain?.relief ? 8 : Infinity
-      );
+      const geometry = surfaceGeometry(polygon, wheat ? WHEAT_HEIGHT : 0.035);
       if (wheat) {
         // Close the canopy down to the soil, including the clipped river banks.
         const positions = Array.from(geometry.getAttribute("position").array);
