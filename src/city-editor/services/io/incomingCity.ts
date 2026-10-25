@@ -10,6 +10,13 @@ import {
 } from "../../../utils/fixedBurgCrossings";
 import { isRequiredSiteBounds, populationWindowMeters, requiredSiteExtent } from "../../../utils/requiredSiteBounds";
 import { validUrbanMorphology } from "../../../utils/urbanMorphology";
+import { sameBuildingHeightLimit, validBuildingHeightLimit } from "../../generators/buildingHeightLimits";
+import {
+  DEFAULT_BUILDING_HEIGHT_POLICY,
+  sameBuildingHeightPolicy,
+  validBuildingHeightPolicy,
+  validHousingAreaSettings
+} from "../../generators/buildingHeightPolicy";
 import { elevationReliefScale } from "../../generators/elevationPreset";
 import { generationStageDefinitions } from "../../generators/generation/stages";
 import {
@@ -203,6 +210,7 @@ export function shareFromDescriptor(
         : undefined,
     measureBlockSize: townGrid ? true : undefined,
     settings: {
+      buildingHeightPolicy: { ...DEFAULT_BUILDING_HEIGHT_POLICY },
       config: structuredClone(DEFAULT_SITE_CONFIG),
       ...(descriptor.burg.population >= 1 &&
       descriptor.burg.population <= MAX_CITY_POPULATION &&
@@ -439,6 +447,10 @@ function asShare(raw: unknown): CityEditorShare | null {
     if (isRecord(raw.input)) repairRiverBeds(raw.input as unknown as CityDocument);
     const input = parseDocument(JSON.stringify(raw.input));
     if (!input || input.fabric) return warnShape("share.input");
+    if (!sameBuildingHeightPolicy(input.buildingHeightPolicy, settings.buildingHeightPolicy))
+      return warnShape("share.heightPolicy");
+    if (!sameBuildingHeightLimit(input.buildingHeightLimit, settings.buildingHeightLimit))
+      return warnShape("share.heightLimit");
     share.input = input;
     if (input.bastionedTown?.military && raw.version !== 3) return warnShape("share.version");
   }
@@ -467,7 +479,19 @@ function asSettings(raw: unknown): Omit<GenerationSettings, "descriptor"> | null
     ? (raw.config as unknown as GenerationSettings["config"])
     : structuredClone(DEFAULT_SITE_CONFIG);
   if (raw.buildingPattern !== undefined && !["legacy", "medieval"].includes(String(raw.buildingPattern))) return null;
-  const settings: Omit<GenerationSettings, "descriptor"> = { config };
+  if (
+    !validBuildingHeightPolicy(raw.buildingHeightPolicy) ||
+    !validHousingAreaSettings(raw) ||
+    !validBuildingHeightLimit(raw.buildingHeightLimit)
+  )
+    return null;
+  const settings: Omit<GenerationSettings, "descriptor"> = {
+    config,
+    buildingHeightPolicy: raw.buildingHeightPolicy ? { ...raw.buildingHeightPolicy } : undefined,
+    buildingHeightLimit: raw.buildingHeightLimit ? { ...raw.buildingHeightLimit } : undefined
+  };
+  if (raw.housingAreaScale !== undefined) settings.housingAreaScale = raw.housingAreaScale as number;
+  if (raw.housingAreaPasses !== undefined) settings.housingAreaPasses = raw.housingAreaPasses as number;
   if (raw.mode !== undefined) {
     if (raw.mode !== "city" && raw.mode !== "fort") return null;
     settings.mode = raw.mode;

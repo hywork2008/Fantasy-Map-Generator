@@ -1,9 +1,12 @@
 import type { FaithFamily, FortificationFamily } from "../../data/civilizationTraditions";
 import { periodIndex } from "../../data/civilizationTraditions";
 import { growthRandom, residentialStoreys } from "../../utils/urbanMorphology";
-import type { FloorSpec, FloorUse, RoofForm, RoofMaterial, WallMaterial } from "../types/contracts/buildingMassing";
+import type { RoofForm, RoofMaterial, WallMaterial } from "../types/contracts/buildingMassing";
 import type { CityDocument } from "../types/document";
 import type { Point } from "../types/primitives";
+import { buildingFloorSpecs } from "./buildingFloors";
+import { applyBuildingHeightLimits, effectiveHeightLimit } from "./buildingHeightLimits";
+import { hasBuildingHeightVariation } from "./buildingHeightPolicy";
 import type { BuildingLot } from "./buildingLots.types";
 import { isResidentialBuilding } from "./residentialCapacity";
 
@@ -27,28 +30,6 @@ const EAST_ASIAN_FAITH = new Set<FaithFamily>([
   "vajrayana",
   "hindu"
 ]);
-const GROUND_HEIGHT: Record<FloorUse, number> = {
-  residential: 3.2,
-  retail: 4,
-  craft: 4,
-  storage: 4.5,
-  stable: 3.6,
-  civic: 5,
-  religious: 6,
-  military: 4,
-  service: 3.2
-};
-const UPPER_HEIGHT: Record<FloorUse, number> = {
-  residential: 2.9,
-  retail: 3.2,
-  craft: 3.2,
-  storage: 3.6,
-  stable: 3,
-  civic: 4,
-  religious: 4.5,
-  military: 3.4,
-  service: 2.9
-};
 const ROOF_PITCH: Record<RoofMaterial, number> = {
   thatch: 48,
   tile: 32,
@@ -100,50 +81,6 @@ function resolveStoreys(document: CityDocument, lot: BuildingLot): { storeys: nu
     return { storeys: Math.floor(lot.storeys), write: false };
   if (isResidentialBuilding(lot)) return { storeys: 1, write: false };
   return { storeys: nonResidentialStoreys(lot, residentialStoreys(periodOf(document)).maximum), write: true };
-}
-
-function hasResidentialUse(lot: BuildingLot): boolean {
-  if (lot.uses?.length) return lot.uses.includes("residential");
-  return !lot.role || lot.role === "main";
-}
-
-function groundUse(lot: BuildingLot): FloorUse {
-  const uses = lot.uses ?? [];
-  if (lot.role === "workshop" || (uses.includes("craft") && !uses.includes("retail"))) return "craft";
-  if (uses.includes("retail")) return "retail";
-  if (lot.role === "stable") return "stable";
-  if (lot.role === "store" || lot.role === "shed" || (uses.includes("storage") && !uses.includes("residential")))
-    return "storage";
-  return "residential";
-}
-
-function floorUses(lot: BuildingLot, storeys: number): FloorUse[] {
-  const ground = groundUse(lot);
-  const residential = hasResidentialUse(lot);
-  if (!residential || ground === "residential") return Array.from({ length: storeys }, () => ground);
-  const share = lot.residentialFloorShare ?? (lot.uses?.some(use => use !== "residential") ? 0.55 : 0.85);
-  const residentialCount = Math.max(0, Math.min(storeys - 1, Math.round(share * storeys)));
-  const floors: FloorUse[] = [ground];
-  let placed = 0;
-  for (let level = 1; level < storeys; level++) {
-    if (placed < residentialCount) {
-      floors.push("residential");
-      placed++;
-    } else floors.push(ground);
-  }
-  return floors;
-}
-
-function floorSpecs(uses: FloorUse[], period: string): FloorSpec[] {
-  const floors = uses.map((use, level) => ({
-    level,
-    use,
-    heightMeters: level === 0 ? GROUND_HEIGHT[use] : UPPER_HEIGHT[use]
-  }));
-  const eave = floors.reduce((sum, floor) => sum + floor.heightMeters, 0);
-  if (!ANTIQUITY.has(period) || eave <= 21) return floors;
-  const scale = 21 / eave;
-  return floors.map(floor => ({ ...floor, heightMeters: floor.heightMeters * scale }));
 }
 
 function wallMaterial(
@@ -255,42 +192,55 @@ export function assignBuildingMassing(document: CityDocument, lots: readonly Bui
   const climate = climateOf(document);
   const tradition = traditionOf(document);
   const seed = document.generationSeed || document.fabric?.seed || "massing";
-  return lots.map(lot => {
-    if (lot.landmark || lot.polygon.length < 3) return lot;
-    const { storeys, write } = resolveStoreys(document, lot);
-    const uses = floorUses(lot, storeys);
-    const floors = floorSpecs(uses, period);
-    const wall = wallMaterial(document, lot, period, climate, tradition);
-    const convex = isConvex(lot.polygon);
-    const bounds = roofBounds(lot.polygon);
-    const aspect = bounds.width > 0 ? bounds.length / bounds.width : 1;
-    const form = roofForm(lot, wall, period, storeys, convex, aspect);
-    const material = roofMaterial(wall, period, tradition);
-    const medievalTimber = wall === "timber-frame" && MEDIEVAL.has(period) && convex && form !== "flat";
-    const jetty = medievalTimber ? 0.4 : 0;
-    // Ordinary roofs should not become monumental structures on oversized lots.
-    // Include upper-floor offsets in the run used by the mesh builder.
-    const offset = Math.min(1.2, (storeys - 1) * jetty);
-    const run = (bounds.width + 2 * offset) / (form === "lean-to" ? 1 : 2);
-    const pitch = Math.min(ROOF_PITCH[material], (Math.atan2(4, run) * 180) / Math.PI);
-    const next: BuildingLot = write ? { ...lot, storeys } : { ...lot };
-    next.massing = {
-      storeys,
-      floors,
-      cellar: false,
-      jettyMeters: jetty,
-      eaveHeightMeters: floors.reduce((sum, floor) => sum + floor.heightMeters, 0),
-      roof: {
-        form,
-        pitchDeg: form === "flat" ? 2 : pitch,
-        ridgeAzimuth: wrapAzimuth(bounds.azimuth),
-        material
-      },
-      wall,
-      baseElevationMeters: 0,
-      // Editing another district must not change this lot's color.
-      tint: growthRandom(`${seed}:massing:${lot.id ?? `${lot.faceId}:${JSON.stringify(lot.polygon)}`}:tint`)
-    };
-    return next;
-  });
+  return applyBuildingHeightLimits(document, lots, hasBuildingHeightVariation(document))
+    .filter(lot => lot.landmark || lot.storeys !== 0)
+    .map(lot => {
+      if (lot.landmark || lot.polygon.length < 3) return lot;
+      const { storeys, write } = resolveStoreys(document, lot);
+      const floors = buildingFloorSpecs(
+        document,
+        lot,
+        storeys,
+        hasBuildingHeightVariation(document) && (isResidentialBuilding(lot) || !!lot.residentialCluster)
+      );
+      const wall = wallMaterial(document, lot, period, climate, tradition);
+      const convex = isConvex(lot.polygon);
+      const bounds = roofBounds(lot.polygon);
+      const aspect = bounds.width > 0 ? bounds.length / bounds.width : 1;
+      const form = roofForm(lot, wall, period, storeys, convex, aspect);
+      const material = roofMaterial(wall, period, tradition);
+      const medievalTimber = wall === "timber-frame" && MEDIEVAL.has(period) && convex && form !== "flat";
+      const jetty = medievalTimber ? 0.4 : 0;
+      // Ordinary roofs should not become monumental structures on oversized lots.
+      // Include upper-floor offsets in the run used by the mesh builder.
+      const offset = Math.min(1.2, (storeys - 1) * jetty);
+      const run = (bounds.width + 2 * offset) / (form === "lean-to" ? 1 : 2);
+      const limit = effectiveHeightLimit(document, lot.faceId);
+      const roofRise = Math.min(
+        4,
+        limit.maxHeightMeters === undefined
+          ? 4
+          : Math.max(0, limit.maxHeightMeters - floors.reduce((sum, floor) => sum + floor.heightMeters, 0))
+      );
+      const pitch = Math.min(ROOF_PITCH[material], (Math.atan2(roofRise, run) * 180) / Math.PI);
+      const next: BuildingLot = write ? { ...lot, storeys } : { ...lot };
+      next.massing = {
+        storeys,
+        floors,
+        cellar: false,
+        jettyMeters: jetty,
+        eaveHeightMeters: floors.reduce((sum, floor) => sum + floor.heightMeters, 0),
+        roof: {
+          form,
+          pitchDeg: form === "flat" ? 2 : pitch,
+          ridgeAzimuth: wrapAzimuth(bounds.azimuth),
+          material
+        },
+        wall,
+        baseElevationMeters: 0,
+        // Editing another district must not change this lot's color.
+        tint: growthRandom(`${seed}:massing:${lot.id ?? `${lot.faceId}:${JSON.stringify(lot.polygon)}`}:tint`)
+      };
+      return next;
+    });
 }

@@ -244,17 +244,29 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
   const appearanceControls = buildBuildingAppearanceControls({
     scope: events.scope,
     getDocument: () => ctx.documents.documentState,
+    getGenerationHeightPolicy: () => ctx.generation.generateSettings.buildingHeightPolicy,
     select: ctx.select,
     label: ctx.label,
     modelQualityChanged: () => {
       ctx.redrawMap();
       ctx.syncCity3d();
     },
-    updateDocument(next) {
+    updateDocument(next, label) {
+      if (
+        next.buildingHeightPolicy ||
+        ctx.documents.documentState.appearance === "town" ||
+        label === editorText("cityEditor.messages.changeBuildingHeights")
+      )
+        ctx.generation.generateSettings.buildingHeightPolicy = next.buildingHeightPolicy;
+      ctx.generation.generateSettings.buildingHeightLimit = next.buildingHeightLimit;
       clearGenerationPreviewCache();
       if (ctx.generation.completeSource)
-        ctx.generation.completeSource = inheritBuildingAppearance(ctx.generation.completeSource, next);
-      events.commit(next, editorText("cityEditor.messages.changeHousingAppearance"));
+        ctx.generation.completeSource = {
+          ...inheritBuildingAppearance(ctx.generation.completeSource, next),
+          buildingHeightPolicy: next.buildingHeightPolicy,
+          buildingHeightLimit: next.buildingHeightLimit
+        };
+      events.commit(next, label ?? editorText("cityEditor.messages.changeHousingAppearance"));
       if (next.appearance === "town") ctx.generation.completeResult = next;
       events.syncGenerateControls();
     }

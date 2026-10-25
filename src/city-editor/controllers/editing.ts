@@ -88,7 +88,8 @@ export function createEditingController(ctx: EditingContext) {
       for (const key of Object.keys(ctx.generation.generateSettings))
         Reflect.deleteProperty(ctx.generation.generateSettings, key);
       Object.assign(ctx.generation.generateSettings, defaultGenerationSettings(), restoredSettings, {
-        streets: ctx.generation.streets
+        streets: ctx.generation.streets,
+        buildingHeightPolicy: restoredSettings.buildingHeightPolicy
       });
       ctx.generation.generateSeed = playback.seed;
       ctx.generation.lastGeneratedStep = playback.lastStage;
@@ -103,6 +104,8 @@ export function createEditingController(ctx: EditingContext) {
     } else {
       const recipe = next.fabric?.generation;
       ctx.generation.generateSettings.mode = recipe?.settings.mode ?? "city";
+      ctx.generation.generateSettings.buildingHeightPolicy = next.buildingHeightPolicy;
+      ctx.generation.generateSettings.buildingHeightLimit = next.buildingHeightLimit;
       ctx.generation.completeSource = recipe ? clone(recipe.input) : null;
       ctx.generation.completeResult = recipe ? next : null;
       ctx.generation.completeResultSettings = recipe ? JSON.stringify(ctx.generation.generateSettings) : null;
@@ -121,6 +124,12 @@ export function createEditingController(ctx: EditingContext) {
       };
       ctx.syncStageUi(next.appearance === "town" ? 16 : 1);
     }
+    ctx.generation.generateSettings.buildingHeightPolicy = next.buildingHeightPolicy;
+    ctx.generation.generateSettings.buildingHeightLimit = next.buildingHeightLimit;
+    ctx.generation.generateSettings.housingAreaScale =
+      next.fabric?.generation?.settings.housingAreaScale ?? next.housingAreaScale;
+    ctx.generation.generateSettings.housingAreaPasses =
+      next.fabric?.generation?.settings.housingAreaPasses ?? next.housingAreaPasses;
     ctx.syncGenerateControls();
     ctx.rebuildEditorIndexes();
     ctx.interaction.selection = emptySelection();

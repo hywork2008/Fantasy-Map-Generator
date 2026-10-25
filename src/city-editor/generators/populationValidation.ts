@@ -5,6 +5,7 @@ import { validPopulationPlan, validPopulationSettings } from "./populationPlan";
 export function validPopulationDocument(document: Partial<CityDocument>): boolean {
   const plan = document.populationPlan;
   if (plan !== undefined && !validPopulationPlan(plan)) return false;
+  if (plan?.heightPolicyVersion === 1 && !document.buildingHeightPolicy) return false;
   const recipe = document.fabric?.generation;
   if (recipe?.settings?.population !== undefined && !validPopulationSettings(recipe.settings.population)) return false;
   if (recipe?.input?.populationPlan !== undefined && !validPopulationPlan(recipe.input.populationPlan)) return false;

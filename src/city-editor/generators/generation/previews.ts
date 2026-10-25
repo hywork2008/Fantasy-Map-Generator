@@ -60,6 +60,13 @@ export function generateStageOnDocument(
   wallCheckpoint?: StageCheckpoint,
   observer?: GenerationObserver
 ): CityDocument | null {
+  document = {
+    ...document,
+    buildingHeightPolicy: settings.buildingHeightPolicy,
+    buildingHeightLimit: settings.buildingHeightLimit,
+    housingAreaScale: settings.housingAreaScale,
+    housingAreaPasses: settings.housingAreaPasses
+  };
   try {
     ({ document, settings } = preparePopulationGeneration(document, settings, seed));
   } catch {
@@ -223,6 +230,13 @@ export function generateUrbanPatchStep(
   seed: string,
   stepIndex: number
 ): UrbanPatchStep {
+  document = {
+    ...document,
+    buildingHeightPolicy: settings.buildingHeightPolicy,
+    buildingHeightLimit: settings.buildingHeightLimit,
+    housingAreaScale: settings.housingAreaScale,
+    housingAreaPasses: settings.housingAreaPasses
+  };
   try {
     ({ document, settings } = preparePopulationGeneration(document, settings, seed));
   } catch {
@@ -294,6 +308,13 @@ export function generateCoastWalkStep(
   seed: string,
   stepIndex: number
 ): GenerationStepResult {
+  document = {
+    ...document,
+    buildingHeightPolicy: settings.buildingHeightPolicy,
+    buildingHeightLimit: settings.buildingHeightLimit,
+    housingAreaScale: settings.housingAreaScale,
+    housingAreaPasses: settings.housingAreaPasses
+  };
   try {
     ({ document, settings } = preparePopulationGeneration(document, settings, seed));
   } catch {
@@ -348,6 +369,13 @@ export function generateRiverWalkStep(
   seed: string,
   stepIndex: number
 ): GenerationStepResult {
+  document = {
+    ...document,
+    buildingHeightPolicy: settings.buildingHeightPolicy,
+    buildingHeightLimit: settings.buildingHeightLimit,
+    housingAreaScale: settings.housingAreaScale,
+    housingAreaPasses: settings.housingAreaPasses
+  };
   try {
     ({ document, settings } = preparePopulationGeneration(document, settings, seed));
   } catch {
@@ -416,6 +444,13 @@ export function generateGateStep(
   seed: string,
   stepIndex: number
 ): GenerationStepResult {
+  document = {
+    ...document,
+    buildingHeightPolicy: settings.buildingHeightPolicy,
+    buildingHeightLimit: settings.buildingHeightLimit,
+    housingAreaScale: settings.housingAreaScale,
+    housingAreaPasses: settings.housingAreaPasses
+  };
   try {
     ({ document, settings } = preparePopulationGeneration(document, settings, seed));
   } catch {
@@ -466,6 +501,13 @@ export function generateRoadStep(
   seed: string,
   stepIndex: number
 ): GenerationStepResult {
+  document = {
+    ...document,
+    buildingHeightPolicy: settings.buildingHeightPolicy,
+    buildingHeightLimit: settings.buildingHeightLimit,
+    housingAreaScale: settings.housingAreaScale,
+    housingAreaPasses: settings.housingAreaPasses
+  };
   try {
     ({ document, settings } = preparePopulationGeneration(document, settings, seed));
   } catch {
@@ -522,6 +564,13 @@ export function generateWardStep(
   seed: string,
   stepIndex: number
 ): GenerationStepResult {
+  document = {
+    ...document,
+    buildingHeightPolicy: settings.buildingHeightPolicy,
+    buildingHeightLimit: settings.buildingHeightLimit,
+    housingAreaScale: settings.housingAreaScale,
+    housingAreaPasses: settings.housingAreaPasses
+  };
   try {
     ({ document, settings } = preparePopulationGeneration(document, settings, seed));
   } catch {

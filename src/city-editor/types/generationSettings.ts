@@ -24,6 +24,12 @@ export type WallShape = "organic" | "round" | "oval" | "square" | "polygon" | "b
 export type WallShapeChoice = "auto" | WallShape;
 
 export interface GenerationSettings {
+  buildingHeightLimit?: import("./contracts/buildingHeightLimits").BuildingHeightLimit;
+
+  /** Automatic housing-area calibration; never changes in-block lot dimensions. */
+  housingAreaScale?: number;
+  housingAreaPasses?: number;
+  buildingHeightPolicy?: import("./contracts/buildingHeightPolicy").BuildingHeightPolicy;
   /** Standalone military site; defaults to a motte-and-bailey on a hex mesh. */
   mode?: "city" | "fort";
   population?: import("./contracts/population").PopulationGenerationSettings;

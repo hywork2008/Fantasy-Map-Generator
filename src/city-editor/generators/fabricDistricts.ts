@@ -7,6 +7,8 @@ import type {
   Face,
   Id
 } from "../types/document";
+import { validBuildingHeightLimit } from "./buildingHeightLimits";
+import { validBuildingHeightPolicy, validHousingAreaSettings } from "./buildingHeightPolicy";
 import { dwellingLotArea } from "./housing";
 import { longestFrame } from "./lotGeometry";
 import { clone, edgeBetween, facePoints } from "./mesh";
@@ -277,6 +279,10 @@ export function validFabricPlan(plan: FabricPlan): boolean {
   const g = plan.generation,
     config = g.settings?.config;
   return (
+    validBuildingHeightPolicy(g.settings?.buildingHeightPolicy) &&
+    validBuildingHeightLimit(g.settings?.buildingHeightLimit) &&
+    validHousingAreaSettings(g.settings ?? {}) &&
+    validBuildingHeightPolicy(g.input?.buildingHeightPolicy) &&
     ["evolution-city-v3", "castle-city-v1", "skeleton-city-v1", "fort-v1", "bastioned-city-v1"].includes(g.algorithm) &&
     (g.settings?.mode === undefined || ["city", "fort"].includes(g.settings.mode)) &&
     (g.settings?.townFortification?.dimensionPolicy === undefined ||

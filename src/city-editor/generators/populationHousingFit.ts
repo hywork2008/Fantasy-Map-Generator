@@ -1,6 +1,8 @@
 import { residentialStoreys } from "../../utils/urbanMorphology";
 import type { CityDocument } from "../types/document";
 import { buildBlockFabric, type DistrictFabric } from "./blockInfill";
+import { hasBuildingHeightLimits } from "./buildingHeightLimits";
+import { hasBuildingHeightVariation } from "./buildingHeightPolicy";
 import type { GenerationObserver } from "./generationDiagnostics";
 import type { FabricCache } from "./localInfill";
 import { finishPopulationHousing } from "./populationHousing";
@@ -14,7 +16,9 @@ export function fitPopulationHousing(document: CityDocument, cache: FabricCache,
   const candidates = [
     { storeys: profile.standard, parcelAreaM2: 640, pass: 1 as const },
     { storeys: profile.maximum, parcelAreaM2: 640, pass: 2 as const },
-    { storeys: profile.maximum, parcelAreaM2: 400, pass: 3 as const }
+    ...(!hasBuildingHeightVariation(document) && !hasBuildingHeightLimits(document)
+      ? [{ storeys: profile.maximum, parcelAreaM2: 400, pass: 3 as const }]
+      : [])
   ];
   let bestFabric: DistrictFabric | undefined;
   let best = candidates[0],

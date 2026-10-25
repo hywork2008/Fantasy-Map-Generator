@@ -11,6 +11,7 @@ export function cityEditorSettings(share: CityEditorShare): GenerationSettings {
     ...defaultGenerationSettings(),
     buildingPattern: "legacy",
     ...structuredClone(share.settings),
+    buildingHeightPolicy: share.settings.buildingHeightPolicy,
     descriptor: share.descriptor
   };
 }

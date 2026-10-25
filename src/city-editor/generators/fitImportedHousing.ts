@@ -4,6 +4,8 @@ import { residentialStoreys } from "../../utils/urbanMorphology";
 import type { HousingFitStats, Zone, ZoneCounts } from "../types/contracts/fitImportedHousing";
 import type { CityDocument } from "../types/document";
 import { buildBlockFabric, type DistrictFabric } from "./blockInfill";
+import { hasBuildingHeightLimits } from "./buildingHeightLimits";
+import { hasBuildingHeightVariation } from "./buildingHeightPolicy";
 import type { BuildingLot } from "./buildingLots";
 import { nearestOnPolyline, polygonCentroid } from "./geom";
 import { FabricCache } from "./localInfill";
@@ -64,6 +66,8 @@ export function fitImportedHousing(
   /** Called with each fabric the fit builds (not with counts derived from one). */
   onFabric?: (fabric: DistrictFabric) => void
 ): HousingFitStats {
+  if (hasBuildingHeightVariation(document) || hasBuildingHeightLimits(document))
+    return fitHeightHousing(document, dwellings, targetOccupancy, profiler, cache, onFabric);
   if (document.urbanMorphology && document.urbanGrowth)
     return fitMorphologyHousing(document, dwellings, profiler, cache, onFabric);
   const guide = isLotOccupancy(targetOccupancy) ? targetOccupancy : DEFAULT_LOT_OCCUPANCY;
@@ -186,15 +190,41 @@ export function fitImportedHousing(
   return stats;
 }
 
-/** Capacity fit for every fabric style. Eligibility is always enforced by the final region mask. */
-function fitMorphologyHousing(
+/** Keep the original plot occupancy; automatic generation supplies extra core area instead. */
+function fitHeightHousing(
   document: CityDocument,
   dwellings: number,
+  targetOccupancy: number,
   profiler?: ProcessingProfiler,
-  sharedCache?: FabricCache,
+  cache?: FabricCache,
   onFabric?: (fabric: DistrictFabric) => void
 ): HousingFitStats {
-  const plan = document.urbanGrowth!;
+  prepareGrowthSuburbs(document);
+  if (document.urbanGrowth)
+    document.urbanGrowth.insideStoreys = residentialStoreys(document.urbanMorphology!.period).maximum;
+  const fabric = buildBlockFabric(document, cache ?? new FabricCache(512), profiler);
+  onFabric?.(fabric);
+  const report = measureHousingCapacity(document, fabric.buildings, dwellings);
+  document.housingCapacity = report;
+  return {
+    dwellings,
+    capacityBased: true,
+    targetOccupancy,
+    districts: 0,
+    initialHouses: null,
+    finalHouses: report.capacityInside + report.capacityOutside,
+    factor: 1,
+    betweenFactor: 1,
+    outskirtsFactor: 1,
+    suburbs: !!document.urbanGrowth?.regions.length,
+    samples: [],
+    finalZones: { core: report.capacityInside, between: 0, outskirts: report.capacityOutside }
+  };
+}
+
+function prepareGrowthSuburbs(document: CityDocument): void {
+  const plan = document.urbanGrowth;
+  if (!plan) return;
   if (document.fabric)
     for (const district of document.fabric.districts) {
       const faces = district.faceIds.map(id => document.mesh.faces[id]).filter(Boolean);
@@ -211,6 +241,18 @@ function fitMorphologyHousing(
         district.parameters.suburb = true;
       } else delete district.parameters.suburb;
     }
+}
+
+/** Capacity fit for every fabric style. Eligibility is always enforced by the final region mask. */
+function fitMorphologyHousing(
+  document: CityDocument,
+  dwellings: number,
+  profiler?: ProcessingProfiler,
+  sharedCache?: FabricCache,
+  onFabric?: (fabric: DistrictFabric) => void
+): HousingFitStats {
+  const plan = document.urbanGrowth!;
+  prepareGrowthSuburbs(document);
   // The fit only changes district occupancy and storeys after this point. Each lot keeps the
   // random draw its occupancy test used (`BuildingLot.occupancyDraw`), so a lower occupancy
   // drops exactly the lots whose draw it no longer exceeds, and storeys are only stamped on

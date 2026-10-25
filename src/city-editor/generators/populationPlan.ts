@@ -1,6 +1,7 @@
 import { getUrbanDwellings } from "../../utils/urbanDwellings";
 import { residentialStoreys, supportsUrbanMorphology } from "../../utils/urbanMorphology";
 import type { PopulationGenerationSettings, PopulationPlan } from "../types/contracts/population";
+import { residentialHeightWeights, supportsBuildingHeightVariation } from "./buildingHeightPolicy";
 import { dwellingCapacity } from "./residentialCapacity";
 
 export const DEFAULT_CITY_POPULATION = 5_000;
@@ -36,7 +37,9 @@ export function validPopulationSettings(value: unknown): value is PopulationGene
 export function planPopulation(
   settings: PopulationGenerationSettings,
   period = "lateMedieval",
-  manualExtent = 4800
+  manualExtent = 4800,
+  heightPolicyVersion?: 1 | 2,
+  areaScale = 1
 ): PopulationPlan {
   if (!validPopulationSettings(settings))
     throw new Error("Population must be an integer from 1 to 220,000; unsupported population profile or settings.");
@@ -44,10 +47,17 @@ export function planPopulation(
   const requiredDwellings = getUrbanDwellings(settings.targetPopulation);
   const storeys = residentialStoreys(period).standard;
   const low = Math.max(1, storeys - (storeys >= 3 ? 1 : 0));
-  const meanCapacity = (dwellingCapacity(80, low) + dwellingCapacity(80, storeys)) / 2;
+  const meanCapacity =
+    heightPolicyVersion === 1
+      ? residentialHeightWeights(period, "ordinary").reduce(
+          (sum, weight, index) => sum + weight * dwellingCapacity(80, index + 1),
+          0
+        )
+      : (dwellingCapacity(80, low) + dwellingCapacity(80, storeys)) / 2;
   const estimatedBuildings = Math.ceil(requiredDwellings / meanCapacity);
   const residentialFootprintM2 = estimatedBuildings * 80;
-  const targetAreaM2 = residentialFootprintM2 / 0.27;
+  if (!Number.isFinite(areaScale) || areaScale < 1 || areaScale > 64) throw new Error("Invalid housing area scale.");
+  const targetAreaM2 = (residentialFootprintM2 / 0.27) * areaScale;
   const cityRadiusMeters = Math.sqrt(targetAreaM2 / Math.PI);
   const neededExtent = Math.max(300, 2 * cityRadiusMeters * 1.3);
   if (settings.frameMode === "manual" && (!Number.isFinite(manualExtent) || manualExtent < neededExtent))
@@ -74,6 +84,8 @@ export function planPopulation(
   const cellWidthMeters = settings.meshCellMeters ?? 50;
   return {
     version: 1,
+    ...(heightPolicyVersion !== undefined ? { heightPolicyVersion } : {}),
+    ...(areaScale > 1 ? { areaScale } : {}),
     settings: structuredClone(settings),
     period,
     requiredDwellings,
@@ -91,6 +103,13 @@ export function validPopulationPlan(value: unknown): value is PopulationPlan {
   if (!value || typeof value !== "object") return false;
   const v = value as PopulationPlan;
   if (v.version !== 1 || !validPopulationSettings(v.settings) || !supportsUrbanMorphology(v.period)) return false;
+  if (v.heightPolicyVersion !== undefined && v.heightPolicyVersion !== 1 && v.heightPolicyVersion !== 2) return false;
+  if (v.heightPolicyVersion === 1 && !supportsBuildingHeightVariation(v.period)) return false;
+  if (
+    v.areaScale !== undefined &&
+    (!Number.isFinite(v.areaScale) || v.areaScale < 1 || v.areaScale > 64 || v.heightPolicyVersion === undefined)
+  )
+    return false;
   const fit = v.housingFit;
   if (
     fit !== undefined &&
@@ -104,7 +123,7 @@ export function validPopulationPlan(value: unknown): value is PopulationPlan {
   )
     return false;
   try {
-    const expected = planPopulation(v.settings, v.period, v.extentMeters);
+    const expected = planPopulation(v.settings, v.period, v.extentMeters, v.heightPolicyVersion, v.areaScale);
     return (
       [
         "requiredDwellings",

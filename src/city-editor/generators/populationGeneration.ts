@@ -3,6 +3,8 @@ import type { CityDocument } from "../types/document";
 import type { GenerationSettings } from "../types/generation";
 import { fortressFrameExtent } from "./bastionedTown/validate";
 import { inheritBuildingAppearance } from "./buildingAppearance";
+import { hasBuildingHeightLimits } from "./buildingHeightLimits";
+import { supportsBuildingHeightVariation } from "./buildingHeightPolicy";
 import { createGridDocument, sizePresetForExtent } from "./document";
 import { planPopulation } from "./populationPlan";
 
@@ -29,7 +31,23 @@ export function preparePopulationGeneration(document: CityDocument, settings: Ge
     settings.descriptor?.historicalPeriod ??
     (fortress ? "ageOfExploration" : "lateMedieval");
   const population = settings.population;
-  let plan = planPopulation(population, period, document.frame.extentMeters);
+  const heightPolicyVersion =
+    settings.buildingHeightPolicy?.version === 1 &&
+    supportsBuildingHeightVariation(
+      period,
+      settings.descriptor?.civilization?.tradition ?? document.civilization?.tradition
+    )
+      ? 1
+      : hasBuildingHeightLimits({ ...document, buildingHeightLimit: settings.buildingHeightLimit })
+        ? 2
+        : undefined;
+  let plan = planPopulation(
+    population,
+    period,
+    document.frame.extentMeters,
+    heightPolicyVersion,
+    heightPolicyVersion ? (settings.housingAreaScale ?? 1) : 1
+  );
   if (fortress && population.frameMode !== "manual") {
     const extent = fortressFrameExtent(plan.cityRadiusMeters, settings);
     if (extent > plan.extentMeters) plan = { ...plan, extentMeters: extent };
@@ -42,7 +60,9 @@ export function preparePopulationGeneration(document: CityDocument, settings: Ge
     throw new Error("Population generation currently requires organic layout.");
   let next = document;
   const protectedGeometry =
-    Object.values(document.mesh.faces).some(f => f.properties.locked) ||
+    Object.values(document.mesh.faces).some(
+      f => f.properties.locked || f.properties.buildingHeightLimit !== undefined
+    ) ||
     Object.values(document.mesh.vertices).some(v => v.locked) ||
     Object.values(document.mesh.edges).some(e => e.locked) ||
     document.featureGroups.some(g => g.locked) ||
@@ -111,6 +131,8 @@ export function preparePopulationGeneration(document: CityDocument, settings: Ge
   };
   next = {
     ...next,
+    buildingHeightPolicy: settings.buildingHeightPolicy,
+    buildingHeightLimit: settings.buildingHeightLimit,
     populationPlan: { ...plan, extentMeters: next.frame.extentMeters },
     frame: {
       ...next.frame,

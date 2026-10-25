@@ -1,5 +1,6 @@
 import type { CityDocument, Edge, EdgeRef, Face, FeatureGroup, Id, Mesh, Point, WaterKind } from "../types/document";
 import type { Cell } from "../types/geometry";
+import { stricterHeightLimit } from "./buildingHeightLimits";
 import { refreshCastleLayouts } from "./castleLayout";
 import { reservedCastleFaces, validateFortifications } from "./fortifications";
 import { scaleFortSite, validateFortSite } from "./fortSiteGeometry";
@@ -451,6 +452,11 @@ export function mergeFaces(document: CityDocument, keepFaceId: Id, removeFaceId:
   );
   if (!boundary) return null;
   keep.boundary = boundary;
+  if (keep.properties.buildingHeightLimit || remove.properties.buildingHeightLimit)
+    keep.properties.buildingHeightLimit = stricterHeightLimit(
+      keep.properties.buildingHeightLimit,
+      remove.properties.buildingHeightLimit
+    );
   for (const edgeId of sharedEdges) delete next.mesh.edges[edgeId];
   meshEdgesChanged(next.mesh);
   delete next.mesh.faces[removeFaceId];

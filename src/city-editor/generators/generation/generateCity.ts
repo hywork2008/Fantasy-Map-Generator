@@ -16,6 +16,12 @@ import {
 } from "../bastionedTown/validate";
 import { buildBlockFabric } from "../blockInfill";
 import { withBuildingAppearance } from "../buildingAppearance";
+import { hasBuildingHeightLimits, validBuildingHeightLimit } from "../buildingHeightLimits";
+import {
+  hasBuildingHeightVariation,
+  validBuildingHeightPolicy,
+  validHousingAreaSettings
+} from "../buildingHeightPolicy";
 import { terrainHeight } from "../castlePlacement";
 import { finalizeCastles } from "../castles";
 import {
@@ -83,6 +89,7 @@ import { applyPlan } from "./assembly/applyPlan";
 import { settleTempleOnDocument } from "./assembly/temple";
 import { GEN_PREFIX, NOMINAL_PRESET } from "./constants";
 import { planningDebugDocument } from "./debugPreview";
+import { nextHousingAreaScale } from "./heightArea";
 import { runPlan } from "./pipeline";
 import { plazaApproachPoint, requiredExternalRoads } from "./planning/roadGeometry";
 import { prepareRun } from "./prepareRun";
@@ -112,6 +119,21 @@ export function generateCityOnDocument(
   profiler?: ProcessingProfiler,
   stopAfter?: "streets" | "innerWall" | "innerGates" | "firstInnerGates"
 ): CityDocument | null {
+  const heightAreaSource = document;
+  if (
+    !validBuildingHeightPolicy(settings.buildingHeightPolicy) ||
+    !validHousingAreaSettings(settings) ||
+    !validBuildingHeightLimit(settings.buildingHeightLimit) ||
+    Object.values(document.mesh.faces).some(face => !validBuildingHeightLimit(face.properties.buildingHeightLimit))
+  ) {
+    reportGenerationFailure(observer, 1, "prepare", "population-settings", "Unsupported building height policy.");
+    return null;
+  }
+  document = {
+    ...document,
+    buildingHeightPolicy: settings.buildingHeightPolicy,
+    buildingHeightLimit: settings.buildingHeightLimit
+  };
   if (settings.townFortification) {
     const conflicts = bastionedTownSettingConflicts(settings);
     if (conflicts) {
@@ -257,6 +279,8 @@ export function generateCityOnDocument(
       return result;
     }
     if (result) {
+      result.housingAreaScale = settings.housingAreaScale;
+      result.housingAreaPasses = settings.housingAreaPasses;
       result.historicalPeriod =
         settings.historicalPeriod ??
         settings.descriptor?.historicalPeriod ??
@@ -412,6 +436,33 @@ export function generateCityOnDocument(
         measureProcessing(profiler, "population-housing", () =>
           fitPopulationHousing(result, fabricCache, sample => observe({ ...sample, attempt: attempt + 1 }))
         );
+      const nextAreaScale =
+        hasBuildingHeightVariation(result) || hasBuildingHeightLimits(result)
+          ? nextHousingAreaScale(heightAreaSource, result, settings, buildBlockFabric(result, fabricCache).buildings)
+          : undefined;
+      if (nextAreaScale !== undefined) {
+        observe({
+          phase: "fit-housing",
+          attempt: attempt + 1,
+          elapsedMs: 0,
+          counts: { housingAreaScale: nextAreaScale, housingAreaPass: (settings.housingAreaPasses ?? 0) + 1 }
+        });
+        const expanded = generateCityOnDocument(
+          heightAreaSource,
+          {
+            ...settings,
+            housingAreaScale: nextAreaScale,
+            housingAreaPasses: (settings.housingAreaPasses ?? 0) + 1,
+            generationRetry: undefined
+          },
+          seed,
+          observer,
+          onRejected,
+          profiler,
+          stopAfter
+        );
+        if (expanded) return expanded;
+      }
       if (
         settings.townFortification &&
         result.populationReport &&
@@ -1022,6 +1073,12 @@ export function generateCityAttempt(
   if (civilization) settled.civilization = structuredClone(civilization);
   settled.layout = effectiveLayout;
   settled.buildingPattern = buildingPattern;
+  settled.buildingHeightPolicy = settings.buildingHeightPolicy;
+  settled.buildingHeightLimit = settings.buildingHeightLimit;
+  settled.housingAreaScale = settings.housingAreaScale;
+  settled.housingAreaPasses = settings.housingAreaPasses;
+  if (settings.descriptor && settings.housingAreaScale)
+    settled.frame = { ...settled.frame, cityRadiusMeters: params.cityRadiusMeters };
   settled.historicalPeriod =
     settings.historicalPeriod ??
     settings.descriptor?.historicalPeriod ??

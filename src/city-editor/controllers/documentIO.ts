@@ -112,6 +112,12 @@ export function createDocumentIOController(ctx: DocumentIOContext) {
     }
     clearGenerationPreviewCache();
     ctx.documents.documentState = parsed.document;
+    ctx.generation.generateSettings.buildingHeightPolicy = parsed.document.buildingHeightPolicy;
+    ctx.generation.generateSettings.buildingHeightLimit = parsed.document.buildingHeightLimit;
+    ctx.generation.generateSettings.housingAreaScale =
+      parsed.document.fabric?.generation?.settings.housingAreaScale ?? parsed.document.housingAreaScale;
+    ctx.generation.generateSettings.housingAreaPasses =
+      parsed.document.fabric?.generation?.settings.housingAreaPasses ?? parsed.document.housingAreaPasses;
     ctx.generation.generateSettings.buildingPattern =
       ctx.documents.documentState.buildingPattern ??
       (ctx.documents.documentState.fabric?.version === 5 ? "medieval" : "legacy");
@@ -145,6 +151,8 @@ export function createDocumentIOController(ctx: DocumentIOContext) {
         {
           mode: undefined,
           population: undefined,
+          housingAreaScale: undefined,
+          housingAreaPasses: undefined,
           generationMethod: undefined,
           wallShape: undefined,
           wallSides: undefined,
@@ -156,7 +164,9 @@ export function createDocumentIOController(ctx: DocumentIOContext) {
           descriptor: undefined,
           castle: undefined,
           moats: undefined,
-          buildingPattern: "legacy"
+          buildingPattern: "legacy",
+          buildingHeightPolicy: undefined,
+          buildingHeightLimit: undefined
         },
         clone(recipe.settings)
       );
@@ -274,8 +284,12 @@ export function createDocumentIOController(ctx: DocumentIOContext) {
       defaultGenerationSettings(),
       {
         buildingPattern: "legacy",
+        buildingHeightPolicy: undefined,
+        buildingHeightLimit: undefined,
         mode: undefined,
         population: undefined,
+        housingAreaScale: undefined,
+        housingAreaPasses: undefined,
         generationMethod: undefined,
         wallShape: undefined,
         wallSides: undefined,

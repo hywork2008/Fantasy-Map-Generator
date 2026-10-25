@@ -8,7 +8,14 @@ import { MODEL_QUALITIES, type ModelQuality } from "../../buildings/modelQuality
 import { type EditorMessageKey, editorText } from "../../i18n/editorMessages";
 import { documentFabricFingerprint } from "../generators/blockInfill";
 import { withBuildingAppearance } from "../generators/buildingAppearance";
+import {
+  DEFAULT_BUILDING_HEIGHT_POLICY,
+  hasBuildingHeightVariation,
+  heightPeriod,
+  supportsBuildingHeightVariation
+} from "../generators/buildingHeightPolicy";
 import { ruralFieldOverlay, storeRuralFieldOverlay } from "../generators/ruralFieldOverlay";
+import { withBuildingHeightPolicy } from "../generators/updateBuildingHeights";
 import {
   readModelQualityPreference,
   readTerrainSpacingPreference,
@@ -18,6 +25,7 @@ import {
 } from "../services/browserPreferences";
 import type { EditorLifetime } from "../services/editorLifetime";
 import type { CityDocument } from "../types/document";
+import { buildingHeightLimitControls } from "./buildingHeightLimitControls";
 import { div } from "./editorControls";
 
 const PROFILE_LABELS: Record<BuildingAppearanceProfile, EditorMessageKey> = {
@@ -44,13 +52,53 @@ const CLIMATE_LABELS: Record<BuildingAppearanceClimate, EditorMessageKey> = {
 export function buildBuildingAppearanceControls(ctx: {
   scope: EditorLifetime;
   getDocument(): CityDocument;
-  updateDocument(next: CityDocument): void;
+  getGenerationHeightPolicy?(): CityDocument["buildingHeightPolicy"];
+  updateDocument(next: CityDocument, label?: string): void;
   select(values: string[], selected: string): HTMLSelectElement;
   label(value: string, control: HTMLElement): HTMLLabelElement;
   /** 3D model quality is a viewer preference, not part of the document. */
   modelQualityChanged(): void;
 }) {
   const root = div("ce-building-appearance-controls");
+  const mode = ctx.select(["varied", "uniform"], "varied");
+  mode.className = "ce-building-height-mode";
+  mode.options[0].textContent = editorText("cityEditor.messages.buildingHeightModeVaried");
+  mode.options[1].textContent = editorText("cityEditor.messages.buildingHeightModeUniform");
+  mode.setAttribute("aria-label", editorText("cityEditor.messages.buildingHeightMode"));
+  ctx.scope.listen(mode, "change", () =>
+    ctx.updateDocument(
+      withBuildingHeightPolicy(ctx.getDocument(), mode.value === "varied" ? DEFAULT_BUILDING_HEIGHT_POLICY : undefined),
+      editorText("cityEditor.messages.changeBuildingHeights")
+    )
+  );
+  const cityLimits = div("ce-city-height-controls");
+  cityLimits.append(
+    buildingHeightLimitControls(ctx.scope, ctx.getDocument().buildingHeightLimit, "ce-city-height", limit =>
+      ctx.updateDocument(
+        withBuildingHeightPolicy(
+          { ...ctx.getDocument(), buildingHeightLimit: limit },
+          mode.value === "varied" ? DEFAULT_BUILDING_HEIGHT_POLICY : undefined,
+          ctx.getDocument()
+        ),
+        editorText("cityEditor.messages.changeBuildingHeights")
+      )
+    )
+  );
+  const limitNote = document.createElement("small");
+  limitNote.textContent = editorText("cityEditor.messages.buildingHeightLimitScope");
+  cityLimits.append(limitNote);
+  const heightStatus = document.createElement("output");
+  heightStatus.className = "ce-building-height-status";
+  const heightButton = document.createElement("button");
+  heightButton.type = "button";
+  heightButton.className = "ce-update-building-heights";
+  heightButton.textContent = editorText("cityEditor.messages.updateBuildingHeights");
+  ctx.scope.listen(heightButton, "click", () =>
+    ctx.updateDocument(
+      withBuildingHeightPolicy(ctx.getDocument(), DEFAULT_BUILDING_HEIGHT_POLICY),
+      editorText("cityEditor.messages.updateBuildingHeights")
+    )
+  );
   const quality = ctx.select([...MODEL_QUALITIES], readModelQualityPreference());
   quality.className = "ce-model-quality";
   quality.setAttribute("aria-label", editorText("cityEditor.messages.modelQuality"));
@@ -83,7 +131,11 @@ export function buildBuildingAppearanceControls(ctx: {
     ctx.label(editorText("cityEditor.messages.modelQuality"), quality),
     ctx.label(editorText("cityEditor.messages.terrainSpacing"), spacing),
     ctx.label(editorText("cityEditor.messages.housingCulture"), culture),
-    ctx.label(editorText("cityEditor.messages.housingClimate"), climate)
+    ctx.label(editorText("cityEditor.messages.housingClimate"), climate),
+    ctx.label(editorText("cityEditor.messages.buildingHeightMode"), mode),
+    cityLimits,
+    heightStatus,
+    heightButton
   );
   const change = () => {
     const current = ctx.getDocument();
@@ -116,6 +168,26 @@ export function buildBuildingAppearanceControls(ctx: {
   ctx.scope.listen(climate, "change", change);
   const sync = () => {
     const city = ctx.getDocument();
+    mode.value = (
+      city.appearance === "town" || !ctx.getGenerationHeightPolicy
+        ? city.buildingHeightPolicy
+        : ctx.getGenerationHeightPolicy()
+    )
+      ? "varied"
+      : "uniform";
+    cityLimits.querySelector<HTMLInputElement>(".ce-city-height-storeys")!.value =
+      city.buildingHeightLimit?.maxStoreys === undefined ? "" : String(city.buildingHeightLimit.maxStoreys);
+    cityLimits.querySelector<HTMLInputElement>(".ce-city-height-meters")!.value =
+      city.buildingHeightLimit?.maxHeightMeters === undefined ? "" : String(city.buildingHeightLimit.maxHeightMeters);
+    const supported = supportsBuildingHeightVariation(heightPeriod(city), city.civilization?.tradition);
+    heightStatus.textContent = editorText(
+      !supported
+        ? "cityEditor.messages.buildingHeightsUnsupported"
+        : mode.value === "varied"
+          ? "cityEditor.messages.buildingHeightsVaried"
+          : "cityEditor.messages.buildingHeightsLegacy"
+    );
+    heightButton.disabled = !supported || hasBuildingHeightVariation(city);
     culture.value = city.buildingAppearanceProfile ?? "auto";
     climate.value = city.buildingAppearanceClimate ?? "auto";
   };

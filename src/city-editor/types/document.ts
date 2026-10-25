@@ -11,6 +11,8 @@ import type {
 } from "./primitives";
 
 export interface FaceProperties {
+  buildingHeightLimit?: import("./contracts/buildingHeightLimits").BuildingHeightLimit;
+
   farming?: import("./contracts/ruralFields").RuralLandQuality;
   /** Generated land-use extent; local infill never changes mesh topology. */
   /** "core" is inside the outermost town wall (every ring), "outskirts" outside it. */
@@ -507,6 +509,12 @@ export interface BastionedTownPlan {
 }
 
 export interface CityDocument {
+  buildingHeightLimit?: import("./contracts/buildingHeightLimits").BuildingHeightLimit;
+
+  /** Accepted automatic core-area calibration, also retained on grids without a generation recipe. */
+  housingAreaScale?: number;
+  housingAreaPasses?: number;
+  buildingHeightPolicy?: import("./contracts/buildingHeightPolicy").BuildingHeightPolicy;
   /** Show the elevation tint in 2D; omitted preserves the legacy enabled state. */
   showElevationTint?: boolean;
   fortSite?: import("./fortSite").FortSite;

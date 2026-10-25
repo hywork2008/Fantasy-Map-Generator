@@ -129,3 +129,41 @@ it.each(["snapshot", "session"])("retains %s farmland through housing culture an
     }
   }
 });
+
+it("defaults a new city to varied heights and switches to uniform while retaining city limits", () => {
+  const root = document.createElement("div");
+  document.body.append(root);
+  const scope = new EditorLifetime(root);
+  mounts.push({ scope, root });
+  const controls = createEditorControls(scope);
+  let city = createGridDocument({ size: "tiny", grid: "hex", seed: "height-mode-ui" });
+  let policy = { version: 1 as const, profile: "european-medieval-v1" as const } as typeof city.buildingHeightPolicy;
+  const panel = buildBuildingAppearanceControls({
+    scope,
+    getDocument: () => city,
+    getGenerationHeightPolicy: () => policy,
+    updateDocument(next) {
+      city = next;
+      policy = next.buildingHeightPolicy;
+      panel.sync();
+    },
+    select: controls.select,
+    label: controls.label,
+    modelQualityChanged() {}
+  });
+  root.append(panel.root);
+  const mode = root.querySelector<HTMLSelectElement>(".ce-building-height-mode")!;
+  expect(mode.value).toBe("varied");
+  mode.value = "uniform";
+  mode.dispatchEvent(new Event("change"));
+  expect(city.buildingHeightPolicy).toBeUndefined();
+  const cap = root.querySelector<HTMLInputElement>(".ce-city-height-storeys")!;
+  cap.value = "2";
+  cap.dispatchEvent(new Event("change"));
+  expect(city.buildingHeightLimit).toEqual({ maxStoreys: 2 });
+  expect(mode.value).toBe("uniform");
+  mode.value = "varied";
+  mode.dispatchEvent(new Event("change"));
+  expect(city.buildingHeightPolicy?.version).toBe(1);
+  expect(city.buildingHeightLimit).toEqual({ maxStoreys: 2 });
+});

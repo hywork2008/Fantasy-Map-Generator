@@ -2,6 +2,7 @@ import type { CityDocument } from "../../types/document";
 import type { GenerationSettings } from "../../types/generation";
 import type { CityParams, CityProgram } from "../../types/geometry";
 import { DEFAULT_WALL_PLAN } from "../../types/geometry";
+import { supportsBuildingHeightVariation } from "../buildingHeightPolicy";
 import { townExtentMeters } from "../settlementExtent";
 import { resolveWallPlan, siteToGeography, siteToProgram } from "../site/siteInput";
 import { synthSite } from "../site/synthSite";
@@ -34,7 +35,16 @@ export function prepareRun(document: CityDocument, settings: GenerationSettings,
   const params: CityParams = {
     seed,
     extentMeters: townExtentMeters(frame),
-    cityRadiusMeters: settings.descriptor?.frame.cityRadiusMeters ?? frame.cityRadiusMeters,
+    cityRadiusMeters:
+      settings.descriptor &&
+      !document.populationPlan &&
+      settings.buildingHeightPolicy &&
+      supportsBuildingHeightVariation(
+        settings.historicalPeriod ?? settings.descriptor.historicalPeriod ?? "ageOfExploration",
+        settings.descriptor.civilization?.tradition
+      )
+        ? settings.descriptor.frame.cityRadiusMeters * Math.sqrt(settings.housingAreaScale ?? 1)
+        : (settings.descriptor?.frame.cityRadiusMeters ?? frame.cityRadiusMeters),
     dwellings: document.populationPlan?.requiredDwellings ?? descriptor.burg.dwellings,
     cellSizeMeters: cellSize,
     lloydPasses: 1,

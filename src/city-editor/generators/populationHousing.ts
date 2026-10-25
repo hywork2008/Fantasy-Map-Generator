@@ -3,6 +3,15 @@ import type { ResidentialCluster } from "../types/contracts/population";
 import type { CityDocument } from "../types/document";
 import type { Point } from "../types/primitives";
 import type { DistrictFabric } from "./blockInfill.types";
+import { maximumBuildingStoreys } from "./buildingHeightLimits";
+import {
+  buildingHeightKey,
+  fitResidentialHeightCapacity,
+  type HeightUnit,
+  hasBuildingHeightVariation,
+  heightPriority,
+  sampleResidentialStoreys
+} from "./buildingHeightPolicy";
 import type { BuildingLot } from "./buildingLots.types";
 import { circuitRing, outerTownCircuit } from "./fortifications";
 import { polygonArea } from "./geom";
@@ -25,8 +34,8 @@ export function populationFabricSource(document: CityDocument): CityDocument {
     residentialClusters: undefined,
     buildingPattern: "legacy" as const
   };
-  // Detailed housing is the ordinary CE fabric: same lot sizes, shapes and occupancy as a
-  // default generation, so a larger population only adds blocks and houses.
+  // Detailed housing always uses the ordinary CE fabric. Height variation must never
+  // opt it into coarse parcels or split the original building footprints.
   if (document.fabric && document.populationPlan?.displayDwellings !== 1)
     source.fabric = {
       ...document.fabric,
@@ -87,9 +96,81 @@ function withHousingBuildings(fabric: DistrictFabric, buildings: BuildingLot[]):
   };
 }
 
+/** Change heights on the existing source lots; never partition or replace their footprints. */
+function populationHeightLots(document: CityDocument, lots: BuildingLot[]): BuildingLot[] {
+  if (!hasBuildingHeightVariation(document)) return lots;
+  const plan = document.populationPlan!;
+  const fixed = measureHousingCapacity(
+    document,
+    lots.filter(lot => document.mesh.faces[lot.faceId]?.properties.locked),
+    plan.requiredDwellings
+  );
+  const outsideBudget = Math.max(
+    0,
+    Math.min(document.urbanGrowth?.outsideCap ?? 0, document.urbanGrowth?.outsideBudget ?? 0) - fixed.assignedOutside
+  );
+  const units: Array<HeightUnit & { index: number; outside: boolean }> = [];
+  lots.forEach((lot, index) => {
+    const face = document.mesh.faces[lot.faceId];
+    if (
+      face?.properties.locked ||
+      !isResidentialBuilding(lot) ||
+      !["core", "outskirts"].includes(face?.properties.settlement ?? "")
+    )
+      return;
+    const area = Math.abs(polygonArea(lot.polygon));
+    // The existing coarse display has its own physical-house count. Detailed lots stay whole.
+    if (plan.displayDwellings !== 1 && area < 40) return;
+    const count = plan.displayDwellings === 1 ? 1 : Math.min(8, Math.max(1, Math.round(area / 80)));
+    const storeys = sampleResidentialStoreys(document, lot);
+    const outside = face.properties.settlement === "outskirts";
+    units.push({
+      index,
+      outside,
+      key: buildingHeightKey(lot),
+      storeys,
+      maximum: maximumBuildingStoreys(
+        document,
+        lot,
+        outside ? 2 : (plan.housingFit?.pass ?? 1) > 1 ? residentialStoreys(plan.period).maximum : storeys,
+        true
+      ),
+      priority: heightPriority(document, lot),
+      footprint: area / count,
+      count,
+      residentialShare: lot.residentialFloorShare ?? (lot.uses?.some(use => use !== "residential") ? 0.55 : 0.85)
+    });
+  });
+  const outsideCapacity = units
+    .filter(unit => unit.outside)
+    .reduce(
+      (sum, unit) => sum + unit.count! * dwellingCapacity(unit.footprint, unit.storeys, unit.residentialShare),
+      0
+    );
+  const required = Math.max(
+    0,
+    plan.requiredDwellings - fixed.assignedInside - fixed.assignedOutside - Math.min(outsideCapacity, outsideBudget)
+  );
+  const fitted = [
+    ...fitResidentialHeightCapacity(
+      units.filter(unit => !unit.outside),
+      required
+    ),
+    ...units.filter(unit => unit.outside)
+  ];
+  const byIndex = new Map(fitted.map(unit => [unit.index, unit]));
+  return lots.map((lot, index) => {
+    const unit = byIndex.get(index);
+    return unit
+      ? { ...lot, heightKey: unit.key, storeys: unit.storeys, residentialFloorShare: unit.residentialShare }
+      : lot;
+  });
+}
+
 /** Keep every house of the ordinary fabric as it was drawn; population only sets storeys and occupancy. */
 function detailedHousingFabric(document: CityDocument, fabric: DistrictFabric): DistrictFabric {
   const plan = document.populationPlan!;
+  const heightLots = populationHeightLots(document, fabric.buildings);
   const high = plan.housingFit?.storeys ?? residentialStoreys(plan.period).standard;
   const fixed = fabric.buildings.filter(lot => document.mesh.faces[lot.faceId]?.properties.locked);
   const fixedHousing = measureHousingCapacity(document, fixed, plan.requiredDwellings);
@@ -100,13 +181,17 @@ function detailedHousingFabric(document: CityDocument, fabric: DistrictFabric): 
       fixedHousing.assignedOutside
   );
   const rng = makeRng(`${document.generationSeed ?? document.fabric?.seed ?? "population"}:population-occupancy`);
-  const info = fabric.buildings.map((lot, index) => {
+  const info = heightLots.map((lot, index) => {
     const settlement = document.mesh.faces[lot.faceId]?.properties.settlement;
     const eligible =
       isResidentialBuilding(lot) &&
       !document.mesh.faces[lot.faceId]?.properties.locked &&
       (settlement === "core" || settlement === "outskirts");
-    const storeys = settlement === "outskirts" ? Math.min(2, high) : high;
+    const storeys = hasBuildingHeightVariation(document)
+      ? (lot.storeys ?? 1)
+      : settlement === "outskirts"
+        ? maximumBuildingStoreys(document, lot, Math.min(2, high))
+        : maximumBuildingStoreys(document, lot, high);
     const capacity = eligible
       ? dwellingCapacity(Math.abs(polygonArea(lot.polygon)), storeys, lot.residentialFloorShare)
       : 0;
@@ -188,7 +273,8 @@ export function populationHousingFabric(document: CityDocument, fabric: District
   const occupancyRng = makeRng(
     `${document.generationSeed ?? document.fabric?.seed ?? "population"}:population-occupancy`
   );
-  const ordered = fabric.buildings
+  const heightLots = populationHeightLots(document, fabric.buildings);
+  const ordered = heightLots
     .map((lot, index) => ({ lot, index, rank: occupancyRng() }))
     .sort(
       (a, b) =>
@@ -215,7 +301,13 @@ export function populationHousingFabric(document: CityDocument, fabric: District
     if (!eligible(lot) || document.mesh.faces[lot.faceId]?.properties.settlement === "outskirts") continue;
     const area = Math.abs(polygonArea(lot.polygon));
     if (area < 40) continue;
-    coreCapacity += houseCount(area) * dwellingCapacity(area / houseCount(area), high, lot.residentialFloorShare);
+    coreCapacity +=
+      houseCount(area) *
+      dwellingCapacity(
+        area / houseCount(area),
+        hasBuildingHeightVariation(document) ? (lot.storeys ?? 1) : maximumBuildingStoreys(document, lot, high),
+        lot.residentialFloorShare
+      );
   }
   const coreShare = coreCapacity ? Math.min(1, remaining / coreCapacity) : 1;
   for (const { lot, index } of ordered) {
@@ -234,10 +326,15 @@ export function populationHousingFabric(document: CityDocument, fabric: District
     }
     const count = houseCount(area);
     const footprint = area / count;
-    const storeys = outside ? outsideStoreys : high;
+    const storeys = hasBuildingHeightVariation(document)
+      ? (lot.storeys ?? 1)
+      : maximumBuildingStoreys(document, lot, outside ? outsideStoreys : high);
     const perHouse = dwellingCapacity(footprint, storeys, lot.residentialFloorShare);
     const share = outside ? 1 : coreShare;
-    const group = Math.max(1, Math.floor(plan.displayDwellings / Math.max(1, perHouse)));
+    const groupingCapacity = hasBuildingHeightVariation(document)
+      ? dwellingCapacity(footprint, high, lot.residentialFloorShare)
+      : perHouse;
+    const group = Math.max(1, Math.floor(plan.displayDwellings / Math.max(1, groupingCapacity)));
     let at = 0;
     while (at < count) {
       const end = Math.min(count, at + group);

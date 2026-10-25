@@ -13,6 +13,10 @@ export interface PopulationGenerationSettings {
   meshCellMeters?: 50 | 100 | 150 | 200;
 }
 export interface PopulationPlan {
+  /** Version of the capacity estimate; absent retains the original formula. */
+  heightPolicyVersion?: 1 | 2;
+  /** Measured capacity correction applied to the urban-core area. */
+  areaScale?: number;
   version: 1;
   settings: PopulationGenerationSettings;
   period: string;

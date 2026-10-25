@@ -1,6 +1,7 @@
 import { editorText } from "../../i18n/editorMessages";
 import { describeImportedSite } from "../components/importedSite";
 import { inheritBuildingAppearance, withBuildingAppearance } from "../generators/buildingAppearance";
+import { inheritBuildingHeightLimits } from "../generators/buildingHeightLimits";
 import { DEFAULT_CASTLE_SETTINGS } from "../generators/castlePlacement";
 import { sizePresetForExtent } from "../generators/document";
 import { elevationReliefScale, presetAmplitude } from "../generators/elevationPreset";
@@ -17,6 +18,7 @@ import { generateRuralFieldStage } from "../generators/ruralFieldStage";
 import { WALL_COAST_CHOICES, WALL_MATERIAL_CHOICES } from "../generators/site/siteConfig";
 import { DEFAULT_CASTLE_RISE_METERS } from "../generators/terrainEditing";
 import { fieldModeAllowed } from "../generators/terrainField/constants";
+import { withBuildingHeightPolicy } from "../generators/updateBuildingHeights";
 import { startCityGeneration } from "../services/generationWorkerClient";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
 import type { GenerationDebugPreview } from "../types/contracts/generationDebug";
@@ -311,6 +313,31 @@ export function createGenerationController(ctx: GenerationContext) {
         ctx.documents.documentState.buildingAppearanceProfile,
         ctx.generation.generateSettings.descriptor
       );
+      if (
+        JSON.stringify(next.buildingHeightPolicy) !==
+          JSON.stringify(ctx.generation.generateSettings.buildingHeightPolicy) ||
+        JSON.stringify(next.buildingHeightLimit) !== JSON.stringify(ctx.generation.generateSettings.buildingHeightLimit)
+      )
+        next = withBuildingHeightPolicy(
+          { ...next, buildingHeightLimit: ctx.generation.generateSettings.buildingHeightLimit },
+          ctx.generation.generateSettings.buildingHeightPolicy,
+          next
+        );
+      if (
+        Object.values(ctx.documents.documentState.mesh.faces).some(
+          face => face.properties.buildingHeightLimit !== undefined
+        ) ||
+        Object.values(next.mesh.faces).some(face => face.properties.buildingHeightLimit !== undefined)
+      )
+        next = withBuildingHeightPolicy(
+          inheritBuildingHeightLimits(next, ctx.documents.documentState),
+          ctx.generation.generateSettings.buildingHeightPolicy,
+          next
+        );
+      ctx.generation.generateSettings.housingAreaScale =
+        next.fabric?.generation?.settings.housingAreaScale ?? next.housingAreaScale;
+      ctx.generation.generateSettings.housingAreaPasses =
+        next.fabric?.generation?.settings.housingAreaPasses ?? next.housingAreaPasses;
       // Keep the requested seed. A town accepted on a retry keeps how it got there, so the
       // next roll of this seed and input (and a shared link) starts at that attempt instead
       // of re-running the rejected ones, and draws the same town.

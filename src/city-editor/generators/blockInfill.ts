@@ -6,6 +6,7 @@ import { buildAerialLandmarkPlan, prevailingWindKey } from "./aerialLandmarks";
 import { polygonReserved } from "./bastionedTown/reserve";
 import type { DistrictFabric } from "./blockInfill.types";
 import { assignBuildingAppearances, buildingAppearanceKey } from "./buildingAppearance";
+import { assignResidentialHeightDistribution, hasBuildingHeightVariation } from "./buildingHeightPolicy";
 import type { BuildingLot } from "./buildingLots.types";
 import { assignBuildingMassing } from "./buildingMassing";
 import { absorbCellars } from "./cellarAbsorption";
@@ -179,7 +180,7 @@ export function documentFabricFingerprint(doc: CityDocument): string {
   const facePart = faces
     .map(
       f =>
-        `${f.id}:${f.properties.settlement}:${f.properties.ward ?? ""}:${f.properties.water}:${f.properties.locked ?? ""}`
+        `${f.id}:${f.properties.settlement}:${f.properties.ward ?? ""}:${f.properties.water}:${f.properties.locked ?? ""}:${JSON.stringify(f.properties.buildingHeightLimit ?? null)}`
     )
     .join(",");
   const groupPart = doc.featureGroups
@@ -199,6 +200,9 @@ export function documentFabricFingerprint(doc: CityDocument): string {
     doc.fabric?.seed ?? "",
     doc.fabric?.version ?? "",
     doc.buildingPattern ?? "",
+    JSON.stringify(doc.buildingHeightPolicy ?? null),
+    JSON.stringify(doc.buildingHeightLimit ?? null),
+    JSON.stringify(doc.urbanGrowth ?? null),
     doc.historicalPeriod ?? "",
     buildingAppearanceKey(doc),
     JSON.stringify([doc.biome, doc.civilization, doc.urbanMorphology?.period]),
@@ -358,6 +362,11 @@ export function buildBlockFabric(
   }
   if (document.urbanMorphology && !document.populationPlan)
     fabricResult = shapeUrbanGrowthFabric(document, fabricResult);
+  if (!document.populationPlan && !document.urbanMorphology && hasBuildingHeightVariation(document))
+    fabricResult = {
+      ...fabricResult,
+      buildings: assignResidentialHeightDistribution(document, fabricResult.buildings)
+    };
   const farmlandArea = document.farmlandAreaHectares;
   if (document.ruralFieldVersion === 2) {
     fabricResult = {

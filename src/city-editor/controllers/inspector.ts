@@ -1,5 +1,6 @@
 import type { KrakPhase } from "../../buildings/fortresses/krak";
 import { editorHtml, editorText } from "../../i18n/editorMessages";
+import { buildingHeightLimitControls } from "../components/buildingHeightLimitControls";
 import type { createEditorControls, FloatingWindow } from "../components/editorControls";
 import { div, text } from "../components/editorControls";
 import { populateFortSiteInspector } from "../components/fortSiteInspector";
@@ -45,6 +46,7 @@ import {
 import { openGatePassage } from "../generators/passages";
 import { castlePlatform, castleRamp, castleSiteFaceIds, setCastlePlatform } from "../generators/terrainEditing";
 import { editFaceElevation } from "../generators/terrainField/pads";
+import { withBuildingHeightPolicy } from "../generators/updateBuildingHeights";
 import { CASTLE_STYLE_PROFILES, resolveCastleStyle } from "../renderers/castlePatterns";
 import { SHIP_SPECS } from "../renderers/shipSpecifications";
 import type { DocumentsState, InteractionState } from "../state/editorSession";
@@ -970,6 +972,21 @@ export function createInspectorController(ctx: InspectorContext) {
         }
         container.append(divider());
       }
+      const heightLimits = buildingHeightLimitControls(
+        ctx.scope,
+        face.properties.buildingHeightLimit,
+        "ce-cell-height",
+        limit => {
+          const next = clone(ctx.documents.documentState);
+          next.mesh.faces[face.id].properties.buildingHeightLimit = limit;
+          ctx.commit(
+            withBuildingHeightPolicy(next, next.buildingHeightPolicy, ctx.documents.documentState),
+            editorText("cityEditor.messages.changeBuildingHeights")
+          );
+        }
+      );
+      heightLimits.disabled = face.properties.locked;
+      container.append(heightLimits);
       const vertices = faceVertices(ctx.documents.documentState.mesh, face);
       const splitFrom = select(vertices, vertices[0]);
       const splitTo = select(vertices, vertices[Math.floor(vertices.length / 2)]);

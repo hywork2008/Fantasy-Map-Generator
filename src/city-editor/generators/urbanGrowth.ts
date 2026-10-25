@@ -14,6 +14,7 @@ import type { CityDocument } from "../types/document";
 import type { Point } from "../types/primitives";
 import { aerialLandmarkFootprints } from "./aerialFootprints";
 import type { DistrictFabric } from "./blockInfill.types";
+import { fitMorphologyHeightDistribution } from "./buildingHeightPolicy";
 import type { BuildingLot } from "./buildingLots.types";
 import { buildingHitsCivicLandmark } from "./civicClearance";
 import { curtainSegments, gapBelow, glacisOutworks, polygonClearsGlacis } from "./defenseClearance";
@@ -416,7 +417,7 @@ export function shapeUrbanGrowthFabric(document: CityDocument, fabric: DistrictF
     available[lot.growthRegionId!] -= n;
     return n > 0;
   });
-  const buildings = [...inside, ...chosen];
+  const buildings = fitMorphologyHeightDistribution(document, [...inside, ...chosen]);
   const farms = fabric.farms.filter(
     farm =>
       !chosen.some(b => polygonOverlaps(farm.polygon, b.polygon)) &&

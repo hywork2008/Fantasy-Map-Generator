@@ -28,6 +28,26 @@ describe("City Editor Inspector (Select and move mode)", () => {
     root.remove();
   });
 
+  it("edits a selected cell height cap and restores it through undo and redo", () => {
+    const cell = root.querySelector<SVGElement>(".ce-cells path[data-pick]")!;
+    cell.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    const input = root.querySelector<HTMLInputElement>(".ce-cell-height-storeys")!;
+    expect(input).not.toBeNull();
+    input.value = "2";
+    input.dispatchEvent(new Event("change"));
+    expect(root.querySelector<HTMLInputElement>(".ce-cell-height-storeys")!.value).toBe("2");
+    root.querySelector<HTMLButtonElement>('button[aria-label="Undo"]')!.click();
+    root
+      .querySelector<SVGElement>(".ce-cells path[data-pick]")!
+      .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(root.querySelector<HTMLInputElement>(".ce-cell-height-storeys")!.value).toBe("");
+    root.querySelector<HTMLButtonElement>('button[aria-label="Redo"]')!.click();
+    root
+      .querySelector<SVGElement>(".ce-cells path[data-pick]")!
+      .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(root.querySelector<HTMLInputElement>(".ce-cell-height-storeys")!.value).toBe("2");
+  });
+
   it("offers the three bundled historic landmark studies without an import", () => {
     const select = root.querySelector<HTMLSelectElement>('select[aria-label="Historic landmark asset"]');
     expect(select).not.toBeNull();

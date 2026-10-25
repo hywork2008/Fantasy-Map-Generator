@@ -1,5 +1,6 @@
 import type { SiteConfig } from "../../types/contracts/siteConfig";
 import type { GenerationSettings, StreetSettings } from "../../types/generation";
+import { DEFAULT_BUILDING_HEIGHT_POLICY } from "../buildingHeightPolicy";
 import { makeRng } from "../prng";
 import { DEFAULT_SITE_CONFIG, randomSiteConfig } from "../site/siteConfig";
 import { bastionEra } from "./skeleton/wallShapes";
@@ -44,7 +45,11 @@ export function randomSeed(): string {
 }
 
 export function defaultGenerationSettings(): GenerationSettings {
-  return { config: structuredClone(DEFAULT_SITE_CONFIG), streets: defaultStreetSettings() };
+  return {
+    config: structuredClone(DEFAULT_SITE_CONFIG),
+    streets: defaultStreetSettings(),
+    buildingHeightPolicy: { ...DEFAULT_BUILDING_HEIGHT_POLICY }
+  };
 }
 
 /** A fresh coherent random coast / rivers / relief / feature combination. */

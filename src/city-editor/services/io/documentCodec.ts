@@ -6,6 +6,12 @@ import { requiredSiteExtent } from "../../../utils/requiredSiteBounds";
 import { validUrbanMorphology } from "../../../utils/urbanMorphology";
 import { validBastionedTown } from "../../generators/bastionedTown/codec";
 import { buildBlockFabric } from "../../generators/blockInfill";
+import { sameBuildingHeightLimit, validBuildingHeightLimit } from "../../generators/buildingHeightLimits";
+import {
+  sameBuildingHeightPolicy,
+  validBuildingHeightPolicy,
+  validHousingAreaSettings
+} from "../../generators/buildingHeightPolicy";
 import { BLOCK_SIZE_METERS } from "../../generators/document";
 import { upgradeFabricPlan, validFabricPlan } from "../../generators/fabricDistricts";
 import { validFacilityCounts } from "../../generators/facilitySettings";
@@ -43,6 +49,7 @@ export function parseDocument(text: string, fixedApproachProvider?: FixedApproac
     // documents simply have no gates until the user adds one on a wall vertex.
     if (!Array.isArray(value.gates)) value.gates = [];
     for (const face of Object.values(value.mesh.faces)) {
+      if (!validBuildingHeightLimit(face.properties.buildingHeightLimit)) return null;
       const quality = face.properties.farming;
       if (
         quality !== undefined &&
@@ -87,6 +94,15 @@ function isDocument(value: unknown): value is CityDocument {
   return (
     doc.format === "fmg-city-editor" &&
     validBuildingAppearanceFields(doc) &&
+    validBuildingHeightPolicy(doc.buildingHeightPolicy) &&
+    validBuildingHeightLimit(doc.buildingHeightLimit) &&
+    (!doc.fabric?.generation ||
+      sameBuildingHeightLimit(doc.buildingHeightLimit, doc.fabric.generation.settings?.buildingHeightLimit)) &&
+    (!doc.mesh?.faces ||
+      Object.values(doc.mesh.faces).every(face => validBuildingHeightLimit(face?.properties?.buildingHeightLimit))) &&
+    validHousingAreaSettings(doc) &&
+    (!doc.fabric?.generation ||
+      sameBuildingHeightPolicy(doc.buildingHeightPolicy, doc.fabric.generation.settings?.buildingHeightPolicy)) &&
     validFacilityCounts(doc.facilityCounts) &&
     (doc.ruralFieldVersion === undefined || doc.ruralFieldVersion === 1 || doc.ruralFieldVersion === 2) &&
     validRuralFieldSettings(doc.ruralFieldSettings) &&
