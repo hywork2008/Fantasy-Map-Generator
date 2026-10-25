@@ -42,6 +42,7 @@ import type { CityDocument } from "../types/document";
 import { collectOpenSpacePlan } from "./openSpaceSites";
 import { collectPierSites } from "./pierSites";
 import { collectShipSites } from "./shipSites";
+import { standaloneHousingAppearance } from "./standaloneHousingAppearance";
 import { collectCityStructures, landmarkLotStructures } from "./structureMassing";
 import { groundStructures, lotFoundations, rampStructures, stairStructures } from "./terrainMassing";
 import { resolveCemeteryPlans } from "./townFacts";
@@ -116,6 +117,7 @@ export function mountCity3d(options: {
   getViewCenter?: () => readonly [number, number];
   /** Requested detailed-model quality; each model falls back to the tiers it ships. */
   getModelQuality?: () => ModelQuality;
+  isFmgLinked?: () => boolean;
   /** Draw-grid spacing for a height field. Absent uses the automatic spacing. */
   getTerrainSpacing?: () => number | "auto";
   /** Metres the river surface sits below the land it touches. Absent keeps 1 m. */
@@ -416,8 +418,8 @@ export function mountCity3d(options: {
     if (!scene) return;
     const city = options.getDocument();
     // Fabric first: lane geometry is part of the road stamp, and graded roads shape the terrain.
-    const fabric = buildBlockFabric(city);
     const quality = options.getModelQuality?.() ?? "standard";
+    const fabric = standaloneHousingAppearance(city, buildBlockFabric(city), quality, options.isFmgLinked?.() ?? false);
     const stamp = `${townWaterStamp(city)}|${riverDropMeters(riverDrop())}`;
     const roads = townRoadStamp(city, fabric.lanes);
     const spacing = options.getTerrainSpacing?.() ?? "auto";

@@ -2784,6 +2784,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     getViewHalfSize: () => display.halfView,
     getViewCenter: () => display.viewCenter,
     getModelQuality: readModelQualityPreference,
+    isFmgLinked: () => Boolean(generation.generateSettings.descriptor),
     getTerrainSpacing: readTerrainSpacingPreference,
     getRiverDropMeters: () => riverDropMeters(generation.generateSettings.riverDropMeters)
   });
