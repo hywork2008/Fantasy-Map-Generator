@@ -23,7 +23,7 @@ it("grounds four wheels and generates finite projections within the study envelo
   model.dispose();
 });
 
-it("uses transverse staggered ascents with real headroom through the deck and its supporting frame", () => {
+it("uses transverse reversing ascents with real headroom through the deck and its supporting frame", () => {
   const model = createSiegeTowerModel();
   model.group.updateMatrixWorld(true);
   const stiles = model.pickables.filter(mesh => mesh.name === "ladder-stile");
@@ -39,7 +39,8 @@ it("uses transverse staggered ascents with real headroom through the deck and it
     const bottom = left[0].clone().add(right[0]).multiplyScalar(0.5);
     const top = left[1].clone().add(right[1]).multiplyScalar(0.5);
     expect(top.x).toBeCloseTo(bottom.x);
-    expect(top.z).toBeGreaterThan(bottom.z);
+    const directionZ = layout.ladderDirection[level];
+    expect((top.z - bottom.z) * directionZ).toBeGreaterThan(0);
     expect(top.y).toBeGreaterThan(layout.decks[level + 1] + 0.8);
     ascentX.push(top.x);
     const floorY = layout.decks[level + 1] + 0.06;
@@ -47,7 +48,16 @@ it("uses transverse staggered ascents with real headroom through the deck and it
     // A 0.56 m wide, 1.85 m tall clearance envelope must not hit decking or headers during ascent.
     for (let step = 0; step <= 24; step++) {
       const foot = bottom.clone().lerp(exit, step / 24);
-      const body = volume(foot.x - 0.28, foot.y + 0.12, foot.z - 0.33, foot.x + 0.28, foot.y + 1.85, foot.z + 0.18);
+      const zA = foot.z - directionZ * 0.33;
+      const zB = foot.z + directionZ * 0.18;
+      const body = volume(
+        foot.x - 0.28,
+        foot.y + 0.12,
+        Math.min(zA, zB),
+        foot.x + 0.28,
+        foot.y + 1.85,
+        Math.max(zA, zB)
+      );
       for (const mesh of deckMembers)
         expect(bounds(mesh).intersectsBox(body), `${mesh.name} blocks ascent ${level}`).toBe(false);
     }
@@ -63,30 +73,38 @@ it("uses transverse staggered ascents with real headroom through the deck and it
   model.dispose();
 });
 
-it("leaves standing landings and a separate approach to the next ladder", () => {
+it("connects adjacent flights directly across a short landing without walking around a hatch", () => {
   const model = createSiegeTowerModel();
   model.group.updateMatrixWorld(true);
   for (let level = 1; level < layout.decks.length; level++) {
     const y = layout.decks[level] + 0.06;
     const x = layout.ladderX[level - 1];
-    const landing = volume(x - 0.28, y + 0.02, 0.68, x + 0.28, y + 1.85, 1.3);
+    const directionZ = layout.ladderDirection[level - 1];
+    const landingZ = directionZ * 1.32;
+    const z0 = landingZ - 0.28,
+      z1 = landingZ + 0.28;
+    const landing = volume(x - 0.28, y + 0.02, z0, x + 0.28, y + 1.85, z1);
     const transfer = volume(
       Math.min(x, layout.ladderX[level] ?? 0) - 0.28,
       y + 0.02,
-      0.8,
+      z0,
       Math.max(x, layout.ladderX[level] ?? 0) + 0.28,
       y + 1.85,
-      1.3
+      z1
     );
     for (const space of [landing, transfer])
       for (const mesh of model.pickables)
         expect(bounds(mesh).intersectsBox(space), `${mesh.name} blocks landing ${level}`).toBe(false);
     if (level < 3) {
       const nextX = layout.ladderX[level];
-      const approach = volume(nextX - 0.28, y + 0.02, -1.3, nextX + 0.28, y + 1.85, 0.8);
-      // The next ladder itself is the destination; no other ascent, guard or frame may block its approach.
-      for (const mesh of model.pickables.filter(mesh => !mesh.name.startsWith("ladder-")))
-        expect(bounds(mesh).intersectsBox(approach), `${mesh.name} blocks approach ${level}`).toBe(false);
+      const nextFootZ = layout.ladderDirection[level] * layout.ladderFootZ;
+      expect(layout.ladderDirection[level]).toBe(-directionZ);
+      // The next foot is at the same landing end, rather than across the room.
+      expect(Math.abs(nextFootZ - landingZ)).toBeLessThan(0.45);
+      expect(Math.abs(nextX - x)).toBeLessThan(1.2);
+      const nextFoot = volume(nextX - 0.28, y + 0.02, z0, nextX + 0.28, y + 1.85, z1);
+      for (const mesh of model.pickables)
+        expect(bounds(mesh).intersectsBox(nextFoot), `${mesh.name} blocks the next foot ${level}`).toBe(false);
     }
   }
   model.dispose();
@@ -107,7 +125,7 @@ it("keeps the assault corridor clear of winding shafts and ropes and fits the ra
   );
   for (const mesh of model.pickables)
     expect(bounds(mesh).intersectsBox(corridor), `${mesh.name} blocks the assault`).toBe(false);
-  const landingToDoor = volume(-0.2, 7.53, 0.8, 1.1, 9.4, 1.25);
+  const landingToDoor = volume(-0.2, 7.53, -1.25, 1.1, 9.4, -0.8);
   for (const mesh of model.pickables)
     expect(bounds(mesh).intersectsBox(landingToDoor), `${mesh.name} blocks the exit`).toBe(false);
   expect(parts("winch-drum")).toHaveLength(2);

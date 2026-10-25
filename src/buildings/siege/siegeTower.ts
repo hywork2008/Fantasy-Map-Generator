@@ -8,13 +8,14 @@ export const SIEGE_TOWER = {
   length: 8.5,
   width: 5.6,
   height: 11.7,
-  note: "Interpretive medieval belfry informed by Viollet-le-Duc, Dictionnaire raisonne, Engin, fig. 32: transverse staggered ladders, a clear assault deck and an archer platform above it. Four wheels, timber framing and hide cladding. Side-mounted bridge windlasses and dimensions are modeling interpretations, not documented details of a surviving engine. Bridge shown resting on an implied wall; hoist ropes do not replace that support. Rear left open as in the reference. See docs/buildings/siege-tower.md for sources and circulation checks."
+  note: "Interpretive medieval belfry informed by Viollet-le-Duc, Engin, fig. 32. Transverse ladders alternate direction, connecting adjacent flights by short landings. The circulation layout, side windlasses and dimensions are modeling interpretations. A separate archer deck covers the assault bridge, shown resting on an implied castle wall."
 } as const;
 
-// Positive X faces the wall. Ladder travel is transverse (+Z), with a separate landing at each level.
+// Positive X faces the wall. Transverse flights reverse direction at adjacent landing ends.
 export const SIEGE_TOWER_LAYOUT = {
   decks: [1.65, 4.55, 7.45, 10.35],
-  ladderX: [-1.08, 0.08, -1.08],
+  ladderX: [-1.08, 0, -1.08],
+  ladderDirection: [1, -1, 1],
   hatchHalfWidth: 0.48,
   hatchRear: -1.1,
   hatchFront: 0.62,
@@ -101,22 +102,16 @@ export function createSiegeTowerModel(): CityStructureMeshes {
     const y = levels[level],
       h = half(y);
     const hatchX = level > 0 ? layout.ladderX[level - 1] : null;
+    const incomingDirection = level > 0 ? layout.ladderDirection[level - 1] : 1;
+    const hatchRear = incomingDirection > 0 ? layout.hatchRear : -layout.hatchFront;
+    const hatchFront = incomingDirection > 0 ? layout.hatchFront : -layout.hatchRear;
     // Joists stay outside the openings; transverse headers and trimmers carry the cut deck.
     for (const z of [-1.56, 1.56]) box("floor-joist", 0, y - 0.17, z, h * 2 + 0.25, 0.22, 0.18, dark);
     if (hatchX !== null) {
-      for (const z of [layout.hatchRear - 0.09, layout.hatchFront + 0.09])
+      for (const z of [hatchRear - 0.09, hatchFront + 0.09])
         box("hatch-header", 0, y - 0.17, z, h * 2, 0.22, 0.16, dark);
       for (const x of [hatchX - layout.hatchHalfWidth - 0.08, hatchX + layout.hatchHalfWidth + 0.08])
-        box(
-          "hatch-trimmer",
-          x,
-          y - 0.17,
-          (layout.hatchRear + layout.hatchFront) / 2,
-          0.14,
-          0.22,
-          layout.hatchFront - layout.hatchRear,
-          dark
-        );
+        box("hatch-trimmer", x, y - 0.17, (hatchRear + hatchFront) / 2, 0.14, 0.22, hatchFront - hatchRear, dark);
     }
     // Split every affected plank at the exact hatch boundary, rather than cutting a cosmetic hole.
     for (let i = 0; i < 20; i++) {
@@ -134,24 +129,24 @@ export function createSiegeTowerModel(): CityStructureMeshes {
         const overHatch = hatchX !== null && Math.abs(x - hatchX) < layout.hatchHalfWidth;
         const spans = overHatch
           ? [
-              [-1.77, layout.hatchRear],
-              [layout.hatchFront, 1.77]
+              [-1.77, hatchRear],
+              [hatchFront, 1.77]
             ]
           : [[-1.77, 1.77]];
         for (const [start, end] of spans)
           box("floor-plank", x, y, (start + end) / 2, width, 0.12, end - start, wood[i % 4]);
       }
     }
-    // Keep the hatch sides guarded; its +Z end is the unobstructed landing.
+    // Side guards stop before the landing at the incoming flight's exit end.
     if (hatchX !== null)
       for (const side of [-1, 1]) {
         const x = hatchX + side * (layout.hatchHalfWidth + 0.08);
-        for (const z of [layout.hatchRear - 0.08, layout.hatchFront - 0.08])
+        for (const z of [hatchRear - incomingDirection * 0.08, hatchFront - incomingDirection * 0.08])
           box("hatch-guard-post", x, y + 0.55, z, 0.07, 1.05, 0.07);
         beam(
           "hatch-guard-rail",
-          v(x, y + 1.05, layout.hatchRear - 0.08),
-          v(x, y + 1.05, layout.hatchFront - 0.08),
+          v(x, y + 1.05, hatchRear - incomingDirection * 0.08),
+          v(x, y + 1.05, hatchFront - incomingDirection * 0.08),
           0.065
         );
       }
@@ -210,8 +205,9 @@ export function createSiegeTowerModel(): CityStructureMeshes {
     if (level < levels.length - 1) {
       const x = layout.ladderX[level];
       const upperY = levels[level + 1];
-      const bottom = v(x, y + 0.1, layout.ladderFootZ);
-      const exit = v(x, upperY + 0.06, layout.ladderExitZ);
+      const directionZ = layout.ladderDirection[level];
+      const bottom = v(x, y + 0.1, directionZ * layout.ladderFootZ);
+      const exit = v(x, upperY + 0.06, directionZ * layout.ladderExitZ);
       const direction = exit.clone().sub(bottom);
       const top = exit.clone().addScaledVector(direction, 0.85 / direction.y);
       // Rungs run along X, keeping the ascent transverse to the wall behind the front cladding.
@@ -221,8 +217,8 @@ export function createSiegeTowerModel(): CityStructureMeshes {
         const p = bottom.clone().lerp(exit, i / 11);
         beam("ladder-rung", p.clone().add(v(-0.35, 0, 0)), p.clone().add(v(0.35, 0, 0)), 0.055, wood[1], true);
       }
-      // Ladders are staggered across X. A soldier steps onto the +Z landing, moves sideways,
-      // and approaches the next foot along its own clear lane, rather than under the next climber.
+      // The next flight starts beside this exit landing, facing back across the tower.
+      // A short sideways transfer replaces the former walk around to the opposite end.
     }
     // Rear safety rails frame the open access side.
     if (level < levels.length - 1)

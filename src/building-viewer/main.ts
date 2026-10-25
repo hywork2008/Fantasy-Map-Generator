@@ -1176,7 +1176,10 @@ siegeTowerButton.addEventListener("click", () => {
     fact("Model", SIEGE_TOWER.name),
     fact("Style", "Medieval Europe · Timber belfry"),
     fact("Study envelope", `${SIEGE_TOWER.length} × ${SIEGE_TOWER.width} × ${SIEGE_TOWER.height} m`),
-    fact("Structure", "Braced timber frame, four decks, transverse staggered ladders and guarded hatch landings"),
+    fact(
+      "Structure",
+      "Braced timber frame, four decks, transverse switchback ladders and short guarded transfer landings"
+    ),
     fact("Protection", "Hide panels, arrow slits and a separate upper archer platform"),
     fact(
       "Equipment",
