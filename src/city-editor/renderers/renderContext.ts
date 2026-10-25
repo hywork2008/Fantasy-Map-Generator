@@ -2,6 +2,8 @@ import type { FixedBurgCrossings } from "../../utils/fixedBurgCrossings";
 import type { CityDocument, Id, Tool } from "../types/document";
 import type { RenderSelection } from "../types/selection";
 
+import type { HousingViewOptions } from "./standaloneHousingAppearance";
+
 /**
  * Read-only inputs one render pass shares between its layer renderers. Derived
  * once in `renderEditorSvg`; a layer renderer never reassigns these fields and
@@ -22,6 +24,7 @@ export interface RenderContext {
   readonly hideBuildings: boolean;
   readonly hideStreetLines: boolean;
   readonly preview: boolean;
+  readonly housingView?: HousingViewOptions;
 }
 
 export type { Id };

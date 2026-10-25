@@ -246,7 +246,10 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
     getDocument: () => ctx.documents.documentState,
     select: ctx.select,
     label: ctx.label,
-    modelQualityChanged: () => ctx.syncCity3d(),
+    modelQualityChanged: () => {
+      ctx.redrawMap();
+      ctx.syncCity3d();
+    },
     updateDocument(next) {
       clearGenerationPreviewCache();
       if (ctx.generation.completeSource)

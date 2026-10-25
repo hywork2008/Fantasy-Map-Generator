@@ -19,6 +19,7 @@ import {
 } from "../renderers/overlays/editorOverlays";
 import { featureGroupPickInfo, parsePickInfo } from "../renderers/pickInfo";
 import { renderShipRotationHandle, renderShipSvg } from "../renderers/shipSvg";
+import { readModelQualityPreference } from "../services/browserPreferences";
 import { startRuralFields } from "../services/ruralFieldWorkerClient";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
 import type { InfillLane } from "../types/contracts/localInfill";
@@ -352,7 +353,8 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
       ctx.display.hideStreetLines,
       ctx.renderQualitySelect.value as RenderQuality,
       false,
-      { core: ctx.coreLayerInput.checked, regional: ctx.regionalLayerInput.checked }
+      { core: ctx.coreLayerInput.checked, regional: ctx.regionalLayerInput.checked },
+      { modelQuality: readModelQualityPreference(), fmgLinked: Boolean(ctx.generation.generateSettings.descriptor) }
     );
     if (ctx.generation.failurePreview) {
       svg.classList.add("ce-generation-debug");

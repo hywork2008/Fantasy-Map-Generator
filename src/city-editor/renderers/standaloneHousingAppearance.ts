@@ -15,19 +15,34 @@ export function standaloneHousingAppearance(
   quality: ModelQuality,
   fmgLinked: boolean
 ): DistrictFabric {
+  const appearanceDocument = standaloneHousingDocument(document, quality, fmgLinked);
+  if (appearanceDocument === document) return fabric;
+  const cached = previews.get(document);
+  if (cached?.source === fabric) return cached.result;
+  const result = { ...fabric, buildings: assignBuildingAppearances(appearanceDocument, fabric.buildings) };
+  previews.set(document, { source: fabric, result });
+  return result;
+}
+
+export interface HousingViewOptions {
+  modelQuality: ModelQuality;
+  fmgLinked: boolean;
+}
+
+/** Resolve the same seeded automatic culture for both SVG and WebGL views. */
+export function standaloneHousingDocument(
+  document: CityDocument,
+  quality: ModelQuality,
+  fmgLinked: boolean
+): CityDocument {
   if (
     fmgLinked ||
     document.fabric?.generation?.settings.descriptor ||
     quality !== "high" ||
     document.buildingAppearanceProfile
   )
-    return fabric;
-  const cached = previews.get(document);
-  if (cached?.source === fabric) return cached.result;
+    return document;
   const seed = document.generationSeed || document.fabric?.seed || "massing";
   const profile = profiles[Math.floor(growthRandom(`${seed}:standalone-housing-culture`) * profiles.length)];
-  const appearanceDocument = withBuildingAppearance(document, profile);
-  const result = { ...fabric, buildings: assignBuildingAppearances(appearanceDocument, fabric.buildings) };
-  previews.set(document, { source: fabric, result });
-  return result;
+  return withBuildingAppearance(document, profile);
 }

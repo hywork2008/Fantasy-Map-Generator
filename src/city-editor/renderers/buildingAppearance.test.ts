@@ -12,12 +12,13 @@ import type { CityDocument } from "../types/document";
 import type { RenderSelection } from "../types/selection";
 import { type RenderQuality, renderEditorSvg } from "./editorSvg";
 import { parsePickInfo } from "./pickInfo";
+import { type HousingViewOptions, standaloneHousingAppearance } from "./standaloneHousingAppearance";
 import { renderStandaloneCitySvg, STANDALONE_SVG_STYLE } from "./standaloneSvg";
 import { polygon } from "./svgPrimitives";
 
 let city: CityDocument;
 const selection: RenderSelection = { faceId: null, edgeId: null, vertexId: null, groupId: null };
-const render = (doc: CityDocument, quality: RenderQuality, selected = selection) =>
+const render = (doc: CityDocument, quality: RenderQuality, selected = selection, housingView?: HousingViewOptions) =>
   renderEditorSvg(
     doc,
     "select",
@@ -34,7 +35,10 @@ const render = (doc: CityDocument, quality: RenderQuality, selected = selection)
     undefined,
     false,
     false,
-    quality
+    quality,
+    false,
+    { core: true, regional: true },
+    housingView
   );
 beforeAll(() => {
   const seed = "regional-appearance";
@@ -85,6 +89,31 @@ describe("shared regional SVG appearance", () => {
     expect(render(legacy, "light").querySelector(".ce-building")?.getAttribute("style")).not.toContain(
       "--ce-roof-color"
     );
+  });
+
+  it("uses the same seeded housing culture for 2D roofs and the high-quality 3D view", () => {
+    const automatic = { ...city, buildingAppearanceProfile: undefined };
+    const before = JSON.stringify(automatic);
+    const fabric = buildBlockFabric(automatic);
+    const high = standaloneHousingAppearance(automatic, fabric, "high", false);
+    expect(high.buildings.some(lot => lot.appearance && lot.appearance.profileId !== "legacy")).toBe(true);
+    const svg = render(automatic, "detailed", selection, { modelQuality: "high", fmgLinked: false });
+    const paths = new Map([...svg.querySelectorAll<SVGElement>(".ce-building")].map(p => [p.getAttribute("d"), p]));
+    for (const lot of high.buildings.filter(lot => !lot.landmark && lot.appearance)) {
+      expect(paths.get(polygon(lot.polygon))?.style.getPropertyValue("--ce-roof-color")).toBe(
+        buildingAppearanceColors(lot.appearance)!.roof
+      );
+    }
+    const colors = (svg: SVGElement) =>
+      [...svg.querySelectorAll<SVGElement>(".ce-building")].map(p => p.style.getPropertyValue("--ce-roof-color"));
+    const baseline = colors(render(automatic, "detailed"));
+    expect(colors(render(automatic, "detailed", selection, { modelQuality: "standard", fmgLinked: false }))).toEqual(
+      baseline
+    );
+    expect(colors(render(automatic, "detailed", selection, { modelQuality: "high", fmgLinked: true }))).toEqual(
+      baseline
+    );
+    expect(JSON.stringify(automatic)).toBe(before);
   });
 
   it("limits mixed-material blocks deterministically before 2D/3D consume them", () => {

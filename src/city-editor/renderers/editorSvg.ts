@@ -38,6 +38,7 @@ import type { RenderContext } from "./renderContext";
 import type { RenderQuality } from "./renderQuality";
 import { renderRiverWallSvg } from "./riverWallSvg";
 import { frameScene } from "./sceneFrameSvg";
+import type { HousingViewOptions } from "./standaloneHousingAppearance";
 import { element, line, polygon } from "./svgPrimitives";
 import { renderTerrainFieldOverlay } from "./terrainFieldSvg";
 import { renderTerrainEarthworks } from "./terrainSvg";
@@ -76,7 +77,8 @@ export function renderEditorSvg(
   hideStreetLines = false,
   quality: RenderQuality = "detailed",
   preview = false,
-  sceneVisibility: { core: boolean; regional: boolean } = { core: true, regional: true }
+  sceneVisibility: { core: boolean; regional: boolean } = { core: true, regional: true },
+  housingView?: HousingViewOptions
 ): SVGSVGElement {
   const fixedMode = document.importedFixedCrossings !== undefined;
   const fixedGeometry = fixedDocumentGeometry(document);
@@ -118,6 +120,7 @@ export function renderEditorSvg(
     minimal,
     hideBuildings,
     hideStreetLines,
+    housingView,
     preview
   };
   const groundColor = getLandscapeGroundColor(document);

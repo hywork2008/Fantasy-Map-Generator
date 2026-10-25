@@ -12,6 +12,12 @@ import { ruralFieldOverlay } from "../generators/ruralFieldOverlay";
 import { buildWatermillPlan, type WatermillPlan } from "../generators/watermillFabric";
 import type { CemeteryPlan, CityDocument } from "../types/document";
 
+import {
+  type HousingViewOptions,
+  standaloneHousingAppearance,
+  standaloneHousingDocument
+} from "./standaloneHousingAppearance";
+
 type Lots = ReturnType<typeof buildCityBuildings>;
 
 /** What the town view needs to know exists, decided once before any DOM is written. */
@@ -30,9 +36,16 @@ export interface TownFacts {
  * Read-only preparation for the town view. Never mutates `document`; block-fabric
  * reuse is owned by `buildBlockFabric`'s own cache.
  */
-export function prepareTownFacts(document: CityDocument, mark?: (phase: string) => void): TownFacts {
+export function prepareTownFacts(
+  document: CityDocument,
+  mark?: (phase: string) => void,
+  housingView?: HousingViewOptions
+): TownFacts {
+  const appearanceDocument = housingView
+    ? standaloneHousingDocument(document, housingView.modelQuality, housingView.fmgLinked)
+    : document;
   const plainLots = () =>
-    assignBuildingAppearances(document, assignBuildingMassing(document, buildCityBuildings(document)));
+    assignBuildingAppearances(appearanceDocument, assignBuildingMassing(document, buildCityBuildings(document)));
   const usesFabric =
     document.populationPlan ||
     document.urbanMorphology ||
@@ -42,7 +55,7 @@ export function prepareTownFacts(document: CityDocument, mark?: (phase: string) 
     document.layout === "circulade" ||
     document.layout === "bram" ||
     document.layout === "classic";
-  const fabric: DistrictFabric | null = usesFabric
+  let fabric: DistrictFabric | null = usesFabric
     ? buildBlockFabric(document)
     : document.ruralFieldVersion === 2
       ? {
@@ -53,6 +66,8 @@ export function prepareTownFacts(document: CityDocument, mark?: (phase: string) 
           ...ruralFieldOverlay(document, documentFabricFingerprint(document))
         }
       : null;
+  if (fabric && housingView)
+    fabric = standaloneHousingAppearance(document, fabric, housingView.modelQuality, housingView.fmgLinked);
   mark?.("town-fabric");
   const lots = fabric?.buildings ?? plainLots();
   const housing = document.populationPlan
