@@ -1,8 +1,22 @@
 import * as THREE from "three";
+import { OBB } from "three/examples/jsm/math/OBB.js";
 import { expect, it, vi } from "vitest";
-import { createSiegeTower, createSiegeTowerModel, SIEGE_TOWER_LAYOUT as layout, SIEGE_TOWER } from "./siegeTower";
+import {
+  createSiegeTower,
+  createSiegeTowerModel,
+  SIEGE_TOWER_LAYOUT as layout,
+  SIEGE_TOWER,
+  siegeTowerFrontX,
+  siegeTowerRearX
+} from "./siegeTower";
 
 const bounds = (mesh: THREE.Object3D) => new THREE.Box3().setFromObject(mesh);
+// Raked posts and long rear ladders need oriented bounds; their world AABBs cover empty interior space.
+const overlaps = (mesh: THREE.Mesh, space: THREE.Box3) => {
+  mesh.geometry.computeBoundingBox();
+  const part = new OBB().fromBox3(mesh.geometry.boundingBox!).applyMatrix4(mesh.matrixWorld);
+  return part.intersectsOBB(new OBB().fromBox3(space));
+};
 const volume = (x0: number, y0: number, z0: number, x1: number, y1: number, z1: number) =>
   new THREE.Box3(new THREE.Vector3(x0, y0, z0), new THREE.Vector3(x1, y1, z1));
 
@@ -67,7 +81,7 @@ it("keeps lower ascents transverse and the exposed roof ascent facing the enemy 
           ? body
           : volume(foot.x - 0.33, foot.y + 0.12, foot.z - 0.28, foot.x + 0.18, foot.y + 1.85, foot.z + 0.28);
       for (const mesh of deckMembers)
-        expect(bounds(mesh).intersectsBox(clearance), `${mesh.name} blocks ascent ${level}`).toBe(false);
+        expect(overlaps(mesh, clearance), `${mesh.name} blocks ascent ${level}`).toBe(false);
     }
   }
   expect(Math.abs(ascentX[1] - ascentX[0])).toBeGreaterThan(1);
@@ -87,21 +101,21 @@ it("connects adjacent flights directly across a short landing without walking ar
     const y = layout.decks[level] + 0.06;
     const x = layout.ladderX[level - 1];
     const directionZ = layout.ladderDirection[level - 1];
-    const landingZ = directionZ * (level === 2 ? 1.4 : 1.32);
+    const landingZ = directionZ * (level === 2 ? 1.36 : 1.32);
     const z0 = landingZ - 0.28,
       z1 = landingZ + 0.28;
     const landing = volume(x - 0.28, y + 0.02, z0, x + 0.28, y + 1.85, z1);
     const transfer = volume(
-      Math.min(x, level === 2 ? -0.15 : layout.ladderX[level]) - 0.28,
+      Math.min(x, level === 2 ? -1.55 : layout.ladderX[level]) - 0.28,
       y + 0.02,
       z0,
-      Math.max(x, level === 2 ? -0.15 : layout.ladderX[level]) + 0.28,
+      Math.max(x, level === 2 ? -1.55 : layout.ladderX[level]) + 0.28,
       y + 1.85,
       z1
     );
     for (const space of [landing, transfer])
       for (const mesh of model.pickables)
-        expect(bounds(mesh).intersectsBox(space), `${mesh.name} blocks landing ${level}`).toBe(false);
+        expect(overlaps(mesh, space), `${mesh.name} blocks landing ${level}`).toBe(false);
     if (level < 2) {
       const nextX = layout.ladderX[level];
       const nextFootZ = layout.ladderDirection[level] * layout.ladderFootZ;
@@ -111,7 +125,7 @@ it("connects adjacent flights directly across a short landing without walking ar
       expect(Math.abs(nextX - x)).toBeLessThan(1.2);
       const nextFoot = volume(nextX - 0.28, y + 0.02, z0, nextX + 0.28, y + 1.85, z1);
       for (const mesh of model.pickables)
-        expect(bounds(mesh).intersectsBox(nextFoot), `${mesh.name} blocks the next foot ${level}`).toBe(false);
+        expect(overlaps(mesh, nextFoot), `${mesh.name} blocks the next foot ${level}`).toBe(false);
     }
   }
   model.dispose();
@@ -130,11 +144,9 @@ it("keeps the assault corridor clear of winding shafts and ropes and fits the ra
     9.55,
     layout.passageHalfWidth
   );
-  for (const mesh of model.pickables)
-    expect(bounds(mesh).intersectsBox(corridor), `${mesh.name} blocks the assault`).toBe(false);
+  for (const mesh of model.pickables) expect(overlaps(mesh, corridor), `${mesh.name} blocks the assault`).toBe(false);
   const landingToDoor = volume(-0.65, 7.53, -1.68, 1.1, 9.4, -1.12);
-  for (const mesh of model.pickables)
-    expect(bounds(mesh).intersectsBox(landingToDoor), `${mesh.name} blocks the exit`).toBe(false);
+  for (const mesh of model.pickables) expect(overlaps(mesh, landingToDoor), `${mesh.name} blocks the exit`).toBe(false);
   expect(parts("winch-drum")).toHaveLength(2);
   expect(parts("winch-common-shaft")).toHaveLength(1);
   expect(parts("winch-operating-wheel")).toHaveLength(1);
@@ -181,13 +193,13 @@ it("connects the left boarding entry and the roof approach without an aft-facing
   expect(stiles.every(mesh => mesh.position.z < 0)).toBe(true);
   expect(Math.abs(layout.boardingZ - layout.ladderFootZ)).toBeLessThan(0.3);
   const routes = [
-    volume(-1.72, 1.73, -1.65, 0.28, 3.5, -1.12),
-    volume(-0.43, 7.53, -1.4, 0.13, 9.36, -0.4),
-    volume(0.87, 10.43, -0.96, 1.43, 12.2, -0.4)
+    volume(siegeTowerRearX(1.65) + 0.25, 1.73, -1.65, -1.12, 3.5, -1.12),
+    volume(-1.83, 7.53, -1.4, -1.27, 9.36, -0.4),
+    volume(-0.53, 10.43, -0.96, 0.03, 12.2, -0.4)
   ];
   for (const route of routes)
     for (const mesh of model.pickables)
-      expect(bounds(mesh).intersectsBox(route), `${mesh.name} blocks the connected approach`).toBe(false);
+      expect(overlaps(mesh, route), `${mesh.name} blocks the connected approach`).toBe(false);
   model.dispose();
 });
 
@@ -209,12 +221,49 @@ it("never sends an archer aft between the assault-deck arrival and the roof ladd
   expect(approachX).toBeGreaterThan(arrival.x + 0.3);
   expect(roofFoot.x).toBeGreaterThan(approachX);
   expect(pairCenter(2, 0.5).x).toBeGreaterThan(roofFoot.x);
-  const landingZ = -1.4;
+  const landingZ = -1.36;
   const forwardTransfer = volume(arrival.x - 0.28, 7.53, landingZ - 0.28, approachX + 0.28, 9.36, landingZ + 0.28);
   const sidewaysApproach = volume(approachX - 0.28, 7.53, landingZ, approachX + 0.28, 9.36, roofFoot.z + 0.28);
   for (const space of [forwardTransfer, sidewaysApproach])
     for (const mesh of model.pickables)
-      expect(bounds(mesh).intersectsBox(space), `${mesh.name} forces a detour on the archer route`).toBe(false);
+      expect(overlaps(mesh, space), `${mesh.name} forces a detour on the archer route`).toBe(false);
+  model.dispose();
+});
+
+it("reserves three forward archer positions independently of the rear ladder landing", () => {
+  const model = createSiegeTowerModel();
+  model.group.updateMatrixWorld(true);
+  // Three 1 m wide stations share a 1.5 m deep uninterrupted strip behind the front parapet.
+  for (const z of [-1, 0, 1]) {
+    const station = volume(0.35, 10.43, z - 0.48, 1.85, 12.25, z + 0.48);
+    for (const mesh of model.pickables)
+      expect(overlaps(mesh, station), `${mesh.name} occupies the firing line`).toBe(false);
+    for (const x of [0.4, 1, 1.8]) {
+      const floor = new THREE.Raycaster(new THREE.Vector3(x, 10.5, z), new THREE.Vector3(0, -1, 0)).intersectObjects(
+        model.pickables.filter(mesh => mesh.name === "floor-plank" && mesh.position.y === 10.35)
+      );
+      expect(floor.length).toBeGreaterThan(0);
+    }
+  }
+  const posts = model.pickables.filter(mesh => mesh.name === "corner-post");
+  const lean = (mesh: THREE.Mesh) => {
+    const a = mesh.localToWorld(new THREE.Vector3(0, -0.5, 0));
+    const b = mesh.localToWorld(new THREE.Vector3(0, 0.5, 0));
+    return Math.abs((b.x - a.x) / (b.y - a.y));
+  };
+  const rear = posts.filter(mesh => mesh.position.x < -2);
+  const front = posts.filter(mesh => mesh.position.x > 1);
+  expect(rear).toHaveLength(2);
+  expect(front).toHaveLength(2);
+  for (const post of rear) expect(lean(post)).toBeGreaterThan(0.35);
+  for (const post of front) expect(lean(post)).toBeLessThan(0.01);
+  expect(siegeTowerFrontX(10.35) - siegeTowerRearX(10.35)).toBeGreaterThan(4.2);
+  const outside = model.pickables.filter(mesh => mesh.name === "rear-access-stile");
+  expect(outside).toHaveLength(2);
+  for (const stile of outside) expect(lean(stile)).toBeGreaterThan(0.35);
+  const arrival = volume(-0.53, 10.43, -0.96, 0.03, 12.2, -0.4);
+  for (const mesh of model.pickables)
+    expect(overlaps(mesh, arrival), `${mesh.name} crowds the roof arrival`).toBe(false);
   model.dispose();
 });
 

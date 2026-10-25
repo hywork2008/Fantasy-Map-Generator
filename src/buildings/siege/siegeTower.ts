@@ -5,20 +5,20 @@ import { meshProjection } from "../meshProjection";
 /** Illustrative medieval belfry, in meters, with the assault bridge facing positive X. */
 export const SIEGE_TOWER = {
   name: "Medieval European siege tower",
-  length: 8.5,
+  length: 12.5,
   width: 5.6,
   height: 11.7,
-  note: "Interpretive medieval belfry informed by Viollet-le-Duc, Engin, fig. 32. Lower ladders connect by short switchback landings; the archer ladder ascends towards the enemy. The circulation layout, common-shaft windlass and dimensions are modeling interpretations. A separate archer deck covers the assault bridge, shown resting on an implied castle wall."
+  note: "Interpretive medieval belfry informed by Viollet-le-Duc, Engin, fig. 32. Lower ladders connect by short switchback landings; the archer ladder ascends towards the enemy. The circulation layout, common-shaft windlass and dimensions are modeling interpretations. An asymmetric frame leaves a raked open rear and an unobstructed forward archer deck above the assault bridge, shown resting on an implied castle wall."
 } as const;
 
 // Positive X faces the wall. Lower flights are transverse; the roof flight ascends towards the wall.
 export const SIEGE_TOWER_LAYOUT = {
   decks: [1.65, 4.55, 7.45, 10.35],
-  ladderX: [0, -1.08, -1.08],
+  ladderX: [-1.4, -2.48, -2.48],
   ladderDirection: [1, -1, 1],
   boardingZ: -1.1,
   roofLadderZ: -0.68,
-  roofLadderExitX: 0.4,
+  roofLadderExitX: -1,
   hatchHalfWidth: 0.48,
   hatchRear: -1.1,
   hatchFront: 0.62,
@@ -27,6 +27,10 @@ export const SIEGE_TOWER_LAYOUT = {
   bridgeLength: 2.6,
   passageHalfWidth: 1.05
 } as const;
+
+/** Asymmetric frame: near-vertical attack face and a roughly 70-degree rear ladder face. */
+export const siegeTowerFrontX = (y: number) => 2.12 - (y - 1.5) * 0.008;
+export const siegeTowerRearX = (y: number) => -5.45 + (y - 1.5) * 0.365;
 
 export function createSiegeTowerModel(): CityStructureMeshes {
   const group = new THREE.Group();
@@ -76,7 +80,7 @@ export function createSiegeTowerModel(): CityStructureMeshes {
   }
   const felloe = ring(0.66, 0.87, 0.32);
   const tire = ring(0.87, 0.9, 0.35);
-  for (const x of [-1.85, 1.85]) {
+  for (const x of [-4.7, 1.85]) {
     beam("axle", v(x, 0.9, -2.7), v(x, 0.9, 2.7), 0.22, dark, true);
     box("axle-bolster", x, 1.16, 0, 0.5, 0.4, 4.2, dark);
     for (const side of [-1, 1]) {
@@ -91,24 +95,33 @@ export function createSiegeTowerModel(): CityStructureMeshes {
       beam("axle-linchpin", v(x, 0.72, side * 2.7), v(x, 1.08, side * 2.7), 0.045, iron, true);
     }
   }
-  for (const z of [-1.8, 1.8]) box("chassis-rail", 0, 1.4, z, 5.5, 0.45, 0.4, dark);
-  const half = (y: number) => 2.12 - (y - 1.5) * 0.045;
+  for (const z of [-1.8, 1.8]) box("chassis-rail", -1.65, 1.4, z, 8.1, 0.45, 0.4, dark);
+  const front = siegeTowerFrontX;
+  const rear = siegeTowerRearX;
+  const middle = (y: number) => (front(y) + rear(y)) / 2;
+  const halfWidth = (y: number) => (front(y) - rear(y)) / 2;
   const levels = SIEGE_TOWER_LAYOUT.decks;
   const layout = SIEGE_TOWER_LAYOUT;
-  // Slightly battered posts carry the floors; the rear remains open to reveal the joinery and ladders.
+  // The rear is substantially raked for external ladder access; the attack face stays almost upright.
   for (const sx of [-1, 1])
     for (const sz of [-1, 1]) {
-      beam("corner-post", v(sx * half(1.5), 1.5, sz * 1.8), v(sx * half(10.5), 10.5, sz * 1.8), 0.28);
-      for (const y of levels) box("post-iron-collar", sx * half(y), y + 0.2, sz * 1.8, 0.32, 0.13, 0.32, iron);
+      beam(
+        "corner-post",
+        v(sx > 0 ? front(1.5) : rear(1.5), 1.5, sz * 1.8),
+        v(sx > 0 ? front(10.5) : rear(10.5), 10.5, sz * 1.8),
+        0.28
+      );
+      for (const y of levels)
+        box("post-iron-collar", sx > 0 ? front(y) : rear(y), y + 0.2, sz * 1.8, 0.32, 0.13, 0.32, iron);
     }
   for (let level = 0; level < levels.length; level++) {
     const y = levels[level],
-      h = half(y);
+      h = halfWidth(y);
     const hatchX = level > 0 ? layout.ladderX[level - 1] : null;
     const incomingDirection = level > 0 ? layout.ladderDirection[level - 1] : 1;
     const roof = level === 3;
-    const hatchMinX = roof ? -0.2 : (hatchX ?? 0) - layout.hatchHalfWidth;
-    const hatchMaxX = roof ? 0.85 : (hatchX ?? 0) + layout.hatchHalfWidth;
+    const hatchMinX = roof ? -1.6 : (hatchX ?? 0) - layout.hatchHalfWidth;
+    const hatchMaxX = roof ? -0.55 : (hatchX ?? 0) + layout.hatchHalfWidth;
     const hatchRear = roof
       ? layout.roofLadderZ - layout.hatchHalfWidth
       : incomingDirection > 0
@@ -120,12 +133,12 @@ export function createSiegeTowerModel(): CityStructureMeshes {
         ? layout.hatchFront
         : -layout.hatchRear;
     // Joists stay outside the openings; transverse headers and trimmers carry the cut deck.
-    for (const z of [-1.56, 1.56]) box("floor-joist", 0, y - 0.17, z, h * 2 + 0.25, 0.22, 0.18, dark);
+    for (const z of [-1.56, 1.56]) box("floor-joist", middle(y), y - 0.17, z, h * 2 + 0.25, 0.22, 0.18, dark);
     if (hatchX !== null) {
       for (const z of [hatchRear - 0.09, hatchFront + 0.09])
         box(
           "hatch-header",
-          roof ? (hatchMinX + hatchMaxX) / 2 : 0,
+          roof ? (hatchMinX + hatchMaxX) / 2 : middle(y),
           y - 0.17,
           z,
           roof ? hatchMaxX - hatchMinX : h * 2,
@@ -138,7 +151,7 @@ export function createSiegeTowerModel(): CityStructureMeshes {
     }
     // Split every affected plank at the exact hatch boundary, rather than cutting a cosmetic hole.
     for (let i = 0; i < 20; i++) {
-      const left = -h + (i * h * 2) / 20;
+      const left = rear(y) + (i * h * 2) / 20;
       const right = left + (h * 2) / 20;
       const cuts = [left, right];
       if (hatchX !== null) for (const edge of [hatchMinX, hatchMaxX]) if (edge > left && edge < right) cuts.push(edge);
@@ -182,20 +195,20 @@ export function createSiegeTowerModel(): CityStructureMeshes {
       }
     for (const side of [-1, 1]) {
       const z = side * 1.8;
-      box("level-tie", 0, y - 0.16, z, h * 2, 0.22, 0.22);
+      box("level-tie", middle(y), y - 0.16, z, h * 2, 0.22, 0.22);
       if (level === levels.length - 1) continue;
-      beam("side-diagonal-brace", v(-h + 0.1, y + 0.2, z), v(half(y + 2.7) - 0.1, y + 2.7, z), 0.16, dark);
-      beam("side-diagonal-brace", v(h - 0.1, y + 0.2, z), v(-half(y + 2.7) + 0.1, y + 2.7, z), 0.16, dark);
+      beam("side-diagonal-brace", v(rear(y) + 0.1, y + 0.2, z), v(front(y + 2.7) - 0.1, y + 2.7, z), 0.16, dark);
+      beam("side-diagonal-brace", v(front(y) - 0.1, y + 0.2, z), v(rear(y + 2.7) + 0.1, y + 2.7, z), 0.16, dark);
       // Individually laid side planks and hide tiles leave narrow arrow slits in the middle tier.
       for (let row = 0; row < 9; row++) {
         const py = y + 0.36 + row * 0.27;
-        const ph = half(py);
+        const ph = halfWidth(py);
         for (const section of [-1, 1]) {
           const slit = row >= 4 && row <= 6;
           const gap = slit ? 0.15 : 0.012;
           box(
             "side-cladding",
-            section * (ph / 2 + gap / 2),
+            middle(py) + section * (ph / 2 + gap / 2),
             py,
             z + side * 0.12,
             ph - gap,
@@ -209,13 +222,13 @@ export function createSiegeTowerModel(): CityStructureMeshes {
         for (let row = 0; row < 3; row++) {
           if (col === 1 && row === 1) continue;
           const py = y + 0.61 + row * 0.78;
-          const x = (-1.5 + col) * ((half(py) * 2) / 4);
+          const x = middle(py) + (-1.5 + col) * ((halfWidth(py) * 2) / 4);
           box(
             "hide-panel",
             x,
             py,
             z + side * 0.18,
-            (half(py) * 2) / 4 - 0.04,
+            (halfWidth(py) * 2) / 4 - 0.04,
             0.73,
             0.035,
             hides[(col + row + level) % 4]
@@ -228,9 +241,9 @@ export function createSiegeTowerModel(): CityStructureMeshes {
     if (level < 2)
       for (let row = 0; row < 10; row++) {
         const py = y + 0.3 + row * 0.26;
-        box("front-plank", half(py) + 0.1, py, 0, 0.1, 0.25, 3.5, wood[row % 4]);
+        box("front-plank", front(py) + 0.1, py, 0, 0.1, 0.25, 3.5, wood[row % 4]);
         for (let col = 0; col < 4; col++)
-          box("front-hide-panel", half(py) + 0.17, py, -1.3 + col * 0.87, 0.035, 0.245, 0.83, hides[(row + col) % 4]);
+          box("front-hide-panel", front(py) + 0.17, py, -1.3 + col * 0.87, 0.035, 0.245, 0.83, hides[(row + col) % 4]);
       }
     if (level < levels.length - 1) {
       const x = layout.ladderX[level];
@@ -264,12 +277,12 @@ export function createSiegeTowerModel(): CityStructureMeshes {
     // Rear safety rails frame the open access side.
     if (level < levels.length - 1)
       for (const z of level === 0 ? [0.45, 1.1] : [-1.1, 1.1])
-        box("rear-rail", -half(y + 1), y + 1, z, 0.12, 0.15, 1.15);
+        box("rear-rail", rear(y + 1), y + 1, z, 0.12, 0.15, 1.15);
   }
   // Rear boarding ladder reaches the otherwise elevated chassis deck from ground level.
-  const entryFoot = v(-3.45, 0.1, layout.boardingZ);
-  const entryTop = v(-1.95, levels[0] + 0.06, layout.boardingZ);
-  box("boarding-foot", -3.45, 0.06, layout.boardingZ, 0.3, 0.12, 1.05, dark);
+  const entryFoot = v(rear(levels[0]) - 1.5, 0.1, layout.boardingZ);
+  const entryTop = v(rear(levels[0]) + 0.15, levels[0] + 0.06, layout.boardingZ);
+  box("boarding-foot", rear(levels[0]) - 1.5, 0.06, layout.boardingZ, 0.3, 0.12, 1.05, dark);
   for (const side of [-1, 1])
     beam(
       "boarding-stile",
@@ -283,16 +296,61 @@ export function createSiegeTowerModel(): CityStructureMeshes {
   }
   // A distinct upper shooting deck follows fig. 32: archers cover the assault from above.
   for (const side of [-1, 1]) {
-    box("upper-parapet", 0, 10.89, side * 1.88, 3.55, 1.08, 0.14);
+    box("upper-parapet", middle(10.35), 10.89, side * 1.88, halfWidth(10.35) * 2 + 0.15, 1.08, 0.14);
     for (let i = 0; i < 6; i++)
-      box("parapet-merlon", -1.5 + i * 0.6, 11.54, side * 1.88, 0.38, 0.28, 0.16, wood[i % 4]);
+      box(
+        "parapet-merlon",
+        rear(10.35) + 0.25 + (i * (halfWidth(10.35) * 2 - 0.5)) / 5,
+        11.54,
+        side * 1.88,
+        0.38,
+        0.28,
+        0.16,
+        wood[i % 4]
+      );
   }
-  box("archer-rear-parapet", -half(10.35), 10.89, 0, 0.16, 1.08, 3.6);
-  box("archer-front-parapet", half(10.35), 10.89, 0, 0.16, 1.08, 3.6);
+  // A rear external ladder demonstrates the usable rake and enters behind the firing line.
+  const outsideFoot = v(rear(0.1) - 0.45, 0.1, 0.95);
+  const outsideExit = v(rear(10.35) - 0.45, 10.41, 0.95);
+  box("rear-access-foot", outsideFoot.x, 0.04, outsideFoot.z, 0.24, 0.08, 0.9, dark);
+  const outsideTop = outsideExit
+    .clone()
+    .addScaledVector(outsideExit.clone().sub(outsideFoot), 0.85 / (outsideExit.y - outsideFoot.y));
+  for (const side of [-1, 1])
+    beam(
+      "rear-access-stile",
+      outsideFoot.clone().add(v(0, 0, side * 0.35)),
+      outsideTop.clone().add(v(0, 0, side * 0.35)),
+      0.075,
+      wood[2]
+    );
+  for (let i = 1; i <= 36; i++) {
+    const p = outsideFoot.clone().lerp(outsideExit, i / 36);
+    beam("rear-access-rung", p.clone().add(v(0, 0, -0.35)), p.clone().add(v(0, 0, 0.35)), 0.045, wood[1], true);
+  }
+  for (const y of levels) {
+    const ladderPoint = outsideFoot.clone().lerp(outsideExit, (y - outsideFoot.y) / (outsideExit.y - outsideFoot.y));
+    for (const side of [-1, 1])
+      beam(
+        "rear-access-standoff",
+        ladderPoint.clone().add(v(0, 0, side * 0.35)),
+        v(rear(y), y, 0.95 + side * 0.35),
+        0.06,
+        dark
+      );
+  }
+  box("rear-access-landing", rear(10.35) - 0.22, 10.35, 0.95, 0.8, 0.12, 0.56);
+  for (const [start, end] of [
+    [-1.8, 0.5],
+    [1.4, 1.8]
+  ])
+    box("archer-rear-parapet", rear(10.35), 10.89, (start + end) / 2, 0.16, 1.08, end - start);
+
+  box("archer-front-parapet", front(10.35), 10.89, 0, 0.16, 1.08, 3.6);
   for (const z of [-1.55, -0.93, -0.31, 0.31, 0.93, 1.55])
-    box("archer-front-merlon", half(10.35), 11.54, z, 0.18, 0.28, 0.4);
+    box("archer-front-merlon", front(10.35), 11.54, z, 0.18, 0.28, 0.4);
   // The lowered bridge rests on the target wall in use. Its hoists run outside the walking width.
-  const hingeX = half(7.45) + 0.08;
+  const hingeX = front(7.45) + 0.08;
   box("bridge-threshold", hingeX - 0.1, 7.45, 0, 0.45, 0.12, 2.55);
   for (const side of [-1, 1])
     beam("bridge-hinge", v(hingeX, 7.4, side * 1.29), v(hingeX, 7.4, side * 1.52), 0.09, iron, true);

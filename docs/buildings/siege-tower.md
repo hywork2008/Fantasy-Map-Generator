@@ -9,9 +9,9 @@
 
 ## Interpretation used in BV
 
-The ground boarding ladder is offset to the left when viewed from behind the tower facing the enemy (negative Z). It feeds the first internal ladder's entry side rather than the middle of the room. Lower internal flights retain their transverse switchback arrangement, with the first flight forward (X = 0) and the second flight aft (X = -1.08).
+The ground boarding ladder is offset to the left when viewed from behind the tower facing the enemy (negative Z). It feeds the first internal ladder's entry side rather than the middle of the room. Lower internal flights retain their transverse switchback arrangement, with the first flight forward (X = -1.40) and the second flight aft (X = -2.48).
 
-Positive X faces the castle wall. After arriving on the assault deck at X = -1.08, an archer moves forward to X = -0.15 along the landing, then sideways to the roof ladder. The roof ladder foot is farther forward at X = 0.20 and its deck exit is X = 0.40. The entire transfer keeps X constant or increasing; no backward leg or turn to face aft is needed. The roof ladder rises towards positive X. The approach remains beside the incoming hatch, so there is no need to walk around that hatch or turn to face away from the enemy. The rooftop opening and its side guards follow this new ascent axis. This is a steep ladder for the existing model, not a shallow stair intended for heavy equipment.
+Positive X faces the castle wall. After arriving on the assault deck at X = -2.48, an archer moves forward to X = -1.55 along the landing, then sideways to the roof ladder. The roof ladder foot is farther forward at X = -1.20 and its deck exit is X = -1.00. The entire transfer keeps X constant or increasing; no backward leg or turn to face aft is needed. The roof ladder rises towards positive X. The approach remains beside the incoming hatch, so there is no need to walk around that hatch or turn to face away from the enemy. The rooftop opening and its side guards follow this new ascent axis. This is a steep ladder for the existing model, not a shallow stair intended for heavy equipment.
 
 This compact circulation arrangement is an explicit design interpretation requested for the BV model. The historical text does not specify these ladder directions or landing connections, and the single illustration cannot establish a complete internal circulation plan. It does not document a light/heavy equipment classification for ladder or stair layouts.
 
@@ -22,6 +22,12 @@ Both bridge drums are fixed to one transverse shaft above the clear assault head
 The threshold and bridge have matching walking surfaces. The lowered bridge represents the assault position resting on an implied castle wall; the lifting ropes are not a substitute for that support.
 
 The archer platform is above the assault doorway and has an open crenellated top in place of the previous pitched canopy. Protective boarding and hides remain on the front and sides of the lower enclosed levels. An open rear makes the internal circulation visible, consistent with the reference's description.
+
+## Asymmetric frame and archer working space
+
+The enemy-facing posts have a rise/run ratio corresponding to approximately 89.5 degrees above horizontal. The rear posts rake at approximately 70 degrees above horizontal, widening the base towards the rear. The rear is deliberately open; a full-height exterior ladder follows the rake and reaches a separate rear landing through a parapet opening. The chassis, rear axle, floor joists, side braces and cladding follow this asymmetric profile. The angle and dimensions are model design choices, not measurements supplied by the historical text.
+
+The internal roof hatch and its arrival area sit behind the forward firing strip. Three illustrative 1 m wide archer stations share an uninterrupted strip 1.5 m deep and 3 m wide (4.5 square meters) behind the enemy-facing parapet. This space excludes the hatch, ladder extensions and incoming person's arrival envelope. It is a geometric allowance for the model rather than a historical crew-capacity claim. Incoming soldiers may gather behind the strip and take a position without crossing the other archers' working areas.
 
 ## Validation scope
 
