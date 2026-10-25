@@ -59,6 +59,7 @@ try {
     const table = getOrCreateFaunaStockTable() ?? {};
     const feed = getOrCreateLivestockFeedTable() ?? {};
     const land = { ruralPeople: 0, cultivatedHa: 0, pastureHa: 0, residentsWithoutCropland: 0, shortfallCells: 0 };
+    const convertedForestHaByKind: Record<string, number> = {};
     for (const cell of cells.i) {
       if (cells.h[cell] < 20) continue;
       const people = Math.max(0, cells.pop[cell] ?? 0) * rate;
@@ -67,8 +68,11 @@ try {
       land.cultivatedHa += budget?.allocatedAreaHa ?? 0;
       if (people > 0 && !((budget?.allocatedAreaHa ?? 0) > 0)) land.residentsWithoutCropland += people;
       land.shortfallCells += Number(budget?.diagnostics.includes("livestock-land-shortfall") ?? false);
-      for (const patch of budget?.patches ?? [])
+      for (const patch of budget?.patches ?? []) {
+        if (patch.convertedForestAreaHa > 0)
+          convertedForestHaByKind[patch.kind] = (convertedForestHaByKind[patch.kind] ?? 0) + patch.convertedForestAreaHa;
         if (patch.kind === "pasture" || patch.kind === "wood_pasture") land.pastureHa += patch.areaHa;
+      }
     }
     const species = getGoods()
       .filter(good => husbandry.isGrazedLivestockGood(good.name))
@@ -109,6 +113,7 @@ try {
     return {
       date: [host.simulation.currentYear, host.simulation.currentMonth, host.simulation.currentDay],
       land,
+      convertedForestHaByKind,
       cultivatedHaPerRuralPerson: land.cultivatedHa / land.ruralPeople,
       meanNetYieldKgPerSownHa: fieldHa > 0 ? weightedYield / fieldHa : 0,
       draughtPerCultivatedHa:
@@ -135,7 +140,7 @@ try {
     output,
     `${JSON.stringify(
       {
-        schemaVersion: 2,
+        schemaVersion: 3,
         inputSha256: hash(bytes),
         sourceTreeSha256,
         months,
