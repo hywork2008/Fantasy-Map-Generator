@@ -6,7 +6,9 @@ import {
 } from "../../buildings/appearance/types";
 import { MODEL_QUALITIES, type ModelQuality } from "../../buildings/modelQuality";
 import { type EditorMessageKey, editorText } from "../../i18n/editorMessages";
+import { documentFabricFingerprint } from "../generators/blockInfill";
 import { withBuildingAppearance } from "../generators/buildingAppearance";
+import { ruralFieldOverlay, storeRuralFieldOverlay } from "../generators/ruralFieldOverlay";
 import {
   readModelQualityPreference,
   readTerrainSpacingPreference,
@@ -85,11 +87,21 @@ export function buildBuildingAppearanceControls(ctx: {
   );
   const change = () => {
     const current = ctx.getDocument();
-    const next = withBuildingAppearance({
+    const fingerprint = documentFabricFingerprint(current);
+    const fields = ruralFieldOverlay(current, fingerprint);
+    let next = withBuildingAppearance({
       ...current,
       buildingAppearanceProfile: culture.value === "auto" ? undefined : (culture.value as BuildingAppearanceProfile),
       buildingAppearanceClimate: climate.value === "auto" ? undefined : (climate.value as BuildingAppearanceClimate)
     });
+    if (fields) {
+      const nextFingerprint = documentFabricFingerprint(next);
+      // Appearance changes do not alter field geometry or its access lanes.
+      if (current.ruralFieldSnapshot?.fingerprint === fingerprint) {
+        next = { ...next, ruralFieldSnapshot: { ...current.ruralFieldSnapshot, fingerprint: nextFingerprint } };
+      }
+      storeRuralFieldOverlay(next, nextFingerprint, fields);
+    }
     ctx.updateDocument(next);
   };
   ctx.scope.listen(quality, "change", () => {

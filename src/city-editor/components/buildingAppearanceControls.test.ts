@@ -1,5 +1,7 @@
 import { afterEach, expect, it } from "vitest";
+import { buildBlockFabric, documentFabricFingerprint } from "../generators/blockInfill";
 import { createGridDocument } from "../generators/document";
+import { ruralFieldOverlay, storeRuralFieldOverlay } from "../generators/ruralFieldOverlay";
 import { EditorLifetime } from "../services/editorLifetime";
 import { parseDocument, serializeDocument } from "../services/io/documentCodec";
 import { buildBuildingAppearanceControls } from "./buildingAppearanceControls";
@@ -59,4 +61,71 @@ it("applies culture and vegetation immediately, restores saved selections and re
   expect(city.buildingAppearanceProfile).toBeUndefined();
   expect(city.buildingAppearanceClimate).toBeUndefined();
   expect(city.buildingAppearanceContext).toMatchObject({ forest: true, wetland: false, arid: false });
+});
+
+it.each(["snapshot", "session"])("retains %s farmland through housing culture and climate changes", source => {
+  const root = document.createElement("div");
+  document.body.append(root);
+  const scope = new EditorLifetime(root);
+  mounts.push({ scope, root });
+  const controls = createEditorControls(scope);
+  let city = createGridDocument({ size: "tiny", grid: "hex", seed: "housing-fields" });
+  city.ruralFieldVersion = 2;
+  city.ruralFieldSettings = { mode: "manual" };
+  const overlay: NonNullable<ReturnType<typeof ruralFieldOverlay>> = {
+    farms: [
+      {
+        faceId: "field",
+        polygon: [
+          [0, 0],
+          [10, 0],
+          [10, 10]
+        ],
+        rows: [],
+        cropState: "winter-crop"
+      }
+    ],
+    lanes: [
+      {
+        faceId: "field",
+        points: [
+          [0, 0],
+          [10, 0]
+        ],
+        widthMeters: 2,
+        kind: "farm-track"
+      }
+    ]
+  };
+  const fingerprint = documentFabricFingerprint(city);
+  if (source === "snapshot") city.ruralFieldSnapshot = { ...overlay, fingerprint };
+  else storeRuralFieldOverlay(city, fingerprint, overlay);
+  const panel = buildBuildingAppearanceControls({
+    scope,
+    getDocument: () => city,
+    updateDocument(next) {
+      city = next;
+    },
+    select: controls.select,
+    label: controls.label,
+    modelQualityChanged() {}
+  });
+  root.append(panel.root);
+  for (const [selector, value] of [
+    [".ce-housing-culture", "mediterranean"],
+    [".ce-housing-culture", "northern-wooded"],
+    [".ce-housing-climate", "arid"],
+    [".ce-housing-culture", "auto"]
+  ]) {
+    const control = root.querySelector<HTMLSelectElement>(selector)!;
+    control.value = value;
+    control.dispatchEvent(new Event("change"));
+    const fabric = buildBlockFabric(city);
+    expect(fabric.farms).toEqual(overlay.farms);
+    expect(fabric.lanes).toEqual(overlay.lanes);
+    if (source === "snapshot") {
+      const saved = parseDocument(serializeDocument(city))!;
+      expect(ruralFieldOverlay(saved, documentFabricFingerprint(saved))?.farms).toEqual(overlay.farms);
+    }
+  }
 });
