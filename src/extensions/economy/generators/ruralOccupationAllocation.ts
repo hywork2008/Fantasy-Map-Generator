@@ -416,6 +416,7 @@ function allocateRuralOccupationsFromCalendar(
   const husbandryWorkers = new Float32Array(count);
   const husbandryRequiredWorkers = new Float32Array(count);
   const husbandryMonthlyWorkDays = new Float32Array(count * 12);
+  const haymakingShortfallDays = new Float32Array(count * 12);
   const householdTextileWorkers = new Float32Array(count);
   const farmLaborRequired = new Float32Array(count);
   const migratableAdults = new Float32Array(count);
@@ -526,6 +527,7 @@ function allocateRuralOccupationsFromCalendar(
           const adultDays = Math.min(requestedDays - childDays, remainingDays);
           const assignedDays = childDays + adultDays;
           husbandryMonthlyWorkDays[cellId * 12 + month] = assignedDays;
+          haymakingShortfallDays[cellId * 12 + month] = Math.min(hayDays, requestedDays - assignedDays);
           currentDays[month] += adultDays;
           minimumDays[month] += adultDays;
           annualAssignedDays += assignedDays;
@@ -574,6 +576,15 @@ function allocateRuralOccupationsFromCalendar(
 
   const aidReceivedByCell = applyHarvestMutualAid(world, currentDaysByCell, desiredDaysByCell, workDaysPerAdultByCell);
   applyRegionalHarvestHelp(world, currentDaysByCell, desiredDaysByCell, workDaysPerAdultByCell, aidReceivedByCell);
+  applyHaymakingMutualAid(
+    world,
+    currentDaysByCell,
+    desiredDaysByCell,
+    workDaysPerAdultByCell,
+    haymakingShortfallDays,
+    husbandryMonthlyWorkDays,
+    husbandryWorkers
+  );
 
   for (const cellId of cells.i) {
     if (cells.h[cellId] < 20) continue;
@@ -745,6 +756,55 @@ function applyHarvestMutualAid(
     }
   }
   return aidReceivedByCell;
+}
+
+/**
+ * Hay boons: neighbours of the same state mow and cart hay that a cell's own adults cannot reach
+ * that month (E1 §7.49). Runs after the grain harvest aid, so only hands the harvest left idle help.
+ */
+function applyHaymakingMutualAid(
+  world: Readonly<WorldContext>,
+  currentDaysByCell: Float32Array,
+  desiredDaysByCell: Float32Array,
+  workDaysPerAdultByCell: Float32Array,
+  shortfallDays: Float32Array,
+  husbandryMonthlyWorkDays: Float32Array,
+  husbandryWorkers: Float32Array
+): void {
+  const cells = world.pack.cells;
+  if (!cells?.i || !cells.c) return;
+  const populationRate = Math.max(1, world.populationRate || 1);
+  for (let month = 0; month < 12; month++) {
+    const slack = new Float32Array(cells.i.length);
+    for (const cellId of cells.i) {
+      if ((cells.h[cellId] ?? 0) < 20) continue;
+      const ruralAdultPoints =
+        Math.max(0, cells.maleAdults?.[cellId] ?? 0) + Math.max(0, cells.femaleAdults?.[cellId] ?? 0);
+      const workDays = workDaysPerAdultByCell[cellId * 12 + month] || WORKABLE_DAYS_PER_ADULT_PER_MONTH;
+      slack[cellId] = Math.max(
+        0,
+        ruralAdultPoints * populationRate * workDays - currentDaysByCell[cellId * 12 + month]
+      );
+    }
+    for (const cellId of cells.i) {
+      let remaining = shortfallDays[cellId * 12 + month];
+      if (!(remaining > 0)) continue;
+      const stateId = cells.state?.[cellId] ?? 0;
+      if (!stateId) continue;
+      for (const neighborId of cells.c[cellId] ?? []) {
+        if (remaining <= 0) break;
+        if ((cells.h[neighborId] ?? 0) < 20 || (cells.state?.[neighborId] ?? 0) !== stateId) continue;
+        const transfer = Math.min(remaining, slack[neighborId]);
+        if (!(transfer > 0)) continue;
+        currentDaysByCell[neighborId * 12 + month] += transfer;
+        desiredDaysByCell[neighborId * 12 + month] += transfer;
+        husbandryMonthlyWorkDays[cellId * 12 + month] += transfer;
+        husbandryWorkers[cellId] += transfer / WORKABLE_DAYS_PER_ADULT;
+        slack[neighborId] -= transfer;
+        remaining -= transfer;
+      }
+    }
+  }
 }
 
 export const URBAN_HARVEST_HELP_SHARE_MEDIEVAL = 0.05;
