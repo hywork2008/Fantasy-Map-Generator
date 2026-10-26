@@ -3,6 +3,8 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { ModelQuality } from "../../buildings/modelQuality";
 import { buildingSurfaces } from "../../city3d/core/massingGeometry";
 import { structureSurfaces } from "../../city3d/core/structureGeometry";
+import { WATER_Y } from "../../city3d/core/waterGeometry";
+import { createTownBridges, type TownBridges } from "../../city3d/three/bridgeMeshes";
 import { createTownBuildingDetails, type TownBuildingDetails } from "../../city3d/three/buildingDetails";
 import { bvInstanceGeometry, createBvPrototypeCache } from "../../city3d/three/bvInstances";
 import { type CityMassingMeshes, createCityMassing } from "../../city3d/three/cityMeshes";
@@ -200,6 +202,7 @@ export function mountCity3d(options: {
   let specialBuildings: TownSpecialBuildings | null = null;
   let regionalHouses: TownRegionalHouses | null = null;
   let facilities: TownFacilities | null = null;
+  let bridges: TownBridges | null = null;
   const bvPrototypes = createBvPrototypeCache();
   let openSpaces: CityStructureMeshes | null = null;
   let farmland: TownFarmMeshes | null = null;
@@ -439,7 +442,8 @@ export function mountCity3d(options: {
       part =>
         !specialBuildings!.replaced.has(part.id) &&
         !townWalls!.replaced.has(part.id) &&
-        !facilities!.replaced.has(part.id)
+        !facilities!.replaced.has(part.id) &&
+        !bridges?.replaced.has(part.id)
     );
     structures = createStructureMassing(structureList);
     scene.add(structures.group);
@@ -591,6 +595,7 @@ export function mountCity3d(options: {
     const friaryPlans = (fabric.aerialLandmarks?.monasteries ?? []).filter(monastery => monastery.kind === "friary");
     const nextFriaryStamp = JSON.stringify(friaryPlans);
     const friariesChanged = terrainChanged || friaryStamp !== nextFriaryStamp || !friaries;
+    const bridgesChanged = plan.buildings || plan.water || plan.roads || !bridges;
     if (
       !plan.buildings &&
       !plan.water &&
@@ -600,6 +605,7 @@ export function mountCity3d(options: {
       !piersChanged &&
       !openSpacesChanged &&
       !friariesChanged &&
+      !bridgesChanged &&
       !farmlandChanged
     ) {
       if (!framedRadius) frameCamera(city);
@@ -620,15 +626,27 @@ export function mountCity3d(options: {
       scene.add(openSpaces.group);
       openSpaceStamp = nextOpenSpaceStamp;
     }
+    if (plan.water) {
+      placeWater(city);
+      waterStamp = stamp;
+    }
+    if (bridgesChanged) {
+      const next = createTownBridges(
+        city,
+        terrain ?? undefined,
+        point => (waterMeshes ? townWaterHeightAt(waterMeshes, point) : WATER_Y),
+        quality
+      );
+      if (bridges) scene.remove(bridges.group);
+      bridges?.dispose();
+      bridges = next;
+      scene.add(bridges.group);
+    }
     if (plan.buildings) {
       built = fabric;
       builtQuality = quality;
       // Defenses and special buildings must use the same automatic culture as the housing preview.
       rebuild(appearanceCity, fabric, !terrainChanged, quality);
-    }
-    if (plan.water) {
-      placeWater(city);
-      waterStamp = stamp;
     }
     if (farmlandChanged) {
       const next = createTownFarms(fabric.farms, terrain ?? undefined, waterMeshes?.wetPolygons);
@@ -745,6 +763,7 @@ export function mountCity3d(options: {
         ...(specialBuildings?.pickables ?? []),
         ...(regionalHouses?.pickables ?? []),
         ...(facilities?.pickables ?? []),
+        ...(bridges?.pickables ?? []),
         ...(wells?.pickables ?? [])
       ],
       false
@@ -770,6 +789,18 @@ export function mountCity3d(options: {
       return;
     }
     const special = specialBuildings?.resolve(hit);
+    const bridge = bridges?.resolve(hit);
+    if (bridge) {
+      clearHighlight();
+      const geometry =
+        bvInstanceGeometry(hit) ?? (hit.object as THREE.Mesh).geometry.clone().applyMatrix4(hit.object.matrixWorld);
+      geometry.computeBoundingBox();
+      readout.hidden = false;
+      readout.textContent = `${bridge.name}\n${editorText(STRUCTURE_KEY.bridge)} · ${bridge.points.reduce((length, p, i) => (i ? length + Math.hypot(p[0] - bridge.points[i - 1][0], p[1] - bridge.points[i - 1][1]) : 0), 0).toFixed(1)} m`;
+      outline(new Float32Array(geometry.getAttribute("position").array));
+      geometry.dispose();
+      return;
+    }
     const facility = facilities?.resolve(hit);
     const well = wells?.resolve(hit);
     if (special || facility || well) {
@@ -820,6 +851,7 @@ export function mountCity3d(options: {
     specialBuildings?.dispose();
     regionalHouses?.dispose();
     facilities?.dispose();
+    bridges?.dispose();
     objects?.dispose();
     ships?.dispose();
     openSpaces?.dispose();

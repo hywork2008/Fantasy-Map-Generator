@@ -103,6 +103,10 @@ const taskArticles: Record<number, string> = {
 };
 
 const modelArticles: Record<string, string> = {
+  "modular-stone-arch-bridge": "Arch bridge",
+  "modular-stone-arch-bridge-long": "Arch bridge",
+  "modular-timber-trestle-bridge": "Trestle bridge",
+  "modular-lifting-river-bridge": "Bascule bridge",
   "citadel-barracks": "Barracks",
   "citadel-command": "Headquarters",
   "citadel-service": "Arsenal",
