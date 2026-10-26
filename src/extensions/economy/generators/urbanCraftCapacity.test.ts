@@ -75,6 +75,15 @@ describe("observed urban work budgets", () => {
     }
   );
 
+  it("keeps worker-loop diagnostics readable in the session but out of saved copies", () => {
+    const diagnostics = { rows: [], steps: 1, maxSteps: 2 };
+    recordUrbanCraftCapacity(1, 1, 3, 1, 0, true, diagnostics);
+    expect(getUrbanCraftCapacityRecords()[0].productionDiagnostics).toBe(diagnostics);
+    const saved = structuredClone(getOrCreateUrbanCraftCapacityTable())!;
+    expect(saved[1]).not.toHaveProperty("productionDiagnostics");
+    expect(JSON.stringify(getOrCreateUrbanCraftCapacityTable())).not.toContain("maxSteps");
+  });
+
   it("does not reinterpret legacy uncalibrated attempts as calibrated textile capacity", () => {
     recordUrbanCraftCapacity(1, 1, 3, 1, 0, false);
     expect(getUrbanTextileHandworkReference(getUrbanCraftCapacityRecords()[0])).toBeNull();

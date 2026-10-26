@@ -3,6 +3,7 @@ import { LIVELIHOOD_CODE, simulationContext, worldContext } from "../../hostCore
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
   clearEconomyContext,
+  getOrCreateFaunaStockTable,
   initEconomyContext,
   setFishingRequiredWorkers,
   setFishingWorkers,
@@ -13,10 +14,12 @@ import {
   setViticultureRequiredWorkers,
   setViticultureWorkers
 } from "../economyContext";
-import { WORKABLE_DAYS_PER_ADULT_PER_MONTH } from "./agriculturalLandUse";
+import { WORKABLE_DAYS_PER_ADULT, WORKABLE_DAYS_PER_ADULT_PER_MONTH } from "./agriculturalLandUse";
 import { Goods } from "./goods-generator";
+import { calculateHusbandryDemand } from "./husbandry";
 import {
   allocateRuralOccupations,
+  CHILD_HAYMAKING_SHARE,
   GAME_YIELD_PER_HUNTER_PER_MONTH,
   getFishingWorkerFactor,
   getHuntingGameOutput,
@@ -69,6 +72,88 @@ function biomesData(tagsByCode: Record<number, string[]>) {
 }
 
 describe("ruralOccupationAllocation", () => {
+  it("exports the same seasonal husbandry work that the rural calendar actually reserves", () => {
+    worldContext.options = { ...worldContext.options, winterLivestockSlaughter: "off" };
+    worldContext.pack = {
+      cells: {
+        i: Uint16Array.from([0]),
+        h: Uint8Array.from([30]),
+        biomeCode: Uint8Array.from([0]),
+        pop: Float32Array.from([100]),
+        maleAdults: Float32Array.from([20]),
+        femaleAdults: Float32Array.from([20]),
+        area: Float32Array.from([100]),
+        state: Uint16Array.from([0]),
+        burg: Uint16Array.from([0]),
+        c: [[]]
+      },
+      burgs: [],
+      states: []
+    } as unknown as PackedGraph;
+    worldContext.populationRate = 1;
+    worldContext.biomesData = { tags: [["grassland"]], habitability: [100] } as never;
+    setGoods([Goods.getDefaultGood("Sheep")!]);
+    getOrCreateFaunaStockTable()!["0:Sheep"] = { young: 30, breeding: 40, old: 20 };
+    const days = new Float32Array(12);
+    const allocation = allocateRuralOccupations(worldContext, {
+      cropLaborDaysByMonth: days,
+      minimumCropLaborDaysByMonth: days.slice(),
+      farmLaborRequired: new Float32Array([0]),
+      migratableAdults: new Float32Array([40])
+    });
+    const demand = calculateHusbandryDemand(worldContext, 0);
+    expect(allocation.husbandryWorkers[0]).toBeGreaterThan(0);
+    for (let month = 0; month < 12; month++) {
+      expect(allocation.husbandryMonthlyWorkDays[month]).toBeCloseTo(
+        allocation.husbandryWorkers[0] * WORKABLE_DAYS_PER_ADULT * demand.monthlyLaborWeights![month],
+        4
+      );
+    }
+    expect(Math.max(...allocation.husbandryMonthlyWorkDays)).toBeGreaterThan(
+      Math.min(...allocation.husbandryMonthlyWorkDays)
+    );
+    // Unfunded herd-care vacancies are not unworked staple days.
+    getOrCreateFaunaStockTable()!["0:Sheep"] = { young: 0, breeding: 100_000, old: 0 };
+    const modestCrop = new Float32Array(12).fill(100);
+    const vacancies = allocateRuralOccupations(worldContext, {
+      cropLaborDaysByMonth: modestCrop,
+      minimumCropLaborDaysByMonth: modestCrop.slice(),
+      farmLaborRequired: new Float32Array([0]),
+      migratableAdults: new Float32Array([40])
+    });
+    expect(vacancies.seasonalLaborShortage.some(days => days > 100)).toBe(true);
+    expect(Array.from(vacancies.cropLaborShortage!)).toEqual(Array(12).fill(0));
+    getOrCreateFaunaStockTable()!["0:Sheep"] = { young: 30, breeding: 40, old: 20 };
+    // A fully occupied harvest month cannot cancel all other monthly reservations.
+    const busy = new Float32Array(12);
+    busy[6] = 10_000;
+    const seasonal = allocateRuralOccupations(worldContext, {
+      cropLaborDaysByMonth: busy,
+      minimumCropLaborDaysByMonth: busy.slice(),
+      farmLaborRequired: new Float32Array([0]),
+      migratableAdults: new Float32Array([40])
+    });
+    // Adults are all in the harvest; only the children's herding and hay raking remain that month.
+    const routineCareDays = (demand.careWorkers! * WORKABLE_DAYS_PER_ADULT * 0.8) / 12;
+    const childDays = 60 * 0.35 * (WORKABLE_DAYS_PER_ADULT / 12);
+    const careChildDays = Math.min(routineCareDays, childDays);
+    const hayDays = (demand.hayWorkers ?? 0) * WORKABLE_DAYS_PER_ADULT * (demand.hayMonthlyLaborWeights?.[6] ?? 0);
+    expect(seasonal.husbandryMonthlyWorkDays[6]).toBeCloseTo(
+      careChildDays + Math.min(childDays - careChildDays, hayDays * CHILD_HAYMAKING_SHARE),
+      4
+    );
+    expect(seasonal.cropLaborShortage![6]).toBeGreaterThan(0);
+    expect(seasonal.husbandryMonthlyWorkDays[0]).toBeCloseTo(allocation.husbandryMonthlyWorkDays[0], 4);
+    expect(seasonal.husbandryWorkers[0]).toBeGreaterThan(0);
+    expect(seasonal.husbandryWorkers[0]).toBeCloseTo(
+      seasonal.husbandryMonthlyWorkDays.reduce((sum, days) => sum + days, 0) / WORKABLE_DAYS_PER_ADULT,
+      5
+    );
+    for (let month = 0; month < 12; month++) {
+      if (month !== 6)
+        expect(seasonal.husbandryMonthlyWorkDays[month]).toBeLessThanOrEqual(40 * WORKABLE_DAYS_PER_ADULT_PER_MONTH);
+    }
+  });
   beforeEach(() => {
     simulationContext.extensions = {};
     initEconomyContext({ worldContext, simulationContext } as unknown as ExtensionAPI);
@@ -332,6 +417,42 @@ describe("ruralOccupationAllocation", () => {
 
     // huntingWorkers assigned = min(3, max(3, 3*0.01)) = 3 (population never enters this formula).
     expect(getHuntingGameOutput(0)).toBeCloseTo(3 * GAME_YIELD_PER_HUNTER_PER_MONTH, 5);
+  });
+
+  it.each(["neighbor", "market"])("reserves %s harvest helpers for booked work instead of vacant herd jobs", scope => {
+    worldContext.pack = {
+      cells: {
+        i: Uint16Array.from([0, 1, 2]),
+        h: Uint8Array.from([30, 30, 30]),
+        biomeCode: Uint8Array.from([0, 0, 0]),
+        pop: Float32Array.from([4, 4, 20]),
+        maleAdults: Float32Array.from([1, 1, 10]),
+        femaleAdults: new Float32Array(3),
+        state: Uint16Array.from([1, 1, 1]),
+        area: Float32Array.from([100, 100, 100]),
+        c: scope === "neighbor" ? [[2], [2], [0, 1]] : [[], [], []]
+      },
+      burgs: []
+    } as unknown as PackedGraph;
+    worldContext.populationRate = 1;
+    worldContext.biomesData = { tags: [["grassland"]], habitability: [100] } as never;
+    setGoods([Goods.getDefaultGood("Sheep")!]);
+    setGoodCellColumn(new Uint16Array(3));
+    setMarketCellColumn(Uint16Array.from(scope === "market" ? [1, 1, 1] : [0, 0, 0]));
+    const stock = getOrCreateFaunaStockTable()!;
+    stock["0:Sheep"] = { young: 0, breeding: 100_000, old: 0 };
+    stock["1:Sheep"] = stock["2:Sheep"] = { young: 0, breeding: 0, old: 0 };
+    const days = new Float32Array(36);
+    days[18] = 24; // One resident can work 23.33 peak days; a helper can finish the crop.
+    const result = allocateRuralOccupations(worldContext, {
+      cropLaborDaysByMonth: days,
+      minimumCropLaborDaysByMonth: days.slice(),
+      farmLaborRequired: new Float32Array(3),
+      migratableAdults: new Float32Array(3)
+    });
+    expect(result.seasonalLaborShortage[6]).toBeGreaterThan(0);
+    expect(result.cropLaborShortage![18]).toBeCloseTo(0, 5);
+    expect(result.farmLaborRequired[2]).toBeGreaterThan(0);
   });
 
   it("lets a slack neighbour absorb a same-state harvest shortage as mutual-aid employment", () => {

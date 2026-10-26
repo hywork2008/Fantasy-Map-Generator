@@ -11,7 +11,7 @@
  * Phase K (2026-08-07, this revision) restores both by inserting a `Milk` good as the local,
  * short-lived intermediate — mirroring how Grapes feeds Wine, but at one more remove:
  *   - `getMilkOutput()` (this file) computes Milk the exact same way Phase J computed Cheese: from
- *     *this cell's own* dairy-species headcount only, gated by `getHusbandryWorkerFactor()`. It is
+ *     *this cell's own* dairy-species headcount only, gated by `getHusbandryCareFactor()`. It is
  *     wired into production-utils.ts's `getRuralProductionContributions()` as a Grapes-style
  *     special case, so Milk enters the regular market/goods system as a physical Good rather than
  *     staying purely internal.
@@ -30,23 +30,10 @@
  */
 
 import { getOrCreateFaunaStockTable, getSimulationMonth } from "../economyContext";
+import { ANNUAL_LITERS_PER_LACTATING_FEMALE, LACTATING_SHARE_OF_BREEDING_COHORT } from "./dairyProductionPolicy";
 import { LITERS_PER_MILK_LOT } from "./foodLots";
-import { getHusbandryWorkerFactor } from "./husbandry";
+import { getHusbandryCareFactor } from "./husbandry";
 import { getLivestockFeedCoverage } from "./livestockFeedState";
-
-/**
- * Annual litres per lactating female. The model uses the breeding cohort as a proxy for the adult
- * herd, then applies a female/lactation share and an eight-month Central-European milk season.
- * Cattle give the most milk, followed by Goats and Sheep.
- */
-const ANNUAL_LITERS_PER_LACTATING_FEMALE: Record<string, number> = {
-  Cattle: 500,
-  Goats: 150,
-  Sheep: 75
-};
-
-/** Breeding cohorts include both sexes and not every adult is in lactation simultaneously. */
-const LACTATING_SHARE_OF_BREEDING_COHORT = 0.375;
 
 /** `cellId:speciesKey`-keyed lookup, mirroring husbandry.ts's `getDogsHeadcount` precedent. */
 function getLocalBreedingHeadcount(cellId: number, speciesKey: string): number {
@@ -81,5 +68,5 @@ export function getMilkOutput(cellId: number): number {
       LITERS_PER_MILK_LOT;
   }
   if (rawYield <= 0) return 0;
-  return rawYield * getHusbandryWorkerFactor(cellId) * getLivestockFeedCoverage(cellId);
+  return rawYield * getHusbandryCareFactor(cellId) * getLivestockFeedCoverage(cellId);
 }

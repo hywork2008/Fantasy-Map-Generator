@@ -57,6 +57,7 @@ const LEGACY_FRESH_FOOD_PROFILES: Readonly<Record<string, NonNullable<Good["fres
   Game: { householdDemandPerPopulationMonth: 0.2, preservationLaborPerUnit: 0.1 },
   Milk: {
     householdDemandPerPopulationMonth: DAIRY_TARGETS.freshMilkLitersPerPersonYear / 12,
+    householdDemandReferencePeoplePerPoint: 1000,
     maxFreshHouseholdShare: 0.05,
     preservationLaborPerUnit: 0.08
   },
@@ -75,7 +76,33 @@ export function isFreshFoodGood(good: Pick<Good, "name" | "tags">): boolean {
 
 /** New catalogues declare this inline; the name fallback keeps existing saved maps compatible. */
 export function getFreshFoodProfile(good: Pick<Good, "name" | "freshFood">): Good["freshFood"] | null {
-  return good.freshFood ?? LEGACY_FRESH_FOOD_PROFILES[good.name] ?? null;
+  const profile = good.freshFood ?? LEGACY_FRESH_FOOD_PROFILES[good.name] ?? null;
+  // Old standard Milk catalogues omitted their fixed 1,000-person reference basis.
+  // Keep explicitly authored custom map-point rates unchanged.
+  if (
+    good.name === "Milk" &&
+    profile &&
+    profile.householdDemandReferencePeoplePerPoint === undefined &&
+    profile.householdDemandPerPopulationMonth === DAIRY_TARGETS.freshMilkLitersPerPersonYear / 12
+  ) {
+    return { ...profile, householdDemandReferencePeoplePerPoint: 1000 };
+  }
+  return profile;
+}
+
+/** Source-side demand in market units, respecting an explicitly declared population basis. */
+export function getCellFreshFoodHouseholdDemand(
+  good: Pick<Good, "name" | "freshFood">,
+  populationPoints: number,
+  populationRate: number
+): number {
+  const profile = getFreshFoodProfile(good);
+  if (!profile) return 0;
+  const demand = Math.max(0, populationPoints) * profile.householdDemandPerPopulationMonth;
+  const reference = profile.householdDemandReferencePeoplePerPoint;
+  if (reference === undefined) return demand;
+  if (!(reference > 0) || !Number.isFinite(reference)) throw new Error("Invalid household demand population reference");
+  return demand * (Math.max(1, populationRate || 1) / reference);
 }
 
 /** Shelf-stable outputs that may leave the source cell after its local reserve is filled. */
@@ -1933,6 +1960,7 @@ export const GOODS_DATA: GoodData[] = [
     unit: "1,000 L dairy lot",
     freshFood: {
       householdDemandPerPopulationMonth: DAIRY_TARGETS.freshMilkLitersPerPersonYear / 12,
+      householdDemandReferencePeoplePerPoint: 1000,
       // In dispersed dairy households, only a small source-side share can be drunk before souring.
       // The rest is deliberately planned for Cheese rather than treated as town-wide fresh milk.
       maxFreshHouseholdShare: 0.05,

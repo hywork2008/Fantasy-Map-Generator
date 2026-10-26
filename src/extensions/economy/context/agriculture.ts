@@ -81,6 +81,7 @@ let _viticultureRequiredWorkersFallback: Float32Array<ArrayBufferLike> = new Flo
 let _householdTextileWorkersFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 
 let _husbandryWorkersFallback: Float32Array<ArrayBufferLike> = new Float32Array();
+let _husbandryMonthlyWorkDaysFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 
 let _husbandryRequiredWorkersFallback: Float32Array<ArrayBufferLike> = new Float32Array();
 
@@ -412,6 +413,19 @@ export function setHusbandryWorkers(value: Float32Array<ArrayBufferLike>): void 
   setSliceFloat32Column("husbandryWorkers", value, next => {
     _husbandryWorkersFallback = next;
   });
+  // Worker edits invalidate a prior calendar; the allocator publishes its new calendar afterwards.
+  setHusbandryMonthlyWorkDays(new Float32Array());
+}
+
+/** Actual occupation reservation, cell * 12 + month. Empty on legacy saves without a calendar. */
+export function getHusbandryMonthlyWorkDays(): Float32Array<ArrayBufferLike> {
+  return getSliceFloat32Column("husbandryMonthlyWorkDays", _husbandryMonthlyWorkDaysFallback);
+}
+
+export function setHusbandryMonthlyWorkDays(value: Float32Array<ArrayBufferLike>): void {
+  setSliceFloat32Column("husbandryMonthlyWorkDays", value, next => {
+    _husbandryMonthlyWorkDaysFallback = next;
+  });
 }
 
 export function getHusbandryRequiredWorkers(): Float32Array<ArrayBufferLike> {
@@ -501,6 +515,7 @@ registerContextFallbackReset(() => {
   _viticultureWorkersFallback = new Float32Array();
   _viticultureRequiredWorkersFallback = new Float32Array();
   _husbandryWorkersFallback = new Float32Array();
+  _husbandryMonthlyWorkDaysFallback = new Float32Array();
   _householdTextileWorkersFallback = new Float32Array();
   _husbandryRequiredWorkersFallback = new Float32Array();
   _stateAgriculturalProductivityFallback = new Float32Array();

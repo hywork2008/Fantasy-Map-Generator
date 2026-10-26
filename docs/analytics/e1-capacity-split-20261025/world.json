@@ -1,0 +1,71 @@
+{
+  "inputSha256": "5e73a27785881bf553d37404442d7ead0f7bb68457208cc33c88c88f7c6a5999",
+  "months": 36,
+  "notes": [
+    "Each species column applies one more limit: target -> land (committed forage incl. grazed fallow) -> annual feed factor -> min(feed, winter hay) -> last year's fed share.",
+    "fed equals getGrazedCarryingCapacity; desiredPastureHa is the planning demand for the target herd, capped by the ceiling."
+  ],
+  "land": {
+    "ruralPeople": 3616338.1919041276,
+    "ceilingHa": 59640805.574227795,
+    "desiredPastureHa": 18644520.64336307,
+    "committedPastureHa": 12601218.989101218,
+    "fallowEquivalentHa": 1865828.033502477,
+    "landLimitedCells": 2141,
+    "ceilingBoundCells": 588,
+    "grossNeedHa": 27523179.242986355,
+    "cells": 2157
+  },
+  "species": {
+    "Cattle": {
+      "target": 2109575.4879379985,
+      "land": 1041588.6953591743,
+      "feed": 1041588.6953591743,
+      "winter": 1041588.6953591743,
+      "fed": 593405.7136275456,
+      "heads": 351711.47184085863,
+      "perHundredTarget": 58.334574256929045,
+      "perHundredHeads": 9.725624462563616
+    },
+    "Horses": {
+      "target": 517161.32598905015,
+      "land": 264746.752670623,
+      "feed": 264746.752670623,
+      "winter": 264746.752670623,
+      "fed": 150916.90940112856,
+      "heads": 83539.97061543597,
+      "perHundredTarget": 14.300690326662915,
+      "perHundredHeads": 2.3100707451105196
+    },
+    "Sheep": {
+      "target": 5606498.091035634,
+      "land": 3023176.043823177,
+      "feed": 3023176.043823177,
+      "winter": 3023176.043823177,
+      "fed": 1831745.3179886434,
+      "heads": 1341861.057685785,
+      "perHundredTarget": 155.03246083529643,
+      "perHundredHeads": 37.10551907699895
+    },
+    "Goats": {
+      "target": 182993.95350337029,
+      "land": 125121.11385370203,
+      "feed": 125121.11385370203,
+      "winter": 125121.11385370203,
+      "fed": 76895.71025062236,
+      "heads": 26019.69342127783,
+      "perHundredTarget": 5.060200229974001,
+      "perHundredHeads": 0.7195038749287316
+    },
+    "Camels": {
+      "target": 46921.526539325714,
+      "land": 32082.336885564633,
+      "feed": 32082.336885564633,
+      "winter": 32082.336885564633,
+      "fed": 19716.848782210836,
+      "heads": 5205.306974905667,
+      "perHundredTarget": 1.297487238454872,
+      "perHundredHeads": 0.1439386113433404
+    }
+  }
+}

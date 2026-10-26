@@ -17,6 +17,8 @@ import { GOOD_MEASURES } from "./goodMeasureCatalog";
 import {
   GOODS_DATA,
   GoodsModule,
+  getCellFreshFoodHouseholdDemand,
+  getFreshFoodProfile,
   isGoodEnabled,
   migrateAlloySteelGoods,
   migrateBeeswaxByproduct,
@@ -68,6 +70,43 @@ import {
   LEGACY_WOOD_RECIPES,
   LIQUOR_WOOD_PER_LOT
 } from "./woodRecipeContracts";
+
+describe("physical fresh-food population basis", () => {
+  const milk = { name: "Milk" };
+  it("keeps the same milk quantity for the same real residents at different map scales", () => {
+    const quantity = getCellFreshFoodHouseholdDemand(milk, 1, 1000);
+    expect(quantity).toBeCloseTo(20 / 12);
+    expect(getCellFreshFoodHouseholdDemand(milk, 1000, 1)).toBeCloseTo(quantity);
+    expect(getCellFreshFoodHouseholdDemand(milk, 10, 100)).toBeCloseTo(quantity);
+    expect(getCellFreshFoodHouseholdDemand(milk, 0, 1000)).toBe(0);
+  });
+  it("resolves standard legacy milk without mutating saved/custom catalogue data", () => {
+    const standard = {
+      name: "Milk",
+      freshFood: { householdDemandPerPopulationMonth: 20 / 12, preservationLaborPerUnit: 0.08 }
+    };
+    const before = structuredClone(standard);
+    expect(getFreshFoodProfile(standard)?.householdDemandReferencePeoplePerPoint).toBe(1000);
+    expect(getCellFreshFoodHouseholdDemand(standard, 1000, 1)).toBeCloseTo(20 / 12);
+    expect(standard).toEqual(before);
+    const custom = { ...standard, freshFood: { ...standard.freshFood, householdDemandPerPopulationMonth: 0.7 } };
+    expect(getCellFreshFoodHouseholdDemand(custom, 2, 1)).toBeCloseTo(1.4);
+    expect(getCellFreshFoodHouseholdDemand({ name: "Fish" }, 2, 1)).toBe(0.5);
+  });
+  it("supports an explicit population reference and rejects an invalid one", () => {
+    const custom = {
+      name: "Milk",
+      freshFood: {
+        householdDemandPerPopulationMonth: 1,
+        householdDemandReferencePeoplePerPoint: 500,
+        preservationLaborPerUnit: 0.08
+      }
+    };
+    expect(getCellFreshFoodHouseholdDemand(custom, 1, 1000)).toBe(2);
+    custom.freshFood.householdDemandReferencePeoplePerPoint = 0;
+    expect(() => getCellFreshFoodHouseholdDemand(custom, 1, 1000)).toThrow();
+  });
+});
 
 describe("GoodsModule", () => {
   let goodsModule: GoodsModule;

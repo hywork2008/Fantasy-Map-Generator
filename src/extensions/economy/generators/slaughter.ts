@@ -18,6 +18,7 @@
  */
 
 import { rn } from "../../hostUtils";
+import { isWinterSlaughterExperimentEnabled } from "../context/winterSlaughter";
 import {
   getGoods,
   getMarkets,
@@ -97,6 +98,8 @@ export function settleSlaughter(eligibleCalfHeadsByMarket?: ReadonlyMap<number, 
     good => good.tags?.includes("liveAnimal") && good.tags.includes("food") && isGoodEnabled(good)
   );
   const result: SlaughterResult = { heads: 0, tallow: 0, leather: 0, rennet: 0 };
+  // Keep unowned market animals alive; the experiment may process only its own rural herds.
+  if (isWinterSlaughterExperimentEnabled()) return result;
   if (!animals.length || (!tallow && !leather)) return result;
 
   for (const market of getMarkets()) {

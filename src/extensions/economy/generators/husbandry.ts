@@ -1,3 +1,5 @@
+import { getCropResidueWorkPlan } from "./cropResidueWorkPlan";
+import { getHusbandryLaborBudget } from "./husbandryLabor";
 /**
  * Open-pasture husbandry: one shared land budget for Cattle, Sheep, Goats, Horses and Camels.
  * Pig, Chicken, Cats and Dogs retain their separate yard/woodland models.
@@ -26,6 +28,7 @@ import type { WorldContext } from "../../hostCore";
 import {
   getCultivatedArea,
   getGoods,
+  getHusbandryMonthlyWorkDays,
   getHusbandryRequiredWorkers,
   getHusbandryWorkers,
   getOrCreateFaunaStockTable,
@@ -41,12 +44,29 @@ import type { Good } from "./goods-generator";
 import { isGoodEnabled } from "./goods-generator";
 import {
   ANNUAL_FEED_DM_KG_PER_HEAD,
+  calculateWinterFeedShare,
+  getLivestockHayPlan,
   getPastureGrowth,
-  HAY_DRY_MATTER_RETENTION,
-  HAY_WORK_DAYS_PER_TONNE_DM,
-  WINTER_HAY_PLAN_SHARE
+  HAY_WORK_DAYS_PER_TONNE_DM
 } from "./livestockFeedPolicy";
-import { getAnnualLivestockFeedFactor } from "./livestockFeedState";
+import { getAnnualLivestockFeedFactor, getRecentlyFedHerdShare, livestockFeedMonth } from "./livestockFeedState";
+import {
+  CAMELS_PER_RURAL_PERSON,
+  CATTLE_FOLLOWERS_PER_DRAUGHT_OX,
+  CLEARED_PASTURE_PER_CULTIVATED_HA,
+  DEFAULT_ANNUAL_SOWN_SHARE,
+  DRAUGHT_HEADS_PER_CULTIVATED_HA,
+  DRAUGHT_HEADS_PER_RURAL_PERSON_MAX,
+  FALLOW_GRAZING_DM_KG_PER_HA,
+  GOAT_SHARE_OF_SMALL_STOCK_IN_BROWSE,
+  getHorseDraughtShare,
+  PASTORAL_HEADS_PER_RURAL_PERSON,
+  PASTURE_FEED_UTILIZATION,
+  SHEEP_PER_RURAL_PERSON
+} from "./livestockHerdTargetPolicy";
+import { readAgriculturalClimate } from "./seasonalCropClimate";
+import { getWinterSlaughterWorkPlan } from "./winterSlaughter";
+import { EXPERIMENTAL_CARCASS_PROFILES } from "./winterSlaughterPolicy";
 
 // ---- Placeholder constants (calibration TBD, §9.3 policy; see module doc-comment for sourcing) ----
 
@@ -60,24 +80,6 @@ const PASTURE_BIOME_TAG_CEILING: Partial<Record<BiomeTag, number>> = {
 };
 /** Marginal grazing ceiling for land without a dedicated pasture-suitable tag. */
 const PASTURE_DEFAULT_CEILING = 0.1;
-
-/**
- * Hectares of pasture one REAL resident's worth of local demand could realistically keep stocked
- * — mirrors viticulture.ts's `VINEYARD_AREA_HECTARES_PER_PERSON` in spirit (see module doc-comment's
- * "requiredWorkers redefinition" entry), but per actual person, not per raw `cells.pop` unit. Found
- * 2026-08-07 (real-map verification via Playwright after this constant still produced a near-empty
- * herd everywhere): `cells.pop[cellId]` is a "population point" — `agriculturalLandUse.ts`'s own
- * `currentPeople = cells.pop[cellId] * populationRate` is the established real-headcount conversion
- * (`populationRate` was 1000 on a real generated map, with `cells.pop` typically 1-20 per cell — i.e.
- * a raw-point-based desiredArea of "population x 1 ha" was on the order of a few HECTARES per cell,
- * not a few THOUSAND, making every grazed species' capacity round to ~0). Multiplying by
- * `populationRate` first fixes the unit mismatch; this constant itself stays a placeholder,
- * calibration TBD (§9.3). `viticulture.ts`'s `VINEYARD_AREA_PER_POPULATION_POINT` had the identical
- * raw-`cells.pop` pattern — confirmed under-scaled the same way and fixed the same day
- * (renamed `VINEYARD_AREA_HECTARES_PER_PERSON`) as part of the labour-scarcity investigation in
- * docs/plan/fauna-biome-realism.md §2.5.
- */
-const HUSBANDRY_LAND_HECTARES_PER_PERSON = 1;
 
 /**
  * Heads sustainably supported per hectare of actively-used pasture (ecological ceiling,
@@ -191,10 +193,15 @@ export function isGrazedLivestockGood(goodName: string): boolean {
 }
 
 export interface HusbandryDemand {
+  readonly residueWorkers?: number;
+  readonly residueMonthlyLaborWeights?: readonly number[];
+  readonly slaughterWorkers?: number;
+  readonly slaughterMonthlyLaborWeights?: readonly number[];
   /** Aggregate herders this cell could use across every grazed species present in its biome. */
   readonly requiredWorkers: number;
   /** Additional haymaking crew, unaffected by herding-dog efficiency. */
   readonly hayWorkers?: number;
+  readonly hayMonthlyLaborWeights?: readonly number[];
   readonly careWorkers?: number;
   /** Care-headcount-weighted average good.value, for the greedy allocator's value-ranking (§3.1). */
   readonly value: number;
@@ -214,7 +221,7 @@ function getDogsHeadcount(cellId: number): number {
   return cohorts.young + cohorts.breeding + cohorts.old;
 }
 
-function calculatePastureCeilingAreaHectares(world: Readonly<WorldContext>, cellId: number): number {
+export function calculatePastureCeilingAreaHectares(world: Readonly<WorldContext>, cellId: number): number {
   const cells = world.pack.cells;
   const physicalHectares = calculatePhysicalAreaHectares(world, cellId);
   if (physicalHectares <= 0) return 0;
@@ -234,27 +241,123 @@ function calculatePastureCeilingAreaHectares(world: Readonly<WorldContext>, cell
     PASTURE_DEFAULT_CEILING
   );
   const terrainShare = calculateTerrainWorkableShare(cells.h[cellId] ?? 0);
-  return unclaimedArea * terrainShare * ceiling;
+  // Clearance for fields also opened grazing; the natural biome cover no longer sets the limit.
+  const cleared = Math.min(unclaimedArea, cultivated * CLEARED_PASTURE_PER_CULTIVATED_HA);
+  return Math.max(unclaimedArea * ceiling, cleared) * terrainShare;
 }
 
-/** The land-suitability ceiling clamped by population-scaled local demand — mirrors
- * viticulture.ts's `calculateDesiredVineyardAreaHectares()` (see module doc-comment). */
+function getCellCultivatedHectares(world: Readonly<WorldContext>, cellId: number): number {
+  return Math.max(0, world.pack.landUse?.cells[cellId]?.allocatedAreaHa ?? getCultivatedArea()[cellId] ?? 0);
+}
+
+function biomeSuits(
+  world: Readonly<WorldContext>,
+  cellId: number,
+  good: Pick<Good, "biomeOutput" | "biomeOutputByTag">
+) {
+  const rate = resolveBiomeOutputRate(
+    world.pack.cells.biomeCode[cellId] ?? 0,
+    good.biomeOutput,
+    good.biomeOutputByTag,
+    world.biomesData
+  );
+  return Number.isFinite(rate) && rate > 0;
+}
+
+/**
+ * Mixed-farming herd targets in real animals (livestockHerdTargetPolicy.ts). Draught follows the
+ * ploughed land, the rest of the herd follows the rural people it feeds and clothes. Cattle, Sheep
+ * and Horses are kept wherever people live; Goats, Camels and pastoral herds only where the biome suits.
+ * Land, feed and herders limit these separately; this is the demand side only.
+ */
+export function getLivestockHerdTargets(world: Readonly<WorldContext>, cellId: number): Record<string, number> {
+  const cells = world.pack.cells;
+  if ((cells.h[cellId] ?? 0) < 20) return {};
+  const people = Math.max(0, cells.pop[cellId] ?? 0) * Math.max(1, world.populationRate || 1);
+  if (!(people > 0)) return {};
+  const cultivated = getCellCultivatedHectares(world, cellId);
+  const goods = new Map(
+    getGoods()
+      .filter(good => isGrazedLivestockGood(good.name) && isGoodEnabled(good))
+      .map(good => [good.name, good])
+  );
+  const tags = world.biomesData.tags?.[cells.biomeCode[cellId] ?? 0] ?? [];
+  const pastoral = tags.includes("grassland") || tags.includes("nomadic");
+  // Every farming household keeps some cattle, sheep or horses; only goats and camels need their biome.
+  const kept = (name: string) => goods.has(name);
+  const suited = (name: string) => {
+    const good = goods.get(name);
+    return Boolean(good && biomeSuits(world, cellId, good));
+  };
+  const pastoralHeads = (name: string) =>
+    pastoral && suited(name) ? people * (PASTORAL_HEADS_PER_RURAL_PERSON[name] ?? 0) : 0;
+  const draught = Math.min(cultivated * DRAUGHT_HEADS_PER_CULTIVATED_HA, people * DRAUGHT_HEADS_PER_RURAL_PERSON_MAX);
+  const horseShare = kept("Horses") ? getHorseDraughtShare(world.options?.historicalPeriod) : 0;
+  const goatShare = suited("Goats") ? GOAT_SHARE_OF_SMALL_STOCK_IN_BROWSE : 0;
+  const targets: Record<string, number> = {};
+  if (kept("Cattle"))
+    targets.Cattle = draught * (1 - horseShare) * (1 + CATTLE_FOLLOWERS_PER_DRAUGHT_OX) + pastoralHeads("Cattle");
+  if (kept("Horses")) targets.Horses = draught * horseShare + pastoralHeads("Horses");
+  const smallStock = people * SHEEP_PER_RURAL_PERSON;
+  if (kept("Sheep")) targets.Sheep = smallStock * (1 - goatShare) + pastoralHeads("Sheep");
+  if (goatShare > 0) targets.Goats = smallStock * goatShare;
+  if (suited("Camels")) targets.Camels = people * CAMELS_PER_RURAL_PERSON;
+  for (const [name, heads] of Object.entries(targets)) if (!(heads > 0)) delete targets[name];
+  return targets;
+}
+
+/** Pasture hectares that feed one animal for a year at local growth, after utilization losses. */
+export function getPastureHectaresPerHead(world: Readonly<WorldContext>, cellId: number, goodName: string): number {
+  const need = ANNUAL_FEED_DM_KG_PER_HEAD[goodName] ?? 0;
+  const growth = getPastureGrowth(world, cellId).annualKgPerHa * PASTURE_FEED_UTILIZATION;
+  if (need > 0 && growth > 0) return need / growth;
+  const density = getGrazedStockingDensity(goodName);
+  return density > 0 ? 1 / density : 0;
+}
+
+/** Grazed fallow inside the cropland, as pasture-equivalent hectares of forage. */
+export function getGrazedFallowPastureEquivalentHectares(world: Readonly<WorldContext>, cellId: number): number {
+  const pastureKgPerHa = getPastureGrowth(world, cellId).annualKgPerHa;
+  if (!(pastureKgPerHa > 0)) return 0;
+  const fallow = getCellCultivatedHectares(world, cellId) * (1 - DEFAULT_ANNUAL_SOWN_SHARE);
+  return (fallow * Math.min(FALLOW_GRAZING_DM_KG_PER_HA, pastureKgPerHa)) / pastureKgPerHa;
+}
+
+/**
+ * Planning sizes pasture for the demand-based herd target, after the grazed fallow. Ordinary capacity
+ * queries use the committed land contract and never read or seed a herd. The plan is bounded by
+ * the ecological ceiling here and by herders/annual adjustment in DevelopmentPotential.
+ */
 export function calculateDesiredPastureAreaHectares(
   world: Readonly<WorldContext>,
   cellId: number,
-  planning = false
+  planning = false,
+  bootstrapLaborDays?: number
 ): number {
   const reserved = world.pack.landUse?.cells[cellId]?.patches
     .filter(p => p.kind === "pasture" || p.kind === "wood_pasture")
     .reduce((s, p) => s + p.areaHa, 0);
-  // New ledgers contain an explicit husbandry contract; legacy ledgers retain old suitability.
+  // New ledgers contain an explicit husbandry contract, including an intentional zero.
   if (!planning && world.pack.landUse?.cells[cellId]?.diagnostics.includes("resolved-livestock-land"))
     return reserved ?? 0;
   const ceiling = calculatePastureCeilingAreaHectares(world, cellId);
   if (ceiling <= 0) return 0;
-  const populationPoints = Math.max(0, world.pack.cells.pop[cellId] ?? 0);
-  const realPopulation = populationPoints * Math.max(1, world.populationRate || 1);
-  return Math.min(ceiling, realPopulation * HUSBANDRY_LAND_HECTARES_PER_PERSON);
+  if (!planning && reserved !== undefined && reserved > 0) return Math.min(ceiling, reserved);
+  const targets = Object.entries(getLivestockHerdTargets(world, cellId));
+  if (!targets.length) return 0;
+  const grossHa = targets.reduce(
+    (sum, [name, heads]) => sum + heads * getPastureHectaresPerHead(world, cellId, name),
+    0
+  );
+  const needHa = Math.max(0, grossHa - getGrazedFallowPastureEquivalentHectares(world, cellId));
+  if (bootstrapLaborDays === undefined || (reserved !== undefined && reserved > 0)) return Math.min(ceiling, needHa);
+  // A first plan without established pasture cannot claim more land than the residual labor can herd.
+  const daysPerHa = targets.reduce(
+    (sum, [name, heads]) =>
+      sum + (heads / grossHa / HUSBANDRY_SPECIES_PROFILES[name].baselineHeadsPerHerder) * WORKABLE_DAYS_PER_ADULT,
+    0
+  );
+  return Math.min(ceiling, needHa, daysPerHa > 0 ? Math.max(0, bootstrapLaborDays) / daysPerHa : needHa);
 }
 
 export interface GrazingLandAllocation {
@@ -264,35 +367,32 @@ export interface GrazingLandAllocation {
   readonly capacityHeads: number;
 }
 
-/** Allocates a single shared pasture budget without seeding, clipping or otherwise changing herds. */
+/**
+ * Splits one grazing budget (pasture plus grazed fallow) by each species' feed need at its target.
+ * Capacity never exceeds the target: spare grass is not a reason to keep more animals.
+ */
 export function calculateGrazingLandAllocation(
   world: Readonly<WorldContext>,
   cellId: number,
-  areaHa = calculateDesiredPastureAreaHectares(world, cellId)
+  areaHa = calculateDesiredPastureAreaHectares(world, cellId) + getGrazedFallowPastureEquivalentHectares(world, cellId)
 ): GrazingLandAllocation[] {
   if (!(areaHa > 0) || !Number.isFinite(areaHa)) return [];
-  const biome = world.pack.cells.biomeCode[cellId] ?? 0;
-  const goods: Pick<Good, "name" | "biomeOutput" | "biomeOutputByTag">[] = getGoods().filter(isGoodEnabled);
-  const candidates = goods.flatMap(good => {
-    const density = getGrazedStockingDensity(good.name);
-    if (!(density > 0)) return [];
-    const rate = resolveBiomeOutputRate(biome, good.biomeOutput, good.biomeOutputByTag, world.biomesData);
-    const peakRate = [
-      ...Object.values(good.biomeOutput ?? {}),
-      ...Object.values(good.biomeOutputByTag ?? {})
-    ].reduce<number>((peak, value) => Math.max(peak, Number.isFinite(value) ? (value ?? 0) : 0), 0);
-    const weight = peakRate > 0 ? rate / peakRate : 0;
-    return Number.isFinite(weight) && weight > 0 ? [{ name: good.name, density, weight }] : [];
+  const candidates = Object.entries(getLivestockHerdTargets(world, cellId)).flatMap(([name, heads]) => {
+    const haPerHead = getPastureHectaresPerHead(world, cellId, name);
+    return haPerHead > 0 ? [{ name, heads, haPerHead, needHa: heads * haPerHead }] : [];
   });
-  const totalWeight = candidates.reduce((sum, row) => sum + row.weight, 0);
-  if (!(totalWeight > 0)) return [];
-  return candidates.map(row => {
-    const area = (areaHa * row.weight) / totalWeight;
-    return { goodName: row.name, density: row.density, areaHa: area, capacityHeads: area * row.density };
-  });
+  const totalNeed = candidates.reduce((sum, row) => sum + row.needHa, 0);
+  if (!(totalNeed > 0)) return [];
+  const share = Math.min(1, areaHa / totalNeed);
+  return candidates.map(row => ({
+    goodName: row.name,
+    density: 1 / row.haPerHead,
+    areaHa: row.needHa * share,
+    capacityHeads: row.heads * share
+  }));
 }
 
-/** Planned, land-partitioned herds and existing animals share one herder/dog budget. */
+/** Existing herds use one herder/dog budget; land targets are only a pre-seeding fallback. */
 export function calculateHusbandryDemand(world: Readonly<WorldContext>, cellId: number): HusbandryDemand {
   const cells = world.pack.cells;
   const population = Math.max(0, cells.pop[cellId] ?? 0);
@@ -311,7 +411,10 @@ export function calculateHusbandryDemand(world: Readonly<WorldContext>, cellId: 
   for (const [name, profile] of Object.entries(HUSBANDRY_SPECIES_PROFILES)) {
     const herd = stock?.[`${cellId}:${name}`];
     const existingHeads = herd ? Math.max(0, herd.young) + Math.max(0, herd.breeding) + Math.max(0, herd.old) : 0;
-    const careHeads = Math.max(plannedHeads.get(name) ?? 0, existingHeads);
+    // An observed herd (including an empty cohort) needs care for its actual animals.
+    // Ecological capacity is not a second herd or a standing job vacancy. Until the first
+    // stock is seeded, retain the land plan so initial occupation allocation can run.
+    const careHeads = herd ? existingHeads : (plannedHeads.get(name) ?? 0);
     if (!(careHeads > 0)) continue;
     totalCareHeads += careHeads;
     annualFeedNeedKg += careHeads * (ANNUAL_FEED_DM_KG_PER_HEAD[name] ?? 0);
@@ -337,16 +440,47 @@ export function calculateHusbandryDemand(world: Readonly<WorldContext>, cellId: 
     for (let month = 0; month < 12; month++) weightedMonthlyLabor[month] += speciesWorkers * weights[month];
   }
 
-  const growth = getPastureGrowth(world, cellId);
-  const forageKg = calculateDesiredPastureAreaHectares(world, cellId) * growth.annualKgPerHa;
-  const hayKg = (Math.min(forageKg, annualFeedNeedKg) * WINTER_HAY_PLAN_SHARE) / HAY_DRY_MATTER_RETENTION;
-  const hayWorkers = ((hayKg / 1000) * HAY_WORK_DAYS_PER_TONNE_DM) / WORKABLE_DAYS_PER_ADULT;
-  for (let month = 0; month < 12; month++) weightedMonthlyLabor[month] += hayWorkers * growth.weights[month];
+  const hayPlan = getLivestockHayPlan(
+    world,
+    cellId,
+    annualFeedNeedKg,
+    calculateDesiredPastureAreaHectares(world, cellId) + getGrazedFallowPastureEquivalentHectares(world, cellId)
+  );
+  const hayWorkers = ((hayPlan.rawHarvestKg / 1000) * HAY_WORK_DAYS_PER_TONNE_DM) / WORKABLE_DAYS_PER_ADULT;
+  for (let month = 0; month < 12; month++) weightedMonthlyLabor[month] += hayWorkers * hayPlan.harvestWeights[month];
   const careWorkers = requiredWorkers;
   requiredWorkers += hayWorkers;
+  const slaughterPlan =
+    world.options.winterLivestockSlaughter === "experimental-temperate" &&
+    world.options.ruralEcosystemDetail !== "simplified"
+      ? getWinterSlaughterWorkPlan(
+          Object.fromEntries(
+            Object.keys(EXPERIMENTAL_CARCASS_PROFILES).flatMap(species => {
+              const herd = stock?.[`${cellId}:${species}`];
+              return herd ? [[species, herd]] : [];
+            })
+          ),
+          Array.from(readAgriculturalClimate(world, cellId).monthlyMeanTemperatureC),
+          population * (world.populationRate ?? 1000)
+        )
+      : { annualDays: 0, monthlyWeights: Array(12).fill(0) };
+  const slaughterWorkers = slaughterPlan.annualDays / WORKABLE_DAYS_PER_ADULT;
+  requiredWorkers += slaughterWorkers;
+  for (let month = 0; month < 12; month++)
+    weightedMonthlyLabor[month] += slaughterWorkers * slaughterPlan.monthlyWeights[month];
+  const residuePlan = getCropResidueWorkPlan(world, cellId, annualFeedNeedKg);
+  const residueWorkers = residuePlan.annualDays / WORKABLE_DAYS_PER_ADULT;
+  requiredWorkers += residueWorkers;
+  for (let month = 0; month < 12; month++)
+    weightedMonthlyLabor[month] += residueWorkers * residuePlan.monthlyWeights[month];
   return {
+    residueWorkers,
+    residueMonthlyLaborWeights: residuePlan.monthlyWeights,
     requiredWorkers,
+    slaughterWorkers,
+    slaughterMonthlyLaborWeights: slaughterPlan.monthlyWeights,
     hayWorkers,
+    hayMonthlyLaborWeights: hayPlan.harvestWeights,
     careWorkers,
     value: weightedValue / totalCareHeads,
     monthlyLaborWeights: normalizeMonthlyWeights(weightedMonthlyLabor)
@@ -370,12 +504,21 @@ function normalizeMonthlyWeights(weights: readonly number[]): MonthlyWeights {
   return weights.map(value => value / total) as unknown as MonthlyWeights;
 }
 
-/** 0..1 labour-sufficiency ratio gating grazed-species output at `cellId` (mirrors getViticultureWorkerFactor). */
+/** Annual-equivalent labor coverage for land/stock planning; production reads current care instead. */
 export function getHusbandryWorkerFactor(cellId: number): number {
   const required = getHusbandryRequiredWorkers()[cellId] ?? 0;
   if (required <= 0) return 0;
   const assigned = getHusbandryWorkers()[cellId] ?? 0;
   return Math.min(1, assigned / required);
+}
+
+/** Actual care coverage this period; seasonal processing workers do not license unfunded care. */
+export function getHusbandryCareFactor(cellId: number): number {
+  const world = getWorldContext();
+  const calendar = getHusbandryMonthlyWorkDays();
+  if (!calendar.length || calendar.length !== world.pack.cells.i.length * 12) return getHusbandryWorkerFactor(cellId);
+  const labor = getHusbandryLaborBudget(cellId, livestockFeedMonth() - 1, calculateHusbandryDemand(world, cellId));
+  return labor.careRequiredDays > 0 ? Math.min(1, labor.careDays / labor.careRequiredDays) : 0;
 }
 
 /**
@@ -390,14 +533,37 @@ export function getPastureAreaUsedHectares(cellId: number): number {
   return desiredArea * getHusbandryWorkerFactor(cellId);
 }
 
-/** Per-species share of the one maintained pasture budget, expressed in real animals. */
+/** Forage area for feed: maintained pasture plus grazed fallow, which is not extra physical land. */
+export function getForageAreaHectares(cellId: number): number {
+  return getPastureAreaUsedHectares(cellId) + getGrazedFallowPastureEquivalentHectares(getWorldContext(), cellId);
+}
+
+/** Per-species share of the one grazing budget, capped at the herd target, in real animals. */
 export function getGrazedCarryingCapacity(
   cellId: number,
   good: Pick<Good, "name" | "biomeOutput" | "biomeOutputByTag">
 ): number {
   const world = getWorldContext();
-  const area = getPastureAreaUsedHectares(cellId);
+  const area = getForageAreaHectares(cellId);
   const targets = calculateGrazingLandAllocation(world, cellId, area);
   const heads = targets.find(row => row.goodName === good.name)?.capacityHeads ?? 0;
-  return heads * getAnnualLivestockFeedFactor(cellId, area, targets);
+  const annualNeedKg = targets.reduce(
+    (sum, row) => sum + row.capacityHeads * (ANNUAL_FEED_DM_KG_PER_HEAD[row.goodName] ?? 0),
+    0
+  );
+  const growth = getPastureGrowth(world, cellId);
+  // Winter, not the annual total, limits the herd a cell can keep (E1 §7.45).
+  const winterShare = calculateWinterFeedShare(annualNeedKg, area * growth.annualKgPerHa, growth.weights);
+  const landShare = Math.min(getAnnualLivestockFeedFactor(cellId, area, targets), winterShare);
+  // Where last year's herd went hungry, keepers winter only as many as they actually fed.
+  const fedShare = getRecentlyFedHerdShare(cellId);
+  if (fedShare === null) return heads * landShare;
+  const stock = getOrCreateFaunaStockTable();
+  const herdHeads = targets.reduce((sum, row) => {
+    const herd = stock?.[`${cellId}:${row.goodName}`];
+    return sum + (herd ? Math.max(0, herd.young) + Math.max(0, herd.breeding) + Math.max(0, herd.old) : 0);
+  }, 0);
+  const plannedHeads = targets.reduce((sum, row) => sum + row.capacityHeads * landShare, 0);
+  const fedLimit = plannedHeads > 0 ? Math.min(1, (herdHeads * fedShare) / plannedHeads) : 1;
+  return heads * landShare * fedLimit;
 }

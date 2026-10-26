@@ -1,4 +1,34 @@
 import { create } from "zustand";
+import type { SaltworksOwner } from "../generators/saltLogisticsTypes";
+
+export interface MarketSaltworksRow {
+  id: number;
+  owner: SaltworksOwner;
+  settlementOwner?: SaltworksOwner;
+  operator: SaltworksOwner;
+  operatingCash: number | null;
+  cash: number | null;
+  output: number;
+  receipts: number;
+  expenses: number;
+  options: { owner: SaltworksOwner; name: string }[];
+}
+
+export interface MarketSaltPolicyRow {
+  stateId: number;
+  name: string;
+  mode: "open" | "monopoly";
+  taxRate: number;
+  automated: boolean;
+  compulsoryPurchase: boolean;
+  unrest: number;
+  revolt: boolean;
+  decision?: string;
+  taxPaid: number;
+  taxFarmPaid: number;
+  smuggled: number;
+  unmetQuota: number;
+}
 
 export interface MarketOverviewRow {
   goodId: number;
@@ -68,6 +98,8 @@ interface MarketOverviewState {
   defaultName: string;
   owner: MarketOverviewOwner | null;
   rows: MarketOverviewRow[];
+  saltworksRows: MarketSaltworksRow[];
+  saltPolicyRows: MarketSaltPolicyRow[];
   burgMerchantRows: MarketOverviewBurgMerchantRow[];
   transportAssetRows: MarketOverviewTransportAssetRow[];
   transportOrderRows: MarketOverviewTransportOrderRow[];
@@ -98,6 +130,8 @@ export const useMarketOverviewState = create<MarketOverviewState>(() => ({
   defaultName: "",
   owner: null,
   rows: [],
+  saltworksRows: [],
+  saltPolicyRows: [],
   burgMerchantRows: [],
   transportAssetRows: [],
   transportOrderRows: [],

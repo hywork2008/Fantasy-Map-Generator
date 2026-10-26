@@ -1,0 +1,1039 @@
+{
+  "schemaVersion": 1,
+  "purpose": "Derived Salt S0 comparison; observation JSONs remain the flow/ledger records.",
+  "generation": {
+    "storagePath": "docs/analytics/inputs/salt-s0-aligned-20261023/storage.json",
+    "storageSha256": "85c2932676b3248d49f66841b577cc7c82100fdc7b2b00f58087a92280073107",
+    "storage": {
+      "year": "1300",
+      "historicalPeriod": "highMedieval",
+      "culturesSet": "european",
+      "initialSettlementPattern": "standard",
+      "populationRate": "1000",
+      "urbanization": "1",
+      "gunpowderEraEnabled": "false",
+      "fmg-long-distance-trade": "on",
+      "fmg-caravan-raids": "off",
+      "fmg-extensions": "{\"state\":{\"enabledExtensions\":{\"economy\":true,\"characters\":true,\"nobility\":true,\"shipbuilding\":true}},\"version\":0}"
+    },
+    "commands": [
+      "node scripts/generateSmallMaps.mjs temp/salt-s0-aligned --scope province --seed 101 --count 1 --cells 500 --local-storage temp/salt-s0-aligned/storage.json --wait-extensions --require burg,province --timeout-ms 180000",
+      "node scripts/generateSmallMaps.mjs temp/salt-s0-aligned --scope world --seed 102 --count 1 --cells 500 --local-storage temp/salt-s0-aligned/storage.json --wait-extensions --require burg,province --timeout-ms 180000"
+    ],
+    "generatorSha256": "ed40628bea13da790199ee9f5b2222e123ffb3a58c857515dc088fc5512819e5",
+    "notes": [
+      "Maps were generated from seed with a fixed 1300 highMedieval profile, not redated from the old saves.",
+      "World scope uses the full 10000-cell density canvas; Province scope keeps that density on a 500-cell cut.",
+      "Generated input archives are retained next to the storage configuration; old archives and observations remain unchanged."
+    ]
+  },
+  "sharedWorldSettings": {
+    "fmg-luxury-value-demand": "on",
+    "fmg-money-supply": "on",
+    "fmg-long-distance-trade": "on",
+    "fmg-caravan-raids": "off"
+  },
+  "sharedSourceTreeSha256": "81606e810b19fbc0649da419942b46c9fdef9c61add8ce8f52a5344cc266b5af",
+  "formulas": {
+    "annualizedKgPerServedPerson": "totalKg * 12 / sum(settlement state population)",
+    "initialServedPercent": "initial state ledger population / initial real world residents * 100",
+    "marketAndSaltTransitResidualKg": "closing(market + SaltShipment inTransit) - opening(same) - sum(source flows) + sum(sink flows); generic cargo boundaries are not included"
+  },
+  "validation": {
+    "sameStartDate": true,
+    "sameEndDate": true,
+    "sameHistoricalPeriod": true,
+    "samePopulationScale": true,
+    "sameEnabledExtensions": true,
+    "sameWorldSettings": true,
+    "sameSourceTree": true,
+    "twelveSamplesAndSettlementsEach": true,
+    "majorSourceHashesMatch": true
+  },
+  "worlds": [
+    {
+      "label": "province-101",
+      "inputPath": "docs/analytics/inputs/salt-s0-aligned-20261023/province-101.fmg",
+      "inputSha256": "a3209cca3c88ebf8f84b4f5d9321be8ad3bdc5b3766ca92994f0eb198a52e4e7",
+      "observationPath": "docs/analytics/salt-s0-aligned-province-101-20261023.json",
+      "observationSha256": "2b76a129116c2bf911242ccc6e04e5f054fe3a0e65047e0299ca432e8b3e876f",
+      "seed": "101",
+      "profile": {
+        "worldOptions": {
+          "pinNotes": false,
+          "winds": [
+            225,
+            45,
+            225,
+            315,
+            135,
+            315
+          ],
+          "temperatureEquator": 27,
+          "temperatureNorthPole": -18,
+          "temperatureSouthPole": -18,
+          "axialTilt": 23.5,
+          "stateLabelsMode": "auto",
+          "showBurgPreview": true,
+          "initialSettlementPattern": "standard",
+          "biomeRegionProfile": "global",
+          "volcanicSoilStrength": 50,
+          "ruralEcosystemDetail": "detailed",
+          "ironDepositsPerState": 0.4,
+          "burgs": {
+            "groups": [
+              {
+                "name": "capital",
+                "active": true,
+                "order": 9,
+                "features": {
+                  "capital": true
+                },
+                "preview": "watabou-city"
+              },
+              {
+                "name": "city",
+                "active": true,
+                "order": 8,
+                "percentile": 90,
+                "min": 5,
+                "preview": "watabou-city"
+              },
+              {
+                "name": "fort",
+                "active": true,
+                "features": {
+                  "citadel": true,
+                  "walls": false,
+                  "plaza": false,
+                  "port": false
+                },
+                "order": 6,
+                "max": 1
+              },
+              {
+                "name": "monastery",
+                "active": true,
+                "features": {
+                  "temple": true,
+                  "walls": false,
+                  "plaza": false,
+                  "port": false
+                },
+                "order": 5,
+                "max": 0.8
+              },
+              {
+                "name": "caravanserai",
+                "active": true,
+                "features": {
+                  "port": false,
+                  "plaza": true
+                },
+                "order": 4,
+                "max": 0.8,
+                "biomeTags": [
+                  "desert",
+                  "nomadic",
+                  "scrub"
+                ]
+              },
+              {
+                "name": "trading_post",
+                "active": true,
+                "order": 3,
+                "features": {
+                  "plaza": true
+                },
+                "max": 0.8,
+                "biomeTags": [
+                  "forest",
+                  "wetland",
+                  "cold",
+                  "mountain"
+                ]
+              },
+              {
+                "name": "village",
+                "active": true,
+                "order": 2,
+                "minZoom": 9.5,
+                "min": 0.1,
+                "max": 2,
+                "preview": "watabou-village"
+              },
+              {
+                "name": "hamlet",
+                "active": true,
+                "order": 1,
+                "features": {
+                  "plaza": false
+                },
+                "max": 0.1,
+                "preview": "watabou-village"
+              },
+              {
+                "name": "town",
+                "active": true,
+                "order": 7,
+                "isDefault": true,
+                "preview": "watabou-city"
+              }
+            ]
+          },
+          "gunpowderEraEnabled": false,
+          "year": 1300,
+          "era": "Bunverke Era",
+          "eraShort": "BE",
+          "initialFirearmsUnstocked": false,
+          "historicalPeriod": "highMedieval",
+          "forceIndustrialCultures": false,
+          "conflictAutonomy": "playerDirected",
+          "initialPolityRealmSize": 30,
+          "frontierStartMode": "landOrigin",
+          "frontierPolitySpacing": "dispersed",
+          "portCoastPlacement": "pinned",
+          "climateVariability": {
+            "start": "off",
+            "mode": "irregular",
+            "periodYears": 450,
+            "depthC": 0.5,
+            "volcanicPerCentury": 0.8,
+            "anchorYear": 1300
+          },
+          "economyStartMode": "balanced",
+          "moneyScaleBase": 16,
+          "loadRepairs": {
+            "routes": 1,
+            "dualPortPlacement": 1,
+            "economy.developmentPotential": 7
+          },
+          "seaRouteGenerationMode": "augmented",
+          "landRouteGenerationMode": "elevationAware",
+          "landRouteElevationAversion": 1,
+          "military": [
+            {
+              "icon": "⚔️",
+              "name": "infantry",
+              "rural": 0.08,
+              "urban": 0.06,
+              "crew": 1,
+              "power": 1,
+              "type": "melee",
+              "separate": 0
+            },
+            {
+              "icon": "🔱",
+              "name": "spearmen",
+              "rural": 0.07,
+              "urban": 0.06,
+              "crew": 1,
+              "power": 1,
+              "type": "melee",
+              "separate": 0
+            },
+            {
+              "icon": "🏹",
+              "name": "archers",
+              "rural": 0.12,
+              "urban": 0.2,
+              "crew": 1,
+              "power": 1,
+              "type": "ranged",
+              "separate": 0
+            },
+            {
+              "icon": "🔫",
+              "name": "musketeers",
+              "rural": 0.1,
+              "urban": 0.08,
+              "crew": 1,
+              "power": 1,
+              "type": "ranged",
+              "separate": 0,
+              "requiresTechnology": {
+                "id": "massFirearms",
+                "minimum": "demonstrated"
+              }
+            },
+            {
+              "icon": "🎯",
+              "name": "riflemen",
+              "rural": 0.1,
+              "urban": 0.08,
+              "crew": 1,
+              "power": 1.6,
+              "type": "ranged",
+              "separate": 0,
+              "requiresTechnology": {
+                "id": "standardMachineWorks",
+                "minimum": "adopted"
+              },
+              "obsoletes": [
+                "musketeers",
+                "archers"
+              ]
+            },
+            {
+              "icon": "🐴",
+              "name": "cavalry",
+              "rural": 0.12,
+              "urban": 0.03,
+              "crew": 2,
+              "power": 2,
+              "type": "mounted",
+              "separate": 0
+            },
+            {
+              "icon": "🪨",
+              "name": "siegeEngines",
+              "rural": 0,
+              "urban": 0.015,
+              "crew": 6,
+              "power": 6,
+              "type": "machinery",
+              "separate": 0
+            },
+            {
+              "icon": "💣",
+              "name": "artillery",
+              "rural": 0,
+              "urban": 0.03,
+              "crew": 8,
+              "power": 12,
+              "type": "machinery",
+              "separate": 0,
+              "requiresTechnology": {
+                "id": "cannonFoundry",
+                "minimum": "known"
+              }
+            },
+            {
+              "icon": "🧨",
+              "name": "fieldArtillery",
+              "rural": 0,
+              "urban": 0.03,
+              "crew": 8,
+              "power": 20,
+              "type": "machinery",
+              "separate": 0,
+              "requiresTechnology": {
+                "id": "modernSteelmaking",
+                "minimum": "adopted"
+              },
+              "obsoletes": "artillery"
+            },
+            {
+              "icon": "🔥",
+              "name": "machineGunners",
+              "rural": 0,
+              "urban": 0.015,
+              "crew": 4,
+              "power": 10,
+              "type": "machinery",
+              "separate": 0,
+              "requiresTechnology": {
+                "id": "modernSteelmaking",
+                "minimum": "demonstrated"
+              }
+            },
+            {
+              "icon": "🛡️",
+              "name": "armored",
+              "rural": 0,
+              "urban": 0.008,
+              "crew": 4,
+              "power": 40,
+              "type": "armored",
+              "separate": 0,
+              "requiresTechnology": {
+                "id": "internalCombustionEngine",
+                "minimum": "adopted"
+              }
+            },
+            {
+              "icon": "✈️",
+              "name": "aviation",
+              "rural": 0,
+              "urban": 0.005,
+              "crew": 2,
+              "power": 25,
+              "type": "aviation",
+              "separate": 1
+            },
+            {
+              "icon": "🚀",
+              "name": "rocketArtillery",
+              "rural": 0,
+              "urban": 0.02,
+              "crew": 6,
+              "power": 35,
+              "type": "machinery",
+              "separate": 0,
+              "requiresTechnology": {
+                "id": "militarySignalRockets",
+                "minimum": "adopted"
+              },
+              "obsoletes": "fieldArtillery"
+            },
+            {
+              "icon": "🌊",
+              "name": "fleet",
+              "rural": 0,
+              "urban": 0.015,
+              "crew": 100,
+              "power": 30,
+              "type": "naval",
+              "separate": 1
+            },
+            {
+              "icon": "💀",
+              "name": "skeletons",
+              "rural": 0,
+              "urban": 0,
+              "crew": 1,
+              "power": 0.7,
+              "type": "melee",
+              "separate": 0
+            },
+            {
+              "icon": "🧟",
+              "name": "zombies",
+              "rural": 0,
+              "urban": 0,
+              "crew": 1,
+              "power": 0.55,
+              "type": "melee",
+              "separate": 0
+            }
+          ],
+          "mapName": "Portel"
+        },
+        "populationRate": 1000,
+        "urbanization": 1,
+        "gridScope": {
+          "kind": "province",
+          "factor": 0.22360679774997896,
+          "densityCells": 10000,
+          "canvasWidth": 1920,
+          "canvasHeight": 1080
+        },
+        "extensions": {
+          "economy": true,
+          "characters": true,
+          "nobility": true,
+          "shipbuilding": true
+        },
+        "cultures": [
+          {
+            "id": 1,
+            "name": "Portuzian",
+            "base": 13
+          },
+          {
+            "id": 2,
+            "name": "Astellian",
+            "base": 4
+          }
+        ]
+      },
+      "initialDate": {
+        "year": 1300,
+        "month": 1,
+        "day": 1,
+        "tick": 0
+      },
+      "finalDate": {
+        "year": 1301,
+        "month": 1,
+        "day": 1,
+        "tick": 365
+      },
+      "sampleCount": 12,
+      "saltSettlementsPerSample": [
+        1,
+        0,
+        2,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "initialRealPeople": 453371.9829688229,
+      "finalRealPeople": 452857.4575290888,
+      "initialServedPeople": 123815,
+      "initialServedPercent": 27.309804013300575,
+      "averageServedPeople": 123476.25,
+      "totals": {
+        "personMonths": 1481715,
+        "householdDemandKg": 444514.356,
+        "householdSuppliedKg": 444514.356,
+        "unmetHouseholdKg": 0,
+        "productionKg": 505535.6040000001,
+        "recipeInputKg": 102.22157866341664
+      },
+      "annualizedKgPerServedPerson": {
+        "householdDemandKg": 3.599998833783825,
+        "householdSuppliedKg": 3.599998833783825,
+        "unmetHouseholdKg": 0,
+        "productionKg": 4.094193045221248,
+        "recipeInputKg": 0.0008278642950641654
+      },
+      "kgPerInitialWorldResident": {
+        "householdDemandKg": 0.9804627826562632,
+        "householdSuppliedKg": 0.9804627826562632,
+        "unmetHouseholdKg": 0.0,
+        "productionKg": 1.1150570017352934,
+        "recipeInputKg": 0.0002254695537073938
+      },
+      "householdFulfillmentPercent": 100.0,
+      "openingStocks": {
+        "marketKg": 33800.53877116425,
+        "saltInTransitKg": 0
+      },
+      "closingStocks": {
+        "marketKg": 84626.02108130582,
+        "saltInTransitKg": 0
+      },
+      "flowsKg": {
+        "sink:navyExport": 10100.474112496748,
+        "source:mineSupply": 505535.76197703544,
+        "sink:householdFood": 444514.3552376181,
+        "sink:recipeInput": 102.22157866341664
+      },
+      "marketAndSaltTransitResidualKg": 6.7712618844161625,
+      "sourceMinusRoundedLedgerProductionKg": 0.15797703532734886,
+      "initialAnnualCapacityKg": 854324.9999999998
+    },
+    {
+      "label": "world-102",
+      "inputPath": "docs/analytics/inputs/salt-s0-aligned-20261023/world-102.fmg",
+      "inputSha256": "5e73a27785881bf553d37404442d7ead0f7bb68457208cc33c88c88f7c6a5999",
+      "observationPath": "docs/analytics/salt-s0-aligned-world-102-20261023.json",
+      "observationSha256": "326bfabe343293a1ca07abaaf2c7fb42f7d0c0bf55e0cd9347a8b0f1d4fd691b",
+      "seed": "102",
+      "profile": {
+        "worldOptions": {
+          "pinNotes": false,
+          "winds": [
+            225,
+            45,
+            225,
+            315,
+            135,
+            315
+          ],
+          "temperatureEquator": 27,
+          "temperatureNorthPole": -18,
+          "temperatureSouthPole": -18,
+          "axialTilt": 23.5,
+          "stateLabelsMode": "auto",
+          "showBurgPreview": true,
+          "initialSettlementPattern": "standard",
+          "biomeRegionProfile": "global",
+          "volcanicSoilStrength": 50,
+          "ruralEcosystemDetail": "detailed",
+          "ironDepositsPerState": 0.4,
+          "burgs": {
+            "groups": [
+              {
+                "name": "capital",
+                "active": true,
+                "order": 9,
+                "features": {
+                  "capital": true
+                },
+                "preview": "watabou-city"
+              },
+              {
+                "name": "city",
+                "active": true,
+                "order": 8,
+                "percentile": 90,
+                "min": 5,
+                "preview": "watabou-city"
+              },
+              {
+                "name": "fort",
+                "active": true,
+                "features": {
+                  "citadel": true,
+                  "walls": false,
+                  "plaza": false,
+                  "port": false
+                },
+                "order": 6,
+                "max": 1
+              },
+              {
+                "name": "monastery",
+                "active": true,
+                "features": {
+                  "temple": true,
+                  "walls": false,
+                  "plaza": false,
+                  "port": false
+                },
+                "order": 5,
+                "max": 0.8
+              },
+              {
+                "name": "caravanserai",
+                "active": true,
+                "features": {
+                  "port": false,
+                  "plaza": true
+                },
+                "order": 4,
+                "max": 0.8,
+                "biomeTags": [
+                  "desert",
+                  "nomadic",
+                  "scrub"
+                ]
+              },
+              {
+                "name": "trading_post",
+                "active": true,
+                "order": 3,
+                "features": {
+                  "plaza": true
+                },
+                "max": 0.8,
+                "biomeTags": [
+                  "forest",
+                  "wetland",
+                  "cold",
+                  "mountain"
+                ]
+              },
+              {
+                "name": "village",
+                "active": true,
+                "order": 2,
+                "minZoom": 9.5,
+                "min": 0.1,
+                "max": 2,
+                "preview": "watabou-village"
+              },
+              {
+                "name": "hamlet",
+                "active": true,
+                "order": 1,
+                "features": {
+                  "plaza": false
+                },
+                "max": 0.1,
+                "preview": "watabou-village"
+              },
+              {
+                "name": "town",
+                "active": true,
+                "order": 7,
+                "isDefault": true,
+                "preview": "watabou-city"
+              }
+            ]
+          },
+          "gunpowderEraEnabled": false,
+          "year": 1300,
+          "era": "Narasplithi Era",
+          "eraShort": "NE",
+          "initialFirearmsUnstocked": false,
+          "historicalPeriod": "highMedieval",
+          "forceIndustrialCultures": false,
+          "conflictAutonomy": "playerDirected",
+          "initialPolityRealmSize": 30,
+          "frontierStartMode": "landOrigin",
+          "frontierPolitySpacing": "dispersed",
+          "portCoastPlacement": "pinned",
+          "climateVariability": {
+            "start": "off",
+            "mode": "irregular",
+            "periodYears": 450,
+            "depthC": 0.5,
+            "volcanicPerCentury": 0.8,
+            "anchorYear": 1300
+          },
+          "economyStartMode": "balanced",
+          "moneyScaleBase": 16,
+          "loadRepairs": {
+            "routes": 1,
+            "dualPortPlacement": 1,
+            "economy.developmentPotential": 7
+          },
+          "seaRouteGenerationMode": "augmented",
+          "landRouteGenerationMode": "elevationAware",
+          "landRouteElevationAversion": 1,
+          "military": [
+            {
+              "icon": "⚔️",
+              "name": "infantry",
+              "rural": 0.08,
+              "urban": 0.06,
+              "crew": 1,
+              "power": 1,
+              "type": "melee",
+              "separate": 0
+            },
+            {
+              "icon": "🔱",
+              "name": "spearmen",
+              "rural": 0.07,
+              "urban": 0.06,
+              "crew": 1,
+              "power": 1,
+              "type": "melee",
+              "separate": 0
+            },
+            {
+              "icon": "🏹",
+              "name": "archers",
+              "rural": 0.12,
+              "urban": 0.2,
+              "crew": 1,
+              "power": 1,
+              "type": "ranged",
+              "separate": 0
+            },
+            {
+              "icon": "🔫",
+              "name": "musketeers",
+              "rural": 0.1,
+              "urban": 0.08,
+              "crew": 1,
+              "power": 1,
+              "type": "ranged",
+              "separate": 0,
+              "requiresTechnology": {
+                "id": "massFirearms",
+                "minimum": "demonstrated"
+              }
+            },
+            {
+              "icon": "🎯",
+              "name": "riflemen",
+              "rural": 0.1,
+              "urban": 0.08,
+              "crew": 1,
+              "power": 1.6,
+              "type": "ranged",
+              "separate": 0,
+              "requiresTechnology": {
+                "id": "standardMachineWorks",
+                "minimum": "adopted"
+              },
+              "obsoletes": [
+                "musketeers",
+                "archers"
+              ]
+            },
+            {
+              "icon": "🐴",
+              "name": "cavalry",
+              "rural": 0.12,
+              "urban": 0.03,
+              "crew": 2,
+              "power": 2,
+              "type": "mounted",
+              "separate": 0
+            },
+            {
+              "icon": "🪨",
+              "name": "siegeEngines",
+              "rural": 0,
+              "urban": 0.015,
+              "crew": 6,
+              "power": 6,
+              "type": "machinery",
+              "separate": 0
+            },
+            {
+              "icon": "💣",
+              "name": "artillery",
+              "rural": 0,
+              "urban": 0.03,
+              "crew": 8,
+              "power": 12,
+              "type": "machinery",
+              "separate": 0,
+              "requiresTechnology": {
+                "id": "cannonFoundry",
+                "minimum": "known"
+              }
+            },
+            {
+              "icon": "🧨",
+              "name": "fieldArtillery",
+              "rural": 0,
+              "urban": 0.03,
+              "crew": 8,
+              "power": 20,
+              "type": "machinery",
+              "separate": 0,
+              "requiresTechnology": {
+                "id": "modernSteelmaking",
+                "minimum": "adopted"
+              },
+              "obsoletes": "artillery"
+            },
+            {
+              "icon": "🔥",
+              "name": "machineGunners",
+              "rural": 0,
+              "urban": 0.015,
+              "crew": 4,
+              "power": 10,
+              "type": "machinery",
+              "separate": 0,
+              "requiresTechnology": {
+                "id": "modernSteelmaking",
+                "minimum": "demonstrated"
+              }
+            },
+            {
+              "icon": "🛡️",
+              "name": "armored",
+              "rural": 0,
+              "urban": 0.008,
+              "crew": 4,
+              "power": 40,
+              "type": "armored",
+              "separate": 0,
+              "requiresTechnology": {
+                "id": "internalCombustionEngine",
+                "minimum": "adopted"
+              }
+            },
+            {
+              "icon": "✈️",
+              "name": "aviation",
+              "rural": 0,
+              "urban": 0.005,
+              "crew": 2,
+              "power": 25,
+              "type": "aviation",
+              "separate": 1
+            },
+            {
+              "icon": "🚀",
+              "name": "rocketArtillery",
+              "rural": 0,
+              "urban": 0.02,
+              "crew": 6,
+              "power": 35,
+              "type": "machinery",
+              "separate": 0,
+              "requiresTechnology": {
+                "id": "militarySignalRockets",
+                "minimum": "adopted"
+              },
+              "obsoletes": "fieldArtillery"
+            },
+            {
+              "icon": "🌊",
+              "name": "fleet",
+              "rural": 0,
+              "urban": 0.015,
+              "crew": 100,
+              "power": 30,
+              "type": "naval",
+              "separate": 1
+            },
+            {
+              "icon": "💀",
+              "name": "skeletons",
+              "rural": 0,
+              "urban": 0,
+              "crew": 1,
+              "power": 0.7,
+              "type": "melee",
+              "separate": 0
+            },
+            {
+              "icon": "🧟",
+              "name": "zombies",
+              "rural": 0,
+              "urban": 0,
+              "crew": 1,
+              "power": 0.55,
+              "type": "melee",
+              "separate": 0
+            }
+          ],
+          "mapName": "Tourois"
+        },
+        "populationRate": 1000,
+        "urbanization": 1,
+        "gridScope": null,
+        "extensions": {
+          "economy": true,
+          "characters": true,
+          "nobility": true,
+          "shipbuilding": true
+        },
+        "cultures": [
+          {
+            "id": 1,
+            "name": "Soumi",
+            "base": 9
+          },
+          {
+            "id": 2,
+            "name": "Slovan",
+            "base": 5
+          },
+          {
+            "id": 3,
+            "name": "Tallian",
+            "base": 3
+          },
+          {
+            "id": 4,
+            "name": "Elladan",
+            "base": 7
+          },
+          {
+            "id": 5,
+            "name": "Norse",
+            "base": 6
+          },
+          {
+            "id": 6,
+            "name": "Luari",
+            "base": 2
+          },
+          {
+            "id": 7,
+            "name": "Astellian",
+            "base": 4
+          },
+          {
+            "id": 8,
+            "name": "Angshire",
+            "base": 1
+          },
+          {
+            "id": 9,
+            "name": "Portuzian",
+            "base": 13
+          },
+          {
+            "id": 10,
+            "name": "Shwazen",
+            "base": 0
+          },
+          {
+            "id": 11,
+            "name": "Vengrian",
+            "base": 15
+          },
+          {
+            "id": 12,
+            "name": "Romian",
+            "base": 8
+          },
+          {
+            "id": 13,
+            "name": "Keltan",
+            "base": 22
+          },
+          {
+            "id": 14,
+            "name": "Euskati",
+            "base": 20
+          },
+          {
+            "id": 15,
+            "name": "Amazones",
+            "base": 7
+          },
+          {
+            "id": 16,
+            "name": "Turchian",
+            "base": 16
+          }
+        ]
+      },
+      "initialDate": {
+        "year": 1300,
+        "month": 1,
+        "day": 1,
+        "tick": 0
+      },
+      "finalDate": {
+        "year": 1301,
+        "month": 1,
+        "day": 1,
+        "tick": 365
+      },
+      "sampleCount": 12,
+      "saltSettlementsPerSample": [
+        1,
+        0,
+        2,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "initialRealPeople": 4194122.082437329,
+      "finalRealPeople": 4187666.594626856,
+      "initialServedPeople": 4167171,
+      "initialServedPercent": 99.35740825117645,
+      "averageServedPeople": 4162844.0,
+      "totals": {
+        "personMonths": 49954128,
+        "householdDemandKg": 14986238.555999987,
+        "householdSuppliedKg": 14767799.837999986,
+        "unmetHouseholdKg": 218438.706,
+        "productionKg": 17499921.792,
+        "recipeInputKg": 19515.935520218136
+      },
+      "annualizedKgPerServedPerson": {
+        "householdDemandKg": 3.6000000374743775,
+        "householdSuppliedKg": 3.547526603927504,
+        "unmetHouseholdKg": 0.05247343066422859,
+        "productionKg": 4.203837999213999,
+        "recipeInputKg": 0.004688125598801718
+      },
+      "kgPerInitialWorldResident": {
+        "householdDemandKg": 3.5731526792589303,
+        "householdSuppliedKg": 3.5210705715599913,
+        "unmetHouseholdKg": 0.052082104837792124,
+        "productionKg": 4.172487459361286,
+        "recipeInputKg": 0.004653163436023981
+      },
+      "householdFulfillmentPercent": 98.54240463887088,
+      "openingStocks": {
+        "marketKg": 810412.1776770577,
+        "saltInTransitKg": 502308.74400000006
+      },
+      "closingStocks": {
+        "marketKg": 3333193.207699654,
+        "saltInTransitKg": 486475.1520000003
+      },
+      "flowsKg": {
+        "sink:navyExport": 176875.92834734716,
+        "source:mineSupply": 17499920.34902633,
+        "sink:householdFood": 14767799.844573967,
+        "sink:recipeInput": 19515.935520218136,
+        "sink:exportDeparture": 275871.6,
+        "source:importArrival": 246749.85742574255
+      },
+      "marketAndSaltTransitResidualKg": 340.54001205507666,
+      "sourceMinusRoundedLedgerProductionKg": -1.4429736696183681,
+      "initialAnnualCapacityKg": 28753452.00000003
+    }
+  ]
+}

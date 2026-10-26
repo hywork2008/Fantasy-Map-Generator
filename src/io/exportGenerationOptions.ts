@@ -223,6 +223,11 @@ export function sanitizeGenerationOptions(raw: unknown): Partial<GenerationOptio
 
   const ruralEcosystemDetail = asAllowedString(raw.ruralEcosystemDetail, RURAL_ECOSYSTEM_DETAILS);
   if (ruralEcosystemDetail) updates.ruralEcosystemDetail = ruralEcosystemDetail;
+  const winterLivestockSlaughter = asAllowedString(raw.winterLivestockSlaughter, [
+    "off",
+    "experimental-temperate"
+  ] as const);
+  if (winterLivestockSlaughter) updates.winterLivestockSlaughter = winterLivestockSlaughter;
 
   const threatCalculation = asAllowedString(raw.threatCalculation, THREAT_CALCULATIONS);
   if (threatCalculation) updates.threatCalculation = threatCalculation;

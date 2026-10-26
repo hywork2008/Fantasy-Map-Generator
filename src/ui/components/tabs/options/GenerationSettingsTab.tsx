@@ -1150,6 +1150,30 @@ export const GenerationSettingsTab: React.FC = () => {
             </td>
           </tr>
 
+          <tr data-tip={t("generation.winterSlaughterTip")}>
+            <td>
+              <LockIconButton id="winterLivestockSlaughter" />
+            </td>
+            <th>
+              <label htmlFor="winterLivestockSlaughter">{t("generation.winterSlaughter")}</label>
+            </th>
+            <td colSpan={2}>
+              <select
+                id="winterLivestockSlaughter"
+                name="winterLivestockSlaughter"
+                value={options.winterLivestockSlaughter}
+                onChange={e => {
+                  options.setOptions({
+                    winterLivestockSlaughter: e.target.value as typeof options.winterLivestockSlaughter
+                  });
+                  lock("winterLivestockSlaughter");
+                }}
+              >
+                <option value="off">{t("generation.winterSlaughterOff")}</option>
+                <option value="experimental-temperate">{t("generation.winterSlaughterExperimental")}</option>
+              </select>
+            </td>
+          </tr>
           <tr>
             <th colSpan={4}>{t("generation.sectionRomanceDiversity")}</th>
           </tr>

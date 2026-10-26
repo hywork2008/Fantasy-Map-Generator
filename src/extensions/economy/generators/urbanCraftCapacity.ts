@@ -9,6 +9,7 @@ import {
 import { getGoodDemandCalibration } from "./craftDemandCalibration";
 import { pointsToPeople } from "./craftScale";
 import { isGoodEnabled } from "./goods-generator";
+import { setRuntimeOnly } from "./runtimeOnly";
 import { getRuralTextileChains } from "./ruralTextileChains";
 import type { UrbanCraftCapacity } from "./urbanCraftCapacityTypes";
 
@@ -18,13 +19,14 @@ export function recordUrbanCraftCapacity(
   workforcePoints: number,
   chargedPoints: number,
   textilePoints: number,
-  calibrated: boolean
+  calibrated: boolean,
+  productionDiagnostics?: UrbanCraftCapacity["productionDiagnostics"]
 ): void {
   const table = getOrCreateUrbanCraftCapacityTable();
   if (!table || !burgId) return;
   const workforce = Math.max(0, workforcePoints);
   const charged = Math.max(0, chargedPoints);
-  table[burgId] = {
+  const record: UrbanCraftCapacity = {
     burgId,
     marketId,
     year: getSimulationYear(),
@@ -37,6 +39,8 @@ export function recordUrbanCraftCapacity(
     overusedPoints: Math.max(0, charged - workforce),
     textilePoints: Math.max(0, textilePoints)
   };
+  if (productionDiagnostics) setRuntimeOnly(record, "productionDiagnostics", productionDiagnostics);
+  table[burgId] = record;
 }
 
 /** Ignore removed/moved towns and observations older than the latest monthly cycle. */

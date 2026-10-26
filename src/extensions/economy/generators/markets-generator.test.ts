@@ -21,7 +21,7 @@ import {
 import { setEconomyCalibrationState } from "../store/economyCalibrationState";
 import { MONEY_PRICE_CEILING, MONEY_PRICE_FLOOR } from "./currencySufficiency";
 import { DEMAND_TARGET_FACTORS, type Good, Goods } from "./goods-generator";
-import { setGoodFlowObserver } from "./goodsBalanceLedger";
+import { type GoodFlowRecord, setGoodFlowObserver } from "./goodsBalanceLedger";
 import {
   getCommercialRecipeByproducts,
   isWartimeImportDemandGood,
@@ -50,6 +50,7 @@ vi.mock("./goods-generator", async importOriginal => {
 vi.mock("./production-utils", () => ({
   getRuralCellPopulation: vi.fn(() => 100),
   getRuralProductionContributions: vi.fn(() => []),
+  getRuralLiveAnimalContributions: vi.fn(() => []),
   getSeasonalFoodProductionMultiplier: vi.fn(() => 1)
 }));
 
@@ -118,6 +119,40 @@ describe("MarketsModule", () => {
         deals: [],
         states: [{ i: 0, salesTax: 0 }]
       } as unknown as PackedGraph;
+    });
+
+    it.each([1, 100, 1000])("uses real people for cell-local Milk demand at populationRate=%s", populationRate => {
+      setGoods([
+        {
+          i: 1,
+          name: "Milk",
+          tags: ["food", "freshFood"],
+          value: 1,
+          freshFood: {
+            householdDemandPerPopulationMonth: 20 / 12,
+            maxFreshHouseholdShare: 1,
+            preservationLaborPerUnit: 0.08
+          }
+        }
+      ] as Good[]);
+      Goods.sync();
+      worldContext.populationRate = populationRate;
+      worldContext.urbanization = 1;
+      worldContext.pack.cells = { i: [0], h: [30], pop: [100], state: [0] } as never;
+      setMarketCellColumn(new Uint16Array([1]));
+      const market = { i: 1, centerBurgId: 0, color: "#fff", goods: {} } as Market;
+      setMarkets([market]);
+      // biome-ignore lint/complexity/useLiteralKeys: source-cell integration fixture
+      marketsModule["indexMarkets"]();
+      // biome-ignore lint/complexity/useLiteralKeys: exercise physical household allocation
+      marketsModule["settleCellFreshFood"](
+        [{ cellId: 0, marketId: 1, collectionBurgId: 0, goodId: 1, monthlyUnits: [1000] }],
+        0
+      );
+      expect(market.foodProcessingLedger?.Milk.householdConsumption).toBeCloseTo(
+        (100 * populationRate * 20) / 12 / 1000,
+        8
+      );
     });
 
     it.each(["Cider", "Perry"])("makes %s only from surplus fruit and shared repair material", drinkName => {
@@ -260,6 +295,25 @@ describe("MarketsModule", () => {
       expect(deal!.units * deal!.price).toBeLessThanOrEqual(15);
       expect(market1.goods[0].stock).toBeCloseTo(100 - 1.36, 2);
       expect(market1.marketTreasury?.balance).toBeCloseTo(deal!.units * deal!.price, 2);
+    });
+
+    it("records an explicit live buyer and rejects assigning recipe inputs as live property", () => {
+      const good = { ...getGoods()[0], name: "Pig", tags: ["liveAnimal", "food"] };
+      setGoods([good]);
+      const market: Market = { i: 1, centerBurgId: 1, color: "", goods: { [good.i]: { stock: 2, price: 1 } } };
+      setMarkets([market]);
+      marketsModule.sync();
+      const burg = { i: 1, market: 1 } as Burg;
+      const flows: GoodFlowRecord[] = [];
+      setGoodFlowObserver(flow => flows.push(flow));
+      expect(
+        marketsModule.buy({ burg, good, units: 1, liveBuyerId: "burg:1", flow: { category: "recipeInput" } })
+      ).toBeNull();
+      expect(market.goods[good.i].stock).toBe(2);
+      expect(marketsModule.buy({ burg, good, units: 1, liveBuyerId: "burg:1" })).not.toBeNull();
+      expect(flows.at(-1)?.livestockBuyerId).toBe("burg:1");
+      expect(market.goods[good.i].stock).toBe(1);
+      setGoodFlowObserver(null);
     });
 
     it("buy() should return null if units floor below 0.01 due to low budget", () => {
@@ -1173,38 +1227,23 @@ describe("MarketsModule", () => {
       expect(validateRetailInventory()).toEqual([]);
     });
 
-    it("collectRuralProduction() should convert liveAnimal-tagged goods to integer catches instead of a continuous trickle", async () => {
-      const { getRuralProductionContributions } = await import("./production-utils");
-      const liveAnimalGood = { ...getGoods()[0], i: 999, name: "Cats", tags: ["liveAnimal"] };
-
-      const market1: Market = { i: 1, centerBurgId: 1, color: "#ff0000", goods: {} };
-      setMarkets([market1]);
-      // biome-ignore lint/complexity/useLiteralKeys: private access for testing
-      marketsModule["marketById"] = [market1, market1];
-      worldContext.pack.cells = {
-        i: [0],
-        market: Uint16Array.from([1])
-      } as unknown as PackedGraph["cells"];
-      vi.mocked(Goods.get).mockImplementation((id: number) => (id === liveAnimalGood.i ? liveAnimalGood : undefined));
-      vi.mocked(getRuralProductionContributions).mockReturnValue([{ goodId: liveAnimalGood.i, amount: 0.2 }]);
-
-      // Fixed at 0.999 so only the deterministic "guaranteed" branch of the accumulator (once
-      // the banked amount reaches 1) ever produces a catch — the fractional Bernoulli bonus never wins.
-      const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.999);
-
-      for (let i = 0; i < 4; i++) {
-        marketsModule.invalidateRuralProductionCache();
-        marketsModule.collectRuralProduction();
-        // 0.2/month banked but never reaches the 1-unit threshold -> no stock yet, not a fractional trickle.
-        expect(market1.goods[liveAnimalGood.i]?.stock ?? 0).toBe(0);
-      }
-
-      marketsModule.invalidateRuralProductionCache();
+    it("credits already debited live arrivals exactly without a second catch roll", async () => {
+      const { getRuralLiveAnimalContributions } = await import("./production-utils");
+      const live = { ...getGoods()[0], i: 999, name: "Horses", tags: ["liveAnimal"] };
+      const market: Market = { i: 1, centerBurgId: 1, color: "", goods: { 999: { stock: 0.005, price: 1 } } };
+      setMarkets([market]);
+      marketsModule.sync();
+      worldContext.pack.cells = { i: [0], market: Uint16Array.from([1]) } as unknown as PackedGraph["cells"];
+      vi.mocked(Goods.get).mockImplementation(id => (id === live.i ? live : undefined));
+      vi.mocked(getRuralLiveAnimalContributions)
+        .mockClear()
+        .mockReturnValueOnce([{ goodId: live.i, amount: 0.04 }])
+        .mockReturnValue([]);
       marketsModule.collectRuralProduction();
-      // 5th month: 0.2 * 5 = 1.0 banked -> one whole catch lands at once.
-      expect(market1.goods[liveAnimalGood.i].stock).toBe(1);
-
-      randomSpy.mockRestore();
+      expect(market.goods[999].stock).toBeCloseTo(0.045, 12);
+      marketsModule.collectRuralProduction();
+      expect(market.goods[999].stock).toBeCloseTo(0.045, 12);
+      expect(getRuralLiveAnimalContributions).toHaveBeenCalledTimes(2);
     });
 
     it("getName() should prefer a custom name, fall back to the center burg, then to a generic label", () => {

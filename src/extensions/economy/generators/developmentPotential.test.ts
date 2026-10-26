@@ -1,6 +1,27 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { resolveStaticLandUseInputs } from "../../../generators/landUse";
+import { clearanceLabor } from "../../../generators/landUseActivities";
 import type { WorldContext } from "../../hostCore";
-import { calculateFoodPotential, calculateSettlementDevelopmentPotential } from "./developmentPotential";
+import type { ExtensionAPI } from "../../hostTypes";
+import {
+  clearEconomyContext,
+  getOrCreateFaunaStockTable,
+  initEconomyContext,
+  setFishingWorkers,
+  setGoods,
+  setHouseholdTextileWorkers,
+  setHuntingWorkers,
+  setHusbandryWorkers,
+  setViticultureWorkers
+} from "../economyContext";
+import {
+  calculateFoodPotential,
+  calculateSettlementDevelopmentPotential,
+  DevelopmentPotentialModule,
+  PASTURE_ANNUAL_EXPANSION
+} from "./developmentPotential";
+import { Goods } from "./goods-generator";
+import { calculateDesiredPastureAreaHectares } from "./husbandry";
 
 function createWorld(): WorldContext {
   return {
@@ -69,5 +90,71 @@ describe("development potential", () => {
 
     expect(potential[2]).toBeGreaterThan(0);
     expect(potential[2]).toBeLessThan(baseline[2]);
+  });
+});
+
+describe("rural occupation labor in clearance planning", () => {
+  afterEach(() => clearEconomyContext());
+
+  it("moves pasture gradually toward the demand-based herd plan without removing animals", () => {
+    const world = createWorld();
+    world.options = {} as WorldContext["options"];
+    world.grid = { cells: {} } as WorldContext["grid"];
+    world.distanceScale = 10;
+    world.biomesData.tags = [[], ["grassland"], ["grassland"]];
+    world.pack.landUse = {
+      cells: {
+        1: { allocatedAreaHa: 0, diagnostics: ["resolved-livestock-land"], patches: [{ kind: "pasture", areaHa: 600 }] }
+      }
+    } as never;
+    initEconomyContext({ worldContext: world, simulationContext: { extensions: {} } } as unknown as ExtensionAPI);
+    setGoods([Goods.getDefaultGood("Cattle")!]);
+    const stock = getOrCreateFaunaStockTable()!;
+    stock["1:Cattle"] = { young: 10, breeding: 40, old: 10 };
+    const module = new DevelopmentPotentialModule();
+    // biome-ignore lint/complexity/useLiteralKeys: Exercise the private planning boundary without exposing a public API.
+    const conditions = module["getAgriculturalConditions"](world);
+    // The plan follows the herd target, not the sixty recorded cattle; one quarter of the gap closes a year.
+    const planned = calculateDesiredPastureAreaHectares(world, 1, true);
+    expect(planned).not.toBeCloseTo(600);
+    expect(conditions.landUseByCell![1].livestock?.grazingAreaHa).toBeCloseTo(
+      600 + (planned - 600) * PASTURE_ANNUAL_EXPANSION
+    );
+    expect(stock["1:Cattle"]).toEqual({ young: 10, breeding: 40, old: 10 });
+  });
+
+  it.each([1, 1000])("preserves available clearance labor at populationRate %s", populationRate => {
+    const world = createWorld();
+    world.populationRate = populationRate;
+    world.grid = { cells: {} } as WorldContext["grid"];
+    world.options = {} as WorldContext["options"];
+    world.pack.cells.maleAdults = new Float32Array([0, 50 / populationRate, 0]);
+    world.pack.cells.femaleAdults = new Float32Array([0, 50 / populationRate, 0]);
+    initEconomyContext({ worldContext: world, simulationContext: { extensions: {} } } as unknown as ExtensionAPI);
+    const setters = [
+      setHuntingWorkers,
+      setFishingWorkers,
+      setViticultureWorkers,
+      setHusbandryWorkers,
+      setHouseholdTextileWorkers
+    ];
+    setters.forEach((set, index) => {
+      set(new Float32Array([0, index + 1, 0]));
+    });
+    const module = new DevelopmentPotentialModule();
+    // biome-ignore lint/complexity/useLiteralKeys: Exercise the private planning boundary without exposing a public API.
+    const conditions = module["getAgriculturalConditions"](world);
+    const input = resolveStaticLandUseInputs(world).find(input => input.id === 1)!;
+    input.workforce = conditions.landUseByCell![1].workforce;
+
+    // Fifteen real workers use 2,100 days; 100 residents can still spare a 10% clearance crew.
+    expect(input.workforce!.otherOccupationDays).toBe(2100);
+    expect(clearanceLabor(input)).toBeCloseTo(10, 5);
+
+    // Fully occupied residents cannot also clear land.
+    setHusbandryWorkers(new Float32Array([0, 100, 0]));
+    // biome-ignore lint/complexity/useLiteralKeys: Exercise the private planning boundary without exposing a public API.
+    input.workforce = module["getAgriculturalConditions"](world).landUseByCell![1].workforce;
+    expect(clearanceLabor(input)).toBe(0);
   });
 });

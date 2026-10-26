@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { recordCumulativeCellFoodProcessing } from "../economyContext";
 import type { Market } from "./marketTypes";
 
 const market: Market = {
@@ -31,9 +32,12 @@ vi.mock("../economyContext", () => ({
     { i: 8, name: "Apples", tags: ["food", "freshFood"] },
     { i: 9, name: "Pears", tags: ["food", "freshFood"] },
     { i: 10, name: "Cider", tags: ["food", "beverage"] },
-    { i: 11, name: "Perry", tags: ["food", "beverage"] }
+    { i: 11, name: "Perry", tags: ["food", "beverage"] },
+    { i: 12, name: "Fish", tags: ["food", "freshFood"] },
+    { i: 13, name: "Shellfish", tags: ["food", "freshFood"] },
+    { i: 14, name: "Iron", tags: ["metal"] }
   ],
-  recordCumulativeCellFoodProcessing: () => undefined,
+  recordCumulativeCellFoodProcessing: vi.fn(),
   getWorldContext: () => ({
     populationRate: 1_000,
     urbanization: 1,
@@ -59,6 +63,7 @@ import {
 
 describe("foodProcessingLedger", () => {
   beforeEach(() => {
+    vi.mocked(recordCumulativeCellFoodProcessing).mockClear();
     market.goods[1].stock = 3;
     market.goods[2].stock = 2;
     market.goods[3].stock = 1;
@@ -70,6 +75,27 @@ describe("foodProcessingLedger", () => {
     market.foodProcessingLedger = undefined;
     market.returnableContainerLedger = undefined;
     urbanWaterSystems.length = 0;
+  });
+
+  it.each([
+    ["Fish", 12],
+    ["Game", 6],
+    ["Shellfish", 13]
+  ] as const)("records %s preservation inputs without changing stock, demand or cash", (name, goodId) => {
+    const before = JSON.stringify(market);
+    recordFoodProcessingConsumption(market, name, 0.125);
+    expect(recordCumulativeCellFoodProcessing).toHaveBeenCalledExactlyOnceWith(goodId, 0.125);
+    expect(JSON.stringify(market)).toBe(before);
+  });
+
+  it("records tracked Milk once and excludes non-food inputs and unknown goods", () => {
+    recordFoodProcessingConsumption(market, "Milk", 2);
+    expect(market.foodProcessingLedger!.Milk!.processingConsumption).toBe(2);
+    expect(recordCumulativeCellFoodProcessing).toHaveBeenCalledExactlyOnceWith(1, 2);
+    recordFoodProcessingConsumption(market, "Iron", 3);
+    recordFoodProcessingConsumption(market, "Unknown", 3);
+    for (const units of [0, -1, NaN, Infinity]) recordFoodProcessingConsumption(market, "Fish", units);
+    expect(recordCumulativeCellFoodProcessing).toHaveBeenCalledTimes(1);
   });
 
   it("holds seasonal orchard drinks to annual demand and returns only the casks actually consumed", () => {

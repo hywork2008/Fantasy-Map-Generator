@@ -153,6 +153,16 @@ describe("settleMonthlyFoodConsumption", () => {
     // Monthly need is 200 × 0.43 / 12 = 7.166..., fully covered privately.
     expect(householdStock[0]).toBeCloseTo(2.83, 1);
     expect(market.foodLedger!.foodStockAge0).toBe(15);
+    expect(market.foodLedger!.monthlyConsumption).toMatchObject({
+      month: 1,
+      ruralNeed: 7.17,
+      ruralSupplied: 7.17,
+      ruralFromHousehold: 7.17,
+      ruralFromMarket: 0,
+      ruralPaid: 0,
+      urbanNeed: 0,
+      lodgerNeed: 0
+    });
   });
 
   it("does not top up a burg's reserve that is already at or above its target", () => {
@@ -357,6 +367,21 @@ describe("settleMonthlyFoodConsumption", () => {
     expect(market.foodLedger!.urbanSevereDeficitQuarters).toBe(1);
   });
 
+  it("partitions urban unmet food into budget and physical stock gaps", () => {
+    mockWorldContext.pack.burgs = [{ i: 1, market: 1, population: 1200, foodReserve: 0 }];
+    const market = { i: 1, goods: {}, foodLedger: makeLedger() } as Market;
+    setMarket(market);
+    setBurgMarketLedgers([{ burgId: 1, householdWealth: 20 }] as BurgMarketLedger[]);
+    settleMonthlyFoodConsumption(1);
+    const row = market.foodLedger!.monthlyConsumption!;
+    expect(row.urbanNeed).toBe(43);
+    expect(row.urbanSupplied).toBe(0);
+    expect(row.urbanBudgetGap).toBeGreaterThan(0);
+    expect(row.urbanStockGap).toBeGreaterThan(0);
+    expect(row.urbanBudgetGap + row.urbanStockGap).toBeCloseTo(row.urbanNeed - row.urbanSupplied, 2);
+    expect(row.urbanPaid).toBe(0);
+  });
+
   it("restores foodSecurity to 1 when the quarter ends fully fed", () => {
     const burg = {
       i: 1,
@@ -383,6 +408,7 @@ describe("settleMonthlyFoodConsumption", () => {
 
     expect(market.foodLedger!.urbanSevereDeficitQuarters).toBe(0);
     expect(burg.foodSecurity).toBe(1);
+    expect(market.foodLedger!.monthlyConsumption).toMatchObject({ urbanBudgetGap: 0, urbanStockGap: 0 });
   });
 });
 

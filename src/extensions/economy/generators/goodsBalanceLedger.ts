@@ -9,8 +9,10 @@
 
 import { rn } from "../../hostUtils";
 import { getGoods, getMarkets } from "../economyContext";
+import type { FaunaCohorts } from "./faunaPopulationTypes";
 import { isGoodEnabled } from "./goods-generator";
 import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";
+import { recordLivestockLotFlow } from "./livestockLots";
 
 export type GoodFlowDirection = "source" | "sink" | "transfer";
 export type GoodFlowCategory =
@@ -46,6 +48,16 @@ export type GoodFlowCategory =
   | "theft";
 
 export interface GoodFlowRecord {
+  /** Recorded source cell; absent for legacy stock, imports and unknown origins. */
+  readonly livestockSourceCellId?: number;
+  readonly livestockCohorts?: FaunaCohorts | null;
+  /** Persistent transit-lot references; filled on export, consumed on arrival/loss. */
+  readonly livestockCargoIds?: string[];
+  /** Explicit live ownership transfer, never inferred from a recipe purchase. */
+  readonly livestockBuyerId?: string;
+  readonly livestockSellerId?: string;
+  readonly livestockOwnerOpeningUnits?: number;
+  readonly livestockOwnerLocationId?: string;
   readonly direction: GoodFlowDirection;
   readonly category: GoodFlowCategory;
   readonly goodId: number;
@@ -187,6 +199,20 @@ export function clearGoodsBalanceLedger(): void {
 /** Records an aggregate physical stock movement. Calls before the first baseline are ignored. */
 export function recordGoodFlow(flow: GoodFlowRecord): void {
   if (!Number.isFinite(flow.units) || flow.units <= 0) return;
+  if (
+    flow.direction === "sink" &&
+    flow.category === "recipeInput" &&
+    flow.marketId !== undefined &&
+    getGoods().find(good => good.i === flow.goodId)?.name === "Salt"
+  ) {
+    const market = getMarkets().find(market => market.i === flow.marketId);
+    if (market) market.saltProcessingInputBags = (market.saltProcessingInputBags ?? 0) + flow.units;
+  }
+  const live = getGoods().find(good => good.i === flow.goodId && good.tags?.includes("liveAnimal"));
+  if (live && flow.marketId !== undefined) {
+    const market = getMarkets().find(market => market.i === flow.marketId);
+    if (market) recordLivestockLotFlow(flow, live.name, market.goods[live.i]?.stock ?? 0);
+  }
   flowObserver?.(flow);
   if (!activeInterval) return;
   const key = flowKey(flow);

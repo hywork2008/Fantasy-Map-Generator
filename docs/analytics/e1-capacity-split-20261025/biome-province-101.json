@@ -1,0 +1,43 @@
+{
+  "notes": [
+    "ceilingHa is the need capped by each cell's pasture ceiling; forageHa is committed pasture excluding fallow."
+  ],
+  "rows": {
+    "Flooded forest & riparian woodland": {
+      "cells": 17,
+      "ruralPeople": 127768.15366744995,
+      "cultivatedHa": 0,
+      "needHa": 69207.74990320207,
+      "ceilingHa": 67378.29488798279,
+      "forageHa": 105458.73219672996,
+      "pastureKgPerHa": 1500
+    },
+    "Wetland": {
+      "cells": 70,
+      "ruralPeople": 133592.63002872467,
+      "cultivatedHa": 0,
+      "needHa": 72362.67459889252,
+      "ceilingHa": 72362.67459889252,
+      "forageHa": 133592.63002872467,
+      "pastureKgPerHa": 1500
+    },
+    "Temperate rainforest": {
+      "cells": 27,
+      "ruralPeople": 170044.71349716187,
+      "cultivatedHa": 946159.1955213875,
+      "needHa": 355736.7594726242,
+      "ceilingHa": 127209.4347247107,
+      "forageHa": 166772.34446382505,
+      "pastureKgPerHa": 1500
+    },
+    "Heath & moorland": {
+      "cells": 4,
+      "ruralPeople": 2209.4330191612244,
+      "cultivatedHa": 0,
+      "needHa": 7088.59760314226,
+      "ceilingHa": 7088.59760314226,
+      "forageHa": 2209.4330191612244,
+      "pastureKgPerHa": 1500
+    }
+  }
+}

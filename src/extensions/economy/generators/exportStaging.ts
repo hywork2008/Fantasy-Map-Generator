@@ -22,6 +22,7 @@ import { isFreshFoodGood, isGoodEnabled } from "./goods-generator";
 import { recordGoodFlow } from "./goodsBalanceLedger";
 import type { Good } from "./goodsGeneratorTypes";
 import { floorToRetailLot, getRetailLotSize } from "./goodsTradeLots";
+import { splitLivestockCargo } from "./livestockLots";
 import type { ExportStagingLot, TradePaymentTerms } from "./marketTypes";
 import { isLongDistanceTradeEnabled, MerchantTradeCapital, recordStaleLotCancelled } from "./merchantTradeCapital";
 import { isSeaClosed } from "./seaSeason";
@@ -71,6 +72,7 @@ export type InheritedLotRouteResolver = (
 ) => { durationDays: number; distanceKm: number } | null;
 
 export type TakeFromLotResult = {
+  livestockCargoIds?: string[];
   units: number;
   lockedCapital: number;
   goodsUnitCost?: number;
@@ -182,10 +184,12 @@ export class ExportStagingModule {
       return null;
     }
 
+    const livestockCargoIds: string[] = [];
     row.stock = rn(Math.max(0, row.stock - units), 2);
     recordGoodFlow({
       direction: "sink",
       category: "exportDeparture",
+      livestockCargoIds,
       goodId: input.goodId,
       units,
       marketId: input.marketId
@@ -200,6 +204,8 @@ export class ExportStagingModule {
     const lots = [...getExportStagingLots()];
     const existing = findMergeTarget(lots, { ...input, unitCost, paymentTerms });
     if (existing) {
+      if (livestockCargoIds.length)
+        existing.livestockCargoIds = [...(existing.livestockCargoIds ?? []), ...livestockCargoIds];
       if (priced) {
         existing.goodsUnitCost = mergeUnitPrice(existing.goodsUnitCost, existing.units, goodsUnitCost, units);
         existing.saleUnitPrice = mergeUnitPrice(existing.saleUnitPrice, existing.units, input.saleUnitPrice, units);
@@ -219,6 +225,7 @@ export class ExportStagingModule {
 
     const id = ensureNextLotId();
     const lot: ExportStagingLot = {
+      livestockCargoIds: livestockCargoIds.length ? livestockCargoIds : undefined,
       id,
       marketId: input.marketId,
       destinationMarketId: input.destinationMarketId,
@@ -268,6 +275,7 @@ export class ExportStagingModule {
     const lot = lots.find(entry => entry.id === lotId);
     if (!lot) return { units: 0, lockedCapital: 0 };
     const taken = Math.min(lot.units, units);
+    const livestockCargoIds = splitLivestockCargo(lot.livestockCargoIds, taken / lot.units);
     const capitalShare = lot.units > UNIT_EPSILON ? rn(((lot.lockedCapital ?? 0) * taken) / lot.units, 2) : 0;
     const escrowTaken = escrowShare(lot.escrowAmount, taken, lot.units);
     if (lot.escrowAmount !== undefined) lot.escrowAmount = rn(Math.max(0, lot.escrowAmount - escrowTaken), 2);
@@ -277,6 +285,7 @@ export class ExportStagingModule {
     if (lot.waitedDays !== undefined) lot.waitedDays = 0;
     setExportStagingLots(lot.units <= UNIT_EPSILON ? lots.filter(entry => entry.id !== lotId) : lots);
     return {
+      livestockCargoIds,
       units: taken,
       lockedCapital: capitalShare,
       goodsUnitCost: lot.goodsUnitCost,
@@ -287,16 +296,14 @@ export class ExportStagingModule {
     };
   }
 
-  returnUnitsToRetail(marketId: number, goodId: number, units: number): void {
+  returnUnitsToRetail(marketId: number, goodId: number, units: number, livestockCargoIds?: string[]): void {
     if (!(units > UNIT_EPSILON)) return;
     const market = getMarketById(marketId);
     if (!market) return;
     const row = market.goods[goodId];
-    if (!row) {
-      market.goods[goodId] = { stock: rn(units, 2), price: 0 };
-      return;
-    }
-    row.stock = rn(row.stock + units, 2);
+    if (!row) market.goods[goodId] = { stock: rn(units, 2), price: 0 };
+    else row.stock = rn(row.stock + units, 2);
+    recordGoodFlow({ direction: "source", category: "importArrival", goodId, units, marketId, livestockCargoIds });
   }
 
   /** Cancel one lot: restore retail and unlock remaining capital. */
@@ -306,7 +313,7 @@ export class ExportStagingModule {
     if (!lot) return 0;
     const units = lot.units;
     const locked = lot.lockedCapital ?? 0;
-    this.returnUnitsToRetail(lot.marketId, lot.goodId, units);
+    this.returnUnitsToRetail(lot.marketId, lot.goodId, units, lot.livestockCargoIds);
     if (locked > UNIT_EPSILON) MerchantTradeCapital.unlock(lot.marketId, locked, goodsRefund(lot));
     MerchantTradeCapital.releaseEscrow(lot.destinationMarketId, lot.escrowAmount ?? 0);
     setExportStagingLots(lots.filter(entry => entry.id !== lotId));
@@ -337,7 +344,7 @@ export class ExportStagingModule {
 
   returnAllToRetail(): void {
     for (const lot of [...getExportStagingLots()]) {
-      this.returnUnitsToRetail(lot.marketId, lot.goodId, lot.units);
+      this.returnUnitsToRetail(lot.marketId, lot.goodId, lot.units, lot.livestockCargoIds);
       if ((lot.lockedCapital ?? 0) > UNIT_EPSILON) {
         MerchantTradeCapital.unlock(lot.marketId, lot.lockedCapital ?? 0, goodsRefund(lot));
       }
@@ -372,6 +379,7 @@ export class ExportStagingModule {
       recordGoodFlow({
         direction: "sink",
         category: "spoilage",
+        livestockCargoIds: lot.livestockCargoIds,
         goodId: lot.goodId,
         units: lot.units,
         marketId: lot.marketId

@@ -1,0 +1,40 @@
+{
+  "inputSha256": "5e73a27785881bf553d37404442d7ead0f7bb68457208cc33c88c88f7c6a5999",
+  "months": 36,
+  "annualAdjustment": 0.25,
+  "notes": [
+    "needHa: target herd pasture after grazed fallow, uncapped. desiredHa: capped by the ecological ceiling (planning).",
+    "staffedHa = desiredHa x husbandry worker factor. committedHa: ledger pasture + wood pasture.",
+    "nextPlanHa: committed moved by the annual adjustment toward staffed. Ledger shortfall: livestock-land-shortfall diagnostic."
+  ],
+  "totals": {
+    "cells": 2157,
+    "needHa": 25694087.725215867,
+    "desiredHa": 18888982.114811197,
+    "staffedHa": 18591177.3683677,
+    "committedHa": 13385941.86936129,
+    "nextPlanHa": 14687250.744112877,
+    "shortfallCells": 2,
+    "shortfallGapHa": 27560.831440092617,
+    "understaffedCells": 359,
+    "requiredWorkers": 38016.26217073202,
+    "assignedWorkers": 36957.07056540251,
+    "careWorkers": 17102.154945834813,
+    "hayWorkers": 31285.15922939916,
+    "otherWorkers": 1.3827827771706325e-13
+  },
+  "boundBy": {
+    "staffing": {
+      "cells": 53,
+      "gapHa": 134145.24576808466
+    },
+    "lag": {
+      "cells": 2081,
+      "gapHa": 5345863.705822845
+    },
+    "ledger": {
+      "cells": 2,
+      "gapHa": 27560.831440092617
+    }
+  }
+}

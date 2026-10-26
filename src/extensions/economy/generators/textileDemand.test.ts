@@ -102,6 +102,11 @@ describe("textile household demand", () => {
       cumulativeHouseholdConsumption: 2.92
     });
 
+    const first = structuredClone(market.textileLedger!.settlementDiagnostics);
+    expect(first!.buyers.reduce((sum, row) => sum + row.need, 0)).toBeCloseTo(
+      getMarketTextileDemandProfile(1).monthlyDemand,
+      10
+    );
     market.goods[5].stock = 0.5;
     settleTextileHouseholdDemand();
     expect(market.textileLedger).toMatchObject({
@@ -109,6 +114,16 @@ describe("textile household demand", () => {
       unmetDemand: 2.42,
       cumulativeUnmetDemand: 2.42
     });
+    const rows = market.textileLedger!.settlementDiagnostics!.buyers;
+    expect(rows.reduce((sum, row) => sum + row.stockGap, 0)).toBeGreaterThan(2);
+    for (const row of rows)
+      expect(
+        row.priorityGap + row.budgetGap + row.stockGap + row.noPricedRouteGap + row.allocationOrRoundingGap
+      ).toBeCloseTo(row.unmet, 10);
+    expect(first!.buyers.reduce((sum, row) => sum + row.supplied, 0)).toBeCloseTo(
+      getMarketTextileDemandProfile(1).monthlyDemand,
+      2
+    );
   });
 
   it("shares replacement demand across wool, linen and ordinary garments, without consuming fine apparel", () => {
@@ -180,6 +195,10 @@ describe("textile household demand", () => {
     expect(market.goods[5].stock).toBe(4);
     expect(market.goods[9].stock).toBe(20);
     expect(market.blanketLedger!.householdConsumption).toBe(0);
+    for (const row of market.blanketLedger!.settlementDiagnostics!.buyers) {
+      expect(row.budgetGap).toBeCloseTo(row.unmet, 10);
+      expect(row.stockGap).toBe(0);
+    }
     market.foodLedger!.ruralHouseholdWealth = 100_000;
     settleTextileHouseholdDemand();
     expect(market.textileLedger!.urbanConsumption).toBe(0);
@@ -199,6 +218,12 @@ describe("textile household demand", () => {
     settleTextileHouseholdDemand();
     expect(market.goods[9].stock).toBe(before);
     expect(getRuralHouseholdWealth(market)).toBe(100);
+    const bedding = market.blanketLedger!.settlementDiagnostics!.buyers[0];
+    expect(bedding.priorityGap).toBeGreaterThan(0);
+    expect(bedding.priorityGap + bedding.budgetGap).toBeCloseTo(bedding.unmet, 10);
+    expect(bedding.stockGap).toBe(0);
+    expect(bedding.constraints).toContain("priority");
+    expect(bedding.constraints).toContain("budget");
     market.goods[5].stock = 10;
     settleTextileHouseholdDemand();
     expect(getRuralHouseholdWealth(market)).toBe(95);

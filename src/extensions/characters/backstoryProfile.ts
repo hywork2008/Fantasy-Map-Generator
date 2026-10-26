@@ -1,3 +1,4 @@
+import { notifyCharacterInventoryTransfers } from "../../simulation/characterInventoryEvents";
 import { applySpecializationEducation, specializationScore } from "./specializations";
 
 /**
@@ -2098,7 +2099,18 @@ export function offerGift(from: Character, to: Character, options: OfferGiftOpti
       from.inventory[options.goodId] = have - give;
       if (from.inventory[options.goodId] <= 0) delete from.inventory[options.goodId];
       if (!to.inventory) to.inventory = {};
-      to.inventory[options.goodId] = (to.inventory[options.goodId] ?? 0) + give;
+      const toOpeningUnits = to.inventory[options.goodId] ?? 0;
+      to.inventory[options.goodId] = toOpeningUnits + give;
+      notifyCharacterInventoryTransfers([
+        {
+          goodId: options.goodId,
+          units: give,
+          fromOpeningUnits: have,
+          toOpeningUnits,
+          from: { characterId: from.i, container: "inventory" },
+          to: { characterId: to.i, container: "inventory" }
+        }
+      ]);
     }
   }
 

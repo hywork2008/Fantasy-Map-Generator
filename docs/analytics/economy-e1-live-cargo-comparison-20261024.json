@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "scope": "Existing economic observations; transit lots and cohort provenance are covered by targeted tests, not auditWoolSupply snapshot columns",
+  "initialEqual": true,
+  "equalIntervals": 12,
+  "runs": [
+    {
+      "path": "docs/analytics/raw/economy-e1-live-lots-province-101-20261024.json",
+      "bytes": 2553915,
+      "sha256": "2938c956610b424e1c3c6ded07aaac3ce21a81b8978618da9661b66302bc7077",
+      "inputSha256": "a3209cca3c88ebf8f84b4f5d9321be8ad3bdc5b3766ca92994f0eb198a52e4e7",
+      "sourceTreeSha256": "dbcf604ae4667e0c784281ebc80ea53709b35363f06653cedf990d854b262427"
+    },
+    {
+      "path": "docs/analytics/raw/economy-e1-live-cargo-province-101-20261024.json",
+      "bytes": 2554046,
+      "sha256": "0dfd5b7b55e91d9b674c0501f871a542cbc9d71c51b20740b0e6f0eec6aed04f",
+      "inputSha256": "a3209cca3c88ebf8f84b4f5d9321be8ad3bdc5b3766ca92994f0eb198a52e4e7",
+      "sourceTreeSha256": "3220d7e333ed93bbe27cdfd06eb191600904c56da5ec016baf302baf3e54f25f"
+    }
+  ]
+}

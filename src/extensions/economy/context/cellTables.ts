@@ -16,7 +16,7 @@
  */
 
 import type { CellFoodReserve } from "../generators/cellFoodRescueTypes";
-import type { FaunaCohorts } from "../generators/faunaPopulationTypes";
+import type { FaunaCohorts, LivestockDispatchState } from "../generators/faunaPopulationTypes";
 import type { LivestockFeedLedger } from "../generators/livestockFeedPolicy";
 import { getEconomySlice, getSliceCellColumn, setSliceCellColumn } from "./economyApi";
 
@@ -54,6 +54,33 @@ export function getOrCreateLiveAnimalCatchTable(): Record<string, number> | null
   }
   const table: Record<string, number> = {};
   slice.liveAnimalCatchAccumulators = table;
+  return table;
+}
+
+/** Read-only access for production previews; never creates a table. */
+export function getLivestockDispatchTable(): Record<string, LivestockDispatchState> | null {
+  const existing = getEconomySlice()?.livestockDispatch;
+  return existing && typeof existing === "object" && !Array.isArray(existing)
+    ? (existing as Record<string, LivestockDispatchState>)
+    : null;
+}
+
+export function getFaunaStockTable(): Record<string, FaunaCohorts> | null {
+  const existing = getEconomySlice()?.faunaStock;
+  return existing && typeof existing === "object" && !Array.isArray(existing)
+    ? (existing as Record<string, FaunaCohorts>)
+    : null;
+}
+
+/** Source-cell dispatch state is separate from legacy market-level catch expectations. */
+export function getOrCreateLivestockDispatchTable(): Record<string, LivestockDispatchState> | null {
+  const slice = getEconomySlice();
+  if (!slice) return null;
+  const existing = slice.livestockDispatch;
+  if (existing && typeof existing === "object" && !Array.isArray(existing))
+    return existing as Record<string, LivestockDispatchState>;
+  const table: Record<string, LivestockDispatchState> = {};
+  slice.livestockDispatch = table;
   return table;
 }
 

@@ -1,3 +1,10 @@
+import { getCropResidueState } from "../../src/extensions/economy/context/cropResidues";
+import { observeFoodSystem } from "../../src/extensions/economy/generators/foodObservation";
+import { getWinterSlaughterState } from "../../src/extensions/economy/context/winterSlaughter";
+import { getMarketCellColumn, type CumulativeCellFoodFlow } from "../../src/extensions/economy/context/cellTables";
+import { getRuralHouseholdFoodStock } from "../../src/extensions/economy/context/agriculture";
+import { aggregateProductionDiagnostics } from "../../src/extensions/economy/generators/productionDiagnostics";
+import { getUrbanCraftCapacityRecords } from "../../src/extensions/economy/generators/urbanCraftCapacity";
 import { personalCashTotal, readPersonalCash } from "../../src/extensions/economy/generators/personalCash";
 import { poolBalance } from "../../src/extensions/economy/generators/personalCashLedger";
 /**
@@ -8,7 +15,7 @@ import { poolBalance } from "../../src/extensions/economy/generators/personalCas
 import type { WorldContext } from "../../src/context/worldContext";
 import { collectFarmlandSnapshot } from "../../src/services/farmlandObservation";
 import { getCultivatedArea } from "../../src/extensions/economy/context/agriculture";
-import { isEconomyContextReady } from "../../src/extensions/economy/context/economyApi";
+import { getEconomySlice, isEconomyContextReady } from "../../src/extensions/economy/context/economyApi";
 import {
   getApproachLedgerDecays,
   getApproachTraffic,
@@ -22,6 +29,8 @@ import {
 } from "../../src/extensions/economy/context/trade";
 import { getGuildChapters, getGuildKnowledgeStocks } from "../../src/extensions/economy/context/knowledge";
 import { getMintLedgers } from "../../src/extensions/economy/context/fiscal";
+import { getSaltShipments, getSaltworks, getStateSaltLedgers } from "../../src/extensions/economy/context/industry";
+import { auditSaltPopulationCoverage, SALT_KILOGRAMS_PER_BAG } from "../../src/extensions/economy/generators/saltLogistics";
 import { getUnassignedPersonalCash, getStateMoneyStocks } from "../../src/extensions/economy/generators/stateMoneySupply";
 import { getBurgMarketLedgers } from "../../src/extensions/economy/context/trade";
 import { getGoodCargoSlotsPerUnit } from "../../src/extensions/economy/generators/tradeCargo";
@@ -58,6 +67,7 @@ import {
 } from "../../src/extensions/economy/generators/merchantTradeCapital";
 import { getMoneyTradeCapacityFactorForMarket } from "../../src/extensions/economy/generators/currencySufficiency";
 import type { Good } from "../../src/extensions/economy/generators/goodsGeneratorTypes";
+import { cloneTextileLedgerObservation } from "../../src/extensions/economy/generators/textileDemand";
 import type { Burg, Route } from "../../src/types/models";
 
 export const SAMPLE_VERSION = 1;
@@ -379,6 +389,7 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
           urbanFoodStressQuarters: m.foodLedger?.urbanFoodStressQuarters ?? 0,
           food: m.foodLedger
             ? {
+                monthlyConsumption: m.foodLedger.monthlyConsumption ? { ...m.foodLedger.monthlyConsumption } : null,
                 produced: r3(m.foodLedger.foodProduced),
                 ruralNeed: r3(m.foodLedger.ruralNeed),
                 urbanNeed: r3(m.foodLedger.urbanNeed),
@@ -773,6 +784,17 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
     };
   }
 
+  function salt() {
+    return economy() ? {
+      populationCoverage: auditSaltPopulationCoverage(),
+      kilogramsPerBag: SALT_KILOGRAMS_PER_BAG,
+      policies: getWorld().pack.states.filter(state => state?.i && !state.removed).map(state => ({stateId:state.i, ...(state.saltPolicy ?? {})})),
+      states: getStateSaltLedgers().map(row => ({ ...row, saltworksIds: [...row.saltworksIds] })),
+      works: getSaltworks().map(row => ({ ...row, ...(row.owner ? { owner: { ...row.owner } } : {}), ...(row.settlementOwner ? { settlementOwner: { ...row.settlementOwner } } : {}) })),
+      shipments: getSaltShipments().map(row => ({ ...row, ...(row.sellerOwner ? { sellerOwner: { ...row.sellerOwner } } : {}) }))
+    } : null;
+  }
+
   /** Trade matching since the previous call (or since these views were created). */
   function trade() {
     const goodRows = goodsFlow.take();
@@ -796,6 +818,9 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
         paidShare: settlement.saleValue > 0 ? r3((settlement.paidOnArrival + settlement.payableRepaid) / settlement.saleValue) : null,
         payablesOutstanding: r3(payablesOutstanding)
       },
+      // Latest monthly state records, not interval totals. Consumption and production flows
+      // remain in byGood; shipments are a separate stock boundary, never additional output.
+      salt: salt(),
       stages: Object.fromEntries(
         [...counts].map(([key, row]) => [key, Object.fromEntries(Object.entries(row).map(([k, v]) => [k, r3(v)]))])
       ),
@@ -897,7 +922,28 @@ export function createObserveViews(getWorld: () => WorldContext, clock: () => Ob
     return collectFarmlandSnapshot(getWorld(), clock().year, enabled, enabled ? getCultivatedArea() : undefined);
   }
 
-  return { sample, routes, approaches, corridors, markets, goods, gates, wealth, luxury, trade, farmland, staticInfo, networkKey };
+  function food() {
+    if (!economy()) return null;
+    const flows = getEconomySlice()?.cumulativeCellFoodFlows;
+    return observeFoodSystem({world: getWorld(), markets: getMarkets(), goods: getGoods(),
+      cropResidues: getCropResidueState(), winterSlaughter: getWinterSlaughterState(),
+      marketByCell: getMarketCellColumn(), ruralFoodStock: getRuralHouseholdFoodStock(),
+      cellFoodFlows: flows && typeof flows === "object" && !Array.isArray(flows)
+        ? flows as Record<number, CumulativeCellFoodFlow> : null});
+  }
+
+  function textiles() {
+    if (!economy()) return null;
+    return {
+      markets: getMarkets().map(market => ({marketId: market.i,
+        garments: cloneTextileLedgerObservation(market.textileLedger),
+        blankets: cloneTextileLedgerObservation(market.blanketLedger),
+        ruralProduction: structuredClone(market.ruralTextileProduction ?? null)})),
+      commissions: structuredClone(getEconomySlice()?.textileCommissions ?? null),
+      production: aggregateProductionDiagnostics(getUrbanCraftCapacityRecords())
+    };
+  }
+  return { sample, routes, approaches, corridors, markets, goods, gates, wealth, luxury, trade, salt, textiles, food, farmland, staticInfo, networkKey };
 }
 
 export interface SampledAdvanceHost {
@@ -973,7 +1019,8 @@ function moneyTotals(world: WorldContext): MoneyTotals {
       totals.ruralHouseholds += m.foodLedger?.ruralHouseholdWealth ?? 0;
     }
   }
-  for (const ch of getCharacters()) totals.characters += ch.wealth ?? 0;
+  if (readPersonalCash()) totals.characters = personalCashTotal();
+  else for (const ch of getCharacters()) totals.characters += ch.wealth ?? 0;
   return totals;
 }
 

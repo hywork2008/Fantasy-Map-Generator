@@ -3,6 +3,7 @@ import { simulationContext, worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
   clearEconomyContext,
+  getLivestockDispatchTable,
   getOrCreateFaunaStockTable,
   getOrCreateMarketGoodProductionTotals,
   getOrCreateNonFoodFaunaDemandHistory,
@@ -22,11 +23,13 @@ import {
   AMBIENT_DOGS_DEMAND_PER_PERSON,
   clearFaunaPopulation,
   DOMESTICATED_CAPACITY_MONTHS_PROXY,
+  dispatchDomesticatedFauna,
   drawDomesticatedFaunaOfftake,
   drawWildFaunaOfftake,
   GRAZED_EXCESS_ANNUAL_ADJUSTMENT,
   getDomesticatedCarryingCapacity,
   getDomesticatedCullSelectivity,
+  getNonFoodDemandAbsorptionCapacity,
   getRealNonMarketDemand,
   getRuralEcosystemDetail,
   getWildCarryingCapacity,
@@ -36,6 +39,7 @@ import {
   MIN_UNSUPPORTED_GRAZED_HERD_HEADS,
   previewDomesticatedFaunaOfftake,
   previewWildFaunaOfftake,
+  rebaseGrazedHerdsToDemandScale,
   recordQuarterlyNonFoodDemand,
   updateAnnualFaunaCohorts,
   WILD_GAME_DEFAULT_DENSITY_PER_HECTARE,
@@ -409,12 +413,13 @@ describe("faunaPopulation", () => {
   });
 
   describe("getDomesticatedCarryingCapacity", () => {
-    it("non-grazed food species (e.g. Pig) use the flat-rate x months proxy directly", () => {
-      const flatRate = 2;
-      expect(getDomesticatedCarryingCapacity(0, PIG_GOOD as never, flatRate)).toBeCloseTo(
-        flatRate * DOMESTICATED_CAPACITY_MONTHS_PROXY,
-        5
-      );
+    it("sizes yard pigs from real residents rather than population points or the monthly flow", () => {
+      forestCellWorld();
+      worldContext.populationRate = 1000;
+      // 50 population points x 1,000 = 50,000 people at 0.2 pigs each.
+      expect(getDomesticatedCarryingCapacity(0, PIG_GOOD as never, 2)).toBeCloseTo(10_000, 5);
+      expect(getDomesticatedCarryingCapacity(0, PIG_GOOD as never, 200)).toBeCloseTo(10_000, 5);
+      worldContext.populationRate = 1;
     });
 
     it("caps non-food species by the demand-absorption history once it exists, down to the floor", () => {
@@ -459,11 +464,13 @@ describe("faunaPopulation", () => {
   describe("getRealNonMarketDemand", () => {
     it("is 0 for a species with no modeled real (off-market) use, e.g. Elephants", () => {
       forestCellWorld();
+      worldContext.biomesData = biomesData({ 1: ["grassland", "dry", "forest"] }) as never;
       expect(getRealNonMarketDemand(0, ELEPHANTS_GOOD as never)).toBe(0);
     });
 
     it("scales Cats/Dogs ambient demand with real population, Cats higher than Dogs", () => {
-      forestCellWorld(); // pop = 50 population points, populationRate unset -> real population 50
+      forestCellWorld();
+      worldContext.biomesData = biomesData({ 1: ["grassland", "dry", "forest"] }) as never; // pop = 50 population points, populationRate unset -> real population 50
       expect(getRealNonMarketDemand(0, CATS_GOOD as never)).toBeCloseTo(50 * AMBIENT_CATS_DEMAND_PER_PERSON, 5);
       expect(getRealNonMarketDemand(0, DOGS_GOOD as never)).toBeCloseTo(50 * AMBIENT_DOGS_DEMAND_PER_PERSON, 5);
       expect(getRealNonMarketDemand(0, CATS_GOOD as never)).toBeGreaterThan(
@@ -471,8 +478,77 @@ describe("faunaPopulation", () => {
       );
     });
 
+    it("conserves state mounts and market teams across cells with independent boundaries", () => {
+      forestCellWorld();
+      worldContext.biomesData = biomesData({ 1: ["grassland", "dry", "forest"] }) as never;
+      const cells = worldContext.pack.cells;
+      cells.i = new Uint16Array([0, 1, 2, 3, 4, 5]);
+      cells.h = new Uint8Array([30, 30, 30, 30, 10, 30]);
+      cells.pop = new Float32Array([10, 30, 20, 40, 100, 0]);
+      cells.state = new Uint16Array([1, 1, 2, 2, 1, 1]);
+      cells.biomeCode = new Uint8Array([1, 1, 1, 1, 1, 1]);
+      setMarketCellColumn(new Uint16Array([1, 2, 1, 2, 1, 1]));
+      worldContext.pack.cultures = [{ type: "Generic" }, { type: "Nomadic" }] as never;
+      worldContext.options = { military: [{ name: "cavalry", type: "mounted" }] } as typeof worldContext.options;
+      worldContext.pack.states = [
+        {},
+        { culture: 0, military: [{ u: { cavalry: 300 } }] },
+        { culture: 1, military: [{ u: { cavalry: 120 } }] }
+      ] as never;
+      setMerchantTransportLedgers([
+        {
+          marketId: 1,
+          landAssets: [{ assetId: "pack-train", available: 3, reserved: 0, inTransit: 0, maintenance: 0 }],
+          riverAssets: [],
+          waterAssets: [],
+          lastReconciledTick: 0
+        }
+      ] as never);
+      const horses = Array.from(cells.i, cell => getRealNonMarketDemand(cell, HORSES_GOOD as never));
+      const camels = Array.from(cells.i, cell => getRealNonMarketDemand(cell, CAMELS_GOOD as never));
+      expect(horses).toEqual([125, 225, 100, 0, 0, 0]);
+      expect(camels).toEqual([0, 0, 40, 80, 0, 0]);
+      expect(horses.reduce((sum, value) => sum + value, 0)).toBe(450);
+      expect(camels.reduce((sum, value) => sum + value, 0)).toBe(120);
+      // Changes inside the same month must be visible without a cached allocation rebuild.
+      cells.pop[0] = 30;
+      expect(getRealNonMarketDemand(0, HORSES_GOOD as never)).toBe(240);
+      expect(getRealNonMarketDemand(1, HORSES_GOOD as never)).toBe(150);
+      expect(getRealNonMarketDemand(2, HORSES_GOOD as never)).toBe(60);
+      // Demand belongs to producers: an incompatible biome must not absorb a rural share.
+      worldContext.biomesData = biomesData({ 1: ["grassland", "dry"], 2: ["forest"] }) as never;
+      cells.biomeCode[0] = 2;
+      expect(getRealNonMarketDemand(0, HORSES_GOOD as never)).toBe(0);
+      expect(getRealNonMarketDemand(1, HORSES_GOOD as never)).toBe(300);
+      expect(getRealNonMarketDemand(2, HORSES_GOOD as never)).toBe(150);
+    });
+
+    it("partitions market absorption in real animals while keeping unknown history distinct from zero", () => {
+      forestCellWorld();
+      worldContext.biomesData = biomesData({ 1: ["grassland", "dry", "forest"] }) as never;
+      const cells = worldContext.pack.cells;
+      cells.i = new Uint16Array([0, 1, 2]);
+      cells.h = new Uint8Array([30, 30, 30]);
+      cells.pop = new Float32Array([10, 30, 20]);
+      cells.state = new Uint16Array([0, 0, 0]);
+      cells.biomeCode = new Uint8Array([1, 1, 1]);
+      setMarketCellColumn(new Uint16Array([1, 1, 2]));
+      expect(getNonFoodDemandAbsorptionCapacity(0, HORSES_GOOD as never)).toBe(Infinity);
+      const histories = getOrCreateNonFoodFaunaDemandHistory()!;
+      histories[`1:${HORSES_GOOD.i}`] = [4, 4];
+      histories[`2:${HORSES_GOOD.i}`] = [0];
+      expect(getNonFoodDemandAbsorptionCapacity(0, HORSES_GOOD as never)).toBe(30);
+      expect(getNonFoodDemandAbsorptionCapacity(1, HORSES_GOOD as never)).toBe(90);
+      expect(getNonFoodDemandAbsorptionCapacity(2, HORSES_GOOD as never)).toBe(0);
+      // A market reassignment changes the denominator and does not carry the old share along.
+      setMarketCellColumn(new Uint16Array([1, 2, 2]));
+      expect(getNonFoodDemandAbsorptionCapacity(0, HORSES_GOOD as never)).toBe(120);
+      expect(getNonFoodDemandAbsorptionCapacity(1, HORSES_GOOD as never)).toBe(0);
+    });
+
     it("attributes a non-Nomadic state's mounted regiment headcount to Horses, not Camels", () => {
       forestCellWorld();
+      worldContext.biomesData = biomesData({ 1: ["grassland", "dry", "forest"] }) as never;
       worldContext.pack.cells.state = new Uint16Array([1]);
       worldContext.pack.cultures = [{ i: 0, type: "Generic" }] as never;
       // getStateMountedHeadcount() sums regiment.u[unitName] for unit names options.military tags
@@ -495,6 +571,7 @@ describe("faunaPopulation", () => {
 
     it("attributes a Nomadic state's mounted regiment headcount to Camels, not Horses", () => {
       forestCellWorld();
+      worldContext.biomesData = biomesData({ 1: ["grassland", "dry", "forest"] }) as never;
       worldContext.pack.cells.state = new Uint16Array([1]);
       worldContext.pack.cultures = [{ i: 0, type: "Nomadic" }] as never;
       worldContext.options = { military: [{ name: "cavalry", type: "mounted" }] } as typeof worldContext.options;
@@ -508,6 +585,7 @@ describe("faunaPopulation", () => {
 
     it("adds the horses of the cell's market's own convoys to Horses' demand, as animals", () => {
       forestCellWorld();
+      worldContext.biomesData = biomesData({ 1: ["grassland", "dry", "forest"] }) as never;
       setMarketCellColumn(new Uint16Array([1]));
       const balance = { available: 1, reserved: 0, inTransit: 1, maintenance: 1, recoveryDays: 0 };
       setMerchantTransportLedgers([
@@ -532,6 +610,69 @@ describe("faunaPopulation", () => {
 
       expect(getRealNonMarketDemand(0, HORSES_GOOD as never)).toBe(190);
       expect(getRealNonMarketDemand(0, CAMELS_GOOD as never)).toBe(0); // convoys go with horses only
+    });
+  });
+
+  describe("source-cell live dispatch", () => {
+    beforeEach(() => {
+      forestCellWorld();
+      worldContext.options = { ...worldContext.options, ruralEcosystemDetail: "detailed" };
+      simulationContext.currentYear = 1300;
+      simulationContext.currentMonth = 1;
+      getOrCreateFaunaStockTable()!["0:Pig"] = { young: 0, breeding: 0, old: 2 };
+    });
+
+    it("withdraws only whole available animals and cannot replay a period after serialization", () => {
+      const table = getOrCreateFaunaStockTable()!;
+      expect(dispatchDomesticatedFauna(0, PIG_GOOD as never, 100)).toBe(2);
+      expect(table["0:Pig"].old).toBe(0);
+      expect(getLivestockDispatchTable()!["0:Pig"].observation?.heads).toBe(2);
+      expect(getLivestockDispatchTable()!["0:Pig"].observation?.cohortHeads).toEqual({ young: 0, breeding: 0, old: 2 });
+      const saved = JSON.stringify(getLivestockDispatchTable());
+      expect(saved).not.toContain("observation");
+      Object.assign(getLivestockDispatchTable()!, JSON.parse(saved));
+      expect(dispatchDomesticatedFauna(0, PIG_GOOD as never, 100)).toBe(0);
+      simulationContext.currentMonth = 2;
+      expect(dispatchDomesticatedFauna(0, PIG_GOOD as never, 100)).toBe(0);
+    });
+
+    it("records the actual age-group debit rather than estimating it from the dispatched total", () => {
+      const herd = { young: 3, breeding: 5, old: 2 };
+      getOrCreateFaunaStockTable()!["0:Pig"] = herd;
+      const before = { ...herd };
+      expect(dispatchDomesticatedFauna(0, PIG_GOOD as never, 4)).toBe(4);
+      const ages = getLivestockDispatchTable()!["0:Pig"].observation!.cohortHeads!;
+      expect(ages.young).toBeCloseTo(before.young - herd.young);
+      expect(ages.breeding).toBeCloseTo(before.breeding - herd.breeding);
+      expect(ages.old).toBeCloseTo(before.old - herd.old);
+      expect(ages.young + ages.breeding + ages.old).toBeCloseTo(4);
+      expect(ages.old).toBeGreaterThan(ages.young);
+    });
+
+    it("carries fractional demand, not real animals or an unmet whole-head backlog", () => {
+      for (let month = 1; month <= 5; month++) {
+        simulationContext.currentMonth = month;
+        expect(dispatchDomesticatedFauna(0, PIG_GOOD as never, 0.2)).toBe(month === 5 ? 1 : 0);
+      }
+      simulationContext.currentMonth = 6;
+      expect(dispatchDomesticatedFauna(0, PIG_GOOD as never, 50)).toBe(1);
+      getOrCreateFaunaStockTable()!["0:Pig"] = { young: 0, breeding: 0, old: 10 };
+      simulationContext.currentMonth = 7;
+      expect(dispatchDomesticatedFauna(0, PIG_GOOD as never, 0.2)).toBe(0);
+    });
+
+    it("previews without writing a dispatch table or reducing the herd", () => {
+      const before = JSON.stringify(simulationContext.extensions);
+      expect(dispatchDomesticatedFauna(0, PIG_GOOD as never, 2, true)).toBe(2);
+      expect(dispatchDomesticatedFauna(0, PIG_GOOD as never, 2, true)).toBe(2);
+      expect(JSON.stringify(simulationContext.extensions)).toBe(before);
+      expect(getLivestockDispatchTable()).toBeNull();
+    });
+
+    it("converts whole physical horses to fractional market bundles exactly", () => {
+      getOrCreateFaunaStockTable()!["0:Horses"] = { young: 0, breeding: 0, old: 2 };
+      expect(dispatchDomesticatedFauna(0, HORSES_GOOD as never, 1)).toBe(2 / HORSES_PER_MARKET_HEAD);
+      expect(getOrCreateFaunaStockTable()!["0:Horses"].old).toBe(0);
     });
   });
 
@@ -659,6 +800,9 @@ describe("faunaPopulation", () => {
       "adjusts an existing grazed herd gradually after a capacity reduction, pasture=%s",
       pasture => {
         forestCellWorld();
+        worldContext.pack.landUse = {
+          cells: [{ allocatedAreaHa: 0, diagnostics: [], patches: [{ kind: "pasture", areaHa: 50 }] }]
+        } as never;
         worldContext.biomesData = biomesData({ 1: ["grassland"] }) as never;
         worldContext.options = { ruralEcosystemDetail: "detailed" } as typeof worldContext.options;
         simulationContext.currentYear = 500;
@@ -672,15 +816,37 @@ describe("faunaPopulation", () => {
         expect(table["0:Cattle"].breeding).toBe(1000);
         expect(updateAnnualFaunaCohorts()).toBe(true);
         const after = table["0:Cattle"];
-        const total = after.young + after.breeding + after.old;
-        // No old animals die in this first year: only the explicit excess adjustment reduces the herd.
-        expect(total).toBeCloseTo(1000 - (1000 - capacity) * GRAZED_EXCESS_ANNUAL_ADJUSTMENT, 8);
-        expect(total).toBeGreaterThan(capacity);
-        expect(after.young).toBe(0);
+        const older = after.breeding + after.old;
+        // No old animals die in this first year: only the explicit excess adjustment reduces the
+        // older stock. A managed herd with any supported place breeds at full rate for this year's sales.
+        expect(older).toBeCloseTo(1000 - (1000 - capacity) * GRAZED_EXCESS_ANNUAL_ADJUSTMENT, 8);
+        expect(older).toBeGreaterThan(capacity);
+        expect(after.young).toBeCloseTo(capacity > 0 ? 1000 * 0.5 : 0, 8);
         expect(updateAnnualFaunaCohorts()).toBe(false);
         expect(table["0:Cattle"]).toEqual(after);
       }
     );
+
+    it("raises herds left by the former biome-weight seeding once, then never again", () => {
+      forestCellWorld();
+      worldContext.pack.landUse = {
+        cells: [{ allocatedAreaHa: 0, diagnostics: [], patches: [{ kind: "pasture", areaHa: 50 }] }]
+      } as never;
+      worldContext.biomesData = biomesData({ 1: ["grassland"] }) as never;
+      worldContext.options = { ruralEcosystemDetail: "detailed" } as typeof worldContext.options;
+      setGoods([CATTLE_GOOD] as never);
+      setHusbandryRequiredWorkers(Float32Array.from([10]));
+      setHusbandryWorkers(Float32Array.from([10]));
+      const table = getOrCreateFaunaStockTable()!;
+      table["0:Cattle"] = { young: 0, breeding: 1, old: 0 };
+      const capacity = getDomesticatedCarryingCapacity(0, CATTLE_GOOD as never, 0);
+      expect(rebaseGrazedHerdsToDemandScale()).toBe(true);
+      const herd = table["0:Cattle"];
+      expect(herd.young + herd.breeding + herd.old).toBeCloseTo(capacity * 0.6, 8);
+      table["0:Cattle"] = { young: 0, breeding: 1, old: 0 };
+      expect(rebaseGrazedHerdsToDemandScale()).toBe(false);
+      expect(table["0:Cattle"]).toEqual({ young: 0, breeding: 1, old: 0 });
+    });
 
     it.each(["no pasture", "no habitat", "disabled"])("cleans up an unsupported sub-animal herd with %s", exclusion => {
       forestCellWorld();
@@ -702,6 +868,9 @@ describe("faunaPopulation", () => {
 
     it("retains a sub-animal herd when its habitat still supports growth", () => {
       forestCellWorld();
+      worldContext.pack.landUse = {
+        cells: [{ allocatedAreaHa: 0, diagnostics: [], patches: [{ kind: "pasture", areaHa: 50 }] }]
+      } as never;
       worldContext.options = { ruralEcosystemDetail: "detailed" } as typeof worldContext.options;
       worldContext.biomesData = biomesData({ 1: ["grassland"] }) as never;
       simulationContext.currentYear = 500;

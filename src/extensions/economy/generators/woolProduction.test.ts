@@ -41,8 +41,8 @@ describe("woolProduction (Wool -> Cloth, 2026-08-08 docs/plan/fauna-biome-realis
       table["0:Sheep"] = { young: 200, breeding: 600, old: 200 }; // 1000 head
       setHusbandryRequiredWorkers(new Float32Array([10]));
       setHusbandryWorkers(new Float32Array([5])); // workerFactor 0.5
-      // 200 young * 0.72 + 800 adults * 1.44 = 1296 kg/year before labor.
-      expect(getWoolOutput(0)).toBeCloseTo(0.036, 5);
+      // High-medieval fleeces: 200 young * 0.28 + 800 adults * 0.7 = 616 kg/year before labor.
+      expect(getWoolOutput(0)).toBeCloseTo((616 * 0.5) / 12 / 1500, 8);
     });
 
     it("accounts for age without treating old sheep as non-producing or lambs as full adults", () => {
@@ -50,13 +50,20 @@ describe("woolProduction (Wool -> Cloth, 2026-08-08 docs/plan/fauna-biome-realis
       setHusbandryRequiredWorkers(new Float32Array([10]));
       setHusbandryWorkers(new Float32Array([10]));
       table["0:Sheep"] = { young: 1000, breeding: 0, old: 0 };
-      expect(getAnnualWoolPotentialKg(0)).toBeCloseTo(720);
-      expect(getWoolOutput(0)).toBeCloseTo(0.04);
+      expect(getAnnualWoolPotentialKg(0)).toBeCloseTo(280);
       table["0:Sheep"] = { young: 0, breeding: 1000, old: 0 };
-      expect(getAnnualWoolPotentialKg(0)).toBeCloseTo(1440);
-      expect(getWoolOutput(0)).toBeCloseTo(0.08);
+      expect(getAnnualWoolPotentialKg(0)).toBeCloseTo(700);
+      expect(getWoolOutput(0)).toBeCloseTo(700 / 12 / 1500, 8);
       table["0:Sheep"] = { young: 0, breeding: 0, old: 1000 };
-      expect(getWoolOutput(0)).toBeCloseTo(0.08);
+      expect(getWoolOutput(0)).toBeCloseTo(700 / 12 / 1500, 8);
+    });
+
+    it("uses the fleece weight of the world's historical period", () => {
+      getOrCreateFaunaStockTable()!["0:Sheep"] = { young: 0, breeding: 1000, old: 0 };
+      worldContext.options = { ...worldContext.options, historicalPeriod: "preIndustrialEra" };
+      expect(getAnnualWoolPotentialKg(0)).toBeCloseTo(1300);
+      worldContext.options = { ...worldContext.options, historicalPeriod: "highMedieval" };
+      expect(getAnnualWoolPotentialKg(0)).toBeCloseTo(700);
     });
 
     it("delivers the annual raw mass over twelve smoothed months without changing the lot contract", () => {
@@ -68,7 +75,7 @@ describe("woolProduction (Wool -> Cloth, 2026-08-08 docs/plan/fauna-biome-realis
         simulationContext.currentMonth = month;
         lots += getWoolOutput(0);
       }
-      expect(lots * 1500).toBeCloseTo(1296);
+      expect(lots * 1500).toBeCloseTo(616);
     });
 
     it("does not cull the herd — read-only like getMilkOutput", () => {

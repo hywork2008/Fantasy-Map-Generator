@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getStapleCropSuitability, STAPLE_CROP_PROFILES, WET_PRECIPITATION_RESIDUAL } from "./stapleCrops";
+import { getStapleCropSuitability, STAPLE_CROP_PROFILES, WET_TOLERANCE_AT_MAX } from "./stapleCrops";
 
 describe("staple crop precipitation profiles", () => {
   it("maps source annual-rainfall bands directly onto the 100 mm proxy scale", () => {
@@ -52,7 +52,7 @@ describe("staple crop precipitation profiles", () => {
     expect(wheatOnWet).toBeLessThan(1);
     expect(peasOnWet).toBeGreaterThan(wheatOnWet);
     expect(getStapleCropSuitability(STAPLE_CROP_PROFILES.Wheat, 15, 45, "loam")).toBeCloseTo(
-      WET_PRECIPITATION_RESIDUAL * (16 / 45),
+      WET_TOLERANCE_AT_MAX * Math.sqrt(16 / 45),
       5
     );
   });

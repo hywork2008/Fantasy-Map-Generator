@@ -1,5 +1,5 @@
 import { isInitialLandUsePending, resolveStaticLandUseInputs } from "../../../generators/landUse";
-import type { ClearanceCellInput } from "../../../generators/settlementClearance";
+import { type ClearanceCellInput, requiredFieldAreaHectares } from "../../../generators/settlementClearance";
 import { markRepairAtVersion } from "../../../simulation/loadRepairs";
 import {
   applyRiverResidualFlows,
@@ -60,6 +60,7 @@ import {
   setFoodPotential,
   setHouseholdTextileWorkers,
   setHuntingWorkers,
+  setHusbandryMonthlyWorkDays,
   setHusbandryRequiredWorkers,
   setHusbandryWorkers,
   setIrrigatedArea,
@@ -85,7 +86,8 @@ import {
   advanceAgriculturalSoils,
   calculateAgriculturalLandProfile,
   IRRIGATION_ANNUAL_WATER_PER_FLUX,
-  reconcileForestClearanceForAgriculture
+  reconcileForestClearanceForAgriculture,
+  WORKABLE_DAYS_PER_ADULT
 } from "./agriculturalLandUse";
 import { isGoodEnabled } from "./goods-generator";
 import { calculateDesiredPastureAreaHectares, getHusbandryWorkerFactor, isGrazedLivestockGood } from "./husbandry";
@@ -108,6 +110,18 @@ function resolveAgTechStockByCell(cellCount: number): Float32Array {
     stockByCell[cellId] = stockByMarketId.get(marketId) ?? 0;
   }
   return stockByCell;
+}
+
+/** Cell of each market's centre town, or -1 where no market has been assigned yet. */
+function resolveMarketCenterCellByCell(world: Readonly<WorldContext>, cellCount: number): Int32Array {
+  const result = new Int32Array(cellCount).fill(-1);
+  const marketCellColumn = getMarketCellColumn();
+  if (marketCellColumn.length !== cellCount) return result;
+  const centers = new Map(
+    getMarkets().map(market => [market.i, world.pack.burgs?.[market.centerBurgId ?? 0]?.cell ?? -1])
+  );
+  for (let cellId = 0; cellId < cellCount; cellId++) result[cellId] = centers.get(marketCellColumn[cellId]) ?? -1;
+  return result;
 }
 
 /**
@@ -227,13 +241,13 @@ export interface DevelopmentPotentials {
  * last built by an older version. Bump when the columns' formula changes.
  */
 export const DEVELOPMENT_POTENTIAL_LOAD_REPAIR = "economy.developmentPotential";
-export const DEVELOPMENT_POTENTIAL_LOAD_REPAIR_VERSION = 7;
+export const DEVELOPMENT_POTENTIAL_LOAD_REPAIR_VERSION = 9;
 
 /**
  * Share of each cell's crop work-days actually done. The monthly shortage left after peak-month
  * hours, household help and neighbour aid (allocateRuralOccupations) leaves that part of the
  * existing fields unharvested; new clearance has its own labour budget (settlementClearance.ts).
- * Shortage is charged to crops first (docs/plan/farm-labour-calibration.md §3 proposal 4).
+ * Callers supply crop-specific shortage, excluding unfilled jobs in other occupations.
  */
 export function getCropLaborCoverageByCell(
   cropLaborDaysByMonth: ArrayLike<number>,
@@ -257,6 +271,12 @@ export function getCropLaborCoverageByCell(
 
 /** Share of the gap between the pasture kept and the pasture its herders can work closed in one year (§23). */
 export const PASTURE_ANNUAL_ADJUSTMENT = 0.25;
+/**
+ * Expansion share of the same gap, used only when the herders can already work more pasture than is kept.
+ * Contraction keeps the slower rate that stopped the yearly flip; growth toward a staffed plan is not
+ * that flip and at 0.25 left the plan years behind (model policy).
+ */
+export const PASTURE_ANNUAL_EXPANSION = 0.5;
 
 export class DevelopmentPotentialModule {
   generate(): DevelopmentPotentials {
@@ -422,6 +442,7 @@ export class DevelopmentPotentialModule {
     setViticultureWorkers(occupations.viticultureWorkers);
     setViticultureRequiredWorkers(occupations.viticultureRequiredWorkers);
     setHusbandryWorkers(occupations.husbandryWorkers);
+    setHusbandryMonthlyWorkDays(occupations.husbandryMonthlyWorkDays);
     setHouseholdTextileWorkers(occupations.householdTextileWorkers);
     setHusbandryRequiredWorkers(occupations.husbandryRequiredWorkers);
     setFarmLaborRequired(occupations.farmLaborRequired);
@@ -429,7 +450,10 @@ export class DevelopmentPotentialModule {
     setRuralReleasePressure(occupations.ruralReleasePressure);
     setSeasonalLaborShortage(occupations.seasonalLaborShortage);
     setCropLaborCoverage(
-      getCropLaborCoverageByCell(agriculture.cropLaborDaysByMonth, occupations.seasonalLaborShortage)
+      getCropLaborCoverageByCell(
+        agriculture.cropLaborDaysByMonth,
+        occupations.cropLaborShortage ?? occupations.seasonalLaborShortage
+      )
     );
     return occupations;
   }
@@ -466,7 +490,30 @@ export class DevelopmentPotentialModule {
         world.pack.cultures?.[world.pack.cells.culture?.[input.id] ?? 0]?.landUseSettings;
       const previous = world.pack.landUse?.cells[input.id];
       const hasGrazed = goods.some(g => isGrazedLivestockGood(g.name));
-      const pasture = hasGrazed ? calculateDesiredPastureAreaHectares(world, input.id, true) : 0;
+      const workforce = input.workforce!;
+      const staplePeople =
+        Math.max(
+          0,
+          input.ruralPeople +
+            (input.includeUrbanFoodDemand === false ? 0 : input.urbanPeople) -
+            (input.importedStaplePeople ?? 0)
+        ) * (input.localStapleShare ?? 1);
+      const stapleArea = Math.max(
+        previous?.allocatedAreaHa ?? 0,
+        Math.min(
+          input.cultivableAreaHa,
+          requiredFieldAreaHectares(staplePeople, input.yieldKgPerSownHa, input.annualSownShare) *
+            (input.subsistenceReserve ?? 1.1)
+        )
+      );
+      const bootstrapLaborDays = Math.max(
+        0,
+        workforce.adultPeople * workforce.workableDays -
+          stapleArea * workforce.maintenanceDaysPerHa -
+          (settings?.otherOccupationDays ??
+            occupationDays.reduce((s, a) => s + (a[input.id] ?? 0) * WORKABLE_DAYS_PER_ADULT, 0))
+      );
+      const pasture = hasGrazed ? calculateDesiredPastureAreaHectares(world, input.id, true, bootstrapLaborDays) : 0;
       const workersKnown = getHusbandryWorkers().length === cellCount;
       const staffedPasture =
         pasture *
@@ -483,14 +530,17 @@ export class DevelopmentPotentialModule {
       const maintainedPasture =
         previousPasture === undefined
           ? staffedPasture
-          : previousPasture + (staffedPasture - previousPasture) * PASTURE_ANNUAL_ADJUSTMENT;
+          : previousPasture +
+            (staffedPasture - previousPasture) *
+              (staffedPasture > previousPasture ? PASTURE_ANNUAL_EXPANSION : PASTURE_ANNUAL_ADJUSTMENT);
       landUseByCell[input.id] = {
         livestock: input.livestock ?? { grazingAreaHa: maintainedPasture },
         workforce: {
           ...input.workforce!,
           otherOccupationDays:
             settings?.otherOccupationDays ??
-            occupationDays.reduce((s, a) => s + (a[input.id] ?? 0) * (world.populationRate || 1) * 140, 0)
+            // Occupation columns already contain real workers, unlike cells.pop/adult columns.
+            occupationDays.reduce((s, a) => s + (a[input.id] ?? 0) * WORKABLE_DAYS_PER_ADULT, 0)
         },
         // Forestry profiles use an explicit estimated compartment area when no wood plan is supplied.
         managedForestAreaHa:
@@ -509,6 +559,7 @@ export class DevelopmentPotentialModule {
       irrigationDevelopmentByCell: getIrrigationDevelopment(),
       irrigationConveyanceEfficiencyByCell: getIrrigationConveyanceEfficiency(),
       fieldDrainageByCell: getFieldDrainage(),
+      marketCenterCellByCell: resolveMarketCenterCellByCell(world, cellCount),
       floodProtectionByCell: getFloodProtection(),
       climateFoodStressByCell: getClimateFoodStress(),
       fertilizerStockByCell: resolveFertilizerStockByCell(cellCount),

@@ -3,6 +3,8 @@ import { worldContext } from "../../hostCore";
 import type { Burg, ExtensionAPI, PackedGraph } from "../../hostTypes";
 import {
   clearEconomyContext,
+  getGoods,
+  getMarkets,
   initEconomyContext,
   setCraftDomainEmploymentRecords,
   setGoods,
@@ -10,6 +12,8 @@ import {
 } from "../economyContext";
 import { setEconomyCalibrationState } from "../store/economyCalibrationState";
 import { getHouseholdWealth } from "./burgMarketLedgers";
+import { recordGoodFlow } from "./goodsBalanceLedger";
+import { getLivestockLotLedger } from "./livestockLots";
 import { MerchantTransportAssets } from "./merchantTransportAssets";
 import { TransportAssetOrders } from "./transportAssetOrders";
 
@@ -94,6 +98,54 @@ describe("transport asset orders", () => {
     expect(TransportAssetOrders.cancel(order?.id ?? -1)).toBe(false);
     expect(worldContext.pack.markets[0].goods[1].stock).toBe(20);
     expect(worldContext.pack.markets[0].goods[3].stock).toBe(20);
+  });
+
+  it("keeps horse provenance across partial completion, cancellation and fleet relocation", () => {
+    const goods = worldContext.pack.goods;
+    const markets = worldContext.pack.markets;
+    initEconomyContext({
+      worldContext,
+      simulationContext: { currentYear: 1300, currentMonth: 1, extensions: { economy: { goods, markets } } }
+    } as unknown as ExtensionAPI);
+    setEconomyCalibrationState({ applyCalibration: false });
+    getGoods().find(good => good.name === "Horses")!.tags = ["liveAnimal"];
+    recordGoodFlow({
+      direction: "source",
+      category: "ruralHarvest",
+      goodId: 6,
+      units: 20,
+      marketId: 1,
+      livestockSourceCellId: 7,
+      livestockCohorts: { young: 100, breeding: 300, old: 100 }
+    });
+    setCraftDomainEmploymentRecords([{ burgId: 1, domain: "woodworking", workers: 48 }]);
+    const order = TransportAssetOrders.createOrder({ marketId: 1, blueprintId: "cart", quantity: 2 })!;
+    TransportAssetOrders.beginProductionCycle();
+    TransportAssetOrders.consumePlannedWork(1, 100);
+    expect(order.completedQuantity).toBe(1);
+    const ledger = getLivestockLotLedger()!;
+    const owned = (ownerId: string) => Object.values(ledger.lots).filter(lot => lot.ownerId === ownerId);
+    expect(owned(`transport-order:${order.id}`).reduce((sum, lot) => sum + lot.heads, 0)).toBeCloseTo(20);
+    expect(owned("fleet:1:cart").reduce((sum, lot) => sum + lot.heads, 0)).toBeCloseTo(20);
+    expect(TransportAssetOrders.cancel(order.id)).toBe(true);
+    expect(TransportAssetOrders.cancel(order.id)).toBe(false);
+    expect(owned(`transport-order:${order.id}`)).toEqual([]);
+    expect(getMarkets()[0].goods[6].stock).toBeCloseTo(19.2);
+    expect(Object.values(ledger.lots).reduce((sum, lot) => sum + lot.heads, 0)).toBeCloseTo(500);
+    getMarkets().push({ ...getMarkets()[0], i: 2, goods: {} });
+    expect(MerchantTransportAssets.transferLandAssets(1, 2, "cart", 1)).toBe(1);
+    const moved = owned("fleet:2:cart");
+    expect(moved.length).toBeGreaterThan(0);
+    expect(moved.every(lot => lot.sourceCellId === 7 && lot.cohortProvenance === "aggregate")).toBe(true);
+    expect(Object.values(ledger.lots).reduce((sum, lot) => sum + lot.heads, 0)).toBeCloseTo(500);
+    const beforeReturn = getMarkets()[0].goods[6].stock;
+    MerchantTransportAssets.addAvailableLandAssets(1, "cart", 4);
+    for (let cycle = 0; cycle < 6; cycle++) {
+      MerchantTransportAssets.recoverMaintenance(1);
+      TransportAssetOrders.beginProductionCycle();
+    }
+    expect(getMarkets()[0].goods[6].stock).toBeGreaterThan(beforeReturn);
+    expect(Object.values(ledger.lots).reduce((sum, lot) => sum + lot.heads, 0)).toBeCloseTo(500);
   });
 
   it("keeps an unfunded order waiting without consuming partial materials", () => {

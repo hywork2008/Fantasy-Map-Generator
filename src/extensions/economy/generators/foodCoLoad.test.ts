@@ -105,6 +105,19 @@ describe("foodCoLoad pure helpers", () => {
     expect(ledger.importNeed).toBe(6);
     expect(ledger.satisfiedImport).toBe(4);
   });
+
+  it("does not export another crop's aggregate stock for a missing named crop", () => {
+    const ledger = emptyLedger({
+      exportable: 10,
+      foodStockAge0: 10,
+      stapleCropInventories: {
+        1: { age0: 10, age1: 0, age2: 0, age0UnitCost: 1, age1UnitCost: 0, age2UnitCost: 0, overflow: 0 }
+      }
+    });
+    const before = structuredClone(ledger);
+    expect(drawFoodForExport(ledger, 2, 5)).toEqual({ units: 0, unitCost: 0 });
+    expect(ledger).toEqual(before);
+  });
 });
 
 describe("foodCoLoad caravan integration", () => {

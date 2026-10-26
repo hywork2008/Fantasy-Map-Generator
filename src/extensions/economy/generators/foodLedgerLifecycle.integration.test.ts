@@ -1,10 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
-import { clearEconomyContext, getGoods, getMarkets, initEconomyContext, setMarkets } from "../economyContext";
+import {
+  clearEconomyContext,
+  getGoods,
+  getMarkets,
+  getRuralHouseholdFoodStock,
+  initEconomyContext,
+  setMarketCellColumn,
+  setMarkets,
+  setRuralHouseholdFoodStock
+} from "../economyContext";
+import { getHouseholdWealth } from "./burgMarketLedgers";
 import { settleMonthlyFoodConsumption } from "./foodLedgerConsumption";
-import { FoodProduction } from "./foodProduction";
+import { emptyFoodLedger, FoodProduction } from "./foodProduction";
 import { Goods } from "./goods-generator";
+import { getRuralHouseholdWealth, moveRuralPursesWithFarms } from "./householdWealth";
 import type { Market } from "./marketTypes";
 
 /**
@@ -90,6 +101,43 @@ describe("Food Ledger lifecycle (integration)", () => {
 
   afterEach(() => {
     clearEconomyContext();
+  });
+
+  it("settles a new market before its first harvest without reseeding provisions or money", () => {
+    const former = getMarkets()[0];
+    former.foodLedger = { ...emptyFoodLedger(), ruralHouseholdWealth: 100 };
+    const market: Market = { i: 2, centerBurgId: 1, color: "", goods: {} };
+    setMarkets([former, market]);
+    worldContext.pack.burgs[1].market = 2;
+    setMarketCellColumn(Uint16Array.from([2]));
+    moveRuralPursesWithFarms(Uint16Array.from([1]), Uint16Array.from([2]));
+    setRuralHouseholdFoodStock(Float32Array.from([100]));
+    const urbanCash = getHouseholdWealth(1);
+
+    settleMonthlyFoodConsumption(1);
+
+    const ledger = market.foodLedger!;
+    expect(ledger.monthlyConsumption).toMatchObject({
+      ruralFromHousehold: 100,
+      ruralFromMarket: 0,
+      ruralPaid: 0,
+      urbanSupplied: 0,
+      urbanPaid: 0
+    });
+    expect(ledger.monthlyConsumption!.ruralNeed).toBeGreaterThan(100);
+    expect(ledger.monthlyConsumption!.urbanNeed).toBeGreaterThan(0);
+    expect(getRuralHouseholdFoodStock()[0]).toBe(0);
+    expect(ledger.foodStockAge0 + ledger.foodStockAge1 + ledger.foodStockAge2).toBe(0);
+    expect(getRuralHouseholdWealth(market)).toBe(100);
+    expect(former.foodLedger.ruralHouseholdWealth).toBe(0);
+    expect(getHouseholdWealth(1)).toBe(urbanCash);
+    expect(market.marketTreasury?.balance ?? 0).toBe(0);
+
+    // The next cycle reuses the same ledger and exhausted cell larder.
+    settleMonthlyFoodConsumption(2);
+    expect(market.foodLedger).toBe(ledger);
+    expect(ledger.monthlyConsumption!.ruralFromHousehold).toBe(0);
+    expect(ledger.ruralHouseholdWealth).toBe(100);
   });
 
   it("keeps bucketed stock non-negative and Grain's tradable-surplus view meaningfully positive across quarters", () => {

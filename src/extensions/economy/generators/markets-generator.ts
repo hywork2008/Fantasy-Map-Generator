@@ -13,6 +13,7 @@ import {
   type ShipbuildingMaterials
 } from "../../hostTypes";
 import { getColors, getRandomColor, minmax, rn, TIME } from "../../hostUtils";
+import { getLivestockDispatchTable } from "../context/cellTables";
 import { getMilitaryResourceLedgers } from "../context/fiscal";
 import {
   getColdStorageDepots,
@@ -68,6 +69,7 @@ import {
   expandRecipeByproducts,
   GOODS_DATA,
   Goods,
+  getCellFreshFoodHouseholdDemand,
   getFreshFoodProfile,
   isGoodEnabled,
   isPreservedFoodGood
@@ -79,7 +81,6 @@ import { getMonthlyHouseholdFuelDemands, getWoodSupplyMonthKey } from "./heating
 import { moveRuralPursesWithFarms } from "./householdWealth";
 import { getHouseTimberShare, getHousingRecipe } from "./housingRecipes";
 import { type IncrementalBatchOptions, runBatchedYielding } from "./incrementalBatching";
-import { getLiveAnimalCatchKey, rollLiveAnimalCatch } from "./liveAnimalCatch";
 import { getLivestockFodderOrderLots } from "./livestockFeed";
 import { isLuxuryValueDemandEnabled, luxuryBudgetByMarketTier, luxuryStockTarget } from "./luxuryDemand";
 import { isHighValueTradeGood, isLuxuryDemandGood, type LuxuryTier } from "./luxuryTiers";
@@ -118,6 +119,7 @@ import { expectedPortStorageUnitCost } from "./portWarehouses";
 import { applyPriceElasticity, relaxMarketPrice } from "./priceElasticity";
 import {
   getRuralCellPopulation,
+  getRuralLiveAnimalContributions,
   getRuralProductionContributions,
   getSeasonalFoodProductionMultiplier
 } from "./production-utils";
@@ -893,6 +895,19 @@ export class MarketsModule {
       this.ruralProductionIndex?.populationSnapshotPeriod === populationSnapshotPeriod
         ? this.ruralProductionIndex
         : this.buildRuralProductionIndex(populationSnapshotPeriod);
+    // Reuse topology/rate forecasts only for non-live output. Each real dispatch
+    // must debit its source herd once, including repeated cycles in one quarter.
+    const cells = this.worldContext.pack.cells;
+    const marketIds = new Set(getMarkets().map(market => market.i));
+    const collectionBurgs = this.getCollectionBurgsByMarket();
+    const biomeProduction = Goods.getBiomesProduction();
+    for (const cellId of cells.i) {
+      const marketId = getMarketCellColumn()[cellId];
+      if (!marketId || !marketIds.has(marketId)) continue;
+      const collection = this.getCollectionBurgId(cellId, marketId, collectionBurgs);
+      for (const contribution of getRuralLiveAnimalContributions(cellId, biomeProduction))
+        this.addRuralOutput(marketId, collection, contribution.goodId, contribution.amount, cellId);
+    }
     const monthIndex = Math.max(0, Math.min(11, getSimulationMonth() - 1));
 
     const wood = getGoods().find(g => g.name === "Wood");
@@ -1083,7 +1098,9 @@ export class MarketsModule {
         index.buildingTimberByMarket.set(marketId, (index.buildingTimberByMarket.get(marketId) ?? 0) + timber);
       }
 
-      for (const contribution of getRuralProductionContributions(cellId, biomeProduction)) {
+      for (const contribution of getRuralProductionContributions(cellId, biomeProduction, {
+        excludeLiveAnimals: true
+      })) {
         const good = Goods.get(contribution.goodId);
         if (!good || !isGoodEnabled(good) || contribution.amount <= 0) continue;
         // stapleFood (Grain in v1) is produced/consumed by the Food Ledger's own quarterly/monthly
@@ -1207,15 +1224,17 @@ export class MarketsModule {
             : commercialPath
               ? this.getCellPreservedFoodExportDemand(market, commercialPath.outputGoodId, residentWorkforce)
               : 0;
+        const householdDemandUnits = getCellFreshFoodHouseholdDemand(
+          sourceGood,
+          residentWorkforce,
+          this.worldContext.populationRate
+        );
         inputs.push({
           sourceGoodId: sourceGood.i,
           harvestedUnits: entry.monthlyUnits[monthIndex] ?? 0,
-          householdDemandUnits: residentWorkforce * freshFoodProfile.householdDemandPerPopulationMonth,
+          householdDemandUnits,
           maxFreshHouseholdShare: freshFoodProfile.maxFreshHouseholdShare,
-          emergencyReserveDemandUnits:
-            (market.foodLedger?.ruralFoodStressQuarters ?? 0) > 0
-              ? residentWorkforce * freshFoodProfile.householdDemandPerPopulationMonth
-              : 0,
+          emergencyReserveDemandUnits: (market.foodLedger?.ruralFoodStressQuarters ?? 0) > 0 ? householdDemandUnits : 0,
           preservationLaborPerUnit: freshFoodProfile.preservationLaborPerUnit,
           reservePath,
           commercialPath,
@@ -1413,27 +1432,35 @@ export class MarketsModule {
     return residentWorkforce * 0.1 * Math.min(1, pricePressure);
   }
 
-  private addRuralOutput(marketId: number, collectionBurgId: number, goodId: number, amount: number): void {
+  private addRuralOutput(
+    marketId: number,
+    collectionBurgId: number,
+    goodId: number,
+    amount: number,
+    sourceCellId?: number
+  ): void {
     if (amount <= 0) return;
     const market = this.get(marketId);
     const good = Goods.get(goodId);
     if (!market || !good || !isGoodEnabled(good)) return;
 
-    // Live creatures arrive as lumpy integer catches, not a continuous trickle — see
-    // liveAnimalCatch.ts. Banking `amount` below its 1-unit threshold most months is what
-    // produces the "catch one, then quiet for a while" pattern instead of a flat monthly gain.
-    const resolvedAmount = good.tags.includes("liveAnimal")
-      ? rollLiveAnimalCatch(getLiveAnimalCatchKey(marketId, collectionBurgId, goodId), amount)
-      : amount;
+    // Live arrivals have already been selected and debited in real animals at source.
+    const resolvedAmount = amount;
     if (resolvedAmount <= 0) return;
 
     const marketGood = this.getMarketGood(market, good);
-    marketGood.stock = isOrchardDrink(good.name)
-      ? marketGood.stock + resolvedAmount
-      : rn(marketGood.stock + resolvedAmount, 2);
+    marketGood.stock =
+      isOrchardDrink(good.name) || good.tags.includes("liveAnimal")
+        ? marketGood.stock + resolvedAmount
+        : rn(marketGood.stock + resolvedAmount, 2);
     recordGoodFlow({
       direction: "source",
       category: "ruralHarvest",
+      livestockSourceCellId: good.tags.includes("liveAnimal") ? sourceCellId : undefined,
+      livestockCohorts:
+        sourceCellId === undefined
+          ? undefined
+          : getLivestockDispatchTable()?.[`${sourceCellId}:${good.name}`]?.observation?.cohortHeads,
       goodId,
       units: resolvedAmount,
       marketId,
@@ -1524,7 +1551,7 @@ export class MarketsModule {
     // stapleFood (Grain) pricing is owned by foodLedgerConsumption.ts's monthly settlement.
     const goods = getGoods()
       .filter(isGoodEnabled)
-      .filter(good => !good.tags.includes("stapleFood"));
+      .filter(good => !good.tags.includes("stapleFood") && good.name !== "Salt");
     const consumerDemandFactors = this.collectConsumerDemand(goods);
     const industrialDemandFactors = this.collectIndustrialDemand(goods, consumerDemandFactors);
     const avgIngredientsCostByGood = this.calculateAverageBaseCostByGood(goods);
@@ -1657,7 +1684,7 @@ export class MarketsModule {
       const population = populationByMarket[market.i] || 0;
       const priceLevel = getMarketPriceLevel(market);
       for (const good of getGoods().filter(isGoodEnabled)) {
-        if (good.tags.includes("stapleFood")) continue;
+        if (good.tags.includes("stapleFood") || good.name === "Salt") continue;
         // These are source-cell farmgate references, not empty trade pools awaiting imports.
         if (good.name === "Apples" || good.name === "Pears") continue;
         const marketGood = this.getMarketGood(market, good);
@@ -1687,7 +1714,7 @@ export class MarketsModule {
       const multiplier = getMoneyPriceLevelForMarket(market);
       if (multiplier === 1) continue;
       for (const good of getGoods().filter(isGoodEnabled)) {
-        if (good.tags.includes("stapleFood")) continue;
+        if (good.tags.includes("stapleFood") || good.name === "Salt") continue;
         const marketGood = this.getMarketGood(market, good);
         marketGood.price = rn(
           minmax(marketGood.price * multiplier, good.value * PRICE_FLOOR_FACTOR, good.value * PRICE_CEILING_FACTOR),
@@ -1801,6 +1828,7 @@ export class MarketsModule {
     units,
     budget = Infinity,
     exactUnits = false,
+    liveBuyerId,
     flow
   }: {
     burg: Burg;
@@ -1809,6 +1837,8 @@ export class MarketsModule {
     budget?: number;
     /** Preserve fractional process materials, instead of rounding to retail hundredths. */
     exactUnits?: boolean;
+    /** Explicit live-property acquisition; recipe purchases remain terminal inputs. */
+    liveBuyerId?: string;
     flow?: {
       category: GoodFlowCategory;
       guildDomain?: ReturnType<typeof getCraftDomainForGood>;
@@ -1816,6 +1846,7 @@ export class MarketsModule {
     };
   }): Deal | null {
     if (!isGoodEnabled(good)) return null;
+    if (liveBuyerId && (!good.tags.includes("liveAnimal") || flow?.category === "recipeInput")) return null;
     // Grain's market row is a mirror of the Food Ledger. Milling debits the tradeable
     // surplus itself. A purchase here would shrink the mirror and leave the reserve.
     if (good.tags?.includes("stapleFood")) return null;
@@ -1856,6 +1887,7 @@ export class MarketsModule {
     recordGoodFlow({
       direction: "sink",
       category: flow?.category ?? "burgDemand",
+      livestockBuyerId: liveBuyerId,
       goodId: good.i,
       units: actualUnits,
       marketId: market.i,

@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "boundary": "Independent current-code 12-month runs; initial annual figures are model forecasts, observed dispatch is actual cumulative live market arrivals, not slaughter",
+  "runs": {
+    "province": {
+      "inputSha256": "a3209cca3c88ebf8f84b4f5d9321be8ad3bdc5b3766ca92994f0eb198a52e4e7",
+      "sourceTreeSha256": "d1ce8fc8876e95f4f24b5d43e88f138f6fba9938ce643acfa48cb89055d5d49a",
+      "observationPath": "docs/analytics/e1-joint-demand-province-20261024.json",
+      "observationSha256": "f32194616b19888e09c4a3982948661114f993a7001f301906ce7b49f2591d98",
+      "preexistingInitialAnd12MonthSpeciesDiagnosticsUnchanged": true,
+      "initial": {
+        "marketCount": 1,
+        "annualDairy": {
+          "drinkingMilkLiters": 9067439.659376457,
+          "cheeseKilograms": 11334299.574220572,
+          "milkForCheeseLiters": 113342995.74220571,
+          "usableMilkInventoryLiters": 0,
+          "potentialMilkLiters": 41666.983507160934
+        },
+        "completeTargetsUnknown": 1
+      },
+      "after12Months": {
+        "marketCount": 1,
+        "annualDairy": {
+          "drinkingMilkLiters": 9057149.150581775,
+          "cheeseKilograms": 11321436.438227221,
+          "milkForCheeseLiters": 113214364.38227221,
+          "usableMilkInventoryLiters": 0,
+          "potentialMilkLiters": 49397.85700080199
+        },
+        "completeTargetsUnknown": 1
+      },
+      "liveDispatchHeadsSincePreparedStart": {
+        "Pig": 273,
+        "Chicken": 22,
+        "Horses": 29,
+        "Cattle": 1,
+        "Sheep": 1
+      },
+      "untrackedCohortDispatchHeads": 0
+    },
+    "world": {
+      "inputSha256": "5e73a27785881bf553d37404442d7ead0f7bb68457208cc33c88c88f7c6a5999",
+      "sourceTreeSha256": "d1ce8fc8876e95f4f24b5d43e88f138f6fba9938ce643acfa48cb89055d5d49a",
+      "observationPath": "docs/analytics/e1-joint-demand-world-20261024.json",
+      "observationSha256": "a3cd7e133772d43ba45ffe3c99eb2d28246a27aa4cb5b86d5fceeecd4e8d7572",
+      "preexistingInitialAnd12MonthSpeciesDiagnosticsUnchanged": true,
+      "initial": {
+        "marketCount": 16,
+        "annualDairy": {
+          "drinkingMilkLiters": 83882441.64874655,
+          "cheeseKilograms": 104853052.06093319,
+          "milkForCheeseLiters": 1048530520.6093318,
+          "usableMilkInventoryLiters": 0,
+          "potentialMilkLiters": 6802054.041489981
+        },
+        "completeTargetsUnknown": 16
+      },
+      "after12Months": {
+        "marketCount": 17,
+        "annualDairy": {
+          "drinkingMilkLiters": 83762286.82454148,
+          "cheeseKilograms": 104702858.53067684,
+          "milkForCheeseLiters": 1047028585.3067685,
+          "usableMilkInventoryLiters": 0,
+          "potentialMilkLiters": 8180955.102711349
+        },
+        "completeTargetsUnknown": 17
+      },
+      "liveDispatchHeadsSincePreparedStart": {
+        "Horses": 11058,
+        "Pig": 1537,
+        "Chicken": 248,
+        "Cattle": 545,
+        "Sheep": 622,
+        "Goats": 106,
+        "Camels": 16
+      },
+      "untrackedCohortDispatchHeads": 0
+    }
+  }
+}

@@ -97,6 +97,8 @@ export interface Good {
   freshFood?: {
     /** Fresh units a cell's residents normally consume in one production month. */
     householdDemandPerPopulationMonth: number;
+    /** Fixed population basis of the rate above; absent means legacy map-point semantics. */
+    householdDemandReferencePeoplePerPoint?: number;
     /** Maximum share of the cell's actual harvest that may be consumed unprocessed. */
     maxFreshHouseholdShare?: number;
     /** Cell-resident work required to preserve one raw unit after household distribution. */

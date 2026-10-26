@@ -48,9 +48,26 @@ export interface RuralBeddingDiagnostic {
   routes: BeddingRouteDiagnostic[];
 }
 
+export interface HomeTextileRouteDiagnostic extends BeddingRouteDiagnostic {
+  productGoodId: number;
+  pass: "initial" | "releasedLabor";
+  primary: string | null;
+  constraints: string[];
+}
+
+export interface HomeTextileDiagnostic {
+  status: "evaluated" | "noLabor" | "noRecipe";
+  garmentNeed: number;
+  blanketNeed: number;
+  garmentUnmetAfterHome: number;
+  blanketUnmetAfterHome: number;
+  routes: HomeTextileRouteDiagnostic[];
+}
+
 export interface RuralTextileProduction {
   inputOrders?: Record<number, number>;
   beddingDiagnostic?: RuralBeddingDiagnostic;
+  homeDiagnostic?: HomeTextileDiagnostic;
   garments: number;
   blankets: number;
   garmentSpending: number;
@@ -116,6 +133,20 @@ function runRuralTextileProduction(
     laborUsed: 0,
     laborCapacity: laborCapacityOverride ?? getLaborCapacity(market)
   };
+  if (!estimate)
+    result.homeDiagnostic = {
+      status: "evaluated",
+      garmentNeed,
+      blanketNeed,
+      garmentUnmetAfterHome: Math.max(0, garmentNeed),
+      blanketUnmetAfterHome: Math.max(0, blanketNeed),
+      routes: []
+    };
+  const completeDiagnostics = () => {
+    if (!result.homeDiagnostic) return;
+    result.homeDiagnostic.garmentUnmetAfterHome = Math.max(0, garmentNeed - result.garments);
+    result.homeDiagnostic.blanketUnmetAfterHome = Math.max(0, blanketNeed - result.blankets);
+  };
   let beddingLaborReserved = 0;
   const quoteInputs = estimate && !stockLimitedPreview;
   const previewStocks = new Map<number, number>();
@@ -153,10 +184,12 @@ function runRuralTextileProduction(
       : blanketBudget;
   const goods = getGoods().filter(isGoodEnabled);
   if (!(result.laborCapacity > 0)) {
+    if (result.homeDiagnostic) result.homeDiagnostic.status = "noLabor";
     captureBedding(beddingCash());
     return result;
   }
   const chains = getRuralTextileChains(goods);
+  if (!chains.length && result.homeDiagnostic) result.homeDiagnostic.status = "noRecipe";
   let cash = Math.max(0, cashOverride ?? getRuralHouseholdWealth(market));
   const inputPrice = (chain: RuralTextileChain) =>
     market.goods[chain.input.i]?.price ?? (quoteInputs ? chain.input.value : 0);
@@ -234,33 +267,71 @@ function runRuralTextileProduction(
       garment && firstGarmentPass ? result.laborCapacity - beddingLaborReserved : result.laborCapacity;
     const laborLimit = Math.max(0, laborCeiling - result.laborUsed) / laborPerProduct;
     const cashLimit = Number.isFinite(costPerProduct) ? Math.max(0, Math.min(budget, cash)) / costPerProduct : 0;
-    const route: BeddingRouteDiagnostic | undefined =
-      !estimate && good.name === "Wool Blankets"
-        ? {
-            inputGoodId: input.i,
-            weavesCloth: chain.weavesCloth,
-            inputPrice: Number.isFinite(inputCost(chain)) ? inputPrice(chain) : null,
-            inputStock: Math.max(0, inputRow?.stock ?? 0),
-            needLimitLots: Math.max(0, need),
-            cashLimitLots: cashLimit,
-            stockLimitLots: stockLimit,
-            laborLimitLots: laborLimit,
-            producedLots: 0,
-            belowPaymentPrecision: false
-          }
-        : undefined;
-    if (route) result.beddingDiagnostic?.routes.push(route);
+    const route: HomeTextileRouteDiagnostic | undefined = !estimate
+      ? {
+          productGoodId: good.i,
+          pass: firstGarmentPass ? "initial" : "releasedLabor",
+          inputGoodId: input.i,
+          weavesCloth: chain.weavesCloth,
+          inputPrice: Number.isFinite(costPerProduct) ? inputPrice(chain) : null,
+          inputStock: Math.max(0, inputRow?.stock ?? 0),
+          needLimitLots: Math.max(0, need),
+          cashLimitLots: cashLimit,
+          stockLimitLots: stockLimit,
+          laborLimitLots: laborLimit,
+          producedLots: 0,
+          belowPaymentPrecision: false,
+          primary: null,
+          constraints: []
+        }
+      : undefined;
+    if (route) {
+      const reasons = route.constraints;
+      if (!(need > 0)) reasons.push("noNeed");
+      if (!(budget > 0) || cashLimit < need) reasons.push("budget");
+      if (!Number.isFinite(costPerProduct)) reasons.push("missingPrice");
+      if (!inputRow) reasons.push("noInputMarket");
+      if (stockLimit < need) reasons.push("materials");
+      if (laborLimit < need) reasons.push("labor");
+      route.primary = !(need > 0)
+        ? "noNeed"
+        : !(budget > 0)
+          ? "budget"
+          : !Number.isFinite(costPerProduct)
+            ? "missingPrice"
+            : !inputRow
+              ? "noInputMarket"
+              : Math.min(stockLimit, laborLimit, cashLimit) >= need
+                ? null
+                : stockLimit <= laborLimit && stockLimit <= cashLimit
+                  ? "materials"
+                  : laborLimit <= cashLimit
+                    ? "labor"
+                    : "budget";
+      result.homeDiagnostic!.routes.push(route);
+      if (good.name === "Wool Blankets") result.beddingDiagnostic?.routes.push(route);
+    }
     if (!(need > 0) || !(budget > 0) || !Number.isFinite(costPerProduct) || (!quoteInputs && !inputRow))
       return { units: 0, cost: 0 };
     const units = Math.min(need, quoteInputs ? Infinity : stockLimit, laborLimit, cashLimit);
     const cost = Math.floor(Math.max(0, units) * inputPerProduct * inputPrice(chain) * 100 + 1e-9) / 100;
     if (!(cost > 0)) {
-      if (route) route.belowPaymentPrecision = units > 0;
+      if (route && units > 0) {
+        route.belowPaymentPrecision = true;
+        route.primary = "paymentPrecision";
+        route.constraints.push("paymentPrecision");
+      }
       return { units: 0, cost: 0 };
     }
     const paid = estimate ? cost : debitRuralHouseholdWealth(market, cost);
     const produced = paid / (inputPerProduct * inputPrice(chain));
-    if (!(produced > 0)) return { units: 0, cost: 0 };
+    if (!(produced > 0)) {
+      if (route) {
+        route.primary = "debitFailed";
+        route.constraints.push("debitFailed");
+      }
+      return { units: 0, cost: 0 };
+    }
     if (route) route.producedLots = produced;
     cash = Math.max(0, cash - paid);
     result.inputOrders![input.i] = (result.inputOrders![input.i] ?? 0) + produced * inputPerProduct;
@@ -359,6 +430,7 @@ function runRuralTextileProduction(
   }
   captureBedding(beddingCash());
   if (result.beddingDiagnostic) result.beddingDiagnostic.releasedLaborToGarments = result.laborUsed - beforeRelease;
+  completeDiagnostics();
   return result;
 }
 

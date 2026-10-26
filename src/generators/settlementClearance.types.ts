@@ -8,6 +8,11 @@ export interface ClearanceCellInput {
   ownerId?: number;
   access?: { cellId: number; cost: number; allowed?: boolean }[];
   maxTransportCost?: number;
+  /**
+   * Staple eaters of other cells who buy through this market town because no field within their
+   * own reach can feed them. They are counted here once and removed from their home request.
+   */
+  marketStaplePeople?: number;
   workforce?: {
     adultPeople: number;
     workableDays: number;

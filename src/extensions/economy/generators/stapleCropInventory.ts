@@ -105,6 +105,16 @@ export function getTradeableStapleCropUnits(ledger: FoodLedger, goodId: number):
 }
 
 /**
+ * Food transport takes stored crop buckets, never overflow or a stale generic-Goods mirror.
+ * A missing crop in an already tracked ledger is zero; null is only for aggregate-only saves.
+ */
+export function getTransportableStapleCropUnits(ledger: FoodLedger, goodId: number): number | null {
+  if (!ledger.stapleCropInventories || !Object.keys(ledger.stapleCropInventories).length) return null;
+  const inventory = ledger.stapleCropInventories[goodId];
+  return inventory ? Math.min(Math.max(0, ledger.exportable), storedUnits(inventory)) : 0;
+}
+
+/**
  * Removes a named crop from the tradeable portion of a Food Ledger. The crop lot is debited
  * directly (its own overflow, then its own oldest-first buckets); the aggregate ledger fields
  * are then resynced from every crop's real totals via refreshLegacyFoodLedgerTotals() rather
@@ -274,8 +284,7 @@ export function drawStapleCropForTransport(
   const inventory = ledger.stapleCropInventories?.[goodId];
   if (!inventory || !(amount > EPSILON)) return { units: 0, unitCost: 0 };
 
-  const cropStored = storedUnits(inventory);
-  const maxDraw = Math.min(amount, Math.max(0, ledger.exportable), cropStored);
+  const maxDraw = Math.min(amount, getTransportableStapleCropUnits(ledger, goodId) ?? 0);
   if (!(maxDraw > EPSILON)) return { units: 0, unitCost: 0 };
 
   let remaining = maxDraw;
