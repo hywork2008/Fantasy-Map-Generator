@@ -1,6 +1,6 @@
 import { getHusbandryMonthlyWorkDays, getHusbandryWorkers, getWorldContext } from "../economyContext";
 import { WORKABLE_DAYS_PER_ADULT } from "./agriculturalLandUse";
-import type { HusbandryDemand } from "./husbandry";
+import type { HusbandryDemand } from "./husbandryTypes";
 
 /** One occupation reservation shared by care, haymaking and meat preparation. */
 export function getHusbandryLaborBudget(cellId: number, month: number, demand: HusbandryDemand) {

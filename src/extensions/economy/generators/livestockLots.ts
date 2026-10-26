@@ -1,7 +1,7 @@
 /** Provenance overlay for recorded market movements; never changes physical stock or cash. */
 import { getEconomySlice } from "../context/economyApi";
 import type { FaunaCohorts } from "./faunaPopulationTypes";
-import type { GoodFlowRecord } from "./goodsBalanceLedger";
+import type { GoodFlowRecord } from "./goodFlowTypes";
 import { animalsPerMarketHead } from "./liveAnimalScale";
 import { livestockFeedPeriod } from "./livestockFeedState";
 import type { OwnedLiveLot } from "./slaughterTransactions";

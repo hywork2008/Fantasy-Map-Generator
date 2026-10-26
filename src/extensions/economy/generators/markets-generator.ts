@@ -74,7 +74,7 @@ import {
   isGoodEnabled,
   isPreservedFoodGood
 } from "./goods-generator";
-import { type GoodFlowCategory, recordGoodFlow } from "./goodsBalanceLedger";
+import { recordGoodFlow } from "./goodsBalanceLedger";
 import { floorToRetailLot, getMarketTradeMinimumUnits, getRetailLotSize } from "./goodsTradeLots";
 import { getCraftDomainForGood } from "./guildKnowledgeTypes";
 import { getMonthlyHouseholdFuelDemands, getWoodSupplyMonthKey } from "./heating";
@@ -90,7 +90,15 @@ import {
   getDefaultMonthsOfCover
 } from "./marketFlowBudget";
 import { syncMarketManagers } from "./marketManagers";
-import { customerBuyPrice, getWarPriceModifier, MARKET_MARGIN } from "./marketPricing";
+import {
+  applyMarketPressure,
+  customerBuyPrice,
+  getWarPriceModifier,
+  MARKET_MARGIN,
+  PRICE_CEILING_FACTOR,
+  PRICE_FLOOR_FACTOR
+} from "./marketPricing";
+import { buyMarketGoods, getMarketGood, type MarketPurchaseOptions } from "./marketPurchases";
 import { consumeForSmelting } from "./marketStockConsumption";
 import type { Deal, Market, TradeRouteSegment } from "./marketTypes";
 import {
@@ -155,7 +163,6 @@ import {
 } from "./tradeTransportRoom";
 import { TransportAssetOrders } from "./transportAssetOrders";
 
-const PRICE_FLOOR_FACTOR = 0.25;
 /**
  * Rural woodcutters sell what the market draws down, not what the forest could give: they keep
  * this many months of the market's smoothed Wood draw in stock (docs/plan/farm-labour-calibration.md §19).
@@ -176,9 +183,7 @@ export const RURAL_MONTHLY_FELLING_SHARE = 0.01;
  * (docs/plan/farm-labour-calibration.md §21.2, §22).
  */
 export const RURAL_BUILDING_TIMBER_PER_1000_RESIDENTS_ANNUAL = 40;
-const PRICE_CEILING_FACTOR = 3.0;
 const LAPLACE_PRICE_SMOOTHING = 5;
-const MARKET_PRESSURE_FACTOR = 0.01;
 
 /** Extra import-reserve share per point of burg warIntensity for military/essential goods. */
 export const WARTIME_TRADE_RESERVE_PER_INTENSITY = 0.5;
@@ -1049,12 +1054,7 @@ export class MarketsModule {
   }
 
   private getMarketGood(market: Market, good: Good): Market["goods"][number] {
-    const existing = market.goods[good.i];
-    if (existing) return existing;
-
-    const initial: Market["goods"][number] = { stock: 0, price: good.value };
-    market.goods[good.i] = initial;
-    return initial;
+    return getMarketGood(market, good);
   }
 
   // getRuralProductionContributions() bakes in getModifiers(), which can key off
@@ -1822,81 +1822,8 @@ export class MarketsModule {
     };
   }
 
-  buy({
-    burg,
-    good,
-    units,
-    budget = Infinity,
-    exactUnits = false,
-    liveBuyerId,
-    flow
-  }: {
-    burg: Burg;
-    good: Good;
-    units: number;
-    budget?: number;
-    /** Preserve fractional process materials, instead of rounding to retail hundredths. */
-    exactUnits?: boolean;
-    /** Explicit live-property acquisition; recipe purchases remain terminal inputs. */
-    liveBuyerId?: string;
-    flow?: {
-      category: GoodFlowCategory;
-      guildDomain?: ReturnType<typeof getCraftDomainForGood>;
-      relatedGoodId?: number;
-    };
-  }): Deal | null {
-    if (!isGoodEnabled(good)) return null;
-    if (liveBuyerId && (!good.tags.includes("liveAnimal") || flow?.category === "recipeInput")) return null;
-    // Grain's market row is a mirror of the Food Ledger. Milling debits the tradeable
-    // surplus itself. A purchase here would shrink the mirror and leave the reserve.
-    if (good.tags?.includes("stapleFood")) return null;
-    const market = this.get(burg.market);
-    if (!market) return null;
-
-    const marketGood = this.getMarketGood(market, good);
-    const unitPrice = this.customerBuyPrice(marketGood.price, burg.i, good.i);
-
-    const available = Math.min(units, marketGood.stock, budget / unitPrice);
-    const actualUnits = exactUnits ? available : rn(available, 2);
-    if (actualUnits < (exactUnits ? 1e-12 : 0.01)) return null;
-
-    const deals = getDeals();
-    const deal: Deal = {
-      i: deals.length,
-      seller: market.i,
-      sellerType: "market",
-      buyer: burg.i!,
-      buyerType: "burg",
-      good: good.i,
-      units: actualUnits,
-      price: unitPrice,
-      tax: 0
-    };
-    deals.push(deal);
-
-    marketGood.stock = exactUnits
-      ? Math.max(0, marketGood.stock - actualUnits)
-      : rn(Math.max(0, marketGood.stock - actualUnits), 2);
-    // A Burg purchase is the Market's cash receipt. Without this counterpart, a Market
-    // could pay producers but never replenish the purchasing power required next cycle.
-    const treasury = market.marketTreasury ?? { balance: 0, ruralGrainPayable: 0 };
-    treasury.balance = exactUnits
-      ? treasury.balance + actualUnits * unitPrice
-      : rn(treasury.balance + actualUnits * unitPrice, 2);
-    market.marketTreasury = treasury;
-    recordGoodFlow({
-      direction: "sink",
-      category: flow?.category ?? "burgDemand",
-      livestockBuyerId: liveBuyerId,
-      goodId: good.i,
-      units: actualUnits,
-      marketId: market.i,
-      burgId: burg.i,
-      guildDomain: flow?.guildDomain ?? undefined,
-      relatedGoodId: flow?.relatedGoodId
-    });
-    marketGood.price = rn(this.applyMarketPressure(good.value, marketGood.price, actualUnits), 2);
-    return deal;
+  buy(options: MarketPurchaseOptions): Deal | null {
+    return buyMarketGoods(options, this.get(options.burg.market));
   }
 
   sell({
@@ -3129,10 +3056,7 @@ export class MarketsModule {
   }
 
   private applyMarketPressure(basePrice: number, currentPrice: number | undefined, units: number): number {
-    const price = currentPrice ?? basePrice;
-    const floor = basePrice * PRICE_FLOOR_FACTOR;
-    const ceiling = basePrice * PRICE_CEILING_FACTOR;
-    return minmax(floor, price + units * basePrice * MARKET_PRESSURE_FACTOR, ceiling);
+    return applyMarketPressure(basePrice, currentPrice, units);
   }
 
   private collectConsumerDemand(goods: Good[], excludeLuxury = false): number[] {

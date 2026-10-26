@@ -1,4 +1,4 @@
-import type { RuralTextileProduction } from "./ruralTextileProduction";
+import type { RuralTextileProduction } from "./ruralTextileProductionTypes";
 import type { StapleCropInventory } from "./stapleCropInventoryTypes";
 
 export interface Market {

@@ -14,15 +14,11 @@ import { planWards } from "../planning/wards";
 import { prepareRun } from "../prepareRun";
 import { resolveStreetSettings, skeletonUnsupportedSettings } from "../settings";
 import { buildConformingMesh } from "./conformingMesh";
-import type { Skeleton, SkeletonInputs, SkeletonMeshChain } from "./contracts";
+import type { Skeleton } from "./contracts";
 import { buildSkeletonInputs } from "./inputs";
 import { planSkeleton } from "./pipeline";
 
-export interface SkeletonPlanData {
-  inputs: SkeletonInputs;
-  skeleton: Skeleton;
-  lines: SkeletonMeshChain[];
-}
+export type { SkeletonPlanData } from "./contracts";
 
 /** Shared K1 preparation for complete and vector-only previews. */
 export function prepareSkeletonRun(

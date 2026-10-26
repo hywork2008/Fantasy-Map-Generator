@@ -1,4 +1,4 @@
-import { rn } from "../../hostUtils";
+import { minmax, rn } from "../../hostUtils";
 import { getBurgMarketLedger } from "./burgMarketLedgers";
 import { GOODS_DATA, Goods } from "./goods-generator";
 
@@ -63,4 +63,15 @@ export function getWarPriceModifier(burgId: number | undefined, goodId: number |
 export function customerBuyPrice(midPrice: number, burgId?: number, goodId?: number): number {
   const warMod = getWarPriceModifier(burgId, goodId);
   return rn(midPrice * warMod * (1 + MARKET_MARGIN), 2);
+}
+
+export const PRICE_FLOOR_FACTOR = 0.25;
+export const PRICE_CEILING_FACTOR = 3.0;
+const MARKET_PRESSURE_FACTOR = 0.01;
+
+export function applyMarketPressure(basePrice: number, currentPrice: number | undefined, units: number): number {
+  const price = currentPrice ?? basePrice;
+  const floor = basePrice * PRICE_FLOOR_FACTOR;
+  const ceiling = basePrice * PRICE_CEILING_FACTOR;
+  return minmax(floor, price + units * basePrice * MARKET_PRESSURE_FACTOR, ceiling);
 }

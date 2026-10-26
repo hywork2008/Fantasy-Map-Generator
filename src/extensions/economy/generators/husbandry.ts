@@ -1,5 +1,6 @@
 import { getCropResidueWorkPlan } from "./cropResidueWorkPlan";
 import { getHusbandryLaborBudget } from "./husbandryLabor";
+import type { HusbandryDemand } from "./husbandryTypes";
 /**
  * Open-pasture husbandry: one shared land budget for Cattle, Sheep, Goats, Horses and Camels.
  * Pig, Chicken, Cats and Dogs retain their separate yard/woodland models.
@@ -69,6 +70,8 @@ import { getWinterSlaughterWorkPlan } from "./winterSlaughter";
 import { EXPERIMENTAL_CARCASS_PROFILES } from "./winterSlaughterPolicy";
 
 // ---- Placeholder constants (calibration TBD, §9.3 policy; see module doc-comment for sourcing) ----
+
+export type { HusbandryDemand } from "./husbandryTypes";
 
 /** Pasture land-suitability ceiling by biome tag — mirrors agriculturalLandUse.ts's methodology. */
 const PASTURE_BIOME_TAG_CEILING: Partial<Record<BiomeTag, number>> = {
@@ -190,23 +193,6 @@ const GRAZED_LIVESTOCK_GOOD_NAMES = new Set(Object.keys(HUSBANDRY_SPECIES_PROFIL
 /** True for open-pasture species husbandry.ts gates by land+labour (see module doc-comment scope). */
 export function isGrazedLivestockGood(goodName: string): boolean {
   return GRAZED_LIVESTOCK_GOOD_NAMES.has(goodName);
-}
-
-export interface HusbandryDemand {
-  readonly residueWorkers?: number;
-  readonly residueMonthlyLaborWeights?: readonly number[];
-  readonly slaughterWorkers?: number;
-  readonly slaughterMonthlyLaborWeights?: readonly number[];
-  /** Aggregate herders this cell could use across every grazed species present in its biome. */
-  readonly requiredWorkers: number;
-  /** Additional haymaking crew, unaffected by herding-dog efficiency. */
-  readonly hayWorkers?: number;
-  readonly hayMonthlyLaborWeights?: readonly number[];
-  readonly careWorkers?: number;
-  /** Care-headcount-weighted average good.value, for the greedy allocator's value-ranking (§3.1). */
-  readonly value: number;
-  /** Normalized distribution of this cell's annual herding work, when the cell has a herd. */
-  readonly monthlyLaborWeights?: MonthlyWeights;
 }
 
 /**

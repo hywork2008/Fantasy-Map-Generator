@@ -8,11 +8,12 @@
 import { TASTE_GOOD_MATCH } from "../../characters/backstoryProfile";
 import type { Character } from "../../characters/characterTypes";
 import { rn } from "../../hostUtils";
-import { getWorldContext } from "../economyContext";
+import { getMarkets, getWorldContext } from "../economyContext";
 import type { LifestyleTier } from "./characterLifestyleTypes";
 import { luxuryGoodsByTier } from "./luxuryDemand";
 import { LUXURY_TIERS, type LuxuryTier } from "./luxuryTiers";
-import { Markets } from "./markets-generator";
+import { customerBuyPrice } from "./marketPricing";
+import { buyMarketGoods } from "./marketPurchases";
 
 /** Share of the living cost spent on luxuries, by lifestyle tier (§4.1). */
 export const LIFESTYLE_LUXURY_SHARE: Readonly<Partial<Record<LifestyleTier, number>>> = {
@@ -77,7 +78,7 @@ export function buyCharacterLuxuries(character: Character, tier: LifestyleTier, 
   if (!shares || !(budget > 0.01) || !character.location) return 0;
   const burg = getWorldContext().pack.burgs?.[character.location];
   if (!burg?.i || burg.removed || !burg.market) return 0;
-  const market = Markets.get(burg.market);
+  const market = getMarkets().find(market => market.i === burg.market);
   if (!market) return 0;
 
   const liked = likedGoodNames(character);
@@ -94,14 +95,14 @@ export function buyCharacterLuxuries(character: Character, tier: LifestyleTier, 
         good,
         liked: liked.has(good.name.toLowerCase()),
         stockValue: row.stock * row.price,
-        unitPrice: Markets.customerBuyPrice(row.price, burg.i, good.i)
+        unitPrice: customerBuyPrice(row.price, burg.i, good.i)
       }))
       .sort((a, b) => Number(b.liked) - Number(a.liked) || b.stockValue - a.stockValue);
     for (const { good, unitPrice } of candidates) {
       if (!(tierBudget > 0.01)) break;
       const units = Math.floor((tierBudget / unitPrice) * 100) / 100;
       if (units < 0.01) continue;
-      const deal = Markets.buy({ burg, good, units, budget: tierBudget, flow: { category: "characterLuxury" } });
+      const deal = buyMarketGoods({ burg, good, units, budget: tierBudget, flow: { category: "characterLuxury" } });
       if (!deal) continue;
       const cost = deal.units * deal.price;
       tierBudget -= cost;
