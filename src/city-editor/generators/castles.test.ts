@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { CASTLE_STYLE_PROFILES } from "../renderers/castlePatterns";
+import { CASTLE_STYLE_PROFILES, resolveCastleStyle } from "../renderers/castlePatterns";
 import { renderCastle } from "../renderers/castleSvg";
 import { serializeCitySvg } from "../renderers/standaloneSvg";
 import { parseDocument } from "../services/io/documentCodec";
 import type { CityDocument, Point } from "../types/document";
 import type { Cell } from "../types/geometry";
 import { buildCityBuildings } from "./buildingLots";
+import { withCastleStyle } from "./castleAppearance";
 import {
+  createCastleBuildingOnFace,
   createCastleOnFace,
   deleteCastle,
   installCastle,
@@ -113,6 +115,23 @@ function castle(shared = false): CityDocument {
 }
 
 describe("Castle compounds", () => {
+  it.each([
+    ["japanese-shiro", "japanese-shiro", "japanese-shiro"],
+    ["auto", undefined, "concentric"],
+    [undefined, "norman-keep", "norman-keep"]
+  ] as const)("uses the map-wide style %s when placing a castle building", (style, override, resolved) => {
+    const source = fixture();
+    source.historicalPeriod = "lateMedieval";
+    const document = style ? withCastleStyle(source, style) : source;
+    const next = createCastleBuildingOnFace(document, "f0");
+    expect(next).not.toBeNull();
+    const plan = next!.castles![0];
+    expect(plan.castleStyle).toBe(override);
+    expect(resolveCastleStyle(next!, plan).style).toBe(resolved);
+    expect(document.castles).toBeUndefined();
+    expect(validate(next!)).toEqual([]);
+  });
+
   it.each(Object.keys(CASTLE_STYLE_PROFILES))("reflects interior regeneration in the %s rendering", style => {
     const doc = castle();
     const plan = doc.castles![0];
