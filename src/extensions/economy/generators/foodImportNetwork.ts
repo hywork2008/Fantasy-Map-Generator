@@ -13,6 +13,7 @@ import { FOOD_SPOILAGE_HALF_LIFE_DAYS, GROSS_FOOD_NEED } from "./foodConstants";
 import { applyHeatingCapacityBonus } from "./heating";
 import { customerBuyPrice } from "./marketPricing";
 import type { FoodLedger, Market } from "./marketTypes";
+import { getTransportableStapleCropUnits } from "./stapleCropInventory";
 import { calculateRouteDurationFromDistances } from "./tradeRouteDuration";
 import { TradeSecurity } from "./tradeSecurity";
 
@@ -37,6 +38,29 @@ export interface FoodFlowEdge {
 
 let lastFoodFlows: FoodFlowEdge[] = [];
 
+export interface FoodImportAttempt {
+  fromMarketId: number;
+  toMarketId: number;
+  outcome: "noRoute" | "noCrop" | "noCash" | "emptyCrop" | "belowQuantityPrecision" | "delivered";
+  exportable: number;
+  importNeed: number;
+  travelDays?: number;
+  goodId?: number;
+  cash?: number;
+  unitPrice?: number;
+  affordableUnits?: number;
+  availableCropUnits?: number | null;
+  loaded?: number;
+  delivered?: number;
+}
+
+// Latest pass only; diagnostics are never saved or used to choose supply or prices.
+let lastFoodImportAttempts: FoodImportAttempt[] = [];
+
+export function getFoodImportAttempts(): readonly FoodImportAttempt[] {
+  return lastFoodImportAttempts;
+}
+
 /** Most recently resolved flows for diagnostics and a future trade-layer overlay. */
 export function getFoodImportFlows(): readonly FoodFlowEdge[] {
   return lastFoodFlows;
@@ -55,6 +79,7 @@ export function resolveFoodImportNetwork(worldContext: Readonly<WorldContext>): 
   const { pack } = worldContext;
   const markets = getMarkets();
   const burgs = pack.burgs ?? [];
+  lastFoodImportAttempts = [];
 
   resetEffectiveCapacities(burgs);
   for (const market of markets) {
@@ -80,6 +105,7 @@ export function resolveFoodImportNetwork(worldContext: Readonly<WorldContext>): 
     graphHeight: worldContext.graphHeight
   });
   const seaGraph = buildSeaRouteGraph(pack);
+  const getFoodRoute = createFoodRouteResolver(worldContext, landGraph, seaGraph);
   const remainingExport = new Map<number, number>();
   for (const market of markets) {
     remainingExport.set(market.i, Math.max(0, market.foodLedger?.exportable ?? 0));
@@ -96,10 +122,18 @@ export function resolveFoodImportNetwork(worldContext: Readonly<WorldContext>): 
     let remainingNeed = ledger.importNeed;
     const candidates = markets
       .filter(supplier => supplier.i !== importer.i && (remainingExport.get(supplier.i) ?? 0) > 0)
-      .map(supplier => ({
-        supplier,
-        route: getFoodRoute(worldContext, supplier, importer, landGraph, seaGraph)
-      }))
+      .map(supplier => {
+        const route = getFoodRoute(supplier, importer);
+        if (!route)
+          lastFoodImportAttempts.push({
+            fromMarketId: supplier.i,
+            toMarketId: importer.i,
+            outcome: "noRoute",
+            exportable: remainingExport.get(supplier.i) ?? 0,
+            importNeed: remainingNeed
+          });
+        return { supplier, route };
+      })
       .filter((candidate): candidate is { supplier: Market; route: FoodRoute } => candidate.route !== null)
       .sort((left, right) => left.route.travelDays - right.route.travelDays || left.supplier.i - right.supplier.i);
 
@@ -108,7 +142,17 @@ export function resolveFoodImportNetwork(worldContext: Readonly<WorldContext>): 
       const available = remainingExport.get(supplier.i) ?? 0;
       if (available <= 0) continue;
       const exportedCrop = getExportCropGoodId(supplier);
+      const attempt: FoodImportAttempt = {
+        fromMarketId: supplier.i,
+        toMarketId: importer.i,
+        outcome: "noCrop",
+        exportable: available,
+        importNeed: remainingNeed,
+        travelDays: route.travelDays
+      };
+      lastFoodImportAttempts.push(attempt);
       if (exportedCrop === null) continue;
+      attempt.goodId = exportedCrop;
 
       const securityRisk = getSecurityRisk(importer, route.travelDays);
       const spoilageDecay = Math.exp(-route.travelDays / FOOD_SPOILAGE_HALF_LIFE_DAYS);
@@ -127,9 +171,25 @@ export function resolveFoodImportNetwork(worldContext: Readonly<WorldContext>): 
       const unitPrice = Math.max(0, getMaxDrawUnitCost(supplierLedger, exportedCrop));
       const purse = Math.max(0, importer.marketTreasury?.balance ?? 0);
       const affordable = unitPrice > 0 ? purse / unitPrice : wanted;
+      attempt.cash = purse;
+      attempt.unitPrice = unitPrice;
+      attempt.affordableUnits = affordable;
+      const availableCrop = getTransportableStapleCropUnits(supplierLedger, exportedCrop);
+      attempt.availableCropUnits = availableCrop;
       const drawn = drawFoodForExport(supplierLedger, exportedCrop, Math.min(wanted, affordable));
       const volume = drawn.units;
       const delivered = Math.min(remainingNeed, volume * deliveredShare);
+      attempt.loaded = volume;
+      attempt.delivered = delivered;
+      const loadLimit = Math.min(wanted, affordable, availableCrop ?? Infinity);
+      attempt.outcome =
+        affordable <= 0
+          ? "noCash"
+          : volume > 0
+            ? "delivered"
+            : loadLimit > 0 && loadLimit < 0.005
+              ? "belowQuantityPrecision"
+              : "emptyCrop";
       if (volume <= 0 || delivered <= 0) continue;
 
       const payment = Math.min(rn(volume * drawn.unitCost, 2), purse);
@@ -198,7 +258,10 @@ function getExportCropGoodId(market: Market): number | null {
     .filter(good => good.tags.includes("stapleCrop"))
     .map(good => ({
       goodId: good.i,
-      stock: market.goods[good.i]?.stock ?? 0
+      stock:
+        (market.foodLedger ? getTransportableStapleCropUnits(market.foodLedger, good.i) : null) ??
+        market.goods[good.i]?.stock ??
+        0
     }))
     .filter(candidate => candidate.stock > 0)
     .sort((left, right) => right.stock - left.stock || left.goodId - right.goodId);
@@ -221,29 +284,61 @@ function getImportPriority(market: Market, foodGoodId: number | undefined): numb
   return customerBuyPrice(price, market.centerBurgId, foodGoodId);
 }
 
-function getFoodRoute(
+/** Reuses charted, seasonally open roads and sea lanes; never creates a cross-country leg. */
+function createFoodRouteResolver(
   worldContext: Readonly<WorldContext>,
-  supplier: Market,
-  importer: Market,
   landGraph: ReturnType<typeof buildLandRouteGraph>,
   seaGraph: ReturnType<typeof buildSeaRouteGraph>
-): FoodRoute | null {
-  const source = worldContext.pack.burgs[supplier.centerBurgId];
-  const target = worldContext.pack.burgs[importer.centerBurgId];
-  if (!source || !target || source.removed || target.removed) return null;
+): (supplier: Market, importer: Market) => FoodRoute | null {
+  const portsByMarket = new Map<number, { cell: number; landDistance: number }[]>();
+  const seaDistances = new Map<string, number | null>();
+  const seaDistance = (from: number, to: number) => {
+    const key = from < to ? `${from}:${to}` : `${to}:${from}`;
+    if (!seaDistances.has(key)) seaDistances.set(key, findSeaRouteDistance(seaGraph, from, to));
+    return seaDistances.get(key)!;
+  };
+  const portsFor = (market: Market) => {
+    const existing = portsByMarket.get(market.i);
+    if (existing) return existing;
+    const center = worldContext.pack.burgs[market.centerBurgId];
+    const ports = worldContext.pack.burgs.flatMap(burg => {
+      if (!burg?.i || burg.removed || !burg.port || burg.market !== market.i || !center) return [];
+      const distance = center.cell === burg.cell ? 0 : findLandRouteDistance(landGraph, center.cell, burg.cell);
+      return distance === null ? [] : [{ cell: burg.cell, landDistance: distance }];
+    });
+    portsByMarket.set(market.i, ports);
+    return ports;
+  };
 
-  const landDistance = findLandRouteDistance(landGraph, source.cell, target.cell);
-  const seaDistance = findSeaRouteDistance(seaGraph, source.cell, target.cell);
-  const landDays =
-    landDistance === null
-      ? Infinity
-      : calculateRouteDurationFromDistances(landDistance * worldContext.distanceScale, 0, 0);
-  const seaDays =
-    seaDistance === null
-      ? Infinity
-      : calculateRouteDurationFromDistances(0, seaDistance * worldContext.distanceScale, 0);
-  const travelDays = Math.min(landDays, seaDays);
-  return Number.isFinite(travelDays) && travelDays > 0 ? { travelDays } : null;
+  return (supplier, importer) => {
+    const source = worldContext.pack.burgs[supplier.centerBurgId];
+    const target = worldContext.pack.burgs[importer.centerBurgId];
+    if (!source || !target || source.removed || target.removed) return null;
+
+    const landDistance = findLandRouteDistance(landGraph, source.cell, target.cell);
+    const directSeaDistance = seaDistance(source.cell, target.cell);
+    const scale = worldContext.distanceScale;
+    const landDays = landDistance === null ? Infinity : calculateRouteDurationFromDistances(landDistance * scale, 0, 0);
+    const seaDays =
+      directSeaDistance === null ? Infinity : calculateRouteDurationFromDistances(0, directSeaDistance * scale, 0);
+    let travelDays = Math.min(landDays, seaDays);
+    // Keep established direct routes. The missing case is an inland hub on either shore.
+    if (Number.isFinite(travelDays) && travelDays > 0) return { travelDays };
+    for (const origin of portsFor(supplier)) {
+      for (const destination of portsFor(importer)) {
+        const sailed = seaDistance(origin.cell, destination.cell);
+        if (!(sailed !== null && sailed > 0)) continue;
+        const transfers = Number(origin.landDistance > 0) + Number(destination.landDistance > 0);
+        const days = calculateRouteDurationFromDistances(
+          (origin.landDistance + destination.landDistance) * scale,
+          sailed * scale,
+          transfers
+        );
+        if (days > 0 && days < travelDays) travelDays = days;
+      }
+    }
+    return Number.isFinite(travelDays) && travelDays > 0 ? { travelDays } : null;
+  };
 }
 
 function getSecurityRisk(importer: Market, travelDays: number): number {

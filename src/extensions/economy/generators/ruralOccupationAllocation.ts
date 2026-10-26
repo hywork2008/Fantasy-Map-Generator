@@ -116,6 +116,8 @@ const FISHING_BONUS_OUTPUT_SHARE = 0.25;
 const FISHING_BONUS_OUTPUT_CAP = 5;
 
 export interface RuralOccupationAllocation {
+  /** Unworked crop days, excluding vacancies in other occupations. Absent on the legacy surplus path. */
+  readonly cropLaborShortage?: Float32Array;
   /** Fixed subsistence hunter headcount per (forest) cell — not gated by a "required" cap. */
   readonly huntingWorkers: Float32Array;
   /** Assigned/required fishing workers, keyed by the cell that holds the Fish bonus-good slot (may be water). */
@@ -127,6 +129,7 @@ export interface RuralOccupationAllocation {
   /** Assigned/required husbandry workers (§5.4), keyed by the (land) producing cell. */
   readonly husbandryWorkers: Float32Array;
   readonly husbandryRequiredWorkers: Float32Array;
+  readonly husbandryMonthlyWorkDays: Float32Array;
   /** Handcraft capacity reserved after existing occupations, in real worker-months per month. */
   readonly householdTextileWorkers: Float32Array;
   /** Peak common rural workload after allocated occupations, in population points. */
@@ -210,6 +213,26 @@ function collectFishingOffers(
  * `migratableAdults` must come from the same calculateAgriculturalLandProfile() pass that is
  * about to be persisted — this function only reallocates that budget, it does not recompute it.
  */
+/**
+ * Share of rural children who can mind animals: roughly those aged 7-14 of the under-adult cohort.
+ * Medieval herding of sheep, swine, geese and cows was a common child's task (Hanawalt 1986,
+ * The Ties That Bound, ch.10; Orme 2001, Medieval Children, ch.9). Model policy, not a measured share.
+ */
+export const CHILD_HERDING_SHARE = 0.35;
+/**
+ * Share of haymaking work children can take: tedding, raking and leading carts, while adults mow
+ * and pitch (Hanawalt 1986, ch.10; Fox 1996, "Exploitation of the landless by lords and tenants").
+ * Model policy (E1 §7.47), not a measured share.
+ */
+export const CHILD_HAYMAKING_SHARE = 0.3;
+/** Routine, year-round share of herding work; matches the species profiles' seasonal event share. */
+const HUSBANDRY_SEASONAL_EVENT_SHARE = 0.2;
+
+function getRuralChildren(cells: WorldContext["pack"]["cells"], cellId: number): number {
+  const adults = Math.max(0, cells.maleAdults?.[cellId] ?? 0) + Math.max(0, cells.femaleAdults?.[cellId] ?? 0);
+  return Math.max(0, (cells.pop[cellId] ?? 0) - adults);
+}
+
 export function allocateRuralOccupations(
   world: Readonly<WorldContext>,
   laborPlan: RuralLaborPlan | Float32Array
@@ -236,6 +259,8 @@ function allocateRuralOccupationsFromSurplus(
   const viticultureRequiredWorkers = new Float32Array(count);
   const husbandryWorkers = new Float32Array(count);
   const husbandryRequiredWorkers = new Float32Array(count);
+  // This legacy allocator has no monthly crop calendar; do not invent peak reservations.
+  const husbandryMonthlyWorkDays = new Float32Array();
   const householdTextileWorkers = new Float32Array(count);
   const farmLaborRequired = new Float32Array(count);
   const seasonalLaborShortage = new Float32Array(count * 12);
@@ -249,6 +274,7 @@ function allocateRuralOccupationsFromSurplus(
       viticultureRequiredWorkers,
       husbandryWorkers,
       husbandryRequiredWorkers,
+      husbandryMonthlyWorkDays,
       householdTextileWorkers,
       farmLaborRequired,
       migratableAdults,
@@ -315,8 +341,9 @@ function allocateRuralOccupationsFromSurplus(
       const assign = Math.min(budget, candidate.required);
       if (assign <= 0) continue;
       if (candidate.kind === "viticulture") viticultureWorkers[cellId] += assign;
-      else if (candidate.kind === "husbandry") husbandryWorkers[cellId] += assign;
-      else fishingWorkers[candidate.holderId!] += assign;
+      else if (candidate.kind === "husbandry") {
+        husbandryWorkers[cellId] += assign;
+      } else fishingWorkers[candidate.holderId!] += assign;
       budget -= assign;
     }
 
@@ -339,6 +366,7 @@ function allocateRuralOccupationsFromSurplus(
     viticultureRequiredWorkers,
     husbandryWorkers,
     husbandryRequiredWorkers,
+    husbandryMonthlyWorkDays,
     householdTextileWorkers,
     farmLaborRequired,
     migratableAdults,
@@ -387,10 +415,13 @@ function allocateRuralOccupationsFromCalendar(
   const viticultureRequiredWorkers = new Float32Array(count);
   const husbandryWorkers = new Float32Array(count);
   const husbandryRequiredWorkers = new Float32Array(count);
+  const husbandryMonthlyWorkDays = new Float32Array(count * 12);
+  const haymakingShortfallDays = new Float32Array(count * 12);
   const householdTextileWorkers = new Float32Array(count);
   const farmLaborRequired = new Float32Array(count);
   const migratableAdults = new Float32Array(count);
   const seasonalLaborShortage = new Float32Array(count * 12);
+  const cropLaborShortage = new Float32Array(count * 12);
   const ruralReleasePressure = new Float32Array(count);
   const currentDaysByCell = new Float32Array(count * 12);
   const desiredDaysByCell = new Float32Array(count * 12);
@@ -471,6 +502,39 @@ function allocateRuralOccupationsFromCalendar(
     for (const candidate of candidates) addWorkerDays(desiredDays, candidate.requiredWorkers, candidate.monthlyWeights);
     candidates.sort((a, b) => b.value - a.value);
     for (const candidate of candidates) {
+      if (candidate.kind === "husbandry") {
+        // These are month-local household tasks. One busy crop month must not cancel
+        // care and seasonal work in every other month, or spend another month's slack.
+        let annualAssignedDays = 0;
+        // Children watch the flocks and herds day to day; adults take the seasonal work.
+        const childDaysPerMonth =
+          getRuralChildren(cells, cellId) * populationRate * CHILD_HERDING_SHARE * (WORKABLE_DAYS_PER_ADULT / 12);
+        const routineCareDaysPerMonth =
+          ((husbandryDemand.careWorkers ?? 0) * WORKABLE_DAYS_PER_ADULT * (1 - HUSBANDRY_SEASONAL_EVENT_SHARE)) / 12;
+        for (let month = 0; month < 12; month++) {
+          const requestedDays =
+            candidate.requiredWorkers * WORKABLE_DAYS_PER_ADULT * (candidate.monthlyWeights[month] ?? 0);
+          const careChildDays = Math.min(childDaysPerMonth, routineCareDaysPerMonth, requestedDays);
+          const hayDays =
+            (husbandryDemand.hayWorkers ?? 0) *
+            WORKABLE_DAYS_PER_ADULT *
+            (husbandryDemand.hayMonthlyLaborWeights?.[month] ?? 0);
+          const childDays = Math.min(
+            requestedDays,
+            careChildDays + Math.min(childDaysPerMonth - careChildDays, hayDays * CHILD_HAYMAKING_SHARE)
+          );
+          const remainingDays = Math.max(0, residentAdults * workDaysPerAdult[month] - currentDays[month]);
+          const adultDays = Math.min(requestedDays - childDays, remainingDays);
+          const assignedDays = childDays + adultDays;
+          husbandryMonthlyWorkDays[cellId * 12 + month] = assignedDays;
+          haymakingShortfallDays[cellId * 12 + month] = Math.min(hayDays, requestedDays - assignedDays);
+          currentDays[month] += adultDays;
+          minimumDays[month] += adultDays;
+          annualAssignedDays += assignedDays;
+        }
+        husbandryWorkers[cellId] = annualAssignedDays / WORKABLE_DAYS_PER_ADULT;
+        continue;
+      }
       const factor = getMaximumAssignableFactor(
         currentDays,
         candidate.requiredWorkers,
@@ -480,7 +544,6 @@ function allocateRuralOccupationsFromCalendar(
       );
       const assigned = candidate.requiredWorkers * factor;
       if (candidate.kind === "viticulture") viticultureWorkers[cellId] += assigned;
-      else if (candidate.kind === "husbandry") husbandryWorkers[cellId] += assigned;
       else fishingWorkers[candidate.holderId!] += assigned;
       addWorkerDays(currentDays, assigned, candidate.monthlyWeights);
       addWorkerDays(minimumDays, assigned, candidate.monthlyWeights);
@@ -513,6 +576,15 @@ function allocateRuralOccupationsFromCalendar(
 
   const aidReceivedByCell = applyHarvestMutualAid(world, currentDaysByCell, desiredDaysByCell, workDaysPerAdultByCell);
   applyRegionalHarvestHelp(world, currentDaysByCell, desiredDaysByCell, workDaysPerAdultByCell, aidReceivedByCell);
+  applyHaymakingMutualAid(
+    world,
+    currentDaysByCell,
+    desiredDaysByCell,
+    workDaysPerAdultByCell,
+    haymakingShortfallDays,
+    husbandryMonthlyWorkDays,
+    husbandryWorkers
+  );
 
   for (const cellId of cells.i) {
     if (cells.h[cellId] < 20) continue;
@@ -531,9 +603,22 @@ function allocateRuralOccupationsFromCalendar(
     farmLaborRequired[cellId] = annualCurrentAdults / populationRate;
     // Honour the land-use reserve (this year's urban-bound outflow). Harvest
     // mutual aid must not reclassify that cohort as year-round farm employment.
+    // An annual average surplus is not safe to release if those residents are
+    // still needed in a harvest month, including the work they do as helpers.
+    let peakSafeOutflow = residentAdults;
+    for (let month = 0; month < 12; month++) {
+      const index = cellId * 12 + month;
+      const workDays = workDaysPerAdultByCell[index] || WORKABLE_DAYS_PER_ADULT_PER_MONTH;
+      const helperDays = getHouseholdHarvestHelperDays(cells, cellId, populationRate, workDays);
+      const residentDays = Math.max(0, currentDays[month] - helperDays - (aidReceivedByCell[index] ?? 0));
+      peakSafeOutflow = Math.min(peakSafeOutflow, Math.max(0, residentAdults - residentDays / workDays));
+    }
     migratableAdults[cellId] = Math.max(
       reservedLaborExport,
-      ruralAdultPoints - (annualCurrentAdults / populationRate) * FARM_LABOUR_SAFETY_MARGIN
+      Math.min(
+        peakSafeOutflow / populationRate,
+        ruralAdultPoints - (annualCurrentAdults / populationRate) * FARM_LABOUR_SAFETY_MARGIN
+      )
     );
     ruralReleasePressure[cellId] = Math.max(
       0,
@@ -561,10 +646,23 @@ function allocateRuralOccupationsFromCalendar(
           helperDays -
           (aidReceivedByCell[cellId * 12 + month] ?? 0)
       );
+      // Desired jobs can remain unfilled after staple work has already been reserved.
+      // Those vacancies must not erase a crop that the actual calendar can harvest.
+      cropLaborShortage[cellId * 12 + month] = Math.min(
+        Math.max(0, laborPlan.cropLaborDaysByMonth[cellId * 12 + month]),
+        Math.max(
+          0,
+          currentDays[month] -
+            adultsAfterMigration * workDays -
+            helperDays -
+            (aidReceivedByCell[cellId * 12 + month] ?? 0)
+        )
+      );
     }
   }
 
   return {
+    cropLaborShortage,
     huntingWorkers,
     fishingWorkers,
     fishingRequiredWorkers,
@@ -572,6 +670,7 @@ function allocateRuralOccupationsFromCalendar(
     viticultureRequiredWorkers,
     husbandryWorkers,
     husbandryRequiredWorkers,
+    husbandryMonthlyWorkDays,
     householdTextileWorkers,
     farmLaborRequired,
     migratableAdults,
@@ -632,9 +731,9 @@ function applyHarvestMutualAid(
       const capacity = ruralAdultPoints * populationRate * workDays;
       const helperDays = getHouseholdHarvestHelperDays(cells, cellId, populationRate, workDays);
       const current = currentDaysByCell[cellId * 12 + month] ?? 0;
-      const desired = desiredDaysByCell[cellId * 12 + month] ?? 0;
       slack[cellId] = Math.max(0, capacity - current);
-      shortage[cellId] = Math.max(0, desired - capacity - helperDays);
+      // Unfilled occupation requests are not booked work and cannot claim harvest hands.
+      shortage[cellId] = Math.max(0, current - capacity - helperDays);
     }
 
     for (const cellId of cells.i) {
@@ -657,6 +756,87 @@ function applyHarvestMutualAid(
     }
   }
   return aidReceivedByCell;
+}
+
+/**
+ * Hay boons: neighbours of the same state mow and cart hay that a cell's own adults cannot reach
+ * that month (E1 §7.49), then hired hands from the market area (E1 §7.50). Runs after the grain
+ * harvest aid, so only hands the harvest left idle help.
+ */
+function applyHaymakingMutualAid(
+  world: Readonly<WorldContext>,
+  currentDaysByCell: Float32Array,
+  desiredDaysByCell: Float32Array,
+  workDaysPerAdultByCell: Float32Array,
+  shortfallDays: Float32Array,
+  husbandryMonthlyWorkDays: Float32Array,
+  husbandryWorkers: Float32Array
+): void {
+  const cells = world.pack.cells;
+  if (!cells?.i || !cells.c) return;
+  const populationRate = Math.max(1, world.populationRate || 1);
+  const marketCellColumn = getMarketCellColumn();
+  const mobility = getRegionalHarvestMobility(world.options?.historicalPeriod);
+  for (let month = 0; month < 12; month++) {
+    const slack = new Float32Array(cells.i.length);
+    for (const cellId of cells.i) {
+      if ((cells.h[cellId] ?? 0) < 20) continue;
+      const ruralAdultPoints =
+        Math.max(0, cells.maleAdults?.[cellId] ?? 0) + Math.max(0, cells.femaleAdults?.[cellId] ?? 0);
+      const workDays = workDaysPerAdultByCell[cellId * 12 + month] || WORKABLE_DAYS_PER_ADULT_PER_MONTH;
+      slack[cellId] = Math.max(
+        0,
+        ruralAdultPoints * populationRate * workDays - currentDaysByCell[cellId * 12 + month]
+      );
+    }
+    for (const cellId of cells.i) {
+      let remaining = shortfallDays[cellId * 12 + month];
+      if (!(remaining > 0)) continue;
+      const stateId = cells.state?.[cellId] ?? 0;
+      if (!stateId) continue;
+      for (const neighborId of cells.c[cellId] ?? []) {
+        if (remaining <= 0) break;
+        if ((cells.h[neighborId] ?? 0) < 20 || (cells.state?.[neighborId] ?? 0) !== stateId) continue;
+        const transfer = Math.min(remaining, slack[neighborId]);
+        if (!(transfer > 0)) continue;
+        currentDaysByCell[neighborId * 12 + month] += transfer;
+        desiredDaysByCell[neighborId * 12 + month] += transfer;
+        husbandryMonthlyWorkDays[cellId * 12 + month] += transfer;
+        husbandryWorkers[cellId] += transfer / WORKABLE_DAYS_PER_ADULT;
+        slack[neighborId] -= transfer;
+        remaining -= transfer;
+      }
+      shortfallDays[cellId * 12 + month] = remaining;
+    }
+    // Hired hay hands from the rest of the market area, at the same travelling share as harvest gangs.
+    if (marketCellColumn.length !== cells.i.length) continue;
+    const pool = new Map<number, { slack: number; need: number }>();
+    for (const cellId of cells.i) {
+      const marketId = marketCellColumn[cellId] ?? 0;
+      if (!marketId || (cells.h[cellId] ?? 0) < 20) continue;
+      const row = pool.get(marketId) ?? { slack: 0, need: 0 };
+      row.slack += slack[cellId] * mobility;
+      row.need += Math.max(0, shortfallDays[cellId * 12 + month]);
+      pool.set(marketId, row);
+    }
+    for (const cellId of cells.i) {
+      const row = pool.get(marketCellColumn[cellId] ?? 0);
+      if (!row || !(row.need > 0) || (cells.h[cellId] ?? 0) < 20) continue;
+      const index = cellId * 12 + month;
+      const fill = Math.min(1, row.slack / row.need);
+      const hired = Math.max(0, shortfallDays[index]) * fill;
+      if (hired > 0) {
+        husbandryMonthlyWorkDays[index] += hired;
+        husbandryWorkers[cellId] += hired / WORKABLE_DAYS_PER_ADULT;
+        shortfallDays[index] -= hired;
+      }
+      const given = slack[cellId] * mobility * Math.min(1, row.need / Math.max(row.slack, 1e-9));
+      if (given > 0) {
+        currentDaysByCell[index] += given;
+        desiredDaysByCell[index] += given;
+      }
+    }
+  }
 }
 
 export const URBAN_HARVEST_HELP_SHARE_MEDIEVAL = 0.05;
@@ -745,7 +925,7 @@ function applyRegionalHarvestHelp(
         Math.max(0, cells.maleAdults?.[cellId] ?? 0) + Math.max(0, cells.femaleAdults?.[cellId] ?? 0);
       const capacity = ruralAdultPoints * populationRate * workDays;
       const helperDays = getHouseholdHarvestHelperDays(cells, cellId, populationRate, workDays);
-      const remaining = (desiredDaysByCell[index] ?? 0) - capacity - helperDays - (aidReceivedByCell[index] ?? 0);
+      const remaining = (currentDaysByCell[index] ?? 0) - capacity - helperDays - (aidReceivedByCell[index] ?? 0);
       if (remaining > 0) {
         shortage[cellId] = remaining;
         shortageByMarket.set(marketId, (shortageByMarket.get(marketId) ?? 0) + remaining);
@@ -776,7 +956,11 @@ function applyRegionalHarvestHelp(
     }
     for (const cellId of cells.i) {
       const share = usedRuralShare.get(marketCellColumn[cellId] ?? 0) ?? 0;
-      if (share > 0 && slack[cellId] > 0) currentDaysByCell[cellId * 12 + month] += slack[cellId] * share;
+      if (share > 0 && slack[cellId] > 0) {
+        const transferred = slack[cellId] * share;
+        currentDaysByCell[cellId * 12 + month] += transferred;
+        desiredDaysByCell[cellId * 12 + month] += transferred;
+      }
     }
   }
 }

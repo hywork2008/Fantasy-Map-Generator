@@ -107,7 +107,9 @@ export function planSettlementLandUse(
     const area = positive(input.physicalLandAreaHa);
     const built = Math.min(area, calculateBuiltAreaHa(input.urbanPeople, input.profile));
     const people =
-      positive(input.ruralPeople) + (input.includeUrbanFoodDemand === false ? 0 : positive(input.urbanPeople));
+      positive(input.ruralPeople) +
+      (input.includeUrbanFoodDemand === false ? 0 : positive(input.urbanPeople)) +
+      positive(input.marketStaplePeople ?? 0);
     const localPeople = Math.max(0, people - positive(input.importedStaplePeople ?? 0));
     const unresolvedEmbedded = input.profile === "embedded" && input.localStapleShare === undefined && localPeople > 0;
     const reachable = input.access
@@ -247,6 +249,16 @@ export function planSettlementLandUse(
       capacity.set(dest, available - allocated);
     }
   }
+  const stapleConstrainedSuppliers = new Set<number>();
+  for (const input of ordered) {
+    const request = requests.get(input.id)!;
+    const cell = cells[input.id];
+    const unmet = request.required - (cell.policyTargetAreaHa - request.remaining);
+    if (unmet > 1e-6 || cell.unresolvedFoodPeople > 0) {
+      for (const supplier of request.candidates) stapleConstrainedSuppliers.add(supplier);
+      stapleConstrainedSuppliers.add(input.id);
+    }
+  }
   for (const input of ordered) {
     const cell = cells[input.id];
     const request = requests.get(input.id)!;
@@ -288,7 +300,15 @@ export function planSettlementLandUse(
           recoveryYears: recoveryYears(input.temperature, input.precipitation)
         });
     }
-    addActivities(input, cell, options.year, previous);
+    // Protect potential fields even when this year's labor/clearance limit is
+    // smaller. A supplier's own food balance cannot stand in for its consumers'.
+    const occupiedArable = cell.patches
+      .filter(p => p.kind === "cultivation" || p.kind === "abandoned")
+      .reduce((sum, patch) => sum + patch.areaHa, 0);
+    const protectedArable = stapleConstrainedSuppliers.has(input.id)
+      ? Math.max(0, positive(input.cultivableAreaHa) - occupiedArable)
+      : 0;
+    addActivities(input, cell, options.year, previous, protectedArable);
     const forest = cell.physicalLandAreaHa * Math.min(1, positive(input.forestCover));
     let nonforest = cell.physicalLandAreaHa - forest;
     for (const patch of cell.patches) {

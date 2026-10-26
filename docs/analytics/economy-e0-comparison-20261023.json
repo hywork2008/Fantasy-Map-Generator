@@ -1,0 +1,2562 @@
+{
+  "schemaVersion": 1,
+  "summarizerSha256": "eb74a19a3347dfaca8b3efc929e0d0bb186b7399142887d8ed765ec6b628aa6d",
+  "notes": [
+    "Food totals include every actual settlement. Quantities are food-ledger units unless labelled kg; payments are cash.",
+    "Rural unmet is measured per market per settlement, before aggregation; rounding excess is retained separately in supplied totals.",
+    "Urban budget gap is the first binding constraint; stock gap is the remaining affordable but unavailable quantity, not a counterfactual attribution.",
+    "Textile consumption flows are interval totals; textile demand/spending are endpoint snapshot sums and cannot establish exact annual fulfilment.",
+    "Grain-equivalent mass is a model contract, not a historical or nutritional benchmark. Non-grain rural self-consumption is not measured."
+  ],
+  "worlds": [
+    {
+      "path": "docs/analytics/economy-e0-province-101-20261023.json",
+      "sha256": "238efa5b2c43310cb8135ca8ca76d64a2b9ede44e388d65e46ae4e091d1ca755",
+      "inputSha256": "a3209cca3c88ebf8f84b4f5d9321be8ad3bdc5b3766ca92994f0eb198a52e4e7",
+      "sourceTreeSha256": "8eff69c04a4554a5d26b724ec0d88bfc098d8e0bec801b60023e26f561c85519",
+      "initialProfile": {
+        "options": {
+          "pinNotes": false,
+          "winds": [
+            225,
+            45,
+            225,
+            315,
+            135,
+            315
+          ],
+          "temperatureEquator": 27,
+          "temperatureNorthPole": -18,
+          "temperatureSouthPole": -18,
+          "axialTilt": 23.5,
+          "stateLabelsMode": "auto",
+          "showBurgPreview": true,
+          "initialSettlementPattern": "standard",
+          "biomeRegionProfile": "global",
+          "volcanicSoilStrength": 50,
+          "ruralEcosystemDetail": "detailed",
+          "ironDepositsPerState": 0.4,
+          "burgs": {
+            "groups": [
+              {
+                "name": "capital",
+                "active": true,
+                "order": 9,
+                "features": {
+                  "capital": true
+                },
+                "preview": "watabou-city"
+              },
+              {
+                "name": "city",
+                "active": true,
+                "order": 8,
+                "percentile": 90,
+                "min": 5,
+                "preview": "watabou-city"
+              },
+              {
+                "name": "fort",
+                "active": true,
+                "features": {
+                  "citadel": true,
+                  "walls": false,
+                  "plaza": false,
+                  "port": false
+                },
+                "order": 6,
+                "max": 1
+              },
+              {
+                "name": "monastery",
+                "active": true,
+                "features": {
+                  "temple": true,
+                  "walls": false,
+                  "plaza": false,
+                  "port": false
+                },
+                "order": 5,
+                "max": 0.8
+              },
+              {
+                "name": "caravanserai",
+                "active": true,
+                "features": {
+                  "port": false,
+                  "plaza": true
+                },
+                "order": 4,
+                "max": 0.8,
+                "biomeTags": [
+                  "desert",
+                  "nomadic",
+                  "scrub"
+                ]
+              },
+              {
+                "name": "trading_post",
+                "active": true,
+                "order": 3,
+                "features": {
+                  "plaza": true
+                },
+                "max": 0.8,
+                "biomeTags": [
+                  "forest",
+                  "wetland",
+                  "cold",
+                  "mountain"
+                ]
+              },
+              {
+                "name": "village",
+                "active": true,
+                "order": 2,
+                "minZoom": 9.5,
+                "min": 0.1,
+                "max": 2,
+                "preview": "watabou-village"
+              },
+              {
+                "name": "hamlet",
+                "active": true,
+                "order": 1,
+                "features": {
+                  "plaza": false
+                },
+                "max": 0.1,
+                "preview": "watabou-village"
+              },
+              {
+                "name": "town",
+                "active": true,
+                "order": 7,
+                "isDefault": true,
+                "preview": "watabou-city"
+              }
+            ]
+          },
+          "gunpowderEraEnabled": false,
+          "year": 1300,
+          "era": "Bunverke Era",
+          "eraShort": "BE",
+          "initialFirearmsUnstocked": false,
+          "historicalPeriod": "highMedieval",
+          "forceIndustrialCultures": false,
+          "conflictAutonomy": "playerDirected",
+          "initialPolityRealmSize": 30,
+          "frontierStartMode": "landOrigin",
+          "frontierPolitySpacing": "dispersed",
+          "portCoastPlacement": "pinned",
+          "climateVariability": {
+            "start": "off",
+            "mode": "irregular",
+            "periodYears": 450,
+            "depthC": 0.5,
+            "volcanicPerCentury": 0.8,
+            "anchorYear": 1300
+          },
+          "economyStartMode": "balanced",
+          "moneyScaleBase": 16,
+          "loadRepairs": {
+            "routes": 1,
+            "dualPortPlacement": 1,
+            "economy.developmentPotential": 7
+          },
+          "seaRouteGenerationMode": "augmented",
+          "landRouteGenerationMode": "elevationAware",
+          "landRouteElevationAversion": 1,
+          "military": [
+            {
+              "icon": "⚔️",
+              "name": "infantry",
+              "rural": 0.08,
+              "urban": 0.06,
+              "crew": 1,
+              "power": 1,
+              "type": "melee",
+              "separate": 0
+            },
+            {
+              "icon": "🔱",
+              "name": "spearmen",
+              "rural": 0.07,
+              "urban": 0.06,
+              "crew": 1,
+              "power": 1,
+              "type": "melee",
+              "separate": 0
+            },
+            {
+              "icon": "🏹",
+              "name": "archers",
+              "rural": 0.12,
+              "urban": 0.2,
+              "crew": 1,
+              "power": 1,
+              "type": "ranged",
+              "separate": 0
+            },
+            {
+              "icon": "🔫",
+              "name": "musketeers",
+              "rural": 0.1,
+              "urban": 0.08,
+              "crew": 1,
+              "power": 1,
+              "type": "ranged",
+              "separate": 0,
+              "requiresTechnology": {
+                "id": "massFirearms",
+                "minimum": "demonstrated"
+              }
+            },
+            {
+              "icon": "🎯",
+              "name": "riflemen",
+              "rural": 0.1,
+              "urban": 0.08,
+              "crew": 1,
+              "power": 1.6,
+              "type": "ranged",
+              "separate": 0,
+              "requiresTechnology": {
+                "id": "standardMachineWorks",
+                "minimum": "adopted"
+              },
+              "obsoletes": [
+                "musketeers",
+                "archers"
+              ]
+            },
+            {
+              "icon": "🐴",
+              "name": "cavalry",
+              "rural": 0.12,
+              "urban": 0.03,
+              "crew": 2,
+              "power": 2,
+              "type": "mounted",
+              "separate": 0
+            },
+            {
+              "icon": "🪨",
+              "name": "siegeEngines",
+              "rural": 0,
+              "urban": 0.015,
+              "crew": 6,
+              "power": 6,
+              "type": "machinery",
+              "separate": 0
+            },
+            {
+              "icon": "💣",
+              "name": "artillery",
+              "rural": 0,
+              "urban": 0.03,
+              "crew": 8,
+              "power": 12,
+              "type": "machinery",
+              "separate": 0,
+              "requiresTechnology": {
+                "id": "cannonFoundry",
+                "minimum": "known"
+              }
+            },
+            {
+              "icon": "🧨",
+              "name": "fieldArtillery",
+              "rural": 0,
+              "urban": 0.03,
+              "crew": 8,
+              "power": 20,
+              "type": "machinery",
+              "separate": 0,
+              "requiresTechnology": {
+                "id": "modernSteelmaking",
+                "minimum": "adopted"
+              },
+              "obsoletes": "artillery"
+            },
+            {
+              "icon": "🔥",
+              "name": "machineGunners",
+              "rural": 0,
+              "urban": 0.015,
+              "crew": 4,
+              "power": 10,
+              "type": "machinery",
+              "separate": 0,
+              "requiresTechnology": {
+                "id": "modernSteelmaking",
+                "minimum": "demonstrated"
+              }
+            },
+            {
+              "icon": "🛡️",
+              "name": "armored",
+              "rural": 0,
+              "urban": 0.008,
+              "crew": 4,
+              "power": 40,
+              "type": "armored",
+              "separate": 0,
+              "requiresTechnology": {
+                "id": "internalCombustionEngine",
+                "minimum": "adopted"
+              }
+            },
+            {
+              "icon": "✈️",
+              "name": "aviation",
+              "rural": 0,
+              "urban": 0.005,
+              "crew": 2,
+              "power": 25,
+              "type": "aviation",
+              "separate": 1
+            },
+            {
+              "icon": "🚀",
+              "name": "rocketArtillery",
+              "rural": 0,
+              "urban": 0.02,
+              "crew": 6,
+              "power": 35,
+              "type": "machinery",
+              "separate": 0,
+              "requiresTechnology": {
+                "id": "militarySignalRockets",
+                "minimum": "adopted"
+              },
+              "obsoletes": "fieldArtillery"
+            },
+            {
+              "icon": "🌊",
+              "name": "fleet",
+              "rural": 0,
+              "urban": 0.015,
+              "crew": 100,
+              "power": 30,
+              "type": "naval",
+              "separate": 1
+            },
+            {
+              "icon": "💀",
+              "name": "skeletons",
+              "rural": 0,
+              "urban": 0,
+              "crew": 1,
+              "power": 0.7,
+              "type": "melee",
+              "separate": 0
+            },
+            {
+              "icon": "🧟",
+              "name": "zombies",
+              "rural": 0,
+              "urban": 0,
+              "crew": 1,
+              "power": 0.55,
+              "type": "melee",
+              "separate": 0
+            }
+          ],
+          "mapName": "Portel"
+        },
+        "populationRate": 1000,
+        "urbanization": 1,
+        "extensions": {
+          "economy": true,
+          "characters": true,
+          "nobility": true,
+          "shipbuilding": true
+        }
+      },
+      "worldSettings": {
+        "fmg-luxury-value-demand": "on",
+        "fmg-money-supply": "on",
+        "fmg-long-distance-trade": "on",
+        "fmg-caravan-raids": "off"
+      },
+      "start": [
+        1300,
+        1,
+        1
+      ],
+      "end": [
+        1301,
+        1,
+        1
+      ],
+      "foodLedgerKgPerUnit": 465.1162790697675,
+      "foodTotals": {
+        "ruralNeed": 98135.68,
+        "ruralSupplied": 98135.77999999998,
+        "ruralFromHousehold": 97562.96999999999,
+        "ruralFromMarket": 572.81,
+        "ruralPaid": 458.24,
+        "urbanNeed": 8332.02,
+        "urbanSupplied": 8332.02,
+        "urbanPaid": 6665.630000000001,
+        "urbanBudgetGap": 0,
+        "urbanStockGap": 0,
+        "lodgerNeed": 0,
+        "lodgerSupplied": 0,
+        "lodgerPaid": 0,
+        "ruralPeopleMonths": 5204417.152136564,
+        "urbanPeopleMonths": 232521.61068953335
+      },
+      "foodByMarket": {
+        "1": {
+          "ruralNeed": 98135.68,
+          "ruralSupplied": 98135.77999999998,
+          "ruralFromHousehold": 97562.96999999999,
+          "ruralFromMarket": 572.81,
+          "ruralPaid": 458.24,
+          "urbanNeed": 8332.02,
+          "urbanSupplied": 8332.02,
+          "urbanPaid": 6665.630000000001,
+          "urbanBudgetGap": 0,
+          "urbanStockGap": 0,
+          "lodgerNeed": 0,
+          "lodgerSupplied": 0,
+          "lodgerPaid": 0,
+          "ruralPeopleMonths": 5204417.152136564,
+          "urbanPeopleMonths": 232521.61068953335
+        }
+      },
+      "foodIntervals": [
+        {
+          "end": [
+            1300,
+            2,
+            1
+          ],
+          "settlements": 1,
+          "ruralUnmetKg": 0,
+          "urbanUnmetKg": 0
+        },
+        {
+          "end": [
+            1300,
+            3,
+            1
+          ],
+          "settlements": 0,
+          "ruralUnmetKg": 0,
+          "urbanUnmetKg": 0
+        },
+        {
+          "end": [
+            1300,
+            4,
+            1
+          ],
+          "settlements": 2,
+          "ruralUnmetKg": 0,
+          "urbanUnmetKg": 0
+        },
+        {
+          "end": [
+            1300,
+            5,
+            1
+          ],
+          "settlements": 1,
+          "ruralUnmetKg": 0,
+          "urbanUnmetKg": 0
+        },
+        {
+          "end": [
+            1300,
+            6,
+            1
+          ],
+          "settlements": 1,
+          "ruralUnmetKg": 0,
+          "urbanUnmetKg": 0
+        },
+        {
+          "end": [
+            1300,
+            7,
+            1
+          ],
+          "settlements": 1,
+          "ruralUnmetKg": 0,
+          "urbanUnmetKg": 0
+        },
+        {
+          "end": [
+            1300,
+            8,
+            1
+          ],
+          "settlements": 1,
+          "ruralUnmetKg": 0,
+          "urbanUnmetKg": 0
+        },
+        {
+          "end": [
+            1300,
+            9,
+            1
+          ],
+          "settlements": 1,
+          "ruralUnmetKg": 0,
+          "urbanUnmetKg": 0
+        },
+        {
+          "end": [
+            1300,
+            10,
+            1
+          ],
+          "settlements": 1,
+          "ruralUnmetKg": 0,
+          "urbanUnmetKg": 0
+        },
+        {
+          "end": [
+            1300,
+            11,
+            1
+          ],
+          "settlements": 1,
+          "ruralUnmetKg": 0,
+          "urbanUnmetKg": 0
+        },
+        {
+          "end": [
+            1300,
+            12,
+            1
+          ],
+          "settlements": 1,
+          "ruralUnmetKg": 4.6511627907992,
+          "urbanUnmetKg": 0
+        },
+        {
+          "end": [
+            1301,
+            1,
+            1
+          ],
+          "settlements": 1,
+          "ruralUnmetKg": 0,
+          "urbanUnmetKg": 0
+        }
+      ],
+      "foodKgPerResidentYear": {
+        "ruralNeed": 105.2440670867661,
+        "ruralSupplied": 105.24417433019386,
+        "ruralHome": 104.62987325164659,
+        "ruralMarket": 0.6143010785472774,
+        "urbanNeed": 199.99989479047568,
+        "urbanSupplied": 199.99989479047568
+      },
+      "primaryFlows": {
+        "Wood": {
+          "sink:funeral": 26.812685968890385,
+          "sink:navyExport": 1150.0158774249082,
+          "source:clearanceSupply": 24.1737,
+          "source:ruralHarvest": 4934.596729305338,
+          "sink:construction": 253.5381,
+          "sink:recipeInput": 201.7969104420921,
+          "sink:burgDemand": 34.86,
+          "sink:householdHeating": 2112.1872280532743
+        },
+        "Tools": {
+          "sink:marketInvestment": 2.7202,
+          "source:burgCraft": 0.14,
+          "sink:burgDemand": 0.088
+        },
+        "Salt": {
+          "sink:navyExport": 152.24605984518047,
+          "source:mineSupply": 12556.083018915715,
+          "sink:householdFood": 12967.180387293633
+        },
+        "Tobacco": {
+          "source:navyImport": 19.473370442501636,
+          "sink:luxuryPurchase": 5.9399999999999995
+        },
+        "Glass": {
+          "source:navyImport": 45.357900451523776,
+          "sink:characterLuxury": 3.0700000000000003,
+          "sink:luxuryPurchase": 30.1
+        },
+        "Perfume": {
+          "source:navyImport": 3.1816473786103696,
+          "sink:luxuryPurchase": 1.5299999999999998,
+          "sink:characterLuxury": 1.2200000000000002
+        },
+        "Soap": {
+          "source:navyImport": 1.7160265438146465
+        },
+        "Marble": {
+          "source:navyImport": 1.0309657741330156,
+          "sink:characterLuxury": 0.09
+        },
+        "Amber": {
+          "source:navyImport": 4.458443931178067
+        },
+        "Sugarcane": {
+          "source:navyImport": 2.5144981396328676
+        },
+        "Tapestries": {
+          "source:navyImport": 0.3709579934319123,
+          "sink:characterLuxury": 0.16
+        },
+        "Jewelry": {
+          "source:navyImport": 0.6200845460431897,
+          "sink:characterLuxury": 0.3600000000000001
+        },
+        "Sculptures": {
+          "source:navyImport": 0.31590040635787797,
+          "sink:characterLuxury": 0.13
+        },
+        "Instruments": {
+          "source:navyImport": 0.7912024755787764,
+          "sink:characterLuxury": 0.53,
+          "sink:luxuryPurchase": 0.05
+        },
+        "Artworks": {
+          "source:navyImport": 0.31299071889069113,
+          "sink:characterLuxury": 0.14
+        },
+        "Incense": {
+          "source:navyImport": 2.9795916354908547,
+          "sink:characterLuxury": 2.2700000000000005
+        },
+        "Silk": {
+          "source:navyImport": 1.0107298651815986,
+          "sink:characterLuxury": 0.83
+        },
+        "Spices": {
+          "source:navyImport": 0.6504258238028932,
+          "sink:characterLuxury": 0.31000000000000005
+        },
+        "Cocoa": {
+          "source:navyImport": 0.7161050933971189
+        },
+        "Coffee": {
+          "source:navyImport": 0.24882069342069338
+        },
+        "Mahogany": {
+          "source:navyImport": 0.8870134356803078
+        },
+        "Tea": {
+          "source:navyImport": 0.9300174868151929
+        },
+        "Books": {
+          "source:navyImport": 0.4661378438650664,
+          "sink:characterLuxury": 0.2300000000000001
+        },
+        "Liquor": {
+          "source:navyImport": 1.4560313709942228,
+          "sink:characterLuxury": 0.9100000000000004
+        },
+        "Fine Wool Garments": {
+          "source:navyImport": 1.1064716992685326,
+          "sink:characterLuxury": 0.78
+        },
+        "Ivory": {
+          "source:navyImport": 0.40264279720523627,
+          "sink:characterLuxury": 0.17,
+          "sink:luxuryPurchase": 0.01
+        },
+        "Gemstones": {
+          "source:navyImport": 1.6044732927346217,
+          "sink:luxuryPurchase": 0.18,
+          "sink:characterLuxury": 1.1199999999999999
+        },
+        "Alum": {
+          "source:navyImport": 0.8347978024136206
+        },
+        "Pearls": {
+          "source:navyImport": 0.29734343941166363
+        },
+        "Smoked Cheese": {
+          "source:navyImport": 0.24701811269812818,
+          "sink:characterLuxury": 0.13
+        },
+        "Relics": {
+          "source:navyImport": 0.14343602083309698,
+          "sink:characterLuxury": 0.06
+        },
+        "Candles": {
+          "source:navyImport": 0.636654837211728,
+          "sink:characterLuxury": 0.24
+        },
+        "Coral": {
+          "source:navyImport": 0.13934513337018462
+        },
+        "Obsidian": {
+          "source:navyImport": 0.3652666022913117
+        },
+        "Leather": {
+          "source:ruralHarvest": 375.5827648893892,
+          "sink:recipeInput": 0.05,
+          "source:burgCraft": 3
+        },
+        "Beeswax": {
+          "source:ruralHarvest": 14.462209966300964
+        },
+        "Hemp": {
+          "source:ruralHarvest": 296.8873997840881,
+          "sink:recipeInput": 296.8863765111259
+        },
+        "Furs": {
+          "source:ruralHarvest": 143.55170304358006,
+          "source:burgCraft": 61.97,
+          "sink:luxuryPurchase": 13.73,
+          "sink:characterLuxury": 25.659999999999997,
+          "source:importArrival": 4.87
+        },
+        "Peat": {
+          "source:ruralHarvest": 137.83509160399436
+        },
+        "Resin": {
+          "source:ruralHarvest": 110.34441849946977,
+          "sink:characterLuxury": 0.11999999999999998
+        },
+        "Medicinal herbs": {
+          "source:ruralHarvest": 151.95368208289148,
+          "sink:luxuryPurchase": 29.959999999999997,
+          "sink:characterLuxury": 16.31
+        },
+        "Reeds": {
+          "source:ruralHarvest": 225.25843460589647,
+          "sink:burgDemand": 0.11
+        },
+        "Flax": {
+          "source:ruralHarvest": 141.41292532092334,
+          "sink:recipeInput": 141.33621504742246
+        },
+        "Dyes": {
+          "source:ruralHarvest": 11.277924191951753
+        },
+        "White sand": {
+          "source:ruralHarvest": 82.58371791243553
+        },
+        "Clay": {
+          "source:ruralHarvest": 51.52734115719795
+        },
+        "Horses": {
+          "source:ruralHarvest": 1,
+          "sink:burgDemand": 1
+        },
+        "Wool": {
+          "source:ruralHarvest": 1.190742735774437,
+          "sink:recipeInput": 1.2068819913596758
+        },
+        "Slaves": {
+          "source:ruralHarvest": 17.877685993909836
+        },
+        "Preserved food": {
+          "source:ruralHarvest": 5.5060638635059185
+        },
+        "Honey": {
+          "source:ruralHarvest": 181.72815779304503,
+          "sink:burgDemand": 32.660000000000004
+        },
+        "Pig": {
+          "source:ruralHarvest": 317,
+          "sink:recipeInput": 317
+        },
+        "Cattle": {
+          "source:ruralHarvest": 3,
+          "sink:recipeInput": 3
+        },
+        "Chicken": {
+          "source:ruralHarvest": 24,
+          "sink:burgDemand": 24
+        },
+        "Iron Ore": {
+          "source:mineSupply": 80.2835,
+          "sink:smelting": 46.3059
+        },
+        "Lead Ore": {
+          "source:mineSupply": 37.1599,
+          "sink:smelting": 35.693099999999994
+        },
+        "Silver Ore": {
+          "source:mineSupply": 428.76530000000014,
+          "sink:smelting": 411.84060000000005
+        },
+        "Charcoal": {
+          "source:smelterSupply": 85.77009999999999,
+          "sink:smelting": 82.41090000000001,
+          "sink:recipeInput": 0.25
+        },
+        "Iron Ingot": {
+          "source:smelterSupply": 37.0451,
+          "sink:recipeInput": 0.07901810845001088
+        },
+        "Slag": {
+          "source:smelterSupply": 20.603
+        },
+        "Lead Ingot": {
+          "source:smelterSupply": 7.951200000000001
+        },
+        "Silver Ingot": {
+          "source:smelterSupply": 329.4724,
+          "sink:minting": 235.8592
+        },
+        "Grain": {
+          "sink:recipeInput": 8.29
+        },
+        "Flour": {
+          "source:burgCraft": 61.86999999999999,
+          "sink:burgDemand": 61.86999999999999
+        },
+        "Bronze": {
+          "sink:recipeInput": 0.06
+        },
+        "Barrels": {
+          "source:burgCraft": 22.401194030464843,
+          "source:importArrival": 2.1727294345931196,
+          "sink:recipeInput": 10.780000000000005
+        },
+        "Arrows": {
+          "source:burgCraft": 0.5705432535003263,
+          "sink:burgDemand": 0.57
+        },
+        "Cloth": {
+          "source:burgCraft": 0.35229895086651186,
+          "source:ruralCraft": 27.237487225052504,
+          "sink:recipeInput": 27.62977328552218,
+          "source:importArrival": 0.042405962914654996
+        },
+        "Arms": {
+          "source:burgCraft": 0.12000000000000001,
+          "sink:burgDemand": 0.15,
+          "source:importArrival": 0.03
+        },
+        "Tallow": {
+          "source:burgCraft": 649.99,
+          "sink:burgDemand": 0.03,
+          "sink:navyExport": 151.01519265847102
+        },
+        "Garments": {
+          "source:ruralCraft": 24.866795956969966,
+          "sink:householdTextiles": 24.891696207313355,
+          "source:burgCraft": 0.02479605655784409
+        },
+        "Linen": {
+          "source:ruralCraft": 14.133621504742246,
+          "sink:recipeInput": 14.133621504742246
+        },
+        "Linen Garments": {
+          "source:ruralCraft": 1.177801792061854,
+          "sink:householdTextiles": 1.1778410909693444
+        },
+        "Wool Cloth": {
+          "source:ruralCraft": 0.20114699855994597,
+          "sink:recipeInput": 0.20114699855994597
+        },
+        "Wool Garments": {
+          "source:ruralCraft": 0.18103229870395138,
+          "sink:householdTextiles": 0.18103229870395138
+        },
+        "Sheep": {
+          "source:ruralHarvest": 3,
+          "sink:recipeInput": 3
+        },
+        "Lemons": {
+          "sink:spoilage": 0.031479459635913365
+        },
+        "Cider": {
+          "source:ruralHarvest": 26.95,
+          "sink:householdFood": 26.95
+        },
+        "Cheese": {
+          "source:ruralHarvest": 1.1296692668814212,
+          "sink:householdFood": 1.14
+        },
+        "Elephants": {
+          "source:ruralHarvest": 1,
+          "sink:burgDemand": 1
+        },
+        "Dogs": {
+          "source:ruralHarvest": 1
+        },
+        "Fodder": {
+          "source:ruralHarvest": 413.05190329218107,
+          "sink:livestockFeed": 27.11934156378601
+        }
+      },
+      "snapshots": [
+        {
+          "date": [
+            1300,
+            1,
+            1
+          ],
+          "ruralPeople": 433614.9302124977,
+          "urbanPeople": 19757.05275632519,
+          "ruralFoodUncoveredPeople": 0,
+          "ruralFoodStock": 97495.9744796753,
+          "cultivatedHa": 946159.208984375,
+          "pastureHa": 408033.1397084409,
+          "heads": {
+            "Cattle": 233.7190234328017,
+            "Horses": 153.1981865491937,
+            "Sheep": 1403.418857106391,
+            "Goats": 0,
+            "Camels": 0
+          },
+          "aggregateOccupancy": 0.0032307174850617847,
+          "sheepPerResident": 0.00309551297792237,
+          "annualWoolPotentialKg": 1768.273955628859,
+          "effectiveWoolLaborAndFeedCoverage": 1.0000000000000002,
+          "woolStockKg": 0.11021307861865809,
+          "feedTotals": {
+            "hayKg": 110729.93016568891,
+            "pastureGrownKg": 76550193.94087666,
+            "harvestedKg": 130270.50607728108,
+            "harvestLossKg": 19540.575911592165,
+            "storageLossKg": 0,
+            "unharvestedKg": 76258335.08881822,
+            "soldKg": 0,
+            "purchasedKg": 0,
+            "requiredKg": 161588.34598114825,
+            "pastureConsumedKg": 161588.34598114825,
+            "hayConsumedKg": 0,
+            "unmetKg": 0,
+            "spending": 0,
+            "revenue": 0
+          }
+        },
+        {
+          "date": [
+            1301,
+            1,
+            1
+          ],
+          "ruralPeople": 433796.2348461151,
+          "urbanPeople": 19061.222682973672,
+          "ruralFoodUncoveredPeople": 0,
+          "ruralFoodStock": 28098.366845259443,
+          "cultivatedHa": 938597.2734375,
+          "pastureHa": 382902.01332834887,
+          "heads": {
+            "Cattle": 239.41196080248173,
+            "Horses": 134.82201235190092,
+            "Sheep": 1495.4638201920268,
+            "Goats": 0,
+            "Camels": 0
+          },
+          "aggregateOccupancy": 0.0034326455510737147,
+          "sheepPerResident": 0.0033022837436567274,
+          "annualWoolPotentialKg": 2001.71955519715,
+          "effectiveWoolLaborAndFeedCoverage": 1,
+          "woolStockKg": 0.2705410821643231,
+          "feedTotals": {
+            "hayKg": 484461.208933778,
+            "pastureGrownKg": 71876581.09488481,
+            "harvestedKg": 122517.03580026639,
+            "harvestLossKg": 18377.555370039958,
+            "storageLossKg": 4504.343539359148,
+            "unharvestedKg": 71592576.98943996,
+            "soldKg": 65608.28189300411,
+            "purchasedKg": 0,
+            "requiredKg": 161487.06964459267,
+            "pastureConsumedKg": 161487.06964459267,
+            "hayConsumedKg": 0,
+            "unmetKg": 0,
+            "spending": 0,
+            "revenue": 750.2499999999999
+          }
+        }
+      ],
+      "textileSnapshotTotals": {
+        "householdWardrobeLedgerDemandLots": 113.26999104301866,
+        "householdWardrobeConsumptionLots": 26.250569596986647,
+        "householdBlanketLedgerDemandLots": 226.53998208603733,
+        "householdBlanketConsumptionLots": 0,
+        "householdWardrobeSpending": 613.6800000000001,
+        "householdBlanketSpending": 0
+      }
+    },
+    {
+      "path": "docs/analytics/economy-e0-world-102-20261023.json",
+      "sha256": "7d74619a53e2d76ef2685f9370ec30784b5ccaf068c9f3612e75fe729ae01f12",
+      "inputSha256": "5e73a27785881bf553d37404442d7ead0f7bb68457208cc33c88c88f7c6a5999",
+      "sourceTreeSha256": "8eff69c04a4554a5d26b724ec0d88bfc098d8e0bec801b60023e26f561c85519",
+      "initialProfile": {
+        "options": {
+          "pinNotes": false,
+          "winds": [
+            225,
+            45,
+            225,
+            315,
+            135,
+            315
+          ],
+          "temperatureEquator": 27,
+          "temperatureNorthPole": -18,
+          "temperatureSouthPole": -18,
+          "axialTilt": 23.5,
+          "stateLabelsMode": "auto",
+          "showBurgPreview": true,
+          "initialSettlementPattern": "standard",
+          "biomeRegionProfile": "global",
+          "volcanicSoilStrength": 50,
+          "ruralEcosystemDetail": "detailed",
+          "ironDepositsPerState": 0.4,
+          "burgs": {
+            "groups": [
+              {
+                "name": "capital",
+                "active": true,
+                "order": 9,
+                "features": {
+                  "capital": true
+                },
+                "preview": "watabou-city"
+              },
+              {
+                "name": "city",
+                "active": true,
+                "order": 8,
+                "percentile": 90,
+                "min": 5,
+                "preview": "watabou-city"
+              },
+              {
+                "name": "fort",
+                "active": true,
+                "features": {
+                  "citadel": true,
+                  "walls": false,
+                  "plaza": false,
+                  "port": false
+                },
+                "order": 6,
+                "max": 1
+              },
+              {
+                "name": "monastery",
+                "active": true,
+                "features": {
+                  "temple": true,
+                  "walls": false,
+                  "plaza": false,
+                  "port": false
+                },
+                "order": 5,
+                "max": 0.8
+              },
+              {
+                "name": "caravanserai",
+                "active": true,
+                "features": {
+                  "port": false,
+                  "plaza": true
+                },
+                "order": 4,
+                "max": 0.8,
+                "biomeTags": [
+                  "desert",
+                  "nomadic",
+                  "scrub"
+                ]
+              },
+              {
+                "name": "trading_post",
+                "active": true,
+                "order": 3,
+                "features": {
+                  "plaza": true
+                },
+                "max": 0.8,
+                "biomeTags": [
+                  "forest",
+                  "wetland",
+                  "cold",
+                  "mountain"
+                ]
+              },
+              {
+                "name": "village",
+                "active": true,
+                "order": 2,
+                "minZoom": 9.5,
+                "min": 0.1,
+                "max": 2,
+                "preview": "watabou-village"
+              },
+              {
+                "name": "hamlet",
+                "active": true,
+                "order": 1,
+                "features": {
+                  "plaza": false
+                },
+                "max": 0.1,
+                "preview": "watabou-village"
+              },
+              {
+                "name": "town",
+                "active": true,
+                "order": 7,
+                "isDefault": true,
+                "preview": "watabou-city"
+              }
+            ]
+          },
+          "gunpowderEraEnabled": false,
+          "year": 1300,
+          "era": "Narasplithi Era",
+          "eraShort": "NE",
+          "initialFirearmsUnstocked": false,
+          "historicalPeriod": "highMedieval",
+          "forceIndustrialCultures": false,
+          "conflictAutonomy": "playerDirected",
+          "initialPolityRealmSize": 30,
+          "frontierStartMode": "landOrigin",
+          "frontierPolitySpacing": "dispersed",
+          "portCoastPlacement": "pinned",
+          "climateVariability": {
+            "start": "off",
+            "mode": "irregular",
+            "periodYears": 450,
+            "depthC": 0.5,
+            "volcanicPerCentury": 0.8,
+            "anchorYear": 1300
+          },
+          "economyStartMode": "balanced",
+          "moneyScaleBase": 16,
+          "loadRepairs": {
+            "routes": 1,
+            "dualPortPlacement": 1,
+            "economy.developmentPotential": 7
+          },
+          "seaRouteGenerationMode": "augmented",
+          "landRouteGenerationMode": "elevationAware",
+          "landRouteElevationAversion": 1,
+          "military": [
+            {
+              "icon": "⚔️",
+              "name": "infantry",
+              "rural": 0.08,
+              "urban": 0.06,
+              "crew": 1,
+              "power": 1,
+              "type": "melee",
+              "separate": 0
+            },
+            {
+              "icon": "🔱",
+              "name": "spearmen",
+              "rural": 0.07,
+              "urban": 0.06,
+              "crew": 1,
+              "power": 1,
+              "type": "melee",
+              "separate": 0
+            },
+            {
+              "icon": "🏹",
+              "name": "archers",
+              "rural": 0.12,
+              "urban": 0.2,
+              "crew": 1,
+              "power": 1,
+              "type": "ranged",
+              "separate": 0
+            },
+            {
+              "icon": "🔫",
+              "name": "musketeers",
+              "rural": 0.1,
+              "urban": 0.08,
+              "crew": 1,
+              "power": 1,
+              "type": "ranged",
+              "separate": 0,
+              "requiresTechnology": {
+                "id": "massFirearms",
+                "minimum": "demonstrated"
+              }
+            },
+            {
+              "icon": "🎯",
+              "name": "riflemen",
+              "rural": 0.1,
+              "urban": 0.08,
+              "crew": 1,
+              "power": 1.6,
+              "type": "ranged",
+              "separate": 0,
+              "requiresTechnology": {
+                "id": "standardMachineWorks",
+                "minimum": "adopted"
+              },
+              "obsoletes": [
+                "musketeers",
+                "archers"
+              ]
+            },
+            {
+              "icon": "🐴",
+              "name": "cavalry",
+              "rural": 0.12,
+              "urban": 0.03,
+              "crew": 2,
+              "power": 2,
+              "type": "mounted",
+              "separate": 0
+            },
+            {
+              "icon": "🪨",
+              "name": "siegeEngines",
+              "rural": 0,
+              "urban": 0.015,
+              "crew": 6,
+              "power": 6,
+              "type": "machinery",
+              "separate": 0
+            },
+            {
+              "icon": "💣",
+              "name": "artillery",
+              "rural": 0,
+              "urban": 0.03,
+              "crew": 8,
+              "power": 12,
+              "type": "machinery",
+              "separate": 0,
+              "requiresTechnology": {
+                "id": "cannonFoundry",
+                "minimum": "known"
+              }
+            },
+            {
+              "icon": "🧨",
+              "name": "fieldArtillery",
+              "rural": 0,
+              "urban": 0.03,
+              "crew": 8,
+              "power": 20,
+              "type": "machinery",
+              "separate": 0,
+              "requiresTechnology": {
+                "id": "modernSteelmaking",
+                "minimum": "adopted"
+              },
+              "obsoletes": "artillery"
+            },
+            {
+              "icon": "🔥",
+              "name": "machineGunners",
+              "rural": 0,
+              "urban": 0.015,
+              "crew": 4,
+              "power": 10,
+              "type": "machinery",
+              "separate": 0,
+              "requiresTechnology": {
+                "id": "modernSteelmaking",
+                "minimum": "demonstrated"
+              }
+            },
+            {
+              "icon": "🛡️",
+              "name": "armored",
+              "rural": 0,
+              "urban": 0.008,
+              "crew": 4,
+              "power": 40,
+              "type": "armored",
+              "separate": 0,
+              "requiresTechnology": {
+                "id": "internalCombustionEngine",
+                "minimum": "adopted"
+              }
+            },
+            {
+              "icon": "✈️",
+              "name": "aviation",
+              "rural": 0,
+              "urban": 0.005,
+              "crew": 2,
+              "power": 25,
+              "type": "aviation",
+              "separate": 1
+            },
+            {
+              "icon": "🚀",
+              "name": "rocketArtillery",
+              "rural": 0,
+              "urban": 0.02,
+              "crew": 6,
+              "power": 35,
+              "type": "machinery",
+              "separate": 0,
+              "requiresTechnology": {
+                "id": "militarySignalRockets",
+                "minimum": "adopted"
+              },
+              "obsoletes": "fieldArtillery"
+            },
+            {
+              "icon": "🌊",
+              "name": "fleet",
+              "rural": 0,
+              "urban": 0.015,
+              "crew": 100,
+              "power": 30,
+              "type": "naval",
+              "separate": 1
+            },
+            {
+              "icon": "💀",
+              "name": "skeletons",
+              "rural": 0,
+              "urban": 0,
+              "crew": 1,
+              "power": 0.7,
+              "type": "melee",
+              "separate": 0
+            },
+            {
+              "icon": "🧟",
+              "name": "zombies",
+              "rural": 0,
+              "urban": 0,
+              "crew": 1,
+              "power": 0.55,
+              "type": "melee",
+              "separate": 0
+            }
+          ],
+          "mapName": "Tourois"
+        },
+        "populationRate": 1000,
+        "urbanization": 1,
+        "extensions": {
+          "economy": true,
+          "characters": true,
+          "nobility": true,
+          "shipbuilding": true
+        }
+      },
+      "worldSettings": {
+        "fmg-luxury-value-demand": "on",
+        "fmg-money-supply": "on",
+        "fmg-long-distance-trade": "on",
+        "fmg-caravan-raids": "off"
+      },
+      "start": [
+        1300,
+        1,
+        1
+      ],
+      "end": [
+        1301,
+        1,
+        1
+      ],
+      "foodLedgerKgPerUnit": 465.1162790697675,
+      "foodTotals": {
+        "ruralNeed": 1077338.39,
+        "ruralSupplied": 1077310.2999999998,
+        "ruralFromHousehold": 1073178.31,
+        "ruralFromMarket": 4131.990000000001,
+        "ruralPaid": 3318.15,
+        "urbanNeed": 261626.5300000001,
+        "urbanSupplied": 259074.6100000001,
+        "urbanPaid": 209566.33000000005,
+        "urbanBudgetGap": 631.16,
+        "urbanStockGap": 1920.77,
+        "lodgerNeed": 0,
+        "lodgerSupplied": 0,
+        "lodgerPaid": 0,
+        "ruralPeopleMonths": 42976890.94559476,
+        "urbanPeopleMonths": 7301204.775460477
+      },
+      "foodByMarket": {
+        "1": {
+          "ruralNeed": 46161.450000000004,
+          "ruralSupplied": 46161.45,
+          "ruralFromHousehold": 45195.67999999999,
+          "ruralFromMarket": 965.77,
+          "ruralPaid": 772.61,
+          "urbanNeed": 19573.090000000004,
+          "urbanSupplied": 19573.090000000004,
+          "urbanPaid": 15658.400000000005,
+          "urbanBudgetGap": 0,
+          "urbanStockGap": 0,
+          "lodgerNeed": 0,
+          "lodgerSupplied": 0,
+          "lodgerPaid": 0,
+          "ruralPeopleMonths": 2444185.446999967,
+          "urbanPeopleMonths": 546224.996784569
+        },
+        "2": {
+          "ruralNeed": 4606.2,
+          "ruralSupplied": 4606.2,
+          "ruralFromHousehold": 4600.21,
+          "ruralFromMarket": 5.99,
+          "ruralPaid": 4.79,
+          "urbanNeed": 5419.43,
+          "urbanSupplied": 5419.43,
+          "urbanPaid": 4335.54,
+          "urbanBudgetGap": 0,
+          "urbanStockGap": 0,
+          "lodgerNeed": 0,
+          "lodgerSupplied": 0,
+          "lodgerPaid": 0,
+          "ruralPeopleMonths": 263656.5471030772,
+          "urbanPeopleMonths": 151240.03304463174
+        },
+        "3": {
+          "ruralNeed": 52803.69000000001,
+          "ruralSupplied": 52803.70000000001,
+          "ruralFromHousehold": 52560.64000000001,
+          "ruralFromMarket": 243.06,
+          "ruralPaid": 194.45,
+          "urbanNeed": 11058.400000000001,
+          "urbanSupplied": 11058.400000000001,
+          "urbanPaid": 8846.73,
+          "urbanBudgetGap": 0,
+          "urbanStockGap": 0,
+          "lodgerNeed": 0,
+          "lodgerSupplied": 0,
+          "lodgerPaid": 0,
+          "ruralPeopleMonths": 2279744.648821652,
+          "urbanPeopleMonths": 308606.52979965345
+        },
+        "4": {
+          "ruralNeed": 140832.46000000002,
+          "ruralSupplied": 140832.46000000002,
+          "ruralFromHousehold": 140723.52000000002,
+          "ruralFromMarket": 108.94,
+          "ruralPaid": 87.16,
+          "urbanNeed": 32642.93,
+          "urbanSupplied": 32642.93,
+          "urbanPaid": 26114.440000000002,
+          "urbanBudgetGap": 0,
+          "urbanStockGap": 0,
+          "lodgerNeed": 0,
+          "lodgerSupplied": 0,
+          "lodgerPaid": 0,
+          "ruralPeopleMonths": 5302230.4038107395,
+          "urbanPeopleMonths": 910966.0228666462
+        },
+        "5": {
+          "ruralNeed": 57586.609999999986,
+          "ruralSupplied": 57586.609999999986,
+          "ruralFromHousehold": 57523.65999999999,
+          "ruralFromMarket": 62.95,
+          "ruralPaid": 50.349999999999994,
+          "urbanNeed": 14693.189999999999,
+          "urbanSupplied": 14693.189999999999,
+          "urbanPaid": 11754.529999999999,
+          "urbanBudgetGap": 0,
+          "urbanStockGap": 0,
+          "lodgerNeed": 0,
+          "lodgerSupplied": 0,
+          "lodgerPaid": 0,
+          "ruralPeopleMonths": 2345883.661866188,
+          "urbanPeopleMonths": 410040.1523132481
+        },
+        "6": {
+          "ruralNeed": 47665.39,
+          "ruralSupplied": 47665.4,
+          "ruralFromHousehold": 47215.64,
+          "ruralFromMarket": 449.76000000000005,
+          "ruralPaid": 371.83,
+          "urbanNeed": 12493.210000000001,
+          "urbanSupplied": 12493.210000000001,
+          "urbanPaid": 10097.67,
+          "urbanBudgetGap": 0,
+          "urbanStockGap": 0,
+          "lodgerNeed": 0,
+          "lodgerSupplied": 0,
+          "lodgerPaid": 0,
+          "ruralPeopleMonths": 1800491.481602192,
+          "urbanPeopleMonths": 348646.76137017785
+        },
+        "7": {
+          "ruralNeed": 136532.13,
+          "ruralSupplied": 136532.13,
+          "ruralFromHousehold": 136472.26,
+          "ruralFromMarket": 59.87,
+          "ruralPaid": 47.9,
+          "urbanNeed": 20757.5,
+          "urbanSupplied": 20757.5,
+          "urbanPaid": 16606.000000000004,
+          "urbanBudgetGap": 0,
+          "urbanStockGap": 0,
+          "lodgerNeed": 0,
+          "lodgerSupplied": 0,
+          "lodgerPaid": 0,
+          "ruralPeopleMonths": 4552358.112640679,
+          "urbanPeopleMonths": 579281.2206196799
+        },
+        "8": {
+          "ruralNeed": 48880.14000000001,
+          "ruralSupplied": 48880.130000000005,
+          "ruralFromHousehold": 48859.030000000006,
+          "ruralFromMarket": 21.1,
+          "ruralPaid": 16.88,
+          "urbanNeed": 13551.73,
+          "urbanSupplied": 13551.73,
+          "urbanPaid": 10930.79,
+          "urbanBudgetGap": 0,
+          "urbanStockGap": 0,
+          "lodgerNeed": 0,
+          "lodgerSupplied": 0,
+          "lodgerPaid": 0,
+          "ruralPeopleMonths": 1910091.6725695133,
+          "urbanPeopleMonths": 378189.35479669325
+        },
+        "9": {
+          "ruralNeed": 13514.5,
+          "ruralSupplied": 13514.529999999999,
+          "ruralFromHousehold": 13157.929999999998,
+          "ruralFromMarket": 356.6,
+          "ruralPaid": 285.83000000000004,
+          "urbanNeed": 6375.0199999999995,
+          "urbanSupplied": 6375.0199999999995,
+          "urbanPaid": 5105.110000000001,
+          "urbanBudgetGap": 0,
+          "urbanStockGap": 0,
+          "lodgerNeed": 0,
+          "lodgerSupplied": 0,
+          "lodgerPaid": 0,
+          "ruralPeopleMonths": 942871.1378723383,
+          "urbanPeopleMonths": 177906.93494296068
+        },
+        "10": {
+          "ruralNeed": 66562.44000000002,
+          "ruralSupplied": 66562.45000000001,
+          "ruralFromHousehold": 66487.10000000002,
+          "ruralFromMarket": 75.35,
+          "ruralPaid": 60.28,
+          "urbanNeed": 15472.310000000001,
+          "urbanSupplied": 15472.310000000001,
+          "urbanPaid": 12377.840000000002,
+          "urbanBudgetGap": 0,
+          "urbanStockGap": 0,
+          "lodgerNeed": 0,
+          "lodgerSupplied": 0,
+          "lodgerPaid": 0,
+          "ruralPeopleMonths": 2471984.674192965,
+          "urbanPeopleMonths": 431784.347775182
+        },
+        "11": {
+          "ruralNeed": 37548.840000000004,
+          "ruralSupplied": 37548.85,
+          "ruralFromHousehold": 37463.15,
+          "ruralFromMarket": 85.7,
+          "ruralPaid": 68.56,
+          "urbanNeed": 7388.65,
+          "urbanSupplied": 7388.65,
+          "urbanPaid": 5910.92,
+          "urbanBudgetGap": 0,
+          "urbanStockGap": 0,
+          "lodgerNeed": 0,
+          "lodgerSupplied": 0,
+          "lodgerPaid": 0,
+          "ruralPeopleMonths": 1638019.4033831358,
+          "urbanPeopleMonths": 206195.44733567306
+        },
+        "12": {
+          "ruralNeed": 117784.19,
+          "ruralSupplied": 117784.20000000001,
+          "ruralFromHousehold": 117308.70000000001,
+          "ruralFromMarket": 475.5,
+          "ruralPaid": 380.4,
+          "urbanNeed": 31380.699999999997,
+          "urbanSupplied": 31380.699999999997,
+          "urbanPaid": 25104.670000000002,
+          "urbanBudgetGap": 0,
+          "urbanStockGap": 0,
+          "lodgerNeed": 0,
+          "lodgerSupplied": 0,
+          "lodgerPaid": 0,
+          "ruralPeopleMonths": 4448373.721167445,
+          "urbanPeopleMonths": 875738.1204942161
+        },
+        "13": {
+          "ruralNeed": 139187.34,
+          "ruralSupplied": 139187.35,
+          "ruralFromHousehold": 138909.06,
+          "ruralFromMarket": 278.29,
+          "ruralPaid": 222.63,
+          "urbanNeed": 32285.89,
+          "urbanSupplied": 32285.89,
+          "urbanPaid": 25828.600000000006,
+          "urbanBudgetGap": 0,
+          "urbanStockGap": 0,
+          "lodgerNeed": 0,
+          "lodgerSupplied": 0,
+          "lodgerPaid": 0,
+          "ruralPeopleMonths": 5133424.681838602,
+          "urbanPeopleMonths": 901001.9226268863
+        },
+        "14": {
+          "ruralNeed": 95639.67000000001,
+          "ruralSupplied": 95639.70000000001,
+          "ruralFromHousehold": 94877.34000000001,
+          "ruralFromMarket": 762.36,
+          "ruralPaid": 609.89,
+          "urbanNeed": 16507.73,
+          "urbanSupplied": 16507.73,
+          "urbanPaid": 13206.12,
+          "urbanBudgetGap": 0,
+          "urbanStockGap": 0,
+          "lodgerNeed": 0,
+          "lodgerSupplied": 0,
+          "lodgerPaid": 0,
+          "ruralPeopleMonths": 4140202.592536807,
+          "urbanPeopleMonths": 460682.3748853068
+        },
+        "15": {
+          "ruralNeed": 51738.44,
+          "ruralSupplied": 51738.520000000004,
+          "ruralFromHousehold": 51557.770000000004,
+          "ruralFromMarket": 180.75,
+          "ruralPaid": 144.59,
+          "urbanNeed": 10811.15,
+          "urbanSupplied": 10811.15,
+          "urbanPaid": 8648.949999999999,
+          "urbanBudgetGap": 0,
+          "urbanStockGap": 0,
+          "lodgerNeed": 0,
+          "lodgerSupplied": 0,
+          "lodgerPaid": 0,
+          "ruralPeopleMonths": 2262456.2479816377,
+          "urbanPeopleMonths": 301705.95648755453
+        },
+        "16": {
+          "ruralNeed": 20294.899999999998,
+          "ruralSupplied": 20266.62,
+          "ruralFromHousehold": 20266.62,
+          "ruralFromMarket": 0,
+          "ruralPaid": 0,
+          "urbanNeed": 11215.600000000002,
+          "urbanSupplied": 8663.679999999998,
+          "urbanPaid": 9040.020000000002,
+          "urbanBudgetGap": 631.16,
+          "urbanStockGap": 1920.77,
+          "lodgerNeed": 0,
+          "lodgerSupplied": 0,
+          "lodgerPaid": 0,
+          "ruralPeopleMonths": 1040916.511207819,
+          "urbanPeopleMonths": 312994.59931739996
+        }
+      },
+      "foodIntervals": [
+        {
+          "end": [
+            1300,
+            2,
+            1
+          ],
+          "settlements": 1,
+          "ruralUnmetKg": 0,
+          "urbanUnmetKg": 0
+        },
+        {
+          "end": [
+            1300,
+            3,
+            1
+          ],
+          "settlements": 0,
+          "ruralUnmetKg": 0,
+          "urbanUnmetKg": 0
+        },
+        {
+          "end": [
+            1300,
+            4,
+            1
+          ],
+          "settlements": 2,
+          "ruralUnmetKg": 0,
+          "urbanUnmetKg": 0
+        },
+        {
+          "end": [
+            1300,
+            5,
+            1
+          ],
+          "settlements": 1,
+          "ruralUnmetKg": 0,
+          "urbanUnmetKg": 0
+        },
+        {
+          "end": [
+            1300,
+            6,
+            1
+          ],
+          "settlements": 1,
+          "ruralUnmetKg": 0,
+          "urbanUnmetKg": 0
+        },
+        {
+          "end": [
+            1300,
+            7,
+            1
+          ],
+          "settlements": 1,
+          "ruralUnmetKg": 0,
+          "urbanUnmetKg": 0
+        },
+        {
+          "end": [
+            1300,
+            8,
+            1
+          ],
+          "settlements": 1,
+          "ruralUnmetKg": 0,
+          "urbanUnmetKg": 0
+        },
+        {
+          "end": [
+            1300,
+            9,
+            1
+          ],
+          "settlements": 1,
+          "ruralUnmetKg": 0,
+          "urbanUnmetKg": 0
+        },
+        {
+          "end": [
+            1300,
+            10,
+            1
+          ],
+          "settlements": 1,
+          "ruralUnmetKg": 0,
+          "urbanUnmetKg": 39562.7906976744
+        },
+        {
+          "end": [
+            1300,
+            11,
+            1
+          ],
+          "settlements": 1,
+          "ruralUnmetKg": 0,
+          "urbanUnmetKg": 293669.7674418604
+        },
+        {
+          "end": [
+            1300,
+            12,
+            1
+          ],
+          "settlements": 1,
+          "ruralUnmetKg": 4.651162790587689,
+          "urbanUnmetKg": 427237.2093023256
+        },
+        {
+          "end": [
+            1301,
+            1,
+            1
+          ],
+          "settlements": 1,
+          "ruralUnmetKg": 13162.790697674503,
+          "urbanUnmetKg": 426469.7674418605
+        }
+      ],
+      "foodKgPerResidentYear": {
+        "ruralNeed": 139.9135988380779,
+        "ruralSupplied": 139.90995079858737,
+        "ruralHome": 139.37333055314812,
+        "ruralMarket": 0.5366202454392716,
+        "urbanNeed": 200.00001952860222,
+        "urbanSupplied": 198.04920800411566
+      },
+      "primaryFlows": {
+        "Wood": {
+          "sink:funeral": 2359.7320908795327,
+          "sink:navyExport": 5139.077757627394,
+          "source:clearanceSupply": 8578.0444,
+          "source:ruralHarvest": 235901.18850813888,
+          "sink:construction": 28252.749000000003,
+          "sink:recipeInput": 4554.103895521138,
+          "source:burgCraft": 87.74,
+          "sink:burgDemand": 1045.0400000000002,
+          "sink:householdHeating": 149326.44495651827,
+          "source:importArrival": 100.51999999999998,
+          "source:vesselSalvage": 20,
+          "sink:exportDeparture": 98
+        },
+        "Linen": {
+          "sink:funeral": 1.5104419478304074,
+          "source:importArrival": 11.188171172200772,
+          "source:burgCraft": 68.21417486178568,
+          "sink:recipeInput": 87.41979190195565,
+          "sink:burgDemand": 0.52,
+          "source:ruralCraft": 7.3816080705258
+        },
+        "Stone": {
+          "sink:funeral": 480.44828015685755,
+          "sink:smelting": 106,
+          "source:mineSupply": 6732,
+          "sink:construction": 133.00159999999994,
+          "sink:exportDeparture": 2.0300000000000002,
+          "source:importArrival": 6.16,
+          "sink:burgDemand": 3.14,
+          "sink:marketInvestment": 1094.822099999999
+        },
+        "Tools": {
+          "sink:marketInvestment": 26.564600000000002,
+          "source:burgCraft": 41.22,
+          "sink:recipeInput": 4.05,
+          "sink:burgDemand": 2.3492,
+          "source:importArrival": 11.579999999999998,
+          "sink:exportDeparture": 3
+        },
+        "Tobacco": {
+          "source:navyImport": 19.50934249391127,
+          "sink:characterLuxury": 5.13,
+          "sink:luxuryPurchase": 3.7200000000000006
+        },
+        "Glass": {
+          "source:navyImport": 58.864701099940895,
+          "sink:luxuryPurchase": 29.74,
+          "sink:characterLuxury": 11.370000000000001
+        },
+        "Soap": {
+          "source:navyImport": 10.79149132435379,
+          "sink:characterLuxury": 1.55
+        },
+        "Marble": {
+          "source:navyImport": 11.425281482214173,
+          "source:importArrival": 12.63,
+          "source:ruralHarvest": 4.7077590227127075,
+          "source:mineSupply": 78.80999999999997,
+          "sink:recipeInput": 9.92,
+          "sink:burgDemand": 4.680000000000001,
+          "sink:luxuryPurchase": 7.37,
+          "sink:characterLuxury": 56.61,
+          "sink:exportDeparture": 20.57
+        },
+        "Sugarcane": {
+          "source:navyImport": 29.15530033059165,
+          "sink:luxuryPurchase": 16.999999999999996,
+          "sink:burgDemand": 1.03,
+          "sink:characterLuxury": 0.42
+        },
+        "Perfume": {
+          "source:navyImport": 9.65295668081437,
+          "sink:luxuryPurchase": 2.46,
+          "sink:characterLuxury": 6.450000000000001
+        },
+        "Silk": {
+          "source:navyImport": 10.25063874894358,
+          "sink:recipeInput": 2.4499999999999997,
+          "sink:characterLuxury": 7.38
+        },
+        "Incense": {
+          "source:navyImport": 15.987261042003563,
+          "sink:recipeInput": 2.61,
+          "sink:characterLuxury": 12.24
+        },
+        "Spices": {
+          "source:navyImport": 7.142922120339508,
+          "sink:characterLuxury": 5.54,
+          "sink:luxuryPurchase": 0.6100000000000001
+        },
+        "Cocoa": {
+          "source:navyImport": 10.692566726393954,
+          "sink:characterLuxury": 1.2600000000000002,
+          "sink:luxuryPurchase": 7.850000000000001
+        },
+        "Salt": {
+          "sink:navyExport": 1562.9916665919186,
+          "source:mineSupply": 282400.43867601914,
+          "sink:householdFood": 242659.22193865152,
+          "sink:livestockFeed": 23283.199572534766,
+          "sink:recipeInput": 245.53262505417794,
+          "sink:exportDeparture": 1417.02,
+          "source:importArrival": 1429.94
+        },
+        "Amber": {
+          "source:navyImport": 8.82420376204776,
+          "source:importArrival": 29.269999999999996,
+          "source:ruralHarvest": 77.9125905662775,
+          "source:burgCraft": 29.78,
+          "sink:characterLuxury": 56.550000000000004,
+          "sink:exportDeparture": 29.509999999999998,
+          "sink:recipeInput": 29.87,
+          "sink:luxuryPurchase": 3.96
+        },
+        "Furs": {
+          "source:navyImport": 5.565633599281809,
+          "source:importArrival": 37.035361113005436,
+          "source:ruralHarvest": 1142.5597144469623,
+          "source:burgCraft": 79.12,
+          "sink:exportDeparture": 31.310000000000002,
+          "sink:luxuryPurchase": 615.14,
+          "sink:burgDemand": 0.21000000000000002,
+          "sink:characterLuxury": 390.4800000000001
+        },
+        "Coffee": {
+          "source:navyImport": 5.9357272128407255,
+          "sink:luxuryPurchase": 3.9000000000000004,
+          "sink:characterLuxury": 0.8
+        },
+        "Mahogany": {
+          "source:navyImport": 4.784662543575695,
+          "sink:luxuryPurchase": 0.6100000000000001,
+          "sink:characterLuxury": 1.69
+        },
+        "Tea": {
+          "source:navyImport": 8.021952667211014,
+          "sink:luxuryPurchase": 3.6100000000000003,
+          "sink:characterLuxury": 1.9699999999999998
+        },
+        "Books": {
+          "source:navyImport": 7.2381955365878055,
+          "sink:characterLuxury": 6.390000000000001
+        },
+        "Liquor": {
+          "source:navyImport": 15.211265728257077,
+          "sink:luxuryPurchase": 2.31,
+          "sink:characterLuxury": 11.830000000000002
+        },
+        "Fine Wool Garments": {
+          "source:navyImport": 5.455777916921767,
+          "sink:characterLuxury": 3.8500000000000005,
+          "sink:luxuryPurchase": 0.12000000000000001
+        },
+        "Jewelry": {
+          "source:navyImport": 1.3029532775336352,
+          "source:burgCraft": 34.059999999999995,
+          "sink:characterLuxury": 9.600000000000001,
+          "source:importArrival": 22.43
+        },
+        "Artworks": {
+          "source:navyImport": 1.8082035406604653,
+          "source:burgCraft": 7.25,
+          "sink:luxuryPurchase": 0.41000000000000003,
+          "sink:characterLuxury": 6.400000000000002
+        },
+        "Sheep": {
+          "source:importArrival": 16.51,
+          "source:ruralHarvest": 329,
+          "sink:recipeInput": 383.4785781519912,
+          "source:burgCraft": 37.45
+        },
+        "Preserved food": {
+          "source:importArrival": 78.91106803458183,
+          "source:ruralHarvest": 122.10437166273783,
+          "source:burgCraft": 245.53262505417794,
+          "sink:exportDeparture": 21.369999999999997,
+          "sink:burgDemand": 96.47999999999999
+        },
+        "Cloth": {
+          "source:importArrival": 5.6984207141360494,
+          "source:burgCraft": 57.54142870749658,
+          "sink:recipeInput": 167.26564748492476,
+          "source:ruralCraft": 101.98341890819457
+        },
+        "Barrels": {
+          "source:importArrival": 28.135440428818445,
+          "source:burgCraft": 130.8083659284605,
+          "sink:recipeInput": 50.77639165726104,
+          "sink:exportDeparture": 9.44
+        },
+        "Pig": {
+          "source:importArrival": 19.96,
+          "source:ruralHarvest": 2163,
+          "sink:recipeInput": 2277.4164434623904,
+          "source:burgCraft": 89.50999999999999
+        },
+        "Alum": {
+          "source:navyImport": 1.9198618454935261,
+          "source:ruralHarvest": 21.44067993015051,
+          "source:burgCraft": 2.4,
+          "sink:exportDeparture": 2.61,
+          "sink:characterLuxury": 18.750000000000004,
+          "source:importArrival": 2.42
+        },
+        "Sculptures": {
+          "source:navyImport": 1.1853672590539386,
+          "source:burgCraft": 19.58,
+          "sink:luxuryPurchase": 0.2,
+          "sink:characterLuxury": 9.400000000000002,
+          "source:importArrival": 5
+        },
+        "Boots": {
+          "sink:navyExport": 93.4789558048849,
+          "source:importArrival": 35.129999999999995,
+          "source:burgCraft": 107.77999999999999,
+          "sink:exportDeparture": 2,
+          "sink:burgDemand": 0.93
+        },
+        "Resin": {
+          "source:navyImport": 0.6752302426619095,
+          "source:ruralHarvest": 697.8379724958539,
+          "source:burgCraft": 23.560000000000002,
+          "sink:exportDeparture": 0.8799999999999999,
+          "sink:luxuryPurchase": 5.390000000000004,
+          "sink:characterLuxury": 495.7599999999999,
+          "source:importArrival": 3.66
+        },
+        "Instruments": {
+          "source:navyImport": 4.39334850494658,
+          "sink:luxuryPurchase": 2.94,
+          "sink:characterLuxury": 2.8700000000000006,
+          "source:burgCraft": 9.275223502371231,
+          "source:importArrival": 9.275223502371231
+        },
+        "Tapestries": {
+          "source:navyImport": 1.2530731525715821,
+          "source:burgCraft": 4.899999999999999,
+          "sink:characterLuxury": 2.2099999999999995,
+          "source:importArrival": 0.48000000000000004,
+          "sink:exportDeparture": 0.13
+        },
+        "Ivory": {
+          "source:navyImport": 1.7493936675753683,
+          "source:importArrival": 14.299999999999999,
+          "source:burgCraft": 38.02,
+          "sink:recipeInput": 13.209999999999999,
+          "sink:luxuryPurchase": 5.670000000000001,
+          "sink:characterLuxury": 42.81999999999995,
+          "sink:exportDeparture": 1.02
+        },
+        "Pearls": {
+          "source:navyImport": 1.1701965876706604,
+          "sink:characterLuxury": 0.30999999999999994
+        },
+        "Medicinal herbs": {
+          "source:navyImport": 1.461742688133782,
+          "source:ruralHarvest": 588.1318704605104,
+          "source:burgCraft": 50.16,
+          "sink:luxuryPurchase": 229.58000000000004,
+          "sink:characterLuxury": 361.31999999999994
+        },
+        "Gemstones": {
+          "source:navyImport": 1.8010685126274952,
+          "source:ruralHarvest": 2.1663464307785034,
+          "sink:characterLuxury": 1.52
+        },
+        "Coral": {
+          "source:navyImport": 1.1623448218037773,
+          "sink:characterLuxury": 0.43000000000000016
+        },
+        "Smoked Cheese": {
+          "source:navyImport": 1.3966627896987471,
+          "sink:luxuryPurchase": 0.3700000000000001,
+          "sink:characterLuxury": 1.6400000000000003,
+          "source:burgCraft": 1.4779797607499459,
+          "sink:burgDemand": 0.01
+        },
+        "Relics": {
+          "source:navyImport": 0.7298483079501946,
+          "source:burgCraft": 2.61,
+          "sink:characterLuxury": 1.3000000000000003
+        },
+        "Obsidian": {
+          "source:navyImport": 0.8952176463329554,
+          "sink:characterLuxury": 0.13
+        },
+        "Candles": {
+          "source:navyImport": 3.750166789154623,
+          "source:burgCraft": 17.96,
+          "sink:exportDeparture": 5.15,
+          "sink:characterLuxury": 25.87,
+          "source:importArrival": 8.15,
+          "sink:luxuryPurchase": 0.32999999999999996
+        },
+        "Garments": {
+          "source:importArrival": 16.751215949597178,
+          "source:burgCraft": 76.36878027406301,
+          "sink:exportDeparture": 1.44,
+          "source:ruralCraft": 109.12768637311004,
+          "sink:householdTextiles": 200.74255469969833
+        },
+        "Paper": {
+          "source:importArrival": 1.19,
+          "source:burgCraft": 4.32,
+          "sink:exportDeparture": 0.72
+        },
+        "Grain": {
+          "source:importArrival": 5499.287427425741,
+          "sink:recipeInput": 610.6000000000001,
+          "source:burgCraft": 55.05,
+          "sink:exportDeparture": 5520.639999999999
+        },
+        "Peat": {
+          "source:importArrival": 60.51,
+          "source:ruralHarvest": 491.41232699852435,
+          "source:burgCraft": 47.410000000000004,
+          "sink:exportDeparture": 52.76,
+          "sink:burgDemand": 13.92
+        },
+        "Slag": {
+          "source:importArrival": 0.19,
+          "source:smelterSupply": 142.68990000000002,
+          "sink:burgDemand": 0.4100000000000001
+        },
+        "Gold Ingot": {
+          "source:importArrival": 56.58,
+          "source:smelterSupply": 141.7197,
+          "sink:recipeInput": 3.7800000000000007,
+          "sink:exportDeparture": 80.13999999999999,
+          "sink:minting": 18.448999999999998
+        },
+        "Leather": {
+          "source:ruralHarvest": 1779.8581053761238,
+          "sink:recipeInput": 256.37,
+          "source:burgCraft": 395.46999999999997
+        },
+        "Reeds": {
+          "source:ruralHarvest": 786.0541982862355,
+          "source:burgCraft": 61.330000000000005,
+          "sink:recipeInput": 36.79,
+          "sink:exportDeparture": 31.42,
+          "sink:burgDemand": 72.4899999999999,
+          "source:importArrival": 27.59
+        },
+        "Flax": {
+          "source:ruralHarvest": 721.9605842438864,
+          "sink:recipeInput": 758.0585353624821,
+          "source:burgCraft": 15.260000000000003,
+          "sink:exportDeparture": 0.28,
+          "source:importArrival": 0.28
+        },
+        "Wool": {
+          "source:ruralHarvest": 22.360081221108572,
+          "sink:recipeInput": 22.47016896987814
+        },
+        "White sand": {
+          "source:ruralHarvest": 18.681733611226083,
+          "sink:exportDeparture": 4,
+          "source:importArrival": 4
+        },
+        "Clay": {
+          "source:ruralHarvest": 6.339157253503799,
+          "sink:exportDeparture": 0.96,
+          "source:importArrival": 0.96
+        },
+        "Beeswax": {
+          "source:ruralHarvest": 76.74160854335402,
+          "sink:burgDemand": 0.43,
+          "source:importArrival": 0.35
+        },
+        "Hemp": {
+          "source:ruralHarvest": 1988.8434206479785,
+          "source:burgCraft": 16.28,
+          "sink:recipeInput": 2047.8038914234642,
+          "sink:exportDeparture": 38.26,
+          "source:importArrival": 35.92999999999999
+        },
+        "Cotton": {
+          "source:ruralHarvest": 191.0798607391119,
+          "sink:recipeInput": 191.76588216009296,
+          "sink:exportDeparture": 0.9999999999999999,
+          "source:importArrival": 0.7699999999999999
+        },
+        "Horses": {
+          "source:ruralHarvest": 179,
+          "source:burgCraft": 28.540000000000003,
+          "sink:burgDemand": 194.89000000000001
+        },
+        "Slaves": {
+          "source:ruralHarvest": 94.08457835465668,
+          "source:burgCraft": 36.86
+        },
+        "Dogs": {
+          "source:ruralHarvest": 217
+        },
+        "Dyes": {
+          "source:ruralHarvest": 174.6018432497978,
+          "sink:recipeInput": 15.900000000000002,
+          "source:burgCraft": 3.42,
+          "sink:exportDeparture": 30.669999999999998,
+          "source:importArrival": 9.717028278808657
+        },
+        "Elephants": {
+          "source:ruralHarvest": 169,
+          "sink:recipeInput": 8.33,
+          "sink:burgDemand": 155.37999999999997
+        },
+        "Cats": {
+          "source:ruralHarvest": 137
+        },
+        "Pumice": {
+          "source:ruralHarvest": 290.62496569454674,
+          "sink:exportDeparture": 2.4699999999999998,
+          "source:importArrival": 2.4700000000000006
+        },
+        "Honey": {
+          "source:ruralHarvest": 1080.1349754657745,
+          "source:burgCraft": 11.45,
+          "sink:exportDeparture": 22.650000000000002,
+          "sink:burgDemand": 529.2299999999999,
+          "source:importArrival": 23.62
+        },
+        "Cattle": {
+          "source:ruralHarvest": 321,
+          "source:burgCraft": 75.25,
+          "sink:recipeInput": 396.26
+        },
+        "Goats": {
+          "source:ruralHarvest": 29,
+          "source:burgCraft": 29.790000000000003,
+          "sink:recipeInput": 58.79
+        },
+        "Chicken": {
+          "source:ruralHarvest": 614,
+          "source:burgCraft": 7.41,
+          "sink:burgDemand": 571.92
+        },
+        "Whales": {
+          "source:ruralHarvest": 206.79270791262388,
+          "sink:burgDemand": 95.53,
+          "sink:exportDeparture": 7.0600000000000005,
+          "source:importArrival": 7.0600000000000005
+        },
+        "Fodder": {
+          "source:ruralHarvest": 333.8303171674728,
+          "source:burgCraft": 10.559999999999999,
+          "sink:livestockFeed": 344.37805200836857,
+          "sink:exportDeparture": 16.97,
+          "source:importArrival": 16.97
+        },
+        "Nickel Ore": {
+          "source:mineSupply": 6.161999999999998,
+          "sink:smelting": 5.9052999999999995
+        },
+        "Iron Ore": {
+          "source:mineSupply": 462.76950000000005,
+          "sink:smelting": 461.0766,
+          "sink:exportDeparture": 3.25,
+          "source:importArrival": 2.7800000000000002
+        },
+        "Gold Ore": {
+          "source:mineSupply": 184.68359999999998,
+          "sink:smelting": 177.14960000000002
+        },
+        "Coal": {
+          "source:mineSupply": 52.429300000000005,
+          "sink:exportDeparture": 1.4700000000000002,
+          "source:importArrival": 1.3599999999999999,
+          "sink:householdHeating": 0.22
+        },
+        "Saltpeter": {
+          "source:mineSupply": 2.8127999999999997,
+          "sink:exportDeparture": 0.8,
+          "source:importArrival": 0.8
+        },
+        "Phosphate Rock": {
+          "source:mineSupply": 51.47449999999999,
+          "sink:exportDeparture": 26.36,
+          "source:importArrival": 23.96
+        },
+        "Crude Oil": {
+          "source:mineSupply": 25.3271
+        },
+        "Natural Gas": {
+          "source:mineSupply": 4.522500000000001
+        },
+        "Cinnabar": {
+          "source:mineSupply": 2.4941999999999998
+        },
+        "Lead Ore": {
+          "source:mineSupply": 70.42090000000002,
+          "sink:smelting": 69.96900000000001
+        },
+        "Silver Ore": {
+          "source:mineSupply": 812.5468000000001,
+          "sink:smelting": 807.3323
+        },
+        "Copper Ore": {
+          "source:mineSupply": 3.3213999999999997,
+          "sink:smelting": 3.1866000000000003
+        },
+        "Chromium Ore": {
+          "source:mineSupply": 30.446399999999993,
+          "sink:smelting": 29.616699999999998,
+          "sink:exportDeparture": 0.5900000000000001,
+          "source:importArrival": 0.5900000000000001
+        },
+        "Charcoal": {
+          "source:smelterSupply": 254.9789,
+          "sink:smelting": 570.7392,
+          "sink:recipeInput": 72.62,
+          "source:burgCraft": 476.5003704342657,
+          "sink:exportDeparture": 43.91000000000001,
+          "source:importArrival": 120.59239444733112
+        },
+        "Nickel Ingot": {
+          "source:smelterSupply": 4.724200000000001,
+          "sink:exportDeparture": 0.48,
+          "source:importArrival": 0.48
+        },
+        "Iron Ingot": {
+          "source:smelterSupply": 368.86319999999995,
+          "sink:recipeInput": 32.13641452347946,
+          "sink:exportDeparture": 135.65,
+          "source:importArrival": 105.49,
+          "sink:navyExport": 2.2407159047238223
+        },
+        "Lead Ingot": {
+          "source:smelterSupply": 9.049
+        },
+        "Silver Ingot": {
+          "source:smelterSupply": 645.8656000000001,
+          "sink:minting": 187.029,
+          "sink:recipeInput": 85.28999999999999
+        },
+        "Copper Ingot": {
+          "source:smelterSupply": 2.5492,
+          "sink:recipeInput": 0.01030580389152359
+        },
+        "Chromium Ingot": {
+          "source:smelterSupply": 7.525799999999999,
+          "sink:exportDeparture": 7.21,
+          "source:importArrival": 6.37
+        },
+        "Volcanic Ash": {
+          "source:mineSupply": 4692,
+          "sink:exportDeparture": 14.280000000000001,
+          "source:importArrival": 14.02
+        },
+        "Flour": {
+          "source:burgCraft": 4556.71,
+          "sink:exportDeparture": 1.7,
+          "sink:burgDemand": 3627.93,
+          "source:importArrival": 1.7,
+          "sink:recipeInput": 0.35
+        },
+        "Beer": {
+          "source:burgCraft": 96.27999999999993,
+          "sink:householdFood": 97.44,
+          "source:importArrival": 1.16
+        },
+        "Wheat": {
+          "sink:recipeInput": 2.5500000000000007
+        },
+        "Shellfish": {
+          "source:burgCraft": 23.39,
+          "sink:burgDemand": 11.62,
+          "sink:spoilage": 11.77
+        },
+        "Game": {
+          "source:burgCraft": 70.27,
+          "sink:burgDemand": 55.99999999999999,
+          "sink:spoilage": 14.270000000000001
+        },
+        "Bronze": {
+          "sink:recipeInput": 13.03,
+          "sink:exportDeparture": 3.5300000000000002,
+          "source:importArrival": 3.53
+        },
+        "Arms": {
+          "source:burgCraft": 37.17,
+          "sink:burgDemand": 39.2,
+          "sink:military": 0.6484,
+          "source:importArrival": 2.7199999999999998
+        },
+        "Arrows": {
+          "source:burgCraft": 36.0668304400331,
+          "sink:burgDemand": 37.21,
+          "sink:military": 0.05990000000000001,
+          "source:importArrival": 1.2381059141666668
+        },
+        "Ropes": {
+          "source:burgCraft": 36.77,
+          "sink:exportDeparture": 0.84,
+          "source:importArrival": 13.87,
+          "sink:navyExport": 0.710594766247339,
+          "sink:shipbuilding": 0.30000000000000004
+        },
+        "Linen Garments": {
+          "source:burgCraft": 1.5357986270804171,
+          "source:ruralCraft": 5.513228823082554,
+          "sink:householdTextiles": 7.048960516871913
+        },
+        "Sails": {
+          "source:burgCraft": 9.05,
+          "sink:burgDemand": 12.51,
+          "source:importArrival": 10.710000000000008,
+          "sink:shipbuilding": 0.30000000000000004
+        },
+        "Tallow": {
+          "sink:recipeInput": 17.96,
+          "source:burgCraft": 6335.7,
+          "sink:burgDemand": 3.200000000000001,
+          "sink:exportDeparture": 103.30000000000001,
+          "source:importArrival": 103.30000000000001
+        },
+        "Tar": {
+          "sink:burgDemand": 29.09,
+          "source:importArrival": 12.445321874705709,
+          "source:burgCraft": 22.948983995334505,
+          "sink:exportDeparture": 0.91,
+          "sink:shipbuilding": 0.15000000000000002
+        },
+        "Wool Cloth": {
+          "source:ruralCraft": 2.313420673222325,
+          "sink:recipeInput": 3.744996246177221,
+          "source:burgCraft": 1.4316074884240324
+        },
+        "Wool Garments": {
+          "source:ruralCraft": 1.9016787530380936,
+          "sink:householdTextiles": 3.1848339096081397,
+          "source:burgCraft": 1.2831551565700459
+        },
+        "Dried Fruits": {
+          "source:ruralHarvest": 6.188272861900073
+        },
+        "Cider": {
+          "source:ruralHarvest": 40.065979143152624,
+          "sink:householdFood": 40.06597914315263
+        },
+        "Bread": {
+          "source:burgCraft": 1.1600000000000001,
+          "sink:burgDemand": 1.1600000000000001
+        },
+        "Spinning Wheel": {
+          "sink:exportDeparture": 0.5,
+          "source:importArrival": 2.3542350948611945,
+          "source:burgCraft": 3.7681579305267987
+        },
+        "Wool Blankets": {
+          "source:ruralCraft": 3.1356369129562864,
+          "sink:householdTextiles": 3.1356369129562864
+        },
+        "Oats": {
+          "sink:recipeInput": 67.47
+        },
+        "Camels": {
+          "source:ruralHarvest": 1,
+          "sink:burgDemand": 1
+        },
+        "Cheese": {
+          "source:ruralHarvest": 15.591990606105233,
+          "sink:householdFood": 15.296386898041643,
+          "sink:recipeInput": 0.723613101958358,
+          "sink:exportDeparture": 0.18,
+          "source:importArrival": 0.18
+        },
+        "Barley": {
+          "sink:recipeInput": 24.730000000000008
+        },
+        "Harnesses": {
+          "source:burgCraft": 6.7700000000000005,
+          "sink:burgDemand": 9.200000000000003,
+          "source:importArrival": 2.4499999999999997
+        },
+        "Ash": {
+          "source:burgCraft": 0.043995676599068174
+        }
+      },
+      "snapshots": [
+        {
+          "date": [
+            1300,
+            1,
+            1
+          ],
+          "ruralPeople": 3579209.4272747636,
+          "urbanPeople": 614912.6551625639,
+          "ruralFoodUncoveredPeople": 0,
+          "ruralFoodStock": 1078214.955860138,
+          "cultivatedHa": 12813485.05380249,
+          "pastureHa": 3575789.321455163,
+          "heads": {
+            "Cattle": 32044.245689714026,
+            "Horses": 28017.30898583879,
+            "Sheep": 192316.17895239624,
+            "Goats": 38845.35411176436,
+            "Camels": 2241.5197421012895
+          },
+          "aggregateOccupancy": 0.06396315410638562,
+          "sheepPerResident": 0.045853738916592446,
+          "annualWoolPotentialKg": 242316.8339127073,
+          "effectiveWoolLaborAndFeedCoverage": 0.16329630652344979,
+          "woolStockKg": 557.2376577673037,
+          "feedTotals": {
+            "hayKg": 3863595.778197092,
+            "pastureGrownKg": 476417358.41232085,
+            "harvestedKg": 4545244.464191116,
+            "harvestLossKg": 681786.6696286679,
+            "storageLossKg": 0,
+            "unharvestedKg": 444613135.7051769,
+            "soldKg": 0,
+            "purchasedKg": 137.9836346449251,
+            "requiredKg": 27258978.242953528,
+            "pastureConsumedKg": 27258978.242953528,
+            "hayConsumedKg": 0,
+            "unmetKg": 0,
+            "spending": 1.7199999999999995,
+            "revenue": 0
+          }
+        },
+        {
+          "date": [
+            1301,
+            1,
+            1
+          ],
+          "ruralPeople": 3582680.0515688956,
+          "urbanPeople": 605015.5523292202,
+          "ruralFoodUncoveredPeople": 134951.7503604293,
+          "ruralFoodStock": 229522.8297900036,
+          "cultivatedHa": 12070876.997650146,
+          "pastureHa": 3119536.788561387,
+          "heads": {
+            "Cattle": 30458.530825935915,
+            "Horses": 25532.52945727831,
+            "Sheep": 180979.35408397223,
+            "Goats": 35641.66142646327,
+            "Camels": 1943.612039138669
+          },
+          "aggregateOccupancy": 0.06805142212127414,
+          "sheepPerResident": 0.0432169315065564,
+          "annualWoolPotentialKg": 257172.2281174512,
+          "effectiveWoolLaborAndFeedCoverage": 0.17656544605255645,
+          "woolStockKg": 1.903385126099097,
+          "feedTotals": {
+            "hayKg": 8086205.271817543,
+            "pastureGrownKg": 419538305.6966544,
+            "harvestedKg": 4364355.9464260675,
+            "harvestLossKg": 654653.3919639105,
+            "storageLossKg": 44205.50680402447,
+            "unharvestedKg": 389817633.77431256,
+            "soldKg": 100.58333333333331,
+            "purchasedKg": 258.1270903010033,
+            "requiredKg": 25356315.975914843,
+            "pastureConsumedKg": 25356315.975914843,
+            "hayConsumedKg": 0,
+            "unmetKg": 0,
+            "spending": 4.55,
+            "revenue": 1.4200000000000002
+          }
+        }
+      ],
+      "textileSnapshotTotals": {
+        "householdWardrobeLedgerDemandLots": 1248.7381172330358,
+        "householdWardrobeConsumptionLots": 210.97634912617838,
+        "householdBlanketLedgerDemandLots": 3101.2595510024375,
+        "householdBlanketConsumptionLots": 3.1356369129562864,
+        "householdWardrobeSpending": 25423.08,
+        "householdBlanketSpending": 19.53
+      }
+    }
+  ]
+}

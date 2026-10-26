@@ -1,6 +1,7 @@
 import { minmax, rn } from "../../hostUtils";
 import { getGoods, getMarkets, getWorldContext, isEconomyContextReady } from "../economyContext";
 import { applyConquestDisruptionToAcademies } from "./academyKnowledge";
+import { recordGoodFlow } from "./goodsBalanceLedger";
 import { applyGreatLibraryConquestDisruption } from "./greatLibrary";
 import { applyConquestDisruptionToGuilds } from "./guildKnowledge";
 
@@ -86,7 +87,16 @@ export function applyConquestPhysicalLoot(burgId: number, disciplineMultiplier =
     const taken = row.stock * share;
     const unitValue = row.price > 0 ? row.price : (goodsById.get(+id)?.value ?? 0);
     confiscatedValue += taken * CONQUEST_CONFISCATE_FRACTION * unitValue;
+    const openingStock = row.stock;
     row.stock = rn(Math.max(0, row.stock - taken), 2);
+    recordGoodFlow({
+      direction: "sink",
+      category: "theft",
+      goodId: +id,
+      units: openingStock - row.stock,
+      marketId: market.i,
+      burgId
+    });
   }
   if (confiscatedValue > 0 && conqueror?.i) {
     conqueror.treasury = rn((conqueror.treasury || 0) + rn(confiscatedValue, 2), 2);

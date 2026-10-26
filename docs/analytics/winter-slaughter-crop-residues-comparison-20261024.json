@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 1,
+  "months": 12,
+  "auditSourceTreeSha256": "ed8d16f77af973ebfdccf3bb1adb167b9982e35ebec29dd34c5c9ee720c6856c",
+  "runtimeSourceTreeSha256": "a44399c83f17dca0f8b8badd3249de482d27d003c5d42685fcb77a3d449eb6b4",
+  "validationOnlyChangesAfterAuditStarted": [
+    {
+      "path": "src/simulation/cropResidues.node.test.ts",
+      "auditSha256": "9c68c53ef57efa14da9df5419dccc4d4e866f2b47f666f8e5f8d3199056d5cd8",
+      "currentSha256": "65939390dbbfe5008d920475be2c7cd35cf1dfa0a409804af8020d7224bd56a1"
+    }
+  ],
+  "note": "Only a test assertion was moved after adding explicit sheep to the fixture. Runtime sources match the audit exactly.",
+  "previousWorldFeedTotalsFirst12": {
+    "off": {
+      "requiredKg": 322599006.8093784,
+      "pastureConsumedKg": 154785944.64407516,
+      "hayConsumedKg": 12990177.98178776,
+      "unmetKg": 154822884.18351555,
+      "purchasedKg": 215567.5174316879
+    },
+    "experimental-temperate": {
+      "requiredKg": 322328697.41515684,
+      "pastureConsumedKg": 154623426.9165203,
+      "hayConsumedKg": 12988521.306015156,
+      "unmetKg": 154716749.1926215,
+      "purchasedKg": 216706.88887812448
+    }
+  },
+  "world": {
+    "off": {
+      "requiredKg": 322599006.8093784,
+      "pastureConsumedKg": 154785944.64407516,
+      "hayConsumedKg": 12990177.98178776,
+      "cropResidueFeedKg": 0,
+      "unmetKg": 154822884.18351555,
+      "purchasedKg": 215567.5174316879
+    },
+    "experimental": {
+      "requiredKg": 322328697.41515684,
+      "pastureConsumedKg": 154623426.9165203,
+      "hayConsumedKg": 12988521.306015156,
+      "cropResidueFeedKg": 0,
+      "unmetKg": 154716749.1926215,
+      "purchasedKg": 216706.88887812448
+    },
+    "residues": {
+      "schemaVersion": 1,
+      "policyId": "temperate-cereal-residue-experiment-v1",
+      "receiptCount": 84,
+      "sampleCount": 989,
+      "generatedKg": 8189957.177805182,
+      "soilReservedKg": 4094978.588902591,
+      "otherUsesReservedKg": 1637991.4355610367,
+      "collectedKg": 0,
+      "lossKg": 2456987.1533415546,
+      "strawConsumedKg": 0,
+      "stubbleConsumedKg": 0,
+      "feedEquivalentKg": 0,
+      "workDays": 0,
+      "remainingKg": 0,
+      "maximumAllocationErrorKg": 1.4551915228366852e-11,
+      "maximumStockBalanceErrorKg": 1.4551915228366852e-11,
+      "workOverdraftSamples": 0
+    },
+    "sourceCellPeriodsWithHerds": 336,
+    "sourceCellPeriodsWithPositiveWorkReservation": 1
+  },
+  "province": {
+    "off": {
+      "requiredKg": 1896193.4890695973,
+      "pastureConsumedKg": 1796316.1437435555,
+      "hayConsumedKg": 99877.3453260418,
+      "cropResidueFeedKg": 0,
+      "unmetKg": 0,
+      "purchasedKg": 0
+    },
+    "experimental": {
+      "requiredKg": 1896194.149028886,
+      "pastureConsumedKg": 1796316.8037028443,
+      "hayConsumedKg": 99877.3453260418,
+      "cropResidueFeedKg": 0,
+      "unmetKg": 0,
+      "purchasedKg": 0
+    }
+  }
+}

@@ -39,7 +39,7 @@ export interface CouncilSupportBreakdown {
  * Living officers with high honor/rationality raise support; low values drag it down.
  */
 export function getCouncilSupport(
-  state: Pick<State, "i" | "form" | "debtCoupSupportPenalty" | "religiousUnrest">
+  state: Pick<State, "i" | "form" | "debtCoupSupportPenalty" | "religiousUnrest" | "saltPolicy">
 ): CouncilSupportBreakdown {
   const form = state.form || "Monarchy";
   const formBase = COUNCIL_BASE_SUPPORT_BY_FORM[form] ?? COUNCIL_BASE_SUPPORT_BY_FORM.Monarchy;
@@ -98,7 +98,12 @@ export function getCouncilSupport(
     notes.push(`Religious unrest support penalty −${religiousUnrestPenalty}.`);
   }
 
-  const support = rn(Math.max(0, Math.min(100, formBase + officerBonus - coupPenalty - religiousUnrestPenalty)), 1);
+  const saltPenalty = Math.max(0, (state.saltPolicy?.unrest ?? 0) - 40) * 0.2 + (state.saltPolicy?.revolt ? 10 : 0);
+  if (saltPenalty > 0) notes.push(`Salt resistance support penalty −${rn(saltPenalty, 1)}.`);
+  const support = rn(
+    Math.max(0, Math.min(100, formBase + officerBonus - coupPenalty - religiousUnrestPenalty - saltPenalty)),
+    1
+  );
   return { support, formBase, officerBonus, officerCount, notes };
 }
 

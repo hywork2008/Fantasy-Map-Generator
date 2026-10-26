@@ -1,0 +1,4576 @@
+{
+  "schemaVersion": 1,
+  "summarizerSha256": "e6a8f3702e6cd0f14f7afd1ed150c9fff024d881178da736744cddcbc2b89f96",
+  "notes": [
+    "feedYears uses distinct actual feed settlements in each 12 calendar intervals; missing periods are not assumed fed. Forecast fields in market end are not summed actual flows.",
+    "Annual totals use exactly the first 12 intervals; the 13th month is a separate transition check.",
+    "Food is ledger units unless labelled kg; feed is dry-matter kg. Goods flows retain catalog units.",
+    "Feed totals are endpoint samples, not a tick-exact feeding history. Wool is actual market inflow.",
+    "World aggregate pasture occupancy cannot rule out individual-cell or seasonal shortages.",
+    "Inputs are independent source variants labelled by their paths; compare recorded source hashes and experimental notes.",
+    "livestockDispatch is null for older audits. It reconciles source herd debit to actual rural market credit, not later processing or transport ownership.",
+    "foodImports is empty for older audits without import observations, not evidence of zero imports.",
+    "Import outcomes count evaluated supplier opportunities, not people. DeliveredBeforeRounding is not the rounded inventory credit.",
+    "A ledger created at consumption time does not transfer public stocks from the former market."
+  ],
+  "worlds": [
+    {
+      "path": "docs/analytics/raw/economy-e1-feed-calendar-final-world-102-20261024.json",
+      "feedYears": [
+        {
+          "year": 1,
+          "end": {
+            "date": [
+              1301,
+              1,
+              1
+            ],
+            "ruralPeople": 3582679.5359812677,
+            "urbanPeople": 605466.3648403045,
+            "heads": {
+              "Cattle": 30448.290282227674,
+              "Horses": 25530.065570578303,
+              "Sheep": 180878.63506670884,
+              "Goats": 35642.15479569257,
+              "Camels": 1943.6091753356666
+            },
+            "cultivatedHa": 12073895.535339355,
+            "pastureHa": 3119536.6355573935,
+            "aggregateOccupancy": 0.0680321804360105,
+            "cellsOverModelFootprint": 0,
+            "annualWoolPotentialKg": 257099.7074031204,
+            "effectiveWoolLaborAndFeedCoverage": 0.1763331779466921,
+            "woolStockKg": 2.3126999965770443,
+            "wealth": {
+              "urbanPop": 605.472,
+              "ruralPop": 3582.68,
+              "stateTreasury": 356437.32,
+              "statePurse": 0,
+              "stateDepartments": 358.66,
+              "burgTreasury": 145423.91,
+              "urbanHouseholds": 106492.36,
+              "guilds": 1417.55,
+              "marketBalance": 205893.94,
+              "marketPayable": 0,
+              "tradeCapital": 33981.06,
+              "ruralHouseholds": 160636.6,
+              "characters": 0
+            }
+          },
+          "settlementCount": 12,
+          "periods": [
+            15601,
+            15602,
+            15603,
+            15604,
+            15605,
+            15606,
+            15607,
+            15608,
+            15609,
+            15610,
+            15611,
+            15612
+          ],
+          "settlements": [
+            {
+              "date": {
+                "year": 1300,
+                "month": 2,
+                "day": 1,
+                "tick": 31
+              },
+              "period": 15601,
+              "month": 2,
+              "totals": {
+                "requiredKg": 27219036.361246996,
+                "pastureGrownKg": 441591328.5489241,
+                "pastureConsumedKg": 27219036.361246996,
+                "harvestedKg": 5375771.209214948,
+                "harvestLossKg": 806365.6813822427,
+                "storageLossKg": 38635.95778197094,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 408996520.9784621,
+                "purchasedKg": 1140.2988764044944,
+                "soldKg": 1001.0452961672472,
+                "unmetKg": 0,
+                "spending": 18.18,
+                "revenue": 13.52,
+                "referenceHarvestCapacityKg": 5375771.430889207
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 4,
+                "day": 1,
+                "tick": 90
+              },
+              "period": 15602,
+              "month": 3,
+              "totals": {
+                "requiredKg": 27179084.52898231,
+                "pastureGrownKg": 335335369.840598,
+                "pastureConsumedKg": 27179084.52898231,
+                "harvestedKg": 4088900.7873022836,
+                "harvestLossKg": 613335.1180953427,
+                "storageLossKg": 83945.04601828069,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 304067384.52431333,
+                "purchasedKg": 141.09999999999997,
+                "soldKg": 0,
+                "unmetKg": 0,
+                "spending": 2.4899999999999993,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 4088900.7873022836
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 4,
+                "day": 1,
+                "tick": 90
+              },
+              "period": 15603,
+              "month": 4,
+              "totals": {
+                "requiredKg": 27139132.696717627,
+                "pastureGrownKg": 149727815.85266966,
+                "pastureConsumedKg": 18461208.43827405,
+                "harvestedKg": 1880610.9747422133,
+                "harvestLossKg": 282091.64621133206,
+                "storageLossKg": 117862.66325016729,
+                "hayConsumedKg": 78700.70600641055,
+                "unharvestedKg": 129385996.43965338,
+                "purchasedKg": 142.79999999999995,
+                "soldKg": 0,
+                "unmetKg": 8599223.552437175,
+                "spending": 2.520000000000001,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 1880610.9747422133
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 5,
+                "day": 1,
+                "tick": 120
+              },
+              "period": 15604,
+              "month": 5,
+              "totals": {
+                "requiredKg": 27099175.914415665,
+                "pastureGrownKg": 32735338.9164729,
+                "pastureConsumedKg": 4832786.339418545,
+                "harvestedKg": 92709.35423649265,
+                "harvestLossKg": 13906.403135473902,
+                "storageLossKg": 131883.65084291034,
+                "hayConsumedKg": 980509.8591236878,
+                "unharvestedKg": 27809843.22281786,
+                "purchasedKg": 142.8000000000001,
+                "soldKg": 0,
+                "unmetKg": 21285879.715873435,
+                "spending": 2.5200000000000005,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 92709.35423649265
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 6,
+                "day": 1,
+                "tick": 151
+              },
+              "period": 15605,
+              "month": 6,
+              "totals": {
+                "requiredKg": 27059213.203418598,
+                "pastureGrownKg": 1617751.4110132977,
+                "pastureConsumedKg": 238868.13085960157,
+                "harvestedKg": 0,
+                "harvestLossKg": 0,
+                "storageLossKg": 121549.1732542545,
+                "hayConsumedKg": 3276669.887200819,
+                "unharvestedKg": 1378883.2801536964,
+                "purchasedKg": 147.90000000000003,
+                "soldKg": 0,
+                "unmetKg": 23543675.18535818,
+                "spending": 2.6099999999999994,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 0
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 7,
+                "day": 1,
+                "tick": 181
+              },
+              "period": 15606,
+              "month": 7,
+              "totals": {
+                "requiredKg": 27019244.594665714,
+                "pastureGrownKg": 0,
+                "pastureConsumedKg": 0,
+                "harvestedKg": 0,
+                "harvestLossKg": 0,
+                "storageLossKg": 87568.46164970378,
+                "hayConsumedKg": 3380032.71927544,
+                "unharvestedKg": 0,
+                "purchasedKg": 147.90000000000003,
+                "soldKg": 0,
+                "unmetKg": 23639211.875390276,
+                "spending": 2.6099999999999994,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 0
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 8,
+                "day": 1,
+                "tick": 212
+              },
+              "period": 15607,
+              "month": 8,
+              "totals": {
+                "requiredKg": 26979270.06463699,
+                "pastureGrownKg": 0,
+                "pastureConsumedKg": 0,
+                "harvestedKg": 0,
+                "harvestLossKg": 0,
+                "storageLossKg": 52893.92884045234,
+                "hayConsumedKg": 3340063.289246719,
+                "unharvestedKg": 0,
+                "purchasedKg": 152.99999999999997,
+                "soldKg": 0,
+                "unmetKg": 23639206.775390267,
+                "spending": 2.6999999999999997,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 0
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 9,
+                "day": 1,
+                "tick": 243
+              },
+              "period": 15608,
+              "month": 9,
+              "totals": {
+                "requiredKg": 26939288.921534047,
+                "pastureGrownKg": 687726.1751531335,
+                "pastureConsumedKg": 101198.46303743104,
+                "harvestedKg": 0,
+                "harvestLossKg": 0,
+                "storageLossKg": 18965.886659580618,
+                "hayConsumedKg": 1783041.3584261339,
+                "unharvestedKg": 586527.7121157023,
+                "purchasedKg": 152.99999999999997,
+                "soldKg": 0,
+                "unmetKg": 25055049.10007048,
+                "spending": 2.6999999999999997,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 0
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 10,
+                "day": 1,
+                "tick": 273
+              },
+              "period": 15609,
+              "month": 10,
+              "totals": {
+                "requiredKg": 26899301.67171777,
+                "pastureGrownKg": 31414810.74744696,
+                "pastureConsumedKg": 3843592.3626372507,
+                "harvestedKg": 13195.978636313805,
+                "harvestLossKg": 1979.396795447071,
+                "storageLossKg": 947.3442087234707,
+                "hayConsumedKg": 93941.49806830585,
+                "unharvestedKg": 27558022.4061734,
+                "purchasedKg": 154.42140468227427,
+                "soldKg": 0,
+                "unmetKg": 22961767.811012212,
+                "spending": 2.7200000000000006,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 13195.978636313805
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 11,
+                "day": 1,
+                "tick": 304
+              },
+              "period": 15610,
+              "month": 11,
+              "totals": {
+                "requiredKg": 26859370.451687224,
+                "pastureGrownKg": 150568166.38367918,
+                "pastureConsumedKg": 20723331.497675084,
+                "harvestedKg": 1454898.7228427036,
+                "harvestLossKg": 218234.80842640557,
+                "storageLossKg": 112.16581840866735,
+                "hayConsumedKg": 156.12140468227423,
+                "unharvestedKg": 128389936.16316137,
+                "purchasedKg": 156.12140468227423,
+                "soldKg": 0,
+                "unmetKg": 6135882.832607462,
+                "spending": 2.749999999999999,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 1454898.7228427036
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 12,
+                "day": 1,
+                "tick": 334
+              },
+              "period": 15611,
+              "month": 12,
+              "totals": {
+                "requiredKg": 26819561.00995478,
+                "pastureGrownKg": 336570196.5477923,
+                "pastureConsumedKg": 26819561.00995478,
+                "harvestedKg": 3528213.32653652,
+                "harvestLossKg": 529231.998980478,
+                "storageLossKg": 12477.68330438756,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 306222422.2113009,
+                "purchasedKg": 157.8270903010033,
+                "soldKg": 0,
+                "unmetKg": 0,
+                "spending": 2.7799999999999994,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 3528213.32653652
+              }
+            },
+            {
+              "date": {
+                "year": 1301,
+                "month": 1,
+                "day": 1,
+                "tick": 365
+              },
+              "period": 15612,
+              "month": 1,
+              "totals": {
+                "requiredKg": 25348863.81720758,
+                "pastureGrownKg": 419538281.67432684,
+                "pastureConsumedKg": 25348863.81720758,
+                "harvestedKg": 4542108.221704184,
+                "harvestLossKg": 681316.2332556274,
+                "storageLossKg": 42344.29801780711,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 389647309.635415,
+                "purchasedKg": 132357.0048506849,
+                "soldKg": 132665.0612745098,
+                "unmetKg": 0,
+                "spending": 1559.4599999999994,
+                "revenue": 1861.3,
+                "referenceHarvestCapacityKg": 4542110.328937898
+              }
+            }
+          ],
+          "totals": {
+            "requiredKg": 322560543.23618513,
+            "pastureGrownKg": 1899786786.098076,
+            "pastureConsumedKg": 154767530.9492936,
+            "harvestedKg": 20976408.57521566,
+            "harvestLossKg": 3146461.2862823503,
+            "storageLossKg": 709186.2596466474,
+            "hayConsumedKg": 12933115.438752199,
+            "unharvestedKg": 1724042846.5735664,
+            "purchasedKg": 134994.17362675493,
+            "soldKg": 133666.10657067702,
+            "unmetKg": 154859896.8481396,
+            "spending": 1604.0399999999995,
+            "revenue": 1874.82,
+            "referenceHarvestCapacityKg": 20976410.904123634
+          },
+          "unmetShare": 0.48009559785106193,
+          "byMarket": {
+            "1": {
+              "totals": {
+                "requiredKg": 4490233.35527392,
+                "pastureGrownKg": 92896872.76958525,
+                "pastureConsumedKg": 1978036.0701518976,
+                "harvestedKg": 1441152.6702561467,
+                "harvestLossKg": 216172.9005384221,
+                "storageLossKg": 51883.06519744318,
+                "hayConsumedKg": 944718.5645835743,
+                "unharvestedKg": 89477684.02917722,
+                "purchasedKg": 28674.88902418775,
+                "soldKg": 28675.628629500578,
+                "unmetKg": 1567478.7205384476,
+                "spending": 346.18,
+                "revenue": 404.21999999999997,
+                "referenceHarvestCapacityKg": 1441153.2193667
+              },
+              "minRuralCash": 3012.63,
+              "minMarketCash": 4454.49,
+              "peakMarketFodderKg": 0.739605312826086,
+              "end": {
+                "hayKg": 503848.6483845135,
+                "marketFodderKg": 0.739605312826086,
+                "ruralCash": 11456.9,
+                "marketCash": 19328.71,
+                "assignedWorkers": 38.80112814903259,
+                "requiredWorkers": 82.1968816712868,
+                "seasonalGapKg": 2216566.257531106,
+                "annualPlannedRawHayKg": 2503027.132834893
+              }
+            },
+            "2": {
+              "totals": {
+                "requiredKg": 712504.9695902317,
+                "pastureGrownKg": 8840474.54105452,
+                "pastureConsumedKg": 303976.7932762305,
+                "harvestedKg": 0,
+                "harvestLossKg": 0,
+                "storageLossKg": 0,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 8536497.747778293,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 408528.1763140012,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 0
+              },
+              "minRuralCash": 203.11,
+              "minMarketCash": 2027.2,
+              "peakMarketFodderKg": 0,
+              "end": {
+                "hayKg": 0,
+                "marketFodderKg": 0,
+                "ruralCash": 2765.07,
+                "marketCash": 3345.02,
+                "assignedWorkers": 0,
+                "requiredWorkers": 13.27251849459771,
+                "seasonalGapKg": 390107.5188686943,
+                "annualPlannedRawHayKg": 398973.8307561327
+              }
+            },
+            "3": {
+              "totals": {
+                "requiredKg": 13041434.479693012,
+                "pastureGrownKg": 106194776.31228037,
+                "pastureConsumedKg": 7126414.892467817,
+                "harvestedKg": 2703834.748949412,
+                "harvestLossKg": 405575.21234241186,
+                "storageLossKg": 91401.70405334009,
+                "hayConsumedKg": 1663334.7195126629,
+                "unharvestedKg": 96364526.67086315,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 4251684.867712534,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 2703834.748949412
+              },
+              "minRuralCash": 2413.5,
+              "minMarketCash": 3657.1,
+              "peakMarketFodderKg": 0,
+              "end": {
+                "hayKg": 1025492.6895746012,
+                "marketFodderKg": 0,
+                "ruralCash": 5461.8,
+                "marketCash": 10550.4,
+                "assignedWorkers": 86.27376294136047,
+                "requiredWorkers": 207.5635243063274,
+                "seasonalGapKg": 5137403.215819958,
+                "annualPlannedRawHayKg": 5754637.407338743
+              }
+            },
+            "4": {
+              "totals": {
+                "requiredKg": 14176187.3418924,
+                "pastureGrownKg": 378205819.9860507,
+                "pastureConsumedKg": 8519977.983142078,
+                "harvestedKg": 983851.7911920799,
+                "harvestLossKg": 147577.768678812,
+                "storageLossKg": 32920.46006742366,
+                "hayConsumedKg": 580001.3875923522,
+                "unharvestedKg": 368701990.21171653,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 5076207.971157968,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 983851.7911920799
+              },
+              "minRuralCash": 12918.21,
+              "minMarketCash": 13439.29,
+              "peakMarketFodderKg": 0,
+              "end": {
+                "hayKg": 469625.4689883597,
+                "marketFodderKg": 0,
+                "ruralCash": 13323.39,
+                "marketCash": 27369.97,
+                "assignedWorkers": 45.0826849937439,
+                "requiredWorkers": 234.87202468769553,
+                "seasonalGapKg": 5715238.571953592,
+                "annualPlannedRawHayKg": 6111670.9291928485
+              }
+            },
+            "5": {
+              "totals": {
+                "requiredKg": 14820120.59862142,
+                "pastureGrownKg": 152117332.26964837,
+                "pastureConsumedKg": 9329684.391333386,
+                "harvestedKg": 3755402.0872546677,
+                "harvestLossKg": 563310.3130882002,
+                "storageLossKg": 130513.3602282028,
+                "hayConsumedKg": 2362399.57719742,
+                "unharvestedKg": 139032245.79106027,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 3128036.6300906097,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 3755402.0872546677
+              },
+              "minRuralCash": 4327.57,
+              "minMarketCash": 6406.66,
+              "peakMarketFodderKg": 0,
+              "end": {
+                "hayKg": 1359079.8195195813,
+                "marketFodderKg": 0,
+                "ruralCash": 5819.8,
+                "marketCash": 11800.16,
+                "assignedWorkers": 120.27970027923584,
+                "requiredWorkers": 233.79454253002902,
+                "seasonalGapKg": 5297506.124871259,
+                "annualPlannedRawHayKg": 6077810.275990295
+              }
+            },
+            "6": {
+              "totals": {
+                "requiredKg": 39554746.134849556,
+                "pastureGrownKg": 61329542.64890373,
+                "pastureConsumedKg": 19394073.896103133,
+                "harvestedKg": 1840776.544514035,
+                "harvestLossKg": 276116.4816771053,
+                "storageLossKg": 60487.06328360707,
+                "hayConsumedKg": 1126141.5087017734,
+                "unharvestedKg": 40094692.20828655,
+                "purchasedKg": 22444.303797468354,
+                "soldKg": 22444.85294117647,
+                "unmetKg": 19034530.730044648,
+                "spending": 208.59999999999997,
+                "revenue": 305.25,
+                "referenceHarvestCapacityKg": 1840776.8646921485
+              },
+              "minRuralCash": 2891.96,
+              "minMarketCash": 2764.55,
+              "peakMarketFodderKg": 0.5491437081161621,
+              "end": {
+                "hayKg": 695207.9210904717,
+                "marketFodderKg": 0.5491437081161621,
+                "ruralCash": 6679.07,
+                "marketCash": 7601.86,
+                "assignedWorkers": 55.74723696708679,
+                "requiredWorkers": 701.7917961198525,
+                "seasonalGapKg": 19193164.78593688,
+                "annualPlannedRawHayKg": 19654388.073473416
+              }
+            },
+            "7": {
+              "totals": {
+                "requiredKg": 74337950.64424765,
+                "pastureGrownKg": 110176895.57169868,
+                "pastureConsumedKg": 32727768.824447785,
+                "harvestedKg": 544960.8218364983,
+                "harvestLossKg": 81744.12327547476,
+                "storageLossKg": 16630.665630073425,
+                "hayConsumedKg": 331343.35844385106,
+                "unharvestedKg": 76904165.92541438,
+                "purchasedKg": 63589.75077720207,
+                "soldKg": 63031.749999999985,
+                "unmetKg": 41278838.461356044,
+                "spending": 725.1299999999997,
+                "revenue": 889.8599999999999,
+                "referenceHarvestCapacityKg": 544961.2661637606
+              },
+              "minRuralCash": 9025.2,
+              "minMarketCash": 5156.73,
+              "peakMarketFodderKg": 0.44922279792444897,
+              "end": {
+                "hayKg": 213862.54537147234,
+                "marketFodderKg": 0.44922279792444897,
+                "ruralCash": 15524.64,
+                "marketCash": 22291.31,
+                "assignedWorkers": 14.673428773880005,
+                "requiredWorkers": 1386.7158584219608,
+                "seasonalGapKg": 39914636.540895626,
+                "annualPlannedRawHayKg": 40445417.27017034
+              }
+            },
+            "8": {
+              "totals": {
+                "requiredKg": 17283028.997143462,
+                "pastureGrownKg": 113308618.58227246,
+                "pastureConsumedKg": 10371263.445287237,
+                "harvestedKg": 2701060.9326697187,
+                "harvestLossKg": 405159.1399004579,
+                "storageLossKg": 86474.17265728362,
+                "hayConsumedKg": 1588452.191460214,
+                "unharvestedKg": 100236294.2043155,
+                "purchasedKg": 4176.486486486487,
+                "soldKg": 4640.999999999999,
+                "unmetKg": 5323313.36039601,
+                "spending": 63.63,
+                "revenue": 65.52,
+                "referenceHarvestCapacityKg": 2701061.321183544
+              },
+              "minRuralCash": 3112.18,
+              "minMarketCash": 4278.63,
+              "peakMarketFodderKg": 0.4135135135134149,
+              "end": {
+                "hayKg": 1093059.1458327626,
+                "marketFodderKg": 0.4135135135134149,
+                "ruralCash": 6972.56,
+                "marketCash": 13869.49,
+                "assignedWorkers": 97.30766201019287,
+                "requiredWorkers": 303.28991408441897,
+                "seasonalGapKg": 7375910.131041415,
+                "annualPlannedRawHayKg": 7970381.903081619
+              }
+            },
+            "9": {
+              "totals": {
+                "requiredKg": 0,
+                "pastureGrownKg": 37021391.79137156,
+                "pastureConsumedKg": 0,
+                "harvestedKg": 0,
+                "harvestLossKg": 0,
+                "storageLossKg": 0,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 37021391.79137156,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 0,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 0
+              },
+              "minRuralCash": 1431.56,
+              "minMarketCash": 3098.27,
+              "peakMarketFodderKg": 0,
+              "end": {
+                "hayKg": 0,
+                "marketFodderKg": 0,
+                "ruralCash": 2262.2,
+                "marketCash": 3098.27,
+                "assignedWorkers": 0,
+                "requiredWorkers": 0,
+                "seasonalGapKg": 0,
+                "annualPlannedRawHayKg": 0
+              }
+            },
+            "10": {
+              "totals": {
+                "requiredKg": 32550395.454801787,
+                "pastureGrownKg": 63148533.87130053,
+                "pastureConsumedKg": 13444935.029169224,
+                "harvestedKg": 62581.419676493504,
+                "harvestLossKg": 9387.212951474026,
+                "storageLossKg": 2255.0708186170514,
+                "hayConsumedKg": 40555.26561660279,
+                "unharvestedKg": 49641017.422454834,
+                "purchasedKg": 3430.5857740585757,
+                "soldKg": 3431.166666666666,
+                "unmetKg": 19064905.160015963,
+                "spending": 48.229999999999976,
+                "revenue": 48.43999999999999,
+                "referenceHarvestCapacityKg": 62581.55659691964
+              },
+              "minRuralCash": 4143.81,
+              "minMarketCash": 5164.48,
+              "peakMarketFodderKg": 0.5808926080890231,
+              "end": {
+                "hayKg": 22943.085542880857,
+                "marketFodderKg": 0.5808926080890231,
+                "ruralCash": 5834.66,
+                "marketCash": 14299.5,
+                "assignedWorkers": 1.581981897354126,
+                "requiredWorkers": 618.4591114656331,
+                "seasonalGapKg": 18230985.983909268,
+                "annualPlannedRawHayKg": 18511899.737952355
+              }
+            },
+            "11": {
+              "totals": {
+                "requiredKg": 446944.5779840476,
+                "pastureGrownKg": 68240824.29448885,
+                "pastureConsumedKg": 222256.4601967603,
+                "harvestedKg": 0,
+                "harvestLossKg": 0,
+                "storageLossKg": 0,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 68018567.8342921,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 224688.1177872872,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 0
+              },
+              "minRuralCash": 2996.02,
+              "minMarketCash": 613.3356948791742,
+              "peakMarketFodderKg": 0,
+              "end": {
+                "hayKg": 0,
+                "marketFodderKg": 0,
+                "ruralCash": 6883.48,
+                "marketCash": 6244.93,
+                "assignedWorkers": 0,
+                "requiredWorkers": 7.687437872057808,
+                "seasonalGapKg": 210098.17224412586,
+                "annualPlannedRawHayKg": 211192.04860703758
+              }
+            },
+            "12": {
+              "totals": {
+                "requiredKg": 14138020.31736128,
+                "pastureGrownKg": 254561434.45648715,
+                "pastureConsumedKg": 7684392.597346082,
+                "harvestedKg": 2033508.084888214,
+                "harvestLossKg": 305026.2127332321,
+                "storageLossKg": 64930.49642495612,
+                "hayConsumedKg": 1219135.0233930666,
+                "unharvestedKg": 244843533.77425292,
+                "purchasedKg": 11441.660777385156,
+                "soldKg": 11441.708333333332,
+                "unmetKg": 5234492.696622128,
+                "spending": 190.47,
+                "revenue": 161.53,
+                "referenceHarvestCapacityKg": 2033508.574746007
+              },
+              "minRuralCash": 7705.53,
+              "minMarketCash": 9600.71,
+              "peakMarketFodderKg": 0.047555948172828266,
+              "end": {
+                "hayKg": 796865.947479014,
+                "marketFodderKg": 0.047555948172828266,
+                "ruralCash": 19442.92,
+                "marketCash": 27465,
+                "assignedWorkers": 63.047242879867554,
+                "requiredWorkers": 241.56247176075095,
+                "seasonalGapKg": 6162343.049976024,
+                "annualPlannedRawHayKg": 6703640.077718186
+              }
+            },
+            "13": {
+              "totals": {
+                "requiredKg": 59977984.65995845,
+                "pastureGrownKg": 163153150.01833245,
+                "pastureConsumedKg": 24952847.374728665,
+                "harvestedKg": 0,
+                "harvestLossKg": 0,
+                "storageLossKg": 1.2309485483382325,
+                "hayConsumedKg": 202.3192052978156,
+                "unharvestedKg": 138200302.64360368,
+                "purchasedKg": 227.79999999999998,
+                "soldKg": 0,
+                "unmetKg": 35024934.96602446,
+                "spending": 4.0200000000000005,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 0
+              },
+              "minRuralCash": 9206.8,
+              "minMarketCash": 7922.44,
+              "peakMarketFodderKg": 0,
+              "end": {
+                "hayKg": 40.59599999999998,
+                "marketFodderKg": 0,
+                "ruralCash": 21755.29,
+                "marketCash": 28614.37,
+                "assignedWorkers": 0,
+                "requiredWorkers": 1126.4777381916,
+                "seasonalGapKg": 33056601.533518746,
+                "annualPlannedRawHayKg": 33728283.41720383
+              }
+            },
+            "14": {
+              "totals": {
+                "requiredKg": 20950623.31274034,
+                "pastureGrownKg": 137413302.22089335,
+                "pastureConsumedKg": 8271682.058010401,
+                "harvestedKg": 0,
+                "harvestLossKg": 0,
+                "storageLossKg": 5.6265602363433675,
+                "hayConsumedKg": 907.0308533645484,
+                "unharvestedKg": 129141620.16288292,
+                "purchasedKg": 1008.6969899665552,
+                "soldKg": 0,
+                "unmetKg": 12678034.22387658,
+                "spending": 17.779999999999998,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 0
+              },
+              "minRuralCash": 8204.86,
+              "minMarketCash": 2861.46,
+              "peakMarketFodderKg": 0.27859531772575497,
+              "end": {
+                "hayKg": 175.3729096989967,
+                "marketFodderKg": 0.2729096989966606,
+                "ruralCash": 19597.67,
+                "marketCash": 12693.73,
+                "assignedWorkers": 0,
+                "requiredWorkers": 403.5730514008807,
+                "seasonalGapKg": 11989508.98637658,
+                "annualPlannedRawHayKg": 12252933.793191912
+              }
+            },
+            "15": {
+              "totals": {
+                "requiredKg": 126772.27746830283,
+                "pastureGrownKg": 68604293.14086089,
+                "pastureConsumedKg": 49719.23789851802,
+                "harvestedKg": 0,
+                "harvestLossKg": 0,
+                "storageLossKg": 0,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 68554573.90296236,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 77053.0395697848,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 0
+              },
+              "minRuralCash": 4240.05,
+              "minMarketCash": 1764.4206327749046,
+              "peakMarketFodderKg": 0,
+              "end": {
+                "hayKg": 0,
+                "marketFodderKg": 0,
+                "ruralCash": 11403.13,
+                "marketCash": 7879.3,
+                "assignedWorkers": 0,
+                "requiredWorkers": 2.42521921551225,
+                "seasonalGapKg": 72684.10825952774,
+                "annualPlannedRawHayKg": 74261.64469602623
+              }
+            },
+            "16": {
+              "totals": {
+                "requiredKg": 15953596.114559444,
+                "pastureGrownKg": 69959110.07773684,
+                "pastureConsumedKg": 10390501.895734407,
+                "harvestedKg": 4909279.473978393,
+                "harvestLossKg": 736391.9210967593,
+                "storageLossKg": 171683.3437769155,
+                "hayConsumedKg": 3075924.492192019,
+                "unharvestedKg": 54659328.70802405,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 2487169.7266330165,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 4909279.473978393
+              },
+              "minRuralCash": 1623.73,
+              "minMarketCash": 274.84,
+              "peakMarketFodderKg": 0,
+              "end": {
+                "hayKg": 1872368.1950942788,
+                "marketFodderKg": 0,
+                "ruralCash": 2653.63,
+                "marketCash": 274.84,
+                "assignedWorkers": 173.5912642478943,
+                "requiredWorkers": 262.7962795477559,
+                "seasonalGapKg": 5635375.988421388,
+                "annualPlannedRawHayKg": 6731457.0509576
+              }
+            },
+            "17": {
+              "totals": {
+                "requiredKg": 0,
+                "pastureGrownKg": 14614413.545110501,
+                "pastureConsumedKg": 0,
+                "harvestedKg": 0,
+                "harvestLossKg": 0,
+                "storageLossKg": 0,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 14614413.545110501,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 0,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 0
+              },
+              "minRuralCash": null,
+              "minMarketCash": 0.03,
+              "peakMarketFodderKg": 0,
+              "end": {
+                "hayKg": 0,
+                "marketFodderKg": 0,
+                "ruralCash": null,
+                "marketCash": 0.03,
+                "assignedWorkers": 0,
+                "requiredWorkers": 0,
+                "seasonalGapKg": 0,
+                "annualPlannedRawHayKg": 0
+              }
+            }
+          },
+          "foodUnmetLedgerUnits": {
+            "rural": 0.02999999999974534,
+            "urban": 0
+          },
+          "garmentDeliveriesLots": 210.77452168205264,
+          "blanketDeliveriesLots": 3.5190827703484704,
+          "woolMarketInflowKg": 37151.52491013874
+        }
+      ],
+      "livestockDispatch": null,
+      "bytes": 57083630,
+      "sha256": "18d83b20f643b98591e8db6b69bb248818d48db1137ccb9149c21b086db79018",
+      "inputSha256": "5e73a27785881bf553d37404442d7ead0f7bb68457208cc33c88c88f7c6a5999",
+      "sourceTreeSha256": "aaa1012c3bb072312de06a2c9aa7e2c1790919eb3fd96d3e26b0fe0fc7258f2f",
+      "relevantSourceHashes": {
+        "src/extensions/characters/simulation.ts": "877ed2ac70fc0bc9d4f8083748bdeb6f779d7226acefd119e643a6428415f49d",
+        "src/extensions/economy/context/cadencePhases.ts": "8006f84d1e280f768979632f5f87c03b33b01e021053dc508d8a576c0aebdcf3",
+        "src/extensions/economy/generators/developmentPotential.ts": "0e8afbb439613f755938f9f9b3bc9bb876f76f84adc629106ca8d1bf564ba7c2",
+        "src/extensions/economy/generators/foodLedgerConsumption.ts": "f6f9abc37c6fa9a7ecffd5a49630daac600ca18baece8509292d0a38fed49f59",
+        "src/extensions/economy/generators/foodProduction.ts": "f4e5169b47726d85d6b9c8cae8668ac33f52b63ef2f702dc418ce83acc798abc",
+        "src/extensions/economy/generators/husbandry.ts": "31c19433e3e1f950b7ad701a248e106ddc39d9fb226506ea17f3c05a25a0e90c",
+        "src/extensions/economy/generators/livestockFeed.ts": "73de2d2e00e0056d038c480a367c75fdcdab9508533d4e1f6b8a9879bb146165",
+        "src/extensions/economy/generators/livestockFeedPolicy.ts": "1fc10060ddf7b308afd87c97fc6fb2a5c88542c2f3fe6adac46682056e06e0ab",
+        "src/extensions/economy/generators/livestockFeedSchedule.ts": "0a2c162ea06ea346f8c654789d2ceac12bbe0c3a01f29983e996d1a886fc63fa",
+        "src/extensions/economy/generators/livestockFeedState.ts": "5e98f1ac5220d9183a8efa9ce39be6df5afb3961f094f0ef2459731c06e66fa3",
+        "src/extensions/economy/generators/production-generator.ts": "8d50ae7dc3ba1de9949079aa88744b6f999f078391301d0bfcf677d51e7fab41",
+        "src/extensions/economy/simulation.ts": "d1f63defb37cc1ecfed63e5afbd67825efdf92b19ce1fb7ad120e16937fc7a55",
+        "src/extensions/nobility/simulation.ts": "96c36375d68b4fd6daa8481437eab45bffefe3c3a2d8184a8703599370c54d30",
+        "src/extensions/shipbuilding/simulation.ts": "093bd29ab699f948d4130351633c96d011970bc4dba383c8536a87761265b2ac",
+        "src/extensions/simulation.ts": "50d71b1e9a6d39829e9df9a9937051aea1775f6b95407607d4ef6adff293c208"
+      },
+      "initial": {
+        "date": [
+          1300,
+          1,
+          1
+        ],
+        "ruralPeople": 3579209.4272747636,
+        "urbanPeople": 614912.6551625639,
+        "heads": {
+          "Cattle": 32044.245689714026,
+          "Horses": 28017.30898583879,
+          "Sheep": 192316.17895239624,
+          "Goats": 38845.35411176436,
+          "Camels": 2241.5197421012895
+        },
+        "cultivatedHa": 12813485.05380249,
+        "pastureHa": 3575789.321455163,
+        "aggregateOccupancy": 0.06396315410638562,
+        "cellsOverModelFootprint": 0,
+        "annualWoolPotentialKg": 242316.8339127073,
+        "effectiveWoolLaborAndFeedCoverage": 0.16329630652344979,
+        "woolStockKg": 557.2376577673037,
+        "wealth": {
+          "urbanPop": 614.92,
+          "ruralPop": 3579.209,
+          "stateTreasury": 488405.07,
+          "statePurse": 24.2,
+          "stateDepartments": 244.37,
+          "burgTreasury": 147089.51,
+          "urbanHouseholds": 112473.14,
+          "guilds": 807.72,
+          "marketBalance": 189101.63,
+          "marketPayable": 0,
+          "tradeCapital": 29386.73,
+          "ruralHouseholds": 82316.24,
+          "characters": 0
+        }
+      },
+      "yearEnd": {
+        "date": [
+          1301,
+          1,
+          1
+        ],
+        "ruralPeople": 3582679.5359812677,
+        "urbanPeople": 605466.3648403045,
+        "heads": {
+          "Cattle": 30448.290282227674,
+          "Horses": 25530.065570578303,
+          "Sheep": 180878.63506670884,
+          "Goats": 35642.15479569257,
+          "Camels": 1943.6091753356666
+        },
+        "cultivatedHa": 12073895.535339355,
+        "pastureHa": 3119536.6355573935,
+        "aggregateOccupancy": 0.0680321804360105,
+        "cellsOverModelFootprint": 0,
+        "annualWoolPotentialKg": 257099.7074031204,
+        "effectiveWoolLaborAndFeedCoverage": 0.1763331779466921,
+        "woolStockKg": 2.3126999965770443,
+        "wealth": {
+          "urbanPop": 605.472,
+          "ruralPop": 3582.68,
+          "stateTreasury": 356437.32,
+          "statePurse": 0,
+          "stateDepartments": 358.66,
+          "burgTreasury": 145423.91,
+          "urbanHouseholds": 106492.36,
+          "guilds": 1417.55,
+          "marketBalance": 205893.94,
+          "marketPayable": 0,
+          "tradeCapital": 33981.06,
+          "ruralHouseholds": 160636.6,
+          "characters": 0
+        }
+      },
+      "annual": {
+        "foodLedgerKgPerUnit": 465.1162790697675,
+        "foodTotals": {
+          "ruralNeed": 1077338.35,
+          "ruralSupplied": 1077338.58,
+          "ruralFromHousehold": 1073178.28,
+          "ruralFromMarket": 4160.3,
+          "ruralPaid": 3527.5000000000005,
+          "urbanNeed": 261701.21000000002,
+          "urbanSupplied": 261701.21000000002,
+          "urbanPaid": 210914.25999999998,
+          "urbanBudgetGap": 0,
+          "urbanStockGap": 0,
+          "lodgerNeed": 0,
+          "lodgerSupplied": 0,
+          "lodgerPaid": 0,
+          "ruralUnmet": 0.02999999999974534,
+          "urbanUnmet": 0
+        },
+        "foodByMarket": {
+          "1": {
+            "ruralNeed": 46161.450000000004,
+            "ruralSupplied": 46161.45,
+            "ruralFromHousehold": 45195.67999999999,
+            "ruralFromMarket": 965.77,
+            "ruralPaid": 772.61,
+            "urbanNeed": 19573.690000000006,
+            "urbanSupplied": 19573.690000000006,
+            "urbanPaid": 15658.910000000003,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0.010000000000218279,
+            "urbanUnmet": 0
+          },
+          "2": {
+            "ruralNeed": 4606.2,
+            "ruralSupplied": 4606.2,
+            "ruralFromHousehold": 4600.21,
+            "ruralFromMarket": 5.99,
+            "ruralPaid": 4.79,
+            "urbanNeed": 5419.240000000001,
+            "urbanSupplied": 5419.240000000001,
+            "urbanPaid": 4335.389999999999,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "3": {
+            "ruralNeed": 52803.69000000001,
+            "ruralSupplied": 52803.70000000001,
+            "ruralFromHousehold": 52560.64000000001,
+            "ruralFromMarket": 243.06,
+            "ruralPaid": 302.51,
+            "urbanNeed": 11056.829999999998,
+            "urbanSupplied": 11056.829999999998,
+            "urbanPaid": 9519.689999999999,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "4": {
+            "ruralNeed": 140832.46000000002,
+            "ruralSupplied": 140832.46000000002,
+            "ruralFromHousehold": 140723.52000000002,
+            "ruralFromMarket": 108.94,
+            "ruralPaid": 87.16,
+            "urbanNeed": 32644.52,
+            "urbanSupplied": 32644.52,
+            "urbanPaid": 26115.700000000004,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "5": {
+            "ruralNeed": 57586.599999999984,
+            "ruralSupplied": 57586.599999999984,
+            "ruralFromHousehold": 57523.64999999999,
+            "ruralFromMarket": 62.95,
+            "ruralPaid": 50.349999999999994,
+            "urbanNeed": 14710.52,
+            "urbanSupplied": 14710.52,
+            "urbanPaid": 11768.369999999999,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "6": {
+            "ruralNeed": 47665.39,
+            "ruralSupplied": 47665.4,
+            "ruralFromHousehold": 47215.64,
+            "ruralFromMarket": 449.76000000000005,
+            "ruralPaid": 361,
+            "urbanNeed": 12501.469999999998,
+            "urbanSupplied": 12501.469999999998,
+            "urbanPaid": 10011.560000000001,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "7": {
+            "ruralNeed": 136532.13,
+            "ruralSupplied": 136532.13,
+            "ruralFromHousehold": 136472.26,
+            "ruralFromMarket": 59.87,
+            "ruralPaid": 47.9,
+            "urbanNeed": 20757.699999999997,
+            "urbanSupplied": 20757.699999999997,
+            "urbanPaid": 16606.170000000006,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "8": {
+            "ruralNeed": 48880.14000000001,
+            "ruralSupplied": 48880.130000000005,
+            "ruralFromHousehold": 48859.030000000006,
+            "ruralFromMarket": 21.1,
+            "ruralPaid": 23.84,
+            "urbanNeed": 13548.7,
+            "urbanSupplied": 13548.7,
+            "urbanPaid": 11520.019999999999,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0.009999999999763531,
+            "urbanUnmet": 0
+          },
+          "9": {
+            "ruralNeed": 13514.5,
+            "ruralSupplied": 13514.529999999999,
+            "ruralFromHousehold": 13157.929999999998,
+            "ruralFromMarket": 356.6,
+            "ruralPaid": 285.27,
+            "urbanNeed": 6375.99,
+            "urbanSupplied": 6375.99,
+            "urbanPaid": 5100.74,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "10": {
+            "ruralNeed": 66562.44000000002,
+            "ruralSupplied": 66562.45000000001,
+            "ruralFromHousehold": 66487.10000000002,
+            "ruralFromMarket": 75.35,
+            "ruralPaid": 60.28,
+            "urbanNeed": 15471.990000000002,
+            "urbanSupplied": 15471.990000000002,
+            "urbanPaid": 12377.590000000002,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "11": {
+            "ruralNeed": 37548.840000000004,
+            "ruralSupplied": 37548.85,
+            "ruralFromHousehold": 37463.15,
+            "ruralFromMarket": 85.7,
+            "ruralPaid": 68.56,
+            "urbanNeed": 7388.65,
+            "urbanSupplied": 7388.65,
+            "urbanPaid": 5910.92,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0.009999999999763531,
+            "urbanUnmet": 0
+          },
+          "12": {
+            "ruralNeed": 117784.19,
+            "ruralSupplied": 117784.20000000001,
+            "ruralFromHousehold": 117308.70000000001,
+            "ruralFromMarket": 475.5,
+            "ruralPaid": 380.4,
+            "urbanNeed": 31381.809999999998,
+            "urbanSupplied": 31381.809999999998,
+            "urbanPaid": 25105.550000000003,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "13": {
+            "ruralNeed": 139187.34,
+            "ruralSupplied": 139187.35,
+            "ruralFromHousehold": 138909.06,
+            "ruralFromMarket": 278.29,
+            "ruralPaid": 222.63,
+            "urbanNeed": 32285.74000000001,
+            "urbanSupplied": 32285.74000000001,
+            "urbanPaid": 25828.49,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "14": {
+            "ruralNeed": 95639.67000000001,
+            "ruralSupplied": 95639.70000000001,
+            "ruralFromHousehold": 94877.34000000001,
+            "ruralFromMarket": 762.36,
+            "ruralPaid": 691.51,
+            "urbanNeed": 16507.59,
+            "urbanSupplied": 16507.59,
+            "urbanPaid": 13384.830000000002,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "15": {
+            "ruralNeed": 51738.44,
+            "ruralSupplied": 51738.520000000004,
+            "ruralFromHousehold": 51557.770000000004,
+            "ruralFromMarket": 180.75,
+            "ruralPaid": 146.04,
+            "urbanNeed": 10811.17,
+            "urbanSupplied": 10811.17,
+            "urbanPaid": 8657.84,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "16": {
+            "ruralNeed": 20294.87,
+            "ruralSupplied": 20294.909999999996,
+            "ruralFromHousehold": 20266.6,
+            "ruralFromMarket": 28.31,
+            "ruralPaid": 22.65,
+            "urbanNeed": 11265.599999999999,
+            "urbanSupplied": 11265.599999999999,
+            "urbanPaid": 9012.490000000002,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          }
+        },
+        "foodImports": {
+          "1": {
+            "outcomes": {
+              "delivered": 8,
+              "noCrop": 3,
+              "belowQuantityPrecision": 1
+            },
+            "loaded": 11667.720000000001,
+            "deliveredBeforeRounding": 8828.480000000001,
+            "produced": 20218.000000000004,
+            "imported": 8828.48,
+            "productionPasses": 12,
+            "minBalance": 5599.19,
+            "maxBalance": 15301.51
+          },
+          "2": {
+            "outcomes": {
+              "delivered": 5,
+              "noCrop": 4,
+              "belowQuantityPrecision": 5
+            },
+            "loaded": 3263.7200000000003,
+            "deliveredBeforeRounding": 2551.5884464138267,
+            "produced": 4959.320000000001,
+            "imported": 2551.58,
+            "productionPasses": 12,
+            "minBalance": 1783.67,
+            "maxBalance": 5087.48
+          },
+          "3": {
+            "outcomes": {
+              "noRoute": 3,
+              "delivered": 3,
+              "belowQuantityPrecision": 10,
+              "noCrop": 3
+            },
+            "loaded": 1234.98,
+            "deliveredBeforeRounding": 1012.9578412001472,
+            "produced": 8930.84,
+            "imported": 1012.96,
+            "productionPasses": 12,
+            "minBalance": 3088.42,
+            "maxBalance": 10424.37
+          },
+          "4": {
+            "outcomes": {
+              "delivered": 9
+            },
+            "loaded": 17437.18,
+            "deliveredBeforeRounding": 13387.483428517186,
+            "produced": 26292.71,
+            "imported": 13387.489999999998,
+            "productionPasses": 12,
+            "minBalance": 14040.94,
+            "maxBalance": 28236.16
+          },
+          "5": {
+            "outcomes": {
+              "delivered": 10,
+              "noCrop": 1
+            },
+            "loaded": 15288.490000000002,
+            "deliveredBeforeRounding": 12456.699999999999,
+            "produced": 10238.380000000001,
+            "imported": 12456.699999999999,
+            "productionPasses": 12,
+            "minBalance": 6887.85,
+            "maxBalance": 12167.96
+          },
+          "6": {
+            "outcomes": {
+              "delivered": 11,
+              "noCrop": 2,
+              "belowQuantityPrecision": 2
+            },
+            "loaded": 11227.329999999998,
+            "deliveredBeforeRounding": 8374.43,
+            "produced": 14224.83,
+            "imported": 8374.44,
+            "productionPasses": 12,
+            "minBalance": 3105.83,
+            "maxBalance": 10220.43
+          },
+          "7": {
+            "outcomes": {
+              "delivered": 2,
+              "noCrop": 1
+            },
+            "loaded": 1586.59,
+            "deliveredBeforeRounding": 1270.2444002296916,
+            "produced": 21297.32,
+            "imported": 1270.24,
+            "productionPasses": 12,
+            "minBalance": 5473.83,
+            "maxBalance": 18809.13
+          },
+          "8": {
+            "outcomes": {
+              "noRoute": 2,
+              "delivered": 3,
+              "belowQuantityPrecision": 5,
+              "noCrop": 5
+            },
+            "loaded": 890.6400000000001,
+            "deliveredBeforeRounding": 769.45,
+            "produced": 13107.839999999998,
+            "imported": 769.45,
+            "productionPasses": 12,
+            "minBalance": 4480.45,
+            "maxBalance": 12488.44
+          },
+          "9": {
+            "outcomes": {
+              "delivered": 21,
+              "belowQuantityPrecision": 85
+            },
+            "loaded": 11721.650000000001,
+            "deliveredBeforeRounding": 9119.688082337509,
+            "produced": 0,
+            "imported": 9119.68,
+            "productionPasses": 12,
+            "minBalance": 1990.67,
+            "maxBalance": 5776.23
+          },
+          "10": {
+            "outcomes": {
+              "delivered": 2,
+              "belowQuantityPrecision": 6,
+              "noCrop": 5
+            },
+            "loaded": 1468.66,
+            "deliveredBeforeRounding": 1176.0097460692089,
+            "produced": 14518.94,
+            "imported": 1176.01,
+            "productionPasses": 12,
+            "minBalance": 5608.49,
+            "maxBalance": 13923.73
+          },
+          "11": {
+            "outcomes": {
+              "noRoute": 2,
+              "delivered": 5,
+              "belowQuantityPrecision": 10
+            },
+            "loaded": 1871.53,
+            "deliveredBeforeRounding": 1430.8758851898806,
+            "produced": 7710.12,
+            "imported": 1430.88,
+            "productionPasses": 12,
+            "minBalance": 366.59,
+            "maxBalance": 5204.92
+          },
+          "12": {
+            "outcomes": {
+              "delivered": 10,
+              "belowQuantityPrecision": 10,
+              "noCrop": 3
+            },
+            "loaded": 15391.380000000001,
+            "deliveredBeforeRounding": 9230.480000000001,
+            "produced": 23525.94,
+            "imported": 9230.490000000002,
+            "productionPasses": 12,
+            "minBalance": 10024.12,
+            "maxBalance": 24215.67
+          },
+          "13": {
+            "outcomes": {
+              "delivered": 3,
+              "belowQuantityPrecision": 3,
+              "noCrop": 1
+            },
+            "loaded": 2686.62,
+            "deliveredBeforeRounding": 1968.3000000000002,
+            "produced": 29929.41,
+            "imported": 1968.29,
+            "productionPasses": 12,
+            "minBalance": 9296.92,
+            "maxBalance": 26588.86
+          },
+          "14": {
+            "outcomes": {
+              "noRoute": 5,
+              "delivered": 1,
+              "noCrop": 2
+            },
+            "loaded": 1258.56,
+            "deliveredBeforeRounding": 996.64,
+            "produced": 16533.170000000002,
+            "imported": 996.64,
+            "productionPasses": 12,
+            "minBalance": 3212.91,
+            "maxBalance": 13298.37
+          },
+          "15": {
+            "outcomes": {
+              "noRoute": 1,
+              "delivered": 1,
+              "noCrop": 1
+            },
+            "loaded": 927.45,
+            "deliveredBeforeRounding": 742.64,
+            "produced": 9818.13,
+            "imported": 742.64,
+            "productionPasses": 12,
+            "minBalance": 2254.25,
+            "maxBalance": 8088.61
+          },
+          "16": {
+            "outcomes": {
+              "noRoute": 9,
+              "delivered": 16,
+              "belowQuantityPrecision": 17
+            },
+            "loaded": 12808.66,
+            "deliveredBeforeRounding": 8802.679995152166,
+            "produced": 2727.66,
+            "imported": 8802.680000000002,
+            "productionPasses": 12,
+            "minBalance": 0,
+            "maxBalance": 8180.14
+          }
+        },
+        "feedRequiredKg": 322600495.0684499,
+        "feedUnmetKg": 154859896.8481395,
+        "feedUnmetShare": 0.4800361413434318,
+        "maxMonthlyFeedUnmetKg": 25055049.100070458,
+        "goods": {
+          "Wool": {
+            "source:ruralHarvest": 24.767683273425828,
+            "sink:recipeInput": 24.788018945136653
+          },
+          "Milk": {},
+          "Cheese": {
+            "source:ruralHarvest": 22.048416897119758,
+            "sink:householdFood": 21.131445121859027,
+            "sink:recipeInput": 1.3085548781409764,
+            "sink:exportDeparture": 0.18,
+            "source:importArrival": 0.18
+          },
+          "Leather": {
+            "source:ruralHarvest": 1779.8580617461794,
+            "sink:recipeInput": 267.38,
+            "source:burgCraft": 394.66999999999996
+          },
+          "Fodder": {
+            "source:ruralHarvest": 786.2712151216296,
+            "source:burgCraft": 10.559999999999999,
+            "sink:livestockFeed": 794.0833742750292,
+            "sink:exportDeparture": 2.73
+          }
+        },
+        "woolMarketInflowKg": 37151.52491013874,
+        "garmentDeliveriesLots": 210.77452168205264,
+        "blanketDeliveriesLots": 3.5190827703484704
+      },
+      "extraMonth": null
+    },
+    {
+      "path": "docs/analytics/raw/economy-e1-dispatch-final-world-102-20261024.json",
+      "feedYears": [
+        {
+          "year": 1,
+          "end": {
+            "date": [
+              1301,
+              1,
+              1
+            ],
+            "ruralPeople": 3582679.532226175,
+            "urbanPeople": 605452.8629225991,
+            "heads": {
+              "Cattle": 30478.011642642643,
+              "Horses": 25507.430677718385,
+              "Sheep": 180876.82692480076,
+              "Goats": 35642.41318845518,
+              "Camels": 1943.8579525709627
+            },
+            "cultivatedHa": 12073879.644958496,
+            "pastureHa": 3119536.6368931504,
+            "aggregateOccupancy": 0.06803346734375056,
+            "cellsOverModelFootprint": 0,
+            "annualWoolPotentialKg": 257107.95954527735,
+            "effectiveWoolLaborAndFeedCoverage": 0.1763596143733107,
+            "woolStockKg": 2.397637466012417,
+            "wealth": {
+              "urbanPop": 605.457,
+              "ruralPop": 3582.68,
+              "stateTreasury": 356698.11,
+              "statePurse": 0,
+              "stateDepartments": 358.88,
+              "burgTreasury": 145512.05,
+              "urbanHouseholds": 106841.15,
+              "guilds": 1398.46,
+              "marketBalance": 206855.41,
+              "marketPayable": 0,
+              "tradeCapital": 34501.98,
+              "ruralHouseholds": 160395.61,
+              "characters": 0
+            }
+          },
+          "settlementCount": 12,
+          "periods": [
+            15601,
+            15602,
+            15603,
+            15604,
+            15605,
+            15606,
+            15607,
+            15608,
+            15609,
+            15610,
+            15611,
+            15612
+          ],
+          "settlements": [
+            {
+              "date": {
+                "year": 1300,
+                "month": 2,
+                "day": 1,
+                "tick": 31
+              },
+              "period": 15601,
+              "month": 2,
+              "totals": {
+                "requiredKg": 27230394.909620192,
+                "pastureGrownKg": 441591328.5489241,
+                "pastureConsumedKg": 27230394.909620192,
+                "harvestedKg": 5404443.2032768885,
+                "harvestLossKg": 810666.4804915333,
+                "storageLossKg": 38635.95778197094,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 408956490.436027,
+                "purchasedKg": 4297.569642857142,
+                "soldKg": 4158.188153310104,
+                "unmetKg": 0,
+                "spending": 57.25,
+                "revenue": 56.16,
+                "referenceHarvestCapacityKg": 5404443.616070621
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 4,
+                "day": 1,
+                "tick": 90
+              },
+              "period": 15602,
+              "month": 3,
+              "totals": {
+                "requiredKg": 27184603.24295353,
+                "pastureGrownKg": 335335369.840598,
+                "pastureConsumedKg": 27184603.24295353,
+                "harvestedKg": 4129692.403075816,
+                "harvestLossKg": 619453.8604613726,
+                "storageLossKg": 84188.75924690027,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 304021074.1945686,
+                "purchasedKg": 14773.071830985913,
+                "soldKg": 14632.481412639403,
+                "unmetKg": 0,
+                "spending": 124.71,
+                "revenue": 185.23,
+                "referenceHarvestCapacityKg": 4129693.283384446
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 4,
+                "day": 1,
+                "tick": 90
+              },
+              "period": 15603,
+              "month": 4,
+              "totals": {
+                "requiredKg": 27139311.57628686,
+                "pastureGrownKg": 149727815.85266966,
+                "pastureConsumedKg": 18460299.56203305,
+                "harvestedKg": 1909423.1690294442,
+                "harvestLossKg": 286413.4753544167,
+                "storageLossKg": 118450.66298475915,
+                "hayConsumedKg": 82766.24726790785,
+                "unharvestedKg": 129358093.12160715,
+                "purchasedKg": 142.79999999999998,
+                "soldKg": 0,
+                "unmetKg": 8596245.766985908,
+                "spending": 2.5200000000000005,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 1909423.1690294442
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 5,
+                "day": 1,
+                "tick": 120
+              },
+              "period": 15604,
+              "month": 5,
+              "totals": {
+                "requiredKg": 27097728.242953528,
+                "pastureGrownKg": 32735338.9164729,
+                "pastureConsumedKg": 4825752.31259608,
+                "harvestedKg": 97288.05709152215,
+                "harvestLossKg": 14593.208563728323,
+                "storageLossKg": 132670.01881898273,
+                "hayConsumedKg": 999126.8109507599,
+                "unharvestedKg": 27812298.546785295,
+                "purchasedKg": 954.2054054054055,
+                "soldKg": 811.5476190476189,
+                "unmetKg": 21272849.11940669,
+                "spending": 11.350000000000001,
+                "revenue": 8.02,
+                "referenceHarvestCapacityKg": 97288.83807062809
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 6,
+                "day": 1,
+                "tick": 151
+              },
+              "period": 15605,
+              "month": 6,
+              "totals": {
+                "requiredKg": 27054978.242953524,
+                "pastureGrownKg": 1617751.4110132977,
+                "pastureConsumedKg": 238868.13085960157,
+                "harvestedKg": 0,
+                "harvestLossKg": 0,
+                "storageLossKg": 122180.42558442685,
+                "hayConsumedKg": 3272434.9267357467,
+                "unharvestedKg": 1378883.2801536964,
+                "purchasedKg": 147.90000000000003,
+                "soldKg": 0,
+                "unmetKg": 23543675.18535818,
+                "spending": 2.6099999999999994,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 0
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 7,
+                "day": 1,
+                "tick": 181
+              },
+              "period": 15606,
+              "month": 7,
+              "totals": {
+                "requiredKg": 27017428.242953524,
+                "pastureGrownKg": 0,
+                "pastureConsumedKg": 0,
+                "harvestedKg": 0,
+                "harvestLossKg": 0,
+                "storageLossKg": 88235.75106122512,
+                "hayConsumedKg": 3378216.999533517,
+                "unharvestedKg": 0,
+                "purchasedKg": 148.53197026022306,
+                "soldKg": 0,
+                "unmetKg": 23639211.243420012,
+                "spending": 2.6199999999999997,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 0
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 8,
+                "day": 1,
+                "tick": 212
+              },
+              "period": 15607,
+              "month": 8,
+              "totals": {
+                "requiredKg": 26982344.909620196,
+                "pastureGrownKg": 0,
+                "pastureConsumedKg": 0,
+                "harvestedKg": 0,
+                "harvestLossKg": 0,
+                "storageLossKg": 53572.70887498029,
+                "hayConsumedKg": 3342903.233157142,
+                "unharvestedKg": 0,
+                "purchasedKg": 152.99999999999997,
+                "soldKg": 0,
+                "unmetKg": 23639441.67646305,
+                "spending": 2.6999999999999997,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 0
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 9,
+                "day": 1,
+                "tick": 243
+              },
+              "period": 15608,
+              "month": 9,
+              "totals": {
+                "requiredKg": 26943511.57628686,
+                "pastureGrownKg": 687726.1751531335,
+                "pastureConsumedKg": 101198.46303743104,
+                "harvestedKg": 0,
+                "harvestLossKg": 0,
+                "storageLossKg": 19609.479454659057,
+                "hayConsumedKg": 1798635.1233596732,
+                "unharvestedKg": 586527.7121157023,
+                "purchasedKg": 152.99999999999997,
+                "soldKg": 0,
+                "unmetKg": 25043677.989889752,
+                "spending": 2.6999999999999997,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 0
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 10,
+                "day": 1,
+                "tick": 273
+              },
+              "period": 15609,
+              "month": 10,
+              "totals": {
+                "requiredKg": 26904636.57628686,
+                "pastureGrownKg": 31414810.74744696,
+                "pastureConsumedKg": 3841383.824137551,
+                "harvestedKg": 14745.110490811063,
+                "harvestLossKg": 2211.76657362166,
+                "storageLossKg": 1428.5634265157337,
+                "hayConsumedKg": 118279.14085523375,
+                "unharvestedKg": 27558681.8128186,
+                "purchasedKg": 154.42140468227427,
+                "soldKg": 0,
+                "unmetKg": 22944973.61129408,
+                "spending": 2.7199999999999998,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 14745.110490811063
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 11,
+                "day": 1,
+                "tick": 304
+              },
+              "period": 15610,
+              "month": 11,
+              "totals": {
+                "requiredKg": 26866303.242953528,
+                "pastureGrownKg": 150568166.38367918,
+                "pastureConsumedKg": 20725678.15232795,
+                "harvestedKg": 1542200.3307581681,
+                "harvestLossKg": 231330.04961372525,
+                "storageLossKg": 358.3640369169552,
+                "hayConsumedKg": 156.12140468227426,
+                "unharvestedKg": 128300287.90059303,
+                "purchasedKg": 156.12140468227426,
+                "soldKg": 0,
+                "unmetKg": 6140468.969220898,
+                "spending": 2.75,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 1542200.3307581681
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 12,
+                "day": 1,
+                "tick": 334
+              },
+              "period": 15611,
+              "month": 12,
+              "totals": {
+                "requiredKg": 26828003.242953524,
+                "pastureGrownKg": 336570196.5477923,
+                "pastureConsumedKg": 26828003.242953524,
+                "harvestedKg": 3773334.0191001813,
+                "harvestLossKg": 566000.1028650271,
+                "storageLossKg": 13463.483207992213,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 305968859.2857386,
+                "purchasedKg": 157.82709030100332,
+                "soldKg": 0,
+                "unmetKg": 0,
+                "spending": 2.78,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 3773334.0191001813
+              }
+            },
+            {
+              "date": {
+                "year": 1301,
+                "month": 1,
+                "day": 1,
+                "tick": 365
+              },
+              "period": 15612,
+              "month": 1,
+              "totals": {
+                "requiredKg": 25349754.28257012,
+                "pastureGrownKg": 419538281.80894345,
+                "pastureConsumedKg": 25349754.28257012,
+                "harvestedKg": 4625766.618325039,
+                "harvestLossKg": 693864.9927487562,
+                "storageLossKg": 45403.76580916683,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 389562760.9080483,
+                "purchasedKg": 204606.81813568113,
+                "soldKg": 205328.79166666663,
+                "unmetKg": 0,
+                "spending": 2329.0700000000006,
+                "revenue": 2885.1,
+                "referenceHarvestCapacityKg": 4625769.332177726
+              }
+            }
+          ],
+          "totals": {
+            "requiredKg": 322598998.28839225,
+            "pastureGrownKg": 1899786786.2326925,
+            "pastureConsumedKg": 154785936.12308908,
+            "harvestedKg": 21496892.91114787,
+            "harvestLossKg": 3224533.936672182,
+            "storageLossKg": 718197.9402884962,
+            "hayConsumedKg": 12992518.603264667,
+            "unharvestedKg": 1723503957.198456,
+            "purchasedKg": 225845.26688485537,
+            "soldKg": 224931.00885166376,
+            "unmetKg": 154820543.56203866,
+            "spending": 2543.7800000000007,
+            "revenue": 3134.5099999999998,
+            "referenceHarvestCapacityKg": 21496897.69908203
+          },
+          "unmetShare": 0.47991638034670675,
+          "byMarket": {
+            "1": {
+              "totals": {
+                "requiredKg": 4508659.733424496,
+                "pastureGrownKg": 92896872.97194557,
+                "pastureConsumedKg": 1983980.3189948865,
+                "harvestedKg": 1491313.3140971512,
+                "harvestLossKg": 223696.99711457273,
+                "storageLossKg": 52232.17593550848,
+                "hayConsumedKg": 951265.1865610738,
+                "unharvestedKg": 89421579.33885352,
+                "purchasedKg": 61601.26356550907,
+                "soldKg": 62479.52148664341,
+                "unmetKg": 1573414.2278685363,
+                "spending": 666.3900000000001,
+                "revenue": 879.5199999999998,
+                "referenceHarvestCapacityKg": 1491314.4838172188
+              },
+              "minRuralCash": 3016.13,
+              "minMarketCash": 4438.99,
+              "peakMarketFodderKg": 878.2579211343511,
+              "end": {
+                "hayKg": 538711.9446179813,
+                "marketFodderKg": 878.2579211343511,
+                "ruralCash": 11620.5,
+                "marketCash": 19190.96,
+                "assignedWorkers": 35.96266186237335,
+                "requiredWorkers": 73.90294143937258,
+                "seasonalGapKg": 2229498.8183058286,
+                "annualPlannedRawHayKg": 2519318.7530174293
+              }
+            },
+            "2": {
+              "totals": {
+                "requiredKg": 712504.9695902317,
+                "pastureGrownKg": 8840474.555126332,
+                "pastureConsumedKg": 303976.7932762305,
+                "harvestedKg": 0,
+                "harvestLossKg": 0,
+                "storageLossKg": 0,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 8536497.761850104,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 408528.1763140012,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 0
+              },
+              "minRuralCash": 203.11,
+              "minMarketCash": 2020.72,
+              "peakMarketFodderKg": 0,
+              "end": {
+                "hayKg": 0,
+                "marketFodderKg": 0,
+                "ruralCash": 2770.91,
+                "marketCash": 3623.97,
+                "assignedWorkers": 0,
+                "requiredWorkers": 11.833065213298283,
+                "seasonalGapKg": 390107.5188686943,
+                "annualPlannedRawHayKg": 398973.8307561327
+              }
+            },
+            "3": {
+              "totals": {
+                "requiredKg": 13003159.149924131,
+                "pastureGrownKg": 106194776.3339482,
+                "pastureConsumedKg": 7111952.764102181,
+                "harvestedKg": 2769671.683761799,
+                "harvestLossKg": 415450.7525642699,
+                "storageLossKg": 93555.33608447036,
+                "hayConsumedKg": 1670432.9018632483,
+                "unharvestedKg": 96313151.88608423,
+                "purchasedKg": 13310.105263157895,
+                "soldKg": 13310.291666666664,
+                "unmetKg": 4220773.4839587035,
+                "spending": 148.76000000000002,
+                "revenue": 187.91,
+                "referenceHarvestCapacityKg": 2769671.8400664562
+              },
+              "minRuralCash": 2413.52,
+              "minMarketCash": 3551.4,
+              "peakMarketFodderKg": 0.1864035087692173,
+              "end": {
+                "hayKg": 1072202.0833799054,
+                "marketFodderKg": 0.1864035087692173,
+                "ruralCash": 5606.76,
+                "marketCash": 9914.71,
+                "assignedWorkers": 79.94371175765991,
+                "requiredWorkers": 193.7069244870773,
+                "seasonalGapKg": 5123506.377941878,
+                "annualPlannedRawHayKg": 5737014.781670137
+              }
+            },
+            "4": {
+              "totals": {
+                "requiredKg": 14189478.329373498,
+                "pastureGrownKg": 378205819.8676838,
+                "pastureConsumedKg": 8527503.80686565,
+                "harvestedKg": 1006948.3731217252,
+                "harvestLossKg": 151042.25596825883,
+                "storageLossKg": 33230.13221276077,
+                "hayConsumedKg": 583497.0374073151,
+                "unharvestedKg": 368671367.68769646,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 5078477.485100533,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 1006948.3731217252
+              },
+              "minRuralCash": 12918.19,
+              "minMarketCash": 13469,
+              "peakMarketFodderKg": 0,
+              "end": {
+                "hayKg": 489184.1087950701,
+                "marketFodderKg": 0,
+                "ruralCash": 13242.9,
+                "marketCash": 26589.34,
+                "assignedWorkers": 42.65232849121094,
+                "requiredWorkers": 220.4790600215394,
+                "seasonalGapKg": 5721150.551778245,
+                "annualPlannedRawHayKg": 6119264.171421755
+              }
+            },
+            "5": {
+              "totals": {
+                "requiredKg": 14878303.65178272,
+                "pastureGrownKg": 152117332.3256199,
+                "pastureConsumedKg": 9358819.221270658,
+                "harvestedKg": 3853738.6864894796,
+                "harvestLossKg": 578060.8029734221,
+                "storageLossKg": 131655.1607813428,
+                "hayConsumedKg": 2377659.2879424933,
+                "unharvestedKg": 138904774.4178597,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 3141825.1425695694,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 3853738.6864894796
+              },
+              "minRuralCash": 4327.4,
+              "minMarketCash": 6455.02,
+              "peakMarketFodderKg": 0,
+              "end": {
+                "hayKg": 1422532.5504441457,
+                "marketFodderKg": 0,
+                "ruralCash": 5794.51,
+                "marketCash": 11970.96,
+                "assignedWorkers": 113.84158372879028,
+                "requiredWorkers": 224.81559095139505,
+                "seasonalGapKg": 5316328.264033712,
+                "annualPlannedRawHayKg": 6101758.982722281
+              }
+            },
+            "6": {
+              "totals": {
+                "requiredKg": 39586279.16980367,
+                "pastureGrownKg": 61329542.643126726,
+                "pastureConsumedKg": 19407399.514305618,
+                "harvestedKg": 1886785.429163002,
+                "harvestLossKg": 283017.8143744503,
+                "storageLossKg": 60869.181392785606,
+                "hayConsumedKg": 1132881.2549816337,
+                "unharvestedKg": 40035357.69965811,
+                "purchasedKg": 26386.42857142857,
+                "soldKg": 26387.499999999996,
+                "unmetKg": 19045998.400516424,
+                "spending": 239.02999999999997,
+                "revenue": 358.87,
+                "referenceHarvestCapacityKg": 1886785.837090475
+              },
+              "minRuralCash": 2891.88,
+              "minMarketCash": 2980.46,
+              "peakMarketFodderKg": 1.071428571422075,
+              "end": {
+                "hayKg": 727193.0863681915,
+                "marketFodderKg": 1.071428571422075,
+                "ruralCash": 6694.73,
+                "marketCash": 7479.24,
+                "assignedWorkers": 52.79121112823486,
+                "requiredWorkers": 697.7938944370527,
+                "seasonalGapKg": 19209754.599417146,
+                "annualPlannedRawHayKg": 19675411.10230627
+              }
+            },
+            "7": {
+              "totals": {
+                "requiredKg": 74343714.36003825,
+                "pastureGrownKg": 110176895.57169868,
+                "pastureConsumedKg": 32729295.354526732,
+                "harvestedKg": 550401.2175387079,
+                "harvestLossKg": 82560.1826308062,
+                "storageLossKg": 16567.646962070943,
+                "hayConsumedKg": 331881.04470445,
+                "unharvestedKg": 76897198.99963322,
+                "purchasedKg": 66058.3520833333,
+                "soldKg": 65500.29166666666,
+                "unmetKg": 41282537.96080711,
+                "spending": 749.3,
+                "revenue": 924.7099999999999,
+                "referenceHarvestCapacityKg": 550401.8752284966
+              },
+              "minRuralCash": 9025.19,
+              "minMarketCash": 5015.66,
+              "peakMarketFodderKg": 0.24791666664953027,
+              "end": {
+                "hayKg": 218012.27376521874,
+                "marketFodderKg": 0.24791666664953027,
+                "ruralCash": 15568.31,
+                "marketCash": 22361.57,
+                "assignedWorkers": 14.502460658550262,
+                "requiredWorkers": 1363.266324686346,
+                "seasonalGapKg": 39917344.41726552,
+                "annualPlannedRawHayKg": 40451977.487410255
+              }
+            },
+            "8": {
+              "totals": {
+                "requiredKg": 17328645.671347313,
+                "pastureGrownKg": 113308618.58227217,
+                "pastureConsumedKg": 10392879.22252308,
+                "harvestedKg": 2767620.6673506703,
+                "harvestLossKg": 415143.10010260064,
+                "storageLossKg": 87139.75354765591,
+                "hayConsumedKg": 1597933.473023164,
+                "unharvestedKg": 100148118.6923984,
+                "purchasedKg": 10033.917050691241,
+                "soldKg": 10034.249999999998,
+                "unmetKg": 5337832.975801069,
+                "spending": 128.07999999999998,
+                "revenue": 141.66,
+                "referenceHarvestCapacityKg": 2767621.253884323
+              },
+              "minRuralCash": 3112.13,
+              "minMarketCash": 3400.86,
+              "peakMarketFodderKg": 0.33294930875321427,
+              "end": {
+                "hayKg": 1139952.2384224536,
+                "marketFodderKg": 0.33294930875321427,
+                "ruralCash": 6807.23,
+                "marketCash": 14106.17,
+                "assignedWorkers": 93.13148188591003,
+                "requiredWorkers": 297.6315873632677,
+                "seasonalGapKg": 7400183.41620359,
+                "annualPlannedRawHayKg": 7997269.198369723
+              }
+            },
+            "9": {
+              "totals": {
+                "requiredKg": 0,
+                "pastureGrownKg": 37021391.79137156,
+                "pastureConsumedKg": 0,
+                "harvestedKg": 0,
+                "harvestLossKg": 0,
+                "storageLossKg": 0,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 37021391.79137156,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 0,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 0
+              },
+              "minRuralCash": 1431.56,
+              "minMarketCash": 2625.34,
+              "peakMarketFodderKg": 0,
+              "end": {
+                "hayKg": 0,
+                "marketFodderKg": 0,
+                "ruralCash": 2258.01,
+                "marketCash": 2625.34,
+                "assignedWorkers": 0,
+                "requiredWorkers": 0,
+                "seasonalGapKg": 0,
+                "annualPlannedRawHayKg": 0
+              }
+            },
+            "10": {
+              "totals": {
+                "requiredKg": 32553844.35869126,
+                "pastureGrownKg": 63148533.87130053,
+                "pastureConsumedKg": 13445877.6126999,
+                "harvestedKg": 65578.33524716028,
+                "harvestLossKg": 9836.750287074045,
+                "storageLossKg": 2223.715003070534,
+                "hayConsumedKg": 40853.264236907315,
+                "unharvestedKg": 49637077.923353486,
+                "purchasedKg": 4903.682008368201,
+                "soldKg": 4903.791666666666,
+                "unmetKg": 19067113.481754452,
+                "spending": 68.94000000000003,
+                "revenue": 69.23,
+                "referenceHarvestCapacityKg": 65578.46378612415
+              },
+              "minRuralCash": 4143.8,
+              "minMarketCash": 5150.55,
+              "peakMarketFodderKg": 0.1096582984658312,
+              "end": {
+                "hayKg": 25224.29220749926,
+                "marketFodderKg": 0.1096582984658312,
+                "ruralCash": 5775.42,
+                "marketCash": 14283.12,
+                "assignedWorkers": 1.5195780992507935,
+                "requiredWorkers": 579.9096565103567,
+                "seasonalGapKg": 18233140.94505676,
+                "annualPlannedRawHayKg": 18514620.21091669
+              }
+            },
+            "11": {
+              "totals": {
+                "requiredKg": 446944.5779840476,
+                "pastureGrownKg": 68240824.32036315,
+                "pastureConsumedKg": 222256.4601967603,
+                "harvestedKg": 0,
+                "harvestLossKg": 0,
+                "storageLossKg": 0,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 68018567.86016639,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 224688.1177872872,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 0
+              },
+              "minRuralCash": 2996.02,
+              "minMarketCash": 609.0359293564704,
+              "peakMarketFodderKg": 0,
+              "end": {
+                "hayKg": 0,
+                "marketFodderKg": 0,
+                "ruralCash": 6864.45,
+                "marketCash": 7116.2,
+                "assignedWorkers": 0,
+                "requiredWorkers": 7.687437872057808,
+                "seasonalGapKg": 210098.17224412586,
+                "annualPlannedRawHayKg": 211192.04860703758
+              }
+            },
+            "12": {
+              "totals": {
+                "requiredKg": 14168119.189254027,
+                "pastureGrownKg": 254561434.40693766,
+                "pastureConsumedKg": 7698857.086298004,
+                "harvestedKg": 2086707.3510428485,
+                "harvestLossKg": 313006.10265642736,
+                "storageLossKg": 65465.64476470635,
+                "hayConsumedKg": 1226482.5701518948,
+                "unharvestedKg": 244775869.96959686,
+                "purchasedKg": 26871.01214574899,
+                "soldKg": 26871.333333333336,
+                "unmetKg": 5242779.532804129,
+                "spending": 390.42,
+                "revenue": 379.36000000000007,
+                "referenceHarvestCapacityKg": 2086707.3709746636
+              },
+              "minRuralCash": 7705.5,
+              "minMarketCash": 9508.15,
+              "peakMarketFodderKg": 0.3211875843456369,
+              "end": {
+                "hayKg": 834202.3549802386,
+                "marketFodderKg": 0.3211875843456369,
+                "ruralCash": 19370.39,
+                "marketCash": 27583.38,
+                "assignedWorkers": 59.59640192985535,
+                "requiredWorkers": 223.5214551664004,
+                "seasonalGapKg": 6179991.161536579,
+                "annualPlannedRawHayKg": 6726062.261412834
+              }
+            },
+            "13": {
+              "totals": {
+                "requiredKg": 59977984.65995845,
+                "pastureGrownKg": 163153150.01833245,
+                "pastureConsumedKg": 24952847.374728665,
+                "harvestedKg": 0,
+                "harvestLossKg": 0,
+                "storageLossKg": 1.2309485483382325,
+                "hayConsumedKg": 202.3192052978156,
+                "unharvestedKg": 138200302.64360368,
+                "purchasedKg": 227.79999999999998,
+                "soldKg": 0,
+                "unmetKg": 35024934.96602446,
+                "spending": 4.0200000000000005,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 0
+              },
+              "minRuralCash": 9206.8,
+              "minMarketCash": 7860.14,
+              "peakMarketFodderKg": 0,
+              "end": {
+                "hayKg": 40.59599999999998,
+                "marketFodderKg": 0,
+                "ruralCash": 21675.48,
+                "marketCash": 29334.01,
+                "assignedWorkers": 0,
+                "requiredWorkers": 1033.5419891755569,
+                "seasonalGapKg": 33056601.533518746,
+                "annualPlannedRawHayKg": 33728283.41720383
+              }
+            },
+            "14": {
+              "totals": {
+                "requiredKg": 20950623.903320823,
+                "pastureGrownKg": 137413302.22089335,
+                "pastureConsumedKg": 8271682.648590884,
+                "harvestedKg": 0,
+                "harvestLossKg": 0,
+                "storageLossKg": 5.6265602363433675,
+                "hayConsumedKg": 907.0308533645484,
+                "unharvestedKg": 129141619.57230245,
+                "purchasedKg": 1008.6969899665552,
+                "soldKg": 0,
+                "unmetKg": 12678034.22387658,
+                "spending": 17.779999999999998,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 0
+              },
+              "minRuralCash": 8204.86,
+              "minMarketCash": 2750.74,
+              "peakMarketFodderKg": 0.27859531772575497,
+              "end": {
+                "hayKg": 175.37290969899666,
+                "marketFodderKg": 0.2729096989966606,
+                "ruralCash": 19559.18,
+                "marketCash": 12810.75,
+                "assignedWorkers": 0,
+                "requiredWorkers": 364.09366109464537,
+                "seasonalGapKg": 11989513.120439956,
+                "annualPlannedRawHayKg": 12252930.840289501
+              }
+            },
+            "15": {
+              "totals": {
+                "requiredKg": 126772.27746830283,
+                "pastureGrownKg": 68604293.14086089,
+                "pastureConsumedKg": 49719.23789851802,
+                "harvestedKg": 0,
+                "harvestLossKg": 0,
+                "storageLossKg": 0,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 68554573.90296236,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 77053.0395697848,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 0
+              },
+              "minRuralCash": 4240.05,
+              "minMarketCash": 1776.5215445945946,
+              "peakMarketFodderKg": 0,
+              "end": {
+                "hayKg": 0,
+                "marketFodderKg": 0,
+                "ruralCash": 11356.25,
+                "marketCash": 7941.06,
+                "assignedWorkers": 0,
+                "requiredWorkers": 2.142314070080868,
+                "seasonalGapKg": 72684.10825952774,
+                "annualPlannedRawHayKg": 74261.64469602623
+              }
+            },
+            "16": {
+              "totals": {
+                "requiredKg": 15823964.286431015,
+                "pastureGrownKg": 69959110.06610133,
+                "pastureConsumedKg": 10328888.706811255,
+                "harvestedKg": 5018127.853335326,
+                "harvestLossKg": 752719.178000299,
+                "storageLossKg": 175252.3360953397,
+                "hayConsumedKg": 3078523.2323338194,
+                "unharvestedKg": 54612093.50595474,
+                "purchasedKg": 15444.00920665154,
+                "soldKg": 15444.029031687021,
+                "unmetKg": 2416552.3472859394,
+                "spending": 131.06,
+                "revenue": 193.25,
+                "referenceHarvestCapacityKg": 5018129.514623062
+              },
+              "minRuralCash": 1623.76,
+              "minMarketCash": 923.69,
+              "peakMarketFodderKg": 0.6517952957014206,
+              "end": {
+                "hayKg": 1958721.5652624122,
+                "marketFodderKg": 0.019825035478372215,
+                "ruralCash": 2700.3,
+                "marketCash": 923.69,
+                "assignedWorkers": 160.5540099143982,
+                "requiredWorkers": 245.61961809982733,
+                "seasonalGapKg": 5568391.3257322395,
+                "annualPlannedRawHayKg": 6645418.101987921
+              }
+            },
+            "17": {
+              "totals": {
+                "requiredKg": 0,
+                "pastureGrownKg": 14614413.545110501,
+                "pastureConsumedKg": 0,
+                "harvestedKg": 0,
+                "harvestLossKg": 0,
+                "storageLossKg": 0,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 14614413.545110501,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 0,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 0
+              },
+              "minRuralCash": null,
+              "minMarketCash": 0.52,
+              "peakMarketFodderKg": 0,
+              "end": {
+                "hayKg": 0,
+                "marketFodderKg": 0,
+                "ruralCash": null,
+                "marketCash": 0.52,
+                "assignedWorkers": 0,
+                "requiredWorkers": 0,
+                "seasonalGapKg": 0,
+                "annualPlannedRawHayKg": 0
+              }
+            }
+          },
+          "foodUnmetLedgerUnits": {
+            "rural": 0.02999999999974534,
+            "urban": 0
+          },
+          "garmentDeliveriesLots": 213.02266476937893,
+          "blanketDeliveriesLots": 3.5606452703484703,
+          "woolMarketInflowKg": 37250.59255897757
+        }
+      ],
+      "livestockDispatch": {
+        "settlementCount": 12,
+        "periods": [
+          15601,
+          15602,
+          15603,
+          15604,
+          15605,
+          15606,
+          15607,
+          15608,
+          15609,
+          15610,
+          15611,
+          15612
+        ],
+        "bySpecies": {
+          "Horses": {
+            "dispatchedHeads": 1541,
+            "arrivedHeads": 1541,
+            "trackedHeads": 1541,
+            "untrackedHeads": 0,
+            "herdDebitHeads": 1541,
+            "maxCellErrorHeads": 1.4210854715202004e-14,
+            "cells": 1369
+          },
+          "Pig": {
+            "dispatchedHeads": 1537,
+            "arrivedHeads": 1537,
+            "trackedHeads": 1537,
+            "untrackedHeads": 0,
+            "herdDebitHeads": 1537,
+            "maxCellErrorHeads": 1.7763568394002505e-15,
+            "cells": 10632
+          },
+          "Chicken": {
+            "dispatchedHeads": 248,
+            "arrivedHeads": 248,
+            "trackedHeads": 248,
+            "untrackedHeads": 0,
+            "herdDebitHeads": 248,
+            "maxCellErrorHeads": 3.552713678800501e-15,
+            "cells": 7560
+          },
+          "Cattle": {
+            "dispatchedHeads": 71,
+            "arrivedHeads": 71,
+            "trackedHeads": 71,
+            "untrackedHeads": 0,
+            "herdDebitHeads": 71,
+            "maxCellErrorHeads": 1.4210854715202004e-14,
+            "cells": 1369
+          },
+          "Elephants": {
+            "dispatchedHeads": 0,
+            "arrivedHeads": 0,
+            "trackedHeads": 0,
+            "untrackedHeads": 0,
+            "herdDebitHeads": 0,
+            "maxCellErrorHeads": 0,
+            "cells": 5364
+          },
+          "Sheep": {
+            "dispatchedHeads": 101,
+            "arrivedHeads": 101,
+            "trackedHeads": 101,
+            "untrackedHeads": 0,
+            "herdDebitHeads": 100.99999999999986,
+            "maxCellErrorHeads": 1.1368683772161603e-13,
+            "cells": 1369
+          },
+          "Cats": {
+            "dispatchedHeads": 0,
+            "arrivedHeads": 0,
+            "trackedHeads": 0,
+            "untrackedHeads": 0,
+            "herdDebitHeads": 0,
+            "maxCellErrorHeads": 0,
+            "cells": 7500
+          },
+          "Dogs": {
+            "dispatchedHeads": 0,
+            "arrivedHeads": 0,
+            "trackedHeads": 0,
+            "untrackedHeads": 0,
+            "herdDebitHeads": 0,
+            "maxCellErrorHeads": 0,
+            "cells": 5760
+          },
+          "Camels": {
+            "dispatchedHeads": 0,
+            "arrivedHeads": 0,
+            "trackedHeads": 0,
+            "untrackedHeads": 0,
+            "herdDebitHeads": 0,
+            "maxCellErrorHeads": 0,
+            "cells": 60
+          },
+          "Goats": {
+            "dispatchedHeads": 2,
+            "arrivedHeads": 2,
+            "trackedHeads": 2,
+            "untrackedHeads": 0,
+            "herdDebitHeads": 2,
+            "maxCellErrorHeads": 0,
+            "cells": 60
+          }
+        }
+      },
+      "bytes": 57305607,
+      "sha256": "472c4a7ef65500b3d5a2988507ec6dbb7bd1ce8b04d5c6b85eb221a28ed0abfd",
+      "inputSha256": "5e73a27785881bf553d37404442d7ead0f7bb68457208cc33c88c88f7c6a5999",
+      "sourceTreeSha256": "a153c5e4776a81490e033c1c957a39c5d0ea2bf459b8182632e81c524dc48e98",
+      "relevantSourceHashes": {
+        "src/extensions/characters/simulation.ts": "877ed2ac70fc0bc9d4f8083748bdeb6f779d7226acefd119e643a6428415f49d",
+        "src/extensions/economy/context/cadencePhases.ts": "8006f84d1e280f768979632f5f87c03b33b01e021053dc508d8a576c0aebdcf3",
+        "src/extensions/economy/generators/developmentPotential.ts": "0e8afbb439613f755938f9f9b3bc9bb876f76f84adc629106ca8d1bf564ba7c2",
+        "src/extensions/economy/generators/foodLedgerConsumption.ts": "f6f9abc37c6fa9a7ecffd5a49630daac600ca18baece8509292d0a38fed49f59",
+        "src/extensions/economy/generators/foodProduction.ts": "f4e5169b47726d85d6b9c8cae8668ac33f52b63ef2f702dc418ce83acc798abc",
+        "src/extensions/economy/generators/husbandry.ts": "31c19433e3e1f950b7ad701a248e106ddc39d9fb226506ea17f3c05a25a0e90c",
+        "src/extensions/economy/generators/livestockFeed.ts": "73de2d2e00e0056d038c480a367c75fdcdab9508533d4e1f6b8a9879bb146165",
+        "src/extensions/economy/generators/livestockFeedPolicy.ts": "1fc10060ddf7b308afd87c97fc6fb2a5c88542c2f3fe6adac46682056e06e0ab",
+        "src/extensions/economy/generators/livestockFeedSchedule.ts": "0a2c162ea06ea346f8c654789d2ceac12bbe0c3a01f29983e996d1a886fc63fa",
+        "src/extensions/economy/generators/livestockFeedState.ts": "5e98f1ac5220d9183a8efa9ce39be6df5afb3961f094f0ef2459731c06e66fa3",
+        "src/extensions/economy/generators/production-generator.ts": "8d50ae7dc3ba1de9949079aa88744b6f999f078391301d0bfcf677d51e7fab41",
+        "src/extensions/economy/simulation.ts": "d1f63defb37cc1ecfed63e5afbd67825efdf92b19ce1fb7ad120e16937fc7a55",
+        "src/extensions/nobility/simulation.ts": "96c36375d68b4fd6daa8481437eab45bffefe3c3a2d8184a8703599370c54d30",
+        "src/extensions/shipbuilding/simulation.ts": "093bd29ab699f948d4130351633c96d011970bc4dba383c8536a87761265b2ac",
+        "src/extensions/simulation.ts": "50d71b1e9a6d39829e9df9a9937051aea1775f6b95407607d4ef6adff293c208"
+      },
+      "initial": {
+        "date": [
+          1300,
+          1,
+          1
+        ],
+        "ruralPeople": 3579209.4272747636,
+        "urbanPeople": 614912.6551625639,
+        "heads": {
+          "Cattle": 32044.245689714026,
+          "Horses": 28017.30898583879,
+          "Sheep": 192316.17895239624,
+          "Goats": 38845.35411176436,
+          "Camels": 2241.5197421012895
+        },
+        "cultivatedHa": 12813485.05380249,
+        "pastureHa": 3575789.321455163,
+        "aggregateOccupancy": 0.06396315410638562,
+        "cellsOverModelFootprint": 0,
+        "annualWoolPotentialKg": 242316.8339127073,
+        "effectiveWoolLaborAndFeedCoverage": 0.16329630652344979,
+        "woolStockKg": 557.2376577673037,
+        "wealth": {
+          "urbanPop": 614.92,
+          "ruralPop": 3579.209,
+          "stateTreasury": 488405.07,
+          "statePurse": 24.2,
+          "stateDepartments": 244.37,
+          "burgTreasury": 147089.51,
+          "urbanHouseholds": 112473.14,
+          "guilds": 807.72,
+          "marketBalance": 189101.63,
+          "marketPayable": 0,
+          "tradeCapital": 29386.73,
+          "ruralHouseholds": 82316.24,
+          "characters": 0
+        }
+      },
+      "yearEnd": {
+        "date": [
+          1301,
+          1,
+          1
+        ],
+        "ruralPeople": 3582679.532226175,
+        "urbanPeople": 605452.8629225991,
+        "heads": {
+          "Cattle": 30478.011642642643,
+          "Horses": 25507.430677718385,
+          "Sheep": 180876.82692480076,
+          "Goats": 35642.41318845518,
+          "Camels": 1943.8579525709627
+        },
+        "cultivatedHa": 12073879.644958496,
+        "pastureHa": 3119536.6368931504,
+        "aggregateOccupancy": 0.06803346734375056,
+        "cellsOverModelFootprint": 0,
+        "annualWoolPotentialKg": 257107.95954527735,
+        "effectiveWoolLaborAndFeedCoverage": 0.1763596143733107,
+        "woolStockKg": 2.397637466012417,
+        "wealth": {
+          "urbanPop": 605.457,
+          "ruralPop": 3582.68,
+          "stateTreasury": 356698.11,
+          "statePurse": 0,
+          "stateDepartments": 358.88,
+          "burgTreasury": 145512.05,
+          "urbanHouseholds": 106841.15,
+          "guilds": 1398.46,
+          "marketBalance": 206855.41,
+          "marketPayable": 0,
+          "tradeCapital": 34501.98,
+          "ruralHouseholds": 160395.61,
+          "characters": 0
+        }
+      },
+      "annual": {
+        "foodLedgerKgPerUnit": 465.1162790697675,
+        "foodTotals": {
+          "ruralNeed": 1077338.35,
+          "ruralSupplied": 1077338.58,
+          "ruralFromHousehold": 1073178.28,
+          "ruralFromMarket": 4160.3,
+          "ruralPaid": 3489.7599999999998,
+          "urbanNeed": 261701.04000000004,
+          "urbanSupplied": 261701.04000000004,
+          "urbanPaid": 210689.59,
+          "urbanBudgetGap": 0,
+          "urbanStockGap": 0,
+          "lodgerNeed": 0,
+          "lodgerSupplied": 0,
+          "lodgerPaid": 0,
+          "ruralUnmet": 0.02999999999974534,
+          "urbanUnmet": 0
+        },
+        "foodByMarket": {
+          "1": {
+            "ruralNeed": 46161.450000000004,
+            "ruralSupplied": 46161.45,
+            "ruralFromHousehold": 45195.67999999999,
+            "ruralFromMarket": 965.77,
+            "ruralPaid": 772.61,
+            "urbanNeed": 19573.340000000004,
+            "urbanSupplied": 19573.340000000004,
+            "urbanPaid": 15658.610000000004,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0.010000000000218279,
+            "urbanUnmet": 0
+          },
+          "2": {
+            "ruralNeed": 4606.2,
+            "ruralSupplied": 4606.2,
+            "ruralFromHousehold": 4600.21,
+            "ruralFromMarket": 5.99,
+            "ruralPaid": 4.79,
+            "urbanNeed": 5419.030000000001,
+            "urbanSupplied": 5419.030000000001,
+            "urbanPaid": 4335.219999999999,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "3": {
+            "ruralNeed": 52803.69000000001,
+            "ruralSupplied": 52803.70000000001,
+            "ruralFromHousehold": 52560.64000000001,
+            "ruralFromMarket": 243.06,
+            "ruralPaid": 263.35,
+            "urbanNeed": 11056.81,
+            "urbanSupplied": 11056.81,
+            "urbanPaid": 9273.68,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "4": {
+            "ruralNeed": 140832.46000000002,
+            "ruralSupplied": 140832.46000000002,
+            "ruralFromHousehold": 140723.52000000002,
+            "ruralFromMarket": 108.94,
+            "ruralPaid": 87.16,
+            "urbanNeed": 32644.550000000003,
+            "urbanSupplied": 32644.550000000003,
+            "urbanPaid": 26115.730000000003,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "5": {
+            "ruralNeed": 57586.599999999984,
+            "ruralSupplied": 57586.599999999984,
+            "ruralFromHousehold": 57523.64999999999,
+            "ruralFromMarket": 62.95,
+            "ruralPaid": 50.349999999999994,
+            "urbanNeed": 14710.48,
+            "urbanSupplied": 14710.48,
+            "urbanPaid": 11768.34,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "6": {
+            "ruralNeed": 47665.39,
+            "ruralSupplied": 47665.4,
+            "ruralFromHousehold": 47215.64,
+            "ruralFromMarket": 449.76000000000005,
+            "ruralPaid": 362.21,
+            "urbanNeed": 12501.689999999999,
+            "urbanSupplied": 12501.689999999999,
+            "urbanPaid": 10022.06,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "7": {
+            "ruralNeed": 136532.13,
+            "ruralSupplied": 136532.13,
+            "ruralFromHousehold": 136472.26,
+            "ruralFromMarket": 59.87,
+            "ruralPaid": 47.9,
+            "urbanNeed": 20757.699999999997,
+            "urbanSupplied": 20757.699999999997,
+            "urbanPaid": 16606.170000000006,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "8": {
+            "ruralNeed": 48880.14000000001,
+            "ruralSupplied": 48880.130000000005,
+            "ruralFromHousehold": 48859.030000000006,
+            "ruralFromMarket": 21.1,
+            "ruralPaid": 24.05,
+            "urbanNeed": 13548.7,
+            "urbanSupplied": 13548.7,
+            "urbanPaid": 11531.15,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0.009999999999763531,
+            "urbanUnmet": 0
+          },
+          "9": {
+            "ruralNeed": 13514.5,
+            "ruralSupplied": 13514.529999999999,
+            "ruralFromHousehold": 13157.929999999998,
+            "ruralFromMarket": 356.6,
+            "ruralPaid": 285.27,
+            "urbanNeed": 6375.99,
+            "urbanSupplied": 6375.99,
+            "urbanPaid": 5100.74,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "10": {
+            "ruralNeed": 66562.44000000002,
+            "ruralSupplied": 66562.45000000001,
+            "ruralFromHousehold": 66487.10000000002,
+            "ruralFromMarket": 75.35,
+            "ruralPaid": 60.28,
+            "urbanNeed": 15471.990000000002,
+            "urbanSupplied": 15471.990000000002,
+            "urbanPaid": 12377.590000000002,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "11": {
+            "ruralNeed": 37548.840000000004,
+            "ruralSupplied": 37548.85,
+            "ruralFromHousehold": 37463.15,
+            "ruralFromMarket": 85.7,
+            "ruralPaid": 68.56,
+            "urbanNeed": 7388.65,
+            "urbanSupplied": 7388.65,
+            "urbanPaid": 5910.92,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0.009999999999763531,
+            "urbanUnmet": 0
+          },
+          "12": {
+            "ruralNeed": 117784.19,
+            "ruralSupplied": 117784.20000000001,
+            "ruralFromHousehold": 117308.70000000001,
+            "ruralFromMarket": 475.5,
+            "ruralPaid": 380.4,
+            "urbanNeed": 31382.01,
+            "urbanSupplied": 31382.01,
+            "urbanPaid": 25105.730000000003,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "13": {
+            "ruralNeed": 139187.34,
+            "ruralSupplied": 139187.35,
+            "ruralFromHousehold": 138909.06,
+            "ruralFromMarket": 278.29,
+            "ruralPaid": 222.63,
+            "urbanNeed": 32285.74000000001,
+            "urbanSupplied": 32285.74000000001,
+            "urbanPaid": 25828.49,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "14": {
+            "ruralNeed": 95639.67000000001,
+            "ruralSupplied": 95639.70000000001,
+            "ruralFromHousehold": 94877.34000000001,
+            "ruralFromMarket": 762.36,
+            "ruralPaid": 691.51,
+            "urbanNeed": 16507.59,
+            "urbanSupplied": 16507.59,
+            "urbanPaid": 13384.830000000002,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "15": {
+            "ruralNeed": 51738.44,
+            "ruralSupplied": 51738.520000000004,
+            "ruralFromHousehold": 51557.770000000004,
+            "ruralFromMarket": 180.75,
+            "ruralPaid": 146.04,
+            "urbanNeed": 10811.17,
+            "urbanSupplied": 10811.17,
+            "urbanPaid": 8657.84,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "16": {
+            "ruralNeed": 20294.87,
+            "ruralSupplied": 20294.909999999996,
+            "ruralFromHousehold": 20266.6,
+            "ruralFromMarket": 28.31,
+            "ruralPaid": 22.65,
+            "urbanNeed": 11265.599999999999,
+            "urbanSupplied": 11265.599999999999,
+            "urbanPaid": 9012.490000000002,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          }
+        },
+        "foodImports": {
+          "1": {
+            "outcomes": {
+              "delivered": 8,
+              "belowQuantityPrecision": 5
+            },
+            "loaded": 10740.45,
+            "deliveredBeforeRounding": 8201.911061784085,
+            "produced": 20222.97,
+            "imported": 8201.91,
+            "productionPasses": 12,
+            "minBalance": 5513.95,
+            "maxBalance": 15162.38
+          },
+          "2": {
+            "outcomes": {
+              "delivered": 5,
+              "belowQuantityPrecision": 4,
+              "noCrop": 1
+            },
+            "loaded": 2844.7000000000003,
+            "deliveredBeforeRounding": 2242.9818475982142,
+            "produced": 4954.070000000001,
+            "imported": 2242.9700000000003,
+            "productionPasses": 12,
+            "minBalance": 1777.21,
+            "maxBalance": 5087.48
+          },
+          "3": {
+            "outcomes": {
+              "noRoute": 2,
+              "delivered": 2,
+              "belowQuantityPrecision": 10,
+              "noCrop": 2
+            },
+            "loaded": 1494.8600000000001,
+            "deliveredBeforeRounding": 1245.328924411419,
+            "produced": 8930.84,
+            "imported": 1245.33,
+            "productionPasses": 12,
+            "minBalance": 3107.16,
+            "maxBalance": 9729.73
+          },
+          "4": {
+            "outcomes": {
+              "delivered": 9,
+              "belowQuantityPrecision": 10
+            },
+            "loaded": 16930.87,
+            "deliveredBeforeRounding": 13028.336501551807,
+            "produced": 26292.71,
+            "imported": 13028.33,
+            "productionPasses": 12,
+            "minBalance": 14039.67,
+            "maxBalance": 27913.39
+          },
+          "5": {
+            "outcomes": {
+              "delivered": 9,
+              "belowQuantityPrecision": 13
+            },
+            "loaded": 15217.71,
+            "deliveredBeforeRounding": 12417.509050297675,
+            "produced": 10238.380000000001,
+            "imported": 12417.51,
+            "productionPasses": 12,
+            "minBalance": 6888.82,
+            "maxBalance": 12167.96
+          },
+          "6": {
+            "outcomes": {
+              "delivered": 11,
+              "belowQuantityPrecision": 9
+            },
+            "loaded": 11753.16,
+            "deliveredBeforeRounding": 8582.398945868537,
+            "produced": 14224.83,
+            "imported": 8582.39,
+            "productionPasses": 12,
+            "minBalance": 3170.56,
+            "maxBalance": 10220.43
+          },
+          "7": {
+            "outcomes": {
+              "delivered": 1,
+              "noCrop": 1
+            },
+            "loaded": 1586.04,
+            "deliveredBeforeRounding": 1270,
+            "produced": 21296.420000000002,
+            "imported": 1270,
+            "productionPasses": 12,
+            "minBalance": 5309.8,
+            "maxBalance": 18541.07
+          },
+          "8": {
+            "outcomes": {
+              "noRoute": 2,
+              "delivered": 2,
+              "belowQuantityPrecision": 6,
+              "noCrop": 2
+            },
+            "loaded": 874.23,
+            "deliveredBeforeRounding": 756.1690076695024,
+            "produced": 13107.839999999998,
+            "imported": 756.1700000000001,
+            "productionPasses": 12,
+            "minBalance": 4579.18,
+            "maxBalance": 12786.69
+          },
+          "9": {
+            "outcomes": {
+              "delivered": 21,
+              "belowQuantityPrecision": 96
+            },
+            "loaded": 11961.410000000002,
+            "deliveredBeforeRounding": 9161.687838727583,
+            "produced": 0,
+            "imported": 9161.69,
+            "productionPasses": 12,
+            "minBalance": 1516.52,
+            "maxBalance": 5776.23
+          },
+          "10": {
+            "outcomes": {
+              "delivered": 2,
+              "noCrop": 1
+            },
+            "loaded": 1469.06,
+            "deliveredBeforeRounding": 1176.33,
+            "produced": 14518.94,
+            "imported": 1176.33,
+            "productionPasses": 12,
+            "minBalance": 5547.51,
+            "maxBalance": 13923.73
+          },
+          "11": {
+            "outcomes": {
+              "noRoute": 2,
+              "delivered": 3,
+              "belowQuantityPrecision": 17
+            },
+            "loaded": 1277.44,
+            "deliveredBeforeRounding": 1028.7987785008831,
+            "produced": 7639.13,
+            "imported": 1028.8,
+            "productionPasses": 12,
+            "minBalance": 429.95,
+            "maxBalance": 5204.92
+          },
+          "12": {
+            "outcomes": {
+              "delivered": 8,
+              "belowQuantityPrecision": 14
+            },
+            "loaded": 16378.79,
+            "deliveredBeforeRounding": 9730.177385083532,
+            "produced": 23526.609999999997,
+            "imported": 9730.18,
+            "productionPasses": 12,
+            "minBalance": 10026.83,
+            "maxBalance": 24215.67
+          },
+          "13": {
+            "outcomes": {
+              "delivered": 3,
+              "belowQuantityPrecision": 3
+            },
+            "loaded": 2686.62,
+            "deliveredBeforeRounding": 1968.3000000000002,
+            "produced": 29929.41,
+            "imported": 1968.29,
+            "productionPasses": 12,
+            "minBalance": 9175.23,
+            "maxBalance": 27084.75
+          },
+          "14": {
+            "outcomes": {
+              "noRoute": 5,
+              "delivered": 1,
+              "noCrop": 1
+            },
+            "loaded": 1258.56,
+            "deliveredBeforeRounding": 996.64,
+            "produced": 16533.170000000002,
+            "imported": 996.64,
+            "productionPasses": 12,
+            "minBalance": 3081.66,
+            "maxBalance": 13298.37
+          },
+          "15": {
+            "outcomes": {
+              "noRoute": 1,
+              "delivered": 1
+            },
+            "loaded": 927.45,
+            "deliveredBeforeRounding": 742.64,
+            "produced": 9817.98,
+            "imported": 742.64,
+            "productionPasses": 12,
+            "minBalance": 2258.96,
+            "maxBalance": 8088.61
+          },
+          "16": {
+            "outcomes": {
+              "noRoute": 9,
+              "delivered": 16,
+              "belowQuantityPrecision": 32
+            },
+            "loaded": 13309.630000000001,
+            "deliveredBeforeRounding": 9087.194250540344,
+            "produced": 2727.66,
+            "imported": 9087.19,
+            "productionPasses": 12,
+            "minBalance": 515.61,
+            "maxBalance": 8180.14
+          }
+        },
+        "feedRequiredKg": 322644789.95505893,
+        "feedUnmetKg": 154820543.56203863,
+        "feedUnmetShare": 0.47984826776097494,
+        "maxMonthlyFeedUnmetKg": 25043677.989889745,
+        "goods": {
+          "Wool": {
+            "source:ruralHarvest": 24.833728372651713,
+            "sink:recipeInput": 24.80782470480353
+          },
+          "Milk": {},
+          "Cheese": {
+            "source:ruralHarvest": 21.752156941108034,
+            "sink:householdFood": 20.893275743668212,
+            "sink:recipeInput": 1.7167242563317888
+          },
+          "Leather": {
+            "source:ruralHarvest": 1779.8580618051285,
+            "sink:recipeInput": 256.38,
+            "source:burgCraft": 143.4
+          },
+          "Fodder": {
+            "source:ruralHarvest": 1323.1235814803752,
+            "source:burgCraft": 10.559999999999999,
+            "sink:livestockFeed": 1328.501569910914
+          }
+        },
+        "woolMarketInflowKg": 37250.59255897757,
+        "garmentDeliveriesLots": 213.02266476937893,
+        "blanketDeliveriesLots": 3.5606452703484703
+      },
+      "extraMonth": null
+    },
+    {
+      "path": "docs/analytics/raw/economy-e1-feed-calendar-final-province-101-20261024.json",
+      "feedYears": [
+        {
+          "year": 1,
+          "end": {
+            "date": [
+              1301,
+              1,
+              1
+            ],
+            "ruralPeople": 433796.2348461151,
+            "urbanPeople": 19061.222682973672,
+            "heads": {
+              "Cattle": 239.4064692488552,
+              "Horses": 134.8188747907063,
+              "Sheep": 1495.4112940498217,
+              "Goats": 0,
+              "Camels": 0
+            },
+            "cultivatedHa": 938597.2734375,
+            "pastureHa": 382902.01332834887,
+            "aggregateOccupancy": 0.0034325506554527888,
+            "cellsOverModelFootprint": 0,
+            "annualWoolPotentialKg": 2001.681736520926,
+            "effectiveWoolLaborAndFeedCoverage": 1,
+            "woolStockKg": 0.2705410821643231,
+            "wealth": {
+              "urbanPop": 19.061,
+              "ruralPop": 433.796,
+              "stateTreasury": 19408.43,
+              "statePurse": 0,
+              "stateDepartments": 10.89,
+              "burgTreasury": 6778.76,
+              "urbanHouseholds": 14701.22,
+              "guilds": 16.43,
+              "marketBalance": 22236.8,
+              "marketPayable": 0,
+              "tradeCapital": 554.02,
+              "ruralHouseholds": 34583.66,
+              "characters": 0
+            }
+          },
+          "settlementCount": 12,
+          "periods": [
+            15601,
+            15602,
+            15603,
+            15604,
+            15605,
+            15606,
+            15607,
+            15608,
+            15609,
+            15610,
+            15611,
+            15612
+          ],
+          "settlements": [
+            {
+              "date": {
+                "year": 1300,
+                "month": 2,
+                "day": 1,
+                "tick": 31
+              },
+              "period": 15601,
+              "month": 2,
+              "totals": {
+                "requiredKg": 160770.98590707514,
+                "pastureGrownKg": 74105179.35470401,
+                "pastureConsumedKg": 160770.98590707514,
+                "harvestedKg": 119986.73659009743,
+                "harvestLossKg": 17998.010488514614,
+                "storageLossKg": 1107.2993016568892,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 73824421.63220684,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 0,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 119986.73659009743
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 4,
+                "day": 1,
+                "tick": 90
+              },
+              "period": 15602,
+              "month": 3,
+              "totals": {
+                "requiredKg": 159953.51032869995,
+                "pastureGrownKg": 67897970.78952985,
+                "pastureConsumedKg": 159953.51032869995,
+                "harvestedKg": 102312.65320943823,
+                "harvestLossKg": 15346.897981415737,
+                "storageLossKg": 2116.1135696561482,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 67635704.6259917,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 0,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 102312.65320943823
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 4,
+                "day": 1,
+                "tick": 90
+              },
+              "period": 15603,
+              "month": 4,
+              "totals": {
+                "requiredKg": 159136.03475032482,
+                "pastureGrownKg": 56583179.393778704,
+                "pastureConsumedKg": 159136.03475032482,
+                "harvestedKg": 70671.22682288053,
+                "harvestLossKg": 10600.684023432083,
+                "storageLossKg": 2964.609986239812,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 56353372.1322055,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 0,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 70671.22682288053
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 5,
+                "day": 1,
+                "tick": 120
+              },
+              "period": 15604,
+              "month": 5,
+              "totals": {
+                "requiredKg": 158318.49670833087,
+                "pastureGrownKg": 43232385.14617767,
+                "pastureConsumedKg": 158318.49670833087,
+                "harvestedKg": 33698.14660266189,
+                "harvestLossKg": 5054.721990399285,
+                "storageLossKg": 3535.6693143718985,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 43040368.50286668,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 0,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 33698.14660266189
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 6,
+                "day": 1,
+                "tick": 151
+              },
+              "period": 15605,
+              "month": 6,
+              "totals": {
+                "requiredKg": 157500.89146191362,
+                "pastureGrownKg": 31444475.315876577,
+                "pastureConsumedKg": 157500.89146191362,
+                "harvestedKg": 1160.4507149495678,
+                "harvestLossKg": 174.06760724243517,
+                "storageLossKg": 3786.7468673508065,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 31285813.973699715,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 0,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 1160.4507149495678
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 7,
+                "day": 1,
+                "tick": 181
+              },
+              "period": 15606,
+              "month": 7,
+              "totals": {
+                "requiredKg": 156683.21861209456,
+                "pastureGrownKg": 24440005.959672492,
+                "pastureConsumedKg": 113591.63215737708,
+                "harvestedKg": 0,
+                "harvestLossKg": 0,
+                "storageLossKg": 3758.743229754369,
+                "hayConsumedKg": 43091.586454717464,
+                "unharvestedKg": 24326414.327515114,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 0,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 0
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 8,
+                "day": 1,
+                "tick": 212
+              },
+              "period": 15607,
+              "month": 8,
+              "totals": {
+                "requiredKg": 155865.47339459986,
+                "pastureGrownKg": 24095198.800440736,
+                "pastureConsumedKg": 108976.16785858841,
+                "harvestedKg": 0,
+                "harvestLossKg": 0,
+                "storageLossKg": 3290.2399329096506,
+                "hayConsumedKg": 46889.30553601147,
+                "unharvestedKg": 23986222.632582143,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 0,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 0
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 9,
+                "day": 1,
+                "tick": 243
+              },
+              "period": 15608,
+              "month": 9,
+              "totals": {
+                "requiredKg": 155047.65321606878,
+                "pastureGrownKg": 30529632.54850259,
+                "pastureConsumedKg": 148711.3230034765,
+                "harvestedKg": 0,
+                "harvestLossKg": 0,
+                "storageLossKg": 2788.44447822044,
+                "hayConsumedKg": 6336.330212592267,
+                "unharvestedKg": 30380921.225499116,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 0,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 0
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 10,
+                "day": 1,
+                "tick": 273
+              },
+              "period": 15609,
+              "month": 10,
+              "totals": {
+                "requiredKg": 154229.75821731723,
+                "pastureGrownKg": 41980914.306503616,
+                "pastureConsumedKg": 154229.75821731723,
+                "harvestedKg": 27743.665903228764,
+                "harvestLossKg": 4161.5498854843145,
+                "storageLossKg": 2697.196731312313,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 41798940.88238307,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 0,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 27743.665903228764
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 11,
+                "day": 1,
+                "tick": 304
+              },
+              "period": 15610,
+              "month": 11,
+              "totals": {
+                "requiredKg": 153411.78342284742,
+                "pastureGrownKg": 55330825.1619821,
+                "pastureConsumedKg": 153411.78342284742,
+                "harvestedKg": 63106.743735657044,
+                "harvestLossKg": 9466.011560348557,
+                "storageLossKg": 2906.045924176634,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 55114306.6348236,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 0,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 63106.743735657044
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 12,
+                "day": 1,
+                "tick": 334
+              },
+              "period": 15611,
+              "month": 12,
+              "totals": {
+                "requiredKg": 152593.7291142914,
+                "pastureGrownKg": 66989093.689860836,
+                "pastureConsumedKg": 152593.7291142914,
+                "harvestedKg": 93779.14882383874,
+                "harvestLossKg": 14066.872323575813,
+                "storageLossKg": 3413.392786687953,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 66742720.811922714,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 0,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 93779.14882383874
+              }
+            },
+            {
+              "date": {
+                "year": 1301,
+                "month": 1,
+                "day": 1,
+                "tick": 365
+              },
+              "period": 15612,
+              "month": 1,
+              "totals": {
+                "requiredKg": 161482.59304491238,
+                "pastureGrownKg": 71876581.09488481,
+                "pastureConsumedKg": 161482.59304491238,
+                "harvestedKg": 112473.7725994399,
+                "harvestLossKg": 16871.06588991599,
+                "storageLossKg": 4176.381623823703,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 71602624.72924046,
+                "purchasedKg": 0,
+                "soldKg": 24616.70833333333,
+                "unmetKg": 0,
+                "spending": 0,
+                "revenue": 347.53,
+                "referenceHarvestCapacityKg": 112474.02356460561
+              }
+            }
+          ],
+          "totals": {
+            "requiredKg": 1884994.1281784764,
+            "pastureGrownKg": 588505441.561914,
+            "pastureConsumedKg": 1788676.9059751548,
+            "harvestedKg": 624932.545002192,
+            "harvestLossKg": 93739.88175032882,
+            "storageLossKg": 36540.883746160616,
+            "hayConsumedKg": 96317.2222033212,
+            "unharvestedKg": 586091832.1109366,
+            "purchasedKg": 0,
+            "soldKg": 24616.70833333333,
+            "unmetKg": 0,
+            "spending": 0,
+            "revenue": 347.53,
+            "referenceHarvestCapacityKg": 624932.7959673577
+          },
+          "unmetShare": 0,
+          "byMarket": {
+            "1": {
+              "totals": {
+                "requiredKg": 1884994.1281784764,
+                "pastureGrownKg": 588505441.561914,
+                "pastureConsumedKg": 1788676.9059751548,
+                "harvestedKg": 624932.545002192,
+                "harvestLossKg": 93739.88175032882,
+                "storageLossKg": 36540.883746160616,
+                "hayConsumedKg": 96317.2222033212,
+                "unharvestedKg": 586091832.1109366,
+                "purchasedKg": 0,
+                "soldKg": 24616.70833333333,
+                "unmetKg": 0,
+                "spending": 0,
+                "revenue": 347.53,
+                "referenceHarvestCapacityKg": 624932.7959673577
+              },
+              "minRuralCash": 35404.01,
+              "minMarketCash": 3282.33,
+              "peakMarketFodderKg": 24616.70833333333,
+              "end": {
+                "hayKg": 484447.7791347372,
+                "marketFodderKg": 24616.70833333333,
+                "ruralCash": 35404.01,
+                "marketCash": 26570.755963830197,
+                "assignedWorkers": 26.55342388153076,
+                "requiredWorkers": 28.233875066127993,
+                "seasonalGapKg": 120844.6766776468,
+                "annualPlannedRawHayKg": 638331.1913304771
+              }
+            }
+          },
+          "foodUnmetLedgerUnits": {
+            "rural": 0.010000000000218279,
+            "urban": 0
+          },
+          "garmentDeliveriesLots": 26.250569596986647,
+          "blanketDeliveriesLots": 0,
+          "woolMarketInflowKg": 1786.1109521053033
+        }
+      ],
+      "livestockDispatch": null,
+      "bytes": 2522714,
+      "sha256": "a2d87f994e8d4ce48069c60525ce674f7cd76b3d6d645e7a9e01d29f5bdade02",
+      "inputSha256": "a3209cca3c88ebf8f84b4f5d9321be8ad3bdc5b3766ca92994f0eb198a52e4e7",
+      "sourceTreeSha256": "aaa1012c3bb072312de06a2c9aa7e2c1790919eb3fd96d3e26b0fe0fc7258f2f",
+      "relevantSourceHashes": {
+        "src/extensions/characters/simulation.ts": "877ed2ac70fc0bc9d4f8083748bdeb6f779d7226acefd119e643a6428415f49d",
+        "src/extensions/economy/context/cadencePhases.ts": "8006f84d1e280f768979632f5f87c03b33b01e021053dc508d8a576c0aebdcf3",
+        "src/extensions/economy/generators/developmentPotential.ts": "0e8afbb439613f755938f9f9b3bc9bb876f76f84adc629106ca8d1bf564ba7c2",
+        "src/extensions/economy/generators/foodLedgerConsumption.ts": "f6f9abc37c6fa9a7ecffd5a49630daac600ca18baece8509292d0a38fed49f59",
+        "src/extensions/economy/generators/foodProduction.ts": "f4e5169b47726d85d6b9c8cae8668ac33f52b63ef2f702dc418ce83acc798abc",
+        "src/extensions/economy/generators/husbandry.ts": "31c19433e3e1f950b7ad701a248e106ddc39d9fb226506ea17f3c05a25a0e90c",
+        "src/extensions/economy/generators/livestockFeed.ts": "73de2d2e00e0056d038c480a367c75fdcdab9508533d4e1f6b8a9879bb146165",
+        "src/extensions/economy/generators/livestockFeedPolicy.ts": "1fc10060ddf7b308afd87c97fc6fb2a5c88542c2f3fe6adac46682056e06e0ab",
+        "src/extensions/economy/generators/livestockFeedSchedule.ts": "0a2c162ea06ea346f8c654789d2ceac12bbe0c3a01f29983e996d1a886fc63fa",
+        "src/extensions/economy/generators/livestockFeedState.ts": "5e98f1ac5220d9183a8efa9ce39be6df5afb3961f094f0ef2459731c06e66fa3",
+        "src/extensions/economy/generators/production-generator.ts": "8d50ae7dc3ba1de9949079aa88744b6f999f078391301d0bfcf677d51e7fab41",
+        "src/extensions/economy/simulation.ts": "d1f63defb37cc1ecfed63e5afbd67825efdf92b19ce1fb7ad120e16937fc7a55",
+        "src/extensions/nobility/simulation.ts": "96c36375d68b4fd6daa8481437eab45bffefe3c3a2d8184a8703599370c54d30",
+        "src/extensions/shipbuilding/simulation.ts": "093bd29ab699f948d4130351633c96d011970bc4dba383c8536a87761265b2ac",
+        "src/extensions/simulation.ts": "50d71b1e9a6d39829e9df9a9937051aea1775f6b95407607d4ef6adff293c208"
+      },
+      "initial": {
+        "date": [
+          1300,
+          1,
+          1
+        ],
+        "ruralPeople": 433614.9302124977,
+        "urbanPeople": 19757.05275632519,
+        "heads": {
+          "Cattle": 233.7190234328017,
+          "Horses": 153.1981865491937,
+          "Sheep": 1403.418857106391,
+          "Goats": 0,
+          "Camels": 0
+        },
+        "cultivatedHa": 946159.208984375,
+        "pastureHa": 408033.1397084409,
+        "aggregateOccupancy": 0.0032307174850617847,
+        "cellsOverModelFootprint": 0,
+        "annualWoolPotentialKg": 1768.273955628859,
+        "effectiveWoolLaborAndFeedCoverage": 1.0000000000000002,
+        "woolStockKg": 0.11021307861865809,
+        "wealth": {
+          "urbanPop": 19.757,
+          "ruralPop": 433.615,
+          "stateTreasury": 15597.69,
+          "statePurse": 2.23,
+          "stateDepartments": 6.52,
+          "burgTreasury": 4686.09,
+          "urbanHouseholds": 3631.62,
+          "guilds": 58.16,
+          "marketBalance": 5560.31,
+          "marketPayable": 0,
+          "tradeCapital": 615.58,
+          "ruralHouseholds": 69685.52,
+          "characters": 0
+        }
+      },
+      "yearEnd": {
+        "date": [
+          1301,
+          1,
+          1
+        ],
+        "ruralPeople": 433796.2348461151,
+        "urbanPeople": 19061.222682973672,
+        "heads": {
+          "Cattle": 239.4064692488552,
+          "Horses": 134.8188747907063,
+          "Sheep": 1495.4112940498217,
+          "Goats": 0,
+          "Camels": 0
+        },
+        "cultivatedHa": 938597.2734375,
+        "pastureHa": 382902.01332834887,
+        "aggregateOccupancy": 0.0034325506554527888,
+        "cellsOverModelFootprint": 0,
+        "annualWoolPotentialKg": 2001.681736520926,
+        "effectiveWoolLaborAndFeedCoverage": 1,
+        "woolStockKg": 0.2705410821643231,
+        "wealth": {
+          "urbanPop": 19.061,
+          "ruralPop": 433.796,
+          "stateTreasury": 19408.43,
+          "statePurse": 0,
+          "stateDepartments": 10.89,
+          "burgTreasury": 6778.76,
+          "urbanHouseholds": 14701.22,
+          "guilds": 16.43,
+          "marketBalance": 22236.8,
+          "marketPayable": 0,
+          "tradeCapital": 554.02,
+          "ruralHouseholds": 34583.66,
+          "characters": 0
+        }
+      },
+      "annual": {
+        "foodLedgerKgPerUnit": 465.1162790697675,
+        "foodTotals": {
+          "ruralNeed": 98135.68,
+          "ruralSupplied": 98135.77999999998,
+          "ruralFromHousehold": 97562.96999999999,
+          "ruralFromMarket": 572.81,
+          "ruralPaid": 458.24,
+          "urbanNeed": 8332.02,
+          "urbanSupplied": 8332.02,
+          "urbanPaid": 6665.630000000001,
+          "urbanBudgetGap": 0,
+          "urbanStockGap": 0,
+          "lodgerNeed": 0,
+          "lodgerSupplied": 0,
+          "lodgerPaid": 0,
+          "ruralUnmet": 0.010000000000218279,
+          "urbanUnmet": 0
+        },
+        "foodByMarket": {
+          "1": {
+            "ruralNeed": 98135.68,
+            "ruralSupplied": 98135.77999999998,
+            "ruralFromHousehold": 97562.96999999999,
+            "ruralFromMarket": 572.81,
+            "ruralPaid": 458.24,
+            "urbanNeed": 8332.02,
+            "urbanSupplied": 8332.02,
+            "urbanPaid": 6665.630000000001,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0.010000000000218279,
+            "urbanUnmet": 0
+          }
+        },
+        "foodImports": {
+          "1": {
+            "outcomes": {},
+            "loaded": 0,
+            "deliveredBeforeRounding": 0,
+            "produced": 6395.11,
+            "imported": 0,
+            "productionPasses": 12,
+            "minBalance": 2675.48,
+            "maxBalance": 7932.48
+          }
+        },
+        "feedRequiredKg": 1885811.6037568515,
+        "feedUnmetKg": 0,
+        "feedUnmetShare": 0,
+        "maxMonthlyFeedUnmetKg": 0,
+        "goods": {
+          "Wool": {
+            "source:ruralHarvest": 1.190740634736869,
+            "sink:recipeInput": 1.2068819913596758
+          },
+          "Milk": {},
+          "Cheese": {
+            "source:ruralHarvest": 1.1296692668814212,
+            "sink:householdFood": 1.14
+          },
+          "Leather": {
+            "source:ruralHarvest": 375.5827648893892,
+            "sink:recipeInput": 0.05,
+            "source:burgCraft": 3
+          },
+          "Fodder": {
+            "source:ruralHarvest": 144.80416666666665
+          }
+        },
+        "woolMarketInflowKg": 1786.1109521053036,
+        "garmentDeliveriesLots": 26.250569596986647,
+        "blanketDeliveriesLots": 0
+      },
+      "extraMonth": null
+    },
+    {
+      "path": "docs/analytics/raw/economy-e1-dispatch-final-province-101-20261024.json",
+      "feedYears": [
+        {
+          "year": 1,
+          "end": {
+            "date": [
+              1301,
+              1,
+              1
+            ],
+            "ruralPeople": 433796.2348461151,
+            "urbanPeople": 19061.222682973672,
+            "heads": {
+              "Cattle": 240.41065678461013,
+              "Horses": 136.25445648555132,
+              "Sheep": 1496.0647958316267,
+              "Goats": 0,
+              "Camels": 0
+            },
+            "cultivatedHa": 938597.2734375,
+            "pastureHa": 382902.01332834887,
+            "aggregateOccupancy": 0.0034477377347406283,
+            "cellsOverModelFootprint": 0,
+            "annualWoolPotentialKg": 2002.9498994011137,
+            "effectiveWoolLaborAndFeedCoverage": 1,
+            "woolStockKg": 0.2705410821643231,
+            "wealth": {
+              "urbanPop": 19.061,
+              "ruralPop": 433.796,
+              "stateTreasury": 19412.06,
+              "statePurse": 0,
+              "stateDepartments": 10.89,
+              "burgTreasury": 6776.68,
+              "urbanHouseholds": 14691.33,
+              "guilds": 16.43,
+              "marketBalance": 22206.63,
+              "marketPayable": 0,
+              "tradeCapital": 554.02,
+              "ruralHouseholds": 34632.05,
+              "characters": 0
+            }
+          },
+          "settlementCount": 12,
+          "periods": [
+            15601,
+            15602,
+            15603,
+            15604,
+            15605,
+            15606,
+            15607,
+            15608,
+            15609,
+            15610,
+            15611,
+            15612
+          ],
+          "settlements": [
+            {
+              "date": {
+                "year": 1300,
+                "month": 2,
+                "day": 1,
+                "tick": 31
+              },
+              "period": 15601,
+              "month": 2,
+              "totals": {
+                "requiredKg": 161296.67931448156,
+                "pastureGrownKg": 74105179.35470401,
+                "pastureConsumedKg": 161296.67931448156,
+                "harvestedKg": 120515.91082828095,
+                "harvestLossKg": 18077.386624242143,
+                "storageLossKg": 1107.2993016568892,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 73823366.76456124,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 0,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 120515.91082828093
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 4,
+                "day": 1,
+                "tick": 90
+              },
+              "period": 15602,
+              "month": 3,
+              "totals": {
+                "requiredKg": 161005.01264781487,
+                "pastureGrownKg": 67897970.78952985,
+                "pastureConsumedKg": 161005.01264781487,
+                "harvestedKg": 103155.21658065081,
+                "harvestLossKg": 15473.28248709762,
+                "storageLossKg": 2120.611550680708,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 67633810.56030138,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 0,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 103155.21658065081
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 4,
+                "day": 1,
+                "tick": 90
+              },
+              "period": 15603,
+              "month": 4,
+              "totals": {
+                "requiredKg": 159838.34598114822,
+                "pastureGrownKg": 56583179.393778704,
+                "pastureConsumedKg": 159838.34598114822,
+                "harvestedKg": 71385.11924094884,
+                "harvestLossKg": 10707.767886142326,
+                "storageLossKg": 2976.224776109433,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 56351955.928556606,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 0,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 71385.11924094884
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 5,
+                "day": 1,
+                "tick": 120
+              },
+              "period": 15604,
+              "month": 5,
+              "totals": {
+                "requiredKg": 159255.0126478149,
+                "pastureGrownKg": 43232385.14617767,
+                "pastureConsumedKg": 159255.0126478149,
+                "harvestedKg": 33932.18714843897,
+                "harvestLossKg": 5089.828072265846,
+                "storageLossKg": 3553.236041896404,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 43039197.94638142,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 0,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 33932.18714843897
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 6,
+                "day": 1,
+                "tick": 151
+              },
+              "period": 15605,
+              "month": 6,
+              "totals": {
+                "requiredKg": 158380.01264781487,
+                "pastureGrownKg": 31444475.315876577,
+                "pastureConsumedKg": 157988.58224577573,
+                "harvestedKg": 977.7727561317663,
+                "harvestLossKg": 146.66591341976493,
+                "storageLossKg": 3806.1272722391714,
+                "hayConsumedKg": 391.43040203916826,
+                "unharvestedKg": 31285508.960874666,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 0,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 977.7727561317663
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 7,
+                "day": 1,
+                "tick": 181
+              },
+              "period": 15606,
+              "month": 7,
+              "totals": {
+                "requiredKg": 157796.67931448153,
+                "pastureGrownKg": 24440005.959672492,
+                "pastureConsumedKg": 113591.63215737708,
+                "harvestedKg": 0,
+                "harvestLossKg": 0,
+                "storageLossKg": 3772.4627639235073,
+                "hayConsumedKg": 44205.04715710446,
+                "unharvestedKg": 24326414.327515114,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 0,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 0
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 8,
+                "day": 1,
+                "tick": 212
+              },
+              "period": 15607,
+              "month": 8,
+              "totals": {
+                "requiredKg": 156630.01264781487,
+                "pastureGrownKg": 24095198.800440736,
+                "pastureConsumedKg": 108976.16785858841,
+                "harvestedKg": 0,
+                "harvestLossKg": 0,
+                "storageLossKg": 3292.687664713228,
+                "hayConsumedKg": 47653.844789226474,
+                "unharvestedKg": 23986222.632582143,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 0,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 0
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 9,
+                "day": 1,
+                "tick": 243
+              },
+              "period": 15608,
+              "month": 9,
+              "totals": {
+                "requiredKg": 156338.3459811482,
+                "pastureGrownKg": 30529632.54850259,
+                "pastureConsumedKg": 148711.3230034765,
+                "harvestedKg": 0,
+                "harvestLossKg": 0,
+                "storageLossKg": 2783.2223401738306,
+                "hayConsumedKg": 7627.022977671702,
+                "unharvestedKg": 30380921.225499116,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 0,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 0
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 10,
+                "day": 1,
+                "tick": 273
+              },
+              "period": 15609,
+              "month": 10,
+              "totals": {
+                "requiredKg": 155463.34598114822,
+                "pastureGrownKg": 41980914.306503616,
+                "pastureConsumedKg": 155463.34598114822,
+                "harvestedKg": 28356.195546226627,
+                "harvestLossKg": 4253.429331933995,
+                "storageLossKg": 2679.119886995375,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 41797094.76497624,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 0,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 28356.195546226627
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 11,
+                "day": 1,
+                "tick": 304
+              },
+              "period": 15610,
+              "month": 11,
+              "totals": {
+                "requiredKg": 154296.67931448156,
+                "pastureGrownKg": 55330825.1619821,
+                "pastureConsumedKg": 154296.67931448156,
+                "harvestedKg": 65446.09042438359,
+                "harvestLossKg": 9816.913563657541,
+                "storageLossKg": 2893.3563502683473,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 55111082.39224324,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 0,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 65446.09042438359
+              }
+            },
+            {
+              "date": {
+                "year": 1300,
+                "month": 12,
+                "day": 1,
+                "tick": 334
+              },
+              "period": 15611,
+              "month": 12,
+              "totals": {
+                "requiredKg": 153713.34598114822,
+                "pastureGrownKg": 66989093.689860836,
+                "pastureConsumedKg": 153713.34598114822,
+                "harvestedKg": 97885.82510301429,
+                "harvestLossKg": 14682.873765452146,
+                "storageLossKg": 3420.714555372925,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 66737494.51877667,
+                "purchasedKg": 0,
+                "soldKg": 0,
+                "unmetKg": 0,
+                "spending": 0,
+                "revenue": 0,
+                "referenceHarvestCapacityKg": 97885.82510301429
+              }
+            },
+            {
+              "date": {
+                "year": 1301,
+                "month": 1,
+                "day": 1,
+                "tick": 365
+              },
+              "period": 15612,
+              "month": 1,
+              "totals": {
+                "requiredKg": 162179.5804974228,
+                "pastureGrownKg": 71876581.09488481,
+                "pastureConsumedKg": 162179.5804974228,
+                "harvestedKg": 114307.2091325272,
+                "harvestLossKg": 17146.081369879084,
+                "storageLossKg": 4218.536923194817,
+                "hayConsumedKg": 0,
+                "unharvestedKg": 71600094.30525486,
+                "purchasedKg": 0,
+                "soldKg": 28257.541666666664,
+                "unmetKg": 0,
+                "spending": 0,
+                "revenue": 398.93000000000006,
+                "referenceHarvestCapacityKg": 114307.83793174473
+              }
+            }
+          ],
+          "totals": {
+            "requiredKg": 1896193.0529567199,
+            "pastureGrownKg": 588505441.561914,
+            "pastureConsumedKg": 1796315.707630678,
+            "harvestedKg": 635961.5267606031,
+            "harvestLossKg": 95394.22901409045,
+            "storageLossKg": 36623.59942722463,
+            "hayConsumedKg": 99877.3453260418,
+            "unharvestedKg": 586073164.3275226,
+            "purchasedKg": 0,
+            "soldKg": 28257.541666666664,
+            "unmetKg": 0,
+            "spending": 0,
+            "revenue": 398.93000000000006,
+            "referenceHarvestCapacityKg": 635962.1555598206
+          },
+          "unmetShare": 0,
+          "byMarket": {
+            "1": {
+              "totals": {
+                "requiredKg": 1896193.0529567199,
+                "pastureGrownKg": 588505441.561914,
+                "pastureConsumedKg": 1796315.707630678,
+                "harvestedKg": 635961.5267606031,
+                "harvestLossKg": 95394.22901409045,
+                "storageLossKg": 36623.59942722463,
+                "hayConsumedKg": 99877.3453260418,
+                "unharvestedKg": 586073164.3275226,
+                "purchasedKg": 0,
+                "soldKg": 28257.541666666664,
+                "unmetKg": 0,
+                "spending": 0,
+                "revenue": 398.93000000000006,
+                "referenceHarvestCapacityKg": 635962.1555598206
+              },
+              "minRuralCash": 35454.35,
+              "minMarketCash": 3273.75,
+              "peakMarketFodderKg": 28257.54166666666,
+              "end": {
+                "hayKg": 486538.74149226834,
+                "marketFodderKg": 28257.54166666666,
+                "ruralCash": 35454.35,
+                "marketCash": 26531.875963830196,
+                "assignedWorkers": 25.67397427558899,
+                "requiredWorkers": 27.01760635629993,
+                "seasonalGapKg": 123346.29190110236,
+                "annualPlannedRawHayKg": 641086.3417309888
+              }
+            }
+          },
+          "foodUnmetLedgerUnits": {
+            "rural": 0.010000000000218279,
+            "urban": 0
+          },
+          "garmentDeliveriesLots": 26.250569596986647,
+          "blanketDeliveriesLots": 0,
+          "woolMarketInflowKg": 1787.7125345776365
+        }
+      ],
+      "livestockDispatch": {
+        "settlementCount": 12,
+        "periods": [
+          15601,
+          15602,
+          15603,
+          15604,
+          15605,
+          15606,
+          15607,
+          15608,
+          15609,
+          15610,
+          15611,
+          15612
+        ],
+        "bySpecies": {
+          "Pig": {
+            "dispatchedHeads": 273,
+            "arrivedHeads": 273,
+            "trackedHeads": 273,
+            "untrackedHeads": 0,
+            "herdDebitHeads": 273,
+            "maxCellErrorHeads": 3.552713678800501e-15,
+            "cells": 528
+          },
+          "Chicken": {
+            "dispatchedHeads": 22,
+            "arrivedHeads": 22,
+            "trackedHeads": 22,
+            "untrackedHeads": 0,
+            "herdDebitHeads": 22,
+            "maxCellErrorHeads": 1.7763568394002505e-15,
+            "cells": 72
+          },
+          "Horses": {
+            "dispatchedHeads": 29,
+            "arrivedHeads": 29,
+            "trackedHeads": 29,
+            "untrackedHeads": 0,
+            "herdDebitHeads": 28.999999999999996,
+            "maxCellErrorHeads": 7.105427357601002e-15,
+            "cells": 48
+          },
+          "Cattle": {
+            "dispatchedHeads": 1,
+            "arrivedHeads": 1,
+            "trackedHeads": 1,
+            "untrackedHeads": 0,
+            "herdDebitHeads": 0.9999999999999858,
+            "maxCellErrorHeads": 1.4210854715202004e-14,
+            "cells": 48
+          },
+          "Elephants": {
+            "dispatchedHeads": 0,
+            "arrivedHeads": 0,
+            "trackedHeads": 0,
+            "untrackedHeads": 0,
+            "herdDebitHeads": 0,
+            "maxCellErrorHeads": 0,
+            "cells": 48
+          },
+          "Sheep": {
+            "dispatchedHeads": 1,
+            "arrivedHeads": 1,
+            "trackedHeads": 1,
+            "untrackedHeads": 0,
+            "herdDebitHeads": 1,
+            "maxCellErrorHeads": 0,
+            "cells": 48
+          },
+          "Cats": {
+            "dispatchedHeads": 0,
+            "arrivedHeads": 0,
+            "trackedHeads": 0,
+            "untrackedHeads": 0,
+            "herdDebitHeads": 0,
+            "maxCellErrorHeads": 0,
+            "cells": 48
+          },
+          "Dogs": {
+            "dispatchedHeads": 0,
+            "arrivedHeads": 0,
+            "trackedHeads": 0,
+            "untrackedHeads": 0,
+            "herdDebitHeads": 0,
+            "maxCellErrorHeads": 0,
+            "cells": 48
+          }
+        }
+      },
+      "bytes": 2553395,
+      "sha256": "bc50ebd310429255fc9dc034af785122d91fd9e82eac85c4b5451a750588f43b",
+      "inputSha256": "a3209cca3c88ebf8f84b4f5d9321be8ad3bdc5b3766ca92994f0eb198a52e4e7",
+      "sourceTreeSha256": "a153c5e4776a81490e033c1c957a39c5d0ea2bf459b8182632e81c524dc48e98",
+      "relevantSourceHashes": {
+        "src/extensions/characters/simulation.ts": "877ed2ac70fc0bc9d4f8083748bdeb6f779d7226acefd119e643a6428415f49d",
+        "src/extensions/economy/context/cadencePhases.ts": "8006f84d1e280f768979632f5f87c03b33b01e021053dc508d8a576c0aebdcf3",
+        "src/extensions/economy/generators/developmentPotential.ts": "0e8afbb439613f755938f9f9b3bc9bb876f76f84adc629106ca8d1bf564ba7c2",
+        "src/extensions/economy/generators/foodLedgerConsumption.ts": "f6f9abc37c6fa9a7ecffd5a49630daac600ca18baece8509292d0a38fed49f59",
+        "src/extensions/economy/generators/foodProduction.ts": "f4e5169b47726d85d6b9c8cae8668ac33f52b63ef2f702dc418ce83acc798abc",
+        "src/extensions/economy/generators/husbandry.ts": "31c19433e3e1f950b7ad701a248e106ddc39d9fb226506ea17f3c05a25a0e90c",
+        "src/extensions/economy/generators/livestockFeed.ts": "73de2d2e00e0056d038c480a367c75fdcdab9508533d4e1f6b8a9879bb146165",
+        "src/extensions/economy/generators/livestockFeedPolicy.ts": "1fc10060ddf7b308afd87c97fc6fb2a5c88542c2f3fe6adac46682056e06e0ab",
+        "src/extensions/economy/generators/livestockFeedSchedule.ts": "0a2c162ea06ea346f8c654789d2ceac12bbe0c3a01f29983e996d1a886fc63fa",
+        "src/extensions/economy/generators/livestockFeedState.ts": "5e98f1ac5220d9183a8efa9ce39be6df5afb3961f094f0ef2459731c06e66fa3",
+        "src/extensions/economy/generators/production-generator.ts": "8d50ae7dc3ba1de9949079aa88744b6f999f078391301d0bfcf677d51e7fab41",
+        "src/extensions/economy/simulation.ts": "d1f63defb37cc1ecfed63e5afbd67825efdf92b19ce1fb7ad120e16937fc7a55",
+        "src/extensions/nobility/simulation.ts": "96c36375d68b4fd6daa8481437eab45bffefe3c3a2d8184a8703599370c54d30",
+        "src/extensions/shipbuilding/simulation.ts": "093bd29ab699f948d4130351633c96d011970bc4dba383c8536a87761265b2ac",
+        "src/extensions/simulation.ts": "50d71b1e9a6d39829e9df9a9937051aea1775f6b95407607d4ef6adff293c208"
+      },
+      "initial": {
+        "date": [
+          1300,
+          1,
+          1
+        ],
+        "ruralPeople": 433614.9302124977,
+        "urbanPeople": 19757.05275632519,
+        "heads": {
+          "Cattle": 233.7190234328017,
+          "Horses": 153.1981865491937,
+          "Sheep": 1403.418857106391,
+          "Goats": 0,
+          "Camels": 0
+        },
+        "cultivatedHa": 946159.208984375,
+        "pastureHa": 408033.1397084409,
+        "aggregateOccupancy": 0.0032307174850617847,
+        "cellsOverModelFootprint": 0,
+        "annualWoolPotentialKg": 1768.273955628859,
+        "effectiveWoolLaborAndFeedCoverage": 1.0000000000000002,
+        "woolStockKg": 0.11021307861865809,
+        "wealth": {
+          "urbanPop": 19.757,
+          "ruralPop": 433.615,
+          "stateTreasury": 15597.69,
+          "statePurse": 2.23,
+          "stateDepartments": 6.52,
+          "burgTreasury": 4686.09,
+          "urbanHouseholds": 3631.62,
+          "guilds": 58.16,
+          "marketBalance": 5560.31,
+          "marketPayable": 0,
+          "tradeCapital": 615.58,
+          "ruralHouseholds": 69685.52,
+          "characters": 0
+        }
+      },
+      "yearEnd": {
+        "date": [
+          1301,
+          1,
+          1
+        ],
+        "ruralPeople": 433796.2348461151,
+        "urbanPeople": 19061.222682973672,
+        "heads": {
+          "Cattle": 240.41065678461013,
+          "Horses": 136.25445648555132,
+          "Sheep": 1496.0647958316267,
+          "Goats": 0,
+          "Camels": 0
+        },
+        "cultivatedHa": 938597.2734375,
+        "pastureHa": 382902.01332834887,
+        "aggregateOccupancy": 0.0034477377347406283,
+        "cellsOverModelFootprint": 0,
+        "annualWoolPotentialKg": 2002.9498994011137,
+        "effectiveWoolLaborAndFeedCoverage": 1,
+        "woolStockKg": 0.2705410821643231,
+        "wealth": {
+          "urbanPop": 19.061,
+          "ruralPop": 433.796,
+          "stateTreasury": 19412.06,
+          "statePurse": 0,
+          "stateDepartments": 10.89,
+          "burgTreasury": 6776.68,
+          "urbanHouseholds": 14691.33,
+          "guilds": 16.43,
+          "marketBalance": 22206.63,
+          "marketPayable": 0,
+          "tradeCapital": 554.02,
+          "ruralHouseholds": 34632.05,
+          "characters": 0
+        }
+      },
+      "annual": {
+        "foodLedgerKgPerUnit": 465.1162790697675,
+        "foodTotals": {
+          "ruralNeed": 98135.68,
+          "ruralSupplied": 98135.77999999998,
+          "ruralFromHousehold": 97562.96999999999,
+          "ruralFromMarket": 572.81,
+          "ruralPaid": 458.24,
+          "urbanNeed": 8332.02,
+          "urbanSupplied": 8332.02,
+          "urbanPaid": 6665.630000000001,
+          "urbanBudgetGap": 0,
+          "urbanStockGap": 0,
+          "lodgerNeed": 0,
+          "lodgerSupplied": 0,
+          "lodgerPaid": 0,
+          "ruralUnmet": 0.010000000000218279,
+          "urbanUnmet": 0
+        },
+        "foodByMarket": {
+          "1": {
+            "ruralNeed": 98135.68,
+            "ruralSupplied": 98135.77999999998,
+            "ruralFromHousehold": 97562.96999999999,
+            "ruralFromMarket": 572.81,
+            "ruralPaid": 458.24,
+            "urbanNeed": 8332.02,
+            "urbanSupplied": 8332.02,
+            "urbanPaid": 6665.630000000001,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0.010000000000218279,
+            "urbanUnmet": 0
+          }
+        },
+        "foodImports": {
+          "1": {
+            "outcomes": {},
+            "loaded": 0,
+            "deliveredBeforeRounding": 0,
+            "produced": 6395.11,
+            "imported": 0,
+            "productionPasses": 12,
+            "minBalance": 2666.59,
+            "maxBalance": 7928.42
+          }
+        },
+        "feedRequiredKg": 1896484.7196233864,
+        "feedUnmetKg": 0,
+        "feedUnmetShare": 0,
+        "maxMonthlyFeedUnmetKg": 0,
+        "goods": {
+          "Wool": {
+            "source:ruralHarvest": 1.1918083563850912,
+            "sink:recipeInput": 1.2068819913596758
+          },
+          "Milk": {},
+          "Cheese": {
+            "source:ruralHarvest": 1.1296692668814212,
+            "sink:householdFood": 1.14
+          },
+          "Leather": {
+            "source:ruralHarvest": 375.5827648893892,
+            "sink:recipeInput": 0.05,
+            "source:burgCraft": 1
+          },
+          "Fodder": {
+            "source:ruralHarvest": 166.2208333333333
+          }
+        },
+        "woolMarketInflowKg": 1787.7125345776367,
+        "garmentDeliveriesLots": 26.250569596986647,
+        "blanketDeliveriesLots": 0
+      },
+      "extraMonth": null
+    }
+  ]
+}

@@ -15,10 +15,17 @@ import {
 } from "../economyContext";
 import { getCropOutputMix } from "./agriculturalLandUse";
 import { getMilkOutput } from "./dairy";
-import { drawDomesticatedFaunaOfftake, previewDomesticatedFaunaOfftake } from "./faunaPopulation";
+import {
+  dispatchDomesticatedFauna,
+  getGrazedMonthlyOfftakeHeads,
+  getRuralEcosystemDetail,
+  isManagedHerdGood
+} from "./faunaPopulation";
 import { getForestStockMultiplier } from "./forestStock";
 import { type Good, Goods, isGoodEnabled } from "./goods-generator";
-import { getHusbandryWorkerFactor, isGrazedLivestockGood } from "./husbandry";
+import { getHusbandryCareFactor, isGrazedLivestockGood } from "./husbandry";
+import { animalsPerMarketHead } from "./liveAnimalScale";
+import { livestockFeedMonth } from "./livestockFeedState";
 import { isMineSuppliedGoodName } from "./mineralResources";
 import { getFishingWorkerFactor, getHuntingGameOutput, previewHuntingGameOutput } from "./ruralOccupationAllocation";
 import { getSeasonalCropPlan, readAgriculturalClimate } from "./seasonalCropClimate";
@@ -191,12 +198,55 @@ export function getRuralCellPopulation(cellId: number): number {
   return sum(cells.c[cellId].map(neighborId => cells.pop[neighborId])) || 0;
 }
 
+/** Live rates are recomputed and withdrawn per settlement, never cached as production. */
+export function getRuralLiveAnimalContributions(
+  cellId: number,
+  biomeProduction: Record<number, { goodId: number; production: number }[]>,
+  preview = false
+): RuralProductionContribution[] {
+  const population = getRuralCellPopulation(cellId);
+  if (!(population > 0)) return [];
+  const cells = getWorldContext().pack.cells;
+  const desired = new Map<number, number>();
+  for (const { goodId, production } of biomeProduction[cells.biomeCode[cellId]] ?? [])
+    desired.set(goodId, (desired.get(goodId) ?? 0) + population * production);
+  const bonusId = getGoodCellColumn()[cellId];
+  if (bonusId)
+    desired.set(
+      bonusId,
+      (desired.get(bonusId) ?? 0) + Math.min(population * BONUS_RURAL_PRODUCTION, MAX_BONUS_PRODUCTION)
+    );
+  // Managed grazed herds sell their natural increase and surplus, wherever the herd is kept.
+  const herdBased = getRuralEcosystemDetail() === "detailed";
+  if (herdBased)
+    for (const good of getGoods())
+      if (isManagedHerdGood(good.name) && isGoodEnabled(good))
+        desired.set(good.i, getGrazedMonthlyOfftakeHeads(cellId, good) / animalsPerMarketHead(good.name));
+  const result: RuralProductionContribution[] = [];
+  for (const [goodId, base] of desired) {
+    const good = Goods.get(goodId);
+    if (!good?.tags.includes("liveAnimal") || !isGoodEnabled(good)) continue;
+    const grazed = isManagedHerdGood(good.name);
+    const workers = isGrazedLivestockGood(good.name) && !herdBased ? getHusbandryCareFactor(cellId) : 1;
+    const seasonal = good.tags.includes("food")
+      ? getSeasonalFoodProductionMultiplier(good, cellId, livestockFeedMonth())
+      : 1;
+    const units = dispatchDomesticatedFauna(
+      cellId,
+      good,
+      grazed && herdBased ? base : base * workers * getModifiers(good, cellId) * seasonal,
+      preview
+    );
+    if (units > 0) result.push({ goodId, amount: units });
+  }
+  return result;
+}
+
 /**
- * Returns the pre-season quantities for this cell. The market
- * production index uses these stable contributions to aggregate rural output
- * once per topology/goods change, then applies time-varying factors at settlement.
+ * Returns rural quantities for this cell. The cached market index excludes live
+ * animals; live dispatches include seasonal factors and must run each settlement.
  *
- * `options.preview` (default false, i.e. real/mutating): Game and grazed-livestock amounts are
+ * `options.preview` (default false, i.e. real/mutating): Game and livestock amounts are
  * capped by Phase 2's fauna stock model (faunaPopulation.ts §4), which by default *draws down*
  * (culls) that stock as a side effect. The real production pipeline (markets-generator.ts) wants
  * that. Every other caller — map redraw (draw-goods.ts/economyWebglLayers.ts), CellInfo/tooltip
@@ -208,7 +258,7 @@ export function getRuralCellPopulation(cellId: number): number {
 export function getRuralProductionContributions(
   cellId: number,
   biomeProduction: Record<number, { goodId: number; production: number }[]>,
-  options: { preview?: boolean } = {}
+  options: { preview?: boolean; excludeLiveAnimals?: boolean } = {}
 ): RuralProductionContribution[] {
   const { preview = false } = options;
   const worldContext = getWorldContext();
@@ -216,7 +266,9 @@ export function getRuralProductionContributions(
   const population = getRuralCellPopulation(cellId);
   if (population <= 0) return [];
 
-  const contributions: RuralProductionContribution[] = [];
+  const contributions: RuralProductionContribution[] = options.excludeLiveAnimals
+    ? []
+    : getRuralLiveAnimalContributions(cellId, biomeProduction, preview);
   for (const { goodId, production } of biomeProduction[cells.biomeCode[cellId]] || []) {
     const good = Goods.get(goodId);
     // Salt is a state-operated utility: saltworks.ts supplies it to city markets from
@@ -227,7 +279,8 @@ export function getRuralProductionContributions(
       !isGoodEnabled(good) ||
       isMineSuppliedGoodName(good.name) ||
       good.name === "Salt" ||
-      good.name === "Fodder"
+      good.name === "Fodder" ||
+      good.tags.includes("liveAnimal")
     )
       continue;
 
@@ -246,21 +299,7 @@ export function getRuralProductionContributions(
       continue;
     }
 
-    let amount = population * production;
-    if (good.tags.includes("liveAnimal")) {
-      // Husbandry (§5.4, Phase 3): grazed species (Cattle/Sheep/Goats/Horses/Camels) are gated by
-      // herder labour the same way Wine is gated by viticulture labour, always-on regardless of
-      // ruralEcosystemDetail (§11.2 — Phase 1's labour allocator is never toggled off). Pig/
-      // Chicken/Cats/Dogs aren't herded on open pasture, so they skip this gate (husbandry.ts's
-      // module doc-comment explains the scope split).
-      if (isGrazedLivestockGood(good.name)) amount *= getHusbandryWorkerFactor(cellId);
-      // Phase 2 fauna stock model (docs/plan/biome-goods-producer-ecosystem.md §4): caps the
-      // (now possibly husbandry-gated) rate by the domesticated stock's actual harvestable
-      // headcount. A pass-through to `amount` unchanged when options.ruralEcosystemDetail === "simplified".
-      amount = preview
-        ? previewDomesticatedFaunaOfftake(cellId, good, amount)
-        : drawDomesticatedFaunaOfftake(cellId, good, amount);
-    }
+    const amount = population * production;
     const harvested = amount * getModifiers(good, cellId);
     contributions.push({ goodId, amount: harvested });
     // Beeswax is the comb left when the honey is harvested (goods-physical-units.md §26).
@@ -306,6 +345,7 @@ export function getRuralProductionContributions(
     if (
       good &&
       !good.perennialCrop &&
+      !good.tags.includes("liveAnimal") &&
       isGoodEnabled(good) &&
       !isMineSuppliedGoodName(good.name) &&
       good.name !== "Salt" &&

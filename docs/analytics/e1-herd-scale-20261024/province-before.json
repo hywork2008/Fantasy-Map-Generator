@@ -1,0 +1,326 @@
+{
+  "schemaVersion": 1,
+  "inputSha256": "a3209cca3c88ebf8f84b4f5d9321be8ad3bdc5b3766ca92994f0eb198a52e4e7",
+  "sourceTreeSha256": "55c1e4d6a04034dbdc41967efca9feddda0da00f75bf6cd28ebb93fe8b6f6abb",
+  "months": 36,
+  "historicalPeriod": "highMedieval",
+  "worldSettings": {
+    "fmg-luxury-value-demand": "on",
+    "fmg-money-supply": "on",
+    "fmg-long-distance-trade": "on",
+    "fmg-caravan-raids": "off"
+  },
+  "notes": [
+    "Heads are rural grazed herds in inhabited land cells. Demand targets are model policy (livestockHerdTargetPolicy.ts).",
+    "Supported heads are the target limited by forage land, feed history and herders; heads above it are reduced each autumn.",
+    "Staple rows sum the actual food settlements of each 12-month interval in food-ledger units.",
+    "draughtPerCultivatedHa counts all horses and half of cattle as a working-animal proxy."
+  ],
+  "samples": [
+    {
+      "date": [
+        1300,
+        1,
+        1
+      ],
+      "land": {
+        "ruralPeople": 433614.9302124977,
+        "cultivatedHa": 946159.1955213875,
+        "pastureHa": 408033.1397084409,
+        "residentsWithoutCropland": 263570.21671533585,
+        "shortfallCells": 0
+      },
+      "draughtPerCultivatedHa": 0.0002854252218272607,
+      "species": [
+        {
+          "species": "Cattle",
+          "heads": 233.7190234328017,
+          "demandTargetHeads": 0,
+          "supportedHeads": 389.8999445578631,
+          "headsAboveSupported": 0,
+          "headsBelowSupported": 156.1809211250614,
+          "perHundredRuralPeople": 0.05390013284788537
+        },
+        {
+          "species": "Horses",
+          "heads": 153.1981865491937,
+          "demandTargetHeads": 0,
+          "supportedHeads": 259.93329637190874,
+          "headsAboveSupported": 0,
+          "headsBelowSupported": 106.73510982271503,
+          "perHundredRuralPeople": 0.0353304685505449
+        },
+        {
+          "species": "Camels",
+          "heads": 0,
+          "demandTargetHeads": 0,
+          "supportedHeads": 0,
+          "headsAboveSupported": 0,
+          "headsBelowSupported": 0,
+          "perHundredRuralPeople": 0
+        },
+        {
+          "species": "Sheep",
+          "heads": 1403.418857106391,
+          "demandTargetHeads": 0,
+          "supportedHeads": 2339.3996673471784,
+          "headsAboveSupported": 0,
+          "headsBelowSupported": 935.9808102407876,
+          "perHundredRuralPeople": 0.3236555661076131
+        },
+        {
+          "species": "Goats",
+          "heads": 0,
+          "demandTargetHeads": 0,
+          "supportedHeads": 0,
+          "headsAboveSupported": 0,
+          "headsBelowSupported": 0,
+          "perHundredRuralPeople": 0
+        }
+      ],
+      "annualWoolPotentialKg": 1768.273955628859,
+      "woolKgPerRuralPerson": 0.0040779821736357125,
+      "trailing12MonthFeed": {
+        "requiredKg": 161588.34598114825,
+        "fedKg": 161588.34598114825,
+        "unmetShare": 0
+      }
+    },
+    {
+      "date": [
+        1301,
+        1,
+        1
+      ],
+      "land": {
+        "ruralPeople": 433796.2348461151,
+        "cultivatedHa": 938597.2719512313,
+        "pastureHa": 230078.5376647012,
+        "residentsWithoutCropland": 257935.133934021,
+        "shortfallCells": 0
+      },
+      "draughtPerCultivatedHa": 0.00026612109277527013,
+      "species": [
+        {
+          "species": "Cattle",
+          "heads": 233.17607780805358,
+          "demandTargetHeads": 0,
+          "supportedHeads": 309.11391263759333,
+          "headsAboveSupported": 0,
+          "headsBelowSupported": 75.93783482953972,
+          "perHundredRuralPeople": 0.05375244390739593
+        },
+        {
+          "species": "Horses",
+          "heads": 133.19249278352225,
+          "demandTargetHeads": 0,
+          "supportedHeads": 206.0759417583956,
+          "headsAboveSupported": 0,
+          "headsBelowSupported": 72.88344897487335,
+          "perHundredRuralPeople": 0.03070393011381737
+        },
+        {
+          "species": "Camels",
+          "heads": 0,
+          "demandTargetHeads": 0,
+          "supportedHeads": 0,
+          "headsAboveSupported": 0,
+          "headsBelowSupported": 0,
+          "perHundredRuralPeople": 0
+        },
+        {
+          "species": "Sheep",
+          "heads": 1426.2205977924414,
+          "demandTargetHeads": 0,
+          "supportedHeads": 1854.68347582556,
+          "headsAboveSupported": 0,
+          "headsBelowSupported": 428.4628780331187,
+          "perHundredRuralPeople": 0.3287766198105382
+        },
+        {
+          "species": "Goats",
+          "heads": 0,
+          "demandTargetHeads": 0,
+          "supportedHeads": 0,
+          "headsAboveSupported": 0,
+          "headsBelowSupported": 0,
+          "perHundredRuralPeople": 0
+        }
+      ],
+      "annualWoolPotentialKg": 1952.6620768129,
+      "woolKgPerRuralPerson": 0.004501334774160932,
+      "trailing12MonthFeed": {
+        "requiredKg": 1890581.1605478562,
+        "fedKg": 1890581.1605478562,
+        "unmetShare": 0
+      }
+    },
+    {
+      "date": [
+        1302,
+        1,
+        1
+      ],
+      "land": {
+        "ruralPeople": 433300.8073270321,
+        "cultivatedHa": 937163.2336548467,
+        "pastureHa": 172859.504978569,
+        "residentsWithoutCropland": 257314.29395079613,
+        "shortfallCells": 0
+      },
+      "draughtPerCultivatedHa": 0.00023926791351785428,
+      "species": [
+        {
+          "species": "Cattle",
+          "heads": 222.81208220723872,
+          "demandTargetHeads": 0,
+          "supportedHeads": 256.17402782569434,
+          "headsAboveSupported": 0,
+          "headsBelowSupported": 33.36194561845557,
+          "perHundredRuralPeople": 0.05142203255556645
+        },
+        {
+          "species": "Horses",
+          "heads": 112.82705043862114,
+          "demandTargetHeads": 0,
+          "supportedHeads": 170.78268521712957,
+          "headsAboveSupported": 0,
+          "headsBelowSupported": 57.955634778508426,
+          "perHundredRuralPeople": 0.026038966124857774
+        },
+        {
+          "species": "Camels",
+          "heads": 0,
+          "demandTargetHeads": 0,
+          "supportedHeads": 0,
+          "headsAboveSupported": 0,
+          "headsBelowSupported": 0,
+          "perHundredRuralPeople": 0
+        },
+        {
+          "species": "Sheep",
+          "heads": 1355.4692482097498,
+          "demandTargetHeads": 0,
+          "supportedHeads": 1537.044166954166,
+          "headsAboveSupported": 0,
+          "headsBelowSupported": 181.57491874441624,
+          "perHundredRuralPeople": 0.312824076320429
+        },
+        {
+          "species": "Goats",
+          "heads": 0,
+          "demandTargetHeads": 0,
+          "supportedHeads": 0,
+          "headsAboveSupported": 0,
+          "headsBelowSupported": 0,
+          "perHundredRuralPeople": 0
+        }
+      ],
+      "annualWoolPotentialKg": 1912.6549289314012,
+      "woolKgPerRuralPerson": 0.004414150392957455,
+      "trailing12MonthFeed": {
+        "requiredKg": 1815708.3645792974,
+        "fedKg": 1815708.3645792974,
+        "unmetShare": 0
+      }
+    },
+    {
+      "date": [
+        1303,
+        1,
+        1
+      ],
+      "land": {
+        "ruralPeople": 433121.8841969967,
+        "cultivatedHa": 936243.2793322285,
+        "pastureHa": 129919.04911890534,
+        "residentsWithoutCropland": 256909.20147299767,
+        "shortfallCells": 0
+      },
+      "draughtPerCultivatedHa": 0.00021190831906071157,
+      "species": [
+        {
+          "species": "Cattle",
+          "heads": 213.84001943793305,
+          "demandTargetHeads": 0,
+          "supportedHeads": 251.40434455936298,
+          "headsAboveSupported": 0,
+          "headsBelowSupported": 37.564325121429945,
+          "perHundredRuralPeople": 0.04937178822870845
+        },
+        {
+          "species": "Horses",
+          "heads": 91.47772983621424,
+          "demandTargetHeads": 0,
+          "supportedHeads": 167.60289637290867,
+          "headsAboveSupported": 0,
+          "headsBelowSupported": 76.12516653669444,
+          "perHundredRuralPeople": 0.021120551321439914
+        },
+        {
+          "species": "Camels",
+          "heads": 0,
+          "demandTargetHeads": 0,
+          "supportedHeads": 0,
+          "headsAboveSupported": 0,
+          "headsBelowSupported": 0,
+          "perHundredRuralPeople": 0
+        },
+        {
+          "species": "Sheep",
+          "heads": 1312.1550424295156,
+          "demandTargetHeads": 0,
+          "supportedHeads": 1508.426067356178,
+          "headsAboveSupported": 0,
+          "headsBelowSupported": 196.2710249266625,
+          "perHundredRuralPeople": 0.3029528385207865
+        },
+        {
+          "species": "Goats",
+          "heads": 0,
+          "demandTargetHeads": 0,
+          "supportedHeads": 0,
+          "headsAboveSupported": 0,
+          "headsBelowSupported": 0,
+          "perHundredRuralPeople": 0
+        }
+      ],
+      "annualWoolPotentialKg": 1815.2601638037331,
+      "woolKgPerRuralPerson": 0.004191107007140048,
+      "trailing12MonthFeed": {
+        "requiredKg": 1672749.2211528933,
+        "fedKg": 1672749.2211528933,
+        "unmetShare": 0
+      }
+    }
+  ],
+  "stapleByYear": [
+    {
+      "events": 12,
+      "ruralNeed": 98135.68,
+      "ruralSupplied": 98135.77999999998,
+      "urbanNeed": 8332.02,
+      "urbanSupplied": 8332.02,
+      "urbanBudgetGap": 0,
+      "urbanStockGap": 0
+    },
+    {
+      "events": 12,
+      "ruralNeed": 98210.65000000001,
+      "ruralSupplied": 59885.92000000001,
+      "urbanNeed": 8042.16,
+      "urbanSupplied": 764.23,
+      "urbanBudgetGap": 0,
+      "urbanStockGap": 7277.93
+    },
+    {
+      "events": 12,
+      "ruralNeed": 98202.42,
+      "ruralSupplied": 53893.409999999996,
+      "urbanNeed": 7864.030000000001,
+      "urbanSupplied": 552.5500000000001,
+      "urbanBudgetGap": 0,
+      "urbanStockGap": 7311.48
+    }
+  ]
+}

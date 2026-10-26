@@ -1,3 +1,10 @@
+import {
+  getFaunaStockTable,
+  getLivestockDispatchTable,
+  getOrCreateLivestockDispatchTable
+} from "../context/cellTables";
+import { getEconomySlice } from "../context/economyApi";
+import { livestockFeedPeriod } from "./livestockFeedState";
 /**
  * Fauna Population Stock Model — docs/plan/biome-goods-producer-ecosystem.md §4 (Phase 2).
  *
@@ -59,8 +66,15 @@ import {
 import { calculateBurgBuiltAreaHectares, calculatePhysicalAreaHectares } from "./agriculturalLandUse";
 import type { FaunaCohorts } from "./faunaPopulationTypes";
 import { type Good, isGoodEnabled } from "./goods-generator";
-import { getGrazedCarryingCapacity, getPastureAreaUsedHectares, isGrazedLivestockGood } from "./husbandry";
+import {
+  getGrazedCarryingCapacity,
+  getLivestockHerdTargets,
+  getPastureAreaUsedHectares,
+  isGrazedLivestockGood
+} from "./husbandry";
 import { animalsPerMarketHead } from "./liveAnimalScale";
+import { YARD_HEADS_PER_RURAL_PERSON } from "./livestockHerdTargetPolicy";
+import { assessAnnualHerdRenewal } from "./livestockJointDemand";
 import { getLandTransportDefinition } from "./tradeCargo";
 import { getVineyardAreaUsedHectares } from "./viticulture";
 
@@ -174,6 +188,44 @@ const SPECIES_PROFILES: Record<string, FaunaSpeciesProfile> = {
 
 function getSpeciesProfile(speciesKey: string): FaunaSpeciesProfile {
   return SPECIES_PROFILES[speciesKey] ?? DEFAULT_SPECIES_PROFILE;
+}
+
+/** Kept herds whose keepers sell the surplus: grazed species and household yard animals. */
+export function isManagedHerdGood(goodName: string): boolean {
+  return isGrazedLivestockGood(goodName) || goodName in YARD_HEADS_PER_RURAL_PERSON;
+}
+
+/** Household yard herd target in real animals; no pasture, fed on pannage and scraps. */
+function getYardHerdTarget(cellId: number, good: Good): number {
+  return isGoodEnabled(good) ? getRealPopulation(cellId) * (YARD_HEADS_PER_RURAL_PERSON[good.name] ?? 0) : 0;
+}
+
+export function getAnnualHerdRenewal(cellId: number, good: Good) {
+  if (!isManagedHerdGood(good.name)) return null;
+  const cohorts = getFaunaStockTable()?.[`${cellId}:${good.name}`];
+  if (!cohorts) return null;
+  const profile = getSpeciesProfile(good.name);
+  return assessAnnualHerdRenewal(
+    cohorts,
+    getDomesticatedCarryingCapacity(cellId, good, 0),
+    profile.annualBreedingRate,
+    profile.oldLifespanYears,
+    null,
+    true
+  );
+}
+
+/**
+ * Heads a managed grazed herd should sell this month: this year's natural increase plus any stock
+ * above the supported herd, spread over twelve settlements. Replaces the biome-rate flow, so meat
+ * and live sales follow the herd that actually exists rather than the cell's population x biome rate.
+ */
+export function getGrazedMonthlyOfftakeHeads(cellId: number, good: Good): number {
+  const cohorts = getFaunaStockTable()?.[getStockKey(cellId, good.name)];
+  if (!cohorts) return 0;
+  const renewal = getAnnualHerdRenewal(cellId, good);
+  const capacity = getDomesticatedCarryingCapacity(cellId, good, 0);
+  return Math.max(0, cohortTotal(cohorts) + (renewal?.naturalNetHeads ?? 0) - capacity) / 12;
 }
 
 function getStockKey(cellId: number, speciesKey: string): string {
@@ -304,7 +356,7 @@ function isNomadicState(stateId: number): boolean {
  * Horses in the convoys of the merchants of `cellId`'s market, as animals (tradeCargo.ts
  * `convoyDraftAnimals`; horses draw every convoy today). Real demand for Horses (§4.5 extension):
  * merchants use their own teams rather than selling them, so the market stock-flow signal never
- * sees this use. Applied to every cell feeding the market, as the stock-flow signal is.
+ * sees this use. The caller partitions this market-wide count among its inhabited land cells.
  */
 function getMerchantConvoyHorses(cellId: number): number {
   const marketId = getMarketCellColumn()[cellId];
@@ -328,6 +380,38 @@ function getRealPopulation(cellId: number): number {
 }
 
 /**
+ * Partition a shared demand once, using rural residents in compatible production biomes as a provisional weight.
+ * This is an accounting allocation, not evidence of historical herd suitability. Land, feed and
+ * labour limits still apply separately. Recompute from current columns so reassignment and
+ * population changes cannot leave stale shares. An uninhabited region has no assigned demand.
+ */
+function getRegionalDemandShare(cellId: number, domain: "state" | "market", good: Good): number {
+  const world = getWorldContext();
+  const cells = world.pack.cells;
+  const regions = domain === "state" ? cells.state : getMarketCellColumn();
+  const regionId = regions?.[cellId];
+  if (!regionId || cells.h[cellId] < 20) return 0;
+  const weight = (cell: number): number => {
+    const population = cells.pop[cell] ?? 0;
+    if (!(population > 0) || !Number.isFinite(population) || cells.h[cell] < 20) return 0;
+    const rate = resolveBiomeOutputRate(
+      cells.biomeCode[cell] ?? 0,
+      good.biomeOutput,
+      good.biomeOutputByTag,
+      world.biomesData
+    );
+    return Number.isFinite(rate) && rate > 0 ? population : 0;
+  };
+  const local = weight(cellId);
+  if (!(local > 0)) return 0;
+  let total = 0;
+  for (const cell of cells.i) {
+    if (regions?.[cell] === regionId) total += weight(cell);
+  }
+  return total > 0 ? local / total : 0;
+}
+
+/**
  * Real (non-market-resale) demand for a non-food liveAnimal good — layered on top of the market
  * stock-flow signal below because some species are consumed through USE, not sale, which never
  * shows up as a market "sell" event (§4.5 extension, found 2026-08-08 via a real-map report of
@@ -348,9 +432,14 @@ export function getRealNonMarketDemand(cellId: number, good: Good): number {
       const stateId = getWorldContext().pack.cells.state?.[cellId] ?? 0;
       const nomadic = isNomadicState(stateId);
       const wantsThisSpecies = good.name === "Camels" ? nomadic : !nomadic;
-      const mountDemand = wantsThisSpecies ? getStateMountedHeadcount(stateId) : 0;
-      const convoyDemand = good.name === "Horses" ? getMerchantConvoyHorses(cellId) : 0;
-      return mountDemand + convoyDemand;
+      const mountDemand = wantsThisSpecies
+        ? getStateMountedHeadcount(stateId) * getRegionalDemandShare(cellId, "state", good)
+        : 0;
+      const convoyDemand =
+        good.name === "Horses" ? getMerchantConvoyHorses(cellId) * getRegionalDemandShare(cellId, "market", good) : 0;
+      // Farm draught and pastoral riding/pack animals are kept for use on the cell itself.
+      const farmDemand = getLivestockHerdTargets(getWorldContext(), cellId)[good.name] ?? 0;
+      return mountDemand + convoyDemand + farmDemand;
     }
     case "Cats":
       return getRealPopulation(cellId) * AMBIENT_CATS_DEMAND_PER_PERSON;
@@ -365,20 +454,22 @@ export function getRealNonMarketDemand(cellId: number, good: Good): number {
  * 0..1+ ceiling on a non-food species' capacity, the greater of two independent demand signals
  * (§4.5): how much of it the local market has actually absorbed over the last few quarters, and
  * `getRealNonMarketDemand()`'s off-market real uses (military mounts, draft teams, ambient
- * settlement upkeep) the market stock-flow signal can't see. Simplification: applied identically to
- * every cell feeding the same market rather than distributed proportionally across them —
- * conservative (each cell alone could reach the market's full cap) but avoids a separate per-market
- * aggregation pass. Returns +Infinity (uncapped) until at least one quarter of consumption history
+ * settlement upkeep) the market stock-flow signal can't see. Shared regional counts are
+ * partitioned among inhabited land cells rather than repeated at each supplier. Returns +Infinity
+ * (uncapped) until at least one quarter of consumption history
  * exists, so a fresh market doesn't instantly starve a species nobody has had a chance to buy yet.
  */
-function getNonFoodDemandAbsorptionCapacity(cellId: number, good: Good): number {
+export function getNonFoodDemandAbsorptionCapacity(cellId: number, good: Good): number {
   const realDemand = getRealNonMarketDemand(cellId, good) * NON_FOOD_DEMAND_BUFFER;
   const marketId = getMarketCellColumn()[cellId];
   if (!marketId) return Number.POSITIVE_INFINITY;
-  const history = getOrCreateNonFoodFaunaDemandHistory()?.[getDemandHistoryKey(marketId, good.i)];
+  const histories = getEconomySlice()?.nonFoodFaunaDemandHistory as Record<string, number[]> | undefined;
+  const history = histories?.[getDemandHistoryKey(marketId, good.i)];
   if (!history?.length) return Number.POSITIVE_INFINITY;
   const average = history.reduce((sum, value) => sum + value, 0) / history.length;
-  return Math.max(realDemand, average * animalsPerMarketHead(good.name) * NON_FOOD_DEMAND_BUFFER);
+  const marketDemand =
+    average * animalsPerMarketHead(good.name) * NON_FOOD_DEMAND_BUFFER * getRegionalDemandShare(cellId, "market", good);
+  return Math.max(realDemand, marketDemand);
 }
 
 /**
@@ -392,7 +483,9 @@ export function getDomesticatedCarryingCapacity(cellId: number, good: Good, flat
   // (`flatRateAmount`) must not become a standing-herd target or gate the same pasture twice.
   const rawCapacity = isGrazedLivestockGood(good.name)
     ? getGrazedCarryingCapacity(cellId, good)
-    : Math.max(0, flatRateAmount) * animalsPerMarketHead(good.name) * DOMESTICATED_CAPACITY_MONTHS_PROXY;
+    : good.name in YARD_HEADS_PER_RURAL_PERSON
+      ? getYardHerdTarget(cellId, good)
+      : Math.max(0, flatRateAmount) * animalsPerMarketHead(good.name) * DOMESTICATED_CAPACITY_MONTHS_PROXY;
   if (good.tags.includes("food")) return rawCapacity;
 
   const demandCapacity = getNonFoodDemandAbsorptionCapacity(cellId, good);
@@ -535,6 +628,62 @@ export function drawDomesticatedFaunaOfftake(cellId: number, good: Good, desired
 }
 
 /**
+ * Settle source-cell live dispatch before market aggregation. Whole animals are selected
+ * from real stock; only fractional demand is carried, never unmet whole-head backlog.
+ * Preview uses the same plan without initializing stock or writing a receipt.
+ */
+export function dispatchDomesticatedFauna(
+  cellId: number,
+  good: Good,
+  desiredMarketUnits: number,
+  preview = false
+): number {
+  if (!Number.isFinite(desiredMarketUnits) || desiredMarketUnits <= 0) return 0;
+  const dispatches = preview ? getLivestockDispatchTable() : getOrCreateLivestockDispatchTable();
+  const key = getStockKey(cellId, good.name);
+  const prior = dispatches?.[key];
+  const period = livestockFeedPeriod();
+  if (prior && prior.period >= period) return 0;
+  const scale = animalsPerMarketHead(good.name);
+  const demandHeads = Math.max(0, prior?.remainderHeads ?? 0) + desiredMarketUnits * scale;
+  const requestedHeads = Math.floor(demandHeads);
+  const stockTracked = getRuralEcosystemDetail() === "detailed" && getEconomySlice() !== null;
+  const capacity = stockTracked ? getDomesticatedCarryingCapacity(cellId, good, desiredMarketUnits) : 0;
+  const stock = stockTracked ? (preview ? getFaunaStockTable() : getOrCreateFaunaStockTable()) : null;
+  const cohorts = stock ? stock[key] : undefined;
+  const before = stockTracked ? (cohorts ? cohortTotal(cohorts) : cohortTotal(initializeStock(capacity))) : null;
+  const heads = Math.min(requestedHeads, before === null ? requestedHeads : Math.floor(Math.max(0, before)));
+  if (preview) return heads / scale;
+  let cohortHeads: FaunaCohorts | null = null;
+  if (stock) {
+    const herd = ensureStock(stock, cellId, good.name, capacity);
+    const opening = { ...herd };
+    applyCull(herd, heads, getDomesticatedCullSelectivity(cellId));
+    cohortHeads = {
+      young: opening.young - herd.young,
+      breeding: opening.breeding - herd.breeding,
+      old: opening.old - herd.old
+    };
+  }
+  if (dispatches) {
+    const receipt = { period, remainderHeads: demandHeads - requestedHeads };
+    Object.defineProperty(receipt, "observation", {
+      enumerable: false,
+      value: {
+        heads,
+        marketUnits: heads / scale,
+        stockTracked,
+        cohortHeads,
+        herdBeforeHeads: before,
+        herdAfterHeads: stock ? cohortTotal(stock[key]) : null
+      }
+    });
+    dispatches[key] = receipt;
+  }
+  return heads / scale;
+}
+
+/**
  * What a stock currently holds, without seeding/writing it (mirrors `ensureStock`'s "not yet
  * tracked" seeding math so a preview and a real first draw agree, but never touches the table).
  */
@@ -568,8 +717,12 @@ export function previewDomesticatedFaunaOfftake(cellId: number, good: Good, desi
 
 // ---- Annual cohort update (§4.3) ----
 
-/** Annual adjustment of excess grazed animals, after ordinary age-related deaths. Model policy. */
-export const GRAZED_EXCESS_ANNUAL_ADJUSTMENT = 0.1;
+/**
+ * Annual reduction of older grazed stock above the supported herd, after ordinary deaths and the
+ * year's sales. 0.55 leaves under 10% of an initial excess after three autumns (E1-5, §7.41):
+ * farmers sell or slaughter what cannot be wintered rather than keeping it for years.
+ */
+export const GRAZED_EXCESS_ANNUAL_ADJUSTMENT = 0.55;
 /** A sub-animal remnant with no carrying capacity cannot maintain a herd. Real animals, not market lots. */
 export const MIN_UNSUPPORTED_GRAZED_HERD_HEADS = 1;
 
@@ -581,13 +734,19 @@ function advanceCohortsOneYear(
 ): FaunaCohorts {
   if (carryingCapacity <= 0 && !gradualGrazingAdjustment) return { young: 0, breeding: 0, old: 0 };
 
-  const total = cohortTotal(cohorts);
-  const room = carryingCapacity > 0 ? Math.max(0, 1 - total / carryingCapacity) : 0;
-  const born = cohorts.breeding * profile.annualBreedingRate * room;
+  const renewal = assessAnnualHerdRenewal(
+    cohorts,
+    carryingCapacity,
+    profile.annualBreedingRate,
+    profile.oldLifespanYears,
+    null,
+    gradualGrazingAdjustment
+  );
+  const born = renewal.birthsHeads;
 
   const youngMaturing = cohorts.young / Math.max(0.1, profile.youngMaturityYears);
   const breedingAging = cohorts.breeding / Math.max(0.1, profile.breedingTenureYears);
-  const oldDying = cohorts.old / Math.max(0.1, profile.oldLifespanYears);
+  const oldDying = renewal.naturalDeathsHeads;
 
   let next: FaunaCohorts = {
     young: Math.max(0, cohorts.young - youngMaturing + born),
@@ -596,15 +755,18 @@ function advanceCohortsOneYear(
   };
 
   const nextTotal = cohortTotal(next);
-  if (nextTotal > carryingCapacity) {
+  if (!gradualGrazingAdjustment && nextTotal > carryingCapacity) {
     // Habitat/demand ceiling shrank faster than natural attrition (e.g. cropland just expanded,
     // or a non-food species' demand cap just collapsed) — model the excess as die-off/emigration.
-    const target = Math.max(0, carryingCapacity);
-    const adjustedTotal = gradualGrazingAdjustment
-      ? nextTotal - (nextTotal - target) * GRAZED_EXCESS_ANNUAL_ADJUSTMENT
-      : target;
-    const scale = adjustedTotal / nextTotal;
+    const scale = Math.max(0, carryingCapacity) / nextTotal;
     next = { young: next.young * scale, breeding: next.breeding * scale, old: next.old * scale };
+  }
+  // A managed herd keeps this year's young for the coming sales; only the older stock above the
+  // supported herd is reduced (sold off, slaughtered or lost to want of feed).
+  const olderExcess = next.breeding + next.old - Math.max(0, carryingCapacity);
+  if (gradualGrazingAdjustment && olderExcess > 0) {
+    const scale = 1 - (olderExcess * GRAZED_EXCESS_ANNUAL_ADJUSTMENT) / (next.breeding + next.old);
+    next = { young: next.young, breeding: next.breeding * scale, old: next.old * scale };
   }
   return next;
 }
@@ -626,13 +788,47 @@ function advanceStockOneYear(
     existing,
     getSpeciesProfile(speciesKey),
     carryingCapacity,
-    isGrazedLivestockGood(speciesKey)
+    isManagedHerdGood(speciesKey)
   );
   const unsupportedRemnant =
-    isGrazedLivestockGood(speciesKey) && carryingCapacity <= 0 && cohortTotal(next) < MIN_UNSUPPORTED_GRAZED_HERD_HEADS;
+    isManagedHerdGood(speciesKey) && carryingCapacity <= 0 && cohortTotal(next) < MIN_UNSUPPORTED_GRAZED_HERD_HEADS;
   if ((cohortTotal(next) <= 0 && carryingCapacity <= 0) || unsupportedRemnant)
     delete table[key]; // Habitat/demand gone — stop tracking.
   else table[key] = next;
+}
+
+/** Saved in the economy slice once the grazed herds of a world have been put on the E1 scale. */
+const HERD_SCALE_BASELINE_KEY = "livestockHerdScaleBaseline";
+// Version 2 adds yard animals (§7.43), whose former capacity used population points.
+const HERD_SCALE_BASELINE_VERSION = 2;
+
+/**
+ * One-time correction of herds seeded under the former biome-weight capacity (E1-5, §7.41). Those
+ * herds were a model artifact (e.g. 234 cattle for 450,000 people), not a historical state that
+ * should take decades of breeding to leave. A herd below the ordinary first-seeding level is raised
+ * to it, exactly as a newly discovered herd would be seeded; herds above it are left to the annual
+ * adjustment. Runs once per world and never again after a save.
+ */
+export function rebaseGrazedHerdsToDemandScale(): boolean {
+  const slice = getEconomySlice();
+  if (!slice || slice[HERD_SCALE_BASELINE_KEY] === HERD_SCALE_BASELINE_VERSION) return false;
+  const table = getOrCreateFaunaStockTable();
+  const world = getWorldContext();
+  const cells = world.pack.cells;
+  if (!table || !cells?.i?.length) return false;
+  const grazed = getGoods().filter(good => isManagedHerdGood(good.name) && isGoodEnabled(good));
+  for (const cellId of cells.i) {
+    if ((cells.h[cellId] ?? 0) < 20 || !(cells.pop[cellId] > 0)) continue;
+    for (const good of grazed) {
+      const key = getStockKey(cellId, good.name);
+      const seeded = initializeStock(getDomesticatedCarryingCapacity(cellId, good, 0));
+      const existing = table[key];
+      if (!existing) continue; // Unseeded herds take the ordinary first-seeding path.
+      if (cohortTotal(existing) < cohortTotal(seeded)) table[key] = seeded;
+    }
+  }
+  slice[HERD_SCALE_BASELINE_KEY] = HERD_SCALE_BASELINE_VERSION;
+  return true;
 }
 
 /**
@@ -642,6 +838,7 @@ function advanceStockOneYear(
  */
 export function updateAnnualFaunaCohorts(): boolean {
   if (getRuralEcosystemDetail() !== "detailed") return false;
+  rebaseGrazedHerdsToDemandScale();
 
   if (!settleAnnualOnce(ANNUAL_GATE.faunaPopulation)) return false;
 
@@ -653,7 +850,7 @@ export function updateAnnualFaunaCohorts(): boolean {
   if (!table) return false;
 
   const domesticatedGoods = getGoods().filter(
-    good => good.tags.includes("liveAnimal") && (isGoodEnabled(good) || isGrazedLivestockGood(good.name))
+    good => good.tags.includes("liveAnimal") && (isGoodEnabled(good) || isManagedHerdGood(good.name))
   );
 
   for (const cellId of cells.i) {
@@ -666,8 +863,10 @@ export function updateAnnualFaunaCohorts(): boolean {
     for (const good of domesticatedGoods) {
       const rate = resolveBiomeOutputRate(biomeCode, good.biomeOutput, good.biomeOutputByTag, world.biomesData);
       // Existing grazed animals still age and adjust after habitat or technology eligibility is lost.
-      const existingGrazedHerd = isGrazedLivestockGood(good.name) && table[getStockKey(cellId, good.name)];
-      if ((!isGoodEnabled(good) || rate <= 0) && !existingGrazedHerd) continue;
+      // Grazed herds follow the mixed-farming targets, which do not require a biome output rate.
+      const grazed = isManagedHerdGood(good.name);
+      const existingGrazedHerd = grazed && table[getStockKey(cellId, good.name)];
+      if ((!isGoodEnabled(good) || (rate <= 0 && !grazed)) && !existingGrazedHerd) continue;
       const flatRateAmount = Math.max(0, cells.pop[cellId] ?? 0) * rate;
       advanceStockOneYear(table, cellId, good.name, getDomesticatedCarryingCapacity(cellId, good, flatRateAmount));
     }

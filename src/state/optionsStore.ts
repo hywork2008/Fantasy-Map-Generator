@@ -226,6 +226,7 @@ export interface OptionsState {
    * formula — a performance escape hatch for large maps once cohort updates get expensive.
    */
   ruralEcosystemDetail: "detailed" | "simplified";
+  winterLivestockSlaughter: "off" | "experimental-temperate";
   /** Economy initial-capital and maintenance preset, applied when generating a new map. */
   economyStartMode: EconomyStartMode;
   /** Money scale base applied when generating a new map (docs/plan/money-scale-calibration.md). */
@@ -515,6 +516,7 @@ export const GENERATION_OPTION_KEYS = [
   "moneyScaleBase",
   "ironDepositsPerState",
   "ruralEcosystemDetail",
+  "winterLivestockSlaughter",
   "gunpowderEraEnabled",
   "initialFirearmsUnstocked",
   "populationRate",
@@ -602,6 +604,7 @@ export const optionsStore = createStore<OptionsState>(set => ({
   climateVariabilityDepthC: 0.5,
   climateVariabilityVolcanicPerCentury: 0.8,
   ruralEcosystemDetail: "detailed",
+  winterLivestockSlaughter: "off",
   economyStartMode: "balanced",
   moneyScaleBase: DEFAULT_MONEY_SCALE_BASE,
   ironDepositsPerState: 0.4,

@@ -1,0 +1,115 @@
+{
+  "notes": [
+    "ceilingHa is the need capped by each cell's pasture ceiling; forageHa is committed pasture excluding fallow."
+  ],
+  "rows": {
+    "Heath & moorland": {
+      "cells": 111,
+      "ruralPeople": 98966.62789583206,
+      "cultivatedHa": 0,
+      "needHa": 698765.1945059571,
+      "ceilingHa": 698765.1945059571,
+      "forageHa": 98966.62789583206,
+      "pastureKgPerHa": 722.2141729619159
+    },
+    "Wetland": {
+      "cells": 53,
+      "ruralPeople": 56254.89814579487,
+      "cultivatedHa": 0,
+      "needHa": 59413.26137246705,
+      "ceilingHa": 59413.26137246705,
+      "forageHa": 56254.89814579487,
+      "pastureKgPerHa": 785.5708077991017
+    },
+    "Flooded forest & riparian woodland": {
+      "cells": 14,
+      "ruralPeople": 45078.89121770859,
+      "cultivatedHa": 0,
+      "needHa": 38916.51961734246,
+      "ceilingHa": 38916.51961734246,
+      "forageHa": 45078.89121770859,
+      "pastureKgPerHa": 941.2712117620525
+    },
+    "Temperate rainforest": {
+      "cells": 178,
+      "ruralPeople": 948877.4185180664,
+      "cultivatedHa": 5384920.206021302,
+      "needHa": 3852496.6013790905,
+      "ceilingHa": 1497239.4502370483,
+      "forageHa": 948877.4185180664,
+      "pastureKgPerHa": 784.5689536948906
+    },
+    "Central European great forest": {
+      "cells": 30,
+      "ruralPeople": 59911.222726106644,
+      "cultivatedHa": 712389.6017850129,
+      "needHa": 197540.95206363933,
+      "ceilingHa": 165708.88990134283,
+      "forageHa": 59911.222726106644,
+      "pastureKgPerHa": 795.5178229451195
+    },
+    "Temperate coniferous forest": {
+      "cells": 124,
+      "ruralPeople": 254070.63001394272,
+      "cultivatedHa": 1503199.7028336073,
+      "needHa": 1489817.7905555477,
+      "ceilingHa": 1089298.5038497716,
+      "forageHa": 254070.63001394272,
+      "pastureKgPerHa": 587.2117415567151
+    },
+    "Cold steppe & forest-steppe": {
+      "cells": 336,
+      "ruralPeople": 438955.7111263275,
+      "cultivatedHa": 901244.986515207,
+      "needHa": 8012558.433581478,
+      "ceilingHa": 8012558.433581478,
+      "forageHa": 438955.7111263275,
+      "pastureKgPerHa": 486.39429726904547
+    },
+    "Boreal peatland & muskeg": {
+      "cells": 738,
+      "ruralPeople": 709301.7852380872,
+      "cultivatedHa": 0,
+      "needHa": 1311530.0162632423,
+      "ceilingHa": 1261777.4797396278,
+      "forageHa": 705881.6794184864,
+      "pastureKgPerHa": 463.74264882647
+    },
+    "Taiga": {
+      "cells": 392,
+      "ruralPeople": 474208.64944159985,
+      "cultivatedHa": 1883879.0644260112,
+      "needHa": 3929220.952033959,
+      "ceilingHa": 2915059.8423485844,
+      "forageHa": 474208.64944159985,
+      "pastureKgPerHa": 422.3896763407972
+    },
+    "Temperate deciduous forest": {
+      "cells": 2,
+      "ruralPeople": 8194.685220718384,
+      "cultivatedHa": 22912.835738890233,
+      "needHa": 39082.45152566729,
+      "ceilingHa": 13132.759281570781,
+      "forageHa": 8194.685220718384,
+      "pastureKgPerHa": 734.5860630273819
+    },
+    "Volcanic soil": {
+      "cells": 146,
+      "ruralPeople": 461892.95291900635,
+      "cultivatedHa": 2320935.565918569,
+      "needHa": 3609809.301334577,
+      "ceilingHa": 1270445.9720808547,
+      "forageHa": 461892.95291900635,
+      "pastureKgPerHa": 430.2078346947693
+    },
+    "Volcanic barrens": {
+      "cells": 33,
+      "ruralPeople": 23495.95481157303,
+      "cultivatedHa": 79513.0400099336,
+      "needHa": 263157.91389336664,
+      "ceilingHa": 257624.44637184357,
+      "forageHa": 23495.95481157303,
+      "pastureKgPerHa": 366.71586268282454
+    }
+  }
+}

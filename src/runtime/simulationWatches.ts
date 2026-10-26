@@ -1,5 +1,5 @@
 import type { SimulationContext } from "../context/simulationContext";
-import type { DataTopic } from "./worldRuntime";
+import type { DataTopic } from "./worldTopics";
 
 export interface SimulationWatch {
   beforeStep(simulation: SimulationContext, days: number): { allowed: boolean; topics?: readonly DataTopic[] };

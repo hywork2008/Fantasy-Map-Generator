@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "notes": [
+    "Derived from the formal S0/S1 observation JSONs, not an independent ledger.",
+    "S0 excluded neutral/unmarketed residents from its ledger denominator. Group-level stateResidents comparisons use S1 stateId>0.",
+    "Residual boundary is market plus SaltShipment inTransit; generic cargo boundaries are separate."
+  ],
+  "worlds": [
+    {
+      "label": "province-101",
+      "inputSha256": "a3209cca3c88ebf8f84b4f5d9321be8ad3bdc5b3766ca92994f0eb198a52e4e7",
+      "observationSha256": "c8c6b242afb010ffd27f6fb275b01dbeb52ec660e5e4271a77b3a45e29d570cf",
+      "beforeTotals": {
+        "personMonths": 1481715,
+        "householdDemandKg": 444514.356,
+        "householdSuppliedKg": 444514.356,
+        "unmetHouseholdKg": 0,
+        "productionKg": 505535.6040000001,
+        "recipeInputKg": 102.22157866341664
+      },
+      "afterTotals": {
+        "personMonths": 5436868,
+        "householdDemandKg": 1631060.172,
+        "householdSuppliedKg": 870459.816,
+        "unmetHouseholdKg": 760600.3559999999,
+        "productionKg": 842364.7559999998,
+        "recipeInputKg": 0,
+        "livestockDemandKg": 8576.676000000001,
+        "livestockSuppliedKg": 0,
+        "livestockUnmetKg": 8576.676000000001
+      },
+      "householdGroups": {
+        "neutral": {
+          "personMonths": 3955153,
+          "demandKg": 1186545.816,
+          "suppliedKg": 425945.4600000001,
+          "unmetKg": 760600.3559999999,
+          "annualizedSuppliedKgPerResident": 1.2923256116767168
+        },
+        "stateResidents": {
+          "personMonths": 1481715,
+          "demandKg": 444514.356,
+          "suppliedKg": 444514.356,
+          "unmetKg": 0,
+          "annualizedSuppliedKgPerResident": 3.599998833783825
+        }
+      },
+      "beforeResidualKg": 6.7712618844161625,
+      "afterResidualKg": -0.10249972214660374,
+      "openingMarketAndSaltTransitKg": 33800.53877116425,
+      "closingMarketAndSaltTransitKg": 0,
+      "livestockFlowKg": 0
+    },
+    {
+      "label": "world-102",
+      "inputSha256": "5e73a27785881bf553d37404442d7ead0f7bb68457208cc33c88c88f7c6a5999",
+      "observationSha256": "41d9bc3f52607528dc04d9e70a94c8c5d79bd9a59a327b217b8aa256e7f050a4",
+      "beforeTotals": {
+        "personMonths": 49954128,
+        "householdDemandKg": 14986238.555999987,
+        "householdSuppliedKg": 14767799.837999986,
+        "unmetHouseholdKg": 218438.706,
+        "productionKg": 17499921.792,
+        "recipeInputKg": 19515.935520218136
+      },
+      "afterTotals": {
+        "personMonths": 50277591,
+        "householdDemandKg": 15083278.02599999,
+        "householdSuppliedKg": 14883028.63199999,
+        "unmetHouseholdKg": 200249.388,
+        "productionKg": 17517891.018,
+        "recipeInputKg": 19630.71681970083,
+        "livestockDemandKg": 1475190.2399999998,
+        "livestockSuppliedKg": 1402684.637999999,
+        "livestockUnmetKg": 72505.674
+      },
+      "householdGroups": {
+        "neutral": {
+          "personMonths": 323461,
+          "demandKg": 97038.48000000001,
+          "suppliedKg": 89715.99000000002,
+          "unmetKg": 7322.49,
+          "annualizedSuppliedKgPerResident": 3.3283514241284125
+        },
+        "stateResidents": {
+          "personMonths": 49954130,
+          "demandKg": 14986239.545999995,
+          "suppliedKg": 14793312.641999995,
+          "unmetKg": 192926.89800000002,
+          "annualizedSuppliedKgPerResident": 3.5536551573213253
+        }
+      },
+      "beforeResidualKg": 340.54001205507666,
+      "afterResidualKg": 341.6615752673242,
+      "openingMarketAndSaltTransitKg": 1312720.9216770576,
+      "closingMarketAndSaltTransitKg": 2390174.700872154,
+      "livestockFlowKg": 1402684.6172152658
+    }
+  ]
+}

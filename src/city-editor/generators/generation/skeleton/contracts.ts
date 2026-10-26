@@ -149,3 +149,9 @@ export interface SkeletonMeshChain extends SkeletonMeshLine {
   /** Separate connected runs when a clipped input leaves and re-enters the frame. */
   runs: import("../../../types/document").EdgeRef[][];
 }
+
+export interface SkeletonPlanData {
+  inputs: SkeletonInputs;
+  skeleton: Skeleton;
+  lines: SkeletonMeshChain[];
+}

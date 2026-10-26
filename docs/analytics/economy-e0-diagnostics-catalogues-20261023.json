@@ -1,0 +1,2147 @@
+{
+  "note": "Exact archive catalogue metadata, without migrations or economy initialization. Runtime policy enablement is not inferred from missing disabled fields.",
+  "worlds": [
+    {
+      "input": "province-101",
+      "inputSha256": "a3209cca3c88ebf8f84b4f5d9321be8ad3bdc5b3766ca92994f0eb198a52e4e7",
+      "goods": [
+        {
+          "id": 1,
+          "name": "Wood",
+          "disabled": null
+        },
+        {
+          "id": 2,
+          "name": "Stone",
+          "disabled": null
+        },
+        {
+          "id": 3,
+          "name": "Marble",
+          "disabled": null
+        },
+        {
+          "id": 4,
+          "name": "Iron Ore",
+          "disabled": null
+        },
+        {
+          "id": 5,
+          "name": "Copper Ore",
+          "disabled": null
+        },
+        {
+          "id": 6,
+          "name": "Tin Ore",
+          "disabled": null
+        },
+        {
+          "id": 7,
+          "name": "Lead Ore",
+          "disabled": null
+        },
+        {
+          "id": 8,
+          "name": "Silver Ore",
+          "disabled": null
+        },
+        {
+          "id": 9,
+          "name": "Gold Ore",
+          "disabled": null
+        },
+        {
+          "id": 10,
+          "name": "Chromium Ore",
+          "disabled": null
+        },
+        {
+          "id": 11,
+          "name": "Nickel Ore",
+          "disabled": null
+        },
+        {
+          "id": 12,
+          "name": "Molybdenum Ore",
+          "disabled": null
+        },
+        {
+          "id": 13,
+          "name": "Silicon Ore",
+          "disabled": null
+        },
+        {
+          "id": 14,
+          "name": "Iron Ingot",
+          "disabled": null
+        },
+        {
+          "id": 15,
+          "name": "Copper Ingot",
+          "disabled": null
+        },
+        {
+          "id": 16,
+          "name": "Tin Ingot",
+          "disabled": null
+        },
+        {
+          "id": 17,
+          "name": "Lead Ingot",
+          "disabled": null
+        },
+        {
+          "id": 18,
+          "name": "Silver Ingot",
+          "disabled": null
+        },
+        {
+          "id": 19,
+          "name": "Gold Ingot",
+          "disabled": null
+        },
+        {
+          "id": 20,
+          "name": "Chromium Ingot",
+          "disabled": null
+        },
+        {
+          "id": 21,
+          "name": "Nickel Ingot",
+          "disabled": null
+        },
+        {
+          "id": 22,
+          "name": "Molybdenum Ingot",
+          "disabled": null
+        },
+        {
+          "id": 23,
+          "name": "Silicon Ingot",
+          "disabled": null
+        },
+        {
+          "id": 24,
+          "name": "Grain",
+          "disabled": null
+        },
+        {
+          "id": 25,
+          "name": "Wheat",
+          "disabled": null
+        },
+        {
+          "id": 26,
+          "name": "Rye",
+          "disabled": null
+        },
+        {
+          "id": 27,
+          "name": "Barley",
+          "disabled": null
+        },
+        {
+          "id": 28,
+          "name": "Oats",
+          "disabled": null
+        },
+        {
+          "id": 29,
+          "name": "Millet",
+          "disabled": null
+        },
+        {
+          "id": 30,
+          "name": "Maize",
+          "disabled": null
+        },
+        {
+          "id": 31,
+          "name": "Rice",
+          "disabled": null
+        },
+        {
+          "id": 32,
+          "name": "Buckwheat",
+          "disabled": null
+        },
+        {
+          "id": 33,
+          "name": "Peas",
+          "disabled": null
+        },
+        {
+          "id": 34,
+          "name": "Broad Beans",
+          "disabled": null
+        },
+        {
+          "id": 35,
+          "name": "Lentils",
+          "disabled": null
+        },
+        {
+          "id": 36,
+          "name": "Chickpeas",
+          "disabled": null
+        },
+        {
+          "id": 37,
+          "name": "Soybeans",
+          "disabled": null
+        },
+        {
+          "id": 38,
+          "name": "Turnips",
+          "disabled": null
+        },
+        {
+          "id": 39,
+          "name": "Potatoes",
+          "disabled": null
+        },
+        {
+          "id": 40,
+          "name": "Cattle",
+          "disabled": null
+        },
+        {
+          "id": 41,
+          "name": "Fish",
+          "disabled": null
+        },
+        {
+          "id": 42,
+          "name": "Game",
+          "disabled": null
+        },
+        {
+          "id": 43,
+          "name": "Wine",
+          "disabled": null
+        },
+        {
+          "id": 44,
+          "name": "Pomace",
+          "disabled": null
+        },
+        {
+          "id": 45,
+          "name": "Olives",
+          "disabled": null
+        },
+        {
+          "id": 46,
+          "name": "Honey",
+          "disabled": null
+        },
+        {
+          "id": 47,
+          "name": "Salt",
+          "disabled": null
+        },
+        {
+          "id": 48,
+          "name": "Dates",
+          "disabled": null
+        },
+        {
+          "id": 49,
+          "name": "Horses",
+          "disabled": null
+        },
+        {
+          "id": 50,
+          "name": "Fodder",
+          "disabled": null
+        },
+        {
+          "id": 51,
+          "name": "Elephants",
+          "disabled": null
+        },
+        {
+          "id": 52,
+          "name": "Camels",
+          "disabled": null
+        },
+        {
+          "id": 53,
+          "name": "Hemp",
+          "disabled": null
+        },
+        {
+          "id": 54,
+          "name": "Pearls",
+          "disabled": null
+        },
+        {
+          "id": 55,
+          "name": "Gemstones",
+          "disabled": null
+        },
+        {
+          "id": 56,
+          "name": "Dyes",
+          "disabled": null
+        },
+        {
+          "id": 57,
+          "name": "Incense",
+          "disabled": null
+        },
+        {
+          "id": 58,
+          "name": "Silk",
+          "disabled": null
+        },
+        {
+          "id": 59,
+          "name": "Spices",
+          "disabled": null
+        },
+        {
+          "id": 60,
+          "name": "Cocoa",
+          "disabled": null
+        },
+        {
+          "id": 61,
+          "name": "Coffee",
+          "disabled": null
+        },
+        {
+          "id": 62,
+          "name": "Rubber",
+          "disabled": null
+        },
+        {
+          "id": 63,
+          "name": "Amber",
+          "disabled": null
+        },
+        {
+          "id": 64,
+          "name": "Furs",
+          "disabled": null
+        },
+        {
+          "id": 65,
+          "name": "Sheep",
+          "disabled": null
+        },
+        {
+          "id": 66,
+          "name": "Slaves",
+          "disabled": null
+        },
+        {
+          "id": 67,
+          "name": "Tar",
+          "disabled": null
+        },
+        {
+          "id": 68,
+          "name": "Sulfur",
+          "disabled": null
+        },
+        {
+          "id": 69,
+          "name": "Obsidian",
+          "disabled": null
+        },
+        {
+          "id": 70,
+          "name": "Saltpeter",
+          "disabled": null
+        },
+        {
+          "id": 71,
+          "name": "Coal",
+          "disabled": null
+        },
+        {
+          "id": 72,
+          "name": "Charcoal",
+          "disabled": null
+        },
+        {
+          "id": 73,
+          "name": "Oil",
+          "disabled": null
+        },
+        {
+          "id": 74,
+          "name": "Mahogany",
+          "disabled": null
+        },
+        {
+          "id": 75,
+          "name": "Whales",
+          "disabled": null
+        },
+        {
+          "id": 76,
+          "name": "Sugarcane",
+          "disabled": null
+        },
+        {
+          "id": 77,
+          "name": "Tea",
+          "disabled": null
+        },
+        {
+          "id": 78,
+          "name": "Tobacco",
+          "disabled": null
+        },
+        {
+          "id": 79,
+          "name": "Clay",
+          "disabled": null
+        },
+        {
+          "id": 80,
+          "name": "Brick",
+          "disabled": null
+        },
+        {
+          "id": 81,
+          "name": "Firebrick",
+          "disabled": null
+        },
+        {
+          "id": 82,
+          "name": "Volcanic Ash",
+          "disabled": null
+        },
+        {
+          "id": 83,
+          "name": "Pumice",
+          "disabled": null
+        },
+        {
+          "id": 84,
+          "name": "White sand",
+          "disabled": null
+        },
+        {
+          "id": 85,
+          "name": "Leather",
+          "disabled": null
+        },
+        {
+          "id": 86,
+          "name": "Cloth",
+          "disabled": null
+        },
+        {
+          "id": 87,
+          "name": "Garments",
+          "disabled": null
+        },
+        {
+          "id": 88,
+          "name": "Ceramics",
+          "disabled": null
+        },
+        {
+          "id": 89,
+          "name": "Glass",
+          "disabled": null
+        },
+        {
+          "id": 90,
+          "name": "Lime",
+          "disabled": null
+        },
+        {
+          "id": 91,
+          "name": "Roman Concrete",
+          "disabled": null
+        },
+        {
+          "id": 92,
+          "name": "Slaked Lime",
+          "disabled": null
+        },
+        {
+          "id": 93,
+          "name": "Ropes",
+          "disabled": null
+        },
+        {
+          "id": 94,
+          "name": "Paper",
+          "disabled": null
+        },
+        {
+          "id": 95,
+          "name": "Ink",
+          "disabled": null
+        },
+        {
+          "id": 96,
+          "name": "Books",
+          "disabled": null
+        },
+        {
+          "id": 97,
+          "name": "Sails",
+          "disabled": null
+        },
+        {
+          "id": 98,
+          "name": "Sloop",
+          "disabled": null
+        },
+        {
+          "id": 99,
+          "name": "Caravel",
+          "disabled": null
+        },
+        {
+          "id": 100,
+          "name": "Galleon",
+          "disabled": null
+        },
+        {
+          "id": 101,
+          "name": "Boots",
+          "disabled": null
+        },
+        {
+          "id": 102,
+          "name": "Harnesses",
+          "disabled": null
+        },
+        {
+          "id": 103,
+          "name": "Barrels",
+          "disabled": null
+        },
+        {
+          "id": 104,
+          "name": "Bronze",
+          "disabled": null
+        },
+        {
+          "id": 105,
+          "name": "Tools",
+          "disabled": null
+        },
+        {
+          "id": 106,
+          "name": "Arms",
+          "disabled": null
+        },
+        {
+          "id": 107,
+          "name": "Arrows",
+          "disabled": null
+        },
+        {
+          "id": 108,
+          "name": "Gunpowder",
+          "disabled": null
+        },
+        {
+          "id": 109,
+          "name": "Bullets",
+          "disabled": null
+        },
+        {
+          "id": 110,
+          "name": "Muskets",
+          "disabled": null
+        },
+        {
+          "id": 111,
+          "name": "Artillery",
+          "disabled": null
+        },
+        {
+          "id": 112,
+          "name": "Coins",
+          "disabled": null
+        },
+        {
+          "id": 113,
+          "name": "Jewelry",
+          "disabled": null
+        },
+        {
+          "id": 114,
+          "name": "Preserved food",
+          "disabled": null
+        },
+        {
+          "id": 115,
+          "name": "Vinegar",
+          "disabled": null
+        },
+        {
+          "id": 116,
+          "name": "Milk",
+          "disabled": null
+        },
+        {
+          "id": 117,
+          "name": "Rennet",
+          "disabled": null
+        },
+        {
+          "id": 118,
+          "name": "Ash",
+          "disabled": null
+        },
+        {
+          "id": 119,
+          "name": "Cheese",
+          "disabled": null
+        },
+        {
+          "id": 120,
+          "name": "Smoked Cheese",
+          "disabled": null
+        },
+        {
+          "id": 121,
+          "name": "Egg",
+          "disabled": null
+        },
+        {
+          "id": 122,
+          "name": "Beer",
+          "disabled": null
+        },
+        {
+          "id": 123,
+          "name": "Cider",
+          "disabled": null
+        },
+        {
+          "id": 124,
+          "name": "Perry",
+          "disabled": null
+        },
+        {
+          "id": 125,
+          "name": "Pomace Wine",
+          "disabled": null
+        },
+        {
+          "id": 126,
+          "name": "Liquor",
+          "disabled": null
+        },
+        {
+          "id": 127,
+          "name": "Candles",
+          "disabled": null
+        },
+        {
+          "id": 128,
+          "name": "Soap",
+          "disabled": null
+        },
+        {
+          "id": 129,
+          "name": "Perfume",
+          "disabled": null
+        },
+        {
+          "id": 130,
+          "name": "Peat",
+          "disabled": null
+        },
+        {
+          "id": 131,
+          "name": "Resin",
+          "disabled": null
+        },
+        {
+          "id": 132,
+          "name": "Medicinal herbs",
+          "disabled": null
+        },
+        {
+          "id": 133,
+          "name": "Shellfish",
+          "disabled": null
+        },
+        {
+          "id": 134,
+          "name": "Reeds",
+          "disabled": null
+        },
+        {
+          "id": 135,
+          "name": "Goats",
+          "disabled": null
+        },
+        {
+          "id": 136,
+          "name": "Pig",
+          "disabled": null
+        },
+        {
+          "id": 137,
+          "name": "Chicken",
+          "disabled": null
+        },
+        {
+          "id": 138,
+          "name": "Wool",
+          "disabled": null
+        },
+        {
+          "id": 139,
+          "name": "Flax",
+          "disabled": null
+        },
+        {
+          "id": 140,
+          "name": "Linen",
+          "disabled": null
+        },
+        {
+          "id": 141,
+          "name": "Cotton",
+          "disabled": null
+        },
+        {
+          "id": 142,
+          "name": "Tallow",
+          "disabled": null
+        },
+        {
+          "id": 143,
+          "name": "Beeswax",
+          "disabled": null
+        },
+        {
+          "id": 144,
+          "name": "Flour",
+          "disabled": null
+        },
+        {
+          "id": 145,
+          "name": "Bread",
+          "disabled": null
+        },
+        {
+          "id": 146,
+          "name": "Timber",
+          "disabled": null
+        },
+        {
+          "id": 147,
+          "name": "Alum",
+          "disabled": null
+        },
+        {
+          "id": 148,
+          "name": "Potash",
+          "disabled": null
+        },
+        {
+          "id": 149,
+          "name": "Slag",
+          "disabled": null
+        },
+        {
+          "id": 150,
+          "name": "Ivory",
+          "disabled": null
+        },
+        {
+          "id": 151,
+          "name": "Coral",
+          "disabled": null
+        },
+        {
+          "id": 152,
+          "name": "Stockfish",
+          "disabled": null
+        },
+        {
+          "id": 153,
+          "name": "Spinning Wheel",
+          "disabled": null
+        },
+        {
+          "id": 154,
+          "name": "Artworks",
+          "disabled": null
+        },
+        {
+          "id": 155,
+          "name": "Sculptures",
+          "disabled": null
+        },
+        {
+          "id": 156,
+          "name": "Tapestries",
+          "disabled": null
+        },
+        {
+          "id": 157,
+          "name": "Instruments",
+          "disabled": null
+        },
+        {
+          "id": 158,
+          "name": "Relics",
+          "disabled": null
+        },
+        {
+          "id": 159,
+          "name": "Cats",
+          "disabled": null
+        },
+        {
+          "id": 160,
+          "name": "Dogs",
+          "disabled": null
+        },
+        {
+          "id": 161,
+          "name": "Grapes",
+          "disabled": null
+        },
+        {
+          "id": 162,
+          "name": "Apples",
+          "disabled": null
+        },
+        {
+          "id": 163,
+          "name": "Pears",
+          "disabled": null
+        },
+        {
+          "id": 164,
+          "name": "Plums",
+          "disabled": null
+        },
+        {
+          "id": 165,
+          "name": "Figs",
+          "disabled": null
+        },
+        {
+          "id": 166,
+          "name": "Lemons",
+          "disabled": null
+        },
+        {
+          "id": 167,
+          "name": "Dried Fruits",
+          "disabled": null
+        },
+        {
+          "id": 168,
+          "name": "Raisins",
+          "disabled": null
+        },
+        {
+          "id": 169,
+          "name": "Coke",
+          "disabled": null
+        },
+        {
+          "id": 170,
+          "name": "Steel",
+          "disabled": null
+        },
+        {
+          "id": 171,
+          "name": "Stainless Steel",
+          "disabled": null
+        },
+        {
+          "id": 172,
+          "name": "Machine Parts",
+          "disabled": null
+        },
+        {
+          "id": 173,
+          "name": "Copper Wire",
+          "disabled": null
+        },
+        {
+          "id": 174,
+          "name": "Stationary Steam Engine",
+          "disabled": null
+        },
+        {
+          "id": 175,
+          "name": "Rail",
+          "disabled": null
+        },
+        {
+          "id": 176,
+          "name": "Locomotive",
+          "disabled": null
+        },
+        {
+          "id": 177,
+          "name": "Marine Steam Engine",
+          "disabled": null
+        },
+        {
+          "id": 178,
+          "name": "Steamship",
+          "disabled": null
+        },
+        {
+          "id": 179,
+          "name": "Lab Glassware",
+          "disabled": null
+        },
+        {
+          "id": 180,
+          "name": "Precision Instruments",
+          "disabled": null
+        },
+        {
+          "id": 181,
+          "name": "Medicines",
+          "disabled": null
+        },
+        {
+          "id": 182,
+          "name": "Sulfuric Acid",
+          "disabled": null
+        },
+        {
+          "id": 183,
+          "name": "Chlorine",
+          "disabled": null
+        },
+        {
+          "id": 184,
+          "name": "Bleaching Powder",
+          "disabled": null
+        },
+        {
+          "id": 185,
+          "name": "Nitric Acid",
+          "disabled": null
+        },
+        {
+          "id": 186,
+          "name": "Coal Tar",
+          "disabled": null
+        },
+        {
+          "id": 187,
+          "name": "Synthetic Dye",
+          "disabled": null
+        },
+        {
+          "id": 188,
+          "name": "Soda Ash",
+          "disabled": null
+        },
+        {
+          "id": 189,
+          "name": "Caustic Soda",
+          "disabled": null
+        },
+        {
+          "id": 190,
+          "name": "Phosphate Rock",
+          "disabled": null
+        },
+        {
+          "id": 191,
+          "name": "Bauxite",
+          "disabled": null
+        },
+        {
+          "id": 192,
+          "name": "Alumina",
+          "disabled": null
+        },
+        {
+          "id": 193,
+          "name": "Aluminum",
+          "disabled": null
+        },
+        {
+          "id": 194,
+          "name": "Light Alloy Parts",
+          "disabled": null
+        },
+        {
+          "id": 195,
+          "name": "Cinnabar",
+          "disabled": null
+        },
+        {
+          "id": 196,
+          "name": "Mercury",
+          "disabled": null
+        },
+        {
+          "id": 197,
+          "name": "Crude Oil",
+          "disabled": null
+        },
+        {
+          "id": 198,
+          "name": "Kerosene",
+          "disabled": null
+        },
+        {
+          "id": 199,
+          "name": "Synthetic Resin",
+          "disabled": null
+        },
+        {
+          "id": 200,
+          "name": "Lubricating Oil",
+          "disabled": null
+        },
+        {
+          "id": 201,
+          "name": "Natural Gas",
+          "disabled": null
+        },
+        {
+          "id": 202,
+          "name": "LNG",
+          "disabled": null
+        },
+        {
+          "id": 203,
+          "name": "Phosphate Fertilizer",
+          "disabled": null
+        },
+        {
+          "id": 204,
+          "name": "Synthetic Ammonia",
+          "disabled": null
+        },
+        {
+          "id": 205,
+          "name": "Nitrogen Fertilizer",
+          "disabled": null
+        },
+        {
+          "id": 206,
+          "name": "Spelt",
+          "disabled": null
+        },
+        {
+          "id": 207,
+          "name": "Chestnuts",
+          "disabled": null
+        },
+        {
+          "id": 208,
+          "name": "Fine Wool Cloth",
+          "disabled": null
+        },
+        {
+          "id": 209,
+          "name": "Fine Wool Garments",
+          "disabled": null
+        },
+        {
+          "id": 210,
+          "name": "Linen Garments",
+          "disabled": null
+        },
+        {
+          "id": 211,
+          "name": "Wool Cloth",
+          "disabled": null
+        },
+        {
+          "id": 212,
+          "name": "Wool Garments",
+          "disabled": null
+        },
+        {
+          "id": 213,
+          "name": "Wool Blankets",
+          "disabled": null
+        }
+      ]
+    },
+    {
+      "input": "world-102",
+      "inputSha256": "5e73a27785881bf553d37404442d7ead0f7bb68457208cc33c88c88f7c6a5999",
+      "goods": [
+        {
+          "id": 1,
+          "name": "Wood",
+          "disabled": null
+        },
+        {
+          "id": 2,
+          "name": "Stone",
+          "disabled": null
+        },
+        {
+          "id": 3,
+          "name": "Marble",
+          "disabled": null
+        },
+        {
+          "id": 4,
+          "name": "Iron Ore",
+          "disabled": null
+        },
+        {
+          "id": 5,
+          "name": "Copper Ore",
+          "disabled": null
+        },
+        {
+          "id": 6,
+          "name": "Tin Ore",
+          "disabled": null
+        },
+        {
+          "id": 7,
+          "name": "Lead Ore",
+          "disabled": null
+        },
+        {
+          "id": 8,
+          "name": "Silver Ore",
+          "disabled": null
+        },
+        {
+          "id": 9,
+          "name": "Gold Ore",
+          "disabled": null
+        },
+        {
+          "id": 10,
+          "name": "Chromium Ore",
+          "disabled": null
+        },
+        {
+          "id": 11,
+          "name": "Nickel Ore",
+          "disabled": null
+        },
+        {
+          "id": 12,
+          "name": "Molybdenum Ore",
+          "disabled": null
+        },
+        {
+          "id": 13,
+          "name": "Silicon Ore",
+          "disabled": null
+        },
+        {
+          "id": 14,
+          "name": "Iron Ingot",
+          "disabled": null
+        },
+        {
+          "id": 15,
+          "name": "Copper Ingot",
+          "disabled": null
+        },
+        {
+          "id": 16,
+          "name": "Tin Ingot",
+          "disabled": null
+        },
+        {
+          "id": 17,
+          "name": "Lead Ingot",
+          "disabled": null
+        },
+        {
+          "id": 18,
+          "name": "Silver Ingot",
+          "disabled": null
+        },
+        {
+          "id": 19,
+          "name": "Gold Ingot",
+          "disabled": null
+        },
+        {
+          "id": 20,
+          "name": "Chromium Ingot",
+          "disabled": null
+        },
+        {
+          "id": 21,
+          "name": "Nickel Ingot",
+          "disabled": null
+        },
+        {
+          "id": 22,
+          "name": "Molybdenum Ingot",
+          "disabled": null
+        },
+        {
+          "id": 23,
+          "name": "Silicon Ingot",
+          "disabled": null
+        },
+        {
+          "id": 24,
+          "name": "Grain",
+          "disabled": null
+        },
+        {
+          "id": 25,
+          "name": "Wheat",
+          "disabled": null
+        },
+        {
+          "id": 26,
+          "name": "Rye",
+          "disabled": null
+        },
+        {
+          "id": 27,
+          "name": "Barley",
+          "disabled": null
+        },
+        {
+          "id": 28,
+          "name": "Oats",
+          "disabled": null
+        },
+        {
+          "id": 29,
+          "name": "Millet",
+          "disabled": null
+        },
+        {
+          "id": 30,
+          "name": "Maize",
+          "disabled": null
+        },
+        {
+          "id": 31,
+          "name": "Rice",
+          "disabled": null
+        },
+        {
+          "id": 32,
+          "name": "Buckwheat",
+          "disabled": null
+        },
+        {
+          "id": 33,
+          "name": "Peas",
+          "disabled": null
+        },
+        {
+          "id": 34,
+          "name": "Broad Beans",
+          "disabled": null
+        },
+        {
+          "id": 35,
+          "name": "Lentils",
+          "disabled": null
+        },
+        {
+          "id": 36,
+          "name": "Chickpeas",
+          "disabled": null
+        },
+        {
+          "id": 37,
+          "name": "Soybeans",
+          "disabled": null
+        },
+        {
+          "id": 38,
+          "name": "Turnips",
+          "disabled": null
+        },
+        {
+          "id": 39,
+          "name": "Potatoes",
+          "disabled": null
+        },
+        {
+          "id": 40,
+          "name": "Cattle",
+          "disabled": null
+        },
+        {
+          "id": 41,
+          "name": "Fish",
+          "disabled": null
+        },
+        {
+          "id": 42,
+          "name": "Game",
+          "disabled": null
+        },
+        {
+          "id": 43,
+          "name": "Wine",
+          "disabled": null
+        },
+        {
+          "id": 44,
+          "name": "Pomace",
+          "disabled": null
+        },
+        {
+          "id": 45,
+          "name": "Olives",
+          "disabled": null
+        },
+        {
+          "id": 46,
+          "name": "Honey",
+          "disabled": null
+        },
+        {
+          "id": 47,
+          "name": "Salt",
+          "disabled": null
+        },
+        {
+          "id": 48,
+          "name": "Dates",
+          "disabled": null
+        },
+        {
+          "id": 49,
+          "name": "Horses",
+          "disabled": null
+        },
+        {
+          "id": 50,
+          "name": "Fodder",
+          "disabled": null
+        },
+        {
+          "id": 51,
+          "name": "Elephants",
+          "disabled": null
+        },
+        {
+          "id": 52,
+          "name": "Camels",
+          "disabled": null
+        },
+        {
+          "id": 53,
+          "name": "Hemp",
+          "disabled": null
+        },
+        {
+          "id": 54,
+          "name": "Pearls",
+          "disabled": null
+        },
+        {
+          "id": 55,
+          "name": "Gemstones",
+          "disabled": null
+        },
+        {
+          "id": 56,
+          "name": "Dyes",
+          "disabled": null
+        },
+        {
+          "id": 57,
+          "name": "Incense",
+          "disabled": null
+        },
+        {
+          "id": 58,
+          "name": "Silk",
+          "disabled": null
+        },
+        {
+          "id": 59,
+          "name": "Spices",
+          "disabled": null
+        },
+        {
+          "id": 60,
+          "name": "Cocoa",
+          "disabled": null
+        },
+        {
+          "id": 61,
+          "name": "Coffee",
+          "disabled": null
+        },
+        {
+          "id": 62,
+          "name": "Rubber",
+          "disabled": null
+        },
+        {
+          "id": 63,
+          "name": "Amber",
+          "disabled": null
+        },
+        {
+          "id": 64,
+          "name": "Furs",
+          "disabled": null
+        },
+        {
+          "id": 65,
+          "name": "Sheep",
+          "disabled": null
+        },
+        {
+          "id": 66,
+          "name": "Slaves",
+          "disabled": null
+        },
+        {
+          "id": 67,
+          "name": "Tar",
+          "disabled": null
+        },
+        {
+          "id": 68,
+          "name": "Sulfur",
+          "disabled": null
+        },
+        {
+          "id": 69,
+          "name": "Obsidian",
+          "disabled": null
+        },
+        {
+          "id": 70,
+          "name": "Saltpeter",
+          "disabled": null
+        },
+        {
+          "id": 71,
+          "name": "Coal",
+          "disabled": null
+        },
+        {
+          "id": 72,
+          "name": "Charcoal",
+          "disabled": null
+        },
+        {
+          "id": 73,
+          "name": "Oil",
+          "disabled": null
+        },
+        {
+          "id": 74,
+          "name": "Mahogany",
+          "disabled": null
+        },
+        {
+          "id": 75,
+          "name": "Whales",
+          "disabled": null
+        },
+        {
+          "id": 76,
+          "name": "Sugarcane",
+          "disabled": null
+        },
+        {
+          "id": 77,
+          "name": "Tea",
+          "disabled": null
+        },
+        {
+          "id": 78,
+          "name": "Tobacco",
+          "disabled": null
+        },
+        {
+          "id": 79,
+          "name": "Clay",
+          "disabled": null
+        },
+        {
+          "id": 80,
+          "name": "Brick",
+          "disabled": null
+        },
+        {
+          "id": 81,
+          "name": "Firebrick",
+          "disabled": null
+        },
+        {
+          "id": 82,
+          "name": "Volcanic Ash",
+          "disabled": null
+        },
+        {
+          "id": 83,
+          "name": "Pumice",
+          "disabled": null
+        },
+        {
+          "id": 84,
+          "name": "White sand",
+          "disabled": null
+        },
+        {
+          "id": 85,
+          "name": "Leather",
+          "disabled": null
+        },
+        {
+          "id": 86,
+          "name": "Cloth",
+          "disabled": null
+        },
+        {
+          "id": 87,
+          "name": "Garments",
+          "disabled": null
+        },
+        {
+          "id": 88,
+          "name": "Ceramics",
+          "disabled": null
+        },
+        {
+          "id": 89,
+          "name": "Glass",
+          "disabled": null
+        },
+        {
+          "id": 90,
+          "name": "Lime",
+          "disabled": null
+        },
+        {
+          "id": 91,
+          "name": "Roman Concrete",
+          "disabled": null
+        },
+        {
+          "id": 92,
+          "name": "Slaked Lime",
+          "disabled": null
+        },
+        {
+          "id": 93,
+          "name": "Ropes",
+          "disabled": null
+        },
+        {
+          "id": 94,
+          "name": "Paper",
+          "disabled": null
+        },
+        {
+          "id": 95,
+          "name": "Ink",
+          "disabled": null
+        },
+        {
+          "id": 96,
+          "name": "Books",
+          "disabled": null
+        },
+        {
+          "id": 97,
+          "name": "Sails",
+          "disabled": null
+        },
+        {
+          "id": 98,
+          "name": "Sloop",
+          "disabled": null
+        },
+        {
+          "id": 99,
+          "name": "Caravel",
+          "disabled": null
+        },
+        {
+          "id": 100,
+          "name": "Galleon",
+          "disabled": null
+        },
+        {
+          "id": 101,
+          "name": "Boots",
+          "disabled": null
+        },
+        {
+          "id": 102,
+          "name": "Harnesses",
+          "disabled": null
+        },
+        {
+          "id": 103,
+          "name": "Barrels",
+          "disabled": null
+        },
+        {
+          "id": 104,
+          "name": "Bronze",
+          "disabled": null
+        },
+        {
+          "id": 105,
+          "name": "Tools",
+          "disabled": null
+        },
+        {
+          "id": 106,
+          "name": "Arms",
+          "disabled": null
+        },
+        {
+          "id": 107,
+          "name": "Arrows",
+          "disabled": null
+        },
+        {
+          "id": 108,
+          "name": "Gunpowder",
+          "disabled": null
+        },
+        {
+          "id": 109,
+          "name": "Bullets",
+          "disabled": null
+        },
+        {
+          "id": 110,
+          "name": "Muskets",
+          "disabled": null
+        },
+        {
+          "id": 111,
+          "name": "Artillery",
+          "disabled": null
+        },
+        {
+          "id": 112,
+          "name": "Coins",
+          "disabled": null
+        },
+        {
+          "id": 113,
+          "name": "Jewelry",
+          "disabled": null
+        },
+        {
+          "id": 114,
+          "name": "Preserved food",
+          "disabled": null
+        },
+        {
+          "id": 115,
+          "name": "Vinegar",
+          "disabled": null
+        },
+        {
+          "id": 116,
+          "name": "Milk",
+          "disabled": null
+        },
+        {
+          "id": 117,
+          "name": "Rennet",
+          "disabled": null
+        },
+        {
+          "id": 118,
+          "name": "Ash",
+          "disabled": null
+        },
+        {
+          "id": 119,
+          "name": "Cheese",
+          "disabled": null
+        },
+        {
+          "id": 120,
+          "name": "Smoked Cheese",
+          "disabled": null
+        },
+        {
+          "id": 121,
+          "name": "Egg",
+          "disabled": null
+        },
+        {
+          "id": 122,
+          "name": "Beer",
+          "disabled": null
+        },
+        {
+          "id": 123,
+          "name": "Cider",
+          "disabled": null
+        },
+        {
+          "id": 124,
+          "name": "Perry",
+          "disabled": null
+        },
+        {
+          "id": 125,
+          "name": "Pomace Wine",
+          "disabled": null
+        },
+        {
+          "id": 126,
+          "name": "Liquor",
+          "disabled": null
+        },
+        {
+          "id": 127,
+          "name": "Candles",
+          "disabled": null
+        },
+        {
+          "id": 128,
+          "name": "Soap",
+          "disabled": null
+        },
+        {
+          "id": 129,
+          "name": "Perfume",
+          "disabled": null
+        },
+        {
+          "id": 130,
+          "name": "Peat",
+          "disabled": null
+        },
+        {
+          "id": 131,
+          "name": "Resin",
+          "disabled": null
+        },
+        {
+          "id": 132,
+          "name": "Medicinal herbs",
+          "disabled": null
+        },
+        {
+          "id": 133,
+          "name": "Shellfish",
+          "disabled": null
+        },
+        {
+          "id": 134,
+          "name": "Reeds",
+          "disabled": null
+        },
+        {
+          "id": 135,
+          "name": "Goats",
+          "disabled": null
+        },
+        {
+          "id": 136,
+          "name": "Pig",
+          "disabled": null
+        },
+        {
+          "id": 137,
+          "name": "Chicken",
+          "disabled": null
+        },
+        {
+          "id": 138,
+          "name": "Wool",
+          "disabled": null
+        },
+        {
+          "id": 139,
+          "name": "Flax",
+          "disabled": null
+        },
+        {
+          "id": 140,
+          "name": "Linen",
+          "disabled": null
+        },
+        {
+          "id": 141,
+          "name": "Cotton",
+          "disabled": null
+        },
+        {
+          "id": 142,
+          "name": "Tallow",
+          "disabled": null
+        },
+        {
+          "id": 143,
+          "name": "Beeswax",
+          "disabled": null
+        },
+        {
+          "id": 144,
+          "name": "Flour",
+          "disabled": null
+        },
+        {
+          "id": 145,
+          "name": "Bread",
+          "disabled": null
+        },
+        {
+          "id": 146,
+          "name": "Timber",
+          "disabled": null
+        },
+        {
+          "id": 147,
+          "name": "Alum",
+          "disabled": null
+        },
+        {
+          "id": 148,
+          "name": "Potash",
+          "disabled": null
+        },
+        {
+          "id": 149,
+          "name": "Slag",
+          "disabled": null
+        },
+        {
+          "id": 150,
+          "name": "Ivory",
+          "disabled": null
+        },
+        {
+          "id": 151,
+          "name": "Coral",
+          "disabled": null
+        },
+        {
+          "id": 152,
+          "name": "Stockfish",
+          "disabled": null
+        },
+        {
+          "id": 153,
+          "name": "Spinning Wheel",
+          "disabled": null
+        },
+        {
+          "id": 154,
+          "name": "Artworks",
+          "disabled": null
+        },
+        {
+          "id": 155,
+          "name": "Sculptures",
+          "disabled": null
+        },
+        {
+          "id": 156,
+          "name": "Tapestries",
+          "disabled": null
+        },
+        {
+          "id": 157,
+          "name": "Instruments",
+          "disabled": null
+        },
+        {
+          "id": 158,
+          "name": "Relics",
+          "disabled": null
+        },
+        {
+          "id": 159,
+          "name": "Cats",
+          "disabled": null
+        },
+        {
+          "id": 160,
+          "name": "Dogs",
+          "disabled": null
+        },
+        {
+          "id": 161,
+          "name": "Grapes",
+          "disabled": null
+        },
+        {
+          "id": 162,
+          "name": "Apples",
+          "disabled": null
+        },
+        {
+          "id": 163,
+          "name": "Pears",
+          "disabled": null
+        },
+        {
+          "id": 164,
+          "name": "Plums",
+          "disabled": null
+        },
+        {
+          "id": 165,
+          "name": "Figs",
+          "disabled": null
+        },
+        {
+          "id": 166,
+          "name": "Lemons",
+          "disabled": null
+        },
+        {
+          "id": 167,
+          "name": "Dried Fruits",
+          "disabled": null
+        },
+        {
+          "id": 168,
+          "name": "Raisins",
+          "disabled": null
+        },
+        {
+          "id": 169,
+          "name": "Coke",
+          "disabled": null
+        },
+        {
+          "id": 170,
+          "name": "Steel",
+          "disabled": null
+        },
+        {
+          "id": 171,
+          "name": "Stainless Steel",
+          "disabled": null
+        },
+        {
+          "id": 172,
+          "name": "Machine Parts",
+          "disabled": null
+        },
+        {
+          "id": 173,
+          "name": "Copper Wire",
+          "disabled": null
+        },
+        {
+          "id": 174,
+          "name": "Stationary Steam Engine",
+          "disabled": null
+        },
+        {
+          "id": 175,
+          "name": "Rail",
+          "disabled": null
+        },
+        {
+          "id": 176,
+          "name": "Locomotive",
+          "disabled": null
+        },
+        {
+          "id": 177,
+          "name": "Marine Steam Engine",
+          "disabled": null
+        },
+        {
+          "id": 178,
+          "name": "Steamship",
+          "disabled": null
+        },
+        {
+          "id": 179,
+          "name": "Lab Glassware",
+          "disabled": null
+        },
+        {
+          "id": 180,
+          "name": "Precision Instruments",
+          "disabled": null
+        },
+        {
+          "id": 181,
+          "name": "Medicines",
+          "disabled": null
+        },
+        {
+          "id": 182,
+          "name": "Sulfuric Acid",
+          "disabled": null
+        },
+        {
+          "id": 183,
+          "name": "Chlorine",
+          "disabled": null
+        },
+        {
+          "id": 184,
+          "name": "Bleaching Powder",
+          "disabled": null
+        },
+        {
+          "id": 185,
+          "name": "Nitric Acid",
+          "disabled": null
+        },
+        {
+          "id": 186,
+          "name": "Coal Tar",
+          "disabled": null
+        },
+        {
+          "id": 187,
+          "name": "Synthetic Dye",
+          "disabled": null
+        },
+        {
+          "id": 188,
+          "name": "Soda Ash",
+          "disabled": null
+        },
+        {
+          "id": 189,
+          "name": "Caustic Soda",
+          "disabled": null
+        },
+        {
+          "id": 190,
+          "name": "Phosphate Rock",
+          "disabled": null
+        },
+        {
+          "id": 191,
+          "name": "Bauxite",
+          "disabled": null
+        },
+        {
+          "id": 192,
+          "name": "Alumina",
+          "disabled": null
+        },
+        {
+          "id": 193,
+          "name": "Aluminum",
+          "disabled": null
+        },
+        {
+          "id": 194,
+          "name": "Light Alloy Parts",
+          "disabled": null
+        },
+        {
+          "id": 195,
+          "name": "Cinnabar",
+          "disabled": null
+        },
+        {
+          "id": 196,
+          "name": "Mercury",
+          "disabled": null
+        },
+        {
+          "id": 197,
+          "name": "Crude Oil",
+          "disabled": null
+        },
+        {
+          "id": 198,
+          "name": "Kerosene",
+          "disabled": null
+        },
+        {
+          "id": 199,
+          "name": "Synthetic Resin",
+          "disabled": null
+        },
+        {
+          "id": 200,
+          "name": "Lubricating Oil",
+          "disabled": null
+        },
+        {
+          "id": 201,
+          "name": "Natural Gas",
+          "disabled": null
+        },
+        {
+          "id": 202,
+          "name": "LNG",
+          "disabled": null
+        },
+        {
+          "id": 203,
+          "name": "Phosphate Fertilizer",
+          "disabled": null
+        },
+        {
+          "id": 204,
+          "name": "Synthetic Ammonia",
+          "disabled": null
+        },
+        {
+          "id": 205,
+          "name": "Nitrogen Fertilizer",
+          "disabled": null
+        },
+        {
+          "id": 206,
+          "name": "Spelt",
+          "disabled": null
+        },
+        {
+          "id": 207,
+          "name": "Chestnuts",
+          "disabled": null
+        },
+        {
+          "id": 208,
+          "name": "Fine Wool Cloth",
+          "disabled": null
+        },
+        {
+          "id": 209,
+          "name": "Fine Wool Garments",
+          "disabled": null
+        },
+        {
+          "id": 210,
+          "name": "Linen Garments",
+          "disabled": null
+        },
+        {
+          "id": 211,
+          "name": "Wool Cloth",
+          "disabled": null
+        },
+        {
+          "id": 212,
+          "name": "Wool Garments",
+          "disabled": null
+        },
+        {
+          "id": 213,
+          "name": "Wool Blankets",
+          "disabled": null
+        }
+      ]
+    }
+  ]
+}

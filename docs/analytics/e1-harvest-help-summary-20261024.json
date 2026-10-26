@@ -1,0 +1,2058 @@
+{
+  "schemaVersion": 1,
+  "baselineCommit": "39fed06761e82a0f8216b5e213e0a947ec4781f9",
+  "notes": [
+    "All food quantities are actual staple-ledger units, not full nutrition.",
+    "Regional field/harvest metrics are snapshots, not cumulative yields.",
+    "Terrain ceilings do not establish available fields or their labor, tenure or clearance affordability.",
+    "Province uses the same read-only regional observer before and after. World baseline reuses the preceding 36-month observation with matching runtime files."
+  ],
+  "province": {
+    "before": {
+      "file": "docs/analytics/raw/e1-harvest-help-20261024/province-before.json",
+      "bytes": 622435,
+      "sha256": "816dcb3dab43affe0f76ebc2b542b9f8255351b7f53c5445b2ff3eec1bf37216",
+      "initial": {
+        "regions": [
+          {
+            "marketId": 1,
+            "fieldHa": 946159.208984375,
+            "terrainCeilingHa": 4065679.608029922,
+            "annualRuralNeed": 97495.97403611867,
+            "annualBeforeLabor": 83779.11291503906,
+            "annualAfterLabor": 53578.87220886098,
+            "inhabitedCellsWithoutFields": 91
+          }
+        ],
+        "date": [
+          1300,
+          1,
+          1
+        ],
+        "householdStock": 97495.9744796753,
+        "fieldHa": 946159.208984375,
+        "annualRuralNeed": 97495.97403611867,
+        "annualBeforeLabor": 83779.11291503906,
+        "annualAfterLabor": 53578.87220886098,
+        "worstCells": [
+          {
+            "id": 208,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 34078.36301123145,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 3672.691177368164,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 34,
+            "marketId": 1,
+            "stateId": 1,
+            "terrainCeilingHa": 44599.199914027726,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 2188.280471801758,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 198,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 59465.59988537031,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 2130.5100479125977,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 17,
+            "marketId": 1,
+            "stateId": 1,
+            "terrainCeilingHa": 29715.04080122208,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 2123.7647247314453,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 157,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 81879.55676524066,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1919.6764602661133,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 126,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 78220.13523383325,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1572.5042457580566,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 234,
+            "marketId": 1,
+            "stateId": 2,
+            "terrainCeilingHa": 86682.54752521288,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1423.6266860961914,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 96,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 26302.092256990712,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1362.2678985595703,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 246,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 20584.246114166646,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1289.211498260498,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 226,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 20355.532268453684,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1288.3853511810303,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 272,
+            "marketId": 1,
+            "stateId": 2,
+            "terrainCeilingHa": 110187.61417271203,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 110187.6171875,
+            "annualNeed": 5038.533832773052,
+            "annualBeforeLabor": 7091.62744140625,
+            "coverage": 0.5309114456176758,
+            "annualAfterLabor": 3765.0261766989715
+          },
+          {
+            "id": 39,
+            "marketId": 1,
+            "stateId": 1,
+            "terrainCeilingHa": 24929.809182712936,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1183.168758392334,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 209,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 18754.535348462945,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1132.2036933898926,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 215,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 18525.82150274998,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1126.1641178131104,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 240,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 24014.953799861087,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 973.2283248901367,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 115,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 41397.20607404625,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 904.8762798309326,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 19,
+            "marketId": 1,
+            "stateId": 1,
+            "terrainCeilingHa": 15095.11381705554,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 864.1570625305176,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 140,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 26988.233794129603,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 804.7927398681641,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 279,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 24929.809182712936,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 780.6892242431641,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 44,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 51231.90143970365,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 770.6690845489502,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          }
+        ]
+      },
+      "lastProduction": {
+        "stage": "production",
+        "regions": [
+          {
+            "marketId": 1,
+            "fieldHa": 573225.4501953125,
+            "terrainCeilingHa": 2248379.0428813156,
+            "annualRuralNeed": 57327.768666256095,
+            "annualBeforeLabor": 46943.52380371094,
+            "annualAfterLabor": 27944.27665484407,
+            "inhabitedCellsWithoutFields": 45
+          },
+          {
+            "marketId": 2,
+            "fieldHa": 363937.79052734375,
+            "terrainCeilingHa": 1817344.8240319956,
+            "annualRuralNeed": 40933.21072036236,
+            "annualBeforeLabor": 37334.86706542969,
+            "annualAfterLabor": 28436.3771337239,
+            "inhabitedCellsWithoutFields": 46
+          }
+        ],
+        "date": [
+          1302,
+          12,
+          17
+        ],
+        "householdStock": 22539.643196105957,
+        "fieldHa": 937163.2407226562,
+        "annualRuralNeed": 98260.97938661845,
+        "annualBeforeLabor": 84278.39086914062,
+        "annualAfterLabor": 56380.65378856797,
+        "worstCells": [
+          {
+            "id": 208,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 34078.36301123145,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 3760.671371459961,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 34,
+            "marketId": 1,
+            "stateId": 1,
+            "terrainCeilingHa": 44599.199914027726,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 2210.8612785339355,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 198,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 59465.59988537031,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 2157.303852081299,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 17,
+            "marketId": 1,
+            "stateId": 1,
+            "terrainCeilingHa": 29754.583435606623,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 2144.4926261901855,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 157,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 81879.55676524066,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1919.6766242980957,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 272,
+            "marketId": 1,
+            "stateId": 2,
+            "terrainCeilingHa": 110194.71924893976,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 110187.609375,
+            "annualNeed": 5579.448760722961,
+            "annualBeforeLabor": 7180.27197265625,
+            "coverage": 0.549058198928833,
+            "annualAfterLabor": 3942.3871971258195
+          },
+          {
+            "id": 126,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 78220.13523383325,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1572.5039176940918,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 234,
+            "marketId": 1,
+            "stateId": 2,
+            "terrainCeilingHa": 86682.54752521288,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1423.6271781921387,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 96,
+            "marketId": 2,
+            "stateId": 0,
+            "terrainCeilingHa": 26302.092256990712,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1374.6629753112793,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 246,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 20584.246114166646,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1351.618860244751,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 226,
+            "marketId": 2,
+            "stateId": 0,
+            "terrainCeilingHa": 20355.532268453684,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1294.2340755462646,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 209,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 18754.535348462945,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1145.5027503967285,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 215,
+            "marketId": 2,
+            "stateId": 0,
+            "terrainCeilingHa": 18525.82150274998,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1142.0072288513184,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 240,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 24014.953799861087,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1061.2188529968262,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 39,
+            "marketId": 2,
+            "stateId": 1,
+            "terrainCeilingHa": 24914.41517950579,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1059.2740898132324,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 115,
+            "marketId": 2,
+            "stateId": 0,
+            "terrainCeilingHa": 41397.20607404625,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 904.8761978149414,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 19,
+            "marketId": 1,
+            "stateId": 1,
+            "terrainCeilingHa": 15095.11381705554,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 881.0006046295166,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 140,
+            "marketId": 2,
+            "stateId": 0,
+            "terrainCeilingHa": 26988.233794129603,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 804.7927398681641,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 279,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 24929.809182712936,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 792.4238262176514,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 44,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 51231.90143970365,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 770.669412612915,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          }
+        ],
+        "retained": 7774.943244934082,
+        "markets": [
+          {
+            "id": 1,
+            "produced": 0,
+            "unsold": 0,
+            "imported": 8.32
+          },
+          {
+            "id": 2,
+            "produced": 129.8,
+            "unsold": 0,
+            "imported": 0
+          }
+        ]
+      },
+      "food": {
+        "ruralNeed": 294548.7699999999,
+        "ruralSupplied": 211926.45999999996,
+        "urbanNeed": 24239.120000000003,
+        "urbanSupplied": 9653.330000000002,
+        "urbanBudgetGap": 0,
+        "urbanStockGap": 14585.789999999995
+      },
+      "foodEvents": 36
+    },
+    "after": {
+      "file": "docs/analytics/raw/e1-harvest-help-20261024/province-after.json",
+      "bytes": 622422,
+      "sha256": "b21af318925601ccdb77b4b3680ca43675f3ccd782c908644faaa009dbf572e1",
+      "initial": {
+        "regions": [
+          {
+            "marketId": 1,
+            "fieldHa": 946159.208984375,
+            "terrainCeilingHa": 4065679.608029922,
+            "annualRuralNeed": 97495.97403611867,
+            "annualBeforeLabor": 83779.11291503906,
+            "annualAfterLabor": 53557.291999981695,
+            "inhabitedCellsWithoutFields": 91
+          }
+        ],
+        "date": [
+          1300,
+          1,
+          1
+        ],
+        "householdStock": 97495.9744796753,
+        "fieldHa": 946159.208984375,
+        "annualRuralNeed": 97495.97403611867,
+        "annualBeforeLabor": 83779.11291503906,
+        "annualAfterLabor": 53557.291999981695,
+        "worstCells": [
+          {
+            "id": 208,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 34078.36301123145,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 3672.691177368164,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 34,
+            "marketId": 1,
+            "stateId": 1,
+            "terrainCeilingHa": 44599.199914027726,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 2188.280471801758,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 198,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 59465.59988537031,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 2130.5100479125977,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 17,
+            "marketId": 1,
+            "stateId": 1,
+            "terrainCeilingHa": 29715.04080122208,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 2123.7647247314453,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 157,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 81879.55676524066,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1919.6764602661133,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 126,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 78220.13523383325,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1572.5042457580566,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 234,
+            "marketId": 1,
+            "stateId": 2,
+            "terrainCeilingHa": 86682.54752521288,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1423.6266860961914,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 96,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 26302.092256990712,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1362.2678985595703,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 246,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 20584.246114166646,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1289.211498260498,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 226,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 20355.532268453684,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1288.3853511810303,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 272,
+            "marketId": 1,
+            "stateId": 2,
+            "terrainCeilingHa": 110187.61417271203,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 110187.6171875,
+            "annualNeed": 5038.533832773052,
+            "annualBeforeLabor": 7091.62744140625,
+            "coverage": 0.5309074521064758,
+            "annualAfterLabor": 3764.9978562053584
+          },
+          {
+            "id": 39,
+            "marketId": 1,
+            "stateId": 1,
+            "terrainCeilingHa": 24929.809182712936,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1183.168758392334,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 209,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 18754.535348462945,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1132.2036933898926,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 215,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 18525.82150274998,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1126.1641178131104,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 240,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 24014.953799861087,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 973.2283248901367,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 115,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 41397.20607404625,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 904.8762798309326,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 19,
+            "marketId": 1,
+            "stateId": 1,
+            "terrainCeilingHa": 15095.11381705554,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 864.1570625305176,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 140,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 26988.233794129603,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 804.7927398681641,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 279,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 24929.809182712936,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 780.6892242431641,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 44,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 51231.90143970365,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout",
+              "legacy-timber-stock-preserved"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 770.6690845489502,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          }
+        ]
+      },
+      "lastProduction": {
+        "stage": "production",
+        "regions": [
+          {
+            "marketId": 1,
+            "fieldHa": 573225.4501953125,
+            "terrainCeilingHa": 2248379.1061656806,
+            "annualRuralNeed": 57327.768666256095,
+            "annualBeforeLabor": 46943.52380371094,
+            "annualAfterLabor": 27933.929756379686,
+            "inhabitedCellsWithoutFields": 45
+          },
+          {
+            "marketId": 2,
+            "fieldHa": 363937.79052734375,
+            "terrainCeilingHa": 1817344.8202290626,
+            "annualRuralNeed": 40933.177257837946,
+            "annualBeforeLabor": 37334.86706542969,
+            "annualAfterLabor": 28421.37136200638,
+            "inhabitedCellsWithoutFields": 46
+          }
+        ],
+        "date": [
+          1302,
+          12,
+          17
+        ],
+        "householdStock": 22521.56143951416,
+        "fieldHa": 937163.2407226562,
+        "annualRuralNeed": 98260.94592409403,
+        "annualBeforeLabor": 84278.39086914062,
+        "annualAfterLabor": 56355.301118386065,
+        "worstCells": [
+          {
+            "id": 208,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 34078.36301123145,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 3760.671371459961,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 34,
+            "marketId": 1,
+            "stateId": 1,
+            "terrainCeilingHa": 44599.199914027726,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 2210.8612785339355,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 198,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 59465.59988537031,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 2157.303852081299,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 17,
+            "marketId": 1,
+            "stateId": 1,
+            "terrainCeilingHa": 29754.62248232528,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 2144.4926261901855,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 157,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 81879.55676524066,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1919.6766242980957,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 272,
+            "marketId": 1,
+            "stateId": 2,
+            "terrainCeilingHa": 110194.72781604264,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 110187.609375,
+            "annualNeed": 5579.448760722961,
+            "annualBeforeLabor": 7180.27197265625,
+            "coverage": 0.5488328337669373,
+            "annualAfterLabor": 3940.7690139702463
+          },
+          {
+            "id": 126,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 78220.13523383325,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1572.5039176940918,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 234,
+            "marketId": 1,
+            "stateId": 2,
+            "terrainCeilingHa": 86682.54752521288,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1423.6271781921387,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 96,
+            "marketId": 2,
+            "stateId": 0,
+            "terrainCeilingHa": 26302.092256990712,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1374.6629753112793,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 246,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 20584.246114166646,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1351.618860244751,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 226,
+            "marketId": 2,
+            "stateId": 0,
+            "terrainCeilingHa": 20355.532268453684,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1294.2340755462646,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 209,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 18754.535348462945,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1145.5027503967285,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 215,
+            "marketId": 2,
+            "stateId": 0,
+            "terrainCeilingHa": 18525.82150274998,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1142.0072288513184,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 240,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 24014.953799861087,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1061.2188529968262,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 39,
+            "marketId": 2,
+            "stateId": 1,
+            "terrainCeilingHa": 24914.411376572825,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 1059.2406272888184,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 115,
+            "marketId": 2,
+            "stateId": 0,
+            "terrainCeilingHa": 41397.20607404625,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 904.8761978149414,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 19,
+            "marketId": 1,
+            "stateId": 1,
+            "terrainCeilingHa": 15095.11381705554,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 881.0006046295166,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 140,
+            "marketId": 2,
+            "stateId": 0,
+            "terrainCeilingHa": 26988.233794129603,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 804.7927398681641,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 279,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 24929.809182712936,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 792.4238262176514,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          },
+          {
+            "id": 44,
+            "marketId": 1,
+            "stateId": 0,
+            "terrainCeilingHa": 51231.90143970365,
+            "landDiagnostics": [
+              "offline-calibrated-food-climate",
+              "estimated-soil-and-livelihood",
+              "land-tenure-unresolved",
+              "estimated-clearance-workforce-share",
+              "estimated-clearance-labour",
+              "land-or-development-capacity",
+              "resolved-livestock-land",
+              "coarse-spatial-forest-intersection",
+              "estimated-natural-forest-layout"
+            ],
+            "fieldHa": 0,
+            "annualNeed": 770.669412612915,
+            "annualBeforeLabor": 0,
+            "coverage": 1,
+            "annualAfterLabor": 0
+          }
+        ],
+        "retained": 7773.0712966918945,
+        "markets": [
+          {
+            "id": 1,
+            "produced": 0,
+            "unsold": 0,
+            "imported": 7.07
+          },
+          {
+            "id": 2,
+            "produced": 128.52,
+            "unsold": 0,
+            "imported": 0
+          }
+        ]
+      },
+      "food": {
+        "ruralNeed": 294548.74999999994,
+        "ruralSupplied": 211915.10999999996,
+        "urbanNeed": 24238.21,
+        "urbanSupplied": 9648.800000000003,
+        "urbanBudgetGap": 0,
+        "urbanStockGap": 14589.41
+      },
+      "foodEvents": 36
+    }
+  },
+  "world": {
+    "baselineRuntimeFilesMatch": [
+      "src/extensions/economy/generators/foodProduction.ts",
+      "src/extensions/economy/generators/ruralOccupationAllocation.ts",
+      "src/extensions/economy/generators/developmentPotential.ts",
+      "src/extensions/economy/generators/agriculturalLandUse.ts"
+    ],
+    "before": {
+      "file": "docs/analytics/raw/e1-staple-supply-20261024/world-after.json",
+      "bytes": 1217975,
+      "sha256": "30423e7ced3da3fb2a6745f950a68853f2f81ba8ec7eeb1292ed4a0b3b7221f9",
+      "sourceTreeSha256": "826f444daf75a4fea29569680e73efe6c640be85c79a7025a0f76beb929ce600",
+      "food": {
+        "ruralNeed": 3250049.1699999943,
+        "ruralSupplied": 3141091.419999996,
+        "urbanNeed": 777972.1499999997,
+        "urbanSupplied": 675260.0699999994,
+        "urbanBudgetGap": 23063.179999999997,
+        "urbanStockGap": 79649.65999999997
+      },
+      "initial": {
+        "cultivatedHa": 12813485.063792065,
+        "pastureHa": 3575789.321455163,
+        "hayMeadowHa": 0,
+        "unresolvedFoodPeople": 11260.391056537628,
+        "unallocatedFieldHa": 6230578.783991532,
+        "stapleProtectedCells": 0,
+        "livestockLandShortfallCells": 0
+      },
+      "final": {
+        "cultivatedHa": 11628571.561903762,
+        "pastureHa": 1202195.890879233,
+        "hayMeadowHa": 0,
+        "unresolvedFoodPeople": 11271.150767803192,
+        "unallocatedFieldHa": 5408859.391359032,
+        "stapleProtectedCells": 0,
+        "livestockLandShortfallCells": 0
+      }
+    },
+    "after": {
+      "file": "docs/analytics/raw/e1-harvest-help-20261024/world-after.json",
+      "bytes": 1217966,
+      "sha256": "625fa0d3196923b265284a805270dc7189baebc20869752faa54fd6d6b841bfb",
+      "sourceTreeSha256": "560920e0e6acc238e8858375762736f8d66ca8f55ccf8e2fe942a56c20ee5b75",
+      "food": {
+        "ruralNeed": 3250059.379999995,
+        "ruralSupplied": 3139209.730000001,
+        "urbanNeed": 777842.1899999996,
+        "urbanSupplied": 673085.3699999998,
+        "urbanBudgetGap": 22259.619999999988,
+        "urbanStockGap": 82497.82999999997
+      },
+      "initial": {
+        "cultivatedHa": 12813485.063792065,
+        "pastureHa": 3575789.321455163,
+        "hayMeadowHa": 0,
+        "unresolvedFoodPeople": 11260.391056537628,
+        "unallocatedFieldHa": 6230578.783991532,
+        "stapleProtectedCells": 0,
+        "livestockLandShortfallCells": 0
+      },
+      "final": {
+        "cultivatedHa": 11628539.11842966,
+        "pastureHa": 1202199.710450138,
+        "hayMeadowHa": 0,
+        "unresolvedFoodPeople": 11271.151602268219,
+        "unallocatedFieldHa": 5404070.5839934675,
+        "stapleProtectedCells": 0,
+        "livestockLandShortfallCells": 0
+      }
+    }
+  }
+}

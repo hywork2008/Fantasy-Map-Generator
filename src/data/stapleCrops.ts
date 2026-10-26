@@ -225,12 +225,15 @@ export const STAPLE_CROP_PROFILES = {
 export const STAPLE_CROP_LIST = Object.values(STAPLE_CROP_PROFILES);
 
 /**
- * Residual fitness once rainfall exceeds a crop's documented ECOCROP max.
- * v1 does not model waterlogging as a hard ban (docs/simulation/population-food-supply.md §3.5;
- * docs/plan/staple-crop-climate.md). Wet cells must still choose a rain-tolerant staple
- * rather than an empty mix.
+ * Waterlogging is not a hard ban (docs/simulation/population-food-supply.md §3.5;
+ * docs/plan/staple-crop-climate.md): wet cells must still choose a rain-tolerant staple.
+ * Suitability left at a crop's ECOCROP rainfall max (§2, 2026-10-24). ECOCROP's absolute max is a
+ * screening limit, not a yield of zero for ridged, drained fields: oats, bere barley and rye were
+ * the staples of 1,500-3,000 mm Atlantic Britain, Ireland and western Norway. Model policy: yields
+ * there were poorer, not a fifth of lowland yields. Beyond max, suitability falls with the square
+ * root of the excess so the more rain-tolerant crop is still preferred.
  */
-export const WET_PRECIPITATION_RESIDUAL = 0.25;
+export const WET_TOLERANCE_AT_MAX = 0.6;
 
 /** Returns climate-and-soil suitability on a 0–1 scale. */
 export function getStapleCropSuitability(
@@ -267,7 +270,8 @@ function precipitationSuitability(value: number, range: ClimateRange): number {
   if (value <= range.min) return 0;
   if (value < range.idealMin) return (value - range.min) / (range.idealMin - range.min);
   if (value <= range.idealMax) return 1;
-  if (value < range.max) return (range.max - value) / (range.max - range.idealMax);
+  if (value < range.max)
+    return 1 - ((1 - WET_TOLERANCE_AT_MAX) * (value - range.idealMax)) / (range.max - range.idealMax);
   // Prefer the crop whose documented rain band reaches further into the wet side.
-  return WET_PRECIPITATION_RESIDUAL * (range.max / value);
+  return WET_TOLERANCE_AT_MAX * Math.sqrt(range.max / value);
 }

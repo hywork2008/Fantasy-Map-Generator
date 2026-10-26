@@ -23,6 +23,7 @@ export type CouncilBudgetLine =
   | "debtIssue"
   | "warFooting"
   | "extraordinaryTax"
+  | "saltMonopoly"
   | "militaryExpansion"
   // PR-17f (docs/plan/department-budget-spending-effects.md §4) — department-budget-cut lines.
   // Gates a player's departmentBudgetMultiplier < 1 for that department, not the department
@@ -147,6 +148,12 @@ export function factionYesLean(
       if (faction === "merchants") return atWar ? 0.35 : 0.25;
       if (faction === "clergy") return atWar ? 0.45 : 0.3;
       return 0.5;
+    }
+    case "saltMonopoly": {
+      if (faction === "court") return 0.8;
+      if (faction === "military") return 0.65;
+      if (faction === "clergy") return state.form === "Theocracy" ? 0.75 : 0.55;
+      return state.form === "Republic" ? 0.3 : 0.2;
     }
     case "extraordinaryTax": {
       if (faction === "merchants") return 0.2;

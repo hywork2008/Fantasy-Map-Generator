@@ -1,0 +1,1233 @@
+{
+  "schemaVersion": 3,
+  "input": "docs/analytics/inputs/salt-s0-aligned-20261023/world-102.fmg",
+  "inputSha256": "5e73a27785881bf553d37404442d7ead0f7bb68457208cc33c88c88f7c6a5999",
+  "months": 12,
+  "sourceTreeSha256": "521d1ca40d10038c9cfe1c8b4f5592c3ae88ce23013785aa2d22932d81fdb837",
+  "rawOutput": "docs/analytics/raw/winter-slaughter-seasonal-allocation-world-102-20261024.json",
+  "rawSha256": "478d77c031e99956aa84a8173d75a1879c5af8b64f7ef7bb6e26c685a024d364",
+  "runs": [
+    {
+      "mode": "off",
+      "totals": {
+        "carcassKg": 0,
+        "edibleRecoveredKg": 0,
+        "nonFoodKg": 0,
+        "preservationInputKg": 0,
+        "completedKg": 0,
+        "processingLossKg": 0,
+        "freshConsumedKg": 0,
+        "preservedConsumedKg": 0,
+        "spoilageKg": 0,
+        "saltKg": 0,
+        "woodKg": 0,
+        "spending": 0,
+        "workDays": 0
+      },
+      "decisions": {
+        "eligibleSeasonSamples": 0,
+        "forecastShortageSamples": 0,
+        "seasonalShortageSamples": 0,
+        "activeSamples": 0,
+        "calendarSamples": 0,
+        "legacyWorkSamples": 0,
+        "missingWorkDiagnostics": 0,
+        "missingDecisionDiagnostics": 0,
+        "eligibleDecisions": 0,
+        "laborBlockedDecisions": 0,
+        "handlingBlockedDecisions": 0,
+        "outletBlockedDecisions": 0,
+        "workOverdraftSamples": 0,
+        "maximumWorkOverdraftDays": 0,
+        "maximumHeadBalanceError": 0,
+        "maximumCarcassBalanceErrorKg": 0,
+        "maximumEdibleBalanceErrorKg": 0,
+        "firstPeriodFeedNeedReductionKg": 0,
+        "headsBySpecies": {}
+      },
+      "feedTotals": {
+        "requiredKg": 305452974.4782825,
+        "pastureConsumedKg": 151421369.2441156,
+        "hayConsumedKg": 38036557.00656449,
+        "cropResidueFeedKg": 0,
+        "unmetKg": 115995048.22760245,
+        "purchasedKg": 755553.2199721227
+      },
+      "cropResidues": null,
+      "sampleCount": 0,
+      "snapshots": [
+        {
+          "month": 0,
+          "date": [
+            1300,
+            1,
+            1
+          ],
+          "heads": {
+            "Game": 8820560.003713965,
+            "Cattle": 32044.245689714044,
+            "Horses": 28017.308985838856,
+            "Elephants": 108.12239014345408,
+            "Sheep": 192316.1789523961,
+            "Chicken": 500.3241697109928,
+            "Cats": 57.134401706701475,
+            "Dogs": 147.31164480268953,
+            "Pig": 2228.7143633878154,
+            "Camels": 2241.5197421012926,
+            "Goats": 38845.354111764376
+          },
+          "breeding": {
+            "Game": 4410365.192978162,
+            "Cattle": 16026.432754056552,
+            "Horses": 14063.107624778026,
+            "Elephants": 57.49044998299331,
+            "Sheep": 96162.39938539764,
+            "Chicken": 266.0305753127487,
+            "Cats": 30.37929941494389,
+            "Dogs": 78.32802009098239,
+            "Pig": 1185.0440178461392,
+            "Camels": 1120.79348413058,
+            "Goats": 19422.762975823454
+          },
+          "markets": [
+            {
+              "id": 1,
+              "ruralCash": 3334.42,
+              "cash": 11379.93,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 2306.6124,
+                "Salt": 4273.1741600555515,
+                "Leather": 30.41,
+                "Preserved food": 3.03,
+                "Tallow": 11.41
+              }
+            },
+            {
+              "id": 2,
+              "ruralCash": 248.94,
+              "cash": 4468.37,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 802.8727,
+                "Salt": 300.4425,
+                "Leather": 0,
+                "Preserved food": 0,
+                "Tallow": 0
+              }
+            },
+            {
+              "id": 3,
+              "ruralCash": 2782.43,
+              "cash": 7279.11,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 1216.2396,
+                "Salt": 1125.7518248082795,
+                "Leather": 13.22,
+                "Preserved food": 1.9510751917206184,
+                "Tallow": 34.82
+              }
+            },
+            {
+              "id": 4,
+              "ruralCash": 11119.41,
+              "cash": 25838.49,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 2413.7179,
+                "Salt": 1295.2686371828338,
+                "Leather": 5.16,
+                "Preserved food": 5.85,
+                "Tallow": 79.31
+              }
+            },
+            {
+              "id": 5,
+              "ruralCash": 4695.01,
+              "cash": 11329.42,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 1220.5091,
+                "Salt": 764.9322947712394,
+                "Leather": 6.1,
+                "Preserved food": 3.6213052287604395,
+                "Tallow": 48.65
+              }
+            },
+            {
+              "id": 6,
+              "ruralCash": 3360.95,
+              "cash": 8096.66,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 1517.3641,
+                "Salt": 760.5945821398708,
+                "Leather": 0.88,
+                "Preserved food": 2.219017860129303,
+                "Tallow": 17.23
+              }
+            },
+            {
+              "id": 7,
+              "ruralCash": 10258.71,
+              "cash": 13775.65,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 2756.714,
+                "Salt": 272.42303919846665,
+                "Leather": 4.25,
+                "Preserved food": 3.5299608015332637,
+                "Tallow": 34.53
+              }
+            },
+            {
+              "id": 8,
+              "ruralCash": 3475.13,
+              "cash": 10170.58,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 1319.5816,
+                "Salt": 359.11,
+                "Leather": 3.43,
+                "Preserved food": 0.22,
+                "Tallow": 27.45
+              }
+            },
+            {
+              "id": 9,
+              "ruralCash": 1514.95,
+              "cash": 5146.24,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 0,
+                "Salt": 431.7892115125542,
+                "Leather": 5.29,
+                "Preserved food": 0,
+                "Tallow": 0
+              }
+            },
+            {
+              "id": 10,
+              "ruralCash": 4702.84,
+              "cash": 11466,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 2092.6646,
+                "Salt": 527.5865365868175,
+                "Leather": 5.59,
+                "Preserved food": 3.371863413182567,
+                "Tallow": 31.06
+              }
+            },
+            {
+              "id": 11,
+              "ruralCash": 3203.98,
+              "cash": 4509.99,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 843.9443,
+                "Salt": 2163.8211361636677,
+                "Leather": 6.27,
+                "Preserved food": 0.87,
+                "Tallow": 16.71
+              }
+            },
+            {
+              "id": 12,
+              "ruralCash": 8887.95,
+              "cash": 23623.44,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 2797.5182,
+                "Salt": 0,
+                "Leather": 21.02,
+                "Preserved food": 0.18,
+                "Tallow": 99.38
+              }
+            },
+            {
+              "id": 13,
+              "ruralCash": 10468.32,
+              "cash": 23846.67,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 3620.9712,
+                "Salt": 718.552170501897,
+                "Leather": 8.63,
+                "Preserved food": 5.5680294981030665,
+                "Tallow": 25.01
+              }
+            },
+            {
+              "id": 14,
+              "ruralCash": 8530.23,
+              "cash": 12121.96,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 1888.4919,
+                "Salt": 0,
+                "Leather": 24.39,
+                "Preserved food": 0.31,
+                "Tallow": 27.29
+              }
+            },
+            {
+              "id": 15,
+              "ruralCash": 4240.93,
+              "cash": 8125.84,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 1481.4614,
+                "Salt": 0,
+                "Leather": 10.66,
+                "Preserved food": 0,
+                "Tallow": 26.62
+              }
+            },
+            {
+              "id": 16,
+              "ruralCash": 1492.04,
+              "cash": 7923.28,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 989.3802,
+                "Salt": 513.4235350297805,
+                "Leather": 4,
+                "Preserved food": 5.038264970219505,
+                "Tallow": 23.56
+              }
+            }
+          ],
+          "meat": null
+        },
+        {
+          "month": 12,
+          "date": [
+            1301,
+            1,
+            1
+          ],
+          "heads": {
+            "Game": 9680546.458734486,
+            "Cattle": 31541.052531392455,
+            "Horses": 17809.013075880695,
+            "Elephants": 11.528284308224922,
+            "Sheep": 193838.4321863723,
+            "Chicken": 567.1792070700102,
+            "Cats": 70.83094705551039,
+            "Dogs": 171.94676542812158,
+            "Pig": 896.6388240694685,
+            "Camels": 1936.1377322082562,
+            "Goats": 40401.36637221572
+          },
+          "breeding": {
+            "Game": 5512342.423539443,
+            "Cattle": 17317.346932894514,
+            "Horses": 10176.862285488347,
+            "Elephants": 6.334629231061894,
+            "Sheep": 124950.69192403358,
+            "Chicken": 322.62526328054685,
+            "Cats": 35.27661804165958,
+            "Dogs": 97.90005035351409,
+            "Pig": 569.2591168749656,
+            "Camels": 1041.3843236586197,
+            "Goats": 25239.366087647628
+          },
+          "markets": [
+            {
+              "id": 1,
+              "ruralCash": 13974.87,
+              "cash": 15733.54,
+              "urbanFoodShortage": 0,
+              "ruralFoodShortage": 0.010000000000218279,
+              "goods": {
+                "Wood": 6859.08,
+                "Salt": 2544.1185195980793,
+                "Leather": 409.25,
+                "Preserved food": 0,
+                "Tallow": 135.83
+              }
+            },
+            {
+              "id": 2,
+              "ruralCash": 2687.14,
+              "cash": 3547.91,
+              "urbanFoodShortage": 0,
+              "ruralFoodShortage": 0,
+              "goods": {
+                "Wood": 1659.4681,
+                "Salt": 269.644,
+                "Leather": 15.69,
+                "Preserved food": 0,
+                "Tallow": 1.61
+              }
+            },
+            {
+              "id": 3,
+              "ruralCash": 5738.89,
+              "cash": 9429.85,
+              "urbanFoodShortage": 0,
+              "ruralFoodShortage": 0,
+              "goods": {
+                "Wood": 3215.7179,
+                "Salt": 1697.595499191854,
+                "Leather": 146.33,
+                "Preserved food": 10.270600808145764,
+                "Tallow": 296.83
+              }
+            },
+            {
+              "id": 4,
+              "ruralCash": 14072.39,
+              "cash": 24505.14,
+              "urbanFoodShortage": 0,
+              "ruralFoodShortage": 0,
+              "goods": {
+                "Wood": 7797.3456,
+                "Salt": 1086.997648013094,
+                "Leather": 0.44,
+                "Preserved food": 13.52,
+                "Tallow": 915.26
+              }
+            },
+            {
+              "id": 5,
+              "ruralCash": 6247.91,
+              "cash": 11627.56,
+              "urbanFoodShortage": 0,
+              "ruralFoodShortage": 0,
+              "goods": {
+                "Wood": 3770.3773,
+                "Salt": 1741.2040564345145,
+                "Leather": 68.58,
+                "Preserved food": 21.311843565485407,
+                "Tallow": 379.18
+              }
+            },
+            {
+              "id": 6,
+              "ruralCash": 6676.59,
+              "cash": 7685.71,
+              "urbanFoodShortage": 0,
+              "ruralFoodShortage": 0,
+              "goods": {
+                "Wood": 4876.8554,
+                "Salt": 541.5629,
+                "Leather": 64.63,
+                "Preserved food": 13.4,
+                "Tallow": 180.32
+              }
+            },
+            {
+              "id": 7,
+              "ruralCash": 30053.14,
+              "cash": 8406.3,
+              "urbanFoodShortage": 0,
+              "ruralFoodShortage": 0,
+              "goods": {
+                "Wood": 7237.4761,
+                "Salt": 2563.571496809699,
+                "Leather": 119.1,
+                "Preserved food": 39.8237031902991,
+                "Tallow": 813.83
+              }
+            },
+            {
+              "id": 8,
+              "ruralCash": 6790.82,
+              "cash": 12860.32,
+              "urbanFoodShortage": 0,
+              "ruralFoodShortage": 0.009999999999763531,
+              "goods": {
+                "Wood": 3758.7591,
+                "Salt": 1494.0255597244038,
+                "Leather": 33.8,
+                "Preserved food": 9.53,
+                "Tallow": 291.07
+              }
+            },
+            {
+              "id": 9,
+              "ruralCash": 2215.05,
+              "cash": 2658.02,
+              "urbanFoodShortage": 0,
+              "ruralFoodShortage": 0,
+              "goods": {
+                "Wood": 0,
+                "Salt": 0,
+                "Leather": 95.08,
+                "Preserved food": 0.11,
+                "Tallow": 0
+              }
+            },
+            {
+              "id": 10,
+              "ruralCash": 13986.91,
+              "cash": 6514.69,
+              "urbanFoodShortage": 0,
+              "ruralFoodShortage": 0,
+              "goods": {
+                "Wood": 5451.6144,
+                "Salt": 1122.1073793115024,
+                "Leather": 150.35,
+                "Preserved food": 8.49,
+                "Tallow": 805.37
+              }
+            },
+            {
+              "id": 11,
+              "ruralCash": 6686.97,
+              "cash": 6237.57,
+              "urbanFoodShortage": 0,
+              "ruralFoodShortage": 0,
+              "goods": {
+                "Wood": 2628.1167,
+                "Salt": 1780.9879830861457,
+                "Leather": 79.14,
+                "Preserved food": 8.645216913854266,
+                "Tallow": 144.13
+              }
+            },
+            {
+              "id": 12,
+              "ruralCash": 20224.02,
+              "cash": 26295.43,
+              "urbanFoodShortage": 0,
+              "ruralFoodShortage": 0,
+              "goods": {
+                "Wood": 8706.539,
+                "Salt": 2982.1224530726868,
+                "Leather": 185.56,
+                "Preserved food": 86.28,
+                "Tallow": 864.27
+              }
+            },
+            {
+              "id": 13,
+              "ruralCash": 48532.33,
+              "cash": 4476.8,
+              "urbanFoodShortage": 0,
+              "ruralFoodShortage": 0,
+              "goods": {
+                "Wood": 11710.2029,
+                "Salt": 2988.213211726038,
+                "Leather": 275.98,
+                "Preserved food": 24.88,
+                "Tallow": 1343.74
+              }
+            },
+            {
+              "id": 14,
+              "ruralCash": 30666.16,
+              "cash": 2575.59,
+              "urbanFoodShortage": 0,
+              "ruralFoodShortage": 0,
+              "goods": {
+                "Wood": 6174.1685,
+                "Salt": 3936.9755562297364,
+                "Leather": 372.68,
+                "Preserved food": 29.26,
+                "Tallow": 534.88
+              }
+            },
+            {
+              "id": 15,
+              "ruralCash": 11005.22,
+              "cash": 7594.59,
+              "urbanFoodShortage": 0,
+              "ruralFoodShortage": 0,
+              "goods": {
+                "Wood": 4129.2465,
+                "Salt": 1364.2012461440288,
+                "Leather": 139.75,
+                "Preserved food": 17.18,
+                "Tallow": 140
+              }
+            },
+            {
+              "id": 16,
+              "ruralCash": 2805.14,
+              "cash": 2860.95,
+              "urbanFoodShortage": 0,
+              "ruralFoodShortage": 0,
+              "goods": {
+                "Wood": 2849.5265,
+                "Salt": 1996.4914694841716,
+                "Leather": 78.2,
+                "Preserved food": 14.536030515828248,
+                "Tallow": 185.7
+              }
+            },
+            {
+              "id": 17,
+              "cash": 37.91,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 198.4224,
+                "Salt": 0,
+                "Leather": 8,
+                "Preserved food": 0.54,
+                "Tallow": 14
+              }
+            }
+          ],
+          "meat": null
+        }
+      ]
+    },
+    {
+      "mode": "experimental-temperate",
+      "totals": {
+        "carcassKg": 90850.01578729994,
+        "edibleRecoveredKg": 70979.49483470999,
+        "nonFoodKg": 19870.52095258998,
+        "preservationInputKg": 0,
+        "completedKg": 0,
+        "processingLossKg": 0,
+        "freshConsumedKg": 70979.49483470999,
+        "preservedConsumedKg": 0,
+        "spoilageKg": 0,
+        "saltKg": 0,
+        "woodKg": 0,
+        "spending": 0,
+        "workDays": 2271.250394682498
+      },
+      "decisions": {
+        "eligibleSeasonSamples": 1409,
+        "forecastShortageSamples": 4664,
+        "seasonalShortageSamples": 321,
+        "activeSamples": 225,
+        "calendarSamples": 15996,
+        "legacyWorkSamples": 0,
+        "missingWorkDiagnostics": 0,
+        "missingDecisionDiagnostics": 0,
+        "eligibleDecisions": 743,
+        "laborBlockedDecisions": 309,
+        "handlingBlockedDecisions": 256,
+        "outletBlockedDecisions": 0,
+        "workOverdraftSamples": 0,
+        "maximumWorkOverdraftDays": 5.684341886080802e-14,
+        "maximumHeadBalanceError": 3.552713678800501e-15,
+        "maximumCarcassBalanceErrorKg": 2.2737367544323206e-13,
+        "maximumEdibleBalanceErrorKg": 0,
+        "firstPeriodFeedNeedReductionKg": 189166.6666666665,
+        "headsBySpecies": {
+          "Cattle": 493,
+          "Sheep": 1582
+        }
+      },
+      "feedTotals": {
+        "requiredKg": 304382794.46230704,
+        "pastureConsumedKg": 150919254.38975626,
+        "hayConsumedKg": 38035348.57582954,
+        "cropResidueFeedKg": 90320.70493755181,
+        "unmetKg": 115337870.79178369,
+        "purchasedKg": 753673.1368104954
+      },
+      "cropResidues": {
+        "schemaVersion": 1,
+        "policyId": "temperate-cereal-residue-experiment-v1",
+        "receiptCount": 84,
+        "sampleCount": 989,
+        "generatedKg": 8189683.755573655,
+        "soilReservedKg": 4094841.8777868273,
+        "otherUsesReservedKg": 1637936.7511147317,
+        "collectedKg": 60391.01986549852,
+        "lossKg": 2264758.517007681,
+        "strawConsumedKg": 57525.99894655707,
+        "stubbleConsumedKg": 134620.61071785796,
+        "feedEquivalentKg": 90320.7049375518,
+        "workDays": 515.389449488426,
+        "remainingKg": 0,
+        "maximumAllocationErrorKg": 1.4551915228366852e-11,
+        "maximumStockBalanceErrorKg": 1.4551915228366852e-11,
+        "workOverdraftSamples": 0
+      },
+      "sampleCount": 15996,
+      "snapshots": [
+        {
+          "month": 0,
+          "date": [
+            1300,
+            1,
+            1
+          ],
+          "heads": {
+            "Game": 8820560.003713965,
+            "Cattle": 32044.245689714044,
+            "Horses": 28017.308985838856,
+            "Elephants": 108.12239014345408,
+            "Sheep": 192316.1789523961,
+            "Chicken": 500.3241697109928,
+            "Cats": 57.134401706701475,
+            "Dogs": 147.31164480268953,
+            "Pig": 2228.7143633878154,
+            "Camels": 2241.5197421012926,
+            "Goats": 38845.354111764376
+          },
+          "breeding": {
+            "Game": 4410365.192978162,
+            "Cattle": 16026.432754056552,
+            "Horses": 14063.107624778026,
+            "Elephants": 57.49044998299331,
+            "Sheep": 96162.39938539764,
+            "Chicken": 266.0305753127487,
+            "Cats": 30.37929941494389,
+            "Dogs": 78.32802009098239,
+            "Pig": 1185.0440178461392,
+            "Camels": 1120.79348413058,
+            "Goats": 19422.762975823454
+          },
+          "markets": [
+            {
+              "id": 1,
+              "ruralCash": 3334.42,
+              "cash": 11379.93,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 2306.6124,
+                "Salt": 4273.1741600555515,
+                "Leather": 30.41,
+                "Preserved food": 3.03,
+                "Tallow": 11.41
+              }
+            },
+            {
+              "id": 2,
+              "ruralCash": 248.94,
+              "cash": 4468.37,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 802.8727,
+                "Salt": 300.4425,
+                "Leather": 0,
+                "Preserved food": 0,
+                "Tallow": 0
+              }
+            },
+            {
+              "id": 3,
+              "ruralCash": 2782.43,
+              "cash": 7279.11,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 1216.2396,
+                "Salt": 1125.7518248082795,
+                "Leather": 13.22,
+                "Preserved food": 1.9510751917206184,
+                "Tallow": 34.82
+              }
+            },
+            {
+              "id": 4,
+              "ruralCash": 11119.41,
+              "cash": 25838.49,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 2413.7179,
+                "Salt": 1295.2686371828338,
+                "Leather": 5.16,
+                "Preserved food": 5.85,
+                "Tallow": 79.31
+              }
+            },
+            {
+              "id": 5,
+              "ruralCash": 4695.01,
+              "cash": 11329.42,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 1220.5091,
+                "Salt": 764.9322947712394,
+                "Leather": 6.1,
+                "Preserved food": 3.6213052287604395,
+                "Tallow": 48.65
+              }
+            },
+            {
+              "id": 6,
+              "ruralCash": 3360.95,
+              "cash": 8096.66,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 1517.3641,
+                "Salt": 760.5945821398708,
+                "Leather": 0.88,
+                "Preserved food": 2.219017860129303,
+                "Tallow": 17.23
+              }
+            },
+            {
+              "id": 7,
+              "ruralCash": 10258.71,
+              "cash": 13775.65,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 2756.714,
+                "Salt": 272.42303919846665,
+                "Leather": 4.25,
+                "Preserved food": 3.5299608015332637,
+                "Tallow": 34.53
+              }
+            },
+            {
+              "id": 8,
+              "ruralCash": 3475.13,
+              "cash": 10170.58,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 1319.5816,
+                "Salt": 359.11,
+                "Leather": 3.43,
+                "Preserved food": 0.22,
+                "Tallow": 27.45
+              }
+            },
+            {
+              "id": 9,
+              "ruralCash": 1514.95,
+              "cash": 5146.24,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 0,
+                "Salt": 431.7892115125542,
+                "Leather": 5.29,
+                "Preserved food": 0,
+                "Tallow": 0
+              }
+            },
+            {
+              "id": 10,
+              "ruralCash": 4702.84,
+              "cash": 11466,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 2092.6646,
+                "Salt": 527.5865365868175,
+                "Leather": 5.59,
+                "Preserved food": 3.371863413182567,
+                "Tallow": 31.06
+              }
+            },
+            {
+              "id": 11,
+              "ruralCash": 3203.98,
+              "cash": 4509.99,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 843.9443,
+                "Salt": 2163.8211361636677,
+                "Leather": 6.27,
+                "Preserved food": 0.87,
+                "Tallow": 16.71
+              }
+            },
+            {
+              "id": 12,
+              "ruralCash": 8887.95,
+              "cash": 23623.44,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 2797.5182,
+                "Salt": 0,
+                "Leather": 21.02,
+                "Preserved food": 0.18,
+                "Tallow": 99.38
+              }
+            },
+            {
+              "id": 13,
+              "ruralCash": 10468.32,
+              "cash": 23846.67,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 3620.9712,
+                "Salt": 718.552170501897,
+                "Leather": 8.63,
+                "Preserved food": 5.5680294981030665,
+                "Tallow": 25.01
+              }
+            },
+            {
+              "id": 14,
+              "ruralCash": 8530.23,
+              "cash": 12121.96,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 1888.4919,
+                "Salt": 0,
+                "Leather": 24.39,
+                "Preserved food": 0.31,
+                "Tallow": 27.29
+              }
+            },
+            {
+              "id": 15,
+              "ruralCash": 4240.93,
+              "cash": 8125.84,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 1481.4614,
+                "Salt": 0,
+                "Leather": 10.66,
+                "Preserved food": 0,
+                "Tallow": 26.62
+              }
+            },
+            {
+              "id": 16,
+              "ruralCash": 1492.04,
+              "cash": 7923.28,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 989.3802,
+                "Salt": 513.4235350297805,
+                "Leather": 4,
+                "Preserved food": 5.038264970219505,
+                "Tallow": 23.56
+              }
+            }
+          ],
+          "meat": null
+        },
+        {
+          "month": 12,
+          "date": [
+            1301,
+            1,
+            1
+          ],
+          "heads": {
+            "Game": 9680548.954919955,
+            "Cattle": 31251.396549160087,
+            "Horses": 17809.163730997083,
+            "Elephants": 11.52828431037069,
+            "Sheep": 193210.29229390403,
+            "Chicken": 567.1792067460198,
+            "Cats": 70.83094700061214,
+            "Dogs": 171.94676543755682,
+            "Pig": 896.6388238837878,
+            "Camels": 1936.1298731916838,
+            "Goats": 40396.19564291249
+          },
+          "breeding": {
+            "Game": 5512342.423547226,
+            "Cattle": 17312.333842985943,
+            "Horses": 10176.861953142621,
+            "Elephants": 6.334629232240962,
+            "Sheep": 124950.30834394366,
+            "Chicken": 322.62526315180077,
+            "Cats": 35.27661802684967,
+            "Dogs": 97.90005035351409,
+            "Pig": 569.2591168255992,
+            "Camels": 1041.3801003778729,
+            "Goats": 25239.366087659786
+          },
+          "markets": [
+            {
+              "id": 1,
+              "ruralCash": 13972.98,
+              "cash": 15892.2,
+              "urbanFoodShortage": 0,
+              "ruralFoodShortage": 0.010000000000218279,
+              "goods": {
+                "Wood": 6859.1725,
+                "Salt": 2542.381804284567,
+                "Leather": 397,
+                "Preserved food": 0,
+                "Tallow": 9.6
+              }
+            },
+            {
+              "id": 2,
+              "ruralCash": 2693.53,
+              "cash": 3497.79,
+              "urbanFoodShortage": 0,
+              "ruralFoodShortage": 0,
+              "goods": {
+                "Wood": 1660.0203,
+                "Salt": 269.6644,
+                "Leather": 16.33,
+                "Preserved food": 0,
+                "Tallow": 0.14
+              }
+            },
+            {
+              "id": 3,
+              "ruralCash": 5784.21,
+              "cash": 9872.66,
+              "urbanFoodShortage": 0,
+              "ruralFoodShortage": 0,
+              "goods": {
+                "Wood": 3215.3285,
+                "Salt": 1697.2934,
+                "Leather": 123.32,
+                "Preserved food": 1.76,
+                "Tallow": 31.65
+              }
+            },
+            {
+              "id": 4,
+              "ruralCash": 14157.79,
+              "cash": 25661.07,
+              "urbanFoodShortage": 0,
+              "ruralFoodShortage": 0,
+              "goods": {
+                "Wood": 7797.4163,
+                "Salt": 1087.7834312106324,
+                "Leather": 0,
+                "Preserved food": 0,
+                "Tallow": 78
+              }
+            },
+            {
+              "id": 5,
+              "ruralCash": 6310,
+              "cash": 11549.53,
+              "urbanFoodShortage": 0,
+              "ruralFoodShortage": 0,
+              "goods": {
+                "Wood": 3769.3292,
+                "Salt": 1740.6208,
+                "Leather": 54.6,
+                "Preserved food": 4.23,
+                "Tallow": 33.68
+              }
+            },
+            {
+              "id": 6,
+              "ruralCash": 6667.19,
+              "cash": 7673.81,
+              "urbanFoodShortage": 0,
+              "ruralFoodShortage": 0,
+              "goods": {
+                "Wood": 4971.0027,
+                "Salt": 541.5695,
+                "Leather": 58.85,
+                "Preserved food": 0,
+                "Tallow": 24.62
+              }
+            },
+            {
+              "id": 7,
+              "ruralCash": 29920.21,
+              "cash": 8489.17,
+              "urbanFoodShortage": 0,
+              "ruralFoodShortage": 0,
+              "goods": {
+                "Wood": 7233.2461,
+                "Salt": 2564.4494,
+                "Leather": 37.3,
+                "Preserved food": 13.17,
+                "Tallow": 34.23
+              }
+            },
+            {
+              "id": 8,
+              "ruralCash": 6880.23,
+              "cash": 12792.36,
+              "urbanFoodShortage": 0,
+              "ruralFoodShortage": 0.009999999999763531,
+              "goods": {
+                "Wood": 3756.9994,
+                "Salt": 1469.0725,
+                "Leather": 26.17,
+                "Preserved food": 0,
+                "Tallow": 27.38
+              }
+            },
+            {
+              "id": 9,
+              "ruralCash": 2174.79,
+              "cash": 3249.72,
+              "urbanFoodShortage": 0,
+              "ruralFoodShortage": 0,
+              "goods": {
+                "Wood": 0,
+                "Salt": 0,
+                "Leather": 95.66,
+                "Preserved food": 0.11,
+                "Tallow": 0
+              }
+            },
+            {
+              "id": 10,
+              "ruralCash": 14004.54,
+              "cash": 6542.18,
+              "urbanFoodShortage": 0,
+              "ruralFoodShortage": 0,
+              "goods": {
+                "Wood": 5451.6244,
+                "Salt": 1122.7026,
+                "Leather": 33.94,
+                "Preserved food": 0,
+                "Tallow": 22.86
+              }
+            },
+            {
+              "id": 11,
+              "ruralCash": 6711.9,
+              "cash": 6231.08,
+              "urbanFoodShortage": 0,
+              "ruralFoodShortage": 0,
+              "goods": {
+                "Wood": 2628.5588,
+                "Salt": 1780.8767929910919,
+                "Leather": 79.12,
+                "Preserved food": 5.427907008908203,
+                "Tallow": 16.47
+              }
+            },
+            {
+              "id": 12,
+              "ruralCash": 20246.29,
+              "cash": 26015.81,
+              "urbanFoodShortage": 0,
+              "ruralFoodShortage": 0,
+              "goods": {
+                "Wood": 8704.1817,
+                "Salt": 2990.6696,
+                "Leather": 129.04,
+                "Preserved food": 0.71,
+                "Tallow": 83.39
+              }
+            },
+            {
+              "id": 13,
+              "ruralCash": 48477.42,
+              "cash": 4769.81,
+              "urbanFoodShortage": 0,
+              "ruralFoodShortage": 0,
+              "goods": {
+                "Wood": 11709.9033,
+                "Salt": 2980.214686317014,
+                "Leather": 100.38,
+                "Preserved food": 0,
+                "Tallow": 24.41
+              }
+            },
+            {
+              "id": 14,
+              "ruralCash": 30673.48,
+              "cash": 2573.12,
+              "urbanFoodShortage": 0,
+              "ruralFoodShortage": 0,
+              "goods": {
+                "Wood": 6173.8971,
+                "Salt": 3937.4614,
+                "Leather": 308.94,
+                "Preserved food": 16.06,
+                "Tallow": 26.94
+              }
+            },
+            {
+              "id": 15,
+              "ruralCash": 11024.25,
+              "cash": 7580.59,
+              "urbanFoodShortage": 0,
+              "ruralFoodShortage": 0,
+              "goods": {
+                "Wood": 4130.6965,
+                "Salt": 1364.1958615306833,
+                "Leather": 139.75,
+                "Preserved food": 14.44,
+                "Tallow": 26.57
+              }
+            },
+            {
+              "id": 16,
+              "ruralCash": 2897.23,
+              "cash": 1035.78,
+              "urbanFoodShortage": 0,
+              "ruralFoodShortage": 0,
+              "goods": {
+                "Wood": 2849.4053,
+                "Salt": 1994.0271073048843,
+                "Leather": 59.62,
+                "Preserved food": 11.408092695115615,
+                "Tallow": 23.33
+              }
+            },
+            {
+              "id": 17,
+              "cash": 37.91,
+              "urbanFoodShortage": null,
+              "ruralFoodShortage": null,
+              "goods": {
+                "Wood": 198.4224,
+                "Salt": 0,
+                "Leather": 8,
+                "Preserved food": 0.54,
+                "Tallow": 0
+              }
+            }
+          ],
+          "meat": {
+            "schemaVersion": 1,
+            "periodWindow": [
+              15601,
+              15612
+            ],
+            "totals": {
+              "heads": 2075,
+              "carcassKg": 90850.01578729994,
+              "edibleRecoveredKg": 70979.49483470999,
+              "nonFoodKg": 19870.52095258998,
+              "preservationInputKg": 0,
+              "completedKg": 0,
+              "processingLossKg": 0,
+              "freshConsumedKg": 70979.49483470999,
+              "preservedConsumedKg": 0,
+              "spoilageKg": 0,
+              "saltKg": 0,
+              "woodKg": 0,
+              "spending": 0,
+              "workDays": 2271.250394682498,
+              "dietaryKcal": 141958989.66942,
+              "foregoneAnnualWoolPotentialKg": 2278.0800000000017,
+              "dietaryProteinKg": 12776.309070247797
+            },
+            "stockKg": 0,
+            "processingKg": 0,
+            "pigFeedSavedKg": null,
+            "stapleRationCredit": 0
+          }
+        }
+      ]
+    }
+  ]
+}

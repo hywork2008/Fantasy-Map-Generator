@@ -17,10 +17,10 @@
  * unchanged — it still recipe-consumes Wool off the market the same way it always has.
  */
 
-import { getOrCreateFaunaStockTable } from "../economyContext";
-import { getHusbandryWorkerFactor } from "./husbandry";
+import { getOrCreateFaunaStockTable, getWorldContext } from "../economyContext";
+import { getHusbandryCareFactor } from "./husbandry";
 import { getLivestockFeedCoverage } from "./livestockFeedState";
-import { SHEEP_ANNUAL_WOOL_KG, WOOL_KG_PER_MARKET_LOT } from "./woolProductionPolicy";
+import { getSheepAnnualWoolKg, WOOL_KG_PER_MARKET_LOT } from "./woolProductionPolicy";
 
 export { FLEECES_PER_WOOL_MARKET_LOT } from "./woolProductionPolicy";
 
@@ -28,10 +28,11 @@ export { FLEECES_PER_WOOL_MARKET_LOT } from "./woolProductionPolicy";
 export function getAnnualWoolPotentialKg(cellId: number): number {
   const cohorts = getOrCreateFaunaStockTable()?.[`${cellId}:Sheep`];
   if (!cohorts) return 0;
+  const fleece = getSheepAnnualWoolKg(getWorldContext().options?.historicalPeriod);
   return (
-    Math.max(0, cohorts.young) * SHEEP_ANNUAL_WOOL_KG.young +
-    Math.max(0, cohorts.breeding) * SHEEP_ANNUAL_WOOL_KG.breeding +
-    Math.max(0, cohorts.old) * SHEEP_ANNUAL_WOOL_KG.old
+    Math.max(0, cohorts.young) * fleece.young +
+    Math.max(0, cohorts.breeding) * fleece.breeding +
+    Math.max(0, cohorts.old) * fleece.old
   );
 }
 
@@ -43,5 +44,5 @@ export function getAnnualWoolPotentialKg(cellId: number): number {
 export function getWoolOutput(cellId: number): number {
   const annualKg = getAnnualWoolPotentialKg(cellId);
   if (annualKg <= 0) return 0;
-  return (annualKg * getHusbandryWorkerFactor(cellId) * getLivestockFeedCoverage(cellId)) / 12 / WOOL_KG_PER_MARKET_LOT;
+  return (annualKg * getHusbandryCareFactor(cellId) * getLivestockFeedCoverage(cellId)) / 12 / WOOL_KG_PER_MARKET_LOT;
 }

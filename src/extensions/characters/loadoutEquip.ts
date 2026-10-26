@@ -2,9 +2,13 @@
  * Equip / unequip / editor loadout mutations (EQ-2).
  * Spec: docs/plan/character-loadout-and-readiness.md
  *
- * Pure character mutations: debit/credit personal inventory only — no market prices.
+ * Personal inventory mutations and committed movement notifications; no market prices.
  */
 
+import {
+  type CharacterInventoryTransfer,
+  notifyCharacterInventoryTransfers
+} from "../../simulation/characterInventoryEvents";
 import { simEvents } from "../../simulation/events";
 import type { Character, CharacterLoadout, EquipmentQuality, EquippedItem, LoadoutSlotId } from "./characterTypes";
 import { clampEquipmentQuality, normalizeCharacterLoadout } from "./loadoutSeed";
@@ -84,9 +88,25 @@ function creditInventory(character: Character, goodId: number, units: number): v
 }
 
 /** Return an equipped-from-inventory item to the bag; seeded/editor kit is discarded. */
-function releaseSlotItem(character: Character, item: EquippedItem | undefined): void {
+function releaseSlotItem(
+  character: Character,
+  item: EquippedItem | undefined,
+  slot: LoadoutSlotId,
+  transfers: CharacterInventoryTransfer[]
+): void {
   if (!item) return;
-  if (item.source === "equipped") creditInventory(character, item.goodId, 1);
+  if (item.source === "equipped") {
+    const toOpeningUnits = inventoryUnits(character, item.goodId);
+    creditInventory(character, item.goodId, 1);
+    transfers.push({
+      goodId: item.goodId,
+      units: 1,
+      fromOpeningUnits: 1,
+      toOpeningUnits,
+      from: { characterId: character.i, container: "loadout", slot },
+      to: { characterId: character.i, container: "inventory" }
+    });
+  }
 }
 
 function styleKeyForEquip(slot: LoadoutSlotId, quality: EquipmentQuality, goodName: string): string {
@@ -156,7 +176,9 @@ export function equipFromInventory(args: EquipFromInventoryArgs): LoadoutCommand
     return ok(true);
   }
 
-  releaseSlotItem(character, previous);
+  const transfers: CharacterInventoryTransfer[] = [];
+  releaseSlotItem(character, previous, slot, transfers);
+  const fromOpeningUnits = inventoryUnits(character, goodId);
   debitInventory(character, goodId, 1);
 
   const item: EquippedItem = {
@@ -166,6 +188,15 @@ export function equipFromInventory(args: EquipFromInventoryArgs): LoadoutCommand
     styleKey: styleKeyForEquip(slot, quality, goodName)
   };
   character.loadout = { ...(character.loadout ?? {}), [slot]: item };
+  transfers.push({
+    goodId,
+    units: 1,
+    fromOpeningUnits,
+    toOpeningUnits: 0,
+    from: { characterId: character.i, container: "inventory" },
+    to: { characterId: character.i, container: "loadout", slot }
+  });
+  notifyCharacterInventoryTransfers(transfers);
   return ok(true);
 }
 
@@ -184,11 +215,13 @@ export function unequipSlot(args: UnequipSlotArgs): LoadoutCommandResult {
   const item = character.loadout?.[slot];
   if (!item) return fail("slot_empty", `No item in ${slot} slot.`);
 
-  releaseSlotItem(character, item);
+  const transfers: CharacterInventoryTransfer[] = [];
+  releaseSlotItem(character, item, slot, transfers);
   const next: CharacterLoadout = { ...(character.loadout ?? {}) };
   delete next[slot];
   if (Object.keys(next).length === 0) delete character.loadout;
   else character.loadout = next;
+  notifyCharacterInventoryTransfers(transfers);
   return ok(true);
 }
 
@@ -208,13 +241,15 @@ export function setLoadoutEditor(args: SetLoadoutEditorArgs): LoadoutCommandResu
   const { character } = args;
   if (character.dead) return fail("character_dead", "Cannot edit loadout of a deceased character.");
 
+  const transfers: CharacterInventoryTransfer[] = [];
   if (args.loadout === null) {
     if (!character.loadout) return ok(false);
     // Returning equipped items to bag when clearing via editor.
     for (const slot of LOADOUT_SLOT_IDS) {
-      releaseSlotItem(character, character.loadout[slot]);
+      releaseSlotItem(character, character.loadout[slot], slot, transfers);
     }
     delete character.loadout;
+    notifyCharacterInventoryTransfers(transfers);
     return ok(true);
   }
 
@@ -222,8 +257,9 @@ export function setLoadoutEditor(args: SetLoadoutEditorArgs): LoadoutCommandResu
   if (!normalized) {
     if (args.replaceAll !== false) {
       if (!character.loadout) return ok(false);
-      for (const slot of LOADOUT_SLOT_IDS) releaseSlotItem(character, character.loadout[slot]);
+      for (const slot of LOADOUT_SLOT_IDS) releaseSlotItem(character, character.loadout[slot], slot, transfers);
       delete character.loadout;
+      notifyCharacterInventoryTransfers(transfers);
       return ok(true);
     }
     return fail("invalid_payload", "Loadout payload has no valid slots.");
@@ -243,11 +279,12 @@ export function setLoadoutEditor(args: SetLoadoutEditorArgs): LoadoutCommandResu
       const item = asEditor[slot];
       if (item) {
         // Replacing an equipped item via editor merge: return previous bag item.
-        if (merged[slot] && merged[slot] !== item) releaseSlotItem(character, merged[slot]);
+        if (merged[slot] && merged[slot] !== item) releaseSlotItem(character, merged[slot], slot, transfers);
         merged[slot] = item;
       }
     }
     character.loadout = merged;
+    notifyCharacterInventoryTransfers(transfers);
     return ok(true);
   }
 
@@ -257,11 +294,12 @@ export function setLoadoutEditor(args: SetLoadoutEditorArgs): LoadoutCommandResu
       const prev = character.loadout[slot];
       const next = asEditor[slot];
       if (prev && prev.source === "equipped" && (!next || next.goodId !== prev.goodId || next.source !== "equipped")) {
-        releaseSlotItem(character, prev);
+        releaseSlotItem(character, prev, slot, transfers);
       }
     }
   }
   character.loadout = asEditor;
+  notifyCharacterInventoryTransfers(transfers);
   return ok(true);
 }
 

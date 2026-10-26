@@ -1,0 +1,1467 @@
+{
+  "schemaVersion": 1,
+  "sourceHashes": {
+    "scripts/auditSlaughterContracts.mts": "5968fae9a72781a3d44c1f37e76a63f2f9002f17ee5f486cd62474607e532743",
+    "src/extensions/economy/generators/faunaPopulation.ts": "b6176277fb3bdee0d78a81cffea571f35687284b0918183797588f146642eb47",
+    "src/extensions/economy/generators/liveAnimalCatch.ts": "11d0a2d078194867c2571e19b20416071a28f6a91acae3692eb7a084deb71d7d",
+    "src/extensions/economy/generators/liveAnimalScale.ts": "9cc03976a39e46a559f948b1dd7d2c73ba3739df65b2e0ec5821cda7a5bf6fb7",
+    "src/extensions/economy/generators/production-utils.ts": "da6646b0d24f0cbadf849aa12f3b0578e0faaa385fd916e21052966d04a9d635",
+    "src/extensions/economy/generators/markets-generator.ts": "b3c316f4c01ec68dcc6fbd92eaecf21e269898320d3508434fe43cf6e93c5ca1",
+    "src/extensions/economy/generators/production-generator.ts": "8d50ae7dc3ba1de9949079aa88744b6f999f078391301d0bfcf677d51e7fab41",
+    "src/extensions/economy/generators/slaughter.ts": "2f29329286ff49e7144a841d21fc52b608941fcbdf9ca9e9035e913630df3bcd",
+    "src/extensions/economy/generators/goods-generator.ts": "3f2c4f822cfa5b22bab86db06741a1be1709dcc394d966395cb3f445eb48984d",
+    "src/extensions/economy/generators/goodMeasureCatalog.ts": "5d22a3242f6c9e2782b1610b8788a226dbb343a4d37c58f251a66fbc0b8241ff",
+    "src/extensions/economy/generators/foodProcessingLedger.ts": "7f6abce99a967e45235cd2c3b67461425da2063c329dd66f593b08e200ee8c7e",
+    "src/extensions/economy/generators/rennet.ts": "d63058e19994cd3d6c85789cf3e1a2a903cc6ba7d845f5cb3738537101403b96",
+    "src/extensions/economy/generators/woodRecipeContracts.ts": "747c863b8bcae5c3524284249965604f6ddcde9b9e1fca33d7d7165e6ddbcce2"
+  },
+  "notes": [
+    "This is static unit reconciliation, not simulated production or historical calibration.",
+    "The inspector never calls offtake, slaughter or manufacture. Normal archive loading may repair loaded columns/catalogues.",
+    "Unknown or unit-mismatched measures remain null. Legacy preserved-food output mass is not new edible meat."
+  ],
+  "shipped": {
+    "measures": {
+      "Cattle": {
+        "unit": "head",
+        "content": "1 animal",
+        "kg": 450,
+        "liters": 0,
+        "pack": "walk",
+        "source": "code"
+      },
+      "Sheep": {
+        "unit": "head",
+        "content": "1 animal",
+        "kg": 45,
+        "liters": 0,
+        "pack": "walk",
+        "source": "code"
+      },
+      "Goats": {
+        "unit": "head",
+        "content": "1 animal",
+        "kg": 40,
+        "liters": 0,
+        "pack": "walk",
+        "source": "code"
+      },
+      "Pig": {
+        "unit": "head",
+        "content": "1 animal",
+        "kg": 100,
+        "liters": 0,
+        "pack": "walk",
+        "source": "code"
+      },
+      "Horses": {
+        "unit": "head",
+        "content": "25 animals",
+        "kg": 11250,
+        "liters": 0,
+        "pack": "walk",
+        "source": "code"
+      },
+      "Tallow": {
+        "unit": "barrel",
+        "content": "120 L",
+        "kg": 108,
+        "liters": 120,
+        "pack": "barrel",
+        "source": "model"
+      },
+      "Leather": {
+        "unit": "roll",
+        "content": "1 hide, 25 kg",
+        "kg": 25,
+        "liters": 31.25,
+        "pack": "bale",
+        "source": "recipe"
+      },
+      "Preserved food": {
+        "unit": "wain",
+        "content": "465 kg",
+        "kg": 465.1162790697675,
+        "liters": 516.795865633075,
+        "pack": "barrel",
+        "source": "model"
+      },
+      "Salt": {
+        "unit": "bag",
+        "content": "60 kg",
+        "kg": 60,
+        "liters": 50,
+        "pack": "sack",
+        "source": "code"
+      },
+      "Rennet": {
+        "unit": "barrel",
+        "content": "120 L",
+        "kg": 120,
+        "liters": 120,
+        "pack": "barrel",
+        "source": "model"
+      }
+    },
+    "animals": [
+      {
+        "name": "Horses",
+        "unit": "head",
+        "food": false,
+        "multipliers": {
+          "cultureType": {
+            "Nomadic": 2
+          }
+        }
+      },
+      {
+        "name": "Cattle",
+        "unit": "head",
+        "food": true,
+        "multipliers": {
+          "cultureType": {
+            "Nomadic": 2
+          }
+        }
+      },
+      {
+        "name": "Camels",
+        "unit": "head",
+        "food": false,
+        "multipliers": {
+          "cultureType": {
+            "Nomadic": 2,
+            "Generic": 0.8
+          }
+        }
+      },
+      {
+        "name": "Elephants",
+        "unit": "head",
+        "food": false,
+        "multipliers": {
+          "cultureType": {
+            "Highland": 0.2
+          }
+        }
+      },
+      {
+        "name": "Sheep",
+        "unit": "head",
+        "food": true,
+        "multipliers": {
+          "cultureType": {
+            "Naval": 1.4,
+            "Highland": 1.4
+          }
+        }
+      },
+      {
+        "name": "Goats",
+        "unit": "head",
+        "food": true,
+        "multipliers": null
+      },
+      {
+        "name": "Pig",
+        "unit": "head",
+        "food": true,
+        "multipliers": {
+          "cultureType": {
+            "Nomadic": 0.2
+          }
+        }
+      },
+      {
+        "name": "Chicken",
+        "unit": "head",
+        "food": true,
+        "multipliers": null
+      },
+      {
+        "name": "Cats",
+        "unit": "head",
+        "food": false,
+        "multipliers": null
+      },
+      {
+        "name": "Dogs",
+        "unit": "head",
+        "food": false,
+        "multipliers": {
+          "cultureType": {
+            "Nomadic": 1.6,
+            "Hunting": 1.3
+          }
+        }
+      }
+    ],
+    "jointYields": [
+      {
+        "animal": "Cattle",
+        "animalsPerMarketUnit": 1,
+        "inputKg": 450,
+        "tallowUnitsPerMarketAnimal": 3.3333333333333335,
+        "leatherUnitsPerMarketAnimal": 1,
+        "mappedJointOutputKg": 385,
+        "mappedOutputExceedsLiveMass": false,
+        "note": "Conditional full legacy catalogue yields, before output rounding and enablement; not an observed slaughter event or historical yield."
+      },
+      {
+        "animal": "Sheep",
+        "animalsPerMarketUnit": 1,
+        "inputKg": 45,
+        "tallowUnitsPerMarketAnimal": 2,
+        "leatherUnitsPerMarketAnimal": 0,
+        "mappedJointOutputKg": 216,
+        "mappedOutputExceedsLiveMass": true,
+        "note": "Conditional full legacy catalogue yields, before output rounding and enablement; not an observed slaughter event or historical yield."
+      },
+      {
+        "animal": "Goats",
+        "animalsPerMarketUnit": 1,
+        "inputKg": 40,
+        "tallowUnitsPerMarketAnimal": 2,
+        "leatherUnitsPerMarketAnimal": 0,
+        "mappedJointOutputKg": 216,
+        "mappedOutputExceedsLiveMass": true,
+        "note": "Conditional full legacy catalogue yields, before output rounding and enablement; not an observed slaughter event or historical yield."
+      },
+      {
+        "animal": "Pig",
+        "animalsPerMarketUnit": 1,
+        "inputKg": 100,
+        "tallowUnitsPerMarketAnimal": 2,
+        "leatherUnitsPerMarketAnimal": 0,
+        "mappedJointOutputKg": 216,
+        "mappedOutputExceedsLiveMass": true,
+        "note": "Conditional full legacy catalogue yields, before output rounding and enablement; not an observed slaughter event or historical yield."
+      },
+      {
+        "animal": "Chicken",
+        "animalsPerMarketUnit": 1,
+        "inputKg": 2,
+        "tallowUnitsPerMarketAnimal": 0,
+        "leatherUnitsPerMarketAnimal": 0,
+        "mappedJointOutputKg": 0,
+        "mappedOutputExceedsLiveMass": false,
+        "note": "Conditional full legacy catalogue yields, before output rounding and enablement; not an observed slaughter event or historical yield."
+      }
+    ],
+    "directRecipes": [
+      {
+        "output": "Preserved food",
+        "recipeIndex": 2,
+        "inputs": [
+          {
+            "name": "Cattle",
+            "units": 0.25,
+            "mappedKgPerUnit": 450
+          },
+          {
+            "name": "Salt",
+            "units": 1,
+            "mappedKgPerUnit": 60
+          }
+        ],
+        "inputKg": 172.5,
+        "outputKg": 465.1162790697675,
+        "massGainAtUnitYield": 292.6162790697675,
+        "outputBonusConvertedToWorkSpeed": true,
+        "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+      },
+      {
+        "output": "Preserved food",
+        "recipeIndex": 4,
+        "inputs": [
+          {
+            "name": "Salt",
+            "units": 1,
+            "mappedKgPerUnit": 60
+          },
+          {
+            "name": "Sheep",
+            "units": 1,
+            "mappedKgPerUnit": 45
+          }
+        ],
+        "inputKg": 105,
+        "outputKg": 465.1162790697675,
+        "massGainAtUnitYield": 360.1162790697675,
+        "outputBonusConvertedToWorkSpeed": true,
+        "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+      },
+      {
+        "output": "Preserved food",
+        "recipeIndex": 5,
+        "inputs": [
+          {
+            "name": "Salt",
+            "units": 1,
+            "mappedKgPerUnit": 60
+          },
+          {
+            "name": "Pig",
+            "units": 1,
+            "mappedKgPerUnit": 100
+          }
+        ],
+        "inputKg": 160,
+        "outputKg": 465.1162790697675,
+        "massGainAtUnitYield": 305.1162790697675,
+        "outputBonusConvertedToWorkSpeed": true,
+        "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+      },
+      {
+        "output": "Preserved food",
+        "recipeIndex": 7,
+        "inputs": [
+          {
+            "name": "Cattle",
+            "units": 0.25,
+            "mappedKgPerUnit": 450
+          },
+          {
+            "name": "Vinegar",
+            "units": 0.5,
+            "mappedKgPerUnit": 121.2
+          }
+        ],
+        "inputKg": 173.1,
+        "outputKg": 465.1162790697675,
+        "massGainAtUnitYield": 292.0162790697675,
+        "outputBonusConvertedToWorkSpeed": true,
+        "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+      },
+      {
+        "output": "Preserved food",
+        "recipeIndex": 9,
+        "inputs": [
+          {
+            "name": "Sheep",
+            "units": 1,
+            "mappedKgPerUnit": 45
+          },
+          {
+            "name": "Vinegar",
+            "units": 0.5,
+            "mappedKgPerUnit": 121.2
+          }
+        ],
+        "inputKg": 105.6,
+        "outputKg": 465.1162790697675,
+        "massGainAtUnitYield": 359.5162790697675,
+        "outputBonusConvertedToWorkSpeed": true,
+        "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+      },
+      {
+        "output": "Preserved food",
+        "recipeIndex": 10,
+        "inputs": [
+          {
+            "name": "Vinegar",
+            "units": 0.5,
+            "mappedKgPerUnit": 121.2
+          },
+          {
+            "name": "Pig",
+            "units": 1,
+            "mappedKgPerUnit": 100
+          }
+        ],
+        "inputKg": 160.6,
+        "outputKg": 465.1162790697675,
+        "massGainAtUnitYield": 304.5162790697675,
+        "outputBonusConvertedToWorkSpeed": true,
+        "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+      },
+      {
+        "output": "Soap",
+        "recipeIndex": 1,
+        "inputs": [
+          {
+            "name": "Cattle",
+            "units": 1,
+            "mappedKgPerUnit": 450
+          },
+          {
+            "name": "Potash",
+            "units": 0.3,
+            "mappedKgPerUnit": 120
+          }
+        ],
+        "inputKg": 486,
+        "outputKg": 120,
+        "massGainAtUnitYield": -366,
+        "outputBonusConvertedToWorkSpeed": false,
+        "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+      },
+      {
+        "output": "Tallow",
+        "recipeIndex": 0,
+        "inputs": [
+          {
+            "name": "Cattle",
+            "units": 0.3,
+            "mappedKgPerUnit": 450
+          }
+        ],
+        "inputKg": 135,
+        "outputKg": 108,
+        "massGainAtUnitYield": -27,
+        "outputBonusConvertedToWorkSpeed": false,
+        "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+      },
+      {
+        "output": "Tallow",
+        "recipeIndex": 1,
+        "inputs": [
+          {
+            "name": "Sheep",
+            "units": 0.5,
+            "mappedKgPerUnit": 45
+          }
+        ],
+        "inputKg": 22.5,
+        "outputKg": 108,
+        "massGainAtUnitYield": 85.5,
+        "outputBonusConvertedToWorkSpeed": false,
+        "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+      },
+      {
+        "output": "Tallow",
+        "recipeIndex": 2,
+        "inputs": [
+          {
+            "name": "Pig",
+            "units": 0.5,
+            "mappedKgPerUnit": 100
+          }
+        ],
+        "inputKg": 50,
+        "outputKg": 108,
+        "massGainAtUnitYield": 58,
+        "outputBonusConvertedToWorkSpeed": false,
+        "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+      },
+      {
+        "output": "Tallow",
+        "recipeIndex": 3,
+        "inputs": [
+          {
+            "name": "Goats",
+            "units": 0.5,
+            "mappedKgPerUnit": 40
+          }
+        ],
+        "inputKg": 20,
+        "outputKg": 108,
+        "massGainAtUnitYield": 88,
+        "outputBonusConvertedToWorkSpeed": false,
+        "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+      },
+      {
+        "output": "Egg",
+        "recipeIndex": 0,
+        "inputs": [
+          {
+            "name": "Chicken",
+            "units": 1,
+            "mappedKgPerUnit": 2
+          }
+        ],
+        "inputKg": 2,
+        "outputKg": 30,
+        "massGainAtUnitYield": 28,
+        "outputBonusConvertedToWorkSpeed": false,
+        "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+      },
+      {
+        "output": "Ivory",
+        "recipeIndex": 0,
+        "inputs": [
+          {
+            "name": "Elephants",
+            "units": 0.2,
+            "mappedKgPerUnit": 4000
+          }
+        ],
+        "inputKg": 800,
+        "outputKg": 20,
+        "massGainAtUnitYield": -780,
+        "outputBonusConvertedToWorkSpeed": false,
+        "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+      }
+    ]
+  },
+  "worlds": [
+    {
+      "input": "docs/analytics/inputs/salt-s0-aligned-20261023/province-101.fmg",
+      "inputSha256": "a3209cca3c88ebf8f84b4f5d9321be8ad3bdc5b3766ca92994f0eb198a52e4e7",
+      "date": [
+        1300,
+        1,
+        1
+      ],
+      "stage": "loaded catalogue, includes normal load migrations; preparation and time advance not run",
+      "catalogue": {
+        "measures": {
+          "Cattle": {
+            "unit": "head",
+            "content": "1 animal",
+            "kg": 450,
+            "liters": 0,
+            "pack": "walk",
+            "source": "code"
+          },
+          "Sheep": {
+            "unit": "head",
+            "content": "1 animal",
+            "kg": 45,
+            "liters": 0,
+            "pack": "walk",
+            "source": "code"
+          },
+          "Goats": {
+            "unit": "head",
+            "content": "1 animal",
+            "kg": 40,
+            "liters": 0,
+            "pack": "walk",
+            "source": "code"
+          },
+          "Pig": {
+            "unit": "head",
+            "content": "1 animal",
+            "kg": 100,
+            "liters": 0,
+            "pack": "walk",
+            "source": "code"
+          },
+          "Horses": {
+            "unit": "head",
+            "content": "25 animals",
+            "kg": 11250,
+            "liters": 0,
+            "pack": "walk",
+            "source": "code"
+          },
+          "Tallow": {
+            "unit": "barrel",
+            "content": "120 L",
+            "kg": 108,
+            "liters": 120,
+            "pack": "barrel",
+            "source": "model"
+          },
+          "Leather": {
+            "unit": "roll",
+            "content": "1 hide, 25 kg",
+            "kg": 25,
+            "liters": 31.25,
+            "pack": "bale",
+            "source": "recipe"
+          },
+          "Preserved food": {
+            "unit": "wain",
+            "content": "465 kg",
+            "kg": 465.1162790697675,
+            "liters": 516.795865633075,
+            "pack": "barrel",
+            "source": "model"
+          },
+          "Salt": {
+            "unit": "bag",
+            "content": "60 kg",
+            "kg": 60,
+            "liters": 50,
+            "pack": "sack",
+            "source": "code"
+          },
+          "Rennet": {
+            "unit": "barrel",
+            "content": "120 L",
+            "kg": 120,
+            "liters": 120,
+            "pack": "barrel",
+            "source": "model"
+          }
+        },
+        "animals": [
+          {
+            "name": "Cattle",
+            "unit": "head",
+            "food": true,
+            "multipliers": {
+              "cultureType": {
+                "Nomadic": 2
+              }
+            }
+          },
+          {
+            "name": "Horses",
+            "unit": "head",
+            "food": false,
+            "multipliers": {
+              "cultureType": {
+                "Nomadic": 2
+              }
+            }
+          },
+          {
+            "name": "Elephants",
+            "unit": "head",
+            "food": false,
+            "multipliers": {
+              "cultureType": {
+                "Highland": 0.2
+              }
+            }
+          },
+          {
+            "name": "Camels",
+            "unit": "head",
+            "food": false,
+            "multipliers": {
+              "cultureType": {
+                "Nomadic": 2,
+                "Generic": 0.8
+              }
+            }
+          },
+          {
+            "name": "Sheep",
+            "unit": "head",
+            "food": true,
+            "multipliers": {
+              "cultureType": {
+                "Naval": 1.4,
+                "Highland": 1.4
+              }
+            }
+          },
+          {
+            "name": "Goats",
+            "unit": "head",
+            "food": true,
+            "multipliers": null
+          },
+          {
+            "name": "Pig",
+            "unit": "head",
+            "food": true,
+            "multipliers": {
+              "cultureType": {
+                "Nomadic": 0.2
+              }
+            }
+          },
+          {
+            "name": "Chicken",
+            "unit": "head",
+            "food": true,
+            "multipliers": null
+          },
+          {
+            "name": "Cats",
+            "unit": "head",
+            "food": false,
+            "multipliers": null
+          },
+          {
+            "name": "Dogs",
+            "unit": "head",
+            "food": false,
+            "multipliers": {
+              "cultureType": {
+                "Nomadic": 1.6,
+                "Hunting": 1.3
+              }
+            }
+          }
+        ],
+        "jointYields": [
+          {
+            "animal": "Cattle",
+            "animalsPerMarketUnit": 1,
+            "inputKg": 450,
+            "tallowUnitsPerMarketAnimal": 3.3333333333333335,
+            "leatherUnitsPerMarketAnimal": 1,
+            "mappedJointOutputKg": 385,
+            "mappedOutputExceedsLiveMass": false,
+            "note": "Conditional full legacy catalogue yields, before output rounding and enablement; not an observed slaughter event or historical yield."
+          },
+          {
+            "animal": "Sheep",
+            "animalsPerMarketUnit": 1,
+            "inputKg": 45,
+            "tallowUnitsPerMarketAnimal": 2,
+            "leatherUnitsPerMarketAnimal": 0,
+            "mappedJointOutputKg": 216,
+            "mappedOutputExceedsLiveMass": true,
+            "note": "Conditional full legacy catalogue yields, before output rounding and enablement; not an observed slaughter event or historical yield."
+          },
+          {
+            "animal": "Goats",
+            "animalsPerMarketUnit": 1,
+            "inputKg": 40,
+            "tallowUnitsPerMarketAnimal": 2,
+            "leatherUnitsPerMarketAnimal": 0,
+            "mappedJointOutputKg": 216,
+            "mappedOutputExceedsLiveMass": true,
+            "note": "Conditional full legacy catalogue yields, before output rounding and enablement; not an observed slaughter event or historical yield."
+          },
+          {
+            "animal": "Pig",
+            "animalsPerMarketUnit": 1,
+            "inputKg": 100,
+            "tallowUnitsPerMarketAnimal": 2,
+            "leatherUnitsPerMarketAnimal": 0,
+            "mappedJointOutputKg": 216,
+            "mappedOutputExceedsLiveMass": true,
+            "note": "Conditional full legacy catalogue yields, before output rounding and enablement; not an observed slaughter event or historical yield."
+          },
+          {
+            "animal": "Chicken",
+            "animalsPerMarketUnit": 1,
+            "inputKg": 2,
+            "tallowUnitsPerMarketAnimal": 0,
+            "leatherUnitsPerMarketAnimal": 0,
+            "mappedJointOutputKg": 0,
+            "mappedOutputExceedsLiveMass": false,
+            "note": "Conditional full legacy catalogue yields, before output rounding and enablement; not an observed slaughter event or historical yield."
+          }
+        ],
+        "directRecipes": [
+          {
+            "output": "Preserved food",
+            "recipeIndex": 2,
+            "inputs": [
+              {
+                "name": "Cattle",
+                "units": 0.25,
+                "mappedKgPerUnit": 450
+              },
+              {
+                "name": "Salt",
+                "units": 1,
+                "mappedKgPerUnit": 60
+              }
+            ],
+            "inputKg": 172.5,
+            "outputKg": 465.1162790697675,
+            "massGainAtUnitYield": 292.6162790697675,
+            "outputBonusConvertedToWorkSpeed": true,
+            "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+          },
+          {
+            "output": "Preserved food",
+            "recipeIndex": 4,
+            "inputs": [
+              {
+                "name": "Salt",
+                "units": 1,
+                "mappedKgPerUnit": 60
+              },
+              {
+                "name": "Sheep",
+                "units": 1,
+                "mappedKgPerUnit": 45
+              }
+            ],
+            "inputKg": 105,
+            "outputKg": 465.1162790697675,
+            "massGainAtUnitYield": 360.1162790697675,
+            "outputBonusConvertedToWorkSpeed": true,
+            "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+          },
+          {
+            "output": "Preserved food",
+            "recipeIndex": 5,
+            "inputs": [
+              {
+                "name": "Salt",
+                "units": 1,
+                "mappedKgPerUnit": 60
+              },
+              {
+                "name": "Pig",
+                "units": 1,
+                "mappedKgPerUnit": 100
+              }
+            ],
+            "inputKg": 160,
+            "outputKg": 465.1162790697675,
+            "massGainAtUnitYield": 305.1162790697675,
+            "outputBonusConvertedToWorkSpeed": true,
+            "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+          },
+          {
+            "output": "Preserved food",
+            "recipeIndex": 7,
+            "inputs": [
+              {
+                "name": "Cattle",
+                "units": 0.25,
+                "mappedKgPerUnit": 450
+              },
+              {
+                "name": "Vinegar",
+                "units": 0.5,
+                "mappedKgPerUnit": 121.2
+              }
+            ],
+            "inputKg": 173.1,
+            "outputKg": 465.1162790697675,
+            "massGainAtUnitYield": 292.0162790697675,
+            "outputBonusConvertedToWorkSpeed": true,
+            "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+          },
+          {
+            "output": "Preserved food",
+            "recipeIndex": 9,
+            "inputs": [
+              {
+                "name": "Sheep",
+                "units": 1,
+                "mappedKgPerUnit": 45
+              },
+              {
+                "name": "Vinegar",
+                "units": 0.5,
+                "mappedKgPerUnit": 121.2
+              }
+            ],
+            "inputKg": 105.6,
+            "outputKg": 465.1162790697675,
+            "massGainAtUnitYield": 359.5162790697675,
+            "outputBonusConvertedToWorkSpeed": true,
+            "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+          },
+          {
+            "output": "Preserved food",
+            "recipeIndex": 10,
+            "inputs": [
+              {
+                "name": "Vinegar",
+                "units": 0.5,
+                "mappedKgPerUnit": 121.2
+              },
+              {
+                "name": "Pig",
+                "units": 1,
+                "mappedKgPerUnit": 100
+              }
+            ],
+            "inputKg": 160.6,
+            "outputKg": 465.1162790697675,
+            "massGainAtUnitYield": 304.5162790697675,
+            "outputBonusConvertedToWorkSpeed": true,
+            "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+          },
+          {
+            "output": "Egg",
+            "recipeIndex": 0,
+            "inputs": [
+              {
+                "name": "Chicken",
+                "units": 1,
+                "mappedKgPerUnit": 2
+              }
+            ],
+            "inputKg": 2,
+            "outputKg": 30,
+            "massGainAtUnitYield": 28,
+            "outputBonusConvertedToWorkSpeed": false,
+            "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+          },
+          {
+            "output": "Soap",
+            "recipeIndex": 1,
+            "inputs": [
+              {
+                "name": "Cattle",
+                "units": 1,
+                "mappedKgPerUnit": 450
+              },
+              {
+                "name": "Potash",
+                "units": 0.3,
+                "mappedKgPerUnit": 120
+              }
+            ],
+            "inputKg": 486,
+            "outputKg": 120,
+            "massGainAtUnitYield": -366,
+            "outputBonusConvertedToWorkSpeed": false,
+            "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+          },
+          {
+            "output": "Tallow",
+            "recipeIndex": 0,
+            "inputs": [
+              {
+                "name": "Cattle",
+                "units": 0.3,
+                "mappedKgPerUnit": 450
+              }
+            ],
+            "inputKg": 135,
+            "outputKg": 108,
+            "massGainAtUnitYield": -27,
+            "outputBonusConvertedToWorkSpeed": false,
+            "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+          },
+          {
+            "output": "Tallow",
+            "recipeIndex": 1,
+            "inputs": [
+              {
+                "name": "Sheep",
+                "units": 0.5,
+                "mappedKgPerUnit": 45
+              }
+            ],
+            "inputKg": 22.5,
+            "outputKg": 108,
+            "massGainAtUnitYield": 85.5,
+            "outputBonusConvertedToWorkSpeed": false,
+            "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+          },
+          {
+            "output": "Tallow",
+            "recipeIndex": 2,
+            "inputs": [
+              {
+                "name": "Pig",
+                "units": 0.5,
+                "mappedKgPerUnit": 100
+              }
+            ],
+            "inputKg": 50,
+            "outputKg": 108,
+            "massGainAtUnitYield": 58,
+            "outputBonusConvertedToWorkSpeed": false,
+            "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+          },
+          {
+            "output": "Tallow",
+            "recipeIndex": 3,
+            "inputs": [
+              {
+                "name": "Goats",
+                "units": 0.5,
+                "mappedKgPerUnit": 40
+              }
+            ],
+            "inputKg": 20,
+            "outputKg": 108,
+            "massGainAtUnitYield": 88,
+            "outputBonusConvertedToWorkSpeed": false,
+            "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+          },
+          {
+            "output": "Ivory",
+            "recipeIndex": 0,
+            "inputs": [
+              {
+                "name": "Elephants",
+                "units": 0.2,
+                "mappedKgPerUnit": 4000
+              }
+            ],
+            "inputKg": 800,
+            "outputKg": 20,
+            "massGainAtUnitYield": -780,
+            "outputBonusConvertedToWorkSpeed": false,
+            "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+          }
+        ]
+      }
+    },
+    {
+      "input": "docs/analytics/inputs/salt-s0-aligned-20261023/world-102.fmg",
+      "inputSha256": "5e73a27785881bf553d37404442d7ead0f7bb68457208cc33c88c88f7c6a5999",
+      "date": [
+        1300,
+        1,
+        1
+      ],
+      "stage": "loaded catalogue, includes normal load migrations; preparation and time advance not run",
+      "catalogue": {
+        "measures": {
+          "Cattle": {
+            "unit": "head",
+            "content": "1 animal",
+            "kg": 450,
+            "liters": 0,
+            "pack": "walk",
+            "source": "code"
+          },
+          "Sheep": {
+            "unit": "head",
+            "content": "1 animal",
+            "kg": 45,
+            "liters": 0,
+            "pack": "walk",
+            "source": "code"
+          },
+          "Goats": {
+            "unit": "head",
+            "content": "1 animal",
+            "kg": 40,
+            "liters": 0,
+            "pack": "walk",
+            "source": "code"
+          },
+          "Pig": {
+            "unit": "head",
+            "content": "1 animal",
+            "kg": 100,
+            "liters": 0,
+            "pack": "walk",
+            "source": "code"
+          },
+          "Horses": {
+            "unit": "head",
+            "content": "25 animals",
+            "kg": 11250,
+            "liters": 0,
+            "pack": "walk",
+            "source": "code"
+          },
+          "Tallow": {
+            "unit": "barrel",
+            "content": "120 L",
+            "kg": 108,
+            "liters": 120,
+            "pack": "barrel",
+            "source": "model"
+          },
+          "Leather": {
+            "unit": "roll",
+            "content": "1 hide, 25 kg",
+            "kg": 25,
+            "liters": 31.25,
+            "pack": "bale",
+            "source": "recipe"
+          },
+          "Preserved food": {
+            "unit": "wain",
+            "content": "465 kg",
+            "kg": 465.1162790697675,
+            "liters": 516.795865633075,
+            "pack": "barrel",
+            "source": "model"
+          },
+          "Salt": {
+            "unit": "bag",
+            "content": "60 kg",
+            "kg": 60,
+            "liters": 50,
+            "pack": "sack",
+            "source": "code"
+          },
+          "Rennet": {
+            "unit": "barrel",
+            "content": "120 L",
+            "kg": 120,
+            "liters": 120,
+            "pack": "barrel",
+            "source": "model"
+          }
+        },
+        "animals": [
+          {
+            "name": "Cattle",
+            "unit": "head",
+            "food": true,
+            "multipliers": {
+              "cultureType": {
+                "Nomadic": 2
+              }
+            }
+          },
+          {
+            "name": "Horses",
+            "unit": "head",
+            "food": false,
+            "multipliers": {
+              "cultureType": {
+                "Nomadic": 2
+              }
+            }
+          },
+          {
+            "name": "Elephants",
+            "unit": "head",
+            "food": false,
+            "multipliers": {
+              "cultureType": {
+                "Highland": 0.2
+              }
+            }
+          },
+          {
+            "name": "Camels",
+            "unit": "head",
+            "food": false,
+            "multipliers": {
+              "cultureType": {
+                "Nomadic": 2,
+                "Generic": 0.8
+              }
+            }
+          },
+          {
+            "name": "Sheep",
+            "unit": "head",
+            "food": true,
+            "multipliers": {
+              "cultureType": {
+                "Naval": 1.4,
+                "Highland": 1.4
+              }
+            }
+          },
+          {
+            "name": "Goats",
+            "unit": "head",
+            "food": true,
+            "multipliers": null
+          },
+          {
+            "name": "Pig",
+            "unit": "head",
+            "food": true,
+            "multipliers": {
+              "cultureType": {
+                "Nomadic": 0.2
+              }
+            }
+          },
+          {
+            "name": "Chicken",
+            "unit": "head",
+            "food": true,
+            "multipliers": null
+          },
+          {
+            "name": "Cats",
+            "unit": "head",
+            "food": false,
+            "multipliers": null
+          },
+          {
+            "name": "Dogs",
+            "unit": "head",
+            "food": false,
+            "multipliers": {
+              "cultureType": {
+                "Nomadic": 1.6,
+                "Hunting": 1.3
+              }
+            }
+          }
+        ],
+        "jointYields": [
+          {
+            "animal": "Cattle",
+            "animalsPerMarketUnit": 1,
+            "inputKg": 450,
+            "tallowUnitsPerMarketAnimal": 3.3333333333333335,
+            "leatherUnitsPerMarketAnimal": 1,
+            "mappedJointOutputKg": 385,
+            "mappedOutputExceedsLiveMass": false,
+            "note": "Conditional full legacy catalogue yields, before output rounding and enablement; not an observed slaughter event or historical yield."
+          },
+          {
+            "animal": "Sheep",
+            "animalsPerMarketUnit": 1,
+            "inputKg": 45,
+            "tallowUnitsPerMarketAnimal": 2,
+            "leatherUnitsPerMarketAnimal": 0,
+            "mappedJointOutputKg": 216,
+            "mappedOutputExceedsLiveMass": true,
+            "note": "Conditional full legacy catalogue yields, before output rounding and enablement; not an observed slaughter event or historical yield."
+          },
+          {
+            "animal": "Goats",
+            "animalsPerMarketUnit": 1,
+            "inputKg": 40,
+            "tallowUnitsPerMarketAnimal": 2,
+            "leatherUnitsPerMarketAnimal": 0,
+            "mappedJointOutputKg": 216,
+            "mappedOutputExceedsLiveMass": true,
+            "note": "Conditional full legacy catalogue yields, before output rounding and enablement; not an observed slaughter event or historical yield."
+          },
+          {
+            "animal": "Pig",
+            "animalsPerMarketUnit": 1,
+            "inputKg": 100,
+            "tallowUnitsPerMarketAnimal": 2,
+            "leatherUnitsPerMarketAnimal": 0,
+            "mappedJointOutputKg": 216,
+            "mappedOutputExceedsLiveMass": true,
+            "note": "Conditional full legacy catalogue yields, before output rounding and enablement; not an observed slaughter event or historical yield."
+          },
+          {
+            "animal": "Chicken",
+            "animalsPerMarketUnit": 1,
+            "inputKg": 2,
+            "tallowUnitsPerMarketAnimal": 0,
+            "leatherUnitsPerMarketAnimal": 0,
+            "mappedJointOutputKg": 0,
+            "mappedOutputExceedsLiveMass": false,
+            "note": "Conditional full legacy catalogue yields, before output rounding and enablement; not an observed slaughter event or historical yield."
+          }
+        ],
+        "directRecipes": [
+          {
+            "output": "Preserved food",
+            "recipeIndex": 2,
+            "inputs": [
+              {
+                "name": "Cattle",
+                "units": 0.25,
+                "mappedKgPerUnit": 450
+              },
+              {
+                "name": "Salt",
+                "units": 1,
+                "mappedKgPerUnit": 60
+              }
+            ],
+            "inputKg": 172.5,
+            "outputKg": 465.1162790697675,
+            "massGainAtUnitYield": 292.6162790697675,
+            "outputBonusConvertedToWorkSpeed": true,
+            "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+          },
+          {
+            "output": "Preserved food",
+            "recipeIndex": 4,
+            "inputs": [
+              {
+                "name": "Salt",
+                "units": 1,
+                "mappedKgPerUnit": 60
+              },
+              {
+                "name": "Sheep",
+                "units": 1,
+                "mappedKgPerUnit": 45
+              }
+            ],
+            "inputKg": 105,
+            "outputKg": 465.1162790697675,
+            "massGainAtUnitYield": 360.1162790697675,
+            "outputBonusConvertedToWorkSpeed": true,
+            "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+          },
+          {
+            "output": "Preserved food",
+            "recipeIndex": 5,
+            "inputs": [
+              {
+                "name": "Salt",
+                "units": 1,
+                "mappedKgPerUnit": 60
+              },
+              {
+                "name": "Pig",
+                "units": 1,
+                "mappedKgPerUnit": 100
+              }
+            ],
+            "inputKg": 160,
+            "outputKg": 465.1162790697675,
+            "massGainAtUnitYield": 305.1162790697675,
+            "outputBonusConvertedToWorkSpeed": true,
+            "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+          },
+          {
+            "output": "Preserved food",
+            "recipeIndex": 7,
+            "inputs": [
+              {
+                "name": "Cattle",
+                "units": 0.25,
+                "mappedKgPerUnit": 450
+              },
+              {
+                "name": "Vinegar",
+                "units": 0.5,
+                "mappedKgPerUnit": 121.2
+              }
+            ],
+            "inputKg": 173.1,
+            "outputKg": 465.1162790697675,
+            "massGainAtUnitYield": 292.0162790697675,
+            "outputBonusConvertedToWorkSpeed": true,
+            "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+          },
+          {
+            "output": "Preserved food",
+            "recipeIndex": 9,
+            "inputs": [
+              {
+                "name": "Sheep",
+                "units": 1,
+                "mappedKgPerUnit": 45
+              },
+              {
+                "name": "Vinegar",
+                "units": 0.5,
+                "mappedKgPerUnit": 121.2
+              }
+            ],
+            "inputKg": 105.6,
+            "outputKg": 465.1162790697675,
+            "massGainAtUnitYield": 359.5162790697675,
+            "outputBonusConvertedToWorkSpeed": true,
+            "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+          },
+          {
+            "output": "Preserved food",
+            "recipeIndex": 10,
+            "inputs": [
+              {
+                "name": "Vinegar",
+                "units": 0.5,
+                "mappedKgPerUnit": 121.2
+              },
+              {
+                "name": "Pig",
+                "units": 1,
+                "mappedKgPerUnit": 100
+              }
+            ],
+            "inputKg": 160.6,
+            "outputKg": 465.1162790697675,
+            "massGainAtUnitYield": 304.5162790697675,
+            "outputBonusConvertedToWorkSpeed": true,
+            "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+          },
+          {
+            "output": "Egg",
+            "recipeIndex": 0,
+            "inputs": [
+              {
+                "name": "Chicken",
+                "units": 1,
+                "mappedKgPerUnit": 2
+              }
+            ],
+            "inputKg": 2,
+            "outputKg": 30,
+            "massGainAtUnitYield": 28,
+            "outputBonusConvertedToWorkSpeed": false,
+            "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+          },
+          {
+            "output": "Soap",
+            "recipeIndex": 1,
+            "inputs": [
+              {
+                "name": "Cattle",
+                "units": 1,
+                "mappedKgPerUnit": 450
+              },
+              {
+                "name": "Potash",
+                "units": 0.3,
+                "mappedKgPerUnit": 120
+              }
+            ],
+            "inputKg": 486,
+            "outputKg": 120,
+            "massGainAtUnitYield": -366,
+            "outputBonusConvertedToWorkSpeed": false,
+            "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+          },
+          {
+            "output": "Tallow",
+            "recipeIndex": 0,
+            "inputs": [
+              {
+                "name": "Cattle",
+                "units": 0.3,
+                "mappedKgPerUnit": 450
+              }
+            ],
+            "inputKg": 135,
+            "outputKg": 108,
+            "massGainAtUnitYield": -27,
+            "outputBonusConvertedToWorkSpeed": false,
+            "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+          },
+          {
+            "output": "Tallow",
+            "recipeIndex": 1,
+            "inputs": [
+              {
+                "name": "Sheep",
+                "units": 0.5,
+                "mappedKgPerUnit": 45
+              }
+            ],
+            "inputKg": 22.5,
+            "outputKg": 108,
+            "massGainAtUnitYield": 85.5,
+            "outputBonusConvertedToWorkSpeed": false,
+            "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+          },
+          {
+            "output": "Tallow",
+            "recipeIndex": 2,
+            "inputs": [
+              {
+                "name": "Pig",
+                "units": 0.5,
+                "mappedKgPerUnit": 100
+              }
+            ],
+            "inputKg": 50,
+            "outputKg": 108,
+            "massGainAtUnitYield": 58,
+            "outputBonusConvertedToWorkSpeed": false,
+            "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+          },
+          {
+            "output": "Tallow",
+            "recipeIndex": 3,
+            "inputs": [
+              {
+                "name": "Goats",
+                "units": 0.5,
+                "mappedKgPerUnit": 40
+              }
+            ],
+            "inputKg": 20,
+            "outputKg": 108,
+            "massGainAtUnitYield": 88,
+            "outputBonusConvertedToWorkSpeed": false,
+            "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+          },
+          {
+            "output": "Ivory",
+            "recipeIndex": 0,
+            "inputs": [
+              {
+                "name": "Elephants",
+                "units": 0.2,
+                "mappedKgPerUnit": 4000
+              }
+            ],
+            "inputKg": 800,
+            "outputKg": 20,
+            "massGainAtUnitYield": -780,
+            "outputBonusConvertedToWorkSpeed": false,
+            "note": "One base output lot, excludes recipe byproducts, packing tare and any unspecified inputs. Transport mass is a model mapping, not calibrated edible mass."
+          }
+        ]
+      }
+    }
+  ]
+}

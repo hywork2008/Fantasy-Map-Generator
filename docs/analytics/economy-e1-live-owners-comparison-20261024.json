@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "scope": "Existing economic observations; owned livestock lots are covered by targeted tests, not auditWoolSupply snapshot columns",
+  "initialEqual": true,
+  "equalIntervals": 12,
+  "runs": [
+    {
+      "path": "docs/analytics/raw/economy-e1-live-cargo-province-101-20261024.json",
+      "bytes": 2554046,
+      "sha256": "0dfd5b7b55e91d9b674c0501f871a542cbc9d71c51b20740b0e6f0eec6aed04f",
+      "inputSha256": "a3209cca3c88ebf8f84b4f5d9321be8ad3bdc5b3766ca92994f0eb198a52e4e7",
+      "sourceTreeSha256": "3220d7e333ed93bbe27cdfd06eb191600904c56da5ec016baf302baf3e54f25f"
+    },
+    {
+      "path": "docs/analytics/raw/economy-e1-live-owners-province-101-20261024.json",
+      "bytes": 2554046,
+      "sha256": "032dbde99c799568868cd7e808ccbfac6cb7c89d511e40884cf5e365f4549243",
+      "inputSha256": "a3209cca3c88ebf8f84b4f5d9321be8ad3bdc5b3766ca92994f0eb198a52e4e7",
+      "sourceTreeSha256": "ed7c1737780aa7d1f720c0d9f89037fa4cacea8c0048baa7c5da017da21c2e0f"
+    }
+  ]
+}

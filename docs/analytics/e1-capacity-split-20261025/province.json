@@ -1,0 +1,51 @@
+{
+  "inputSha256": "a3209cca3c88ebf8f84b4f5d9321be8ad3bdc5b3766ca92994f0eb198a52e4e7",
+  "months": 36,
+  "notes": [
+    "Each species column applies one more limit: target -> land (committed forage incl. grazed fallow) -> annual feed factor -> min(feed, winter hay) -> last year's fed share.",
+    "fed equals getGrazedCarryingCapacity; desiredPastureHa is the planning demand for the target herd, capped by the ceiling."
+  ],
+  "land": {
+    "ruralPeople": 437609.0062260628,
+    "ceilingHa": 1011388.252331733,
+    "desiredPastureHa": 337917.71559612884,
+    "committedPastureHa": 300723.2814986243,
+    "fallowEquivalentHa": 80915.50284592355,
+    "landLimitedCells": 98,
+    "ceilingBoundCells": 33,
+    "grossNeedHa": 684862.3430085082,
+    "cells": 118
+  },
+  "species": {
+    "Cattle": {
+      "target": 141525.58157791835,
+      "land": 68135.76760928627,
+      "feed": 68135.76760928627,
+      "winter": 68135.76760928627,
+      "fed": 68135.76760928627,
+      "heads": 52372.32088512232,
+      "perHundredTarget": 32.34064645936655,
+      "perHundredHeads": 11.967834331560237
+    },
+    "Horses": {
+      "target": 31635.67232368201,
+      "land": 15280.426085919482,
+      "feed": 15280.426085919482,
+      "winter": 15280.426085919482,
+      "fed": 15280.426085919482,
+      "heads": 11113.794075447508,
+      "perHundredTarget": 7.229209608026087,
+      "perHundredHeads": 2.5396630136323735
+    },
+    "Sheep": {
+      "target": 573066.4274871349,
+      "land": 394379.1429280829,
+      "feed": 394379.1429280829,
+      "winter": 394379.1429280829,
+      "fed": 394379.1429280829,
+      "heads": 415061.3763298377,
+      "perHundredTarget": 130.95398388375415,
+      "perHundredHeads": 94.84753979570127
+    }
+  }
+}

@@ -135,7 +135,7 @@ export function payToCreditPool(state: State, amount: number): CreditPoolPayResu
   if (!(pay > 0)) return { paid: 0, poolAfter: pool };
   // The coin reaches the lenders' cash at the capital market; it used to vanish into the pool figure.
   const lenderCash = resolveCapitalMarket(state)?.marketTreasury;
-  if (lenderCash) lenderCash.balance = rn(lenderCash.balance + pay, 2);
+  if (lenderCash) lenderCash.balance += pay;
   state.creditPoolBalance = rn(pool + pay, 2);
   return { paid: pay, poolAfter: state.creditPoolBalance };
 }
@@ -188,22 +188,22 @@ export function routeTaxFarmProceeds(state: State, amount: number): TaxFarmRoute
     const toMarket = rn(remainder * (1 - TAX_FARM_MANAGER_SKIM_SHARE), 2);
     const toManager = rn(remainder - toMarket, 2);
     if (toMarket > 0) {
-      treasury.balance = rn((treasury.balance || 0) + toMarket, 2);
+      treasury.balance = (treasury.balance || 0) + toMarket;
       result.toMarket = toMarket;
     }
     if (toManager > 0 && market.managerCharacterId && hasCharactersContext()) {
       const manager = getCharacters().find(c => c.i === market.managerCharacterId && !c.dead);
       if (manager) {
-        manager.wealth = rn((manager.wealth || 0) + toManager, 2);
+        manager.wealth = (manager.wealth || 0) + toManager;
         result.toManager = toManager;
         remainder = 0;
       } else {
-        treasury.balance = rn((treasury.balance || 0) + toManager, 2);
+        treasury.balance = (treasury.balance || 0) + toManager;
         result.toMarket = rn(result.toMarket + toManager, 2);
         remainder = 0;
       }
     } else if (toManager > 0) {
-      treasury.balance = rn((treasury.balance || 0) + toManager, 2);
+      treasury.balance = (treasury.balance || 0) + toManager;
       result.toMarket = rn(result.toMarket + toManager, 2);
       remainder = 0;
     } else {
@@ -216,7 +216,7 @@ export function routeTaxFarmProceeds(state: State, amount: number): TaxFarmRoute
       const { pack } = getWorldContext();
       const burg = pack.burgs?.[state.capital];
       if (burg && !burg.removed) {
-        burg.treasury = rn((burg.treasury || 0) + remainder, 2);
+        burg.treasury = (burg.treasury || 0) + remainder;
         result.toBurg = remainder;
         remainder = 0;
       }

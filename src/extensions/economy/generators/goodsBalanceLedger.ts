@@ -9,53 +9,11 @@
 
 import { rn } from "../../hostUtils";
 import { getGoods, getMarkets } from "../economyContext";
+import type { GoodFlowCategory, GoodFlowDirection, GoodFlowRecord } from "./goodFlowTypes";
 import { isGoodEnabled } from "./goods-generator";
-import type { CraftKnowledgeDomain } from "./guildKnowledgeTypes";
+import { recordLivestockLotFlow } from "./livestockLots";
 
-export type GoodFlowDirection = "source" | "sink" | "transfer";
-export type GoodFlowCategory =
-  | "ruralHarvest"
-  | "ruralCraft"
-  | "clearanceSupply"
-  | "mineSupply"
-  | "smelterSupply"
-  | "burgCraft"
-  | "importArrival"
-  | "householdFood"
-  | "householdTextiles"
-  | "householdHeating"
-  | "livestockFeed"
-  | "recipeInput"
-  | "construction"
-  | "smelting"
-  | "minting"
-  | "military"
-  | "marketInvestment"
-  | "shipbuilding"
-  | "exportDeparture"
-  | "spoilage"
-  | "burgDemand"
-  | "funeral"
-  | "navyExport"
-  | "navyImport"
-  | "luxuryPurchase"
-  | "characterLuxury"
-  /** Timber recovered by breaking up a one-way river craft at its destination. */
-  | "vesselSalvage"
-  /** Finished weapons stolen from an unsold market stock (armsTheft.ts). */
-  | "theft";
-
-export interface GoodFlowRecord {
-  readonly direction: GoodFlowDirection;
-  readonly category: GoodFlowCategory;
-  readonly goodId: number;
-  readonly units: number;
-  readonly marketId?: number;
-  readonly burgId?: number;
-  readonly guildDomain?: CraftKnowledgeDomain;
-  /** Recipe output Good when this is a manufacturing input. */
-  readonly relatedGoodId?: number;
-}
+export type { GoodFlowCategory, GoodFlowDirection, GoodFlowRecord } from "./goodFlowTypes";
 
 export interface GoodsBalancePoint {
   readonly year: number;
@@ -187,6 +145,20 @@ export function clearGoodsBalanceLedger(): void {
 /** Records an aggregate physical stock movement. Calls before the first baseline are ignored. */
 export function recordGoodFlow(flow: GoodFlowRecord): void {
   if (!Number.isFinite(flow.units) || flow.units <= 0) return;
+  if (
+    flow.direction === "sink" &&
+    flow.category === "recipeInput" &&
+    flow.marketId !== undefined &&
+    getGoods().find(good => good.i === flow.goodId)?.name === "Salt"
+  ) {
+    const market = getMarkets().find(market => market.i === flow.marketId);
+    if (market) market.saltProcessingInputBags = (market.saltProcessingInputBags ?? 0) + flow.units;
+  }
+  const live = getGoods().find(good => good.i === flow.goodId && good.tags?.includes("liveAnimal"));
+  if (live && flow.marketId !== undefined) {
+    const market = getMarkets().find(market => market.i === flow.marketId);
+    if (market) recordLivestockLotFlow(flow, live.name, market.goods[live.i]?.stock ?? 0);
+  }
   flowObserver?.(flow);
   if (!activeInterval) return;
   const key = flowKey(flow);

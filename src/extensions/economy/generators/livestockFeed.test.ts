@@ -8,6 +8,7 @@ vi.mock("./seasonalCropClimate", async original => ({
 
 import { simulationContext, worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
+import { getCadencePhase, setCadencePhase } from "../context/cadencePhases";
 import {
   clearEconomyContext,
   getGoods,
@@ -25,12 +26,21 @@ import {
   setMilitaryResourceLedgers
 } from "../economyContext";
 import { getMilkOutput } from "./dairy";
+import { getDomesticatedCarryingCapacity } from "./faunaPopulation";
 import { type Good, Goods } from "./goods-generator";
 import { type GoodFlowRecord, setGoodFlowObserver } from "./goodsBalanceLedger";
 import { getGrazedCarryingCapacity } from "./husbandry";
 import { getLivestockFodderOrderLots, harvestLivestockForage, settleLivestockFeed } from "./livestockFeed";
 import { FODDER_DM_KG_PER_LOT } from "./livestockFeedPolicy";
-import { getAnnualLivestockFeedFactor, getLivestockFeedCoverage } from "./livestockFeedState";
+import { scheduleLivestockFeedPeriods } from "./livestockFeedSchedule";
+import {
+  getAnnualLivestockFeedFactor,
+  getLivestockFeedCoverage,
+  getRecentlyFedHerdShare,
+  livestockFeedMonth,
+  livestockFeedPeriod,
+  withLivestockFeedPeriod
+} from "./livestockFeedState";
 import { Markets } from "./markets-generator";
 import type { FoodLedger } from "./marketTypes";
 import { MilitaryResources } from "./militaryResources";
@@ -96,10 +106,76 @@ describe("physical livestock feed budget", () => {
     flows = [];
     setGoodFlowObserver(flow => flows.push(flow));
   });
-  afterEach(() => {
-    setGoodFlowObserver(null);
-    clearEconomyContext();
-    simulationContext.extensions = {};
+  it("settles every deferred cadence period once, using its season rather than the execution month", () => {
+    simulationContext.currentMonth = 1;
+    const schedule = scheduleLivestockFeedPeriods;
+    schedule(0);
+    simulationContext.currentMonth = 4;
+    const periods = schedule(3);
+    expect(periods).toEqual([12001, 12002, 12003]);
+    climate.temperatures = [0, 12, 22, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    for (const period of periods)
+      withLivestockFeedPeriod(period, () => {
+        expect(livestockFeedMonth()).toBe((period % 12) + 1);
+        harvestLivestockForage();
+        settleLivestockFeed();
+        const row = rows()[0];
+        // 100 ha of pasture plus 33 ha of grazed fallow, which in this short season grows as much as pasture.
+        const forageHa = 133;
+        const expectedGrowth = (period === 12001 ? 125 : period === 12002 ? 250 : 0) * forageHa;
+        expect(row.pastureGrownKg).toBeCloseTo(expectedGrowth);
+        const settled = structuredClone(row);
+        harvestLivestockForage();
+        settleLivestockFeed();
+        expect(row).toEqual(settled);
+      });
+    expect(rows()[0].samples.map(sample => sample.period)).toEqual(periods);
+    const final = structuredClone(rows()[0]);
+    withLivestockFeedPeriod(periods[0], () => {
+      harvestLivestockForage();
+      settleLivestockFeed();
+    });
+    expect(rows()[0]).toEqual(final);
+    expect(livestockFeedPeriod()).toBe(periods[2]);
+  });
+
+  it("continues the saved next period after reload and across the year boundary", () => {
+    simulationContext.currentMonth = 11;
+    const schedule = scheduleLivestockFeedPeriods;
+    schedule(0);
+    expect(schedule(2)).toEqual([12011, 12012]);
+    // The cadence column is serialized on the Economy slice; reconstruct the scheduler
+    // against its restored value rather than anchoring again to the execution date.
+    const savedNext = getCadencePhase("livestockFeedNextPeriod");
+    simulationContext.currentYear = 1001;
+    simulationContext.currentMonth = 3;
+    setCadencePhase("livestockFeedNextPeriod", savedNext);
+    expect(scheduleLivestockFeedPeriods(2)).toEqual([12013, 12014]);
+    expect(getCadencePhase("livestockFeedNextPeriod")).toBe(12015);
+  });
+
+  it("restores the active period when a production cycle throws", () => {
+    const before = livestockFeedPeriod();
+    expect(() =>
+      withLivestockFeedPeriod(11999, () => {
+        throw new Error("interrupted");
+      })
+    ).toThrow("interrupted");
+    expect(livestockFeedPeriod()).toBe(before);
+  });
+
+  it("sells a grazed herd's increase and surplus rather than population x biome rate", () => {
+    const sheep = good("Sheep");
+    setGoodCellColumn(Uint16Array.from([sheep.i, 0]));
+    const herd = { young: 0, breeding: 0, old: 3000 };
+    getOrCreateFaunaStockTable()!["0:Sheep"] = { ...herd };
+    const capacity = getDomesticatedCarryingCapacity(0, sheep, 0);
+    // Old ewes die at 1/3 a year and do not breed; the rest above the supported flock is sold.
+    const expected = Math.floor((3000 - 1000 - capacity) / 12);
+    expect(expected).toBeGreaterThan(0);
+    const contributions = getRuralProductionContributions(0, { 1: [{ goodId: sheep.i, production: 0 }] });
+    expect(contributions.filter(row => row.goodId === sheep.i)).toEqual([{ goodId: sheep.i, amount: expected }]);
+    expect(getOrCreateFaunaStockTable()!["0:Sheep"].old).toBeCloseTo(3000 - expected, 8);
   });
 
   it("adds retained custom consumer and industrial demand to farm and military Fodder orders", () => {
@@ -134,7 +210,10 @@ describe("physical livestock feed budget", () => {
     const beforeMoney = market.marketTreasury!.balance + market.foodLedger!.ruralHouseholdWealth!;
     harvestLivestockForage();
     for (const row of Object.values(rows())) {
-      expect(row.pastureGrownKg).toBeCloseTo(row.grazingReservedKg + row.harvestedKg + row.unharvestedKg, 8);
+      expect(row.pastureGrownKg + (row.standingInKg ?? 0)).toBeCloseTo(
+        row.grazingReservedKg + row.harvestedKg + row.unharvestedKg + (row.standingKg ?? 0),
+        8
+      );
       expect(row.harvestedKg).toBeCloseTo(row.harvestLossKg + row.hayKg + row.soldKg, 8);
       expect(row.hayKg).toBeCloseTo(7500, 8);
     }
@@ -168,13 +247,14 @@ describe("physical livestock feed budget", () => {
 
   it("carries actual summer hay into winter with one storage loss and no invented opening reserve", () => {
     climate.temperatures = [0, 0, 0, 4, 12, 20, 24, 24, 16, 8, 4, 0];
-    simulationContext.currentMonth = 7;
+    // The main cut falls in June, the month before peak growth.
+    simulationContext.currentMonth = 6;
     harvestLivestockForage();
     settleLivestockFeed();
     const before = rows()[0].hayKg;
     expect(before).toBeGreaterThan(0);
-    simulationContext.currentMonth = 8;
-    climate.temperatures[7] = 0;
+    simulationContext.currentMonth = 7;
+    climate.temperatures[6] = 0;
     getMarkets()[0].foodLedger!.ruralHouseholdWealth = 0;
     getMarkets()[0].goods[good("Fodder").i].stock = 0;
     harvestLivestockForage();
@@ -183,6 +263,26 @@ describe("physical livestock feed budget", () => {
     expect(rows()[0].hayKg).toBeCloseTo(before * 0.99 - 2500, 8);
     expect(rows()[0].coverage).toBe(1);
     expect(rows()[0].storageLossKg).toBeCloseTo(before * 0.01, 8);
+  });
+
+  it("retains enough real harvest for a six-month winter and feeds it without purchases", () => {
+    climate.temperatures = [...Array(6).fill(22), ...Array(6).fill(0)];
+    simulationContext.currentMonth = 6;
+    harvestLivestockForage();
+    settleLivestockFeed();
+    expect(rows()[0].hayKg).toBeGreaterThan(15000);
+    const market = getMarkets()[0];
+    market.foodLedger!.ruralHouseholdWealth = 0;
+    market.goods[good("Fodder").i].stock = 0;
+    for (let month = 7; month <= 12; month++) {
+      simulationContext.currentMonth = month;
+      harvestLivestockForage();
+      settleLivestockFeed();
+      expect(rows()[0].unmetKg).toBeLessThan(1e-8);
+      expect(rows()[0].purchasedKg).toBe(0);
+      expect(rows()[0].pastureGrownKg).toBe(0);
+    }
+    expect(rows()[0].hayKg).toBeCloseTo(0, 7);
   });
 
   it("shares scarce purchases across cells, pays from rural cash and gates milk/wool after actual shortage", () => {
@@ -248,7 +348,7 @@ describe("physical livestock feed budget", () => {
       storageLoss += row.storageLossKg;
       hayConsumed += row.hayConsumedKg;
     }
-    expect(grown).toBeCloseTo(150000, 8);
+    expect(grown).toBeCloseTo(1500 * (100 + (33 * 400) / 1500), 8);
     expect(rows()[0].hayKg + hayConsumed + storageLoss + loss).toBeCloseTo(harvested, 7);
     expect(pasture + harvested).toBeLessThanOrEqual(grown + 1e-8);
     expect(rows()[0].samples).toHaveLength(12);
@@ -262,5 +362,28 @@ describe("physical livestock feed budget", () => {
     harvestLivestockForage();
     settleLivestockFeed();
     expect(rows()[0].samples).toHaveLength(12);
+  });
+
+  it("caps the next winter's herd at the share of animals actually fed over the last year", () => {
+    const sheep = good("Sheep");
+    setHusbandryRequiredWorkers(Float32Array.from([1, 1]));
+    setHusbandryWorkers(Float32Array.from([1, 1]));
+    const unlimited = getGrazedCarryingCapacity(0, sheep);
+    expect(getRecentlyFedHerdShare(0)).toBeNull();
+    const period = livestockFeedPeriod();
+    rows()[0] = {
+      ...(rows()[0] ?? {}),
+      samples: Array.from({ length: 12 }, (_, i) => ({
+        period: period - i,
+        requiredKg: 100,
+        fedKg: 50,
+        purchasedKg: 0,
+        soldKg: 0,
+        harvestLossKg: 0
+      }))
+    } as never;
+    expect(getRecentlyFedHerdShare(0)).toBeCloseTo(0.5);
+    // Sixty sheep were kept and half of them fed: thirty can be wintered.
+    expect(getGrazedCarryingCapacity(0, sheep)).toBeCloseTo(Math.min(unlimited, 30), 6);
   });
 });

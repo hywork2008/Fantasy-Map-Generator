@@ -1,7 +1,13 @@
-import type { RuralTextileProduction } from "./ruralTextileProduction";
+import type { RuralTextileProduction } from "./ruralTextileProductionTypes";
 import type { StapleCropInventory } from "./stapleCropInventoryTypes";
 
 export interface Market {
+  /** Actual Salt recipe inputs since the last salt settlement; persisted, never a second stock. */
+  saltProcessingInputBags?: number;
+  /** Latest cash-funded Salt wholesale unit cost including freight. */
+  saltLandedUnitCost?: number;
+  /** Prior interval's actual processing inputs, used only as a replenishment forecast. */
+  saltProcessingForecastBags?: number;
   i: number;
   centerBurgId: number;
   color: string;
@@ -99,6 +105,27 @@ export interface Market {
 }
 
 export interface TextileLedger {
+  /** Exact settlement-time buyer records (runtime-only, omitted from saves); endpoint rounding in summary fields is separate. */
+  settlementDiagnostics?: {
+    buyers: {
+      burgId: number | null;
+      rural: boolean;
+      need: number;
+      supplied: number;
+      marketSupplied: number;
+      marketPaid: number;
+      remainingBudget: number;
+      priorityAllocatedBudget: number;
+      unmet: number;
+      priorityGap: number;
+      budgetGap: number;
+      stockGap: number;
+      allocationOrRoundingGap: number;
+      noPricedRouteGap: number;
+      /** Overlapping observed constraints, separate from the non-overlapping gap partition. */
+      constraints: ("priority" | "budget" | "stock" | "noPricedRoute" | "allocationOrRounding")[];
+    }[];
+  };
   /** Paid household purchases this cycle; optional for older saves. */
   householdSpending?: number;
   cumulativeHouseholdSpending?: number;
@@ -303,6 +330,23 @@ export interface TradeCapitalAccount {
 export type TradePaymentTerms = "escrow" | "openAccount";
 
 export interface FoodLedger {
+  /** Latest actual settlement in food-ledger units; diagnostic only, never an input to allocation. */
+  monthlyConsumption?: {
+    month: number;
+    ruralNeed: number;
+    ruralSupplied: number;
+    ruralFromHousehold: number;
+    ruralFromMarket: number;
+    ruralPaid: number;
+    urbanNeed: number;
+    urbanSupplied: number;
+    urbanPaid: number;
+    urbanBudgetGap: number;
+    urbanStockGap: number;
+    lodgerNeed: number;
+    lodgerSupplied: number;
+    lodgerPaid: number;
+  };
   /** Current quarter's Grain physically sold by rural households into this Market. */
   foodProduced: number;
   /** Total rural staple requirement this quarter, including food met from household stores. */
@@ -410,6 +454,7 @@ export interface Deal {
  * @see docs/plan/merchant-logistics-warehouses.md Phase C
  */
 export type ExportStagingLot = {
+  livestockCargoIds?: string[];
   id: number;
   /** Origin market (warehouse location). */
   marketId: number;
@@ -685,6 +730,7 @@ export interface Caravan {
   buyer: number;
   buyerType: "burg" | "market";
   payload: {
+    livestockCargoIds?: string[];
     goodId: number;
     dealId: number;
     units: number;

@@ -1,12 +1,12 @@
 import type { CityDocument, Mesh, Point, WallMaterial } from "../../types/document";
 import type { GenerationSettings, MeshBorderLoop } from "../../types/generation";
 import type { Cell, CityGeography, Gate, Precinct, UrbanStage, WardAssignment, WardKind } from "../../types/geometry";
-import type { CastleSite } from "../castlePlacement";
+import type { CastleSite } from "../castlePlacement.types";
 import type { InnerWallFailure } from "../innerTownWall";
 import type { RoutedRiver } from "../riverPath";
 
 export interface Plan {
-  skeleton?: import("./skeleton/toPlan").SkeletonPlanData;
+  skeleton?: import("./skeleton/contracts").SkeletonPlanData;
   /** Requested order survives an unsuccessful old-town pre-plan. */
   townWallBuildOrder?: GenerationSettings["townWallBuildOrder"];
   /** Double walls (docs/plan/ce-multi-ring-walls.md): the planned old town, or why there is none. */

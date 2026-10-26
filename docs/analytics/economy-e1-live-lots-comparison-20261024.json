@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "comparison": "Existing economic observation columns only; livestockLots is not included by auditWoolSupply snapshots",
+  "initialEqual": true,
+  "equalIntervals": 12,
+  "runs": [
+    {
+      "path": "docs/analytics/raw/economy-e1-dispatch-final-province-101-20261024.json",
+      "bytes": 2553395,
+      "sha256": "bc50ebd310429255fc9dc034af785122d91fd9e82eac85c4b5451a750588f43b",
+      "inputSha256": "a3209cca3c88ebf8f84b4f5d9321be8ad3bdc5b3766ca92994f0eb198a52e4e7",
+      "sourceTreeSha256": "a153c5e4776a81490e033c1c957a39c5d0ea2bf459b8182632e81c524dc48e98"
+    },
+    {
+      "path": "docs/analytics/raw/economy-e1-live-lots-province-101-20261024.json",
+      "bytes": 2553915,
+      "sha256": "2938c956610b424e1c3c6ded07aaac3ce21a81b8978618da9661b66302bc7077",
+      "inputSha256": "a3209cca3c88ebf8f84b4f5d9321be8ad3bdc5b3766ca92994f0eb198a52e4e7",
+      "sourceTreeSha256": "dbcf604ae4667e0c784281ebc80ea53709b35363f06653cedf990d854b262427"
+    }
+  ]
+}

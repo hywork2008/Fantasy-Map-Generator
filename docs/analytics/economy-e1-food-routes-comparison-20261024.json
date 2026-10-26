@@ -1,0 +1,2107 @@
+{
+  "schemaVersion": 1,
+  "summarizerSha256": "074ad4e3d50405b1e517de54ce3e2da161a6345b3793eec9685f3e124083e95d",
+  "notes": [
+    "Annual totals use exactly the first 12 intervals; the 13th month is a separate transition check.",
+    "Food is ledger units unless labelled kg; feed is dry-matter kg. Goods flows retain catalog units.",
+    "Feed totals are endpoint samples, not a tick-exact feeding history. Wool is actual market inflow.",
+    "World aggregate pasture occupancy cannot rule out individual-cell or seasonal shortages.",
+    "Inputs are independent source variants labelled by their paths; compare recorded source hashes and experimental notes.",
+    "foodImports is empty for older audits without import observations, not evidence of zero imports.",
+    "Import outcomes count evaluated supplier opportunities, not people. DeliveredBeforeRounding is not the rounded inventory credit.",
+    "A ledger created at consumption time does not transfer public stocks from the former market."
+  ],
+  "worlds": [
+    {
+      "path": "docs/analytics/raw/economy-e1-food-routes-before-world-102-20261024.json",
+      "bytes": 56204600,
+      "sha256": "bdfd4e6c7cc90b0c8509eb68fb0d011ade4dfcd9209b7ffcc843a77b54cdc75b",
+      "inputSha256": "5e73a27785881bf553d37404442d7ead0f7bb68457208cc33c88c88f7c6a5999",
+      "sourceTreeSha256": "51776eacf8ad67c6f28729be2835ecb8289cee8344e59dd896293337c7d47021",
+      "relevantSourceHashes": {
+        "src/extensions/economy/generators/developmentPotential.ts": "ae183e6c93d7c938460da6b9575a9f9d062734356058034e19775c60bb0441cc",
+        "src/extensions/economy/generators/foodLedgerConsumption.ts": "f6f9abc37c6fa9a7ecffd5a49630daac600ca18baece8509292d0a38fed49f59",
+        "src/extensions/economy/generators/foodProduction.ts": "f4e5169b47726d85d6b9c8cae8668ac33f52b63ef2f702dc418ce83acc798abc",
+        "src/extensions/economy/generators/husbandry.ts": "464832a0d040099eef97f6fa7e088fff59a2e17fbef31b321a2994a272420d3f"
+      },
+      "initial": {
+        "date": [
+          1300,
+          1,
+          1
+        ],
+        "ruralPeople": 3579209.4272747636,
+        "urbanPeople": 614912.6551625639,
+        "heads": {
+          "Cattle": 32044.245689714026,
+          "Horses": 28017.30898583879,
+          "Sheep": 192316.17895239624,
+          "Goats": 38845.35411176436,
+          "Camels": 2241.5197421012895
+        },
+        "cultivatedHa": 12813485.05380249,
+        "pastureHa": 3575789.321455163,
+        "aggregateOccupancy": 0.06396315410638562,
+        "cellsOverModelFootprint": 0,
+        "annualWoolPotentialKg": 242316.8339127073,
+        "effectiveWoolLaborAndFeedCoverage": 0.16329630652344979,
+        "woolStockKg": 557.2376577673037,
+        "wealth": {
+          "urbanPop": 614.92,
+          "ruralPop": 3579.209,
+          "stateTreasury": 488405.07,
+          "statePurse": 24.2,
+          "stateDepartments": 244.37,
+          "burgTreasury": 147089.51,
+          "urbanHouseholds": 112473.14,
+          "guilds": 807.72,
+          "marketBalance": 189101.63,
+          "marketPayable": 0,
+          "tradeCapital": 29386.73,
+          "ruralHouseholds": 82316.24,
+          "characters": 0
+        }
+      },
+      "yearEnd": {
+        "date": [
+          1301,
+          1,
+          1
+        ],
+        "ruralPeople": 3582680.0443790853,
+        "urbanPeople": 605025.9362240627,
+        "heads": {
+          "Cattle": 30468.37603012488,
+          "Horses": 25534.225595690386,
+          "Sheep": 181076.06796722894,
+          "Goats": 35644.33857610201,
+          "Camels": 1943.6096476923037
+        },
+        "cultivatedHa": 12070901.470123291,
+        "pastureHa": 3119536.787390529,
+        "aggregateOccupancy": 0.06806976577802577,
+        "cellsOverModelFootprint": 0,
+        "annualWoolPotentialKg": 257241.86486745463,
+        "effectiveWoolLaborAndFeedCoverage": 0.17678835419469377,
+        "woolStockKg": 1.995244935850307,
+        "wealth": {
+          "urbanPop": 605.028,
+          "ruralPop": 3582.68,
+          "stateTreasury": 356579.08,
+          "statePurse": 0,
+          "stateDepartments": 359.5,
+          "burgTreasury": 145620.82,
+          "urbanHouseholds": 107483.78,
+          "guilds": 1406.35,
+          "marketBalance": 204042.43,
+          "marketPayable": 0,
+          "tradeCapital": 34373.56,
+          "ruralHouseholds": 161888.04,
+          "characters": 0
+        }
+      },
+      "annual": {
+        "foodLedgerKgPerUnit": 465.1162790697675,
+        "foodTotals": {
+          "ruralNeed": 1077338.39,
+          "ruralSupplied": 1077310.3000000003,
+          "ruralFromHousehold": 1073178.31,
+          "ruralFromMarket": 4131.99,
+          "ruralPaid": 3319.52,
+          "urbanNeed": 261628.56000000003,
+          "urbanSupplied": 259200.52000000002,
+          "urbanPaid": 209837.47999999998,
+          "urbanBudgetGap": 635.9799999999999,
+          "urbanStockGap": 1792.0700000000002,
+          "lodgerNeed": 0,
+          "lodgerSupplied": 0,
+          "lodgerPaid": 0,
+          "ruralUnmet": 28.309999999999945,
+          "urbanUnmet": 2428.04
+        },
+        "foodByMarket": {
+          "1": {
+            "ruralNeed": 46161.450000000004,
+            "ruralSupplied": 46161.45,
+            "ruralFromHousehold": 45195.67999999999,
+            "ruralFromMarket": 965.77,
+            "ruralPaid": 772.61,
+            "urbanNeed": 19573.110000000004,
+            "urbanSupplied": 19573.110000000004,
+            "urbanPaid": 15658.420000000006,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0.010000000000218279,
+            "urbanUnmet": 0
+          },
+          "2": {
+            "ruralNeed": 4606.2,
+            "ruralSupplied": 4606.2,
+            "ruralFromHousehold": 4600.21,
+            "ruralFromMarket": 5.99,
+            "ruralPaid": 4.79,
+            "urbanNeed": 5419.47,
+            "urbanSupplied": 5419.47,
+            "urbanPaid": 4335.55,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "3": {
+            "ruralNeed": 52803.69000000001,
+            "ruralSupplied": 52803.70000000001,
+            "ruralFromHousehold": 52560.64000000001,
+            "ruralFromMarket": 243.06,
+            "ruralPaid": 194.45,
+            "urbanNeed": 11058.400000000001,
+            "urbanSupplied": 11058.400000000001,
+            "urbanPaid": 8846.73,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "4": {
+            "ruralNeed": 140832.46000000002,
+            "ruralSupplied": 140832.46000000002,
+            "ruralFromHousehold": 140723.52000000002,
+            "ruralFromMarket": 108.94,
+            "ruralPaid": 87.16,
+            "urbanNeed": 32642.93,
+            "urbanSupplied": 32642.93,
+            "urbanPaid": 26114.440000000002,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "5": {
+            "ruralNeed": 57586.609999999986,
+            "ruralSupplied": 57586.609999999986,
+            "ruralFromHousehold": 57523.65999999999,
+            "ruralFromMarket": 62.95,
+            "ruralPaid": 50.349999999999994,
+            "urbanNeed": 14693.22,
+            "urbanSupplied": 14693.22,
+            "urbanPaid": 11754.56,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "6": {
+            "ruralNeed": 47665.39,
+            "ruralSupplied": 47665.4,
+            "ruralFromHousehold": 47215.64,
+            "ruralFromMarket": 449.76000000000005,
+            "ruralPaid": 370.63,
+            "urbanNeed": 12493.19,
+            "urbanSupplied": 12493.19,
+            "urbanPaid": 10087.330000000002,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "7": {
+            "ruralNeed": 136532.13,
+            "ruralSupplied": 136532.13,
+            "ruralFromHousehold": 136472.26,
+            "ruralFromMarket": 59.87,
+            "ruralPaid": 47.9,
+            "urbanNeed": 20758.600000000002,
+            "urbanSupplied": 20758.600000000002,
+            "urbanPaid": 16606.890000000003,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "8": {
+            "ruralNeed": 48880.14000000001,
+            "ruralSupplied": 48880.130000000005,
+            "ruralFromHousehold": 48859.030000000006,
+            "ruralFromMarket": 21.1,
+            "ruralPaid": 16.88,
+            "urbanNeed": 13551.78,
+            "urbanSupplied": 13551.78,
+            "urbanPaid": 10953.199999999999,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0.009999999999763531,
+            "urbanUnmet": 0
+          },
+          "9": {
+            "ruralNeed": 13514.5,
+            "ruralSupplied": 13514.529999999999,
+            "ruralFromHousehold": 13157.929999999998,
+            "ruralFromMarket": 356.6,
+            "ruralPaid": 286.95,
+            "urbanNeed": 6375.03,
+            "urbanSupplied": 6375.03,
+            "urbanPaid": 5115.259999999999,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "10": {
+            "ruralNeed": 66562.44000000002,
+            "ruralSupplied": 66562.45000000001,
+            "ruralFromHousehold": 66487.10000000002,
+            "ruralFromMarket": 75.35,
+            "ruralPaid": 60.28,
+            "urbanNeed": 15472.580000000002,
+            "urbanSupplied": 15472.580000000002,
+            "urbanPaid": 12378.080000000002,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "11": {
+            "ruralNeed": 37548.840000000004,
+            "ruralSupplied": 37548.85,
+            "ruralFromHousehold": 37463.15,
+            "ruralFromMarket": 85.7,
+            "ruralPaid": 68.56,
+            "urbanNeed": 7388.65,
+            "urbanSupplied": 7388.65,
+            "urbanPaid": 5910.92,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0.009999999999763531,
+            "urbanUnmet": 0
+          },
+          "12": {
+            "ruralNeed": 117784.19,
+            "ruralSupplied": 117784.20000000001,
+            "ruralFromHousehold": 117308.70000000001,
+            "ruralFromMarket": 475.5,
+            "ruralPaid": 380.4,
+            "urbanNeed": 31380.76,
+            "urbanSupplied": 31380.76,
+            "urbanPaid": 25104.71,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "13": {
+            "ruralNeed": 139187.34,
+            "ruralSupplied": 139187.35,
+            "ruralFromHousehold": 138909.06,
+            "ruralFromMarket": 278.29,
+            "ruralPaid": 222.63,
+            "urbanNeed": 32286.270000000008,
+            "urbanSupplied": 32286.270000000008,
+            "urbanPaid": 25828.910000000003,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "14": {
+            "ruralNeed": 95639.67000000001,
+            "ruralSupplied": 95639.70000000001,
+            "ruralFromHousehold": 94877.34000000001,
+            "ruralFromMarket": 762.36,
+            "ruralPaid": 609.89,
+            "urbanNeed": 16507.82,
+            "urbanSupplied": 16507.82,
+            "urbanPaid": 13206.180000000002,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "15": {
+            "ruralNeed": 51738.44,
+            "ruralSupplied": 51738.520000000004,
+            "ruralFromHousehold": 51557.770000000004,
+            "ruralFromMarket": 180.75,
+            "ruralPaid": 146.04,
+            "urbanNeed": 10811.15,
+            "urbanSupplied": 10811.15,
+            "urbanPaid": 8657.83,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "16": {
+            "ruralNeed": 20294.899999999998,
+            "ruralSupplied": 20266.62,
+            "ruralFromHousehold": 20266.62,
+            "ruralFromMarket": 0,
+            "ruralPaid": 0,
+            "urbanNeed": 11215.600000000002,
+            "urbanSupplied": 8787.560000000001,
+            "urbanPaid": 9278.470000000001,
+            "urbanBudgetGap": 635.9799999999999,
+            "urbanStockGap": 1792.0700000000002,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 28.2800000000002,
+            "urbanUnmet": 2428.04
+          }
+        },
+        "foodImports": {
+          "1": {
+            "outcomes": {
+              "noRoute": 1,
+              "noCrop": 2,
+              "delivered": 11,
+              "emptyCrop": 10
+            },
+            "loaded": 10712.8,
+            "deliveredBeforeRounding": 7338.489060499302,
+            "produced": 16922.690000000002,
+            "imported": 7338.49,
+            "productionPasses": 12,
+            "minBalance": 5182.06,
+            "maxBalance": 15513.08
+          },
+          "2": {
+            "outcomes": {
+              "noRoute": 1,
+              "noCrop": 4,
+              "emptyCrop": 16,
+              "delivered": 3
+            },
+            "loaded": 2827.25,
+            "deliveredBeforeRounding": 2260.8690717827244,
+            "produced": 4100.15,
+            "imported": 2260.87,
+            "productionPasses": 12,
+            "minBalance": 1299,
+            "maxBalance": 4225.55
+          },
+          "3": {
+            "outcomes": {
+              "noRoute": 13,
+              "emptyCrop": 12,
+              "noCrop": 6,
+              "delivered": 4
+            },
+            "loaded": 1988.85,
+            "deliveredBeforeRounding": 1406.9199999999998,
+            "produced": 11122.14,
+            "imported": 1406.92,
+            "productionPasses": 12,
+            "minBalance": 2863.75,
+            "maxBalance": 9583.94
+          },
+          "4": {
+            "outcomes": {
+              "delivered": 7,
+              "emptyCrop": 10
+            },
+            "loaded": 7701.869999999999,
+            "deliveredBeforeRounding": 5913.131049653602,
+            "produced": 30002.44,
+            "imported": 5913.13,
+            "productionPasses": 12,
+            "minBalance": 13569.85,
+            "maxBalance": 28688.16
+          },
+          "5": {
+            "outcomes": {
+              "noRoute": 1,
+              "delivered": 4,
+              "emptyCrop": 17
+            },
+            "loaded": 3685.35,
+            "deliveredBeforeRounding": 3062.6385427446057,
+            "produced": 10246.74,
+            "imported": 3062.64,
+            "productionPasses": 12,
+            "minBalance": 6328.97,
+            "maxBalance": 12216.03
+          },
+          "6": {
+            "outcomes": {
+              "noRoute": 1,
+              "delivered": 5,
+              "noCrop": 8,
+              "emptyCrop": 7
+            },
+            "loaded": 5348.67,
+            "deliveredBeforeRounding": 4216.00986198768,
+            "produced": 14883.810000000001,
+            "imported": 4216,
+            "productionPasses": 12,
+            "minBalance": 2734.79,
+            "maxBalance": 10264.77
+          },
+          "7": {
+            "outcomes": {
+              "noRoute": 1,
+              "noCrop": 7,
+              "delivered": 1,
+              "emptyCrop": 9
+            },
+            "loaded": 1792.23,
+            "deliveredBeforeRounding": 1269.9991232128166,
+            "produced": 20127.589999999997,
+            "imported": 1270,
+            "productionPasses": 12,
+            "minBalance": 5571.3,
+            "maxBalance": 18288.78
+          },
+          "8": {
+            "outcomes": {
+              "noRoute": 13,
+              "delivered": 6,
+              "emptyCrop": 6
+            },
+            "loaded": 6028.950000000001,
+            "deliveredBeforeRounding": 4443.05,
+            "produced": 10619.32,
+            "imported": 4443.05,
+            "productionPasses": 12,
+            "minBalance": 2604.94,
+            "maxBalance": 10452.12
+          },
+          "9": {
+            "outcomes": {
+              "noRoute": 6,
+              "noCrop": 4,
+              "delivered": 19,
+              "emptyCrop": 23
+            },
+            "loaded": 9834.43,
+            "deliveredBeforeRounding": 7434.700000000001,
+            "produced": 0,
+            "imported": 7434.699999999999,
+            "productionPasses": 12,
+            "minBalance": 2768.11,
+            "maxBalance": 5179.81
+          },
+          "10": {
+            "outcomes": {
+              "noRoute": 13,
+              "noCrop": 5,
+              "emptyCrop": 17,
+              "delivered": 4
+            },
+            "loaded": 1635.42,
+            "deliveredBeforeRounding": 1167.110618069178,
+            "produced": 12534.86,
+            "imported": 1167.11,
+            "productionPasses": 12,
+            "minBalance": 5755.14,
+            "maxBalance": 12519.54
+          },
+          "11": {
+            "outcomes": {
+              "noRoute": 10,
+              "delivered": 3,
+              "noCrop": 1,
+              "emptyCrop": 2
+            },
+            "loaded": 1178.14,
+            "deliveredBeforeRounding": 886.72,
+            "produced": 6781.62,
+            "imported": 886.72,
+            "productionPasses": 12,
+            "minBalance": 336.05,
+            "maxBalance": 4418.5
+          },
+          "12": {
+            "outcomes": {
+              "noRoute": 14,
+              "delivered": 5,
+              "emptyCrop": 14,
+              "noCrop": 6
+            },
+            "loaded": 6720.55,
+            "deliveredBeforeRounding": 5188.927949288456,
+            "produced": 23647.38,
+            "imported": 5188.93,
+            "productionPasses": 12,
+            "minBalance": 10111.56,
+            "maxBalance": 25061.26
+          },
+          "13": {
+            "outcomes": {
+              "noRoute": 7,
+              "noCrop": 5,
+              "delivered": 1,
+              "emptyCrop": 4
+            },
+            "loaded": 156.63,
+            "deliveredBeforeRounding": 114.75222342199336,
+            "produced": 31783.469999999998,
+            "imported": 114.75,
+            "productionPasses": 12,
+            "minBalance": 9753.99,
+            "maxBalance": 26063.8
+          },
+          "14": {
+            "outcomes": {
+              "noRoute": 9,
+              "noCrop": 6,
+              "emptyCrop": 10,
+              "delivered": 1
+            },
+            "loaded": 330.29,
+            "deliveredBeforeRounding": 90.01452592120403,
+            "produced": 19216.770000000004,
+            "imported": 90.01,
+            "productionPasses": 12,
+            "minBalance": 3289.23,
+            "maxBalance": 15522.34
+          },
+          "15": {
+            "outcomes": {
+              "noRoute": 6,
+              "noCrop": 5,
+              "emptyCrop": 6,
+              "delivered": 1
+            },
+            "loaded": 594.64,
+            "deliveredBeforeRounding": 356.6821572211626,
+            "produced": 10196.650000000001,
+            "imported": 356.68,
+            "productionPasses": 12,
+            "minBalance": 2223.53,
+            "maxBalance": 8354.86
+          },
+          "16": {
+            "outcomes": {
+              "noRoute": 135
+            },
+            "loaded": 0,
+            "deliveredBeforeRounding": 0,
+            "produced": 2733.84,
+            "imported": 0,
+            "productionPasses": 12,
+            "minBalance": 6800.05,
+            "maxBalance": 10960.13
+          }
+        },
+        "feedRequiredKg": 322655017.2713609,
+        "feedUnmetKg": 160674340.62954745,
+        "feedUnmetShare": 0.4979756459029935,
+        "maxMonthlyFeedUnmetKg": 26837937.440003905,
+        "goods": {
+          "Wool": {
+            "source:ruralHarvest": 20.945728788633883,
+            "sink:recipeInput": 21.08164832309565
+          },
+          "Milk": {},
+          "Cheese": {
+            "source:ruralHarvest": 11.145024152829404,
+            "sink:householdFood": 10.794692858832827,
+            "sink:recipeInput": 0.7653071411671728,
+            "sink:exportDeparture": 0.18,
+            "source:importArrival": 0.18
+          },
+          "Leather": {
+            "source:ruralHarvest": 1779.8581052018399,
+            "sink:recipeInput": 318.02,
+            "source:burgCraft": 394.68999999999994
+          },
+          "Fodder": {
+            "source:ruralHarvest": 11.774999999999999,
+            "source:burgCraft": 10.559999999999999,
+            "sink:livestockFeed": 22.332392572111612
+          }
+        },
+        "woolMarketInflowKg": 31418.593182950823,
+        "garmentDeliveriesLots": 209.85329179278472,
+        "blanketDeliveriesLots": 3.1000119129562864
+      },
+      "extraMonth": null
+    },
+    {
+      "path": "docs/analytics/raw/economy-e1-food-routes-mixed-world-102-20261024.json",
+      "bytes": 56223073,
+      "sha256": "48089b410ce98f3052bae1133d573ea915016eb5f121a7eb8e1629fd88072c33",
+      "inputSha256": "5e73a27785881bf553d37404442d7ead0f7bb68457208cc33c88c88f7c6a5999",
+      "sourceTreeSha256": "46d7955bc2422ff94884313d0590233ff77bd42d3badd8d879d704013a7e2bb2",
+      "relevantSourceHashes": {
+        "src/extensions/economy/generators/developmentPotential.ts": "ae183e6c93d7c938460da6b9575a9f9d062734356058034e19775c60bb0441cc",
+        "src/extensions/economy/generators/foodLedgerConsumption.ts": "f6f9abc37c6fa9a7ecffd5a49630daac600ca18baece8509292d0a38fed49f59",
+        "src/extensions/economy/generators/foodProduction.ts": "f4e5169b47726d85d6b9c8cae8668ac33f52b63ef2f702dc418ce83acc798abc",
+        "src/extensions/economy/generators/husbandry.ts": "464832a0d040099eef97f6fa7e088fff59a2e17fbef31b321a2994a272420d3f"
+      },
+      "initial": {
+        "date": [
+          1300,
+          1,
+          1
+        ],
+        "ruralPeople": 3579209.4272747636,
+        "urbanPeople": 614912.6551625639,
+        "heads": {
+          "Cattle": 32044.245689714026,
+          "Horses": 28017.30898583879,
+          "Sheep": 192316.17895239624,
+          "Goats": 38845.35411176436,
+          "Camels": 2241.5197421012895
+        },
+        "cultivatedHa": 12813485.05380249,
+        "pastureHa": 3575789.321455163,
+        "aggregateOccupancy": 0.06396315410638562,
+        "cellsOverModelFootprint": 0,
+        "annualWoolPotentialKg": 242316.8339127073,
+        "effectiveWoolLaborAndFeedCoverage": 0.16329630652344979,
+        "woolStockKg": 557.2376577673037,
+        "wealth": {
+          "urbanPop": 614.92,
+          "ruralPop": 3579.209,
+          "stateTreasury": 488405.07,
+          "statePurse": 24.2,
+          "stateDepartments": 244.37,
+          "burgTreasury": 147089.51,
+          "urbanHouseholds": 112473.14,
+          "guilds": 807.72,
+          "marketBalance": 189101.63,
+          "marketPayable": 0,
+          "tradeCapital": 29386.73,
+          "ruralHouseholds": 82316.24,
+          "characters": 0
+        }
+      },
+      "yearEnd": {
+        "date": [
+          1301,
+          1,
+          1
+        ],
+        "ruralPeople": 3582679.5645542443,
+        "urbanPeople": 605171.2005335097,
+        "heads": {
+          "Cattle": 30468.375843106896,
+          "Horses": 25534.225954289603,
+          "Sheep": 181076.06593353202,
+          "Goats": 35644.33857610201,
+          "Camels": 1943.6096476923037
+        },
+        "cultivatedHa": 12072963.476501465,
+        "pastureHa": 3119536.671522164,
+        "aggregateOccupancy": 0.0680697682565014,
+        "cellsOverModelFootprint": 0,
+        "annualWoolPotentialKg": 257241.86342028787,
+        "effectiveWoolLaborAndFeedCoverage": 0.17678834956354816,
+        "woolStockKg": 2.0644579581522993,
+        "wealth": {
+          "urbanPop": 605.165,
+          "ruralPop": 3582.68,
+          "stateTreasury": 356729,
+          "statePurse": 0,
+          "stateDepartments": 359.41,
+          "burgTreasury": 145306.49,
+          "urbanHouseholds": 107328,
+          "guilds": 1407.62,
+          "marketBalance": 204089.3,
+          "marketPayable": 0,
+          "tradeCapital": 35248.08,
+          "ruralHouseholds": 161442.72,
+          "characters": 0
+        }
+      },
+      "annual": {
+        "foodLedgerKgPerUnit": 465.1162790697675,
+        "foodTotals": {
+          "ruralNeed": 1077338.35,
+          "ruralSupplied": 1077338.58,
+          "ruralFromHousehold": 1073178.28,
+          "ruralFromMarket": 4160.3,
+          "ruralPaid": 3465.5500000000006,
+          "urbanNeed": 261690.46000000002,
+          "urbanSupplied": 261690.46000000002,
+          "urbanPaid": 210430.23000000004,
+          "urbanBudgetGap": 0,
+          "urbanStockGap": 0,
+          "lodgerNeed": 0,
+          "lodgerSupplied": 0,
+          "lodgerPaid": 0,
+          "ruralUnmet": 0.02999999999974534,
+          "urbanUnmet": 0
+        },
+        "foodByMarket": {
+          "1": {
+            "ruralNeed": 46161.450000000004,
+            "ruralSupplied": 46161.45,
+            "ruralFromHousehold": 45195.67999999999,
+            "ruralFromMarket": 965.77,
+            "ruralPaid": 858.4000000000001,
+            "urbanNeed": 19569.870000000006,
+            "urbanSupplied": 19569.870000000006,
+            "urbanPaid": 15848.520000000004,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0.010000000000218279,
+            "urbanUnmet": 0
+          },
+          "2": {
+            "ruralNeed": 4606.2,
+            "ruralSupplied": 4606.2,
+            "ruralFromHousehold": 4600.21,
+            "ruralFromMarket": 5.99,
+            "ruralPaid": 4.79,
+            "urbanNeed": 5419.05,
+            "urbanSupplied": 5419.05,
+            "urbanPaid": 4335.219999999999,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "3": {
+            "ruralNeed": 52803.69000000001,
+            "ruralSupplied": 52803.70000000001,
+            "ruralFromHousehold": 52560.64000000001,
+            "ruralFromMarket": 243.06,
+            "ruralPaid": 194.45,
+            "urbanNeed": 11056.770000000002,
+            "urbanSupplied": 11056.770000000002,
+            "urbanPaid": 8845.43,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "4": {
+            "ruralNeed": 140832.46000000002,
+            "ruralSupplied": 140832.46000000002,
+            "ruralFromHousehold": 140723.52000000002,
+            "ruralFromMarket": 108.94,
+            "ruralPaid": 87.16,
+            "urbanNeed": 32643.71,
+            "urbanSupplied": 32643.71,
+            "urbanPaid": 26115.050000000003,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "5": {
+            "ruralNeed": 57586.599999999984,
+            "ruralSupplied": 57586.599999999984,
+            "ruralFromHousehold": 57523.64999999999,
+            "ruralFromMarket": 62.95,
+            "ruralPaid": 50.349999999999994,
+            "urbanNeed": 14708.539999999999,
+            "urbanSupplied": 14708.539999999999,
+            "urbanPaid": 11766.859999999999,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "6": {
+            "ruralNeed": 47665.39,
+            "ruralSupplied": 47665.4,
+            "ruralFromHousehold": 47215.64,
+            "ruralFromMarket": 449.76000000000005,
+            "ruralPaid": 359.8,
+            "urbanNeed": 12499.66,
+            "urbanSupplied": 12499.66,
+            "urbanPaid": 9999.74,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "7": {
+            "ruralNeed": 136532.13,
+            "ruralSupplied": 136532.13,
+            "ruralFromHousehold": 136472.26,
+            "ruralFromMarket": 59.87,
+            "ruralPaid": 47.9,
+            "urbanNeed": 20758.600000000002,
+            "urbanSupplied": 20758.600000000002,
+            "urbanPaid": 16658.850000000002,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "8": {
+            "ruralNeed": 48880.14000000001,
+            "ruralSupplied": 48880.130000000005,
+            "ruralFromHousehold": 48859.030000000006,
+            "ruralFromMarket": 21.1,
+            "ruralPaid": 24.48,
+            "urbanNeed": 13548.64,
+            "urbanSupplied": 13548.64,
+            "urbanPaid": 11575.78,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0.009999999999763531,
+            "urbanUnmet": 0
+          },
+          "9": {
+            "ruralNeed": 13514.5,
+            "ruralSupplied": 13514.529999999999,
+            "ruralFromHousehold": 13157.929999999998,
+            "ruralFromMarket": 356.6,
+            "ruralPaid": 285.27,
+            "urbanNeed": 6374.48,
+            "urbanSupplied": 6374.48,
+            "urbanPaid": 5099.58,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "10": {
+            "ruralNeed": 66562.44000000002,
+            "ruralSupplied": 66562.45000000001,
+            "ruralFromHousehold": 66487.10000000002,
+            "ruralFromMarket": 75.35,
+            "ruralPaid": 60.28,
+            "urbanNeed": 15472.300000000001,
+            "urbanSupplied": 15472.300000000001,
+            "urbanPaid": 12377.87,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "11": {
+            "ruralNeed": 37548.840000000004,
+            "ruralSupplied": 37548.85,
+            "ruralFromHousehold": 37463.15,
+            "ruralFromMarket": 85.7,
+            "ruralPaid": 68.56,
+            "urbanNeed": 7387.69,
+            "urbanSupplied": 7387.69,
+            "urbanPaid": 5910.16,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0.009999999999763531,
+            "urbanUnmet": 0
+          },
+          "12": {
+            "ruralNeed": 117784.19,
+            "ruralSupplied": 117784.20000000001,
+            "ruralFromHousehold": 117308.70000000001,
+            "ruralFromMarket": 475.5,
+            "ruralPaid": 380.4,
+            "urbanNeed": 31380.349999999995,
+            "urbanSupplied": 31380.349999999995,
+            "urbanPaid": 25104.399999999998,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "13": {
+            "ruralNeed": 139187.34,
+            "ruralSupplied": 139187.35,
+            "ruralFromHousehold": 138909.06,
+            "ruralFromMarket": 278.29,
+            "ruralPaid": 222.63,
+            "urbanNeed": 32286.270000000008,
+            "urbanSupplied": 32286.270000000008,
+            "urbanPaid": 25828.910000000003,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "14": {
+            "ruralNeed": 95639.67000000001,
+            "ruralSupplied": 95639.70000000001,
+            "ruralFromHousehold": 94877.34000000001,
+            "ruralFromMarket": 762.36,
+            "ruralPaid": 653.84,
+            "urbanNeed": 16507.82,
+            "urbanSupplied": 16507.82,
+            "urbanPaid": 13302.480000000001,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "15": {
+            "ruralNeed": 51738.44,
+            "ruralSupplied": 51738.520000000004,
+            "ruralFromHousehold": 51557.770000000004,
+            "ruralFromMarket": 180.75,
+            "ruralPaid": 144.59,
+            "urbanNeed": 10811.039999999999,
+            "urbanSupplied": 10811.039999999999,
+            "urbanPaid": 8648.84,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "16": {
+            "ruralNeed": 20294.87,
+            "ruralSupplied": 20294.909999999996,
+            "ruralFromHousehold": 20266.6,
+            "ruralFromMarket": 28.31,
+            "ruralPaid": 22.65,
+            "urbanNeed": 11265.669999999998,
+            "urbanSupplied": 11265.669999999998,
+            "urbanPaid": 9012.54,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          }
+        },
+        "foodImports": {
+          "1": {
+            "outcomes": {
+              "noCrop": 2,
+              "delivered": 4,
+              "emptyCrop": 12
+            },
+            "loaded": 5111.7300000000005,
+            "deliveredBeforeRounding": 4047.9199999999996,
+            "produced": 16922.690000000002,
+            "imported": 4047.9199999999996,
+            "productionPasses": 12,
+            "minBalance": 5182.06,
+            "maxBalance": 16878.9
+          },
+          "2": {
+            "outcomes": {
+              "noCrop": 4,
+              "emptyCrop": 13,
+              "delivered": 4
+            },
+            "loaded": 2868.12,
+            "deliveredBeforeRounding": 2270.8199999999997,
+            "produced": 4100.15,
+            "imported": 2270.82,
+            "productionPasses": 12,
+            "minBalance": 1299,
+            "maxBalance": 4225.55
+          },
+          "3": {
+            "outcomes": {
+              "noRoute": 3,
+              "emptyCrop": 18,
+              "noCrop": 8,
+              "delivered": 1
+            },
+            "loaded": 629.53,
+            "deliveredBeforeRounding": 377.61,
+            "produced": 11122.14,
+            "imported": 377.61,
+            "productionPasses": 12,
+            "minBalance": 2863.75,
+            "maxBalance": 9583.94
+          },
+          "4": {
+            "outcomes": {
+              "delivered": 11,
+              "emptyCrop": 17
+            },
+            "loaded": 14554.8,
+            "deliveredBeforeRounding": 9665.602435719804,
+            "produced": 30002.44,
+            "imported": 9665.61,
+            "productionPasses": 12,
+            "minBalance": 13569.85,
+            "maxBalance": 28955.3
+          },
+          "5": {
+            "outcomes": {
+              "delivered": 11,
+              "emptyCrop": 27
+            },
+            "loaded": 12038.47,
+            "deliveredBeforeRounding": 9866.949577675492,
+            "produced": 10246.74,
+            "imported": 9866.949999999999,
+            "productionPasses": 12,
+            "minBalance": 6726.62,
+            "maxBalance": 11694.59
+          },
+          "6": {
+            "outcomes": {
+              "delivered": 8,
+              "noCrop": 8,
+              "emptyCrop": 22
+            },
+            "loaded": 11249.41,
+            "deliveredBeforeRounding": 8725.608247960896,
+            "produced": 14883.810000000001,
+            "imported": 8725.6,
+            "productionPasses": 12,
+            "minBalance": 2499.55,
+            "maxBalance": 10247.39
+          },
+          "7": {
+            "outcomes": {
+              "noCrop": 7,
+              "delivered": 1,
+              "emptyCrop": 18
+            },
+            "loaded": 1792.23,
+            "deliveredBeforeRounding": 1269.9991232128166,
+            "produced": 20127.239999999998,
+            "imported": 1270,
+            "productionPasses": 12,
+            "minBalance": 5571.52,
+            "maxBalance": 18524.39
+          },
+          "8": {
+            "outcomes": {
+              "noRoute": 3,
+              "emptyCrop": 23,
+              "noCrop": 8,
+              "delivered": 1
+            },
+            "loaded": 96.56,
+            "deliveredBeforeRounding": 65.44929285220628,
+            "produced": 11264.73,
+            "imported": 65.45,
+            "productionPasses": 12,
+            "minBalance": 2666.39,
+            "maxBalance": 11417.15
+          },
+          "9": {
+            "outcomes": {
+              "noCrop": 4,
+              "delivered": 19,
+              "emptyCrop": 32
+            },
+            "loaded": 8366.070000000002,
+            "deliveredBeforeRounding": 6549.63,
+            "produced": 0,
+            "imported": 6549.629999999999,
+            "productionPasses": 12,
+            "minBalance": 3152.14,
+            "maxBalance": 5179.81
+          },
+          "10": {
+            "outcomes": {
+              "noCrop": 7,
+              "emptyCrop": 19,
+              "delivered": 1
+            },
+            "loaded": 367.99,
+            "deliveredBeforeRounding": 269.6,
+            "produced": 12534.86,
+            "imported": 269.6,
+            "productionPasses": 12,
+            "minBalance": 5755.14,
+            "maxBalance": 12923.47
+          },
+          "11": {
+            "outcomes": {
+              "noRoute": 2,
+              "delivered": 3,
+              "noCrop": 1,
+              "emptyCrop": 8
+            },
+            "loaded": 1016.94,
+            "deliveredBeforeRounding": 721.3760048025114,
+            "produced": 6781.62,
+            "imported": 721.38,
+            "productionPasses": 12,
+            "minBalance": 336.05,
+            "maxBalance": 4418.5
+          },
+          "12": {
+            "outcomes": {
+              "delivered": 5,
+              "emptyCrop": 19,
+              "noCrop": 8
+            },
+            "loaded": 8536.78,
+            "deliveredBeforeRounding": 5787.978649450153,
+            "produced": 23647.38,
+            "imported": 5787.9800000000005,
+            "productionPasses": 12,
+            "minBalance": 10002.4,
+            "maxBalance": 25358.16
+          },
+          "13": {
+            "outcomes": {
+              "noCrop": 7,
+              "delivered": 3,
+              "emptyCrop": 7
+            },
+            "loaded": 1316.87,
+            "deliveredBeforeRounding": 561.5023271566342,
+            "produced": 31336.719999999998,
+            "imported": 561.5,
+            "productionPasses": 12,
+            "minBalance": 9361.61,
+            "maxBalance": 25224.15
+          },
+          "14": {
+            "outcomes": {
+              "noRoute": 8,
+              "noCrop": 6,
+              "emptyCrop": 10,
+              "delivered": 1
+            },
+            "loaded": 1040.65,
+            "deliveredBeforeRounding": 283.61021042084525,
+            "produced": 19023.16,
+            "imported": 283.61,
+            "productionPasses": 12,
+            "minBalance": 3048.91,
+            "maxBalance": 15067.71
+          },
+          "15": {
+            "outcomes": {
+              "noRoute": 1,
+              "noCrop": 7,
+              "emptyCrop": 9
+            },
+            "loaded": 0,
+            "deliveredBeforeRounding": 0,
+            "produced": 10552.88,
+            "imported": 0,
+            "productionPasses": 12,
+            "minBalance": 2376.03,
+            "maxBalance": 8830.57
+          },
+          "16": {
+            "outcomes": {
+              "noRoute": 10,
+              "delivered": 16,
+              "emptyCrop": 34
+            },
+            "loaded": 12142.25,
+            "deliveredBeforeRounding": 8032.33811732019,
+            "produced": 2733.84,
+            "imported": 8032.329999999999,
+            "productionPasses": 12,
+            "minBalance": 4466.13,
+            "maxBalance": 8655.25
+          }
+        },
+        "feedRequiredKg": 322655017.4465831,
+        "feedUnmetKg": 160674340.68704218,
+        "feedUnmetShare": 0.4979756458107536,
+        "maxMonthlyFeedUnmetKg": 26837937.458615083,
+        "goods": {
+          "Wool": {
+            "source:ruralHarvest": 20.945728693737564,
+            "sink:recipeInput": 21.081558602511183
+          },
+          "Milk": {},
+          "Cheese": {
+            "source:ruralHarvest": 11.145028137704598,
+            "sink:householdFood": 10.794710774030214,
+            "sink:recipeInput": 0.7652892259697834,
+            "sink:exportDeparture": 0.18,
+            "source:importArrival": 0.18
+          },
+          "Leather": {
+            "source:ruralHarvest": 1779.8580632263117,
+            "sink:recipeInput": 273.36999999999995,
+            "source:burgCraft": 394.66999999999996
+          },
+          "Fodder": {
+            "source:ruralHarvest": 11.774999999999999,
+            "source:burgCraft": 10.559999999999999,
+            "sink:livestockFeed": 22.332392572111612
+          }
+        },
+        "woolMarketInflowKg": 31418.593040606345,
+        "garmentDeliveriesLots": 210.27059152658944,
+        "blanketDeliveriesLots": 3.185116079622953
+      },
+      "extraMonth": null
+    },
+    {
+      "path": "docs/analytics/raw/economy-e1-food-routes-final-world-102-20261024.json",
+      "bytes": 56238920,
+      "sha256": "3dcb33d1bcedf04c07c4cc04556d26f9e3490acfb223358fa2f14876853d1a16",
+      "inputSha256": "5e73a27785881bf553d37404442d7ead0f7bb68457208cc33c88c88f7c6a5999",
+      "sourceTreeSha256": "74e911f76ea644da546ba22dd1381abaa090431954306aba17de28808e6a37e1",
+      "relevantSourceHashes": {
+        "src/extensions/economy/generators/developmentPotential.ts": "ae183e6c93d7c938460da6b9575a9f9d062734356058034e19775c60bb0441cc",
+        "src/extensions/economy/generators/foodLedgerConsumption.ts": "f6f9abc37c6fa9a7ecffd5a49630daac600ca18baece8509292d0a38fed49f59",
+        "src/extensions/economy/generators/foodProduction.ts": "f4e5169b47726d85d6b9c8cae8668ac33f52b63ef2f702dc418ce83acc798abc",
+        "src/extensions/economy/generators/husbandry.ts": "464832a0d040099eef97f6fa7e088fff59a2e17fbef31b321a2994a272420d3f"
+      },
+      "initial": {
+        "date": [
+          1300,
+          1,
+          1
+        ],
+        "ruralPeople": 3579209.4272747636,
+        "urbanPeople": 614912.6551625639,
+        "heads": {
+          "Cattle": 32044.245689714026,
+          "Horses": 28017.30898583879,
+          "Sheep": 192316.17895239624,
+          "Goats": 38845.35411176436,
+          "Camels": 2241.5197421012895
+        },
+        "cultivatedHa": 12813485.05380249,
+        "pastureHa": 3575789.321455163,
+        "aggregateOccupancy": 0.06396315410638562,
+        "cellsOverModelFootprint": 0,
+        "annualWoolPotentialKg": 242316.8339127073,
+        "effectiveWoolLaborAndFeedCoverage": 0.16329630652344979,
+        "woolStockKg": 557.2376577673037,
+        "wealth": {
+          "urbanPop": 614.92,
+          "ruralPop": 3579.209,
+          "stateTreasury": 488405.07,
+          "statePurse": 24.2,
+          "stateDepartments": 244.37,
+          "burgTreasury": 147089.51,
+          "urbanHouseholds": 112473.14,
+          "guilds": 807.72,
+          "marketBalance": 189101.63,
+          "marketPayable": 0,
+          "tradeCapital": 29386.73,
+          "ruralHouseholds": 82316.24,
+          "characters": 0
+        }
+      },
+      "yearEnd": {
+        "date": [
+          1301,
+          1,
+          1
+        ],
+        "ruralPeople": 3582679.529566318,
+        "urbanPeople": 605476.9205826235,
+        "heads": {
+          "Cattle": 30468.375839111966,
+          "Horses": 25534.225957965024,
+          "Sheep": 181076.06589165246,
+          "Goats": 35644.33857610201,
+          "Camels": 1943.6096476923037
+        },
+        "cultivatedHa": 12073908.988098145,
+        "pastureHa": 3119536.6347793546,
+        "aggregateOccupancy": 0.06806976905415618,
+        "cellsOverModelFootprint": 0,
+        "annualWoolPotentialKg": 257241.86339035718,
+        "effectiveWoolLaborAndFeedCoverage": 0.1767883494677655,
+        "woolStockKg": 1.995244935850307,
+        "wealth": {
+          "urbanPop": 605.48,
+          "ruralPop": 3582.68,
+          "stateTreasury": 356402.31,
+          "statePurse": 0,
+          "stateDepartments": 357.93,
+          "burgTreasury": 145427.09,
+          "urbanHouseholds": 106517.99,
+          "guilds": 1417.53,
+          "marketBalance": 206057.4,
+          "marketPayable": 0,
+          "tradeCapital": 33980.4,
+          "ruralHouseholds": 160495.13,
+          "characters": 0
+        }
+      },
+      "annual": {
+        "foodLedgerKgPerUnit": 465.1162790697675,
+        "foodTotals": {
+          "ruralNeed": 1077338.35,
+          "ruralSupplied": 1077338.58,
+          "ruralFromHousehold": 1073178.28,
+          "ruralFromMarket": 4160.3,
+          "ruralPaid": 3519.0100000000007,
+          "urbanNeed": 261703.23000000004,
+          "urbanSupplied": 261703.23000000004,
+          "urbanPaid": 210879.43,
+          "urbanBudgetGap": 0,
+          "urbanStockGap": 0,
+          "lodgerNeed": 0,
+          "lodgerSupplied": 0,
+          "lodgerPaid": 0,
+          "ruralUnmet": 0.02999999999974534,
+          "urbanUnmet": 0
+        },
+        "foodByMarket": {
+          "1": {
+            "ruralNeed": 46161.450000000004,
+            "ruralSupplied": 46161.45,
+            "ruralFromHousehold": 45195.67999999999,
+            "ruralFromMarket": 965.77,
+            "ruralPaid": 772.61,
+            "urbanNeed": 19573.690000000006,
+            "urbanSupplied": 19573.690000000006,
+            "urbanPaid": 15658.910000000003,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0.010000000000218279,
+            "urbanUnmet": 0
+          },
+          "2": {
+            "ruralNeed": 4606.2,
+            "ruralSupplied": 4606.2,
+            "ruralFromHousehold": 4600.21,
+            "ruralFromMarket": 5.99,
+            "ruralPaid": 4.79,
+            "urbanNeed": 5419.26,
+            "urbanSupplied": 5419.26,
+            "urbanPaid": 4335.389999999999,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "3": {
+            "ruralNeed": 52803.69000000001,
+            "ruralSupplied": 52803.70000000001,
+            "ruralFromHousehold": 52560.64000000001,
+            "ruralFromMarket": 243.06,
+            "ruralPaid": 294.02,
+            "urbanNeed": 11056.849999999999,
+            "urbanSupplied": 11056.849999999999,
+            "urbanPaid": 9483.289999999999,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "4": {
+            "ruralNeed": 140832.46000000002,
+            "ruralSupplied": 140832.46000000002,
+            "ruralFromHousehold": 140723.52000000002,
+            "ruralFromMarket": 108.94,
+            "ruralPaid": 87.16,
+            "urbanNeed": 32644.52,
+            "urbanSupplied": 32644.52,
+            "urbanPaid": 26115.700000000004,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "5": {
+            "ruralNeed": 57586.599999999984,
+            "ruralSupplied": 57586.599999999984,
+            "ruralFromHousehold": 57523.64999999999,
+            "ruralFromMarket": 62.95,
+            "ruralPaid": 50.349999999999994,
+            "urbanNeed": 14710.52,
+            "urbanSupplied": 14710.52,
+            "urbanPaid": 11768.369999999999,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "6": {
+            "ruralNeed": 47665.39,
+            "ruralSupplied": 47665.4,
+            "ruralFromHousehold": 47215.64,
+            "ruralFromMarket": 449.76000000000005,
+            "ruralPaid": 361,
+            "urbanNeed": 12501.439999999999,
+            "urbanSupplied": 12501.439999999999,
+            "urbanPaid": 10011.53,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "7": {
+            "ruralNeed": 136532.13,
+            "ruralSupplied": 136532.13,
+            "ruralFromHousehold": 136472.26,
+            "ruralFromMarket": 59.87,
+            "ruralPaid": 47.9,
+            "urbanNeed": 20758.600000000002,
+            "urbanSupplied": 20758.600000000002,
+            "urbanPaid": 16606.890000000003,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "8": {
+            "ruralNeed": 48880.14000000001,
+            "ruralSupplied": 48880.130000000005,
+            "ruralFromHousehold": 48859.030000000006,
+            "ruralFromMarket": 21.1,
+            "ruralPaid": 23.84,
+            "urbanNeed": 13548.7,
+            "urbanSupplied": 13548.7,
+            "urbanPaid": 11520.019999999999,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0.009999999999763531,
+            "urbanUnmet": 0
+          },
+          "9": {
+            "ruralNeed": 13514.5,
+            "ruralSupplied": 13514.529999999999,
+            "ruralFromHousehold": 13157.929999999998,
+            "ruralFromMarket": 356.6,
+            "ruralPaid": 285.27,
+            "urbanNeed": 6375.99,
+            "urbanSupplied": 6375.99,
+            "urbanPaid": 5100.74,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "10": {
+            "ruralNeed": 66562.44000000002,
+            "ruralSupplied": 66562.45000000001,
+            "ruralFromHousehold": 66487.10000000002,
+            "ruralFromMarket": 75.35,
+            "ruralPaid": 60.28,
+            "urbanNeed": 15472.300000000001,
+            "urbanSupplied": 15472.300000000001,
+            "urbanPaid": 12377.87,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "11": {
+            "ruralNeed": 37548.840000000004,
+            "ruralSupplied": 37548.85,
+            "ruralFromHousehold": 37463.15,
+            "ruralFromMarket": 85.7,
+            "ruralPaid": 68.56,
+            "urbanNeed": 7388.65,
+            "urbanSupplied": 7388.65,
+            "urbanPaid": 5910.92,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0.009999999999763531,
+            "urbanUnmet": 0
+          },
+          "12": {
+            "ruralNeed": 117784.19,
+            "ruralSupplied": 117784.20000000001,
+            "ruralFromHousehold": 117308.70000000001,
+            "ruralFromMarket": 475.5,
+            "ruralPaid": 380.4,
+            "urbanNeed": 31381.849999999995,
+            "urbanSupplied": 31381.849999999995,
+            "urbanPaid": 25105.569999999996,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "13": {
+            "ruralNeed": 139187.34,
+            "ruralSupplied": 139187.35,
+            "ruralFromHousehold": 138909.06,
+            "ruralFromMarket": 278.29,
+            "ruralPaid": 222.63,
+            "urbanNeed": 32286.270000000008,
+            "urbanSupplied": 32286.270000000008,
+            "urbanPaid": 25828.910000000003,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "14": {
+            "ruralNeed": 95639.67000000001,
+            "ruralSupplied": 95639.70000000001,
+            "ruralFromHousehold": 94877.34000000001,
+            "ruralFromMarket": 762.36,
+            "ruralPaid": 691.51,
+            "urbanNeed": 16507.82,
+            "urbanSupplied": 16507.82,
+            "urbanPaid": 13384.990000000002,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "15": {
+            "ruralNeed": 51738.44,
+            "ruralSupplied": 51738.520000000004,
+            "ruralFromHousehold": 51557.770000000004,
+            "ruralFromMarket": 180.75,
+            "ruralPaid": 146.04,
+            "urbanNeed": 10811.17,
+            "urbanSupplied": 10811.17,
+            "urbanPaid": 8657.84,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          },
+          "16": {
+            "ruralNeed": 20294.87,
+            "ruralSupplied": 20294.909999999996,
+            "ruralFromHousehold": 20266.6,
+            "ruralFromMarket": 28.31,
+            "ruralPaid": 22.65,
+            "urbanNeed": 11265.599999999999,
+            "urbanSupplied": 11265.599999999999,
+            "urbanPaid": 9012.490000000002,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0,
+            "urbanUnmet": 0
+          }
+        },
+        "foodImports": {
+          "1": {
+            "outcomes": {
+              "delivered": 7,
+              "belowQuantityPrecision": 11,
+              "noCrop": 2
+            },
+            "loaded": 11669.060000000001,
+            "deliveredBeforeRounding": 8828.216598535208,
+            "produced": 20218.24,
+            "imported": 8828.220000000001,
+            "productionPasses": 12,
+            "minBalance": 5597.42,
+            "maxBalance": 15296.91
+          },
+          "2": {
+            "outcomes": {
+              "delivered": 4,
+              "belowQuantityPrecision": 7,
+              "noCrop": 1
+            },
+            "loaded": 3263.7,
+            "deliveredBeforeRounding": 2551.628022042293,
+            "produced": 4959.33,
+            "imported": 2551.63,
+            "productionPasses": 12,
+            "minBalance": 1783.66,
+            "maxBalance": 5087.47
+          },
+          "3": {
+            "outcomes": {
+              "noRoute": 2,
+              "delivered": 3,
+              "belowQuantityPrecision": 16,
+              "noCrop": 3
+            },
+            "loaded": 1357.7,
+            "deliveredBeforeRounding": 1055.6693969369626,
+            "produced": 8930.16,
+            "imported": 1055.67,
+            "productionPasses": 12,
+            "minBalance": 3088.68,
+            "maxBalance": 10315.36
+          },
+          "4": {
+            "outcomes": {
+              "delivered": 9,
+              "belowQuantityPrecision": 9
+            },
+            "loaded": 17425.74,
+            "deliveredBeforeRounding": 13379.367850852235,
+            "produced": 26292.719999999998,
+            "imported": 13379.36,
+            "productionPasses": 12,
+            "minBalance": 14041.05,
+            "maxBalance": 28232.85
+          },
+          "5": {
+            "outcomes": {
+              "delivered": 10
+            },
+            "loaded": 15271.710000000001,
+            "deliveredBeforeRounding": 12440.2,
+            "produced": 10246.74,
+            "imported": 12440.2,
+            "productionPasses": 12,
+            "minBalance": 6882.12,
+            "maxBalance": 12167.37
+          },
+          "6": {
+            "outcomes": {
+              "delivered": 10,
+              "noCrop": 1
+            },
+            "loaded": 11153.57,
+            "deliveredBeforeRounding": 8343.57,
+            "produced": 14236.7,
+            "imported": 8343.57,
+            "productionPasses": 12,
+            "minBalance": 3102.85,
+            "maxBalance": 10220.44
+          },
+          "7": {
+            "outcomes": {
+              "delivered": 1,
+              "noCrop": 1
+            },
+            "loaded": 1586.04,
+            "deliveredBeforeRounding": 1270,
+            "produced": 21298.01,
+            "imported": 1270,
+            "productionPasses": 12,
+            "minBalance": 5476.33,
+            "maxBalance": 18811.11
+          },
+          "8": {
+            "outcomes": {
+              "noRoute": 2,
+              "delivered": 2,
+              "belowQuantityPrecision": 6,
+              "noCrop": 2
+            },
+            "loaded": 890.52,
+            "deliveredBeforeRounding": 769.3392794745773,
+            "produced": 13108.29,
+            "imported": 769.34,
+            "productionPasses": 12,
+            "minBalance": 4480.23,
+            "maxBalance": 12484.95
+          },
+          "9": {
+            "outcomes": {
+              "delivered": 23,
+              "belowQuantityPrecision": 70
+            },
+            "loaded": 11721.120000000003,
+            "deliveredBeforeRounding": 9119.349313850988,
+            "produced": 0,
+            "imported": 9119.35,
+            "productionPasses": 12,
+            "minBalance": 1991.25,
+            "maxBalance": 5776.23
+          },
+          "10": {
+            "outcomes": {
+              "delivered": 2,
+              "noCrop": 1
+            },
+            "loaded": 1469.1000000000001,
+            "deliveredBeforeRounding": 1176.36,
+            "produced": 14519.080000000002,
+            "imported": 1176.36,
+            "productionPasses": 12,
+            "minBalance": 5608.49,
+            "maxBalance": 13923.73
+          },
+          "11": {
+            "outcomes": {
+              "noRoute": 2,
+              "delivered": 4,
+              "belowQuantityPrecision": 17
+            },
+            "loaded": 1893.0300000000002,
+            "deliveredBeforeRounding": 1445.3157953129019,
+            "produced": 7710.09,
+            "imported": 1445.3200000000002,
+            "productionPasses": 12,
+            "minBalance": 366.62,
+            "maxBalance": 5204.92
+          },
+          "12": {
+            "outcomes": {
+              "delivered": 9,
+              "belowQuantityPrecision": 6,
+              "noCrop": 1
+            },
+            "loaded": 15307.34,
+            "deliveredBeforeRounding": 9181.11,
+            "produced": 23525.94,
+            "imported": 9181.1,
+            "productionPasses": 12,
+            "minBalance": 10024.14,
+            "maxBalance": 24215.69
+          },
+          "13": {
+            "outcomes": {
+              "delivered": 2
+            },
+            "loaded": 2686.63,
+            "deliveredBeforeRounding": 1968.31,
+            "produced": 29929.9,
+            "imported": 1968.31,
+            "productionPasses": 12,
+            "minBalance": 9296.37,
+            "maxBalance": 26591.84
+          },
+          "14": {
+            "outcomes": {
+              "noRoute": 5,
+              "delivered": 1,
+              "noCrop": 1
+            },
+            "loaded": 1258.56,
+            "deliveredBeforeRounding": 996.64,
+            "produced": 16533.370000000003,
+            "imported": 996.64,
+            "productionPasses": 12,
+            "minBalance": 3211.36,
+            "maxBalance": 13298.39
+          },
+          "15": {
+            "outcomes": {
+              "noRoute": 1,
+              "delivered": 1
+            },
+            "loaded": 927.45,
+            "deliveredBeforeRounding": 742.64,
+            "produced": 9818.14,
+            "imported": 742.64,
+            "productionPasses": 12,
+            "minBalance": 2254.25,
+            "maxBalance": 8088.61
+          },
+          "16": {
+            "outcomes": {
+              "noRoute": 9,
+              "delivered": 16,
+              "belowQuantityPrecision": 12
+            },
+            "loaded": 12778.980000000001,
+            "deliveredBeforeRounding": 8783.882322169273,
+            "produced": 2733.84,
+            "imported": 8783.869999999999,
+            "productionPasses": 12,
+            "minBalance": 0,
+            "maxBalance": 8180.41
+          }
+        },
+        "feedRequiredKg": 322655017.44583786,
+        "feedUnmetKg": 160674340.68714136,
+        "feedUnmetShare": 0.49797564581221115,
+        "maxMonthlyFeedUnmetKg": 26837937.458497737,
+        "goods": {
+          "Wool": {
+            "source:ruralHarvest": 20.945728691989167,
+            "sink:recipeInput": 21.08267396412129
+          },
+          "Milk": {},
+          "Cheese": {
+            "source:ruralHarvest": 11.145028132994456,
+            "sink:householdFood": 10.751780938150459,
+            "sink:recipeInput": 0.8082190618495413,
+            "sink:exportDeparture": 0.18,
+            "source:importArrival": 0.18
+          },
+          "Leather": {
+            "source:ruralHarvest": 1779.858061460405,
+            "sink:recipeInput": 267.38,
+            "source:burgCraft": 394.66999999999996
+          },
+          "Fodder": {
+            "source:ruralHarvest": 11.774999999999999,
+            "source:burgCraft": 10.559999999999999,
+            "sink:livestockFeed": 22.332392572111612
+          }
+        },
+        "woolMarketInflowKg": 31418.593037983752,
+        "garmentDeliveriesLots": 210.21945185187613,
+        "blanketDeliveriesLots": 3.5180931870151366
+      },
+      "extraMonth": null
+    },
+    {
+      "path": "docs/analytics/raw/economy-e1-food-routes-final-province-101-20261024.json",
+      "bytes": 2499738,
+      "sha256": "d4af22af327b6feebdf1dffefa72e94b0176244318ad52b8b774b6658c1715f9",
+      "inputSha256": "a3209cca3c88ebf8f84b4f5d9321be8ad3bdc5b3766ca92994f0eb198a52e4e7",
+      "sourceTreeSha256": "74e911f76ea644da546ba22dd1381abaa090431954306aba17de28808e6a37e1",
+      "relevantSourceHashes": {
+        "src/extensions/economy/generators/developmentPotential.ts": "ae183e6c93d7c938460da6b9575a9f9d062734356058034e19775c60bb0441cc",
+        "src/extensions/economy/generators/foodLedgerConsumption.ts": "f6f9abc37c6fa9a7ecffd5a49630daac600ca18baece8509292d0a38fed49f59",
+        "src/extensions/economy/generators/foodProduction.ts": "f4e5169b47726d85d6b9c8cae8668ac33f52b63ef2f702dc418ce83acc798abc",
+        "src/extensions/economy/generators/husbandry.ts": "464832a0d040099eef97f6fa7e088fff59a2e17fbef31b321a2994a272420d3f"
+      },
+      "initial": {
+        "date": [
+          1300,
+          1,
+          1
+        ],
+        "ruralPeople": 433614.9302124977,
+        "urbanPeople": 19757.05275632519,
+        "heads": {
+          "Cattle": 233.7190234328017,
+          "Horses": 153.1981865491937,
+          "Sheep": 1403.418857106391,
+          "Goats": 0,
+          "Camels": 0
+        },
+        "cultivatedHa": 946159.208984375,
+        "pastureHa": 408033.1397084409,
+        "aggregateOccupancy": 0.0032307174850617847,
+        "cellsOverModelFootprint": 0,
+        "annualWoolPotentialKg": 1768.273955628859,
+        "effectiveWoolLaborAndFeedCoverage": 1.0000000000000002,
+        "woolStockKg": 0.11021307861865809,
+        "wealth": {
+          "urbanPop": 19.757,
+          "ruralPop": 433.615,
+          "stateTreasury": 15597.69,
+          "statePurse": 2.23,
+          "stateDepartments": 6.52,
+          "burgTreasury": 4686.09,
+          "urbanHouseholds": 3631.62,
+          "guilds": 58.16,
+          "marketBalance": 5560.31,
+          "marketPayable": 0,
+          "tradeCapital": 615.58,
+          "ruralHouseholds": 69685.52,
+          "characters": 0
+        }
+      },
+      "yearEnd": {
+        "date": [
+          1301,
+          1,
+          1
+        ],
+        "ruralPeople": 433796.2348461151,
+        "urbanPeople": 19061.222682973672,
+        "heads": {
+          "Cattle": 239.8729551849542,
+          "Horses": 135.01378125384758,
+          "Sheep": 1499.935875552297,
+          "Goats": 0,
+          "Camels": 0
+        },
+        "cultivatedHa": 938597.2734375,
+        "pastureHa": 382902.01332834887,
+        "aggregateOccupancy": 0.0034401986483132987,
+        "cellsOverModelFootprint": 0,
+        "annualWoolPotentialKg": 2004.939493124505,
+        "effectiveWoolLaborAndFeedCoverage": 1.0000000000000002,
+        "woolStockKg": 0.2705410821643231,
+        "wealth": {
+          "urbanPop": 19.061,
+          "ruralPop": 433.796,
+          "stateTreasury": 19406.49,
+          "statePurse": 0,
+          "stateDepartments": 10.89,
+          "burgTreasury": 6774.42,
+          "urbanHouseholds": 14736.45,
+          "guilds": 16.43,
+          "marketBalance": 22514.75,
+          "marketPayable": 0,
+          "tradeCapital": 554.02,
+          "ruralHouseholds": 34255.17,
+          "characters": 0
+        }
+      },
+      "annual": {
+        "foodLedgerKgPerUnit": 465.1162790697675,
+        "foodTotals": {
+          "ruralNeed": 98135.68,
+          "ruralSupplied": 98135.77999999998,
+          "ruralFromHousehold": 97562.96999999999,
+          "ruralFromMarket": 572.81,
+          "ruralPaid": 458.24,
+          "urbanNeed": 8332.02,
+          "urbanSupplied": 8332.02,
+          "urbanPaid": 6665.630000000001,
+          "urbanBudgetGap": 0,
+          "urbanStockGap": 0,
+          "lodgerNeed": 0,
+          "lodgerSupplied": 0,
+          "lodgerPaid": 0,
+          "ruralUnmet": 0.010000000000218279,
+          "urbanUnmet": 0
+        },
+        "foodByMarket": {
+          "1": {
+            "ruralNeed": 98135.68,
+            "ruralSupplied": 98135.77999999998,
+            "ruralFromHousehold": 97562.96999999999,
+            "ruralFromMarket": 572.81,
+            "ruralPaid": 458.24,
+            "urbanNeed": 8332.02,
+            "urbanSupplied": 8332.02,
+            "urbanPaid": 6665.630000000001,
+            "urbanBudgetGap": 0,
+            "urbanStockGap": 0,
+            "lodgerNeed": 0,
+            "lodgerSupplied": 0,
+            "lodgerPaid": 0,
+            "ruralUnmet": 0.010000000000218279,
+            "urbanUnmet": 0
+          }
+        },
+        "foodImports": {
+          "1": {
+            "outcomes": {},
+            "loaded": 0,
+            "deliveredBeforeRounding": 0,
+            "produced": 6395.15,
+            "imported": 0,
+            "productionPasses": 12,
+            "minBalance": 2675.46,
+            "maxBalance": 7932.46
+          }
+        },
+        "feedRequiredKg": 1886991.0727669373,
+        "feedUnmetKg": 0,
+        "feedUnmetShare": 0,
+        "maxMonthlyFeedUnmetKg": 0,
+        "goods": {
+          "Wool": {
+            "source:ruralHarvest": 1.1909216212148455,
+            "sink:recipeInput": 1.2068819913596758
+          },
+          "Milk": {},
+          "Cheese": {
+            "source:ruralHarvest": 1.1296692668814212,
+            "sink:householdFood": 1.14
+          },
+          "Leather": {
+            "source:ruralHarvest": 375.5827648893892,
+            "sink:recipeInput": 0.05,
+            "source:burgCraft": 3
+          },
+          "Fodder": {}
+        },
+        "woolMarketInflowKg": 1786.3824318222682,
+        "garmentDeliveriesLots": 26.250569596986647,
+        "blanketDeliveriesLots": 0
+      },
+      "extraMonth": null
+    }
+  ]
+}

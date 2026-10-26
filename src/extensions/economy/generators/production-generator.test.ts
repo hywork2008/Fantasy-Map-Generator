@@ -28,6 +28,7 @@ import {
   ProductionModule,
   settlePomaceWineMarketProcessing
 } from "./production-generator";
+import type { ProductionConstraint, ProductionCycleDiagnostic } from "./productionDiagnostics";
 import type { MfgRecord, ProductionRecord } from "./productionRecordTypes";
 
 type ManufactureHarness = {
@@ -62,6 +63,35 @@ type ManufactureHarness = {
 };
 
 describe("ProductionModule byproducts", () => {
+  it("routes food animals away from legacy recipes while retaining draft-animal manufacture", () => {
+    initEconomyContext({ worldContext } as unknown as ExtensionAPI);
+    const previous = worldContext.options;
+    try {
+      worldContext.options = {
+        ...previous,
+        winterLivestockSlaughter: "experimental-temperate",
+        ruralEcosystemDetail: "detailed"
+      };
+      const goods = [
+        { i: 1, name: "Pig", tags: ["food", "liveAnimal"], value: 2 },
+        { i: 2, name: "Horses", tags: ["draft", "liveAnimal"], value: 8 },
+        { i: 3, name: "Salt", tags: [], value: 3 },
+        { i: 4, name: "Preserved food", tags: ["food"], value: 6, recipes: [{ 1: 1, 3: 1 }] },
+        { i: 5, name: "Harness team", tags: [], value: 12, recipes: [{ 2: 1 }] }
+      ] as Good[];
+      setGoods(goods);
+      Goods.sync();
+      const production = new ProductionModule() as unknown as { buildRecipesArray(goods: Good[]): { good: Good }[] };
+      expect(production.buildRecipesArray(goods).map(recipe => recipe.good.name)).toEqual(["Harness team"]);
+      worldContext.options.winterLivestockSlaughter = "off";
+      expect(production.buildRecipesArray(goods).map(recipe => recipe.good.name)).toEqual([
+        "Preserved food",
+        "Harness team"
+      ]);
+    } finally {
+      worldContext.options = previous;
+    }
+  });
   beforeEach(() => {
     initEconomyContext({ worldContext } as unknown as ExtensionAPI);
     simulationContext.technology = createEmptyTechnologySimulationState();
@@ -93,6 +123,7 @@ describe("ProductionModule byproducts", () => {
       demandCoverage: [],
       records: [] as ProductionRecord[],
       ingredientCosts: 0,
+      productionDiagnostics: { rows: [], steps: 0, maxSteps: 0 } as ProductionCycleDiagnostic,
       smithingProgramByGood: new Map<string, never>(),
       strategicLaborMarket: undefined,
       strategicDemandByGood: new Map<number, never>()
@@ -137,6 +168,7 @@ describe("ProductionModule byproducts", () => {
       demandCoverage: [],
       records: [] as ProductionRecord[],
       ingredientCosts: 0,
+      productionDiagnostics: { rows: [], steps: 0, maxSteps: 0 } as ProductionCycleDiagnostic,
       smithingProgramByGood: new Map<string, never>(),
       strategicLaborMarket: undefined,
       strategicDemandByGood: new Map<number, never>()
@@ -231,6 +263,7 @@ describe("ProductionModule byproducts", () => {
       demandCoverage: [],
       records: [] as ProductionRecord[],
       ingredientCosts: 0,
+      productionDiagnostics: { rows: [], steps: 0, maxSteps: 0 } as ProductionCycleDiagnostic,
       smithingProgramByGood: new Map<string, never>(),
       strategicLaborMarket: undefined,
       strategicDemandByGood: new Map<number, never>()
@@ -307,6 +340,7 @@ describe("ProductionModule byproducts", () => {
       demandCoverage: [],
       records: [] as ProductionRecord[],
       ingredientCosts: 0,
+      productionDiagnostics: { rows: [], steps: 0, maxSteps: 0 } as ProductionCycleDiagnostic,
       smithingProgramByGood: new Map<string, never>(),
       strategicLaborMarket: undefined,
       strategicDemandByGood: new Map([[3, { stateFunded: true }]])
@@ -518,6 +552,7 @@ describe("ProductionModule byproducts", () => {
       demandCoverage: [] as number[],
       records: [] as ProductionRecord[],
       ingredientCosts: 0,
+      productionDiagnostics: { rows: [], steps: 0, maxSteps: 0 } as ProductionCycleDiagnostic,
       smithingProgramByGood: new Map<string, never>(),
       strategicLaborMarket: undefined,
       strategicDemandByGood: new Map<number, never>()
@@ -600,6 +635,7 @@ describe("executeManufacture wages (docs/plan/economy-coupling-audit.md L2 Phase
       demandCoverage: [] as number[],
       records: [] as ProductionRecord[],
       ingredientCosts: 0,
+      productionDiagnostics: { rows: [], steps: 0, maxSteps: 0 } as ProductionCycleDiagnostic,
       smithingProgramByGood: new Map<string, never>(),
       strategicLaborMarket: {
         marketId: 1,
@@ -633,6 +669,32 @@ describe("executeManufacture wages (docs/plan/economy-coupling-audit.md L2 Phase
     expect(laborUsed).toBeCloseTo(1, 6);
     expect(worldContext.pack.burgs[1].treasury).toBeCloseTo(6, 6);
     expect(getBurgMarketLedger(1)?.householdWealth).toBeCloseTo(4, 6);
+    expect(state.productionDiagnostics.rows).toContainEqual(
+      expect.objectContaining({
+        stage: "execution",
+        goodId: 1,
+        primary: null,
+        wagesPaid: 4,
+        outputLots: 1,
+        laborPoints: 1
+      })
+    );
+  });
+
+  it("records the actual funding guard without creating output or wages", () => {
+    const state = stateWithWage(4, 0);
+    const before = getBurgMarketLedger(1)?.householdWealth ?? 0;
+    const result = (new ProductionModule() as unknown as ManufactureHarness).executeManufacture(
+      state,
+      { demandCoverageByGood: [] },
+      decision(),
+      1
+    );
+    expect(result).toEqual({ yieldLots: 0, laborUsed: 0 });
+    expect(state.productionDiagnostics.rows).toMatchObject([
+      { stage: "execution", goodId: 1, primary: "funds", count: 1 }
+    ]);
+    expect(getBurgMarketLedger(1)?.householdWealth ?? 0).toBe(before);
   });
 
   it("produces more in a cheap-labor market than a tight one on the same purse", () => {
@@ -694,6 +756,31 @@ describe("runWorkerLoop steps (port-freight-queue-and-warehouses.md §10.23)", (
   };
   const good = (i: number, name: string) => ({ i, name, tags: [], value: 1, unit: "lot", icon: "", color: "" }) as Good;
 
+  it("removes the current salt crew before giving labor to workshops and commissions", () => {
+    const burg = { i: 1, market: 1, population: 10 } as Burg;
+    setMarkets([{ i: 1, centerBurgId: 1, color: "", goods: {} }]);
+    Markets.sync();
+    const production = new ProductionModule() as unknown as {
+      produceForBurg(burg: Burg, cycle: unknown): void;
+      createBurgProductionState(...args: unknown[]): never;
+    };
+    const stop = new Error("Stop before manufacturing");
+    const createState = vi.spyOn(production, "createBurgProductionState").mockImplementation(() => {
+      throw stop;
+    });
+    expect(() =>
+      production.produceForBurg(burg, {
+        index: {},
+        strategicLaborMarketById: new Map(),
+        constructionOperationByBurg: new Map(),
+        basicWorkersByBurg: new Map([[1, 2]]),
+        saltWorkersByBurg: new Map([[1, 2.5]]),
+        childLabourEquivalent: 0
+      })
+    ).toThrow(stop);
+    expect(createState.mock.calls[0][5]).toBe(5.5);
+  });
+
   it("gives a failed attempt's step back and skips its goal, so a small town's steps reach its work", () => {
     setEconomyCalibrationState({ applyCalibration: true });
     const failingGoal = good(1, "Failing Goal");
@@ -750,6 +837,24 @@ describe("linen clothing preparation", () => {
     clearEconomyContext();
   });
 
+  it.each([false, true])("explains unchanged null plans at the yield guard, empty recipe=%s", empty => {
+    const module = new ProductionModule() as unknown as {
+      buildImmediateManufactureCandidate(...args: unknown[]): unknown;
+    };
+    const quote = vi.spyOn(Markets, "quoteMarket").mockReturnValue({ stock: 0, buyPrice: 1, sellPrice: 1 });
+    try {
+      const recipe = { good: { i: 1, name: "Test" }, ingredients: empty ? [] : [{ goodId: 2, amount: 0.01 }] };
+      const state = { market: {}, inventory: [] };
+      const reasons = new Set<ProductionConstraint>();
+      const args = [state, recipe, { multiplier: 1, category: null }, 0.01, 1];
+      expect(module.buildImmediateManufactureCandidate(...args)).toBeNull();
+      expect(module.buildImmediateManufactureCandidate(...args, reasons)).toBeNull();
+      expect([...reasons]).toEqual([empty ? "unboundedRecipeYield" : "nonPositiveRecipeYield"]);
+    } finally {
+      quote.mockRestore();
+    }
+  });
+
   it("manufactures bedding only for paid orders and consumes its fabric without a productivity material bonus", () => {
     setEconomyCalibrationState({ applyCalibration: false });
     const cloth = { ...Goods.getDefaultGood("Wool Cloth")!, i: 1 };
@@ -776,6 +881,7 @@ describe("linen clothing preparation", () => {
       demandCoverage: [],
       records: [] as ProductionRecord[],
       ingredientCosts: 0,
+      productionDiagnostics: { rows: [], steps: 0, maxSteps: 0 } as ProductionCycleDiagnostic,
       smithingProgramByGood: new Map<string, never>(),
       strategicLaborMarket: undefined,
       strategicDemandByGood: new Map<number, never>()

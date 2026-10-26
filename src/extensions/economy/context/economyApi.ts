@@ -142,6 +142,12 @@ export function addFrontierApplicants(stateId: number, maleAdults: number, femal
 
 export type EconomySlice = Record<string, unknown>;
 
+/** Read-only access for planning operations that must not create state on failure. */
+export function peekEconomySlice(): EconomySlice | null {
+  const slice = _api?.simulationContext?.extensions?.economy;
+  return slice && typeof slice === "object" && !Array.isArray(slice) ? (slice as EconomySlice) : null;
+}
+
 /**
  * The economy extension's namespaced simulation slice, created on first access.
  * Returns null when `simulationContext` isn't provided (e.g. minimal `SimulationExtensionAPI` test

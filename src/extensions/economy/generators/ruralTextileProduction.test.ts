@@ -388,6 +388,7 @@ describe("rural household wool processing", () => {
       const diagnostic = result.beddingDiagnostic!;
       expect(result.blankets).toBe(0);
       if (constraint === "labor") {
+        expect(result.homeDiagnostic!.status).toBe("noLabor");
         expect(diagnostic.laborAfterGarments).toBe(0);
         expect(diagnostic.routes).toHaveLength(0);
       } else {
@@ -397,9 +398,30 @@ describe("rural household wool processing", () => {
         if (constraint === "price") expect(route.inputPrice).toBeNull();
         if (constraint === "rounding") expect(route.belowPaymentPrecision).toBe(true);
         expect(route.producedLots).toBe(0);
+        const homeRoute = result.homeDiagnostic!.routes.find(
+          row => row.productGoodId === byName("Wool Blankets").i && row.weavesCloth
+        )!;
+        const reason = { stock: "materials", cash: "budget", price: "missingPrice", rounding: "paymentPrecision" }[
+          constraint
+        ];
+        expect(homeRoute.primary).toBe(reason);
+        expect(homeRoute.constraints).toContain(reason);
       }
     }
   );
+
+  it("captures clothing routes and the remaining home need without inventing a market shortage", () => {
+    const market = getMarkets()[0];
+    market.goods[byName("Wool").i].stock = 0;
+    const result = settleRuralTextileProduction(market, 1, 0, 1000, 0);
+    expect(result.garments).toBe(0);
+    expect(result.homeDiagnostic!.garmentUnmetAfterHome).toBe(1);
+    const routes = result.homeDiagnostic!.routes.filter(row => row.productGoodId === byName("Wool Garments").i);
+    expect(routes.some(row => row.primary === "materials")).toBe(true);
+    expect(routes.some(row => row.pass === "releasedLabor")).toBe(true);
+    expect(routes.every(row => row.producedLots === 0)).toBe(true);
+    expect(estimateRuralTextileProduction(market, 1, 0, 1000, 0).homeDiagnostic).toBeUndefined();
+  });
 
   it("shares scarce work between independent garment and blanket needs without increasing total capacity", () => {
     const market = getMarkets()[0];

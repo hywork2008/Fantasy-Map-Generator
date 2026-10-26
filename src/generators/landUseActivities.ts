@@ -69,7 +69,8 @@ export function addActivities(
   input: ClearanceCellInput,
   cell: CellLandUseBudget,
   year: number,
-  previous?: CellLandUseBudget
+  previous?: CellLandUseBudget,
+  protectedArableAreaHa = 0
 ): void {
   let remaining = Math.max(0, cell.physicalLandAreaHa - cell.patches.reduce((s, p) => s + p.areaHa, 0));
   const add = (kind: LandUsePatchBudget["kind"], requested: number, canopyRetention = 0) => {
@@ -93,22 +94,31 @@ export function addActivities(
   const livestock = input.livestock;
   if (livestock) {
     cell.diagnostics.push("resolved-livestock-land");
+    // Reserve unused arable capacity for unmet staple demand. This is an area
+    // budget, not a claim that the generated polygons identify soil suitability.
+    let livestockLand = Math.max(0, remaining - Math.max(0, protectedArableAreaHa));
+    const addLivestock = (kind: LandUsePatchBudget["kind"], requested: number, canopy = 0) => {
+      const patch = add(kind, Math.min(livestockLand, Math.max(0, requested)), canopy);
+      livestockLand -= patch?.areaHa ?? 0;
+    };
     const fallow = cell.allocatedAreaHa * (1 - (input.annualSownShare ?? 0.67));
     const credited =
       Math.min(livestock.grazedFallowHa ?? 0, fallow) +
       Math.min(livestock.fodderWithinFieldsHa ?? 0, cell.allocatedAreaHa - fallow);
     const demand = Math.max(0, livestock.grazingAreaHa - credited);
     const wood = Math.min(demand, livestock.woodPastureHa ?? 0);
-    add("wood_pasture", wood, 0.55);
-    add("pasture", demand - wood);
-    add("hay_meadow", livestock.hayAreaHa ?? 0);
+    addLivestock("wood_pasture", wood, 0.55);
+    addLivestock("pasture", demand - wood);
+    addLivestock("hay_meadow", livestock.hayAreaHa ?? 0);
     if (
       demand + (livestock.hayAreaHa ?? 0) >
       cell.patches
         .filter(p => ["wood_pasture", "pasture", "hay_meadow"].includes(p.kind))
         .reduce((s, p) => s + p.areaHa, 0)
-    )
+    ) {
       cell.diagnostics.push("livestock-land-shortfall");
+      if (protectedArableAreaHa > 0) cell.diagnostics.push("staple-arable-protected");
+    }
   }
   const agro = add("agroforestry", input.agroforestryAreaHa ?? 0, 0.5);
   if (agro)
