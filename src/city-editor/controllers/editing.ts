@@ -124,6 +124,11 @@ export function createEditingController(ctx: EditingContext) {
       };
       ctx.syncStageUi(next.appearance === "town" ? 16 : 1);
     }
+    if (next.castleStyle !== undefined || !playback)
+      ctx.generation.generateSettings.castle = {
+        ...ctx.generation.generateSettings.castle,
+        style: next.castleStyle ?? next.fabric?.generation?.settings.castle?.style ?? "auto"
+      };
     ctx.generation.generateSettings.buildingHeightPolicy = next.buildingHeightPolicy;
     ctx.generation.generateSettings.buildingHeightLimit = next.buildingHeightLimit;
     ctx.generation.generateSettings.housingAreaScale =

@@ -2,6 +2,7 @@ import { editorText } from "../../i18n/editorMessages";
 import { describeImportedSite } from "../components/importedSite";
 import { inheritBuildingAppearance, withBuildingAppearance } from "../generators/buildingAppearance";
 import { inheritBuildingHeightLimits } from "../generators/buildingHeightLimits";
+import { withCastleStyle } from "../generators/castleAppearance";
 import { DEFAULT_CASTLE_SETTINGS } from "../generators/castlePlacement";
 import { sizePresetForExtent } from "../generators/document";
 import { elevationReliefScale, presetAmplitude } from "../generators/elevationPreset";
@@ -334,6 +335,8 @@ export function createGenerationController(ctx: GenerationContext) {
           ctx.generation.generateSettings.buildingHeightPolicy,
           next
         );
+      if (ctx.documents.documentState.castleStyle !== undefined)
+        next = withCastleStyle(next, ctx.documents.documentState.castleStyle);
       ctx.generation.generateSettings.housingAreaScale =
         next.fabric?.generation?.settings.housingAreaScale ?? next.housingAreaScale;
       ctx.generation.generateSettings.housingAreaPasses =
@@ -724,7 +727,7 @@ export function createGenerationController(ctx: GenerationContext) {
     const modeSelect = ctx.root.querySelector<HTMLSelectElement>(".ce-generation-mode");
     if (modeSelect) modeSelect.value = fort ? "fort" : "city";
     for (const selector of [".ce-city-generation-controls", ".ce-city-decoration"])
-      ctx.root.querySelector<HTMLElement>(selector)?.toggleAttribute("hidden", fort);
+      for (const section of ctx.root.querySelectorAll<HTMLElement>(selector)) section.hidden = fort;
     const complete = ctx.root.querySelector<HTMLElement>(".ce-complete-generation");
     if (complete)
       complete.textContent = editorText(
@@ -733,6 +736,11 @@ export function createGenerationController(ctx: GenerationContext) {
     const roll = ctx.root.querySelector<HTMLElement>(".ce-new-generation");
     if (roll) roll.textContent = editorText(fort ? "cityEditor.messages.newFort" : "cityEditor.messages.newCity");
     ctx.seedInput.value = ctx.generation.generateSeed;
+    if (ctx.documents.documentState.castleStyle !== undefined)
+      ctx.generation.generateSettings.castle = {
+        ...ctx.generation.generateSettings.castle,
+        style: ctx.documents.documentState.castleStyle
+      };
     for (const [scope, input] of ctx.moatInputs) input.checked = !!ctx.generation.generateSettings.moats?.[scope];
     for (const [key, input] of ctx.castleInputs)
       input.value = String(
@@ -801,7 +809,9 @@ export function createGenerationController(ctx: GenerationContext) {
       terrainField.value = allowed ? template : "off";
       if (!allowed) delete ctx.generation.generateSettings.terrainField;
     }
-    for (const [key, input] of ctx.featureInputs) input.checked = ctx.generation.generateSettings.config.features[key];
+    for (const [key, input] of ctx.featureInputs)
+      input.checked = (ctx.generation.generateSettings.descriptor?.burg ??
+        ctx.generation.generateSettings.config.features)[key];
     ctx.urbanCoreModeSelect.value = ctx.generation.generateSettings.urbanCoreMode ?? "legacy";
     ctx.urbanNPatchesInput.value =
       ctx.generation.generateSettings.urbanNPatches != null
@@ -825,6 +835,8 @@ export function createGenerationController(ctx: GenerationContext) {
     ctx.syncSkeletonControls?.();
     const imported = ctx.generation.generateSettings.descriptor != null;
     ctx.importedBox.hidden = !imported;
+    const importedFeaturesNotice = ctx.root.querySelector<HTMLElement>(".ce-imported-features-notice");
+    if (importedFeaturesNotice) importedFeaturesNotice.hidden = !imported;
     ctx.synthControls.hidden = imported;
     if (imported && ctx.generation.generateSettings.descriptor) {
       ctx.scope.replaceChildren(

@@ -43,7 +43,7 @@ describe("background complete generation", () => {
   it("keeps the input and undo history intact when cancelled, then permits a fresh run", async () => {
     mount();
     const before = root.querySelector("svg")!.outerHTML;
-    button("都市を一括生成").click();
+    button("Seedから生成").click();
     expect(root.getAttribute("aria-busy")).toBe("true");
     worker.onmessage!({
       data: { type: "progress", sample: { phase: "urban", elapsedMs: 1, attempt: 1 } }
@@ -54,7 +54,7 @@ describe("background complete generation", () => {
     expect(worker.terminate).toHaveBeenCalledOnce();
     expect(root.querySelector("svg")!.outerHTML).toBe(before);
     expect(root.querySelector<HTMLButtonElement>('button[title="Undo"]')!.disabled).toBe(true);
-    button("都市を一括生成").click();
+    button("Seedから生成").click();
     expect(root.hasAttribute("aria-busy")).toBe(true);
     button("生成をキャンセル").click();
     await vi.waitFor(() => expect(root.hasAttribute("aria-busy")).toBe(false));
@@ -64,7 +64,7 @@ describe("background complete generation", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const groupEnd = vi.spyOn(console, "groupEnd").mockImplementation(() => {});
     mount();
-    button("都市を一括生成").click();
+    button("Seedから生成").click();
     worker.onmessage!({
       data: {
         type: "progress",
@@ -94,7 +94,7 @@ describe("background complete generation", () => {
   it("commits a completed worker result once and supports undo", async () => {
     mount();
     const before = root.querySelector("svg")!.outerHTML;
-    button("都市を一括生成").click();
+    button("Seedから生成").click();
     const { document, settings, seed } = worker.request;
     const city = generateCityOnDocument(document, settings, seed);
     expect(city).not.toBeNull();
@@ -113,7 +113,7 @@ describe("background complete generation", () => {
     expect(checkbox.checked).toBe(false);
     if (enabled) checkbox.click();
     const before = root.querySelector("svg")!.outerHTML;
-    button("都市を一括生成").click();
+    button("Seedから生成").click();
     expect(worker.request.debugFailure).toBe(enabled);
     const partial = structuredClone(worker.request.document);
     const id = Object.keys(partial.mesh.vertices)[0];
@@ -190,13 +190,13 @@ describe("background complete generation", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(console, "groupEnd").mockImplementation(() => {});
     mount();
-    button("都市を一括生成").click();
+    button("Seedから生成").click();
     const accepted = structuredClone(worker.request.document);
     accepted.generationSeed = "previous-city";
     worker.onmessage!({ data: { type: "complete", document: accepted } } as MessageEvent);
     await vi.waitFor(() => expect(root.hasAttribute("aria-busy")).toBe(false));
     root.querySelector<HTMLInputElement>('input[aria-label="デバッグ：生成失敗の途中図を表示"]')!.click();
-    button("都市を一括生成").click();
+    button("Seedから生成").click();
     const partial = structuredClone(worker.request.document);
     const id = Object.keys(partial.mesh.vertices)[0];
     partial.mesh.vertices[id].point[0] += 2;
@@ -230,7 +230,7 @@ describe("background complete generation", () => {
       .querySelector("input")!;
     patches.value = "1";
     patches.dispatchEvent(new Event("change", { bubbles: true }));
-    button("都市を一括生成").click();
+    button("Seedから生成").click();
     expect(root.querySelector(".ce-generation-debug")?.getAttribute("data-attempt")).toBe("1");
     expect(root.querySelector(".ce-generation-debug-summary")!.textContent).toContain("urban-area-too-small");
     expect(root.querySelector(".ce-generation-debug-summary")!.textContent).toContain("橙");
@@ -260,7 +260,7 @@ it("replays early stages from the original grid after a split failure and histor
     baselines.set(step, read());
   }
   root.querySelector<HTMLInputElement>('input[aria-label="デバッグ：生成失敗の途中図を表示"]')!.click();
-  button("都市を一括生成").click();
+  button("Seedから生成").click();
   const { faceVertices, splitFace } = await import("../generators/mesh");
   const input = worker.request.document;
   const face = Object.keys(input.mesh.faces).find(id => faceVertices(input.mesh, input.mesh.faces[id]).length >= 4)!;
@@ -282,7 +282,7 @@ it("replays early stages from the original grid after a split failure and histor
   } as MessageEvent);
   await vi.waitFor(() => expect(root.hasAttribute("aria-busy")).toBe(false));
   const failureIndex = root.querySelectorAll(".ce-history-row").length - 1;
-  button("都市を一括生成").click();
+  button("Seedから生成").click();
   expect(worker.request.document).toEqual(input);
   button("生成をキャンセル").click();
   await vi.waitFor(() => expect(root.hasAttribute("aria-busy")).toBe(false));

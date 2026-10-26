@@ -574,7 +574,7 @@ export function createCastleBuildingOnFace(document: CityDocument, faceId: Id): 
     position: "central",
     relationship: "detached",
     form: "keep-bailey",
-    castleStyle: "norman-keep",
+    ...(document.castleStyle === "auto" ? {} : { castleStyle: document.castleStyle ?? "norman-keep" }),
     siteFaceIds: [faceId],
     courtyards: [],
     parts: [{ id: `${id}:keep`, role: "keep", footprint, entrances: [entrance], locked: false }],

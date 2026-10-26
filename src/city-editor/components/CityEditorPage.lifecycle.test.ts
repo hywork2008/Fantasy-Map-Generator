@@ -42,7 +42,7 @@ describe("editor mount boundaries", () => {
     vi.stubGlobal("Worker", FakeWorker);
     const removed = vi.spyOn(window, "removeEventListener");
     dispose = mountCityEditor(root);
-    button("Generate complete city").click();
+    button("Generate from seed").click();
     const old = worker,
       deliver = old.onmessage!;
     expect(root.getAttribute("aria-busy")).toBe("true");

@@ -127,9 +127,12 @@ export function buildBuildingAppearanceControls(ctx: {
   for (const option of spacing.options)
     option.textContent =
       option.value === "auto" ? editorText("cityEditor.messages.terrainSpacingAuto") : `${option.value} m`;
-  root.append(
+  const viewControls = div("ce-building-view-controls");
+  viewControls.append(
     ctx.label(editorText("cityEditor.messages.modelQuality"), quality),
-    ctx.label(editorText("cityEditor.messages.terrainSpacing"), spacing),
+    ctx.label(editorText("cityEditor.messages.terrainSpacing"), spacing)
+  );
+  root.append(
     ctx.label(editorText("cityEditor.messages.housingCulture"), culture),
     ctx.label(editorText("cityEditor.messages.housingClimate"), climate),
     ctx.label(editorText("cityEditor.messages.buildingHeightMode"), mode),
@@ -192,5 +195,5 @@ export function buildBuildingAppearanceControls(ctx: {
     climate.value = city.buildingAppearanceClimate ?? "auto";
   };
   sync();
-  return { root, sync };
+  return { root, viewControls, sync };
 }

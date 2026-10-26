@@ -126,7 +126,13 @@ export function mountCity3d(options: {
   getTerrainSpacing?: () => number | "auto";
   /** Metres the river surface sits below the land it touches. Absent keeps 1 m. */
   getRiverDropMeters?: () => number;
-}): { sync(): void; resetCamera(): void; dispose(): void; getPerformance(): City3dPerformanceSnapshot | null } {
+}): {
+  sync(): void;
+  resetCamera(): void;
+  dispose(): void;
+  getPerformance(): City3dPerformanceSnapshot | null;
+  restoreView(saved: NonNullable<City3dPerformanceSnapshot["camera"]>): void;
+} {
   const viewport = document.createElement("div");
   viewport.className = "ce-3d";
   viewport.hidden = true;
@@ -787,5 +793,16 @@ export function mountCity3d(options: {
           buildings: built?.buildings.length ?? 0,
           quality: builtQuality
         };
-  return { sync, resetCamera, dispose, getPerformance };
+  const restoreView = (saved: NonNullable<City3dPerformanceSnapshot["camera"]>) => {
+    setOpen(true);
+    if (!camera || !controls) return;
+    camera.position.fromArray(saved.position);
+    controls.target.fromArray(saved.target);
+    camera.zoom = saved.zoom;
+    camera.fov = saved.fov;
+    camera.updateProjectionMatrix();
+    controls.update();
+    requestRender();
+  };
+  return { sync, resetCamera, dispose, getPerformance, restoreView };
 }

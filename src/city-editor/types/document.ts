@@ -589,6 +589,8 @@ export interface CityDocument {
   /** Town-wide bastioned defense. Absent on v1–v4 documents. */
   bastionedTown?: BastionedTownPlan;
   castles?: CastlePlan[];
+  /** Map-wide procedural style; explicit per-castle overrides remain editable in Inspector. */
+  castleStyle?: NonNullable<import("./castle").CastleSettings["style"]>;
   cemeteries?: CemeteryPlan[];
   burialProfile?: import("../../data/burialCultures").BurialCultureProfile;
   /** FMG culture and local faith; absent documents keep the period-only castle and monasteries. */
