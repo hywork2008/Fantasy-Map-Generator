@@ -1,5 +1,22 @@
 {
   "cityEditor": {
+    "generationWorkspace": {
+      "tabs": "Generation settings",
+      "basics": "Basics",
+      "elements": "Elements",
+      "view": "View",
+      "debug": "Debug",
+      "decoration": "Decoration",
+      "population": "Population & map frame",
+      "structure": "Generation method & city layout",
+      "terrain": "Terrain & elevation",
+      "housing": "Urban area & housing",
+      "streets": "Streets & water avoidance",
+      "layers": "Layers & editing view",
+      "trees": "Vacant lot trees",
+      "farmland": "Farmland & rural land use",
+      "importedFeatures": "Features are supplied by FMG. Choose {{action}} in Basics to edit them."
+    },
     "messages": {
       "performanceMeasurementHelp": "How to read these measurements",
       "performancePanel": "Performance",

@@ -41,8 +41,10 @@ export function buildPopulationControls(ctx: GenerationPanelContext) {
     [...select.options].forEach((o, i) => {
       o.textContent = editorText(`cityEditor.messages.${keys[i]}`);
     });
-  panel.append(
-    ctx.label(editorText("cityEditor.messages.populationEnabled"), enabled),
+  const details = document.createElement("div");
+  details.className = "ce-population-details";
+  panel.append(ctx.toggleLabel(editorText("cityEditor.messages.populationEnabled"), enabled), details);
+  details.append(
     ctx.label(editorText("cityEditor.messages.populationSource"), source),
     ctx.label(editorText("cityEditor.messages.population"), input),
     ctx.label(editorText("cityEditor.messages.populationDisplay"), display),
@@ -99,6 +101,7 @@ export function buildPopulationControls(ctx: GenerationPanelContext) {
     const p = settings().population;
     const descriptor = settings().descriptor;
     enabled.checked = !!p;
+    details.hidden = !p;
     source.value = p?.source ?? (descriptor ? "fmg" : "manual");
     source.options[0].disabled = !!descriptor;
     source.options[1].disabled = source.options[2].disabled = !descriptor;

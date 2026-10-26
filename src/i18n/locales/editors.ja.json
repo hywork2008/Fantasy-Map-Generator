@@ -1,5 +1,22 @@
 {
   "cityEditor": {
+    "generationWorkspace": {
+      "tabs": "生成設定",
+      "basics": "基本条件",
+      "elements": "要素別設定",
+      "view": "表示",
+      "debug": "デバッグ",
+      "decoration": "装飾",
+      "population": "人口・地図範囲",
+      "structure": "生成方式・都市構造",
+      "terrain": "地形・標高",
+      "housing": "市街地・住宅",
+      "streets": "道路・水域回避",
+      "layers": "レイヤー・編集表示",
+      "trees": "空き地の樹木",
+      "farmland": "農地・郊外の土地利用",
+      "importedFeatures": "FeaturesはFMGから取り込まれています。変更する場合は「基本条件」で「{{action}}」を選んでください。"
+    },
     "messages": {
       "performanceMeasurementHelp": "計測値の見方",
       "performancePanel": "パフォーマンス",

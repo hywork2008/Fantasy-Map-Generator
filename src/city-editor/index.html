@@ -70,13 +70,24 @@
       .ce-icon-row { display:flex; flex-wrap:wrap; gap:5px; } .ce-landmark-controls { display:grid; grid-template-columns:minmax(0,1fr) 58px; gap:5px; } .ce-landmark-controls select { max-width:none; } .ce-landmark-controls input[type="file"] { grid-column:1 / -1; max-width:100%; font-size:10px; } .ce-group-row { display:grid; grid-template-columns:auto minmax(0,1fr) auto auto; align-items:center; gap:5px; padding:2px 4px; border-radius:5px; transition:background .15s,box-shadow .15s; } .ce-group-row span { color:var(--muted); font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
       .ce-group-row.is-active, .ce-group-row.ce-group-selected { background:rgb(22 140 151 / 15%); box-shadow:0 0 0 1.5px var(--accent); }
       .ce-group-row.is-active span, .ce-group-row.ce-group-selected span { color:var(--ink); font-weight:600; }
-      .ce-city-generation-controls { display:grid; gap:8px; }
+      .ce-city-generation-controls, .ce-generation-workspace, .ce-generation-tabpanel, .ce-standalone-settings, .ce-population-details, .ce-skeleton-controls, .ce-fortification-controls, .ce-wall-shape-controls, .ce-castle-settings { display:grid; gap:8px; min-width:0; }
+      .ce-generation-tabpanel[hidden], .ce-generation-section[hidden], .ce-standalone-settings[hidden], .ce-population-details[hidden] { display:none; }
+      .ce-generation-tabs { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:4px; border-bottom:1px solid var(--line); padding-bottom:6px; }
+      .ce-generation-tabs button { min-width:0; font-size:11px; padding:4px 6px; }
+      .ce-generation-tabs [aria-selected="true"] { color:white; background:var(--accent-dark); border-color:var(--accent-dark); }
+      .ce-generation-tabs button:focus-visible { outline:2px solid var(--warm); outline-offset:1px; }
+      .ce-generation-section { display:grid; gap:8px; min-width:0; margin:0; padding:8px; border:1px solid #cbd2d0; border-radius:5px; }
+      .ce-generation-section legend { padding:0 4px; font-size:11px; font-weight:650; }
+      .ce-generation-section label:not(.ce-toggle) { grid-template-columns:1fr; gap:3px; }
+      .ce-generation-section select, .ce-generation-section input:not([type="checkbox"]) { max-width:none; width:100%; }
+      .ce-imported-features-notice { color:var(--muted); font-size:11px; line-height:1.5; }
+      .ce-imported-features-notice[hidden], .ce-setting-feedback:empty { display:none; }
       .ce-building-appearance-controls { display:grid; gap:6px; padding:8px 0; border-top:1px solid #cbd2d0; border-bottom:1px solid #cbd2d0; }
       .ce-building-appearance-controls label { grid-template-columns:1fr; gap:3px; }
       .ce-building-appearance-controls select { max-width:none; width:100%; }
       .ce-building-appearance-controls > span { color:var(--muted); font-size:10px; line-height:1.4; }
       .ce-city-generation-controls[hidden],.ce-city-decoration[hidden],.ce-fort-help[hidden] { display:none; }
-      .ce-city-decoration { display:grid; gap:6px; padding:7px; border:1px solid #a9bda1; border-radius:6px; background:rgb(126 168 103 / 10%); }
+      .ce-city-decoration { display:grid; gap:8px; }
       .ce-icon-row.ce-generation-step-row { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; }
       .ce-generate-step-status { min-width:0; overflow-wrap:anywhere; }
       .ce-generate-stages { display:grid; gap:6px; padding:6px; border:1px solid #d6dddb; border-radius:6px; background:rgb(255 255 255 / 35%); } .ce-generate-stage-header { display:flex; justify-content:space-between; align-items:center; } .ce-generate-stage-badge { font-weight:700; color:var(--ink); font-size:12px; } .ce-generate-stage-num { font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums; font-weight:600; } .ce-generate-slider-row { display:flex; align-items:center; gap:6px; } .ce-generate-slider-row input[type="range"] { flex:1; } .ce-generate-stage-hint { font-size:10.5px; color:#536268; line-height:1.35; min-height:2.2em; } .ce-generate-features { display:grid; grid-template-columns:1fr 1fr; gap:3px 10px; } .ce-toggle { display:flex; align-items:center; gap:6px; color:#4d5d61; font-size:11px; } .ce-toggle input { width:auto; min-width:0; max-width:none; accent-color:var(--accent); }

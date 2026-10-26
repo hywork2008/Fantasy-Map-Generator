@@ -885,6 +885,10 @@ describe("shareable link and FMG site", () => {
     remount();
     expect(root.querySelector(".ce-imported")?.hidden).toBe(false);
     expect(root.querySelector(".ce-generate-synth")?.hidden).toBe(true);
+    const importedPort = root.querySelector<HTMLInputElement>('[data-feature="port"]')!;
+    expect(importedPort.checked).toBe(true);
+    expect(importedPort.disabled).toBe(true);
+    expect(root.querySelector<HTMLElement>(".ce-imported-features-notice")!.hidden).toBe(false);
     expect(root.querySelector(".ce-generate-seawall")).toBeTruthy();
     expect(root.querySelector(".ce-generate-seawall")?.closest(".ce-generate-synth")).toBeNull();
     expect(root.querySelector(".ce-imported-body")?.textContent).toContain("From shared link");
@@ -893,6 +897,8 @@ describe("shareable link and FMG site", () => {
     panelButton("Use standalone site").click();
     expect(root.querySelector(".ce-imported")?.hidden).toBe(true);
     expect(root.querySelector(".ce-generate-synth")?.hidden).toBe(false);
+    expect(importedPort.disabled).toBe(false);
+    expect(root.querySelector<HTMLElement>(".ce-imported-features-notice")!.hidden).toBe(true);
   });
 
   it(STAGE_BUILDINGS_TEST, () => {

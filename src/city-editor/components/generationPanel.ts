@@ -18,6 +18,7 @@ import type { GenerationStage } from "../types/generation";
 import { buildBuildingAppearanceControls } from "./buildingAppearanceControls";
 import { div, text } from "./editorControls";
 import { renderGenerationSettingFeedback } from "./generationSettingFeedback";
+import { syncGenerationSections } from "./generationWorkspace";
 import { buildPopulationControls } from "./populationControls";
 export interface GenerationPanelContext {
   select: (values: string[], selected: string) => HTMLSelectElement;
@@ -682,18 +683,19 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
     ctx.panelEventContext().commit(removeBastionedTown(city), editorText("cityEditor.messages.bastionedTownRemoved"));
   });
   removeFortressButton.classList.add("ce-remove-bastioned-town");
-  skeletonControls.append(
-    ctx.label(editorText("cityEditor.messages.generationMethod"), methodSelect),
+  skeletonControls.append(ctx.label(editorText("cityEditor.messages.generationMethod"), methodSelect));
+  const fortificationControls = div("ce-fortification-controls");
+  fortificationControls.append(
     ctx.label(editorText("cityEditor.messages.townFortification"), fortSelect),
     outworksLabel,
     ditchLabel,
     streetsLabel,
     dimensionsLabel,
     fortressNotice,
-    removeFortressButton,
-    shapeLabel,
-    sidesLabel
+    removeFortressButton
   );
+  const wallShapeControls = div("ce-wall-shape-controls");
+  wallShapeControls.append(shapeLabel, sidesLabel);
   const unavailable = (control: HTMLInputElement | HTMLSelectElement, active: boolean) => {
     if (active) {
       if (!control.dataset.skeletonTitle) control.dataset.skeletonTitle = control.title || " ";
@@ -710,9 +712,8 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
   const settingFeedback = div("ce-setting-feedback");
   settingFeedback.id = `ce-setting-feedback-${crypto.randomUUID()}`;
   settingFeedback.setAttribute("aria-live", "polite");
-  skeletonControls.append(settingFeedback);
   function syncSettingFeedback() {
-    const container = skeletonControls.parentElement;
+    const container = skeletonControls.closest<HTMLElement>(".ce-generate");
     const find = (selector: string) => container?.querySelector<HTMLElement>(selector);
     renderGenerationSettingFeedback(
       settingFeedback,
@@ -805,7 +806,16 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
     sidesLabel.hidden = !active || !["polygon", "bastioned"].includes(shapeSelect.value);
     if (active && settings.townWallRings !== "double") townWallRingsSelect.value = "single";
     if (active && settings.urbanCoreMode === undefined) urbanCoreModeSelect.value = "compact";
-    unavailable(featureInputs.get("citadel")!, active && !fortress);
+    for (const [key, input] of featureInputs) {
+      input.disabled = !!settings.descriptor || (key === "citadel" && active && !fortress);
+      input.title = settings.descriptor
+        ? editorText("cityEditor.generationWorkspace.importedFeatures", {
+            action: editorText("cityEditor.messages.useStandaloneSite")
+          })
+        : input.disabled
+          ? editorText("cityEditor.messages.skeletonLater")
+          : "";
+    }
     layoutSelect.disabled = fortress;
     for (const option of layoutSelect.options) {
       option.disabled = active && ["bram", "circulade"].includes(option.value);
@@ -827,7 +837,8 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
     ])
       unavailable(control, active);
     syncSettingFeedback();
-    const container = skeletonControls.parentElement;
+    const container = skeletonControls.closest<HTMLElement>(".ce-generate");
+    if (container) syncGenerationSections(container, settings);
     if (container && !skeletonParents.has(container)) {
       skeletonParents.add(container);
       ctx.panelEventContext().scope.listen(container, "change", syncSkeletonControls);
@@ -910,6 +921,9 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
     appearanceControls,
     populationControls: populationControls.panel,
     skeletonControls,
+    fortificationControls,
+    wallShapeControls,
+    settingFeedback,
     syncSkeletonControls,
     currentBuildingPatternSelect,
     historicalPeriodSelect,
