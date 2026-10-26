@@ -792,12 +792,12 @@ PR 2 の共通台帳に依存。ケルトの移行済み台帳を維持し、フ
 
 - 上限は効いていない。burg のある人口セルの割合は Britain p4 で 20%、p8 で 12%、Europe で 21%。burg の総数を決めているのは `getTownsNumber()`（`burgs-generator.ts`）の「人口セル数 / 5 /(密度/1 万)^0.8」で、セル上限ではない。points を 4 から 8 に倍増しても burg は 604→698 しか増えない。manors を 2,000 に固定すると Britain p8 で 2,003 burg が配置でき、人口セルの 35–41% で上限まで余裕がある。burg を増やしたい場合は manors を使えばよい。
 - 史料の密度とも合う。1300 年頃の borough は約 220 km² に 1 つで、Britain のセル（55–108 km²）1 つに 1 未満である。市場特許（約 65 km² に 1 つ）は p4 で 1 セル 1.7 個になるが、市場は burg ではなく台帳の数値でよい。Europe とランダム地図では 1 セルに borough が数個入る計算になるが、そこでは人口自体が 1/10 で（R2）、burg を増やしても解決しない。
-- 緩めた場合の不具合候補。`cells.burg` はセルごとに 1 つの `Uint16Array`（`burgs-generator.ts:1297`）で、54 ファイル 152 箇所が参照する。
-  - 集計の取りこぼし: 国家・Province の都市人口と burg 一覧（`states-generator.ts:423`、`provinces-generator.ts:363-365`）、バイオーム統計、セル情報の都市人口。
-  - 削除と移動: burg を消すとセルの枠が 0 になり、同じセルの別 burg が孤立する（`worldRuntime.ts:1398`、`burgs-generator.ts:2331`）。移動は上書きする（`worldRuntime.ts:1139-1140`）。
-  - 経済: セルから burg を引く農地利用・生産・市場（`agriculturalLandUse.ts:619,693,739`、`production-utils.ts:54`、`economy/simulation.ts:714`）が後背地を 1 つの burg にだけ帰属させる。
-  - 道路: 経路の節点がセルなので、同じセルの 2 burg は同じ節点を共有し、長さ 0 の区間ができる（`routes-generator.ts:1472,1563,1858`）。
-  - 既存の不変条件: Burg Editor はセルが埋まっていると移動を拒否し（`burg-editor.ts:227`）、再サンプリングは衝突を退ける（`resample.ts:287`）。CE の町半径とサイト記述子もセル単位である。
+- 緩めた場合の不具合候補。`cells.burg` はセルごとに 1 つの `Uint16Array`（`burgs-generator.ts#L1297`）で、54 ファイル 152 箇所が参照する。
+  - 集計の取りこぼし: 国家・Province の都市人口と burg 一覧（`states-generator.ts#L423`、`provinces-generator.ts#L363-365`）、バイオーム統計、セル情報の都市人口。
+  - 削除と移動: burg を消すとセルの枠が 0 になり、同じセルの別 burg が孤立する（`worldRuntime.ts#L1398`、`burgs-generator.ts#L2331`）。移動は上書きする（`worldRuntime.ts#L1139-1140`）。
+  - 経済: セルから burg を引く農地利用・生産・市場（`agriculturalLandUse.ts#L619,693,739`、`production-utils.ts#L54`、`economy/simulation.ts#L714`）が後背地を 1 つの burg にだけ帰属させる。
+  - 道路: 経路の節点がセルなので、同じセルの 2 burg は同じ節点を共有し、長さ 0 の区間ができる（`routes-generator.ts#L1472,1563,1858`）。
+  - 既存の不変条件: Burg Editor はセルが埋まっていると移動を拒否し（`burg-editor.ts#L227`）、再サンプリングは衝突を退ける（`resample.ts#L287`）。CE の町半径とサイト記述子もセル単位である。
   - 緩めるなら `cell → burg[]` の多重写像と 152 箇所の監査が必要で、貴族設計の利得に比べて重い。
 
 ### 2026-10-18 改訂での扱い

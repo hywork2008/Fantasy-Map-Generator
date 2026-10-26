@@ -4,8 +4,8 @@
 
 **未実装の監査・提案ドキュメント。** 2026-09-05 時点の `master`(`e1774be0`)を対象に、
 [technology-development-roadmap.md](./technology-development-roadmap.md) §4〜§11 の全ノード表と、
-実装である [`technologyDefinitions.ts`](../../src/generators/technologyDefinitions.ts)(77ノード)・
-[`goods-generator.ts`](../../src/extensions/economy/generators/goods-generator.ts) の
+実装である [`technologyDefinitions.ts`](/src/generators/technologyDefinitions.ts)(77ノード)・
+[`goods-generator.ts`](/src/extensions/economy/generators/goods-generator.ts) の
 `requiredTechnology` 付き Good 群を突き合わせ、**「発明 A と発明 C は存在するが、両者を史実・
 シミュレーション上つなぐべき中間ノード B が無い」箇所**を洗い出したもの。
 
@@ -55,16 +55,16 @@
 
 | # | 内容 | 深刻度 | 該当箇所 |
 | --- | --- | --- | --- |
-| E1 | 鉄道が鉄・鋼を一切要求しない(§8 は `steelmaking` を要求) | 中 | `technologyDefinitions.ts:581` |
-| E2 | 近代掘削が鋼管・動力ポンプを要求しない(§10 は「鋼管、ポンプ」) | 中 | `technologyDefinitions.ts:915` |
-| E3 | 発電機・電動機が電池/電気計測(`practicalElectrochemistry`)を前提にしない | 低 | `technologyDefinitions.ts:844` |
-| E4 | `Steel` Good のゲートが `standardMachineWorks`、製鋼ノードは `modernSteelmaking` で不一致 | 低 | `goods-generator.ts:2602` |
+| E1 | 鉄道が鉄・鋼を一切要求しない(§8 は `steelmaking` を要求) | 中 | `technologyDefinitions.ts#L581` |
+| E2 | 近代掘削が鋼管・動力ポンプを要求しない(§10 は「鋼管、ポンプ」) | 中 | `technologyDefinitions.ts#L915` |
+| E3 | 発電機・電動機が電池/電気計測(`practicalElectrochemistry`)を前提にしない | 低 | `technologyDefinitions.ts#L844` |
+| E4 | `Steel` Good のゲートが `standardMachineWorks`、製鋼ノードは `modernSteelmaking` で不一致 | 低 | `goods-generator.ts#L2602` |
 
 ### Part 3: 付随して見つかった観察事項(本計画の対象外だが記録)
 
 | # | 内容 | 該当箇所 |
 | --- | --- | --- |
-| O1 | `instruments` クラフトドメインのレシピ側唯一の産出源が `Liquor`(蒸留酒) | `guildKnowledgeTypes.ts:82` |
+| O1 | `instruments` クラフトドメインのレシピ側唯一の産出源が `Liquor`(蒸留酒) | `guildKnowledgeTypes.ts#L82` |
 | O2 | `TechnologySignals` の9フィールドがどのノードからも参照されていない | `technologyTypes.ts` |
 
 ---
@@ -85,18 +85,18 @@
 `physicalChemistry` にも対応するノードが無い。実装は**高圧容器のノードで熱の理論を代用**している。
 
 ```ts
-// technologyDefinitions.ts:929 (oilRefiningAndFractionation の直前)
+// technologyDefinitions.ts#L929 (oilRefiningAndFractionation の直前)
 // highPressureChemicalApparatus stands in for roadmap §10's "chemicalEngineering、
 // thermodynamics、precisionMachining" — …
 
-// technologyDefinitions.ts:983 (rocketDynamics… の直前)
+// technologyDefinitions.ts#L983 (rocketDynamics… の直前)
 // …the same highPressureChemicalApparatus proxy oilRefiningAndFractionation already reuses for
 // thermodynamics/precisionMachining。
 ```
 
 `highPressureChemicalApparatus` は「良質鋼で高圧反応器を作れる」という**冶金・工作の**ノードであり、
 カルノーサイクル・熱効率・気体の状態方程式という**理論知**とは別物である。加えて
-[`highEfficiencySteamEngine`](../../src/generators/technologyDefinitions.ts#L561) の閾値は
+[`highEfficiencySteamEngine`](/src/generators/technologyDefinitions.ts#L561) の閾値は
 `metallurgy` / `administration` / `treasury` の3つだけで、`naturalPhilosophy` も `experimentRecord` も
 参照しない。つまり**理論を一切持たない State が高効率機関に到達できる**。
 
@@ -160,9 +160,9 @@
 | `guidanceAndAttitudeControl` | known 0.55 / **adopted 0.65** |
 
 ところが**このシグナルを育てる技術ノードは1つも無い**。値は
-[`experimentalWorkshops.ts`](../../src/extensions/economy/generators/experimentalWorkshops.ts) の
+[`experimentalWorkshops.ts`](/src/extensions/economy/generators/experimentalWorkshops.ts) の
 `upsertInstruments()`(研究者頭数)と `powerStations.ts` から積み上がるだけで、レシピ側の産出源は
-[`guildKnowledgeTypes.ts:82`](../../src/extensions/economy/generators/guildKnowledgeTypes.ts#L82) の
+[`guildKnowledgeTypes.ts#L82`](/src/extensions/economy/generators/guildKnowledgeTypes.ts#L82) の
 `Liquor: "instruments"` — つまり**蒸留酒の生産者頭数**しかない(O1)。
 
 一方、別の設計書は**この名前のノードを既にグラフに書いている**。
@@ -225,13 +225,13 @@ C = 電気計測・高圧計装・誘導装置 の間には、時計・光学・
 
 | Good | 行 | レシピ | `requiredTechnology` |
 | --- | --- | --- | --- |
-| `Soda Ash` | `goods-generator.ts:2843` | `{ Salt: 1, Lime: 0.3, Coal: 0.3, "Sulfuric Acid": 0.1 }` | `chemicalIndustryFoundation` |
-| `Caustic Soda` | `goods-generator.ts:2863` | `{ "Soda Ash": 1, "Slaked Lime": 0.3 }` | `chemicalIndustryFoundation` |
-| `Alumina` | `goods-generator.ts:2908` | `{ Bauxite: 1, "Caustic Soda": 0.3, Coal: 0.2 }` | `chemicalIndustryFoundation` |
+| `Soda Ash` | `goods-generator.ts#L2843` | `{ Salt: 1, Lime: 0.3, Coal: 0.3, "Sulfuric Acid": 0.1 }` | `chemicalIndustryFoundation` |
+| `Caustic Soda` | `goods-generator.ts#L2863` | `{ "Soda Ash": 1, "Slaked Lime": 0.3 }` | `chemicalIndustryFoundation` |
+| `Alumina` | `goods-generator.ts#L2908` | `{ Bauxite: 1, "Caustic Soda": 0.3, Coal: 0.2 }` | `chemicalIndustryFoundation` |
 
 `Sulfuric Acid` 自体は `industrialSulfuricAcid` ゲートであり、これは
 `chemicalIndustryFoundation` の**子**である
-([`technologyDefinitions.ts:677`](../../src/generators/technologyDefinitions.ts#L677))。
+([`technologyDefinitions.ts#L677`](/src/generators/technologyDefinitions.ts#L677))。
 したがって `Soda Ash` は**自分のレシピ材料より先に有効化される** — ゲート順序が逆転している。
 `isGoodEnabled()` は `demonstrated` 以上を要求するだけなので、この間 `Soda Ash` は
 「有効だが1単位も作れない Good」として市場に存在する。
@@ -274,7 +274,7 @@ C = 電気計測・高圧計装・誘導装置 の間には、時計・光学・
 
 **現状**
 
-`Coal Tar`([`goods-generator.ts:2823`](../../src/extensions/economy/generators/goods-generator.ts#L2823))は
+`Coal Tar`([`goods-generator.ts#L2823`](/src/extensions/economy/generators/goods-generator.ts#L2823))は
 `{ Coke: 1.2 }` から生産され、`requiredTechnology: "chemicalIndustryFoundation"`、
 `demandCoverage: {}`。走査の結果、**どのレシピの材料でもなく、どのプラントの入力でもなく、
 世帯需要も持たない**。生産されて市場に積み上がるだけの完全な行き止まりである。
@@ -322,13 +322,13 @@ C = 電気計測・高圧計装・誘導装置 の間には、時計・光学・
 どちらもノードが無い。実装側も自覚している。
 
 ```ts
-// syntheticAmmoniaPlants.ts:109
+// syntheticAmmoniaPlants.ts#L109
 // high-pressure catalytic reaction — no dedicated Hydrogen Good, no Steam Power capacity …
 ```
 
-[`syntheticAmmonia`](../../src/generators/technologyDefinitions.ts#L772) の `prerequisites` は
+[`syntheticAmmonia`](/src/generators/technologyDefinitions.ts#L772) の `prerequisites` は
 `["catalyticChemistry"]` 一本、
-[`liquidPropulsionAndTestFacilities`](../../src/generators/technologyDefinitions.ts#L1000) の
+[`liquidPropulsionAndTestFacilities`](/src/generators/technologyDefinitions.ts#L1000) の
 酸化剤側シグナルは `refinedFuelAccess`(灯油の市場カバレッジ)だけで、酸化剤に相当するものが無い。
 
 **なぜ B が必要か**
@@ -377,12 +377,12 @@ C = 電気計測・高圧計装・誘導装置 の間には、時計・光学・
 | **軽量構造材・導体** | **ノード無し** |
 
 `Aluminum` Good は
-[`electrolysisPlants.ts:88`](../../src/extensions/economy/generators/electrolysisPlants.ts#L88) が
+[`electrolysisPlants.ts#L88`](/src/extensions/economy/generators/electrolysisPlants.ts#L88) が
 市場在庫へ積むだけで、消費するレシピ・プラント・世帯需要がいずれも存在しない(`demandCoverage: {}`)。
 そして era 8 側はこの空白を代用で埋めている。
 
 ```ts
-// technologyDefinitions.ts:1024 (stagingAndOrbitalInsertion の直前)
+// technologyDefinitions.ts#L1024 (stagingAndOrbitalInsertion の直前)
 // electrolyticIndustry (Aluminum) stands in for "lightweightStructures" …
 ```
 
@@ -419,11 +419,11 @@ C = 電気計測・高圧計装・誘導装置 の間には、時計・光学・
 
 **現状**
 
-[`guidanceAndAttitudeControl`](../../src/generators/technologyDefinitions.ts#L1013) の
+[`guidanceAndAttitudeControl`](/src/generators/technologyDefinitions.ts#L1013) の
 `prerequisites` は `["liquidPropulsionAndTestFacilities", "electricTelegraph"]`。コメントは代用を明言する。
 
 ```ts
-// technologyDefinitions.ts:1010
+// technologyDefinitions.ts#L1010
 // copperWireAccess/instruments + electricTelegraph stand in for roadmap §11's
 // "electricalEngineering、electronics、controlTheory" and "センサー、通信、計算装置"。
 ```
@@ -510,14 +510,14 @@ chemicalEngineering、触媒化学、大規模製油 | 石油留分、電力、�
 | 石油 | `petroleumAccess` |
 | **火薬(era 2)** | **無し** |
 
-[`blackPowder`](../../src/generators/technologyDefinitions.ts#L247) の閾値は
+[`blackPowder`](/src/generators/technologyDefinitions.ts#L247) の閾値は
 `metallurgy` / `administration` / `pyrotechnics` / `treasury` / `gunpowderDemand` のみで、
 硝石の入手可能性を一切見ていない。ロードマップ §5.1 は黒色火薬の資源前提の筆頭に
 `saltpeter` を挙げている。
 
-同時に、`Saltpeter` Good([`goods-generator.ts:1043`](../../src/extensions/economy/generators/goods-generator.ts#L1043))は
+同時に、`Saltpeter` Good([`goods-generator.ts#L1043`](/src/extensions/economy/generators/goods-generator.ts#L1043))は
 レシピを持たない純鉱物で、供給源は
-[`mineralResources.ts:85`](../../src/extensions/economy/generators/mineralResources.ts#L85) の
+[`mineralResources.ts#L85`](/src/extensions/economy/generators/mineralResources.ts#L85) の
 `evaporite` 地区(`basin` 属州)だけである。つまり**盆地属州を持たない State は硝石を自給する手段が
 原理的に無い**のに、火薬ノードは問題なく `adopted` まで進む。
 
@@ -561,7 +561,7 @@ chemicalEngineering、触媒化学、大規模製油 | 石油留分、電力、�
 ## E1. 鉄道が鉄・鋼を要求しない
 
 ロードマップ §8 は「鉄道 | railEngineering、**steelmaking**、蒸気輸送」と書くが、
-[`railEngineering`](../../src/generators/technologyDefinitions.ts#L581) の閾値は
+[`railEngineering`](/src/generators/technologyDefinitions.ts#L581) の閾値は
 `treasury` / `masonry` / `administration` の3つだけで、`metallurgy` も `steelAccess` も無い。
 石造技術と国庫だけで鉄道が敷ける。
 
@@ -574,7 +574,7 @@ chemicalEngineering、触媒化学、大規模製油 | 石油留分、電力、�
 ## E2. 近代掘削が鋼管も動力ポンプも要求しない
 
 ロードマップ §10 は「近代掘削・油田運営 | … | **鋼管、ポンプ**、道路／港、労働者、安全設備」。
-[`modernDrillingAndFieldOperations`](../../src/generators/technologyDefinitions.ts#L915) の閾値は
+[`modernDrillingAndFieldOperations`](/src/generators/technologyDefinitions.ts#L915) の閾値は
 `petroleumAccess` / `administration` / `treasury` のみ。さらに親の
 `petroleumGeologyAndExploration` は era 4 の2ノードだけを前提とするため、
 **石油系列全体が蒸気機関も製鋼も持たない State から開始できる**。
@@ -585,7 +585,7 @@ chemicalEngineering、触媒化学、大規模製油 | 石油留分、電力、�
 
 ## E3. 発電機・電動機が電池・電気計測を前提にしない
 
-[`generatorAndMotor`](../../src/generators/technologyDefinitions.ts#L844) の `prerequisites` は
+[`generatorAndMotor`](/src/generators/technologyDefinitions.ts#L844) の `prerequisites` は
 `["electricalExperiments", "modernSteelmaking"]` で、`practicalElectrochemistry` を経由しない。
 ファラデーの電磁誘導実験(1831)は電池と検流計を前提とする実験であり、
 電池・電気計測を持たないまま発電機に到達するのは順序が逆である。
@@ -595,7 +595,7 @@ chemicalEngineering、触媒化学、大規模製油 | 石油留分、電力、�
 
 ## E4. `Steel` Good のゲートと製鋼ノードの不一致
 
-`Steel`([`goods-generator.ts:2602`](../../src/extensions/economy/generators/goods-generator.ts#L2602))は
+`Steel`([`goods-generator.ts#L2602`](/src/extensions/economy/generators/goods-generator.ts#L2602))は
 `requiredTechnology: "standardMachineWorks"` だが、製鋼の技術ノードは `modernSteelmaking`(era 6)であり、
 その `known` 閾値は `steelAccess: 0.2` — **自分より手前でゲートされた Good の在庫**を前提にしている。
 これは意図的な設計(るつぼ鋼／パドル鋼が先、ベッセマー転炉が後)とも読めるが、
@@ -611,9 +611,9 @@ chemicalEngineering、触媒化学、大規模製油 | 石油留分、電力、�
 
 ## O1. `instruments` ドメインが蒸留酒で駆動されている
 
-[`guildKnowledgeTypes.ts:82`](../../src/extensions/economy/generators/guildKnowledgeTypes.ts#L82) の
+[`guildKnowledgeTypes.ts#L82`](/src/extensions/economy/generators/guildKnowledgeTypes.ts#L82) の
 `Liquor: "instruments"` は、`CRAFT_DOMAIN_BY_GOOD_NAME` の中で唯一 `instruments` を指す行である。
-[`guildKnowledge.ts:94-105`](../../src/extensions/economy/generators/guildKnowledge.ts#L94-L105) の
+[`guildKnowledge.ts#L94-105`](/src/extensions/economy/generators/guildKnowledge.ts#L94-L105) の
 コメントもこれを認識しているが、結果として蒸留酒工房の頭数が
 `guidanceAndAttitudeControl` の `instruments: 0.65` 閾値へ寄与する。M2 の実装で解消する。
 
@@ -678,7 +678,7 @@ Phase 9-E ── saltpeterProduction (M9)   [独立、いつでも着手可]
 
 1. `airLiquefactionAndIndustrialGases` を `ERA_6` に追加。
 2. `syntheticAmmonia` と `liquidPropulsionAndTestFacilities` の `prerequisites` に追加。
-3. `syntheticAmmoniaPlants.ts:109` の「no dedicated Hydrogen Good」コメントを、
+3. `syntheticAmmoniaPlants.ts#L109` の「no dedicated Hydrogen Good」コメントを、
    窒素源が技術ノードで表現された旨に更新する。
 
 ## Phase 9-D: 電子工学・軽合金・石油化学

@@ -162,4 +162,4 @@ G01のノートルダム大聖堂には、その後に高解像度外観モデ�
 5. 出典・再現年代・省略範囲をBVから確認できるようにし、完了した項目に実装先を追記する。
 
 既存の[欧州向け汎用モデル追加タスク](medieval-european-model-tasks.md)と併用する。
-BVの登録箇所は[main.ts](../../src/building-viewer/main.ts)、既存のゴシック礼拝堂は[stGeorgesChapel.ts](../../src/buildings/chapels/stGeorgesChapel.ts)を参照する。
+BVの登録箇所は[main.ts](/src/building-viewer/main.ts)、既存のゴシック礼拝堂は[stGeorgesChapel.ts](/src/buildings/chapels/stGeorgesChapel.ts)を参照する。

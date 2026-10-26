@@ -15,11 +15,11 @@
 
 ## 背景・目的
 
-現状、`state.treasury`は単一スカラーで、体系的な支出区分は[軍事維持費](../../src/extensions/economy/generators/militaryLogistics.ts)(`getStateMilitaryUpkeep`)のみが毎サイクル確実に引かれる([taxes-generator.ts:93,99](../../src/extensions/economy/generators/taxes-generator.ts))。それ以外の支出(貿易安全保障・辺境拡張・農業技術投資)は場当たり的な既存シンクへの合流に留まり、「統治形態が財政運営そのものにどう表れるか」を表現する仕組みがない。
+現状、`state.treasury`は単一スカラーで、体系的な支出区分は[軍事維持費](/src/extensions/economy/generators/militaryLogistics.ts)(`getStateMilitaryUpkeep`)のみが毎サイクル確実に引かれる([taxes-generator.ts#L93,99](/src/extensions/economy/generators/taxes-generator.ts))。それ以外の支出(貿易安全保障・辺境拡張・農業技術投資)は場当たり的な既存シンクへの合流に留まり、「統治形態が財政運営そのものにどう表れるか」を表現する仕組みがない。
 
-軍事維持費は現状、`state.military`の実在兵力から純粋に算出される天引き額であり、治療との間にフィードバックが一切ない(治療が枯渇しても兵力は減らず、`Math.max(0, ...)`で不足分が黙って消える)。逆に兵力の目標値(`effectiveTroopTarget()`, [manpower.ts:360-375](../../src/generators/manpower.ts))は人口と外交(敵性国家の有無)のみで決まり、財政の影響を一切受けない。つまり「軍事に金を払わない」という選択そのものがゲーム内に存在しない。本設計の中心課題はこのギャップを埋めることにある。
+軍事維持費は現状、`state.military`の実在兵力から純粋に算出される天引き額であり、治療との間にフィードバックが一切ない(治療が枯渇しても兵力は減らず、`Math.max(0, ...)`で不足分が黙って消える)。逆に兵力の目標値(`effectiveTroopTarget()`, [manpower.ts#L360-375](/src/generators/manpower.ts))は人口と外交(敵性国家の有無)のみで決まり、財政の影響を一切受けない。つまり「軍事に金を払わない」という選択そのものがゲーム内に存在しない。本設計の中心課題はこのギャップを埋めることにある。
 
-一方、[titleTable.ts](../../src/extensions/nobility/data/titleTable.ts)には既に`CENTRAL_OFFICES`として5つの中央官職(Chancellor/Marshal/Steward/Spymaster/Court Chaplain)が全stateに生成されており、それぞれ`CharacterSkills`の1属性に紐付いている。この5官職は中世ヨーロッパの宮廷機構(尚書/元帥/家宰/諜報/教会)とほぼ1対1で対応するため、**新しい部門体系を発明するのではなく、既存の5官職を「予算配分部門」としてそのまま転用する**のが本設計の骨子。
+一方、[titleTable.ts](/src/extensions/nobility/data/titleTable.ts)には既に`CENTRAL_OFFICES`として5つの中央官職(Chancellor/Marshal/Steward/Spymaster/Court Chaplain)が全stateに生成されており、それぞれ`CharacterSkills`の1属性に紐付いている。この5官職は中世ヨーロッパの宮廷機構(尚書/元帥/家宰/諜報/教会)とほぼ1対1で対応するため、**新しい部門体系を発明するのではなく、既存の5官職を「予算配分部門」としてそのまま転用する**のが本設計の骨子。
 
 [states-personality.md](states-personality.md)で既にGreed→重税、Piety→寺院建設、というような政策傾向がPersonality平均値の解釈として言語化されている。本設計はこれを財政の実データとして具体化するものでもある。
 
@@ -44,9 +44,9 @@
 | 部門 | 対応官職 | `primarySkill` | 史実上の職掌 | ゲーム内での既存接点 |
 | :--- | :--- | :--- | :--- | :--- |
 | **家政 (Household)** | 為政者本人(ruler) | — | 宮廷の威信・為政者個人の生活 | なし(本設計で新設、§5参照) |
-| **元帥府 (Marshalcy)** | Marshal | martial | 常備軍・城砦維持 | [`getStateMilitaryUpkeep`](../../src/extensions/economy/generators/militaryLogistics.ts)が「必要額」を計算——本設計ではこれを**配分予算と比較する基準値**として使う(§4)。他の部門と異なり、唯一「客観的な必要額」を持つ特別な部門。 |
+| **元帥府 (Marshalcy)** | Marshal | martial | 常備軍・城砦維持 | [`getStateMilitaryUpkeep`](/src/extensions/economy/generators/militaryLogistics.ts)が「必要額」を計算——本設計ではこれを**配分予算と比較する基準値**として使う(§4)。他の部門と異なり、唯一「客観的な必要額」を持つ特別な部門。 |
 | **尚書院 (Chancery)** | Chancellor | diplomacy | 外交・法務・文書行政 | 外交/同盟モディファイアの将来接続点 |
-| **家宰府 (Stewardship)** | Steward | stewardship | 内政・公共事業・徴税実務 | [`getAcademyBonus(..., "administration")`](../../src/extensions/economy/generators/taxes-generator.ts)による徴税効率ボーナスの拡張先 |
+| **家宰府 (Stewardship)** | Steward | stewardship | 内政・公共事業・徴税実務 | [`getAcademyBonus(..., "administration")`](/src/extensions/economy/generators/taxes-generator.ts)による徴税効率ボーナスの拡張先 |
 | **諜報府 (Spymastery)** | Spymaster | intrigue | 諜報・防諜・国内監視 | nobilityのespionage/strategic AI systemsの資金源として接続可能 |
 | **教会庁 (Ecclesiastica)** | Court Chaplain | learning | 宗教庇護・寺院建設・聖職者俸給 | religion/cults層の不満度緩和や施設生成への接続先 |
 
@@ -124,11 +124,11 @@
 
 ### 実装内容
 
-- `Character.wealth: number`(新規・非オプショナル)を[characterTypes.ts](../../src/extensions/characters/characterTypes.ts)に追加。`createPerson()`([personFactory.ts](../../src/extensions/characters/personFactory.ts))生成時に`0`で初期化。
-- [`treasuryAllocation.ts`](../../src/extensions/economy/generators/treasuryAllocation.ts)(新規)——`HOUSEHOLD_STIPEND_RATE_BY_FORM`(§3のHousehold行と同値)+ `payRulerHouseholdStipend(state, domesticIncome)`。統治形態別の家政比率を、その周期の内国収入(pollTaxRevenue + voyageIncome、軍事維持費と同じ基準値)に掛けて算出し、`nobilityContext.getRulerId()`で解決した在位中の為政者の`wealth`に加算する。
-- [`taxes-generator.ts`](../../src/extensions/economy/generators/taxes-generator.ts)の`collectTaxes()`に統合——軍事維持費と同じサイクルで、治療クランプ前に家政費を控除。
+- `Character.wealth: number`(新規・非オプショナル)を[characterTypes.ts](/src/extensions/characters/characterTypes.ts)に追加。`createPerson()`([personFactory.ts](/src/extensions/characters/personFactory.ts))生成時に`0`で初期化。
+- [`treasuryAllocation.ts`](/src/extensions/economy/generators/treasuryAllocation.ts)(新規)——`HOUSEHOLD_STIPEND_RATE_BY_FORM`(§3のHousehold行と同値)+ `payRulerHouseholdStipend(state, domesticIncome)`。統治形態別の家政比率を、その周期の内国収入(pollTaxRevenue + voyageIncome、軍事維持費と同じ基準値)に掛けて算出し、`nobilityContext.getRulerId()`で解決した在位中の為政者の`wealth`に加算する。
+- [`taxes-generator.ts`](/src/extensions/economy/generators/taxes-generator.ts)の`collectTaxes()`に統合——軍事維持費と同じサイクルで、治療クランプ前に家政費を控除。
 - 安全策: Characters拡張が無効化されている場合(`hasCharactersContext()`が`false`)は家政費支出自体をスキップし、金額は治療に残る(消えない)。Nobility拡張が無効/在位者未設定の場合も`getRulerId()`が`undefined`を返すため同様にスキップされる——単一拡張のみを有効化した状態でも安全に動作する。
-- テスト: [`treasuryAllocation.test.ts`](../../src/extensions/economy/generators/treasuryAllocation.test.ts)。
+- テスト: [`treasuryAllocation.test.ts`](/src/extensions/economy/generators/treasuryAllocation.test.ts)。
 
 軍事(§4)の残りの実装状況は§7を参照。
 
@@ -140,25 +140,25 @@
 
 §5(ルーラー給与)・§7項目1〜8は実装済み:
 
-1. ✅ [`treasuryAllocation.ts`](../../src/extensions/economy/generators/treasuryAllocation.ts)の`BASELINE_ALLOCATION_BY_FORM`(§3、6部門フルテーブル)。`getHouseholdStipendRate()`はこのテーブルのHousehold行を参照するよう改修(値は不変、テストも既存のまま通過)。
+1. ✅ [`treasuryAllocation.ts`](/src/extensions/economy/generators/treasuryAllocation.ts)の`BASELINE_ALLOCATION_BY_FORM`(§3、6部門フルテーブル)。`getHouseholdStipendRate()`はこのテーブルのHousehold行を参照するよう改修(値は不変、テストも既存のまま通過)。
 2. ✅ `getMilitaryStructuralMultiplier(state)`(vassal/Union判定による常時適用の構造係数、§4.2)+ `getMilitaryFundingCeiling(state)`(構造係数×`stateHasEnemy()`による平時/戦時許容フロア)。後者は§4.4-1のWar Footingレバーが実装されるまで参照者がいない、参照専用の公開関数。
-3. ✅ `allocateTreasury(state, domesticIncome)` — 6部門の配分額(baseline%×収入、MarshalcyのみさらにgetMilitaryStructuralMultiplier適用)を返す。返り値の`marshalcy`/`chancery`/`stewardship`/`spymastery`/`ecclesiastica`は**名目Budget**(officeの在職状況に関わらず一定、充足率/§4.2フロア比較の基準値として使われる)。実際にtreasuryから引かれるのは`household`と`officeStipendsPaid`(項目6参照)のみ。[`taxes-generator.ts`](../../src/extensions/economy/generators/taxes-generator.ts)の`collectTaxes()`から`payRulerHouseholdStipend`直接呼び出しを置き換える形で統合。
-4. ✅ `state.militaryFundingRatio`/`state.militaryDiscontent`([models.ts](../../src/types/models.ts))——§4.3の段階的蓄積/減衰を`allocateTreasury()`内で毎サイクル更新。閾値(100)超過時のみ`fmg:military-discontent-threshold` CustomEventを一度だけ発火(発火後の処理はフェーズ2、§4.3参照)。
-   - テスト: [`treasuryAllocation.test.ts`](../../src/extensions/economy/generators/treasuryAllocation.test.ts)に追加(構造係数・フロア値・配分内訳・充足率・discontent蓄積/減衰・イベント発火の単発性を検証)。
+3. ✅ `allocateTreasury(state, domesticIncome)` — 6部門の配分額(baseline%×収入、MarshalcyのみさらにgetMilitaryStructuralMultiplier適用)を返す。返り値の`marshalcy`/`chancery`/`stewardship`/`spymastery`/`ecclesiastica`は**名目Budget**(officeの在職状況に関わらず一定、充足率/§4.2フロア比較の基準値として使われる)。実際にtreasuryから引かれるのは`household`と`officeStipendsPaid`(項目6参照)のみ。[`taxes-generator.ts`](/src/extensions/economy/generators/taxes-generator.ts)の`collectTaxes()`から`payRulerHouseholdStipend`直接呼び出しを置き換える形で統合。
+4. ✅ `state.militaryFundingRatio`/`state.militaryDiscontent`([models.ts](/src/types/models.ts))——§4.3の段階的蓄積/減衰を`allocateTreasury()`内で毎サイクル更新。閾値(100)超過時のみ`fmg:military-discontent-threshold` CustomEventを一度だけ発火(発火後の処理はフェーズ2、§4.3参照)。
+   - テスト: [`treasuryAllocation.test.ts`](/src/extensions/economy/generators/treasuryAllocation.test.ts)に追加(構造係数・フロア値・配分内訳・充足率・discontent蓄積/減衰・イベント発火の単発性を検証)。
 5. ✅ Treasury Overview UI(Editグループの一覧ダイアログ)——各国が動かせる予算の大きさは地図世界への影響力そのものであり、ゲームバランス調整の可視化に直結するため、`GuildOverviewDialog`と同型のソート可能テーブルダイアログとして実装した(単一指標の棒グラフである`ChartsOverviewDialog`側には載せず、6部門を同時比較できる表形式を優先)。
    - `treasuryAllocation.ts`に`_snapshotByState`(モジュール内`Map<stateId, TreasuryAllocationSnapshot>`)+ `getTreasuryAllocationSnapshots()`/`clearTreasuryAllocationSnapshots()`を追加。`allocateTreasury()`は呼び出しのたびに副作用(家政費支払い・discontent更新)を伴うため、ダイアログを開くたびに再計算するのではなく、実際の`collectTaxes()`サイクルが最後に計算した結果を読み取り専用スナップショットとして保持する設計とした。
-   - [`treasury-overview.ts`](../../src/extensions/economy/controllers/treasury-overview.ts)(新規コントローラ)・[`treasuryOverviewState.ts`](../../src/extensions/economy/store/treasuryOverviewState.ts)(新規Zustand store)・[`TreasuryOverviewDialog.tsx`](../../src/extensions/economy/ui/dialogs/TreasuryOverviewDialog.tsx)(新規ダイアログ)を、既存の`guild-overview.ts`/`guildOverviewState.ts`/`GuildOverviewDialog.tsx`と同じ三層構造で追加。ToolsTab「Edit」セクションに"Treasury"ボタンとして登録([`economy/index.tsx`](../../src/extensions/economy/index.tsx))。
+   - [`treasury-overview.ts`](/src/extensions/economy/controllers/treasury-overview.ts)(新規コントローラ)・[`treasuryOverviewState.ts`](/src/extensions/economy/store/treasuryOverviewState.ts)(新規Zustand store)・[`TreasuryOverviewDialog.tsx`](/src/extensions/economy/ui/dialogs/TreasuryOverviewDialog.tsx)(新規ダイアログ)を、既存の`guild-overview.ts`/`guildOverviewState.ts`/`GuildOverviewDialog.tsx`と同じ三層構造で追加。ToolsTab「Edit」セクションに"Treasury"ボタンとして登録([`economy/index.tsx`](/src/extensions/economy/index.tsx))。
    - 新規マップ生成時(`state id`再利用)と拡張無効化時の両方で`clearTreasuryAllocationSnapshots()`を呼び、前回マップ/前回セッションのスナップショットが残留しないようにした(既存の`clearVoyageIncome()`等と同じ箇所に追加)。
-   - テスト: [`treasuryAllocation.test.ts`](../../src/extensions/economy/generators/treasuryAllocation.test.ts)にスナップショットの記録/上書き/クリアを追加。[`treasury-overview.test.ts`](../../src/extensions/economy/controllers/treasury-overview.test.ts)(新規)で行構築・除去済みState除外・クリア後の空表示を検証。
-6. ✅ **中央官職(CENTRAL_OFFICES)俸給** — Player Character HUD([`PlayerCharacterPanel.tsx`](../../src/extensions/nobility/ui/components/PlayerCharacterPanel.tsx))でランダム選出された非ルーラーの官職者(例: Chancellor)の`wealth`が常に0になる不具合の報告を受けて実装。[`titleTable.ts`](../../src/extensions/nobility/data/titleTable.ts)の`CENTRAL_OFFICES`(Chancellor/Marshal/Steward/Spymaster/Court Chaplain)は§2で各部門と1対1対応済みだったが、実際に俸給が支払われる経路がこれまで存在しなかった(`payRulerHouseholdStipend`はルーラーのみ対象)。
+   - テスト: [`treasuryAllocation.test.ts`](/src/extensions/economy/generators/treasuryAllocation.test.ts)にスナップショットの記録/上書き/クリアを追加。[`treasury-overview.test.ts`](/src/extensions/economy/controllers/treasury-overview.test.ts)(新規)で行構築・除去済みState除外・クリア後の空表示を検証。
+6. ✅ **中央官職(CENTRAL_OFFICES)俸給** — Player Character HUD([`PlayerCharacterPanel.tsx`](/src/extensions/nobility/ui/components/PlayerCharacterPanel.tsx))でランダム選出された非ルーラーの官職者(例: Chancellor)の`wealth`が常に0になる不具合の報告を受けて実装。[`titleTable.ts`](/src/extensions/nobility/data/titleTable.ts)の`CENTRAL_OFFICES`(Chancellor/Marshal/Steward/Spymaster/Court Chaplain)は§2で各部門と1対1対応済みだったが、実際に俸給が支払われる経路がこれまで存在しなかった(`payRulerHouseholdStipend`はルーラーのみ対象)。
    - `treasuryAllocation.ts`に`payCentralOfficeStipends(state, breakdown)`を追加。`state.i`+`entityType:"state"`+官職名(`title.title`)で`pack.characters`から生存中の在職者を検索し、その部門の名目Budgetを100%そのままその官職者の`Character.wealth`へ移転する(Householdと同じパターン)。官職が空席の場合はスキップし、該当分はtreasuryに残る(消えない)。
    - `allocateTreasury()`の返り値に`officeStipendsPaid`(実際に支払われた合計、treasuryからの実控除対象)を追加。名目Budget自体(`marshalcy`等)は在職状況に関わらず不変のまま——充足率(§4.3)や§4.2のフロア比較が官職の空席で歪まないようにするため、意図的に分離した。
-   - [`taxes-generator.ts`](../../src/extensions/economy/generators/taxes-generator.ts)の`collectTaxes()`で`allocation.officeStipendsPaid`をtreasury控除に追加。
+   - [`taxes-generator.ts`](/src/extensions/economy/generators/taxes-generator.ts)の`collectTaxes()`で`allocation.officeStipendsPaid`をtreasury控除に追加。
    - Treasury Overview UI(項目5)に"Stipends"列を追加。
    - **経済バランスへの影響に注意**: これまでChancery/Stewardship/Spymastery/Ecclesiastica(合計で内国収入の35〜92%、統治形態依存)はtreasuryから一切控除されない情報値だったが、官職が埋まっている限りその全額が官職者個人へ実際に流出するようになった。結果としてtreasuryの蓄積速度は大幅に低下する(統治形態次第ではほぼ増えなくなる可能性がある)。意図的な変更だが、既存セーブの財政バランスに大きく影響するため明記しておく。
-   - テスト: [`treasuryAllocation.test.ts`](../../src/extensions/economy/generators/treasuryAllocation.test.ts)に`payCentralOfficeStipends()`の在職者支払い・空席スキップ・死亡官職者スキップ・他State官職者との混同なし・充足率が空席の影響を受けないことを検証する`describe`ブロックを追加。
+   - テスト: [`treasuryAllocation.test.ts`](/src/extensions/economy/generators/treasuryAllocation.test.ts)に`payCentralOfficeStipends()`の在職者支払い・空席スキップ・死亡官職者スキップ・他State官職者との混同なし・充足率が空席の影響を受けないことを検証する`describe`ブロックを追加。
 7. ✅ **非中央官職の俸給接続**(項目3の未着手課題を解消)——「属州領主はBurgsから、野戦指揮官はStateの軍事費から、ギルド/商人系称号はGuildsやMarketsから」という支払い元の指定を受けて実装。いずれも`state.treasury`とは別のプール(Burg/Market/Guildそれぞれの自己資金)から支払われるため、Treasury Overviewの表(6部門+Stipends)には含まれない——state財政とは独立した資金移動。
-   - **属州領主**(`entityType:"province"`の生存中領主)——[`characterStipends.ts`](../../src/extensions/economy/generators/characterStipends.ts)の`payProvinceLordStipends(state)`が、領主の着任Burg(`province.burg`)の`burg.treasury`から`PROVINCE_LORD_STIPEND_RATE`(10%)を`Character.wealth`へ移転。Burg側は控除、`state.treasury`は無関係。
+   - **属州領主**(`entityType:"province"`の生存中領主)——[`characterStipends.ts`](/src/extensions/economy/generators/characterStipends.ts)の`payProvinceLordStipends(state)`が、領主の着任Burg(`province.burg`)の`burg.treasury`から`PROVINCE_LORD_STIPEND_RATE`(10%)を`Character.wealth`へ移転。Burg側は控除、`state.treasury`は無関係。
    - **野戦指揮官**——`getFieldCommanderStipend`=`clamp(upkeep×15%, floor 0.5, cap 1.5)` SP/cycle。首都親衛隊は対象外。
    - **中央官職**——部門名目Budgetの全額ではなく `clamp(Budget×12%, 0.8, 3.0)` を個人俸給とし、残余は `state.treasury` に残す。
    - **為政者家政**——`clamp(income×formRate, 1.0, 5.0)` SP/cycle。
@@ -167,11 +167,11 @@
    - 詳細は [`docs/analytics/character-wealth-balance.md`](../analytics/character-wealth-balance.md)。
    - **Market Manager/Rival Merchant**(`marketManagers.ts`。ManagerはChairperson役も兼務するため`merchantOrganizations.ts`の"Merchant Company Head"も同一キャラクターで自動的にカバーされる。Secretary/Bodyguard/Executive役職は`MERCHANT_ORGANIZATION_STAFF_ENABLED=false`で現状生成されないため対象外)——`payMarketStipends()`が`market.marketTreasury.balance`からManager(`MARKET_MANAGER_STIPEND_RATE`8%)→各Rival(`MARKET_RIVAL_STIPEND_RATE`3%)の順に控除・支払い。
    - いずれもレートは仮値・未調整(guildTreasury.ts/foodProduction.tsの既存プレースホルダーと同じ扱い)。
-   - テスト: [`characterStipends.test.ts`](../../src/extensions/economy/generators/characterStipends.test.ts)(新規)で領主/Guild/Market各関数の支払い・空席/資金枯渇時のno-op・他State/他Burgとの混同なしを検証。[`treasuryAllocation.test.ts`](../../src/extensions/economy/generators/treasuryAllocation.test.ts)に`payFieldCommanderStipends()`用の`describe`ブロックを追加(通常regiment/首都親衛隊除外/専属士官不在時のno-op)。
+   - テスト: [`characterStipends.test.ts`](/src/extensions/economy/generators/characterStipends.test.ts)(新規)で領主/Guild/Market各関数の支払い・空席/資金枯渇時のno-op・他State/他Burgとの混同なしを検証。[`treasuryAllocation.test.ts`](/src/extensions/economy/generators/treasuryAllocation.test.ts)に`payFieldCommanderStipends()`用の`describe`ブロックを追加(通常regiment/首都親衛隊除外/専属士官不在時のno-op)。
 8. ✅ **初期所持金のでっち上げ**(Advance Time前でも各人が資金を持つ設計)——「Marketsが最初からでっちあげの予算を持っている」のと同じ考え方で、`STARTING_BURG_TREASURY_PER_POPULATION`(foodProduction.ts)/Market初期資本(同ファイル)に倣い、生成直後にキャラクター側にも同様の初期資金を持たせる。
    - `characterStipends.ts`の`seedMissingCharacterWealth()`——ルーラー/中央官職/属州領主/野戦指揮官/Guild Master・Apprentice/Market Manager・Rivalの全役職について、`Character.wealth === 0`(＝一度も実俸給を受け取っていない)の者だけを対象に、その役職の1サイクル分の想定俸給額(上記の各レート×既に生成済みの`state.pollTax`/`burg.treasury`/`market.marketTreasury.balance`/guild treasury等)に、6〜18サイクル分のランダムな「積立年数」を乗じた金額を`wealth`へ設定する。wealthが0でない(既に実際の俸給や消費が発生した)キャラクターには一切触れないため、複数回の"regenerate"実行でも安全。
-   - 呼び出し元は[`nobility/index.tsx`](../../src/extensions/nobility/index.tsx)の`regenerateNobilityData()`——`assignOfficers()`/`assignProvinceLords()`(領主/士官の生成)の直後、かつeconomy拡張の初期生成タスク(`registerMapReadyTask`、economyが先に登録されるため必ず先に完了し`state.pollTax`/各treasuryが計算済み)より後に実行される、というタスク実行順(`src/runtime/mapReadyTaskCoordinator.ts`が登録順に`await`で逐次実行)に依拠した設計。economy拡張が無効な場合は各種getterが空配列を返すだけで安全にno-opする。
-   - テスト: [`characterStipends.test.ts`](../../src/extensions/economy/generators/characterStipends.test.ts)に`seedMissingCharacterWealth()`の新規ルーラー/属州領主への初期資金付与、既にwealthを持つキャラクターへの非上書きを検証。
+   - 呼び出し元は[`nobility/index.tsx`](/src/extensions/nobility/index.tsx)の`regenerateNobilityData()`——`assignOfficers()`/`assignProvinceLords()`(領主/士官の生成)の直後、かつeconomy拡張の初期生成タスク(`registerMapReadyTask`、economyが先に登録されるため必ず先に完了し`state.pollTax`/各treasuryが計算済み)より後に実行される、というタスク実行順(`src/runtime/mapReadyTaskCoordinator.ts`が登録順に`await`で逐次実行)に依拠した設計。economy拡張が無効な場合は各種getterが空配列を返すだけで安全にno-opする。
+   - テスト: [`characterStipends.test.ts`](/src/extensions/economy/generators/characterStipends.test.ts)に`seedMissingCharacterWealth()`の新規ルーラー/属州領主への初期資金付与、既にwealthを持つキャラクターへの非上書きを検証。
 
 未着手(次フェーズ以降):
 

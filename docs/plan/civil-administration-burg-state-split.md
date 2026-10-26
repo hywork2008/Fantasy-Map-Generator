@@ -12,7 +12,7 @@
 administrativeUpkeep = rawDomesticIncome × administrativeUpkeepShare
 ```
 
-`administrativeUpkeepShare`は[economyStartMode.ts](../../src/extensions/economy/generators/economyStartMode.ts)の経済開始モードごとに固定(provisioned 0% / **balanced(新規マップ既定) 88%** / subsistence 95%)。コードコメントには「courts, scribes, tax farmers, messengers, and routine local administration」と書かれていたが、実装は内訳を一切持たない単一の減算だった。
+`administrativeUpkeepShare`は[economyStartMode.ts](/src/extensions/economy/generators/economyStartMode.ts)の経済開始モードごとに固定(provisioned 0% / **balanced(新規マップ既定) 88%** / subsistence 95%)。コードコメントには「courts, scribes, tax farmers, messengers, and routine local administration」と書かれていたが、実装は内訳を一切持たない単一の減算だった。
 
 **この控除はPR-17の6部門予算システムより遥かに大きい**——部門予算(marshalcy〜ecclesiastica)は、この控除で残った12%(balancedモード)の中からしか配分されない。つまり「為政者が一番削りたいのはCivil administrationのはず」というユーザー指摘は、規模の面でも正確だった。
 
@@ -20,7 +20,7 @@ administrativeUpkeep = rawDomesticIncome × administrativeUpkeepShare
 
 - [burg-treasury-equilibrium.md](./burg-treasury-equilibrium.md)の調査時点(2026-07-31)で、burg.treasuryの支出先は原材料購入と略奪イベントのみで、恒常的な維持費が存在しなかった。
 - その後`urbanWaterSystem.ts`が上下水道の維持費を追加したが、これは自己資金(清掃税)による独立採算。
-- [guildTreasury.ts](../../src/extensions/economy/generators/guildTreasury.ts)の`settleAnnual()`が、burg.treasuryの「快適水準」超過分を毎年Market金庫とState treasuryへ上納する仕組みを**既に実装済み**(burg-treasury-equilibrium.md自身は「未実装」と書かれているが、これはドキュメントが実装に追いついていない例——AGENTS.mdの`docs/plan/`の扱いに関する注意書き通り)。
+- [guildTreasury.ts](/src/extensions/economy/generators/guildTreasury.ts)の`settleAnnual()`が、burg.treasuryの「快適水準」超過分を毎年Market金庫とState treasuryへ上納する仕組みを**既に実装済み**(burg-treasury-equilibrium.md自身は「未実装」と書かれているが、これはドキュメントが実装に追いついていない例——AGENTS.mdの`docs/plan/`の扱いに関する注意書き通り)。
 
 つまりBurgは既に「快適水準を超えた分をStateへ渡す」仕組みを持ちながら、courts/scribes/tax farmers のような地方行政コストに相当する経常支出をほとんど持たない。一方pollTax収入はburg.treasuryを一切経由せずstate.treasuryへ直接発生する完全に独立した流れであり、「地方行政」という機能に対応する実際の金の動きがどこにも存在しなかった。
 
@@ -28,7 +28,7 @@ administrativeUpkeep = rawDomesticIncome × administrativeUpkeepShare
 
 `administrativeUpkeep`の**合計額は変更しない**(`economyStartMode.ts`の各モードの割合値は据え置き)。既存の単一控除を、5つの名前付きコンポーネントに分解し、うち地方色の強いものをState統治形態に応じてBurg側へ按分する。
 
-### コンポーネント構成([civilAdministration.ts](../../src/extensions/economy/generators/civilAdministration.ts))
+### コンポーネント構成([civilAdministration.ts](/src/extensions/economy/generators/civilAdministration.ts))
 
 | コンポーネント | 割合 | Burg按分対象か |
 | :--- | ---: | :--- |
@@ -65,7 +65,7 @@ messengersを常にStateに固定しているのは、急使網が「地方自�
 
 ## Fiscal Report UI
 
-[StateFiscalReportTab.tsx](../../src/extensions/economy/ui/components/StateFiscalReportTab.tsx)の`EXPENSE_LABELS`から`administrativeUpkeep`(単一行)を削除し、5つの新しい行("Civil administration — courts"等)に置き換えた。表示される数値は**Stateが実際に負担した額**(Burgが吸収した分は既に差し引かれた後の値)。Burg側が負担した額(`burgLocalAdministrationPaid`)はstate.treasuryのフローではないため、このタブには表示していない(タブ自身のキャプション「Public treasury settlements only」の対象外)。
+[StateFiscalReportTab.tsx](/src/extensions/economy/ui/components/StateFiscalReportTab.tsx)の`EXPENSE_LABELS`から`administrativeUpkeep`(単一行)を削除し、5つの新しい行("Civil administration — courts"等)に置き換えた。表示される数値は**Stateが実際に負担した額**(Burgが吸収した分は既に差し引かれた後の値)。Burg側が負担した額(`burgLocalAdministrationPaid`)はstate.treasuryのフローではないため、このタブには表示していない(タブ自身のキャプション「Public treasury settlements only」の対象外)。
 
 ## 非目的
 
@@ -75,4 +75,4 @@ messengersを常にStateに固定しているのは、急使網が「地方自�
 
 ## テスト
 
-[civilAdministration.test.ts](../../src/extensions/economy/generators/civilAdministration.test.ts): フォーム別按分率、Burg不在時のフォールバック、複数Burgへの人口比例配分、他州のBurgを巻き込まないこと、現金制約(Burgが払えない場合にStateへ押し戻さないこと)を検証。[taxes-generator.test.ts](../../src/extensions/economy/generators/taxes-generator.test.ts)の既存テストは全てBurgなし/`administrativeUpkeepShare=0`のいずれかの条件で書かれていたため、本変更による数値ドリフトは1件のみ(旧`administrativeUpkeep`キーを直接参照していたテストをキー分解後の合算に更新)。
+[civilAdministration.test.ts](/src/extensions/economy/generators/civilAdministration.test.ts): フォーム別按分率、Burg不在時のフォールバック、複数Burgへの人口比例配分、他州のBurgを巻き込まないこと、現金制約(Burgが払えない場合にStateへ押し戻さないこと)を検証。[taxes-generator.test.ts](/src/extensions/economy/generators/taxes-generator.test.ts)の既存テストは全てBurgなし/`administrativeUpkeepShare=0`のいずれかの条件で書かれていたため、本変更による数値ドリフトは1件のみ(旧`administrativeUpkeep`キーを直接参照していたテストをキー分解後の合算に更新)。

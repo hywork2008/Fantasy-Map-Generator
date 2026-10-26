@@ -95,7 +95,7 @@
   ただし `PRICE_FLOOR_FACTOR`/`PRICE_CEILING_FACTOR`（0.25倍〜3倍）の値幅次第では収穫直後〜端境期の間、
   価格が底値付近に張り付く期間が長く出ることがある（在庫が需要に対して極端に多いケース）。将来これが
   「変動が微妙すぎる」方向で問題になった場合は、`customerBuyPrice()`/`customerSellPrice()`
-  （`markets-generator.ts:706-714`、`getWarPriceModifier()` と同じ読み取り時オーバーレイのパターン）に
+  （`markets-generator.ts#L706-714`、`getWarPriceModifier()` と同じ読み取り時オーバーレイのパターン）に
   季節価格モディファイアを追加する拡張余地を残してある。
 
 ## 5. 冬季の道路閉鎖（`src/generators/landRouteGraph.ts`）

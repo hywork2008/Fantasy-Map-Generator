@@ -25,14 +25,14 @@
 | 修正前 | 海に接する外周の角 | 城の離隔帯が、海と城の間の唯一の陸路を塞ぐ。北の街道が門 `v117` に届かず、8案すべて `unconnected-gates` |
 | 再試行で候補をずらした版 | 左上（南西の街道寄り） | 門が城を避けた位置にずれ、町道が外周を回り込んで街道とV字に接続（後で接続部だけを修正） |
 
-原因は、[castlePlacement.ts](../../src/city-editor/generators/castlePlacement.ts) の候補評価が街道を全く見ないことにある。
+原因は、[castlePlacement.ts](/src/city-editor/generators/castlePlacement.ts) の候補評価が街道を全く見ないことにある。
 
 ```ts
 height * 2 + (edge ? d * 0.05 : -d * 0.2) - |面積 - 目標| * 0.001
 ```
 
 - 平坦地では `height` が一定のため、「中心から最も遠い外周セル」が選ばれる。陸側に突き出た外周であり、街道が入ってくる方向と重なりやすい。
-- 生成順序は [generate.ts](../../src/city-editor/generators/generation/generateCity.ts) の `runPlan` で `placeCastleRegion` → `placeGates` → 街路 A* の順。門は城を避けることしかできない（`canPlaceTownGate`）。道は城の禁止帯を迂回することしかできない（`castleBlocked`）。
+- 生成順序は [generate.ts](/src/city-editor/generators/generation/generateCity.ts) の `runPlan` で `placeCastleRegion` → `placeGates` → 街路 A* の順。門は城を避けることしかできない（`canPlaceTownGate`）。道は城の禁止帯を迂回することしかできない（`castleBlocked`）。
 - 既存設計 [castles-and-fortifications.md](castles-and-fortifications.md) §5.2 には「門への道が作れない候補は不採用」「都市門同士が城内を通らないと結べない候補は棄却」と書かれているが、実装されていない。
 - 一方、門の位置は既に街道の方位から決まっている（`placeGates` が `geo.importedRoads` / `roadPaths` の方位を目標にする）。**街道の情報は城を置く時点で既に手元にあるのに、城の配置にだけ使われていない。**
 

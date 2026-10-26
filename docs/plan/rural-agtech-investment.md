@@ -12,7 +12,7 @@
 
 - `Tools`(鉄鉱石→精錬→インゴット→農具という既存のサプライチェーンの終点)を、都市の消費財としてだけでなく**農業生産性への入力**として接続する。
 - [population-food-supply.md](../simulation/population-food-supply.md) §3.1 が予約したまま未実装の `cellAgriculturalModifier` を、実際に動く仕組みとして実装する。
-- 既存の農村→都市労働力移動パイプライン([ruralLaborRelease.ts](../../src/extensions/economy/generators/ruralLaborRelease.ts))と食料台帳パイプライン([foodProduction.ts](../../src/extensions/economy/generators/foodProduction.ts))を**変更せずに**、「農村の技術発展 → 同じ土地をより少ない人手で耕せる → 余剰食料と余剰労働力の双方が増える → 都市が食料と人手の両方を受け取る」という因果を成立させる。
+- 既存の農村→都市労働力移動パイプライン([ruralLaborRelease.ts](/src/extensions/economy/generators/ruralLaborRelease.ts))と食料台帳パイプライン([foodProduction.ts](/src/extensions/economy/generators/foodProduction.ts))を**変更せずに**、「農村の技術発展 → 同じ土地をより少ない人手で耕せる → 余剰食料と余剰労働力の双方が増える → 都市が食料と人手の両方を受け取る」という因果を成立させる。
 - `Cattle` / `Horses` に、食料原料以外の役割(役畜としての効率押し上げ)を与える。
 - Iron Ore・Coal などの鉱物資源チェーンに、`Tools` を通じた継続的な需要を作る(現状 `Tools` は一度売れたら終わりの消費財)。
 
@@ -20,19 +20,19 @@
 
 - Cattle/Horses の頭数を実際に消費・繁殖させる専用の家畜資本ストック。バイオームタグによる「役畜が存在する土地か」の判定のみとする(Phase 1・Phase 2共通)。
 - 木製犂・鉄製犂のような農具の中間ティア化。`Tools` は単一の Good のまま(Phase 1・Phase 2共通)。
-- State の治安・戦禍要因(population-food-supply.md §3.1 の「治安」)を新設すること。これは既存の `foodStressProductionMultiplier(stateId)`([production-utils.ts](../../src/extensions/economy/generators/production-utils.ts))が既に担っており、本書は「技術・灌漑投資」側のみを扱う(§6.1)。
+- State の治安・戦禍要因(population-food-supply.md §3.1 の「治安」)を新設すること。これは既存の `foodStressProductionMultiplier(stateId)`([production-utils.ts](/src/extensions/economy/generators/production-utils.ts))が既に担っており、本書は「技術・灌漑投資」側のみを扱う(§6.1)。
 - State の統治制度(「統治制度」要因)を新設すること。行政人員充足率(`administrationEmployment.ts`)など既存シグナルの再利用は将来課題とし、本書の `stateAgriculturalProductivity` は Tools 投資のみをモデル化する。
 
 ## 2. 現状監査(コード参照)
 
 | 項目 | 現状 | 参照 |
 | --- | --- | --- |
-| `Tools` | `Iron Ingot`/`Bronze` + `Coal` から生産される既存 Good。だが `demandCoverage: { utilities: 1 }` のみで、都市の一般需要充足ループにしか使われない。農業には無関係。 | [goods-generator.ts:961-974](../../src/extensions/economy/generators/goods-generator.ts#L961-L974) |
-| `Cattle` | `tags: ["food"]` のみ。役畜としての側面はゼロ。 | [goods-generator.ts:296-309](../../src/extensions/economy/generators/goods-generator.ts#L296-L309) |
-| 収量式 | `BASE_NET_YIELD_KG_PER_SOWN_HECTARE`・`LABOUR_DAYS_PER_HECTARE` は完全な定数。技術投入を受け付ける係数がない。 | [agriculturalLandUse.ts:7-8](../../src/extensions/economy/generators/agriculturalLandUse.ts#L7-L8) |
+| `Tools` | `Iron Ingot`/`Bronze` + `Coal` から生産される既存 Good。だが `demandCoverage: { utilities: 1 }` のみで、都市の一般需要充足ループにしか使われない。農業には無関係。 | [goods-generator.ts#L961-974](/src/extensions/economy/generators/goods-generator.ts#L961-L974) |
+| `Cattle` | `tags: ["food"]` のみ。役畜としての側面はゼロ。 | [goods-generator.ts#L296-309](/src/extensions/economy/generators/goods-generator.ts#L296-L309) |
+| 収量式 | `BASE_NET_YIELD_KG_PER_SOWN_HECTARE`・`LABOUR_DAYS_PER_HECTARE` は完全な定数。技術投入を受け付ける係数がない。 | [agriculturalLandUse.ts#L7-8](/src/extensions/economy/generators/agriculturalLandUse.ts#L7-L8) |
 | ドキュメント上の予約 | `actualFoodProduced = foodPotential × stateAgriculturalProductivity × cellAgriculturalModifier × ...`、両係数とも「v1は1.0固定、後続の技術システムが更新する」と明記。実コードには両係数とも存在しない。 | [population-food-supply.md:53-63](../simulation/population-food-supply.md#L53) |
-| 鉱山側の同型の穴 | `MineOperation.technology`/`SmelterOperation.technology` は存在するが、`prospect()` が深部鉱床発見時に静的に `1.1` へ上げるだけで、`Tools` の実供給・消費とは無関係。 | [mineOperations.ts:80-89](../../src/extensions/economy/generators/mineOperations.ts#L80-L89) |
-| 都市への労働力解放 | `migratableAdults`/`ruralReleasePressure` を都市キューへ渡す仕組みは実装済みだが、入力の `farmLaborRequired` が定数由来のため技術発展を反映できない。 | [ruralLaborRelease.ts](../../src/extensions/economy/generators/ruralLaborRelease.ts) |
+| 鉱山側の同型の穴 | `MineOperation.technology`/`SmelterOperation.technology` は存在するが、`prospect()` が深部鉱床発見時に静的に `1.1` へ上げるだけで、`Tools` の実供給・消費とは無関係。 | [mineOperations.ts#L80-89](/src/extensions/economy/generators/mineOperations.ts#L80-L89) |
+| 都市への労働力解放 | `migratableAdults`/`ruralReleasePressure` を都市キューへ渡す仕組みは実装済みだが、入力の `farmLaborRequired` が定数由来のため技術発展を反映できない。 | [ruralLaborRelease.ts](/src/extensions/economy/generators/ruralLaborRelease.ts) |
 
 ## 3. 設計
 
@@ -152,7 +152,7 @@ if (agricultureRefreshed && ruralUrbanMigration === "megacity") {
 
 Market単位の `agTechStock`(農家レベルの犂・鉄製農具)とは別の層として、State単位の「技術・灌漑投資」(population-food-supply.md §3.1)を追加する。統治制度・治安の要因は既存シグナル(§1非目的参照)に譲り、本書はToolsを介した公共インフラ投資(街道・灌漑水路・穀倉)だけをモデル化する。
 
-Market単位の投資と財源を分けるため、`state.treasury`(既存、[taxes-generator.ts](../../src/extensions/economy/generators/taxes-generator.ts)や[smelterOperations.ts](../../src/extensions/economy/generators/smelterOperations.ts)の`settleSecurityUpkeep`で既に使われている)から支払う。Market の Tools **在庫**は共有するが、**資金**は競合しない(Marketの農家投資はmarketTreasury、Stateのインフラ投資はstate.treasuryと別会計)。
+Market単位の投資と財源を分けるため、`state.treasury`(既存、[taxes-generator.ts](/src/extensions/economy/generators/taxes-generator.ts)や[smelterOperations.ts](/src/extensions/economy/generators/smelterOperations.ts)の`settleSecurityUpkeep`で既に使われている)から支払う。Market の Tools **在庫**は共有するが、**資金**は競合しない(Marketの農家投資はmarketTreasury、Stateのインフラ投資はstate.treasuryと別会計)。
 
 ```
 # AgTechInvestment.settleAnnual() 内、Market単位の投資決済に続けて実行(同じ年次ゲートを共有)
@@ -178,7 +178,7 @@ export const STATE_ADOPTION_RATE = 0.1; // Market単位(0.15)より遅い制度�
 export const STATE_YIELD_BONUS_MAX = 0.15; // stateAgriculturalProductivity=1で yieldPerArea が追加で最大 +15%
 ```
 
-保存先は `Market.agTechStock` と異なり `State` は host 型([types/models.ts](../../src/types/models.ts))なので、新フィールドを追加すると `StateSimulationState`/`SIMULATION_STATE_FIELDS`([context/simulationContext.ts](../../src/context/simulationContext.ts)、[runtime/simulationStateState.ts](../../src/runtime/simulationStateState.ts))という host 側のライブバインディング機構まで変更が波及する。これを避けるため、`stateAgriculturalProductivity` は economy extension 自身が所有する `Float32Array`(state.i でインデックス、セル列と同じ `getSliceFloat32Column` パターン)として `economyContext.ts` に持つ ─ `Market.agTechStock` が Market(economy所有型)のフィールドで完結するのと異なり、State は host 型なので、この一点だけ「拡張所有の配列」という別の格納方式を取る。
+保存先は `Market.agTechStock` と異なり `State` は host 型([types/models.ts](/src/types/models.ts))なので、新フィールドを追加すると `StateSimulationState`/`SIMULATION_STATE_FIELDS`([context/simulationContext.ts](/src/context/simulationContext.ts)、[runtime/simulationStateState.ts](/src/runtime/simulationStateState.ts))という host 側のライブバインディング機構まで変更が波及する。これを避けるため、`stateAgriculturalProductivity` は economy extension 自身が所有する `Float32Array`(state.i でインデックス、セル列と同じ `getSliceFloat32Column` パターン)として `economyContext.ts` に持つ ─ `Market.agTechStock` が Market(economy所有型)のフィールドで完結するのと異なり、State は host 型なので、この一点だけ「拡張所有の配列」という別の格納方式を取る。
 
 `calculateAgriculturalLandProfile(world, agTechStockByCell?, stateProductivityByCell?)` に第3引数を追加し、`developmentPotential.ts` が `cells.state[cellId]` 経由でセルへ展開して渡す(第2引数の `marketCellColumn` 展開と同じ形)。反映式(§3.4の`yieldKgPerHa`行を置き換え):
 

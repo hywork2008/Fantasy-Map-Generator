@@ -2,7 +2,7 @@
 
 `ArcLayer` は適しません。これは始点・終点を結ぶ“持ち上がった弧”のレイヤーで、閉じた海岸線や任意のベジェ輪郭を描く用途ではありません。[ArcLayer 公式仕様](https://deck.gl/docs/api-reference/layers/arc-layer)
 
-現状は、国家・文化などの `SolidPolygonLayer` が海岸線を考慮しないセルポリゴンを塗り、海岸線だけが別の `PathLayer` で描かれています。[deckDataAdapters.ts](/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/renderers/webgl/adapters/deckDataAdapters.ts)  
+現状は、国家・文化などの `SolidPolygonLayer` が海岸線を考慮しないセルポリゴンを塗り、海岸線だけが別の `PathLayer` で描かれています。[deckDataAdapters.ts](/src/renderers/webgl/adapters/deckDataAdapters.ts)  
 一方 SVG は、曲線化した feature path を `#land` マスクとして国家色をクリップしています。
 
 推奨は二段階です。

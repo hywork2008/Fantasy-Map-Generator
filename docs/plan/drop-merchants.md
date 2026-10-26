@@ -73,16 +73,16 @@ graph TD
 
 ## 4. 変更予定のファイルと方針
 
-### ① [burgMarketLedgers.ts](file:///Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/extensions/economy/generators/burgMarketLedgers.ts)
+### ① [burgMarketLedgers.ts](/src/extensions/economy/generators/burgMarketLedgers.ts)
 - `ensureLedgerMerchants()` での `createMerchant(burg)` 呼び出しを廃止。
 - 代わりに、`market.managerCharacterId` および Marketに紐づく `rivalCharacterIds` から商人を割り当てるように修正。
 - `pruneStaleMerchantRoles()` でのクリーンアップ処理をプール制に合わせて更新。
 
-### ② [marketManagers.ts](file:///Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/extensions/economy/generators/marketManagers.ts) または新規モジュール
+### ② [marketManagers.ts](/src/extensions/economy/generators/marketManagers.ts) または新規モジュール
 - 各Marketに対して2名のライバル商人 (`marketRivalMerchant` ロール) を作成・維持する `syncMarketRivals(markets)` ロジックを追加。
 - 宗教や文化に応じたパラメータ設定を適用。
 
-### ③ [merchantOrganizations.ts](file:///Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/extensions/economy/generators/merchantOrganizations.ts)
+### ③ [merchantOrganizations.ts](/src/extensions/economy/generators/merchantOrganizations.ts)
 - `syncMerchantOrganizations()` において、商会数を主要商人（Manager / Rivals）が率いるものだけに限定。
 - `syncMerchantOrganizationCharacters()` 内での `secretary`, `bodyguard`, `executive` の新規作成ロジック（`createOrganizationStaff`）を廃止。
 

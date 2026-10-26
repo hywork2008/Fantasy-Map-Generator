@@ -15,7 +15,7 @@ Economy + Shipbuilding（+ Characters、Nobility は無効）を有効にした�
 
 ### 2.1 進捗が「リセット」されているわけではない
 
-`advanceQueueWithMaterials()`（`src/extensions/shipbuilding/generators/shipyardQueue.ts:293-351`）は資材請求が失敗しても `entry.pendingWorkPoints` を破棄せず保持する（`:328-336` のコメントに、かつて 0 にリセットしていたことで「state 所有の造船所が資材到着待ちの間、丸1年 0% 表示になっていた」不具合への対処として明記済み）。したがって本件は「進捗がリセットされ続けている」のではなく、**資材そのものが恒久的に手に入らない造船所が存在する**という別種の問題。
+`advanceQueueWithMaterials()`（`src/extensions/shipbuilding/generators/shipyardQueue.ts#L293-351`）は資材請求が失敗しても `entry.pendingWorkPoints` を破棄せず保持する（`:328-336` のコメントに、かつて 0 にリセットしていたことで「state 所有の造船所が資材到着待ちの間、丸1年 0% 表示になっていた」不具合への対処として明記済み）。したがって本件は「進捗がリセットされ続けている」のではなく、**資材そのものが恒久的に手に入らない造船所が存在する**という別種の問題。
 
 ### 2.2 私の直近のパフォーマンス修正が原因ではない（bisection で確認済み）
 
@@ -26,7 +26,7 @@ Economy + Shipbuilding（+ Characters、Nobility は無効）を有効にした�
 造船所の所有権判定 `determineOwner()`:
 
 ```ts
-// src/extensions/shipbuilding/generators/shipyardQueue.ts:104-111
+// src/extensions/shipbuilding/generators/shipyardQueue.ts#L104-111
 /**
  * A shipyard is state-run (a naval arsenal) only at a burg significant enough to
  * warrant one — its state's capital or a fortified (citadel) port. Every other
@@ -44,7 +44,7 @@ function determineOwner(burg: Burg): ShipHullOwner {
 `runShipyardTick()` 内の `StrategicProcurement` 需要通知は `owner === "state"` の造船所だけに限定されている:
 
 ```ts
-// src/extensions/shipbuilding/generators/shipyardQueue.ts:266-267
+// src/extensions/shipbuilding/generators/shipyardQueue.ts#L266-267
 if (entry.owner === "state" && burg.state && burg.market) {
   notifyStrategicProcurementDemand({ ... });
 }

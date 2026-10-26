@@ -10,7 +10,7 @@
 
 ## 背景・目的
 
-現在この世界の通貨は🟡という単一の抽象単位のみで、`formatPrice()`(`src/utils/unitUtils.ts:105-106`)が `🟡 ${rn(value, 2)}` という小数2桁表示を全経済UIで共通して行っている。[cost-of-living.md](../analytics/cost-of-living.md)で確認した通り、農民一人の年間最低生存費は約0.3〜0.4🟡という値になり、これは「一年分の生活費」としては小さすぎる桁ではないものの、**「住民が普段の買い物で実際に手渡す硬貨」としては小数の抽象単位のままでは物理的なリアリティに欠ける**という指摘がユーザーから出た。
+現在この世界の通貨は🟡という単一の抽象単位のみで、`formatPrice()`(`src/utils/unitUtils.ts#L105-106`)が `🟡 ${rn(value, 2)}` という小数2桁表示を全経済UIで共通して行っている。[cost-of-living.md](../analytics/cost-of-living.md)で確認した通り、農民一人の年間最低生存費は約0.3〜0.4🟡という値になり、これは「一年分の生活費」としては小さすぎる桁ではないものの、**「住民が普段の買い物で実際に手渡す硬貨」としては小数の抽象単位のままでは物理的なリアリティに欠ける**という指摘がユーザーから出た。
 
 ユーザー指定の要件:
 
@@ -20,7 +20,7 @@
 
 ## 用語衝突についての注意
 
-`src/extensions/economy/generators/goods-generator.ts` には既に **Gold Ingot / Silver Ingot / Copper Ingot(および Gold Ore 等)という交易品(Goods)** が定義されている。これらは🟡通貨で売買される**地金**であり、通貨そのものではない(`goods-generator.ts:1055` に「これは硬貨の物理的供給を二重に表現するものではない」という既存コメントがあり、地金と通貨が意図的に分離されていることが確認できる)。
+`src/extensions/economy/generators/goods-generator.ts` には既に **Gold Ingot / Silver Ingot / Copper Ingot(および Gold Ore 等)という交易品(Goods)** が定義されている。これらは🟡通貨で売買される**地金**であり、通貨そのものではない(`goods-generator.ts#L1055` に「これは硬貨の物理的供給を二重に表現するものではない」という既存コメントがあり、地金と通貨が意図的に分離されていることが確認できる)。
 
 新しい通貨単位を「Gold」「Silver」「Copper」とだけ呼ぶと、既存の交易品(Gold Ingot 等)と紛らわしい。本設計では通貨側を **Gold Piece / Silver Piece / Copper Piece**(略称 GP/SP/CP)と明確に呼び分け、UI文言でも「〜貨」ではなく「金貨/銀貨/銅貨」(交易品側は「金インゴット」等)で表記を分離する。
 
@@ -112,7 +112,7 @@ export function formatCoinage(silverAmount: number): string {
 
 ## i18n への影響
 
-`formatPrice()` 自体はi18nを経由しない生テンプレート文字列(`src/utils/unitUtils.ts:106`)。ただし [cost-of-living.md](../analytics/cost-of-living.md) 実装時に追加した `src/i18n/locales/en.json` / `ja.json` の `about.costOfLiving*` 系5キー(intro/Peasant/Urban/Family/House、各言語で計10箇所)は🟡グリフを本文中に直接埋め込んでいるため、フェーズ1実装時に**表現を金貨/銀貨/銅貨ベースに書き換える**必要がある(例: 農民の年間生存費「約0.3〜0.4🟡」→「約4〜5🟤(銅貨)」)。`CustomAboutContent.tsx` 自体のコード変更は不要(キーの値のみ変更)。
+`formatPrice()` 自体はi18nを経由しない生テンプレート文字列(`src/utils/unitUtils.ts#L106`)。ただし [cost-of-living.md](../analytics/cost-of-living.md) 実装時に追加した `src/i18n/locales/en.json` / `ja.json` の `about.costOfLiving*` 系5キー(intro/Peasant/Urban/Family/House、各言語で計10箇所)は🟡グリフを本文中に直接埋め込んでいるため、フェーズ1実装時に**表現を金貨/銀貨/銅貨ベースに書き換える**必要がある(例: 農民の年間生存費「約0.3〜0.4🟡」→「約4〜5🟤(銅貨)」)。`CustomAboutContent.tsx` 自体のコード変更は不要(キーの値のみ変更)。
 
 ## 既存定数を使った換算例(サニティチェック)
 
@@ -120,8 +120,8 @@ export function formatCoinage(silverAmount: number): string {
 
 | 項目 | 現行値(old🟡) | 出典 | 新表示 |
 | --- | --- | --- | --- |
-| Grain 小売価格 | 1 / wain | `goods-generator.ts:229` | 🟡0 ⚪1 🟤0(≒銀貨1枚) |
-| Grain farmgate価格 | 0.8 / wain | `foodProduction.ts:46`(`FARMGATE_PRICE_SHARE`) | 🟡0 ⚪0 🟤10 |
+| Grain 小売価格 | 1 / wain | `goods-generator.ts#L229` | 🟡0 ⚪1 🟤0(≒銀貨1枚) |
+| Grain farmgate価格 | 0.8 / wain | `foodProduction.ts#L46`(`FARMGATE_PRICE_SHARE`) | 🟡0 ⚪0 🟤10 |
 | 商品価格の最高値 | 70 | `goods-generator.ts` 全体調査、最大約70 | 🟡5 ⚪10 🟤0 |
 | Marshal(中央官職)の所持金の例 | 350 | `treasuryAllocation.test.ts` 実測値 | 🟡29 ⚪2 🟤0 |
 | 農民の年間最低生存費 | 0.3〜0.4 | [cost-of-living.md](../analytics/cost-of-living.md) | 🟡0 ⚪0 🟤4〜5 |
@@ -134,7 +134,7 @@ export function formatCoinage(silverAmount: number): string {
 
 ```text
 GROSS_FOOD_NEED = 0.43(1人が1年に必要な食料、抽象単位)
-1日あたり = 0.43 / 365.2425 ≈ 0.001178 (foodProduction.ts:184 の実装と同じ割り方)
+1日あたり = 0.43 / 365.2425 ≈ 0.001178 (foodProduction.ts#L184 の実装と同じ割り方)
 1日分の生穀物コスト(小売1🟡/wain) ≈ 0.001178 🟡/日
 → 本設計のレート(1 old🟡=1銀貨、1銀貨=12銅貨)では ≈ 0.014銅貨/日
 3食に分けると1食 ≈ 0.005銅貨 — 銅貨1枚の1%にも届かない
@@ -181,10 +181,10 @@ GROSS_FOOD_NEED = 0.43(1人が1年に必要な食料、抽象単位)
 
 - **トリガー**: `src/extensions/nobility/ui/components/PlayerCharacterPanel.tsx:85` が `formatPrice(summary.wealth)` でプレイヤーキャラクター個人の所持金を常時表示する。burg間移動という「一個人としてこの世界を動き回る」体験が実装されたことで、この所持金表示は単なる数値ではなく、**プレイヤーが実際に「これで何が買えるか」を意識する対象**になった。これまでのAboutタブのフレーバーテキスト(読み物)とは異なり、実際のゲームプレイUI上の体験である。
 - **確認された具体的な症状1: Boots(耐久財)の価格が個人視点では法外**
-  `src/extensions/economy/generators/goods-generator.ts:911-919` — Boots は `value: 7`、`unit: "pair"`。[cost-of-living.md](../analytics/cost-of-living.md)で算出した農民一人の年間最低生存費(約0.3〜0.4🟡)と比較すると、**ブーツ1足で生存費約20年分**に相当する。本設計のフェーズ1レート(1 old🟡=1銀貨)をそのまま適用しても「ブーツ1足=銀貨7枚」であり、桁自体は破綻しないが、農民一人の年間生活費(銀貨0.3〜0.4枚)と並べると依然として非現実的に高価に見える。
+  `src/extensions/economy/generators/goods-generator.ts#L911-919` — Boots は `value: 7`、`unit: "pair"`。[cost-of-living.md](../analytics/cost-of-living.md)で算出した農民一人の年間最低生存費(約0.3〜0.4🟡)と比較すると、**ブーツ1足で生存費約20年分**に相当する。本設計のフェーズ1レート(1 old🟡=1銀貨)をそのまま適用しても「ブーツ1足=銀貨7枚」であり、桁自体は破綻しないが、農民一人の年間生活費(銀貨0.3〜0.4枚)と並べると依然として非現実的に高価に見える。
   → **これは表示単位(通貨のデノミネーション)の問題ではない。** Goods の `value` はそもそもburg間卸売貿易(`caravans.ts`のロット単位取引)のバランス調整で決まった値であり、個人の購買力を基準に調整されたことが一度もない。フェーズ1(表示レイヤーのみの変更)では解決せず、**Goods の `value` 自体を個人の購買力スケールに合わせて見直す、通貨デノミとは別軸のゲームバランス調査**が必要になる(本ドキュメントのスコープ外、別途の調査・設計が必要)。
 - **確認された具体的な症状2: Trade で運ばれるキャラバンの Units が1未満の端数になる**
-  `src/extensions/economy/generators/markets-generator.ts:251-252`(`affordableUnits = budget / price` → `units = rn(Math.min(requestedUnits, stock, affordableUnits), 4)`)や `src/extensions/economy/generators/caravans.ts:299`(`units: rn(deal.units, 2)`)で、キャラバンが運ぶ量が例えば `0.5` のような端数になり得ることをコードで確認した。この値は `MarketTradeOpportunitiesDialog.tsx` の "Units" 列、`TradeAnimationDialog.tsx` の "Units" 列にそのまま表示される。
+  `src/extensions/economy/generators/markets-generator.ts#L251-252`(`affordableUnits = budget / price` → `units = rn(Math.min(requestedUnits, stock, affordableUnits), 4)`)や `src/extensions/economy/generators/caravans.ts#L299`(`units: rn(deal.units, 2)`)で、キャラバンが運ぶ量が例えば `0.5` のような端数になり得ることをコードで確認した。この値は `MarketTradeOpportunitiesDialog.tsx` の "Units" 列、`TradeAnimationDialog.tsx` の "Units" 列にそのまま表示される。
   → Boots(`unit: "pair"`)のような**本来不可分な個数単位**の商品で「0.5足」のような表示になるのは違和感が強い。これは通貨のデノミネーションとは無関係な、**Units表示側の丸め・フォーマット方針の問題**(小数点以下を切り捨てて整数個数のみ表示する、あるいは不可分な `unit` の商品は端数取引自体を禁止する、等)であり、本ドキュメントのスコープには含まれないが、個人視点での「取引しやすさ」を扱う以上、関連課題として記録しておく。
 
 この2点は、本ドキュメントの「[少額決済(外食1食など)についての追加検討](#少額決済外食1食などについての追加検討)」で扱った**下振れ側(1食が硬貨より小さすぎる)**の問題に対して、**上振れ側(耐久財が個人の所持金より大きすぎる)**および**端数取引(不可分な商品が分数個で取引される)**という、性質の異なる2つの追加問題である。いずれもフェーズ1の「🟡→銀貨への表示置き換え」だけでは解決しないため、別タスクとして切り出す必要がある。

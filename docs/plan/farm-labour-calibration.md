@@ -145,16 +145,16 @@ seed 102 は南緯43〜57度、年平均気温7℃、年降水量1,500 mm ほど
 
 ### 6.1 実装した内容
 
-- **案 1**（[cropCalendars.ts](../../src/data/cropCalendars.ts)、[seasonalCropClimate.ts](../../src/extensions/economy/generators/seasonalCropClimate.ts)、[stapleCrops.ts](../../src/data/stapleCrops.ts)）
+- **案 1**（[cropCalendars.ts](/src/data/cropCalendars.ts)、[seasonalCropClimate.ts](/src/extensions/economy/generators/seasonalCropClimate.ts)、[stapleCrops.ts](/src/data/stapleCrops.ts)）
   - `labourByStage` に `processing`（脱穀・風選）を足した。収穫が終わった月の翌月から4か月（`PROCESSING_MONTHS`）に均等に配分する。
   - 犂耕・播種（`establishment`）は、植え付けの月とその前の月に半分ずつ配分する。
   - 配分の値は次のとおり。根菜と永年作物は変えていない。
     - 寒冷地の穀物: 0.20 / 0.25 / 0.30 / 0.25
     - 温暖地の穀物・豆: 0.22 / 0.28 / 0.28 / 0.22
-- **案 2**（[agriculturalLandUse.ts](../../src/extensions/economy/generators/agriculturalLandUse.ts) の `getYieldScaledLabourMultiplier`）
+- **案 2**（[agriculturalLandUse.ts](/src/extensions/economy/generators/agriculturalLandUse.ts) の `getYieldScaledLabourMultiplier`）
   - 作物の組み合わせのうち脱穀の割合の分だけ、1 ha あたりの労働を `収量 ÷ 450 kg/ha` に比例させる。
   - 年の労働の計算（`calculateAgriculturalLandProfile`）と、開墾・土地利用の台帳への入力（`reconcileForestClearanceForAgriculture`）の両方に入れた。
-- **案 3**（`getMonthlyWorkDaysPerAdult`、[ruralOccupationAllocation.ts](../../src/extensions/economy/generators/ruralOccupationAllocation.ts)）
+- **案 3**（`getMonthlyWorkDaysPerAdult`、[ruralOccupationAllocation.ts](/src/extensions/economy/generators/ruralOccupationAllocation.ts)）
   - 畑の作業が月平均を超える月は、成人1人の月の労働日数を最大2倍（約23日、`PEAK_MONTH_WORK_MULTIPLIER`）にする。
   - 次の4か所で使う: 職の割り当て、隣のセルの互助の余力、家族の手伝い、季節の不足。
   - 年間の必要人数は、今どおり年140日で数える。
@@ -185,10 +185,10 @@ seed 102 は南緯43〜57度、年平均気温7℃、年降水量1,500 mm ほど
 
 ### 7.1 実装した内容
 
-- `getCropLaborCoverageByCell`（[developmentPotential.ts](../../src/extensions/economy/generators/developmentPotential.ts)）
+- `getCropLaborCoverageByCell`（[developmentPotential.ts](/src/extensions/economy/generators/developmentPotential.ts)）
   - 毎年の農業の更新で、セルごとの充足率を求めて `cropLaborCoverage` 列に保存する。
   - 充足率 = 1 − Σ月 min(畑の作業日数, 季節の不足) ÷ Σ月 畑の作業日数。不足は畑の作業に先に充てる。
-- [foodProduction.ts](../../src/extensions/economy/generators/foodProduction.ts) で、セルの収穫に充足率を掛ける。旧セーブで列がない間は 1 として扱う。
+- [foodProduction.ts](/src/extensions/economy/generators/foodProduction.ts) で、セルの収穫に充足率を掛ける。旧セーブで列がない間は 1 として扱う。
 - **すぐに掛ける**方式にした。対象は地図を開いた時点で既にある畑で、地図の開始前の開墾は済んでいる扱いである。新しい開墾は、畑の維持の後に残った労働の一部（専用の枠）で、140日/ha をかけて進む。
 - 次の2つは見送った。
   - **土地利用の台帳を、労働で耕せる面積に抑える**: 季節の不足は、年単位の不足も含んでいる。両方を入れると不足を二重に引く。
@@ -226,7 +226,7 @@ Megacity で成人が都市へ出ると、村の畑の労働が足りなくな�
 
 ### 8.1 実装した内容
 
-`applyRegionalHarvestHelp`（[ruralOccupationAllocation.ts](../../src/extensions/economy/generators/ruralOccupationAllocation.ts)）
+`applyRegionalHarvestHelp`（[ruralOccupationAllocation.ts](/src/extensions/economy/generators/ruralOccupationAllocation.ts)）
 
 - 毎月、家族の手伝いと隣のセルの互助で埋めても残る不足を、同じ市場圏の中の次の2つで埋める。
   - **町の手伝い**: 市場圏の町の成人 × `getUrbanHarvestHelpShare`。繁忙月の日数（約23日）で働く。先に使う。
@@ -268,14 +268,14 @@ Megacity で成人が都市へ出ると、村の畑の労働が足りなくな�
 
 ### 9.1 実装した内容
 
-- **自分たちの労働で作れる穀物の割合**（`getFieldLabourFeasibility`、[settlementClearance.ts](../../src/generators/settlementClearance.ts)）
+- **自分たちの労働で作れる穀物の割合**（`getFieldLabourFeasibility`、[settlementClearance.ts](/src/generators/settlementClearance.ts)）
   - 1人が必要とする畑の面積 × 1 ha あたりの労働（脱穀の分は収量に比例）を、成人の割合（0.45）× 年140日と比べる。
   - 収量がおおむね 200 kg/ha 以上なら1（自給できる）。150 kg/ha で0.82、110 kg/ha で0.62、80 kg/ha で0.46。
   - 労働の定数（30日/ha、140日、脱穀の割合0.25、成人の割合0.45）は、地図生成側に移して一本化した。経済拡張側は `LABOUR_DAYS_PER_HECTARE` と `WORKABLE_DAYS_PER_ADULT` として、同じ値を使う。
-- **地図を作る時の人口の上限**（[subsistenceCapacity.ts](../../src/generators/subsistenceCapacity.ts)）
+- **地図を作る時の人口の上限**（[subsistenceCapacity.ts](/src/generators/subsistenceCapacity.ts)）
   - 農業で養える人数に、上の割合を掛けた（`generateSubsistenceCapacity`、`refreshEstimatedSubsistenceCapacity`）。
   - 毎年の更新（`reconcileSubsistenceCapacityFromFood`）も、労働で耕せる分の畑の能力（`labourLimitedFoodCapacity`）で行う。こちらは作物の組み合わせ・農業技術・輪作を反映した値である。
-- **都市の受け入れ枠の後背地の余剰**（[urbanFoodCapacity.ts](../../src/extensions/economy/generators/urbanFoodCapacity.ts)）
+- **都市の受け入れ枠の後背地の余剰**（[urbanFoodCapacity.ts](/src/extensions/economy/generators/urbanFoodCapacity.ts)）
   - 耕せる土地の全部ではなく、実際に耕している畑 × 労働の充足率で数える（`getWorkedFoodCapacity`）。
   - 漁村・牧畜の住民の穀物の割合の計算には、今どおり土地の能力を使う。
 
@@ -358,7 +358,7 @@ Megacity で成人が都市へ出ると、村の畑の労働が足りなくな�
 
 ### 10.5 §10.3 の修正（2026-10-18）
 
-- [foodLedgerConsumption.ts](../../src/extensions/economy/generators/foodLedgerConsumption.ts) の四半期末の不足の割合を、農村・都市それぞれの「必要量に対して満たせなかった割合」にした。合計の不足を同じ割合で振り分ける処理と、そのための揺らぎ（`getShortfallJitter`）は削除した。
+- [foodLedgerConsumption.ts](/src/extensions/economy/generators/foodLedgerConsumption.ts) の四半期末の不足の割合を、農村・都市それぞれの「必要量に対して満たせなかった割合」にした。合計の不足を同じ割合で振り分ける処理と、そのための揺らぎ（`getShortfallJitter`）は削除した。
 - 回帰テストを追加した。農家は自分の蓄えで食べ、町には市場の穀物がない場合に、農村の食料ストレスが0のまま、都市だけ不足が数えられることを確かめる。修正前のコードでは、このテストは失敗する。
 
 **結果**（地図は §9 と同じ。修正前 → 後）
@@ -397,7 +397,7 @@ seed 102、Megacity、7年目から1年。お金を動かす処理ごとの都�
 
 ### 11.2 実装した内容
 
-- [householdWealth.ts](../../src/extensions/economy/generators/householdWealth.ts) の `spendRuralHouseholdsInTowns`: 農家が町で使うお金のうち、`RURAL_TOWN_SPEND_DUES_SHARE`（0.25）を市の使用料・通行税・物品税として都市の金庫へ、残りを町の家計へ入れる。都市の間の配分は今どおり人口比。
+- [householdWealth.ts](/src/extensions/economy/generators/householdWealth.ts) の `spendRuralHouseholdsInTowns`: 農家が町で使うお金のうち、`RURAL_TOWN_SPEND_DUES_SHARE`（0.25）を市の使用料・通行税・物品税として都市の金庫へ、残りを町の家計へ入れる。都市の間の配分は今どおり人口比。
 - 町の人どうしの支出（`spendUrbanHouseholdSurplus`）は変えていない。手元の現金が多い都市から金庫を通じて市場・国庫へお金を戻す、偏りの是正の役目があるため。
 - `WAGE_SUBSISTENCE_MULTIPLE` は1.5のまま。
 - テスト: `householdWealth.test.ts` に、農家の支出が町の家計と金庫に分かれ、合計が保たれることの検証を追加した。
@@ -463,10 +463,10 @@ seed 102、Megacity、9〜10年目。都市を首都・市場の中心・その�
 
 ### 12.2 実装した内容
 
-1. **市場の利益の払い出しを、市場のすべての町へ**（`payOutMarketSurplus`、[householdWealth.ts](../../src/extensions/economy/generators/householdWealth.ts)）
+1. **市場の利益の払い出しを、市場のすべての町へ**（`payOutMarketSurplus`、[householdWealth.ts](/src/extensions/economy/generators/householdWealth.ts)）
    - 商人の利益（1/3）を除いた残りを、市場の中心の都市だけでなく、市場のすべての町へ人口比で入れる。
    - 穀物の小売りの稼ぎ（穀物商・計量人・運搬人・荷馬車引き）は穀物が売られる所、つまり人の住む所で生まれるので、町の人口に比例する。
-2. **町の公共事業の賃金**（`payTownWorks`、[townWorks.ts](../../src/extensions/economy/generators/townWorks.ts)）
+2. **町の公共事業の賃金**（`payTownWorks`、[townWorks.ts](/src/extensions/economy/generators/townWorks.ts)）
    - 町の家計の現金が食費の2か月分（`TOWN_WORKS_TARGET_MONTHS`）を下回る間、町は自分の金庫から、町の住民を城壁・舗装・井戸・夜警・穀物庫の運搬などに雇う。
    - 金庫は食費2か月分（`TOWN_WORKS_RESERVE_MONTHS`）を手元に残し、その上の10%（`TOWN_WORKS_TREASURY_SHARE`）を月に使える。家計の不足分までしか払わない。
    - 毎月、市場の利益の払い出しの後、税の前に行う。
@@ -571,18 +571,18 @@ seed 102、Megacity、9〜10年目。都市を首都・市場の中心・その�
 
 ### 13.3 実装した内容
 
-1. **採掘の産物の買い取り**（新規 [extractionPayments.ts](../../src/extensions/economy/generators/extractionPayments.ts)）
+1. **採掘の産物の買い取り**（新規 [extractionPayments.ts](/src/extensions/economy/generators/extractionPayments.ts)）
    - 市場は、産物の市場価格の0.8（`MINE_HEAD_PRICE_SHARE`、農家の庭先価格と同じ）を自分の現金から払う。払えない分は、今までどおり代金なしで入る。製錬所には付加価値（地金 − 鉱石 − 木炭）を払う。
    - 代金は、鉱山税、賃金、経営者の利益の順に分ける。
      - **鉱山税**（`MINING_ROYALTY_SHARE` = 0.1、十分の一税）: 君主国・神権国は国庫へ。共和国・連合は町の金庫へ（Goslar の鉱業権の買い取り）。無政府は取らない。
      - **賃金**: 実際の人数 × 生活賃金（生産の賃金と同じ `getSubsistenceWage`）。払える額までしか払わない。古典古代は労働の6割、古代末期は3割が不自由労働で、その分は賃金ではなく食い扶持（賃金の1/1.5）だけになる（`UNFREE_EXTRACTIVE_LABOUR_SHARE_BY_PERIOD`）。中世以降は0。
      - **経営者の利益**: 町の金庫へ（出資者の組合 Gewerken）。帝国（`formName` が Empire）は国の直営で、国庫へ（ローマの procurator、佐渡奉行）。
-2. **公共事業の支払い**（新規 [worksPayments.ts](../../src/extensions/economy/generators/worksPayments.ts)、[publicWorks.ts](../../src/extensions/economy/generators/publicWorks.ts)）
+2. **公共事業の支払い**（新規 [worksPayments.ts](/src/extensions/economy/generators/worksPayments.ts)、[publicWorks.ts](/src/extensions/economy/generators/publicWorks.ts)）
    - 事業費の6割（`WORKS_LABOUR_SHARE`）を賃金、4割を資材とする。
    - 港・穀物庫: 賃金はその町の家計へ、資材はその町の市場へ払う。
    - 道路: 賃金は国の家計（町と農村、`payStateHouseholds`）へ、資材は道が通る市場へ、長さに比例して払う。
    - **道路の賦役**（`ROAD_CORVEE_SHARE_BY_FORM`）: 君主国・神権国は道路の労働の半分を賦役でまかなう。その分は国庫が払わず、道は安く造れる。共和国・連合・無政府は0。蒸気の時代からは、どの体制も0（賦役の廃止）。
-3. **採掘の雇用を実際の人数で数える**（`crewSlot`、[basicEmployment.ts](../../src/extensions/economy/generators/basicEmployment.ts)）
+3. **採掘の雇用を実際の人数で数える**（`crewSlot`、[basicEmployment.ts](/src/extensions/economy/generators/basicEmployment.ts)）
    - 鉱山・製錬所の雇用の枠を、実際の人数（`getMineEmploymentPeople`・`getSmelterEmploymentPeople`）の人口点にした。採石場・火山の採取場は、産出が1人あたり（年12トンの石など）で決まるので、枠の数をそのまま人数として扱う。
    - 各施設が使う単位（産出・道具の需要の計算）はそのままにし、割り当てた人数を施設の単位に換算して戻す。
 
@@ -710,11 +710,11 @@ seed 102、Megacity、9〜10年目。都市を首都・市場の中心・その�
 
 ### 14.3 実装した内容
 
-1. **鉱山の人数を、産出の価値で決める**（`getMineEmploymentPeople`、[mineOperations.ts](../../src/extensions/economy/generators/mineOperations.ts)）
+1. **鉱山の人数を、産出の価値で決める**（`getMineEmploymentPeople`、[mineOperations.ts](/src/extensions/economy/generators/mineOperations.ts)）
    - 人数 = 満員で働いた時の年の産出の基準価値 ÷（1.3 × 作業員の年の賃金）。1.3 は `EXTRACTION_OUTPUT_PER_WORKER_IN_WAGE_YEARS`（§14.1）。最小4人（`MINE_MIN_CREW_PEOPLE`）。
    - 満員の時の産出には、排水・技術・燃料・近づきやすさを入れる（`getMineExtractionFactor`）。条件の悪い鉱山は、同じ人数でも少ししか掘れないので、人数も少なくなる。
    - 雇用（`basicEmployment.ts`）、賃金（`extractionPayments.ts`）、較正の一覧（`calibrationOverview.ts`）が同じ人数を使う。
-2. **製錬所の人数も同じ規則で決める**（`getSmelterCrewPeople`、[smelterOperations.ts](../../src/extensions/economy/generators/smelterOperations.ts)）
+2. **製錬所の人数も同じ規則で決める**（`getSmelterCrewPeople`、[smelterOperations.ts](/src/extensions/economy/generators/smelterOperations.ts)）
    - 人数 = 年の付加価値 ÷（1.3 × 作業員の年の賃金）。最小8人（炉の作業員）。卑金属の製錬所は付加価値が負なので、8人になる。
 3. **売れない時は人を減らす**（`getMineHiringShare`）
    - 鉱山が雇う割合 = 市場価格 ÷ 基準価値（産出の価値で重み付け）。0.25（`MINE_MIN_HIRING_SHARE`、排水と維持の人員）から1まで。
@@ -797,7 +797,7 @@ seed 102、Megacity、9〜10年目。都市を首都・市場の中心・その�
 | 弾丸（鉛の地金1） | 6 | **9** | 7.00 | 1.29 |
 
 - 青銅と弾丸は、材料の地金の値上がりで原料割れになるので、合わせて上げた。それ以外の下流の商品（道具・武器・大砲・鋼・機械部品・銅線・蒸気機関など）は、上げた後の地金でも価値が原料の1.14倍以上あり、変えていない。
-- 新しい地図は [goods-generator.ts](../../src/extensions/economy/generators/goods-generator.ts) の `GOODS_DATA` から作る。保存済みの地図は `migrateSmeltedMetalValues` で直す。前の基準値のままの商品だけを直し、Goods エディターでプレイヤーが変えた値は残す（弾丸は時代の倍率を掛けた値で比べる）。表は `SMELTED_METAL_REPRICING`。
+- 新しい地図は [goods-generator.ts](/src/extensions/economy/generators/goods-generator.ts) の `GOODS_DATA` から作る。保存済みの地図は `migrateSmeltedMetalValues` で直す。前の基準値のままの商品だけを直し、Goods エディターでプレイヤーが変えた値は残す（弾丸は時代の倍率を掛けた値で比べる）。表は `SMELTED_METAL_REPRICING`。
 - 製錬所の人数（`getSmelterCrewPeople`、§14.3）は付加価値で決まるので、卑金属の製錬所にも人が付くようになる。鉄の製錬所（年120トン）は約200人になる。
 
 テスト: `goods-generator.test.ts` に、保存済みの地図の前の基準値だけが直り、プレイヤーの値は残ること、2回目は何もしないことを足した。
@@ -850,7 +850,7 @@ seed 102、Megacity、9〜10年目。都市を首都・市場の中心・その�
 
 §15.4 で、地金の値上げの後に道具・武器・大砲の生産が減って見えた。原因として、軍需の発注を払う国庫の不足を疑った。
 
-工房の生産（`executeManufacture`、[production-generator.ts](../../src/extensions/economy/generators/production-generator.ts)）に一時的な計測を入れ、商品と払い手（国の軍需の発注か、町の金庫か）ごとに、1年間の次の値を数えた。
+工房の生産（`executeManufacture`、[production-generator.ts](/src/extensions/economy/generators/production-generator.ts)）に一時的な計測を入れ、商品と払い手（国の軍需の発注か、町の金庫か）ごとに、1年間の次の値を数えた。
 
 - 作りたい量（労働から決まるロット数）
 - 材料の在庫で抑えた後の量

@@ -149,8 +149,8 @@ D("savanna", "Savanna", ..., ["dry", "grassland", "arable", "nomadic"])
 
 現行実装は、以下の**3箇所すべて**が独立にforestタグをハードコードしており、いずれか1つを直しても残りが効いて0のままになる:
 
-1. **Goodsカタログ**（`goods-generator.ts:272-284`）: `Game`の`biomeOutputByTag: { forest: 0.05 }`。forest以外は`resolveBiomeOutputRate()`が0を返す。
-2. **狩猟労働配分**（`ruralOccupationAllocation.ts:200-203`）:
+1. **Goodsカタログ**（`goods-generator.ts#L272-284`）: `Game`の`biomeOutputByTag: { forest: 0.05 }`。forest以外は`resolveBiomeOutputRate()`が0を返す。
+2. **狩猟労働配分**（`ruralOccupationAllocation.ts#L200-203`）:
 
    ```ts
    const isForestCell = (world.biomesData.tags?.[biomeCode] ?? []).includes("forest");
@@ -158,7 +158,7 @@ D("savanna", "Savanna", ..., ["dry", "grassland", "arable", "nomadic"])
    ```
 
    forest以外は狩猟者自体が0人に固定される（Gameのレートが仮に非0でも、労働力がないため産出0）。
-3. **Fauna個体群キャリング容量**（`faunaPopulation.ts:152-168`、`getWildCarryingCapacity`）:
+3. **Fauna個体群キャリング容量**（`faunaPopulation.ts#L152-168`、`getWildCarryingCapacity`）:
 
    ```ts
    const isForestCell = (world.biomesData.tags?.[biomeCode] ?? []).includes("forest");

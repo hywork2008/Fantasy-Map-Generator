@@ -25,7 +25,7 @@
 
 ### 2.2 Generate from current edits後に枠まで道が出る
 
-`controllers/generation.ts::generateFromEdits` は現文書をcloneし、`appearance = "town"`、`createFabricPlan` と `resolveDistricts` によるfabricを設定し、`generateRuralFieldStage(..., {preserveLandUse: true})` を実行する。通常の都市計画工程は再実行しない。
+`controllers/generation.ts#L:generateFromEdits` は現文書をcloneし、`appearance = "town"`、`createFabricPlan` と `resolveDistricts` によるfabricを設定し、`generateRuralFieldStage(..., {preserveLandUse: true})` を実行する。通常の都市計画工程は再実行しない。
 
 `fabricDistricts.ts` は、道路などの境界条件と土地用途が同じ隣接セルを描画用の区画にまとめる。そのため、多くの細かい境界線が消える。一方、未指定の土地も区画として残り、2.1の処理がその大きな区画の外周へ細街路を作る。短い手描きの道の周囲から、表示枠近くまで道が出る原因になり得る。
 
@@ -35,7 +35,7 @@
 
 ### 2.3 Copy shareable linkでフルセットの都市になる
 
-`controllers/documentIO.ts::currentShare` は、次の順で入力を選び、fabricを除いて共有する。
+`controllers/documentIO.ts#L:currentShare` は、次の順で入力を選び、fabricを除いて共有する。
 
 1. セッションの `completeSource`
 2. 保存された `fabric.generation.input`
@@ -43,7 +43,7 @@
 
 `CityEditorShare.input` は存在するが、意味は生成器への入力であり、開いた時にそのまま表示するスナップショットではない。`applyShare` は入力を復元した後、`share.stage` があれば該当の生成工程、なければ `runCompleteGeneration` を実行する。
 
-仕上げ後はconceal段階が共有され得るが、新しいセッションでは `completeResult` がnullである。`generation.ts::runGenerationStage` は既に仕上がった結果を再利用できず、`generateStageOnDocument` へ進む。段階指定は「手動編集のまま開く」という指示にはならない。
+仕上げ後はconceal段階が共有され得るが、新しいセッションでは `completeResult` がnullである。`generation.ts#L:runGenerationStage` は既に仕上がった結果を再利用できず、`generateStageOnDocument` へ進む。段階指定は「手動編集のまま開く」という指示にはならない。
 
 さらに、ランダム生成都市を後から編集した場合には、優先された古い `completeSource` に最新の編集が含まれない可能性がある。単に `input` に現文書を入れる修正だけでは、開いた後の再生成が残る。
 

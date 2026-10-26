@@ -6,7 +6,7 @@
 
 `marketTreasury.balance`はFood Ledgerだけでなく、都市とMarket間の一般Goods卸売にも使う実在の運転資金である。`Markets.sell()`はMarket残高が仕入額を払える時だけBurgの在庫を買い、`Markets.buy()`はBurgからの購入額をMarket残高へ戻す。従って、Marketは在庫を受け取るだけでBurg Treasuryを増やせない。
 
-Food Ledger（stapleFood/Grain限定）では、同じ`balance`と`ruralGrainPayable`を使い、農村からのGrain仕入れ・未払い・都市小売収入からの優先返済を処理する（[foodProduction.ts](../../src/extensions/economy/generators/foodProduction.ts)・[foodLedgerConsumption.ts](../../src/extensions/economy/generators/foodLedgerConsumption.ts)）。これは完全な複式簿記ではない。農村の一般Goods生産、市場間一般交易、Food Shipmentは引き続き個別決済を持たない。
+Food Ledger（stapleFood/Grain限定）では、同じ`balance`と`ruralGrainPayable`を使い、農村からのGrain仕入れ・未払い・都市小売収入からの優先返済を処理する（[foodProduction.ts](/src/extensions/economy/generators/foodProduction.ts)・[foodLedgerConsumption.ts](/src/extensions/economy/generators/foodLedgerConsumption.ts)）。これは完全な複式簿記ではない。農村の一般Goods生産、市場間一般交易、Food Shipmentは引き続き個別決済を持たない。
 
 ## 現行実装の実態
 

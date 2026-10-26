@@ -131,12 +131,12 @@
 
 ### 6.1 実装した内容
 
-- **問題 D**（[agriculturalLandUse.ts](../../src/extensions/economy/generators/agriculturalLandUse.ts)）
+- **問題 D**（[agriculturalLandUse.ts](/src/extensions/economy/generators/agriculturalLandUse.ts)）
   - 作物の適性で降水を見ている場合は、降水の補正を掛けないようにした（`calculateClimateYield`、`getCropOutputMix`）。
   - 作物カタログのない旧マップの経路は、降水の単位を 100 mm に直した（800 mm で0.75、2,400 mm で飽和）。
   - 地図生成側の収量の推定表（`foodClimateCalibration.json`）を作り直した。
   - 推定の誤差の95パーセンタイルの上限は、30 から 40 kg/ha に広げた。収量が約1.7倍になったためで、平均誤差は 6.7 kg/ha。
-- **問題 A**（新規 [ruralDiet.ts](../../src/extensions/economy/generators/ruralDiet.ts)）
+- **問題 A**（新規 [ruralDiet.ts](/src/extensions/economy/generators/ruralDiet.ts)）
   - 穀物以外の生業の能力 ÷（その能力＋畑の能力）を、そのセルの漁業・牧畜の住民の割合とみなす。その割合 × 最大 60% を、自分の生業でまかなう分とする（`NON_GRAIN_DIET_SHARE_MAX`）。
   - これを次の5か所に掛けた: 農村の月の穀物の必要量、家の蓄えの目標と初期量、市場の農村需要、畑の必要面積、都市の受け入れ枠の後背地の余剰。
 - **問題 B**

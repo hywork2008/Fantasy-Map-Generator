@@ -25,8 +25,8 @@ CE連携では、海港があり、同じ接続河川の実測岸が2R以内に�
 - 保存FMGからのCLI実行で3/3回生成成功。新しい連携入力CSVから、他のテストと同時実行せず再計測した3回もすべて第1案で成功（totalMs 1,266 / 1,224 / 1,225）。旧計測は2,210msで生成失敗だったため、成功した都市同士の純粋な速度比較ではない。
 - 港・河川・区画・城・連携入力の関連テスト96件成功、4件は既存の条件付きスキップ。`tsc --noEmit` 成功。生成SVGを画像化して、城への道路、岸につながった海港・河川港の船着き場を目視確認。
 
-再現fixture: [poilleneuzy-20261012.json](../../src/city-editor/core/fixtures/poilleneuzy-20261012.json)。
-回帰テスト: [poilleneuzyHarbor.test.ts](../../src/city-editor/core/poilleneuzyHarbor.test.ts)。
+再現fixture: [poilleneuzy-20261012.json](/src/city-editor/core/fixtures/poilleneuzy-20261012.json)。
+回帰テスト: [poilleneuzyHarbor.test.ts](/src/city-editor/core/poilleneuzyHarbor.test.ts)。
 
 ローカルの成果物:
 

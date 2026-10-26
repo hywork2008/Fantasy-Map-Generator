@@ -8,7 +8,7 @@
 
 ## 1. 要約
 
-- **前史の18ノードはそのまま評価器に載せない。** P2 で、ローマの到達点は既存の era 1 ノードへの前倒し（`urbanCoveredDrainage`・`commercialFinance` など）として表した（決定事項16）。18ノードを並行して動かすと、同じ到達点が2系統になる。[technologyPrehistory.ts](../../src/generators/technologyPrehistory.ts) は設計の根拠・UI の説明文の出典として残す。
+- **前史の18ノードはそのまま評価器に載せない。** P2 で、ローマの到達点は既存の era 1 ノードへの前倒し（`urbanCoveredDrainage`・`commercialFinance` など）として表した（決定事項16）。18ノードを並行して動かすと、同じ到達点が2系統になる。[technologyPrehistory.ts](/src/generators/technologyPrehistory.ts) は設計の根拠・UI の説明文の出典として残す。
 - **接続するのは「退行」という規則だけ。** 前史グラフの3つの「崩壊」ノードが表す「維持投資が途切れると adopted/diffused が known へ戻る」を、実際に動いている既存ノードと既存の国家シグナル（国庫・行政知識・戦争）に適用する。
 - **退行させるのは、維持費のかかるインフラ・制度を表すノードだけ**（§3 の表）。知識そのもの（数学・天文など）は退行しない。退行しても `known` より下には戻らない（「忘れる」のではなく「回らなくなる」）。
 - 物理的な施設（上水の段階、舗装道路）の劣化は、技術段階とは別に、各システムの維持処理で表す。上水は既に維持状態（`maintenanceCondition`）があり、道路には無いので新設する（§4）。
@@ -19,7 +19,7 @@
 
 | 項目 | 現状 |
 | --- | --- |
-| `advanceStage()`（[technologyProgress.ts](../../src/generators/technologyProgress.ts)） | 段階を上げるだけで、下げない。「Knowledge can stall but does not forget」という不変条件がコメントで明記されている |
+| `advanceStage()`（[technologyProgress.ts](/src/generators/technologyProgress.ts)） | 段階を上げるだけで、下げない。「Knowledge can stall but does not forget」という不変条件がコメントで明記されている |
 | 開始プロファイル | 古代・初期中世では era 0/1 の一部を低い段階から始める（P2） |
 | 前史18ノード | 型・閾値・`affectsMaintenanceOf` を持つが、どこからも読まれない |
 | 上水 | 維持費の不足で `maintenanceCondition` が下がり、詰まり（clogging）が増える。段階（tier）自体は下がらない |

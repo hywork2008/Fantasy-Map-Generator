@@ -41,7 +41,7 @@
 
 ### 0.1 事実
 
-[`advanceAge.ts:105-127`](src/extensions/characters/advanceAge.ts#L105-L127):
+[`advanceAge.ts#L105-127`](src/extensions/characters/advanceAge.ts#L105-L127):
 
 ```ts
 export function advanceCharacterAging(deltaYears: number): void {
@@ -61,10 +61,10 @@ advanceCharacterAging(effectiveDeltaYears);
 
 そして時間送りは**必ず1日ずつ**進む。`advanceTime()` は複数日を
 `for (let i = 0; i < totalDays; i++) stepDaySimulation()` で回し
-([timeEngine.ts:549-554](src/generators/timeEngine.ts#L549-L554))、
+([timeEngine.ts#L549-554](src/generators/timeEngine.ts#L549-L554))、
 `stepDayMutation()` は `advanceTimeMutation(0, 0, 1)` を呼ぶ
-([timeEngine.ts:728](src/generators/timeEngine.ts#L728))。
-`delta` は常に `{years: 0, months: 0, days: 1}`([timeEngine.ts:886](src/generators/timeEngine.ts#L886))。
+([timeEngine.ts#L728](src/generators/timeEngine.ts#L728))。
+`delta` は常に `{years: 0, months: 0, days: 1}`([timeEngine.ts#L886](src/generators/timeEngine.ts#L886))。
 
 したがって毎回 `effectiveDeltaYears ≈ 0.0027379`、`character.age` は整数(`createPerson` の
 `rand()` 由来)なので:
@@ -157,7 +157,7 @@ core 系 + economy 12系統 + `nobility.tick` + `shipbuilding.tick` の
 
 ### 2.2 戦争が抑制される方向に働く
 
-[`conflictDirector.ts:57-59`](src/extensions/nobility/conflictDirector.ts#L57-L59):
+[`conflictDirector.ts#L57-59`](src/extensions/nobility/conflictDirector.ts#L57-L59):
 
 ```ts
 export function shouldSuppressConflictAdvance(isBulkAdvance: boolean): boolean {
@@ -178,7 +178,7 @@ Phase 1b の意図(「プレイヤーが今戦争を解決していない」)と
 これが**ユーザーが「スタブ的な資金援助」と呼んだ問題の核心**である。
 
 `applyFastForwardEconomySettlement()` の treasury 更新は**純粋な乗算**である
-([fastAdvanceEconomy.ts:68-77](src/extensions/economy/generators/fastAdvanceEconomy.ts#L68-L77)):
+([fastAdvanceEconomy.ts#L68-77](src/extensions/economy/generators/fastAdvanceEconomy.ts#L68-L77)):
 
 ```ts
 const treasuryFactor = (1 + rates.treasuryGrowthPctPerYear / 100) ** yearsElapsed;
@@ -198,7 +198,7 @@ state.treasury = Math.max(0, rn((state.treasury ?? 0) * treasuryFactor, 2));
 どのプリセットでも二度と回復しない("growth" は 0%/年 = 凍結、増えるのは "boom" のみ)。
 
 枯れた国庫は歴史そのものを止める。実例:
-[`frontierGovernance.ts:138`](src/generators/frontierGovernance.ts#L138) は
+[`frontierGovernance.ts#L138`](src/generators/frontierGovernance.ts#L138) は
 `(state?.treasury ?? 0) >= 30` で拡張姿勢か均衡姿勢かを決め、
 [`:58`](src/generators/frontierGovernance.ts#L58) は国境投資に `>= INVESTMENT_COST + 12` を要求する。
 **全国家が破産すれば全国家が「均衡姿勢」に固まり、版図は動かなくなる。**
@@ -213,7 +213,7 @@ state.treasury = Math.max(0, rn((state.treasury ?? 0) * treasuryFactor, 2));
 - `ECONOMY_TICK_SYSTEM_IDS` — 経済 tick は12個の独立した登録済みシステムに分割済み
   ([tickSystemIds.ts](src/extensions/economy/tickSystemIds.ts))。
 - `SimulationSystemRegistry` — 全システムが `id` を持ち、`run()` が
-  `SimulationStepContext` を受ける([simulationSystem.ts:78-88](src/generators/simulationSystem.ts#L78-L88))。
+  `SimulationStepContext` を受ける([simulationSystem.ts#L78-88](src/generators/simulationSystem.ts#L78-L88))。
 - `fastAdvanceEconomyGuard.ts` — 「tick 単位のフラグを立て、個々の処理が自分で見る」という
   既存パターン。
 
@@ -620,9 +620,9 @@ UI は「N年進める」の代わりに **「1世代 / 2世代 / 3世代 進め
 ### 9.4 `yearsAgo` のスケーリング問題
 
 `ChronicleEvent` は絶対年ではなく **`yearsAgo`(相対年)** を持ち
-([models.ts:749-758](src/types/models.ts#L749-L758))、
+([models.ts#L749-758](src/types/models.ts#L749-L758))、
 `advanceTimeMutation()` は年が進むたびに**全イベントを走査して `yearsAgo` を加算する**
-([timeEngine.ts:817-832](src/generators/timeEngine.ts#L817-L832))。
+([timeEngine.ts#L817-832](src/generators/timeEngine.ts#L817-L832))。
 
 歴史モードは (a) イベント数を数千規模に増やし、(b) 年進行の回数も増やすため、
 この O(イベント数 × 年数) がボトルネックになり得る。

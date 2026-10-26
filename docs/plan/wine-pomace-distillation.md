@@ -119,7 +119,7 @@ for (const byproduct of ingredients_と同じ経路で受け取ったbyproducts)
 
 ### 1.6 実装済み: 共有ヘルパー `expandRecipeByproducts()`（2026-08-12）
 
-§1.5 の2経路は、修正直後の時点でもそれぞれ「`byproducts[recipeIndex]` レコードを `{goodId, units}` リストへ展開する」処理を独自に手書きしていた——`production-generator.ts::buildRecipesArray()` と `markets-generator.ts::getCommercialRecipeByproducts()` の変換部分だけを見比べると同じロジックの2重実装であり、同じクラスのバグ（片方だけ新仕様に追従し他方が古いまま残る）を再発させうる状態だった。
+§1.5 の2経路は、修正直後の時点でもそれぞれ「`byproducts[recipeIndex]` レコードを `{goodId, units}` リストへ展開する」処理を独自に手書きしていた——`production-generator.ts#L:buildRecipesArray()` と `markets-generator.ts#L:getCommercialRecipeByproducts()` の変換部分だけを見比べると同じロジックの2重実装であり、同じクラスのバグ（片方だけ新仕様に追従し他方が古いまま残る）を再発させうる状態だった。
 
 これを `goods-generator.ts` の `expandRecipeByproducts(byproducts, recipeIndex, perUnitMultiplier)` に一本化した:
 

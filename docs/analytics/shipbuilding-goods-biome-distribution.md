@@ -29,7 +29,7 @@
 | ボーナス資源(セル単位の抽選配置) | `GoodsModule.generate()` | 確率的・希少・全マップで総量に上限あり |
 | バイオーム背景生産 | `good.biomeOutput` → `getCellProduction()` | 決定的・人口に比例・上限なし |
 
-#### ボーナス資源の配置(`generate()`, [goods-generator.ts:1160-1198](../../src/extensions/economy/generators/goods-generator.ts#L1160-L1198))
+#### ボーナス資源の配置(`generate()`, [goods-generator.ts#L1160-1198](/src/extensions/economy/generators/goods-generator.ts#L1160-L1198))
 
 ```
 全セルをシャッフル → 10セルごとにGoods配列もシャッフル
@@ -40,7 +40,7 @@
     → そのセルに good.i (1種類だけ) を割り当てて次のセルへ
 ```
 
-- `distribution` は文字列として保持され、`new Function()` で実行時にコンパイルされる条件式。`getMethods()`([goods-generator.ts:1253-1273](../../src/extensions/economy/generators/goods-generator.ts#L1253-L1273))が提供する判定関数:
+- `distribution` は文字列として保持され、`new Function()` で実行時にコンパイルされる条件式。`getMethods()`([goods-generator.ts#L1253-1273](/src/extensions/economy/generators/goods-generator.ts#L1253-L1273))が提供する判定関数:
   - `biome(...ids)` — バイオームID一致
   - `minHeight(n)` / `maxHeight(n)` / `elevation()` — 標高条件(`elevation()`は`h/100 > Math.random()`という確率的判定)
   - `shore(...rings)` — 海岸線からの距離リング
@@ -62,7 +62,7 @@ distribution: "biome(5, 6, 7, 8, 9)",
 biomeOutput: { 5: 0.1, 6: 0.1, 7: 0.1, 8: 0.1, 9: 0.1, 12: 0.05 }
 ```
 
-Woodはボーナス資源としても`biome(5,6,7,8,9)`で抽選されるが、それとは別に、これらのバイオームの全セルが人口比例で恒常的に木材を産出する。`getCellProduction()`([production-utils.ts:106-140](../../src/extensions/economy/generators/production-utils.ts#L106-L140))がこの2つを合算する。
+Woodはボーナス資源としても`biome(5,6,7,8,9)`で抽選されるが、それとは別に、これらのバイオームの全セルが人口比例で恒常的に木材を産出する。`getCellProduction()`([production-utils.ts#L106-140](/src/extensions/economy/generators/production-utils.ts#L106-L140))がこの2つを合算する。
 
 ### 2.2 生産量への変換
 
@@ -72,13 +72,13 @@ Woodはボーナス資源としても`biome(5,6,7,8,9)`で抽選されるが、�
   係数: 農村 0.25 (BONUS_RURAL_PRODUCTION) / 都市 1 (BONUS_URBAN_PRODUCTION)
 ```
 
-`modifier` は `good.multipliers` の `cultureType` / `culture` / `state` / `religion` / `biome` / `zone` を全て掛け合わせたもの([production-utils.ts:26-57](../../src/extensions/economy/generators/production-utils.ts#L26-L57))。加えてWoodのみ森林伐採による枯渇(`getDepletionMultiplier`)、食料品には季節係数(`getSeasonalProductionMultiplier`)が乗る。
+`modifier` は `good.multipliers` の `cultureType` / `culture` / `state` / `religion` / `biome` / `zone` を全て掛け合わせたもの([production-utils.ts#L26-57](/src/extensions/economy/generators/production-utils.ts#L26-L57))。加えてWoodのみ森林伐採による枯渇(`getDepletionMultiplier`)、食料品には季節係数(`getSeasonalProductionMultiplier`)が乗る。
 
-生産物は市場で売られ `burg.product`(粗利)・`burg.treasury` になり、Burgs Overviewの **Product / Product per 1k residents(Wealth)** 列に表れる([index.tsx:148-163](../../src/extensions/economy/index.tsx#L148-L163))。
+生産物は市場で売られ `burg.product`(粗利)・`burg.treasury` になり、Burgs Overviewの **Product / Product per 1k residents(Wealth)** 列に表れる([index.tsx:148-163](/src/extensions/economy/index.tsx#L148-L163))。
 
 ## 3. 造船関連Goodsのバイオーム依存性
 
-造船4資材(Wood, Sails, Ropes, Tar)と、その原料チェーンの`distribution`/`biomeOutput`/`recipes`を整理する([goods-generator.ts:93-1039](../../src/extensions/economy/generators/goods-generator.ts#L93-L1039)のGOODS_DATA)。
+造船4資材(Wood, Sails, Ropes, Tar)と、その原料チェーンの`distribution`/`biomeOutput`/`recipes`を整理する([goods-generator.ts#L93-1039](/src/extensions/economy/generators/goods-generator.ts#L93-L1039)のGOODS_DATA)。
 
 | Good | 種別 | distribution / recipe | biomeOutput |
 |---|---|---|---|
@@ -97,7 +97,7 @@ Wood/HempはいずれもバイオームID **5〜9**(Tropical seasonal forest / T
 
 ### 4.1 森林バイオームはhabitabilityが最も高い側にある
 
-`src/generators/biomes.ts` のデフォルトhabitabilityテーブル([biomes.ts:51](../../src/generators/biomes.ts#L51)):
+`src/generators/biomes.ts` のデフォルトhabitabilityテーブル([biomes.ts#L51](/src/generators/biomes.ts#L51)):
 
 | biome ID | 名前 | habitability |
 |---:|---|---:|
@@ -138,7 +138,7 @@ Gold/Silver/Iron/Copper/Tin/Gemstones/Marbleはいずれも `minHeight()` / `ele
 
 ### 4.4 Naval文化タイプ補正
 
-`multipliers.cultureType.Naval` を持つgoods([goods-generator.ts](../../src/extensions/economy/generators/goods-generator.ts)):
+`multipliers.cultureType.Naval` を持つgoods([goods-generator.ts](/src/extensions/economy/generators/goods-generator.ts)):
 
 | Good | Naval倍率 |
 |---|---:|
@@ -176,7 +176,7 @@ Naval文化はShips生産を2倍にし、水産物・Sheep(Cloth原料)にもボ
 
 これを応用した検証案:
 
-- Burgs Overviewの CSVエクスポート(`downloadBurgsData()`, [burgs-overview.ts:216](../../src/controllers/burgs-overview.ts#L216))はProduct/Wealth/Treasury/Port列を持つが**Biome列を含まない**ため、`pack.cells.biome[burg.cell]`との結合をスクリプト側で行う必要がある。
+- Burgs Overviewの CSVエクスポート(`downloadBurgsData()`, [burgs-overview.ts#L216](/src/controllers/burgs-overview.ts#L216))はProduct/Wealth/Treasury/Port列を持つが**Biome列を含まない**ため、`pack.cells.biome[burg.cell]`との結合をスクリプト側で行う必要がある。
 - 複数シードでマップを生成し、バイオーム別・Port有無別にWealth(Product per 1k)の分布を集計する。
 - Wood/Hemp産地国家とTar/Ropes/Sails/Shipsの実生産量・Treasuryの相関を確認し、§4の「加工チェーン仮説」を検証する。
 

@@ -42,21 +42,21 @@
 
 | エンティティ | 年号フィールド | 現状 | 評価 |
 | :--- | :--- | :--- | :--- |
-| 国家の戦役 | `State.campaigns[].start/end` | `gauss(year-100, 150, 1, year-6)` で**過去100年程度に散る**([states-generator.ts:412](src/generators/states-generator.ts#L412)) | ✅ 唯一まともに歴史がある |
-| 外交年代記 | `states[0].diplomacy` に間借り | `yearsAgo` 1〜100年で生成([states-generator.ts:655-664](src/generators/states-generator.ts#L655-L664)) | ⚠️ データはあるが置き場所が hack(§4.2) |
-| 国家元首の在位 | `TitleHolding.startYear` | `currentYear - rand(0, age - careerStartAge)` で**バックデート済み**([characterLifecycle.ts:154](src/extensions/nobility/generators/characterLifecycle.ts#L154)) | ⚠️ 分布が非現実的(§3.2) |
-| 中央官職 | 同上 | 同上([characterLifecycle.ts:199](src/extensions/nobility/generators/characterLifecycle.ts#L199)) | ⚠️ 同上 |
-| 属州領主 | 同上 | **`startYear: getCurrentYear()`**([characterLifecycle.ts:382](src/extensions/nobility/generators/characterLifecycle.ts#L382)) | ❌ 全員が今年着任 |
-| 将官 / 提督 | 同上 | **`startYear: getCurrentYear()`**([characterLifecycle.ts:338](src/extensions/nobility/generators/characterLifecycle.ts#L338)) | ❌ 全員が今年着任 |
-| ギルドマスター / 徒弟 | `CharacterRole.startYear` | **フィールドを設定していない**([guildSuccession.ts:88](src/extensions/economy/generators/guildSuccession.ts#L88), [:99](src/extensions/economy/generators/guildSuccession.ts#L99)) | ❌ `undefined`(UI は空欄) |
-| 市場管理者 / 競合商人 | 同上 | **未設定**([marketManagers.ts:30](src/extensions/economy/generators/marketManagers.ts#L30), [:40](src/extensions/economy/generators/marketManagers.ts#L40)) | ❌ |
-| 商会役職 | 同上 | **未設定**([merchantOrganizations.ts:385](src/extensions/economy/generators/merchantOrganizations.ts#L385)) | ❌ |
-| 国家銀行家 | 同上 | **未設定**([moneylenders.ts:269](src/extensions/economy/generators/moneylenders.ts#L269)) | ❌ |
-| バーグ市場商人 | 同上 | **未設定**([burgMarketLedgers.ts:24](src/extensions/economy/generators/burgMarketLedgers.ts#L24)) | ❌ |
-| 家門(Dynasty) | — | **年号フィールドそのものが無い**([characterTypes.ts:271-282](src/extensions/characters/characterTypes.ts#L271-L282)) | ❌ 創設年不明 |
-| バーグ | `Burg.foundedYear` | `= options.year`([burgs-generator.ts:919](src/generators/burgs-generator.ts#L919)) | ❌ 全都市が今年建設 |
+| 国家の戦役 | `State.campaigns[].start/end` | `gauss(year-100, 150, 1, year-6)` で**過去100年程度に散る**([states-generator.ts#L412](src/generators/states-generator.ts#L412)) | ✅ 唯一まともに歴史がある |
+| 外交年代記 | `states[0].diplomacy` に間借り | `yearsAgo` 1〜100年で生成([states-generator.ts#L655-664](src/generators/states-generator.ts#L655-L664)) | ⚠️ データはあるが置き場所が hack(§4.2) |
+| 国家元首の在位 | `TitleHolding.startYear` | `currentYear - rand(0, age - careerStartAge)` で**バックデート済み**([characterLifecycle.ts#L154](src/extensions/nobility/generators/characterLifecycle.ts#L154)) | ⚠️ 分布が非現実的(§3.2) |
+| 中央官職 | 同上 | 同上([characterLifecycle.ts#L199](src/extensions/nobility/generators/characterLifecycle.ts#L199)) | ⚠️ 同上 |
+| 属州領主 | 同上 | **`startYear: getCurrentYear()`**([characterLifecycle.ts#L382](src/extensions/nobility/generators/characterLifecycle.ts#L382)) | ❌ 全員が今年着任 |
+| 将官 / 提督 | 同上 | **`startYear: getCurrentYear()`**([characterLifecycle.ts#L338](src/extensions/nobility/generators/characterLifecycle.ts#L338)) | ❌ 全員が今年着任 |
+| ギルドマスター / 徒弟 | `CharacterRole.startYear` | **フィールドを設定していない**([guildSuccession.ts#L88](src/extensions/economy/generators/guildSuccession.ts#L88), [:99](src/extensions/economy/generators/guildSuccession.ts#L99)) | ❌ `undefined`(UI は空欄) |
+| 市場管理者 / 競合商人 | 同上 | **未設定**([marketManagers.ts#L30](src/extensions/economy/generators/marketManagers.ts#L30), [:40](src/extensions/economy/generators/marketManagers.ts#L40)) | ❌ |
+| 商会役職 | 同上 | **未設定**([merchantOrganizations.ts#L385](src/extensions/economy/generators/merchantOrganizations.ts#L385)) | ❌ |
+| 国家銀行家 | 同上 | **未設定**([moneylenders.ts#L269](src/extensions/economy/generators/moneylenders.ts#L269)) | ❌ |
+| バーグ市場商人 | 同上 | **未設定**([burgMarketLedgers.ts#L24](src/extensions/economy/generators/burgMarketLedgers.ts#L24)) | ❌ |
+| 家門(Dynasty) | — | **年号フィールドそのものが無い**([characterTypes.ts#L271-282](src/extensions/characters/characterTypes.ts#L271-L282)) | ❌ 創設年不明 |
+| バーグ | `Burg.foundedYear` | `= options.year`([burgs-generator.ts#L919](src/generators/burgs-generator.ts#L919)) | ❌ 全都市が今年建設 |
 | 遺跡マーカー | — | 完全ランダム配置、因果なし | ❌ |
-| 戦場マーカー | (legend 文字列) | `campaign` から日付を引いている([markers-generator.ts:985-990](src/generators/markers-generator.ts#L985-L990)) | ✅ 唯一の因果接続 |
+| 戦場マーカー | (legend 文字列) | `campaign` から日付を引いている([markers-generator.ts#L985-990](src/generators/markers-generator.ts#L985-L990)) | ✅ 唯一の因果接続 |
 | 版図(国境) | — | 履歴なし | ❌ |
 
 つまり **「歴史がある」のは国家間戦争だけで、人・組織・都市は全員が世界の初日に生まれている**。
@@ -65,12 +65,12 @@
 
 設計上重要なのは、**器はほとんど揃っている**という点である。
 
-- `TitleHolding` は `startYear` / `endYear` / `reason` を持つ([characterTypes.ts:24-26](src/extensions/characters/characterTypes.ts#L24-L26))。
-  `CharacterRole` も同様([characterTypes.ts:38-40](src/extensions/characters/characterTypes.ts#L38-L40))。
-- `Character.pastTitles: TitleHolding[]` が存在し([characterTypes.ts:426](src/extensions/characters/characterTypes.ts#L426))、
+- `TitleHolding` は `startYear` / `endYear` / `reason` を持つ([characterTypes.ts#L24-26](src/extensions/characters/characterTypes.ts#L24-L26))。
+  `CharacterRole` も同様([characterTypes.ts#L38-40](src/extensions/characters/characterTypes.ts#L38-L40))。
+- `Character.pastTitles: TitleHolding[]` が存在し([characterTypes.ts#L426](src/extensions/characters/characterTypes.ts#L426))、
   実行時の死亡・継承・簒奪はすべてここに正しく積む
-  ([advanceAge.ts:177](src/extensions/characters/advanceAge.ts#L177), [debtCoup.ts:54](src/extensions/economy/generators/debtCoup.ts#L54),
-  [legitimacyWar.ts:77](src/extensions/economy/generators/legitimacyWar.ts#L77))。
+  ([advanceAge.ts#L177](src/extensions/characters/advanceAge.ts#L177), [debtCoup.ts#L54](src/extensions/economy/generators/debtCoup.ts#L54),
+  [legitimacyWar.ts#L77](src/extensions/economy/generators/legitimacyWar.ts#L77))。
 - `CharacterDetailsDialog` は現職の "since {year}" も過去職の年代範囲も**既に描画している**
   ([CharacterDetailsDialog.tsx:595](src/extensions/characters/ui/dialogs/CharacterDetailsDialog.tsx#L595), [:628](src/extensions/characters/ui/dialogs/CharacterDetailsDialog.tsx#L628))。
 
@@ -84,9 +84,9 @@ Layer A は「実行時なら正しく積まれるはずの履歴を、生成時
 | 読み手 | 用途 | バックデートの影響 |
 | :--- | :--- | :--- |
 | `CharacterDetailsDialog.tsx:595/628/729/745` | 表示・コピー用テキスト | 意図した効果そのもの |
-| `debtCoup.ts:51/68/77` | 簒奪時に旧職を `endYear: startYear` で閉じる | 影響なし(相対処理) |
-| `legitimacyWar.ts:76/91` | 同上 | 影響なし |
-| `characterLifecycle.ts:716` | 継承時に現職の `startYear` を現在年へ更新 | 影響なし |
+| `debtCoup.ts#L51/68/77` | 簒奪時に旧職を `endYear: startYear` で閉じる | 影響なし(相対処理) |
+| `legitimacyWar.ts#L76/91` | 同上 | 影響なし |
+| `characterLifecycle.ts#L716` | 継承時に現職の `startYear` を現在年へ更新 | 影響なし |
 
 **シミュレーションの数値ロジックは一切 `startYear` を読んでいない。**
 `technologyProgress.ts` の `heldLongEnough()`([:1554](src/generators/technologyProgress.ts#L1554))は
@@ -122,7 +122,7 @@ Layer A は「実行時なら正しく積まれるはずの履歴を、生成時
 startYear: currentYear - rand(0, Math.max(0, ruler.age - careerStartAge(rulerIds.raceId)))
 ```
 
-`careerStartAge()` は人間20歳相当を種族暦に換算した値([raceAge.ts:235](src/extensions/characters/raceAge.ts#L235))。
+`careerStartAge()` は人間20歳相当を種族暦に換算した値([raceAge.ts#L235](src/extensions/characters/raceAge.ts#L235))。
 この式には4つの問題がある。
 
 #### 問題1:一様分布は在職年数の分布として誤っている
@@ -140,8 +140,8 @@ startYear: currentYear - rand(0, Math.max(0, ruler.age - careerStartAge(rulerIds
 
 #### 問題3:長命種族で暦年が負になる
 
-`options.year` の既定値は **100** である([optionsState.ts:478](src/store/optionsState.ts#L478))。
-エルフ(`lifespan: 750`, `fertilityStart: 100` — [races.ts:97](src/data/races.ts#L97), [:105](src/data/races.ts#L105))で
+`options.year` の既定値は **100** である([optionsState.ts#L478](src/store/optionsState.ts#L478))。
+エルフ(`lifespan: 750`, `fertilityStart: 100` — [races.ts#L97](src/data/races.ts#L97), [:105](src/data/races.ts#L105))で
 統治者年齢をロールすると:
 
 - `careerStartAge` = `scaleHumanAgeToRace(20)` = 100 + (4/59)×650 ≈ **144**
@@ -246,21 +246,21 @@ startYear  ← clamp(currentYear − round(tenureRace), epochFloorYear, currentY
 
 | ファイル:行 | 現状 | 変更後 |
 | :--- | :--- | :--- |
-| `characterLifecycle.ts:154`(元首) | 一様 rand | `rollAppointmentYear({kind: hereditary or elected})` |
-| `characterLifecycle.ts:199`(中央官職) | 一様 rand | `rollAppointmentYear({kind: appointed, religious 判定込み})` |
-| `characterLifecycle.ts:338`(将官/提督) | `getCurrentYear()` | `rollAppointmentYear({commander})` |
-| `characterLifecycle.ts:382`(属州領主) | `getCurrentYear()` | `rollAppointmentYear({province_lord})` |
-| `guildSuccession.ts:88/99` | 未設定 | `startYear` を追加 |
-| `marketManagers.ts:30/40` | 未設定 | 同上 |
-| `merchantOrganizations.ts:385` | 未設定 | 同上 |
-| `moneylenders.ts:269` | 未設定 | 同上 |
-| `burgMarketLedgers.ts:24` | 未設定 | 同上 |
+| `characterLifecycle.ts#L154`(元首) | 一様 rand | `rollAppointmentYear({kind: hereditary or elected})` |
+| `characterLifecycle.ts#L199`(中央官職) | 一様 rand | `rollAppointmentYear({kind: appointed, religious 判定込み})` |
+| `characterLifecycle.ts#L338`(将官/提督) | `getCurrentYear()` | `rollAppointmentYear({commander})` |
+| `characterLifecycle.ts#L382`(属州領主) | `getCurrentYear()` | `rollAppointmentYear({province_lord})` |
+| `guildSuccession.ts#L88/99` | 未設定 | `startYear` を追加 |
+| `marketManagers.ts#L30/40` | 未設定 | 同上 |
+| `merchantOrganizations.ts#L385` | 未設定 | 同上 |
+| `moneylenders.ts#L269` | 未設定 | 同上 |
+| `burgMarketLedgers.ts#L24` | 未設定 | 同上 |
 
 **変更してはならない箇所**(実行時の実イベントであり、現在年が正しい):
 
-- `characterLifecycle.ts:639/716/766` — 継承・後任任命
-- `humanCapitalAllocation.ts:90/163` — 実行時の人材再配置
-- `characterPopulation.ts:103/152` — バーグ住民生成/プレイヤーキャラ作成は
+- `characterLifecycle.ts#L639/716/766` — 継承・後任任命
+- `humanCapitalAllocation.ts#L90/163` — 実行時の人材再配置
+- `characterPopulation.ts#L103/152` — バーグ住民生成/プレイヤーキャラ作成は
   `BurgEditorCharactersTab.tsx:45` からのユーザー操作であり、実際に「今」作られた人物
 
 #### 生成時と実行時の切り分け方
@@ -298,7 +298,7 @@ economy 側の役職ファクトリ(`createMasterRole()` 等)は**世界生成�
 `CharacterDetailsDialog.tsx:628` が `({startYear} - {endYear})` で描画するため、`endYear` 欠落は "?" になる。
 
 **家門(Dynasty)への波及**:`Dynasty` に `foundedYear?: number` を追加し
-([characterTypes.ts:271](src/extensions/characters/characterTypes.ts#L271))、
+([characterTypes.ts#L271](src/extensions/characters/characterTypes.ts#L271))、
 `dynastyGenerator.ts` で創設者の最古の `startYear`(pastTitles を含む)を入れる。
 これだけで家門一覧に「〜年創設」が出せる。
 
@@ -310,7 +310,7 @@ economy 側の役職ファクトリ(`createMasterRole()` 等)は**世界生成�
 | 案 | 内容 | 評価 |
 | :--- | :--- | :--- |
 | 案1 | `startYear` を 1 以上にクランプ | 実装最小。ただし長命種族の元首が全員「1年即位」に団子になる。**却下** |
-| 案2 | `options.year` の既定を 100 → 1000 に上げる | `getCurrentYear()` のフォールバックが既に `|| 1000` なので思想的には整合([charactersContext.ts:65](src/extensions/characters/charactersContext.ts#L65))。ただし**既存セーブ・既存シードの再現性を壊す**(`options.year` は `campaigns` 生成にも入る)。既定変更は破壊的 |
+| 案2 | `options.year` の既定を 100 → 1000 に上げる | `getCurrentYear()` のフォールバックが既に `|| 1000` なので思想的には整合([charactersContext.ts#L65](src/extensions/characters/charactersContext.ts#L65))。ただし**既存セーブ・既存シードの再現性を壊す**(`options.year` は `campaigns` 生成にも入る)。既定変更は破壊的 |
 | 案3(**推奨**) | 負の暦年を正式に許容し、`options.year` 以前を「建国前(Before Founding)」として表示する | `startYear` は表示専用(§1.3)なので計算上は無害。UI 側のフォーマッタ1本で済む |
 
 **推奨は案3 + 明示的な下限。**
@@ -334,7 +334,7 @@ export function getWorldEpochFloorYear(): number {
 ### 3.6 RNG 決定性
 
 `generateCharacters()` は先頭で `Math.random = Alea(seed)` を差し替える
-([characterLifecycle.ts:113](src/extensions/nobility/generators/characterLifecycle.ts#L113))ため、
+([characterLifecycle.ts#L113](src/extensions/nobility/generators/characterLifecycle.ts#L113))ため、
 Layer A の追加ロールは**そのシード列に乗る**。
 
 契約(`docs/simulation/advance-time.md` §7 に準じる):
@@ -375,7 +375,7 @@ E2E:世界生成 → 適当な国の元首を開き、"since" が現在年と異
 ### 4.1 既存年代記の置き場所が hack である
 
 `generateDiplomacy()` は戦争年代記を **`states[0].diplomacy` に押し込んでいる**
-([states-generator.ts:434](src/generators/states-generator.ts#L434), [:864](src/generators/states-generator.ts#L864))。
+([states-generator.ts#L434](src/generators/states-generator.ts#L434), [:864](src/generators/states-generator.ts#L864))。
 コードにも `// TODO: record war in chronicle to keep state interface clean`
 ([:862](src/generators/states-generator.ts#L862))と明記されている。型は `any[]` の混成配列で、
 先頭が戦争名の文字列、以降がイベントオブジェクトという不定形である。
@@ -384,16 +384,16 @@ E2E:世界生成 → 適当な国の元首を開き、"since" が現在年と異
 
 **訂正(2026-09-06、`advance-time-history-mode.md` 執筆時の再調査)**: 本節の初稿は
 `ChronicleEvent` 型を新設する前提で書いていたが、**同名の型は既に
-[`types/models.ts:749`](src/types/models.ts#L749) に存在する**。しかも実行時のイベント群
-(小競り合い `localSkirmish.ts:47`、行軍捕獲 `marchCapture.ts:43`、戦闘解決
-`battle-resolution.ts:260`、本拠奪還 `homeRecapture.ts:49`、海外関係
-`overseasRelations.ts:380`、方針変更 `conflictDirector.ts:187`)が**既にこの型で年代記に
+[`types/models.ts#L749`](src/types/models.ts#L749) に存在する**。しかも実行時のイベント群
+(小競り合い `localSkirmish.ts#L47`、行軍捕獲 `marchCapture.ts#L43`、戦闘解決
+`battle-resolution.ts#L260`、本拠奪還 `homeRecapture.ts#L49`、海外関係
+`overseasRelations.ts#L380`、方針変更 `conflictDirector.ts#L187`)が**既にこの型で年代記に
 追記している**。したがって Layer B は新設ではなく**既存型の拡張と移設**である。
 
 既存の形は最小限で、以下の弱点がある。
 
 ```ts
-// 現行 — types/models.ts:749
+// 現行 — types/models.ts#L749
 export interface ChronicleEvent {
   id: string;
   yearsAgo: number;   // ← 絶対年ではなく相対年
@@ -407,7 +407,7 @@ export interface ChronicleEvent {
 ```
 
 - **`yearsAgo` が相対年**なので、年が進むたびに
-  [`timeEngine.ts:817-832`](src/generators/timeEngine.ts#L817-L832) が**全イベントを走査して
+  [`timeEngine.ts#L817-832`](src/generators/timeEngine.ts#L817-L832) が**全イベントを走査して
   加算している**。O(イベント数 × 年数) であり、長期走行でボトルネックになる
   (`advance-time-history-mode.md` §9.4)。
 - **`rawText` が英語固定**で i18n されていない。
@@ -452,18 +452,18 @@ export interface ChronicleEvent {
 1. `ChronicleEvent` に `year` / `kind` / i18n フィールドを**追加**する(既存フィールドは残す)。
    イベントを作る既存6箇所(§4.2 冒頭の訂正で列挙)に `year` と `kind` を埋めさせ、
    `yearsAgo` は `currentYear - year` の導出に切り替える。これで
-   [`timeEngine.ts:817-832`](src/generators/timeEngine.ts#L817-L832) の全件走査加算が**丸ごと削除できる**。
+   [`timeEngine.ts#L817-832`](src/generators/timeEngine.ts#L817-L832) の全件走査加算が**丸ごと削除できる**。
 2. 格納先を `states[0].diplomacy` から `pack.chronicle` に移す。
    `states[0].diplomacy` への push は**互換のため当面残す**(`DiplomacyHistoryDialog` の読み出しを
    `pack.chronicle` に切り替えた次のリリースで削除)。
-3. `State.campaigns` は**残す**。`frontierAnalysis.ts:97`、`zones-generator.ts:74`、
-   `demography-simulator.ts:574`、`military-generator.ts:1310`、`markers-generator.ts:985` が
+3. `State.campaigns` は**残す**。`frontierAnalysis.ts#L97`、`zones-generator.ts#L74`、
+   `demography-simulator.ts#L574`、`military-generator.ts#L1310`、`markers-generator.ts#L985` が
    依存しており、置換は本レイヤのスコープ外。`campaigns` は `chronicle` へ**射影**する
    (chronicle が上位ビュー、campaigns が既存の下位インデックス)。
 4. Layer A2 が生成した `pastTitles` から `ruler.acceded` / `ruler.died` イベントを射影する。
 5. `io/save.ts` / `io/load.ts` にフィールドを追加。`auto-update.ts` に「chronicle 欠落時は
    campaigns から再構築」のマイグレーションを1本足す(`v1.3 added campaigns` と同じ形
-   — [auto-update.ts:339](src/io/auto-update.ts#L339))。
+   — [auto-update.ts#L339](src/io/auto-update.ts#L339))。
 
 **ストレージコスト**(親ドキュメントの論点3):1イベント ≈ 200 バイト、
 国家30・1国あたり戦争5・人物イベント100とすると数百イベント = **数十 KB**。
@@ -479,7 +479,7 @@ export interface ChronicleEvent {
 - `addRuins()` を改修し、**配置候補セルが `chronicle` の `burg.sacked` / `state.annexed` の
   現場に近い場合はそのイベントを引用した legend を書く**。近くに該当イベントがなければ
   現行のランダム legend にフォールバックする。`addBattlefield()` が既に campaign で
-  やっていること([markers-generator.ts:985-990](src/generators/markers-generator.ts#L985-L990))を
+  やっていること([markers-generator.ts#L985-990](src/generators/markers-generator.ts#L985-L990))を
   遺跡へ横展開するだけで、新しい配置ロジックは要らない。
 - 廃道は `routes-generator.ts` の街道グラフに `abandoned` フラグを足す案があるが、
   描画(破線スタイル)まで含めて Layer B のスコープ外とする。
@@ -529,7 +529,7 @@ Fast-Forward は人口と経済決済をモック注入に置き換えるが、�
 | :--- | :--- | :--- |
 | キャラクター加齢・死亡・継承 | **実計算**([nobility/index.tsx:323](src/extensions/nobility/index.tsx#L323)) | ◎ 本物の王朝史が出る |
 | 技術進行 | 実計算 | ◎ |
-| 人口 | プリセット成長率で注入([timeEngine.ts:860](src/generators/timeEngine.ts#L860)) | △ 総量は動くが分布の因果は無い |
+| 人口 | プリセット成長率で注入([timeEngine.ts#L860](src/generators/timeEngine.ts#L860)) | △ 総量は動くが分布の因果は無い |
 | 経済決済 | プリセット注入([economy/index.tsx:3492](src/extensions/economy/index.tsx#L3492)) | △ 前史としては許容(中間年を誰も検分しない) |
 | 国庫 | 系統的支出をスキップ(FF Phase 3) | △ |
 | 軍事解決 | `isBulkAdvance` で間引き済み | △ 戦争の勝敗が粗くなる |

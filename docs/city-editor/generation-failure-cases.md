@@ -15,7 +15,7 @@ Worker の例外、結果の受信エラー、起動エラーは上記の不採�
 
 ## 不採用判定の実行順
 
-出典: [generate.ts](../../src/city-editor/generators/generation/generateCity.ts)、[passages.ts](../../src/city-editor/generators/passages.ts)。次の順に確認するため、頻度表は問題の総数ではなく**案が停止した理由**の分布になる。
+出典: [generate.ts](/src/city-editor/generators/generation/generateCity.ts)、[passages.ts](/src/city-editor/generators/passages.ts)。次の順に確認するため、頻度表は問題の総数ではなく**案が停止した理由**の分布になる。
 
 | 順 | phase / reason | 判定内容 |
 | --- | --- | --- |

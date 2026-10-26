@@ -57,17 +57,17 @@
 
 | 既存資産 | ファイル | 本機能での再利用方針 |
 | :-- | :-- | :-- |
-| `Good` / `GoodTradeProfile`（weight/bulk/rarity/distancePremium/lossRisk 等） | [goodsGeneratorTypes.ts](../../src/extensions/economy/generators/goodsGeneratorTypes.ts) | 新規Good（Cocoa/Coffee/Maize/Rubber等）をこの枠組みでそのまま追加。既存の`Spices`等も遠方諸国の輸入対象に流用可 |
-| `StapleCropProfile`/`PerennialCropProfile`（温度・降水レンジ） | [stapleCrops.ts](../../src/data/stapleCrops.ts), `perennialCrops.ts` | 新規作物の気候要件定義に流用。地図側に該当バイオームが無ければ自然と国内生産ゼロになり、「遠方国家頼み」が自動的に成立する |
-| `SHIP_CLASS_DEFINITIONS`（sloop/caravel/galleon/steamship, tier） | [shipClasses.ts](../../src/types/shipClasses.ts) | tier別の外洋適性・喪失耐性の元ネタ。`tier ≥ 1`（caravel以上）を遠洋遠征の下限とする |
-| `MerchantTransportLedger.waterAssets` / `TransportReservation`（available/reserved/inTransit/maintenance） | [marketTypes.ts](../../src/extensions/economy/generators/marketTypes.ts), [merchantTransportAssets.ts](../../src/extensions/economy/generators/merchantTransportAssets.ts) | **「遠方へ送ると近海交易船が減る」を新配管なしで実現**：遠征は同じ船体プールから`reserved`→`inTransit`で確保し、往復が終わるまで国内交易は使えない |
-| `ShipHull`（owner: state/merchant, `duty: "patrol"`） | [shipyardQueue.ts](../../src/extensions/shipbuilding/generators/shipyardQueue.ts), [shipyardQueueTypes.ts](../../src/extensions/shipbuilding/generators/shipyardQueueTypes.ts) | 「武装船」を新ステータスとして発明せず、**国有海軍船体＝事実上の武装船**として護衛に流用。`isStateAtWar()`により戦時は海軍が本国に拘束される既存ロジックとも整合 |
-| `TradeSecurityModule`（0..1 investmentLevel、月次決済、caravan損失カウンタ） | [tradeSecurity.ts](../../src/extensions/economy/generators/tradeSecurity.ts) | 「海賊対策への投資レバー」「月次で治安費を国庫から引く」のパターンをそのまま海上版に転用 |
-| `escortRouteThreat.ts`（danger→threatScore→fee の純関数群） | [escortRouteThreat.ts](../../src/extensions/economy/generators/escortRouteThreat.ts) | 陸路の脅威計算と同じ「純関数＋乗算合成」の書き方を海路リスクにも踏襲 |
-| `resolveFoodImportNetwork`（四半期抽象決済、`securityRisk`フィールド） | [foodImportNetwork.ts](../../src/extensions/economy/generators/foodImportNetwork.ts) | 「burg単位の細かい処理を経ずに、集計値で航路の損失率を出す」という抽象度の先例。遠方諸国モジュールも同じ荒さで良い |
-| `warFooting.ts`（レバーで予算配分を再配分する形） | [warFooting.ts](../../src/extensions/economy/generators/warFooting.ts) | 統治（コロニー）維持費の国庫負担レバーの書式に流用 |
-| `MilitaryRegiment.garrisonHost`（vassal領への駐留） | [models.ts:1141](../../src/types/models.ts#L1141) | 「本国外に部隊を置くと継続コストが要る」という概念の前例。ただしDistantRealmは実State/座標を持たないため**実Regimentは再利用せず**、抽象的な駐留戦力レジャーで代替（§5） |
-| `checkForeignInterference`（複合確率 `1-(1-p)^n`） | [foreignInterference.ts](../../src/extensions/shipbuilding/generators/foreignInterference.ts) | 遭難・海賊の複合ロス確率の書き方をそのまま踏襲（無関係なスタブだが式の型として妥当） |
+| `Good` / `GoodTradeProfile`（weight/bulk/rarity/distancePremium/lossRisk 等） | [goodsGeneratorTypes.ts](/src/extensions/economy/generators/goodsGeneratorTypes.ts) | 新規Good（Cocoa/Coffee/Maize/Rubber等）をこの枠組みでそのまま追加。既存の`Spices`等も遠方諸国の輸入対象に流用可 |
+| `StapleCropProfile`/`PerennialCropProfile`（温度・降水レンジ） | [stapleCrops.ts](/src/data/stapleCrops.ts), `perennialCrops.ts` | 新規作物の気候要件定義に流用。地図側に該当バイオームが無ければ自然と国内生産ゼロになり、「遠方国家頼み」が自動的に成立する |
+| `SHIP_CLASS_DEFINITIONS`（sloop/caravel/galleon/steamship, tier） | [shipClasses.ts](/src/types/shipClasses.ts) | tier別の外洋適性・喪失耐性の元ネタ。`tier ≥ 1`（caravel以上）を遠洋遠征の下限とする |
+| `MerchantTransportLedger.waterAssets` / `TransportReservation`（available/reserved/inTransit/maintenance） | [marketTypes.ts](/src/extensions/economy/generators/marketTypes.ts), [merchantTransportAssets.ts](/src/extensions/economy/generators/merchantTransportAssets.ts) | **「遠方へ送ると近海交易船が減る」を新配管なしで実現**：遠征は同じ船体プールから`reserved`→`inTransit`で確保し、往復が終わるまで国内交易は使えない |
+| `ShipHull`（owner: state/merchant, `duty: "patrol"`） | [shipyardQueue.ts](/src/extensions/shipbuilding/generators/shipyardQueue.ts), [shipyardQueueTypes.ts](/src/extensions/shipbuilding/generators/shipyardQueueTypes.ts) | 「武装船」を新ステータスとして発明せず、**国有海軍船体＝事実上の武装船**として護衛に流用。`isStateAtWar()`により戦時は海軍が本国に拘束される既存ロジックとも整合 |
+| `TradeSecurityModule`（0..1 investmentLevel、月次決済、caravan損失カウンタ） | [tradeSecurity.ts](/src/extensions/economy/generators/tradeSecurity.ts) | 「海賊対策への投資レバー」「月次で治安費を国庫から引く」のパターンをそのまま海上版に転用 |
+| `escortRouteThreat.ts`（danger→threatScore→fee の純関数群） | [escortRouteThreat.ts](/src/extensions/economy/generators/escortRouteThreat.ts) | 陸路の脅威計算と同じ「純関数＋乗算合成」の書き方を海路リスクにも踏襲 |
+| `resolveFoodImportNetwork`（四半期抽象決済、`securityRisk`フィールド） | [foodImportNetwork.ts](/src/extensions/economy/generators/foodImportNetwork.ts) | 「burg単位の細かい処理を経ずに、集計値で航路の損失率を出す」という抽象度の先例。遠方諸国モジュールも同じ荒さで良い |
+| `warFooting.ts`（レバーで予算配分を再配分する形） | [warFooting.ts](/src/extensions/economy/generators/warFooting.ts) | 統治（コロニー）維持費の国庫負担レバーの書式に流用 |
+| `MilitaryRegiment.garrisonHost`（vassal領への駐留） | [models.ts#L1141](/src/types/models.ts#L1141) | 「本国外に部隊を置くと継続コストが要る」という概念の前例。ただしDistantRealmは実State/座標を持たないため**実Regimentは再利用せず**、抽象的な駐留戦力レジャーで代替（§5） |
+| `checkForeignInterference`（複合確率 `1-(1-p)^n`） | [foreignInterference.ts](/src/extensions/shipbuilding/generators/foreignInterference.ts) | 遭難・海賊の複合ロス確率の書き方をそのまま踏襲（無関係なスタブだが式の型として妥当） |
 
 つまり新規に用意する必要があるのは、**(a) DistantRealmという軽量データ、(b) 遠征（Expedition）という遷移ロジック、(c) 海上版リスク計算、(d) 統治レジャー**の4つだけで、輸送・在庫・国庫は既存配管に乗せる。
 
@@ -231,7 +231,7 @@ sellPriceMultiplier = stronger ? 0.85 : comparable ? 1.0 : 1.10   // 強い相�
 
 新しい船種・新しい在庫テーブルは作らない。`OverseasExpedition`は他のCaravanと同じ`TransportReservation`機構で`MerchantTransportLedger.waterAssets`から`available`な`shipHullId`を`reserved`→`inTransit`に遷移させるだけでよい。往復日数がnearAbroadでも70〜100日超と、国内航路（既存`DEFAULT_MAX_WAIT_DAYS_SEA`桁の待機日数）より一桁長いため、**遠征に出した分だけ国内交易の空き船が長期間減る**という要件は追加ロジック無しで成立する。護衛艦（国有`ShipHull`）も同様に、遠征に出ている間は本国の哨戒（`duty: "patrol"`）に戻れない。
 
-Vessel assets UI（[vessel-assets-overview.ts](../../src/extensions/shipbuilding/controllers/vessel-assets-overview.ts)）にも "Overseas" のような状態ラベルを1つ足すだけで、プレイヤーは「今何隻が海外に出ているか」を既存画面で確認できる。
+Vessel assets UI（[vessel-assets-overview.ts](/src/extensions/shipbuilding/controllers/vessel-assets-overview.ts)）にも "Overseas" のような状態ラベルを1つ足すだけで、プレイヤーは「今何隻が海外に出ているか」を既存画面で確認できる。
 
 ---
 

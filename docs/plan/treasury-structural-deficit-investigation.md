@@ -93,7 +93,7 @@ getter/setterに置き換え**、以後のすべての書き込みについて:
 
 ### 3.1 パターンの実体
 
-[`chemMedCommon.ts:144-150`](../../src/extensions/economy/generators/chemMedCommon.ts)の共有ヘルパー:
+[`chemMedCommon.ts#L144-150`](/src/extensions/economy/generators/chemMedCommon.ts)の共有ヘルパー:
 
 ```ts
 export function debitTreasury(stateId: number, amount: number): boolean {
@@ -106,7 +106,7 @@ export function debitTreasury(stateId: number, amount: number): boolean {
 ```
 
 これ自体は単純な「引き落とし可能なら引き落とす」処理で問題は無い。問題は**呼び出し側**にある。
-[`dams.ts`](../../src/extensions/economy/generators/dams.ts)を例に取ると:
+[`dams.ts`](/src/extensions/economy/generators/dams.ts)を例に取ると:
 
 ```ts
 // 新設時（foundNewDams、96行目）
@@ -142,7 +142,7 @@ if (!debitTreasury(dam.stateId, DAM_BUDGET)) {
 `debitTreasury()`を呼ぶモジュールは21個ある（`grep -rln "debitTreasury(" src/extensions/economy/generators/`）。
 うち11個で「新設1回debit + 毎年1回debitのrenewal」という同一の2箇所呼び出しパターンを直接確認した:
 
-| モジュール | 予算定数（[chemMedCommon.ts](../../src/extensions/economy/generators/chemMedCommon.ts)） | 新設debit行 | 毎年renewal debit行 |
+| モジュール | 予算定数（[chemMedCommon.ts](/src/extensions/economy/generators/chemMedCommon.ts)） | 新設debit行 | 毎年renewal debit行 |
 | :--- | ---: | ---: | ---: |
 | `acidPlants.ts` | 24 | 73行目 | 88行目 |
 | `dams.ts` | 26 | 96行目 | 121行目 |
@@ -165,7 +165,7 @@ if (!debitTreasury(dam.stateId, DAM_BUDGET)) {
 
 本調査を実行したシミュレーション年数（約10〜13年目）では、上記21モジュールのうち**まだ5個
 （ダム・実験工房・薬種工房・堤防・病院——いずれも比較的早期にunlockする技術）しか解禁されていなかった**。
-それでも総赤字の93%を説明してしまっている。[`chemMedCommon.ts`](../../src/extensions/economy/generators/chemMedCommon.ts)
+それでも総赤字の93%を説明してしまっている。[`chemMedCommon.ts`](/src/extensions/economy/generators/chemMedCommon.ts)
 の予算定数コメントを見る限り、酸プラント・塩素プラント・クロルアルカリ・冷蔵倉庫・電解・実験炉・
 ガス発電所・水銀・石油精製・リン酸肥料・発電所・製鋼転炉・合成アンモニア・LNG・電信線の残り16モジュールは
 軒並み「era 4〜7」相当のより後期の技術（多くのBUDGET定数コメントに"calibration TBD"と明記されている——
@@ -180,11 +180,11 @@ if (!debitTreasury(dam.stateId, DAM_BUDGET)) {
 同じ`state.treasury`を触る他のモジュールには、**treasury/収入に対する割合ベースで自己制限的**な、
 より安全な先例が既に存在する:
 
-- [`agTechInvestment.ts:136`](../../src/extensions/economy/generators/agTechInvestment.ts):
+- [`agTechInvestment.ts#L136`](/src/extensions/economy/generators/agTechInvestment.ts):
   `totalBudget = Math.max(0, state.treasury ?? 0) * STATE_BUDGET_SHARE_OF_TREASURY`
-- [`stateSecretKnowledge.ts:68`](../../src/extensions/economy/generators/stateSecretKnowledge.ts):
+- [`stateSecretKnowledge.ts#L68`](/src/extensions/economy/generators/stateSecretKnowledge.ts):
   `budget = Math.max(0, state.treasury || 0) * STATE_SECRET_BUDGET_SHARE_OF_TREASURY`（5%）
-- [`civilAdministration.ts`](../../src/extensions/economy/generators/civilAdministration.ts):
+- [`civilAdministration.ts`](/src/extensions/economy/generators/civilAdministration.ts):
   `totalAdminUpkeep`は`taxes-generator.ts`側で`rawDomesticIncome × administrativeUpkeepShare`として
   算出される——**収入に比例**し、かつこのモジュール自体のdoc commentが「合計額は変更していない、既存の
   按分を変えただけ」と明記している既存の安定コンポーネント。
@@ -198,7 +198,7 @@ treasury側の縮小に反応しないため、施設数が積み上がるほど
 
 | 項目 | 判定 |
 | :--- | :--- |
-| 単一の原因に特定できるか | ✅ できる——`chemMedCommon.ts#debitTreasury()`を共有する施設系モジュール群の「新設費＝恒久年間予算」パターン |
+| 単一の原因に特定できるか | ✅ できる——`chemMedCommon.ts#LdebitTreasury()`を共有する施設系モジュール群の「新設費＝恒久年間予算」パターン |
 | 個々のモジュール実装は設計通りか | ✅ 設計通り（§3.2、`chemistry-medicine-knowledge-accumulation.md` §4.2に明記） |
 | 21モジュール合計の財政インパクトは検証されていたか | ❌ 形跡なし。各vertical-sliceは単体の予算感のみで設計・calibration TBDのまま |
 | 中核経済（税収・行政・治安・災害対応等）に問題はあるか | ほぼ無い（年-74程度、安定） |
@@ -252,13 +252,13 @@ treasury側の縮小に反応しないため、施設数が積み上がるほど
 
 | カテゴリ | 該当モジュール | 現在の産出 | 資金不足時に本来あるべき挙動 |
 | :--- | :--- | :--- | :--- |
-| **①物理インフラ・生産設備（産出あり）** | `dams`（洪水防御/水力）, `levees`（洪水防御）, `powerStations`/`gasPowerStations`（発電容量）, `telegraphLines`（通信範囲）, `acidPlants`/`chlorinePlants`/`chlorAlkaliPlants`/`coldStorageDepots`/`electrolysisPlants`/`lngPlants`/`mercuryPlants`/`oilRefineryPlants`/`phosphateFertilizerPlants`/`steelConverters`/`syntheticAmmoniaPlants`（市場向けGood産出——例: [`acidPlants.ts:124`](../../src/extensions/economy/generators/acidPlants.ts)が`addNamedStock(marketId, "Sulfuric Acid", …)`、[`steelConverters.ts:83`](../../src/extensions/economy/generators/steelConverters.ts)が`addNamedStock(marketId, "Steel", …)`で実際に市場在庫を増やしている） | 実在の市場Good、または発電容量/通信範囲などの「面」の効用 | 産出停止（既存動作）＋ダム・堤防のみ追加で崩壊リスク上昇・自然状態への回帰（未実装） |
+| **①物理インフラ・生産設備（産出あり）** | `dams`（洪水防御/水力）, `levees`（洪水防御）, `powerStations`/`gasPowerStations`（発電容量）, `telegraphLines`（通信範囲）, `acidPlants`/`chlorinePlants`/`chlorAlkaliPlants`/`coldStorageDepots`/`electrolysisPlants`/`lngPlants`/`mercuryPlants`/`oilRefineryPlants`/`phosphateFertilizerPlants`/`steelConverters`/`syntheticAmmoniaPlants`（市場向けGood産出——例: [`acidPlants.ts#L124`](/src/extensions/economy/generators/acidPlants.ts)が`addNamedStock(marketId, "Sulfuric Acid", …)`、[`steelConverters.ts#L83`](/src/extensions/economy/generators/steelConverters.ts)が`addNamedStock(marketId, "Steel", …)`で実際に市場在庫を増やしている） | 実在の市場Good、または発電容量/通信範囲などの「面」の効用 | 産出停止（既存動作）＋ダム・堤防のみ追加で崩壊リスク上昇・自然状態への回帰（未実装） |
 | **②知識トライアル（産出なし）** | `experimentalWorkshops`, `apothecaryWorkshops` | **なし**——`addNamedStock`の呼び出しが無く、市場Goodを一切生産していない。純粋な技術進捗（`documentedRuns`蓄積によるtech stage進行）専用のトライアル | 安全に停止（**既存動作のまま。変更不要**） |
-| **③医療施設** | `hospitalInstallations` | `burg.medicalCare`civic score（`consumeNamed(marketId, "Medicines", …)`で市場の"Medicines"を消費、[hospitalInstallations.ts:165](../../src/extensions/economy/generators/hospitalInstallations.ts)） | 死亡率上昇（**未実装、新規結合が必要——§8.3**） |
+| **③医療施設** | `hospitalInstallations` | `burg.medicalCare`civic score（`consumeNamed(marketId, "Medicines", …)`で市場の"Medicines"を消費、[hospitalInstallations.ts#L165](/src/extensions/economy/generators/hospitalInstallations.ts)） | 死亡率上昇（**未実装、新規結合が必要——§8.3**） |
 
 **ユーザー案の訂正が必要な点**: 「薬種工房が化学薬品のプラントであれば経済が停滞する」という懸念は方向性として
 正しいが、**現在の`ApothecaryWorkshop`自体はプラントではない**。実際に市場へ流通する"Medicines"という
-Goodは[`goods-generator.ts:2854-2869`](../../src/extensions/economy/generators/goods-generator.ts)に定義された
+Goodは[`goods-generator.ts#L2854-2869`](/src/extensions/economy/generators/goods-generator.ts)に定義された
 **通常の交易品レシピ**（`Medicinal herbs + Honey/Vinegar/Salt/Alum/Soap/Sulfur/Incense`、`requiredTechnology:
 "apothecaryCompounding"`）であり、`Production.produce()`の通常サイクルで技術さえ解禁されていれば
 `ApothecaryWorkshop`の資金繰りとは無関係に生産され続ける。つまり**現状ではApothecaryWorkshopの資金停止は
@@ -286,14 +286,14 @@ Medicines供給や広い経済に一切影響しない**——ユーザーが懸
 
 ### 8.3 病院・薬種工房と人口死亡率の結合（新規機能、未設計）
 
-現状のコード調査結果: `burg.medicalCare`（[hospitalInstallations.ts:28-43](../../src/extensions/economy/generators/hospitalInstallations.ts)）は
+現状のコード調査結果: `burg.medicalCare`（[hospitalInstallations.ts#L28-43](/src/extensions/economy/generators/hospitalInstallations.ts)）は
 **Nobility拡張の`characterHealth.ts`（named characterの健康・生存率）にしか接続されていない**。
 一般人口の死亡率を計算する`src/generators/demography-simulator.ts`には`medicalCare`への参照が一切無い
 ——**「病院の資金停止で死者が増える」という挙動は、現状のコードベースにまだ存在しない。**
 
 一方、`demography-simulator.ts`には類似の仕組みとして疫病死亡（`EPIDEMIC_WATER_SAFE_THRESHOLD` /
 `EPIDEMIC_RATE_SCALE`、`waterSecurity`に連動）と飢饉死亡（`FOOD_SECURE_THRESHOLD` / `FAMINE_RATE_SCALE`、
-`foodSecurity`に連動）が既に実装されている（[demography-simulator.ts:32-61](../../src/generators/demography-simulator.ts)）。
+`foodSecurity`に連動）が既に実装されている（[demography-simulator.ts#L32-61](/src/generators/demography-simulator.ts)）。
 **この2つと同じ形——`burg.medicalCare`が閾値を下回ると死亡率が上乗せされる`healthSecurity`相当の第3の軸を
 新設する**のが、既存アーキテクチャに最も自然に沿う実装方針になりそうだが、これは本調査のスコープを超える
 新規設計であり、着手していない。検討が必要な論点:
@@ -308,7 +308,7 @@ Medicines供給や広い経済に一切影響しない**——ユーザーが懸
 
 ### 8.4 ダム・堤防の劣化・崩壊リスクメカニズム（新規機能、未設計）
 
-現状のコード調査結果: `debitTreasury`失敗時、[`dams.ts:121-128`](../../src/extensions/economy/generators/dams.ts)は
+現状のコード調査結果: `debitTreasury`失敗時、[`dams.ts#L121-128`](/src/extensions/economy/generators/dams.ts)は
 即座に`dam.active = false`・`dam.floodProtectionRating = 0`にする——**「自然状態への回帰」は既に一発で
 起きている**（ユーザー案の後半部分は既存動作と一致）。**存在しないのは「崩壊による災害リスクの上昇」という
 中間状態**（現状は「満額の防御 or ゼロ」の二値で、確率的な決壊・被害イベントは無い）。設計が必要な論点:

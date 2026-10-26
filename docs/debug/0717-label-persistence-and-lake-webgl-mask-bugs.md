@@ -36,7 +36,7 @@
 
 ### 1.3 未修正: 州ラベル (province label) — 同じ手法で直せる
 
-`src/controllers/provinces-editor.ts:822-824` の `dragLabel()`:
+`src/controllers/provinces-editor.ts#L822-824` の `dragLabel()`:
 
 ```ts
 function dragLabel(this: SVGTextElement, event: d3.D3DragEvent<SVGTextElement, unknown, unknown>): void {
@@ -46,7 +46,7 @@ function dragLabel(this: SVGTextElement, event: d3.D3DragEvent<SVGTextElement, u
 
 `transform` をDOM属性に書くだけで、どこにも永続化されていない（`patchPresentation` 相当の呼び出しが一切ない）。
 
-対応する `src/renderers/draw-provinces.ts:32-40` の `ProvincesRenderer.render()`:
+対応する `src/renderers/draw-provinces.ts#L32-40` の `ProvincesRenderer.render()`:
 
 ```ts
 const labels = provinces
@@ -106,7 +106,7 @@ burg label微調整は優先度低いが、次に手を付けるなら province 
 `src/renderers/webgl/adapters/deckDataAdapters.ts` に以下2点を実装済み（残してある。副作用のない正しい防御的修正だが、**このバグ自体は直っていない**）:
 
 1. **`getFeaturePolygon()`** (2172行目付近): 頂点を大きく動かすと `feature.vertices` から作るリングが自己交差（bowtie）することがある。SVGのネイティブpath塗りは自己交差を無害に処理するが、deck.glのGPU三角形分割はそうではない、という仮説。`toSimplePolygon()`/`hasSelfIntersection()`/`segmentsProperlyIntersect()` を追加し、自己交差を検知したら `d3.polygonHull()` で凸包にフォールバックする処理を追加。
-2. **`buildLandMaskPolygons()`** (1748行目付近): 湖polygonを島のmaskの「穴」として使う条件が `isPointInsidePolygon(lake.points[0], island.points)`（**最初の1点だけ**）だった。`isFullyInsidePolygon()` に変更し、湖の全頂点が島の中に完全に収まっている場合のみ穴として使うように変更。deck.glの `MaskExtension`（`buildDeckLayers.ts:301-302,472-484`）は全land-mask polygonを **1枚の共有stencilテクスチャ** にまとめて描画するため、1つの不正な穴/外郭の組み合わせが地図全体のマスクを壊しうる、という仮説だった。
+2. **`buildLandMaskPolygons()`** (1748行目付近): 湖polygonを島のmaskの「穴」として使う条件が `isPointInsidePolygon(lake.points[0], island.points)`（**最初の1点だけ**）だった。`isFullyInsidePolygon()` に変更し、湖の全頂点が島の中に完全に収まっている場合のみ穴として使うように変更。deck.glの `MaskExtension`（`buildDeckLayers.ts#L301-302,472-484`）は全land-mask polygonを **1枚の共有stencilテクスチャ** にまとめて描画するため、1つの不正な穴/外郭の組み合わせが地図全体のマスクを壊しうる、という仮説だった。
 
 **検証結果**: 一時的なデバッグログで、(1)(2)とも正しく発火している（自己交差検知→凸包生成、該当の穴が正しく除外される）ことを確認したが、それでも `land pixel after drag` の色は **修正前と小数点以下まで完全一致**（`[127, 154, 196, 255]`、修正前と同じ)。さらに:
 
@@ -117,16 +117,16 @@ burg label微調整は優先度低いが、次に手を付けるなら province 
 
 ### 2.3 次に見るべき場所（未着手）
 
-州の色を実際に塗っているのは `src/renderers/webgl/buildDeckLayers.ts:500-510` あたりの `createLandMaskedPolygonLayer({ id: "fmg-webgl-land", data: buildLandPolygonsBase(worldContext, viewContext.focusScope, landFill, landCells), ... })` で、この `landCells` は:
+州の色を実際に塗っているのは `src/renderers/webgl/buildDeckLayers.ts#L500-510` あたりの `createLandMaskedPolygonLayer({ id: "fmg-webgl-land", data: buildLandPolygonsBase(worldContext, viewContext.focusScope, landFill, landCells), ... })` で、この `landCells` は:
 
 ```
-buildDeckLayers.ts:426-428
+buildDeckLayers.ts#L426-428
   const landCells = getCachedLandTopology(signatures.landGeometrySignature, () =>
     inProcessLandTopologyProjectionAdapter.project(buildLandCellGeometry(worldContext, viewContext.focusScope))
   );
 ```
 
-- `buildLandCellGeometry()` (`deckDataAdapters.ts:325`): `pack.cells`/`pack.vertices` から **セル単位** でポリゴンを組む、`getFeaturePolygon()` とは完全に別の経路（`getCellPolygon()` at `deckDataAdapters.ts:2031` 付近を使用）。地物(feature)のvertices配列ではなく、セルの境界vertexを直接辿っている。
+- `buildLandCellGeometry()` (`deckDataAdapters.ts#L325`): `pack.cells`/`pack.vertices` から **セル単位** でポリゴンを組む、`getFeaturePolygon()` とは完全に別の経路（`getCellPolygon()` at `deckDataAdapters.ts#L2031` 付近を使用）。地物(feature)のvertices配列ではなく、セルの境界vertexを直接辿っている。
 - `inProcessLandTopologyProjectionAdapter.project(...)` (`src/renderers/webgl/landTopologyProjectionAdapter.ts`) が全セルポリゴンをまとめて共有CSR/フラットバッファ (`src/renderers/webgl/flatLandTopology.ts` の `buildFlatLandTopology()`) に変換する。
 
 **仮説**: ドラッグした湖の頂点が隣接する land セルの境界とも共有されている場合、`getCellPolygon()` あるいは `buildFlatLandTopology()` のCSR構築が、1つのセルの異常な頂点位置によって **オフセット計算やインデックス整合性が地図全体で崩れる**（1セルの異常が全体の共有バッファを巻き添えにする）可能性がある。`docs/webgl-renderer-migration-candidates.md` のPhase 7/8で言及されているtopology CSR化・Worker projection周りの実装（`flatLandTopology.ts`, `landTopologyProjectionAdapter.ts`）を読み、同様に「1点だけ大きく動かす」操作を模した単体テストかPlaywright再現で切り分けるのが次の一手。

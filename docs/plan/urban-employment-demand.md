@@ -77,14 +77,14 @@
 
 大都市が大都市であるためには、農村から人を受け入れるだけでなく、その人たちが従事できる**実際の仕事**が要る。現状のBurgは、鉱山・製錬所という一次・二次産業の施設を持ちながら、それらが都市の雇用先として機能していない。都市人口が増えても、飲食店・宿・工房のような三次産業（サービス業）が自然に生まれる下地がない。これは経済学の基盤産業（basic industry：外部から資金を稼ぐ輸出産業）と非基盤産業（non-basic industry：域内の労働者・住民に対してサービスを提供する産業）の関係そのものであり、非基盤産業（飲食・宿・小売）は基盤産業（鉱業・製錬・交易・行政）の雇用が生む所得を追いかける形で成長する。基盤産業なしに都市だけを人口で膨らませても、その人口を支える所得の裏付けがない。
 
-本書は、鉱業・製錬・港湾交易・行政という基盤産業の実雇用を`employmentDemand`として計算し、現在Burg人口の年率2%固定式でしかない`calculateAnnualUrbanLaborIntake`（[urbanLaborIntake.ts:299](../../src/extensions/economy/generators/urbanLaborIntake.ts#L299)）を、この実雇用に基づく受け入れ枠へ置き換える計画を立てる。
+本書は、鉱業・製錬・港湾交易・行政という基盤産業の実雇用を`employmentDemand`として計算し、現在Burg人口の年率2%固定式でしかない`calculateAnnualUrbanLaborIntake`（[urbanLaborIntake.ts#L299](/src/extensions/economy/generators/urbanLaborIntake.ts#L299)）を、この実雇用に基づく受け入れ枠へ置き換える計画を立てる。
 
 ## 2. 現状と問題
 
 ### 2.1 都市受け入れ枠は人口自己参照の暫定式
 
 ```ts
-// calculateAnnualUrbanLaborIntake — urbanLaborIntake.ts:299
+// calculateAnnualUrbanLaborIntake — urbanLaborIntake.ts#L299
 const remainingCapacity = Math.max(0, capacity - population);
 return Math.min(
   remainingCapacity,
@@ -100,19 +100,19 @@ return Math.min(
 
 ### 2.2 鉱業・製錬は物資フローのみで、人口と結び付いていない
 
-`MineOperation.workers`（[mineOperations.ts:167](../../src/extensions/economy/generators/mineOperations.ts#L167)）は`4 + deposit.richness * 6`という、鉱床の豊かさから決まる固定値であり、生成後に一切変化しない。`produceMonth()`（同 L105）はこれを`workerFactor = min(1, operation.workers / (4 + richness * 6))`として使うが、分母と分子が定義上ほぼ同じ値のため、`workerFactor`は実質的に常に`1`である。Burgの人口・成人バケットを読み書きする箇所は`findNearestBurgId`（同 L136、`burgId`を割り当てるためだけ）しかない。`SmelterOperation`（[smelterOperations.ts](../../src/extensions/economy/generators/smelterOperations.ts)）も同様に`burgId`は持つが、労働者数の概念自体を持たない。
+`MineOperation.workers`（[mineOperations.ts#L167](/src/extensions/economy/generators/mineOperations.ts#L167)）は`4 + deposit.richness * 6`という、鉱床の豊かさから決まる固定値であり、生成後に一切変化しない。`produceMonth()`（同 L105）はこれを`workerFactor = min(1, operation.workers / (4 + richness * 6))`として使うが、分母と分子が定義上ほぼ同じ値のため、`workerFactor`は実質的に常に`1`である。Burgの人口・成人バケットを読み書きする箇所は`findNearestBurgId`（同 L136、`burgId`を割り当てるためだけ）しかない。`SmelterOperation`（[smelterOperations.ts](/src/extensions/economy/generators/smelterOperations.ts)）も同様に`burgId`は持つが、労働者数の概念自体を持たない。
 
 つまり、`MineOperation`/`SmelterOperation`は「鉱床がある」「製錬所がある」という物理的存在と物資フローだけをモデル化しており、それが**誰かの仕事**であるという側面を一切表現していない。
 
 ### 2.3 人口を消費する職業cohortパターンは既に存在するが、造船専用
 
-[strategicLaborMarkets.ts](../../src/extensions/economy/generators/strategicLaborMarkets.ts)の`LaborMarket`は、Market圏Burg人口の30%（`WORKFORCE_SHARE`）を「戦略労働力」とし、`forestry`/`sailmaking`/`ropeMaking`/`tarBurning`の4職種（`STRATEGIC_OCCUPATIONS`）へ、未充足の戦略調達注文の需要に応じて再配分する。1周期あたり最大5%（`MAX_TRANSFER_SHARE_PER_CYCLE`）しか職種間移動せず、需要のある職種は技能・設備capacityが緩やかに向上し、生産性倍率（`getStrategicLaborProductivity`）として既存recipeの出力へ反映される。
+[strategicLaborMarkets.ts](/src/extensions/economy/generators/strategicLaborMarkets.ts)の`LaborMarket`は、Market圏Burg人口の30%（`WORKFORCE_SHARE`）を「戦略労働力」とし、`forestry`/`sailmaking`/`ropeMaking`/`tarBurning`の4職種（`STRATEGIC_OCCUPATIONS`）へ、未充足の戦略調達注文の需要に応じて再配分する。1周期あたり最大5%（`MAX_TRANSFER_SHARE_PER_CYCLE`）しか職種間移動せず、需要のある職種は技能・設備capacityが緩やかに向上し、生産性倍率（`getStrategicLaborProductivity`）として既存recipeの出力へ反映される。
 
 この設計は[shipbuilding-industrial-policy.md §4.5](shipbuilding-industrial-policy.md#45-集約型の雇用産業能力後半-phase)で先に決定・実装されたもので、同節はコメントで`"shipbuilding" | "trade"`を将来の追加職種として明示している（鉱業・製錬は挙がっていない）。重要な性質として、`LaborMarket`はBurg人口を**物理的に減らさない**。あくまで「その人口のうち何%がどの職に向いているか」という内部比率であり、生産性倍率の計算にのみ使う。都市の受け入れ枠（`urbanLaborIntake`）とは接続されていない。
 
 ### 2.4 `settlementDevelopmentPotential`は雇用量ではなく立地の点数
 
-[developmentPotential.ts:136](../../src/extensions/economy/generators/developmentPotential.ts#L136)の`calculateSettlementDevelopmentPotential`は、河川・港・交易結節の数、未枯渇鉱床の豊かさ、首都・港・広場ボーナスを単純加算した**静的なスコア**である。鉱床が実際に採掘されているか、港が実際に交易路へ繋がっているかは問わない。移住先・新Burg昇格候補の順位付けにのみ使われ（Phase 4の未実装項目）、雇用量の計算には使われていない。これは意図的な分離であり（§2.1引用の決定）、本書が作る`employmentDemand`は`settlementDevelopmentPotential`を置き換えるのではなく、「実際に稼働している」経済活動から別途算出する。
+[developmentPotential.ts#L136](/src/extensions/economy/generators/developmentPotential.ts#L136)の`calculateSettlementDevelopmentPotential`は、河川・港・交易結節の数、未枯渇鉱床の豊かさ、首都・港・広場ボーナスを単純加算した**静的なスコア**である。鉱床が実際に採掘されているか、港が実際に交易路へ繋がっているかは問わない。移住先・新Burg昇格候補の順位付けにのみ使われ（Phase 4の未実装項目）、雇用量の計算には使われていない。これは意図的な分離であり（§2.1引用の決定）、本書が作る`employmentDemand`は`settlementDevelopmentPotential`を置き換えるのではなく、「実際に稼働している」経済活動から別途算出する。
 
 ### 2.5 まとめ: 何が欠けているか
 
@@ -181,7 +181,7 @@ workerFactor = min(1, workers / requiredWorkersForFullExtraction)
 
 ### 3.4 行政・首都雇用
 
-`burg.capital`（州都・首都）を持つBurgに、Stateの人口・領域規模に応じた行政雇用を加える。既存の`getBurgLocationBonus`（[developmentPotential.ts:164](../../src/extensions/economy/generators/developmentPotential.ts#L164)）が`capital`に静的加点しているのと役割を分けること — あちらは移住先の魅力度、こちらは実際の雇用者数。初期式は最も単純に「Stateの総人口 × 小さな定数比率」から始めることを推奨する（詳細は次セッションで決定）。
+`burg.capital`（州都・首都）を持つBurgに、Stateの人口・領域規模に応じた行政雇用を加える。既存の`getBurgLocationBonus`（[developmentPotential.ts#L164](/src/extensions/economy/generators/developmentPotential.ts#L164)）が`capital`に静的加点しているのと役割を分けること — あちらは移住先の魅力度、こちらは実際の雇用者数。初期式は最も単純に「Stateの総人口 × 小さな定数比率」から始めることを推奨する（詳細は次セッションで決定）。
 
 > **実装（Phase 3、§0参照）**: `administrationEmployment.ts`の`getAdministrationRequiredWorkers()`が`4 + (state.rural + state.urban) * 0.005 + state.burgs * 1`を返す。`state.capital`Burgのみを対象とし（州都・属州都は対象外、必要になれば`Province.burg`も同じ枠組みに追加できる）、`basicEmployment.ts`の年次リコンサイルへBurgアンカー型スロットとして統合、同一Burg内では行政 → 鉱山 → 製錬所の順で成人プールを割り当てる。州都が別Burgへ移る／州が消滅すると、翌年の再構築で古い記録は再生成されず自然に消える。
 
@@ -263,7 +263,7 @@ basicEmploymentDemand[burgId] += strategicIndustryWorkers[burgId]
 
 - [x] `basicEmploymentDemand` + `serviceEmploymentDemand` = `employmentDemand`を集計する（`basicEmploymentSummary`。`trade`のBurg帰属をPhase 2から前倒しで統合）。
 - [x] §3.6の「総量駆動」か「増分駆動」かを決定し（決定4＝総量駆動）、新関数`calculateAnnualUrbanLaborIntakeFromEmploymentDemand`で置き換えた。既存の`businessCycle`/`localVariation`は雇用創出速度の揺らぎとして残した（雇用側計算はPhase 1〜3どれも乱数を持たないため重複なし）。
-- [x] `ruralUrbanMigration`オプション（[optionsState.ts](../../src/store/optionsState.ts)の`"independent" | "megacity"`）がoffの間は本モデルを一切評価しないことを確認する回帰テストを追加する（`urbanLaborIntake.test.ts`）。
+- [x] `ruralUrbanMigration`オプション（[optionsState.ts](/src/store/optionsState.ts)の`"independent" | "megacity"`）がoffの間は本モデルを一切評価しないことを確認する回帰テストを追加する（`urbanLaborIntake.test.ts`）。
 
 ### Phase 5 — UI・可視化・バランス
 

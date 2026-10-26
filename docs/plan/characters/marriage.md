@@ -6,7 +6,7 @@
 
 未婚率を設定する人口パラメーターは、現状ありません。
 
-人口動態では出生数を `成人女性数 × demographicBirthRate × 経過年数 × 収容力の余裕` として計算しており、婚姻状態や未婚率は参照していません。[demography-simulator.ts](/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/generators/demography-simulator.ts:25) [出生計算](/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/generators/demography-simulator.ts:68)
+人口動態では出生数を `成人女性数 × demographicBirthRate × 経過年数 × 収容力の余裕` として計算しており、婚姻状態や未婚率は参照していません。[demography-simulator.ts](/src/generators/demography-simulator.ts#L25) [出生計算](/src/generators/demography-simulator.ts#L68)
 
 設定可能なのは主に以下です。
 
@@ -14,9 +14,9 @@
 - `demographicChildMortalityRate`（初期値 0.2）
 - 初期人口飽和度 `initialPopulationSaturation`
 
-[optionsState.ts](/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/store/optionsState.ts:39) [初期値](/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/store/optionsState.ts:167)
+[optionsState.ts](/src/store/optionsState.ts#L39) [初期値](/src/store/optionsState.ts#L167)
 
-なお、Characters拡張には君主等の個別人物向け配偶者数・独身（宗教国家で20%）のロジックがありますが、一般人口の出生・人口増減には連動していません。[personFactory.ts](/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/extensions/characters/personFactory.ts:51)
+なお、Characters拡張には君主等の個別人物向け配偶者数・独身（宗教国家で20%）のロジックがありますが、一般人口の出生・人口増減には連動していません。[personFactory.ts](/src/extensions/characters/personFactory.ts#L51)
 
 ### 実装
 
@@ -29,7 +29,7 @@
 - 28歳未満は晩婚を表現し、未婚率を21歳未満80%、21–24歳45%、25–27歳28%に上げています。
 - 既婚者の子ども数も16歳起点ではなく、女性21–26歳／男性24–29歳の初婚年齢から算出します。
 
-[人物生成ロジック](/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/extensions/characters/personFactory.ts:18) と [Nobilityの役割別設定](/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/extensions/nobility/generators/characterLifecycle.ts:71) を更新し、Characters Overview に既婚/未婚と子ども数の列・ソートを追加しました。[一覧表示](/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/extensions/characters/ui/components/tables/CharactersTable.tsx:71)
+[人物生成ロジック](/src/extensions/characters/personFactory.ts#L18) と [Nobilityの役割別設定](/src/extensions/nobility/generators/characterLifecycle.ts#L71) を更新し、Characters Overview に既婚/未婚と子ども数の列・ソートを追加しました。[一覧表示](/src/extensions/characters/ui/components/tables/CharactersTable.tsx:71)
 
 未婚者は配偶者0・子ども0で生成されます。時間経過中に結婚するライフサイクルはまだないため、これは生成時の状態です。
 

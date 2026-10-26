@@ -14,8 +14,8 @@ Province scope の小さな地図で、河川と都市の位置関係を意図�
 
 | 項目 | 現状 | 影響 |
 | --- | --- | --- |
-| 河川量 | `Rivers.generate` は `grid.cells.prec` × セル数補正で flux を積算し、`MIN_FLUX_TO_FORM_RIVER` 未満は川にならない(`river-generator.ts:76-153`) | 乾燥気候や小さな地図では川が1〜2本しか出ない |
-| 都市配置 | `placeTowns` は `getSettlementBaseSize`(気温・降水・地形)を乱数化したスコア順に、間隔条件で選ぶ(`burgs-generator.ts:1519`) | 河口や合流点を優先する仕組みが無い。合流点は `cells.conf` にあるが、タグ付け(`:1984`)に使うだけ |
+| 河川量 | `Rivers.generate` は `grid.cells.prec` × セル数補正で flux を積算し、`MIN_FLUX_TO_FORM_RIVER` 未満は川にならない(`river-generator.ts#L76-153`) | 乾燥気候や小さな地図では川が1〜2本しか出ない |
+| 都市配置 | `placeTowns` は `getSettlementBaseSize`(気温・降水・地形)を乱数化したスコア順に、間隔条件で選ぶ(`burgs-generator.ts#L1519`) | 河口や合流点を優先する仕組みが無い。合流点は `cells.conf` にあるが、タグ付け(`:1984`)に使うだけ |
 | Province 上限 | 国・文化・宗教は2(`mapScope.ts SCOPE_COUNT_CAPS`) | 本モードでは問題にならない |
 | 生成環境 | 生成パイプラインは `src/main.ts` の DOM 依存コード。Node + jsdom で動くのは「読込済み .fmg の参照」まで(map server worker、ce:perf) | オンザフライ生成は headless Chromium が必要(`fmg:small` と同じ方式) |
 | 収集 | `fmg:small` は .fmg を保存し、`ce:perf` などが後から読み込む | ファイル経由で遅く、統計を取るループに向かない |
@@ -63,7 +63,7 @@ type LabSiteKind =
 
 ### 4.1 河川を増やす(気候を無視)
 
-`generatePrecipitation` の直後、`Rivers.generate` の前にフックを入れる(`main.ts:1213-1220`)。
+`generatePrecipitation` の直後、`Rivers.generate` の前にフックを入れる(`main.ts#L1213-1220`)。
 
 1. `ignoreClimate` の場合: `grid.cells.prec[i] = base × (0.8 + 0.4·rand)` で上書きする。base は `riverDensity` に比例させる。
 2. `Rivers.generate` に `labFluxScale` を渡し、`MIN_FLUX_TO_FORM_RIVER / riverDensity` をしきい値にする。定数自体は変えない。
@@ -313,7 +313,7 @@ npm run lab:collect -- --server http://127.0.0.1:8787 --seeds 1..500 --preset po
 
 **改善候補(優先順)**
 
-1. **支流の都市が河川港にならない(FMG 本体のバグ)**。航行可能な川の上の都市のうち、川の流出先が海の場合は 2998/3078 件、湖の場合は 155/175 件が河川港になるが、別の川へ合流する場合は 137/1228 件(11%)だけ。137件は、本流のセルにいる都市と考えられる。`Rivers.resolveDrainFeature`(`river-generator.ts:617`)は、川の最後のセルの feature を見る。支流の最後のセルは本流の陸セル(feature は陸塊)なので null を返し、`river.parent` をたどらない。meander の 60%、riverBank の 55% が港にならない主因でもある。修正すれば、lab 無効の生成結果も変わる(港が増える)。
+1. **支流の都市が河川港にならない(FMG 本体のバグ)**。航行可能な川の上の都市のうち、川の流出先が海の場合は 2998/3078 件、湖の場合は 155/175 件が河川港になるが、別の川へ合流する場合は 137/1228 件(11%)だけ。137件は、本流のセルにいる都市と考えられる。`Rivers.resolveDrainFeature`(`river-generator.ts#L617`)は、川の最後のセルの feature を見る。支流の最後のセルは本流の陸セル(feature は陸塊)なので null を返し、`river.parent` をたどらない。meander の 60%、riverBank の 55% が港にならない主因でもある。修正すれば、lab 無効の生成結果も変わる(港が増える)。
 2. **waterfront-check の失敗が 25〜44%**。内訳は `river-unresolved:candidate-budget` 499件、`no-dry-site` 306件、`shore-missing` 121件、`folded-banks` 47件、`shore-distance` 39件。首都は 7%、町は 32% で、小さい都市ほど河岸に置けていない。最多の candidate-budget は、河岸を探す候補数の上限に達して諦めたもの。上限か探索順の見直しが候補。合流点が最悪(44%)なのは、2本の川の岸に挟まれて乾いた土地(dry site)が無いためと考えられる。
 3. **通常アルゴリズムは、合流点・湖の出口・合流点の下流をほとんど選ばない**。control での比率は合流点 2%、湖の出口 1%、合流点の下流 0%。都市スコアに合流点ボーナスを足すかどうか(§9.3)を判断する材料になる。
 4. **通常アルゴリズムの河口の都市は、海港+河川港が 45% だけ**(lab では 94%)。陸塊ごとに代表1港を選ぶ間引きが、河口の都市にもかかる。河口の都市を間引きから除外する案。

@@ -30,7 +30,7 @@ list, a template table) it goes in `data/`, not `controllers/`. If it manages
 - **Path alias**: `@/*` resolves to `src/*` (configured in `vite.config.ts` and
   `tsconfig.json`). Prefer it to deep `../../` chains — e.g. `@/utils`,
   `@/generators/markets-generator`. Sibling imports stay relative (`./box`).
-- Import shared helpers from [`@/utils`](../../src/utils/index.ts)
+- Import shared helpers from [`@/utils`](/src/utils/index.ts)
   (`ensureEl`, `rn`, `si`, `capitalize`, `convertTemperature`, …). Note
   `isWater(cellId, pack)` is the 2-arg util — distinct from the 1-arg
   `window.isWater`. `element.on("click", fn)` is typed via the
@@ -51,7 +51,7 @@ and **never** use module-local `declare const` or `as any` to paper over one.
    only declared on `interface Window` (e.g. `NamesbaseEditor`) is reached as
    `window.NamesbaseEditor`, not bare.
 2. **It lives only in classic `public/` code** → **declare it once in
-   [`src/types/global.ts`](../../src/types/global.ts)** as `var X: …`, beside the
+   [`src/types/global.ts`](/src/types/global.ts)** as `var X: …`, beside the
    existing ones. Do not redeclare a name `global.ts` (or a generator/util
    module) already types — duplicate `var` declarations are a compile error.
 3. **It's a DOM element** (an `id`'d node the browser exposes as a global) →
@@ -103,7 +103,7 @@ The project depends on **d3 `^7.9.0`** with `@types/d3`. Migrate to it.
     and add `import "./market-overview";` to the layer's `index.ts` barrel.
   - _Rarely used_ (a tiny fraction of sessions): do **not** add it to any
     eager barrel. Register it in the `lazyLoaders` registry
-    ([`src/lazy-loaders.ts`](../../src/lazy-loaders.ts), a top-level
+    ([`src/lazy-loaders.ts`](/src/lazy-loaders.ts), a top-level
     layer-agnostic file) so it ships as its own on-demand chunk — see
     [lazy_loading.md](./lazy_loading.md).
 
@@ -118,7 +118,7 @@ without the app), then add a thin `window` bridge at the bottom that wires those
 to the ambient globals classic callers expect. The bridge is a temporary interop
 concession — keep it to a few lines and delete it once every caller is TypeScript. Globals
 referenced bare (`pack`, `grid`, `seed`, `TIME`, `customization`, `$`, `layerIsOn`, …) come
-from `main.js`/legacy and are typed in [`src/types/global.ts`](../../src/types/global.ts) or
+from `main.js`/legacy and are typed in [`src/types/global.ts`](/src/types/global.ts) or
 by the owning module — import or declare, never `as any`.
 
 ### Generator
@@ -226,7 +226,7 @@ declare global {
 window.WidgetOverview = { open };
 ```
 
-Most of controllers should be [`lazy-loaded`](../../src/lazy-loaders.ts).
+Most of controllers should be [`lazy-loaded`](/src/lazy-loaders.ts).
 
 ### Service (app-shell lifecycle)
 

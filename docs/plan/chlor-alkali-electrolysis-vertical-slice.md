@@ -41,12 +41,12 @@
 
 | 項目 | 現状 | 参照 |
 | --- | --- | --- |
-| `Chlorine`/`Caustic Soda` の既存供給経路 | craft-worker レシピ（両 Good）＋ `ChlorinePlants`（`Chlorine` のみ、Deacon 法） | [goods-generator.ts:2692, 2780](../../src/extensions/economy/generators/goods-generator.ts#L2692), [chlorinePlants.ts](../../src/extensions/economy/generators/chlorinePlants.ts) |
-| `electrolyticIndustry` ノード | 実装済み。前提 `practicalElectrochemistry`/`highPressureChemicalApparatus`/`powerGrid` | [technologyDefinitions.ts:822-832](../../src/generators/technologyDefinitions.ts#L822-L832) |
-| `Market.electricityStock` の唯一の読み手 | `ElectrolysisPlants` のみ（`electrolysisPlants.ts`、`chemMedCommon.ts` に共有ヘルパーなし） | [electrolysisPlants.ts](../../src/extensions/economy/generators/electrolysisPlants.ts) |
+| `Chlorine`/`Caustic Soda` の既存供給経路 | craft-worker レシピ（両 Good）＋ `ChlorinePlants`（`Chlorine` のみ、Deacon 法） | [goods-generator.ts#L2692, 2780](/src/extensions/economy/generators/goods-generator.ts#L2692), [chlorinePlants.ts](/src/extensions/economy/generators/chlorinePlants.ts) |
+| `electrolyticIndustry` ノード | 実装済み。前提 `practicalElectrochemistry`/`highPressureChemicalApparatus`/`powerGrid` | [technologyDefinitions.ts#L822-832](/src/generators/technologyDefinitions.ts#L822-L832) |
+| `Market.electricityStock` の唯一の読み手 | `ElectrolysisPlants` のみ（`electrolysisPlants.ts`、`chemMedCommon.ts` に共有ヘルパーなし） | [electrolysisPlants.ts](/src/extensions/economy/generators/electrolysisPlants.ts) |
 | co-product（1回の反応で2つの named Good に `addNamedStock`）の先例 | 存在しない — 本書が最初 | 全 `addNamedStock` 呼び出し箇所の grep で確認済み |
 | 出力ゲートを `worldHasXxx()` で個別に持つ先例 | `AcidPlants`/`PhosphateFertilizerPlants`/`ChlorinePlants` は持つが、`ElectrolysisPlants` は持たない（`Aluminum` の `requiredTechnology` が電解工業ノード自身と同一のため） | acidPlants.ts, phosphateFertilizerPlants.ts, chlorinePlants.ts, electrolysisPlants.ts |
-| `Chlorine`/`Caustic Soda` の `requiredTechnology` | `Chlorine`: `catalyticChemistry`。`Caustic Soda`: `chemicalIndustryFoundation`。いずれも `electrolyticIndustry` の前提には含まれない | [goods-generator.ts:2699, 2790](../../src/extensions/economy/generators/goods-generator.ts#L2699) |
+| `Chlorine`/`Caustic Soda` の `requiredTechnology` | `Chlorine`: `catalyticChemistry`。`Caustic Soda`: `chemicalIndustryFoundation`。いずれも `electrolyticIndustry` の前提には含まれない | [goods-generator.ts#L2699, 2790](/src/extensions/economy/generators/goods-generator.ts#L2699) |
 
 ## 3. 設計
 

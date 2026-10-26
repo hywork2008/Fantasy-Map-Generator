@@ -328,7 +328,7 @@ S1 と S2 は独立しているので、並行して進められる。S4 は S3 
 - 禁止モジュールは 73。内訳は `src/renderers` 46、`src/store` 11、`src/i18n` 5(locale JSON を含む)、拡張の `store`/`ui` 4、view 系のサービス・utils 4、`canvas`・`context/viewContext`・`ui` 各 1。§2 の 69 との差は、characters のルートにあるモジュールを入口に加えたことと、locale JSON を数えたことによる。
 - 禁止パッケージは 5: `three`、`three/tsl`、`three/webgpu`、`react/jsx-runtime`、`react-i18next`。
 - ブラウザ・グローバルは 40 ファイル・121 箇所。内訳は `document.` 87、`localStorage` 25、`window.` 6、`requestAnimationFrame` 2、`navigator.` 1。
-- Node スモークテストは import の段階で失敗する。原因は `localStorage is not defined`(`store/optionsState.ts:646`、モジュール読み込み時の参照)。これは S4(ストアの分割)の対象で、§10 の「モジュール読み込み時の副作用」のリスクが実際に現れたもの。
+- Node スモークテストは import の段階で失敗する。原因は `localStorage is not defined`(`store/optionsState.ts#L646`、モジュール読み込み時の参照)。これは S4(ストアの分割)の対象で、§10 の「モジュール読み込み時の副作用」のリスクが実際に現れたもの。
 
 ### 12.4 S0 から見えた計画の修正
 
@@ -411,7 +411,7 @@ golden の実行中(fixture の読み込み後)に、`Math.random` の呼び出�
 - golden(0・30・365 日)は S1 の前後で一致した。シミュレーション結果は変わっていない。
 - `tsc`・`lint:legacy` は通った。vitest は 6,974 件が成功し、失敗 5 件はすべて既知のもの(city-editor 4 件、食料気候の較正 1 件)。
 - e2e(burgs・layers・load-map・states・map-context-menu・click-edit)は、変更前の HEAD でも同じ程度(約 26 件)失敗していた。前後で失敗の一覧に差が出た分は、単独で再実行すると変更前と同じ結果になった(並列実行時の揺れ)。`click-edit` は単独で 2 回とも全件成功した。
-- Node スモークテストは、まだ import の段階で失敗する。原因は `localStorage` から `generators/navalTechBonus.ts:28` に移った。モジュール読み込み時の `document.addEventListener` で、S2(イベントバス)の対象。
+- Node スモークテストは、まだ import の段階で失敗する。原因は `localStorage` から `generators/navalTechBonus.ts#L28` に移った。モジュール読み込み時の `document.addEventListener` で、S2(イベントバス)の対象。
 
 ## 15. S2 の結果(2026-10-16)
 

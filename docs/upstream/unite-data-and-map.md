@@ -14,19 +14,19 @@
 
 重大な問題は以下です。
 
-- WebGL cache key が `world:${projection.revision}` を含みます。marker 編集のような無関係な変更でも、すべてのレイヤーのキーが変わります。topic 単位 invalidation の意味が失われ、100k cell での小編集が全データ再投影へ退行します。[webglTopicRevisions.ts](/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/renderers/webgl/webglTopicRevisions.ts:21)
+- WebGL cache key が `world:${projection.revision}` を含みます。marker 編集のような無関係な変更でも、すべてのレイヤーのキーが変わります。topic 単位 invalidation の意味が失われ、100k cell での小編集が全データ再投影へ退行します。[webglTopicRevisions.ts](/src/renderers/webgl/webglTopicRevisions.ts#L21)
 
-- `world.replace` は妥当性検証が `mapId/seed/pack/grid` 程度で止まり、その後に現在の world を in-place で削除・置換してから compatibility binding を実行します。binding が失敗すると部分置換済みの world が残ります。計画の「decode → migrate → validate → atomic replace」を満たしていません。[worldArchive.ts](/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/runtime/worldArchive.ts:295) [worldRuntime.ts](/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/runtime/worldRuntime.ts:1302)
+- `world.replace` は妥当性検証が `mapId/seed/pack/grid` 程度で止まり、その後に現在の world を in-place で削除・置換してから compatibility binding を実行します。binding が失敗すると部分置換済みの world が残ります。計画の「decode → migrate → validate → atomic replace」を満たしていません。[worldArchive.ts](/src/runtime/worldArchive.ts#L295) [worldRuntime.ts](/src/runtime/worldRuntime.ts#L1302)
 
-- `.fmg` load で `presentation.styles` と `activeLayers` しか反映せず、保存済み label layout が残存／消失します。さらに full replace の coordinator 処理は presentation を SVG へ投影せず、layer store だけを hydrate します。[worldRuntime.ts](/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/runtime/worldRuntime.ts:1329) [renderCoordinator.ts](/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/runtime/renderCoordinator.ts:63)
+- `.fmg` load で `presentation.styles` と `activeLayers` しか反映せず、保存済み label layout が残存／消失します。さらに full replace の coordinator 処理は presentation を SVG へ投影せず、layer store だけを hydrate します。[worldRuntime.ts](/src/runtime/worldRuntime.ts#L1329) [renderCoordinator.ts](/src/runtime/renderCoordinator.ts#L63)
 
-- `burg.move` は `cells.burg`、burg の state、capital state の center まで変更するのに、`map.settlements` しか publish しません。`map.politics` 依存の state label / cache が更新漏れします。[worldRuntime.ts](/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/runtime/worldRuntime.ts:634)
+- `burg.move` は `cells.burg`、burg の state、capital state の center まで変更するのに、`map.settlements` しか publish しません。`map.politics` 依存の state label / cache が更新漏れします。[worldRuntime.ts](/src/runtime/worldRuntime.ts#L634)
 
-- 直接 mutation が cache correctness を壊します。例えば biome editor は `pack.cells.biome` を直接変更して SVG だけ再描画し、runtime revision を増やしません。WebGL 側は revision key が同じため stale cache を再利用できます。[biomes-editor.ts](/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/controllers/biomes-editor.ts:328)
+- 直接 mutation が cache correctness を壊します。例えば biome editor は `pack.cells.biome` を直接変更して SVG だけ再描画し、runtime revision を増やしません。WebGL 側は revision key が同じため stale cache を再利用できます。[biomes-editor.ts](/src/controllers/biomes-editor.ts#L328)
 
-- Simulation の DOM/renderer 分離も未達です。time engine は Zustand・`window.fmg` に依存し、Nobility hook は tick 中に state/border/military renderer を直接呼びます。[timeEngine.ts](/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/generators/timeEngine.ts:281) [nobility/index.tsx](/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/extensions/nobility/index.tsx:237)
+- Simulation の DOM/renderer 分離も未達です。time engine は Zustand・`window.fmg` に依存し、Nobility hook は tick 中に state/border/military renderer を直接呼びます。[timeEngine.ts](/src/generators/timeEngine.ts#L281) [nobility/index.tsx](/src/extensions/nobility/index.tsx:237)
 
-- Extension target API は未実装です。`registerStateSlice`、scoped `world.read/dispatchOwn`、semantic `registerMapLayerProjection` はなく、extension に mutable な context と renderer 固有 `requestWebglRender` を渡しています。[extension-api.ts](/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/types/extension-api.ts:170)
+- Extension target API は未実装です。`registerStateSlice`、scoped `world.read/dispatchOwn`、semantic `registerMapLayerProjection` はなく、extension に mutable な context と renderer 固有 `requestWebglRender` を渡しています。[extension-api.ts](/src/types/extension-api.ts#L170)
 
 検証結果:
 

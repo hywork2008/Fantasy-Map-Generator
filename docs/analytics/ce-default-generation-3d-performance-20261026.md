@@ -23,9 +23,9 @@
 
 関係箇所:
 
-- `src/city-editor/generators/blockInfill.ts:315` と `:427`
-- `src/city-editor/renderers/standaloneHousingAppearance.ts:21`
-- `src/city-editor/renderers/cityView.ts:449`
+- `src/city-editor/generators/blockInfill.ts#L315` と `:427`
+- `src/city-editor/renderers/standaloneHousingAppearance.ts#L21`
+- `src/city-editor/renderers/cityView.ts#L449`
 
 `buildBlockFabric`はキャッシュにヒットしても、農地overlay/snapshotがあれば `{ ...cached.fabric, ...overlay }` を毎回作る。生成完了時のデフォルト都市には農地snapshotがあるため、この経路を通る。
 
@@ -47,7 +47,7 @@
 
 ### 2. 2Dから3Dへ戻るたびに建物を強制再構築する
 
-`src/city-editor/renderers/cityView.ts:591` の `built = null` により、シーンを保持していても再表示時には必ず建物変更扱いとなる。
+`src/city-editor/renderers/cityView.ts#L591` の `built = null` により、シーンを保持していても再表示時には必ず建物変更扱いとなる。
 
 実画面の再表示ボタン処理は約389 ms。初回に焼いた共有プロトタイプは再利用されるが、インスタンス層や通常メッシュなどの再生成・破棄は残る。
 
@@ -55,7 +55,7 @@
 
 ### 3. 静止中も毎フレームWebGL描画を続ける
 
-`src/city-editor/renderers/cityView.ts:399` のtickは無条件に次フレームを予約し、`renderer.render`を呼ぶ。OrbitControlsのdampingはfalseであり、都市の常時アニメーションもこの経路にはない。
+`src/city-editor/renderers/cityView.ts#L399` のtickは無条件に次フレームを予約し、`renderer.render`を呼ぶ。OrbitControlsのdampingはfalseであり、都市の常時アニメーションもこの経路にはない。
 
 静止区間でも3フレームで1,215回のWebGL draw呼出しが発生した。静止中のgeometry生成・破棄は0回であり、細部LODの再生成が毎フレーム起きているわけではない。
 
@@ -65,7 +65,7 @@
 
 初回3Dボタンの同期処理は約1,676 ms。position属性設定209,435回、geometry dispose 205,625回が発生し、プロトタイプ準備中の一時geometry処理が多い。これはユニークgeometry数ではなく、clone・変換・結合を含む属性設定の総回数である。
 
-`src/buildings/houses/regionalHouses.ts:921` はモデルを材質ごとに結合し、`src/city3d/three/bvInstances.ts:17` はそのモデルをさらに非index化/clone、変換、頂点色化して再結合する。BV表示用モデルからCEプロトタイプへ変換する汎用経路なので、すべてが無駄という意味ではない。
+`src/buildings/houses/regionalHouses.ts#L921` はモデルを材質ごとに結合し、`src/city3d/three/bvInstances.ts#L17` はそのモデルをさらに非index化/clone、変換、頂点色化して再結合する。BV表示用モデルからCEプロトタイプへ変換する汎用経路なので、すべてが無駄という意味ではない。
 
 項目1〜3の後に、CE用の焼成済みgeometryを直接返す経路や、形状と色違いの共有範囲拡大を検討できる。品質Highの外観・選択判定・材質・プロトタイプの参照管理を保つ必要があり、今回の調査だけで具体的な短縮量は断定できない。
 

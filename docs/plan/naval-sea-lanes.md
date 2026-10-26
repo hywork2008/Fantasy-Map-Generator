@@ -20,7 +20,7 @@
 
 `src/generators/routes-generator.ts` の `RoutesGenerator.generate()` が `pack.routes: Route[]` と `pack.cells.routes: Record<number, Record<number, number>>`（セルペア→routeId のグラフ）を構築する。
 
-- `generateSeaRoutes()`（routes-generator.ts:553-584）: 同じ水域feature（`portsByFeature`）に属する港湾都市(`Burg.port`)同士を Urquhart グラフで結び、`findPathSegments({ isWater: true, ... })` で陸地を避けた水上セル経路を Dijkstra（`findPath`, `src/utils/pathUtils.ts:328`）で求める。気温が低すぎる海（`MIN_PASSABLE_SEA_TEMP = -4`）や、沿岸からの距離帯（`cells.t`: -1沿岸〜-4遠洋、`ROUTE_TYPE_MODIFIERS`）でコストが変わり、航行しにくい海域ほどルートが通りにくい。
+- `generateSeaRoutes()`（routes-generator.ts#L553-584）: 同じ水域feature（`portsByFeature`）に属する港湾都市(`Burg.port`)同士を Urquhart グラフで結び、`findPathSegments({ isWater: true, ... })` で陸地を避けた水上セル経路を Dijkstra（`findPath`, `src/utils/pathUtils.ts#L328`）で求める。気温が低すぎる海（`MIN_PASSABLE_SEA_TEMP = -4`）や、沿岸からの距離帯（`cells.t`: -1沿岸〜-4遠洋、`ROUTE_TYPE_MODIFIERS`）でコストが変わり、航行しにくい海域ほどルートが通りにくい。
 - 経路の始点・終点は **港湾都市自身の陸地セル**（`featurePorts[fromId].cell`）であり、水上のセルはその間だけ通過する。つまり `pack.cells.routes` のグラフ上のノードには港のいる陸地セルIDがそのまま乗っている。
 - `pack.cells.routes[cellId][nextCellId] = routeId` で隣接関係が引ける。`routeId` から `pack.routes[routeId].group` を見れば `"searoutes"` かどうか判別できる。
 

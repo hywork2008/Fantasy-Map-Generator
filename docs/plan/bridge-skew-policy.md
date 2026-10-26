@@ -2,7 +2,7 @@
 
 2026-10-07。AGENTS.md の「直角に交差しない橋は絶対に描いてはならない」を、史実に合わせた**許容斜角つきの原則**に改めた。FMG を基準にし、FMG・RE・CE の三つすべてに同じ基準を当てる。
 
-実装は [src/utils/bridgeSkewPolicy.ts](../../src/utils/bridgeSkewPolicy.ts)。
+実装は [src/utils/bridgeSkewPolicy.ts](/src/utils/bridgeSkewPolicy.ts)。
 
 ## 定義
 
@@ -62,7 +62,7 @@ Historical period（地図生成オプション）は**ゲーム開始時の下�
 | 1 | `mathAstronomyGeography`（第 1 時代） | 測量・幾何の知識で、斜めの径間を割り付けられる |
 | 2 | `precisionBoringAndMeasurement`（第 4 時代） | 精密な切石と計測で、斜めアーチを施工できる |
 
-国家ごとの値は `getStateBridgeSkewLimit(stateId)`（[technologyProgress.ts](../../src/generators/technologyProgress.ts)）で求める。
+国家ごとの値は `getStateBridgeSkewLimit(stateId)`（[technologyProgress.ts](/src/generators/technologyProgress.ts)）で求める。
 
 ## 各エディタへの適用
 

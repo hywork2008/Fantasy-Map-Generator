@@ -24,7 +24,7 @@
 現行の `castlePlacement.ts`（`placeCastleRegion`）における候補セル評価は、以下のような単純な線形結合にとどまっている：
 
 ```typescript
-// 現行の候補セル採点（castlePlacement.ts:276-281）
+// 現行の候補セル採点（castlePlacement.ts#L276-281）
 const height = terrainHeight(terrain, center) ?? 0;
 return (
   height * 2 +
@@ -113,7 +113,7 @@ export interface BurgSiteDescriptor {
 
 ### 4.1 局所地形解析エンジン（`tacticalTerrain.ts` 新設）
 
-> **解像度の制約**: CE の `heightfield` は 17×17 点、間隔は町の幅÷16（[burgSiteDescriptor.ts](../../src/services/burgSiteDescriptor.ts) の `spacingMeters`）。幅1.5kmの町で約94mになる。以下の閾値は、この間隔では次のように扱う。
+> **解像度の制約**: CE の `heightfield` は 17×17 点、間隔は町の幅÷16（[burgSiteDescriptor.ts](/src/services/burgSiteDescriptor.ts) の `spacingMeters`）。幅1.5kmの町で約94mになる。以下の閾値は、この間隔では次のように扱う。
 >
 > - 断崖（勾配 > 25%）: 平均化されるため「急斜面」としか判定できない。崖の縁の判定は FMG 側で行う。
 > - 比高（半径100〜200mの周囲平均）: 1〜2点ぶんしか比べられない。CE では半径を `max(200m, 2×spacing)` とする。
