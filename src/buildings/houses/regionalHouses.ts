@@ -28,6 +28,7 @@ interface HouseStyle {
   boarding?: boolean;
   /** Ground storey in coursed rubble under a framed upper storey. */
   stoneGround?: BuildingPaletteId;
+  chimney: "round-pots" | "octagonal-pots" | "open-stack" | "tile-cowl" | "stone-cowl";
   plinth: BuildingPaletteId;
   jetty: number;
   overhang: number;
@@ -41,6 +42,7 @@ const STYLES: Record<RegionalHouseProfile, HouseStyle> = {
     wall: "limewash",
     roof: "terracotta",
     cover: "coppi",
+    chimney: "tile-cowl",
     plinth: "limestone",
     jetty: 0,
     overhang: 0.35,
@@ -53,6 +55,7 @@ const STYLES: Record<RegionalHouseProfile, HouseStyle> = {
     frame: "frame",
     roof: "straw",
     cover: "thatch",
+    chimney: "round-pots",
     plinth: "rubble",
     jetty: 0.4,
     overhang: 0.6,
@@ -62,6 +65,7 @@ const STYLES: Record<RegionalHouseProfile, HouseStyle> = {
     note: "Board-and-batten log-house cladding on a raised rubble footing, reed thatch, crossed gable horns, small shuttered windows and a rough stone chimney.",
     wall: "timber",
     boarding: true,
+    chimney: "open-stack",
     roof: "reed",
     cover: "thatch",
     plinth: "rubble",
@@ -74,6 +78,7 @@ const STYLES: Record<RegionalHouseProfile, HouseStyle> = {
     note: "Gable-fronted burgher houses: dark frames with St Andrew's crosses under the windows, a jettied front, a loft door with hoist beam, plain-tile roofs and a brick stack.",
     wall: "plaster",
     frame: "northern-frame",
+    chimney: "octagonal-pots",
     roof: "urban-tile",
     cover: "tile",
     plinth: "brick",
@@ -86,6 +91,7 @@ const STYLES: Record<RegionalHouseProfile, HouseStyle> = {
     wall: "plaster",
     frame: "frame",
     stoneGround: "upland-stone",
+    chimney: "stone-cowl",
     roof: "local-stone-roof",
     cover: "stone",
     plinth: "upland-stone",
@@ -597,6 +603,40 @@ function buildHouses(
     });
   }
 
+  /** A solid masonry section with actual bores, including their inward-facing walls. */
+  function chimneySection(
+    size: number,
+    height: number,
+    flues: readonly number[],
+    bore: number,
+    round: boolean
+  ): THREE.BufferGeometry {
+    return cached(`chimney-section:${size}:${height}:${flues.join(",")}:${bore}:${round}`, () => {
+      const half = size / 2;
+      const shape = new THREE.Shape([
+        new THREE.Vector2(-half, -half),
+        new THREE.Vector2(half, -half),
+        new THREE.Vector2(half, half),
+        new THREE.Vector2(-half, half)
+      ]);
+      for (const x of flues) {
+        const hole = new THREE.Path();
+        if (round) hole.absarc(x, 0, bore, 0, Math.PI * 2, true);
+        else {
+          hole.moveTo(x - bore, -bore);
+          hole.lineTo(x - bore, bore);
+          hole.lineTo(x + bore, bore);
+          hole.lineTo(x + bore, -bore);
+          hole.closePath();
+        }
+        shape.holes.push(hole);
+      }
+      return new THREE.ExtrudeGeometry(shape, { depth: height, bevelEnabled: false, curveSegments: 6 }).rotateX(
+        -Math.PI / 2
+      );
+    });
+  }
+
   function house(spec: RegionalHouseSpec, ox: number): void {
     const style = STYLES[spec.profile];
     const profile = spec.profile;
@@ -945,20 +985,97 @@ function buildHouses(
           : BRICK;
     const stackTop = ridgeY + (thatch ? 1.2 : 0.8);
     const stackSize = cover === "stone" ? 1.0 : 0.7;
-    box(ox + cxOff, eave - 1, cz, stackSize, stackTop - eave + 1, stackSize, stackColor);
-    box(ox + cxOff, stackTop, cz, stackSize + 0.16, 0.12, stackSize + 0.16, cover === "coppi" ? DRESSED : stackColor);
-    if (cover === "coppi") {
-      put(
-        cached("chimney-cap", () => new THREE.CylinderGeometry(0.0, 0.62, 0.4, 4, 1, false, Math.PI / 4)),
-        roof,
-        [ox + cxOff, stackTop + 0.32, cz]
-      );
-    } else if (cover === "stone") {
-      for (const side of [-1, 1]) box(ox + cxOff + side * 0.32, stackTop + 0.12, cz, 0.16, 0.35, 0.8, stackColor);
-      box(ox + cxOff, stackTop + 0.47, cz, 1.2, 0.1, 1.0, BUILDING_PALETTES["local-stone-roof"][0]);
-    } else if (detailed) {
+    // Visual heating-demand proxy, not a simulated inventory of hearths or measured regional statistics.
+    const multipleFlues = storeys >= 2 && (baseWidth * baseDepth >= 60 || spec.groundUse === "craft");
+    const flues = multipleFlues ? [-0.16, 0.16] : [0];
+    const pots = style.chimney === "round-pots" || style.chimney === "octagonal-pots";
+    const bore = pots ? 0.075 : 0.105;
+    const wellDepth = 0.24;
+    const copingHeight = 0.12;
+    box(ox + cxOff, eave - 1, cz, stackSize, stackTop - eave + 1 - wellDepth, stackSize, stackColor);
+    put(chimneySection(stackSize, wellDepth, flues, bore, pots), stackColor, [ox + cxOff, stackTop - wellDepth, cz]);
+    put(
+      chimneySection(stackSize + 0.16, copingHeight, flues, bore, pots),
+      style.chimney === "tile-cowl" ? DRESSED : stackColor,
+      [ox + cxOff, stackTop, cz]
+    );
+    // A recessed soot-dark floor gives the opening depth without sealing its mouth.
+    for (const x of flues) box(ox + cxOff + x, stackTop - wellDepth, cz, bore * 2, 0.01, bore * 2, "#171512");
+    const copingTop = stackTop + copingHeight;
+    if (!pots) {
+      for (const x of flues)
+        for (const side of [-1, 1]) {
+          const bottom = stackTop - wellDepth + 0.01;
+          const height = wellDepth + copingHeight - 0.02;
+          box(ox + cxOff + x + side * (bore - 0.004), bottom, cz, 0.008, height, bore * 2, "#25201B");
+          box(ox + cxOff + x, bottom, cz + side * (bore - 0.004), bore * 2, height, 0.008, "#25201B");
+        }
+    }
+    if (style.chimney === "tile-cowl" || style.chimney === "stone-cowl") {
+      const clearance = style.chimney === "tile-cowl" ? 0.18 : 0.25;
+      // Support the shelter above the open flues, leaving an actual lateral smoke outlet.
       for (const side of [-1, 1])
-        put(unitCylinder, "#7A4434", [ox + cxOff + side * 0.16, stackTop + 0.3, cz], [0, 0, 0], [0.11, 0.4, 0.11]);
+        box(ox + cxOff, copingTop, cz + side * stackSize * 0.36, stackSize * 0.8, clearance, 0.1, stackColor);
+      if (style.chimney === "tile-cowl") {
+        put(
+          cached(
+            `chimney-tile-cowl:${stackSize}`,
+            () => new THREE.CylinderGeometry(0, (stackSize + 0.25) / Math.SQRT2, 0.22, 4, 1, false, Math.PI / 4)
+          ),
+          roof,
+          [ox + cxOff, copingTop + clearance + 0.11, cz]
+        );
+      } else
+        box(
+          ox + cxOff,
+          copingTop + clearance,
+          cz,
+          stackSize + 0.2,
+          0.1,
+          stackSize + 0.12,
+          BUILDING_PALETTES["local-stone-roof"][0]
+        );
+    } else if (pots && detailed) {
+      const segments = style.chimney === "octagonal-pots" ? 8 : 12;
+      const height = style.chimney === "octagonal-pots" ? 0.28 : 0.34;
+      for (const x of flues) {
+        const position: [number, number, number] = [ox + cxOff + x, copingTop, cz];
+        // The open profile has a flared foot and lip, rather than a cylinder's closed top cap.
+        put(
+          cached(
+            `chimney-pot-outer:${segments}:${height}`,
+            () =>
+              new THREE.LatheGeometry(
+                [
+                  new THREE.Vector2(0.14, 0),
+                  new THREE.Vector2(0.14, 0.04),
+                  new THREE.Vector2(0.105, 0.08),
+                  new THREE.Vector2(0.105, height - 0.04),
+                  new THREE.Vector2(0.125, height - 0.04),
+                  new THREE.Vector2(0.125, height)
+                ],
+                segments
+              )
+          ),
+          "#7A4434",
+          position
+        );
+        put(
+          cached(
+            `chimney-pot-inner:${segments}:${height}`,
+            () => new THREE.LatheGeometry([new THREE.Vector2(bore, height), new THREE.Vector2(bore, 0)], segments)
+          ),
+          "#25201B",
+          position
+        );
+        put(
+          cached(`chimney-pot-rim:${segments}`, () =>
+            new THREE.RingGeometry(bore, 0.125, segments).rotateX(-Math.PI / 2)
+          ),
+          "#985C45",
+          [position[0], copingTop + height, cz]
+        );
+      }
     }
 
     if (profile === "stone-upland" && variant !== 1 && storeys > 1 && !spec.attached) {
