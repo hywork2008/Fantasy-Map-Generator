@@ -4,7 +4,7 @@ import { createGridDocument } from "../../city-editor/generators/document";
 import { pointInPolygon } from "../../city-editor/generators/geom";
 import { createRotatedRect } from "../../city-editor/renderers/castleLayoutBuilder";
 import type { StructureMassing } from "../../city-editor/types/contracts/structureMassing";
-import { createBvInstances, createBvPrototypeCache } from "./bvInstances";
+import { bvInstanceGeometry, createBvInstances, createBvPrototypeCache } from "./bvInstances";
 import { fitBvBuilding } from "./bvPlacement";
 import { CE_CHAPEL, createTownSpecialBuildings } from "./specialBuildingMeshes";
 import { createTownWells } from "./wellMeshes";
@@ -239,4 +239,33 @@ describe("shared BV city instances", () => {
     }
     layer.dispose();
   });
+});
+
+it("copies only the picked instance in world space, including parent transforms, without changing its shared prototype", () => {
+  const source = new THREE.BoxGeometry(2, 4, 6).toNonIndexed();
+  const positions = Array.from(source.getAttribute("position").array);
+  const material = new THREE.MeshBasicMaterial();
+  const mesh = new THREE.InstancedMesh(source, material, 2);
+  const instance = new THREE.Matrix4().makeRotationY(0.7).setPosition(7, 12, -5);
+  mesh.setMatrixAt(0, new THREE.Matrix4().makeTranslation(-40, 0, 0));
+  mesh.setMatrixAt(1, instance);
+  const parent = new THREE.Group();
+  parent.position.set(100, 20, 30);
+  parent.rotation.y = -0.3;
+  parent.add(mesh);
+  const picked = bvInstanceGeometry({ object: mesh, instanceId: 1 })!;
+  expect(picked).not.toBe(source);
+  const expected = new THREE.Vector3()
+    .fromBufferAttribute(source.getAttribute("position"), 0)
+    .applyMatrix4(instance)
+    .applyMatrix4(parent.matrixWorld);
+  const actual = new THREE.Vector3().fromBufferAttribute(picked.getAttribute("position"), 0);
+  expect(actual.distanceTo(expected)).toBeLessThan(1e-5);
+  picked.dispose();
+  expect(Array.from(source.getAttribute("position").array)).toEqual(positions);
+  for (const index of [undefined, -1, 2, 0.5])
+    expect(bvInstanceGeometry({ object: mesh, instanceId: index })).toBeUndefined();
+  source.dispose();
+  material.dispose();
+  mesh.dispose();
 });

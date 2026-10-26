@@ -4,7 +4,7 @@ import type { ModelQuality } from "../../buildings/modelQuality";
 import { buildingSurfaces } from "../../city3d/core/massingGeometry";
 import { structureSurfaces } from "../../city3d/core/structureGeometry";
 import { createTownBuildingDetails, type TownBuildingDetails } from "../../city3d/three/buildingDetails";
-import { createBvPrototypeCache } from "../../city3d/three/bvInstances";
+import { bvInstanceGeometry, createBvPrototypeCache } from "../../city3d/three/bvInstances";
 import { type CityMassingMeshes, createCityMassing } from "../../city3d/three/cityMeshes";
 import { createTownFarms, type TownFarmMeshes } from "../../city3d/three/farmMeshes";
 import { createTownFriaries } from "../../city3d/three/friaryMeshes";
@@ -30,6 +30,7 @@ import { editorText } from "../../i18n/editorMessages";
 import type { RoadRibbon } from "../../utils/roadSurface";
 import { buildBlockFabric, type DistrictFabric } from "../generators/blockInfill";
 import { riverRibbons } from "../generators/bridgeDeck";
+import { createBuildingFrontageResolver } from "../generators/buildingFrontage";
 import type { BuildingLot } from "../generators/buildingLots.types";
 import { buildParkLawns } from "../generators/parkFabric";
 import { RIVER_DROP_MIN, riverDropMeters } from "../generators/riverSurface";
@@ -100,6 +101,32 @@ const USE_KEY: Record<FloorUse, EditorMessageKey> = {
   military: "cityEditor.messages.massingMilitary",
   service: "cityEditor.messages.massingService"
 };
+
+/** Wall runs already contain gate openings; do not block the gate passages themselves. */
+function frontageStructurePolygons(parts: readonly StructureMassing[]): [number, number][][] {
+  return parts.flatMap(part => {
+    if (!["wall", "tower", "landmark"].includes(part.kind) || part.heightMeters <= 1 || part.baseElevationMeters > 0)
+      return [];
+    if (part.footprint?.length) return [part.footprint];
+    const points = part.centerline ?? [];
+    return points.slice(1).flatMap((b, i) => {
+      const a = points[i];
+      const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (length < 0.01) return [];
+      const halfWidth = (part.widthMeters ?? 1) / 2;
+      const x = ((b[1] - a[1]) / length) * halfWidth,
+        y = ((a[0] - b[0]) / length) * halfWidth;
+      return [
+        [
+          [a[0] + x, a[1] + y],
+          [b[0] + x, b[1] + y],
+          [b[0] - x, b[1] - y],
+          [a[0] - x, a[1] - y]
+        ] as [number, number][]
+      ];
+    });
+  });
+}
 
 interface Mount {
   own(cleanup: () => void): void;
@@ -286,7 +313,7 @@ export function mountCity3d(options: {
     outline(positions);
   };
 
-  const showLot = (lot: BuildingLot | undefined) => {
+  const showLot = (lot: BuildingLot | undefined, geometry?: THREE.BufferGeometry) => {
     clearHighlight();
     if (!lot?.massing || !scene) {
       readout.hidden = false;
@@ -301,6 +328,10 @@ export function mountCity3d(options: {
       value2: `${editorText(FORM_KEY[mass.roof.form])} · ${editorText(ROOF_KEY[mass.roof.material])}`,
       value3: mass.eaveHeightMeters.toFixed(1)
     })}\n${mass.floors.map(floor => editorText(USE_KEY[floor.use])).join(" / ")}`;
+    if (geometry) {
+      outline(new Float32Array(geometry.getAttribute("position").array));
+      return;
+    }
     const surfaces = buildingSurfaces(lot.polygon, mass);
     if (!surfaces) return;
     const positions = new Float32Array(surfaces.walls.positions.length + surfaces.roofs.positions.length);
@@ -320,12 +351,33 @@ export function mountCity3d(options: {
     if (!scene) return;
     clearHighlight();
     readout.hidden = true;
+    const parts = [...collectCityStructures(city), ...landmarkLotStructures(fabric.buildings)];
+    let frontageRoads: RoadRibbon[] = [];
+    try {
+      frontageRoads = terrain?.roads?.ribbons ?? collectTownRoads(city, fabric.lanes);
+    } catch {
+      // The road layer reports invalid geometry; housing can keep its stable local facade.
+    }
     // Detailed regional houses replace their lots' plain massing; acquire before releasing the old layer.
     const nextHouses = createTownRegionalHouses(
       fabric.buildings,
       bvPrototypes,
       terrain?.relief ? terrain.foundationAt : undefined,
-      quality
+      quality,
+      createBuildingFrontageResolver(
+        [
+          ...frontageRoads,
+          ...(fabric.parcels ?? []).flatMap(parcel =>
+            parcel.access.map(access => ({
+              centerline: access.points,
+              widthMeters: access.widthMeters,
+              parcelId: parcel.id
+            }))
+          )
+        ],
+        fabric.buildings,
+        [...waterPolygons(city), ...frontageStructurePolygons(parts)]
+      )
     );
     if (regionalHouses) {
       scene.remove(regionalHouses.group);
@@ -351,7 +403,6 @@ export function mountCity3d(options: {
     }
     structures?.dispose();
     if (structures) scene.remove(structures.group);
-    const parts = [...collectCityStructures(city), ...landmarkLotStructures(fabric.buildings)];
     const grounded = terrain
       ? [
           ...groundStructures(parts, terrain),
@@ -694,19 +745,19 @@ export function mountCity3d(options: {
     }
     const house = regionalHouses?.resolve(hit);
     if (house) {
-      showLot(built?.buildings[house.lotIndex]);
+      const geometry = bvInstanceGeometry(hit);
+      try {
+        showLot(built?.buildings[house.lotIndex], geometry);
+      } finally {
+        geometry?.dispose();
+      }
       return;
     }
     const special = specialBuildings?.resolve(hit);
     const well = wells?.resolve(hit);
     if (special || well) {
       clearHighlight();
-      const mesh = hit.object as THREE.InstancedMesh;
-      const matrix = new THREE.Matrix4();
-      mesh.getMatrixAt(hit.instanceId!, matrix);
-      matrix.premultiply(mesh.matrixWorld);
-      const geometry = mesh.geometry.clone().applyMatrix4(matrix);
-      geometry.computeBoundingBox();
+      const geometry = bvInstanceGeometry(hit)!;
       readout.hidden = false;
       readout.textContent = `${editorText("cityEditor.messages.structureReadout", {
         value0: editorText(STRUCTURE_KEY.landmark),

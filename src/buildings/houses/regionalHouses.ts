@@ -128,6 +128,8 @@ export interface RegionalHouseSpec {
   depth?: number;
   floorHeights?: readonly number[];
   groundUse?: "residential" | "retail" | "craft" | "storage";
+  /** Entrance facade; changing this never rotates the roof ridge. */
+  entranceFace?: "gable" | "eave";
   /** CE streets cannot accommodate the preview's freestanding balconies and props. */
   attached?: boolean;
   storeys: number;
@@ -152,6 +154,7 @@ export function regionalHouseSpecKey(spec: RegionalHouseSpec): string {
     spec.depth ?? REGIONAL_HOUSES.depth,
     spec.floorHeights?.join(",") ?? "",
     spec.groundUse ?? "residential",
+    spec.entranceFace ?? "gable",
     spec.attached ?? false,
     spec.storeys,
     spec.pitchDeg,
@@ -691,10 +694,21 @@ function buildHouses(
           [{ u: d * 0.225 + shift / 2, y: upperStorey ? sill : 1.05, w: upperStorey ? 0.75 : 0.8, h: small }]
         ]
       ];
+      const frontIndex = spec.entranceFace === "eave" ? 2 : 0;
+      const frontWidth = faces[frontIndex][1];
+      if (!upperStorey && frontIndex === 2) {
+        // A street along the eaves needs its own entrance, without turning the gabled roof.
+        faces[2][2] = [
+          { u: doorSide * frontWidth * 0.25, y: plinthH * 0.5, w: 1.0, h: 2.15, door: true },
+          { u: -doorSide * frontWidth * 0.22, y: 1.0, w: 0.9, h: 1.15 }
+        ];
+        // The former side window must be laid out on the shorter gable facade.
+        faces[0][2] = [{ u: 0, y: 1.05, w: 0.8, h: small }];
+      }
       const use = spec.groundUse ?? "residential";
       if (!upperStorey && use !== "residential") {
-        const opening = faces[0][2][1];
-        opening.w = Math.min(1.6, w * 0.32);
+        const opening = faces[frontIndex][2][1];
+        opening.w = Math.min(1.6, frontWidth * 0.32);
         opening.y = use === "storage" ? 0.25 : 0.85;
         opening.h = use === "storage" ? Math.min(2.1, ground - 0.55) : Math.min(1.15, ground - 1.3);
         opening.door = use === "storage";
@@ -729,12 +743,12 @@ function buildHouses(
         }
       }
       if (!upperStorey && (use === "retail" || use === "craft")) {
-        const face = faces[0][0];
-        const opening = faces[0][2][1];
+        const face = faces[frontIndex][0];
+        const opening = faces[frontIndex][2][1];
         // An opening shutter doubles as the serving/work bench; no invented glass shopfront.
         onFace(face, unitBox, DOOR, opening.u, opening.y, 0.16, [opening.w + 0.12, 0.09, 0.32]);
         if (detailed) {
-          onFace(face, unitBox, frame, 0, Math.min(ground - 0.3, 2.65), 0.08, [w * 0.65, 0.22, 0.1]);
+          onFace(face, unitBox, frame, 0, Math.min(ground - 0.3, 2.65), 0.08, [frontWidth * 0.65, 0.22, 0.1]);
           if (use === "craft") onFace(face, unitBox, IRON, opening.u, opening.y + 0.12, 0.17, [0.35, 0.16, 0.18]);
         }
       }

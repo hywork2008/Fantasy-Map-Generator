@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { expect, it } from "vitest";
 import type { BuildingAppearanceProfile } from "../../buildings/appearance/types";
 import { buildingAppearancePreview } from "../../city-editor/generators/buildingAppearancePreview";
+import { createBuildingFrontageResolver } from "../../city-editor/generators/buildingFrontage";
 import { createBvPrototypeCache } from "./bvInstances";
 import { createTownRegionalHouses, regionalHouseSite } from "./regionalHouseMeshes";
 
@@ -117,4 +118,79 @@ it("keeps outbuildings, trapezoids, unsupported floors and roof forms in CE mass
   expect(
     regionalHouseSite({ ...lot, massing: { ...lot.massing!, roof: { ...lot.massing!.roof, form: "flat" } } }, 0)
   ).toBeUndefined();
+});
+
+it.each([0, 0.61])(
+  "places actual doors on either gable or eave street facade, with ridge angle %s unchanged",
+  angle => {
+    for (const [kind, flip] of [
+      ["gable", false],
+      ["gable", true],
+      ["eave", false],
+      ["eave", true]
+    ] as const) {
+      const lot = buildingAppearancePreview("northern-urban")[0];
+      const centre = [70, -40];
+      const r = [Math.cos(angle), Math.sin(angle)],
+        p = [-Math.sin(angle), Math.cos(angle)];
+      lot.polygon = [
+        [-2.5, -4],
+        [2.5, -4],
+        [2.5, 4],
+        [-2.5, 4]
+      ].map(([x, y]) => [centre[0] + p[0] * x + r[0] * y, centre[1] + p[1] * x + r[1] * y]);
+      lot.massing!.roof.ridgeAzimuth = angle;
+      lot.massing!.floors[0].use = "retail";
+      const normal = (kind === "gable" ? r : p).map(v => v * (flip ? -1 : 1));
+      const tangent = [-normal[1], normal[0]];
+      const reach = (kind === "gable" ? 4 : 2.5) + 3;
+      const road = [-20, 20].map(
+        t =>
+          [centre[0] + normal[0] * reach + tangent[0] * t, centre[1] + normal[1] * reach + tangent[1] * t] as [
+            number,
+            number
+          ]
+      );
+      const resolve = createBuildingFrontageResolver([{ centerline: road, widthMeters: 2 }], [lot]);
+      const site = regionalHouseSite(lot, 0, 12, "high", resolve)!;
+      expect(site.frontage).toMatchObject({ kind, flip, source: "street" });
+      expect(site.frontage.normal[0]).toBeCloseTo(normal[0]);
+      expect(site.frontage.normal[1]).toBeCloseTo(normal[1]);
+      const ridge = new THREE.Vector3(0, 0, 1).transformDirection(site.matrix);
+      expect(Math.abs(ridge.x * r[0] - ridge.z * r[1])).toBeCloseTo(1);
+      const prototype = createBvPrototypeCache().acquire(site.definition)!;
+      const mesh = new THREE.Mesh(prototype.geometry, prototype.material);
+      mesh.matrixAutoUpdate = false;
+      mesh.matrix.copy(site.matrix);
+      mesh.updateMatrixWorld(true);
+      const door = site.frontage.door;
+      const ray = new THREE.Raycaster(
+        new THREE.Vector3(
+          door[0] + normal[0] * 0.6 + tangent[0] * 0.12,
+          13.2,
+          -door[1] - normal[1] * 0.6 - tangent[1] * 0.12
+        ),
+        new THREE.Vector3(-normal[0], 0, normal[1])
+      );
+      const hit = ray.intersectObject(mesh)[0];
+      expect(hit).toBeDefined();
+      const color = prototype.geometry.getAttribute("color");
+      const expected = new THREE.Color("#5A3B26");
+      expect(color.getX(hit.face!.a)).toBeCloseTo(expected.r);
+      expect(color.getY(hit.face!.a)).toBeCloseTo(expected.g);
+      expect(color.getZ(hit.face!.a)).toBeCloseTo(expected.b);
+      prototype.release();
+    }
+  }
+);
+
+it("keeps a stable local facade when no usable street is known, independent of town-centre position", () => {
+  const lot = buildingAppearancePreview("atlantic")[0];
+  const first = regionalHouseSite(lot, 0)!;
+  const translated = { ...lot, polygon: lot.polygon.map(([x, y]) => [x + 200, y - 200] as [number, number]) };
+  const second = regionalHouseSite(translated, 0)!;
+  expect(first.frontage.source).toBe("unknown");
+  expect(second.frontage.source).toBe("unknown");
+  expect(first.frontage.flip).toBe(second.frontage.flip);
+  expect(first.definition).toBe(second.definition);
 });

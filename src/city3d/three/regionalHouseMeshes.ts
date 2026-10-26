@@ -9,6 +9,11 @@ import {
   regionalHouseSpecKey
 } from "../../buildings/houses/regionalHouses";
 import { type ModelQuality, resolveModelQuality } from "../../buildings/modelQuality";
+import type {
+  BuildingFrontage,
+  BuildingFrontageCandidate,
+  BuildingFrontageResolver
+} from "../../city-editor/generators/buildingFrontage";
 import type { BuildingLot } from "../../city-editor/generators/buildingLots.types";
 import type { Point } from "../../city-editor/types/primitives";
 import { growthRandom } from "../../utils/urbanMorphology";
@@ -54,6 +59,7 @@ function area(ring: readonly Point[]): number {
 
 export interface RegionalHouseSite extends BvPlacement {
   lotIndex: number;
+  frontage: BuildingFrontage;
 }
 
 /**
@@ -64,7 +70,8 @@ export function regionalHouseSite(
   lot: BuildingLot,
   lotIndex: number,
   elevation = 0,
-  quality: ModelQuality = "standard"
+  quality: ModelQuality = "standard",
+  resolveFrontage?: BuildingFrontageResolver
 ): RegionalHouseSite | undefined {
   const massing = lot.massing;
   const appearance = lot.appearance;
@@ -110,12 +117,42 @@ export function regionalHouseSite(
         : material;
   const finish = appearance.wallFinish;
   const id = lot.id ?? `${lot.faceId}:${lotIndex}`;
+  const along0 = (Math.max(...along) + Math.min(...along)) / 2;
+  const across0 = (Math.max(...across) + Math.min(...across)) / 2;
+  const centre: Point = [r[0] * along0 + p[0] * across0, r[1] * along0 + p[1] * across0];
+  const variant = Math.min(2, Math.floor(growthRandom(`regional-house:${id}`) * 3)) as 0 | 1 | 2;
+  const doorSide = variant === 1 ? -1 : 1;
+  const candidates: BuildingFrontageCandidate[] = [false, true].flatMap(flip => {
+    const sign = flip ? -1 : 1;
+    return [
+      {
+        kind: "gable" as const,
+        flip,
+        door: [
+          centre[0] + sign * ((r[0] * depth) / 2 + p[0] * doorSide * width * 0.25),
+          centre[1] + sign * ((r[1] * depth) / 2 + p[1] * doorSide * width * 0.25)
+        ] as Point,
+        normal: [sign * r[0], sign * r[1]] as Point
+      },
+      {
+        kind: "eave" as const,
+        flip,
+        door: [
+          centre[0] + sign * ((p[0] * width) / 2 - r[0] * doorSide * depth * 0.25),
+          centre[1] + sign * ((p[1] * width) / 2 - r[1] * doorSide * depth * 0.25)
+        ] as Point,
+        normal: [sign * p[0], sign * p[1]] as Point
+      }
+    ];
+  });
+  const frontage: BuildingFrontage = resolveFrontage?.(lot, candidates) ?? { ...candidates[0], source: "unknown" };
   const spec: RegionalHouseSpec = {
     profile: appearance.profileId,
     width,
     depth,
     floorHeights: massing.floors.map(floor => floor.heightMeters),
     groundUse: groundUse as RegionalHouseSpec["groundUse"],
+    entranceFace: frontage.kind,
     attached: true,
     storeys,
     pitchDeg,
@@ -135,14 +172,9 @@ export function regionalHouseSite(
     quoins: finish === "limewash" || finish === "brick",
     jetty: massing.jettyMeters,
     shade: appearance.shadeBin,
-    variant: Math.min(2, Math.floor(growthRandom(`regional-house:${id}`) * 3)) as 0 | 1 | 2
+    variant
   };
-  const along0 = (Math.max(...along) + Math.min(...along)) / 2;
-  const across0 = (Math.max(...across) + Math.min(...across)) / 2;
-  const centre: Point = [r[0] * along0 + p[0] * across0, r[1] * along0 + p[1] * across0];
-  // The front gable (local +Z) maps to +r; turn it toward the town centre, where most streets lead.
-  const flip = centre[0] * r[0] + centre[1] * r[1] > 0;
-  const angle = a + Math.PI / 2 + (flip ? Math.PI : 0);
+  const angle = a + Math.PI / 2 + (frontage.flip ? Math.PI : 0);
   const matrix = new THREE.Matrix4().compose(
     new THREE.Vector3(centre[0], elevation + massing.baseElevationMeters, -centre[1]),
     new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), angle),
@@ -151,6 +183,7 @@ export function regionalHouseSite(
   return {
     id,
     lotIndex,
+    frontage,
     definition: definitionFor(spec, resolveModelQuality(quality, REGIONAL_HOUSE_QUALITIES)),
     matrix
   };
@@ -160,11 +193,18 @@ export function createTownRegionalHouses(
   lots: readonly BuildingLot[],
   cache: BvPrototypeCache,
   foundationAt?: (ring: Point[]) => number,
-  quality: ModelQuality = "standard"
+  quality: ModelQuality = "standard",
+  resolveFrontage?: BuildingFrontageResolver
 ) {
   const sites: RegionalHouseSite[] = [];
   lots.forEach((lot, index) => {
-    const site = regionalHouseSite(lot, index, lot.massing ? (foundationAt?.(lot.polygon) ?? 0) : 0, quality);
+    const site = regionalHouseSite(
+      lot,
+      index,
+      lot.massing ? (foundationAt?.(lot.polygon) ?? 0) : 0,
+      quality,
+      resolveFrontage
+    );
     if (site) sites.push(site);
   });
   const layer = createBvInstances(sites, cache);
