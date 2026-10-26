@@ -182,12 +182,12 @@ describe("Generate panel", () => {
 
   it("generates a complete illustrated city in one click, supports mesh view and Undo/Redo", () => {
     const before = meshFingerprint();
-    panelButton("都市を一括生成").click();
+    panelButton("Seedから生成").click();
     expect(has(".ce-buildings .ce-building")).toBe(true);
     expect(has(".ce-fortifications")).toBe(true);
     expect(root.querySelector("svg.ce-svg--town")).toBeTruthy();
     const finished = root.querySelector("svg.ce-svg")!.innerHTML;
-    panelButton("都市を一括生成").click();
+    panelButton("Seedから生成").click();
     expect(root.querySelector("svg.ce-svg")!.innerHTML).toBe(finished);
     const toggle = [...root.querySelectorAll<HTMLLabelElement>(".ce-generate label")]
       .find(l => l.textContent?.includes("街区の編集表示"))!
@@ -208,7 +208,7 @@ describe("Generate panel", () => {
   });
 
   it("toggles grid lines visibility even when block mesh edit view is off", () => {
-    panelButton("都市を一括生成").click();
+    panelButton("Seedから生成").click();
     expect(root.querySelector("svg.ce-svg--town")).toBeTruthy();
     expect(root.querySelector("svg.ce-svg--show-grid")).toBeNull();
 
@@ -235,7 +235,7 @@ describe("Generate panel", () => {
   it("opens on Small / Voronoi and generates a complete city from those defaults", () => {
     expect(root.querySelector<HTMLSelectElement>("select.ce-map-size")?.value).toBe("small");
     expect(root.querySelector<HTMLSelectElement>("select.ce-grid-kind")?.value).toBe("voronoi");
-    panelButton("都市を一括生成").click();
+    panelButton("Seedから生成").click();
     expect(has(".ce-buildings .ce-building")).toBe(true);
     expect(has(".ce-feature--road")).toBe(true);
     expect(root.querySelector("svg.ce-svg--town")).toBeTruthy();
@@ -567,7 +567,7 @@ describe("step-by-step process scrub — all six stages (towngen-comparison.md)"
     grid.value = "evolution";
     grid.dispatchEvent(new Event("change"));
     iconButton("Generate a new grid").click();
-    panelButton("都市を一括生成").click();
+    panelButton("Seedから生成").click();
     expect(has(".ce-building")).toBe(true);
     expect(count(".ce-infill-lane")).toBeGreaterThan(100);
     expect(count(".ce-feature--road")).toBeLessThan(30);
@@ -575,7 +575,7 @@ describe("step-by-step process scrub — all six stages (towngen-comparison.md)"
     // A double-walled town reports its housing as old town / between walls / outside.
     expect(root.querySelector(".ce-generate-housing-summary")?.textContent).toMatch(/外縁部|市壁間/);
     const finished = root.querySelector("svg.ce-svg")!.innerHTML;
-    panelButton("都市を一括生成").click();
+    panelButton("Seedから生成").click();
     expect(root.querySelector("svg.ce-svg")!.innerHTML).toBe(finished);
   });
 
@@ -597,7 +597,7 @@ describe("step-by-step process scrub — all six stages (towngen-comparison.md)"
     grid.value = "evolution";
     grid.dispatchEvent(new Event("change"));
     iconButton("Generate a new grid").click();
-    panelButton("都市を一括生成").click();
+    panelButton("Seedから生成").click();
     const building = root.querySelector<SVGPathElement>(".ce-building")!;
     building.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     const input = root.querySelector<HTMLInputElement>('input[aria-label="Target lot area (m²)"]');
@@ -794,7 +794,7 @@ describe("shareable link and FMG site", () => {
       const walls = root.querySelector<HTMLSelectElement>(".ce-generate-town-wall-rings")!;
       walls.value = wallMode;
       walls.dispatchEvent(new Event("change", { bubbles: true }));
-      panelButton("都市を一括生成").click();
+      panelButton("Seedから生成").click();
       expect(root.querySelector(".ce-svg--town")).toBeTruthy();
       const svg = root.querySelector(".ce-svg")!;
       const geometry = () =>
@@ -833,14 +833,14 @@ describe("shareable link and FMG site", () => {
     root.addEventListener("city-generation-diagnostics", event =>
       rolls.push((event as CustomEvent<Array<{ attempt: number; failure?: unknown }>>).detail)
     );
-    panelButton("都市を一括生成").click();
+    panelButton("Seedから生成").click();
     const first = root.querySelector(".ce-svg")!.innerHTML;
     expect(rolls[0].filter(sample => sample.failure).length).toBeGreaterThan(0);
     const acceptedAttempt = Math.max(...rolls[0].map(sample => sample.attempt));
     expect(acceptedAttempt).toBeGreaterThan(1);
     // The requested seed stays; the retry seed is the town's own.
     expect(seedInput.value).toBe("1eaygix");
-    panelButton("都市を一括生成").click();
+    panelButton("Seedから生成").click();
     expect(root.querySelector(".ce-svg")!.innerHTML).toBe(first);
     expect(rolls[1].some(sample => sample.failure)).toBe(false);
     expect(Math.min(...rolls[1].map(sample => sample.attempt))).toBe(acceptedAttempt);
@@ -983,7 +983,7 @@ describe("shareable link and FMG site", () => {
     });
     window.history.replaceState(null, "", `${location.pathname}#${encodeShare(share)}`);
     remount();
-    panelButton("都市を一括生成").click();
+    panelButton("Seedから生成").click();
 
     const getRiverPaths = () =>
       [...root.querySelectorAll(".ce-feature--river")].map(p => p.getAttribute("d") ?? "").join(";");
@@ -1060,7 +1060,7 @@ describe("shareable link and FMG site", () => {
     });
     window.history.replaceState(null, "", `${location.pathname}#${encodeShare(share)}`);
     remount();
-    panelButton("都市を一括生成").click();
+    panelButton("Seedから生成").click();
 
     expect(root.querySelector(".ce-generate-error")).toBeNull();
     expect(has(".ce-buildings .ce-building")).toBe(true);
@@ -1070,7 +1070,7 @@ describe("shareable link and FMG site", () => {
 });
 
 it("replays all twelve stages identically when alternating the slider and completed-city history", () => {
-  panelButton("都市を一括生成").click();
+  panelButton("Seedから生成").click();
   expect(root.querySelector(".ce-building")).not.toBeNull();
   const completedIndex = root.querySelectorAll(".ce-history-row").length - 1;
   const snapshot = () =>
@@ -1098,7 +1098,7 @@ it("replays all twelve stages identically when alternating the slider and comple
 });
 
 it("exposes wall drawing, passage preparation, and gate placement as separate slider stages", () => {
-  panelButton("都市を一括生成").click();
+  panelButton("Seedから生成").click();
   selectStage(4);
   expect(root.querySelector(".ce-generate-stage-badge")?.textContent).toBe("城壁");
   expect(has(".ce-feature--wall")).toBe(true);

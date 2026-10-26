@@ -100,7 +100,7 @@ describe("skeleton-first generation panel", () => {
     expect(root.querySelector(".ce-generate-stage-badge")!.textContent).toContain("K6");
     expect(root.querySelectorAll(".ce-cells .ce-face").length).toBeGreaterThan(0);
     const button = [...root.querySelectorAll<HTMLButtonElement>(".ce-generate button")].find(b =>
-      /Generate complete city|都市を一括生成/.test(b.textContent ?? "")
+      /Generate from seed|Seedから生成/.test(b.textContent ?? "")
     )!;
     let diagnostics: unknown;
     root.addEventListener("city-generation-diagnostics", event => {

@@ -23,8 +23,8 @@ function select(selector: string, value: string) {
 }
 
 describe("generation workspace", () => {
-  it("keeps generation and feature switches ahead of every tab and preserves edits when navigating", () => {
-    const button = root.querySelector(".ce-complete-generation")!;
+  it("keeps new-city generation and feature switches ahead of every tab and preserves edits when navigating", () => {
+    const button = root.querySelector(".ce-new-generation")!;
     const features = root.querySelector(".ce-generate-features")!;
     const workspace = root.querySelector(".ce-generation-workspace")!;
     expect(button.compareDocumentPosition(features) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -32,6 +32,8 @@ describe("generation workspace", () => {
     expect(features.closest('[role="tabpanel"]')).toBeNull();
     expect(page("basics").hidden).toBe(false);
     const seed = root.querySelector<HTMLInputElement>(".ce-generate-seed")!;
+    expect(seed.closest("label")!.nextElementSibling).toBe(root.querySelector(".ce-complete-generation"));
+    expect(root.querySelector(".ce-complete-generation")!.closest('[role="tabpanel"]')).toBe(page("basics"));
     const svg = root.querySelector(".ce-svg")!;
     seed.value = "workspace-seed";
     seed.dispatchEvent(new Event("input", { bubbles: true }));

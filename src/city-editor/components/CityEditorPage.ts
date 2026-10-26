@@ -2576,6 +2576,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   );
   basics.append(
     seedLabel,
+    completeGenerationButton,
     copyLinkButton,
     label(editorText("cityEditor.messages.historicalPeriod"), historicalPeriodSelect),
     cityBasics
@@ -2681,7 +2682,6 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   decoration.append(decorationControls);
   generatePanel.content.append(
     label(editorText("cityEditor.messages.generationMode"), generationModeSelect),
-    completeGenerationButton,
     newGenerationButton,
     generationProgress,
     cancelGeneration,
