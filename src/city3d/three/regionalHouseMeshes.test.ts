@@ -93,12 +93,12 @@ it("uses measured dimensions, floor heights, coverings and ground-floor use with
   expect(cache.size).toBe(0);
 });
 
-it("keeps outbuildings, trapezoids, unsupported floors and roof forms in CE massing", () => {
+it("replaces trapezoids and non-earthen flat roofs but keeps unsupported premises and floors in CE massing", () => {
   const lot = buildingAppearancePreview("atlantic")[0];
   for (const role of ["stable", "shed"] as const) {
     expect(regionalHouseSite({ ...lot, role }, 0)).toBeUndefined();
   }
-  // The old 80% area test admitted this footprint although the bounding-box corners lay outside it.
+  // The polygon model follows the walls instead of filling the bounding-box corners.
   expect(
     regionalHouseSite(
       {
@@ -112,12 +112,12 @@ it("keeps outbuildings, trapezoids, unsupported floors and roof forms in CE mass
       },
       0
     )
-  ).toBeUndefined();
+  ).toMatchObject({ definition: { id: expect.stringMatching(/^polygon-house:/) } });
   expect(regionalHouseSite({ ...lot, massing: { ...lot.massing!, storeys: 6 } }, 0)).toBeUndefined();
   expect(regionalHouseSite({ ...lot, massing: { ...lot.massing!, eaveHeightMeters: 20 } }, 0)).toBeUndefined();
   expect(
     regionalHouseSite({ ...lot, massing: { ...lot.massing!, roof: { ...lot.massing!.roof, form: "flat" } } }, 0)
-  ).toBeUndefined();
+  ).toMatchObject({ definition: { id: expect.stringMatching(/^polygon-house:/) } });
 });
 
 it.each([0, 0.61])(
@@ -193,4 +193,42 @@ it("keeps a stable local facade when no usable street is known, independent of t
   expect(second.frontage.source).toBe("unknown");
   expect(first.frontage.flip).toBe(second.frontage.flip);
   expect(first.definition).toBe(second.definition);
+});
+
+it("puts a polygon house door on its selected street wall without rotating the footprint", () => {
+  const lot = buildingAppearancePreview("atlantic")[0];
+  lot.polygon = [
+    [-2.5, -4],
+    [2.5, -4],
+    [2, 4],
+    [-2, 4]
+  ];
+  lot.massing!.jettyMeters = 0;
+  const resolver = createBuildingFrontageResolver(
+    [
+      {
+        centerline: [
+          [-10, -7],
+          [10, -7]
+        ],
+        widthMeters: 2
+      }
+    ],
+    [lot]
+  );
+  const site = regionalHouseSite(lot, 0, 12, "high", resolver)!;
+  expect(site.frontage).toMatchObject({ source: "street", door: [0, -4], normal: [0, -1] });
+  const cache = createBvPrototypeCache();
+  const prototype = cache.acquire(site.definition)!;
+  const mesh = new THREE.Mesh(prototype.geometry, prototype.material);
+  mesh.matrixAutoUpdate = false;
+  mesh.matrix.copy(site.matrix);
+  mesh.updateMatrixWorld(true);
+  const hit = new THREE.Raycaster(new THREE.Vector3(0.02, 13, 5), new THREE.Vector3(0, 0, -1)).intersectObject(
+    mesh
+  )[0]!;
+  expect(hit).toBeDefined();
+  expect(prototype.geometry.getAttribute("color").getX(hit.face!.a)).toBeCloseTo(new THREE.Color("#5A3B26").r);
+  prototype.release();
+  expect(cache.size).toBe(0);
 });

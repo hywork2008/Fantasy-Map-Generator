@@ -1,3 +1,4 @@
+import { createPolygonHouses, POLYGON_HOUSES } from "../buildings/houses/polygonHouses";
 import { STANDARD_BIOME_DEFINITIONS } from "../data/biomeCatalog";
 import "./viewer.css";
 import * as THREE from "three";
@@ -2005,6 +2006,47 @@ function showEarthenHouses(): void {
     fact("Construction", EARTHEN_HOUSES.note),
     fact("CE placement", "Automatic for supported mudbrick, flat-roof residential, retail, craft and storage lots"),
     fact("Omitted", "Interiors and roof access")
+  );
+}
+
+const polygonButton = document.createElement("button");
+polygonButton.type = "button";
+polygonButton.textContent = "Polygonal and narrow houses";
+polygonButton.dataset.id = "regional-polygon";
+AUTHORED_VARIANTS[polygonButton.dataset.id] = {
+  author: POLYGON_HOUSES.author,
+  primary: true,
+  quality: true,
+  show: showPolygonHouses
+};
+polygonButton.addEventListener("click", showPolygonHouses);
+regionalHeading.append(polygonButton);
+
+function showPolygonHouses(): void {
+  selection++;
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Front elevation";
+  levelTitle.textContent = "Roof plan";
+  showQuality(true);
+  const quality = qualitySelect.value as RegionalHouseQuality;
+  massing = createPolygonHouses(quality);
+  scene.add(massing.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: 24, depth: 10 } }, 10);
+  camera.position.set(15, 12, 22);
+  controls.target.set(0, 4, 0);
+  controls.update();
+  mountPlan(roofHost, meshProjection(massing, "side"));
+  mountPlan(levelHost, meshProjection(massing, "top"));
+  facts.append(
+    fact("Quality", quality === "high" ? "High" : "Low — joinery and roof courses omitted"),
+    fact("Construction", POLYGON_HOUSES.note),
+    fact("Envelope", "2.4 m narrow gable, trapezoidal hip and concave flat-roof houses"),
+    fact("CE placement", "Automatic when a supported domestic lot cannot fit the rectangular regional model"),
+    fact("Omitted", "Interiors")
   );
 }
 

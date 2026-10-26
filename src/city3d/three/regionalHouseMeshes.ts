@@ -6,6 +6,12 @@ import {
   earthenHouseSpecKey
 } from "../../buildings/houses/earthenHouses";
 import {
+  createPolygonHouse,
+  createPolygonHouseGeometry,
+  type PolygonHouseSpec,
+  polygonHouseSpecKey
+} from "../../buildings/houses/polygonHouses";
+import {
   createRegionalHouse,
   createRegionalHouseGeometry,
   REGIONAL_HOUSE_QUALITIES,
@@ -140,8 +146,70 @@ function earthenHouseSite(
   };
 }
 
+/** Detailed joinery follows measured walls when a rectangular prototype cannot fit. */
+function polygonHouseSite(
+  lot: BuildingLot,
+  lotIndex: number,
+  elevation: number,
+  quality: ModelQuality,
+  resolveFrontage?: BuildingFrontageResolver
+): RegionalHouseSite | undefined {
+  if (area(lot.polygon) < 1 || lot.polygon.length < 3) return;
+  const center = lot.polygon.reduce<Point>(
+    (sum, p) => [sum[0] + p[0] / lot.polygon.length, sum[1] + p[1] / lot.polygon.length],
+    [0, 0]
+  );
+  const signedArea = lot.polygon.reduce((sum, a, i) => {
+    const b = lot.polygon[(i + 1) % lot.polygon.length];
+    return sum + a[0] * b[1] - b[0] * a[1];
+  }, 0);
+  const candidates = lot.polygon.flatMap((a, i) => {
+    const b = lot.polygon[(i + 1) % lot.polygon.length];
+    const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (length < 1.2) return [];
+    return [
+      {
+        kind: "eave" as const,
+        flip: false,
+        door: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] as Point,
+        normal: [
+          (Math.sign(signedArea) * (b[1] - a[1])) / length,
+          (-Math.sign(signedArea) * (b[0] - a[0])) / length
+        ] as Point
+      }
+    ];
+  });
+  if (!candidates.length) return;
+  const frontage = resolveFrontage?.(lot, candidates) ?? { ...candidates[0], source: "unknown" as const };
+  const spec: PolygonHouseSpec = {
+    footprint: lot.polygon.map(p => [p[0] - center[0], p[1] - center[1]]),
+    massing: { ...lot.massing!, baseElevationMeters: 0 },
+    appearance: lot.appearance!,
+    entrance: [frontage.door[0] - center[0], frontage.door[1] - center[1]]
+  };
+  const tier = resolveModelQuality(quality, REGIONAL_HOUSE_QUALITIES);
+  const key = `polygon-house:${polygonHouseSpecKey(spec)}|${tier}`;
+  let definition = definitions.get(key);
+  if (!definition) {
+    definition = {
+      id: key,
+      create: () => createPolygonHouse(spec, tier),
+      createGeometry: () => createPolygonHouseGeometry(spec, tier)
+    };
+    definitions.set(key, definition);
+    if (definitions.size > 512) definitions.delete(definitions.keys().next().value!);
+  }
+  return {
+    id: lot.id ?? `${lot.faceId}:${lotIndex}`,
+    lotIndex,
+    frontage,
+    definition,
+    matrix: new THREE.Matrix4().makeTranslation(center[0], elevation + lot.massing!.baseElevationMeters, -center[1])
+  };
+}
+
 /**
- * Place regional pitched-roof houses on rectangular lots and earthen terraces on convex mudbrick lots.
+ * Place regional houses on measured lots, using polygonal joinery when rectangular prototypes cannot fit.
  * Each lot keeps its measured footprint, floor heights, roof pitch, coverings and colours; other lots keep CE massing.
  */
 export function regionalHouseSite(
@@ -168,8 +236,14 @@ export function regionalHouseSite(
   const height = massing.floors.reduce((sum, floor) => sum + floor.heightMeters, 0);
   if (Math.abs(height - massing.eaveHeightMeters) > 1e-5) return;
   const form = massing.roof.form;
-  if (form === "flat") return earthenHouseSite(lot, lotIndex, elevation, quality, resolveFrontage);
-  if ((form !== "gable" && form !== "hip") || lot.polygon.length < 4 || !isConvex(lot.polygon)) return;
+  if (form === "flat")
+    return (
+      earthenHouseSite(lot, lotIndex, elevation, quality, resolveFrontage) ??
+      polygonHouseSite(lot, lotIndex, elevation, quality, resolveFrontage)
+    );
+  if (form !== "gable" && form !== "hip") return;
+  if (lot.polygon.length < 4 || !isConvex(lot.polygon))
+    return polygonHouseSite(lot, lotIndex, elevation, quality, resolveFrontage);
   const a = massing.roof.ridgeAzimuth;
   const r = [Math.cos(a), Math.sin(a)];
   const p = [-Math.sin(a), Math.cos(a)];
@@ -178,7 +252,8 @@ export function regionalHouseSite(
   const depth = Math.max(...along) - Math.min(...along);
   const width = Math.max(...across) - Math.min(...across);
   // Only near-rectangular lots: the model's walls fill its bounding box.
-  if (!(width >= 3 && width <= 18 && depth >= 4 && depth <= 28) || area(lot.polygon) < 0.999999 * width * depth) return;
+  if (!(width >= 3 && width <= 18 && depth >= 4 && depth <= 28) || area(lot.polygon) < 0.999999 * width * depth)
+    return polygonHouseSite(lot, lotIndex, elevation, quality, resolveFrontage);
   const storeys = massing.storeys;
   // Match CE's roof-rise cap without quantizing the slope or stretching any joinery.
   const upperWidth = width + 2 * Math.min(1.2, massing.jettyMeters * (storeys - 1));
