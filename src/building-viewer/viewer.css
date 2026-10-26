@@ -242,3 +242,51 @@ select {
   margin: 10px 0 0;
   font-size: 1.05rem;
 }
+
+.bv-comparison,
+.bv-performance {
+  margin: 12px 0;
+  padding-top: 10px;
+  border-top: 1px solid #b7b0a2;
+  font-size: 0.8rem;
+}
+
+.bv-comparison table {
+  width: 100%;
+  min-width: 16rem;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.bv-comparison th,
+.bv-comparison td {
+  padding: 5px 3px;
+  border-bottom: 1px solid #c8c0b4;
+  text-align: right;
+  overflow-wrap: normal;
+}
+
+.bv-comparison th:first-child {
+  text-align: left;
+  white-space: nowrap;
+}
+
+.bv-comparison p {
+  margin-top: 8px;
+}
+
+.bv-performance summary {
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.bv-performance pre {
+  font: 12px/1.5 monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.bv-comparison-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}

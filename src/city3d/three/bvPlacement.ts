@@ -3,7 +3,13 @@ import { pointInPolygon } from "../../city-editor/generators/geom";
 import type { Point } from "../../city-editor/types/primitives";
 
 /** Fit the entire BV envelope, including roofs and steps, without stretching its proportions. */
-export function fitBvBuilding(bounds: THREE.Box3, footprint: Point[], angle: number, elevation: number) {
+export function fitBvBuilding(
+  bounds: THREE.Box3,
+  footprint: Point[],
+  angle: number,
+  elevation: number,
+  minimumScale = 0.5
+) {
   if (footprint.length < 3 || !Number.isFinite(angle) || !Number.isFinite(elevation)) return;
   const ring = footprint.slice();
   if (ring.length > 3 && ring[0][0] === ring.at(-1)![0] && ring[0][1] === ring.at(-1)![1]) ring.pop();
@@ -29,7 +35,7 @@ export function fitBvBuilding(bounds: THREE.Box3, footprint: Point[], angle: num
     center = bounds.getCenter(new THREE.Vector3());
   if (![size.x, size.y, size.z].every(v => Number.isFinite(v) && v > 0)) return;
   const scale = Math.min(1.5, 0.94 * Math.min((maxX - minX) / size.x, (maxY - minY) / size.z));
-  if (scale < 0.5) return;
+  if (scale < minimumScale) return;
   const x = (minX + maxX) / 2,
     y = (minY + maxY) / 2;
   const point: Point = [x * c - y * s, x * s + y * c];

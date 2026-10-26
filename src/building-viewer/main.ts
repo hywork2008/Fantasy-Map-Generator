@@ -12,6 +12,7 @@ import { BARBICANS, createBarbican } from "../buildings/fortresses/barbicans";
 import { BOJNICE, bojnicePlan, createBojnice } from "../buildings/fortresses/bojnice";
 import { CHAMBORD, createChambord } from "../buildings/fortresses/chambord";
 import { KRAK, type KrakPhase } from "../buildings/fortresses/krak";
+import { createEarthenHouses, EARTHEN_HOUSES } from "../buildings/houses/earthenHouses";
 import {
   createRegionalHouses,
   REGIONAL_HOUSES,
@@ -86,7 +87,17 @@ import { createCityMassing } from "../city3d/three/cityMeshes";
 import { type CityStructureMeshes, createStructureMassing } from "../city3d/three/structureMeshes";
 import type { TownWaterMeshes } from "../city3d/three/waterMeshes";
 import type { HistoricalPeriod } from "../types/historicalPeriod";
+import { createModelComparison } from "./modelComparison";
+import { mountPerformancePanel } from "./performancePanel";
 import { sanitizeSvg } from "./svgSanitize";
+import {
+  catalogueWikipedia,
+  containerWikipedia,
+  landmarkWikipedia,
+  medievalWikipediaArticle,
+  wallWikipedia,
+  wikipediaLink
+} from "./wikipedia";
 
 const PERIOD: Partial<Record<HistoricalPeriod, string>> = {
   earlyMedieval: "Early medieval",
@@ -143,11 +154,12 @@ function mountPlan(host: HTMLElement, markup: string): void {
   host.append(document.importNode(svg, true));
 }
 
-function fact(label: string, value: string): HTMLParagraphElement {
+function fact(label: string, value: string, wikipediaArticle?: string): HTMLParagraphElement {
   const row = document.createElement("p");
   const name = document.createElement("strong");
   name.textContent = `${label}: `;
   row.append(name, document.createTextNode(value));
+  if (wikipediaArticle) row.append(document.createElement("br"), wikipediaLink(wikipediaArticle));
   return row;
 }
 
@@ -203,7 +215,7 @@ const DEFAULT_AUTHOR = "Codex";
  * Alternative versions of a list item made by other AI models, keyed by the list button's data-id.
  * `primary` means that author made the only prepared model, so it is selected on open.
  */
-const AUTHORED_VARIANTS: Record<string, { author: string; primary?: boolean; show: () => void }> = {
+const AUTHORED_VARIANTS: Record<string, { author: string; primary?: boolean; quality?: boolean; show: () => void }> = {
   "basilica-temple": { author: BASILICA_TEMPLE.author, show: () => showBasilicaTemple() }
 };
 let selectedId = entries[0]?.record.id ?? "";
@@ -224,7 +236,7 @@ function listAuthors(id: string): void {
     authorSelect.append(option);
   }
   authorSelect.value = variant?.primary ? variant.author : DEFAULT_AUTHOR;
-  showQuality(false);
+  showQuality(variant?.primary === true && variant.quality === true);
 }
 authorSelect.addEventListener("change", () => {
   const variant = AUTHORED_VARIANTS[selectedId];
@@ -288,6 +300,9 @@ let massing: CityStructureMeshes | null = null;
 let regionalDetails: TownBuildingDetails | null = null;
 let studyWater: TownWaterMeshes | null = null;
 let selection = 0;
+const modelComparison = createModelComparison();
+const performancePanel = mountPerformancePanel(inspector, () => massing?.group ?? null);
+window.addEventListener("pagehide", () => modelComparison.clear());
 
 function resize(): void {
   const rect = stage.getBoundingClientRect();
@@ -315,6 +330,8 @@ function frame(record: Pick<BuildingRecord, "occupancyMeters">, height: number):
 }
 
 function clearMesh(): void {
+  modelComparison.clear();
+  performancePanel.reset();
   if (regionalDetails) {
     scene.remove(regionalDetails.group);
     regionalDetails.dispose();
@@ -393,7 +410,7 @@ function show(entry: Entry): void {
     fact("Phase", provenance.depictedPhase),
     fact("Source", provenance.dimensionSource),
     fact("Omitted", provenance.omitted.join(", ")),
-    fact("Note", provenance.note)
+    fact("Note", provenance.note, catalogueWikipedia[record.id])
   );
   for (const level of record.levels) {
     facts.append(fact(level.name, `${level.elevationMeters} m, floor to floor ${level.floorToFloorMeters} m`));
@@ -451,7 +468,7 @@ async function showFortress(phase: KrakPhase): Promise<void> {
     fact("Model", `${KRAK.name} — modular hill study`),
     fact("Phase", phase === "hospitalier-1270" ? "Hospitaller, c. 1270" : "Mamluk alterations, c. 1302"),
     fact("Parts", String(parts.length)),
-    fact("Note", KRAK.note),
+    fact("Note", KRAK.note, "Krak des Chevaliers"),
     fact("Source", KRAK.source),
     fact("Inner ward", KRAK.inner.provenance.dimensionSource)
   );
@@ -629,7 +646,7 @@ function showBasilicaTemple(): void {
     fact("Period", "High medieval"),
     fact("Quality", qualitySelect.value === "high" ? "High" : "Low — mouldings, tile courses and ornament omitted"),
     fact("Dimensions", `${BASILICA_TEMPLE.width} × ${BASILICA_TEMPLE.depth} × ${BASILICA_TEMPLE.height} m (approx.)`),
-    fact("Construction", BASILICA_TEMPLE.note),
+    fact("Construction", BASILICA_TEMPLE.note, "Basilica"),
     fact("Omitted", "Interior, vaults, bells, sculpture programme, weathering and individual masonry blocks")
   );
 }
@@ -669,7 +686,8 @@ aqueductButton.addEventListener("click", () => {
     fact("Assembly", "6 large bays on each lower tier; 24 small arches on the upper tier"),
     fact(
       "Note",
-      "Simplified imagined intact aqueduct inspired by Pont du Gard. Repeated bays share geometry; dimensions are illustrative. The upper channel is open for inspection."
+      "Simplified imagined intact aqueduct inspired by Pont du Gard. Repeated bays share geometry; dimensions are illustrative. The upper channel is open for inspection.",
+      "Pont du Gard"
     ),
     fact("Omitted", "Modern road bridge, damage, weathering, terrain and individual masonry blocks")
   );
@@ -706,7 +724,7 @@ stGeorgesButton.addEventListener("click", () => {
     fact("Model", ST_GEORGES_CHAPEL.name),
     fact("Style", "English Perpendicular Gothic"),
     fact("Study envelope", `${ST_GEORGES_CHAPEL.width} × ${ST_GEORGES_CHAPEL.depth} × ${ST_GEORGES_CHAPEL.height} m`),
-    fact("Note", ST_GEORGES_CHAPEL.note)
+    fact("Note", ST_GEORGES_CHAPEL.note, "St George's Chapel, Windsor Castle")
   );
   const source = document.createElement("a");
   source.href = ST_GEORGES_CHAPEL.source;
@@ -786,8 +804,12 @@ for (const style of ["Gothic", "Romanesque"] as const) {
         fact("State", definition.state),
         fact("Study envelope", `${definition.size.join(" × ")} m`),
         fact("Dimensions", definition.dimensions),
-        fact("Note", definition.note)
+        fact("Note", definition.note, landmarkWikipedia[model.id])
       );
+      if (model.style === "Gothic" && model.highDetail) {
+        const modulePath = Object.keys(landmarkModules).find(path => landmarkModules[path] === model)!;
+        modelComparison.mount(facts, modulePath, definition === model ? "low" : "high", massing.group);
+      }
       for (const source of definition.sources) {
         const row = document.createElement("p");
         const link = document.createElement("a");
@@ -832,7 +854,7 @@ bojniceButton.addEventListener("click", () => {
     fact("Model", BOJNICE.name),
     fact("Phase", "Romantic reconstruction, 1889–1910"),
     fact("Study envelope", `${BOJNICE.width} × ${BOJNICE.depth} × ${BOJNICE.height} m`),
-    fact("Note", BOJNICE.note)
+    fact("Note", BOJNICE.note, "Bojnice Castle")
   );
   const source = document.createElement("a");
   source.href = BOJNICE.source;
@@ -875,7 +897,7 @@ chambordButton.addEventListener("click", () => {
     fact("Model", CHAMBORD.name),
     fact("Period", "French Renaissance"),
     fact("Study envelope", `${CHAMBORD.width} × ${CHAMBORD.depth} × ${CHAMBORD.height} m`),
-    fact("Note", CHAMBORD.note)
+    fact("Note", CHAMBORD.note, "Château de Chambord")
   );
   const source = document.createElement("a");
   source.href = CHAMBORD.source;
@@ -954,7 +976,7 @@ carrackButton.addEventListener("click", () => {
     ),
     fact("Rig", "Three masts; square-rigged fore and main masts; lateen mizzen"),
     fact("Hull", "Broad round-bilged hull; high forecastle and stepped sterncastle"),
-    fact("Note", CARRACK.note)
+    fact("Note", CARRACK.note, "Carrack")
   );
   const source = document.createElement("a");
   source.href = CARRACK.source;
@@ -997,7 +1019,7 @@ galleonButton.addEventListener("click", () => {
     ),
     fact("Rig", "Three masts; square-rigged fore and main masts; lateen mizzen"),
     fact("Armament", "14 broadside guns"),
-    fact("Note", GALLEON.note)
+    fact("Note", GALLEON.note, "Galleon")
   );
 });
 shipsHeading.append(galleonButton);
@@ -1034,7 +1056,7 @@ sloopButton.addEventListener("click", () => {
     ),
     fact("Rig", "One mast; gaff mainsail and jib"),
     fact("Hull", "Small wooden hull with keel, low cabin and tiller steering"),
-    fact("Note", SLOOP.note)
+    fact("Note", SLOOP.note, "Sloop")
   );
 });
 shipsHeading.append(sloopButton);
@@ -1072,7 +1094,7 @@ bargeButton.addEventListener("click", () => {
     fact("Propulsion", "Towing or poling; unpowered"),
     fact("Hull", "Flat bottom, rising ends and shallow draft"),
     fact("Cargo", "Stacked crates, barrels and bundled timber"),
-    fact("Note", BARGE.note)
+    fact("Note", BARGE.note, "Barge")
   );
 });
 shipsHeading.append(bargeButton);
@@ -1108,7 +1130,7 @@ trebuchetButton.addEventListener("click", () => {
     fact("Study envelope", `${TREBUCHET.length} × ${TREBUCHET.width} × ${TREBUCHET.height} m`),
     fact("Throwing arm", `${TREBUCHET.longArm} m long arm / ${TREBUCHET.shortArm} m counterweight arm`),
     fact("Pose", "Lowered for loading; sling and projectile in the trough"),
-    fact("Note", TREBUCHET.note)
+    fact("Note", TREBUCHET.note, "Trebuchet")
   );
 });
 siegeHeading.append(trebuchetButton);
@@ -1143,7 +1165,7 @@ ramButton.addEventListener("click", () => {
     fact("Study envelope", `${BATTERING_RAM.length} × ${BATTERING_RAM.width} × ${BATTERING_RAM.height} m`),
     fact("Ram", "Suspended oak log, rope cradles, iron bindings, blunt iron head and crew hand grips"),
     fact("Protection", "Hide-covered timber roof, braced open frame and four iron-bound wooden wheels"),
-    fact("Note", BATTERING_RAM.note)
+    fact("Note", BATTERING_RAM.note, "Battering ram")
   );
 });
 siegeHeading.append(ramButton);
@@ -1182,7 +1204,7 @@ siegeTowerButton.addEventListener("click", () => {
       "Equipment",
       "Four iron-bound wheels, flush assault bridge and one overhead windlass with linked drums and a wall-side hand-rope loop"
     ),
-    fact("Note", SIEGE_TOWER.note)
+    fact("Note", SIEGE_TOWER.note, "Siege tower")
   );
 });
 siegeHeading.append(siegeTowerButton);
@@ -1225,7 +1247,7 @@ cannonButton.addEventListener("click", () => {
     ),
     fact("Barrel", "Tapered bronze tube, open muzzle, reinforcing mouldings, trunnions and cascabel"),
     fact("Carriage", "Iron-bound oak wheels, timber cheeks, ground-resting trail and wooden elevation quoin"),
-    fact("Note", EARLY_FIELD_CANNON.note)
+    fact("Note", EARLY_FIELD_CANNON.note, "History of cannon")
   );
 });
 artilleryHeading.append(cannonButton);
@@ -1261,7 +1283,7 @@ postMillButton.addEventListener("click", () => {
     fact("Study envelope", `${POST_MILL.width} × ${POST_MILL.depth} × ${POST_MILL.height} m`),
     fact("Sails", `Four canvas-covered lattice sails; ${POST_MILL.sailRadius * 2} m stock diameter`),
     fact("Structure", "Timber milling house on a braced central post; rear stair and tailpole"),
-    fact("Note", POST_MILL.note)
+    fact("Note", POST_MILL.note, "Post mill")
   );
 });
 millsHeading.append(postMillButton);
@@ -1296,7 +1318,7 @@ towerMillButton.addEventListener("click", () => {
     fact("Study envelope", `${TOWER_MILL.width} × ${TOWER_MILL.depth} × ${TOWER_MILL.height} m`),
     fact("Tower", `${TOWER_MILL.towerHeight} m high; ${TOWER_MILL.baseRadius * 2} m diameter at the base`),
     fact("Sails", "Four canvas-covered lattice sails on a timber cap"),
-    fact("Note", TOWER_MILL.note)
+    fact("Note", TOWER_MILL.note, "Tower mill")
   );
 });
 millsHeading.append(towerMillButton);
@@ -1331,7 +1353,7 @@ waterMillButton.addEventListener("click", () => {
     fact("Study envelope", `${WATER_MILL.width} × ${WATER_MILL.depth} × ${WATER_MILL.height} m`),
     fact("Wheel", `Wooden overshot wheel; ${WATER_MILL.wheelRadius * 2} m diameter; 24 buckets`),
     fact("Water supply", "Raised timber flume with sluice gate; lower millrace and axle bearing pier"),
-    fact("Note", WATER_MILL.note)
+    fact("Note", WATER_MILL.note, "Watermill")
   );
 });
 millsHeading.append(waterMillButton);
@@ -1367,7 +1389,7 @@ wellButton.addEventListener("click", () => {
     fact("Study envelope", `${MEDIEVAL_WELL.width} × ${MEDIEVAL_WELL.depth} × ${MEDIEVAL_WELL.height} m`),
     fact("Structure", "Open masonry curb, braced oak posts and a timber-shingled gable roof"),
     fact("Lifting gear", "Hand-cranked wooden windlass, rope and iron-bound wooden bucket"),
-    fact("Note", MEDIEVAL_WELL.note)
+    fact("Note", MEDIEVAL_WELL.note, "Water well")
   );
 });
 wellsHeading.append(wellButton);
@@ -1402,7 +1424,7 @@ for (const kind of WATER_BASIN_KINDS) {
       fact("Model", spec.name),
       fact("Study envelope", `${spec.width} × ${spec.depth} × ${spec.height} m`),
       fact("Ground contact", "Base Y = 0 m"),
-      fact("Note", PUBLIC_WATER_BASIN_NOTE)
+      fact("Note", PUBLIC_WATER_BASIN_NOTE, "Fountain")
     );
   });
   wellsHeading.append(button);
@@ -1450,7 +1472,7 @@ for (const kind of CONTAINER_KINDS) {
           `${dimensions.x.toFixed(3)} × ${dimensions.z.toFixed(3)} × ${dimensions.y.toFixed(3)} m`
         ),
         fact("Ground contact", `Base Y = ${(Math.abs(bounds.min.y) < 0.0005 ? 0 : bounds.min.y).toFixed(3)} m`),
-        fact("Note", MEDIEVAL_CONTAINER_NOTE)
+        fact("Note", MEDIEVAL_CONTAINER_NOTE, containerWikipedia[kind])
       );
     });
     containersHeading.append(button);
@@ -1494,7 +1516,7 @@ lumberYardButton.addEventListener("click", () => {
     ),
     fact("Storage", "Sleeper-supported log pile, boards separated by drying stickers and stacked hewn beams"),
     fact("Workshop", "Open braced timber shed, wooden roof, sawing trestles, frame saw and chopping block with axe"),
-    fact("Note", MEDIEVAL_LUMBER_YARD.note)
+    fact("Note", MEDIEVAL_LUMBER_YARD.note, "Lumber yard")
   );
 });
 yardsHeading.append(lumberYardButton);
@@ -1535,7 +1557,7 @@ for (const [definition, create] of [
       fact("Style", "Low-poly · Untextured flat-shaded geometry"),
       fact("Study envelope", `${definition.length} × ${definition.width} × ${definition.height} m`),
       fact("Triangles", triangles.toLocaleString("en-US")),
-      fact("Note", definition.note)
+      fact("Note", definition.note, definition.name)
     );
   });
   vehiclesHeading.append(button);
@@ -1571,7 +1593,7 @@ minecartButton.addEventListener("click", () => {
     fact("Study envelope", `${MINECART.length} × ${MINECART.width} × ${MINECART.height} m, including display track`),
     fact("Body", "Empty sloping plank box, iron straps, rivets and end handles"),
     fact("Running gear", "Four flanged iron wheels on two axles; short narrow-gauge track on timber sleepers"),
-    fact("Note", MINECART.note)
+    fact("Note", MINECART.note, "Minecart")
   );
 });
 vehiclesHeading.append(minecartButton);
@@ -1606,7 +1628,7 @@ wagonButton.addEventListener("click", () => {
     fact("Study envelope", `${MEDIEVAL_WAGON.length} × ${MEDIEVAL_WAGON.width} × ${MEDIEVAL_WAGON.height} m`),
     fact("Running gear", "Four wooden spoked wheels with iron tires; smaller front wheels and a pivoted front axle"),
     fact("Body", "Empty plank bed, iron straps, driver's bench and twin draft shafts; no animals"),
-    fact("Note", MEDIEVAL_WAGON.note)
+    fact("Note", MEDIEVAL_WAGON.note, "Wagon")
   );
 });
 vehiclesHeading.append(wagonButton);
@@ -1642,7 +1664,7 @@ coveredWagonButton.addEventListener("click", () => {
     fact("Cover", "Unbleached canvas on five wooden bows; stitched seams, rope lashings and rolled end curtains"),
     fact("Body", "Empty plank bed; open front and rear above the end boards"),
     fact("Running gear", "Four iron-bound spoked wheels, driver's bench and twin shafts; no animals"),
-    fact("Note", COVERED_WAGON.note)
+    fact("Note", COVERED_WAGON.note, "Covered wagon")
   );
 });
 vehiclesHeading.append(coveredWagonButton);
@@ -1678,7 +1700,7 @@ nobleCarriageButton.addEventListener("click", () => {
     fact("Body", "Blue painted timber, burgundy textile canopy, tied curtains and gilded heraldic shields"),
     fact("Interior", "Facing cushioned benches, low side doors and boarding steps; unglazed openings"),
     fact("Running gear", "Four iron-bound spoked wheels, front axle pivot, driver's bench and twin shafts; no animals"),
-    fact("Note", NOBLE_CARRIAGE.note)
+    fact("Note", NOBLE_CARRIAGE.note, "Carriage")
   );
 });
 vehiclesHeading.append(nobleCarriageButton);
@@ -1717,7 +1739,7 @@ warWagonButton.addEventListener("click", () => {
     ),
     fact("Running gear", "Four iron-bound spoked wheels, front axle kingpin and wooden drawbar; no animals"),
     fact("Access", "Closed rear double doors, iron hinges and latch, and a boarding step"),
-    fact("Note", WAR_WAGON.note)
+    fact("Note", WAR_WAGON.note, "War wagon")
   );
 });
 vehiclesHeading.append(warWagonButton);
@@ -1788,7 +1810,7 @@ function showTownWall(model: TownWallModel, button: HTMLButtonElement, codex = f
     fact("Period", codex ? CODEX_TOWN_WALL_PERIOD : "High medieval Europe"),
     fact("Resolution", "High — low and standard tiers are not prepared"),
     fact("Mesh dimensions", `${extent.x.toFixed(2)} × ${extent.z.toFixed(2)} × ${extent.y.toFixed(2)} m`),
-    fact("Construction", model.note),
+    fact("Construction", model.note, wallWikipedia[model.id]),
     fact(
       "Scope",
       "Illustrative study of a part CE places around a town when Features → Walls is on. Metre units. Circuit placement is separate."
@@ -1856,7 +1878,7 @@ for (const definition of BARBICANS) {
       fact("Model", definition.name),
       fact("Period", definition.period),
       fact("Mesh dimensions", `${size.x.toFixed(2)} × ${size.z.toFixed(2)} × ${size.y.toFixed(2)} m`),
-      fact("Construction", definition.note),
+      fact("Construction", definition.note, "Barbican"),
       fact("Connection", "Castle gate attaches at negative Z. Both entrances are open; the court is unroofed."),
       fact(
         "Scope",
@@ -1925,7 +1947,8 @@ function showSign(options: HangingSignOptions, activeButton: HTMLButtonElement):
     fact("Construction", "Braced metal arm, two chains, metal rim and two-sided raised pictogram"),
     fact(
       "Note",
-      "Imagined reusable templates. Building attributes and automatic placement are not assigned by this preview."
+      "Imagined reusable templates. Building attributes and automatic placement are not assigned by this preview.",
+      "Signboard"
     )
   );
 }
@@ -1941,6 +1964,50 @@ for (const template of [
 }
 
 const regionalHeading = modelCategory("CE regional houses");
+const earthenButton = document.createElement("button");
+earthenButton.type = "button";
+earthenButton.textContent = "Earthen flat-roof houses";
+earthenButton.dataset.id = "regional-earthen-flat";
+AUTHORED_VARIANTS[earthenButton.dataset.id] = {
+  author: EARTHEN_HOUSES.author,
+  primary: true,
+  quality: true,
+  show: showEarthenHouses
+};
+earthenButton.addEventListener("click", showEarthenHouses);
+regionalHeading.append(earthenButton);
+
+function showEarthenHouses(): void {
+  selection++;
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Front elevation";
+  levelTitle.textContent = "Roof plan";
+  showQuality(true);
+  const quality = qualitySelect.value as RegionalHouseQuality;
+  massing = createEarthenHouses(quality);
+  scene.add(massing.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: 24, depth: 10 } }, 10);
+  camera.position.set(15, 12, 22);
+  controls.target.set(0, 4, 0);
+  controls.update();
+  mountPlan(roofHost, meshProjection(massing, "side"));
+  mountPlan(levelHost, meshProjection(massing, "top"));
+  facts.append(
+    fact("Quality", quality === "high" ? "High" : "Low — facade courses, joinery, beam ends and drains omitted"),
+    fact(
+      "Envelope",
+      "One to three storeys, including a trapezoidal lot; walls retain the CE footprint and floor heights"
+    ),
+    fact("Construction", EARTHEN_HOUSES.note),
+    fact("CE placement", "Automatic for supported mudbrick, flat-roof residential, retail, craft and storage lots"),
+    fact("Omitted", "Interiors and roof access")
+  );
+}
+
 for (const profile of BUILDING_APPEARANCE_PROFILES.filter(id => id !== "legacy")) {
   const button = document.createElement("button");
   button.type = "button";
@@ -1973,7 +2040,11 @@ for (const profile of BUILDING_APPEARANCE_PROFILES.filter(id => id !== "legacy")
     facts.append(
       fact("Profile", label(profile)),
       fact("Roof coverings", [...new Set(lots.map(lot => lot.massing!.roof.material))].join(", ")),
-      fact("Construction", "CE shared massing and regional colors; no separate detailed model.")
+      fact(
+        "Construction",
+        "CE shared massing and regional colors; no separate detailed model.",
+        "Vernacular architecture"
+      )
     );
   });
   regionalHeading.append(button);
@@ -2009,7 +2080,7 @@ function showDetailedRegionalHouses(profile: RegionalHouseProfile): void {
       "Envelope",
       `${width} × ${depth} m lots, ${groundStorey} + ${upper} m storeys, ${pitchDeg}° gable — same as the CE massing`
     ),
-    fact("Construction", regionalHouseNote(profile)),
+    fact("Construction", regionalHouseNote(profile), "Vernacular architecture"),
     fact("Omitted", "Interiors, outbuildings, signage and weathering")
   );
 }
@@ -2076,7 +2147,7 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
             ? `Ground Y = 0 m; roots extend to ${bounds.min.y.toFixed(3)} m`
             : `Base Y = ${(Math.abs(bounds.min.y) < 0.0005 ? 0 : bounds.min.y).toFixed(3)} m`
         ),
-        fact("Construction", definition.note),
+        fact("Construction", definition.note, medievalWikipediaArticle(definition)),
         fact(
           "Scope",
           definition.task === 33
@@ -2106,5 +2177,7 @@ new ResizeObserver(resize).observe(stage);
 renderer.setAnimationLoop(() => {
   controls.update();
   regionalDetails?.update(camera, renderer.domElement.clientHeight);
+  const started = performancePanel.open ? performance.now() : null;
   renderer.render(scene, camera);
+  if (started !== null) performancePanel.sample(renderer, started);
 });

@@ -2,11 +2,16 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import type { CityDocument } from "../../city-editor/types/document";
+import type { GenerationRequest } from "../../city-editor/types/worker";
 import type { BurgData } from "../../store/burgEditorState";
 import { BurgCityPreview } from "./BurgCityPreview";
 
 const mocks = vi.hoisted(() => ({
-  jobs: [] as Array<{ resolve: (city: CityDocument | null) => void; cancel: ReturnType<typeof vi.fn> }>,
+  jobs: [] as Array<{
+    request: GenerationRequest;
+    resolve: (city: CityDocument | null) => void;
+    cancel: ReturnType<typeof vi.fn>;
+  }>,
   serialize: vi.fn(() => "<svg/>"),
   grid: vi.fn(() => ({})),
   frame: vi.fn(() => ({})),
@@ -42,13 +47,13 @@ vi.mock("../../city-editor/generators/document", () => ({
 }));
 vi.mock("../../city-editor/generators/generation/settings", () => ({ defaultGenerationSettings: () => ({}) }));
 vi.mock("../../city-editor/services/generationWorkerClient", () => ({
-  startCityGeneration: () => {
+  startCityGeneration: (request: GenerationRequest) => {
     let resolve!: (city: CityDocument | null) => void;
     const result = new Promise<CityDocument | null>(r => {
       resolve = r;
     });
     const cancel = vi.fn();
-    mocks.jobs.push({ resolve, cancel });
+    mocks.jobs.push({ request, resolve, cancel });
     return { result, cancel };
   }
 }));
@@ -135,4 +140,5 @@ it("passes the sea-port shoreline reach and biome into the same frame options as
   await render(1);
   expect(mocks.frame).toHaveBeenCalledWith({ extentMeters: 1500 }, true, 492, 632);
   expect(mocks.grid).toHaveBeenCalledWith(expect.objectContaining({ biome: { id: 6 } }));
+  expect(mocks.jobs[0].request.document.showElevationTint).toBe(false);
 });
