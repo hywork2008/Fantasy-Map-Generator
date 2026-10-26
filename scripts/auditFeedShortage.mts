@@ -6,6 +6,7 @@
  */
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
+import { getHusbandryMonthlyWorkDays } from "../src/extensions/economy/context/agriculture";
 import { getOrCreateLivestockFeedTable } from "../src/extensions/economy/context/cellTables";
 import { getWorldContext } from "../src/extensions/economy/context/economyApi";
 import { WORKABLE_DAYS_PER_ADULT } from "../src/extensions/economy/generators/agriculturalLandUse";
@@ -32,6 +33,10 @@ interface Month {
   capacityKg: number;
   plannedKg: number;
   freeKg: number;
+  reservedKg: number;
+  careNowKg: number;
+  allocRequestedKg: number;
+  allocHayKg: number;
   harvestedKg: number;
   standingOutKg: number;
   reserveTargetKg: number;
@@ -43,6 +48,9 @@ interface Month {
   hayAfterFeedKg?: number;
 }
 const log = new Map<number, Month[]>();
+// Demand as the annual occupation allocator saw it, snapshotted whenever a new calendar is stored.
+let calendarSum = NaN;
+const allocated = new Map<number, { total: number[]; hay: number[] }>();
 const bytes = readFileSync(input);
 const host = createNodeSimulationHost();
 let recording = false;
@@ -54,8 +62,24 @@ try {
   setTickStepObserver({
     enter() {},
     exit(label) {
-      if (!recording) return;
       const world = getWorldContext();
+      const sum = label === "production:forageHarvest" ? getHusbandryMonthlyWorkDays().reduce((a, b) => a + b, 0) : NaN;
+      if (!Number.isNaN(sum) && sum !== calendarSum) {
+        calendarSum = sum;
+        allocated.clear();
+        for (const cell of world.pack.cells.i) {
+          if (world.pack.cells.h[cell] < 20) continue;
+          const demand = calculateHusbandryDemand(world, cell);
+          if (!(demand.requiredWorkers > 0)) continue;
+          const days = (weights: readonly number[] | undefined, workers: number) =>
+            Array.from({ length: 12 }, (_, m) => workers * WORKABLE_DAYS_PER_ADULT * (weights?.[m] ?? 1 / 12));
+          allocated.set(cell, {
+            total: days(demand.monthlyLaborWeights, demand.requiredWorkers),
+            hay: days(demand.hayMonthlyLaborWeights ?? new Array(12).fill(0), demand.hayWorkers ?? 0)
+          });
+        }
+      }
+      if (!recording) return;
       const table = getOrCreateLivestockFeedTable() ?? {};
       const period = livestockFeedPeriod();
       const month = livestockFeedMonth() - 1;
@@ -77,6 +101,10 @@ try {
             capacityKg: (budget.hayCapacityDays / HAY_WORK_DAYS_PER_TONNE_DM) * 1000,
             plannedKg: (plannedDays / HAY_WORK_DAYS_PER_TONNE_DM) * 1000,
             freeKg: (Math.max(0, budget.reservedDays - budget.careDays) / HAY_WORK_DAYS_PER_TONNE_DM) * 1000,
+            reservedKg: (budget.reservedDays / HAY_WORK_DAYS_PER_TONNE_DM) * 1000,
+            careNowKg: (budget.careRequiredDays / HAY_WORK_DAYS_PER_TONNE_DM) * 1000,
+            allocRequestedKg: ((allocated.get(cell)?.total[month] ?? 0) / HAY_WORK_DAYS_PER_TONNE_DM) * 1000,
+            allocHayKg: ((allocated.get(cell)?.hay[month] ?? 0) / HAY_WORK_DAYS_PER_TONNE_DM) * 1000,
             harvestedKg: row.harvestedKg,
             standingOutKg: row.standingKg ?? 0,
             reserveTargetKg: plan.reserveAfterMonthKg[month],
@@ -124,6 +152,7 @@ try {
     let laborShortKg = 0;
     let planLeftKg = 0;
     let plannedKg = 0;
+    const biomeLabor = { reserved: 0, careNow: 0, hayNow: 0, allocRequested: 0, allocHay: 0, capacity: 0 };
     let freeKg = 0;
 
     for (const entry of settled) {
@@ -131,6 +160,14 @@ try {
       const laborBound = entry.harvestedKg >= entry.capacityKg * 0.999 - 1;
       const wanted = Math.max(0, entry.reserveTargetKg - entry.hayAfterHarvestKg) / HAY_DRY_MATTER_RETENTION;
       plannedKg += entry.plannedKg;
+      if (entry.plannedKg > 0) {
+        biomeLabor.reserved += entry.reservedKg;
+        biomeLabor.careNow += entry.careNowKg;
+        biomeLabor.hayNow += entry.plannedKg;
+        biomeLabor.allocRequested += entry.allocRequestedKg;
+        biomeLabor.allocHay += entry.allocHayKg;
+        biomeLabor.capacity += entry.capacityKg;
+      }
       freeKg += Math.min(entry.freeKg, entry.cuttableKg);
       if (laborBound) laborShortKg += Math.min(uncut, wanted);
       else planLeftKg += Math.min(uncut, Math.max(0, entry.capacityKg - entry.harvestedKg));
@@ -149,6 +186,7 @@ try {
     biome.requiredKg += required;
     biome.unmetKg += unmet;
     biome[cause] += unmet;
+    for (const [key, value] of Object.entries(biomeLabor)) biome[`hayMonth_${key}Kg`] = (biome[`hayMonth_${key}Kg`] ?? 0) + value;
     biome.plannedRawKg = (biome.plannedRawKg ?? 0) + plannedKg;
     biome.freeLaborRawKg = (biome.freeLaborRawKg ?? 0) + freeKg;
     biome.harvestedRawKg = (biome.harvestedRawKg ?? 0) + settled.reduce((sum, entry) => sum + entry.harvestedKg, 0);
