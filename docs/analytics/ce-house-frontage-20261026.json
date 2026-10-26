@@ -1,0 +1,67 @@
+{
+  "errors": [],
+  "preview": [
+    {
+      "id": "frontage-0",
+      "kind": "gable",
+      "flip": false,
+      "door": [
+        -20.75,
+        -4
+      ],
+      "normal": [
+        6.123233995736766e-17,
+        -1
+      ],
+      "source": "street"
+    },
+    {
+      "id": "frontage-1",
+      "kind": "gable",
+      "flip": true,
+      "door": [
+        -7.75,
+        -4
+      ],
+      "normal": [
+        -6.123233995736766e-17,
+        -1
+      ],
+      "source": "street"
+    },
+    {
+      "id": "frontage-2",
+      "kind": "eave",
+      "flip": false,
+      "door": [
+        4.5,
+        -2.4999999999999996
+      ],
+      "normal": [
+        -1.2246467991473532e-16,
+        -1
+      ],
+      "source": "street"
+    },
+    {
+      "id": "frontage-3",
+      "kind": "eave",
+      "flip": true,
+      "door": [
+        17.5,
+        -2.5
+      ],
+      "normal": [
+        0,
+        -1
+      ],
+      "source": "street"
+    }
+  ],
+  "actual": {
+    "outlineErrorMeters": 0,
+    "readout": "2 floors · Timber frame · Gable · Shingle · eaves 6.7 m\nWorkshop / Dwelling",
+    "error": 0
+  },
+  "houses": 237
+}

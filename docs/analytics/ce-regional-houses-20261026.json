@@ -1,0 +1,75 @@
+{
+  "errors": [],
+  "cases": [
+    {
+      "profile": "mediterranean",
+      "quality": "low",
+      "buildings": 6,
+      "calls": 6,
+      "triangles": 2190
+    },
+    {
+      "profile": "mediterranean",
+      "quality": "high",
+      "buildings": 6,
+      "calls": 6,
+      "triangles": 37158
+    },
+    {
+      "profile": "atlantic",
+      "quality": "low",
+      "buildings": 6,
+      "calls": 6,
+      "triangles": 4966
+    },
+    {
+      "profile": "atlantic",
+      "quality": "high",
+      "buildings": 6,
+      "calls": 6,
+      "triangles": 36014
+    },
+    {
+      "profile": "northern-wooded",
+      "quality": "low",
+      "buildings": 6,
+      "calls": 6,
+      "triangles": 2134
+    },
+    {
+      "profile": "northern-wooded",
+      "quality": "high",
+      "buildings": 6,
+      "calls": 6,
+      "triangles": 43838
+    },
+    {
+      "profile": "northern-urban",
+      "quality": "low",
+      "buildings": 6,
+      "calls": 6,
+      "triangles": 4966
+    },
+    {
+      "profile": "northern-urban",
+      "quality": "high",
+      "buildings": 6,
+      "calls": 6,
+      "triangles": 34142
+    },
+    {
+      "profile": "stone-upland",
+      "quality": "low",
+      "buildings": 6,
+      "calls": 6,
+      "triangles": 3814
+    },
+    {
+      "profile": "stone-upland",
+      "quality": "high",
+      "buildings": 6,
+      "calls": 6,
+      "triangles": 66002
+    }
+  ]
+}

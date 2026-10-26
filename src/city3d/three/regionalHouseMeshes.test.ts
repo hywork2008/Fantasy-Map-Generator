@@ -2,8 +2,9 @@ import * as THREE from "three";
 import { expect, it } from "vitest";
 import type { BuildingAppearanceProfile } from "../../buildings/appearance/types";
 import { buildingAppearancePreview } from "../../city-editor/generators/buildingAppearancePreview";
+import { createBuildingFrontageResolver } from "../../city-editor/generators/buildingFrontage";
 import { createBvPrototypeCache } from "./bvInstances";
-import { createTownRegionalHouses } from "./regionalHouseMeshes";
+import { createTownRegionalHouses, regionalHouseSite } from "./regionalHouseMeshes";
 
 const PROFILES: BuildingAppearanceProfile[] = [
   "mediterranean",
@@ -45,4 +46,151 @@ it("replaces regional lots with detailed houses that stay on their lot, and keep
   expect(layer.replaced.size).toBe(0);
   layer.dispose();
   expect(cache.size).toBe(0);
+});
+
+it("uses measured dimensions, floor heights, coverings and ground-floor use without stretching the BV model", () => {
+  const lot = buildingAppearancePreview("northern-wooded")[0];
+  lot.polygon = [
+    [-3, -6],
+    [3, -6],
+    [3, 6],
+    [-3, 6]
+  ];
+  lot.massing!.jettyMeters = 0;
+  lot.massing!.storeys = 3;
+  lot.massing!.floors = [
+    { level: 0, use: "retail", heightMeters: 3.5 },
+    { level: 1, use: "residential", heightMeters: 2.8 },
+    { level: 2, use: "residential", heightMeters: 3.0 }
+  ];
+  lot.massing!.eaveHeightMeters = 9.3;
+  lot.massing!.baseElevationMeters = 1;
+  lot.massing!.roof.pitchDeg = 28;
+  const cache = createBvPrototypeCache();
+  for (const material of ["turf", "shingle", "slate", "lead", "thatch", "tile"] as const) {
+    lot.massing!.roof.material = material;
+    const site = regionalHouseSite(lot, 7, 12, "high")!;
+    const scale = new THREE.Vector3().setFromMatrixScale(site.matrix);
+    expect(scale.toArray()).toEqual([1, 1, 1]);
+    const prototype = cache.acquire(site.definition)!;
+    // The main ridge/eave intersection remains at the measured slope, with no pitch quantization.
+    const ray = new THREE.Raycaster(new THREE.Vector3(2, 30, 0), new THREE.Vector3(0, -1, 0));
+    const hit = ray.intersectObject(new THREE.Mesh(prototype.geometry, prototype.material))[0];
+    expect(hit).toBeDefined();
+    if (material === "lead")
+      expect(Math.abs(hit.face!.normal.x / hit.face!.normal.y)).toBeCloseTo(Math.tan((28 * Math.PI) / 180), 1);
+    const bounds = prototype.bounds.clone().applyMatrix4(site.matrix);
+    expect(bounds.min.y).toBeCloseTo(13);
+    expect(bounds.max.y).toBeGreaterThan(13 + 9.3);
+    expect(bounds.max.x - bounds.min.x).toBeLessThan(6.6);
+    expect(bounds.max.z - bounds.min.z).toBeLessThan(12.6);
+    // Different coverings and uses must never reuse a stale prototype.
+    lot.massing!.floors[0].use = "craft";
+    expect(regionalHouseSite(lot, 7, 12, "high")!.definition).not.toBe(site.definition);
+    lot.massing!.floors[0].use = "retail";
+    prototype.release();
+  }
+  expect(cache.size).toBe(0);
+});
+
+it("keeps outbuildings, trapezoids, unsupported floors and roof forms in CE massing", () => {
+  const lot = buildingAppearancePreview("atlantic")[0];
+  for (const role of ["stable", "shed"] as const) {
+    expect(regionalHouseSite({ ...lot, role }, 0)).toBeUndefined();
+  }
+  // The old 80% area test admitted this footprint although the bounding-box corners lay outside it.
+  expect(
+    regionalHouseSite(
+      {
+        ...lot,
+        polygon: [
+          [-2.5, -4],
+          [2.5, -4],
+          [2, 4],
+          [-2, 4]
+        ]
+      },
+      0
+    )
+  ).toBeUndefined();
+  expect(regionalHouseSite({ ...lot, massing: { ...lot.massing!, storeys: 6 } }, 0)).toBeUndefined();
+  expect(regionalHouseSite({ ...lot, massing: { ...lot.massing!, eaveHeightMeters: 20 } }, 0)).toBeUndefined();
+  expect(
+    regionalHouseSite({ ...lot, massing: { ...lot.massing!, roof: { ...lot.massing!.roof, form: "flat" } } }, 0)
+  ).toBeUndefined();
+});
+
+it.each([0, 0.61])(
+  "places actual doors on either gable or eave street facade, with ridge angle %s unchanged",
+  angle => {
+    for (const [kind, flip] of [
+      ["gable", false],
+      ["gable", true],
+      ["eave", false],
+      ["eave", true]
+    ] as const) {
+      const lot = buildingAppearancePreview("northern-urban")[0];
+      const centre = [70, -40];
+      const r = [Math.cos(angle), Math.sin(angle)],
+        p = [-Math.sin(angle), Math.cos(angle)];
+      lot.polygon = [
+        [-2.5, -4],
+        [2.5, -4],
+        [2.5, 4],
+        [-2.5, 4]
+      ].map(([x, y]) => [centre[0] + p[0] * x + r[0] * y, centre[1] + p[1] * x + r[1] * y]);
+      lot.massing!.roof.ridgeAzimuth = angle;
+      lot.massing!.floors[0].use = "retail";
+      const normal = (kind === "gable" ? r : p).map(v => v * (flip ? -1 : 1));
+      const tangent = [-normal[1], normal[0]];
+      const reach = (kind === "gable" ? 4 : 2.5) + 3;
+      const road = [-20, 20].map(
+        t =>
+          [centre[0] + normal[0] * reach + tangent[0] * t, centre[1] + normal[1] * reach + tangent[1] * t] as [
+            number,
+            number
+          ]
+      );
+      const resolve = createBuildingFrontageResolver([{ centerline: road, widthMeters: 2 }], [lot]);
+      const site = regionalHouseSite(lot, 0, 12, "high", resolve)!;
+      expect(site.frontage).toMatchObject({ kind, flip, source: "street" });
+      expect(site.frontage.normal[0]).toBeCloseTo(normal[0]);
+      expect(site.frontage.normal[1]).toBeCloseTo(normal[1]);
+      const ridge = new THREE.Vector3(0, 0, 1).transformDirection(site.matrix);
+      expect(Math.abs(ridge.x * r[0] - ridge.z * r[1])).toBeCloseTo(1);
+      const prototype = createBvPrototypeCache().acquire(site.definition)!;
+      const mesh = new THREE.Mesh(prototype.geometry, prototype.material);
+      mesh.matrixAutoUpdate = false;
+      mesh.matrix.copy(site.matrix);
+      mesh.updateMatrixWorld(true);
+      const door = site.frontage.door;
+      const ray = new THREE.Raycaster(
+        new THREE.Vector3(
+          door[0] + normal[0] * 0.6 + tangent[0] * 0.12,
+          13.2,
+          -door[1] - normal[1] * 0.6 - tangent[1] * 0.12
+        ),
+        new THREE.Vector3(-normal[0], 0, normal[1])
+      );
+      const hit = ray.intersectObject(mesh)[0];
+      expect(hit).toBeDefined();
+      const color = prototype.geometry.getAttribute("color");
+      const expected = new THREE.Color("#5A3B26");
+      expect(color.getX(hit.face!.a)).toBeCloseTo(expected.r);
+      expect(color.getY(hit.face!.a)).toBeCloseTo(expected.g);
+      expect(color.getZ(hit.face!.a)).toBeCloseTo(expected.b);
+      prototype.release();
+    }
+  }
+);
+
+it("keeps a stable local facade when no usable street is known, independent of town-centre position", () => {
+  const lot = buildingAppearancePreview("atlantic")[0];
+  const first = regionalHouseSite(lot, 0)!;
+  const translated = { ...lot, polygon: lot.polygon.map(([x, y]) => [x + 200, y - 200] as [number, number]) };
+  const second = regionalHouseSite(translated, 0)!;
+  expect(first.frontage.source).toBe("unknown");
+  expect(second.frontage.source).toBe("unknown");
+  expect(first.frontage.flip).toBe(second.frontage.flip);
+  expect(first.definition).toBe(second.definition);
 });
