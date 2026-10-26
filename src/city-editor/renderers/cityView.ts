@@ -479,6 +479,9 @@ export function mountCity3d(options: {
     controls = new OrbitControls(camera, canvas);
     controls.enableDamping = false;
     controls.zoomToCursor = true;
+    // Keep the target on its horizontal ground plane. Screen-space cursor zoom
+    // can lift it into the air, collapsing dolly and pan distances above the city.
+    controls.screenSpacePanning = false;
     controls.maxPolarAngle = Math.PI / 2 - 0.05;
     controls.addEventListener("change", requestRender);
     return true;
