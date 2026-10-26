@@ -17,7 +17,7 @@ export const REGIONAL_HOUSES = {
   spacing: 8
 } as const;
 
-export type RegionalCover = "coppi" | "thatch" | "tile" | "stone";
+export type RegionalCover = "coppi" | "thatch" | "tile" | "stone" | "slate" | "shingle" | "turf" | "lead";
 interface HouseStyle {
   note: string;
   wall: BuildingPaletteId;
@@ -123,6 +123,13 @@ export type RegionalWallFinish = "frame" | "boarding" | "stone" | "masonry";
 /** Everything that shapes one house; CE derives it from a lot's massing and appearance. */
 export interface RegionalHouseSpec {
   profile: RegionalHouseProfile;
+  /** Measured wall footprint and floor heights; omitted by the canonical BV preview. */
+  width?: number;
+  depth?: number;
+  floorHeights?: readonly number[];
+  groundUse?: "residential" | "retail" | "craft" | "storage";
+  /** CE streets cannot accommodate the preview's freestanding balconies and props. */
+  attached?: boolean;
   storeys: number;
   pitchDeg: number;
   roofForm: "gable" | "hip";
@@ -141,6 +148,11 @@ export interface RegionalHouseSpec {
 export function regionalHouseSpecKey(spec: RegionalHouseSpec): string {
   return [
     spec.profile,
+    spec.width ?? REGIONAL_HOUSES.width,
+    spec.depth ?? REGIONAL_HOUSES.depth,
+    spec.floorHeights?.join(",") ?? "",
+    spec.groundUse ?? "residential",
+    spec.attached ?? false,
     spec.storeys,
     spec.pitchDeg,
     spec.roofForm,
@@ -510,7 +522,7 @@ function buildHouses(
         onFace(face, unitBox, IRON, u, o.y + (o.h * k) / 6, 0.1, [o.w / 2 - 0.06, 0.018, 0.02]);
     }
   }
-  function door(face: Face, o: Opening, frame: string, arched: boolean): void {
+  function door(face: Face, o: Opening, frame: string, arched: boolean, attached = false): void {
     onFace(face, unitBox, DOOR, o.u, o.y + o.h / 2, 0.01, [o.w, o.h, 0.06]);
     if (!detailed) return;
     for (let k = 1; k < 4; k++)
@@ -533,15 +545,15 @@ function buildHouses(
       const lunette = cached(`door-lunette:${o.w}`, () => new THREE.CircleGeometry(o.w / 2, 10, 0, Math.PI));
       onFace(face, lunette, GLASS, o.u, o.y + o.h, 0.01, [1, 1, 1]);
     } else onFace(face, unitBox, frame, o.u, o.y + o.h + f / 2, 0.05, [o.w + f * 2, f, 0.12]);
-    if (o.y < 1) onFace(face, unitBox, DRESSED, o.u, 0.08, 0.3, [o.w + 0.5, 0.16, 0.5]);
+    if (o.y < 1 && !attached) onFace(face, unitBox, DRESSED, o.u, 0.08, 0.3, [o.w + 0.5, 0.16, 0.5]);
   }
 
   /** Coursed covering: each course proud at its butt, flush at its head, extruded along the ridge. */
   function roofSection(run: number, rise: number, length: number, cover: RegionalCover): THREE.BufferGeometry {
     return cached(`roof:${run}:${rise}:${length}:${cover}`, () => {
       const points: THREE.Vector2[] = [];
-      if (cover === "thatch") {
-        const t = 0.5;
+      if (cover === "thatch" || cover === "turf") {
+        const t = cover === "turf" ? 0.32 : 0.5;
         const slope = rise / run;
         points.push(
           new THREE.Vector2(-run, 0),
@@ -557,8 +569,8 @@ function buildHouses(
         return new THREE.ExtrudeGeometry(new THREE.Shape(points), { depth: length, bevelEnabled: false });
       }
       const pitchLength = Math.hypot(run, rise);
-      const step = cover === "stone" ? 0.5 : cover === "coppi" ? 0.38 : 0.24;
-      const proud = cover === "stone" ? 0.11 : cover === "coppi" ? 0.08 : 0.05;
+      const step = cover === "stone" ? 0.5 : cover === "coppi" ? 0.38 : cover === "lead" ? 2 : 0.24;
+      const proud = cover === "stone" ? 0.11 : cover === "coppi" ? 0.08 : cover === "lead" ? 0.01 : 0.05;
       const courses = detailed ? Math.max(4, Math.round(pitchLength / step)) : 1;
       const side = (sign: number) => {
         const list: THREE.Vector2[] = [];
@@ -585,7 +597,16 @@ function buildHouses(
   function house(spec: RegionalHouseSpec, ox: number): void {
     const style = STYLES[spec.profile];
     const profile = spec.profile;
-    const { width: w, depth: d, ground, upper } = REGIONAL_HOUSES;
+    const baseWidth = spec.width ?? REGIONAL_HOUSES.width;
+    const baseDepth = spec.depth ?? REGIONAL_HOUSES.depth;
+    const topOffset = Math.min(1.2, (spec.storeys - 1) * spec.jetty);
+    const w = baseWidth + 2 * topOffset;
+    const d = baseDepth + 2 * topOffset;
+    const heights = Array.from(
+      { length: spec.storeys },
+      (_, level) => spec.floorHeights?.[level] ?? (level ? REGIONAL_HOUSES.upper : REGIONAL_HOUSES.ground)
+    );
+    const ground = heights[0];
     const variant = spec.variant;
     const shade = spec.shade;
     const storeys = Math.max(1, Math.min(5, Math.round(spec.storeys)));
@@ -596,8 +617,8 @@ function buildHouses(
     const plinth = BUILDING_PALETTES[style.plinth][1];
     const shutter = style.shutters?.[variant];
     const doorSide = variant === 1 ? -1 : 1;
-    const j = storeys > 1 ? spec.jetty : 0;
-    const eave = ground + (storeys - 1) * upper;
+    const j = 0; // Storey offsets are symmetric, matching CE massing rather than a stretched preview jetty.
+    const eave = heights.reduce((sum, height) => sum + height, 0);
     const pitch = THREE.MathUtils.degToRad(spec.pitchDeg);
     const front = d / 2;
     const boarding = spec.finish === "boarding";
@@ -608,20 +629,32 @@ function buildHouses(
     const gable = spec.roofForm === "gable";
     const plinthH = boarding ? 0.6 : 0.35;
 
-    // Masses: ground storey, jettied upper storeys, plinth.
-    box(ox, 0, 0, w + 0.12, plinthH, d + 0.12, plinth);
-    box(ox, 0, 0, w, ground, d, stoneGround ? BUILDING_PALETTES["upland-stone"][0] : wall);
-    if (storeys > 1) box(ox, ground, j / 2, w, eave - ground, d + j, wall);
-    if (j > 0) {
-      // Projecting joist ends carry the jetty; a moulded bressumer caps them.
-      for (let k = 0; k < (detailed ? 9 : 0); k++)
-        box(ox - w / 2 + 0.2 + (k * (w - 0.4)) / 8, ground - 0.16, front + j / 2, 0.12, 0.16, j + 0.1, frame);
-      box(ox, ground - 0.02, front + j - 0.04, w + 0.04, 0.2, 0.16, frame);
+    // Keep the footprint and each upper-floor offset identical to CE's capacity/massing geometry.
+    box(ox, 0, 0, baseWidth, plinthH, baseDepth, plinth);
+    let floorBase = 0;
+    for (let level = 0; level < storeys; level++) {
+      const offset = Math.min(1.2, level * spec.jetty);
+      box(
+        ox,
+        floorBase,
+        0,
+        baseWidth + 2 * offset,
+        heights[level],
+        baseDepth + 2 * offset,
+        level === 0 && stoneGround ? BUILDING_PALETTES["upland-stone"][0] : wall
+      );
+      if (level > 0 && offset > 0)
+        box(ox, floorBase - 0.06, 0, baseWidth + 2 * offset, 0.12, baseDepth + 2 * offset, frame);
+      floorBase += heights[level];
     }
 
     for (let s = 0; s < storeys; s++) {
+      const offset = Math.min(1.2, s * spec.jetty);
+      const w = baseWidth + 2 * offset;
+      const d = baseDepth + 2 * offset;
+      const front = d / 2;
       const upperStorey = s > 0;
-      const base = upperStorey ? ground + (s - 1) * upper : 0;
+      const base = heights.slice(0, s).reduce((sum, height) => sum + height, 0);
       const shift = upperStorey ? j : 0;
       const sill = base + 0.85;
       const small = boarding ? 0.8 : 1.0;
@@ -631,14 +664,14 @@ function buildHouses(
           w,
           !upperStorey
             ? [
-                { u: doorSide * 1.25, y: plinthH * 0.5, w: 1.0, h: 2.15, door: true },
-                { u: -doorSide * 1.1, y: 1.0, w: 0.9, h: 1.15 }
+                { u: doorSide * w * 0.25, y: plinthH * 0.5, w: 1.0, h: 2.15, door: true },
+                { u: -doorSide * w * 0.22, y: 1.0, w: 0.9, h: 1.15 }
               ]
-            : s === 1 && variant === 1 && profile === "mediterranean"
+            : s === 1 && variant === 1 && profile === "mediterranean" && !spec.attached
               ? [{ u: 0, y: base + 0.1, w: 1.0, h: 2.2, door: true }]
               : [
-                  { u: -1.15, y: sill, w: 0.8, h: boarding ? 0.8 : 1.1 },
-                  { u: 1.15, y: sill, w: 0.8, h: boarding ? 0.8 : 1.1 }
+                  { u: -w * 0.23, y: sill, w: 0.8, h: boarding ? 0.8 : 1.1 },
+                  { u: w * 0.23, y: sill, w: 0.8, h: boarding ? 0.8 : 1.1 }
                 ]
         ],
         [{ x: ox, z: -front, angle: Math.PI }, w, [{ u: 0, y: upperStorey ? sill : 1.05, w: 0.8, h: small }]],
@@ -647,19 +680,27 @@ function buildHouses(
           d + shift,
           upperStorey
             ? [
-                { u: -1.8 - shift / 2, y: sill, w: 0.75, h: small },
-                { u: 1.6 - shift / 2, y: sill, w: 0.75, h: small }
+                { u: -d * 0.225 - shift / 2, y: sill, w: 0.75, h: small },
+                { u: d * 0.2 - shift / 2, y: sill, w: 0.75, h: small }
               ]
-            : [{ u: -1.8, y: 1.05, w: 0.8, h: small }]
+            : [{ u: -d * 0.225, y: 1.05, w: 0.8, h: small }]
         ],
         [
           { x: ox - w / 2, z: shift / 2, angle: -Math.PI / 2 },
           d + shift,
-          [{ u: 1.8 + shift / 2, y: upperStorey ? sill : 1.05, w: upperStorey ? 0.75 : 0.8, h: small }]
+          [{ u: d * 0.225 + shift / 2, y: upperStorey ? sill : 1.05, w: upperStorey ? 0.75 : 0.8, h: small }]
         ]
       ];
+      const use = spec.groundUse ?? "residential";
+      if (!upperStorey && use !== "residential") {
+        const opening = faces[0][2][1];
+        opening.w = Math.min(1.6, w * 0.32);
+        opening.y = use === "storage" ? 0.25 : 0.85;
+        opening.h = use === "storage" ? Math.min(2.1, ground - 0.55) : Math.min(1.15, ground - 1.3);
+        opening.door = use === "storage";
+      }
       const y0 = upperStorey ? base : plinthH;
-      const y1 = upperStorey ? base + upper : ground;
+      const y1 = base + heights[s];
       for (const [face, length, list] of faces) {
         if (boarding) boardWall(face, length, y0, () => y1, list, frame);
         else if (spec.finish === "stone")
@@ -683,12 +724,22 @@ function buildHouses(
               );
         }
         for (const o of list) {
-          if (o.door) door(face, o, trim, masonry || stoneGround);
+          if (o.door) door(face, o, trim, (masonry || stoneGround) && o.y + o.h + o.w / 2 + 0.12 < y1, spec.attached);
           else window(face, o, trim, shutter, profile === "atlantic");
         }
       }
+      if (!upperStorey && (use === "retail" || use === "craft")) {
+        const face = faces[0][0];
+        const opening = faces[0][2][1];
+        // An opening shutter doubles as the serving/work bench; no invented glass shopfront.
+        onFace(face, unitBox, DOOR, opening.u, opening.y, 0.16, [opening.w + 0.12, 0.09, 0.32]);
+        if (detailed) {
+          onFace(face, unitBox, frame, 0, Math.min(ground - 0.3, 2.65), 0.08, [w * 0.65, 0.22, 0.1]);
+          if (use === "craft") onFace(face, unitBox, IRON, opening.u, opening.y + 0.12, 0.17, [0.35, 0.16, 0.18]);
+        }
+      }
     }
-    if (profile === "mediterranean" && variant === 1 && storeys > 1) {
+    if (profile === "mediterranean" && variant === 1 && storeys > 1 && !spec.attached) {
       // Balcony on the upper door: stone slab on brackets with an iron railing.
       box(ox, ground, front + 0.45, 1.8, 0.12, 0.9, DRESSED);
       for (const u of [-0.7, 0.7]) box(ox + u, ground - 0.3, front + 0.2, 0.12, 0.3, 0.4, DRESSED);
@@ -701,12 +752,14 @@ function buildHouses(
           box(ox + side * 0.88, ground + 0.12, front + (k * 0.88) / 6, 0.025, 0.9, 0.025, IRON);
     }
 
-    const run = w / 2 + style.overhang;
+    const overhang = spec.attached ? 0.12 : style.overhang;
+    const verge = spec.attached ? 0.1 : style.verge;
+    const run = w / 2 + overhang;
     const rise = Math.tan(pitch) * (w / 2);
-    const roofY = eave - Math.tan(pitch) * style.overhang;
+    const roofY = eave - Math.tan(pitch) * overhang;
     const ridgeY = roofY + Math.tan(pitch) * run;
-    const zFront = front + j + style.verge;
-    const zBack = -front - style.verge;
+    const zFront = front + j + verge;
+    const zBack = -front - verge;
     const length = zFront - zBack;
     const midZ = (zFront + zBack) / 2;
     const thatch = cover === "thatch";
@@ -730,7 +783,7 @@ function buildHouses(
         const loftFits = rise > 1.6;
         const loft: Opening[] = !loftFits
           ? []
-          : profile === "northern-urban" && face.angle === 0 && rise > 2.1
+          : profile === "northern-urban" && !spec.attached && face.angle === 0 && rise > 2.1
             ? [{ u: 0, y: eave + 0.3, w: 0.9, h: 1.3, door: true }]
             : [{ u: 0, y: eave + 0.55, w: 0.5, h: 0.7 }];
         const opening = loft[0] ?? { u: 0, y: eave, w: 0, h: 0 };
@@ -791,6 +844,20 @@ function buildHouses(
                 [0.14, 1.6, 0.08]
               );
         }
+      } else if (cover === "turf" || cover === "shingle" || cover === "lead") {
+        // Timber boards retain sod and close a shingle ridge; sheet lead has a narrow folded seam.
+        const timber = BUILDING_PALETTES.timber[shade];
+        if (cover === "turf") {
+          for (const side of [-1, 1]) box(ox + side * run, roofY, midZ, 0.14, 0.35, length, timber);
+        }
+        for (const side of [-1, 1])
+          put(
+            unitBox,
+            cover === "lead" ? capColor : timber,
+            [ox + side * 0.08, ridgeY + 0.12, midZ],
+            [0, 0, side * -pitch],
+            [0.28, 0.08, length]
+          );
       } else {
         // Ridge capping: barrel coppi, half-round ridge tiles or a stone ridge.
         const cap = cached("ridge", () => new THREE.CylinderGeometry(1, 1, 1, 10));
@@ -818,6 +885,25 @@ function buildHouses(
           }
         }
       }
+      if (detailed && (cover === "shingle" || cover === "slate" || cover === "lead")) {
+        const slopeLength = Math.hypot(run, Math.tan(pitch) * run);
+        const courses = cover === "lead" ? 1 : Math.max(1, Math.round(slopeLength / 0.3));
+        const spacing = cover === "lead" ? 0.65 : cover === "slate" ? 0.45 : 0.28;
+        // Staggered butt joints distinguish slate/shingles from terracotta; lead has continuous seams.
+        for (let row = 0; row < courses; row++) {
+          const along = (slopeLength * (row + 0.5)) / courses;
+          const x = run - along * Math.cos(pitch);
+          for (let z = zBack + spacing * (row % 2 ? 0.5 : 1); z < zFront - 0.05; z += spacing)
+            for (const side of [-1, 1])
+              put(
+                unitBox,
+                capColor,
+                [ox + side * x, roofY + along * Math.sin(pitch) + 0.09, z],
+                [0, 0, side * -pitch],
+                [(slopeLength / courses) * 0.9, 0.025, 0.015]
+              );
+        }
+      }
       if (detailed && profile === "northern-urban") {
         // Gable apex finial.
         put(unitCylinder, frame, [ox, ridgeY + 0.5, zFront - 0.1], [0, 0, 0], [0.06, 0.8, 0.06]);
@@ -835,7 +921,7 @@ function buildHouses(
           box(ox + side * (w / 2 + 0.08 + r * 0.1), eave - 0.18 - r * 0.12, j / 2, 0.16, 0.1, d + j + 0.1, capColor);
 
     // Chimney stack through the roof slope, kept inside the ridge on hipped roofs.
-    const cz = [-2.1, 1.4, -0.9][variant] * (gable ? 1 : 0.5);
+    const cz = [-0.2625, 0.175, -0.1125][variant] * d * (gable ? 1 : 0.5);
     const cxOff = thatch ? 0 : 0.7 * doorSide;
     const stackColor =
       masonry && cover === "coppi"
@@ -861,7 +947,7 @@ function buildHouses(
         put(unitCylinder, "#7A4434", [ox + cxOff + side * 0.16, stackTop + 0.3, cz], [0, 0, 0], [0.11, 0.4, 0.11]);
     }
 
-    if (profile === "stone-upland" && variant !== 1 && storeys > 1) {
+    if (profile === "stone-upland" && variant !== 1 && storeys > 1 && !spec.attached) {
       // Gable gallery: timber balcony along the first upper storey of the front.
       box(ox, ground + 0.05, front + 0.55, w + 0.4, 0.1, 1.1, frame);
       for (const u of [-w / 2 - 0.1, w / 2 + 0.1]) box(ox + u, 0.35, front + 1.0, 0.18, ground - 0.3, 0.18, frame);
@@ -870,7 +956,7 @@ function buildHouses(
         box(ox - w / 2 - 0.15 + (k * (w + 0.3)) / 16, ground + 0.15, front + 1.05, 0.1, 0.85, 0.03, frame);
     }
     // Rainwater barrel by the door for a lived-in touch.
-    if (!detailed) return;
+    if (!detailed || spec.attached) return;
     put(unitCylinder, "#6B5235", [ox + doorSide * 2.2, 0.4, front + 0.45], [0, 0, 0], [0.3, 0.8, 0.3]);
     for (const y of [0.15, 0.65])
       put(unitCylinder, IRON, [ox + doorSide * 2.2, y, front + 0.45], [0, 0, 0], [0.315, 0.04, 0.315]);
@@ -913,13 +999,13 @@ function buildHouses(
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
     geometry.computeVertexNormals();
     addPart(geometry, material(color, true));
-    const thick = cover === "thatch" ? 0.45 : cover === "stone" ? 0.22 : 0.16;
+    const thick = cover === "thatch" ? 0.45 : cover === "turf" ? 0.32 : cover === "stone" ? 0.22 : 0.16;
     // Fascia gives the eaves their covering thickness.
     box(ox, -thick + y, zB, run * 2, thick, 0.1, color);
     box(ox, -thick + y, zF, run * 2, thick, 0.1, color);
     for (const side of [-1, 1]) box(ox + side * run, -thick + y, (zB + zF) / 2, 0.1, thick, zF - zB, color);
     const pitch = Math.atan2(rise, run);
-    if (detailed && cover !== "thatch") {
+    if (detailed && cover !== "thatch" && cover !== "turf" && cover !== "lead") {
       const step = cover === "stone" ? 0.45 : cover === "coppi" ? 0.36 : 0.24;
       const courses = Math.max(3, Math.round(Math.hypot(run, rise) / step));
       for (let k = 0; k < courses; k++) {
@@ -944,6 +1030,7 @@ function buildHouses(
     }
     // Ridge and hip rolls.
     const radius = cover === "thatch" ? 0.3 : 0.14;
+    const ridgeColor = cover === "shingle" || cover === "turf" ? BUILDING_PALETTES.timber[1] : capColor;
     const roll = (p: THREE.Vector3, q: THREE.Vector3) => {
       const dir = q.clone().sub(p);
       const len = dir.length();
@@ -952,12 +1039,12 @@ function buildHouses(
       mid.y += cover === "thatch" ? 0.25 : 0.06;
       quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
       matrix.compose(mid, quaternion, new THREE.Vector3(radius, len, radius));
-      if (baked) append(unitCylinder, material(capColor), matrix);
+      if (baked) append(unitCylinder, material(ridgeColor), matrix);
       else {
         const copy = unitCylinder.toNonIndexed();
         copy.deleteAttribute("uv");
         copy.applyMatrix4(matrix);
-        addPart(copy, material(capColor));
+        addPart(copy, material(ridgeColor));
       }
     };
     roll(R1, R2);

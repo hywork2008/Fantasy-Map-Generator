@@ -3,7 +3,6 @@ import {
   createRegionalHouse,
   createRegionalHouseGeometry,
   REGIONAL_HOUSE_QUALITIES,
-  REGIONAL_HOUSES,
   type RegionalCover,
   type RegionalHouseQuality,
   type RegionalHouseSpec,
@@ -27,6 +26,7 @@ function definitionFor(spec: RegionalHouseSpec, quality: RegionalHouseQuality): 
       createGeometry: () => createRegionalHouseGeometry(spec, quality)
     };
     definitions.set(key, definition);
+    if (definitions.size > 512) definitions.delete(definitions.keys().next().value!);
   }
   return definition;
 }
@@ -52,18 +52,13 @@ function area(ring: readonly Point[]): number {
   return Math.abs(sum) / 2;
 }
 
-/** Nominal eave of a prototype with this many storeys. */
-function prototypeEave(storeys: number): number {
-  return REGIONAL_HOUSES.ground + (storeys - 1) * REGIONAL_HOUSES.upper;
-}
-
 export interface RegionalHouseSite extends BvPlacement {
   lotIndex: number;
 }
 
 /**
  * Place the detailed regional house on every rectangular gable or hipped lot with a regional appearance.
- * Each lot keeps its own footprint, eave height, roof pitch, coverings and colours; other lots keep CE massing.
+ * Each lot keeps its measured footprint, floor heights, roof pitch, coverings and colours; other lots keep CE massing.
  */
 export function regionalHouseSite(
   lot: BuildingLot,
@@ -74,6 +69,17 @@ export function regionalHouseSite(
   const massing = lot.massing;
   const appearance = lot.appearance;
   if (!massing || !appearance || lot.landmark || appearance.profileId === "legacy") return;
+  // Outbuildings and non-domestic premises need their own model families.
+  if (lot.role && !["main", "wing", "workshop", "store"].includes(lot.role)) return;
+  const groundUse = massing.floors[0]?.use;
+  if (!groundUse || !["residential", "retail", "craft", "storage"].includes(groundUse)) return;
+  if (massing.storeys < 1 || massing.storeys > 5 || massing.floors.length !== massing.storeys) return;
+  if (
+    massing.floors.some(
+      floor => !Number.isFinite(floor.heightMeters) || floor.heightMeters < 2.5 || floor.heightMeters > 5
+    )
+  )
+    return;
   const form = massing.roof.form;
   if ((form !== "gable" && form !== "hip") || lot.polygon.length < 4 || !isConvex(lot.polygon)) return;
   const a = massing.roof.ridgeAzimuth;
@@ -84,30 +90,33 @@ export function regionalHouseSite(
   const depth = Math.max(...along) - Math.min(...along);
   const width = Math.max(...across) - Math.min(...across);
   // Only near-rectangular lots: the model's walls fill its bounding box.
-  if (!(width > 0 && depth > 0) || area(lot.polygon) < 0.8 * width * depth) return;
-  const storeys = Math.max(1, Math.min(5, Math.round(massing.storeys)));
-  const sx = width / REGIONAL_HOUSES.width;
-  const sz = depth / REGIONAL_HOUSES.depth;
-  const sy = massing.eaveHeightMeters / prototypeEave(storeys);
-  if (sx < 0.35 || sx > 3.5 || sz < 0.35 || sz > 3.5 || sy < 0.6 || sy > 1.7) return;
-  // Non-uniform scaling changes the slope; pre-tilt the prototype so the placed roof keeps the lot's pitch.
-  const pitch = Math.atan((Math.tan(THREE.MathUtils.degToRad(massing.roof.pitchDeg)) * sx) / sy);
-  const pitchDeg = Math.min(64, Math.max(16, Math.round(THREE.MathUtils.radToDeg(pitch) / 4) * 4));
+  if (!(width >= 3 && width <= 18 && depth >= 4 && depth <= 28) || area(lot.polygon) < 0.999999 * width * depth) return;
+  const storeys = massing.storeys;
+  const height = massing.floors.reduce((sum, floor) => sum + floor.heightMeters, 0);
+  if (Math.abs(height - massing.eaveHeightMeters) > 1e-5) return;
+  // Match CE's roof-rise cap without quantizing the slope or stretching any joinery.
+  const upperWidth = width + 2 * Math.min(1.2, massing.jettyMeters * (storeys - 1));
+  const rise = Math.min(4, (Math.tan(THREE.MathUtils.degToRad(massing.roof.pitchDeg)) * upperWidth) / 2);
+  const pitchDeg = THREE.MathUtils.radToDeg(Math.atan2(rise, upperWidth / 2));
+  if (!Number.isFinite(pitchDeg) || pitchDeg <= 0 || pitchDeg > 65) return;
   const material = massing.roof.material;
   const cover: RegionalCover =
-    material === "thatch" || material === "turf"
-      ? "thatch"
-      : material === "tile"
-        ? appearance.profileId === "mediterranean"
-          ? "coppi"
-          : "tile"
-        : appearance.roofPaletteId === "local-stone-roof"
-          ? "stone"
-          : "tile";
+    material === "tile"
+      ? appearance.profileId === "mediterranean"
+        ? "coppi"
+        : "tile"
+      : material === "slate" && appearance.roofPaletteId === "local-stone-roof"
+        ? "stone"
+        : material;
   const finish = appearance.wallFinish;
   const id = lot.id ?? `${lot.faceId}:${lotIndex}`;
   const spec: RegionalHouseSpec = {
     profile: appearance.profileId,
+    width,
+    depth,
+    floorHeights: massing.floors.map(floor => floor.heightMeters),
+    groundUse: groundUse as RegionalHouseSpec["groundUse"],
+    attached: true,
     storeys,
     pitchDeg,
     roofForm: form,
@@ -124,7 +133,7 @@ export function regionalHouseSite(
             ? "stone"
             : "masonry",
     quoins: finish === "limewash" || finish === "brick",
-    jetty: massing.jettyMeters > 0 ? 0.4 : 0,
+    jetty: massing.jettyMeters,
     shade: appearance.shadeBin,
     variant: Math.min(2, Math.floor(growthRandom(`regional-house:${id}`) * 3)) as 0 | 1 | 2
   };
@@ -137,7 +146,7 @@ export function regionalHouseSite(
   const matrix = new THREE.Matrix4().compose(
     new THREE.Vector3(centre[0], elevation + massing.baseElevationMeters, -centre[1]),
     new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), angle),
-    new THREE.Vector3(sx, sy, sz)
+    new THREE.Vector3(1, 1, 1)
   );
   return {
     id,
