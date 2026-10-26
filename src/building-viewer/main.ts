@@ -12,6 +12,7 @@ import { BARBICANS, createBarbican } from "../buildings/fortresses/barbicans";
 import { BOJNICE, bojnicePlan, createBojnice } from "../buildings/fortresses/bojnice";
 import { CHAMBORD, createChambord } from "../buildings/fortresses/chambord";
 import { KRAK, type KrakPhase } from "../buildings/fortresses/krak";
+import { createEarthenHouses, EARTHEN_HOUSES } from "../buildings/houses/earthenHouses";
 import {
   createRegionalHouses,
   REGIONAL_HOUSES,
@@ -214,7 +215,7 @@ const DEFAULT_AUTHOR = "Codex";
  * Alternative versions of a list item made by other AI models, keyed by the list button's data-id.
  * `primary` means that author made the only prepared model, so it is selected on open.
  */
-const AUTHORED_VARIANTS: Record<string, { author: string; primary?: boolean; show: () => void }> = {
+const AUTHORED_VARIANTS: Record<string, { author: string; primary?: boolean; quality?: boolean; show: () => void }> = {
   "basilica-temple": { author: BASILICA_TEMPLE.author, show: () => showBasilicaTemple() }
 };
 let selectedId = entries[0]?.record.id ?? "";
@@ -235,7 +236,7 @@ function listAuthors(id: string): void {
     authorSelect.append(option);
   }
   authorSelect.value = variant?.primary ? variant.author : DEFAULT_AUTHOR;
-  showQuality(false);
+  showQuality(variant?.primary === true && variant.quality === true);
 }
 authorSelect.addEventListener("change", () => {
   const variant = AUTHORED_VARIANTS[selectedId];
@@ -1963,6 +1964,50 @@ for (const template of [
 }
 
 const regionalHeading = modelCategory("CE regional houses");
+const earthenButton = document.createElement("button");
+earthenButton.type = "button";
+earthenButton.textContent = "Earthen flat-roof houses";
+earthenButton.dataset.id = "regional-earthen-flat";
+AUTHORED_VARIANTS[earthenButton.dataset.id] = {
+  author: EARTHEN_HOUSES.author,
+  primary: true,
+  quality: true,
+  show: showEarthenHouses
+};
+earthenButton.addEventListener("click", showEarthenHouses);
+regionalHeading.append(earthenButton);
+
+function showEarthenHouses(): void {
+  selection++;
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Front elevation";
+  levelTitle.textContent = "Roof plan";
+  showQuality(true);
+  const quality = qualitySelect.value as RegionalHouseQuality;
+  massing = createEarthenHouses(quality);
+  scene.add(massing.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: 24, depth: 10 } }, 10);
+  camera.position.set(15, 12, 22);
+  controls.target.set(0, 4, 0);
+  controls.update();
+  mountPlan(roofHost, meshProjection(massing, "side"));
+  mountPlan(levelHost, meshProjection(massing, "top"));
+  facts.append(
+    fact("Quality", quality === "high" ? "High" : "Low — facade courses, joinery, beam ends and drains omitted"),
+    fact(
+      "Envelope",
+      "One to three storeys, including a trapezoidal lot; walls retain the CE footprint and floor heights"
+    ),
+    fact("Construction", EARTHEN_HOUSES.note),
+    fact("CE placement", "Automatic for supported mudbrick, flat-roof residential, retail, craft and storage lots"),
+    fact("Omitted", "Interiors and roof access")
+  );
+}
+
 for (const profile of BUILDING_APPEARANCE_PROFILES.filter(id => id !== "legacy")) {
   const button = document.createElement("button");
   button.type = "button";
