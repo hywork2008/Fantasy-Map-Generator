@@ -22,16 +22,16 @@
 
 ### 2.1 個々の経路の重複判定と道路網の重複判定が異なる
 
-[`streets.ts`](../../src/city-editor/generators/streets.ts) の `buildStreets` は、門→広場に加えて、門間の軸、並行する道、門間の環状路を個別に探索する。
+[`streets.ts`](/src/city-editor/generators/streets.ts) の `buildStreets` は、門→広場に加えて、門間の軸、並行する道、門間の環状路を個別に探索する。
 
 - `sameCorridor` は両端点の近さを比較する。端点の異なる道路が途中を共有する場合や、長い経路に短い経路が包含される場合を判定していない。
 - `pathFollowsExisting` は並行路候補に対する近接点数の比率による判定で、全候補に共通するedge占有判定ではない。
 - `buildArteries` は既に無向edgeの和集合を作り、交差点・終端で道を分解する。この考え方は再利用できる。ただし返す `arteries` と `vertexShifts` に対する整理であり、最終的な全road groupの一意化にはなっていない。
-- [`generateCity.ts`](../../src/city-editor/generators/generation/generateCity.ts) は門→中心の `star` と追加道路 `extras` を構成し、assemblyで道路を改めて探索する。事前の座標ベースの重複判定を通っても、最終メッシュでは同じedgeへ集約され得る。
+- [`generateCity.ts`](/src/city-editor/generators/generation/generateCity.ts) は門→中心の `star` と追加道路 `extras` を構成し、assemblyで道路を改めて探索する。事前の座標ベースの重複判定を通っても、最終メッシュでは同じedgeへ集約され得る。
 
-[`completeRoadRouter.ts`](../../src/city-editor/generators/generation/routing/completeRoadRouter.ts) は水面・壁・堀・城などを避けて経路を求めるが、他の候補が採用済みの道路網を入力に取らない。各道路の探索は独立している。
+[`completeRoadRouter.ts`](/src/city-editor/generators/generation/routing/completeRoadRouter.ts) は水面・壁・堀・城などを避けて経路を求めるが、他の候補が採用済みの道路網を入力に取らない。各道路の探索は独立している。
 
-[`appendGeneratedGroup`](../../src/city-editor/generators/generation/assembly/generatedFeatures.ts) には城壁の重複区間を分割する処理がある一方、roadはそのまま追加する。橋の進入路の区間を `riverRoad` に組み込む処理もあるため、全共有を異常とみなすことはできない。**路線が共有すること自体と、物理的に二重作成・二重描画することを分けて扱う必要がある。**
+[`appendGeneratedGroup`](/src/city-editor/generators/generation/assembly/generatedFeatures.ts) には城壁の重複区間を分割する処理がある一方、roadはそのまま追加する。橋の進入路の区間を `riverRoad` に組み込む処理もあるため、全共有を異常とみなすことはできない。**路線が共有すること自体と、物理的に二重作成・二重描画することを分けて扱う必要がある。**
 
 ### 2.2 経由点ごとの最短経路をつなぐと、一つの道路が折り返せる
 
@@ -47,15 +47,15 @@ A ---- B ---- D
 
 `A→C` の結果 `A-B-C` と `C→D` の結果 `C-B-D` は、それぞれ単純経路でも、連結後は `A-B-C-B-D` になる。単にA*の探索中に直前のedgeへの復帰を禁止しても、探索呼出をまたぐ復帰は解消しない。
 
-[`finishCityGeometry.ts`](../../src/city-editor/generators/finishCityGeometry.ts) は道路edgeを `Set` に集め、次数2の頂点を中心に座標を移動する。`segments` の並びを変更しないので、この頂点列は平滑化後も残る。選択道路の `smoothFeatureGroup` も経路順序を修正しない。したがって、同一頂点IDへ戻る折り返しと、座標だけが近接する幾何学的な折れ曲がりは、別々に診断する。
+[`finishCityGeometry.ts`](/src/city-editor/generators/finishCityGeometry.ts) は道路edgeを `Set` に集め、次数2の頂点を中心に座標を移動する。`segments` の並びを変更しないので、この頂点列は平滑化後も残る。選択道路の `smoothFeatureGroup` も経路順序を修正しない。したがって、同一頂点IDへ戻る折り返しと、座標だけが近接する幾何学的な折れ曲がりは、別々に診断する。
 
 ### 2.3 局所的な接続検査だけでは、道路網全体の到達性を保証しない
 
-[`finalize.ts`](../../src/city-editor/generators/generation/assembly/finalize.ts) などには、門の道路接続、門でない壁頂点への終端の除去、郊外街区の到達判定がある。`generateCity.ts` は外部道路数とFMG由来道路の対応なども検査する。
+[`finalize.ts`](/src/city-editor/generators/generation/assembly/finalize.ts) などには、門の道路接続、門でない壁頂点への終端の除去、郊外街区の到達判定がある。`generateCity.ts` は外部道路数とFMG由来道路の対応なども検査する。
 
-ただし、道路が門を横切ること、各group内の連続性、外部道路の本数を確認しても、道路網全体が必須の中心・施設につながっているとは限らない。[`mesh.validate`](../../src/city-editor/generators/mesh.ts) はgroup内の隣接区間の連続性を確認するが、道路の頂点再訪、group間の重複、全道路成分の用途までは検査しない。
+ただし、道路が門を横切ること、各group内の連続性、外部道路の本数を確認しても、道路網全体が必須の中心・施設につながっているとは限らない。[`mesh.validate`](/src/city-editor/generators/mesh.ts) はgroup内の隣接区間の連続性を確認するが、道路の頂点再訪、group間の重複、全道路成分の用途までは検査しない。
 
-細街路は [`localInfill.ts`](../../src/city-editor/generators/localInfill.ts) と [`streetGrowth.ts`](../../src/city-editor/generators/streetGrowth.ts) にも存在する。前者には実際の幹道沿いを根とするfaceの到達探索がある。今回の幹道整理はこの接続関係を利用し、細街路まで全て幹道へ昇格させない。
+細街路は [`localInfill.ts`](/src/city-editor/generators/localInfill.ts) と [`streetGrowth.ts`](/src/city-editor/generators/streetGrowth.ts) にも存在する。前者には実際の幹道沿いを根とするfaceの到達探索がある。今回の幹道整理はこの接続関係を利用し、細街路まで全て幹道へ昇格させない。
 
 ### 2.4 小規模な実測と限界
 
@@ -69,7 +69,7 @@ A ---- B ---- D
 | 同都市の頂点再訪・成分 | 各road内の頂点再訪は0。メッシュroadの和集合は90頂点の1成分 |
 | 同都市の1edgeだけの道 | `gc:castle-0:approach`。城への接続なので、短いことだけを理由に削除できない例 |
 
-都市の設定の詳細は既存の [`roadEndpoints.test.ts`](../../src/city-editor/generators/roadEndpoints.test.ts) にある。共有49 edgeはedge数による集計で、道路延長の49/97が重複するという意味ではない。また、共有を除去しても地上の道路長が必ず減るわけではない。
+都市の設定の詳細は既存の [`roadEndpoints.test.ts`](/src/city-editor/generators/roadEndpoints.test.ts) にある。共有49 edgeはedge数による集計で、道路延長の49/97が重複するという意味ではない。また、共有を除去しても地上の道路長が必ず減るわけではない。
 
 この1都市では孤立と折り返しを再現していない。4頂点モデルは現行routerが折り返しを出せる証拠であり、ユーザーが見た都市の原因箇所を特定したものではない。長区間内の短い重複道・孤立道路の具体例は、実装時に該当文書または再現seedで工程別に追加確認する。多数seedの検証やUIでの見た目の確認は今回実施していない。
 

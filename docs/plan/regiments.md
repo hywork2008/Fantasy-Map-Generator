@@ -19,20 +19,20 @@ docs/plan/military-organization-and-vassalage.md
 
 ### 現状の挙動(コード上の事実)
 
-advanceTime()(src/generators/timeEngine.ts:62-110)自体は軍事ロジックを一切呼んでいません。年数を進め、simulateDemographics()と登録済み_tickHooksを呼ぶだけです。
-実際に戦争/戦闘を動かしているのはNobility拡張のtick hook(src/extensions/nobility/index.tsx:139-159)→StrategicPlanner.advanceTension()(strategic-planner.ts:153-221)。各国の「戦略目標」のtensionが年ごとに+1〜+5(君主の大胆さ×warFrequency設定で変動)蓄積し、100に達した時だけ戦争宣言→resolveSiege()(battle-resolution.ts)が呼ばれます。10年×15-20回で発火するというユーザーの体感は、この閾値蓄積の速度とほぼ一致します。
+advanceTime()(src/generators/timeEngine.ts#L62-110)自体は軍事ロジックを一切呼んでいません。年数を進め、simulateDemographics()と登録済み_tickHooksを呼ぶだけです。
+実際に戦争/戦闘を動かしているのはNobility拡張のtick hook(src/extensions/nobility/index.tsx:139-159)→StrategicPlanner.advanceTension()(strategic-planner.ts#L153-221)。各国の「戦略目標」のtensionが年ごとに+1〜+5(君主の大胆さ×warFrequency設定で変動)蓄積し、100に達した時だけ戦争宣言→resolveSiege()(battle-resolution.ts)が呼ばれます。10年×15-20回で発火するというユーザーの体感は、この閾値蓄積の速度とほぼ一致します。
 
-resolveSiege()はreg.a(兵力)を減らす/陥落処理をするだけで、regiment.cell/x/yには一切触れません(battle-resolution.ts:154-179)。都市が陥落して国境が変わった場合のみMilitary.generate()が丸ごと再実行され、その副作用としてfrontierAnalysisベースの再配置が起きます(nobility/index.tsx:146-156)。つまり陥落が起きない限り位置は完全固定——ユーザーが見ている「何十年も同じ場所」は仕様どおりの挙動です。
+resolveSiege()はreg.a(兵力)を減らす/陥落処理をするだけで、regiment.cell/x/yには一切触れません(battle-resolution.ts#L154-179)。都市が陥落して国境が変わった場合のみMilitary.generate()が丸ごと再実行され、その副作用としてfrontierAnalysisベースの再配置が起きます(nobility/index.tsx:146-156)。つまり陥落が起きない限り位置は完全固定——ユーザーが見ている「何十年も同じ場所」は仕様どおりの挙動です。
 
 ### 提案(既存パターンの流用が筋が良い)
 
-すでにgarrisonHost(他国駐屯を示すフラグ、vassalage.ts由来)やisCapitalGuardという「役割フラグ」パターンがMilitaryRegiment(src/types/models.ts:333-357)にあるので、これを拡張する形が自然です。
+すでにgarrisonHost(他国駐屯を示すフラグ、vassalage.ts由来)やisCapitalGuardという「役割フラグ」パターンがMilitaryRegiment(src/types/models.ts#L333-357)にあるので、これを拡張する形が自然です。
 
 1. 駐屯判定: getProvinceThreats()(frontierAnalysis.ts、既にMilitary生成時に使用)が返すthreat値が一定tick連続で閾値以下の連隊を「駐屯中」とみなす。新規フィールドは最小限(garrisoned?: boolean程度)で済む。
 
-2. 表示: 駐屯中の連隊は最寄りburgの近くに小アイコンのみ表示。moveRegiment()(draw-military.ts:175、バトル画面で既にX/Y遷移に使っている関数)を再利用すれば新規実装は少なくて済む。これがユーザー案の「絵文字だけ表示」に直接対応。
+2. 表示: 駐屯中の連隊は最寄りburgの近くに小アイコンのみ表示。moveRegiment()(draw-military.ts#L175、バトル画面で既にX/Y遷移に使っている関数)を再利用すれば新規実装は少なくて済む。これがユーザー案の「絵文字だけ表示」に直接対応。
 
-3. 砦建築の payoff: 何もしないと味気ないので、駐屯が一定tick続いた連隊の近くのburgでcitadelフラグを段階的に立てる。現状citadelは生成時1回きりのロール(burgs-generator.ts:490-512)だが、これをtick駆動でも立てられるようにすれば「駐屯→時間経過で砦完成」という自然な見た目になり、既存のcitadel描画/Edit Burg UIをそのまま流用できる。
+3. 砦建築の payoff: 何もしないと味気ないので、駐屯が一定tick続いた連隊の近くのburgでcitadelフラグを段階的に立てる。現状citadelは生成時1回きりのロール(burgs-generator.ts#L490-512)だが、これをtick駆動でも立てられるようにすれば「駐屯→時間経過で砦完成」という自然な見た目になり、既存のcitadel描画/Edit Burg UIをそのまま流用できる。
 
 4. Edit Burg欄: BurgEditorDialog.tsxのTreasury行(193行目)とFeatures行(194行目)の間に「駐屯兵力」行を追加。同burgをgarrison先とする連隊のaを合算するだけなので、上記1-3のどれを採るかに関係なく独立して足せる。
 
@@ -82,7 +82,7 @@ temp/Auteia 2026-07-08-03-32.mapを展開したファイルがtemp/map_partsフ�
 
 「途中のセルに都市が無いから」ではなく、征服処理がそもそも都市の**セル1つしか**国有化しないことが原因です。
 
-resolveSiege()の陥落処理(battle-resolution.ts:185-195)を見ると、
+resolveSiege()の陥落処理(battle-resolution.ts#L185-195)を見ると、
 
 ```ts
 if (cityCaptured) {
@@ -94,9 +94,9 @@ if (cityCaptured) {
   }
 ```
 
-burgは1セルにつき1つ(burgs-generator.tsで`cells.burg[cell] = burgId`は1回しか立たない)なので、このループは実質「burg本体のセル1個」だけをattackerId国有に書き換えて終わりです。周囲のセルが自国領と地続きかどうかのチェックも、征服後にflood-fillで領土を塗り直す処理も一切ありません。世界生成時のexpandStates()(states-generator.ts:133-203)はDijkstra風のコスト付きBFSで首都から連続的に領土を広げる(=地続き保証)のに対し、戦争中の征服はこのBFSを二度と呼ばない別経路です。
+burgは1セルにつき1つ(burgs-generator.tsで`cells.burg[cell] = burgId`は1回しか立たない)なので、このループは実質「burg本体のセル1個」だけをattackerId国有に書き換えて終わりです。周囲のセルが自国領と地続きかどうかのチェックも、征服後にflood-fillで領土を塗り直す処理も一切ありません。世界生成時のexpandStates()(states-generator.ts#L133-203)はDijkstra風のコスト付きBFSで首都から連続的に領土を広げる(=地続き保証)のに対し、戦争中の征服はこのBFSを二度と呼ばない別経路です。
 
-Kautongwuの実データ(cell 3486, feature 2 = Al Faraの首都Shoqbahと同じ陸塊)を見ると、狙われた理由は距離だけです。ターゲット選定(strategic-planner.ts:50-63)は「segment.cx/cyに一番近い敵burg」を選ぶだけで、自国領に隣接しているかは見ていません。つまり過去のどこかの征服(campaignsに残る"Muwalese Conquest"や"Jukrosian War"など)でKautongwuだけが飛び地として陥落し、その後一度も地続き化されずに今に至っている、というのが実態です。都市の有無は無関係で、地続き化ロジックが存在しないこと自体がバグです。
+Kautongwuの実データ(cell 3486, feature 2 = Al Faraの首都Shoqbahと同じ陸塊)を見ると、狙われた理由は距離だけです。ターゲット選定(strategic-planner.ts#L50-63)は「segment.cx/cyに一番近い敵burg」を選ぶだけで、自国領に隣接しているかは見ていません。つまり過去のどこかの征服(campaignsに残る"Muwalese Conquest"や"Jukrosian War"など)でKautongwuだけが飛び地として陥落し、その後一度も地続き化されずに今に至っている、というのが実態です。都市の有無は無関係で、地続き化ロジックが存在しないこと自体がバグです。
 
 ### 飛び地守備隊(9騎兵+859歩兵)が何十年も無視される原因
 
@@ -104,7 +104,7 @@ Kautongwuは実は「都市(burg)」なのでStrategicPlannerのターゲット�
 
 実データ: Al Fara総兵力 53,049 / Alk 55,821 / Jukrosia 70,295 (14_states.jsonのmilitary[].aを合算)。Kautongwuの現地守備隊は859+9=868、都市人口15人相当の民兵(`population*0.05`)を足しても誤差程度です。
 
-ところがstrategic-planner.ts:88-97の「3倍ルール」はこう計算します。
+ところがstrategic-planner.ts#L88-97の「3倍ルール」はこう計算します。
 
 ```ts
 const baseDefendingForce = intel.estimatedMilitaryPower;
@@ -113,9 +113,9 @@ let perceivedDefense = isCornered ? baseDefendingForce : baseDefendingForce * 0.
 let requiredAttackForce = perceivedDefense * 3; // The 3x Attacker Rule
 ```
 
-`intel.estimatedMilitaryPower`はespionage-generator.ts:63,111で`target.military`の**全連隊合計**、つまりAl Fara一国まるごとの兵力の(誤差付き)推定値です。Kautongwuという一都市を落とすのに、Al Faraの総兵力53,049の半分=約26,500を「守備兵力」とみなし、その3倍、約79,500を要求兵力にしてしまう。AlkもJukrosiaも単独ではこれを超えられないので、実際の現地兵力(868)とは無関係に、両国とも永遠に「攻めあぐむ」ことになります。ユーザーの直感どおり、3倍ルールが砦籠城でも野戦でも一律に、しかも国全体の兵力を基準に適用されているのが根本原因です(isCorneredがtrueな孤立landmassの場合はさらに2倍要求されるので、島嶼の飛び地などではもっと悪化します)。
+`intel.estimatedMilitaryPower`はespionage-generator.ts#L63,111で`target.military`の**全連隊合計**、つまりAl Fara一国まるごとの兵力の(誤差付き)推定値です。Kautongwuという一都市を落とすのに、Al Faraの総兵力53,049の半分=約26,500を「守備兵力」とみなし、その3倍、約79,500を要求兵力にしてしまう。AlkもJukrosiaも単独ではこれを超えられないので、実際の現地兵力(868)とは無関係に、両国とも永遠に「攻めあぐむ」ことになります。ユーザーの直感どおり、3倍ルールが砦籠城でも野戦でも一律に、しかも国全体の兵力を基準に適用されているのが根本原因です(isCorneredがtrueな孤立landmassの場合はさらに2倍要求されるので、島嶼の飛び地などではもっと悪化します)。
 
-つまりresolveSiege()自体は現地兵力ベースで正しく戦闘解決する仕組み(cityGarrison+radius内の連隊、battle-resolution.ts:50-87)を既に持っているのに、その手前のstrategic-planner.generate()が全く別の(国全体の)数字で「戦うかどうか」を判定しているため、そもそも開戦(tension蓄積開始)にすら至りません。
+つまりresolveSiege()自体は現地兵力ベースで正しく戦闘解決する仕組み(cityGarrison+radius内の連隊、battle-resolution.ts#L50-87)を既に持っているのに、その手前のstrategic-planner.generate()が全く別の(国全体の)数字で「戦うかどうか」を判定しているため、そもそも開戦(tension蓄積開始)にすら至りません。
 
 ### 提案
 
@@ -123,7 +123,7 @@ let requiredAttackForce = perceivedDefense * 3; // The 3x Attacker Rule
 
 2. **砦/城籠城と野戦で倍率を分ける**: 現状citadelがあれば×1.5するだけ(line 92-95)なので、これを拡張し、citadel/walls無しの対象は3倍ではなく1.2〜1.5倍程度で十分attackできるようにする。「3倍は籠城戦の話」というユーザーの指摘に対応。
 
-3. **「現地判断」による即time skirmish**: 上記1・2を直してもtensionは年+1〜+5ずつしか溜まらず(warFrequencyにもよるが)、陥落まで何年もかかる(前回の回答どおり)。国家の外交tension待ちとは別に、毎tick「敵対関係にあり、かつ近接する連隊/守備隊同士」を突き合わせ、兵力比が例えば3:1以上開いていれば即座に小規模な殲滅イベントを解決する軽量な仕組みを新設する(例: `LocalSkirmishGenerator`、nobility/index.tsxのtick hookに相追加)。これは中央のtension蓄積やdeterrence(隣接脅威による自重、strategic-planner.ts:118-135)を経由せず、"前線指揮官の独断"としてbypassする設計にする。frontierAnalysis.tsのanalyzeFrontiers()が既にlandmass単位で国境セグメントを出しているので、そのセグメント内の連隊同士だけ比較すればO(n²)を避けられる。
+3. **「現地判断」による即time skirmish**: 上記1・2を直してもtensionは年+1〜+5ずつしか溜まらず(warFrequencyにもよるが)、陥落まで何年もかかる(前回の回答どおり)。国家の外交tension待ちとは別に、毎tick「敵対関係にあり、かつ近接する連隊/守備隊同士」を突き合わせ、兵力比が例えば3:1以上開いていれば即座に小規模な殲滅イベントを解決する軽量な仕組みを新設する(例: `LocalSkirmishGenerator`、nobility/index.tsxのtick hookに相追加)。これは中央のtension蓄積やdeterrence(隣接脅威による自重、strategic-planner.ts#L118-135)を経由せず、"前線指揮官の独断"としてbypassする設計にする。frontierAnalysis.tsのanalyzeFrontiers()が既にlandmass単位で国境セグメントを出しているので、そのセグメント内の連隊同士だけ比較すればO(n²)を避けられる。
 
 まず1(見積もりの根本バグ修正)を先に入れるのが費用対効果が高いと思います。1だけでKautongwuの飛び地守備隊は次のadvanceTension()サイクルで現実的に狙われるようになるはずです。2と3は「現地判断で殲滅」というユーザーの要望により直接応えるものなので、1の効果を確認したうえで追加するか、それとも3(現地判断スキルミッシュ)を先に作って即効性のある解決を優先するか、どちらから着手したいか教えてください。
 

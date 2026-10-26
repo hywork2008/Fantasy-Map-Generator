@@ -10,7 +10,7 @@
 
 ### 1.1 部隊編成はまだ大航海時代以前で止まっている
 
-`Military.getDefaultOptions()`（[military-generator.ts:935-1017](../../src/generators/military-generator.ts)）が返すユニットは6種類のみ:
+`Military.getDefaultOptions()`（[military-generator.ts#L935-1017](/src/generators/military-generator.ts)）が返すユニットは6種類のみ:
 
 | ユニット | type | 解禁条件 |
 | --- | --- | --- |
@@ -21,15 +21,15 @@
 | artillery | machinery | `options.gunpowderEraEnabled`（世界単位のON/OFFのみ） |
 | fleet | naval | 常時（`getNavalTechBonus()` で連続的に強化される） |
 
-`isGunpowderEraMilitaryUnit()`（[gunpowderEra.ts](../../src/utils/gunpowderEra.ts)）はユニット名の正規表現マッチによる**世界全体一括**のON/OFFであり、technologyProgress.ts が持つ State ごとの `locked → known → demonstrated → adopted → diffused` という段階的な採用モデルには一切接続されていない。つまり `historicalPeriod` を `rocketryEra`（ロケット時代開始）に設定してマップを生成しても、全 State は騎士＋マスケット銃兵＋大砲のままである。
+`isGunpowderEraMilitaryUnit()`（[gunpowderEra.ts](/src/utils/gunpowderEra.ts)）はユニット名の正規表現マッチによる**世界全体一括**のON/OFFであり、technologyProgress.ts が持つ State ごとの `locked → known → demonstrated → adopted → diffused` という段階的な採用モデルには一切接続されていない。つまり `historicalPeriod` を `rocketryEra`（ロケット時代開始）に設定してマップを生成しても、全 State は騎士＋マスケット銃兵＋大砲のままである。
 
 ### 1.2 技術ロードマップ側は「軍事への効果」を意図的に未接続のまま残している
 
 `technologyProgress.ts` には、まさに本書が扱うべき接続点が **「意図的に未消費（deliberately unconsumed）」** として3つ既に存在する:
 
-- `getInternalCombustionEngineEffect()`（[technologyProgress.ts:217-223](../../src/generators/technologyProgress.ts)）— 「no vehicle/vessel/power system yet reads it」
-- `getMilitarySignalRocketsEffect()`（[technologyProgress.ts:232-238](../../src/generators/technologyProgress.ts)）— 「roadmap §11 explicitly defers strategic-weapon effects to a separate diplomacy/military design」
-- `getStagingAndOrbitalInsertionEffect()`（[technologyProgress.ts:247-253](../../src/generators/technologyProgress.ts)）— 「no communication/observation/mapping/prestige system yet reads it」
+- `getInternalCombustionEngineEffect()`（[technologyProgress.ts#L217-223](/src/generators/technologyProgress.ts)）— 「no vehicle/vessel/power system yet reads it」
+- `getMilitarySignalRocketsEffect()`（[technologyProgress.ts#L232-238](/src/generators/technologyProgress.ts)）— 「roadmap §11 explicitly defers strategic-weapon effects to a separate diplomacy/military design」
+- `getStagingAndOrbitalInsertionEffect()`（[technologyProgress.ts#L247-253](/src/generators/technologyProgress.ts)）— 「no communication/observation/mapping/prestige system yet reads it」
 
 このうち前者2つは、今回の設計がまさに「別途の軍事設計」として引き受けるべき対象である（§4.4 参照）。3つ目（軌道投入）は本書でも意図的に対象外とする（§6 非目標）。
 
@@ -37,9 +37,9 @@
 
 以下はすべて **`type: "armored" | "aviation" | "magical"` を最初から前提に実装済み** だが、対応するデフォルトユニットが一つも存在しないため一度も実戦で使われたことがない:
 
-- `stateModifier` / `cellTypeModifier` / `burgTypeModifier`（[military-generator.ts:152-283](../../src/generators/military-generator.ts)）— armored/aviation/magical 用の地形・国家形態補正値が既にチューニングされている。
-- `MilitaryOptionsDialog.tsx` の `unitTypes` 配列（[MilitaryOptionsDialog.tsx:29](../../src/ui/dialogs/MilitaryOptionsDialog.tsx)）— `"armored", "aviation", "magical"` を選択肢として持つ。
-- **戦闘解決エンジン全体**（[battle-screen.ts](../../src/controllers/battle-screen.ts)）:
+- `stateModifier` / `cellTypeModifier` / `burgTypeModifier`（[military-generator.ts#L152-283](/src/generators/military-generator.ts)）— armored/aviation/magical 用の地形・国家形態補正値が既にチューニングされている。
+- `MilitaryOptionsDialog.tsx` の `unitTypes` 配列（[MilitaryOptionsDialog.tsx:29](/src/ui/dialogs/MilitaryOptionsDialog.tsx)）— `"armored", "aviation", "magical"` を選択肢として持つ。
+- **戦闘解決エンジン全体**（[battle-screen.ts](/src/controllers/battle-screen.ts)）:
   - `defineType()` はユニット type がすべて `aviation` なら戦闘種別を `"air"` と判定する（L106-125）。
   - `calculateStrength()` の `scheme` テーブル（L241-418）は `skirmish / melee / pursue / shelling / boarding / storming / defense / landing / dogfight / maneuvering` など**全フェーズ**について `armored` と `aviation` の係数を定義済み（例: `melee.armored = 2`、`dogfight.aviation = 2`、`maneuvering.aviation = 1`）。
   - `selectPhase()` は `getAirBattlePhase()` を実装済みで、`"maneuvering"`（哨戒）と `"dogfight"`（空中戦）を実際に選択する（L562-568）。
@@ -56,11 +56,11 @@
 
 1. **世界ゲート＋ State別技術ゲートの二層を、全ユニットに一般化する。** `gunpowderEraEnabled` のような世界単位トグルは「その技術体系がこの世界に存在し得るか」だけを決め、実際にどの State がいつからそのユニットを編成できるかは `technologyProgress.ts` の per-State `TechnologyStage` で決める。
 2. **新ユニットは既存ユニットを置き換えるのではなく、緩やかに置き換わる（obsolescence）。** 州の連隊に "diffused の瞬間に一斉更新" のような不自然な変化を起こさない。旧式ユニット（例: musketeers）は新式ユニット（例: riflemen）が採用されるにつれて募兵シェアを失っていくが、募兵源そのものは消さない — 既存の在役連隊も即座に置き換えない（自然減耗・補充サイクルで徐々に入れ替わる）。
-3. **core はどのモジュールでも core（`src/generators/*`）を直接読める。core は extension を直接 import しない。** `military-generator.ts` が `technologyProgress.ts` を読むのは core 内部の依存であり問題ない（`technologyProgress.ts` 自体も `utils/gunpowderEra.ts` を読んでいる前例と同型）。一方、Steel・Kerosene・Aluminum のような Goods 在庫は Economy 拡張の所有物なので、Military は直接 import せず、`militaryAssetCapacity.ts` の `requestMountedCapacity()`/`requestFleetCapacity()` と同じ **CustomEvent request/response パターン**、および `MilitaryRegiment.plannedU`（装備待ちの休眠編成）という**既存の仕組みをそのまま再利用**する（[navalTechBonus.ts:1-14](../../src/generators/navalTechBonus.ts) が同じ理由を明文化している）。
+3. **core はどのモジュールでも core（`src/generators/*`）を直接読める。core は extension を直接 import しない。** `military-generator.ts` が `technologyProgress.ts` を読むのは core 内部の依存であり問題ない（`technologyProgress.ts` 自体も `utils/gunpowderEra.ts` を読んでいる前例と同型）。一方、Steel・Kerosene・Aluminum のような Goods 在庫は Economy 拡張の所有物なので、Military は直接 import せず、`militaryAssetCapacity.ts` の `requestMountedCapacity()`/`requestFleetCapacity()` と同じ **CustomEvent request/response パターン**、および `MilitaryRegiment.plannedU`（装備待ちの休眠編成）という**既存の仕組みをそのまま再利用**する（[navalTechBonus.ts#L1-14](/src/generators/navalTechBonus.ts) が同じ理由を明文化している）。
 4. **新しい Good を発明しない。** Steel・Crude Oil・Kerosene・Lubricating Oil・Aluminum・Coal はすべて `goods-generator.ts` に実装済み。新ユニットの装備・燃料はこれらを再利用する。
-5. **新しい technologyDefinitions ノードは極力追加しない。** ロードマップ自体が Era 7-8 で「既存ノードの信号を使い回す（no new Good/plant）」方針を明言しており（[technologyDefinitions.ts:961-965](../../src/generators/technologyDefinitions.ts)）、本書もこれに倣う。新ユニットのゲートは既存ノードの組み合わせ（AND 条件）で表現し、原則として新規ノードを増やさない。
-6. **海軍は対象外（すでに解決済み）。** `fleet` ユニットの実効戦力は `getNavalTechBonus()`（Shipbuilding 拡張が完成させた State 保有船体ごとに連続加算、[navalTechBonus.ts](../../src/generators/navalTechBonus.ts)）と `getMaxShipClassTierForState()`（[technologyProgress.ts:155-166](../../src/generators/technologyProgress.ts)、`oceanGoingHulls`/`oceanNavigation`/`coastalSteamNavigation` で船級が連続的に上がる）によって、Era 3〜5 相当のスケールで既に State ごとに連続的にスケールしている。本書は陸上・航空ユニットのギャップにのみ対応する。
-7. **name 正規表現ではなく `unit.type` を判定に使う。** `isFirearmMilitaryUnitName()` のような名前パターンマッチは Era 2 の後付けであり脆い。`isMountedUnit()`（[militaryLogistics.ts:37-40](../../src/extensions/economy/generators/militaryLogistics.ts)）がすでに `unit.type === "mounted"` で判定している通り、新ユニット（armored/aviation/機関銃/近代砲）は `unit.type` で判定する設計にする。
+5. **新しい technologyDefinitions ノードは極力追加しない。** ロードマップ自体が Era 7-8 で「既存ノードの信号を使い回す（no new Good/plant）」方針を明言しており（[technologyDefinitions.ts#L961-965](/src/generators/technologyDefinitions.ts)）、本書もこれに倣う。新ユニットのゲートは既存ノードの組み合わせ（AND 条件）で表現し、原則として新規ノードを増やさない。
+6. **海軍は対象外（すでに解決済み）。** `fleet` ユニットの実効戦力は `getNavalTechBonus()`（Shipbuilding 拡張が完成させた State 保有船体ごとに連続加算、[navalTechBonus.ts](/src/generators/navalTechBonus.ts)）と `getMaxShipClassTierForState()`（[technologyProgress.ts#L155-166](/src/generators/technologyProgress.ts)、`oceanGoingHulls`/`oceanNavigation`/`coastalSteamNavigation` で船級が連続的に上がる）によって、Era 3〜5 相当のスケールで既に State ごとに連続的にスケールしている。本書は陸上・航空ユニットのギャップにのみ対応する。
+7. **name 正規表現ではなく `unit.type` を判定に使う。** `isFirearmMilitaryUnitName()` のような名前パターンマッチは Era 2 の後付けであり脆い。`isMountedUnit()`（[militaryLogistics.ts#L37-40](/src/extensions/economy/generators/militaryLogistics.ts)）がすでに `unit.type === "mounted"` で判定している通り、新ユニット（armored/aviation/機関銃/近代砲）は `unit.type` で判定する設計にする。
 
 ---
 
@@ -83,7 +83,7 @@ interface MilitaryUnit {
 
 ### 3.2 State 単位のゲート判定 — 実装は `passUnitLimits()` ではなく `s.temp[unit.name]` に統合（設計からの変更点）
 
-当初案は `passUnitLimits(unit, biome, state, culture, religion)`（セル/burg単位で呼ばれる）に技術ゲートを1行追加する形を想定していたが、実装時に見直した。技術段階は cell 単位ではなく **State 単位** の値であり、`military-generator.ts` にはまさに「State 単位のユニット別倍率」を1回だけ計算してキャッシュする既存の仕組みがある — rural/urban 募兵ループの手前で回る `valid.forEach(s => { for (const unit of military) { ...; s.temp[unit.name] = modifier * s.alert; } })`（旧 [military-generator.ts:326-352](../../src/generators/military-generator.ts)）。しかも rural/urban 両ループは既に `!stateObj.temp![unit.name]` を「このユニットはこの State では募兵しない」の early-continue として使っている。したがって技術ゲートは **この `s.temp[unit.name]` に乗算するだけで済み**、rural/urban ループ側は一切変更不要だった:
+当初案は `passUnitLimits(unit, biome, state, culture, religion)`（セル/burg単位で呼ばれる）に技術ゲートを1行追加する形を想定していたが、実装時に見直した。技術段階は cell 単位ではなく **State 単位** の値であり、`military-generator.ts` にはまさに「State 単位のユニット別倍率」を1回だけ計算してキャッシュする既存の仕組みがある — rural/urban 募兵ループの手前で回る `valid.forEach(s => { for (const unit of military) { ...; s.temp[unit.name] = modifier * s.alert; } })`（旧 [military-generator.ts#L326-352](/src/generators/military-generator.ts)）。しかも rural/urban 両ループは既に `!stateObj.temp![unit.name]` を「このユニットはこの State では募兵しない」の early-continue として使っている。したがって技術ゲートは **この `s.temp[unit.name]` に乗算するだけで済み**、rural/urban ループ側は一切変更不要だった:
 
 ```ts
 // valid.forEach(s => { ... }) 内、既存の「apply overall state modifiers」ループの末尾に追加
@@ -98,7 +98,7 @@ if (unit.requiresTechnology) {
 
 `isTechnologyAtLeast()`/`getTechnologyAdoptionShare()` は `technologyProgress.ts` から import している（同一 core 内、循環依存なし — `technologyProgress.ts` は `military-generator.ts` を import していない。実装時に `grep` で確認済み）。
 
-`getTechnologyState()` は `pack.states.length > 1` であれば初回アクセス時に自動で `seedTechnologyStartProfile()` を遅延実行する（[technologyProgress.ts:90-98](../../src/generators/technologyProgress.ts)）。`Military.generate()` は生成パイプラインの Stage 18（`generators/index.ts` の `runMilitaryGenerate`）で、State 生成より確実に後に走るため、初回マップ生成時でも技術状態が未初期化のまま読まれる心配はない（実装時に generators/index.ts のステージ順を確認済み）。
+`getTechnologyState()` は `pack.states.length > 1` であれば初回アクセス時に自動で `seedTechnologyStartProfile()` を遅延実行する（[technologyProgress.ts#L90-98](/src/generators/technologyProgress.ts)）。`Military.generate()` は生成パイプラインの Stage 18（`generators/index.ts` の `runMilitaryGenerate`）で、State 生成より確実に後に走るため、初回マップ生成時でも技術状態が未初期化のまま読まれる心配はない（実装時に generators/index.ts のステージ順を確認済み）。
 
 ### 3.3 緩やかな置き換え（obsolescence）— 募兵率のシェア配分
 
@@ -162,7 +162,7 @@ for (const unit of military) {
 | rural / urban | `0.1` / `0.08`（musketeers と同水準） |
 | crew / power | `1` / `1.6`（Uncalibrated — 要調整） |
 
-`standardMachineWorks`（精密工作機械、Era 5）は roadmap 自身が「mechanics、precisionMachining」の代表ノードとして internalCombustionEngine 等で再利用している既存ノード（[technologyDefinitions.ts:943-947](../../src/generators/technologyDefinitions.ts) のコメント参照）。ライフリング（施条）加工と均質弾薬にも同じ精密加工基盤が必要という解釈で流用し、新規ノードは追加しない。
+`standardMachineWorks`（精密工作機械、Era 5）は roadmap 自身が「mechanics、precisionMachining」の代表ノードとして internalCombustionEngine 等で再利用している既存ノード（[technologyDefinitions.ts#L943-947](/src/generators/technologyDefinitions.ts) のコメント参照）。ライフリング（施条）加工と均質弾薬にも同じ精密加工基盤が必要という解釈で流用し、新規ノードは追加しない。
 
 `railEngineering`/`railwayOperations`（Era 5）は「輸送」であって「編成」ではないため本書のロースターには含めない。連隊の行軍速度への反映は [military-movement.md](./military-movement.md) 側の課題として切り離す（§6 非目標）。
 
@@ -177,9 +177,9 @@ for (const unit of military) {
 | rural / urban | `0` / `0.03`（artillery と同水準） | `0` / `0.015` |
 | crew / power | `8` / `20`（artillery比 約1.7倍） | `4` / `10` |
 
-`modernSteelmaking`（近代製鋼、Era 6）採用は史実の鋳鉄砲→鋼鉄製砲身（クルップ式）転換とほぼ同時期にマキシム機関銃級の量産火器も現れる、という解釈でひとつのノードに両方を掛ける。`machineGunners` は type `machinery` とすることで、既存の `cellTypeModifier.machinery`（highland 3倍など、[military-generator.ts:219-250](../../src/generators/military-generator.ts)）と `scheme.shelling.machinery = 2` 等の戦闘フェーズ補正を無改造で流用できる。
+`modernSteelmaking`（近代製鋼、Era 6）採用は史実の鋳鉄砲→鋼鉄製砲身（クルップ式）転換とほぼ同時期にマキシム機関銃級の量産火器も現れる、という解釈でひとつのノードに両方を掛ける。`machineGunners` は type `machinery` とすることで、既存の `cellTypeModifier.machinery`（highland 3倍など、[military-generator.ts#L219-250](/src/generators/military-generator.ts)）と `scheme.shelling.machinery = 2` 等の戦闘フェーズ補正を無改造で流用できる。
 
-`syntheticAmmonia`（合成アンモニア、Era 6）は roadmap §9.2 が明記する通り火薬原料の供給源にもなる。ここでは新ユニットは作らず、`getGunpowderDemandTechMultiplier()`（[technologyProgress.ts:132-144](../../src/generators/technologyProgress.ts)）と同型の「近代火薬供給効率」乗数を Phase 3（§5）で Economy 側に追加することを推奨する（Military のロースターには影響しない）。
+`syntheticAmmonia`（合成アンモニア、Era 6）は roadmap §9.2 が明記する通り火薬原料の供給源にもなる。ここでは新ユニットは作らず、`getGunpowderDemandTechMultiplier()`（[technologyProgress.ts#L132-144](/src/generators/technologyProgress.ts)）と同型の「近代火薬供給効率」乗数を Phase 3（§5）で Economy 側に追加することを推奨する（Military のロースターには影響しない）。
 
 ### 4.4 Era 7（石油・内燃機関）— 装甲車・航空機（新 type の実戦投入）✅ Phase 2 実装済み
 
@@ -195,7 +195,7 @@ for (const unit of military) {
 | crew / power | `4` / `40`（Uncalibrated） | `2` / `25`（Uncalibrated） |
 | separate | `0`（他兵科と混成編成可） | `1`（fleet と同様、航空隊は独立編成） |
 
-- **armored** は `internalCombustionEngine`（Era 7 の内燃機関ノード）の `adopted` を直接ゲートにする。これは `getInternalCombustionEngineEffect()` に初めて実消費者を与えることになる（[technologyProgress.ts:210-223](../../src/generators/technologyProgress.ts) のコメントにある「deliberately unconsumed」を解消）。Phase 1 で作った `requiresTechnology` の単純ゲート機構をそのまま使うだけで済み、追加コードは不要だった。
+- **armored** は `internalCombustionEngine`（Era 7 の内燃機関ノード）の `adopted` を直接ゲートにする。これは `getInternalCombustionEngineEffect()` に初めて実消費者を与えることになる（[technologyProgress.ts#L210-223](/src/generators/technologyProgress.ts) のコメントにある「deliberately unconsumed」を解消）。Phase 1 で作った `requiresTechnology` の単純ゲート機構をそのまま使うだけで済み、追加コードは不要だった。
 - **aviation** は単一ノードでは表現できない（roadmap 本文 §7 の結果欄に「航空」という語は出るが、専用の technologyDefinitions ノードは存在しない）。原則5（新規ノードを増やさない）に従い、`internalCombustionEngine`（動力）と `electrolyticIndustry`（Era 6、Aluminum＝軽量構造材、roadmap §9.4 が「後続の航空」の材料選択肢として明記）の**複合条件**として表現する。実装は §3.2 で確立した `s.temp[unit.name]` ループへの type 別特例（`passUnitLimits()` ではない — Phase 1 での方針転換を踏襲）:
   ```ts
   // s.temp[unit.name] を計算するループ内、requiresTechnology の乗算の直後に追加
@@ -210,7 +210,7 @@ for (const unit of military) {
   ```
   `unit.name === "aviation"` ではなく `unit.type === "aviation"` で判定しているため、将来 Military Options でユーザーが独自に追加する `aviation` type のカスタムユニットにも同じ現実的な下限が自動的にかかる。両ゲートのうち弱い方の share を採用する（`Math.min`）— どちらか片方が未解禁なら 0（ユニット不在）、両方解禁済みならその時点で成熟度が低い方に律速される。これも `electrolyticIndustry` の唯一の軍事的消費者になる。
 
-`armored`/`aviation` は combat エンジン側の変更が不要という §1.3 の見立ては、[src/controllers/battle-screen.test.ts](../../src/controllers/battle-screen.test.ts) を新規に書いて実証済み — `Battle.prototype` のメソッドを `Object.create(Battle.prototype)` で作った最小限の `this` に対して直接呼び、`defineType()` が全機 aviation の対戦を `"air"` と判定すること、`selectPhase()` が `"maneuvering"`/`"dogfight"` を実際に選ぶこと、`calculateStrength()` の `scheme` テーブルの `armored`/`aviation` 列が実際に読まれていること（`dogfight` は `maneuvering` のちょうど2倍、`melee` の armored 補正、`shelling` で armored の出力が 0 になることを確認）を検証した。手動でのブラウザ確認は行っていない（§8 参照）。
+`armored`/`aviation` は combat エンジン側の変更が不要という §1.3 の見立ては、[src/controllers/battle-screen.test.ts](/src/controllers/battle-screen.test.ts) を新規に書いて実証済み — `Battle.prototype` のメソッドを `Object.create(Battle.prototype)` で作った最小限の `this` に対して直接呼び、`defineType()` が全機 aviation の対戦を `"air"` と判定すること、`selectPhase()` が `"maneuvering"`/`"dogfight"` を実際に選ぶこと、`calculateStrength()` の `scheme` テーブルの `armored`/`aviation` 列が実際に読まれていること（`dogfight` は `maneuvering` のちょうど2倍、`melee` の armored 補正、`shelling` で armored の出力が 0 になることを確認）を検証した。手動でのブラウザ確認は行っていない（§8 参照）。
 
 ### 4.5 Era 8（ロケット・宇宙開発）— ロケット砲のみ、戦略兵器化はしない ✅ Phase 4 実装済み
 
@@ -223,7 +223,7 @@ for (const unit of military) {
 | rural / urban | `0` / `0.02` |
 | crew / power | `6` / `35`（Uncalibrated） |
 
-`militarySignalRockets`（Era 8 の軍用・信号用火薬ロケット）は roadmap 自身が「限定的な信号・軍事用途。宇宙開発の直接解禁にはしない」と明記しているノードであり、`getMilitarySignalRocketsEffect()` も「deliberately unconsumed」（[technologyProgress.ts:225-238](../../src/generators/technologyProgress.ts)）。本書はこれを**通常の砲兵ユニットの上位互換**として消費するに留め、外交・威信・戦略効果は一切付与しない（roadmap §11 の非目標をそのまま継承）。
+`militarySignalRockets`（Era 8 の軍用・信号用火薬ロケット）は roadmap 自身が「限定的な信号・軍事用途。宇宙開発の直接解禁にはしない」と明記しているノードであり、`getMilitarySignalRocketsEffect()` も「deliberately unconsumed」（[technologyProgress.ts#L225-238](/src/generators/technologyProgress.ts)）。本書はこれを**通常の砲兵ユニットの上位互換**として消費するに留め、外交・威信・戦略効果は一切付与しない（roadmap §11 の非目標をそのまま継承）。
 
 **用語の訂正（Phase 4 実装時に気づいた不正確な記述）**: 上の一文、および Phase 2 の実装ログにあった「`getInternalCombustionEngineEffect()`/`getMilitarySignalRocketsEffect()` に初めて実消費者を与える」という表現は正確ではない。実際に呼んでいるのは `requiresTechnology` 経由の `getTechnologyAdoptionShare()` であり、`getInternalCombustionEngineEffect()`/`getMilitarySignalRocketsEffect()` という名前の関数そのものは Phase 1〜4 を通じて一度も呼ばれていない（`grep` で確認済み）。両者は同じ `TechnologyProgress` 状態を読む**並行した**別実装であり、後者は `getTechnologyAdoptionShare()` のような `minimum` カットオフを持たない（`demonstrated` の時点で既に 0.35 を返す）ため、「`adopted` 未満では存在しない」という本書のゲート設計とは形が異なり、単純な置き換えはできない。`getInternalCombustionEngineEffect()`/`getMilitarySignalRocketsEffect()` 自体は今後も未消費のままである — 呼びたい場合は army roster 側ではなく、両関数のコメントが元々想定していた「車両/船舶/動力システム」「別の軍事・外交設計」側で使うのが筋。
 
@@ -250,7 +250,7 @@ for (const unit of military) {
 
 ### Phase 1 — ゲーティング機構 + Era 5-6 ユニット（riflemen / fieldArtillery / machineGunners）✅ 実装済み（2026-08-21）
 
-- `MilitaryUnit` に `requiresTechnology?` / `obsoletes?` を追加（[types/models.ts](../../src/types/models.ts)）。`TechnologyStage` を import せず `"known" | "demonstrated" | "adopted" | "diffused"` を直接インライン（types/ 層が generators/ 層に依存しないようにするため）。
+- `MilitaryUnit` に `requiresTechnology?` / `obsoletes?` を追加（[types/models.ts](/src/types/models.ts)）。`TechnologyStage` を import せず `"known" | "demonstrated" | "adopted" | "diffused"` を直接インライン（types/ 層が generators/ 層に依存しないようにするため）。
 - `technologyProgress.ts` に `getTechnologyAdoptionShare()` を追加(§3.3)。
 - `military-generator.ts`: 技術ゲートと obsolescence 減衰を `passUnitLimits()` ではなく `s.temp[unit.name]` の計算ループに統合(§3.2〜3.3 — 設計時の想定から変更)。rural/urban 募兵ループ自体は無変更。
 - `Military.getDefaultOptions()` に `riflemen`(§4.2)/`fieldArtillery`/`machineGunners`(§4.3)の3ユニットを追加。戻り値の型注釈 `MilitaryUnit[]` を明示(リテラル型 `"adopted"` 等が `string` へ widen されて型エラーになるのを防ぐため必要だった)。
@@ -263,7 +263,7 @@ for (const unit of military) {
 
 - `armored`/`aviation` ユニット定義を `Military.getDefaultOptions()` に追加(§4.4)。icon は 🛡️ / ✈️、`aviation` は `fleet` と同じ `separate: 1`(独立編成)とした。
 - `aviation` の複合ゲート(§4.4)は単一の `requiresTechnology` では表現できないため、§3.2 で実装した `s.temp[unit.name]` 計算ループに `unit.type === "aviation"` の特例として実装した(`passUnitLimits()` ではなく State 単位の倍率計算に寄せる、Phase 1 の方針をそのまま踏襲)。ユニット名ではなく type で判定しているため、将来ユーザーが Military Options で追加する `aviation` type のカスタムユニットにも同じゲートが自動的にかかる。
-- Battle Screen の手動検証の代わりに、[src/controllers/battle-screen.test.ts](../../src/controllers/battle-screen.test.ts) を新規作成し `Battle.prototype` のメソッドを直接呼ぶ自動テストで検証した(5件、全て green)。`new Battle(...)` はダイアログ表示等の実UI副作用を伴うため使わず、`Object.create(Battle.prototype)` で最小限の `this` を組み立てて `defineType()`/`selectPhase()`/`calculateStrength()` を直接叩く手法を採った。検証できたこと: (1) 両陣営とも全ユニットが aviation type のとき `defineType()` が `"air"` と判定する、(2) 地上ユニットが混ざると `"air"` にならない、(3) `selectPhase()` が `iteration` に応じて `"maneuvering"`→`"dogfight"` を実際に選ぶ(`P()` の `>=1`/`<=0` 決定的分岐を利用し非フレークにできた)、(4) `calculateStrength()` の `scheme` テーブルの `aviation` 列(`dogfight`が`maneuvering`のちょうど2倍)と `armored` 列(`melee`で正の出力、`shelling`で0)が実際に読まれている。§1.3 の「エンジン変更は原則不要」という見立てが実証された(変更ゼロ)。ブラウザでの実プレイ手動確認はまだ未実施(§8)。
+- Battle Screen の手動検証の代わりに、[src/controllers/battle-screen.test.ts](/src/controllers/battle-screen.test.ts) を新規作成し `Battle.prototype` のメソッドを直接呼ぶ自動テストで検証した(5件、全て green)。`new Battle(...)` はダイアログ表示等の実UI副作用を伴うため使わず、`Object.create(Battle.prototype)` で最小限の `this` を組み立てて `defineType()`/`selectPhase()`/`calculateStrength()` を直接叩く手法を採った。検証できたこと: (1) 両陣営とも全ユニットが aviation type のとき `defineType()` が `"air"` と判定する、(2) 地上ユニットが混ざると `"air"` にならない、(3) `selectPhase()` が `iteration` に応じて `"maneuvering"`→`"dogfight"` を実際に選ぶ(`P()` の `>=1`/`<=0` 決定的分岐を利用し非フレークにできた)、(4) `calculateStrength()` の `scheme` テーブルの `aviation` 列(`dogfight`が`maneuvering`のちょうど2倍)と `armored` 列(`melee`で正の出力、`shelling`で0)が実際に読まれている。§1.3 の「エンジン変更は原則不要」という見立てが実証された(変更ゼロ)。ブラウザでの実プレイ手動確認はまだ未実施(§8)。
 - `MilitaryOptionsDialog.tsx` に軽量な UI ヒントを追加した: `requiresTechnology` を持つユニット名の隣に 🔬 バッジ(hover で技術ID・必要段階を表示)、`obsoletes` を持つユニットに ↩️ バッジ(hover でどのユニットの募兵シェアを緩やかに奪うかを表示)。テーブル列の追加はせず、既存の `title`/`data-tip` パターンを流用。
 
 ### Phase 3 — Economy 拡張との装備連携 ✅ 実装済み（2026-08-21）
@@ -279,7 +279,7 @@ for (const unit of military) {
   - `settleMonthly()` の対象リソース一覧も、`gunpowderEraEnabled` の値にかかわらず `steel`/`kerosene`/`aluminum` を常に含めるよう修正した。Good 名ルックアップは既存の `goodsByName.get(resource)`（lowercase 一致）にそのまま乗るため、"iron"/"lead" 用の `" ingot"` サフィックス分岐に手を加える必要はなかった。
   - 装備は Iron/Lead/Fodder と同じ**毎月の市場直接消費**（`Markets.consumeForMilitary()`）として扱い、Muskets/Arms のような Metallurg 工廠発注＋`plannedU` 休眠編成パターンは適用しなかった（次項参照、計画通り）。
 - **重要な設計変更（実装中に発見）**: 当初は「`isArtillery()` を `=== "artillery"` から `.includes("artillery")` に一括で広げ、`fieldArtillery` も同じ判定に含める」という単純な変更を想定していたが、これは `unstockInitialFirearmForces()`（`initialFirearmsUnstocked` 時に部隊を `plannedU` の休眠枠へ振り替える処理）にも影響することが判明した。`metallurgWork.ts` は**別に定義された独自の** `isArtillery()`（`=== "artillery"` のまま、広げていない）で `plannedU` を再活性化する "Artillery" Good の生産計画を立てるため、`fieldArtillery` を `unstockInitialFirearmForces()` 側だけ広げると、`fieldArtillery` の休眠枠がどちらの生産計画にも一致せず**永久に再活性化されない**という実質的なリグレッションになるところだった（`initialFirearmsUnstocked` を有効にした場合のみ顕在化）。対処として `isArtillery()`（`unstockInitialFirearmForces()` 用、厳密一致のまま）と `isArtilleryLike()`（`getAnnualDemand()` の資材需要集計専用、`includes("artillery")` に広げた版）を分離した。テストでこの区別を固定化済み（下記）。
-- `musketeers`/`artillery` が現在受けている `unstockInitialFirearmForces()`（`plannedU` による装備待ち休眠編成、[militaryResources.ts:97-132](../../src/extensions/economy/generators/militaryResources.ts)）と同じパターンを新ユニットにも適用するかどうかは、計画通り Phase 3 では見送った（上記の通り、うっかり見送りを破るところだったので、テストで固定化した）。
+- `musketeers`/`artillery` が現在受けている `unstockInitialFirearmForces()`（`plannedU` による装備待ち休眠編成、[militaryResources.ts#L97-132](/src/extensions/economy/generators/militaryResources.ts)）と同じパターンを新ユニットにも適用するかどうかは、計画通り Phase 3 では見送った（上記の通り、うっかり見送りを破るところだったので、テストで固定化した）。
 
 ### Phase 4（バックログ・任意）— Era 8 ロケット砲 ✅ 実装済み（2026-08-21）
 

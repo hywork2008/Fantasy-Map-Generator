@@ -6,7 +6,7 @@
 era 表と、§9.3「電力・電気化学」（L279-291）のノード表を対象に、発電・送電・電信を実際の `TechnologyDefinition` /
 State資本設備 / 市場カバレッジへ落とし込む。era 6 の技術グラフは
 [synthetic-ammonia-vertical-slice.md](./synthetic-ammonia-vertical-slice.md) の `syntheticAmmonia` で一度完結しており
-（[technologyDefinitions.ts:609-730](../../src/generators/technologyDefinitions.ts#L609-L730)、`chemicalIndustryFoundation` →
+（[technologyDefinitions.ts#L609-730](/src/generators/technologyDefinitions.ts#L609-L730)、`chemicalIndustryFoundation` →
 … → `catalyticChemistry` → `syntheticAmmonia`)、本書はそこに合流しない独立枝として `electricalExperiments` から生える
 5ノードを追加する（§3.1）。
 
@@ -59,7 +59,7 @@ State資本設備 / 市場カバレッジへ落とし込む。era 6 の技術グ
   設置する」パターンを一度も使っていない（§2 監査）。本書もこの実装済みパターンを踏襲し、`Generator` Good は
   新設しない（§7 決定事項2）。
 - 電信の効果を Nobility の諜報・外交システム（`IntelligenceReport`/`StrategicGoal`、
-  [simulationContext.ts:237-255](../../src/context/simulationContext.ts#L237-L255)）へ接続すること。クロス拡張の
+  [simulationContext.ts#L237-255](/src/context/simulationContext.ts#L237-L255)）へ接続すること。クロス拡張の
   結合を増やさず、host が既に所有する `TechnologyProgress.diffusion` の伸び率だけを対象にする（§3.12, §7 決定事項3）。
 - 送電網を地理的な線・変電所ネットワークとしてシミュレートすること。`powerGrid` の adopted 前後で「同一 Burg のみ」
   から「同一 State 全体のプール」へ切り替える2段階の抽象化に留める（§3.10）。
@@ -71,21 +71,21 @@ State資本設備 / 市場カバレッジへ落とし込む。era 6 の技術グ
 
 | 項目 | 現状 | 参照 |
 | --- | --- | --- |
-| era 6 の技術グラフの現在の終端 | `chemicalIndustryFoundation` → `industrialSulfuricAcid` →（`phosphateFertilizer` / `modernSteelmaking` → `highPressureChemicalApparatus`）→ `catalyticChemistry` → `syntheticAmmonia` まで実装済み。 | [technologyDefinitions.ts:609-730](../../src/generators/technologyDefinitions.ts#L609-L730) |
-| `TechnologyEraBand` | `0\|1\|2\|3\|4\|5\|6` に固定。本書は era を拡張せず、既存の era 6 に5ノード追加する。 | [technologyTypes.ts:16](../../src/generators/technologyTypes.ts#L16) |
-| 「State資金の資本設備、ChemistryTrial を経由しない」先例 | `SteelConverterPlant` は `burgId`/`stateId`/`role`/`active`/`utilization`/`documentedRuns`/`lastFundedYear` を自分自身で持ち、化学ドメインの `ChemistryTrial` を経由しない（冶金ドメインの特例）。`chemMedCommon.ts` の汎用ヘルパー（`debitTreasury`/`consumeNamed`/`addNamedStock`/`pickSponsorBurg`/`marketIdForBurg`）をそのまま再利用する。 | [steelConverterTypes.ts](../../src/extensions/economy/generators/steelConverterTypes.ts)、[steelConverters.ts](../../src/extensions/economy/generators/steelConverters.ts) |
-| **資本 Good を購入してから設置する、という構想は一度も実装されていない** | `Stationary Steam Engine`/`Locomotive`/`Marine Steam Engine` は Good カタログに存在するが（tags: `["industrial", "capital"]`）、それらを消費してどこかの施設・資産へ「設置」するコードは存在しない。実際に稼働・容量を生む2つの実装済み設備 — `SteamInstallation`（鉱山蒸気ポンプ）と `SteelConverterPlant`（転炉）— はどちらも「Treasury 予算 + 年次燃料/材料消費」だけで容量・生産を表現し、対応する資本 Good を一切消費しない。 | [goods-generator.ts:2496-2549](../../src/extensions/economy/generators/goods-generator.ts#L2496-L2549)（Good 定義のみ）、[steamTypes.ts:18-26](../../src/extensions/economy/generators/steamTypes.ts#L18-L26)、[steelConverters.ts:60-84](../../src/extensions/economy/generators/steelConverters.ts#L60-L84)（Treasury + 燃料/材料のみ） |
-| `steelAccess`/`sulfurAccess`/`phosphateRockAccess` の市場カバレッジ・シグナルの型 | 「州が保有する市場の該当 Good 合計在庫を `clamp01(stock / 定数)` にする」だけの1行パターン。`copperWireAccess` も同型で追加できる。 | [technologyProgress.ts:765, 788](../../src/generators/technologyProgress.ts#L765) |
-| `modernSteelmakingTrialYears`/`modernSteelmakingInstallations` の集計ループ | `economy.steelConverterPlants` を1回走査し、`active` な件数と `documentedRuns` の州内最大値を同時に出す。`ChemistryTrial` 非経由のため `hospitalInstallations`/`hospitalTrialYears` ブロックと同型でさらに短い。 | [technologyProgress.ts:860-875](../../src/generators/technologyProgress.ts#L860-L875) |
-| `prerequisitesMet()` と `stageOf` クロージャ | 年次評価ループは州ごとに `stageOf = id => byKey.get(...)?.stage ?? "locked"` を作り、`prerequisitesMet(def, stageOf)` に渡す。`byKey` の各エントリは同一年内で `TECHNOLOGY_DEFINITIONS` 配列の並び順に書き換わるため、`stageOf` は「配列で自分より前にある技術は今年の更新後、後にある技術は前年の値」を返す。 | [technologyProgress.ts:314-345, 990-992](../../src/generators/technologyProgress.ts#L314-L345) |
-| `advanceStage()` の呼び出し形 | `entry, def, signals, year, hintKnowledgeRatios` の5引数のみを受け取り、`stageOf` を持たない。`diffusion` の年次加算は `DIFFUSION_ANNUAL_GAIN(=0.15) * getTechnologyDevelopmentSpeed()` の固定式で、技術・州によらず一律。 | [technologyProgress.ts:54, 1110-1153, 343](../../src/generators/technologyProgress.ts#L1110-L1153) |
-| `instruments` Guild Knowledge の唯一の産出源 | `CraftDomainEmploymentRecord[domain="instruments"]` は `experimentalWorkshops.ts` の非 export 関数 `upsertInstruments(burgId, workers)` からのみ積み上がる。`guildKnowledge.ts` はこの一意性を前提にしたコメントを持つ。 | [experimentalWorkshops.ts:25, 34-43, 104](../../src/extensions/economy/generators/experimentalWorkshops.ts#L34-L43)、[guildKnowledge.ts:94-105](../../src/extensions/economy/generators/guildKnowledge.ts#L94-L105) |
-| Market の population 集計の先例 | `Markets.calculatePopulationByMarket()`（private）は `pack.burgs` を1回走査し `burg.market` ごとに `burg.population` を合算するだけ。`FertilizerInvestment` は同種の集計（`cultivatedHectaresByMarket`）を private ヘルパーを import せず自前で1回走査して作る。 | [markets-generator.ts:2305-2313](../../src/extensions/economy/generators/markets-generator.ts#L2305-L2313)、[fertilizerInvestment.ts:44-55](../../src/extensions/economy/generators/fertilizerInvestment.ts#L44-L55) |
-| `Market.fertilizerStock` 投資パターンの先例 | `FertilizerInvestment.settleAnnual()`: 需要量 = 面積 × 目標単価、予算 = `market.marketTreasury.balance × BUDGET_SHARE`、`Markets.consumeForMarketInvestment()` で購入、`fertilizerStock = 前年値×(1-rate) + 今年のカバレッジ×rate` の EWMA。 | [fertilizerInvestment.ts:31-90](../../src/extensions/economy/generators/fertilizerInvestment.ts#L31-L90) |
-| `chemMedCommon.ts` の budget 定数の並び | `ACID_PLANT_BUDGET(24) < PHOSPHATE_FERTILIZER_PLANT_BUDGET(28) < STEEL_CONVERTER_PLANT_BUDGET(32) < SYNTHETIC_AMMONIA_PLANT_BUDGET(40)`。 | [chemMedCommon.ts:12-24](../../src/extensions/economy/generators/chemMedCommon.ts#L12-L24) |
-| Good 新設時のセーブ互換性 | `migrateSyntheticAmmoniaGoods()`（`SYNTHETIC_AMMONIA_GOOD_NAMES`、単一ファイル内の小さな追加関数）が `index.tsx` の2箇所（生成時・ロード時）から呼ばれる。同じファイルに `INDUSTRIAL_STEAM_GOOD_NAMES`/`CHEMMED_GOOD_NAMES` という同型の名前リスト定数も既にある。 | [goods-generator.ts:3206-3217, 3328-3352](../../src/extensions/economy/generators/goods-generator.ts#L3206-L3352)、[index.tsx:2463-2464, 3144-3145](../../src/extensions/economy/index.tsx#L2463-L2464) |
-| era 6 State資本設備の呼び出し順序 | `index.tsx` に2つの独立したブロックがある: (a) 投資ブロック — `AgTechInvestment` → `FertilizerInvestment` → `NitrogenFertilizerInvestment` → `IndustrialTechInvestment`（L2812-2823）。(b) 生産ブロック — `ExperimentalWorkshops` → `AcidPlants` → `PhosphateFertilizerPlants` → `SteelConverters` → `SyntheticAmmoniaPlants`（L2948-2961）。(b) は (a) より後に実行されるため、`NitrogenFertilizerInvestment` は前年の `SyntheticAmmoniaPlants` 出力を購入する非同期関係が既に確立している。 | [index.tsx:2812-2823, 2948-2961](../../src/extensions/economy/index.tsx#L2812-L2961) |
-| `extensionStateSlices.ts` の配列登録 | `validateEconomySlice()` の配列フィールド一覧に `"steelConverterPlants"` などが登録済み。新規配列はここに追加しないとセーブ・ロード時に検証されない。 | [extensionStateSlices.ts:437-439](../../src/runtime/extensionStateSlices.ts#L437-L439) |
+| era 6 の技術グラフの現在の終端 | `chemicalIndustryFoundation` → `industrialSulfuricAcid` →（`phosphateFertilizer` / `modernSteelmaking` → `highPressureChemicalApparatus`）→ `catalyticChemistry` → `syntheticAmmonia` まで実装済み。 | [technologyDefinitions.ts#L609-730](/src/generators/technologyDefinitions.ts#L609-L730) |
+| `TechnologyEraBand` | `0\|1\|2\|3\|4\|5\|6` に固定。本書は era を拡張せず、既存の era 6 に5ノード追加する。 | [technologyTypes.ts#L16](/src/generators/technologyTypes.ts#L16) |
+| 「State資金の資本設備、ChemistryTrial を経由しない」先例 | `SteelConverterPlant` は `burgId`/`stateId`/`role`/`active`/`utilization`/`documentedRuns`/`lastFundedYear` を自分自身で持ち、化学ドメインの `ChemistryTrial` を経由しない（冶金ドメインの特例）。`chemMedCommon.ts` の汎用ヘルパー（`debitTreasury`/`consumeNamed`/`addNamedStock`/`pickSponsorBurg`/`marketIdForBurg`）をそのまま再利用する。 | [steelConverterTypes.ts](/src/extensions/economy/generators/steelConverterTypes.ts)、[steelConverters.ts](/src/extensions/economy/generators/steelConverters.ts) |
+| **資本 Good を購入してから設置する、という構想は一度も実装されていない** | `Stationary Steam Engine`/`Locomotive`/`Marine Steam Engine` は Good カタログに存在するが（tags: `["industrial", "capital"]`）、それらを消費してどこかの施設・資産へ「設置」するコードは存在しない。実際に稼働・容量を生む2つの実装済み設備 — `SteamInstallation`（鉱山蒸気ポンプ）と `SteelConverterPlant`（転炉）— はどちらも「Treasury 予算 + 年次燃料/材料消費」だけで容量・生産を表現し、対応する資本 Good を一切消費しない。 | [goods-generator.ts#L2496-2549](/src/extensions/economy/generators/goods-generator.ts#L2496-L2549)（Good 定義のみ）、[steamTypes.ts#L18-26](/src/extensions/economy/generators/steamTypes.ts#L18-L26)、[steelConverters.ts#L60-84](/src/extensions/economy/generators/steelConverters.ts#L60-L84)（Treasury + 燃料/材料のみ） |
+| `steelAccess`/`sulfurAccess`/`phosphateRockAccess` の市場カバレッジ・シグナルの型 | 「州が保有する市場の該当 Good 合計在庫を `clamp01(stock / 定数)` にする」だけの1行パターン。`copperWireAccess` も同型で追加できる。 | [technologyProgress.ts#L765, 788](/src/generators/technologyProgress.ts#L765) |
+| `modernSteelmakingTrialYears`/`modernSteelmakingInstallations` の集計ループ | `economy.steelConverterPlants` を1回走査し、`active` な件数と `documentedRuns` の州内最大値を同時に出す。`ChemistryTrial` 非経由のため `hospitalInstallations`/`hospitalTrialYears` ブロックと同型でさらに短い。 | [technologyProgress.ts#L860-875](/src/generators/technologyProgress.ts#L860-L875) |
+| `prerequisitesMet()` と `stageOf` クロージャ | 年次評価ループは州ごとに `stageOf = id => byKey.get(...)?.stage ?? "locked"` を作り、`prerequisitesMet(def, stageOf)` に渡す。`byKey` の各エントリは同一年内で `TECHNOLOGY_DEFINITIONS` 配列の並び順に書き換わるため、`stageOf` は「配列で自分より前にある技術は今年の更新後、後にある技術は前年の値」を返す。 | [technologyProgress.ts#L314-345, 990-992](/src/generators/technologyProgress.ts#L314-L345) |
+| `advanceStage()` の呼び出し形 | `entry, def, signals, year, hintKnowledgeRatios` の5引数のみを受け取り、`stageOf` を持たない。`diffusion` の年次加算は `DIFFUSION_ANNUAL_GAIN(=0.15) * getTechnologyDevelopmentSpeed()` の固定式で、技術・州によらず一律。 | [technologyProgress.ts#L54, 1110-1153, 343](/src/generators/technologyProgress.ts#L1110-L1153) |
+| `instruments` Guild Knowledge の唯一の産出源 | `CraftDomainEmploymentRecord[domain="instruments"]` は `experimentalWorkshops.ts` の非 export 関数 `upsertInstruments(burgId, workers)` からのみ積み上がる。`guildKnowledge.ts` はこの一意性を前提にしたコメントを持つ。 | [experimentalWorkshops.ts#L25, 34-43, 104](/src/extensions/economy/generators/experimentalWorkshops.ts#L34-L43)、[guildKnowledge.ts#L94-105](/src/extensions/economy/generators/guildKnowledge.ts#L94-L105) |
+| Market の population 集計の先例 | `Markets.calculatePopulationByMarket()`（private）は `pack.burgs` を1回走査し `burg.market` ごとに `burg.population` を合算するだけ。`FertilizerInvestment` は同種の集計（`cultivatedHectaresByMarket`）を private ヘルパーを import せず自前で1回走査して作る。 | [markets-generator.ts#L2305-2313](/src/extensions/economy/generators/markets-generator.ts#L2305-L2313)、[fertilizerInvestment.ts#L44-55](/src/extensions/economy/generators/fertilizerInvestment.ts#L44-L55) |
+| `Market.fertilizerStock` 投資パターンの先例 | `FertilizerInvestment.settleAnnual()`: 需要量 = 面積 × 目標単価、予算 = `market.marketTreasury.balance × BUDGET_SHARE`、`Markets.consumeForMarketInvestment()` で購入、`fertilizerStock = 前年値×(1-rate) + 今年のカバレッジ×rate` の EWMA。 | [fertilizerInvestment.ts#L31-90](/src/extensions/economy/generators/fertilizerInvestment.ts#L31-L90) |
+| `chemMedCommon.ts` の budget 定数の並び | `ACID_PLANT_BUDGET(24) < PHOSPHATE_FERTILIZER_PLANT_BUDGET(28) < STEEL_CONVERTER_PLANT_BUDGET(32) < SYNTHETIC_AMMONIA_PLANT_BUDGET(40)`。 | [chemMedCommon.ts#L12-24](/src/extensions/economy/generators/chemMedCommon.ts#L12-L24) |
+| Good 新設時のセーブ互換性 | `migrateSyntheticAmmoniaGoods()`（`SYNTHETIC_AMMONIA_GOOD_NAMES`、単一ファイル内の小さな追加関数）が `index.tsx` の2箇所（生成時・ロード時）から呼ばれる。同じファイルに `INDUSTRIAL_STEAM_GOOD_NAMES`/`CHEMMED_GOOD_NAMES` という同型の名前リスト定数も既にある。 | [goods-generator.ts#L3206-3217, 3328-3352](/src/extensions/economy/generators/goods-generator.ts#L3206-L3352)、[index.tsx:2463-2464, 3144-3145](/src/extensions/economy/index.tsx#L2463-L2464) |
+| era 6 State資本設備の呼び出し順序 | `index.tsx` に2つの独立したブロックがある: (a) 投資ブロック — `AgTechInvestment` → `FertilizerInvestment` → `NitrogenFertilizerInvestment` → `IndustrialTechInvestment`（L2812-2823）。(b) 生産ブロック — `ExperimentalWorkshops` → `AcidPlants` → `PhosphateFertilizerPlants` → `SteelConverters` → `SyntheticAmmoniaPlants`（L2948-2961）。(b) は (a) より後に実行されるため、`NitrogenFertilizerInvestment` は前年の `SyntheticAmmoniaPlants` 出力を購入する非同期関係が既に確立している。 | [index.tsx:2812-2823, 2948-2961](/src/extensions/economy/index.tsx#L2812-L2961) |
+| `extensionStateSlices.ts` の配列登録 | `validateEconomySlice()` の配列フィールド一覧に `"steelConverterPlants"` などが登録済み。新規配列はここに追加しないとセーブ・ロード時に検証されない。 | [extensionStateSlices.ts#L437-439](/src/runtime/extensionStateSlices.ts#L437-L439) |
 
 結論として、State資本設備・市場投資EWMA・シグナル集計という3層はすべて `SteelConverterPlant`/`FertilizerInvestment`/`steelAccess` の3つの先例からそのまま複製できる。本書で実質的に新しいのは「①資本 Good を持たない発電・電信の2つの設備、②在庫ではなく容量カバレッジとして扱う `Market.electricityStock`、③ `advanceStage()` へ `stageOf` を追加して電信の普及速度ボーナスを配線する1箇所の関数シグネチャ変更」の3点に限定される。
 
@@ -153,7 +153,7 @@ State資本設備 / 市場カバレッジへ落とし込む。era 6 の技術グ
 }
 ```
 
-`Copper Ingot`/`Glass`/`Machine Parts` はいずれも既存 Good（[goods-generator.ts:306, 1206, 2483](../../src/extensions/economy/generators/goods-generator.ts#L2483)）。`tradeProfile` 一覧（[goods-generator.ts:2716, 2764](../../src/extensions/economy/generators/goods-generator.ts#L2764) 付近）にも `"Copper Wire": tradeProfile(...)` を1行追加する。
+`Copper Ingot`/`Glass`/`Machine Parts` はいずれも既存 Good（[goods-generator.ts#L306, 1206, 2483](/src/extensions/economy/generators/goods-generator.ts#L2483)）。`tradeProfile` 一覧（[goods-generator.ts#L2716, 2764](/src/extensions/economy/generators/goods-generator.ts#L2764) 付近）にも `"Copper Wire": tradeProfile(...)` を1行追加する。
 
 `Generator` Good は追加しない（§1 非目的、§7 決定事項2）。
 
@@ -182,15 +182,15 @@ electricityCoverage: number;
 
 `technologyProgress.ts` の初期化ブロックに6フィールドとも `0` で追加する。
 
-`copperWireAccess` は既存の `steelStockByState` パス（[technologyProgress.ts:765, 788](../../src/generators/technologyProgress.ts#L765)）に `copperWireId = goodIdByName(economy, "Copper Wire")` を足すだけの1行:
+`copperWireAccess` は既存の `steelStockByState` パス（[technologyProgress.ts#L765, 788](/src/generators/technologyProgress.ts#L765)）に `copperWireId = goodIdByName(economy, "Copper Wire")` を足すだけの1行:
 
 ```ts
 signals.copperWireAccess = clamp01((copperWireStockByState.get(stateId) ?? 0) / 2);
 ```
 
-`powerStationTrialYears`/`powerStationInstallations`/`telegraphLineTrialYears`/`telegraphLineInstallations` は `modernSteelmakingTrialYears`/`modernSteelmakingInstallations` の集計ブロック（[technologyProgress.ts:860-875](../../src/generators/technologyProgress.ts#L860-L875)）と全く同型のループを2つ追加する（`economy.powerStations`、`economy.telegraphLines` をそれぞれ1回走査）。
+`powerStationTrialYears`/`powerStationInstallations`/`telegraphLineTrialYears`/`telegraphLineInstallations` は `modernSteelmakingTrialYears`/`modernSteelmakingInstallations` の集計ブロック（[technologyProgress.ts#L860-875](/src/generators/technologyProgress.ts#L860-L875)）と全く同型のループを2つ追加する（`economy.powerStations`、`economy.telegraphLines` をそれぞれ1回走査）。
 
-`electricityCoverage` は新しい小さなループを1つ追加する（`foodLedger` を持つ市場に限定した既存の集計ループとは別の、`Market.electricityStock` だけを見る単純な平均）。`Market` 自体は人口フィールドを持たない（`cultivatedArea` のような `marketCellColumn` 経由の間接参照も無い）ため、`Markets.calculatePopulationByMarket()`（private、markets-generator.ts:2305-2313）と同じ「`pack.burgs` を1回走査し `burg.market` ごとに `burg.population` を合算する」ローカル集計を先に作る:
+`electricityCoverage` は新しい小さなループを1つ追加する（`foodLedger` を持つ市場に限定した既存の集計ループとは別の、`Market.electricityStock` だけを見る単純な平均）。`Market` 自体は人口フィールドを持たない（`cultivatedArea` のような `marketCellColumn` 経由の間接参照も無い）ため、`Markets.calculatePopulationByMarket()`（private、markets-generator.ts#L2305-2313）と同じ「`pack.burgs` を1回走査し `burg.market` ごとに `burg.population` を合算する」ローカル集計を先に作る:
 
 ```ts
 const populationByMarket = new Map<number, number>();
@@ -217,7 +217,7 @@ for (const [stateId, entry] of electricityByState) {
 }
 ```
 
-`COUNT_SIGNAL_KEYS`（[technologyProgress.ts:994-1017](../../src/generators/technologyProgress.ts#L994-L1017)）に `powerStationTrialYears`/`powerStationInstallations`/`telegraphLineTrialYears`/`telegraphLineInstallations` を追加する。`copperWireAccess`/`electricityCoverage` は `sulfurAccess`/`steelAccess` と同じく無登録（デフォルトの "ratio" 種別のまま）。
+`COUNT_SIGNAL_KEYS`（[technologyProgress.ts#L994-1017](/src/generators/technologyProgress.ts#L994-L1017)）に `powerStationTrialYears`/`powerStationInstallations`/`telegraphLineTrialYears`/`telegraphLineInstallations` を追加する。`copperWireAccess`/`electricityCoverage` は `sulfurAccess`/`steelAccess` と同じく無登録（デフォルトの "ratio" 種別のまま）。
 
 ### 3.4 技術ノード: `electricalExperiments`
 
@@ -237,7 +237,7 @@ for (const [stateId, entry] of electricityByState) {
 }
 ```
 
-`prerequisites` は era 4 の `experimentalNaturalPhilosophy` 単独（[technologyDefinitions.ts:390-399](../../src/generators/technologyDefinitions.ts#L390-L399)）— `chemicalIndustryFoundation`（era6）が era4 の `analyticalChemistry` を直接前提にしているのと同じ2段跳び（[technologyDefinitions.ts:612-616](../../src/generators/technologyDefinitions.ts#L612-L616)）。`experimentRecord` の閾値(0.45/0.5)は `experimentalNaturalPhilosophy` 自身の adopted 閾値(0.4)より高く設定し、前提が adopted した瞬間に自動で `known` へ進まないようにする。`instruments`(0.3/0.35)は `experimentalNaturalPhilosophy` が全く参照しない独立シグナルであるため、それ自体が新しいゲートとして機能する。
+`prerequisites` は era 4 の `experimentalNaturalPhilosophy` 単独（[technologyDefinitions.ts#L390-399](/src/generators/technologyDefinitions.ts#L390-L399)）— `chemicalIndustryFoundation`（era6）が era4 の `analyticalChemistry` を直接前提にしているのと同じ2段跳び（[technologyDefinitions.ts#L612-616](/src/generators/technologyDefinitions.ts#L612-L616)）。`experimentRecord` の閾値(0.45/0.5)は `experimentalNaturalPhilosophy` 自身の adopted 閾値(0.4)より高く設定し、前提が adopted した瞬間に自動で `known` へ進まないようにする。`instruments`(0.3/0.35)は `experimentalNaturalPhilosophy` が全く参照しない独立シグナルであるため、それ自体が新しいゲートとして機能する。
 
 ### 3.5 技術ノード: `practicalElectrochemistry`
 
@@ -291,7 +291,7 @@ for (const [stateId, entry] of electricityByState) {
 }
 ```
 
-`prerequisites` は2本 — `highPressureChemicalApparatus` が `modernSteelmaking`/`industrialSulfuricAcid` の両方を要求するのと同じ形（[technologyDefinitions.ts:680-695](../../src/generators/technologyDefinitions.ts#L680-L695)）。`prerequisitesMet()` はどちらも adopted であることを要求するため、`steelAccess` は `modernSteelmaking` の adopted 時点で既に一定の裾野があるが、`modernSteelmaking` 自身は `steelAccess` を demonstrated/adopted で再掲しない（known の 0.2 止まり）ため、`steelAccess: 0.3` は依然として意味のある追加ゲートになる。`copperWireAccess`(0.35)は `electricalExperiments` が一切参照しない独立シグナルであるため、単独でも自動達成のリスクはない。
+`prerequisites` は2本 — `highPressureChemicalApparatus` が `modernSteelmaking`/`industrialSulfuricAcid` の両方を要求するのと同じ形（[technologyDefinitions.ts#L680-695](/src/generators/technologyDefinitions.ts#L680-L695)）。`prerequisitesMet()` はどちらも adopted であることを要求するため、`steelAccess` は `modernSteelmaking` の adopted 時点で既に一定の裾野があるが、`modernSteelmaking` 自身は `steelAccess` を demonstrated/adopted で再掲しない（known の 0.2 止まり）ため、`steelAccess: 0.3` は依然として意味のある追加ゲートになる。`copperWireAccess`(0.35)は `electricalExperiments` が一切参照しない独立シグナルであるため、単独でも自動達成のリスクはない。
 
 ### 3.8 技術ノード: `powerGrid`
 
@@ -354,7 +354,7 @@ export const POWER_STATION_BUDGET = 36;
 export const TELEGRAPH_LINE_BUDGET = 18;
 ```
 
-新規モジュール `powerStations.ts`（`steelConverters.ts` と同型構造。[steelConverters.ts](../../src/extensions/economy/generators/steelConverters.ts) 全体をそのまま複製し、以下だけ置き換える）:
+新規モジュール `powerStations.ts`（`steelConverters.ts` と同型構造。[steelConverters.ts](/src/extensions/economy/generators/steelConverters.ts) 全体をそのまま複製し、以下だけ置き換える）:
 
 ```ts
 export class PowerStationsModule {
@@ -393,9 +393,9 @@ export class TelegraphLinesModule {
 export const TelegraphLines = new TelegraphLinesModule();
 ```
 
-`economyContext.ts` にスライスアクセサを追加（`getSteelConverterPlants`/`setSteelConverterPlants`/`getSteelConverterPlantsLastSettledYear`/`setSteelConverterPlantsLastSettledYear` と同型、[economyContext.ts:1421-1493](../../src/extensions/economy/economyContext.ts#L1421-L1493)）を `powerStations`/`telegraphLines` それぞれに追加する。`_powerStationsLastSettledYearFallback`/`_telegraphLinesLastSettledYearFallback` フォールバック変数と、モジュールリセット処理（[economyContext.ts:165, 227](../../src/extensions/economy/economyContext.ts#L165)）にも追加する。`extensionStateSlices.ts` の `validateEconomySlice()` 配列フィールド一覧（[extensionStateSlices.ts:437-439](../../src/runtime/extensionStateSlices.ts#L437-L439)）に `"powerStations"`/`"telegraphLines"` を追加する。
+`economyContext.ts` にスライスアクセサを追加（`getSteelConverterPlants`/`setSteelConverterPlants`/`getSteelConverterPlantsLastSettledYear`/`setSteelConverterPlantsLastSettledYear` と同型、[economyContext.ts#L1421-1493](/src/extensions/economy/economyContext.ts#L1421-L1493)）を `powerStations`/`telegraphLines` それぞれに追加する。`_powerStationsLastSettledYearFallback`/`_telegraphLinesLastSettledYearFallback` フォールバック変数と、モジュールリセット処理（[economyContext.ts#L165, 227](/src/extensions/economy/economyContext.ts#L165)）にも追加する。`extensionStateSlices.ts` の `validateEconomySlice()` 配列フィールド一覧（[extensionStateSlices.ts#L437-439](/src/runtime/extensionStateSlices.ts#L437-L439)）に `"powerStations"`/`"telegraphLines"` を追加する。
 
-呼び出し順序（`src/extensions/economy/index.tsx`、[index.tsx:2948-2961](../../src/extensions/economy/index.tsx#L2948-L2961) の era 6 プラント群の末尾、`SyntheticAmmoniaPlants.settleAnnual()` の直後）:
+呼び出し順序（`src/extensions/economy/index.tsx`、[index.tsx:2948-2961](/src/extensions/economy/index.tsx#L2948-L2961) の era 6 プラント群の末尾、`SyntheticAmmoniaPlants.settleAnnual()` の直後）:
 
 ```ts
 ExperimentalWorkshops.settleAnnual();
@@ -434,7 +434,7 @@ export const ELECTRICITY_ADOPTION_RATE = 0.15; // FERTILIZER_ADOPTION_RATEと同
 export class PowerGridInvestmentModule {
   settleAnnual(): boolean {
     // 1. 年次自己ゲート
-    // 2. markets-generator.ts:2305-2313のcalculatePopulationByMarket()と同型の集計を自前で
+    // 2. markets-generator.ts#L2305-2313のcalculatePopulationByMarket()と同型の集計を自前で
     //    1回行う(private関数のためimportしない。fertilizerInvestment.tsの
     //    cultivatedHectaresByMarket集計と同じ「自前で再集計する」流儀)
     // 3. state.i ごとに、powerGridがadopted以上かを見る:
@@ -453,7 +453,7 @@ export const PowerGridInvestment = new PowerGridInvestmentModule();
 
 `electricityStock` の更新はステップ4のとおり `market.marketTreasury` を消費しない — 電力の「投資」は既に §3.9 の `PowerStations.settleAnnual()` が Treasury から支払っている発電所の運転費であり、`PowerGridInvestment` は生まれた容量を人口需要へ配分するだけの純粋な集計層である。これは `FertilizerInvestment`(Good購入)/`AgTechInvestment`(Tools購入)と明確に異なる新しいサブパターンであり、§7 決定事項5 として明示する。
 
-呼び出し順序（`src/extensions/economy/index.tsx`、[index.tsx:2812-2823](../../src/extensions/economy/index.tsx#L2812-L2823) の投資ブロック末尾、`IndustrialTechInvestment.settleAnnual()` の直後）:
+呼び出し順序（`src/extensions/economy/index.tsx`、[index.tsx:2812-2823](/src/extensions/economy/index.tsx#L2812-L2823) の投資ブロック末尾、`IndustrialTechInvestment.settleAnnual()` の直後）:
 
 ```ts
 AgTechInvestment.settleAnnual();
@@ -467,18 +467,18 @@ PowerGridInvestment.settleAnnual();
 
 ### 3.11 `instruments` Guild Knowledge への波及効果
 
-`experimentalWorkshops.ts` の非 export 関数 `upsertInstruments`（[experimentalWorkshops.ts:34-43](../../src/extensions/economy/generators/experimentalWorkshops.ts#L34-L43)）に `export` を付け、`powerStations.ts` から import する。`guildKnowledge.ts` のコメント（[guildKnowledge.ts:96-99](../../src/extensions/economy/generators/guildKnowledge.ts#L96-L99)）「`instruments` has no manufacture-craft-employment source of its own today ... comes entirely from experimentalWorkshops.ts's upsertInstruments()」は、`PowerStations` が2つ目の産出源になった時点で不正確になるため、実装時に同じ変更内で更新する。
+`experimentalWorkshops.ts` の非 export 関数 `upsertInstruments`（[experimentalWorkshops.ts#L34-43](/src/extensions/economy/generators/experimentalWorkshops.ts#L34-L43)）に `export` を付け、`powerStations.ts` から import する。`guildKnowledge.ts` のコメント（[guildKnowledge.ts#L96-99](/src/extensions/economy/generators/guildKnowledge.ts#L96-L99)）「`instruments` has no manufacture-craft-employment source of its own today ... comes entirely from experimentalWorkshops.ts's upsertInstruments()」は、`PowerStations` が2つ目の産出源になった時点で不正確になるため、実装時に同じ変更内で更新する。
 
 ```ts
 // powerStations.ts、utilization >= 0.5 の分岐内
 upsertInstruments(plant.burgId, POWER_STATION_INSTRUMENT_WORKERS); // calibration TBD, 例: 2
 ```
 
-`upsertInstruments` は `Math.max(existing.workers, workers)` で統合するため（[experimentalWorkshops.ts:37](../../src/extensions/economy/generators/experimentalWorkshops.ts#L37)）、同一 Burg に `ExperimentalWorkshop` と `PowerStation` の両方があっても二重加算にはならない。
+`upsertInstruments` は `Math.max(existing.workers, workers)` で統合するため（[experimentalWorkshops.ts#L37](/src/extensions/economy/generators/experimentalWorkshops.ts#L37)）、同一 Burg に `ExperimentalWorkshop` と `PowerStation` の両方があっても二重加算にはならない。
 
 ### 3.12 電信の効果: 技術普及速度ボーナス
 
-`advanceStage()`（[technologyProgress.ts:1110-1153](../../src/generators/technologyProgress.ts#L1110-L1153)）のシグネチャに `stageOf` を追加する:
+`advanceStage()`（[technologyProgress.ts#L1110-1153](/src/generators/technologyProgress.ts#L1110-L1153)）のシグネチャに `stageOf` を追加する:
 
 ```ts
 function advanceStage(
@@ -507,7 +507,7 @@ function advanceStage(
 }
 ```
 
-呼び出し側（[technologyProgress.ts:343](../../src/generators/technologyProgress.ts#L343)）を `advanceStage(entry, def, signals, year, stageOf, liveHintKeys.has(...))` に更新する。`stageOf` は同じ年次評価ループが既に構築済みのクロージャ（[technologyProgress.ts:316](../../src/generators/technologyProgress.ts#L316)）であり、新しいシグナルフィールドを追加しない — `prerequisitesMet()` が同じ `stageOf` を使って他の技術の状態を読むのと全く同じ仕組みを再利用する。
+呼び出し側（[technologyProgress.ts#L343](/src/generators/technologyProgress.ts#L343)）を `advanceStage(entry, def, signals, year, stageOf, liveHintKeys.has(...))` に更新する。`stageOf` は同じ年次評価ループが既に構築済みのクロージャ（[technologyProgress.ts#L316](/src/generators/technologyProgress.ts#L316)）であり、新しいシグナルフィールドを追加しない — `prerequisitesMet()` が同じ `stageOf` を使って他の技術の状態を読むのと全く同じ仕組みを再利用する。
 
 `DIFFUSION_ANNUAL_GAIN` の直前に定数を追加する:
 
@@ -520,7 +520,7 @@ const TELEGRAPH_DIFFUSION_BONUS_MAX = 0.5;
 
 ### 3.13 セーブ互換性
 
-`ELECTRICAL_GOOD_NAMES = ["Copper Wire"] as const` を `goods-generator.ts` に追加し、`migrateSyntheticAmmoniaGoods()`（[goods-generator.ts:3334-3352](../../src/extensions/economy/generators/goods-generator.ts#L3334-L3352)）と同型の `migrateElectricalGoods()` を実装する。`index.tsx` の両方の呼び出し箇所（[index.tsx:2463-2464, 3144-3145](../../src/extensions/economy/index.tsx#L2463-L2464)、`migrateSyntheticAmmoniaGoods()` の直後）に追加する。
+`ELECTRICAL_GOOD_NAMES = ["Copper Wire"] as const` を `goods-generator.ts` に追加し、`migrateSyntheticAmmoniaGoods()`（[goods-generator.ts#L3334-3352](/src/extensions/economy/generators/goods-generator.ts#L3334-L3352)）と同型の `migrateElectricalGoods()` を実装する。`index.tsx` の両方の呼び出し箇所（[index.tsx:2463-2464, 3144-3145](/src/extensions/economy/index.tsx#L2463-L2464)、`migrateSyntheticAmmoniaGoods()` の直後）に追加する。
 
 新規配列 `powerStations`/`telegraphLines` は §3.9 のとおり `extensionStateSlices.ts` へ登録する。新規スカラー `Market.electricityStock` は既存の `Market` 型の optional フィールドであり、追加のマイグレーション関数は不要（`fertilizerStock`/`nitrogenFertilizerStock` と同じく `undefined` は 0 として扱う）。
 
@@ -543,10 +543,10 @@ deck.gl 表現はまだ存在しない）を追加する:
   発電所マーカー単体が「その市場内だけの供給」を暗に表す。
 - 首都自身が発電拠点を持つ、または少なくとも1本のフィーダー線を受ける場合にのみ、首都に「グリッドハブ」マーカー（同心円）を追加する。
 
-実装: [economyContext.ts](../../src/extensions/economy/economyContext.ts) の `getPowerGridLayer()`、
-[drawPowerGrid.ts](../../src/extensions/economy/renderers/drawPowerGrid.ts)、`index.tsx` の `economyLayers` 配列・
+実装: [economyContext.ts](/src/extensions/economy/economyContext.ts) の `getPowerGridLayer()`、
+[drawPowerGrid.ts](/src/extensions/economy/renderers/drawPowerGrid.ts)、`index.tsx` の `economyLayers` 配列・
 `registerLayerElement`/`registerLayerToggle`/`registerDrawLayerHook` への `togglePowerGrid` 追加。テストは
-[drawPowerGrid.test.ts](../../src/extensions/economy/renderers/drawPowerGrid.test.ts)（`drawWaterSupply.test.ts` と同じ形）。
+[drawPowerGrid.test.ts](/src/extensions/economy/renderers/drawPowerGrid.test.ts)（`drawWaterSupply.test.ts` と同じ形）。
 
 ### 3.15 電動井戸ポンプ: `electricWaterPumps` と河川のない Burg の水源
 
@@ -554,20 +554,20 @@ deck.gl 表現はまだ存在しない）を追加する:
 （河川または Regional Water Scheme への接続がある Burg だけが `true` になり、`drinkingTreatmentTier` の実質的な進展・`waterContamination`/`drinkingWaterSecurity` の主要項を左右する）は、河川のない Burg には未来永劫 `false` のままだった。史実的には電動ポンプによる深井戸汲み上げがまさにこの制約を外した技術であり、`powerGrid`（§3.8）が実装済みの今、単一の新規ノードで自然に接続できる。
 
 - 新規 `TechnologyDefinition`: `electricWaterPumps`（era 6、`prerequisites: ["powerGrid"]` のみ — `electricTelegraph` と同じ単一前提の形）。`known`/`demonstrated`/`adopted` の各閾値は `powerGrid` 自身の `adopted` 閾値（administration 0.68 / treasury 500 / electricityCoverage 0.35）を上回る値に設定し、前提が `adopted` した瞬間に自動通過しないようにしている（`electrolyticIndustry` などと同じ規約）。
-- `computeUrbanWaterSystem()`（[urbanWaterSystem.ts](../../src/extensions/economy/generators/urbanWaterSystem.ts)）に `hasElectricPumpAccess` を追加: その Burg の State で `electricWaterPumps` が `adopted` 以上、かつ **その Burg 自身の Market が実際に** `Market.electricityStock >= ELECTRIC_PUMP_MIN_COVERAGE(0.5)` を満たす場合にのみ `true` になる。技術フラグだけで即座に効果が出る実装を避ける、本書と `modern-urban-water-treatment-and-governance.md` に共通の原則をそのまま踏襲（電力網が「その州のどこかで」動いているだけでは不十分 — 実際にそのBurgへ電力が届いている必要がある）。
+- `computeUrbanWaterSystem()`（[urbanWaterSystem.ts](/src/extensions/economy/generators/urbanWaterSystem.ts)）に `hasElectricPumpAccess` を追加: その Burg の State で `electricWaterPumps` が `adopted` 以上、かつ **その Burg 自身の Market が実際に** `Market.electricityStock >= ELECTRIC_PUMP_MIN_COVERAGE(0.5)` を満たす場合にのみ `true` になる。技術フラグだけで即座に効果が出る実装を避ける、本書と `modern-urban-water-treatment-and-governance.md` に共通の原則をそのまま踏襲（電力網が「その州のどこかで」動いているだけでは不十分 — 実際にそのBurgへ電力が届いている必要がある）。
 - `hasElectricPumpAccess` は既存の `hasRegionalWaterConnection`（Regional Water Scheme 接続 / 継承 Roman 水道と同じスロット）に OR で合流する。「この Burg の水は自前の河川に依存していない」という同じ事実を表すため。結果として `hasUpstreamIntake` だけでなく `serviceWaterCapacity`/`drinkingBase` の係数（河川/沿岸/regional接続で得る 1.1x/1.05x のボーナス）も同様に得る。
 - Dam の電化と同様、これは「技術ノードの adopted」自体ではなく「実際に届いている電力」でゲートされる点が重要 — `PowerGridInvestment`（§3.10）がまだ電力を配れていない Burg では、たとえ State 全体で `electricWaterPumps` が adopted でも `hasElectricPumpAccess` は `false` のままである。
 
-テストは [urbanWaterSystem.test.ts](../../src/extensions/economy/generators/urbanWaterSystem.test.ts) の `describe("electric water pumps ...")`（未adopted/adoptedだが電力不足/両方満たすの3ケース）。
+テストは [urbanWaterSystem.test.ts](/src/extensions/economy/generators/urbanWaterSystem.test.ts) の `describe("electric water pumps ...")`（未adopted/adoptedだが電力不足/両方満たすの3ケース）。
 
 ### 3.16 暖房・断熱知識による寒冷地の実効容量ボーナス
 
 追加（2026-08-23）: `heating.ts` の `settleAnnualColdClimateKnowledge()` は既に何年も前から寒冷地の Burg で `heatingTechnology`/`insulationTechnology`（0..1 の年次蓄積ストック）を積み上げていたが、これは燃料効率・快適さにしか効かず、Burg の入植可能人口の上限（`burg.demographics.effectiveCapacity`）には一切接続されていなかった。石炭で何世紀も暖を取り続けても、集落の成長上限は「その石炭が存在しないかのように」振る舞っていた。
 
-- 新規 `applyHeatingCapacityBonus()`（[heating.ts](../../src/extensions/economy/generators/heating.ts)）: `(heatingTechnology + insulationTechnology) / 2` を「気候知識」スコアとし、`effectiveCapacity` に `baseCapacity * climateKnowledge * MAX_HEATING_CLIMATE_CAPACITY_BONUS(0.25)` を加算する。寒冷地でない Burg は `coldExposureMonths`（`heatingTechnology`/`insulationTechnology` の上流駆動因子）がそもそも蓄積しないため、追加の気候ゲートなしで自然に無効化される。
-- 呼び出し順序が本質的に重要: `effectiveCapacity` の唯一の書き手だった `foodImportNetwork.ts`（[foodImportNetwork.ts](../../src/extensions/economy/generators/foodImportNetwork.ts)）の `resolveFoodImportNetwork()` は、四半期ごとに `resetEffectiveCapacities()` → （必要な Market だけ）`applyImportCapacity()` という「毎回ゼロから再代入」する形で `effectiveCapacity` を決定している。`applyHeatingCapacityBonus()` はこの関数の**最後**（早期returnパスも含む）で呼び、常に「その四半期の確定値」に加算する — 順序を誤ると（先に呼ぶと）食料輸入側の再代入で気候ボーナスが黙って消える。
+- 新規 `applyHeatingCapacityBonus()`（[heating.ts](/src/extensions/economy/generators/heating.ts)）: `(heatingTechnology + insulationTechnology) / 2` を「気候知識」スコアとし、`effectiveCapacity` に `baseCapacity * climateKnowledge * MAX_HEATING_CLIMATE_CAPACITY_BONUS(0.25)` を加算する。寒冷地でない Burg は `coldExposureMonths`（`heatingTechnology`/`insulationTechnology` の上流駆動因子）がそもそも蓄積しないため、追加の気候ゲートなしで自然に無効化される。
+- 呼び出し順序が本質的に重要: `effectiveCapacity` の唯一の書き手だった `foodImportNetwork.ts`（[foodImportNetwork.ts](/src/extensions/economy/generators/foodImportNetwork.ts)）の `resolveFoodImportNetwork()` は、四半期ごとに `resetEffectiveCapacities()` → （必要な Market だけ）`applyImportCapacity()` という「毎回ゼロから再代入」する形で `effectiveCapacity` を決定している。`applyHeatingCapacityBonus()` はこの関数の**最後**（早期returnパスも含む）で呼び、常に「その四半期の確定値」に加算する — 順序を誤ると（先に呼ぶと）食料輸入側の再代入で気候ボーナスが黙って消える。
 
-テストは [heating.test.ts](../../src/extensions/economy/generators/heating.test.ts) の `describe("applyHeatingCapacityBonus", ...)`（比例ボーナス、既存値への加算合成、温暖な市場での無効化、`heatingLedger` 未settle時のスキップ）。
+テストは [heating.test.ts](/src/extensions/economy/generators/heating.test.ts) の `describe("applyHeatingCapacityBonus", ...)`（比例ボーナス、既存値への加算合成、温暖な市場での無効化、`heatingLedger` 未settle時のスキップ）。
 
 ## 4. Phase分割
 

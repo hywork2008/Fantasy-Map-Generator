@@ -2,7 +2,7 @@
 
 - 状態: 段階 1〜3 の単層・矩形区画の初期版を実装済み。FMG / CE 連携と追加プリセットは後続。
 - 更新日: 2026-09-29
-- 配置先: [src/dungeon-editor](../../src/dungeon-editor/README.md)
+- 配置先: [src/dungeon-editor](/src/dungeon-editor/README.md)
 - 関連: [世界地図上のダンジョン配置](high-fantasy-dungeons.md)
 
 ## 1. 目的と境界

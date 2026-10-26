@@ -21,25 +21,25 @@
 
 | # | 内容 | 深刻度 | 主な該当箇所 |
 | --- | --- | --- | --- |
-| L1 | 価格→需要のフィードバックが存在しない(需要は人口×固定係数) | 高 | `markets-generator.ts:2328` |
-| L2 | 賃金が完全な死に変数。労働は無償の容量制約 | 高 | `strategicLaborMarkets.ts:201` |
-| L3 | 食料ストレス指標が人口動態に接続されていない | 高 | `foodLedgerConsumption.ts:130` |
-| L4 | 都市の carrying capacity が農業改良・干ばつ・住宅建設と無関係 | 高 | `burgs-generator.ts:997` |
-| L5 | 戦時価格が小売専用で、交易の呼び水にならない | 中 | `markets-generator.ts:2192` |
-| L6 | 輸送コストが重量・嵩ではなく商品価格に比例 | 中 | `tradeOpportunityEstimator.ts:100` |
-| L7 | 貨幣供給(`MintLedger.circulation`)が物価・取引と無関係 | 中 | `minting.ts:45` |
-| L8 | 道路網が交易量に対して外生。公共事業の財政費目も無い | 中 | `routes-generator.ts` / `treasuryAllocation.ts:32` |
-| L9 | 徴税強度・征服がノーコスト(不満・逃散・資本破壊が無い) | 中 | `domainFiscalPolicy.ts:20` / `localDefense.ts:44` |
-| L10 | 交易課税が輸出側のみ。輸入関税・通行税が存在しない | 中 | `markets-generator.ts:1699` / `taxes-generator.ts:137` |
+| L1 | 価格→需要のフィードバックが存在しない(需要は人口×固定係数) | 高 | `markets-generator.ts#L2328` |
+| L2 | 賃金が完全な死に変数。労働は無償の容量制約 | 高 | `strategicLaborMarkets.ts#L201` |
+| L3 | 食料ストレス指標が人口動態に接続されていない | 高 | `foodLedgerConsumption.ts#L130` |
+| L4 | 都市の carrying capacity が農業改良・干ばつ・住宅建設と無関係 | 高 | `burgs-generator.ts#L997` |
+| L5 | 戦時価格が小売専用で、交易の呼び水にならない | 中 | `markets-generator.ts#L2192` |
+| L6 | 輸送コストが重量・嵩ではなく商品価格に比例 | 中 | `tradeOpportunityEstimator.ts#L100` |
+| L7 | 貨幣供給(`MintLedger.circulation`)が物価・取引と無関係 | 中 | `minting.ts#L45` |
+| L8 | 道路網が交易量に対して外生。公共事業の財政費目も無い | 中 | `routes-generator.ts` / `treasuryAllocation.ts#L32` |
+| L9 | 徴税強度・征服がノーコスト(不満・逃散・資本破壊が無い) | 中 | `domainFiscalPolicy.ts#L20` / `localDefense.ts#L44` |
+| L10 | 交易課税が輸出側のみ。輸入関税・通行税が存在しない | 中 | `markets-generator.ts#L1699` / `taxes-generator.ts#L137` |
 
 ### Part 2: 密すぎる結合(コードでは密 ⇔ 本来は疎にできる)
 
 | # | 内容 | 深刻度 | 主な該当箇所 |
 | --- | --- | --- | --- |
 | T1 | 巨大な単一 `economy.tick` が約50サブシステムを手書き順序で駆動 | 高 | `index.tsx:2859` |
-| T2 | 年次ゲートが35個個別に手書き複製されている | 中 | `economyContext.ts:155-189` |
+| T2 | 年次ゲートが35個個別に手書き複製されている | 中 | `economyContext.ts#L155-189` |
 | T3 | `economyContext.ts` が 410 export / 177 ファイルから import される可変グローバル | 中 | `economyContext.ts` |
-| T4 | Nobility が Economy 内部を静的 import しつつ依存を宣言していない | 中 | `nobility/generators/localDefense.ts:2` |
+| T4 | Nobility が Economy 内部を静的 import しつつ依存を宣言していない | 中 | `nobility/generators/localDefense.ts#L2` |
 | T5 | マップ再初期化フックが28個のマイグレーションを直列ハードコード | 低 | `index.tsx:3285` |
 
 **先に良い知らせ**: `generators/` 内 252 ファイル・498 本の値 import に**循環依存はゼロ**だった。
@@ -55,13 +55,13 @@
 
 **現状**
 
-需要は `markets-generator.ts:2328` の `calculateGoodDemand()` で決まる:
+需要は `markets-generator.ts#L2328` の `calculateGoodDemand()` で決まる:
 
 ```ts
 return urbanPopulation * (nonClothingConsumerDemand + industrialDemand) + textilePopulation * clothingFactor;
 ```
 
-価格項が一切入っていない。一方、価格は `initializeMarketPrices()`(`markets-generator.ts:1135`)で
+価格項が一切入っていない。一方、価格は `initializeMarketPrices()`(`markets-generator.ts#L1135`)で
 その需要から導出される:
 
 ```ts
@@ -71,20 +71,20 @@ marketGood.price = rn(good.value * minmax(ratio, PRICE_FLOOR_FACTOR, PRICE_CEILI
 
 つまり **需要 → 価格 の一方通行**で、逆向きの矢印が無い。結果として:
 
-- 飢饉で穀物価格が上限(`foodLedgerConsumption.ts:18` の `PRICE_CEILING = 2.0`)に張り付いても、
+- 飢饉で穀物価格が上限(`foodLedgerConsumption.ts#L18` の `PRICE_CEILING = 2.0`)に張り付いても、
   消費量は `population × dailyNeedPerPerson()` のまま1単位も減らない。
 - 奢侈品が下限価格(`PRICE_FLOOR_FACTOR = 0.25`)まで暴落しても、購入量は増えない。
 - 商品間の代替(ビール↔ワイン、羊毛↔亜麻)がマーケット需要レベルで起きない。
 
-なお `production-generator.ts:1378` の `fillDemandFromMarket()` だけは例外で、
+なお `production-generator.ts#L1378` の `fillDemandFromMarket()` だけは例外で、
 `costPerCoverage = price / candidate.coverageWeight` でソートして安い方から買う代替行動と、
 `burg.treasury` による予算制約を持つ。**この正しいパターンが1箇所にしか存在しない**のが問題。
 
 **もう一つの副作用: 価格に記憶が無い**
 
-`initializeMarketPrices()` は毎月の生産サイクル(`production-generator.ts:314`)で
+`initializeMarketPrices()` は毎月の生産サイクル(`production-generator.ts#L314`)で
 `good.value` から**再導出**する。サイクル中に `applyMarketPressure()`
-(`markets-generator.ts:2231`)が積み上げた取引由来の価格変動は、翌月の再導出で全部消える。
+(`markets-generator.ts#L2231`)が積み上げた取引由来の価格変動は、翌月の再導出で全部消える。
 つまり「先月大量に買われたので高値が続く」という価格の慣性・期待形成が原理的に起きない。
 
 **修正案**
@@ -97,7 +97,7 @@ marketGood.price = rn(good.value * minmax(ratio, PRICE_FLOOR_FACTOR, PRICE_CEILI
    `price = prevPrice + (targetPrice - prevPrice) * ADJUSTMENT_RATE`(0.3〜0.5程度)。
    `stapleFood` は既に `settleGrainPrice()` が別管理なので対象外。
 3. 需要と価格は相互再帰になるため、1サイクル内で不動点反復はせず
-   **前月価格で今月需要を決める(1期ラグ)**方式にする。これは `taxes-generator.ts:45` の
+   **前月価格で今月需要を決める(1期ラグ)**方式にする。これは `taxes-generator.ts#L45` の
    Stewardship ラグと同じ既存パターン。
 
 **検証**
@@ -112,7 +112,7 @@ marketGood.price = rn(good.value * minmax(ratio, PRICE_FLOOR_FACTOR, PRICE_CEILI
 
 **現状**
 
-`LaborMarket.wageByOccupation` は `strategicLaborMarkets.ts:201` で毎サイクル計算・保存される:
+`LaborMarket.wageByOccupation` は `strategicLaborMarkets.ts#L201` で毎サイクル計算・保存される:
 
 ```ts
 laborMarket.wageByOccupation[occupation] = (good?.value ?? 1) * demandMultiplier;
@@ -122,7 +122,7 @@ laborMarket.wageByOccupation[occupation] = (good?.value ?? 1) * demandMultiplier
 型定義・初期化・この書き込みの3箇所だけで、消費者はゼロ。
 
 これは孤立した死にフィールドではなく、より広い設計上の空白の症状である。
-`production-generator.ts:1005` の `executeManufacture()` を見ると、製造コストは:
+`production-generator.ts#L1005` の `executeManufacture()` を見ると、製造コストは:
 
 ```ts
 const availableFunds = fundingState?.treasury ?? state.burg.treasury ?? 0;
@@ -137,14 +137,14 @@ const availableFunds = fundingState?.treasury ?? state.burg.treasury ?? 0;
 
 - 労働需給が逼迫してもコストプッシュ型のインフレが起きない。
 - 労働者が受け取る所得が存在しないので、**家計部門という経済主体そのものが無い**。
-- そのため `taxes-generator.ts:166` の人頭税
+- そのため `taxes-generator.ts#L166` の人頭税
 
   ```ts
   const pollTaxRevenue = (state.pollTax || 0) * population * administrationBonus * domainPollMult;
   ```
 
   は**移転ではなく純粋な貨幣創造**になっている(どの財布からも引かれていない)。
-  同様に `foodLedgerConsumption.ts:270` の `settleUrbanRevenue()` に入る都市小売収入も、
+  同様に `foodLedgerConsumption.ts#L270` の `settleUrbanRevenue()` に入る都市小売収入も、
   買い手の財布が存在しないので無から生まれている。
 - `Character.wealth` を持つのは名前付きキャラクターだけで、匿名人口には資産がない。
 
@@ -158,7 +158,7 @@ const availableFunds = fundingState?.treasury ?? state.burg.treasury ?? 0;
   `wageRate` は当面 `strategicLaborMarkets` の既存 `wageByOccupation` を使い、
   死に変数を生かす。
 - **Phase 2**: `BurgMarketLedger.householdPurse` を導入。Phase 1 の労賃と、
-  農村側の `foodProduction.ts:320` の farmgate 支払いをここに集約する。
+  農村側の `foodProduction.ts#L320` の farmgate 支払いをここに集約する。
   人頭税と都市食料小売はこの財布から引く(創造 → 移転に変える)。
 - **Phase 3**: 財布が空だと人頭税が取り切れない/食料が買えない、を L3 の食料ストレスに接続する。
 
@@ -177,7 +177,7 @@ Phase 1 では、労賃導入で `burg.treasury` が単調に赤字化しない�
 
 **現状**
 
-`foodLedgerConsumption.ts:130` の `updateStressCounters()` は四半期ごとに4つの指標を更新する:
+`foodLedgerConsumption.ts#L130` の `updateStressCounters()` は四半期ごとに4つの指標を更新する:
 
 ```ts
 ledger.ruralFoodStressQuarters   = ...
@@ -187,11 +187,11 @@ ledger.urbanSevereDeficitQuarters = ...
 ```
 
 このうち**実際に読まれているのは `ruralFoodStressQuarters` の1つだけ**で、
-読み出し箇所も `markets-generator.ts:893` の1行(セル食料の非常用備蓄需要のオンオフ)のみ。
+読み出し箇所も `markets-generator.ts#L893` の1行(セル食料の非常用備蓄需要のオンオフ)のみ。
 残る3つ、特に `urbanSevereDeficitQuarters`(都市の深刻な食料不足が何四半期続いたか)は
 書かれるだけで誰も読まない。
 
-一方、実際の餓死は `demography-simulator.ts:229` と `:259` で決まる:
+一方、実際の餓死は `demography-simulator.ts#L229` と `:259` で決まる:
 
 ```ts
 const roomForGrowth = effectiveCapacity > 0 ? Math.max(-0.5, 1 - currentTotal / effectiveCapacity) : 0;
@@ -206,7 +206,7 @@ const starvationRate = Math.min(0.99, Math.abs(roomForGrowth) * deltaYears * 0.0
 人口が `effectiveCapacity` を下回っている限り死者はゼロで、人口はむしろ増え続ける。
 経済側が精密にモデル化した飢饉が、人口側にまったく届いていない。
 
-対照的に、**疫病は正しく接続されている**(`demography-simulator.ts:272`、
+対照的に、**疫病は正しく接続されている**(`demography-simulator.ts#L272`、
 `burg.waterSecurity` → `epidemicRate`)。同じ形の配管が食料側にだけ無い。
 
 **修正案**
@@ -227,7 +227,7 @@ if (foodSecurity < FOOD_SECURE_THRESHOLD) { ... }
 - 死亡率は疫病より緩やかな立ち上がりにし、`urbanSevereDeficitQuarters` が
   2四半期以上連続したときだけ効かせる(単月のブレで都市が消えないように)。
 - 併せて **出生率**にも掛ける。飢饉の第一の効果は死亡増より出生減。
-- `populationLossTracker` に `famine` バケットは既にある(`demography-simulator.ts:191` の
+- `populationLossTracker` に `famine` バケットは既にある(`demography-simulator.ts#L191` の
   `addLoss(faminePts, ...)`)ので、集計 UI 側の追加作業は無い。
 
 **検証**
@@ -243,7 +243,7 @@ if (foodSecurity < FOOD_SECURE_THRESHOLD) { ... }
 **現状**
 
 `burg.demographics.capacity` はマップ生成時に一度だけ決まる
-(`burgs-generator.ts:997`, `definePopulation()`):
+(`burgs-generator.ts#L997`, `definePopulation()`):
 
 ```ts
 let population = pack.cells.s[cellId] / 5;
@@ -257,8 +257,8 @@ const capacity = rn(Math.max(population, 0.01), 3);
 以後 `capacity` を書き換えるコードは存在しない。動くのは `effectiveCapacity` だけで、
 その経路は2本しかない:
 
-1. `foodImportNetwork.ts:214` — 輸入によるプラス補正
-2. `constructionEmployment.ts:556` — 建設ストックによる**上限クランプ**
+1. `foodImportNetwork.ts#L214` — 輸入によるプラス補正
+2. `constructionEmployment.ts#L556` — 建設ストックによる**上限クランプ**
 
 そして (2) は:
 
@@ -270,7 +270,7 @@ burg.demographics.effectiveCapacity = Math.min(burg.demographics.effectiveCapaci
 乗数の上限が 1.0 なので、**住宅をいくら建てても生成時 `capacity` を1ポイントも超えられない**。
 建設産業は都市を縮小させることしかできない。
 
-対照的に**農村セルは正しく接続されている**。`developmentPotential.ts:334` が毎年
+対照的に**農村セルは正しく接続されている**。`developmentPotential.ts#L334` が毎年
 `reconcileSubsistenceCapacityFromFood(world.pack.cells, agriculture.ruralFoodCapacity)` を呼び、
 農地面積・土壌肥沃度・農具投資・肥料・灌漑・干ばつ(`climateFoodStress`)がすべて
 `cells.subsistenceCapacity` に反映される。**都市側にだけ同じ配管が無い。**
@@ -296,7 +296,7 @@ burg.demographics.capacity = clamp(
 - 建設ストックのクランプ (`constrainEffectiveCapacity`) は**上方向にも効かせる**。
   乗数レンジを `[0.5, 1.0]` から `[0.5, 1.3]` に広げれば、住宅投資が都市成長を可能にする。
   ただし `Math.min` を `clamp` に変える必要がある。
-- 干ばつは既に `agriculturalLandUse.ts:1107` で農村収量に効いているので、
+- 干ばつは既に `agriculturalLandUse.ts#L1107` で農村収量に効いているので、
   上式の `hinterlandSurplusPoints` 経由で自動的に都市にも波及する。
 
 **注意**: これは `initialPopulationSaturation` オプションと相互作用する。
@@ -313,13 +313,13 @@ AgTech 投資を最大にした国と最小にした国で、50年後の都市�
 
 **現状**
 
-`markets-generator.ts:2136` の `getWarPriceModifier()` は良い実装で、
+`markets-generator.ts#L2136` の `getWarPriceModifier()` は良い実装で、
 `warEconomyType` に応じて military ×最大3.75、essential ×最大2.7、luxury ×最小0.1 まで動かす。
 
 ところが適用箇所は `customerBuyPrice()` / `customerSellPrice()`(`:2192`, `:2197`)だけ、
 つまり**プレイヤーが店頭で見る価格にしか効かない**。
 
-市場間交易の意思決定(`markets-generator.ts:1683`)は生の中値を使う:
+市場間交易の意思決定(`markets-generator.ts#L1683`)は生の中値を使う:
 
 ```ts
 const transportCost = getTransportCost(route.distance, mapDiagonal) * good.value;
@@ -356,7 +356,7 @@ military タグ Good を多く輸入する」テストを追加。
 
 **現状**
 
-`tradeOpportunityEstimator.ts:100`:
+`tradeOpportunityEstimator.ts#L100`:
 
 ```ts
 export function getTransportCost(distance: number, mapDiagonal: number): number {
@@ -365,7 +365,7 @@ export function getTransportCost(distance: number, mapDiagonal: number): number 
 ```
 
 呼び出し側は全箇所で `getTransportCost(...) * good.value`
-(`markets-generator.ts:1683`, `strategicProcurement.ts:440`, `marketTradeOpportunities.ts:148`)。
+(`markets-generator.ts#L1683`, `strategicProcurement.ts#L440`, `marketTradeOpportunities.ts#L148`)。
 
 つまり**1単位あたりの運賃が商品価格に比例**する。同じ距離で穀物(value ≈ 1)を運ぶ費用は、
 金(value ≈ 50)を運ぶ費用の 1/50。現実は逆で、運賃は概ね重量×距離に比例するから、
@@ -373,10 +373,10 @@ export function getTransportCost(distance: number, mapDiagonal: number): number 
 
 しかもこのコードベースは正しいデータを既に持っている。
 `GoodTradeProfile` に `weight` と `bulk` があり、
-`tradeCargo.ts:56` はキャラバンの**積載スロット**計算にそれを使っている。
+`tradeCargo.ts#L56` はキャラバンの**積載スロット**計算にそれを使っている。
 つまり**物理的容量は嵩ベース、金銭コストは価値ベース**という二重基準になっている。
 
-嵩物が無制限に遠距離を運ばれるのを防いでいるのは、`tradeOpportunityEstimator.ts:158` の
+嵩物が無制限に遠距離を運ばれるのを防いでいるのは、`tradeOpportunityEstimator.ts#L158` の
 **二値ゲート**である:
 
 ```ts
@@ -424,8 +424,8 @@ export function getTransportCost(distance: number, mapDiagonal: number, good: Go
 
 実装時に判明した点:
 
-- **呼び出し側は3箇所ではなく4箇所だった。** 本書は `markets-generator.ts:1683`,
-  `strategicProcurement.ts:440`, `marketTradeOpportunities.ts:148` の3つを挙げていたが、
+- **呼び出し側は3箇所ではなく4箇所だった。** 本書は `markets-generator.ts#L1683`,
+  `strategicProcurement.ts#L440`, `marketTradeOpportunities.ts#L148` の3つを挙げていたが、
   `tradeOpportunityEstimator.ts` 自身の `estimateSpeculativeTrade()`
   (`markets-generator.ts` の `addSpeculativeGlobalTradeOpportunities` から呼ばれる投機的経路)
   にも同じ `getTransportCost(...) * good.value` があった。3箇所だけ直すと、
@@ -472,7 +472,7 @@ export function getTransportCost(distance: number, mapDiagonal: number, good: Go
 **現状**
 
 `minting.ts` は `MintLedger.circulation`(流通貨幣量)を丁寧に追跡する。
-毎月 0.5% 減耗し(`minting.ts:13` の `CIRCULATION_MONTHLY_RETENTION = 0.995`)、
+毎月 0.5% 減耗し(`minting.ts#L13` の `CIRCULATION_MONTHLY_RETENTION = 0.995`)、
 金・銀・銅インゴットの市場在庫を消費して補充し、需要は12ヶ月分を目標とする。
 
 しかし `circulation` を読むコードは `minting.ts` 自身の内部以外に存在しない。
@@ -542,12 +542,12 @@ export function getTransportCost(distance: number, mapDiagonal: number, good: Go
 実行時に追加されるのは蒸気機関時代の鉄道(`steamIndustry.ts` の `settleRailways`)のみで、
 **交易量が街道を舗装することも、交易の途絶が街道を廃れさせることも無い**。
 
-ルートは初期の都市容量に効いており(`burgs-generator.ts:991`,
+ルートは初期の都市容量に効いており(`burgs-generator.ts#L991`,
 `Routes.getConnectivityRate(cellId)`)、移動日数にも効く
 (`tradeRouteDuration.ts` の `calculateRouteDurationDays`)。つまり**下流には強く効くが、
 上流からのフィードバックが無い**。
 
-関連して、`treasuryAllocation.ts:32` の国家予算の費目は
+関連して、`treasuryAllocation.ts#L32` の国家予算の費目は
 `marshalcy / household / chancery / stewardship / spymastery / ecclesiastica` の6つで、
 **公共事業(道路・港湾・穀物倉)の費目が存在しない**。前近代国家の
 最も基本的な投資であり、税基盤に直接返ってくる支出がモデル化されていない。
@@ -558,16 +558,16 @@ export function getTransportCost(distance: number, mapDiagonal: number, good: Go
 | 部門 | 効果 | 該当箇所 |
 |---|---|---|
 | marshalcy | 軍事維持費支払い | `treasuryAllocation.ts` `payMilitaryUpkeep` |
-| chancery | `state.diplomaticReliability` | `chanceryDiplomacy.ts:43` |
-| stewardship | 徴税効率 / 行政費率 | `taxes-generator.ts:155` |
-| ecclesiastica | `state.religiousUnrest` | `ecclesiasticaUnrest.ts:44` |
+| chancery | `state.diplomaticReliability` | `chanceryDiplomacy.ts#L43` |
+| stewardship | 徴税効率 / 行政費率 | `taxes-generator.ts#L155` |
+| ecclesiastica | `state.religiousUnrest` | `ecclesiasticaUnrest.ts#L44` |
 | **spymastery** | **なし** | — |
 
 **修正案**
 
 2段階に分ける。
 
-- **段階1(小)**: `spymastery` に既存の下流をつなぐ。`tradeSecurity.ts:80` の
+- **段階1(小)**: `spymastery` に既存の下流をつなぐ。`tradeSecurity.ts#L80` の
   `getBanditRiskPerDay()` に諜報部門のサービスレベルを掛けるのが最も自然
   (国内の盗賊把握は諜報の仕事)。もしくは `overseasRelations` の情報優位。
 - **段階2(中)**: `publicWorks` 部門を追加し、`DEFAULT_TAX_BY_FORM` と同様に政体別配分を持たせる。
@@ -617,7 +617,7 @@ export function getTransportCost(distance: number, mapDiagonal: number, good: Go
   積み替え地点の cell から burg を引くので、港湾工事を持つ港だけが速くなる。
 - **備蓄容量は `foodProduction.ts` ではなく `foodLedgerConsumption.ts` に効かせた。**
   `BURG_TARGET_RESERVE_DAYS` を実際に目標値として使うのは
-  `topUpBurgFoodReserve()` の側で、`foodProduction.ts:272` はマップ生成時のシードでしかない
+  `topUpBurgFoodReserve()` の側で、`foodProduction.ts#L272` はマップ生成時のシードでしかない
   (シード時点では works は 0 なので乗数は 1)。`Burg.publicWorks.granary` = 1 で目標日数が
   2倍(`GRANARY_MAX_RESERVE_BONUS = 1`)になり、L3 の `foodSecurity` 側に効く。
 - **`publicWorks` は L3a 残高上限(`DEPARTMENT_BALANCE_CAP_CYCLES`)から除外した。**
@@ -653,7 +653,7 @@ export function getTransportCost(distance: number, mapDiagonal: number, good: Go
 
 ### L9-a. 領主の徴収レートが無料のレバー
 
-`domainFiscalPolicy.ts:20-36` の領主レバーは:
+`domainFiscalPolicy.ts#L20-36` の領主レバーは:
 
 - `domainLevyRate` を 0.5〜1.5 で動かすと、国家の人頭税収が 0.9〜1.1 倍になる
   (`DOMAIN_POLL_MULT_MIN/MAX`)
@@ -675,8 +675,8 @@ L3 の食料ストレス指標が孤立していることと同根の問題。
 
 ### L9-c. 征服が知識だけを破壊し、物的資本を素通りさせる
 
-`localDefense.ts:44` の `captureBurg()` は所有権を移し、
-`applyConquestDisruption(burg.i)` を呼ぶ。その中身(`conquestDisruption.ts:20`)は:
+`localDefense.ts#L44` の `captureBurg()` は所有権を移し、
+`applyConquestDisruption(burg.i)` を呼ぶ。その中身(`conquestDisruption.ts#L20`)は:
 
 ```ts
 applyConquestDisruptionToGuilds(burgId);
@@ -713,21 +713,21 @@ applyGreatLibraryConquestDisruption(burgId);
 
 国境をまたぐ取引に課税する経路は3箇所あるが、**すべて輸出側の税率だけを見る**。
 
-1. 市場間交易の主経路(`markets-generator.ts:1699`, `globalTrade` 本体):
+1. 市場間交易の主経路(`markets-generator.ts#L1699`, `globalTrade` 本体):
 
    ```ts
    const exporterTaxPerUnit = this.getSalesTax(exporterCenter) * exporterGood.price;
    ```
 
-2. 同じ計算のフォールバック経路(`markets-generator.ts:2005`,
+2. 同じ計算のフォールバック経路(`markets-generator.ts#L2005`,
    `addSpeculativeGlobalTradeOpportunities`)— 需給が拮抗して通常の輸出入判定に
    ヒットしないときの投機的機会探索で、まったく同じ式を独立に再実装している。
-3. 国内小売(`production-generator.ts:1206`, `1491`)も `getSalesTax(state.burg)` —
+3. 国内小売(`production-generator.ts#L1206`, `1491`)も `getSalesTax(state.burg)` —
    売り手側の国。
 
-`Deal.tax` はこうして決まった額がそのまま `taxes-generator.ts:137` の
+`Deal.tax` はこうして決まった額がそのまま `taxes-generator.ts#L137` の
 `getSellerStateId(deal, burgs)` で**売り手の国**に計上される
-(`markets-generator.ts:315` の `getSellerStateId` も同じく売り手側を返す)。
+(`markets-generator.ts#L315` の `getSellerStateId` も同じく売り手側を返す)。
 
 **輸入側の国は、自国内で消費・転売される交易から1コインも徴収できない。**
 第三国を素通りするだけの中継ルートに至っては、通行税を課す仕組み自体が存在しない
@@ -846,7 +846,7 @@ applyGreatLibraryConquestDisruption(burgId);
 **現状**
 
 ホストは既に**宣言的な DAG スケジューラを持っている**。
-`simulationSystem.ts:63` の `SimulationSystem`:
+`simulationSystem.ts#L63` の `SimulationSystem`:
 
 ```ts
 export interface SimulationSystem {
@@ -901,7 +901,7 @@ export interface SimulationSystem {
   実質「全部読んで全部書く」に等しく、検証の意味をなしていない。
 - **段階3**: 年次システムを `cadence` で表現する(→ T2 と合流)。
 
-**注意**: `simulationSystem.ts:106` の unregister には
+**注意**: `simulationSystem.ts#L106` の unregister には
 「依存されているシステムは削除できない」制約がある。
 Economy の `cleanup()` は全システムを解除するので、**解除順序が登録順の逆になる**ように
 配列で管理する必要がある。ここは実装時の落とし穴。
@@ -912,7 +912,7 @@ Economy の `cleanup()` は全システムを解除するので、**解除順序
 
 **現状**
 
-`economyContext.ts:155-189` に、同じ形のフィールドが35個並んでいる:
+`economyContext.ts#L155-189` に、同じ形のフィールドが35個並んでいる:
 
 ```ts
 let _agTechLastSettledYearFallback: number | null = null;
@@ -934,7 +934,7 @@ setXxxLastSettledYear(year);
 ```
 
 これは `SimulationCadence` が表現するために作られた関心事そのもの
-(`simulationSystem.ts:22`)を、35回手で再実装している状態。
+(`simulationSystem.ts#L22`)を、35回手で再実装している状態。
 
 **修正案**
 
@@ -1017,7 +1017,7 @@ blob URL 経由でのロード時にモジュールインスタンスが分裂�
 > 必要がある場合は、必ず自身の `ExtensionConfig` … の `dependencies` に対象の ID と
 > 必須要否を定義してください。
 
-**Shipbuilding はこれを完璧に守っている。** `shipbuilding/index.ts:310` で
+**Shipbuilding はこれを完璧に守っている。** `shipbuilding/index.ts#L310` で
 `dependencies: [{ id: "economy", required: false }]` を宣言し、
 Economy との通信は全部 CustomEvent 経由(`index.tsx:2713` 以降の
 `fmg:shipbuilding-materials-requested` など8種)。静的 import はゼロ。
@@ -1029,23 +1029,23 @@ Economy の内部モジュールを6箇所で静的 import している:
 | import 元 | 対象 |
 | --- | --- |
 | `nobility/index.tsx:9` | `economy/generators/characterStipends` の `seedMissingCharacterWealth` |
-| `nobility/generators/localDefense.ts:2` | `economy/generators/conquestDisruption` |
-| `nobility/generators/localDefense.ts:3` | `economy/generators/martialDisciplineKnowledge` |
-| `nobility/generators/localDefense.ts:4` | `economy/generators/martialIndividualMastery` |
-| `nobility/controllers/playerCharacterTravel.ts:4` | `economy/generators/trade-animation` |
-| `nobility/controllers/playerCharacterTravel.ts:5` | `economy/generators/tradeRouteDuration` |
+| `nobility/generators/localDefense.ts#L2` | `economy/generators/conquestDisruption` |
+| `nobility/generators/localDefense.ts#L3` | `economy/generators/martialDisciplineKnowledge` |
+| `nobility/generators/localDefense.ts#L4` | `economy/generators/martialIndividualMastery` |
+| `nobility/controllers/playerCharacterTravel.ts#L4` | `economy/generators/trade-animation` |
+| `nobility/controllers/playerCharacterTravel.ts#L5` | `economy/generators/tradeRouteDuration` |
 
 `applyConquestDisruption()` と `getMartialDisciplineMultiplier()` は
 `isEconomyContextReady()` で自衛しているので実行時クラッシュはしない。
 しかし:
 
-- 依存が宣言されていないので、`extensionState.ts:264` の**有効化ブロックが働かない**。
+- 依存が宣言されていないので、`extensionState.ts#L264` の**有効化ブロックが働かない**。
   ユーザーは Economy を無効化したまま Nobility を有効にでき、征服時の技術破壊が黙って消える。
 - 静的 import なので、Economy を無効にしてもコードはバンドルに含まれ続ける。
 - **`playerCharacterTravel.ts` にはガードが無く、これは実在するクラッシュ経路**。
   `estimateTravelBetweenBurgs()`(`:61`)が `TradeAnimation.findRoutePath()` を呼び、
-  その先の `findRoutePathWithAllowedEdges()`(`trade-animation.ts:142`)が
-  `getWorldContext()` → `getApi()`(`economyContext.ts:268`)に到達する。
+  その先の `findRoutePathWithAllowedEdges()`(`trade-animation.ts#L142`)が
+  `getWorldContext()` → `getApi()`(`economyContext.ts#L268`)に到達する。
   `getApi()` は `_api` が null のとき **throw する**:
 
   ```ts
@@ -1129,8 +1129,8 @@ if (migrated) { Goods.sync(); Markets.initializeMarketPrices(); }
 実装時に判明した、本書の記述と異なっていた点:
 
 - **T4-1 は「1行」では済まなかった。** クラッシュ経路が想定の1本ではなく2本あった。
-  `playerCharacterTravel.ts:61` に加えて、Nobility の `regenerateNobilityData()` →
-  `seedMissingCharacterWealth()`(`characterStipends.ts:9` が economyContext の
+  `playerCharacterTravel.ts#L61` に加えて、Nobility の `regenerateNobilityData()` →
+  `seedMissingCharacterWealth()`(`characterStipends.ts#L9` が economyContext の
   `getWorldContext` を import)も Economy 無効時に throw する。前者は呼び出し側で
   `isTravelRoutingAvailable()` ガード、後者は `applyConquestDisruption` と同じく
   economy 側で `isEconomyContextReady()` ガードとした。
@@ -1165,7 +1165,7 @@ T1 段階1 の実装時に判明した点:
   ——「呼び出しが並んでいる順」ではなく「宣言された順」が正になる。
 - **「挙動は完全に同一」は正しくなかった。** 本書の §T1 段階1 はそう書いていたが、
   ホストの RNG は `deriveSystemStreamSeed(masterSeed, {systemId, tick, year, month, day})`
-  (`src/runtime/simulationRng.ts:164`)でシステム **ID ごとに独立ストリーム**を導出する。
+  (`src/runtime/simulationRng.ts#L164`)でシステム **ID ごとに独立ストリーム**を導出する。
   1システムを12に割れば ID が変わるので、同じマップシードでも乱数列が変わる。
   ロジック・実行順・トピックは完全に保存されるが、既存セーブの以後の乱数結果は再現しない。
   ID をまたいでストリームを固定する仕組みはホスト側に無く、あれば per-system 分離という

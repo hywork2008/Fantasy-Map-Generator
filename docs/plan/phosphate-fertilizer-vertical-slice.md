@@ -32,19 +32,19 @@
 
 | 項目 | 現状 | 参照 |
 | --- | --- | --- |
-| 技術グラフの終点 | `chemicalIndustryFoundation` → `industrialSulfuricAcid` が era 6 の最後のノード。後続ノードは存在しない。 | [technologyDefinitions.ts:610-633](../../src/generators/technologyDefinitions.ts#L610-L633) |
-| `Sulfuric Acid` の出口 | `demandCoverage: {}`、`recipes` はあるが `requiredTechnology: "industrialSulfuricAcid"` を消費する後続 Good が存在しない。 | [goods-generator.ts:2596-2611](../../src/extensions/economy/generators/goods-generator.ts#L2596-L2611) |
-| 「一つの Good・二つの供給経路」の先例 | `Sulfuric Acid` は (a) 職人レシピによる通常の worker-loop 生産 (b) `AcidPlants.settleAnnual()` という State資金の資本設備、の両方から生産される。`Sulfur`/`Stone`/`Marble` も同じ二経路パターンを持つ。 | [production-generator.ts:1699-1727](../../src/extensions/economy/generators/production-generator.ts#L1699-L1727)、[acidPlants.ts](../../src/extensions/economy/generators/acidPlants.ts)、[goods-generator.ts:940-945](../../src/extensions/economy/generators/goods-generator.ts#L940-L945) |
-| State資本設備のテンプレート | `AcidPlant`（`burgId`/`stateId`/`role: "trial"\|"service"`/`active`/`utilization`/`documentedRuns`/`lastFundedYear`）と共通ヘルパー `consumeNamed`/`addNamedStock`/`debitTreasury`/`marketIdForBurg`/`pickSponsorBurg` がそのまま再利用できる。 | [chemistryTypes.ts:62-70](../../src/extensions/economy/generators/chemistryTypes.ts#L62-L70)、[chemMedCommon.ts](../../src/extensions/economy/generators/chemMedCommon.ts) |
-| 鉱物カタログ | `MineralCommodity` は `iron/copper/tin/lead/silver/gold`（要製錬）+ `coal/saltpeter/sulfur`（製錬不要、直接市場供給）のみ。リン鉱石に相当する項目はない。 | [mineralResourcesTypes.ts:1-10](../../src/extensions/economy/generators/mineralResourcesTypes.ts#L1-L10) |
-| 鉱床生成 | `DISTRICT_PROFILES`（province × district type × commodity）と `baseAnnualCapacity` は完全にデータ駆動。新しい `MineralDistrictType`/`DistrictProfile`/容量値を足すだけで `MineOperations.produceMonth()` 側の変更は不要。 | [mineralResources.ts:69-100](../../src/extensions/economy/generators/mineralResources.ts#L69-L100)、[mineralResources.ts:474-499](../../src/extensions/economy/generators/mineralResources.ts#L474-L499) |
-| 鉱山→市場の自動供給 | `MineOperations.produceMonth()` は `getMinedGoodName(commodity)` で Good を解決し `isGoodEnabled` を満たせば自動的に `Markets.addMineSupply()` する。新規コモディティ追加時に個別の分岐は不要。 | [mineOperations.ts:416-455](../../src/extensions/economy/generators/mineOperations.ts#L416-L455) |
-| 農村技術投資の型 | `Market.agTechStock`（0..1 EWMA）→ `AgTechInvestment.settleAnnual()`（`Markets.consumeForMarketInvestment()` で Tools を購入）→ `developmentPotential.ts` の `resolveAgTechStockByCell()` → `agriculturalLandUse.ts` の `calculateYieldKgPerHectare()` に `AGTECH_YIELD_BONUS_MAX` として乗算。 | [agTechInvestment.ts:85-113](../../src/extensions/economy/generators/agTechInvestment.ts#L85-L113)、[developmentPotential.ts:83-95](../../src/extensions/economy/generators/developmentPotential.ts#L83-L95)、[agriculturalLandUse.ts:598-614](../../src/extensions/economy/generators/agriculturalLandUse.ts#L598-L614) |
-| 収量式の既存項 | `calculateYieldKgPerHectare()` は `AGTECH_YIELD_BONUS_MAX`(0.4)・`STATE_YIELD_BONUS_MAX`(0.15)・`FOUR_COURSE_YIELD_BONUS_MAX`(0.12) を掛け合わせる乗算チェーン。新しい肥料項もこの形に合わせる。 | [agriculturalLandUse.ts:598-614](../../src/extensions/economy/generators/agriculturalLandUse.ts#L598-L614) |
-| `soilFertility` の回復経路 | マメ科比率と四圃式ボーナスのみ。化学肥料の入力スロットは無い（`docs/temp/foods/化学肥料.md` の指摘通り）。本書は `soilFertility` には触れず、収量式への直接乗算で対応する（§3.7で理由を説明）。 | [agriculturalLandUse.ts:940-993](../../src/extensions/economy/generators/agriculturalLandUse.ts#L940-L993) |
-| 需要シグナル | `foodFertilizerPressure` は都市の食料輸入ギャップ比率、`lateChemistryDemandPressure` はその加重和。`sulfurAccess`/`acidPlantTrialYears`/`acidPlantInstallations` は市場在庫・`ChemistryTrial`・`AcidPlant` 配列から算出。 | [technologyProgress.ts:754-862](../../src/generators/technologyProgress.ts#L754-L862) |
+| 技術グラフの終点 | `chemicalIndustryFoundation` → `industrialSulfuricAcid` が era 6 の最後のノード。後続ノードは存在しない。 | [technologyDefinitions.ts#L610-633](/src/generators/technologyDefinitions.ts#L610-L633) |
+| `Sulfuric Acid` の出口 | `demandCoverage: {}`、`recipes` はあるが `requiredTechnology: "industrialSulfuricAcid"` を消費する後続 Good が存在しない。 | [goods-generator.ts#L2596-2611](/src/extensions/economy/generators/goods-generator.ts#L2596-L2611) |
+| 「一つの Good・二つの供給経路」の先例 | `Sulfuric Acid` は (a) 職人レシピによる通常の worker-loop 生産 (b) `AcidPlants.settleAnnual()` という State資金の資本設備、の両方から生産される。`Sulfur`/`Stone`/`Marble` も同じ二経路パターンを持つ。 | [production-generator.ts#L1699-1727](/src/extensions/economy/generators/production-generator.ts#L1699-L1727)、[acidPlants.ts](/src/extensions/economy/generators/acidPlants.ts)、[goods-generator.ts#L940-945](/src/extensions/economy/generators/goods-generator.ts#L940-L945) |
+| State資本設備のテンプレート | `AcidPlant`（`burgId`/`stateId`/`role: "trial"\|"service"`/`active`/`utilization`/`documentedRuns`/`lastFundedYear`）と共通ヘルパー `consumeNamed`/`addNamedStock`/`debitTreasury`/`marketIdForBurg`/`pickSponsorBurg` がそのまま再利用できる。 | [chemistryTypes.ts#L62-70](/src/extensions/economy/generators/chemistryTypes.ts#L62-L70)、[chemMedCommon.ts](/src/extensions/economy/generators/chemMedCommon.ts) |
+| 鉱物カタログ | `MineralCommodity` は `iron/copper/tin/lead/silver/gold`（要製錬）+ `coal/saltpeter/sulfur`（製錬不要、直接市場供給）のみ。リン鉱石に相当する項目はない。 | [mineralResourcesTypes.ts#L1-10](/src/extensions/economy/generators/mineralResourcesTypes.ts#L1-L10) |
+| 鉱床生成 | `DISTRICT_PROFILES`（province × district type × commodity）と `baseAnnualCapacity` は完全にデータ駆動。新しい `MineralDistrictType`/`DistrictProfile`/容量値を足すだけで `MineOperations.produceMonth()` 側の変更は不要。 | [mineralResources.ts#L69-100](/src/extensions/economy/generators/mineralResources.ts#L69-L100)、[mineralResources.ts#L474-499](/src/extensions/economy/generators/mineralResources.ts#L474-L499) |
+| 鉱山→市場の自動供給 | `MineOperations.produceMonth()` は `getMinedGoodName(commodity)` で Good を解決し `isGoodEnabled` を満たせば自動的に `Markets.addMineSupply()` する。新規コモディティ追加時に個別の分岐は不要。 | [mineOperations.ts#L416-455](/src/extensions/economy/generators/mineOperations.ts#L416-L455) |
+| 農村技術投資の型 | `Market.agTechStock`（0..1 EWMA）→ `AgTechInvestment.settleAnnual()`（`Markets.consumeForMarketInvestment()` で Tools を購入）→ `developmentPotential.ts` の `resolveAgTechStockByCell()` → `agriculturalLandUse.ts` の `calculateYieldKgPerHectare()` に `AGTECH_YIELD_BONUS_MAX` として乗算。 | [agTechInvestment.ts#L85-113](/src/extensions/economy/generators/agTechInvestment.ts#L85-L113)、[developmentPotential.ts#L83-95](/src/extensions/economy/generators/developmentPotential.ts#L83-L95)、[agriculturalLandUse.ts#L598-614](/src/extensions/economy/generators/agriculturalLandUse.ts#L598-L614) |
+| 収量式の既存項 | `calculateYieldKgPerHectare()` は `AGTECH_YIELD_BONUS_MAX`(0.4)・`STATE_YIELD_BONUS_MAX`(0.15)・`FOUR_COURSE_YIELD_BONUS_MAX`(0.12) を掛け合わせる乗算チェーン。新しい肥料項もこの形に合わせる。 | [agriculturalLandUse.ts#L598-614](/src/extensions/economy/generators/agriculturalLandUse.ts#L598-L614) |
+| `soilFertility` の回復経路 | マメ科比率と四圃式ボーナスのみ。化学肥料の入力スロットは無い（`docs/temp/foods/化学肥料.md` の指摘通り）。本書は `soilFertility` には触れず、収量式への直接乗算で対応する（§3.7で理由を説明）。 | [agriculturalLandUse.ts#L940-993](/src/extensions/economy/generators/agriculturalLandUse.ts#L940-L993) |
+| 需要シグナル | `foodFertilizerPressure` は都市の食料輸入ギャップ比率、`lateChemistryDemandPressure` はその加重和。`sulfurAccess`/`acidPlantTrialYears`/`acidPlantInstallations` は市場在庫・`ChemistryTrial`・`AcidPlant` 配列から算出。 | [technologyProgress.ts#L754-862](/src/generators/technologyProgress.ts#L754-L862) |
 | 世帯消費 Good にしない契約 | `Phosphate Fertilizer` は「農村の施肥普及ストックを増やす。世帯消費 Good にはしない」と明記されている。 | [steam-industrial-goods-and-technology-chain.md:125](./steam-industrial-goods-and-technology-chain.md#L125) |
-| セーブ互換性 | 新規 Good はカタログへの単純追加では既存セーブに反映されないため `migrateXGoods()` 系の関数が必要。新規配列スライスは `extensionStateSlices.ts` の `validateEconomySlice()` に登録が必要。 | [goods-generator.ts:3194-3224](../../src/extensions/economy/generators/goods-generator.ts#L3194-L3224)、[extensionStateSlices.ts:400-450](../../src/runtime/extensionStateSlices.ts#L400-L450) |
+| セーブ互換性 | 新規 Good はカタログへの単純追加では既存セーブに反映されないため `migrateXGoods()` 系の関数が必要。新規配列スライスは `extensionStateSlices.ts` の `validateEconomySlice()` に登録が必要。 | [goods-generator.ts#L3194-3224](/src/extensions/economy/generators/goods-generator.ts#L3194-L3224)、[extensionStateSlices.ts#L400-450](/src/runtime/extensionStateSlices.ts#L400-L450) |
 
 ## 3. 設計
 
@@ -156,9 +156,9 @@ const PROFILE_PRIORITY: readonly MineralDistrictType[] = [
 }
 ```
 
-`trade`/`cargo` プロファイルは未指定でよい（`getDefaultGoodTradeProfile()` が `tags` から自動推定する。[goods-generator.ts:2787-2803](../../src/extensions/economy/generators/goods-generator.ts#L2787-L2803)）。
+`trade`/`cargo` プロファイルは未指定でよい（`getDefaultGoodTradeProfile()` が `tags` から自動推定する。[goods-generator.ts#L2787-2803](/src/extensions/economy/generators/goods-generator.ts#L2787-L2803)）。
 
-`isGoodEnabled(Phosphate Fertilizer)` はワールドのどこかで `phosphateFertilizer` が `demonstrated` になった時点で真になり、`isGoodManufacturableInState()` は生産する State で `adopted` になって初めて真になる（`Sulfuric Acid` と同じ二段階ゲート、[production-generator.ts:147-155](../../src/extensions/economy/generators/production-generator.ts#L147-L155)）。
+`isGoodEnabled(Phosphate Fertilizer)` はワールドのどこかで `phosphateFertilizer` が `demonstrated` になった時点で真になり、`isGoodManufacturableInState()` は生産する State で `adopted` になって初めて真になる（`Sulfuric Acid` と同じ二段階ゲート、[production-generator.ts#L147-155](/src/extensions/economy/generators/production-generator.ts#L147-L155)）。
 
 ### 3.4 セーブ互換性（Good migration）
 
@@ -169,7 +169,7 @@ const PROFILE_PRIORITY: readonly MineralDistrictType[] = [
 const PHOSPHATE_GOOD_NAMES = ["Phosphate Rock", "Phosphate Fertilizer"] as const;
 
 export function migratePhosphateGoods(): boolean {
-  // migrateChemMedGoods() (goods-generator.ts:3194-3224) と全く同じ実装:
+  // migrateChemMedGoods() (goods-generator.ts#L3194-3224) と全く同じ実装:
   // 1) 既存カタログに無い名前だけ Goods.getDefaultGood() から追加し id を採番
   // 2) GOODS_DATA テンプレートの recipes をこのセーブの Good id に解決し直す
   // 3) requiredTechnology をコピーする
@@ -222,9 +222,9 @@ phosphateFertilizerTrialYears: number; // acidPlantTrialYears と同型: Chemist
 phosphateFertilizerPlantCount: number; // acidPlantInstallations と同型: active な PhosphateFertilizerPlant の数
 ```
 
-`technologyProgress.ts` の初期化ブロック（[technologyProgress.ts:387](../../src/generators/technologyProgress.ts#L387) 付近）に `phosphateRockAccess: 0, phosphateFertilizerTrialYears: 0, phosphateFertilizerPlantCount: 0,` を追加。
+`technologyProgress.ts` の初期化ブロック（[technologyProgress.ts#L387](/src/generators/technologyProgress.ts#L387) 付近）に `phosphateRockAccess: 0, phosphateFertilizerTrialYears: 0, phosphateFertilizerPlantCount: 0,` を追加。
 
-`sulfurAccess` の算出（[technologyProgress.ts:751-767](../../src/generators/technologyProgress.ts#L751-L767)）と同じ形で:
+`sulfurAccess` の算出（[technologyProgress.ts#L751-767](/src/generators/technologyProgress.ts#L751-L767)）と同じ形で:
 
 ```ts
 const phosphateRockStockByState = stateMarketStockByGood(economy, marketOwners, phosphateRockId);
@@ -232,7 +232,7 @@ const phosphateRockStockByState = stateMarketStockByGood(economy, marketOwners, 
 signals.phosphateRockAccess = clamp01((phosphateRockStockByState.get(stateId) ?? 0) / 2); // calibration TBD
 ```
 
-`acidYears`/`acidPlantInstallations` の算出（[technologyProgress.ts:788-825](../../src/generators/technologyProgress.ts#L788-L825)）と同じ形で、`ChemistryTrial.kind === "phosphateFertilizerPlant"` と新規配列 `economy.phosphateFertilizerPlants` から集計する。
+`acidYears`/`acidPlantInstallations` の算出（[technologyProgress.ts#L788-825](/src/generators/technologyProgress.ts#L788-L825)）と同じ形で、`ChemistryTrial.kind === "phosphateFertilizerPlant"` と新規配列 `economy.phosphateFertilizerPlants` から集計する。
 
 ### 3.7 State資本設備: `PhosphateFertilizerPlants`（`AcidPlants.ts` を型として再利用）
 
@@ -252,17 +252,17 @@ export interface PhosphateFertilizerPlant {
 }
 ```
 
-新規ファイル `phosphateFertilizerPlants.ts` は `acidPlants.ts`（[acidPlants.ts](../../src/extensions/economy/generators/acidPlants.ts)）と一対一で対応する構造にする:
+新規ファイル `phosphateFertilizerPlants.ts` は `acidPlants.ts`（[acidPlants.ts](/src/extensions/economy/generators/acidPlants.ts)）と一対一で対応する構造にする:
 
 - ゲート: `getTechnologyStage("phosphateFertilizer", state.i)` が `known` 以上になった State だけがプラントを持てる（`worldHasFoundation()` に相当する `worldHasIndustrialSulfuricAcid()` は `industrialSulfuricAcid` の世界的 `demonstrated` をチェックする — 出力が実際に生まれるのは前提技術が世界のどこかで実証されて以降、という `AcidPlants` と同じ「trial は早く始まるが output は前提が整うまで出ない」構造）。
 - 資金: `chemMedCommon.ts` に `PHOSPHATE_FERTILIZER_PLANT_BUDGET`(calibration TBD、`ACID_PLANT_BUDGET`=24 よりやや高い 28 程度)を追加し、既存の `debitTreasury`/`pickSponsorBurg`/`marketIdForBurg` をそのまま使う。
 - 消費: `consumeNamed(marketId, "Phosphate Rock", amount)` と `consumeNamed(marketId, "Sulfuric Acid", amount)`。
   - `Phosphate Rock` は `requiredTechnology` を持たないため `isGoodEnabled()` は常に真 — `consumeNamed` は無条件で動く。
-  - `Sulfuric Acid` は既に `chemMedCommon.ts` の `consumeNamed()` に `name !== "Sulfuric Acid"` という既存の bypass がある（[chemMedCommon.ts:34](../../src/extensions/economy/generators/chemMedCommon.ts#L34)）。この一行は現状どこからも `Sulfuric Acid` を `consumeNamed` していないため意味を持っていなかったが、本スライスがこの bypass の最初の利用者になる。コード変更は不要。
+  - `Sulfuric Acid` は既に `chemMedCommon.ts` の `consumeNamed()` に `name !== "Sulfuric Acid"` という既存の bypass がある（[chemMedCommon.ts#L34](/src/extensions/economy/generators/chemMedCommon.ts#L34)）。この一行は現状どこからも `Sulfuric Acid` を `consumeNamed` していないため意味を持っていなかったが、本スライスがこの bypass の最初の利用者になる。コード変更は不要。
 - 生産: `addNamedStock(marketId, "Phosphate Fertilizer", plant.role === "trial" ? 0.2 : 0.8)`（calibration TBD、`AcidPlants` の 0.15/0.6 よりやや高い ── リン酸肥料プラントは硫酸プラントより下流でスケールが大きい）。
 - `ChemistryTrial` の `trialFor()` パターンをそのまま再利用し `kind: "phosphateFertilizerPlant"` にする。
 
-`economyContext.ts` にスライスアクセサを追加（`getAcidPlants`/`setAcidPlants` と同型、[economyContext.ts:1395-1400](../../src/extensions/economy/economyContext.ts#L1395-L1400)）:
+`economyContext.ts` にスライスアクセサを追加（`getAcidPlants`/`setAcidPlants` と同型、[economyContext.ts#L1395-1400](/src/extensions/economy/economyContext.ts#L1395-L1400)）:
 
 ```ts
 export function getPhosphateFertilizerPlants(): PhosphateFertilizerPlant[] { return getSliceArray("phosphateFertilizerPlants"); }
@@ -271,9 +271,9 @@ export function getPhosphateFertilizerPlantsLastSettledYear(): number | null { /
 export function setPhosphateFertilizerPlantsLastSettledYear(year: number): void { /* 同型 */ }
 ```
 
-`_phosphateFertilizerPlantsLastSettledYearFallback` フォールバック変数を追加し、モジュールリセット処理（[economyContext.ts:217](../../src/extensions/economy/economyContext.ts#L217) 付近の一括 `null` 代入ブロック）にも追加する。
+`_phosphateFertilizerPlantsLastSettledYearFallback` フォールバック変数を追加し、モジュールリセット処理（[economyContext.ts#L217](/src/extensions/economy/economyContext.ts#L217) 付近の一括 `null` 代入ブロック）にも追加する。
 
-`extensionStateSlices.ts` の `validateEconomySlice()` の配列フィールド一覧（[extensionStateSlices.ts:400-450](../../src/runtime/extensionStateSlices.ts#L400-L450)）に `"phosphateFertilizerPlants"` を追加する（追加を忘れるとセーブ／ロード検証で無視・破棄されうる）。
+`extensionStateSlices.ts` の `validateEconomySlice()` の配列フィールド一覧（[extensionStateSlices.ts#L400-450](/src/runtime/extensionStateSlices.ts#L400-L450)）に `"phosphateFertilizerPlants"` を追加する（追加を忘れるとセーブ／ロード検証で無視・破棄されうる）。
 
 ### 3.8 農村施肥ストック: `Market.fertilizerStock` と `FertilizerInvestment`
 
@@ -288,7 +288,7 @@ export function setPhosphateFertilizerPlantsLastSettledYear(year: number): void 
 fertilizerStock?: number;
 ```
 
-新規ファイル `fertilizerInvestment.ts` は `agTechInvestment.ts` の `AgTechInvestment.settleAnnual()`（[agTechInvestment.ts:53-115](../../src/extensions/economy/generators/agTechInvestment.ts#L53-L115)）と同じ形にする:
+新規ファイル `fertilizerInvestment.ts` は `agTechInvestment.ts` の `AgTechInvestment.settleAnnual()`（[agTechInvestment.ts#L53-115](/src/extensions/economy/generators/agTechInvestment.ts#L53-L115)）と同じ形にする:
 
 ```ts
 export const TARGET_FERTILIZER_PER_HECTARE = 0.01; // calibration TBD — Tools(0.02)より物量が小さい消費財
@@ -309,7 +309,7 @@ class FertilizerInvestmentModule {
 
 財源は `AgTechInvestment` と**同じ** `market.marketTreasury.balance`。専用の別会計は作らない — Market の財布は一つであり、`rural-agtech-investment.md` §6.3 が確立した「食料生産投資が先着で治水/採鉱より優先される」という優先順位モデルをそのまま踏襲する。
 
-呼び出し順序（`src/extensions/economy/index.tsx`、`AgTechInvestment.settleAnnual()` の呼び出し箇所、[index.tsx:2799-2805](../../src/extensions/economy/index.tsx#L2799-L2805)）:
+呼び出し順序（`src/extensions/economy/index.tsx`、`AgTechInvestment.settleAnnual()` の呼び出し箇所、[index.tsx:2799-2805](/src/extensions/economy/index.tsx#L2799-L2805)）:
 
 ```ts
 measureTickStep("economy:annualAgTech", () => {
@@ -321,7 +321,7 @@ measureTickStep("economy:annualAgTech", () => {
 });
 ```
 
-`PhosphateFertilizerPlants.settleAnnual()`（生産側、State資金）は `AcidPlants.settleAnnual()` の直後、別の `measureTickStep("economy:annualUrbanKnowledge", ...)` ブロック（[index.tsx:2926-2930](../../src/extensions/economy/index.tsx#L2926-L2930)）に追加する。このブロックは `annualAgTech` より**後**に実行されるため、同じ年の `FertilizerInvestment` は前年までにプラントが生産した在庫＋今年ここまでの職人レシピ生産（経路A、月次で継続的に生産される）から購入することになる。`Tools`/`AgTechInvestment` も同じ非同期関係にあり、既存の設計と矛盾しない。
+`PhosphateFertilizerPlants.settleAnnual()`（生産側、State資金）は `AcidPlants.settleAnnual()` の直後、別の `measureTickStep("economy:annualUrbanKnowledge", ...)` ブロック（[index.tsx:2926-2930](/src/extensions/economy/index.tsx#L2926-L2930)）に追加する。このブロックは `annualAgTech` より**後**に実行されるため、同じ年の `FertilizerInvestment` は前年までにプラントが生産した在庫＋今年ここまでの職人レシピ生産（経路A、月次で継続的に生産される）から購入することになる。`Tools`/`AgTechInvestment` も同じ非同期関係にあり、既存の設計と矛盾しない。
 
 ### 3.9 収量への反映（`agriculturalLandUse.ts`）
 
@@ -332,7 +332,7 @@ measureTickStep("economy:annualAgTech", () => {
 readonly fertilizerStockByCell?: Float32Array;
 ```
 
-`calculateYieldKgPerHectare()`（[agriculturalLandUse.ts:598-614](../../src/extensions/economy/generators/agriculturalLandUse.ts#L598-L614)）の乗算チェーンに1項追加:
+`calculateYieldKgPerHectare()`（[agriculturalLandUse.ts#L598-614](/src/extensions/economy/generators/agriculturalLandUse.ts#L598-L614)）の乗算チェーンに1項追加:
 
 ```ts
 export const PHOSPHATE_FERTILIZER_YIELD_BONUS_MAX = 0.2; // calibration TBD。四圃式(0.12)より効くが AgTech(0.4)ほどではない
@@ -354,7 +354,7 @@ function calculateYieldKgPerHectare(/* ... */): number {
 1. `MAX_SOIL_FERTILITY = 1.1` という天井がすでにあり、そこへ足すと最大でも+5%程度の効果しか出せず、史実の過リン酸肥料の効果（穀物収量+15〜25%程度）を表現できない。
 2. `soilFertility` は「土壌の有機的疲弊・回復」という別の物理量であり、購入財である化学肥料の効果を土壌疲弊と混線させると、`agTechStock`/`stateProductivity`/`fourCourseRotation` が既に確立している「乗算チェーンへの直接項」という一貫した設計から外れる。
 
-`developmentPotential.ts` に `resolveFertilizerStockByCell()` を追加（`resolveAgTechStockByCell()` と同型、[developmentPotential.ts:83-95](../../src/extensions/economy/generators/developmentPotential.ts#L83-L95)）:
+`developmentPotential.ts` に `resolveFertilizerStockByCell()` を追加（`resolveAgTechStockByCell()` と同型、[developmentPotential.ts#L83-95](/src/extensions/economy/generators/developmentPotential.ts#L83-L95)）:
 
 ```ts
 function resolveFertilizerStockByCell(cellCount: number): Float32Array {
@@ -371,7 +371,7 @@ function resolveFertilizerStockByCell(cellCount: number): Float32Array {
 }
 ```
 
-`DevelopmentPotentialModule.generate()`・`updateAnnualAgriculture()`・`getAgriculturalConditions()`（[developmentPotential.ts:156-337](../../src/extensions/economy/generators/developmentPotential.ts#L156-L337)）の3箇所に、`agTechStockByCell`/`stateProductivityByCell` と並べて `fertilizerStockByCell` を通す。
+`DevelopmentPotentialModule.generate()`・`updateAnnualAgriculture()`・`getAgriculturalConditions()`（[developmentPotential.ts#L156-337](/src/extensions/economy/generators/developmentPotential.ts#L156-L337)）の3箇所に、`agTechStockByCell`/`stateProductivityByCell` と並べて `fertilizerStockByCell` を通す。
 
 ## 4. Phase分割
 

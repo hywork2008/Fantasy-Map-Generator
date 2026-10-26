@@ -32,7 +32,7 @@
 - 同じ生成文書と、cliff / riverの2つのstudy（studyには実際の道路リボンを渡した）で、5.25 m間隔の高さ・傾斜・歩行面・水面・4 m角の基礎高さを比較。三角形の座標・高さ・崖フラグ・順序、描画格子、チャンクの座標・頂点色・index、道路造成結果もそれぞれSHA-256が完全一致。生成都市の局所三角形数は75,233枚のまま。
 - Vitest: geom、terrainModel、terrainField、terrainEditing、terracePlanning、fortSiteGeometry、ruralFields、terrainMassing、waterMeshesの **10ファイル・66件成功**。追加テストは遅延生成の境界、空間候補による合成結果の保持、同時クリップの互換性を検証する。
 - Biome: 変更した7つのTypeScriptファイルで成功。
-- `npx tsc --noEmit -p .`: `generation/planning/defenses.ts:234` で、`Pick<GenerationSettings, ...>` に含まれない `population` を読む型エラーが1件。今回の変更ファイルをGit HEADの内容として読むTypeScript compiler hostでも同じ1件のみが出ることを確認した。既存不整合として本改修には含めていない。
+- `npx tsc --noEmit -p .`: `generation/planning/defenses.ts#L234` で、`Pick<GenerationSettings, ...>` に含まれない `population` を読む型エラーが1件。今回の変更ファイルをGit HEADの内容として読むTypeScript compiler hostでも同じ1件のみが出ることを確認した。既存不整合として本改修には含めていない。
 - 生データ・一致確認のハッシュ: [ce-terrain-tuning-2026-10-24.json](../../diagnostics/ce-terrain-tuning-2026-10-24.json)。
 
 spacing・高さ・細分化精度・傾斜サンプルは変更していない。傾斜のキャッシュは今回は追加せず、不要な三角形生成と全走査の削減を優先した。なお、3Dで初めて必要になる境界三角形の生成は約1.2秒残る。道路造成を含む大都市のブラウザ総時間・GPUフレーム時間は別途測定が必要。
@@ -95,14 +95,14 @@ spacing・高さ・細分化精度・傾斜サンプルは変更していない�
 
 1. `generateCityOnDocument` → `generateRuralFieldStage(..., {createLotPads:true})` → 最終fabricから `installLotPads` → `applyRuralFields` → `ruralSuitability` → `cityTerrain`。
    - [ruralFieldStage.ts](../../../src/city-editor/generators/ruralFieldStage.ts) は農地に使うfabricをpad生成にも共有している。現行コードに対し「pad用に常にfabric全体を余分に生成する」ことを主因とは断定できない。
-   - [ruralSuitability.ts:10](../../../src/city-editor/generators/ruralSuitability.ts) はまずモデル全体を生成する。しかしfieldモードでは `terrain.triangles` を使わず、8 m格子の `slopeAt` で判定している。不要な描画三角形生成を約6秒支払っている。
-2. [terrainElevation.ts:449](../../../src/city-editor/generators/terrainElevation.ts) の `gradedPatches` と `PatchIndex` がモデル作成時に即時実行される。draw gridだけは遅延だが、三角形は遅延していない。
+   - [ruralSuitability.ts#L10](../../../src/city-editor/generators/ruralSuitability.ts) はまずモデル全体を生成する。しかしfieldモードでは `terrain.triangles` を使わず、8 m格子の `slopeAt` で判定している。不要な描画三角形生成を約6秒支払っている。
+2. [terrainElevation.ts#L449](../../../src/city-editor/generators/terrainElevation.ts) の `gradedPatches` と `PatchIndex` がモデル作成時に即時実行される。draw gridだけは遅延だが、三角形は遅延していない。
    - `fieldSeedSurface` がpadの全頂点をfociとして近隣セルを選ぶ。
    - `gradedPatches.emit` が種三角形ごとに全creaseを調べ、境界に沿って多角形を切る。padの辺が増えるほど走査と分割が増え、実都市では75,233枚となる。
    - 三角形の高さ、崖判定も各点で地形要素を走査する。空間的に遠いpadを候補から外す全体索引はない。個々のoutlineにはboundsとedge binsがあるが、全feature走査自体は残る。
-3. [terrainModel.ts:203](../../../src/city-editor/generators/terrainModel.ts) の `evaluateTerrainFeatures` は川・platform・ringCutを順次走査。高頻度のheightAt呼出しごとに地形要素数に比例する費用が発生する。
-4. [terrainElevation.ts:457](../../../src/city-editor/generators/terrainElevation.ts) の `slopeAt` は中心差分のためheightAtを4回評価する。[drawGrid.ts](../../../src/city-editor/generators/terrainField/drawGrid.ts) は着色時に各頂点とskirtで呼ぶ。共有境界の重複評価もある。
-5. [blockInfill.ts:540](../../../src/city-editor/generators/blockInfill.ts) の建物適性判定も、fieldがあると `cityTerrain` を構築する。基礎高さや傾斜のみを使う経路にも描画三角形の費用が混ざる。呼出し回数はfabricキャッシュ・住宅調整・再試行次第で変わるため、今回の都市以外での累積費用は未確定。
+3. [terrainModel.ts#L203](../../../src/city-editor/generators/terrainModel.ts) の `evaluateTerrainFeatures` は川・platform・ringCutを順次走査。高頻度のheightAt呼出しごとに地形要素数に比例する費用が発生する。
+4. [terrainElevation.ts#L457](../../../src/city-editor/generators/terrainElevation.ts) の `slopeAt` は中心差分のためheightAtを4回評価する。[drawGrid.ts](../../../src/city-editor/generators/terrainField/drawGrid.ts) は着色時に各頂点とskirtで呼ぶ。共有境界の重複評価もある。
+5. [blockInfill.ts#L540](../../../src/city-editor/generators/blockInfill.ts) の建物適性判定も、fieldがあると `cityTerrain` を構築する。基礎高さや傾斜のみを使う経路にも描画三角形の費用が混ざる。呼出し回数はfabricキャッシュ・住宅調整・再試行次第で変わるため、今回の都市以外での累積費用は未確定。
 
 補足: fieldキャッシュは自然地形の格子だけを保持する。[build.ts](../../../src/city-editor/generators/terrainField/build.ts) のキャッシュにhitしても、合成地形・三角形・描画格子・傾斜の再利用にはならない。`cityView.sync` のstamp判定は再構築を抑えるが、変更後の最初の構築は依然重い。stampそのものを最優先で最適化する根拠は今回なかった。
 

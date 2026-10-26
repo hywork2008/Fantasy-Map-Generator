@@ -6,7 +6,7 @@
 
 - ✅ PR-17a: `capDepartmentBalances()`（treasuryAllocation.ts）——非marshalcy部門残高を`nominal×DEPARTMENT_BALANCE_CAP_CYCLES`（6）で頭打ちし、超過分を`state.treasury`へ還流。Fiscal Reportの`departmentBalanceRemit`収入行で可視化。
 - ✅ PR-17b: `departmentServiceLevel`（0..1、EWMA平滑化）——`creditDepartmentBalances`のpro-rata流動性スケールから算出し、Stewardshipの値が次サイクルの`administrativeUpkeepShare`/`administrationBonus`（taxes-generator.ts）を実際に動かす。1サイクル遅延で反映。
-- ✅ PR-17c: `applyDepartmentBudgetOverride()` + `state.departmentBudgetMultiplier`（Chancery/Stewardship/Spymastery/Ecclesiastica、0.5〜1.5）——[StatesEditorTreasuryTab.tsx](../../src/extensions/economy/ui/components/StatesEditorTreasuryTab.tsx)に%入力UIを追加。**再正規化しない**——削った分は他部門へ回らずtreasuryに残る（§4参照）。
+- ✅ PR-17c: `applyDepartmentBudgetOverride()` + `state.departmentBudgetMultiplier`（Chancery/Stewardship/Spymastery/Ecclesiastica、0.5〜1.5）——[StatesEditorTreasuryTab.tsx](/src/extensions/economy/ui/components/StatesEditorTreasuryTab.tsx)に%入力UIを追加。**再正規化しない**——削った分は他部門へ回らずtreasuryに残る（§4参照）。
 - ✅ PR-17d: `departmentServiceLevel.spymastery`をnobility拡張の`espionage-generator.ts`の`observerIntrigue`へ接続（floor 0.4）。拡張間はimportではなく共有`State`フィールド越しに疎結合。
 - ✅ PR-17e: `departmentTransfer`を5部門別`expenses`行へ分解（Fiscal Report）、Treasury Overviewに部門別Svc%・削減承認状況・`departmentBalanceRemit`列を追加。
 - ✅ PR-17f: `cutChancery`/`cutStewardship`/`cutSpymastery`/`cutEcclesiastica`の4議会承認ラインを追加。未承認の削減は`applyDepartmentBudgetOverride()`がそのサイクルbaselineへ差し戻す（ブーストは常に無条件）。UIに"(blocked)"表示。
@@ -19,22 +19,22 @@
 
 ## 背景・目的
 
-`docs/simulation/economy-market-accounting-audit.md`が扱う市場会計の整備、州人口比例の初期資金付与（2f65972b）に続き、`StateFiscalReportTab`（[StateFiscalReportTab.tsx](../../src/extensions/economy/ui/components/StateFiscalReportTab.tsx)）で四半期ごとの国家収支を可視化できるようになった。それでもなお赤字が解消しない州が残るため、赤字解消のプレイ上の選択肢がどれだけあるかを調査した。
+`docs/simulation/economy-market-accounting-audit.md`が扱う市場会計の整備、州人口比例の初期資金付与（2f65972b）に続き、`StateFiscalReportTab`（[StateFiscalReportTab.tsx](/src/extensions/economy/ui/components/StateFiscalReportTab.tsx)）で四半期ごとの国家収支を可視化できるようになった。それでもなお赤字が解消しない州が残るため、赤字解消のプレイ上の選択肢がどれだけあるかを調査した。
 
 現状プレイヤーが操作できる赤字対策レバーは実質的に次の2つのみである。
 
-- 増税（`salesTax`/`pollTax`、[StatesEditorTreasuryTab.tsx](../../src/extensions/economy/ui/components/StatesEditorTreasuryTab.tsx)で編集可能）
+- 増税（`salesTax`/`pollTax`、[StatesEditorTreasuryTab.tsx](/src/extensions/economy/ui/components/StatesEditorTreasuryTab.tsx)で編集可能）
 - 軍の縮小（regiment数を減らし`getStateMilitaryUpkeep`を下げる）
 
 これは民を敵に回す（増税）か軍を敵に回す（軍縮）かの二択に閉じており、「一律の維持費を細かく実装して、何を生かし何を殺すかの選択肢を増やしたい」という目的を満たさない。
 
 ### 調査で判明した構造的原因
 
-[allocateTreasury()](../../src/extensions/economy/generators/treasuryAllocation.ts#L580)は`state.form`ごとの固定比率（`BASELINE_ALLOCATION_BY_FORM`、[treasuryAllocation.ts:27-47](../../src/extensions/economy/generators/treasuryAllocation.ts#L27-L47)）で、その周期の`domesticIncome`（pollTax×population + voyage収入）の**合計100%**を6部門へ配分する（例: Monarchy = marshalcy35 + household25 + chancery15 + stewardship12 + spymastery5 + ecclesiastica8）。つまり`state.treasury`にpollTax収入がそのまま残ることは設計上ない。税率をどう上げても、天引き後にtreasuryへ戻る額は変わらない——treasuryの純増分は実質`salesTax`（取引税）と公債収入だけであり、交易網が薄い国はここが必然的に細り赤字化する。
+[allocateTreasury()](/src/extensions/economy/generators/treasuryAllocation.ts#L580)は`state.form`ごとの固定比率（`BASELINE_ALLOCATION_BY_FORM`、[treasuryAllocation.ts#L27-47](/src/extensions/economy/generators/treasuryAllocation.ts#L27-L47)）で、その周期の`domesticIncome`（pollTax×population + voyage収入）の**合計100%**を6部門へ配分する（例: Monarchy = marshalcy35 + household25 + chancery15 + stewardship12 + spymastery5 + ecclesiastica8）。つまり`state.treasury`にpollTax収入がそのまま残ることは設計上ない。税率をどう上げても、天引き後にtreasuryへ戻る額は変わらない——treasuryの純増分は実質`salesTax`（取引税）と公債収入だけであり、交易網が薄い国はここが必然的に細り赤字化する。
 
-さらに、Marshalcy以外の4部門（Chancery/Stewardship/Spymastery/Ecclesiastica）は[payCentralOfficeStipends()](../../src/extensions/economy/generators/treasuryAllocation.ts#L376-L400)による官職者個人給（部門予算の`CENTRAL_OFFICE_PERSONAL_SHARE`=12%、floor/cap付き）以外に一切の出口を持たない。残り約9割は`state.departmentBalances[key]`に**恒久的に死蔵**される（[treasuryAllocation.ts:343-369](../../src/extensions/economy/generators/treasuryAllocation.ts#L343-L369)）。ゲーム上の効果も、削減する手段も、削って何を失うかの表示もない。
+さらに、Marshalcy以外の4部門（Chancery/Stewardship/Spymastery/Ecclesiastica）は[payCentralOfficeStipends()](/src/extensions/economy/generators/treasuryAllocation.ts#L376-L400)による官職者個人給（部門予算の`CENTRAL_OFFICE_PERSONAL_SHARE`=12%、floor/cap付き）以外に一切の出口を持たない。残り約9割は`state.departmentBalances[key]`に**恒久的に死蔵**される（[treasuryAllocation.ts#L343-369](/src/extensions/economy/generators/treasuryAllocation.ts#L343-L369)）。ゲーム上の効果も、削減する手段も、削って何を失うかの表示もない。
 
-対照的にMarshalcyだけは「必要額（`getStateMilitaryUpkeep`）÷配分額」の`militaryFundingRatio` → `militaryDiscontent`蓄積 → 閾値イベントというフィードバックが実装済みである（[treasuryAllocation.ts:157-192](../../src/extensions/economy/generators/treasuryAllocation.ts#L157-L192)）。本設計はこの3点セット（客観的な参照値 → 充足率 → 逼迫時の帰結）を他4部門へ、部門の性質に合わせて翻訳しながら複製する。
+対照的にMarshalcyだけは「必要額（`getStateMilitaryUpkeep`）÷配分額」の`militaryFundingRatio` → `militaryDiscontent`蓄積 → 閾値イベントというフィードバックが実装済みである（[treasuryAllocation.ts#L157-192](/src/extensions/economy/generators/treasuryAllocation.ts#L157-L192)）。本設計はこの3点セット（客観的な参照値 → 充足率 → 逼迫時の帰結）を他4部門へ、部門の性質に合わせて翻訳しながら複製する。
 
 ## 関連文書
 
@@ -70,7 +70,7 @@ interface State {
 }
 ```
 
-`DepartmentBalanceKey`は既存の[treasuryAllocation.ts:293-296](../../src/extensions/economy/generators/treasuryAllocation.ts#L293-L296)の型をそのまま再利用する。4部門×固有フィールドを`State`直下に生やすとMarshalcyの3フィールド×4=12個の新規スカラーになり肥大化するため、`departmentServiceLevel`のような部門キー付きオブジェクトに集約する（`departmentBalances`が既にこの形を採用しているのでモデル上の一貫性もある）。
+`DepartmentBalanceKey`は既存の[treasuryAllocation.ts#L293-296](/src/extensions/economy/generators/treasuryAllocation.ts#L293-L296)の型をそのまま再利用する。4部門×固有フィールドを`State`直下に生やすとMarshalcyの3フィールド×4=12個の新規スカラーになり肥大化するため、`departmentServiceLevel`のような部門キー付きオブジェクトに集約する（`departmentBalances`が既にこの形を採用しているのでモデル上の一貫性もある）。
 
 ---
 
@@ -78,14 +78,14 @@ interface State {
 
 ### 2.1 家宰府 Stewardship → 徴税効率・行政維持（最優先）
 
-- **接続先**: [administrativeUpkeep](../../src/extensions/economy/generators/taxes-generator.ts#L152)（domesticIncomeの固定割合を天引きする既存コスト）と`getAcademyBonus(state.capital, "administration")`（既存の徴税効率ボーナス、[taxes-generator.ts:137](../../src/extensions/economy/generators/taxes-generator.ts#L137)）。
+- **接続先**: [administrativeUpkeep](/src/extensions/economy/generators/taxes-generator.ts#L152)（domesticIncomeの固定割合を天引きする既存コスト）と`getAcademyBonus(state.capital, "administration")`（既存の徴税効率ボーナス、[taxes-generator.ts#L137](/src/extensions/economy/generators/taxes-generator.ts#L137)）。
 - **効果**: `departmentServiceLevel.stewardship`が低い状態が続くと、次サイクル以降`stateAdministrativeUpkeepShare`の実効値が上がる、または`administrationBonus`に乗る減衰係数が生まれる。
 - **なぜこれが「増税では埋まらない穴」になるか**: 増税は当期のpollTax収入を増やすが、Stewardship逼迫による行政コスト増/徴税効率低下は**次期以降**に効くため、目先の増税だけでは相殺できない。プレイヤーは「今節約するか、将来の税収を守るか」という時間軸のトレードオフを持つことになる。
 - **実装コスト**: 低。既存の`administrativeUpkeep`計算のすぐ隣に係数を足すだけで、新規のゲームシステムを起こさない。
 
 ### 2.2 諜報府 Spymastery → nobility拡張の諜報活動資金源
 
-- **接続先**: nobility拡張の[espionage-generator.ts](../../src/extensions/nobility/generators/espionage-generator.ts) / strategic-planner.ts。grep確認済みで、現状これらにコスト・予算の概念が一切ない（諜報アクションは無償・無制限）。
+- **接続先**: nobility拡張の[espionage-generator.ts](/src/extensions/nobility/generators/espionage-generator.ts) / strategic-planner.ts。grep確認済みで、現状これらにコスト・予算の概念が一切ない（諜報アクションは無償・無制限）。
 - **効果**: `departmentServiceLevel.spymastery`（またはL3a `departmentBalances.spymastery`の残高そのもの）を諜報アクションの実行ゲート・成功率補正として消費する。枯渇すると諜報の実行頻度/成功率が落ち、敵国の動員・侵攻の予兆を見逃す、内部の謀反系イベント（既存のdebtCoup.ts等）を検知しにくくなる。
 - **なぜ税・軍事と独立した第三軸になるか**: 金は減らないが「見えなくなる」という、増税にも軍縮にも代替できない情報コストを支払う設計になる。
 - **実装コスト**: 中。nobility拡張とeconomy拡張は別バンドルだが、`treasuryAllocation.ts`が既に`nobility/data/titleTable`と`nobility/nobilityContext`をimportしている前例があり（AGENTS.md §7.3のsub-module context patternに従う）、参照経路は確立済み。
@@ -108,9 +108,9 @@ interface State {
 
 ## 3. 配分削減レバーの新設
 
-現状、非軍事4部門の配分比率は`state.form`固定でプレイヤーが直接下げられない。War Footingは「軍事へ全振りする」全体トグルであり、個別部門を絞る手段ではない（[warFooting.ts](../../src/extensions/economy/generators/warFooting.ts)）。
+現状、非軍事4部門の配分比率は`state.form`固定でプレイヤーが直接下げられない。War Footingは「軍事へ全振りする」全体トグルであり、個別部門を絞る手段ではない（[warFooting.ts](/src/extensions/economy/generators/warFooting.ts)）。
 
-[allocateTreasury()](../../src/extensions/economy/generators/treasuryAllocation.ts#L580)のbaseline取得直後（`applyWarFootingToBaseline`の後）に、`state.departmentBudgetMultiplier`を1段噛ませて再正規化する関数を追加する。既存のpersonality補正／war footing補正と同じ合成チェーンに乗せられるため、実装は関数1つの追加で完結する。
+[allocateTreasury()](/src/extensions/economy/generators/treasuryAllocation.ts#L580)のbaseline取得直後（`applyWarFootingToBaseline`の後）に、`state.departmentBudgetMultiplier`を1段噛ませて再正規化する関数を追加する。既存のpersonality補正／war footing補正と同じ合成チェーンに乗せられるため、実装は関数1つの追加で完結する。
 
 ```typescript
 // 合成順: form baseline → personality → war footing → 【新規】player override → 正規化
@@ -120,13 +120,13 @@ function applyDepartmentBudgetOverride(
 ): DepartmentBaselineAllocation
 ```
 
-UIは[StatesEditorTreasuryTab.tsx](../../src/extensions/economy/ui/components/StatesEditorTreasuryTab.tsx)またはTreasury Overview Dialogに部門ごとのスライダー（0.5〜1.5想定、War Footingトグルと同じ操作感）を追加する。**§2の各部門効果が実装された後に導入する**——効果が無い段階でスライダーだけ出すと「下げても何も起きない/上げても何も良くならない」レバーになり、削る動機自体が生まれない。
+UIは[StatesEditorTreasuryTab.tsx](/src/extensions/economy/ui/components/StatesEditorTreasuryTab.tsx)またはTreasury Overview Dialogに部門ごとのスライダー（0.5〜1.5想定、War Footingトグルと同じ操作感）を追加する。**§2の各部門効果が実装された後に導入する**——効果が無い段階でスライダーだけ出すと「下げても何も起きない/上げても何も良くならない」レバーになり、削る動機自体が生まれない。
 
 ---
 
 ## 4. 議会承認ラインへの接続（任意・推奨）
 
-[councilBudget.ts](../../src/extensions/economy/generators/councilBudget.ts) / councilVotes.tsは既に「歳出ラインを4派閥（court/merchants/military/clergy）が承認・拒否する」仕組みを持つ（`COUNCIL_LINE_THRESHOLDS`、`debtIssue`/`warFooting`/`extraordinaryTax`/`militaryExpansion`の4ライン）。§3の部門予算削減も、この承認ラインの5本目・6本目として追加することを推奨する。
+[councilBudget.ts](/src/extensions/economy/generators/councilBudget.ts) / councilVotes.tsは既に「歳出ラインを4派閥（court/merchants/military/clergy）が承認・拒否する」仕組みを持つ（`COUNCIL_LINE_THRESHOLDS`、`debtIssue`/`warFooting`/`extraordinaryTax`/`militaryExpansion`の4ライン）。§3の部門予算削減も、この承認ラインの5本目・6本目として追加することを推奨する。
 
 - clergy派閥はecclesiastica削減に抵抗
 - military派閥はmarshalcy削減に抵抗（既存の`militaryDiscontent`とは別軸の政治抵抗）
@@ -138,8 +138,8 @@ UIは[StatesEditorTreasuryTab.tsx](../../src/extensions/economy/ui/components/St
 
 ## 5. 調査UIの拡張
 
-- [StateFiscalReportTab.tsx](../../src/extensions/economy/ui/components/StateFiscalReportTab.tsx)の`EXPENSE_LABELS`に、`departmentTransfer`の内訳（5部門別）を展開表示する。
-- Treasury Overview Dialogに部門別`departmentServiceLevel`列を追加。`getTreasuryAllocationSnapshots()`が既にMarshalcyのfunding ratioをスナップショット保持しているため（[treasuryAllocation.ts:560-568](../../src/extensions/economy/generators/treasuryAllocation.ts#L560-L568)）、同じスナップショットに4部門分のservice levelを足すだけで実装できる。
+- [StateFiscalReportTab.tsx](/src/extensions/economy/ui/components/StateFiscalReportTab.tsx)の`EXPENSE_LABELS`に、`departmentTransfer`の内訳（5部門別）を展開表示する。
+- Treasury Overview Dialogに部門別`departmentServiceLevel`列を追加。`getTreasuryAllocationSnapshots()`が既にMarshalcyのfunding ratioをスナップショット保持しているため（[treasuryAllocation.ts#L560-568](/src/extensions/economy/generators/treasuryAllocation.ts#L560-L568)）、同じスナップショットに4部門分のservice levelを足すだけで実装できる。
 
 これにより「どの国がどの部門で詰んでいるか」が一覧できるようになり、赤字解消プレイの前提となる可視化が揃う。
 

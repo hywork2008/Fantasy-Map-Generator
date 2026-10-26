@@ -17,7 +17,7 @@ Phase 0-2 の対象外」、および [electric-power-and-telegraph.md](./electr
 
 - 河川上に治水・水力発電を目的としたダムを、地形（流量・勾配）に基づいて配置する。
 - 治水: 既存の `Market...` ではなく `floodProtectionByCell`（`agTechInvestment.ts` が書き込むが消費者の無い
-  0..1値、[agTechInvestment.ts:174](../../src/extensions/economy/generators/agTechInvestment.ts#L174)）に、
+  0..1値、[agTechInvestment.ts#L174](/src/extensions/economy/generators/agTechInvestment.ts#L174)）に、
   ダム周辺・下流でより強い底上げを行う。
 - 水力発電: 既存の `PowerStation`/`PowerGridInvestment`/`Market.electricityStock` パイプライン
   （[electric-power-and-telegraph.md](./electric-power-and-telegraph.md) §3.9-3.10）へ、電化済みダムの
@@ -38,12 +38,12 @@ Phase 0-2 の対象外」、および [electric-power-and-telegraph.md](./electr
 
 | 項目 | 現状 | 参照 |
 | --- | --- | --- |
-| 「地点生成 → 経済的稼働」二層パターンの先例 | `mineralResources.ts`（地質スキャンで`MineralDeposit[]`を1回生成）→ `mineOperations.ts`（State資金で稼働させる年次モジュール）。 | [mineralResources.ts](../../src/extensions/economy/generators/mineralResources.ts)、[mineOperations.ts](../../src/extensions/economy/generators/mineOperations.ts) |
-| Economy拡張が自前のSVGレイヤーを持つ先例 | `economyLayers: LayerConfig[]` に1エントリ足すだけ（host側 `layerState.tsx` は触らない）。`drawMineralDeposits.ts` が同型の描画。 | [index.tsx:315-352](../../src/extensions/economy/index.tsx#L315)、[drawMineralDeposits.ts](../../src/extensions/economy/renderers/drawMineralDeposits.ts) |
-| 河川下流トポロジー | `buildRiverDownstream(cells, rivers)` が `cells.riverDownstream` を再構築できる（灌漑と同じ関数）。 | [riverWaterAllocation.ts:220-237](../../src/generators/riverWaterAllocation.ts#L220) |
-| `floodProtectionByCell` の唯一の書き込み元（消費者無し） | `AgTechInvestment.settleAnnual()` が `coverageByState` から一律 `+= coverage*0.07` のEWMAで書くのみ。 | [agTechInvestment.ts:171-190](../../src/extensions/economy/generators/agTechInvestment.ts#L171) |
-| `PowerStation`/`PowerGridInvestment` の形 | State資本設備（`ChemistryTrial`非経由）+ Market人口按分プール。 | [powerStations.ts](../../src/extensions/economy/generators/powerStations.ts)、[powerGridInvestment.ts](../../src/extensions/economy/generators/powerGridInvestment.ts) |
-| `generatorAndMotor`/`waterAndWindMills`/`stoneBuildingAndRoads` | `generatorAndMotor` は era6 実装済み技術。`waterAndWindMills`/`stoneBuildingAndRoads` はどちらも era0 `startStage: "diffused"`（開始時から真、実質的なゲートにならない）。 | [technologyDefinitions.ts:39-70,143](../../src/generators/technologyDefinitions.ts#L39) |
+| 「地点生成 → 経済的稼働」二層パターンの先例 | `mineralResources.ts`（地質スキャンで`MineralDeposit[]`を1回生成）→ `mineOperations.ts`（State資金で稼働させる年次モジュール）。 | [mineralResources.ts](/src/extensions/economy/generators/mineralResources.ts)、[mineOperations.ts](/src/extensions/economy/generators/mineOperations.ts) |
+| Economy拡張が自前のSVGレイヤーを持つ先例 | `economyLayers: LayerConfig[]` に1エントリ足すだけ（host側 `layerState.tsx` は触らない）。`drawMineralDeposits.ts` が同型の描画。 | [index.tsx:315-352](/src/extensions/economy/index.tsx#L315)、[drawMineralDeposits.ts](/src/extensions/economy/renderers/drawMineralDeposits.ts) |
+| 河川下流トポロジー | `buildRiverDownstream(cells, rivers)` が `cells.riverDownstream` を再構築できる（灌漑と同じ関数）。 | [riverWaterAllocation.ts#L220-237](/src/generators/riverWaterAllocation.ts#L220) |
+| `floodProtectionByCell` の唯一の書き込み元（消費者無し） | `AgTechInvestment.settleAnnual()` が `coverageByState` から一律 `+= coverage*0.07` のEWMAで書くのみ。 | [agTechInvestment.ts#L171-190](/src/extensions/economy/generators/agTechInvestment.ts#L171) |
+| `PowerStation`/`PowerGridInvestment` の形 | State資本設備（`ChemistryTrial`非経由）+ Market人口按分プール。 | [powerStations.ts](/src/extensions/economy/generators/powerStations.ts)、[powerGridInvestment.ts](/src/extensions/economy/generators/powerGridInvestment.ts) |
+| `generatorAndMotor`/`waterAndWindMills`/`stoneBuildingAndRoads` | `generatorAndMotor` は era6 実装済み技術。`waterAndWindMills`/`stoneBuildingAndRoads` はどちらも era0 `startStage: "diffused"`（開始時から真、実質的なゲートにならない）。 | [technologyDefinitions.ts#L39-70,143](/src/generators/technologyDefinitions.ts#L39) |
 
 ## 3. 設計
 

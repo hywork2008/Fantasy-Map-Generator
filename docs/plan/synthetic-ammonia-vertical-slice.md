@@ -62,17 +62,17 @@ era 6 の技術グラフを実際に完結させる最終ノードであり、
 
 | 項目 | 現状 | 参照 |
 | --- | --- | --- |
-| era 6 の技術グラフの終点 | `chemicalIndustryFoundation` → `industrialSulfuricAcid` →（`phosphateFertilizer` / `modernSteelmaking` → `highPressureChemicalApparatus`）→ `catalyticChemistry` まで実装済み。後続ノードは存在しない。 | [technologyDefinitions.ts:612-709](../../src/generators/technologyDefinitions.ts#L612-L709) |
-| `prerequisitesMet()` の意味論 | 前提技術は必ず `adopted` まで到達していないと、依存ノードは `known` にすら進まない。`catalyticChemistry` の前提は `highPressureChemicalApparatus` 単独であり、その前提の前提（`modernSteelmaking`/`industrialSulfuricAcid`/`chemicalIndustryFoundation`）を再掲していない。 | [technologyProgress.ts:964-966](../../src/generators/technologyProgress.ts#L964-L966)、[catalytic-chemistry.md](./catalytic-chemistry.md) §3 |
-| 「一つの Good・二つの供給経路」の先例 | `Sulfuric Acid`/`Phosphate Fertilizer`/`Steel` はいずれも (a) 職人レシピ (b) State資金の資本設備（`AcidPlant`/`PhosphateFertilizerPlant`/`SteelConverterPlant`、共通形状 `burgId`/`stateId`/`role`/`active`/`utilization`/`documentedRuns`/`lastFundedYear`）の両方から生産される。 | [chemistryTypes.ts:62-81](../../src/extensions/economy/generators/chemistryTypes.ts#L62-L81)、[steelConverterTypes.ts](../../src/extensions/economy/generators/steelConverterTypes.ts) |
-| State資本設備の共通ヘルパー | `chemMedCommon.ts` の `debitTreasury`/`pickSponsorBurg`/`marketIdForBurg`/`consumeNamed`/`addNamedStock` が3例（`AcidPlants`/`PhosphateFertilizerPlants`/`SteelConverters`）で共有されている。`addNamedStock` は `isGoodEnabled` を一切見ないため、出力側の requiredTechnology 状態に関わらず市場在庫へ直接足す。 | [chemMedCommon.ts](../../src/extensions/economy/generators/chemMedCommon.ts) |
-| `PhosphateFertilizerPlants` の完全な先例 | 前提技術（`industrialSulfuricAcid`）が世界のどこかで `demonstrated` になるまで出力を止める `worldHasIndustrialSulfuricAcid()`、`ChemistryTrial(kind="phosphateFertilizerPlant")` 経由の試作年数トラッキング、`role: "trial"→"service"` の `adopted` 昇格、という3つの機構が完全に実装済みで、そのまま踏襲できる。 | [phosphateFertilizerPlants.ts](../../src/extensions/economy/generators/phosphateFertilizerPlants.ts) |
-| より単純な「`ChemistryTrial` を介さない」先例 | `SteelConverterPlant` は冶金ドメインという理由で `ChemistryTrial` 型を使わず `documentedRuns` を自分自身に持つ（`HospitalInstallation` 型）。本書の `SyntheticAmmoniaPlant` は化学ドメインの施設のため、この例外ではなく `AcidPlant`/`PhosphateFertilizerPlant` 側（`ChemistryTrial` 経由）を踏襲する。 | [steelConverterTypes.ts:1-15](../../src/extensions/economy/generators/steelConverterTypes.ts#L1-L15) |
-| 農村施肥ストックの先例 | `Market.fertilizerStock`（`agTechStock` と同型・別会計の 0..1 EWMA）→ `FertilizerInvestment.settleAnnual()`（`Markets.consumeForMarketInvestment()` で `Phosphate Fertilizer` を購入）→ `developmentPotential.ts` の `resolveFertilizerStockByCell()` → `agriculturalLandUse.ts` の `calculateYieldKgPerHectare()` に `PHOSPHATE_FERTILIZER_YIELD_BONUS_MAX`(0.2) として乗算、という縦のパイプラインが完全に実装済み。 | [marketTypes.ts:45-52](../../src/extensions/economy/generators/marketTypes.ts#L45-L52)、[fertilizerInvestment.ts](../../src/extensions/economy/generators/fertilizerInvestment.ts)、[developmentPotential.ts:101, 354](../../src/extensions/economy/generators/developmentPotential.ts#L101)、[agriculturalLandUse.ts:90, 127, 612-629](../../src/extensions/economy/generators/agriculturalLandUse.ts#L612-L629) |
-| `foodFertilizerPressure` の現在の意味 | いまも都市の食料輸入ギャップ比率（`ledger.importNeed - ledger.satisfiedImport` を `urbanNeed` で正規化した州内平均）のままで、`Market.fertilizerStock` を一切参照していない。`phosphateFertilizer` の `known` 閾値と `chemicalIndustryFoundation` 由来の `lateChemistryDemandPressure` が既にこの値で校正済み。 | [technologyProgress.ts:886-914](../../src/generators/technologyProgress.ts#L886-L914) |
-| `isGoodEnabled`/`isGoodManufacturableInState` の二段階ゲート | `isGoodEnabled` は Good 自身の `requiredTechnology` が世界のどこかで `demonstrated` なら真（レシピ入力側の `requiredTechnology` は個別には再チェックされない）。`isGoodManufacturableInState` は生産する州でその Good の `requiredTechnology` が `adopted` なら真。これにより `demonstrated`＝世界のどこかで少量生産、`adopted`＝自国の工場が稼働、という roadmap §9.2 の区分が Good の二段階ゲートだけで自然に表現できる。 | [goods-generator.ts:133-139](../../src/extensions/economy/generators/goods-generator.ts#L133-L139)、[production-generator.ts:147-155](../../src/extensions/economy/generators/production-generator.ts#L147-L155) |
-| `Coke` の現状 | `Coal: 1.4` の職人レシピのみ、`requiredTechnology: "coalCarbonization"`（era 4/5 相当、era 6 の時点ではほぼ全州で adopted 済み）。専用の「アクセス」シグナルは無い。 | [goods-generator.ts:2457-2468](../../src/extensions/economy/generators/goods-generator.ts#L2457-L2468) |
-| セーブ互換性 | 新規 Good は `migratePhosphateGoods()` と同型の migration 関数が必要、新規配列スライスは `extensionStateSlices.ts` への登録が必要。両方とも `index.tsx` の呼び出し順序（生成時・ロード時の2箇所）にフックが既にある。 | [goods-generator.ts:3264](../../src/extensions/economy/generators/goods-generator.ts#L3264)、[index.tsx:2459-2460, 3129-3130](../../src/extensions/economy/index.tsx#L2459-L2460)、[extensionStateSlices.ts:438-439](../../src/runtime/extensionStateSlices.ts#L438-L439) |
+| era 6 の技術グラフの終点 | `chemicalIndustryFoundation` → `industrialSulfuricAcid` →（`phosphateFertilizer` / `modernSteelmaking` → `highPressureChemicalApparatus`）→ `catalyticChemistry` まで実装済み。後続ノードは存在しない。 | [technologyDefinitions.ts#L612-709](/src/generators/technologyDefinitions.ts#L612-L709) |
+| `prerequisitesMet()` の意味論 | 前提技術は必ず `adopted` まで到達していないと、依存ノードは `known` にすら進まない。`catalyticChemistry` の前提は `highPressureChemicalApparatus` 単独であり、その前提の前提（`modernSteelmaking`/`industrialSulfuricAcid`/`chemicalIndustryFoundation`）を再掲していない。 | [technologyProgress.ts#L964-966](/src/generators/technologyProgress.ts#L964-L966)、[catalytic-chemistry.md](./catalytic-chemistry.md) §3 |
+| 「一つの Good・二つの供給経路」の先例 | `Sulfuric Acid`/`Phosphate Fertilizer`/`Steel` はいずれも (a) 職人レシピ (b) State資金の資本設備（`AcidPlant`/`PhosphateFertilizerPlant`/`SteelConverterPlant`、共通形状 `burgId`/`stateId`/`role`/`active`/`utilization`/`documentedRuns`/`lastFundedYear`）の両方から生産される。 | [chemistryTypes.ts#L62-81](/src/extensions/economy/generators/chemistryTypes.ts#L62-L81)、[steelConverterTypes.ts](/src/extensions/economy/generators/steelConverterTypes.ts) |
+| State資本設備の共通ヘルパー | `chemMedCommon.ts` の `debitTreasury`/`pickSponsorBurg`/`marketIdForBurg`/`consumeNamed`/`addNamedStock` が3例（`AcidPlants`/`PhosphateFertilizerPlants`/`SteelConverters`）で共有されている。`addNamedStock` は `isGoodEnabled` を一切見ないため、出力側の requiredTechnology 状態に関わらず市場在庫へ直接足す。 | [chemMedCommon.ts](/src/extensions/economy/generators/chemMedCommon.ts) |
+| `PhosphateFertilizerPlants` の完全な先例 | 前提技術（`industrialSulfuricAcid`）が世界のどこかで `demonstrated` になるまで出力を止める `worldHasIndustrialSulfuricAcid()`、`ChemistryTrial(kind="phosphateFertilizerPlant")` 経由の試作年数トラッキング、`role: "trial"→"service"` の `adopted` 昇格、という3つの機構が完全に実装済みで、そのまま踏襲できる。 | [phosphateFertilizerPlants.ts](/src/extensions/economy/generators/phosphateFertilizerPlants.ts) |
+| より単純な「`ChemistryTrial` を介さない」先例 | `SteelConverterPlant` は冶金ドメインという理由で `ChemistryTrial` 型を使わず `documentedRuns` を自分自身に持つ（`HospitalInstallation` 型）。本書の `SyntheticAmmoniaPlant` は化学ドメインの施設のため、この例外ではなく `AcidPlant`/`PhosphateFertilizerPlant` 側（`ChemistryTrial` 経由）を踏襲する。 | [steelConverterTypes.ts#L1-15](/src/extensions/economy/generators/steelConverterTypes.ts#L1-L15) |
+| 農村施肥ストックの先例 | `Market.fertilizerStock`（`agTechStock` と同型・別会計の 0..1 EWMA）→ `FertilizerInvestment.settleAnnual()`（`Markets.consumeForMarketInvestment()` で `Phosphate Fertilizer` を購入）→ `developmentPotential.ts` の `resolveFertilizerStockByCell()` → `agriculturalLandUse.ts` の `calculateYieldKgPerHectare()` に `PHOSPHATE_FERTILIZER_YIELD_BONUS_MAX`(0.2) として乗算、という縦のパイプラインが完全に実装済み。 | [marketTypes.ts#L45-52](/src/extensions/economy/generators/marketTypes.ts#L45-L52)、[fertilizerInvestment.ts](/src/extensions/economy/generators/fertilizerInvestment.ts)、[developmentPotential.ts#L101, 354](/src/extensions/economy/generators/developmentPotential.ts#L101)、[agriculturalLandUse.ts#L90, 127, 612-629](/src/extensions/economy/generators/agriculturalLandUse.ts#L612-L629) |
+| `foodFertilizerPressure` の現在の意味 | いまも都市の食料輸入ギャップ比率（`ledger.importNeed - ledger.satisfiedImport` を `urbanNeed` で正規化した州内平均）のままで、`Market.fertilizerStock` を一切参照していない。`phosphateFertilizer` の `known` 閾値と `chemicalIndustryFoundation` 由来の `lateChemistryDemandPressure` が既にこの値で校正済み。 | [technologyProgress.ts#L886-914](/src/generators/technologyProgress.ts#L886-L914) |
+| `isGoodEnabled`/`isGoodManufacturableInState` の二段階ゲート | `isGoodEnabled` は Good 自身の `requiredTechnology` が世界のどこかで `demonstrated` なら真（レシピ入力側の `requiredTechnology` は個別には再チェックされない）。`isGoodManufacturableInState` は生産する州でその Good の `requiredTechnology` が `adopted` なら真。これにより `demonstrated`＝世界のどこかで少量生産、`adopted`＝自国の工場が稼働、という roadmap §9.2 の区分が Good の二段階ゲートだけで自然に表現できる。 | [goods-generator.ts#L133-139](/src/extensions/economy/generators/goods-generator.ts#L133-L139)、[production-generator.ts#L147-155](/src/extensions/economy/generators/production-generator.ts#L147-L155) |
+| `Coke` の現状 | `Coal: 1.4` の職人レシピのみ、`requiredTechnology: "coalCarbonization"`（era 4/5 相当、era 6 の時点ではほぼ全州で adopted 済み）。専用の「アクセス」シグナルは無い。 | [goods-generator.ts#L2457-2468](/src/extensions/economy/generators/goods-generator.ts#L2457-L2468) |
+| セーブ互換性 | 新規 Good は `migratePhosphateGoods()` と同型の migration 関数が必要、新規配列スライスは `extensionStateSlices.ts` への登録が必要。両方とも `index.tsx` の呼び出し順序（生成時・ロード時の2箇所）にフックが既にある。 | [goods-generator.ts#L3264](/src/extensions/economy/generators/goods-generator.ts#L3264)、[index.tsx:2459-2460, 3129-3130](/src/extensions/economy/index.tsx#L2459-L2460)、[extensionStateSlices.ts#L438-439](/src/runtime/extensionStateSlices.ts#L438-L439) |
 
 結論として、State資本設備・農村投資・収量接続という3つの層はすべて `phosphateFertilizer` スライスで確立済みの型をそのまま複製でき、本書の実質的なスコープは「新しい Good 2つ・技術ノード1つ・シグナル3つ・プラント1つ・投資モジュール1つ」に限定できる。
 
@@ -171,14 +171,14 @@ Market.fertilizerStock（既存、phosphateFertilizer 由来）
 const SYNTHETIC_AMMONIA_GOOD_NAMES = ["Synthetic Ammonia", "Nitrogen Fertilizer"] as const;
 
 export function migrateSyntheticAmmoniaGoods(): boolean {
-  // migratePhosphateGoods()（goods-generator.ts:3264）と全く同じ実装:
+  // migratePhosphateGoods()（goods-generator.ts#L3264）と全く同じ実装:
   // 1) 既存カタログに無い名前だけ Goods.getDefaultGood() から追加し id を採番
   // 2) GOODS_DATA テンプレートの recipes をこのセーブの Good id に解決し直す
   // 3) requiredTechnology をコピーする
 }
 ```
 
-`src/extensions/economy/index.tsx` の両方の呼び出し箇所（[index.tsx:2459-2460, 3129-3130](../../src/extensions/economy/index.tsx#L2459-L2460)、`migratePhosphateGoods()` の直後）に `migrateSyntheticAmmoniaGoods()` を追加する。
+`src/extensions/economy/index.tsx` の両方の呼び出し箇所（[index.tsx:2459-2460, 3129-3130](/src/extensions/economy/index.tsx#L2459-L2460)、`migratePhosphateGoods()` の直後）に `migrateSyntheticAmmoniaGoods()` を追加する。
 
 ### 3.4 技術ノード: `syntheticAmmonia`
 
@@ -209,7 +209,7 @@ export function migrateSyntheticAmmoniaGoods(): boolean {
 }
 ```
 
-- `prerequisites` は `catalyticChemistry` の1本のみ。`prerequisitesMet()`（[technologyProgress.ts:964-966](../../src/generators/technologyProgress.ts#L964-L966)）は前提を必ず `adopted` まで要求するため、`catalyticChemistry`（前提: `highPressureChemicalApparatus`）→`highPressureChemicalApparatus`（前提: `modernSteelmaking`・`industrialSulfuricAcid`）→…という連鎖全体が既に `adopted` していることを間接的に要求する。`catalytic-chemistry.md` §3 の「前提は単独ノードのみ、祖先を再掲しない」という判断をそのまま踏襲する。
+- `prerequisites` は `catalyticChemistry` の1本のみ。`prerequisitesMet()`（[technologyProgress.ts#L964-966](/src/generators/technologyProgress.ts#L964-L966)）は前提を必ず `adopted` まで要求するため、`catalyticChemistry`（前提: `highPressureChemicalApparatus`）→`highPressureChemicalApparatus`（前提: `modernSteelmaking`・`industrialSulfuricAcid`）→…という連鎖全体が既に `adopted` していることを間接的に要求する。`catalytic-chemistry.md` §3 の「前提は単独ノードのみ、祖先を再掲しない」という判断をそのまま踏襲する。
 - `syntheticAmmonia` が `known` に進める時点で、`catalyticChemistry` 自身の `adopted` 閾値（`experimentRecord: 0.75`・`naturalPhilosophy: 0.6`・`administration: 0.65`・`treasury: 450`）は既に満たされている。`known` 閾値の `administration: 0.65`/`instruments: 0.45` はこの水準以上に設定し、`treasury: 500` で前提 `adopted` の瞬間に自動的に `known` へ進まないようにする（`catalytic-chemistry.md` §3 と同じ差別化ロジック）。
 - `fertilizerCoverageGap`（§3.5）が `known` 閾値の需要ドライバーであり、`phosphateFertilizer` の `known` 閾値が `foodFertilizerPressure` を使っていたのと同じ「需要が発展を牽引する」パターンの後継。ただし対象シグナルが異なる（都市食料輸入ギャップ → 施肥カバレッジ不足）ため、既存シグナルの再定義ではなく新規追加とする（§7 決定事項4）。
 - `demonstrated`/`adopted` を2つのノードに分けない。roadmap §9.2 の「`demonstrated`＝少量生産・`adopted`＝肥料工場と流通」は、既存の3段階 `TechnologyDefinition` 機構と Good の二段階ゲート（§3.2）だけで表現され、`modernSteelmaking`/`highPressureChemicalApparatus`/`catalyticChemistry` のように専用ノードを追加で割る必要がない（§7 決定事項5）。
@@ -234,7 +234,7 @@ syntheticAmmoniaInstallations: number;
 
 `technologyProgress.ts` の初期化ブロック（`phosphateRockAccess: 0, ...` の並び）に3フィールドとも `0` で追加する。
 
-`fertilizerCoverageGap` は既存の `foodFertilizerPressure` 計算ループ（[technologyProgress.ts:886-914](../../src/generators/technologyProgress.ts#L886-L914)）をそのまま拡張し、新しいマップ・新しいループを増やさずに同じ1パスで計算する:
+`fertilizerCoverageGap` は既存の `foodFertilizerPressure` 計算ループ（[technologyProgress.ts#L886-914](/src/generators/technologyProgress.ts#L886-L914)）をそのまま拡張し、新しいマップ・新しいループを増やさずに同じ1パスで計算する:
 
 ```ts
 let fertilizerCount = 0;
@@ -263,9 +263,9 @@ if (fertilizerCount > 0) {
 
 `foodLedger` を持つ Market（＝人口を抱える市場）だけを対象にする既存フィルタをそのまま流用する。`cultivatedArea`/`marketCellColumn` の新規プラミングは不要。
 
-`syntheticAmmoniaTrialYears`/`syntheticAmmoniaInstallations` は `phosphateFertilizerTrialYears`/`phosphateFertilizerPlantCount` の計算ブロック（[technologyProgress.ts:805-819, 828-831](../../src/generators/technologyProgress.ts#L805-L819)、[871-877](../../src/generators/technologyProgress.ts#L871-L877)）と全く同じ形で追加する: `ChemistryTrial.kind === "syntheticAmmoniaPlant"` から年数を、`economy.syntheticAmmoniaPlants` の active 件数からインストール数を集計する。
+`syntheticAmmoniaTrialYears`/`syntheticAmmoniaInstallations` は `phosphateFertilizerTrialYears`/`phosphateFertilizerPlantCount` の計算ブロック（[technologyProgress.ts#L805-819, 828-831](/src/generators/technologyProgress.ts#L805-L819)、[871-877](/src/generators/technologyProgress.ts#L871-L877)）と全く同じ形で追加する: `ChemistryTrial.kind === "syntheticAmmoniaPlant"` から年数を、`economy.syntheticAmmoniaPlants` の active 件数からインストール数を集計する。
 
-`COUNT_SIGNAL_KEYS`（[technologyProgress.ts:968-989](../../src/generators/technologyProgress.ts#L968-L989)）に `syntheticAmmoniaTrialYears`/`syntheticAmmoniaInstallations` を追加する。`fertilizerCoverageGap` は `sulfurAccess`/`foodFertilizerPressure` と同じく無登録（デフォルトの "ratio" 種別のまま）。
+`COUNT_SIGNAL_KEYS`（[technologyProgress.ts#L968-989](/src/generators/technologyProgress.ts#L968-L989)）に `syntheticAmmoniaTrialYears`/`syntheticAmmoniaInstallations` を追加する。`fertilizerCoverageGap` は `sulfurAccess`/`foodFertilizerPressure` と同じく無登録（デフォルトの "ratio" 種別のまま）。
 
 ### 3.6 State資本設備: `SyntheticAmmoniaPlants`
 
@@ -325,7 +325,7 @@ export class SyntheticAmmoniaPlantsModule {
 export const SyntheticAmmoniaPlants = new SyntheticAmmoniaPlantsModule();
 ```
 
-`economyContext.ts` にスライスアクセサを追加（`getPhosphateFertilizerPlants`/`setPhosphateFertilizerPlants` と同型、[economyContext.ts:1407-1414](../../src/extensions/economy/economyContext.ts#L1407-L1414)）:
+`economyContext.ts` にスライスアクセサを追加（`getPhosphateFertilizerPlants`/`setPhosphateFertilizerPlants` と同型、[economyContext.ts#L1407-1414](/src/extensions/economy/economyContext.ts#L1407-L1414)）:
 
 ```ts
 export function getSyntheticAmmoniaPlants(): SyntheticAmmoniaPlant[] { return getSliceArray("syntheticAmmoniaPlants"); }
@@ -334,11 +334,11 @@ export function getSyntheticAmmoniaPlantsLastSettledYear(): number | null { /* g
 export function setSyntheticAmmoniaPlantsLastSettledYear(year: number): void { /* 同型 */ }
 ```
 
-`_syntheticAmmoniaPlantsLastSettledYearFallback` フォールバック変数を追加し、モジュールリセット処理（[economyContext.ts:210-227](../../src/extensions/economy/economyContext.ts#L210-L227) の一括 `null` 代入ブロック）にも追加する。
+`_syntheticAmmoniaPlantsLastSettledYearFallback` フォールバック変数を追加し、モジュールリセット処理（[economyContext.ts#L210-227](/src/extensions/economy/economyContext.ts#L210-L227) の一括 `null` 代入ブロック）にも追加する。
 
-`extensionStateSlices.ts` の `validateEconomySlice()` の配列フィールド一覧（[extensionStateSlices.ts:437-439](../../src/runtime/extensionStateSlices.ts#L437-L439)）に `"syntheticAmmoniaPlants"` を追加する。
+`extensionStateSlices.ts` の `validateEconomySlice()` の配列フィールド一覧（[extensionStateSlices.ts#L437-439](/src/runtime/extensionStateSlices.ts#L437-L439)）に `"syntheticAmmoniaPlants"` を追加する。
 
-呼び出し順序（`src/extensions/economy/index.tsx`、[index.tsx:2940-2947](../../src/extensions/economy/index.tsx#L2940-L2947) の era 6 プラント群の末尾、`SteelConverters.settleAnnual()` の直後）:
+呼び出し順序（`src/extensions/economy/index.tsx`、[index.tsx:2940-2947](/src/extensions/economy/index.tsx#L2940-L2947) の era 6 プラント群の末尾、`SteelConverters.settleAnnual()` の直後）:
 
 ```ts
 AcidPlants.settleAnnual();
@@ -380,7 +380,7 @@ export const NitrogenFertilizerInvestment = new NitrogenFertilizerInvestmentModu
 
 財源は `AgTechInvestment`/`FertilizerInvestment` と**同じ** `market.marketTreasury.balance`。専用の別会計は作らない。
 
-呼び出し順序（`src/extensions/economy/index.tsx`、[index.tsx:2806-2813](../../src/extensions/economy/index.tsx#L2806-L2813)、`FertilizerInvestment.settleAnnual()` の直後・`IndustrialTechInvestment.settleAnnual()` の前）:
+呼び出し順序（`src/extensions/economy/index.tsx`、[index.tsx:2806-2813](/src/extensions/economy/index.tsx#L2806-L2813)、`FertilizerInvestment.settleAnnual()` の直後・`IndustrialTechInvestment.settleAnnual()` の前）:
 
 ```ts
 AgTechInvestment.settleAnnual();
@@ -391,7 +391,7 @@ NitrogenFertilizerInvestment.settleAnnual();
 IndustrialTechInvestment.settleAnnual();
 ```
 
-`SyntheticAmmoniaPlants.settleAnnual()`（生産側）は §3.6 の通り era 6 プラント群のブロック（`annualUrbanKnowledge` 相当、[index.tsx:2940-2947](../../src/extensions/economy/index.tsx#L2940-L2947)）に置くため、`annualAgTech` ブロックより**後**に実行される。`FertilizerInvestment`/`Phosphate Fertilizer` と同じ非同期関係——今年の `NitrogenFertilizerInvestment` は前年までにプラントが生産した在庫から購入する——であり、既存の設計と矛盾しない。
+`SyntheticAmmoniaPlants.settleAnnual()`（生産側）は §3.6 の通り era 6 プラント群のブロック（`annualUrbanKnowledge` 相当、[index.tsx:2940-2947](/src/extensions/economy/index.tsx#L2940-L2947)）に置くため、`annualAgTech` ブロックより**後**に実行される。`FertilizerInvestment`/`Phosphate Fertilizer` と同じ非同期関係——今年の `NitrogenFertilizerInvestment` は前年までにプラントが生産した在庫から購入する——であり、既存の設計と矛盾しない。
 
 ### 3.8 収量への反映（`agriculturalLandUse.ts`）
 
@@ -402,7 +402,7 @@ IndustrialTechInvestment.settleAnnual();
 readonly nitrogenFertilizerStockByCell?: Float32Array;
 ```
 
-`calculateYieldKgPerHectare()`（[agriculturalLandUse.ts:612-629](../../src/extensions/economy/generators/agriculturalLandUse.ts#L612-L629)）の乗算チェーンに1項追加:
+`calculateYieldKgPerHectare()`（[agriculturalLandUse.ts#L612-629](/src/extensions/economy/generators/agriculturalLandUse.ts#L612-L629)）の乗算チェーンに1項追加:
 
 ```ts
 // PHOSPHATE_FERTILIZER_YIELD_BONUS_MAX(0.2)より大きく、AGTECH_YIELD_BONUS_MAX(0.4)より小さい
@@ -424,7 +424,7 @@ function calculateYieldKgPerHectare(/* ... */): number {
 
 `soilFertility` には手を入れない。理由は `phosphate-fertilizer-vertical-slice.md` §3.9 と同一（`MAX_SOIL_FERTILITY` の天井に足すと史実の効果を表現できない、購入財の効果を土壌疲弊モデルと混線させない）。
 
-`developmentPotential.ts` に `resolveNitrogenFertilizerStockByCell()` を追加する（`resolveFertilizerStockByCell()` と同型、[developmentPotential.ts:101](../../src/extensions/economy/generators/developmentPotential.ts#L101)）:
+`developmentPotential.ts` に `resolveNitrogenFertilizerStockByCell()` を追加する（`resolveFertilizerStockByCell()` と同型、[developmentPotential.ts#L101](/src/extensions/economy/generators/developmentPotential.ts#L101)）:
 
 ```ts
 function resolveNitrogenFertilizerStockByCell(cellCount: number): Float32Array {
@@ -441,7 +441,7 @@ function resolveNitrogenFertilizerStockByCell(cellCount: number): Float32Array {
 }
 ```
 
-`DevelopmentPotentialModule` が `fertilizerStockByCell` を通す3箇所——`AgriculturalConditions` フィールド宣言（[agriculturalLandUse.ts:127](../../src/extensions/economy/generators/agriculturalLandUse.ts#L127)）・`resolveFertilizerStockByCell()` の呼び出し（[developmentPotential.ts:354](../../src/extensions/economy/generators/developmentPotential.ts#L354)）・`getAgriculturalConditions()` が返すオブジェクトへの配線——と全く同じ位置に `nitrogenFertilizerStockByCell` を並べて追加する。
+`DevelopmentPotentialModule` が `fertilizerStockByCell` を通す3箇所——`AgriculturalConditions` フィールド宣言（[agriculturalLandUse.ts#L127](/src/extensions/economy/generators/agriculturalLandUse.ts#L127)）・`resolveFertilizerStockByCell()` の呼び出し（[developmentPotential.ts#L354](/src/extensions/economy/generators/developmentPotential.ts#L354)）・`getAgriculturalConditions()` が返すオブジェクトへの配線——と全く同じ位置に `nitrogenFertilizerStockByCell` を並べて追加する。
 
 ## 4. Phase分割
 

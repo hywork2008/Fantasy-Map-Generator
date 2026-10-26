@@ -71,7 +71,7 @@ export function townGates(doc, circuitId?)                    // 既存 API を�
 置換時の判断基準:
 
 - 外部道路・外門・concealStreets・regionalRoadGates・壁外判定 → `outerTownCircuit`
-- 城の integrated/detached 判定・城門の向き（`castles.ts:136` 付近）→ 城を含む最も内側の circuit
+- 城の integrated/detached 判定・城門の向き（`castles.ts#L136` 付近）→ 城を含む最も内側の circuit
 - circulade 系 → 当面は単一リング限定（§8）
 
 `validateFortifications` に追加する検証:
@@ -130,7 +130,7 @@ interface GenerateSettings {
 ### 4.4 城（三重）
 
 - 城の配置候補は内壁の範囲 `C` に限る（旧市街の端、内壁と一体 = integrated が基本）。`placeCastleRegion` に渡す `urban` を `C` に替える。
-- `townBoundary`（`castles.ts:542`）は内壁の境界を使う。
+- `townBoundary`（`castles.ts#L542`）は内壁の境界を使う。
 - 外壁と一体の城（新市壁の角に置かれた要塞）は「外壁の端への退避先」として§5で使う。
 
 ## 5. 城を置いても道が通る最小セル数の保証

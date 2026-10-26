@@ -4,16 +4,16 @@
 
 **2026-08-14 実装済み**（§6 の推奨案をすべて採用）。Economy 拡張（`economy`、既定 OFF）が対象。
 
-- §3.1: `MineralResourcesModule.classifyProvince()` を実装（[mineralResources.ts](../../src/extensions/economy/generators/mineralResources.ts)）。旧「標高75+6%ハッシュ」ロールは削除。
-- §3.2: `Pumice`（`biomeOutputByTag: { volcanic: 0.05 }`）を [goods-generator.ts](../../src/extensions/economy/generators/goods-generator.ts) に追加。
-- §3.3: `VolcanicAshOperations` を `VolcanicOperations`（[volcanicOperations.ts](../../src/extensions/economy/generators/volcanicOperations.ts)）に汎用化し、Ash（volcanic タグ全体）/ Sulfur（lavaField・volcanicBarrens）/ Obsidian（lavaField のみ）を1サイトから産出。`Sulfur` は evaporite(basin) 経由の既存供給と併存。`basicEmployment.ts` / `employment-overview.ts` / `burgEmploymentComposition.ts` / `production-generator.ts` / `index.tsx` / `economyContext.ts` を追随更新。
+- §3.1: `MineralResourcesModule.classifyProvince()` を実装（[mineralResources.ts](/src/extensions/economy/generators/mineralResources.ts)）。旧「標高75+6%ハッシュ」ロールは削除。
+- §3.2: `Pumice`（`biomeOutputByTag: { volcanic: 0.05 }`）を [goods-generator.ts](/src/extensions/economy/generators/goods-generator.ts) に追加。
+- §3.3: `VolcanicAshOperations` を `VolcanicOperations`（[volcanicOperations.ts](/src/extensions/economy/generators/volcanicOperations.ts)）に汎用化し、Ash（volcanic タグ全体）/ Sulfur（lavaField・volcanicBarrens）/ Obsidian（lavaField のみ）を1サイトから産出。`Sulfur` は evaporite(basin) 経由の既存供給と併存。`basicEmployment.ts` / `employment-overview.ts` / `burgEmploymentComposition.ts` / `production-generator.ts` / `index.tsx` / `economyContext.ts` を追随更新。
 - §3.4: 専用アイコンは追加せず、`Pumice` は `good-sand`、`Obsidian` は `good-gemstones` を暫定流用（未決定事項4の推奨どおり）。
 - 未実装のまま残す項目（未決定事項1-4のうち今回のスコープ外）: `Obsidian` を原料とする加工チェーン、鉱物マップレイヤーへのサイト表示。
 - テスト: `mineralResources.test.ts`（+2件）、`volcanicOperations.test.ts`（旧 `volcanicAshOperations.test.ts` を置換、6件）、`goods-generator.test.ts`（+1件）、`biomeEconomy.test.ts`（+1件）、`i18n/goodsNames.test.ts` 用に `en.json`/`ja.json` へ `Pumice`/`Obsidian` 追加。`tsc --noEmit`・`npm run lint`・`npm run madge`・`npm run build`・`npx vitest run`（2607 tests）はすべてクリーン。
 
 前提となる直近の変更（2026-08-14 時点で `master` に取り込み済み）:
 
-- [b3b63dce](../../src/generators/heightmap-generator.ts) 火山バイオーム実装（`volcanicBarrens` / `lavaField` / `volcanicSoil`）
+- [b3b63dce](/src/generators/heightmap-generator.ts) 火山バイオーム実装（`volcanicBarrens` / `lavaField` / `volcanicSoil`）
 - [31eb4c79] フォールバック火山配置ロジック + 全テンプレート適用の一貫性テスト
 - [6a455163] `FALLBACK_MIN_PEAK_HEIGHT` を陸地しきい値（=22）まで引き下げ、全テンプレートで火山配置を保証
 
@@ -45,7 +45,7 @@ lavaField:       habitability 0,  tags: [dry, mountain, volcanic]   // 活火山
 volcanicSoil:    habitability 55, tags: [arable, volcanic]          // 肥沃な火山灰土の裾野
 ```
 
-[biomeCatalog.ts:161-170](../../src/data/biomeCatalog.ts#L161-L170)
+[biomeCatalog.ts#L161-170](/src/data/biomeCatalog.ts#L161-L170)
 
 `volcanicSoil` は `arable` タグを持つため、Grain/Wheat 等の通常農業（`biomeOutputByTag: { arable: ... }`）は**すでに自動的に機能している**。対応が要るのは "火山ならでは" の商品のほうである。
 
@@ -53,20 +53,20 @@ volcanicSoil:    habitability 55, tags: [arable, volcanic]          // 肥沃な
 
 ### 2.2 既存の "volcanic" 地質プロヴィンスは、本物の火山と無関係
 
-`mineralResources.ts` の `MineralGeologicalProvince` はすでに `"volcanic"` という `kind` を持ち、`Volcanic Ash` Good の唯一の供給源になっている（[volcanicAshOperations.ts](../../src/extensions/economy/generators/volcanicAshOperations.ts)）。しかしその分類ロジックは:
+`mineralResources.ts` の `MineralGeologicalProvince` はすでに `"volcanic"` という `kind` を持ち、`Volcanic Ash` Good の唯一の供給源になっている（[volcanicAshOperations.ts](/src/extensions/economy/generators/volcanicAshOperations.ts)）。しかしその分類ロジックは:
 
 ```ts
 // classifyProvince()
 if (height >= 75 && this.hash(seed, "volcanic", cellId) < 0.06) return "volcanic";
 ```
 
-[mineralResources.ts:216-230](../../src/extensions/economy/generators/mineralResources.ts#L216-L230)
+[mineralResources.ts#L216-230](/src/extensions/economy/generators/mineralResources.ts#L216-L230)
 
 これは「標高 75 以上のセルを 6% の確率で "volcanic" 扱いにする」独立したハッシュロールであり、**実際にそのセルが火山かどうかとは無関係**。このロジックが書かれた当時（`urban-construction-industry.md` §3.4 の記述）は「ヒートマップ生成後にセル単位の "ここは火山" フラグが残らない」ことが前提で、意図的な代替ヒューリスティックだった:
 
 > 火山の地質学的痕跡｜ヒートマップ生成テンプレート "Volcano" はマップ全体の初期地形整形にのみ使われ、生成後にセル単位の「ここは火山性」フラグを残さない。（`urban-construction-industry.md` 3.4節前段）
 
-今はこの前提が崩れている。`heightmap-generator.ts` の `finalizeVolcanoes()` が `grid.cells.volcanic`（0..1 強度）/ `grid.cells.volcanicActive` を書き込み、`biomeAssignment.ts` の `classifySpecialBiome()` がそれを読んで `volcanicBarrens` / `lavaField` / `volcanicSoil` を確定させている（[heightmap-generator.ts:254-279](../../src/generators/heightmap-generator.ts#L254-L279)、[biomeAssignment.ts:235-242](../../src/generators/biomeAssignment.ts#L235-L242)）。ただし `grid.cells.volcanic` 自体は `pack.cells` 側には転写されず、`biomes.ts` の変換処理内で一時的に使われるだけ（[biomes.ts:41-93](../../src/generators/biomes.ts#L41-L93)）。**最終的に残る「ここは火山」の唯一の手掛かりは `pack.cells.biomeCode` が指すバイオームの `volcanic` タグである。**
+今はこの前提が崩れている。`heightmap-generator.ts` の `finalizeVolcanoes()` が `grid.cells.volcanic`（0..1 強度）/ `grid.cells.volcanicActive` を書き込み、`biomeAssignment.ts` の `classifySpecialBiome()` がそれを読んで `volcanicBarrens` / `lavaField` / `volcanicSoil` を確定させている（[heightmap-generator.ts#L254-279](/src/generators/heightmap-generator.ts#L254-L279)、[biomeAssignment.ts#L235-242](/src/generators/biomeAssignment.ts#L235-L242)）。ただし `grid.cells.volcanic` 自体は `pack.cells` 側には転写されず、`biomes.ts` の変換処理内で一時的に使われるだけ（[biomes.ts#L41-93](/src/generators/biomes.ts#L41-L93)）。**最終的に残る「ここは火山」の唯一の手掛かりは `pack.cells.biomeCode` が指すバイオームの `volcanic` タグである。**
 
 結果として、Volcanism chance = 100% / Active volcano chance = 100% にしても:
 
@@ -81,9 +81,9 @@ if (height >= 75 && this.hash(seed, "volcanic", cellId) < 0.06) return "volcanic
 { type: "evaporite", provinces: ["basin"], primary: "sulfur", commodities: ["sulfur", "saltpeter"] }
 ```
 
-[mineralResources.ts:66-83](../../src/extensions/economy/generators/mineralResources.ts#L66-L83)
+[mineralResources.ts#L66-83](/src/extensions/economy/generators/mineralResources.ts#L66-L83)
 
-`Sulfur`（[goods-generator.ts:868-881](../../src/extensions/economy/generators/goods-generator.ts#L868-L881)）は `"basin"` プロヴィンス（堆積盆地の蒸発岩）からしか産出しない。現実には硫黄の代表的な産地は火山性の噴気孔（フマロール）であり、`"volcanic"` プロヴィンスに一切紐付いていないのは片手落ちになっている。
+`Sulfur`（[goods-generator.ts#L868-881](/src/extensions/economy/generators/goods-generator.ts#L868-L881)）は `"basin"` プロヴィンス（堆積盆地の蒸発岩）からしか産出しない。現実には硫黄の代表的な産地は火山性の噴気孔（フマロール）であり、`"volcanic"` プロヴィンスに一切紐付いていないのは片手落ちになっている。
 
 ### 2.4 農村生産パイプラインは「鉱物」を明示的に除外する
 
@@ -93,9 +93,9 @@ if (height >= 75 && this.hash(seed, "volcanic", cellId) < 0.06) return "volcanic
 if (!good || !isGoodEnabled(good) || isMineSuppliedGoodName(good.name) || good.name === "Salt") continue;
 ```
 
-[production-utils.ts:172-189](../../src/extensions/economy/generators/production-utils.ts#L172-L189)
+[production-utils.ts#L172-189](/src/extensions/economy/generators/production-utils.ts#L172-L189)
 
-`isMineSuppliedGoodName()` は `ORE_COMMODITIES`（iron/copper/tin/lead/silver/gold の ore/ingot）と `FUEL_MINERAL_COMMODITIES`（coal/saltpeter/**sulfur**）の名前集合でのみ判定する（[mineralResourcesTypes.ts:1-10](../../src/extensions/economy/generators/mineralResourcesTypes.ts#L1-L10)、[mineralResources.ts:40-48](../../src/extensions/economy/generators/mineralResources.ts#L40-L48)）。したがって:
+`isMineSuppliedGoodName()` は `ORE_COMMODITIES`（iron/copper/tin/lead/silver/gold の ore/ingot）と `FUEL_MINERAL_COMMODITIES`（coal/saltpeter/**sulfur**）の名前集合でのみ判定する（[mineralResourcesTypes.ts#L1-10](/src/extensions/economy/generators/mineralResourcesTypes.ts#L1-L10)、[mineralResources.ts#L40-48](/src/extensions/economy/generators/mineralResources.ts#L40-L48)）。したがって:
 
 - **`Sulfur` に `biomeOutputByTag` を追加しても、農村採取パイプラインからは常に除外される**（既存の意図的な設計 — 鉱物は Burg アンカー型の採掘サイトからのみ供給する、という既存方針。Iron Ore/Sulfur 自身のコード注釈が明言している）。
 - 一方 `Volcanic Ash` は `ORE_COMMODITIES` / `FUEL_MINERAL_COMMODITIES` のどちらにも含まれないが、`biomeOutput` / `biomeOutputByTag` を最初から持たないため、結果的に農村採取パイプラインには現れない（`chance: 0` で旧来の distribution スキャッターからも除外）。**新規に追加する火山商品も、この2系統（採掘専用 or 採取専用）のどちらかに明確に倒す必要がある。**
@@ -106,7 +106,7 @@ if (!good || !isGoodEnabled(good) || isMineSuppliedGoodName(good.name) || good.n
 
 > Persistent, Burg-anchored quarry sites feeding Stone/Marble supply **alongside (not replacing — §7 未決定事項 1 decision "併存させる")** the legacy chance/distribution scatter those Goods already carry.
 
-[quarryOperations.ts:86-92](../../src/extensions/economy/generators/quarryOperations.ts#L86-L92)
+[quarryOperations.ts#L86-92](/src/extensions/economy/generators/quarryOperations.ts#L86-L92)
 
 つまり「1つの Good が2系統の供給源（旧来の scatter ＋ 新しい Burg アンカー型サイト）を同時に持つ」ことは、このコードベースで既に承認済みのパターンである。これは後述 §3.3 で `Sulfur` に火山源を追加する際の直接の前例になる。
 
@@ -139,7 +139,7 @@ private classifyProvince(seed: string, cellId: number): GeologicalProvinceKind {
 
 旧来の `height >= 75 && hash < 0.06` ロールは丸ごと削除する。これは「拡張」ではなく**誤分類の修正**である — このロールは本物の火山と無関係な、単なる高地セルを 6% の確率で "volcanic" と誤認していたため、残す理由がない。
 
-この1関数の変更だけで、`computeVolcanicAshCandidates()` は**コード変更ゼロで**実際の火山と正しく相関するようになる（Burg 近傍セルの `"volcanic"` プロヴィンス所属を数えるロジックはそのまま — [volcanicAshOperations.ts:44-66](../../src/extensions/economy/generators/volcanicAshOperations.ts#L44-L66)）。波及効果として、`districtCount = max(4, ceil(landCells/110))` の中で `"volcanic"` プロヴィンスの規模が変わる（今までは陸地の約 0.06 × (標高75+の割合) だったのが、今後は「実際に生成された火山のセル数」になる — Volcanism chance/Active volcano chance/`volcanicSoilStrength` の3オプションが、そのまま火山性経済の規模を左右するツマミになる）。
+この1関数の変更だけで、`computeVolcanicAshCandidates()` は**コード変更ゼロで**実際の火山と正しく相関するようになる（Burg 近傍セルの `"volcanic"` プロヴィンス所属を数えるロジックはそのまま — [volcanicAshOperations.ts#L44-66](/src/extensions/economy/generators/volcanicAshOperations.ts#L44-L66)）。波及効果として、`districtCount = max(4, ceil(landCells/110))` の中で `"volcanic"` プロヴィンスの規模が変わる（今までは陸地の約 0.06 × (標高75+の割合) だったのが、今後は「実際に生成された火山のセル数」になる — Volcanism chance/Active volcano chance/`volcanicSoilStrength` の3オプションが、そのまま火山性経済の規模を左右するツマミになる）。
 
 ### 3.2 採取（rural gathering）: 新規 Good `Pumice`
 
@@ -168,7 +168,7 @@ private classifyProvince(seed: string, cellId: number): GeologicalProvinceKind {
 
 ### 3.3 採掘（mining）: `VolcanicAshOperations` を汎用化し `Sulfur`・新規 `Obsidian` を追加
 
-現行の `VolcanicAshOperationsModule` は「Burg 近傍の火山プロヴィンス所属セル数を数え、それに比例した固定労働力で毎月市場へ供給する」という、`QuarryOperationsModule`（Stone + Marble を1サイトから産出）に最も近い形をすでに持っている（[volcanicAshOperations.ts](../../src/extensions/economy/generators/volcanicAshOperations.ts) 全体）。同じ形の火山系採掘モジュールを3つ並べて重複させるより、**1つの `VolcanicOperations` モジュールが3つの産品（Ash / Sulfur / Obsidian）を1サイトから産出する**方が Quarry の前例に沿っている。
+現行の `VolcanicAshOperationsModule` は「Burg 近傍の火山プロヴィンス所属セル数を数え、それに比例した固定労働力で毎月市場へ供給する」という、`QuarryOperationsModule`（Stone + Marble を1サイトから産出）に最も近い形をすでに持っている（[volcanicAshOperations.ts](/src/extensions/economy/generators/volcanicAshOperations.ts) 全体）。同じ形の火山系採掘モジュールを3つ並べて重複させるより、**1つの `VolcanicOperations` モジュールが3つの産品（Ash / Sulfur / Obsidian）を1サイトから産出する**方が Quarry の前例に沿っている。
 
 火山バイオームは3種類あり、産品ごとに現実的な立地が異なるため、候補地スコアリングは「バイオームキー別の近傍セル比率」を返すよう拡張する:
 
@@ -220,7 +220,7 @@ monthlyObsidian = BASE_OBSIDIAN_PER_WORKER * volcanicWorkers * obsidianRatio  * 
 
 - `drawMineralDeposits.ts` は `MineralDeposit`（鉱脈）のみを描画しており、`VolcanicAshOperations` のサイトは現状どのレイヤーにも描画されていない（要確認だが grep 上は該当なし）。`VolcanicOperations` に汎用化するタイミングで、Burg アイコンへのバッジ表示や専用マーカーを追加するかは Phase 4 の任意項目とする。
 - `Pumice`/`Obsidian` の専用 SVG シンボル（`src/index.html` の `<symbol id="good-xxx">`）は今回のスコープでは新設せず、既存アイコン（`good-sand` / `good-gemstones`）を暫定流用する。`Volcanic Ash` が `good-clay` を流用しているのと同じ既存慣習に合わせた。
-- `employment-overview.ts` / `basicEmployment.ts` / `burgEmploymentComposition.ts` は `getVolcanicAshOperations()` / `ashWorks.ashWorkers` を直接参照している（[basicEmployment.ts:137-144](../../src/extensions/economy/generators/basicEmployment.ts#L137-L144) 等）。モジュール名・フィールド名を汎用化する場合はこの3ファイルの参照更新が必須。
+- `employment-overview.ts` / `basicEmployment.ts` / `burgEmploymentComposition.ts` は `getVolcanicAshOperations()` / `ashWorks.ashWorkers` を直接参照している（[basicEmployment.ts#L137-144](/src/extensions/economy/generators/basicEmployment.ts#L137-L144) 等）。モジュール名・フィールド名を汎用化する場合はこの3ファイルの参照更新が必須。
 
 ### 3.5 オプションとの関係（新規オプション不要）
 

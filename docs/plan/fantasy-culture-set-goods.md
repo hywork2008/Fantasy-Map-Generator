@@ -1,8 +1,8 @@
 # Fantasy Culture Set 専用交易品 — 調査ノート
 
-Culture set が `highFantasy` / `darkFantasy`（`FANTASY_CULTURE_SETS`, [src/data/raceCivicStance.ts](../../src/data/raceCivicStance.ts)）のときに登録したい、ファンタジー・ジャンル特有の交易品（Good）の調査。JRPG（日本語圏）と英語圏ファンタジー（TRPG・洋ゲー・原作小説）それぞれの「定番商品」を洗い出し、[docs/simulation/goods.md](../simulation/goods.md) および [docs/plan/exchange/](exchange/README.md)（史実ベースの交易品拡充計画）に対する**ジャンル・フレーバー軸の追加候補**として整理する。
+Culture set が `highFantasy` / `darkFantasy`（`FANTASY_CULTURE_SETS`, [src/data/raceCivicStance.ts](/src/data/raceCivicStance.ts)）のときに登録したい、ファンタジー・ジャンル特有の交易品（Good）の調査。JRPG（日本語圏）と英語圏ファンタジー（TRPG・洋ゲー・原作小説）それぞれの「定番商品」を洗い出し、[docs/simulation/goods.md](../simulation/goods.md) および [docs/plan/exchange/](exchange/README.md)（史実ベースの交易品拡充計画）に対する**ジャンル・フレーバー軸の追加候補**として整理する。
 
-**現状の実装**: `GOODS_DATA`（[goods-generator.ts](../../src/extensions/economy/generators/goods-generator.ts)）に culturesSet 条件で品目を分岐させる仕組みは存在しない。`multipliers` は `cultureType` / `culture` / `state` / `religion` / `biome` / `zone` のみで、`culturesSet`（`generic` / `highFantasy` / `darkFantasy`）はキーとして扱えない（[goodsGeneratorTypes.ts](../../src/extensions/economy/generators/goodsGeneratorTypes.ts)）。本ドキュメントは調査・アイデア出しであり、未実装。
+**現状の実装**: `GOODS_DATA`（[goods-generator.ts](/src/extensions/economy/generators/goods-generator.ts)）に culturesSet 条件で品目を分岐させる仕組みは存在しない。`multipliers` は `cultureType` / `culture` / `state` / `religion` / `biome` / `zone` のみで、`culturesSet`（`generic` / `highFantasy` / `darkFantasy`）はキーとして扱えない（[goodsGeneratorTypes.ts](/src/extensions/economy/generators/goodsGeneratorTypes.ts)）。本ドキュメントは調査・アイデア出しであり、未実装。
 
 **命名時の注意**: 本ドキュメントに登場する固有名詞の一部（Mithril 等）はトールキン関連の商標対象。実装時の表記は [docs/world/help/trademarked-fantasy-terms.md](../world/help/trademarked-fantasy-terms.md) を先に確認すること。
 
@@ -115,7 +115,7 @@ D&D 5e の `Alchemist's Supplies`（錬金道具一式）は「ガラスビー�
 
 ## 4. GOODS_DATA 導入候補（アイデア出し・未実装）
 
-`docs/plan/exchange/04-goods-data-candidates.md` の形式に倣った品目候補案。**`multipliers.culturesSet`（`generic` / `highFantasy` / `darkFantasy`）というキーは現行スキーマに存在しない**ため、実装するには [goodsGeneratorTypes.ts](../../src/extensions/economy/generators/goodsGeneratorTypes.ts) の `Good.multipliers` 型拡張と、`goods-generator.ts` 側でのフィルタ処理追加が前提になる（`isGoodEnabled()` のような gate 関数を `culturesSet` 版として新設する案が有力— §5 参照）。
+`docs/plan/exchange/04-goods-data-candidates.md` の形式に倣った品目候補案。**`multipliers.culturesSet`（`generic` / `highFantasy` / `darkFantasy`）というキーは現行スキーマに存在しない**ため、実装するには [goodsGeneratorTypes.ts](/src/extensions/economy/generators/goodsGeneratorTypes.ts) の `Good.multipliers` 型拡張と、`goods-generator.ts` 側でのフィルタ処理追加が前提になる（`isGoodEnabled()` のような gate 関数を `culturesSet` 版として新設する案が有力— §5 参照）。
 
 ### 4.1 消費財枠（JRPG寄り・luxury/新設カテゴリ想定）
 

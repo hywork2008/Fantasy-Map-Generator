@@ -4,7 +4,7 @@
 
 **2026-10-18 起案**: [megacity-food-import-economy.md](megacity-food-import-economy.md) の Food Ledger は、市場の穀物を3か月刻みの3区分（Age0〜Age2、計9か月）で持ち、9か月を超えた残りと在庫上限（年間需要の9か月分）を超えた分を `storageOverflow` へ捨てている。この9か月は「中世は長く保存できない」「1年で食べきる」「収穫前にはほとんど食べ尽くしている」という指示から AI が導いた値で、史料に基づいていない。本書は史料を確認したうえで、区分と上限を作り直す。
 
-**2026-10-18 実装**: §3.1〜§3.5 を実装した（[grainStorage.ts](../../src/extensions/economy/generators/grainStorage.ts)、foodProduction.ts、stapleCropInventory.ts ほか）。`stateFoodReserve` はコードにまだ存在しないため、§3.2 の国家の備蓄の変更は、それを実装する時に本書に従う。輸出の余裕（§3.5）は、四半期の作物暦を先読みする代わりに、農家が各月に売りに出した量を1年分記録した `offeredIntakeByMonth` から求める。1年分がそろうまでは3か月分とする。
+**2026-10-18 実装**: §3.1〜§3.5 を実装した（[grainStorage.ts](/src/extensions/economy/generators/grainStorage.ts)、foodProduction.ts、stapleCropInventory.ts ほか）。`stateFoodReserve` はコードにまだ存在しないため、§3.2 の国家の備蓄の変更は、それを実装する時に本書に従う。輸出の余裕（§3.5）は、四半期の作物暦を先読みする代わりに、農家が各月に売りに出した量を1年分記録した `offeredIntakeByMonth` から求める。1年分がそろうまでは3か月分とする。
 
 **2026-10-18 計測（seed 101・102・103、15年分、5〜15年目、修正前 → 修正後）**
 
@@ -29,11 +29,11 @@ overflow が溜まり続ける問題はなくなり、持ち越しも生まれ�
 
 原因は次の3つである。
 
-1. **(a) 買った分をその場で捨てる**: 買い付けの量は「9か月分の上限 − 手持ち ＋ 今期の消費」だが、直後の上限処理が9か月分へ切り詰める。今期の消費分は代金を払ったのに、入荷と同時に `storageOverflow` になる（[foodProduction.ts](../../src/extensions/economy/generators/foodProduction.ts) の `generateQuarterlyLedger` と `applyStorageCap`）。
+1. **(a) 買った分をその場で捨てる**: 買い付けの量は「9か月分の上限 − 手持ち ＋ 今期の消費」だが、直後の上限処理が9か月分へ切り詰める。今期の消費分は代金を払ったのに、入荷と同時に `storageOverflow` になる（[foodProduction.ts](/src/extensions/economy/generators/foodProduction.ts) の `generateQuarterlyLedger` と `applyStorageCap`）。
 2. **(b) 年1回の収穫が1年持たない**: 4月に買った穀物は Age0 → Age1 → Age2 と進み、翌年1月に捨てられる。上限も9か月分なので、収穫が年1回の土地では1〜3月が構造的に空になる。
 3. **(c) 捨てた穀物が減らない**: `storageOverflow` は製粉所の消費でしか減らず、表に出す在庫（`exportable + storageOverflow`）を水増ししている。
 
-都市の規模と農地の釣り合い（[agriculturalLandUse.ts](../../src/extensions/economy/generators/agriculturalLandUse.ts)、都市人口の上限）は原因ではない。
+都市の規模と農地の釣り合い（[agriculturalLandUse.ts](/src/extensions/economy/generators/agriculturalLandUse.ts)、都市人口の上限）は原因ではない。
 
 ## 2. 史料の確認
 
@@ -117,7 +117,7 @@ lossShare(age) = BASE_QUARTERLY_LOSS × climateLossMultiplier × ageLossMultipli
 
 ## 4. 影響と移行
 
-- `FoodLedger` に `foodStockAge3` と `foodStockAge3UnitCost` を足す（[marketTypes.ts](../../src/extensions/economy/generators/marketTypes.ts)）。作物ごとの在庫（`stapleCropInventory.ts`）にも age3 を足す。`foodStockAge2` を参照するファイル約10個に Age3 を加える。
+- `FoodLedger` に `foodStockAge3` と `foodStockAge3UnitCost` を足す（[marketTypes.ts](/src/extensions/economy/generators/marketTypes.ts)）。作物ごとの在庫（`stapleCropInventory.ts`）にも age3 を足す。`foodStockAge2` を参照するファイル約10個に Age3 を加える。
 - 旧セーブは Age3 = 0 で読み込む。今ある `storageOverflow` はそのまま残し、3.4 の傷みで数年かけて減る。
 - 旧セーブでも動きが変わるので、Node 用の基準データを更新する（`npm run test:sim-golden -- --env node --update`）。
 - 確かめること（seed 101・102・103、15年分）

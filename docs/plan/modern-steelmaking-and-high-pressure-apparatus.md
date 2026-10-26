@@ -35,15 +35,15 @@
 
 | 項目 | 現状 | 参照 |
 | --- | --- | --- |
-| `Steel` Good | `requiredTechnology: "standardMachineWorks"`（era 5）の職人レシピのみ。State資金の資本設備は無い。 | [goods-generator.ts:2470-2481](../../src/extensions/economy/generators/goods-generator.ts#L2470-L2481) |
-| `standardMachineWorks` | era 5。`metallurgy`/`smelterWorkers`/`administration`/`treasury` のシグナル閾値のみで進行し、専用の設備モジュールは持たない。 | [technologyDefinitions.ts:515-523](../../src/generators/technologyDefinitions.ts#L515-L523) |
-| era 6 の技術グラフ | `chemicalIndustryFoundation` → `industrialSulfuricAcid` → `phosphateFertilizer`（実装済み）で止まっている。 | [technologyDefinitions.ts:610-660](../../src/generators/technologyDefinitions.ts#L610-L660) |
-| 「一つの Good・二つの供給経路」の先例 | `AcidPlant`/`PhosphateFertilizerPlant` はどちらも `burgId`/`stateId`/`role: "trial"\|"service"`/`active`/`utilization`/`documentedRuns`/`lastFundedYear` という同一形状。State資金は `chemMedCommon.ts` の `debitTreasury`/`pickSponsorBurg` で徴収し、原料は `consumeNamed`、出力は `addNamedStock`（`isGoodEnabled` チェック無し）で市場在庫に直接足す。 | [chemistryTypes.ts:62-79](../../src/extensions/economy/generators/chemistryTypes.ts#L62-L79)、[chemMedCommon.ts](../../src/extensions/economy/generators/chemMedCommon.ts) |
-| より単純な「トライアル年数を自分自身で持つ」先例 | `HospitalInstallation` は別テーブル（`ChemistryTrial`）を介さず、`documentedRuns` を自分のレコードに直接持つ。シグナル計算側も1回のループで `hospitalInstallations`（件数）と `hospitalTrialYears`（`documentedRuns` の最大値）を同時に出している。 | [chemistryTypes.ts:49-60](../../src/extensions/economy/generators/chemistryTypes.ts#L49-L60)、[technologyProgress.ts:824-833](../../src/generators/technologyProgress.ts#L824-L833) |
-| 検討したが採用しない先例 | `steamIndustry.ts`（鉄道・上水道）は State資金の徴収を一切せず、技術段階のゲートだけで市場在庫の燃料を無償消費する（`consumeForSmelting`、stockShare 0.5）。転炉は史実的に大きな資本投資を要するため、この「無償消費」モデルではなく `AcidPlant` 系の「State資金で建設・運転」モデルを踏襲する（§7 決定事項）。 | [steamIndustry.ts:29-33, 93-127](../../src/extensions/economy/generators/steamIndustry.ts#L29-L127) |
-| `instruments` シグナル | Guild Knowledge の craft domain の一つ。現状 `Liquor`（蒸留装置）と `experimentalWorkshops.ts` の `upsertInstruments()`（研究者人数）からのみ積み上がる、既に生きているシグナル。 | [guildKnowledgeTypes.ts:2-11, 82](../../src/extensions/economy/generators/guildKnowledgeTypes.ts#L2-L11)、[guildKnowledge.ts:94-105](../../src/extensions/economy/generators/guildKnowledge.ts#L94-L105) |
-| `sulfurAccess`/`phosphateRockAccess` の先例 | どちらも「州が保有する市場の該当 Good 合計在庫を `clamp01(stock / 定数)` にする」だけの市場カバレッジ・シグナル。`steelAccess` も同型で追加できる。 | [technologyProgress.ts:764-770](../../src/generators/technologyProgress.ts#L764-L770) |
-| セーブ互換性 | `AcidPlant`/`PhosphateFertilizerPlant` はどちらも `economyContext.ts` にスライスアクセサ＋年次自己ゲート、`extensionStateSlices.ts` の `validateEconomySlice()` に配列名を登録済み。 | [economyContext.ts:1400-1409, 1451-1464](../../src/extensions/economy/economyContext.ts#L1400-L1464)、[extensionStateSlices.ts:437-438](../../src/runtime/extensionStateSlices.ts#L437-L438) |
+| `Steel` Good | `requiredTechnology: "standardMachineWorks"`（era 5）の職人レシピのみ。State資金の資本設備は無い。 | [goods-generator.ts#L2470-2481](/src/extensions/economy/generators/goods-generator.ts#L2470-L2481) |
+| `standardMachineWorks` | era 5。`metallurgy`/`smelterWorkers`/`administration`/`treasury` のシグナル閾値のみで進行し、専用の設備モジュールは持たない。 | [technologyDefinitions.ts#L515-523](/src/generators/technologyDefinitions.ts#L515-L523) |
+| era 6 の技術グラフ | `chemicalIndustryFoundation` → `industrialSulfuricAcid` → `phosphateFertilizer`（実装済み）で止まっている。 | [technologyDefinitions.ts#L610-660](/src/generators/technologyDefinitions.ts#L610-L660) |
+| 「一つの Good・二つの供給経路」の先例 | `AcidPlant`/`PhosphateFertilizerPlant` はどちらも `burgId`/`stateId`/`role: "trial"\|"service"`/`active`/`utilization`/`documentedRuns`/`lastFundedYear` という同一形状。State資金は `chemMedCommon.ts` の `debitTreasury`/`pickSponsorBurg` で徴収し、原料は `consumeNamed`、出力は `addNamedStock`（`isGoodEnabled` チェック無し）で市場在庫に直接足す。 | [chemistryTypes.ts#L62-79](/src/extensions/economy/generators/chemistryTypes.ts#L62-L79)、[chemMedCommon.ts](/src/extensions/economy/generators/chemMedCommon.ts) |
+| より単純な「トライアル年数を自分自身で持つ」先例 | `HospitalInstallation` は別テーブル（`ChemistryTrial`）を介さず、`documentedRuns` を自分のレコードに直接持つ。シグナル計算側も1回のループで `hospitalInstallations`（件数）と `hospitalTrialYears`（`documentedRuns` の最大値）を同時に出している。 | [chemistryTypes.ts#L49-60](/src/extensions/economy/generators/chemistryTypes.ts#L49-L60)、[technologyProgress.ts#L824-833](/src/generators/technologyProgress.ts#L824-L833) |
+| 検討したが採用しない先例 | `steamIndustry.ts`（鉄道・上水道）は State資金の徴収を一切せず、技術段階のゲートだけで市場在庫の燃料を無償消費する（`consumeForSmelting`、stockShare 0.5）。転炉は史実的に大きな資本投資を要するため、この「無償消費」モデルではなく `AcidPlant` 系の「State資金で建設・運転」モデルを踏襲する（§7 決定事項）。 | [steamIndustry.ts#L29-33, 93-127](/src/extensions/economy/generators/steamIndustry.ts#L29-L127) |
+| `instruments` シグナル | Guild Knowledge の craft domain の一つ。現状 `Liquor`（蒸留装置）と `experimentalWorkshops.ts` の `upsertInstruments()`（研究者人数）からのみ積み上がる、既に生きているシグナル。 | [guildKnowledgeTypes.ts#L2-11, 82](/src/extensions/economy/generators/guildKnowledgeTypes.ts#L2-L11)、[guildKnowledge.ts#L94-105](/src/extensions/economy/generators/guildKnowledge.ts#L94-L105) |
+| `sulfurAccess`/`phosphateRockAccess` の先例 | どちらも「州が保有する市場の該当 Good 合計在庫を `clamp01(stock / 定数)` にする」だけの市場カバレッジ・シグナル。`steelAccess` も同型で追加できる。 | [technologyProgress.ts#L764-770](/src/generators/technologyProgress.ts#L764-L770) |
+| セーブ互換性 | `AcidPlant`/`PhosphateFertilizerPlant` はどちらも `economyContext.ts` にスライスアクセサ＋年次自己ゲート、`extensionStateSlices.ts` の `validateEconomySlice()` に配列名を登録済み。 | [economyContext.ts#L1400-1409, 1451-1464](/src/extensions/economy/economyContext.ts#L1400-L1464)、[extensionStateSlices.ts#L437-438](/src/runtime/extensionStateSlices.ts#L437-L438) |
 
 ## 3. 設計
 
@@ -137,8 +137,8 @@ modernSteelmakingInstallations: number;
 
 `technologyProgress.ts`:
 
-- `steelAccess` は `sulfurAccess`/`phosphateRockAccess` と同じ `stateMarketStockByGood()` パスに `steelId = goodIdByName(economy, "Steel")` を足すだけ（[technologyProgress.ts:764-770](../../src/generators/technologyProgress.ts#L764-L770) と同じ形）。
-- `modernSteelmakingTrialYears`/`modernSteelmakingInstallations` は `hospitalInstallations`/`hospitalTrialYears` の計算ブロック（[technologyProgress.ts:824-833](../../src/generators/technologyProgress.ts#L824-L833)）と全く同じ形の1ループで両方を出す（`ChemistryTrial` を経由しないため `acidPlantTrialYears` より1ブロック分短くなる）:
+- `steelAccess` は `sulfurAccess`/`phosphateRockAccess` と同じ `stateMarketStockByGood()` パスに `steelId = goodIdByName(economy, "Steel")` を足すだけ（[technologyProgress.ts#L764-770](/src/generators/technologyProgress.ts#L764-L770) と同じ形）。
+- `modernSteelmakingTrialYears`/`modernSteelmakingInstallations` は `hospitalInstallations`/`hospitalTrialYears` の計算ブロック（[technologyProgress.ts#L824-833](/src/generators/technologyProgress.ts#L824-L833)）と全く同じ形の1ループで両方を出す（`ChemistryTrial` を経由しないため `acidPlantTrialYears` より1ブロック分短くなる）:
 
 ```ts
 const steelYears = new Map<number, number>();
@@ -156,7 +156,7 @@ for (const [stateId, years] of steelYears) {
 }
 ```
 
-`COUNT_SIGNAL_KEYS`（[technologyProgress.ts:925-942](../../src/generators/technologyProgress.ts#L925-L942)、`hospitalInstallations`/`acidPlantInstallations`/`phosphateFertilizerTrialYears` などが既に登録されている）に `modernSteelmakingTrialYears`/`modernSteelmakingInstallations` を追加する。`steelAccess` は `sulfurAccess`/`phosphateRockAccess` と同じく無登録（デフォルトの "ratio" 種別のまま）。
+`COUNT_SIGNAL_KEYS`（[technologyProgress.ts#L925-942](/src/generators/technologyProgress.ts#L925-L942)、`hospitalInstallations`/`acidPlantInstallations`/`phosphateFertilizerTrialYears` などが既に登録されている）に `modernSteelmakingTrialYears`/`modernSteelmakingInstallations` を追加する。`steelAccess` は `sulfurAccess`/`phosphateRockAccess` と同じく無登録（デフォルトの "ratio" 種別のまま）。
 
 ### 3.4 技術ノード: `modernSteelmaking`
 
@@ -194,7 +194,7 @@ for (const [stateId, years] of steelYears) {
 }
 ```
 
-`prerequisites` に両方の親ノードを要求するため、`prerequisitesMet()`（[technologyProgress.ts:921-923](../../src/generators/technologyProgress.ts#L921-L923)）は「その州で `modernSteelmaking` と `industrialSulfuricAcid` の両方が adopted」を要求する。この時点で `metallurgy` は `modernSteelmaking` の adopted 閾値（0.85）を既に満たしているため、`known` の閾値に `metallurgy` を再掲しない（`industrialSulfuricAcid` が `chemicalIndustryFoundation` の `experimentRecord` を再掲しないのと同じ理由）。
+`prerequisites` に両方の親ノードを要求するため、`prerequisitesMet()`（[technologyProgress.ts#L921-923](/src/generators/technologyProgress.ts#L921-L923)）は「その州で `modernSteelmaking` と `industrialSulfuricAcid` の両方が adopted」を要求する。この時点で `metallurgy` は `modernSteelmaking` の adopted 閾値（0.85）を既に満たしているため、`known` の閾値に `metallurgy` を再掲しない（`industrialSulfuricAcid` が `chemicalIndustryFoundation` の `experimentRecord` を再掲しないのと同じ理由）。
 
 ## 4. Phase分割
 
@@ -205,7 +205,7 @@ for (const [stateId, years] of steelYears) {
 ## 5. テスト計画
 
 - `steelConverters.test.ts`（新規、`phosphateFertilizerPlants.test.ts` と同じ形）: `modernSteelmaking` が未 `known` の州はプラントを持たないこと、Iron Ingot/Coke/Lime 不足で `utilization` が下がり `documentedRuns` が増えないこと、`adopted` 昇格で `role` が `service` になること、年次自己ゲート。
-- `technologyProgress.test.ts` に追加: `TECHNOLOGY_DEFINITIONS` 上の `modernSteelmaking`/`highPressureChemicalApparatus` の era・prerequisites・閾値キーの静的チェック（[technologyProgress.test.ts:446-468](../../src/generators/technologyProgress.test.ts#L446-L468) の形）。`explainTechnologyGate()` を使い、市場の `Steel` 在庫と `economy.steelConverterPlants` から `steelAccess`/`modernSteelmakingTrialYears`/`modernSteelmakingInstallations` が正しく計算されることを検証する統合テスト（phosphate-fertilizer-vertical-slice.md 実装時に追加した `technologyProgress.test.ts` の統合テストと同じ形）。
+- `technologyProgress.test.ts` に追加: `TECHNOLOGY_DEFINITIONS` 上の `modernSteelmaking`/`highPressureChemicalApparatus` の era・prerequisites・閾値キーの静的チェック（[technologyProgress.test.ts#L446-468](/src/generators/technologyProgress.test.ts#L446-L468) の形）。`explainTechnologyGate()` を使い、市場の `Steel` 在庫と `economy.steelConverterPlants` から `steelAccess`/`modernSteelmakingTrialYears`/`modernSteelmakingInstallations` が正しく計算されることを検証する統合テスト（phosphate-fertilizer-vertical-slice.md 実装時に追加した `technologyProgress.test.ts` の統合テストと同じ形）。
 
 ## 6. 受け入れ条件
 

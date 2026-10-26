@@ -49,7 +49,7 @@
 
 | # | 仮説 | 根拠 | 確かめ方 |
 | --- | --- | --- | --- |
-| H1 | **編集1回ごとに O(N) の作業がある。** `moveVertices` は文書の複製（`clone`）、全面の走査（`movedGeometryErrors`）、全体の検証（`validate`）を毎回行う。直線化はさらに `crossingFailureCount`、`frameRoadApproachBend` も毎回行う。候補の数も N に比例して増えるので、全体は O(N²) に近い | [mesh.ts](../../src/city-editor/generators/mesh.ts) の `moveVertices`・`validate`、[frameRoadJunction.ts](../../src/city-editor/generators/frameRoadJunction.ts) の `straightenThroughStreets` | E0の規模別の増え方、E1の呼び出し回数 |
+| H1 | **編集1回ごとに O(N) の作業がある。** `moveVertices` は文書の複製（`clone`）、全面の走査（`movedGeometryErrors`）、全体の検証（`validate`）を毎回行う。直線化はさらに `crossingFailureCount`、`frameRoadApproachBend` も毎回行う。候補の数も N に比例して増えるので、全体は O(N²) に近い | [mesh.ts](/src/city-editor/generators/mesh.ts) の `moveVertices`・`validate`、[frameRoadJunction.ts](/src/city-editor/generators/frameRoadJunction.ts) の `straightenThroughStreets` | E0の規模別の増え方、E1の呼び出し回数 |
 | H2 | 経路接続も、試行ごとに文書全体を作り直す編集の連続になっている | 第0段の「経路接続8.4秒」。内訳は未計測 | E1 |
 | H3 | 決まった値を、全体を走査して何度も求めている（地区の割り当て、Voronoi調整） | 第0段 P2 | E1のプロファイル |
 | H4 | メインスレッドが、Workerで作ったものと同じfabricを作り直している | 初回 `town-fabric` 8.7 s | E6 |
@@ -261,10 +261,10 @@ E2を「直線化のみ」から、次の3つの組み合わせに広げる。
 
 | 段 | 変更 | ファイル |
 | --- | --- | --- |
-| 1 | **辺の端点索引を `mesh.edges` ごとに保持する。** `edgeBetween`・`incidentEdges`・`indexMeshEdges`・`validate` の河川判定が、全辺の走査や毎回の索引作成をやめ、O(1) で引く。辺を足す・消す・付け替えるその場編集（`splitFaceInPlace`、`mergeFaces`、`insertEdgeVertexInPlace`、K6の `meshTopology`）は `meshEdgesChanged` で索引を捨てる。複製は新しい `edges` を持つので、元の索引を読まない。テストでは、小さいメッシュ（2,000辺未満）は毎回、大きいメッシュは64回に1回、全走査の結果と照合し、捨て忘れがあれば例外にする | [mesh.ts](../../src/city-editor/generators/mesh.ts)、[meshTopology.ts](../../src/city-editor/generators/generation/skeleton/meshTopology.ts) |
-| 2 | **頂点移動のセッション** `createVertexMoveSession`。妥当で城の無い文書に限り、1回だけ複製し、移動はその場で行って、不採用なら元の座標に戻す。城が無ければ `validateFortifications` は位相だけを見るので、移動で変わり得るのは動かした頂点に接する辺・面だけ。辺の長さ・面の面積・単純性・向きは既存の `createVertexMovePreflight`、新しい辺の交差は辺の格子索引で調べる。`straightenThroughStreets` はこれを使い、条件を満たさない文書では従来の経路（`straightenThroughStreetsByCopies`）を通る | [mesh.ts](../../src/city-editor/generators/mesh.ts)、[frameRoadJunction.ts](../../src/city-editor/generators/frameRoadJunction.ts) |
-| 3 | **交差の失敗数の差分評価** `crossingLocality`。失敗数が読むのは、門・河川・城壁・橋の頂点での角度（その隣の頂点を含む）と、川の近くの道路区間（橋の甲板）だけで、残りは位相である。動かす頂点がどちらにも当たらないときは数え直さない。215kで155回 → 17回 | [frameRoadJunction.ts](../../src/city-editor/generators/frameRoadJunction.ts) |
-| 4 | **面分割のセッション** `createFaceSplitSession`。同じ条件で1回だけ複製し、分割はその場で行う。新しい辺の長さ、2つの半分の面積・単純性・向き・面積の和を、変更の**前**に `splitFace`＋`validate` と同じ条件で調べるので、取り消しは要らない。辺の左右の面、端点索引、次の空きIDは、分割した部分だけ更新する。`shortcutExteriorRoads` はこれを使う | [mesh.ts](../../src/city-editor/generators/mesh.ts)、[gateApproaches.ts](../../src/city-editor/generators/generation/routing/gateApproaches.ts) |
+| 1 | **辺の端点索引を `mesh.edges` ごとに保持する。** `edgeBetween`・`incidentEdges`・`indexMeshEdges`・`validate` の河川判定が、全辺の走査や毎回の索引作成をやめ、O(1) で引く。辺を足す・消す・付け替えるその場編集（`splitFaceInPlace`、`mergeFaces`、`insertEdgeVertexInPlace`、K6の `meshTopology`）は `meshEdgesChanged` で索引を捨てる。複製は新しい `edges` を持つので、元の索引を読まない。テストでは、小さいメッシュ（2,000辺未満）は毎回、大きいメッシュは64回に1回、全走査の結果と照合し、捨て忘れがあれば例外にする | [mesh.ts](/src/city-editor/generators/mesh.ts)、[meshTopology.ts](/src/city-editor/generators/generation/skeleton/meshTopology.ts) |
+| 2 | **頂点移動のセッション** `createVertexMoveSession`。妥当で城の無い文書に限り、1回だけ複製し、移動はその場で行って、不採用なら元の座標に戻す。城が無ければ `validateFortifications` は位相だけを見るので、移動で変わり得るのは動かした頂点に接する辺・面だけ。辺の長さ・面の面積・単純性・向きは既存の `createVertexMovePreflight`、新しい辺の交差は辺の格子索引で調べる。`straightenThroughStreets` はこれを使い、条件を満たさない文書では従来の経路（`straightenThroughStreetsByCopies`）を通る | [mesh.ts](/src/city-editor/generators/mesh.ts)、[frameRoadJunction.ts](/src/city-editor/generators/frameRoadJunction.ts) |
+| 3 | **交差の失敗数の差分評価** `crossingLocality`。失敗数が読むのは、門・河川・城壁・橋の頂点での角度（その隣の頂点を含む）と、川の近くの道路区間（橋の甲板）だけで、残りは位相である。動かす頂点がどちらにも当たらないときは数え直さない。215kで155回 → 17回 | [frameRoadJunction.ts](/src/city-editor/generators/frameRoadJunction.ts) |
+| 4 | **面分割のセッション** `createFaceSplitSession`。同じ条件で1回だけ複製し、分割はその場で行う。新しい辺の長さ、2つの半分の面積・単純性・向き・面積の和を、変更の**前**に `splitFace`＋`validate` と同じ条件で調べるので、取り消しは要らない。辺の左右の面、端点索引、次の空きIDは、分割した部分だけ更新する。`shortcutExteriorRoads` はこれを使う | [mesh.ts](/src/city-editor/generators/mesh.ts)、[gateApproaches.ts](/src/city-editor/generators/generation/routing/gateApproaches.ts) |
 
 橋の斜交の判定（`bridgeSkewPolicy`）、検証の条件、生成の手順は変えていない。
 
@@ -302,7 +302,7 @@ seed `ppi409`、各段の累積:
 
 ### 8.4 検証
 
-- 新しいテスト6件（[mesh.test.ts](../../src/city-editor/generators/mesh.test.ts)）: Voronoi・hex・evolution のそれぞれで、移動セッションと `moveVertices` の連鎖（300回、呼び出し側の不採用を含む）、分割セッションと `splitFace` の連鎖（200回）の結果のメッシュが一致し、元の文書を変えないことを確かめる。
+- 新しいテスト6件（[mesh.test.ts](/src/city-editor/generators/mesh.test.ts)）: Voronoi・hex・evolution のそれぞれで、移動セッションと `moveVertices` の連鎖（300回、呼び出し側の不採用を含む）、分割セッションと `splitFace` の連鎖（200回）の結果のメッシュが一致し、元の文書を変えないことを確かめる。
 - CE全体: 1,456件成功、失敗3件。`CityEditorPage.skeleton` と `CityEditorPage.worker` の2件は変更前から失敗している（`git stash` で確認）。`population` の hex の1件は全体実行の負荷による120秒の時間切れで、単独では15件すべて成功した。
 - `tsc --noEmit`、Biome は成功。
 
@@ -370,11 +370,11 @@ seed `ppi409`、各段の累積:
 
 | 変更 | ファイル |
 | --- | --- |
-| **メッシュ解像度の設定** `PopulationGenerationSettings.meshCellMeters`（50 / 100 / 150 / 200、未指定は 50 m）。生成パネルの「メッシュ解像度」で選ぶ。既定は従来どおり 50 m。§10 の試作のグローバル変数と Worker への受け渡しは削除した | [population.ts](../../src/city-editor/types/contracts/population.ts)、[populationPlan.ts](../../src/city-editor/generators/populationPlan.ts)、[populationControls.ts](../../src/city-editor/components/populationControls.ts)、i18n（en/ja） |
-| **街区の大きさを文書に記録** `frame.streetCellMeters`。セルが 75 m より粗いとき、人口からの生成が 50 を入れる。fabric の作成時に `populationPlan` は外されるので、frame に持たせた。保存・再読込で残る | [document.ts](../../src/city-editor/types/document.ts)、[populationGeneration.ts](../../src/city-editor/generators/populationGeneration.ts) |
-| **セルの中の街路** `buildOrganicBlocks` の `partition`。粗いセルを、長い方向に横切る 5 m の街路で、約 50 m の街区に分ける（面積が 50²×1.6 を超え、長さが 62.5 m を超える間）。切った線は街路であり、両側の街区の前面の境界でもある（住宅は街路に面し、街路の幅の半分＋余白だけ下がる）。各街区は、その後は 50 m セルの面と同じ手順（周回の路地、区画の分割、住宅）で埋める | [organicBlocks.ts](../../src/city-editor/generators/organicBlocks.ts)、[localInfill.ts](../../src/city-editor/generators/localInfill.ts) |
-| **教会を街区に収める** 粗いメッシュでは、教会の面を丸ごと予約しない。面は街区・住宅で埋め、教会と境内に重なる建物・路地は既存の `buildingHitsCivicLandmark`・`laneHitsCivicLandmark` で除く。広場（plaza）は従来どおり面を予約する | [localInfill.ts](../../src/city-editor/generators/localInfill.ts) |
-| **墓地を街区に収める** 粗いメッシュでは、墓地の境界を面の一端の約2街区分（5,000 m²以下）に切り詰める（`coarseCemeteryGround`）。面の残りは街区・住宅で埋め、墓地を通る路地は除く。面の ward は `cemetery` のままにし、墓地を扱う他の処理は変えない | [cemeteryLayout.ts](../../src/city-editor/generators/cemeteryLayout.ts)、[localInfill.ts](../../src/city-editor/generators/localInfill.ts) |
+| **メッシュ解像度の設定** `PopulationGenerationSettings.meshCellMeters`（50 / 100 / 150 / 200、未指定は 50 m）。生成パネルの「メッシュ解像度」で選ぶ。既定は従来どおり 50 m。§10 の試作のグローバル変数と Worker への受け渡しは削除した | [population.ts](/src/city-editor/types/contracts/population.ts)、[populationPlan.ts](/src/city-editor/generators/populationPlan.ts)、[populationControls.ts](/src/city-editor/components/populationControls.ts)、i18n（en/ja） |
+| **街区の大きさを文書に記録** `frame.streetCellMeters`。セルが 75 m より粗いとき、人口からの生成が 50 を入れる。fabric の作成時に `populationPlan` は外されるので、frame に持たせた。保存・再読込で残る | [document.ts](/src/city-editor/types/document.ts)、[populationGeneration.ts](/src/city-editor/generators/populationGeneration.ts) |
+| **セルの中の街路** `buildOrganicBlocks` の `partition`。粗いセルを、長い方向に横切る 5 m の街路で、約 50 m の街区に分ける（面積が 50²×1.6 を超え、長さが 62.5 m を超える間）。切った線は街路であり、両側の街区の前面の境界でもある（住宅は街路に面し、街路の幅の半分＋余白だけ下がる）。各街区は、その後は 50 m セルの面と同じ手順（周回の路地、区画の分割、住宅）で埋める | [organicBlocks.ts](/src/city-editor/generators/organicBlocks.ts)、[localInfill.ts](/src/city-editor/generators/localInfill.ts) |
+| **教会を街区に収める** 粗いメッシュでは、教会の面を丸ごと予約しない。面は街区・住宅で埋め、教会と境内に重なる建物・路地は既存の `buildingHitsCivicLandmark`・`laneHitsCivicLandmark` で除く。広場（plaza）は従来どおり面を予約する | [localInfill.ts](/src/city-editor/generators/localInfill.ts) |
+| **墓地を街区に収める** 粗いメッシュでは、墓地の境界を面の一端の約2街区分（5,000 m²以下）に切り詰める（`coarseCemeteryGround`）。面の残りは街区・住宅で埋め、墓地を通る路地は除く。面の ward は `cemetery` のままにし、墓地を扱う他の処理は変えない | [cemeteryLayout.ts](/src/city-editor/generators/cemeteryLayout.ts)、[localInfill.ts](/src/city-editor/generators/localInfill.ts) |
 
 いずれの変更も `frame.streetCellMeters` があるときだけ働く。50 m の生成は、15k / 30k / 215k で `fingerprint.document` が E2 後と一致した（`temp/giant/e8-50.jsonl`）。
 
@@ -401,7 +401,7 @@ Node（`benchmarkCeGiant --cell 200`、215k）:
 
 ### 11.3 検証
 
-- 新しいテスト（[population.test.ts](../../src/city-editor/generators/population.test.ts)「draws 50 m street blocks in a giant city on a coarse mesh」）: 215,000人、200 m、河川、二重城壁で、全員の配置、`validPopulationPlan`、橋の規約、5 m の街路、墓地の面積上限、保存・再読込を確かめる。
+- 新しいテスト（[population.test.ts](/src/city-editor/generators/population.test.ts)「draws 50 m street blocks in a giant city on a coarse mesh」）: 215,000人、200 m、河川、二重城壁で、全員の配置、`validPopulationPlan`、橋の規約、5 m の街路、墓地の面積上限、保存・再読込を確かめる。
 - CE全体: 1,458件成功、失敗2件（`CityEditorPage.skeleton`・`CityEditorPage.worker`、変更前から失敗）。i18n のテスト14件成功。`tsc --noEmit`、Biome は成功。
 
 ### 11.4 残りと注意

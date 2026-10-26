@@ -6,8 +6,8 @@
 - ドキュメント: `docs/plan/region-editor.md`
 - 関連:
   - FMG Focus View: `src/controllers/focus-view.ts`
-  - City Editor (CE): [src/city-editor](../../src/city-editor/README.md), [docs/plan/city-editor](../city-editor/)
-  - Dungeon Editor (DE): [src/dungeon-editor](../../src/dungeon-editor/README.md), [docs/plan/dungeon-editor.md](dungeon-editor.md)
+  - City Editor (CE): [src/city-editor](/src/city-editor/README.md), [docs/plan/city-editor](../city-editor/)
+  - Dungeon Editor (DE): [src/dungeon-editor](/src/dungeon-editor/README.md), [docs/plan/dungeon-editor.md](dungeon-editor.md)
   - 橋梁交差原則: [AGENTS.md](../../AGENTS.md), [docs/plan/fmg-settlements-and-perpendicular-crossings.md](fmg-settlements-and-perpendicular-crossings.md)
 
 ---

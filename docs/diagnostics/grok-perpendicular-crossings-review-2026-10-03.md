@@ -21,7 +21,7 @@
 | CE / 大河等のchannel | `siteInput.ts`の`buildChannel`等から独立した水域ポリゴンを持つ。`waterPolygons` / `dryRuns`で処理する | 中心線の一定幅ribbonだけでは説明できない。中心線が表示範囲外でも近岸が表示される場合がある |
 | CE / 大河の道路接続 | `render/svg.ts`が`document.riverConnections[].banks`を別に描画する | `bridgeDecks`だけ直しても全種類の河川橋は統一されない |
 
-参照: `src/generators/river-generator.ts:391,507,540`、`src/renderers/webgl/adapters/deckDataAdapters.ts:1183`、`src/services/burgSiteDescriptor.ts:437`、`src/city-editor/core/bridgeDeck.ts:25,235`、`src/city-editor/render/svg.ts:655,757,824,2623`、`src/city-editor/core/gen/site/siteInput.ts:375`。
+参照: `src/generators/river-generator.ts#L391,507,540`、`src/renderers/webgl/adapters/deckDataAdapters.ts#L1183`、`src/services/burgSiteDescriptor.ts#L437`、`src/city-editor/core/bridgeDeck.ts#L25,235`、`src/city-editor/render/svg.ts#L655,757,824,2623`、`src/city-editor/core/gen/site/siteInput.ts#L375`。
 
 ## 2. 各指摘の採否
 
@@ -67,7 +67,7 @@
 
 水際での交点、橋床の岸への乗り、乾いた道路の進入端は区別すべきである。特に「橋台」を水際交点と同義に使うと構造物と幾何点が混ざる。保存情報または一意に再計算できる情報として、qと河川参照、水際点、橋床端、進入端、形状versionを扱う。
 
-`src/city-editor/core/bridgeDeck.ts:11`では`BRIDGE_BANK_SEAT=1.4`。両端はそれぞれ`BRIDGE_BANK_SEAT/2=0.7m`延長する。レビューの「/2（1.4m）」は誤り。`passages.ts`の`straightenRiverCrossing`には別途`half+1.4`という進入頂点の補正があり、この値と橋床の延長を混同しない。
+`src/city-editor/core/bridgeDeck.ts#L11`では`BRIDGE_BANK_SEAT=1.4`。両端はそれぞれ`BRIDGE_BANK_SEAT/2=0.7m`延長する。レビューの「/2（1.4m）」は誤り。`passages.ts`の`straightenRiverCrossing`には別途`half+1.4`という進入頂点の補正があり、この値と橋床の延長を混同しない。
 
 また`straightenRiverCrossing`はロック・門・壁などの頂点を動かさず、移動にも位相上の制約がある。実装が常に両腕を完全に法線へ移す保証はない。「現在のCEでも全点が必ず法線上」という前提ではなく、新方式で満たす契約とする。
 

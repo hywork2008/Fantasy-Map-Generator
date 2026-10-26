@@ -60,7 +60,7 @@ Because the entity arrays themselves are preserved (not their derived economic s
 
 ### 3. Map resample / submap
 
-**File:** [`src/generators/resample.ts`](../../src/generators/resample.ts) → `Resampler.process()`
+**File:** [`src/generators/resample.ts`](/src/generators/resample.ts) → `Resampler.process()`
 
 Used by `transform-tool` (in-place transform) and `submap-tool` (extract sub-region at scale). The flow:
 

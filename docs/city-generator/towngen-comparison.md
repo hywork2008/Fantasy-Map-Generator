@@ -42,13 +42,13 @@ C（門）→ D（河川）→ F（仕上げ）**。
 
 | 段階 | TownGeneratorTS `Model.build()` | City Editor（現状：`generate.ts` が `city-generator/core` を document メッシュ上で実行） | 主な差 | 移植後の担当（`src/city-editor/core/gen/`） |
 | --- | --- | --- | --- | --- |
-| 格子 | `buildPatches` [Model.ts:167]：`sa+√i·5` の螺旋で `nPatches*8=120` 点散布 → `Voronoi.build`（逐次 `addPoint`）→ **中心 `[0,1,2,nPatches]` の 4 点だけ** `Voronoi.relax` ×3 → `points.sort(by \|p\|)` → 先頭 `nPatches=15` を `inner`（市街地）、`nPatches` 番目を任意で citadel。ステップは `captureGenerationStep("2.1 Delaunay / Voronoi", {delaunay, voronoi, sites})` [Model.ts:154] | `document.ts` → `buildGrid`（`city-generator/core/grid.ts` = 可変半径 Bridson 青ノイズ、`spacing≈cityRadius/3.5`、水際 0.5×）＋ `lloydPasses:1` を全セルに → `GridStage[]` を作るが **`.at(-1)` で最終段だけ採用、途中を破棄**。Document パネルにスライダー無し | 散布方法（螺旋・距離順・内密外疎 vs 一様青ノイズ）、relax 対象（中心 4 点 vs 全セル）、**途中段・Delaunay/母点の可視化と母点編集の有無** | `gen/patches.ts`（散布＋逐次 Voronoi＋relax、各周キャプチャ）、`gen/gridEvolution.ts`（スナップショット型）、Document パネルの Grid evolution UI |
-| 交点整理 | `optimizeJunctions` [Model.ts:396]：`dist(v0,v1)<8` の辺を、共有 `Point` を平均して in-place で潰す（全パッチ同時に動き watertight）→ 重複除去 | `mesh.ts optimizeJunctions`（City Editor 独自・ブラシ式）：`< maxGap` の辺を `mergeVertices`＋`moveVertex(midpoint)` で 1 本ずつ潰す。route/gate 参照は保持 | 全域一括 vs ブラシ選択。City Editor は恒久 ID を保つため 1 本ずつ | 既存 `mesh.ts` を流用（全域一括モードを generate 用に追加） |
-| 城壁形状 | `CurtainWall` [CurtainWall.ts:17]：`Model.findCircumference(inner)` → `smoothVertex(v, min(1,40/n))` [CurtainWall.ts:27] で丸め（reserved 除外） | `generate.ts componentBorderLoops` [generate.ts:821]：`urban` 連結成分ごとに **実メッシュ辺** の外周ループを `traceBoundaryLoops` で追跡（`shapeEnvelope`/`reachEnvelopeToShore` は**使わない**）→ `EdgeRef[]` で Wall グループ化 | City Editor は実辺をなぞる（凹み埋め・海際延長という別工程が無い）。旧 City Generator の envelope 整形バグは City Editor には無い | `gen/borders.ts`（既存ロジック維持。任意で TownGen の `smoothVertex` 丸めを option 化） |
-| 門 | `buildGates` [CurtainWall.ts:39]：候補 `entrances` ＝ 円周頂点のうち **2 パッチ以上が集まる交点** − reserved。ループ「ランダムに 1 つ選び gate に、周囲 2〜3 個を splice」を `entrances.length>=3` の間 → **概ね 3〜5 門**。各門で外郭ウォードを `outer.shape.split(gate, farthest)` [CurtainWall.ts:74] して街道の抜けを作り、`gate.set(smoothVertex(gate))` | `placeGates` [`city-generator/core/interior.ts`]（commit 1b7f7 で改良済み）：候補＝**2 つ以上の urban セルが共有する border 頂点**、目標 `target = clamp(round(suggestedGates·0.7),3,6) + (wet?1:0)`、道路方位に近い順で貪欲、選択後は同ループ上で弧長 `perimeter/(target+1)` 未満を間引き。`markWaterGate` / `markSeaSurroundedGates` で海側の門を water 化。**外郭 split は無い** | 本数モデルの調整余地・外郭 split の有無・門候補（角限定 or 任意頂点）の切替が UI に無い | `gen/gates.ts`（`placeGates` 相当を移植 ＋ 本数/間隔/候補/外郭 split をオプション化） |
-| 街路 | `buildStreets` [Model.ts:292]：`Topology`＝全パッチ辺グラフ（壁・城郭頂点は `blocked`、gate 除外）。門ごとに A\*(gate→plaza 最寄り or 中心)＝street、border gate は A\*(遠方＝`gate.norm(1000)`最寄り→gate)＝road。`tidyUpRoads` で結合 → `smoothStreet`＝`smoothVertexEq(3)` を**共有 Point に書き戻し** | `buildStreets` [`city-generator/core/streets.ts`]：`buildEdgeGraph(interiorCells)`（**海セル含む**）上で street＝gate→plaza（`urbanNodes` マスク）、road＝`farNodeFor`→apron ＋ 放射スタブ。`waterPolygon`/`seaNodes` を受ける口はあるが `generate.ts` からの現実性検査は最終 polyline に無い。`smoothPath(_,2)` | road の遠方点（放射 vs 記述子端）、**海を跨ぐ道路の最終検査が無い**（TownGen は海が無いので問題化しない）、平滑化の強さ、伸長方式の option 化 | `gen/streets.ts`（移植）＋ `gen/plausibility.ts`（水域跨ぎフィルタ、下記 §3.E） |
+| 格子 | `buildPatches` [Model.ts#L167]：`sa+√i·5` の螺旋で `nPatches*8=120` 点散布 → `Voronoi.build`（逐次 `addPoint`）→ **中心 `[0,1,2,nPatches]` の 4 点だけ** `Voronoi.relax` ×3 → `points.sort(by \|p\|)` → 先頭 `nPatches=15` を `inner`（市街地）、`nPatches` 番目を任意で citadel。ステップは `captureGenerationStep("2.1 Delaunay / Voronoi", {delaunay, voronoi, sites})` [Model.ts#L154] | `document.ts` → `buildGrid`（`city-generator/core/grid.ts` = 可変半径 Bridson 青ノイズ、`spacing≈cityRadius/3.5`、水際 0.5×）＋ `lloydPasses:1` を全セルに → `GridStage[]` を作るが **`.at(-1)` で最終段だけ採用、途中を破棄**。Document パネルにスライダー無し | 散布方法（螺旋・距離順・内密外疎 vs 一様青ノイズ）、relax 対象（中心 4 点 vs 全セル）、**途中段・Delaunay/母点の可視化と母点編集の有無** | `gen/patches.ts`（散布＋逐次 Voronoi＋relax、各周キャプチャ）、`gen/gridEvolution.ts`（スナップショット型）、Document パネルの Grid evolution UI |
+| 交点整理 | `optimizeJunctions` [Model.ts#L396]：`dist(v0,v1)<8` の辺を、共有 `Point` を平均して in-place で潰す（全パッチ同時に動き watertight）→ 重複除去 | `mesh.ts optimizeJunctions`（City Editor 独自・ブラシ式）：`< maxGap` の辺を `mergeVertices`＋`moveVertex(midpoint)` で 1 本ずつ潰す。route/gate 参照は保持 | 全域一括 vs ブラシ選択。City Editor は恒久 ID を保つため 1 本ずつ | 既存 `mesh.ts` を流用（全域一括モードを generate 用に追加） |
+| 城壁形状 | `CurtainWall` [CurtainWall.ts#L17]：`Model.findCircumference(inner)` → `smoothVertex(v, min(1,40/n))` [CurtainWall.ts#L27] で丸め（reserved 除外） | `generate.ts componentBorderLoops` [generate.ts#L821]：`urban` 連結成分ごとに **実メッシュ辺** の外周ループを `traceBoundaryLoops` で追跡（`shapeEnvelope`/`reachEnvelopeToShore` は**使わない**）→ `EdgeRef[]` で Wall グループ化 | City Editor は実辺をなぞる（凹み埋め・海際延長という別工程が無い）。旧 City Generator の envelope 整形バグは City Editor には無い | `gen/borders.ts`（既存ロジック維持。任意で TownGen の `smoothVertex` 丸めを option 化） |
+| 門 | `buildGates` [CurtainWall.ts#L39]：候補 `entrances` ＝ 円周頂点のうち **2 パッチ以上が集まる交点** − reserved。ループ「ランダムに 1 つ選び gate に、周囲 2〜3 個を splice」を `entrances.length>=3` の間 → **概ね 3〜5 門**。各門で外郭ウォードを `outer.shape.split(gate, farthest)` [CurtainWall.ts#L74] して街道の抜けを作り、`gate.set(smoothVertex(gate))` | `placeGates` [`city-generator/core/interior.ts`]（commit 1b7f7 で改良済み）：候補＝**2 つ以上の urban セルが共有する border 頂点**、目標 `target = clamp(round(suggestedGates·0.7),3,6) + (wet?1:0)`、道路方位に近い順で貪欲、選択後は同ループ上で弧長 `perimeter/(target+1)` 未満を間引き。`markWaterGate` / `markSeaSurroundedGates` で海側の門を water 化。**外郭 split は無い** | 本数モデルの調整余地・外郭 split の有無・門候補（角限定 or 任意頂点）の切替が UI に無い | `gen/gates.ts`（`placeGates` 相当を移植 ＋ 本数/間隔/候補/外郭 split をオプション化） |
+| 街路 | `buildStreets` [Model.ts#L292]：`Topology`＝全パッチ辺グラフ（壁・城郭頂点は `blocked`、gate 除外）。門ごとに A\*(gate→plaza 最寄り or 中心)＝street、border gate は A\*(遠方＝`gate.norm(1000)`最寄り→gate)＝road。`tidyUpRoads` で結合 → `smoothStreet`＝`smoothVertexEq(3)` を**共有 Point に書き戻し** | `buildStreets` [`city-generator/core/streets.ts`]：`buildEdgeGraph(interiorCells)`（**海セル含む**）上で street＝gate→plaza（`urbanNodes` マスク）、road＝`farNodeFor`→apron ＋ 放射スタブ。`waterPolygon`/`seaNodes` を受ける口はあるが `generate.ts` からの現実性検査は最終 polyline に無い。`smoothPath(_,2)` | road の遠方点（放射 vs 記述子端）、**海を跨ぐ道路の最終検査が無い**（TownGen は海が無いので問題化しない）、平滑化の強さ、伸長方式の option 化 | `gen/streets.ts`（移植）＋ `gen/plausibility.ts`（水域跨ぎフィルタ、下記 §3.E） |
 | 描画 | `SvgMapLayer`：`roads`（二重線）＋ ward 建物 ＋ 壁。**内部 street は最終図に描かない**（overlay のみ） | `render/svg.ts`：セル塗り＋建物＋二重線 road ＋ river band ＋ overlay。**同じく内部 street は描かない** | ほぼ一致 | 変更なし（step overlay の追加のみ） |
-| 地区割当 | `createWards` [Model.ts:434]：固定 36 配列、plaza→Market、gate 近傍→GateWard、`rateLocation` で min 選択、余り→Slum、外→Farm/Ward | `assignWards` [`city-generator/core/wards.ts`]：35-mix を `ceil(n/35)` 複製＋Fisher–Yates、`rateLocation`、harbor/temple/shanty | ほぼ忠実 | `gen/wards.ts`（移植） |
+| 地区割当 | `createWards` [Model.ts#L434]：固定 36 配列、plaza→Market、gate 近傍→GateWard、`rateLocation` で min 選択、余り→Slum、外→Farm/Ward | `assignWards` [`city-generator/core/wards.ts`]：35-mix を `ceil(n/35)` 複製＋Fisher–Yates、`rateLocation`、harbor/temple/shanty | ほぼ忠実 | `gen/wards.ts`（移植） |
 | 建物形状 | `Ward.createGeometry`：`getCityBlock`（inset）→ `createAlleys` / `createOrthoBuilding` / `filterOutskirts` | `buildGeometry` [`city-generator/core/buildings.ts`]：`cityBlock` → `createAlleys`/`createOrtho`/`ringSlices` ＋ `withinCell` スライバ除去 | ほぼ忠実 | `gen/buildings.ts`（移植） |
 | （なし） | 海・河川の概念なし | `classifyCoast` [`classifySea.ts`] ＋ river band。ただし後段（道路・建物・城壁）の妥当性チェックに接続されていない | **海が後段に効いていない** | `gen/plausibility.ts`（§3.E） |
 
@@ -69,20 +69,20 @@ C（門）→ D（河川）→ F（仕上げ）**。
 
 ### 2.1 セル整形がステップ実行・編集できない（改善計画の最優先）
 
-- TownGen `buildPatches` [Model.ts:167] は 3 つのループの連なり：
+- TownGen `buildPatches` [Model.ts#L167] は 3 つのループの連なり：
   1. **螺旋散布**：`for i in 0..nPatches*8` で `a = sa + √i·5`、`r = i===0 ? 0 : 10 + i·(2 + rand)`
      ── 中心が密、外周へ行くほど疎。i=0 は必ず原点。
   2. **逐次 Voronoi**：`Voronoi.build` が点を 1 個ずつ `addPoint`（Bowyer–Watson 型の
      incremental Delaunay）で入れる。
   3. **relax ×3**：毎回 `Voronoi.relax(voronoi, [pt0, pt1, pt2, pt_nPatches])` ── **中心付近
      4 点だけ**を重心へ寄せて張り直す。外周は動かさない＝サイズ勾配（中心大→外周小）が残る。
-  4. **距離順ソート** `points.sort((a,b)=>sign(|a|-|b|))` [Model.ts:193] の後、先頭
+  4. **距離順ソート** `points.sort((a,b)=>sign(|a|-|b|))` [Model.ts#L193] の後、先頭
      `nPatches` 個をそのまま `inner`（市街地）に。＝中心から詰まった 15 枚の大パッチ。
   各段は `captureGenerationStep` で不変コピーが `generationSteps[]` に積まれ、TownApp の
   「Drawing process」/「Grid evolution」スライダーが `<g>` の表示を切り替える。
   「2.1 Delaunay / Voronoi」段では `delaunay`（三角形の辺）・`voronoi`（領域ポリゴン）・
-  `sites`（母点）を赤で重ねる [SvgMapLayer.ts:231]。
-- **City Editor には対応物が無い**。`document.ts:34` は
+  `sites`（母点）を赤で重ねる [SvgMapLayer.ts#L231]。
+- **City Editor には対応物が無い**。`document.ts#L34` は
   `buildGrid(params, EMPTY_GEO, makeRng(seed)).at(-1)?.cells` ── `GridStage[]`（`scatter` /
   `Lloyd 1`）を作っておきながら最後の 1 段しか使わず、Document パネルは
   `Map size / New grid / Scale / Smoothing` だけ。散布の各点追加、Lloyd の各周、Delaunay 三角形、
@@ -94,7 +94,7 @@ C（門）→ D（河川）→ F（仕上げ）**。
 
 ### 2.2 市街地の輪郭（パッチ生成）
 
-- TownGen は距離順ソート後、先頭 `nPatches` 個を**定義的に** `inner` にする（`Model.ts:214`）。
+- TownGen は距離順ソート後、先頭 `nPatches` 個を**定義的に** `inner` にする（`Model.ts#L214`）。
   ＝中心から詰まった 15 枚の大パッチ。外周は 12〜18 頂点の素直な多角形で、`CurtainWall` が
   `smoothVertex(f = min(1, 40/15) = 1)` で更に丸める。
 - City Editor は `classifyUrban` [`city-generator/core/classifyUrban.ts`]：
@@ -110,10 +110,10 @@ C（門）→ D（河川）→ F（仕上げ）**。
 
 ### 2.3 門の数・位置・オプション
 
-- `synthSite` が道路を出しすぎる [synthSite.ts:494-498]：`landwardBearings(shoreAz, 3)` または
+- `synthSite` が道路を出しすぎる [synthSite.ts#L494-498]：`landwardBearings(shoreAz, 3)` または
   `spreadBearings(3|4)` に加え、川が site を横切ると `axisAzimuthDeg ± 90` の **2 本** を無条件
   追加。→ 内陸 3〜4、川あり 5〜6、海＋川で最大 6。
-  `suggestedGates = roads.filter(r => r.group !== "searoutes").length` [synthSite.ts:143]。
+  `suggestedGates = roads.filter(r => r.group !== "searoutes").length` [synthSite.ts#L143]。
 - `placeGates`（commit 1b7f7 で改良済み）は既に：候補＝2 urban セル共有の border 頂点、
   `target = clamp(round(suggestedGates·0.7), 3, 6) + (wet?1:0)`、道路方位マッチ貪欲、選択後
   弧長 `perimeter/(target+1)` 未満を間引き ── TownGen `entrances` の thin-out に近い形。
@@ -122,7 +122,7 @@ C（門）→ D（河川）→ F（仕上げ）**。
     `suggestedGates` 連動 / **手動**＝数値指定）。
   - 最小間隔（弧長）係数。
   - 門候補の限定（街区の角のみ / border 上の任意頂点も可）。
-  - **外郭 split**（TownGen `outer.shape.split(gate, farthest)` [CurtainWall.ts:74]）＝門ごとに
+  - **外郭 split**（TownGen `outer.shape.split(gate, farthest)` [CurtainWall.ts#L74]）＝門ごとに
     外側の rural セルを門→外向きに 1 回割って road の抜けを作る。City Editor には無く、
     `buildStreets` の A\* が外を回り込むだけ（回れないと road が消える、§2.5）。
   - `synthSite` の川 `±90` 追加を「実際に市街を横切る川のみ・1 本」に制限。
@@ -183,7 +183,7 @@ C（門）→ D（河川）→ F（仕上げ）**。
 
 ### A. セル整形を TownGen 型へ再実装＋ステップ可視化＋母点編集（土台・最優先）
 
-1. **`gen/patches.ts`** ── `buildPatches` [Model.ts:167] を手本に：
+1. **`gen/patches.ts`** ── `buildPatches` [Model.ts#L167] を手本に：
    - 螺旋散布ループ（`nPatches*8` 点、中心密・外周疎）。母点数 `nPatches` は引数。
    - 逐次 Voronoi（`delaunator` で三角形分割 → 有界 Voronoi。FMG 既存の
      `src/city-generator/core/voronoi.ts` と同方式だが **City Editor 側にコピー**）。

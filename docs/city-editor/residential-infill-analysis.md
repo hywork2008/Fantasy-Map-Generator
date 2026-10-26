@@ -98,7 +98,7 @@ Wolfrise の親グループの名前は、指定の `g21-trails` と異なり、
 
 ## Grid evolutionが疎に見える理由
 
-実際の建物生成経路は [buildingLots.ts](../../src/city-editor/generators/buildingLots.ts) → [blockInfill.ts](../../src/city-editor/generators/blockInfill.ts) → [localInfill.ts](../../src/city-editor/generators/localInfill.ts)。`gridEvolution.ts` 自体はセル形成の途中経過を生成している。
+実際の建物生成経路は [buildingLots.ts](/src/city-editor/generators/buildingLots.ts) → [blockInfill.ts](/src/city-editor/generators/blockInfill.ts) → [localInfill.ts](/src/city-editor/generators/localInfill.ts)。`gridEvolution.ts` 自体はセル形成の途中経過を生成している。
 
 1. **細かな宅地分割まで小道にしている。** `fillPart` の再帰分割は成功するたびに `addLane` する。既定の道路幅3mに対し、小さな分割でも1.8mの道が入る。左右の0.4mの余白と各建物の0.45mの後退を足すと、単純な平行辺同士でも建物間は約3.5m空く。長方形化・縮小があればさらに広がる。
 2. **建物を重心中心の内接長方形にする。** districtパラメータがある経路では全てが対象。台形や斜めの外周で余白が増え、道路前面も後退する。L 字・コの字にはならない。
@@ -107,7 +107,7 @@ Wolfrise の親グループの名前は、指定の `g21-trails` と異なり、
 5. **外縁部は幹線から45mで打ち切る。** 判定は `roadFrontages` との距離で、小道は対象外。奥へ到達する小道を作っても、その沿道の住宅を棄却しうる。
 6. **地区の全周に小道を引く。** district経路の `addLane(boundary(polygon), laneWidth)` は道路でない背面にも空間を確保する。さらに接道条件・最小面積・細長さの検査やoccupancyによる欠落が加わる。
 
-既定値は [fabricDistricts.ts](../../src/city-editor/generators/fabricDistricts.ts) にあり、occupancyは中心部0.965、外縁部0.82。単純にoccupancyを1へ上げても、上記の幾何学的な隙間は残る。
+既定値は [fabricDistricts.ts](/src/city-editor/generators/fabricDistricts.ts) にあり、occupancyは中心部0.965、外縁部0.82。単純にoccupancyを1へ上げても、上記の幾何学的な隙間は残る。
 
 ## 採用する生成方法
 
@@ -169,7 +169,7 @@ Wolfrise の親グループの名前は、指定の `g21-trails` と異なり、
 </g>
 ```
 
-参照SVGの細線は線画として露出するが、CEの小道は背景色の道路幅を持つpathとして出力される（[render/svg.ts](../../src/city-editor/renderers/editorSvg.ts)）。参照と同じ黒い線を足すだけでは建物配置は改善しない。
+参照SVGの細線は線画として露出するが、CEの小道は背景色の道路幅を持つpathとして出力される（[render/svg.ts](/src/city-editor/renderers/editorSvg.ts)）。参照と同じ黒い線を足すだけでは建物配置は改善しない。
 
 ## 実装の優先順位と評価
 

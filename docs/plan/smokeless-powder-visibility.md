@@ -19,8 +19,8 @@
   追跡する仕組みが元々ない（`militaryResources.ts` の州レベル調達 work order は、消費した Good のレシピ
   出自を記録しない）。
 - 軍事シミュレーション側で「視界」に相当する概念は `src/generators/regimentMovement.ts` の
-  `findHostileRegiments()`（[regimentMovement.ts:646-664](../../src/generators/regimentMovement.ts#L646-L664)）
-  が使う固定値 `VISUAL_DETECTION_RADIUS = 400`（[regimentMovement.ts:141](../../src/generators/regimentMovement.ts#L141)）
+  `findHostileRegiments()`（[regimentMovement.ts#L646-664](/src/generators/regimentMovement.ts#L646-L664)）
+  が使う固定値 `VISUAL_DETECTION_RADIUS = 400`（[regimentMovement.ts#L141](/src/generators/regimentMovement.ts#L141)）
   のみ。部隊の装備状態に応じて動的に変化する仕組みは無い。
 - `src/extensions/nobility/generators/battle-resolution.ts` の戦闘解決は戦力比ベースの単純なモデルで、
   命中率・視界・混乱度といった個別パラメータは登場しない。

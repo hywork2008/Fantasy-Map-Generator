@@ -34,14 +34,14 @@ FMG に **Encyclopedia** という1つのダイアログを追加する。中身
 | 資産 | 場所 | Encyclopedia での使い道 |
 | :--- | :--- | :--- |
 | 戦争・包囲の年代記 | `pack.states[0].diplomacy`(`ChronicleEvent` の入れ子配列) | W の戦争項目・年表の元データ |
-| 年代記ダイアログ | [DiplomacyHistoryDialog.tsx](../../src/ui/dialogs/DiplomacyHistoryDialog.tsx) | 行ホバー → 矢印強調、Details ボタン → War Details |
-| 経路矢印の描画 | [diplomacy-history-renderer.ts](../../src/controllers/diplomacy-history-renderer.ts) `drawHistoryArrows` / `highlightHistoryArrow` | 年表再生のオーバーレイ部品に一般化 |
-| 戦争詳細 | `WarDetails` / `WarParticipant`(兵力 `forces`、誓約、通過方法)、[WarDetailsDialog.tsx](../../src/ui/dialogs/WarDetailsDialog.tsx) | 参戦国・兵力・指揮官の表示。キャラクター詳細へのリンクは既にある |
+| 年代記ダイアログ | [DiplomacyHistoryDialog.tsx](/src/ui/dialogs/DiplomacyHistoryDialog.tsx) | 行ホバー → 矢印強調、Details ボタン → War Details |
+| 経路矢印の描画 | [diplomacy-history-renderer.ts](/src/controllers/diplomacy-history-renderer.ts) `drawHistoryArrows` / `highlightHistoryArrow` | 年表再生のオーバーレイ部品に一般化 |
+| 戦争詳細 | `WarDetails` / `WarParticipant`(兵力 `forces`、誓約、通過方法)、[WarDetailsDialog.tsx](/src/ui/dialogs/WarDetailsDialog.tsx) | 参戦国・兵力・指揮官の表示。キャラクター詳細へのリンクは既にある |
 | 経路計算 | `services/warRouteFinder.ts` | 部隊移動の線 |
-| 技術進捗 | `TechnologyProgress`(`discoveredYear`/`demonstratedYear`/`adoptedYear`/`diffusion`)、[technologyOverview.ts](../../src/generators/technologyOverview.ts) | W の技術項目と「発明の伝播」年表 |
-| 技術定義 | [technologyDefinitions.ts](../../src/generators/technologyDefinitions.ts)(`id`/`label`/`era`/`prerequisites`) | H と W を結ぶキー |
+| 技術進捗 | `TechnologyProgress`(`discoveredYear`/`demonstratedYear`/`adoptedYear`/`diffusion`)、[technologyOverview.ts](/src/generators/technologyOverview.ts) | W の技術項目と「発明の伝播」年表 |
+| 技術定義 | [technologyDefinitions.ts](/src/generators/technologyDefinitions.ts)(`id`/`label`/`era`/`prerequisites`) | H と W を結ぶキー |
 | 史実の技術年表 | [steam-industrial-technology-history.csv](./data/steam-industrial-technology-history.csv)(25行、`technology_id` 列あり、出典 URL あり) | H 技術項目の最初の投入データ |
-| Cost of Living 等 | [CustomAboutContent.tsx](../../src/ui/components/tabs/CustomAboutContent.tsx) + `en.json`/`ja.json` の `about.*` | F 項目に移設(About タブからはリンクで残す) |
+| Cost of Living 等 | [CustomAboutContent.tsx](/src/ui/components/tabs/CustomAboutContent.tsx) + `en.json`/`ja.json` の `about.*` | F 項目に移設(About タブからはリンクで残す) |
 | 世界ヘルプ文書 | [docs/world/help/](../world/help/) | F/世界設定項目の Markdown 本文 |
 | Earth region の座標系 | `earthConfig.ts` の `mapCoordinates`(`latN`/`latT`/`lonW`/`lonT`、等距円筒)、`getEarthCoordinatesAtMapPoint` | 史実の緯度経度を FMG 地図座標へ射影 |
 
@@ -234,7 +234,7 @@ Encyclopedia の W 年表は Layer B(`pack.chronicle`、絶対年・型付き ki
   cell?: number;                                          // 交戦地点
 ```
 
-書き込み箇所は `battle-resolution.ts:378` 付近の1か所が主(`commandersA/B` と `attackerPower`、死傷者は既に手元にある)。
+書き込み箇所は `battle-resolution.ts#L378` 付近の1か所が主(`commandersA/B` と `attackerPower`、死傷者は既に手元にある)。
 `localSkirmish.ts` / `marchCapture.ts` / `homeRecapture.ts` も同様に埋める。
 
 ### 5.2 戦役の行軍ログ

@@ -359,7 +359,7 @@ Leighを主対象、Penorham（約15,990人、川岸配置済み）、Seriemigny
 - 実在する宗教施設・墓地・水車・工房に接続できる箇所を拠点候補とし、条件が合う大都市では定期市の開放区画を予約する。未解決の水辺では水車・川下工房を生成しない。新しい橋を拠点のために作る処理は追加していない。
 - hex / voronoi / evolutionとlegacy / medieval双方で最終の領域制約と容量診断を適用する。手動で固定された敷地は保持し、予算超過を診断する。CE文書の保存・再読込でprofileと領域を保持する。
 
-主な実装: [都市史の型](../../src/types/urbanMorphology.ts)、[推定モデル](../../src/utils/urbanMorphology.ts)、[国家からの投影](../../src/services/burgUrbanMorphology.ts)、[城外の領域・建物列](../../src/city-editor/core/gen/urbanGrowth.ts)、[住戸容量](../../src/city-editor/core/gen/residentialCapacity.ts)。
+主な実装: [都市史の型](/src/types/urbanMorphology.ts)、[推定モデル](/src/utils/urbanMorphology.ts)、[国家からの投影](/src/services/burgUrbanMorphology.ts)、[城外の領域・建物列](/src/city-editor/core/gen/urbanGrowth.ts)、[住戸容量](/src/city-editor/core/gen/residentialCapacity.ts)。
 
 ### 13.2 初期モデルでの調整と限界
 

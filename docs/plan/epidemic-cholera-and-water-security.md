@@ -29,12 +29,12 @@
 
 | 項目 | 現状 | 参照 |
 | --- | --- | --- |
-| キャラクター疾病モデル | `AFFLICTION_CATALOG`に5種（fever/flux/pox/plague/wasting）。各`sanitationWeight`で`burg.sanitation`（単一合成値）に対する感受性を持つ。`requiresSanitationBelow`が発症ゲート。 | [characterHealth.ts:100-121](../../src/extensions/characters/characterHealth.ts#L100) |
-| `burg.sanitation`の内訳 | `sanitationScoreFromSystem()`が`drinkingWaterSecurity*34 + (1-sanitationBurden)*24 + (1-waterContamination)*18 + (1-floodExposure)*7 + (1-odor)*5 + (1-healthPressure)*12`で合成——水質関連（`drinkingWaterSecurity`+`waterContamination`）だけで52%を占めるが、個別シグナルとしては公開されていない。 | [urbanWaterSystem.ts:894-903](../../src/extensions/economy/generators/urbanWaterSystem.ts#L894) |
-| Burg→Province→State civic score のロールアップ先例 | `rollupProvinceAndStateSanitation()`がburgの値を人口非加重の単純平均でProvince/Stateへ積み上げる。`medicalCare`も同型（`hospitalInstallations.ts`）。 | [urbanWaterSystem.ts:1615-1659](../../src/extensions/economy/generators/urbanWaterSystem.ts#L1615) |
-| Characters拡張はEconomy非依存 | `characterHealth.ts`は「Reads only plain pack fields — no Economy import」という明記された制約を持つ。`resolveCharacterSanitation()`はburg→state→定数のプレーンフィールド解決のみ。 | [characterHealth.ts:132-153](../../src/extensions/characters/characterHealth.ts#L132) |
-| 人口レベルの死因追跡 | `DeathCause = "combat" \| "famine" \| "natural" \| "other"`で固定。`famine`は`demography-simulator.ts`の飢餓（`roomForGrowth<0`）からのみ生じ、疫病由来の人口死は存在しない。 | [populationLossTracker.ts:24](../../src/generators/populationLossTracker.ts#L24)、[demography-simulator.ts:246-252](../../src/generators/demography-simulator.ts#L246) |
-| 既存のcivic scoreの生成時シード | `burgs-generator.ts`が新規burgに`security=50`/`sanitation=50`を播種——Economy未有効でも中立値からスタートする。 | [burgs-generator.ts:827-831](../../src/generators/burgs-generator.ts#L827) |
+| キャラクター疾病モデル | `AFFLICTION_CATALOG`に5種（fever/flux/pox/plague/wasting）。各`sanitationWeight`で`burg.sanitation`（単一合成値）に対する感受性を持つ。`requiresSanitationBelow`が発症ゲート。 | [characterHealth.ts#L100-121](/src/extensions/characters/characterHealth.ts#L100) |
+| `burg.sanitation`の内訳 | `sanitationScoreFromSystem()`が`drinkingWaterSecurity*34 + (1-sanitationBurden)*24 + (1-waterContamination)*18 + (1-floodExposure)*7 + (1-odor)*5 + (1-healthPressure)*12`で合成——水質関連（`drinkingWaterSecurity`+`waterContamination`）だけで52%を占めるが、個別シグナルとしては公開されていない。 | [urbanWaterSystem.ts#L894-903](/src/extensions/economy/generators/urbanWaterSystem.ts#L894) |
+| Burg→Province→State civic score のロールアップ先例 | `rollupProvinceAndStateSanitation()`がburgの値を人口非加重の単純平均でProvince/Stateへ積み上げる。`medicalCare`も同型（`hospitalInstallations.ts`）。 | [urbanWaterSystem.ts#L1615-1659](/src/extensions/economy/generators/urbanWaterSystem.ts#L1615) |
+| Characters拡張はEconomy非依存 | `characterHealth.ts`は「Reads only plain pack fields — no Economy import」という明記された制約を持つ。`resolveCharacterSanitation()`はburg→state→定数のプレーンフィールド解決のみ。 | [characterHealth.ts#L132-153](/src/extensions/characters/characterHealth.ts#L132) |
+| 人口レベルの死因追跡 | `DeathCause = "combat" \| "famine" \| "natural" \| "other"`で固定。`famine`は`demography-simulator.ts`の飢餓（`roomForGrowth<0`）からのみ生じ、疫病由来の人口死は存在しない。 | [populationLossTracker.ts#L24](/src/generators/populationLossTracker.ts#L24)、[demography-simulator.ts#L246-252](/src/generators/demography-simulator.ts#L246) |
+| 既存のcivic scoreの生成時シード | `burgs-generator.ts`が新規burgに`security=50`/`sanitation=50`を播種——Economy未有効でも中立値からスタートする。 | [burgs-generator.ts#L827-831](/src/generators/burgs-generator.ts#L827) |
 
 ## 3. 設計
 

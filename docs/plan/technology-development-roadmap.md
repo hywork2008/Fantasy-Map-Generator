@@ -29,7 +29,7 @@
 
 **2026-08-20 追加（設計のみ・未実装）**: §16（付録）に、現在の開始時代（§2、成熟中世）の手前を埋める前史として、古代ローマ的技術水準から成熟中世に至るまでの技術ロードマップを追加設計した。Phase 1–8（段階0〜8）の実装・仕様には一切影響しない、独立した将来検討用の拡張（例: 「古代ローマ開始」シナリオを追加する場合の設計叩き台）である。
 
-**2026-08-21 追加（技術グラフのデータ層のみ実装済み）**: §16.2〜16.4 の18ノード（前1: 6ノード、前2: 6ノード、前3: 6ノード）を [`src/generators/technologyPrehistory.ts`](../../src/generators/technologyPrehistory.ts) に型付きデータとして実装した（ユニットテスト: [`technologyPrehistory.test.ts`](../../src/generators/technologyPrehistory.test.ts)、15件）。`technologyDefinitions.ts` / `technologyProgress.ts` / `worldContext` / 年次 tick のいずれからも import されておらず、現行ゲームの開始・進行には一切影響しない。`TechnologyEraBand`（0〜8）は変更せず、前史は独自の `PrehistoryEra` 文字列型で管理する。§16.1 の「維持投資途絶による退行」は、前2の3ノード（`collapseOfCentralMaintenance`/`dissolutionOfLegionsIntoRetinues`/`fragmentationOfUnifiedTrade`）が持つ `affectsMaintenanceOf` フィールドとして情報だけ表現し、実際に他ノードの stage を巻き戻す評価器は実装していない（決定事項15のとおり、これは前史専用ルールであり実装済み段階0〜8には適用しない）。「古代ローマ開始」シナリオ本体（世界生成オプション分岐・退行評価器・UI）は引き続き未着手。
+**2026-08-21 追加（技術グラフのデータ層のみ実装済み）**: §16.2〜16.4 の18ノード（前1: 6ノード、前2: 6ノード、前3: 6ノード）を [`src/generators/technologyPrehistory.ts`](/src/generators/technologyPrehistory.ts) に型付きデータとして実装した（ユニットテスト: [`technologyPrehistory.test.ts`](/src/generators/technologyPrehistory.test.ts)、15件）。`technologyDefinitions.ts` / `technologyProgress.ts` / `worldContext` / 年次 tick のいずれからも import されておらず、現行ゲームの開始・進行には一切影響しない。`TechnologyEraBand`（0〜8）は変更せず、前史は独自の `PrehistoryEra` 文字列型で管理する。§16.1 の「維持投資途絶による退行」は、前2の3ノード（`collapseOfCentralMaintenance`/`dissolutionOfLegionsIntoRetinues`/`fragmentationOfUnifiedTrade`）が持つ `affectsMaintenanceOf` フィールドとして情報だけ表現し、実際に他ノードの stage を巻き戻す評価器は実装していない（決定事項15のとおり、これは前史専用ルールであり実装済み段階0〜8には適用しない）。「古代ローマ開始」シナリオ本体（世界生成オプション分岐・退行評価器・UI）は引き続き未着手。
 
 コードの主な置き場:
 
@@ -674,13 +674,13 @@ interface TechnologyDefinition {
 - 前1〜前3のいずれのノードも、実装済みの段階0〜8（本書 §4〜§11）のノード・Good・シグナルを重複して再実装しない。§16.5 の対応表が指す既存ノードへ収束させる（決定事項16）。
 - 本章はあくまで「開始時点をどこに置くか」の選択肢を増やす拡張であり、既存の既定シナリオ（§2 を開始点とする現行の生成）を変更しない（決定事項1・2は不変）。「古代ローマ開始」シナリオを追加する場合も、既定シナリオとは別の `WorldContext.options` 分岐として実装し、既存セーブ・既存テストに影響を与えない設計とする。
 
-**実装状況（2026-08-21）**: 上記18ノードのデータ層（`TechnologyDefinition` 相当の型・thresholds・prerequisites・`affectsMaintenanceOf` 情報メタデータ・純粋関数 `advancePrehistoryStage`/`prehistoryThresholdsMet`/`prehistoryPrerequisitesMet`）は [`src/generators/technologyPrehistory.ts`](../../src/generators/technologyPrehistory.ts) に実装済み。上記3点の留意点はいずれも守られている（`technologyTypes.ts`/`technologyDefinitions.ts` 未変更、段階0〜8のノード・シグナルを再実装せず、既定シナリオ・セーブ・既存テストへの接続なし）。未着手なのは、退行を実際に適用する評価器、「古代ローマ開始」の `WorldContext.options` 分岐、および世界生成 UI。
+**実装状況（2026-08-21）**: 上記18ノードのデータ層（`TechnologyDefinition` 相当の型・thresholds・prerequisites・`affectsMaintenanceOf` 情報メタデータ・純粋関数 `advancePrehistoryStage`/`prehistoryThresholdsMet`/`prehistoryPrerequisitesMet`）は [`src/generators/technologyPrehistory.ts`](/src/generators/technologyPrehistory.ts) に実装済み。上記3点の留意点はいずれも守られている（`technologyTypes.ts`/`technologyDefinitions.ts` 未変更、段階0〜8のノード・シグナルを再実装せず、既定シナリオ・セーブ・既存テストへの接続なし）。未着手なのは、退行を実際に適用する評価器、「古代ローマ開始」の `WorldContext.options` 分岐、および世界生成 UI。
 
 ---
 
 ## 17. 技術グラフの欠落中間ノード監査（2026-09-05）
 
-§4〜§11 の全ノード表と実装（[`technologyDefinitions.ts`](../../src/generators/technologyDefinitions.ts) の77ノード、
+§4〜§11 の全ノード表と実装（[`technologyDefinitions.ts`](/src/generators/technologyDefinitions.ts) の77ノード、
 および `requiredTechnology` を持つ Good 群）を突き合わせ、**「発明 A と発明 C は存在するが、両者をつなぐべき
 中間ノード B が無い」箇所**を洗い出した。詳細な根拠・提案する `TechnologyDefinition`・実装計画は
 [technology-graph-missing-intermediates.md](./technology-graph-missing-intermediates.md) を正とする。

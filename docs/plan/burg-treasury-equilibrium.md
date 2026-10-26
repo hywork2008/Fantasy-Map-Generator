@@ -2,11 +2,11 @@
 
 ## 状態
 
-**実装済み**(2026-08-13確認: 本文書は当時「未実装(設計のみ)」と記していたが、[guildTreasury.ts](../../src/extensions/economy/generators/guildTreasury.ts)にPhase A〜C(§3.1〜3.3)全てが実装済みであることを[civil-administration-burg-state-split.md](./civil-administration-burg-state-split.md)の調査時に確認した——`GUILD_PROFIT_SHARE`/`GUILD_PAYOUT_RATE`定数、`settleAnnual()`のMarket/State上納ロジックとも本文書の値・設計に一致する。ドキュメントが実装に追いついていなかった一例)。2026-07-31、`executeManufacture`の原料購入無予算バグ修正([production-generator.ts](../../src/extensions/economy/generators/production-generator.ts)、`Markets.buy`に`budget`未指定だった箇所)の副作用として本設計の必要性が判明した。バグ修正自体(治療の下限保証・初期シード)は実装済み。本ドキュメントはその先——治療の**上限側**の設計。
+**実装済み**(2026-08-13確認: 本文書は当時「未実装(設計のみ)」と記していたが、[guildTreasury.ts](/src/extensions/economy/generators/guildTreasury.ts)にPhase A〜C(§3.1〜3.3)全てが実装済みであることを[civil-administration-burg-state-split.md](./civil-administration-burg-state-split.md)の調査時に確認した——`GUILD_PROFIT_SHARE`/`GUILD_PAYOUT_RATE`定数、`settleAnnual()`のMarket/State上納ロジックとも本文書の値・設計に一致する。ドキュメントが実装に追いついていなかった一例)。2026-07-31、`executeManufacture`の原料購入無予算バグ修正([production-generator.ts](/src/extensions/economy/generators/production-generator.ts)、`Markets.buy`に`budget`未指定だった箇所)の副作用として本設計の必要性が判明した。バグ修正自体(治療の下限保証・初期シード)は実装済み。本ドキュメントはその先——治療の**上限側**の設計。
 
 ## 背景・問題
 
-原料購入の予算バグを修正し、都市に初期予算(`STARTING_BURG_TREASURY_PER_POPULATION`, [foodProduction.ts:64](../../src/extensions/economy/generators/foodProduction.ts))を持たせた結果、ブラウザで50年分シミュレートして次が判明した(689都市):
+原料購入の予算バグを修正し、都市に初期予算(`STARTING_BURG_TREASURY_PER_POPULATION`, [foodProduction.ts#L64](/src/extensions/economy/generators/foodProduction.ts))を持たせた結果、ブラウザで50年分シミュレートして次が判明した(689都市):
 
 - `negTreasuryCount: 0` — 治療の無限マイナス化は解消
 - `zeroProductCount: 392`(約57%) — 資源に乏しい都市は生産を再開できないまま
@@ -16,11 +16,11 @@
 
 | 事実 | 根拠 |
 | :--- | :--- |
-| 加工売上の100%が`burg.treasury`に入る。ギルドへの分配経路はゼロ | `production-generator.ts:220`、`GuildKnowledgeStock`([guildKnowledgeTypes.ts:22](../../src/extensions/economy/generators/guildKnowledgeTypes.ts))は`stock`(技能EWMA)のみで金銭フィールドを持たない |
-| `burg.treasury`の支出先は原料購入と略奪イベントのみ。恒常的な維持費が存在しない | 全リポジトリ横断で`burg.treasury -=`の書き込み箇所は[production-generator.ts:426,630](../../src/extensions/economy/generators/production-generator.ts)と[marchCapture.ts:95](../../src/extensions/nobility/generators/marchCapture.ts)のみ |
-| `state.treasury`は対照的に軍事維持費([militaryLogistics.ts](../../src/extensions/economy/generators/militaryLogistics.ts)の`getStateMilitaryUpkeep()`)が毎サイクル確実に引かれ、`Math.max(0, ...)`で下限も付いている | [taxes-generator.ts:89,95](../../src/extensions/economy/generators/taxes-generator.ts) |
+| 加工売上の100%が`burg.treasury`に入る。ギルドへの分配経路はゼロ | `production-generator.ts#L220`、`GuildKnowledgeStock`([guildKnowledgeTypes.ts#L22](/src/extensions/economy/generators/guildKnowledgeTypes.ts))は`stock`(技能EWMA)のみで金銭フィールドを持たない |
+| `burg.treasury`の支出先は原料購入と略奪イベントのみ。恒常的な維持費が存在しない | 全リポジトリ横断で`burg.treasury -=`の書き込み箇所は[production-generator.ts#L426,630](/src/extensions/economy/generators/production-generator.ts)と[marchCapture.ts#L95](/src/extensions/nobility/generators/marchCapture.ts)のみ |
+| `state.treasury`は対照的に軍事維持費([militaryLogistics.ts](/src/extensions/economy/generators/militaryLogistics.ts)の`getStateMilitaryUpkeep()`)が毎サイクル確実に引かれ、`Math.max(0, ...)`で下限も付いている | [taxes-generator.ts#L89,95](/src/extensions/economy/generators/taxes-generator.ts) |
 | 治療0・局所資源なしの都市に復帰手段が皆無(subsidy/loan/stipend相当のコードはゼロ件) | grep確認済み |
-| `constructionEmployment.ts`の建設(`buildingStock`)は**治療ではなく市場のGOODS在庫**(石材・木材等)を消費する仕組みであり、治療とは直結していない | [constructionEmployment.ts:178-213](../../src/extensions/economy/generators/constructionEmployment.ts) |
+| `constructionEmployment.ts`の建設(`buildingStock`)は**治療ではなく市場のGOODS在庫**(石材・木材等)を消費する仕組みであり、治療とは直結していない | [constructionEmployment.ts#L178-213](/src/extensions/economy/generators/constructionEmployment.ts) |
 
 前回の提案(「余剰治療を自動的に`buildingStock`へ再投資する」)は上記最後の事実により**既存の建設メカニクスと直結しない孤立した新規シンク**になってしまうことが判明し、かつユーザー指摘の通り「州から見て交易・防衛のどちらにも波及しない、意味の薄い消費先」になるリスクがある。本設計ではこれを撤回し、**既に系全体へ波及する効果を持つ既存の支出先(貿易安全保障・軍事維持費・辺境拡張・技術投資)に治療を合流させる**方針に切り替える。
 
@@ -43,11 +43,11 @@
 
 | メカニクス | 原資 | 効果のスコープ |
 | :--- | :--- | :--- |
-| [tradeSecurity.ts](../../src/extensions/economy/generators/tradeSecurity.ts) | `state.treasury` | **州全体**の盗賊リスク低減(全キャラバンの交易路に波及) |
-| 軍事維持費([militaryLogistics.ts](../../src/extensions/economy/generators/militaryLogistics.ts)) | `state.treasury` | **州全体**の常備軍維持 |
-| [frontierExpansion.ts](../../src/generators/frontierExpansion.ts) / [frontierGovernance.ts](../../src/generators/frontierGovernance.ts) | `state.treasury` | 新規辺境領土の獲得・維持 |
-| ag/industrial tech investment([agTechInvestment.ts](../../src/extensions/economy/generators/agTechInvestment.ts) 等) | `market.marketTreasury.balance`(主)+ `state.treasury`(副) | **マーケットの商圏に属する全都市**の生産性 |
-| [strategicProcurement.ts](../../src/extensions/economy/generators/strategicProcurement.ts) | `state.treasury` → `sourceBurg.treasury` | 州が都市から調達し、実際の交易路(キャラバン)を生成する既存の「州→都市」金流 |
+| [tradeSecurity.ts](/src/extensions/economy/generators/tradeSecurity.ts) | `state.treasury` | **州全体**の盗賊リスク低減(全キャラバンの交易路に波及) |
+| 軍事維持費([militaryLogistics.ts](/src/extensions/economy/generators/militaryLogistics.ts)) | `state.treasury` | **州全体**の常備軍維持 |
+| [frontierExpansion.ts](/src/generators/frontierExpansion.ts) / [frontierGovernance.ts](/src/generators/frontierGovernance.ts) | `state.treasury` | 新規辺境領土の獲得・維持 |
+| ag/industrial tech investment([agTechInvestment.ts](/src/extensions/economy/generators/agTechInvestment.ts) 等) | `market.marketTreasury.balance`(主)+ `state.treasury`(副) | **マーケットの商圏に属する全都市**の生産性 |
+| [strategicProcurement.ts](/src/extensions/economy/generators/strategicProcurement.ts) | `state.treasury` → `sourceBurg.treasury` | 州が都市から調達し、実際の交易路(キャラバン)を生成する既存の「州→都市」金流 |
 
 `market.marketTreasury.balance`は1つのマーケットが複数の都市を商圏に持つため(`markets-generator.ts`の`createMarkets()`/`expandMarkets()`)、都市単位の余剰をここに合流させれば**自動的に多都市への波及効果**を持つ。同様に`state.treasury`は既に貿易安全保障・軍事維持・辺境拡張という3つの系統的シンクを持っている。**新しいシンクを発明するのではなく、この2つの既存プールへ都市の余剰を合流させる**のが本設計の骨子。
 
@@ -75,7 +75,7 @@ burg.treasury(年次決算 settleAnnual 相当のタイミング)
 
 ### 3.1 ギルド金庫(私有産業の富の分離)
 
-`GuildKnowledgeStock`([guildKnowledgeTypes.ts:22](../../src/extensions/economy/generators/guildKnowledgeTypes.ts))に`treasury: number`を追加する(既存の`stock`フィールドと同じ`(burgId, domain)`キー)。
+`GuildKnowledgeStock`([guildKnowledgeTypes.ts#L22](/src/extensions/economy/generators/guildKnowledgeTypes.ts))に`treasury: number`を追加する(既存の`stock`フィールドと同じ`(burgId, domain)`キー)。
 
 - `executeManufacture`が生んだ加工品を`sellInventoryToMarket`が売る際、その売上のうち`getCraftDomainForGood(good.name)`が非nullなものだけを対象に、`GUILD_PROFIT_SHARE`(仮値 0.3〜0.4)をギルド金庫へ、残りを`burg.treasury`へ。
 - craft domainを持たない売上(局所資源ボーナス、domain未対応の加工品)は従来通り全額`burg.treasury`。
@@ -113,7 +113,7 @@ if (surplus > 0) {
 ```
 
 - マーケットへの上納分は、既存の`agTechInvestment`/`industrialTechInvestment`がそのまま消費する。効果は**そのマーケットの商圏に属する全都市**の生産性向上として波及する(1都市の余剰が近隣都市群の底上げに変わる)。
-- 州治療への上納分は、既存の軍事維持費・[tradeSecurity.ts](../../src/extensions/economy/generators/tradeSecurity.ts)の投資・[frontierExpansion.ts](../../src/generators/frontierExpansion.ts)の辺境拡張がそのまま消費する。**これが所感の懸念(「交易・防衛のどちらにも意味を持たない場所へ消える」)への直接的な回答**——新しい消費ロジックを一切増やさず、既存の州レベルシンクの原資を太らせるだけ。
+- 州治療への上納分は、既存の軍事維持費・[tradeSecurity.ts](/src/extensions/economy/generators/tradeSecurity.ts)の投資・[frontierExpansion.ts](/src/generators/frontierExpansion.ts)の辺境拡張がそのまま消費する。**これが所感の懸念(「交易・防衛のどちらにも意味を持たない場所へ消える」)への直接的な回答**——新しい消費ロジックを一切増やさず、既存の州レベルシンクの原資を太らせるだけ。
 - 販売税(既存、州が徴収)とは別枠の「上納」として扱う。フレーバー的には「豊かな都市からの献金・自主上納」であり、取引ごとに機械的に課される税とは性質が異なる。
 
 ## データモデル変更
@@ -154,11 +154,11 @@ export interface GuildKnowledgeStock {
 
 ### 確認した事実(711都市/16国家、`balanced`プロファイルでの実測、修正前)
 
-- `burgTreasuryPerPopulation`/`stateTreasuryPerPopulation`(economyStartMode.ts)は、初期シードと`getComfortableTreasuryLevel()`のpopulation floor([guildTreasury.ts](../../src/extensions/economy/generators/guildTreasury.ts))の**両方**に使われる同一定数だった。つまり生産実績ゼロの都市は生成直後から自分自身の「快適水準」ちょうどに立っており、ヘッドルームがゼロ。
+- `burgTreasuryPerPopulation`/`stateTreasuryPerPopulation`(economyStartMode.ts)は、初期シードと`getComfortableTreasuryLevel()`のpopulation floor([guildTreasury.ts](/src/extensions/economy/generators/guildTreasury.ts))の**両方**に使われる同一定数だった。つまり生産実績ゼロの都市は生成直後から自分自身の「快適水準」ちょうどに立っており、ヘッドルームがゼロ。
 - 生成直後で治療0の都市が95/711(13%)。**1ヶ月進めるだけで254/711(36%)まで増加**——ゼロ都市は静的に留まるのではなく、月ごとに増え続けていた。
 - 同じ1ヶ月でトップ都市(Brazad)の治療は53.68→158.9spと約3倍に急伸——`settleAnnual()`(黒字の州/マーケットへの上納)は年1回しか走らないため、1ヶ月の間は何の頭打ちも効かない。
 - `payoutStrugglingBurg()`(guildTreasury.ts)の困窮都市への還元経路は、その都市自身の`GuildKnowledgeStock`(過去の加工品利益の蓄積)しか原資にできない。craft guildが一度も立っていない都市(大半の農村)には**還元経路が皆無**だった。
-- Burgs Overviewの"Tres"列(`formatSilverAmount`、[index.tsx](../../src/extensions/economy/index.tsx))は`si()`のデフォルト0桁丸めを使っており、0.25sp・0.46spのような実在する非ゼロの治療が表示上「0」に潰れていた。
+- Burgs Overviewの"Tres"列(`formatSilverAmount`、[index.tsx](/src/extensions/economy/index.tsx))は`si()`のデフォルト0桁丸めを使っており、0.25sp・0.46spのような実在する非ゼロの治療が表示上「0」に潰れていた。
 
 ### 実施した変更
 

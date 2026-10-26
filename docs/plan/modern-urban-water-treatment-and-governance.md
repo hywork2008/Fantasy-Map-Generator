@@ -909,7 +909,7 @@ Tier 1-3 のマーカーは `treatmentOperationsFunding` に応じて不透明�
 
 ### 22.1 発見した構造的な穴
 
-`hasUpstreamIntake = (geography.hasRiver && !geography.isWetland) || hasRegionalWaterConnection`（[urbanWaterSystem.ts:976](../../src/extensions/economy/generators/urbanWaterSystem.ts#L976)）は、近代ラダーの投資条件（`settleModernWaterTreatmentInvestment`、[urbanWaterModernTreatment.ts](../../src/extensions/economy/generators/urbanWaterModernTreatment.ts)）の前提そのものである。川も広域水道もない村は、この条件を**どれだけ年月・時代が進んでも一度も満たせない**——`drinkingTreatmentTier`は生成時シード（§20）以外の経路では永久に0のまま。
+`hasUpstreamIntake = (geography.hasRiver && !geography.isWetland) || hasRegionalWaterConnection`（[urbanWaterSystem.ts#L976](/src/extensions/economy/generators/urbanWaterSystem.ts#L976)）は、近代ラダーの投資条件（`settleModernWaterTreatmentInvestment`、[urbanWaterModernTreatment.ts](/src/extensions/economy/generators/urbanWaterModernTreatment.ts)）の前提そのものである。川も広域水道もない村は、この条件を**どれだけ年月・時代が進んでも一度も満たせない**——`drinkingTreatmentTier`は生成時シード（§20）以外の経路では永久に0のまま。
 
 代替になりそうな`sanitaryEngineering`（era駆動の一般衛生知識ストック、`urbanWaterTech.ts`）も、`args.tier < 3`（レガシー`tier`ラダーが3以上）を満たさない限り一切成長しない（`evolveWaterTechStocks()`の`sanitaryTarget`）。つまり「時代が進めば知識だけで自然に上がる」信号はこれまで一切存在しなかった。
 

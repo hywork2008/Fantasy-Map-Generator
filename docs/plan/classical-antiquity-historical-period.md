@@ -6,7 +6,7 @@
 
 関連文書:
 
-- [technology-development-roadmap.md](./technology-development-roadmap.md) §16（前史ロードマップ。データ層は [technologyPrehistory.ts](../../src/generators/technologyPrehistory.ts) に実装済み・未接続）
+- [technology-development-roadmap.md](./technology-development-roadmap.md) §16（前史ロードマップ。データ層は [technologyPrehistory.ts](/src/generators/technologyPrehistory.ts) に実装済み・未接続）
 - [culture-civilization-overhaul.md](./culture-civilization-overhaul.md)（`TRADITION_PERIODS` と CE 側の `classicalAntiquity`）
 - [bridge-skew-policy.md](./bridge-skew-policy.md)（AGENTS.md の橋の原則）
 - [military-era-progression.md](./military-era-progression.md)
@@ -105,22 +105,22 @@
 
 | 箇所 | 内容 |
 | --- | --- |
-| [optionsState.ts:53](../../src/store/optionsState.ts#L53) / [WorldState.ts:153](../../src/types/WorldState.ts#L153) / [options.ts:1030](../../src/controllers/options.ts#L1030) / [GenerationSettingsTab.tsx:1024](../../src/ui/components/tabs/options/GenerationSettingsTab.tsx#L1024) | 型ユニオン（4か所に同じ列挙が重複）。共通型 `HistoricalPeriod` を1か所に定義して参照させる |
-| [goods-generator.ts:153](../../src/extensions/economy/generators/goods-generator.ts#L153) `GUNPOWDER_ERA_PRICE_MULTIPLIER` | 火薬関連 Goods の価格倍率。古代は `earlyMedieval` 以上の倍率 |
-| [literacyGeneration.ts:91](../../src/extensions/characters/literacyGeneration.ts#L91) `PERIOD_LITERACY` | 識字の上限。§6.4 |
-| [initialFleetTables.ts:7](../../src/extensions/shipbuilding/generators/initialFleetTables.ts#L7) | 独自の4値型。§6.6 |
-| [urbanWaterTech.ts:20](../../src/extensions/economy/generators/urbanWaterTech.ts#L20) | 独自の型と `waterTechCeilings`。§6.3 |
+| [optionsState.ts#L53](/src/store/optionsState.ts#L53) / [WorldState.ts#L153](/src/types/WorldState.ts#L153) / [options.ts#L1030](/src/controllers/options.ts#L1030) / [GenerationSettingsTab.tsx:1024](/src/ui/components/tabs/options/GenerationSettingsTab.tsx#L1024) | 型ユニオン（4か所に同じ列挙が重複）。共通型 `HistoricalPeriod` を1か所に定義して参照させる |
+| [goods-generator.ts#L153](/src/extensions/economy/generators/goods-generator.ts#L153) `GUNPOWDER_ERA_PRICE_MULTIPLIER` | 火薬関連 Goods の価格倍率。古代は `earlyMedieval` 以上の倍率 |
+| [literacyGeneration.ts#L91](/src/extensions/characters/literacyGeneration.ts#L91) `PERIOD_LITERACY` | 識字の上限。§6.4 |
+| [initialFleetTables.ts#L7](/src/extensions/shipbuilding/generators/initialFleetTables.ts#L7) | 独自の4値型。§6.6 |
+| [urbanWaterTech.ts#L20](/src/extensions/economy/generators/urbanWaterTech.ts#L20) | 独自の型と `waterTechCeilings`。§6.3 |
 
 ### 3.2 順序付きリストを持ち、古い方へ足す必要がある
 
 | 箇所 | 内容 |
 | --- | --- |
-| [civilizationTraditions.ts:18](../../src/data/civilizationTraditions.ts#L18) `TRADITION_PERIODS` | 既に `classicalAntiquity` が先頭。`lateAntiquity` を2番目に足す |
-| [cultures-generator.ts:1330](../../src/generators/cultures-generator.ts#L1330) `HISTORICAL_PERIOD_ORDER` | Industrial/Colonial の時代ゲート。先頭に2値 |
-| [urbanMorphology.ts:15](../../src/utils/urbanMorphology.ts#L15) | 階数。§6.5 |
-| [bridgeCrossingPolicy.ts:4](../../src/utils/bridgeCrossingPolicy.ts#L4) | 既に `classicalAntiquity: 300`。`lateAntiquity: 300` を足す |
-| [bridgeSkewPolicy.ts](../../src/utils/bridgeSkewPolicy.ts) `TIER_BY_PERIOD` | 未知の値は tier 0 に落ちるので動作は正しいが、明示する |
-| CE: [defenseClearance.ts:17](../../src/city-editor/generators/defenseClearance.ts#L17)・[guildFacilities.ts:12](../../src/city-editor/generators/guildFacilities.ts#L12)・[aerialLandmarks.ts:78](../../src/city-editor/generators/aerialLandmarks.ts#L78)・[wallShapes.ts:30](../../src/city-editor/generators/generation/skeleton/wallShapes.ts#L30)・[incomingCity.ts:521](../../src/city-editor/services/io/incomingCity.ts#L521)・[generationPanel.ts:195](../../src/city-editor/components/generationPanel.ts#L195)・[primitives.ts:37](../../src/city-editor/types/primitives.ts#L37) | CE は `classicalAntiquity` を既に扱う。`lateAntiquity` を足す |
+| [civilizationTraditions.ts#L18](/src/data/civilizationTraditions.ts#L18) `TRADITION_PERIODS` | 既に `classicalAntiquity` が先頭。`lateAntiquity` を2番目に足す |
+| [cultures-generator.ts#L1330](/src/generators/cultures-generator.ts#L1330) `HISTORICAL_PERIOD_ORDER` | Industrial/Colonial の時代ゲート。先頭に2値 |
+| [urbanMorphology.ts#L15](/src/utils/urbanMorphology.ts#L15) | 階数。§6.5 |
+| [bridgeCrossingPolicy.ts#L4](/src/utils/bridgeCrossingPolicy.ts#L4) | 既に `classicalAntiquity: 300`。`lateAntiquity: 300` を足す |
+| [bridgeSkewPolicy.ts](/src/utils/bridgeSkewPolicy.ts) `TIER_BY_PERIOD` | 未知の値は tier 0 に落ちるので動作は正しいが、明示する |
+| CE: [defenseClearance.ts#L17](/src/city-editor/generators/defenseClearance.ts#L17)・[guildFacilities.ts#L12](/src/city-editor/generators/guildFacilities.ts#L12)・[aerialLandmarks.ts#L78](/src/city-editor/generators/aerialLandmarks.ts#L78)・[wallShapes.ts#L30](/src/city-editor/generators/generation/skeleton/wallShapes.ts#L30)・[incomingCity.ts#L521](/src/city-editor/services/io/incomingCity.ts#L521)・[generationPanel.ts#L195](/src/city-editor/components/generationPanel.ts#L195)・[primitives.ts#L37](/src/city-editor/types/primitives.ts#L37) | CE は `classicalAntiquity` を既に扱う。`lateAntiquity` を足す |
 
 ### 3.3 集合・分岐で判定していて、未知の値が「後の時代」と同じ扱いになる危険がある
 
@@ -128,20 +128,20 @@
 
 | 箇所 | 現在の判定 | 古代を足したときの危険 |
 | --- | --- | --- |
-| [millCapacity.ts:66](../../src/extensions/economy/generators/millCapacity.ts#L66) `WINDMILL_PERIODS` | 含まれる時代だけ風車可 | 安全（含めなければ風車無し）。正しい |
-| [urbanWaterSystem.ts:436](../../src/extensions/economy/generators/urbanWaterSystem.ts#L436) `CIVIC_WATERWORKS_TECH_LEVEL` | 中世前期は意図的に不在 | 古代は**逆に水道網を持つ**ので、単に不在にすると史実と逆になる。§6.3 |
-| [castlePatterns.ts:453](../../src/city-editor/renderers/castlePatterns.ts#L453) | `default → norman-keep` | `lateAntiquity` が norman-keep になる。古代末期の城壁都市型を割り当てる |
-| [civicPlacement.ts:101](../../src/city-editor/generators/civicPlacement.ts#L101) | `classicalAntiquity`/`earlyMedieval` で西向きアプス | `lateAntiquity` も含める |
-| [initialFleet.ts:384](../../src/extensions/shipbuilding/generators/initialFleet.ts#L384) `resolveHistoricalPeriod` | 4値以外は何かに丸める | 丸め先を確認し、古代用の分岐を足す |
-| [relationshipCompatibility.ts:418](../../src/extensions/characters/relationshipCompatibility.ts#L418) | 不明時 `earlyMedieval` | 動作は保守的で可 |
-| [goodsDisplaySelection.ts:39](../../src/extensions/economy/store/goodsDisplaySelection.ts#L39) | 中世前期は火薬 Goods を隠す | 古代も隠す側へ |
-| [cultureTradition.ts:127](../../src/utils/cultureTradition.ts#L127) `worldTraditionPeriod` | Antique 文化セットなら `classicalAntiquity` に読み替え | FMG で古代を選べるようになるので、選んだ時代を優先し、Antique セット × 中世以降のときだけ読み替える形に整理 |
+| [millCapacity.ts#L66](/src/extensions/economy/generators/millCapacity.ts#L66) `WINDMILL_PERIODS` | 含まれる時代だけ風車可 | 安全（含めなければ風車無し）。正しい |
+| [urbanWaterSystem.ts#L436](/src/extensions/economy/generators/urbanWaterSystem.ts#L436) `CIVIC_WATERWORKS_TECH_LEVEL` | 中世前期は意図的に不在 | 古代は**逆に水道網を持つ**ので、単に不在にすると史実と逆になる。§6.3 |
+| [castlePatterns.ts#L453](/src/city-editor/renderers/castlePatterns.ts#L453) | `default → norman-keep` | `lateAntiquity` が norman-keep になる。古代末期の城壁都市型を割り当てる |
+| [civicPlacement.ts#L101](/src/city-editor/generators/civicPlacement.ts#L101) | `classicalAntiquity`/`earlyMedieval` で西向きアプス | `lateAntiquity` も含める |
+| [initialFleet.ts#L384](/src/extensions/shipbuilding/generators/initialFleet.ts#L384) `resolveHistoricalPeriod` | 4値以外は何かに丸める | 丸め先を確認し、古代用の分岐を足す |
+| [relationshipCompatibility.ts#L418](/src/extensions/characters/relationshipCompatibility.ts#L418) | 不明時 `earlyMedieval` | 動作は保守的で可 |
+| [goodsDisplaySelection.ts#L39](/src/extensions/economy/store/goodsDisplaySelection.ts#L39) | 中世前期は火薬 Goods を隠す | 古代も隠す側へ |
+| [cultureTradition.ts#L127](/src/utils/cultureTradition.ts#L127) `worldTraditionPeriod` | Antique 文化セットなら `classicalAntiquity` に読み替え | FMG で古代を選べるようになるので、選んだ時代を優先し、Antique セット × 中世以降のときだけ読み替える形に整理 |
 
 ### 3.4 技術システム
 
-- [technologyProgress.ts:382](../../src/generators/technologyProgress.ts#L382) `HISTORICAL_PERIOD_FRONTIER_ERA` は `ageOfExploration` 以降だけを持ち、中世3値は `def.startStage`（era 0 は `diffused`）に落ちる。
-- [technologyDefinitions.ts:15](../../src/generators/technologyDefinitions.ts#L15) `START_PROFILE` の8ノード: `threeFieldAgriculture` / `ironToolsAndDraftAnimals` / `waterAndWindMills` / `basicMetallurgy` / `stoneBuildingAndRoads` / `coastalNavigation` / `knightlyWarfare` / `literacyAndMarkets`。すべて `startStage: "diffused"`、閾値なし。
-- `TechnologyEraBand` は `0..8` の数値で、前史は [technologyPrehistory.ts](../../src/generators/technologyPrehistory.ts) の別型 `PrehistoryEra`。前史の18ノードは評価器に接続されていない。
+- [technologyProgress.ts#L382](/src/generators/technologyProgress.ts#L382) `HISTORICAL_PERIOD_FRONTIER_ERA` は `ageOfExploration` 以降だけを持ち、中世3値は `def.startStage`（era 0 は `diffused`）に落ちる。
+- [technologyDefinitions.ts#L15](/src/generators/technologyDefinitions.ts#L15) `START_PROFILE` の8ノード: `threeFieldAgriculture` / `ironToolsAndDraftAnimals` / `waterAndWindMills` / `basicMetallurgy` / `stoneBuildingAndRoads` / `coastalNavigation` / `knightlyWarfare` / `literacyAndMarkets`。すべて `startStage: "diffused"`、閾値なし。
+- `TechnologyEraBand` は `0..8` の数値で、前史は [technologyPrehistory.ts](/src/generators/technologyPrehistory.ts) の別型 `PrehistoryEra`。前史の18ノードは評価器に接続されていない。
 
 ---
 
@@ -197,7 +197,7 @@
 | 医学（ガレノス、軍病院） | era 1 `surgicalAnatomy` / `hospitalMedicine` | known | known |
 | 舗装道路 | Route の `pavedShare`（Public Works / L8） | 主要道を高い舗装率で生成 | 中程度 |
 
-`mathAstronomyGeography` は橋の skew tier 1 のゲートでもある（[bridgeSkewPolicy.ts](../../src/utils/bridgeSkewPolicy.ts) `BRIDGE_SKEW_TECHNOLOGY_GATES`）。古代は `known` 開始で `adopted` 未満なので tier は 0 のまま。AGENTS.md の原則と矛盾しない。
+`mathAstronomyGeography` は橋の skew tier 1 のゲートでもある（[bridgeSkewPolicy.ts](/src/utils/bridgeSkewPolicy.ts) `BRIDGE_SKEW_TECHNOLOGY_GATES`）。古代は `known` 開始で `adopted` 未満なので tier は 0 のまま。AGENTS.md の原則と矛盾しない。
 
 ### 5.3 既存 `earlyMedieval` の時代錯誤（要決定）
 

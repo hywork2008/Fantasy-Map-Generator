@@ -14,7 +14,7 @@ TownGeneratorTS の生成順 `~/Projects/TownGeneratorTS/docs/city-generation-an
 
 | 論点 | 結論 |
 | ---- | ---- |
-| FMG 側の変更 | **不要**。7 個の真偽値は既に `BurgSiteDescriptor.burg.*` に含まれ、`src/services/burgSiteDescriptor.ts:213-219` が出力し、`burg-editor.ts` の `copyCityGeneratorInput` / `openCityGenerator` が両方ハンドオフ済み。`DESCRIPTOR_VERSION` バンプも不要 |
+| FMG 側の変更 | **不要**。7 個の真偽値は既に `BurgSiteDescriptor.burg.*` に含まれ、`src/services/burgSiteDescriptor.ts#L213-219` が出力し、`burg-editor.ts` の `copyCityGeneratorInput` / `openCityGenerator` が両方ハンドオフ済み。`DESCRIPTOR_VERSION` バンプも不要 |
 | City 側の現状 | パイプラインはフラグを **一切読んでいない**。`grep` すると型定義・`synthSite.ts`（合成時に population から捏造）・テストにしか出てこない。`siteInput.ts` の `siteToParams` / `siteToGeography` は `site.burg.*` を参照しない |
 | 追加する構造 | `CityGeography`（水・道）と対になる `CityProgram`（建造物プログラム）。`generateCity(params, geo, program)` の第 3 引数。デフォルト全 false で既存テスト互換 |
 | フラグの作用先 | `walls` → S3 の緻密度 + **S4**（内周ループを描画壁に昇格）。`plaza` / `citadel` → **S4**（内周ループ確定と同時に配置）。`temple` / `port`（harbor 街区） / `shanty` → **S6**（街区割り当て）。港の水門のみ S4。TownGeneratorTS では 2.3（壁・城塞）と 2.5（街区）に対応 |
@@ -28,7 +28,7 @@ TownGeneratorTS の生成順 `~/Projects/TownGeneratorTS/docs/city-generation-an
 
 ### 1.1 データはすでに届いている
 
-`site/burgSiteDescriptor.ts:76-92`:
+`site/burgSiteDescriptor.ts#L76-92`:
 
 ```ts
 burg: {
@@ -45,7 +45,7 @@ FMG 側 `getBurgSiteDescriptor()` は `Boolean(burg.port)` 等をそのまま詰
 
 - `site/siteInput.ts` … `frame` と `rivers` / `waterbody` / `roads` だけを見る。`burg` は `seed` のみ。
 - `core/pipeline.ts` … `CityParams` + `CityGeography` しか受け取らない。`burg` フラグを渡す経路がない。
-- `site/synthSite.ts:46,108-114` … スタンドアロン時に `walls = population >= 3_000`、
+- `site/synthSite.ts#L46,108-114` … スタンドアロン時に `walls = population >= 3_000`、
   `plaza = population >= 1_500` などと **勝手に決めている**（UI から変えられない）。
 - `ui/CityGeneratorPage.ts` … トグルは Coast / Rivers / River shape / Relief のみ。
 
@@ -184,7 +184,7 @@ export function defaultFeatures(population: number): CityFeatureSet {
 
 ### 3.3 `site/synthSite.ts` — 捏造をやめる
 
-`synthSite.ts:46,108-114` の population ヒューリスティックを削除し、`config.features` を
+`synthSite.ts#L46,108-114` の population ヒューリスティックを削除し、`config.features` を
 `descriptor.burg.*` にそのまま書く。`port` は `config.features.port && waterbody !== null`
 （`synthSite` は既に `waterbody` を計算済みなので整合が取れる）。`capital: false` 固定。
 
@@ -203,7 +203,7 @@ Features   [Port] [Walls] [Citadel] [Plaza] [Temple] [Shanty]
 
 ### 3.5 インポートモードの読み出し（`describeDescriptor`）
 
-`CityGeneratorPage.ts:328` の rows に追記（読み取り専用）:
+`CityGeneratorPage.ts#L328` の rows に追記（読み取り専用）:
 
 ```text
 Walls      Yes / No
@@ -238,7 +238,7 @@ Shanty     Yes / No
 `pipeline.ts` が `classifyUrban` に渡す半径を `program.walls` で調整:
 
 - `walls: true` → `cityRadiusMeters * WALLED_COMPACTION`（≈ 0.92）。壁内は密なので市街核を締める。
-- `walls: false` → 係数 1.0。加えて `RIBBON_REACH`（`classifyUrban.ts:25`）を実質 1.8 まで伸ばし、
+- `walls: false` → 係数 1.0。加えて `RIBBON_REACH`（`classifyUrban.ts#L25`）を実質 1.8 まで伸ばし、
   outskirts リボンを長く引く（開放集落は街道沿いにだらだら伸びる）。
 
 **S4（M4b、`design.md §4.2` の S4、TownGeneratorTS 2.2–2.3 相当）**

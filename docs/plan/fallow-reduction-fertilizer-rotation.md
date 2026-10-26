@@ -2,7 +2,7 @@
 
 ## 状態
 
-**設計案（未実装）**。ユーザーからの指摘「リン酸/カリウム/窒素肥料でセルの `foodCapacity` が元の値より大きくなり得るが、三圃制農業・四圃輪作を省いて収量を最大化する実装は既にあるか、するのは妥当か」を発端に、既存の収量モデルを監査した結果をもとにした設計。監査の過程で、カリウム肥料相当の `Potash` Good が既存であり（[goods-generator.ts:2376](../../src/extensions/economy/generators/goods-generator.ts#L2376)、木灰から精製する工業用炭酸カリウム）ながらガラス・石鹸向けの一般需要 (`demandCoverage: utilities`) にしか接続されておらず、農業への経路が無いことが判明したため、その接続（§4）も本書の設計範囲に含める。
+**設計案（未実装）**。ユーザーからの指摘「リン酸/カリウム/窒素肥料でセルの `foodCapacity` が元の値より大きくなり得るが、三圃制農業・四圃輪作を省いて収量を最大化する実装は既にあるか、するのは妥当か」を発端に、既存の収量モデルを監査した結果をもとにした設計。監査の過程で、カリウム肥料相当の `Potash` Good が既存であり（[goods-generator.ts#L2376](/src/extensions/economy/generators/goods-generator.ts#L2376)、木灰から精製する工業用炭酸カリウム）ながらガラス・石鹸向けの一般需要 (`demandCoverage: utilities`) にしか接続されておらず、農業への経路が無いことが判明したため、その接続（§4）も本書の設計範囲に含める。
 
 本書は独立した2つの機能を扱う:
 
@@ -14,10 +14,10 @@
 ### 目的
 
 - 現状 `ANNUAL_SOWN_SHARE = 0.67`（三圃制の「2/3作付・1/3休閑」比率）が、技術・肥料の採用レベルに関わらず**全セル・全時代で固定**になっている点を是正する。四圃輪作と化学窒素肥料は、史実では休閑・マメ科輪作が担っていた地力回復機能を代替し、休閑地なしの連作を可能にした技術であり、この効果を作付面積比率という別軸でモデル化する（設計A）。
-- `ruralFoodCapacity`（＝ユーザーの言う「セルの `foodCapacity`」の内部名、[agriculturalLandUse.ts:195](../../src/extensions/economy/generators/agriculturalLandUse.ts#L195)）と `requiredFieldAreaHectares()` の両方が、同じ「実効作付面積比率」を参照するようにする。
-- 既存の乗算チェーン方式（`AGTECH_YIELD_BONUS_MAX` 等、[agriculturalLandUse.ts:657-675](../../src/extensions/economy/generators/agriculturalLandUse.ts#L657-L675)）と同じ「独立した技術ごとの直接項を足し込む」設計を踏襲し、既存コードとの一貫性を保つ。
+- `ruralFoodCapacity`（＝ユーザーの言う「セルの `foodCapacity`」の内部名、[agriculturalLandUse.ts#L195](/src/extensions/economy/generators/agriculturalLandUse.ts#L195)）と `requiredFieldAreaHectares()` の両方が、同じ「実効作付面積比率」を参照するようにする。
+- 既存の乗算チェーン方式（`AGTECH_YIELD_BONUS_MAX` 等、[agriculturalLandUse.ts#L657-675](/src/extensions/economy/generators/agriculturalLandUse.ts#L657-L675)）と同じ「独立した技術ごとの直接項を足し込む」設計を踏襲し、既存コードとの一貫性を保つ。
 - 既存の `Potash` Good を、`FertilizerInvestment`/`NitrogenFertilizerInvestment` と同型の農村施肥ストックに接続し、収量ボーナス軸に反映する（設計B）。新しい Good・鉱物・技術ノードは追加しない。
-- 設計Aは新しい Good・技術ノード・市場シグナルを一切追加しない。既に `AgriculturalConditions` に流れている `fourCourseRotationByCell` / `nitrogenFertilizerStockByCell`（[agriculturalLandUse.ts:142](../../src/extensions/economy/generators/agriculturalLandUse.ts#L142), [:172](../../src/extensions/economy/generators/agriculturalLandUse.ts#L172)）だけを使い、`agriculturalLandUse.ts` 内部の計算式変更のみで完結させる。
+- 設計Aは新しい Good・技術ノード・市場シグナルを一切追加しない。既に `AgriculturalConditions` に流れている `fourCourseRotationByCell` / `nitrogenFertilizerStockByCell`（[agriculturalLandUse.ts#L142](/src/extensions/economy/generators/agriculturalLandUse.ts#L142), [:172](/src/extensions/economy/generators/agriculturalLandUse.ts#L172)）だけを使い、`agriculturalLandUse.ts` 内部の計算式変更のみで完結させる。
 
 ### 非目的（本書の範囲外）
 
@@ -33,18 +33,18 @@
 
 | 項目 | 現状 | 参照 |
 | --- | --- | --- |
-| 作付面積比率 | `ANNUAL_SOWN_SHARE = 0.67` はモジュール定数。技術・肥料レベルに関わらず全セル・全時代で不変。 | [agriculturalLandUse.ts:26](../../src/extensions/economy/generators/agriculturalLandUse.ts#L26) |
-| 利用箇所①（食料容量の天井） | `supportedPeople(cultivableHectares, yieldKgPerHa)` が `ANNUAL_SOWN_SHARE` を使って「全耕作可能地を使った場合の食料生産上限」を計算し、`ruralFoodCapacity`/`foodPotential` に反映される。呼び出し元は1箇所のみ。 | [agriculturalLandUse.ts:557-562](../../src/extensions/economy/generators/agriculturalLandUse.ts#L557-L562), [:326-328](../../src/extensions/economy/generators/agriculturalLandUse.ts#L326-L328) |
-| 利用箇所②（必要面積の逆算） | `requiredFieldAreaHectares(people, yieldKgPerHa)` が同じ定数を使い、人口を養うのに必要な「休閑込みの総圃場面積」を逆算する。呼び出し元は `calculateAgriculturalLandProfile`（実際の作付面積算定）と `reconcileForestClearanceForAgriculture`（開墾判定）の2箇所。 | [agriculturalLandUse.ts:413-418](../../src/extensions/economy/generators/agriculturalLandUse.ts#L413-L418), [:338](../../src/extensions/economy/generators/agriculturalLandUse.ts#L338), [:509](../../src/extensions/economy/generators/agriculturalLandUse.ts#L509) |
-| 収量式の既存項 | `calculateYieldKgPerHectare()` は `fourCourseRotationByCell` と `nitrogenFertilizerStockByCell`/`fertilizerStockByCell` を既に受け取り、単位面積あたり収量への乗算ボーナスとしてのみ使っている。休閑面積比率には一切影響しない。 | [agriculturalLandUse.ts:657-675](../../src/extensions/economy/generators/agriculturalLandUse.ts#L657-L675) |
-| 四圃輪作の他の効果 | 収量+12%・労働-8%に加え、`soilFertility` の回復ボーナス（`FOUR_COURSE_SOIL_RESTORATION_BONUS`）と `floweringForageArea`（クローバー放牧地、既存 `cultivatedArea` の内訳の一部を占めるだけで総面積を増やさない）を持つ。 | [agriculturalLandUse.ts:1030-1031](../../src/extensions/economy/generators/agriculturalLandUse.ts#L1030-L1031), [:357-358](../../src/extensions/economy/generators/agriculturalLandUse.ts#L357-L358) |
+| 作付面積比率 | `ANNUAL_SOWN_SHARE = 0.67` はモジュール定数。技術・肥料レベルに関わらず全セル・全時代で不変。 | [agriculturalLandUse.ts#L26](/src/extensions/economy/generators/agriculturalLandUse.ts#L26) |
+| 利用箇所①（食料容量の天井） | `supportedPeople(cultivableHectares, yieldKgPerHa)` が `ANNUAL_SOWN_SHARE` を使って「全耕作可能地を使った場合の食料生産上限」を計算し、`ruralFoodCapacity`/`foodPotential` に反映される。呼び出し元は1箇所のみ。 | [agriculturalLandUse.ts#L557-562](/src/extensions/economy/generators/agriculturalLandUse.ts#L557-L562), [:326-328](/src/extensions/economy/generators/agriculturalLandUse.ts#L326-L328) |
+| 利用箇所②（必要面積の逆算） | `requiredFieldAreaHectares(people, yieldKgPerHa)` が同じ定数を使い、人口を養うのに必要な「休閑込みの総圃場面積」を逆算する。呼び出し元は `calculateAgriculturalLandProfile`（実際の作付面積算定）と `reconcileForestClearanceForAgriculture`（開墾判定）の2箇所。 | [agriculturalLandUse.ts#L413-418](/src/extensions/economy/generators/agriculturalLandUse.ts#L413-L418), [:338](/src/extensions/economy/generators/agriculturalLandUse.ts#L338), [:509](/src/extensions/economy/generators/agriculturalLandUse.ts#L509) |
+| 収量式の既存項 | `calculateYieldKgPerHectare()` は `fourCourseRotationByCell` と `nitrogenFertilizerStockByCell`/`fertilizerStockByCell` を既に受け取り、単位面積あたり収量への乗算ボーナスとしてのみ使っている。休閑面積比率には一切影響しない。 | [agriculturalLandUse.ts#L657-675](/src/extensions/economy/generators/agriculturalLandUse.ts#L657-L675) |
+| 四圃輪作の他の効果 | 収量+12%・労働-8%に加え、`soilFertility` の回復ボーナス（`FOUR_COURSE_SOIL_RESTORATION_BONUS`）と `floweringForageArea`（クローバー放牧地、既存 `cultivatedArea` の内訳の一部を占めるだけで総面積を増やさない）を持つ。 | [agriculturalLandUse.ts#L1030-1031](/src/extensions/economy/generators/agriculturalLandUse.ts#L1030-L1031), [:357-358](/src/extensions/economy/generators/agriculturalLandUse.ts#L357-L358) |
 | `soilFertility` と化学肥料の非接続 | `phosphateFertilizer`/窒素肥料はいずれも `soilFertility` に触れない設計判断が明記済み。理由は (a) `MAX_SOIL_FERTILITY = 1.1` の天井で史実の効果を表現しきれない、(b) 購入財の効果と土壌疲弊という別物理量を混線させると既存の「乗算チェーンへの直接項」という設計から外れる。 | [phosphate-fertilizer-vertical-slice.md:352-355](./phosphate-fertilizer-vertical-slice.md#L352) |
-| データの供給経路 | `fourCourseRotationByCell`/`fertilizerStockByCell`/`nitrogenFertilizerStockByCell` は `DevelopmentPotentialModule.getAgriculturalConditions()` で毎年解決され、`AgriculturalConditions` 経由で既に `agriculturalLandUse.ts` に渡っている。 | [developmentPotential.ts:353-383](../../src/extensions/economy/generators/developmentPotential.ts#L353-L383) |
-| カリウム肥料 (`Potash`) | Good自体は既存（木灰から精製、`recipes: [{ Ash: 1.5 }]`、`chance: 0` で鉱山採掘ではない）。`requiredTechnology` は無し。`demandCoverage: { utilities: 0.3 }` に加え、Soap（3レシピ）・Glass（`White sand`との複合レシピ）の原料としても消費される。農業・`soilFertility`・収量式への接続は無く、独立した農村施肥ストック（`Market.potashFertilizerStock`相当）も存在しない。 | [goods-generator.ts:2376-2389](../../src/extensions/economy/generators/goods-generator.ts#L2376-L2389), [:1396](../../src/extensions/economy/generators/goods-generator.ts#L1396), [:2097-2099](../../src/extensions/economy/generators/goods-generator.ts#L2097-L2099) |
-| 既存Fertilizer投資モジュールの型 | `FertilizerInvestment`/`NitrogenFertilizerInvestment` はほぼ同一構造（対象Good名・定数名のみ異なる）: 対象Goodの `isGoodEnabled()` チェック→市場ごとの`cultivatedArea`集計→`TARGET_*_PER_HECTARE`から購入希望量算出→`marketTreasury`予算内で`Markets.consumeForMarketInvestment()`→EWMAで`market.*Stock`を更新。 | [fertilizerInvestment.ts](../../src/extensions/economy/generators/fertilizerInvestment.ts), [nitrogenFertilizerInvestment.ts](../../src/extensions/economy/generators/nitrogenFertilizerInvestment.ts) |
-| `isGoodEnabled()` の判定基準 | `requiredTechnology` が無い Good（`Potash`・`Tools`など）は無条件で有効。`AgTechInvestment`（Tools購入）も技術ゲート無しで動作している既存の前例。 | [goods-generator.ts:133-139](../../src/extensions/economy/generators/goods-generator.ts#L133-L139), [agTechInvestment.ts:58-59](../../src/extensions/economy/generators/agTechInvestment.ts#L58-L59) |
-| 年次呼び出し順序 | `index.tsx` が `AgTechInvestment→FertilizerInvestment→NitrogenFertilizerInvestment→IndustrialTechInvestment` の順に毎年1回呼ぶ。「農業投資はState/鉱山投資より優先」という明記済みの原則。 | [index.tsx:2944-2957](../../src/extensions/economy/index.tsx#L2944-L2957) |
-| settle-year guardとsave互換性 | `fertilizerInvestmentLastSettledYear`等はGood/技術ノードを伴わない単純スカラーで、`economyContext.ts`の`yearFromSlice`/`writeYearToSlice`パターンに載るだけ。`extensionStateSlices.ts`への個別登録は無い（`Market.fertilizerStock`/`nitrogenFertilizerStock`も同様、オプショナル数値フィールドの追加のみで済んでいる）。 | [economyContext.ts:1698-1716](../../src/extensions/economy/economyContext.ts#L1698-L1716) |
+| データの供給経路 | `fourCourseRotationByCell`/`fertilizerStockByCell`/`nitrogenFertilizerStockByCell` は `DevelopmentPotentialModule.getAgriculturalConditions()` で毎年解決され、`AgriculturalConditions` 経由で既に `agriculturalLandUse.ts` に渡っている。 | [developmentPotential.ts#L353-383](/src/extensions/economy/generators/developmentPotential.ts#L353-L383) |
+| カリウム肥料 (`Potash`) | Good自体は既存（木灰から精製、`recipes: [{ Ash: 1.5 }]`、`chance: 0` で鉱山採掘ではない）。`requiredTechnology` は無し。`demandCoverage: { utilities: 0.3 }` に加え、Soap（3レシピ）・Glass（`White sand`との複合レシピ）の原料としても消費される。農業・`soilFertility`・収量式への接続は無く、独立した農村施肥ストック（`Market.potashFertilizerStock`相当）も存在しない。 | [goods-generator.ts#L2376-2389](/src/extensions/economy/generators/goods-generator.ts#L2376-L2389), [:1396](/src/extensions/economy/generators/goods-generator.ts#L1396), [:2097-2099](/src/extensions/economy/generators/goods-generator.ts#L2097-L2099) |
+| 既存Fertilizer投資モジュールの型 | `FertilizerInvestment`/`NitrogenFertilizerInvestment` はほぼ同一構造（対象Good名・定数名のみ異なる）: 対象Goodの `isGoodEnabled()` チェック→市場ごとの`cultivatedArea`集計→`TARGET_*_PER_HECTARE`から購入希望量算出→`marketTreasury`予算内で`Markets.consumeForMarketInvestment()`→EWMAで`market.*Stock`を更新。 | [fertilizerInvestment.ts](/src/extensions/economy/generators/fertilizerInvestment.ts), [nitrogenFertilizerInvestment.ts](/src/extensions/economy/generators/nitrogenFertilizerInvestment.ts) |
+| `isGoodEnabled()` の判定基準 | `requiredTechnology` が無い Good（`Potash`・`Tools`など）は無条件で有効。`AgTechInvestment`（Tools購入）も技術ゲート無しで動作している既存の前例。 | [goods-generator.ts#L133-139](/src/extensions/economy/generators/goods-generator.ts#L133-L139), [agTechInvestment.ts#L58-59](/src/extensions/economy/generators/agTechInvestment.ts#L58-L59) |
+| 年次呼び出し順序 | `index.tsx` が `AgTechInvestment→FertilizerInvestment→NitrogenFertilizerInvestment→IndustrialTechInvestment` の順に毎年1回呼ぶ。「農業投資はState/鉱山投資より優先」という明記済みの原則。 | [index.tsx:2944-2957](/src/extensions/economy/index.tsx#L2944-L2957) |
+| settle-year guardとsave互換性 | `fertilizerInvestmentLastSettledYear`等はGood/技術ノードを伴わない単純スカラーで、`economyContext.ts`の`yearFromSlice`/`writeYearToSlice`パターンに載るだけ。`extensionStateSlices.ts`への個別登録は無い（`Market.fertilizerStock`/`nitrogenFertilizerStock`も同様、オプショナル数値フィールドの追加のみで済んでいる）。 | [economyContext.ts#L1698-1716](/src/extensions/economy/economyContext.ts#L1698-L1716) |
 
 ## 3. 設計A: 休閑地削減（輪作・窒素肥料）
 
@@ -124,11 +124,11 @@ function supportedPeople(
 }
 ```
 
-3つの呼び出し箇所（[:326](../../src/extensions/economy/generators/agriculturalLandUse.ts#L326)・[:338](../../src/extensions/economy/generators/agriculturalLandUse.ts#L338)・[:509](../../src/extensions/economy/generators/agriculturalLandUse.ts#L509)）で `calculateEffectiveSownShare(conditions, cellId)` を一度計算し、`supportedPeople`/`requiredFieldAreaHectares` に渡す。`conditions` はすべての呼び出し箇所で既にスコープ内にあるため、シグネチャの変更は最小限で済む。
+3つの呼び出し箇所（[:326](/src/extensions/economy/generators/agriculturalLandUse.ts#L326)・[:338](/src/extensions/economy/generators/agriculturalLandUse.ts#L338)・[:509](/src/extensions/economy/generators/agriculturalLandUse.ts#L509)）で `calculateEffectiveSownShare(conditions, cellId)` を一度計算し、`supportedPeople`/`requiredFieldAreaHectares` に渡す。`conditions` はすべての呼び出し箇所で既にスコープ内にあるため、シグネチャの変更は最小限で済む。
 
 ### 3.4 なぜ `soilFertility` に触れないか
 
-リン酸肥料スライスと同じ理由をそのまま踏襲する。加えて、本機能固有の理由が1つある: `soilFertility` の疲弊・回復式（`advanceAgriculturalSoils()`、[agriculturalLandUse.ts:1005-1059](../../src/extensions/economy/generators/agriculturalLandUse.ts#L1005-L1059)）は「**作付済みの土地で何を育てているか**（主穀比率・マメ科比率）」を扱っており、本機能が扱う「**耕作可能地のうちどれだけが今年作付されているか**」とは別の物理量である。三圃制の「休閑」と、輪作の「クローバー・マメ科への転作」は歴史的にはどちらも "rotation" と呼ばれるが、このコードベースでは既に別の変数（面積比率 vs 土壌状態）に分離されており、本機能はその分離を維持したまま面積比率側だけを拡張する。したがって二重計上の心配はない。
+リン酸肥料スライスと同じ理由をそのまま踏襲する。加えて、本機能固有の理由が1つある: `soilFertility` の疲弊・回復式（`advanceAgriculturalSoils()`、[agriculturalLandUse.ts#L1005-1059](/src/extensions/economy/generators/agriculturalLandUse.ts#L1005-L1059)）は「**作付済みの土地で何を育てているか**（主穀比率・マメ科比率）」を扱っており、本機能が扱う「**耕作可能地のうちどれだけが今年作付されているか**」とは別の物理量である。三圃制の「休閑」と、輪作の「クローバー・マメ科への転作」は歴史的にはどちらも "rotation" と呼ばれるが、このコードベースでは既に別の変数（面積比率 vs 土壌状態）に分離されており、本機能はその分離を維持したまま面積比率側だけを拡張する。したがって二重計上の心配はない。
 
 ### 3.5 なぜ Phosphate Fertilizer / Potash を対象にしないか
 
@@ -226,16 +226,16 @@ export class PotashFertilizerInvestmentModule {
     const potashGood = getGoods().find(good => good.name === "Potash");
     if (!potashGood || !isGoodEnabled(potashGood)) return true;
     // 以下、cultivatedHectaresByMarket 集計 → 予算内購入 → market.potashFertilizerStock の
-    // EWMA更新まで、fertilizerInvestment.ts:47-92 と同一パターン。
+    // EWMA更新まで、fertilizerInvestment.ts#L47-92 と同一パターン。
   }
 }
 
 export const PotashFertilizerInvestment = new PotashFertilizerInvestmentModule();
 ```
 
-`Potash` は `requiredTechnology` を持たないため `isGoodEnabled()` は常に真を返す（[goods-generator.ts:133-139](../../src/extensions/economy/generators/goods-generator.ts#L133-L139)）。これは新しい技術ゲートを追加しないことを意味し、`AgTechInvestment`（Tools購入）と同じ「技術に依存しない、生産余力と治安・市場網だけに依存する」投資として扱う。
+`Potash` は `requiredTechnology` を持たないため `isGoodEnabled()` は常に真を返す（[goods-generator.ts#L133-139](/src/extensions/economy/generators/goods-generator.ts#L133-L139)）。これは新しい技術ゲートを追加しないことを意味し、`AgTechInvestment`（Tools購入）と同じ「技術に依存しない、生産余力と治安・市場網だけに依存する」投資として扱う。
 
-`economyContext.ts` に `getPotashFertilizerInvestmentLastSettledYear`/`setPotashFertilizerInvestmentLastSettledYear` を、既存の `getFertilizerInvestmentLastSettledYear` と同じ `yearFromSlice`/`writeYearToSlice` パターンで追加する（[economyContext.ts:1698-1705](../../src/extensions/economy/economyContext.ts#L1698-L1705)と同型）。
+`economyContext.ts` に `getPotashFertilizerInvestmentLastSettledYear`/`setPotashFertilizerInvestmentLastSettledYear` を、既存の `getFertilizerInvestmentLastSettledYear` と同じ `yearFromSlice`/`writeYearToSlice` パターンで追加する（[economyContext.ts#L1698-1705](/src/extensions/economy/economyContext.ts#L1698-L1705)と同型）。
 
 ### 4.5 呼び出し順序（`index.tsx`）
 
@@ -247,11 +247,11 @@ PotashFertilizerInvestment.settleAnnual(); // 追加 — 同じ marketTreasury.b
 IndustrialTechInvestment.settleAnnual();
 ```
 
-既存2兄弟と同じ「農業投資はState/鉱山投資より優先」という原則（[index.tsx:2944-2957](../../src/extensions/economy/index.tsx#L2944-L2957)、`rural-agtech-investment.md` §6.3）をそのまま延長する。
+既存2兄弟と同じ「農業投資はState/鉱山投資より優先」という原則（[index.tsx:2944-2957](/src/extensions/economy/index.tsx#L2944-L2957)、`rural-agtech-investment.md` §6.3）をそのまま延長する。
 
 ### 4.6 `developmentPotential.ts` 接続
 
-`resolveFertilizerStockByCell()` と同型の `resolvePotashFertilizerStockByCell()` を追加し、`getAgriculturalConditions()`（[developmentPotential.ts:353-383](../../src/extensions/economy/generators/developmentPotential.ts#L353-L383)）の戻り値に `potashFertilizerStockByCell: resolvePotashFertilizerStockByCell(cellCount)` を加える。
+`resolveFertilizerStockByCell()` と同型の `resolvePotashFertilizerStockByCell()` を追加し、`getAgriculturalConditions()`（[developmentPotential.ts#L353-383](/src/extensions/economy/generators/developmentPotential.ts#L353-L383)）の戻り値に `potashFertilizerStockByCell: resolvePotashFertilizerStockByCell(cellCount)` を加える。
 
 ### 4.7 二重計上リスクとその緩和
 
@@ -263,7 +263,7 @@ IndustrialTechInvestment.settleAnnual();
 
 ### 4.8 save互換性
 
-新規Goodを追加しないため `migrateXGoods()` は不要。`Market.potashFertilizerStock` はオプショナル数値フィールドの追加であり、既存の `fertilizerStock`/`nitrogenFertilizerStock` と同じく `extensionStateSlices.ts` への個別登録は不要（確認済み: 現行2兄弟もこのファイルに登録が無い、[economyContext.ts:1698-1716](../../src/extensions/economy/economyContext.ts#L1698-L1716)）。settle-year guardは `economyContext.ts` の既存スライス機構にキーを追加するのみで済む。
+新規Goodを追加しないため `migrateXGoods()` は不要。`Market.potashFertilizerStock` はオプショナル数値フィールドの追加であり、既存の `fertilizerStock`/`nitrogenFertilizerStock` と同じく `extensionStateSlices.ts` への個別登録は不要（確認済み: 現行2兄弟もこのファイルに登録が無い、[economyContext.ts#L1698-1716](/src/extensions/economy/economyContext.ts#L1698-L1716)）。settle-year guardは `economyContext.ts` の既存スライス機構にキーを追加するのみで済む。
 
 ## 5. Phase分割
 
