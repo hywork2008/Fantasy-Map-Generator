@@ -16,6 +16,7 @@ vi.mock("three", async importOriginal => ({
     setPixelRatio() {}
     setClearColor() {}
     setSize() {}
+    shadowMap = { enabled: false, type: THREE.PCFShadowMap, autoUpdate: true, needsUpdate: false };
     render = render;
     dispose() {}
   }
@@ -143,8 +144,65 @@ it("renders on demand, retains unchanged scene layers on reopen, and reflects ca
     flush();
     expect(render).toHaveBeenCalledTimes(6);
     expect(frames.size).toBe(0);
+    const panel = host.querySelector<HTMLDetailsElement>(".ce-sun-controls")!;
+    expect(panel.hidden).toBe(false);
+    const sun = scene.children.find(child => child instanceof THREE.DirectionalLight) as THREE.DirectionalLight;
+    expect(sun.castShadow).toBe(false);
+    const enabled = panel.querySelector<HTMLInputElement>('[name="enabled"]')!;
+    const settings = panel.querySelector<HTMLFieldSetElement>("fieldset")!;
+    expect(enabled.checked).toBe(false);
+    expect(settings.disabled).toBe(true);
+    enabled.checked = true;
+    enabled.dispatchEvent(new Event("change"));
+    expect(settings.disabled).toBe(false);
+    expect(sun.castShadow).toBe(true);
+    const casters: THREE.Mesh[] = [];
+    scene.traverse(object => {
+      if (object instanceof THREE.Mesh && object.castShadow) casters.push(object);
+    });
+    expect(casters.length).toBeGreaterThan(0);
+    expect(casters.every(mesh => mesh.receiveShadow)).toBe(true);
+    const currentChildren = [...scene.children];
+    const azimuth = panel.querySelector<HTMLInputElement>('[name="azimuth"]')!;
+    azimuth.value = "270";
+    azimuth.dispatchEvent(new Event("input"));
+    expect(sun.position.x).toBeLessThan(sun.target.position.x);
+    expect(sun.position.z).toBeCloseTo(sun.target.position.z);
+    const intensity = panel.querySelector<HTMLInputElement>('[name="intensity"]')!;
+    intensity.value = "50";
+    intensity.dispatchEvent(new Event("input"));
+    expect(sun.intensity).toBe(0.5);
+    const preset = panel.querySelector<HTMLSelectElement>('[name="colorPreset"]')!;
+    const color = panel.querySelector<HTMLInputElement>('[name="color"]')!;
+    for (const value of ["#ff8a80", "#ff6040"]) {
+      preset.value = value;
+      preset.dispatchEvent(new Event("change"));
+      expect(color.value).toBe(value);
+      expect(sun.color.getHexString()).toBe(value.slice(1));
+    }
+    color.value = "#aabbff";
+    color.dispatchEvent(new Event("input"));
+    expect(sun.color.getHexString()).toBe("aabbff");
+    expect(preset.value).toBe("custom");
+    expect(JSON.parse(localStorage.getItem("fmg-city-editor:sun-lighting")!).color).toBe("#aabbff");
+    const shadows = panel.querySelector<HTMLInputElement>('[name="shadows"]')!;
+    shadows.checked = false;
+    shadows.dispatchEvent(new Event("change"));
+    expect(sun.castShadow).toBe(false);
+    enabled.checked = false;
+    enabled.dispatchEvent(new Event("change"));
+    expect(sun.intensity).toBe(1.15);
+    expect(sun.color.getHexString()).toBe("ffffff");
+    expect(settings.disabled).toBe(true);
+    panel.querySelector<HTMLButtonElement>("button")!.click();
+    expect(color.value).toBe("#ffffff");
+    expect(preset.value).toBe("#ffffff");
+    expect(scene.children).toEqual(currentChildren);
+    expect(frames.size).toBe(1);
+    flush();
     resize();
     toggle.click();
+    expect(panel.hidden).toBe(true);
     expect(frames.size).toBe(0);
     toggle.click();
     view.dispose();
@@ -153,6 +211,7 @@ it("renders on demand, retains unchanged scene layers on reopen, and reflects ca
     view.dispose();
     for (const cleanup of cleanups) cleanup();
     host.remove();
+    localStorage.removeItem("fmg-city-editor:sun-lighting");
     vi.unstubAllGlobals();
   }
 });

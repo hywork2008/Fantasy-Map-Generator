@@ -46,6 +46,8 @@ import { type City3dPerformanceSnapshot, type City3dRenderMetrics, collectSceneM
 import { collectShipSites } from "./shipSites";
 import { standaloneHousingAppearance, standaloneHousingDocument } from "./standaloneHousingAppearance";
 import { collectCityStructures, landmarkLotStructures } from "./structureMassing";
+import { createSunControls } from "./sunControls";
+import { readSunSettings, updateSun, writeSunSettings } from "./sunLighting";
 import { groundStructures, lotFoundations, rampStructures, stairStructures } from "./terrainMassing";
 import { resolveCemeteryPlans } from "./townFacts";
 import { collectWellSites } from "./wellSites";
@@ -136,6 +138,21 @@ export function mountCity3d(options: {
   readout.className = "ce-3d-readout";
   readout.hidden = true;
   options.canvasHost.append(viewport, button, readout);
+
+  const sunSettings = readSunSettings();
+  let sun: THREE.DirectionalLight | null = null;
+  let shadowBounds = new THREE.Box3();
+  const lightingPanel = createSunControls(
+    sunSettings,
+    (target, type, handler) => options.scope.listen(target, type, handler),
+    () => {
+      writeSunSettings(sunSettings);
+      if (sun) updateSun(sun, shadowBounds, sunSettings);
+      if (renderer) renderer.shadowMap.needsUpdate = true;
+      requestRender();
+    }
+  );
+  options.canvasHost.append(lightingPanel);
 
   let renderer: THREE.WebGLRenderer | null = null;
   let scene: THREE.Scene | null = null;
@@ -383,19 +400,24 @@ export function mountCity3d(options: {
       canvas.remove();
       return false;
     }
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
+    renderer.shadowMap.autoUpdate = false;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setClearColor(0xc5c5bf);
     scene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(45, 1, 0.5, 80000);
     scene.add(new THREE.HemisphereLight(0xf4f0e6, 0x6d7a62, 0.9));
-    const sun = new THREE.DirectionalLight(0xffffff, 1.15);
-    sun.position.set(1, 1.6, 0.4);
-    scene.add(sun);
+    sun = new THREE.DirectionalLight(0xffffff, sunSettings.intensity / 100);
+    sun.shadow.mapSize.set(4096, 4096);
+    sun.shadow.autoUpdate = false;
+    scene.add(sun, sun.target);
     ground = new THREE.Mesh(new THREE.CircleGeometry(20, 64), new THREE.MeshLambertMaterial({ color: 0xd5cfbf }));
     ground.name = "ce-ground";
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -0.2;
+    ground.receiveShadow = true;
     scene.add(ground);
     controls = new OrbitControls(camera, canvas);
     controls.enableDamping = false;
@@ -591,11 +613,26 @@ export function mountCity3d(options: {
         }
       }
     }
+    // Refresh flags and bounds only when geometry changes, never during slider input or camera movement.
+    shadowBounds = new THREE.Box3();
+    scene.updateMatrixWorld(true);
+    scene.traverse(object => {
+      if (!(object instanceof THREE.Mesh)) return;
+      object.receiveShadow = true;
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      object.castShadow =
+        object !== ground && materials.some(material => !material.transparent || material.opacity >= 1);
+      if (object !== ground && object.visible) shadowBounds.expandByObject(object);
+    });
+    if (shadowBounds.isEmpty()) shadowBounds.set(new THREE.Vector3(-20, 0, -20), new THREE.Vector3(20, 20, 20));
+    if (sun) updateSun(sun, shadowBounds, sunSettings);
+    if (renderer) renderer.shadowMap.needsUpdate = true;
     requestRender();
   };
 
   const setOpen = (open: boolean) => {
     viewport.hidden = !open;
+    lightingPanel.hidden = !open;
     options.map.hidden = open;
     button.textContent = editorText(open ? "cityEditor.messages.view2d" : "cityEditor.messages.view3d");
     button.setAttribute("aria-pressed", open ? "true" : "false");
@@ -608,6 +645,7 @@ export function mountCity3d(options: {
     }
     if (!ensure()) {
       viewport.hidden = true;
+      lightingPanel.hidden = true;
       options.map.hidden = false;
       button.textContent = editorText("cityEditor.messages.view3d");
       button.setAttribute("aria-pressed", "false");
@@ -718,7 +756,9 @@ export function mountCity3d(options: {
     (ground?.material as THREE.Material | undefined)?.dispose();
     controls?.removeEventListener("change", requestRender);
     controls?.dispose();
+    sun?.shadow.dispose();
     renderer?.dispose();
+    lightingPanel.remove();
     viewport.remove();
     button.remove();
     readout.remove();
