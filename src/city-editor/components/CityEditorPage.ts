@@ -84,6 +84,7 @@ import { buildFacilityPanel } from "./facilityPanel";
 import { buildGenerationPanel } from "./generationPanel";
 import { buildObjectControls } from "./objectControls";
 import { mountOperationHelp } from "./operationHelp";
+import { mountPerformancePanel } from "./performancePanel";
 
 const TOOLS: Array<[Tool, EditorMessageKey, string]> = [
   ["select", "cityEditor.messages.selectAndMove", "↖"],
@@ -2803,6 +2804,24 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   syncCity3d = () => city3d.sync();
   resetCity3dCamera = () => city3d.resetCamera();
   scope.own(() => city3d.dispose());
+  const performancePanel = mountPerformancePanel({
+    host: canvas,
+    map,
+    scope,
+    getDocument: () => documents.documentState,
+    get3d: () => city3d.getPerformance(),
+    getSettings: () => ({
+      modelQuality: readModelQualityPreference(),
+      renderQuality: renderQualitySelect.value,
+      terrainSpacing: readTerrainSpacingPreference(),
+      riverDropMeters: riverDropMeters(generation.generateSettings.riverDropMeters),
+      coreLayer: coreLayerInput.checked,
+      regionalLayer: regionalLayerInput.checked,
+      hideBuildings: display.hideBuildings,
+      hideStreetLines: display.hideStreetLines
+    })
+  });
+  scope.own(() => performancePanel.dispose());
   try {
     const incoming = readIncomingCity();
     if (incoming) applyShare(incoming.share, incoming.origin);

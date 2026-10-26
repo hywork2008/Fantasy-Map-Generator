@@ -42,6 +42,7 @@ import type { StructureKind, StructureMassing, StructureMaterial } from "../type
 import type { CityDocument } from "../types/document";
 import { collectOpenSpacePlan } from "./openSpaceSites";
 import { collectPierSites } from "./pierSites";
+import { type City3dPerformanceSnapshot, type City3dRenderMetrics, collectSceneMetrics } from "./renderMetrics";
 import { collectShipSites } from "./shipSites";
 import { standaloneHousingAppearance, standaloneHousingDocument } from "./standaloneHousingAppearance";
 import { collectCityStructures, landmarkLotStructures } from "./structureMassing";
@@ -123,7 +124,7 @@ export function mountCity3d(options: {
   getTerrainSpacing?: () => number | "auto";
   /** Metres the river surface sits below the land it touches. Absent keeps 1 m. */
   getRiverDropMeters?: () => number;
-}): { sync(): void; resetCamera(): void; dispose(): void } {
+}): { sync(): void; resetCamera(): void; dispose(): void; getPerformance(): City3dPerformanceSnapshot | null } {
   const viewport = document.createElement("div");
   viewport.className = "ce-3d";
   viewport.hidden = true;
@@ -176,6 +177,7 @@ export function mountCity3d(options: {
   let raf = 0;
   let disposed = false;
   let pointer: { x: number; y: number } | null = null;
+  let lastRender: City3dRenderMetrics | null = null;
   const raycaster = new THREE.Raycaster();
   const pointerNdc = new THREE.Vector2();
 
@@ -406,8 +408,24 @@ export function mountCity3d(options: {
   const tick = () => {
     raf = 0;
     if (disposed || viewport.hidden || !renderer || !scene || !camera) return;
+    const start = performance.now();
     buildingDetails?.update(camera, renderer.domElement.clientHeight);
     renderer.render(scene, camera);
+    const cpuMs = performance.now() - start;
+    if (renderer.info) {
+      lastRender = {
+        calls: renderer.info.render.calls,
+        triangles: renderer.info.render.triangles,
+        lines: renderer.info.render.lines,
+        points: renderer.info.render.points,
+        geometries: renderer.info.memory.geometries,
+        textures: renderer.info.memory.textures,
+        width: renderer.domElement.width,
+        height: renderer.domElement.height,
+        cpuMs,
+        sampledAt: performance.now()
+      };
+    }
   };
 
   const riverDrop = () => options.getRiverDropMeters?.() ?? RIVER_DROP_MIN;
@@ -711,5 +729,23 @@ export function mountCity3d(options: {
     framedRadius = 0;
   };
 
-  return { sync, resetCamera, dispose };
+  const getPerformance = (): City3dPerformanceSnapshot | null =>
+    viewport.hidden || !scene
+      ? null
+      : {
+          camera:
+            camera && controls
+              ? {
+                  position: camera.position.toArray(),
+                  target: controls.target.toArray(),
+                  zoom: camera.zoom,
+                  fov: camera.fov
+                }
+              : null,
+          frame: lastRender,
+          scene: collectSceneMetrics(scene),
+          buildings: built?.buildings.length ?? 0,
+          quality: builtQuality
+        };
+  return { sync, resetCamera, dispose, getPerformance };
 }

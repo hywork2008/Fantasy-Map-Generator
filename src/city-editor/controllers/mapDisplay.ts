@@ -338,6 +338,7 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
       updateGenerationLogHover();
       return;
     }
+    const renderStart = performance.now();
     const svg = renderEditorSvg(
       ctx.documentForOutput(ctx.documents.documentState),
       ctx.interaction.tool,
@@ -474,6 +475,7 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
     updateHoverOverlay();
     ctx.updateMeasureOverlay();
     updateLandmarkPreview();
+    svg.setAttribute("data-redraw-cpu-ms", String(performance.now() - renderStart));
   }
   function selectedLandmarkAsset(): LandmarkAsset | null {
     return (
