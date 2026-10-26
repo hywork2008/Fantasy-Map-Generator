@@ -21,6 +21,7 @@ import { renderGenerationSettingFeedback } from "./generationSettingFeedback";
 import { syncGenerationSections } from "./generationWorkspace";
 import { buildPopulationControls } from "./populationControls";
 export interface GenerationPanelContext {
+  restoringSession?: boolean;
   select: (values: string[], selected: string) => HTMLSelectElement;
   syncCity3d: () => void;
   documents: DocumentsState;

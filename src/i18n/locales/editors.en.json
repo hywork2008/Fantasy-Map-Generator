@@ -19,6 +19,8 @@
       "importedFeatures": "Features are supplied by FMG. Choose {{action}} in Basics to edit them."
     },
     "messages": {
+      "nativeLanguageName": "English",
+      "interfaceLanguage": "Interface language",
       "performanceMeasurementHelp": "How to read these measurements",
       "performancePanel": "Performance",
       "performanceHardware": "Hardware (CPU / GPU / RAM)",

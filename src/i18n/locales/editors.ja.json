@@ -19,6 +19,8 @@
       "importedFeatures": "FeaturesはFMGから取り込まれています。変更する場合は「基本条件」で「{{action}}」を選んでください。"
     },
     "messages": {
+      "nativeLanguageName": "日本語",
+      "interfaceLanguage": "表示言語",
       "performanceMeasurementHelp": "計測値の見方",
       "performancePanel": "パフォーマンス",
       "performanceHardware": "使用機種・CPU / GPU / RAM",

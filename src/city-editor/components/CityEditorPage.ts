@@ -1,4 +1,5 @@
-import { type EditorMessageKey, editorOptionText, editorText } from "../../i18n/editorMessages";
+import { type EditorMessageKey, editorOptionText, editorText, setEditorPageMetadata } from "../../i18n/editorMessages";
+import { changeLanguage } from "../../i18n/index";
 import { createContextMenuController } from "../controllers/contextMenu";
 import { createDocumentIOController } from "../controllers/documentIO";
 import { createEditingController } from "../controllers/editing";
@@ -60,7 +61,7 @@ import {
 import { beginEditorMount } from "../services/editorLifetime";
 import { type ImportedCityMap, pickCityMap } from "../services/io/cityEditorFile";
 import { type CityEditorShare, readIncomingCity } from "../services/io/incomingCity";
-import type { DisplayState, GenerationState, InteractionState } from "../state/editorSession";
+import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
 import { createDocumentsState } from "../state/editorSession";
 import type { FixedApproachProvider } from "../types/contracts/fixedApproachAdoption";
 import type { GenerationDebugPreview } from "../types/contracts/generationDebug";
@@ -84,6 +85,13 @@ import { createEditorControls, div, text } from "./editorControls";
 import { buildFacilityPanel } from "./facilityPanel";
 import { buildGenerationPanel } from "./generationPanel";
 import { generationSection, generationTabs, standaloneSettings } from "./generationWorkspace";
+import {
+  captureLanguageUi,
+  EditorLanguageLifetime,
+  mountLanguagePanel,
+  restoreLanguageControls,
+  restoreLanguageUi
+} from "./languagePanel";
 import { buildObjectControls } from "./objectControls";
 import { mountOperationHelp } from "./operationHelp";
 import { mountPerformancePanel } from "./performancePanel";
@@ -123,8 +131,26 @@ export interface CityEditorOptions {
   fixedApproachProvider?: FixedApproachProvider;
 }
 
+interface CityEditorLanguageSession {
+  documents: DocumentsState;
+  generation: GenerationState;
+  display: DisplayState;
+  interaction: InteractionState;
+  ui: ReturnType<typeof captureLanguageUi>;
+  lifetime: EditorLanguageLifetime;
+  camera: import("../renderers/renderMetrics").City3dPerformanceSnapshot["camera"];
+  cityModeGrid: { size: string; grid: DocumentsState["gridKind"]; hexSize: number; source: CityDocument } | undefined;
+  stepStatus: string;
+  failureSummary: { text: string; hidden: boolean; closeHidden: boolean };
+}
+const languageSessions = new WeakMap<HTMLElement, CityEditorLanguageSession>();
+
 export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = {}): () => void {
+  const retainedLanguage = languageSessions.get(root);
+  languageSessions.delete(root);
   const scope = beginEditorMount(root);
+  const languageLifetime = retainedLanguage?.lifetime ?? new EditorLanguageLifetime();
+  languageLifetime.attach(scope);
   let syncCity3d = (): void => {};
   let resetCity3dCamera = (): void => {};
   let editingController: ReturnType<typeof createEditingController> | undefined;
@@ -1479,6 +1505,12 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   generation.gridEvoIndex = 0;
   display.gridEvoLayers = { showCells: true, showDelaunay: false, showSites: true };
   display.halfView = documents.documentState.frame.extentMeters / 2;
+  if (retainedLanguage) {
+    Object.assign(documents, retainedLanguage.documents);
+    Object.assign(generation, retainedLanguage.generation);
+    Object.assign(display, retainedLanguage.display);
+    Object.assign(interaction, retainedLanguage.interaction);
+  }
   let routeEdgesByGroup = new Map<Id, Id[]>();
   let routeGroupsByEdge = new Map<Id, Id[]>();
   let edgeIdsByVertex = new Map<Id, Id[]>();
@@ -1980,6 +2012,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     seedLabel,
     copyLinkButton
   } = buildGenerationPanel({
+    restoringSession: !!retainedLanguage,
     get select() {
       return select;
     },
@@ -2398,7 +2431,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
 
   let cityModeGrid:
     | { size: string; grid: typeof documents.gridKind; hexSize: number; source: CityDocument }
-    | undefined;
+    | undefined = retainedLanguage?.cityModeGrid;
   const generationModeSelect = select(["city", "fort"], generation.generateSettings.mode ?? "city");
   generationModeSelect.className = "ce-generation-mode";
   generationModeSelect.options[0].textContent = editorText("cityEditor.messages.cityMode");
@@ -2928,7 +2961,51 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     })
   });
   scope.own(() => performancePanel.dispose());
+  mountLanguagePanel({
+    host: canvas,
+    scope,
+    showError: showNotice,
+    async changeLanguage(language) {
+      if (generation.generationJob) return;
+      const retained: CityEditorLanguageSession = {
+        documents: { ...documents },
+        generation: { ...generation },
+        display: { ...display },
+        interaction: { ...interaction },
+        ui: captureLanguageUi(root),
+        lifetime: languageLifetime,
+        camera: city3d.getPerformance?.()?.camera ?? null,
+        cityModeGrid,
+        stepStatus: stepStatus.textContent ?? "",
+        failureSummary: {
+          text: failureDebugSummary.textContent ?? "",
+          hidden: Boolean(failureDebugSummary.hidden),
+          closeHidden: Boolean(closeFailurePreview.hidden)
+        }
+      };
+      await changeLanguage(language);
+      if (!scope.active) return;
+      languageSessions.set(root, retained);
+      setEditorPageMetadata("cityEditor");
+      mountCityEditor(root, options);
+      root.querySelector<HTMLSelectElement>(".ce-language select")?.focus({ preventScroll: true });
+    }
+  });
   try {
+    if (retainedLanguage) {
+      restoreLanguageControls(root, retainedLanguage.ui);
+      syncGenerateControls();
+      syncStageUi(generation.currentStageStep);
+      stepStatus.textContent = retainedLanguage.stepStatus;
+      failureDebugSummary.textContent = retainedLanguage.failureSummary.text;
+      failureDebugSummary.hidden = retainedLanguage.failureSummary.hidden;
+      closeFailurePreview.hidden = retainedLanguage.failureSummary.closeHidden;
+      refresh();
+      for (const sample of generation.generationSamples) generationLog.append(sample, generation.generateSeed);
+      if (retainedLanguage.camera) city3d.restoreView(retainedLanguage.camera);
+      restoreLanguageUi(root, retainedLanguage.ui);
+      return languageLifetime.dispose.bind(languageLifetime);
+    }
     const incoming = readIncomingCity();
     if (incoming) applyShare(incoming.share, incoming.origin);
     else refresh();
@@ -2937,9 +3014,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     showNotice(error instanceof Error ? error.message : editorText("cityEditor.messages.couldNotLoadFMGRegionData"));
   }
 
-  // A native bound method retains only the lifetime, not this mount's shared
-  // closure context (document, history, controllers and previews).
-  return scope.dispose.bind(scope);
+  // The bound handle follows language rebuilds without retaining this mount's closures.
+  return languageLifetime.dispose.bind(languageLifetime);
 
   function appendSelectedEdge(edgeId: Id, kind: "road" | "wall"): void {
     getRoutesController().appendSelectedEdge(edgeId, kind);

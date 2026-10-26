@@ -55,6 +55,7 @@ export function buildPopulationControls(ctx: GenerationPanelContext) {
   const settings = () => ctx.generation.generateSettings;
   // New standalone cities opt in; importing a legacy document later clears this setting.
   if (
+    !ctx.restoringSession &&
     !settings().population &&
     !settings().descriptor &&
     !ctx.documents.documentState.fabric &&
