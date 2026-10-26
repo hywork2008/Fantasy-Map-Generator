@@ -86,6 +86,8 @@ import { createCityMassing } from "../city3d/three/cityMeshes";
 import { type CityStructureMeshes, createStructureMassing } from "../city3d/three/structureMeshes";
 import type { TownWaterMeshes } from "../city3d/three/waterMeshes";
 import type { HistoricalPeriod } from "../types/historicalPeriod";
+import { createModelComparison } from "./modelComparison";
+import { mountPerformancePanel } from "./performancePanel";
 import { sanitizeSvg } from "./svgSanitize";
 
 const PERIOD: Partial<Record<HistoricalPeriod, string>> = {
@@ -288,6 +290,9 @@ let massing: CityStructureMeshes | null = null;
 let regionalDetails: TownBuildingDetails | null = null;
 let studyWater: TownWaterMeshes | null = null;
 let selection = 0;
+const modelComparison = createModelComparison();
+const performancePanel = mountPerformancePanel(inspector, () => massing?.group ?? null);
+window.addEventListener("pagehide", () => modelComparison.clear());
 
 function resize(): void {
   const rect = stage.getBoundingClientRect();
@@ -315,6 +320,8 @@ function frame(record: Pick<BuildingRecord, "occupancyMeters">, height: number):
 }
 
 function clearMesh(): void {
+  modelComparison.clear();
+  performancePanel.reset();
   if (regionalDetails) {
     scene.remove(regionalDetails.group);
     regionalDetails.dispose();
@@ -788,6 +795,10 @@ for (const style of ["Gothic", "Romanesque"] as const) {
         fact("Dimensions", definition.dimensions),
         fact("Note", definition.note)
       );
+      if (model.style === "Gothic" && model.highDetail) {
+        const modulePath = Object.keys(landmarkModules).find(path => landmarkModules[path] === model)!;
+        modelComparison.mount(facts, modulePath, definition === model ? "low" : "high", massing.group);
+      }
       for (const source of definition.sources) {
         const row = document.createElement("p");
         const link = document.createElement("a");
@@ -2106,5 +2117,7 @@ new ResizeObserver(resize).observe(stage);
 renderer.setAnimationLoop(() => {
   controls.update();
   regionalDetails?.update(camera, renderer.domElement.clientHeight);
+  const started = performancePanel.open ? performance.now() : null;
   renderer.render(scene, camera);
+  if (started !== null) performancePanel.sample(renderer, started);
 });
