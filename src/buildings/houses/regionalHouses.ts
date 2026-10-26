@@ -3,6 +3,7 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import { BUILDING_PALETTES, type BuildingPaletteId } from "../appearance/palette";
 import type { BuildingAppearanceProfile } from "../appearance/types";
+import { createHipThatchRoof, hipRoofHeight } from "./hipThatchRoof";
 
 export type RegionalHouseProfile = Exclude<BuildingAppearanceProfile, "legacy">;
 
@@ -1105,6 +1106,19 @@ function buildHouses(
     capColor: string,
     cover: RegionalCover
   ): void {
+    if (cover === "thatch") {
+      const coat = createHipThatchRoof({ run, rise, zBack: zB, zFront: zF, detailed });
+      const tones = [
+        color,
+        `#${new THREE.Color(color).multiplyScalar(0.91).getHexString()}`,
+        `#${new THREE.Color(color).lerp(new THREE.Color("#D3C5A1"), 0.09).getHexString()}`
+      ];
+      [coat.body, ...coat.grain].forEach((geometry, i) => {
+        if (geometry.getAttribute("position").count) put(geometry, tones[i], [ox, y, 0]);
+        geometry.dispose();
+      });
+      return;
+    }
     const inset = Math.min(run, (zF - zB) / 2);
     const v = (x: number, h: number, z: number) => new THREE.Vector3(ox + x, y + h, z);
     const A = v(-run, 0, zB);
@@ -1130,13 +1144,13 @@ function buildHouses(
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
     geometry.computeVertexNormals();
     addPart(geometry, material(color, true));
-    const thick = cover === "thatch" ? 0.45 : cover === "turf" ? 0.32 : cover === "stone" ? 0.22 : 0.16;
+    const thick = cover === "turf" ? 0.32 : cover === "stone" ? 0.22 : 0.16;
     // Fascia gives the eaves their covering thickness.
     box(ox, -thick + y, zB, run * 2, thick, 0.1, color);
     box(ox, -thick + y, zF, run * 2, thick, 0.1, color);
     for (const side of [-1, 1]) box(ox + side * run, -thick + y, (zB + zF) / 2, 0.1, thick, zF - zB, color);
     const pitch = Math.atan2(rise, run);
-    if (detailed && cover !== "thatch" && cover !== "turf" && cover !== "lead") {
+    if (detailed && cover !== "turf" && cover !== "lead") {
       const step = cover === "stone" ? 0.45 : cover === "coppi" ? 0.36 : 0.24;
       const courses = Math.max(3, Math.round(Math.hypot(run, rise) / step));
       for (let k = 0; k < courses; k++) {
@@ -1159,33 +1173,53 @@ function buildHouses(
           put(unitBox, capColor, [ox, h, z], [side * pitch, 0, 0], [Math.max(0.1, across), 0.05, 0.2]);
       }
     }
-    // Ridge and hip rolls.
-    const radius = cover === "thatch" ? 0.3 : 0.14;
+    // Thin coverings follow both roof planes instead of floating cylindrical logs.
+    const halfWidth = cover === "lead" ? 0.04 : cover === "stone" ? 0.11 : 0.1;
+    const lift = cover === "lead" ? 0.025 : cover === "stone" ? 0.055 : 0.065;
     const ridgeColor = cover === "shingle" || cover === "turf" ? BUILDING_PALETTES.timber[1] : capColor;
-    const roll = (p: THREE.Vector3, q: THREE.Vector3) => {
-      const dir = q.clone().sub(p);
-      const len = dir.length();
-      if (len < 0.05) return;
-      const mid = p.clone().add(q).multiplyScalar(0.5);
-      mid.y += cover === "thatch" ? 0.25 : 0.06;
-      quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
-      matrix.compose(mid, quaternion, new THREE.Vector3(radius, len, radius));
-      if (baked) append(unitCylinder, material(ridgeColor), matrix);
-      else {
-        const copy = unitCylinder.toNonIndexed();
-        copy.deleteAttribute("uv");
-        copy.applyMatrix4(matrix);
-        addPart(copy, material(ridgeColor));
-      }
+    const cap = (p: THREE.Vector3, q: THREE.Vector3) => {
+      const dx = q.x - p.x,
+        dz = q.z - p.z;
+      const length = Math.hypot(dx, dz);
+      if (length < 0.05) return;
+      const nx = -dz / length,
+        nz = dx / length;
+      const count = Math.max(1, Math.ceil(length / 0.35));
+      const positions: number[] = [];
+      const section = (t: number, u: number) => {
+        const x = Math.max(-run, Math.min(run, p.x - ox + dx * t + nx * halfWidth * u));
+        const z = Math.max(zB, Math.min(zF, p.z + dz * t + nz * halfWidth * u));
+        return new THREE.Vector3(ox + x, y + hipRoofHeight(run, rise, zB, zF, x, z) + 0.012 + lift * (1 - u * u), z);
+      };
+      const triangle = (a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3) => {
+        const normal = b.clone().sub(a).cross(c.clone().sub(a));
+        const points = normal.y >= 0 ? [a, b, c] : [a, c, b];
+        for (const point of points) positions.push(point.x, point.y, point.z);
+      };
+      for (let i = 0; i < count; i++)
+        for (let j = 0; j < 4; j++) {
+          const u0 = -1 + j / 2,
+            u1 = u0 + 0.5;
+          const a = section(i / count, u0),
+            b = section((i + 1) / count, u0),
+            c = section((i + 1) / count, u1),
+            d = section(i / count, u1);
+          triangle(a, b, c);
+          triangle(a, c, d);
+        }
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+      geometry.computeVertexNormals();
+      addPart(geometry, material(ridgeColor, true));
     };
-    roll(R1, R2);
+    cap(R1, R2);
     for (const [corner, top] of [
       [A, R1],
       [B, R1],
       [C, R2],
       [D, R2]
     ] as const)
-      roll(corner, top);
+      cap(corner, top);
   }
 
   for (const { spec, ox } of houses) house(spec, ox);
