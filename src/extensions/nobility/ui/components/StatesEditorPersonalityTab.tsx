@@ -4,6 +4,38 @@ import { useMemo, useRef, useState } from "react";
 import { SortableHeader } from "../../../hostUi";
 import { getWorldContext } from "../../nobilityContext";
 
+function SortHeader({
+  field,
+  label,
+  tip,
+  sortBy,
+  sortOrder,
+  handleSort
+}: {
+  field: string;
+  label: string;
+  tip: string;
+  sortBy: string;
+  sortOrder: "asc" | "desc";
+  handleSort: (field: string) => void;
+}) {
+  return (
+    <SortableHeader
+      field={field}
+      label={label}
+      sortBy={sortBy}
+      sortOrder={sortOrder}
+      onSort={handleSort}
+      numeric
+      tip={`Click to sort by ${tip}`}
+      // Matches the color-coded, center-aligned stat <td> below (a dense abbreviated-label
+      // grid, not a left/right value table) — without this, the shared .sortable numeric CSS
+      // rule would right-align the header while the data stays centered.
+      style={{ fontSize: "0.85em", padding: "0 4px", textAlign: "center" }}
+    />
+  );
+}
+
 const getPersonalityColor = (val: number): string | undefined => {
   if (val < 10) return undefined;
   if (val >= 85) return "rgba(154, 205, 50, 0.6)"; // Strong Yellow-Green
@@ -137,24 +169,6 @@ export const StatesEditorPersonalityTab: React.FC = () => {
   const paddingBottom =
     virtualItems.length > 0 ? rowVirtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end : 0;
 
-  function SortHeader({ field, label, tip }: { field: string; label: string; tip: string }) {
-    return (
-      <SortableHeader
-        field={field}
-        label={label}
-        sortBy={sortBy}
-        sortOrder={sortOrder}
-        onSort={handleSort}
-        numeric
-        tip={`Click to sort by ${tip}`}
-        // Matches the color-coded, center-aligned stat <td> below (a dense abbreviated-label
-        // grid, not a left/right value table) — without this, the shared .sortable numeric CSS
-        // rule would right-align the header while the data stays centered.
-        style={{ fontSize: "0.85em", padding: "0 4px", textAlign: "center" }}
-      />
-    );
-  }
-
   const colSpan = 13; // Name + 12 Personality
 
   return (
@@ -171,18 +185,102 @@ export const StatesEditorPersonalityTab: React.FC = () => {
               tip="Click to sort by name"
               style={{ width: "3em", minWidth: "3em" }}
             />
-            <SortHeader field="boldness" label="Bold" tip="Boldness" />
-            <SortHeader field="compassion" label="Comp" tip="Compassion" />
-            <SortHeader field="confidence" label="Conf" tip="Confidence" />
-            <SortHeader field="energy" label="Econ" tip="Energy (Economic Archetype)" />
-            <SortHeader field="greed" label="Grd" tip="Greed" />
-            <SortHeader field="guile" label="Guil" tip="Guile" />
-            <SortHeader field="honor" label="Hnr" tip="Honor" />
-            <SortHeader field="piety" label="Piet" tip="Piety" />
-            <SortHeader field="rationality" label="Rati" tip="Rationality" />
-            <SortHeader field="sociability" label="Soci" tip="Sociability" />
-            <SortHeader field="vengefulness" label="Veng" tip="Vengefulness" />
-            <SortHeader field="zeal" label="Zeal" tip="Zeal" />
+            <SortHeader
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              handleSort={handleSort}
+              field="boldness"
+              label="Bold"
+              tip="Boldness"
+            />
+            <SortHeader
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              handleSort={handleSort}
+              field="compassion"
+              label="Comp"
+              tip="Compassion"
+            />
+            <SortHeader
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              handleSort={handleSort}
+              field="confidence"
+              label="Conf"
+              tip="Confidence"
+            />
+            <SortHeader
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              handleSort={handleSort}
+              field="energy"
+              label="Econ"
+              tip="Energy (Economic Archetype)"
+            />
+            <SortHeader
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              handleSort={handleSort}
+              field="greed"
+              label="Grd"
+              tip="Greed"
+            />
+            <SortHeader
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              handleSort={handleSort}
+              field="guile"
+              label="Guil"
+              tip="Guile"
+            />
+            <SortHeader
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              handleSort={handleSort}
+              field="honor"
+              label="Hnr"
+              tip="Honor"
+            />
+            <SortHeader
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              handleSort={handleSort}
+              field="piety"
+              label="Piet"
+              tip="Piety"
+            />
+            <SortHeader
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              handleSort={handleSort}
+              field="rationality"
+              label="Rati"
+              tip="Rationality"
+            />
+            <SortHeader
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              handleSort={handleSort}
+              field="sociability"
+              label="Soci"
+              tip="Sociability"
+            />
+            <SortHeader
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              handleSort={handleSort}
+              field="vengefulness"
+              label="Veng"
+              tip="Vengefulness"
+            />
+            <SortHeader
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              handleSort={handleSort}
+              field="zeal"
+              label="Zeal"
+              tip="Zeal"
+            />
           </tr>
         </thead>
         <tbody>

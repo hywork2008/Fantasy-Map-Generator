@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import {
   createRegionalHouse,
+  createRegionalHouseGeometry,
   REGIONAL_HOUSE_QUALITIES,
   REGIONAL_HOUSES,
   type RegionalCover,
@@ -20,7 +21,11 @@ function definitionFor(spec: RegionalHouseSpec, quality: RegionalHouseQuality): 
   const key = `${regionalHouseSpecKey(spec)}|${quality}`;
   let definition = definitions.get(key);
   if (!definition) {
-    definition = { id: `regional-house:${key}`, create: () => createRegionalHouse(spec, quality) };
+    definition = {
+      id: `regional-house:${key}`,
+      create: () => createRegionalHouse(spec, quality),
+      createGeometry: () => createRegionalHouseGeometry(spec, quality)
+    };
     definitions.set(key, definition);
   }
   return definition;

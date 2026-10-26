@@ -44,6 +44,7 @@ import {
   logGenerationFailures,
   reportGenerationFailure
 } from "../generationDiagnostics";
+import { generationSettingIssues } from "../generationSettingIssues";
 import { isSimplePolygon, polygonArea } from "../geom";
 import type { HarborPlan } from "../harborFabric";
 import { clearHarborShips, placeHarborShips, spawnHarborShips } from "../harborShips";
@@ -119,6 +120,12 @@ export function generateCityOnDocument(
   profiler?: ProcessingProfiler,
   stopAfter?: "streets" | "innerWall" | "innerGates" | "firstInnerGates"
 ): CityDocument | null {
+  const settingIssues = generationSettingIssues(document, settings).filter(issue => issue.severity !== "warning");
+  if (settingIssues.length) {
+    for (const issue of settingIssues)
+      reportGenerationFailure(observer, 1, "prepare", issue.code, `${issue.message} ${issue.remedy}`);
+    return null;
+  }
   const heightAreaSource = document;
   if (
     !validBuildingHeightPolicy(settings.buildingHeightPolicy) ||

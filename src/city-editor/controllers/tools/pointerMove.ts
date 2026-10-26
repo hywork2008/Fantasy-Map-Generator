@@ -1,5 +1,6 @@
 import { previewRouteAcrossFace } from "../../generators/features";
 import { moveVertex } from "../../generators/mesh";
+import { canPlaceObject } from "../../generators/objectPlacement";
 import { getShipAngleFromPoint } from "../../renderers/shipSvg";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../../state/editorSession";
 import type { Id, Point } from "../../types/document";
@@ -47,6 +48,9 @@ export function bindPointerMove(ctx: PointerMoveContext) {
           ctx.interaction.shipDrag.initialShipPoint[0] + dx,
           ctx.interaction.shipDrag.initialShipPoint[1] + dy
         ];
+        const item = ctx.documents.documentState.elements.find(e => e.id === ctx.interaction.shipDrag!.shipId);
+        if (item?.kind === "object" && !canPlaceObject(ctx.documents.documentState, { ...item, point: nextPoint }))
+          return;
         ctx.documents.documentState = {
           ...ctx.documents.documentState,
           elements: ctx.documents.documentState.elements.map(e =>
@@ -54,14 +58,26 @@ export function bindPointerMove(ctx: PointerMoveContext) {
           )
         };
       } else if (ctx.interaction.shipDrag.mode === "rotate") {
-        const nextAngle = getShipAngleFromPoint(ctx.interaction.shipDrag.initialShipPoint, point);
+        const drag = ctx.interaction.shipDrag;
+        const item = ctx.documents.documentState.elements.find(e => e.id === drag.shipId);
+        let nextAngle = getShipAngleFromPoint(drag.initialShipPoint, point);
+        if (item?.kind === "object") {
+          const [x, y] = drag.initialShipPoint;
+          const ax = drag.startPoint[0] - x,
+            ay = drag.startPoint[1] - y;
+          const bx = point[0] - x,
+            by = point[1] - y;
+          if (Math.hypot(ax, ay) < 1e-6 || Math.hypot(bx, by) < 1e-6) return;
+          nextAngle = drag.initialRotation + Math.atan2(ax * by - ay * bx, ax * bx + ay * by);
+          if (!canPlaceObject(ctx.documents.documentState, { ...item, rotation: nextAngle })) return;
+        }
         ctx.documents.documentState = {
           ...ctx.documents.documentState,
           elements: ctx.documents.documentState.elements.map(e =>
             e.id === ctx.interaction.shipDrag!.shipId ? { ...e, rotation: nextAngle } : e
           )
         };
-        ctx.interaction.shipAngleDegrees = Math.round((nextAngle * 180) / Math.PI);
+        if (item?.kind !== "object") ctx.interaction.shipAngleDegrees = Math.round((nextAngle * 180) / Math.PI);
       }
       ctx.scheduleRedraw();
       return;
@@ -71,7 +87,7 @@ export function bindPointerMove(ctx: PointerMoveContext) {
       ctx.updateLandmarkPreview();
       return;
     }
-    if (ctx.interaction.tool === "ship" && !ctx.interaction.isPanning) {
+    if ((ctx.interaction.tool === "ship" || ctx.interaction.tool === "object") && !ctx.interaction.isPanning) {
       ctx.interaction.shipHoverPoint = ctx.localPoint(event);
       ctx.updateShipPreview();
       return;

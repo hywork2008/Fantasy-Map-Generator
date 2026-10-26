@@ -34,6 +34,72 @@ import {
   useMarketOverviewState
 } from "../../store/marketOverviewState";
 
+function SortHeaderMerchants({
+  field,
+  label,
+  tip,
+  numeric,
+  width,
+  merchantsSortBy,
+  merchantsSortOrder,
+  handleMerchantsSort
+}: {
+  field: string;
+  label: string;
+  tip: string;
+  numeric?: boolean;
+  width?: string;
+  merchantsSortBy: string;
+  merchantsSortOrder: "asc" | "desc";
+  handleMerchantsSort: (_field: string) => void;
+}) {
+  return (
+    <SortableHeader
+      field={field}
+      label={label}
+      sortBy={merchantsSortBy}
+      sortOrder={merchantsSortOrder}
+      onSort={handleMerchantsSort}
+      tip={tip}
+      numeric={numeric}
+      style={width ? { width } : undefined}
+    />
+  );
+}
+
+function SortHeaderGoods({
+  field,
+  label,
+  tip,
+  numeric,
+  width,
+  goodsSortBy,
+  goodsSortOrder,
+  handleGoodsSort
+}: {
+  field: string;
+  label: string;
+  tip: string;
+  numeric?: boolean;
+  width?: string;
+  goodsSortBy: string;
+  goodsSortOrder: "asc" | "desc";
+  handleGoodsSort: (_field: string) => void;
+}) {
+  return (
+    <SortableHeader
+      field={field}
+      label={label}
+      sortBy={goodsSortBy}
+      sortOrder={goodsSortOrder}
+      onSort={handleGoodsSort}
+      tip={tip}
+      numeric={numeric}
+      style={width ? { width } : undefined}
+    />
+  );
+}
+
 const TRANSPORT_ORDER_STATUS_KEYS: Record<MarketOverviewTransportOrderRow["status"], string> = {
   queued: "extensions.marketOverview.statusQueued",
   waitingMaterials: "extensions.marketOverview.statusWaiting",
@@ -159,60 +225,6 @@ export const MarketOverviewDialog: React.FC = () => {
     return arr;
   }, [burgMerchantRows, merchantsSortBy, merchantsSortOrder]);
 
-  function SortHeaderGoods({
-    field,
-    label,
-    tip,
-    numeric,
-    width
-  }: {
-    field: string;
-    label: string;
-    tip: string;
-    numeric?: boolean;
-    width?: string;
-  }) {
-    return (
-      <SortableHeader
-        field={field}
-        label={label}
-        sortBy={goodsSortBy}
-        sortOrder={goodsSortOrder}
-        onSort={handleGoodsSort}
-        tip={tip}
-        numeric={numeric}
-        style={width ? { width } : undefined}
-      />
-    );
-  }
-
-  function SortHeaderMerchants({
-    field,
-    label,
-    tip,
-    numeric,
-    width
-  }: {
-    field: string;
-    label: string;
-    tip: string;
-    numeric?: boolean;
-    width?: string;
-  }) {
-    return (
-      <SortableHeader
-        field={field}
-        label={label}
-        sortBy={merchantsSortBy}
-        sortOrder={merchantsSortOrder}
-        onSort={handleMerchantsSort}
-        tip={tip}
-        numeric={numeric}
-        style={width ? { width } : undefined}
-      />
-    );
-  }
-
   React.useEffect(() => {
     if (isOpen && marketId != null) {
       setTimeout(() => openMarketOverview(marketId), 0);
@@ -337,17 +349,26 @@ export const MarketOverviewDialog: React.FC = () => {
                   <tr className="header">
                     <th />
                     <SortHeaderGoods
+                      goodsSortBy={goodsSortBy}
+                      goodsSortOrder={goodsSortOrder}
+                      handleGoodsSort={handleGoodsSort}
                       field="goodName"
                       label={t("extensions.marketOverview.good")}
                       tip={t("extensions.marketOverview.goodTip")}
                     />
                     <SortHeaderGoods
+                      goodsSortBy={goodsSortBy}
+                      goodsSortOrder={goodsSortOrder}
+                      handleGoodsSort={handleGoodsSort}
                       field="stock"
                       label={t("extensions.marketOverview.stock")}
                       tip={t("extensions.marketOverview.stockTip")}
                       numeric
                     />
                     <SortHeaderGoods
+                      goodsSortBy={goodsSortBy}
+                      goodsSortOrder={goodsSortOrder}
+                      handleGoodsSort={handleGoodsSort}
                       field="price"
                       label={t("extensions.marketOverview.price")}
                       tip={t("extensions.marketOverview.priceTip")}
@@ -438,28 +459,43 @@ export const MarketOverviewDialog: React.FC = () => {
               <thead>
                 <tr className="header">
                   <SortHeaderMerchants
+                    merchantsSortBy={merchantsSortBy}
+                    merchantsSortOrder={merchantsSortOrder}
+                    handleMerchantsSort={handleMerchantsSort}
                     field="burgName"
                     label={t("extensions.marketOverview.burg")}
                     tip={t("extensions.marketOverview.burgTip")}
                   />
                   <SortHeaderMerchants
+                    merchantsSortBy={merchantsSortBy}
+                    merchantsSortOrder={merchantsSortOrder}
+                    handleMerchantsSort={handleMerchantsSort}
                     field="topMerchantName"
                     label={t("extensions.marketOverview.topMerchant")}
                     tip={t("extensions.marketOverview.topMerchantTip")}
                   />
                   <SortHeaderMerchants
+                    merchantsSortBy={merchantsSortBy}
+                    merchantsSortOrder={merchantsSortOrder}
+                    handleMerchantsSort={handleMerchantsSort}
                     field="topShare"
                     label={t("extensions.marketOverview.share")}
                     tip={t("extensions.marketOverview.shareTip")}
                     numeric
                   />
                   <SortHeaderMerchants
+                    merchantsSortBy={merchantsSortBy}
+                    merchantsSortOrder={merchantsSortOrder}
+                    handleMerchantsSort={handleMerchantsSort}
                     field="topRevenue"
                     label={t("extensions.marketOverview.revenue")}
                     tip={t("extensions.marketOverview.revenueTip")}
                     numeric
                   />
                   <SortHeaderMerchants
+                    merchantsSortBy={merchantsSortBy}
+                    merchantsSortOrder={merchantsSortOrder}
+                    handleMerchantsSort={handleMerchantsSort}
                     field="rivals"
                     label={t("extensions.marketOverview.rivals")}
                     tip={t("extensions.marketOverview.rivalsTip")}

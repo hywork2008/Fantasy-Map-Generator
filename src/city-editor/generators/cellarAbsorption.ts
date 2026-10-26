@@ -104,7 +104,7 @@ class RoadIndex {
             const dy = this.by[id] - this.ay[id];
             const lenSq = dx * dx + dy * dy;
             let t = lenSq === 0 ? 0 : ((point[0] - this.ax[id]) * dx + (point[1] - this.ay[id]) * dy) / lenSq;
-            t = t < 0 ? 0 : t > 1 ? 1 : t;
+            t = t < 0 ? 0 : Math.min(t, 1);
             const dist = Math.hypot(point[0] - (this.ax[id] + dx * t), point[1] - (this.ay[id] + dy * t));
             if (dist < best) best = dist;
           }

@@ -1,6 +1,8 @@
+import { placeableObject } from "../../../buildings/placeableObjects";
 import { editorText } from "../../../i18n/editorMessages";
 import { appendEdge, groupUsesEdge } from "../../generators/features";
 import { placeLandmark } from "../../generators/landmarks";
+import { canPlaceObject } from "../../generators/objectPlacement";
 import { parsePickInfo } from "../../renderers/pickInfo";
 import { SHIP_SPECS } from "../../renderers/shipSpecifications";
 import type { DocumentsState, InteractionState } from "../../state/editorSession";
@@ -70,6 +72,27 @@ export function bindMapClick(ctx: MapClickContext) {
         ctx.commit(result.document, editorText("cityEditor.messages.placeCityEditorPage", { value0: asset.name }));
         ctx.interaction.landmarkHoverPoint = null;
       } else ctx.showNotice(result.reasons.join("; "));
+      return;
+    }
+    if (ctx.interaction.tool === "object") {
+      const item: CityElement = {
+        id: `object-${crypto.randomUUID()}`,
+        kind: "object",
+        faceIds: [],
+        locked: false,
+        point: ctx.localPoint(event as PointerEvent),
+        objectType: ctx.interaction.objectType,
+        objectScale: ctx.interaction.objectScale,
+        rotation: (ctx.interaction.objectAngleDegrees * Math.PI) / 180
+      };
+      if (!canPlaceObject(ctx.documents.documentState, item)) {
+        ctx.showNotice(editorText("cityEditor.messages.objectsNeedLand"));
+        return;
+      }
+      ctx.commit(
+        { ...ctx.documents.documentState, elements: [...ctx.documents.documentState.elements, item] },
+        editorText("cityEditor.messages.placeCityEditorPage", { value0: placeableObject(item.objectType)!.name })
+      );
       return;
     }
     if (ctx.interaction.tool === "ship") {

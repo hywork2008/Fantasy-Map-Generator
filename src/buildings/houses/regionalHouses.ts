@@ -202,11 +202,32 @@ export function createRegionalHouse(
   return buildHouses(`regional-house-${spec.profile}`, [{ spec, ox: 0 }], quality);
 }
 
+/** CE prototypes need one vertex-colored geometry, without intermediate material meshes. */
+export function createRegionalHouseGeometry(
+  spec: RegionalHouseSpec,
+  quality: RegionalHouseQuality = "high"
+): THREE.BufferGeometry {
+  return buildHouses(`regional-house-${spec.profile}`, [{ spec, ox: 0 }], quality, true);
+}
+
 function buildHouses(
   name: string,
   houses: ReadonlyArray<{ spec: RegionalHouseSpec; ox: number }>,
-  quality: RegionalHouseQuality
-): CityStructureMeshes {
+  quality: RegionalHouseQuality,
+  baked: true
+): THREE.BufferGeometry;
+function buildHouses(
+  name: string,
+  houses: ReadonlyArray<{ spec: RegionalHouseSpec; ox: number }>,
+  quality: RegionalHouseQuality,
+  baked?: false
+): CityStructureMeshes;
+function buildHouses(
+  name: string,
+  houses: ReadonlyArray<{ spec: RegionalHouseSpec; ox: number }>,
+  quality: RegionalHouseQuality,
+  baked = false
+): CityStructureMeshes | THREE.BufferGeometry {
   // Low quality keeps every mass, opening, colour and roof form, and drops mouldings, courses and small props.
   const detailed = quality === "high";
   const materials = new Map<string, THREE.MeshLambertMaterial>();
@@ -217,6 +238,38 @@ function buildHouses(
   const euler = new THREE.Euler();
   const unitBox = new THREE.BoxGeometry(1, 1, 1);
   const unitCylinder = new THREE.CylinderGeometry(1, 1, 1, 8);
+  const positions: number[] = [],
+    normals: number[] = [],
+    colors: number[] = [];
+  const vertex = new THREE.Vector3(),
+    normal = new THREE.Vector3();
+  const normalMatrix = new THREE.Matrix3();
+
+  function append(geometry: THREE.BufferGeometry, mat: THREE.MeshLambertMaterial, transform?: THREE.Matrix4): void {
+    const position = geometry.getAttribute("position"),
+      sourceNormal = geometry.getAttribute("normal");
+    if (transform) normalMatrix.getNormalMatrix(transform);
+    const count = geometry.index?.count ?? position.count;
+    for (let i = 0; i < count; i++) {
+      const index = geometry.index?.getX(i) ?? i;
+      vertex.fromBufferAttribute(position, index);
+      normal.fromBufferAttribute(sourceNormal, index);
+      if (transform) {
+        vertex.applyMatrix4(transform);
+        normal.applyNormalMatrix(normalMatrix);
+      }
+      positions.push(vertex.x, vertex.y, vertex.z);
+      normals.push(normal.x, normal.y, normal.z);
+      colors.push(mat.color.r, mat.color.g, mat.color.b);
+    }
+  }
+
+  function addPart(geometry: THREE.BufferGeometry, mat: THREE.MeshLambertMaterial): void {
+    if (baked) {
+      append(geometry, mat);
+      geometry.dispose();
+    } else buckets.get(mat)!.push(geometry);
+  }
 
   function material(color: string, doubleSided = false): THREE.MeshLambertMaterial {
     const key = `${color}:${doubleSided}`;
@@ -250,6 +303,10 @@ function buildHouses(
     euler.set(rotation[0], rotation[1], rotation[2], "YXZ");
     quaternion.setFromEuler(euler);
     matrix.compose(new THREE.Vector3(...position), quaternion, new THREE.Vector3(...scale));
+    if (baked) {
+      append(geometry, material(color, doubleSided), matrix);
+      return;
+    }
     const copy = geometry.index ? geometry.toNonIndexed() : geometry.clone();
     copy.deleteAttribute("uv");
     copy.applyMatrix4(matrix);
@@ -855,7 +912,7 @@ function buildHouses(
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
     geometry.computeVertexNormals();
-    buckets.get(material(color, true))?.push(geometry);
+    addPart(geometry, material(color, true));
     const thick = cover === "thatch" ? 0.45 : cover === "stone" ? 0.22 : 0.16;
     // Fascia gives the eaves their covering thickness.
     box(ox, -thick + y, zB, run * 2, thick, 0.1, color);
@@ -895,10 +952,13 @@ function buildHouses(
       mid.y += cover === "thatch" ? 0.25 : 0.06;
       quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
       matrix.compose(mid, quaternion, new THREE.Vector3(radius, len, radius));
-      const copy = unitCylinder.toNonIndexed();
-      copy.deleteAttribute("uv");
-      copy.applyMatrix4(matrix);
-      buckets.get(material(capColor))?.push(copy);
+      if (baked) append(unitCylinder, material(capColor), matrix);
+      else {
+        const copy = unitCylinder.toNonIndexed();
+        copy.deleteAttribute("uv");
+        copy.applyMatrix4(matrix);
+        addPart(copy, material(capColor));
+      }
     };
     roll(R1, R2);
     for (const [corner, top] of [
@@ -911,6 +971,18 @@ function buildHouses(
   }
 
   for (const { spec, ox } of houses) house(spec, ox);
+
+  if (baked) {
+    for (const geometry of cache.values()) geometry.dispose();
+    unitBox.dispose();
+    unitCylinder.dispose();
+    for (const mat of materials.values()) mat.dispose();
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
+    geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+    return geometry;
+  }
 
   const group = new THREE.Group();
   group.name = name;

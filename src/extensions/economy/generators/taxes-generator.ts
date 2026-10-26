@@ -428,7 +428,7 @@ export class TaxesModule {
         stateId: state.i,
         openingTreasury,
         closingTreasury,
-        income: { ...income, unclassifiedIncome: unclassified > 0 ? unclassified : 0 },
+        income: { ...income, unclassifiedIncome: Math.max(unclassified, 0) },
         expenses: { ...expenses, unclassified: unclassified < 0 ? -unclassified : 0 }
       });
     }

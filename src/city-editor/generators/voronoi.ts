@@ -65,8 +65,8 @@ export function computeDelaunayEdges(points: Point[]): [number, number][] {
     ] as const) {
       const a = triangles[u];
       const b = triangles[v];
-      const lo = a < b ? a : b;
-      const hi = a < b ? b : a;
+      const lo = Math.min(a, b);
+      const hi = Math.max(a, b);
       const key = lo * points.length + hi;
       if (seen.has(key)) continue;
       seen.add(key);

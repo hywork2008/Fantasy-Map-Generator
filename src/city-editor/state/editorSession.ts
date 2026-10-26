@@ -69,6 +69,9 @@ export interface InteractionState {
   landmarkAssetId: string;
   landmarkRotationDegrees: number;
   landmarkHoverPoint: Point | null;
+  objectType: string;
+  objectScale: number;
+  objectAngleDegrees: number;
   shipType: ShipType;
   shipSizeMeters: number;
   shipAngleDegrees: number;

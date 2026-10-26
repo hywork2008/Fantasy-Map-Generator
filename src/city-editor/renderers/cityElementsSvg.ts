@@ -1,3 +1,4 @@
+import { objectDrawing, placeableObject } from "../../buildings/placeableObjects";
 import { editorText } from "../../i18n/editorMessages";
 import type { DomesticWaterPoint } from "../generators/domesticWater";
 import { templeFootprintMeters } from "../generators/housing";
@@ -7,6 +8,7 @@ import type { Id } from "../types/document";
 import type { SvgPickInfo } from "../types/selection";
 import { shipHasHarborLand } from "./harborPierFacts";
 import { cityElementMarker, elementHasDuplicateWardLandmark, renderNormalizedLandmarkSvg, tree } from "./landmarkSvg";
+import { renderObjectRotationHandle, renderObjectSvg } from "./objectSvg";
 import type { RenderContext } from "./renderContext";
 import { renderShipRotationHandle, renderShipSvg } from "./shipSvg";
 import { element, polygon } from "./svgPrimitives";
@@ -35,6 +37,25 @@ export function renderCityElements(
       point: p,
       sizeMeters: cityElement.sizeMeters ?? 8
     };
+    if (cityElement.kind === "object") {
+      const node = renderObjectSvg(cityElement, isPickSelected);
+      const definition = placeableObject(cityElement.objectType);
+      pickInfo.label = definition?.name ?? cityElement.objectType ?? "Object";
+      delete pickInfo.sizeMeters;
+      if (definition) {
+        const { bounds } = objectDrawing(definition);
+        const scale = cityElement.objectScale ?? 1;
+        pickInfo.dimensions = `${[bounds.max.x - bounds.min.x, bounds.max.z - bounds.min.z, bounds.max.y - bounds.min.y].map(v => (v * scale).toFixed(1)).join(" × ")} m`;
+      }
+      node.setAttribute("data-pick", encodeURIComponent(JSON.stringify(pickInfo)));
+      node.style.pointerEvents = tool === "select" ? "all" : "none";
+      node.style.cursor = "move";
+      elements.appendChild(node);
+      if (tool === "select" && isPickSelected && !cityElement.locked) {
+        elements.appendChild(renderObjectRotationHandle(cityElement));
+      }
+      continue;
+    }
     if (cityElement.kind === "ship") {
       if (!shipHasHarborLand(document, cityElement)) continue;
       const shipNode = renderShipSvg({

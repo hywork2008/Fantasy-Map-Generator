@@ -160,7 +160,7 @@ function nearRing(p: Point, ring: Point[], limit: number): boolean {
       dy = b[1] - a[1];
     const lenSq = dx * dx + dy * dy;
     let t = lenSq === 0 ? 0 : ((px - a[0]) * dx + (py - a[1]) * dy) / lenSq;
-    t = t < 0 ? 0 : t > 1 ? 1 : t;
+    t = t < 0 ? 0 : Math.min(t, 1);
     if (Math.hypot(px - (a[0] + dx * t), py - (a[1] + dy * t)) < limit) return true;
   }
   return false;

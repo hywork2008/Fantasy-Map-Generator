@@ -1,0 +1,425 @@
+{
+  "date": "2026-10-26",
+  "commit": "c81d3b683",
+  "conditions": {
+    "entry": "city-editor/",
+    "population": 5000,
+    "size": "small",
+    "grid": "voronoi",
+    "method": "mesh-first",
+    "modelQuality": "high",
+    "seed": "ce-default-perf-20261026",
+    "viewport": [
+      1440,
+      1000
+    ],
+    "environment": "Playwright Chromium headless, Vite development server, single sample; instrumented"
+  },
+  "worker": {
+    "url": "city-editor/services/generationWorker.ts",
+    "totalMs": 1036,
+    "timing": {
+      "structureMs": 905.2000000476837,
+      "postedAt": 1792970634221,
+      "breakdown": [
+        {
+          "path": "attempt-1",
+          "parent": null,
+          "depth": 0,
+          "calls": 1,
+          "elapsedMs": 164.89999985694885,
+          "selfMs": 2.799999952316284
+        },
+        {
+          "path": "attempt-1/apply-plan",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 77.89999985694885,
+          "selfMs": 77.89999985694885
+        },
+        {
+          "path": "attempt-1/bridge-gate-links",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.2999999523162842,
+          "selfMs": 0.2999999523162842
+        },
+        {
+          "path": "attempt-1/cemetery-layouts",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.2999999523162842,
+          "selfMs": 0.2999999523162842
+        },
+        {
+          "path": "attempt-1/cemetery-relocation",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.09999990463256836,
+          "selfMs": 0.09999990463256836
+        },
+        {
+          "path": "attempt-1/cemetery-sync",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0,
+          "selfMs": 0
+        },
+        {
+          "path": "attempt-1/crossing-validation",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 1.2999999523162842,
+          "selfMs": 1.2999999523162842
+        },
+        {
+          "path": "attempt-1/external-gate-roads",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.5,
+          "selfMs": 0.5
+        },
+        {
+          "path": "attempt-1/fabric-plan",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 8.099999904632568,
+          "selfMs": 8.099999904632568
+        },
+        {
+          "path": "attempt-1/finish-geometry",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 46.59999990463257,
+          "selfMs": 46.59999990463257
+        },
+        {
+          "path": "attempt-1/fixed-crossing-approaches",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0,
+          "selfMs": 0
+        },
+        {
+          "path": "attempt-1/frame-road-alignment",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.09999990463256836,
+          "selfMs": 0.09999990463256836
+        },
+        {
+          "path": "attempt-1/frame-road-junctions",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0,
+          "selfMs": 0
+        },
+        {
+          "path": "attempt-1/frame-road-junctions-fixed",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0,
+          "selfMs": 0
+        },
+        {
+          "path": "attempt-1/frame-road-repair",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.6000001430511475,
+          "selfMs": 0.6000001430511475
+        },
+        {
+          "path": "attempt-1/frame-road-terminals",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.20000004768371582,
+          "selfMs": 0.20000004768371582
+        },
+        {
+          "path": "attempt-1/gate-and-bridge-crossings",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.40000009536743164,
+          "selfMs": 0.40000009536743164
+        },
+        {
+          "path": "attempt-1/harbor-ships",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.5,
+          "selfMs": 0.20000004768371582
+        },
+        {
+          "path": "attempt-1/harbor-ships/ship-plan",
+          "parent": "attempt-1/harbor-ships",
+          "depth": 2,
+          "calls": 1,
+          "elapsedMs": 0.2999999523162842,
+          "selfMs": 0.2999999523162842
+        },
+        {
+          "path": "attempt-1/plan",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 12.400000095367432,
+          "selfMs": 12.400000095367432
+        },
+        {
+          "path": "attempt-1/prepare",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 2.299999952316284,
+          "selfMs": 2.299999952316284
+        },
+        {
+          "path": "attempt-1/rectify-voronoi",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 3.299999952316284,
+          "selfMs": 3.299999952316284
+        },
+        {
+          "path": "attempt-1/regional-road-gates",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0,
+          "selfMs": 0
+        },
+        {
+          "path": "attempt-1/rural-land",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.40000009536743164,
+          "selfMs": 0.40000009536743164
+        },
+        {
+          "path": "attempt-1/straighten-bridges",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0.10000014305114746,
+          "selfMs": 0.10000014305114746
+        },
+        {
+          "path": "attempt-1/temple",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 2,
+          "selfMs": 2
+        },
+        {
+          "path": "attempt-1/thin-road-cells",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 1.4000000953674316,
+          "selfMs": 1.4000000953674316
+        },
+        {
+          "path": "attempt-1/through-streets",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 3.299999952316284,
+          "selfMs": 3.299999952316284
+        },
+        {
+          "path": "attempt-1/water-access",
+          "parent": "attempt-1",
+          "depth": 1,
+          "calls": 1,
+          "elapsedMs": 0,
+          "selfMs": 0
+        },
+        {
+          "path": "castle-ground",
+          "parent": null,
+          "depth": 0,
+          "calls": 1,
+          "elapsedMs": 0,
+          "selfMs": 0
+        },
+        {
+          "path": "farmland",
+          "parent": null,
+          "depth": 0,
+          "calls": 1,
+          "elapsedMs": 467.30000019073486,
+          "selfMs": 467.30000019073486
+        },
+        {
+          "path": "population-housing",
+          "parent": null,
+          "depth": 0,
+          "calls": 1,
+          "elapsedMs": 191.29999995231628,
+          "selfMs": 191.29999995231628
+        },
+        {
+          "path": "population-prepare",
+          "parent": null,
+          "depth": 0,
+          "calls": 1,
+          "elapsedMs": 9.5,
+          "selfMs": 9.5
+        },
+        {
+          "path": "recipe-input-clone",
+          "parent": null,
+          "depth": 0,
+          "calls": 1,
+          "elapsedMs": 0.10000014305114746,
+          "selfMs": 0.10000014305114746
+        },
+        {
+          "path": "recipe-settings-clone",
+          "parent": null,
+          "depth": 0,
+          "calls": 1,
+          "elapsedMs": 0,
+          "selfMs": 0
+        }
+      ]
+    },
+    "counts": {
+      "faces": 170,
+      "bytes": 1680231
+    }
+  },
+  "generationThroughUiMs": 1393,
+  "first3dClickMs": 1676.1000001430511,
+  "reopenClickMs": 388.7999999523163,
+  "unchangedSyncProbe": {
+    "identity": {
+      "snapshot": true,
+      "sameFabric": false,
+      "sameBuildings": true,
+      "sameFarms": true,
+      "samePreview": false,
+      "samePreviewBuildings": false
+    },
+    "unchangedSync": {
+      "ms": 330.2000000476837,
+      "positionAttributeWrites": 1136,
+      "geometryDisposals": 931
+    }
+  },
+  "idle": {
+    "observedElapsedMs": 3009,
+    "frames": 3,
+    "webglDrawCalls": 1215
+  },
+  "pageErrors": [],
+  "afterFix": {
+    "generate": {
+      "elapsedMs": 1403,
+      "delta": {
+        "frames": 77,
+        "draws": 0,
+        "geometries": 0,
+        "disposals": 0,
+        "renders": 0
+      }
+    },
+    "first3d": {
+      "elapsedMs": 5278,
+      "clickMs": 1349.7000000476837,
+      "delta": {
+        "frames": 1,
+        "draws": 405,
+        "geometries": 18026,
+        "disposals": 15232,
+        "renders": 1
+      }
+    },
+    "idle": {
+      "elapsedMs": 1505,
+      "delta": {
+        "frames": 0,
+        "draws": 0,
+        "geometries": 0,
+        "disposals": 0,
+        "renders": 0
+      }
+    },
+    "reopen": {
+      "elapsedMs": 2954,
+      "clickMs": 1.9000000953674316,
+      "delta": {
+        "frames": 1,
+        "draws": 405,
+        "geometries": 0,
+        "disposals": 0,
+        "renders": 1
+      }
+    },
+    "workerGenerationMs": 920.0999999046326,
+    "identity": {
+      "identity": {
+        "snapshot": true,
+        "sameFabric": true,
+        "sameBuildings": true,
+        "sameFarms": true,
+        "samePreview": true,
+        "samePreviewBuildings": true
+      },
+      "unchangedSync": {
+        "ms": 1.7000000476837158,
+        "positionAttributeWrites": 0,
+        "geometryDisposals": 0
+      }
+    },
+    "generatedDocumentUnchanged": true,
+    "notes": [
+      "Same seed and default generation settings; one instrumented sample.",
+      "3D button timing is synchronous handler time. Rendering is now deferred to requestAnimationFrame, so this is not time to first visible image.",
+      "Geometry counters count position attribute assignments and dispose calls, not unique objects."
+    ],
+    "interactions": {
+      "point": {
+        "x": 820,
+        "y": 500,
+        "distance": 100
+      },
+      "initial": 1,
+      "afterWheel": 2,
+      "afterOrbit": 8,
+      "idleStart": 8,
+      "idleEnd": 8,
+      "pick": {
+        "point": {
+          "x": 864.9394537368747,
+          "y": 747.8504499722087
+        },
+        "text": "2 floors · Brick · Gable · Tile · eaves 5.9 m\nDwelling / Dwelling",
+        "highlight": true
+      },
+      "afterResize": 10,
+      "highlightAfterReopen": false,
+      "errors": []
+    }
+  }
+}

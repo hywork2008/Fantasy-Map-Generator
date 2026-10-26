@@ -251,6 +251,7 @@ export function createDocumentIOController(ctx: DocumentIOContext) {
     }
   }
 
+  // biome-ignore lint/correctness/noComponentHookFactories: This is a document action, not a React hook.
   function useStandaloneSite(): void {
     delete ctx.generation.generateSettings.descriptor;
     ctx.documents.importedOrigin = null;

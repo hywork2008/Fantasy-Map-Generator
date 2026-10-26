@@ -82,11 +82,14 @@ import { buildDocumentPanel } from "./documentPanel";
 import { createEditorControls, div, text } from "./editorControls";
 import { buildFacilityPanel } from "./facilityPanel";
 import { buildGenerationPanel } from "./generationPanel";
+import { buildObjectControls } from "./objectControls";
 import { mountOperationHelp } from "./operationHelp";
+import { mountPerformancePanel } from "./performancePanel";
 
 const TOOLS: Array<[Tool, EditorMessageKey, string]> = [
   ["select", "cityEditor.messages.selectAndMove", "↖"],
   ["landmark", "cityEditor.messages.placeHistoricLandmark", "⌂"],
+  ["object", "cityEditor.messages.placeObjects", "⚒"],
   ["ship", "cityEditor.messages.placeShips", "⛵"],
   ["vertex", "cityEditor.messages.editVertices", "⌘"],
   ["road", "cityEditor.messages.drawRoad", "╱"],
@@ -450,6 +453,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
         },
         get landmarkControls() {
           return landmarkControls;
+        },
+        get objectControls() {
+          return objectControls;
         },
         get shipControls() {
           return shipControls;
@@ -1298,6 +1304,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   interaction.landmarkAssetId = "";
   interaction.landmarkRotationDegrees = 0;
   interaction.landmarkHoverPoint = null;
+  interaction.objectType = "trebuchet";
+  interaction.objectScale = 1;
+  interaction.objectAngleDegrees = 0;
   interaction.shipType = "small";
   interaction.shipSizeMeters = SHIP_SPECS.small.defaultSizeMeters;
   interaction.shipAngleDegrees = 0;
@@ -1723,6 +1732,10 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     label(editorText("cityEditor.messages.angle"), shipAngle)
   );
   toolbar.content.appendChild(shipControls);
+  const objectControls = buildObjectControls(scope, interaction, () => {
+    if (interaction.tool === "object") updateShipPreview();
+  });
+  toolbar.content.appendChild(objectControls);
 
   const elevationControls = div("ce-elevation-controls");
   const elevationMode = select(["raise", "lower", "smooth"], interaction.elevationBrush);
@@ -2791,6 +2804,24 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   syncCity3d = () => city3d.sync();
   resetCity3dCamera = () => city3d.resetCamera();
   scope.own(() => city3d.dispose());
+  const performancePanel = mountPerformancePanel({
+    host: canvas,
+    map,
+    scope,
+    getDocument: () => documents.documentState,
+    get3d: () => city3d.getPerformance(),
+    getSettings: () => ({
+      modelQuality: readModelQualityPreference(),
+      renderQuality: renderQualitySelect.value,
+      terrainSpacing: readTerrainSpacingPreference(),
+      riverDropMeters: riverDropMeters(generation.generateSettings.riverDropMeters),
+      coreLayer: coreLayerInput.checked,
+      regionalLayer: regionalLayerInput.checked,
+      hideBuildings: display.hideBuildings,
+      hideStreetLines: display.hideStreetLines
+    })
+  });
+  scope.own(() => performancePanel.dispose());
   try {
     const incoming = readIncomingCity();
     if (incoming) applyShare(incoming.share, incoming.origin);
@@ -3132,6 +3163,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     return getDocumentIOController().copyShareLink(button);
   }
 
+  // biome-ignore lint/correctness/noComponentHookFactories: This is an editor action, not a React hook.
   function useStandaloneSite(): void {
     getDocumentIOController().useStandaloneSite();
   }

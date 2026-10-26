@@ -112,10 +112,12 @@ export function bindPointerDown(ctx: PointerDownContext) {
     }
     if (ctx.interaction.tool === "select") {
       const targetEl = event.target instanceof Element ? event.target : null;
-      const shipHandle = targetEl?.closest<SVGElement>("[data-ship-handle='rotate']");
+      const shipHandle = targetEl?.closest<SVGElement>("[data-ship-handle='rotate'], [data-object-handle='rotate']");
       if (shipHandle) {
-        const shipId = shipHandle.getAttribute("data-ship-id");
-        const ship = ctx.documents.documentState.elements.find(e => e.id === shipId && e.kind === "ship");
+        const shipId = shipHandle.getAttribute("data-ship-id") ?? shipHandle.getAttribute("data-object-id");
+        const ship = ctx.documents.documentState.elements.find(
+          e => e.id === shipId && (e.kind === "ship" || e.kind === "object")
+        );
         if (ship?.point && !ship.locked) {
           event.preventDefault();
           ctx.interaction.shipDragBefore = clone(ctx.documents.documentState);
@@ -133,11 +135,11 @@ export function bindPointerDown(ctx: PointerDownContext) {
         }
       }
 
-      const shipPick = targetEl?.closest<SVGElement>(".ce-ship[data-pick]");
+      const shipPick = targetEl?.closest<SVGElement>(".ce-ship[data-pick], .ce-object[data-pick]");
       if (shipPick) {
         const rawPick = shipPick.getAttribute("data-pick");
         const info = parsePickInfo(rawPick);
-        if (info && info.kind === "ship") {
+        if (info && (info.kind === "ship" || info.kind === "object")) {
           const shipId = String(info.id);
           const ship = ctx.documents.documentState.elements.find(e => e.id === shipId);
           if (ship?.point) {

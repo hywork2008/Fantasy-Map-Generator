@@ -9,6 +9,38 @@ import type { CharacterRowData } from "../../../controllers/characters-overview"
 import { getCharacterEpithetSuffix } from "../../../utils/characterLabels";
 import { getCharacterRowStyle } from "../../../utils/personalityUtils";
 
+function SortHeader({
+  field,
+  label,
+  numeric,
+  width,
+  sortBy,
+  sortOrder,
+  onSort
+}: {
+  field: string;
+  label: string;
+  numeric?: boolean;
+  width?: string;
+  sortBy: string;
+  sortOrder: "asc" | "desc";
+  onSort: (_field: string) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <SortableHeader
+      field={field}
+      label={label}
+      sortBy={sortBy}
+      sortOrder={sortOrder}
+      onSort={onSort}
+      numeric={numeric}
+      tip={t("extensions.charactersOverview.sortTip", { field: label.toLowerCase() })}
+      style={{ width, minWidth: width }}
+    />
+  );
+}
+
 export interface CharactersTableProps {
   rows: CharacterRowData[];
   sortBy: string;
@@ -48,54 +80,121 @@ export const CharactersTable: React.FC<CharactersTableProps> = ({
     virtualItems.length > 0 ? rowVirtualizer.getTotalSize() - virtualItems[virtualItems.length - 1].end : 0;
   const colSpan = 8 + Number(showRace) + Number(showArcane) + (showFamily ? 2 : 0);
 
-  function SortHeader({
-    field,
-    label,
-    numeric,
-    width
-  }: {
-    field: string;
-    label: string;
-    numeric?: boolean;
-    width?: string;
-  }) {
-    return (
-      <SortableHeader
-        field={field}
-        label={label}
-        sortBy={sortBy}
-        sortOrder={sortOrder}
-        onSort={onSort}
-        numeric={numeric}
-        tip={t("extensions.charactersOverview.sortTip", { field: label.toLowerCase() })}
-        style={{ width, minWidth: width }}
-      />
-    );
-  }
-
   return (
     <div className="table" ref={parentRef} style={{ overflow: "auto" }}>
       <table className="fmg-table">
         <thead style={{ zIndex: 3 }}>
           <tr>
-            <SortHeader field="name" label={t("extensions.charactersOverview.name")} width="6em" />
-            <SortHeader field="age" label={t("extensions.charactersOverview.age")} numeric width="4em" />
-            <SortHeader field="appearance" label={t("extensions.charactersOverview.appearance")} numeric width="4em" />
-            <SortHeader field="prestige" label={t("extensions.charactersOverview.prestige")} numeric width="4em" />
-            <SortHeader field="wealth" label={t("extensions.charactersOverview.wealth")} numeric width="6em" />
-            {showRace && <SortHeader field="race" label={t("extensions.charactersOverview.race")} width="7em" />}
-            {showArcane && (
-              <SortHeader field="arcane" label={t("extensions.charactersOverview.arcane")} numeric width="5em" />
+            <SortHeader
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSort={onSort}
+              field="name"
+              label={t("extensions.charactersOverview.name")}
+              width="6em"
+            />
+            <SortHeader
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSort={onSort}
+              field="age"
+              label={t("extensions.charactersOverview.age")}
+              numeric
+              width="4em"
+            />
+            <SortHeader
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSort={onSort}
+              field="appearance"
+              label={t("extensions.charactersOverview.appearance")}
+              numeric
+              width="4em"
+            />
+            <SortHeader
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSort={onSort}
+              field="prestige"
+              label={t("extensions.charactersOverview.prestige")}
+              numeric
+              width="4em"
+            />
+            <SortHeader
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSort={onSort}
+              field="wealth"
+              label={t("extensions.charactersOverview.wealth")}
+              numeric
+              width="6em"
+            />
+            {showRace && (
+              <SortHeader
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={onSort}
+                field="race"
+                label={t("extensions.charactersOverview.race")}
+                width="7em"
+              />
             )}
-            <SortHeader field="gender" label={t("extensions.charactersOverview.gender")} width="6em" />
+            {showArcane && (
+              <SortHeader
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={onSort}
+                field="arcane"
+                label={t("extensions.charactersOverview.arcane")}
+                numeric
+                width="5em"
+              />
+            )}
+            <SortHeader
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSort={onSort}
+              field="gender"
+              label={t("extensions.charactersOverview.gender")}
+              width="6em"
+            />
             {showFamily ? (
-              <SortHeader field="maritalStatus" label={t("extensions.charactersOverview.family")} width="7em" />
+              <SortHeader
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={onSort}
+                field="maritalStatus"
+                label={t("extensions.charactersOverview.family")}
+                width="7em"
+              />
             ) : null}
             {showFamily ? (
-              <SortHeader field="children" label={t("extensions.charactersOverview.children")} numeric width="5em" />
+              <SortHeader
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={onSort}
+                field="children"
+                label={t("extensions.charactersOverview.children")}
+                numeric
+                width="5em"
+              />
             ) : null}
-            <SortHeader field="title" label={t("extensions.charactersOverview.title")} width="10em" />
-            <SortHeader field="state" label={t("extensions.charactersOverview.stateCol")} width="10em" />
+            <SortHeader
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSort={onSort}
+              field="title"
+              label={t("extensions.charactersOverview.title")}
+              width="10em"
+            />
+            <SortHeader
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSort={onSort}
+              field="state"
+              label={t("extensions.charactersOverview.stateCol")}
+              width="10em"
+            />
           </tr>
         </thead>
         <tbody>

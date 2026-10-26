@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { CityDocument, Point } from "../types/document";
-import { buildBlockFabric } from "./blockInfill";
+import { buildBlockFabric, documentFabricFingerprint } from "./blockInfill";
 import { createFabricPlan } from "./fabricDistricts";
 import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid, segmentSegmentHit } from "./geom";
 import { buildLandmarkLaneNetwork } from "./landmarkLaneNetwork";
 import { convexInfillParts } from "./lotGeometry";
 import { meshFromCells } from "./mesh";
+import { storeRuralFieldOverlay } from "./ruralFieldOverlay";
 
 function fixture(polygons: Point[][]): CityDocument {
   const mesh = meshFromCells(
@@ -68,6 +69,26 @@ function connectedLaneSegments(fabric: ReturnType<typeof buildBlockFabric>) {
 }
 
 describe("coarse-cell infill", () => {
+  it("reuses snapshot and overlay fabrics while reflecting replacements and in-place document edits", () => {
+    const document = fixture([rect]);
+    const base = buildBlockFabric(document);
+    const fingerprint = documentFabricFingerprint(document);
+    document.ruralFieldSnapshot = { fingerprint, farms: base.farms, lanes: base.lanes };
+    const snapshot = buildBlockFabric(document);
+    expect(buildBlockFabric(document)).toBe(snapshot);
+    const overlay = { farms: [], lanes: [] };
+    storeRuralFieldOverlay(document, fingerprint, overlay);
+    const combined = buildBlockFabric(document);
+    expect(combined).not.toBe(snapshot);
+    expect(combined.farms).toBe(overlay.farms);
+    expect(buildBlockFabric(document)).toBe(combined);
+    storeRuralFieldOverlay(document, fingerprint, { ...overlay, farms: base.farms });
+    expect(buildBlockFabric(document).farms).toBe(base.farms);
+    document.farmlandAreaHectares = 0;
+    expect(buildBlockFabric(document)).not.toBe(combined);
+    expect(buildBlockFabric(document).buildings).toEqual(base.buildings);
+  });
+
   it("caps farm polygons by hectares, including zero, and refreshes the fabric cache", () => {
     const document = fixture([rect]);
     for (const face of Object.values(document.mesh.faces)) face.properties.ward = "farm";

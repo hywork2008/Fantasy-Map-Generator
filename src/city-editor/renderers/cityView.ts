@@ -8,6 +8,7 @@ import { createBvPrototypeCache } from "../../city3d/three/bvInstances";
 import { type CityMassingMeshes, createCityMassing } from "../../city3d/three/cityMeshes";
 import { createTownFarms, type TownFarmMeshes } from "../../city3d/three/farmMeshes";
 import { createTownFriaries } from "../../city3d/three/friaryMeshes";
+import { createTownObjects } from "../../city3d/three/objectMeshes";
 import { createTownOpenSpaces } from "../../city3d/three/openSpaceMeshes";
 import { createTownPiers } from "../../city3d/three/pierMeshes";
 import { createTownRegionalHouses, type TownRegionalHouses } from "../../city3d/three/regionalHouseMeshes";
@@ -41,9 +42,12 @@ import type { StructureKind, StructureMassing, StructureMaterial } from "../type
 import type { CityDocument } from "../types/document";
 import { collectOpenSpacePlan } from "./openSpaceSites";
 import { collectPierSites } from "./pierSites";
+import { type City3dPerformanceSnapshot, type City3dRenderMetrics, collectSceneMetrics } from "./renderMetrics";
 import { collectShipSites } from "./shipSites";
 import { standaloneHousingAppearance, standaloneHousingDocument } from "./standaloneHousingAppearance";
 import { collectCityStructures, landmarkLotStructures } from "./structureMassing";
+import { createSunControls } from "./sunControls";
+import { readSunSettings, updateSun, writeSunSettings } from "./sunLighting";
 import { groundStructures, lotFoundations, rampStructures, stairStructures } from "./terrainMassing";
 import { resolveCemeteryPlans } from "./townFacts";
 import { collectWellSites } from "./wellSites";
@@ -122,7 +126,7 @@ export function mountCity3d(options: {
   getTerrainSpacing?: () => number | "auto";
   /** Metres the river surface sits below the land it touches. Absent keeps 1 m. */
   getRiverDropMeters?: () => number;
-}): { sync(): void; resetCamera(): void; dispose(): void } {
+}): { sync(): void; resetCamera(): void; dispose(): void; getPerformance(): City3dPerformanceSnapshot | null } {
   const viewport = document.createElement("div");
   viewport.className = "ce-3d";
   viewport.hidden = true;
@@ -134,6 +138,21 @@ export function mountCity3d(options: {
   readout.className = "ce-3d-readout";
   readout.hidden = true;
   options.canvasHost.append(viewport, button, readout);
+
+  const sunSettings = readSunSettings();
+  let sun: THREE.DirectionalLight | null = null;
+  let shadowBounds = new THREE.Box3();
+  const lightingPanel = createSunControls(
+    sunSettings,
+    (target, type, handler) => options.scope.listen(target, type, handler),
+    () => {
+      writeSunSettings(sunSettings);
+      if (sun) updateSun(sun, shadowBounds, sunSettings);
+      if (renderer) renderer.shadowMap.needsUpdate = true;
+      requestRender();
+    }
+  );
+  options.canvasHost.append(lightingPanel);
 
   let renderer: THREE.WebGLRenderer | null = null;
   let scene: THREE.Scene | null = null;
@@ -155,6 +174,8 @@ export function mountCity3d(options: {
   let openSpaceStamp: string | null = null;
   let ships: CityStructureMeshes | null = null;
   let shipStamp: string | null = null;
+  let objects: ReturnType<typeof createTownObjects> | null = null;
+  let objectStamp: string | null = null;
   let piers: CityStructureMeshes | null = null;
   let pierStamp: string | null = null;
   let waterMeshes: TownWaterMeshes | null = null;
@@ -170,12 +191,16 @@ export function mountCity3d(options: {
   let built: DistrictFabric | null = null;
   let builtQuality: ModelQuality | null = null;
   let framedRadius = 0;
-  let running = false;
   let raf = 0;
   let disposed = false;
   let pointer: { x: number; y: number } | null = null;
+  let lastRender: City3dRenderMetrics | null = null;
   const raycaster = new THREE.Raycaster();
   const pointerNdc = new THREE.Vector2();
+
+  const requestRender = () => {
+    if (!disposed && !viewport.hidden && !raf) raf = requestAnimationFrame(tick);
+  };
 
   const resize = () => {
     if (!renderer || !camera || viewport.hidden) return;
@@ -185,6 +210,7 @@ export function mountCity3d(options: {
     renderer.setSize(width, height, false);
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
+    requestRender();
   };
 
   // Stay on +Z. planVertex maps plan +y to -Z, so the far side matches SVG up.
@@ -215,6 +241,7 @@ export function mountCity3d(options: {
     highlight.geometry.dispose();
     (highlight.material as THREE.Material).dispose();
     highlight = null;
+    requestRender();
   };
 
   const outline = (positions: Float32Array) => {
@@ -227,6 +254,7 @@ export function mountCity3d(options: {
     );
     geometry.dispose();
     scene.add(highlight);
+    requestRender();
   };
 
   const showStructure = (structure: StructureMassing | undefined) => {
@@ -362,37 +390,64 @@ export function mountCity3d(options: {
   };
 
   const ensure = () => {
-    if (renderer || disposed) return;
+    if (renderer || disposed) return Boolean(renderer);
     const canvas = document.createElement("canvas");
     canvas.className = "ce-3d-canvas";
     viewport.appendChild(canvas);
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    try {
+      renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    } catch {
+      canvas.remove();
+      return false;
+    }
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
+    renderer.shadowMap.autoUpdate = false;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setClearColor(0xc5c5bf);
     scene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(45, 1, 0.5, 80000);
     scene.add(new THREE.HemisphereLight(0xf4f0e6, 0x6d7a62, 0.9));
-    const sun = new THREE.DirectionalLight(0xffffff, 1.15);
-    sun.position.set(1, 1.6, 0.4);
-    scene.add(sun);
+    sun = new THREE.DirectionalLight(0xffffff, sunSettings.intensity / 100);
+    sun.shadow.mapSize.set(4096, 4096);
+    sun.shadow.autoUpdate = false;
+    scene.add(sun, sun.target);
     ground = new THREE.Mesh(new THREE.CircleGeometry(20, 64), new THREE.MeshLambertMaterial({ color: 0xd5cfbf }));
     ground.name = "ce-ground";
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -0.2;
+    ground.receiveShadow = true;
     scene.add(ground);
     controls = new OrbitControls(camera, canvas);
     controls.enableDamping = false;
+    controls.zoomToCursor = true;
     controls.maxPolarAngle = Math.PI / 2 - 0.05;
-    resize();
+    controls.addEventListener("change", requestRender);
+    return true;
   };
 
   const tick = () => {
-    if (!running || !renderer || !scene || !camera) return;
-    controls?.update();
+    raf = 0;
+    if (disposed || viewport.hidden || !renderer || !scene || !camera) return;
+    const start = performance.now();
     buildingDetails?.update(camera, renderer.domElement.clientHeight);
     renderer.render(scene, camera);
-    raf = requestAnimationFrame(tick);
+    const cpuMs = performance.now() - start;
+    if (renderer.info) {
+      lastRender = {
+        calls: renderer.info.render.calls,
+        triangles: renderer.info.render.triangles,
+        lines: renderer.info.render.lines,
+        points: renderer.info.render.points,
+        geometries: renderer.info.memory.geometries,
+        textures: renderer.info.memory.textures,
+        width: renderer.domElement.width,
+        height: renderer.domElement.height,
+        cpuMs,
+        sampledAt: performance.now()
+      };
+    }
   };
 
   const riverDrop = () => options.getRiverDropMeters?.() ?? RIVER_DROP_MIN;
@@ -414,8 +469,7 @@ export function mountCity3d(options: {
 
   const sync = () => {
     if (viewport.hidden || disposed) return;
-    ensure();
-    if (!scene) return;
+    if (!ensure() || !scene) return;
     const city = options.getDocument();
     // Fabric first: lane geometry is part of the road stamp, and graded roads shape the terrain.
     const quality = options.getModelQuality?.() ?? "standard";
@@ -445,6 +499,9 @@ export function mountCity3d(options: {
       open: true
     });
     const farmlandChanged = terrainChanged || plan.water || farmlandSource !== fabric.farms || !farmland;
+    const objectElements = city.elements.filter(item => item.kind === "object");
+    const nextObjectStamp = JSON.stringify(objectElements);
+    const objectsChanged = terrainChanged || objectStamp !== nextObjectStamp || !objects;
     const shipSites = collectShipSites(city);
     const nextShipStamp = JSON.stringify(shipSites);
     const shipsChanged = plan.water || shipStamp !== nextShipStamp || !scene.getObjectByName("ce-ships");
@@ -466,13 +523,16 @@ export function mountCity3d(options: {
       !plan.buildings &&
       !plan.water &&
       !plan.roads &&
+      !objectsChanged &&
       !shipsChanged &&
       !piersChanged &&
       !openSpacesChanged &&
       !friariesChanged &&
       !farmlandChanged
-    )
+    ) {
+      if (!framedRadius) frameCamera(city);
       return;
+    }
     if (friariesChanged) {
       if (friaries) scene.remove(friaries.group);
       friaries?.dispose();
@@ -504,6 +564,13 @@ export function mountCity3d(options: {
       farmland = next;
       farmlandSource = fabric.farms;
       scene.add(next.parent);
+    }
+    if (objectsChanged) {
+      if (objects) scene.remove(objects.group);
+      objects?.dispose();
+      objects = createTownObjects(objectElements, terrain?.heightAt, bvPrototypes);
+      scene.add(objects.group);
+      objectStamp = nextObjectStamp;
     }
     if (shipsChanged && waterMeshes) {
       ships?.dispose();
@@ -546,27 +613,48 @@ export function mountCity3d(options: {
         }
       }
     }
+    // Refresh flags and bounds only when geometry changes, never during slider input or camera movement.
+    shadowBounds = new THREE.Box3();
+    scene.updateMatrixWorld(true);
+    scene.traverse(object => {
+      if (!(object instanceof THREE.Mesh)) return;
+      object.receiveShadow = true;
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      object.castShadow =
+        object !== ground && materials.some(material => !material.transparent || material.opacity >= 1);
+      if (object !== ground && object.visible) shadowBounds.expandByObject(object);
+    });
+    if (shadowBounds.isEmpty()) shadowBounds.set(new THREE.Vector3(-20, 0, -20), new THREE.Vector3(20, 20, 20));
+    if (sun) updateSun(sun, shadowBounds, sunSettings);
+    if (renderer) renderer.shadowMap.needsUpdate = true;
+    requestRender();
   };
 
   const setOpen = (open: boolean) => {
     viewport.hidden = !open;
+    lightingPanel.hidden = !open;
     options.map.hidden = open;
     button.textContent = editorText(open ? "cityEditor.messages.view2d" : "cityEditor.messages.view3d");
     button.setAttribute("aria-pressed", open ? "true" : "false");
     readout.hidden = true;
     if (!open) {
-      running = false;
+      clearHighlight();
       cancelAnimationFrame(raf);
+      raf = 0;
       return;
     }
-    ensure();
-    resize();
-    built = null;
-    sync();
-    if (!running) {
-      running = true;
-      tick();
+    if (!ensure()) {
+      viewport.hidden = true;
+      lightingPanel.hidden = true;
+      options.map.hidden = false;
+      button.textContent = editorText("cityEditor.messages.view3d");
+      button.setAttribute("aria-pressed", "false");
+      readout.textContent = editorText("cityEditor.messages.webglUnavailable");
+      readout.hidden = false;
+      return;
     }
+    resize();
+    sync();
   };
 
   const pick = (event: PointerEvent) => {
@@ -645,8 +733,8 @@ export function mountCity3d(options: {
   const dispose = () => {
     if (disposed) return;
     disposed = true;
-    running = false;
     cancelAnimationFrame(raf);
+    raf = 0;
     observer?.disconnect();
     clearHighlight();
     massing?.dispose();
@@ -657,6 +745,7 @@ export function mountCity3d(options: {
     wells?.dispose();
     specialBuildings?.dispose();
     regionalHouses?.dispose();
+    objects?.dispose();
     ships?.dispose();
     openSpaces?.dispose();
     friaries?.dispose();
@@ -665,8 +754,11 @@ export function mountCity3d(options: {
     roadMeshes?.dispose();
     ground?.geometry.dispose();
     (ground?.material as THREE.Material | undefined)?.dispose();
+    controls?.removeEventListener("change", requestRender);
     controls?.dispose();
+    sun?.shadow.dispose();
     renderer?.dispose();
+    lightingPanel.remove();
     viewport.remove();
     button.remove();
     readout.remove();
@@ -677,5 +769,23 @@ export function mountCity3d(options: {
     framedRadius = 0;
   };
 
-  return { sync, resetCamera, dispose };
+  const getPerformance = (): City3dPerformanceSnapshot | null =>
+    viewport.hidden || !scene
+      ? null
+      : {
+          camera:
+            camera && controls
+              ? {
+                  position: camera.position.toArray(),
+                  target: controls.target.toArray(),
+                  zoom: camera.zoom,
+                  fov: camera.fov
+                }
+              : null,
+          frame: lastRender,
+          scene: collectSceneMetrics(scene),
+          buildings: built?.buildings.length ?? 0,
+          quality: builtQuality
+        };
+  return { sync, resetCamera, dispose, getPerformance };
 }

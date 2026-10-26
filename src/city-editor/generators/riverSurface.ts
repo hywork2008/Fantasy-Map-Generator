@@ -60,7 +60,7 @@ export function townWaterElevations(document: CityDocument, dropMeters?: number)
   const landAt = (id: Id | null): number | null => {
     if (!id) return null;
     const face = document.mesh.faces[id];
-    if (!face || face.properties.water !== "land" || !Number.isFinite(face.properties.elevation)) return null;
+    if (face?.properties.water !== "land" || !Number.isFinite(face.properties.elevation)) return null;
     return face.properties.elevation;
   };
   const banksAround = (point: Point, width: number): number | null => {

@@ -73,7 +73,9 @@ describe("near facade details", () => {
     expect(details.stats.buildings).toBeGreaterThan(0);
     expect(details.stats.buildings).toBeLessThanOrEqual(BUILDING_DETAIL_BUDGET.buildings);
     expect(details.stats.triangles).toBeLessThanOrEqual(BUILDING_DETAIL_BUDGET.triangles);
-    const geometry = (details.group.children[0] as THREE.Mesh).geometry;
+    const mesh = details.group.children[0] as THREE.Mesh;
+    expect(mesh.receiveShadow).toBe(true);
+    const geometry = mesh.geometry;
     const dispose = vi.spyOn(geometry, "dispose");
     const builds = details.stats.builds;
     details.update(camera, 1500);
@@ -85,6 +87,13 @@ describe("near facade details", () => {
     expect(details.group.children).toHaveLength(0);
     expect(dispose).toHaveBeenCalledOnce();
     expect(details.stats.buildings).toBe(0);
+    camera.position.set(0, 110, 110);
+    camera.lookAt(0, 0, 0);
+    details.update(camera, 1500);
+    expect(details.group.children).toHaveLength(1);
+    const rebuiltMesh = details.group.children[0] as THREE.Mesh;
+    expect(rebuiltMesh).not.toBe(mesh);
+    expect(rebuiltMesh.receiveShadow).toBe(true);
     details.dispose();
   });
 

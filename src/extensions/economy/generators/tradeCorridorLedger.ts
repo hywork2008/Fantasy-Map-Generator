@@ -460,7 +460,7 @@ export function recordMarketShipment(shipment: MarketShipment): void {
   if (!isEconomyContextReady()) return;
   const good = goodById(shipment.goodId);
   const slots = Math.max(0, shipment.units) * (good ? getGoodCargoSlotsPerUnit(good) : 1);
-  const days = shipment.travelDays > 0 ? shipment.travelDays : 0;
+  const days = Math.max(shipment.travelDays, 0);
   remember({
     originBurgId: shipment.originBurgId,
     destinationBurgId: shipment.destinationBurgId,

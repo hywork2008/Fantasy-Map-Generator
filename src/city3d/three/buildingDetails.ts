@@ -141,6 +141,7 @@ export function createTownBuildingDetails(lots: readonly BuildingLot[], foundati
       }
       mesh = new THREE.Mesh(geometry, material);
       mesh.name = "near-facades";
+      mesh.receiveShadow = true;
       group.add(mesh);
     },
     dispose() {

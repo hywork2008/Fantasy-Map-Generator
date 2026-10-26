@@ -177,6 +177,7 @@ export const DiplomacyHistoryDialog: React.FC = () => {
   };
 
   const save = () => {
+    // biome-ignore lint/performance/useDomNodeTextContent: Export rendered line breaks from the legacy history markup.
     const text = chronicle.length === 0 ? (containerRef.current?.innerText ?? "") : buildHistoryText();
     onSave(text.replace(/\n/g, "\r\n"));
     close();

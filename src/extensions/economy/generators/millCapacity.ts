@@ -172,7 +172,7 @@ export function millCountsForBurg(burgId: number, burgs = liveBurgs(), dams = da
 export function grainPerFlourBatch(flour: Good, grain: Good): number {
   const recipe = flour.recipes?.find(candidate => (candidate[grain.i] ?? 0) > 0);
   const amount = recipe?.[grain.i] ?? 0;
-  return amount > 0 ? amount : 0;
+  return Math.max(amount, 0);
 }
 
 /**

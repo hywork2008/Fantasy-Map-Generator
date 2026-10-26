@@ -1,4 +1,5 @@
 import type { KrakPhase } from "../../buildings/fortresses/krak";
+import { placeableObject } from "../../buildings/placeableObjects";
 import { editorHtml, editorText } from "../../i18n/editorMessages";
 import { buildingHeightLimitControls } from "../components/buildingHeightLimitControls";
 import type { createEditorControls, FloatingWindow } from "../components/editorControls";
@@ -43,6 +44,7 @@ import {
   setFaceWater,
   splitFace
 } from "../generators/mesh";
+import { canPlaceObject, objectScale } from "../generators/objectPlacement";
 import { openGatePassage } from "../generators/passages";
 import { castlePlatform, castleRamp, castleSiteFaceIds, setCastlePlatform } from "../generators/terrainEditing";
 import { editFaceElevation } from "../generators/terrainField/pads";
@@ -1107,6 +1109,80 @@ export function createInspectorController(ctx: InspectorContext) {
                   landmarks: ctx.documents.documentState.landmarks?.filter(item => item.id !== instance.id)
                 },
                 editorText("cityEditor.messages.delete", { value0: ctx.interaction.inspectedInfo?.label ?? "landmark" })
+              );
+              ctx.interaction.inspectedInfo = null;
+              ctx.interaction.selection.inspectedId = null;
+              ctx.refresh();
+            })
+          );
+        }
+      }
+
+      if (ctx.interaction.inspectedInfo.layer === "elements" && ctx.interaction.inspectedInfo.kind === "object") {
+        const item = ctx.documents.documentState.elements.find(e => e.id === ctx.interaction.inspectedInfo?.id);
+        if (item?.point && !item.locked) {
+          const x = numberInput(String(item.point[0]), "-100000", "0.1");
+          const y = numberInput(String(item.point[1]), "-100000", "0.1");
+          const scale = numberInput(String(objectScale(item.objectScale)), "0.1", "0.1");
+          scale.max = "10";
+          const angle = numberInput(String(((item.rotation ?? 0) * 180) / Math.PI), "-360", "1");
+          angle.setAttribute("aria-label", editorText("cityEditor.messages.rotation"));
+          ctx.scope.listen(angle, "keydown", event => {
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+            event.stopPropagation();
+            angle.dispatchEvent(new Event("change"));
+          });
+          ctx.scope.listen(angle, "change", () => {
+            if (!angle.value.trim() || !Number.isFinite(Number(angle.value))) return;
+            const current = ctx.documents.documentState.elements.find(e => e.id === item.id);
+            if (!current || current.locked) return;
+            const updated = { ...current, rotation: (Number(angle.value) * Math.PI) / 180 };
+            if (!canPlaceObject(ctx.documents.documentState, updated)) {
+              ctx.showNotice(editorText("cityEditor.messages.objectsNeedLand"));
+              return;
+            }
+            ctx.commit(
+              {
+                ...ctx.documents.documentState,
+                elements: ctx.documents.documentState.elements.map(e => (e.id === item.id ? updated : e))
+              },
+              editorText("cityEditor.messages.rotateObject")
+            );
+          });
+          ctx.inspector.content.append(
+            divider(),
+            text(placeableObject(item.objectType)?.name ?? item.objectType ?? "Object"),
+            label(editorText("cityEditor.messages.xM"), x),
+            label(editorText("cityEditor.messages.yM"), y),
+            label(editorText("cityEditor.messages.objectScale"), scale),
+            label(editorText("cityEditor.messages.rotation"), angle),
+            makeButton(editorText("cityEditor.messages.updateObject"), () => {
+              const updated = {
+                ...item,
+                point: [Number(x.value), Number(y.value)] as Point,
+                objectScale: objectScale(Number(scale.value)),
+                rotation: (Number(angle.value) * Math.PI) / 180
+              };
+              if (!Number.isFinite(updated.rotation) || !canPlaceObject(ctx.documents.documentState, updated)) {
+                ctx.showNotice(editorText("cityEditor.messages.objectsNeedLand"));
+                return;
+              }
+              ctx.commit(
+                {
+                  ...ctx.documents.documentState,
+                  elements: ctx.documents.documentState.elements.map(e => (e.id === item.id ? updated : e))
+                },
+                editorText("cityEditor.messages.updateObject")
+              );
+            }),
+            makeButton(editorText("cityEditor.messages.deleteObject"), () => {
+              ctx.commit(
+                {
+                  ...ctx.documents.documentState,
+                  elements: ctx.documents.documentState.elements.filter(e => e.id !== item.id)
+                },
+                editorText("cityEditor.messages.deleteObject")
               );
               ctx.interaction.inspectedInfo = null;
               ctx.interaction.selection.inspectedId = null;

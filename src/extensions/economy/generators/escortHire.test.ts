@@ -28,6 +28,7 @@ function alwaysSuccessRng(): RNGService {
   const seq = [0.9, 0.5, 0.99, 0.9, 0.5, 0.99];
   return {
     rand: () => seq[i++ % seq.length] ?? 0.9,
+    // biome-ignore lint/correctness/noComponentHookFactories: P is a probability stub, not a React component.
     P: () => false,
     each: () => () => false,
     gauss: () => 0,

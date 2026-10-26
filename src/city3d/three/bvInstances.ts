@@ -5,6 +5,8 @@ import type { CityStructureMeshes } from "./structureMeshes";
 export interface BvDefinition {
   id: string;
   create(): CityStructureMeshes;
+  /** Transfers an opaque, non-indexed position/normal/color geometry to the prototype cache. */
+  createGeometry?(): THREE.BufferGeometry;
 }
 interface Prototype {
   geometry: THREE.BufferGeometry;
@@ -15,6 +17,17 @@ interface Prototype {
 
 /** Bake opaque, solid-color BV parts once. Source factories retain ownership of their resources. */
 function bake(definition: BvDefinition): Prototype | undefined {
+  if (definition.createGeometry) {
+    const geometry = definition.createGeometry();
+    geometry.computeBoundingBox();
+    geometry.computeBoundingSphere();
+    return {
+      geometry,
+      material: new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }),
+      bounds: geometry.boundingBox!.clone(),
+      references: 0
+    };
+  }
   const model = definition.create();
   const parts: THREE.BufferGeometry[] = [];
   try {
