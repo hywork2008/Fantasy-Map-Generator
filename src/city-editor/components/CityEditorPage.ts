@@ -1,4 +1,5 @@
-import { type EditorMessageKey, editorOptionText, editorText } from "../../i18n/editorMessages";
+import { type EditorMessageKey, editorOptionText, editorText, setEditorPageMetadata } from "../../i18n/editorMessages";
+import { changeLanguage } from "../../i18n/index";
 import { createContextMenuController } from "../controllers/contextMenu";
 import { createDocumentIOController } from "../controllers/documentIO";
 import { createEditingController } from "../controllers/editing";
@@ -23,6 +24,7 @@ import { bindPointerMove } from "../controllers/tools/pointerMove";
 import { createRoutesController } from "../controllers/tools/routes";
 import { createSelectionController } from "../controllers/tools/selection";
 import { cityFixedApproachProvider } from "../generators/automaticFixedApproaches";
+import { withCastleStyle } from "../generators/castleAppearance";
 import { DEFAULT_CASTLE_SETTINGS } from "../generators/castlePlacement";
 import { createGridDocument, DEFAULT_CITY_SIZE, DEFAULT_GRID_KIND } from "../generators/document";
 import {
@@ -59,7 +61,7 @@ import {
 import { beginEditorMount } from "../services/editorLifetime";
 import { type ImportedCityMap, pickCityMap } from "../services/io/cityEditorFile";
 import { type CityEditorShare, readIncomingCity } from "../services/io/incomingCity";
-import type { DisplayState, GenerationState, InteractionState } from "../state/editorSession";
+import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
 import { createDocumentsState } from "../state/editorSession";
 import type { FixedApproachProvider } from "../types/contracts/fixedApproachAdoption";
 import type { GenerationDebugPreview } from "../types/contracts/generationDebug";
@@ -82,6 +84,14 @@ import { buildDocumentPanel } from "./documentPanel";
 import { createEditorControls, div, text } from "./editorControls";
 import { buildFacilityPanel } from "./facilityPanel";
 import { buildGenerationPanel } from "./generationPanel";
+import { generationSection, generationTabs, standaloneSettings } from "./generationWorkspace";
+import {
+  captureLanguageUi,
+  EditorLanguageLifetime,
+  mountLanguagePanel,
+  restoreLanguageControls,
+  restoreLanguageUi
+} from "./languagePanel";
 import { buildObjectControls } from "./objectControls";
 import { mountOperationHelp } from "./operationHelp";
 import { mountPerformancePanel } from "./performancePanel";
@@ -121,8 +131,26 @@ export interface CityEditorOptions {
   fixedApproachProvider?: FixedApproachProvider;
 }
 
+interface CityEditorLanguageSession {
+  documents: DocumentsState;
+  generation: GenerationState;
+  display: DisplayState;
+  interaction: InteractionState;
+  ui: ReturnType<typeof captureLanguageUi>;
+  lifetime: EditorLanguageLifetime;
+  camera: import("../renderers/renderMetrics").City3dPerformanceSnapshot["camera"];
+  cityModeGrid: { size: string; grid: DocumentsState["gridKind"]; hexSize: number; source: CityDocument } | undefined;
+  stepStatus: string;
+  failureSummary: { text: string; hidden: boolean; closeHidden: boolean };
+}
+const languageSessions = new WeakMap<HTMLElement, CityEditorLanguageSession>();
+
 export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = {}): () => void {
+  const retainedLanguage = languageSessions.get(root);
+  languageSessions.delete(root);
   const scope = beginEditorMount(root);
+  const languageLifetime = retainedLanguage?.lifetime ?? new EditorLanguageLifetime();
+  languageLifetime.attach(scope);
   let syncCity3d = (): void => {};
   let resetCity3dCamera = (): void => {};
   let editingController: ReturnType<typeof createEditingController> | undefined;
@@ -1477,6 +1505,12 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   generation.gridEvoIndex = 0;
   display.gridEvoLayers = { showCells: true, showDelaunay: false, showSites: true };
   display.halfView = documents.documentState.frame.extentMeters / 2;
+  if (retainedLanguage) {
+    Object.assign(documents, retainedLanguage.documents);
+    Object.assign(generation, retainedLanguage.generation);
+    Object.assign(display, retainedLanguage.display);
+    Object.assign(interaction, retainedLanguage.interaction);
+  }
   let routeEdgesByGroup = new Map<Id, Id[]>();
   let routeGroupsByEdge = new Map<Id, Id[]>();
   let edgeIdsByVertex = new Map<Id, Id[]>();
@@ -1932,6 +1966,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     currentBuildingPatternSelect,
     historicalPeriodSelect,
     skeletonControls,
+    fortificationControls,
+    wallShapeControls,
+    settingFeedback,
     syncSkeletonControls,
     layoutSelect,
     buildingPatternSelect,
@@ -1975,6 +2012,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     seedLabel,
     copyLinkButton
   } = buildGenerationPanel({
+    restoringSession: !!retainedLanguage,
     get select() {
       return select;
     },
@@ -2071,7 +2109,6 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   });
 
   const moatInputs = new Map<"town" | "castle", HTMLInputElement>();
-  const moatControls = div("ce-moat-settings");
   for (const scope of ["town", "castle"] as const) {
     const input = checkbox(!!generation.generateSettings.moats?.[scope], checked => {
       generation.generateSettings.moats = { ...generation.generateSettings.moats, [scope]: checked };
@@ -2090,14 +2127,13 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     });
     input.className = `ce-moat-${scope}`;
     moatInputs.set(scope, input);
-    moatControls.append(
-      toggleLabel(
-        scope === "town"
-          ? editorText("cityEditor.messages.townWallOuterMoat")
-          : editorText("cityEditor.messages.citadelOuterMoat"),
-        input
-      )
+    const row = toggleLabel(
+      scope === "town"
+        ? editorText("cityEditor.messages.townWallOuterMoat")
+        : editorText("cityEditor.messages.citadelOuterMoat"),
+      input
     );
+    row.classList.add("ce-moat-settings");
   }
 
   const castleControls = div("ce-castle-settings");
@@ -2156,7 +2192,30 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     };
     for (const option of input.options) option.textContent = titles[option.value] ?? option.value;
     castleInputs.set(key, input);
+    if (key === "style") {
+      input.className = "ce-generate-castle-style";
+      input.setAttribute("aria-label", title);
+    }
     scope.listen(input, "change", () => {
+      if (key === "style") {
+        const style = input.value as NonNullable<CastleSettings["style"]>;
+        generation.completeSource ??= clone(documents.documentState);
+        rememberGenerationState();
+        generation.generateSettings.castle = { ...generation.generateSettings.castle, style };
+        generation.generateSettings.legacyCastles = false;
+        clearGenerationPreviewCache();
+        const next = withCastleStyle(documents.documentState, style);
+        commit(next, editorText("cityEditor.messages.castleStyleChange"));
+        if (documents.documentState === next) {
+          generation.completeSource = withCastleStyle(generation.completeSource, style);
+          generation.completeResult = next.appearance === "town" ? next : null;
+          generation.completeResultSettings =
+            next.appearance === "town" ? JSON.stringify(generation.generateSettings) : null;
+          rememberGenerationState();
+        }
+        syncGenerateControls();
+        return;
+      }
       generation.generateSettings.castle = { ...generation.generateSettings.castle, [key]: input.value };
       // "auto" ground keeps whatever platform the edited castle had.
       if (key === "ground" && input.value === "auto") delete generation.generateSettings.castle.ground;
@@ -2241,31 +2300,23 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   scope.listen(terraceStepInput, "change", applyTerraces);
   const synthControls = div("ce-generate-synth");
   synthControls.append(
-    label(editorText("cityEditor.messages.cityLayout"), layoutSelect),
-    label(editorText("cityEditor.messages.buildingGeneration"), buildingPatternSelect),
     label(editorText("cityEditor.messages.coast"), coastSelect),
     label(editorText("cityEditor.messages.rivers"), riversSelect),
-    label(editorText("cityEditor.messages.riverPlacement"), riverPlacementSelect),
-    toggleLabel(editorText("cityEditor.messages.reliefHilltop"), reliefInput),
-    label(editorText("cityEditor.messages.terrainField"), terrainFieldSelect),
-    label(editorText("cityEditor.messages.terraces"), terraceSelect),
-    label(editorText("cityEditor.messages.terraceStep"), terraceStepInput),
-    text(editorText("cityEditor.messages.features")),
-    featureGrid,
-    makeButton(editorText("cityEditor.messages.randomizeGeography"), () => {
-      generation.generateSettings.config = randomGeography();
-      if (generation.generateSettings.generationMethod === "skeleton-first") {
-        generation.generateSettings.config.features.citadel = false;
-        generation.generateSettings.config.layout = "organic";
-        generation.generateSettings.layout = "organic";
-      }
-      generation.generateSeed = randomSeed();
-      syncGenerateControls();
-      generation.stepIndex = -1;
-      rerunLastStage();
-      showNotice(editorText("cityEditor.messages.geographyRandomized"));
-    })
+    toggleLabel(editorText("cityEditor.messages.reliefHilltop"), reliefInput)
   );
+  const randomizeGeographyButton = makeButton(editorText("cityEditor.messages.randomizeGeography"), () => {
+    generation.generateSettings.config = randomGeography();
+    if (generation.generateSettings.generationMethod === "skeleton-first") {
+      generation.generateSettings.config.features.citadel = false;
+      generation.generateSettings.config.layout = "organic";
+      generation.generateSettings.layout = "organic";
+    }
+    generation.generateSeed = randomSeed();
+    syncGenerateControls();
+    generation.stepIndex = -1;
+    rerunLastStage();
+    showNotice(editorText("cityEditor.messages.geographyRandomized"));
+  });
 
   const elevationTintInput = checkbox(documents.documentState.showElevationTint !== false, visible => {
     commit(
@@ -2362,25 +2413,25 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     scope.listen(input, "change", updateFarmland);
   const decorationControls = div("ce-city-decoration");
   decorationControls.append(
-    text(editorText("cityEditor.messages.cityDecoration")),
-    generateVacantTreesButton,
-    regenerateFarmlandButton,
-    farmlandModeSelect,
-    farmlandRangeSelect,
-    farmlandDirectionSelect,
-    text(editorText("cityEditor.messages.farmlandCoverage")),
-    farmlandCoverageInput,
-    farmlandSystemSelect,
-    text(editorText("cityEditor.messages.farmlandYear")),
-    farmlandYearInput,
-    farmlandSummary,
-    toggleLabel(editorText("cityEditor.messages.showElevationTint"), elevationTintInput),
-    toggleLabel(editorText("cityEditor.messages.showVacantLotTrees"), vacantTreesInput)
+    generationSection("cityEditor.generationWorkspace.trees", [
+      generateVacantTreesButton,
+      toggleLabel(editorText("cityEditor.messages.showVacantLotTrees"), vacantTreesInput)
+    ]),
+    generationSection("cityEditor.generationWorkspace.farmland", [
+      regenerateFarmlandButton,
+      label(editorText("cityEditor.messages.farmlandGeneration"), farmlandModeSelect),
+      label(editorText("cityEditor.messages.farmlandRange"), farmlandRangeSelect),
+      label(editorText("cityEditor.messages.farmlandDirection"), farmlandDirectionSelect),
+      label(editorText("cityEditor.messages.farmlandCoverage"), farmlandCoverageInput),
+      label(editorText("cityEditor.messages.farmlandSystem"), farmlandSystemSelect),
+      label(editorText("cityEditor.messages.farmlandYear"), farmlandYearInput),
+      farmlandSummary
+    ])
   );
 
   let cityModeGrid:
     | { size: string; grid: typeof documents.gridKind; hexSize: number; source: CityDocument }
-    | undefined;
+    | undefined = retainedLanguage?.cityModeGrid;
   const generationModeSelect = select(["city", "fort"], generation.generateSettings.mode ?? "city");
   generationModeSelect.className = "ce-generation-mode";
   generationModeSelect.options[0].textContent = editorText("cityEditor.messages.cityMode");
@@ -2534,60 +2585,148 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     syncCity3d();
   });
   showRiverDrop(riverDropMeters(generation.generateSettings.riverDropMeters));
-  const cityGenerationControls = div("ce-city-generation-controls");
-  cityGenerationControls.append(
-    importedBox,
-    populationControls,
-    skeletonControls,
-    label(editorText("cityEditor.messages.elevationPreset"), elevationPresetSelect),
-    label(editorText("cityEditor.messages.elevationRelief"), elevationReliefControl),
-    label(editorText("cityEditor.messages.riverDrop"), riverDropControl),
-    updateElevationReliefButton,
-    synthControls,
-    label(editorText("cityEditor.messages.wallMaterial"), wallMaterialSelect),
-    label(editorText("cityEditor.messages.coastalWalls"), seaWallSelect),
-    castleControls,
-    moatControls,
-    label(editorText("cityEditor.messages.townWallRings"), townWallRingsSelect),
-    label(editorText("cityEditor.messages.townWallBuildOrder"), townWallBuildOrderSelect),
-    label(editorText("cityEditor.messages.urbanAreaInsideWalls"), walledShareInput),
-    housingSummary,
-    divider(),
-    text(editorText("cityEditor.generationStages.title")),
-    stageContainer,
-    stepRow,
-    Object.assign(
-      makeButton(editorText("cityEditor.messages.generateFromEdits"), () => {
-        getMapDisplayController().cancelFarmland();
-        getGenerationController().generateFromEdits();
-      }),
-      { className: "ce-generate-from-edits", title: editorText("cityEditor.messages.generateFromEditsHelp") }
-    ),
-    divider(),
-    label(editorText("cityEditor.messages.urbanCoreAllocationMode"), urbanCoreModeSelect),
-    label(editorText("cityEditor.messages.3NPatchesBlankAuto"), urbanNPatchesInput),
-    toggleLabel(editorText("cityEditor.messages.avoidSea"), avoidSeaInput),
-    label(editorText("cityEditor.messages.streetFarEnd"), farNodeSelect),
-    bearingsLabel
+  const cityGenerationControls = div("ce-city-generation-controls ce-generation-overview");
+  const importedFeaturesNotice = text(
+    editorText("cityEditor.generationWorkspace.importedFeatures", {
+      action: editorText("cityEditor.messages.useStandaloneSite")
+    })
   );
-  generatePanel.content.append(
-    generationProgress,
-    cancelGeneration,
-    label(editorText("cityEditor.messages.generationMode"), generationModeSelect),
-    completeGenerationButton,
-    newGenerationButton,
-    copyLinkButton,
+  importedFeaturesNotice.className = "ce-imported-features-notice";
+  cityGenerationControls.append(
+    generationSection("cityEditor.messages.features", [featureGrid, importedFeaturesNotice]),
+    synthControls
+  );
+  const basics = div();
+  const cityBasics = div("ce-city-generation-controls");
+  cityBasics.append(
+    importedBox,
+    generationSection("cityEditor.generationWorkspace.population", [populationControls]),
+    generationSection("cityEditor.generationWorkspace.structure", [
+      skeletonControls,
+      standaloneSettings(label(editorText("cityEditor.messages.cityLayout"), layoutSelect))
+    ]),
+    standaloneSettings(randomizeGeographyButton)
+  );
+  basics.append(
     seedLabel,
+    completeGenerationButton,
+    copyLinkButton,
+    label(editorText("cityEditor.messages.historicalPeriod"), historicalPeriodSelect),
+    cityBasics
+  );
+  const elements = div();
+  const cityElements = div("ce-city-generation-controls");
+  cityElements.append(
+    generationSection("cityEditor.generationWorkspace.terrain", [
+      label(editorText("cityEditor.messages.elevationPreset"), elevationPresetSelect),
+      label(editorText("cityEditor.messages.elevationRelief"), elevationReliefControl),
+      updateElevationReliefButton,
+      standaloneSettings(
+        label(editorText("cityEditor.messages.terrainField"), terrainFieldSelect),
+        label(editorText("cityEditor.messages.terraces"), terraceSelect),
+        label(editorText("cityEditor.messages.terraceStep"), terraceStepInput)
+      )
+    ]),
+    generationSection(
+      "cityEditor.messages.rivers",
+      [
+        standaloneSettings(label(editorText("cityEditor.messages.riverPlacement"), riverPlacementSelect)),
+        label(editorText("cityEditor.messages.riverDrop"), riverDropControl)
+      ],
+      "rivers"
+    ),
+    generationSection(
+      "cityEditor.messages.walls",
+      [
+        fortificationControls,
+        wallShapeControls,
+        label(editorText("cityEditor.messages.wallMaterial"), wallMaterialSelect),
+        label(editorText("cityEditor.messages.coastalWalls"), seaWallSelect),
+        moatInputs.get("town")!.closest("label")!,
+        label(editorText("cityEditor.messages.townWallRings"), townWallRingsSelect),
+        label(editorText("cityEditor.messages.townWallBuildOrder"), townWallBuildOrderSelect),
+        label(editorText("cityEditor.messages.urbanAreaInsideWalls"), walledShareInput)
+      ],
+      "walls"
+    ),
+    generationSection(
+      "cityEditor.messages.citadel",
+      [castleControls, moatInputs.get("castle")!.closest("label")!],
+      "citadel"
+    ),
+    generationSection("cityEditor.generationWorkspace.housing", [
+      standaloneSettings(label(editorText("cityEditor.messages.buildingGeneration"), buildingPatternSelect)),
+      label(editorText("cityEditor.messages.urbanCoreAllocationMode"), urbanCoreModeSelect),
+      housingSummary
+    ]),
+    generationSection("cityEditor.generationWorkspace.streets", [
+      toggleLabel(editorText("cityEditor.messages.avoidSea"), avoidSeaInput),
+      label(editorText("cityEditor.messages.streetFarEnd"), farNodeSelect),
+      bearingsLabel
+    ])
+  );
+  // Attach dependent controls to their owning elements without discarding saved values.
+  terraceStepInput.closest("label")!.dataset.generationRequires = "terraces";
+  seaWallSelect.closest("label")!.dataset.generationRequires = "coast";
+  riverPlacementSelect.closest("label")!.dataset.generationRequires = "singleRiver,walls";
+  const castleStyleControl = castleInputs.get("style")!.closest("label")!;
+  elements.append(
+    generationSection("cityEditor.generationWorkspace.appearance", [
+      label(editorText("cityEditor.messages.currentBuildingGeneration"), currentBuildingPatternSelect),
+      appearanceControls.root,
+      castleStyleControl
+    ]),
+    cityElements
+  );
+  const view = div();
+  view.append(
+    generationSection("cityEditor.generationWorkspace.layers", [
+      meshToggleRow,
+      toggleLabel(editorText("cityEditor.messages.showUrbanCore"), coreLayerInput),
+      toggleLabel(editorText("cityEditor.messages.showFMGSurroundings"), regionalLayerInput),
+      toggleLabel(editorText("cityEditor.messages.showElevationTint"), elevationTintInput)
+    ]),
+    label(editorText("cityEditor.messages.renderQuality"), renderQualitySelect),
+    appearanceControls.viewControls
+  );
+  const debug = div();
+  const cityDebug = div("ce-city-generation-controls");
+  cityDebug.append(
+    generationSection("cityEditor.generationStages.title", [
+      stageContainer,
+      stepRow,
+      Object.assign(
+        makeButton(editorText("cityEditor.messages.generateFromEdits"), () => {
+          getMapDisplayController().cancelFarmland();
+          getGenerationController().generateFromEdits();
+        }),
+        { className: "ce-generate-from-edits", title: editorText("cityEditor.messages.generateFromEditsHelp") }
+      ),
+      label(editorText("cityEditor.messages.3NPatchesBlankAuto"), urbanNPatchesInput)
+    ])
+  );
+  debug.append(
     toggleLabel(editorText("cityEditor.messages.debugShowGenerationFailurePreview"), failureDebugInput),
     failureDebugSummary,
     closeFailurePreview,
-    meshToggleRow,
-    label(editorText("cityEditor.messages.renderQuality"), renderQualitySelect),
-    toggleLabel(editorText("cityEditor.messages.showUrbanCore"), coreLayerInput),
-    toggleLabel(editorText("cityEditor.messages.showFMGSurroundings"), regionalLayerInput),
-    divider(),
+    cityDebug
+  );
+  const decoration = div();
+  decoration.append(decorationControls);
+  generatePanel.content.append(
+    label(editorText("cityEditor.messages.generationMode"), generationModeSelect),
+    newGenerationButton,
+    generationProgress,
+    cancelGeneration,
     cityGenerationControls,
-    decorationControls
+    settingFeedback,
+    generationTabs(scope, [
+      { id: "basics", title: "cityEditor.generationWorkspace.basics", content: basics },
+      { id: "elements", title: "cityEditor.generationWorkspace.elements", content: elements },
+      { id: "view", title: "cityEditor.generationWorkspace.view", content: view },
+      { id: "debug", title: "cityEditor.generationWorkspace.debug", content: debug },
+      { id: "decoration", title: "cityEditor.generationWorkspace.decoration", content: decoration }
+    ])
   );
   syncGenerateControls();
   mountOperationHelp(root, scope, () => generation.generateSettings);
@@ -2822,7 +2961,51 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     })
   });
   scope.own(() => performancePanel.dispose());
+  mountLanguagePanel({
+    host: canvas,
+    scope,
+    showError: showNotice,
+    async changeLanguage(language) {
+      if (generation.generationJob) return;
+      const retained: CityEditorLanguageSession = {
+        documents: { ...documents },
+        generation: { ...generation },
+        display: { ...display },
+        interaction: { ...interaction },
+        ui: captureLanguageUi(root),
+        lifetime: languageLifetime,
+        camera: city3d.getPerformance?.()?.camera ?? null,
+        cityModeGrid,
+        stepStatus: stepStatus.textContent ?? "",
+        failureSummary: {
+          text: failureDebugSummary.textContent ?? "",
+          hidden: Boolean(failureDebugSummary.hidden),
+          closeHidden: Boolean(closeFailurePreview.hidden)
+        }
+      };
+      await changeLanguage(language);
+      if (!scope.active) return;
+      languageSessions.set(root, retained);
+      setEditorPageMetadata("cityEditor");
+      mountCityEditor(root, options);
+      root.querySelector<HTMLSelectElement>(".ce-language select")?.focus({ preventScroll: true });
+    }
+  });
   try {
+    if (retainedLanguage) {
+      restoreLanguageControls(root, retainedLanguage.ui);
+      syncGenerateControls();
+      syncStageUi(generation.currentStageStep);
+      stepStatus.textContent = retainedLanguage.stepStatus;
+      failureDebugSummary.textContent = retainedLanguage.failureSummary.text;
+      failureDebugSummary.hidden = retainedLanguage.failureSummary.hidden;
+      closeFailurePreview.hidden = retainedLanguage.failureSummary.closeHidden;
+      refresh();
+      for (const sample of generation.generationSamples) generationLog.append(sample, generation.generateSeed);
+      if (retainedLanguage.camera) city3d.restoreView(retainedLanguage.camera);
+      restoreLanguageUi(root, retainedLanguage.ui);
+      return languageLifetime.dispose.bind(languageLifetime);
+    }
     const incoming = readIncomingCity();
     if (incoming) applyShare(incoming.share, incoming.origin);
     else refresh();
@@ -2831,9 +3014,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     showNotice(error instanceof Error ? error.message : editorText("cityEditor.messages.couldNotLoadFMGRegionData"));
   }
 
-  // A native bound method retains only the lifetime, not this mount's shared
-  // closure context (document, history, controllers and previews).
-  return scope.dispose.bind(scope);
+  // The bound handle follows language rebuilds without retaining this mount's closures.
+  return languageLifetime.dispose.bind(languageLifetime);
 
   function appendSelectedEdge(edgeId: Id, kind: "road" | "wall"): void {
     getRoutesController().appendSelectedEdge(edgeId, kind);

@@ -36,10 +36,11 @@ function contextOf(document: CityDocument, descriptor?: BurgSiteDescriptor) {
     : context;
 }
 
-/** Carry current housing controls onto an earlier generation input, including cleared overrides. */
+/** Carry current building appearance onto an earlier generation input, including cleared overrides. */
 export function inheritBuildingAppearance(document: CityDocument, current: CityDocument): CityDocument {
   return {
     ...inheritBuildingHeightLimits(document, current),
+    castleStyle: current.castleStyle,
     buildingAppearanceVersion: current.buildingAppearanceVersion,
     buildingAppearanceProfile: current.buildingAppearanceProfile,
     buildingAppearanceClimate: current.buildingAppearanceClimate,

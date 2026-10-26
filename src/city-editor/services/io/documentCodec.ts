@@ -25,6 +25,7 @@ import { validRuralFieldSnapshot } from "../../generators/ruralFieldSnapshot";
 import { validRegionalFrameRoads, validSceneRegions } from "../../generators/sceneRegions";
 import { repairRiverBeds } from "../../generators/terrainField/corridor";
 import { validUrbanGrowth } from "../../generators/urbanGrowth";
+import { CASTLE_STYLE_PROFILES } from "../../renderers/castlePatterns";
 import type { FixedApproachProvider } from "../../types/contracts/fixedApproachAdoption";
 import type { CityDocument } from "../../types/document";
 
@@ -94,6 +95,9 @@ function isDocument(value: unknown): value is CityDocument {
   return (
     doc.format === "fmg-city-editor" &&
     validBuildingAppearanceFields(doc) &&
+    (doc.castleStyle === undefined ||
+      doc.castleStyle === "auto" ||
+      Object.hasOwn(CASTLE_STYLE_PROFILES, doc.castleStyle)) &&
     validBuildingHeightPolicy(doc.buildingHeightPolicy) &&
     validBuildingHeightLimit(doc.buildingHeightLimit) &&
     (!doc.fabric?.generation ||

@@ -180,6 +180,10 @@ export function createDocumentIOController(ctx: DocumentIOContext) {
       delete ctx.generation.generateSettings.mode;
       delete ctx.generation.generateSettings.population;
       delete ctx.generation.generateSettings.descriptor;
+      ctx.generation.generateSettings.castle = {
+        ...ctx.generation.generateSettings.castle,
+        style: parsed.document.castleStyle ?? "auto"
+      };
       ctx.documents.importedOrigin = null;
       ctx.syncGenerateControls();
     }
