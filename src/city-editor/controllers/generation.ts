@@ -2,6 +2,7 @@ import { editorText } from "../../i18n/editorMessages";
 import { describeImportedSite } from "../components/importedSite";
 import { inheritBuildingAppearance, withBuildingAppearance } from "../generators/buildingAppearance";
 import { inheritBuildingHeightLimits } from "../generators/buildingHeightLimits";
+import { withCastleStyle } from "../generators/castleAppearance";
 import { DEFAULT_CASTLE_SETTINGS } from "../generators/castlePlacement";
 import { sizePresetForExtent } from "../generators/document";
 import { elevationReliefScale, presetAmplitude } from "../generators/elevationPreset";
@@ -334,6 +335,8 @@ export function createGenerationController(ctx: GenerationContext) {
           ctx.generation.generateSettings.buildingHeightPolicy,
           next
         );
+      if (ctx.documents.documentState.castleStyle !== undefined)
+        next = withCastleStyle(next, ctx.documents.documentState.castleStyle);
       ctx.generation.generateSettings.housingAreaScale =
         next.fabric?.generation?.settings.housingAreaScale ?? next.housingAreaScale;
       ctx.generation.generateSettings.housingAreaPasses =
@@ -733,6 +736,11 @@ export function createGenerationController(ctx: GenerationContext) {
     const roll = ctx.root.querySelector<HTMLElement>(".ce-new-generation");
     if (roll) roll.textContent = editorText(fort ? "cityEditor.messages.newFort" : "cityEditor.messages.newCity");
     ctx.seedInput.value = ctx.generation.generateSeed;
+    if (ctx.documents.documentState.castleStyle !== undefined)
+      ctx.generation.generateSettings.castle = {
+        ...ctx.generation.generateSettings.castle,
+        style: ctx.documents.documentState.castleStyle
+      };
     for (const [scope, input] of ctx.moatInputs) input.checked = !!ctx.generation.generateSettings.moats?.[scope];
     for (const [key, input] of ctx.castleInputs)
       input.value = String(

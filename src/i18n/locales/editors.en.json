@@ -1,6 +1,7 @@
 {
   "cityEditor": {
     "generationWorkspace": {
+      "appearance": "Building appearance (applied immediately)",
       "tabs": "Generation settings",
       "basics": "Basics",
       "elements": "Elements",

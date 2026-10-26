@@ -49,6 +49,27 @@ describe("generation workspace", () => {
     expect(root.querySelector(".ce-render-quality")!.closest('[role="tabpanel"]')).toBe(page("view"));
   });
 
+  it("keeps structural controls in Document and places generation and appearance controls in their owning tabs", () => {
+    for (const selector of [".ce-map-size", ".ce-grid-kind", ".ce-grid-step"])
+      expect(root.querySelector(selector)!.closest(".ce-document")).not.toBeNull();
+    const period = root.querySelector(".ce-document-historical-period")!;
+    expect(period.closest('[role="tabpanel"]')).toBe(page("basics"));
+    for (const selector of [
+      ".ce-document-building-pattern",
+      ".ce-housing-culture",
+      ".ce-housing-climate",
+      ".ce-building-height-mode",
+      ".ce-city-height-limits",
+      ".ce-generate-castle-style"
+    ]) {
+      const control = root.querySelector(selector)!;
+      expect(control.closest('[role="tabpanel"]')).toBe(page("elements"));
+      expect(control.closest(".ce-document")).toBeNull();
+    }
+    for (const selector of [".ce-model-quality", ".ce-terrain-spacing"])
+      expect(root.querySelector(selector)!.closest('[role="tabpanel"]')).toBe(page("view"));
+  });
+
   it("hides feature-dependent settings without discarding their values", () => {
     tab("elements").click();
     const walls = root.querySelector<HTMLInputElement>('[data-feature="walls"]')!;

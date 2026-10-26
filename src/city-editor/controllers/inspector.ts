@@ -488,9 +488,9 @@ export function createInspectorController(ctx: InspectorContext) {
         container.append(label(`${editorText("cityEditor.messages.elevation")} (${faceId})`, elevation));
       }
       if (ctx.documents.documentState.fortSite?.castleId !== castle.id) appendCastlePlatform(container, castle);
-      const currentProfile = resolveCastleStyle(ctx.documents.documentState, castle);
       const styleSelect = document.createElement("select");
-      styleSelect.className = "ce-select";
+      styleSelect.className = "ce-select ce-inspector-castle-style";
+      styleSelect.setAttribute("aria-label", editorText("cityEditor.messages.castleStyle"));
       styleSelect.disabled = castle.locked || !!castle.fortress;
       const styleChoices: Array<[string, string]> = [
         ["auto", editorText("cityEditor.messages.automaticAssessment")],
@@ -525,9 +525,7 @@ export function createInspectorController(ctx: InspectorContext) {
             value2: castle.form
           })
         ),
-        ...(!castle.fortress
-          ? [label(editorText("cityEditor.messages.style", { value0: currentProfile.label }), styleSelect)]
-          : []),
+        ...(!castle.fortress ? [styleSelect] : []),
         makeButton(
           castle.locked ? editorText("cityEditor.messages.unlockCastle") : editorText("cityEditor.messages.lockCastle"),
           () =>

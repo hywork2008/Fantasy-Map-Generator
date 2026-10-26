@@ -1,6 +1,7 @@
 {
   "cityEditor": {
     "generationWorkspace": {
+      "appearance": "建物の外観（即時反映）",
       "tabs": "生成設定",
       "basics": "基本条件",
       "elements": "要素別設定",

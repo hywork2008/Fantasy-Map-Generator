@@ -23,6 +23,7 @@ import { bindPointerMove } from "../controllers/tools/pointerMove";
 import { createRoutesController } from "../controllers/tools/routes";
 import { createSelectionController } from "../controllers/tools/selection";
 import { cityFixedApproachProvider } from "../generators/automaticFixedApproaches";
+import { withCastleStyle } from "../generators/castleAppearance";
 import { DEFAULT_CASTLE_SETTINGS } from "../generators/castlePlacement";
 import { createGridDocument, DEFAULT_CITY_SIZE, DEFAULT_GRID_KIND } from "../generators/document";
 import {
@@ -2158,7 +2159,30 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     };
     for (const option of input.options) option.textContent = titles[option.value] ?? option.value;
     castleInputs.set(key, input);
+    if (key === "style") {
+      input.className = "ce-generate-castle-style";
+      input.setAttribute("aria-label", title);
+    }
     scope.listen(input, "change", () => {
+      if (key === "style") {
+        const style = input.value as NonNullable<CastleSettings["style"]>;
+        generation.completeSource ??= clone(documents.documentState);
+        rememberGenerationState();
+        generation.generateSettings.castle = { ...generation.generateSettings.castle, style };
+        generation.generateSettings.legacyCastles = false;
+        clearGenerationPreviewCache();
+        const next = withCastleStyle(documents.documentState, style);
+        commit(next, editorText("cityEditor.messages.castleStyleChange"));
+        if (documents.documentState === next) {
+          generation.completeSource = withCastleStyle(generation.completeSource, style);
+          generation.completeResult = next.appearance === "town" ? next : null;
+          generation.completeResultSettings =
+            next.appearance === "town" ? JSON.stringify(generation.generateSettings) : null;
+          rememberGenerationState();
+        }
+        syncGenerateControls();
+        return;
+      }
       generation.generateSettings.castle = { ...generation.generateSettings.castle, [key]: input.value };
       // "auto" ground keeps whatever platform the edited castle had.
       if (key === "ground" && input.value === "auto") delete generation.generateSettings.castle.ground;
@@ -2550,7 +2574,12 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     ]),
     standaloneSettings(randomizeGeographyButton)
   );
-  basics.append(seedLabel, copyLinkButton, cityBasics);
+  basics.append(
+    seedLabel,
+    copyLinkButton,
+    label(editorText("cityEditor.messages.historicalPeriod"), historicalPeriodSelect),
+    cityBasics
+  );
   const elements = div();
   const cityElements = div("ce-city-generation-controls");
   cityElements.append(
@@ -2606,7 +2635,15 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   terraceStepInput.closest("label")!.dataset.generationRequires = "terraces";
   seaWallSelect.closest("label")!.dataset.generationRequires = "coast";
   riverPlacementSelect.closest("label")!.dataset.generationRequires = "singleRiver,walls";
-  elements.append(cityElements);
+  const castleStyleControl = castleInputs.get("style")!.closest("label")!;
+  elements.append(
+    generationSection("cityEditor.generationWorkspace.appearance", [
+      label(editorText("cityEditor.messages.currentBuildingGeneration"), currentBuildingPatternSelect),
+      appearanceControls.root,
+      castleStyleControl
+    ]),
+    cityElements
+  );
   const view = div();
   view.append(
     generationSection("cityEditor.generationWorkspace.layers", [
@@ -2615,7 +2652,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       toggleLabel(editorText("cityEditor.messages.showFMGSurroundings"), regionalLayerInput),
       toggleLabel(editorText("cityEditor.messages.showElevationTint"), elevationTintInput)
     ]),
-    label(editorText("cityEditor.messages.renderQuality"), renderQualitySelect)
+    label(editorText("cityEditor.messages.renderQuality"), renderQualitySelect),
+    appearanceControls.viewControls
   );
   const debug = div();
   const cityDebug = div("ce-city-generation-controls");
