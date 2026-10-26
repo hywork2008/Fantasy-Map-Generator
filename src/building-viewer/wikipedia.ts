@@ -103,6 +103,13 @@ const taskArticles: Record<number, string> = {
 };
 
 const modelArticles: Record<string, string> = {
+  "citadel-barracks": "Barracks",
+  "citadel-command": "Headquarters",
+  "citadel-service": "Arsenal",
+  "citadel-magazine": "Gunpowder magazine",
+  "citadel-ravelin": "Ravelin",
+  "earthen-courtyard-caravanserai": "Caravanserai",
+  "wayside-courtyard-inn": "Inn",
   "wattle-fence": "Wattle (construction)",
   "simple-timber-gate": "Wicket gate",
   "hay-shelter": "Hay barrack",

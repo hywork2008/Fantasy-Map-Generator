@@ -6,6 +6,7 @@ import { structureSurfaces } from "../../city3d/core/structureGeometry";
 import { createTownBuildingDetails, type TownBuildingDetails } from "../../city3d/three/buildingDetails";
 import { bvInstanceGeometry, createBvPrototypeCache } from "../../city3d/three/bvInstances";
 import { type CityMassingMeshes, createCityMassing } from "../../city3d/three/cityMeshes";
+import { createTownFacilities, type TownFacilities } from "../../city3d/three/facilityMeshes";
 import { createTownFarms, type TownFarmMeshes } from "../../city3d/three/farmMeshes";
 import { createTownFriaries } from "../../city3d/three/friaryMeshes";
 import { createTownObjects } from "../../city3d/three/objectMeshes";
@@ -198,6 +199,7 @@ export function mountCity3d(options: {
   let wells: TownWells | null = null;
   let specialBuildings: TownSpecialBuildings | null = null;
   let regionalHouses: TownRegionalHouses | null = null;
+  let facilities: TownFacilities | null = null;
   const bvPrototypes = createBvPrototypeCache();
   let openSpaces: CityStructureMeshes | null = null;
   let farmland: TownFarmMeshes | null = null;
@@ -426,8 +428,18 @@ export function mountCity3d(options: {
     }
     townWalls = nextWalls;
     scene.add(townWalls.group);
+    const nextFacilities = createTownFacilities(city, fabric, grounded, bvPrototypes, quality, terrain ?? undefined);
+    if (facilities) {
+      scene.remove(facilities.group);
+      facilities.dispose();
+    }
+    facilities = nextFacilities;
+    scene.add(facilities.group);
     structureList = grounded.filter(
-      part => !specialBuildings!.replaced.has(part.id) && !townWalls!.replaced.has(part.id)
+      part =>
+        !specialBuildings!.replaced.has(part.id) &&
+        !townWalls!.replaced.has(part.id) &&
+        !facilities!.replaced.has(part.id)
     );
     structures = createStructureMassing(structureList);
     scene.add(structures.group);
@@ -732,6 +744,7 @@ export function mountCity3d(options: {
         ...(townWalls?.pickables ?? []),
         ...(specialBuildings?.pickables ?? []),
         ...(regionalHouses?.pickables ?? []),
+        ...(facilities?.pickables ?? []),
         ...(wells?.pickables ?? [])
       ],
       false
@@ -757,8 +770,9 @@ export function mountCity3d(options: {
       return;
     }
     const special = specialBuildings?.resolve(hit);
+    const facility = facilities?.resolve(hit);
     const well = wells?.resolve(hit);
-    if (special || well) {
+    if (special || facility || well) {
       clearHighlight();
       const geometry = bvInstanceGeometry(hit)!;
       readout.hidden = false;
@@ -766,7 +780,7 @@ export function mountCity3d(options: {
         value0: editorText(STRUCTURE_KEY.landmark),
         value1: editorText(STRUCTURE_MATERIAL.stone),
         value2: geometry.boundingBox!.max.y.toFixed(1)
-      })}\n${special?.structure.name ?? special?.id ?? well!.id}`;
+      })}\n${special?.structure.name ?? special?.id ?? facility?.name ?? well!.id}`;
       outline(new Float32Array(geometry.getAttribute("position").array));
       geometry.dispose();
       return;
@@ -805,6 +819,7 @@ export function mountCity3d(options: {
     wells?.dispose();
     specialBuildings?.dispose();
     regionalHouses?.dispose();
+    facilities?.dispose();
     objects?.dispose();
     ships?.dispose();
     openSpaces?.dispose();
