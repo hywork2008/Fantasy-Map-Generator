@@ -1,3 +1,5 @@
+import { circuitRing } from "../generators/fortifications";
+import { polygonCentroid } from "../generators/geom";
 import { townCenter } from "../generators/passages";
 import type { CityDocument, EdgeFeatureGroup, Point } from "../types/document";
 
@@ -166,6 +168,21 @@ function polylineToPathData(points: Point[]): string {
   return d;
 }
 
+/** Castle curtains defend their own precinct, including the side facing the town. */
+export function wallInteriorPoint(document: CityDocument, wall: EdgeFeatureGroup): Point {
+  const circuit = document.defenseCircuits?.find(
+    item => item.scope === "castle" && item.wallGroupIds.includes(wall.id)
+  );
+  if (circuit) {
+    const ring = circuitRing(document, circuit);
+    if (ring.length >= 3) return polygonCentroid(ring);
+    const castle = document.castles?.find(item => item.circuitId === circuit.id);
+    const courtyard = castle?.courtyards?.find(points => points.length >= 3);
+    if (courtyard) return polygonCentroid(courtyard);
+  }
+  return townCenter(document);
+}
+
 /**
  * Renders decorative SVG structure layers for a wall segment.
  * Includes outer parapet (timber log caps or stone merlons),
@@ -188,7 +205,7 @@ export function renderWallStructure(
   const material = wall.wallMaterial ?? "stone";
   const width = wall.style.widthMeters;
   const geom = resolveWallGeometry(width, material, wall.walkway);
-  const center = interiorPoint ?? townCenter(document);
+  const center = interiorPoint ?? wallInteriorPoint(document, wall);
 
   if (material === "wood") {
     renderTimberWall(container, run, geom, center, createElement);
