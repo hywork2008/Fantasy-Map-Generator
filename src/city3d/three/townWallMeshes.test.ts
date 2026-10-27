@@ -159,6 +159,22 @@ describe("CE Codex town defenses", () => {
     expect(cache.size).toBe(0);
   });
 
+  it("preserves stair and open-parapet geometry instead of replacing it with a closed wall prototype", () => {
+    const city = town();
+    const parts = collectCityStructures(city);
+    const modified = parts.filter(part => part.id.startsWith("wall:"));
+    expect(modified.length).toBeGreaterThan(0);
+    for (const part of modified) part.wallWalkModified = true;
+    const cache = createBvPrototypeCache();
+    const layer = createTownWalls(city, parts, cache, "high");
+    try {
+      expect(modified.every(part => !layer.replaced.has(part.id))).toBe(true);
+    } finally {
+      layer.dispose();
+    }
+    expect(cache.size).toBe(0);
+  });
+
   it("retains wooden defenses and castle circuits", () => {
     const city = town();
     const parts = collectCityStructures(city);

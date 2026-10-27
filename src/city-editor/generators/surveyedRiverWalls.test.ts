@@ -73,6 +73,34 @@ describe("surveyed river wall cuts", () => {
     expect(clipSurveyedRiverWalls(result)).toEqual(result);
   });
 
+  it("opens dry shoreline arcs at an estuary while keeping transverse landward curtains", () => {
+    const source = curtain();
+    source.waterAreas = [];
+    source.importedFixedCrossings!.rivers = [
+      {
+        ...structuredClone(input.descriptor.fixedCrossings.rivers[0]),
+        rings: [
+          [
+            [110, -100],
+            [150, -100],
+            [150, 200],
+            [110, 200]
+          ]
+        ]
+      }
+    ];
+    expect(clipSurveyedRiverWalls(source).featureGroups[0]).toEqual(source.featureGroups[0]);
+    const opened = clipSurveyedRiverWalls(source, true);
+    expect(validate(opened)).toEqual([]);
+    const segments = opened.featureGroups.flatMap(g => (g.kind === "wall" ? g.segments : []));
+    expect(segments).toHaveLength(3);
+    for (const ref of segments) {
+      const edge = opened.mesh.edges[ref.edgeId];
+      expect([edge.a, edge.b].every(id => opened.mesh.vertices[id].point[0] === 100)).toBe(false);
+    }
+    expect(clipSurveyedRiverWalls(opened, true)).toEqual(opened);
+  });
+
   it("preserves locked and manually drawn curtains", () => {
     const locked = curtain();
     locked.featureGroups[0].locked = true;

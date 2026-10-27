@@ -148,7 +148,7 @@ function clearanceAt(point: Point, bands: readonly GlacisBand[]): number {
   return best.clearance;
 }
 
-function requiredClearance(polygon: Point[], bands: readonly GlacisBand[]): number {
+export function requiredClearance(polygon: Point[], bands: readonly GlacisBand[]): number {
   let required = clearanceAt(centroid(polygon), bands);
   for (const point of polygon) required = Math.max(required, clearanceAt(point, bands));
   return required;

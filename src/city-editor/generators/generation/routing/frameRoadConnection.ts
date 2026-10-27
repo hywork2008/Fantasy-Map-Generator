@@ -3,15 +3,20 @@ import type { BurgSiteDescriptor } from "../../../types/contracts/burgSiteDescri
 import type { CityDocument, Point } from "../../../types/document";
 import { featureGroupVertices } from "../../features";
 import { wallRunsOutsideGates } from "../../fortifications";
+import { hasStraightBridgeLead } from "../../frameRoads";
 import { isSimplePolygon, polygonArea, segmentSegmentHit } from "../../geom";
 import { facePoints } from "../../mesh";
 import { defaultRoadWidthMeters, townExtentMeters } from "../../settlementExtent";
-import { lineHitsDocumentWater } from "../../waterGeometry";
+import { type DocumentWaterTest, documentWaterTest, lineHitsDocumentWater } from "../../waterGeometry";
 
 type Leg = NonNullable<CityDocument["frameRoads"]>[number];
 const distance = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 
-function dryStreetVertices(document: CityDocument, sourceIndex: number): { id: string; point: Point }[] {
+function dryStreetVertices(
+  document: CityDocument,
+  sourceIndex: number,
+  water = documentWaterTest(document)
+): { id: string; point: Point }[] {
   return document.featureGroups.flatMap(group => {
     if (group.kind !== "road" || group.sourceRoad?.index !== sourceIndex) return [];
     const ids = featureGroupVertices(document, group);
@@ -21,7 +26,13 @@ function dryStreetVertices(document: CityDocument, sourceIndex: number): { id: s
       const dry = [ids[index - 1], ids[index + 1]].some(
         inner =>
           inner &&
-          !lineHitsDocumentWater(document, [point, document.mesh.vertices[inner].point], group.style.widthMeters, true)
+          !lineHitsDocumentWater(
+            document,
+            [point, document.mesh.vertices[inner].point],
+            group.style.widthMeters,
+            true,
+            water
+          )
       );
       return dry ? [{ id, point }] : [];
     });
@@ -29,11 +40,15 @@ function dryStreetVertices(document: CityDocument, sourceIndex: number): { id: s
 }
 
 /** The renderer and audit use the same full-width, dry attachment to a source street. */
-export function frameRoadTownConnection(document: CityDocument, leg: Leg): [Point, Point] | null {
+export function frameRoadTownConnection(
+  document: CityDocument,
+  leg: Leg,
+  water = documentWaterTest(document)
+): [Point, Point] | null {
   const target = leg.pieces[0]?.points[0];
   if (!target) return null;
   const width = defaultRoadWidthMeters(townExtentMeters(document.frame));
-  const points = dryStreetVertices(document, leg.sourceIndex)
+  const points = dryStreetVertices(document, leg.sourceIndex, water)
     .map(item => item.point)
     .sort((a, b) => distance(a, target) - distance(b, target));
   const curtains = document.featureGroups.flatMap(group =>
@@ -48,38 +63,39 @@ export function frameRoadTownConnection(document: CityDocument, leg: Leg): [Poin
     if (distance(point, target) > Math.max(40, document.frame.blockSizeMeters * 3)) break;
     if (curtains.some(run => run.slice(1).some((end, index) => segmentSegmentHit(point, target, run[index], end))))
       continue;
-    if (!lineHitsDocumentWater(document, [point, target], width, true)) return [point, target];
+    if (!lineHitsDocumentWater(document, [point, target], width, true, water)) return [point, target];
   }
   return null;
 }
 
 /** Whether the rendered town street and the first dry FMG arm meet. The arm's
  * later bridge or ferry is validated separately. */
-export function frameRoadAttachedToTown(document: CityDocument, leg: Leg): boolean {
+export function frameRoadAttachedToTown(document: CityDocument, leg: Leg, water?: DocumentWaterTest): boolean {
   const piece = leg.pieces[0];
-  return piece?.kind === "road" && !!frameRoadTownConnection(document, leg);
+  return piece?.kind === "road" && !!frameRoadTownConnection(document, leg, water);
 }
 
 /** Check actual continuity through dry arms and certified fixed E→E spans.
  * Merely having a far-away rendered endpoint is not a connected road. */
 export function frameRoadConnectedToTown(document: CityDocument, leg: Leg): boolean {
-  const connection = frameRoadTownConnection(document, leg);
+  const water = documentWaterTest(document);
+  const connection = frameRoadTownConnection(document, leg, water);
   const width = defaultRoadWidthMeters(townExtentMeters(document.frame));
   const fixed = document.importedFixedCrossings;
   const streets = document.featureGroups.flatMap(group => {
     if (group.kind !== "road" || group.sourceRoad?.index !== leg.sourceIndex) return [];
     const points = featureGroupVertices(document, group).map(id => document.mesh.vertices[id].point);
-    return points.length >= 2 && !lineHitsDocumentWater(document, points, group.style.widthMeters, true)
+    return points.length >= 2 && !lineHitsDocumentWater(document, points, group.style.widthMeters, true, water)
       ? [points]
       : [];
   });
-  const terminals = dryStreetVertices(document, leg.sourceIndex).map(item => item.point);
+  const terminals = dryStreetVertices(document, leg.sourceIndex, water).map(item => item.point);
   if (!streets.length && !terminals.length) return false;
   const lines: Point[][] = connection ? [connection] : [];
   for (const piece of leg.pieces) {
     if (!piece.points.length) continue;
     if (piece.kind === "bridge") return false; // An unregistered CE guess is not a certified crossing.
-    if (piece.points.length >= 2 && lineHitsDocumentWater(document, piece.points, width, true)) return false;
+    if (piece.points.length >= 2 && lineHitsDocumentWater(document, piece.points, width, true, water)) return false;
     lines.push(piece.points);
   }
   if (fixed && validFixedBurgCrossings(fixed, FIXED_SITE_CROSSING_BUDGETS))
@@ -104,6 +120,7 @@ export function frameRoadConnectedToTown(document: CityDocument, leg: Leg): bool
 /** Extend a short, stranded FMG frame arm over dry mesh edges to its own town
  * street. The existing surveyed arm and any registered bridge stay untouched. */
 export function repairFrameRoadTownConnections(document: CityDocument): number {
+  const water = documentWaterTest(document);
   const adjacency = new Map<string, { id: string; length: number }[]>();
   for (const edge of Object.values(document.mesh.edges)) {
     const a = document.mesh.vertices[edge.a]?.point;
@@ -129,13 +146,13 @@ export function repairFrameRoadTownConnections(document: CityDocument): number {
   );
   const width = defaultRoadWidthMeters(townExtentMeters(document.frame));
   const clear = (a: Point, b: Point) =>
-    !lineHitsDocumentWater(document, [a, b], width, true) &&
+    !lineHitsDocumentWater(document, [a, b], width, true, water) &&
     !curtains.some(run => run.slice(1).some((end, index) => segmentSegmentHit(a, b, run[index], end)));
   let repaired = 0;
   for (const leg of document.frameRoads ?? []) {
     const piece = leg.pieces[0];
     const target = piece?.points[0];
-    if (piece?.kind !== "road" || !target || frameRoadAttachedToTown(document, leg)) continue;
+    if (piece?.kind !== "road" || !target || frameRoadAttachedToTown(document, leg, water)) continue;
     const groups = document.featureGroups.filter(
       group => group.kind === "road" && group.sourceRoad?.index === leg.sourceIndex && !group.locked
     );
@@ -150,19 +167,19 @@ export function repairFrameRoadTownConnections(document: CityDocument): number {
       if (index > 0) trimmed += distance(piece.points[index - 1], piece.points[index]);
       if (trimmed > directLimit) break;
       const join = piece.points[index];
-      const street = dryStreetVertices(document, leg.sourceIndex)
+      const street = dryStreetVertices(document, leg.sourceIndex, water)
         .filter(item => distance(item.point, join) <= directLimit && clear(item.point, join))
         .sort((a, b) => distance(a.point, join) - distance(b.point, join))[0];
       if (!street) continue;
       const original = piece.points;
       piece.points = [street.point, ...original.slice(index)];
-      if (frameRoadAttachedToTown(document, leg)) {
+      if (frameRoadAttachedToTown(document, leg, water)) {
         repaired++;
         break;
       }
       piece.points = original;
     }
-    if (frameRoadAttachedToTown(document, leg)) continue;
+    if (frameRoadAttachedToTown(document, leg, water)) continue;
     for (const group of groups) {
       if (group.kind !== "road" || group.sourceRoad?.terminal === "riverLanding") continue;
       const vertices = featureGroupVertices(document, group);
@@ -203,7 +220,7 @@ export function repairFrameRoadTownConnections(document: CityDocument): number {
       if (!best) continue;
       const original = piece.points;
       piece.points = [...best.ids.map(id => document.mesh.vertices[id].point), ...original];
-      if (frameRoadAttachedToTown(document, leg)) {
+      if (frameRoadAttachedToTown(document, leg, water)) {
         repaired++;
         break;
       }
@@ -338,7 +355,8 @@ export function frameRoadJunction(
   leg: Leg,
   descriptor?: BurgSiteDescriptor
 ): FrameRoadJunction | null {
-  const connection = frameRoadTownConnection(document, leg);
+  const water = documentWaterTest(document);
+  const connection = frameRoadTownConnection(document, leg, water);
   const outward = exteriorDirection(leg, descriptor);
   if (!connection || !outward) return null;
   const [end, target] = connection;
@@ -537,9 +555,14 @@ export function snapFrameRoadTerminals(document: CityDocument): void {
         return lineHitsDocumentWater(document, [inner, goal], width, true) ? null : goal;
       };
       const foot = leg.pieces[1]?.kind === "bridge" ? piece.points.at(-1)! : null;
-      const footGoal = bankStart && foot ? shortOf(foot) : null;
-      const goal = !bankStart ? ([target[0], target[1]] as Point) : (footGoal ?? shortOf(target));
-      if (!goal || (!bankStart && lineHitsDocumentWater(document, [inner, target, outward], width, true))) continue;
+      const bridgeLead = hasStraightBridgeLead(leg);
+      const footGoal = bankStart && foot && !bridgeLead ? shortOf(foot) : null;
+      const goal = !bankStart || bridgeLead ? ([target[0], target[1]] as Point) : (footGoal ?? shortOf(target));
+      if (
+        !goal ||
+        ((!bankStart || bridgeLead) && lineHitsDocumentWater(document, [inner, target, outward], width, true))
+      )
+        continue;
       const incident = Object.values(document.mesh.faces).filter(face =>
         face.boundary.some(ref => {
           const edge = document.mesh.edges[ref.edgeId];
@@ -559,7 +582,7 @@ export function snapFrameRoadTerminals(document: CityDocument): void {
         continue;
       }
       if (footGoal && foot) piece.points = [vertex.point, foot];
-      else if (bankStart) piece.points.unshift(vertex.point);
+      else if (bankStart && !bridgeLead) piece.points.unshift(vertex.point);
       else piece.points[0] = vertex.point;
       touched.add(id);
       break;

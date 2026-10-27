@@ -9,6 +9,7 @@ import { assignBuildingAppearances, buildingAppearanceKey } from "./buildingAppe
 import { assignResidentialHeightDistribution, hasBuildingHeightVariation } from "./buildingHeightPolicy";
 import type { BuildingLot } from "./buildingLots.types";
 import { assignBuildingMassing } from "./buildingMassing";
+import { CastleDefenseClearance } from "./castleDefenseClearance";
 import { absorbCellars } from "./cellarAbsorption";
 import { buildCirculadeTownFabric } from "./circuladeFabric";
 import { laneHitsCivicLandmark } from "./civicClearance";
@@ -53,7 +54,7 @@ import { populationFabricSource, populationHousingFabric } from "./populationHou
 import { roadTrafficKey } from "./roadTraffic";
 import { ruralFieldOverlay } from "./ruralFieldOverlay";
 import { applyRuralFields } from "./ruralFields";
-import { enforceDefenseClearance, shapeSuburbanFabric } from "./suburbanLanduse";
+import { approachBands, enforceDefenseClearance, shapeSuburbanFabric } from "./suburbanLanduse";
 import { cityTerrain } from "./terrainElevation";
 import { lotFitsField } from "./terrainField/lots";
 import { dryBuildingPolygon } from "./terrainField/pads";
@@ -206,7 +207,10 @@ export function documentFabricFingerprint(doc: CityDocument): string {
     )
     .join(";");
   const circuitsPart = (doc.defenseCircuits ?? [])
-    .map(c => `${c.scope}:${c.moat?.enabled}:${c.moat?.widthMeters}:${c.wallGroupIds.join(",")}`)
+    .map(
+      c =>
+        `${c.scope}:${c.state ?? "standing"}:${c.moat?.enabled}:${c.moat?.widthMeters}:${c.areaFaceIds.join(",")}:${c.wallGroupIds.join(",")}`
+    )
     .join(";");
   const landmarksPart = (doc.landmarks ?? []).map(l => `${l.id}:${l.assetId}:${l.locked}`).join(";");
   const rampsPart = JSON.stringify(doc.terrain?.ramps ?? []);
@@ -230,8 +234,9 @@ export function documentFabricFingerprint(doc: CityDocument): string {
     doc.waterAccess?.port.river ?? "",
     doc.waterAccess?.port.sea ?? "",
     doc.cemeteries?.length ?? 0,
-    doc.castles?.length ?? 0,
+    JSON.stringify(doc.castles ?? []),
     doc.waterAreas?.length ?? 0,
+    JSON.stringify(doc.regionalWaterAreas ?? []),
     doc.fixedCrossingApproaches?.length ?? 0,
     siteEconomyKey(economyOnDocument(doc)),
     doc.farmlandAreaHectares ?? "",
@@ -417,6 +422,11 @@ export function buildBlockFabric(
       buildings: fabricResult.buildings.filter(building => !overlapsRamp(building.polygon, ramps)),
       farms: fabricResult.farms.filter(farm => !overlapsRamp(farm.polygon, ramps))
     };
+  const castleDefense = new CastleDefenseClearance(document, approachBands(document));
+  fabricResult = {
+    ...fabricResult,
+    buildings: fabricResult.buildings.filter(building => castleDefense.clears(building.polygon))
+  };
   fabricResult = {
     ...fabricResult,
     buildings: assignBuildingAppearances(document, assignBuildingMassing(document, fabricResult.buildings))

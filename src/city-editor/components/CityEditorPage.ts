@@ -49,7 +49,7 @@ import { regenerateRuralLand } from "../generators/roadsideFarms";
 import { DEFAULT_TERRACE_STEP_METERS } from "../generators/terracePlanning";
 import { DEFAULT_CASTLE_RISE_METERS } from "../generators/terrainEditing";
 import { CASTLE_STYLE_PROFILES } from "../renderers/castlePatterns";
-import { mountCity3d } from "../renderers/cityView";
+import { type City3dMountOptions, mountCity3d } from "../renderers/cityView";
 import { clearRenderDerivedCaches } from "../renderers/derivedCaches";
 import type { GridOverlay } from "../renderers/overlays/editorOverlays";
 import { SHIP_SPECS } from "../renderers/shipSpecifications";
@@ -142,6 +142,7 @@ interface CityEditorLanguageSession {
   cityModeGrid: { size: string; grid: DocumentsState["gridKind"]; hexSize: number; source: CityDocument } | undefined;
   stepStatus: string;
   failureSummary: { text: string; hidden: boolean; closeHidden: boolean };
+  city3d?: ReturnType<typeof mountCity3d>;
 }
 const languageSessions = new WeakMap<HTMLElement, CityEditorLanguageSession>();
 
@@ -151,6 +152,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   const scope = beginEditorMount(root);
   const languageLifetime = retainedLanguage?.lifetime ?? new EditorLanguageLifetime();
   languageLifetime.attach(scope);
+  // A language rebuild hands the live 3D scene and derived caches to the next mount.
+  let languageHandoff = false;
   let syncCity3d = (): void => {};
   let resetCity3dCamera = (): void => {};
   let editingController: ReturnType<typeof createEditingController> | undefined;
@@ -1283,8 +1286,10 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     label,
     divider
   } = controls;
-  clearGenerationPreviewCache();
-  clearRenderDerivedCaches();
+  if (!retainedLanguage) {
+    clearGenerationPreviewCache();
+    clearRenderDerivedCaches();
+  }
   const fixedApproachProvider = options.fixedApproachProvider ?? cityFixedApproachProvider;
   documents.lastOutputDocInput = null;
   documents.lastOutputDocProvider = null;
@@ -1428,8 +1433,10 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   scope.own(() => {
     generation.generationJob?.cancel();
     generation.generationJob = null;
-    clearGenerationPreviewCache();
-    clearRenderDerivedCaches();
+    if (!languageHandoff) {
+      clearGenerationPreviewCache();
+      clearRenderDerivedCaches();
+    }
     generation.completeSource = null;
     generation.completeResult = null;
     documents.lastOutputDocInput = null;
@@ -2928,7 +2935,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
 
   bindMapAuxiliary(panelEventContext());
   rebuildEditorIndexes();
-  const city3d = mountCity3d({
+  const city3dOptions: City3dMountOptions = {
     canvasHost: canvas,
     map,
     scope,
@@ -2939,10 +2946,14 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     isFmgLinked: () => Boolean(generation.generateSettings.descriptor),
     getTerrainSpacing: readTerrainSpacingPreference,
     getRiverDropMeters: () => riverDropMeters(generation.generateSettings.riverDropMeters)
-  });
+  };
+  const city3d = retainedLanguage?.city3d ?? mountCity3d(city3dOptions);
+  if (retainedLanguage?.city3d) city3d.adopt(city3dOptions);
   syncCity3d = () => city3d.sync();
   resetCity3dCamera = () => city3d.resetCamera();
-  scope.own(() => city3d.dispose());
+  scope.own(() => {
+    if (!languageHandoff) city3d.dispose();
+  });
   const performancePanel = mountPerformancePanel({
     host: canvas,
     map,
@@ -2985,6 +2996,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       };
       await changeLanguage(language);
       if (!scope.active) return;
+      retained.city3d = city3d;
+      languageHandoff = true;
       languageSessions.set(root, retained);
       setEditorPageMetadata("cityEditor");
       mountCityEditor(root, options);

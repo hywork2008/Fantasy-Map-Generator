@@ -9,6 +9,8 @@ import type { Point } from "../types/document";
 
 /** The building a part belongs to, when several parts make one building (`temple:<element>:<part>`). */
 function multipartBuilding(id: string): string | null {
+  if (id.startsWith("bastion-parapet:")) return id.replace("bastion-parapet:", "tower:");
+  if (id.startsWith("tower:")) return id;
   return /^temple:[^:]+:/.exec(id)?.[0] ?? null;
 }
 
@@ -81,6 +83,7 @@ const WALL_CLEARANCE_METERS = 0.2;
 function curtainFollowsGround(part: StructureMassing): boolean {
   return (
     part.kind === "wall" &&
+    !part.id.startsWith("bastion-parapet:") &&
     !part.sections &&
     !part.footprint &&
     !!part.centerline &&

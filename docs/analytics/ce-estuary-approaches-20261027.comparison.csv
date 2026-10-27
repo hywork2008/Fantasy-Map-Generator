@@ -1,0 +1,5 @@
+burgId,name,previousMs,afterMs,previousRejected,afterRejected,previousDisconnected,afterDisconnected,housing,requiredHousing,crossingIssues,overSkewedBridges,deterministic
+7,Seseneva,3430.016,3364.485,0,0,0,0,5077,4134,0,0,True
+13,Nobra,4939.39,6467.614,2,0,1,0,2895,2331,0,0,True
+93,Obern,2606.918,2618.038,0,0,0,0,1405,1321,0,0,True
+396,Jilesca,2467.496,2765.953,0,0,0,0,2862,2633,0,0,True

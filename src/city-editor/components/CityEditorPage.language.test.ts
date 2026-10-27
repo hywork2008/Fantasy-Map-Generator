@@ -5,11 +5,22 @@ import type { CityDocument } from "../types/document";
 import { mountCityEditor } from "./CityEditorPage";
 
 if (!Element.prototype.scrollIntoView) Element.prototype.scrollIntoView = () => {};
-const view = vi.hoisted(() => ({ getDocument: null as (() => CityDocument) | null }));
+const view = vi.hoisted(() => ({ getDocument: null as (() => CityDocument) | null, mounts: 0, disposals: 0 }));
 vi.mock("../renderers/cityView", () => ({
   mountCity3d: (options: { getDocument: () => CityDocument }) => {
     view.getDocument = options.getDocument;
-    return { sync() {}, dispose() {}, resetCamera() {}, getPerformance: () => null };
+    view.mounts++;
+    return {
+      sync() {},
+      dispose() {
+        view.disposals++;
+      },
+      resetCamera() {},
+      getPerformance: () => null,
+      adopt(next: { getDocument: () => CityDocument }) {
+        view.getDocument = next.getDocument;
+      }
+    };
   }
 }));
 let root: HTMLElement;
@@ -57,7 +68,12 @@ it("switches the translated UI without losing the current map, seed, settings, t
   const city = view.getDocument!();
   const box = root.querySelector(".ce-map svg")!.getAttribute("viewBox");
   root.querySelector<HTMLDetailsElement>(".ce-language")!.open = true;
+  const mounts = view.mounts;
+  const disposals = view.disposals;
   await language("ja");
+  // The 3D scene is handed to the rebuilt UI, not rebuilt.
+  expect(view.mounts).toBe(mounts);
+  expect(view.disposals).toBe(disposals);
   expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe("ja");
   expect(document.documentElement.lang).toBe("ja");
   expect(root.querySelector(".ce-complete-generation")!.textContent).toBe(
@@ -79,6 +95,7 @@ it("switches the translated UI without losing the current map, seed, settings, t
   expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe("en");
   expect(root.querySelectorAll(".ce-language")).toHaveLength(1);
   dispose();
+  expect(view.disposals).toBe(disposals + 1);
   expect(root.childNodes).toHaveLength(0);
 });
 
