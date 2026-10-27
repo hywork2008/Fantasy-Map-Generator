@@ -62,7 +62,7 @@ export function classifyTownWater(document: CityDocument): TownWater {
   const landRefill: Point[][] = [];
 
   for (const area of document.waterAreas ?? []) {
-    commit(area.polygon, "channel", parts, reserved, drawn(parts), [], true);
+    commit(area.polygon, "channel", parts, reserved, drawn(parts), [], false);
   }
   for (const piece of surveyedPieces(document)) {
     commit(piece, "channel", parts, reserved, drawn(parts), [], true);

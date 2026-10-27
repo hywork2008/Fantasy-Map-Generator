@@ -182,7 +182,13 @@ export function createTownWater(
     return () => partLevel(part);
   };
   const heights = water.parts.map(partHeight);
-  const fieldMeshes = terrain.grid ? terrainFieldMeshes(document, terrain) : [];
+  const fieldMeshes = terrain.grid
+    ? terrainFieldMeshes(
+        document,
+        terrain,
+        water.parts.map(part => part.polygon)
+      )
+    : [];
   for (const mesh of fieldMeshes) parent.add(mesh);
   const land = fieldMeshes.length
     ? null

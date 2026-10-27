@@ -206,34 +206,20 @@ describe("town water", () => {
     expect(water.parts.some(part => sameRing(part.polygon, facePoints(mesh, mesh.faces.land)))).toBe(false);
   });
 
-  it("reserves an origin-covering channel and refills the sea face as land", () => {
+  it("draws a valid river channel crossing the origin", () => {
     const mesh = emptyMesh();
     addRect(mesh, "under", -8, -8, 8, 8, "sea");
-    addRect(mesh, "coast", 30, -4, 40, 6, "sea");
     const channel = rect(-10, -10, 10, 10);
-    const kept = rect(20, 20, 36, 32);
-    const doc = document({
-      mesh,
-      waterAreas: [
-        { kind: "river", polygon: channel },
-        { kind: "river", polygon: kept }
-      ]
-    });
+    const doc = document({ mesh, waterAreas: [{ kind: "river", polygon: channel }] });
     const water = classifyTownWater(doc);
-    expect(water.parts.some(part => sameRing(part.polygon, channel))).toBe(false);
-    expect(water.reserved.some(ring => sameRing(ring, channel))).toBe(true);
+    expect(water.parts.some(part => part.kind === "channel" && sameRing(part.polygon, channel))).toBe(true);
+    expect(water.reserved).toHaveLength(0);
     expect(
       covered(
         [0, 0],
         water.parts.map(part => part.polygon)
       )
-    ).toBe(false);
-    expect(water.landRefill.some(tri => tri.length === 3 && inTriangle([0, 0], tri))).toBe(true);
-    const ground = townGroundPolygons(doc, water);
-    expect(ground.land.some(tri => tri.length === 3 && inTriangle([0, 0], tri))).toBe(true);
-    expect(doc.mesh.faces.under.properties.water).toBe("sea");
-    expect(water.parts.some(part => part.kind === "ocean" && sameRing(part.polygon, rect(30, -4, 40, 6)))).toBe(true);
-    expect(water.parts.some(part => part.kind === "channel" && sameRing(part.polygon, kept))).toBe(true);
+    ).toBe(true);
   });
 
   it("reserves a ring that cannot be triangulated and refills the face under it", () => {
@@ -581,7 +567,7 @@ describe("town water", () => {
     const band: Point = [0, 14];
     const outside: Point = [10, 15];
     expect(ground.land.some(tri => inTriangle(band, tri))).toBe(false);
-    expect(ground.land.some(tri => inTriangle([0, 0], tri))).toBe(true);
+    expect(ground.land.some(tri => inTriangle([0, 0], tri))).toBe(false);
     expect(ground.land.some(tri => inTriangle(outside, tri))).toBe(true);
   });
 

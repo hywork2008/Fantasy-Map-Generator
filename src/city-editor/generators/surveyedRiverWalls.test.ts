@@ -101,6 +101,28 @@ describe("surveyed river wall cuts", () => {
     expect(clipSurveyedRiverWalls(opened, true)).toEqual(opened);
   });
 
+  it("extends an open generated curtain to an imported river area on both sides", () => {
+    const source = curtain();
+    source.importedFixedCrossings = undefined;
+    const wall = source.featureGroups[0];
+    if (wall.kind !== "wall") throw new Error("Missing wall");
+    wall.segments = [wall.segments[3]];
+    const result = clipSurveyedRiverWalls(source);
+    expect(validate(result)).toEqual([]);
+    const lines = result.featureGroups.flatMap(g =>
+      g.kind === "wall"
+        ? g.segments.map(ref => {
+            const edge = result.mesh.edges[ref.edgeId];
+            return [result.mesh.vertices[edge.a].point, result.mesh.vertices[edge.b].point];
+          })
+        : []
+    );
+    expect(lines).toHaveLength(3);
+    expect(lines.flat().filter(point => Math.abs(point[0] - 40) < 1e-6)).toHaveLength(2);
+    for (const line of lines) expect(lineHitsWater(line, waterPolygons(result))).toBe(false);
+    expect(clipSurveyedRiverWalls(result)).toEqual(result);
+  });
+
   it("preserves locked and manually drawn curtains", () => {
     const locked = curtain();
     locked.featureGroups[0].locked = true;
