@@ -1240,6 +1240,22 @@
       "shoreMissing": "港の近くに描画上の岸線がない",
       "bankBeyond": "河岸が町の外縁から{{meters}} m先",
       "riverUnresolved": "河岸配置が未解決（{{reason}}）"
+    },
+    "manualCompletion": {
+      "title": "手動仕上げ（New cityが自動で行う工程）",
+      "registerTown": "城壁内を市街地に登録",
+      "registerTownFailed": "先に閉じた市壁を描いてください。",
+      "castlePlan": "城計画を作成",
+      "castlePlanFailed": "先に陸上へ城セルを塗ってください（城計画は1つまでです）。",
+      "plaza": "セルに広場を配置",
+      "temple": "セルに聖堂を配置",
+      "harbor": "セルに港を配置",
+      "selectLandCell": "先に選択ツールで陸のセルを選んでください。",
+      "selectHarborCell": "先に水域に接する港区画のセルを選んでください。",
+      "finishGeometry": "道路・橋・門を整形",
+      "finishGeometryFailed": "メッシュや城を壊さずに形状を整形できませんでした。",
+      "settle": "聖堂・墓地・船を配置調整",
+      "settleFailed": "公共施設を配置調整できませんでした。"
     }
   },
   "regionEditor": {

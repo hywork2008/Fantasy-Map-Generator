@@ -1240,6 +1240,22 @@
       "shoreMissing": "no drawn shore near the harbour",
       "bankBeyond": "river bank {{meters}} m beyond the town edge",
       "riverUnresolved": "river site unresolved ({{reason}})"
+    },
+    "manualCompletion": {
+      "title": "Manual completion (steps New city does for you)",
+      "registerTown": "Register walled town",
+      "registerTownFailed": "Draw a closed town wall first.",
+      "castlePlan": "Build castle plan",
+      "castlePlanFailed": "Paint castle cells on land first (only one castle plan is allowed).",
+      "plaza": "Market square on cell",
+      "temple": "Cathedral on cell",
+      "harbor": "Harbour on cell",
+      "selectLandCell": "Select a land cell with the select tool first.",
+      "selectHarborCell": "Select a harbour-ward cell beside water first.",
+      "finishGeometry": "Finish streets, bridges and gates",
+      "finishGeometryFailed": "The geometry could not be finished without breaking the mesh or castle.",
+      "settle": "Settle temple, cemeteries and ships",
+      "settleFailed": "Could not settle civic features."
     }
   },
   "regionEditor": {

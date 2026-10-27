@@ -42,6 +42,14 @@ import { clearGenerationPreviewCache } from "../generators/generation/previews";
 import { defaultGenerationSettings, randomGeography, randomSeed } from "../generators/generation/settings";
 import { DEFAULT_HEX_SIZE_METERS } from "../generators/hexGrid";
 import { DocumentHistory } from "../generators/history";
+import {
+  type CivicElementKind,
+  createCastlePlanFromCells,
+  finishManualGeometry,
+  placeCivicElement,
+  registerTownFromWalls,
+  settleManualCity
+} from "../generators/manualCompletion";
 import { clone } from "../generators/mesh";
 import { DEFAULT_PATCH_PARAMS } from "../generators/patches";
 import { RIVER_DROP_MIN, riverDropMeters, riverDropUpperFor } from "../generators/riverSurface";
@@ -1966,6 +1974,73 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       return adoptGridEvo;
     }
   });
+
+  // Stages of "New city" that no drawing tool reproduces, applied to the live edits.
+  const manualCompletionAction = (
+    labelKey: EditorMessageKey,
+    failureKey: EditorMessageKey,
+    operation: () => CityDocument | null
+  ): HTMLButtonElement =>
+    makeButton(editorText(labelKey), () => {
+      let next: CityDocument | null = null;
+      try {
+        next = operation();
+      } catch (error) {
+        console.error(error);
+      }
+      if (next) commit(next, editorText(labelKey));
+      else showNotice(editorText(failureKey));
+    });
+  const selectedFaceId = () => interaction.selection.faceId ?? null;
+  const placeCivic = (kind: CivicElementKind) => () => {
+    const faceId = selectedFaceId();
+    return faceId ? placeCivicElement(documents.documentState, faceId, kind) : null;
+  };
+  const manualSeed = () => documents.documentState.generationSeed ?? generation.generateSeed;
+  const manualCompletionGrid = div("ce-manual-completion");
+  manualCompletionGrid.append(
+    manualCompletionAction(
+      "cityEditor.manualCompletion.registerTown",
+      "cityEditor.manualCompletion.registerTownFailed",
+      () => registerTownFromWalls(documents.documentState)
+    ),
+    manualCompletionAction(
+      "cityEditor.manualCompletion.castlePlan",
+      "cityEditor.manualCompletion.castlePlanFailed",
+      () => createCastlePlanFromCells(documents.documentState, selectedFaceId())
+    ),
+    manualCompletionAction(
+      "cityEditor.manualCompletion.plaza",
+      "cityEditor.manualCompletion.selectLandCell",
+      placeCivic("plaza")
+    ),
+    manualCompletionAction(
+      "cityEditor.manualCompletion.temple",
+      "cityEditor.manualCompletion.selectLandCell",
+      placeCivic("temple")
+    ),
+    manualCompletionAction(
+      "cityEditor.manualCompletion.harbor",
+      "cityEditor.manualCompletion.selectHarborCell",
+      placeCivic("harbor")
+    ),
+    manualCompletionAction(
+      "cityEditor.manualCompletion.finishGeometry",
+      "cityEditor.manualCompletion.finishGeometryFailed",
+      () => finishManualGeometry(documents.documentState, manualSeed())
+    ),
+    manualCompletionAction("cityEditor.manualCompletion.settle", "cityEditor.manualCompletion.settleFailed", () =>
+      settleManualCity(documents.documentState, manualSeed(), {
+        historicalPeriod: generation.generateSettings.historicalPeriod
+      })
+    ),
+    makeButton(editorText("cityEditor.messages.generateFromEdits"), () => {
+      getMapDisplayController().cancelFarmland();
+      getGenerationController().generateFromEdits();
+    })
+  );
+  for (const button of manualCompletionGrid.querySelectorAll("button")) button.title = button.textContent ?? "";
+  toolbar.content.append(divider(), text(editorText("cityEditor.manualCompletion.title")), manualCompletionGrid);
 
   const {
     populationControls,
