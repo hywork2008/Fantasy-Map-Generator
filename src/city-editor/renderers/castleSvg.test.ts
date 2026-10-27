@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { getBurialCulturePreset } from "../../data/burialCultures";
 import type { BurgCivilization } from "../../data/civilizationTraditions";
+import { boundaryEdges } from "../generators/fortifications";
+import { meshFromCells } from "../generators/mesh";
 import type { CastlePart, CastlePlan, CityDocument, DefenseCircuit, Point } from "../types/document";
 import { buildFortressPlan } from "./castleLayoutBuilder";
 import { CASTLE_STYLE_PROFILES, resolveCastleStyle } from "./castlePatterns";
 import { renderCastle } from "./castleSvg";
+import { collectCityStructures } from "./structureMassing";
 
 function mockDocument(overrides?: Partial<CityDocument>): CityDocument {
   const circuit: DefenseCircuit = {
@@ -321,6 +324,110 @@ describe("renderCastle (authentic fortress ground plans)", () => {
     expect(g.querySelector(".ce-bastion-glacis")).toBeTruthy();
     expect(g.querySelector(".ce-court--parade_ground")).toBeTruthy();
     expect(g.querySelector(".ce-building--barracks")).toBeTruthy();
+  });
+
+  it("removes sea-facing bastions and cannons while keeping the curtain and lakeside bastions", () => {
+    const polygons: Point[][] = [
+      [
+        [0, 0],
+        [60, 0],
+        [60, 60],
+        [0, 60]
+      ],
+      [
+        [60, 0],
+        [120, 0],
+        [120, 60],
+        [60, 60]
+      ],
+      [
+        [-60, 0],
+        [0, 0],
+        [0, 60],
+        [-60, 60]
+      ]
+    ];
+    const mesh = meshFromCells(
+      polygons.map((polygon, id) => ({
+        id,
+        polygon,
+        site: [id === 0 ? 30 : id === 1 ? 90 : -30, 30] as Point,
+        centroid: [id === 0 ? 30 : id === 1 ? 90 : -30, 30] as Point,
+        neighbors: [],
+        onBorder: true
+      }))
+    );
+    mesh.faces.f1.properties.water = "sea";
+    mesh.faces.f2.properties.water = "lake";
+    const castle = mockCastle({ parts: [], castleStyle: "bastion-citadel" });
+    const circuit: DefenseCircuit = {
+      id: castle.circuitId!,
+      scope: "castle",
+      areaFaceIds: ["f0"],
+      wallGroupIds: ["castle-wall"],
+      naturalBarriers: [],
+      locked: false
+    };
+    const doc = mockDocument({
+      mesh,
+      castles: [castle],
+      defenseCircuits: [circuit],
+      featureGroups: [
+        {
+          id: "castle-wall",
+          kind: "wall",
+          name: "Castle wall",
+          segments: boundaryEdges(mesh, ["f0"]),
+          style: { widthMeters: 4.2, color: "#555" },
+          wallMaterial: "stone",
+          locked: false
+        }
+      ]
+    });
+    const profile = CASTLE_STYLE_PROFILES["bastion-citadel"];
+    const plan = buildFortressPlan(doc, castle, profile);
+    expect(plan.towers.map(tower => tower.point).sort()).toEqual([
+      [0, 0],
+      [0, 60]
+    ]);
+    expect(
+      plan.props
+        .filter(prop => prop.kind === "cannon_battery")
+        .map(prop => prop.point)
+        .sort()
+    ).toEqual([
+      [0, 0],
+      [0, 60]
+    ]);
+    expect(plan.ramparts.find(rampart => rampart.kind === "outer_wall")!.polygon).toHaveLength(4);
+    const svg = renderCastle(doc, castle);
+    expect(svg.querySelectorAll(".ce-star-bastion")).toHaveLength(2);
+    expect(svg.querySelector(".ce-outer-curtain-wall")).not.toBeNull();
+    const parts = collectCityStructures(doc);
+    expect(parts.filter(part => part.id.startsWith(`tower:${castle.id}:`))).toHaveLength(2);
+    expect(parts.filter(part => part.id.startsWith(`bastion-parapet:${castle.id}:`))).toHaveLength(2);
+    expect(
+      parts.some(part => part.id.startsWith("wall:castle-wall:") && part.centerline?.some(([x]) => x === 60))
+    ).toBe(true);
+  });
+
+  it("also detects regional sea outside the local mesh", () => {
+    const doc = mockDocument({
+      regionalWaterAreas: [
+        [
+          [60, -30],
+          [120, -30],
+          [120, 90],
+          [60, 90]
+        ]
+      ]
+    });
+    const castle = mockCastle({ parts: [], castleStyle: "bastion-citadel" });
+    const plan = buildFortressPlan(doc, castle, CASTLE_STYLE_PROFILES["bastion-citadel"]);
+    expect(plan.towers.map(tower => tower.point).sort()).toEqual([
+      [0, 0],
+      [0, 60]
+    ]);
   });
 
   it("renders Motte-and-Bailey with motte mound slope, timber keep, and palisade", () => {

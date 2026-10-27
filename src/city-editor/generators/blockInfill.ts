@@ -236,6 +236,7 @@ export function documentFabricFingerprint(doc: CityDocument): string {
     doc.cemeteries?.length ?? 0,
     JSON.stringify(doc.castles ?? []),
     doc.waterAreas?.length ?? 0,
+    JSON.stringify(doc.regionalWaterAreas ?? []),
     doc.fixedCrossingApproaches?.length ?? 0,
     siteEconomyKey(economyOnDocument(doc)),
     doc.farmlandAreaHectares ?? "",

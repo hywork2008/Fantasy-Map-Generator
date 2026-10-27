@@ -22,9 +22,10 @@
 import type { CastleStyle } from "../types/contracts/castlePatterns";
 import type { CastlePart, CastlePlan, CityDocument, Point } from "../types/document";
 import type { CastleStyleProfile } from "./castlePatterns";
-import { circuitRing, townCircuits } from "./fortifications";
+import { circuitRing, polygonOverlaps, townCircuits } from "./fortifications";
 import { polygonArea, polygonCentroid } from "./geom";
 import { facePoints } from "./mesh";
+import { regionalCoastalWaterPolygons } from "./regionalCoast";
 
 export interface RampartGeometry {
   kind: "inner_wall" | "outer_wall" | "stone_slope" | "motte_slope" | "bastion_glacis" | "palisade";
@@ -1151,12 +1152,32 @@ export function buildFortressPlan(
       plan = buildNormanKeep(ring, center, gatePoint, castle.parts);
       break;
   }
-  return fitTowers(
-    scaleToWallWidth(
-      applySavedBuildings(plan, castle.parts, profile),
-      castleWallWidthMeters(document, castle),
-      castleTowerRadiusMeters(document, castle)
-    ),
-    ring
+  scaleToWallWidth(
+    applySavedBuildings(plan, castle.parts, profile),
+    castleWallWidthMeters(document, castle),
+    castleTowerRadiusMeters(document, castle)
   );
+  if (profile.style === "bastion-citadel") {
+    // Coastal curtains retain their wall walk; bastions projecting into the sea do not.
+    const sea = [
+      ...Object.values(document.mesh.faces)
+        .filter(face => face.properties.water === "sea")
+        .map(face => facePoints(document.mesh, face)),
+      ...regionalCoastalWaterPolygons(document)
+    ];
+    if (sea.length)
+      plan.towers = plan.towers.filter(
+        tower => !tower.polygon || !sea.some(water => polygonOverlaps(tower.polygon!, water))
+      );
+  }
+  fitTowers(plan, ring);
+  if (profile.style === "bastion-citadel") {
+    // Fitting can also remove crowded bastions; never leave a cannon without its platform.
+    plan.props = plan.props.filter(
+      prop =>
+        prop.kind !== "cannon_battery" ||
+        plan.towers.some(tower => Math.hypot(tower.point[0] - prop.point[0], tower.point[1] - prop.point[1]) < 1e-6)
+    );
+  }
+  return plan;
 }
