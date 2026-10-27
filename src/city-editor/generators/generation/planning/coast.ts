@@ -8,6 +8,7 @@ import { makeRng } from "../../prng";
 import { meshShoreChain, regionalSeaPolygon, regionalShoreline } from "../../regionalCoast";
 import { cellInsideWaterPolygons, fixedWaterPolygons } from "../../waterGeometry";
 import type { Plan } from "../contracts";
+import { urbanLandAreas } from "./landBudget";
 import { applyWideChannels } from "./waterTerrain";
 
 const SHORE_CONFORM_METERS = 40;
@@ -120,8 +121,16 @@ export function planCoast(input: PlanCoastInput) {
   const surveyedWater = settings.descriptor?.fixedCrossings
     ? fixedWaterPolygons(settings.descriptor.fixedCrossings)
     : [];
+  const landArea = settings.descriptor?.urbanMorphology
+    ? urbanLandAreas(cells, [...surveyedWater, ...appliedChannels.map(channel => channel.polygon)])
+    : undefined;
   for (const cell of cells) {
-    if (surveyedWater.length && cellInsideWaterPolygons(cell.polygon, surveyedWater)) sea.add(cell.id);
+    if (
+      landArea
+        ? landArea.get(cell.id)! < 0.001
+        : surveyedWater.length && cellInsideWaterPolygons(cell.polygon, surveyedWater)
+    )
+      sea.add(cell.id);
   }
   if (!coast && appliedChannels[0]) {
     coast = {
@@ -172,7 +181,8 @@ export function planCoast(input: PlanCoastInput) {
     sea,
     coastalWater,
     ocean,
-    appliedChannels
+    appliedChannels,
+    landArea
   };
 }
 

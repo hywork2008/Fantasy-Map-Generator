@@ -10,7 +10,7 @@ import { populationFabricSource } from "../populationHousing";
 import { defaultPopulationSettings } from "../populationPlan";
 import { synthSite } from "../site/synthSite";
 import { generateCityOnDocument } from "./generateCity";
-import { nextHousingAreaScale } from "./heightArea";
+import { initialHousingAreaScale, nextHousingAreaScale } from "./heightArea";
 import { defaultGenerationSettings } from "./settings";
 
 it("reserves more core cells for low-rise houses without changing the ordinary detailed lot layout", () => {
@@ -105,4 +105,38 @@ it("bounds imported area expansion and never expands locked or manually sized ci
   ).toBeUndefined();
   face.properties.locked = true;
   expect(nextHousingAreaScale(document, document, settings, lots)).toBeUndefined();
+});
+
+it("reserves low-rise housing before imported generation and respects explicit scales and protected geometry", () => {
+  const document = createGridDocument({ size: "small", grid: "evolution", seed: "housing-reservation" });
+  const settings = defaultGenerationSettings();
+  const descriptor = synthSite("smallTown", settings.config, "housing-reservation", {
+    extentMeters: 1200,
+    cityRadiusMeters: 120
+  });
+  descriptor.burg.dwellings = 1000;
+  descriptor.urbanMorphology = createUrbanMorphology({
+    seed: "housing-reservation",
+    burgId: 1,
+    year: 1500,
+    population: 4500,
+    capital: false,
+    walls: true,
+    polityAge: 100,
+    generationYears: 30,
+    polityPower: 0.5,
+    defensePressure: 0.2,
+    period: "lateMedieval",
+    religious: false,
+    extramuralBurial: false,
+    plaza: false
+  });
+  const input = { ...settings, descriptor };
+  const scale = initialHousingAreaScale(document, input)!;
+  expect(scale).toBeGreaterThan(1);
+  expect(scale).toBeLessThanOrEqual((1200 / 2.6 / 120) ** 2);
+  expect(initialHousingAreaScale(document, { ...input, housingAreaScale: scale })).toBeUndefined();
+  expect(initialHousingAreaScale(document, { ...input, buildingHeightPolicy: undefined })).toBeUndefined();
+  document.mesh.vertices[Object.keys(document.mesh.vertices)[0]].locked = true;
+  expect(initialHousingAreaScale(document, input)).toBeUndefined();
 });

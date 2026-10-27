@@ -1,7 +1,12 @@
 import type { CityDocument } from "../../types/document";
 import type { GenerationSettings } from "../../types/generation";
-import { hasBuildingHeightLimits } from "../buildingHeightLimits";
-import { hasBuildingHeightVariation, sampleResidentialStoreys } from "../buildingHeightPolicy";
+import { hasBuildingHeightLimits, maximumBuildingStoreys } from "../buildingHeightLimits";
+import {
+  hasBuildingHeightVariation,
+  heightPeriod,
+  residentialHeightWeights,
+  sampleResidentialStoreys
+} from "../buildingHeightPolicy";
 import type { BuildingLot } from "../buildingLots.types";
 import { polygonArea } from "../geom";
 import { dwellingCapacity, isResidentialBuilding, residentialCapacity } from "../residentialCapacityFormula";
@@ -38,6 +43,60 @@ export function initialHeightCapacity(document: CityDocument, lots: readonly Bui
   return inside + Math.min(outside, document.urbanGrowth?.outsideBudget ?? 0, document.urbanGrowth?.outsideCap ?? 0);
 }
 
+/** A cheap first reservation using the same 80 m² house and net residential
+ * coverage as population planning. The detailed fabric still measures and
+ * corrects this estimate. Explicit scales are recipe inputs, never re-estimated. */
+export function initialHousingAreaScale(source: CityDocument, settings: GenerationSettings): number | undefined {
+  const site = settings.descriptor;
+  if (
+    !site?.urbanMorphology ||
+    settings.population ||
+    settings.housingAreaScale !== undefined ||
+    !canExpandHousingArea(source, settings)
+  )
+    return undefined;
+  const document = {
+    ...source,
+    buildingHeightPolicy: settings.buildingHeightPolicy,
+    buildingHeightLimit: settings.buildingHeightLimit,
+    urbanMorphology: site.urbanMorphology,
+    civilization: site.civilization,
+    historicalPeriod: settings.historicalPeriod ?? site.historicalPeriod
+  };
+  if (!hasBuildingHeightVariation(document)) return undefined;
+  const lot: BuildingLot = { faceId: "", polygon: [], landmark: false };
+  const capacity = residentialHeightWeights(heightPeriod(document), "ordinary").reduce(
+    (sum, weight, index) => sum + weight * dwellingCapacity(80, maximumBuildingStoreys(document, lot, index + 1, true)),
+    0
+  );
+  if (!capacity || !site.burg.dwellings) return undefined;
+  const area = ((site.burg.dwellings / capacity) * 80) / 0.27;
+  const scale = Math.min(
+    maximumHousingAreaScale(source, settings),
+    area / (Math.PI * site.frame.cityRadiusMeters ** 2)
+  );
+  return scale > 1.02 ? scale : undefined;
+}
+
+function canExpandHousingArea(source: CityDocument, settings: GenerationSettings): boolean {
+  return !(
+    (settings.housingAreaPasses ?? 0) >= 3 ||
+    settings.population?.frameMode === "manual" ||
+    source.landmarks?.length ||
+    Object.values(source.mesh.faces).some(face => face.properties.locked) ||
+    Object.values(source.mesh.vertices).some(vertex => vertex.locked) ||
+    Object.values(source.mesh.edges).some(edge => edge.locked) ||
+    source.featureGroups.some(group => group.locked) ||
+    source.elements.some(element => element.locked)
+  );
+}
+
+function maximumHousingAreaScale(source: CityDocument, settings: GenerationSettings): number {
+  return settings.descriptor
+    ? Math.min(64, (townExtentMeters(source.frame) / 2.6 / settings.descriptor.frame.cityRadiusMeters) ** 2)
+    : 64;
+}
+
 /** Automatic generation expands the core first. Locked geometry and imported terrain bound expansion. */
 export function nextHousingAreaScale(
   source: CityDocument,
@@ -47,14 +106,7 @@ export function nextHousingAreaScale(
 ): number | undefined {
   if (
     (!hasBuildingHeightVariation(result) && !hasBuildingHeightLimits(result)) ||
-    (settings.housingAreaPasses ?? 0) >= 3 ||
-    settings.population?.frameMode === "manual" ||
-    source.landmarks?.length ||
-    Object.values(source.mesh.faces).some(face => face.properties.locked) ||
-    Object.values(source.mesh.vertices).some(vertex => vertex.locked) ||
-    Object.values(source.mesh.edges).some(edge => edge.locked) ||
-    source.featureGroups.some(group => group.locked) ||
-    source.elements.some(element => element.locked)
+    !canExpandHousingArea(source, settings)
   )
     return undefined;
   const required =
@@ -70,12 +122,7 @@ export function nextHousingAreaScale(
   const capacity = initialHeightCapacity(result, lots);
   if (capacity >= required) return undefined;
   const current = settings.housingAreaScale ?? 1;
-  let maximum = 64;
-  if (settings.descriptor)
-    maximum = Math.min(
-      maximum,
-      (townExtentMeters(source.frame) / 2.6 / settings.descriptor.frame.cityRadiusMeters) ** 2
-    );
+  let maximum = maximumHousingAreaScale(source, settings);
   if (
     !settings.descriptor &&
     result.populationPlan &&

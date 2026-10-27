@@ -13,6 +13,7 @@ import {
 } from "../../settlementExtent";
 
 export interface PlanUrbanInput {
+  landArea?: ReadonlyMap<number, number>;
   plannedUrban: import("../../classifyUrban").UrbanClassification | null;
   cells: Cell[];
   sea: Set<number>;
@@ -43,6 +44,7 @@ export interface PlanUrbanInput {
 /** Requires river banks and the provisional core. Returns the current mesh and urban sets. The urban observer mark deliberately precedes inset adjustments. */
 export function planUrban(input: PlanUrbanInput) {
   const {
+    landArea,
     plannedUrban,
     cells,
     sea,
@@ -77,7 +79,7 @@ export function planUrban(input: PlanUrbanInput) {
     plannedUrban ??
     classifyUrban(
       cells,
-      { sea, bank: river.bank },
+      { sea, bank: river.bank, landArea: effectiveLayout === "organic" ? landArea : undefined },
       urbanBearings,
       urbanRadius,
       null,

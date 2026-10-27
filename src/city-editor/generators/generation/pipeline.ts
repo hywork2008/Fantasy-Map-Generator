@@ -108,7 +108,8 @@ export function runPlan(
     sea,
     coastalWater,
     ocean,
-    appliedChannels
+    appliedChannels,
+    landArea
   } = planCoast({
     geo,
     cells,
@@ -170,6 +171,7 @@ export function runPlan(
     currentOutskirts,
     meshModified
   } = planUrban({
+    landArea,
     plannedUrban,
     cells,
     sea,
