@@ -1,4 +1,4 @@
-import { interpolateLab } from "d3";
+import { interpolateLab, select } from "d3";
 import { worldContext } from "../context/worldContext";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { isDialogOpen } from "../ui/dialogs/dialogService";
@@ -7,7 +7,18 @@ import { type RelationKey, relations } from "../utils/diplomacyRelations";
 import { diplomacyEditorActions } from "./diplomacy-editor";
 
 export function clearDiplomacyBadges(): void {
-  view.debug.select("#diplomacyBadges").remove();
+  document.getElementById("diplomacyBadges")?.remove();
+}
+
+// Own sibling group just below #debug: editors wipe everything inside #debug on unselect
+function createBadgeGroup() {
+  const debugNode = view.debug.node();
+  const parent = debugNode?.parentNode;
+  if (!debugNode || !parent) return view.debug.append("g").attr("id", "diplomacyBadges");
+  const node = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  node.id = "diplomacyBadges";
+  parent.insertBefore(node, debugNode);
+  return select(node);
 }
 
 // Draws one badge per pair of neighbouring states on their shared border. The badge is split along the
@@ -46,7 +57,7 @@ export function renderDiplomacyBadges(): void {
 
   const r = 8;
   const heatByPair = computeBorderHeat(states[0].diplomacy);
-  const group = view.debug.append("g").attr("id", "diplomacyBadges");
+  const group = createBadgeGroup();
   const defs = group.append("defs");
   const scorch = defs.append("radialGradient").attr("id", "diplomacyScorch");
   scorch.append("stop").attr("offset", "0%").attr("stop-color", "#ff3000").attr("stop-opacity", 0.9);
