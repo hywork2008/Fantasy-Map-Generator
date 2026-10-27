@@ -7,6 +7,7 @@ export interface ParentRiverOption {
 
 export interface RiverEditorState {
   // River properties for the UI
+  id: number | null;
   name: string;
   type: string;
   parent: string;
@@ -25,6 +26,7 @@ export interface RiverEditorState {
 }
 
 export const useRiverEditorState = create<RiverEditorState>(set => ({
+  id: null,
   name: "",
   type: "",
   parent: "",

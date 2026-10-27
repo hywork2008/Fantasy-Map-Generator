@@ -11,6 +11,7 @@ export const RiverEditorDialog: React.FC = () => {
   const { t } = useTranslation();
   const isOpen = useDialogState(state => state.openDialogs.has("riverEditor"));
   const {
+    id,
     name,
     type,
     parent,
@@ -28,6 +29,10 @@ export const RiverEditorDialog: React.FC = () => {
   return (
     <Dialog isOpen={isOpen} title={t("dialogs.titles.riverEditor")} onClose={() => closeDialog("riverEditor")}>
       <div id="riverBody">
+        <div>
+          <div className="label">ID:</div>
+          <span id="riverId">{id}</span>
+        </div>
         <div>
           <div className="label">Name:</div>
           <IconButton

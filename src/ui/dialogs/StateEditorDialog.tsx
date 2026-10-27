@@ -231,6 +231,10 @@ export const StateEditorDialog: React.FC = () => {
             <table className="fmg-table fmg-property-table">
               <tbody>
                 <tr>
+                  <th scope="row">ID:</th>
+                  <td id="stateId">{stateId}</td>
+                </tr>
+                <tr>
                   <th scope="row">Form</th>
                   <td>{stateRow.formName}</td>
                 </tr>
