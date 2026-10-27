@@ -3,6 +3,7 @@ import type { CityDocument, Face } from "../types/document";
 import type { Id, Point } from "../types/primitives";
 import { buildBlockFabric } from "./blockInfill";
 import type { BuildingLot } from "./buildingLots.types";
+import { CastleDefenseClearance } from "./castleDefenseClearance";
 import { buildingHitsCivicLandmark } from "./civicClearance";
 import { COASTAL_BUILDING_SETBACK_METERS, coastalBandOverlap, oceanShoreSegments } from "./coastalSuitability";
 import { FixedRoadReservation } from "./fixedRoadReservation";
@@ -14,6 +15,7 @@ import { clipBlockWithRivers, clipHalfPlane, insetConvexKernel, longestFrame, ty
 import { facePoints, indexMeshEdges } from "./mesh";
 import { MoatReservation } from "./moats";
 import { makeRng } from "./prng";
+import { approachBands } from "./suburbanLanduse";
 import { polygonHitsDocumentWater } from "./waterGeometry";
 
 /** Buildings are derived from the edited mesh, never a second source of street
@@ -57,6 +59,7 @@ export function buildCityBuildings(document: CityDocument): BuildingLot[] {
   for (const face of Object.values(document.mesh.faces)) lots.push(...buildFaceLots(document, face, clearance, rivers));
   const moat = new MoatReservation(document, 2);
   const fixedRoads = new FixedRoadReservation(document);
+  const castleDefense = new CastleDefenseClearance(document, approachBands(document));
   return rebuildLandmarkHousing(
     document,
     relieveGatePlazaBuildings(
@@ -65,6 +68,7 @@ export function buildCityBuildings(document: CityDocument): BuildingLot[] {
     )
   ).filter(
     lot =>
+      castleDefense.clears(lot.polygon) &&
       !moat.hitsPolygon(lot.polygon) &&
       !fixedRoads.hitsPolygon(lot.polygon) &&
       !polygonHitsDocumentWater(document, lot.polygon)
