@@ -10,7 +10,7 @@ import {
 import type { BuildingLot } from "../buildingLots.types";
 import { polygonArea } from "../geom";
 import { dwellingCapacity, isResidentialBuilding, residentialCapacity } from "../residentialCapacityFormula";
-import { townExtentMeters } from "../settlementExtent";
+import { innerWalledAreaShare, townExtentMeters } from "../settlementExtent";
 
 /** Measure the sampled low-rise fabric, before any population-pressure increase in storeys. */
 export function initialHeightCapacity(document: CityDocument, lots: readonly BuildingLot[]): number {
@@ -70,7 +70,33 @@ export function initialHousingAreaScale(source: CityDocument, settings: Generati
     0
   );
   if (!capacity || !site.burg.dwellings) return undefined;
-  const area = ((site.burg.dwellings / capacity) * 80) / 0.27;
+  const residentialArea = ((site.burg.dwellings / capacity) * 80) / 0.27;
+  let area = residentialArea;
+  const access = site.burg.waterAccess;
+  const radius = Math.sqrt(residentialArea / Math.PI);
+  const bankDistance = site.burg.riverPlacement?.bankDistanceMeters;
+  const shoreDistance = site.waterbody?.shoreDistanceMeters;
+  if (
+    settings.townWallRings === "double" &&
+    site.burg.walls &&
+    site.burg.citadel &&
+    site.burg.riverPlacement?.coastConstrained &&
+    access?.river &&
+    access.sea &&
+    typeof bankDistance === "number" &&
+    bankDistance >= 0 &&
+    bankDistance <= radius &&
+    typeof shoreDistance === "number" &&
+    shoreDistance >= 0 &&
+    shoreDistance <= radius &&
+    (!settings.config.wall?.coast || settings.config.wall.coast === "auto" || settings.config.wall.coast === "open")
+  ) {
+    // Reserve one block around the inner curtain for its gates and approach
+    // streets. The estuary's open waterfront concentrates those approaches on
+    // the landward side, where a citadel also competes for residential land.
+    const share = innerWalledAreaShare(settings.walledAreaShare, townExtentMeters(source.frame));
+    area += 2 * Math.PI * radius * Math.sqrt(share) * source.frame.blockSizeMeters;
+  }
   const scale = Math.min(
     maximumHousingAreaScale(source, settings),
     area / (Math.PI * site.frame.cityRadiusMeters ** 2)

@@ -1,5 +1,6 @@
 import type { CityDocument, EdgeRef, Id, Point } from "../types/document";
 import { oceanShoreSegments } from "./coastalSuitability";
+import { finishOpenEstuaryCurtain } from "./estuaryWallContinuity";
 import { castleWallIds } from "./fortifications";
 import { nearestOnPolyline } from "./geom";
 import { clone, edgeBetween, insertEdgeVertex } from "./mesh";
@@ -89,5 +90,6 @@ export function clipSurveyedRiverWalls(source: CityDocument, openWaterfront = fa
       .filter(run => run.length)
       .map((segments, i) => ({ ...group, id: i ? `${group.id}:bank-${i}` : group.id, segments }));
   });
+  if (openWaterfront) finishOpenEstuaryCurtain(next, water);
   return next;
 }

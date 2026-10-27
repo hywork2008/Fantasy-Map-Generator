@@ -1,6 +1,9 @@
 import { expect, it } from "vitest";
 import { createUrbanMorphology } from "../../../utils/urbanMorphology";
+import inputs from "../../data/fixtures/nidyia-waterfront-20261027.json";
+import { cityEditorDocument, cityEditorSettings } from "../../services/analysis/housingReport";
 import { parseDocument, serializeDocument } from "../../services/io/documentCodec";
+import { parseIncomingPayload } from "../../services/io/incomingCity";
 import { buildBlockFabric } from "../blockInfill";
 import { DEFAULT_BUILDING_HEIGHT_POLICY } from "../buildingHeightPolicy";
 import { createGridDocument } from "../document";
@@ -139,4 +142,37 @@ it("reserves low-rise housing before imported generation and respects explicit s
   expect(initialHousingAreaScale(document, { ...input, buildingHeightPolicy: undefined })).toBeUndefined();
   document.mesh.vertices[Object.keys(document.mesh.vertices)[0]].locked = true;
   expect(initialHousingAreaScale(document, input)).toBeUndefined();
+});
+
+it("reserves an inner-wall street belt only for eligible open estuary towns", () => {
+  const share = parseIncomingPayload(JSON.stringify(inputs["13"]))!;
+  const source = cityEditorDocument(share);
+  const base = cityEditorSettings(share);
+  // FMG-linked population settings are resolved away before the estimate.
+  const { population: _population, ...settings } = base;
+  const double = { ...settings, townWallRings: "double" as const, walledAreaShare: 0.28 };
+  const single = { ...double, townWallRings: "single" as const };
+  const baseline = initialHousingAreaScale(source, single)!;
+  const reserved = initialHousingAreaScale(source, double)!;
+  expect(reserved).toBeGreaterThan(baseline);
+  expect(reserved).toBeLessThanOrEqual(
+    (source.frame.extentMeters / 2.6 / share.descriptor!.frame.cityRadiusMeters) ** 2
+  );
+  const closed = {
+    ...double,
+    config: { ...double.config, wall: { ...double.config.wall, coast: "seaWall" as const } }
+  };
+  expect(initialHousingAreaScale(source, closed)).toBe(baseline);
+  const noCitadel = structuredClone(double.descriptor!);
+  noCitadel.burg.citadel = false;
+  expect(initialHousingAreaScale(source, { ...double, descriptor: noCitadel })).toBe(baseline);
+  const farBank = structuredClone(double.descriptor!);
+  farBank.burg.riverPlacement!.bankDistanceMeters = 10000;
+  expect(initialHousingAreaScale(source, { ...double, descriptor: farBank })).toBe(baseline);
+  const farSea = structuredClone(double.descriptor!);
+  farSea.waterbody!.shoreDistanceMeters = 10000;
+  expect(initialHousingAreaScale(source, { ...double, descriptor: farSea })).toBe(baseline);
+  expect(initialHousingAreaScale(source, { ...double, housingAreaScale: 2 })).toBeUndefined();
+  source.mesh.vertices[Object.keys(source.mesh.vertices)[0]].locked = true;
+  expect(initialHousingAreaScale(source, double)).toBeUndefined();
 });

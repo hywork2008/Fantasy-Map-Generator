@@ -52,3 +52,7 @@ node --import tsx scripts/benchmarkFmgCities.mjs \
   docs/analytics/raw/ce-estuary-approaches-20261027/recheck.jsonl \
   --burg 13,93,396,7 --repeat 2 --jobs 1
 ```
+
+## 住宅面積予約の追加改善
+
+Nobraの追加生成を省く初期予約の改善を実施した。結果と適用範囲は[河口都市の住宅面積予約](ce-estuary-housing-20261027.md)を参照。上の値は改善前の記録として保持する。

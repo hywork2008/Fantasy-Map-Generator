@@ -1,0 +1,12 @@
+burgId,name,beforeMs,afterMs,beforeFabricPasses,afterFabricPasses,beforeHousing,afterHousing,requiredHousing,disconnectedRoads,crossingIssues,overSkewedBridges,source
+1,Prestad,,2789.806,,1,,2345,2203,0,0,0,after-verified
+7,Seseneva,3364.485,3425.157,1,1,5077,5077,4134,0,0,0,after-verified
+11,Gjevels,,3901.944,,1,,4426,3452,0,0,0,after-verified
+13,Nobra,6467.614,3793.105,2,1,2895,2895,2331,0,0,0,final-targets
+14,Descoux,,4028.814,,2,,3523,2520,0,0,0,after-verified
+17,Schotig,,3131.607,,1,,3139,2711,0,0,0,after-verified
+71,Falldalder,,2570.452,,1,,1903,1993,0,0,0,after-verified
+92,Pforztaltens,,2776.439,,1,,2918,2323,0,0,0,after-verified
+93,Obern,2618.038,2600.724,1,1,1405,1405,1321,0,0,0,after-verified
+301,Wudensauern,,2206.95,,1,,2300,2205,0,0,0,after-verified
+396,Jilesca,2765.953,2592.427,1,1,2862,2862,2633,0,0,0,final-targets
