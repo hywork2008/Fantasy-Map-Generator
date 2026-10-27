@@ -42,6 +42,7 @@ function crossingFailureCountUnprobed(document: CityDocument): number {
   return count;
 }
 
+import { hasStraightBridgeLead } from "./frameRoads";
 import { probed } from "./meshOpProbe";
 import { defaultRoadWidthMeters, townExtentMeters } from "./settlementExtent";
 import { lineHitsDocumentWater } from "./waterGeometry";
@@ -185,7 +186,11 @@ function straightenLeg(document: CityDocument, legIndex: number, descriptor?: Bu
     if (!found.best || score < found.best.score) found.best = { document: tried, score };
     return score <= CLEAN_JUNCTION_DEGREES;
   };
-  const free = leg.pieces[0].kind === "road" && leg.pieces[0].points.length >= 2 && !fixedStart(document, target);
+  const free =
+    leg.pieces[0].kind === "road" &&
+    leg.pieces[0].points.length >= 2 &&
+    !fixedStart(document, target) &&
+    !hasStraightBridgeLead(leg);
   if (rerouteTo(work, legIndex, best.id, ids, reversed, goal?.vertexId ?? target, outward, consider, free))
     return found.best!.document;
 

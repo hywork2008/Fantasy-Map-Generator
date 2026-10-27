@@ -1,0 +1,7 @@
+region,burg_id,name,population,baseline_ms,current_ms,change_pct,baseline_attempts,current_attempts,baseline_buildings,current_buildings,baseline_houses,current_houses,same_fingerprint,baseline_crossing_issues,current_crossing_issues
+triviers,12,Dunsbole,10318,2655,3867,45.7,1,1,3481,4205,2351,2924,False,0,0
+triviers,16,Skipton,8119,1649,1551,-6.0,1,1,1875,1875,1630,1630,True,0,0
+triviers,17,Wihulbo,14054,2562,2545,-0.7,1,1,4833,4833,3351,3351,True,0,0
+fonteland,4,Yebleca,1588,622,634,1.8,1,1,163,163,308,308,True,0,0
+fonteland,20,Rira,776,1663,1620,-2.6,1,1,235,235,160,160,True,0,0
+fonteland,31,Alburg,9709,2562,2620,2.2,1,1,3142,3142,2221,2221,True,0,0

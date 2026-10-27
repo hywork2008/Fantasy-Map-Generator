@@ -8,6 +8,8 @@ export interface UrbanContext {
   sea: Set<number>;
   /** land cell id → bank component (0 = city side). */
   bank: Map<number, number>;
+  /** Surveyed dry area per cell; wet fragments do not count towards the core budget. */
+  landArea?: ReadonlyMap<number, number>;
 }
 
 export interface UrbanClassification {
@@ -45,8 +47,16 @@ export function classifyUrban(
   const stages: UrbanStage[] = [];
 
   const compact = coreMode === "compact";
+  const fullArea = new Map(cells.map(cell => [cell.id, Math.abs(polygonArea(cell.polygon))]));
+  const areaOf = (cell: Cell): number => ctx.landArea?.get(cell.id) ?? fullArea.get(cell.id)!;
+  // Grow inland first, leaving partial bank cells for waterfront uses instead
+  // of letting a wide surveyed river consume the nominal residential budget.
+  const waterPenalty = (cell: Cell): number =>
+    ctx.landArea ? cityRadiusMeters * (1 - Math.min(1, areaOf(cell) / Math.max(1, fullArea.get(cell.id)!))) : 0;
   const eligible = (c: Cell): boolean =>
-    !ctx.sea.has(c.id) && (!compact || Math.hypot(c.centroid[0], c.centroid[1]) <= cityRadiusMeters);
+    !ctx.sea.has(c.id) &&
+    (!ctx.landArea || areaOf(c) > 0.001) &&
+    (!compact || Math.hypot(c.centroid[0], c.centroid[1]) <= cityRadiusMeters);
 
   // Distance metric: circular inland, elliptical (shore-elongated) on a coast.
   const reach = (c: Cell): number => {
@@ -69,13 +79,18 @@ export function classifyUrban(
     const bank = ctx.bank.get(c.id) ?? 0;
     return bank > 0 ? cityRadiusMeters * 0.22 : 0;
   };
-  const cost = (c: Cell): number =>
-    compact ? Math.hypot(c.centroid[0], c.centroid[1]) : reach(c) + bankPenalty(c) - gatePull(c);
+  const costs = new Map(
+    cells.map(c => [
+      c.id,
+      compact ? Math.hypot(c.centroid[0], c.centroid[1]) : reach(c) + bankPenalty(c) + waterPenalty(c) - gatePull(c)
+    ])
+  );
+  const cost = (c: Cell): number => costs.get(c.id)!;
 
   const byId = new Map(cells.map(c => [c.id, c]));
   const citySideCells = cells.filter(c => eligible(c) && (ctx.bank.get(c.id) ?? 0) === 0);
   const center = (citySideCells.length > 0 ? citySideCells : cells.filter(eligible)).sort(
-    (a, b) => reach(a) - reach(b)
+    (a, b) => reach(a) + waterPenalty(a) - reach(b) - waterPenalty(b)
   )[0];
   if (!center) return { urban, outskirts, stages };
 
@@ -87,7 +102,7 @@ export function classifyUrban(
     frontier.sort((a, b) => cost(a) - cost(b));
     const cell = frontier.shift() as Cell;
     urban.add(cell.id);
-    const area = Math.abs(polygonArea(cell.polygon));
+    const area = areaOf(cell);
     admittedArea += Number.isFinite(area) && area > 0 ? area : Math.max(1, cellSizeMeters) ** 2;
     if (captureStages) stages.push({ cellId: cell.id });
     for (const nId of cell.neighbors) {

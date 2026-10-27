@@ -90,7 +90,7 @@ import { applyPlan } from "./assembly/applyPlan";
 import { settleTempleOnDocument } from "./assembly/temple";
 import { GEN_PREFIX, NOMINAL_PRESET } from "./constants";
 import { planningDebugDocument } from "./debugPreview";
-import { nextHousingAreaScale } from "./heightArea";
+import { initialHousingAreaScale, nextHousingAreaScale } from "./heightArea";
 import { runPlan } from "./pipeline";
 import { plazaApproachPoint, requiredExternalRoads } from "./planning/roadGeometry";
 import { prepareRun } from "./prepareRun";
@@ -212,6 +212,13 @@ export function generateCityOnDocument(
       delete document.urbanMorphology;
       delete document.urbanGrowth;
       delete document.housingCapacity;
+    }
+  }
+  if (!stopAfter && !onRejected && !settings.townFortification && !skeletonFirst) {
+    const scale = initialHousingAreaScale(document, settings);
+    if (scale !== undefined) {
+      settings = { ...settings, housingAreaScale: scale };
+      observer?.({ phase: "housing-area-plan", elapsedMs: 0, attempt: 1, counts: { housingAreaScale: scale } });
     }
   }
   // Some coast/river layouts cannot form valid crossings, or enough external
@@ -390,6 +397,33 @@ export function generateCityOnDocument(
       // built, so an earlier count overstated the houses by up to ~20%.
       // One content-keyed district cache for the first fabric and every housing count.
       const fabricCache = new FabricCache(512);
+      let heightAreaChecked = false;
+      const expandHousing = (lots: Parameters<typeof nextHousingAreaScale>[3]): CityDocument | null => {
+        heightAreaChecked = true;
+        const nextAreaScale = nextHousingAreaScale(heightAreaSource, result, settings, lots);
+        if (nextAreaScale === undefined) return null;
+        observe({
+          phase: "fit-housing",
+          attempt: attempt + 1,
+          elapsedMs: 0,
+          counts: { housingAreaScale: nextAreaScale, housingAreaPass: (settings.housingAreaPasses ?? 0) + 1 }
+        });
+        const expanded = generateCityOnDocument(
+          heightAreaSource,
+          {
+            ...settings,
+            housingAreaScale: nextAreaScale,
+            housingAreaPasses: (settings.housingAreaPasses ?? 0) + 1,
+            generationRetry: undefined
+          },
+          seed,
+          observer,
+          onRejected,
+          profiler,
+          stopAfter
+        );
+        return expanded;
+      };
       if (result.urbanMorphology && settings.descriptor) {
         const initialFabric = measureProcessing(profiler, "initial-fabric", () =>
           buildBlockFabric(result, fabricCache)
@@ -418,6 +452,10 @@ export function generateCityOnDocument(
           phase.absorbedClusterIds = result.urbanGrowth.absorbedClusters
             .filter(c => c.wallPhaseId === phase.id)
             .map(c => c.id);
+        if (hasBuildingHeightVariation(result) || hasBuildingHeightLimits(result)) {
+          const expanded = expandHousing(initialFabric.buildings);
+          if (expanded) return expanded;
+        }
       }
       if (settings.descriptor && !settings.population) {
         const fitStarted = performance.now();
@@ -443,31 +481,8 @@ export function generateCityOnDocument(
         measureProcessing(profiler, "population-housing", () =>
           fitPopulationHousing(result, fabricCache, sample => observe({ ...sample, attempt: attempt + 1 }))
         );
-      const nextAreaScale =
-        hasBuildingHeightVariation(result) || hasBuildingHeightLimits(result)
-          ? nextHousingAreaScale(heightAreaSource, result, settings, buildBlockFabric(result, fabricCache).buildings)
-          : undefined;
-      if (nextAreaScale !== undefined) {
-        observe({
-          phase: "fit-housing",
-          attempt: attempt + 1,
-          elapsedMs: 0,
-          counts: { housingAreaScale: nextAreaScale, housingAreaPass: (settings.housingAreaPasses ?? 0) + 1 }
-        });
-        const expanded = generateCityOnDocument(
-          heightAreaSource,
-          {
-            ...settings,
-            housingAreaScale: nextAreaScale,
-            housingAreaPasses: (settings.housingAreaPasses ?? 0) + 1,
-            generationRetry: undefined
-          },
-          seed,
-          observer,
-          onRejected,
-          profiler,
-          stopAfter
-        );
+      if (!heightAreaChecked && (hasBuildingHeightVariation(result) || hasBuildingHeightLimits(result))) {
+        const expanded = expandHousing(buildBlockFabric(result, fabricCache).buildings);
         if (expanded) return expanded;
       }
       if (
@@ -521,7 +536,9 @@ export function generateCityOnDocument(
             ...(singleWallApplied && singleWallFallback !== undefined ? { singleWallFallback } : {})
           }
         });
-      return measureProcessing(profiler, "farmland", () => generateRuralFieldStage(result, { createLotPads: true }));
+      return measureProcessing(profiler, "farmland", () =>
+        generateRuralFieldStage(result, { createLotPads: true, fabricCache, profiler })
+      );
     }
     if (onRejected || settings.townFortification) return null;
     // A castle can leave the gate streets no way past it while the face

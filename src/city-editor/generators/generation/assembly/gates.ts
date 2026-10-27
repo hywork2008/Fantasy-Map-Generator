@@ -86,7 +86,7 @@ export function applyGates(input: ApplyGatesInput) {
     for (const id of reservedVertices) next.mesh.vertices[id].locked = true;
     next = finishCityGeometry(next, "boundaries");
     for (const [id, locked] of lockedBefore) next.mesh.vertices[id].locked = locked;
-    next = clipSurveyedRiverWalls(next);
+    next = clipSurveyedRiverWalls(next, plan.openWaterfront);
     mesh = next.mesh;
     urbanRegions = [...plan.urban]
       .map(id => faceFor(mesh, faceIdOf, id))

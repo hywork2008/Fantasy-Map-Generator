@@ -12,7 +12,7 @@ import { kindEdgeIds, throughEdgesAt } from "../../passages";
 import { bramCoreRadiusForCity, bramRoadBanRadiusMeters } from "../../polygonalCirculadeLayout";
 import { shortestRoadPath, simpleRoadPath } from "../../roadNetwork";
 import { defaultRoadWidthMeters, townExtentMeters } from "../../settlementExtent";
-import { lineHitsDocumentWater } from "../../waterGeometry";
+import { documentWaterTest, lineHitsDocumentWater } from "../../waterGeometry";
 import { GEN_PREFIX } from "../constants";
 import type { Plan } from "../contracts";
 import type { NearestVertex } from "../planning/meshLookup";
@@ -44,6 +44,7 @@ export function completeRoadRouter(
   options?: RoadRoutingOptions
 ) => EdgeRef[] {
   const { mesh } = document;
+  const water = documentWaterTest(document);
   const ids = Object.keys(mesh.vertices);
   const indexOf = new Map(ids.map((id, i) => [id, i]));
   const graph: EdgeGraph = { points: ids.map(id => mesh.vertices[id].point), adjacency: ids.map(() => []) };
@@ -194,14 +195,14 @@ export function completeRoadRouter(
   const nearestDryApproach = (point: Point): Id | null => {
     if (!document.importedFixedCrossings) return nearest(point);
     const width = defaultRoadWidthMeters(townExtentMeters(document.frame));
-    const endpointWet = lineHitsDocumentWater(document, [point, point], width, true);
+    const endpointWet = lineHitsDocumentWater(document, [point, point], width, true, water);
     const pool = new Set(approachVertices);
     while (pool.size) {
       const id = nearest(point, pool);
       if (!id) break;
       const at = mesh.vertices[id].point;
       if (Math.hypot(at[0] - point[0], at[1] - point[1]) > document.frame.blockSizeMeters * 2) break;
-      if (endpointWet || !lineHitsDocumentWater(document, [point, at], width, true)) return id;
+      if (endpointWet || !lineHitsDocumentWater(document, [point, at], width, true, water)) return id;
       pool.delete(id);
     }
     // A regional river can drown every coarse vertex near a landing on its
@@ -214,7 +215,7 @@ export function completeRoadRouter(
     while (pool.size) {
       const id = nearest(point, pool);
       if (!id) return null;
-      if (!lineHitsDocumentWater(document, [point, mesh.vertices[id].point], width, true)) return id;
+      if (!lineHitsDocumentWater(document, [point, mesh.vertices[id].point], width, true, water)) return id;
       pool.delete(id);
     }
     return null;
@@ -237,7 +238,7 @@ export function completeRoadRouter(
     const gate = nearest(p, gateIds);
     const dryTo = (q: Point) =>
       !document.importedFixedCrossings ||
-      !lineHitsDocumentWater(document, [p, q], defaultRoadWidthMeters(townExtentMeters(document.frame)), true);
+      !lineHitsDocumentWater(document, [p, q], defaultRoadWidthMeters(townExtentMeters(document.frame)), true, water);
     if (gate) {
       const q = mesh.vertices[gate].point;
       if (Math.hypot(p[0] - q[0], p[1] - q[1]) < document.frame.blockSizeMeters * 0.8 && dryTo(q)) return gate;

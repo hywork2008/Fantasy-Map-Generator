@@ -1,4 +1,9 @@
-import { normalWaterSection, type PhysicalWaterPolygon, pointInWater } from "../../services/riverPhysicalGeometry";
+import {
+  footprintTouchesWater,
+  normalWaterSection,
+  type PhysicalWaterPolygon,
+  pointInWater
+} from "../../services/riverPhysicalGeometry";
 import { resolveBridgeCrossingLimit } from "../../utils/bridgeCrossingPolicy";
 import { planRiverCrossing } from "../../utils/riverCrossing";
 import type { BurgSiteDescriptor, BurgSiteRiver } from "../types/contracts/burgSiteDescriptor";
@@ -6,6 +11,7 @@ import type { Point } from "../types/document";
 import { BRIDGE_BANK_SEAT } from "./bridgeDeck";
 import { seaPortShoreDistanceMeters, townMeshExtentMeters } from "./document";
 import { segmentSegmentHit } from "./geom";
+import { corridor } from "./parcelGeometry";
 
 /** Roads on the display frame, outside the fitted town mesh.
  * A bridge is the bank-to-bank span on the river normal through q.
@@ -21,6 +27,20 @@ export interface FrameRoadLeg {
   routeId: number;
   branchIndex?: number;
   pieces: FrameRoadPiece[];
+}
+
+/** A planned inland lead belongs to the bridge axis. Junction repair may
+ * reshape the town street, but must keep this straight approach in place. */
+export function hasStraightBridgeLead(leg: FrameRoadLeg): boolean {
+  const index = leg.pieces.findIndex(piece => piece.kind === "bridge");
+  const road = index > 0 ? leg.pieces[index - 1] : undefined;
+  const deck = index >= 0 ? leg.pieces[index] : undefined;
+  if (road?.kind !== "road" || road.points.length < 2 || !deck || deck.points.length < 2) return false;
+  const a = road.points.at(-2)!,
+    b = road.points.at(-1)!;
+  const along = unit(sub(b, a)),
+    across = unit(sub(deck.points[1], deck.points[0]));
+  return dist(b, deck.points[0]) < 1e-5 && dist(a, b) >= 20 && !!along && !!across && dot(along, across) > 1 - 1e-6;
 }
 
 const GRAZE_METERS = 2;
@@ -102,6 +122,25 @@ export function frameRoadLegs(site: BurgSiteDescriptor, scope: "frame" | "beyond
             branchIndex,
             pieces: [{ kind: "road", points: start }, ...(tail.length ? [{ kind: "road" as const, points: tail }] : [])]
           });
+          continue;
+        }
+      }
+      // Plan a crossing from the complete approach, before clipping it to the
+      // town mesh. Both the imported street and the exterior road then use the
+      // same inland lead instead of two unrelated points on the river bank.
+      const completePath = finitePath(item.path.map(point));
+      if (completePath) {
+        const completeDecks = [...decks];
+        const complete = piecesFor(completePath, bodies, site, completeDecks);
+        const bridgeIndex = complete.findIndex(piece => piece.kind === "bridge");
+        if (scope === "frame" || bridgeIndex > 0) {
+          decks.splice(0, decks.length, ...completeDecks);
+          const pieces = complete.map((piece, index) =>
+            index === 0 && scope === "beyond-mesh"
+              ? { ...piece, points: outsideSquare(piece.points, half) ?? piece.points.slice(-2) }
+              : piece
+          );
+          if (pieces.length) legs.push({ sourceIndex, routeId: item.routeId, branchIndex, pieces });
           continue;
         }
       }
@@ -218,7 +257,7 @@ function piecesFor(
       consumed = interval.end;
       continue;
     }
-    const near = nearRoad(dry, bridge, bodies);
+    const near = nearRoad(dry, bridge, bodies, site.fixedCrossings?.roadWidthMeters ?? 5);
     dry = near;
     flush();
     if (bridge.drawDeck) {
@@ -270,7 +309,37 @@ function piecesFor(
   return finish(pieces, half);
 }
 
-function nearRoad(dry: Point[], bridge: PlannedBridge, bodies: WaterBody[]): Point[] {
+function nearRoad(dry: Point[], bridge: PlannedBridge, bodies: WaterBody[], width: number): Point[] {
+  if (bridge.drawDeck) {
+    const normal = unit(sub(bridge.nearApproach, bridge.nearDeck));
+    if (normal && dry.length >= 2) {
+      const length = polylineLength(dry);
+      for (const lead of [Math.max(40, width * 8), Math.max(24, width * 5)]) {
+        const inland = add(bridge.nearDeck, scale(normal, lead));
+        const at = Math.max(0, length - lead * 2);
+        const start = pointAt(dry, at);
+        const previous = pointAt(dry, Math.max(0, at - 1));
+        const incoming = unit(sub(start, previous)) ?? unit(sub(dry[1], dry[0]));
+        if (!incoming) continue;
+        const handle = Math.min(dist(start, inland) / 3, lead);
+        const c1 = add(start, scale(incoming, handle));
+        const c2 = add(inland, scale(normal, handle));
+        const curve = Array.from({ length: 13 }, (_, i): Point => {
+          const t = i / 12,
+            u = 1 - t;
+          return [0, 1].map(
+            axis => u ** 3 * start[axis] + 3 * u ** 2 * t * c1[axis] + 3 * u * t ** 2 * c2[axis] + t ** 3 * inland[axis]
+          ) as Point;
+        });
+        const clear = curve.slice(1).every((b, i) => {
+          const band = corridor(curve[i], b, width, width / 2);
+          return band.length >= 3 && bodies.every(body => !footprintTouchesWater(band, body.water));
+        });
+        if (clear && segmentClears(inland, bridge.nearDeck, bodies))
+          return dedupe([...slicePath(dry, 0, at), ...curve, inland, bridge.nearDeck]);
+      }
+    }
+  }
   const approach = attach(dry, bridge.nearApproach, bodies);
   if (!approach) return dry;
   if (!bridge.drawDeck) return approach;

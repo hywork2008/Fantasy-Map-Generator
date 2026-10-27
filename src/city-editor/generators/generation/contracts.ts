@@ -68,6 +68,8 @@ export interface Plan {
   importedRoads?: CityGeography["importedRoads"];
   frameRoads?: CityDocument["frameRoads"];
   riverPort?: boolean;
+  /** An open estuary uses the surveyed river bank as its coastal boundary. */
+  openWaterfront?: boolean;
   streets: Point[][];
   /** The district preview omits the gate-to-centre streets, so gates have no inner road yet. */
   wardsOnly?: true;

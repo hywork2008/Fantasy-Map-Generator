@@ -4,6 +4,7 @@ import { planRiverCrossing, RIVER_CARGO_VESSEL } from "../../../utils/riverCross
 import type { BurgSiteDescriptor, BurgSiteRiver } from "../../types/contracts/burgSiteDescriptor";
 import type { CityGeography, Point } from "../../types/geometry";
 import { seaPortShoreDistanceMeters, townMeshExtentMeters } from "../document";
+import { frameRoadLegs } from "../frameRoads";
 
 type ImportedRoad = NonNullable<CityGeography["importedRoads"]>[number];
 
@@ -23,12 +24,22 @@ export function importedRoadsForSite(site: BurgSiteDescriptor): NonNullable<City
     id: river.id,
     rings: river.rings
   }));
+  const bridgeApproaches = new Map(
+    frameRoadLegs(site, "frame").flatMap(leg => {
+      const bridge = leg.pieces.findIndex(piece => piece.kind === "bridge");
+      const approach = bridge > 0 ? leg.pieces[bridge - 1] : undefined;
+      return approach?.kind === "road" && approach.points.length >= 3
+        ? [[leg.sourceIndex, approach.points.slice(0, -1)] as const]
+        : [];
+    })
+  );
   return site.roads.flatMap((road, sourceIndex) => {
     if (road.group === "searoutes" || road.path.length < 2) return [];
-    const path: Point[] = [[...road.path[0]]];
-    for (let i = 1; i < road.path.length; i++) {
-      const a = road.path[i - 1],
-        b = road.path[i];
+    const sourcePath = bridgeApproaches.get(sourceIndex) ?? road.path;
+    const path: Point[] = [[...sourcePath[0]]];
+    for (let i = 1; i < sourcePath.length; i++) {
+      const a = sourcePath[i - 1],
+        b = sourcePath[i];
       let t = 1;
       for (let axis = 0; axis < 2; axis++) {
         if (b[axis] > half) t = Math.min(t, (half - a[axis]) / (b[axis] - a[axis]));
@@ -48,7 +59,7 @@ export function importedRoadsForSite(site: BurgSiteDescriptor): NonNullable<City
     // it ends at a landing on the town bank (Toyora's 2.5 km river).
     const ferry = landed ? ferryRiver(site, road.path.at(-1)!) : null;
     const landing =
-      (road.sharedCrossingId !== undefined || ferry !== null) &&
+      (bridgeApproaches.has(sourceIndex) || road.sharedCrossingId !== undefined || ferry !== null) &&
       Math.max(Math.abs(terminal[0]), Math.abs(terminal[1])) < half - 1e-7;
     // Batonykut: the ferry road stopped short of the bank with no landing.
     // Carry the crossing so the town road reaches a landing on the bank.

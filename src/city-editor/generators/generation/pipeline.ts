@@ -74,6 +74,11 @@ export function runPlan(
     importedRoads: geo.importedRoads,
     frameRoads: outerFrameRoads(settings.descriptor),
     riverPort: geo.riverPort,
+    openWaterfront:
+      program.wallPlan?.coast === "open" &&
+      !!settings.descriptor?.burg.riverPlacement?.coastConstrained &&
+      !!settings.descriptor?.burg.waterAccess?.river &&
+      !!settings.descriptor?.burg.waterAccess?.sea,
     rivers: [],
     urban: new Set(),
     outskirts: new Set(),
@@ -108,7 +113,8 @@ export function runPlan(
     sea,
     coastalWater,
     ocean,
-    appliedChannels
+    appliedChannels,
+    landArea
   } = planCoast({
     geo,
     cells,
@@ -170,6 +176,7 @@ export function runPlan(
     currentOutskirts,
     meshModified
   } = planUrban({
+    landArea,
     plannedUrban,
     cells,
     sea,
@@ -412,6 +419,7 @@ export function runPlan(
     importedRoads: geo.importedRoads,
     frameRoads: empty.frameRoads,
     riverPort: geo.riverPort,
+    openWaterfront: empty.openWaterfront,
     streets: complete ? streetResult.streets : gateStreets,
     wards: new Map(warded.wards.map(w => [w.cellId, w.kind])),
     wardOrder: warded.assignmentOrder,

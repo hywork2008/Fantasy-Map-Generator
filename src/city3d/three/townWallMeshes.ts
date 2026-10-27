@@ -142,6 +142,7 @@ export function createTownWalls(
         part.kind === "wall" &&
         part.material === "stone" &&
         !part.sections &&
+        !part.wallWalkModified &&
         !part.id.endsWith(":foundation") &&
         wallIds.some(id => part.id.startsWith(`wall:${id}:`))
     );

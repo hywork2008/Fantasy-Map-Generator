@@ -172,7 +172,7 @@ function extrudeRibbon(
   return true;
 }
 
-function outwardSign(points: readonly Point[], anchor: Point): number {
+export function outwardSign(points: readonly Point[], anchor: Point): number {
   const closed = closedLine(points);
   const ring = closed ? points.slice(0, -1) : points;
   for (let i = 0; i + 1 < ring.length || (closed && i < ring.length); i++) {

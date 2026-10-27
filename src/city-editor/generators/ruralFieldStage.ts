@@ -1,5 +1,7 @@
+import type { ProcessingProfiler } from "../../utils/processingProfiler";
 import type { CityDocument } from "../types/document";
 import { buildBlockFabric, documentFabricFingerprint } from "./blockInfill";
+import type { FabricCache } from "./localInfill";
 import { regenerateRuralLand } from "./roadsideFarms";
 import { applyRuralFields } from "./ruralFields";
 import { installLotPads } from "./terrainField/pads";
@@ -7,7 +9,12 @@ import { installLotPads } from "./terrainField/pads";
 /** Capture the same geometry as Regenerate farmland in a portable stage result. */
 export function generateRuralFieldStage(
   document: CityDocument,
-  options?: { preserveLandUse?: boolean; createLotPads?: boolean }
+  options?: {
+    preserveLandUse?: boolean;
+    createLotPads?: boolean;
+    fabricCache?: FabricCache;
+    profiler?: ProcessingProfiler;
+  }
 ): CityDocument {
   if (document.appearance !== "town") {
     if (options?.createLotPads && document.terrain?.field)
@@ -27,7 +34,7 @@ export function generateRuralFieldStage(
   const regenerated = options?.preserveLandUse ? next : regenerateRuralLand(next);
   const fingerprint = documentFabricFingerprint(regenerated);
   // Pad generation shares the final fabric already needed for farmland.
-  const fabric = buildBlockFabric(regenerated);
+  const fabric = buildBlockFabric(regenerated, options?.fabricCache, options?.profiler);
   if (options?.createLotPads && regenerated.terrain?.field) {
     regenerated.terrain = { ...regenerated.terrain, features: [...regenerated.terrain.features] };
     installLotPads(regenerated, fabric.buildings);
