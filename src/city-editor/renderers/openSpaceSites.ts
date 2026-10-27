@@ -3,7 +3,9 @@ import type { TreeSpecies } from "../../buildings/landscape/trees";
 import { cemeteryPlots } from "../generators/cemeteryPlots";
 import { cemeteryGroundColor } from "../generators/cultureCemeteryLayout";
 import type { ParkLawn } from "../generators/parkFabric";
-import type { CemeteryPart, CemeteryPlan, Point } from "../types/document";
+import type { CemeteryPart, CemeteryPlan, CityDocument, Point } from "../types/document";
+
+import { landscapeTreeSpecies } from "./landscapeTreeSpecies";
 
 export type OpenSpaceModel =
   | TreeSpecies
@@ -82,7 +84,11 @@ function pathSurfaces(points: Point[], width: number, color: string, offset: num
 }
 
 /** Uses the same generated parks and resolved cemetery plans as SVG; never mutates a city document. */
-export function collectOpenSpacePlan(parks: readonly ParkLawn[], cemeteries: readonly CemeteryPlan[]): OpenSpacePlan {
+export function collectOpenSpacePlan(
+  parks: readonly ParkLawn[],
+  cemeteries: readonly CemeteryPlan[],
+  document?: CityDocument
+): OpenSpacePlan {
   const sites: OpenSpaceSite[] = [],
     surfaces: OpenSpaceSurface[] = [];
   for (const park of parks) {
@@ -101,7 +107,12 @@ export function collectOpenSpacePlan(parks: readonly ParkLawn[], cemeteries: rea
         surfaces
       );
     for (const tree of park.trees)
-      sites.push({ model: "garden_parkland", point: tree.center, radius: tree.radius, angle: 0 });
+      sites.push({
+        model: landscapeTreeSpecies("garden_parkland", document, tree.center),
+        point: tree.center,
+        radius: tree.radius,
+        angle: 0
+      });
   }
   for (const cemetery of cemeteries) {
     const profile = cemetery.burialProfile;
@@ -109,7 +120,12 @@ export function collectOpenSpacePlan(parks: readonly ParkLawn[], cemeteries: rea
       surfaces.push({ ring, color: profile ? cemeteryGroundColor(profile) : "#7ea867", offset: 0.025 });
     for (const access of cemetery.accesses) pathSurfaces(access.points, access.widthMeters, "#d8d1bf", 0.045, surfaces);
     if (profile?.vegetation !== "barren_gravel")
-      for (const point of cemetery.trees) sites.push({ model: profile?.vegetation ?? "sacred_yew", point, angle: 0 });
+      for (const point of cemetery.trees)
+        sites.push({
+          model: landscapeTreeSpecies(profile?.vegetation ?? "sacred_yew", document, point),
+          point,
+          angle: 0
+        });
     for (const part of cemetery.parts) {
       if (part.footprint.length < 3) continue;
       if (part.role === "graves") {

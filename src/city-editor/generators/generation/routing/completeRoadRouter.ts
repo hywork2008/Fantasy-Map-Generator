@@ -288,12 +288,11 @@ export function completeRoadRouter(
           : onFrame
             ? nearest(sampled[i], onFrame)
             : snap(sampled[i], outside ? i === sampled.length - 1 : i === 0);
-      // The nearest plaza corner is often a curtain vertex. An interior street
-      // has to end on a town vertex or its only hops are the wall itself.
+      // A river-bank extension can put either end of an interior street on the
+      // curtain. Move non-gate waypoints inside; only actual gates retain wall endpoints.
       const gateEnd = outside ? i === sampled.length - 1 : i === 0;
       if (
         !outside &&
-        !gateEnd &&
         id &&
         barrierVertices.has(id) &&
         !gateIds.has(id) &&

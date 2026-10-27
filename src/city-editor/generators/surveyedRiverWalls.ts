@@ -4,12 +4,13 @@ import { finishOpenEstuaryCurtain } from "./estuaryWallContinuity";
 import { castleWallIds } from "./fortifications";
 import { nearestOnPolyline } from "./geom";
 import { clone, edgeBetween, insertEdgeVertex } from "./mesh";
+import { extendRiverBankCurtain } from "./riverBankCurtain";
 import { dryRuns, lineHitsWater, waterPolygons } from "./waterGeometry";
 
 /** A surveyed bank may cross the middle of a coarse mesh edge. Keep the dry
  * curtain up to that bank, with real shared vertices for editing and routing. */
 export function clipSurveyedRiverWalls(source: CityDocument, openWaterfront = false): CityDocument {
-  if (!source.importedFixedCrossings) return source;
+  if (!source.importedFixedCrossings) return extendRiverBankCurtain(clone(source));
   let next = clone(source);
   const water = waterPolygons(next);
   const castles = castleWallIds(next);
@@ -91,5 +92,5 @@ export function clipSurveyedRiverWalls(source: CityDocument, openWaterfront = fa
       .map((segments, i) => ({ ...group, id: i ? `${group.id}:bank-${i}` : group.id, segments }));
   });
   if (openWaterfront) finishOpenEstuaryCurtain(next, water);
-  return next;
+  return extendRiverBankCurtain(next);
 }

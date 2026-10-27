@@ -9,6 +9,7 @@ import { clone, facePoints, faceVertices, indexMeshEdges } from "./mesh";
 import { onFixedCrossingApproach, straightenBridges, straightenGateCrossings } from "./passages";
 import { regionalRoadThroughGate } from "./regionalRoadGates";
 import { minimumCellWidth, roadCellHousingWidth } from "./roadCellGeometry";
+import { waterPolygons } from "./waterGeometry";
 
 /** Distance from `p` to segment `u`–`v`. */
 function pointSegmentGap(p: Point, u: Point, v: Point): number {
@@ -104,6 +105,18 @@ export function finishCityGeometry(source: CityDocument, phase: "finish" | "boun
           wallWidths.set(edge.id, Math.max(wallWidths.get(edge.id) ?? 0, group.style.widthMeters));
       }
     }
+  }
+  // Keep an open curtain attached to its surveyed bank during the final smoothing pass.
+  const wallDegree = new Map<Id, number>();
+  for (const id of walls) {
+    const edge = mesh.edges[id];
+    for (const vertex of [edge.a, edge.b]) wallDegree.set(vertex, (wallDegree.get(vertex) ?? 0) + 1);
+  }
+  const bankEnds = [...wallDegree].filter(([, degree]) => degree === 1);
+  if (bankEnds.length) {
+    const banks = waterPolygons(next).flatMap(ring => ring.map((a, i) => [a, ring[(i + 1) % ring.length]] as const));
+    for (const [id] of bankEnds)
+      if (banks.some(([a, b]) => pointSegmentGap(mesh.vertices[id].point, a, b) < 1e-5)) pinned.add(id);
   }
   for (const gate of next.gates)
     if (gate.locked || !gate.id.startsWith("gc:") || regionalRoadThroughGate(next, gate.vertexId).length)
