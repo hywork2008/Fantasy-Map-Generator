@@ -1,6 +1,8 @@
+import { interpolateLab } from "d3";
 import { worldContext } from "../context/worldContext";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { isDialogOpen } from "../ui/dialogs/dialogService";
+import { computeBorderHeat, pairKey } from "../utils/diplomacyHeat";
 import { type RelationKey, relations } from "../utils/diplomacyRelations";
 import { diplomacyEditorActions } from "./diplomacy-editor";
 
@@ -11,6 +13,8 @@ export function clearDiplomacyBadges(): void {
 // Draws one badge per pair of neighbouring states on their shared border. The badge is split along the
 // border like a half-and-half pizza: each half shows how the state on that side regards the other one,
 // so mutual relations form a whole symbol (e.g. a heart for mutual friendship).
+// Hostile halves and the badge ring heat up with the pair's Relations history, and the burgs fought over
+// between the pair glow as scorched battlegrounds beneath the badges.
 export function renderDiplomacyBadges(): void {
   clearDiplomacyBadges();
   const { cells, states } = worldContext.pack;
@@ -41,8 +45,13 @@ export function renderDiplomacyBadges(): void {
   }
 
   const r = 8;
+  const heatByPair = computeBorderHeat(states[0].diplomacy);
   const group = view.debug.append("g").attr("id", "diplomacyBadges");
   const defs = group.append("defs");
+  const scorch = defs.append("radialGradient").attr("id", "diplomacyScorch");
+  scorch.append("stop").attr("offset", "0%").attr("stop-color", "#ff3000").attr("stop-opacity", 0.9);
+  scorch.append("stop").attr("offset", "55%").attr("stop-color", "#a00000").attr("stop-opacity", 0.45);
+  scorch.append("stop").attr("offset", "100%").attr("stop-color", "#600000").attr("stop-opacity", 0);
   defs
     .append("clipPath")
     .attr("id", "diplomacyBadgeLeft")
@@ -60,7 +69,26 @@ export function renderDiplomacyBadges(): void {
     .attr("width", r * 2)
     .attr("height", r * 4);
 
+  const battlegrounds = group.append("g").attr("pointer-events", "none");
+  const sites = new Map<number, number>();
+  for (const key of pairs.keys()) {
+    const heat = heatByPair.get(pairKey(Math.floor(key / n), key % n));
+    for (const [burgId, w] of heat?.sites ?? []) sites.set(burgId, Math.max(sites.get(burgId) || 0, w));
+  }
+  for (const [burgId, w] of sites) {
+    const burg = worldContext.pack.burgs[burgId];
+    if (!burg || burg.removed) continue;
+    battlegrounds
+      .append("circle")
+      .attr("cx", burg.x)
+      .attr("cy", burg.y)
+      .attr("r", 10 + 14 * w)
+      .attr("fill", "url(#diplomacyScorch)")
+      .attr("opacity", 0.25 + 0.6 * w);
+  }
+
   for (const [key, { points, nx, ny }] of pairs) {
+    const heat = heatByPair.get(pairKey(Math.floor(key / n), key % n))?.heat ?? 0;
     let left = Math.floor(key / n);
     let right = key % n;
     let angle = (Math.atan2(ny, nx) * 180) / Math.PI;
@@ -98,8 +126,12 @@ export function renderDiplomacyBadges(): void {
           event.stopPropagation();
           if (isDialogOpen("diplomacyEditor")) diplomacyEditorActions.selectRelation(subject, object, relation);
         });
-      half.append("title").text(`${states[subject].name} ${rel.inText} ${states[object].name}`);
-      half.append("circle").attr("r", r).attr("fill", rel.color);
+      const heatNote = heat >= 0.05 ? ` (hostility ${Math.round(heat * 100)}%)` : "";
+      half.append("title").text(`${states[subject].name} ${rel.inText} ${states[object].name}${heatNote}`);
+      // hostile halves deepen from their relation colour to blood red as the history heats up
+      const hostile = relation === "Enemy" || relation === "Rival" || relation === "Suspicion";
+      const fill = hostile ? interpolateLab(rel.color, "#8b0000")(heat) : rel.color;
+      half.append("circle").attr("r", r).attr("fill", fill);
       half
         .append("text")
         .attr("text-anchor", "middle")
@@ -110,6 +142,26 @@ export function renderDiplomacyBadges(): void {
         .attr("stroke-width", 0.6)
         .attr("paint-order", "stroke")
         .text(rel.icon);
+    }
+    if (heat >= 0.05) {
+      const ring = badge
+        .append("circle")
+        .attr("r", r + 1.5 + heat * 2)
+        .attr("fill", "none")
+        .attr("stroke", "#d00000")
+        .attr("stroke-width", 1 + heat * 3)
+        .attr("opacity", 0.3 + 0.7 * heat)
+        .attr("pointer-events", "none");
+      // an ongoing, heated war pulses
+      const atWar = states[left].diplomacy![right] === "Enemy" || states[right].diplomacy![left] === "Enemy";
+      if (atWar && heat >= 0.5) {
+        ring
+          .append("animate")
+          .attr("attributeName", "opacity")
+          .attr("values", `${0.3 + 0.7 * heat};0.15;${0.3 + 0.7 * heat}`)
+          .attr("dur", "1.6s")
+          .attr("repeatCount", "indefinite");
+      }
     }
     badge
       .append("circle")
