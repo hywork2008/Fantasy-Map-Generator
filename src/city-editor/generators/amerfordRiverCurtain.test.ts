@@ -5,10 +5,12 @@ import { parseIncomingPayload } from "../services/io/incomingCity";
 import { cityEditorDocument, cityEditorSettings } from "../services/io/shareRequest";
 import { buildBlockFabric } from "./blockInfill";
 import { generateCityOnDocument } from "./generation/generateCity";
-import { nearestOnPolyline } from "./geom";
-import { validate } from "./mesh";
+import { polygonArea, polygonCentroid } from "./geom";
+import { facePoints, validate } from "./mesh";
+import { measureHousingCapacity } from "./residentialCapacity";
+import { documentWaterTest, lineHitsDocumentWater } from "./waterGeometry";
 
-it("keeps Amerford's streets and buildings while extending its outer curtain to the river", () => {
+it("centres Amerford on dry fine-grid cells and fits its imported dwellings", () => {
   const request = parseIncomingPayload(JSON.stringify(share))!;
   const city = generateCityOnDocument(cityEditorDocument(request), cityEditorSettings(request), request.seed)!;
   expect(city).not.toBeNull();
@@ -19,23 +21,22 @@ it("keeps Amerford's streets and buildings while extending its outer curtain to 
   const svg = renderStandaloneCitySvg(city);
   expect(svg.querySelectorAll(".ce-buildings > .ce-building")).toHaveLength(fabric.buildings.length);
 
-  const degree = new Map<string, number>();
-  for (const group of city.featureGroups) {
-    if (group.kind !== "wall" || !group.id.startsWith("gc:wall-")) continue;
-    for (const ref of group.segments) {
-      const edge = city.mesh.edges[ref.edgeId];
-      const faces = [edge.leftFace, edge.rightFace].flatMap(id => (id ? [city.mesh.faces[id]] : []));
-      // A new curtain must stay outside the town's internal street network.
-      expect(faces.length === 2 && faces.every(face => face.properties.settlement === "core")).toBe(false);
-      for (const id of [edge.a, edge.b]) degree.set(id, (degree.get(id) ?? 0) + 1);
-    }
-  }
-  const ends = [...degree].filter(([, n]) => n === 1).map(([id]) => city.mesh.vertices[id].point);
-  expect(ends).toHaveLength(2);
-  for (const point of ends) {
-    const gap = Math.min(
-      ...city.waterAreas!.map(area => nearestOnPolyline(point, [...area.polygon, area.polygon[0]]).dist)
-    );
-    expect(gap).toBeLessThan(0.01);
-  }
+  const housing = measureHousingCapacity(city, fabric.buildings, request.descriptor!.burg.dwellings);
+  expect(housing.unplacedDwellings).toBe(0);
+  expect(city.frame.extentMeters).toBeLessThan(request.descriptor!.frame.extentMeters);
+  const center = polygonCentroid(fabric.buildings.map(building => polygonCentroid(building.polygon)));
+  expect(Math.hypot(...center)).toBeLessThan(city.frame.cityRadiusMeters);
+  const plaza = city.elements.find(element => element.kind === "plaza")!;
+  expect(Math.hypot(...plaza.point!)).toBeLessThan(city.frame.cityRadiusMeters);
+  expect(lineHitsDocumentWater(city, [plaza.point!, plaza.point!], 0.1, true, documentWaterTest(city))).toBe(false);
+  const parks = Object.values(city.mesh.faces).filter(face => face.properties.ward === "park");
+  expect(
+    parks.every(
+      face => Math.abs(polygonArea(facePoints(city.mesh, face))) < Math.PI * city.frame.cityRadiusMeters ** 2 * 0.1
+    )
+  ).toBe(true);
+  const recipe = city.fabric!.generation!;
+  const replay = generateCityOnDocument(recipe.input, recipe.settings, recipe.seed)!;
+  expect(buildBlockFabric(replay).buildings.length).toBe(fabric.buildings.length);
+  expect(replay.frame).toEqual(city.frame);
 });

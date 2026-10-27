@@ -1226,6 +1226,9 @@
     "pageTitle": "都市エディター — Fantasy Map Generator",
     "pageDescription": "Fantasy Map Generatorの都市地図生成・編集エディター",
     "fmgParameters": {
+      "seaPort": "海",
+      "riverPort": "河川",
+      "lakePort": "湖",
       "title": "FMGから受け取ったパラメーター",
       "coastDistance": "海岸まで",
       "lakeShoreDistance": "湖岸まで",

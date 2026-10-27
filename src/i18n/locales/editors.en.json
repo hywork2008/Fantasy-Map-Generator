@@ -1226,6 +1226,9 @@
     "pageTitle": "City Editor — Fantasy Map Generator",
     "pageDescription": "City map generator and editor for Fantasy Map Generator",
     "fmgParameters": {
+      "seaPort": "Sea",
+      "riverPort": "River",
+      "lakePort": "Lake",
       "title": "Parameters received from FMG",
       "coastDistance": "Coast distance",
       "lakeShoreDistance": "Lake shore distance",
