@@ -15,7 +15,7 @@ export const MEDIEVAL_CONTAINERS = {
   basket: { name: "Woven wicker basket", width: 0.86, depth: 0.86, height: 0.68 }
 } as const;
 export const MEDIEVAL_CONTAINER_NOTE =
-  "Imagined reusable medieval European storage props; illustrative dimensions, not artifact reconstructions. Empty containers have open interiors; closed sacks are tied. Loaded barrels and sacks contain grain, crates and baskets contain produce. Origin at ground level; units are meters. Automatic CE placement is not included.";
+  "Imagined reusable medieval European storage props; illustrative dimensions, not artifact reconstructions. Empty containers have open interiors; closed sacks are tied. Loaded barrels and sacks contain grain, crates and baskets contain produce. Origin at ground level; units are meters. Barrel and crate models are shared with City Editor harbor cargo.";
 
 export interface MedievalContainerMeshes extends CityStructureMeshes {
   elevation: string;

@@ -142,6 +142,8 @@ const modelArticles: Record<string, string> = {
   "printers-guild-hall": "Guildhall",
   "garden-parkland": "Tilia cordata",
   "sacred-yew": "Taxus baccata",
+  "norway-spruce": "Picea abies",
+  "silver-birch": "Betula pendula",
   "mediterranean-cypress": "Cupressus sempervirens",
   "oriental-evergreen": "Evergreen",
   "sacred-bodhi-and-fig": "Ficus religiosa",

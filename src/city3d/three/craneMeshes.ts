@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { models } from "../../buildings/medieval/35-harbor-cranesModels";
-import { createMedievalContainerModel } from "../../buildings/props/medievalContainers";
+import { createMedievalContainerModel, MEDIEVAL_CONTAINERS } from "../../buildings/props/medievalContainers";
 import type { HarborCargoPile, HarborCrane } from "../../city-editor/generators/harborFabric";
 import type { Point } from "../../city-editor/types/primitives";
 import { planVertex } from "../core/planFrame";
@@ -29,26 +29,33 @@ export function createTownCranes(
 }
 
 const barrel = { id: "harbor-barrel", create: () => createMedievalContainerModel("barrel", "closed") };
+const crate = { id: "harbor-crate", create: () => createMedievalContainerModel("crate", "closed") };
 
-/** Match the five barrel positions in the 2D cargo pile. */
-export function createTownHarborBarrels(
+/** Match BV containers to the barrel circles and crate rectangles in the 2D cargo piles. */
+export function createTownHarborCargo(
   piles: readonly HarborCargoPile[],
   heightAt: (point: Point) => number,
   cache: BvPrototypeCache
 ) {
   const sites = piles
-    .filter(pile => pile.kind === "barrels")
+    .filter(pile => pile.kind === "barrels" || pile.kind === "crates")
     .flatMap(pile => {
       const hw = pile.widthMeters / 2,
         hh = pile.heightMeters / 2,
         r = 0.55;
-      const offsets = [
-        [-hw + r, -hh + r],
-        [0, -hh + r],
-        [hw - r, -hh + r],
-        [-hw * 0.5, hh - r],
-        [hw * 0.5, hh - r]
-      ];
+      const offsets =
+        pile.kind === "barrels"
+          ? [
+              [-hw + r, -hh + r],
+              [0, -hh + r],
+              [hw - r, -hh + r],
+              [-hw * 0.5, hh - r],
+              [hw * 0.5, hh - r]
+            ]
+          : [
+              [-hw + pile.widthMeters * 0.3, 0],
+              [-hw + pile.widthMeters * 0.725, pile.heightMeters * 0.025]
+            ];
       const c = Math.cos(pile.rotation),
         s = Math.sin(pile.rotation);
       return offsets.map(([x, y], index) => {
@@ -56,13 +63,23 @@ export function createTownHarborBarrels(
         const point: Point = [pile.point[0] + x * c + y * s, pile.point[1] + x * s - y * c];
         return {
           id: `${pile.id}:${index}`,
-          definition: barrel,
-          matrix: new THREE.Matrix4().makeTranslation(...planVertex(point, LAND_Y + heightAt(point)))
+          definition: pile.kind === "barrels" ? barrel : crate,
+          matrix: new THREE.Matrix4().compose(
+            new THREE.Vector3(...planVertex(point, LAND_Y + heightAt(point))),
+            new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), pile.rotation),
+            pile.kind === "barrels"
+              ? new THREE.Vector3(1, 1, 1)
+              : new THREE.Vector3(
+                  (pile.widthMeters * (index === 0 ? 0.6 : 0.55)) / MEDIEVAL_CONTAINERS.crate.width,
+                  1,
+                  (pile.heightMeters * (index === 0 ? 1 : 0.85)) / MEDIEVAL_CONTAINERS.crate.depth
+                )
+          )
         };
       });
     });
   const result = createBvInstances(sites, cache);
-  result.group.name = "ce-harbor-barrels";
+  result.group.name = "ce-harbor-cargo";
   for (const mesh of result.pickables) mesh.raycast = () => {};
   return result;
 }

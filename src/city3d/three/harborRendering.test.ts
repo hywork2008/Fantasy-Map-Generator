@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import { bounds } from "../../city-editor/generators/parcelGeometry";
 import { createBvPrototypeCache } from "./bvInstances";
-import { createTownCranes, createTownHarborBarrels } from "./craneMeshes";
+import { createTownCranes, createTownHarborCargo } from "./craneMeshes";
 import { clipWaterChunk } from "./terrainFieldMesh";
 
 describe("harbor 3D rendering", () => {
@@ -53,7 +53,7 @@ describe("harbor 3D rendering", () => {
   });
   it("places five BV barrels at the 2D pile locations and releases the prototype", () => {
     const cache = createBvPrototypeCache();
-    const barrels = createTownHarborBarrels(
+    const barrels = createTownHarborCargo(
       [{ id: "cargo", kind: "barrels", point: [10, 20], widthMeters: 3.5, heightMeters: 2.2, rotation: 0 }],
       () => 0,
       cache
@@ -63,6 +63,29 @@ describe("harbor 3D rendering", () => {
     expect(first.x).toBeCloseTo(8.8);
     expect(first.z).toBeCloseTo(-20.55);
     barrels.dispose();
+    expect(cache.size).toBe(0);
+  });
+  it("fits two BV crates to the rotated 2D rectangles on the ground", () => {
+    const cache = createBvPrototypeCache();
+    const cargo = createTownHarborCargo(
+      [{ id: "boxes", kind: "crates", point: [10, 20], widthMeters: 4, heightMeters: 2, rotation: Math.PI / 2 }],
+      () => 3,
+      cache
+    );
+    expect(cargo.accepted).toHaveLength(2);
+    expect(cargo.accepted.every(site => site.definition.id === "harbor-crate")).toBe(true);
+    const first = new THREE.Vector3().setFromMatrixPosition(cargo.accepted[0].matrix);
+    expect(first.x).toBeCloseTo(10);
+    expect(first.y).toBeCloseTo(2.8);
+    expect(first.z).toBeCloseTo(-19.2);
+    const model = cargo.accepted[0].definition.create();
+    model.group.applyMatrix4(cargo.accepted[0].matrix);
+    const box = new THREE.Box3().setFromObject(model.group);
+    expect(box.max.x - box.min.x).toBeCloseTo(2, 1);
+    expect(box.max.z - box.min.z).toBeGreaterThan(2.3);
+    expect(box.max.z - box.min.z).toBeLessThanOrEqual(2.4);
+    model.dispose();
+    cargo.dispose();
     expect(cache.size).toBe(0);
   });
 });

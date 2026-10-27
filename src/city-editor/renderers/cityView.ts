@@ -8,7 +8,7 @@ import { createTownBridges, type TownBridges } from "../../city3d/three/bridgeMe
 import { createTownBuildingDetails, type TownBuildingDetails } from "../../city3d/three/buildingDetails";
 import { bvInstanceGeometry, createBvPrototypeCache } from "../../city3d/three/bvInstances";
 import { type CityMassingMeshes, createCityMassing } from "../../city3d/three/cityMeshes";
-import { createTownCranes, createTownHarborBarrels } from "../../city3d/three/craneMeshes";
+import { createTownCranes, createTownHarborCargo } from "../../city3d/three/craneMeshes";
 import { createTownFacilities, type TownFacilities } from "../../city3d/three/facilityMeshes";
 import { createTownFarms, type TownFarmMeshes } from "../../city3d/three/farmMeshes";
 import { createTownFriaries } from "../../city3d/three/friaryMeshes";
@@ -226,7 +226,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   let piers: CityStructureMeshes | null = null;
   let cranes: ReturnType<typeof createTownCranes> | null = null;
   let craneStamp = "";
-  let harborBarrels: ReturnType<typeof createTownHarborBarrels> | null = null;
+  let harborCargo: ReturnType<typeof createTownHarborCargo> | null = null;
   let pierStamp: string | null = null;
   let waterMeshes: TownWaterMeshes | null = null;
   let roadMeshes: TownRoadMeshes | null = null;
@@ -605,6 +605,9 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       fabric.parks ?? null,
       city.cemeteries ?? city.mesh,
       city.burialProfile,
+      city.biome,
+      city.buildingAppearanceContext,
+      city.fabric?.generation?.settings.descriptor?.climate,
       city.historicalPeriod
     ]);
     const openSpacesChanged = terrainChanged || plan.buildings || openSpaceStamp !== nextOpenSpaceStamp || !openSpaces;
@@ -636,7 +639,11 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       friaryStamp = nextFriaryStamp;
     }
     if (openSpacesChanged) {
-      const openSpacePlan = collectOpenSpacePlan(fabric.parks ?? buildParkLawns(city), resolveCemeteryPlans(city));
+      const openSpacePlan = collectOpenSpacePlan(
+        fabric.parks ?? buildParkLawns(city),
+        resolveCemeteryPlans(city),
+        city
+      );
       if (openSpaces) scene.remove(openSpaces.group);
       openSpaces?.dispose();
       openSpaces = createTownOpenSpaces(openSpacePlan, terrain ?? undefined);
@@ -687,13 +694,13 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     }
     if (cranesChanged) {
       cranes?.dispose();
-      harborBarrels?.dispose();
-      harborBarrels = createTownHarborBarrels(
+      harborCargo?.dispose();
+      harborCargo = createTownHarborCargo(
         fabric.harbor?.cargoPiles ?? [],
         point => terrain?.heightAt(point) ?? 0,
         bvPrototypes
       );
-      scene.add(harborBarrels.group);
+      scene.add(harborCargo.group);
       cranes = createTownCranes(fabric.harbor?.cranes ?? [], point => terrain?.heightAt(point) ?? 0, bvPrototypes);
       scene.add(cranes.group);
       craneStamp = nextCraneStamp;
@@ -911,7 +918,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     farmland?.dispose();
     piers?.dispose();
     cranes?.dispose();
-    harborBarrels?.dispose();
+    harborCargo?.dispose();
     roadMeshes?.dispose();
     ground?.geometry.dispose();
     (ground?.material as THREE.Material | undefined)?.dispose();
