@@ -63,15 +63,27 @@ function centerChordClipsHigherNeighbour(cellA: number, cellB: number, pack: Pac
  * Collapse center/mid/center artifacts from an earlier always-on densify (same cell id
  * twice in a row): keep the point closer to the cell generator.
  */
-function collapseRedundantCellPoints(points: number[][], pack: PackedGraph): number[][] {
+function collapseRedundantCellPoints(
+  points: number[][],
+  pack: PackedGraph,
+  preservedPoints?: ReadonlySet<number[]>
+): number[][] {
   const { cells } = pack;
   const out: number[][] = [];
   for (const p of points) {
     const cellId = p[2];
     if (out.length && out[out.length - 1][2] === cellId && cellId !== undefined) {
+      const prev = out[out.length - 1];
+      if (preservedPoints?.has(prev)) {
+        if (preservedPoints.has(p)) out.push(p);
+        continue;
+      }
+      if (preservedPoints?.has(p)) {
+        out[out.length - 1] = p;
+        continue;
+      }
       const center = cells.p?.[cellId];
       if (center) {
-        const prev = out[out.length - 1];
         const dPrev = Math.hypot(prev[0] - center[0], prev[1] - center[1]);
         const dNew = Math.hypot(p[0] - center[0], p[1] - center[1]);
         if (dNew < dPrev) out[out.length - 1] = p;
@@ -100,8 +112,13 @@ function cellAnchor(cellId: number, pack: PackedGraph): Point | null {
  * cell always meet. Per-route sharp-angle offsets previously left stub trails visually
  * short of the main path (Nesia 151 @ 3652 vs 166 @ 3652 ≈ 5.4 map units apart).
  */
-function snapRoutePointsToCellAnchors(points: number[][], pack: PackedGraph): number[][] {
+function snapRoutePointsToCellAnchors(
+  points: number[][],
+  pack: PackedGraph,
+  preservedPoints?: ReadonlySet<number[]>
+): number[][] {
   return points.map(p => {
+    if (preservedPoints?.has(p)) return p;
     const cellId = p[2];
     if (cellId === undefined) return p;
     const anchor = cellAnchor(cellId, pack);
@@ -114,11 +131,15 @@ function snapRoutePointsToCellAnchors(points: number[][], pack: PackedGraph): nu
  * midpoint **only** when the center–center chord would clip a higher neighbour.
  * Always-on insertion caused needless zigzags (Ondrepieds route 151 through 4702/4913).
  */
-export function densifyLandRoutePoints(points: number[][], pack: PackedGraph): number[][] {
+export function densifyLandRoutePoints(
+  points: number[][],
+  pack: PackedGraph,
+  preservedPoints?: ReadonlySet<number[]>
+): number[][] {
   if (points.length < 2) return points;
   if (!pack?.cells?.p) return points;
-  const collapsed = collapseRedundantCellPoints(points, pack);
-  const snapped = snapRoutePointsToCellAnchors(collapsed, pack);
+  const collapsed = collapseRedundantCellPoints(points, pack, preservedPoints);
+  const snapped = snapRoutePointsToCellAnchors(collapsed, pack, preservedPoints);
   if (snapped.length < 2) return snapped;
 
   const densified: number[][] = [];
@@ -134,6 +155,30 @@ export function densifyLandRoutePoints(points: number[][], pack: PackedGraph): n
     densified.push([mid[0], mid[1], cellA]);
   }
   return densified;
+}
+
+/** Engineered roads retain their surveyed coordinates instead of snapping to
+ * cell centers. Ordinary roads joining them must retain the same junction too.
+ * Match coordinates as well as cells: a bridge can have several distinct
+ * control points in one cell, none of which may be moved to another anchor. */
+function engineeredJunctionPoints(points: number[][], pack: Readonly<PackedGraph>): ReadonlySet<number[]> {
+  const byCell = new Map<number, number[][]>();
+  for (const p of points) {
+    const cell = byCell.get(p[2]);
+    if (cell) cell.push(p);
+    else byCell.set(p[2], [p]);
+  }
+  const preserved = new Set<number[]>();
+  for (const route of pack.routes ?? []) {
+    if (route.group === "searoutes" || route.registeredConnectionId !== undefined) continue;
+    if (!route.riverRoadConvergence && !route.fixedSettlementApproach) continue;
+    for (const q of route.points) {
+      for (const p of byCell.get(q[2]) ?? []) {
+        if (p[0] === q[0] && p[1] === q[1]) preserved.add(p);
+      }
+    }
+  }
+  return preserved;
 }
 
 /** A sea lane stops at its port's haven-edge anchor, which depends only on the
@@ -168,6 +213,6 @@ export function routeRenderPoints(
   const points =
     route.riverRoadConvergence || route.fixedSettlementApproach
       ? route.points
-      : densifyLandRoutePoints(route.points, world.pack);
+      : densifyLandRoutePoints(route.points, world.pack, engineeredJunctionPoints(route.points, world.pack));
   return bendRouteAwayFromCoast(world, points, distanceUnit);
 }
