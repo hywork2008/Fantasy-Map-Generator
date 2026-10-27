@@ -1,8 +1,9 @@
-import { interpolateLab, select } from "d3";
+import { arc, interpolateLab, select } from "d3";
 import { worldContext } from "../context/worldContext";
 import { viewLayerService as view } from "../services/viewLayerService";
 import { isDialogOpen } from "../ui/dialogs/dialogService";
 import { computeBorderHeat, pairKey } from "../utils/diplomacyHeat";
+import { getDiplomacyMilitaryPersonnel, getMilitaryShare } from "../utils/diplomacyMilitary";
 import { type RelationKey, relations } from "../utils/diplomacyRelations";
 import { diplomacyEditorActions } from "./diplomacy-editor";
 
@@ -55,6 +56,7 @@ export function renderDiplomacyBadges(): void {
     }
   }
 
+  const personnel = states.map(state => getDiplomacyMilitaryPersonnel(state, worldContext.options));
   const r = 8;
   const heatByPair = computeBorderHeat(states[0].diplomacy);
   const group = createBadgeGroup();
@@ -181,6 +183,24 @@ export function renderDiplomacyBadges(): void {
       .attr("stroke", "#fff")
       .attr("stroke-width", 1.5)
       .attr("pointer-events", "none");
+    // Centre each country's share on its side of the border normal.
+    const share = getMilitaryShare(personnel[left], personnel[right]);
+    const start = -Math.PI / 2 - Math.PI * share;
+    const split = start + 2 * Math.PI * share;
+    const ringArc = arc()
+      .innerRadius(r + 0.75)
+      .outerRadius(r + 3.25);
+    for (const [stateId, startAngle, endAngle] of [
+      [left, start, split],
+      [right, split, start + 2 * Math.PI]
+    ]) {
+      badge
+        .append("path")
+        .attr("d", ringArc({ startAngle, endAngle, innerRadius: r + 0.75, outerRadius: r + 3.25 }))
+        .attr("fill", states[stateId].color || "#888")
+        .append("title")
+        .text(`${states[stateId].name}: ${personnel[stateId]} military personnel`);
+    }
     badge
       .append("line")
       .attr("y1", -r)

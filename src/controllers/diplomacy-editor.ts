@@ -21,10 +21,10 @@ import {
 import { diplomacyHistoryDialogStore } from "../store/diplomacyHistoryDialogState";
 import { closeDialogs, isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
 import { findCell, getAdjective } from "../utils";
+import { getDiplomacyMilitaryPersonnel } from "../utils/diplomacyMilitary";
 import { type RelationKey, relations } from "../utils/diplomacyRelations";
 import { EditorBus } from "../utils/editorBus";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
-import { isGunpowderEraEnabled, isGunpowderEraMilitaryUnit } from "../utils/gunpowderEra";
 import { layerIsOn } from "../utils/layerUtils";
 import { renderDiplomacyBadges } from "./diplomacy-badges";
 import { interactionManager } from "./interactionManager";
@@ -74,12 +74,7 @@ export function editDiplomacy(): void {
   }
 
   function getTotalForces(state: (typeof worldContext.pack.states)[number]): number {
-    const options = (worldContext.options?.military || []).filter(
-      unit => isGunpowderEraEnabled(worldContext.options) || !isGunpowderEraMilitaryUnit(unit)
-    );
-    const getForces = (u: { name: string; crew: number }) =>
-      state.military?.reduce((acc, r) => acc + (r.u[u.name] || 0), 0) || 0;
-    return options.reduce((acc, u) => acc + getForces(u) * u.crew, 0);
+    return getDiplomacyMilitaryPersonnel(state, worldContext.options);
   }
 
   function diplomacyEditorAddLines(): void {
