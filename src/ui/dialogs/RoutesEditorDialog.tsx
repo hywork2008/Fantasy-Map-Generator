@@ -10,6 +10,7 @@ export const RoutesEditorDialog: React.FC = () => {
   const {
     isOpen,
     isCreatorOpen,
+    routeId,
     routeName,
     routeGroup,
     routeLength,
@@ -25,6 +26,10 @@ export const RoutesEditorDialog: React.FC = () => {
     return (
       <Dialog isOpen={isOpen} title={t("dialogs.titles.editRoute")} onClose={routesEditorActions.closeRouteEditor}>
         <div id="routeEditor" className="editor-body">
+          <div className="editor-row">
+            <span>ID:</span>
+            <span id="routeId">{routeId.replace(/^route/, "")}</span>
+          </div>
           <div className="editor-row">
             <label htmlFor="routeName">Name:</label>
             <input

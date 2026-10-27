@@ -103,6 +103,13 @@ export const DEFAULT_LAYERS: LayerConfig[] = [
     tooltip: "Cultures: click to toggle, drag to raise or lower the layer. Ctrl + click to edit layer style"
   },
   {
+    id: "toggleDiplomacy",
+    name: <>Diplomacy</>,
+    shortcut: null,
+    tooltip:
+      "Diplomacy: badge on each shared border, split along it; each half shows how the state on that side regards its neighbour. Click to toggle"
+  },
+  {
     id: "toggleDanger",
     name: <>Danger</>,
     shortcut: null,

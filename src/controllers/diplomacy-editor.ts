@@ -26,12 +26,14 @@ import { EditorBus } from "../utils/editorBus";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
 import { isGunpowderEraEnabled, isGunpowderEraMilitaryUnit } from "../utils/gunpowderEra";
 import { layerIsOn } from "../utils/layerUtils";
+import { renderDiplomacyBadges } from "./diplomacy-badges";
 import { interactionManager } from "./interactionManager";
 import {
   scheduleWebglUpdate,
   toggleBiomes,
   toggleBorders,
   toggleCultures,
+  toggleDiplomacy,
   toggleProvinces,
   toggleReligions,
   toggleStates
@@ -50,6 +52,7 @@ export function editDiplomacy(): void {
   closeDialogs("#diplomacyEditor, .stable");
   if (!layerIsOn("toggleStates")) toggleStates();
   if (!layerIsOn("toggleBorders")) toggleBorders();
+  if (!layerIsOn("toggleDiplomacy")) toggleDiplomacy();
   if (layerIsOn("toggleProvinces")) toggleProvinces();
   if (layerIsOn("toggleCultures")) toggleCultures();
   if (layerIsOn("toggleBiomes")) toggleBiomes();
@@ -168,6 +171,8 @@ export function editDiplomacy(): void {
       view.statesBody.select(`#state-gap${id}`).attr("stroke", c);
       view.statesHalo.select(`#state-border${id}`).attr("stroke", color(c)?.darker().formatHex() ?? c);
     });
+
+    if (layerIsOn("toggleDiplomacy")) renderDiplomacyBadges();
   }
 
   function selectStateOnMapClick(this: SVGElement, event: MouseEvent): void {

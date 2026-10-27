@@ -58,6 +58,23 @@ export const RegimentEditorDialog: React.FC = () => {
 
         {activeTab === "general" && (
           <div id="regimentBody" className="table" style={{ padding: "8px" }}>
+            <div
+              data-tip="Internal IDs to find in window.fmg.world.pack.states[stateId].military"
+              className="d-flex"
+              style={{ fontSize: "0.8em", color: "gray", marginTop: "4px", marginBottom: "4px" }}
+            >
+              <div className="label">IDs:</div>
+              <div>
+                State: {stateId}, Regiment: {regimentId}
+              </div>
+              <i
+                data-tip="Copy the path to this regiment to clipboard (for AI)"
+                className="icon-docs pointer"
+                style={{ marginLeft: "6px" }}
+                onClick={handleCopyIds}
+              />
+            </div>
+
             <div>
               <button
                 type="button"
@@ -80,23 +97,6 @@ export const RegimentEditorDialog: React.FC = () => {
                 data-tip="Click to restore regiment's default name"
                 className="icon-ccw pointer"
                 onClick={regimentEditorActions.restoreName}
-              />
-            </div>
-
-            <div
-              data-tip="Internal IDs to find in window.fmg.world.pack.states[stateId].military"
-              className="d-flex"
-              style={{ fontSize: "0.8em", color: "gray", marginTop: "4px", marginBottom: "4px" }}
-            >
-              <div className="label">IDs:</div>
-              <div>
-                State: {stateId}, Regiment: {regimentId}
-              </div>
-              <i
-                data-tip="Copy the path to this regiment to clipboard (for AI)"
-                className="icon-docs pointer"
-                style={{ marginLeft: "6px" }}
-                onClick={handleCopyIds}
               />
             </div>
 
