@@ -15,7 +15,14 @@ export interface ApplyOuterWallsInput {
   program: CityProgram;
   plan: Pick<
     Plan,
-    "avoidSea" | "templeHarbor" | "precincts" | "borderLoops" | "waterPolygon" | "wallMaterial" | "legacyCastles"
+    | "avoidSea"
+    | "templeHarbor"
+    | "precincts"
+    | "borderLoops"
+    | "waterPolygon"
+    | "wallMaterial"
+    | "legacyCastles"
+    | "openWaterfront"
   >;
   mesh: import("../../../types/document").Mesh;
   next: CityDocument;
@@ -102,7 +109,7 @@ export function applyOuterWalls(input: ApplyOuterWallsInput) {
     });
   }
   if (stageStep === 4 && wallCheckpoint === "walls")
-    return { stopped: true as const, document: clipSurveyedRiverWalls(next) };
+    return { stopped: true as const, document: clipSurveyedRiverWalls(next, plan.openWaterfront) };
 
   return { stopped: false as const };
 }

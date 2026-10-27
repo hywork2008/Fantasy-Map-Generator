@@ -3,6 +3,7 @@ import type { BurgSiteDescriptor } from "../../../types/contracts/burgSiteDescri
 import type { CityDocument, Point } from "../../../types/document";
 import { featureGroupVertices } from "../../features";
 import { wallRunsOutsideGates } from "../../fortifications";
+import { hasStraightBridgeLead } from "../../frameRoads";
 import { isSimplePolygon, polygonArea, segmentSegmentHit } from "../../geom";
 import { facePoints } from "../../mesh";
 import { defaultRoadWidthMeters, townExtentMeters } from "../../settlementExtent";
@@ -554,9 +555,14 @@ export function snapFrameRoadTerminals(document: CityDocument): void {
         return lineHitsDocumentWater(document, [inner, goal], width, true) ? null : goal;
       };
       const foot = leg.pieces[1]?.kind === "bridge" ? piece.points.at(-1)! : null;
-      const footGoal = bankStart && foot ? shortOf(foot) : null;
-      const goal = !bankStart ? ([target[0], target[1]] as Point) : (footGoal ?? shortOf(target));
-      if (!goal || (!bankStart && lineHitsDocumentWater(document, [inner, target, outward], width, true))) continue;
+      const bridgeLead = hasStraightBridgeLead(leg);
+      const footGoal = bankStart && foot && !bridgeLead ? shortOf(foot) : null;
+      const goal = !bankStart || bridgeLead ? ([target[0], target[1]] as Point) : (footGoal ?? shortOf(target));
+      if (
+        !goal ||
+        ((!bankStart || bridgeLead) && lineHitsDocumentWater(document, [inner, target, outward], width, true))
+      )
+        continue;
       const incident = Object.values(document.mesh.faces).filter(face =>
         face.boundary.some(ref => {
           const edge = document.mesh.edges[ref.edgeId];
@@ -576,7 +582,7 @@ export function snapFrameRoadTerminals(document: CityDocument): void {
         continue;
       }
       if (footGoal && foot) piece.points = [vertex.point, foot];
-      else if (bankStart) piece.points.unshift(vertex.point);
+      else if (bankStart && !bridgeLead) piece.points.unshift(vertex.point);
       else piece.points[0] = vertex.point;
       touched.add(id);
       break;

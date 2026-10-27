@@ -401,7 +401,12 @@ describe("frame roads", () => {
     const north = roads.find(item => item.routeId === 1)!;
     const east = roads.find(item => item.routeId === 2)!;
     expect(north.path.at(-1)![1]).toBeLessThan(100);
-    expect(north.path.at(-1)![1]).toBeGreaterThan(80);
+    // The town street now ends inland, leaving a straight bridge lead instead
+    // of pinning its last vertex to the water's edge.
+    expect(north.path.at(-1)![1]).toBeGreaterThan(50);
+    const bridgeLeg = frameRoadLegs(site, "beyond-mesh").find(leg => leg.routeId === 1)!;
+    expect(bridgeLeg.pieces[0].points[0]).toEqual(north.path.at(-1));
+    expect(bridgeLeg.pieces[0].points.at(-1)![1] - north.path.at(-1)![1]).toBeGreaterThanOrEqual(24);
     expect(pointInWater(north.path.at(-1)!, { id: 6, rings: site.fixedCrossings!.rivers[0].rings })).toBe(false);
     expect(east.path.at(-1)).toEqual([150, 0]);
   });

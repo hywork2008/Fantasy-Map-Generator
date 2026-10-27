@@ -13,9 +13,9 @@ import { polygonArea } from "./geom";
 import { validate } from "./mesh";
 import { explainGeneratedCrossingFailures } from "./passages";
 import { importedRoadsForSite } from "./site/importedRoads";
-import { lineHitsDocumentWater } from "./waterGeometry";
+import { lineHitsDocumentWater, lineHitsWater, waterPolygons } from "./waterGeometry";
 
-it("joins Ablos route 21 to v391 in the rendered map without crossing water", () => {
+it("joins Ablos route 21 to its rendered town street without crossing water", () => {
   const share = parseIncomingPayload(JSON.stringify(ablos))!;
   const samples: number[] = [];
   const checked: number[] = [];
@@ -32,11 +32,15 @@ it("joins Ablos route 21 to v391 in the rendered map without crossing water", ()
     group => group.kind === "road" && group.sourceRoad?.index === leg.sourceIndex
   )!;
   const streetEnd = city!.mesh.vertices[featureGroupVertices(city!, street)[0]].point;
-  expect(streetEnd).toEqual(city!.mesh.vertices.v391.point);
   expect(leg.pieces[0].points[0]).toEqual(streetEnd);
   expect(frameRoadAttachedToTown(city!, leg)).toBe(true);
   expect(city!.sceneRegions?.connectors.map(connector => connector.status)).toEqual(["connected", "connected"]);
-  expect(lineHitsDocumentWater(city!, leg.pieces[0].points.slice(0, 2), 3.5, true)).toBe(false);
+  const approach = leg.pieces[0].points;
+  expect(lineHitsWater(approach, waterPolygons(city!))).toBe(false);
+  // The last butt-ended road stroke joins the bridge deck. Check its inland
+  // half at full width without counting the bridge joint as a round road cap.
+  const middle: [number, number] = [(approach[0][0] + approach[1][0]) / 2, (approach[0][1] + approach[1][1]) / 2];
+  expect(lineHitsDocumentWater(city!, [approach[0], middle], 3.5, true)).toBe(false);
   const svg = renderStandaloneCitySvg(city!);
   const drawn = svg.querySelector<SVGPathElement>('.ce-frame-road[data-route-id="21"]');
   expect(drawn?.getAttribute("d")).toContain(`M${streetEnd[0]} ${-streetEnd[1]}`);
@@ -52,14 +56,15 @@ describe("Vilealand FMG handoff regression", () => {
     expect(city!.frameRoads?.every(leg => frameRoadAttachedToTown(city!, leg))).toBe(true);
   });
 
-  it("keeps a valid city when a far-shore FMG entrance has no safe connection", () => {
+  it("connects the formerly stranded far-shore FMG entrance over its inland bridge lead", () => {
     const share = parseIncomingPayload(inputs["224"].share_json)!;
     const issues: number[] = [];
     const city = generateCityOnDocument(cityEditorDocument(share), cityEditorSettings(share), share.seed, sample => {
       issues.push(...(sample.roadConnectionIssues ?? []).map(issue => issue.sourceIndex));
     });
     expect(city).toBeTruthy();
-    expect(issues.length).toBeGreaterThan(0);
+    expect(issues).toEqual([]);
+    expect(city!.frameRoads?.every(leg => frameRoadAttachedToTown(city!, leg))).toBe(true);
   });
 
   it.each(Object.entries(inputs))(

@@ -93,3 +93,7 @@ SVGも比較する場合は `--svg-dir docs/analytics/raw/ce-waterfront-generati
 | 固定入力CSV | `4ae6b268affe130f5603be65f5167b5a014324444073d368062b6439942b1be9` |
 | 変更前JSONL | `26828a74c92174f7d04a04999cf7bfa4829bd2d6bfcef3d041b7d52bdec49339` |
 | 変更後JSONL | `0e35d99970e46325adca2ad4a16d648e0c2e6a0d47b7147298fbe0bdcf18092f` |
+
+## 河口形状の追加修正
+
+2026-10-27、Nobraの水際城壁と橋から市街地への接続を追加修正した。門接続による候補破棄と外部道路の未接続は0件になった。追加修正後の形状・性能・次の課題は[河口都市の修正記録](ce-estuary-approaches-20261027.md)を参照。上の計測値は追加修正前の記録として保持する。
