@@ -142,7 +142,7 @@ interface Mount {
  * object. Water follows the stamp and the ce-water parent. A pan does not
  * rebuild either, and closing the view keeps the scene.
  */
-export function mountCity3d(options: {
+export interface City3dMountOptions {
   canvasHost: HTMLElement;
   map: HTMLElement;
   scope: Mount;
@@ -157,13 +157,18 @@ export function mountCity3d(options: {
   getTerrainSpacing?: () => number | "auto";
   /** Metres the river surface sits below the land it touches. Absent keeps 1 m. */
   getRiverDropMeters?: () => number;
-}): {
+}
+
+export function mountCity3d(initialOptions: City3dMountOptions): {
   sync(): void;
   resetCamera(): void;
   dispose(): void;
   getPerformance(): City3dPerformanceSnapshot | null;
   restoreView(saved: NonNullable<City3dPerformanceSnapshot["camera"]>): void;
+  /** Move the live scene into a rebuilt editor mount (language change) without regenerating meshes. */
+  adopt(next: City3dMountOptions): void;
 } {
+  let options = initialOptions;
   const viewport = document.createElement("div");
   viewport.className = "ce-3d";
   viewport.hidden = true;
@@ -179,16 +184,18 @@ export function mountCity3d(options: {
   const sunSettings = readSunSettings();
   let sun: THREE.DirectionalLight | null = null;
   let shadowBounds = new THREE.Box3();
-  const lightingPanel = createSunControls(
-    sunSettings,
-    (target, type, handler) => options.scope.listen(target, type, handler),
-    () => {
-      writeSunSettings(sunSettings);
-      if (sun) updateSun(sun, shadowBounds, sunSettings);
-      if (renderer) renderer.shadowMap.needsUpdate = true;
-      requestRender();
-    }
-  );
+  const createLightingPanel = () =>
+    createSunControls(
+      sunSettings,
+      (target, type, handler) => options.scope.listen(target, type, handler),
+      () => {
+        writeSunSettings(sunSettings);
+        if (sun) updateSun(sun, shadowBounds, sunSettings);
+        if (renderer) renderer.shadowMap.needsUpdate = true;
+        requestRender();
+      }
+    );
+  let lightingPanel = createLightingPanel();
   options.canvasHost.append(lightingPanel);
 
   let renderer: THREE.WebGLRenderer | null = null;
@@ -825,18 +832,40 @@ export function mountCity3d(options: {
     else showLot(built?.buildings[index]);
   };
 
-  options.scope.listen(button, "click", () => setOpen(Boolean(viewport.hidden)));
-  options.scope.listen(viewport, "pointerdown", event => {
-    const point = event as PointerEvent;
-    pointer = { x: point.clientX, y: point.clientY };
-  });
-  options.scope.listen(viewport, "pointerup", event => {
-    const point = event as PointerEvent;
-    if (!pointer || Math.hypot(point.clientX - pointer.x, point.clientY - pointer.y) > 4) return;
-    pick(point);
-  });
+  const bindChrome = () => {
+    options.scope.listen(button, "click", () => setOpen(Boolean(viewport.hidden)));
+    options.scope.listen(viewport, "pointerdown", event => {
+      const point = event as PointerEvent;
+      pointer = { x: point.clientX, y: point.clientY };
+    });
+    options.scope.listen(viewport, "pointerup", event => {
+      const point = event as PointerEvent;
+      if (!pointer || Math.hypot(point.clientX - pointer.x, point.clientY - pointer.y) > 4) return;
+      pick(point);
+    });
+  };
+  bindChrome();
   const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => resize());
   observer?.observe(options.canvasHost);
+
+  // Only DOM chrome and listeners follow the new mount; renderer, scene and stamps stay as built.
+  const adopt = (next: City3dMountOptions) => {
+    if (disposed) return;
+    observer?.unobserve(options.canvasHost);
+    options = next;
+    const open = !viewport.hidden;
+    lightingPanel.remove();
+    lightingPanel = createLightingPanel();
+    lightingPanel.hidden = !open;
+    clearHighlight();
+    readout.hidden = true;
+    button.textContent = editorText(open ? "cityEditor.messages.view2d" : "cityEditor.messages.view3d");
+    options.map.hidden = open;
+    options.canvasHost.append(viewport, button, readout, lightingPanel);
+    bindChrome();
+    observer?.observe(options.canvasHost);
+    resize();
+  };
 
   const dispose = () => {
     if (disposed) return;
@@ -908,5 +937,5 @@ export function mountCity3d(options: {
     controls.update();
     requestRender();
   };
-  return { sync, resetCamera, dispose, getPerformance, restoreView };
+  return { sync, resetCamera, dispose, getPerformance, restoreView, adopt };
 }
