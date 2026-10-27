@@ -39,6 +39,7 @@ import { type BuildingRecord, TRIANGLE_BUDGET } from "../buildings/record";
 import { BARGE, createBarge } from "../buildings/ships/barge";
 import { CARRACK, createCarrack } from "../buildings/ships/carrack";
 import { createGalleon, GALLEON } from "../buildings/ships/galleon";
+import { createOpusGalleon, OPUS_GALLEON, type OpusGalleonQuality } from "../buildings/ships/opusGalleon";
 import { createSloop, SLOOP } from "../buildings/ships/sloop";
 import { BATTERING_RAM, createBatteringRam } from "../buildings/siege/batteringRam";
 import { createEarlyFieldCannon, EARLY_FIELD_CANNON } from "../buildings/siege/earlyFieldCannon";
@@ -991,6 +992,57 @@ shipsHeading.append(carrackButton);
 const galleonButton = document.createElement("button");
 galleonButton.type = "button";
 galleonButton.textContent = "Galleon · Three-masted sailing ship";
+galleonButton.dataset.id = "galleon";
+AUTHORED_VARIANTS[galleonButton.dataset.id] = { author: OPUS_GALLEON.author, show: () => showOpusGalleon() };
+let opusGalleonEnsign = false;
+function showOpusGalleon(): void {
+  selection++;
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Ship elevation";
+  levelTitle.textContent = "Deck plan";
+  showQuality(true);
+  const quality = qualitySelect.value as OpusGalleonQuality;
+  const model = createOpusGalleon(quality, { ensign: opusGalleonEnsign });
+  const ensignToggle = document.createElement("input");
+  ensignToggle.type = "checkbox";
+  ensignToggle.checked = opusGalleonEnsign;
+  ensignToggle.addEventListener("change", () => {
+    opusGalleonEnsign = ensignToggle.checked;
+    showOpusGalleon();
+  });
+  const ensignRow = document.createElement("label");
+  ensignRow.append(ensignToggle, " Stern ensign");
+  const ensignParagraph = document.createElement("p");
+  ensignParagraph.append(ensignRow);
+  optionFields.append(ensignParagraph);
+  modelOptions.hidden = false;
+  massing = model;
+  scene.add(model.group);
+  frame({ occupancyMeters: { width: OPUS_GALLEON.length, depth: OPUS_GALLEON.beam } }, OPUS_GALLEON.height);
+  camera.position.set(52, 30, 64);
+  controls.target.set(4, 16, 0);
+  controls.update();
+  mountPlan(roofHost, meshProjection(model, "side"));
+  mountPlan(levelHost, meshProjection(model, "top"));
+  facts.append(
+    fact("Model", OPUS_GALLEON.name),
+    fact(
+      "Quality",
+      quality === "high" ? "High" : "Low — ratlines, running rigging, deck seams, balusters and gratings omitted"
+    ),
+    fact("Period", "Age of sail · imagined late-16th-century race-built galleon"),
+    fact(
+      "Dimensions",
+      `${OPUS_GALLEON.length} m over spars × ${OPUS_GALLEON.beam} m beam; ${OPUS_GALLEON.height} m above water; ${OPUS_GALLEON.draft} m draft`
+    ),
+    fact("Rig", "Fore and main: course, topsail, topgallant; lateen mizzen with topsail; spritsail"),
+    fact("Armament", `${OPUS_GALLEON.guns} guns on two tiers, including two stern chasers`),
+    fact("Note", OPUS_GALLEON.note, "Galleon")
+  );
+}
 galleonButton.addEventListener("click", () => {
   selection++;
   for (const button of list.querySelectorAll("button")) {
