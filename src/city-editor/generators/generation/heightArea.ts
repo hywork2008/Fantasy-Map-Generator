@@ -11,6 +11,7 @@ import type { BuildingLot } from "../buildingLots.types";
 import { polygonArea } from "../geom";
 import { dwellingCapacity, isResidentialBuilding, residentialCapacity } from "../residentialCapacityFormula";
 import { innerWalledAreaShare, townExtentMeters } from "../settlementExtent";
+import { importedRoadsForSite } from "../site/importedRoads";
 
 /** Measure the sampled low-rise fabric, before any population-pressure increase in storeys. */
 export function initialHeightCapacity(document: CityDocument, lots: readonly BuildingLot[]): number {
@@ -89,11 +90,14 @@ export function initialHousingAreaScale(source: CityDocument, settings: Generati
     typeof shoreDistance === "number" &&
     shoreDistance >= 0 &&
     shoreDistance <= radius &&
-    (!settings.config.wall?.coast || settings.config.wall.coast === "auto" || settings.config.wall.coast === "open")
+    (!settings.config.wall?.coast || settings.config.wall.coast === "auto" || settings.config.wall.coast === "open") &&
+    importedRoadsForSite(site).filter(road => road.riverLanding).length >= 2
   ) {
     // Reserve one block around the inner curtain for its gates and approach
-    // streets. The estuary's open waterfront concentrates those approaches on
+    // streets. Multiple river landings concentrate their approach streets on
     // the landward side, where a citadel also competes for residential land.
+    // A single landing is already covered by the ordinary residential estimate;
+    // any remaining shortfall is still measured from the generated fabric.
     const share = innerWalledAreaShare(settings.walledAreaShare, townExtentMeters(source.frame));
     area += 2 * Math.PI * radius * Math.sqrt(share) * source.frame.blockSizeMeters;
   }

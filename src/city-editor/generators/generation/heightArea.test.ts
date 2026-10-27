@@ -1,5 +1,7 @@
 import { expect, it } from "vitest";
+import { ProcessingProfiler } from "../../../utils/processingProfiler";
 import { createUrbanMorphology } from "../../../utils/urbanMorphology";
+import dunsbole from "../../data/fixtures/dunsbole-estuary-20261027.json";
 import inputs from "../../data/fixtures/nidyia-waterfront-20261027.json";
 import { cityEditorDocument, cityEditorSettings } from "../../services/analysis/housingReport";
 import { parseDocument, serializeDocument } from "../../services/io/documentCodec";
@@ -11,6 +13,7 @@ import { polygonArea } from "../geom";
 import { facePoints } from "../mesh";
 import { populationFabricSource } from "../populationHousing";
 import { defaultPopulationSettings } from "../populationPlan";
+import { measureHousingCapacity } from "../residentialCapacity";
 import { synthSite } from "../site/synthSite";
 import { generateCityOnDocument } from "./generateCity";
 import { initialHousingAreaScale, nextHousingAreaScale } from "./heightArea";
@@ -155,6 +158,9 @@ it("reserves an inner-wall street belt only for eligible open estuary towns", ()
   const baseline = initialHousingAreaScale(source, single)!;
   const reserved = initialHousingAreaScale(source, double)!;
   expect(reserved).toBeGreaterThan(baseline);
+  const oneLanding = structuredClone(double.descriptor!);
+  oneLanding.roads = oneLanding.roads.filter(road => road.routeId !== 29);
+  expect(initialHousingAreaScale(source, { ...double, descriptor: oneLanding })).toBe(baseline);
   expect(reserved).toBeLessThanOrEqual(
     (source.frame.extentMeters / 2.6 / share.descriptor!.frame.cityRadiusMeters) ** 2
   );
@@ -176,3 +182,34 @@ it("reserves an inner-wall street belt only for eligible open estuary towns", ()
   source.mesh.vertices[Object.keys(source.mesh.vertices)[0]].locked = true;
   expect(initialHousingAreaScale(source, double)).toBeUndefined();
 });
+
+it("does not reserve an extra street belt for Dunsbole's single river landing", () => {
+  const share = parseIncomingPayload(JSON.stringify(dunsbole))!;
+  const source = cityEditorDocument(share);
+  const { population: _population, ...settings } = cityEditorSettings(share);
+  const double = { ...settings, townWallRings: "double" as const, walledAreaShare: 0.28 };
+  const single = { ...double, townWallRings: "single" as const };
+  expect(initialHousingAreaScale(source, double)).toBe(initialHousingAreaScale(source, single));
+});
+
+it("fits Dunsbole housing in one fabric pass without an unnecessary reservation", () => {
+  const share = parseIncomingPayload(JSON.stringify(dunsbole))!;
+  const profiler = new ProcessingProfiler();
+  const corrections: number[] = [];
+  const city = generateCityOnDocument(
+    cityEditorDocument(share),
+    cityEditorSettings(share),
+    share.seed,
+    sample => {
+      if (sample.counts?.housingAreaPass) corrections.push(sample.counts.housingAreaPass);
+    },
+    undefined,
+    profiler
+  )!;
+  expect(city).toBeTruthy();
+  expect(profiler.snapshot().find(t => t.path === "initial-fabric")?.calls).toBe(1);
+  expect(corrections).toEqual([]);
+  expect(
+    measureHousingCapacity(city, buildBlockFabric(city).buildings, share.descriptor!.burg.dwellings).unplacedDwellings
+  ).toBe(0);
+}, 30000);
