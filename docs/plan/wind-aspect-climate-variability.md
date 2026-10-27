@@ -25,16 +25,16 @@
 
 | 項目 | 現状 | 参照 |
 | --- | --- | --- |
-| 風 | `options.winds` は6要素の配列で、緯度帯（ほぼ60°N/30°N/0°/30°S/60°Sで区切る30°幅）ごとに**風が吹いていく先**の方位（0=北、時計回り）を持つ。強さ・季節変化・地形の影響はない。帯の判定は `floor(abs(lat - 89) / 30)` | [precipitationModel.ts:76-82](../../src/generators/precipitationModel.ts#L76-L82)、[millCapacity.ts:60-80](../../src/extensions/economy/generators/millCapacity.ts#L60-L80) |
-| 地図端の風向表示 | Precipitationレイヤーに帯ごとの矢印を描く。World Configuratorで45°刻みに回転できる | [WorldConfiguratorDialog.tsx:300-325](../../src/ui/dialogs/WorldConfiguratorDialog.tsx#L300-L325) |
-| 降水 | 帯の風向から東西・南北に湿気を運び、地形で雨を落とす。年1つの値。風向が年間で一定という前提 | [precipitationModel.ts](../../src/generators/precipitationModel.ts) |
-| 海流 | `options.winds` を外力にしたD2Q9格子ボルツマン法で解く。`grid` 上の流向・流速・水温。高度な風の場は使わない | [oceanCurrents.ts:15-55](../../src/generators/oceanCurrents.ts#L15-L55) |
-| 年平均気温 | `calculateTemperatures()` が緯度と標高だけから `grid.cells.temp`（Int8）を作る。斜面の向きは使わない | [main.ts:1707-1753](../../src/main.ts#L1707-L1753) |
-| 月別気温 | 地球型v1。年平均＋緯度・海洋性による振幅＋位相遅れを月ごとに積分。`ensureCellClimateNormals(world, year)` がFloat32の12か月値をキャッシュし、`seasonalTemp` に当月の値を丸めて書く。海岸までの距離はKD木で求めた大陸度 `continentality` として保持する | [cellClimateNormals.ts](../../src/generators/cellClimateNormals.ts)、[seasonalClimate.ts](../../src/generators/seasonalClimate.ts)、[earthlikeClimate.ts](../../src/utils/earthlikeClimate.ts) |
-| 作物 | 経済拡張が `createCellClimateNormalsReader` を通じて月別気温を読み、作付け計画を立てる | [seasonalCropClimate.ts:10-55](../../src/extensions/economy/generators/seasonalCropClimate.ts#L10-L55) |
-| 本体の食料近似 | 拡張なしで、年平均気温・降水・振幅の補間表から収量を出す | [estimatedFoodProduction.ts:99-106](../../src/generators/estimatedFoodProduction.ts#L99-L106)、[foodClimateEstimate.ts](../../src/generators/foodClimateEstimate.ts) |
-| 年ごとの気候変動 | 干魃: 州単位の平均回帰ランダムウォーク `climateAnomaly`（`rng.gauss`）→ 段階の判定 → `climateFoodStressByCell` → 収量 → 飢饉死。寒冷の要素はない | [climateDisasters.ts](../../src/extensions/economy/generators/climateDisasters.ts) |
-| 風の利用側 | 風車は0か1かの判定だけ（風向が取れれば1）。海上移動は全域で1つの季節バイアス `getCurrentDirection(month)` を使う（既定の強さは0）。CEの記述子に帯の風向を渡す | [millCapacity.ts:134-142](../../src/extensions/economy/generators/millCapacity.ts#L134-L142)、[caravanMovement.ts:170-190](../../src/extensions/economy/generators/caravanMovement.ts#L170-L190)、[burgSiteDescriptor.ts:800-820](../../src/services/burgSiteDescriptor.ts#L800-L820) |
+| 風 | `options.winds` は6要素の配列で、緯度帯（ほぼ60°N/30°N/0°/30°S/60°Sで区切る30°幅）ごとに**風が吹いていく先**の方位（0=北、時計回り）を持つ。強さ・季節変化・地形の影響はない。帯の判定は `floor(abs(lat - 89) / 30)` | [precipitationModel.ts#L76-82](/src/generators/precipitationModel.ts#L76-L82)、[millCapacity.ts#L60-80](/src/extensions/economy/generators/millCapacity.ts#L60-L80) |
+| 地図端の風向表示 | Precipitationレイヤーに帯ごとの矢印を描く。World Configuratorで45°刻みに回転できる | [WorldConfiguratorDialog.tsx:300-325](/src/ui/dialogs/WorldConfiguratorDialog.tsx#L300-L325) |
+| 降水 | 帯の風向から東西・南北に湿気を運び、地形で雨を落とす。年1つの値。風向が年間で一定という前提 | [precipitationModel.ts](/src/generators/precipitationModel.ts) |
+| 海流 | `options.winds` を外力にしたD2Q9格子ボルツマン法で解く。`grid` 上の流向・流速・水温。高度な風の場は使わない | [oceanCurrents.ts#L15-55](/src/generators/oceanCurrents.ts#L15-L55) |
+| 年平均気温 | `calculateTemperatures()` が緯度と標高だけから `grid.cells.temp`（Int8）を作る。斜面の向きは使わない | [main.ts#L1707-1753](/src/main.ts#L1707-L1753) |
+| 月別気温 | 地球型v1。年平均＋緯度・海洋性による振幅＋位相遅れを月ごとに積分。`ensureCellClimateNormals(world, year)` がFloat32の12か月値をキャッシュし、`seasonalTemp` に当月の値を丸めて書く。海岸までの距離はKD木で求めた大陸度 `continentality` として保持する | [cellClimateNormals.ts](/src/generators/cellClimateNormals.ts)、[seasonalClimate.ts](/src/generators/seasonalClimate.ts)、[earthlikeClimate.ts](/src/utils/earthlikeClimate.ts) |
+| 作物 | 経済拡張が `createCellClimateNormalsReader` を通じて月別気温を読み、作付け計画を立てる | [seasonalCropClimate.ts#L10-55](/src/extensions/economy/generators/seasonalCropClimate.ts#L10-L55) |
+| 本体の食料近似 | 拡張なしで、年平均気温・降水・振幅の補間表から収量を出す | [estimatedFoodProduction.ts#L99-106](/src/generators/estimatedFoodProduction.ts#L99-L106)、[foodClimateEstimate.ts](/src/generators/foodClimateEstimate.ts) |
+| 年ごとの気候変動 | 干魃: 州単位の平均回帰ランダムウォーク `climateAnomaly`（`rng.gauss`）→ 段階の判定 → `climateFoodStressByCell` → 収量 → 飢饉死。寒冷の要素はない | [climateDisasters.ts](/src/extensions/economy/generators/climateDisasters.ts) |
+| 風の利用側 | 風車は0か1かの判定だけ（風向が取れれば1）。海上移動は全域で1つの季節バイアス `getCurrentDirection(month)` を使う（既定の強さは0）。CEの記述子に帯の風向を渡す | [millCapacity.ts#L134-142](/src/extensions/economy/generators/millCapacity.ts#L134-L142)、[caravanMovement.ts#L170-190](/src/extensions/economy/generators/caravanMovement.ts#L170-L190)、[burgSiteDescriptor.ts#L800-820](/src/services/burgSiteDescriptor.ts#L800-L820) |
 | 時間の刻み | UIからの時間進行は1日刻みのループ。`seasonal-climate.tick` は `environment` フェーズで経済より先に動く | [advance-time.md](../simulation/advance-time.md)、[seasons.md §3](../simulation/seasons.md) |
 
 **セルの大きさ**: `distanceScale = 40075 km × mapSize / (100 × graphWidth)`。地球と同じ既定値 mapSize=12.9、横1920px、gridが1万点なら、点の間隔は約14px、つまり**約40km**になる。斜面の向きは「山腹1枚」ではなく「山脈のどちら側の斜面か」を表すことになる。

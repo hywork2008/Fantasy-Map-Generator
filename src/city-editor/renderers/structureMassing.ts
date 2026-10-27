@@ -34,7 +34,7 @@ import { resolveCastleStyle } from "./castlePatterns";
 import { isNewStyleCastleCircuit, isNewStyleCastleGate, isNewStyleCastleWall } from "./castleStyle";
 import { fortSiteStructures } from "./fortSiteMassing";
 import { modularFortressOwnsCircuit, modularFortressOwnsWall, modularFortressStructures } from "./modularFortress";
-import { resolveWallGeometry } from "./wallSvg";
+import { resolveWallGeometry, wallInteriorPoint } from "./wallSvg";
 
 const STONE_WALK = 8;
 const STONE_BARE = 5;
@@ -709,7 +709,6 @@ function addLandmarks(document: CityDocument, out: StructureMassing[]): void {
 
 /** Walls, towers, gates, bridges, and landmarks for the CE 3D view. Not saved. */
 export function collectCityStructures(document: CityDocument): StructureMassing[] {
-  const anchor = document.elements?.find(element => element.kind === "plaza" && element.point)?.point ?? [0, 0];
   const castle = castleWallIds(document);
   const bastionWalls = new Set<Id>();
   for (const owner of document.castles ?? []) {
@@ -759,7 +758,7 @@ export function collectCityStructures(document: CityDocument): StructureMassing[
           centerline,
           widthMeters: item.group.style.widthMeters,
           heightMeters: item.height,
-          anchor,
+          anchor: wallInteriorPoint(document, item.group),
           parapet: profile.hasWalkway ? "outer" : "none",
           parapetMeters: profile.hasWalkway ? (material === "wood" ? WOOD_LIP : STONE_LIP) : 0,
           parapetWidthMeters: profile.hasWalkway ? profile.parapetWidth : 0

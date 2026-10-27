@@ -8,15 +8,15 @@ It is a **presentation-only** feature: nothing it does ever mutates map data. It
 - **Mesh** — a perspective terrain view of the map (heightmap as a 3D landscape).
 - **Globe** — the map projected onto a sphere with an equirectangular projection.
 
-Implementation lives in [src/controllers/view-3d.ts](../../src/controllers/view-3d.ts),
+Implementation lives in [src/controllers/view-3d.ts](/src/controllers/view-3d.ts),
 exposed globally as `window.ThreeD`. The erosion bake and satellite texture pipelines are
-separate modules: [src/renderers/erosion-bake.ts](../../src/renderers/erosion-bake.ts) and
-[src/renderers/draw-satellite-texture.ts](../../src/renderers/draw-satellite-texture.ts).
+separate modules: [src/renderers/erosion-bake.ts](/src/renderers/erosion-bake.ts) and
+[src/renderers/draw-satellite-texture.ts](/src/renderers/draw-satellite-texture.ts).
 
 ## Entry points
 
 - **View mode toolbar** (top of the map): `Standard` / `3D scene` / `Globe` buttons
-  (`#viewMode` in [src/index.html](../../src/index.html)). Switching away from Standard
+  (`#viewMode` in [src/index.html](/src/index.html)). Switching away from Standard
   creates a full-window `<canvas id="canvas3d">` and calls `ThreeD.create(canvas, type)`;
   switching back to Standard calls `ThreeD.stop()` and removes the canvas. The 3D view
   **cannot be used for editing** — Standard mode is required for that.

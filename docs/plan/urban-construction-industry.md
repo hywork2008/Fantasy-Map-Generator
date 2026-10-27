@@ -35,7 +35,7 @@
 
 - 現状は生成時に一度だけ確定する静的コスメティックフラグ(`burg.walls`/`temple`/`citadel`/`plaza`/`shanty`)しか持たない都市の物理的インフラを、**労働力と資材を消費して漸進的に整備される動的ストック**(`buildingStock`)へと発展させる土台を作る。
 - 石工(Masonry)・大工(Carpentry)という2つの新しい建設職業を都市に実装し、`Settlement pattern: frontier`や低い`Initial population`設定のように**人口が初期値から急激に増える状況で生まれる過剰労働力の受け皿**を作る。これは現状の`reconcileAnnualBasicEmploymentWorkers()`が行政・鉱業・製錬しか吸収しておらず、都市の物理的成長そのものに紐づく雇用が存在しないという欠落を埋める。
-- 既存の `Stone`・`Marble` を、レガシーな`distribution`式スキャッター方式(鉱石がすでに卒業した仕組み — [goods-generator.ts:163-165](../../src/extensions/economy/generators/goods-generator.ts#L163-L165) 参照)から、都市に紐づく**採石場オペレーション**へ接続する。
+- 既存の `Stone`・`Marble` を、レガシーな`distribution`式スキャッター方式(鉱石がすでに卒業した仕組み — [goods-generator.ts#L163-165](/src/extensions/economy/generators/goods-generator.ts#L163-L165) 参照)から、都市に紐づく**採石場オペレーション**へ接続する。
 - 火山灰を原料とする**ローマン・コンクリート(Pozzolana concrete)**を上級建材・技術として追加し、Tools投資EWMAパターンを再利用した「建設技術投資」システムを作る。
 
 ### 非目的
@@ -52,17 +52,17 @@
 
 | 項目 | 現状 | 参照 |
 | --- | --- | --- |
-| `Stone`/`Marble` | `demandCoverage: {construction}`を満たす原材料Goodとして存在するが、**レガシーな`distribution`式スキャッター**(高度ベースの確率分布)で単セルに配置されるのみ。鉱石がすでに卒業した仕組みで、永続的な採取サイト実体(`MineralDeposit`/`MineOperation`相当)を持たない。 | [goods-generator.ts:131-156](../../src/extensions/economy/generators/goods-generator.ts#L131-L156)、鉱石側の卒業済みコメントは[goods-generator.ts:163-165](../../src/extensions/economy/generators/goods-generator.ts#L163-L165) |
+| `Stone`/`Marble` | `demandCoverage: {construction}`を満たす原材料Goodとして存在するが、**レガシーな`distribution`式スキャッター**(高度ベースの確率分布)で単セルに配置されるのみ。鉱石がすでに卒業した仕組みで、永続的な採取サイト実体(`MineralDeposit`/`MineOperation`相当)を持たない。 | [goods-generator.ts#L131-156](/src/extensions/economy/generators/goods-generator.ts#L131-L156)、鉱石側の卒業済みコメントは[goods-generator.ts#L163-165](/src/extensions/economy/generators/goods-generator.ts#L163-L165) |
 | 建材の生産チェーン | `Stone`/`Marble`/`Clay`/`Wood`はいずれも`recipes`の入力として消費されず、`demandCoverage.construction`を直接満たすだけ。中間加工財(切石・煉瓦・モルタル・コンクリート)が一切存在しない。 | `GOODS_DATA`全体をgrep(`recipes:`ブロック)で確認済み |
-| 建設需要カテゴリ | `DEMAND_PRIORITY`に`"construction"`は既に一級カテゴリとして存在し、`DEMAND_TARGET_FACTORS.construction = 0.1`、アイコン`"🧱"`も定義済み。**ただし人口比例の抽象需要としてのみ機能し、都市の物理的成長や職業とは無関係**。 | [goods-generator.ts:79-97](../../src/extensions/economy/generators/goods-generator.ts#L79-L97) |
-| 鉱物資源の永続サイトモデル(参考実装) | `GeologicalProvinceKind = "orogen"\|"shield"\|"granite"\|"carbonate"\|"basin"\|"placer"`を`classifyProvince()`が高度+ハッシュで確定的に分類し、`MineralDeposit`→`MineOperation`(`burgId`/`marketId`アンカー、`toolsInvestmentStock`保持)という永続実体に落とす。 | [mineralResources.ts:40](../../src/extensions/economy/generators/mineralResources.ts#L40)、[mineralResources.ts:267-276](../../src/extensions/economy/generators/mineralResources.ts#L267-L276)、[mineOperations.ts](../../src/extensions/economy/generators/mineOperations.ts) |
-| 候補地スコアリングの参考実装 | 造船拡張の`computeShipyardCandidates()`は「港湾Burg + 近隣セルの森林biome比率(`forestRatio`) ≥ 0.3」で造船候補地を判定する、地質学的プロヴィンスより軽量なパターン。採石場候補地の直接のテンプレートとなる。 | [shipyardCandidates.ts:6-40](../../src/extensions/shipbuilding/generators/shipyardCandidates.ts#L6-L40) |
-| 職業(occupation)の型システム | 固定enumの「職業」概念は存在しない。2つの並立パターンがある: (A) Burgアンカー型`.workers`フィールド(行政・鉱山・製錬。`reconcileAnnualBasicEmploymentWorkers()`が年1回、25%/年キャップで成人人口から充足) (B) Market圏全体の`LaborMarket.workersByOccupation`(`STRATEGIC_OCCUPATIONS = ["forestry","sailmaking","ropeMaking","tarBurning","trade"]`、市場人口の30%が対象プール)。 | [basicEmployment.ts:1-60](../../src/extensions/economy/generators/basicEmployment.ts#L1-L60)、[strategicLaborMarkets.ts:11-35](../../src/extensions/economy/generators/strategicLaborMarkets.ts#L11-L35) |
-| Burgの建物フラグ | `citadel`/`plaza`/`walls`/`shanty`/`temple`はいずれも生成時(`burgs-generator.ts`)に人口閾値+乱数で一度だけ決まる`0\|1`フラグ。**シミュレーション中に一切更新されない**。都市アイコンのSVG部品選択にのみ使われ、経済的効果はゼロ。 | [burgs-generator.ts:788-796](../../src/generators/burgs-generator.ts#L788-L796)、描画利用は[burgs-generator.ts:994-1062](../../src/generators/burgs-generator.ts#L994-L1062) |
-| 技術投資EWMAパターン(参考実装) | `AgTechInvestment`/`IndustrialTechInvestment`が「`Tools`購入カバレッジ→0..1のEWMA `stock`→下流の乗数ボーナス」という型を確立済み。年次ゲートは`getXLastSettledYear()`/`setXLastSettledYear()`ペアで自己管理し、`economy.tick`内で`AgTechInvestment.settleAnnual()`→`IndustrialTechInvestment.settleAnnual()`→`DevelopmentPotential.updateAnnualAgriculture()`の順に固定コメント付きで呼ばれる。 | [rural-agtech-investment.md](./rural-agtech-investment.md)、呼び出し順序は[index.tsx:1362-1370](../../src/extensions/economy/index.tsx#L1362-L1370) |
-| 基礎雇用の年次改定順序(参考実装) | `reconcileAnnualBasicEmploymentWorkers()`は同一Burg内で「行政→鉱山→製錬」の順にスロットを充足し(製錬は鉱石供給に依存するため後回し)、`MAX_ANNUAL_WORKER_CHANGE_SHARE = 0.25`で年間の急変を抑える。`urbanMobility`フラグでゲートされ、`economy.tick`の[index.tsx:1450](../../src/extensions/economy/index.tsx#L1450)から呼ばれる。 | [basicEmployment.ts:17-60](../../src/extensions/economy/generators/basicEmployment.ts#L17-L60) |
+| 建設需要カテゴリ | `DEMAND_PRIORITY`に`"construction"`は既に一級カテゴリとして存在し、`DEMAND_TARGET_FACTORS.construction = 0.1`、アイコン`"🧱"`も定義済み。**ただし人口比例の抽象需要としてのみ機能し、都市の物理的成長や職業とは無関係**。 | [goods-generator.ts#L79-97](/src/extensions/economy/generators/goods-generator.ts#L79-L97) |
+| 鉱物資源の永続サイトモデル(参考実装) | `GeologicalProvinceKind = "orogen"\|"shield"\|"granite"\|"carbonate"\|"basin"\|"placer"`を`classifyProvince()`が高度+ハッシュで確定的に分類し、`MineralDeposit`→`MineOperation`(`burgId`/`marketId`アンカー、`toolsInvestmentStock`保持)という永続実体に落とす。 | [mineralResources.ts#L40](/src/extensions/economy/generators/mineralResources.ts#L40)、[mineralResources.ts#L267-276](/src/extensions/economy/generators/mineralResources.ts#L267-L276)、[mineOperations.ts](/src/extensions/economy/generators/mineOperations.ts) |
+| 候補地スコアリングの参考実装 | 造船拡張の`computeShipyardCandidates()`は「港湾Burg + 近隣セルの森林biome比率(`forestRatio`) ≥ 0.3」で造船候補地を判定する、地質学的プロヴィンスより軽量なパターン。採石場候補地の直接のテンプレートとなる。 | [shipyardCandidates.ts#L6-40](/src/extensions/shipbuilding/generators/shipyardCandidates.ts#L6-L40) |
+| 職業(occupation)の型システム | 固定enumの「職業」概念は存在しない。2つの並立パターンがある: (A) Burgアンカー型`.workers`フィールド(行政・鉱山・製錬。`reconcileAnnualBasicEmploymentWorkers()`が年1回、25%/年キャップで成人人口から充足) (B) Market圏全体の`LaborMarket.workersByOccupation`(`STRATEGIC_OCCUPATIONS = ["forestry","sailmaking","ropeMaking","tarBurning","trade"]`、市場人口の30%が対象プール)。 | [basicEmployment.ts#L1-60](/src/extensions/economy/generators/basicEmployment.ts#L1-L60)、[strategicLaborMarkets.ts#L11-35](/src/extensions/economy/generators/strategicLaborMarkets.ts#L11-L35) |
+| Burgの建物フラグ | `citadel`/`plaza`/`walls`/`shanty`/`temple`はいずれも生成時(`burgs-generator.ts`)に人口閾値+乱数で一度だけ決まる`0\|1`フラグ。**シミュレーション中に一切更新されない**。都市アイコンのSVG部品選択にのみ使われ、経済的効果はゼロ。 | [burgs-generator.ts#L788-796](/src/generators/burgs-generator.ts#L788-L796)、描画利用は[burgs-generator.ts#L994-1062](/src/generators/burgs-generator.ts#L994-L1062) |
+| 技術投資EWMAパターン(参考実装) | `AgTechInvestment`/`IndustrialTechInvestment`が「`Tools`購入カバレッジ→0..1のEWMA `stock`→下流の乗数ボーナス」という型を確立済み。年次ゲートは`getXLastSettledYear()`/`setXLastSettledYear()`ペアで自己管理し、`economy.tick`内で`AgTechInvestment.settleAnnual()`→`IndustrialTechInvestment.settleAnnual()`→`DevelopmentPotential.updateAnnualAgriculture()`の順に固定コメント付きで呼ばれる。 | [rural-agtech-investment.md](./rural-agtech-investment.md)、呼び出し順序は[index.tsx:1362-1370](/src/extensions/economy/index.tsx#L1362-L1370) |
+| 基礎雇用の年次改定順序(参考実装) | `reconcileAnnualBasicEmploymentWorkers()`は同一Burg内で「行政→鉱山→製錬」の順にスロットを充足し(製錬は鉱石供給に依存するため後回し)、`MAX_ANNUAL_WORKER_CHANGE_SHARE = 0.25`で年間の急変を抑える。`urbanMobility`フラグでゲートされ、`economy.tick`の[index.tsx:1450](/src/extensions/economy/index.tsx#L1450)から呼ばれる。 | [basicEmployment.ts#L17-60](/src/extensions/economy/generators/basicEmployment.ts#L17-L60) |
 | Lime/Concrete/Mortar/Bricks | いずれも未実装。`goods-generator.ts`に該当Goodは存在しない。 | grep確認済み(該当ゼロ件) |
-| 火山の地質学的痕跡 | ヒートマップ生成テンプレート`"Volcano"`([heightmap-templates.ts:22](../../src/data/heightmap-templates.ts#L22))はマップ全体の初期地形整形にのみ使われ、生成後にセル単位の「ここは火山性」フラグを残さない。`ReliefEditorDialog`の火山アイコンも装飾のみでシミュレーションデータではない。`GeologicalProvinceKind`に`"volcanic"`相当の分類は存在しない。 | [heightmap-templates.ts:22](../../src/data/heightmap-templates.ts#L22)、[ReliefEditorDialog.tsx:45-83](../../src/ui/dialogs/ReliefEditorDialog.tsx#L45-L83) |
+| 火山の地質学的痕跡 | ヒートマップ生成テンプレート`"Volcano"`([heightmap-templates.ts#L22](/src/data/heightmap-templates.ts#L22))はマップ全体の初期地形整形にのみ使われ、生成後にセル単位の「ここは火山性」フラグを残さない。`ReliefEditorDialog`の火山アイコンも装飾のみでシミュレーションデータではない。`GeologicalProvinceKind`に`"volcanic"`相当の分類は存在しない。 | [heightmap-templates.ts#L22](/src/data/heightmap-templates.ts#L22)、[ReliefEditorDialog.tsx:45-83](/src/ui/dialogs/ReliefEditorDialog.tsx#L45-L83) |
 
 ---
 
@@ -121,8 +121,8 @@ export interface QuarryOperation {
 }
 ```
 
-- `computeQuarryCandidates()` は [shipyardCandidates.ts](../../src/extensions/shipbuilding/generators/shipyardCandidates.ts) と同型: 各Burgについて近隣セル集合を走査し、既存の`Stone`/`Marble`の`distribution`式(`minHeight(40) || (minHeight(20) && elevation())`等)を満たすセルの比率を計算する。**新しい地形分類ロジックを発明せず、既存のdistribution式をそのまま比率化するだけ**に留める(D3)。
-- `requiredWorkers`は鉱山の`getMineRequiredWorkers(deposit) = 4 + richness*6`([mineOperations.ts:29-31](../../src/extensions/economy/generators/mineOperations.ts#L29-L31))に倣い、`stoneRatio`/`marbleRatio`を「richness」相当として使う。
+- `computeQuarryCandidates()` は [shipyardCandidates.ts](/src/extensions/shipbuilding/generators/shipyardCandidates.ts) と同型: 各Burgについて近隣セル集合を走査し、既存の`Stone`/`Marble`の`distribution`式(`minHeight(40) || (minHeight(20) && elevation())`等)を満たすセルの比率を計算する。**新しい地形分類ロジックを発明せず、既存のdistribution式をそのまま比率化するだけ**に留める(D3)。
+- `requiredWorkers`は鉱山の`getMineRequiredWorkers(deposit) = 4 + richness*6`([mineOperations.ts#L29-31](/src/extensions/economy/generators/mineOperations.ts#L29-L31))に倣い、`stoneRatio`/`marbleRatio`を「richness」相当として使う。
 - 採石場の産出は`Stone`/`Marble`の`Market`への供給源として`Production`に接続する。**既存のdistribution scatterは撤去せず併存させてよい**(急激な供給断絶を避けるため、鉱石移行時の`mineral-resource-circulation-fixes.md` Fix 3と同じ移行方針を踏襲するか、次セッションで確定 — §7)。
 
 ### 3.3 Phase 2: 建設職業(石工・大工)と都市建築ストック
@@ -170,15 +170,15 @@ export type GeologicalProvinceKind =
 // 3. stock はコンシューマ側(constructionEmployment.ts)で乗数として読み、
 //    buildingStock 獲得効率 = baseRate * (1 + CONCRETE_TECH_BONUS_MAX * concreteTechStock)
 //    のように働かせる(import循環回避のため consuming file 側に置く既存慣習を踏襲、
-//    industrialTechInvestment.ts:32-35 の注記と同じ理由)
+//    industrialTechInvestment.ts#L32-35 の注記と同じ理由)
 ```
 
-- `economy.tick`の呼び出し順序に`ConstructionTechInvestment.settleAnnual()`を追加する。挿入位置は`IndustrialTechInvestment.settleAnnual()`の直後・`reconcileAnnualBasicEmploymentWorkers()`([index.tsx:1450](../../src/extensions/economy/index.tsx#L1450))の直前とし、当年の技術投資が当年の建設職業改定に反映されるようにする([index.tsx:1362-1370](../../src/extensions/economy/index.tsx#L1362-L1370)のコメント規約に倣い、なぜこの順序かを明示的にコメントする)。
-- 火山性セルの希少性は、鉱石の`"placer"`プロヴィンスの確率ハッシュ手法([mineralResources.ts:267-276](../../src/extensions/economy/generators/mineralResources.ts#L267-L276))をそのまま流用する。
+- `economy.tick`の呼び出し順序に`ConstructionTechInvestment.settleAnnual()`を追加する。挿入位置は`IndustrialTechInvestment.settleAnnual()`の直後・`reconcileAnnualBasicEmploymentWorkers()`([index.tsx:1450](/src/extensions/economy/index.tsx#L1450))の直前とし、当年の技術投資が当年の建設職業改定に反映されるようにする([index.tsx:1362-1370](/src/extensions/economy/index.tsx#L1362-L1370)のコメント規約に倣い、なぜこの順序かを明示的にコメントする)。
+- 火山性セルの希少性は、鉱石の`"placer"`プロヴィンスの確率ハッシュ手法([mineralResources.ts#L267-276](/src/extensions/economy/generators/mineralResources.ts#L267-L276))をそのまま流用する。
 
 ### 3.5 Phase 4: UI 可視化と住居レイヤ
 
-- ~~Employment Overview([employment-overview.ts](../../src/extensions/economy/controllers/employment-overview.ts))に石工/大工の雇用列を追加する(既存のパターンに`ConstructionOperation`を読む行を1つ足すだけ)。~~ **2026-07-31実装済み**: [urban-employment-demand.md](urban-employment-demand.md)側の実機検証中に発見した欠落(`basicEmploymentDemand`は建設業を合算済みだがダイアログに列がなく不可視だった)として対応した。`getConstructionEmploymentByBurg()`(masonWorkers+carpenterWorkers+採石場quarryWorkers+Volcanic Ash ashWorkers)を追加し、「Construction」列として表示。「Basic」列のツールチップ数式も建設業を含む形に修正した。
+- ~~Employment Overview([employment-overview.ts](/src/extensions/economy/controllers/employment-overview.ts))に石工/大工の雇用列を追加する(既存のパターンに`ConstructionOperation`を読む行を1つ足すだけ)。~~ **2026-07-31実装済み**: [urban-employment-demand.md](urban-employment-demand.md)側の実機検証中に発見した欠落(`basicEmploymentDemand`は建設業を合算済みだがダイアログに列がなく不可視だった)として対応した。`getConstructionEmploymentByBurg()`(masonWorkers+carpenterWorkers+採石場quarryWorkers+Volcanic Ash ashWorkers)を追加し、「Construction」列として表示。「Basic」列のツールチップ数式も建設業を含む形に修正した。
 - ~~住居台帳・文化レシピ・妊娠・評価 UI~~ **2026-08-02実装済み**: [urban-housing-system.md](./urban-housing-system.md) — Employment Overview の Dwellings/Need/Gap%、Burg Editor の housing/pregnancy/settlement value、Burgs/States Overview の Housing gap% と Settlement value。
 - Market Overview Dialogに`concreteTechStock`表示を追加する(Ag Tech表示の既存パターンを踏襲) — 未着手。
 - `buildingStock`とバーグアイコンの城壁/寺院/城塞フラグとの接続(非目的§1で明示的にPhase 1-3のスコープ外としたもの) — 未着手。

@@ -32,7 +32,7 @@ Fix 2・Fix 1・Fix 3 実装済み(Fix 3 は Playwright E2E テストとブラ�
 
 **問題**
 
-`economy.mines.prospect`(`src/extensions/economy/generators/mineOperations.ts:54`)は道路・港・
+`economy.mines.prospect`(`src/extensions/economy/generators/mineOperations.ts#L54`)は道路・港・
 到達性を再評価して新規鉱山を開山し、深部鉱床の排水・技術を引き上げるが、呼び出し箇所は
 `src/extensions/economy/index.tsx:823` の Tools タブボタンのみ。同ファイル1230行目の
 `economy.tick`(`registerSimulationSystem`)からは一度も呼ばれない。
@@ -44,7 +44,7 @@ Fix 2・Fix 1・Fix 3 実装済み(Fix 3 は Playwright E2E テストとブラ�
 手動でボタンを押した時だけ。AI国家のみで進む長期シミュレーションでは誰も押さないため、世界の
 鉱物産出は時間とともに単調減少し、最終的にゼロへ収束する。MintLedger の通貨供給
 (`circulation` は毎月0.5%減衰、補充は鉱山産の Gold/Silver/Copper 在庫のみ ——
-`src/extensions/economy/generators/minting.ts:63`, `:75`)にも直結し、長期的に貨幣供給が枯渇する。
+`src/extensions/economy/generators/minting.ts#L63`, `:75`)にも直結し、長期的に貨幣供給が枯渇する。
 
 **方針**
 
@@ -78,7 +78,7 @@ Fix 2・Fix 1・Fix 3 実装済み(Fix 3 は Playwright E2E テストとブラ�
 
 **問題**
 
-`src/extensions/economy/generators/mineralResources.ts:163`:
+`src/extensions/economy/generators/mineralResources.ts#L163`:
 
 ```ts
 const districtCount = Math.min(40, Math.max(4, Math.ceil(landCells.length / 110)));
@@ -96,7 +96,7 @@ const districtCount = Math.min(40, Math.max(4, Math.ceil(landCells.length / 110)
 検証目標に対して、マップサイズが大きいほど不利になる。
 
 また `MineralDistrict` は現状 `depositIds: [depositId]` で常に1鉱区=1鉱床固定になっており
-(`mineralResources.ts:201-208`)、鉱区数の上限がそのまま鉱床総数の上限になっている。
+(`mineralResources.ts#L201-208`)、鉱区数の上限がそのまま鉱床総数の上限になっている。
 
 **方針**
 
@@ -112,13 +112,13 @@ const districtCount = Math.min(40, Math.max(4, Math.ceil(landCells.length / 110)
 **チェックリスト**
 
 - [x] `districtCount` の算出式を面積比例(上限撤廃)に変更する
-      (`mineralResources.ts:163-166`。`Math.min(40, ...)` を撤廃し `Math.max(4, Math.ceil(landCells.length / 110))` のみに)
+      (`mineralResources.ts#L163-166`。`Math.min(40, ...)` を撤廃し `Math.max(4, Math.ceil(landCells.length / 110))` のみに)
 - [x] 大規模マップでの生成時間を計測し、許容範囲か確認する
       (計測したところ上限撤廃だけでは `pickCell` が province 内の未使用セルをフルスキャンする
       構造のため `O(landCells²)` のままで、100,000陸セルで約2.3秒かかることが判明。原因は
       グローバルな `usedCells: Set` を毎回フィルタし直す実装。`pickCell` を province ごとの
       可変プール(swap-remove で O(1) 取り出し)に書き換え、100,000陸セルで約16msまで改善した
-      (`mineralResources.ts:267-280`))
+      (`mineralResources.ts#L267-280`))
 - [x] `mineralResources.test.ts` に「陸セル数が増えるほど鉱区数が増え続ける」回帰テストを追加する
       (`mineralResources.test.ts` の `keeps scaling district count with land area well past
       the old 40-district cap`)
@@ -151,11 +151,11 @@ const districtCount = Math.min(40, Math.max(4, Math.ceil(landCells.length / 110)
 `MineralDeposit` / `MineOperation` を参照するレンダラー・ダイアログが存在しない
 (`src/extensions/economy/renderers/` / `ui/` を検索してもヒットなし)。
 
-一方で `src/extensions/economy/generators/goods-generator.ts:158-230` の
+一方で `src/extensions/economy/generators/goods-generator.ts#L158-230` の
 Iron/Copper/Tin/Lead/Silver/Gold は従来通り `minHeight`/`biome` ベースの `distribution` で
 セルに配置され続け、マップ上にアイコンとして表示される。生産への寄与だけは
 `isMineSuppliedGoodName` でブロックされている(`src/extensions/economy/generators/
-production-utils.ts:137`)が、アイコンの位置自体は本物の `MineralDeposit` の位置と無関係のまま。
+production-utils.ts#L137`)が、アイコンの位置自体は本物の `MineralDeposit` の位置と無関係のまま。
 
 プレイヤーから見ると「鉱物アイコンが表示されている場所」と「実際に貨幣・軍需を支えている鉱山の
 場所」が一致せず、かつ後者は完全に不可視。Fix 2 で自動 prospect を入れても、プレイヤーがどこに

@@ -91,6 +91,8 @@ export function BurgCityPreview({ burgData }: { burgData: BurgData }) {
         measureBlockSize: share.measureBlockSize === true,
         biome: share.descriptor?.biome
       });
+      // Match CE imports: preserve biome ground colors beneath the city.
+      document.showElevationTint = false;
       if (disposed) return;
       timings.grid = performance.now() - gridStarted;
       const workerStarted = performance.now();

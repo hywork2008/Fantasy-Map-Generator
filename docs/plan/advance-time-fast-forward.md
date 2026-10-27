@@ -99,8 +99,8 @@ Advance Year 1回（366暦日、characters+economy拡張、4154 cells / 143 burg
 
 | ラベル | totalMs | share | calls | 由来 |
 | :--- | ---: | ---: | ---: | :--- |
-| `production:settle` | 1689.4 | 26.82% | **12** | 月次決済コマンド全体のラッパー（[index.tsx:2699](../../src/extensions/economy/index.tsx)） |
-| `production:produce` | 1166.6 | 18.52% | **12** | `Production.produce()`本体（[production-generator.ts:230](../../src/extensions/economy/generators/production-generator.ts)） |
+| `production:settle` | 1689.4 | 26.82% | **12** | 月次決済コマンド全体のラッパー（[index.tsx:2699](/src/extensions/economy/index.tsx)） |
+| `production:produce` | 1166.6 | 18.52% | **12** | `Production.produce()`本体（[production-generator.ts#L230](/src/extensions/economy/generators/production-generator.ts)） |
 | `production:finishCycle` | 501.3 | 7.96% | **12** | 生産サイクル終了処理 |
 | `production:syncLedgers` | 428.6 | 6.80% | **12** | burg/market台帳同期 |
 | `production:startCycle` | 337.2 | 5.35% | **12** | 生産サイクル開始（rural/mines/quarry含む） |
@@ -118,8 +118,8 @@ Advance Year 1回（366暦日、characters+economy拡張、4154 cells / 143 burg
 
 **calls=12の10項目の合計 = 4363.4ms（69.3%）**。ここに`production:metallurgProcurement`
 `production:pricesAndLabor`等の残り calls=12 項目（1.12%+0.94%+0.17%+0.13%+0.04%+0.19%+0%）を足すと
-**約85%**が「月次決済コマンド1本」に集約される。これは全て[index.tsx:2699](../../src/extensions/economy/index.tsx)の
-`runOneProductionSettlement()`が dispatch する`production.settle`コマンド（[index.tsx:1087-1121](../../src/extensions/economy/index.tsx)）
+**約85%**が「月次決済コマンド1本」に集約される。これは全て[index.tsx:2699](/src/extensions/economy/index.tsx)の
+`runOneProductionSettlement()`が dispatch する`production.settle`コマンド（[index.tsx:1087-1121](/src/extensions/economy/index.tsx)）
 1本の中身である。
 
 一方 calls=366 の14項目合計は約344ms（14.3%）で、最大でも`economy:dailyHiring`の2.41%。個々は軽いが束にすると
@@ -158,7 +158,7 @@ Advance Year 1回（366暦日、characters+economy拡張、4154 cells / 143 burg
 
 | 懸念 | 詳細 | 対応方針 |
 | :--- | :--- | :--- |
-| `MetallurgWork.fulfillFromMarkets()` / `.settleMonthly()` / `requestMetallurgMaterials()` | `production.settle`コマンド内で`Production.produce()`の直後に呼ばれており（[index.tsx:1104-1111](../../src/extensions/economy/index.tsx)）、`produce()`が生成する`ProductionRecord`/`getBurgProductionRecords()`を読んでいる可能性がある | 実装時にコード読解で確認。依存する場合はFast-Forward中はスキップ（合計シェア1.12%+0.17%+0.04%程度なので、スキップしても実害は小さい） |
+| `MetallurgWork.fulfillFromMarkets()` / `.settleMonthly()` / `requestMetallurgMaterials()` | `production.settle`コマンド内で`Production.produce()`の直後に呼ばれており（[index.tsx:1104-1111](/src/extensions/economy/index.tsx)）、`produce()`が生成する`ProductionRecord`/`getBurgProductionRecords()`を読んでいる可能性がある | 実装時にコード読解で確認。依存する場合はFast-Forward中はスキップ（合計シェア1.12%+0.17%+0.04%程度なので、スキップしても実害は小さい） |
 | `refreshStateEconomySummaries()` / `synchronizePlayerCommerce()` | Overview系ダイアログが読む集計値（Treasury Overview等）を更新する | フェイク後の`treasury`/`stock`を反映するため、**これらは実計算のまま残す**（安価: 合計約4.3%、かつ「表示の整合性」に直結するため置換しない） |
 | Balance History（`recordAdvanceBalanceSnapshot`） | `fmg:time-advance-completed`一回につき1行記録（[advance-time.md §3](../simulation/advance-time.md)） | イベント発火自体は変更しない。行の中身がフェイク値になるだけで、スナップショット機構自体は無傷 |
 | キャラバン/小売消費（`economy:caravans`, `economy:retailInventory`） | `produce()`が止まっている間も実計算のまま毎日在庫を消費し続けると、フェイクの`stock`更新が月次1回だけなので**日々の実消費だけが先行し在庫が枯渇して見える**リスクがある | §4.5で「stock更新を月次ではなく決済クラスタと同じ経過日数カウンタで按分する」ことにより、日次消費と同じ粒度感になるよう緩和。加えて§5.1の`stockFloorMultiplier`で下限を設ける |
@@ -187,7 +187,7 @@ Advance Year 1回（366暦日、characters+economy拡張、4154 cells / 143 burg
 
 ### 3.3 既存の不変条件との関係
 
-`SimulationStepContext.isBulkAdvance`（[simulationSystem.ts:33-54](../../src/generators/simulationSystem.ts)）
+`SimulationStepContext.isBulkAdvance`（[simulationSystem.ts#L33-54](/src/generators/simulationSystem.ts)）
 のドキュメントコメントは、実はこの用途をほぼそのまま想定して書かれている:
 
 > Intended for systems that want to skip expensive, purely-cosmetic-at-this-timescale per-day resolution
@@ -195,7 +195,7 @@ Advance Year 1回（366暦日、characters+economy拡張、4154 cells / 143 burg
 
 `isBulkAdvance`は「Advance Week/Month/Yearボタン、または複数日の`advanceTime`/`runDaily`呼び出しの内部にいるか」
 を表すフラグで、UI rAFループ・public bulk API・headless runnerの**全経路が共通して通る**
-`enterDayBatch(totalDays)`（[timeEngine.ts:640-642](../../src/generators/timeEngine.ts)）から導出される。
+`enterDayBatch(totalDays)`（[timeEngine.ts#L640-642](/src/generators/timeEngine.ts)）から導出される。
 つまり「Advance Day入力欄に7と入れて実行」も「Advance Weekボタン」も同じ`isBulkAdvance=true`になり、
 「Advance Dayを1ずつ7回クリック」は各回`isBulkAdvance=false`になる——後者は「あえて1日ずつ結果を見たい」
 操作なので、Fast-Forwardが有効でも実計算のまま据え置かれるのは望ましい挙動である。
@@ -220,7 +220,7 @@ Phase 3が懸念した問題がそもそも発生しない。よって:
 
 - 既存の`window.fmg.actions.advanceTime()` / Advance Day/Month/Yearボタンは**そのまま**使う。
 - 「別コマンド」ではなく、**既存パターン（`simManpower`, `applyCalibration`と同じ「永続化されたオプトイン・
-  トグル」）**として実装する（[economyCalibrationState.ts](../../src/extensions/economy/store/economyCalibrationState.ts)参照）。
+  トグル」）**として実装する（[economyCalibrationState.ts](/src/extensions/economy/store/economyCalibrationState.ts)参照）。
   デフォルトOFFなので、既存の全テスト・既存の外部呼び出し元は無変更で影響を受けない。
 - ユーザーが明示的にトグルをONにした場合のみ、かつ`isBulkAdvance===true`の間だけ、内部の2システムが
   近似式に切り替わる。トグルONであってもAdvance Day単発は今まで通り実計算のまま。
@@ -262,7 +262,7 @@ function isFastAdvanceActive(context: { isBulkAdvance: boolean }): boolean {
 
 ### 4.3 フック地点
 
-**(a) 人口** — [timeEngine.ts:824-827](../../src/generators/timeEngine.ts):
+**(a) 人口** — [timeEngine.ts#L824-827](/src/generators/timeEngine.ts):
 
 ```ts
 if (sim.simDemographics) {
@@ -276,10 +276,10 @@ if (sim.simDemographics) {
 ```
 
 `isBulkTimeAdvance()`は`bulkAdvance`変数が計算される839行目より前で既に定義済みの関数なのでそのまま呼べる
-（[timeEngine.ts:640-642](../../src/generators/timeEngine.ts)）。RNGは`appServices.rng`
+（[timeEngine.ts#L640-642](/src/generators/timeEngine.ts)）。RNGは`appServices.rng`
 （system外なので`context.rng`は使えない。人口ジッターの決定性は§4.7参照）。
 
-**(b) 経済** — [index.tsx:3341-3383](../../src/extensions/economy/index.tsx)の`economy.foodCalendar`システム。
+**(b) 経済** — [index.tsx:3341-3383](/src/extensions/economy/index.tsx)の`economy.foodCalendar`システム。
 ここは`registerEconomyTickSystem`経由で`context: SimulationStepContext`を直接受け取れる数少ない箇所であり、
 `productionSettlementsDue`をインクリメントしている当人でもある:
 
@@ -294,9 +294,9 @@ if (settledMonths > 0) {
 }
 ```
 
-`scheduleProductionSettlement()`のマイクロタスク（[index.tsx:2710-2731](../../src/extensions/economy/index.tsx)）
+`scheduleProductionSettlement()`のマイクロタスク（[index.tsx:2710-2731](/src/extensions/economy/index.tsx)）
 側で、捕捉した`productionSettlementsFastForward`を見て`runOneProductionSettlement()`
-（実計算、[index.tsx:2698-2708](../../src/extensions/economy/index.tsx)）の代わりに
+（実計算、[index.tsx:2698-2708](/src/extensions/economy/index.tsx)）の代わりに
 `runOneFastForwardSettlement(settledMonths)`を呼ぶよう分岐する。**due件数のループ自体は変えない**
 （`times`回のうち1回1回が安い処理に置き換わるだけ）——Balance History等が期待する
 「`production.settle`相当のイベント頻度」を保つため。
@@ -492,7 +492,7 @@ caravans/retailInventoryは実計算のまま残すが、月次決済がFast-For
 振る舞っている**という測定事実である（`state.treasury`は複数箇所で`Math.max(0, ...)`によって下限0にクランプ
 されるため、この年率が今後も等比的に続くわけではなく、0に漸近するモデルとして解釈すべき——ただし本書の
 Phase 0では原因追及は行っていない。年次投資系システム（`AgTechInvestment`/`IndustrialTechInvestment`等の
-`settleAnnual()`群、[index.tsx:2994以降](../../src/extensions/economy/index.tsx)）やGuild/軍事維持費が
+`settleAnnual()`群、[index.tsx:2994以降](/src/extensions/economy/index.tsx)）やGuild/軍事維持費が
 税収を上回るペースで`state.treasury`を消費している可能性が高いが未検証）。
 
 **この実測値（-42%）を「標準」プリセットの国庫成長率としてそのまま採用するかどうかは、ユーザー判断で保留とした**
@@ -520,7 +520,7 @@ Fast-Forwardのプリセットに焼き込んでよいかは設計判断の外�
 
 ### 6.1 配置方針
 
-既存の`AdvanceTimeDialog.tsx`（[AdvanceTimeDialog.tsx](../../src/ui/dialogs/AdvanceTimeDialog.tsx)）に
+既存の`AdvanceTimeDialog.tsx`（[AdvanceTimeDialog.tsx](/src/ui/dialogs/AdvanceTimeDialog.tsx)）に
 トグル行を追加する。既存のYear/Month/Dayボタン3行はそのまま変更しない。
 
 ### 6.2 ワイヤーフレーム
@@ -585,7 +585,7 @@ export function resolveFastAdvanceRates(): FastAdvanceRates {
 }
 ```
 
-既存の`SliderInput`コンポーネント（[SliderInput.tsx](../../src/ui/components/SliderInput.tsx)）と
+既存の`SliderInput`コンポーネント（[SliderInput.tsx](/src/ui/components/SliderInput.tsx)）と
 `rangeInputStyles.ts`をそのまま流用し、`WorldConfiguratorDialog.tsx`と同様のスライダー表現に揃える。
 ダイアログの開閉は既存の`useDialogState`/`dialogService`パターンに新規id
 （例: `"fastAdvanceSettings"`）を1つ追加するだけで済む。
@@ -806,8 +806,8 @@ UI配線のみのため）。
 | `src/extensions/economy/generators/fastAdvanceEconomyGuard.ts` | 新規。`setFastForwardTickActive(bool)` / `isFastForwardTickActive()` のtick単位モジュールフラグ。economy tickの実行中かつそのtickがFast-Forward対象バッチの一部である間だけ`true`。 |
 | `src/extensions/economy/index.tsx`（`registerEconomyTickSystem`のラッパ） | 各economy tickの`run()`呼び出しを`setFastForwardTickActive(isFastAdvanceActive(context.isBulkAdvance))` → `try { run } finally { setFastForwardTickActive(false) }`で囲む。`context`（＝`isBulkAdvance`）を持つ唯一の共通地点。 |
 | `src/extensions/economy/generators/chemMedCommon.ts`（`debitTreasury()`） | Fast-Forward tick中は`state.treasury`に触れず`true`を返す（＝「支払い済み」扱い）。この共有ヘルパーを使う約20モジュール（`dams`・`levees`・`acidPlants`・`hospitalInstallations`・`experimentalWorkshops`・`apothecaryWorkshops`ほか——treasury-deficit調査「案A」適用後で残存ドレインの約68%）を一括で処理する。返り値`true`により施設は建設/稼働を継続（非treasuryの処理はそのまま走る）。 |
-| `src/extensions/economy/generators/stateSecretKnowledge.ts:70` | `spend`/`coverage`/在庫EWMAの計算はプリセット駆動のtreasuryを読んだまま（＝pyrotechnics知識は進み続ける）、`state.treasury -= spend`の一行だけをFF時スキップ。§2診断で非chemMed最大の系統ドレイン（-89/yr相当）。 |
-| `src/extensions/economy/generators/greatLibrary.ts:378,457` | 同上パターン。建設進捗（`settleBuilding`）と維持基金（`settleCompleted`）の`coverage`計算は不変、`state.treasury -= spend`の2行だけをFF時スキップ。 |
+| `src/extensions/economy/generators/stateSecretKnowledge.ts#L70` | `spend`/`coverage`/在庫EWMAの計算はプリセット駆動のtreasuryを読んだまま（＝pyrotechnics知識は進み続ける）、`state.treasury -= spend`の一行だけをFF時スキップ。§2診断で非chemMed最大の系統ドレイン（-89/yr相当）。 |
+| `src/extensions/economy/generators/greatLibrary.ts#L378,457` | 同上パターン。建設進捗（`settleBuilding`）と維持基金（`settleCompleted`）の`coverage`計算は不変、`state.treasury -= spend`の2行だけをFF時スキップ。 |
 
 **新規テスト**: `fastAdvanceEconomyGuard.test.ts`（4件：フラグの往復、`debitTreasury`の通常時/FF時挙動、FF時でも
 不正stateや非正amountは拒否）。`stateSecretKnowledge.test.ts`・`greatLibrary.test.ts`に各1件（FF時は在庫/進捗は
@@ -829,7 +829,7 @@ UI配線のみのため）。
 #### 9.8.2 §2.3（`MetallurgWork.*`）の監査結果 — 対応不要
 
 `MetallurgWork.fulfillFromMarkets()` / `.settleMonthly()` / `requestMetallurgMaterials()` / `.refreshMaterialForecasts()`
-は全て`production.settle`コマンド（[index.tsx](../../src/extensions/economy/index.tsx)）の中だけで呼ばれており、
+は全て`production.settle`コマンド（[index.tsx](/src/extensions/economy/index.tsx)）の中だけで呼ばれており、
 Fast-Forward時は`production.settleFastForward`が代わりに走って`production.settle`自体を一切実行しない
 （§4.3(b)）。したがって**Fast-Forward中`MetallurgWork.*`はそもそも動かず、スタブ化/スキップの追加は不要**。
 
@@ -869,7 +869,7 @@ Fast-Forward中も実計算のまま走る系統（§2.2）について、`Produ
 
 `scripts/benchmarkAdvanceYear.ts`に`--warmupYears=N`（計測前に実Advance Yearを走らせて経済に質量を持たせる）と
 `--fastForward=<preset>`（ウォームアップ後にAdvance Timeダイアログ経由でFast-Forwardを有効化）を追加し
-（`scripts/lib/advanceYearHarness.ts#enableFastForwardViaUI`）、同一シード・同一ウォームアップでON/OFFを実測した。
+（`scripts/lib/advanceYearHarness.ts#LenableFastForwardViaUI`）、同一シード・同一ウォームアップでON/OFFを実測した。
 
 | シード | 経路 | FF OFF | FF ON「標準」 | 短縮率 |
 | :--- | :--- | ---: | ---: | ---: |
@@ -985,7 +985,7 @@ FF-ON同士の決定性（同一シード＋プリセット）は保たれる（
    原因調査を別途依頼することになった。~~ **調査完了（2026-09-05）、一次是正（案A）実装完了・「標準」
    プリセット国庫成長率も確定（2026-09-06）** ——新規起票した
    [`docs/plan/treasury-structural-deficit-investigation.md`](treasury-structural-deficit-investigation.md)
-   で実施。結論: 総赤字の93%が、`chemMedCommon.ts#debitTreasury()`を共有する化学/医療/インフラ施設系
+   で実施。結論: 総赤字の93%が、`chemMedCommon.ts#LdebitTreasury()`を共有する化学/医療/インフラ施設系
    モジュール群（ダム・実験工房・薬種工房・堤防・病院——うち計測時点で解禁済みの5モジュールのみ）の
    「新設費＝恒久的な年間予算（減額なし）」という単一パターンで説明できる。中核経済（税収・行政・機密研究等）
    はそれ自体年-74程度で安定しており問題ない。「維持費不足による停滞」効果（崩壊リスク・死亡率結合等）は

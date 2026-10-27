@@ -12,32 +12,41 @@ export function meshProjection(model: CityStructureMeshes, view: "side" | "top")
       indices = mesh.geometry.index;
     const count = indices?.count ?? positions.count;
     const material = mesh.material as THREE.MeshLambertMaterial;
-    for (let i = 0; i < count; i += 3) {
-      const points = [0, 1, 2].map(j =>
-        new THREE.Vector3()
-          .fromBufferAttribute(positions, indices ? indices.getX(i + j) : i + j)
-          .applyMatrix4(mesh.matrixWorld)
-      );
-      const normal = points[1].clone().sub(points[0]).cross(points[2].clone().sub(points[0])).normalize();
-      if ((view === "side" ? normal.z : normal.y) <= 0.001) continue;
-      const color = material.color.clone().multiplyScalar(0.8 + 0.2 * Math.max(0, normal.y));
-      const vertexColors = mesh.geometry.getAttribute("color");
-      if (material.vertexColors && vertexColors) {
-        const vertexColor = new THREE.Color(0, 0, 0);
-        for (let j = 0; j < 3; j++) {
-          const k = indices ? indices.getX(i + j) : i + j;
-          vertexColor.r += vertexColors.getX(k) / 3;
-          vertexColor.g += vertexColors.getY(k) / 3;
-          vertexColor.b += vertexColors.getZ(k) / 3;
-        }
-        color.multiply(vertexColor);
+    const transforms: THREE.Matrix4[] = [];
+    if (mesh instanceof THREE.InstancedMesh) {
+      for (let index = 0; index < mesh.count; index++) {
+        const instance = new THREE.Matrix4();
+        mesh.getMatrixAt(index, instance);
+        transforms.push(mesh.matrixWorld.clone().multiply(instance));
       }
-      const fill = `#${color.getHexString()}`;
-      faces.push({
-        depth: points.reduce((sum, p) => sum + (view === "side" ? p.z : p.y), 0) / 3,
-        path: `<path d="M${points.map(point).join(" L")} Z" fill="${fill}" stroke="${fill}" stroke-width="0.008"/>`
-      });
-    }
+    } else transforms.push(mesh.matrixWorld);
+    for (const transform of transforms)
+      for (let i = 0; i < count; i += 3) {
+        const points = [0, 1, 2].map(j =>
+          new THREE.Vector3()
+            .fromBufferAttribute(positions, indices ? indices.getX(i + j) : i + j)
+            .applyMatrix4(transform)
+        );
+        const normal = points[1].clone().sub(points[0]).cross(points[2].clone().sub(points[0])).normalize();
+        if ((view === "side" ? normal.z : normal.y) <= 0.001) continue;
+        const color = material.color.clone().multiplyScalar(0.8 + 0.2 * Math.max(0, normal.y));
+        const vertexColors = mesh.geometry.getAttribute("color");
+        if (material.vertexColors && vertexColors) {
+          const vertexColor = new THREE.Color(0, 0, 0);
+          for (let j = 0; j < 3; j++) {
+            const k = indices ? indices.getX(i + j) : i + j;
+            vertexColor.r += vertexColors.getX(k) / 3;
+            vertexColor.g += vertexColors.getY(k) / 3;
+            vertexColor.b += vertexColors.getZ(k) / 3;
+          }
+          color.multiply(vertexColor);
+        }
+        const fill = `#${color.getHexString()}`;
+        faces.push({
+          depth: points.reduce((sum, p) => sum + (view === "side" ? p.z : p.y), 0) / 3,
+          path: `<path d="M${points.map(point).join(" L")} Z" fill="${fill}" stroke="${fill}" stroke-width="0.008"/>`
+        });
+      }
   }
   const minY = view === "side" ? -bounds.max.y : bounds.min.z;
   const height = view === "side" ? bounds.max.y - bounds.min.y : bounds.max.z - bounds.min.z;

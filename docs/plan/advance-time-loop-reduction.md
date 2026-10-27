@@ -25,7 +25,7 @@
 
 ### 1.1 現在の実行モデル
 
-`window.fmg.actions.advanceTime(deltaYears, deltaMonths, deltaDays)` も Tools タブの Advance Day/Month/Year ボタン（`runTimeSimulation`）も、最終的にはどちらも [`durationToCalendarDays()`](../../src/runtime/calendarDuration.ts) で期間を実際の暦日数に変換し、[`stepDaySimulation()`](../../src/generators/timeEngine.ts) を1日ずつ繰り返し呼ぶ（[timeEngine.ts:364-407](../../src/generators/timeEngine.ts)、UI側は[timeEngine.ts:754-835](../../src/generators/timeEngine.ts)）。1暦日＝1 `tickCount`・1回の[`SimulationSystem`レジストリ実行](../../src/generators/simulationSystem.ts)。Advance Month は約30回、Advance Year は約365回この内部ループが回る。
+`window.fmg.actions.advanceTime(deltaYears, deltaMonths, deltaDays)` も Tools タブの Advance Day/Month/Year ボタン（`runTimeSimulation`）も、最終的にはどちらも [`durationToCalendarDays()`](/src/runtime/calendarDuration.ts) で期間を実際の暦日数に変換し、[`stepDaySimulation()`](/src/generators/timeEngine.ts) を1日ずつ繰り返し呼ぶ（[timeEngine.ts#L364-407](/src/generators/timeEngine.ts)、UI側は[timeEngine.ts#L754-835](/src/generators/timeEngine.ts)）。1暦日＝1 `tickCount`・1回の[`SimulationSystem`レジストリ実行](/src/generators/simulationSystem.ts)。Advance Month は約30回、Advance Year は約365回この内部ループが回る。
 
 これは事故ではなく2026-07-20の意図的な設計決定（後述4.1）。
 
@@ -49,11 +49,11 @@ Economy拡張ONでのAdvance Year合計は約15秒（P1後）。うち `core:man
 
 | システム | 自己ゲートの仕組み | 場所 |
 | :--- | :--- | :--- |
-| 月次生産・税収決済 | `daysSinceLastProduction`（経過日数を蓄積し30日ごとに`settledMonths`をカウント、大きな`effectiveDays`が一度に来ても正しく複数回分決済する） | [economy/index.tsx:2229](../../src/extensions/economy/index.tsx), [:2447-2479](../../src/extensions/economy/index.tsx) |
-| 鉱山探査 | `daysSinceLastProspecting` + `PROSPECTING_INTERVAL_DAYS = 365` | [economy/index.tsx:2234-2235](../../src/extensions/economy/index.tsx) |
-| 建設雇用の申請待ち | `app.daysRemaining -= deltaDays` のカウントダウン | [constructionHire.ts:257-276](../../src/extensions/economy/generators/constructionHire.ts) |
+| 月次生産・税収決済 | `daysSinceLastProduction`（経過日数を蓄積し30日ごとに`settledMonths`をカウント、大きな`effectiveDays`が一度に来ても正しく複数回分決済する） | [economy/index.tsx:2229](/src/extensions/economy/index.tsx), [:2447-2479](/src/extensions/economy/index.tsx) |
+| 鉱山探査 | `daysSinceLastProspecting` + `PROSPECTING_INTERVAL_DAYS = 365` | [economy/index.tsx:2234-2235](/src/extensions/economy/index.tsx) |
+| 建設雇用の申請待ち | `app.daysRemaining -= deltaDays` のカウントダウン | [constructionHire.ts#L257-276](/src/extensions/economy/generators/constructionHire.ts) |
 | Guild/Academy/UrbanWater等の年次決済 | `settleAnnual()` が年境界を比較して自己ゲート（`cadence: {every:1}`で毎tick呼ばれるが中身は年1回だけ実行） | economy/index.tsx 各所 |
-| `technology.tick` | `settleTechnologyAnnual(year)` が `lastEvaluatedYear === year` で自己ゲート | [timeEngine.ts:206-218](../../src/generators/timeEngine.ts) |
+| `technology.tick` | `settleTechnologyAnnual(year)` が `lastEvaluatedYear === year` で自己ゲート | [timeEngine.ts#L206-218](/src/generators/timeEngine.ts) |
 
 したがって Advance Year を1コミットで受けても、`production.settle` は365回ではなく実際に12回だけ走る（`docs/analytics/advance-year-performance.md` §2.1で366日/12回実測確認済み）。**この設計パターンは既存の慣習であり、Phase 1で新規に発明するものではなく踏襲するだけ**（後述）。
 
@@ -61,7 +61,7 @@ Economy拡張ONでのAdvance Year合計は約15秒（P1後）。うち `core:man
 
 ### 1.4 まだ365回/年フルで実行されている処理
 
-`core:manpower`（[timeEngine.ts:696-702](../../src/generators/timeEngine.ts)）と `core:militaryFallback`（[timeEngine.ts:732-743](../../src/generators/timeEngine.ts)）は `registerSimulationSystem()` を使わず `advanceTimeMutation()` に直書きされており、自己ゲートを持たない。毎日、その日のtiny `effectiveDeltaYears`（≈1/365.2425）で比例計算を行う。これが1.2節のコストの正体。
+`core:manpower`（[timeEngine.ts#L696-702](/src/generators/timeEngine.ts)）と `core:militaryFallback`（[timeEngine.ts#L732-743](/src/generators/timeEngine.ts)）は `registerSimulationSystem()` を使わず `advanceTimeMutation()` に直書きされており、自己ゲートを持たない。毎日、その日のtiny `effectiveDeltaYears`（≈1/365.2425）で比例計算を行う。これが1.2節のコストの正体。
 
 加えて、ループそのものの固定オーバーヘッド（全国家の連隊`actionStatus`リセット、暦計算、`timeTickSystems.run()`のRNGストリーム切替・`TransactionWriter`生成、day-batchスナップショット/commit/通知）が365回分積み上がる。
 
@@ -75,7 +75,7 @@ Economy拡張ONでのAdvance Year合計は約15秒（P1後）。うち `core:man
 
 > 日を target architecture の canonical step とする。（…）ただし、これは architecture migration と同時に現行挙動を変更してよいという意味ではない。現在は UI が `advanceTime(0,0,1)` を日数回呼ぶ一方、public action は期間全体を一回で渡すため、hook 回数、`tickCount`、RNG 消費、四半期処理が異なり得る。（…）**target の初期版には multi-day command を設けない。**
 
-実際、以前は `simulation.advance` という「月/年をまとめて1コミットで処理するbulk経路」が存在した（[worldRuntime.ts:2422-2425](../../src/runtime/worldRuntime.ts)の`advanceSimulation()`は今も残骸として残っているが、呼び出し元は無い）。2026-07-20のcommit `156910fe6`でこれを廃止し、`advanceLegacyBulk`を「daily alias（deprecated）」に格下げして、UI日次経路・public bulk API・headless runnerのすべてが同一の日次コマンド列を通るよう統一した（[simulationRunner.test.ts:110-146](../../src/runtime/simulationRunner.test.ts)の`P2-5`テストが今もこの不変条件を固定している）。
+実際、以前は `simulation.advance` という「月/年をまとめて1コミットで処理するbulk経路」が存在した（[worldRuntime.ts#L2422-2425](/src/runtime/worldRuntime.ts)の`advanceSimulation()`は今も残骸として残っているが、呼び出し元は無い）。2026-07-20のcommit `156910fe6`でこれを廃止し、`advanceLegacyBulk`を「daily alias（deprecated）」に格下げして、UI日次経路・public bulk API・headless runnerのすべてが同一の日次コマンド列を通るよう統一した（[simulationRunner.test.ts#L110-146](/src/runtime/simulationRunner.test.ts)の`P2-5`テストが今もこの不変条件を固定している）。
 
 理由は`docs/reviews/unite-data-and-map-remediation.md`の該当エントリに明記: 「UI 日次経路と public bulk 経路が別 semantics のまま」だったのを、「各 system の bulk/日次差を versioned migration で解消し、UI と `window.fmg.actions.advanceTime` が同じ daily command 列から同一 state・tickCount・RNG・event を作る」ことをもって解決 = Verified とした。
 
@@ -87,11 +87,11 @@ Economy拡張ONでのAdvance Year合計は約15秒（P1後）。うち `core:man
 
 ### 2.3 Nobility拡張の軍事解決は「日次」が意図的な設計
 
-[`localSkirmish.ts:21-27`](../../src/extensions/nobility/generators/localSkirmish.ts)のコメント:
+[`localSkirmish.ts#L21-27`](/src/extensions/nobility/generators/localSkirmish.ts)のコメント:
 
 > army. Restores the pre-daily-tick "isolated exclave, no hope of relief" protection (…) Ordinary skirmishes between forces within this ratio still resolve as **gradual per-day attrition**.
 
-死傷率は `5%〜10%` を**呼び出し1回ごとに**RNGでロールする（[localSkirmish.ts:206-207](../../src/extensions/nobility/generators/localSkirmish.ts)）。`deltaYears`でスケールされておらず、「1日ごとに緩やかに削れていく」ことそのものがペース設計。月/年単位に潰すと:
+死傷率は `5%〜10%` を**呼び出し1回ごとに**RNGでロールする（[localSkirmish.ts#L206-207](/src/extensions/nobility/generators/localSkirmish.ts)）。`deltaYears`でスケールされておらず、「1日ごとに緩やかに削れていく」ことそのものがペース設計。月/年単位に潰すと:
 
 - スケールせずに集約すると：1ヶ月分の戦闘が「1日分」の消耗にしかならず、戦争が不自然に長引く。
 - 逆にスケールを足すと：ロール回数と分散が変わり、統計的な結果（全滅か持ちこたえるか）が変質する。
@@ -101,7 +101,7 @@ Economy拡張ONでのAdvance Year合計は約15秒（P1後）。うち `core:man
 
 ### 2.4 「今日は月初か」をその場スナップショットで判定しているゲート
 
-[`nobility/index.tsx:318`](../../src/extensions/nobility/index.tsx):
+[`nobility/index.tsx:318`](/src/extensions/nobility/index.tsx):
 
 ```ts
 if (api.simulationContext.currentDay === 1) {
@@ -115,9 +115,9 @@ if (api.simulationContext.currentDay === 1) {
 
 ### 2.5 反応・索敵の粒度喪失（盲目行進）
 
-[`regimentMovement.ts:1019-1077`](../../src/generators/regimentMovement.ts)の`advanceAlongPath()`自体は「1回の呼び出しで複数セル分の移動距離を消化する」設計になっており、これ自体は月/年単位の移動距離をまとめて処理できる。しかし`advanceAllRegimentMovement()`内の索敵・反応（`applyReactionMarchOrder`、目標の再設定）は**呼び出しの先頭で現在位置を見て1回だけ**評価される（[regimentMovement.ts:1152-1178](../../src/generators/regimentMovement.ts)）。日次ループなら「今日接近してきた敵に明日反応する」がほぼリアルタイムに機能するが、月/年単位にまとめると、その期間中に射程に入ってくる敵に気づかず、開始時点の古い情報のまま丸々1ヶ月/1年分の距離を突っ切ってしまう「盲目行進」が発生する。
+[`regimentMovement.ts#L1019-1077`](/src/generators/regimentMovement.ts)の`advanceAlongPath()`自体は「1回の呼び出しで複数セル分の移動距離を消化する」設計になっており、これ自体は月/年単位の移動距離をまとめて処理できる。しかし`advanceAllRegimentMovement()`内の索敵・反応（`applyReactionMarchOrder`、目標の再設定）は**呼び出しの先頭で現在位置を見て1回だけ**評価される（[regimentMovement.ts#L1152-1178](/src/generators/regimentMovement.ts)）。日次ループなら「今日接近してきた敵に明日反応する」がほぼリアルタイムに機能するが、月/年単位にまとめると、その期間中に射程に入ってくる敵に気づかず、開始時点の古い情報のまま丸々1ヶ月/1年分の距離を突っ切ってしまう「盲目行進」が発生する。
 
-**重要**: `advanceAllRegimentMovement()`は**単一の共有関数**であり、Nobility拡張のtick（[nobility/index.tsx:345](../../src/extensions/nobility/index.tsx)）とNobility無効時のcore fallback（[timeEngine.ts](../../src/generators/timeEngine.ts)の`core:militaryFallback`）の**両方から同じ実装を呼んでいる**。つまり`applyReactionMarchOrder`のこの索敵/反応ロジックは、Nobilityが無効なfallback経路でも動いている（呼び出し引数`onCellEntered`/`activeSiegeTargetsByState`が未指定になるだけで、索敵/反応ロジック自体は無条件に実行される）。Phase 1着手時にこの点を見落とし、「fallback経路は反応/索敵ロジックを持たない単純な移動」という誤った前提で計画していたことが実装中に判明した。**fallback経路の移動もこの盲目行進の懸念から逃れられない**（3節Phase 1b参照）。
+**重要**: `advanceAllRegimentMovement()`は**単一の共有関数**であり、Nobility拡張のtick（[nobility/index.tsx:345](/src/extensions/nobility/index.tsx)）とNobility無効時のcore fallback（[timeEngine.ts](/src/generators/timeEngine.ts)の`core:militaryFallback`）の**両方から同じ実装を呼んでいる**。つまり`applyReactionMarchOrder`のこの索敵/反応ロジックは、Nobilityが無効なfallback経路でも動いている（呼び出し引数`onCellEntered`/`activeSiegeTargetsByState`が未指定になるだけで、索敵/反応ロジック自体は無条件に実行される）。Phase 1着手時にこの点を見落とし、「fallback経路は反応/索敵ロジックを持たない単純な移動」という誤った前提で計画していたことが実装中に判明した。**fallback経路の移動もこの盲目行進の懸念から逃れられない**（3節Phase 1b参照）。
 
 ---
 
@@ -125,7 +125,7 @@ if (api.simulationContext.currentDay === 1) {
 
 ### Phase 1a（実装済み・2026-08-13）— manpowerの経過日数カウンタ化
 
-**対象**: [`timeEngine.ts`](../../src/generators/timeEngine.ts)の`advanceTimeMutation()`に直書きされていた`core:manpower`呼び出し。`manpower.tick`という新規`SimulationSystem`（`phase: "population"`）に昇格し、旧来のインライン呼び出しは削除した。
+**対象**: [`timeEngine.ts`](/src/generators/timeEngine.ts)の`advanceTimeMutation()`に直書きされていた`core:manpower`呼び出し。`manpower.tick`という新規`SimulationSystem`（`phase: "population"`）に昇格し、旧来のインライン呼び出しは削除した。
 
 **実装内容**: economy拡張の`daysSinceLastProduction`と同じ「経過日数カウンタで自己ゲート」パターン（1.3節）。`cadence: {every: 1}`のまま**毎tick呼ばれる**が、中身は:
 
@@ -159,7 +159,7 @@ registerSimulationSystem({
 **安全性の根拠**:
 
 - `tickManpower`はすべて `(定数) × deltaYears` の線形レート計算（`manpower.ts` — `ANNUAL_DRAFT_SHARE`・`DEMOBILIZATION_SHARE_PEACE`・`ANNUAL_NATURAL_WASTAGE`はいずれも「年間◯%」の定数）。確率ロールに依存する分岐は無い。
-- `loss < 0.5`で打ち切る箇所（[manpower.ts:468](../../src/generators/manpower.ts)）があり、1日分（deltaYears≈1/365）の消耗は端数が小さすぎて毎日切り捨てられていた。7日分まとめて適用する方が、むしろ数値的に正確になる（過小計上が減る）。
+- `loss < 0.5`で打ち切る箇所（[manpower.ts#L468](/src/generators/manpower.ts)）があり、1日分（deltaYears≈1/365）の消耗は端数が小さすぎて毎日切り捨てられていた。7日分まとめて適用する方が、むしろ数値的に正確になる（過小計上が減る）。
 - `manpower.tick`は`registerSimulationSystem`の`phase: "population"`（`economy`/`politics`/`military`フェーズより先）に登録されているため、旧インライン呼び出しが`timeTickSystems.run()`より前に実行されていたのと同じ相対順序を維持する。
 
 **この変更が2節の不変条件を壊さない理由**: `stepDaySimulation()`の呼び出し回数（tickCount・コミット数）は一切変えていない。経過日数カウンタは「Advance Dayを7回押す」でも「Advance Weekを1回相当で進める」でも同じ回数だけ蓄積されて同じタイミングで発火するため、P2-5が保証した「粒度非依存の結果一致」を壊さない（経済拡張の`daysSinceLastProduction`が既にこの性質を持っていることは`docs/analytics/advance-year-performance.md` §2.1で実証済み）。manpower.tickはRNGを消費しないため、RNG決定性への影響もない。
@@ -186,10 +186,10 @@ registerSimulationSystem({
 
 **実装内容**:
 
-1. **`isBulkAdvance`フラグの新設**（[simulationSystem.ts](../../src/generators/simulationSystem.ts)の`SimulationStepContext`、[timeEngine.ts](../../src/generators/timeEngine.ts)）: 「今日は複数日にまたがる1回のトップレベル進行（Advance Week/Month/Yearや複数日の`advanceTime`/`runDaily`呼び出し）の一部か、それとも単発のAdvance Day/`stepDaySimulation`か」を表す。既存の`enterDayBatch()`/`exitDayBatch()`（day-batchスナップショット機構、Phase 1a以前から存在）を`enterDayBatch(totalDays)`に拡張し、そのバッチが何日分かを保持することで実現。UI（`runTimeSimulation`）・public bulk API（`advanceTime`）・headless（`runDaily`/`advance`、`simulationRunner.ts`の`DayBatchController.enter(totalDays)`）の全経路が同じ仕組みを通るため、一貫して判定できる。単発の`stepDaySimulation()`/`stepDay()`は常に`false`。
-2. **`shouldSuppressConflictAdvance(isBulkAdvance)`**（[conflictDirector.ts](../../src/extensions/nobility/conflictDirector.ts)）: `isBulkAdvance && !mayAdvanceAutonomousConflict()`——多日バッチかつconflictAutonomyが`playerDirected`のときだけ`true`。
-3. **`nobility.tick`**（[nobility/index.tsx](../../src/extensions/nobility/index.tsx)）: `canAdvanceConflict`に`&& !suppressConflictAdvance`を合成。これにより`StrategicPlanner.evaluatePlans/generate/advanceTension`・`LocalSkirmish.resolve`・攻城目標の取得・略奪/奪還コールバックが既存の`canAdvanceConflict`ガード経由で連鎖的に止まる。さらに`advanceAllRegimentMovement()`の呼び出し自体も`suppressConflictAdvance`のとき丸ごとスキップ（`regimentsMoved = false`）——これにより最もコストの大きい経路グラフ再構築（`buildSeaRouteGraph`/`buildLandRouteGraph`/`analyzeFrontiers`等）も回避できる。`Military.updateDynamic`（回復・死亡連隊クリーンアップ）は変更せず毎日実行のまま。
-4. **`core:militaryFallback`**（[timeEngine.ts](../../src/generators/timeEngine.ts)）: 同じ条件（`bulkAdvance && normalizeConflictAutonomy(worldContext.options.conflictAutonomy) === "playerDirected"`）で`advanceAllRegimentMovement()`をスキップ。`Military.updateDynamic`は変更なし。Nobility無効時は`conflictAutonomy`はNobility固有の概念ではなくコアオプション（`worldContext.options.conflictAutonomy`、デフォルト`playerDirected`）なので、拡張の有無に関わらず同じ判定式が使える。
+1. **`isBulkAdvance`フラグの新設**（[simulationSystem.ts](/src/generators/simulationSystem.ts)の`SimulationStepContext`、[timeEngine.ts](/src/generators/timeEngine.ts)）: 「今日は複数日にまたがる1回のトップレベル進行（Advance Week/Month/Yearや複数日の`advanceTime`/`runDaily`呼び出し）の一部か、それとも単発のAdvance Day/`stepDaySimulation`か」を表す。既存の`enterDayBatch()`/`exitDayBatch()`（day-batchスナップショット機構、Phase 1a以前から存在）を`enterDayBatch(totalDays)`に拡張し、そのバッチが何日分かを保持することで実現。UI（`runTimeSimulation`）・public bulk API（`advanceTime`）・headless（`runDaily`/`advance`、`simulationRunner.ts`の`DayBatchController.enter(totalDays)`）の全経路が同じ仕組みを通るため、一貫して判定できる。単発の`stepDaySimulation()`/`stepDay()`は常に`false`。
+2. **`shouldSuppressConflictAdvance(isBulkAdvance)`**（[conflictDirector.ts](/src/extensions/nobility/conflictDirector.ts)）: `isBulkAdvance && !mayAdvanceAutonomousConflict()`——多日バッチかつconflictAutonomyが`playerDirected`のときだけ`true`。
+3. **`nobility.tick`**（[nobility/index.tsx](/src/extensions/nobility/index.tsx)）: `canAdvanceConflict`に`&& !suppressConflictAdvance`を合成。これにより`StrategicPlanner.evaluatePlans/generate/advanceTension`・`LocalSkirmish.resolve`・攻城目標の取得・略奪/奪還コールバックが既存の`canAdvanceConflict`ガード経由で連鎖的に止まる。さらに`advanceAllRegimentMovement()`の呼び出し自体も`suppressConflictAdvance`のとき丸ごとスキップ（`regimentsMoved = false`）——これにより最もコストの大きい経路グラフ再構築（`buildSeaRouteGraph`/`buildLandRouteGraph`/`analyzeFrontiers`等）も回避できる。`Military.updateDynamic`（回復・死亡連隊クリーンアップ）は変更せず毎日実行のまま。
+4. **`core:militaryFallback`**（[timeEngine.ts](/src/generators/timeEngine.ts)）: 同じ条件（`bulkAdvance && normalizeConflictAutonomy(worldContext.options.conflictAutonomy) === "playerDirected"`）で`advanceAllRegimentMovement()`をスキップ。`Military.updateDynamic`は変更なし。Nobility無効時は`conflictAutonomy`はNobility固有の概念ではなくコアオプション（`worldContext.options.conflictAutonomy`、デフォルト`playerDirected`）なので、拡張の有無に関わらず同じ判定式が使える。
 
 **`autonomous`ポリシーは無影響**: `mayAdvanceAutonomousConflict()`が`true`を返す間は`suppressConflictAdvance`が常に`false`になるため、AIが自律的に戦争を行うモードでは日次と同じ完全な解決が多日バッチでも継続する。
 

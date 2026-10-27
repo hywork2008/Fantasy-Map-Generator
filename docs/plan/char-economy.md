@@ -107,7 +107,7 @@ Nobility拡張機能からキャラクター生成部分を切り離し、汎用
 
 **実装コードを確認した上での追加見解**
 
-- Markets Overviewの`Owner`（`getOwnerStateName()`, `markets-overview.ts:440`）もShipyardsの`Owner`（`ShipyardOwner = "state" | "market"`）も、現時点では**キャラクターIDへの参照を一切持たない、State/Burg由来の表示専用プロジェクション**であることを確認した。つまりOwnerはまだCharacterと配線されていない。
+- Markets Overviewの`Owner`（`getOwnerStateName()`, `markets-overview.ts#L440`）もShipyardsの`Owner`（`ShipyardOwner = "state" | "market"`）も、現時点では**キャラクターIDへの参照を一切持たない、State/Burg由来の表示専用プロジェクション**であることを確認した。つまりOwnerはまだCharacterと配線されていない。
 - 一方でNobility拡張の`index.tsx`には、外交補正・将校任命・諜報・戦略プランナー・動員・小競り合い解決など、質問2で懸念していた「政治ロジックとキャラクター生成ロジックの混在（God Object化）」が既に進行している。
 - ShipbuildingがEconomyに対して`dependencies: [{ id: "economy", required: false }]`を宣言してCustomEventで疎結合連携する仕組み、および`registerSkillModifier`/`getEffectiveSkill(characterId, skill)`という「importせずに他拡張のキャラクターデータを参照する」レジストリパターンが、既にコードベース内に実績として存在する。
 

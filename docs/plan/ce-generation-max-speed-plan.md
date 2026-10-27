@@ -229,10 +229,10 @@ A4 の失敗は、「同じ都市を2回生成した結果が一致しない」�
 
 | # | 変更 | ファイル | 30都市 |
 | --- | --- | --- | --- |
-| A1/A2 | 生成後の最初の区画構築（`initial-fabric`）と住宅数の調整の各回で、地区単位の区画キャッシュ（`FabricCache`）を1つ共有する。初回の数え直しは、最初の構築で作った地区の区画をそのまま使う | [generateCity.ts](../../src/city-editor/generators/generation/generateCity.ts)、[fitImportedHousing.ts](../../src/city-editor/generators/fitImportedHousing.ts) | 38.4 → 36.3 s |
-| — | 海岸の後退帯（`coastalBandOverlap`・`cultivableParts`）: 海岸線ごとの帯を区画ごとではなく海岸線の一覧ごとに1回だけ作り、区画の外接矩形と重ならない帯は飛ばす。`bounds` を配列の展開から1回の走査に変更 | [coastalSuitability.ts](../../src/city-editor/generators/coastalSuitability.ts)、[parcelGeometry.ts](../../src/city-editor/generators/parcelGeometry.ts) | 36.3 → 34.7 s |
-| A3 | 港の計画（`planHarbor`）を、同じ生成の中で入力（文書、街路、障害物、地区ごとの港の型）が同じ間は使い回す。生成が渡したキャッシュのときだけで、UIの既定キャッシュでは使わない | [blockInfill.ts](../../src/city-editor/generators/blockInfill.ts) | 34.7 → 33.4 s |
-| A4/A5 | 水面判定（`lineHitsDocumentWater`）を辺ごとに呼ぶ箇所で、準備済みの水面判定を使い回す。城塞の門から町への道の探索（`castles.ts` の `search`）が全辺について毎回 `sameCoast`（メッシュ全体の比較）を行っていたのが主因で、`assembleRoads.ts` の測量済み水面の経路も同様に直した | [castles.ts](../../src/city-editor/generators/castles.ts)、[assembleRoads.ts](../../src/city-editor/generators/generation/routing/assembleRoads.ts) | 33.4 → 31.3 s |
+| A1/A2 | 生成後の最初の区画構築（`initial-fabric`）と住宅数の調整の各回で、地区単位の区画キャッシュ（`FabricCache`）を1つ共有する。初回の数え直しは、最初の構築で作った地区の区画をそのまま使う | [generateCity.ts](/src/city-editor/generators/generation/generateCity.ts)、[fitImportedHousing.ts](/src/city-editor/generators/fitImportedHousing.ts) | 38.4 → 36.3 s |
+| — | 海岸の後退帯（`coastalBandOverlap`・`cultivableParts`）: 海岸線ごとの帯を区画ごとではなく海岸線の一覧ごとに1回だけ作り、区画の外接矩形と重ならない帯は飛ばす。`bounds` を配列の展開から1回の走査に変更 | [coastalSuitability.ts](/src/city-editor/generators/coastalSuitability.ts)、[parcelGeometry.ts](/src/city-editor/generators/parcelGeometry.ts) | 36.3 → 34.7 s |
+| A3 | 港の計画（`planHarbor`）を、同じ生成の中で入力（文書、街路、障害物、地区ごとの港の型）が同じ間は使い回す。生成が渡したキャッシュのときだけで、UIの既定キャッシュでは使わない | [blockInfill.ts](/src/city-editor/generators/blockInfill.ts) | 34.7 → 33.4 s |
+| A4/A5 | 水面判定（`lineHitsDocumentWater`）を辺ごとに呼ぶ箇所で、準備済みの水面判定を使い回す。城塞の門から町への道の探索（`castles.ts` の `search`）が全辺について毎回 `sameCoast`（メッシュ全体の比較）を行っていたのが主因で、`assembleRoads.ts` の測量済み水面の経路も同様に直した | [castles.ts](/src/city-editor/generators/castles.ts)、[assembleRoads.ts](/src/city-editor/generators/generation/routing/assembleRoads.ts) | 33.4 → 31.3 s |
 
 30都市の合計は 38.4 → 31.3 s（-18.5%）。
 
@@ -261,7 +261,7 @@ S0 の基準 187.4 s → **155.1 s（-17.3%）**。見積り（271 s 基準で -
 
 - このテストは、エディタを開くときの seed を `Math.random()` で決める。実行のたびに別の町を試している。
 - 合成の町の seed を固定して32通り試すと、2通り（seed `1eaygix`、`1n5lq5i`）で2回目の図が違った。どちらも S1 の変更を外した HEAD で同じように違う。
-- 原因は [generation.ts](../../src/city-editor/controllers/generation.ts) の `acceptCompleteGeneration`。生成に成功すると、画面の seed を結果の `generationSeed` に置き換える。最初の試行が不採用で再試行した町では、これが `<seed>:junction-retry:2` になる。2回目の一括生成は、この seed を試行1として、元の設定で生成する（1回目の試行3とは試行番号も設定も違う）。そのため別の町になる。
+- 原因は [generation.ts](/src/city-editor/controllers/generation.ts) の `acceptCompleteGeneration`。生成に成功すると、画面の seed を結果の `generationSeed` に置き換える。最初の試行が不採用で再試行した町では、これが `<seed>:junction-retry:2` になる。2回目の一括生成は、この seed を試行1として、元の設定で生成する（1回目の試行3とは試行番号も設定も違う）。そのため別の町になる。
 - P3 で A4 を戻した原因の「ファイル全体を実行したときだけ失敗」も、同じ現象だった可能性が高い（seed がたまたま再試行の町に当たった）。
 
 ### 10.5 修正: 採用した試行から生成し直す（2026-10-15）
@@ -286,14 +286,14 @@ B1 と B3 を実施した。B2（建物を作らない見積り）は、B1 が�
 
 ### 11.1 B1: 住宅数の調整を、作り直さずに数える
 
-- 占有率は、区画ごとの乱数 `rng() < occupancy` で家を建てるかを決めている。乱数列は占有率を変えてもずれないように作られている（`frontageBuildings.ts`・`perimeterHousing.ts` のコメント）。そこで、家を建てたときの乱数（抽選値）を区画に `occupancyDraw` として残す（[frontageBuildings.ts](../../src/city-editor/generators/frontageBuildings.ts) の `occupancyDraws`、[organicBlocks.ts](../../src/city-editor/generators/organicBlocks.ts)・[perimeterBlocks.ts](../../src/city-editor/generators/perimeterBlocks.ts)・[localInfill.ts](../../src/city-editor/generators/localInfill.ts) で区画に付ける）。抽選値を残すだけでは出力は変わらない（30都市でハッシュ一致）。
-- 住宅数の調整（[fitImportedHousing.ts](../../src/city-editor/generators/fitImportedHousing.ts) の `fitMorphologyHousing`）は、最初の1回だけ区画を作る。以後、占有率を下げる回は「抽選値が新しい占有率未満の区画だけ残す」、階数を上げる回は「残した区画に階数を付け直す」（`applyResidentialStoreys`）だけで数える。占有率を作ったときより上げる回だけ、作り直す。
+- 占有率は、区画ごとの乱数 `rng() < occupancy` で家を建てるかを決めている。乱数列は占有率を変えてもずれないように作られている（`frontageBuildings.ts`・`perimeterHousing.ts` のコメント）。そこで、家を建てたときの乱数（抽選値）を区画に `occupancyDraw` として残す（[frontageBuildings.ts](/src/city-editor/generators/frontageBuildings.ts) の `occupancyDraws`、[organicBlocks.ts](/src/city-editor/generators/organicBlocks.ts)・[perimeterBlocks.ts](/src/city-editor/generators/perimeterBlocks.ts)・[localInfill.ts](/src/city-editor/generators/localInfill.ts) で区画に付ける）。抽選値を残すだけでは出力は変わらない（30都市でハッシュ一致）。
+- 住宅数の調整（[fitImportedHousing.ts](/src/city-editor/generators/fitImportedHousing.ts) の `fitMorphologyHousing`）は、最初の1回だけ区画を作る。以後、占有率を下げる回は「抽選値が新しい占有率未満の区画だけ残す」、階数を上げる回は「残した区画に階数を付け直す」（`applyResidentialStoreys`）だけで数える。占有率を作ったときより上げる回だけ、作り直す。
 - 中心部の家がすべて抽選値を持つことを確認した。主要街路沿いの家（占有率で抜かない）は抽選値を持たず、常に残す。
 - 出力への影響: 選ぶ占有率は全596都市で同じ結果になり、**描く住宅数は全都市で変わらない**。変わるのは、文書に入る住宅調整の報告（`housingCapacity`・`housingFit`）が見積りになる点。見積りと描画の差は中央値 0・p95 0、最大は住宅数十戸の村で14%（267: 見積り37、描画43）。角の区割りや大型施設による住宅の除去が占有率に連動するためで、小さな村ほど1戸の差の比率が大きい。占有率の倍率が少し変わった都市が2つ（296、483）あるが、描く住宅は同じ。
 
 ### 11.2 B3: 港の船を、住宅数の調整が作った港の計画から置く
 
-- 船は試行の途中（街路の確定前）に置いていて、そのためだけに区画を丸ごと1回作っていた。FMGの町（記述子あり）では、試行の中では無効な港の整理と古い船の除去だけを行い（`clearHarborShips`）、船の配置は住宅数の調整の後に、調整が作った区画の港の計画を渡して行う（`placeHarborShips`、[harborShips.ts](../../src/city-editor/generators/harborShips.ts)、[generateCity.ts](../../src/city-editor/generators/generation/generateCity.ts)）。占有率と階数は街路を変えないので、この港の計画は完成した町が描く港と同じ。記述子のない合成の町は従来どおり。
+- 船は試行の途中（街路の確定前）に置いていて、そのためだけに区画を丸ごと1回作っていた。FMGの町（記述子あり）では、試行の中では無効な港の整理と古い船の除去だけを行い（`clearHarborShips`）、船の配置は住宅数の調整の後に、調整が作った区画の港の計画を渡して行う（`placeHarborShips`、[harborShips.ts](/src/city-editor/generators/harborShips.ts)、[generateCity.ts](/src/city-editor/generators/generation/generateCity.ts)）。占有率と階数は街路を変えないので、この港の計画は完成した町が描く港と同じ。記述子のない合成の町は従来どおり。
 - 出力への影響: 船の位置と要素の並び順が変わる。30都市で船は 32 → 34 隻、前後とも全隻がエディタの描く桟橋から 15 m 以内（`quality.ships`・`shipsNearPier` を追加して確認）。
 
 ### 11.3 全596都市（暖機、並列なし）
@@ -324,19 +324,19 @@ C1・C2・C3・C5（C4 は除く）と D3、D4 の一部を実施した。いず
 
 | # | 変更 | ファイル |
 | --- | --- | --- |
-| C1 | 城の候補の箱（`reserveBox`）の4回の切断を、1回の複製の上で直接編集し、最後に1回だけ `validate` する。以前は切断ごとに頂点の挿入2回と面の分割1回がそれぞれ文書を複製・検査していた（1箱で最大12回）。`insertEdgeVertexInPlace`・`splitFaceInPlace` を追加 | [castlePlacement.ts](../../src/city-editor/generators/castlePlacement.ts)、[mesh.ts](../../src/city-editor/generators/mesh.ts) |
-| C2 | 城の配置後の再割り当て（`remap`）で、新しい区画ごとの親（旧区画）を1回だけ外接矩形つきで求め、8つの集合で共有する。以前は集合ごと・区画ごとに全旧区画を `pointInPolygon` で探していた | [defenses.ts](../../src/city-editor/generators/generation/planning/defenses.ts) |
-| C3 | 城壁から道路の離隔判定（`castleRoadEdgeAllowed`）を、全辺を調べる2か所で準備済みの判定（`castleRoadEdgeTest`）にした。外接矩形の間隔が離隔以上の壁の線分は飛ばす（距離の下限なので結果は同じ） | [castles.ts](../../src/city-editor/generators/castles.ts)、[completeRoadRouter.ts](../../src/city-editor/generators/generation/routing/completeRoadRouter.ts) |
-| C3 | 河川の上陸点の探索で、水面ポリゴン（`waterPolygons`）を辺・頂点ごとではなくループの前に1回だけ作る | [assembleRoads.ts](../../src/city-editor/generators/generation/routing/assembleRoads.ts) |
-| C5 | 通り抜け道の直線化（`straightenThroughStreets`）で、曲がり角の判定を移動先の点だけで先に行い、通ったときだけ `moveVertices` を呼ぶ | [frameRoadJunction.ts](../../src/city-editor/generators/frameRoadJunction.ts) |
-| C5 | 門の頂点の移動（`tryMoveVertex`）で、周りの区画の形の判定を移動先の点で先に行う | [passages.ts](../../src/city-editor/generators/passages.ts) |
-| C5 | 外側の道の近道（`shortcutExteriorRoads`）で、分割後の2つの区画の形を頂点の並びから先に判定する。これで、分割した後に捨てる回がなくなった | [gateApproaches.ts](../../src/city-editor/generators/generation/routing/gateApproaches.ts) |
-| — | `splitFace`・`mergeFaces`・`moveVertices` の、元の文書だけで決まる不採用の判定を、複製の前に移す | [mesh.ts](../../src/city-editor/generators/mesh.ts) |
-| — | 文書の複製（`cloneMesh`）で、頂点の `point`、区画の `boundary`・`site` の配列を複製元と共有する。編集はこれらを置き換え、中を書き換えない。テスト（Vitest）では共有した配列を凍結し、中を書き換えるコードがあれば失敗する（凍結した配列は遅いので、アプリでは凍結しない） | [mesh.ts](../../src/city-editor/generators/mesh.ts) |
-| D3 | `nearestOnPolyline` が線分ごとに点と結果の物を作っていたのを、最後に1回だけ作る。`insideRing` が判定のたびに閉じた輪の配列を作っていたのをやめる。`pointInPolygon` の分割代入をやめる | [geom.ts](../../src/city-editor/generators/geom.ts)、[fortifications.ts](../../src/city-editor/generators/fortifications.ts) |
-| D4 | `edgeBetween`・`incidentEdges`・`incidentFaces` で、全辺・全区画の配列を作らずに走査する（順序は同じ） | [mesh.ts](../../src/city-editor/generators/mesh.ts) |
+| C1 | 城の候補の箱（`reserveBox`）の4回の切断を、1回の複製の上で直接編集し、最後に1回だけ `validate` する。以前は切断ごとに頂点の挿入2回と面の分割1回がそれぞれ文書を複製・検査していた（1箱で最大12回）。`insertEdgeVertexInPlace`・`splitFaceInPlace` を追加 | [castlePlacement.ts](/src/city-editor/generators/castlePlacement.ts)、[mesh.ts](/src/city-editor/generators/mesh.ts) |
+| C2 | 城の配置後の再割り当て（`remap`）で、新しい区画ごとの親（旧区画）を1回だけ外接矩形つきで求め、8つの集合で共有する。以前は集合ごと・区画ごとに全旧区画を `pointInPolygon` で探していた | [defenses.ts](/src/city-editor/generators/generation/planning/defenses.ts) |
+| C3 | 城壁から道路の離隔判定（`castleRoadEdgeAllowed`）を、全辺を調べる2か所で準備済みの判定（`castleRoadEdgeTest`）にした。外接矩形の間隔が離隔以上の壁の線分は飛ばす（距離の下限なので結果は同じ） | [castles.ts](/src/city-editor/generators/castles.ts)、[completeRoadRouter.ts](/src/city-editor/generators/generation/routing/completeRoadRouter.ts) |
+| C3 | 河川の上陸点の探索で、水面ポリゴン（`waterPolygons`）を辺・頂点ごとではなくループの前に1回だけ作る | [assembleRoads.ts](/src/city-editor/generators/generation/routing/assembleRoads.ts) |
+| C5 | 通り抜け道の直線化（`straightenThroughStreets`）で、曲がり角の判定を移動先の点だけで先に行い、通ったときだけ `moveVertices` を呼ぶ | [frameRoadJunction.ts](/src/city-editor/generators/frameRoadJunction.ts) |
+| C5 | 門の頂点の移動（`tryMoveVertex`）で、周りの区画の形の判定を移動先の点で先に行う | [passages.ts](/src/city-editor/generators/passages.ts) |
+| C5 | 外側の道の近道（`shortcutExteriorRoads`）で、分割後の2つの区画の形を頂点の並びから先に判定する。これで、分割した後に捨てる回がなくなった | [gateApproaches.ts](/src/city-editor/generators/generation/routing/gateApproaches.ts) |
+| — | `splitFace`・`mergeFaces`・`moveVertices` の、元の文書だけで決まる不採用の判定を、複製の前に移す | [mesh.ts](/src/city-editor/generators/mesh.ts) |
+| — | 文書の複製（`cloneMesh`）で、頂点の `point`、区画の `boundary`・`site` の配列を複製元と共有する。編集はこれらを置き換え、中を書き換えない。テスト（Vitest）では共有した配列を凍結し、中を書き換えるコードがあれば失敗する（凍結した配列は遅いので、アプリでは凍結しない） | [mesh.ts](/src/city-editor/generators/mesh.ts) |
+| D3 | `nearestOnPolyline` が線分ごとに点と結果の物を作っていたのを、最後に1回だけ作る。`insideRing` が判定のたびに閉じた輪の配列を作っていたのをやめる。`pointInPolygon` の分割代入をやめる | [geom.ts](/src/city-editor/generators/geom.ts)、[fortifications.ts](/src/city-editor/generators/fortifications.ts) |
+| D4 | `edgeBetween`・`incidentEdges`・`incidentFaces` で、全辺・全区画の配列を作らずに走査する（順序は同じ） | [mesh.ts](/src/city-editor/generators/mesh.ts) |
 
-- 配列の共有に合わせて、[previews.test.ts](../../src/city-editor/generators/generation/previews.test.ts) の「返した文書が独立している」確認を、点の中を書き換える形から点を置き換える形に変えた。点の中を書き換えると、共有している別の文書も変わるため。区画・辺・道路などの記録の独立性はこれまでどおり確かめている。
+- 配列の共有に合わせて、[previews.test.ts](/src/city-editor/generators/generation/previews.test.ts) の「返した文書が独立している」確認を、点の中を書き換える形から点を置き換える形に変えた。点の中を書き換えると、共有している別の文書も変わるため。区画・辺・道路などの記録の独立性はこれまでどおり確かめている。
 - 共有を常に凍結した版でも、診断用30都市のハッシュが一致し、全テストが通ることを確認した（書き換えるコードは見つからなかった）。
 
 ### 12.2 全596都市（暖機、並列なし）

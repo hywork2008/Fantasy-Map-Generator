@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { expect, it, vi } from "vitest";
 import { buildBlockFabric, documentFabricFingerprint } from "../generators/blockInfill";
 import { createDocument } from "../generators/document";
+import { beginEditorMount } from "../services/editorLifetime";
 import { mountCity3d } from "./cityView";
 
 const render = vi.hoisted(() => vi.fn());
@@ -212,6 +213,68 @@ it("renders on demand, retains unchanged scene layers on reopen, and reflects ca
     for (const cleanup of cleanups) cleanup();
     host.remove();
     localStorage.removeItem("fmg-city-editor:sun-lighting");
+    vi.unstubAllGlobals();
+  }
+});
+
+it("keeps cursor zoom and right-drag responsive above the ground at a 30-degree viewing angle", () => {
+  vi.stubGlobal("requestAnimationFrame", () => 1);
+  vi.stubGlobal("cancelAnimationFrame", () => {});
+  const host = document.createElement("div"),
+    map = document.createElement("div");
+  host.append(map);
+  document.body.append(host);
+  const scope = beginEditorMount(host);
+  const city = createDocument("ground-plane-navigation", 160);
+  const view = mountCity3d({ canvasHost: host, map, scope, getDocument: () => city });
+  try {
+    view.restoreView({ position: [0, 100, 100 * Math.sqrt(3)], target: [0, 0, 0], zoom: 1, fov: 45 });
+    const canvas = host.querySelector("canvas")!;
+    canvas.setPointerCapture = () => {};
+    canvas.releasePointerCapture = () => {};
+    vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      width: 800,
+      height: 600,
+      right: 800,
+      bottom: 600,
+      toJSON() {}
+    });
+    const snapshot = () => view.getPerformance()!.camera!;
+    const position = () => new THREE.Vector3().fromArray(snapshot().position);
+    const pointer = (type: string, x: number, y: number) =>
+      Object.assign(new MouseEvent(type, { button: 2, clientX: x, clientY: y, bubbles: true }), {
+        pointerId: 1,
+        pointerType: "mouse"
+      });
+    for (let step = 0; step < 50; step++) {
+      const beforePan = position();
+      canvas.dispatchEvent(pointer("pointerdown", 400, 300));
+      document.dispatchEvent(pointer("pointermove", 480, 310));
+      document.dispatchEvent(pointer("pointerup", 480, 310));
+      expect(position().distanceTo(beforePan)).toBeGreaterThan(beforePan.y * 0.1);
+      const beforeZoom = position();
+      canvas.dispatchEvent(
+        new WheelEvent("wheel", {
+          deltaY: -100,
+          clientX: 600,
+          clientY: 120,
+          cancelable: true
+        })
+      );
+      // Movement must follow the distance to the ground, even after many gestures.
+      expect(position().distanceTo(beforeZoom)).toBeGreaterThan(beforeZoom.y * 0.05);
+      expect(snapshot().target[1]).toBeCloseTo(0, 8);
+      const offset = position().sub(new THREE.Vector3().fromArray(snapshot().target));
+      expect(offset.y / offset.length()).toBeCloseTo(0.5, 8);
+    }
+  } finally {
+    view.dispose();
+    scope.dispose();
+    host.remove();
     vi.unstubAllGlobals();
   }
 });

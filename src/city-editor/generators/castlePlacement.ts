@@ -226,7 +226,8 @@ type CastleJudge = ReturnType<typeof makeCastleJudge>;
  * With `constraints`, every candidate must leave the road corridors, gate
  * sectors, outside reach and gate-to-gate links intact (C1–C4 in
  * castle-road-siting-order.md §3.4); those are hard filters, not penalties.
- * Fallback order: smaller size, then detached, then no castle.
+ * Exhaust the existing sites before trying one more outer ring for a detached
+ * castle; explicit central and integrated settings keep their placement rules.
  */
 export function placeCastleRegion(
   document: CityDocument,
@@ -270,29 +271,39 @@ export function placeCastleRegion(
     urbanLandArea(document, urban, water) <= OUTWARD_FIRST_URBAN_RATIO * castleTargetArea(size)
       ? [true, false]
       : [!!constraints?.outward];
-  for (const outward of outwardModes)
-    for (const relationship of relationships)
-      for (const [i, sz] of sizes.entries()) {
-        if (i > 0 && !judge) break;
-        for (const relaxed of [false, true]) {
-          const site = placeCastlePass(
-            document,
-            urban,
-            water,
-            reserved,
-            rivers,
-            seed,
-            { ...settings, relationship },
-            sz,
-            terrain,
-            relaxed,
-            constraints && { ...constraints, outward },
-            judge,
-            prefer
-          );
-          if (site) return site;
+  // Keep successful towns unchanged. Only after all original passes fail may
+  // an automatic/edge detached castle move one cell farther from the town.
+  const outwardRings =
+    judge && outwardModes.includes(true) && settings.position !== "central" && settings.relationship !== "integrated"
+      ? [1, 2]
+      : [1];
+  for (const outwardRing of outwardRings)
+    for (const outward of outwardModes) {
+      if (outwardRing === 2 && !outward) continue;
+      for (const relationship of outwardRing === 2 ? (["detached"] as const) : relationships)
+        for (const [i, sz] of sizes.entries()) {
+          if (i > 0 && !judge) break;
+          for (const relaxed of [false, true]) {
+            const site = placeCastlePass(
+              document,
+              urban,
+              water,
+              reserved,
+              rivers,
+              seed,
+              { ...settings, relationship },
+              sz,
+              terrain,
+              relaxed,
+              constraints && { ...constraints, outward },
+              judge,
+              prefer,
+              outwardRing
+            );
+            if (site) return site;
+          }
         }
-      }
+    }
   return null;
 }
 
@@ -325,7 +336,8 @@ function placeCastlePass(
   relaxed: boolean,
   constraints: CastleSitingConstraints | undefined,
   judge: CastleJudge | undefined,
-  prefer?: Point
+  prefer?: Point,
+  outwardRing = 1
 ): CastleSite | null {
   const hasWalls = document.featureGroups.some(g => g.kind === "wall");
   const rng = makeRng(`${seed}:castle:placement`);
@@ -343,6 +355,15 @@ function placeCastlePass(
       return [e.leftFace, e.rightFace].filter((id): id is Id => !!id);
     })
   );
+  const outerNeighbors = new Set<Id>();
+  if (outwardRing === 2) {
+    for (const id of border) {
+      if (urban.has(id) || water.has(id)) continue;
+      for (const neighbor of faceNeighbors(document.mesh, id)) {
+        if (!urban.has(neighbor) && !border.has(neighbor)) outerNeighbors.add(neighbor);
+      }
+    }
+  }
   const minArea = size === "tiny" ? 1200 : size === "small" ? 2500 : size === "large" ? 10000 : 5000;
   const target = castleTargetArea(size);
   const block = document.frame.blockSizeMeters;
@@ -412,7 +433,22 @@ function placeCastlePass(
       )
         return false;
       if (Math.abs(polygonArea(facePoints(document.mesh, face))) < minArea * 0.15) return false;
-      if (relationship === "integrated" || outward) return !urban.has(face.id) && border.has(face.id);
+      if (relationship === "integrated" || outward) {
+        if (urban.has(face.id)) return false;
+        if (outwardRing === 1) return border.has(face.id);
+        if (!outerNeighbors.has(face.id)) return false;
+        // A coarse outer cell can be very large. Bound the starting site by
+        // metric distance as well as adjacency, rather than searching the map.
+        const center = polygonCentroid(facePoints(document.mesh, face));
+        const maxDistance = 2 * Math.max(block, Math.sqrt(target));
+        return boundary.some(ref => {
+          const edge = document.mesh.edges[ref.edgeId];
+          return (
+            nearestOnPolyline(center, [document.mesh.vertices[edge.a].point, document.mesh.vertices[edge.b].point])
+              .dist <= maxDistance
+          );
+        });
+      }
       if (prefer && insideRing(prefer, facePoints(document.mesh, face))) return true;
       // A tiny evolution town can be all edge cells. The strict pass keeps the
       // old interior-only central rule; the retry may cut a box out of the

@@ -174,7 +174,7 @@ SVG の `#prec`、`#temperature`、`#danger`、`#population` はいずれも `"o
 
 | ファイル | 役割 |
 |:---------|:-----|
-| [`src/renderers/webgl/webglStyleExtractors.ts`](../../src/renderers/webgl/webglStyleExtractors.ts) | `getCellLayerOpacities()` — SVG からの opacity 読み取り |
-| [`src/renderers/webgl/adapters/deckDataAdapters.ts`](../../src/renderers/webgl/adapters/deckDataAdapters.ts) | `build*Polygons()` — opacity パラメータを受け取るポリゴンビルド関数群 |
-| [`src/renderers/webgl/buildDeckLayers.ts`](../../src/renderers/webgl/buildDeckLayers.ts) | `WEBGL_POLYGON_LAYERS`、`buildLayerSignatures()` — レイヤーへの opacity 転送とキャッシュ管理 |
+| [`src/renderers/webgl/webglStyleExtractors.ts`](/src/renderers/webgl/webglStyleExtractors.ts) | `getCellLayerOpacities()` — SVG からの opacity 読み取り |
+| [`src/renderers/webgl/adapters/deckDataAdapters.ts`](/src/renderers/webgl/adapters/deckDataAdapters.ts) | `build*Polygons()` — opacity パラメータを受け取るポリゴンビルド関数群 |
+| [`src/renderers/webgl/buildDeckLayers.ts`](/src/renderers/webgl/buildDeckLayers.ts) | `WEBGL_POLYGON_LAYERS`、`buildLayerSignatures()` — レイヤーへの opacity 転送とキャッシュ管理 |
 | [`public/styles/clean.json`](../../public/styles/clean.json) | フォールバックに使う各レイヤーのデフォルト opacity 値のソース |

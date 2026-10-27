@@ -29,7 +29,7 @@
 
 **grid**: 596都市すべて `grid: "evolution"`（入力CSVの `share_json.grid`）。
 
-**内壁・外壁の順序**: FMGからの入力では `townWallBuildOrder` を設定していない。このため、今回の18都市は**すべて外壁先（outer-first）**で生成されている。[generateCity.ts](../../src/city-editor/generators/generation/generateCity.ts) の `wall-defense-closure` も全件 `innerFirst: 0` だった。内壁先モードは、FMG入力ではまだ一度も計測されていない。
+**内壁・外壁の順序**: FMGからの入力では `townWallBuildOrder` を設定していない。このため、今回の18都市は**すべて外壁先（outer-first）**で生成されている。[generateCity.ts](/src/city-editor/generators/generation/generateCity.ts) の `wall-defense-closure` も全件 `innerFirst: 0` だった。内壁先モードは、FMG入力ではまだ一度も計測されていない。
 
 **外壁先の河川途切れ**: 外壁先では、二重市壁でも開口で不採用にならない（`townWallDefensePolicy` が未指定なら不採用判定をしない）。開口は記録だけ残る。
 
@@ -189,9 +189,9 @@ npm run ce:perf:query -- temp/benchmarks/<step>.jsonl retries
 
 | 都市 | 原因 | 修正 |
 | --- | --- | --- |
-| 6 Ordes | 広場がない町で、城が町の中心（街路の合流点）に置かれ、門の道路が通れない | [defenses.ts](../../src/city-editor/generators/generation/planning/defenses.ts): 広場がないとき、町の中心点に最も近い頂点に接する市街地の面を城の予約地にする（`townHubFaces`）。1回目で成功 |
-| 317 Sinzlingen、452 Sanjeiradil | 城を町の外に置いたとき、城門が「城の壁と町の壁に囲まれた袋小路」に開き、道路が出られない。`castle-layout-too-small` は症状で、実際は `castle-no-site`／`castle-no-access` | [castles.ts](../../src/city-editor/generators/castles.ts): 門が町の外の面に開くとき、道路が壁・水・城を通らずに町の門か地図の端へ出られるか確認し（`exteriorReachesWorld`）、出られない辺を門の候補から外す。2回目で成功 |
-| 314 Gothengsfeld | 橋のたもとへ向かう門に、川に入る古い外側の辺が残り、その辺が通り抜けの辺に選ばれて門が水没扱いになる。道路が門に接続できない | [gates.ts](../../src/city-editor/generators/generation/assembly/gates.ts): 橋のたもとへの腕を引いた直後に、川に触れる外側の辺が分けている2つの面を統合する（`dropWetExteriorArms`）。1回目で成功 |
+| 6 Ordes | 広場がない町で、城が町の中心（街路の合流点）に置かれ、門の道路が通れない | [defenses.ts](/src/city-editor/generators/generation/planning/defenses.ts): 広場がないとき、町の中心点に最も近い頂点に接する市街地の面を城の予約地にする（`townHubFaces`）。1回目で成功 |
+| 317 Sinzlingen、452 Sanjeiradil | 城を町の外に置いたとき、城門が「城の壁と町の壁に囲まれた袋小路」に開き、道路が出られない。`castle-layout-too-small` は症状で、実際は `castle-no-site`／`castle-no-access` | [castles.ts](/src/city-editor/generators/castles.ts): 門が町の外の面に開くとき、道路が壁・水・城を通らずに町の門か地図の端へ出られるか確認し（`exteriorReachesWorld`）、出られない辺を門の候補から外す。2回目で成功 |
+| 314 Gothengsfeld | 橋のたもとへ向かう門に、川に入る古い外側の辺が残り、その辺が通り抜けの辺に選ばれて門が水没扱いになる。道路が門に接続できない | [gates.ts](/src/city-editor/generators/generation/assembly/gates.ts): 橋のたもとへの腕を引いた直後に、川に触れる外側の辺が分けている2つの面を統合する（`dropWetExteriorArms`）。1回目で成功 |
 
 ### 影響と検証
 
@@ -221,9 +221,9 @@ npm run ce:perf:query -- temp/benchmarks/<step>.jsonl retries
 
 | 内容 | ファイル |
 | --- | --- |
-| 内壁の選択を2段階にする。従来の円形選択が失敗したときだけ、外壁から間隔分以上内側の面に限って選ぶ（`inlandTown`）。計画段階と構築段階の両方 | [innerTownWall.ts](../../src/city-editor/generators/innerTownWall.ts) |
+| 内壁の選択を2段階にする。従来の円形選択が失敗したときだけ、外壁から間隔分以上内側の面に限って選ぶ（`inlandTown`）。計画段階と構築段階の両方 | [innerTownWall.ts](/src/city-editor/generators/innerTownWall.ts) |
 | 城門の隅に接する面を、内壁の内か外のどちらか一方にそろえる（`settleCastleGateFront`） | 同上 |
-| 二重市壁の内壁を実際に作ったうえで2回失敗したら、単一市壁に戻して再試行し、`townWallGeneration.fallbackReason` に理由を残す | [generateCity.ts](../../src/city-editor/generators/generation/generateCity.ts) |
+| 二重市壁の内壁を実際に作ったうえで2回失敗したら、単一市壁に戻して再試行し、`townWallGeneration.fallbackReason` に理由を残す | [generateCity.ts](/src/city-editor/generators/generation/generateCity.ts) |
 
 - 単一市壁への後退は、3 Huerejos（3試行目で成功）のみ。根本原因（外壁の門の道が城の除外域で塞がれる）は未修正。
 - 実現した内壁で河川開口のあるものは0。外壁側の開口は5都市（Dunsbole 87 m、Skipton 132 m、Schonauesch 519 m、Calver 22 m、Baltonor 292 m）で、港・河川の開口の扱いは未決のまま。
@@ -258,9 +258,9 @@ npm run ce:perf:query -- temp/benchmarks/<step>.jsonl retries
 
 | 内容 | ファイル | 効果の見立て |
 | --- | --- | --- |
-| `polygonOverlaps` に外接矩形による絞り込みを追加（互いに離れた多角形は即 false、相手の範囲外の頂点・辺は検査しない）。水面・領域など頂点の多い多角形との比較が支配的だった | [fortifications.ts](../../src/city-editor/generators/fortifications.ts) | 30都市で 72.8 → 63.7 s |
-| `gapToLines` の走査に外接矩形の下限による枝刈り（現在の最小値より遠い線分は計算しない）。しきい値判定だけの呼び出しは `gapBelow`（最初に下回った時点で終了）に置換 | [defenseClearance.ts](../../src/city-editor/generators/defenseClearance.ts)、[urbanGrowth.ts](../../src/city-editor/generators/urbanGrowth.ts) | 63.7 → 52.8 s |
-| 住宅数の調整（`fitMorphologyHousing`）で、(a) 地区パラメータが変わらない再計算を使い回し、(b) 地区の内容をキーにしたキャッシュを全回で共有 | [fitImportedHousing.ts](../../src/city-editor/generators/fitImportedHousing.ts) | 52.8 → 48.9 s |
+| `polygonOverlaps` に外接矩形による絞り込みを追加（互いに離れた多角形は即 false、相手の範囲外の頂点・辺は検査しない）。水面・領域など頂点の多い多角形との比較が支配的だった | [fortifications.ts](/src/city-editor/generators/fortifications.ts) | 30都市で 72.8 → 63.7 s |
+| `gapToLines` の走査に外接矩形の下限による枝刈り（現在の最小値より遠い線分は計算しない）。しきい値判定だけの呼び出しは `gapBelow`（最初に下回った時点で終了）に置換 | [defenseClearance.ts](/src/city-editor/generators/defenseClearance.ts)、[urbanGrowth.ts](/src/city-editor/generators/urbanGrowth.ts) | 63.7 → 52.8 s |
+| 住宅数の調整（`fitMorphologyHousing`）で、(a) 地区パラメータが変わらない再計算を使い回し、(b) 地区の内容をキーにしたキャッシュを全回で共有 | [fitImportedHousing.ts](/src/city-editor/generators/fitImportedHousing.ts) | 52.8 → 48.9 s |
 
 上の時間は、診断用の30都市（`1,2,8,12,14,17,3,7,16,20,62,151,199,246,261,6,314,317,452,575,10,9,13,15,18,19,21,22,23,24`）の合計生成時間。基準は P2 完了時の 72.8 s。
 

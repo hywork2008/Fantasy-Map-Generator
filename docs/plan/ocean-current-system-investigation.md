@@ -32,13 +32,13 @@
 
 ### 2.1 `grid`（初期・均一密度）
 
-- `src/utils/graphUtils.ts:52-67` `getJitteredGrid` — 正方格子上に点を置き（`spacing` 間隔）、各点を `radius * 0.9` までジッターさせる。
-- `src/utils/graphUtils.ts:86-104` `placePoints` — `points` オプション（2500〜10000セル）から単一の `spacing` を計算し、**マップ全域に一様適用**。陸か海かで密度を変える処理はここには無い。
-- `src/utils/graphUtils.ts:163-179` `calculateVoronoi` — `Delaunator.from(allPoints)` からVoronoi構築。地域による特別扱いは無い。
+- `src/utils/graphUtils.ts#L52-67` `getJitteredGrid` — 正方格子上に点を置き（`spacing` 間隔）、各点を `radius * 0.9` までジッターさせる。
+- `src/utils/graphUtils.ts#L86-104` `placePoints` — `points` オプション（2500〜10000セル）から単一の `spacing` を計算し、**マップ全域に一様適用**。陸か海かで密度を変える処理はここには無い。
+- `src/utils/graphUtils.ts#L163-179` `calculateVoronoi` — `Delaunator.from(allPoints)` からVoronoi構築。地域による特別扱いは無い。
 
 ### 2.2 `pack`（`reGraph`、海岸線バイアスの再サンプリング）
 
-`src/main.ts:1411-1472` `reGraph()` が `grid` から間引き・密度追加を行って `pack.cells` を作る。核心部分（`main.ts:1417-1439`）:
+`src/main.ts#L1411-1472` `reGraph()` が `grid` から間引き・密度追加を行って `pack.cells` を作る。核心部分（`main.ts#L1417-1439`）:
 
 ```ts
 for (const i of gridCells.i) {
@@ -75,7 +75,7 @@ for (const i of gridCells.i) {
 
 ### 2.3 外洋セルが巨大・不定形になることは自覚済みの仕様
 
-`src/generators/features.ts:37-43`:
+`src/generators/features.ts#L37-43`:
 
 ```ts
 /**
@@ -95,7 +95,7 @@ private ENCLOSURE_AREA_LIMIT_RATIO = 3;
 
 ### 3.1 港のグルーピングは地理的近さではなく連結水域（feature id）
 
-`src/generators/routes-generator.ts:338-358` `sortBurgsByFeature`:
+`src/generators/routes-generator.ts#L338-358` `sortBurgsByFeature`:
 
 ```ts
 for (const burg of burgs) {
@@ -106,11 +106,11 @@ for (const burg of burgs) {
     if (port) addBurg(portsByFeature, port as number, burg);
 ```
 
-`burg.port`（`src/generators/burgs-generator.ts:154-155`）は隣接水セルの feature id（連結成分ID、`markupGrid`/`markupPack` のBFSフラッドフィルで決まる）。地峡・陸地で水域が物理的に繋がっていなければ、目と鼻の先でも別 feature id になり、`generateSeaRoutes`（`routes-generator.ts:559`、`for (const [featureId, featurePorts] of Object.entries(portsByFeature))`）は**同じグループ内でしか航路を検討しない**。つまり別グループの港同士はそもそも候補にすら入らない。
+`burg.port`（`src/generators/burgs-generator.ts#L154-155`）は隣接水セルの feature id（連結成分ID、`markupGrid`/`markupPack` のBFSフラッドフィルで決まる）。地峡・陸地で水域が物理的に繋がっていなければ、目と鼻の先でも別 feature id になり、`generateSeaRoutes`（`routes-generator.ts#L559`、`for (const [featureId, featurePorts] of Object.entries(portsByFeature))`）は**同じグループ内でしか航路を検討しない**。つまり別グループの港同士はそもそも候補にすら入らない。
 
 ### 3.2 Urquhart graph は意図的に疎
 
-`src/generators/routes-generator.ts:363-402`（`calculateUrquhartEdges`、コメント含め検証済み）:
+`src/generators/routes-generator.ts#L363-402`（`calculateUrquhartEdges`、コメント含め検証済み）:
 
 ```ts
 // Urquhart graph is obtained by removing the longest edge from each triangle in the Delaunay triangulation
@@ -137,7 +137,7 @@ Delaunay三角形分割から各三角形の最長辺を1本ずつ除去した�
 
 ### 3.3 現状のルート生成に海流・風・視線判定は存在しない
 
-`routes-generator.ts` 全体を確認した限り、"current" という文字列はパス探索コスト関数のループ変数 `current` としてのみ出現し、海流概念とは無関係。距離に類する唯一の要素は `getWaterPathCost`（`routes-generator.ts:404-433`）内の沿岸距離コスト（`ROUTE_TYPE_MODIFIERS`、沿岸=1〜遠洋=8倍）と最低気温カットオフ（`MIN_PASSABLE_SEA_TEMP = -4`）だが、これは**辺として選ばれた港ペア間の実セル経路を決める**段階の話であり、そもそもどの港ペアを検討するか（3.1・3.2）には一切関与しない。
+`routes-generator.ts` 全体を確認した限り、"current" という文字列はパス探索コスト関数のループ変数 `current` としてのみ出現し、海流概念とは無関係。距離に類する唯一の要素は `getWaterPathCost`（`routes-generator.ts#L404-433`）内の沿岸距離コスト（`ROUTE_TYPE_MODIFIERS`、沿岸=1〜遠洋=8倍）と最低気温カットオフ（`MIN_PASSABLE_SEA_TEMP = -4`）だが、これは**辺として選ばれた港ペア間の実セル経路を決める**段階の話であり、そもそもどの港ペアを検討するか（3.1・3.2）には一切関与しない。
 
 ---
 
@@ -158,7 +158,7 @@ Delaunay三角形分割から各三角形の最長辺を1本ずつ除去した�
 
 `markupPack`（`src/generators/features.ts`）の flood-fill は `pack.cells.c`（隣接リスト）上の純粋な連結成分IDを `feature` として割り当てている。`generateSeaRoutes` が使う `findPathSegments({isWater: true, ...})` の水路コスト評価も同じ `pack.cells.c` を辿るA*であるため、**「feature が違う」と「A*で到達不能」は同一の隣接グラフ上で常に等価**（feature が異なれば必ずA*も失敗し、feature が同じなら必ずA*は経路を見つけられる）。つまり feature によるグルーピングを外して候補ペアを広げても、実際に繋がる新しいペアは増えない（陸を跨ぐ航路を防ぐ安全装置として機能しているだけ）。
 
-例外は、`reGraph()`（`src/main.ts:1411-1472`）の間引き＋再三角分割により、本来水面として繋がっているはずの狭い海峡が pack レベルで誤って2つの feature に分断されてしまうケース（間引き後に `Delaunator.from(allPoints)` で再構築される `pack.cells.c` は間引き後の点群の純粋な幾何学的三角分割であり、間引き前の隣接関係を保証しない）。ただしこれを直すなら `routes-generator.ts` ではなく `reGraph()` 自体（間引きロジック）の変更が必要で、マップ生成パイプライン全体に影響する大きな変更になる。発生頻度も低いと見られるため、**今回のスコープには含めず、6.2の修正効果を見てから要否を判断する**。
+例外は、`reGraph()`（`src/main.ts#L1411-1472`）の間引き＋再三角分割により、本来水面として繋がっているはずの狭い海峡が pack レベルで誤って2つの feature に分断されてしまうケース（間引き後に `Delaunator.from(allPoints)` で再構築される `pack.cells.c` は間引き後の点群の純粋な幾何学的三角分割であり、間引き前の隣接関係を保証しない）。ただしこれを直すなら `routes-generator.ts` ではなく `reGraph()` 自体（間引きロジック）の変更が必要で、マップ生成パイプライン全体に影響する大きな変更になる。発生頻度も低いと見られるため、**今回のスコープには含めず、6.2の修正効果を見てから要否を判断する**。
 
 ### 6.2 3.2（Urquhart graph の疎さ）を修正する
 

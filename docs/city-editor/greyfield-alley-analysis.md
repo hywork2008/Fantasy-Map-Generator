@@ -135,18 +135,18 @@
 
 ## 4. 現在のコードとの対応
 
-ユーザーが指す「⑧ 街区・小道」のラベルは [`src/city-editor/generators/generation/generateCity.ts`](../../src/city-editor/generators/generation/generateCity.ts) にある。今回の主な変更対象は `src/city-generator` ではなくCE側。
+ユーザーが指す「⑧ 街区・小道」のラベルは [`src/city-editor/generators/generation/generateCity.ts`](/src/city-editor/generators/generation/generateCity.ts) にある。今回の主な変更対象は `src/city-generator` ではなくCE側。
 
 現在の描画用生成経路は、`buildBlockFabric()` → `buildLocalFabric()` → `buildPerimeterBlocks()`。ただしレイアウトに分岐があり、全てが同じボロノイ処理ではない。
 
 | 箇所 | 現状と今回の分析との関係 |
 | --- | --- |
-| [`blockInfill.ts`](../../src/city-editor/generators/blockInfill.ts) | 地区をまとめ、レイアウト別に生成を振り分ける。`bram` / `circulade` は別経路 |
-| [`localInfill.ts`](../../src/city-editor/generators/localInfill.ts) | 道路・障害物・後退距離を渡す。城壁内住宅地と外縁部・城郭の経路が異なる |
-| [`perimeterBlocks.ts`](../../src/city-editor/generators/perimeterBlocks.ts) の `classicStreetBlocks()` | 境界沿いと内部に母点を置き、Delaunay隣接の二等分線で領域を切る。ボロノイの置き換え対象 |
+| [`blockInfill.ts`](/src/city-editor/generators/blockInfill.ts) | 地区をまとめ、レイアウト別に生成を振り分ける。`bram` / `circulade` は別経路 |
+| [`localInfill.ts`](/src/city-editor/generators/localInfill.ts) | 道路・障害物・後退距離を渡す。城壁内住宅地と外縁部・城郭の経路が異なる |
+| [`perimeterBlocks.ts`](/src/city-editor/generators/perimeterBlocks.ts) の `classicStreetBlocks()` | 境界沿いと内部に母点を置き、Delaunay隣接の二等分線で領域を切る。ボロノイの置き換え対象 |
 | 同ファイルの非 `classic` 側 | 既に帯状分割と、隣の帯とずらした横道がある。新方式と近いが、領域の共通軸と数値の間隔が主で、局所 frontage・住宅奥行きとの結びつきを強める余地がある |
-| [`housing.ts`](../../src/city-editor/generators/housing.ts) | `intramuralBlockSpan()` に2列＋道＋中庭の考えが既にある。住宅奥行きと街区厚みを共通の寸法モデルにする足場になる |
-| [`frontageBuildings.ts`](../../src/city-editor/generators/frontageBuildings.ts) | 沿道建物生成の既存部品。街区生成との寸法共有・接道維持が必要 |
+| [`housing.ts`](/src/city-editor/generators/housing.ts) | `intramuralBlockSpan()` に2列＋道＋中庭の考えが既にある。住宅奥行きと街区厚みを共通の寸法モデルにする足場になる |
+| [`frontageBuildings.ts`](/src/city-editor/generators/frontageBuildings.ts) | 沿道建物生成の既存部品。街区生成との寸法共有・接道維持が必要 |
 
 コメントやキャッシュ名に `voronoi` が残っていても、実際の分岐を確認する必要がある。さらに現行の⑧・⑨は、完全に独立した幾何生成とは限らない。`generate.ts` の7以降の処理は完成形を生成して段階別に返し、描画でも `buildBlockFabric()` を利用する。⑧で決めた道路・街区と⑨の住宅が同じ計画を使う構造を維持する。
 

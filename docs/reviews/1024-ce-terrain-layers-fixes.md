@@ -18,7 +18,7 @@
 
 ### F1. 型エラー（必須）
 
-- 場所: `src/city-editor/renderers/cellElevationSvg.ts:33`
+- 場所: `src/city-editor/renderers/cellElevationSvg.ts#L33`
 - 症状: `tsc --noEmit` が `Type 'SVGElement' is missing the following properties from type 'SVGGElement'` を報告する。
 - 指示: `element("g", …)` の戻り型を `SVGGElement` に絞るか、使う側の型を `SVGElement` に合わせる。既存の `element` ヘルパーの使い方に合わせる。
 - 完了条件: `npx tsc --noEmit -p .` がエラー0件。
@@ -44,7 +44,7 @@
 
 ### F4. 用地が生成後の建物の編集に追従しない（要判断のうえ対応）
 
-- 場所: `src/city-editor/generators/generation/generateCity.ts:432`（`installLotPads(result, buildBlockFabric(result, fabricCache).buildings)`）
+- 場所: `src/city-editor/generators/generation/generateCity.ts#L432`（`installLotPads(result, buildBlockFabric(result, fabricCache).buildings)`）
 - 症状: 用地は生成時の1回しか作られない。そのため、(a) 生成のために建物の配置を1回余分に組み立てている、(b) 建物を足したり動かしたりすると用地が古くなり、建物が用地から外れる。
 - 指示:
   1. まず (a) を確認する。`fabricCache` が後段の組み立てと共有され、余分な組み立てになっていないなら、何もしなくてよい。余分なら、既存の組み立て結果を使い回す形に改める。

@@ -27,11 +27,11 @@
 
 ID 40 は8案の `wall-plan` 合計約1,199ms、`route-junctions` 合計約575ms。ID 317 は `wall-plan` 合計約815ms。失敗の時間は再試行を繰り返した費用で、住宅数調整へは到達していない。
 
-失敗理由のコード上の対応は、[generate.ts](../../src/city-editor/core/generate.ts) の城計画・`finalizeCastles` と `castle-no-access` の不採用処理。
+失敗理由のコード上の対応は、[generate.ts](/src/city-editor/core/generate.ts) の城計画・`finalizeCastles` と `castle-no-access` の不採用処理。
 
 ## 予測を左右する連携情報の不整合
 
-`riverPlacement.accessMeters[0]` は河岸配置の都市中心を表す（[waterfrontSettlement.ts](../../src/services/waterfrontSettlement.ts)）。これを `frame.originMapUnits * metersPerMapUnit` と照合すると、12都市で2mを超えるずれがある。12都市とも海港で、河川港あり6、なし6。上位20では次の4都市が該当する。
+`riverPlacement.accessMeters[0]` は河岸配置の都市中心を表す（[waterfrontSettlement.ts](/src/services/waterfrontSettlement.ts)）。これを `frame.originMapUnits * metersPerMapUnit` と照合すると、12都市で2mを超えるずれがある。12都市とも海港で、河川港あり6、なし6。上位20では次の4都市が該当する。
 
 | ID | 保存された配置中心と現在の都市中心のずれ | 保存された bankDistanceMeters |
 | --- | --- | --- |
@@ -73,13 +73,13 @@ ID 40 は8案の `wall-plan` 合計約1,199ms、`route-junctions` 合計約575ms
 | 19 | 180 Borgo | 1,805 | 海岸55.4m、R258m。fit-housing 927ms、harbor-ships 551ms。距離条件を既に満たし、限定的 |
 | 20 | 328 Krofengengen | 1,799 | R78m、海岸60.2m、窓4,113m、632面、route-junctions 923ms。riverPlacementなし・fixedCrossingsなしだが、約2km先の河岸を含む requiredBounds がある。海港は適合するので、2R条件だけで遠い川が入力から消えるわけではない。窓縮小の追加対応が必要 |
 
-上位20の末端self時間の例: Leigh の local-fabric 合計1,998ms、coastal-reservations 合計1,816ms。Seriemigny はそれぞれ1,118ms、1,289ms。`coastal-reservations` は海港だけの費用ではなく、水面・固定道路・堀・ランドマーク等との干渉判定も含み、港フラグを外せば全額消える処理ではない（[blockInfill.ts](../../src/city-editor/core/gen/blockInfill.ts)）。
+上位20の末端self時間の例: Leigh の local-fabric 合計1,998ms、coastal-reservations 合計1,816ms。Seriemigny はそれぞれ1,118ms、1,289ms。`coastal-reservations` は海港だけの費用ではなく、水面・固定道路・堀・ランドマーク等との干渉判定も含み、港フラグを外せば全額消える処理ではない（[blockInfill.ts](/src/city-editor/core/gen/blockInfill.ts)）。
 
 ## 計画に補足すると予測が明確になる点
 
 1. **近すぎる水辺にも対応する。** 海港の中心は多くが約60m内陸で、2R上限には合格してもRの都市用地は海にかかる。計画の海側目標 `R−min(20,R/4)` に合わせるには、これらは水辺から離す必要がある。既存 `settledShorePort` は `distance <= R` で移動せず、riverPlacementがあれば処理しないため、そのままではID 40/8等への期待は成立しない。
 2. **配置と記録を一体で確定する。** 現在位置と footprint/access の一致、現在の岸距離、最終Rの乾いた用地を検証してから港フラグを確定する。ID 40/218/590/195の保存岸距離を使ってP1/P4の成功を判定しない。
-3. **2R適合とCE窓縮小を別々に検証する。** 現行は人口窓6R、最小窓や requiredBounds による拡大があり、海岸が窓内にある場合 `townMeshExtentMeters` が表示窓全体を採用する。計画の「一辺4R」は距離基準の意図であって、現在の連携で常に選ばれる実寸ではない。[incomingCity.ts](../../src/city-editor/io/incomingCity.ts) と [document.ts](../../src/city-editor/core/document.ts) を併せて検証する。海岸が近くなっても、遠い河岸・橋や1,500mの窓が残れば面数は減らない。
+3. **2R適合とCE窓縮小を別々に検証する。** 現行は人口窓6R、最小窓や requiredBounds による拡大があり、海岸が窓内にある場合 `townMeshExtentMeters` が表示窓全体を採用する。計画の「一辺4R」は距離基準の意図であって、現在の連携で常に選ばれる実寸ではない。[incomingCity.ts](/src/city-editor/io/incomingCity.ts) と [document.ts](/src/city-editor/core/document.ts) を併せて検証する。海岸が近くなっても、遠い河岸・橋や1,500mの窓が残れば面数は減らない。
 4. **城の失敗を独立した指標にする。** waterfront-checkの合格はCE成功を保証しない。ID 317の城区画不足、ID 40/8の城接続失敗は別に計測する。
 
 上位外では ID 61 Iruevabue（564ms）が shore-distance の明確な対象。R=187m、海岸872.3m>2Rで、waterfrontCheckに超過625mが記録されている。P1は海港を外す方向、P3は両水辺を保てる地点へ移せるなら改善する方向。ただし既にCE生成は成功しており、今回の生成失敗2件の原因とは異なる。

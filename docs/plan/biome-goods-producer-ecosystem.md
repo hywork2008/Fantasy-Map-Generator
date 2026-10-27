@@ -49,17 +49,17 @@
 
 | 経路 | 対象 | 計算式 | 実装 |
 | :--- | :--- | :--- | :--- |
-| **Staple food（穀物）** | Grain | 耕地面積×気候収量×`labourCoverage`(必要労働力に対する充足率) | [`agriculturalLandUse.ts`](../../src/extensions/economy/generators/agriculturalLandUse.ts), [`foodProduction.ts:320-340`](../../src/extensions/economy/generators/foodProduction.ts#L320-L340) |
-| **Biome continuous（連続バイオーム産品）** | Cattle, Wine, Game, Honey, Olives, Salt(biomeOutput) 等 | `population(cell) × biomeOutput(biome,good) × getModifiers()` | [`production-utils.ts:125-152`](../../src/extensions/economy/generators/production-utils.ts#L125-L152)（`getRuralProductionContributions`） |
+| **Staple food（穀物）** | Grain | 耕地面積×気候収量×`labourCoverage`(必要労働力に対する充足率) | [`agriculturalLandUse.ts`](/src/extensions/economy/generators/agriculturalLandUse.ts), [`foodProduction.ts#L320-340`](/src/extensions/economy/generators/foodProduction.ts#L320-L340) |
+| **Biome continuous（連続バイオーム産品）** | Cattle, Wine, Game, Honey, Olives, Salt(biomeOutput) 等 | `population(cell) × biomeOutput(biome,good) × getModifiers()` | [`production-utils.ts#L125-152`](/src/extensions/economy/generators/production-utils.ts#L125-L152)（`getRuralProductionContributions`） |
 | **Bonus good（点資源）** | Fish, Iron等の`distribution`+`chance`で配置される資源セル | `min(population × 0.25, 5) × getModifiers()` | 同上、`BONUS_RURAL_PRODUCTION`/`MAX_BONUS_PRODUCTION` |
 
-`liveAnimal`タグの商品は上記「Biome continuous」経路そのままで、その後に[`liveAnimalCatch.ts`](../../src/extensions/economy/generators/liveAnimalCatch.ts)（`rollLiveAnimalCatch`）が「連続レート → 確率的な整数捕獲」への変換を行う。**しかし変換元のレート自体は無限に湧き続ける定数であり、個体群ストックや上限は一切存在しない。** 捕りすぎても翌月以降のレートは変わらない。
+`liveAnimal`タグの商品は上記「Biome continuous」経路そのままで、その後に[`liveAnimalCatch.ts`](/src/extensions/economy/generators/liveAnimalCatch.ts)（`rollLiveAnimalCatch`）が「連続レート → 確率的な整数捕獲」への変換を行う。**しかし変換元のレート自体は無限に湧き続ける定数であり、個体群ストックや上限は一切存在しない。** 捕りすぎても翌月以降のレートは変わらない。
 
-`Fish`は`biomeOutput`/`biomeOutputByTag`を持たず（[`goods-generator.ts:258-269`](../../src/extensions/economy/generators/goods-generator.ts#L258-L269)）、Bonus good経路のみで生産される。つまり漁業従事者どころか、周辺セルの人口規模にすら比例していない（上限5/月で頭打ち）。
+`Fish`は`biomeOutput`/`biomeOutputByTag`を持たず（[`goods-generator.ts#L258-269`](/src/extensions/economy/generators/goods-generator.ts#L258-L269)）、Bonus good経路のみで生産される。つまり漁業従事者どころか、周辺セルの人口規模にすら比例していない（上限5/月で頭打ち）。
 
 ### 2.2 労働力の二重取り問題
 
-[`agriculturalLandUse.ts`](../../src/extensions/economy/generators/agriculturalLandUse.ts)は`cells.maleAdults`/`femaleAdults`からGrain農業に必要な労働力（`farmLaborRequired`）を引き、余剰を`migratableAdults`/`ruralReleasePressure`として算出する。この余剰は[`ruralLaborRelease.ts`](../../src/extensions/economy/generators/ruralLaborRelease.ts)によって**そのままBurgへの移住キューに渡される**（`UrbanLaborIntake.enqueueRuralDisplacement`）。
+[`agriculturalLandUse.ts`](/src/extensions/economy/generators/agriculturalLandUse.ts)は`cells.maleAdults`/`femaleAdults`からGrain農業に必要な労働力（`farmLaborRequired`）を引き、余剰を`migratableAdults`/`ruralReleasePressure`として算出する。この余剰は[`ruralLaborRelease.ts`](/src/extensions/economy/generators/ruralLaborRelease.ts)によって**そのままBurgへの移住キューに渡される**（`UrbanLaborIntake.enqueueRuralDisplacement`）。
 
 一方、`getRuralProductionContributions()`（Cattle/Wine/Game/Honey等の生産）は同じセルの`getRuralCellPopulation()`（＝`cells.pop`、Grain労働力を差し引いていない生の人口）をそのまま使う。
 
@@ -67,11 +67,11 @@
 
 ### 2.3 Burg雇用構成との断絶
 
-[`burgEmploymentComposition.ts`](../../src/extensions/economy/generators/burgEmploymentComposition.ts)は`administration`/`mining`/`smelting`/`quarrying`/`construction`/`trade`/`strategicIndustry`/`craft`の8セクターを集計するが、農業・狩猟・漁業・牧畜・ブドウ栽培はどれも含まれない（Grainの農業労働力ですら現状ここには出てこない）。これは`burgEmploymentComposition`がBurg人口を対象にし、`agriculturalLandUse`はセル人口（`cells.pop`、Burg人口とは別勘定）を対象にしているためで、設計上の断絶ではなく対象が違うだけである。ただしユーザーの要望（「バイオームと同セルの都市の労働者の数や種類と密接に関係する」）を満たすには、この2つの人口プールを明示的に橋渡しする必要がある（§6）。
+[`burgEmploymentComposition.ts`](/src/extensions/economy/generators/burgEmploymentComposition.ts)は`administration`/`mining`/`smelting`/`quarrying`/`construction`/`trade`/`strategicIndustry`/`craft`の8セクターを集計するが、農業・狩猟・漁業・牧畜・ブドウ栽培はどれも含まれない（Grainの農業労働力ですら現状ここには出てこない）。これは`burgEmploymentComposition`がBurg人口を対象にし、`agriculturalLandUse`はセル人口（`cells.pop`、Burg人口とは別勘定）を対象にしているためで、設計上の断絶ではなく対象が違うだけである。ただしユーザーの要望（「バイオームと同セルの都市の労働者の数や種類と密接に関係する」）を満たすには、この2つの人口プールを明示的に橋渡しする必要がある（§6）。
 
 ### 2.4 再利用できる既存パターン
 
-[`mineOperations.ts`](../../src/extensions/economy/generators/mineOperations.ts)の`getMineRequiredWorkers()` / `workerFactor = min(1, workers / required)`が、「必要労働力に対する充足率で生産量をゲートする」という、本設計が狩猟・漁業・ブドウ栽培へ横展開したいパターンそのものである。Grainの`farmLaborRequired`/`labourCoverage`（[`foodProduction.ts:328-334`](../../src/extensions/economy/generators/foodProduction.ts#L328-L334)）も同型。**新規実装ではなく、この既存パターンの一般化として設計する。**
+[`mineOperations.ts`](/src/extensions/economy/generators/mineOperations.ts)の`getMineRequiredWorkers()` / `workerFactor = min(1, workers / required)`が、「必要労働力に対する充足率で生産量をゲートする」という、本設計が狩猟・漁業・ブドウ栽培へ横展開したいパターンそのものである。Grainの`farmLaborRequired`/`labourCoverage`（[`foodProduction.ts#L328-334`](/src/extensions/economy/generators/foodProduction.ts#L328-L334)）も同型。**新規実装ではなく、この既存パターンの一般化として設計する。**
 
 ---
 
@@ -107,7 +107,7 @@ ruralReleasePressure[cell] = 残余労働力  // ruralLaborRelease.tsが消費
 
 ### 3.2 更新頻度
 
-既存の`getRuralPopulationSnapshotPeriod()`（四半期キャッシュ、[`markets-generator.ts:568-572`](../../src/extensions/economy/generators/markets-generator.ts#L568-L572)）と同じ四半期キャデンスに乗せる。`agriculturalLandUse`の年次再計算とも整合させ、二重の鮮度管理を増やさない。
+既存の`getRuralPopulationSnapshotPeriod()`（四半期キャッシュ、[`markets-generator.ts#L568-572`](/src/extensions/economy/generators/markets-generator.ts#L568-L572)）と同じ四半期キャデンスに乗せる。`agriculturalLandUse`の年次再計算とも整合させ、二重の鮮度管理を増やさない。
 
 ---
 
@@ -117,9 +117,9 @@ Gameの野生ストックと`liveAnimal`家畜が、コホート構造・繁殖�
 
 ### 4.1 状態表現
 
-Burgの人口動態（`children`/`maleAdults`/`femaleAdults`/`elders`の4区分、[`hostCore`](../../src/extensions/hostCore.ts)の`getCellDemographics`/`setCellDemographics`参照）に倣い、**3コホート**（`young`未成熟 / `breeding`繁殖適齢 / `old`高齢）×性別を持たせる。人間ほどの粒度は不要なので雌雄別の内訳は種によって省略可（多くの家畜は雌雄比が繁殖率に直結するため維持、Gameの野生ストックは総数のみでも可）。
+Burgの人口動態（`children`/`maleAdults`/`femaleAdults`/`elders`の4区分、[`hostCore`](/src/extensions/hostCore.ts)の`getCellDemographics`/`setCellDemographics`参照）に倣い、**3コホート**（`young`未成熟 / `breeding`繁殖適齢 / `old`高齢）×性別を持たせる。人間ほどの粒度は不要なので雌雄別の内訳は種によって省略可（多くの家畜は雌雄比が繁殖率に直結するため維持、Gameの野生ストックは総数のみでも可）。
 
-全セル×全`liveAnimal`種・Gameで密な配列を持つと動物種の大半は生息しないセルがほとんどのため無駄が大きい。[`liveAnimalCatchAccumulators`](../../src/extensions/economy/generators/liveAnimalCatch.ts)と同じ**疎なマップ**（キー`cellId:goodId`）を`simulation.extensions.economy.faunaStock`に持たせる方式を推奨する。Gameは`liveAnimal`タグを持たない解体済み食肉（`wain`単位）として流通する現行仕様を維持するため、ストック自体は`goodId`ではなく`biomeCode`などの野生種別キーで持ち、狩猟時に`wain`単位へ変換する。
+全セル×全`liveAnimal`種・Gameで密な配列を持つと動物種の大半は生息しないセルがほとんどのため無駄が大きい。[`liveAnimalCatchAccumulators`](/src/extensions/economy/generators/liveAnimalCatch.ts)と同じ**疎なマップ**（キー`cellId:goodId`）を`simulation.extensions.economy.faunaStock`に持たせる方式を推奨する。Gameは`liveAnimal`タグを持たない解体済み食肉（`wain`単位）として流通する現行仕様を維持するため、ストック自体は`goodId`ではなく`biomeCode`などの野生種別キーで持ち、狩猟時に`wain`単位へ変換する。
 
 ### 4.2 キャリング容量（個体数上限）— 野生と家畜で別計算
 
@@ -158,7 +158,7 @@ selectivity(cell) =
 
 ### 4.5 非食用家畜（愛玩・軍用・輸送用）の需要キャップ
 
-`liveAnimal`のうち`food`タグを持たない種（Cats=`pestControl`、Horses/Elephants/Camels=`supply`/`military`、[goods-generator.ts:357-413](../../src/extensions/economy/generators/goods-generator.ts#L357-L413), [:1620-1630](../../src/extensions/economy/generators/goods-generator.ts#L1620-L1630)参照）は、Cattle/Sheep/Goats/Pig/Chickenのような食肉種と異なり「常に広い需要（食料需要）が存在する」という前提が成り立たない。猫を際限なく繁殖させても、買い手（`demandCoverage.utilities`/駆除ニーズ）がいなければ市場価値がない。
+`liveAnimal`のうち`food`タグを持たない種（Cats=`pestControl`、Horses/Elephants/Camels=`supply`/`military`、[goods-generator.ts#L357-413](/src/extensions/economy/generators/goods-generator.ts#L357-L413), [:1620-1630](/src/extensions/economy/generators/goods-generator.ts#L1620-L1630)参照）は、Cattle/Sheep/Goats/Pig/Chickenのような食肉種と異なり「常に広い需要（食料需要）が存在する」という前提が成り立たない。猫を際限なく繁殖させても、買い手（`demandCoverage.utilities`/駆除ニーズ）がいなければ市場価値がない。
 
 このため非食用種は、§4.2の`carryingCapacity`にもう一段**需要吸収キャップ**を掛ける:
 
@@ -185,7 +185,7 @@ effectiveCarryingCapacity(cell, good) =
 - **自給枠**: `getHuntingSubsistenceClaim(cell)` — 「その人数が自分（＋近い家族）を養える程度」を基準にした小さな固定枠。`min(availableForestAdults, max(HUNTING_MINIMUM_HEADCOUNT, forestAdults × HUNTING_POPULATION_SHARE))`という式で、**下限は集落規模によらず一律3人**、規模が大きくなった集落では`manpower.ts`の平時徴兵率（`PEACE_TARGET_MOBILIZATION`＝1%）に倣った約1%が効いてくる（§10.2で確定、Phase 1実装済み）。市場最大化のための`requiredWorkersForFullCapacity`のような「フル稼働に必要な人数」という上限概念は使わない。害獣（獣害）のセル密度に応じて枠を増減させる拡張は、そうした密度指標がまだ存在しないためフックのみ残し、実装はしない。
 - ストック: §4のfauna個体群モデル（野生ストック側、§4.2の`wildHabitatArea`ベースのキャリング容量）を適用する。
 - 月産出（`wain`単位の食肉、現行同様に`liveAnimal`タグは付与しない＝生体ではなく解体済み食肉として流通）は、自給枠の猟師数×一人あたり持続可能捕獲量（在庫が少なければそれ以下）。市場供給量が少なめでも仕様どおり——狩猟はもともと市場向け主力商品ではない。
-- **既存の脅威駆除システムとの関係**: [`threatCullHire.ts`](../../src/extensions/economy/generators/threatCullHire.ts)/[`cullPractice.ts`](../../src/extensions/economy/generators/cullPractice.ts)は、named Characterが個別の脅威（危険な獣・モンスター）討伐依頼に応じる**別系統**の仕組み（[`docs/plan/player-threat-cull-jobs.md`](player-threat-cull-jobs.md)）。本設計の狩猟自給枠は、そうした特定脅威イベントとは独立した、恒常的な背景労働力の統計値であり、混同しない。将来、狩猟自給枠の存在が獣害イベントの発生率を下げる、といった軽い接続は拡張候補として残すが、本設計のスコープ外とする。
+- **既存の脅威駆除システムとの関係**: [`threatCullHire.ts`](/src/extensions/economy/generators/threatCullHire.ts)/[`cullPractice.ts`](/src/extensions/economy/generators/cullPractice.ts)は、named Characterが個別の脅威（危険な獣・モンスター）討伐依頼に応じる**別系統**の仕組み（[`docs/plan/player-threat-cull-jobs.md`](player-threat-cull-jobs.md)）。本設計の狩猟自給枠は、そうした特定脅威イベントとは独立した、恒常的な背景労働力の統計値であり、混同しない。将来、狩猟自給枠の存在が獣害イベントの発生率を下げる、といった軽い接続は拡張候補として残すが、本設計のスコープ外とする。
 
 ### 5.2 漁業 → Fish・保存食（`fishingGrounds.ts` + 加工工程）
 
@@ -236,8 +236,8 @@ effectiveCarryingCapacity(cell, good) =
 
 「バイオームと同セルの都市の労働者の数や種類と密接に関係する」という要件に対応し、`burgEmploymentComposition.ts`へ`hunting`/`fishing`/`viticulture`/`husbandry`の4セクター（rural harvest labor）を追加する。§5.2/§5.3で確定した加工工程（燻製・塩蔵、干しブドウ、醸造）の労働力は、**新設セクターを起こさず既存`craft`セクターへ計上する**（§10.4で確定、当初案の新設`foodProcessing`セクターは撤回）。
 
-- 既存の`collectionBurgId`帰属ロジック（[`markets-generator.ts:632-650`](../../src/extensions/economy/generators/markets-generator.ts#L632-L650)、セルに最も近いBurgへ生産を帰属させる仕組み）をそのまま再利用し、農村労働配分器の各セルの`assignedWorkers`を`collectionBurgId`ごとに集計する。加工工程の労働力はもとよりBurg雇用プール（`craftEmployment.ts`系、`craft`セクター）から確保するため、この帰属を介さず直接Burgに乗る。
-- `sumActiveWorkers()`（[`burgEmploymentComposition.ts:73-83`](../../src/extensions/economy/generators/burgEmploymentComposition.ts#L73-L83)）と同型の集計関数を追加する。
+- 既存の`collectionBurgId`帰属ロジック（[`markets-generator.ts#L632-650`](/src/extensions/economy/generators/markets-generator.ts#L632-L650)、セルに最も近いBurgへ生産を帰属させる仕組み）をそのまま再利用し、農村労働配分器の各セルの`assignedWorkers`を`collectionBurgId`ごとに集計する。加工工程の労働力はもとよりBurg雇用プール（`craftEmployment.ts`系、`craft`セクター）から確保するため、この帰属を介さず直接Burgに乗る。
+- `sumActiveWorkers()`（[`burgEmploymentComposition.ts#L73-83`](/src/extensions/economy/generators/burgEmploymentComposition.ts#L73-L83)）と同型の集計関数を追加する。
 - 発展として、Burgの`cultureType`（既に`multipliers.cultureType`で使われている概念、例: `Naval`/`Hunting`/`Highland`）を農村労働配分器の産業優先順位重みにフィードバックし、「漁業文化のBurgは同じ生産性でも漁業を優先配分する」という双方向の関係にできる。狩猟の自給枠についても、`Hunting`文化圏では枠そのものをやや広め（§4.4の選択的間引きに加え、獣害対策要員としての需要も高いと想定）にする、という同種のフィードバックが自然に載る。
 - **確定（§10.4）**: 醸造・製パンなど`craft`セクターの加工職は、キャラクターごとのスキル・熟練度への依存度が特に高くなりうる想定。ただしこれを生産量に厳密に反映する計算式までは求めない——`martialIndividualMastery.ts`と同型の民生スキル熟練度、または`guildKnowledgeTypes.ts`の`CRAFT_DOMAIN_BY_GOOD_NAME`が既に持つギルド技能ドメインの概念を流用し、まずはキャラクターの経歴・フレーバー情報として接続できれば十分とする（生産量への定量反映はPhase 6以降の余地として残す）。
 

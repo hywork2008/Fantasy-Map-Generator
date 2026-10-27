@@ -3,9 +3,12 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { ModelQuality } from "../../buildings/modelQuality";
 import { buildingSurfaces } from "../../city3d/core/massingGeometry";
 import { structureSurfaces } from "../../city3d/core/structureGeometry";
+import { WATER_Y } from "../../city3d/core/waterGeometry";
+import { createTownBridges, type TownBridges } from "../../city3d/three/bridgeMeshes";
 import { createTownBuildingDetails, type TownBuildingDetails } from "../../city3d/three/buildingDetails";
-import { createBvPrototypeCache } from "../../city3d/three/bvInstances";
+import { bvInstanceGeometry, createBvPrototypeCache } from "../../city3d/three/bvInstances";
 import { type CityMassingMeshes, createCityMassing } from "../../city3d/three/cityMeshes";
+import { createTownFacilities, type TownFacilities } from "../../city3d/three/facilityMeshes";
 import { createTownFarms, type TownFarmMeshes } from "../../city3d/three/farmMeshes";
 import { createTownFriaries } from "../../city3d/three/friaryMeshes";
 import { createTownObjects } from "../../city3d/three/objectMeshes";
@@ -30,6 +33,7 @@ import { editorText } from "../../i18n/editorMessages";
 import type { RoadRibbon } from "../../utils/roadSurface";
 import { buildBlockFabric, type DistrictFabric } from "../generators/blockInfill";
 import { riverRibbons } from "../generators/bridgeDeck";
+import { createBuildingFrontageResolver } from "../generators/buildingFrontage";
 import type { BuildingLot } from "../generators/buildingLots.types";
 import { buildParkLawns } from "../generators/parkFabric";
 import { RIVER_DROP_MIN, riverDropMeters } from "../generators/riverSurface";
@@ -101,6 +105,32 @@ const USE_KEY: Record<FloorUse, EditorMessageKey> = {
   service: "cityEditor.messages.massingService"
 };
 
+/** Wall runs already contain gate openings; do not block the gate passages themselves. */
+function frontageStructurePolygons(parts: readonly StructureMassing[]): [number, number][][] {
+  return parts.flatMap(part => {
+    if (!["wall", "tower", "landmark"].includes(part.kind) || part.heightMeters <= 1 || part.baseElevationMeters > 0)
+      return [];
+    if (part.footprint?.length) return [part.footprint];
+    const points = part.centerline ?? [];
+    return points.slice(1).flatMap((b, i) => {
+      const a = points[i];
+      const length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (length < 0.01) return [];
+      const halfWidth = (part.widthMeters ?? 1) / 2;
+      const x = ((b[1] - a[1]) / length) * halfWidth,
+        y = ((a[0] - b[0]) / length) * halfWidth;
+      return [
+        [
+          [a[0] + x, a[1] + y],
+          [b[0] + x, b[1] + y],
+          [b[0] - x, b[1] - y],
+          [a[0] - x, a[1] - y]
+        ] as [number, number][]
+      ];
+    });
+  });
+}
+
 interface Mount {
   own(cleanup: () => void): void;
   listen(target: EventTarget, type: string, handler: (event: Event) => void): void;
@@ -171,6 +201,8 @@ export function mountCity3d(options: {
   let wells: TownWells | null = null;
   let specialBuildings: TownSpecialBuildings | null = null;
   let regionalHouses: TownRegionalHouses | null = null;
+  let facilities: TownFacilities | null = null;
+  let bridges: TownBridges | null = null;
   const bvPrototypes = createBvPrototypeCache();
   let openSpaces: CityStructureMeshes | null = null;
   let farmland: TownFarmMeshes | null = null;
@@ -286,7 +318,7 @@ export function mountCity3d(options: {
     outline(positions);
   };
 
-  const showLot = (lot: BuildingLot | undefined) => {
+  const showLot = (lot: BuildingLot | undefined, geometry?: THREE.BufferGeometry) => {
     clearHighlight();
     if (!lot?.massing || !scene) {
       readout.hidden = false;
@@ -301,6 +333,10 @@ export function mountCity3d(options: {
       value2: `${editorText(FORM_KEY[mass.roof.form])} · ${editorText(ROOF_KEY[mass.roof.material])}`,
       value3: mass.eaveHeightMeters.toFixed(1)
     })}\n${mass.floors.map(floor => editorText(USE_KEY[floor.use])).join(" / ")}`;
+    if (geometry) {
+      outline(new Float32Array(geometry.getAttribute("position").array));
+      return;
+    }
     const surfaces = buildingSurfaces(lot.polygon, mass);
     if (!surfaces) return;
     const positions = new Float32Array(surfaces.walls.positions.length + surfaces.roofs.positions.length);
@@ -320,12 +356,33 @@ export function mountCity3d(options: {
     if (!scene) return;
     clearHighlight();
     readout.hidden = true;
+    const parts = [...collectCityStructures(city), ...landmarkLotStructures(fabric.buildings)];
+    let frontageRoads: RoadRibbon[] = [];
+    try {
+      frontageRoads = terrain?.roads?.ribbons ?? collectTownRoads(city, fabric.lanes);
+    } catch {
+      // The road layer reports invalid geometry; housing can keep its stable local facade.
+    }
     // Detailed regional houses replace their lots' plain massing; acquire before releasing the old layer.
     const nextHouses = createTownRegionalHouses(
       fabric.buildings,
       bvPrototypes,
       terrain?.relief ? terrain.foundationAt : undefined,
-      quality
+      quality,
+      createBuildingFrontageResolver(
+        [
+          ...frontageRoads,
+          ...(fabric.parcels ?? []).flatMap(parcel =>
+            parcel.access.map(access => ({
+              centerline: access.points,
+              widthMeters: access.widthMeters,
+              parcelId: parcel.id
+            }))
+          )
+        ],
+        fabric.buildings,
+        [...waterPolygons(city), ...frontageStructurePolygons(parts)]
+      )
     );
     if (regionalHouses) {
       scene.remove(regionalHouses.group);
@@ -351,7 +408,6 @@ export function mountCity3d(options: {
     }
     structures?.dispose();
     if (structures) scene.remove(structures.group);
-    const parts = [...collectCityStructures(city), ...landmarkLotStructures(fabric.buildings)];
     const grounded = terrain
       ? [
           ...groundStructures(parts, terrain),
@@ -375,8 +431,19 @@ export function mountCity3d(options: {
     }
     townWalls = nextWalls;
     scene.add(townWalls.group);
+    const nextFacilities = createTownFacilities(city, fabric, grounded, bvPrototypes, quality, terrain ?? undefined);
+    if (facilities) {
+      scene.remove(facilities.group);
+      facilities.dispose();
+    }
+    facilities = nextFacilities;
+    scene.add(facilities.group);
     structureList = grounded.filter(
-      part => !specialBuildings!.replaced.has(part.id) && !townWalls!.replaced.has(part.id)
+      part =>
+        !specialBuildings!.replaced.has(part.id) &&
+        !townWalls!.replaced.has(part.id) &&
+        !facilities!.replaced.has(part.id) &&
+        !bridges?.replaced.has(part.id)
     );
     structures = createStructureMassing(structureList);
     scene.add(structures.group);
@@ -428,6 +495,9 @@ export function mountCity3d(options: {
     controls = new OrbitControls(camera, canvas);
     controls.enableDamping = false;
     controls.zoomToCursor = true;
+    // Keep the target on its horizontal ground plane. Screen-space cursor zoom
+    // can lift it into the air, collapsing dolly and pan distances above the city.
+    controls.screenSpacePanning = false;
     controls.maxPolarAngle = Math.PI / 2 - 0.05;
     controls.addEventListener("change", requestRender);
     return true;
@@ -525,6 +595,7 @@ export function mountCity3d(options: {
     const friaryPlans = (fabric.aerialLandmarks?.monasteries ?? []).filter(monastery => monastery.kind === "friary");
     const nextFriaryStamp = JSON.stringify(friaryPlans);
     const friariesChanged = terrainChanged || friaryStamp !== nextFriaryStamp || !friaries;
+    const bridgesChanged = plan.buildings || plan.water || plan.roads || !bridges;
     if (
       !plan.buildings &&
       !plan.water &&
@@ -534,6 +605,7 @@ export function mountCity3d(options: {
       !piersChanged &&
       !openSpacesChanged &&
       !friariesChanged &&
+      !bridgesChanged &&
       !farmlandChanged
     ) {
       if (!framedRadius) frameCamera(city);
@@ -554,15 +626,27 @@ export function mountCity3d(options: {
       scene.add(openSpaces.group);
       openSpaceStamp = nextOpenSpaceStamp;
     }
+    if (plan.water) {
+      placeWater(city);
+      waterStamp = stamp;
+    }
+    if (bridgesChanged) {
+      const next = createTownBridges(
+        city,
+        terrain ?? undefined,
+        point => (waterMeshes ? townWaterHeightAt(waterMeshes, point) : WATER_Y),
+        quality
+      );
+      if (bridges) scene.remove(bridges.group);
+      bridges?.dispose();
+      bridges = next;
+      scene.add(bridges.group);
+    }
     if (plan.buildings) {
       built = fabric;
       builtQuality = quality;
       // Defenses and special buildings must use the same automatic culture as the housing preview.
       rebuild(appearanceCity, fabric, !terrainChanged, quality);
-    }
-    if (plan.water) {
-      placeWater(city);
-      waterStamp = stamp;
     }
     if (farmlandChanged) {
       const next = createTownFarms(fabric.farms, terrain ?? undefined, waterMeshes?.wetPolygons);
@@ -678,6 +762,8 @@ export function mountCity3d(options: {
         ...(townWalls?.pickables ?? []),
         ...(specialBuildings?.pickables ?? []),
         ...(regionalHouses?.pickables ?? []),
+        ...(facilities?.pickables ?? []),
+        ...(bridges?.pickables ?? []),
         ...(wells?.pickables ?? [])
       ],
       false
@@ -694,25 +780,38 @@ export function mountCity3d(options: {
     }
     const house = regionalHouses?.resolve(hit);
     if (house) {
-      showLot(built?.buildings[house.lotIndex]);
+      const geometry = bvInstanceGeometry(hit);
+      try {
+        showLot(built?.buildings[house.lotIndex], geometry);
+      } finally {
+        geometry?.dispose();
+      }
       return;
     }
     const special = specialBuildings?.resolve(hit);
-    const well = wells?.resolve(hit);
-    if (special || well) {
+    const bridge = bridges?.resolve(hit);
+    if (bridge) {
       clearHighlight();
-      const mesh = hit.object as THREE.InstancedMesh;
-      const matrix = new THREE.Matrix4();
-      mesh.getMatrixAt(hit.instanceId!, matrix);
-      matrix.premultiply(mesh.matrixWorld);
-      const geometry = mesh.geometry.clone().applyMatrix4(matrix);
+      const geometry =
+        bvInstanceGeometry(hit) ?? (hit.object as THREE.Mesh).geometry.clone().applyMatrix4(hit.object.matrixWorld);
       geometry.computeBoundingBox();
+      readout.hidden = false;
+      readout.textContent = `${bridge.name}\n${editorText(STRUCTURE_KEY.bridge)} · ${bridge.points.reduce((length, p, i) => (i ? length + Math.hypot(p[0] - bridge.points[i - 1][0], p[1] - bridge.points[i - 1][1]) : 0), 0).toFixed(1)} m`;
+      outline(new Float32Array(geometry.getAttribute("position").array));
+      geometry.dispose();
+      return;
+    }
+    const facility = facilities?.resolve(hit);
+    const well = wells?.resolve(hit);
+    if (special || facility || well) {
+      clearHighlight();
+      const geometry = bvInstanceGeometry(hit)!;
       readout.hidden = false;
       readout.textContent = `${editorText("cityEditor.messages.structureReadout", {
         value0: editorText(STRUCTURE_KEY.landmark),
         value1: editorText(STRUCTURE_MATERIAL.stone),
         value2: geometry.boundingBox!.max.y.toFixed(1)
-      })}\n${special?.structure.name ?? special?.id ?? well!.id}`;
+      })}\n${special?.structure.name ?? special?.id ?? facility?.name ?? well!.id}`;
       outline(new Float32Array(geometry.getAttribute("position").array));
       geometry.dispose();
       return;
@@ -751,6 +850,8 @@ export function mountCity3d(options: {
     wells?.dispose();
     specialBuildings?.dispose();
     regionalHouses?.dispose();
+    facilities?.dispose();
+    bridges?.dispose();
     objects?.dispose();
     ships?.dispose();
     openSpaces?.dispose();

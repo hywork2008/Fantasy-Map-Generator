@@ -122,6 +122,29 @@ export interface BvPlacement {
   matrix: THREE.Matrix4;
 }
 
+/** Owned copy of exactly the picked instance, in world coordinates; caller must dispose it. */
+export function bvInstanceGeometry(
+  hit: Pick<THREE.Intersection, "object" | "instanceId">
+): THREE.BufferGeometry | undefined {
+  const mesh = hit.object;
+  const index = hit.instanceId;
+  if (
+    !(mesh instanceof THREE.InstancedMesh) ||
+    index === undefined ||
+    !Number.isInteger(index) ||
+    index < 0 ||
+    index >= mesh.count
+  )
+    return;
+  mesh.updateWorldMatrix(true, false);
+  const matrix = new THREE.Matrix4();
+  mesh.getMatrixAt(index, matrix);
+  matrix.premultiply(mesh.matrixWorld);
+  const geometry = mesh.geometry.clone().applyMatrix4(matrix);
+  geometry.computeBoundingBox();
+  return geometry;
+}
+
 /** One draw call per BV definition, with instance IDs mapped back to CE IDs. */
 export function createBvInstances<T extends BvPlacement>(sites: readonly T[], cache = createBvPrototypeCache()) {
   const group = new THREE.Group();

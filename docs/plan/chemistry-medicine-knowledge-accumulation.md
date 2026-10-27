@@ -22,20 +22,20 @@
 
 | 層 | 今あるもの | 無いもの |
 | :--- | :--- | :--- |
-| 技術グラフ | `TechnologyEraBand = 0\|1\|2\|3\|4\|5`。[`technologyDefinitions.ts`](../../src/generators/technologyDefinitions.ts) は era 6+ を意図的に省略。`distillation`（era 1）、`experimentalNaturalPhilosophy`（era 4）は閾値ノードとして存在する | 薬種、実験ガラス、分析化学、工業硫酸、公衆衛生のノード |
-| シグナル集計 | [`buildStateSignals()`](../../src/generators/technologyProgress.ts) は guild の metallurgy/woodworking/printing/masonry/instruments、academy の **administration のみ**、`militaryResourceLedgers.annualDemand.gunpowder`、`urbanWaterMaxTier` を読む | `glassware` guild、`medicine` / `naturalPhilosophy`、硫黄アクセス、衛生・戦傷圧力 |
-| ギルド | `glassware` は実装済み。`Ceramics` / `Glass` が [`CRAFT_DOMAIN_BY_GOOD_NAME`](../../src/extensions/economy/generators/guildKnowledgeTypes.ts) に載る。ボーナスはレシピ収率 | 実験容器の**品質**前提。`instruments` は `Liquor` の暫定マップだけで、計測器 Good は未実装 |
-| アカデミー | [`SCHOLARLY_KNOWLEDGE_DOMAINS = ["administration"]`](../../src/extensions/economy/generators/academyKnowledgeTypes.ts) | `medicine` / `naturalPhilosophy`。頭数モデルとボーナス消費者を本設計が発明する |
+| 技術グラフ | `TechnologyEraBand = 0\|1\|2\|3\|4\|5`。[`technologyDefinitions.ts`](/src/generators/technologyDefinitions.ts) は era 6+ を意図的に省略。`distillation`（era 1）、`experimentalNaturalPhilosophy`（era 4）は閾値ノードとして存在する | 薬種、実験ガラス、分析化学、工業硫酸、公衆衛生のノード |
+| シグナル集計 | [`buildStateSignals()`](/src/generators/technologyProgress.ts) は guild の metallurgy/woodworking/printing/masonry/instruments、academy の **administration のみ**、`militaryResourceLedgers.annualDemand.gunpowder`、`urbanWaterMaxTier` を読む | `glassware` guild、`medicine` / `naturalPhilosophy`、硫黄アクセス、衛生・戦傷圧力 |
+| ギルド | `glassware` は実装済み。`Ceramics` / `Glass` が [`CRAFT_DOMAIN_BY_GOOD_NAME`](/src/extensions/economy/generators/guildKnowledgeTypes.ts) に載る。ボーナスはレシピ収率 | 実験容器の**品質**前提。`instruments` は `Liquor` の暫定マップだけで、計測器 Good は未実装 |
+| アカデミー | [`SCHOLARLY_KNOWLEDGE_DOMAINS = ["administration"]`](/src/extensions/economy/generators/academyKnowledgeTypes.ts) | `medicine` / `naturalPhilosophy`。頭数モデルとボーナス消費者を本設計が発明する |
 | 火山 Good | `Pumice` は `biomeOutputByTag: { volcanic: 0.05 }` で建設需要のみ。`Obsidian` は lavaField 限定、luxury 0.4。`Sulfur` は evaporite + 噴気孔、需要はほぼ Gunpowder。`Volcanic Ash` は Roman Concrete `{ "Volcanic Ash": 1, Lime: 1 }` | 化学・医学レシピ。`Obsidian` 加工チェーンは火山文書 Phase 4 送り |
 | プロト化学 Good | `Glass` `{ "White sand": 1, Potash: 0.5 }`。`Soap` / `Vinegar` / `Alum` / `Potash` / `Dyes`。**`Medicinal herbs` はカタログに既にある**（forest 採取、luxury 0.6） | `Lab Glassware`、`Medicines`、`Sulfuric Acid`、`Coal Tar`。新 `Herbs` は作らない |
 | 工業ゲート | `Good.requiredTechnology` と `isGoodEnabled` / `isGoodManufacturableInState` は実装済み | 化学・医薬 Good の登録 |
-| 衛生 | `Burg.sanitation` は host が 50 でシード。[`sanitationScoreFromSystem()`](../../src/extensions/economy/generators/urbanWaterSystem.ts) は `(1 - healthPressure) * 12` を既に civic スコアへ折り込む。[`rollupProvinceAndStateSanitation()`](../../src/extensions/economy/generators/urbanWaterSystem.ts) が州・属州平均を書く | 病院は下水ではない。`burg.medicalCare` は未存在。Steam Waterworks 後書きは civic sanitation を更新しない（触らない） |
-| 個人健康 | [`characterHealth.ts`](../../src/extensions/characters/characterHealth.ts) Phase 1。`resolveCharacterSanitation` は burg → state → 50 | `resolveCharacterMedicalCare`。Medicines / 病院オブジェクトの直接参照は禁止。`DeathCause` に `disease` は無い（触らない） |
-| 蒸気工房 | [`steamTypes.ts`](../../src/extensions/economy/generators/steamTypes.ts) に `SteamPumpTrial` / `SteamInstallation` | `ExperimentalWorkshop` は蒸気設計の型として未実装。本設計が共有する |
+| 衛生 | `Burg.sanitation` は host が 50 でシード。[`sanitationScoreFromSystem()`](/src/extensions/economy/generators/urbanWaterSystem.ts) は `(1 - healthPressure) * 12` を既に civic スコアへ折り込む。[`rollupProvinceAndStateSanitation()`](/src/extensions/economy/generators/urbanWaterSystem.ts) が州・属州平均を書く | 病院は下水ではない。`burg.medicalCare` は未存在。Steam Waterworks 後書きは civic sanitation を更新しない（触らない） |
+| 個人健康 | [`characterHealth.ts`](/src/extensions/characters/characterHealth.ts) Phase 1。`resolveCharacterSanitation` は burg → state → 50 | `resolveCharacterMedicalCare`。Medicines / 病院オブジェクトの直接参照は禁止。`DeathCause` に `disease` は無い（触らない） |
+| 蒸気工房 | [`steamTypes.ts`](/src/extensions/economy/generators/steamTypes.ts) に `SteamPumpTrial` / `SteamInstallation` | `ExperimentalWorkshop` は蒸気設計の型として未実装。本設計が共有する |
 
-`technology.tick` は [`timeEngine.ts`](../../src/generators/timeEngine.ts) で `phase: "economy"`、shipbuilding.tick の後。host は Economy を import せず、`simulation.extensions.economy` の plain data を読む。
+`technology.tick` は [`timeEngine.ts`](/src/generators/timeEngine.ts) で `phase: "economy"`、shipbuilding.tick の後。host は Economy を import せず、`simulation.extensions.economy` の plain data を読む。
 
-現行年次ブロック（[`economy/index.tsx`](../../src/extensions/economy/index.tsx) 2707–2731）は `UrbanWater.settleAnnual()` → `SteamIndustry.settleAnnual()` → `GuildKnowledge` → `AcademyKnowledge` である。本設計は工房・病院を Water / Academy の**前**へ挿入する（§9）。
+現行年次ブロック（[`economy/index.tsx`](/src/extensions/economy/index.tsx) 2707–2731）は `UrbanWater.settleAnnual()` → `SteamIndustry.settleAnnual()` → `GuildKnowledge` → `AcademyKnowledge` である。本設計は工房・病院を Water / Academy の**前**へ挿入する（§9）。
 
 ---
 
@@ -735,7 +735,7 @@ State `adopted` は万能倍率ではない。
 
 #### host フィールド
 
-[`src/types/models.ts`](../../src/types/models.ts) の `Burg` / `Province` / `State` に、`sanitation` と同じ 0–100 civic 規約で optional を足す。
+[`src/types/models.ts`](/src/types/models.ts) の `Burg` / `Province` / `State` に、`sanitation` と同じ 0–100 civic 規約で optional を足す。
 
 ```ts
 /**
@@ -752,7 +752,7 @@ medicalCare?: number;
 
 シード箇所は `sanitation: 50` と同じ 3 点:
 
-- [`burgs-generator.ts`](../../src/generators/burgs-generator.ts) 355（`createBurg` 相当）
+- [`burgs-generator.ts`](/src/generators/burgs-generator.ts) 355（`createBurg` 相当）
 - 830（生成後ループ）
 - 1456（生成後の新規 Burg）
 
@@ -777,7 +777,7 @@ export function writeBurgMedicalCareFromRelief(
 
 1. 当該 Burg の稼働病院から `medicalCareRelief` を出す。
 2. 病院行がある Burg へ `burg.medicalCare = medicalCareScoreFromRelief(relief)` を書く。材料切れなら relief 0 → **50**（ベースラインへ戻す。sanitation を触らない）。
-3. [`rollupProvinceAndStateSanitation`](../../src/extensions/economy/generators/urbanWaterSystem.ts) と **同じ平均**で `province.medicalCare` / `state.medicalCare` を書く（`sum / n`、`rn(..., 1)`、病院の無い Burg はシード 50 を平均に含める）。新しい集計スタイルは発明しない。
+3. [`rollupProvinceAndStateSanitation`](/src/extensions/economy/generators/urbanWaterSystem.ts) と **同じ平均**で `province.medicalCare` / `state.medicalCare` を書く（`sum / n`、`rn(..., 1)`、病院の無い Burg はシード 50 を平均に含める）。新しい集計スタイルは発明しない。
 
 `medicalCare` は燃料付き病院がある Burg の局所スコアである。State 平均は Characters の burg 無しフォールバック用であり、州全体の医学倍率ではない。
 
@@ -974,7 +974,7 @@ export interface TechnologySignals {
 | `acidPlants` | 新規 |
 | `medicalCareReliefByBurg` | `{ burgId, relief }[]`。当年の病院 settle が書き、同じ関数内で `burg.medicalCare` へ変換する。UrbanWater は読まない |
 
-セーブ検証: 新配列を [`assertOptionalArrayField`](../../src/runtime/extensionStateSlices.ts) の既知リストへ追加する。値が存在するのに配列でなければ **throw**（現行どおり）。欠落は無視。実行時の空配列は `getSliceArray` のデフォルトであり、アーカイブ検証は `[]` に書き換えない。
+セーブ検証: 新配列を [`assertOptionalArrayField`](/src/runtime/extensionStateSlices.ts) の既知リストへ追加する。値が存在するのに配列でなければ **throw**（現行どおり）。欠落は無視。実行時の空配列は `getSliceArray` のデフォルトであり、アーカイブ検証は `[]` に書き換えない。
 
 ### 11.3 セーブ互換
 
@@ -1239,25 +1239,25 @@ Economy は既定 OFF。追加 feature flag は不要。導入は §20 の線形
 
 ## 21. 参照
 
-- [`src/generators/technologyTypes.ts`](../../src/generators/technologyTypes.ts)
-- [`src/generators/technologyDefinitions.ts`](../../src/generators/technologyDefinitions.ts)
-- [`src/generators/technologyProgress.ts`](../../src/generators/technologyProgress.ts)
-- [`src/generators/timeEngine.ts`](../../src/generators/timeEngine.ts)
-- [`src/ui/dialogs/TechnologyOverviewDialog.tsx`](../../src/ui/dialogs/TechnologyOverviewDialog.tsx)
-- [`src/extensions/economy/index.tsx`](../../src/extensions/economy/index.tsx)
-- [`src/extensions/economy/generators/goods-generator.ts`](../../src/extensions/economy/generators/goods-generator.ts)
-- [`src/extensions/economy/generators/production-generator.ts`](../../src/extensions/economy/generators/production-generator.ts) — `buildDemandCoverageByGood`
-- [`src/extensions/economy/generators/markets-generator.ts`](../../src/extensions/economy/generators/markets-generator.ts) — `collectConsumerDemand`
-- [`src/extensions/economy/generators/marketTypes.ts`](../../src/extensions/economy/generators/marketTypes.ts) — `Market.i`, `Market.centerBurgId`
-- [`src/extensions/economy/generators/guildKnowledgeTypes.ts`](../../src/extensions/economy/generators/guildKnowledgeTypes.ts)
-- [`src/extensions/economy/generators/academyKnowledgeTypes.ts`](../../src/extensions/economy/generators/academyKnowledgeTypes.ts)
-- [`src/extensions/economy/generators/urbanWaterInstitutions.ts`](../../src/extensions/economy/generators/urbanWaterInstitutions.ts) — `healthPressureFromSanitation`
-- [`src/extensions/economy/generators/urbanWaterSystem.ts`](../../src/extensions/economy/generators/urbanWaterSystem.ts)
-- [`src/extensions/economy/generators/steamIndustry.ts`](../../src/extensions/economy/generators/steamIndustry.ts)
-- [`src/extensions/economy/generators/militaryResourcesTypes.ts`](../../src/extensions/economy/generators/militaryResourcesTypes.ts)
-- [`src/extensions/economy/generators/foodLedgerSummary.ts`](../../src/extensions/economy/generators/foodLedgerSummary.ts)
-- [`src/runtime/extensionStateSlices.ts`](../../src/runtime/extensionStateSlices.ts) — `assertOptionalArrayField`
-- [`src/extensions/characters/characterHealth.ts`](../../src/extensions/characters/characterHealth.ts)
-- [`src/generators/populationLossTracker.ts`](../../src/generators/populationLossTracker.ts)
-- [`src/types/models.ts`](../../src/types/models.ts) — `Burg.sanitation` / 本設計で足す `medicalCare`
-- [`src/generators/burgs-generator.ts`](../../src/generators/burgs-generator.ts) — civic シード 50
+- [`src/generators/technologyTypes.ts`](/src/generators/technologyTypes.ts)
+- [`src/generators/technologyDefinitions.ts`](/src/generators/technologyDefinitions.ts)
+- [`src/generators/technologyProgress.ts`](/src/generators/technologyProgress.ts)
+- [`src/generators/timeEngine.ts`](/src/generators/timeEngine.ts)
+- [`src/ui/dialogs/TechnologyOverviewDialog.tsx`](/src/ui/dialogs/TechnologyOverviewDialog.tsx)
+- [`src/extensions/economy/index.tsx`](/src/extensions/economy/index.tsx)
+- [`src/extensions/economy/generators/goods-generator.ts`](/src/extensions/economy/generators/goods-generator.ts)
+- [`src/extensions/economy/generators/production-generator.ts`](/src/extensions/economy/generators/production-generator.ts) — `buildDemandCoverageByGood`
+- [`src/extensions/economy/generators/markets-generator.ts`](/src/extensions/economy/generators/markets-generator.ts) — `collectConsumerDemand`
+- [`src/extensions/economy/generators/marketTypes.ts`](/src/extensions/economy/generators/marketTypes.ts) — `Market.i`, `Market.centerBurgId`
+- [`src/extensions/economy/generators/guildKnowledgeTypes.ts`](/src/extensions/economy/generators/guildKnowledgeTypes.ts)
+- [`src/extensions/economy/generators/academyKnowledgeTypes.ts`](/src/extensions/economy/generators/academyKnowledgeTypes.ts)
+- [`src/extensions/economy/generators/urbanWaterInstitutions.ts`](/src/extensions/economy/generators/urbanWaterInstitutions.ts) — `healthPressureFromSanitation`
+- [`src/extensions/economy/generators/urbanWaterSystem.ts`](/src/extensions/economy/generators/urbanWaterSystem.ts)
+- [`src/extensions/economy/generators/steamIndustry.ts`](/src/extensions/economy/generators/steamIndustry.ts)
+- [`src/extensions/economy/generators/militaryResourcesTypes.ts`](/src/extensions/economy/generators/militaryResourcesTypes.ts)
+- [`src/extensions/economy/generators/foodLedgerSummary.ts`](/src/extensions/economy/generators/foodLedgerSummary.ts)
+- [`src/runtime/extensionStateSlices.ts`](/src/runtime/extensionStateSlices.ts) — `assertOptionalArrayField`
+- [`src/extensions/characters/characterHealth.ts`](/src/extensions/characters/characterHealth.ts)
+- [`src/generators/populationLossTracker.ts`](/src/generators/populationLossTracker.ts)
+- [`src/types/models.ts`](/src/types/models.ts) — `Burg.sanitation` / 本設計で足す `medicalCare`
+- [`src/generators/burgs-generator.ts`](/src/generators/burgs-generator.ts) — civic シード 50

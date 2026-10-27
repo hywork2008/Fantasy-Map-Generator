@@ -39,14 +39,14 @@
 
 | 項目 | 現状 | 参照 |
 | --- | --- | --- |
-| 州スコープの年次自己ゲート設定 | `getXxxLastSettledYear`/`setXxxLastSettledYear`パターンが約30種類存在。`Dams.settleAnnual()`/`Levees.settleAnnual()`と同型。 | [economyContext.ts:1719-1735](../../src/extensions/economy/economyContext.ts#L1719) |
-| 州一律ブロードキャストの先例 | `AgTechInvestment.settleWaterWorks()`が`coverageByState`を1回のcellループで`cells.state[cellId]`経由でFloat32Arrayへブロードキャストする。 | [agTechInvestment.ts:169-196](../../src/extensions/economy/generators/agTechInvestment.ts#L169) |
-| 未接続の背景ドラッグ接続点 | `AgriculturalConditions.floodProtectionByCell`が`calculateClimateYield()`内で乗算されている——同じ関数に`climateFoodStressByCell`を追加する。 | [agriculturalLandUse.ts:1039-1099](../../src/extensions/economy/generators/agriculturalLandUse.ts#L1039) |
-| Stateの物語ログ（chronicle）先例 | `state.councilSessionLog`——リングバッファ、`summary`必須のプレーン文字列＋`messageKey`任意のi18nキー。新規ダイアログを作らずとも`summary`だけで機能する設計。 | [councilSession.ts:76-101](../../src/extensions/economy/generators/councilSession.ts#L76)、[models.ts:924-936](../../src/types/models.ts#L924) |
-| 治水投資が作物適性に直結する既存経路 | `irrigationDevelopmentByCell`/`irrigationWaterStress`（河川取水の充足率）がすでに州の灌漑投資水準を反映。 | [economyContext.ts:549-596](../../src/extensions/economy/economyContext.ts#L549) |
+| 州スコープの年次自己ゲート設定 | `getXxxLastSettledYear`/`setXxxLastSettledYear`パターンが約30種類存在。`Dams.settleAnnual()`/`Levees.settleAnnual()`と同型。 | [economyContext.ts#L1719-1735](/src/extensions/economy/economyContext.ts#L1719) |
+| 州一律ブロードキャストの先例 | `AgTechInvestment.settleWaterWorks()`が`coverageByState`を1回のcellループで`cells.state[cellId]`経由でFloat32Arrayへブロードキャストする。 | [agTechInvestment.ts#L169-196](/src/extensions/economy/generators/agTechInvestment.ts#L169) |
+| 未接続の背景ドラッグ接続点 | `AgriculturalConditions.floodProtectionByCell`が`calculateClimateYield()`内で乗算されている——同じ関数に`climateFoodStressByCell`を追加する。 | [agriculturalLandUse.ts#L1039-1099](/src/extensions/economy/generators/agriculturalLandUse.ts#L1039) |
+| Stateの物語ログ（chronicle）先例 | `state.councilSessionLog`——リングバッファ、`summary`必須のプレーン文字列＋`messageKey`任意のi18nキー。新規ダイアログを作らずとも`summary`だけで機能する設計。 | [councilSession.ts#L76-101](/src/extensions/economy/generators/councilSession.ts#L76)、[models.ts#L924-936](/src/types/models.ts#L924) |
+| 治水投資が作物適性に直結する既存経路 | `irrigationDevelopmentByCell`/`irrigationWaterStress`（河川取水の充足率）がすでに州の灌漑投資水準を反映。 | [economyContext.ts#L549-596](/src/extensions/economy/economyContext.ts#L549) |
 | 既存の飢饉死経路 | `demography-simulator.ts`が`roomForGrowth<0`のとき`famine`死因で人口を削る——`foodPotential`/`yieldPerArea`の低下は自動的にこの経路へ波及する。 | disaster-mode.md実装前チェック表 |
-| 部分支出ヘルパーの欠如 | `debitTreasury(stateId, amount)`は全額調達できない場合に**何もせず失敗**する（all-or-nothing）。緊急救済は「出せるだけ出す」必要があるため、専用の部分支出ヘルパーを新設する。 | [chemMedCommon.ts:124-129](../../src/extensions/economy/generators/chemMedCommon.ts#L124) |
-| 州単位の既存フロンティア災害モデル | `frontierGovernance.ts`の`FrontierDisaster`（`drought`/`flood`/`epidemic`/`bandits`）は州編入前のフロンティア開拓地限定で、既存の州・都市には効かない。本書はこれを一般化するのではなく、`AgriculturalConditions`接続を前提に別実装する（フロンティアの`drought`ロジックとは独立)。 | [frontierGovernance.ts:166-195](../../src/generators/frontierGovernance.ts#L166) |
+| 部分支出ヘルパーの欠如 | `debitTreasury(stateId, amount)`は全額調達できない場合に**何もせず失敗**する（all-or-nothing）。緊急救済は「出せるだけ出す」必要があるため、専用の部分支出ヘルパーを新設する。 | [chemMedCommon.ts#L124-129](/src/extensions/economy/generators/chemMedCommon.ts#L124) |
+| 州単位の既存フロンティア災害モデル | `frontierGovernance.ts`の`FrontierDisaster`（`drought`/`flood`/`epidemic`/`bandits`）は州編入前のフロンティア開拓地限定で、既存の州・都市には効かない。本書はこれを一般化するのではなく、`AgriculturalConditions`接続を前提に別実装する（フロンティアの`drought`ロジックとは独立)。 | [frontierGovernance.ts#L166-195](/src/generators/frontierGovernance.ts#L166) |
 
 ## 3. 設計
 

@@ -56,7 +56,7 @@ it.each(PROFILES)("%s row keeps the CE envelope, roofs face the sky and resource
   model.group.updateMatrixWorld(true);
   const bounds = new THREE.Box3().setFromObject(model.group);
   expect(bounds.min.y).toBeGreaterThanOrEqual(-0.01);
-  expect(bounds.max.x - bounds.min.x).toBeLessThan(REGIONAL_HOUSES.spacing * 2 + REGIONAL_HOUSES.width + 2);
+  expect(bounds.max.x - bounds.min.x).toBeLessThan(REGIONAL_HOUSES.spacing * 2 + REGIONAL_HOUSES.width + 2.8);
   const hit = (x: number, z: number) =>
     new THREE.Raycaster(new THREE.Vector3(x, 30, z), new THREE.Vector3(0, -1, 0)).intersectObjects(model.pickables)[0];
   for (const x of [-8, 0, 8]) {
@@ -89,4 +89,29 @@ it.each(PROFILES)("%s low quality keeps the silhouette with far fewer triangles"
   expect(low.triangles).toBeLessThan(high.triangles / 4);
   expect(low.bounds.max.y).toBeGreaterThan(high.bounds.max.y - 1);
   expect(low.bounds.max.x - low.bounds.min.x).toBeGreaterThan(high.bounds.max.x - high.bounds.min.x - 0.5);
+});
+
+it("retains individual storey heights and cumulative jetties in the detailed factory", () => {
+  const geometry = createRegionalHouseGeometry(
+    {
+      ...defaultRegionalHouseSpec("northern-urban", 0),
+      width: 6,
+      depth: 10,
+      storeys: 3,
+      floorHeights: [3.5, 2.6, 3.1],
+      jetty: 0.2,
+      attached: true,
+      groundUse: "craft"
+    },
+    "high"
+  );
+  const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }));
+  // Probe wall panels away from windows/framing, from the east side.
+  const wallX = (y: number) =>
+    new THREE.Raycaster(new THREE.Vector3(20, y, 0.37), new THREE.Vector3(-1, 0, 0)).intersectObject(mesh)[0].point.x;
+  expect(wallX(2.5)).toBeCloseTo(3);
+  expect(wallX(3.8)).toBeCloseTo(3.2);
+  expect(wallX(6.4)).toBeCloseTo(3.4);
+  geometry.dispose();
+  (mesh.material as THREE.Material).dispose();
 });

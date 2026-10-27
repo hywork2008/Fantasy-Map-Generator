@@ -8,12 +8,12 @@
 
 ### 案1（実装済み・視認性不足で却下）: パス自体のアルファグラデーション
 
-`buildRoutePaths`（[deckDataAdapters.ts:1090](../../src/renderers/webgl/adapters/deckDataAdapters.ts#L1090)）内で、各 searoute を最大5分割し、`route.points` の並び順（生成時の起点→終点順、[routes-generator.ts:319](../../src/generators/routes-generator.ts#L319) `points.map(p => p[2])` が示す通り経路順で確定している）に沿ってセグメントごとのアルファ値を25%→100%に線形補間する実装（`buildSearouteFlowSegments`）を追加した。
+`buildRoutePaths`（[deckDataAdapters.ts#L1090](/src/renderers/webgl/adapters/deckDataAdapters.ts#L1090)）内で、各 searoute を最大5分割し、`route.points` の並び順（生成時の起点→終点順、[routes-generator.ts#L319](/src/generators/routes-generator.ts#L319) `points.map(p => p[2])` が示す通り経路順で確定している）に沿ってセグメントごとのアルファ値を25%→100%に線形補間する実装（`buildSearouteFlowSegments`）を追加した。
 
 - 各セグメントは同じ `id: route-${route.i}` を維持し、`mapInteraction.ts` の `parseTrailingNumber` によるピッキング/ツールチップ/ドラッグ解決を壊さないようにした。
 - ユニットテストと `tsc`/lint/madge/build はすべてクリーン。
 
-**却下理由**: searoutes の線幅は 0.7px 前後（[deckDataAdapters.ts:1110](../../src/renderers/webgl/adapters/deckDataAdapters.ts#L1110) 付近）と非常に細く、アルファのグラデーションは実際にブラウザで見るとほぼ人間の目に入らない。ユーザー確認の結果、「線ではなくセルに効果をつけないと駄目」という結論に至った。
+**却下理由**: searoutes の線幅は 0.7px 前後（[deckDataAdapters.ts#L1110](/src/renderers/webgl/adapters/deckDataAdapters.ts#L1110) 付近）と非常に細く、アルファのグラデーションは実際にブラウザで見るとほぼ人間の目に入らない。ユーザー確認の結果、「線ではなくセルに効果をつけないと駄目」という結論に至った。
 
 → 以降は **searoutes が通過するセル（水上セル）** に対して視覚効果を付ける方向に方針転換。
 
@@ -21,9 +21,9 @@
 
 ## 1. 前提となるデータ
 
-- `route.points: [number, number, number][]` の各要素の3番目はセルIDで、経路探索（Dijkstra, `findPath`）が確定した順に並んでいる（[routes-generator.ts:319](../../src/generators/routes-generator.ts#L319)）。`points.map(p => p[2])` を先頭から辿り、連続する重複を除去するだけで「起点→終点の順に並んだセル列」が得られる。`route.cells` を別途参照する必要はない。
-- 個々のセルのポリゴン座標は、既存の汎用ヘルパー `getCellPolygon(cells, vertices, cellId)`（`buildBackgroundPolygons` 等、複数の polygon アダプタが共通利用: [deckDataAdapters.ts:335](../../src/renderers/webgl/adapters/deckDataAdapters.ts#L335) 付近）でそのまま構築できる。
-- 生成された静的ジオメトリは既存の `deckLayerDataCache`（シグネチャキー方式、[buildDeckLayers.ts](../../src/renderers/webgl/buildDeckLayers.ts)）にそのまま乗せられる。
+- `route.points: [number, number, number][]` の各要素の3番目はセルIDで、経路探索（Dijkstra, `findPath`）が確定した順に並んでいる（[routes-generator.ts#L319](/src/generators/routes-generator.ts#L319)）。`points.map(p => p[2])` を先頭から辿り、連続する重複を除去するだけで「起点→終点の順に並んだセル列」が得られる。`route.cells` を別途参照する必要はない。
+- 個々のセルのポリゴン座標は、既存の汎用ヘルパー `getCellPolygon(cells, vertices, cellId)`（`buildBackgroundPolygons` 等、複数の polygon アダプタが共通利用: [deckDataAdapters.ts#L335](/src/renderers/webgl/adapters/deckDataAdapters.ts#L335) 付近）でそのまま構築できる。
+- 生成された静的ジオメトリは既存の `deckLayerDataCache`（シグネチャキー方式、[buildDeckLayers.ts](/src/renderers/webgl/buildDeckLayers.ts)）にそのまま乗せられる。
 
 ---
 
@@ -41,7 +41,7 @@ brightness = triangleWave(time - cellPhase)
 
 **コスト**:
 - 静的ジオメトリはキャッシュ可能（既存の signature キャッシュパターンに乗る）。
-- 継続的な再描画ループが1本必要になる点だけが、現状の「オンデマンド描画」設計（`scheduleWebglUpdate()` によるトリガー駆動、[buildDeckLayers.ts](../../src/renderers/webgl/buildDeckLayers.ts) 参照）からの逸脱。deck.gl 標準の `AnimationLoop` か、`requestAnimationFrame` で `currentTime` prop だけを更新する軽量なループで足りる想定。
+- 継続的な再描画ループが1本必要になる点だけが、現状の「オンデマンド描画」設計（`scheduleWebglUpdate()` によるトリガー駆動、[buildDeckLayers.ts](/src/renderers/webgl/buildDeckLayers.ts) 参照）からの逸脱。deck.gl 標準の `AnimationLoop` か、`requestAnimationFrame` で `currentTime` prop だけを更新する軽量なループで足りる想定。
 
 ---
 

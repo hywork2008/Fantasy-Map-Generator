@@ -37,7 +37,7 @@
 
 ### 1.1 地下は「第2のマップ」ではなく「地表セルに束ねられた鉛直属性」
 
-`pack.cells` は Voronoi 幾何と密結合している（`p` / `c` / `v` / `area`、`PackedGraph.ts:24-102`）。
+`pack.cells` は Voronoi 幾何と密結合している（`p` / `c` / `v` / `area`、`PackedGraph.ts#L24-102`）。
 第2の独立グラフを足すと save・export・全レンダラ・routes・economy の全域に波及し、
 city generator 並みのスコープになる（feature-gaps §6-4 の懸念どおり）。
 
@@ -51,7 +51,7 @@ city generator 並みのスコープになる（feature-gaps §6-4 の懸念ど�
 ### 1.2 鉛直方向は3層。語彙は既存の鉱床深度に揃える
 
 `MineralDeposit.depth` は既に `surface | shallow | deep` を持つ
-（`mineralResources.ts:206`）。地下層はこれと**同じ語彙**にする。
+（`mineralResources.ts#L206`）。地下層はこれと**同じ語彙**にする。
 
 | 層 | コード | 目安 | 主な意味 |
 | :--- | ---: | :--- | :--- |
@@ -80,7 +80,7 @@ subterraneanCapacity?: Float32Array;
 ```
 
 `subterraneanVoid` は**地質プロヴィンスから引く**。既存の
-`GeologicalProvinceKind`（`mineralResourcesTypes.ts:41`）にそのまま対応させられる。
+`GeologicalProvinceKind`（`mineralResourcesTypes.ts#L41`）にそのまま対応させられる。
 
 | プロヴィンス | 空洞率 | 洞窟の性格 |
 | :--- | ---: | :--- |
@@ -123,7 +123,7 @@ export interface SubterraneanDomain {
 }
 ```
 
-`Zone`（`models.ts:1183`）と意図的に似せてあるが、`Zone` は装飾的な色付き注釈であり
+`Zone`（`models.ts#L1183`）と意図的に似せてあるが、`Zone` は装飾的な色付き注釈であり
 セマンティクスを持たない。`SubterraneanDomain` は生成系が読み書きする一次データなので分ける。
 
 **この型を dwarf 専用にしないことが重要**。`kind` を足すだけで
@@ -139,22 +139,22 @@ export interface SubterraneanDomain {
 `dwarf.md` §3 の順序を、現行 `main.ts` の実際の呼び出し順に合わせて修正したもの。
 
 ```text
-Biomes.define                       (main.ts:1131)
-Threats.generate                    (main.ts:1137)
+Biomes.define                       (main.ts#L1131)
+Threats.generate                    (main.ts#L1137)
 rankCells
-generateSubsistenceCapacity         (main.ts:1139)
+generateSubsistenceCapacity         (main.ts#L1139)
 generateGeologicalProvinces   ← NEW: economy から core へ抽出（§3.2）
 generateCaveSystems           ← NEW: void → 連結成分 → SubterraneanDomain 候補（§3.3）
-Cultures.generate / Cultures.expand (main.ts:1140-1141)
+Cultures.generate / Cultures.expand (main.ts#L1140-1141)
 seedDwarfHoldOikoumene        ← NEW: ドワーフ文化を最良 domain へ（§3.4）
-applyInitialSettlementPattern       (main.ts:1153)   ← "mountain" region を予約
-Burgs.generate                      (main.ts:1166)
+applyInitialSettlementPattern       (main.ts#L1153)   ← "mountain" region を予約
+Burgs.generate                      (main.ts#L1166)
 Routes / States
 ```
 
 ### 3.2 Phase 0: 地質プロヴィンスを core へ抽出（振る舞い不変）
 
-`classifyProvince()` は現在 `mineralResources.ts:284` にあり、Economy 拡張の内側にいる。
+`classifyProvince()` は現在 `mineralResources.ts#L284` にあり、Economy 拡張の内側にいる。
 しかし**地下圏は Economy を無効にしても生成されなければならない**（ドワーフ国家の生成は
 core の責務）。core の generator は拡張を import できない。
 
@@ -164,7 +164,7 @@ core の責務）。core の generator は拡張を import できない。
 **同じ hash 実装を持っていけば決定性は完全に保たれる**（既存の鉱床テストが緑のままであることが
 Phase 0 の完了条件）。
 
-この抽出は本文書のためだけの作業ではない。`mineralResources.ts:163` が自ら
+この抽出は本文書のためだけの作業ではない。`mineralResources.ts#L163` が自ら
 「将来のテクトニクスモデルが残りを置き換える」と書いており、feature-gaps §6-1 が指摘した
 プレートモデルの受け皿も core 側にあるべきである。
 
@@ -178,12 +178,12 @@ Phase 0 の完了条件）。
 6. `voidVolume = Σ area × void × depthFactor`
 
 **Fantasy カルチャーセット以外ではこの工程を丸ごとスキップする。**
-`isFantasyCulturesSet()`（`raceCivicStance.ts`、`giantHighlandOikoumene.ts:23` の先例）で
+`isFantasyCulturesSet()`（`raceCivicStance.ts`、`giantHighlandOikoumene.ts#L23` の先例）で
 ゲートする。これが feature-gaps §4-4「非 Fantasy でこのレイヤはどう振る舞うべきか」への回答であり、
 `pack.subterraneanDomains` が空配列 ⇒ レイヤは自動的に非表示になる。
 
 既存の marker `"caves"` は `cells.h >= 50 && cells.pop` というだけの点配置
-（`markers-generator.ts:1576`）である。Phase 1 以降はこれを `entrances` から引くようにして、
+（`markers-generator.ts#L1576`）である。Phase 1 以降はこれを `entrances` から引くようにして、
 **ランダムな飾りから「実在する洞窟系の開口部」へ格上げ**する。安価で効果が大きい。
 
 ### 3.4 Phase 2: ドワーフ氏族圏の播種（`seedDwarfHoldOikoumene.ts`）
@@ -193,7 +193,7 @@ Phase 0 の完了条件）。
 | | Giant（現行） | Dwarf（本設計） |
 | :--- | :--- | :--- |
 | 対象領域 | 最高河川源流の分水界 | 洞窟系の連結成分（`wildCavern` domain） |
-| 呼び出し位置 | `Burgs.generate` の中（`burgs-generator.ts:752`） | **`applyInitialSettlementPattern` の前**（main.ts） |
+| 呼び出し位置 | `Burgs.generate` の中（`burgs-generator.ts#L752`） | **`applyInitialSettlementPattern` の前**（main.ts） |
 | capacity | 人間相当 × 0.1 の定数 | §4 の地下食料網の出力 |
 
 呼び出し位置の違いは決定的である。Giant は Settlement Foundation の**後**に播種されるため、
@@ -207,12 +207,12 @@ Phase 0 の完了条件）。
 2. `kind` を `"dwarfHold"` に、`raceId` をドワーフ種族に変える
 3. ドワーフ文化の `center` を最良 `entrance` セルへ移し、domain の投影セルへ文化を塗る
 4. 人工掘削分を `subterraneanVoid` に加算（`granite` / `shield` はここで初めて居住可能になる）
-5. `SettlementRegion` に `kind: "mountain"` を追加し（`settlementFoundation.ts:1-7`）、
+5. `SettlementRegion` に `kind: "mountain"` を追加し（`settlementFoundation.ts#L1-7`）、
    domain の投影セルを1つの予約 region として Foundation に渡す
 6. その region の中心 node に `mandatoryCapital` を付け、初期国家数の枠内で必ず1つ首都にする
 
 `cells.s`（適性）は人口容量と首都選定スコアを兼ねている。
-`giantHighlandOikoumene.ts:79` と同じく、**アンカーの `s` だけ**を人間最高値の数倍に引き上げ、
+`giantHighlandOikoumene.ts#L79` と同じく、**アンカーの `s` だけ**を人間最高値の数倍に引き上げ、
 実際の容量は上げない。
 
 ---
@@ -228,9 +228,9 @@ Phase 0 の完了条件）。
 - なぜドワーフが金属を穀物と交換するのか、なぜツンドラの地下王国が貧しいのか、
   なぜ人口が人間より少ないのかが、すべて「そういう定数だから」になる
 - 本リポジトリは既に、地表について4つの支持（農耕・漁労・牧畜・採集）を明示的に足し合わせて
-  容量を出す機構を持つ（`subsistenceCapacity.ts:76-102`）。地下だけ定数にする理由がない
+  容量を出す機構を持つ（`subsistenceCapacity.ts#L76-102`）。地下だけ定数にする理由がない
 - 個体群ストック（`faunaPopulation.ts` の3コホート + ロジスティック成長）と
-  農村労働配分器（`ruralOccupationAllocation.ts:347`）という、
+  農村労働配分器（`ruralOccupationAllocation.ts#L347`）という、
   **狩猟・牧畜をそのまま表現できる機構が既にある**
 
 したがって `subterraneanCapacity` は**入力定数ではなく §4.2–4.4 の出力**とする。
@@ -256,12 +256,12 @@ Phase 0 の完了条件）。
 #### (a) 大喰蟲 / **Deep Worm** — 頂点捕食者かつ高リスク・高収量のタンパク源
 
 - **生態**: 岩と菌糸マットを食う腐食＋捕食者。坑道を自ら掘り進み、ドワーフも食う。
-- **既存機構への写像**: **新規機構を作らない**。`Monster`（`models.ts:557`）として置く。
+- **既存機構への写像**: **新規機構を作らない**。`Monster`（`models.ts#L557`）として置く。
   `type: "deepWorm"`, rarity 2–3, `power` = 影響半径。
-  `rebuildDangerFromMonsters()`（`dangerField.ts:38`）がそのまま danger を塗る。
+  `rebuildDangerFromMonsters()`（`dangerField.ts#L38`）がそのまま danger を塗る。
 - **狩猟**: 既存の threat cull job（`player-threat-cull-jobs.md`）に乗る。
   cull 成功で danger が下がり、Good `Worm Meat`（`freshFood`, `food` タグ, 高 value,
-  `unit: "wain"`, `Game` と同じ形。`goods-generator.ts:670` を雛形）が大量に入る。
+  `unit: "wain"`, `Game` と同じ形。`goods-generator.ts#L670` を雛形）が大量に入る。
 - **個体数**: `faunaPopulation.ts` の3コホートに species key `"DeepWorm"` で載せる。
   carrying capacity = domain の `voidVolume` × 一次生産量。
   **過剰狩猟すると翌年の繁殖群が減る**という既存ロジックがそのまま働く。
@@ -390,7 +390,7 @@ feature-gaps §4-2 の問い —
 | 危険度（`dangerField.ts`） | `deepWorm` は既存 Monster としてそのまま danger を塗る | ほぼゼロ |
 | 無主地（`wildLandTags.ts`） | 蟲支配の domain は `monster_domain` 相当。国家は地表を取れても地下は取れない | 小 |
 | ダンジョン（`dungeons-generator.ts`） | 現行は地表配置のみ。`wildCavern` domain の未踏区画を `lost_vault` の配置候補に加える | 小 |
-| マーカー（`markers-generator.ts:1576`） | `"caves"` を `entrances` から引く（§3.3） | 小 |
+| マーカー（`markers-generator.ts#L1576`） | `"caves"` を `entrances` から引く（§3.3） | 小 |
 | 交易・食料（`foodImportNetwork.ts`） | 変更なし。地下王国は既存の輸入網の一参加者 | ゼロ |
 | 経路（`landRouteGraph.ts`） | 地下回廊は山越えより安いが domain 内のみ。`DirectionsDialog` に効く | **中〜大・MVP 外** |
 | City Generator | `burgSiteDescriptor.ts` に `settlementSite` を追加、初期は地表生成へフォールバック（`dwarf.md` §7 のまま） | 小 |
@@ -408,7 +408,7 @@ feature-gaps §4-2 の問い —
 既存の同種処理は加算してから地形上限で clamp している:
 
 ```ts
-// subsistenceCapacity.ts:62
+// subsistenceCapacity.ts#L62
 target[cellId] = Math.min(terrainCapacity, nonAgricultural + agriculture);
 ```
 
@@ -425,7 +425,7 @@ target[cellId] = Math.min(terrainCapacity + subterranean, nonAgricultural + agri
 **上限として clamp する**（:62）。山岳セルの `capacity` が 0 なら、
 `subsistenceCapacity` に何を書いても次の年次照合で 0 に潰される。
 
-`giantHighlandOikoumene.ts:65` が `pack.cells.capacity[cell] = giantCapacity` と
+`giantHighlandOikoumene.ts#L65` が `pack.cells.capacity[cell] = giantCapacity` と
 **地形上限そのものを書き換えている**のはこのためである。
 ドワーフも同じく `capacity` を引き上げる必要がある。§7.1 の式はそれを前提にしている。
 
@@ -433,7 +433,7 @@ target[cellId] = Math.min(terrainCapacity + subterranean, nonAgricultural + agri
 
 `dwarf.md` §3 は `Cultures.expand` と `applyInitialSettlementPattern` の間を指定していて、
 これは正しい。ただし先例の `seedGiantHighlandOikoumene` は
-`Burgs.generate` の内側（`burgs-generator.ts:752`）＝ Foundation の**後**で呼ばれている。
+`Burgs.generate` の内側（`burgs-generator.ts#L752`）＝ Foundation の**後**で呼ばれている。
 「Giant を真似る」と読むと逆になる。**Giant の呼び出し位置は先例ではなく既知の制約**であり、
 `dwarf.md` §4 が警告する一セル国家問題の原因そのものである。実装時に取り違えやすい。
 
@@ -447,7 +447,7 @@ Phase 3 の実装時に必ず fastAdvance 側のガードを同時に入れる�
 
 ### 7.5 `CultureType` に `Underground` を足さない判断は正しい
 
-`dwarf.md` §1 の判断を支持する。`CULTURE_TYPES`（`models.ts:14-26`）は
+`dwarf.md` §1 の判断を支持する。`CULTURE_TYPES`（`models.ts#L14-26`）は
 goods の `multipliers.cultureType`、拡張コスト、雇用構成など広範囲のテーブルに波及しており、
 「文化」と「立地」を混同する。地下性は `Burg.settlementSite` と
 `SubterraneanDomain` が持つべきで、`Highland` の再利用で足りる。

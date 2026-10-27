@@ -67,7 +67,7 @@ Shipyardsで生産された船は経て港へ停泊する。
 
 前提: 現状のコード（`src/extensions/shipbuilding/generators/shipyardCandidates.ts`,
 `shipyardQueue.ts`）には「港が何隻まで停泊できるか」という上限は存在しない。完成した船体は
-`_completedHulls`（`shipyardQueue.ts:23`）という単なるカウンタで、造船キューが完了するたびに
+`_completedHulls`（`shipyardQueue.ts#L23`）という単なるカウンタで、造船キューが完了するたびに
 青天井で増え続ける。以下は、既存の人口・港湾データだけから収容力を導出する暫定案。新しい無関係な
 定数を持ち込まず、既にコードベースにある値・パターンの再利用に留める。
 
@@ -75,19 +75,19 @@ Shipyardsで生産された船は経て港へ停泊する。
 
 - **実人口**: `burg.population`（抽象値）と `worldContext.populationRate`/`urbanization` から
   `realPopulation = burg.population * populationRate * urbanization` を求める（`docs/analytics/population.md`、
-  `burgs-generator.ts:686/747/808` と同じ式。デフォルト設定は `populationRate: 1000`, `urbanization: 1`,
-  `urbanDensity: 10` — `worldContext.ts:63-65`）。
-- **港の質**: `pack.cells.harbor[burg.cell]`（隣接する水域セル数、`features.ts:241,300`）を
+  `burgs-generator.ts#L686/747/808` と同じ式。デフォルト設定は `populationRate: 1000`, `urbanization: 1`,
+  `urbanDensity: 10` — `worldContext.ts#L63-65`）。
+- **港の質**: `pack.cells.harbor[burg.cell]`（隣接する水域セル数、`features.ts#L241,300`）を
   「自然の港の広さ」の代理指標として使う。既に `burgs-generator.ts` の港セル選定
   （`collectPortCandidates`/`selectPorts`、60-140行目）で「良い港」の判定に使われている値の再利用であり、
   Shipbuilding側で新しい地形指標を作らない。
-- **首都・城塞ボーナス**: `burg.capital` / `burg.citadel`。`burgs-generator.ts:433` の首都人口ボーナス
+- **首都・城塞ボーナス**: `burg.capital` / `burg.citadel`。`burgs-generator.ts#L433` の首都人口ボーナス
   （×1.5）、および `shipyardQueue.ts` の `determineOwner()`（国家アーセナルか商港かの判定に
   `capital || citadel` を使っている）と同じ属性をそのまま流用する。
 
 ### 4.2 収容力の計算式（暫定）
 
-1. **人口 → 都市の物理規模**に変換する。`burgs-generator.ts:684` の
+1. **人口 → 都市の物理規模**に変換する。`burgs-generator.ts#L684` の
    `sizeRaw = 2.13 * (population/urbanDensity)^0.385`（Watabouタウン生成用のワード数算出）と同じ
    「べき乗による逓減」パターンを踏襲するが、桟橋数はワード数ほど急増させる必要がないため、係数を
    弱めた式にする:

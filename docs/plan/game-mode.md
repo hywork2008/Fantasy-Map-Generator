@@ -85,19 +85,19 @@
 
 ## 具体的な現行コード上の論点
 
-- [`rankCells()`](/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/main.ts:1517) は全適地セルに人口を一律配置します。ここを変えない限り、政治境界だけ空けても「誰もいないが人口 capacity のある土地」にはなりません。
+- [`rankCells()`](/src/main.ts#L1517) は全適地セルに人口を一律配置します。ここを変えない限り、政治境界だけ空けても「誰もいないが人口 capacity のある土地」にはなりません。
 
-- [`States.expandStates()`](/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/generators/states-generator.ts:133) は首都からコスト探索で広域を `cells.state` に割り当てます。人口量は拡張コストにほぼ使わず、土地適性・文化・地形で国境を決めるため、開拓世界の「人が住んだ場所から国家が広がる」というルールと逆です。
+- [`States.expandStates()`](/src/generators/states-generator.ts#L133) は首都からコスト探索で広域を `cells.state` に割り当てます。人口量は拡張コストにほぼ使わず、土地適性・文化・地形で国境を決めるため、開拓世界の「人が住んだ場所から国家が広がる」というルールと逆です。
 
-- [`simulateDemographics()`](/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/generators/demography-simulator.ts:27) は人口 0 のセルを処理せず、移住も過密時だけです。開拓用には、飽和前から移住を選択し、遠隔地・河川・港・街道・安全度を評価する仕組みが必要です。
+- [`simulateDemographics()`](/src/generators/demography-simulator.ts#L27) は人口 0 のセルを処理せず、移住も過密時だけです。開拓用には、飽和前から移住を選択し、遠隔地・河川・港・街道・安全度を評価する仕組みが必要です。
 
 - 現在も移民が隣国セルを上回ると `cells.state` を変更する経路がありますが、これは「入植」ではなく偶発的な一セル征服です。州、国境線、国家統計、隣接国、行政組織を再集計するライフサイクルには接続されていません。
 
-- [`Provinces.generate()`](/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/generators/provinces-generator.ts:65) は国家に属する Burg を起点に州を作ります。未領有地を州外にできる点は使えますが、時間経過で獲得した土地を「辺境領 → 州」へ昇格させる処理はありません。
+- [`Provinces.generate()`](/src/generators/provinces-generator.ts#L65) は国家に属する Burg を起点に州を作ります。未領有地を州外にできる点は使えますが、時間経過で獲得した土地を「辺境領 → 州」へ昇格させる処理はありません。
 
 - 国家統計、徴兵、食料ストレス、財政の多くは `cells.state === stateId` を集計条件にしています。これは正しい前提ですが、開拓段階では「行政支配された人口だけ」を対象にすることを明示しないと、国家財政・軍事力が開拓速度に対して急変します。
 
-- Nobility の占領は [`captureBurg()`](/Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/extensions/nobility/generators/localDefense.ts:35) で Burg のセルだけを移します。これは都市占領には適していますが、無主地の測量・入植・行政編入には使えません。戦争による占領と、平時の開拓は別操作にすべきです。
+- Nobility の占領は [`captureBurg()`](/src/extensions/nobility/generators/localDefense.ts#L35) で Burg のセルだけを移します。これは都市占領には適していますが、無主地の測量・入植・行政編入には使えません。戦争による占領と、平時の開拓は別操作にすべきです。
 
 ## 特に大きい設計課題
 

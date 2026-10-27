@@ -48,13 +48,13 @@ UNESCOの[Bryggenの説明](https://whc.unesco.org/en/list/59/)は中世以来�
 | --- | --- |
 | `core/mesh.ts` / `core/types.ts` | `elevation`の型コメントは海抜mだが、新規陸地は一律1で初期化される。意味の宣言と生成データの実態を分ける必要がある |
 | `core/generate.ts` | 陸地の非正標高を1、水域を0にする処理がある。値1を測定済み低地として扱えない |
-| `core/gen/site/synthSite.ts::synthTerrain` | 別のheightfieldは基準40mに丘・傾斜を加え、waterMaskは0。海岸の潮位基準と整合した地形モデルではない |
+| `core/gen/site/synthSite.ts#L:synthTerrain` | 別のheightfieldは基準40mに丘・傾斜を加え、waterMaskは0。海岸の潮位基準と整合した地形モデルではない |
 | `core/gen/wards.ts` | 郊外農地は確率とcompactnessで選択。海岸距離・塩分の判定なし。一般街区の選定にも沿岸適地制約なし |
-| `core/gen/roadsideFarms.ts::cultivateRoadside` | 外部街道付近のempty/farmを農地化する別経路がある。wardsだけの修正では再発する |
+| `core/gen/roadsideFarms.ts#L:cultivateRoadside` | 外部街道付近のempty/farmを農地化する別経路がある。wardsだけの修正では再発する |
 | `core/gen/blockInfill.ts` / `openField.ts` | 敷地から畝を生成。海岸用途に応じた面的な控除が必要 |
 | `core/gen/suburbanLanduse.ts` | 街道・城壁に基づく郊外調整。沿岸適地より優先させない |
-| `core/gen/harborFabric.ts::planHarbor` | 港の岸壁・荷揚げ場・桟橋等を計画済み。自然海岸の帯をここへ重ねない |
-| `core/gen/blockInfill.ts::buildBlockFabric` | legacy生成後にmedieval生成を重ねる経路がある。legacy末尾だけの検査では後段建築を防げない |
+| `core/gen/harborFabric.ts#L:planHarbor` | 港の岸壁・荷揚げ場・桟橋等を計画済み。自然海岸の帯をここへ重ねない |
+| `core/gen/blockInfill.ts#L:buildBlockFabric` | legacy生成後にmedieval生成を重ねる経路がある。legacy末尾だけの検査では後段建築を防げない |
 
 最初に解消すべき原因は「海岸への隣接情報がない」ことではなく、**海岸情報が土地利用・敷地生成の共通制約になっていない**こと。
 

@@ -19,7 +19,7 @@
 
 ### 気温は年月日と無関係な年間平均値
 
-`calculateTemperatures()`（[main.ts:1480](../../src/main.ts)）は生成時に一度だけ呼ばれ、緯度と標高だけから `grid.cells.temp`（`Int8Array`、グリッド解像度＝デフォルト1万セル程度）を計算する。`temperatureEquator`/`temperatureNorthPole`/`temperatureSouthPole`（年平均気温として World Configurator で設定）から緯度勾配を作るだけで、暦日は一切参照しない。ユーザーの指摘通り、四季の変動は今のところ存在しない。
+`calculateTemperatures()`（[main.ts#L1480](/src/main.ts)）は生成時に一度だけ呼ばれ、緯度と標高だけから `grid.cells.temp`（`Int8Array`、グリッド解像度＝デフォルト1万セル程度）を計算する。`temperatureEquator`/`temperatureNorthPole`/`temperatureSouthPole`（年平均気温として World Configurator で設定）から緯度勾配を作るだけで、暦日は一切参照しない。ユーザーの指摘通り、四季の変動は今のところ存在しない。
 
 ### 季節計算のコアはすでにある。ただし地軸傾斜の"大きさ"は式の中で相殺されて効いていない
 
@@ -35,15 +35,15 @@
 ### データ所有権とレンダリング配線の既存パターン（変更の土台）
 
 - `src/runtime/dataFieldOwnership.ts` は `grid.cells.{temp,prec}` を `owner: "map"` / `topic: "map.physical"`（生成専有・静的データ）として明示的に登録している。これは `seasonUtils.ts` 自身のコメント「既存の静的な temp 配列自体は書き換えない」という設計意図とも一致する。
-- `src/runtime/renderCoordinator.ts` の `visualTopic` 判定は `simulation.*` で始まる全トピックを対象にしており、該当トピックが変化すると自動的に `effects.scheduleWebglUpdate()` が呼ばれる（[renderCoordinator.ts:151-155](../../src/runtime/renderCoordinator.ts)）。つまり新しいデータを `simulation.cells` トピックとして `markChanged` するだけで、WebGL側の再描画チェックは自動的に走る。
-- ただし `src/renderers/webgl/buildDeckLayers.ts` の `"temperature"` レイヤーは署名計算のトピックゲートが `["map.topology", "map.physical", "presentation.styles"]` のみで `"simulation.cells"` を含まないため（[buildDeckLayers.ts:1606-1612](../../src/renderers/webgl/buildDeckLayers.ts)）、このままでは季節更新に気づかない。トピックゲート方式は `revisionSignature()` がトピックのリビジョンカウンタだけを見て署名を作る設計（`src/renderers/webgl/webglTopicRevisions.ts`）なので、ゲートへの追加は必須。
+- `src/runtime/renderCoordinator.ts` の `visualTopic` 判定は `simulation.*` で始まる全トピックを対象にしており、該当トピックが変化すると自動的に `effects.scheduleWebglUpdate()` が呼ばれる（[renderCoordinator.ts#L151-155](/src/runtime/renderCoordinator.ts)）。つまり新しいデータを `simulation.cells` トピックとして `markChanged` するだけで、WebGL側の再描画チェックは自動的に走る。
+- ただし `src/renderers/webgl/buildDeckLayers.ts` の `"temperature"` レイヤーは署名計算のトピックゲートが `["map.topology", "map.physical", "presentation.styles"]` のみで `"simulation.cells"` を含まないため（[buildDeckLayers.ts#L1606-1612](/src/renderers/webgl/buildDeckLayers.ts)）、このままでは季節更新に気づかない。トピックゲート方式は `revisionSignature()` がトピックのリビジョンカウンタだけを見て署名を作る設計（`src/renderers/webgl/webglTopicRevisions.ts`）なので、ゲートへの追加は必須。
 - SVG版 `src/renderers/draw-temperature.ts` は等温線（isoline）パスを `grid.cells.temp` から都度構築する処理で、population/danger 等の他のセル単位ヒートマップ系レイヤーと同様、`renderCoordinator.ts` にtick駆動の自動再描画経路がない（トグルON時などに手動で呼ばれるのみ）。
 
 ### `SimulationSystem` の `cadence.every` は「月に1回」の意味では使えない
 
 `src/generators/simulationSystem.ts` のコメントに明記されている通り、`cadence.every` は「calendar日ではなく `advanceTime` 呼び出し回数（tick）」基準。「1日ずつ進める」の連続再生ループも「1年進める」のバルクジャンプも同じ1tickとして数えられるため、`every: N` では月次相当の粒度を再現できない。
 
-既存の `technology.tick`（[timeEngine.ts:187-199](../../src/generators/timeEngine.ts)）が正にこの問題への回答になっている：`cadence: { every: 1 }` で毎tick呼ばれるが、内部の `settleTechnologyAnnual()` が `tech.lastEvaluatedYear === year` を比較して自己ゲートし、変化がなければ即 `return false`（何もマークしない）。今回もこのパターンを踏襲する。
+既存の `technology.tick`（[timeEngine.ts#L187-199](/src/generators/timeEngine.ts)）が正にこの問題への回答になっている：`cadence: { every: 1 }` で毎tick呼ばれるが、内部の `settleTechnologyAnnual()` が `tech.lastEvaluatedYear === year` を比較して自己ゲートし、変化がなければ即 `return false`（何もマークしない）。今回もこのパターンを踏襲する。
 
 ### `heating.ts` に月次の重複実装がすでに存在する
 
@@ -105,40 +105,40 @@ WebGLは`"simulation.cells"`を`markChanged`するだけで`renderCoordinator.ts
 
 ### Phase 0: 地軸傾斜の設定を追加する
 
-- [`src/types/WorldState.ts`](../../src/types/WorldState.ts): `WorldOptions` に `axialTilt: number` を追加。
-- [`src/main.ts`](../../src/main.ts): 生成時の `options` 初期値に `axialTilt: EARTH_AXIAL_TILT_DEG`（新規定数、23.5）を追加。`EARTH_TEMPERATURE_PRESET` と同じ並びで `src/data/earthConfig.ts` に置くのが自然（地球実測値の集約先として既存の設計と一貫する）。
-- [`src/store/worldConfiguratorFormStore.ts`](../../src/store/worldConfiguratorFormStore.ts) / [`src/ui/dialogs/WorldConfiguratorDialog.tsx`](../../src/ui/dialogs/WorldConfiguratorDialog.tsx): `temperatureEquator` 等と同じパターンで入力UI・`LockIconButton`・`data-stored="axialTilt"` を追加。
-- [`src/io/save.ts`](../../src/io/save.ts) / [`src/io/load.ts`](../../src/io/load.ts): `settings` 配列の空きスロット（現状 `""` のプレースホルダ、または末尾追加）に格納。未設定の旧セーブは23.5にフォールバック。
-- [`src/controllers/options.ts`](../../src/controllers/options.ts): `locked`/`stored` 対応、`persistedOptionKeys` への追加。
+- [`src/types/WorldState.ts`](/src/types/WorldState.ts): `WorldOptions` に `axialTilt: number` を追加。
+- [`src/main.ts`](/src/main.ts): 生成時の `options` 初期値に `axialTilt: EARTH_AXIAL_TILT_DEG`（新規定数、23.5）を追加。`EARTH_TEMPERATURE_PRESET` と同じ並びで `src/data/earthConfig.ts` に置くのが自然（地球実測値の集約先として既存の設計と一貫する）。
+- [`src/store/worldConfiguratorFormStore.ts`](/src/store/worldConfiguratorFormStore.ts) / [`src/ui/dialogs/WorldConfiguratorDialog.tsx`](/src/ui/dialogs/WorldConfiguratorDialog.tsx): `temperatureEquator` 等と同じパターンで入力UI・`LockIconButton`・`data-stored="axialTilt"` を追加。
+- [`src/io/save.ts`](/src/io/save.ts) / [`src/io/load.ts`](/src/io/load.ts): `settings` 配列の空きスロット（現状 `""` のプレースホルダ、または末尾追加）に格納。未設定の旧セーブは23.5にフォールバック。
+- [`src/controllers/options.ts`](/src/controllers/options.ts): `locked`/`stored` 対応、`persistedOptionKeys` への追加。
 
 ### Phase 1: 季節計算コアの修正（判断2）
 
-- [`src/utils/seasonUtils.ts`](../../src/utils/seasonUtils.ts): `getSeasonalTemperatureOffset` に `axialTiltDeg` 引数を追加し、`tiltScale` 正規化を実装。`getSolarDeclinationDeg` も傾斜角を引数化（内部定数への依存を除去）。
+- [`src/utils/seasonUtils.ts`](/src/utils/seasonUtils.ts): `getSeasonalTemperatureOffset` に `axialTiltDeg` 引数を追加し、`tiltScale` 正規化を実装。`getSolarDeclinationDeg` も傾斜角を引数化（内部定数への依存を除去）。
 - `src/utils/seasonUtils.test.ts`: 傾斜0°で振幅0、23.5°で現行の挙動と完全一致、90°付近で振幅が拡大することを確認する回帰テストを追加。
-- [`src/extensions/economy/generators/heating.ts`](../../src/extensions/economy/generators/heating.ts): 呼び出し側に `axialTilt`（`worldContext.options.axialTilt`）を渡すよう更新（最小差分、Phase 4で共有フィールド読み出しに置き換えるまでの繋ぎ）。
+- [`src/extensions/economy/generators/heating.ts`](/src/extensions/economy/generators/heating.ts): 呼び出し側に `axialTilt`（`worldContext.options.axialTilt`）を渡すよう更新（最小差分、Phase 4で共有フィールド読み出しに置き換えるまでの繋ぎ）。
 
 ### Phase 2: 共有グリッドフィールドと月次更新システム（判断1・3・4）
 
-- [`src/types/Grid.ts`](../../src/types/Grid.ts): `GridCells` に `seasonalTemp: Int8Array` を追加。`temp`/`waterTemp` と同水準のJSDocで「`temp` に季節オフセットを加算した現在値、月次更新」であることを明記。
-- [`src/context/simulationContext.ts`](../../src/context/simulationContext.ts): `lastSeasonalTempBucket: number | null` を追加（`worldSeason` の隣に置くのが自然）。
+- [`src/types/Grid.ts`](/src/types/Grid.ts): `GridCells` に `seasonalTemp: Int8Array` を追加。`temp`/`waterTemp` と同水準のJSDocで「`temp` に季節オフセットを加算した現在値、月次更新」であることを明記。
+- [`src/context/simulationContext.ts`](/src/context/simulationContext.ts): `lastSeasonalTempBucket: number | null` を追加（`worldSeason` の隣に置くのが自然）。
 - 新規モジュール（例: `src/generators/seasonalClimate.ts`）: `updateSeasonalTemperature(world, simulation): boolean` を実装。
   - 現在のバケット（`year*12+month`、判断4の定数で四半期に切替可）を計算し `lastSeasonalTempBucket` と比較、不変なら即 `false`。
   - 変化していれば `calculateTemperatures()` と同じ行単位の緯度サンプリング（`grid.points[rowCellId]` から緯度を得て、行内の全セルに同じ緯度を適用）を踏襲し、`grid.cells.seasonalTemp[i] = minmax(grid.cells.temp[i] + getSeasonalTemperatureOffset(...), -128, 127)` を1周で計算。
   - `lastSeasonalTempBucket` を更新して `true` を返す。
-- [`src/generators/timeEngine.ts`](../../src/generators/timeEngine.ts): `registerSimulationSystem({ id: "seasonal-climate.tick", phase: "environment", reads: ["map.physical", "simulation.cells"], writes: ["simulation.cells"], cadence: { every: 1 }, run: (_ctx, writer) => { if (updateSeasonalTemperature(worldContext, simulationContext)) writer.markChanged("simulation.cells"); } })`。`phase: "environment"` は現状未使用のフェーズで、他の全フェーズより先に実行されるため意味的にも適切。
-- [`src/runtime/dataFieldOwnership.ts`](../../src/runtime/dataFieldOwnership.ts): `simulation("grid.cells.seasonalTemp", "simulation.cells", "grid-cell.id")` を追加。
-- [`src/main.ts`](../../src/main.ts): 生成完了直後（`initSimulationClock()` の後）に `updateSeasonalTemperature()` を無条件で1回呼び、`seasonalTemp` を未初期化のまま残さない。
-- [`src/io/load.ts`](../../src/io/load.ts): マップロード直後にも同様に1回強制再計算する（判断3の通り、バケット自体は永続化しない）。
+- [`src/generators/timeEngine.ts`](/src/generators/timeEngine.ts): `registerSimulationSystem({ id: "seasonal-climate.tick", phase: "environment", reads: ["map.physical", "simulation.cells"], writes: ["simulation.cells"], cadence: { every: 1 }, run: (_ctx, writer) => { if (updateSeasonalTemperature(worldContext, simulationContext)) writer.markChanged("simulation.cells"); } })`。`phase: "environment"` は現状未使用のフェーズで、他の全フェーズより先に実行されるため意味的にも適切。
+- [`src/runtime/dataFieldOwnership.ts`](/src/runtime/dataFieldOwnership.ts): `simulation("grid.cells.seasonalTemp", "simulation.cells", "grid-cell.id")` を追加。
+- [`src/main.ts`](/src/main.ts): 生成完了直後（`initSimulationClock()` の後）に `updateSeasonalTemperature()` を無条件で1回呼び、`seasonalTemp` を未初期化のまま残さない。
+- [`src/io/load.ts`](/src/io/load.ts): マップロード直後にも同様に1回強制再計算する（判断3の通り、バケット自体は永続化しない）。
 
 ### Phase 3: 表示への反映
 
-- [`src/renderers/webgl/buildDeckLayers.ts`](../../src/renderers/webgl/buildDeckLayers.ts): `"temperature"` レイヤーのトピックゲートに `"simulation.cells"` を追加。データ読み出し元（`buildTemperaturePolygons` 呼び出し及びその内部）を `grid.cells.seasonalTemp ?? grid.cells.temp` に変更。
-- [`src/renderers/draw-temperature.ts`](../../src/renderers/draw-temperature.ts): `cells.temp` を読んでいる箇所を `cells.seasonalTemp ?? cells.temp` に変更（フォールバックにより、シミュレーション未開始・旧セーブでも壊れない）。再描画トリガーは判断5の通りフェーズ1では追加しない。
+- [`src/renderers/webgl/buildDeckLayers.ts`](/src/renderers/webgl/buildDeckLayers.ts): `"temperature"` レイヤーのトピックゲートに `"simulation.cells"` を追加。データ読み出し元（`buildTemperaturePolygons` 呼び出し及びその内部）を `grid.cells.seasonalTemp ?? grid.cells.temp` に変更。
+- [`src/renderers/draw-temperature.ts`](/src/renderers/draw-temperature.ts): `cells.temp` を読んでいる箇所を `cells.seasonalTemp ?? cells.temp` に変更（フォールバックにより、シミュレーション未開始・旧セーブでも壊れない）。再描画トリガーは判断5の通りフェーズ1では追加しない。
 - 任意（余力があれば）: ツールチップ／凡例に「年平均 X℃ / 現在 Y℃」を並記する（既存の `tooltipService` 拡張）。
 
 ### Phase 4（統合、任意）
 
-- [`src/extensions/economy/generators/heating.ts`](../../src/extensions/economy/generators/heating.ts): `getCellEffectiveTemperature()` を `worldContext.grid.cells.seasonalTemp[gridCellId] ?? baseTemperature` を読むだけの実装に置き換え、独自の `getSeasonalTemperatureOffset` 呼び出しを除去（重複計算の解消、tilt修正の恩恵が自動的に波及）。
+- [`src/extensions/economy/generators/heating.ts`](/src/extensions/economy/generators/heating.ts): `getCellEffectiveTemperature()` を `worldContext.grid.cells.seasonalTemp[gridCellId] ?? baseTemperature` を読むだけの実装に置き換え、独自の `getSeasonalTemperatureOffset` 呼び出しを除去（重複計算の解消、tilt修正の恩恵が自動的に波及）。
 - `docs/simulation/seasons.md`: 「現状このオフセットを実際に読み取っている消費者はまだいない」の記述を更新し、`grid.cells.seasonalTemp` の説明を追加する（ドキュメントの陳腐化を解消）。
 
 ## テスト計画

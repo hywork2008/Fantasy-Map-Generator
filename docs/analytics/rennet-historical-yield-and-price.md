@@ -66,11 +66,11 @@ J. Pedersen, “The Casein Industry”, *New Zealand Journal of Agriculture*, 20
 | Cheese 1,000 kgの入力 | 乳10,000 L、Rennet 2.5 L → 実使用時の投入比は乳4,000 L / 抽出液1 L。標準試験の力価とは別 |
 | Rennetのカタログ価格でのチーズへの寄与 | 40 × 2.5 / 120 = 0.8333 SP / チーズ1,000 kg。Cheeseの値14の約5.95% |
 
-正本: [`goods-generator.ts`](../../src/extensions/economy/generators/goods-generator.ts)のRennet・Cheese・`RENNET_BARRELS_PER_CHEESE_LOT`。カタログ値での原価比較であって、実際の市場価格・家計支出ではない。
+正本: [`goods-generator.ts`](/src/extensions/economy/generators/goods-generator.ts)のRennet・Cheese・`RENNET_BARRELS_PER_CHEESE_LOT`。カタログ値での原価比較であって、実際の市場価格・家計支出ではない。
 
 設計書§27の「胃1つから3 L」とコードの25 L / 市場頭を結び付けているのは「仔牛1頭をCattle 0.12頭として原価を計算する」というモデル仮定であり、史料から得た頭数換算ではない。市場のCattle数量から仔牛の個体数・年齢を復元する処理はこのレシピにない。従って、4.8市場頭から胃40枚を得たことにはできず、**実装の出力量と、胃1枚の史料上の出力量を分ける必要がある**。
 
-`slaughter.ts`のと畜後の副産物はTallowとLeatherで、Rennetは含まれない。Rennetは独立した家畜入力レシピのままである。「既にと畜した仔牛の胃を回収して抽出する」という物量契約にもまだなっていない。[実装](../../src/extensions/economy/generators/slaughter.ts)
+`slaughter.ts`のと畜後の副産物はTallowとLeatherで、Rennetは含まれない。Rennetは独立した家畜入力レシピのままである。「既にと畜した仔牛の胃を回収して抽出する」という物量契約にもまだなっていない。[実装](/src/extensions/economy/generators/slaughter.ts)
 
 ## 5. 採用判断と残作業
 
@@ -129,7 +129,7 @@ FAO *La fromagerie et les variétés de fromages du bassin Méditerranéen*, 第
 
 ### 6.5 生産・と畜処理への適用点の確認
 
-[`faunaPopulation.ts`](../../src/extensions/economy/generators/faunaPopulation.ts)には`young / breeding / old`の集約層がある。ただしCattleの`youngMaturityYears = 2`は成熟へ移る速度のパラメータで、未離乳仔牛を識別する月齢台帳ではない。`applyCull`は高齢→繁殖→若齢の選択と比例抽出を混ぜて群れを減らし、`drawDomesticatedFaunaOfftake`からは総数量だけを返す。市場のCattle在庫には、未離乳の何頭から来たかが残らない。
+[`faunaPopulation.ts`](/src/extensions/economy/generators/faunaPopulation.ts)には`young / breeding / old`の集約層がある。ただしCattleの`youngMaturityYears = 2`は成熟へ移る速度のパラメータで、未離乳仔牛を識別する月齢台帳ではない。`applyCull`は高齢→繁殖→若齢の選択と比例抽出を混ぜて群れを減らし、`drawDomesticatedFaunaOfftake`からは総数量だけを返す。市場のCattle在庫には、未離乳の何頭から来たかが残らない。
 
 従って、現在の全Cattle在庫に0.5 L/頭を一律に掛ける変更や、`young`全体を未離乳とみなす変更はしない。物量修正は次の接続を一緒に扱う。
 

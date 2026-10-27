@@ -40,7 +40,7 @@ Coal / Saltpeter / Sulfur は燃料・火薬原料のままで Ingot 段階を�
 | 鉱石 | `Iron Ore` / `Copper Ore` / `Tin Ore` / `Lead Ore` / `Silver Ore` / `Gold Ore` | `MineOperation.produceMonth()` の産出物。市場で取引可能な中間財 |
 | インゴット | `Iron Ingot` / `Copper Ingot` / `Tin Ingot` / `Lead Ingot` / `Silver Ingot` / `Gold Ingot` | `SmelterOperation` の産出物。武具・貨幣・交易の最終投入財 |
 
-`TRADE_PROFILES`(`goods-generator.ts:1209-1214`)は Ore と Ingot で別々に設定する。Ore は
+`TRADE_PROFILES`(`goods-generator.ts#L1209-1214`)は Ore と Ingot で別々に設定する。Ore は
 重量あたり価値が低いため長距離輸送のペナルティを Ingot より重くし、「精錬所は鉱山の近くに
 置く方が得」という経済合理性をシミュレーションに反映する。
 
@@ -90,7 +90,7 @@ export type FuelMineralCommodity = (typeof FUEL_MINERAL_COMMODITIES)[number];
 
 ### 2.3 SmelterOperation
 
-`MineOperation`(`mineralResources.ts:81-92`)と対になる新しい型。
+`MineOperation`(`mineralResources.ts#L81-92`)と対になる新しい型。
 
 ```ts
 export interface SmelterOperation {
@@ -113,7 +113,7 @@ export interface SmelterOperation {
 
 ## 3. 精錬所の立地(案B: 独立サイト)
 
-町(Burg)に紐付けず、`MineralDeposit.getAccessibility()`(`mineralResources.ts:311-317`、
+町(Burg)に紐付けず、`MineralDeposit.getAccessibility()`(`mineralResources.ts#L311-317`、
 河川・道路・港を見て0〜1のスコアを出す)と同じ決定論的ハッシュ選択パターンを流用し、**水利
 (河川=水車動力)と燃料(森林バイオーム近接度)**寄りの重みでスコアリングする。
 
@@ -141,7 +141,7 @@ Markets.initializeMarketPrices()
 ```
 
 `SmelterOperations.produceMonth()` は `Markets.consumeForMint()`/`consumeForMilitary()`
-(`markets-generator.ts:143-166`)と同じ「市場在庫の一定割合を上限に消費する」パターンを再利用し、
+(`markets-generator.ts#L143-166`)と同じ「市場在庫の一定割合を上限に消費する」パターンを再利用し、
 処理量は `waterPower × fuelAccess × technology` に、労働者・工具投資・Metallurgy guild の補正を
 掛けた能力で制限する。さらに市場内の Charcoal 在庫の一定割合を上限とし、Ore と同量の Charcoal を
 同時に `Markets.consumeForSmelting()` で消費する。Charcoal がなければ精錬は停止する。
@@ -186,7 +186,7 @@ smelterTheftRisk = baseRisk
 
 ### 5.2 被害3: 行商全般の盗難(既存 caravans.ts の拡張、全商品対象)
 
-`caravans.ts:399-416` に**既に存在する**、貨物種別を問わない盗賊ロス機構
+`caravans.ts#L399-416` に**既に存在する**、貨物種別を問わない盗賊ロス機構
 (`caravan.state = "lost"`)をそのまま拡張する。現状は `0.001 × warIntensity` のみで平時は
 ゼロだが、frontier/danger の項を足し込み、**州レベルの街道警備投資**による軽減項を加える。
 これは Ore/Ingot に限らず、経済拡張が運ぶ**全てのGood・全てのキャラバン**に一律適用される。

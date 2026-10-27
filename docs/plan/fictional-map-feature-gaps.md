@@ -34,12 +34,12 @@
 
 ### 現状
 
-`features.ts` はグリッド/パック両方で地物を海・湖・島に分類し(`features.ts:124`, `features.ts:208`)、
+`features.ts` はグリッド/パック両方で地物を海・湖・島に分類し(`features.ts#L124`, `features.ts#L208`)、
 さらに ocean / sea / gulf / continent / island / isle / lake_island / freshwater lake / salt lake まで
-グループ分けしている(`features.ts:461-516`)。しかし `feature.name` に値を入れているのは
-`lakes.ts:33`(`getName()` は `lakes.ts:37`)と `river-generator.ts:562`(`getName()` は
-`river-generator.ts:567`)、街道の `routes-generator.ts:1891`(`getRouteName()`、命名できない場合は
-"Unnamed route" を返す `routes-generator.ts:1910`)のみ。
+グループ分けしている(`features.ts#L461-516`)。しかし `feature.name` に値を入れているのは
+`lakes.ts#L33`(`getName()` は `lakes.ts#L37`)と `river-generator.ts#L562`(`getName()` は
+`river-generator.ts#L567`)、街道の `routes-generator.ts#L1891`(`getRouteName()`、命名できない場合は
+"Unnamed route" を返す `routes-generator.ts#L1910`)のみ。
 
 海・湾・海峡・大陸・諸島には名前も、曲線パスに沿ったラベル描画も存在しない。山脈・森・砂漠・平原・
 高原も同様で、`draw-relief-icons.ts` は個々のアイコンを配置するだけで、連結成分としてまとめて
@@ -69,8 +69,8 @@
 ### 現状
 
 現在の世界は「現在時点のスナップショット + `advanceTime` による前進」のみで、生成時点より過去の
-状態を持たない。`markers-generator.ts` の `ruins`(`markers-generator.ts:327`)や
-`battlefields`(`markers-generator.ts:208`)はランダムな点配置で、どの国がいつ滅びたか、
+状態を持たない。`markers-generator.ts` の `ruins`(`markers-generator.ts#L327`)や
+`battlefields`(`markers-generator.ts#L208`)はランダムな点配置で、どの国がいつ滅びたか、
 どの戦役の跡かという因果とは結びついていない。
 
 `technologyPrehistory.ts` は古代ローマ〜中世相当の前史技術ノードを18個持つが未接続で、
@@ -100,7 +100,7 @@
 当初「資源レイヤーが不可視」として指摘したが、これは誤りだった。実際には経済拡張機能が
 `toggleMineralDeposits` を含む9レイヤーを動的登録しており(`src/extensions/economy/index.tsx:427-473`:
 Goods / Markets / Trade / Mineral Deposits / Dams / Levees / Water Supply / Sewerage / Power Grid)、
-`drawMineralDeposits.ts:33-64` は主要産出物ごとの色・アイコン、稼働/休止/枯渇の3段階を透明度で
+`drawMineralDeposits.ts#L33-64` は主要産出物ごとの色・アイコン、稼働/休止/枯渇の3段階を透明度で
 描き分け、深度・richness・産出物一覧をツールチップに出している。未発見鉱床を意図的に隠す設計は
 「Prospect mines」という探鉱ゲーム性のためのもので(`drawMineralDeposits.ts` コメント)、
 項目5で挙げる「未探索領域」の思想の先行実装と言える。`draw-goods.ts` もセル単位の資源アイコンと
@@ -122,9 +122,9 @@ Goods レイヤーは「どのセルが何を産するか」の静的な地理�
 
 ### 現状
 
-`markers-generator.ts` には `portals`(`markers-generator.ts:418`)、`rifts`(`markers-generator.ts:428`)、
+`markers-generator.ts` には `portals`(`markers-generator.ts#L418`)、`rifts`(`markers-generator.ts#L428`)、
 `sacred-mountains` / `sacred-forests` / `sacred-pineries` / `sacred-palm-groves`
-(`markers-generator.ts:259-289`)などの**点マーカー**があるが、面としての魔法地理は存在しない。
+(`markers-generator.ts#L259-289`)などの**点マーカー**があるが、面としての魔法地理は存在しない。
 リポジトリ全体で `leyline` は0ヒット。レイライン網、荒魔法地帯、呪われた土地、常闇/永冬の領域と
 いった面的な超自然地理がまるごと欠けている。
 
@@ -159,11 +159,11 @@ Goods レイヤーは「どのセルが何を産するか」の静的な地理�
   ではない。
 2. **意図的な誤り**: 古地図的な歪み、伝説の島、"Here be dragons" の類の仕掛けは存在しない。
   現在の地図は常に全知の航空写真であり、作中人物が描いた紙という体裁を取っていない。
-3. **凡例・カルトゥーシュ**: `editors.ts:337-341` の `view.legend` は `data` 属性に手で値を詰める
+3. **凡例・カルトゥーシュ**: `editors.ts#L337-341` の `view.legend` は `data` 属性に手で値を詰める
   方式で、自動生成されたテーマ性のある凡例(コンパスローズ、装飾枠)ではない。
 4. **縮尺の断絶**: 大陸マップ → 地方(submap)→ 都市(`/city/` 独立 Vite MPA、
   `project_city_generator_mpa` 参照)までは繋がっているが、村・砦・宿場の平面図と
-  ダンジョン内部図が空白。`dungeons-generator.ts:5` のコメントに "No interior simulation" と
+  ダンジョン内部図が空白。`dungeons-generator.ts#L5` のコメントに "No interior simulation" と
   明記されている。
 
 ### 掘り下げる際の論点
@@ -184,9 +184,9 @@ Goods レイヤーは「どのセルが何を産するか」の静的な地理�
 
 ### 現状
 
-1. **地質・プレート**: `mineralResources.ts:163` 自身が「将来のテクトニクスモデルが残りを置き換える」
+1. **地質・プレート**: `mineralResources.ts#L163` 自身が「将来のテクトニクスモデルが残りを置き換える」
   とコメントしており、山脈の走向・火山弧・地震帯・鉱床分布を一貫させるプレート境界モデルが無い。
-2. **風**: `main.ts:212` の緯度帯6値固定配列(`winds: [225, 45, 225, 315, 135, 315]`)が
+2. **風**: `main.ts#L212` の緯度帯6値固定配列(`winds: [225, 45, 225, 315, 135, 315]`)が
   降水計算(`precipitationModel.ts`)の入力に使われるのみで、専用の可視化レイヤーがない
   (コンパスローズ的な `toggleCompass` は現在の風向とは無関係)。
 3. **海の地形**: 浅瀬・岩礁・渦・海溝・漁場の概念がない。`oceanCurrents.ts` と `ice.ts` はあるが、
@@ -230,7 +230,7 @@ Goods レイヤーは「どのセルが何を産するか」の静的な地理�
 ### 現状
 
 1. **ヘクス/移動コスト表示**: `docs/plan/cell-to-hex.md` に構想はあるが、現状の `toggleGrid` は
-  `pointyHex` パターン(`draw-grid.ts:15`)による装飾グリッドのみで、移動コストや到達可能範囲の
+  `pointyHex` パターン(`draw-grid.ts#L15`)による装飾グリッドのみで、移動コストや到達可能範囲の
   表示ではない。
 2. **旅程の等時線**: `DirectionsDialog.tsx` は2地点間の経路(徒歩/騎乗/馬車、海路+陸路の自動接続)を
   計算するのみで(`project_burg_directions_dialog`)、「ここから3日で行ける範囲」という面表示はない。

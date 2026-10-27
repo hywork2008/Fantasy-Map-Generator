@@ -27,7 +27,7 @@
 
 ### 2.1 State（状態）レイヤー
 
-#### [types/WorldState.ts](file:///Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/types/WorldState.ts)
+#### [types/WorldState.ts](/src/types/WorldState.ts)
 * `WorldOptions` に `gunpowderEraEnabled?: boolean` を追加します。
 ```typescript
 export interface WorldOptions {
@@ -36,7 +36,7 @@ export interface WorldOptions {
 }
 ```
 
-#### [store/optionsState.ts](file:///Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/store/optionsState.ts)
+#### [store/optionsState.ts](/src/store/optionsState.ts)
 * Zustand のストアに `gunpowderEraEnabled` を追加し、初期値を `false` に設定します。
 ```typescript
 export interface OptionsState {
@@ -55,7 +55,7 @@ export const useOptionsState = create<OptionsState>(set => ({
 
 ### 2.2 Military（軍事）レイヤー
 
-#### [generators/military-generator.ts](file:///Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/generators/military-generator.ts)
+#### [generators/military-generator.ts](/src/generators/military-generator.ts)
 * 連隊の自動生成時および再計算時、`gunpowderEraEnabled` が `false` の場合は `artillery` ユニットを配列から除外します。
 ```typescript
 const isGunpowderEra = options.gunpowderEraEnabled === true; // デフォルトfalseのため明示的にtrueのみ有効
@@ -67,7 +67,7 @@ const military = options.military.filter(unit => {
 });
 ```
 
-#### [ui/dialogs/MilitaryOptionsDialog.tsx](file:///Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/ui/dialogs/MilitaryOptionsDialog.tsx)
+#### [ui/dialogs/MilitaryOptionsDialog.tsx](/src/ui/dialogs/MilitaryOptionsDialog.tsx)
 * テーブルのレンダリングループ内で、`gunpowderEraEnabled === false` かつ該当行が `artillery`（または大砲関連）の場合は、要素を出力せずにスキップします。
 ```typescript
 {units
@@ -88,7 +88,7 @@ const military = options.military.filter(unit => {
 
 ### 2.3 Economy（経済）拡張機能レイヤー
 
-#### [extensions/economy/generators/goods-generator.ts](file:///Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/extensions/economy/generators/goods-generator.ts)
+#### [extensions/economy/generators/goods-generator.ts](/src/extensions/economy/generators/goods-generator.ts)
 * `isGoodEnabled` ヘルパーを追加し、火薬時代が無効な場合は `Gunpowder` および `Artillery` の Goods を無効判定します。
 ```typescript
 export function isGoodEnabled(good: Good): boolean {
@@ -104,10 +104,10 @@ export function isGoodEnabled(good: Good): boolean {
 ```
 * `Goods.generate()` にて、セルに資源を配置する前に `isGoodEnabled(good)` でフィルタリングします。
 
-#### [extensions/economy/generators/production-generator.ts](file:///Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/extensions/economy/generators/production-generator.ts)
+#### [extensions/economy/generators/production-generator.ts](/src/extensions/economy/generators/production-generator.ts)
 * `produce()` および `buildProductionIndex()` 内で、アクティブな Goods 一覧を `isGoodEnabled` でフィルタリングし、計算インデックスから火薬・大砲を完全に除外します。
 
-#### [extensions/economy/controllers/goods-editor.ts](file:///Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/extensions/economy/controllers/goods-editor.ts)
+#### [extensions/economy/controllers/goods-editor.ts](/src/extensions/economy/controllers/goods-editor.ts)
 * UI構築（`goodsEditorAddLines()` など）時に、`worldContext.pack.goods` を走査する箇所で `isGoodEnabled(good)` が `false` の Goods を完全に除外してレンダリングします。
 ```typescript
 const goods = (worldContext().pack.goods ?? [])
@@ -137,7 +137,7 @@ const goods = (worldContext().pack.goods ?? [])
 
 火薬時代の商品（Sulfur/Gunpowder/Artillery/Bullets）の生産・流通サイクルをデバッグしやすくするため、ユーザーの明示的な指示で本節の無効化ロジック自体は残したまま、**既定値のみ**を反転した。§1「デフォルト状態を無効」の決定は撤回する。
 
-- [optionsState.ts](../../src/store/optionsState.ts): `gunpowderEraEnabled` の既定値を `false` → `true`。
-- [military-generator.ts](../../src/generators/military-generator.ts) `getDefaultOptions()`: `artillery` ユニット定義から個別の `enabled: false` を削除（`gunpowderEraEnabled` とは独立した第二のハードコード無効化だったため、フラグを true にしただけでは大砲部隊が編成されなかった）。
-- Options → Generation の **Historical period** に `Age of Exploration (c. 1450-1600)` を追加し、既定値に設定（[optionsState.ts](../../src/store/optionsState.ts)、[GenerationSettingsTab.tsx](../../src/ui/components/tabs/options/GenerationSettingsTab.tsx)）。この設定は水利/衛生技術の上限（[urbanWaterTech.ts](../../src/extensions/economy/generators/urbanWaterTech.ts) `waterTechCeilings()`）にのみ影響し、`gunpowderEraEnabled` とは独立している — 旧ツールチップの「gunpowder is off by default before Late Medieval」という記述は実装上そのような連動が存在しなかったため削除した。
+- [optionsState.ts](/src/store/optionsState.ts): `gunpowderEraEnabled` の既定値を `false` → `true`。
+- [military-generator.ts](/src/generators/military-generator.ts) `getDefaultOptions()`: `artillery` ユニット定義から個別の `enabled: false` を削除（`gunpowderEraEnabled` とは独立した第二のハードコード無効化だったため、フラグを true にしただけでは大砲部隊が編成されなかった）。
+- Options → Generation の **Historical period** に `Age of Exploration (c. 1450-1600)` を追加し、既定値に設定（[optionsState.ts](/src/store/optionsState.ts)、[GenerationSettingsTab.tsx](/src/ui/components/tabs/options/GenerationSettingsTab.tsx)）。この設定は水利/衛生技術の上限（[urbanWaterTech.ts](/src/extensions/economy/generators/urbanWaterTech.ts) `waterTechCeilings()`）にのみ影響し、`gunpowderEraEnabled` とは独立している — 旧ツールチップの「gunpowder is off by default before Late Medieval」という記述は実装上そのような連動が存在しなかったため削除した。
 - 無効化ロジック自体（`isGoodEnabled()`、`GUNPOWDER_ERA_GOODS`、Military Options の非表示フィルタ等）は削除していない。**Military Options** ダイアログで "Enable gunpowder era" のチェックを外せば、§1 の元の挙動（大砲・火薬関連 Goods を完全に非表示にする騎士の時代）にいつでも戻せる。

@@ -3,6 +3,7 @@ import { concatPositions, meshIsClosed } from "../../city3d/core/massingGeometry
 import { structureSurfaces } from "../../city3d/core/structureGeometry";
 import type { CityDocument, EdgeFeatureGroup, Point } from "../types/document";
 import { collectCityStructures, cutWallOpenings, landmarkLotStructures } from "./structureMassing";
+import { renderWallStructure } from "./wallSvg";
 
 function vertex(id: string, point: Point) {
   return { id, point, locked: false };
@@ -48,6 +49,88 @@ function town(parts: Partial<CityDocument>): CityDocument {
 }
 
 describe("city structures", () => {
+  it.each(["stone", "wood"] as const)(
+    "places %s castle parapets outside the precinct even on the side facing the town",
+    material => {
+      const document = town({});
+      document.mesh.vertices.v4 = vertex("v4", [40, 40]);
+      document.mesh.vertices.v5 = vertex("v5", [-40, 40]);
+      document.mesh.edges.e3 = edge("e3", "v3", "v4");
+      document.mesh.edges.e4 = edge("e4", "v4", "v5");
+      document.mesh.edges.e5 = edge("e5", "v5", "v1");
+      const edgeIds = ["e1", "e2", "e3", "e4", "e5"];
+      for (const id of edgeIds) document.mesh.edges[id].leftFace = "castle-face";
+      document.mesh.faces["castle-face"] = {
+        id: "castle-face",
+        edgeIds,
+        vertexIds: ["v1", "v2", "v3", "v4", "v5"],
+        boundary: edgeIds.map(edgeId => ({ edgeId, forward: true })),
+        properties: { elevation: 0, water: "land", ward: "castle", buildable: true, locked: false }
+      };
+      document.defenseCircuits = [
+        {
+          id: "gc:defense-castle-0",
+          ownerCastleId: "gc:castle-0",
+          scope: "castle",
+          areaFaceIds: ["castle-face"],
+          wallGroupIds: ["w"],
+          naturalBarriers: [],
+          locked: false
+        }
+      ];
+      const group = document.featureGroups[0] as EdgeFeatureGroup;
+      group.wallMaterial = material;
+      // The plaza is south of this curtain; the castle interior is north of it.
+      for (const reverse of [false, true]) {
+        group.segments = reverse
+          ? [
+              { edgeId: "e2", forward: false },
+              { edgeId: "e1", forward: false }
+            ]
+          : [
+              { edgeId: "e1", forward: true },
+              { edgeId: "e2", forward: true }
+            ];
+        const run: Point[] = reverse
+          ? [
+              [40, 0],
+              [0, 0],
+              [-40, 0]
+            ]
+          : [
+              [-40, 0],
+              [0, 0],
+              [40, 0]
+            ];
+        const svg = renderWallStructure(document, group, run, (name, attrs) => {
+          const node = globalThis.document.createElementNS("http://www.w3.org/2000/svg", name);
+          for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+          return node;
+        });
+        const parapet = svg.querySelector(material === "stone" ? ".ce-wall-stone-parapet" : ".ce-wall-wood-logs");
+        const coordinates = parapet!
+          .getAttribute("d")!
+          .match(/-?\d+(?:\.\d+)?/g)!
+          .map(Number);
+        expect(coordinates.filter((_, i) => i % 2 === 1).every(y => y > 0)).toBe(true);
+
+        // The gate splits this open curtain into two independently rendered runs.
+        const walls = collectCityStructures(document).filter(part => part.id.startsWith("wall:w:"));
+        expect(walls).toHaveLength(2);
+        for (const wall of walls) {
+          expect(wall.anchor).toEqual([0, 20]);
+          const positions = structureSurfaces(wall)!.roofs.positions;
+          const lipZ: number[] = [];
+          for (let i = 0; i < positions.length; i += 3) {
+            if (positions[i + 1] > wall.heightMeters + 0.1) lipZ.push(positions[i + 2]);
+          }
+          expect(lipZ.length).toBeGreaterThan(0);
+          expect(lipZ.every(z => z > 0)).toBe(true);
+        }
+      }
+    }
+  );
+
   it.each(["walkway", "none"] as const)("keeps artillery curtains below bastions (walkway: %s)", walkway => {
     const document = town({
       gates: [],

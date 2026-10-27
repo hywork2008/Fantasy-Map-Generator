@@ -26,7 +26,7 @@
 
 ### 2.1 Elevation（`pack.cells.h`）は単一サンプル値であり、セル内の平均・中央値ではない
 
-`reGraph()`（[main.ts:1704-1764](../../src/main.ts#L1704-L1764)）は、`grid.cells.h` の1点をそのまま
+`reGraph()`（[main.ts#L1704-1764](/src/main.ts#L1704-L1764)）は、`grid.cells.h` の1点をそのまま
 `pack.cells.h` の初期値としてコピーする（`addNewPoint()` が呼ばれる箇所を参照）。つまり `pack.cells.h[i]`
 は「そのセルが代表する範囲の平均標高」でも「中央値」でもなく、**生成元グリッドの1サンプル点の標高を
 Voronoiセルへそのまま引き継いだ値**である。セル内部に急峻な崖と緩やかな浜が両方含まれるようなケースの
@@ -35,7 +35,7 @@ Voronoiセルへそのまま引き継いだ値**である。セル内部に急�
 
 ### 2.2 標高のメートル換算 — 既存の `heightToMeters()` を再利用する
 
-[height.ts](../../src/utils/height.ts) に既に切り出し済み:
+[height.ts](/src/utils/height.ts) に既に切り出し済み:
 
 ```ts
 heightToMeters(h, exponent) = h < 20 ? 0 : (h - 18) ** exponent
@@ -62,7 +62,7 @@ heightToMeters(h, exponent) = h < 20 ? 0 : (h - 18) ** exponent
 ### 2.3 Depth（水側）— 既存コードに埋もれている換算式を抽出する必要がある
 
 `heightToMeters()` に相当する水深版は独立関数として存在しない。実際には
-[cellInfoService.ts:133-144](../../src/services/cellInfoService.ts#L133-L144) の `getHeight()`
+[cellInfoService.ts#L133-144](/src/services/cellInfoService.ts#L133-L144) の `getHeight()`
 （UI表示用フォーマッタ）の内部に、水セル向けの分岐として既に実装されている:
 
 ```ts
@@ -97,15 +97,15 @@ numeric meters live here"）に倣い、この式を `depthToMeters(h: number): 
 ### 2.4 `haven` セル単体の水深を使ってはいけない
 
 `pack.cells.haven[cellId]` は「陸セルから見て最も近い水セル」として定義される
-（`defineHaven()`, [features.ts:149-156](../../src/generators/features.ts#L149-L156)）。定義上、
+（`defineHaven()`, [features.ts#L149-156](/src/generators/features.ts#L149-L156)）。定義上、
 海岸線に最も近い、つまり最も浅い水セルが選ばれる。実際の生成では `haven` の `h` はほぼ常に 18〜19
 （水深 2.6〜5.6m）に張り付く。**`haven` セル自身の水深をそのまま港の水深条件に使うと、ほぼ全ての
 海岸が「水深不足」判定になってしまう**。これはユーザーが指摘した「3メートルは怖い」という違和感の
 直接の原因でもある — 現状 `haven` の水深がまさにその程度の値になりやすい設計だからである。
 
 これを避けるため、Depth条件は **`haven` から短いホップ数だけ水セルを辿り、到達できる最深セルを見る**
-方式にする。`waterDepthTrend()`（[coastalHabitatAssignment.ts:77-99](../../src/generators/coastalHabitatAssignment.ts#L77-L99)）
-や `calculateEnclosure()`（[features.ts:339-377](../../src/generators/features.ts#L339-L377)）が同じ
+方式にする。`waterDepthTrend()`（[coastalHabitatAssignment.ts#L77-99](/src/generators/coastalHabitatAssignment.ts#L77-L99)）
+や `calculateEnclosure()`（[features.ts#L339-377](/src/generators/features.ts#L339-L377)）が同じ
 「水セルのみを辿るBFS」パターンを既に使っており、実装はこの再利用で足りる。
 
 ## 3. しきい値の決定
@@ -137,7 +137,7 @@ numeric meters live here"）に倣い、この式を `depthToMeters(h: number): 
 
 水深は「港が存在できるかどうか」ではなく、**どの船体サイズまで収容できるか**（[ships.md](ships.md)
 §2 の小型/中型/大型ティア）を制限する条件として設計する。単一のしきい値で港全体を諾否判定するのでは
-なく、`computeBurgPortCapacity()`（[portCapacity.ts:46-68](../../src/extensions/shipbuilding/generators/portCapacity.ts#L46-L68)）
+なく、`computeBurgPortCapacity()`（[portCapacity.ts#L46-68](/src/extensions/shipbuilding/generators/portCapacity.ts#L46-L68)）
 が既に持つティア構造にそのまま重ねる。
 
 | 船体ティア | 必要水深 | 探索半径（`haven`からのホップ数） |
@@ -178,12 +178,12 @@ Elevation の Marginal 帯・Coastal Habitat の全基質（`sandyBeach`/`coasta
                          (elevationM - 30) / (100 - 30))
   ```
 
-  `ELEVATION_FACTOR_FLOOR` は `HARBOR_FACTOR_FLOOR = 0.5`（[portCapacity.ts:16](../../src/extensions/shipbuilding/generators/portCapacity.ts#L16)）
+  `ELEVATION_FACTOR_FLOOR` は `HARBOR_FACTOR_FLOOR = 0.5`（[portCapacity.ts#L16](/src/extensions/shipbuilding/generators/portCapacity.ts#L16)）
   と同じ考え方で、例えば `0.4` 程度を仮置きする（どんなに険しくても最低限の輸送力は残す）。
 - この `elevationFactor` を有効に保つ（＝低下させない）ために、Economy拡張が有効な場合は当該burgに
   「switchback road / cliff lift の維持費」という経常支出を追加する。Economy拡張は本プロジェクトの
   規約どおり任意（[AGENTS.md](../../AGENTS.md) §0「Built-in Extensions」、Shipbuildingの
-  `dependencies: [{ id: "economy", required: false }]` パターン — [index.ts:184](../../src/extensions/shipbuilding/index.ts#L184)）
+  `dependencies: [{ id: "economy", required: false }]` パターン — [index.ts#L184](/src/extensions/shipbuilding/index.ts#L184)）
   なので、Economy無効時はコストなしで `elevationFactor` がそのまま適用される（ペナルティはあるが
   課金はされない）。
 

@@ -29,9 +29,9 @@ FMGの道路受け渡しは1本のまま。CEの共通の出入口計画で最�
 ## 処理の因果関係
 
 1. `core/gen/site/siteInput.ts` は道路1本・方位1つ・suggestedGates=1をそのまま引き渡す。入力欠落・複製はない。
-2. `core/gen/interior.ts:255` の `placeGates` は `max(3, min(6, round(suggested * 0.7)))` を使う。本件は水域なしなのでwet加算もなく、1→3となる。出入口候補は同じ入力方位を `targets[i % targets.length]` で3回参照するが、候補を間引くため2個目以降は離れた場所へ選ばれる。城壁の有無にかかわらず市街地境界の出入口計画に使われる。
-3. `core/gen/streets.ts:710` の `farNodeFor` は `descriptorEnd` でも方向差45度未満の場合だけ入力道路の終点方向を採用する。それ以外は出入口から放射方向へ伸ばす。入力終点を厳密に保持するモードではない。
-4. `core/generate.ts:735` の完成都市生成は `plan.gates.map(...)` で外部道路を各出入口につき1本再構成する。元のFMG道路リストとの1対1の対応を持たない。
+2. `core/gen/interior.ts#L255` の `placeGates` は `max(3, min(6, round(suggested * 0.7)))` を使う。本件は水域なしなのでwet加算もなく、1→3となる。出入口候補は同じ入力方位を `targets[i % targets.length]` で3回参照するが、候補を間引くため2個目以降は離れた場所へ選ばれる。城壁の有無にかかわらず市街地境界の出入口計画に使われる。
+3. `core/gen/streets.ts#L710` の `farNodeFor` は `descriptorEnd` でも方向差45度未満の場合だけ入力道路の終点方向を採用する。それ以外は出入口から放射方向へ伸ばす。入力終点を厳密に保持するモードではない。
+4. `core/generate.ts#L735` の完成都市生成は `plan.gates.map(...)` で外部道路を各出入口につき1本再構成する。元のFMG道路リストとの1対1の対応を持たない。
 5. `requiredExternalRoads` はdescriptor入力時に0を返すので、Standalone向け最低道路数の再試行が今回の原因ではない。その分岐は既に分離されているが、門数の最低3規則と放射フォールバックは共通のまま残っている。
 
 ## 修正方針

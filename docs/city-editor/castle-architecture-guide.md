@@ -30,9 +30,9 @@
 CEでは通常、都市防壁（`features`）や防衛設備（`renderTownFortifications`）によって西洋中世風の石壁、円形ドラムタワー、正方形ゲートハウスが描画されます。
 新様式城郭では、これらの旧来パーツが新しい城郭の真上に重複して描画されるのを防ぐため、以下の判定関数により旧レンダラーの処理を安全にスキップしています。
 
-- **`isNewStyleCastleWall`** ([svg.ts](file:///Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/city-editor/renderers/editorSvg.ts)): 新様式城郭の城壁グループに対する西洋石壁ストローク、狭間・歩廊の描画をスキップ。
-- **`isNewStyleCastleCircuit`** ([svg.ts](file:///Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/city-editor/renderers/editorSvg.ts)): 新様式城郭の防壁回路に対する円形ドラムタワー隅塔の描画をスキップ。
-- **`isNewStyleCastleGate`** ([svg.ts](file:///Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/city-editor/renderers/editorSvg.ts)): 城郭所有ID・境界頂点・敷地近接判定に基づき、標準様式の西洋ゲートハウスおよび堀の跳ね橋の描画をスキップ。
+- **`isNewStyleCastleWall`** ([svg.ts](/src/city-editor/renderers/editorSvg.ts)): 新様式城郭の城壁グループに対する西洋石壁ストローク、狭間・歩廊の描画をスキップ。
+- **`isNewStyleCastleCircuit`** ([svg.ts](/src/city-editor/renderers/editorSvg.ts)): 新様式城郭の防壁回路に対する円形ドラムタワー隅塔の描画をスキップ。
+- **`isNewStyleCastleGate`** ([svg.ts](/src/city-editor/renderers/editorSvg.ts)): 城郭所有ID・境界頂点・敷地近接判定に基づき、標準様式の西洋ゲートハウスおよび堀の跳ね橋の描画をスキップ。
 
 ### 1.2 レイヤー描画順序（地層の原則）
 城郭のSVGグループ内では、地形と立体構造の物理的整合性を保つため、厳密な地層順序でレンダリングされます：
@@ -54,7 +54,7 @@ CEでは通常、都市防壁（`features`）や防衛設備（`renderTownFortif
 
 ## 2. FortressPlan データ構造
 
-`FortressPlan` ([castleLayoutBuilder.ts](file:///Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/city-editor/renderers/castleLayoutBuilder.ts)) は、各城郭様式の完全な幾何学プランを表現する中間データモデルです。
+`FortressPlan` ([castleLayoutBuilder.ts](/src/city-editor/renderers/castleLayoutBuilder.ts)) は、各城郭様式の完全な幾何学プランを表現する中間データモデルです。
 
 ```typescript
 export interface FortressPlan {
@@ -252,17 +252,17 @@ export interface FortressPlan {
 2. 編集可能なパーツ（`keep`, `hall`, `range`, `service`, `chapel`）は、保存された形状を維持したまま、各様式の屋根スタイルやマテリアルテクスチャを適用して描画されます。
 
 ### 4.2 新しい城郭様式を追加する際の手順
-1. **[castlePatterns.ts](file:///Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/city-editor/renderers/castlePatterns.ts)**:
+1. **[castlePatterns.ts](/src/city-editor/renderers/castlePatterns.ts)**:
    - `CastleStyle` ユニオン型に新キーを追加。
    - `CASTLE_STYLE_PROFILES` にカラーパレットと特徴フラグを定義。
    - `resolveCastleStyle` に判定ルール（文化・時代）を紐付け。
-2. **[castleLayoutBuilder.ts](file:///Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/city-editor/renderers/castleLayoutBuilder.ts)**:
+2. **[castleLayoutBuilder.ts](/src/city-editor/renderers/castleLayoutBuilder.ts)**:
    - `build<NewStyle>` 関数を実装。`FortressPlan` の各配列（ramparts, courtyards, defensiveGates, buildings, towers, props）を構築。
    - `buildFortressPlan` の `switch` 文に登録。
-3. **[castleSvg.ts](file:///Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/city-editor/renderers/castleSvg.ts)**:
+3. **[castleSvg.ts](/src/city-editor/renderers/castleSvg.ts)**:
    - 新様式固有の屋根や壁の描画が必要な場合、各描画サブ関数（`renderRamparts`, `renderComplexBuildings` 等）に分岐を追加。
 4. **テストの追加**:
-   - [castleSvg.test.ts](file:///Users/h-yamaguchi/Projects/Fantasy-Map-Generator/src/city-editor/renderers/castleSvg.test.ts) にレンダリング検証テストを追加し、`vitest` と `tsc --noEmit` で検証。
+   - [castleSvg.test.ts](/src/city-editor/renderers/castleSvg.test.ts) にレンダリング検証テストを追加し、`vitest` と `tsc --noEmit` で検証。
 
 ---
 *初版策定: 2026-10-08 / City Editor (CE) サブシステム*

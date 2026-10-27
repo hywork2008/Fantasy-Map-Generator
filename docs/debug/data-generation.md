@@ -1,7 +1,7 @@
-Viewed fmg.d.ts:1-53
-Viewed worldContext.ts:1-68
-Viewed PackedGraph.ts:1-80
-Viewed models.ts:1-406
+Viewed fmg.d.ts#L1-53
+Viewed worldContext.ts#L1-68
+Viewed PackedGraph.ts#L1-80
+Viewed models.ts#L1-406
 
 非常に良いご質問です。`window.fmg` 全体を毎回保存すると10MB〜20MBになり、毎ターン（数手分）保存するには非効率ですし、AIのコンテキスト制限も圧迫してしまいます。
 

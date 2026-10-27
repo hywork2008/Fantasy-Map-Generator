@@ -16,21 +16,21 @@
 
 ### 現状の問題点（根拠つき）
 
-1. **陸路輸送が可能** — `isGoodTradePermitted()`（`tradeOpportunityEstimator.ts:87-89`）と
+1. **陸路輸送が可能** — `isGoodTradePermitted()`（`tradeOpportunityEstimator.ts#L87-89`）と
    `estimateSpeculativeTrade()`（同ファイル:103-125）はルート区間が陸(`land`)か海(`sea`)かを一切見ない。
-   `Ships` の `trade` プロファイルは `weight: 5, bulk: 5`（`goods-generator.ts:1108`）で最大値だが、これは
+   `Ships` の `trade` プロファイルは `weight: 5, bulk: 5`（`goods-generator.ts#L1108`）で最大値だが、これは
    輸送コスト計算に効くだけで、隊商(caravan)による陸路運搬そのものは禁止されていない。
 2. **実体と無関係な湧き production** — `Ships` は `recipes: [{ Wood: 2, Sails: 2, Ropes: 2, Tar: 1 }]`
-   （`goods-generator.ts:773`）を持つため、`production-generator.ts` の汎用レシピ処理経由で、実際の
+   （`goods-generator.ts#L773`）を持つため、`production-generator.ts` の汎用レシピ処理経由で、実際の
    Shipyard が存在しない生産地でも在庫が生まれる。`shipyardQueue.ts` の建造完了は `Ships` Good に一切
    触れておらず（`docs/plan/shipbuilding.md` 4章に明記の通り意図的に分離）、2つの「船の数」が完全に独立。
-3. **単一SKU問題** — `Ships` は `value: 80` の1種類のみ（`goods-generator.ts:766-777`）で、
+3. **単一SKU問題** — `Ships` は `value: 80` の1種類のみ（`goods-generator.ts#L766-777`）で、
    `shipClasses.ts` の Sloop/Caravel/Galleon 3ティアや、`portCapacity.ts` が既に持つ small/medium/large
    の区分と対応しない。商人がティアを跨いで買い替える・追加する対象が小型船1種類しか存在しない。
 4. **収容上限が存在しない** — `PortCapacity`（`portCapacity.ts`）は表示専用の導出値で、建造・在庫のどちらも
    制約しない（[ships.md:162-164](ships.md#L162)にも明記: 平時はほぼ全艦が `voyage` 状態のため港はほぼ
    埋まらず、この収容力は元々「動員中に港へ留まっている艦数」の表示にしか使われていない）。
-5. **オーナーシップの衝突** — `ShipyardOwner` は `"state" | "market"` の2種類のみ（`shipyardQueue.ts:23`）。
+5. **オーナーシップの衝突** — `ShipyardOwner` は `"state" | "market"` の2種類のみ（`shipyardQueue.ts#L23`）。
    `owner: "market"` の船体は `shipVoyages.ts` が「常時稼働し毎年収入を生む恒久資産（商船隊）」として
    実装済み（[ships.md §4.5](ships.md#L141)）。ここに手を入れず、かつ「商人が古い船を手放し新しい船を
    買う」体験を提供する必要がある。
@@ -66,7 +66,7 @@
 - 3種とも `recipes` は持たせない（問題2の解消）。`chance: 0` は維持（受動的な biome 生成はしない）。
 - `tags: ["naval"]`、`warEconomyType: "military"` は維持。`demandCoverage.military` はティアの
   `buildPointsRequired` 比で按分する（暫定: Sloop 0.5 を基準に按分）。
-- `GOOD_TRADE_PROFILES`（`goods-generator.ts:1055-1127`）の `Ships` エントリを3エントリに複製・分割する。
+- `GOOD_TRADE_PROFILES`（`goods-generator.ts#L1055-1127`）の `Ships` エントリを3エントリに複製・分割する。
 
 ### 3.2 `seaOnly` フラグ（陸路輸送の禁止）
 

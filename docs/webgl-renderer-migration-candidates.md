@@ -341,7 +341,7 @@ polygon layer の binary geometry 化（`Float32Array` の positions/colors を�
 
 ### 6.1 COA (紋章) 描画
 
-現状 `buildEmblemIcons()` (`deckDataAdapters.ts:659`) は state/province/burg の色を `getColor` で塗るだけの単色シールド `IconLayer`（`EMBLEM_ICON_URL` 固定、`mask:true`）で、実際の紋章は一切描かれていない。SVG版の紋章生成は `emblem-renderer.ts` の `EmblemRenderModule.draw()` が担っており、charge SVGを非同期fetchして合成SVG文字列を組み立て、`#coas` に `insertAdjacentHTML` した上で `<use href="#id">` から参照する設計になっている。
+現状 `buildEmblemIcons()` (`deckDataAdapters.ts#L659`) は state/province/burg の色を `getColor` で塗るだけの単色シールド `IconLayer`（`EMBLEM_ICON_URL` 固定、`mask:true`）で、実際の紋章は一切描かれていない。SVG版の紋章生成は `emblem-renderer.ts` の `EmblemRenderModule.draw()` が担っており、charge SVGを非同期fetchして合成SVG文字列を組み立て、`#coas` に `insertAdjacentHTML` した上で `<use href="#id">` から参照する設計になっている。
 
 - [x] `emblem-renderer.ts` の `draw()` から、DOM挿入 (`insertAdjacentHTML` to `#coas`) に依存しない「coa定義 → SVGマークアップ文字列」を返す純粋関数を切り出す。既存の `trigger(id, coa)` はこの関数 + DOM挿入のラッパーとして残し、SVG版の挙動・呼び出し元は変えない。
 - [x] 上記のSVG文字列を `IconLayer` の `getIcon` が返す `{url, width, height, id}` 用に data URI 化する。charge SVG の fetch が絡むため非同期解決になる前提で、Promiseベースのキャッシュを設計する。
@@ -364,7 +364,7 @@ polygon layer の binary geometry 化（`Float32Array` の positions/colors を�
 
 ### 6.2 burg / marker / military アイコンの atlas 化
 
-現状 `buildBurgIconSymbols()` (`deckDataAdapters.ts:709`) は `type: "burg" | "anchor"` のみを出力し、`buildDeckLayers.ts` がこの2種類の画像を固定 (`BURG_ICON_URLS`) でハードコードしている。SVG版 (`draw-burg-icons.ts`) は burg group の `data-icon` 属性で任意の `#icon-*` symbol を指定できるが、WebGL側はこれを無視している。military unit icon (`buildMilitaryRegimentSymbols()` / `getMilitaryEmblem()`) は SVG版とほぼ同じ emoji/外部画像判定ロジック (`isExternalMarkerIcon`) が既に移植済みで、この項目の対象外とする。
+現状 `buildBurgIconSymbols()` (`deckDataAdapters.ts#L709`) は `type: "burg" | "anchor"` のみを出力し、`buildDeckLayers.ts` がこの2種類の画像を固定 (`BURG_ICON_URLS`) でハードコードしている。SVG版 (`draw-burg-icons.ts`) は burg group の `data-icon` 属性で任意の `#icon-*` symbol を指定できるが、WebGL側はこれを無視している。military unit icon (`buildMilitaryRegimentSymbols()` / `getMilitaryEmblem()`) は SVG版とほぼ同じ emoji/外部画像判定ロジック (`isExternalMarkerIcon`) が既に移植済みで、この項目の対象外とする。
 
 - [x] SVG版で `data-icon` が参照しうる `#icon-*` symbol の一覧を洗い出す。
 - [x] 洗い出した symbol 群を一枚の icon atlas 画像として事前生成する処理を追加する（`IconLayer` の `iconAtlas` + `iconMapping`）。→ 明示的な `iconAtlas`/`iconMapping` ではなく、6.1 の coa と同じ「`getIcon` が distinct `{id,url}` を返す auto-packing」方式を転用した（詳細は開始ログ）。生成タイミングは symbol ごとに初回参照時（起動時ではなく遅延）。

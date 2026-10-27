@@ -1,0 +1,42 @@
+{
+  "errors": [],
+  "cases": [
+    {
+      "profile": "atlantic",
+      "width": 5,
+      "label": "Atlantic · compact home · one open pot",
+      "triangles": 4536
+    },
+    {
+      "profile": "atlantic",
+      "width": 8,
+      "label": "Atlantic · larger home · two open pots",
+      "triangles": 5084
+    },
+    {
+      "profile": "northern-urban",
+      "width": 5,
+      "craft": true,
+      "label": "Northern urban · workshop · octagonal pots",
+      "triangles": 4648
+    },
+    {
+      "profile": "northern-wooded",
+      "width": 5,
+      "label": "Northern wooded · open masonry outlet",
+      "triangles": 4820
+    },
+    {
+      "profile": "mediterranean",
+      "width": 5,
+      "label": "Mediterranean · raised tile cowl",
+      "triangles": 4464
+    },
+    {
+      "profile": "stone-upland",
+      "width": 8,
+      "label": "Stone upland · raised stone cowl",
+      "triangles": 4726
+    }
+  ]
+}

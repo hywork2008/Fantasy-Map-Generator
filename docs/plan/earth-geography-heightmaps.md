@@ -4,7 +4,7 @@
 | :--- | :--- |
 | Status | Phase 0–2 implemented (2026-08-18). Phase 3 in progress: `japan`, `britain`, `mediterranean-sea`, `europe-central`, `atlantics`, `caribbean`, `europe`, `indian-ocean`, and `arabia` Earth regions added. iceland 等は未着手。PNG 経路は他 id とユーザー投入用に残存 |
 | Parent | なし |
-| Related | [`../map-initialization-process.md`](../map-initialization-process.md)、[`src/generators/heightmap-generator.ts`](../../src/generators/heightmap-generator.ts)、[`src/data/precreated-heightmaps.ts`](../../src/data/precreated-heightmaps.ts)、[`src/data/earthConfig.ts`](../../src/data/earthConfig.ts)、[`public/heightmaps/import-rules.txt`](../../public/heightmaps/import-rules.txt)、日本パッチ [`../../scripts/patchEastAsiaJapan.mjs`](../../scripts/patchEastAsiaJapan.mjs) |
+| Related | [`../map-initialization-process.md`](../map-initialization-process.md)、[`src/generators/heightmap-generator.ts`](/src/generators/heightmap-generator.ts)、[`src/data/precreated-heightmaps.ts`](/src/data/precreated-heightmaps.ts)、[`src/data/earthConfig.ts`](/src/data/earthConfig.ts)、[`public/heightmaps/import-rules.txt`](../../public/heightmaps/import-rules.txt)、日本パッチ [`../../scripts/patchEastAsiaJapan.mjs`](../../scripts/patchEastAsiaJapan.mjs) |
 | Scope | precreated heightmap（`east-asia` など実在地域のカタログ）を、「Heightmapper のスクショ PNG を世界とみなす」経路から、「公開 DEM ＋ 陸海ベクトルをセル中心でサンプルする」経路へ置き換える設計。手続生成テンプレ（Archipelago / Pangea 等）は対象外 |
 
 ---
@@ -60,7 +60,7 @@
 5. 画像を書き出す
 6. 500×300 px 程度に縮小する（高解像度は使われない、と明記されている）
 
-成果物は `public/heightmaps/{id}.png`。カタログ [`src/data/precreated-heightmaps.ts`](../../src/data/precreated-heightmaps.ts) は `id` と表示名だけを持つ。
+成果物は `public/heightmaps/{id}.png`。カタログ [`src/data/precreated-heightmaps.ts`](/src/data/precreated-heightmaps.ts) は `id` と表示名だけを持つ。
 
 ### 2.2 実行時
 

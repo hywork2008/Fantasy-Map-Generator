@@ -42,21 +42,21 @@
 
 ### 1.5 部隊合流時の兵力上限計算バグ
 
-- **ファイル**: `src/generators/regimentMovement.ts:420`、`mergeDetachmentIntoParent()`関数
+- **ファイル**: `src/generators/regimentMovement.ts#L420`、`mergeDetachmentIntoParent()`関数
 - **不具合**: `parent.t += detachment.a;`となっており、正しくは分離時の最大兵力`detachment.t`を足すべきところ、消耗後の現有兵力`detachment.a`を足している。
 - **失敗シナリオ**: 150人の分遣隊(`a=150, t=150`)が戦闘で50人まで減った状態(`a=50, t=150`のまま)で本隊に合流すると、本隊の`t`(兵力上限)は150ではなく50しか加算されない。分割/合流/戦闘のサイクルを繰り返すたびに、国家の実質的な最大兵力が恒久的に縮小していく。
 - **重大度**: 中〜高——じわじわと蓄積するバグで、長時間プレイするほど症状が悪化する。
 
 ### 1.6 Battleインスタンス化の競合状態
 
-- **ファイル**: `src/controllers/regiment-editor.ts:527`付近、攻撃クリックハンドラ
+- **ファイル**: `src/controllers/regiment-editor.ts#L527`付近、攻撃クリックハンドラ
 - **経緯**: 攻撃クリック時に`attacker`/`defender`の連隊オブジェクト参照をキャプチャし、d3トランジション終了(約1秒後)まで`new Battle(attacker, defender)`の生成を遅延させる(コミット`0d85bb2e`)。一方、新しい日次シミュレーションループは`requestAnimationFrame`ベースで非同期に走るため、この1秒の間にAdvance Timeが割り込むのを防ぐロックが存在しない。
 - **失敗シナリオ**: ユーザーが攻撃をクリックした直後にAdvance Timeを実行すると、`Military.updateDynamic`(nobility拡張のtickフック経由)がキャプチャ済みの連隊を`state.military`から削除(`splice`)しうる。トランジション終了時に生成される`Battle`は、既に配列から取り除かれた連隊参照を持つことになる。
 - **重大度**: 中——発生条件(1秒以内のユーザー操作競合)は狭いが、UIクラッシュ/不整合な戦闘結果に繋がりうる。
 
 ### 1.7 目標キャンセル時に無関係な部隊の行軍状態まで巻き添えで解除される
 
-- **ファイル**: `src/extensions/nobility/generators/strategic-planner.ts:348`、`evaluatePlans()`関数
+- **ファイル**: `src/extensions/nobility/generators/strategic-planner.ts#L348`、`evaluatePlans()`関数
 - **経緯**: 1つの戦略目標がキャンセルされた際、`for (const regiment of attacker.military || [])`で`destinationCell`が設定済みの**全部隊**の行軍状態(`destinationCell`/`path`/`pathIndex`/`actionStatus`)をクリアしている。`MilitaryRegiment`型には部隊と目標を紐付けるフィールド(`goalId`等)が無いため、キャンセルされた目標に関係する部隊だけに絞り込めない。
 - **失敗シナリオ**: 同一国家が同時に2つの包囲戦を進めている場合、片方の目標が(戦力不足等で)撤回されると、もう片方の(まだ有効な)目標に向けて行軍中の部隊も行軍状態を失い、`edgeProgress`が失われて道路区間の途中から進軍がリセットされる。
 - **重大度**: 中——為政者の意思決定ロジックの副作用として、無関係な部隊の動きに目に見える不具合が出る。

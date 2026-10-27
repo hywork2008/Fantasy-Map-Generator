@@ -65,7 +65,7 @@ Neutrals (state 0): both 0 unconditionally.
 
 ### Local sale (burg → market)
 
-Already implemented as a deduction from burg revenue in `production-generator.ts:218`. Behavior unchanged here:
+Already implemented as a deduction from burg revenue in `production-generator.ts#L218`. Behavior unchanged here:
 
 ```
 tax = state.salesTax × units × dealPrice

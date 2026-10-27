@@ -32,13 +32,13 @@
 
 | 項目 | 現状 | 参照 |
 | --- | --- | --- |
-| Dam の「地点生成→経済的稼働」二層パターン | `damSites.ts`（決定的・河川流量閾値・最小間隔で1回生成）→ `dams.ts`（State資金で年次稼働、Stone/Timber消費、floodProtectionByCellへ床値を上乗せ）。Levee はこの二層構造をほぼそのまま流用する。 | [damSites.ts](../../src/extensions/economy/generators/damSites.ts)、[dams.ts:180-207](../../src/extensions/economy/generators/dams.ts#L180) |
-| `floodProtectionByCell` の書き込み元（消費者無し） | `AgTechInvestment.settleWaterWorks()` が州一律 `+= coverage*0.07` のEWMAで書き、`Dams.applyFloodProtection()` がダム地点＋下流に床値を重ねる。読み出し箇所はコード上どこにも無い。 | [agTechInvestment.ts:167-192](../../src/extensions/economy/generators/agTechInvestment.ts#L167)、[dams.ts:187-207](../../src/extensions/economy/generators/dams.ts#L187) |
-| 洪水危険度の既存計算式 | `readBurgWaterGeography()` が `naturalFloodRisk = 0.35*lowLand + 0.3*fluxRisk(log flux) + 0.25*wetRisk + 0.2*rainRisk` を算出済み。都市の水系評価専用に見えるが、burg以外の任意セルにも呼べる汎用の純関数。 | [urbanWaterSystem.ts:225-283](../../src/extensions/economy/generators/urbanWaterSystem.ts#L225) |
-| 農業収穫高への既存モディファイア接続点 | `AgriculturalConditions`（`irrigationSalinityByCell`/`fieldDrainageByCell`等）を `calculateAgriculturalLandProfile()` がセル毎の収穫高計算に直接乗算している。`floodProtectionByCell` は未接続。 | [agriculturalLandUse.ts:116-131](../../src/extensions/economy/generators/agriculturalLandUse.ts#L116)、[agriculturalLandUse.ts:1065](../../src/extensions/economy/generators/agriculturalLandUse.ts#L1065) |
-| State資金インフラの会計パターン | `debitTreasury(stateId, amount)` / `consumeNamed(marketId, name, amount)` / `marketIdForBurg(burgId)`。Damは`DAM_BUDGET=26`。 | [chemMedCommon.ts:53-122](../../src/extensions/economy/generators/chemMedCommon.ts#L53) |
-| 河川下流トポロジー | `buildRiverDownstream(cells, rivers)`（`cells.riverDownstream` 再構築、灌漑・Damと共有）。 | [riverWaterAllocation.ts:220-237](../../src/generators/riverWaterAllocation.ts#L220) |
-| 危険度0.45という既存の目安値 | `urbanWaterSystem.ts` 自身が `naturalFloodRisk >= 0.45` を「水系リスクを踏まえた立地判断」の閾値として既に使っている。Levee候補地の閾値をこれに揃える。 | [urbanWaterSystem.ts:361](../../src/extensions/economy/generators/urbanWaterSystem.ts#L361) |
+| Dam の「地点生成→経済的稼働」二層パターン | `damSites.ts`（決定的・河川流量閾値・最小間隔で1回生成）→ `dams.ts`（State資金で年次稼働、Stone/Timber消費、floodProtectionByCellへ床値を上乗せ）。Levee はこの二層構造をほぼそのまま流用する。 | [damSites.ts](/src/extensions/economy/generators/damSites.ts)、[dams.ts#L180-207](/src/extensions/economy/generators/dams.ts#L180) |
+| `floodProtectionByCell` の書き込み元（消費者無し） | `AgTechInvestment.settleWaterWorks()` が州一律 `+= coverage*0.07` のEWMAで書き、`Dams.applyFloodProtection()` がダム地点＋下流に床値を重ねる。読み出し箇所はコード上どこにも無い。 | [agTechInvestment.ts#L167-192](/src/extensions/economy/generators/agTechInvestment.ts#L167)、[dams.ts#L187-207](/src/extensions/economy/generators/dams.ts#L187) |
+| 洪水危険度の既存計算式 | `readBurgWaterGeography()` が `naturalFloodRisk = 0.35*lowLand + 0.3*fluxRisk(log flux) + 0.25*wetRisk + 0.2*rainRisk` を算出済み。都市の水系評価専用に見えるが、burg以外の任意セルにも呼べる汎用の純関数。 | [urbanWaterSystem.ts#L225-283](/src/extensions/economy/generators/urbanWaterSystem.ts#L225) |
+| 農業収穫高への既存モディファイア接続点 | `AgriculturalConditions`（`irrigationSalinityByCell`/`fieldDrainageByCell`等）を `calculateAgriculturalLandProfile()` がセル毎の収穫高計算に直接乗算している。`floodProtectionByCell` は未接続。 | [agriculturalLandUse.ts#L116-131](/src/extensions/economy/generators/agriculturalLandUse.ts#L116)、[agriculturalLandUse.ts#L1065](/src/extensions/economy/generators/agriculturalLandUse.ts#L1065) |
+| State資金インフラの会計パターン | `debitTreasury(stateId, amount)` / `consumeNamed(marketId, name, amount)` / `marketIdForBurg(burgId)`。Damは`DAM_BUDGET=26`。 | [chemMedCommon.ts#L53-122](/src/extensions/economy/generators/chemMedCommon.ts#L53) |
+| 河川下流トポロジー | `buildRiverDownstream(cells, rivers)`（`cells.riverDownstream` 再構築、灌漑・Damと共有）。 | [riverWaterAllocation.ts#L220-237](/src/generators/riverWaterAllocation.ts#L220) |
+| 危険度0.45という既存の目安値 | `urbanWaterSystem.ts` 自身が `naturalFloodRisk >= 0.45` を「水系リスクを踏まえた立地判断」の閾値として既に使っている。Levee候補地の閾値をこれに揃える。 | [urbanWaterSystem.ts#L361](/src/extensions/economy/generators/urbanWaterSystem.ts#L361) |
 
 ## 3. 設計
 
@@ -61,7 +61,7 @@ export function computeNaturalFloodRisk(args: {
 
 `leveeSites.ts` と `agriculturalLandUse.ts` の双方がこれを import する。都市の`floodExposure`
 （`urbanWaterSystem.ts`側、雨水排水・都市化を加味した別概念）とは意図的に分離したまま——
-`economyContext.ts:558`のコメント「Irrigation, flood protection, and field drainage intentionally
+`economyContext.ts#L558`のコメント「Irrigation, flood protection, and field drainage intentionally
 remain independent investments」と同じ精神で、農村の`floodProtectionByCell`と都市の`floodExposure`は
 別の投資・別の被害経路として扱う。
 
@@ -146,7 +146,7 @@ readonly floodProtectionByCell?: Float32Array;
 ```
 
 `computeNaturalFloodRisk()`（3.1）をセル毎に呼び、収穫高計算の中で既存の`irrigationSalinity`適用箇所
-（[agriculturalLandUse.ts:1065](../../src/extensions/economy/generators/agriculturalLandUse.ts#L1065)
+（[agriculturalLandUse.ts#L1065](/src/extensions/economy/generators/agriculturalLandUse.ts#L1065)
 付近）と同じ乗算パターンで適用する:
 
 ```ts
@@ -177,10 +177,10 @@ disaster-mode.md優先度0の「災害共通基盤」が気候異常と離散的
 - `economyLayers`に`toggleLevees`エントリを追加（`svgLayers: [{id:"levees", insertBefore:"icons", display:"none"}]`）。
 - `registerLayerElement`/`registerLayerToggle`/`registerDrawLayerHook`に`levees`を`dams`と同型で追加。
 - `DamSites.generate()`と同じ箇所（"minerals" regenerateターゲット、初期生成パイプライン）に
-  `LeveeSites.generate()`を追加。実行時は`Levees.clear()`も呼ぶ（Damの3箇所——[index.tsx:1039](../../src/extensions/economy/index.tsx#L1039)、
-  [index.tsx:1446](../../src/extensions/economy/index.tsx#L1446)、[index.tsx:2391](../../src/extensions/economy/index.tsx#L2391)
+  `LeveeSites.generate()`を追加。実行時は`Levees.clear()`も呼ぶ（Damの3箇所——[index.tsx:1039](/src/extensions/economy/index.tsx#L1039)、
+  [index.tsx:1446](/src/extensions/economy/index.tsx#L1446)、[index.tsx:2391](/src/extensions/economy/index.tsx#L2391)
   ——と同じ並びに`Dams.clear()`と並べて置く）。
-- `Dams.settleAnnual()`の直後（[index.tsx:3028](../../src/extensions/economy/index.tsx#L3028)）に
+- `Dams.settleAnnual()`の直後（[index.tsx:3028](/src/extensions/economy/index.tsx#L3028)）に
   `Levees.settleAnnual()`を追加。
 - `DevelopmentPotential.updateAnnualAgriculture()`の呼び出し前に`floodProtectionByCell`が確定している
   ことを確認する（Dam/Levee/AgTechInvestmentはいずれもこれより前の`measureTickStep`ブロックで既に
@@ -208,7 +208,7 @@ disaster-mode.md優先度0の「災害共通基盤」が気候異常と離散的
 4. **新規Technologyノードは設けない**（Damの決定事項2と同じ理由）。堤防の実質的なゲートは
    氾濫原危険度立地とTreasury予算。
 5. **都市の`floodExposure`（urbanWaterSystem.ts）とは統合しない**。都市の雨水排水・都市化リスクという
-   別概念であり、`economyContext.ts:558`のコメントが示す「独立した投資であるべき」という既存方針を
+   別概念であり、`economyContext.ts#L558`のコメントが示す「独立した投資であるべき」という既存方針を
    踏襲する。
 6. **LeveeSiteはstateIdを持たず、`cells.state[site.cells[0]]`で動的に所有権判定する**。reachが州境を
    跨ぐケースはDamの単一セルと同じ特性（境界変動で所属Stateが切り替わる）を受け入れる——境界を跨ぐ

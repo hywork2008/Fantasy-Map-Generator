@@ -77,11 +77,11 @@ CEへの自動配置・既存施設との接続は別途実装範囲を決める
 
 ## 照合元と参考資料
 
-- [BV登録一覧](../../src/building-viewer/main.ts)
-- [CE施設一覧](../../src/city-editor/types/facilities.ts)
-- [CE施設操作パネル](../../src/city-editor/components/facilityPanel.ts)
-- [CE構造物の3D形状生成](../../src/city-editor/renderers/structureMassing.ts)
-- [CE汎用建物の3D描画](../../src/city3d/three/cityMeshes.ts)
+- [BV登録一覧](/src/building-viewer/main.ts)
+- [CE施設一覧](/src/city-editor/types/facilities.ts)
+- [CE施設操作パネル](/src/city-editor/components/facilityPanel.ts)
+- [CE構造物の3D形状生成](/src/city-editor/renderers/structureMassing.ts)
+- [CE汎用建物の3D描画](/src/city3d/three/cityMeshes.ts)
 - [Weald & Downland Living Museum: 農業建築](https://www.wealddown.co.uk/discover/buildings/farm-buildings/) — 納屋と穀倉の用途・時代差の参考。英国の形式を欧州全域に一律適用しない。
 - [Weald & Downland Living Museum: 中世店舗の実例](https://www.wealddown.co.uk/buildings/medieval-shop-from-horsham/)
 - [Historic England: 教会建築](https://historicengland.org.uk/images-books/publications/dlsg-places-worship/heag124-places-of-worship-lsg/)
