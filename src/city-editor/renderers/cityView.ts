@@ -54,6 +54,7 @@ import { createSunControls } from "./sunControls";
 import { readSunSettings, updateSun, writeSunSettings } from "./sunLighting";
 import { groundStructures, lotFoundations, rampStructures, stairStructures } from "./terrainMassing";
 import { resolveCemeteryPlans } from "./townFacts";
+import { connectWallWalks } from "./wallWalkConnections";
 import { collectWellSites } from "./wellSites";
 
 const WALL_KEY: Record<WallMaterial, EditorMessageKey> = {
@@ -408,14 +409,16 @@ export function mountCity3d(options: {
     }
     structures?.dispose();
     if (structures) scene.remove(structures.group);
-    const grounded = terrain
-      ? [
-          ...groundStructures(parts, terrain),
-          ...lotFoundations(fabric.buildings, terrain),
-          ...rampStructures(terrain),
-          ...stairStructures(terrain)
-        ]
-      : parts;
+    const grounded = connectWallWalks(
+      terrain
+        ? [
+            ...groundStructures(parts, terrain),
+            ...lotFoundations(fabric.buildings, terrain),
+            ...rampStructures(terrain),
+            ...stairStructures(terrain)
+          ]
+        : parts
+    );
     // Acquire the next layer before releasing the old one, so prototypes survive refreshes.
     const nextSpecial = createTownSpecialBuildings(city, grounded, bvPrototypes, quality);
     if (specialBuildings) {

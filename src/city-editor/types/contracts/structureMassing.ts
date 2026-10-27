@@ -28,6 +28,8 @@ export interface StructureMassing {
   /** Unit-width miter offsets interpolated from the original ribbon before terrain sampling. */
   ribbonOffsets?: Point[];
   widthMeters?: number;
+  /** Connection geometry owns these stairs or open parapets; do not replace it with a wall prototype. */
+  wallWalkModified?: boolean;
   /** Closed ring. Absent or empty `holes` leaves a solid cap. */
   footprint?: Point[];
   /** Clockwise rings cut out of `footprint`. */
