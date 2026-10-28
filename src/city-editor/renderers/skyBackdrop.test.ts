@@ -1,8 +1,55 @@
 import * as THREE from "three";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { createDocument } from "../generators/document";
 import { createSkyBackdrop } from "./skyBackdrop";
 import { DEFAULT_SUN } from "./sunLighting";
+
+it("shares a static seamless wallpaper, resizes it without regeneration, and disposes replaced textures", () => {
+  const sky = createSkyBackdrop();
+  try {
+    sky.fit(createDocument("scenery-height", 160), () => 0);
+    sky.setScenery({ style: "mountains", height: 20 });
+    const planes = sky.group.children.map(wall => wall.children[0] as THREE.Mesh);
+    const material = planes[0].material as THREE.MeshBasicMaterial;
+    const texture = material.map!;
+    const image = texture.image as { data: Uint8Array; width: number; height: number };
+    for (let y = 0; y < image.height; y++) {
+      const first = y * image.width * 4,
+        last = first + (image.width - 1) * 4;
+      expect([...image.data.slice(first, first + 4)]).toEqual([...image.data.slice(last, last + 4)]);
+    }
+    expect(planes.every(plane => plane.material === material && plane.visible)).toBe(true);
+    expect(planes.every(plane => plane.userData.ceSky && !plane.castShadow && !plane.receiveShadow)).toBe(true);
+    const plane = planes[0];
+    const position = plane.geometry.getAttribute("position");
+    const worldY = (index: number) => {
+      plane.updateWorldMatrix(true, false);
+      return new THREE.Vector3().fromBufferAttribute(position, index).applyMatrix4(plane.matrixWorld).y;
+    };
+    const initialMountainTop = worldY(0);
+    const plainTop = worldY(2);
+    expect(plainTop - worldY(4)).toBeGreaterThan(6);
+    expect(plainTop - worldY(4)).toBeLessThan(15);
+    for (const height of [5, 40]) {
+      sky.setScenery({ style: "mountains", height });
+      expect(material.map).toBe(texture);
+      expect(worldY(2)).toBeCloseTo(plainTop, 4);
+    }
+    expect(worldY(0)).toBeGreaterThan(initialMountainTop);
+    const dispose = vi.spyOn(texture, "dispose");
+    sky.setScenery({ style: "countryside", height: 20 });
+    expect(worldY(2)).toBeCloseTo(plainTop, 4);
+    sky.setScenery({ style: "countryside", height: 40 });
+    expect(worldY(2)).toBeCloseTo(plainTop, 4);
+    expect(dispose).toHaveBeenCalledOnce();
+    expect(material.map).not.toBe(texture);
+    sky.setScenery({ style: "none", height: 20 });
+    expect(material.map).toBeNull();
+    expect(planes.every(plane => !plane.visible)).toBe(true);
+  } finally {
+    sky.dispose();
+  }
+});
 
 it("fits vertical walls to the map bounds and shows only the far one or two as the camera rotates", () => {
   const sky = createSkyBackdrop();

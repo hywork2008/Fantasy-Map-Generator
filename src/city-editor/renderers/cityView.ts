@@ -56,6 +56,7 @@ import { ForestAutoQuality } from "./forestAutoQuality";
 import { collectOpenSpacePlan } from "./openSpaceSites";
 import { collectPierSites } from "./pierSites";
 import { type City3dPerformanceSnapshot, type City3dRenderMetrics, collectSceneMetrics } from "./renderMetrics";
+import { createSceneryControls, readScenerySettings } from "./sceneryControls";
 import { collectShipSites } from "./shipSites";
 import { createSkyBackdrop } from "./skyBackdrop";
 import { standaloneHousingAppearance, standaloneHousingDocument } from "./standaloneHousingAppearance";
@@ -204,6 +205,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
 
   const sunSettings = readSunSettings();
   const fogSettings = readFogSettings();
+  const scenerySettings = readScenerySettings();
   let sun: THREE.DirectionalLight | null = null;
   let shadowBounds = new THREE.Box3();
   const createLightingPanel = () => {
@@ -220,6 +222,11 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     panel.append(
       createFogControls(
         fogSettings,
+        (target, type, handler) => options.scope.listen(target, type, handler),
+        () => requestRender()
+      ),
+      createSceneryControls(
+        scenerySettings,
         (target, type, handler) => options.scope.listen(target, type, handler),
         () => requestRender()
       )
@@ -597,6 +604,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       atmosphere.near + Math.max(atmosphereRange, focusDistance * 0.75) * (100 / Math.max(1, fogSettings.strength));
     scene.fog = fogSettings.strength > 0 ? atmosphere : null;
     sky.update(camera, sunSettings);
+    sky.setScenery(scenerySettings);
     atmosphere.color.copy(sky.horizon);
     renderer.render(scene, camera);
     const cpuMs = performance.now() - start;
@@ -901,7 +909,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     scene.traverse(object => {
       if (!(object instanceof THREE.Mesh)) return;
       // Sky walls are scenery, not occluders or part of the city's shadow bounds.
-      if (object.parent === sky.group) return;
+      if (object.userData.ceSky) return;
       if (object.userData.ceForest) return;
       object.receiveShadow = true;
       const materials = Array.isArray(object.material) ? object.material : [object.material];
