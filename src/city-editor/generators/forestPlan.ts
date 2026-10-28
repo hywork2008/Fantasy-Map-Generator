@@ -18,6 +18,7 @@ import { classifyTownWater } from "./townWater";
 
 /** Uses already-built housing/reservations; never calls buildBlockFabric or creates trees. */
 export function buildForestPlan(document: CityDocument, fabric: DistrictFabric, keepOut?: ForestKeepOut): ForestPlan {
+  keepOut ??= forestKeepOut(document, fabric);
   const selected = forestLandCover(document);
   const fixedFarms = fabric.farms.filter(farm =>
     (farm.sourceFaceIds ?? [farm.faceId]).some(id => document.mesh.faces[id]?.properties.locked)
@@ -116,6 +117,7 @@ const plans = new WeakMap<CityDocument, { key: string; plan: ForestPlan }>();
 
 /** The latest derived geometry per document; density, view quality and camera never invalidate it. */
 export function cachedForestPlan(document: CityDocument, fabric: DistrictFabric, keepOut?: ForestKeepOut): ForestPlan {
+  keepOut ??= forestKeepOut(document, fabric);
   const key = JSON.stringify([
     document.forestSettings?.mode,
     document.mesh,
@@ -151,4 +153,47 @@ export function cachedForestPlan(document: CityDocument, fabric: DistrictFabric,
   const plan = buildForestPlan(document, fabric, keepOut);
   plans.set(document, { key, plan });
   return plan;
+}
+
+/** Drawn clearances shared by both views; no SVG or WebGL construction is needed. */
+export function forestKeepOut(document: CityDocument, fabric: DistrictFabric): ForestKeepOut {
+  const polygons: Point[][] = [],
+    discs: ForestKeepOut["discs"] = [];
+  const ocean = new Set(document.coastalOceanFaceIds ?? []);
+  for (const edge of Object.values(document.mesh.edges)) {
+    const left = document.mesh.faces[edge.leftFace ?? ""],
+      right = document.mesh.faces[edge.rightFace ?? ""];
+    const land =
+      left?.properties.water === "land" && right?.properties.water === "sea" && ocean.has(right.id)
+        ? left
+        : right?.properties.water === "land" && left?.properties.water === "sea" && ocean.has(left.id)
+          ? right
+          : undefined;
+    if (!land || land.properties.ward === "harbor" || land.properties.ward === "castle") continue;
+    if (
+      land.properties.settlement === "core" &&
+      !["park", "farm", "cemetery", "empty"].includes(land.properties.ward ?? "")
+    )
+      continue;
+    polygons.push(corridor(document.mesh.vertices[edge.a].point, document.mesh.vertices[edge.b].point, 34, 8));
+  }
+  for (const cemetery of document.cemeteries ?? []) polygons.push(cemetery.boundary);
+  for (const mill of fabric.watermills?.mills ?? []) polygons.push(mill.millhousePolygon);
+  const aerial = fabric.aerialLandmarks;
+  if (aerial) {
+    for (const mill of aerial.windmills)
+      discs.push({ center: mill.center, radius: Math.max(mill.baseRadius, mill.sailLength) });
+    for (const point of aerial.domesticWater) polygons.push(point.footprint);
+    for (const monastery of aerial.monasteries) polygons.push(monastery.precinct);
+    for (const tannery of aerial.tanneries) polygons.push(tannery.yard, tannery.washStrip);
+    for (const gallows of aerial.gallows) discs.push({ center: gallows.center, radius: gallows.moundRadius });
+    for (const hall of aerial.guildHalls) polygons.push(hall.footprint);
+    for (const yard of [...aerial.guildYards, ...aerial.storageYards]) polygons.push(yard.polygon);
+    for (const warehouse of aerial.quayWarehouses ?? []) {
+      polygons.push(warehouse.footprint);
+      if (warehouse.cut) polygons.push(warehouse.cut);
+    }
+    for (const inn of aerial.gateInns) polygons.push(inn.footprint, inn.court);
+  }
+  return { polygons, discs };
 }

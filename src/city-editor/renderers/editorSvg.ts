@@ -289,7 +289,7 @@ export function renderEditorSvg(
       for (const inn of townPlans.aerial.gateInns) keep.polygons.push(inn.footprint, inn.court);
     }
     const forest = hasForestState(document)
-      ? cachedForestPlan(document, townPlans.forestFabric ?? buildBlockFabric(document), keep)
+      ? cachedForestPlan(document, townPlans.forestFabric ?? buildBlockFabric(document))
       : undefined;
     const scenery = renderLandscapeLayer(document, town, effectiveQuality, keep, forest);
     if (forest?.regions.length) {

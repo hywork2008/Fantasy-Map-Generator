@@ -1,4 +1,5 @@
 import type * as THREE from "three";
+import type { Forest3dStats } from "../../city3d/three/forestMeshes";
 
 /** Counts attached SVG complexity, including definitions and hidden layers. */
 export function collectSvgMetrics(svg: SVGSVGElement) {
@@ -72,6 +73,7 @@ export interface City3dRenderMetrics {
 }
 
 export interface City3dPerformanceSnapshot {
+  forest?: Forest3dStats;
   camera: { position: number[]; target: number[]; zoom: number; fov: number } | null;
   frame: City3dRenderMetrics | null;
   scene: ReturnType<typeof collectSceneMetrics>;

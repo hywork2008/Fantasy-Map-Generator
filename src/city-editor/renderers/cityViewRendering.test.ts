@@ -1,7 +1,9 @@
 import * as THREE from "three";
 import { expect, it, vi } from "vitest";
+import type { Forest3dQuality } from "../../city3d/three/forestMeshes";
 import { buildBlockFabric, documentFabricFingerprint } from "../generators/blockInfill";
 import { createDocument } from "../generators/document";
+import { withForestSettings } from "../generators/forestLandCover";
 import { beginEditorMount } from "../services/editorLifetime";
 import { mountCity3d } from "./cityView";
 
@@ -271,6 +273,68 @@ it("keeps cursor zoom and right-drag responsive above the ground at a 30-degree 
       const offset = position().sub(new THREE.Vector3().fromArray(snapshot().target));
       expect(offset.y / offset.length()).toBeCloseTo(0.5, 8);
     }
+  } finally {
+    view.dispose();
+    scope.dispose();
+    host.remove();
+    vi.unstubAllGlobals();
+  }
+});
+
+it("updates forest quality and camera LOD without rebuilding city geometry and removes disabled forest", () => {
+  render.mockClear();
+  const frames = new Map<number, FrameRequestCallback>();
+  let id = 0;
+  vi.stubGlobal("requestAnimationFrame", (fn: FrameRequestCallback) => {
+    frames.set(++id, fn);
+    return id;
+  });
+  vi.stubGlobal("cancelAnimationFrame", (key: number) => frames.delete(key));
+  const flush = () => {
+    const pending = [...frames.values()];
+    frames.clear();
+    for (const fn of pending) fn(0);
+  };
+  const host = document.createElement("div"),
+    map = document.createElement("div");
+  host.append(map);
+  document.body.append(host);
+  const source = createDocument("forest-refresh", 400);
+  source.appearance = "town";
+  for (const face of Object.values(source.mesh.faces))
+    Object.assign(face.properties, { ward: "farm", settlement: "outskirts" });
+  let city = withForestSettings(source, { version: 1, mode: "surroundings", density: "standard" });
+  let forestQuality: Forest3dQuality = "standard";
+  const scope = beginEditorMount(host);
+  const view = mountCity3d({
+    canvasHost: host,
+    map,
+    scope,
+    getDocument: () => city,
+    getForestQuality: () => forestQuality
+  });
+  try {
+    host.querySelector<HTMLButtonElement>(".ce-view-toggle")!.click();
+    flush();
+    const scene = render.mock.lastCall![0] as THREE.Scene;
+    const forest = scene.getObjectByName("ce-forest");
+    const massing = scene.getObjectByName("massing");
+    expect(forest).toBeDefined();
+    expect(view.getPerformance()?.forest?.areaM2).toBeGreaterThan(0);
+    forestQuality = "light";
+    view.sync();
+    flush();
+    expect(scene.getObjectByName("ce-forest")).toBe(forest);
+    expect(scene.getObjectByName("massing")).toBe(massing);
+    expect(view.getPerformance()?.forest?.quality).toBe("light");
+    view.restoreView({ position: [130, 40, 120], target: [100, 0, 0], zoom: 1, fov: 45 });
+    flush();
+    expect(scene.getObjectByName("massing")).toBe(massing);
+    city = withForestSettings(city, { version: 1, mode: "legacy", density: "standard" });
+    view.sync();
+    flush();
+    expect(scene.getObjectByName("ce-forest")).toBeUndefined();
+    expect(view.getPerformance()?.forest).toBeUndefined();
   } finally {
     view.dispose();
     scope.dispose();
