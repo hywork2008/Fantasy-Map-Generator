@@ -1,7 +1,7 @@
 import { editorText } from "../../i18n/editorMessages";
 
 const STORAGE_KEY = "fmg-city-editor:distance-fog";
-const DEFAULT_STRENGTH = 25;
+const DEFAULT_STRENGTH = 80;
 
 export function readFogSettings(): { strength: number } {
   try {

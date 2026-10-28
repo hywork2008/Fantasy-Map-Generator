@@ -88,7 +88,7 @@ it("renders on demand, retains unchanged scene layers on reopen, and reflects ca
     const scene = render.mock.calls[0][0] as THREE.Scene;
     const fog = scene.fog as THREE.Fog;
     expect(fog).toBeInstanceOf(THREE.Fog);
-    expect(fog.color.getHex()).toBe(0xc5c5bf);
+    expect(fog.color.getHex()).toBe(0xd9ecf6);
     // The initial overhead view must keep the ground below the camera clear.
     const initialCamera = render.mock.calls[0][1] as THREE.PerspectiveCamera;
     expect(fog.near).toBeGreaterThan(initialCamera.position.y);
@@ -158,7 +158,7 @@ it("renders on demand, retains unchanged scene layers on reopen, and reflects ca
     expect(frames.size).toBe(0);
     const panel = host.querySelector<HTMLDetailsElement>(".ce-sun-controls")!;
     const fogStrength = panel.querySelector<HTMLInputElement>('[name="fogStrength"]')!;
-    expect(fogStrength.value).toBe("25");
+    expect(fogStrength.value).toBe("80");
     expect(fogStrength.disabled).toBe(false);
     expect(panel.hidden).toBe(false);
     const sun = scene.children.find(child => child instanceof THREE.DirectionalLight) as THREE.DirectionalLight;
@@ -177,6 +177,16 @@ it("renders on demand, retains unchanged scene layers on reopen, and reflects ca
     });
     expect(casters.length).toBeGreaterThan(0);
     expect(casters.every(mesh => mesh.receiveShadow)).toBe(true);
+    const skyWalls = scene.getObjectByName("ce-sky")!.children as THREE.Mesh[];
+    expect(skyWalls).toHaveLength(4);
+    for (const wall of skyWalls) {
+      expect(wall.castShadow).toBe(false);
+      expect(wall.receiveShadow).toBe(false);
+      // The fitted shadow volume must stay below the tops of the sky walls.
+      const lightPosition = sun.position.clone();
+      const cityRadius = lightPosition.distanceTo(sun.target.position) / 3;
+      expect(cityRadius).toBeLessThan(wall.scale.y / 2);
+    }
     const currentChildren = [...scene.children];
     const azimuth = panel.querySelector<HTMLInputElement>('[name="azimuth"]')!;
     azimuth.value = "270";
@@ -217,6 +227,8 @@ it("renders on demand, retains unchanged scene layers on reopen, and reflects ca
     flush();
     // At street level, distant scenery fades while the nearest streets stay clear.
     view.restoreView({ position: [0, 10, 20], target: [0, 0, 0], zoom: 1, fov: 45 });
+    fogStrength.value = "25";
+    fogStrength.dispatchEvent(new Event("input"));
     flush();
     expect(fog.near).toBeGreaterThan(50);
     const subtleFar = fog.far;

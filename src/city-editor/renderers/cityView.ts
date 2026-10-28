@@ -57,6 +57,7 @@ import { collectOpenSpacePlan } from "./openSpaceSites";
 import { collectPierSites } from "./pierSites";
 import { type City3dPerformanceSnapshot, type City3dRenderMetrics, collectSceneMetrics } from "./renderMetrics";
 import { collectShipSites } from "./shipSites";
+import { createSkyBackdrop } from "./skyBackdrop";
 import { standaloneHousingAppearance, standaloneHousingDocument } from "./standaloneHousingAppearance";
 import { collectCityStructures, landmarkLotStructures } from "./structureMassing";
 import { createSunControls } from "./sunControls";
@@ -227,6 +228,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   let renderer: THREE.WebGLRenderer | null = null;
   let scene: THREE.Scene | null = null;
   const atmosphere = new THREE.Fog(0xc5c5bf);
+  const sky = createSkyBackdrop();
   let atmosphereRange = 600;
   let camera: THREE.PerspectiveCamera | null = null;
   let controls: OrbitControls | null = null;
@@ -518,8 +520,9 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     renderer.shadowMap.autoUpdate = false;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.setClearColor(0xc5c5bf);
+    renderer.setClearColor(0x000000);
     scene = new THREE.Scene();
+    scene.add(sky.group);
     scene.fog = fogSettings.strength > 0 ? atmosphere : null;
     camera = new THREE.PerspectiveCamera(45, 1, 0.5, 80000);
     scene.add(new THREE.HemisphereLight(0xf4f0e6, 0x6d7a62, 0.9));
@@ -580,6 +583,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     atmosphere.far =
       atmosphere.near + Math.max(atmosphereRange, focusDistance * 0.75) * (100 / Math.max(1, fogSettings.strength));
     scene.fog = fogSettings.strength > 0 ? atmosphere : null;
+    sky.update(camera, sunSettings);
+    atmosphere.color.copy(sky.horizon);
     renderer.render(scene, camera);
     const cpuMs = performance.now() - start;
     if (previousMotionFrame) previousMotionFrame.endedAt = start + cpuMs;
@@ -656,6 +661,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
         // Reported once by the road meshes below; the terrain stays ungraded.
       }
       terrain = cityTerrain(city, { roads: ribbons, renderSpacing: spacing });
+      sky.fit(city, terrain.heightAt);
       terrainStamp = nextTerrainStamp;
     }
     const plan = planCity3dRefresh({
@@ -880,6 +886,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     scene.updateMatrixWorld(true);
     scene.traverse(object => {
       if (!(object instanceof THREE.Mesh)) return;
+      // Sky walls are scenery, not occluders or part of the city's shadow bounds.
+      if (object.parent === sky.group) return;
       if (object.userData.ceForest) return;
       object.receiveShadow = true;
       const materials = Array.isArray(object.material) ? object.material : [object.material];
@@ -1060,6 +1068,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     harborCargo?.dispose();
     roadMeshes?.dispose();
     ground?.geometry.dispose();
+    sky.dispose();
     (ground?.material as THREE.Material | undefined)?.dispose();
     controls?.removeEventListener("change", requestCameraRender);
     controls?.dispose();
