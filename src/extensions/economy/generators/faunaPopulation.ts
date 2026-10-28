@@ -3,7 +3,7 @@ import {
   getLivestockDispatchTable,
   getOrCreateLivestockDispatchTable
 } from "../context/cellTables";
-import { getEconomySlice } from "../context/economyApi";
+import { getEconomySlice, getSimulationYear } from "../context/economyApi";
 import { livestockFeedPeriod } from "./livestockFeedState";
 /**
  * Fauna Population Stock Model — docs/plan/biome-goods-producer-ecosystem.md §4 (Phase 2).
@@ -77,6 +77,7 @@ import { YARD_HEADS_PER_RURAL_PERSON } from "./livestockHerdTargetPolicy";
 import { assessAnnualHerdRenewal } from "./livestockJointDemand";
 import { getLandTransportDefinition } from "./tradeCargo";
 import { getVineyardAreaUsedHectares } from "./viticulture";
+import { getCellWildCaptureRight, isWildCaptureAllowed } from "./wildCaptureRightsPolicy";
 
 /** The species key used for Game's wild stock — Game itself carries no `liveAnimal` tag (§4.1). */
 export const WILD_SPECIES_KEY = "Game";
@@ -894,7 +895,93 @@ export function updateAnnualFaunaCohorts(): boolean {
       advanceStockOneYear(table, cellId, good.name, getDomesticatedCarryingCapacity(cellId, good, flatRateAmount));
     }
   }
+  captureWildLivestock(table, domesticatedGoods);
   return true;
+}
+
+// ---- Wild capture (docs/plan/wild-animal-capture-domestication.md, C2) ----
+
+/** Domesticated goods whose wild ancestor peasants catch and tame. Pigs are left out: their yard
+ * herds refill by breeding every year (C0). Cattle, sheep and goats have no catchable ancestor. */
+export const WILD_CAPTURE_GOODS: readonly string[] = ["Horses"];
+/**
+ * Share of a cell's Game stock that is wild or semi-wild horses, by biome tag (best tag wins).
+ * Provisional: steppe and open grassland carry the tarpan herds, marsh and heath the semi-wild
+ * herds rounded up by the community, forest only a few.
+ */
+export const WILD_HORSE_SHARE_OF_GAME_BY_TAG: Partial<Record<BiomeTag, number>> = {
+  grassland: 0.1,
+  scrub: 0.05,
+  wetland: 0.05,
+  forest: 0.02,
+  cold: 0.02
+};
+/** Share of the herd's gap to its supported size caught in one year (the gap is not closed at once). */
+export const CAPTURE_GAP_SHARE = 0.25;
+/** Share of the wild horses caught in one year, kept small so hunting's draw on Game barely moves. */
+export const CAPTURE_WILD_SHARE = 0.02;
+
+export interface WildCaptureRecord {
+  year: number;
+  /** Real animals moved from Game to each good's herd. */
+  headsByGood: Record<string, number>;
+  cells: number;
+  /** Cells short of their herd that the rights policy kept out. */
+  deniedCells: number;
+}
+
+let lastWildCapture: WildCaptureRecord | null = null;
+
+/** The latest annual capture, for observation only; not persisted. */
+export function getLastWildCaptureRecord(): WildCaptureRecord | null {
+  return lastWildCapture;
+}
+
+function getWildHorseShareOfGame(cellId: number): number {
+  const world = getWorldContext();
+  const tags = world.biomesData.tags?.[world.pack.cells.biomeCode[cellId] ?? 0] ?? [];
+  return tags.reduce((max, tag) => Math.max(max, WILD_HORSE_SHARE_OF_GAME_BY_TAG[tag] ?? 0), 0);
+}
+
+/**
+ * After the renewal, herds that will not reach their supported size this year (heads + natural
+ * increase <= target, so no sale) take wild animals of the same cell as young stock — last
+ * autumn's round-up of foals and young horses, settled with the herd count. Heads move from Game
+ * to the herd one for one; no market and no purse is involved. Spare hands are not a limit: C0
+ * found them 100x the shortfall.
+ */
+export function captureWildLivestock(table: Record<string, FaunaCohorts>, goods: readonly Good[]): void {
+  const record: WildCaptureRecord = { year: getSimulationYear(), headsByGood: {}, cells: 0, deniedCells: 0 };
+  const cells = getWorldContext().pack.cells;
+  for (const good of goods) {
+    if (!WILD_CAPTURE_GOODS.includes(good.name) || !isGoodEnabled(good)) continue;
+    for (const cellId of cells.i) {
+      const herd = table[getStockKey(cellId, good.name)];
+      const wild = table[getStockKey(cellId, WILD_SPECIES_KEY)];
+      if (!herd || !wild) continue;
+      const target = getDomesticatedCarryingCapacity(cellId, good, 0);
+      const heads = cohortTotal(herd);
+      if (!(target > heads) || heads + (getAnnualHerdRenewal(cellId, good)?.naturalNetHeads ?? 0) > target) continue;
+      if (!isWildCaptureAllowed(getCellWildCaptureRight(cellId))) {
+        record.deniedCells++;
+        continue;
+      }
+      const catchable = cohortTotal(wild) * getWildHorseShareOfGame(cellId);
+      const caught = Math.min(
+        (target - heads) * CAPTURE_GAP_SHARE,
+        catchable * CAPTURE_WILD_SHARE,
+        wild.young + wild.breeding
+      );
+      if (!(caught > 0)) continue;
+      const fromYoung = Math.min(wild.young, caught);
+      wild.young -= fromYoung;
+      wild.breeding -= caught - fromYoung;
+      herd.young += caught;
+      record.headsByGood[good.name] = (record.headsByGood[good.name] ?? 0) + caught;
+      record.cells++;
+    }
+  }
+  lastWildCapture = record;
 }
 
 // ---- Non-food demand-absorption history (§4.5) ----

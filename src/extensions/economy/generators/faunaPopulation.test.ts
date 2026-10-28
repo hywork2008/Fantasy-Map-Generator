@@ -21,6 +21,7 @@ import {
 import {
   AMBIENT_CATS_DEMAND_PER_PERSON,
   AMBIENT_DOGS_DEMAND_PER_PERSON,
+  captureWildLivestock,
   clearFaunaPopulation,
   DOMESTICATED_CAPACITY_MONTHS_PROXY,
   dispatchDomesticatedFauna,
@@ -29,6 +30,7 @@ import {
   GRAZED_EXCESS_ANNUAL_ADJUSTMENT,
   getDomesticatedCarryingCapacity,
   getDomesticatedCullSelectivity,
+  getLastWildCaptureRecord,
   getNonFoodDemandAbsorptionCapacity,
   getRealNonMarketDemand,
   getRuralEcosystemDetail,
@@ -929,6 +931,69 @@ describe("faunaPopulation", () => {
       const total = after.young + after.breeding + after.old;
       const capacity = getWildCarryingCapacity(0);
       expect(total).toBeLessThanOrEqual(capacity + 1e-6);
+    });
+  });
+
+  describe("captureWildLivestock", () => {
+    function horseCell(tags: string[], state: { id: number; form?: string } = { id: 0 }) {
+      forestCellWorld();
+      worldContext.pack.landUse = {
+        cells: [{ allocatedAreaHa: 0, diagnostics: [], patches: [{ kind: "pasture", areaHa: 50 }] }]
+      } as never;
+      worldContext.pack.cells.state = new Uint16Array([state.id]);
+      worldContext.pack.cultures = [{ type: "Generic" }] as never;
+      worldContext.pack.states = [{}, { form: state.form }] as never;
+      worldContext.biomesData = biomesData({ 1: tags }) as never;
+      worldContext.options = {
+        ruralEcosystemDetail: "detailed",
+        historicalPeriod: "highMedieval"
+      } as typeof worldContext.options;
+      simulationContext.currentYear = 500;
+      setGoods([HORSES_GOOD] as never);
+      setHusbandryRequiredWorkers(Float32Array.from([10]));
+      setHusbandryWorkers(Float32Array.from([10]));
+      const table = getOrCreateFaunaStockTable()!;
+      table[`0:${WILD_SPECIES_KEY}`] = { young: 5000, breeding: 5000, old: 0 };
+      table["0:Horses"] = { young: 0, breeding: 0.1, old: 0 };
+      return table;
+    }
+    const heads = (c: { young: number; breeding: number; old: number }) => c.young + c.breeding + c.old;
+
+    it("moves young wild animals into a short herd one for one", () => {
+      const table = horseCell(["grassland"]);
+      const wildBefore = heads(table[`0:${WILD_SPECIES_KEY}`]);
+      const herdBefore = heads(table["0:Horses"]);
+      expect(getDomesticatedCarryingCapacity(0, HORSES_GOOD as never, 0)).toBeGreaterThan(herdBefore);
+      captureWildLivestock(table, [HORSES_GOOD] as never);
+      const caught = getLastWildCaptureRecord()!.headsByGood.Horses;
+      expect(caught).toBeGreaterThan(0);
+      expect(heads(table["0:Horses"]) - herdBefore).toBeCloseTo(caught, 8);
+      expect(wildBefore - heads(table[`0:${WILD_SPECIES_KEY}`])).toBeCloseTo(caught, 8);
+      expect(table[`0:${WILD_SPECIES_KEY}`].breeding).toBe(5000);
+    });
+
+    it("leaves a lord's forest alone", () => {
+      const table = horseCell(["forest", "grassland"], { id: 1, form: "Monarchy" });
+      const before = structuredClone(table);
+      captureWildLivestock(table, [HORSES_GOOD] as never);
+      expect(table).toEqual(before);
+      expect(getLastWildCaptureRecord()!.deniedCells).toBe(1);
+    });
+
+    it("leaves a herd that sells this year alone", () => {
+      const table = horseCell(["grassland"]);
+      table["0:Horses"] = { young: 0, breeding: getDomesticatedCarryingCapacity(0, HORSES_GOOD as never, 0), old: 0 };
+      const before = structuredClone(table);
+      captureWildLivestock(table, [HORSES_GOOD] as never);
+      expect(table).toEqual(before);
+    });
+
+    it("does not run in simplified mode", () => {
+      const table = horseCell(["grassland"]);
+      worldContext.options = { ruralEcosystemDetail: "simplified" } as typeof worldContext.options;
+      const before = structuredClone(table);
+      expect(updateAnnualFaunaCohorts()).toBe(false);
+      expect(table).toEqual(before);
     });
   });
 
