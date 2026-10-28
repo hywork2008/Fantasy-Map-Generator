@@ -1,12 +1,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { createCemeteryProp } from "../../buildings/landscape/cemeteryProps";
-import {
-  createLandscapeTree,
-  hasTreeQualityLevels,
-  TREE_SPECIES,
-  type TreeSpecies
-} from "../../buildings/landscape/trees";
+import { hasTreeQualityLevels, TREE_SPECIES, type TreeSpecies } from "../../buildings/landscape/trees";
 import { models as houses } from "../../buildings/medieval/07-dwellingsModels";
 import { models as fuel } from "../../buildings/medieval/13-fuel-storageModels";
 import { models as churches } from "../../buildings/medieval/14-parish-churchesModels";
@@ -16,6 +11,7 @@ import { createPublicWaterBasinModel } from "../../buildings/wells/publicWaterBa
 import type { CityTerrain } from "../../city-editor/generators/terrainElevation";
 import type { OpenSpaceModel, OpenSpacePlan, OpenSpaceSite } from "../../city-editor/renderers/openSpaceSites";
 import type { Point } from "../../city-editor/types/document";
+import { adoptedTree } from "../adoption";
 import { planVertex } from "../core/planFrame";
 import { groundSurfaceGeometry } from "./groundSurfaceGeometry";
 import { createOpenSpaceTreeLod } from "./openSpaceTreeLod";
@@ -26,7 +22,7 @@ function isTreeModel(kind: OpenSpaceModel): kind is TreeSpecies {
 }
 
 function createModel(kind: OpenSpaceModel): CityStructureMeshes {
-  if (isTreeModel(kind)) return createLandscapeTree(kind);
+  if (isTreeModel(kind)) return adoptedTree(kind).create();
   switch (kind) {
     case "headstone":
       return graves[0].create();

@@ -1,3 +1,4 @@
+import { type Author, DEFAULT_AUTHOR } from "../buildings/authors";
 import { createPolygonHouses, POLYGON_HOUSES } from "../buildings/houses/polygonHouses";
 import { STANDARD_BIOME_DEFINITIONS } from "../data/biomeCatalog";
 import "./viewer.css";
@@ -61,6 +62,7 @@ import {
   createBasilicaTemple
 } from "../buildings/temples/basilicaTemple";
 import { validateBuildingRecord } from "../buildings/validate";
+import { familyVariants } from "../buildings/variants";
 import { COVERED_WAGON, createCoveredWagon } from "../buildings/vehicles/coveredWagon";
 import {
   AIRSHIP,
@@ -83,6 +85,7 @@ import {
 } from "../buildings/wells/publicWaterBasin";
 import { createMedievalLumberYard, MEDIEVAL_LUMBER_YARD } from "../buildings/yards/medievalLumberYard";
 import { buildingAppearancePreview } from "../city-editor/generators/buildingAppearancePreview";
+import { adoptedVariant } from "../city3d/adoption";
 import { catalogueMassing } from "../city3d/core/catalogueMassing";
 import { structureSurfaces } from "../city3d/core/structureGeometry";
 import { createTownBuildingDetails, type TownBuildingDetails } from "../city3d/three/buildingDetails";
@@ -157,6 +160,13 @@ function mountPlan(host: HTMLElement, markup: string): void {
   host.append(document.importNode(svg, true));
 }
 
+/** CE's choice for a registered family, from the shown author's side; empty for unregistered families. */
+function adoptionFacts(family: string, level: string, author: Author): HTMLParagraphElement[] {
+  if (!familyVariants(family).some(variant => variant.level === level)) return [];
+  const adopted = adoptedVariant(family, level);
+  return [fact("CE adoption", adopted.author === author ? "Adopted" : `Not adopted; CE uses ${adopted.author}`)];
+}
+
 function fact(label: string, value: string, wikipediaArticle?: string): HTMLParagraphElement {
   const row = document.createElement("p");
   const name = document.createElement("strong");
@@ -213,12 +223,11 @@ const optionsTitle = document.createElement("h2");
 optionsTitle.textContent = "Model options";
 const optionFields = document.createElement("div");
 modelOptions.append(optionsTitle, optionFields);
-const DEFAULT_AUTHOR = "Codex";
 /**
  * Alternative versions of a list item made by other AI models, keyed by the list button's data-id.
  * `primary` means that author made the only prepared model, so it is selected on open.
  */
-const AUTHORED_VARIANTS: Record<string, { author: string; primary?: boolean; quality?: boolean; show: () => void }> = {
+const AUTHORED_VARIANTS: Record<string, { author: Author; primary?: boolean; quality?: boolean; show: () => void }> = {
   "basilica-temple": { author: BASILICA_TEMPLE.author, show: () => showBasilicaTemple() }
 };
 let selectedId = entries[0]?.record.id ?? "";
@@ -228,13 +237,24 @@ const authorTitle = document.createElement("h2");
 authorTitle.textContent = "Created by";
 const authorSelect = document.createElement("select");
 authorSelect.setAttribute("aria-label", "AI model that created this object");
-/** Author of the quality level on show, keyed like AUTHORED_VARIANTS, when it differs per level. */
-const LEVEL_AUTHORS: Record<string, string> = {};
+/** Authors of the quality level on show, keyed like AUTHORED_VARIANTS, for models with per-level variants. */
+const LEVEL_AUTHORS: Record<string, { authors: Author[]; current: Author; show: (author: Author) => void }> = {};
 function listAuthors(id: string): void {
   authorSelect.replaceChildren();
   const level = LEVEL_AUTHORS[id];
-  const variant = level ? { author: level, primary: true, quality: false } : AUTHORED_VARIANTS[id];
-  const names = variant?.primary ? [variant.author] : ([DEFAULT_AUTHOR, variant?.author].filter(Boolean) as string[]);
+  if (level) {
+    for (const name of level.authors) {
+      const option = document.createElement("option");
+      option.value = name;
+      option.textContent = name;
+      authorSelect.append(option);
+    }
+    authorSelect.value = level.current;
+    showQuality(false);
+    return;
+  }
+  const variant = AUTHORED_VARIANTS[id];
+  const names = variant?.primary ? [variant.author] : ([DEFAULT_AUTHOR, variant?.author].filter(Boolean) as Author[]);
   for (const name of names) {
     const option = document.createElement("option");
     option.value = name;
@@ -245,6 +265,8 @@ function listAuthors(id: string): void {
   showQuality(variant?.primary === true && variant.quality === true);
 }
 authorSelect.addEventListener("change", () => {
+  const level = LEVEL_AUTHORS[selectedId];
+  if (level) return level.show(authorSelect.value as Author);
   const variant = AUTHORED_VARIANTS[selectedId];
   if (variant && authorSelect.value === variant.author) return variant.show();
   list.querySelector<HTMLButtonElement>(`button[data-id="${CSS.escape(selectedId)}"]`)?.click();
@@ -307,7 +329,8 @@ let regionalDetails: TownBuildingDetails | null = null;
 let studyWater: TownWaterMeshes | null = null;
 let selection = 0;
 const modelComparison = createModelComparison();
-let comparisonVariants: { id: string; levels: NonNullable<MedievalModel["variants"]>; selected: string } | null = null;
+let comparisonVariants: { id: string; levels: readonly { id: string; label: string }[]; selected: string } | null =
+  null;
 let comparisonModel: { path: string; quality: "low" | "high" } | null = null;
 
 function appendFacts(...nodes: (Node | string)[]): void {
@@ -678,6 +701,7 @@ function showBasilicaTemple(): void {
   mountPlan(levelHost, meshProjection(massing, "side"));
   appendFacts(
     fact("Model", `${BASILICA_TEMPLE.name} — detailed Romanesque study`),
+    ...adoptionFacts("temple.basilica", qualitySelect.value, BASILICA_TEMPLE.author),
     fact("Period", "High medieval"),
     fact("Quality", qualitySelect.value === "high" ? "High" : "Low — mouldings, tile courses and ornament omitted"),
     fact("Dimensions", `${BASILICA_TEMPLE.width} × ${BASILICA_TEMPLE.depth} × ${BASILICA_TEMPLE.height} m (approx.)`),
@@ -1064,6 +1088,7 @@ function showOpusGalleon(): void {
   mountPlan(levelHost, meshProjection(model, "top"));
   appendFacts(
     fact("Model", OPUS_GALLEON.name),
+    ...adoptionFacts("ship.galleon", "default", OPUS_GALLEON.author),
     fact(
       "Quality",
       quality === "high" ? "High" : "Low — ratlines, running rigging, deck seams, balusters and gratings omitted"
@@ -1100,6 +1125,7 @@ galleonButton.addEventListener("click", () => {
   mountPlan(levelHost, model.plan);
   appendFacts(
     fact("Model", GALLEON.name),
+    ...adoptionFacts("ship.galleon", "default", GALLEON.author),
     fact("Period", "Age of sail · imagined early modern vessel"),
     fact(
       "Dimensions",
@@ -1910,6 +1936,7 @@ function showTownWall(model: TownWallModel, button: HTMLButtonElement, codex = f
   mountPlan(levelHost, meshProjection(built, "top"));
   appendFacts(
     fact("Model", `${model.task} · ${model.name}`),
+    ...adoptionFacts(`town-wall.${model.id}`, "default", model.author ?? TOWN_WALL_AUTHOR),
     fact("Part", model.part),
     fact("Period", model.period ?? (codex ? CODEX_TOWN_WALL_PERIOD : "High medieval Europe")),
     fact("Resolution", "High — low and standard tiers are not prepared"),
@@ -2265,7 +2292,16 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
     button.dataset.id = `medieval-${definition.id}`;
     if (definition.author)
       AUTHORED_VARIANTS[button.dataset.id] = { author: definition.author, primary: true, show: () => button.click() };
-    const showModel = (variant = definition.variants?.at(-1)) => {
+    type Variant = NonNullable<MedievalModel["variants"]>[number];
+    const levels = [...new Set(definition.variants?.map(entry => entry.level))];
+    const adopted = (level: string) => {
+      const id = adoptedVariant(definition.variants![0].family, level).id;
+      return definition.variants!.find(entry => entry.id === id)!;
+    };
+    // Alternatives get their author in the comparison column so they never overwrite the adopted level.
+    const column = (entry: Variant) =>
+      entry === adopted(entry.level) ? entry.level : `${entry.level} · ${entry.author.split(" ")[0]}`;
+    const showModel = (variant: Variant | undefined = definition.variants && adopted(levels.at(-1)!)) => {
       selection++;
       for (const item of list.querySelectorAll("button"))
         item.setAttribute("aria-current", item === button ? "true" : "false");
@@ -2277,7 +2313,13 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
       levelTitle.textContent = "Top view";
       selectedId = button.dataset.id!;
       selectedName.textContent = definition.name;
-      if (variant?.author) LEVEL_AUTHORS[selectedId] = variant.author;
+      if (variant)
+        LEVEL_AUTHORS[selectedId] = {
+          authors: definition.variants!.filter(entry => entry.level === variant.level).map(entry => entry.author),
+          current: variant.author,
+          show: author =>
+            showModel(definition.variants!.find(entry => entry.level === variant.level && entry.author === author))
+        };
       else delete LEVEL_AUTHORS[selectedId];
       listAuthors(selectedId);
       if (definition.variants) {
@@ -2286,21 +2328,23 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
         row.textContent = "Quality: ";
         const resolution = document.createElement("select");
         resolution.setAttribute("aria-label", "Tree model quality");
-        for (const entry of definition.variants) {
+        for (const level of levels) {
           const option = document.createElement("option");
-          option.value = entry.id;
-          option.textContent = entry.author ? `${entry.label} · ${entry.author}` : entry.label;
+          option.value = level;
+          option.textContent = adopted(level).label;
           resolution.append(option);
         }
-        resolution.value = variant!.id;
-        resolution.addEventListener("change", () =>
-          showModel(definition.variants!.find(entry => entry.id === resolution.value))
-        );
+        resolution.value = variant!.level;
+        resolution.addEventListener("change", () => showModel(adopted(resolution.value)));
         row.append(resolution);
         optionFields.append(row);
       }
       if (variant && definition.variants)
-        comparisonVariants = { id: definition.id, levels: definition.variants, selected: variant.id };
+        comparisonVariants = {
+          id: definition.id,
+          levels: definition.variants.map(entry => ({ id: column(entry), label: entry.label })),
+          selected: column(variant)
+        };
       const model = variant ? variant.create() : definition.create();
       massing = model;
       scene.add(model.group);
@@ -2322,6 +2366,34 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
         ...(variant
           ? [
               fact("Quality", variant.label),
+              fact(
+                "CE adoption",
+                variant === adopted(variant.level) ? "Adopted" : `Not adopted; CE uses ${adopted(variant.level).author}`
+              ),
+              ...(variant.basedOn
+                ? [
+                    fact(
+                      "Based on",
+                      variant.basedOn
+                        .map(id => definition.variants!.find(entry => entry.id === id))
+                        .map(entry => (entry ? `${entry.label} · ${entry.author}` : ""))
+                        .join(", ")
+                    )
+                  ]
+                : []),
+              ...(variant.credits
+                ? [
+                    fact(
+                      "Credits",
+                      variant.credits
+                        .map(
+                          credit =>
+                            `${credit.date} ${credit.author}: ${credit.note}${credit.commit ? ` (${credit.commit})` : ""}`
+                        )
+                        .join("; ")
+                    )
+                  ]
+                : []),
               fact(
                 "Triangles",
                 String(

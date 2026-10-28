@@ -1,24 +1,27 @@
 import * as THREE from "three";
 import { expect, it } from "vitest";
+import { adoptedTree } from "../../city3d/adoption";
 import { models } from "../medieval/43-landscape-treesModels";
 import { TREE_QUALITIES, treeQualityAtPixels } from "./treeQuality";
 import { createLandscapeTree } from "./trees";
 
 it.each(["garden_parkland", "sacred_yew"] as const)(
-  "ships four increasingly detailed, grounded %s models in BV",
+  "adopts four increasingly detailed, grounded %s levels from the BV variants",
   species => {
     const variants = models.find(model => model.id === species.replaceAll("_", "-"))!.variants!;
-    expect(variants.map(variant => variant.id)).toEqual(TREE_QUALITIES);
+    expect([...new Set(variants.map(variant => variant.level))]).toEqual(TREE_QUALITIES);
     let previous = 0;
-    for (const variant of variants) {
+    for (const level of TREE_QUALITIES) {
+      const variant = adoptedTree(species, level);
+      expect(variants.map(entry => entry.id)).toContain(variant.id);
       const model = variant.create();
       const triangles = model.pickables.reduce(
         (sum, mesh) => sum + (mesh.geometry.index?.count ?? mesh.geometry.getAttribute("position").count) / 3,
         0
       );
       expect(triangles).toBeGreaterThan(previous);
-      if (variant.id === "low") expect(triangles).toBeLessThan(500);
-      if (variant.id === "medium") expect(triangles).toBeLessThan(3000);
+      if (level === "low") expect(triangles).toBeLessThan(500);
+      if (level === "medium") expect(triangles).toBeLessThan(3000);
       const bounds = new THREE.Box3().setFromObject(model.group);
       expect(bounds.min.y).toBeCloseTo(-0.35, 3);
       expect(bounds.max.y).toBeGreaterThan(species === "garden_parkland" ? 10 : 6.5);

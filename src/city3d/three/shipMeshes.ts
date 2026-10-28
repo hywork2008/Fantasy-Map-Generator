@@ -1,17 +1,21 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { createBarge } from "../../buildings/ships/barge";
-import { createCaravel } from "../../buildings/ships/caravel";
-import { createGalleon } from "../../buildings/ships/galleon";
-import { createSloop } from "../../buildings/ships/sloop";
+import { SHIP_VARIANTS } from "../../buildings/ships/shipVariants";
 import { SHIP_DIMENSIONS } from "../../city-editor/data/ships";
 import type { ShipSite } from "../../city-editor/renderers/shipSites";
 import type { Point } from "../../city-editor/types/primitives";
 import type { ShipType } from "../../city-editor/types/ships";
+import { adopt } from "../adoption";
 import { planVertex } from "../core/planFrame";
 import type { CityStructureMeshes } from "./structureMeshes";
 
-const MODELS = { small: createSloop, medium: createCaravel, large: createGalleon, barge: createBarge } as const;
+const ship = (family: string) => adopt(SHIP_VARIANTS, family, "default").create;
+const MODELS = {
+  small: ship("ship.sloop"),
+  medium: ship("ship.caravel"),
+  large: ship("ship.galleon"),
+  barge: ship("ship.barge")
+} as const;
 
 /** Share one BV model per type, batching mesh parts by material and instancing each ship. */
 export function createTownShips(

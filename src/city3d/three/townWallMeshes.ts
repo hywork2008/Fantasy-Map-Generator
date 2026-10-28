@@ -2,21 +2,30 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { buildingAppearanceProfile, normalizeBuildingAppearanceContext } from "../../buildings/appearance/resolver";
 import { BUILDING_APPEARANCE_VERSION, type BuildingAppearanceProfile } from "../../buildings/appearance/types";
-import { createCodexTownWallPart } from "../../buildings/fortifications/codexTownWalls";
+import { TOWN_WALL_PART_VARIANTS } from "../../buildings/fortifications/townWallVariants";
 import type { ModelQuality } from "../../buildings/modelQuality";
 import { featureGroupVertices } from "../../city-editor/generators/features";
 import { castleWallIds } from "../../city-editor/generators/fortifications";
 import { gateCrossingFrame } from "../../city-editor/generators/passages";
 import type { StructureMassing } from "../../city-editor/types/contracts/structureMassing";
 import type { CityDocument } from "../../city-editor/types/document";
+import { adopt } from "../adoption";
 import { ribbonSidePoints } from "../core/structureGeometry";
 import type { BvDefinition, BvPrototypeCache } from "./bvInstances";
 
+const part = (name: "wall" | "bare" | "tower" | "gate") =>
+  adopt(TOWN_WALL_PART_VARIANTS, `town-wall-part.${name}`, "default");
+// Cache keys name the adopted variant, so a changed adoption never reuses a cached prototype.
+const definition = (name: "wall" | "bare" | "tower" | "gate", id: string, profile?: BuildingAppearanceProfile) => ({
+  id,
+  cacheKey: profile ? `${part(name).id}:${profile}` : part(name).id,
+  create: () => part(name).create(profile)
+});
 const LEGACY_DEFINITIONS = {
-  wall: { id: "codex-town-wall", create: () => createCodexTownWallPart("wall") },
-  bare: { id: "codex-town-bare-wall", create: () => createCodexTownWallPart("wall", false) },
-  tower: { id: "codex-town-tower", create: () => createCodexTownWallPart("tower") },
-  gate: { id: "codex-town-gate", create: () => createCodexTownWallPart("gate") }
+  wall: definition("wall", "codex-town-wall"),
+  bare: definition("bare", "codex-town-bare-wall"),
+  tower: definition("tower", "codex-town-tower"),
+  gate: definition("gate", "codex-town-gate")
 } satisfies Record<string, BvDefinition>;
 
 // Stable definition identities allow refreshes to reuse prototypes without sharing roof colors across cultures.
@@ -28,8 +37,8 @@ function definitionsFor(profile: BuildingAppearanceProfile) {
     definitions = {
       wall: LEGACY_DEFINITIONS.wall,
       bare: LEGACY_DEFINITIONS.bare,
-      tower: { id: `codex-town-tower:${profile}`, create: () => createCodexTownWallPart("tower", true, profile) },
-      gate: { id: `codex-town-gate:${profile}`, create: () => createCodexTownWallPart("gate", true, profile) }
+      tower: definition("tower", `codex-town-tower:${profile}`, profile),
+      gate: definition("gate", `codex-town-gate:${profile}`, profile)
     };
     CULTURE_DEFINITIONS.set(profile, definitions);
   }

@@ -344,7 +344,7 @@ export const GATEHOUSE: TownWallModel = {
   task: "W04",
   name: "Gatehouse with guard quarters",
   part: "Inhabited town gate",
-  author: "Codex",
+  author: "Codex GPT-6.1 Sol",
   period: "14th–15th-century England (interpretive)",
   scope:
     "BV study in metres; not automatically placed in CE. +Z faces the field, −Z the town. Cutaways remove roofs and field-facing masonry; ground-floor view also omits the upper storey.",

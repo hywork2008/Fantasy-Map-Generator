@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
+import type { Author } from "../authors";
 import { ModelKit } from "../medieval/modelKit";
 
 export type BarbicanPoint = readonly [number, number];
@@ -17,7 +18,7 @@ export interface BarbicanDefinition {
   route: readonly BarbicanPoint[];
   towers: readonly BarbicanPoint[];
   reference: { title: string; url: string };
-  author?: string;
+  author?: Author;
 }
 
 const circle = Array.from({ length: 24 }, (_, i): BarbicanPoint => {

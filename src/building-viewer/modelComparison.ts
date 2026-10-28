@@ -35,9 +35,9 @@ export function createModelComparison(
       const section = document.createElement("section");
       section.className = "bv-comparison";
       const title = document.createElement("h2");
-      title.textContent = "Model complexity · Four quality levels";
+      title.textContent = "Model complexity · Quality levels and authors";
       const table = document.createElement("table");
-      table.setAttribute("aria-label", "Four quality model complexity comparison");
+      table.setAttribute("aria-label", "Quality level model complexity comparison");
       const head = table.createTHead().insertRow();
       for (const label of ["Metric", ...variants.map(variant => variant.id)]) {
         const cell = document.createElement("th");

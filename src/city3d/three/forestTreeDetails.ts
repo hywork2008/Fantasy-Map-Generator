@@ -1,7 +1,8 @@
 import * as THREE from "three";
 import { TREE_QUALITIES, type TreeQuality, treeQualityAtPixels } from "../../buildings/landscape/treeQuality";
-import { createLandscapeTree, hasTreeQualityLevels, type TreeSpecies } from "../../buildings/landscape/trees";
+import { hasTreeQualityLevels, type TreeSpecies } from "../../buildings/landscape/trees";
 import type { Point } from "../../city-editor/types/document";
+import { adoptedTree } from "../adoption";
 import { type BvDefinition, createBvPrototypeCache } from "./bvInstances";
 
 export const FOREST_TREE_DETAIL_LIMIT = { trees: 16, species: 4, enterPixels: 60, exitPixels: 48 } as const;
@@ -53,10 +54,9 @@ export function createForestTreeDetails(
       ![...models.keys()].some(key => key.startsWith(`${species}:`))
     )
       return;
-    const definition: BvDefinition = {
-      id: `forest-tree:${species}:${quality}`,
-      create: () => createLandscapeTree(species, quality)
-    };
+    // The variant id names the adopted author, so a changed adoption never reuses a cached prototype.
+    const variant = adoptedTree(species, quality);
+    const definition: BvDefinition = { id: `forest-tree:${variant.id}`, create: variant.create };
     const lease = cache.acquire(definition);
     if (!lease) return;
     const geometry = lease.geometry,
