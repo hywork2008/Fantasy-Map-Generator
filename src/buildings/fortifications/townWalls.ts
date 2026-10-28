@@ -23,6 +23,9 @@ export interface TownWallModel {
   /** Conservative width (X), depth (Z) and height (Y). */
   size: readonly [number, number, number];
   note: string;
+  period?: string;
+  scope?: string;
+  views?: readonly { name: string; create(profile?: BuildingAppearanceProfile): CityStructureMeshes }[];
   sources: readonly { title: string; url: string }[];
   create(profile?: BuildingAppearanceProfile): CityStructureMeshes;
   author?: string;

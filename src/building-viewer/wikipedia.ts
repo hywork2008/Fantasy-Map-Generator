@@ -55,7 +55,8 @@ export const containerWikipedia: Record<string, string> = {
 export const wallWikipedia: Record<string, string> = {
   "town-curtain-wall": "Curtain wall (fortification)",
   "town-mural-tower": "Fortified tower",
-  "town-gate": "City gate"
+  "town-gate": "City gate",
+  "medieval-town-gatehouse": "Gatehouse"
 };
 
 const taskArticles: Record<number, string> = {

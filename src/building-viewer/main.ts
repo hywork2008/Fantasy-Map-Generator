@@ -8,6 +8,7 @@ import { createPontDuGard, PONT_DU_GARD, pontDuGardElevation } from "../building
 import { contentDigest } from "../buildings/canonicalJson";
 import { createStGeorgesChapel, ST_GEORGES_CHAPEL } from "../buildings/chapels/stGeorgesChapel";
 import { CODEX_TOWN_WALL_PERIOD, CODEX_TOWN_WALLS } from "../buildings/fortifications/codexTownWalls";
+import { GATEHOUSE } from "../buildings/fortifications/gatehouse";
 import { TOWN_WALL_AUTHOR, TOWN_WALLS, type TownWallModel } from "../buildings/fortifications/townWalls";
 import { BARBICANS, createBarbican } from "../buildings/fortresses/barbicans";
 import { BOJNICE, bojnicePlan, createBojnice } from "../buildings/fortresses/bojnice";
@@ -1818,7 +1819,7 @@ vehiclesHeading.append(warWagonButton);
 
 let townWallHousingCulture: BuildingAppearanceProfile = "legacy";
 
-function showTownWall(model: TownWallModel, button: HTMLButtonElement, codex = false): void {
+function showTownWall(model: TownWallModel, button: HTMLButtonElement, codex = false, view = -1): void {
   selection++;
   for (const item of list.querySelectorAll("button")) item.setAttribute("aria-current", String(item === button));
   clearMesh();
@@ -1855,12 +1856,28 @@ function showTownWall(model: TownWallModel, button: HTMLButtonElement, codex = f
     culture.value = townWallHousingCulture;
     culture.addEventListener("change", () => {
       townWallHousingCulture = culture.value as BuildingAppearanceProfile;
-      showTownWall(model, button, codex);
+      showTownWall(model, button, codex, view);
     });
     cultureRow.append(culture);
     optionFields.append(cultureRow);
   }
-  const built = model.create(townWallHousingCulture);
+  if (model.views) {
+    const viewRow = document.createElement("label");
+    viewRow.textContent = "View: ";
+    const viewSelect = document.createElement("select");
+    viewSelect.setAttribute("aria-label", "Gatehouse view");
+    for (const [index, name] of ["Exterior", ...model.views.map(item => item.name)].entries()) {
+      const option = document.createElement("option");
+      option.value = String(index - 1);
+      option.textContent = name;
+      viewSelect.append(option);
+    }
+    viewSelect.value = String(view);
+    viewSelect.addEventListener("change", () => showTownWall(model, button, codex, Number(viewSelect.value)));
+    viewRow.append(viewSelect);
+    optionFields.append(viewRow);
+  }
+  const built = (model.views?.[view] ?? model).create(townWallHousingCulture);
   massing = built;
   scene.add(built.group);
   ground.visible = true;
@@ -1879,13 +1896,14 @@ function showTownWall(model: TownWallModel, button: HTMLButtonElement, codex = f
   appendFacts(
     fact("Model", `${model.task} · ${model.name}`),
     fact("Part", model.part),
-    fact("Period", codex ? CODEX_TOWN_WALL_PERIOD : "High medieval Europe"),
+    fact("Period", model.period ?? (codex ? CODEX_TOWN_WALL_PERIOD : "High medieval Europe")),
     fact("Resolution", "High — low and standard tiers are not prepared"),
     fact("Mesh dimensions", `${extent.x.toFixed(2)} × ${extent.z.toFixed(2)} × ${extent.y.toFixed(2)} m`),
     fact("Construction", model.note, wallWikipedia[model.id]),
     fact(
       "Scope",
-      "Illustrative study of a part CE places around a town when Features → Walls is on. Metre units. Circuit placement is separate."
+      model.scope ??
+        "Illustrative study of a part CE places around a town when Features → Walls is on. Metre units. Circuit placement is separate."
     )
   );
   for (const source of model.sources) {
@@ -1914,6 +1932,14 @@ for (const model of TOWN_WALLS) {
   button.addEventListener("click", () => showTownWall(codexModel, button, true));
   townWallsHeading.append(button);
 }
+
+const gatehouseButton = document.createElement("button");
+gatehouseButton.type = "button";
+gatehouseButton.textContent = `${GATEHOUSE.task} · ${GATEHOUSE.name}`;
+gatehouseButton.dataset.id = GATEHOUSE.id;
+gatehouseButton.addEventListener("click", () => showTownWall(GATEHOUSE, gatehouseButton));
+AUTHORED_VARIANTS[GATEHOUSE.id] = { author: GATEHOUSE.author!, primary: true, show: () => gatehouseButton.click() };
+townWallsHeading.append(gatehouseButton);
 
 const barbicansHeading = modelCategory("Barbicans");
 for (const definition of BARBICANS) {
