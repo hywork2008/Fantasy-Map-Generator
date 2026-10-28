@@ -23,6 +23,7 @@ function brewery(large: boolean) {
 }
 export const models: MedievalModel[] = [
   {
+    author: "Codex GPT-6.1 Sol",
     id: "town-brewery",
     name: "Town brewery and copper yard",
     task: 15,
@@ -31,6 +32,7 @@ export const models: MedievalModel[] = [
     create: () => brewery(true)
   },
   {
+    author: "Codex GPT-6.1 Sol",
     id: "ale-brewhouse",
     name: "Small ale brewhouse",
     task: 15,

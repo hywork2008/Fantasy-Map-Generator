@@ -65,6 +65,7 @@ function boat(fishing: boolean) {
 }
 export const models: MedievalModel[] = [
   {
+    author: "Codex GPT-6.1 Sol",
     id: "small-fishing-boat",
     name: "Small clinker fishing boat",
     task: 23,
@@ -73,6 +74,7 @@ export const models: MedievalModel[] = [
     create: () => boat(true)
   },
   {
+    author: "Codex GPT-6.1 Sol",
     id: "open-rowing-boat",
     name: "Open river rowing boat",
     task: 23,

@@ -11,6 +11,7 @@ function wheel(k: ModelKit, x: number, y: number, z: number, r: number) {
 }
 export const models: MedievalModel[] = [
   {
+    author: "Codex GPT-6.1 Sol",
     id: "two-wheel-farm-cart",
     name: "Two-wheel farm cart",
     task: 9,
@@ -30,6 +31,7 @@ export const models: MedievalModel[] = [
     }
   },
   {
+    author: "Codex GPT-6.1 Sol",
     id: "wooden-wheelbarrow",
     name: "Single-wheel wooden barrow",
     task: 9,
@@ -51,6 +53,7 @@ export const models: MedievalModel[] = [
     }
   },
   {
+    author: "Codex GPT-6.1 Sol",
     id: "two-person-handbarrow",
     name: "Two-person carrying barrow",
     task: 9,

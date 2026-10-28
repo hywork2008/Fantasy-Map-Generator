@@ -131,6 +131,7 @@ function dwelling(id: string, storeys: number, corner = false, shop = false) {
 
 export const models: MedievalModel[] = [
   {
+    author: "Codex GPT-6.1 Sol",
     id: "jettied-town-house",
     name: "Jettied timber town house",
     task: 45,
@@ -139,6 +140,7 @@ export const models: MedievalModel[] = [
     create: () => dwelling("jettied-town-house", 2)
   },
   {
+    author: "Codex GPT-6.1 Sol",
     id: "double-jettied-merchant-house",
     name: "Double-jettied merchant house",
     task: 45,
@@ -147,6 +149,7 @@ export const models: MedievalModel[] = [
     create: () => dwelling("double-jettied-merchant-house", 3, false, true)
   },
   {
+    author: "Codex GPT-6.1 Sol",
     id: "corner-jettied-shop-house",
     name: "Corner-jettied shop and dwelling",
     task: 45,

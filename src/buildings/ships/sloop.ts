@@ -4,6 +4,7 @@ import { meshProjection } from "../meshProjection";
 
 /** An illustrative small gaff-rigged sloop, not a reconstruction of a named vessel. */
 export const SLOOP = {
+  author: "Codex GPT-6.1 Sol",
   name: "Sloop",
   length: 15,
   beam: 4.4,

@@ -2,6 +2,7 @@ import { type MedievalModel, ModelKit } from "./modelKit";
 
 export const models: MedievalModel[] = [
   {
+    author: "Codex GPT-6.1 Sol",
     id: "masons-stone-yard",
     name: "Stone yard and mason work shelter",
     task: 29,

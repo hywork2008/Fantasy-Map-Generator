@@ -529,6 +529,7 @@ const sources = [
 
 export const CODEX_TOWN_WALLS: readonly TownWallModel[] = [
   {
+    author: "Codex GPT-6.1 Sol",
     id: "town-curtain-wall",
     task: "W01",
     name: "Stone curtain wall",
@@ -543,6 +544,7 @@ export const CODEX_TOWN_WALLS: readonly TownWallModel[] = [
     }
   },
   {
+    author: "Codex GPT-6.1 Sol",
     id: "town-mural-tower",
     task: "W02",
     name: "Round mural tower",
@@ -559,6 +561,7 @@ export const CODEX_TOWN_WALLS: readonly TownWallModel[] = [
     }
   },
   {
+    author: "Codex GPT-6.1 Sol",
     id: "town-gate",
     task: "W03",
     name: "Twin-tower town gate",

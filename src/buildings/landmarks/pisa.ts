@@ -1,6 +1,7 @@
 import { ArchitectureKit, type LandmarkModel } from "./architectureKit";
 
 export const model: LandmarkModel = {
+  author: "Codex GPT-6.1 Sol",
   id: "pisa",
   task: "R03",
   name: "Pisa Cathedral",

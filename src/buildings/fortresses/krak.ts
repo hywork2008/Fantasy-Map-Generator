@@ -9,6 +9,7 @@ export type KrakPhase = "hospitalier-1270" | "mamluk-1302";
 
 /** Original schematic parts and their fixed relative positions, in metres. */
 export const KRAK = {
+  author: "Codex GPT-6.1 Sol",
   id: "krak-des-chevaliers",
   name: "Krak des Chevaliers",
   inner: checked.record as BuildingRecord,

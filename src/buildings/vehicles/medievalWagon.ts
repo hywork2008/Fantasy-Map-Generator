@@ -4,6 +4,7 @@ import { meshProjection } from "../meshProjection";
 
 /** Imagined medieval freight wagon, in meters; front faces positive X. */
 export const MEDIEVAL_WAGON = {
+  author: "Codex GPT-6.1 Sol",
   name: "Medieval European freight wagon",
   length: 6.4,
   width: 2.5,

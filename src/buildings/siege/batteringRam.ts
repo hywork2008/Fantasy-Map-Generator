@@ -4,6 +4,7 @@ import { meshProjection } from "../meshProjection";
 
 /** Imagined covered medieval ram, in meters; the striking head faces positive X. */
 export const BATTERING_RAM = {
+  author: "Codex GPT-6.1 Sol",
   name: "Medieval European battering ram",
   length: 7.4,
   width: 3,

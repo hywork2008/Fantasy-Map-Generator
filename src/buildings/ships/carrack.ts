@@ -3,6 +3,7 @@ import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 
 /** An illustrative merchant carrack, not a reconstruction of a specific vessel. */
 export const CARRACK = {
+  author: "Codex GPT-6.1 Sol",
   name: "Carrack",
   length: 44,
   beam: 12,
@@ -36,9 +37,30 @@ const MASTS = [
   { x: -12.5, top: 24, sails: [] }
 ] as const;
 const CASTLES = [
-  { name: "forecastle", x: 12.5, base: 6.2, width: 8, height: 3, depth: 6.2 },
-  { name: "sterncastle", x: -12.5, base: 5.8, width: 9, height: 3.2, depth: 8 },
-  { name: "sterncastle-upper", x: -14, base: 9, width: 6, height: 2.3, depth: 6.6 }
+  {
+    name: "forecastle",
+    x: 12.5,
+    base: 6.2,
+    width: 8,
+    height: 3,
+    depth: 6.2
+  },
+  {
+    name: "sterncastle",
+    x: -12.5,
+    base: 5.8,
+    width: 9,
+    height: 3.2,
+    depth: 8
+  },
+  {
+    name: "sterncastle-upper",
+    x: -14,
+    base: 9,
+    width: 6,
+    height: 2.3,
+    depth: 6.6
+  }
 ] as const;
 
 export interface CarrackMeshes extends CityStructureMeshes {

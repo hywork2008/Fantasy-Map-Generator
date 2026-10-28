@@ -2,6 +2,7 @@ import * as THREE from "three";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 
 export const BOJNICE = {
+  author: "Codex GPT-6.1 Sol",
   name: "Bojnice Castle",
   width: 100,
   depth: 100,

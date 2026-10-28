@@ -2,6 +2,7 @@ import { ArchitectureKit, type LandmarkModel } from "./architectureKit";
 import { detailedLandmark, GothicDetailKit } from "./gothic/detailKit";
 
 export const model: LandmarkModel = {
+  author: "Codex GPT-6.1 Sol",
   id: "cologne",
   task: "G05",
   name: "Cologne Cathedral",
