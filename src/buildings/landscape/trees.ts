@@ -73,8 +73,33 @@ export const TREE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
       }
     }
   },
-  norway_spruce: { create: () => createBorealTree("norway_spruce") },
-  silver_birch: { create: () => createBorealTree("silver_birch") },
+  norway_spruce: {
+    lod: {
+      selection: "distance",
+      // Taiga draws spruce and birch at the same distance tiers as the lime forest, not a thinned budget.
+      budget: "quality-first",
+      heightMeters: 12,
+      models: {
+        low: () => createBorealTree("norway_spruce", "low"),
+        medium: () => createBorealTree("norway_spruce", "medium"),
+        high: () => createBorealTree("norway_spruce", "high"),
+        ultra: () => createBorealTree("norway_spruce", "ultra")
+      }
+    }
+  },
+  silver_birch: {
+    lod: {
+      selection: "distance",
+      budget: "quality-first",
+      heightMeters: 11,
+      models: {
+        low: () => createBorealTree("silver_birch", "low"),
+        medium: () => createBorealTree("silver_birch", "medium"),
+        high: () => createBorealTree("silver_birch", "high"),
+        ultra: () => createBorealTree("silver_birch", "ultra")
+      }
+    }
+  },
   date_palm: { create: () => createAridTree("date_palm") },
   umbrella_thorn: { create: () => createAridTree("umbrella_thorn") },
   saxaul: { create: () => createAridTree("saxaul") },

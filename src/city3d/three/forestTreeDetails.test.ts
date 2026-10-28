@@ -10,7 +10,7 @@ it("limits simultaneously selected species, evicts inactive prototypes and admit
   const geometry = new THREE.BoxGeometry(1, 10, 1);
   const material = new THREE.MeshLambertMaterial();
   const base = new THREE.InstancedMesh(geometry, material, 5);
-  const species: TreeSpecies[] = ["norway_spruce", "silver_birch", "date_palm", "black_alder", "rowan"];
+  const species: TreeSpecies[] = ["date_palm", "black_alder", "olive", "saxaul", "rowan"];
   const sites = species.map((species, index): ForestTreeSite => {
     base.setMatrixAt(index, new THREE.Matrix4().makeScale(3, 1, 3));
     return { id: String(index), point: [0, 0], radius: 3, size: 1, species, mesh: base, index };
@@ -23,7 +23,7 @@ it("limits simultaneously selected species, evicts inactive prototypes and admit
     const first = details.update(camera, 720, sites, budget);
     expect(first.trees).toBe(4);
     expect(first.species).not.toContain("rowan");
-    const firstMesh = parent.getObjectByName("forest-bv-norway_spruce-ultra-plain") as THREE.InstancedMesh;
+    const firstMesh = parent.getObjectByName("forest-bv-date_palm-ultra-plain") as THREE.InstancedMesh;
     const freedGeometry = vi.spyOn(firstMesh.geometry, "dispose");
     const freedInstance = vi.spyOn(firstMesh, "dispose");
     details.reset();
@@ -32,7 +32,7 @@ it("limits simultaneously selected species, evicts inactive prototypes and admit
     expect(freedInstance).toHaveBeenCalledOnce();
     expect(firstMesh.parent).toBeNull();
     details.reset();
-    expect(details.update(camera, 720, sites.slice(0, 1), budget).species).toEqual(["norway_spruce"]);
+    expect(details.update(camera, 720, sites.slice(0, 1), budget).species).toEqual(["date_palm"]);
     expect(parent.getObjectByName(firstMesh.name)).not.toBe(firstMesh);
     details.dispose();
     expect(freedGeometry).toHaveBeenCalledOnce();
