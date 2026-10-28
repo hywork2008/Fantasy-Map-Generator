@@ -1,17 +1,17 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { createCemeteryProp } from "../../buildings/landscape/cemeteryProps";
 import { hasTreeQualityLevels, TREE_SPECIES, type TreeSpecies } from "../../buildings/landscape/trees";
 import { models as houses } from "../../buildings/medieval/07-dwellingsModels";
 import { models as fuel } from "../../buildings/medieval/13-fuel-storageModels";
 import { models as churches } from "../../buildings/medieval/14-parish-churchesModels";
 import { models as graves } from "../../buildings/medieval/19-grave-markersModels";
+import { MEDIEVAL_VARIANTS, medievalFamily } from "../../buildings/medieval/medievalVariants";
 import { ModelKit } from "../../buildings/medieval/modelKit";
-import { createPublicWaterBasinModel } from "../../buildings/wells/publicWaterBasin";
+import { CEMETERY_VARIANTS, WELL_VARIANTS } from "../../buildings/siteVariants";
 import type { CityTerrain } from "../../city-editor/generators/terrainElevation";
 import type { OpenSpaceModel, OpenSpacePlan, OpenSpaceSite } from "../../city-editor/renderers/openSpaceSites";
 import type { Point } from "../../city-editor/types/document";
-import { adoptedTree, markVariant } from "../adoption";
+import { adopt, adoptedTree, markVariant } from "../adoption";
 import { planVertex } from "../core/planFrame";
 import { groundSurfaceGeometry } from "./groundSurfaceGeometry";
 import { createOpenSpaceTreeLod } from "./openSpaceTreeLod";
@@ -21,27 +21,33 @@ function isTreeModel(kind: OpenSpaceModel): kind is TreeSpecies {
   return (TREE_SPECIES as readonly string[]).includes(kind);
 }
 
-function createModel(kind: OpenSpaceModel): CityStructureMeshes {
-  if (isTreeModel(kind)) return adoptedTree(kind).create();
+/** The adopted BV variant for a site kind; the grave ledger is a plain slab without one. */
+function variantOf(kind: OpenSpaceModel) {
+  if (isTreeModel(kind)) return adoptedTree(kind);
   switch (kind) {
     case "headstone":
-      return graves[0].create();
-    case "ledger": {
-      const k = new ModelKit("ledger");
-      k.box("ledger-slab", [0, 0.05, 0], [0.56, 0.1, 1.05], "stone");
-      return k.finish();
-    }
+      return adopt(MEDIEVAL_VARIANTS, medievalFamily(graves[0]), "default");
+    case "ledger":
+      return undefined;
     case "chapel":
-      return churches[1].create();
+      return adopt(MEDIEVAL_VARIANTS, medievalFamily(churches[1]), "default");
     case "cottage":
-      return houses[1].create();
+      return adopt(MEDIEVAL_VARIANTS, medievalFamily(houses[1]), "default");
     case "woodyard":
-      return fuel[0].create();
+      return adopt(MEDIEVAL_VARIANTS, medievalFamily(fuel[0]), "default");
     case "basin":
-      return createPublicWaterBasinModel();
+      return adopt(WELL_VARIANTS, "well.publicBasin", "default");
     default:
-      return createCemeteryProp(kind);
+      return adopt(CEMETERY_VARIANTS, `cemetery.${kind}`, "default");
   }
+}
+
+function createModel(kind: OpenSpaceModel): CityStructureMeshes {
+  const variant = variantOf(kind);
+  if (variant) return variant.create();
+  const k = new ModelKit("ledger");
+  k.box("ledger-slab", [0, 0.05, 0], [0.56, 0.1, 1.05], "stone");
+  return k.finish();
 }
 
 function shapeOf(ring: Point[], holes: Point[][] = []): THREE.Shape {
@@ -167,7 +173,8 @@ export function createTownOpenSpaces(
       geometries.push(geometry);
       const mesh = new THREE.InstancedMesh(geometry, material, sites.length);
       mesh.name = `${kind}-instances`;
-      if (isTreeModel(kind)) markVariant(mesh, adoptedTree(kind).id);
+      const variant = variantOf(kind);
+      if (variant) markVariant(mesh, variant.id);
       for (let i = 0; i < sites.length; i++) {
         const site = sites[i];
         const radiusScale = site.radius ? site.radius / (Math.max(size.x, size.z) / 2) : 1;

@@ -1,3 +1,4 @@
+import type * as THREE from "three";
 import type { CityStructureMeshes } from "../city3d/three/structureMeshes";
 import { type Author, authorSlug } from "./authors";
 
@@ -25,10 +26,12 @@ export interface ModelVariant<Args extends unknown[] = []> {
   credits?: readonly ModelCredit[];
   /** Family-specific parameters, e.g. a town wall's appearance profile. */
   create(...args: Args): CityStructureMeshes;
+  /** Single vertex-colored geometry for CE prototypes, when the family offers one. */
+  createGeometry?(...args: Args): THREE.BufferGeometry;
 }
 
 /** A variant without its factory: what listings, BV labels and adoption checks need. */
-export type ModelVariantInfo = Omit<ModelVariant, "create">;
+export type ModelVariantInfo = Omit<ModelVariant, "create" | "createGeometry">;
 
 export function variantId(family: string, level: string, author: Author): string {
   return `${family}@${level}#${authorSlug(author)}`;

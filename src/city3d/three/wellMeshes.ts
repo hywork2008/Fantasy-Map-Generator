@@ -1,7 +1,7 @@
 import * as THREE from "three";
-import { createMedievalWellModel } from "../../buildings/wells/medievalWell";
-import { createPublicWaterBasinModel } from "../../buildings/wells/publicWaterBasin";
+import { WELL_VARIANTS } from "../../buildings/siteVariants";
 import type { Point } from "../../city-editor/types/primitives";
+import { adoptedDefinition } from "../adoption";
 import { planVertex } from "../core/planFrame";
 import { type BvPrototypeCache, createBvInstances } from "./bvInstances";
 
@@ -10,8 +10,8 @@ export interface WellSite {
   point: Point;
   kind?: "well" | "publicBasin";
 }
-const WELL = { id: "well", create: createMedievalWellModel };
-const BASIN = { id: "publicBasin", create: () => createPublicWaterBasinModel() };
+const WELL = adoptedDefinition(WELL_VARIANTS, "well.medieval", "well");
+const BASIN = adoptedDefinition(WELL_VARIANTS, "well.publicBasin", "publicBasin");
 
 /** One shared, vertex-colored BV prototype per waterwork kind, retaining the BV origin and scale. */
 export function createTownWells(

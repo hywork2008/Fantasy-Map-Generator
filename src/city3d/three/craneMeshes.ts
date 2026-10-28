@@ -1,8 +1,10 @@
 import * as THREE from "three";
 import { models } from "../../buildings/medieval/35-harbor-cranesModels";
-import { createMedievalContainerModel, MEDIEVAL_CONTAINERS } from "../../buildings/props/medievalContainers";
+import { MEDIEVAL_CONTAINERS } from "../../buildings/props/medievalContainers";
+import { CONTAINER_VARIANTS } from "../../buildings/siteVariants";
 import type { HarborCargoPile, HarborCrane } from "../../city-editor/generators/harborFabric";
 import type { Point } from "../../city-editor/types/primitives";
+import { adoptedDefinition, medievalDefinition } from "../adoption";
 import { planVertex } from "../core/planFrame";
 import { LAND_Y } from "../core/waterGeometry";
 import { type BvPrototypeCache, createBvInstances } from "./bvInstances";
@@ -15,7 +17,7 @@ export function createTownCranes(
 ) {
   const sites = cranes.map(crane => ({
     id: crane.id,
-    definition: crane.kind === "treadwheel" ? models[0] : models[1],
+    definition: medievalDefinition(crane.kind === "treadwheel" ? models[0] : models[1]),
     matrix: new THREE.Matrix4().compose(
       new THREE.Vector3(...planVertex(crane.point, LAND_Y + heightAt(crane.point))),
       new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), crane.armAngleRad),
@@ -28,8 +30,8 @@ export function createTownCranes(
   return result;
 }
 
-const barrel = { id: "harbor-barrel", create: () => createMedievalContainerModel("barrel", "closed") };
-const crate = { id: "harbor-crate", create: () => createMedievalContainerModel("crate", "closed") };
+const barrel = adoptedDefinition(CONTAINER_VARIANTS, "container.barrel-closed", "harbor-barrel");
+const crate = adoptedDefinition(CONTAINER_VARIANTS, "container.crate-closed", "harbor-crate");
 
 /** Match BV containers to the barrel circles and crate rectangles in the 2D cargo piles. */
 export function createTownHarborCargo(

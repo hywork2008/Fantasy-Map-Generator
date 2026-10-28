@@ -9,11 +9,11 @@ import { townExtentMeters } from "../../city-editor/generators/settlementExtent"
 import { BASILICA_LENGTH, BASILICA_ORIGIN_X, BASILICA_WIDTH } from "../../city-editor/renderers/structureMassing";
 import type { StructureMassing } from "../../city-editor/types/contracts/structureMassing";
 import type { CityDocument } from "../../city-editor/types/document";
-import { adopt } from "../adoption";
+import { adopt, medievalDefinition } from "../adoption";
 import { type BvDefinition, type BvPlacement, type BvPrototypeCache, createBvInstances } from "./bvInstances";
 import { fitBvBuilding } from "./bvPlacement";
 
-export const CE_CHAPEL = churches[1];
+export const CE_CHAPEL = medievalDefinition(churches[1]);
 /** The detailed basilica shares the catalogue record's plan frame, so it maps onto CE with the same transform. */
 export const CE_BASILICAS = Object.fromEntries(
   BASILICA_QUALITIES.map(level => {

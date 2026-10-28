@@ -1,8 +1,11 @@
 import type * as THREE from "three";
 import type { TreeSpecies } from "../buildings/landscape/trees";
 import { TREE_VARIANTS, treeFamily, treeLevel } from "../buildings/landscape/treeVariants";
-import type { ModelVariantInfo } from "../buildings/modelVariants";
+import { MEDIEVAL_VARIANTS, medievalFamily } from "../buildings/medieval/medievalVariants";
+import type { MedievalModel } from "../buildings/medieval/modelKit";
+import type { ModelVariant, ModelVariantInfo } from "../buildings/modelVariants";
 import { familyVariants } from "../buildings/variants";
+import type { BvDefinition } from "./three/bvInstances";
 
 export interface Adoption {
   variant: string;
@@ -69,6 +72,36 @@ export function adoptedVariant(family: string, level: string): ModelVariantInfo 
 
 export function adoptedTree(species: TreeSpecies, quality = "ultra") {
   return adopt(TREE_VARIANTS, treeFamily(species), treeLevel(species, quality));
+}
+
+/** A prototype definition that draws the adopted variant and names it for the scene's author list. */
+export function adoptedDefinition<Args extends unknown[]>(
+  variants: readonly ModelVariant<Args>[],
+  family: string,
+  id: string,
+  { level = "default", args, cacheKey }: { level?: string; args?: Args; cacheKey?: string } = {}
+): BvDefinition {
+  const variant = adopt(variants, family, level);
+  const values = (args ?? []) as Args;
+  const createGeometry = variant.createGeometry;
+  return {
+    id,
+    ...(cacheKey ? { cacheKey } : {}),
+    variant: variant.id,
+    create: () => variant.create(...values),
+    ...(createGeometry ? { createGeometry: () => createGeometry(...values) } : {})
+  };
+}
+
+const medievalDefinitions = new Map<MedievalModel, BvDefinition>();
+/** Medieval task models keep their ids as CE definitions; the adopted variant supplies the geometry. */
+export function medievalDefinition(model: MedievalModel): BvDefinition {
+  let result = medievalDefinitions.get(model);
+  if (!result) {
+    result = adoptedDefinition(MEDIEVAL_VARIANTS, medievalFamily(model), model.id);
+    medievalDefinitions.set(model, result);
+  }
+  return result;
 }
 
 /** Record that an object draws a variant, so the scene can list the authors of what it shows. */

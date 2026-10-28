@@ -189,7 +189,7 @@ export function adoptedTree(species: TreeSpecies, quality = "ultra"): ModelVaria
 | A0 | 作者の登録表を作り、既存の表記を統一する | 2026-10-29 完了 |
 | A1 | 版の表と版idを作る。樹木から始め、`QUALITY_AUTHORS` を版の表に移す。Codexの旧mediumを戻す | 2026-10-29 樹木完了 |
 | A2 | CEの採用表を作り、樹木の生成（森・公園・墓地）を採用表経由にする。キャッシュのキーを版idにする | 2026-10-29 樹木完了 |
-| A3 | 別の作者の版がある系統を移す（ガレオン船、市壁、バシリカ神殿）。続いて残りの系統を移す | 2026-10-29 3系統完了（§10.2）。残りの系統は未着手 |
+| A3 | 別の作者の版がある系統を移す（ガレオン船、市壁、バシリカ神殿）。続いて残りの系統を移す | 2026-10-29 完了（§10.2、§10.4） |
 | A4 | BVの「CE採用」表示と `basedOn`/`credits` の表示。CEの「3Dモデルの作者」の一覧 | 2026-10-29 完了（§10.3） |
 
 - A0〜A3は表示を変えない置き換えなので、各段階で関連テストとBVでの確認だけで進められる。
@@ -265,3 +265,42 @@ export function adoptedTree(species: TreeSpecies, quality = "ultra"): ModelVaria
     - Codex GPT-6.1 Sol：town-wall-part.gate／tower／wall、tree.garden-parkland · ultra、tree.sacred-yew · ultra
     - コンソールエラーはなかった。
 - 次の作業：残りの系統（家屋・城・中世の各モデル・設置物）を、CEが使っているものから順に版の一覧に移す。移した系統は、この一覧にも自動で出る。
+
+### 10.4 A3の残り：CEが描くBVモデルの全系統（2026-10-29）
+
+CEの3D表示がBVのモデルを作るすべての箇所を、版の一覧と採用表を通すようにした。どの系統も版は1つなので、採用は自動で決まる。CEの見た目は変わらない。
+
+| 一覧（ファイル） | 系統 | 段階 | CEの使用箇所 |
+|---|---|---|---|
+| `MEDIEVAL_VARIANTS`（`medieval/medievalVariants.ts`） | `medieval.<モデルid>`：CEが使う21のタスクファイル（住居・鍛冶場・燃料置場・教会・穀倉・倉庫・家畜市場・墓標・皮なめし・公設穀倉・織物会館・ギルド会館・石置場・石灰窯・漂白場・港のクレーン・絞首台・ガラス工房・印刷所・楽器工房・砂置場）の全モデル | `default` | 施設・クレーン・礼拝堂・公園と墓地 |
+| `REGIONAL/EARTHEN/POLYGON_HOUSE_VARIANTS`（`houses/houseVariants.ts`） | `house.regional`（Opus）、`house.earthen`・`house.polygon`（Codex） | `high`・`low`。引数は区画ごとの仕様 | 地域住宅 |
+| `OBJECT_VARIANTS`（`siteVariants.ts`） | `object.<id>`：手で置く設置物（攻城兵器・乗り物・風車・水車・大砲・井戸・水場） | `default` | 設置物、施設の風車 |
+| `WELL_VARIANTS` | `well.medieval`、`well.publicBasin`・`spring`・`washhouse` | `default` | 井戸、城塞の水場、公園の水盤 |
+| `YARD_VARIANTS` | `yard.lumber`、`siege.early-field-cannon` | `default` | 施設 |
+| `CONTAINER_VARIANTS` | `container.<種類>-<状態>` | `default` | 港の樽・木箱 |
+| `CEMETERY_VARIANTS` | `cemetery.<種類>`（21種） | `default` | 墓地 |
+| `FRIARY_VARIANTS` | `monastery.friary`（`basedOn` はライムのultra） | `default`。引数は修道院の配置 | 托鉢修道院 |
+| `GARRISON/LODGING/RAVELIN_VARIANTS` | `facility.garrison`・`facility.courtyard-lodging`・`facility.citadel-ravelin` | `high`・`low`。引数は保存された寸法 | 城塞の建物、宿、ラヴリン |
+| `BRIDGE_VARIANTS` | `bridge.modular` | `high`・`low`。引数は橋ごとの仕様 | 橋 |
+
+- 作者
+  - 定義に作者があるものはそれを使った。
+  - 墓地の構造物、托鉢修道院、城塞の建物・宿・ラヴリン、橋は作者が書かれていないので、§9-3に従い `Codex GPT-6.1 Sol` とした。
+  - 設置物の一覧（`PLACEABLE_OBJECTS`）には、各モデルの作者を必須の項目として加えた。
+- CE側の共通の部品（`adoption.ts`）
+  - `adoptedDefinition`：採用された版から、生成済みモデルのキャッシュに渡す定義（`BvDefinition`）を作る。引数・段階・キャッシュのキーを指定でき、`createGeometry` も引き継ぐ。版idを付けるので、「3Dモデルの作者」欄にも出る。
+  - `medievalDefinition`：中世のモデルをこの定義に包む。メッシュの名前は今までどおりモデルのidを使い、同じモデルには同じ定義を返す。
+  - 定義を作らない箇所（修道院・橋・公園と墓地の一括描画）は、`adopt` で版を選び、`markVariant` で印を付ける。
+- 対象外としたもの
+  - Krak des Chevaliers などのカタログの粗い外形（`catalogueMassing`・`fortressMassing`）。BVのモデルではなく寸法の記録から作る外形のため。
+  - 墓地の平石（ledger）。CEがその場で作る板で、BVのモデルではないため。
+- 確認
+  - 型チェックとbiomeのチェックは問題なし。版idの一意性と採用表の解決のテストは成功した（全系統が対象）。
+  - `src/city3d`・`src/buildings`・BV・`src/i18n`（737件）を実行した。失敗24件は、すべて変更前のコードでも失敗するもの。
+    - `modelContracts` 21件、`structuralClearance` 1件、`waterGeometry` 1件、`obernHouseModels` 1件
+  - `src/city-editor/renderers`（282件）を実行した。失敗した `buildingAppearance.test.ts` の1件は、変更前のコードでも失敗する。
+  - CE（headless Chromium、Metal）で、港・神殿ありの新しい都市を開いて3D表示を確認した。「3Dモデルの作者」欄には次の版が出た。コンソールエラーはなかった。
+    - Claude Opus 5.5：バシリカ神殿
+    - Codex GPT-6.1 Sol（17）：橋、墓地の構造物3種、中世モデル4種、風車2種、市壁の部品3種、樹木2種、井戸・水盤
+    - 地域住宅は出なかった。この都市の3Dでは、住宅を詳細モデルで描いていなかったためである。
+- 今後：BVに新しい版を追加したら、その系統の一覧に登録する。同じ段階に2つ目の版を登録すると、採用表に書くまでテストが失敗するので、採用の判断が漏れない。
