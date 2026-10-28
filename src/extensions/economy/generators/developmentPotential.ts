@@ -336,6 +336,7 @@ export class DevelopmentPotentialModule {
 
   clear(): void {
     clearRiverResidualFlows(getWorldContext());
+    delete getWorldContext().pack.cells.wetPastoralDietShare;
     setFoodPotential(new Float32Array());
     setCultivableArea(new Float32Array());
     setYieldPerArea(new Float32Array());
@@ -452,6 +453,7 @@ export class DevelopmentPotentialModule {
     setCultivableArea(agriculture.cultivableArea);
     setYieldPerArea(agriculture.yieldPerArea);
     setRuralFoodCapacity(agriculture.ruralFoodCapacity);
+    world.pack.cells.wetPastoralDietShare = agriculture.wetPastoralDietShare;
     setCultivatedArea(agriculture.cultivatedArea);
     setFloweringForageArea(agriculture.floweringForageArea);
     setIrrigatedArea(agriculture.irrigation.irrigatedAreaHa);
@@ -539,12 +541,15 @@ export class DevelopmentPotentialModule {
             (input.subsistenceReserve ?? 1.1)
         )
       );
+      // Households fed by milk and meat where rain is too heavy for grain herd first, whatever the
+      // fields leave over (docs/plan/wet-region-pastoral-economy.md §3.4).
       const bootstrapLaborDays = Math.max(
         0,
         workforce.adultPeople * workforce.workableDays -
           stapleArea * workforce.maintenanceDaysPerHa -
           (settings?.otherOccupationDays ??
-            occupationDays.reduce((s, a) => s + (a[input.id] ?? 0) * WORKABLE_DAYS_PER_ADULT, 0))
+            occupationDays.reduce((s, a) => s + (a[input.id] ?? 0) * WORKABLE_DAYS_PER_ADULT, 0)),
+        workforce.adultPeople * workforce.workableDays * (world.pack.cells.wetPastoralDietShare?.[input.id] ?? 0)
       );
       const pasture = hasGrazed ? calculateDesiredPastureAreaHectares(world, input.id, true, bootstrapLaborDays) : 0;
       const workersKnown = getHusbandryWorkers().length === cellCount;

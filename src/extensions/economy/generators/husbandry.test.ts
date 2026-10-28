@@ -148,6 +148,21 @@ describe("husbandry", () => {
       );
     });
 
+    it("adds the pastoral herd where rain too heavy for grain shifts the diet to milk and meat", () => {
+      grasslandCellWorld(100);
+      worldContext.biomesData = biomesData({ 1: ["forest"] }) as never;
+      worldContext.options = { ...worldContext.options, historicalPeriod: "highMedieval" };
+      setGoods([CATTLE_GOOD, SHEEP_GOOD] as never);
+      worldContext.pack.landUse!.cells[0]!.allocatedAreaHa = 200;
+      const dry = getLivestockHerdTargets(worldContext, 0);
+      // Half the full wet-pastoral diet adds half the grassland pastoral herd (0.5 cattle, 2 sheep a person).
+      worldContext.pack.cells.wetPastoralDietShare = Float32Array.from([0.25]);
+      const wet = getLivestockHerdTargets(worldContext, 0);
+      expect(wet.Cattle - dry.Cattle).toBeCloseTo(100 * 0.5 * 0.5);
+      expect(wet.Sheep - dry.Sheep).toBeCloseTo(100 * 2 * 0.5);
+      delete worldContext.pack.cells.wetPastoralDietShare;
+    });
+
     it("bounds an unrecorded initial herd by residual labor rather than resident count", () => {
       grasslandCellWorld(50);
       delete worldContext.pack.landUse;

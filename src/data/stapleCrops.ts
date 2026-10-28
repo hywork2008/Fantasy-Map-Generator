@@ -272,6 +272,14 @@ function rangeSuitability(value: number, range: ClimateRange): number {
   return (range.max - value) / (range.max - range.idealMax);
 }
 
+/**
+ * Rainfall suitability on the wet side only (1 up to the ideal band): how far too much rain keeps a
+ * crop from grain, ignoring drought, which irrigation and dry-land crops answer separately.
+ */
+export function getWetPrecipitationSuitability(value: number, range: ClimateRange): number {
+  return value > range.idealMax ? precipitationSuitability(value, range) : 1;
+}
+
 function precipitationSuitability(value: number, range: ClimateRange): number {
   if (value <= range.min) return 0;
   if (value < range.idealMin) return (value - range.min) / (range.idealMin - range.min);
