@@ -163,6 +163,8 @@ it("renders on demand, retains unchanged scene layers on reopen, and reflects ca
     expect(frames.size).toBe(0);
     const panel = host.querySelector<HTMLDetailsElement>(".ce-sun-controls")!;
     const fogStrength = panel.querySelector<HTMLInputElement>('[name="fogStrength"]')!;
+    const fogStart = panel.querySelector<HTMLInputElement>('[name="fogStart"]')!;
+    expect(fogStart.value).toBe("105");
     expect(fogStrength.value).toBe("80");
     expect(fogStrength.disabled).toBe(false);
     expect(panel.hidden).toBe(false);
@@ -236,14 +238,16 @@ it("renders on demand, retains unchanged scene layers on reopen, and reflects ca
     fogStrength.value = "25";
     fogStrength.dispatchEvent(new Event("input"));
     flush();
-    expect(fog.near).toBeGreaterThan(50);
+    expect(fog.near).toBeCloseTo(Math.hypot(10, 20) * 1.05);
     expect(Number(zoomReadout.value.match(/[\d.]+/)![0])).toBeGreaterThan(1);
     const subtleFar = fog.far;
-    expect(THREE.MathUtils.smoothstep(500, fog.near, fog.far)).toBeLessThan(0.1);
+    const originalStart = fog.near;
+    expect(THREE.MathUtils.smoothstep(500, fog.near, fog.far)).toBeLessThan(0.11);
     fogStrength.value = "100";
     fogStrength.dispatchEvent(new Event("input"));
     flush();
     expect(fog.far).toBeLessThan(subtleFar);
+    expect(fog.near).toBe(originalStart);
     expect(THREE.MathUtils.smoothstep(500, fog.near, fog.far)).toBeGreaterThan(0.2);
     fogStrength.value = "0";
     fogStrength.dispatchEvent(new Event("input"));
@@ -256,6 +260,30 @@ it("renders on demand, retains unchanged scene layers on reopen, and reflects ca
     flush();
     expect(scene.fog).toBe(fog);
     expect(fog.far).toBe(subtleFar);
+    // At an oblique overview, bring fog over the far side of the town rather
+    // than only the most distant trees, without changing the transition width.
+    view.restoreView({ position: [0, 500, 866], target: [0, 0, 0], zoom: 1.5, fov: 45 });
+    fogStrength.value = "100";
+    fogStrength.dispatchEvent(new Event("input"));
+    flush();
+    const transition = fog.far - fog.near;
+    expect(THREE.MathUtils.smoothstep(1000, fog.near, fog.far)).toBe(0);
+    fogStart.value = "50";
+    fogStart.dispatchEvent(new Event("input"));
+    flush();
+    expect(fog.near).toBeCloseTo(Math.hypot(500, 866) * 0.5);
+    expect(fog.far - fog.near).toBeCloseTo(transition);
+    expect(THREE.MathUtils.smoothstep(1000, fog.near, fog.far)).toBeGreaterThan(0.2);
+    expect(fogStrength.value).toBe("100");
+    expect(fogStart.getAttribute("aria-valuetext")).toBe("50%");
+    expect(JSON.parse(localStorage.getItem("fmg-city-editor:distance-fog")!)).toEqual({
+      strength: 100,
+      startPercent: 50
+    });
+    fogStart.value = "0";
+    fogStart.dispatchEvent(new Event("input"));
+    flush();
+    expect(fog.near).toBe(0);
     expect(scene.children).toEqual(currentChildren);
     resize();
     toggle.click();
