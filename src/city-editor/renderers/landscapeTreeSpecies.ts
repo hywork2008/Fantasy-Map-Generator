@@ -21,6 +21,8 @@ export function landscapeTreeSpecies(
   if (/tropicalrainforest|cloudforest/.test(biome)) return "kapok";
   // Riparian woodland is tropical only where the site is hot; otherwise it is alder carr.
   if (/floodedforest/.test(biome)) return temperature !== undefined && temperature >= 20 ? "kapok" : "black_alder";
+  if (/mediterraneanwoodlandscrub/.test(biome)) return preferred === "mediterranean_cypress" ? preferred : "olive";
+  if (/montaneforest/.test(biome)) return "silver_fir";
   if (/temperaterainforest/.test(biome)) return "western_red_cedar";
   if (/^wetland/.test(biome)) return "black_alder";
   if (/savanna|tropicalseasonalforest|tropicaldryforest/.test(biome))

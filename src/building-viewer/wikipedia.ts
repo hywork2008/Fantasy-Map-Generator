@@ -150,6 +150,8 @@ const modelArticles: Record<string, string> = {
   kapok: "Ceiba pentandra",
   "western-red-cedar": "Thuja plicata",
   "black-alder": "Alnus glutinosa",
+  olive: "Olea europaea",
+  "silver-fir": "Abies alba",
   "mediterranean-cypress": "Cupressus sempervirens",
   "oriental-evergreen": "Evergreen",
   "sacred-bodhi-and-fig": "Ficus religiosa",
