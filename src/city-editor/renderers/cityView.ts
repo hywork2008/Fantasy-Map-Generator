@@ -196,7 +196,11 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   const readout = document.createElement("output");
   readout.className = "ce-3d-readout";
   readout.hidden = true;
-  options.canvasHost.append(viewport, button, readout);
+  const zoomReadout = document.createElement("output");
+  zoomReadout.className = "ce-3d-zoom";
+  zoomReadout.hidden = true;
+  zoomReadout.title = editorText("cityEditor.messages.zoom3dHint");
+  options.canvasHost.append(viewport, button, readout, zoomReadout);
 
   const sunSettings = readSunSettings();
   const fogSettings = readFogSettings();
@@ -230,6 +234,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   const atmosphere = new THREE.Fog(0xc5c5bf);
   const sky = createSkyBackdrop();
   let atmosphereRange = 600;
+  let mapHalfExtent = 1;
   let camera: THREE.PerspectiveCamera | null = null;
   let controls: OrbitControls | null = null;
   let massing: CityMassingMeshes | null = null;
@@ -579,6 +584,14 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     // Keep the focus clear, including at nadir, and soften only the distant scenery.
     // Scale the transition with the city so small towns retain readable streets too.
     const focusDistance = controls ? camera.position.distanceTo(controls.target) : 0;
+    const visibleHalfExtent =
+      (Math.max(0.001, focusDistance) *
+        Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) *
+        Math.min(1, camera.aspect)) /
+      camera.zoom;
+    zoomReadout.value = editorText("cityEditor.messages.zoom3d", {
+      value0: (mapHalfExtent / visibleHalfExtent).toFixed(2)
+    });
     atmosphere.near = Math.max(100, focusDistance * 1.05);
     atmosphere.far =
       atmosphere.near + Math.max(atmosphereRange, focusDistance * 0.75) * (100 / Math.max(1, fogSettings.strength));
@@ -634,6 +647,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     if (viewport.hidden || disposed) return;
     if (!ensure() || !scene) return;
     const city = options.getDocument();
+    mapHalfExtent = Math.max(1, city.frame.extentMeters / 2);
     atmosphereRange = Math.max(600, city.frame.cityRadiusMeters * 2);
     const nextSimplification = options.getSimplification?.() ?? { urban: "auto", outskirts: "auto" };
     const urbanChanged = simplification.urban !== nextSimplification.urban;
@@ -906,6 +920,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   const setOpen = (open: boolean) => {
     viewport.hidden = !open;
     lightingPanel.hidden = !open;
+    zoomReadout.hidden = !open;
     options.map.hidden = open;
     button.textContent = editorText(open ? "cityEditor.messages.view2d" : "cityEditor.messages.view3d");
     button.setAttribute("aria-pressed", open ? "true" : "false");
@@ -919,6 +934,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     if (!ensure()) {
       viewport.hidden = true;
       lightingPanel.hidden = true;
+      zoomReadout.hidden = true;
       options.map.hidden = false;
       button.textContent = editorText("cityEditor.messages.view3d");
       button.setAttribute("aria-pressed", "false");
@@ -1034,7 +1050,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     readout.hidden = true;
     button.textContent = editorText(open ? "cityEditor.messages.view2d" : "cityEditor.messages.view3d");
     options.map.hidden = open;
-    options.canvasHost.append(viewport, button, readout, lightingPanel);
+    zoomReadout.title = editorText("cityEditor.messages.zoom3dHint");
+    options.canvasHost.append(viewport, button, readout, lightingPanel, zoomReadout);
     bindChrome();
     observer?.observe(options.canvasHost);
     resize();
@@ -1078,6 +1095,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     viewport.remove();
     button.remove();
     readout.remove();
+    zoomReadout.remove();
     options.map.hidden = false;
   };
   // Defer framing until the new terrain is built, including when 3D is hidden.

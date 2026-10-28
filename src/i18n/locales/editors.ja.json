@@ -331,6 +331,8 @@
       "generate": "Generate",
       "webglUnavailable": "ブラウザでWebGLを起動できないため、3D表示に切り替えられません。地図は2Dで引き続き編集できます。ブラウザのグラフィック設定を確認してから、再度3Dをお試しください。",
       "view3d": "3D",
+      "zoom3d": "ズーム: {{value0}}×",
+      "zoom3dHint": "地図全体が収まる表示を1.00×とし、カメラ距離と画角から倍率を計算します。",
       "sunColor": "太陽光の色",
       "sunColorPreset": "色プリセット",
       "sunColorDaylight": "白色",

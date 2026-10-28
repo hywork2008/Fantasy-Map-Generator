@@ -331,6 +331,8 @@
       "generate": "Generate",
       "webglUnavailable": "3D view is unavailable because the browser could not start WebGL. Your map is still editable in 2D. Check the browser graphics settings and try 3D again.",
       "view3d": "3D",
+      "zoom3d": "Zoom: {{value0}}×",
+      "zoom3dHint": "1.00× fits the full map. Magnification follows camera distance and field of view.",
       "sunColor": "Light color",
       "sunColorPreset": "Color preset",
       "sunColorDaylight": "White",

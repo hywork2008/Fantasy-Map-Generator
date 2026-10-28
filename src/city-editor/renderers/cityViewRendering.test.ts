@@ -86,6 +86,9 @@ it("renders on demand, retains unchanged scene layers on reopen, and reflects ca
     expect(render).toHaveBeenCalledTimes(1);
     expect(frames.size).toBe(0);
     const scene = render.mock.calls[0][0] as THREE.Scene;
+    const zoomReadout = host.querySelector<HTMLOutputElement>(".ce-3d-zoom")!;
+    expect(zoomReadout.hidden).toBe(false);
+    expect(zoomReadout.value).toContain("1.00×");
     const fog = scene.fog as THREE.Fog;
     expect(fog).toBeInstanceOf(THREE.Fog);
     expect(fog.color.getHex()).toBe(0xd9ecf6);
@@ -128,6 +131,7 @@ it("renders on demand, retains unchanged scene layers on reopen, and reflects ca
     const anchor = new THREE.Vector3(0.5, 0.4, 0.5).unproject(camera);
     const previousPosition = camera.position.clone();
     const previousFogNear = fog.near;
+    const previousZoom = zoomReadout.value;
     canvas.dispatchEvent(
       new WheelEvent("wheel", {
         deltaY: 100,
@@ -144,6 +148,7 @@ it("renders on demand, retains unchanged scene layers on reopen, and reflects ca
     flush();
     expect(frames.size).toBe(0);
     expect(fog.near).toBeGreaterThan(previousFogNear);
+    expect(zoomReadout.value).not.toBe(previousZoom);
     resize();
     resize();
     expect(frames.size).toBe(1);
@@ -231,6 +236,7 @@ it("renders on demand, retains unchanged scene layers on reopen, and reflects ca
     fogStrength.dispatchEvent(new Event("input"));
     flush();
     expect(fog.near).toBeGreaterThan(50);
+    expect(Number(zoomReadout.value.match(/[\d.]+/)![0])).toBeGreaterThan(1);
     const subtleFar = fog.far;
     expect(THREE.MathUtils.smoothstep(500, fog.near, fog.far)).toBeLessThan(0.1);
     fogStrength.value = "100";
@@ -253,10 +259,12 @@ it("renders on demand, retains unchanged scene layers on reopen, and reflects ca
     resize();
     toggle.click();
     expect(panel.hidden).toBe(true);
+    expect(zoomReadout.hidden).toBe(true);
     expect(frames.size).toBe(0);
     toggle.click();
     view.dispose();
     expect(frames.size).toBe(0);
+    expect(host.querySelector(".ce-3d-zoom")).toBeNull();
   } finally {
     view.dispose();
     for (const cleanup of cleanups) cleanup();
