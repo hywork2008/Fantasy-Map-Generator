@@ -1,0 +1,442 @@
+{
+ "schemaVersion": 1,
+ "inputSha256": "5361f237d0f4f4fd6af5c2653cae69c6e871e8183dffce88d23601deb3d3dd43",
+ "months": 0,
+ "date": [
+  1312,
+  1
+ ],
+ "historicalPeriod": "highMedieval",
+ "notes": [
+  "Settled land cells only. target is the supported grazed horse herd (real animals).",
+  "shortfall = target - heads in cells failing the sale condition (heads + natural increase <= target)."
+ ],
+ "total": {
+  "cells": 2157,
+  "allowedCells": 1635,
+  "target": 399835.2112830257,
+  "allowedTarget": 299771.2478879745,
+  "shortfall": 145176.12615062352,
+  "allowedShortfall": 143237.6230565907
+ },
+ "byRight": {
+  "commonsCustom": {
+   "cells": 778,
+   "allowedCells": 778,
+   "target": 144161.24452064701,
+   "allowedTarget": 144161.24452064701,
+   "shortfall": 80278.40143634747,
+   "allowedShortfall": 80278.40143634747
+  },
+  "openForm": {
+   "cells": 377,
+   "allowedCells": 377,
+   "target": 98626.94929625811,
+   "allowedTarget": 98626.94929625811,
+   "shortfall": 44152.644044788736,
+   "allowedShortfall": 44152.644044788736
+  },
+  "lordsForest": {
+   "cells": 522,
+   "allowedCells": 0,
+   "target": 100063.96339505045,
+   "allowedTarget": 0,
+   "shortfall": 1938.5030940328177,
+   "allowedShortfall": 0
+  },
+  "foragingCulture": {
+   "cells": 441,
+   "allowedCells": 441,
+   "target": 55201.26017101323,
+   "allowedTarget": 55201.26017101323,
+   "shortfall": 17497.44951086542,
+   "allowedShortfall": 17497.44951086542
+  },
+  "noState": {
+   "cells": 39,
+   "allowedCells": 39,
+   "target": 1781.79390005565,
+   "allowedTarget": 1781.79390005565,
+   "shortfall": 1309.128064589424,
+   "allowedShortfall": 1309.128064589424
+  }
+ },
+ "byForm": {
+  "Monarchy": {
+   "cells": 1721,
+   "allowedCells": 1199,
+   "target": 293148.0701167132,
+   "allowedTarget": 193084.10672166225,
+   "shortfall": 99626.78241325509,
+   "allowedShortfall": 97688.2793192223
+  },
+  "Republic": {
+   "cells": 367,
+   "allowedCells": 367,
+   "target": 99323.06957357163,
+   "allowedTarget": 99323.06957357163,
+   "shortfall": 41076.99146296739,
+   "allowedShortfall": 41076.99146296739
+  },
+  "(none)": {
+   "cells": 39,
+   "allowedCells": 39,
+   "target": 1781.79390005565,
+   "allowedTarget": 1781.79390005565,
+   "shortfall": 1309.128064589424,
+   "allowedShortfall": 1309.128064589424
+  },
+  "Union": {
+   "cells": 30,
+   "allowedCells": 30,
+   "target": 5582.277692684566,
+   "allowedTarget": 5582.277692684566,
+   "shortfall": 3163.2242098116735,
+   "allowedShortfall": 3163.2242098116735
+  }
+ },
+ "byCultureType": {
+  "Naval": {
+   "cells": 744,
+   "allowedCells": 618,
+   "target": 182359.9550010864,
+   "allowedTarget": 154816.15981609427,
+   "shortfall": 73102.60966260107,
+   "allowedShortfall": 72083.82449178412
+  },
+  "River": {
+   "cells": 303,
+   "allowedCells": 186,
+   "target": 76239.30374311355,
+   "allowedTarget": 52891.0310261886,
+   "shortfall": 35829.91686462236,
+   "allowedShortfall": 35301.339365361164
+  },
+  "Generic": {
+   "cells": 447,
+   "allowedCells": 276,
+   "target": 64356.396670335336,
+   "allowedTarget": 32193.582625615178,
+   "shortfall": 14736.949745616956,
+   "allowedShortfall": 14367.459287732858
+  },
+  "Hunting": {
+   "cells": 441,
+   "allowedCells": 441,
+   "target": 55201.26017101323,
+   "allowedTarget": 55201.26017101323,
+   "shortfall": 17497.44951086542,
+   "allowedShortfall": 17497.44951086542
+  },
+  "Marsh": {
+   "cells": 222,
+   "allowedCells": 114,
+   "target": 21678.295697476213,
+   "allowedTarget": 4669.214249062827,
+   "shortfall": 4009.2003669179435,
+   "allowedShortfall": 3987.5504008473918
+  }
+ },
+ "byState": {
+  "15 Joria": {
+   "cells": 16,
+   "allowedCells": 3,
+   "target": 4822.30216152981,
+   "allowedTarget": 723.3685948418753,
+   "shortfall": 1238.7941967695292,
+   "allowedShortfall": 175.51875251330813,
+   "form": "Monarchy",
+   "cultureType": "Naval"
+  },
+  "18 Esenhia": {
+   "cells": 16,
+   "allowedCells": 4,
+   "target": 3579.063750752175,
+   "allowedTarget": 807.1923555155629,
+   "shortfall": 745.7151394608488,
+   "allowedShortfall": 217.13764019964998,
+   "form": "Monarchy",
+   "cultureType": "River"
+  },
+  "11 Panilunia": {
+   "cells": 23,
+   "allowedCells": 23,
+   "target": 7120.993865669647,
+   "allowedTarget": 7120.993865669647,
+   "shortfall": 509.5263015534735,
+   "allowedShortfall": 509.5263015534735,
+   "form": "Republic",
+   "cultureType": "Hunting"
+  },
+  "8 Stansbury": {
+   "cells": 67,
+   "allowedCells": 47,
+   "target": 12511.445804046854,
+   "allowedTarget": 8055.463828518585,
+   "shortfall": 3396.5956923386366,
+   "allowedShortfall": 3071.595507893791,
+   "form": "Monarchy",
+   "cultureType": "Generic"
+  },
+  "10 Pforzlin": {
+   "cells": 28,
+   "allowedCells": 28,
+   "target": 9573.035922283823,
+   "allowedTarget": 9573.035922283823,
+   "shortfall": 546.0318847215569,
+   "allowedShortfall": 546.0318847215569,
+   "form": "Republic",
+   "cultureType": "Generic"
+  },
+  "1 Toprasyurt": {
+   "cells": 69,
+   "allowedCells": 40,
+   "target": 18085.60980098145,
+   "allowedTarget": 8678.586556283397,
+   "shortfall": 3533.43986603552,
+   "allowedShortfall": 3533.43986603552,
+   "form": "Monarchy",
+   "cultureType": "Naval"
+  },
+  "26 Nikia": {
+   "cells": 80,
+   "allowedCells": 77,
+   "target": 30648.306695966912,
+   "allowedTarget": 29633.755852828395,
+   "shortfall": 4849.85083821957,
+   "allowedShortfall": 4849.85083821957,
+   "form": "Monarchy",
+   "cultureType": "Hunting"
+  },
+  "9 Vyatnia": {
+   "cells": 29,
+   "allowedCells": 6,
+   "target": 6867.628838355437,
+   "allowedTarget": 585.4713966080647,
+   "shortfall": 147.81797382840546,
+   "allowedShortfall": 147.81797382840546,
+   "form": "Monarchy",
+   "cultureType": "Generic"
+  },
+  "5 Tengreli": {
+   "cells": 14,
+   "allowedCells": 14,
+   "target": 3212.693368186439,
+   "allowedTarget": 3212.693368186439,
+   "shortfall": 331.5250756673932,
+   "allowedShortfall": 331.5250756673932,
+   "form": "Republic",
+   "cultureType": "Naval"
+  },
+  "3 Ronejanitia": {
+   "cells": 13,
+   "allowedCells": 10,
+   "target": 2862.6838738330403,
+   "allowedTarget": 1730.076842026289,
+   "shortfall": 740.9301656945175,
+   "allowedShortfall": 740.9301656945175,
+   "form": "Monarchy",
+   "cultureType": "Naval"
+  },
+  "7 Testia": {
+   "cells": 35,
+   "allowedCells": 23,
+   "target": 8061.572016051219,
+   "allowedTarget": 4524.40527631185,
+   "shortfall": 1646.257535662513,
+   "allowedShortfall": 1646.257535662513,
+   "form": "Monarchy",
+   "cultureType": "Generic"
+  },
+  "0 Neutrals": {
+   "cells": 39,
+   "allowedCells": 39,
+   "target": 1781.79390005565,
+   "allowedTarget": 1781.79390005565,
+   "shortfall": 1309.128064589424,
+   "allowedShortfall": 1309.128064589424,
+   "form": "(none)",
+   "cultureType": "Generic"
+  },
+  "6 Urenia": {
+   "cells": 88,
+   "allowedCells": 70,
+   "target": 12220.512015763055,
+   "allowedTarget": 7252.567611910034,
+   "shortfall": 4019.1612989328883,
+   "allowedShortfall": 4019.1612989328883,
+   "form": "Monarchy",
+   "cultureType": "River"
+  },
+  "27 Oyaberland": {
+   "cells": 64,
+   "allowedCells": 21,
+   "target": 14223.156237740457,
+   "allowedTarget": 5968.463161312604,
+   "shortfall": 3561.8264249549075,
+   "allowedShortfall": 3561.8264249549075,
+   "form": "Monarchy",
+   "cultureType": "Generic"
+  },
+  "24 Siveria": {
+   "cells": 29,
+   "allowedCells": 27,
+   "target": 2990.1043599549844,
+   "allowedTarget": 1650.606731479833,
+   "shortfall": 1268.8636856998728,
+   "allowedShortfall": 1268.8636856998728,
+   "form": "Monarchy",
+   "cultureType": "Generic"
+  },
+  "28 Naupheria": {
+   "cells": 20,
+   "allowedCells": 20,
+   "target": 2550.3507320669682,
+   "allowedTarget": 2550.3507320669682,
+   "shortfall": 628.8566626192064,
+   "allowedShortfall": 628.8566626192064,
+   "form": "Monarchy",
+   "cultureType": "Naval"
+  },
+  "23 Mutsia": {
+   "cells": 248,
+   "allowedCells": 128,
+   "target": 23565.234605949878,
+   "allowedTarget": 5266.58831798864,
+   "shortfall": 4521.4584272861075,
+   "allowedShortfall": 4499.808461215556,
+   "form": "Monarchy",
+   "cultureType": "Marsh"
+  },
+  "4 Rosia": {
+   "cells": 444,
+   "allowedCells": 341,
+   "target": 65378.4230623439,
+   "allowedTarget": 47114.9353181814,
+   "shortfall": 33111.86557464568,
+   "allowedShortfall": 33111.86557464568,
+   "form": "Monarchy",
+   "cultureType": "Hunting"
+  },
+  "22 Aida": {
+   "cells": 31,
+   "allowedCells": 31,
+   "target": 5695.108699243178,
+   "allowedTarget": 5695.108699243178,
+   "shortfall": 62.65271971637501,
+   "allowedShortfall": 62.65271971637501,
+   "form": "Republic",
+   "cultureType": "Naval"
+  },
+  "29 Marniapolia": {
+   "cells": 11,
+   "allowedCells": 11,
+   "target": 1326.0419337003298,
+   "allowedTarget": 1326.0419337003298,
+   "shortfall": 168.45713593839415,
+   "allowedShortfall": 168.45713593839415,
+   "form": "Monarchy",
+   "cultureType": "Naval"
+  },
+  "12 Cydon": {
+   "cells": 197,
+   "allowedCells": 119,
+   "target": 26023.259798815714,
+   "allowedTarget": 16918.731600008643,
+   "shortfall": 6289.020467591674,
+   "allowedShortfall": 6289.020467591674,
+   "form": "Monarchy",
+   "cultureType": "Naval"
+  },
+  "20 Naupliosia": {
+   "cells": 17,
+   "allowedCells": 17,
+   "target": 2895.520357403867,
+   "allowedTarget": 2895.520357403867,
+   "shortfall": 169.27305890399288,
+   "allowedShortfall": 169.27305890399288,
+   "form": "Republic",
+   "cultureType": "Naval"
+  },
+  "13 Avonserel": {
+   "cells": 69,
+   "allowedCells": 69,
+   "target": 4361.479603432337,
+   "allowedTarget": 4361.479603432337,
+   "shortfall": 3652.0744434679723,
+   "allowedShortfall": 3652.0744434679723,
+   "form": "Monarchy",
+   "cultureType": "Hunting"
+  },
+  "19 Hublamia": {
+   "cells": 20,
+   "allowedCells": 20,
+   "target": 1921.5294418008607,
+   "allowedTarget": 1921.5294418008607,
+   "shortfall": 0,
+   "allowedShortfall": 0,
+   "form": "Monarchy",
+   "cultureType": "Naval"
+  },
+  "21 Teleoseia": {
+   "cells": 86,
+   "allowedCells": 79,
+   "target": 18267.902984634347,
+   "allowedTarget": 17143.316360369594,
+   "shortfall": 9128.716525332906,
+   "allowedShortfall": 9128.716525332906,
+   "form": "Monarchy",
+   "cultureType": "Naval"
+  },
+  "14 Eurionti": {
+   "cells": 254,
+   "allowedCells": 254,
+   "target": 70825.7173607847,
+   "allowedTarget": 70825.7173607847,
+   "shortfall": 39457.98242240459,
+   "allowedShortfall": 39457.98242240459,
+   "form": "Republic",
+   "cultureType": "Naval"
+  },
+  "2 Ampsos": {
+   "cells": 3,
+   "allowedCells": 2,
+   "target": 338.28734864531873,
+   "allowedTarget": 233.54310406981824,
+   "shortfall": 169.64683880804552,
+   "allowedShortfall": 169.64683880804552,
+   "form": "Monarchy",
+   "cultureType": "Naval"
+  },
+  "25 Pegia": {
+   "cells": 72,
+   "allowedCells": 46,
+   "target": 17123.257550971666,
+   "allowedTarget": 12900.589879879917,
+   "shortfall": 6850.047020345193,
+   "allowedShortfall": 6850.047020345193,
+   "form": "Monarchy",
+   "cultureType": "Naval"
+  },
+  "17 Aphosia": {
+   "cells": 45,
+   "allowedCells": 36,
+   "target": 15419.917499375999,
+   "allowedTarget": 13737.042222527207,
+   "shortfall": 9957.38649962285,
+   "allowedShortfall": 9957.38649962285,
+   "form": "Monarchy",
+   "cultureType": "Naval"
+  },
+  "16 Agria": {
+   "cells": 30,
+   "allowedCells": 30,
+   "target": 5582.277692684566,
+   "allowedTarget": 5582.277692684566,
+   "shortfall": 3163.2242098116735,
+   "allowedShortfall": 3163.2242098116735,
+   "form": "Union",
+   "cultureType": "Naval"
+  }
+ }
+}

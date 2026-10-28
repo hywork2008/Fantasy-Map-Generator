@@ -1,0 +1,116 @@
+{
+ "schemaVersion": 1,
+ "inputSha256": "a3209cca3c88ebf8f84b4f5d9321be8ad3bdc5b3766ca92994f0eb198a52e4e7",
+ "months": 12,
+ "date": [
+  1301,
+  1
+ ],
+ "historicalPeriod": "highMedieval",
+ "notes": [
+  "Settled land cells only. target is the supported grazed horse herd (real animals).",
+  "shortfall = target - heads in cells failing the sale condition (heads + natural increase <= target)."
+ ],
+ "total": {
+  "cells": 118,
+  "allowedCells": 109,
+  "target": 20703.98688638411,
+  "allowedTarget": 15320.312532135855,
+  "shortfall": 9841.852510417055,
+  "allowedShortfall": 7254.28376816014
+ },
+ "byRight": {
+  "lordsForest": {
+   "cells": 9,
+   "allowedCells": 0,
+   "target": 5383.674354248252,
+   "allowedTarget": 0,
+   "shortfall": 2587.5687422569135,
+   "allowedShortfall": 0
+  },
+  "commonsCustom": {
+   "cells": 15,
+   "allowedCells": 15,
+   "target": 215.19621287763118,
+   "allowedTarget": 215.19621287763118,
+   "shortfall": 151.72539530563353,
+   "allowedShortfall": 151.72539530563353
+  },
+  "noState": {
+   "cells": 94,
+   "allowedCells": 94,
+   "target": 15105.116319258226,
+   "allowedTarget": 15105.116319258226,
+   "shortfall": 7102.558372854508,
+   "allowedShortfall": 7102.558372854508
+  }
+ },
+ "byForm": {
+  "Monarchy": {
+   "cells": 24,
+   "allowedCells": 15,
+   "target": 5598.870567125883,
+   "allowedTarget": 215.19621287763118,
+   "shortfall": 2739.294137562547,
+   "allowedShortfall": 151.72539530563353
+  },
+  "(none)": {
+   "cells": 94,
+   "allowedCells": 94,
+   "target": 15105.116319258226,
+   "allowedTarget": 15105.116319258226,
+   "shortfall": 7102.558372854508,
+   "allowedShortfall": 7102.558372854508
+  }
+ },
+ "byCultureType": {
+  "River": {
+   "cells": 3,
+   "allowedCells": 0,
+   "target": 183.6696427631847,
+   "allowedTarget": 0,
+   "shortfall": 127.77554832224767,
+   "allowedShortfall": 0
+  },
+  "Generic": {
+   "cells": 115,
+   "allowedCells": 109,
+   "target": 20520.317243620928,
+   "allowedTarget": 15320.312532135855,
+   "shortfall": 9714.076962094809,
+   "allowedShortfall": 7254.28376816014
+  }
+ },
+ "byState": {
+  "1 Abralhalia": {
+   "cells": 16,
+   "allowedCells": 10,
+   "target": 1117.3497997238612,
+   "allowedTarget": 106.8798004804055,
+   "shortfall": 625.0527792760562,
+   "allowedShortfall": 75.35600323180358,
+   "form": "Monarchy",
+   "cultureType": "River"
+  },
+  "0 Neutrals": {
+   "cells": 94,
+   "allowedCells": 94,
+   "target": 15105.116319258226,
+   "allowedTarget": 15105.116319258226,
+   "shortfall": 7102.558372854508,
+   "allowedShortfall": 7102.558372854508,
+   "form": "(none)",
+   "cultureType": "Generic"
+  },
+  "2 Alasqia": {
+   "cells": 8,
+   "allowedCells": 5,
+   "target": 4481.520767402022,
+   "allowedTarget": 108.31641239722569,
+   "shortfall": 2114.2413582864906,
+   "allowedShortfall": 76.36939207382996,
+   "form": "Monarchy",
+   "cultureType": "Generic"
+  }
+ }
+}
