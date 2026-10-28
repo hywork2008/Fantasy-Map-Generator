@@ -19,6 +19,11 @@ export interface Adoption {
  */
 export const CE_ADOPTION: Record<string, Record<string, Adoption>> = {
   "tree.garden-parkland": {
+    high: {
+      variant: "tree.garden-parkland@high#codex-gpt-6.1-sol",
+      since: "2026-10-28",
+      note: "Kept while the Opus high tier and its light edition are compared in BV"
+    },
     medium: {
       variant: "tree.garden-parkland@medium#claude-opus-5.5",
       since: "2026-10-29",

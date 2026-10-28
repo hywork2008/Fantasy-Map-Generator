@@ -304,3 +304,32 @@ CEの3D表示がBVのモデルを作るすべての箇所を、版の一覧と�
     - Codex GPT-6.1 Sol（17）：橋、墓地の構造物3種、中世モデル4種、風車2種、市壁の部品3種、樹木2種、井戸・水盤
     - 地域住宅は出なかった。この都市の3Dでは、住宅を詳細モデルで描いていなかったためである。
 - 今後：BVに新しい版を追加したら、その系統の一覧に登録する。同じ段階に2つ目の版を登録すると、採用表に書くまでテストが失敗するので、採用の判断が漏れない。
+
+### 10.5 ライムのOpus版high・軽量版と「版の種類（edition）」（2026-10-29）
+
+- 同じ作者が同じ段階に複数の版を作れるように、`ModelVariant` に `edition` を加えた。
+  - 版idは `…#作者~edition` になる（例：`tree.garden-parkland@high#claude-opus-5.5~light`）。
+  - `edition` のない版が、その作者の標準版になる。
+- ライム（Small-leaved lime）のhighに、2つの版を追加した。
+
+  | 版 | 内容 | 三角形 |
+  |---|---|---|
+  | Codex high（既存、CE採用） | Codexの枝構造、ultraの葉を5枚に1枚へ間引いて拡大 | 21,626 |
+  | Opus high（standard） | Opus独自の枝構造（中心の主幹から伸びる16本の主枝と小枝。葉は外側と内側の2層の卵形の殻に付く）。外向きのハート形の葉（1枚6三角形）、日向と日陰の葉色、樹冠全体の形に沿った法線 | 21,754 |
+  | Opus high（light） | Opus highと同じ枝。葉の房（スプレー）ごとに楕円体1つを当てはめる（Opus mediumがCodex highに施したのと同じ処理）。細い枝は省く | 2,494 |
+
+  - 実装は `src/buildings/landscape/smallLeavedLimeOpus.ts`。
+  - 葉の配置は房ごとの乱数列から作るので、standardとlightで房の位置と大きさが一致する。
+- CEの採用表では、highを明示的にCodex版とした。採用表に書かないと、版が3つになったhighの採用が決まらないためで、CEの見た目は変わらない。
+- BVの表示
+  - Qualityで「High」を選び、「Created by」を Claude Opus 5.5 にすると、「Edition」（Standard／Light）の選択欄が出る。
+  - 詳細欄の「Edition」「CE adoption」「Based on」で、どの版を表示しているかが分かる。
+  - 複雑さの比較表の列は `low`、`medium · Codex`、`medium`、`high`、`high · Claude`、`high · Claude light`、`ultra`。
+- 見た目（CEと同じ光源で、90 px／240 px、および260本の林で比較）
+  - Opus highは、ライムらしい丸い卵形の樹冠になり、陰影も柔らかい。
+  - 一方で、Codex highより葉の密度が低く、樹冠の下の方が透けて見え、林で並べると樹冠がやや小さく見える。
+  - lightは、Opus mediumと同じ見た目の系統で、三角形はOpus mediumの1,888よりやや多い。
+- 確認
+  - 型チェックとbiomeのチェックは問題なし。
+  - 樹木・採用表・BV・森と公園の3Dのテストは、62件すべて成功した。
+  - BVで、Codex high → Opus high（Standard） → Opus high（Light）の順に切り替えられることを確認した。コンソールエラーはなかった。

@@ -15,12 +15,14 @@ export interface ModelCredit {
  * through its adoption table; BV shows all of them.
  */
 export interface ModelVariant<Args extends unknown[] = []> {
-  /** `${family}@${level}#${author slug}`, unique across BV. */
+  /** `${family}@${level}#${author slug}` plus `~${edition}` for editions, unique across BV. */
   id: string;
   family: string;
   /** Quality level within the family; "default" for families that ship a single level. */
   level: string;
   author: Author;
+  /** Distinguishes one author's alternatives at the same level, e.g. a light edition; absent for the standard one. */
+  edition?: string;
   /** Variants whose code this one reuses, e.g. a reduced tier built on a higher tier's skeleton. */
   basedOn?: readonly string[];
   credits?: readonly ModelCredit[];
@@ -33,6 +35,6 @@ export interface ModelVariant<Args extends unknown[] = []> {
 /** A variant without its factory: what listings, BV labels and adoption checks need. */
 export type ModelVariantInfo = Omit<ModelVariant, "create" | "createGeometry">;
 
-export function variantId(family: string, level: string, author: Author): string {
-  return `${family}@${level}#${authorSlug(author)}`;
+export function variantId(family: string, level: string, author: Author, edition?: string): string {
+  return `${family}@${level}#${authorSlug(author)}${edition ? `~${edition}` : ""}`;
 }

@@ -8,7 +8,9 @@ it("registers unique variant ids that spell out their family, level and author",
   const ids = MODEL_VARIANTS.map(variant => variant.id);
   expect(new Set(ids).size).toBe(ids.length);
   for (const variant of MODEL_VARIANTS)
-    expect(variant.id).toBe(`${variant.family}@${variant.level}#${authorSlug(variant.author)}`);
+    expect(variant.id).toBe(
+      `${variant.family}@${variant.level}#${authorSlug(variant.author)}${variant.edition ? `~${variant.edition}` : ""}`
+    );
 });
 
 it("adopts a registered variant of the same family and level for every level CE can request", () => {

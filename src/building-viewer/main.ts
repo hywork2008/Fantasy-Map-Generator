@@ -2300,7 +2300,10 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
     };
     // Alternatives get their author in the comparison column so they never overwrite the adopted level.
     const column = (entry: Variant) =>
-      entry === adopted(entry.level) ? entry.level : `${entry.level} · ${entry.author.split(" ")[0]}`;
+      entry === adopted(entry.level)
+        ? entry.level
+        : `${entry.level} · ${entry.author.split(" ")[0]}${entry.edition ? ` ${entry.edition}` : ""}`;
+    const editionLabel = (entry: Variant) => (entry.edition ? label(entry.edition) : "Standard");
     const showModel = (variant: Variant | undefined = definition.variants && adopted(levels.at(-1)!)) => {
       selection++;
       for (const item of list.querySelectorAll("button"))
@@ -2315,10 +2318,15 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
       selectedName.textContent = definition.name;
       if (variant)
         LEVEL_AUTHORS[selectedId] = {
-          authors: definition.variants!.filter(entry => entry.level === variant.level).map(entry => entry.author),
+          authors: [
+            ...new Set(definition.variants!.filter(entry => entry.level === variant.level).map(entry => entry.author))
+          ],
           current: variant.author,
-          show: author =>
-            showModel(definition.variants!.find(entry => entry.level === variant.level && entry.author === author))
+          // Switching author shows that author's standard edition, or the first one they made.
+          show: author => {
+            const own = definition.variants!.filter(entry => entry.level === variant.level && entry.author === author);
+            showModel(own.find(entry => !entry.edition) ?? own[0]);
+          }
         };
       else delete LEVEL_AUTHORS[selectedId];
       listAuthors(selectedId);
@@ -2338,6 +2346,27 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
         resolution.addEventListener("change", () => showModel(adopted(resolution.value)));
         row.append(resolution);
         optionFields.append(row);
+        const editions = definition.variants.filter(
+          entry => entry.level === variant!.level && entry.author === variant!.author
+        );
+        if (editions.length > 1) {
+          const editionRow = document.createElement("label");
+          editionRow.textContent = "Edition: ";
+          const editionSelect = document.createElement("select");
+          editionSelect.setAttribute("aria-label", "Model edition");
+          for (const entry of editions) {
+            const option = document.createElement("option");
+            option.value = entry.id;
+            option.textContent = editionLabel(entry);
+            editionSelect.append(option);
+          }
+          editionSelect.value = variant!.id;
+          editionSelect.addEventListener("change", () =>
+            showModel(editions.find(entry => entry.id === editionSelect.value))
+          );
+          editionRow.append(editionSelect);
+          optionFields.append(document.createElement("br"), editionRow);
+        }
       }
       if (variant && definition.variants)
         comparisonVariants = {
@@ -2366,6 +2395,9 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
         ...(variant
           ? [
               fact("Quality", variant.label),
+              ...(variant.edition || definition.variants!.some(entry => entry.edition)
+                ? [fact("Edition", editionLabel(variant))]
+                : []),
               fact(
                 "CE adoption",
                 variant === adopted(variant.level) ? "Adopted" : `Not adopted; CE uses ${adopted(variant.level).author}`

@@ -1,5 +1,6 @@
 import type { Author } from "../authors";
 import { type ModelCredit, type ModelVariant, variantId } from "../modelVariants";
+import { createSmallLeavedLimeOpus } from "./smallLeavedLimeOpus";
 import { createTemperateTreeCodexMedium } from "./temperateTreeCodexMedium";
 import { TREE_QUALITIES } from "./treeQuality";
 import { createLandscapeTree, hasTreeQualityLevels, TREE_SPECIES, type TreeSpecies } from "./trees";
@@ -85,6 +86,43 @@ function tieredVariants(species: TreeSpecies): ModelVariant[] {
     ],
     create: () => createLandscapeTree(species, "medium")
   });
+  if (species === "garden_parkland") {
+    const opusHigh = variantId(family, "high", "Claude Opus 5.5");
+    variants.splice(
+      variants.findIndex(variant => variant.level === "ultra"),
+      0,
+      {
+        id: opusHigh,
+        family,
+        level: "high",
+        author: "Claude Opus 5.5",
+        credits: [
+          {
+            author: "Claude Opus 5.5",
+            date: "2026-10-29",
+            note: "Own open-grown skeleton: ascending limbs to a two-layer ovoid leaf shell, outward-facing cordate leaves, sun and shade leaf colours, crown-envelope normals"
+          }
+        ],
+        create: () => createSmallLeavedLimeOpus("standard")
+      },
+      {
+        id: variantId(family, "high", "Claude Opus 5.5", "light"),
+        family,
+        level: "high",
+        author: "Claude Opus 5.5",
+        edition: "light",
+        basedOn: [opusHigh],
+        credits: [
+          {
+            author: "Claude Opus 5.5",
+            date: "2026-10-29",
+            note: "The Opus medium treatment applied to the Opus high tier: one fitted lobe per leaf spray on the same limbs"
+          }
+        ],
+        create: () => createSmallLeavedLimeOpus("light")
+      }
+    );
+  }
   return variants;
 }
 
