@@ -348,6 +348,7 @@
       "sceneryNone": "なし",
       "sceneryCountryside": "森林・農地",
       "sceneryMountains": "森林・農地＋遠山",
+      "sceneryWorldTree": "霞む世界樹",
       "sceneryHeight": "高さ",
       "fogStrength": "濃さ",
       "fogHint": "0%で無効。低い値では控えめな距離感を加え、100%で従来の濃さになります。設定は自動保存されます。",

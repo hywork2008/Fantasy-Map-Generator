@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-export type SceneryStyle = "none" | "countryside" | "mountains";
+export type SceneryStyle = "none" | "countryside" | "mountains" | "world-tree";
 
 /** A periodic landscape shared by all four walls; generated only when the style changes. */
 export function createSceneryTexture(style: Exclude<SceneryStyle, "none">): THREE.DataTexture {
@@ -30,7 +30,7 @@ export function createSceneryTexture(style: Exclude<SceneryStyle, "none">): THRE
     for (let y = 0; y < height; y++) {
       const v = y / (height - 1);
       let color: number[] | undefined;
-      if (style === "mountains") {
+      if (style === "mountains" || style === "world-tree") {
         for (let layer = 0; layer < ridges.length; layer++)
           if (v > ridges[layer])
             color = [

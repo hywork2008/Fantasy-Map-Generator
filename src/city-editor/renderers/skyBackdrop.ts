@@ -2,15 +2,28 @@ import * as THREE from "three";
 import type { CityDocument } from "../types/document";
 import type { ScenerySettings } from "./sceneryControls";
 import { createSceneryTexture, type SceneryStyle } from "./sceneryTexture";
+import {
+  clipSkyPanorama,
+  SCENERY_PLAIN_HEIGHT,
+  type SkyPanoramaFrame,
+  skyPanoramaGeometry
+} from "./skyPanoramaGeometry";
 import type { SunSettings } from "./sunLighting";
+import { createWorldTreeTexture } from "./worldTreeTexture";
 
-/** Only the far walls of the map's open sky box are drawn; the near side stays open. */
-export function createSkyBackdrop() {
+/** One continuous panorama, touching the map perimeter below and curving around the sky above. */
+export function createSkyBackdrop(onTextureReady?: () => void) {
   const group = new THREE.Group();
   group.name = "ce-sky";
-  const geometry = new THREE.PlaneGeometry(1, 1);
-  geometry.setAttribute("color", new THREE.Float32BufferAttribute(new Float32Array(12), 3));
-  const material = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, fog: false });
+  const forward = new THREE.Vector2(0, -1);
+  const mountainOcclusion = { texture: { value: null as THREE.Texture | null }, height: { value: 0 } };
+  let frame: SkyPanoramaFrame = { halfWidth: 300, halfDepth: 300, height: 1200 };
+  const material = new THREE.MeshBasicMaterial({
+    vertexColors: true,
+    side: THREE.DoubleSide,
+    fog: false,
+    depthWrite: false
+  });
   const sceneryMaterial = new THREE.MeshBasicMaterial({
     transparent: true,
     depthWrite: false,
@@ -20,29 +33,26 @@ export function createSkyBackdrop() {
     polygonOffsetFactor: -1,
     polygonOffsetUnits: -1
   });
-  // Separate the lowland and mountain texture ranges so only mountains stretch.
-  const sceneryGeometry = new THREE.PlaneGeometry(1, 1, 1, 2);
-  const sceneryUv = sceneryGeometry.getAttribute("uv");
-  sceneryUv.setY(2, 0.48);
-  sceneryUv.setY(3, 0.48);
-  const sceneryPlanes: THREE.Mesh[] = [];
-  const walls = ["west", "east", "north", "south"].map(side => {
-    const wall = new THREE.Mesh(geometry, material);
-    wall.name = `ce-sky-${side}`;
-    wall.userData.ceSky = true;
-    wall.raycast = () => {};
-    const scenery = new THREE.Mesh(sceneryGeometry, sceneryMaterial);
-    scenery.name = `ce-scenery-${side}`;
-    scenery.userData.ceSky = true;
-    scenery.raycast = () => {};
-    scenery.visible = false;
-    // Draw the backdrop before transparent water, foliage and other city details.
-    scenery.renderOrder = -1;
-    sceneryPlanes.push(scenery);
-    wall.add(scenery);
-    group.add(wall);
-    return wall;
-  });
+  const treeMaterial = sceneryMaterial.clone();
+  treeMaterial.opacity = 0.14;
+  treeMaterial.visible = false;
+  clipSkyPanorama(material, forward);
+  clipSkyPanorama(sceneryMaterial, forward);
+  clipSkyPanorama(treeMaterial, forward, mountainOcclusion);
+  const mesh = (name: string, meshMaterial: THREE.MeshBasicMaterial, order = 0) => {
+    const result = new THREE.Mesh(new THREE.BufferGeometry(), meshMaterial);
+    result.name = name;
+    result.userData.ceSky = true;
+    result.raycast = () => {};
+    result.renderOrder = order;
+    group.add(result);
+    return result;
+  };
+  // Background color must never occlude the landscape or tree through depth quantization.
+  const sky = mesh("ce-sky-panorama", material, -100);
+  const scenery = mesh("ce-scenery", sceneryMaterial, -1);
+  const worldTree = mesh("ce-world-tree", treeMaterial, -2);
+  scenery.visible = worldTree.visible = false;
   const zenith = new THREE.Color();
   const horizon = new THREE.Color();
   const lightColor = new THREE.Color();
@@ -50,39 +60,103 @@ export function createSkyBackdrop() {
   let previousColor = "";
   let previousStyle: SceneryStyle = "none";
   let previousHeight = NaN;
-  let previousWallHeight = NaN;
+  let disposed = false;
+  const treeTextureTop = 0.9;
+  const replaceGeometry = (target: THREE.Mesh, geometry: THREE.BufferGeometry) => {
+    target.geometry.dispose();
+    target.geometry = geometry;
+  };
+  const colorSky = () => {
+    const positions = sky.geometry.getAttribute("position");
+    if (!positions) return;
+    const colors = new Float32Array(positions.count * 3);
+    const tint = new THREE.Color();
+    for (let i = 0; i < positions.count; i++) {
+      tint.copy(horizon).lerp(zenith, positions.getY(i) / frame.height);
+      colors.set([tint.r, tint.g, tint.b], i * 3);
+    }
+    sky.geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+  };
+  const fitTree = () => {
+    const image = treeMaterial.map?.image as { width?: number; height?: number } | undefined;
+    const aspect = image?.width && image?.height ? image.width / image.height : 2 / 3;
+    // Restore the full root height; the landscape mask hides only overlapping portions.
+    const bottom = 0,
+      top = treeTextureTop;
+    const imageWidth = (frame.height / (top - bottom)) * aspect;
+    const radius = Math.hypot(frame.halfWidth, frame.halfDepth) * 1.02;
+    const angle = Math.min(Math.PI * 1.8, imageWidth / radius);
+    replaceGeometry(
+      worldTree,
+      skyPanoramaGeometry(
+        frame,
+        frame.height,
+        y => bottom + (y / frame.height) * (top - bottom),
+        -angle / 2,
+        angle,
+        frame.height * 0.0001
+      )
+    );
+  };
   return {
     group,
     horizon,
     zenith,
     setScenery(settings: ScenerySettings) {
+      worldTree.visible = settings.style === "world-tree";
+      if (worldTree.visible && !treeMaterial.map) {
+        treeMaterial.map = createWorldTreeTexture(() => {
+          if (disposed) return;
+          fitTree();
+          treeMaterial.visible = true;
+          onTextureReady?.();
+        });
+        treeMaterial.needsUpdate = true;
+      }
       const styleChanged = settings.style !== previousStyle;
       if (styleChanged) {
         sceneryMaterial.map?.dispose();
-        sceneryMaterial.map = settings.style === "none" ? null : createSceneryTexture(settings.style);
+        const texture = settings.style === "none" ? null : createSceneryTexture(settings.style);
+        if (texture) {
+          texture.wrapS = THREE.RepeatWrapping;
+          texture.repeat.x = 4;
+        }
+        sceneryMaterial.map = texture;
+        mountainOcclusion.texture.value = texture;
         sceneryMaterial.needsUpdate = true;
         previousStyle = settings.style;
       }
-      const wallHeight = walls[0].scale.y;
-      if (!styleChanged && settings.height === previousHeight && wallHeight === previousWallHeight) return;
+      if (!styleChanged && settings.height === previousHeight) return;
       previousHeight = settings.height;
-      previousWallHeight = wallHeight;
-      // About one forest tree above the map edge, independent of the wallpaper slider.
-      const plainHeight = 12;
+      const plainHeight = SCENERY_PLAIN_HEIGHT;
       const totalHeight =
-        settings.style === "mountains"
-          ? Math.max(plainHeight + 1, (wallHeight * settings.height) / 200)
+        settings.style === "mountains" || settings.style === "world-tree"
+          ? Math.max(plainHeight + 1, (frame.height * settings.height) / 200)
           : plainHeight / 0.48;
-      const positions = sceneryGeometry.getAttribute("position");
-      positions.setY(2, plainHeight / totalHeight - 0.5);
-      positions.setY(3, plainHeight / totalHeight - 0.5);
-      positions.needsUpdate = true;
-      const fraction = totalHeight / wallHeight;
-      for (const scenery of sceneryPlanes) {
-        scenery.visible = settings.style !== "none";
-        scenery.scale.set(1, fraction, 1);
-        scenery.position.y = -0.5 + fraction / 2;
+      mountainOcclusion.height.value =
+        settings.style === "mountains" || settings.style === "world-tree" ? totalHeight : 0;
+      if (treeMaterial.map) {
+        // Keep the 20% composition as the reference and follow the mountain band
+        // vertically, so reducing its height cannot leave the roots suspended.
+        const referenceHeight = Math.max(plainHeight + 1, frame.height / 10);
+        const altitude = (totalHeight - referenceHeight) * 0.8;
+        treeMaterial.map.offset.y = (-altitude / frame.height) * treeTextureTop;
       }
+      replaceGeometry(
+        scenery,
+        skyPanoramaGeometry(
+          frame,
+          totalHeight,
+          y =>
+            y <= plainHeight
+              ? (y / plainHeight) * 0.48
+              : 0.48 + ((y - plainHeight) / (totalHeight - plainHeight)) * 0.52,
+          -Math.PI,
+          Math.PI * 2,
+          frame.height * 0.00005
+        )
+      );
+      scenery.visible = settings.style !== "none";
     },
     fit(city: CityDocument, heightAt: (point: [number, number]) => number) {
       const bounds = new THREE.Box3();
@@ -96,23 +170,20 @@ export function createSkyBackdrop() {
       }
       const size = bounds.getSize(new THREE.Vector3());
       const center = bounds.getCenter(new THREE.Vector3());
-      const height = Math.max(600, size.x, size.z) * 2;
-      walls.forEach((wall, i) => {
-        wall.position.set(
-          i < 2 ? (i === 0 ? bounds.min.x : bounds.max.x) : center.x,
-          bounds.min.y + height / 2,
-          i >= 2 ? (i === 2 ? bounds.min.z : bounds.max.z) : center.z
-        );
-        wall.rotation.y = i < 2 ? Math.PI / 2 : 0;
-        wall.scale.set(i < 2 ? size.z : size.x, height, 1);
-      });
+      frame = {
+        halfWidth: Math.max(1, size.x / 2),
+        halfDepth: Math.max(1, size.z / 2),
+        height: Math.max(30, size.x, size.z) * 2
+      };
+      group.position.set(center.x, bounds.min.y, center.z);
+      replaceGeometry(sky, skyPanoramaGeometry(frame));
+      colorSky();
+      fitTree();
+      previousHeight = NaN;
     },
     update(camera: THREE.Camera, settings: SunSettings) {
       camera.getWorldDirection(direction);
-      walls[0].visible = direction.x < -0.0001;
-      walls[1].visible = direction.x > 0.0001;
-      walls[2].visible = direction.z < -0.0001;
-      walls[3].visible = direction.z > 0.0001;
+      if (Math.hypot(direction.x, direction.z) > 0.00001) forward.set(direction.x, direction.z).normalize();
       const color = settings.enabled ? settings.color : "#ffffff";
       if (color === previousColor) return;
       previousColor = color;
@@ -121,20 +192,16 @@ export function createSkyBackdrop() {
       zenith.set(0x87bced).lerp(new THREE.Color(0xc77887), warmth);
       horizon.set(0xd9ecf6).lerp(new THREE.Color(0xffd1ab), warmth);
       sceneryMaterial.color.set(0xffffff).lerp(new THREE.Color(0xffb18a), warmth * 0.3);
-      const colors = geometry.getAttribute("color");
-      const positions = geometry.getAttribute("position");
-      for (let i = 0; i < colors.count; i++) {
-        const tint = positions.getY(i) > 0 ? zenith : horizon;
-        colors.setXYZ(i, tint.r, tint.g, tint.b);
-      }
-      colors.needsUpdate = true;
+      treeMaterial.color.copy(sceneryMaterial.color);
+      colorSky();
     },
     dispose() {
-      geometry.dispose();
-      material.dispose();
-      sceneryMaterial.map?.dispose();
-      sceneryMaterial.dispose();
-      sceneryGeometry.dispose();
+      disposed = true;
+      for (const object of [sky, scenery, worldTree]) object.geometry.dispose();
+      for (const meshMaterial of [material, sceneryMaterial, treeMaterial]) {
+        meshMaterial.map?.dispose();
+        meshMaterial.dispose();
+      }
       group.removeFromParent();
     }
   };

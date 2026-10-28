@@ -239,7 +239,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   let renderer: THREE.WebGLRenderer | null = null;
   let scene: THREE.Scene | null = null;
   const atmosphere = new THREE.Fog(0xc5c5bf);
-  const sky = createSkyBackdrop();
+  const sky = createSkyBackdrop(() => requestRender());
   let atmosphereRange = 600;
   let mapHalfExtent = 1;
   let camera: THREE.PerspectiveCamera | null = null;

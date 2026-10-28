@@ -183,14 +183,15 @@ it("renders on demand, retains unchanged scene layers on reopen, and reflects ca
     expect(casters.length).toBeGreaterThan(0);
     expect(casters.every(mesh => mesh.receiveShadow)).toBe(true);
     const skyWalls = scene.getObjectByName("ce-sky")!.children as THREE.Mesh[];
-    expect(skyWalls).toHaveLength(4);
+    expect(skyWalls).toHaveLength(3);
     for (const wall of skyWalls) {
       expect(wall.castShadow).toBe(false);
       expect(wall.receiveShadow).toBe(false);
       // The fitted shadow volume must stay below the tops of the sky walls.
       const lightPosition = sun.position.clone();
       const cityRadius = lightPosition.distanceTo(sun.target.position) / 3;
-      expect(cityRadius).toBeLessThan(wall.scale.y / 2);
+      const skyHeight = scene.getObjectByName("ce-sky-panorama") as THREE.Mesh;
+      expect(cityRadius).toBeLessThan(skyHeight.geometry.boundingBox!.max.y / 2);
     }
     const currentChildren = [...scene.children];
     const azimuth = panel.querySelector<HTMLInputElement>('[name="azimuth"]')!;

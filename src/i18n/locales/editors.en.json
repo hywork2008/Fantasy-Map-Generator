@@ -348,6 +348,7 @@
       "sceneryNone": "None",
       "sceneryCountryside": "Forest & fields",
       "sceneryMountains": "Forest, fields & mountains",
+      "sceneryWorldTree": "World tree in the mist",
       "sceneryHeight": "Height",
       "fogStrength": "Strength",
       "fogHint": "0%: off. Lower values add subtle depth; 100% restores the original fog strength. Saved automatically.",
