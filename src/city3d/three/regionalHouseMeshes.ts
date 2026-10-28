@@ -39,6 +39,7 @@ function definitionFor(spec: RegionalHouseSpec, quality: RegionalHouseQuality): 
   if (!definition) {
     definition = {
       id: `regional-house:${key}`,
+      cacheKey: `regional-house:${key}`,
       create: () => createRegionalHouse(spec, quality),
       createGeometry: () => createRegionalHouseGeometry(spec, quality)
     };
@@ -131,6 +132,7 @@ function earthenHouseSite(
   if (!definition) {
     definition = {
       id: key,
+      cacheKey: key,
       create: () => createEarthenHouse(spec, tier),
       createGeometry: () => createEarthenHouseGeometry(spec, tier)
     };
@@ -193,6 +195,7 @@ function polygonHouseSite(
   if (!definition) {
     definition = {
       id: key,
+      cacheKey: key,
       create: () => createPolygonHouse(spec, tier),
       createGeometry: () => createPolygonHouseGeometry(spec, tier)
     };

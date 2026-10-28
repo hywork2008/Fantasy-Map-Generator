@@ -1,5 +1,6 @@
 import type * as THREE from "three";
 import type { Forest3dStats } from "../../city3d/three/forestMeshes";
+import type { RegionalHouseLodStats } from "../../city3d/three/regionalHouseLod";
 import type { ForestAutoQuality } from "./forestAutoQuality";
 
 /** Counts attached SVG complexity, including definitions and hidden layers. */
@@ -85,6 +86,7 @@ export interface City3dRenderMetrics {
 
 export interface City3dPerformanceSnapshot {
   forest?: Forest3dStats;
+  housing?: RegionalHouseLodStats;
   forestQuality?: ForestAutoQuality["snapshot"];
   camera: { position: number[]; target: number[]; zoom: number; fov: number } | null;
   frame: City3dRenderMetrics | null;

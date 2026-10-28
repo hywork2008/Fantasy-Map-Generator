@@ -4,6 +4,8 @@ import type { CityStructureMeshes } from "./structureMeshes";
 
 export interface BvDefinition {
   id: string;
+  /** Opt-in content identity: equal keys must describe identical geometry and materials. */
+  cacheKey?: string;
   create(): CityStructureMeshes;
   /** Transfers an opaque, non-indexed position/normal/color geometry to the prototype cache. */
   createGeometry?(): THREE.BufferGeometry;
@@ -82,17 +84,18 @@ function bake(definition: BvDefinition): Prototype | undefined {
 
 /** Explicit view-scoped cache. A prototype lives until its last instance layer releases it. */
 export function createBvPrototypeCache() {
-  const entries = new Map<BvDefinition, Prototype>();
+  const entries = new Map<BvDefinition | string, Prototype>();
   return {
     get size() {
       return entries.size;
     },
     acquire(definition: BvDefinition) {
-      let prototype = entries.get(definition);
+      const key = definition.cacheKey ?? definition;
+      let prototype = entries.get(key);
       if (!prototype) {
         prototype = bake(definition);
         if (!prototype) return;
-        entries.set(definition, prototype);
+        entries.set(key, prototype);
       }
       prototype.references++;
       const owned = prototype;
@@ -105,7 +108,7 @@ export function createBvPrototypeCache() {
           if (released) return;
           released = true;
           if (--owned.references === 0) {
-            entries.delete(definition);
+            entries.delete(key);
             owned.geometry.dispose();
             owned.material.dispose();
           }
@@ -150,16 +153,17 @@ export function createBvInstances<T extends BvPlacement>(sites: readonly T[], ca
   const group = new THREE.Group();
   group.name = "ce-bv-instances";
   const pickables: THREE.InstancedMesh[] = [];
-  const batches = new Map<BvDefinition, T[]>();
+  const batches = new Map<BvDefinition | string, { definition: BvDefinition; sites: T[] }>();
   const lookup = new Map<THREE.Object3D, T[]>();
   const leases: Array<{ release(): void }> = [];
   const accepted: T[] = [];
   for (const site of sites) {
-    const batch = batches.get(site.definition) ?? [];
-    batch.push(site);
-    batches.set(site.definition, batch);
+    const key = site.definition.cacheKey ?? site.definition;
+    const batch = batches.get(key) ?? { definition: site.definition, sites: [] };
+    batch.sites.push(site);
+    batches.set(key, batch);
   }
-  for (const [definition, batch] of batches) {
+  for (const { definition, sites: batch } of batches.values()) {
     const prototype = cache.acquire(definition);
     if (!prototype) continue;
     leases.push(prototype);

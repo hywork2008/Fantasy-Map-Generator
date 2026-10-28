@@ -59,6 +59,7 @@
       "performancePopulation": "Population",
       "performanceUiInterval": "UI frame interval p95",
       "performanceQuality": "Effective quality",
+      "performanceDetailedHousing": "Detailed houses / triangles",
       "performanceBuildings": "Generated building lots",
       "performanceDrawCalls": "Draw calls / frame",
       "performanceTriangles": "Triangles / frame",

@@ -107,3 +107,7 @@ mountはシーン構築のCPU時間を1回ずつ測った値で、shaderのGPU�
 再生成可能な全量観測はGit管理外の `docs/analytics/raw/ce-forest-f5/`。一覧は [raw-observations-ce-forest-f5.md](raw-observations-ce-forest-f5.md)。派生JSONごとにも元の全量観測のSHA-256とバイト数を記録した。
 
 初期の高品質住宅の観測ではビューを作り直す方式と全scene統計の毎フレーム取得を使っていた。最終比較は軽量統計と実UIと同じコンテキスト内更新へ揃えた。初期観測もrawの `high-housing-full-metrics-before.json` と `high-housing-separate-contexts-before.json` に残し、測定方法の違う数値を混ぜていない。
+
+## 追補：高品質住宅の最適化
+
+同日追加の [ce-housing-optimization.md](ce-housing-optimization.md) で、全域の詳細住宅を近景LODへ変更し、同一入力の住宅レイヤーとprototypeを再利用した。中都市の景観適用CPUは約48秒→約2.3秒、4姿勢の操作p95最大26.3 msへ改善した。本書の表は最適化前のF5観測として保持する。

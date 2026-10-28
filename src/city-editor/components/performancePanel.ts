@@ -128,6 +128,13 @@ export function mountPerformancePanel(options: Options) {
           `${n(three.scene.vertices)} / ${n(three.scene.materials)}`
         )
       );
+      if (three.housing)
+        rows.push(
+          row(
+            "cityEditor.messages.performanceDetailedHousing",
+            `${n(three.housing.buildings)} / ${n(three.housing.triangles)}`
+          )
+        );
       if (three.forest)
         rows.push(
           row(

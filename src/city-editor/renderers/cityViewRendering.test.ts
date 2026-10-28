@@ -371,6 +371,7 @@ it("updates forest quality and camera LOD without rebuilding city geometry and r
     view.sync();
     flush();
     expect(scene.getObjectByName("ce-forest")).toBeUndefined();
+    expect(scene.getObjectByName("massing")).toBe(massing);
     expect(view.getPerformance()?.forest).toBeUndefined();
   } finally {
     view.dispose();

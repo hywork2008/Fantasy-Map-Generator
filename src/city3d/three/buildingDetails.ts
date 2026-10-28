@@ -52,6 +52,7 @@ export function createTownBuildingDetails(lots: readonly BuildingLot[], foundati
     projection = new THREE.Matrix4(),
     frustum = new THREE.Frustum();
   let lastHeight = -1;
+  let lastExcluded = "";
   let disposed = false;
   const linear = (hex: string): [number, number, number] => {
     const c = new THREE.Color(hex);
@@ -61,11 +62,18 @@ export function createTownBuildingDetails(lots: readonly BuildingLot[], foundati
   return {
     group,
     stats,
-    update(camera: THREE.PerspectiveCamera, height: number) {
+    update(camera: THREE.PerspectiveCamera, height: number, excluded: ReadonlySet<number> = new Set()) {
       if (disposed || height <= 0) return;
       camera.updateMatrixWorld();
-      if (world.equals(camera.matrixWorld) && projection.equals(camera.projectionMatrix) && height === lastHeight)
+      const excludedKey = [...excluded].sort((a, b) => a - b).join(",");
+      if (
+        world.equals(camera.matrixWorld) &&
+        projection.equals(camera.projectionMatrix) &&
+        height === lastHeight &&
+        lastExcluded === excludedKey
+      )
         return;
+      lastExcluded = excludedKey;
       world.copy(camera.matrixWorld);
       projection.copy(camera.projectionMatrix);
       lastHeight = height;
@@ -77,6 +85,7 @@ export function createTownBuildingDetails(lots: readonly BuildingLot[], foundati
         .map(d => ({ descriptor: d, distance: camera.position.distanceTo(d.sphere.center) }))
         .filter(
           ({ descriptor: d, distance }) =>
+            !excluded.has(d.index) &&
             frustum.intersectsSphere(d.sphere) &&
             (d.sphere.radius * scale) / Math.max(1, distance) >=
               (selected.has(d.index) ? BUILDING_DETAIL_BUDGET.exitPixels : BUILDING_DETAIL_BUDGET.enterPixels)

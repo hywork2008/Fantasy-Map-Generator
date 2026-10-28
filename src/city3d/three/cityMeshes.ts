@@ -10,6 +10,7 @@ export interface CityMassingMeshes {
   group: THREE.Group;
   pickables: THREE.Mesh[];
   dispose(): void;
+  setExcluded?(indices: ReadonlySet<number>): void;
   updateAppearance?(lots: readonly MassingLot[]): boolean;
 }
 
@@ -110,9 +111,31 @@ export function createCityMassing(
     group.add(mesh);
     pickables.push(mesh);
   }
+  const indexBuffers = new Map<
+    THREE.Mesh,
+    { attribute: THREE.BufferAttribute; ids: THREE.BufferAttribute | THREE.InterleavedBufferAttribute }
+  >();
   return {
     group,
     pickables,
+    setExcluded(excluded) {
+      for (const mesh of pickables) {
+        let buffer = indexBuffers.get(mesh);
+        if (!buffer) {
+          const ids = mesh.geometry.getAttribute("buildingIndex");
+          buffer = { attribute: new THREE.BufferAttribute(new Uint32Array(ids.count), 1), ids };
+          indexBuffers.set(mesh, buffer);
+          mesh.geometry.setIndex(buffer.attribute);
+        }
+        const indices = buffer.attribute.array as Uint32Array;
+        let count = 0;
+        for (let i = 0; i < buffer.ids.count; i++) if (!excluded.has(buffer.ids.getX(i))) indices[count++] = i;
+        buffer.attribute.clearUpdateRanges();
+        if (count) buffer.attribute.addUpdateRange(0, count);
+        buffer.attribute.needsUpdate = true;
+        mesh.geometry.setDrawRange(0, count);
+      }
+    },
     updateAppearance(next) {
       if (geometryKey(next) !== sourceKey) return false;
       for (const mesh of pickables) {

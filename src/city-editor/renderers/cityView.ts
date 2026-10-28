@@ -7,7 +7,7 @@ import { WATER_Y } from "../../city3d/core/waterGeometry";
 import { createTownBridges, type TownBridges } from "../../city3d/three/bridgeMeshes";
 import { createTownBuildingDetails, type TownBuildingDetails } from "../../city3d/three/buildingDetails";
 import { bvInstanceGeometry, createBvPrototypeCache } from "../../city3d/three/bvInstances";
-import { type CityMassingMeshes, createCityMassing } from "../../city3d/three/cityMeshes";
+import type { CityMassingMeshes } from "../../city3d/three/cityMeshes";
 import { createTownCranes, createTownHarborCargo } from "../../city3d/three/craneMeshes";
 import { createTownFacilities, type TownFacilities } from "../../city3d/three/facilityMeshes";
 import { createTownFarms, type TownFarmMeshes } from "../../city3d/three/farmMeshes";
@@ -16,7 +16,7 @@ import { createTownFriaries } from "../../city3d/three/friaryMeshes";
 import { createTownObjects } from "../../city3d/three/objectMeshes";
 import { createTownOpenSpaces } from "../../city3d/three/openSpaceMeshes";
 import { createTownPiers } from "../../city3d/three/pierMeshes";
-import { createTownRegionalHouses, type TownRegionalHouses } from "../../city3d/three/regionalHouseMeshes";
+import { createTownRegionalHouseLod, type TownRegionalHouseLod } from "../../city3d/three/regionalHouseLod";
 import { createTownRoads, roadStampChanged, type TownRoadMeshes } from "../../city3d/three/roadMeshes";
 import { createTownShips } from "../../city3d/three/shipMeshes";
 import { createTownSpecialBuildings, type TownSpecialBuildings } from "../../city3d/three/specialBuildingMeshes";
@@ -173,7 +173,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   dispose(): void;
   getPerformance(): City3dPerformanceSnapshot | null;
   /** Per-frame metrics without walking the resident scene. */
-  getFramePerformance(): Pick<City3dPerformanceSnapshot, "frame" | "forest" | "forestQuality"> | null;
+  getFramePerformance(): Pick<City3dPerformanceSnapshot, "frame" | "forest" | "forestQuality" | "housing"> | null;
   restoreView(saved: NonNullable<City3dPerformanceSnapshot["camera"]>): void;
   /** Move the live scene into a rebuilt editor mount (language change) without regenerating meshes. */
   adopt(next: City3dMountOptions): void;
@@ -218,7 +218,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   let townWalls: TownWalls | null = null;
   let wells: TownWells | null = null;
   let specialBuildings: TownSpecialBuildings | null = null;
-  let regionalHouses: TownRegionalHouses | null = null;
+  let regionalHouses: TownRegionalHouseLod | null = null;
   let facilities: TownFacilities | null = null;
   let bridges: TownBridges | null = null;
   const bvPrototypes = createBvPrototypeCache();
@@ -381,12 +381,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     outline(positions);
   };
 
-  const rebuild = (
-    city: CityDocument,
-    fabric: DistrictFabric,
-    allowColorUpdate = false,
-    quality: ModelQuality = "standard"
-  ) => {
+  const rebuild = (city: CityDocument, fabric: DistrictFabric, quality: ModelQuality = "standard") => {
     if (!scene) return;
     clearHighlight();
     readout.hidden = true;
@@ -397,48 +392,31 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     } catch {
       // The road layer reports invalid geometry; housing can keep its stable local facade.
     }
-    // Detailed regional houses replace their lots' plain massing; acquire before releasing the old layer.
-    const nextHouses = createTownRegionalHouses(
+    const frontage = createBuildingFrontageResolver(
+      [
+        ...frontageRoads,
+        ...(fabric.parcels ?? []).flatMap(parcel =>
+          parcel.access.map(access => ({
+            centerline: access.points,
+            widthMeters: access.widthMeters,
+            parcelId: parcel.id
+          }))
+        )
+      ],
       fabric.buildings,
-      bvPrototypes,
-      terrain?.relief ? terrain.foundationAt : undefined,
-      quality,
-      createBuildingFrontageResolver(
-        [
-          ...frontageRoads,
-          ...(fabric.parcels ?? []).flatMap(parcel =>
-            parcel.access.map(access => ({
-              centerline: access.points,
-              widthMeters: access.widthMeters,
-              parcelId: parcel.id
-            }))
-          )
-        ],
-        fabric.buildings,
-        [...waterPolygons(city), ...frontageStructurePolygons(parts)]
-      )
+      [...waterPolygons(city), ...frontageStructurePolygons(parts)]
     );
-    if (regionalHouses) {
-      scene.remove(regionalHouses.group);
-      regionalHouses.dispose();
-    }
-    regionalHouses = nextHouses;
-    scene.add(regionalHouses.group);
-    const plainLots = fabric.buildings.map((lot, index) =>
-      nextHouses.replaced.has(index) ? { ...lot, massing: undefined } : lot
-    );
-    const reused = allowColorUpdate && massing?.updateAppearance?.(plainLots);
-    if (buildingDetails) {
-      scene.remove(buildingDetails.group);
-      buildingDetails.dispose();
-    }
-    buildingDetails = createTownBuildingDetails(plainLots, terrain?.relief ? terrain.foundationAt : undefined);
-    scene.add(buildingDetails.group);
-    if (!reused) {
-      massing?.dispose();
-      if (massing) scene.remove(massing.group);
-      massing = createCityMassing(plainLots, terrain?.relief ? terrain.foundationAt : undefined);
-      scene.add(massing.group);
+    const foundation = terrain?.relief ? terrain.foundationAt : undefined;
+    const reusedHousing = regionalHouses?.refresh(fabric.buildings, foundation, quality, frontage) ?? false;
+    if (!reusedHousing) {
+      regionalHouses?.dispose();
+      regionalHouses = createTownRegionalHouseLod(fabric.buildings, bvPrototypes, foundation, quality, frontage);
+      scene.add(regionalHouses.group);
+      massing = regionalHouses.massing;
+      buildingDetails?.dispose();
+      buildingDetails?.group.removeFromParent();
+      buildingDetails = createTownBuildingDetails(fabric.buildings, foundation);
+      scene.add(buildingDetails.group);
     }
     structures?.dispose();
     if (structures) scene.remove(structures.group);
@@ -548,7 +526,9 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     cameraChanged = false;
     const previous = previousMotionFrame;
     previousMotionFrame = moving ? { at: start, endedAt: start, camera: pose } : null;
-    buildingDetails?.update(camera, renderer.domElement.clientHeight);
+    if (regionalHouses?.update(camera, renderer.domElement.clientHeight)) forestShadowPending = true;
+    if (regionalHouses?.stats.pending) requestRender();
+    buildingDetails?.update(camera, renderer.domElement.clientHeight, regionalHouses?.replaced);
     if (forest?.update(camera, renderer.domElement.clientHeight)) forestShadowPending = true;
     if (forestShadowPending) {
       const delay = 250 - (performance.now() - lastForestShadowAt);
@@ -746,7 +726,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       built = fabric;
       builtQuality = quality;
       // Defenses and special buildings must use the same automatic culture as the housing preview.
-      rebuild(appearanceCity, fabric, !terrainChanged, quality);
+      rebuild(appearanceCity, fabric, quality);
     }
     if (farmlandChanged) {
       const next = createTownFarms(fabric.farms, terrain ?? undefined, waterMeshes?.wetPolygons);
@@ -992,7 +972,6 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     raf = 0;
     observer?.disconnect();
     clearHighlight();
-    massing?.dispose();
     buildingDetails?.dispose();
     structures?.dispose();
     townWalls?.dispose();
@@ -1030,11 +1009,15 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     framedRadius = 0;
   };
 
-  const getFramePerformance = (): Pick<City3dPerformanceSnapshot, "frame" | "forest" | "forestQuality"> | null =>
+  const getFramePerformance = (): Pick<
+    City3dPerformanceSnapshot,
+    "frame" | "forest" | "forestQuality" | "housing"
+  > | null =>
     viewport.hidden || !scene
       ? null
       : {
           frame: lastRender,
+          ...(regionalHouses ? { housing: { ...regionalHouses.stats } } : {}),
           ...(forest ? { forest: { ...forest.stats }, forestQuality: forestQuality.snapshot } : {})
         };
 

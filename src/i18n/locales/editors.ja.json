@@ -59,6 +59,7 @@
       "performancePopulation": "対象人口",
       "performanceUiInterval": "UIフレーム間隔 p95",
       "performanceQuality": "適用画質",
+      "performanceDetailedHousing": "詳細住宅数 / 三角形数",
       "performanceBuildings": "生成された建物区画",
       "performanceDrawCalls": "ドローコール / フレーム",
       "performanceTriangles": "描画三角形 / フレーム",

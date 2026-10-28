@@ -10,6 +10,7 @@ import { createServer } from "vite";
 import type { CityDocument } from "../src/city-editor/types/document";
 
 const shadows = process.env.CE_FOREST_SHADOWS === "1";
+const urban = process.env.CE_FOREST_URBAN === "1";
 const housingQuality = process.env.CE_FOREST_HOUSING === "high" ? "high" : "standard";
 const output = resolve(process.env.CE_FOREST_OUTPUT ?? "docs/analytics/ce-forest-f5");
 mkdirSync(output, { recursive: true });
@@ -68,7 +69,13 @@ try {
       const poses = {
         overview: { position: [r * 0.8, r * 1.4, r * 1.5], target: [0, 0, 0], zoom: 1, fov: 45 },
         edge: { position: [r + 100, h + 65, 100], target: [r, h, 0], zoom: 1, fov: 45 },
-        low: { position: [r + 70, h + 16, 70], target: [r, h + 6, 0], zoom: 1, fov: 45 }
+        low: { position: [r + 70, h + 16, 70], target: [r, h + 6, 0], zoom: 1, fov: 45 },
+        urban: {
+          position: [r * 0.2 + 25, terrain.heightAt([r * 0.2, 0]) + 30, 45],
+          target: [r * 0.2, terrain.heightAt([r * 0.2, 0]) + 4, 0],
+          zoom: 1,
+          fov: 45
+        }
       };
       (window as any).probe = {
         original,
@@ -213,7 +220,7 @@ try {
         { quality, shadows, housingQuality }
       );
       const segments = [];
-      for (const pose of ["overview", "edge", "low"]) {
+      for (const pose of urban ? ["overview", "edge", "low", "urban"] : ["overview", "edge", "low"]) {
         const measured = await page.evaluate(async pose => {
           const p = (window as any).probe;
           const cpu: number[] = [],
@@ -245,7 +252,7 @@ try {
               cpu.push(snapshot.frame.cpuMs);
               cameraCpu.push(cameraMs);
               interval.push(now - previous);
-              stats.push({ forest: snapshot.forest, frame: snapshot.frame });
+              stats.push({ forest: snapshot.forest, housing: snapshot.housing, frame: snapshot.frame });
             }
             previous = now;
           }
@@ -272,6 +279,11 @@ try {
         };
         assert.equal(data.gpu.n, 64);
         for (const entry of data.stats as any[]) {
+          if (entry.housing) {
+            const limits = { buildings: 64, triangles: 500000, calls: 64, cached: 96, cachedTriangles: 1000000 };
+            for (const [key, limit] of Object.entries(limits))
+              assert.ok(entry.housing[key] <= limit, `${id}/${pose}/housing/${key}`);
+          }
           if (quality === "legacy") continue;
           const limits = {
             light: [2000, 100000, 64, 0],
@@ -296,9 +308,12 @@ try {
                 for (const quality of ["light", "standard", "high"]) {
                   p.quality = quality;
                   p.view.sync();
-                  for (const pose of ["overview", "edge", "low"]) {
+                  for (const pose of ["overview", "edge", "low", "urban"]) {
                     p.view.restoreView(p.poses[pose]);
                     await p.next();
+                    for (let settle = 0; p.view.getFramePerformance().housing?.pending && settle < 80; settle++)
+                      await p.next();
+                    if (p.view.getFramePerformance().housing?.pending) throw new Error("Housing LOD did not settle");
                   }
                 }
                 p.host.querySelector<HTMLButtonElement>(".ce-view-toggle")!.click();
@@ -333,13 +348,14 @@ try {
         viewport: [1000, 720],
         dpr: 1,
         shadows,
+        urban,
         housingQuality,
         gpuTiming: "EXT_disjoint_timer_query_webgl2: first draw to end of render, async completion, no gl.finish",
-        sampling: "12 warm-up + 64 measured frames at each of 3 camera poses; includes measured LOD stalls"
+        sampling: "12 warm-up + 64 measured frames per camera pose; includes measured LOD stalls"
       },
       results
     };
-    const rawDir = resolve("docs/analytics/raw/ce-forest-f5");
+    const rawDir = resolve(process.env.CE_FOREST_RAW_OUTPUT ?? "docs/analytics/raw/ce-forest-f5");
     mkdirSync(rawDir, { recursive: true });
     const rawFile = resolve(
         rawDir,
@@ -355,6 +371,9 @@ try {
           s.forestMax = {};
           for (const key of ["trees", "triangles", "calls", "shadowTriangles", "cachedLayers", "builds"])
             s.forestMax[key] = Math.max(...s.stats.map((v: any) => v.forest?.[key] ?? 0));
+          s.housingMax = {};
+          for (const key of ["buildings", "triangles", "calls", "cached", "cachedTriangles", "builds"])
+            s.housingMax[key] = Math.max(...s.stats.map((v: any) => v.housing?.[key] ?? 0));
           delete s.stats;
         }
     writeFileSync(
