@@ -154,6 +154,8 @@ const modelArticles: Record<string, string> = {
   "silver-fir": "Abies alba",
   "red-mangrove": "Rhizophora mangle",
   tamarisk: "Tamarix",
+  rowan: "Sorbus aucuparia",
+  "canary-pine": "Pinus canariensis",
   "mediterranean-cypress": "Cupressus sempervirens",
   "oriental-evergreen": "Evergreen",
   "sacred-bodhi-and-fig": "Ficus religiosa",

@@ -6,6 +6,7 @@ import { createMediterraneanMontaneTree } from "./mediterraneanMontaneTrees";
 import { createKapok } from "./rainforestTrees";
 import { createSaltTolerantTree } from "./saltTolerantTrees";
 import { createSmallLeavedLime } from "./smallLeavedLime";
+import { createUplandTree } from "./uplandTrees";
 import { createWetTemperateTree } from "./wetTemperateTrees";
 
 export const TREE_SPECIES = [
@@ -23,6 +24,8 @@ export const TREE_SPECIES = [
   "silver_fir",
   "red_mangrove",
   "tamarisk",
+  "rowan",
+  "canary_pine",
   "mediterranean_cypress",
   "oriental_evergreen",
   "sacred_bodhi_and_fig",
@@ -35,6 +38,7 @@ export function createLandscapeTree(species: TreeSpecies) {
   if (species === "norway_spruce" || species === "silver_birch") return createBorealTree(species);
   if (species === "date_palm" || species === "umbrella_thorn" || species === "saxaul") return createAridTree(species);
   if (species === "kapok") return createKapok();
+  if (species === "rowan" || species === "canary_pine") return createUplandTree(species);
   if (species === "red_mangrove" || species === "tamarisk") return createSaltTolerantTree(species);
   if (species === "olive" || species === "silver_fir") return createMediterraneanMontaneTree(species);
   if (species === "western_red_cedar" || species === "black_alder") return createWetTemperateTree(species);

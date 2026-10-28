@@ -16,7 +16,9 @@ it.each([
   "olive",
   "silver_fir",
   "red_mangrove",
-  "tamarisk"
+  "tamarisk",
+  "rowan",
+  "canary_pine"
 ] as const)("registers and instances the grounded %s model with foliage colours", species => {
   const definition = models.find(model => model.id === species.replaceAll("_", "-"))!;
   expect(definition.biomes?.length).toBeGreaterThan(0);

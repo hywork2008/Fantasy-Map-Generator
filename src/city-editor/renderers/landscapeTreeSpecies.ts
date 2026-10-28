@@ -21,6 +21,8 @@ export function landscapeTreeSpecies(
     return preferred === "garden_parkland" && growthRandom(`${seed}:dry-tree:${point[0]}:${point[1]}`) < 0.3
       ? "date_palm"
       : "tamarisk";
+  if (/heathmoorland|alpinetundra/.test(biome)) return "rowan";
+  if (/volcanicbarrens|volcanicsoil/.test(biome)) return "canary_pine";
   if (/^mangrove/.test(biome)) return "red_mangrove";
   if (/colddesert|coldsteppe/.test(biome)) return "saxaul";
   if (/tropicalrainforest|cloudforest/.test(biome)) return "kapok";
