@@ -1,12 +1,14 @@
 import { editorText } from "../../i18n/editorMessages";
 import { outerWallRing } from "../generators/concealStreets";
 import { featureGroupVertices } from "../generators/features";
+import { forestContains } from "../generators/forestGeometry";
 import { nearestOnPolyline, pointInPolygon } from "../generators/geom";
 import { facePoints } from "../generators/mesh";
 import { makeRng } from "../generators/prng";
 import { regionalSurfaceLayers } from "../generators/regionalCoast";
 import { waterPolygons } from "../generators/waterGeometry";
 import type { BurgSiteBiome } from "../types/contracts/burgSiteDescriptor";
+import type { ForestPlan } from "../types/contracts/forest";
 import type { CityDocument } from "../types/document";
 import type { Point } from "../types/primitives";
 import type { RenderQuality } from "./renderQuality";
@@ -663,7 +665,8 @@ export function renderLandscapeLayer(
   document: CityDocument,
   town: boolean,
   quality: RenderQuality = "detailed",
-  keepOut: LandscapeKeepOut = { polygons: [], discs: [] }
+  keepOut: LandscapeKeepOut = { polygons: [], discs: [] },
+  forest?: ForestPlan
 ): SVGGElement {
   const layer = svgElement("g", {
     class: "ce-landscape-layer",
@@ -739,6 +742,17 @@ export function renderLandscapeLayer(
 
   // 2. Exclusion checker
   function isExcluded(pt: Point, buffer = 0): boolean {
+    // The largest legacy copse reaches about 18 m from its sample; no old symbols overlap new forest.
+    for (const region of forest?.regions ?? []) {
+      const margin = 18 + buffer,
+        b = region.bounds;
+      if (pt[0] < b[0] - margin || pt[0] > b[2] + margin || pt[1] < b[1] - margin || pt[1] > b[3] + margin) continue;
+      if (
+        forestContains(region, pt) ||
+        [region.outer, ...region.holes].some(ring => nearestOnPolyline(pt, [...ring, ring[0]]).dist < margin)
+      )
+        return true;
+    }
     for (const { box, ring } of keepOutPolygons) {
       if (pt[0] < box[0] || pt[0] > box[2] || pt[1] < box[1] || pt[1] > box[3]) continue;
       if (pointInPolygon(pt, ring) || nearestOnPolyline(pt, [...ring, ring[0]]).dist < KEEP_OUT_MARGIN_METERS + buffer)

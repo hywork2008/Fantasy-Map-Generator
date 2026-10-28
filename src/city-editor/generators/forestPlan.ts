@@ -1,4 +1,4 @@
-import type { ForestPlan } from "../types/contracts/forest";
+import type { ForestKeepOut, ForestPlan } from "../types/contracts/forest";
 import type { CityDocument, Point } from "../types/document";
 import { aerialLandmarkFootprints } from "./aerialFootprints";
 import { polygonReserved } from "./bastionedTown/reserve";
@@ -17,7 +17,7 @@ import { approachBands } from "./suburbanLanduse";
 import { classifyTownWater } from "./townWater";
 
 /** Uses already-built housing/reservations; never calls buildBlockFabric or creates trees. */
-export function buildForestPlan(document: CityDocument, fabric: DistrictFabric): ForestPlan {
+export function buildForestPlan(document: CityDocument, fabric: DistrictFabric, keepOut?: ForestKeepOut): ForestPlan {
   const selected = forestLandCover(document);
   const fixedFarms = fabric.farms.filter(farm =>
     (farm.sourceFaceIds ?? [farm.faceId]).some(id => document.mesh.faces[id]?.properties.locked)
@@ -37,6 +37,17 @@ export function buildForestPlan(document: CityDocument, fabric: DistrictFabric):
   const line = (points: Point[], width: number) => {
     for (let i = 1; i < points.length; i++) reserve(corridor(points[i - 1], points[i], width, width / 2));
   };
+  for (const polygon of keepOut?.polygons ?? []) reserve(polygon);
+  for (const { center, radius } of keepOut?.discs ?? []) {
+    if (!Number.isFinite(radius) || radius <= 0) continue;
+    const r = radius / Math.cos(Math.PI / 16);
+    reserve(
+      Array.from(
+        { length: 16 },
+        (_, i): Point => [center[0] + Math.cos((i * Math.PI) / 8) * r, center[1] + Math.sin((i * Math.PI) / 8) * r]
+      )
+    );
+  }
   for (const part of classifyTownWater(document).parts) reserve(part.polygon);
   for (const polygon of document.regionalSurface?.unknown ?? []) reserve(polygon);
   for (const area of document.waterAreas ?? []) reserve(area.polygon);
@@ -98,5 +109,46 @@ export function buildForestPlan(document: CityDocument, fabric: DistrictFabric):
     }
   plan.regions = forestRegions(parts);
   plan.areaM2 = plan.regions.reduce((sum, region) => sum + region.areaM2, 0);
+  return plan;
+}
+
+const plans = new WeakMap<CityDocument, { key: string; plan: ForestPlan }>();
+
+/** The latest derived geometry per document; density, view quality and camera never invalidate it. */
+export function cachedForestPlan(document: CityDocument, fabric: DistrictFabric, keepOut?: ForestKeepOut): ForestPlan {
+  const key = JSON.stringify([
+    document.forestSettings?.mode,
+    document.mesh,
+    document.frame,
+    document.featureGroups,
+    document.elements,
+    document.waterAreas,
+    document.regionalSurface,
+    document.regionalWaterAreas,
+    document.coastalOceanFaceIds,
+    document.importedFixedCrossings,
+    document.fixedCrossingApproaches,
+    document.riverConnections,
+    document.frameRoads,
+    document.defenseCircuits,
+    document.castles,
+    document.bastionedTown,
+    document.cemeteries,
+    document.landmarks,
+    document.historicalPeriod,
+    fabric.buildings.map(lot => lot.polygon),
+    fabric.farms,
+    fabric.lanes,
+    fabric.parks,
+    fabric.watermills,
+    fabric.openSpaces,
+    fabric.harbor,
+    fabric.aerialLandmarks,
+    keepOut
+  ]);
+  const entry = plans.get(document);
+  if (entry?.key === key) return entry.plan;
+  const plan = buildForestPlan(document, fabric, keepOut);
+  plans.set(document, { key, plan });
   return plan;
 }

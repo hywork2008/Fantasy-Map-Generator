@@ -9,6 +9,12 @@ export interface ForestSettings {
 
 export type LandCoverOverride = "forest" | "open";
 
+/** Extra drawn footprints, such as the visible beach or a windmill's sails. */
+export interface ForestKeepOut {
+  polygons: Point[][];
+  discs: { center: Point; radius: number }[];
+}
+
 /** Derived, meter-scale geometry shared by SVG and WebGL. Never serialized. */
 export interface ForestRegion {
   id: string;

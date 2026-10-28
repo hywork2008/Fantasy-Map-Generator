@@ -4,6 +4,7 @@ import { assignBuildingAppearances } from "../generators/buildingAppearance";
 import { buildCityBuildings } from "../generators/buildingLots";
 import { assignBuildingMassing } from "../generators/buildingMassing";
 import { computeCemeteryBoundary, layoutCemetery } from "../generators/cemeteryLayout";
+import { enforceForestLandCover } from "../generators/forestLandCover";
 import { polygonArea } from "../generators/geom";
 import { buildParkLawns, type ParkLawn } from "../generators/parkFabric";
 import { populationHousingFacts } from "../generators/populationHousing";
@@ -66,6 +67,7 @@ export function prepareTownFacts(
           ...ruralFieldOverlay(document, documentFabricFingerprint(document))
         }
       : null;
+  if (fabric) fabric = enforceForestLandCover(document, fabric);
   if (fabric && housingView)
     fabric = standaloneHousingAppearance(document, fabric, housingView.modelQuality, housingView.fmgLinked);
   mark?.("town-fabric");

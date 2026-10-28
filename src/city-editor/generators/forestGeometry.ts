@@ -11,6 +11,19 @@ export interface ForestPart {
   polygon: Point[];
 }
 
+export function forestContains(region: ForestRegion, point: Point): boolean {
+  const [x, y] = point,
+    b = region.bounds;
+  return (
+    x >= b[0] &&
+    y >= b[1] &&
+    x <= b[2] &&
+    y <= b[3] &&
+    pointInPolygon(point, region.outer) &&
+    !region.holes.some(hole => pointInPolygon(point, hole))
+  );
+}
+
 function canonical(ring: Point[]): Point[] {
   ring = ring.filter((p, i) => {
     const a = ring[(i + ring.length - 1) % ring.length],

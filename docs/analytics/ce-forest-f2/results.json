@@ -1,0 +1,265 @@
+{
+  "date": "2026-10-28T06:41:18.679Z",
+  "revision": "cb96f9341554ffaaa1458fbdcac41d477258a215",
+  "environment": {
+    "cpu": "Apple M4",
+    "node": "v22.23.1",
+    "viewport": [
+      1000,
+      1000
+    ],
+    "dpr": 1,
+    "timing": "Browser CPU construction and synchronous attach/layout, one warmup + three samples; excludes paint/GPU completion and is not interactive FPS."
+  },
+  "fixture": {
+    "seed": "ce-forest-f0-small-v1",
+    "source": "docs/analytics/raw/ce-forest-f0/small-flat.json",
+    "documentSha256": "898d4918ed2ca0f2938a5b1a077410b8e805bf0563a5e624ca26d4c518f88679"
+  },
+  "exports": [
+    {
+      "path": "docs/analytics/raw/ce-forest-f2/edge-fill.svg",
+      "bytes": 1083791,
+      "sha256": "18d03e8cc5e9967984eb2d80e2239f44b57bbfdb287d0b8747612ee66c6e8dc0"
+    },
+    {
+      "path": "docs/analytics/raw/ce-forest-f2/all-trees.svg",
+      "bytes": 3418919,
+      "sha256": "b03786c1c473cd3c15ba018e7d1f8b6a5cc00705ebf568f1f15d0a3a00a8bcf8"
+    }
+  ],
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+  "results": [
+    {
+      "mode": "legacy",
+      "quality": "detailed",
+      "samples": [
+        {
+          "buildMs": 62.299999952316284,
+          "attachLayoutMs": 5.799999952316284,
+          "nodes": 4454,
+          "forestNodes": 0,
+          "trees": 0,
+          "forestAreaM2": 0,
+          "svgBytes": 3877701
+        },
+        {
+          "buildMs": 64.60000014305115,
+          "attachLayoutMs": 5,
+          "nodes": 4454,
+          "forestNodes": 0,
+          "trees": 0,
+          "forestAreaM2": 0,
+          "svgBytes": 3877701
+        },
+        {
+          "buildMs": 63.799999952316284,
+          "attachLayoutMs": 4.599999904632568,
+          "nodes": 4454,
+          "forestNodes": 0,
+          "trees": 0,
+          "forestAreaM2": 0,
+          "svgBytes": 3877701
+        }
+      ]
+    },
+    {
+      "mode": "edge-fill",
+      "quality": "detailed",
+      "samples": [
+        {
+          "buildMs": 19.799999952316284,
+          "attachLayoutMs": 9.200000047683716,
+          "nodes": 4377,
+          "forestNodes": 1289,
+          "trees": 1274,
+          "forestAreaM2": 993664.5634041692,
+          "svgBytes": 1446226
+        },
+        {
+          "buildMs": 19.40000009536743,
+          "attachLayoutMs": 9.099999904632568,
+          "nodes": 4377,
+          "forestNodes": 1289,
+          "trees": 1274,
+          "forestAreaM2": 993664.5634041692,
+          "svgBytes": 1446226
+        },
+        {
+          "buildMs": 19.59999990463257,
+          "attachLayoutMs": 8.900000095367432,
+          "nodes": 4377,
+          "forestNodes": 1289,
+          "trees": 1274,
+          "forestAreaM2": 993664.5634041692,
+          "svgBytes": 1446226
+        }
+      ]
+    },
+    {
+      "mode": "edge-fill",
+      "quality": "light",
+      "samples": [
+        {
+          "buildMs": 11.799999952316284,
+          "attachLayoutMs": 7.1000001430511475,
+          "nodes": 2397,
+          "forestNodes": 1289,
+          "trees": 1274,
+          "forestAreaM2": 993664.5634041692,
+          "svgBytes": 832831
+        },
+        {
+          "buildMs": 11.599999904632568,
+          "attachLayoutMs": 7.1000001430511475,
+          "nodes": 2397,
+          "forestNodes": 1289,
+          "trees": 1274,
+          "forestAreaM2": 993664.5634041692,
+          "svgBytes": 832831
+        },
+        {
+          "buildMs": 12.200000047683716,
+          "attachLayoutMs": 6.699999809265137,
+          "nodes": 2397,
+          "forestNodes": 1289,
+          "trees": 1274,
+          "forestAreaM2": 993664.5634041692,
+          "svgBytes": 832831
+        }
+      ]
+    },
+    {
+      "mode": "edge-fill",
+      "quality": "minimal",
+      "samples": [
+        {
+          "buildMs": 5.200000047683716,
+          "attachLayoutMs": 1,
+          "nodes": 1104,
+          "forestNodes": 1,
+          "trees": 0,
+          "forestAreaM2": 993664.5634041692,
+          "svgBytes": 377218
+        },
+        {
+          "buildMs": 5.200000047683716,
+          "attachLayoutMs": 1.2999999523162842,
+          "nodes": 1104,
+          "forestNodes": 1,
+          "trees": 0,
+          "forestAreaM2": 993664.5634041692,
+          "svgBytes": 377218
+        },
+        {
+          "buildMs": 4.599999904632568,
+          "attachLayoutMs": 1.2999999523162842,
+          "nodes": 1104,
+          "forestNodes": 1,
+          "trees": 0,
+          "forestAreaM2": 993664.5634041692,
+          "svgBytes": 377218
+        }
+      ]
+    },
+    {
+      "mode": "all-trees",
+      "quality": "detailed",
+      "samples": [
+        {
+          "buildMs": 82.89999985694885,
+          "attachLayoutMs": 44.30000019073486,
+          "nodes": 11088,
+          "forestNodes": 8000,
+          "trees": 7985,
+          "forestAreaM2": 993664.5634041692,
+          "svgBytes": 3526336
+        },
+        {
+          "buildMs": 73.39999985694885,
+          "attachLayoutMs": 42.700000047683716,
+          "nodes": 11088,
+          "forestNodes": 8000,
+          "trees": 7985,
+          "forestAreaM2": 993664.5634041692,
+          "svgBytes": 3526336
+        },
+        {
+          "buildMs": 78,
+          "attachLayoutMs": 46.69999980926514,
+          "nodes": 11088,
+          "forestNodes": 8000,
+          "trees": 7985,
+          "forestAreaM2": 993664.5634041692,
+          "svgBytes": 3526336
+        }
+      ]
+    },
+    {
+      "mode": "all-trees",
+      "quality": "light",
+      "samples": [
+        {
+          "buildMs": 57.80000019073486,
+          "attachLayoutMs": 16.399999856948853,
+          "nodes": 4108,
+          "forestNodes": 3000,
+          "trees": 2985,
+          "forestAreaM2": 993664.5634041692,
+          "svgBytes": 1362802
+        },
+        {
+          "buildMs": 54.40000009536743,
+          "attachLayoutMs": 16.09999990463257,
+          "nodes": 4108,
+          "forestNodes": 3000,
+          "trees": 2985,
+          "forestAreaM2": 993664.5634041692,
+          "svgBytes": 1362802
+        },
+        {
+          "buildMs": 55.799999952316284,
+          "attachLayoutMs": 16.100000143051147,
+          "nodes": 4108,
+          "forestNodes": 3000,
+          "trees": 2985,
+          "forestAreaM2": 993664.5634041692,
+          "svgBytes": 1362802
+        }
+      ]
+    },
+    {
+      "mode": "all-trees",
+      "quality": "minimal",
+      "samples": [
+        {
+          "buildMs": 4.700000047683716,
+          "attachLayoutMs": 1.1999998092651367,
+          "nodes": 1104,
+          "forestNodes": 1,
+          "trees": 0,
+          "forestAreaM2": 993664.5634041692,
+          "svgBytes": 377218
+        },
+        {
+          "buildMs": 4.699999809265137,
+          "attachLayoutMs": 1.3000001907348633,
+          "nodes": 1104,
+          "forestNodes": 1,
+          "trees": 0,
+          "forestAreaM2": 993664.5634041692,
+          "svgBytes": 377218
+        },
+        {
+          "buildMs": 4.700000047683716,
+          "attachLayoutMs": 1.1999998092651367,
+          "nodes": 1104,
+          "forestNodes": 1,
+          "trees": 0,
+          "forestAreaM2": 993664.5634041692,
+          "svgBytes": 377218
+        }
+      ]
+    }
+  ]
+}

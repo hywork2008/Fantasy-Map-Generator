@@ -9,6 +9,7 @@ import { defaultWalledAreaShare } from "../generators/settlementExtent";
 import { renderApproachLabels } from "../renderers/approachLabelSvg";
 import { syncCellReliefFace } from "../renderers/cellElevationSvg";
 import { type RenderQuality, renderEditorSvg } from "../renderers/editorSvg";
+import { updateForestScale } from "../renderers/forestSvg";
 import { renderGenerationDebugSvg } from "../renderers/generationDebugSvg";
 import { faceClassName, renderFaceWardLandmark } from "../renderers/landmarkSvg";
 import { renderObjectRotationHandle, renderObjectSvg } from "../renderers/objectSvg";
@@ -292,6 +293,13 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
       `${ctx.display.viewCenter[0] - ctx.display.halfView} ${-ctx.display.viewCenter[1] - ctx.display.halfView} ${ctx.display.halfView * 2} ${ctx.display.halfView * 2}`
     );
     if (zoomChanged)
+      updateForestScale(
+        svg,
+        ctx.documents.documentState.frame.extentMeters,
+        zoomFactor(),
+        ctx.map.getBoundingClientRect().width
+      );
+    if (zoomChanged)
       svg
         .querySelector(".ce-approach-labels")
         ?.replaceWith(renderApproachLabels(ctx.documents.documentState, zoomFactor()));
@@ -358,7 +366,8 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
       ctx.renderQualitySelect.value as RenderQuality,
       false,
       { core: ctx.coreLayerInput.checked, regional: ctx.regionalLayerInput.checked },
-      { modelQuality: readModelQualityPreference(), fmgLinked: Boolean(ctx.generation.generateSettings.descriptor) }
+      { modelQuality: readModelQualityPreference(), fmgLinked: Boolean(ctx.generation.generateSettings.descriptor) },
+      { viewportWidth: ctx.map.getBoundingClientRect().width }
     );
     if (ctx.generation.failurePreview) {
       svg.classList.add("ce-generation-debug");
