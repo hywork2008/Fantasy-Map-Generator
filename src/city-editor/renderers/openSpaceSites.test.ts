@@ -205,7 +205,9 @@ it.each([
   ["temperateRainforest", ["western_red_cedar"]],
   ["wetland", ["black_alder"]],
   ["mediterraneanWoodlandScrub", ["olive"]],
-  ["montaneForest", ["silver_fir"]]
+  ["montaneForest", ["silver_fir"]],
+  ["mangrove", ["red_mangrove"]],
+  ["xericShrubland", ["tamarisk", "date_palm"]]
 ] as const)("uses arid BV species for %s parks and cemeteries", (key, expected) => {
   const document = { ...city, biome: { id: 1, key, name: key, color: "yellow" } };
   const park = {

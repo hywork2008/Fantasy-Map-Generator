@@ -152,6 +152,8 @@ const modelArticles: Record<string, string> = {
   "black-alder": "Alnus glutinosa",
   olive: "Olea europaea",
   "silver-fir": "Abies alba",
+  "red-mangrove": "Rhizophora mangle",
+  tamarisk: "Tamarix",
   "mediterranean-cypress": "Cupressus sempervirens",
   "oriental-evergreen": "Evergreen",
   "sacred-bodhi-and-fig": "Ficus religiosa",
