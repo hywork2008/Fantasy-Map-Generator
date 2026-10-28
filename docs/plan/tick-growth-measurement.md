@@ -2,7 +2,8 @@
 
 ## 状態
 
-- 2026-10-28 計画。スクリプトは未作成。
+- 2026-10-28 計画。
+- 2026-10-28 計測。原因は家畜のロット台帳の全走査（[記録](../analytics/tick-growth-20261028.md)）。
 - 関連: [Rust 化の設計](rust-simulation-core.md) の R0、[Advance Year パフォーマンス調査](../analytics/advance-year-performance.md)。
 
 ## 1. 背景
@@ -140,4 +141,4 @@ World 固定入力（`docs/analytics/inputs/salt-s0-aligned-20261023/world-102.f
 
 ## 7. 次の作業
 
-**`scripts/auditTickGrowth.mts` を作り、§5 の手順3の試行（3か月）で出力を確かめる。** その後、計測用 Mac で手順4の本計測を行う。
+計測は完了。原因は家畜のロット台帳で、修正は[台帳の計画](livestock-lot-ledger-performance.md)で進める。**次は同計画の L1（索引）の実装。**
