@@ -242,14 +242,14 @@ export function createTownForest(
         }
     }
     for (const d of data.values()) d.baseVertices = (d.floor.positions.length + d.far.positions.length) / 3;
-    const cap = (p: Point, radius: number, edge: boolean) => {
+    const cap = (p: Point, radius: number) => {
       if (!fits(p, radius)) return;
       const d = data.get(`${Math.floor(p[0] / FAR_CHUNK)},${Math.floor(p[1] / FAR_CHUNK)}`);
       if (!d) return;
       const shade = 0.8 + random(`${seed}:clump:${p}`) * 0.3;
       for (let i = 0; i < crownPositions.count; i++) {
         const q: Point = [p[0] + crownPositions.getX(i) * radius, p[1] - crownPositions.getZ(i) * radius];
-        vertex(d.far, q, heightAt(q) + (edge ? 6.5 : 8.5) + crownPositions.getY(i) * 5, crownColor, shade);
+        vertex(d.far, q, heightAt(q) + 6.5 + crownPositions.getY(i) * 5, crownColor, shade);
       }
     };
     for (const id of cells) {
@@ -259,8 +259,7 @@ export function createTownForest(
           (x + 0.3 + random(`${seed}:${id}:clump-x`) * 0.4) * cell,
           (y + 0.3 + random(`${seed}:${id}:clump-y`) * 0.4) * cell
         ],
-        Math.min(16, cell * 0.35),
-        false
+        Math.min(24, cell * 0.6)
       );
     }
     for (const region of plan.regions)
@@ -277,8 +276,7 @@ export function createTownForest(
                 a[0] + (b[0] - a[0]) * t - ((b[1] - a[1]) / len) * 4.2,
                 a[1] + (b[1] - a[1]) * t + ((b[0] - a[0]) / len) * 4.2
               ],
-              3.5,
-              true
+              3.5
             );
           }
         }

@@ -172,6 +172,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   resetCamera(): void;
   dispose(): void;
   getPerformance(): City3dPerformanceSnapshot | null;
+  /** Per-frame metrics without walking the resident scene. */
+  getFramePerformance(): Pick<City3dPerformanceSnapshot, "frame" | "forest" | "forestQuality"> | null;
   restoreView(saved: NonNullable<City3dPerformanceSnapshot["camera"]>): void;
   /** Move the live scene into a rebuilt editor mount (language change) without regenerating meshes. */
   adopt(next: City3dMountOptions): void;
@@ -1028,6 +1030,14 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     framedRadius = 0;
   };
 
+  const getFramePerformance = (): Pick<City3dPerformanceSnapshot, "frame" | "forest" | "forestQuality"> | null =>
+    viewport.hidden || !scene
+      ? null
+      : {
+          frame: lastRender,
+          ...(forest ? { forest: { ...forest.stats }, forestQuality: forestQuality.snapshot } : {})
+        };
+
   const getPerformance = (): City3dPerformanceSnapshot | null =>
     viewport.hidden || !scene
       ? null
@@ -1041,14 +1051,13 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
                   fov: camera.fov
                 }
               : null,
-          frame: lastRender,
+          ...getFramePerformance()!,
           scene: collectSceneMetrics(scene),
           buildings: built?.buildings.length ?? 0,
-          quality: builtQuality,
-          ...(forest ? { forest: { ...forest.stats }, forestQuality: forestQuality.snapshot } : {})
+          quality: builtQuality
         };
   const restoreView = (saved: NonNullable<City3dPerformanceSnapshot["camera"]>) => {
-    setOpen(true);
+    if (viewport.hidden) setOpen(true);
     if (!camera || !controls) return;
     camera.position.fromArray(saved.position);
     controls.target.fromArray(saved.target);
@@ -1058,5 +1067,5 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     controls.update();
     requestRender();
   };
-  return { sync, resetCamera, dispose, getPerformance, restoreView, adopt };
+  return { sync, resetCamera, dispose, getPerformance, getFramePerformance, restoreView, adopt };
 }

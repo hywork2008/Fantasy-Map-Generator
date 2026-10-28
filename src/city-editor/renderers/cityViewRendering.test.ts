@@ -305,12 +305,13 @@ it("updates forest quality and camera LOD without rebuilding city geometry and r
     Object.assign(face.properties, { ward: "farm", settlement: "outskirts" });
   let city = withForestSettings(source, { version: 1, mode: "surroundings", density: "standard" });
   let forestQuality: ForestQualityPreference = "standard";
+  const getDocument = vi.fn(() => city);
   const scope = beginEditorMount(host);
   const view = mountCity3d({
     canvasHost: host,
     map,
     scope,
-    getDocument: () => city,
+    getDocument,
     getForestQuality: () => forestQuality
   });
   try {
@@ -321,15 +322,21 @@ it("updates forest quality and camera LOD without rebuilding city geometry and r
     const massing = scene.getObjectByName("massing");
     expect(forest).toBeDefined();
     expect(view.getPerformance()?.forest?.areaM2).toBeGreaterThan(0);
+    const traverse = vi.spyOn(scene, "traverse");
+    expect(view.getFramePerformance()?.forest?.areaM2).toBeGreaterThan(0);
+    expect(traverse).not.toHaveBeenCalled();
+    traverse.mockRestore();
     forestQuality = "light";
     view.sync();
     flush();
     expect(scene.getObjectByName("ce-forest")).toBe(forest);
     expect(scene.getObjectByName("massing")).toBe(massing);
     expect(view.getPerformance()?.forest?.quality).toBe("light");
+    const reads = getDocument.mock.calls.length;
     view.restoreView({ position: [130, 40, 120], target: [100, 0, 0], zoom: 1, fov: 45 });
     flush();
     expect(scene.getObjectByName("massing")).toBe(massing);
+    expect(getDocument).toHaveBeenCalledTimes(reads);
     forestQuality = "auto";
     view.sync();
     flush();
