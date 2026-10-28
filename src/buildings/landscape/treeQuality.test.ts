@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { expect, it } from "vitest";
 import { adoptedTree } from "../../city3d/adoption";
 import { models } from "../medieval/43-landscape-treesModels";
-import { TREE_QUALITIES, treeQualityAtPixels } from "./treeQuality";
+import { TREE_QUALITIES, treeQualityAtDistance, treeQualityAtPixels } from "./treeQuality";
 import { createLandscapeTree } from "./trees";
 
 it.each(["garden_parkland", "sacred_yew"] as const)(
@@ -58,3 +58,15 @@ it.each(["garden_parkland", "sacred_yew"] as const)(
     ultra.dispose();
   }
 );
+
+it("uses the exact same distance boundaries for every tree and every frame", () => {
+  expect([900, 200, 80, 20].map(distance => treeQualityAtDistance(distance))).toEqual(TREE_QUALITIES);
+  expect([39.99, 40, 119.99, 120, 399.99, 400].map(treeQualityAtDistance)).toEqual([
+    "ultra",
+    "high",
+    "high",
+    "medium",
+    "medium",
+    "low"
+  ]);
+});

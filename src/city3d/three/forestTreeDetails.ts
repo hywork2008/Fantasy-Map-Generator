@@ -1,5 +1,10 @@
 import * as THREE from "three";
-import { TREE_QUALITIES, type TreeQuality, treeQualityAtPixels } from "../../buildings/landscape/treeQuality";
+import {
+  TREE_QUALITIES,
+  type TreeQuality,
+  treeQualityAtDistance,
+  treeQualityAtPixels
+} from "../../buildings/landscape/treeQuality";
 import { hasTreeQualityLevels, type TreeSpecies } from "../../buildings/landscape/trees";
 import type { Point } from "../../city-editor/types/document";
 import { adoptedTree, markVariant } from "../adoption";
@@ -17,6 +22,7 @@ export interface ForestTreeSite {
 }
 type Lease = NonNullable<ReturnType<ReturnType<typeof createBvPrototypeCache>["acquire"]>>;
 interface Model {
+  species: TreeSpecies;
   lease: Lease;
   triangles: number;
   meshes: [THREE.InstancedMesh, THREE.InstancedMesh];
@@ -45,18 +51,18 @@ export function createForestTreeDetails(
     projection = new THREE.Matrix4();
   let capacity = treeLimit as number;
   const getModel = (species: TreeSpecies, simplify: boolean, quality: TreeQuality): Model | undefined => {
-    const key = `${species}:${quality}`;
+    const variant = adoptedTree(species, quality);
+    const key = variant.id;
     const hit = models.get(key);
     if (hit) return hit;
     if (
       simplify &&
-      new Set([...models.keys()].map(key => key.split(":")[0])).size >= FOREST_TREE_DETAIL_LIMIT.species &&
-      ![...models.keys()].some(key => key.startsWith(`${species}:`))
+      new Set([...models.values()].map(model => model.species)).size >= FOREST_TREE_DETAIL_LIMIT.species &&
+      ![...models.values()].some(model => model.species === species)
     )
       return;
     // The variant id names the adopted author, so a changed adoption never reuses a cached prototype.
-    const variant = adoptedTree(species, quality);
-    const definition: BvDefinition = { id: `forest-tree:${variant.id}`, create: variant.create };
+    const definition: BvDefinition = { id: `forest-tree:${variant.id}`, cacheKey: variant.id, create: variant.create };
     const lease = cache.acquire(definition);
     if (!lease) return;
     const geometry = lease.geometry,
@@ -90,7 +96,7 @@ export function createForestTreeDetails(
       group.add(m);
       return m;
     };
-    const model: Model = { lease, triangles, meshes: [mesh(true), mesh(false)] };
+    const model: Model = { species, lease, triangles, meshes: [mesh(true), mesh(false)] };
     models.set(key, model);
     return model;
   };
@@ -125,7 +131,10 @@ export function createForestTreeDetails(
       };
       if (disposed || viewportHeight <= 0) return stats;
       camera.updateMatrixWorld(true);
-      if (!simplify && sites.length > capacity) {
+      if (
+        (!simplify || (tiered && sites.some(site => site.species === "garden_parkland"))) &&
+        sites.length > capacity
+      ) {
         capacity = sites.length;
         for (const model of models.values()) {
           model.meshes = model.meshes.map(old => {
@@ -159,7 +168,9 @@ export function createForestTreeDetails(
           const quality =
             !simplify || !tiered || !hasTreeQualityLevels(site.species)
               ? "ultra"
-              : treeQualityAtPixels((10 * site.size * scale) / (2 * Math.max(1, distance)), selected.get(site.id));
+              : site.species === "garden_parkland"
+                ? treeQualityAtDistance(distance)
+                : treeQualityAtPixels((10 * site.size * scale) / (2 * Math.max(1, distance)), selected.get(site.id));
           return {
             site,
             matrix,
@@ -185,20 +196,21 @@ export function createForestTreeDetails(
         usedSpecies = new Set<TreeSpecies>(),
         shadows: string[] = [];
       for (const { site, matrix, quality } of candidates) {
-        if (simplify && stats.trees >= treeLimit) break;
+        const distanceLod = tiered && site.species === "garden_parkland";
+        if (simplify && !distanceLod && stats.trees >= treeLimit) continue;
         let chosen = quality;
         let model: Model | undefined;
         for (let level = TREE_QUALITIES.indexOf(quality); level >= 0; level--) {
           chosen = TREE_QUALITIES[level];
           model = getModel(site.species, simplify, chosen);
-          if (model && stats.triangles + model.triangles <= budget.triangles) break;
+          if (model && (distanceLod || stats.triangles + model.triangles <= budget.triangles)) break;
           model = undefined;
-          if (!tiered || !hasTreeQualityLevels(site.species)) break;
+          if (distanceLod || !tiered || !hasTreeQualityLevels(site.species)) break;
         }
         if (!model) continue;
         const shadow = stats.shadowTriangles + model.triangles <= budget.shadowTriangles;
         const mesh = model.meshes[shadow ? 0 : 1];
-        if (!mesh.count && stats.calls >= budget.calls) continue;
+        if (!distanceLod && !mesh.count && stats.calls >= budget.calls) continue;
         if (!mesh.count) {
           mesh.visible = true;
           stats.calls++;

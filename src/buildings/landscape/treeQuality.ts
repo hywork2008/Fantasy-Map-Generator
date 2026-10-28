@@ -13,3 +13,13 @@ export function treeQualityAtPixels(pixels: number, previous?: TreeQuality): Tre
   }
   return TREE_QUALITIES[level];
 }
+
+/** Camera-to-tree-centre distances in metres, independent of size, zoom and previous frames. */
+export const TREE_LOD_DISTANCES = { ultra: 40, high: 120, medium: 400 } as const;
+
+export function treeQualityAtDistance(distanceMeters: number): TreeQuality {
+  if (distanceMeters < TREE_LOD_DISTANCES.ultra) return "ultra";
+  if (distanceMeters < TREE_LOD_DISTANCES.high) return "high";
+  if (distanceMeters < TREE_LOD_DISTANCES.medium) return "medium";
+  return "low";
+}

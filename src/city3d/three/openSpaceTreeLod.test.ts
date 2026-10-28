@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { expect, it, vi } from "vitest";
+import { adoptedTree, sceneVariants } from "../adoption";
 import { createTownOpenSpaces } from "./openSpaceMeshes";
 
 function camera() {
@@ -17,7 +18,7 @@ function trees(group: THREE.Group) {
   return counts;
 }
 
-it("draws four camera-distance tiers together, culls off-screen trees and switches on zoom without rebuilding surfaces", () => {
+it("draws four camera-distance tiers together, culls off-screen trees and switches on camera movement without rebuilding surfaces", () => {
   const model = createTownOpenSpaces(
     {
       surfaces: [],
@@ -29,7 +30,7 @@ it("draws four camera-distance tiers together, culls off-screen trees and switch
       }))
     },
     undefined,
-    true
+    "lime"
   );
   const c = camera();
   model.update(c, 720);
@@ -39,6 +40,10 @@ it("draws four camera-distance tiers together, culls off-screen trees and switch
     ["medium", 1],
     ["ultra", 1]
   ]);
+  expect(sceneVariants(model.group)).toEqual(
+    ["low", "medium", "high", "ultra"].map(quality => adoptedTree("garden_parkland", quality).id).sort()
+  );
+  const residentGroups = [...model.group.children];
   const resources = new Set<THREE.BufferGeometry | THREE.Material>();
   model.group.traverse(object => {
     if (object instanceof THREE.Mesh) {
@@ -52,8 +57,13 @@ it("draws four camera-distance tiers together, culls off-screen trees and switch
   c.zoom = 4;
   c.updateProjectionMatrix();
   model.update(c, 720);
-  expect(trees(model.group).get("low") ?? 0).toBe(0);
-  c.lookAt(0, 6, 1);
+  expect(trees(model.group).get("low")).toBe(1);
+  c.position.z = 70;
+  model.update(c, 720);
+  expect(trees(model.group).get("ultra") ?? 0).toBe(0);
+  expect(trees(model.group).get("medium")).toBe(2);
+  expect(model.group.children).toEqual(residentGroups);
+  c.lookAt(0, 6, c.position.z + 1);
   model.update(c, 720);
   expect([...trees(model.group).values()].reduce((a, b) => a + b, 0)).toBe(1);
   model.dispose();

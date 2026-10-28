@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { expect, it } from "vitest";
 import { createLandscapeTree } from "../../buildings/landscape/trees";
+import { CE_ADOPTION, sceneVariants } from "../adoption";
 import { createForestTreeDetails, type ForestTreeSite } from "./forestTreeDetails";
 
 it("prioritizes an on-screen crown over a closer off-screen tree and restores its base instance", () => {
@@ -91,4 +92,86 @@ it("grows full-detail instance buffers without losing transforms or leaking shar
   geometry.dispose();
   material.dispose();
   mesh.dispose();
+});
+
+it("switches an adopted medium variant without reusing the previous author's cached model", () => {
+  const group = new THREE.Group();
+  const details = createForestTreeDetails(group, true);
+  const geometry = new THREE.BoxGeometry(1, 10, 1);
+  const material = new THREE.MeshLambertMaterial();
+  const base = new THREE.InstancedMesh(geometry, material, 1);
+  base.setMatrixAt(0, new THREE.Matrix4().makeScale(3, 1, 3));
+  const site: ForestTreeSite = {
+    id: "lime",
+    point: [0, 0],
+    radius: 3,
+    size: 1,
+    species: "garden_parkland",
+    mesh: base,
+    index: 0
+  };
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
+  camera.position.set(0, 5, 200);
+  camera.lookAt(0, 5, 0);
+  const budget = { triangles: Infinity, calls: Infinity, shadowTriangles: 0 };
+  const adoption = CE_ADOPTION["tree.garden-parkland"].medium;
+  const original = adoption.variant;
+  try {
+    expect(details.update(camera, 720, [site], budget).tiers.medium).toBe(1);
+    expect(sceneVariants(group)).toEqual([original]);
+    adoption.variant = "tree.garden-parkland@medium#codex-gpt-6.1-sol";
+    details.reset();
+    expect(details.update(camera, 720, [site], budget).tiers.medium).toBe(1);
+    expect(sceneVariants(group)).toEqual([adoption.variant]);
+  } finally {
+    adoption.variant = original;
+    details.dispose();
+    base.dispose();
+    geometry.dispose();
+    material.dispose();
+  }
+});
+
+it("keeps the exact distance tier for every lime despite size variation, geometry budgets and the old 256-tree cap", () => {
+  const group = new THREE.Group();
+  const details = createForestTreeDetails(group, true);
+  const geometry = new THREE.BoxGeometry(1, 10, 1);
+  const material = new THREE.MeshLambertMaterial();
+  const base = new THREE.InstancedMesh(geometry, material, 270);
+  const sites: ForestTreeSite[] = Array.from({ length: 270 }, (_, index) => {
+    const size = index % 2 ? 0.8 : 1.2;
+    base.setMatrixAt(index, new THREE.Matrix4().makeScale(3, size, 3).setPosition(index * 0.001, 0, 0));
+    return {
+      id: String(index),
+      point: [index * 0.001, 0],
+      radius: 3,
+      size,
+      species: "garden_parkland",
+      mesh: base,
+      index
+    };
+  });
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 2000);
+  try {
+    for (const [distance, tier] of [
+      [35, "ultra"],
+      [70, "high"],
+      [200, "medium"],
+      [500, "low"],
+      [35, "ultra"]
+    ] as const) {
+      details.reset();
+      camera.position.set(0, 5, distance);
+      camera.lookAt(0, 5, 0);
+      const stats = details.update(camera, 720, sites, { triangles: 1, calls: 0, shadowTriangles: 0 });
+      expect(stats.trees).toBe(270);
+      expect(stats.tiers[tier]).toBe(270);
+      expect(stats.shadowTriangles).toBe(0);
+    }
+  } finally {
+    details.dispose();
+    base.dispose();
+    geometry.dispose();
+    material.dispose();
+  }
 });

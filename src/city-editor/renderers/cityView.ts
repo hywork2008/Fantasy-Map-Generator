@@ -734,7 +734,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       openSpaces = createTownOpenSpaces(
         openSpacePlan,
         terrain ?? undefined,
-        city.biome?.key === "centralEuropeanGreatForest"
+        city.biome?.key === "centralEuropeanGreatForest" ? true : "lime"
       );
       scene.add(openSpaces.group);
       openSpaceStamp = nextOpenSpaceStamp;

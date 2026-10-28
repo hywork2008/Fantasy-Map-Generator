@@ -391,7 +391,8 @@ it("updates forest quality and camera LOD without rebuilding city geometry and r
     flush();
     expect(scene.getObjectByName("massing")).toBe(massing);
     expect(view.getPerformance()?.forest?.quality).toBe("light");
-    expect(view.getPerformance()?.forest?.detailedTrees).toBe(0);
+    expect(view.getPerformance()?.forest?.detailedTrees).toBeGreaterThan(0);
+    expect(view.getPerformance()?.forest?.trees).toBe(view.getPerformance()?.forest?.detailedTrees);
     city = withForestSettings(city, { version: 1, mode: "legacy", density: "standard" });
     view.sync();
     flush();

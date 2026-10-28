@@ -117,7 +117,9 @@ describe("forest geometry and budgets", () => {
   });
 
   it("enforces instance, triangle, draw and shadow limits and does no work for an unchanged camera", () => {
-    const forest = createTownForest(document(), plan());
+    const doc = document();
+    doc.biome = { id: 1, key: "hotDesert", name: "Desert", color: "sand" };
+    const forest = createTownForest(doc, plan());
     const c = camera();
     for (const quality of ["light", "standard", "high"] as const) {
       forest.setQuality(quality);
@@ -148,6 +150,7 @@ describe("forest geometry and budgets", () => {
     const doc = document(),
       p = plan(),
       c = camera();
+    doc.biome = { id: 1, key: "hotDesert", name: "Desert", color: "sand" };
     const forest = createTownForest(doc, p, undefined, "standard");
     forest.update(c, 720);
     const original = instances(forest.group);
@@ -155,8 +158,8 @@ describe("forest geometry and budgets", () => {
     forest.setQuality("high");
     forest.update(c, 720);
     expect(forest.stats.detailedTrees).toBeGreaterThan(0);
-    expect(forest.stats.detailedSpecies).toContain("garden_parkland");
-    const model = createLandscapeTree("garden_parkland");
+    expect(forest.stats.detailedSpecies).toContain("date_palm");
+    const model = createLandscapeTree("date_palm");
     let modelTriangles = 0;
     model.group.traverse(o => {
       if (o instanceof THREE.Mesh)
@@ -228,7 +231,9 @@ describe("forest geometry and budgets", () => {
       }))
     );
     const p: ForestPlan = { regions, areaM2: 36000, forestFaceIds: [], protectedFarmAreaM2: 0, protectedFarmCount: 0 };
-    const forest = createTownForest(document(), p, undefined, "light");
+    const doc = document();
+    doc.biome = { id: 1, key: "hotDesert", name: "Desert", color: "sand" };
+    const forest = createTownForest(doc, p, undefined, "light");
     const c = camera(1400, 8000, 1400);
     c.lookAt(1400, 0, -1200);
     forest.update(c, 720);
@@ -272,7 +277,7 @@ it("uses BV trees beyond distance and count caps when outskirts simplification i
   const far = camera(0, 5000, 10);
   automatic.update(far, 720);
   full.update(far, 720);
-  expect(automatic.stats.detailedTrees).toBe(0);
+  expect(automatic.stats.detailedTiers.low).toBe(automatic.stats.trees);
   expect(full.stats.quality).toBe("high");
   expect(full.stats.detailedTrees).toBeGreaterThan(16);
   expect(full.stats.detailedTrees).toBe(full.stats.trees);
@@ -285,7 +290,7 @@ it("uses BV trees beyond distance and count caps when outskirts simplification i
   full.dispose();
 });
 
-it("uses distance-graded BV trees for the central European forest at the default quality within its budget", () => {
+it("draws only adopted lime distance tiers, even beyond the former replacement cap and geometry budget", () => {
   const doc = document();
   doc.biome = { id: 13, key: "centralEuropeanGreatForest", name: "Great forest", color: "green", tags: ["forest"] };
   const forest = createTownForest(doc, plan(), undefined, "standard");
@@ -295,8 +300,19 @@ it("uses distance-graded BV trees for the central European forest at the default
   expect(
     forest.stats.detailedTiers.medium + forest.stats.detailedTiers.high + forest.stats.detailedTiers.ultra
   ).toBeGreaterThan(0);
-  expect(forest.stats.triangles).toBeLessThanOrEqual(FOREST_3D_BUDGET.standard.triangles);
-  expect(forest.stats.calls).toBeLessThanOrEqual(FOREST_3D_BUDGET.standard.calls);
+  expect(forest.stats.trees).toBe(forest.stats.detailedTrees);
+  expect(forest.stats.detailedTrees).toBeGreaterThan(256);
+  const tiers = { ...forest.stats.detailedTiers };
+  for (const quality of ["light", "high", "standard"] as const) {
+    forest.setQuality(quality);
+    forest.update(c, 720);
+    expect(forest.stats.detailedTiers).toEqual(tiers);
+    expect(forest.stats.trees).toBe(forest.stats.detailedTrees);
+    forest.group.traverse(o => {
+      if (o instanceof THREE.Mesh && visible(o) && !o.name.startsWith("forest-floor-"))
+        expect(o.name.startsWith("forest-bv-")).toBe(true);
+    });
+  }
   expect(forest.stats.shadowTriangles).toBeLessThanOrEqual(FOREST_3D_BUDGET.standard.shadowTriangles);
   c.lookAt(90, 80, 1000);
   forest.update(c, 720);
