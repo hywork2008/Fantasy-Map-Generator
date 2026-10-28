@@ -54,7 +54,7 @@ export function createCastlePlanFromCells(document: CityDocument, preferredFaceI
 /** Place the market square, cathedral or harbour landmark on one cell, replacing a previous one. */
 export function placeCivicElement(document: CityDocument, faceId: Id, kind: CivicElementKind): CityDocument | null {
   const face = document.mesh.faces[faceId];
-  if (!face || face.properties.water !== "land") return null;
+  if (face?.properties.water !== "land") return null;
   if (
     kind === "harbor" &&
     (face.properties.ward !== "harbor" ||

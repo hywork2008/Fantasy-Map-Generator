@@ -33,6 +33,62 @@ export interface LivestockLotLedger {
 export function getLivestockLotLedger(): LivestockLotLedger | null {
   return (getEconomySlice()?.livestockLots as LivestockLotLedger | undefined) ?? null;
 }
+/**
+ * Runtime lookup of lot ids by market/species and owner/species, in insertion order so FIFO
+ * matches Object.values(ledger.lots). Not saved; rebuilt whenever the lots object is replaced
+ * (load, ownedSlaughter's copy-on-write). Every lookup re-checks the lot's fields.
+ */
+interface LotIndex {
+  buckets: Map<string, Set<string>>;
+  keyOf: Map<string, string>;
+}
+const lotIndexes = new WeakMap<object, LotIndex>();
+function bucketKey(lot: LivestockLot): string {
+  return lot.status === "owned"
+    ? `owned|${lot.ownerId}|${lot.species}`
+    : `${lot.status}|${lot.marketId}|${lot.species}`;
+}
+function getLotIndex(ledger: LivestockLotLedger): LotIndex {
+  let index = lotIndexes.get(ledger.lots);
+  if (!index) {
+    index = { buckets: new Map(), keyOf: new Map() };
+    lotIndexes.set(ledger.lots, index);
+    for (const lot of Object.values(ledger.lots)) indexLot(ledger, lot);
+  }
+  return index;
+}
+/** Call after creating a lot or changing its status, market, owner or species. */
+function indexLot(ledger: LivestockLotLedger, lot: LivestockLot): void {
+  const index = getLotIndex(ledger);
+  const key = bucketKey(lot);
+  const previous = index.keyOf.get(lot.id);
+  if (previous === key) return;
+  if (previous !== undefined) index.buckets.get(previous)?.delete(lot.id);
+  let bucket = index.buckets.get(key);
+  if (!bucket) {
+    bucket = new Set();
+    index.buckets.set(key, bucket);
+  }
+  bucket.add(lot.id);
+  index.keyOf.set(lot.id, key);
+}
+function unindexLot(ledger: LivestockLotLedger, id: string): void {
+  const index = lotIndexes.get(ledger.lots);
+  const key = index?.keyOf.get(id);
+  if (!index || key === undefined) return;
+  index.buckets.get(key)?.delete(id);
+  index.keyOf.delete(id);
+}
+function lotsInBucket(ledger: LivestockLotLedger, key: string, accept: (lot: LivestockLot) => boolean): LivestockLot[] {
+  const ids = getLotIndex(ledger).buckets.get(key);
+  const result: LivestockLot[] = [];
+  for (const id of ids ?? []) {
+    const lot = ledger.lots[id];
+    if (lot && accept(lot)) result.push(lot);
+  }
+  return result;
+}
+
 function getOrCreateLedger(): LivestockLotLedger | null {
   const slice = getEconomySlice();
   if (!slice) return null;
@@ -62,6 +118,7 @@ function addLot(
     heads,
     cohortProvenance: "unknown"
   };
+  indexLot(ledger, ledger.lots[id]);
   return ledger.lots[id];
 }
 function terminal(ledger: LivestockLotLedger, lot: LivestockLot, heads: number, reason: string) {
@@ -74,7 +131,10 @@ function terminal(ledger: LivestockLotLedger, lot: LivestockLot, heads: number, 
     for (const age of ["young", "breeding", "old"] as const) lot.cohortHeads[age] *= 1 - share;
   }
   lot.heads -= heads;
-  if (lot.heads <= 1e-12) delete ledger.lots[lot.id];
+  if (lot.heads <= 1e-12) {
+    delete ledger.lots[lot.id];
+    unindexLot(ledger, lot.id);
+  }
 }
 
 /**
@@ -95,7 +155,9 @@ export function recordLivestockLotFlow(flow: GoodFlowRecord, species: string, cl
   const closing = Math.max(0, closingUnits * scale);
   const opening = Math.max(0, closing + (flow.direction === "sink" ? moved : -moved));
   const matching = () =>
-    Object.values(ledger.lots).filter(
+    lotsInBucket(
+      ledger,
+      `market|${flow.marketId}|${species}`,
       lot => lot.status === "market" && lot.marketId === flow.marketId && lot.species === species
     );
   const tracked = matching().reduce((sum, lot) => sum + lot.heads, 0);
@@ -118,6 +180,7 @@ export function recordLivestockLotFlow(flow: GoodFlowRecord, species: string, cl
       if (!(heads > 0)) continue;
       const arrived = copyLotShare(ledger, cargo, heads, "market", flow.marketId);
       arrived.ownerId = null;
+      indexLot(ledger, arrived);
       terminal(ledger, cargo, heads, "transportArrival");
       remaining -= heads;
     }
@@ -165,6 +228,7 @@ export function recordLivestockLotFlow(flow: GoodFlowRecord, species: string, cl
     if (flow.livestockBuyerId) {
       const owned = copyLotShare(ledger, lot, heads, "owned", flow.marketId);
       owned.ownerId = flow.livestockBuyerId;
+      indexLot(ledger, owned);
       owned.locationId = flow.livestockOwnerLocationId ?? owned.locationId;
     }
     if (flow.category === "exportDeparture" && flow.livestockCargoIds) {
@@ -256,7 +320,9 @@ export function moveOwnedLivestock(input: {
   const scale = animalsPerMarketHead(input.species);
   const heads = input.units * scale;
   const matching = () =>
-    Object.values(ledger.lots).filter(
+    lotsInBucket(
+      ledger,
+      `owned|${input.fromOwnerId}|${input.species}`,
       lot =>
         lot.status === "owned" &&
         lot.ownerId === input.fromOwnerId &&
@@ -266,7 +332,9 @@ export function moveOwnedLivestock(input: {
   const reconcile = (ownerId: string, locationId: string | undefined, openingUnits: number | undefined) => {
     if (openingUnits === undefined || !Number.isFinite(openingUnits)) return;
     const rows = () =>
-      Object.values(ledger.lots).filter(
+      lotsInBucket(
+        ledger,
+        `owned|${ownerId}|${input.species}`,
         lot =>
           lot.status === "owned" &&
           lot.ownerId === ownerId &&
@@ -306,6 +374,7 @@ export function moveOwnedLivestock(input: {
       input.marketId ?? lot.marketId
     );
     moved.ownerId = input.toOwnerId ?? null;
+    indexLot(ledger, moved);
     moved.locationId = input.locationId;
     terminal(ledger, lot, taken, input.toOwnerId ? "ownershipTransfer" : "ownedReturn");
     remaining -= taken;
