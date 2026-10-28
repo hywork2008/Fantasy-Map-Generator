@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import type { TreeSpecies } from "../../buildings/landscape/trees";
 import { forestContains } from "../../city-editor/generators/forestGeometry";
 import { bounds, intersectConvex, PlotIndex, plotArea } from "../../city-editor/generators/parcelGeometry";
 import { landscapeTreeSpecies } from "../../city-editor/renderers/landscapeTreeSpecies";
@@ -7,6 +8,7 @@ import type { ForestPlan, ForestRegion } from "../../city-editor/types/contracts
 import type { CityDocument, Point } from "../../city-editor/types/document";
 import type { CityTerrain } from "../../city-editor/types/terrain";
 import { growthHash } from "../../utils/urbanMorphology";
+import { createForestTreeDetails, type ForestTreeSite } from "./forestTreeDetails";
 
 export type Forest3dQuality = "light" | "standard" | "high";
 export const FOREST_3D_BUDGET = {
@@ -18,6 +20,15 @@ const FAR_CHUNK = 256,
   TREE_CHUNK = 128,
   BASE_LIMIT = 60000,
   CACHE_LIMIT = 24;
+const CONIFERS = new Set<TreeSpecies>([
+  "norway_spruce",
+  "western_red_cedar",
+  "silver_fir",
+  "canary_pine",
+  "mediterranean_cypress",
+  "oriental_evergreen",
+  "sacred_yew"
+]);
 type LOD = "far" | "middle" | "near";
 type Parts = { positions: number[]; colors: number[] };
 interface Chunk {
@@ -47,6 +58,9 @@ export interface Forest3dStats {
   shadowTriangles: number;
   cachedLayers: number;
   globalFallback: boolean;
+  detailedTrees: number;
+  detailedTriangles: number;
+  detailedSpecies: TreeSpecies[];
   builds: number;
 }
 
@@ -127,10 +141,13 @@ export function createTownForest(
 ) {
   const group = new THREE.Group();
   group.name = "ce-forest";
+  const details = createForestTreeDetails(group);
   const seed = document.generationSeed ?? document.fabric?.seed ?? document.format;
   const heightAt = terrain?.heightAt ?? (() => 0);
   const density = document.forestSettings?.density ?? "standard";
   const material = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, flatShading: true });
+  const smoothMaterial = material.clone();
+  smoothMaterial.flatShading = false;
   const floorColor = new THREE.Color(density === "sparse" ? "#85966a" : "#60734b");
   const crownColor = new THREE.Color(density === "dense" ? "#4e7147" : "#66854f");
   const canopyAt = (p: Point) => {
@@ -288,6 +305,7 @@ export function createTownForest(
     if (cell === FAR_CHUNK) {
       crownShape.dispose();
       material.dispose();
+      smoothMaterial.dispose();
       throw new RangeError("Forest boundary exceeds the minimum 3D geometry budget");
     }
   }
@@ -332,6 +350,9 @@ export function createTownForest(
     shadowTriangles: 0,
     cachedLayers: 0,
     globalFallback: false,
+    detailedTrees: 0,
+    detailedTriangles: 0,
+    detailedSpecies: [],
     builds: 0
   };
   const getLayer = (chunk: Chunk, lod: "middle" | "near"): TreeLayer => {
@@ -346,7 +367,10 @@ export function createTownForest(
     root.name = `forest-trees-${key}`;
     group.add(root);
     const [cx, cy] = chunk.id.split(",").map(Number);
-    const batches = new Map<string, { point: Point; radius: number; size: number }[]>();
+    const batches = new Map<
+      string,
+      { id: string; point: Point; radius: number; size: number; species: TreeSpecies }[]
+    >();
     const chance = density === "sparse" ? 0.5 : density === "dense" ? 1 : 0.8;
     for (let gx = cx * 32; gx < (cx + 1) * 32; gx++)
       for (let gy = cy * 32; gy < (cy + 1) * 32; gy++) {
@@ -371,10 +395,10 @@ export function createTownForest(
         const needle =
           species === "silver_birch"
             ? false
-            : species === "norway_spruce" || /conifer|taiga/i.test(document.biome?.key ?? "");
+            : CONIFERS.has(species) || /conifer|taiga/i.test(document.biome?.key ?? "");
         const batch = `${Math.floor(p[0] / TREE_CHUNK)},${Math.floor(p[1] / TREE_CHUNK)}:${needle ? "needle" : "leaf"}`;
         const list = batches.get(batch) ?? [];
-        list.push({ point: p, radius, size: 0.8 + random(`${seed}:tree:${id}:size`) * 0.4 });
+        list.push({ id, species, point: p, radius, size: 0.8 + random(`${seed}:tree:${id}:size`) * 0.4 });
         batches.set(batch, list);
       }
     const meshes: THREE.InstancedMesh[] = [];
@@ -402,6 +426,7 @@ export function createTownForest(
         );
         mesh.setMatrixAt(i, matrix);
       });
+      mesh.userData.forestSites = sites.map((site, index) => ({ ...site, mesh, index }));
       mesh.computeBoundingBox();
       mesh.computeBoundingSphere();
       mesh.receiveShadow = true;
@@ -436,6 +461,7 @@ export function createTownForest(
       const nextSignature = `${quality}:${viewportHeight}:${camera.matrixWorld.elements}:${camera.projectionMatrix.elements}`;
       if (nextSignature === signature) return false;
       signature = nextSignature;
+      details.reset();
       const budget = FOREST_3D_BUDGET[quality];
       frustum.setFromProjectionMatrix(matrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
       const scale = (viewportHeight * camera.zoom) / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
@@ -461,8 +487,14 @@ export function createTownForest(
         triangles: 0,
         calls: 0,
         shadowTriangles: 0,
-        globalFallback: false
+        globalFallback: false,
+        detailedTrees: 0,
+        detailedTriangles: 0,
+        detailedSpecies: []
       });
+      const detailSites: ForestTreeSite[] = [];
+      const triangleLimit = quality === "high" ? 320000 : budget.triangles;
+      const shadowLimit = quality === "high" ? 60000 : budget.shadowTriangles;
       const used = new Set<string>(),
         casters: string[] = [];
       if (visible.length > budget.calls) {
@@ -498,7 +530,7 @@ export function createTownForest(
               (stats.trees + cost.trees > budget.trees ||
                 stats.calls + cost.calls > budget.calls ||
                 stats.triangles - count(chunk.far.geometry) + count(chunk.floor.geometry) + cost.triangles >
-                  budget.triangles)
+                  triangleLimit)
             )
               continue;
             const layer = getLayer(chunk, mode);
@@ -507,7 +539,7 @@ export function createTownForest(
             const calls = stats.calls - 1 + 1 + layer.calls;
             if (
               stats.trees + layer.trees > budget.trees ||
-              triangles > budget.triangles ||
+              triangles > triangleLimit ||
               calls > budget.calls ||
               !layer.trees
             )
@@ -518,13 +550,17 @@ export function createTownForest(
             if (mode === "near") stats.nearChunks++;
             else stats.middleChunks++;
             layer.group.visible = true;
+            for (const mesh of layer.meshes)
+              mesh.material = quality === "high" && mode === "near" ? smoothMaterial : material;
             chunk.floor.visible = true;
             chunk.mode = mode;
             used.add(`${chunk.id}:${mode}`);
+            if (quality === "high" && mode === "near")
+              for (const mesh of layer.meshes) detailSites.push(...(mesh.userData.forestSites as ForestTreeSite[]));
             if (mode === "near")
               for (const mesh of layer.meshes) {
                 const cost = count(mesh.geometry) * mesh.count;
-                if (stats.shadowTriangles + cost <= budget.shadowTriangles) {
+                if (stats.shadowTriangles + cost <= shadowLimit) {
                   mesh.castShadow = true;
                   stats.shadowTriangles += cost;
                   casters.push(mesh.name);
@@ -541,6 +577,20 @@ export function createTownForest(
         layer.group.removeFromParent();
         cache.delete(key);
       }
+      if (quality === "high") {
+        const result = details.update(camera, viewportHeight, detailSites, {
+          triangles: Math.max(0, budget.triangles - stats.triangles),
+          calls: Math.max(0, budget.calls - stats.calls),
+          shadowTriangles: Math.max(0, budget.shadowTriangles - stats.shadowTriangles)
+        });
+        stats.triangles += result.triangles;
+        stats.calls += result.calls;
+        stats.shadowTriangles += result.shadowTriangles;
+        stats.detailedTrees = result.trees;
+        stats.detailedTriangles = result.triangles;
+        stats.detailedSpecies = result.species;
+        casters.push(result.shadowKey);
+      }
       stats.cachedLayers = cache.size;
       const nextShadow = casters.sort().join("|");
       const shadowChanged = nextShadow !== shadowSignature;
@@ -550,11 +600,13 @@ export function createTownForest(
     dispose() {
       if (disposed) return;
       disposed = true;
+      details.dispose();
       for (const layer of cache.values()) for (const mesh of layer.meshes) mesh.dispose();
       cache.clear();
       for (const g of owned) g.dispose();
       owned.clear();
       material.dispose();
+      smoothMaterial.dispose();
       group.removeFromParent();
       group.clear();
     }

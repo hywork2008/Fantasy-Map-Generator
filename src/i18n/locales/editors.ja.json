@@ -22,6 +22,8 @@
       "protected": "保護された耕作地が残っています：{{count}}セル（セル面積 {{area}} ha）。対象に含めるにはロックを解除してください。",
       "stats3d": "{{area}} ha · 樹木 {{trees}}本 · 三角形 {{triangles}} · 描画 {{calls}}回",
       "stats2d": "{{area}} ha · SVG要素 {{elements}}個",
+      "detailHelp": "高品質では近くの木の枝葉を詳細表示し、遠景の森は簡略化します。",
+      "detailPerformance": "森林の詳細樹木（BV）",
       "autoHelp": "自動は標準から開始します。操作中の遅延が続くと品質を下げ、回復時は時間をおいて上げます。判定値は暫定です。フレーム間隔は森林だけでなく都市全体の負荷を含みます。",
       "limits": "森林の描画上限",
       "budget": "樹木 {{trees}}本 · 三角形 {{triangles}} · 描画 {{calls}}回 · 影の三角形 {{shadowTriangles}}",

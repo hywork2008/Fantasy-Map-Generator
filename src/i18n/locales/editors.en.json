@@ -22,6 +22,8 @@
       "protected": "Protected farmland remaining: {{count}} cells ({{area}} ha of cell area). Unlock the cells to include them.",
       "stats3d": "{{area}} ha · {{trees}} trees · {{triangles}} triangles · {{calls}} calls",
       "stats2d": "{{area}} ha · {{elements}} elements",
+      "detailHelp": "High quality shows detailed branches and leaves on nearby trees; distant forest stays simplified.",
+      "detailPerformance": "Detailed forest trees (BV)",
       "autoHelp": "Automatic starts at Standard. Sustained slow motion lowers detail; recovery is slower. These limits are provisional. Frame intervals include the whole city, not just the forest.",
       "limits": "Forest rendering limits",
       "budget": "{{trees}} trees · {{triangles}} triangles · {{calls}} draw calls · {{shadowTriangles}} shadow triangles",

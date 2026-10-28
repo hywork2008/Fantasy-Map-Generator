@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
+import { createLandscapeTree } from "../../buildings/landscape/trees";
 import { createDocument } from "../../city-editor/generators/document";
 import { forestContains, forestRegions } from "../../city-editor/generators/forestGeometry";
 import { withForestSettings } from "../../city-editor/generators/forestLandCover";
@@ -141,6 +142,82 @@ describe("forest geometry and budgets", () => {
       expect(shadowTriangles).toBe(s.shadowTriangles);
     }
     forest.dispose();
+  });
+
+  it("uses the actual BV species in high quality and restores lightweight instances without changing roots", () => {
+    const doc = document(),
+      p = plan(),
+      c = camera();
+    const forest = createTownForest(doc, p, undefined, "standard");
+    forest.update(c, 720);
+    const original = instances(forest.group);
+    expect(forest.stats.detailedTrees).toBe(0);
+    forest.setQuality("high");
+    forest.update(c, 720);
+    expect(forest.stats.detailedTrees).toBeGreaterThan(0);
+    expect(forest.stats.detailedSpecies).toContain("garden_parkland");
+    const model = createLandscapeTree("garden_parkland");
+    let modelTriangles = 0;
+    model.group.traverse(o => {
+      if (o instanceof THREE.Mesh)
+        modelTriangles += (o.geometry.index?.count ?? o.geometry.getAttribute("position").count) / 3;
+    });
+    model.dispose();
+    expect(forest.stats.detailedTriangles).toBe(modelTriangles * forest.stats.detailedTrees);
+    const bv: THREE.InstancedMesh[] = [];
+    forest.group.traverse(o => {
+      if (o instanceof THREE.InstancedMesh && o.name.startsWith("forest-bv-") && visible(o)) bv.push(o);
+    });
+    expect(bv.length).toBeGreaterThan(0);
+    for (const mesh of bv) {
+      expect(mesh.geometry.getAttribute("position").count / 3).toBe(modelTriangles);
+      for (let i = 0; i < mesh.count; i++) {
+        const m = new THREE.Matrix4();
+        mesh.getMatrixAt(i, m);
+        const position = `${m.elements[12]},${m.elements[14]}`;
+        if (original.has(position)) expect(m.elements).toEqual(original.get(position)!.elements);
+      }
+    }
+    forest.setQuality("standard");
+    forest.update(c, 720);
+    expect(forest.stats.detailedTrees).toBe(0);
+    for (const mesh of bv) expect(mesh.visible).toBe(false);
+    const restored = instances(forest.group);
+    for (const [id, m] of original) if (restored.has(id)) expect(restored.get(id)!.elements).toEqual(m.elements);
+    forest.dispose();
+  });
+
+  it.each([
+    ["hotDesert", "date_palm"],
+    ["savanna", "umbrella_thorn"],
+    ["coldDesert", "saxaul"],
+    ["tropicalRainforest", "kapok"],
+    ["temperateRainforest", "western_red_cedar"],
+    ["wetland", "black_alder"],
+    ["mediterraneanWoodlandScrub", "olive"],
+    ["montaneForest", "silver_fir"],
+    ["mangrove", "red_mangrove"],
+    ["xericShrubland", "tamarisk"],
+    ["alpineTundra", "rowan"],
+    ["volcanicBarrens", "canary_pine"]
+  ])("uses the new %s BV flora (%s) and frees shared resources exactly once", (biome, species) => {
+    const doc = document();
+    doc.biome = { id: 1, key: biome, name: biome, color: "#357544" };
+    const forest = createTownForest(doc, plan(), undefined, "high");
+    forest.update(camera(), 720);
+    expect(forest.stats.detailedSpecies).toContain(species);
+    const resources = new Set<THREE.BufferGeometry | THREE.Material>();
+    forest.group.traverse(o => {
+      if (o instanceof THREE.Mesh && o.name.startsWith("forest-bv-")) {
+        resources.add(o.geometry);
+        for (const m of Array.isArray(o.material) ? o.material : [o.material]) resources.add(m);
+      }
+    });
+    expect(resources.size).toBeGreaterThan(0);
+    const spies = [...resources].map(r => vi.spyOn(r, "dispose"));
+    forest.dispose();
+    forest.dispose();
+    for (const spy of spies) expect(spy).toHaveBeenCalledOnce();
   });
 
   it("aggregates distant chunks rather than deleting forest when the draw budget is exhausted", () => {

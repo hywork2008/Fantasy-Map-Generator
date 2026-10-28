@@ -150,7 +150,8 @@ export function mountPerformancePanel(options: Options) {
             "cityEditor.forest.autoPerformance",
             `${three.forestQuality?.requested ?? three.forest.quality} / ${three.forest.quality}`
           ),
-          row("cityEditor.forest.framePerformance", n(three.forestQuality?.motionIntervalP95Ms))
+          row("cityEditor.forest.framePerformance", n(three.forestQuality?.motionIntervalP95Ms)),
+          row("cityEditor.forest.detailPerformance", n(three.forest.detailedTrees))
         );
     } else if (svgMetrics) {
       rows.push(

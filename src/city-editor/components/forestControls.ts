@@ -61,11 +61,14 @@ export function buildForestControls(ctx: Context) {
     summary,
     help
   );
+  const detailHelp = document.createElement("p");
+  detailHelp.textContent = editorText("cityEditor.forest.detailHelp");
   const qualityHelp = document.createElement("p");
   qualityHelp.textContent = editorText("cityEditor.forest.autoHelp");
   view.append(
     ctx.label(editorText("cityEditor.forest.representation"), representation),
     ctx.label(editorText("cityEditor.forest.quality"), quality),
+    detailHelp,
     qualityHelp
   );
 
