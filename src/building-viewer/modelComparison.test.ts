@@ -95,3 +95,17 @@ it("cancels work before starting and lets failed measurements retry", () => {
   expect(host.textContent).toContain("Timed out");
   expect(workers[1].terminate).toHaveBeenCalledOnce();
 });
+
+it("shows single-quality models without starting unavailable measurements or sharing their counts", () => {
+  comparison.mount(host, null, "high", root);
+  expect(host.querySelector("h2")?.textContent).toBe("Model complexity · Low / High");
+  expect(host.querySelector("tbody tr")?.textContent).toContain("Meshes—1—");
+  expect(host.textContent).toContain("Only High quality is available");
+  vi.advanceTimersByTime(20);
+  expect(workers).toHaveLength(0);
+  host.replaceChildren();
+  root.add(new THREE.Mesh(geometry, material));
+  comparison.mount(host, null, "low", root);
+  expect(host.querySelector("tbody tr")?.textContent).toContain("Meshes2——");
+  expect(host.textContent).toContain("Only Low quality is available");
+});

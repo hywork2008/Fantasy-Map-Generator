@@ -20,11 +20,11 @@ export function createModelComparison(
       cancel();
       cancel = () => {};
     },
-    mount(host: HTMLElement, modulePath: string, quality: ModelQuality, root: THREE.Object3D) {
+    mount(host: HTMLElement, modulePath: string | null, quality: ModelQuality, root: THREE.Object3D) {
       cancel();
-      const measurements = cache.get(modulePath) ?? {};
+      const measurements = (modulePath ? cache.get(modulePath) : undefined) ?? {};
       measurements[quality] = collectModelMetrics(root);
-      cache.set(modulePath, measurements);
+      if (modulePath) cache.set(modulePath, measurements);
       const section = document.createElement("section");
       section.className = "bv-comparison";
       const title = document.createElement("h2");
@@ -94,7 +94,7 @@ export function createModelComparison(
       };
       // Start after the visible model has had a paint opportunity.
       const raf = requestAnimationFrame(() => {
-        if (measurements[other]) return;
+        if (!modulePath || measurements[other]) return;
         startTimer = setTimeout(() => {
           if (!active) return;
           try {
@@ -111,9 +111,11 @@ export function createModelComparison(
           }
         }, 0);
       });
-      status.textContent = measurements[other]
-        ? "Both quality levels measured."
-        : `Measuring ${other === "high" ? "High" : "Low"} in the background…`;
+      status.textContent = !modulePath
+        ? `Only ${quality === "high" ? "High" : "Low"} quality is available for this model.`
+        : measurements[other]
+          ? "Both quality levels measured."
+          : `Measuring ${other === "high" ? "High" : "Low"} in the background…`;
       cancel = stop;
     }
   };
