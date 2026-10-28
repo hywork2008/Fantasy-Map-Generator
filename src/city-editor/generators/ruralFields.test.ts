@@ -67,6 +67,64 @@ function city(): CityDocument {
 const emptyFabric = () => ({ buildings: [], farms: [], lanes: [], entrances: new Map() });
 
 describe("CE rural field integration", () => {
+  it.each(["open-field", "bocage", "planned", "mechanized"] as const)(
+    "distributes whole-frame %s fields to every frame edge within the area budget",
+    system => {
+      const document = city();
+      document.appearance = "town";
+      document.frame = { extentMeters: 1000, cityRadiusMeters: 100, blockSizeMeters: 80 };
+      document.farmlandAreaHectares = 35;
+      document.ruralFieldSettings = { range: "whole-frame", coveragePercent: 70, system };
+      document.mesh = meshFromCells(
+        Array.from({ length: 16 }, (_, id) => {
+          const x = (id % 4) * 250 - 500,
+            y = Math.floor(id / 4) * 250 - 500;
+          const polygon: Point[] = [
+            [x, y],
+            [x + 250, y],
+            [x + 250, y + 250],
+            [x, y + 250]
+          ];
+          return {
+            id,
+            polygon,
+            site: polygonCentroid(polygon),
+            centroid: polygonCentroid(polygon),
+            neighbors: [],
+            onBorder: true
+          };
+        })
+      );
+      for (const face of Object.values(document.mesh.faces))
+        Object.assign(face.properties, { ward: "empty", settlement: "outskirts", buildable: true, water: "land" });
+      const road = document.featureGroups[0];
+      if (road.kind !== "road") throw new Error("Expected road fixture");
+      road.segments = Object.values(document.mesh.edges)
+        .filter(
+          edge =>
+            [-500, 0].includes(document.mesh.vertices[edge.a].point[1]) &&
+            document.mesh.vertices[edge.a].point[1] === document.mesh.vertices[edge.b].point[1]
+        )
+        .map(edge => ({ edgeId: edge.id, forward: true }));
+      const stage = generateRuralFieldStage(document);
+      const farms = stage.ruralFieldSnapshot!.farms;
+      expect(Object.values(stage.mesh.faces).every(face => face.properties.ward === "farm")).toBe(true);
+      for (const axis of [0, 1])
+        for (const sign of [-1, 1])
+          expect(farms.some(farm => polygonCentroid(farm.polygon)[axis] * sign > 400)).toBe(true);
+      expect(farms.reduce((sum, farm) => sum + Math.abs(polygonArea(farm.polygon)), 0)).toBeLessThanOrEqual(350_000.01);
+
+      const near = generateRuralFieldStage({
+        ...document,
+        ruralFieldSettings: { ...document.ruralFieldSettings, range: "near-city" }
+      });
+      expect(near.ruralFieldSnapshot!.farms.length).toBeGreaterThan(0);
+      expect(
+        near.ruralFieldSnapshot!.farms.every(farm => farm.polygon.every(point => Math.hypot(...point) <= 170.01))
+      ).toBe(true);
+    }
+  );
+
   it("retains a farmland stage through save and history, and invalidates edited inputs", () => {
     const document = { ...city(), appearance: "town" as const, ruralFieldVersion: 2 as const };
     document.mesh.faces.f1.properties.ward = "empty";

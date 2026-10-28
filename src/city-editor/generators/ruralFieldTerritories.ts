@@ -184,7 +184,12 @@ export function finishRuralTerritories({
     capacity = 0;
   const ordered = components.sort(
     (a, b) =>
-      Math.hypot(...polygonCentroid(a.ring)) - Math.hypot(...polygonCentroid(b.ring)) || a.label.localeCompare(b.label)
+      // Spread a finite area budget over the countryside instead of exhausting
+      // it in a ring around the town. Near-city keeps its inward preference.
+      (input.settings?.range === "near-city"
+        ? Math.hypot(...polygonCentroid(a.ring)) - Math.hypot(...polygonCentroid(b.ring))
+        : hash(`${input.seed}:coverage:${a.label}`) - hash(`${input.seed}:coverage:${b.label}`)) ||
+      a.label.localeCompare(b.label)
   );
   for (const [i, component] of ordered.entries()) {
     const index = Number(component.label.split(":")[0]),

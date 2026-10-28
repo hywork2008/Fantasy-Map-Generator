@@ -246,7 +246,7 @@ export function documentFabricFingerprint(doc: CityDocument): string {
     siteEconomyKey(economyOnDocument(doc)),
     doc.farmlandAreaHectares ?? "",
     doc.ruralFieldVersion ?? "",
-    doc.ruralFieldVersion === 2 ? "independent-river-banks-v1" : "",
+    doc.ruralFieldVersion === 2 ? "whole-frame-coverage-v2" : "",
     doc.ruralFieldVersion !== undefined
       ? JSON.stringify([
           Object.values(doc.mesh.vertices).map(v => [v.id, v.point, v.locked]),
