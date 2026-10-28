@@ -257,7 +257,7 @@ export function applyBastionedTown(
   }
   releaseRoads(document);
   document.bastionedTown = plan;
-  document.version = 5;
+  if (document.version !== 6) document.version = 5;
   markReservedFaces(document);
   const errors = validateFortifications(document);
   if (errors.length) return { reason: "fortress-invalid-bastion", details: errors };

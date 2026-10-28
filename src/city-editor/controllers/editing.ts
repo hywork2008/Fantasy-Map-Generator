@@ -106,6 +106,7 @@ export function createEditingController(ctx: EditingContext) {
       ctx.generation.generateSettings.mode = recipe?.settings.mode ?? "city";
       ctx.generation.generateSettings.buildingHeightPolicy = next.buildingHeightPolicy;
       ctx.generation.generateSettings.buildingHeightLimit = next.buildingHeightLimit;
+      ctx.generation.generateSettings.forestSettings = next.forestSettings;
       ctx.generation.completeSource = recipe ? clone(recipe.input) : null;
       ctx.generation.completeResult = recipe ? next : null;
       ctx.generation.completeResultSettings = recipe ? JSON.stringify(ctx.generation.generateSettings) : null;
@@ -131,6 +132,7 @@ export function createEditingController(ctx: EditingContext) {
       };
     ctx.generation.generateSettings.buildingHeightPolicy = next.buildingHeightPolicy;
     ctx.generation.generateSettings.buildingHeightLimit = next.buildingHeightLimit;
+    ctx.generation.generateSettings.forestSettings = next.forestSettings;
     ctx.generation.generateSettings.housingAreaScale =
       next.fabric?.generation?.settings.housingAreaScale ?? next.housingAreaScale;
     ctx.generation.generateSettings.housingAreaPasses =

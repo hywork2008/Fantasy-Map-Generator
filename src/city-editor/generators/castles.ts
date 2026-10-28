@@ -39,7 +39,7 @@ export function registerTownCircuit(
   ring?: number
 ): void {
   if (!walled) return;
-  document.version = 2;
+  if (document.version !== 6) document.version = 2;
   // Passage construction can move a known interior cell's centroid beyond its
   // original polygon. Preserve planned membership; use geometry for newly split cells.
   const interior = new Set(interiorFaceIds);
@@ -334,7 +334,7 @@ export function installCastle(
     };
     working.castles ??= [];
     working.castles.push(castle);
-    working.version = 2;
+    if (working.version !== 6) working.version = 2;
     const layout = layoutCastle(working, castle, 8);
     if (!layout) {
       diagnostics?.push(`${edge.id}: no valid gate/court/building layout`);

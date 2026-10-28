@@ -45,8 +45,8 @@ describe("editor translation keys", () => {
     }
   });
 
-  it("identifies all seventeen generation stages by meaningful keys across both languages", async () => {
-    expect(GENERATION_STAGES.map(stage => stage.step)).toEqual(Array.from({ length: 17 }, (_, i) => i + 1));
+  it("identifies all eighteen generation stages by meaningful keys across both languages", async () => {
+    expect(GENERATION_STAGES.map(stage => stage.step)).toEqual(Array.from({ length: 18 }, (_, i) => i + 1));
     for (const language of ["en", "ja"] as const) {
       await i18n.changeLanguage(language);
       for (const stage of GENERATION_STAGES) {

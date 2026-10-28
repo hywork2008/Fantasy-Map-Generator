@@ -1,0 +1,24 @@
+{
+  "capturedAt": "2026-10-28T07:53:45.027Z",
+  "beforeApplyArea": 0,
+  "appliedArea": 993664.5634041692,
+  "undoArea": 0,
+  "redoArea": 993664.5634041692,
+  "allTreesArea": 993664.5634041692,
+  "reloadArea": 993664.5634041692,
+  "representation": "all-trees",
+  "svgExportUsesAllTrees": true,
+  "layoutPreserved": true,
+  "contentsPreserved": true,
+  "settings": {
+    "version": 1,
+    "mode": "surroundings",
+    "density": "dense"
+  },
+  "renderer": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+  "three": {
+    "light": "3D · Population: —\n1440 × 1000 CSS px · DPR 1\nUI frame interval p95: — ms\nEffective quality: high\nGenerated building lots: 940\nDraw calls / frame: 1,019\nTriangles / frame: 6,006,779\nRendered lines / points: 0 / 0\nLast 3D render CPU submission: 231.1 ms\nTime since last 3D frame: 2.5 s\nDrawing buffer: 1440 × 1000 px\nResident meshes / instances: 1,055 / 1,018\nRenderer geometries / textures: 1,019 / 0\nUnique geometry vertices / materials: 17,561,040 / 985\nForest: 99.4 ha · 0 trees · 34,534 triangles · 35 calls\nForest quality (requested / effective): light / light\nForest motion interval p95 (ms): —",
+    "auto": "3D · Population: —\n1440 × 1000 CSS px · DPR 1\nUI frame interval p95: — ms\nEffective quality: high\nGenerated building lots: 940\nDraw calls / frame: 1,019\nTriangles / frame: 6,006,779\nRendered lines / points: 0 / 0\nLast 3D render CPU submission: 4.6 ms\nTime since last 3D frame: 1.5 s\nDrawing buffer: 1440 × 1000 px\nResident meshes / instances: 1,055 / 1,018\nRenderer geometries / textures: 1,019 / 0\nUnique geometry vertices / materials: 17,561,040 / 985\nForest: 99.4 ha · 0 trees · 34,534 triangles · 35 calls\nForest quality (requested / effective): auto / standard\nForest motion interval p95 (ms): —"
+  },
+  "errors": []
+}

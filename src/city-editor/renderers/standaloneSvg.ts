@@ -2,6 +2,7 @@ import type { GenerationObserver } from "../generators/generationDiagnostics";
 import type { CityDocument } from "../types/document";
 import type { RenderSelection } from "../types/selection";
 import { renderEditorSvg } from "./editorSvg";
+import type { ForestSvgOptions } from "./forestSvg";
 import { getLandscapeSuburbFaceColor } from "./landscape";
 import { serializeSvgFile } from "./serializeSvg";
 import { element, NS } from "./svgPrimitives";
@@ -101,7 +102,8 @@ export const STANDALONE_SVG_STYLE = `
 export function renderStandaloneCitySvg(
   document: CityDocument,
   preview = false,
-  observer?: GenerationObserver
+  observer?: GenerationObserver,
+  forestView?: ForestSvgOptions
 ): SVGSVGElement {
   const extent = document.frame.extentMeters;
   const viewBox = `${-extent / 2} ${-extent / 2} ${extent} ${extent}`;
@@ -132,7 +134,10 @@ export function renderStandaloneCitySvg(
     false,
     false,
     "detailed",
-    preview
+    preview,
+    { core: true, regional: true },
+    undefined,
+    { ...forestView, static: true }
   );
   if (preview) {
     svg.setAttribute("data-render-quality", "preview");
@@ -171,10 +176,10 @@ export function renderStandaloneCitySvg(
     );
   }
 
-  for (const img of svg.querySelectorAll("image")) {
+  for (const img of svg.querySelectorAll("image,use")) {
     const href = img.getAttribute("href");
     if (href && !img.hasAttribute("xlink:href")) {
-      img.setAttribute("xlink:href", href);
+      img.setAttributeNS("http://www.w3.org/1999/xlink", "xlink:href", href);
     }
   }
 
@@ -191,7 +196,11 @@ export function renderStandaloneCitySvg(
   return svg;
 }
 
-export function serializeCitySvg(document: CityDocument, observer?: GenerationObserver): string {
-  const svg = renderStandaloneCitySvg(document, false, observer);
+export function serializeCitySvg(
+  document: CityDocument,
+  observer?: GenerationObserver,
+  forestView?: ForestSvgOptions
+): string {
+  const svg = renderStandaloneCitySvg(document, false, observer, forestView);
   return serializeSvgFile(svg);
 }

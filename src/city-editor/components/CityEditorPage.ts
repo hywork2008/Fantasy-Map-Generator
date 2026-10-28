@@ -64,9 +64,11 @@ import { SHIP_SPECS } from "../renderers/shipSpecifications";
 import {
   readMaxPatchesPreference,
   readModelQualityPreference,
+  readSimplificationPreferences,
   readTerrainSpacingPreference
 } from "../services/browserPreferences";
 import { beginEditorMount } from "../services/editorLifetime";
+import { readForestViewPreferences } from "../services/forestViewPreferences";
 import { type ImportedCityMap, pickCityMap } from "../services/io/cityEditorFile";
 import { type CityEditorShare, readIncomingCity } from "../services/io/incomingCity";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
@@ -2045,6 +2047,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   const {
     populationControls,
     appearanceControls,
+    forestControls,
     currentBuildingPatternSelect,
     historicalPeriodSelect,
     skeletonControls,
@@ -2760,6 +2763,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     ]),
     cityElements
   );
+  elements.append(generationSection("cityEditor.forest.title", [forestControls.root]));
   const view = div();
   view.append(
     generationSection("cityEditor.generationWorkspace.layers", [
@@ -2769,7 +2773,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       toggleLabel(editorText("cityEditor.messages.showElevationTint"), elevationTintInput)
     ]),
     label(editorText("cityEditor.messages.renderQuality"), renderQualitySelect),
-    appearanceControls.viewControls
+    appearanceControls.viewControls,
+    generationSection("cityEditor.forest.title", [forestControls.view])
   );
   const debug = div();
   const cityDebug = div("ce-city-generation-controls");
@@ -3018,6 +3023,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     getViewHalfSize: () => display.halfView,
     getViewCenter: () => display.viewCenter,
     getModelQuality: readModelQualityPreference,
+    getSimplification: readSimplificationPreferences,
+    getForestQuality: () => readForestViewPreferences().quality,
     isFmgLinked: () => Boolean(generation.generateSettings.descriptor),
     getTerrainSpacing: readTerrainSpacingPreference,
     getRiverDropMeters: () => riverDropMeters(generation.generateSettings.riverDropMeters)
@@ -3036,6 +3043,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     getDocument: () => documents.documentState,
     get3d: () => city3d.getPerformance(),
     getSettings: () => ({
+      forestView: readForestViewPreferences(),
       modelQuality: readModelQualityPreference(),
       renderQuality: renderQualitySelect.value,
       terrainSpacing: readTerrainSpacingPreference(),
@@ -3174,6 +3182,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   function refresh(): void {
     syncStepControls();
     appearanceControls.sync();
+    forestControls.sync();
     getMapDisplayController().refresh();
     syncCity3d();
   }
@@ -3187,6 +3196,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   function refreshUiOnly(): void {
     syncStepControls();
     appearanceControls.sync();
+    forestControls.sync();
     getMapDisplayController().refreshUiOnly();
   }
 

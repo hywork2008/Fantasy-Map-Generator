@@ -77,6 +77,38 @@ describe("shared BV city instances", () => {
     expect(cache.size).toBe(0);
   });
 
+  it("shares explicitly content-keyed recreated definitions and keeps unkeyed factories independent", () => {
+    const cache = createBvPrototypeCache();
+    const createGeometry = vi.fn(() => new THREE.BoxGeometry(2, 3, 4).toNonIndexed());
+    const definition = () => ({ id: "fresh", cacheKey: "test:box:2:3:4", create: vi.fn(), createGeometry });
+    const a = cache.acquire(definition())!,
+      b = cache.acquire(definition())!;
+    expect(createGeometry).toHaveBeenCalledOnce();
+    expect(a.geometry).toBe(b.geometry);
+    const free = vi.spyOn(a.geometry, "dispose");
+    a.release();
+    expect(free).not.toHaveBeenCalled();
+    b.release();
+    expect(free).toHaveBeenCalledOnce();
+    const x = cache.acquire({ ...definition(), cacheKey: undefined })!,
+      y = cache.acquire({ ...definition(), cacheKey: undefined })!;
+    expect(x.geometry).not.toBe(y.geometry);
+    x.release();
+    y.release();
+    expect(cache.size).toBe(0);
+    const layer = createBvInstances(
+      [
+        { id: "first", definition: definition(), matrix: new THREE.Matrix4() },
+        { id: "second", definition: definition(), matrix: new THREE.Matrix4().makeTranslation(4, 0, 0) }
+      ],
+      cache
+    );
+    expect(layer.pickables).toHaveLength(1);
+    expect(layer.resolve({ object: layer.pickables[0], instanceId: 1 })?.id).toBe("second");
+    layer.dispose();
+    expect(cache.size).toBe(0);
+  });
+
   it("rejects unsupported transparency without keeping source resources", () => {
     const source = fixture();
     (source.pickables[0].material as THREE.Material).transparent = true;

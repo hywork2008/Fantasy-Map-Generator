@@ -1,6 +1,7 @@
 import type { CastlePart, CityDocument, Point } from "../types/document";
 import type { FortSite } from "../types/fortSite";
 import type { GenerationSettings } from "../types/generation";
+import { hasForestState } from "./forestSettings";
 import { polylineInsideRing } from "./fortifications";
 import { auditFortAccess } from "./fortSiteGeometry";
 import { polygonCentroid } from "./geom";
@@ -15,7 +16,10 @@ export function generateFortOnDocument(
 ): CityDocument | null {
   const source: CityDocument = {
     format: "fmg-city-editor",
-    version: 2,
+    version: hasForestState(input) || settings.forestSettings ? 6 : 2,
+    forestSettings: settings.forestSettings ?? input.forestSettings,
+    buildingHeightPolicy: settings.buildingHeightPolicy,
+    buildingHeightLimit: settings.buildingHeightLimit,
     frame: clone(input.frame),
     gridKind: input.gridKind ?? "hex",
     mesh: clone(input.mesh),
@@ -265,7 +269,7 @@ export function generateFortOnDocument(
     }
   ];
   document.fortSite = site;
-  document.version = 2;
+  document.version = hasForestState(document) ? 6 : 2;
   document.appearance = "town";
   document.generationSeed = seed;
   document.fabric = {

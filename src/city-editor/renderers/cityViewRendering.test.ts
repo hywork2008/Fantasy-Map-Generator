@@ -2,7 +2,9 @@ import * as THREE from "three";
 import { expect, it, vi } from "vitest";
 import { buildBlockFabric, documentFabricFingerprint } from "../generators/blockInfill";
 import { createDocument } from "../generators/document";
+import { withForestSettings } from "../generators/forestLandCover";
 import { beginEditorMount } from "../services/editorLifetime";
+import type { ForestQualityPreference } from "../types/contracts/forest";
 import { mountCity3d } from "./cityView";
 
 const render = vi.hoisted(() => vi.fn());
@@ -271,6 +273,131 @@ it("keeps cursor zoom and right-drag responsive above the ground at a 30-degree 
       const offset = position().sub(new THREE.Vector3().fromArray(snapshot().target));
       expect(offset.y / offset.length()).toBeCloseTo(0.5, 8);
     }
+  } finally {
+    view.dispose();
+    scope.dispose();
+    host.remove();
+    vi.unstubAllGlobals();
+  }
+});
+
+it("updates forest quality and camera LOD without rebuilding city geometry and removes disabled forest", () => {
+  render.mockClear();
+  const frames = new Map<number, FrameRequestCallback>();
+  let id = 0;
+  vi.stubGlobal("requestAnimationFrame", (fn: FrameRequestCallback) => {
+    frames.set(++id, fn);
+    return id;
+  });
+  vi.stubGlobal("cancelAnimationFrame", (key: number) => frames.delete(key));
+  const flush = () => {
+    const pending = [...frames.values()];
+    frames.clear();
+    for (const fn of pending) fn(0);
+  };
+  const host = document.createElement("div"),
+    map = document.createElement("div");
+  host.append(map);
+  document.body.append(host);
+  const source = createDocument("forest-refresh", 400);
+  source.appearance = "town";
+  for (const face of Object.values(source.mesh.faces))
+    Object.assign(face.properties, { ward: "farm", settlement: "outskirts" });
+  let city = withForestSettings(source, { version: 1, mode: "surroundings", density: "standard" });
+  let forestQuality: ForestQualityPreference = "standard";
+  let simplification = { urban: "auto" as "auto" | "off", outskirts: "auto" as "auto" | "off" };
+  const getDocument = vi.fn(() => city);
+  const scope = beginEditorMount(host);
+  const view = mountCity3d({
+    canvasHost: host,
+    map,
+    scope,
+    getDocument,
+    getForestQuality: () => forestQuality,
+    getSimplification: () => simplification
+  });
+  try {
+    host.querySelector<HTMLButtonElement>(".ce-view-toggle")!.click();
+    flush();
+    const scene = render.mock.lastCall![0] as THREE.Scene;
+    const forest = scene.getObjectByName("ce-forest");
+    let massing = scene.getObjectByName("massing");
+    expect(forest).toBeDefined();
+    expect(view.getPerformance()?.forest?.areaM2).toBeGreaterThan(0);
+    const traverse = vi.spyOn(scene, "traverse");
+    expect(view.getFramePerformance()?.forest?.areaM2).toBeGreaterThan(0);
+    expect(traverse).not.toHaveBeenCalled();
+    traverse.mockRestore();
+    forestQuality = "light";
+    view.sync();
+    flush();
+    expect(scene.getObjectByName("ce-forest")).toBe(forest);
+    expect(scene.getObjectByName("massing")).toBe(massing);
+    expect(view.getPerformance()?.forest?.quality).toBe("light");
+    const reads = getDocument.mock.calls.length;
+    view.restoreView({ position: [130, 40, 120], target: [100, 0, 0], zoom: 1, fov: 45 });
+    flush();
+    expect(scene.getObjectByName("massing")).toBe(massing);
+    expect(getDocument).toHaveBeenCalledTimes(reads);
+    forestQuality = "auto";
+    view.sync();
+    flush();
+    expect(view.getPerformance()?.forestQuality?.effective).toBe("standard");
+    let now = 0;
+    const clock = vi.spyOn(performance, "now").mockImplementation(() => now);
+    try {
+      const canvas = host.querySelector("canvas")!;
+      vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
+        width: 800,
+        height: 600,
+        left: 0,
+        top: 0
+      } as DOMRect);
+      for (let i = 0; i < 80; i++) {
+        now += 100;
+        canvas.dispatchEvent(
+          new WheelEvent("wheel", { deltaY: i % 2 ? -1 : 1, clientX: 400, clientY: 300, cancelable: true })
+        );
+        flush();
+      }
+      expect(view.getPerformance()?.forestQuality?.effective).toBe("light");
+      expect(view.getPerformance()?.forest?.quality).toBe("light");
+      expect(scene.getObjectByName("ce-forest")).toBe(forest);
+      expect(scene.getObjectByName("massing")).toBe(massing);
+      flush();
+      expect(frames.size).toBe(0);
+    } finally {
+      clock.mockRestore();
+    }
+    const farms = scene.getObjectByName("ce-farmland");
+    simplification = { urban: "off", outskirts: "auto" };
+    view.sync();
+    flush();
+    expect(scene.getObjectByName("ce-forest")).toBe(forest);
+    expect(scene.getObjectByName("ce-farmland")).toBe(farms);
+    expect(scene.getObjectByName("massing")).not.toBe(massing);
+    massing = scene.getObjectByName("massing");
+    simplification = { urban: "off", outskirts: "off" };
+    view.sync();
+    flush();
+    expect(scene.getObjectByName("massing")).toBe(massing);
+    expect(scene.getObjectByName("ce-forest")).not.toBe(forest);
+    expect(scene.getObjectByName("ce-farmland")).not.toBe(farms);
+    expect(view.getPerformance()?.forest?.quality).toBe("high");
+    expect(view.getPerformance()?.forest?.detailedTrees).toBeGreaterThan(16);
+    simplification = { urban: "off", outskirts: "auto" };
+    forestQuality = "light";
+    view.sync();
+    flush();
+    expect(scene.getObjectByName("massing")).toBe(massing);
+    expect(view.getPerformance()?.forest?.quality).toBe("light");
+    expect(view.getPerformance()?.forest?.detailedTrees).toBe(0);
+    city = withForestSettings(city, { version: 1, mode: "legacy", density: "standard" });
+    view.sync();
+    flush();
+    expect(scene.getObjectByName("ce-forest")).toBeUndefined();
+    expect(scene.getObjectByName("massing")).toBe(massing);
+    expect(view.getPerformance()?.forest).toBeUndefined();
   } finally {
     view.dispose();
     scope.dispose();

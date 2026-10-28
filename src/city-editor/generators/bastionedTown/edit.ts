@@ -114,6 +114,7 @@ export function removeBastionedTown(document: CityDocument): CityDocument {
   if (!(next.defenseCircuits ?? []).some(item => item.scope === "town")) {
     for (const face of Object.values(next.mesh.faces)) delete face.properties.wallRing;
   }
-  next.version = next.sceneRegions ? 4 : next.landmarks?.length || next.landmarkAssets?.length ? 3 : 2;
+  next.version =
+    next.version === 6 ? 6 : next.sceneRegions ? 4 : next.landmarks?.length || next.landmarkAssets?.length ? 3 : 2;
   return next;
 }

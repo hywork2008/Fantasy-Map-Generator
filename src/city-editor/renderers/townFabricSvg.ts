@@ -1,7 +1,9 @@
 import { buildingAppearanceColors } from "../../buildings/appearance/colors";
 import { editorText } from "../../i18n/editorMessages";
 import type { AerialLandmarkPlan } from "../generators/aerialLandmarks";
+import type { DistrictFabric } from "../generators/blockInfill.types";
 import { farmSheds } from "../generators/farmSheds";
+import { hasForestState } from "../generators/forestSettings";
 import { polygonArea, polygonCentroid } from "../generators/geom";
 import type { HarborPlan } from "../generators/harborFabric";
 import type { ParkLawn, ParkTreeCanopy } from "../generators/parkFabric";
@@ -19,6 +21,7 @@ import { roundedFarmPolygon } from "./townShapes";
 
 /** The town plans later layers draw (quays, mills, parks, aerial landmarks) and the landscape keep-out reads. */
 export interface TownLayerPlans {
+  forestFabric?: DistrictFabric;
   harbor: HarborPlan | undefined;
   parks: ParkLawn[];
   vacantTrees?: ParkTreeCanopy[];
@@ -498,6 +501,14 @@ export function renderTownFabric(
     svg.appendChild(buildings);
   }
   return {
+    forestFabric: hasForestState(document)
+      ? {
+          ...(fabric ?? { farms: [], lanes: [], entrances: new Map() }),
+          buildings: lots,
+          parks: townParkLawns,
+          watermills: facts.watermills
+        }
+      : undefined,
     harbor: facts.fabric?.harbor,
     parks: townParkLawns,
     vacantTrees:

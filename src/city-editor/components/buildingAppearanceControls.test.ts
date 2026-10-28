@@ -167,3 +167,51 @@ it("defaults a new city to varied heights and switches to uniform while retainin
   expect(city.buildingHeightPolicy?.version).toBe(1);
   expect(city.buildingHeightLimit).toEqual({ maxStoreys: 2 });
 });
+
+it("persists urban and outskirts simplification independently without editing the document", async () => {
+  const { readSimplificationPreferences } = await import("../services/browserPreferences");
+  localStorage.removeItem("fmg-city-editor:simplification");
+  const root = document.createElement("div");
+  document.body.append(root);
+  const scope = new EditorLifetime(root);
+  mounts.push({ scope, root });
+  const controls = createEditorControls(scope);
+  const city = createGridDocument({ size: "tiny", grid: "hex", seed: "simplification-ui" });
+  const before = serializeDocument(city);
+  let redraws = 0;
+  const context = {
+    scope,
+    getDocument: () => city,
+    updateDocument() {
+      throw new Error("Viewer preferences must not edit the city");
+    },
+    select: controls.select,
+    label: controls.label,
+    modelQualityChanged() {
+      redraws++;
+    }
+  };
+  const panel = buildBuildingAppearanceControls(context);
+  root.append(panel.viewControls);
+  const urban = root.querySelector<HTMLSelectElement>(".ce-urban-simplification")!;
+  const outskirts = root.querySelector<HTMLSelectElement>(".ce-outskirts-simplification")!;
+  expect([urban.value, outskirts.value]).toEqual(["auto", "auto"]);
+  urban.value = "off";
+  urban.dispatchEvent(new Event("change"));
+  expect(readSimplificationPreferences()).toEqual({ urban: "off", outskirts: "auto" });
+  outskirts.value = "off";
+  outskirts.dispatchEvent(new Event("change"));
+  expect(readSimplificationPreferences()).toEqual({ urban: "off", outskirts: "off" });
+  urban.value = "auto";
+  urban.dispatchEvent(new Event("change"));
+  expect(readSimplificationPreferences()).toEqual({ urban: "auto", outskirts: "off" });
+  expect(redraws).toBe(3);
+  const restored = buildBuildingAppearanceControls(context);
+  expect(restored.viewControls.querySelector<HTMLSelectElement>(".ce-outskirts-simplification")!.value).toBe("off");
+  expect(serializeDocument(city)).toBe(before);
+  localStorage.setItem("fmg-city-editor:simplification", '{"urban":"invalid","outskirts":"off"}');
+  expect(readSimplificationPreferences()).toEqual({ urban: "auto", outskirts: "off" });
+  localStorage.setItem("fmg-city-editor:simplification", "invalid");
+  expect(readSimplificationPreferences()).toEqual({ urban: "auto", outskirts: "auto" });
+  localStorage.removeItem("fmg-city-editor:simplification");
+});
