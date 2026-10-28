@@ -1,0 +1,906 @@
+{
+ "schemaVersion": 1,
+ "inputSha256": "5e73a27785881bf553d37404442d7ead0f7bb68457208cc33c88c88f7c6a5999",
+ "months": 25,
+ "notes": [
+  "Real animals in inhabited land cells. demandTargetHeads is the source-based policy target (livestockHerdTargetPolicy.ts); supportedHeads limits it by forage, feed history and herders.",
+  "settled* covers herds within 0.9..1.1 of their supported size.",
+  "convertedForestHaByKind is the cleared forest inside current land-use patches."
+ ],
+ "samples": [
+  {
+   "label": "loaded",
+   "date": [
+    1300,
+    1
+   ],
+   "land": {
+    "ruralPeople": 3579209.4272747636,
+    "cultivatedHa": 12813485.063792065,
+    "pastureHa": 3575789.321455163,
+    "woodPastureHa": 0,
+    "landUseCells": 2221
+   },
+   "convertedForestHaByKind": {
+    "pasture": 1014487.3306485493,
+    "cultivation": 5780525.867542048,
+    "built": 4677.855784703775
+   },
+   "species": [
+    {
+     "species": "Cattle",
+     "heads": 32044.245689714026,
+     "supportedHeads": 526461.684175319,
+     "demandTargetHeads": 1991156.9081496,
+     "trackedCells": 625,
+     "cohorts": {
+      "young": 8013.216377028276,
+      "breeding": 16026.432754056552,
+      "old": 8004.596558629203
+     },
+     "settledCells": 0,
+     "settledCohorts": {
+      "young": 0,
+      "breeding": 0,
+      "old": 0
+     }
+    },
+    {
+     "species": "Horses",
+     "heads": 28017.30898583879,
+     "supportedHeads": 121687.08870862237,
+     "demandTargetHeads": 490294.6319463253,
+     "trackedCells": 625,
+     "cohorts": {
+      "young": 7031.553812389013,
+      "breeding": 14063.107624778026,
+      "old": 6922.647548671748
+     },
+     "settledCells": 74,
+     "settledCohorts": {
+      "young": 1245.6467124188578,
+      "breeding": 2491.2934248377155,
+      "old": 1234.1843354365114
+     }
+    },
+    {
+     "species": "Camels",
+     "heads": 2241.5197421012895,
+     "supportedHeads": 4205.005389796364,
+     "demandTargetHeads": 46245.166593790054,
+     "trackedCells": 369,
+     "cohorts": {
+      "young": 560.39674206529,
+      "breeding": 1120.79348413058,
+      "old": 560.3295159054195
+     },
+     "settledCells": 13,
+     "settledCohorts": {
+      "young": 24.982987859101517,
+      "breeding": 49.96597571820303,
+      "old": 24.982987859101517
+     }
+    },
+    {
+     "species": "Sheep",
+     "heads": 192316.17895239624,
+     "supportedHeads": 1766624.2586581476,
+     "demandTargetHeads": 5548460.783785731,
+     "trackedCells": 625,
+     "cohorts": {
+      "young": 48081.19969269882,
+      "breeding": 96162.39938539764,
+      "old": 48072.57987429976
+     },
+     "settledCells": 0,
+     "settledCohorts": {
+      "young": 0,
+      "breeding": 0,
+      "old": 0
+     }
+    },
+    {
+     "species": "Goats",
+     "heads": 38845.35411176436,
+     "supportedHeads": 16399.52102020581,
+     "demandTargetHeads": 180356.1497157812,
+     "trackedCells": 369,
+     "cohorts": {
+      "young": 9711.381487911727,
+      "breeding": 19422.762975823454,
+      "old": 9711.209648029175
+     },
+     "settledCells": 1,
+     "settledCohorts": {
+      "young": 37.55289410165341,
+      "breeding": 75.10578820330682,
+      "old": 37.55289410165341
+     }
+    }
+   ]
+  },
+  {
+   "label": "prepared",
+   "date": [
+    1300,
+    1
+   ],
+   "land": {
+    "ruralPeople": 3579209.4272747636,
+    "cultivatedHa": 12813485.063792065,
+    "pastureHa": 3575789.321455163,
+    "woodPastureHa": 0,
+    "landUseCells": 2221
+   },
+   "convertedForestHaByKind": {
+    "pasture": 1014487.3306485493,
+    "cultivation": 5780525.867542048,
+    "built": 4677.855784703775
+   },
+   "species": [
+    {
+     "species": "Cattle",
+     "heads": 32044.245689714026,
+     "supportedHeads": 526461.684175319,
+     "demandTargetHeads": 1991156.9081496,
+     "trackedCells": 625,
+     "cohorts": {
+      "young": 8013.216377028276,
+      "breeding": 16026.432754056552,
+      "old": 8004.596558629203
+     },
+     "settledCells": 0,
+     "settledCohorts": {
+      "young": 0,
+      "breeding": 0,
+      "old": 0
+     }
+    },
+    {
+     "species": "Horses",
+     "heads": 28017.30898583879,
+     "supportedHeads": 121687.08870862237,
+     "demandTargetHeads": 490294.6319463253,
+     "trackedCells": 625,
+     "cohorts": {
+      "young": 7031.553812389013,
+      "breeding": 14063.107624778026,
+      "old": 6922.647548671748
+     },
+     "settledCells": 74,
+     "settledCohorts": {
+      "young": 1245.6467124188578,
+      "breeding": 2491.2934248377155,
+      "old": 1234.1843354365114
+     }
+    },
+    {
+     "species": "Camels",
+     "heads": 2241.5197421012895,
+     "supportedHeads": 4205.005389796364,
+     "demandTargetHeads": 46245.166593790054,
+     "trackedCells": 369,
+     "cohorts": {
+      "young": 560.39674206529,
+      "breeding": 1120.79348413058,
+      "old": 560.3295159054195
+     },
+     "settledCells": 13,
+     "settledCohorts": {
+      "young": 24.982987859101517,
+      "breeding": 49.96597571820303,
+      "old": 24.982987859101517
+     }
+    },
+    {
+     "species": "Sheep",
+     "heads": 192316.17895239624,
+     "supportedHeads": 1766624.2586581476,
+     "demandTargetHeads": 5548460.783785731,
+     "trackedCells": 625,
+     "cohorts": {
+      "young": 48081.19969269882,
+      "breeding": 96162.39938539764,
+      "old": 48072.57987429976
+     },
+     "settledCells": 0,
+     "settledCohorts": {
+      "young": 0,
+      "breeding": 0,
+      "old": 0
+     }
+    },
+    {
+     "species": "Goats",
+     "heads": 38845.35411176436,
+     "supportedHeads": 16399.52102020581,
+     "demandTargetHeads": 180356.1497157812,
+     "trackedCells": 369,
+     "cohorts": {
+      "young": 9711.381487911727,
+      "breeding": 19422.762975823454,
+      "old": 9711.209648029175
+     },
+     "settledCells": 1,
+     "settledCohorts": {
+      "young": 37.55289410165341,
+      "breeding": 75.10578820330682,
+      "old": 37.55289410165341
+     }
+    }
+   ]
+  },
+  {
+   "label": "month 1",
+   "date": [
+    1300,
+    2
+   ],
+   "land": {
+    "ruralPeople": 3579790.5422635376,
+    "cultivatedHa": 8222588.458504502,
+    "pastureHa": 10279574.724328997,
+    "woodPastureHa": 0,
+    "landUseCells": 2221
+   },
+   "convertedForestHaByKind": {
+    "cultivation": 3543094.083158764,
+    "pasture": 2010386.6089972812,
+    "abandoned": 2238391.9792710925,
+    "built": 4677.8878837995635
+   },
+   "species": [
+    {
+     "species": "Cattle",
+     "heads": 93196.50168551474,
+     "supportedHeads": 879690.6396763454,
+     "demandTargetHeads": 2019022.946660851,
+     "trackedCells": 625,
+     "cohorts": {
+      "young": 23373.021088632067,
+      "breeding": 46746.042177264135,
+      "old": 23077.438419618524
+     },
+     "settledCells": 5,
+     "settledCohorts": {
+      "young": 682.4229162104614,
+      "breeding": 1364.8458324209228,
+      "old": 657.4229162104614
+     }
+    },
+    {
+     "species": "Horses",
+     "heads": 30100.61848291414,
+     "supportedHeads": 221214.0084992339,
+     "demandTargetHeads": 496378.30898345244,
+     "trackedCells": 625,
+     "cohorts": {
+      "young": 7569.881186657852,
+      "breeding": 15139.762373315703,
+      "old": 7390.974922940589
+     },
+     "settledCells": 15,
+     "settledCohorts": {
+      "young": 474.88674204879607,
+      "breeding": 949.7734840975921,
+      "old": 464.88674204879607
+     }
+    },
+    {
+     "species": "Camels",
+     "heads": 2579.620543352786,
+     "supportedHeads": 24669.226012946518,
+     "demandTargetHeads": 46255.8559641242,
+     "trackedCells": 369,
+     "cohorts": {
+      "young": 644.9051358381965,
+      "breeding": 1289.810271676393,
+      "old": 644.9051358381965
+     },
+     "settledCells": 0,
+     "settledCohorts": {
+      "young": 0,
+      "breeding": 0,
+      "old": 0
+     }
+    },
+    {
+     "species": "Sheep",
+     "heads": 231996.07541375366,
+     "supportedHeads": 2755331.109523317,
+     "demandTargetHeads": 5546727.0855059475,
+     "trackedCells": 625,
+     "cohorts": {
+      "young": 58236.121894281205,
+      "breeding": 116472.24378856241,
+      "old": 57287.709730910065
+     },
+     "settledCells": 3,
+     "settledCohorts": {
+      "young": 759.2830452031509,
+      "breeding": 1518.5660904063018,
+      "old": 689.2830452031509
+     }
+    },
+    {
+     "species": "Goats",
+     "heads": 38569.35411176436,
+     "supportedHeads": 96209.98145049147,
+     "demandTargetHeads": 180397.8382600844,
+     "trackedCells": 369,
+     "cohorts": {
+      "young": 9711.381487911727,
+      "breeding": 19422.762975823454,
+      "old": 9435.209648029178
+     },
+     "settledCells": 3,
+     "settledCohorts": {
+      "young": 186.2531345498093,
+      "breeding": 372.5062690996186,
+      "old": 161.2531345498093
+     }
+    }
+   ]
+  },
+  {
+   "label": "month 2",
+   "date": [
+    1300,
+    3
+   ],
+   "land": {
+    "ruralPeople": 3580312.6720376313,
+    "cultivatedHa": 8222588.458504502,
+    "pastureHa": 10279574.724328997,
+    "woodPastureHa": 0,
+    "landUseCells": 2221
+   },
+   "convertedForestHaByKind": {
+    "cultivation": 3543094.083158764,
+    "pasture": 2010386.6089972812,
+    "abandoned": 2238391.9792710925,
+    "built": 4677.8878837995635
+   },
+   "species": [
+    {
+     "species": "Cattle",
+     "heads": 93196.50168551474,
+     "supportedHeads": 879692.3867795172,
+     "demandTargetHeads": 2019445.9418586239,
+     "trackedCells": 625,
+     "cohorts": {
+      "young": 23373.021088632067,
+      "breeding": 46746.042177264135,
+      "old": 23077.438419618524
+     },
+     "settledCells": 5,
+     "settledCohorts": {
+      "young": 682.4229162104614,
+      "breeding": 1364.8458324209228,
+      "old": 657.4229162104614
+     }
+    },
+    {
+     "species": "Horses",
+     "heads": 30100.61848291414,
+     "supportedHeads": 221214.41078069917,
+     "demandTargetHeads": 496481.5165239645,
+     "trackedCells": 625,
+     "cohorts": {
+      "young": 7569.881186657852,
+      "breeding": 15139.762373315703,
+      "old": 7390.974922940589
+     },
+     "settledCells": 15,
+     "settledCohorts": {
+      "young": 474.88674204879607,
+      "breeding": 949.7734840975921,
+      "old": 464.88674204879607
+     }
+    },
+    {
+     "species": "Camels",
+     "heads": 2579.620543352786,
+     "supportedHeads": 24669.226012946518,
+     "demandTargetHeads": 46265.30147045851,
+     "trackedCells": 369,
+     "cohorts": {
+      "young": 644.9051358381965,
+      "breeding": 1289.810271676393,
+      "old": 644.9051358381965
+     },
+     "settledCells": 0,
+     "settledCohorts": {
+      "young": 0,
+      "breeding": 0,
+      "old": 0
+     }
+    },
+    {
+     "species": "Sheep",
+     "heads": 231996.07541375366,
+     "supportedHeads": 2755324.855174794,
+     "demandTargetHeads": 5547576.210410222,
+     "trackedCells": 625,
+     "cohorts": {
+      "young": 58236.121894281205,
+      "breeding": 116472.24378856241,
+      "old": 57287.709730910065
+     },
+     "settledCells": 3,
+     "settledCohorts": {
+      "young": 759.2830452031509,
+      "breeding": 1518.5660904063018,
+      "old": 689.2830452031509
+     }
+    },
+    {
+     "species": "Goats",
+     "heads": 38569.35411176436,
+     "supportedHeads": 96209.98145049147,
+     "demandTargetHeads": 180434.67573478818,
+     "trackedCells": 369,
+     "cohorts": {
+      "young": 9711.381487911727,
+      "breeding": 19422.762975823454,
+      "old": 9435.209648029178
+     },
+     "settledCells": 3,
+     "settledCohorts": {
+      "young": 186.2531345498093,
+      "breeding": 372.5062690996186,
+      "old": 161.2531345498093
+     }
+    }
+   ]
+  },
+  {
+   "label": "month 12",
+   "date": [
+    1301,
+    1
+   ],
+   "land": {
+    "ruralPeople": 3585957.313090563,
+    "cultivatedHa": 7871057.0722663095,
+    "pastureHa": 14009690.99548672,
+    "woodPastureHa": 0,
+    "landUseCells": 2221
+   },
+   "convertedForestHaByKind": {
+    "cultivation": 3299006.2049164954,
+    "pasture": 2644982.1008845265,
+    "abandoned": 2413713.9624517723,
+    "built": 4693.286796656173
+   },
+   "species": [
+    {
+     "species": "Cattle",
+     "heads": 390325.3591498611,
+     "supportedHeads": 932066.3998183332,
+     "demandTargetHeads": 2044823.4725968475,
+     "trackedCells": 2149,
+     "cohorts": {
+      "young": 105662.73150869168,
+      "breeding": 191872.86422801446,
+      "old": 92789.76341315497
+     },
+     "settledCells": 27,
+     "settledCohorts": {
+      "young": 4798.856799867759,
+      "breeding": 6923.557571180258,
+      "old": 2558.6182945422315
+     }
+    },
+    {
+     "species": "Horses",
+     "heads": 100626.2637434547,
+     "supportedHeads": 230395.3622658589,
+     "demandTargetHeads": 502237.29413916543,
+     "trackedCells": 2149,
+     "cohorts": {
+      "young": 31117.224530512183,
+      "breeding": 47150.73313649763,
+      "old": 22358.306076444966
+     },
+     "settledCells": 73,
+     "settledCohorts": {
+      "young": 2749.9187952336883,
+      "breeding": 3905.4988056350307,
+      "old": 1418.3546234559526
+     }
+    },
+    {
+     "species": "Camels",
+     "heads": 2859.0794355493376,
+     "supportedHeads": 21235.21278082399,
+     "demandTargetHeads": 46383.7567448616,
+     "trackedCells": 369,
+     "cohorts": {
+      "young": 870.6219333815651,
+      "breeding": 1322.055528468304,
+      "old": 666.4019736994697
+     },
+     "settledCells": 0,
+     "settledCohorts": {
+      "young": 0,
+      "breeding": 0,
+      "old": 0
+     }
+    },
+    {
+     "species": "Sheep",
+     "heads": 1291511.890212772,
+     "supportedHeads": 2870874.8834428424,
+     "demandTargetHeads": 5557069.610859752,
+     "trackedCells": 2157,
+     "cohorts": {
+      "young": 342114.475318981,
+      "breeding": 648983.2492150526,
+      "old": 300414.1656787406
+     },
+     "settledCells": 28,
+     "settledCohorts": {
+      "young": 8017.713310041895,
+      "breeding": 12999.9133668724,
+      "old": 3311.521567734435
+     }
+    },
+    {
+     "species": "Goats",
+     "heads": 49677.354646326436,
+     "supportedHeads": 82817.32984521355,
+     "demandTargetHeads": 180896.65130496025,
+     "trackedCells": 369,
+     "cohorts": {
+      "young": 16966.849161944014,
+      "breeding": 24543.397304742153,
+      "old": 8167.108179640267
+     },
+     "settledCells": 8,
+     "settledCohorts": {
+      "young": 424.80812860605596,
+      "breeding": 623.4093310816613,
+      "old": 53.40180635690132
+     }
+    }
+   ]
+  },
+  {
+   "label": "month 13",
+   "date": [
+    1301,
+    2
+   ],
+   "land": {
+    "ruralPeople": 3586940.2526170015,
+    "cultivatedHa": 7871057.0722663095,
+    "pastureHa": 14009690.99548672,
+    "woodPastureHa": 0,
+    "landUseCells": 2221
+   },
+   "convertedForestHaByKind": {
+    "cultivation": 3299006.2049164954,
+    "pasture": 2644982.1008845265,
+    "abandoned": 2413713.9624517723,
+    "built": 4693.286796656173
+   },
+   "species": [
+    {
+     "species": "Cattle",
+     "heads": 389436.3591498611,
+     "supportedHeads": 936053.4771667876,
+     "demandTargetHeads": 2045567.210401141,
+     "trackedCells": 2149,
+     "cohorts": {
+      "young": 105642.6061474084,
+      "breeding": 191872.2857544533,
+      "old": 91921.4672479994
+     },
+     "settledCells": 27,
+     "settledCohorts": {
+      "young": 5279.940039375346,
+      "breeding": 7600.953959649743,
+      "old": 2340.674588368392
+     }
+    },
+    {
+     "species": "Horses",
+     "heads": 100330.2637434547,
+     "supportedHeads": 231569.2121714493,
+     "demandTargetHeads": 502419.0394191928,
+     "trackedCells": 2149,
+     "cohorts": {
+      "young": 31109.949170069638,
+      "breeding": 47150.73313649763,
+      "old": 22069.58143688751
+     },
+     "settledCells": 78,
+     "settledCohorts": {
+      "young": 2945.833669222224,
+      "breeding": 4176.161300984341,
+      "old": 1312.2563076796152
+     }
+    },
+    {
+     "species": "Camels",
+     "heads": 2859.0794355493376,
+     "supportedHeads": 21541.728035913417,
+     "demandTargetHeads": 46400.33991038799,
+     "trackedCells": 369,
+     "cohorts": {
+      "young": 870.6219333815651,
+      "breeding": 1322.055528468304,
+      "old": 666.4019736994697
+     },
+     "settledCells": 0,
+     "settledCohorts": {
+      "young": 0,
+      "breeding": 0,
+      "old": 0
+     }
+    },
+    {
+     "species": "Sheep",
+     "heads": 1287283.8902127722,
+     "supportedHeads": 2881117.242186619,
+     "demandTargetHeads": 5558653.337677717,
+     "trackedCells": 2157,
+     "cohorts": {
+      "young": 341884.0511383274,
+      "breeding": 648983.2492150526,
+      "old": 296416.58985939407
+     },
+     "settledCells": 31,
+     "settledCohorts": {
+      "young": 10998.200558746212,
+      "breeding": 17799.092950671104,
+      "old": 3411.6814840463617
+     }
+    },
+    {
+     "species": "Goats",
+     "heads": 49268.354646326436,
+     "supportedHeads": 84012.73934006225,
+     "demandTargetHeads": 180961.32565051317,
+     "trackedCells": 369,
+     "cohorts": {
+      "young": 16966.59963680889,
+      "breeding": 24543.397304742153,
+      "old": 7758.3577047753915
+     },
+     "settledCells": 6,
+     "settledCohorts": {
+      "young": 185.84359575452308,
+      "breeding": 273.65927677484194,
+      "old": 4.603551999490819
+     }
+    }
+   ]
+  },
+  {
+   "label": "month 24",
+   "date": [
+    1302,
+    1
+   ],
+   "land": {
+    "ruralPeople": 3598123.70448187,
+    "cultivatedHa": 7918778.696866109,
+    "pastureHa": 15902073.110335913,
+    "woodPastureHa": 0,
+    "landUseCells": 2221
+   },
+   "convertedForestHaByKind": {
+    "cultivation": 3294390.015055473,
+    "pasture": 2985027.8773691296,
+    "abandoned": 2348424.2184130847,
+    "built": 4754.141659073604
+   },
+   "species": [
+    {
+     "species": "Cattle",
+     "heads": 458947.43368853413,
+     "supportedHeads": 1183048.7843260074,
+     "demandTargetHeads": 2074646.3664014544,
+     "trackedCells": 2149,
+     "cohorts": {
+      "young": 148323.0466050066,
+      "breeding": 212247.45141948244,
+      "old": 98376.93566404446
+     },
+     "settledCells": 19,
+     "settledCohorts": {
+      "young": 5113.360767093129,
+      "breeding": 7362.770745499455,
+      "old": 2835.4950721889895
+     }
+    },
+    {
+     "species": "Horses",
+     "heads": 118964.00373083341,
+     "supportedHeads": 302931.8525961811,
+     "demandTargetHeads": 509085.88184690813,
+     "trackedCells": 2148,
+     "cohorts": {
+      "young": 44578.45775023754,
+      "breeding": 51545.10103633209,
+      "old": 22840.444944263807
+     },
+     "settledCells": 16,
+     "settledCohorts": {
+      "young": 1060.7552596163607,
+      "breeding": 1467.1760098348955,
+      "old": 469.3109188994682
+     }
+    },
+    {
+     "species": "Camels",
+     "heads": 3144.6290984732473,
+     "supportedHeads": 38566.85703471632,
+     "demandTargetHeads": 46606.80846422911,
+     "trackedCells": 369,
+     "cohorts": {
+      "young": 1049.5831085766652,
+      "breeding": 1407.5054589668628,
+      "old": 687.5405309297222
+     },
+     "settledCells": 0,
+     "settledCohorts": {
+      "young": 0,
+      "breeding": 0,
+      "old": 0
+     }
+    },
+    {
+     "species": "Sheep",
+     "heads": 1676874.2864243498,
+     "supportedHeads": 3473894.774217501,
+     "demandTargetHeads": 5576994.772364125,
+     "trackedCells": 2157,
+     "cohorts": {
+      "young": 516321.5953150663,
+      "breeding": 852243.8940735398,
+      "old": 308308.79703574505
+     },
+     "settledCells": 181,
+     "settledCohorts": {
+      "young": 62100.13168977666,
+      "breeding": 101063.33936140178,
+      "old": 30129.914533866944
+     }
+    },
+    {
+     "species": "Goats",
+     "heads": 67024.54788596799,
+     "supportedHeads": 150410.74243539368,
+     "demandTargetHeads": 181766.55301049352,
+     "trackedCells": 369,
+     "cohorts": {
+      "young": 21904.8724733954,
+      "breeding": 35793.567506532476,
+      "old": 9326.107906040108
+     },
+     "settledCells": 26,
+     "settledCohorts": {
+      "young": 2093.122677831334,
+      "breeding": 3039.235178009233,
+      "old": 254.13837285140767
+     }
+    }
+   ]
+  },
+  {
+   "label": "month 25",
+   "date": [
+    1302,
+    2
+   ],
+   "land": {
+    "ruralPeople": 3599658.4202460945,
+    "cultivatedHa": 7918778.696866109,
+    "pastureHa": 15902073.110335913,
+    "woodPastureHa": 0,
+    "landUseCells": 2221
+   },
+   "convertedForestHaByKind": {
+    "cultivation": 3294390.015055473,
+    "pasture": 2985027.8773691296,
+    "abandoned": 2348424.2184130847,
+    "built": 4754.141659073604
+   },
+   "species": [
+    {
+     "species": "Cattle",
+     "heads": 458564.43368853413,
+     "supportedHeads": 1184681.912130974,
+     "demandTargetHeads": 2075759.1957715955,
+     "trackedCells": 2149,
+     "cohorts": {
+      "young": 148323.0466050066,
+      "breeding": 212247.45141948244,
+      "old": 97993.93566404447
+     },
+     "settledCells": 15,
+     "settledCohorts": {
+      "young": 4112.278613171933,
+      "breeding": 5916.763189835505,
+      "old": 2003.4912943570137
+     }
+    },
+    {
+     "species": "Horses",
+     "heads": 118926.00373083341,
+     "supportedHeads": 303322.51550548506,
+     "demandTargetHeads": 509358.71025252686,
+     "trackedCells": 2148,
+     "cohorts": {
+      "young": 44578.45775023754,
+      "breeding": 51545.10103633209,
+      "old": 22802.444944263807
+     },
+     "settledCells": 9,
+     "settledCohorts": {
+      "young": 599.6281744833958,
+      "breeding": 832.1087158410743,
+      "old": 197.0820638395532
+     }
+    },
+    {
+     "species": "Camels",
+     "heads": 3144.6290984732473,
+     "supportedHeads": 38597.728548501065,
+     "demandTargetHeads": 46632.39028006792,
+     "trackedCells": 369,
+     "cohorts": {
+      "young": 1049.5831085766652,
+      "breeding": 1407.5054589668628,
+      "old": 687.5405309297222
+     },
+     "settledCells": 0,
+     "settledCohorts": {
+      "young": 0,
+      "breeding": 0,
+      "old": 0
+     }
+    },
+    {
+     "species": "Sheep",
+     "heads": 1665561.2864243495,
+     "supportedHeads": 3478024.376749417,
+     "demandTargetHeads": 5579464.62605156,
+     "trackedCells": 2157,
+     "cohorts": {
+      "young": 516321.5953150663,
+      "breeding": 852243.8940735398,
+      "old": 296995.79703574476
+     },
+     "settledCells": 156,
+     "settledCohorts": {
+      "young": 44038.295456358814,
+      "breeding": 71649.02142763512,
+      "old": 17509.661895261455
+     }
+    },
+    {
+     "species": "Goats",
+     "heads": 66702.54788596799,
+     "supportedHeads": 150531.1413391542,
+     "demandTargetHeads": 181866.3220922649,
+     "trackedCells": 369,
+     "cohorts": {
+      "young": 21904.383635804094,
+      "breeding": 35793.567506532476,
+      "old": 9004.596743631415
+     },
+     "settledCells": 17,
+     "settledCohorts": {
+      "young": 1128.4357312334048,
+      "breeding": 1641.4926279086078,
+      "old": 24.36096399679915
+     }
+    }
+   ]
+  }
+ ]
+}
