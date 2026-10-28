@@ -85,11 +85,17 @@ const ROOT_CALENDAR = {
 /**
  * Main medieval staples and companion legumes. Potatoes remain available to
  * worlds that allow post-medieval crops; callers decide era availability.
+ *
+ * yieldMultiplier is each crop's net yield over BASE_NET_YIELD's reference, the sown-area weighted
+ * net yield of England c.1300 (432 kg/sown ha, Broadberry et al. 2010 Table 2), so that mix averages
+ * 1. Wheat, rye, barley and oats are that table's net yields (7.99, 10.49, 9.63, 6.08 bu/acre at
+ * 27.2, 25.4, 21.8, 17.2 kg/bu: 537, 658, 519, 258 kg/ha) over 432. Other crops have no figure there
+ * and keep their earlier ratio to wheat (docs/analytics/e1-yield-factors-20261029.md).
  */
 export const STAPLE_CROP_PROFILES = {
   Wheat: {
     kind: "cereal",
-    yieldMultiplier: 1.05,
+    yieldMultiplier: 1.24,
     temperature: { min: 2, idealMin: 8, idealMax: 18, max: 24 },
     precipitation: { min: 3, idealMin: 7.5, idealMax: 9, max: 16 },
     soils: ["loam", "alluvial", "clay"],
@@ -98,7 +104,7 @@ export const STAPLE_CROP_PROFILES = {
   Spelt: {
     kind: "cereal",
     // Net edible yield includes the additional husk/dehulling loss (game calibration).
-    yieldMultiplier: 0.85,
+    yieldMultiplier: 1,
     temperature: { min: 4, idealMin: 10, idealMax: 17, max: 24 },
     precipitation: { min: 3, idealMin: 7, idealMax: 10, max: 16 },
     soils: ["loam", "clay", "sandy"],
@@ -106,7 +112,7 @@ export const STAPLE_CROP_PROFILES = {
   },
   Rye: {
     kind: "cereal",
-    yieldMultiplier: 0.82,
+    yieldMultiplier: 1.52,
     temperature: { min: -2, idealMin: 4, idealMax: 14, max: 21 },
     precipitation: { min: 4, idealMin: 6, idealMax: 10, max: 20 },
     soils: ["loam", "sandy", "thin"],
@@ -114,7 +120,7 @@ export const STAPLE_CROP_PROFILES = {
   },
   Barley: {
     kind: "cereal",
-    yieldMultiplier: 0.88,
+    yieldMultiplier: 1.2,
     temperature: { min: -2, idealMin: 5, idealMax: 16, max: 23 },
     precipitation: { min: 2, idealMin: 5, idealMax: 10, max: 20 },
     soils: ["loam", "alluvial", "sandy"],
@@ -122,7 +128,7 @@ export const STAPLE_CROP_PROFILES = {
   },
   Oats: {
     kind: "cereal",
-    yieldMultiplier: 0.8,
+    yieldMultiplier: 0.6,
     temperature: { min: 0, idealMin: 6, idealMax: 16, max: 21 },
     precipitation: { min: 2.5, idealMin: 6, idealMax: 10, max: 15 },
     soils: ["humus", "loam", "clay"],
@@ -130,7 +136,7 @@ export const STAPLE_CROP_PROFILES = {
   },
   Millet: {
     kind: "cereal",
-    yieldMultiplier: 0.78,
+    yieldMultiplier: 0.92,
     temperature: { min: 10, idealMin: 16, idealMax: 27, max: 34 },
     precipitation: { min: 2, idealMin: 5, idealMax: 7.5, max: 10 },
     soils: ["loam", "sandy", "alluvial"],
@@ -140,7 +146,7 @@ export const STAPLE_CROP_PROFILES = {
     kind: "cereal",
     // A warm, relatively high-yield staple. It remains climate-gated like the
     // other physical crops, rather than appearing as a random bonus good.
-    yieldMultiplier: 1.12,
+    yieldMultiplier: 1.32,
     temperature: { min: 10, idealMin: 18, idealMax: 30, max: 36 },
     precipitation: { min: 4, idealMin: 8, idealMax: 15, max: 25 },
     soils: ["loam", "alluvial", "humus"],
@@ -148,7 +154,7 @@ export const STAPLE_CROP_PROFILES = {
   },
   Rice: {
     kind: "cereal",
-    yieldMultiplier: 1.1,
+    yieldMultiplier: 1.3,
     temperature: { min: 10, idealMin: 20, idealMax: 30, max: 36 },
     precipitation: { min: 10, idealMin: 15, idealMax: 20, max: 40 },
     // ECOCROP records wide soil texture and permanently wet drainage. These
@@ -158,7 +164,7 @@ export const STAPLE_CROP_PROFILES = {
   },
   Buckwheat: {
     kind: "cereal",
-    yieldMultiplier: 0.72,
+    yieldMultiplier: 0.85,
     temperature: { min: 2, idealMin: 9, idealMax: 18, max: 25 },
     precipitation: { min: 4, idealMin: 7, idealMax: 10, max: 13 },
     soils: ["thin", "sandy", "loam"],
@@ -166,7 +172,7 @@ export const STAPLE_CROP_PROFILES = {
   },
   Peas: {
     kind: "legume",
-    yieldMultiplier: 0.74,
+    yieldMultiplier: 0.87,
     temperature: { min: 1, idealMin: 7, idealMax: 18, max: 23 },
     precipitation: { min: 3.5, idealMin: 8, idealMax: 12, max: 25 },
     soils: ["loam", "alluvial", "clay"],
@@ -174,7 +180,7 @@ export const STAPLE_CROP_PROFILES = {
   },
   "Broad Beans": {
     kind: "legume",
-    yieldMultiplier: 0.78,
+    yieldMultiplier: 0.92,
     temperature: { min: 3, idealMin: 8, idealMax: 18, max: 23 },
     precipitation: { min: 2.5, idealMin: 6.5, idealMax: 10, max: 26 },
     soils: ["clay", "loam", "alluvial"],
@@ -182,7 +188,7 @@ export const STAPLE_CROP_PROFILES = {
   },
   Lentils: {
     kind: "legume",
-    yieldMultiplier: 0.7,
+    yieldMultiplier: 0.83,
     temperature: { min: 6, idealMin: 13, idealMax: 24, max: 30 },
     precipitation: { min: 2.5, idealMin: 6, idealMax: 10, max: 25 },
     soils: ["sandy", "loam", "thin"],
@@ -190,7 +196,7 @@ export const STAPLE_CROP_PROFILES = {
   },
   Chickpeas: {
     kind: "legume",
-    yieldMultiplier: 0.72,
+    yieldMultiplier: 0.85,
     temperature: { min: 8, idealMin: 16, idealMax: 27, max: 33 },
     precipitation: { min: 3, idealMin: 6, idealMax: 10, max: 18 },
     soils: ["sandy", "loam", "alluvial"],
@@ -198,7 +204,7 @@ export const STAPLE_CROP_PROFILES = {
   },
   Soybeans: {
     kind: "legume",
-    yieldMultiplier: 0.8,
+    yieldMultiplier: 0.94,
     temperature: { min: 10, idealMin: 20, idealMax: 33, max: 38 },
     precipitation: { min: 4.5, idealMin: 6, idealMax: 15, max: 18 },
     soils: ["humus", "loam", "clay", "sandy"],
@@ -206,7 +212,7 @@ export const STAPLE_CROP_PROFILES = {
   },
   Turnips: {
     kind: "tuber",
-    yieldMultiplier: 0.9,
+    yieldMultiplier: 1.06,
     temperature: { min: -1, idealMin: 5, idealMax: 16, max: 22 },
     precipitation: { min: 2.5, idealMin: 5, idealMax: 8, max: 15 },
     soils: ["loam", "sandy", "humus"],
@@ -214,7 +220,7 @@ export const STAPLE_CROP_PROFILES = {
   },
   Potatoes: {
     kind: "tuber",
-    yieldMultiplier: 1.15,
+    yieldMultiplier: 1.36,
     temperature: { min: 3, idealMin: 8, idealMax: 18, max: 24 },
     precipitation: { min: 2.5, idealMin: 5, idealMax: 8, max: 20 },
     soils: ["loam", "sandy", "humus"],
