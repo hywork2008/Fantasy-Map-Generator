@@ -1,11 +1,5 @@
 import * as THREE from "three";
-import {
-  type CourtyardLodgingSpec,
-  createCitadelRavelin,
-  createCourtyardLodging,
-  createGarrisonBuilding,
-  type GarrisonBuildingSpec
-} from "../../buildings/facilities/siteFacilities";
+import type { CourtyardLodgingSpec, GarrisonBuildingSpec } from "../../buildings/facilities/siteFacilities";
 import { models as smithies } from "../../buildings/medieval/11-smithiesModels";
 import { models as fuel } from "../../buildings/medieval/13-fuel-storageModels";
 import { models as granaries } from "../../buildings/medieval/16-granariesModels";
@@ -23,55 +17,62 @@ import { models as glass } from "../../buildings/medieval/37-glassworkers-hallsM
 import { models as printing } from "../../buildings/medieval/38-printing-modelsModels";
 import { models as instruments } from "../../buildings/medieval/39-instrument-makers-hallsModels";
 import { models as sand } from "../../buildings/medieval/40-sand-yardsModels";
-import { createPostMill, POST_MILL } from "../../buildings/mills/postMill";
-import { createTowerMill, TOWER_MILL } from "../../buildings/mills/towerMill";
+import { POST_MILL } from "../../buildings/mills/postMill";
+import { TOWER_MILL } from "../../buildings/mills/towerMill";
 import { type ModelQuality, resolveModelQuality } from "../../buildings/modelQuality";
-import { createEarlyFieldCannonModel } from "../../buildings/siege/earlyFieldCannon";
-import { createPublicWaterBasinModel } from "../../buildings/wells/publicWaterBasin";
-import { createMedievalLumberYardModel } from "../../buildings/yards/medievalLumberYard";
+import {
+  GARRISON_VARIANTS,
+  LODGING_VARIANTS,
+  OBJECT_VARIANTS,
+  RAVELIN_VARIANTS,
+  WELL_VARIANTS,
+  YARD_VARIANTS
+} from "../../buildings/siteVariants";
 import type { DistrictFabric } from "../../city-editor/generators/blockInfill.types";
 import type { CityTerrain } from "../../city-editor/generators/terrainElevation";
 import { buildFortressPlan } from "../../city-editor/renderers/castleLayoutBuilder";
 import { resolveCastleStyle } from "../../city-editor/renderers/castlePatterns";
 import type { StructureMassing } from "../../city-editor/types/contracts/structureMassing";
 import type { CityDocument, Point } from "../../city-editor/types/document";
+import { adopt, adoptedDefinition, medievalDefinition } from "../adoption";
 import { type BvDefinition, type BvPlacement, type BvPrototypeCache, createBvInstances } from "./bvInstances";
 import { fitBvBuilding } from "./bvPlacement";
 
-const lumber = { id: "medieval-lumber-yard", create: createMedievalLumberYardModel };
-const cannon = { id: "early-field-cannon", create: createEarlyFieldCannonModel };
-const basin = { id: "citadel-water-basin", create: createPublicWaterBasinModel };
+const lumber = adoptedDefinition(YARD_VARIANTS, "yard.lumber", "medieval-lumber-yard");
+const cannon = adoptedDefinition(YARD_VARIANTS, "siege.early-field-cannon", "early-field-cannon");
+const basin = adoptedDefinition(WELL_VARIANTS, "well.publicBasin", "citadel-water-basin");
+const medieval = medievalDefinition;
 const storageModels: Record<string, BvDefinition> = {
-  livestockPen: livestock[0],
+  livestockPen: medieval(livestock[0]),
   timberYard: lumber,
-  stoneYard: stoneYards[0],
-  fuelStack: fuel[0],
-  granary: granaries[1],
-  warehouse: warehouses[0]
+  stoneYard: medieval(stoneYards[0]),
+  fuelStack: medieval(fuel[0]),
+  granary: medieval(granaries[1]),
+  warehouse: medieval(warehouses[0])
 };
 const guildModels: Record<string, BvDefinition> = {
-  textiles: cloth[0],
-  leather: guilds[0],
-  woodworking: guilds[1],
-  masonry: guilds[2],
-  metallurgy: guilds[3],
-  glassware: glass[0],
-  instruments: instruments[0],
-  printing: printing[0]
+  textiles: medieval(cloth[0]),
+  leather: medieval(guilds[0]),
+  woodworking: medieval(guilds[1]),
+  masonry: medieval(guilds[2]),
+  metallurgy: medieval(guilds[3]),
+  glassware: medieval(glass[0]),
+  instruments: medieval(instruments[0]),
+  printing: medieval(printing[0])
 };
 const yardModels: Record<string, BvDefinition> = {
   timberYard: lumber,
-  stoneYard: stoneYards[0],
-  limeKiln: kilns[0],
-  bleachingField: bleaching[0],
-  smithyYard: smithies[0],
-  sandYard: sand[0]
+  stoneYard: medieval(stoneYards[0]),
+  limeKiln: medieval(kilns[0]),
+  bleachingField: medieval(bleaching[0]),
+  smithyYard: medieval(smithies[0]),
+  sandYard: medieval(sand[0])
 };
 const definitions = new Map<string, BvDefinition>();
-function definition(id: string, create: BvDefinition["create"]): BvDefinition {
+function definition(id: string, create: BvDefinition["create"], variant: string): BvDefinition {
   let result = definitions.get(id);
   if (!result) {
-    result = { id, create };
+    result = { id, variant, create };
     definitions.set(id, result);
     if (definitions.size > 512) definitions.delete(definitions.keys().next().value!);
   }
@@ -144,12 +145,17 @@ export function createTownFacilities(
   const aerial = fabric.aerialLandmarks;
   for (const mill of aerial?.windmills ?? []) {
     const source = mill.kind === "post" ? POST_MILL : TOWER_MILL;
-    const model = definition(`windmill:${mill.kind}:${mill.sailAngle}`, () => {
-      const result = mill.kind === "post" ? createPostMill() : createTowerMill();
-      const rotor = result.group.getObjectByName("sail-assembly");
-      if (rotor) rotor.rotation.z = mill.sailAngle - Math.PI / 4;
-      return result;
-    });
+    const mills = adopt(OBJECT_VARIANTS, mill.kind === "post" ? "object.postMill" : "object.towerMill", "default");
+    const model = definition(
+      `windmill:${mill.kind}:${mill.sailAngle}`,
+      () => {
+        const result = mills.create();
+        const rotor = result.group.getObjectByName("sail-assembly");
+        if (rotor) rotor.rotation.z = mill.sailAngle - Math.PI / 4;
+        return result;
+      },
+      mills.id
+    );
     sites.push({
       id: mill.id,
       name: mill.name,
@@ -176,7 +182,8 @@ export function createTownFacilities(
       stableSpaces: inn.stableSpaces,
       earthen: city.buildingAppearanceContext?.arid === true
     };
-    const model = definition(`lodging:${JSON.stringify(spec)}:${tier}`, () => createCourtyardLodging(spec, tier));
+    const lodging = adopt(LODGING_VARIANTS, "facility.courtyard-lodging", tier);
+    const model = definition(`lodging:${JSON.stringify(spec)}:${tier}`, () => lodging.create(spec), lodging.id);
     sites.push({
       id: inn.id,
       name: inn.name,
@@ -185,7 +192,7 @@ export function createTownFacilities(
     });
   }
   for (const yard of aerial?.storageYards ?? []) {
-    const model = yard.origin === "publicWorks" ? granaryWorks[0] : storageModels[yard.form];
+    const model = yard.origin === "publicWorks" ? medieval(granaryWorks[0]) : storageModels[yard.form];
     if (model) fitFacility(yard.id, yard.name, yard.polygon, model);
   }
   for (const yard of aerial?.guildYards ?? []) {
@@ -196,7 +203,7 @@ export function createTownFacilities(
     const model = guildModels[hall.domain];
     if (model) fitFacility(hall.id, hall.name, hall.footprint, model);
   }
-  for (const yard of aerial?.tanneries ?? []) fitFacility(yard.id, yard.name, yard.yard, tanneries[0]);
+  for (const yard of aerial?.tanneries ?? []) fitFacility(yard.id, yard.name, yard.yard, medieval(tanneries[0]));
   for (const item of aerial?.gallows ?? []) {
     const r = item.moundRadius;
     fitFacility(
@@ -208,11 +215,11 @@ export function createTownFacilities(
         [item.center[0] + r, item.center[1] + r],
         [item.center[0] - r, item.center[1] + r]
       ],
-      gallows[0]
+      medieval(gallows[0])
     );
   }
   for (const warehouse of aerial?.quayWarehouses ?? [])
-    if (!warehouse.court) fitFacility(warehouse.id, warehouse.name, warehouse.footprint, warehouses[0]);
+    if (!warehouse.court) fitFacility(warehouse.id, warehouse.name, warehouse.footprint, medieval(warehouses[0]));
 
   const addGarrison = (
     id: string,
@@ -225,7 +232,8 @@ export function createTownFacilities(
     if (ring.length !== 4) return;
     const frame = frameOf(ring);
     const spec: GarrisonBuildingSpec = { kind, width: frame.width, depth: frame.depth, height };
-    const model = definition(`garrison:${JSON.stringify(spec)}:${tier}`, () => createGarrisonBuilding(spec, tier));
+    const garrison = adopt(GARRISON_VARIANTS, "facility.garrison", tier);
+    const model = definition(`garrison:${JSON.stringify(spec)}:${tier}`, () => garrison.create(spec), garrison.id);
     sites.push({ id, name, definition: model, matrix: placement(frame.center, base, frame.angle) });
     replacements.set(id, [id]);
   };
@@ -295,7 +303,8 @@ export function createTownFacilities(
           : []
       );
       const spec = { polygon: gate.polygon.map(frame.local), openings };
-      const model = definition(`ravelin:${JSON.stringify(spec)}:${tier}`, () => createCitadelRavelin(spec, tier));
+      const ravelin = adopt(RAVELIN_VARIANTS, "facility.citadel-ravelin", tier);
+      const model = definition(`ravelin:${JSON.stringify(spec)}:${tier}`, () => ravelin.create(spec), ravelin.id);
       sites.push({
         id: `${castle.id}:ravelin:${i}`,
         name: "Citadel ravelin",

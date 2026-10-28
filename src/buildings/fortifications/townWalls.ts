@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import type { BuildingAppearanceProfile } from "../appearance/types";
+import type { Author } from "../authors";
 import { ModelKit, type Surface } from "../medieval/modelKit";
 import { townWallRoofPalette } from "./townWallRoof";
 
@@ -11,7 +12,7 @@ import { townWallRoofPalette } from "./townWallRoof";
  * stone curtain. Illustrative high-medieval masonry, not a survey of one city.
  * Only the high tier is prepared.
  */
-export const TOWN_WALL_AUTHOR = "Grok";
+export const TOWN_WALL_AUTHOR: Author = "Grok";
 export const TOWN_WALL_RESOLUTIONS = ["high"] as const;
 export type TownWallResolution = (typeof TOWN_WALL_RESOLUTIONS)[number];
 
@@ -28,7 +29,7 @@ export interface TownWallModel {
   views?: readonly { name: string; create(profile?: BuildingAppearanceProfile): CityStructureMeshes }[];
   sources: readonly { title: string; url: string }[];
   create(profile?: BuildingAppearanceProfile): CityStructureMeshes;
-  author?: string;
+  author?: Author;
 }
 
 const WALK = 8;

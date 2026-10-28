@@ -40,6 +40,7 @@ function contextOf(document: CityDocument, descriptor?: BurgSiteDescriptor) {
 export function inheritBuildingAppearance(document: CityDocument, current: CityDocument): CityDocument {
   return {
     ...inheritBuildingHeightLimits(document, current),
+    biome: current.biome,
     castleStyle: current.castleStyle,
     buildingAppearanceVersion: current.buildingAppearanceVersion,
     buildingAppearanceProfile: current.buildingAppearanceProfile,

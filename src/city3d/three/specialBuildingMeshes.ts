@@ -2,21 +2,28 @@ import * as THREE from "three";
 import { buildingAppearanceProfile, normalizeBuildingAppearanceContext } from "../../buildings/appearance/resolver";
 import { models as churches } from "../../buildings/medieval/14-parish-churchesModels";
 import { type ModelQuality, resolveModelQuality } from "../../buildings/modelQuality";
-import { BASILICA_QUALITIES, createBasilicaTemple } from "../../buildings/temples/basilicaTemple";
+import { BASILICA_QUALITIES } from "../../buildings/temples/basilicaTemple";
+import { BASILICA_VARIANTS } from "../../buildings/temples/basilicaVariants";
 import { templeFootprintMeters } from "../../city-editor/generators/housing";
 import { townExtentMeters } from "../../city-editor/generators/settlementExtent";
 import { BASILICA_LENGTH, BASILICA_ORIGIN_X, BASILICA_WIDTH } from "../../city-editor/renderers/structureMassing";
 import type { StructureMassing } from "../../city-editor/types/contracts/structureMassing";
 import type { CityDocument } from "../../city-editor/types/document";
-import { type BvPlacement, type BvPrototypeCache, createBvInstances } from "./bvInstances";
+import { adopt, medievalDefinition } from "../adoption";
+import { type BvDefinition, type BvPlacement, type BvPrototypeCache, createBvInstances } from "./bvInstances";
 import { fitBvBuilding } from "./bvPlacement";
 
-export const CE_CHAPEL = churches[1];
+export const CE_CHAPEL = medievalDefinition(churches[1]);
 /** The detailed basilica shares the catalogue record's plan frame, so it maps onto CE with the same transform. */
-export const CE_BASILICAS = {
-  high: { id: "basilica-temple:high", create: () => createBasilicaTemple("high") },
-  low: { id: "basilica-temple:low", create: () => createBasilicaTemple("low") }
-} as const;
+export const CE_BASILICAS = Object.fromEntries(
+  BASILICA_QUALITIES.map(level => {
+    const variant = adopt(BASILICA_VARIANTS, "temple.basilica", level);
+    return [
+      level,
+      { id: `basilica-temple:${level}`, cacheKey: variant.id, variant: variant.id, create: variant.create }
+    ];
+  })
+) as Record<(typeof BASILICA_QUALITIES)[number], BvDefinition>;
 const PERIODS = new Set([
   "earlyMedieval",
   "highMedieval",

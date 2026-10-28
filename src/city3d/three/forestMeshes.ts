@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { TREE_LOD_DISTANCES } from "../../buildings/landscape/treeQuality";
 import type { TreeSpecies } from "../../buildings/landscape/trees";
 import { forestContains } from "../../city-editor/generators/forestGeometry";
 import { bounds, intersectConvex, PlotIndex, plotArea } from "../../city-editor/generators/parcelGeometry";
@@ -61,6 +62,7 @@ export interface Forest3dStats {
   detailedTrees: number;
   detailedTriangles: number;
   detailedSpecies: TreeSpecies[];
+  detailedTiers: Record<import("../../buildings/landscape/treeQuality").TreeQuality, number>;
   builds: number;
 }
 
@@ -142,7 +144,9 @@ export function createTownForest(
 ) {
   const group = new THREE.Group();
   group.name = "ce-forest";
-  const details = createForestTreeDetails(group);
+  const limeDistanceLod = landscapeTreeSpecies("garden_parkland", document, [0, 0]) === "garden_parkland";
+  const tieredTrees = document.biome?.key === "centralEuropeanGreatForest" || limeDistanceLod;
+  const details = createForestTreeDetails(group, tieredTrees);
   const seed = document.generationSeed ?? document.fabric?.seed ?? document.format;
   const heightAt = terrain?.heightAt ?? (() => 0);
   const density = document.forestSettings?.density ?? "standard";
@@ -354,6 +358,7 @@ export function createTownForest(
     detailedTrees: 0,
     detailedTriangles: 0,
     detailedSpecies: [],
+    detailedTiers: { low: 0, medium: 0, high: 0, ultra: 0 },
     builds: 0
   };
   const getLayer = (chunk: Chunk, lod: "middle" | "near"): TreeLayer => {
@@ -499,8 +504,57 @@ export function createTownForest(
         globalFallback: false,
         detailedTrees: 0,
         detailedTriangles: 0,
-        detailedSpecies: []
+        detailedSpecies: [],
+        detailedTiers: { low: 0, medium: 0, high: 0, ultra: 0 }
       });
+      if (limeDistanceLod) {
+        // Lime uses only its adopted distance tiers. Generic prototypes are transform buffers,
+        // never a visible fallback, and geometry budgets must not change an individual tree's tier.
+        const sites: ForestTreeSite[] = [];
+        const active = new Set<string>();
+        for (const { chunk, distance: dist } of visible) {
+          const layer = getLayer(chunk, "near");
+          active.add(`${chunk.id}:near`);
+          layer.group.visible = false;
+          chunk.floor.visible = true;
+          stats.calls++;
+          stats.triangles += count(chunk.floor.geometry);
+          chunk.mode = dist < TREE_LOD_DISTANCES.high ? "near" : "middle";
+          if (chunk.mode === "near") stats.nearChunks++;
+          else stats.middleChunks++;
+          for (const mesh of layer.meshes) sites.push(...(mesh.userData.forestSites as ForestTreeSite[]));
+        }
+        const result = details.update(
+          camera,
+          viewportHeight,
+          sites,
+          {
+            triangles: Infinity,
+            calls: Infinity,
+            shadowTriangles: budget.shadowTriangles
+          },
+          simplify
+        );
+        stats.trees = result.trees;
+        stats.triangles += result.triangles;
+        stats.calls += result.calls;
+        stats.shadowTriangles = result.shadowTriangles;
+        stats.detailedTrees = result.trees;
+        stats.detailedTriangles = result.triangles;
+        stats.detailedSpecies = result.species;
+        stats.detailedTiers = result.tiers;
+        for (const [key, layer] of cache) {
+          if (cache.size <= cacheLimit) break;
+          if (active.has(key)) continue;
+          for (const mesh of layer.meshes) mesh.dispose();
+          layer.group.removeFromParent();
+          cache.delete(key);
+        }
+        stats.cachedLayers = cache.size;
+        const changed = result.shadowKey !== shadowSignature;
+        shadowSignature = result.shadowKey;
+        return changed;
+      }
       const detailSites: ForestTreeSite[] = [];
       const triangleLimit = !simplify ? Infinity : quality === "high" ? 320000 : budget.triangles;
       const shadowLimit = !simplify ? 0 : quality === "high" ? 60000 : budget.shadowTriangles;
@@ -565,7 +619,7 @@ export function createTownForest(
             chunk.floor.visible = true;
             chunk.mode = mode;
             used.add(`${chunk.id}:${mode}`);
-            if (quality === "high" && mode === "near")
+            if (tieredTrees || (quality === "high" && mode === "near"))
               for (const mesh of layer.meshes) detailSites.push(...(mesh.userData.forestSites as ForestTreeSite[]));
             if (mode === "near")
               for (const mesh of layer.meshes) {
@@ -587,7 +641,7 @@ export function createTownForest(
         layer.group.removeFromParent();
         cache.delete(key);
       }
-      if (quality === "high") {
+      if (tieredTrees || quality === "high") {
         const result = details.update(
           camera,
           viewportHeight,
@@ -605,6 +659,7 @@ export function createTownForest(
         stats.detailedTrees = result.trees;
         stats.detailedTriangles = result.triangles;
         stats.detailedSpecies = result.species;
+        stats.detailedTiers = result.tiers;
         casters.push(result.shadowKey);
       }
       stats.cachedLayers = cache.size;

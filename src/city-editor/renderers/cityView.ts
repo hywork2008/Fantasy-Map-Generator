@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { ModelQuality } from "../../buildings/modelQuality";
+import { sceneVariants } from "../../city3d/adoption";
 import { buildingSurfaces } from "../../city3d/core/massingGeometry";
 import { structureSurfaces } from "../../city3d/core/structureGeometry";
 import { WATER_Y } from "../../city3d/core/waterGeometry";
@@ -50,11 +51,14 @@ import type { ForestPlan, ForestQualityPreference } from "../types/contracts/for
 import type { SimplificationPreferences } from "../types/contracts/simplification";
 import type { StructureKind, StructureMassing, StructureMaterial } from "../types/contracts/structureMassing";
 import type { CityDocument } from "../types/document";
+import { createFogControls, readFogSettings } from "./fogControls";
 import { ForestAutoQuality } from "./forestAutoQuality";
 import { collectOpenSpacePlan } from "./openSpaceSites";
 import { collectPierSites } from "./pierSites";
 import { type City3dPerformanceSnapshot, type City3dRenderMetrics, collectSceneMetrics } from "./renderMetrics";
+import { createSceneryControls, readScenerySettings } from "./sceneryControls";
 import { collectShipSites } from "./shipSites";
+import { createSkyBackdrop } from "./skyBackdrop";
 import { standaloneHousingAppearance, standaloneHousingDocument } from "./standaloneHousingAppearance";
 import { collectCityStructures, landmarkLotStructures } from "./structureMassing";
 import { createSunControls } from "./sunControls";
@@ -177,6 +181,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   /** Per-frame metrics without walking the resident scene. */
   getFramePerformance(): Pick<City3dPerformanceSnapshot, "frame" | "forest" | "forestQuality" | "housing"> | null;
   restoreView(saved: NonNullable<City3dPerformanceSnapshot["camera"]>): void;
+  /** Adopted BV variants drawn by the open 3D view; null while it is closed. */
+  getModelVariants(): string[] | null;
   /** Move the live scene into a rebuilt editor mount (language change) without regenerating meshes. */
   adopt(next: City3dMountOptions): void;
 } {
@@ -191,13 +197,19 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   const readout = document.createElement("output");
   readout.className = "ce-3d-readout";
   readout.hidden = true;
-  options.canvasHost.append(viewport, button, readout);
+  const zoomReadout = document.createElement("output");
+  zoomReadout.className = "ce-3d-zoom";
+  zoomReadout.hidden = true;
+  zoomReadout.title = editorText("cityEditor.messages.zoom3dHint");
+  options.canvasHost.append(viewport, button, readout, zoomReadout);
 
   const sunSettings = readSunSettings();
+  const fogSettings = readFogSettings();
+  const scenerySettings = readScenerySettings();
   let sun: THREE.DirectionalLight | null = null;
   let shadowBounds = new THREE.Box3();
-  const createLightingPanel = () =>
-    createSunControls(
+  const createLightingPanel = () => {
+    const panel = createSunControls(
       sunSettings,
       (target, type, handler) => options.scope.listen(target, type, handler),
       () => {
@@ -207,11 +219,29 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
         requestRender();
       }
     );
+    panel.append(
+      createFogControls(
+        fogSettings,
+        (target, type, handler) => options.scope.listen(target, type, handler),
+        () => requestRender()
+      ),
+      createSceneryControls(
+        scenerySettings,
+        (target, type, handler) => options.scope.listen(target, type, handler),
+        () => requestRender()
+      )
+    );
+    return panel;
+  };
   let lightingPanel = createLightingPanel();
   options.canvasHost.append(lightingPanel);
 
   let renderer: THREE.WebGLRenderer | null = null;
   let scene: THREE.Scene | null = null;
+  const atmosphere = new THREE.Fog(0xc5c5bf);
+  const sky = createSkyBackdrop();
+  let atmosphereRange = 600;
+  let mapHalfExtent = 1;
   let camera: THREE.PerspectiveCamera | null = null;
   let controls: OrbitControls | null = null;
   let massing: CityMassingMeshes | null = null;
@@ -225,7 +255,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   let facilities: TownFacilities | null = null;
   let bridges: TownBridges | null = null;
   const bvPrototypes = createBvPrototypeCache();
-  let openSpaces: CityStructureMeshes | null = null;
+  let openSpaces: ReturnType<typeof createTownOpenSpaces> | null = null;
   let farmland: TownFarmMeshes | null = null;
   let farmlandSource: DistrictFabric["farms"] | null = null;
   const forestQuality = new ForestAutoQuality();
@@ -502,8 +532,10 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     renderer.shadowMap.autoUpdate = false;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.setClearColor(0xc5c5bf);
+    renderer.setClearColor(0x000000);
     scene = new THREE.Scene();
+    scene.add(sky.group);
+    scene.fog = fogSettings.strength > 0 ? atmosphere : null;
     camera = new THREE.PerspectiveCamera(45, 1, 0.5, 80000);
     scene.add(new THREE.HemisphereLight(0xf4f0e6, 0x6d7a62, 0.9));
     sun = new THREE.DirectionalLight(0xffffff, sunSettings.intensity / 100);
@@ -540,6 +572,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     if (regionalHouses?.stats.pending) requestRender();
     buildingDetails?.update(camera, renderer.domElement.clientHeight, regionalHouses?.replaced);
     if (forest?.update(camera, renderer.domElement.clientHeight)) forestShadowPending = true;
+    if (openSpaces?.update(camera, renderer.domElement.clientHeight)) forestShadowPending = true;
     if (forestShadowPending) {
       const delay = 250 - (performance.now() - lastForestShadowAt);
       if (delay <= 0) {
@@ -555,6 +588,24 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
           requestRender();
         }, delay);
     }
+    // Keep the focus clear, including at nadir, and soften only the distant scenery.
+    // Scale the transition with the city so small towns retain readable streets too.
+    const focusDistance = controls ? camera.position.distanceTo(controls.target) : 0;
+    const visibleHalfExtent =
+      (Math.max(0.001, focusDistance) *
+        Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) *
+        Math.min(1, camera.aspect)) /
+      camera.zoom;
+    zoomReadout.value = editorText("cityEditor.messages.zoom3d", {
+      value0: (mapHalfExtent / visibleHalfExtent).toFixed(2)
+    });
+    atmosphere.near = Math.max(100, focusDistance * 1.05);
+    atmosphere.far =
+      atmosphere.near + Math.max(atmosphereRange, focusDistance * 0.75) * (100 / Math.max(1, fogSettings.strength));
+    scene.fog = fogSettings.strength > 0 ? atmosphere : null;
+    sky.update(camera, sunSettings);
+    sky.setScenery(scenerySettings);
+    atmosphere.color.copy(sky.horizon);
     renderer.render(scene, camera);
     const cpuMs = performance.now() - start;
     if (previousMotionFrame) previousMotionFrame.endedAt = start + cpuMs;
@@ -604,6 +655,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     if (viewport.hidden || disposed) return;
     if (!ensure() || !scene) return;
     const city = options.getDocument();
+    mapHalfExtent = Math.max(1, city.frame.extentMeters / 2);
+    atmosphereRange = Math.max(600, city.frame.cityRadiusMeters * 2);
     const nextSimplification = options.getSimplification?.() ?? { urban: "auto", outskirts: "auto" };
     const urbanChanged = simplification.urban !== nextSimplification.urban;
     const outskirtsChanged = simplification.outskirts !== nextSimplification.outskirts;
@@ -630,6 +683,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
         // Reported once by the road meshes below; the terrain stays ungraded.
       }
       terrain = cityTerrain(city, { roads: ribbons, renderSpacing: spacing });
+      sky.fit(city, terrain.heightAt);
       terrainStamp = nextTerrainStamp;
     }
     const plan = planCity3dRefresh({
@@ -727,7 +781,11 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       );
       if (openSpaces) scene.remove(openSpaces.group);
       openSpaces?.dispose();
-      openSpaces = createTownOpenSpaces(openSpacePlan, terrain ?? undefined);
+      openSpaces = createTownOpenSpaces(
+        openSpacePlan,
+        terrain ?? undefined,
+        city.biome?.key === "centralEuropeanGreatForest" ? true : "lime"
+      );
       scene.add(openSpaces.group);
       openSpaceStamp = nextOpenSpaceStamp;
     }
@@ -850,6 +908,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     scene.updateMatrixWorld(true);
     scene.traverse(object => {
       if (!(object instanceof THREE.Mesh)) return;
+      // Sky walls are scenery, not occluders or part of the city's shadow bounds.
+      if (object.userData.ceSky) return;
       if (object.userData.ceForest) return;
       object.receiveShadow = true;
       const materials = Array.isArray(object.material) ? object.material : [object.material];
@@ -858,6 +918,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       if (object !== ground && object.visible) shadowBounds.expandByObject(object);
     });
     if (forest) shadowBounds.union(forest.bounds);
+    if (openSpaces) shadowBounds.union(openSpaces.treeBounds);
     if (shadowBounds.isEmpty()) shadowBounds.set(new THREE.Vector3(-20, 0, -20), new THREE.Vector3(20, 20, 20));
     if (sun) updateSun(sun, shadowBounds, sunSettings);
     if (renderer) renderer.shadowMap.needsUpdate = true;
@@ -867,6 +928,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   const setOpen = (open: boolean) => {
     viewport.hidden = !open;
     lightingPanel.hidden = !open;
+    zoomReadout.hidden = !open;
     options.map.hidden = open;
     button.textContent = editorText(open ? "cityEditor.messages.view2d" : "cityEditor.messages.view3d");
     button.setAttribute("aria-pressed", open ? "true" : "false");
@@ -880,6 +942,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     if (!ensure()) {
       viewport.hidden = true;
       lightingPanel.hidden = true;
+      zoomReadout.hidden = true;
       options.map.hidden = false;
       button.textContent = editorText("cityEditor.messages.view3d");
       button.setAttribute("aria-pressed", "false");
@@ -995,7 +1058,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     readout.hidden = true;
     button.textContent = editorText(open ? "cityEditor.messages.view2d" : "cityEditor.messages.view3d");
     options.map.hidden = open;
-    options.canvasHost.append(viewport, button, readout, lightingPanel);
+    zoomReadout.title = editorText("cityEditor.messages.zoom3dHint");
+    options.canvasHost.append(viewport, button, readout, lightingPanel, zoomReadout);
     bindChrome();
     observer?.observe(options.canvasHost);
     resize();
@@ -1029,6 +1093,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     harborCargo?.dispose();
     roadMeshes?.dispose();
     ground?.geometry.dispose();
+    sky.dispose();
     (ground?.material as THREE.Material | undefined)?.dispose();
     controls?.removeEventListener("change", requestCameraRender);
     controls?.dispose();
@@ -1038,6 +1103,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     viewport.remove();
     button.remove();
     readout.remove();
+    zoomReadout.remove();
     options.map.hidden = false;
   };
   // Defer framing until the new terrain is built, including when 3D is hidden.
@@ -1086,5 +1152,6 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     controls.update();
     requestRender();
   };
-  return { sync, resetCamera, dispose, getPerformance, getFramePerformance, restoreView, adopt };
+  const getModelVariants = () => (viewport.hidden || !scene ? null : sceneVariants(scene));
+  return { sync, resetCamera, dispose, getPerformance, getFramePerformance, restoreView, getModelVariants, adopt };
 }

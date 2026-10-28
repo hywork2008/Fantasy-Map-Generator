@@ -102,6 +102,7 @@ import {
   restoreLanguageControls,
   restoreLanguageUi
 } from "./languagePanel";
+import { mountModelAuthorsPanel } from "./modelAuthorsPanel";
 import { buildObjectControls } from "./objectControls";
 import { mountOperationHelp } from "./operationHelp";
 import { mountPerformancePanel } from "./performancePanel";
@@ -2046,6 +2047,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
 
   const {
     populationControls,
+    biomeControls,
     appearanceControls,
     forestControls,
     currentBuildingPatternSelect,
@@ -3055,6 +3057,12 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     })
   });
   scope.own(() => performancePanel.dispose());
+  const modelAuthorsPanel = mountModelAuthorsPanel({
+    host: canvas,
+    scope,
+    getModelVariants: () => city3d.getModelVariants()
+  });
+  scope.own(() => modelAuthorsPanel.dispose());
   mountLanguagePanel({
     host: canvas,
     scope,
@@ -3181,6 +3189,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
 
   function refresh(): void {
     syncStepControls();
+    biomeControls.sync();
     appearanceControls.sync();
     forestControls.sync();
     getMapDisplayController().refresh();
@@ -3195,6 +3204,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
    */
   function refreshUiOnly(): void {
     syncStepControls();
+    biomeControls.sync();
     appearanceControls.sync();
     forestControls.sync();
     getMapDisplayController().refreshUiOnly();

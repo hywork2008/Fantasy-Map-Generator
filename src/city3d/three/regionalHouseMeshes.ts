@@ -1,19 +1,12 @@
 import * as THREE from "three";
+import { type EarthenHouseSpec, earthenHouseSpecKey } from "../../buildings/houses/earthenHouses";
 import {
-  createEarthenHouse,
-  createEarthenHouseGeometry,
-  type EarthenHouseSpec,
-  earthenHouseSpecKey
-} from "../../buildings/houses/earthenHouses";
+  EARTHEN_HOUSE_VARIANTS,
+  POLYGON_HOUSE_VARIANTS,
+  REGIONAL_HOUSE_VARIANTS
+} from "../../buildings/houses/houseVariants";
+import { type PolygonHouseSpec, polygonHouseSpecKey } from "../../buildings/houses/polygonHouses";
 import {
-  createPolygonHouse,
-  createPolygonHouseGeometry,
-  type PolygonHouseSpec,
-  polygonHouseSpecKey
-} from "../../buildings/houses/polygonHouses";
-import {
-  createRegionalHouse,
-  createRegionalHouseGeometry,
   REGIONAL_HOUSE_QUALITIES,
   type RegionalCover,
   type RegionalHouseQuality,
@@ -29,6 +22,7 @@ import type {
 import type { BuildingLot } from "../../city-editor/generators/buildingLots.types";
 import type { Point } from "../../city-editor/types/primitives";
 import { growthRandom } from "../../utils/urbanMorphology";
+import { adoptedDefinition } from "../adoption";
 import { type BvDefinition, type BvPlacement, type BvPrototypeCache, createBvInstances } from "./bvInstances";
 
 // Prototypes are shared by every lot with the same spec; the cache disposes them with their last layer.
@@ -37,12 +31,11 @@ function definitionFor(spec: RegionalHouseSpec, quality: RegionalHouseQuality): 
   const key = `${regionalHouseSpecKey(spec)}|${quality}`;
   let definition = definitions.get(key);
   if (!definition) {
-    definition = {
-      id: `regional-house:${key}`,
-      cacheKey: `regional-house:${key}`,
-      create: () => createRegionalHouse(spec, quality),
-      createGeometry: () => createRegionalHouseGeometry(spec, quality)
-    };
+    definition = adoptedDefinition(REGIONAL_HOUSE_VARIANTS, "house.regional", `regional-house:${key}`, {
+      level: quality,
+      args: [spec],
+      cacheKey: `regional-house:${key}`
+    });
     definitions.set(key, definition);
     if (definitions.size > 512) definitions.delete(definitions.keys().next().value!);
   }
@@ -130,12 +123,11 @@ function earthenHouseSite(
   const key = `earthen-house:${earthenHouseSpecKey(spec)}|${tier}`;
   let definition = definitions.get(key);
   if (!definition) {
-    definition = {
-      id: key,
-      cacheKey: key,
-      create: () => createEarthenHouse(spec, tier),
-      createGeometry: () => createEarthenHouseGeometry(spec, tier)
-    };
+    definition = adoptedDefinition(EARTHEN_HOUSE_VARIANTS, "house.earthen", key, {
+      level: tier,
+      args: [spec],
+      cacheKey: key
+    });
     definitions.set(key, definition);
     if (definitions.size > 512) definitions.delete(definitions.keys().next().value!);
   }
@@ -193,12 +185,11 @@ function polygonHouseSite(
   const key = `polygon-house:${polygonHouseSpecKey(spec)}|${tier}`;
   let definition = definitions.get(key);
   if (!definition) {
-    definition = {
-      id: key,
-      cacheKey: key,
-      create: () => createPolygonHouse(spec, tier),
-      createGeometry: () => createPolygonHouseGeometry(spec, tier)
-    };
+    definition = adoptedDefinition(POLYGON_HOUSE_VARIANTS, "house.polygon", key, {
+      level: tier,
+      args: [spec],
+      cacheKey: key
+    });
     definitions.set(key, definition);
     if (definitions.size > 512) definitions.delete(definitions.keys().next().value!);
   }

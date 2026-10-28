@@ -1,8 +1,20 @@
 import * as THREE from "three";
 import { objectDrawing, placeableObject } from "../../buildings/placeableObjects";
+import { OBJECT_VARIANTS } from "../../buildings/siteVariants";
 import { objectScale } from "../../city-editor/generators/objectPlacement";
 import type { CityElement, Point } from "../../city-editor/types/document";
-import { type BvPrototypeCache, createBvInstances } from "./bvInstances";
+import { adoptedDefinition } from "../adoption";
+import { type BvDefinition, type BvPrototypeCache, createBvInstances } from "./bvInstances";
+
+const definitions = new Map<string, BvDefinition>();
+function objectDefinition(id: string): BvDefinition {
+  let result = definitions.get(id);
+  if (!result) {
+    result = adoptedDefinition(OBJECT_VARIANTS, `object.${id}`, id);
+    definitions.set(id, result);
+  }
+  return result;
+}
 
 export function createTownObjects(
   elements: readonly CityElement[],
@@ -22,7 +34,7 @@ export function createTownObjects(
         new THREE.Vector3(scale, scale, scale)
       )
       .multiply(new THREE.Matrix4().makeTranslation(-center.x, -bounds.min.y, -center.z));
-    return [{ id: item.id, definition, matrix }];
+    return [{ id: item.id, definition: objectDefinition(definition.id), matrix }];
   });
   const layer = createBvInstances(sites, cache);
   layer.group.name = "ce-objects";

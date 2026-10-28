@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
+import type { Author } from "../authors";
 import { meshProjection } from "../meshProjection";
 
 export const SIGN_SHAPES = ["rectangle", "round", "oval", "shield", "arch"] as const;
@@ -13,7 +14,7 @@ export interface HangingSignOptions {
   shape?: SignShape;
   material?: SignMaterial;
   symbol?: SignSymbol;
-  author?: string;
+  author?: Author;
 }
 
 export const HANGING_SIGN_TEMPLATES = [
