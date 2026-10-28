@@ -4,6 +4,7 @@ import { meshProjection } from "../meshProjection";
 
 /** An imagined roofed village well; dimensions are illustrative, in meters. */
 export const MEDIEVAL_WELL = {
+  author: "Codex GPT-6.1 Sol",
   name: "Medieval European well",
   width: 3.8,
   depth: 3.3,

@@ -3,6 +3,7 @@ import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 
 /** An imagined sailing galleon, in meters, rather than a surveyed historical vessel. */
 export const GALLEON = {
+  author: "Codex GPT-6.1 Sol",
   name: "Galleon",
   length: 58,
   beam: 12,

@@ -8,6 +8,7 @@ import { createPontDuGard, PONT_DU_GARD, pontDuGardElevation } from "../building
 import { contentDigest } from "../buildings/canonicalJson";
 import { createStGeorgesChapel, ST_GEORGES_CHAPEL } from "../buildings/chapels/stGeorgesChapel";
 import { CODEX_TOWN_WALL_PERIOD, CODEX_TOWN_WALLS } from "../buildings/fortifications/codexTownWalls";
+import { GATEHOUSE } from "../buildings/fortifications/gatehouse";
 import { TOWN_WALL_AUTHOR, TOWN_WALLS, type TownWallModel } from "../buildings/fortifications/townWalls";
 import { BARBICANS, createBarbican } from "../buildings/fortresses/barbicans";
 import { BOJNICE, bojnicePlan, createBojnice } from "../buildings/fortresses/bojnice";
@@ -39,6 +40,7 @@ import { type BuildingRecord, TRIANGLE_BUDGET } from "../buildings/record";
 import { BARGE, createBarge } from "../buildings/ships/barge";
 import { CARRACK, createCarrack } from "../buildings/ships/carrack";
 import { createGalleon, GALLEON } from "../buildings/ships/galleon";
+import { createOpusGalleon, OPUS_GALLEON, type OpusGalleonQuality } from "../buildings/ships/opusGalleon";
 import { createSloop, SLOOP } from "../buildings/ships/sloop";
 import { BATTERING_RAM, createBatteringRam } from "../buildings/siege/batteringRam";
 import { createEarlyFieldCannon, EARLY_FIELD_CANNON } from "../buildings/siege/earlyFieldCannon";
@@ -302,6 +304,21 @@ let regionalDetails: TownBuildingDetails | null = null;
 let studyWater: TownWaterMeshes | null = null;
 let selection = 0;
 const modelComparison = createModelComparison();
+let comparisonModel: { path: string; quality: "low" | "high" } | null = null;
+
+function appendFacts(...nodes: (Node | string)[]): void {
+  facts.append(...nodes);
+  if (facts.querySelector(".bv-comparison")) return;
+  const root = new THREE.Group();
+  // References only: do not reparent the visible model or its supplementary details.
+  if (massing) root.children.push(massing.group);
+  if (regionalDetails) root.children.push(regionalDetails.group);
+  if (studyWater) {
+    root.children.push(studyWater.parent);
+    for (const mesh of [studyWater.land, studyWater.bank, studyWater.unknown]) if (mesh) root.children.push(mesh);
+  }
+  modelComparison.mount(facts, comparisonModel?.path ?? null, comparisonModel?.quality ?? "high", root);
+}
 const performancePanel = mountPerformancePanel(inspector, () => massing?.group ?? null);
 window.addEventListener("pagehide", () => modelComparison.clear());
 
@@ -331,6 +348,7 @@ function frame(record: Pick<BuildingRecord, "occupancyMeters">, height: number):
 }
 
 function clearMesh(): void {
+  comparisonModel = null;
   modelComparison.clear();
   performancePanel.reset();
   if (regionalDetails) {
@@ -370,7 +388,7 @@ function show(entry: Entry): void {
   if (!checked.ok) {
     banner.hidden = false;
     banner.textContent = checked.errors.join(" ");
-    facts.append(fact("Record", entry.record.name || entry.record.id));
+    appendFacts(fact("Record", entry.record.name || entry.record.id));
     return;
   }
   const record = checked.record;
@@ -400,7 +418,7 @@ function show(entry: Entry): void {
   }
   showLevel(record, record.levels[0]?.id ?? "");
   const provenance = record.provenance;
-  facts.append(
+  appendFacts(
     fact("Period", PERIOD[record.period] ?? record.period),
     fact("Plan", label(record.planFamily ?? "unspecified")),
     fact("Occupancy", `${record.occupancyMeters.width} × ${record.occupancyMeters.depth} m`),
@@ -414,13 +432,13 @@ function show(entry: Entry): void {
     fact("Note", provenance.note, catalogueWikipedia[record.id])
   );
   for (const level of record.levels) {
-    facts.append(fact(level.name, `${level.elevationMeters} m, floor to floor ${level.floorToFloorMeters} m`));
+    appendFacts(fact(level.name, `${level.elevationMeters} m, floor to floor ${level.floorToFloorMeters} m`));
   }
   if (triangles > TRIANGLE_BUDGET) {
     const warn = document.createElement("p");
     warn.className = "bv-warn";
     warn.textContent = `This record uses ${triangles} triangles, above the ${TRIANGLE_BUDGET} budget.`;
-    facts.append(warn);
+    appendFacts(warn);
   }
 }
 
@@ -465,7 +483,7 @@ async function showFortress(phase: KrakPhase): Promise<void> {
     );
   mountPlan(roofHost, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-110 -115 220 230">${paths.join("")}</svg>`);
   mountPlan(levelHost, levelPlanSvg(KRAK.inner, KRAK.inner.levels[0].id));
-  facts.append(
+  appendFacts(
     fact("Model", `${KRAK.name} — modular hill study`),
     fact("Phase", phase === "hospitalier-1270" ? "Hospitaller, c. 1270" : "Mamluk alterations, c. 1302"),
     fact("Parts", String(parts.length)),
@@ -485,7 +503,7 @@ async function showFortress(phase: KrakPhase): Promise<void> {
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   });
-  facts.append(download);
+  appendFacts(download);
 }
 
 async function showCliffStudy(): Promise<void> {
@@ -516,7 +534,7 @@ async function showCliffStudy(): Promise<void> {
   camera.position.set(180, top + 80, 220);
   controls.target.set(0, top * 0.4, 0);
   controls.update();
-  facts.append(
+  appendFacts(
     fact("Model", "Cliff fortress study"),
     fact("Template", city.terrain?.field?.template ?? "crag"),
     fact("Frame", `${city.frame.extentMeters} m`),
@@ -536,7 +554,7 @@ async function showCliffStudy(): Promise<void> {
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   });
-  facts.append(download);
+  appendFacts(download);
 }
 
 async function showTerraceStudy(): Promise<void> {
@@ -568,7 +586,7 @@ async function showTerraceStudy(): Promise<void> {
   camera.position.set(160, 90, 200);
   controls.target.set(0, 8, 0);
   controls.update();
-  facts.append(
+  appendFacts(
     fact("Model", "Terraced river study"),
     fact("Template", city.terrain?.field?.template ?? "escarpment"),
     fact("Frame", `${city.frame.extentMeters} m`),
@@ -587,7 +605,7 @@ async function showTerraceStudy(): Promise<void> {
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   });
-  facts.append(download);
+  appendFacts(download);
 }
 
 function modelCategory(title: string, open = false): HTMLDetailsElement {
@@ -633,6 +651,7 @@ function showBasilicaTemple(): void {
   roofTitle.textContent = "Roof plan";
   levelTitle.textContent = "South elevation";
   showQuality(true);
+  comparisonModel = { path: `basilica`, quality: qualitySelect.value as BasilicaQuality };
   massing = createBasilicaTemple(qualitySelect.value as BasilicaQuality);
   scene.add(massing.group);
   ground.visible = true;
@@ -642,7 +661,7 @@ function showBasilicaTemple(): void {
   controls.update();
   mountPlan(roofHost, meshProjection(massing, "top"));
   mountPlan(levelHost, meshProjection(massing, "side"));
-  facts.append(
+  appendFacts(
     fact("Model", `${BASILICA_TEMPLE.name} — detailed Romanesque study`),
     fact("Period", "High medieval"),
     fact("Quality", qualitySelect.value === "high" ? "High" : "Low — mouldings, tile courses and ornament omitted"),
@@ -680,7 +699,7 @@ aqueductButton.addEventListener("click", () => {
     levelHost,
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-3 -4 ${width + 6} 8"><rect width="${width}" y="-1.5" height="3" fill="#d9c7a3" stroke="#827358" stroke-width="0.15"/><rect width="${width}" y="-1.05" height="2.1" fill="#a7b6b6"/></svg>`
   );
-  facts.append(
+  appendFacts(
     fact("Model", PONT_DU_GARD.name),
     fact("Period", "Roman antiquity"),
     fact("Dimensions", `${width} × 6 × ${PONT_DU_GARD.height} m`),
@@ -721,7 +740,7 @@ stGeorgesButton.addEventListener("click", () => {
   controls.update();
   mountPlan(roofHost, meshProjection(massing, "top"));
   mountPlan(levelHost, meshProjection(massing, "side"));
-  facts.append(
+  appendFacts(
     fact("Model", ST_GEORGES_CHAPEL.name),
     fact("Style", "English Perpendicular Gothic"),
     fact("Study envelope", `${ST_GEORGES_CHAPEL.width} × ${ST_GEORGES_CHAPEL.depth} × ${ST_GEORGES_CHAPEL.height} m`),
@@ -732,7 +751,7 @@ stGeorgesButton.addEventListener("click", () => {
   source.textContent = "College of St George · Nave and west window";
   source.target = "_blank";
   source.rel = "noreferrer";
-  facts.append(source);
+  appendFacts(source);
 });
 chapels.append(stGeorgesButton);
 const landmarkModules = import.meta.glob<LandmarkModel>(
@@ -786,6 +805,12 @@ for (const style of ["Gothic", "Romanesque"] as const) {
         paragraph.append(row);
         optionFields.append(paragraph);
       }
+      if (model.highDetail) {
+        comparisonModel = {
+          path: Object.keys(landmarkModules).find(path => landmarkModules[path] === model)!,
+          quality: definition === model ? "low" : "high"
+        };
+      }
       massing = definition.create();
       scene.add(massing.group);
       ground.visible = true;
@@ -799,7 +824,7 @@ for (const style of ["Gothic", "Romanesque"] as const) {
       controls.update();
       mountPlan(roofHost, meshProjection(massing, "top"));
       mountPlan(levelHost, meshProjection(massing, "side"));
-      facts.append(
+      appendFacts(
         fact("Model", definition.name),
         fact("Style", definition.style),
         fact("State", definition.state),
@@ -807,10 +832,6 @@ for (const style of ["Gothic", "Romanesque"] as const) {
         fact("Dimensions", definition.dimensions),
         fact("Note", definition.note, landmarkWikipedia[model.id])
       );
-      if (model.style === "Gothic" && model.highDetail) {
-        const modulePath = Object.keys(landmarkModules).find(path => landmarkModules[path] === model)!;
-        modelComparison.mount(facts, modulePath, definition === model ? "low" : "high", massing.group);
-      }
       for (const source of definition.sources) {
         const row = document.createElement("p");
         const link = document.createElement("a");
@@ -819,7 +840,7 @@ for (const style of ["Gothic", "Romanesque"] as const) {
         link.target = "_blank";
         link.rel = "noreferrer";
         row.append(link);
-        facts.append(row);
+        appendFacts(row);
       }
     };
     button.addEventListener("click", () => showLandmark());
@@ -851,7 +872,7 @@ bojniceButton.addEventListener("click", () => {
   levelHost.replaceChildren(
     fact("Exterior study", "Palace wings around an open courtyard, upper keep, conical towers and an arched entrance.")
   );
-  facts.append(
+  appendFacts(
     fact("Model", BOJNICE.name),
     fact("Phase", "Romantic reconstruction, 1889–1910"),
     fact("Study envelope", `${BOJNICE.width} × ${BOJNICE.depth} × ${BOJNICE.height} m`),
@@ -862,7 +883,7 @@ bojniceButton.addEventListener("click", () => {
   source.textContent = "Museum source";
   source.target = "_blank";
   source.rel = "noreferrer";
-  facts.append(source);
+  appendFacts(source);
 });
 assemblies.append(bojniceButton);
 const chambordButton = document.createElement("button");
@@ -894,7 +915,7 @@ chambordButton.addEventListener("click", () => {
       "Four-towered keep, central lantern, roof terraces, lateral wings and an open entrance court."
     )
   );
-  facts.append(
+  appendFacts(
     fact("Model", CHAMBORD.name),
     fact("Period", "French Renaissance"),
     fact("Study envelope", `${CHAMBORD.width} × ${CHAMBORD.depth} × ${CHAMBORD.height} m`),
@@ -905,7 +926,7 @@ chambordButton.addEventListener("click", () => {
   source.textContent = "Official architecture source";
   source.target = "_blank";
   source.rel = "noreferrer";
-  facts.append(source);
+  appendFacts(source);
 });
 assemblies.append(chambordButton);
 for (const phase of ["hospitalier-1270", "mamluk-1302"] as const) {
@@ -968,7 +989,7 @@ carrackButton.addEventListener("click", () => {
   controls.update();
   mountPlan(roofHost, model.elevation);
   mountPlan(levelHost, model.plan);
-  facts.append(
+  appendFacts(
     fact("Model", CARRACK.name),
     fact("Period", "Late medieval / early modern · imagined merchant vessel"),
     fact(
@@ -984,13 +1005,64 @@ carrackButton.addEventListener("click", () => {
   source.textContent = "Mariners’ Museum · Carrack";
   source.target = "_blank";
   source.rel = "noreferrer";
-  facts.append(source);
+  appendFacts(source);
 });
 shipsHeading.append(carrackButton);
 
 const galleonButton = document.createElement("button");
 galleonButton.type = "button";
 galleonButton.textContent = "Galleon · Three-masted sailing ship";
+galleonButton.dataset.id = "galleon";
+AUTHORED_VARIANTS[galleonButton.dataset.id] = { author: OPUS_GALLEON.author, show: () => showOpusGalleon() };
+let opusGalleonEnsign = false;
+function showOpusGalleon(): void {
+  selection++;
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  roofTitle.textContent = "Ship elevation";
+  levelTitle.textContent = "Deck plan";
+  showQuality(true);
+  const quality = qualitySelect.value as OpusGalleonQuality;
+  const model = createOpusGalleon(quality, { ensign: opusGalleonEnsign });
+  const ensignToggle = document.createElement("input");
+  ensignToggle.type = "checkbox";
+  ensignToggle.checked = opusGalleonEnsign;
+  ensignToggle.addEventListener("change", () => {
+    opusGalleonEnsign = ensignToggle.checked;
+    showOpusGalleon();
+  });
+  const ensignRow = document.createElement("label");
+  ensignRow.append(ensignToggle, " Stern ensign");
+  const ensignParagraph = document.createElement("p");
+  ensignParagraph.append(ensignRow);
+  optionFields.append(ensignParagraph);
+  modelOptions.hidden = false;
+  massing = model;
+  scene.add(model.group);
+  frame({ occupancyMeters: { width: OPUS_GALLEON.length, depth: OPUS_GALLEON.beam } }, OPUS_GALLEON.height);
+  camera.position.set(52, 30, 64);
+  controls.target.set(4, 16, 0);
+  controls.update();
+  mountPlan(roofHost, meshProjection(model, "side"));
+  mountPlan(levelHost, meshProjection(model, "top"));
+  appendFacts(
+    fact("Model", OPUS_GALLEON.name),
+    fact(
+      "Quality",
+      quality === "high" ? "High" : "Low — ratlines, running rigging, deck seams, balusters and gratings omitted"
+    ),
+    fact("Period", "Age of sail · imagined late-16th-century race-built galleon"),
+    fact(
+      "Dimensions",
+      `${OPUS_GALLEON.length} m over spars × ${OPUS_GALLEON.beam} m beam; ${OPUS_GALLEON.height} m above water; ${OPUS_GALLEON.draft} m draft`
+    ),
+    fact("Rig", "Fore and main: course, topsail, topgallant; lateen mizzen with topsail; spritsail"),
+    fact("Armament", `${OPUS_GALLEON.guns} guns on two tiers, including two stern chasers`),
+    fact("Note", OPUS_GALLEON.note, "Galleon")
+  );
+}
 galleonButton.addEventListener("click", () => {
   selection++;
   for (const button of list.querySelectorAll("button")) {
@@ -1011,7 +1083,7 @@ galleonButton.addEventListener("click", () => {
   controls.update();
   mountPlan(roofHost, model.elevation);
   mountPlan(levelHost, model.plan);
-  facts.append(
+  appendFacts(
     fact("Model", GALLEON.name),
     fact("Period", "Age of sail · imagined early modern vessel"),
     fact(
@@ -1048,7 +1120,7 @@ sloopButton.addEventListener("click", () => {
   controls.update();
   mountPlan(roofHost, model.elevation);
   mountPlan(levelHost, model.plan);
-  facts.append(
+  appendFacts(
     fact("Model", SLOOP.name),
     fact("Period", "Age of sail · imagined coastal vessel"),
     fact(
@@ -1085,7 +1157,7 @@ bargeButton.addEventListener("click", () => {
   controls.update();
   mountPlan(roofHost, model.elevation);
   mountPlan(levelHost, model.plan);
-  facts.append(
+  appendFacts(
     fact("Model", BARGE.name),
     fact("Period", "Pre-industrial · imagined river carrier"),
     fact(
@@ -1125,7 +1197,7 @@ trebuchetButton.addEventListener("click", () => {
   controls.update();
   mountPlan(roofHost, model.elevation);
   mountPlan(levelHost, model.plan);
-  facts.append(
+  appendFacts(
     fact("Model", TREBUCHET.name),
     fact("Type", "Hinged-counterweight siege engine"),
     fact("Study envelope", `${TREBUCHET.length} × ${TREBUCHET.width} × ${TREBUCHET.height} m`),
@@ -1160,7 +1232,7 @@ ramButton.addEventListener("click", () => {
   controls.update();
   mountPlan(roofHost, model.elevation);
   mountPlan(levelHost, model.plan);
-  facts.append(
+  appendFacts(
     fact("Model", BATTERING_RAM.name),
     fact("Style", "Medieval Europe · Covered siege ram"),
     fact("Study envelope", `${BATTERING_RAM.length} × ${BATTERING_RAM.width} × ${BATTERING_RAM.height} m`),
@@ -1195,7 +1267,7 @@ siegeTowerButton.addEventListener("click", () => {
   controls.update();
   mountPlan(roofHost, model.elevation);
   mountPlan(levelHost, model.plan);
-  facts.append(
+  appendFacts(
     fact("Model", SIEGE_TOWER.name),
     fact("Style", "Medieval Europe · Timber belfry"),
     fact("Study envelope", `${SIEGE_TOWER.length} × ${SIEGE_TOWER.width} × ${SIEGE_TOWER.height} m`),
@@ -1238,7 +1310,7 @@ cannonButton.addEventListener("click", () => {
   controls.update();
   mountPlan(roofHost, model.elevation);
   mountPlan(levelHost, model.plan);
-  facts.append(
+  appendFacts(
     fact("Model", EARLY_FIELD_CANNON.name),
     fact("Period", "Late medieval / Age of Discovery · Europe, circa 1500"),
     fact("Type", "Muzzle-loading land artillery on a two-wheeled field carriage"),
@@ -1278,7 +1350,7 @@ postMillButton.addEventListener("click", () => {
   controls.update();
   mountPlan(roofHost, model.elevation);
   mountPlan(levelHost, model.plan);
-  facts.append(
+  appendFacts(
     fact("Model", POST_MILL.name),
     fact("Style", "Medieval Europe · Timber post mill"),
     fact("Study envelope", `${POST_MILL.width} × ${POST_MILL.depth} × ${POST_MILL.height} m`),
@@ -1313,7 +1385,7 @@ towerMillButton.addEventListener("click", () => {
   controls.update();
   mountPlan(roofHost, model.elevation);
   mountPlan(levelHost, model.plan);
-  facts.append(
+  appendFacts(
     fact("Model", TOWER_MILL.name),
     fact("Style", "European stone tower mill"),
     fact("Study envelope", `${TOWER_MILL.width} × ${TOWER_MILL.depth} × ${TOWER_MILL.height} m`),
@@ -1348,7 +1420,7 @@ waterMillButton.addEventListener("click", () => {
   controls.update();
   mountPlan(roofHost, model.elevation);
   mountPlan(levelHost, model.plan);
-  facts.append(
+  appendFacts(
     fact("Model", WATER_MILL.name),
     fact("Style", "Medieval Europe · Stone and half-timbered grain mill"),
     fact("Study envelope", `${WATER_MILL.width} × ${WATER_MILL.depth} × ${WATER_MILL.height} m`),
@@ -1384,7 +1456,7 @@ wellButton.addEventListener("click", () => {
   controls.update();
   mountPlan(roofHost, model.elevation);
   mountPlan(levelHost, model.plan);
-  facts.append(
+  appendFacts(
     fact("Model", MEDIEVAL_WELL.name),
     fact("Style", "Medieval Europe · Roofed village well"),
     fact("Study envelope", `${MEDIEVAL_WELL.width} × ${MEDIEVAL_WELL.depth} × ${MEDIEVAL_WELL.height} m`),
@@ -1421,7 +1493,7 @@ for (const kind of WATER_BASIN_KINDS) {
     controls.update();
     mountPlan(roofHost, model.elevation);
     mountPlan(levelHost, model.plan);
-    facts.append(
+    appendFacts(
       fact("Model", spec.name),
       fact("Study envelope", `${spec.width} × ${spec.depth} × ${spec.height} m`),
       fact("Ground contact", "Base Y = 0 m"),
@@ -1464,7 +1536,7 @@ for (const kind of CONTAINER_KINDS) {
       mountPlan(levelHost, model.plan);
       const bounds = new THREE.Box3().setFromObject(model.group);
       const dimensions = bounds.getSize(new THREE.Vector3());
-      facts.append(
+      appendFacts(
         fact("Model", spec.name),
         fact("State", stateLabel),
         fact("Study envelope", `${spec.width} × ${spec.depth} × ${spec.height} m`),
@@ -1508,7 +1580,7 @@ lumberYardButton.addEventListener("click", () => {
   controls.update();
   mountPlan(roofHost, model.elevation);
   mountPlan(levelHost, model.plan);
-  facts.append(
+  appendFacts(
     fact("Model", MEDIEVAL_LUMBER_YARD.name),
     fact("Style", "Medieval Europe · Timber storage and hand-work yard"),
     fact(
@@ -1553,7 +1625,7 @@ for (const [definition, create] of [
       (sum, mesh) => sum + (mesh.geometry.index?.count ?? mesh.geometry.getAttribute("position").count) / 3,
       0
     );
-    facts.append(
+    appendFacts(
       fact("Model", definition.name),
       fact("Style", "Low-poly · Untextured flat-shaded geometry"),
       fact("Study envelope", `${definition.length} × ${definition.width} × ${definition.height} m`),
@@ -1588,7 +1660,7 @@ minecartButton.addEventListener("click", () => {
   controls.update();
   mountPlan(roofHost, model.elevation);
   mountPlan(levelHost, model.plan);
-  facts.append(
+  appendFacts(
     fact("Model", MINECART.name),
     fact("Type", "Hand-pushed mining cart"),
     fact("Study envelope", `${MINECART.length} × ${MINECART.width} × ${MINECART.height} m, including display track`),
@@ -1623,7 +1695,7 @@ wagonButton.addEventListener("click", () => {
   controls.update();
   mountPlan(roofHost, model.elevation);
   mountPlan(levelHost, model.plan);
-  facts.append(
+  appendFacts(
     fact("Model", MEDIEVAL_WAGON.name),
     fact("Style", "Medieval Europe · Open timber freight wagon"),
     fact("Study envelope", `${MEDIEVAL_WAGON.length} × ${MEDIEVAL_WAGON.width} × ${MEDIEVAL_WAGON.height} m`),
@@ -1658,7 +1730,7 @@ coveredWagonButton.addEventListener("click", () => {
   controls.update();
   mountPlan(roofHost, model.elevation);
   mountPlan(levelHost, model.plan);
-  facts.append(
+  appendFacts(
     fact("Model", COVERED_WAGON.name),
     fact("Style", "Pre-industrial · Timber freight wagon with a canvas cover"),
     fact("Study envelope", `${COVERED_WAGON.length} × ${COVERED_WAGON.width} × ${COVERED_WAGON.height} m`),
@@ -1694,7 +1766,7 @@ nobleCarriageButton.addEventListener("click", () => {
   controls.update();
   mountPlan(roofHost, model.elevation);
   mountPlan(levelHost, model.plan);
-  facts.append(
+  appendFacts(
     fact("Model", NOBLE_CARRIAGE.name),
     fact("Style", "Late medieval Europe · Noble household traveling wagon"),
     fact("Study envelope", `${NOBLE_CARRIAGE.length} × ${NOBLE_CARRIAGE.width} × ${NOBLE_CARRIAGE.height} m`),
@@ -1730,7 +1802,7 @@ warWagonButton.addEventListener("click", () => {
   controls.update();
   mountPlan(roofHost, model.elevation);
   mountPlan(levelHost, model.plan);
-  facts.append(
+  appendFacts(
     fact("Model", WAR_WAGON.name),
     fact("Style", "Late medieval Europe · Wagon-fort inspired defensive wagon"),
     fact("Study envelope", `${WAR_WAGON.length} × ${WAR_WAGON.width} × ${WAR_WAGON.height} m`),
@@ -1747,7 +1819,7 @@ vehiclesHeading.append(warWagonButton);
 
 let townWallHousingCulture: BuildingAppearanceProfile = "legacy";
 
-function showTownWall(model: TownWallModel, button: HTMLButtonElement, codex = false): void {
+function showTownWall(model: TownWallModel, button: HTMLButtonElement, codex = false, view = -1): void {
   selection++;
   for (const item of list.querySelectorAll("button")) item.setAttribute("aria-current", String(item === button));
   clearMesh();
@@ -1784,12 +1856,28 @@ function showTownWall(model: TownWallModel, button: HTMLButtonElement, codex = f
     culture.value = townWallHousingCulture;
     culture.addEventListener("change", () => {
       townWallHousingCulture = culture.value as BuildingAppearanceProfile;
-      showTownWall(model, button, codex);
+      showTownWall(model, button, codex, view);
     });
     cultureRow.append(culture);
     optionFields.append(cultureRow);
   }
-  const built = model.create(townWallHousingCulture);
+  if (model.views) {
+    const viewRow = document.createElement("label");
+    viewRow.textContent = "View: ";
+    const viewSelect = document.createElement("select");
+    viewSelect.setAttribute("aria-label", "Gatehouse view");
+    for (const [index, name] of ["Exterior", ...model.views.map(item => item.name)].entries()) {
+      const option = document.createElement("option");
+      option.value = String(index - 1);
+      option.textContent = name;
+      viewSelect.append(option);
+    }
+    viewSelect.value = String(view);
+    viewSelect.addEventListener("change", () => showTownWall(model, button, codex, Number(viewSelect.value)));
+    viewRow.append(viewSelect);
+    optionFields.append(viewRow);
+  }
+  const built = (model.views?.[view] ?? model).create(townWallHousingCulture);
   massing = built;
   scene.add(built.group);
   ground.visible = true;
@@ -1805,16 +1893,17 @@ function showTownWall(model: TownWallModel, button: HTMLButtonElement, codex = f
   ground.geometry = new THREE.CircleGeometry(Math.max(radius * 0.85, 8), 48);
   mountPlan(roofHost, meshProjection(built, "side"));
   mountPlan(levelHost, meshProjection(built, "top"));
-  facts.append(
+  appendFacts(
     fact("Model", `${model.task} · ${model.name}`),
     fact("Part", model.part),
-    fact("Period", codex ? CODEX_TOWN_WALL_PERIOD : "High medieval Europe"),
+    fact("Period", model.period ?? (codex ? CODEX_TOWN_WALL_PERIOD : "High medieval Europe")),
     fact("Resolution", "High — low and standard tiers are not prepared"),
     fact("Mesh dimensions", `${extent.x.toFixed(2)} × ${extent.z.toFixed(2)} × ${extent.y.toFixed(2)} m`),
     fact("Construction", model.note, wallWikipedia[model.id]),
     fact(
       "Scope",
-      "Illustrative study of a part CE places around a town when Features → Walls is on. Metre units. Circuit placement is separate."
+      model.scope ??
+        "Illustrative study of a part CE places around a town when Features → Walls is on. Metre units. Circuit placement is separate."
     )
   );
   for (const source of model.sources) {
@@ -1825,7 +1914,7 @@ function showTownWall(model: TownWallModel, button: HTMLButtonElement, codex = f
     link.target = "_blank";
     link.rel = "noreferrer";
     row.append(link);
-    facts.append(row);
+    appendFacts(row);
   }
 }
 
@@ -1843,6 +1932,14 @@ for (const model of TOWN_WALLS) {
   button.addEventListener("click", () => showTownWall(codexModel, button, true));
   townWallsHeading.append(button);
 }
+
+const gatehouseButton = document.createElement("button");
+gatehouseButton.type = "button";
+gatehouseButton.textContent = `${GATEHOUSE.task} · ${GATEHOUSE.name}`;
+gatehouseButton.dataset.id = GATEHOUSE.id;
+gatehouseButton.addEventListener("click", () => showTownWall(GATEHOUSE, gatehouseButton));
+AUTHORED_VARIANTS[GATEHOUSE.id] = { author: GATEHOUSE.author!, primary: true, show: () => gatehouseButton.click() };
+townWallsHeading.append(gatehouseButton);
 
 const barbicansHeading = modelCategory("Barbicans");
 for (const definition of BARBICANS) {
@@ -1875,7 +1972,7 @@ for (const definition of BARBICANS) {
     ground.geometry = new THREE.CircleGeometry(radius, 48);
     mountPlan(roofHost, meshProjection(model, "side"));
     mountPlan(levelHost, meshProjection(model, "top"));
-    facts.append(
+    appendFacts(
       fact("Model", definition.name),
       fact("Period", definition.period),
       fact("Mesh dimensions", `${size.x.toFixed(2)} × ${size.z.toFixed(2)} × ${size.y.toFixed(2)} m`),
@@ -1891,7 +1988,7 @@ for (const definition of BARBICANS) {
     reference.textContent = definition.reference.title;
     reference.target = "_blank";
     reference.rel = "noopener noreferrer";
-    facts.append(reference);
+    appendFacts(reference);
   });
   barbicansHeading.append(button);
 }
@@ -1916,7 +2013,7 @@ function showSign(options: HangingSignOptions, activeButton: HTMLButtonElement):
   controls.update();
   mountPlan(roofHost, model.elevation);
   mountPlan(levelHost, model.plan);
-  facts.append(fact("Model", "Modular hanging shop sign"));
+  appendFacts(fact("Model", "Modular hanging shop sign"));
   modelOptions.hidden = false;
   function selector<T extends string>(name: string, values: readonly T[], selected: T, change: (value: T) => void) {
     const row = document.createElement("label");
@@ -1940,7 +2037,7 @@ function showSign(options: HangingSignOptions, activeButton: HTMLButtonElement):
     showSign({ ...options, material }, activeButton)
   );
   selector("Symbol", SIGN_SYMBOLS, options.symbol ?? "blank", symbol => showSign({ ...options, symbol }, activeButton));
-  facts.append(
+  appendFacts(
     fact(
       "Mount",
       "Wall plate at origin; +X projects from the facade. Meter units. Rotate around Y to align with the wall."
@@ -1988,6 +2085,7 @@ function showEarthenHouses(): void {
   levelTitle.textContent = "Roof plan";
   showQuality(true);
   const quality = qualitySelect.value as RegionalHouseQuality;
+  comparisonModel = { path: `earthen`, quality: quality };
   massing = createEarthenHouses(quality);
   scene.add(massing.group);
   ground.visible = true;
@@ -1997,7 +2095,7 @@ function showEarthenHouses(): void {
   controls.update();
   mountPlan(roofHost, meshProjection(massing, "side"));
   mountPlan(levelHost, meshProjection(massing, "top"));
-  facts.append(
+  appendFacts(
     fact("Quality", quality === "high" ? "High" : "Low — facade courses, joinery, beam ends and drains omitted"),
     fact(
       "Envelope",
@@ -2032,6 +2130,7 @@ function showPolygonHouses(): void {
   levelTitle.textContent = "Roof plan";
   showQuality(true);
   const quality = qualitySelect.value as RegionalHouseQuality;
+  comparisonModel = { path: `polygon`, quality: quality };
   massing = createPolygonHouses(quality);
   scene.add(massing.group);
   ground.visible = true;
@@ -2041,7 +2140,7 @@ function showPolygonHouses(): void {
   controls.update();
   mountPlan(roofHost, meshProjection(massing, "side"));
   mountPlan(levelHost, meshProjection(massing, "top"));
-  facts.append(
+  appendFacts(
     fact("Quality", quality === "high" ? "High" : "Low — joinery and roof courses omitted"),
     fact("Construction", POLYGON_HOUSES.note),
     fact("Envelope", "2.4 m narrow gable, trapezoidal hip and concave flat-roof houses"),
@@ -2079,7 +2178,7 @@ for (const profile of BUILDING_APPEARANCE_PROFILES.filter(id => id !== "legacy")
     frame({ occupancyMeters: { width: 24, depth: 10 } }, 10);
     mountPlan(roofHost, meshProjection(model, "side"));
     mountPlan(levelHost, meshProjection(model, "top"));
-    facts.append(
+    appendFacts(
       fact("Profile", label(profile)),
       fact("Roof coverings", [...new Set(lots.map(lot => lot.massing!.roof.material))].join(", ")),
       fact(
@@ -2102,6 +2201,7 @@ function showDetailedRegionalHouses(profile: RegionalHouseProfile): void {
   levelTitle.textContent = "Roof plan";
   showQuality(true);
   const quality = qualitySelect.value as RegionalHouseQuality;
+  comparisonModel = { path: `regional:${profile}`, quality: quality };
   massing = createRegionalHouses(profile, quality);
   scene.add(massing.group);
   ground.visible = true;
@@ -2112,7 +2212,7 @@ function showDetailedRegionalHouses(profile: RegionalHouseProfile): void {
   mountPlan(roofHost, meshProjection(massing, "side"));
   mountPlan(levelHost, meshProjection(massing, "top"));
   const { width, depth, ground: groundStorey, upper, pitchDeg } = REGIONAL_HOUSES;
-  facts.append(
+  appendFacts(
     fact("Profile", label(profile)),
     fact(
       "Quality",
@@ -2178,7 +2278,7 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
       ground.geometry = new THREE.CircleGeometry(radius * 0.85, 48);
       mountPlan(roofHost, meshProjection(model, "side"));
       mountPlan(levelHost, meshProjection(model, "top"));
-      facts.append(
+      appendFacts(
         fact("Model", definition.name),
         fact("Task", String(task).padStart(2, "0")),
         ...(definition.biomes ? [fact("Biomes", definition.biomes.join(", "))] : []),

@@ -37,6 +37,7 @@ function church(tower: boolean) {
 }
 export const models: MedievalModel[] = [
   {
+    author: "Codex GPT-6.1 Sol",
     id: "parish-church",
     name: "Small parish church and bell tower",
     task: 14,
@@ -45,6 +46,7 @@ export const models: MedievalModel[] = [
     create: () => church(true)
   },
   {
+    author: "Codex GPT-6.1 Sol",
     id: "village-chapel",
     name: "Village chapel with bellcote",
     task: 14,

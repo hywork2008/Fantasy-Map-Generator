@@ -4,6 +4,7 @@ import { meshProjection } from "../meshProjection";
 
 /** Illustrative hinged-counterweight engine in a static, lowered loading pose. Units are meters. */
 export const TREBUCHET = {
+  author: "Codex GPT-6.1 Sol",
   name: "Trebuchet",
   length: 17,
   width: 6,

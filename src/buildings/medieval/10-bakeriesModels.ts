@@ -18,6 +18,7 @@ function oven(k: ModelKit, x: number, z: number) {
 }
 export const models: MedievalModel[] = [
   {
+    author: "Codex GPT-6.1 Sol",
     id: "bread-bakehouse",
     name: "Detached bread bakehouse",
     task: 10,
@@ -34,6 +35,7 @@ export const models: MedievalModel[] = [
     }
   },
   {
+    author: "Codex GPT-6.1 Sol",
     id: "town-bakery",
     name: "Bakery and bread shop",
     task: 10,
@@ -55,6 +57,7 @@ export const models: MedievalModel[] = [
     }
   },
   {
+    author: "Codex GPT-6.1 Sol",
     id: "communal-bread-oven",
     name: "Communal bread oven shelter",
     task: 10,

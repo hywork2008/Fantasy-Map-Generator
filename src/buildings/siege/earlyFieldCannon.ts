@@ -4,6 +4,7 @@ import { meshProjection } from "../meshProjection";
 
 /** Illustrative European land artillery, circa 1500. Meters; muzzle faces positive X. */
 export const EARLY_FIELD_CANNON = {
+  author: "Codex GPT-6.1 Sol",
   name: "Early European field cannon",
   length: 4.4,
   width: 2.2,

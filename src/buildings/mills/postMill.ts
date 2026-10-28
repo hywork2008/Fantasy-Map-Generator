@@ -4,6 +4,7 @@ import { meshProjection } from "../meshProjection";
 
 /** Imagined medieval European timber post mill. Dimensions are illustrative, in meters. */
 export const POST_MILL = {
+  author: "Codex GPT-6.1 Sol",
   name: "Medieval post mill",
   width: 14,
   depth: 13,

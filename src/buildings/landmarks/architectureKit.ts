@@ -16,6 +16,7 @@ export interface LandmarkModel {
   /** Optional detailed exterior; the catalogue entry itself remains the default low-resolution model. */
   highDetail?: LandmarkModel;
   create(): CityStructureMeshes;
+  author?: string;
 }
 
 /** Exterior study parts in metres. All geometry and materials belong to the returned assembly. */

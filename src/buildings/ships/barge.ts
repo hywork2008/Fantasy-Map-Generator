@@ -4,6 +4,7 @@ import { meshProjection } from "../meshProjection";
 
 /** An illustrative unpowered wooden river cargo barge. */
 export const BARGE = {
+  author: "Codex GPT-6.1 Sol",
   name: "River barge",
   length: 21,
   beam: 6.4,

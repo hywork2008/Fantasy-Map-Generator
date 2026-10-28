@@ -5,7 +5,7 @@ export const models: MedievalModel[] = TREE_SPECIES.map(species => ({
   id: species.replaceAll("_", "-"),
   author: ["garden_parkland", "sacred_yew", "norway_spruce", "silver_birch"].includes(species)
     ? "GPT-6.1 Sol"
-    : undefined,
+    : "Codex GPT-6.1 Sol",
   biomes:
     species === "garden_parkland" || species === "sacred_yew"
       ? ["temperateDeciduousForest", "centralEuropeanGreatForest"]

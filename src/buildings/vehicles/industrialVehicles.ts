@@ -59,6 +59,7 @@ function modelKit(name: string) {
 }
 
 export const HOT_AIR_BALLOON = {
+  author: "Codex GPT-6.1 Sol",
   name: "Hot air balloon",
   length: 10,
   width: 10,
@@ -113,6 +114,7 @@ export function createHotAirBalloon(): TransportModel {
 }
 
 export const AIRSHIP = {
+  author: "Codex GPT-6.1 Sol",
   name: "Airship",
   length: 30,
   width: 9,
@@ -165,6 +167,7 @@ export function createAirship(): TransportModel {
 }
 
 export const STEAM_LOCOMOTIVE = {
+  author: "Codex GPT-6.1 Sol",
   name: "Steam locomotive",
   length: 17,
   width: 3.6,

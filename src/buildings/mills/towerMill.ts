@@ -4,6 +4,7 @@ import { meshProjection } from "../meshProjection";
 
 /** An imagined stone tower mill, in meters; not a surveyed reconstruction. */
 export const TOWER_MILL = {
+  author: "Codex GPT-6.1 Sol",
   name: "Stone tower windmill",
   width: 17,
   depth: 12,

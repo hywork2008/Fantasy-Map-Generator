@@ -2,6 +2,7 @@ import * as THREE from "three";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 
 export const ST_GEORGES_CHAPEL = {
+  author: "Codex GPT-6.1 Sol",
   name: "St George's Chapel · Windsor Castle",
   width: 86,
   depth: 42,

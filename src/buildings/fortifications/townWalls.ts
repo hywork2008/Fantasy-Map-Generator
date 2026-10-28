@@ -23,8 +23,12 @@ export interface TownWallModel {
   /** Conservative width (X), depth (Z) and height (Y). */
   size: readonly [number, number, number];
   note: string;
+  period?: string;
+  scope?: string;
+  views?: readonly { name: string; create(profile?: BuildingAppearanceProfile): CityStructureMeshes }[];
   sources: readonly { title: string; url: string }[];
   create(profile?: BuildingAppearanceProfile): CityStructureMeshes;
+  author?: string;
 }
 
 const WALK = 8;
@@ -432,6 +436,7 @@ function addGate(kit: ModelKit) {
 
 export const TOWN_WALLS: readonly TownWallModel[] = [
   {
+    author: TOWN_WALL_AUTHOR,
     id: "town-curtain-wall",
     task: "W01",
     name: "Stone curtain wall",
@@ -454,6 +459,7 @@ export const TOWN_WALLS: readonly TownWallModel[] = [
     }
   },
   {
+    author: TOWN_WALL_AUTHOR,
     id: "town-mural-tower",
     task: "W02",
     name: "Round mural tower",
@@ -478,6 +484,7 @@ export const TOWN_WALLS: readonly TownWallModel[] = [
     }
   },
   {
+    author: TOWN_WALL_AUTHOR,
     id: "town-gate",
     task: "W03",
     name: "Twin-tower town gate",

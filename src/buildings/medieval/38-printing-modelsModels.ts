@@ -19,6 +19,7 @@ function press(k: ModelKit, x: number, z: number) {
 }
 export const models: MedievalModel[] = [
   {
+    author: "Codex GPT-6.1 Sol",
     id: "early-printing-workshop",
     name: "Early printing workshop",
     task: 38,
@@ -39,6 +40,7 @@ export const models: MedievalModel[] = [
     }
   },
   {
+    author: "Codex GPT-6.1 Sol",
     id: "printers-guild-hall",
     name: "Printers' guild hall",
     task: 38,

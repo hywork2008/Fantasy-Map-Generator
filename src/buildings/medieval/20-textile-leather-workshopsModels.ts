@@ -36,6 +36,7 @@ function workshop(kind: "weaver" | "tailor" | "cobbler") {
 }
 export const models: MedievalModel[] = [
   {
+    author: "Codex GPT-6.1 Sol",
     id: "weavers-workshop",
     name: "Weaver workshop and treadle loom",
     task: 20,
@@ -44,6 +45,7 @@ export const models: MedievalModel[] = [
     create: () => workshop("weaver")
   },
   {
+    author: "Codex GPT-6.1 Sol",
     id: "tailors-workshop",
     name: "Tailor workshop and cutting table",
     task: 20,
@@ -52,6 +54,7 @@ export const models: MedievalModel[] = [
     create: () => workshop("tailor")
   },
   {
+    author: "Codex GPT-6.1 Sol",
     id: "cobblers-workshop",
     name: "Cobbler workshop and shoe lasts",
     task: 20,

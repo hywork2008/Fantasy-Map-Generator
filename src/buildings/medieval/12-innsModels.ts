@@ -26,6 +26,7 @@ function inn(large: boolean) {
 }
 export const models: MedievalModel[] = [
   {
+    author: "Codex GPT-6.1 Sol",
     id: "roadside-inn",
     name: "Roadside inn with stable court",
     task: 12,
@@ -34,6 +35,7 @@ export const models: MedievalModel[] = [
     create: () => inn(false)
   },
   {
+    author: "Codex GPT-6.1 Sol",
     id: "courtyard-hostelry",
     name: "Courtyard hostelry",
     task: 12,

@@ -2,6 +2,7 @@ import { type MedievalModel, ModelKit } from "./modelKit";
 
 export const models: MedievalModel[] = [
   {
+    author: "Codex GPT-6.1 Sol",
     id: "village-stable",
     name: "Stable with divided stalls",
     task: 4,
@@ -22,6 +23,7 @@ export const models: MedievalModel[] = [
     }
   },
   {
+    author: "Codex GPT-6.1 Sol",
     id: "cattle-byre",
     name: "Stone cattle byre",
     task: 4,
@@ -38,6 +40,7 @@ export const models: MedievalModel[] = [
     }
   },
   {
+    author: "Codex GPT-6.1 Sol",
     id: "pigsty",
     name: "Pigsty with exercise pen",
     task: 4,
@@ -55,6 +58,7 @@ export const models: MedievalModel[] = [
     }
   },
   {
+    author: "Codex GPT-6.1 Sol",
     id: "chicken-coop",
     name: "Raised chicken coop",
     task: 4,

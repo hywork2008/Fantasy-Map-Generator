@@ -9,10 +9,34 @@ export type ContainerState = (typeof CONTAINER_STATES)[number];
 
 /** Illustrative envelopes in meters, shared by every state of each prop. */
 export const MEDIEVAL_CONTAINERS = {
-  barrel: { name: "Staved wooden barrel", width: 0.76, depth: 0.76, height: 1.02 },
-  crate: { name: "Planked wooden crate", width: 0.92, depth: 0.68, height: 0.72 },
-  sack: { name: "Hemp cloth sack", width: 0.64, depth: 0.64, height: 0.86 },
-  basket: { name: "Woven wicker basket", width: 0.86, depth: 0.86, height: 0.68 }
+  barrel: {
+    author: "Codex GPT-6.1 Sol",
+    name: "Staved wooden barrel",
+    width: 0.76,
+    depth: 0.76,
+    height: 1.02
+  },
+  crate: {
+    author: "Codex GPT-6.1 Sol",
+    name: "Planked wooden crate",
+    width: 0.92,
+    depth: 0.68,
+    height: 0.72
+  },
+  sack: {
+    author: "Codex GPT-6.1 Sol",
+    name: "Hemp cloth sack",
+    width: 0.64,
+    depth: 0.64,
+    height: 0.86
+  },
+  basket: {
+    author: "Codex GPT-6.1 Sol",
+    name: "Woven wicker basket",
+    width: 0.86,
+    depth: 0.86,
+    height: 0.68
+  }
 } as const;
 export const MEDIEVAL_CONTAINER_NOTE =
   "Imagined reusable medieval European storage props; illustrative dimensions, not artifact reconstructions. Empty containers have open interiors; closed sacks are tied. Loaded barrels and sacks contain grain, crates and baskets contain produce. Origin at ground level; units are meters. Barrel and crate models are shared with City Editor harbor cargo.";

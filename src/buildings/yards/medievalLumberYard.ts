@@ -3,6 +3,7 @@ import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import { meshProjection } from "../meshProjection";
 
 export const MEDIEVAL_LUMBER_YARD = {
+  author: "Codex GPT-6.1 Sol",
   name: "Medieval European lumber yard",
   width: 18,
   depth: 14,

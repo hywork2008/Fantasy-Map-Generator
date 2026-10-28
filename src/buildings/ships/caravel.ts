@@ -4,6 +4,7 @@ import { meshProjection } from "../meshProjection";
 
 /** An illustrative two-masted lateen-rigged caravel. */
 export const CARAVEL = {
+  author: "Codex GPT-6.1 Sol",
   name: "Caravel",
   length: 29,
   beam: 7.5,

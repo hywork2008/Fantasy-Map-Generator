@@ -3,6 +3,7 @@ import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 
 /** Idealized, repeatable bays, in meters; not a surveyed reconstruction. */
 export const PONT_DU_GARD = {
+  author: "Codex GPT-6.1 Sol",
   name: "Pont du Gard",
   bays: 6,
   pitch: 24,

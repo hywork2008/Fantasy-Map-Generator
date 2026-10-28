@@ -20,6 +20,7 @@ export function cloister(k: ModelKit, size = 10) {
 }
 export const models: MedievalModel[] = [
   {
+    author: "Codex GPT-6.1 Sol",
     id: "abbey-domestic-range",
     name: "Abbey cloister and domestic ranges",
     task: 32,
