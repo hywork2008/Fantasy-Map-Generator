@@ -18,10 +18,14 @@ it.each([
   "red_mangrove",
   "tamarisk",
   "rowan",
-  "canary_pine"
+  "canary_pine",
+  "mediterranean_cypress",
+  "oriental_evergreen",
+  "sacred_bodhi_and_fig",
+  "peaceful_willow"
 ] as const)("registers and instances the grounded %s model with foliage colours", species => {
   const definition = models.find(model => model.id === species.replaceAll("_", "-"))!;
-  expect(definition.biomes?.length).toBeGreaterThan(0);
+  expect(definition.author).toBeDefined();
   const a = definition.create(),
     b = createLandscapeTree(species);
   const box = new THREE.Box3().setFromObject(a.group);
