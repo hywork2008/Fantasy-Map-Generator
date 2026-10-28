@@ -2046,6 +2046,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
 
   const {
     populationControls,
+    biomeControls,
     appearanceControls,
     forestControls,
     currentBuildingPatternSelect,
@@ -3181,6 +3182,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
 
   function refresh(): void {
     syncStepControls();
+    biomeControls.sync();
     appearanceControls.sync();
     forestControls.sync();
     getMapDisplayController().refresh();
@@ -3195,6 +3197,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
    */
   function refreshUiOnly(): void {
     syncStepControls();
+    biomeControls.sync();
     appearanceControls.sync();
     forestControls.sync();
     getMapDisplayController().refreshUiOnly();

@@ -1,10 +1,13 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
+import { createTemperateTreeLod } from "./temperateTreeLod";
 import { createTreeBase } from "./treeBase";
+import type { TreeQuality } from "./treeQuality";
 
 /** A summer, open-grown Tilia cordata. Meter scale; deterministic and texture-free. */
-export function createSmallLeavedLime(): CityStructureMeshes {
+export function createSmallLeavedLime(quality: TreeQuality = "ultra"): CityStructureMeshes {
+  if (quality === "low" || quality === "medium") return createTemperateTreeLod("lime", quality);
   let seed = 6143;
   const random = () => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
@@ -34,6 +37,7 @@ export function createSmallLeavedLime(): CityStructureMeshes {
   const rotation = new THREE.Euler();
   const matrix = new THREE.Matrix4();
   function spray(tip: THREE.Vector3, radius: number, count = 105) {
+    const fraction = quality === "high" ? 0.2 : 1;
     for (let i = 0; i < count; i++) {
       const azimuth = random() * Math.PI * 2;
       const height = random() * 2 - 1;
@@ -45,9 +49,11 @@ export function createSmallLeavedLime(): CityStructureMeshes {
           new THREE.Vector3(Math.cos(azimuth) * horizontal, height * distance * 0.8, Math.sin(azimuth) * horizontal)
         );
       rotation.set(random() * 2.4 - 1.2, random() * Math.PI * 2, random() * Math.PI);
-      const size = 0.12 + random() * 0.1;
+      const size = (0.12 + random() * 0.1) / Math.sqrt(fraction);
       matrix.compose(center, new THREE.Quaternion().setFromEuler(rotation), new THREE.Vector3(size, size * 1.1, size));
       color.setHSL(0.23 + random() * 0.055, 0.33 + random() * 0.18, 0.22 + random() * 0.16);
+      // Consume the same random sequence at both tiers so every structural branch stays fixed.
+      if (quality === "high" && i % 5 !== 0) continue;
       const p = leaf.getAttribute("position");
       for (let j = 0; j < p.count; j++) {
         const v = new THREE.Vector3().fromBufferAttribute(p, j);
@@ -136,6 +142,7 @@ export function createSmallLeavedLime(): CityStructureMeshes {
   crown.name = "lime-heart-shaped-leaves";
   const group = new THREE.Group();
   group.name = "small-leaved-lime";
+  group.userData.treeQuality = quality;
   group.add(trunk, crown);
   return {
     group,

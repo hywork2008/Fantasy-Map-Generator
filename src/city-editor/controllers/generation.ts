@@ -308,6 +308,7 @@ export function createGenerationController(ctx: GenerationContext) {
       next = withBuildingAppearance(
         {
           ...next,
+          biome: ctx.generation.generateSettings.descriptor ? next.biome : ctx.documents.documentState.biome,
           buildingAppearanceProfile: ctx.documents.documentState.buildingAppearanceProfile,
           buildingAppearanceClimate: ctx.documents.documentState.buildingAppearanceClimate
         },

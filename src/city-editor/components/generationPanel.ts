@@ -16,6 +16,7 @@ import type { CityFeatureSet, WallCoastChoice, WallMaterialChoice } from "../typ
 import type { FarNodeMode } from "../types/contracts/streets";
 import type { CityDocument } from "../types/document";
 import type { GenerationStage } from "../types/generation";
+import { buildBiomeControls } from "./biomeControls";
 import { buildBuildingAppearanceControls } from "./buildingAppearanceControls";
 import { div, text } from "./editorControls";
 import { buildForestControls } from "./forestControls";
@@ -297,11 +298,23 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
       events.commit(next, editorText("cityEditor.forest.apply"));
     }
   });
+  const biomeControls = buildBiomeControls({
+    scope: events.scope,
+    getDocument: () => ctx.documents.documentState,
+    isImported: () => !!ctx.generation.generateSettings.descriptor,
+    select: ctx.select,
+    label: ctx.label,
+    updateDocument(next) {
+      clearGenerationPreviewCache();
+      events.commit(next, editorText("cityEditor.messages.changeBiome"));
+    }
+  });
   ctx.documentPanel.content.append(
     ctx.sizeLabel,
     ctx.gridKindLabel,
     ctx.hexSizeLabel,
     ctx.documentActions,
+    biomeControls.root,
     ctx.label(editorText("cityEditor.messages.scale"), ctx.scaleInput),
     ctx.label(editorText("cityEditor.messages.smoothing"), ctx.smoothingModeInput),
     ctx.divider(),
@@ -776,6 +789,7 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
   if (ctx.generation.generateSettings.population)
     historicalPeriodSelect.value = ctx.generation.generateSettings.historicalPeriod ?? "ageOfExploration";
   function syncSkeletonControls() {
+    biomeControls.sync();
     forestControls.sync();
     appearanceControls.sync();
     populationControls.sync();
@@ -939,6 +953,7 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
   ctx.panelEventContext().scope.listen(streetsSelect, "change", rememberFortress);
   ctx.panelEventContext().scope.listen(dimensionsSelect, "change", rememberFortress);
   return {
+    biomeControls,
     appearanceControls,
     forestControls,
     populationControls: populationControls.panel,

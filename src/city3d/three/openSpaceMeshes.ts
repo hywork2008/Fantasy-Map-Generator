@@ -1,7 +1,12 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { createCemeteryProp } from "../../buildings/landscape/cemeteryProps";
-import { createLandscapeTree, TREE_SPECIES, type TreeSpecies } from "../../buildings/landscape/trees";
+import {
+  createLandscapeTree,
+  hasTreeQualityLevels,
+  TREE_SPECIES,
+  type TreeSpecies
+} from "../../buildings/landscape/trees";
 import { models as houses } from "../../buildings/medieval/07-dwellingsModels";
 import { models as fuel } from "../../buildings/medieval/13-fuel-storageModels";
 import { models as churches } from "../../buildings/medieval/14-parish-churchesModels";
@@ -13,6 +18,7 @@ import type { OpenSpaceModel, OpenSpacePlan, OpenSpaceSite } from "../../city-ed
 import type { Point } from "../../city-editor/types/document";
 import { planVertex } from "../core/planFrame";
 import { groundSurfaceGeometry } from "./groundSurfaceGeometry";
+import { createOpenSpaceTreeLod } from "./openSpaceTreeLod";
 import type { CityStructureMeshes } from "./structureMeshes";
 
 function isTreeModel(kind: OpenSpaceModel): kind is TreeSpecies {
@@ -51,12 +57,14 @@ function shapeOf(ring: Point[], holes: Point[][] = []): THREE.Shape {
 /** Instanced BV models, batched ground and explicit non-rectangular grave footprints. Owns all resources. */
 export function createTownOpenSpaces(
   plan: OpenSpacePlan,
-  terrain?: Pick<CityTerrain, "heightAt" | "foundationAt">
-): CityStructureMeshes {
+  terrain?: Pick<CityTerrain, "heightAt" | "foundationAt">,
+  cameraTreeLod = false
+) {
   const group = new THREE.Group();
   group.name = "ce-open-spaces";
   const pickables: THREE.Mesh[] = [];
   const models: CityStructureMeshes[] = [];
+  const treeLayers: ReturnType<typeof createOpenSpaceTreeLod>[] = [];
   const geometries: THREE.BufferGeometry[] = [];
   const materials: THREE.Material[] = [];
   const heightAt = terrain?.heightAt ?? (() => 0);
@@ -130,6 +138,12 @@ export function createTownOpenSpaces(
     batches.set(site.model, list);
   }
   for (const [kind, sites] of batches) {
+    if (cameraTreeLod && isTreeModel(kind) && hasTreeQualityLevels(kind)) {
+      const layer = createOpenSpaceTreeLod(kind, sites, heightAt);
+      treeLayers.push(layer);
+      group.add(layer.group);
+      continue;
+    }
     const model = createModel(kind);
     models.push(model);
     model.group.updateMatrixWorld(true);
@@ -180,14 +194,23 @@ export function createTownOpenSpaces(
       addMesh(mesh);
     }
   }
+  const treeBounds = new THREE.Box3();
+  for (const layer of treeLayers) treeBounds.union(layer.bounds);
   return {
+    treeBounds,
     group,
     pickables,
+    update(camera: THREE.PerspectiveCamera, viewportHeight: number) {
+      let changed = false;
+      for (const layer of treeLayers) changed = layer.update(camera, viewportHeight) || changed;
+      return changed;
+    },
     dispose() {
       for (const mesh of pickables) if (mesh instanceof THREE.InstancedMesh) mesh.dispose();
       for (const geometry of geometries) geometry.dispose();
       for (const material of materials) material.dispose();
       for (const model of models) model.dispose();
+      for (const layer of treeLayers) layer.dispose();
     }
   };
 }

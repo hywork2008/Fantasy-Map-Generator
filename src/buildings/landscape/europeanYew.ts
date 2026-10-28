@@ -1,10 +1,13 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
+import { createTemperateTreeLod } from "./temperateTreeLod";
 import { createTreeBase } from "./treeBase";
+import type { TreeQuality } from "./treeQuality";
 
 /** Mature, untrimmed Taxus baccata, not the later columnar Irish yew cultivar. */
-export function createEuropeanYew(): CityStructureMeshes {
+export function createEuropeanYew(quality: TreeQuality = "ultra"): CityStructureMeshes {
+  if (quality === "low" || quality === "medium") return createTemperateTreeLod("yew", quality);
   let seed = 61017;
   const random = () => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
@@ -51,8 +54,9 @@ export function createEuropeanYew(): CityStructureMeshes {
       );
       const length = 0.75 + random() * 0.45;
       const vertices: THREE.Vector3[] = [];
-      for (let n = 0; n <= 8; n++) {
-        const t = n / 8;
+      const segments = quality === "high" ? 4 : 8;
+      for (let n = 0; n <= segments; n++) {
+        const t = n / segments;
         const spine = base.clone().addScaledVector(direction, t * length);
         const width = Math.sin(Math.PI * t) * (n % 2 ? 0.3 : 0.2);
         vertices.push(
@@ -62,7 +66,9 @@ export function createEuropeanYew(): CityStructureMeshes {
         );
       }
       const shade = 0.16 + random() * 0.13;
-      for (let n = 0; n < 8; n++) {
+      // Keep branch positions identical by retaining the random sequence for omitted sprays.
+      if (quality === "high" && shoot >= 4) continue;
+      for (let n = 0; n < segments; n++) {
         const a = n * 3,
           b = a + 3;
         for (const index of [a, b + 1, a + 1, a, b, b + 1, a, b + 2, b, a, a + 2, b + 2]) {
@@ -138,6 +144,7 @@ export function createEuropeanYew(): CityStructureMeshes {
   crown.name = "yew-abstract-needle-sprays";
   const group = new THREE.Group();
   group.name = "european-yew";
+  group.userData.treeQuality = quality;
   group.add(trunk, crown);
   return {
     group,

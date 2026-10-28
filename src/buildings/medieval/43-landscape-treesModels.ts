@@ -1,4 +1,5 @@
-import { createLandscapeTree, TREE_SPECIES, type TreeSpecies } from "../landscape/trees";
+import { TREE_QUALITIES } from "../landscape/treeQuality";
+import { createLandscapeTree, hasTreeQualityLevels, TREE_SPECIES, type TreeSpecies } from "../landscape/trees";
 import type { MedievalModel } from "./modelKit";
 
 type TreeEntry = Pick<MedievalModel, "author" | "biomes" | "name" | "size" | "note">;
@@ -146,5 +147,19 @@ export const models: MedievalModel[] = TREE_SPECIES.map(species => ({
   id: species.replaceAll("_", "-"),
   ...TREES[species],
   task: 43,
+  variants: hasTreeQualityLevels(species)
+    ? TREE_QUALITIES.map(quality => ({
+        id: quality,
+        label:
+          quality === "ultra"
+            ? "Ultra (individual foliage)"
+            : quality === "high"
+              ? "High (reduced foliage)"
+              : quality === "medium"
+                ? "Medium (branched canopy)"
+                : "Low (canopy silhouette)",
+        create: () => createLandscapeTree(species, quality)
+      }))
+    : undefined,
   create: () => createLandscapeTree(species)
 }));

@@ -304,6 +304,7 @@ let regionalDetails: TownBuildingDetails | null = null;
 let studyWater: TownWaterMeshes | null = null;
 let selection = 0;
 const modelComparison = createModelComparison();
+let comparisonVariants: { id: string; levels: NonNullable<MedievalModel["variants"]>; selected: string } | null = null;
 let comparisonModel: { path: string; quality: "low" | "high" } | null = null;
 
 function appendFacts(...nodes: (Node | string)[]): void {
@@ -316,6 +317,16 @@ function appendFacts(...nodes: (Node | string)[]): void {
   if (studyWater) {
     root.children.push(studyWater.parent);
     for (const mesh of [studyWater.land, studyWater.bank, studyWater.unknown]) if (mesh) root.children.push(mesh);
+  }
+  if (comparisonVariants) {
+    modelComparison.mountVariants(
+      facts,
+      comparisonVariants.id,
+      comparisonVariants.levels,
+      comparisonVariants.selected,
+      root
+    );
+    return;
   }
   modelComparison.mount(facts, comparisonModel?.path ?? null, comparisonModel?.quality ?? "high", root);
 }
@@ -349,6 +360,7 @@ function frame(record: Pick<BuildingRecord, "occupancyMeters">, height: number):
 
 function clearMesh(): void {
   comparisonModel = null;
+  comparisonVariants = null;
   modelComparison.clear();
   performancePanel.reset();
   if (regionalDetails) {
@@ -2250,7 +2262,7 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
     button.dataset.id = `medieval-${definition.id}`;
     if (definition.author)
       AUTHORED_VARIANTS[button.dataset.id] = { author: definition.author, primary: true, show: () => button.click() };
-    button.addEventListener("click", () => {
+    const showModel = (variant = definition.variants?.at(-1)) => {
       selection++;
       for (const item of list.querySelectorAll("button"))
         item.setAttribute("aria-current", item === button ? "true" : "false");
@@ -2263,7 +2275,28 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
       selectedId = button.dataset.id!;
       selectedName.textContent = definition.name;
       listAuthors(selectedId);
-      const model = definition.create();
+      if (definition.variants) {
+        modelOptions.hidden = false;
+        const row = document.createElement("label");
+        row.textContent = "Quality: ";
+        const resolution = document.createElement("select");
+        resolution.setAttribute("aria-label", "Tree model quality");
+        for (const entry of definition.variants) {
+          const option = document.createElement("option");
+          option.value = entry.id;
+          option.textContent = entry.label;
+          resolution.append(option);
+        }
+        resolution.value = variant!.id;
+        resolution.addEventListener("change", () =>
+          showModel(definition.variants!.find(entry => entry.id === resolution.value))
+        );
+        row.append(resolution);
+        optionFields.append(row);
+      }
+      if (variant && definition.variants)
+        comparisonVariants = { id: definition.id, levels: definition.variants, selected: variant.id };
+      const model = variant ? variant.create() : definition.create();
       massing = model;
       scene.add(model.group);
       ground.visible = true;
@@ -2281,6 +2314,21 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
       appendFacts(
         fact("Model", definition.name),
         fact("Task", String(task).padStart(2, "0")),
+        ...(variant
+          ? [
+              fact("Quality", variant.label),
+              fact(
+                "Triangles",
+                String(
+                  model.pickables.reduce(
+                    (sum, mesh) =>
+                      sum + (mesh.geometry.index?.count ?? mesh.geometry.getAttribute("position").count) / 3,
+                    0
+                  )
+                )
+              )
+            ]
+          : []),
         ...(definition.biomes ? [fact("Biomes", definition.biomes.join(", "))] : []),
         fact("Mesh dimensions", `${size.x.toFixed(2)} × ${size.z.toFixed(2)} × ${size.y.toFixed(2)} m`),
         fact(
@@ -2299,7 +2347,8 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
               : "Illustrative medieval or early modern model; meter units. CE automatic placement is separate."
         )
       );
-    });
+    };
+    button.addEventListener("click", () => showModel());
     category.append(button);
   }
 }

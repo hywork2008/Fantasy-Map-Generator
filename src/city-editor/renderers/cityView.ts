@@ -225,7 +225,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   let facilities: TownFacilities | null = null;
   let bridges: TownBridges | null = null;
   const bvPrototypes = createBvPrototypeCache();
-  let openSpaces: CityStructureMeshes | null = null;
+  let openSpaces: ReturnType<typeof createTownOpenSpaces> | null = null;
   let farmland: TownFarmMeshes | null = null;
   let farmlandSource: DistrictFabric["farms"] | null = null;
   const forestQuality = new ForestAutoQuality();
@@ -540,6 +540,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     if (regionalHouses?.stats.pending) requestRender();
     buildingDetails?.update(camera, renderer.domElement.clientHeight, regionalHouses?.replaced);
     if (forest?.update(camera, renderer.domElement.clientHeight)) forestShadowPending = true;
+    if (openSpaces?.update(camera, renderer.domElement.clientHeight)) forestShadowPending = true;
     if (forestShadowPending) {
       const delay = 250 - (performance.now() - lastForestShadowAt);
       if (delay <= 0) {
@@ -727,7 +728,11 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       );
       if (openSpaces) scene.remove(openSpaces.group);
       openSpaces?.dispose();
-      openSpaces = createTownOpenSpaces(openSpacePlan, terrain ?? undefined);
+      openSpaces = createTownOpenSpaces(
+        openSpacePlan,
+        terrain ?? undefined,
+        city.biome?.key === "centralEuropeanGreatForest"
+      );
       scene.add(openSpaces.group);
       openSpaceStamp = nextOpenSpaceStamp;
     }
@@ -858,6 +863,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       if (object !== ground && object.visible) shadowBounds.expandByObject(object);
     });
     if (forest) shadowBounds.union(forest.bounds);
+    if (openSpaces) shadowBounds.union(openSpaces.treeBounds);
     if (shadowBounds.isEmpty()) shadowBounds.set(new THREE.Vector3(-20, 0, -20), new THREE.Vector3(20, 20, 20));
     if (sun) updateSun(sun, shadowBounds, sunSettings);
     if (renderer) renderer.shadowMap.needsUpdate = true;

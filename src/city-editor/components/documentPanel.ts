@@ -249,6 +249,7 @@ export function buildDocumentPanel(ctx: DocumentPanelContext) {
     });
     ctx.documents.documentState = withBuildingAppearance({
       ...ctx.documents.documentState,
+      biome: housing.biome,
       buildingHeightPolicy: housing.buildingHeightPolicy,
       buildingHeightLimit: housing.buildingHeightLimit,
       buildingAppearanceProfile: housing.buildingAppearanceProfile,

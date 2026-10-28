@@ -284,3 +284,22 @@ it("uses BV trees beyond distance and count caps when outskirts simplification i
   automatic.dispose();
   full.dispose();
 });
+
+it("uses distance-graded BV trees for the central European forest at the default quality within its budget", () => {
+  const doc = document();
+  doc.biome = { id: 13, key: "centralEuropeanGreatForest", name: "Great forest", color: "green", tags: ["forest"] };
+  const forest = createTownForest(doc, plan(), undefined, "standard");
+  const c = camera();
+  forest.update(c, 720);
+  expect(forest.stats.detailedTrees).toBeGreaterThan(16);
+  expect(
+    forest.stats.detailedTiers.medium + forest.stats.detailedTiers.high + forest.stats.detailedTiers.ultra
+  ).toBeGreaterThan(0);
+  expect(forest.stats.triangles).toBeLessThanOrEqual(FOREST_3D_BUDGET.standard.triangles);
+  expect(forest.stats.calls).toBeLessThanOrEqual(FOREST_3D_BUDGET.standard.calls);
+  expect(forest.stats.shadowTriangles).toBeLessThanOrEqual(FOREST_3D_BUDGET.standard.shadowTriangles);
+  c.lookAt(90, 80, 1000);
+  forest.update(c, 720);
+  expect(forest.stats.detailedTrees).toBe(0);
+  forest.dispose();
+});
