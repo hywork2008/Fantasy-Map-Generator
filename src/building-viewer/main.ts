@@ -228,9 +228,12 @@ const authorTitle = document.createElement("h2");
 authorTitle.textContent = "Created by";
 const authorSelect = document.createElement("select");
 authorSelect.setAttribute("aria-label", "AI model that created this object");
+/** Author of the quality level on show, keyed like AUTHORED_VARIANTS, when it differs per level. */
+const LEVEL_AUTHORS: Record<string, string> = {};
 function listAuthors(id: string): void {
   authorSelect.replaceChildren();
-  const variant = AUTHORED_VARIANTS[id];
+  const level = LEVEL_AUTHORS[id];
+  const variant = level ? { author: level, primary: true, quality: false } : AUTHORED_VARIANTS[id];
   const names = variant?.primary ? [variant.author] : ([DEFAULT_AUTHOR, variant?.author].filter(Boolean) as string[]);
   for (const name of names) {
     const option = document.createElement("option");
@@ -2274,6 +2277,8 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
       levelTitle.textContent = "Top view";
       selectedId = button.dataset.id!;
       selectedName.textContent = definition.name;
+      if (variant?.author) LEVEL_AUTHORS[selectedId] = variant.author;
+      else delete LEVEL_AUTHORS[selectedId];
       listAuthors(selectedId);
       if (definition.variants) {
         modelOptions.hidden = false;
@@ -2284,7 +2289,7 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
         for (const entry of definition.variants) {
           const option = document.createElement("option");
           option.value = entry.id;
-          option.textContent = entry.label;
+          option.textContent = entry.author ? `${entry.label} · ${entry.author}` : entry.label;
           resolution.append(option);
         }
         resolution.value = variant!.id;

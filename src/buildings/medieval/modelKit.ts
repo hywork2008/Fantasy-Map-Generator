@@ -10,7 +10,8 @@ export interface MedievalModel {
   /** Conservative width, depth and height envelopes in meters. */
   size: readonly [number, number, number];
   note: string;
-  variants?: readonly { id: string; label: string; create(): CityStructureMeshes }[];
+  /** A variant's author overrides the model author when another AI model made only that level. */
+  variants?: readonly { id: string; label: string; author?: string; create(): CityStructureMeshes }[];
   create(): CityStructureMeshes;
 }
 export type Position = readonly [number, number, number];

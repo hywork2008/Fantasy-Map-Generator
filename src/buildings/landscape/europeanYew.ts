@@ -1,31 +1,33 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
-import { createTemperateTreeLod } from "./temperateTreeLod";
+import { type CanopyLobe, createCanopyLobes, fitCanopyLobe } from "./canopyLobes";
+import { createTemperateTreeLod, TEMPERATE_CANOPY } from "./temperateTreeLod";
 import { createTreeBase } from "./treeBase";
 import type { TreeQuality } from "./treeQuality";
 
 /** Mature, untrimmed Taxus baccata, not the later columnar Irish yew cultivar. */
 export function createEuropeanYew(quality: TreeQuality = "ultra"): CityStructureMeshes {
-  if (quality === "low" || quality === "medium") return createTemperateTreeLod("yew", quality);
+  if (quality === "low") return createTemperateTreeLod("yew");
+  // Medium follows the same limb skeleton and replaces each fan cluster with one fitted lobe.
+  const medium = quality === "medium";
   let seed = 61017;
   const random = () => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
     return seed / 4294967296;
   };
   const wood: THREE.BufferGeometry[] = [];
+  const lobes: CanopyLobe[] = [];
   const positions: number[] = [],
     colors: number[] = [];
   const up = new THREE.Vector3(0, 1, 0);
   const color = new THREE.Color();
   function limb(a: THREE.Vector3, b: THREE.Vector3, bottom: number, top: number) {
-    const geometry = new THREE.CylinderGeometry(
-      top,
-      bottom,
-      a.distanceTo(b),
-      bottom < 0.01 ? 4 : 10,
-      bottom < 0.01 ? 1 : 3
-    );
+    // Twigs are sub-pixel at medium range and the dense crown hides all but the main limbs.
+    if (medium && bottom < 0.05) return;
+    const geometry = medium
+      ? new THREE.CylinderGeometry(top, bottom, a.distanceTo(b), 4, 1, true)
+      : new THREE.CylinderGeometry(top, bottom, a.distanceTo(b), bottom < 0.01 ? 4 : 10, bottom < 0.01 ? 1 : 3);
     const p = geometry.getAttribute("position");
     // Longitudinal fluting breaks the smooth cylinder silhouette of old yew bark.
     for (let i = 0; i < p.count; i++) {
@@ -39,6 +41,7 @@ export function createEuropeanYew(quality: TreeQuality = "ultra"): CityStructure
   }
   function foliage(center: THREE.Vector3, radius: number) {
     // A folded, serrated fan represents many two-ranked needle shoots in one surface.
+    const points: THREE.Vector3[] = [];
     for (let shoot = 0; shoot < 10; shoot++) {
       const angle = random() * Math.PI * 2;
       const y = random() * 2 - 1;
@@ -66,8 +69,9 @@ export function createEuropeanYew(quality: TreeQuality = "ultra"): CityStructure
         );
       }
       const shade = 0.16 + random() * 0.13;
+      points.push(...vertices);
       // Keep branch positions identical by retaining the random sequence for omitted sprays.
-      if (quality === "high" && shoot >= 4) continue;
+      if (medium || (quality === "high" && shoot >= 4)) continue;
       for (let n = 0; n < segments; n++) {
         const a = n * 3,
           b = a + 3;
@@ -79,6 +83,7 @@ export function createEuropeanYew(quality: TreeQuality = "ultra"): CityStructure
         }
       }
     }
+    if (medium) lobes.push(fitCanopyLobe(points, 0.78));
   }
   const fork = new THREE.Vector3(0.08, 1.9, -0.04);
   wood.push(
@@ -132,16 +137,18 @@ export function createEuropeanYew(quality: TreeQuality = "ultra"): CityStructure
   }
   bark.setAttribute("color", new THREE.Float32BufferAttribute(barkColors, 3));
   bark.computeVertexNormals();
-  const leaves = new THREE.BufferGeometry();
-  leaves.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-  leaves.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-  leaves.computeVertexNormals();
+  const leaves = medium ? createCanopyLobes(lobes, TEMPERATE_CANOPY.yew, 61017) : new THREE.BufferGeometry();
+  if (!medium) {
+    leaves.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    leaves.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+    leaves.computeVertexNormals();
+  }
   const barkMaterial = new THREE.MeshLambertMaterial({ vertexColors: true });
   const leafMaterial = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
   const trunk = new THREE.Mesh(bark, barkMaterial),
     crown = new THREE.Mesh(leaves, leafMaterial);
   trunk.name = "yew-fluted-trunk-and-branches";
-  crown.name = "yew-abstract-needle-sprays";
+  crown.name = medium ? "yew-fitted-canopy-lobes" : "yew-abstract-needle-sprays";
   const group = new THREE.Group();
   group.name = "european-yew";
   group.userData.treeQuality = quality;

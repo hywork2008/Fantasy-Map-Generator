@@ -1,4 +1,4 @@
-import { TREE_QUALITIES } from "../landscape/treeQuality";
+import { TREE_QUALITIES, type TreeQuality } from "../landscape/treeQuality";
 import { createLandscapeTree, hasTreeQualityLevels, TREE_SPECIES, type TreeSpecies } from "../landscape/trees";
 import type { MedievalModel } from "./modelKit";
 
@@ -143,6 +143,12 @@ const TREES: Record<TreeSpecies, TreeEntry> = {
   }
 };
 
+/** Quality levels made by a different AI model than the species as a whole. */
+const QUALITY_AUTHORS: Partial<Record<TreeSpecies, Partial<Record<TreeQuality, string>>>> = {
+  garden_parkland: { medium: "Claude Opus 5.5" },
+  sacred_yew: { medium: "Claude Opus 5.5" }
+};
+
 export const models: MedievalModel[] = TREE_SPECIES.map(species => ({
   id: species.replaceAll("_", "-"),
   ...TREES[species],
@@ -156,8 +162,9 @@ export const models: MedievalModel[] = TREE_SPECIES.map(species => ({
             : quality === "high"
               ? "High (reduced foliage)"
               : quality === "medium"
-                ? "Medium (branched canopy)"
+                ? "Medium (fitted canopy lobes)"
                 : "Low (canopy silhouette)",
+        author: QUALITY_AUTHORS[species]?.[quality],
         create: () => createLandscapeTree(species, quality)
       }))
     : undefined,
