@@ -1,0 +1,189 @@
+{
+  "sourceSha256": "9066c98116bab8ba445ca24c05d71c4111e18a9c199d8dffd1701c7ad9c11962",
+  "method": "AABB/frustum intersection of actual 8 m farm-derived samples; 12 m crown height; one tree species, two materials. Structural counts only; no GPU timing, occlusion or LOD. Terrain is sampled per point. Same first poses as real CE benchmark.",
+  "results": [
+    {
+      "id": "small-flat",
+      "samples": 10815,
+      "edgeSamples": 2263,
+      "chunkSizes": [
+        {
+          "meters": 64,
+          "totalChunks": 246,
+          "poses": [
+            {
+              "pose": "overview",
+              "visibleChunks": 167,
+              "submittedInstances": 7605,
+              "oneSpeciesTwoMaterialDrawCalls": 334
+            },
+            {
+              "pose": "edge",
+              "visibleChunks": 33,
+              "submittedInstances": 1560,
+              "oneSpeciesTwoMaterialDrawCalls": 66
+            }
+          ]
+        },
+        {
+          "meters": 128,
+          "totalChunks": 73,
+          "poses": [
+            {
+              "pose": "overview",
+              "visibleChunks": 54,
+              "submittedInstances": 8292,
+              "oneSpeciesTwoMaterialDrawCalls": 108
+            },
+            {
+              "pose": "edge",
+              "visibleChunks": 13,
+              "submittedInstances": 2138,
+              "oneSpeciesTwoMaterialDrawCalls": 26
+            }
+          ]
+        },
+        {
+          "meters": 256,
+          "totalChunks": 31,
+          "poses": [
+            {
+              "pose": "overview",
+              "visibleChunks": 23,
+              "submittedInstances": 9711,
+              "oneSpeciesTwoMaterialDrawCalls": 46
+            },
+            {
+              "pose": "edge",
+              "visibleChunks": 5,
+              "submittedInstances": 2860,
+              "oneSpeciesTwoMaterialDrawCalls": 10
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "medium-flat",
+      "samples": 44064,
+      "edgeSamples": 6688,
+      "chunkSizes": [
+        {
+          "meters": 64,
+          "totalChunks": 831,
+          "poses": [
+            {
+              "pose": "overview",
+              "visibleChunks": 577,
+              "submittedInstances": 31210,
+              "oneSpeciesTwoMaterialDrawCalls": 1154
+            },
+            {
+              "pose": "edge",
+              "visibleChunks": 30,
+              "submittedInstances": 1409,
+              "oneSpeciesTwoMaterialDrawCalls": 60
+            }
+          ]
+        },
+        {
+          "meters": 128,
+          "totalChunks": 245,
+          "poses": [
+            {
+              "pose": "overview",
+              "visibleChunks": 175,
+              "submittedInstances": 33467,
+              "oneSpeciesTwoMaterialDrawCalls": 350
+            },
+            {
+              "pose": "edge",
+              "visibleChunks": 12,
+              "submittedInstances": 2157,
+              "oneSpeciesTwoMaterialDrawCalls": 24
+            }
+          ]
+        },
+        {
+          "meters": 256,
+          "totalChunks": 74,
+          "poses": [
+            {
+              "pose": "overview",
+              "visibleChunks": 56,
+              "submittedInstances": 36284,
+              "oneSpeciesTwoMaterialDrawCalls": 112
+            },
+            {
+              "pose": "edge",
+              "visibleChunks": 6,
+              "submittedInstances": 4567,
+              "oneSpeciesTwoMaterialDrawCalls": 12
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "small-river-valley",
+      "samples": 11353,
+      "edgeSamples": 2232,
+      "chunkSizes": [
+        {
+          "meters": 64,
+          "totalChunks": 259,
+          "poses": [
+            {
+              "pose": "overview",
+              "visibleChunks": 177,
+              "submittedInstances": 8056,
+              "oneSpeciesTwoMaterialDrawCalls": 354
+            },
+            {
+              "pose": "edge",
+              "visibleChunks": 21,
+              "submittedInstances": 941,
+              "oneSpeciesTwoMaterialDrawCalls": 42
+            }
+          ]
+        },
+        {
+          "meters": 128,
+          "totalChunks": 75,
+          "poses": [
+            {
+              "pose": "overview",
+              "visibleChunks": 57,
+              "submittedInstances": 9030,
+              "oneSpeciesTwoMaterialDrawCalls": 114
+            },
+            {
+              "pose": "edge",
+              "visibleChunks": 11,
+              "submittedInstances": 1687,
+              "oneSpeciesTwoMaterialDrawCalls": 22
+            }
+          ]
+        },
+        {
+          "meters": 256,
+          "totalChunks": 29,
+          "poses": [
+            {
+              "pose": "overview",
+              "visibleChunks": 21,
+              "submittedInstances": 10195,
+              "oneSpeciesTwoMaterialDrawCalls": 42
+            },
+            {
+              "pose": "edge",
+              "visibleChunks": 6,
+              "submittedInstances": 3907,
+              "oneSpeciesTwoMaterialDrawCalls": 12
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
