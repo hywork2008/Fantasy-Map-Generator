@@ -11,6 +11,7 @@ import type {
 } from "./primitives";
 
 export interface FaceProperties {
+  landCoverOverride?: import("./contracts/forest").LandCoverOverride;
   buildingHeightLimit?: import("./contracts/buildingHeightLimits").BuildingHeightLimit;
 
   farming?: import("./contracts/ruralFields").RuralLandQuality;
@@ -545,7 +546,7 @@ export interface CityDocument {
   importedFixedCrossings?: import("../../utils/fixedBurgCrossings").FixedBurgCrossings;
   waterAccess?: import("../../types/burgWater").BurgWaterAccess;
   format: "fmg-city-editor";
-  version: 1 | 2 | 3 | 4 | 5;
+  version: 1 | 2 | 3 | 4 | 5 | 6;
   /** Regional biome information derived from FMG world cell. */
   biome?: import("./contracts/burgSiteDescriptor").BurgSiteBiome;
   sceneRegions?: import("./contracts/sceneRegions").CitySceneRegions;
@@ -629,6 +630,7 @@ export interface CityDocument {
   /** Absent on saved legacy cities: retain their original roadside fields. */
   ruralFieldVersion?: 1 | 2;
   ruralFieldSettings?: import("./contracts/ruralFields").RuralFieldSettings;
+  forestSettings?: import("./contracts/forest").ForestSettings;
   ruralFieldSnapshot?: import("./contracts/ruralFields").RuralFieldSnapshot;
   /**
    * Compass bearing the wind blows toward (0 = north, clockwise), copied from

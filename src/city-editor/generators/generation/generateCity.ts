@@ -33,6 +33,7 @@ import {
 import { createFabricPlan } from "../fabricDistricts";
 import { finishCityGeometry } from "../finishCityGeometry";
 import { fitImportedHousing } from "../fitImportedHousing";
+import { hasForestState, validForestSettings, validLandCoverOverride } from "../forestSettings";
 import { generateFortOnDocument } from "../fortGeneration";
 import { townCircuits, townGates } from "../fortifications";
 import { straightenFrameRoadJunctions } from "../frameRoadJunction";
@@ -126,6 +127,15 @@ export function generateCityOnDocument(
       reportGenerationFailure(observer, 1, "prepare", issue.code, `${issue.message} ${issue.remedy}`);
     return null;
   }
+  if (
+    !validForestSettings(settings.forestSettings) ||
+    !validForestSettings(document.forestSettings) ||
+    Object.values(document.mesh.faces).some(face => !validLandCoverOverride(face.properties.landCoverOverride))
+  ) {
+    reportGenerationFailure(observer, 1, "prepare", "forest-settings", "Unsupported forest settings.");
+    return null;
+  }
+  settings = { ...settings, forestSettings: settings.forestSettings ?? document.forestSettings };
   const heightAreaSource = document;
   if (
     !validBuildingHeightPolicy(settings.buildingHeightPolicy) ||
@@ -139,8 +149,10 @@ export function generateCityOnDocument(
   document = {
     ...document,
     buildingHeightPolicy: settings.buildingHeightPolicy,
-    buildingHeightLimit: settings.buildingHeightLimit
+    buildingHeightLimit: settings.buildingHeightLimit,
+    forestSettings: settings.forestSettings
   };
+  if (hasForestState(document)) document.version = 6;
   if (settings.townFortification) {
     const conflicts = bastionedTownSettingConflicts(settings);
     if (conflicts) {
@@ -332,6 +344,7 @@ export function generateCityOnDocument(
         result.prevailingWindDeg = prevailingWindDeg;
       result.generationSeed = attemptSeed;
       if (result.bastionedTown) result.version = 5;
+      if (hasForestState(result)) result.version = 6;
       if (singleWallFallback)
         result.townWallGeneration = {
           requestedOrder: settings.townWallBuildOrder ?? "outer-first",
@@ -1099,6 +1112,8 @@ export function generateCityAttempt(
   settled.buildingPattern = buildingPattern;
   settled.buildingHeightPolicy = settings.buildingHeightPolicy;
   settled.buildingHeightLimit = settings.buildingHeightLimit;
+  settled.forestSettings = settings.forestSettings ?? document.forestSettings;
+  if (hasForestState(settled)) settled.version = 6;
   settled.housingAreaScale = settings.housingAreaScale;
   settled.housingAreaPasses = settings.housingAreaPasses;
   if (settings.descriptor && settings.housingAreaScale)

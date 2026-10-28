@@ -29,7 +29,7 @@ function idOk(id: unknown): id is string {
 /** Reject a plan whose main line does not name real wall edges, or that contradicts a moat. */
 export function validBastionedTown(document: CityDocument): boolean {
   const plan = document.bastionedTown;
-  if (!plan || document.version !== 5) return false;
+  if (!plan || (document.version !== 5 && document.version !== 6)) return false;
   if (!planShape(plan)) return false;
   const circuit = document.defenseCircuits?.find(c => c.id === plan.circuitId && c.scope === "town");
   if (!circuit || circuit.moat) return false;

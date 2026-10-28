@@ -16,6 +16,7 @@ import { BLOCK_SIZE_METERS } from "../../generators/document";
 import { upgradeFabricPlan, validFabricPlan } from "../../generators/fabricDistricts";
 import { validFacilityCounts } from "../../generators/facilitySettings";
 import { restoreFixedCrossingApproaches, validSavedFixedApproaches } from "../../generators/fixedApproachAdoption";
+import { hasForestState, validForestDocument } from "../../generators/forestSettings";
 import { validateLandmarks } from "../../generators/landmarks";
 import { validate } from "../../generators/mesh";
 import { populationHousingFacts } from "../../generators/populationHousing";
@@ -94,6 +95,7 @@ function isDocument(value: unknown): value is CityDocument {
   const doc = value as Partial<CityDocument>;
   return (
     doc.format === "fmg-city-editor" &&
+    validForestDocument(doc) &&
     validBuildingAppearanceFields(doc) &&
     (doc.castleStyle === undefined ||
       doc.castleStyle === "auto" ||
@@ -128,10 +130,16 @@ function isDocument(value: unknown): value is CityDocument {
     (doc.urbanGrowth === undefined || (doc.urbanMorphology !== undefined && validUrbanGrowth(doc.urbanGrowth))) &&
     (doc.fixedCrossingApproaches === undefined ||
       (!!doc.importedFixedCrossings && validSavedFixedApproaches(doc.fixedCrossingApproaches))) &&
-    (doc.version === 1 || doc.version === 2 || doc.version === 3 || doc.version === 4 || doc.version === 5) &&
-    (doc.bastionedTown === undefined || (doc.version === 5 && validBastionedTown(doc as CityDocument))) &&
+    (doc.version === 1 ||
+      doc.version === 2 ||
+      doc.version === 3 ||
+      doc.version === 4 ||
+      doc.version === 5 ||
+      doc.version === 6) &&
+    (doc.bastionedTown === undefined ||
+      ((doc.version === 5 || doc.version === 6) && validBastionedTown(doc as CityDocument))) &&
     (doc.sceneRegions === undefined ||
-      ((doc.version === 4 || doc.version === 5) &&
+      ((doc.version === 4 || doc.version === 5 || doc.version === 6) &&
         validSceneRegions(doc.sceneRegions) &&
         validRegionalFrameRoads(doc.frameRoads))) &&
     (doc.landmarks === undefined || Array.isArray(doc.landmarks)) &&
@@ -227,13 +235,15 @@ export function serializeDocument(document: CityDocument): string {
   return JSON.stringify(
     {
       ...document,
-      version: document.bastionedTown
-        ? 5
-        : document.sceneRegions
-          ? 4
-          : document.landmarks?.length || document.landmarkAssets?.length
-            ? 3
-            : 2
+      version: hasForestState(document)
+        ? 6
+        : document.bastionedTown
+          ? 5
+          : document.sceneRegions
+            ? 4
+            : document.landmarks?.length || document.landmarkAssets?.length
+              ? 3
+              : 2
     },
     null,
     2

@@ -56,6 +56,7 @@ import {
   sizePresetForExtent,
   townMeshExtentMeters
 } from "../../generators/document";
+import { hasForestState, validForestSettings } from "../../generators/forestSettings";
 import { DEFAULT_PATCH_PARAMS } from "../../generators/patches";
 import { sanitizeBurgSiteEconomy } from "../../generators/site/burgSiteEconomy";
 import { resolvePortFrontages } from "../../generators/site/portFrontages";
@@ -72,7 +73,7 @@ export const CITY_EDITOR_SHARE_VERSION = 1;
 
 export interface CityEditorShare {
   kind: typeof CITY_EDITOR_SHARE_KIND;
-  version: 1 | 2 | 3;
+  version: 1 | 2 | 3 | 4;
   seed: string;
   grid: GridKind;
   size: CitySizePreset;
@@ -241,11 +242,13 @@ export function buildShare(input: {
   const share: CityEditorShare = {
     kind: CITY_EDITOR_SHARE_KIND,
     version:
-      input.settings.townFortification?.dimensionPolicy === "artillery-v1" || input.input?.bastionedTown?.military
-        ? 3
-        : fortressShare
-          ? 2
-          : 1,
+      input.settings.forestSettings !== undefined || (input.input && hasForestState(input.input))
+        ? 4
+        : input.settings.townFortification?.dimensionPolicy === "artillery-v1" || input.input?.bastionedTown?.military
+          ? 3
+          : fortressShare
+            ? 2
+            : 1,
     seed: input.seed,
     grid: input.grid,
     size: input.size,
@@ -422,7 +425,7 @@ function asDescriptor(raw: unknown): BurgSiteDescriptor | null {
 function asShare(raw: unknown): CityEditorShare | null {
   if (!isRecord(raw)) return null;
   if (raw.kind !== CITY_EDITOR_SHARE_KIND) return null;
-  if (raw.version !== 1 && raw.version !== 2 && raw.version !== 3) {
+  if (raw.version !== 1 && raw.version !== 2 && raw.version !== 3 && raw.version !== 4) {
     console.warn(
       `City Editor: incoming share version ${String(raw.version)} != expected ${CITY_EDITOR_SHARE_VERSION}; ignoring`
     );
@@ -433,7 +436,8 @@ function asShare(raw: unknown): CityEditorShare | null {
   if (!isSize(raw.size)) return warnShape("share.size");
   const settings = asSettings(raw.settings);
   if (!settings) return warnShape("share.settings");
-  if (settings.townFortification?.dimensionPolicy === "artillery-v1" && raw.version !== 3)
+  if (settings.forestSettings !== undefined && raw.version !== 4) return warnShape("share.version");
+  if (settings.townFortification?.dimensionPolicy === "artillery-v1" && raw.version !== 3 && raw.version !== 4)
     return warnShape("share.version");
   const share: CityEditorShare = {
     kind: CITY_EDITOR_SHARE_KIND,
@@ -452,7 +456,8 @@ function asShare(raw: unknown): CityEditorShare | null {
     if (!sameBuildingHeightLimit(input.buildingHeightLimit, settings.buildingHeightLimit))
       return warnShape("share.heightLimit");
     share.input = input;
-    if (input.bastionedTown?.military && raw.version !== 3) return warnShape("share.version");
+    if (hasForestState(input) && raw.version !== 4) return warnShape("share.version");
+    if (input.bastionedTown?.military && raw.version !== 3 && raw.version !== 4) return warnShape("share.version");
   }
   if (raw.stage !== undefined) {
     const stage = generationStageDefinitions(settings).find(s => s.id === raw.stage);
@@ -475,6 +480,7 @@ function asShare(raw: unknown): CityEditorShare | null {
 
 function asSettings(raw: unknown): Omit<GenerationSettings, "descriptor"> | null {
   if (!isRecord(raw)) return { config: structuredClone(DEFAULT_SITE_CONFIG) };
+  if (!validForestSettings(raw.forestSettings)) return null;
   const config = isRecord(raw.config)
     ? (raw.config as unknown as GenerationSettings["config"])
     : structuredClone(DEFAULT_SITE_CONFIG);
@@ -486,6 +492,7 @@ function asSettings(raw: unknown): Omit<GenerationSettings, "descriptor"> | null
   )
     return null;
   const settings: Omit<GenerationSettings, "descriptor"> = {
+    ...(raw.forestSettings ? { forestSettings: { ...raw.forestSettings } } : {}),
     config,
     buildingHeightPolicy: raw.buildingHeightPolicy ? { ...raw.buildingHeightPolicy } : undefined,
     buildingHeightLimit: raw.buildingHeightLimit ? { ...raw.buildingHeightLimit } : undefined
