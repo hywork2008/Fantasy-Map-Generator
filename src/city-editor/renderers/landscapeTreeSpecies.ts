@@ -18,7 +18,11 @@ export function landscapeTreeSpecies(
   // Irrigated oasis plantings in hot deserts; open umbrella thorns in savanna and dry tropical woodland.
   if (/hotdesert|xericshrubland/.test(biome)) return "date_palm";
   if (/colddesert|coldsteppe/.test(biome)) return "saxaul";
-  if (/tropicalrainforest|cloudforest|floodedforest/.test(biome)) return "kapok";
+  if (/tropicalrainforest|cloudforest/.test(biome)) return "kapok";
+  // Riparian woodland is tropical only where the site is hot; otherwise it is alder carr.
+  if (/floodedforest/.test(biome)) return temperature !== undefined && temperature >= 20 ? "kapok" : "black_alder";
+  if (/temperaterainforest/.test(biome)) return "western_red_cedar";
+  if (/^wetland/.test(biome)) return "black_alder";
   if (/savanna|tropicalseasonalforest|tropicaldryforest/.test(biome))
     return preferred === "garden_parkland" && growthRandom(`${seed}:dry-tree:${point[0]}:${point[1]}`) < 0.3
       ? "date_palm"

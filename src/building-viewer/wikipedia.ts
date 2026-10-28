@@ -148,6 +148,8 @@ const modelArticles: Record<string, string> = {
   "umbrella-thorn": "Vachellia tortilis",
   saxaul: "Haloxylon ammodendron",
   kapok: "Ceiba pentandra",
+  "western-red-cedar": "Thuja plicata",
+  "black-alder": "Alnus glutinosa",
   "mediterranean-cypress": "Cupressus sempervirens",
   "oriental-evergreen": "Evergreen",
   "sacred-bodhi-and-fig": "Ficus religiosa",

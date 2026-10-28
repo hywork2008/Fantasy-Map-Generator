@@ -4,6 +4,7 @@ import { createBorealTree } from "./borealTrees";
 import { createEuropeanYew } from "./europeanYew";
 import { createKapok } from "./rainforestTrees";
 import { createSmallLeavedLime } from "./smallLeavedLime";
+import { createWetTemperateTree } from "./wetTemperateTrees";
 
 export const TREE_SPECIES = [
   "garden_parkland",
@@ -14,6 +15,8 @@ export const TREE_SPECIES = [
   "umbrella_thorn",
   "saxaul",
   "kapok",
+  "western_red_cedar",
+  "black_alder",
   "mediterranean_cypress",
   "oriental_evergreen",
   "sacred_bodhi_and_fig",
@@ -26,6 +29,7 @@ export function createLandscapeTree(species: TreeSpecies) {
   if (species === "norway_spruce" || species === "silver_birch") return createBorealTree(species);
   if (species === "date_palm" || species === "umbrella_thorn" || species === "saxaul") return createAridTree(species);
   if (species === "kapok") return createKapok();
+  if (species === "western_red_cedar" || species === "black_alder") return createWetTemperateTree(species);
   if (species === "garden_parkland") return createSmallLeavedLime();
   if (species === "sacred_yew") return createEuropeanYew();
   const k = new ModelKit(species);
