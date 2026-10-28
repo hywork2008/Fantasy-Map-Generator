@@ -14,17 +14,61 @@ export function createModelComparison(
   createWorker = () => new Worker(new URL("./modelMetricsWorker.ts", import.meta.url), { type: "module" })
 ) {
   const cache = new Map<string, Partial<Record<ModelQuality, ModelMetrics>>>();
+  const variantCache = new Map<string, Map<string, ModelMetrics>>();
   let cancel = () => {};
   return {
     clear() {
       cancel();
       cancel = () => {};
     },
-    mount(host: HTMLElement, modulePath: string, quality: ModelQuality, root: THREE.Object3D) {
+    mountVariants(
+      host: HTMLElement,
+      key: string,
+      variants: readonly { id: string; label: string }[],
+      selected: string,
+      root: THREE.Object3D
+    ) {
       cancel();
-      const measurements = cache.get(modulePath) ?? {};
+      const measurements = variantCache.get(key) ?? new Map<string, ModelMetrics>();
+      measurements.set(selected, collectModelMetrics(root));
+      variantCache.set(key, measurements);
+      const section = document.createElement("section");
+      section.className = "bv-comparison";
+      const title = document.createElement("h2");
+      title.textContent = "Model complexity · Quality levels and authors";
+      const table = document.createElement("table");
+      table.setAttribute("aria-label", "Quality level model complexity comparison");
+      const head = table.createTHead().insertRow();
+      for (const label of ["Metric", ...variants.map(variant => variant.id)]) {
+        const cell = document.createElement("th");
+        cell.scope = "col";
+        cell.textContent = label;
+        head.append(cell);
+      }
+      const body = table.createTBody();
+      for (const [metric, label] of ROWS) {
+        const row = body.insertRow();
+        const heading = document.createElement("th");
+        heading.scope = "row";
+        heading.textContent = label;
+        row.append(heading);
+        for (const variant of variants)
+          row.insertCell().textContent = measurements.get(variant.id)?.[metric].toLocaleString() ?? "—";
+      }
+      const scroll = document.createElement("div");
+      scroll.className = "bv-comparison-scroll";
+      scroll.append(table);
+      const note = document.createElement("p");
+      note.textContent =
+        "Model only, excluding ground. Select each quality to measure it; measurements are retained while browsing.";
+      section.append(title, scroll, note);
+      host.append(section);
+    },
+    mount(host: HTMLElement, modulePath: string | null, quality: ModelQuality, root: THREE.Object3D) {
+      cancel();
+      const measurements = (modulePath ? cache.get(modulePath) : undefined) ?? {};
       measurements[quality] = collectModelMetrics(root);
-      cache.set(modulePath, measurements);
+      if (modulePath) cache.set(modulePath, measurements);
       const section = document.createElement("section");
       section.className = "bv-comparison";
       const title = document.createElement("h2");
@@ -94,7 +138,7 @@ export function createModelComparison(
       };
       // Start after the visible model has had a paint opportunity.
       const raf = requestAnimationFrame(() => {
-        if (measurements[other]) return;
+        if (!modulePath || measurements[other]) return;
         startTimer = setTimeout(() => {
           if (!active) return;
           try {
@@ -111,9 +155,11 @@ export function createModelComparison(
           }
         }, 0);
       });
-      status.textContent = measurements[other]
-        ? "Both quality levels measured."
-        : `Measuring ${other === "high" ? "High" : "Low"} in the background…`;
+      status.textContent = !modulePath
+        ? `Only ${quality === "high" ? "High" : "Low"} quality is available for this model.`
+        : measurements[other]
+          ? "Both quality levels measured."
+          : `Measuring ${other === "high" ? "High" : "Low"} in the background…`;
       cancel = stop;
     }
   };

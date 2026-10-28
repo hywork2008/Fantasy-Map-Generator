@@ -5,6 +5,8 @@ import type { DistrictFabric } from "./blockInfill.types";
 import { COASTAL_ARABLE_SETBACK_METERS, coastalBandOverlap, oceanShoreSegments } from "./coastalSuitability";
 import { curtainSegments, glacisOutworks, polygonClearsGlacis } from "./defenseClearance";
 import { FixedRoadReservation } from "./fixedRoadReservation";
+import { forestLandCover } from "./forestLandCover";
+import { hasForestState } from "./forestSettings";
 import { circuitRing } from "./fortifications";
 import { polygonArea } from "./geom";
 import { landmarkReservationHits } from "./landmarks";
@@ -30,11 +32,16 @@ export function applyRuralFields(
   const fixedFarms = fabric.farms.filter(farm =>
     (farm.sourceFaceIds ?? [farm.faceId]).some(id => document.mesh.faces[id]?.properties.locked)
   );
+  const forestActive = hasForestState(document);
+  const retainedLanes = fabric.lanes.filter(
+    lane => !lane.kind || (forestActive && document.mesh.faces[lane.faceId]?.properties.locked)
+  );
   if (document.ruralFieldSettings?.mode === "off" || document.ruralFieldSettings?.coveragePercent === 0)
-    return { ...fabric, farms: fixedFarms, lanes: fabric.lanes.filter(lane => !lane.kind), ruralFields: undefined };
+    return { ...fabric, farms: fixedFarms, lanes: retainedLanes, ruralFields: undefined };
   const timing = profiler?.stages("generation");
   timing?.next("terrain-and-land");
   const protectedFaces = new Set(document.elements.flatMap(element => element.faceIds));
+  const forestFaces = forestLandCover(document);
   const suitability = document.ruralFieldVersion === 2 ? ruralSuitability(document) : undefined;
   let unsuitableArea = 0;
   let land = Object.values(document.mesh.faces)
@@ -42,6 +49,7 @@ export function applyRuralFields(
       face =>
         face.properties.water === "land" &&
         face.properties.ward === "farm" &&
+        !forestFaces.has(face.id) &&
         !face.properties.locked &&
         !protectedFaces.has(face.id)
     )
@@ -217,7 +225,7 @@ export function applyRuralFields(
   return {
     ...fabric,
     farms: [...fixedFarms, ...plan.farms],
-    lanes: [...fabric.lanes.filter(lane => !lane.kind), ...plan.lanes],
+    lanes: [...retainedLanes, ...plan.lanes],
     ruralFields: {
       ...plan.diagnostics,
       suitabilitySource: suitability?.source,

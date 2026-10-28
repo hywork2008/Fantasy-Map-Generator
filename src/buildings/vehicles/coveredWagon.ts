@@ -5,6 +5,7 @@ import { createMedievalWagonModel } from "./medievalWagon";
 
 /** Imagined pre-industrial covered freight wagon; meters, front at +X. */
 export const COVERED_WAGON = {
+  author: "Codex GPT-6.1 Sol",
   name: "Covered wagon",
   length: 6.4,
   width: 2.5,

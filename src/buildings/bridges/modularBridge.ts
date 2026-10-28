@@ -18,6 +18,7 @@ export interface ModularBridgeSpec {
 }
 export type BridgeModelQuality = "high" | "low";
 export const MODULAR_BRIDGE = {
+  author: "Codex GPT-6.1 Sol",
   stoneSpanMeters: 12,
   timberSpanMeters: 6,
   deckThicknessMeters: 0.45,

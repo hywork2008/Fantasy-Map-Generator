@@ -3,27 +3,32 @@ import type { MedievalModel } from "./modelKit";
 
 const crafts = [
   {
+    author: "Codex GPT-6.1 Sol",
     id: "leather",
     name: "Leatherworkers' guild hall",
     note: "Leather trade emblem, a hanging hide and leather inspection tables; an assembly hall rather than a tannery."
   },
   {
+    author: "Codex GPT-6.1 Sol",
     id: "woodworking",
     name: "Carpenters' guild hall",
     note: "Timber framing, crossed carpenter's-square and axe emblems, board samples and a meeting loggia; separate from a joiner's workshop."
   },
   {
+    author: "Codex GPT-6.1 Sol",
     id: "masonry",
     name: "Masons' guild hall",
     note: "Masonry meeting house with square-and-compass plaque, dressed stone samples and a substantial entry stair; not a quarry yard."
   },
   {
+    author: "Codex GPT-6.1 Sol",
     id: "metallurgy",
     name: "Smiths' guild hall",
     note: "Guild meeting hall with anvil and hammer emblems, ironwork samples and a public loggia; no forge or furnace."
   }
 ] as const;
 export const models: MedievalModel[] = crafts.map((craft, index) => ({
+  author: craft.author,
   id: `${craft.id}-guild-hall`,
   name: craft.name,
   task: 28,

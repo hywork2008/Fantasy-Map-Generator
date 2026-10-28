@@ -57,7 +57,8 @@ ${shader.fragmentShader}`.replace(
 export function createTownFarms(
   farms: readonly FarmPlot[],
   terrain?: Pick<CityTerrain, "heightAt" | "relief"> & Partial<Pick<CityTerrain, "triangles" | "field">>,
-  wetPolygons: readonly Point[][] = []
+  wetPolygons: readonly Point[][] = [],
+  simplify = true
 ): TownFarmMeshes {
   const parent = new THREE.Group();
   parent.name = "ce-farmland";
@@ -69,7 +70,11 @@ export function createTownFarms(
   const surfaceGeometry = (polygon: Point[], offset: number): THREE.BufferGeometry => {
     const candidates = patches.query(bounds(polygon));
     if (!candidates.length)
-      return groundSurfaceGeometry({ ring: polygon, offset }, heightAt, terrain?.relief ? 8 : Infinity);
+      return groundSurfaceGeometry(
+        { ring: polygon, offset },
+        heightAt,
+        terrain?.relief ? (simplify ? 8 : 1) : Infinity
+      );
     const positions: number[] = [];
     for (const part of triangularInfillParts(polygon))
       for (const patch of candidates) {
@@ -109,11 +114,13 @@ export function createTownFarms(
     lineColors: number[] = [];
   const geometries: THREE.BufferGeometry[] = [],
     materials: THREE.Material[] = [];
-  const addDryLine = (line: Point[], color: THREE.Color) => {
+  const addDryLine = (line: Point[], color: THREE.Color, offset: number) => {
     for (let i = 1; i < line.length; i++) {
       const a = line[i - 1],
         b = line[i];
-      const steps = terrain?.relief ? Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 8)) : 1;
+      const steps = terrain?.relief
+        ? Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / (simplify ? 8 : 1)))
+        : 1;
       const cuts = Array.from({ length: steps + 1 }, (_, n) => n / steps);
       for (const patch of patches.query(bounds([a, b])))
         for (let edge = 0; edge < 3; edge++) {
@@ -133,15 +140,15 @@ export function createTownFarms(
       for (let n = 1; n < sorted.length; n++)
         for (const t of [sorted[n - 1], sorted[n]]) {
           const p: Point = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
-          lines.push(...planVertex(p, heightAt(p) + 0.07));
+          lines.push(...planVertex(p, heightAt(p) + offset));
           lineColors.push(color.r, color.g, color.b);
         }
     }
   };
-  const addLine = (line: Point[], color: THREE.Color) => {
+  const addLine = (line: Point[], color: THREE.Color, offset = 0.07) => {
     if (line.length < 2) return;
     const water = wetRings.query(bounds(line));
-    for (const run of water.length ? dryRuns(line, water) : [line]) addDryLine(run, color);
+    for (const run of water.length ? dryRuns(line, water) : [line]) addDryLine(run, color, offset);
   };
   farms.forEach((farm, index) => {
     if (farm.polygon.length < 3) return;
@@ -179,7 +186,9 @@ export function createTownFarms(
         for (let i = 0; i < polygon.length; i++) {
           const a = polygon[i],
             b = polygon[(i + 1) % polygon.length];
-          const steps = terrain?.relief ? Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 8)) : 1;
+          const steps = terrain?.relief
+            ? Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / (simplify ? 8 : 1)))
+            : 1;
           const at = (n: number): Point => [a[0] + ((b[0] - a[0]) * n) / steps, a[1] + ((b[1] - a[1]) * n) / steps];
           for (let n = 0; n < steps; n++) {
             const p = at(n),
@@ -203,7 +212,8 @@ export function createTownFarms(
       surfaces.push(geometry);
     }
     const rowColor = new THREE.Color(garden ? "#52653b" : "#78704e");
-    if (!wheat && farm.cropState !== "fallow") for (const row of farm.rows) addLine(row, rowColor);
+    if ((!wheat || !simplify) && farm.cropState !== "fallow")
+      for (const row of farm.rows) addLine(row, rowColor, wheat ? WHEAT_HEIGHT + 0.025 : 0.07);
     const boundaryColor = new THREE.Color(farm.boundaryKind === "hedge" ? "#405a35" : "#706955");
     const boundaries = farm.boundaries ?? (farm.clippedByFrame ? [] : [[...farm.polygon, farm.polygon[0]]]);
     for (const boundary of boundaries) addLine(boundary, boundaryColor);

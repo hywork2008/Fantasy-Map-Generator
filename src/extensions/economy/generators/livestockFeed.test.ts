@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const climate = vi.hoisted(() => ({ temperatures: Array(12).fill(12) as number[] }));
 vi.mock("./seasonalCropClimate", async original => ({
@@ -10,7 +10,6 @@ import { simulationContext, worldContext } from "../../hostCore";
 import type { ExtensionAPI, PackedGraph } from "../../hostTypes";
 import { getCadencePhase, setCadencePhase } from "../context/cadencePhases";
 import {
-  clearEconomyContext,
   getGoods,
   getMarkets,
   getMilitaryResourceLedgers,

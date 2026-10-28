@@ -6,7 +6,7 @@ import { BUILDING_PALETTES, type BuildingPaletteId } from "../appearance/palette
 import type { RegionalHouseQuality } from "./regionalHouses";
 
 export const EARTHEN_HOUSES = {
-  author: "Codex",
+  author: "Codex GPT-6.1 Sol",
   note: "Mudbrick houses with polygonal footprints, earthen roof terraces, inset parapets, timber lintels, shuttered openings, exposed beam ends and roof drainage."
 } as const;
 

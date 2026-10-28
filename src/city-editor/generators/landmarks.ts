@@ -314,7 +314,7 @@ export function placeLandmark(
   if (reasons.length) return { document: null, reasons: [...new Set(reasons)] };
   const next: CityDocument = {
     ...document,
-    version: document.sceneRegions ? 4 : 3,
+    version: document.version === 6 ? 6 : document.sceneRegions ? 4 : 3,
     landmarkAssets: (document.landmarkAssets ?? []).some(
       existing => existing.id === asset.id && existing.revision === asset.revision
     )
@@ -372,9 +372,10 @@ export function validateLandmarks(document: CityDocument): string[] {
     (document.landmarks?.length || document.landmarkAssets?.length) &&
     document.version !== 3 &&
     document.version !== 4 &&
-    document.version !== 5
+    document.version !== 5 &&
+    document.version !== 6
   )
-    errors.push("Landmarks require document version 3 or 4");
+    errors.push("Landmarks require document version 3 or later");
   const assets = new Map<string, LandmarkAsset>();
   for (const asset of document.landmarkAssets ?? []) {
     const key = `${asset.id}@${asset.revision}`;

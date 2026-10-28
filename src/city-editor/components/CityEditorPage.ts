@@ -64,9 +64,11 @@ import { SHIP_SPECS } from "../renderers/shipSpecifications";
 import {
   readMaxPatchesPreference,
   readModelQualityPreference,
+  readSimplificationPreferences,
   readTerrainSpacingPreference
 } from "../services/browserPreferences";
 import { beginEditorMount } from "../services/editorLifetime";
+import { readForestViewPreferences } from "../services/forestViewPreferences";
 import { type ImportedCityMap, pickCityMap } from "../services/io/cityEditorFile";
 import { type CityEditorShare, readIncomingCity } from "../services/io/incomingCity";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
@@ -100,6 +102,7 @@ import {
   restoreLanguageControls,
   restoreLanguageUi
 } from "./languagePanel";
+import { mountModelAuthorsPanel } from "./modelAuthorsPanel";
 import { buildObjectControls } from "./objectControls";
 import { mountOperationHelp } from "./operationHelp";
 import { mountPerformancePanel } from "./performancePanel";
@@ -2044,7 +2047,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
 
   const {
     populationControls,
+    biomeControls,
     appearanceControls,
+    forestControls,
     currentBuildingPatternSelect,
     historicalPeriodSelect,
     skeletonControls,
@@ -2760,6 +2765,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     ]),
     cityElements
   );
+  elements.append(generationSection("cityEditor.forest.title", [forestControls.root]));
   const view = div();
   view.append(
     generationSection("cityEditor.generationWorkspace.layers", [
@@ -2769,7 +2775,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
       toggleLabel(editorText("cityEditor.messages.showElevationTint"), elevationTintInput)
     ]),
     label(editorText("cityEditor.messages.renderQuality"), renderQualitySelect),
-    appearanceControls.viewControls
+    appearanceControls.viewControls,
+    generationSection("cityEditor.forest.title", [forestControls.view])
   );
   const debug = div();
   const cityDebug = div("ce-city-generation-controls");
@@ -3018,6 +3025,8 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     getViewHalfSize: () => display.halfView,
     getViewCenter: () => display.viewCenter,
     getModelQuality: readModelQualityPreference,
+    getSimplification: readSimplificationPreferences,
+    getForestQuality: () => readForestViewPreferences().quality,
     isFmgLinked: () => Boolean(generation.generateSettings.descriptor),
     getTerrainSpacing: readTerrainSpacingPreference,
     getRiverDropMeters: () => riverDropMeters(generation.generateSettings.riverDropMeters)
@@ -3036,6 +3045,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     getDocument: () => documents.documentState,
     get3d: () => city3d.getPerformance(),
     getSettings: () => ({
+      forestView: readForestViewPreferences(),
       modelQuality: readModelQualityPreference(),
       renderQuality: renderQualitySelect.value,
       terrainSpacing: readTerrainSpacingPreference(),
@@ -3047,6 +3057,12 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     })
   });
   scope.own(() => performancePanel.dispose());
+  const modelAuthorsPanel = mountModelAuthorsPanel({
+    host: canvas,
+    scope,
+    getModelVariants: () => city3d.getModelVariants()
+  });
+  scope.own(() => modelAuthorsPanel.dispose());
   mountLanguagePanel({
     host: canvas,
     scope,
@@ -3173,7 +3189,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
 
   function refresh(): void {
     syncStepControls();
+    biomeControls.sync();
     appearanceControls.sync();
+    forestControls.sync();
     getMapDisplayController().refresh();
     syncCity3d();
   }
@@ -3186,7 +3204,9 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
    */
   function refreshUiOnly(): void {
     syncStepControls();
+    biomeControls.sync();
     appearanceControls.sync();
+    forestControls.sync();
     getMapDisplayController().refreshUiOnly();
   }
 

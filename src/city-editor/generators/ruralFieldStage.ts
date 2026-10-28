@@ -1,6 +1,7 @@
 import type { ProcessingProfiler } from "../../utils/processingProfiler";
 import type { CityDocument } from "../types/document";
 import { buildBlockFabric, documentFabricFingerprint } from "./blockInfill";
+import { hasForestState } from "./forestSettings";
 import type { FabricCache } from "./localInfill";
 import { regenerateRuralLand } from "./roadsideFarms";
 import { applyRuralFields } from "./ruralFields";
@@ -29,6 +30,7 @@ export function generateRuralFieldStage(
       coveragePercent: document.ruralFieldSettings?.coveragePercent ?? 70
     }
   };
+  if (hasForestState(next)) next.version = 6;
   if (!options?.createLotPads && next.ruralFieldSnapshot?.fingerprint === documentFabricFingerprint(next)) return next;
   delete next.ruralFieldSnapshot;
   const regenerated = options?.preserveLandUse ? next : regenerateRuralLand(next);

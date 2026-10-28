@@ -2,6 +2,7 @@ import { type MedievalModel, ModelKit } from "./modelKit";
 
 export const models: MedievalModel[] = [
   {
+    author: "Codex GPT-6.1 Sol",
     id: "plain-stone-grave-marker",
     name: "Plain stone grave marker",
     task: 19,
@@ -17,6 +18,7 @@ export const models: MedievalModel[] = [
     }
   },
   {
+    author: "Codex GPT-6.1 Sol",
     id: "wooden-grave-cross",
     name: "Wooden grave cross",
     task: 19,
@@ -32,6 +34,7 @@ export const models: MedievalModel[] = [
     }
   },
   {
+    author: "Codex GPT-6.1 Sol",
     id: "churchyard-slabs",
     name: "Churchyard ledger slabs and markers",
     task: 19,

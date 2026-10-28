@@ -1,5 +1,8 @@
 import { editorText } from "../../i18n/editorMessages";
 import { getUrbanDwellings } from "../../utils/urbanDwellings";
+import { buildBlockFabric } from "../generators/blockInfill";
+import { cachedForestPlan } from "../generators/forestPlan";
+import { hasForestState } from "../generators/forestSettings";
 import { reservedCastleFaces } from "../generators/fortifications";
 import { type GenerationObserver, generationTimer } from "../generators/generationDiagnostics";
 import { polygonCentroid } from "../generators/geom";
@@ -20,6 +23,7 @@ import { renderEditHandles } from "./editHandlesSvg";
 import { renderFeatureLayer } from "./featureLayerSvg";
 import { renderFixedCrossingLayers } from "./fixedCrossingLayerSvg";
 import { fixedDocumentGeometry, fixedDocumentLayers } from "./fixedDocumentGeometry";
+import { type ForestSvgOptions, renderForestLayer } from "./forestSvg";
 import { renderFortSiteGround, renderFortSiteObjects } from "./fortSiteSvg";
 import { appendFrameRoads } from "./frameRoadSvg";
 import { renderGateLayer } from "./gateLayerSvg";
@@ -78,7 +82,8 @@ export function renderEditorSvg(
   quality: RenderQuality = "detailed",
   preview = false,
   sceneVisibility: { core: boolean; regional: boolean } = { core: true, regional: true },
-  housingView?: HousingViewOptions
+  housingView?: HousingViewOptions,
+  forestView?: ForestSvgOptions
 ): SVGSVGElement {
   const fixedMode = document.importedFixedCrossings !== undefined;
   const fixedGeometry = fixedDocumentGeometry(document);
@@ -283,7 +288,15 @@ export function renderEditorSvg(
       }
       for (const inn of townPlans.aerial.gateInns) keep.polygons.push(inn.footprint, inn.court);
     }
-    landscapeSlot.replaceWith(renderLandscapeLayer(document, town, effectiveQuality, keep));
+    const forest = hasForestState(document)
+      ? cachedForestPlan(document, townPlans.forestFabric ?? buildBlockFabric(document))
+      : undefined;
+    const scenery = renderLandscapeLayer(document, town, effectiveQuality, keep, forest);
+    if (forest?.regions.length) {
+      scenery.appendChild(renderForestLayer(document, forest, effectiveQuality, zoom, forestView));
+      mark("forest-svg", { regions: forest.regions.length, areaM2: forest.areaM2 });
+    }
+    landscapeSlot.replaceWith(scenery);
   }
 
   if (document.fortSite) svg.appendChild(renderFortSiteGround(document));

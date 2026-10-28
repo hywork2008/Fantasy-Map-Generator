@@ -252,3 +252,23 @@ it("drapes fields over cell boundary creases instead of burying them under the b
     meshes.dispose();
   }
 });
+
+it("refines farmland relief and draws saved wheat rows above the canopy only when outskirts simplification is off", () => {
+  const plots = [farm({ cropState: "winter-crop" })];
+  const terrain = { relief: true, heightAt: ([x, y]: [number, number]) => (x + y) / 10 };
+  const automatic = createTownFarms(plots, terrain);
+  const full = createTownFarms(plots, terrain, [], false);
+  const surface = (view: ReturnType<typeof createTownFarms>) =>
+    (view.parent.getObjectByName("ce-field-surfaces") as THREE.Mesh).geometry;
+  expect(surface(full).getAttribute("position").count).toBeGreaterThan(
+    surface(automatic).getAttribute("position").count
+  );
+  expect(automatic.parent.getObjectByName("ce-field-rows-and-boundaries")).toBeUndefined();
+  const rows = (
+    full.parent.getObjectByName("ce-field-rows-and-boundaries") as THREE.LineSegments
+  ).geometry.getAttribute("position");
+  expect(rows.count).toBeGreaterThan(0);
+  for (let i = 0; i < rows.count; i++) expect(rows.getY(i)).toBeCloseTo((rows.getX(i) - rows.getZ(i)) / 10 + 0.875, 5);
+  automatic.dispose();
+  full.dispose();
+});

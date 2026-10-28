@@ -1,9 +1,11 @@
 import * as THREE from "three";
-import { createModularBridge, type ModularBridgeSpec } from "../../buildings/bridges/modularBridge";
+import type { ModularBridgeSpec } from "../../buildings/bridges/modularBridge";
 import { type ModelQuality, resolveModelQuality } from "../../buildings/modelQuality";
+import { BRIDGE_VARIANTS } from "../../buildings/siteVariants";
 import type { CityTerrain } from "../../city-editor/generators/terrainElevation";
 import { type BridgeSite, collectBridgeSites } from "../../city-editor/renderers/bridgeSites";
 import type { CityDocument, Point } from "../../city-editor/types/document";
+import { adopt, markVariant } from "../adoption";
 import { ROAD_TOP_Y } from "../core/roadGeometry";
 import { ribbonSidePoints } from "../core/structureGeometry";
 import type { CityStructureMeshes } from "./structureMeshes";
@@ -110,7 +112,9 @@ export function createTownBridges(
       movableOpeningMeters: Math.min(site.openingMeters, Math.max(0, length - 4))
     };
     if (![water, bed, spec.deckHeight, spec.endDeckHeight].every(Number.isFinite)) continue;
-    const model = createModularBridge(spec, resolveModelQuality(quality, ["high", "low"] as const));
+    const bridge = adopt(BRIDGE_VARIANTS, "bridge.modular", resolveModelQuality(quality, ["high", "low"] as const));
+    const model = bridge.create(spec);
+    markVariant(model.group, bridge.id);
     model.group.position.set(midpoint[0], bed, -midpoint[1]);
     model.group.rotation.y = Math.atan2(dy, dx);
     group.add(model.group);

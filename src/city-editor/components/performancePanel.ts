@@ -128,6 +128,31 @@ export function mountPerformancePanel(options: Options) {
           `${n(three.scene.vertices)} / ${n(three.scene.materials)}`
         )
       );
+      if (three.housing)
+        rows.push(
+          row(
+            "cityEditor.messages.performanceDetailedHousing",
+            `${n(three.housing.buildings)} / ${n(three.housing.triangles)}`
+          )
+        );
+      if (three.forest)
+        rows.push(
+          row(
+            "cityEditor.forest.performance",
+            editorText("cityEditor.forest.stats3d", {
+              area: n(three.forest.areaM2 / 10000),
+              trees: n(three.forest.trees),
+              triangles: n(three.forest.triangles),
+              calls: n(three.forest.calls)
+            })
+          ),
+          row(
+            "cityEditor.forest.autoPerformance",
+            `${three.forestQuality?.requested ?? three.forest.quality} / ${three.forest.quality}`
+          ),
+          row("cityEditor.forest.framePerformance", n(three.forestQuality?.motionIntervalP95Ms)),
+          row("cityEditor.forest.detailPerformance", n(three.forest.detailedTrees))
+        );
     } else if (svgMetrics) {
       rows.push(
         row("cityEditor.messages.performanceQuality", svgMetrics.quality ?? "—"),
@@ -140,6 +165,16 @@ export function mountPerformancePanel(options: Options) {
         row("cityEditor.messages.performancePaths", `${n(svgMetrics.pathCommands)} / ${n(svgMetrics.pathCharacters)}`),
         row("cityEditor.messages.performancePoints", n(svgMetrics.points))
       );
+      if (svgMetrics.forest)
+        rows.push(
+          row(
+            "cityEditor.forest.performance",
+            editorText("cityEditor.forest.stats2d", {
+              area: n(svgMetrics.forest.areaM2 / 10000),
+              elements: n(svgMetrics.forest.elements)
+            })
+          )
+        );
     }
     output.textContent = rows.join("\n");
   };

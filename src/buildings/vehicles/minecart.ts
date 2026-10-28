@@ -4,6 +4,7 @@ import { meshProjection } from "../meshProjection";
 
 /** Illustrative timber minecart on a short narrow-gauge display track. Units are meters. */
 export const MINECART = {
+  author: "Codex GPT-6.1 Sol",
   name: "Timber mining cart",
   length: 3,
   width: 1.4,

@@ -24,6 +24,7 @@ export type WallShape = "organic" | "round" | "oval" | "square" | "polygon" | "b
 export type WallShapeChoice = "auto" | WallShape;
 
 export interface GenerationSettings {
+  forestSettings?: import("./contracts/forest").ForestSettings;
   buildingHeightLimit?: import("./contracts/buildingHeightLimits").BuildingHeightLimit;
 
   /** Automatic housing-area calibration; never changes in-block lot dimensions. */

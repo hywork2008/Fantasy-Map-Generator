@@ -2,6 +2,7 @@ import * as THREE from "three";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 
 export const CHAMBORD = {
+  author: "Codex GPT-6.1 Sol",
   name: "Château de Chambord",
   width: 190,
   depth: 145,

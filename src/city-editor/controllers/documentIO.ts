@@ -114,6 +114,7 @@ export function createDocumentIOController(ctx: DocumentIOContext) {
     ctx.documents.documentState = parsed.document;
     ctx.generation.generateSettings.buildingHeightPolicy = parsed.document.buildingHeightPolicy;
     ctx.generation.generateSettings.buildingHeightLimit = parsed.document.buildingHeightLimit;
+    ctx.generation.generateSettings.forestSettings = parsed.document.forestSettings;
     ctx.generation.generateSettings.housingAreaScale =
       parsed.document.fabric?.generation?.settings.housingAreaScale ?? parsed.document.housingAreaScale;
     ctx.generation.generateSettings.housingAreaPasses =
@@ -166,7 +167,8 @@ export function createDocumentIOController(ctx: DocumentIOContext) {
           moats: undefined,
           buildingPattern: "legacy",
           buildingHeightPolicy: undefined,
-          buildingHeightLimit: undefined
+          buildingHeightLimit: undefined,
+          forestSettings: undefined
         },
         clone(recipe.settings)
       );
@@ -291,6 +293,7 @@ export function createDocumentIOController(ctx: DocumentIOContext) {
         buildingPattern: "legacy",
         buildingHeightPolicy: undefined,
         buildingHeightLimit: undefined,
+        forestSettings: undefined,
         mode: undefined,
         population: undefined,
         housingAreaScale: undefined,

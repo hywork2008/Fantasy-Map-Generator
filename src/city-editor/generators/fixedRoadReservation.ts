@@ -12,9 +12,10 @@ const emptyWater = PhysicalWaterIndex.build([], new PhysicalWaterValidationCache
  * reserve no corridor because they cannot be drawn either.
  */
 export class FixedRoadReservation {
+  readonly polygons: Point[][] = [];
   private index: PhysicalWaterIndex;
   constructor(document: CityDocument) {
-    const polygons: Point[][] = [];
+    const polygons = this.polygons;
     const addLine = (start: readonly [number, number], end: readonly [number, number], width: number) => {
       const checked = checkDryLandSegment({
         start,

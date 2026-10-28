@@ -10,7 +10,7 @@ export function createSunControls(
   panel.className = "ce-sun-controls";
   panel.hidden = true;
   const summary = document.createElement("summary");
-  summary.textContent = editorText("cityEditor.messages.sunLighting");
+  summary.textContent = editorText("cityEditor.messages.lightingAtmosphere");
   panel.append(summary);
   const hint = document.createElement("p");
   hint.textContent = editorText("cityEditor.messages.sunBearingHint");

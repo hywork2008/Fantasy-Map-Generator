@@ -9,7 +9,7 @@ import type { BuildingAppearance } from "../appearance/types";
 import type { RegionalHouseQuality } from "./regionalHouses";
 
 export const POLYGON_HOUSES = {
-  author: "Codex",
+  author: "Codex GPT-6.1 Sol",
   note: "Measured polygonal houses with street-facing timber doors, shuttered windows, relief joinery and roof courses. Narrow, trapezoidal and concave footprints retain their original walls and roof geometry."
 } as const;
 

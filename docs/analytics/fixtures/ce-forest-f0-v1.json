@@ -1,0 +1,11 @@
+[
+  { "id": "small-flat", "seed": "ce-forest-f0-small-v1", "size": "small", "rivers": [], "elevationPreset": "flat" },
+  { "id": "medium-flat", "seed": "ce-forest-f0-medium-v1", "size": "medium", "rivers": [], "elevationPreset": "flat" },
+  {
+    "id": "small-river-valley",
+    "seed": "ce-forest-f0-valley-v1",
+    "size": "small",
+    "rivers": ["through"],
+    "elevationPreset": "valley"
+  }
+]

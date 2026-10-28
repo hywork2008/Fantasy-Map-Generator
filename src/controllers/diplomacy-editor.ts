@@ -1,7 +1,6 @@
 import { color, interpolateString, pointer } from "d3";
 import type { AppServices } from "../context/appServices";
 import { appServices } from "../context/appServices";
-import { simulationContext } from "../context/simulationContext";
 import type { ViewContext } from "../context/viewContext";
 import { viewContext } from "../context/viewContext";
 import type { WorldContext } from "../context/worldContext";
@@ -9,19 +8,14 @@ import { worldContext } from "../context/worldContext";
 import { generateWarCasusBelli } from "../generators/warCasusBelli";
 import { StatesRenderer } from "../renderers";
 import { legacyMutation } from "../runtime/worldRuntime";
+import { refreshDiplomacyEditorData, selectDiplomacyRelation } from "../services/diplomacyEditorService";
 import { GenerationPipeline } from "../services/generationPipeline";
 import { clearMainTip, tip } from "../services/tooltipService";
 import { viewLayerService as view } from "../services/viewLayerService";
-import {
-  type ConflictStatus,
-  type DiplomacyRowData,
-  getDiplomacyEditorState,
-  setDiplomacyEditorState
-} from "../store/diplomacyEditorState";
+import { getDiplomacyEditorState, setDiplomacyEditorState } from "../store/diplomacyEditorState";
 import { diplomacyHistoryDialogStore } from "../store/diplomacyHistoryDialogState";
 import { closeDialogs, isDialogOpen, openDialog } from "../ui/dialogs/dialogService";
 import { findCell, getAdjective } from "../utils";
-import { getDiplomacyMilitaryPersonnel } from "../utils/diplomacyMilitary";
 import { type RelationKey, relations } from "../utils/diplomacyRelations";
 import { EditorBus } from "../utils/editorBus";
 import { downloadFile, getFileName } from "../utils/editorHelpers";
@@ -70,77 +64,8 @@ export function editDiplomacy(): void {
 }
 
 function refreshDiplomacyEditor(): void {
-  diplomacyEditorAddLines();
+  refreshDiplomacyEditorData();
   showStateRelations();
-}
-
-function getTotalForces(state: (typeof worldContext.pack.states)[number]): number {
-  return getDiplomacyMilitaryPersonnel(state, worldContext.options);
-}
-
-function diplomacyEditorAddLines(): void {
-  const states = worldContext.pack.states;
-  let selectedId = getDiplomacyEditorState()?.selectedStateId || 0;
-  if (!selectedId || !states[selectedId] || states[selectedId].removed) {
-    selectedId = states.find(s => s.i && !s.removed)!.i;
-  }
-
-  const rowData: DiplomacyRowData[] = [];
-  const hasPlayerConflictAuthorization = (subjectId: number, objectId: number): boolean => {
-    const values = simulationContext.extensions.nobility?.conflictAuthorizationsByState;
-    if (typeof values !== "object" || values === null || Array.isArray(values)) return false;
-    const subject = (values as Record<number, unknown>)[subjectId];
-    return typeof subject === "object" && subject !== null && objectId in subject;
-  };
-  const getConflictStatus = (subjectId: number, objectId: number, relation: string): ConflictStatus => {
-    if (relation !== "Enemy") return "none";
-    if (worldContext.options.conflictAutonomy !== "playerDirected") return "autonomous";
-    return hasPlayerConflictAuthorization(subjectId, objectId) ? "player" : "suspended";
-  };
-
-  // Self Row
-  rowData.push({
-    i: selectedId,
-    name: states[selectedId].name,
-    fullName: states[selectedId].fullName || "",
-    color: "none",
-    relation: "Self",
-    conflictStatus: "none",
-    inText: "Self",
-    totalForces: getTotalForces(states[selectedId])
-  });
-
-  for (const state of states) {
-    if (!state.i || state.removed || state.i === selectedId) continue;
-    const relation = state.diplomacy![selectedId] as RelationKey;
-    const { color, inText } = relations[relation];
-    const name = (state.fullName && state.fullName.length < 23 ? state.fullName : state.name) as string;
-
-    rowData.push({
-      i: state.i,
-      name: name,
-      fullName: state.fullName || "",
-      color,
-      relation,
-      conflictStatus: getConflictStatus(selectedId, state.i, relation),
-      inText,
-      totalForces: getTotalForces(state)
-    });
-  }
-
-  const validStates = worldContext.pack.states.filter(s => s.i && !s.removed);
-  const matrix = validStates.map(state => ({
-    i: state.i,
-    name: state.name,
-    fullName: state.fullName,
-    diplomacy: state.diplomacy as string[]
-  }));
-
-  setDiplomacyEditorState({
-    states: rowData,
-    matrix,
-    selectedStateId: selectedId
-  });
 }
 
 function showStateRelations(): void {
@@ -190,18 +115,6 @@ function selectStateOnWebglMapPick(event: CustomEvent<import("../types/webglPick
 
   setDiplomacyEditorState({ selectedStateId: state });
   refreshDiplomacyEditor();
-}
-
-function selectRelation(subjectId: number, objectId: number, currentRelation: string): void {
-  diplomacyEditorAddLines();
-  setDiplomacyEditorState({
-    relationDialog: {
-      isOpen: true,
-      subjectId,
-      objectId,
-      currentRelation
-    }
-  });
 }
 
 function changeRelation(subjectId: number, objectId: number, oldRelation: string, newRelation: string): void {
@@ -289,7 +202,7 @@ function changeRelation(subjectId: number, objectId: number, oldRelation: string
 
   if (isDialogOpen("diplomacyEditor")) refreshDiplomacyEditor();
   else {
-    diplomacyEditorAddLines();
+    refreshDiplomacyEditorData();
     if (layerIsOn("toggleDiplomacy")) renderDiplomacyBadges();
   }
 }
@@ -406,7 +319,7 @@ export const diplomacyEditorActions = {
     setDiplomacyEditorState({ selectedStateId: stateId });
     diplomacyEditorActions.refreshDiplomacyEditor();
   },
-  selectRelation,
+  selectRelation: selectDiplomacyRelation,
   changeRelation,
   regenerateRelations,
   resetRelations,

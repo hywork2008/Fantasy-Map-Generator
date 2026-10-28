@@ -2,6 +2,7 @@ import type { CityDocument, Edge, EdgeRef, Face, FeatureGroup, Id, Mesh, Point, 
 import type { Cell } from "../types/geometry";
 import { stricterHeightLimit } from "./buildingHeightLimits";
 import { refreshCastleLayouts } from "./castleLayout";
+import { mergedLandCover } from "./forestSettings";
 import { reservedCastleFaces, validateFortifications } from "./fortifications";
 import { scaleFortSite, validateFortSite } from "./fortSiteGeometry";
 import { isSimplePolygon, segmentsIntersect } from "./geom";
@@ -452,6 +453,8 @@ export function mergeFaces(document: CityDocument, keepFaceId: Id, removeFaceId:
   );
   if (!boundary) return null;
   keep.boundary = boundary;
+  const cover = mergedLandCover(keep.properties.landCoverOverride, remove.properties.landCoverOverride);
+  if (cover) keep.properties.landCoverOverride = cover;
   if (keep.properties.buildingHeightLimit || remove.properties.buildingHeightLimit)
     keep.properties.buildingHeightLimit = stricterHeightLimit(
       keep.properties.buildingHeightLimit,

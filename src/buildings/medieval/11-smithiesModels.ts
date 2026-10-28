@@ -37,6 +37,7 @@ function smithy(shoeing: boolean) {
 }
 export const models: MedievalModel[] = [
   {
+    author: "Codex GPT-6.1 Sol",
     id: "open-smithy",
     name: "Open forge and smithy",
     task: 11,
@@ -45,6 +46,7 @@ export const models: MedievalModel[] = [
     create: () => smithy(false)
   },
   {
+    author: "Codex GPT-6.1 Sol",
     id: "farriers-workshop",
     name: "Farrier workshop and shoeing stock",
     task: 11,

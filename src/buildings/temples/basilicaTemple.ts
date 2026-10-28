@@ -4,7 +4,7 @@ import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 
 export const BASILICA_TEMPLE = {
   name: "Basilica temple",
-  author: "Claude 5.5 Medium",
+  author: "Claude Opus 5.5",
   width: 64,
   depth: 30,
   height: 46,

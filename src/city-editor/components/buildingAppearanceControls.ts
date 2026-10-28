@@ -18,12 +18,15 @@ import { ruralFieldOverlay, storeRuralFieldOverlay } from "../generators/ruralFi
 import { withBuildingHeightPolicy } from "../generators/updateBuildingHeights";
 import {
   readModelQualityPreference,
+  readSimplificationPreferences,
   readTerrainSpacingPreference,
   type TerrainSpacingPreference,
   writeModelQualityPreference,
+  writeSimplificationPreferences,
   writeTerrainSpacingPreference
 } from "../services/browserPreferences";
 import type { EditorLifetime } from "../services/editorLifetime";
+import type { SimplificationPreference } from "../types/contracts/simplification";
 import type { CityDocument } from "../types/document";
 import { buildingHeightLimitControls } from "./buildingHeightLimitControls";
 import { div } from "./editorControls";
@@ -121,6 +124,28 @@ export function buildBuildingAppearanceControls(ctx: {
         ? "cityEditor.messages.housingSiteAuto"
         : CLIMATE_LABELS[option.value as BuildingAppearanceClimate]
     );
+  const simplification = readSimplificationPreferences();
+  const simplificationControls = (["urban", "outskirts"] as const).map(region => {
+    const control = ctx.select(["auto", "off"], simplification[region]);
+    control.className = `ce-${region}-simplification`;
+    const key =
+      region === "urban" ? "cityEditor.messages.urbanSimplification" : "cityEditor.messages.outskirtsSimplification";
+    control.setAttribute("aria-label", editorText(key));
+    for (const option of control.options)
+      option.textContent = editorText(
+        option.value === "off" ? "cityEditor.messages.simplificationOff" : "cityEditor.messages.simplificationAuto"
+      );
+    ctx.scope.listen(control, "change", () => {
+      writeSimplificationPreferences({
+        ...readSimplificationPreferences(),
+        [region]: control.value as SimplificationPreference
+      });
+      ctx.modelQualityChanged();
+    });
+    return ctx.label(editorText(key), control);
+  });
+  const simplificationHelp = document.createElement("p");
+  simplificationHelp.textContent = editorText("cityEditor.messages.simplificationHelp");
   const spacing = ctx.select(["auto", "1", "2", "4", "8"], String(readTerrainSpacingPreference()));
   spacing.className = "ce-terrain-spacing";
   spacing.setAttribute("aria-label", editorText("cityEditor.messages.terrainSpacing"));
@@ -130,7 +155,9 @@ export function buildBuildingAppearanceControls(ctx: {
   const viewControls = div("ce-building-view-controls");
   viewControls.append(
     ctx.label(editorText("cityEditor.messages.modelQuality"), quality),
-    ctx.label(editorText("cityEditor.messages.terrainSpacing"), spacing)
+    ctx.label(editorText("cityEditor.messages.terrainSpacing"), spacing),
+    ...simplificationControls,
+    simplificationHelp
   );
   root.append(
     ctx.label(editorText("cityEditor.messages.housingCulture"), culture),

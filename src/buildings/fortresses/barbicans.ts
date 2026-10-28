@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
+import type { Author } from "../authors";
 import { ModelKit } from "../medieval/modelKit";
 
 export type BarbicanPoint = readonly [number, number];
@@ -17,6 +18,7 @@ export interface BarbicanDefinition {
   route: readonly BarbicanPoint[];
   towers: readonly BarbicanPoint[];
   reference: { title: string; url: string };
+  author?: Author;
 }
 
 const circle = Array.from({ length: 24 }, (_, i): BarbicanPoint => {
@@ -28,6 +30,7 @@ const circularCircuit = [...circle.slice(0, 12), [1.83, -23], [-1.83, -23], ...c
 
 export const BARBICANS: readonly BarbicanDefinition[] = [
   {
+    author: "Codex GPT-6.1 Sol",
     id: "rectangular",
     name: "Barbican · Rectangular forecourt",
     period: "High medieval Europe",
@@ -54,6 +57,7 @@ export const BARBICANS: readonly BarbicanDefinition[] = [
     }
   },
   {
+    author: "Codex GPT-6.1 Sol",
     id: "horseshoe",
     name: "Barbican · Horseshoe side entry",
     period: "High medieval Europe",
@@ -87,6 +91,7 @@ export const BARBICANS: readonly BarbicanDefinition[] = [
     }
   },
   {
+    author: "Codex GPT-6.1 Sol",
     id: "polygonal",
     name: "Barbican · Polygonal bent approach",
     period: "High to late medieval Europe",
@@ -117,6 +122,7 @@ export const BARBICANS: readonly BarbicanDefinition[] = [
     }
   },
   {
+    author: "Codex GPT-6.1 Sol",
     id: "circular-neck",
     name: "Barbican · Circular court and neck",
     period: "Late medieval Europe",

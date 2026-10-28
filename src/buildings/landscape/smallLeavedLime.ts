@@ -1,10 +1,16 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
+import { type CanopyLobe, createCanopyLobes, fitCanopyLobe } from "./canopyLobes";
+import { createTemperateTreeLod, TEMPERATE_CANOPY } from "./temperateTreeLod";
 import { createTreeBase } from "./treeBase";
+import type { TreeQuality } from "./treeQuality";
 
 /** A summer, open-grown Tilia cordata. Meter scale; deterministic and texture-free. */
-export function createSmallLeavedLime(): CityStructureMeshes {
+export function createSmallLeavedLime(quality: TreeQuality = "ultra"): CityStructureMeshes {
+  if (quality === "low") return createTemperateTreeLod("lime");
+  // Medium follows the same branch skeleton and replaces each leaf spray with one fitted lobe.
+  const medium = quality === "medium";
   let seed = 6143;
   const random = () => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
@@ -12,9 +18,14 @@ export function createSmallLeavedLime(): CityStructureMeshes {
   };
   const wood: THREE.BufferGeometry[] = [];
   const foliage: THREE.BufferGeometry[] = [];
+  const lobes: CanopyLobe[] = [];
   const up = new THREE.Vector3(0, 1, 0);
   function branch(a: THREE.Vector3, b: THREE.Vector3, bottom: number, top: number) {
-    const geometry = new THREE.CylinderGeometry(top, bottom, a.distanceTo(b), 9, 1);
+    // Twigs are sub-pixel at medium range; only limbs that show between lobes are kept.
+    if (medium && bottom < 0.05) return;
+    const geometry = medium
+      ? new THREE.CylinderGeometry(top, bottom, a.distanceTo(b), 4, 1, true)
+      : new THREE.CylinderGeometry(top, bottom, a.distanceTo(b), 9, 1);
     geometry.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(up, b.clone().sub(a).normalize()));
     geometry.translate(...a.clone().add(b).multiplyScalar(0.5).toArray());
     wood.push(geometry);
@@ -34,6 +45,8 @@ export function createSmallLeavedLime(): CityStructureMeshes {
   const rotation = new THREE.Euler();
   const matrix = new THREE.Matrix4();
   function spray(tip: THREE.Vector3, radius: number, count = 105) {
+    const fraction = quality === "high" ? 0.2 : 1;
+    const centers: THREE.Vector3[] = [];
     for (let i = 0; i < count; i++) {
       const azimuth = random() * Math.PI * 2;
       const height = random() * 2 - 1;
@@ -45,9 +58,12 @@ export function createSmallLeavedLime(): CityStructureMeshes {
           new THREE.Vector3(Math.cos(azimuth) * horizontal, height * distance * 0.8, Math.sin(azimuth) * horizontal)
         );
       rotation.set(random() * 2.4 - 1.2, random() * Math.PI * 2, random() * Math.PI);
-      const size = 0.12 + random() * 0.1;
+      const size = (0.12 + random() * 0.1) / Math.sqrt(fraction);
       matrix.compose(center, new THREE.Quaternion().setFromEuler(rotation), new THREE.Vector3(size, size * 1.1, size));
       color.setHSL(0.23 + random() * 0.055, 0.33 + random() * 0.18, 0.22 + random() * 0.16);
+      centers.push(center);
+      // Consume the same random sequence at both tiers so every structural branch stays fixed.
+      if (medium || (quality === "high" && i % 5 !== 0)) continue;
       const p = leaf.getAttribute("position");
       for (let j = 0; j < p.count; j++) {
         const v = new THREE.Vector3().fromBufferAttribute(p, j);
@@ -58,6 +74,7 @@ export function createSmallLeavedLime(): CityStructureMeshes {
         colors.push(color.r, color.g, color.b);
       }
     }
+    if (medium) lobes.push(fitCanopyLobe(centers, 1.3));
   }
   const fork = new THREE.Vector3(0.12, 3.3, -0.08);
   wood.push(
@@ -118,10 +135,12 @@ export function createSmallLeavedLime(): CityStructureMeshes {
     branch(elbow, tip, 0.018, 0.004);
     spray(tip, 0.8 + random() * 0.15, 200);
   }
-  const leaves = new THREE.BufferGeometry();
-  leaves.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-  leaves.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-  leaves.computeVertexNormals();
+  const leaves = medium ? createCanopyLobes(lobes, TEMPERATE_CANOPY.lime, 6143) : new THREE.BufferGeometry();
+  if (!medium) {
+    leaves.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    leaves.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+    leaves.computeVertexNormals();
+  }
   foliage.push(leaves);
   leaf.dispose();
   const barkMaterial = new THREE.MeshLambertMaterial({ color: 0x635747 });
@@ -133,9 +152,10 @@ export function createSmallLeavedLime(): CityStructureMeshes {
   const trunk = new THREE.Mesh(bark, barkMaterial);
   trunk.name = "lime-trunk-roots-and-branches";
   const crown = new THREE.Mesh(leaves, leafMaterial);
-  crown.name = "lime-heart-shaped-leaves";
+  crown.name = medium ? "lime-fitted-canopy-lobes" : "lime-heart-shaped-leaves";
   const group = new THREE.Group();
   group.name = "small-leaved-lime";
+  group.userData.treeQuality = quality;
   group.add(trunk, crown);
   return {
     group,

@@ -1,15 +1,19 @@
 import * as THREE from "three";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
+import type { Author } from "../authors";
+import type { ModelVariant } from "../modelVariants";
 
 export interface MedievalModel {
   id: string;
   name: string;
   task: number;
-  author?: string;
+  author?: Author;
   biomes?: readonly string[];
   /** Conservative width, depth and height envelopes in meters. */
   size: readonly [number, number, number];
   note: string;
+  /** Quality levels, possibly several per level by different authors; CE adopts one per level. */
+  variants?: readonly (ModelVariant & { label: string })[];
   create(): CityStructureMeshes;
 }
 export type Position = readonly [number, number, number];

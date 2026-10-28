@@ -6,6 +6,7 @@ const WEST = -Math.PI / 2;
 
 /** Detailed exterior interpretation; ornament spacing is not a measured survey. */
 export const model: LandmarkModel = {
+  author: "Codex GPT-6.1 Sol",
   id: "notre-dame-paris",
   task: "G01",
   name: "Notre-Dame de Paris · high detail",

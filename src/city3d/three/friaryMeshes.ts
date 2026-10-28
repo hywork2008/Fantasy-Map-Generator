@@ -1,8 +1,9 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
-import { createFriary } from "../../buildings/monasteries/friary";
+import { FRIARY_VARIANTS } from "../../buildings/siteVariants";
 import type { Monastery } from "../../city-editor/generators/monasteryLayout";
 import type { CityTerrain } from "../../city-editor/generators/terrainElevation";
+import { adopt, markVariant } from "../adoption";
 import type { CityStructureMeshes } from "./structureMeshes";
 
 /** Merge solid-color BV parts into one vertex-colored city mesh, retaining the fitted CE geometry. */
@@ -13,11 +14,13 @@ export function createTownFriaries(
   const group = new THREE.Group();
   group.name = "ce-friaries";
   const parts: THREE.BufferGeometry[] = [];
+  const friary = adopt(FRIARY_VARIANTS, "monastery.friary", "default");
   for (const monastery of monasteries) {
     if (monastery.kind !== "friary") continue;
+    markVariant(group, friary.id);
     const elevation = terrain?.foundationAt(monastery.precinct) ?? 0;
     const low = terrain ? Math.min(...monastery.precinct.map(terrain.heightAt)) : elevation;
-    const model = createFriary(monastery, elevation, low < elevation - 0.1 ? low - 0.2 : elevation);
+    const model = friary.create(monastery, elevation, low < elevation - 0.1 ? low - 0.2 : elevation);
     model.group.updateMatrixWorld(true);
     for (const mesh of model.pickables) {
       const transformed = mesh.geometry.clone().applyMatrix4(mesh.matrixWorld);

@@ -11,7 +11,7 @@ export function attachSceneRegions(document: CityDocument, region: RegionalConte
     maxX = Math.max(...points.map(p => p[0]));
   const minY = Math.min(...points.map(p => p[1])),
     maxY = Math.max(...points.map(p => p[1]));
-  document.version = 4;
+  if (document.version !== 6) document.version = 4;
   document.sceneRegions = {
     version: 1,
     coreBoundary: [

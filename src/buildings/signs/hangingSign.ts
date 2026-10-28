@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
+import type { Author } from "../authors";
 import { meshProjection } from "../meshProjection";
 
 export const SIGN_SHAPES = ["rectangle", "round", "oval", "shield", "arch"] as const;
@@ -13,15 +14,52 @@ export interface HangingSignOptions {
   shape?: SignShape;
   material?: SignMaterial;
   symbol?: SignSymbol;
+  author?: Author;
 }
 
 export const HANGING_SIGN_TEMPLATES = [
-  { id: "inn", shape: "arch", material: "oak", symbol: "inn" },
-  { id: "blacksmith", shape: "shield", material: "iron", symbol: "blacksmith" },
-  { id: "tavern", shape: "oval", material: "oak", symbol: "tavern" },
-  { id: "bakery", shape: "rectangle", material: "oak", symbol: "bakery" },
-  { id: "apothecary", shape: "round", material: "copper", symbol: "apothecary" },
-  { id: "stable", shape: "shield", material: "oak", symbol: "stable" }
+  {
+    author: "Codex GPT-6.1 Sol",
+    id: "inn",
+    shape: "arch",
+    material: "oak",
+    symbol: "inn"
+  },
+  {
+    author: "Codex GPT-6.1 Sol",
+    id: "blacksmith",
+    shape: "shield",
+    material: "iron",
+    symbol: "blacksmith"
+  },
+  {
+    author: "Codex GPT-6.1 Sol",
+    id: "tavern",
+    shape: "oval",
+    material: "oak",
+    symbol: "tavern"
+  },
+  {
+    author: "Codex GPT-6.1 Sol",
+    id: "bakery",
+    shape: "rectangle",
+    material: "oak",
+    symbol: "bakery"
+  },
+  {
+    author: "Codex GPT-6.1 Sol",
+    id: "apothecary",
+    shape: "round",
+    material: "copper",
+    symbol: "apothecary"
+  },
+  {
+    author: "Codex GPT-6.1 Sol",
+    id: "stable",
+    shape: "shield",
+    material: "oak",
+    symbol: "stable"
+  }
 ] as const satisfies readonly (HangingSignOptions & { id: string })[];
 
 function polygon(points: readonly (readonly [number, number])[]): THREE.Shape {

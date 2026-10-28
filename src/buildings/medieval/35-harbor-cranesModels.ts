@@ -59,6 +59,7 @@ function crane(treadwheel: boolean) {
 }
 export const models: MedievalModel[] = [
   {
+    author: "Codex GPT-6.1 Sol",
     id: "harbor-treadwheel-crane",
     name: "Timber harbor treadwheel crane",
     task: 35,
@@ -67,6 +68,7 @@ export const models: MedievalModel[] = [
     create: () => crane(true)
   },
   {
+    author: "Codex GPT-6.1 Sol",
     id: "harbor-winch-crane",
     name: "Hand-winch loading crane",
     task: 35,

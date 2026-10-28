@@ -5,6 +5,7 @@ import { createMedievalWagonModel } from "./medievalWagon";
 
 /** Imagined covered traveling wagon for a late-medieval noble household; meters, front at +X. */
 export const NOBLE_CARRIAGE = {
+  author: "Codex GPT-6.1 Sol",
   name: "Medieval European noble carriage",
   length: 6.4,
   width: 2.6,

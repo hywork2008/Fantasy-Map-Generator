@@ -4,6 +4,7 @@ import { meshProjection } from "../meshProjection";
 
 /** Illustrative late-medieval European defensive wagon, in meters; front faces positive X. */
 export const WAR_WAGON = {
+  author: "Codex GPT-6.1 Sol",
   name: "Medieval European war wagon",
   length: 7.6,
   width: 2.8,

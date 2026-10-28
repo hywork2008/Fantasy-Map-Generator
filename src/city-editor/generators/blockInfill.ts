@@ -22,6 +22,8 @@ import {
 } from "./coastalSuitability";
 import { districtDocument, resolveDistricts, upgradeFabricPlan } from "./fabricDistricts";
 import { FixedRoadReservation } from "./fixedRoadReservation";
+import { enforceForestLandCover } from "./forestLandCover";
+import { hasForestState } from "./forestSettings";
 import { circuitRing, polygonOverlaps } from "./fortifications";
 import { relieveGatePlazaBuildings } from "./gatePlazaBuildings";
 import {
@@ -177,7 +179,7 @@ function overlayFabric(entry: FabricEntry, document: CityDocument): DistrictFabr
   if (!overlay) return entry.fabric;
   if (entry.overlay !== overlay) {
     entry.overlay = overlay;
-    entry.combined = { ...entry.fabric, ...overlay };
+    entry.combined = enforceForestLandCover(document, { ...entry.fabric, ...overlay });
   }
   return entry.combined!;
 }
@@ -215,6 +217,9 @@ export function documentFabricFingerprint(doc: CityDocument): string {
   const landmarksPart = (doc.landmarks ?? []).map(l => `${l.id}:${l.assetId}:${l.locked}`).join(";");
   const rampsPart = JSON.stringify(doc.terrain?.ramps ?? []);
   return [
+    ...(hasForestState(doc)
+      ? [JSON.stringify([doc.forestSettings, faces.map(face => [face.id, face.properties.landCoverOverride])])]
+      : []),
     JSON.stringify(doc.populationPlan ?? null),
     doc.generationSeed ?? "",
     doc.fabric?.seed ?? "",
@@ -445,6 +450,7 @@ export function buildBlockFabric(
     };
   }
   const fingerprint = documentFabricFingerprint(document);
+  fabricResult = enforceForestLandCover(document, fabricResult);
   const entry: FabricEntry = { fingerprint, fabric: fabricResult };
   if (!profiler) fabricByDocument.set(document, entry);
   return overlayFabric(entry, document);

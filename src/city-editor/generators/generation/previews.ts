@@ -5,6 +5,7 @@ import type { WardAssignment } from "../../types/geometry";
 import { tagExternalGateRoads } from "../approachBeyond";
 import { planBastionedCity } from "../bastionedTown/plan";
 import { syncDocumentCemeteries } from "../cemeteryLayout";
+import { hasForestState, validForestSettings, validLandCoverOverride } from "../forestSettings";
 import { captureGenerationDebugPreview, type GenerationDebugObserver } from "../generationDebug";
 import { type GenerationObserver, reportGenerationFailure } from "../generationDiagnostics";
 import { generationSettingIssues } from "../generationSettingIssues";
@@ -67,13 +68,23 @@ export function generateStageOnDocument(
       reportGenerationFailure(observer, 1, "prepare", issue.code, `${issue.message} ${issue.remedy}`);
     return null;
   }
+  if (
+    !validForestSettings(settings.forestSettings) ||
+    !validForestSettings(document.forestSettings) ||
+    Object.values(document.mesh.faces).some(face => !validLandCoverOverride(face.properties.landCoverOverride))
+  )
+    return null;
+  settings = { ...settings, forestSettings: settings.forestSettings ?? document.forestSettings };
   document = {
     ...document,
     buildingHeightPolicy: settings.buildingHeightPolicy,
     buildingHeightLimit: settings.buildingHeightLimit,
+    forestSettings: settings.forestSettings ?? document.forestSettings,
+    version: settings.forestSettings || hasForestState(document) ? (6 as const) : document.version,
     housingAreaScale: settings.housingAreaScale,
     housingAreaPasses: settings.housingAreaPasses
   };
+  if (hasForestState(document)) document.version = 6;
   try {
     ({ document, settings } = preparePopulationGeneration(document, settings, seed));
   } catch {
@@ -241,6 +252,8 @@ export function generateUrbanPatchStep(
     ...document,
     buildingHeightPolicy: settings.buildingHeightPolicy,
     buildingHeightLimit: settings.buildingHeightLimit,
+    forestSettings: settings.forestSettings ?? document.forestSettings,
+    version: settings.forestSettings || hasForestState(document) ? (6 as const) : document.version,
     housingAreaScale: settings.housingAreaScale,
     housingAreaPasses: settings.housingAreaPasses
   };
@@ -319,6 +332,8 @@ export function generateCoastWalkStep(
     ...document,
     buildingHeightPolicy: settings.buildingHeightPolicy,
     buildingHeightLimit: settings.buildingHeightLimit,
+    forestSettings: settings.forestSettings ?? document.forestSettings,
+    version: settings.forestSettings || hasForestState(document) ? (6 as const) : document.version,
     housingAreaScale: settings.housingAreaScale,
     housingAreaPasses: settings.housingAreaPasses
   };
@@ -380,6 +395,8 @@ export function generateRiverWalkStep(
     ...document,
     buildingHeightPolicy: settings.buildingHeightPolicy,
     buildingHeightLimit: settings.buildingHeightLimit,
+    forestSettings: settings.forestSettings ?? document.forestSettings,
+    version: settings.forestSettings || hasForestState(document) ? (6 as const) : document.version,
     housingAreaScale: settings.housingAreaScale,
     housingAreaPasses: settings.housingAreaPasses
   };
@@ -455,6 +472,8 @@ export function generateGateStep(
     ...document,
     buildingHeightPolicy: settings.buildingHeightPolicy,
     buildingHeightLimit: settings.buildingHeightLimit,
+    forestSettings: settings.forestSettings ?? document.forestSettings,
+    version: settings.forestSettings || hasForestState(document) ? (6 as const) : document.version,
     housingAreaScale: settings.housingAreaScale,
     housingAreaPasses: settings.housingAreaPasses
   };
@@ -512,6 +531,8 @@ export function generateRoadStep(
     ...document,
     buildingHeightPolicy: settings.buildingHeightPolicy,
     buildingHeightLimit: settings.buildingHeightLimit,
+    forestSettings: settings.forestSettings ?? document.forestSettings,
+    version: settings.forestSettings || hasForestState(document) ? (6 as const) : document.version,
     housingAreaScale: settings.housingAreaScale,
     housingAreaPasses: settings.housingAreaPasses
   };
@@ -575,6 +596,8 @@ export function generateWardStep(
     ...document,
     buildingHeightPolicy: settings.buildingHeightPolicy,
     buildingHeightLimit: settings.buildingHeightLimit,
+    forestSettings: settings.forestSettings ?? document.forestSettings,
+    version: settings.forestSettings || hasForestState(document) ? (6 as const) : document.version,
     housingAreaScale: settings.housingAreaScale,
     housingAreaPasses: settings.housingAreaPasses
   };

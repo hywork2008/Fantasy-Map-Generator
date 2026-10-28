@@ -55,7 +55,8 @@ export const containerWikipedia: Record<string, string> = {
 export const wallWikipedia: Record<string, string> = {
   "town-curtain-wall": "Curtain wall (fortification)",
   "town-mural-tower": "Fortified tower",
-  "town-gate": "City gate"
+  "town-gate": "City gate",
+  "medieval-town-gatehouse": "Gatehouse"
 };
 
 const taskArticles: Record<number, string> = {
@@ -144,10 +145,22 @@ const modelArticles: Record<string, string> = {
   "sacred-yew": "Taxus baccata",
   "norway-spruce": "Picea abies",
   "silver-birch": "Betula pendula",
+  "date-palm": "Phoenix dactylifera",
+  "umbrella-thorn": "Vachellia tortilis",
+  saxaul: "Haloxylon ammodendron",
+  kapok: "Ceiba pentandra",
+  "western-red-cedar": "Thuja plicata",
+  "black-alder": "Alnus glutinosa",
+  olive: "Olea europaea",
+  "silver-fir": "Abies alba",
+  "red-mangrove": "Rhizophora mangle",
+  tamarisk: "Tamarix",
+  rowan: "Sorbus aucuparia",
+  "canary-pine": "Pinus canariensis",
   "mediterranean-cypress": "Cupressus sempervirens",
-  "oriental-evergreen": "Evergreen",
+  "oriental-evergreen": "Platycladus",
   "sacred-bodhi-and-fig": "Ficus religiosa",
-  "peaceful-willow": "Willow",
+  "peaceful-willow": "Salix babylonica",
   "ossuary-charnel-house": "Charnel house",
   "preaching-cross-calvary": "Preaching cross",
   "mausoleum-dome": "Mausoleum",

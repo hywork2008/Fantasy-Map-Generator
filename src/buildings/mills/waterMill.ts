@@ -4,6 +4,7 @@ import { meshProjection } from "../meshProjection";
 
 /** Imagined medieval European grain mill; all dimensions are illustrative meters. */
 export const WATER_MILL = {
+  author: "Codex GPT-6.1 Sol",
   name: "Medieval European watermill",
   width: 18,
   depth: 12,

@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
+import type { Author } from "../authors";
 import { ModelKit, type Surface } from "../medieval/modelKit";
 
 export interface LandmarkModel {
@@ -16,6 +17,7 @@ export interface LandmarkModel {
   /** Optional detailed exterior; the catalogue entry itself remains the default low-resolution model. */
   highDetail?: LandmarkModel;
   create(): CityStructureMeshes;
+  author?: Author;
 }
 
 /** Exterior study parts in metres. All geometry and materials belong to the returned assembly. */

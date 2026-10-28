@@ -4,6 +4,7 @@ import { meshProjection } from "../meshProjection";
 
 /** Illustrative medieval belfry, in meters, with the assault bridge facing positive X. */
 export const SIEGE_TOWER = {
+  author: "Codex GPT-6.1 Sol",
   name: "Medieval European siege tower",
   length: 12.5,
   width: 5.6,

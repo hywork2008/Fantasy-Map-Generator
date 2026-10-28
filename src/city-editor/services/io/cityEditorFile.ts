@@ -3,6 +3,7 @@ import { serializeCitySvg } from "../../renderers/standaloneSvg";
 import type { FixedApproachProvider } from "../../types/contracts/fixedApproachAdoption";
 import type { GenerationDebugPreview } from "../../types/contracts/generationDebug";
 import type { CityDocument } from "../../types/document";
+import { readForestViewPreferences } from "../forestViewPreferences";
 import { parseDocument, serializeDocument } from "./documentCodec";
 import { importMfcgJson, importMfcgSvg } from "./mfcgImport";
 
@@ -26,7 +27,10 @@ export function exportCityMap(cityDocument: CityDocument): void {
 
 /** Download a rendered standalone SVG map snapshot. */
 export function exportCitySvg(cityDocument: CityDocument): void {
-  downloadSvg(serializeCitySvg(cityDocument), "ce");
+  downloadSvg(
+    serializeCitySvg(cityDocument, undefined, { representation: readForestViewPreferences().representation }),
+    "ce"
+  );
 }
 
 /** Download the rejected checkpoint with failure highlights and diagnostics. */

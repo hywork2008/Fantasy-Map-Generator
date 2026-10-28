@@ -1,4 +1,5 @@
 import { expect, it } from "vitest";
+import { TREE_SPECIES } from "../../buildings/landscape/trees";
 import { BURIAL_CULTURE_PRESETS } from "../../data/burialCultures";
 import { layoutCemetery } from "../generators/cemeteryLayout";
 import { cemeteryPlots } from "../generators/cemeteryPlots";
@@ -194,4 +195,37 @@ it("uses boreal BV species for cold taiga parks and cemeteries while retaining s
     burialProfile: Object.values(BURIAL_CULTURE_PRESETS).find(profile => profile.vegetation === "barren_gravel")!
   };
   expect(collectOpenSpacePlan([], [barren], document).sites.some(site => site.model === "norway_spruce")).toBe(false);
+});
+
+it.each([
+  ["hotDesert", ["date_palm"]],
+  ["savanna", ["umbrella_thorn", "date_palm"]],
+  ["coldDesert", ["saxaul"]],
+  ["tropicalRainforest", ["kapok"]],
+  ["temperateRainforest", ["western_red_cedar"]],
+  ["wetland", ["black_alder"]],
+  ["mediterraneanWoodlandScrub", ["olive"]],
+  ["montaneForest", ["silver_fir"]],
+  ["mangrove", ["red_mangrove"]],
+  ["xericShrubland", ["tamarisk", "date_palm"]],
+  ["heathMoorland", ["rowan"]],
+  ["volcanicSoil", ["canary_pine"]]
+] as const)("uses arid BV species for %s parks and cemeteries", (key, expected) => {
+  const document = { ...city, biome: { id: 1, key, name: key, color: "yellow" } };
+  const park = {
+    faceId: "park",
+    lawnPolygons: [ring],
+    paths: [],
+    grassTufts: [],
+    trees: Array.from({ length: 12 }, (_, i) => ({ center: [i * 7, 10] as Point, radius: 3, subCircles: [] }))
+  };
+  const saved = cemetery();
+  saved.trees = [[15, 15]];
+  const models = new Set(
+    collectOpenSpacePlan([park], [saved], document)
+      .sites.filter(site => (TREE_SPECIES as readonly string[]).includes(site.model))
+      .map(site => site.model)
+  );
+  expect([...models].every(model => (expected as readonly string[]).includes(model))).toBe(true);
+  expect(models.has(expected[0])).toBe(true);
 });
