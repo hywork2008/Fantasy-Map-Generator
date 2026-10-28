@@ -398,6 +398,39 @@ export class DevelopmentPotentialModule {
     return true;
   }
 
+  /**
+   * One round of the world-birth land plan (docs/plan/livestock-world-birth-herds.md, B1): re-plans
+   * land and occupations for the herds now placed, as the annual update would, without the annual
+   * gate or a year of soil change. Clearing done here is part of the world's past, so it yields no
+   * timber for sale.
+   */
+  replanWorldBirth(): void {
+    const world = getWorldContext();
+    const landUse = world.pack.landUse;
+    if (landUse) landUse.needsAnnualReconciliation = true;
+    const timberReceipts = landUse?.conversionTimber?.length ?? 0;
+    const agTechStockByCell = resolveAgTechStockByCell(world.pack.cells?.i?.length ?? 0);
+    const stateProductivityByCell = resolveStateProductivityByCell(world.pack.cells);
+    const demandOptions = {
+      includeUrbanFoodDemand: optionsStore.getState().ruralUrbanMigration !== "megacity",
+      year: getSimulationYear(),
+      annual: true
+    };
+    const conditions = this.getAgriculturalConditions(world);
+    reconcileForestClearanceForAgriculture(
+      world,
+      agTechStockByCell,
+      stateProductivityByCell,
+      demandOptions,
+      conditions
+    );
+    world.pack.landUse?.conversionTimber?.splice(timberReceipts);
+    this.storeAgriculture(
+      world,
+      calculateAgriculturalLandProfile(world, agTechStockByCell, stateProductivityByCell, demandOptions, conditions)
+    );
+  }
+
   /** Reclassifies unlocked burgs at most once per simulation year. */
   updateAnnualBurgGroups(): boolean {
     const year = getSimulationYear();

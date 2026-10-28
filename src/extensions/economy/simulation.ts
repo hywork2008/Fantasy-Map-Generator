@@ -279,6 +279,7 @@ import { UrbanWater } from "./generators/urbanWaterSystem";
 import { clearMerchantHullOwnerships, recordMerchantHullOwnership } from "./generators/vesselOwnership";
 import { clearViticultureAllocationShares } from "./generators/viticultureAllocation";
 import { VolcanicOperations } from "./generators/volcanicOperations";
+import { isUnadvancedWorld, markWorldBirthHerdsSettled, settleWorldBirthHerds } from "./generators/worldBirthHerds";
 import { ECONOMY_TICK_SYSTEM_IDS, ECONOMY_TICK_TOPIC_CONTRACTS, type EconomyTickSystemId } from "./tickSystemIds";
 
 export const ECONOMY_EXTENSION_ID = "economy";
@@ -1719,6 +1720,9 @@ function register(api: SimulationExtensionAPI): () => void {
           // (initializeStock(), same as the annual update does), matching what the first Advance
           // Time tick would have produced anyway.
           updateAnnualFaunaCohorts();
+          // Pasture, herders and herds start settled together, like towns and people
+          // (docs/plan/livestock-world-birth-herds.md, B1).
+          settleWorldBirthHerds(() => DevelopmentPotential.replanWorldBirth());
           MerchantTransportAssets.requestMerchantHullSnapshot();
           MineOperations.generate();
           SmelterOperations.generate();
@@ -1818,6 +1822,10 @@ function register(api: SimulationExtensionAPI): () => void {
       )
     )
       DevelopmentPotential.generate();
+    // A world saved before B1 and never advanced still receives its birth herds; an advanced world
+    // keeps the herds it has grown.
+    if (isUnadvancedWorld()) settleWorldBirthHerds(() => DevelopmentPotential.replanWorldBirth());
+    else markWorldBirthHerdsSettled();
     if (MineOperations.reanchorOperations() || (!getSmelterOperations().length && getMineOperations().length)) {
       SmelterOperations.generate();
     }

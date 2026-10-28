@@ -50,6 +50,7 @@ import {
 } from "./faunaPopulation";
 import { calculateHusbandryDemand, getGrazedCarryingCapacity, getHusbandryWorkerFactor } from "./husbandry";
 import { HORSES_PER_MARKET_HEAD } from "./liveAnimalScale";
+import { settleWorldBirthHerds } from "./worldBirthHerds";
 
 const CATTLE_GOOD = {
   i: 1,
@@ -986,6 +987,19 @@ describe("faunaPopulation", () => {
       const before = structuredClone(table);
       captureWildLivestock(table, [HORSES_GOOD] as never);
       expect(table).toEqual(before);
+    });
+
+    it("settles birth herds at their supported size once per world", () => {
+      const table = horseCell(["grassland"]);
+      let replans = 0;
+      expect(settleWorldBirthHerds(() => replans++)).toBe(1);
+      expect(replans).toBe(1);
+      const herd = table["0:Horses"];
+      expect(heads(herd)).toBeCloseTo(getDomesticatedCarryingCapacity(0, HORSES_GOOD as never, 0), 8);
+      expect(herd.breeding).toBeGreaterThan(herd.young);
+      expect(herd.old).toBeLessThan(herd.young);
+      expect(settleWorldBirthHerds(() => replans++)).toBe(0);
+      expect(replans).toBe(1);
     });
 
     it("does not run in simplified mode", () => {
