@@ -9,6 +9,7 @@ import {
   skyPanoramaGeometry
 } from "./skyPanoramaGeometry";
 import type { SunSettings } from "./sunLighting";
+import { worldTreeAltitude } from "./worldTreeGrounding";
 import { createWorldTreeTexture } from "./worldTreeTexture";
 
 /** One continuous panorama, touching the map perimeter below and curving around the sky above. */
@@ -108,6 +109,7 @@ export function createSkyBackdrop(onTextureReady?: () => void) {
         treeMaterial.map = createWorldTreeTexture(() => {
           if (disposed) return;
           fitTree();
+          previousHeight = NaN;
           treeMaterial.visible = true;
           onTextureReady?.();
         });
@@ -136,10 +138,16 @@ export function createSkyBackdrop(onTextureReady?: () => void) {
       mountainOcclusion.height.value =
         settings.style === "mountains" || settings.style === "world-tree" ? totalHeight : 0;
       if (treeMaterial.map) {
-        // Keep the 20% composition as the reference and follow the mountain band
-        // vertically, so reducing its height cannot leave the roots suspended.
-        const referenceHeight = Math.max(plainHeight + 1, frame.height / 10);
-        const altitude = (totalHeight - referenceHeight) * 0.8;
+        const image = sceneryMaterial.map?.image as { data: Uint8Array; width: number; height: number } | undefined;
+        const altitude =
+          image && mountainOcclusion.height.value > 0
+            ? worldTreeAltitude(
+                image,
+                totalHeight,
+                frame.height / treeTextureTop,
+                worldTree.geometry.userData.panoramaAngle
+              )
+            : 0;
         treeMaterial.map.offset.y = (-altitude / frame.height) * treeTextureTop;
       }
       replaceGeometry(
