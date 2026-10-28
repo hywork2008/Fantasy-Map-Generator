@@ -1,8 +1,49 @@
 import * as THREE from "three";
-import { expect, it } from "vitest";
-import { createLandscapeTree } from "../../buildings/landscape/trees";
+import { expect, it, vi } from "vitest";
+import { createLandscapeTree, type TreeSpecies } from "../../buildings/landscape/trees";
 import { CE_ADOPTION, sceneVariants } from "../adoption";
 import { createForestTreeDetails, type ForestTreeSite } from "./forestTreeDetails";
+
+it("limits simultaneously selected species, evicts inactive prototypes and admits species from later views", () => {
+  const parent = new THREE.Group();
+  const details = createForestTreeDetails(parent);
+  const geometry = new THREE.BoxGeometry(1, 10, 1);
+  const material = new THREE.MeshLambertMaterial();
+  const base = new THREE.InstancedMesh(geometry, material, 5);
+  const species: TreeSpecies[] = ["norway_spruce", "silver_birch", "date_palm", "black_alder", "rowan"];
+  const sites = species.map((species, index): ForestTreeSite => {
+    base.setMatrixAt(index, new THREE.Matrix4().makeScale(3, 1, 3));
+    return { id: String(index), point: [0, 0], radius: 3, size: 1, species, mesh: base, index };
+  });
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 2000);
+  camera.position.set(0, 5, 70);
+  camera.lookAt(0, 5, 0);
+  const budget = { triangles: Infinity, calls: Infinity, shadowTriangles: 0 };
+  try {
+    const first = details.update(camera, 720, sites, budget);
+    expect(first.trees).toBe(4);
+    expect(first.species).not.toContain("rowan");
+    const firstMesh = parent.getObjectByName("forest-bv-norway_spruce-ultra-plain") as THREE.InstancedMesh;
+    const freedGeometry = vi.spyOn(firstMesh.geometry, "dispose");
+    const freedInstance = vi.spyOn(firstMesh, "dispose");
+    details.reset();
+    expect(details.update(camera, 720, sites.slice(4), budget).species).toEqual(["rowan"]);
+    expect(freedGeometry).toHaveBeenCalledOnce();
+    expect(freedInstance).toHaveBeenCalledOnce();
+    expect(firstMesh.parent).toBeNull();
+    details.reset();
+    expect(details.update(camera, 720, sites.slice(0, 1), budget).species).toEqual(["norway_spruce"]);
+    expect(parent.getObjectByName(firstMesh.name)).not.toBe(firstMesh);
+    details.dispose();
+    expect(freedGeometry).toHaveBeenCalledOnce();
+    expect(freedInstance).toHaveBeenCalledOnce();
+  } finally {
+    details.dispose();
+    base.dispose();
+    geometry.dispose();
+    material.dispose();
+  }
+});
 
 it("prioritizes an on-screen crown over a closer off-screen tree and restores its base instance", () => {
   const parent = new THREE.Group(),
@@ -23,7 +64,7 @@ it("prioritizes an on-screen crown over a closer off-screen tree and restores it
     point: [m.elements[12], -m.elements[14]],
     radius: 3,
     size: 1,
-    species: "garden_parkland",
+    species: "sacred_yew",
     mesh,
     index
   }));
@@ -31,7 +72,7 @@ it("prioritizes an on-screen crown over a closer off-screen tree and restores it
   camera.position.set(0, 7, 30);
   camera.lookAt(0, 7, 0);
   camera.updateMatrixWorld(true);
-  const source = createLandscapeTree("garden_parkland");
+  const source = createLandscapeTree("sacred_yew");
   let triangles = 0;
   source.group.traverse(o => {
     if (o instanceof THREE.Mesh)
@@ -71,12 +112,12 @@ it("grows full-detail instance buffers without losing transforms or leaking shar
   camera.updateMatrixWorld(true);
   const budget = { triangles: Infinity, calls: Infinity, shadowTriangles: Infinity };
   expect(details.update(camera, 720, sites.slice(0, 20), budget, false).trees).toBe(20);
-  const old = group.getObjectByName("forest-bv-garden_parkland-shadow") as THREE.InstancedMesh;
+  const old = group.getObjectByName("forest-bv-garden_parkland-ultra-shadow") as THREE.InstancedMesh;
   let freed = 0;
   old.geometry.addEventListener("dispose", () => freed++);
   details.reset();
   expect(details.update(camera, 720, sites, budget, false).trees).toBe(40);
-  const grown = group.getObjectByName("forest-bv-garden_parkland-shadow") as THREE.InstancedMesh;
+  const grown = group.getObjectByName("forest-bv-garden_parkland-ultra-shadow") as THREE.InstancedMesh;
   expect(grown).not.toBe(old);
   expect(grown.geometry).toBe(old.geometry);
   expect(grown.count).toBe(40);
@@ -96,7 +137,7 @@ it("grows full-detail instance buffers without losing transforms or leaking shar
 
 it("switches an adopted medium variant without reusing the previous author's cached model", () => {
   const group = new THREE.Group();
-  const details = createForestTreeDetails(group, true);
+  const details = createForestTreeDetails(group);
   const geometry = new THREE.BoxGeometry(1, 10, 1);
   const material = new THREE.MeshLambertMaterial();
   const base = new THREE.InstancedMesh(geometry, material, 1);
@@ -134,7 +175,7 @@ it("switches an adopted medium variant without reusing the previous author's cac
 
 it("keeps the exact distance tier for every lime despite size variation, geometry budgets and the old 256-tree cap", () => {
   const group = new THREE.Group();
-  const details = createForestTreeDetails(group, true);
+  const details = createForestTreeDetails(group);
   const geometry = new THREE.BoxGeometry(1, 10, 1);
   const material = new THREE.MeshLambertMaterial();
   const base = new THREE.InstancedMesh(geometry, material, 270);

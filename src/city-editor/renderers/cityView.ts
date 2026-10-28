@@ -781,11 +781,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       );
       if (openSpaces) scene.remove(openSpaces.group);
       openSpaces?.dispose();
-      openSpaces = createTownOpenSpaces(
-        openSpacePlan,
-        terrain ?? undefined,
-        city.biome?.key === "centralEuropeanGreatForest" ? true : "lime"
-      );
+      openSpaces = createTownOpenSpaces(openSpacePlan, terrain ?? undefined);
       scene.add(openSpaces.group);
       openSpaceStamp = nextOpenSpaceStamp;
     }

@@ -5,7 +5,7 @@ import {
   treeQualityAtDistance,
   treeQualityAtPixels
 } from "../../buildings/landscape/treeQuality";
-import { hasTreeQualityLevels, type TreeSpecies } from "../../buildings/landscape/trees";
+import { type TreeSpecies, treeLodProfile } from "../../buildings/landscape/trees";
 import type { Point } from "../../city-editor/types/document";
 import { adoptedTree, markVariant } from "../adoption";
 import { type BvDefinition, createBvPrototypeCache } from "./bvInstances";
@@ -34,11 +34,7 @@ interface Budget {
 }
 
 /** Detailed BV silhouettes replace the same stable forest candidates, never add a second tree. */
-export function createForestTreeDetails(
-  parent: THREE.Group,
-  tiered = false,
-  treeLimit = tiered ? 256 : FOREST_TREE_DETAIL_LIMIT.trees
-) {
+export function createForestTreeDetails(parent: THREE.Group, treeLimit?: number) {
   const group = new THREE.Group();
   group.name = "forest-bv-trees";
   parent.add(group);
@@ -49,18 +45,24 @@ export function createForestTreeDetails(
   let disposed = false;
   const frustum = new THREE.Frustum(),
     projection = new THREE.Matrix4();
-  let capacity = treeLimit as number;
-  const getModel = (species: TreeSpecies, simplify: boolean, quality: TreeQuality): Model | undefined => {
+  let capacity = treeLimit ?? FOREST_TREE_DETAIL_LIMIT.trees;
+  const freeModel = (key: string, model: Model) => {
+    for (const mesh of model.meshes) {
+      mesh.removeFromParent();
+      mesh.dispose();
+    }
+    model.lease.release();
+    models.delete(key);
+  };
+  const getModel = (species: TreeSpecies, quality: TreeQuality): Model | undefined => {
     const variant = adoptedTree(species, quality);
     const key = variant.id;
     const hit = models.get(key);
-    if (hit) return hit;
-    if (
-      simplify &&
-      new Set([...models.values()].map(model => model.species)).size >= FOREST_TREE_DETAIL_LIMIT.species &&
-      ![...models.values()].some(model => model.species === species)
-    )
-      return;
+    if (hit) {
+      models.delete(key);
+      models.set(key, hit);
+      return hit;
+    }
     // The variant id names the adopted author, so a changed adoption never reuses a cached prototype.
     const definition: BvDefinition = { id: `forest-tree:${variant.id}`, cacheKey: variant.id, create: variant.create };
     const lease = cache.acquire(definition);
@@ -88,7 +90,7 @@ export function createForestTreeDetails(
       m.visible = false;
       m.castShadow = shadow;
       m.receiveShadow = true;
-      m.name = `forest-bv-${species}-${tiered ? `${quality}-` : ""}${shadow ? "shadow" : "plain"}`;
+      m.name = `forest-bv-${species}-${quality}-${shadow ? "shadow" : "plain"}`;
       m.userData.ceForest = true;
       m.userData.forestSpecies = species;
       m.userData.treeQuality = quality;
@@ -131,11 +133,10 @@ export function createForestTreeDetails(
       };
       if (disposed || viewportHeight <= 0) return stats;
       camera.updateMatrixWorld(true);
-      if (
-        (!simplify || (tiered && sites.some(site => site.species === "garden_parkland"))) &&
-        sites.length > capacity
-      ) {
-        capacity = sites.length;
+      const qualityFirst = sites.some(site => treeLodProfile(site.species)?.budget === "quality-first");
+      const requiredCapacity = !simplify || qualityFirst ? sites.length : Math.min(sites.length, treeLimit ?? 256);
+      if (requiredCapacity > capacity) {
+        capacity = requiredCapacity;
         for (const model of models.values()) {
           model.meshes = model.meshes.map(old => {
             const mesh = new THREE.InstancedMesh(old.geometry, old.material, capacity);
@@ -157,22 +158,24 @@ export function createForestTreeDetails(
       const point = new THREE.Vector3();
       const candidates = sites
         .map(site => {
+          const profile = treeLodProfile(site.species);
           const matrix = new THREE.Matrix4();
           site.mesh.getMatrixAt(site.index, matrix);
-          point.set(matrix.elements[12], matrix.elements[13] + (tiered ? 5 : 7) * site.size, matrix.elements[14]);
+          point.set(matrix.elements[12], matrix.elements[13] + 5 * site.size, matrix.elements[14]);
           const projected = point.clone().project(camera);
           const margin = selected.has(site.id) ? 1.05 : 0.9;
           const onScreen =
             Math.abs(projected.x) <= margin && Math.abs(projected.y) <= margin && projected.z >= -1 && projected.z <= 1;
           const distance = camera.position.distanceTo(point);
           const quality =
-            !simplify || !tiered || !hasTreeQualityLevels(site.species)
+            !simplify || !profile
               ? "ultra"
-              : site.species === "garden_parkland"
+              : profile.selection === "distance"
                 ? treeQualityAtDistance(distance)
                 : treeQualityAtPixels((10 * site.size * scale) / (2 * Math.max(1, distance)), selected.get(site.id));
           return {
             site,
+            profile,
             matrix,
             distance,
             quality,
@@ -182,10 +185,10 @@ export function createForestTreeDetails(
           };
         })
         .filter(
-          ({ site, distance, visible }) =>
+          ({ site, profile, distance, visible }) =>
             visible &&
             (!simplify ||
-              tiered ||
+              profile ||
               (10 * site.size * scale) / Math.max(1, distance) >=
                 (selected.has(site.id) ? FOREST_TREE_DETAIL_LIMIT.exitPixels : FOREST_TREE_DETAIL_LIMIT.enterPixels))
         )
@@ -194,26 +197,37 @@ export function createForestTreeDetails(
         );
       const next = new Map<string, TreeQuality>(),
         usedSpecies = new Set<TreeSpecies>(),
+        boundedSpecies = new Set<TreeSpecies>(),
+        usedModels = new Set<Model>(),
         shadows: string[] = [];
-      for (const { site, matrix, quality } of candidates) {
-        const distanceLod = tiered && site.species === "garden_parkland";
-        if (simplify && !distanceLod && stats.trees >= treeLimit) continue;
+      let tieredTrees = 0,
+        untieredTrees = 0,
+        boundedTriangles = 0,
+        boundedCalls = 0;
+      for (const { site, profile, matrix, quality } of candidates) {
+        const preserveQuality = !simplify || profile?.budget === "quality-first";
+        if (!preserveQuality) {
+          const limit = treeLimit ?? (profile ? 256 : FOREST_TREE_DETAIL_LIMIT.trees);
+          if ((profile ? tieredTrees : untieredTrees) >= limit) continue;
+          if (!boundedSpecies.has(site.species) && boundedSpecies.size >= FOREST_TREE_DETAIL_LIMIT.species) continue;
+        }
         let chosen = quality;
         let model: Model | undefined;
         for (let level = TREE_QUALITIES.indexOf(quality); level >= 0; level--) {
           chosen = TREE_QUALITIES[level];
-          model = getModel(site.species, simplify, chosen);
-          if (model && (distanceLod || stats.triangles + model.triangles <= budget.triangles)) break;
+          model = getModel(site.species, chosen);
+          if (model && (preserveQuality || boundedTriangles + model.triangles <= budget.triangles)) break;
           model = undefined;
-          if (distanceLod || !tiered || !hasTreeQualityLevels(site.species)) break;
+          if (preserveQuality || !profile) break;
         }
         if (!model) continue;
         const shadow = stats.shadowTriangles + model.triangles <= budget.shadowTriangles;
         const mesh = model.meshes[shadow ? 0 : 1];
-        if (!distanceLod && !mesh.count && stats.calls >= budget.calls) continue;
+        if (!preserveQuality && !mesh.count && boundedCalls >= budget.calls) continue;
         if (!mesh.count) {
           mesh.visible = true;
           stats.calls++;
+          if (!preserveQuality) boundedCalls++;
         }
         mesh.setMatrixAt(mesh.count++, matrix);
         mesh.instanceMatrix.needsUpdate = true;
@@ -224,6 +238,13 @@ export function createForestTreeDetails(
         next.set(site.id, chosen);
         stats.tiers[chosen]++;
         usedSpecies.add(site.species);
+        usedModels.add(model);
+        if (!preserveQuality) {
+          boundedSpecies.add(site.species);
+          boundedTriangles += model.triangles;
+          if (profile) tieredTrees++;
+          else untieredTrees++;
+        }
         stats.trees++;
         stats.triangles += model.triangles;
         if (shadow) {
@@ -232,6 +253,18 @@ export function createForestTreeDetails(
         }
       }
       selected = next;
+      // Evict least-recently-used inactive prototypes; previous views must never reserve the active species slots.
+      let cachedSpecies = new Set([...models.values()].map(model => model.species));
+      for (const [key, model] of models) {
+        if (
+          cachedSpecies.size <= FOREST_TREE_DETAIL_LIMIT.species &&
+          models.size <= FOREST_TREE_DETAIL_LIMIT.species * TREE_QUALITIES.length
+        )
+          break;
+        if (usedModels.has(model)) continue;
+        freeModel(key, model);
+        cachedSpecies = new Set([...models.values()].map(entry => entry.species));
+      }
       for (const model of models.values())
         for (const mesh of model.meshes)
           if (mesh.count) {
@@ -249,11 +282,7 @@ export function createForestTreeDetails(
       if (disposed) return;
       disposed = true;
       hidden = [];
-      for (const model of models.values()) {
-        for (const mesh of model.meshes) mesh.dispose();
-        model.lease.release();
-      }
-      models.clear();
+      for (const [key, model] of models) freeModel(key, model);
       selected.clear();
       group.removeFromParent();
       group.clear();

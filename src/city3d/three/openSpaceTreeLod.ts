@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { TreeSpecies } from "../../buildings/landscape/trees";
+import { type TreeSpecies, treeLodProfile } from "../../buildings/landscape/trees";
 import type { OpenSpaceSite } from "../../city-editor/renderers/openSpaceSites";
 import type { CityTerrain } from "../../city-editor/types/terrain";
 import { createForestTreeDetails, type ForestTreeSite } from "./forestTreeDetails";
@@ -16,9 +16,9 @@ export function createOpenSpaceTreeLod(
   const geometry = new THREE.BoxGeometry(1, 1, 1);
   const material = new THREE.MeshBasicMaterial();
   const placements = new THREE.InstancedMesh(geometry, material, sites.length);
-  const details = createForestTreeDetails(group, true, sites.length);
+  const details = createForestTreeDetails(group, sites.length);
   const candidates: ForestTreeSite[] = sites.map((site, index) => {
-    const height = site.height ?? (species === "sacred_yew" ? 7.8 : 11.2);
+    const height = site.height ?? treeLodProfile(species)?.heightMeters ?? 10;
     const radius = site.radius ?? (site.width ? site.width / 2 : 4);
     const matrix = new THREE.Matrix4().compose(
       new THREE.Vector3(site.point[0], heightAt(site.point) + 0.05, -site.point[1]),

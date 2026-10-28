@@ -47,14 +47,16 @@ const TIERS_ADDED: ModelCredit = {
 
 function tieredVariants(species: TreeSpecies): ModelVariant[] {
   const family = treeFamily(species);
-  const lod = species === "garden_parkland" ? "lime" : "yew";
+  // Historical comparison models are explicit overrides, never a fallback for a new species.
+  const comparisonMedium = COMPARISON_MEDIUM[species];
+  const author = TREE_AUTHORS[species];
   const variants: ModelVariant[] = TREE_QUALITIES.map(level => ({
-    id: variantId(family, level, "Codex GPT-6.1 Sol"),
+    id: variantId(family, level, author),
     family,
     level,
-    author: "Codex GPT-6.1 Sol",
+    author,
     credits:
-      level === "low"
+      comparisonMedium && level === "low"
         ? [
             { ...TIERS_ADDED, note: "Seven-lobe canopy silhouette" },
             {
@@ -64,28 +66,29 @@ function tieredVariants(species: TreeSpecies): ModelVariant[] {
               commit: "eb36c33b8"
             }
           ]
-        : level === "medium"
+        : comparisonMedium && level === "medium"
           ? [{ ...TIERS_ADDED, note: "Twenty-four independent lobes on short branches" }]
           : undefined,
-    create: () => (level === "medium" ? createTemperateTreeCodexMedium(lod) : createLandscapeTree(species, level))
+    create: () => (level === "medium" && comparisonMedium ? comparisonMedium() : createLandscapeTree(species, level))
   }));
   const high = variantId(family, "high", "Codex GPT-6.1 Sol");
-  variants.splice(2, 0, {
-    id: variantId(family, "medium", "Claude Opus 5.5"),
-    family,
-    level: "medium",
-    author: "Claude Opus 5.5",
-    basedOn: [high],
-    credits: [
-      {
-        author: "Claude Opus 5.5",
-        date: "2026-10-29",
-        note: "One fitted lobe per high-tier leaf spray on the high-tier branches, with the low tier's shading",
-        commit: "eb36c33b8"
-      }
-    ],
-    create: () => createLandscapeTree(species, "medium")
-  });
+  if (comparisonMedium)
+    variants.splice(2, 0, {
+      id: variantId(family, "medium", "Claude Opus 5.5"),
+      family,
+      level: "medium",
+      author: "Claude Opus 5.5",
+      basedOn: [high],
+      credits: [
+        {
+          author: "Claude Opus 5.5",
+          date: "2026-10-29",
+          note: "One fitted lobe per high-tier leaf spray on the high-tier branches, with the low tier's shading",
+          commit: "eb36c33b8"
+        }
+      ],
+      create: () => createLandscapeTree(species, "medium")
+    });
   if (species === "garden_parkland") {
     const opusHigh = variantId(family, "high", "Claude Opus 5.5");
     variants.splice(
@@ -125,6 +128,11 @@ function tieredVariants(species: TreeSpecies): ModelVariant[] {
   }
   return variants;
 }
+
+const COMPARISON_MEDIUM: Partial<Record<TreeSpecies, () => ReturnType<typeof createLandscapeTree>>> = {
+  garden_parkland: () => createTemperateTreeCodexMedium("lime"),
+  sacred_yew: () => createTemperateTreeCodexMedium("yew")
+};
 
 export const TREE_VARIANTS: readonly ModelVariant[] = TREE_SPECIES.flatMap(species =>
   hasTreeQualityLevels(species)

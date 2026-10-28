@@ -1,3 +1,4 @@
+import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import { createAridTree } from "./aridTrees";
 import { createBorealTree } from "./borealTrees";
 import { createEuropeanYew } from "./europeanYew";
@@ -34,20 +35,74 @@ export const TREE_SPECIES = [
 ] as const;
 export type TreeSpecies = (typeof TREE_SPECIES)[number];
 
-/** Meter-scale species models shared by BV and CE. Radius is set by the saved canopy. */
-export function hasTreeQualityLevels(species: TreeSpecies): boolean {
-  return species === "garden_parkland" || species === "sacred_yew";
+type TreeFactory = () => CityStructureMeshes;
+export interface TreeLodProfile {
+  selection: "distance" | "pixels";
+  /** Quality-first trees retain their selected tier regardless of the city's geometry budget. */
+  budget: "quality-first" | "bounded";
+  heightMeters: number;
+  models: Record<TreeQuality, TreeFactory>;
+}
+type TreeDefinition = { create: TreeFactory; lod?: undefined } | { lod: TreeLodProfile };
+
+/** One registration supplies BV factories and CE's woodland, park and churchyard LOD policy. */
+export const TREE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
+  garden_parkland: {
+    lod: {
+      selection: "distance",
+      budget: "quality-first",
+      heightMeters: 11.2,
+      models: {
+        low: () => createSmallLeavedLime("low"),
+        medium: () => createSmallLeavedLime("medium"),
+        high: () => createSmallLeavedLime("high"),
+        ultra: () => createSmallLeavedLime("ultra")
+      }
+    }
+  },
+  sacred_yew: {
+    lod: {
+      selection: "pixels",
+      budget: "bounded",
+      heightMeters: 7.8,
+      models: {
+        low: () => createEuropeanYew("low"),
+        medium: () => createEuropeanYew("medium"),
+        high: () => createEuropeanYew("high"),
+        ultra: () => createEuropeanYew("ultra")
+      }
+    }
+  },
+  norway_spruce: { create: () => createBorealTree("norway_spruce") },
+  silver_birch: { create: () => createBorealTree("silver_birch") },
+  date_palm: { create: () => createAridTree("date_palm") },
+  umbrella_thorn: { create: () => createAridTree("umbrella_thorn") },
+  saxaul: { create: () => createAridTree("saxaul") },
+  kapok: { create: createKapok },
+  western_red_cedar: { create: () => createWetTemperateTree("western_red_cedar") },
+  black_alder: { create: () => createWetTemperateTree("black_alder") },
+  olive: { create: () => createMediterraneanMontaneTree("olive") },
+  silver_fir: { create: () => createMediterraneanMontaneTree("silver_fir") },
+  red_mangrove: { create: () => createSaltTolerantTree("red_mangrove") },
+  tamarisk: { create: () => createSaltTolerantTree("tamarisk") },
+  rowan: { create: () => createUplandTree("rowan") },
+  canary_pine: { create: () => createUplandTree("canary_pine") },
+  mediterranean_cypress: { create: () => createSacredGardenTree("mediterranean_cypress") },
+  oriental_evergreen: { create: () => createSacredGardenTree("oriental_evergreen") },
+  sacred_bodhi_and_fig: { create: () => createSacredGardenTree("sacred_bodhi_and_fig") },
+  peaceful_willow: { create: () => createSacredGardenTree("peaceful_willow") }
+};
+
+export function treeLodProfile(species: TreeSpecies): TreeLodProfile | undefined {
+  return TREE_DEFINITIONS[species].lod;
 }
 
+export function hasTreeQualityLevels(species: TreeSpecies): boolean {
+  return treeLodProfile(species) !== undefined;
+}
+
+/** Meter-scale species models shared by BV and CE. Radius is set by the saved canopy. */
 export function createLandscapeTree(species: TreeSpecies, quality: TreeQuality = "ultra") {
-  if (species === "norway_spruce" || species === "silver_birch") return createBorealTree(species);
-  if (species === "date_palm" || species === "umbrella_thorn" || species === "saxaul") return createAridTree(species);
-  if (species === "kapok") return createKapok();
-  if (species === "rowan" || species === "canary_pine") return createUplandTree(species);
-  if (species === "red_mangrove" || species === "tamarisk") return createSaltTolerantTree(species);
-  if (species === "olive" || species === "silver_fir") return createMediterraneanMontaneTree(species);
-  if (species === "western_red_cedar" || species === "black_alder") return createWetTemperateTree(species);
-  if (species === "garden_parkland") return createSmallLeavedLime(quality);
-  if (species === "sacred_yew") return createEuropeanYew(quality);
-  return createSacredGardenTree(species);
+  const definition = TREE_DEFINITIONS[species];
+  return definition.lod ? definition.lod.models[quality]() : definition.create();
 }

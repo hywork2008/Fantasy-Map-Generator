@@ -18,20 +18,35 @@ function trees(group: THREE.Group) {
   return counts;
 }
 
+it("uses registered pixel LOD for churchyard yews without a biome-specific opt-in", () => {
+  const model = createTownOpenSpaces({
+    surfaces: [],
+    sites: [{ model: "sacred_yew", point: [0, 500], height: 10, radius: 4, angle: 0 }]
+  });
+  try {
+    const c = camera();
+    model.update(c, 720);
+    expect(trees(model.group).get("low")).toBe(1);
+    c.zoom = 10;
+    c.updateProjectionMatrix();
+    model.update(c, 720);
+    expect(trees(model.group).get("high")).toBe(1);
+    expect(model.group.getObjectByName("sacred_yew-instances")).toBeUndefined();
+  } finally {
+    model.dispose();
+  }
+});
+
 it("draws four camera-distance tiers together, culls off-screen trees and switches on camera movement without rebuilding surfaces", () => {
-  const model = createTownOpenSpaces(
-    {
-      surfaces: [],
-      sites: [30, 100, 300, 1000, -100].map(distance => ({
-        model: "garden_parkland",
-        point: [0, distance],
-        radius: 4,
-        angle: 0
-      }))
-    },
-    undefined,
-    "lime"
-  );
+  const model = createTownOpenSpaces({
+    surfaces: [],
+    sites: [30, 100, 300, 1000, -100].map(distance => ({
+      model: "garden_parkland",
+      point: [0, distance],
+      radius: 4,
+      angle: 0
+    }))
+  });
   const c = camera();
   model.update(c, 720);
   expect([...trees(model.group).entries()].sort()).toEqual([

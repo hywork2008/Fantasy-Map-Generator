@@ -12,7 +12,7 @@ it("instances repeated trees at plan coordinates and terrain heights and release
       { model: "sacred_yew", point: [-17, -62], angle: 0.5, radius: 3 }
     ]
   };
-  const meshes = createTownOpenSpaces(plan, { heightAt: ([x]) => x + 100, foundationAt: () => 200 });
+  const meshes = createTownOpenSpaces(plan, { heightAt: ([x]) => x + 100, foundationAt: () => 200 }, false);
   expect(meshes.pickables.length).toBeLessThan(6);
   const matrix = new THREE.Matrix4();
   for (const mesh of meshes.pickables as THREE.InstancedMesh[]) {
@@ -146,7 +146,8 @@ it("keeps tree ground level at the site height while roots remain underground", 
   for (const kind of ["garden_parkland", "sacred_yew"] as const) {
     const model = createTownOpenSpaces(
       { surfaces: [], sites: [{ model: kind, point: [0, 0], angle: 0 }] },
-      { heightAt: () => 10, foundationAt: () => 10 }
+      { heightAt: () => 10, foundationAt: () => 10 },
+      false
     );
     const wood =
       model.pickables.find(
