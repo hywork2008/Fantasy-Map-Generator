@@ -219,6 +219,8 @@ export function getAnnualHerdRenewal(cellId: number, good: Good) {
  * Heads a managed grazed herd should sell this month: this year's natural increase plus any stock
  * above the supported herd, spread over twelve settlements. Replaces the biome-rate flow, so meat
  * and live sales follow the herd that actually exists rather than the cell's population x biome rate.
+ * The supported herd bounds the herd just after the January renewal, so next year's increase is sold
+ * in advance and the herd that enters winter fits its feed (E1-5, §7.71).
  */
 export function getGrazedMonthlyOfftakeHeads(cellId: number, good: Good): number {
   const cohorts = getFaunaStockTable()?.[getStockKey(cellId, good.name)];
@@ -552,6 +554,26 @@ function applyCull(cohorts: FaunaCohorts, amount: number, selectivity: number): 
   return draw;
 }
 
+/** Young a keeper holds back per breeding animal for renewal; matches the winter-slaughter rule. */
+export const HERD_SALE_YOUNG_RETAINED_PER_BREEDER = 0.5;
+
+/**
+ * A keeper's sale from a managed herd: old stock, then young beyond renewal needs, and breeding
+ * animals only after those (E1-5, §7.71). Selling breeders first cut the next year's births.
+ */
+function applyHerdSale(cohorts: FaunaCohorts, amount: number): void {
+  let remaining = Math.min(Math.max(0, amount), cohortTotal(cohorts));
+  const take = (cohort: keyof FaunaCohorts, limit: number) => {
+    const heads = Math.min(remaining, Math.max(0, limit));
+    cohorts[cohort] -= heads;
+    remaining -= heads;
+  };
+  take("old", cohorts.old);
+  take("young", cohorts.young - cohorts.breeding * HERD_SALE_YOUNG_RETAINED_PER_BREEDER);
+  take("breeding", cohorts.breeding);
+  take("young", cohorts.young);
+}
+
 function ensureStock(
   table: Record<string, FaunaCohorts>,
   cellId: number,
@@ -658,7 +680,8 @@ export function dispatchDomesticatedFauna(
   if (stock) {
     const herd = ensureStock(stock, cellId, good.name, capacity);
     const opening = { ...herd };
-    applyCull(herd, heads, getDomesticatedCullSelectivity(cellId));
+    if (isManagedHerdGood(good.name)) applyHerdSale(herd, heads);
+    else applyCull(herd, heads, getDomesticatedCullSelectivity(cellId));
     cohortHeads = {
       young: opening.young - herd.young,
       breeding: opening.breeding - herd.breeding,
