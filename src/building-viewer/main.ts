@@ -1046,7 +1046,7 @@ function showOpusGalleon(): void {
   controls.update();
   mountPlan(roofHost, meshProjection(model, "side"));
   mountPlan(levelHost, meshProjection(model, "top"));
-  facts.append(
+  appendFacts(
     fact("Model", OPUS_GALLEON.name),
     fact(
       "Quality",
