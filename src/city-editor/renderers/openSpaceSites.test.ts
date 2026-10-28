@@ -159,3 +159,39 @@ it("derives solid water-terrace steps with increasing heights", () => {
   expect(steps.map(s => s.height)).toEqual([0.2, 0.4, 0.6000000000000001]);
   expect(steps.every(s => s.width === 20 && s.depth === 0.85)).toBe(true);
 });
+
+it("uses boreal BV species for cold taiga parks and cemeteries while retaining saved footprints", () => {
+  const document = {
+    ...city,
+    biome: { id: 9, key: "taiga", name: "Taiga", color: "green" },
+    buildingAppearanceContext: {
+      period: "ageOfExploration",
+      temperatureC: 1,
+      forest: true,
+      arid: false,
+      wetland: false
+    }
+  };
+  const park = {
+    faceId: "park",
+    lawnPolygons: [ring],
+    paths: [],
+    grassTufts: [],
+    trees: Array.from({ length: 12 }, (_, i) => ({ center: [i * 7, 10] as Point, radius: 3, subCircles: [] }))
+  };
+  const saved = cemetery();
+  saved.trees = [[15, 15]];
+  const before = JSON.stringify({ park, saved });
+  const result = collectOpenSpacePlan([park], [saved], document);
+  const trees = result.sites.filter(site => site.model === "norway_spruce" || site.model === "silver_birch");
+  expect(trees).toHaveLength(13);
+  expect(trees.some(tree => tree.model === "silver_birch")).toBe(true);
+  expect(trees.find(tree => tree.point[0] === 15 && tree.point[1] === 15)?.model).toBe("norway_spruce");
+  expect(trees.filter(tree => tree.radius).map(tree => tree.radius)).toEqual(park.trees.map(tree => tree.radius));
+  expect(JSON.stringify({ park, saved })).toBe(before);
+  const barren = {
+    ...saved,
+    burialProfile: Object.values(BURIAL_CULTURE_PRESETS).find(profile => profile.vegetation === "barren_gravel")!
+  };
+  expect(collectOpenSpacePlan([], [barren], document).sites.some(site => site.model === "norway_spruce")).toBe(false);
+});

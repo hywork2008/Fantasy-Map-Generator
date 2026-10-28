@@ -25,6 +25,10 @@ export const ProvinceNameEditorDialog: React.FC = () => {
     >
       <div id="provinceNameEditorContainer">
         <div>
+          <div className="label">ID:</div>
+          <span id="provinceNameEditorId">{nameEditor.provinceId}</span>
+        </div>
+        <div>
           <div data-tip="Province short name" className="label">
             Short name:
           </div>

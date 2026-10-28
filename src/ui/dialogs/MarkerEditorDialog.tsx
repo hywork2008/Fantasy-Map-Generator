@@ -7,8 +7,21 @@ import { Dialog } from "./Dialog";
 
 export const MarkerEditorDialog: React.FC = () => {
   const { t } = useTranslation();
-  const { isOpen, type, icon, iconSize, iconShiftX, iconShiftY, size, pin, fill, stroke, isLocked, isAdding } =
-    useMarkersEditorState();
+  const {
+    isOpen,
+    selectedId,
+    type,
+    icon,
+    iconSize,
+    iconShiftX,
+    iconShiftY,
+    size,
+    pin,
+    fill,
+    stroke,
+    isLocked,
+    isAdding
+  } = useMarkersEditorState();
 
   if (!isOpen) return null;
 
@@ -17,6 +30,10 @@ export const MarkerEditorDialog: React.FC = () => {
   return (
     <Dialog isOpen={isOpen} title={t("dialogs.titles.markerEditor")} onClose={closeMarkerEditor}>
       <div id="markerBody">
+        <div>
+          <div className="label">ID:</div>
+          <span id="markerId">{selectedId}</span>
+        </div>
         <div data-tip="Marker type. Style changes will apply to all markers of the same type. Leave blank if the marker is unique">
           <div className="label">Type:</div>
           <input id="markerType" value={type} onChange={e => markersEditorActions.changeMarkerType(e.target.value)} />

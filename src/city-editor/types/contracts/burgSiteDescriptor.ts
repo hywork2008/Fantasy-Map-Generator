@@ -56,6 +56,8 @@ export interface BurgSiteDescriptor {
   };
   frame: {
     regionalMode?: boolean;
+    /** Display origin relative to the FMG burg, in local metres. */
+    urbanCenterOffsetMeters?: [number, number];
     /** Local metre bounds that frame fitting must retain. */
     requiredBounds?: RequiredSiteBounds;
     originMapUnits: [number, number];

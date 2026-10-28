@@ -1,9 +1,12 @@
 import { ModelKit } from "../medieval/modelKit";
+import { createBorealTree } from "./borealTrees";
 import { createEuropeanYew } from "./europeanYew";
 import { createSmallLeavedLime } from "./smallLeavedLime";
 
 export const TREE_SPECIES = [
   "garden_parkland",
+  "norway_spruce",
+  "silver_birch",
   "sacred_yew",
   "mediterranean_cypress",
   "oriental_evergreen",
@@ -14,6 +17,7 @@ export type TreeSpecies = (typeof TREE_SPECIES)[number];
 
 /** Stylized meter-scale silhouettes shared by BV and CE. Radius is set by the saved canopy. */
 export function createLandscapeTree(species: TreeSpecies) {
+  if (species === "norway_spruce" || species === "silver_birch") return createBorealTree(species);
   if (species === "garden_parkland") return createSmallLeavedLime();
   if (species === "sacred_yew") return createEuropeanYew();
   const k = new ModelKit(species);

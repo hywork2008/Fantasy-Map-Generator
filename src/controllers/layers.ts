@@ -46,6 +46,7 @@ import { viewLayerService as view } from "../services/viewLayerService";
 import { rulers } from "../store/editorState";
 import { openPrompt } from "../ui/dialogs/dialogService";
 import { isCtrlClick } from "../utils";
+import { clearDiplomacyBadges, renderDiplomacyBadges } from "./diplomacy-badges";
 
 let worldContext: WorldContext;
 let appServices: AppServices;
@@ -183,6 +184,7 @@ function getDefaultPresets(): Record<string, string[]> {
     military: [
       "toggleBorders",
       "toggleBurgIcons",
+      "toggleDiplomacy",
       "toggleFrontierForts",
       "toggleLabels",
       "toggleMilitary",
@@ -253,6 +255,34 @@ export function applyLayersPreset(): void {
 function setLayersPreset(preset: string): void {
   useLayerState.getState().setActivePreset(preset);
   localStorage.setItem("preset", preset);
+  syncPresetBurgIconEmphasis();
+}
+
+/**
+ * Military map preset marks every fort with a 🏰 at regiment-emblem size (box-size * 2). It lives in its own
+ * group under #icons so burg-group zoom culling and icon font-size dampening do not hide or shrink it.
+ */
+export function syncPresetBurgIconEmphasis(): void {
+  view.icons.select("#fortMarkers").remove();
+  if (useLayerState.getState().activePreset !== "military") return;
+
+  const forts = worldContext.pack.burgs.filter(b => b.i && !b.removed && b.group === "fort");
+  if (!forts.length) return;
+  const size = (+view.armies.attr("box-size") || 3) * 2;
+  view.icons
+    .append("g")
+    .attr("id", "fortMarkers")
+    .attr("pointer-events", "none")
+    .attr("font-size", size)
+    .attr("text-anchor", "middle")
+    .attr("dominant-baseline", "central")
+    .attr("filter", "drop-shadow(0 0 1px rgba(0,0,0,0.8))")
+    .selectAll("text")
+    .data(forts)
+    .join("text")
+    .attr("x", d => d.x)
+    .attr("y", d => d.y)
+    .text("🏰");
 }
 
 export function handleLayersPresetChange(preset: string): void {
@@ -426,6 +456,7 @@ export function paintSvgMapLayers(): void {
     measureGenerationStep("BurgIconsRenderer", () => BurgIconsRenderer.render(worldContext, viewContext, appServices));
   if (layerIsOn("toggleMilitary"))
     measureGenerationStep("MilitaryRenderer", () => MilitaryRenderer.render(worldContext, viewContext, appServices));
+  if (layerIsOn("toggleDiplomacy")) measureGenerationStep("renderDiplomacyBadges", renderDiplomacyBadges);
   if (layerIsOn("toggleMarkers"))
     measureGenerationStep("MarkersRenderer", () => MarkersRenderer.render(worldContext, viewContext, appServices));
   if (layerIsOn("toggleFrontierForts"))
@@ -436,6 +467,7 @@ export function paintSvgMapLayers(): void {
     for (const hook of _drawLayerHooks) hook();
   });
   if (layerIsOn("toggleRulers")) rulers.draw();
+  syncPresetBurgIconEmphasis();
   syncWebglManagedSvgLayerVisibility();
 }
 
@@ -999,6 +1031,17 @@ export function toggleWinds(event?: MouseEvent): void {
   else turnButtonOn("toggleWinds");
 }
 
+/** Half-and-half relation badges on every shared state border (also shown by the Diplomacy Editor). */
+export function toggleDiplomacy(): void {
+  if (!layerIsOn("toggleDiplomacy")) {
+    turnButtonOn("toggleDiplomacy");
+    renderDiplomacyBadges();
+  } else {
+    clearDiplomacyBadges();
+    turnButtonOff("toggleDiplomacy");
+  }
+}
+
 export function toggleMilitary(event?: MouseEvent): void {
   if (toggleWebglManagedLayer("toggleMilitary", "armies", event)) return;
   if (!layerIsOn("toggleMilitary")) {
@@ -1238,6 +1281,7 @@ const TOGGLE_REGISTRY: Record<string, (event?: MouseEvent) => void> = {
   toggleSeaCurrents,
   toggleOceanCurrents,
   toggleWinds,
+  toggleDiplomacy,
   toggleMilitary,
   toggleMarkers,
   toggleFrontierForts,

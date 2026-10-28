@@ -44,6 +44,10 @@ export const StateNameEditorDialog: React.FC = () => {
         <table className="fmg-table fmg-property-table">
           <tbody>
             <tr>
+              <th scope="row">ID:</th>
+              <td id="stateNameEditorId">{nameEditor.stateId}</td>
+            </tr>
+            <tr>
               <th scope="row">
                 <label htmlFor="stateShortNameInput" data-tip="State short name">
                   Short name:

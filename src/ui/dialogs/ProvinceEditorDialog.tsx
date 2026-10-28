@@ -176,6 +176,10 @@ export const ProvinceEditorDialog: React.FC = () => {
             <table className="fmg-table fmg-property-table">
               <tbody>
                 <tr>
+                  <th scope="row">ID:</th>
+                  <td id="provinceId">{provinceId}</td>
+                </tr>
+                <tr>
                   <th scope="row">Form</th>
                   <td>{provinceRow.formName}</td>
                 </tr>

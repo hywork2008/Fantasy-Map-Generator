@@ -22,6 +22,10 @@ export const LakeEditorDialog: React.FC = () => {
     <Dialog isOpen={isOpen} title={t("dialogs.titles.editLake")} onClose={() => closeDialog("lakeEditor")}>
       <div id="lakeBody">
         <div>
+          <div className="label">ID:</div>
+          <span id="lakeId">{lakeData.id}</span>
+        </div>
+        <div>
           <div className="label">Name:</div>
           <IconButton
             data-tip="Generate culture-specific name for the lake"

@@ -8,6 +8,7 @@ import { createTownBridges, type TownBridges } from "../../city3d/three/bridgeMe
 import { createTownBuildingDetails, type TownBuildingDetails } from "../../city3d/three/buildingDetails";
 import { bvInstanceGeometry, createBvPrototypeCache } from "../../city3d/three/bvInstances";
 import { type CityMassingMeshes, createCityMassing } from "../../city3d/three/cityMeshes";
+import { createTownCranes, createTownHarborCargo } from "../../city3d/three/craneMeshes";
 import { createTownFacilities, type TownFacilities } from "../../city3d/three/facilityMeshes";
 import { createTownFarms, type TownFarmMeshes } from "../../city3d/three/farmMeshes";
 import { createTownFriaries } from "../../city3d/three/friaryMeshes";
@@ -223,6 +224,9 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   let objects: ReturnType<typeof createTownObjects> | null = null;
   let objectStamp: string | null = null;
   let piers: CityStructureMeshes | null = null;
+  let cranes: ReturnType<typeof createTownCranes> | null = null;
+  let craneStamp = "";
+  let harborCargo: ReturnType<typeof createTownHarborCargo> | null = null;
   let pierStamp: string | null = null;
   let waterMeshes: TownWaterMeshes | null = null;
   let roadMeshes: TownRoadMeshes | null = null;
@@ -593,12 +597,17 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     const shipsChanged = plan.water || shipStamp !== nextShipStamp || !scene.getObjectByName("ce-ships");
     const pierSites = collectPierSites(city, fabric.harbor);
     const nextPierStamp = JSON.stringify(pierSites);
+    const nextCraneStamp = JSON.stringify([fabric.harbor?.cranes ?? [], fabric.harbor?.cargoPiles ?? []]);
+    const cranesChanged = terrainChanged || craneStamp !== nextCraneStamp || !cranes;
     const piersChanged =
       plan.water || terrainChanged || pierStamp !== nextPierStamp || !scene.getObjectByName("ce-piers");
     const nextOpenSpaceStamp = JSON.stringify([
       fabric.parks ?? null,
       city.cemeteries ?? city.mesh,
       city.burialProfile,
+      city.biome,
+      city.buildingAppearanceContext,
+      city.fabric?.generation?.settings.descriptor?.climate,
       city.historicalPeriod
     ]);
     const openSpacesChanged = terrainChanged || plan.buildings || openSpaceStamp !== nextOpenSpaceStamp || !openSpaces;
@@ -613,6 +622,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       !objectsChanged &&
       !shipsChanged &&
       !piersChanged &&
+      !cranesChanged &&
       !openSpacesChanged &&
       !friariesChanged &&
       !bridgesChanged &&
@@ -629,7 +639,11 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       friaryStamp = nextFriaryStamp;
     }
     if (openSpacesChanged) {
-      const openSpacePlan = collectOpenSpacePlan(fabric.parks ?? buildParkLawns(city), resolveCemeteryPlans(city));
+      const openSpacePlan = collectOpenSpacePlan(
+        fabric.parks ?? buildParkLawns(city),
+        resolveCemeteryPlans(city),
+        city
+      );
       if (openSpaces) scene.remove(openSpaces.group);
       openSpaces?.dispose();
       openSpaces = createTownOpenSpaces(openSpacePlan, terrain ?? undefined);
@@ -677,6 +691,19 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       ships = createTownShips(shipSites, point => townWaterHeightAt(waterMeshes!, point));
       scene.add(ships.group);
       shipStamp = nextShipStamp;
+    }
+    if (cranesChanged) {
+      cranes?.dispose();
+      harborCargo?.dispose();
+      harborCargo = createTownHarborCargo(
+        fabric.harbor?.cargoPiles ?? [],
+        point => terrain?.heightAt(point) ?? 0,
+        bvPrototypes
+      );
+      scene.add(harborCargo.group);
+      cranes = createTownCranes(fabric.harbor?.cranes ?? [], point => terrain?.heightAt(point) ?? 0, bvPrototypes);
+      scene.add(cranes.group);
+      craneStamp = nextCraneStamp;
     }
     if (piersChanged && waterMeshes) {
       piers?.dispose();
@@ -890,6 +917,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     friaries?.dispose();
     farmland?.dispose();
     piers?.dispose();
+    cranes?.dispose();
+    harborCargo?.dispose();
     roadMeshes?.dispose();
     ground?.geometry.dispose();
     (ground?.material as THREE.Material | undefined)?.dispose();

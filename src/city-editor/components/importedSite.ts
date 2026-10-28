@@ -36,11 +36,19 @@ export function describeImportedSite(descriptor: BurgSiteDescriptor, origin: Inc
     ],
     [
       editorText("cityEditor.messages.port"),
-      descriptor.burg.port
-        ? descriptor.waterbody
-          ? editorText("cityEditor.messages.yes")
-          : editorText("cityEditor.messages.yesNoWaterbody")
-        : editorText("cityEditor.messages.no")
+      descriptor.burg.waterAccess
+        ? [
+            descriptor.burg.waterAccess.port.sea && editorText("cityEditor.fmgParameters.seaPort"),
+            descriptor.burg.waterAccess.port.river && editorText("cityEditor.fmgParameters.riverPort"),
+            descriptor.burg.waterAccess.port.lake && editorText("cityEditor.fmgParameters.lakePort")
+          ]
+            .filter(Boolean)
+            .join(" · ") || yesNo(false)
+        : descriptor.burg.port
+          ? descriptor.waterbody
+            ? yesNo(true)
+            : editorText("cityEditor.messages.yesNoWaterbody")
+          : yesNo(false)
     ]
   ];
   if (descriptor.urbanMorphology) {

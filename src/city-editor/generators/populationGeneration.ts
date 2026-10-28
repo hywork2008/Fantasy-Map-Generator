@@ -7,9 +7,22 @@ import { hasBuildingHeightLimits } from "./buildingHeightLimits";
 import { supportsBuildingHeightVariation } from "./buildingHeightPolicy";
 import { createGridDocument, sizePresetForExtent } from "./document";
 import { PopulationSettingError, planPopulation } from "./populationPlan";
+import { centerWideWaterfront } from "./site/centerWideWaterfront";
 
 /** No synthetic burg, state, or economy is needed to generate a standalone population. */
 export function preparePopulationGeneration(document: CityDocument, settings: GenerationSettings, seed: string) {
+  if (
+    settings.descriptor &&
+    !document.featureGroups.some(group => group.locked || !group.id.startsWith("gc:")) &&
+    !Object.values(document.mesh.faces).some(face => face.properties.locked) &&
+    !document.elements.some(element => element.locked)
+  ) {
+    const descriptor = centerWideWaterfront(settings.descriptor);
+    if (descriptor !== settings.descriptor || descriptor.frame.urbanCenterOffsetMeters) {
+      settings = { ...settings, descriptor };
+      document = { ...document, frame: { ...document.frame, extentMeters: descriptor.frame.extentMeters } };
+    }
+  }
   // An unmodified FMG population keeps the FMG-linked generator: its descriptor already
   // carries the burg's population, and only an explicit CE override switches methods.
   if (settings.population?.source === "fmg") {

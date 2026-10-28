@@ -67,6 +67,7 @@ function updateRiverData(): void {
 
   import("../store/riverEditorState").then(({ getRiverEditorState }) => {
     getRiverEditorState().setRiverData({
+      id: r.i,
       name: r.name,
       type: r.type,
       parent: String(parent),
