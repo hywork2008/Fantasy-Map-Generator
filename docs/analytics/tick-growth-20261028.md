@@ -66,6 +66,19 @@
 
 observer なしの3か月を2回、observer ありの3か月を1回実行し、golden をセクション別に比べた。差は3回とも`world.notes`だけで、シミュレーションの状態は決定的で、observer は結果を変えない。golden の全体ハッシュが毎回変わるのは`world.notes`による。
 
+## 追加: L1（ロットの索引）の効果（2026-10-28）
+
+[台帳の計画](../plan/livestock-lot-ledger-performance.md)の L1（取引ごとの全ロット走査を、市場×種・所有者×種の索引に置き換え）の後に、同じ条件で48か月を再計測した（`tick-growth-20261028/world-48-l1.json`）。
+
+| 月 | 1 | 12 | 24 | 36 | 48 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 1か月の時間（秒、前→後） | 16→16 | 27→17 | 75→16 | 142→17 | 279→20 |
+| `production:rural`の self（秒、前→後） | 1→1 | 9→1 | 48→1 | 103→1 | 220→1 |
+
+- 48か月の合計は69分→9分。月の時間は48か月を通じてほぼ一定（序盤と終盤の比1.09）。
+- 12か月の golden はセクション別に`world.notes`以外が変更前と一致した（`raw/l1-before-12.sections.json`・`raw/l1-after-12.sections.json`）。
+- ロットは48か月目に104,643件、`shipments`は265,514件、`exits`のキーは173,999件で、件数は増え続ける。速度には効かなくなったが、保存ファイルの大きさには効く（L3）。
+
 ## 計測が結果を変えないことの確認（手順7）
 
 12か月の golden ハッシュ（`hashArchiveBytes(host.saveArchive())`）は、observer あり `93398b63…`、なし `b1e982c0…`、なしの再実行 `dd1be9ca…` で、observer なし同士でも一致しなかった。保存されるアーカイブか、この実行経路そのものが実行ごとに変わるため、この方法では observer の影響を判定できない。→ 追加の確認で、差は`world.notes`だけと分かった（上記）。
@@ -82,3 +95,7 @@ observer なしの3か月を2回、observer ありの3か月を1回実行し、g
     2ba30d06ac612435142df8afd5a73190132fe16ea5b4705d64b5c82e8666e8bc  raw/tick-hash-3-a.sections.json
     e85277b687511e7895babf1ae7cdd3ac96f6ff1e2c31a1172f59dd2fcc3a6bdb  raw/tick-hash-3-b.sections.json
     9b6afbe6fab07f3965884e53086441f4edbcea3015c37d02a75e2d0c10c28d6b  raw/tick-hash-3-obs.sections.json
+    3552f1010c3ecf5e8e458bb1a6791066d7fe2f7d702f6825da3b1a7ec233a7dd  tick-growth-20261028/world-48-l1.json
+    517601b8a94629f31535817574ef36ed0d6dd5c8a60b28bb0243bea98edc5145  raw/tick-growth-20261028-world-48-l1.log
+    908b25968133ac2ac56757887b7ab0f8e633b78e0379048b1896281bc75e35d7  raw/l1-before-12.sections.json
+    a0d16b362008201bcde7bdf2676168bb0ada3689af433587e9d4e1c56ab63e21  raw/l1-after-12.sections.json
