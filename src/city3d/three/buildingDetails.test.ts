@@ -163,3 +163,19 @@ describe("near facade details", () => {
     expect(details.group.children).toHaveLength(0);
   });
 });
+
+it("keeps distant fallback facades beyond the automatic count cap when urban simplification is off", () => {
+  const source = buildingAppearancePreview("northern-urban")[0];
+  const lots = Array.from({ length: 60 }, (_, i) => ({ ...source, id: `fallback-${i}` }));
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 20000);
+  camera.position.set(0, 10000, 1);
+  camera.lookAt(0, 0, 0);
+  const automatic = createTownBuildingDetails(lots);
+  const full = createTownBuildingDetails(lots, undefined, false);
+  automatic.update(camera, 720);
+  full.update(camera, 720);
+  expect(automatic.stats.buildings).toBe(0);
+  expect(full.stats.buildings).toBe(lots.length);
+  automatic.dispose();
+  full.dispose();
+});

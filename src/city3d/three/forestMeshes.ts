@@ -137,7 +137,8 @@ export function createTownForest(
   document: CityDocument,
   plan: ForestPlan,
   terrain?: Pick<CityTerrain, "heightAt" | "relief">,
-  initialQuality: Forest3dQuality = "standard"
+  initialQuality: Forest3dQuality = "standard",
+  simplify = true
 ) {
   const group = new THREE.Group();
   group.name = "ce-forest";
@@ -333,7 +334,7 @@ export function createTownForest(
   const prototypes = new Map<string, THREE.BufferGeometry>();
   const cache = new Map<string, TreeLayer>();
   const costs = new Map<string, Pick<TreeLayer, "trees" | "triangles" | "calls">>();
-  let quality = FOREST_3D_BUDGET[initialQuality] ? initialQuality : "standard";
+  let quality = simplify ? (FOREST_3D_BUDGET[initialQuality] ? initialQuality : "standard") : "high";
   let disposed = false,
     signature = "",
     shadowSignature = "";
@@ -449,7 +450,7 @@ export function createTownForest(
     stats,
     bounds: bounds3d,
     setQuality(next: Forest3dQuality) {
-      const normalized = FOREST_3D_BUDGET[next] ? next : "standard";
+      const normalized = simplify ? (FOREST_3D_BUDGET[next] ? next : "standard") : "high";
       if (quality === normalized) return false;
       quality = normalized;
       signature = "";
@@ -462,7 +463,15 @@ export function createTownForest(
       if (nextSignature === signature) return false;
       signature = nextSignature;
       details.reset();
-      const budget = FOREST_3D_BUDGET[quality];
+      const budget = simplify
+        ? FOREST_3D_BUDGET[quality]
+        : {
+            trees: Infinity,
+            triangles: Infinity,
+            calls: Infinity,
+            shadowTriangles: Infinity
+          };
+      const cacheLimit = simplify ? CACHE_LIMIT : Infinity;
       frustum.setFromProjectionMatrix(matrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
       const scale = (viewportHeight * camera.zoom) / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
       const visible = chunks
@@ -493,8 +502,8 @@ export function createTownForest(
         detailedSpecies: []
       });
       const detailSites: ForestTreeSite[] = [];
-      const triangleLimit = quality === "high" ? 320000 : budget.triangles;
-      const shadowLimit = quality === "high" ? 60000 : budget.shadowTriangles;
+      const triangleLimit = !simplify ? Infinity : quality === "high" ? 320000 : budget.triangles;
+      const shadowLimit = !simplify ? 0 : quality === "high" ? 60000 : budget.shadowTriangles;
       const used = new Set<string>(),
         casters: string[] = [];
       if (visible.length > budget.calls) {
@@ -509,8 +518,9 @@ export function createTownForest(
         for (const { chunk, distance: dist } of visible) {
           const pixels = (8 * scale) / Math.max(1, dist);
           const previous = chunk.mode;
-          const target: LOD =
-            pixels >= (previous === "near" ? 34 : 44)
+          const target: LOD = !simplify
+            ? "near"
+            : pixels >= (previous === "near" ? 34 : 44)
               ? "near"
               : pixels >= (previous !== "far" ? 18 : 24)
                 ? "middle"
@@ -523,7 +533,7 @@ export function createTownForest(
               chunk.far.visible = true;
               break;
             }
-            if (used.size >= CACHE_LIMIT) continue;
+            if (used.size >= cacheLimit) continue;
             const cost = costs.get(`${chunk.id}:${mode}`);
             if (
               cost &&
@@ -571,18 +581,24 @@ export function createTownForest(
         }
       }
       for (const [key, layer] of cache) {
-        if (cache.size <= CACHE_LIMIT) break;
+        if (cache.size <= cacheLimit) break;
         if (used.has(key)) continue;
         for (const mesh of layer.meshes) mesh.dispose();
         layer.group.removeFromParent();
         cache.delete(key);
       }
       if (quality === "high") {
-        const result = details.update(camera, viewportHeight, detailSites, {
-          triangles: Math.max(0, budget.triangles - stats.triangles),
-          calls: Math.max(0, budget.calls - stats.calls),
-          shadowTriangles: Math.max(0, budget.shadowTriangles - stats.shadowTriangles)
-        });
+        const result = details.update(
+          camera,
+          viewportHeight,
+          detailSites,
+          {
+            triangles: Math.max(0, budget.triangles - stats.triangles),
+            calls: Math.max(0, budget.calls - stats.calls),
+            shadowTriangles: Math.max(0, budget.shadowTriangles - stats.shadowTriangles)
+          },
+          simplify
+        );
         stats.triangles += result.triangles;
         stats.calls += result.calls;
         stats.shadowTriangles += result.shadowTriangles;

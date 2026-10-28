@@ -305,6 +305,7 @@ it("updates forest quality and camera LOD without rebuilding city geometry and r
     Object.assign(face.properties, { ward: "farm", settlement: "outskirts" });
   let city = withForestSettings(source, { version: 1, mode: "surroundings", density: "standard" });
   let forestQuality: ForestQualityPreference = "standard";
+  let simplification = { urban: "auto" as "auto" | "off", outskirts: "auto" as "auto" | "off" };
   const getDocument = vi.fn(() => city);
   const scope = beginEditorMount(host);
   const view = mountCity3d({
@@ -312,14 +313,15 @@ it("updates forest quality and camera LOD without rebuilding city geometry and r
     map,
     scope,
     getDocument,
-    getForestQuality: () => forestQuality
+    getForestQuality: () => forestQuality,
+    getSimplification: () => simplification
   });
   try {
     host.querySelector<HTMLButtonElement>(".ce-view-toggle")!.click();
     flush();
     const scene = render.mock.lastCall![0] as THREE.Scene;
     const forest = scene.getObjectByName("ce-forest");
-    const massing = scene.getObjectByName("massing");
+    let massing = scene.getObjectByName("massing");
     expect(forest).toBeDefined();
     expect(view.getPerformance()?.forest?.areaM2).toBeGreaterThan(0);
     const traverse = vi.spyOn(scene, "traverse");
@@ -367,6 +369,29 @@ it("updates forest quality and camera LOD without rebuilding city geometry and r
     } finally {
       clock.mockRestore();
     }
+    const farms = scene.getObjectByName("ce-farmland");
+    simplification = { urban: "off", outskirts: "auto" };
+    view.sync();
+    flush();
+    expect(scene.getObjectByName("ce-forest")).toBe(forest);
+    expect(scene.getObjectByName("ce-farmland")).toBe(farms);
+    expect(scene.getObjectByName("massing")).not.toBe(massing);
+    massing = scene.getObjectByName("massing");
+    simplification = { urban: "off", outskirts: "off" };
+    view.sync();
+    flush();
+    expect(scene.getObjectByName("massing")).toBe(massing);
+    expect(scene.getObjectByName("ce-forest")).not.toBe(forest);
+    expect(scene.getObjectByName("ce-farmland")).not.toBe(farms);
+    expect(view.getPerformance()?.forest?.quality).toBe("high");
+    expect(view.getPerformance()?.forest?.detailedTrees).toBeGreaterThan(16);
+    simplification = { urban: "off", outskirts: "auto" };
+    forestQuality = "light";
+    view.sync();
+    flush();
+    expect(scene.getObjectByName("massing")).toBe(massing);
+    expect(view.getPerformance()?.forest?.quality).toBe("light");
+    expect(view.getPerformance()?.forest?.detailedTrees).toBe(0);
     city = withForestSettings(city, { version: 1, mode: "legacy", density: "standard" });
     view.sync();
     flush();

@@ -37,10 +37,11 @@ export function createForestTreeDetails(parent: THREE.Group) {
   let disposed = false;
   const frustum = new THREE.Frustum(),
     projection = new THREE.Matrix4();
-  const getModel = (species: TreeSpecies): Model | undefined => {
+  let capacity = FOREST_TREE_DETAIL_LIMIT.trees as number;
+  const getModel = (species: TreeSpecies, simplify: boolean): Model | undefined => {
     const hit = models.get(species);
     if (hit) return hit;
-    if (models.size >= FOREST_TREE_DETAIL_LIMIT.species) return;
+    if (simplify && models.size >= FOREST_TREE_DETAIL_LIMIT.species) return;
     const definition: BvDefinition = { id: `forest-tree:${species}`, create: () => createLandscapeTree(species) };
     const lease = cache.acquire(definition);
     if (!lease) return;
@@ -62,7 +63,7 @@ export function createForestTreeDetails(parent: THREE.Group) {
     lease.bounds.copy(geometry.boundingBox!);
     const triangles = (geometry.index?.count ?? positions.count) / 3;
     const mesh = (shadow: boolean) => {
-      const m = new THREE.InstancedMesh(geometry, lease.material, FOREST_TREE_DETAIL_LIMIT.trees);
+      const m = new THREE.InstancedMesh(geometry, lease.material, capacity);
       m.count = 0;
       m.visible = false;
       m.castShadow = shadow;
@@ -90,7 +91,13 @@ export function createForestTreeDetails(parent: THREE.Group) {
           mesh.count = 0;
         }
     },
-    update(camera: THREE.PerspectiveCamera, viewportHeight: number, sites: readonly ForestTreeSite[], budget: Budget) {
+    update(
+      camera: THREE.PerspectiveCamera,
+      viewportHeight: number,
+      sites: readonly ForestTreeSite[],
+      budget: Budget,
+      simplify = true
+    ) {
       const stats = {
         trees: 0,
         triangles: 0,
@@ -100,6 +107,24 @@ export function createForestTreeDetails(parent: THREE.Group) {
         shadowKey: ""
       };
       if (disposed) return stats;
+      if (!simplify && sites.length > capacity) {
+        capacity = sites.length;
+        for (const model of models.values()) {
+          model.meshes = model.meshes.map(old => {
+            const mesh = new THREE.InstancedMesh(old.geometry, old.material, capacity);
+            mesh.name = old.name;
+            mesh.userData = { ...old.userData };
+            mesh.castShadow = old.castShadow;
+            mesh.receiveShadow = true;
+            mesh.count = 0;
+            mesh.visible = false;
+            old.removeFromParent();
+            old.dispose();
+            group.add(mesh);
+            return mesh;
+          }) as Model["meshes"];
+        }
+      }
       frustum.setFromProjectionMatrix(projection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
       const scale = (viewportHeight * camera.zoom) / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
       const point = new THREE.Vector3();
@@ -125,8 +150,9 @@ export function createForestTreeDetails(parent: THREE.Group) {
         .filter(
           ({ site, distance, visible }) =>
             visible &&
-            (10 * site.size * scale) / Math.max(1, distance) >=
-              (selected.has(site.id) ? FOREST_TREE_DETAIL_LIMIT.exitPixels : FOREST_TREE_DETAIL_LIMIT.enterPixels)
+            (!simplify ||
+              (10 * site.size * scale) / Math.max(1, distance) >=
+                (selected.has(site.id) ? FOREST_TREE_DETAIL_LIMIT.exitPixels : FOREST_TREE_DETAIL_LIMIT.enterPixels))
         )
         .sort(
           (a, b) => Number(b.onScreen) - Number(a.onScreen) || a.rank - b.rank || a.site.id.localeCompare(b.site.id)
@@ -135,8 +161,8 @@ export function createForestTreeDetails(parent: THREE.Group) {
         usedSpecies = new Set<TreeSpecies>(),
         shadows: string[] = [];
       for (const { site, matrix } of candidates) {
-        if (stats.trees >= FOREST_TREE_DETAIL_LIMIT.trees) break;
-        const model = getModel(site.species);
+        if (simplify && stats.trees >= FOREST_TREE_DETAIL_LIMIT.trees) break;
+        const model = getModel(site.species, simplify);
         if (!model || stats.triangles + model.triangles > budget.triangles) continue;
         const shadow = stats.shadowTriangles + model.triangles <= budget.shadowTriangles;
         const mesh = model.meshes[shadow ? 0 : 1];

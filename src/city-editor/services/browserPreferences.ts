@@ -1,5 +1,6 @@
 import { MODEL_QUALITIES, type ModelQuality } from "../../buildings/modelQuality";
 import { resolveMaxPatches } from "../generators/document";
+import type { SimplificationPreferences } from "../types/contracts/simplification";
 
 const MAX_PATCHES_KEY = "fmg-city-editor:max-patches";
 const MODEL_QUALITY_KEY = "fmg-city-editor:model-quality";
@@ -60,5 +61,26 @@ export function writeModelQualityPreference(value: ModelQuality): void {
     if (typeof localStorage !== "undefined") localStorage.setItem(MODEL_QUALITY_KEY, value);
   } catch {
     // Storage blocked: the choice lasts for this page only.
+  }
+}
+
+const SIMPLIFICATION_KEY = "fmg-city-editor:simplification";
+
+/** Independent viewer preferences; never change the generated city or its share data. */
+export function readSimplificationPreferences(): SimplificationPreferences {
+  try {
+    const raw = typeof localStorage === "undefined" ? null : localStorage.getItem(SIMPLIFICATION_KEY);
+    const value = raw ? JSON.parse(raw) : null;
+    return { urban: value?.urban === "off" ? "off" : "auto", outskirts: value?.outskirts === "off" ? "off" : "auto" };
+  } catch {
+    return { urban: "auto", outskirts: "auto" };
+  }
+}
+
+export function writeSimplificationPreferences(value: SimplificationPreferences): void {
+  try {
+    if (typeof localStorage !== "undefined") localStorage.setItem(SIMPLIFICATION_KEY, JSON.stringify(value));
+  } catch {
+    // Keep the default if storage is unavailable.
   }
 }

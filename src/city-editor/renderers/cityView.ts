@@ -47,6 +47,7 @@ import { townWaterStamp } from "../generators/townWater";
 import { waterPolygons } from "../generators/waterGeometry";
 import type { FloorUse, RoofForm, RoofMaterial, WallMaterial } from "../types/contracts/buildingMassing";
 import type { ForestPlan, ForestQualityPreference } from "../types/contracts/forest";
+import type { SimplificationPreferences } from "../types/contracts/simplification";
 import type { StructureKind, StructureMassing, StructureMaterial } from "../types/contracts/structureMassing";
 import type { CityDocument } from "../types/document";
 import { ForestAutoQuality } from "./forestAutoQuality";
@@ -158,6 +159,7 @@ export interface City3dMountOptions {
   getViewCenter?: () => readonly [number, number];
   /** Requested detailed-model quality; each model falls back to the tiers it ships. */
   getModelQuality?: () => ModelQuality;
+  getSimplification?: () => SimplificationPreferences;
   /** Forest display preference is independent of housing detail and city contents. */
   getForestQuality?: () => ForestQualityPreference;
   isFmgLinked?: () => boolean;
@@ -219,6 +221,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   let wells: TownWells | null = null;
   let specialBuildings: TownSpecialBuildings | null = null;
   let regionalHouses: TownRegionalHouseLod | null = null;
+  let simplification: SimplificationPreferences = { urban: "auto", outskirts: "auto" };
   let facilities: TownFacilities | null = null;
   let bridges: TownBridges | null = null;
   const bvPrototypes = createBvPrototypeCache();
@@ -410,12 +413,19 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     const reusedHousing = regionalHouses?.refresh(fabric.buildings, foundation, quality, frontage) ?? false;
     if (!reusedHousing) {
       regionalHouses?.dispose();
-      regionalHouses = createTownRegionalHouseLod(fabric.buildings, bvPrototypes, foundation, quality, frontage);
+      regionalHouses = createTownRegionalHouseLod(
+        fabric.buildings,
+        bvPrototypes,
+        foundation,
+        quality,
+        frontage,
+        simplification.urban !== "off"
+      );
       scene.add(regionalHouses.group);
       massing = regionalHouses.massing;
       buildingDetails?.dispose();
       buildingDetails?.group.removeFromParent();
-      buildingDetails = createTownBuildingDetails(fabric.buildings, foundation);
+      buildingDetails = createTownBuildingDetails(fabric.buildings, foundation, simplification.urban !== "off");
       scene.add(buildingDetails.group);
     }
     structures?.dispose();
@@ -594,6 +604,14 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     if (viewport.hidden || disposed) return;
     if (!ensure() || !scene) return;
     const city = options.getDocument();
+    const nextSimplification = options.getSimplification?.() ?? { urban: "auto", outskirts: "auto" };
+    const urbanChanged = simplification.urban !== nextSimplification.urban;
+    const outskirtsChanged = simplification.outskirts !== nextSimplification.outskirts;
+    simplification = { ...nextSimplification };
+    if (urbanChanged) {
+      regionalHouses?.dispose();
+      regionalHouses = null;
+    }
     // Fabric first: lane geometry is part of the road stamp, and graded roads shape the terrain.
     const quality = options.getModelQuality?.() ?? "standard";
     const fmgLinked = options.isFmgLinked?.() ?? false;
@@ -615,13 +633,14 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       terrainStamp = nextTerrainStamp;
     }
     const plan = planCity3dRefresh({
-      fabricChanged: fabric !== built || terrainChanged || quality !== builtQuality,
+      fabricChanged: fabric !== built || terrainChanged || quality !== builtQuality || urbanChanged,
       stampChanged: terrainChanged || waterStampChanged(waterStamp, stamp, Boolean(scene.getObjectByName("ce-water"))),
       roadStampChanged:
         terrainChanged || roadStampChanged(roadStamp, roads, Boolean(scene.getObjectByName("ce-roads"))),
       open: true
     });
-    const farmlandChanged = terrainChanged || plan.water || farmlandSource !== fabric.farms || !farmland;
+    const farmlandChanged =
+      outskirtsChanged || terrainChanged || plan.water || farmlandSource !== fabric.farms || !farmland;
     const objectElements = city.elements.filter(item => item.kind === "object");
     const nextObjectStamp = JSON.stringify(objectElements);
     const objectsChanged = terrainChanged || objectStamp !== nextObjectStamp || !objects;
@@ -666,8 +685,14 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       city.buildingAppearanceContext?.temperatureC,
       city.fabric?.generation?.settings.descriptor?.climate
     ]);
-    const forestChanged = terrainChanged || forestSource !== nextForestSource || forestStyleStamp !== nextForestStyle;
-    if (forestQuality.setPreference(options.getForestQuality?.() ?? "auto")) previousMotionFrame = null;
+    const forestChanged =
+      outskirtsChanged || terrainChanged || forestSource !== nextForestSource || forestStyleStamp !== nextForestStyle;
+    if (
+      forestQuality.setPreference(
+        simplification.outskirts === "off" ? "high" : (options.getForestQuality?.() ?? "auto")
+      )
+    )
+      previousMotionFrame = null;
     const forestQualityChanged = forest?.setQuality(forestQuality.effective) ?? false;
     if (
       !plan.buildings &&
@@ -729,7 +754,12 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       rebuild(appearanceCity, fabric, quality);
     }
     if (farmlandChanged) {
-      const next = createTownFarms(fabric.farms, terrain ?? undefined, waterMeshes?.wetPolygons);
+      const next = createTownFarms(
+        fabric.farms,
+        terrain ?? undefined,
+        waterMeshes?.wetPolygons,
+        simplification.outskirts !== "off"
+      );
       farmland?.dispose();
       farmland = next;
       farmlandSource = fabric.farms;
@@ -741,7 +771,13 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       const hadForest = Boolean(forest);
       forest?.dispose();
       forest = nextForestSource?.regions.length
-        ? createTownForest(city, nextForestSource, terrain ?? undefined, forestQuality.effective)
+        ? createTownForest(
+            city,
+            nextForestSource,
+            terrain ?? undefined,
+            forestQuality.effective,
+            simplification.outskirts !== "off"
+          )
         : null;
       if (forest) scene.add(forest.group);
       forestSource = nextForestSource;

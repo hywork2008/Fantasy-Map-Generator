@@ -53,3 +53,42 @@ it("prioritizes an on-screen crown over a closer off-screen tree and restores it
   material.dispose();
   mesh.dispose();
 });
+
+it("grows full-detail instance buffers without losing transforms or leaking shared geometry", () => {
+  const group = new THREE.Group();
+  const details = createForestTreeDetails(group);
+  const geometry = new THREE.BoxGeometry(1, 10, 1);
+  const material = new THREE.MeshLambertMaterial();
+  const mesh = new THREE.InstancedMesh(geometry, material, 40);
+  const sites: ForestTreeSite[] = Array.from({ length: 40 }, (_, index) => {
+    mesh.setMatrixAt(index, new THREE.Matrix4().makeTranslation(index * 0.1, 0, 0));
+    return { id: String(index), point: [index * 0.1, 0], radius: 3, size: 1, species: "garden_parkland", mesh, index };
+  });
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 20000);
+  camera.position.set(0, 10000, 1);
+  camera.lookAt(0, 0, 0);
+  camera.updateMatrixWorld(true);
+  const budget = { triangles: Infinity, calls: Infinity, shadowTriangles: Infinity };
+  expect(details.update(camera, 720, sites.slice(0, 20), budget, false).trees).toBe(20);
+  const old = group.getObjectByName("forest-bv-garden_parkland-shadow") as THREE.InstancedMesh;
+  let freed = 0;
+  old.geometry.addEventListener("dispose", () => freed++);
+  details.reset();
+  expect(details.update(camera, 720, sites, budget, false).trees).toBe(40);
+  const grown = group.getObjectByName("forest-bv-garden_parkland-shadow") as THREE.InstancedMesh;
+  expect(grown).not.toBe(old);
+  expect(grown.geometry).toBe(old.geometry);
+  expect(grown.count).toBe(40);
+  expect(grown.instanceMatrix.count).toBeGreaterThanOrEqual(40);
+  expect(freed).toBe(0);
+  details.reset();
+  const restored = new THREE.Matrix4();
+  mesh.getMatrixAt(39, restored);
+  expect(restored.elements[12]).toBeCloseTo(3.9);
+  details.dispose();
+  details.dispose();
+  expect(freed).toBe(1);
+  geometry.dispose();
+  material.dispose();
+  mesh.dispose();
+});

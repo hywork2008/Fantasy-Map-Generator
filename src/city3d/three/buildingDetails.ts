@@ -12,7 +12,11 @@ export const BUILDING_DETAIL_BUDGET = {
   cache: 100
 } as const;
 
-export function createTownBuildingDetails(lots: readonly BuildingLot[], foundationAt?: (ring: Point[]) => number) {
+export function createTownBuildingDetails(
+  lots: readonly BuildingLot[],
+  foundationAt?: (ring: Point[]) => number,
+  simplify = true
+) {
   const group = new THREE.Group();
   group.name = "ce-building-details";
   const material = new THREE.MeshLambertMaterial({
@@ -81,6 +85,16 @@ export function createTownBuildingDetails(lots: readonly BuildingLot[], foundati
         new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
       );
       const scale = (height * camera.zoom) / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+      const budget = simplify
+        ? BUILDING_DETAIL_BUDGET
+        : {
+            ...BUILDING_DETAIL_BUDGET,
+            buildings: Infinity,
+            triangles: Infinity,
+            enterPixels: 0,
+            exitPixels: 0,
+            cache: Infinity
+          };
       const candidates = descriptors
         .map(d => ({ descriptor: d, distance: camera.position.distanceTo(d.sphere.center) }))
         .filter(
@@ -88,10 +102,10 @@ export function createTownBuildingDetails(lots: readonly BuildingLot[], foundati
             !excluded.has(d.index) &&
             frustum.intersectsSphere(d.sphere) &&
             (d.sphere.radius * scale) / Math.max(1, distance) >=
-              (selected.has(d.index) ? BUILDING_DETAIL_BUDGET.exitPixels : BUILDING_DETAIL_BUDGET.enterPixels)
+              (selected.has(d.index) ? budget.exitPixels : budget.enterPixels)
         )
         .sort((a, b) => a.distance - b.distance || a.descriptor.index - b.descriptor.index)
-        .slice(0, BUILDING_DETAIL_BUDGET.buildings);
+        .slice(0, budget.buildings);
       const parts: FacadeDetailGeometry[] = [],
         ids: number[] = [];
       let triangles = 0;
@@ -112,14 +126,14 @@ export function createTownBuildingDetails(lots: readonly BuildingLot[], foundati
           cache.set(d.index, geometry);
         }
         const count = geometry.positions.length / 9;
-        if (!count || triangles + count > BUILDING_DETAIL_BUDGET.triangles) continue;
+        if (!count || triangles + count > budget.triangles) continue;
         parts.push(geometry);
         ids.push(d.index);
         triangles += count;
       }
       selected = new Set(ids);
       for (const key of cache.keys()) {
-        if (cache.size <= BUILDING_DETAIL_BUDGET.cache) break;
+        if (cache.size <= budget.cache) break;
         if (!selected.has(key)) cache.delete(key);
       }
       stats.cached = cache.size;

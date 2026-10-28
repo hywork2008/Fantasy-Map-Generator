@@ -64,6 +64,7 @@ import { SHIP_SPECS } from "../renderers/shipSpecifications";
 import {
   readMaxPatchesPreference,
   readModelQualityPreference,
+  readSimplificationPreferences,
   readTerrainSpacingPreference
 } from "../services/browserPreferences";
 import { beginEditorMount } from "../services/editorLifetime";
@@ -3022,6 +3023,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     getViewHalfSize: () => display.halfView,
     getViewCenter: () => display.viewCenter,
     getModelQuality: readModelQualityPreference,
+    getSimplification: readSimplificationPreferences,
     getForestQuality: () => readForestViewPreferences().quality,
     isFmgLinked: () => Boolean(generation.generateSettings.descriptor),
     getTerrainSpacing: readTerrainSpacingPreference,

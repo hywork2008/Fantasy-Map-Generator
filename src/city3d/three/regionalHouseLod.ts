@@ -41,7 +41,8 @@ export function createTownRegionalHouseLod(
   cache: BvPrototypeCache,
   foundation: Foundation,
   quality: ModelQuality,
-  frontage?: BuildingFrontageResolver
+  frontage?: BuildingFrontageResolver,
+  simplify = true
 ) {
   const group = new THREE.Group();
   group.name = "ce-regional-houses";
@@ -129,7 +130,17 @@ export function createTownRegionalHouseLod(
       const nextKey = `${viewportHeight}:${camera.matrixWorld.elements}:${camera.projectionMatrix.elements}`;
       if (cameraKey === nextKey && !stats.pending) return false;
       cameraKey = nextKey;
-      const budget = REGIONAL_HOUSE_LOD_BUDGET;
+      const budget = simplify
+        ? REGIONAL_HOUSE_LOD_BUDGET
+        : {
+            ...REGIONAL_HOUSE_LOD_BUDGET,
+            buildings: Infinity,
+            triangles: Infinity,
+            cached: Infinity,
+            cachedTriangles: Infinity,
+            enterPixels: 0,
+            exitPixels: 0
+          };
       frustum.setFromProjectionMatrix(projection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
       const scale = (viewportHeight * camera.zoom) / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
       const candidates = descriptors

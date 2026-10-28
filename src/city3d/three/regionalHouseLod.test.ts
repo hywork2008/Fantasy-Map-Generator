@@ -91,3 +91,24 @@ it("re-evaluates frontage after an equal-input refresh without keeping a stale d
   view.dispose();
   expect(cache.size).toBe(0);
 });
+
+it("retains full distant housing beyond the automatic building and triangle budgets when urban simplification is off", () => {
+  const cache = createBvPrototypeCache();
+  const input = lots().slice(0, 90);
+  const view = createTownRegionalHouseLod(input, cache, undefined, "high", undefined, false);
+  const far = camera(10000);
+  for (let i = 0; i < 50; i++) {
+    const before = view.stats.builds;
+    view.update(far, 720);
+    expect(view.stats.builds - before).toBeLessThanOrEqual(BUDGET.buildsPerFrame);
+  }
+  expect(view.replaced.size).toBe(input.length);
+  expect(view.stats.triangles).toBeGreaterThan(BUDGET.triangles);
+  expect(view.stats.pending).toBe(false);
+  const away = camera(10000);
+  away.lookAt(0, 20000, 0);
+  view.update(away, 720);
+  expect(view.replaced.size).toBe(0);
+  view.dispose();
+  expect(cache.size).toBe(0);
+});

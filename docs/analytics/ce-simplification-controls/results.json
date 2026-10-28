@@ -1,0 +1,142 @@
+{
+  "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+  "viewport": [
+    1000,
+    720
+  ],
+  "errors": [],
+  "cases": [
+    {
+      "name": "automatic",
+      "urbanSimplification": true,
+      "outskirtsSimplification": true,
+      "housing": {
+        "buildings": 0,
+        "triangles": 0,
+        "calls": 0,
+        "cached": 0,
+        "cachedTriangles": 0,
+        "builds": 0,
+        "pending": false
+      },
+      "forest": {
+        "quality": "high",
+        "areaM2": 4096,
+        "chunks": 2,
+        "visibleChunks": 2,
+        "nearChunks": 1,
+        "middleChunks": 1,
+        "trees": 45,
+        "triangles": 676090,
+        "calls": 6,
+        "shadowTriangles": 86594,
+        "cachedLayers": 2,
+        "globalFallback": false,
+        "detailedTrees": 8,
+        "detailedTriangles": 672784,
+        "detailedSpecies": [
+          "garden_parkland"
+        ],
+        "builds": 2
+      },
+      "render": {
+        "frame": 1,
+        "calls": 8,
+        "triangles": 678970,
+        "points": 0,
+        "lines": 0
+      },
+      "glError": 0,
+      "contextLost": false,
+      "geometries": 7
+    },
+    {
+      "name": "urban-full",
+      "urbanSimplification": false,
+      "outskirtsSimplification": true,
+      "housing": {
+        "buildings": 90,
+        "triangles": 594672,
+        "calls": 90,
+        "cached": 90,
+        "cachedTriangles": 594672,
+        "builds": 90,
+        "pending": false
+      },
+      "forest": {
+        "quality": "high",
+        "areaM2": 4096,
+        "chunks": 2,
+        "visibleChunks": 2,
+        "nearChunks": 1,
+        "middleChunks": 1,
+        "trees": 45,
+        "triangles": 676090,
+        "calls": 6,
+        "shadowTriangles": 86594,
+        "cachedLayers": 2,
+        "globalFallback": false,
+        "detailedTrees": 8,
+        "detailedTriangles": 672784,
+        "detailedSpecies": [
+          "garden_parkland"
+        ],
+        "builds": 2
+      },
+      "render": {
+        "frame": 2,
+        "calls": 98,
+        "triangles": 1270762,
+        "points": 0,
+        "lines": 0
+      },
+      "glError": 0,
+      "contextLost": false,
+      "geometries": 31
+    },
+    {
+      "name": "outskirts-full",
+      "urbanSimplification": true,
+      "outskirtsSimplification": false,
+      "housing": {
+        "buildings": 0,
+        "triangles": 0,
+        "calls": 0,
+        "cached": 0,
+        "cachedTriangles": 0,
+        "builds": 0,
+        "pending": false
+      },
+      "forest": {
+        "quality": "high",
+        "areaM2": 4096,
+        "chunks": 2,
+        "visibleChunks": 2,
+        "nearChunks": 2,
+        "middleChunks": 0,
+        "trees": 45,
+        "triangles": 3789144,
+        "calls": 5,
+        "shadowTriangles": 3784410,
+        "cachedLayers": 2,
+        "globalFallback": false,
+        "detailedTrees": 45,
+        "detailedTriangles": 3784410,
+        "detailedSpecies": [
+          "garden_parkland"
+        ],
+        "builds": 2
+      },
+      "render": {
+        "frame": 3,
+        "calls": 7,
+        "triangles": 3792024,
+        "points": 0,
+        "lines": 0
+      },
+      "glError": 0,
+      "contextLost": false,
+      "geometries": 6
+    }
+  ]
+}

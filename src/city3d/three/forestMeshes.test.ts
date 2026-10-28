@@ -257,3 +257,30 @@ describe("forest geometry and budgets", () => {
     expect(forest.update(camera(), 720)).toBe(false);
   });
 });
+
+it("uses BV trees beyond distance and count caps when outskirts simplification is off", () => {
+  const regions = forestRegions([{ faceId: "f0", polygon: rect(-32, -32, 64, 64) }]);
+  const p: ForestPlan = {
+    regions,
+    areaM2: regions[0].areaM2,
+    forestFaceIds: ["f0"],
+    protectedFarmCount: 0,
+    protectedFarmAreaM2: 0
+  };
+  const automatic = createTownForest(document(), p, undefined, "high");
+  const full = createTownForest(document(), p, undefined, "light", false);
+  const far = camera(0, 5000, 10);
+  automatic.update(far, 720);
+  full.update(far, 720);
+  expect(automatic.stats.detailedTrees).toBe(0);
+  expect(full.stats.quality).toBe("high");
+  expect(full.stats.detailedTrees).toBeGreaterThan(16);
+  expect(full.stats.detailedTrees).toBe(full.stats.trees);
+  expect(full.stats.triangles).toBeGreaterThan(FOREST_3D_BUDGET.high.triangles);
+  expect(full.stats.areaM2).toBe(automatic.stats.areaM2);
+  full.setQuality("light");
+  full.update(far, 720);
+  expect(full.stats.quality).toBe("high");
+  automatic.dispose();
+  full.dispose();
+});
