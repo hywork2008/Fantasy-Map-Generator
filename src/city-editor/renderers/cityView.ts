@@ -51,6 +51,7 @@ import type { ForestPlan, ForestQualityPreference } from "../types/contracts/for
 import type { SimplificationPreferences } from "../types/contracts/simplification";
 import type { StructureKind, StructureMassing, StructureMaterial } from "../types/contracts/structureMassing";
 import type { CityDocument } from "../types/document";
+import { createFogControls, readFogSettings } from "./fogControls";
 import { ForestAutoQuality } from "./forestAutoQuality";
 import { collectOpenSpacePlan } from "./openSpaceSites";
 import { collectPierSites } from "./pierSites";
@@ -197,10 +198,11 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   options.canvasHost.append(viewport, button, readout);
 
   const sunSettings = readSunSettings();
+  const fogSettings = readFogSettings();
   let sun: THREE.DirectionalLight | null = null;
   let shadowBounds = new THREE.Box3();
-  const createLightingPanel = () =>
-    createSunControls(
+  const createLightingPanel = () => {
+    const panel = createSunControls(
       sunSettings,
       (target, type, handler) => options.scope.listen(target, type, handler),
       () => {
@@ -210,11 +212,22 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
         requestRender();
       }
     );
+    panel.append(
+      createFogControls(
+        fogSettings,
+        (target, type, handler) => options.scope.listen(target, type, handler),
+        () => requestRender()
+      )
+    );
+    return panel;
+  };
   let lightingPanel = createLightingPanel();
   options.canvasHost.append(lightingPanel);
 
   let renderer: THREE.WebGLRenderer | null = null;
   let scene: THREE.Scene | null = null;
+  const atmosphere = new THREE.Fog(0xc5c5bf);
+  let atmosphereRange = 600;
   let camera: THREE.PerspectiveCamera | null = null;
   let controls: OrbitControls | null = null;
   let massing: CityMassingMeshes | null = null;
@@ -507,6 +520,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setClearColor(0xc5c5bf);
     scene = new THREE.Scene();
+    scene.fog = fogSettings.strength > 0 ? atmosphere : null;
     camera = new THREE.PerspectiveCamera(45, 1, 0.5, 80000);
     scene.add(new THREE.HemisphereLight(0xf4f0e6, 0x6d7a62, 0.9));
     sun = new THREE.DirectionalLight(0xffffff, sunSettings.intensity / 100);
@@ -559,6 +573,13 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
           requestRender();
         }, delay);
     }
+    // Keep the focus clear, including at nadir, and soften only the distant scenery.
+    // Scale the transition with the city so small towns retain readable streets too.
+    const focusDistance = controls ? camera.position.distanceTo(controls.target) : 0;
+    atmosphere.near = Math.max(100, focusDistance * 1.05);
+    atmosphere.far =
+      atmosphere.near + Math.max(atmosphereRange, focusDistance * 0.75) * (100 / Math.max(1, fogSettings.strength));
+    scene.fog = fogSettings.strength > 0 ? atmosphere : null;
     renderer.render(scene, camera);
     const cpuMs = performance.now() - start;
     if (previousMotionFrame) previousMotionFrame.endedAt = start + cpuMs;
@@ -608,6 +629,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     if (viewport.hidden || disposed) return;
     if (!ensure() || !scene) return;
     const city = options.getDocument();
+    atmosphereRange = Math.max(600, city.frame.cityRadiusMeters * 2);
     const nextSimplification = options.getSimplification?.() ?? { urban: "auto", outskirts: "auto" };
     const urbanChanged = simplification.urban !== nextSimplification.urban;
     const outskirtsChanged = simplification.outskirts !== nextSimplification.outskirts;
