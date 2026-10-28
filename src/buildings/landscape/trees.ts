@@ -1,4 +1,5 @@
 import { ModelKit } from "../medieval/modelKit";
+import { createAridTree } from "./aridTrees";
 import { createBorealTree } from "./borealTrees";
 import { createEuropeanYew } from "./europeanYew";
 import { createSmallLeavedLime } from "./smallLeavedLime";
@@ -8,6 +9,8 @@ export const TREE_SPECIES = [
   "norway_spruce",
   "silver_birch",
   "sacred_yew",
+  "date_palm",
+  "umbrella_thorn",
   "mediterranean_cypress",
   "oriental_evergreen",
   "sacred_bodhi_and_fig",
@@ -18,6 +21,7 @@ export type TreeSpecies = (typeof TREE_SPECIES)[number];
 /** Stylized meter-scale silhouettes shared by BV and CE. Radius is set by the saved canopy. */
 export function createLandscapeTree(species: TreeSpecies) {
   if (species === "norway_spruce" || species === "silver_birch") return createBorealTree(species);
+  if (species === "date_palm" || species === "umbrella_thorn") return createAridTree(species);
   if (species === "garden_parkland") return createSmallLeavedLime();
   if (species === "sacred_yew") return createEuropeanYew();
   const k = new ModelKit(species);

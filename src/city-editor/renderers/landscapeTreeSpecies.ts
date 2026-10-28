@@ -14,11 +14,17 @@ export function landscapeTreeSpecies(
   const biome = [document.biome?.key ?? climate?.biomeKey ?? "", ...(document.biome?.tags ?? [])]
     .join(" ")
     .toLowerCase();
+  const seed = document.generationSeed ?? document.fabric?.seed ?? "landscape";
+  // Irrigated oasis plantings in hot deserts; open umbrella thorns in savanna and dry tropical woodland.
+  if (/hotdesert|xericshrubland/.test(biome)) return "date_palm";
+  if (/savanna|tropicalseasonalforest|tropicaldryforest/.test(biome))
+    return preferred === "garden_parkland" && growthRandom(`${seed}:dry-tree:${point[0]}:${point[1]}`) < 0.3
+      ? "date_palm"
+      : "umbrella_thorn";
   const boreal =
     /taiga|boreal/.test(biome) || (temperature !== undefined && temperature <= 3 && /forest|woodland/.test(biome));
   if (!boreal) return preferred;
   // Retain the evergreen role of traditional funerary planting in a colder flora.
   if (preferred !== "garden_parkland") return "norway_spruce";
-  const seed = document.generationSeed ?? document.fabric?.seed ?? "landscape";
   return growthRandom(`${seed}:boreal-tree:${point[0]}:${point[1]}`) < 0.65 ? "norway_spruce" : "silver_birch";
 }

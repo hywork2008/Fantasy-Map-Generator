@@ -4,17 +4,17 @@ import { createTownOpenSpaces } from "../../city3d/three/openSpaceMeshes";
 import { models } from "../medieval/43-landscape-treesModels";
 import { createLandscapeTree } from "./trees";
 
-it.each(["norway_spruce", "silver_birch"] as const)(
+it.each(["norway_spruce", "silver_birch", "date_palm", "umbrella_thorn"] as const)(
   "registers and instances the grounded %s model with foliage colours",
   species => {
     const definition = models.find(model => model.id === species.replaceAll("_", "-"))!;
-    expect(definition.biomes).toContain("taiga");
+    expect(definition.biomes?.length).toBeGreaterThan(0);
     const a = definition.create(),
       b = createLandscapeTree(species);
     const box = new THREE.Box3().setFromObject(a.group);
     expect(box.min.y).toBeCloseTo(-0.35, 3);
-    expect(box.max.y).toBeGreaterThan(10);
-    expect(box.max.y).toBeLessThan(13);
+    expect(box.max.y).toBeGreaterThan(definition.size![2] * 0.8);
+    expect(box.max.y).toBeLessThan(definition.size![2]);
     for (const [i, mesh] of a.pickables.entries()) {
       expect(mesh.geometry).not.toBe(b.pickables[i].geometry);
       expect(mesh.geometry.getAttribute("position").array).toEqual(

@@ -144,6 +144,8 @@ const modelArticles: Record<string, string> = {
   "sacred-yew": "Taxus baccata",
   "norway-spruce": "Picea abies",
   "silver-birch": "Betula pendula",
+  "date-palm": "Phoenix dactylifera",
+  "umbrella-thorn": "Vachellia tortilis",
   "mediterranean-cypress": "Cupressus sempervirens",
   "oriental-evergreen": "Evergreen",
   "sacred-bodhi-and-fig": "Ficus religiosa",
