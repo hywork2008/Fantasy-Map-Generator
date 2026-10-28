@@ -541,7 +541,9 @@ export function getGrazedCarryingCapacity(
   // Winter, not the annual total, limits the herd a cell can keep (E1 §7.45).
   const winterShare = calculateWinterFeedShare(annualNeedKg, area * growth.annualKgPerHa, growth.weights);
   const landShare = Math.min(getAnnualLivestockFeedFactor(cellId, area, targets), winterShare);
-  // Where last year's herd went hungry, keepers winter only as many as they actually fed.
+  // Where last year's herd went hungry, keepers winter as many as they actually fed, or the land's
+  // share scaled by the fed share if larger: a small shortfall must not drop a growing herd's
+  // capacity to its current size (E1 §7.61).
   const fedShare = getRecentlyFedHerdShare(cellId);
   if (fedShare === null) return heads * landShare;
   const stock = getOrCreateFaunaStockTable();
@@ -550,6 +552,6 @@ export function getGrazedCarryingCapacity(
     return sum + (herd ? Math.max(0, herd.young) + Math.max(0, herd.breeding) + Math.max(0, herd.old) : 0);
   }, 0);
   const plannedHeads = targets.reduce((sum, row) => sum + row.capacityHeads * landShare, 0);
-  const fedLimit = plannedHeads > 0 ? Math.min(1, (herdHeads * fedShare) / plannedHeads) : 1;
+  const fedLimit = plannedHeads > 0 ? Math.max(fedShare, Math.min(1, (herdHeads * fedShare) / plannedHeads)) : 1;
   return heads * landShare * fedLimit;
 }
