@@ -18,7 +18,10 @@ export const CE_CHAPEL = churches[1];
 export const CE_BASILICAS = Object.fromEntries(
   BASILICA_QUALITIES.map(level => {
     const variant = adopt(BASILICA_VARIANTS, "temple.basilica", level);
-    return [level, { id: `basilica-temple:${level}`, cacheKey: variant.id, create: variant.create }];
+    return [
+      level,
+      { id: `basilica-temple:${level}`, cacheKey: variant.id, variant: variant.id, create: variant.create }
+    ];
   })
 ) as Record<(typeof BASILICA_QUALITIES)[number], BvDefinition>;
 const PERIODS = new Set([

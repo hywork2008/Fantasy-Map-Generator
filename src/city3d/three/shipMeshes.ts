@@ -5,11 +5,11 @@ import { SHIP_DIMENSIONS } from "../../city-editor/data/ships";
 import type { ShipSite } from "../../city-editor/renderers/shipSites";
 import type { Point } from "../../city-editor/types/primitives";
 import type { ShipType } from "../../city-editor/types/ships";
-import { adopt } from "../adoption";
+import { adopt, markVariant } from "../adoption";
 import { planVertex } from "../core/planFrame";
 import type { CityStructureMeshes } from "./structureMeshes";
 
-const ship = (family: string) => adopt(SHIP_VARIANTS, family, "default").create;
+const ship = (family: string) => adopt(SHIP_VARIANTS, family, "default");
 const MODELS = {
   small: ship("ship.sloop"),
   medium: ship("ship.caravel"),
@@ -30,7 +30,8 @@ export function createTownShips(
   for (const type of Object.keys(MODELS) as ShipType[]) {
     const ships = sites.filter(site => site.type === type);
     if (!ships.length) continue;
-    const model = MODELS[type]();
+    const model = MODELS[type].create();
+    markVariant(group, MODELS[type].id);
     models.push(model);
     model.group.updateMatrixWorld(true);
     // CE sizes describe the hull, excluding projecting spars, sails and the rudder.

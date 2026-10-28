@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { ModelQuality } from "../../buildings/modelQuality";
+import { sceneVariants } from "../../city3d/adoption";
 import { buildingSurfaces } from "../../city3d/core/massingGeometry";
 import { structureSurfaces } from "../../city3d/core/structureGeometry";
 import { WATER_Y } from "../../city3d/core/waterGeometry";
@@ -177,6 +178,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   /** Per-frame metrics without walking the resident scene. */
   getFramePerformance(): Pick<City3dPerformanceSnapshot, "frame" | "forest" | "forestQuality" | "housing"> | null;
   restoreView(saved: NonNullable<City3dPerformanceSnapshot["camera"]>): void;
+  /** Adopted BV variants drawn by the open 3D view; null while it is closed. */
+  getModelVariants(): string[] | null;
   /** Move the live scene into a rebuilt editor mount (language change) without regenerating meshes. */
   adopt(next: City3dMountOptions): void;
 } {
@@ -1092,5 +1095,6 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     controls.update();
     requestRender();
   };
-  return { sync, resetCamera, dispose, getPerformance, getFramePerformance, restoreView, adopt };
+  const getModelVariants = () => (viewport.hidden || !scene ? null : sceneVariants(scene));
+  return { sync, resetCamera, dispose, getPerformance, getFramePerformance, restoreView, getModelVariants, adopt };
 }

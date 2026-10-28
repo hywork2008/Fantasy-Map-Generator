@@ -190,7 +190,7 @@ export function adoptedTree(species: TreeSpecies, quality = "ultra"): ModelVaria
 | A1 | 版の表と版idを作る。樹木から始め、`QUALITY_AUTHORS` を版の表に移す。Codexの旧mediumを戻す | 2026-10-29 樹木完了 |
 | A2 | CEの採用表を作り、樹木の生成（森・公園・墓地）を採用表経由にする。キャッシュのキーを版idにする | 2026-10-29 樹木完了 |
 | A3 | 別の作者の版がある系統を移す（ガレオン船、市壁、バシリカ神殿）。続いて残りの系統を移す | 2026-10-29 3系統完了（§10.2）。残りの系統は未着手 |
-| A4 | BVの「CE採用」表示と `basedOn`/`credits` の表示（樹木は完了）。CEの「3Dモデルの作者」の一覧 | 一部完了 |
+| A4 | BVの「CE採用」表示と `basedOn`/`credits` の表示。CEの「3Dモデルの作者」の一覧 | 2026-10-29 完了（§10.3） |
 
 - A0〜A3は表示を変えない置き換えなので、各段階で関連テストとBVでの確認だけで進められる。
 - 樹木では、採用表を書き換えるだけでCEが使う版を切り替えられる。
@@ -238,3 +238,30 @@ export function adoptedTree(species: TreeSpecies, quality = "ultra"): ModelVaria
 - 次の作業
   1. A4の残り：CEに「3Dモデルの作者」の一覧を追加する。
   2. 残りの系統（家屋・城・中世の各モデル・設置物）を、CEが使っているものから版の一覧に移す。
+
+### 10.3 A4：CEの「3Dモデルの作者」（2026-10-29）
+
+- CEの右下（「Sunlight」の上）に「3Dモデルの作者」の折りたたみ欄を追加した。
+  - 開いている間だけ1秒ごとに更新し、3D表示に描かれている版を作者ごとに一覧にする。
+  - 3D表示が閉じているとき、BVのモデルが1つも描かれていないときは、それぞれ案内文を出す。
+- 描かれている版は、3Dのオブジェクトに付けた印から集める。
+  - 印は `userData.modelVariants` に置く（`markVariant`）。
+  - `sceneVariants` が、表示中のオブジェクトだけを集める。描画数0のインスタンスメッシュは数えない。
+  - 印を付ける場所
+    - `BvDefinition.variant` を持つ部品：`createBvInstances` が付ける（バシリカ神殿）
+    - 市壁：使った部品ごとにグループへ付ける
+    - 船：置いた種類ごとに付ける
+    - 森の詳細樹木：品質の段階ごとのメッシュに付ける
+    - 公園・墓地の樹木：付ける
+  - 採用表を毎回引き直すのではなく描画の結果から集めるので、カメラによって品質の段階が変わる樹木も、いま描かれている段階だけが出る。
+- `mountCity3d` に `getModelVariants()` を追加した。3D表示が閉じているときは `null` を返す。
+- 文言は日英の2言語に追加した（`modelAuthorsPanel`・`modelAuthorsEmpty`・`modelAuthorsNone`）。
+- 確認
+  - 型チェックとbiomeのチェックは問題なし。
+  - `adoption.test.ts`（印の集計のテストを追加、3件）、`src/i18n`、`src/city3d`、CEの関連テスト、BVのテストを実行した。
+    - `waterGeometry.test.ts` と `obernHouseModels.test.ts` の2件が失敗した。変更前のコードでも同じ2件が失敗する。
+  - CE（headless Chromium、Metal）で、港・神殿ありの新しい都市を生成し、3D表示を開いて確認した。
+    - Claude Opus 5.5：temple.basilica · high
+    - Codex GPT-6.1 Sol：town-wall-part.gate／tower／wall、tree.garden-parkland · ultra、tree.sacred-yew · ultra
+    - コンソールエラーはなかった。
+- 次の作業：残りの系統（家屋・城・中世の各モデル・設置物）を、CEが使っているものから順に版の一覧に移す。移した系統は、この一覧にも自動で出る。

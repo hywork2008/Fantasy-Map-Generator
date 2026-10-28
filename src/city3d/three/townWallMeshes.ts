@@ -9,7 +9,7 @@ import { castleWallIds } from "../../city-editor/generators/fortifications";
 import { gateCrossingFrame } from "../../city-editor/generators/passages";
 import type { StructureMassing } from "../../city-editor/types/contracts/structureMassing";
 import type { CityDocument } from "../../city-editor/types/document";
-import { adopt } from "../adoption";
+import { adopt, markVariant } from "../adoption";
 import { ribbonSidePoints } from "../core/structureGeometry";
 import type { BvDefinition, BvPrototypeCache } from "./bvInstances";
 
@@ -19,6 +19,7 @@ const part = (name: "wall" | "bare" | "tower" | "gate") =>
 const definition = (name: "wall" | "bare" | "tower" | "gate", id: string, profile?: BuildingAppearanceProfile) => ({
   id,
   cacheKey: profile ? `${part(name).id}:${profile}` : part(name).id,
+  variant: part(name).id,
   create: () => part(name).create(profile)
 });
 const LEGACY_DEFINITIONS = {
@@ -127,6 +128,7 @@ export function createTownWalls(
     if (!lease) {
       lease = cache.acquire(definition);
       if (lease) leases.set(definition, lease);
+      if (lease && definition.variant) markVariant(group, definition.variant);
     }
     return lease;
   };

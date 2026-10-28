@@ -11,7 +11,7 @@ import { createPublicWaterBasinModel } from "../../buildings/wells/publicWaterBa
 import type { CityTerrain } from "../../city-editor/generators/terrainElevation";
 import type { OpenSpaceModel, OpenSpacePlan, OpenSpaceSite } from "../../city-editor/renderers/openSpaceSites";
 import type { Point } from "../../city-editor/types/document";
-import { adoptedTree } from "../adoption";
+import { adoptedTree, markVariant } from "../adoption";
 import { planVertex } from "../core/planFrame";
 import { groundSurfaceGeometry } from "./groundSurfaceGeometry";
 import { createOpenSpaceTreeLod } from "./openSpaceTreeLod";
@@ -167,6 +167,7 @@ export function createTownOpenSpaces(
       geometries.push(geometry);
       const mesh = new THREE.InstancedMesh(geometry, material, sites.length);
       mesh.name = `${kind}-instances`;
+      if (isTreeModel(kind)) markVariant(mesh, adoptedTree(kind).id);
       for (let i = 0; i < sites.length; i++) {
         const site = sites[i];
         const radiusScale = site.radius ? site.radius / (Math.max(size.x, size.z) / 2) : 1;

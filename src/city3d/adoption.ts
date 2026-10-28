@@ -1,3 +1,4 @@
+import type * as THREE from "three";
 import type { TreeSpecies } from "../buildings/landscape/trees";
 import { TREE_VARIANTS, treeFamily, treeLevel } from "../buildings/landscape/treeVariants";
 import type { ModelVariantInfo } from "../buildings/modelVariants";
@@ -68,4 +69,21 @@ export function adoptedVariant(family: string, level: string): ModelVariantInfo 
 
 export function adoptedTree(species: TreeSpecies, quality = "ultra") {
   return adopt(TREE_VARIANTS, treeFamily(species), treeLevel(species, quality));
+}
+
+/** Record that an object draws a variant, so the scene can list the authors of what it shows. */
+export function markVariant(object: THREE.Object3D, variant: string): void {
+  const ids: string[] = object.userData.modelVariants ?? [];
+  if (!ids.includes(variant)) ids.push(variant);
+  object.userData.modelVariants = ids;
+}
+
+/** Variants drawn by visible objects; empty instanced meshes do not count. */
+export function sceneVariants(root: THREE.Object3D): string[] {
+  const ids = new Set<string>();
+  root.traverseVisible(object => {
+    if ((object as THREE.InstancedMesh).isInstancedMesh && (object as THREE.InstancedMesh).count === 0) return;
+    for (const id of (object.userData.modelVariants as string[] | undefined) ?? []) ids.add(id);
+  });
+  return [...ids].sort();
 }

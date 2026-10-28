@@ -6,6 +6,8 @@ export interface BvDefinition {
   id: string;
   /** Opt-in content identity: equal keys must describe identical geometry and materials. */
   cacheKey?: string;
+  /** Adopted BV variant id, listed among the scene's model authors. */
+  variant?: string;
   create(): CityStructureMeshes;
   /** Transfers an opaque, non-indexed position/normal/color geometry to the prototype cache. */
   createGeometry?(): THREE.BufferGeometry;
@@ -169,6 +171,7 @@ export function createBvInstances<T extends BvPlacement>(sites: readonly T[], ca
     leases.push(prototype);
     const mesh = new THREE.InstancedMesh(prototype.geometry, prototype.material, batch.length);
     mesh.name = `${definition.id}-instances`;
+    if (definition.variant) mesh.userData.modelVariants = [definition.variant];
     batch.forEach((site, index) => {
       mesh.setMatrixAt(index, site.matrix);
     });

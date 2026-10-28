@@ -102,6 +102,7 @@ import {
   restoreLanguageControls,
   restoreLanguageUi
 } from "./languagePanel";
+import { mountModelAuthorsPanel } from "./modelAuthorsPanel";
 import { buildObjectControls } from "./objectControls";
 import { mountOperationHelp } from "./operationHelp";
 import { mountPerformancePanel } from "./performancePanel";
@@ -3056,6 +3057,12 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     })
   });
   scope.own(() => performancePanel.dispose());
+  const modelAuthorsPanel = mountModelAuthorsPanel({
+    host: canvas,
+    scope,
+    getModelVariants: () => city3d.getModelVariants()
+  });
+  scope.own(() => modelAuthorsPanel.dispose());
   mountLanguagePanel({
     host: canvas,
     scope,

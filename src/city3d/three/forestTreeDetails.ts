@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { TREE_QUALITIES, type TreeQuality, treeQualityAtPixels } from "../../buildings/landscape/treeQuality";
 import { hasTreeQualityLevels, type TreeSpecies } from "../../buildings/landscape/trees";
 import type { Point } from "../../city-editor/types/document";
-import { adoptedTree } from "../adoption";
+import { adoptedTree, markVariant } from "../adoption";
 import { type BvDefinition, createBvPrototypeCache } from "./bvInstances";
 
 export const FOREST_TREE_DETAIL_LIMIT = { trees: 16, species: 4, enterPixels: 60, exitPixels: 48 } as const;
@@ -86,6 +86,7 @@ export function createForestTreeDetails(
       m.userData.ceForest = true;
       m.userData.forestSpecies = species;
       m.userData.treeQuality = quality;
+      markVariant(m, variant.id);
       group.add(m);
       return m;
     };
