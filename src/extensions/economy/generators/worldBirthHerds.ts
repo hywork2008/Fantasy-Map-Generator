@@ -10,13 +10,16 @@
 import { getOrCreateFaunaStockTable } from "../context/cellTables";
 import { getEconomySlice, getSimulationContext, getWorldContext } from "../context/economyApi";
 import { getGoods } from "../context/trade";
-import { getDomesticatedCarryingCapacity, getRuralEcosystemDetail, isManagedHerdGood } from "./faunaPopulation";
+import {
+  getDomesticatedCarryingCapacity,
+  getRuralEcosystemDetail,
+  isManagedHerdGood,
+  WORLD_BIRTH_HERDS_KEY
+} from "./faunaPopulation";
 import type { FaunaCohorts } from "./faunaPopulationTypes";
 import { isGoodEnabled } from "./goods-generator";
 import { stockWorldBirthHay } from "./livestockFeed";
 
-/** Saved in the economy slice once a world's birth herds are settled. */
-const WORLD_BIRTH_HERDS_KEY = "livestockWorldBirthHerds";
 const WORLD_BIRTH_HERDS_VERSION = 1;
 /** Each land plan closes half the gap to the staffed pasture (PASTURE_ANNUAL_EXPANSION). */
 export const WORLD_BIRTH_MAX_ROUNDS = 12;
@@ -74,8 +77,10 @@ export function isUnadvancedWorld(): boolean {
 export function settleWorldBirthHerds(replan: () => void): number {
   const slice = getEconomySlice();
   if (!slice || slice[WORLD_BIRTH_HERDS_KEY] === WORLD_BIRTH_HERDS_VERSION) return 0;
-  slice[WORLD_BIRTH_HERDS_KEY] = WORLD_BIRTH_HERDS_VERSION;
-  if (getRuralEcosystemDetail() !== "detailed") return 0;
+  if (getRuralEcosystemDetail() !== "detailed") {
+    slice[WORLD_BIRTH_HERDS_KEY] = WORLD_BIRTH_HERDS_VERSION;
+    return 0;
+  }
   let pasture = totalPastureHectares();
   let rounds = 0;
   while (rounds < WORLD_BIRTH_MAX_ROUNDS) {
@@ -89,6 +94,8 @@ export function settleWorldBirthHerds(replan: () => void): number {
   }
   placeSettledHerds();
   stockWorldBirthHay();
+  // Ends the birth phase: from here no herd appears where its species is absent.
+  slice[WORLD_BIRTH_HERDS_KEY] = WORLD_BIRTH_HERDS_VERSION;
   return rounds;
 }
 

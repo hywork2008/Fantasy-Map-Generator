@@ -239,7 +239,28 @@ function cohortTotal(cohorts: FaunaCohorts): number {
   return cohorts.young + cohorts.breeding + cohorts.old;
 }
 
+/** Saved in the economy slice once a world's birth herds are settled (worldBirthHerds.ts). */
+export const WORLD_BIRTH_HERDS_KEY = "livestockWorldBirthHerds";
+
+/**
+ * True until the world's birth herds are settled. Only then may a herd be placed where its species
+ * is absent; afterwards animals arrive by breeding, moving or capture alone
+ * (docs/plan/livestock-world-birth-herds.md §2).
+ */
+export function isWorldBirthPhase(): boolean {
+  const slice = getEconomySlice();
+  return !slice || slice[WORLD_BIRTH_HERDS_KEY] === undefined;
+}
+
+/** A herd needs at least a breeding pair to have young (provisional, all species). */
+export const MIN_BREEDING_HEADS = 2;
+/** Share of a neighbouring herd's young and breeding stock that moves into an empty cell in a year. */
+export const NEIGHBOUR_SPREAD_SHARE = 0.05;
+/** An empty cell takes at most this share of its supported herd from its neighbours in a year. */
+export const NEIGHBOUR_SPREAD_CAPACITY_SHARE = 0.25;
+
 function initializeStock(carryingCapacity: number): FaunaCohorts {
+  if (!isWorldBirthPhase()) return { young: 0, breeding: 0, old: 0 };
   const total = Math.max(0, carryingCapacity) * INITIAL_STOCK_FRACTION_OF_CAPACITY;
   return {
     young: total * INITIAL_COHORT_SPLIT.young,
@@ -714,7 +735,7 @@ export function dispatchDomesticatedFauna(
 function peekHarvestableStock(cellId: number, speciesKey: string, capacity: number): number {
   const existing = getOrCreateFaunaStockTable()?.[getStockKey(cellId, speciesKey)];
   if (existing) return cohortTotal(existing);
-  return capacity > 0 ? capacity * INITIAL_STOCK_FRACTION_OF_CAPACITY : 0;
+  return cohortTotal(initializeStock(capacity));
 }
 
 /**
@@ -766,7 +787,7 @@ function advanceCohortsOneYear(
     null,
     gradualGrazingAdjustment
   );
-  const born = renewal.birthsHeads;
+  const born = cohorts.breeding >= MIN_BREEDING_HEADS ? renewal.birthsHeads : 0;
 
   const youngMaturing = cohorts.young / Math.max(0.1, profile.youngMaturityYears);
   const breedingAging = cohorts.breeding / Math.max(0.1, profile.breedingTenureYears);
@@ -804,7 +825,8 @@ function advanceStockOneYear(
   const key = getStockKey(cellId, speciesKey);
   const existing = table[key];
   if (!existing) {
-    if (carryingCapacity > 0) table[key] = initializeStock(carryingCapacity);
+    // Seeded only at world birth; later an empty cell is filled from its neighbours.
+    if (carryingCapacity > 0 && isWorldBirthPhase()) table[key] = initializeStock(carryingCapacity);
     return; // Freshly seeded — breeding/aging starts from here next year.
   }
 
@@ -877,10 +899,17 @@ export function updateAnnualFaunaCohorts(): boolean {
     good => good.tags.includes("liveAnimal") && (isGoodEnabled(good) || isManagedHerdGood(good.name))
   );
 
+  const emptyCells: { cellId: number; speciesKey: string; capacity: number }[] = [];
+  const advance = (cellId: number, speciesKey: string, capacity: number) => {
+    advanceStockOneYear(table, cellId, speciesKey, capacity);
+    const herd = table[getStockKey(cellId, speciesKey)];
+    if (capacity > 0 && (!herd || cohortTotal(herd) < MIN_BREEDING_HEADS))
+      emptyCells.push({ cellId, speciesKey, capacity });
+  };
   for (const cellId of cells.i) {
     if ((cells.h[cellId] ?? 0) < 20) continue;
 
-    advanceStockOneYear(table, cellId, WILD_SPECIES_KEY, getWildCarryingCapacity(cellId));
+    advance(cellId, WILD_SPECIES_KEY, getWildCarryingCapacity(cellId));
     if (!domesticatedGoods.length) continue;
 
     const biomeCode = cells.biomeCode[cellId] ?? 0;
@@ -892,11 +921,39 @@ export function updateAnnualFaunaCohorts(): boolean {
       const existingGrazedHerd = grazed && table[getStockKey(cellId, good.name)];
       if ((!isGoodEnabled(good) || (rate <= 0 && !grazed)) && !existingGrazedHerd) continue;
       const flatRateAmount = Math.max(0, cells.pop[cellId] ?? 0) * rate;
-      advanceStockOneYear(table, cellId, good.name, getDomesticatedCarryingCapacity(cellId, good, flatRateAmount));
+      advance(cellId, good.name, getDomesticatedCarryingCapacity(cellId, good, flatRateAmount));
     }
   }
+  if (!isWorldBirthPhase()) for (const empty of emptyCells) spreadFromNeighbours(table, empty);
   captureWildLivestock(table, domesticatedGoods);
   return true;
+}
+
+/**
+ * An empty cell with room for a species takes young and breeding stock from neighbouring herds of
+ * that species: wild animals wander in, keepers settle with a share of their family's herd. Heads
+ * move one for one; a cell whose neighbours cannot spare a breeding pair stays empty.
+ */
+function spreadFromNeighbours(
+  table: Record<string, FaunaCohorts>,
+  { cellId, speciesKey, capacity }: { cellId: number; speciesKey: string; capacity: number }
+): void {
+  const key = getStockKey(cellId, speciesKey);
+  const herd = table[key] ?? { young: 0, breeding: 0, old: 0 };
+  const donors = (getWorldContext().pack.cells.c?.[cellId] ?? [])
+    .map(n => table[getStockKey(n, speciesKey)])
+    .filter((d): d is FaunaCohorts => !!d && cohortTotal(d) >= MIN_BREEDING_HEADS);
+  const offered = donors.reduce((sum, d) => sum + (d.young + d.breeding) * NEIGHBOUR_SPREAD_SHARE, 0);
+  const moved = Math.min(offered, capacity * NEIGHBOUR_SPREAD_CAPACITY_SHARE);
+  if (!(offered > 0) || cohortTotal(herd) + moved < MIN_BREEDING_HEADS) return;
+  const share = moved / offered;
+  for (const donor of donors)
+    for (const age of ["young", "breeding"] as const) {
+      const heads = donor[age] * NEIGHBOUR_SPREAD_SHARE * share;
+      donor[age] -= heads;
+      herd[age] += heads;
+    }
+  table[key] = herd;
 }
 
 // ---- Wild capture (docs/plan/wild-animal-capture-domestication.md, C2) ----
