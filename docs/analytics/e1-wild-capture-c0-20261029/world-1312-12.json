@@ -1,0 +1,127 @@
+{
+ "schemaVersion": 1,
+ "inputSha256": "5361f237d0f4f4fd6af5c2653cae69c6e871e8183dffce88d23601deb3d3dd43",
+ "months": 12,
+ "captureThreshold": 0.9,
+ "worldSettings": {
+  "fmg-luxury-value-demand": "on",
+  "fmg-money-supply": "on",
+  "fmg-long-distance-trade": "on",
+  "fmg-caravan-raids": "off"
+ },
+ "notes": [
+  "Real animals. Pig target is the yard target; Horses target is the supported grazed herd.",
+  "Wild heads are the whole Game stock in short cells (all species); the design's ancestor shares apply on top.",
+  "spareAdults is getMigratableAdults() x populationRate (adults free after the monthly peak and safety margin)."
+ ],
+ "samples": [
+  {
+   "date": [
+    1312,
+    9
+   ],
+   "species": {
+    "Horses": {
+     "targetHeads": 386438.33836561214,
+     "heads": 238251.33333778224,
+     "shortfallHeads": 114993.87926987225,
+     "shortCells": 1262,
+     "sellingCells": 903,
+     "spareAdultsInShortCells": 125666.74638661789,
+     "laborShortCellsThisMonth": 1,
+     "wildHeadsInShortCellsByTag": {
+      "wetland": 3970217.404261201,
+      "forest": 98062.10433198689,
+      "grassland": 1289830.1728745797,
+      "other": 6992.393847438498,
+      "mountain": 2754.9791094298334
+     },
+     "shortfallHeadsByTag": {
+      "wetland": 32733.123137584866,
+      "forest": 1799.0491141384878,
+      "grassland": 80448.31857272974,
+      "other": 13.014524075247834,
+      "mountain": 0.3739213437900162
+     }
+    },
+    "Pig": {
+     "targetHeads": 790398.3993783593,
+     "heads": 581892.0133968962,
+     "shortfallHeads": 129466.54604362739,
+     "shortCells": 2157,
+     "sellingCells": 2157,
+     "spareAdultsInShortCells": 212479.15379778715,
+     "laborShortCellsThisMonth": 26,
+     "wildHeadsInShortCellsByTag": {
+      "wetland": 4007490.4796148683,
+      "forest": 4430421.842439213,
+      "grassland": 1290614.4402207758,
+      "other": 100589.24873206887,
+      "mountain": 57035.46368795451
+     },
+     "shortfallHeadsByTag": {
+      "wetland": 28894.40625611124,
+      "forest": 66852.14203999804,
+      "grassland": 16160.859930722052,
+      "other": 16701.14935073844,
+      "mountain": 857.9884660575256
+     }
+    }
+   }
+  },
+  {
+   "date": [
+    1312,
+    10
+   ],
+   "species": {
+    "Horses": {
+     "targetHeads": 386579.8134673235,
+     "heads": 235600.3333377823,
+     "shortfallHeads": 115192.1233394365,
+     "shortCells": 1356,
+     "sellingCells": 903,
+     "spareAdultsInShortCells": 129532.5485796784,
+     "laborShortCellsThisMonth": 22,
+     "wildHeadsInShortCellsByTag": {
+      "wetland": 3969933.8730100184,
+      "forest": 603843.8946048993,
+      "grassland": 1290613.9100216087,
+      "other": 16796.04388483547,
+      "mountain": 4562.322664190218
+     },
+     "shortfallHeadsByTag": {
+      "wetland": 32749.63008346099,
+      "forest": 1831.9686929944808,
+      "grassland": 80557.29949088184,
+      "other": 52.670675729755615,
+      "mountain": 0.554396369525417
+     }
+    },
+    "Pig": {
+     "targetHeads": 791117.2624818981,
+     "heads": 557555.0133968961,
+     "shortfallHeads": 154450.52283681234,
+     "shortCells": 2157,
+     "sellingCells": 2157,
+     "spareAdultsInShortCells": 212479.15379778715,
+     "laborShortCellsThisMonth": 94,
+     "wildHeadsInShortCellsByTag": {
+      "wetland": 4007205.5836224486,
+      "forest": 4430403.090495899,
+      "grassland": 1290613.9100216087,
+      "other": 100589.24873206887,
+      "mountain": 57034.7614200836
+     },
+     "shortfallHeadsByTag": {
+      "wetland": 34490.24467121237,
+      "forest": 79736.98586504022,
+      "grassland": 19269.886812059212,
+      "other": 19929.414174175177,
+      "mountain": 1023.991314325081
+     }
+    }
+   }
+  }
+ ]
+}
