@@ -1,7 +1,6 @@
 import { arc, interpolateLab, select } from "d3";
 import { worldContext } from "../context/worldContext";
 import { viewLayerService as view } from "../services/viewLayerService";
-import { isDialogOpen } from "../ui/dialogs/dialogService";
 import { computeBorderHeat, pairKey } from "../utils/diplomacyHeat";
 import { getDiplomacyMilitaryPersonnel, getMilitaryShare } from "../utils/diplomacyMilitary";
 import { type RelationKey, relations } from "../utils/diplomacyRelations";
@@ -137,7 +136,7 @@ export function renderDiplomacyBadges(): void {
         .style("cursor", "pointer")
         .on("click", event => {
           event.stopPropagation();
-          if (isDialogOpen("diplomacyEditor")) diplomacyEditorActions.selectRelation(subject, object, relation);
+          diplomacyEditorActions.selectRelation(subject, object, relation);
         });
       const heatNote = heat >= 0.05 ? ` (hostility ${Math.round(heat * 100)}%)` : "";
       half.append("title").text(`${states[subject].name} ${rel.inText} ${states[object].name}${heatNote}`);
@@ -198,6 +197,12 @@ export function renderDiplomacyBadges(): void {
         .append("path")
         .attr("d", ringArc({ startAngle, endAngle, innerRadius: r + 0.75, outerRadius: r + 3.25 }))
         .attr("fill", states[stateId].color || "#888")
+        .style("cursor", "pointer")
+        .on("click", event => {
+          event.stopPropagation();
+          const otherId = stateId === left ? right : left;
+          diplomacyEditorActions.selectRelation(stateId, otherId, states[stateId].diplomacy![otherId] as string);
+        })
         .append("title")
         .text(`${states[stateId].name}: ${personnel[stateId]} military personnel`);
     }

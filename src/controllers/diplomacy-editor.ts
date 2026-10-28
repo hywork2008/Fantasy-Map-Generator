@@ -67,316 +67,312 @@ export function editDiplomacy(): void {
   document.addEventListener("fmg:webgl-map-pick", selectStateOnWebglMapPick);
 
   openDialog("diplomacyEditor");
+}
 
-  function refreshDiplomacyEditor(): void {
-    diplomacyEditorAddLines();
-    showStateRelations();
+function refreshDiplomacyEditor(): void {
+  diplomacyEditorAddLines();
+  showStateRelations();
+}
+
+function getTotalForces(state: (typeof worldContext.pack.states)[number]): number {
+  return getDiplomacyMilitaryPersonnel(state, worldContext.options);
+}
+
+function diplomacyEditorAddLines(): void {
+  const states = worldContext.pack.states;
+  let selectedId = getDiplomacyEditorState()?.selectedStateId || 0;
+  if (!selectedId || !states[selectedId] || states[selectedId].removed) {
+    selectedId = states.find(s => s.i && !s.removed)!.i;
   }
 
-  function getTotalForces(state: (typeof worldContext.pack.states)[number]): number {
-    return getDiplomacyMilitaryPersonnel(state, worldContext.options);
-  }
+  const rowData: DiplomacyRowData[] = [];
+  const hasPlayerConflictAuthorization = (subjectId: number, objectId: number): boolean => {
+    const values = simulationContext.extensions.nobility?.conflictAuthorizationsByState;
+    if (typeof values !== "object" || values === null || Array.isArray(values)) return false;
+    const subject = (values as Record<number, unknown>)[subjectId];
+    return typeof subject === "object" && subject !== null && objectId in subject;
+  };
+  const getConflictStatus = (subjectId: number, objectId: number, relation: string): ConflictStatus => {
+    if (relation !== "Enemy") return "none";
+    if (worldContext.options.conflictAutonomy !== "playerDirected") return "autonomous";
+    return hasPlayerConflictAuthorization(subjectId, objectId) ? "player" : "suspended";
+  };
 
-  function diplomacyEditorAddLines(): void {
-    const states = worldContext.pack.states;
-    let selectedId = getDiplomacyEditorState()?.selectedStateId || 0;
-    if (!selectedId || !states[selectedId] || states[selectedId].removed) {
-      selectedId = states.find(s => s.i && !s.removed)!.i;
-    }
+  // Self Row
+  rowData.push({
+    i: selectedId,
+    name: states[selectedId].name,
+    fullName: states[selectedId].fullName || "",
+    color: "none",
+    relation: "Self",
+    conflictStatus: "none",
+    inText: "Self",
+    totalForces: getTotalForces(states[selectedId])
+  });
 
-    const rowData: DiplomacyRowData[] = [];
-    const hasPlayerConflictAuthorization = (subjectId: number, objectId: number): boolean => {
-      const values = simulationContext.extensions.nobility?.conflictAuthorizationsByState;
-      if (typeof values !== "object" || values === null || Array.isArray(values)) return false;
-      const subject = (values as Record<number, unknown>)[subjectId];
-      return typeof subject === "object" && subject !== null && objectId in subject;
-    };
-    const getConflictStatus = (subjectId: number, objectId: number, relation: string): ConflictStatus => {
-      if (relation !== "Enemy") return "none";
-      if (worldContext.options.conflictAutonomy !== "playerDirected") return "autonomous";
-      return hasPlayerConflictAuthorization(subjectId, objectId) ? "player" : "suspended";
-    };
+  for (const state of states) {
+    if (!state.i || state.removed || state.i === selectedId) continue;
+    const relation = state.diplomacy![selectedId] as RelationKey;
+    const { color, inText } = relations[relation];
+    const name = (state.fullName && state.fullName.length < 23 ? state.fullName : state.name) as string;
 
-    // Self Row
     rowData.push({
-      i: selectedId,
-      name: states[selectedId].name,
-      fullName: states[selectedId].fullName || "",
-      color: "none",
-      relation: "Self",
-      conflictStatus: "none",
-      inText: "Self",
-      totalForces: getTotalForces(states[selectedId])
-    });
-
-    for (const state of states) {
-      if (!state.i || state.removed || state.i === selectedId) continue;
-      const relation = state.diplomacy![selectedId] as RelationKey;
-      const { color, inText } = relations[relation];
-      const name = (state.fullName && state.fullName.length < 23 ? state.fullName : state.name) as string;
-
-      rowData.push({
-        i: state.i,
-        name: name,
-        fullName: state.fullName || "",
-        color,
-        relation,
-        conflictStatus: getConflictStatus(selectedId, state.i, relation),
-        inText,
-        totalForces: getTotalForces(state)
-      });
-    }
-
-    const validStates = worldContext.pack.states.filter(s => s.i && !s.removed);
-    const matrix = validStates.map(state => ({
       i: state.i,
-      name: state.name,
-      fullName: state.fullName,
-      diplomacy: state.diplomacy as string[]
-    }));
-
-    setDiplomacyEditorState({
-      states: rowData,
-      matrix,
-      selectedStateId: selectedId
+      name: name,
+      fullName: state.fullName || "",
+      color,
+      relation,
+      conflictStatus: getConflictStatus(selectedId, state.i, relation),
+      inText,
+      totalForces: getTotalForces(state)
     });
   }
 
-  function showStateRelations(): void {
-    const states = worldContext.pack.states;
-    let sel = getDiplomacyEditorState()?.selectedStateId || 0;
-    if (!sel || !states[sel] || states[sel].removed) {
-      sel = states.find(s => s.i && !s.removed)?.i || 0;
+  const validStates = worldContext.pack.states.filter(s => s.i && !s.removed);
+  const matrix = validStates.map(state => ({
+    i: state.i,
+    name: state.name,
+    fullName: state.fullName,
+    diplomacy: state.diplomacy as string[]
+  }));
+
+  setDiplomacyEditorState({
+    states: rowData,
+    matrix,
+    selectedStateId: selectedId
+  });
+}
+
+function showStateRelations(): void {
+  const states = worldContext.pack.states;
+  let sel = getDiplomacyEditorState()?.selectedStateId || 0;
+  if (!sel || !states[sel] || states[sel].removed) {
+    sel = states.find(s => s.i && !s.removed)?.i || 0;
+  }
+  if (!sel) return;
+  if (!layerIsOn("toggleStates")) toggleStates();
+
+  viewContext.diplomacySelectedStateId = sel;
+  scheduleWebglUpdate();
+
+  view.statesBody.selectAll("path").each(function () {
+    const el = this as SVGPathElement;
+    if (el.id.slice(0, 9) === "state-gap") return;
+    const id = +el.id.slice(5);
+
+    const relation = worldContext.pack.states[id].diplomacy![sel] as RelationKey;
+    const c = relations[relation]?.color || "#4682b4";
+
+    el.setAttribute("fill", c);
+    view.statesBody.select(`#state-gap${id}`).attr("stroke", c);
+    view.statesHalo.select(`#state-border${id}`).attr("stroke", color(c)?.darker().formatHex() ?? c);
+  });
+
+  if (layerIsOn("toggleDiplomacy")) renderDiplomacyBadges();
+}
+
+function selectStateOnMapClick(this: SVGElement, event: MouseEvent): void {
+  const point = pointer(event, this);
+  const i = findCell(point[0], point[1]);
+  const state = worldContext.pack.cells.state![i];
+  if (!state) return;
+
+  setDiplomacyEditorState({ selectedStateId: state });
+  refreshDiplomacyEditor();
+}
+
+function selectStateOnWebglMapPick(event: CustomEvent<import("../types/webglPicking").WebglPickDetail | null>): void {
+  if (viewContext.renderMode !== "webglHybrid") return;
+  const cellId = event.detail?.cellId;
+  if (cellId === null || cellId === undefined) return;
+  const state = worldContext.pack.cells.state?.[cellId];
+  if (!state || worldContext.pack.states[state]?.removed) return;
+
+  setDiplomacyEditorState({ selectedStateId: state });
+  refreshDiplomacyEditor();
+}
+
+function selectRelation(subjectId: number, objectId: number, currentRelation: string): void {
+  diplomacyEditorAddLines();
+  setDiplomacyEditorState({
+    relationDialog: {
+      isOpen: true,
+      subjectId,
+      objectId,
+      currentRelation
     }
-    if (!sel) return;
-    if (!layerIsOn("toggleStates")) toggleStates();
+  });
+}
 
-    viewContext.diplomacySelectedStateId = sel;
-    scheduleWebglUpdate();
+function changeRelation(subjectId: number, objectId: number, oldRelation: string, newRelation: string): void {
+  if (newRelation === oldRelation) return;
+  const states = worldContext.pack.states;
+  const chronicle = states[0].diplomacy as unknown as string[][];
 
-    view.statesBody.selectAll("path").each(function () {
-      const el = this as SVGPathElement;
-      if (el.id.slice(0, 9) === "state-gap") return;
-      const id = +el.id.slice(5);
+  const subjectName = states[subjectId].name;
+  const objectName = states[objectId].name;
 
-      const relation = worldContext.pack.states[id].diplomacy![sel] as RelationKey;
-      const c = relations[relation]?.color || "#4682b4";
-
-      el.setAttribute("fill", c);
-      view.statesBody.select(`#state-gap${id}`).attr("stroke", c);
-      view.statesHalo.select(`#state-border${id}`).attr("stroke", color(c)?.darker().formatHex() ?? c);
+  const change = (): [string, string] => [
+    `Relations change`,
+    `${subjectName}-${getAdjective(objectName)} relations changed to ${newRelation.toLowerCase()}`
+  ];
+  const ally = (): [string, string] => [
+    `Defence pact`,
+    `${subjectName} entered into defensive pact with ${objectName}`
+  ];
+  const vassal = (): [string, string] => [`Vassalization`, `${subjectName} became a vassal of ${objectName}`];
+  const suzerain = (): [string, string] => [`Vassalization`, `${subjectName} vassalized ${objectName}`];
+  const rival = (): [string, string] => [`Rivalization`, `${subjectName} and ${objectName} became rivals`];
+  const unknown = (): [string, string] => [
+    `Relations severance`,
+    `${subjectName} recalled their ambassadors and wiped all the records about ${objectName}`
+  ];
+  const war = (): [string, string] => {
+    const pack = worldContext.pack;
+    const attackerRelId = pack.cells.religion?.[states[subjectId].center] ?? 0;
+    const defenderRelId = pack.cells.religion?.[states[objectId].center] ?? 0;
+    const cb = generateWarCasusBelli({
+      attacker: states[subjectId],
+      defender: states[objectId],
+      attackerReligionName: pack.religions?.[attackerRelId]?.name,
+      defenderReligionName: pack.religions?.[defenderRelId]?.name,
+      attackerCultureName: pack.cultures?.[states[subjectId].culture]?.name,
+      defenderCultureName: pack.cultures?.[states[objectId].culture]?.name,
+      warCount: 1
     });
+    return [`War declaration`, `${subjectName} declared war on ${objectName}, ${cb.reason}`];
+  };
+  const peace = (): [string, string, string] => {
+    const treaty = `${subjectName} and ${objectName} agreed to cease fire and signed a peace treaty`;
+    const changed =
+      newRelation === "Ally"
+        ? ally()
+        : newRelation === "Vassal"
+          ? vassal()
+          : newRelation === "Suzerain"
+            ? suzerain()
+            : newRelation === "Unknown"
+              ? unknown()
+              : change();
+    return [`War termination`, treaty, changed[1]];
+  };
 
+  legacyMutation(() => {
+    states[subjectId].diplomacy![objectId] = newRelation;
+    states[objectId].diplomacy![subjectId] =
+      newRelation === "Vassal" ? "Suzerain" : newRelation === "Suzerain" ? "Vassal" : newRelation;
+
+    if (oldRelation === "Enemy") chronicle.push(peace());
+    else if (newRelation === "Enemy") chronicle.push(war());
+    else if (newRelation === "Vassal") chronicle.push(vassal());
+    else if (newRelation === "Suzerain") chronicle.push(suzerain());
+    else if (newRelation === "Ally") chronicle.push(ally());
+    else if (newRelation === "Unknown") chronicle.push(unknown());
+    else if (newRelation === "Rival") chronicle.push(rival());
+    else chronicle.push(change());
+    return { result: undefined, topics: ["map.politics"] };
+  });
+
+  if (newRelation === "Enemy") {
+    document.dispatchEvent(
+      new CustomEvent("fmg:player-conflict-requested", {
+        detail: { attackerStateId: subjectId, defenderStateId: objectId }
+      })
+    );
+  } else if (oldRelation === "Enemy") {
+    document.dispatchEvent(
+      new CustomEvent("fmg:player-conflict-ended", {
+        detail: { attackerStateId: subjectId, defenderStateId: objectId }
+      })
+    );
+  }
+
+  if (isDialogOpen("diplomacyEditor")) refreshDiplomacyEditor();
+  else {
+    diplomacyEditorAddLines();
     if (layerIsOn("toggleDiplomacy")) renderDiplomacyBadges();
   }
+}
 
-  function selectStateOnMapClick(this: SVGElement, event: MouseEvent): void {
-    const point = pointer(event, this);
-    const i = findCell(point[0], point[1]);
-    const state = worldContext.pack.cells.state![i];
-    if (!state) return;
+function regenerateRelations(): void {
+  legacyMutation(() => {
+    GenerationPipeline.States.generateDiplomacy();
+    return { result: undefined, topics: ["map.politics"] };
+  });
+  refreshDiplomacyEditor();
+}
 
-    setDiplomacyEditorState({ selectedStateId: state });
-    refreshDiplomacyEditor();
-  }
+function resetRelations(): void {
+  const selectedId = getDiplomacyEditorState()?.selectedStateId || 0;
+  if (!selectedId) return;
+  const states = worldContext.pack.states;
 
-  function selectStateOnWebglMapPick(event: CustomEvent<import("../types/webglPicking").WebglPickDetail | null>): void {
-    if (viewContext.renderMode !== "webglHybrid") return;
-    const cellId = event.detail?.cellId;
-    if (cellId === null || cellId === undefined) return;
-    const state = worldContext.pack.cells.state?.[cellId];
-    if (!state || worldContext.pack.states[state]?.removed) return;
-
-    setDiplomacyEditorState({ selectedStateId: state });
-    refreshDiplomacyEditor();
-  }
-
-  function selectRelation(subjectId: number, objectId: number, currentRelation: string): void {
-    setDiplomacyEditorState({
-      relationDialog: {
-        isOpen: true,
-        subjectId,
-        objectId,
-        currentRelation
-      }
+  const endedConflicts: number[] = [];
+  legacyMutation(() => {
+    (states[selectedId].diplomacy as string[]).forEach((rel, index) => {
+      if (rel === "x") return;
+      if (rel === "Enemy") endedConflicts.push(index);
+      states[selectedId].diplomacy![index] = "Neutral";
+      states[index].diplomacy![selectedId] = "Neutral";
     });
+    return { result: undefined, topics: ["map.politics"] };
+  });
+  for (const stateId of endedConflicts) {
+    document.dispatchEvent(
+      new CustomEvent("fmg:player-conflict-ended", {
+        detail: { attackerStateId: selectedId, defenderStateId: stateId }
+      })
+    );
   }
 
-  function changeRelation(subjectId: number, objectId: number, oldRelation: string, newRelation: string): void {
-    if (newRelation === oldRelation) return;
-    const states = worldContext.pack.states;
-    const chronicle = states[0].diplomacy as unknown as string[][];
+  refreshDiplomacyEditor();
+}
 
-    const subjectName = states[subjectId].name;
-    const objectName = states[objectId].name;
+function showRelationsHistory(): void {
+  openRelationsHistory();
+}
 
-    const change = (): [string, string] => [
-      `Relations change`,
-      `${subjectName}-${getAdjective(objectName)} relations changed to ${newRelation.toLowerCase()}`
-    ];
-    const ally = (): [string, string] => [
-      `Defence pact`,
-      `${subjectName} entered into defensive pact with ${objectName}`
-    ];
-    const vassal = (): [string, string] => [`Vassalization`, `${subjectName} became a vassal of ${objectName}`];
-    const suzerain = (): [string, string] => [`Vassalization`, `${subjectName} vassalized ${objectName}`];
-    const rival = (): [string, string] => [`Rivalization`, `${subjectName} and ${objectName} became rivals`];
-    const unknown = (): [string, string] => [
-      `Relations severance`,
-      `${subjectName} recalled their ambassadors and wiped all the records about ${objectName}`
-    ];
-    const war = (): [string, string] => {
-      const pack = worldContext.pack;
-      const attackerRelId = pack.cells.religion?.[states[subjectId].center] ?? 0;
-      const defenderRelId = pack.cells.religion?.[states[objectId].center] ?? 0;
-      const cb = generateWarCasusBelli({
-        attacker: states[subjectId],
-        defender: states[objectId],
-        attackerReligionName: pack.religions?.[attackerRelId]?.name,
-        defenderReligionName: pack.religions?.[defenderRelId]?.name,
-        attackerCultureName: pack.cultures?.[states[subjectId].culture]?.name,
-        defenderCultureName: pack.cultures?.[states[objectId].culture]?.name,
-        warCount: 1
-      });
-      return [`War declaration`, `${subjectName} declared war on ${objectName}, ${cb.reason}`];
-    };
-    const peace = (): [string, string, string] => {
-      const treaty = `${subjectName} and ${objectName} agreed to cease fire and signed a peace treaty`;
-      const changed =
-        newRelation === "Ally"
-          ? ally()
-          : newRelation === "Vassal"
-            ? vassal()
-            : newRelation === "Suzerain"
-              ? suzerain()
-              : newRelation === "Unknown"
-                ? unknown()
-                : change();
-      return [`War termination`, treaty, changed[1]];
-    };
+function openMatrix(): void {
+  if (layerIsOn("toggleStates")) toggleStates();
+  if (!layerIsOn("toggleProvinces")) toggleProvinces();
+  if (!layerIsOn("toggleBiomes")) toggleBiomes();
 
-    legacyMutation(() => {
-      states[subjectId].diplomacy![objectId] = newRelation;
-      states[objectId].diplomacy![subjectId] =
-        newRelation === "Vassal" ? "Suzerain" : newRelation === "Suzerain" ? "Vassal" : newRelation;
+  refreshDiplomacyEditor();
+  openDialog("diplomacyMatrix", {
+    title: "Relations matrix",
+    position: { my: "center", at: "center", of: "svg" },
+    buttons: {}
+  });
+}
 
-      if (oldRelation === "Enemy") chronicle.push(peace());
-      else if (newRelation === "Enemy") chronicle.push(war());
-      else if (newRelation === "Vassal") chronicle.push(vassal());
-      else if (newRelation === "Suzerain") chronicle.push(suzerain());
-      else if (newRelation === "Ally") chronicle.push(ally());
-      else if (newRelation === "Unknown") chronicle.push(unknown());
-      else if (newRelation === "Rival") chronicle.push(rival());
-      else chronicle.push(change());
-      return { result: undefined, topics: ["map.politics"] };
-    });
+function downloadDiplomacyData(): void {
+  const states = worldContext.pack.states.filter(s => s.i && !s.removed);
+  const valid = states.map(s => s.i);
 
-    if (newRelation === "Enemy") {
-      document.dispatchEvent(
-        new CustomEvent("fmg:player-conflict-requested", {
-          detail: { attackerStateId: subjectId, defenderStateId: objectId }
-        })
-      );
-    } else if (oldRelation === "Enemy") {
-      document.dispatchEvent(
-        new CustomEvent("fmg:player-conflict-ended", {
-          detail: { attackerStateId: subjectId, defenderStateId: objectId }
-        })
-      );
-    }
+  let data = `,${states.map(s => s.name).join(",")}\n`;
+  states.forEach(s => {
+    const rels = (s.diplomacy as string[]).filter((_v, i) => valid.includes(i));
+    data += `${s.name},${rels.join(",")}\n`;
+  });
 
-    refreshDiplomacyEditor();
-  }
+  const name = `${getFileName("Relations")}.csv`;
+  downloadFile(data, name);
+}
 
-  function regenerateRelations(): void {
-    legacyMutation(() => {
-      GenerationPipeline.States.generateDiplomacy();
-      return { result: undefined, topics: ["map.politics"] };
-    });
-    refreshDiplomacyEditor();
-  }
-
-  function resetRelations(): void {
-    const selectedId = getDiplomacyEditorState()?.selectedStateId || 0;
-    if (!selectedId) return;
-    const states = worldContext.pack.states;
-
-    const endedConflicts: number[] = [];
-    legacyMutation(() => {
-      (states[selectedId].diplomacy as string[]).forEach((rel, index) => {
-        if (rel === "x") return;
-        if (rel === "Enemy") endedConflicts.push(index);
-        states[selectedId].diplomacy![index] = "Neutral";
-        states[index].diplomacy![selectedId] = "Neutral";
-      });
-      return { result: undefined, topics: ["map.politics"] };
-    });
-    for (const stateId of endedConflicts) {
-      document.dispatchEvent(
-        new CustomEvent("fmg:player-conflict-ended", {
-          detail: { attackerStateId: selectedId, defenderStateId: stateId }
-        })
-      );
-    }
-
-    refreshDiplomacyEditor();
-  }
-
-  function showRelationsHistory(): void {
-    openRelationsHistory();
-  }
-
-  function openMatrix(): void {
-    if (layerIsOn("toggleStates")) toggleStates();
-    if (!layerIsOn("toggleProvinces")) toggleProvinces();
-    if (!layerIsOn("toggleBiomes")) toggleBiomes();
-
-    refreshDiplomacyEditor();
-    openDialog("diplomacyMatrix", {
-      title: "Relations matrix",
-      position: { my: "center", at: "center", of: "svg" },
-      buttons: {}
-    });
-  }
-
-  function downloadDiplomacyData(): void {
-    const states = worldContext.pack.states.filter(s => s.i && !s.removed);
-    const valid = states.map(s => s.i);
-
-    let data = `,${states.map(s => s.name).join(",")}\n`;
-    states.forEach(s => {
-      const rels = (s.diplomacy as string[]).filter((_v, i) => valid.includes(i));
-      data += `${s.name},${rels.join(",")}\n`;
-    });
-
-    const name = `${getFileName("Relations")}.csv`;
-    downloadFile(data, name);
-  }
-
-  function closeDiplomacyEditorImpl(): void {
-    document.removeEventListener("fmg:webgl-map-pick", selectStateOnWebglMapPick);
-    viewContext.diplomacySelectedStateId = null;
-    scheduleWebglUpdate();
-    EditorBus.restoreDefaultEvents();
-    clearMainTip();
-    if (layerIsOn("toggleStates")) StatesRenderer.render(worldContext, viewContext, appServices);
-    else toggleStates();
-    view.debug.selectAll(".highlight").remove();
-    // modules flag managed by CommonEditorDialog cleanup
-  }
-  diplomacyEditorActions.refreshDiplomacyEditor = refreshDiplomacyEditor;
-  diplomacyEditorActions.selectRelation = selectRelation;
-  diplomacyEditorActions.changeRelation = changeRelation;
-  diplomacyEditorActions.regenerateRelations = regenerateRelations;
-  diplomacyEditorActions.resetRelations = resetRelations;
-  diplomacyEditorActions.showRelationsHistory = showRelationsHistory;
-  diplomacyEditorActions.openMatrix = openMatrix;
-  diplomacyEditorActions.downloadDiplomacyData = downloadDiplomacyData;
-  diplomacyEditorActions.closeDiplomacyEditor = closeDiplomacyEditorImpl;
+function closeDiplomacyEditorImpl(): void {
+  document.removeEventListener("fmg:webgl-map-pick", selectStateOnWebglMapPick);
+  viewContext.diplomacySelectedStateId = null;
+  scheduleWebglUpdate();
+  EditorBus.restoreDefaultEvents();
+  clearMainTip();
+  if (layerIsOn("toggleStates")) StatesRenderer.render(worldContext, viewContext, appServices);
+  else toggleStates();
+  view.debug.selectAll(".highlight").remove();
+  // modules flag managed by CommonEditorDialog cleanup
 }
 
 export const diplomacyEditorActions = {
-  refreshDiplomacyEditor: () => {},
+  refreshDiplomacyEditor,
   stateHighlightOn: (stateId: number) => {
     if (!layerIsOn("toggleStates")) return;
     if (view.customization || !stateId) return;
@@ -410,15 +406,15 @@ export const diplomacyEditorActions = {
     setDiplomacyEditorState({ selectedStateId: stateId });
     diplomacyEditorActions.refreshDiplomacyEditor();
   },
-  selectRelation: (_subjectId: number, _objectId: number, _currentRelation: string) => {},
-  changeRelation: (_subjectId: number, _objectId: number, _currentRelation: string, _newRelation: string) => {},
-  regenerateRelations: () => {},
-  resetRelations: () => {},
-  showRelationsHistory: () => {},
-  openMatrix: () => {},
-  downloadDiplomacyData: () => {},
+  selectRelation,
+  changeRelation,
+  regenerateRelations,
+  resetRelations,
+  showRelationsHistory,
+  openMatrix,
+  downloadDiplomacyData,
   editStyle,
-  closeDiplomacyEditor: () => {}
+  closeDiplomacyEditor: closeDiplomacyEditorImpl
 };
 
 export function initDiplomacyEditor(_wc: WorldContext, _vc: Readonly<ViewContext>, _as: AppServices) {}
