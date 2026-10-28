@@ -47,10 +47,17 @@ export function presetAmplitude(extentMeters: number, relief?: number): number {
   return roundTenth(reliefAmplitude(extentMeters) * elevationReliefScale(relief));
 }
 
+/** Clockwise degrees from the positive X axis. Unset preserves automatic orientation. */
+export function elevationRotationDegrees(value: number | undefined): number | undefined {
+  if (value === undefined || !Number.isFinite(value)) return undefined;
+  return ((value % 360) + 360) % 360;
+}
+
 export interface ElevationSamplePlan {
   elevationPreset?: ElevationPreset;
   /** Multiplier on {@link presetAmplitude}. Unset is 1. */
   elevationRelief?: number;
+  elevationRotation?: number;
   elevationSeed?: string;
   fmgElevations?: Map<number, number>;
   rivers: ReadonlyArray<{ resolvedEdgePoints: Point[] }>;
@@ -62,7 +69,11 @@ export function elevationSampler(plan: ElevationSamplePlan, frame: { extentMeter
   const preset = plan.elevationPreset ?? "flat";
   const half = Math.max(1, frame.extentMeters / 2);
   const amplitude = presetAmplitude(frame.extentMeters, plan.elevationRelief);
-  const azimuth = downhillAzimuth(plan.rivers, plan.waterPolygon, plan.elevationSeed ?? "");
+  const rotation = elevationRotationDegrees(plan.elevationRotation);
+  const azimuth =
+    rotation === undefined
+      ? downhillAzimuth(plan.rivers, plan.waterPolygon, plan.elevationSeed ?? "")
+      : (rotation * Math.PI) / 180;
   return (point: Point, cellId: number, current: number): number => {
     if (preset === "flat") return landElevation(plan, cellId, current);
     return presetElevation(preset, point, half, azimuth, amplitude);
@@ -121,6 +132,7 @@ export function presetElevation(
 export interface ElevationReliefUpdate {
   elevationPreset?: ElevationPreset;
   elevationRelief?: number;
+  elevationRotation?: number;
   elevationSeed?: string;
 }
 
@@ -136,6 +148,7 @@ export function applyElevationRelief(document: CityDocument, update: ElevationRe
     {
       elevationPreset: preset,
       elevationRelief: update.elevationRelief,
+      elevationRotation: update.elevationRotation,
       elevationSeed: update.elevationSeed,
       rivers: documentRivers(document),
       waterPolygon: seaReliefPolygon(document)

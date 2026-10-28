@@ -17,7 +17,7 @@ import {
   validBuildingHeightPolicy,
   validHousingAreaSettings
 } from "../../generators/buildingHeightPolicy";
-import { elevationReliefScale } from "../../generators/elevationPreset";
+import { elevationReliefScale, elevationRotationDegrees } from "../../generators/elevationPreset";
 import { generationStageDefinitions } from "../../generators/generation/stages";
 import {
   defaultPopulationSettings,
@@ -562,6 +562,8 @@ function asSettings(raw: unknown): Omit<GenerationSettings, "descriptor"> | null
   )
     settings.elevationPreset = raw.elevationPreset;
   if (isFiniteNumber(raw.elevationRelief)) settings.elevationRelief = elevationReliefScale(raw.elevationRelief);
+  if (isFiniteNumber(raw.elevationRotation))
+    settings.elevationRotation = elevationRotationDegrees(raw.elevationRotation);
   if (isFiniteNumber(raw.riverDropMeters)) settings.riverDropMeters = riverDropMeters(raw.riverDropMeters);
   if (isFiniteNumber(raw.walledAreaShare)) settings.walledAreaShare = raw.walledAreaShare;
   if (raw.townWallRings === "single" || raw.townWallRings === "double") settings.townWallRings = raw.townWallRings;

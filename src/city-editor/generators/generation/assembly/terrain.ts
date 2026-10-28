@@ -30,6 +30,7 @@ export interface ApplyTerrainInput {
     | "fmgElevations"
     | "elevationPreset"
     | "elevationRelief"
+    | "elevationRotation"
     | "elevationSeed"
     | "waterPolygon"
     | "urban"

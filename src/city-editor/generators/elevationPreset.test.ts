@@ -99,6 +99,41 @@ describe("elevation presets", () => {
     expect(presetElevation("valley", [0, half], half, 0, amplitude)).toBe(14);
   });
 
+  it.each(["slope", "valley"] as const)("rotates %s through arbitrary angles independently of rivers", preset => {
+    const plan = {
+      elevationPreset: preset,
+      rivers: [
+        {
+          resolvedEdgePoints: [
+            [0, 0],
+            [100, 0]
+          ] as [number, number][]
+        }
+      ],
+      waterPolygon: null
+    };
+    const sample = (rotation: number) =>
+      elevationSampler({ ...plan, elevationRotation: rotation }, { extentMeters: 300 });
+    const angle = 37.5;
+    const radians = (angle * Math.PI) / 180;
+    const rotated = sample(angle);
+    const reference = sample(0);
+    const point: [number, number] = [
+      100 * Math.cos(radians) - 50 * Math.sin(radians),
+      100 * Math.sin(radians) + 50 * Math.cos(radians)
+    ];
+    expect(rotated(point, 0, 1)).toBe(reference([100, 50], 0, 1));
+    expect(sample(360)([100, 50], 0, 1)).toBe(reference([100, 50], 0, 1));
+    expect(sample(90)([100, 0], 0, 1)).toBe(reference([0, 100], 0, 1));
+    if (preset === "slope") expect(sample(180)([150, 0], 0, 1)).toBe(14);
+
+    const source = grid();
+    const first = applyElevationRelief(source, { elevationPreset: preset, elevationRotation: 0 });
+    const turned = applyElevationRelief(first, { elevationPreset: preset, elevationRotation: angle });
+    expect(turned).not.toBe(first);
+    expect(applyElevationRelief(turned, { elevationPreset: preset, elevationRotation: angle })).toBe(turned);
+  });
+
   it("orients downhill along a river, then a coast, then the seed", () => {
     expect(
       downhillAzimuth(
@@ -370,6 +405,16 @@ describe("generated cell elevations", () => {
     const land = Object.values(city!.mesh.faces).filter(face => face.properties.water === "land");
     expect(land.length).toBeGreaterThan(0);
     expect(new Set(land.map(face => face.properties.elevation))).toEqual(new Set([1]));
+  });
+
+  it("passes rotation through staged generation", () => {
+    const input = grid();
+    const options = settings({ coast: "none", rivers: [], relief: false, layout: "organic", features });
+    options.elevationPreset = "slope";
+    options.elevationRotation = 127.5;
+    const city = generateStageOnDocument(input, options, "rotation", 1)!;
+    expect(city).not.toBeNull();
+    expect(applyElevationRelief(city, { elevationPreset: "slope", elevationRotation: 127.5 })).toBe(city);
   });
 
   it("writes a slope and keeps the river from climbing", () => {

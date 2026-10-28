@@ -34,6 +34,7 @@ import {
   ELEVATION_RELIEF_MIN,
   ELEVATION_RELIEF_STEP,
   elevationReliefScale,
+  elevationRotationDegrees,
   isElevationPreset,
   presetAmplitude
 } from "../generators/elevationPreset";
@@ -2587,6 +2588,27 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     if (generation.generateSettings.elevationPreset !== "flat") delete generation.generateSettings.terrainField;
     syncGenerateControls();
   });
+  const elevationRotationInput = numberInput(
+    String(elevationRotationDegrees(generation.generateSettings.elevationRotation) ?? ""),
+    "0",
+    "any"
+  );
+  elevationRotationInput.max = "360";
+  elevationRotationInput.className = "ce-elevation-rotation";
+  elevationRotationInput.placeholder = editorText("cityEditor.messages.elevationRotationAuto");
+  elevationRotationInput.title = editorText("cityEditor.messages.elevationRotationHelp");
+  elevationRotationInput.disabled = !["slope", "valley"].includes(
+    generation.generateSettings.elevationPreset ?? "flat"
+  );
+  scope.listen(elevationRotationInput, "change", () => {
+    if (!elevationRotationInput.validity.valid) return;
+    const rotation =
+      elevationRotationInput.value === "" ? undefined : elevationRotationDegrees(elevationRotationInput.valueAsNumber);
+    if (rotation === undefined) delete generation.generateSettings.elevationRotation;
+    else generation.generateSettings.elevationRotation = rotation;
+    elevationRotationInput.value = String(rotation ?? "");
+    applyElevationReliefToDocument();
+  });
   const elevationReliefInput = rangeInput(
     String(elevationReliefScale(generation.generateSettings.elevationRelief)),
     String(ELEVATION_RELIEF_MIN),
@@ -2626,6 +2648,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
     const next = applyElevationRelief(documents.documentState, {
       elevationPreset: preset,
       elevationRelief: generation.generateSettings.elevationRelief,
+      elevationRotation: generation.generateSettings.elevationRotation,
       elevationSeed: generation.generateSeed
     });
     if (next !== documents.documentState) {
@@ -2706,6 +2729,7 @@ export function mountCityEditor(root: HTMLElement, options: CityEditorOptions = 
   cityElements.append(
     generationSection("cityEditor.generationWorkspace.terrain", [
       label(editorText("cityEditor.messages.elevationPreset"), elevationPresetSelect),
+      label(editorText("cityEditor.messages.elevationRotation"), elevationRotationInput),
       label(editorText("cityEditor.messages.elevationRelief"), elevationReliefControl),
       updateElevationReliefButton,
       standaloneSettings(

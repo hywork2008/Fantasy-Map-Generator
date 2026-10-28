@@ -81,6 +81,7 @@ export interface Plan {
   elevationPreset?: GenerationSettings["elevationPreset"];
   /** Multiplier on the preset height span. Unset is 1. */
   elevationRelief?: GenerationSettings["elevationRelief"];
+  elevationRotation?: GenerationSettings["elevationRotation"];
   /** Seed used when a preset has no river or coast to orient itself. */
   elevationSeed?: string;
   /** `wards`' source data, in decision order rather than sorted by cell id. Empty

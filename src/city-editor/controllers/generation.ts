@@ -5,7 +5,7 @@ import { inheritBuildingHeightLimits } from "../generators/buildingHeightLimits"
 import { withCastleStyle } from "../generators/castleAppearance";
 import { DEFAULT_CASTLE_SETTINGS } from "../generators/castlePlacement";
 import { sizePresetForExtent } from "../generators/document";
-import { elevationReliefScale, presetAmplitude } from "../generators/elevationPreset";
+import { elevationReliefScale, elevationRotationDegrees, presetAmplitude } from "../generators/elevationPreset";
 import { createFabricPlan, resolveDistricts } from "../generators/fabricDistricts";
 import { townCircuits } from "../generators/fortifications";
 import { COMPLETE_CITY_ATTEMPTS, generateCityOnDocument } from "../generators/generation/generateCity";
@@ -769,6 +769,15 @@ export function createGenerationController(ctx: GenerationContext) {
     ctx.reliefInput.checked = ctx.generation.generateSettings.config.relief;
     const elevationPreset = ctx.root.querySelector<HTMLSelectElement>(".ce-elevation-preset");
     if (elevationPreset) elevationPreset.value = ctx.generation.generateSettings.elevationPreset ?? "flat";
+    const elevationRotation = ctx.root.querySelector<HTMLInputElement>(".ce-elevation-rotation");
+    if (elevationRotation) {
+      elevationRotation.value = String(
+        elevationRotationDegrees(ctx.generation.generateSettings.elevationRotation) ?? ""
+      );
+      elevationRotation.disabled = !["slope", "valley"].includes(
+        ctx.generation.generateSettings.elevationPreset ?? "flat"
+      );
+    }
     const elevationRelief = ctx.root.querySelector<HTMLInputElement>(".ce-elevation-relief");
     const elevationReliefValue = ctx.root.querySelector<HTMLElement>(".ce-elevation-relief-value");
     const updateElevationRelief = ctx.root.querySelector<HTMLButtonElement>(".ce-update-elevation-relief");

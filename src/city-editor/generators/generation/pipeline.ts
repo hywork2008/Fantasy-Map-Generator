@@ -96,6 +96,7 @@ export function runPlan(
     fmgElevations: fmgCellElevations(cells, settings.descriptor),
     elevationPreset: settings.elevationPreset ?? "flat",
     elevationRelief: settings.elevationRelief,
+    elevationRotation: settings.elevationRotation,
     elevationSeed: seed
   };
   if (!cells.length) return empty;
@@ -385,6 +386,7 @@ export function runPlan(
     fmgElevations,
     elevationPreset: empty.elevationPreset,
     elevationRelief: empty.elevationRelief,
+    elevationRotation: empty.elevationRotation,
     elevationSeed: empty.elevationSeed,
     burialProfile: empty.burialProfile,
     urbanCoreMode: settings.urbanCoreMode,
