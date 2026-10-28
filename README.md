@@ -15,3 +15,8 @@ Azgaar's _Fantasy Map Generator_ is a free web application that helps fantasy wr
 ![Slope 3D 1](docs/assets/ce-slope-3d-1.jpg "")
 ![Slope 3D 2](docs/assets/ce-slope-3d-2.jpg "")
 ![Slope 3D 3](docs/assets/ce-slope-3d-3.jpg "")
+
+### Forest / Fog / Wallpaper
+
+![Wallpaper](docs/assets/fog-forest-wallpaper.jpg "")
+![Yggdrasil](docs/assets/yggdrasil.jpg "")
