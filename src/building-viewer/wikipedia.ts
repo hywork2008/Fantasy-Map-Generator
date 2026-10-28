@@ -146,6 +146,8 @@ const modelArticles: Record<string, string> = {
   "silver-birch": "Betula pendula",
   "date-palm": "Phoenix dactylifera",
   "umbrella-thorn": "Vachellia tortilis",
+  saxaul: "Haloxylon ammodendron",
+  kapok: "Ceiba pentandra",
   "mediterranean-cypress": "Cupressus sempervirens",
   "oriental-evergreen": "Evergreen",
   "sacred-bodhi-and-fig": "Ficus religiosa",

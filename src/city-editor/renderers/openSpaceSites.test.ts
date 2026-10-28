@@ -199,7 +199,9 @@ it("uses boreal BV species for cold taiga parks and cemeteries while retaining s
 
 it.each([
   ["hotDesert", ["date_palm"]],
-  ["savanna", ["umbrella_thorn", "date_palm"]]
+  ["savanna", ["umbrella_thorn", "date_palm"]],
+  ["coldDesert", ["saxaul"]],
+  ["tropicalRainforest", ["kapok"]]
 ] as const)("uses arid BV species for %s parks and cemeteries", (key, expected) => {
   const document = { ...city, biome: { id: 1, key, name: key, color: "yellow" } };
   const park = {

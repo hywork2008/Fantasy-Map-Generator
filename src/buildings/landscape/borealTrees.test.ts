@@ -4,7 +4,7 @@ import { createTownOpenSpaces } from "../../city3d/three/openSpaceMeshes";
 import { models } from "../medieval/43-landscape-treesModels";
 import { createLandscapeTree } from "./trees";
 
-it.each(["norway_spruce", "silver_birch", "date_palm", "umbrella_thorn"] as const)(
+it.each(["norway_spruce", "silver_birch", "date_palm", "umbrella_thorn", "saxaul", "kapok"] as const)(
   "registers and instances the grounded %s model with foliage colours",
   species => {
     const definition = models.find(model => model.id === species.replaceAll("_", "-"))!;

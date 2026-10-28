@@ -17,6 +17,8 @@ export function landscapeTreeSpecies(
   const seed = document.generationSeed ?? document.fabric?.seed ?? "landscape";
   // Irrigated oasis plantings in hot deserts; open umbrella thorns in savanna and dry tropical woodland.
   if (/hotdesert|xericshrubland/.test(biome)) return "date_palm";
+  if (/colddesert|coldsteppe/.test(biome)) return "saxaul";
+  if (/tropicalrainforest|cloudforest|floodedforest/.test(biome)) return "kapok";
   if (/savanna|tropicalseasonalforest|tropicaldryforest/.test(biome))
     return preferred === "garden_parkland" && growthRandom(`${seed}:dry-tree:${point[0]}:${point[1]}`) < 0.3
       ? "date_palm"
