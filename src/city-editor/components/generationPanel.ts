@@ -6,6 +6,7 @@ import { bindPanelEvents } from "../controllers/panelEvents";
 import { removeBastionedTown } from "../generators/bastionedTown/edit";
 import { bastionedTownSettingConflicts } from "../generators/bastionedTown/validate";
 import { inheritBuildingAppearance } from "../generators/buildingAppearance";
+import { withForestSettings } from "../generators/forestLandCover";
 import { clearGenerationPreviewCache } from "../generators/generation/previews";
 import { bastionEra, skeletonUnsupportedSettings } from "../generators/generation/settings";
 import { generationSettingIssues } from "../generators/generationSettingIssues";
@@ -17,6 +18,7 @@ import type { CityDocument } from "../types/document";
 import type { GenerationStage } from "../types/generation";
 import { buildBuildingAppearanceControls } from "./buildingAppearanceControls";
 import { div, text } from "./editorControls";
+import { buildForestControls } from "./forestControls";
 import { renderGenerationSettingFeedback } from "./generationSettingFeedback";
 import { syncGenerationSections } from "./generationWorkspace";
 import { buildPopulationControls } from "./populationControls";
@@ -273,6 +275,26 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
       events.commit(next, label ?? editorText("cityEditor.messages.changeHousingAppearance"));
       if (next.appearance === "town") ctx.generation.completeResult = next;
       events.syncGenerateControls();
+    }
+  });
+  const forestControls = buildForestControls({
+    scope: events.scope,
+    getDocument: () => ctx.documents.documentState,
+    generation: ctx.generation,
+    select: ctx.select,
+    label: ctx.label,
+    viewChanged: () => {
+      ctx.redrawMap();
+      ctx.syncCity3d();
+    },
+    apply(next) {
+      clearGenerationPreviewCache();
+      if (ctx.generation.completeSource)
+        ctx.generation.completeSource = withForestSettings(ctx.generation.completeSource, next.forestSettings);
+      if (ctx.generation.completeResult)
+        ctx.generation.completeResult = withForestSettings(ctx.generation.completeResult, next.forestSettings);
+      ctx.generation.completeResultSettings = JSON.stringify(ctx.generation.generateSettings);
+      events.commit(next, editorText("cityEditor.forest.apply"));
     }
   });
   ctx.documentPanel.content.append(
@@ -754,6 +776,7 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
   if (ctx.generation.generateSettings.population)
     historicalPeriodSelect.value = ctx.generation.generateSettings.historicalPeriod ?? "ageOfExploration";
   function syncSkeletonControls() {
+    forestControls.sync();
     appearanceControls.sync();
     populationControls.sync();
     const settings = ctx.generation.generateSettings;
@@ -917,6 +940,7 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
   ctx.panelEventContext().scope.listen(dimensionsSelect, "change", rememberFortress);
   return {
     appearanceControls,
+    forestControls,
     populationControls: populationControls.panel,
     skeletonControls,
     fortificationControls,

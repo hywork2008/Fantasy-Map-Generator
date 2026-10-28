@@ -11,7 +11,7 @@ import { type CityMassingMeshes, createCityMassing } from "../../city3d/three/ci
 import { createTownCranes, createTownHarborCargo } from "../../city3d/three/craneMeshes";
 import { createTownFacilities, type TownFacilities } from "../../city3d/three/facilityMeshes";
 import { createTownFarms, type TownFarmMeshes } from "../../city3d/three/farmMeshes";
-import { createTownForest, type Forest3dQuality, type TownForest } from "../../city3d/three/forestMeshes";
+import { createTownForest, type TownForest } from "../../city3d/three/forestMeshes";
 import { createTownFriaries } from "../../city3d/three/friaryMeshes";
 import { createTownObjects } from "../../city3d/three/objectMeshes";
 import { createTownOpenSpaces } from "../../city3d/three/openSpaceMeshes";
@@ -46,9 +46,10 @@ import { collectTownRoads, townRoadStamp } from "../generators/townRoads";
 import { townWaterStamp } from "../generators/townWater";
 import { waterPolygons } from "../generators/waterGeometry";
 import type { FloorUse, RoofForm, RoofMaterial, WallMaterial } from "../types/contracts/buildingMassing";
-import type { ForestPlan } from "../types/contracts/forest";
+import type { ForestPlan, ForestQualityPreference } from "../types/contracts/forest";
 import type { StructureKind, StructureMassing, StructureMaterial } from "../types/contracts/structureMassing";
 import type { CityDocument } from "../types/document";
+import { ForestAutoQuality } from "./forestAutoQuality";
 import { collectOpenSpacePlan } from "./openSpaceSites";
 import { collectPierSites } from "./pierSites";
 import { type City3dPerformanceSnapshot, type City3dRenderMetrics, collectSceneMetrics } from "./renderMetrics";
@@ -157,8 +158,8 @@ export interface City3dMountOptions {
   getViewCenter?: () => readonly [number, number];
   /** Requested detailed-model quality; each model falls back to the tiers it ships. */
   getModelQuality?: () => ModelQuality;
-  /** Forest quality is independent of housing detail. UI/persistence are supplied in F4. */
-  getForestQuality?: () => Forest3dQuality;
+  /** Forest display preference is independent of housing detail and city contents. */
+  getForestQuality?: () => ForestQualityPreference;
   isFmgLinked?: () => boolean;
   /** Draw-grid spacing for a height field. Absent uses the automatic spacing. */
   getTerrainSpacing?: () => number | "auto";
@@ -222,6 +223,13 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   let openSpaces: CityStructureMeshes | null = null;
   let farmland: TownFarmMeshes | null = null;
   let farmlandSource: DistrictFabric["farms"] | null = null;
+  const forestQuality = new ForestAutoQuality();
+  let previousMotionFrame: { at: number; endedAt: number; camera: string } | null = null;
+  let cameraChanged = false;
+  const requestCameraRender = () => {
+    cameraChanged = true;
+    requestRender();
+  };
   let forest: TownForest | null = null;
   let forestSource: ForestPlan | null = null;
   let forestStyleStamp = "";
@@ -525,7 +533,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     // can lift it into the air, collapsing dolly and pan distances above the city.
     controls.screenSpacePanning = false;
     controls.maxPolarAngle = Math.PI / 2 - 0.05;
-    controls.addEventListener("change", requestRender);
+    controls.addEventListener("change", requestCameraRender);
     return true;
   };
 
@@ -533,6 +541,11 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     raf = 0;
     if (disposed || viewport.hidden || !renderer || !scene || !camera) return;
     const start = performance.now();
+    const pose = [...camera.position.toArray(), ...camera.quaternion.toArray(), camera.zoom].join(",");
+    const moving = cameraChanged && previousMotionFrame?.camera !== pose;
+    cameraChanged = false;
+    const previous = previousMotionFrame;
+    previousMotionFrame = moving ? { at: start, endedAt: start, camera: pose } : null;
     buildingDetails?.update(camera, renderer.domElement.clientHeight);
     if (forest?.update(camera, renderer.domElement.clientHeight)) forestShadowPending = true;
     if (forestShadowPending) {
@@ -552,6 +565,16 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     }
     renderer.render(scene, camera);
     const cpuMs = performance.now() - start;
+    if (previousMotionFrame) previousMotionFrame.endedAt = start + cpuMs;
+    if (!moving || (previous && start - previous.endedAt > 200) || document.hidden) forestQuality.interruptMotion();
+    if (forest && moving && previous && !document.hidden) {
+      const interval = start - previous.at;
+      // Ignore pauses between gestures and sample only consecutive camera frames.
+      if (start - previous.endedAt <= 200 && forestQuality.sample(Math.max(cpuMs, interval), start)) {
+        forest.setQuality(forestQuality.effective);
+        requestRender();
+      }
+    }
     if (renderer.info) {
       lastRender = {
         calls: renderer.info.render.calls,
@@ -662,7 +685,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       city.fabric?.generation?.settings.descriptor?.climate
     ]);
     const forestChanged = terrainChanged || forestSource !== nextForestSource || forestStyleStamp !== nextForestStyle;
-    const forestQualityChanged = forest?.setQuality(options.getForestQuality?.() ?? "standard") ?? false;
+    if (forestQuality.setPreference(options.getForestQuality?.() ?? "auto")) previousMotionFrame = null;
+    const forestQualityChanged = forest?.setQuality(forestQuality.effective) ?? false;
     if (
       !plan.buildings &&
       !plan.water &&
@@ -730,10 +754,12 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       scene.add(next.parent);
     }
     if (forestChanged) {
+      previousMotionFrame = null;
+      forestQuality.resetSamples();
       const hadForest = Boolean(forest);
       forest?.dispose();
       forest = nextForestSource?.regions.length
-        ? createTownForest(city, nextForestSource, terrain ?? undefined, options.getForestQuality?.() ?? "standard")
+        ? createTownForest(city, nextForestSource, terrain ?? undefined, forestQuality.effective)
         : null;
       if (forest) scene.add(forest.group);
       forestSource = nextForestSource;
@@ -987,7 +1013,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     roadMeshes?.dispose();
     ground?.geometry.dispose();
     (ground?.material as THREE.Material | undefined)?.dispose();
-    controls?.removeEventListener("change", requestRender);
+    controls?.removeEventListener("change", requestCameraRender);
     controls?.dispose();
     sun?.shadow.dispose();
     renderer?.dispose();
@@ -1019,7 +1045,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
           scene: collectSceneMetrics(scene),
           buildings: built?.buildings.length ?? 0,
           quality: builtQuality,
-          ...(forest ? { forest: { ...forest.stats } } : {})
+          ...(forest ? { forest: { ...forest.stats }, forestQuality: forestQuality.snapshot } : {})
         };
   const restoreView = (saved: NonNullable<City3dPerformanceSnapshot["camera"]>) => {
     setOpen(true);

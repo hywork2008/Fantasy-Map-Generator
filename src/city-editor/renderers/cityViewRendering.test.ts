@@ -1,10 +1,10 @@
 import * as THREE from "three";
 import { expect, it, vi } from "vitest";
-import type { Forest3dQuality } from "../../city3d/three/forestMeshes";
 import { buildBlockFabric, documentFabricFingerprint } from "../generators/blockInfill";
 import { createDocument } from "../generators/document";
 import { withForestSettings } from "../generators/forestLandCover";
 import { beginEditorMount } from "../services/editorLifetime";
+import type { ForestQualityPreference } from "../types/contracts/forest";
 import { mountCity3d } from "./cityView";
 
 const render = vi.hoisted(() => vi.fn());
@@ -304,7 +304,7 @@ it("updates forest quality and camera LOD without rebuilding city geometry and r
   for (const face of Object.values(source.mesh.faces))
     Object.assign(face.properties, { ward: "farm", settlement: "outskirts" });
   let city = withForestSettings(source, { version: 1, mode: "surroundings", density: "standard" });
-  let forestQuality: Forest3dQuality = "standard";
+  let forestQuality: ForestQualityPreference = "standard";
   const scope = beginEditorMount(host);
   const view = mountCity3d({
     canvasHost: host,
@@ -330,6 +330,36 @@ it("updates forest quality and camera LOD without rebuilding city geometry and r
     view.restoreView({ position: [130, 40, 120], target: [100, 0, 0], zoom: 1, fov: 45 });
     flush();
     expect(scene.getObjectByName("massing")).toBe(massing);
+    forestQuality = "auto";
+    view.sync();
+    flush();
+    expect(view.getPerformance()?.forestQuality?.effective).toBe("standard");
+    let now = 0;
+    const clock = vi.spyOn(performance, "now").mockImplementation(() => now);
+    try {
+      const canvas = host.querySelector("canvas")!;
+      vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
+        width: 800,
+        height: 600,
+        left: 0,
+        top: 0
+      } as DOMRect);
+      for (let i = 0; i < 80; i++) {
+        now += 100;
+        canvas.dispatchEvent(
+          new WheelEvent("wheel", { deltaY: i % 2 ? -1 : 1, clientX: 400, clientY: 300, cancelable: true })
+        );
+        flush();
+      }
+      expect(view.getPerformance()?.forestQuality?.effective).toBe("light");
+      expect(view.getPerformance()?.forest?.quality).toBe("light");
+      expect(scene.getObjectByName("ce-forest")).toBe(forest);
+      expect(scene.getObjectByName("massing")).toBe(massing);
+      flush();
+      expect(frames.size).toBe(0);
+    } finally {
+      clock.mockRestore();
+    }
     city = withForestSettings(city, { version: 1, mode: "legacy", density: "standard" });
     view.sync();
     flush();

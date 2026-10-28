@@ -1,5 +1,6 @@
 import type * as THREE from "three";
 import type { Forest3dStats } from "../../city3d/three/forestMeshes";
+import type { ForestAutoQuality } from "./forestAutoQuality";
 
 /** Counts attached SVG complexity, including definitions and hidden layers. */
 export function collectSvgMetrics(svg: SVGSVGElement) {
@@ -31,7 +32,17 @@ export function collectSvgMetrics(svg: SVGSVGElement) {
     points,
     buildings:
       Number(svg.getAttribute("data-core-buildings") ?? 0) + Number(svg.getAttribute("data-outskirts-buildings") ?? 0),
-    quality: svg.getAttribute("data-render-quality")
+    quality: svg.getAttribute("data-render-quality"),
+    forest: (() => {
+      const forest = svg.querySelector(".ce-forest-layer");
+      return forest
+        ? {
+            representation: forest.getAttribute("data-forest-representation"),
+            areaM2: Number(forest.getAttribute("data-forest-area-m2") ?? 0),
+            elements: forest.querySelectorAll("*").length + 1
+          }
+        : null;
+    })()
   };
 }
 
@@ -74,6 +85,7 @@ export interface City3dRenderMetrics {
 
 export interface City3dPerformanceSnapshot {
   forest?: Forest3dStats;
+  forestQuality?: ForestAutoQuality["snapshot"];
   camera: { position: number[]; target: number[]; zoom: number; fov: number } | null;
   frame: City3dRenderMetrics | null;
   scene: ReturnType<typeof collectSceneMetrics>;

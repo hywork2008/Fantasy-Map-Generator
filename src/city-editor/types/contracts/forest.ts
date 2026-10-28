@@ -1,5 +1,8 @@
 import type { Id, Point } from "../primitives";
 
+/** Local display quality; never changes forest area or the shared city. */
+export type ForestQualityPreference = "auto" | "light" | "standard" | "high";
+
 /** CE scenery only; never changes FMG agriculture or timber stocks. */
 export interface ForestSettings {
   version: 1;

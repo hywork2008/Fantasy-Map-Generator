@@ -22,6 +22,7 @@ import {
 import { featureGroupPickInfo, parsePickInfo } from "../renderers/pickInfo";
 import { renderShipRotationHandle, renderShipSvg } from "../renderers/shipSvg";
 import { readModelQualityPreference } from "../services/browserPreferences";
+import { readForestViewPreferences } from "../services/forestViewPreferences";
 import { startRuralFields } from "../services/ruralFieldWorkerClient";
 import type { DisplayState, DocumentsState, GenerationState, InteractionState } from "../state/editorSession";
 import type { InfillLane } from "../types/contracts/localInfill";
@@ -367,7 +368,10 @@ export function createMapDisplayController(ctx: MapDisplayContext) {
       false,
       { core: ctx.coreLayerInput.checked, regional: ctx.regionalLayerInput.checked },
       { modelQuality: readModelQualityPreference(), fmgLinked: Boolean(ctx.generation.generateSettings.descriptor) },
-      { viewportWidth: ctx.map.getBoundingClientRect().width }
+      {
+        representation: readForestViewPreferences().representation,
+        viewportWidth: ctx.map.getBoundingClientRect().width
+      }
     );
     if (ctx.generation.failurePreview) {
       svg.classList.add("ce-generation-debug");
