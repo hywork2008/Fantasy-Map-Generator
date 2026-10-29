@@ -1,0 +1,478 @@
+{
+ "schemaVersion": 1,
+ "inputSha256": "0aac4fc87c880566a23eb07e5e45721c052383ceeeaef1dd39086f14144e400c",
+ "months": 144,
+ "notes": [
+  "People are real people (population points x populationRate; urban also x urbanization).",
+  "hinterlandSurplusUrbanPeople: per market, max(0, worked field capacity - rural grain eaters), as in urbanFoodCapacity.ts, in people.",
+  "lastTwelveMonths: monthly Food Ledger settlement (food-ledger units), livestock feed ledgers (kg DM) and Fodder lots bought for herds, summed since the previous sample."
+ ],
+ "years": [
+  {
+   "month": 12,
+   "date": [
+    1301,
+    1
+   ],
+   "state": {
+    "ruralPeople": 3704039.9357378483,
+    "ruralGrainEaters": 2945596.9316742364,
+    "ruralSubsistenceCapacityPeople": 6179494.791164994,
+    "workedFieldCapacityPeople": 5552959.42060213,
+    "householdGrainStorePersonYears": 708694.3022173147,
+    "hinterlandSurplusUrbanPeople": 2607362.4889278924,
+    "urbanPeople": 630741.1445351787,
+    "urbanCapacityPeople": 2528066,
+    "urbanSeedCapacityPeople": 1069232.740140915,
+    "ruralHouseholdWealth": 317313.01999999996,
+    "marketGrainStock": 89920.08
+   },
+   "lastTwelveMonths": {
+    "fodderBoughtLots": 311551.84729841305,
+    "ruralNeed": 1272674.5699999996,
+    "ruralSupplied": 1272674.5699999996,
+    "ruralFromMarket": 0.8,
+    "ruralPaid": 0.64,
+    "urbanNeed": 267893.95000000007,
+    "urbanSupplied": 267690.87000000005,
+    "urbanBudgetGap": 203.07,
+    "urbanStockGap": 0.01,
+    "unsoldHarvest": 691342.6200000001,
+    "marketBought": 58709.97000000001,
+    "feedRequiredKg": 4138545507.793654,
+    "feedUnmetKg": 164348874.83144683,
+    "feedPastureKg": 2001670948.5435984,
+    "feedHayKg": 1972525684.4186192,
+    "feedResidueKg": 0
+   }
+  },
+  {
+   "month": 24,
+   "date": [
+    1302,
+    1
+   ],
+   "state": {
+    "ruralPeople": 3718956.177689135,
+    "ruralGrainEaters": 2958534.5534423045,
+    "ruralSubsistenceCapacityPeople": 6181805.868007243,
+    "workedFieldCapacityPeople": 5590896.08097672,
+    "householdGrainStorePersonYears": 928720.4874981266,
+    "hinterlandSurplusUrbanPeople": 2632361.527534407,
+    "urbanPeople": 641311.1140837403,
+    "urbanCapacityPeople": 2514938,
+    "urbanSeedCapacityPeople": 1071292.788995266,
+    "ruralHouseholdWealth": 327955.9000000001,
+    "marketsUrbanStress": 1,
+    "marketGrainStock": 127381.01999999999
+   },
+   "lastTwelveMonths": {
+    "fodderBoughtLots": 126377.13454547783,
+    "ruralNeed": 1269373.43,
+    "ruralSupplied": 1268719.2899999998,
+    "ruralFromMarket": 23181.060000000012,
+    "ruralPaid": 19381.77000000001,
+    "urbanNeed": 273133.15,
+    "urbanSupplied": 266355.66000000003,
+    "urbanBudgetGap": 1686.52,
+    "urbanStockGap": 5091.08,
+    "unsoldHarvest": 674119.5000000001,
+    "marketBought": 373502.83999999985,
+    "feedRequiredKg": 4203586397.5458403,
+    "feedUnmetKg": 251065316.13278654,
+    "feedPastureKg": 2022614306.782315,
+    "feedHayKg": 1929906774.6307392,
+    "feedResidueKg": 0
+   }
+  },
+  {
+   "month": 36,
+   "date": [
+    1303,
+    1
+   ],
+   "state": {
+    "ruralPeople": 3740975.6112620234,
+    "ruralGrainEaters": 3005047.426047475,
+    "ruralSubsistenceCapacityPeople": 6219420.618057251,
+    "workedFieldCapacityPeople": 6044119.64461366,
+    "householdGrainStorePersonYears": 931860.8609687448,
+    "hinterlandSurplusUrbanPeople": 3039072.218566168,
+    "urbanPeople": 654152.3891281849,
+    "urbanCapacityPeople": 2724218,
+    "urbanSeedCapacityPeople": 1073119.5842633247,
+    "ruralHouseholdWealth": 330548.62,
+    "marketGrainStock": 120482.11000000002
+   },
+   "lastTwelveMonths": {
+    "fodderBoughtLots": 107295.31486425166,
+    "ruralNeed": 1276079.1200000013,
+    "ruralSupplied": 1276019.5900000012,
+    "ruralFromMarket": 4665.160000000002,
+    "ruralPaid": 3807.740000000001,
+    "urbanNeed": 278298.10999999987,
+    "urbanSupplied": 276561.14999999985,
+    "urbanBudgetGap": 1556.2999999999997,
+    "urbanStockGap": 180.67,
+    "unsoldHarvest": 805666.4000000001,
+    "marketBought": 325714.3,
+    "feedRequiredKg": 4169843256.4933352,
+    "feedUnmetKg": 228628849.63500038,
+    "feedPastureKg": 2016008731.037995,
+    "feedHayKg": 1925205675.8203428,
+    "feedResidueKg": 0
+   }
+  },
+  {
+   "month": 48,
+   "date": [
+    1304,
+    1
+   ],
+   "state": {
+    "ruralPeople": 3768306.4337819815,
+    "ruralGrainEaters": 3030821.697270821,
+    "ruralSubsistenceCapacityPeople": 6223805.552333593,
+    "workedFieldCapacityPeople": 6103669.334120272,
+    "householdGrainStorePersonYears": 947857.5113229965,
+    "hinterlandSurplusUrbanPeople": 3072847.636849469,
+    "urbanPeople": 667884.7964364425,
+    "urbanCapacityPeople": 2763471,
+    "urbanSeedCapacityPeople": 1074025.9643802643,
+    "ruralHouseholdWealth": 350728.1399999999,
+    "marketGrainStock": 118659.56,
+    "marketsUrbanStress": 2
+   },
+   "lastTwelveMonths": {
+    "fodderBoughtLots": 106279.07533853332,
+    "ruralNeed": 1296851.4999999993,
+    "ruralSupplied": 1296791.749999999,
+    "ruralFromMarket": 5672.780000000003,
+    "ruralPaid": 4573.39,
+    "urbanNeed": 284084.72999999986,
+    "urbanSupplied": 280036.61,
+    "urbanBudgetGap": 3874.68,
+    "urbanStockGap": 173.44,
+    "unsoldHarvest": 973936.7100000001,
+    "marketBought": 327036.8500000001,
+    "feedRequiredKg": 4214735067.66058,
+    "feedUnmetKg": 180927996.47643578,
+    "feedPastureKg": 2039457935.1271749,
+    "feedHayKg": 1994349136.0569742,
+    "feedResidueKg": 0
+   }
+  },
+  {
+   "month": 60,
+   "date": [
+    1305,
+    1
+   ],
+   "state": {
+    "ruralPeople": 3799841.082252562,
+    "ruralGrainEaters": 3060608.108217785,
+    "ruralSubsistenceCapacityPeople": 6231073.951527476,
+    "workedFieldCapacityPeople": 6200970.156691136,
+    "householdGrainStorePersonYears": 927812.1161926638,
+    "hinterlandSurplusUrbanPeople": 3140362.048473353,
+    "urbanPeople": 682085.4442477754,
+    "urbanCapacityPeople": 2802993,
+    "urbanSeedCapacityPeople": 1074025.9643802643,
+    "ruralHouseholdWealth": 377506.8599999999,
+    "marketGrainStock": 112331.17000000001,
+    "marketsUrbanStress": 4
+   },
+   "lastTwelveMonths": {
+    "fodderBoughtLots": 109153.90960100148,
+    "ruralNeed": 1308404.0699999991,
+    "ruralSupplied": 1308403.959999999,
+    "ruralFromMarket": 3835.2700000000004,
+    "ruralPaid": 2990.5400000000004,
+    "urbanNeed": 290144.63,
+    "urbanSupplied": 284614.6800000001,
+    "urbanBudgetGap": 5464.820000000001,
+    "urbanStockGap": 65.13,
+    "unsoldHarvest": 1001432.7999999997,
+    "marketBought": 327196.49,
+    "feedRequiredKg": 4308803737.136355,
+    "feedUnmetKg": 232415845.28561127,
+    "feedPastureKg": 2071424314.5391693,
+    "feedHayKg": 2004963577.3115733,
+    "feedResidueKg": 0
+   }
+  },
+  {
+   "month": 72,
+   "date": [
+    1306,
+    1
+   ],
+   "state": {
+    "ruralPeople": 3835032.27378428,
+    "ruralGrainEaters": 3094504.644806252,
+    "ruralSubsistenceCapacityPeople": 6235693.189278245,
+    "workedFieldCapacityPeople": 6288899.212637125,
+    "householdGrainStorePersonYears": 706405.4417000252,
+    "hinterlandSurplusUrbanPeople": 3194394.567830876,
+    "urbanPeople": 696656.7406250499,
+    "urbanCapacityPeople": 2796819,
+    "urbanSeedCapacityPeople": 1074025.9643802643,
+    "ruralHouseholdWealth": 376293.15,
+    "marketGrainStock": 101860.50000000003,
+    "marketsUrbanStress": 3
+   },
+   "lastTwelveMonths": {
+    "fodderBoughtLots": 129314.70080046923,
+    "ruralNeed": 1321920.3900000006,
+    "ruralSupplied": 1321920.2400000002,
+    "ruralFromMarket": 6008.780000000001,
+    "ruralPaid": 4611.829999999996,
+    "urbanNeed": 296408.1799999997,
+    "urbanSupplied": 285536.1899999997,
+    "urbanBudgetGap": 10870.980000000005,
+    "urbanStockGap": 1.03,
+    "unsoldHarvest": 988021.77,
+    "marketBought": 347571.14999999985,
+    "feedRequiredKg": 4370640406.463921,
+    "feedUnmetKg": 167402977.21073252,
+    "feedPastureKg": 2178054203.93273,
+    "feedHayKg": 2025183225.3204381,
+    "feedResidueKg": 0
+   }
+  },
+  {
+   "month": 84,
+   "date": [
+    1307,
+    1
+   ],
+   "state": {
+    "ruralPeople": 3874186.8131905794,
+    "ruralGrainEaters": 3129570.4161880934,
+    "ruralSubsistenceCapacityPeople": 6237944.356583059,
+    "workedFieldCapacityPeople": 6348114.447611147,
+    "householdGrainStorePersonYears": 759877.1858899748,
+    "hinterlandSurplusUrbanPeople": 3218544.03142305,
+    "urbanPeople": 711083.6335141425,
+    "urbanCapacityPeople": 2754064,
+    "urbanSeedCapacityPeople": 1074025.9643802643,
+    "ruralHouseholdWealth": 348530.49000000005,
+    "marketGrainStock": 67566.62000000001,
+    "marketsUrbanStress": 5
+   },
+   "lastTwelveMonths": {
+    "fodderBoughtLots": 129628.21362007881,
+    "ruralNeed": 1337835.029999999,
+    "ruralSupplied": 1334779.2399999993,
+    "ruralFromMarket": 45076.81999999999,
+    "ruralPaid": 37208.66999999999,
+    "urbanNeed": 303051.4099999997,
+    "urbanSupplied": 287643.6299999997,
+    "urbanBudgetGap": 14764.089999999998,
+    "urbanStockGap": 643.69,
+    "unsoldHarvest": 1531060.6300000001,
+    "marketBought": 349028.75999999995,
+    "feedRequiredKg": 4472109789.504152,
+    "feedUnmetKg": 207769940.86091375,
+    "feedPastureKg": 2108926249.8191793,
+    "feedHayKg": 2155413598.824033,
+    "feedResidueKg": 0
+   }
+  },
+  {
+   "month": 96,
+   "date": [
+    1308,
+    1
+   ],
+   "state": {
+    "ruralPeople": 3915499.6760338545,
+    "ruralGrainEaters": 3167125.0250580725,
+    "ruralSubsistenceCapacityPeople": 6239302.082464099,
+    "workedFieldCapacityPeople": 6411517.80863753,
+    "householdGrainStorePersonYears": 986175.510288946,
+    "hinterlandSurplusUrbanPeople": 3244392.7835794603,
+    "urbanPeople": 726047.0035198353,
+    "urbanCapacityPeople": 2749941,
+    "urbanSeedCapacityPeople": 1074025.9643802643,
+    "ruralHouseholdWealth": 393894.0699999999,
+    "marketGrainStock": 161809.9,
+    "marketsUrbanStress": 3
+   },
+   "lastTwelveMonths": {
+    "fodderBoughtLots": 145675.84142662978,
+    "ruralNeed": 1353137.1700000002,
+    "ruralSupplied": 1341396.57,
+    "ruralFromMarket": 13485.089999999991,
+    "ruralPaid": 13440.630000000016,
+    "urbanNeed": 308985.51,
+    "urbanSupplied": 285842.04000000015,
+    "urbanBudgetGap": 8398.170000000002,
+    "urbanStockGap": 14745.359999999999,
+    "unsoldHarvest": 875970.88,
+    "marketBought": 428498.7700000001,
+    "feedRequiredKg": 4602433630.611186,
+    "feedUnmetKg": 187884518.94279176,
+    "feedPastureKg": 2170753143.168171,
+    "feedHayKg": 2243795968.5001616,
+    "feedResidueKg": 0
+   }
+  },
+  {
+   "month": 108,
+   "date": [
+    1309,
+    1
+   ],
+   "state": {
+    "ruralPeople": 3958895.7298621535,
+    "ruralGrainEaters": 3228028.262722267,
+    "ruralSubsistenceCapacityPeople": 6248128.436774015,
+    "workedFieldCapacityPeople": 6820629.352556312,
+    "householdGrainStorePersonYears": 968118.232383284,
+    "hinterlandSurplusUrbanPeople": 3592601.089834042,
+    "urbanPeople": 742665.914559212,
+    "urbanCapacityPeople": 2895995,
+    "urbanSeedCapacityPeople": 1074025.9643802643,
+    "ruralHouseholdWealth": 368345.0399999999,
+    "marketGrainStock": 135584.38,
+    "marketsUrbanStress": 5
+   },
+   "lastTwelveMonths": {
+    "fodderBoughtLots": 152082.37849635934,
+    "ruralNeed": 1369452.5399999998,
+    "ruralSupplied": 1369452.5899999999,
+    "ruralFromMarket": 4098.35,
+    "ruralPaid": 2842.81,
+    "urbanNeed": 315874.8399999999,
+    "urbanSupplied": 311184.1600000001,
+    "urbanBudgetGap": 4690.680000000001,
+    "urbanStockGap": 0,
+    "unsoldHarvest": 1065738.1199999999,
+    "marketBought": 333624.42000000004,
+    "feedRequiredKg": 4720775217.279621,
+    "feedUnmetKg": 234475067.37330547,
+    "feedPastureKg": 2213631223.069079,
+    "feedHayKg": 2272668926.8372364,
+    "feedResidueKg": 0
+   }
+  },
+  {
+   "month": 120,
+   "date": [
+    1310,
+    1
+   ],
+   "state": {
+    "ruralPeople": 4002931.655101478,
+    "ruralGrainEaters": 3268479.0064826184,
+    "ruralSubsistenceCapacityPeople": 6248413.0188673735,
+    "workedFieldCapacityPeople": 6898842.313500387,
+    "householdGrainStorePersonYears": 1015775.2319879316,
+    "hinterlandSurplusUrbanPeople": 3630363.307017781,
+    "urbanPeople": 759257.2174590691,
+    "urbanCapacityPeople": 2916566,
+    "urbanSeedCapacityPeople": 1074025.9643802643,
+    "ruralHouseholdWealth": 352154.70999999996,
+    "marketGrainStock": 142121.69999999998,
+    "marketsUrbanStress": 4
+   },
+   "lastTwelveMonths": {
+    "fodderBoughtLots": 195535.33129899937,
+    "ruralNeed": 1395598.09,
+    "ruralSupplied": 1395598.07,
+    "ruralFromMarket": 7243.360000000003,
+    "ruralPaid": 4976.869999999999,
+    "urbanNeed": 322895.01,
+    "urbanSupplied": 316686.14999999985,
+    "urbanBudgetGap": 6208.92,
+    "urbanStockGap": 0,
+    "unsoldHarvest": 1132595.89,
+    "marketBought": 391426.80000000005,
+    "feedRequiredKg": 4822695200.955645,
+    "feedUnmetKg": 169809271.10149774,
+    "feedPastureKg": 2278705014.838733,
+    "feedHayKg": 2374180915.0153775,
+    "feedResidueKg": 0
+   }
+  },
+  {
+   "month": 132,
+   "date": [
+    1311,
+    1
+   ],
+   "state": {
+    "ruralPeople": 4048483.029179275,
+    "ruralGrainEaters": 3310827.078364564,
+    "ruralSubsistenceCapacityPeople": 6248933.236762881,
+    "workedFieldCapacityPeople": 6994047.033707491,
+    "householdGrainStorePersonYears": 1028807.6749613117,
+    "hinterlandSurplusUrbanPeople": 3683219.9553429317,
+    "urbanPeople": 777433.132207266,
+    "urbanCapacityPeople": 2931524,
+    "urbanSeedCapacityPeople": 1074926.5640149117,
+    "ruralHouseholdWealth": 332187.95,
+    "marketGrainStock": 142109.77000000005,
+    "marketsUrbanStress": 6
+   },
+   "lastTwelveMonths": {
+    "fodderBoughtLots": 175031.51128535648,
+    "ruralNeed": 1413152.3699999996,
+    "ruralSupplied": 1413152.5599999998,
+    "ruralFromMarket": 5647.530000000002,
+    "ruralPaid": 3780.2699999999995,
+    "urbanNeed": 330166.1099999998,
+    "urbanSupplied": 323639.5399999997,
+    "urbanBudgetGap": 6526.570000000001,
+    "urbanStockGap": 0,
+    "unsoldHarvest": 1162254.9400000004,
+    "marketBought": 391138.2899999997,
+    "feedRequiredKg": 4967397376.196474,
+    "feedUnmetKg": 190822858.27080962,
+    "feedPastureKg": 2344634289.635055,
+    "feedHayKg": 2431940228.290604,
+    "feedResidueKg": 0
+   }
+  },
+  {
+   "month": 144,
+   "date": [
+    1312,
+    1
+   ],
+   "state": {
+    "ruralPeople": 4095450.064830482,
+    "ruralGrainEaters": 3355662.1871531866,
+    "ruralSubsistenceCapacityPeople": 6249633.647471666,
+    "workedFieldCapacityPeople": 7090988.97262963,
+    "householdGrainStorePersonYears": 763688.0704735586,
+    "hinterlandSurplusUrbanPeople": 3735326.7854764443,
+    "urbanPeople": 796232.4720752334,
+    "urbanCapacityPeople": 2975385,
+    "urbanSeedCapacityPeople": 1074926.5640149117,
+    "ruralHouseholdWealth": 276499.5199999999,
+    "marketGrainStock": 103895.76999999997,
+    "marketsUrbanStress": 4
+   },
+   "lastTwelveMonths": {
+    "fodderBoughtLots": 195435.9293088225,
+    "ruralNeed": 1431842.4500000002,
+    "ruralSupplied": 1431842.5300000005,
+    "ruralFromMarket": 5842.689999999999,
+    "ruralPaid": 3831.59,
+    "urbanNeed": 338343.89999999985,
+    "urbanSupplied": 329293.0099999999,
+    "urbanBudgetGap": 8998.770000000002,
+    "urbanStockGap": 52.129999999999995,
+    "unsoldHarvest": 1179123.62,
+    "marketBought": 397189.12999999995,
+    "feedRequiredKg": 5071675182.678934,
+    "feedUnmetKg": 51584458.235870354,
+    "feedPastureKg": 2728547754.9897614,
+    "feedHayKg": 2291542969.4533334,
+    "feedResidueKg": 0
+   }
+  }
+ ]
+}

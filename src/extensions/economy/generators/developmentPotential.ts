@@ -91,6 +91,7 @@ import {
 } from "./agriculturalLandUse";
 import { isGoodEnabled } from "./goods-generator";
 import { calculateDesiredPastureAreaHectares, getHusbandryWorkerFactor, isGrazedLivestockGood } from "./husbandry";
+import { getWetPastoralFieldCapacityMultiplier } from "./ruralDiet";
 import { allocateRuralOccupations, type RuralOccupationAllocation } from "./ruralOccupationAllocation";
 
 /**
@@ -466,7 +467,12 @@ export class DevelopmentPotentialModule {
     });
     // Only the fields the residents can work feed a settled rural population
     // (docs/plan/farm-labour-calibration.md §9).
-    reconcileSubsistenceCapacityFromFood(world.pack.cells, agriculture.labourLimitedFoodCapacity);
+    // Wet-land fields feed only the grain part of their people's diet; herds feed the rest.
+    const fieldCapacity = agriculture.labourLimitedFoodCapacity.map(
+      (capacity, cellId) =>
+        capacity * getWetPastoralFieldCapacityMultiplier(world.pack.cells, cellId, agriculture.ruralFoodCapacity)
+    );
+    reconcileSubsistenceCapacityFromFood(world.pack.cells, fieldCapacity);
 
     // The calendar allocator combines staple fields and all resident rural occupations before it
     // derives migration surplus, so these columns are not a second annual deduction from Grain.

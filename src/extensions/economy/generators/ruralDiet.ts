@@ -37,6 +37,17 @@ export function getWetPastoralDietShare(p: number): number {
   );
 }
 
+function getLivelihoodGrainDietShare(
+  cells: RuralDietCells,
+  cellId: number,
+  ruralFoodCapacity: ArrayLike<number> | undefined
+): number {
+  const nonAgricultural = Math.max(0, cells.subsistenceNonAgriculturalCapacity?.[cellId] ?? 0);
+  if (!(nonAgricultural > 0)) return 1;
+  const fields = Math.max(0, ruralFoodCapacity?.[cellId] ?? 0);
+  return 1 - NON_GRAIN_DIET_SHARE_MAX * (nonAgricultural / (nonAgricultural + fields));
+}
+
 /**
  * Share (0.4..1) of a rural resident's food need that must be grain. The cell's fishing, herding
  * and foraging capacity, against that plus its field capacity (`ruralFoodCapacity`, both in rural
@@ -49,10 +60,25 @@ export function getRuralGrainDietShare(
   cellId: number,
   ruralFoodCapacity: ArrayLike<number> | undefined
 ): number {
-  const nonAgricultural = Math.max(0, cells.subsistenceNonAgriculturalCapacity?.[cellId] ?? 0);
-  const fields = Math.max(0, ruralFoodCapacity?.[cellId] ?? 0);
-  const livelihood =
-    nonAgricultural > 0 ? 1 - NON_GRAIN_DIET_SHARE_MAX * (nonAgricultural / (nonAgricultural + fields)) : 1;
+  const livelihood = getLivelihoodGrainDietShare(cells, cellId, ruralFoodCapacity);
   const wet = Math.max(0, cells.wetPastoralDietShare?.[cellId] ?? 0);
   return Math.max(GRAIN_DIET_SHARE_FLOOR, Math.min(livelihood, 1 - wet));
+}
+
+/**
+ * People per point of field capacity, relative to a livelihood-only diet (>= 1). Fields sized for
+ * the grain part of a wet-land diet feed more people than their grain alone, the rest living on
+ * milk and meat; the livelihood part is already counted in the non-agricultural capacity
+ * (docs/plan/wet-region-pastoral-economy.md §3.6).
+ */
+export function getWetPastoralFieldCapacityMultiplier(
+  cells: RuralDietCells,
+  cellId: number,
+  ruralFoodCapacity: ArrayLike<number> | undefined
+): number {
+  if (!((cells.wetPastoralDietShare?.[cellId] ?? 0) > 0)) return 1;
+  return (
+    getLivelihoodGrainDietShare(cells, cellId, ruralFoodCapacity) /
+    getRuralGrainDietShare(cells, cellId, ruralFoodCapacity)
+  );
 }
