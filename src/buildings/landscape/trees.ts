@@ -171,7 +171,20 @@ export const TREE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
       }
     }
   },
-  black_alder: { create: () => createWetTemperateTree("black_alder") },
+  black_alder: {
+    lod: {
+      selection: "distance",
+      budget: "quality-first",
+      heightMeters: 13.1,
+      forestHeightToRadius: 3.181,
+      models: {
+        low: () => createWetTemperateTree("black_alder", "low"),
+        medium: () => createWetTemperateTree("black_alder", "medium"),
+        high: () => createWetTemperateTree("black_alder", "high"),
+        ultra: () => createWetTemperateTree("black_alder", "ultra")
+      }
+    }
+  },
   olive: {
     lod: {
       selection: "distance",
@@ -227,8 +240,34 @@ export const TREE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
       }
     }
   },
-  rowan: { create: () => createUplandTree("rowan") },
-  canary_pine: { create: () => createUplandTree("canary_pine") },
+  rowan: {
+    lod: {
+      selection: "distance",
+      budget: "quality-first",
+      heightMeters: 9.5,
+      forestHeightToRadius: 2.504,
+      models: {
+        low: () => createUplandTree("rowan", "low"),
+        medium: () => createUplandTree("rowan", "medium"),
+        high: () => createUplandTree("rowan", "high"),
+        ultra: () => createUplandTree("rowan", "ultra")
+      }
+    }
+  },
+  canary_pine: {
+    lod: {
+      selection: "distance",
+      budget: "quality-first",
+      heightMeters: 15.5,
+      forestHeightToRadius: 3.007,
+      models: {
+        low: () => createUplandTree("canary_pine", "low"),
+        medium: () => createUplandTree("canary_pine", "medium"),
+        high: () => createUplandTree("canary_pine", "high"),
+        ultra: () => createUplandTree("canary_pine", "ultra")
+      }
+    }
+  },
   mediterranean_cypress: { create: () => createSacredGardenTree("mediterranean_cypress") },
   oriental_evergreen: { create: () => createSacredGardenTree("oriental_evergreen") },
   sacred_bodhi_and_fig: { create: () => createSacredGardenTree("sacred_bodhi_and_fig") },

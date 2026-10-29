@@ -13,7 +13,10 @@ it.each([
   "tamarisk",
   "olive",
   "kapok",
-  "red_mangrove"
+  "red_mangrove",
+  "black_alder",
+  "rowan",
+  "canary_pine"
 ] as const)("keeps %s tier envelopes grounded, finite and owned independently", species => {
   const reference = adoptedTree(species, "ultra").create();
   const envelope = new THREE.Box3().setFromObject(reference.group).getSize(new THREE.Vector3());
@@ -54,7 +57,10 @@ it.each([
   "tamarisk",
   "olive",
   "kapok",
-  "red_mangrove"
+  "red_mangrove",
+  "black_alder",
+  "rowan",
+  "canary_pine"
 ] as const)("retains fitted %s canopy normals and colors in the actual CE prototype", species => {
   const variant = adoptedTree(species, "medium");
   const source = variant.create();

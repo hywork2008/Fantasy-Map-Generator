@@ -10,7 +10,13 @@ it("limits simultaneously selected species, evicts inactive prototypes and admit
   const geometry = new THREE.BoxGeometry(1, 10, 1);
   const material = new THREE.MeshLambertMaterial();
   const base = new THREE.InstancedMesh(geometry, material, 5);
-  const species: TreeSpecies[] = ["black_alder", "mediterranean_cypress", "oriental_evergreen", "canary_pine", "rowan"];
+  const species: TreeSpecies[] = [
+    "mediterranean_cypress",
+    "oriental_evergreen",
+    "sacred_bodhi_and_fig",
+    "peaceful_willow",
+    "sacred_yew"
+  ];
   const sites = species.map((species, index): ForestTreeSite => {
     base.setMatrixAt(index, new THREE.Matrix4().makeScale(3, 1, 3));
     return { id: String(index), point: [0, 0], radius: 3, size: 1, species, mesh: base, index };
@@ -22,17 +28,17 @@ it("limits simultaneously selected species, evicts inactive prototypes and admit
   try {
     const first = details.update(camera, 720, sites, budget);
     expect(first.trees).toBe(4);
-    expect(first.species).not.toContain("rowan");
-    const firstMesh = parent.getObjectByName("forest-bv-black_alder-ultra-plain") as THREE.InstancedMesh;
+    expect(first.species).not.toContain("sacred_yew");
+    const firstMesh = parent.getObjectByName("forest-bv-mediterranean_cypress-ultra-plain") as THREE.InstancedMesh;
     const freedGeometry = vi.spyOn(firstMesh.geometry, "dispose");
     const freedInstance = vi.spyOn(firstMesh, "dispose");
     details.reset();
-    expect(details.update(camera, 720, sites.slice(4), budget).species).toEqual(["rowan"]);
+    expect(details.update(camera, 720, sites.slice(4), budget).species).toEqual(["sacred_yew"]);
     expect(freedGeometry).toHaveBeenCalledOnce();
     expect(freedInstance).toHaveBeenCalledOnce();
     expect(firstMesh.parent).toBeNull();
     details.reset();
-    expect(details.update(camera, 720, sites.slice(0, 1), budget).species).toEqual(["black_alder"]);
+    expect(details.update(camera, 720, sites.slice(0, 1), budget).species).toEqual(["mediterranean_cypress"]);
     expect(parent.getObjectByName(firstMesh.name)).not.toBe(firstMesh);
     details.dispose();
     expect(freedGeometry).toHaveBeenCalledOnce();

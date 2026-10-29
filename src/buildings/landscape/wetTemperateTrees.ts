@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
+import { type CanopyLobe, createCanopyLobes, fitCanopyLobe } from "./canopyLobes";
 import { createConiferCanopyLod } from "./coniferCanopyLod";
 import { createTreeBase } from "./treeBase";
 import type { TreeQuality } from "./treeQuality";
@@ -15,6 +16,9 @@ export function createWetTemperateTree(
     cedar && (quality === "low" || quality === "medium")
       ? createConiferCanopyLod(quality, { hue: 0.29, saturation: 0.42, lightness: 0.24 }, 43201, 1.05, 1.05)
       : undefined;
+  const alderReduced = !cedar && (quality === "low" || quality === "medium");
+  const alderLobes: CanopyLobe[] = [];
+  let alderPoints: THREE.Vector3[] = [];
   let seed = cedar ? 43201 : 43223;
   const random = () => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
@@ -49,7 +53,15 @@ export function createWetTemperateTree(
   }
   function branch(a: THREE.Vector3, b: THREE.Vector3, bottom: number, top = bottom * 0.4, sides = 6) {
     if (reduced && (quality === "low" || bottom < 0.05)) return;
-    const geometry = new THREE.CylinderGeometry(top, bottom, a.distanceTo(b), reduced ? 4 : sides, 1, Boolean(reduced));
+    if (alderReduced && bottom < (quality === "low" ? 0.07 : 0.035)) return;
+    const geometry = new THREE.CylinderGeometry(
+      top,
+      bottom,
+      a.distanceTo(b),
+      alderReduced ? (quality === "low" ? 3 : 4) : reduced ? 4 : sides,
+      1,
+      Boolean(reduced || alderReduced)
+    );
     geometry.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(up, b.clone().sub(a).normalize()));
     geometry.translate(...a.clone().add(b).multiplyScalar(0.5).toArray());
     timber(geometry);
@@ -99,6 +111,7 @@ export function createWetTemperateTree(
   }
   /** Rounded alder leaves with the characteristic notched tip, scattered in loose clumps. */
   function leaves(center: THREE.Vector3, radius: number, count: number) {
+    const points: THREE.Vector3[] = [];
     for (let i = 0; i < count; i++) {
       const angle = random() * Math.PI * 2,
         r = Math.sqrt(random()) * radius;
@@ -112,12 +125,27 @@ export function createWetTemperateTree(
         .multiplyScalar(size);
       const across = new THREE.Vector3(-Math.sin(heading), 0.1, Math.cos(heading)).multiplyScalar(size * 0.55);
       const color = new THREE.Color().setHSL(0.27 + random() * 0.04, 0.4 + random() * 0.1, 0.17 + random() * 0.09);
+      if (quality !== "ultra" && i % 2 !== 0) continue;
+      if (quality !== "ultra") across.multiplyScalar(2);
       const tip = p.clone().add(along),
         notch = p.clone().addScaledVector(along, 0.8);
       const shoulderL = p.clone().addScaledVector(along, 0.75).add(across),
         shoulderR = p.clone().addScaledVector(along, 0.75).sub(across);
       const waistL = p.clone().addScaledVector(along, 0.3).addScaledVector(across, 0.8),
         waistR = p.clone().addScaledVector(along, 0.3).addScaledVector(across, -0.8);
+      if (alderReduced) {
+        points.push(
+          p,
+          waistL,
+          shoulderL,
+          tip.clone().addScaledVector(across, 0.4),
+          notch,
+          waistR,
+          shoulderR,
+          tip.clone().addScaledVector(across, -0.4)
+        );
+        continue;
+      }
       triangle(p, waistL, notch, color);
       triangle(waistL, shoulderL, notch, color);
       triangle(shoulderL, tip.clone().add(across.clone().multiplyScalar(0.4)), notch, color);
@@ -125,6 +153,8 @@ export function createWetTemperateTree(
       triangle(waistR, notch, shoulderR, color);
       triangle(shoulderR, notch, tip.clone().sub(across.clone().multiplyScalar(0.4)), color);
     }
+    if (quality === "medium") alderLobes.push(fitCanopyLobe(points, 0.65, true));
+    else if (quality === "low") alderPoints.push(...points);
   }
   if (cedar) {
     const height = 18.5;
@@ -191,7 +221,8 @@ export function createWetTemperateTree(
           { center: [0, 0.9, 0], radius: 0.34 }
         ],
         0.9,
-        6
+        6,
+        quality === "low" ? 6 : 16
       )
     );
     // Arched, partly exposed roots of a waterlogged carr site.
@@ -207,6 +238,7 @@ export function createWetTemperateTree(
     // Coppice-like stems rise from one stool into a narrow, oval crown.
     const stool = new THREE.Vector3(0, 0.9, 0);
     for (let s = 0; s < 3; s++) {
+      alderPoints = [];
       const angle = s * 2.1 + 0.4,
         tall = s === 0 ? 12.5 : 10.5 + random() * 1.2;
       const lean = new THREE.Vector3(Math.cos(angle) * 0.9, 0, Math.sin(angle) * 0.9);
@@ -232,6 +264,7 @@ export function createWetTemperateTree(
             const p = tip
               .clone()
               .add(new THREE.Vector3((random() - 0.5) * 0.5, -0.1 - random() * 0.2, (random() - 0.5) * 0.5));
+            if (alderReduced) continue;
             triangle(
               p,
               p.clone().add(new THREE.Vector3(0.025, -0.06, 0)),
@@ -240,14 +273,23 @@ export function createWetTemperateTree(
             );
           }
         }
+        if (quality === "low" && (i === 3 || i === 7 || i === 11)) {
+          alderLobes.push(fitCanopyLobe(alderPoints, 0.8, true));
+          alderPoints = [];
+        }
       }
       leaves(top, 0.9, 60);
+      if (quality === "low") alderLobes.push(fitCanopyLobe(alderPoints, 0.8, true));
     }
   }
   const barkGeometry = mergeGeometries(wood)!;
   for (const geometry of wood) geometry.dispose();
-  const foliage = reduced ? reduced.geometry() : new THREE.BufferGeometry();
-  if (!reduced) {
+  const foliage = alderReduced
+    ? createCanopyLobes(alderLobes, { hue: 0.29, saturation: 0.43, lightness: 0.215 }, 43223)
+    : reduced
+      ? reduced.geometry()
+      : new THREE.BufferGeometry();
+  if (!reduced && !alderReduced) {
     foliage.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
     foliage.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
     foliage.computeVertexNormals();
@@ -260,7 +302,7 @@ export function createWetTemperateTree(
   crown.name = cedar ? "cedar-scale-leaf-sprays" : "alder-notched-leaves-and-cones";
   const group = new THREE.Group();
   group.name = species.replaceAll("_", "-");
-  if (cedar) group.userData.treeQuality = quality;
+  group.userData.treeQuality = quality;
   group.add(trunk, crown);
   return {
     group,
