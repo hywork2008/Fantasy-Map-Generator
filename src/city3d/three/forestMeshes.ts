@@ -10,6 +10,7 @@ import type { ForestPlan, ForestRegion } from "../../city-editor/types/contracts
 import type { CityDocument, Point } from "../../city-editor/types/document";
 import type { CityTerrain } from "../../city-editor/types/terrain";
 import { growthHash } from "../../utils/urbanMorphology";
+import type { TreeSeason } from "../treeSeason";
 import { createForestTreeDetails, type ForestTreeSite } from "./forestTreeDetails";
 
 export type Forest3dQuality = "light" | "standard" | "high";
@@ -136,18 +137,46 @@ function treeGeometry(conifer: boolean, detailed: boolean): THREE.BufferGeometry
   return merged;
 }
 
+/** Summer crown colour and the aggregate canopy's bare-winter and autumn targets (§8.3). */
+const CANOPY_SUMMER = new THREE.Color("#66854f");
+const CANOPY_SEASON = { bare: new THREE.Color("#7a6e5c"), autumn: new THREE.Color("#a3773a") } as const;
+const CANOPY_SAMPLES = 256;
+
+/**
+ * Tint of the aggregate canopy for a month: the share of sampled trees that are bare or turning
+ * pulls the summer green toward grey-brown or autumn colour. Shapes never change.
+ */
+export function forestCanopyTint(species: readonly TreeSpecies[], season: TreeSeason | undefined): THREE.Color {
+  const tint = new THREE.Color(0, 0, 0);
+  if (!species.length || !season) return tint.setRGB(1, 1, 1);
+  for (const kind of species) {
+    const look = season.look(kind);
+    const target =
+      look?.appearance === "bare"
+        ? CANOPY_SEASON.bare
+        : look?.appearance === "autumn" || look?.autumnPalette
+          ? CANOPY_SEASON.autumn
+          : CANOPY_SUMMER;
+    tint.r += target.r / CANOPY_SUMMER.r;
+    tint.g += target.g / CANOPY_SUMMER.g;
+    tint.b += target.b / CANOPY_SUMMER.b;
+  }
+  return tint.multiplyScalar(1 / species.length);
+}
+
 /** A region is clipped before tessellation, so no floor, crown or side spans its holes. */
 export function createTownForest(
   document: CityDocument,
   plan: ForestPlan,
   terrain?: Pick<CityTerrain, "heightAt" | "relief">,
   initialQuality: Forest3dQuality = "standard",
-  simplify = true
+  simplify = true,
+  initialSeason?: TreeSeason
 ) {
   if (!landscapeHasTrees(document)) plan = { ...plan, regions: [], forestFaceIds: [], areaM2: 0 };
   const group = new THREE.Group();
   group.name = "ce-forest";
-  const details = createForestTreeDetails(group);
+  const details = createForestTreeDetails(group, undefined, initialSeason);
   const seed = document.generationSeed ?? document.fabric?.seed ?? document.format;
   const heightAt = terrain?.heightAt ?? (() => 0);
   const density = document.forestSettings?.density ?? "standard";
@@ -316,6 +345,23 @@ export function createTownForest(
     }
   }
   crownShape.dispose();
+  // Species sampled once over the woodland, to weigh the canopy's seasonal colour.
+  const stride = Math.max(1, Math.ceil(source.length / CANOPY_SAMPLES));
+  const sampledSpecies = source.flatMap((triangle, i) => {
+    if (i % stride) return [];
+    const p: Point = [
+      (triangle[0][0] + triangle[1][0] + triangle[2][0]) / 3,
+      (triangle[0][1] + triangle[1][1] + triangle[2][1]) / 3
+    ];
+    const species = landscapeTreeSpecies("garden_parkland", document, p, "woodland");
+    return species ? [species] : [];
+  });
+  const tintCanopy = (season: TreeSeason | undefined) => {
+    const tint = forestCanopyTint(sampledSpecies, season);
+    material.color.copy(tint);
+    smoothMaterial.color.copy(tint);
+  };
+  tintCanopy(initialSeason);
   const chunks: Chunk[] = [];
   for (const [id, d] of data) {
     const far = makeMesh(
@@ -469,6 +515,13 @@ export function createTownForest(
     group,
     stats,
     bounds: bounds3d,
+    /** Draws another month: detailed trees change look, the canopy colour follows. False if unchanged. */
+    setSeason(next: TreeSeason | undefined) {
+      if (!details.setSeason(next)) return false;
+      tintCanopy(next);
+      signature = "";
+      return true;
+    },
     setQuality(next: Forest3dQuality) {
       const normalized = simplify ? (FOREST_3D_BUDGET[next] ? next : "standard") : "high";
       if (quality === normalized) return false;

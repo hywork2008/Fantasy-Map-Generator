@@ -2,13 +2,15 @@ import * as THREE from "three";
 import { type TreeSpecies, treeLodProfile } from "../../buildings/landscape/trees";
 import type { OpenSpaceSite } from "../../city-editor/renderers/openSpaceSites";
 import type { CityTerrain } from "../../city-editor/types/terrain";
+import type { TreeSeason } from "../treeSeason";
 import { createForestTreeDetails, type ForestTreeSite } from "./forestTreeDetails";
 
 /** Park/churchyard trees use the same BV tiers and camera selection as woodland trees. */
 export function createOpenSpaceTreeLod(
   species: TreeSpecies,
   sites: readonly OpenSpaceSite[],
-  heightAt: CityTerrain["heightAt"]
+  heightAt: CityTerrain["heightAt"],
+  season?: TreeSeason
 ) {
   const group = new THREE.Group();
   group.name = `open-space-lod-${species}`;
@@ -16,7 +18,7 @@ export function createOpenSpaceTreeLod(
   const geometry = new THREE.BoxGeometry(1, 1, 1);
   const material = new THREE.MeshBasicMaterial();
   const placements = new THREE.InstancedMesh(geometry, material, sites.length);
-  const details = createForestTreeDetails(group, sites.length);
+  const details = createForestTreeDetails(group, sites.length, season);
   const candidates: ForestTreeSite[] = sites.map((site, index) => {
     const height = site.height ?? treeLodProfile(species)?.heightMeters ?? 10;
     const radius = site.radius ?? (site.width ? site.width / 2 : 4);

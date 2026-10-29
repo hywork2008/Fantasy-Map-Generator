@@ -31,6 +31,7 @@ import {
   waterStampChanged
 } from "../../city3d/three/waterMeshes";
 import { createTownWells, type TownWells } from "../../city3d/three/wellMeshes";
+import { treeSeason } from "../../city3d/treeSeason";
 import type { EditorMessageKey } from "../../i18n/editorMessages";
 import { editorText } from "../../i18n/editorMessages";
 import type { RoadRibbon } from "../../utils/roadSurface";
@@ -57,6 +58,7 @@ import { collectOpenSpacePlan } from "./openSpaceSites";
 import { collectPierSites } from "./pierSites";
 import { type City3dPerformanceSnapshot, type City3dRenderMetrics, collectSceneMetrics } from "./renderMetrics";
 import { createSceneryControls, readScenerySettings } from "./sceneryControls";
+import { createSeasonControls, type SeasonSettings } from "./seasonControls";
 import { collectShipSites } from "./shipSites";
 import { createSkyBackdrop } from "./skyBackdrop";
 import { standaloneHousingAppearance, standaloneHousingDocument } from "./standaloneHousingAppearance";
@@ -206,10 +208,27 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   const sunSettings = readSunSettings();
   const fogSettings = readFogSettings();
   const scenerySettings = readScenerySettings();
+  // The month only changes how trees look; it is not saved with the city and never undone.
+  const seasonSettings: SeasonSettings = { month: "descriptor" };
+  const siteDescriptor = () => options.getDocument().fabric?.generation?.settings.descriptor;
   if (options.isFmgLinked?.()) scenerySettings.style = "none";
   let sun: THREE.DirectionalLight | null = null;
   let shadowBounds = new THREE.Box3();
+  let refreshSeasonControls = () => {};
   const createLightingPanel = () => {
+    const season = createSeasonControls(
+      seasonSettings,
+      () => {
+        const descriptor = siteDescriptor();
+        return {
+          month: descriptor?.date?.month,
+          climate: (descriptor?.climate.monthlyMeanTemperatureC?.length ?? 0) >= 12
+        };
+      },
+      (target, type, handler) => options.scope.listen(target, type, handler),
+      () => sync()
+    );
+    refreshSeasonControls = season.refresh;
     const panel = createSunControls(
       sunSettings,
       (target, type, handler) => options.scope.listen(target, type, handler),
@@ -230,7 +249,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
         scenerySettings,
         (target, type, handler) => options.scope.listen(target, type, handler),
         () => requestRender()
-      )
+      ),
+      season.panel
     );
     return panel;
   };
@@ -671,6 +691,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     if (viewport.hidden || disposed) return;
     if (!ensure() || !scene) return;
     const city = options.getDocument();
+    const season = treeSeason(city.fabric?.generation?.settings.descriptor, seasonSettings.month);
+    refreshSeasonControls();
     mapHalfExtent = Math.max(1, city.frame.extentMeters / 2);
     atmosphereRange = Math.max(600, city.frame.cityRadiusMeters * 2);
     const nextSimplification = options.getSimplification?.() ?? { urban: "auto", outskirts: "auto" };
@@ -730,7 +752,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       city.biome,
       city.buildingAppearanceContext,
       city.fabric?.generation?.settings.descriptor?.climate,
-      city.historicalPeriod
+      city.historicalPeriod,
+      season?.key
     ]);
     const openSpacesChanged = terrainChanged || plan.buildings || openSpaceStamp !== nextOpenSpaceStamp || !openSpaces;
     const monasteryPlans = fabric.aerialLandmarks?.monasteries ?? [];
@@ -764,6 +787,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     )
       previousMotionFrame = null;
     const forestQualityChanged = forest?.setQuality(forestQuality.effective) ?? false;
+    // A new month redraws detailed trees and the canopy colour without rebuilding the woodland.
+    const forestSeasonChanged = !forestChanged && (forest?.setSeason(season) ?? false);
     if (
       !plan.buildings &&
       !plan.water &&
@@ -779,7 +804,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       !forestChanged
     ) {
       if (!framedRadius) frameCamera(city);
-      if (forestQualityChanged) requestRender();
+      if (forestQualityChanged || forestSeasonChanged) requestRender();
       return;
     }
     if (monasteriesChanged) {
@@ -797,7 +822,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       );
       if (openSpaces) scene.remove(openSpaces.group);
       openSpaces?.dispose();
-      openSpaces = createTownOpenSpaces(openSpacePlan, terrain ?? undefined);
+      openSpaces = createTownOpenSpaces(openSpacePlan, terrain ?? undefined, true, season);
       scene.add(openSpaces.group);
       openSpaceStamp = nextOpenSpaceStamp;
     }
@@ -848,7 +873,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
             nextForestSource,
             terrain ?? undefined,
             forestQuality.effective,
-            simplification.outskirts !== "off"
+            simplification.outskirts !== "off",
+            season
           )
         : null;
       if (forest) scene.add(forest.group);
