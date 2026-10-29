@@ -201,6 +201,13 @@ export function createForestTreeDetails(parent: THREE.Group, treeLimit?: number)
         boundedSpecies = new Set<TreeSpecies>(),
         usedModels = new Set<Model>(),
         shadows: string[] = [];
+      // Resolve each adopted species/tier once per frame, while allowing adoption changes next frame.
+      const frameModels = new Map<string, Model | undefined>();
+      const frameModel = (species: TreeSpecies, quality: TreeQuality) => {
+        const key = `${species}:${quality}`;
+        if (!frameModels.has(key)) frameModels.set(key, getModel(species, quality));
+        return frameModels.get(key);
+      };
       let tieredTrees = 0,
         untieredTrees = 0,
         boundedTriangles = 0,
@@ -216,7 +223,7 @@ export function createForestTreeDetails(parent: THREE.Group, treeLimit?: number)
         let model: Model | undefined;
         for (let level = TREE_QUALITIES.indexOf(quality); level >= 0; level--) {
           chosen = TREE_QUALITIES[level];
-          model = getModel(site.species, chosen);
+          model = frameModel(site.species, chosen);
           if (model && (preserveQuality || boundedTriangles + model.triangles <= budget.triangles)) break;
           model = undefined;
           if (preserveQuality || !profile) break;

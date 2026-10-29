@@ -1,0 +1,4369 @@
+{
+  "conditions": "Apple M4, 1000x720, DPR1, standard housing and forest, auto simplification, 12 warmup +64 measured frames/pose. Native and synthetic bounded-control. GPU query span first draw to render completion, not GPU busy time.",
+  "beforeSegments": 36,
+  "afterSegments": 48,
+  "matchedBeforeAfterForestStates": 2304,
+  "matchedFields": [
+    "trees",
+    "triangles",
+    "calls",
+    "areaM2",
+    "detailedTrees",
+    "detailedTriangles",
+    "detailedTiers",
+    "detailedSpecies",
+    "shadowTriangles"
+  ],
+  "afterAllWithin33ms": true,
+  "mounts": [
+    {
+      "phase": "before",
+      "policy": "bounded-control",
+      "shadows": false,
+      "city": "small-flat",
+      "buildings": 940,
+      "mountMs": 658.0999999046326,
+      "readyMs": 791.9000000953674,
+      "firstFrameCpuMs": 129.79999995231628,
+      "memory": [
+        {
+          "geometries": 85,
+          "textures": 1,
+          "forestLayers": 12
+        },
+        {
+          "geometries": 85,
+          "textures": 1,
+          "forestLayers": 12
+        },
+        {
+          "geometries": 85,
+          "textures": 1,
+          "forestLayers": 12
+        }
+      ]
+    },
+    {
+      "phase": "before",
+      "policy": "bounded-control",
+      "shadows": false,
+      "city": "medium-flat",
+      "buildings": 10874,
+      "mountMs": 2931.5,
+      "readyMs": 3250.7000000476837,
+      "firstFrameCpuMs": 311.2999999523163,
+      "memory": [
+        {
+          "geometries": 132,
+          "textures": 1,
+          "forestLayers": 9
+        },
+        {
+          "geometries": 132,
+          "textures": 1,
+          "forestLayers": 9
+        },
+        {
+          "geometries": 132,
+          "textures": 1,
+          "forestLayers": 9
+        }
+      ]
+    },
+    {
+      "phase": "before",
+      "policy": "bounded-control",
+      "shadows": false,
+      "city": "small-river-valley",
+      "buildings": 2113,
+      "mountMs": 1971.5,
+      "readyMs": 2143.4000000953674,
+      "firstFrameCpuMs": 167.10000014305115,
+      "memory": [
+        {
+          "geometries": 94,
+          "textures": 1,
+          "forestLayers": 11
+        },
+        {
+          "geometries": 94,
+          "textures": 1,
+          "forestLayers": 11
+        },
+        {
+          "geometries": 94,
+          "textures": 1,
+          "forestLayers": 11
+        }
+      ]
+    },
+    {
+      "phase": "before",
+      "policy": "native",
+      "shadows": false,
+      "city": "medium-flat",
+      "buildings": 10874,
+      "mountMs": 2974.9000000953674,
+      "readyMs": 3558.2999999523163,
+      "firstFrameCpuMs": 567.5999999046326,
+      "memory": [
+        {
+          "geometries": 123,
+          "textures": 1,
+          "forestLayers": 24
+        },
+        {
+          "geometries": 123,
+          "textures": 1,
+          "forestLayers": 24
+        },
+        {
+          "geometries": 123,
+          "textures": 1,
+          "forestLayers": 24
+        }
+      ]
+    },
+    {
+      "phase": "before",
+      "policy": "native",
+      "shadows": false,
+      "city": "small-river-valley",
+      "buildings": 2113,
+      "mountMs": 1920.0999999046326,
+      "readyMs": 2156.0999999046326,
+      "firstFrameCpuMs": 229.59999990463257,
+      "memory": [
+        {
+          "geometries": 84,
+          "textures": 1,
+          "forestLayers": 24
+        },
+        {
+          "geometries": 84,
+          "textures": 1,
+          "forestLayers": 24
+        },
+        {
+          "geometries": 84,
+          "textures": 1,
+          "forestLayers": 24
+        }
+      ]
+    },
+    {
+      "phase": "before",
+      "policy": "native",
+      "shadows": false,
+      "city": "small-flat",
+      "buildings": 940,
+      "mountMs": 695.1000001430511,
+      "readyMs": 1351.9000000953674,
+      "firstFrameCpuMs": 651.6999998092651,
+      "memory": [
+        {
+          "geometries": 76,
+          "textures": 1,
+          "forestLayers": 24
+        },
+        {
+          "geometries": 76,
+          "textures": 1,
+          "forestLayers": 24
+        },
+        {
+          "geometries": 76,
+          "textures": 1,
+          "forestLayers": 24
+        }
+      ]
+    },
+    {
+      "phase": "before",
+      "policy": "native",
+      "shadows": true,
+      "city": "small-flat",
+      "buildings": 940,
+      "mountMs": 646.5999999046326,
+      "readyMs": 1405.8999998569489,
+      "firstFrameCpuMs": 756.6000001430511,
+      "memory": [
+        {
+          "geometries": 77,
+          "textures": 3,
+          "forestLayers": 24
+        },
+        {
+          "geometries": 77,
+          "textures": 3,
+          "forestLayers": 24
+        },
+        {
+          "geometries": 77,
+          "textures": 3,
+          "forestLayers": 24
+        }
+      ]
+    },
+    {
+      "phase": "before",
+      "policy": "native",
+      "shadows": true,
+      "city": "medium-flat",
+      "buildings": 10874,
+      "mountMs": 3099.100000143051,
+      "readyMs": 3761.800000190735,
+      "firstFrameCpuMs": 618.7000000476837,
+      "memory": [
+        {
+          "geometries": 123,
+          "textures": 3,
+          "forestLayers": 24
+        },
+        {
+          "geometries": 123,
+          "textures": 3,
+          "forestLayers": 24
+        },
+        {
+          "geometries": 123,
+          "textures": 3,
+          "forestLayers": 24
+        }
+      ]
+    },
+    {
+      "phase": "before",
+      "policy": "native",
+      "shadows": true,
+      "city": "small-river-valley",
+      "buildings": 2113,
+      "mountMs": 1962.4000000953674,
+      "readyMs": 2215.9000000953674,
+      "firstFrameCpuMs": 243.90000009536743,
+      "memory": [
+        {
+          "geometries": 85,
+          "textures": 3,
+          "forestLayers": 24
+        },
+        {
+          "geometries": 85,
+          "textures": 3,
+          "forestLayers": 24
+        },
+        {
+          "geometries": 85,
+          "textures": 3,
+          "forestLayers": 24
+        }
+      ]
+    },
+    {
+      "phase": "after",
+      "policy": "bounded-control",
+      "shadows": false,
+      "city": "small-flat",
+      "buildings": 940,
+      "mountMs": 682.1999998092651,
+      "readyMs": 822.2999999523163,
+      "firstFrameCpuMs": 137,
+      "memory": [
+        {
+          "geometries": 85,
+          "textures": 1,
+          "forestLayers": 12
+        },
+        {
+          "geometries": 85,
+          "textures": 1,
+          "forestLayers": 12
+        },
+        {
+          "geometries": 85,
+          "textures": 1,
+          "forestLayers": 12
+        }
+      ]
+    },
+    {
+      "phase": "after",
+      "policy": "bounded-control",
+      "shadows": false,
+      "city": "medium-flat",
+      "buildings": 10874,
+      "mountMs": 3039.399999856949,
+      "readyMs": 3385.5,
+      "firstFrameCpuMs": 335.2000000476837,
+      "memory": [
+        {
+          "geometries": 132,
+          "textures": 1,
+          "forestLayers": 9
+        },
+        {
+          "geometries": 132,
+          "textures": 1,
+          "forestLayers": 9
+        },
+        {
+          "geometries": 132,
+          "textures": 1,
+          "forestLayers": 9
+        }
+      ]
+    },
+    {
+      "phase": "after",
+      "policy": "bounded-control",
+      "shadows": false,
+      "city": "small-river-valley",
+      "buildings": 2113,
+      "mountMs": 1988.7999999523163,
+      "readyMs": 2170.2000000476837,
+      "firstFrameCpuMs": 176.89999985694885,
+      "memory": [
+        {
+          "geometries": 94,
+          "textures": 1,
+          "forestLayers": 11
+        },
+        {
+          "geometries": 94,
+          "textures": 1,
+          "forestLayers": 11
+        },
+        {
+          "geometries": 94,
+          "textures": 1,
+          "forestLayers": 11
+        }
+      ]
+    },
+    {
+      "phase": "after",
+      "policy": "bounded-control",
+      "shadows": true,
+      "city": "small-flat",
+      "buildings": 940,
+      "mountMs": 667.7000000476837,
+      "readyMs": 822.5,
+      "firstFrameCpuMs": 145.20000004768372,
+      "memory": [
+        {
+          "geometries": 86,
+          "textures": 3,
+          "forestLayers": 12
+        },
+        {
+          "geometries": 86,
+          "textures": 3,
+          "forestLayers": 12
+        },
+        {
+          "geometries": 86,
+          "textures": 3,
+          "forestLayers": 12
+        }
+      ]
+    },
+    {
+      "phase": "after",
+      "policy": "bounded-control",
+      "shadows": true,
+      "city": "medium-flat",
+      "buildings": 10874,
+      "mountMs": 3085.7000000476837,
+      "readyMs": 3570.5,
+      "firstFrameCpuMs": 438.09999990463257,
+      "memory": [
+        {
+          "geometries": 132,
+          "textures": 3,
+          "forestLayers": 9
+        },
+        {
+          "geometries": 132,
+          "textures": 3,
+          "forestLayers": 9
+        },
+        {
+          "geometries": 132,
+          "textures": 3,
+          "forestLayers": 9
+        }
+      ]
+    },
+    {
+      "phase": "after",
+      "policy": "bounded-control",
+      "shadows": true,
+      "city": "small-river-valley",
+      "buildings": 2113,
+      "mountMs": 2023.7999999523163,
+      "readyMs": 2220.0999999046326,
+      "firstFrameCpuMs": 186.90000009536743,
+      "memory": [
+        {
+          "geometries": 95,
+          "textures": 3,
+          "forestLayers": 11
+        },
+        {
+          "geometries": 95,
+          "textures": 3,
+          "forestLayers": 11
+        },
+        {
+          "geometries": 95,
+          "textures": 3,
+          "forestLayers": 11
+        }
+      ]
+    },
+    {
+      "phase": "after",
+      "policy": "native",
+      "shadows": false,
+      "city": "small-flat",
+      "buildings": 940,
+      "mountMs": 699.2000000476837,
+      "readyMs": 899.2999999523163,
+      "firstFrameCpuMs": 195.30000019073486,
+      "memory": [
+        {
+          "geometries": 76,
+          "textures": 1,
+          "forestLayers": 24
+        },
+        {
+          "geometries": 76,
+          "textures": 1,
+          "forestLayers": 24
+        },
+        {
+          "geometries": 76,
+          "textures": 1,
+          "forestLayers": 24
+        }
+      ]
+    },
+    {
+      "phase": "after",
+      "policy": "native",
+      "shadows": false,
+      "city": "medium-flat",
+      "buildings": 10874,
+      "mountMs": 2966.5,
+      "readyMs": 3507.2000000476837,
+      "firstFrameCpuMs": 522.4000000953674,
+      "memory": [
+        {
+          "geometries": 123,
+          "textures": 1,
+          "forestLayers": 24
+        },
+        {
+          "geometries": 123,
+          "textures": 1,
+          "forestLayers": 24
+        },
+        {
+          "geometries": 123,
+          "textures": 1,
+          "forestLayers": 24
+        }
+      ]
+    },
+    {
+      "phase": "after",
+      "policy": "native",
+      "shadows": false,
+      "city": "small-river-valley",
+      "buildings": 2113,
+      "mountMs": 2073.7999999523163,
+      "readyMs": 2458.899999856949,
+      "firstFrameCpuMs": 360.39999985694885,
+      "memory": [
+        {
+          "geometries": 84,
+          "textures": 1,
+          "forestLayers": 24
+        },
+        {
+          "geometries": 84,
+          "textures": 1,
+          "forestLayers": 24
+        },
+        {
+          "geometries": 84,
+          "textures": 1,
+          "forestLayers": 24
+        }
+      ]
+    },
+    {
+      "phase": "after",
+      "policy": "native",
+      "shadows": true,
+      "city": "small-flat",
+      "buildings": 940,
+      "mountMs": 660.7999999523163,
+      "readyMs": 871.7000000476837,
+      "firstFrameCpuMs": 208,
+      "memory": [
+        {
+          "geometries": 77,
+          "textures": 3,
+          "forestLayers": 24
+        },
+        {
+          "geometries": 77,
+          "textures": 3,
+          "forestLayers": 24
+        },
+        {
+          "geometries": 77,
+          "textures": 3,
+          "forestLayers": 24
+        }
+      ]
+    },
+    {
+      "phase": "after",
+      "policy": "native",
+      "shadows": true,
+      "city": "medium-flat",
+      "buildings": 10874,
+      "mountMs": 3009,
+      "readyMs": 3600.300000190735,
+      "firstFrameCpuMs": 538,
+      "memory": [
+        {
+          "geometries": 123,
+          "textures": 3,
+          "forestLayers": 24
+        },
+        {
+          "geometries": 123,
+          "textures": 3,
+          "forestLayers": 24
+        },
+        {
+          "geometries": 123,
+          "textures": 3,
+          "forestLayers": 24
+        }
+      ]
+    },
+    {
+      "phase": "after",
+      "policy": "native",
+      "shadows": true,
+      "city": "small-river-valley",
+      "buildings": 2113,
+      "mountMs": 1981.9000000953674,
+      "readyMs": 2234.2000000476837,
+      "firstFrameCpuMs": 241.70000004768372,
+      "memory": [
+        {
+          "geometries": 85,
+          "textures": 3,
+          "forestLayers": 24
+        },
+        {
+          "geometries": 85,
+          "textures": 3,
+          "forestLayers": 24
+        },
+        {
+          "geometries": 85,
+          "textures": 3,
+          "forestLayers": 24
+        }
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "phase": "before",
+      "policy": "bounded-control",
+      "shadows": false,
+      "city": "small-flat",
+      "pose": "overview",
+      "cpu": {
+        "n": 64,
+        "p50": 1.4000000953674316,
+        "p95": 2,
+        "max": 2.1000001430511475
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 1.74525,
+        "p95": 1.986874,
+        "max": 2.066958
+      },
+      "interval": {
+        "n": 64,
+        "p50": 12.099999904632568,
+        "p95": 27.100000143051147,
+        "max": 29.200000047683716
+      },
+      "forestMax": {
+        "trees": 0,
+        "triangles": 25680,
+        "calls": 24,
+        "shadowTriangles": 0,
+        "cachedLayers": 0,
+        "builds": 0
+      },
+      "frame": {
+        "calls": 72,
+        "triangles": 545257,
+        "lines": 0,
+        "points": 0,
+        "geometries": 71,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 0.5999999046325684,
+        "sampledAt": 3154.7999999523163
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "bounded-control",
+      "shadows": false,
+      "city": "small-flat",
+      "pose": "edge",
+      "cpu": {
+        "n": 64,
+        "p50": 2.3000001907348633,
+        "p95": 3.0999999046325684,
+        "max": 3.4000000953674316
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 2.711249,
+        "p95": 3.264999,
+        "max": 3.500833
+      },
+      "interval": {
+        "n": 64,
+        "p50": 15.699999809265137,
+        "p95": 26.200000047683716,
+        "max": 28.700000047683716
+      },
+      "forestMax": {
+        "trees": 2287,
+        "triangles": 299997,
+        "calls": 32,
+        "shadowTriangles": 49967,
+        "cachedLayers": 5,
+        "builds": 5
+      },
+      "frame": {
+        "calls": 43,
+        "triangles": 784828,
+        "lines": 0,
+        "points": 0,
+        "geometries": 81,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 1.7999999523162842,
+        "sampledAt": 4521.599999904633
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "bounded-control",
+      "shadows": false,
+      "city": "small-flat",
+      "pose": "low",
+      "cpu": {
+        "n": 64,
+        "p50": 2.1000001430511475,
+        "p95": 2.3999998569488525,
+        "max": 2.6000001430511475
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 2.851208,
+        "p95": 3.13475,
+        "max": 3.405625
+      },
+      "interval": {
+        "n": 64,
+        "p50": 15.799999952316284,
+        "p95": 22,
+        "max": 22.699999809265137
+      },
+      "forestMax": {
+        "trees": 2884,
+        "triangles": 299995,
+        "calls": 38,
+        "shadowTriangles": 49967,
+        "cachedLayers": 6,
+        "builds": 6
+      },
+      "frame": {
+        "calls": 46,
+        "triangles": 784828,
+        "lines": 0,
+        "points": 0,
+        "geometries": 83,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 1.9000000953674316,
+        "sampledAt": 5891.5
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "bounded-control",
+      "shadows": false,
+      "city": "small-flat",
+      "pose": "urban",
+      "cpu": {
+        "n": 64,
+        "p50": 0.7999999523162842,
+        "p95": 2,
+        "max": 3.299999952316284
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 1.744041,
+        "p95": 2.763416,
+        "max": 2.850708
+      },
+      "interval": {
+        "n": 64,
+        "p50": 12.200000047683716,
+        "p95": 26.90000009536743,
+        "max": 29
+      },
+      "forestMax": {
+        "trees": 1943,
+        "triangles": 178361,
+        "calls": 25,
+        "shadowTriangles": 49980,
+        "cachedLayers": 9,
+        "builds": 9
+      },
+      "frame": {
+        "calls": 34,
+        "triangles": 646300,
+        "lines": 0,
+        "points": 0,
+        "geometries": 85,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 2,
+        "sampledAt": 7031.099999904633
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "bounded-control",
+      "shadows": false,
+      "city": "medium-flat",
+      "pose": "overview",
+      "cpu": {
+        "n": 64,
+        "p50": 0.7000000476837158,
+        "p95": 1.1000001430511475,
+        "max": 1.5
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 7.253499,
+        "p95": 7.67725,
+        "max": 7.782291
+      },
+      "interval": {
+        "n": 64,
+        "p50": 13.300000190734863,
+        "p95": 26.40000009536743,
+        "max": 29
+      },
+      "forestMax": {
+        "trees": 0,
+        "triangles": 25222,
+        "calls": 62,
+        "shadowTriangles": 0,
+        "cachedLayers": 0,
+        "builds": 0
+      },
+      "frame": {
+        "calls": 119,
+        "triangles": 3290934,
+        "lines": 0,
+        "points": 0,
+        "geometries": 118,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 0.7000000476837158,
+        "sampledAt": 7527.400000095367
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "bounded-control",
+      "shadows": false,
+      "city": "medium-flat",
+      "pose": "edge",
+      "cpu": {
+        "n": 64,
+        "p50": 2.299999952316284,
+        "p95": 2.8000001907348633,
+        "max": 3.299999952316284
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 6.613041,
+        "p95": 8.110875,
+        "max": 8.228749
+      },
+      "interval": {
+        "n": 64,
+        "p50": 11.700000047683716,
+        "p95": 26.40000009536743,
+        "max": 26.800000190734863
+      },
+      "forestMax": {
+        "trees": 3070,
+        "triangles": 299994,
+        "calls": 62,
+        "shadowTriangles": 49962,
+        "cachedLayers": 6,
+        "builds": 6
+      },
+      "frame": {
+        "calls": 75,
+        "triangles": 3504735,
+        "lines": 0,
+        "points": 0,
+        "geometries": 129,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 1.9000000953674316,
+        "sampledAt": 8702.400000095367
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "bounded-control",
+      "shadows": false,
+      "city": "medium-flat",
+      "pose": "low",
+      "cpu": {
+        "n": 64,
+        "p50": 1.7999999523162842,
+        "p95": 2.3000001907348633,
+        "max": 3
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 6.190458,
+        "p95": 8.170791,
+        "max": 8.396458
+      },
+      "interval": {
+        "n": 64,
+        "p50": 11.200000047683716,
+        "p95": 26.399999856948853,
+        "max": 27.399999856948853
+      },
+      "forestMax": {
+        "trees": 3070,
+        "triangles": 299994,
+        "calls": 60,
+        "shadowTriangles": 49962,
+        "cachedLayers": 6,
+        "builds": 6
+      },
+      "frame": {
+        "calls": 73,
+        "triangles": 3461018,
+        "lines": 0,
+        "points": 0,
+        "geometries": 130,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 2,
+        "sampledAt": 9856.299999952316
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "bounded-control",
+      "shadows": false,
+      "city": "medium-flat",
+      "pose": "urban",
+      "cpu": {
+        "n": 64,
+        "p50": 0.5,
+        "p95": 1.2999999523162842,
+        "max": 6.3999998569488525
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 6.889958,
+        "p95": 7.496749,
+        "max": 7.543583
+      },
+      "interval": {
+        "n": 64,
+        "p50": 14.300000190734863,
+        "p95": 23.5,
+        "max": 27.700000047683716
+      },
+      "forestMax": {
+        "trees": 124,
+        "triangles": 11760,
+        "calls": 23,
+        "shadowTriangles": 918,
+        "cachedLayers": 7,
+        "builds": 7
+      },
+      "frame": {
+        "calls": 39,
+        "triangles": 3262694,
+        "lines": 0,
+        "points": 0,
+        "geometries": 132,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 0.40000009536743164,
+        "sampledAt": 11020
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "bounded-control",
+      "shadows": false,
+      "city": "small-river-valley",
+      "pose": "overview",
+      "cpu": {
+        "n": 64,
+        "p50": 0.8999998569488525,
+        "p95": 1.3999998569488525,
+        "max": 14.399999856948853
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 4.260999,
+        "p95": 4.617833,
+        "max": 4.898708
+      },
+      "interval": {
+        "n": 64,
+        "p50": 11.900000095367432,
+        "p95": 26.200000047683716,
+        "max": 28.700000047683716
+      },
+      "forestMax": {
+        "trees": 776,
+        "triangles": 59699,
+        "calls": 28,
+        "shadowTriangles": 3672,
+        "cachedLayers": 1,
+        "builds": 1
+      },
+      "frame": {
+        "calls": 83,
+        "triangles": 1708387,
+        "lines": 0,
+        "points": 0,
+        "geometries": 82,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 0.7000000476837158,
+        "sampledAt": 4327.5
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "bounded-control",
+      "shadows": false,
+      "city": "small-river-valley",
+      "pose": "edge",
+      "cpu": {
+        "n": 64,
+        "p50": 1.7999999523162842,
+        "p95": 2.5999999046325684,
+        "max": 2.8000001907348633
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 5.280875,
+        "p95": 5.616958,
+        "max": 5.827416
+      },
+      "interval": {
+        "n": 64,
+        "p50": 12.299999952316284,
+        "p95": 26.59999990463257,
+        "max": 30.59999990463257
+      },
+      "forestMax": {
+        "trees": 1968,
+        "triangles": 299993,
+        "calls": 32,
+        "shadowTriangles": 49930,
+        "cachedLayers": 5,
+        "builds": 5
+      },
+      "frame": {
+        "calls": 45,
+        "triangles": 1919066,
+        "lines": 0,
+        "points": 0,
+        "geometries": 89,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 1.7000000476837158,
+        "sampledAt": 5488.399999856949
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "bounded-control",
+      "shadows": false,
+      "city": "small-river-valley",
+      "pose": "low",
+      "cpu": {
+        "n": 64,
+        "p50": 1.3000001907348633,
+        "p95": 2,
+        "max": 2.200000047683716
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 5.691,
+        "p95": 6.07275,
+        "max": 6.478874
+      },
+      "interval": {
+        "n": 64,
+        "p50": 13.599999904632568,
+        "p95": 26.300000190734863,
+        "max": 30
+      },
+      "forestMax": {
+        "trees": 1968,
+        "triangles": 299985,
+        "calls": 35,
+        "shadowTriangles": 49982,
+        "cachedLayers": 5,
+        "builds": 5
+      },
+      "frame": {
+        "calls": 45,
+        "triangles": 1933462,
+        "lines": 0,
+        "points": 0,
+        "geometries": 90,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 1.4000000953674316,
+        "sampledAt": 6716.299999952316
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "bounded-control",
+      "shadows": false,
+      "city": "small-river-valley",
+      "pose": "urban",
+      "cpu": {
+        "n": 64,
+        "p50": 0.5,
+        "p95": 1.5,
+        "max": 1.7000000476837158
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 4.009833,
+        "p95": 4.756749,
+        "max": 4.952499
+      },
+      "interval": {
+        "n": 64,
+        "p50": 11,
+        "p95": 26.399999856948853,
+        "max": 26.800000190734863
+      },
+      "forestMax": {
+        "trees": 1482,
+        "triangles": 98820,
+        "calls": 24,
+        "shadowTriangles": 40903,
+        "cachedLayers": 9,
+        "builds": 9
+      },
+      "frame": {
+        "calls": 36,
+        "triangles": 1718837,
+        "lines": 0,
+        "points": 0,
+        "geometries": 94,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 1.2000000476837158,
+        "sampledAt": 7843.599999904633
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "native",
+      "shadows": false,
+      "city": "medium-flat",
+      "pose": "overview",
+      "cpu": {
+        "n": 64,
+        "p50": 33.5,
+        "p95": 36.09999990463257,
+        "max": 43.299999952316284
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 17.430458,
+        "p95": 19.768958,
+        "max": 19.913875
+      },
+      "interval": {
+        "n": 64,
+        "p50": 33.799999952316284,
+        "p95": 37.09999990463257,
+        "max": 43.5
+      },
+      "forestMax": {
+        "trees": 29154,
+        "triangles": 4464160,
+        "calls": 64,
+        "shadowTriangles": 49878,
+        "cachedLayers": 61,
+        "builds": 62
+      },
+      "frame": {
+        "calls": 121,
+        "triangles": 7726200,
+        "lines": 0,
+        "points": 0,
+        "geometries": 119,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 33.59999990463257,
+        "sampledAt": 9802.200000047684
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "native",
+      "shadows": false,
+      "city": "medium-flat",
+      "pose": "edge",
+      "cpu": {
+        "n": 64,
+        "p50": 8.800000190734863,
+        "p95": 21.799999952316284,
+        "max": 22.5
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 13.911125,
+        "p95": 17.004125,
+        "max": 17.161041
+      },
+      "interval": {
+        "n": 64,
+        "p50": 18.40000009536743,
+        "p95": 22.799999952316284,
+        "max": 25.799999952316284
+      },
+      "forestMax": {
+        "trees": 16750,
+        "triangles": 4351386,
+        "calls": 43,
+        "shadowTriangles": 49987,
+        "cachedLayers": 37,
+        "builds": 89
+      },
+      "frame": {
+        "calls": 59,
+        "triangles": 7370283,
+        "lines": 0,
+        "points": 0,
+        "geometries": 121,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 18,
+        "sampledAt": 11395.900000095367
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "native",
+      "shadows": false,
+      "city": "medium-flat",
+      "pose": "low",
+      "cpu": {
+        "n": 64,
+        "p50": 18.899999856948853,
+        "p95": 22.200000047683716,
+        "max": 32
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 15.275249,
+        "p95": 16.521124,
+        "max": 17.026208
+      },
+      "interval": {
+        "n": 64,
+        "p50": 19.5,
+        "p95": 25.200000047683716,
+        "max": 32
+      },
+      "forestMax": {
+        "trees": 16961,
+        "triangles": 5918364,
+        "calls": 43,
+        "shadowTriangles": 49987,
+        "cachedLayers": 36,
+        "builds": 104
+      },
+      "frame": {
+        "calls": 60,
+        "triangles": 8730486,
+        "lines": 0,
+        "points": 0,
+        "geometries": 122,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 21.200000047683716,
+        "sampledAt": 13058.700000047684
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "native",
+      "shadows": false,
+      "city": "medium-flat",
+      "pose": "urban",
+      "cpu": {
+        "n": 64,
+        "p50": 1.7999999523162842,
+        "p95": 15.099999904632568,
+        "max": 17.300000190734863
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 6.631124,
+        "p95": 13.084791,
+        "max": 13.731958
+      },
+      "interval": {
+        "n": 64,
+        "p50": 21.5,
+        "p95": 26,
+        "max": 29.300000190734863
+      },
+      "forestMax": {
+        "trees": 10881,
+        "triangles": 1666158,
+        "calls": 25,
+        "shadowTriangles": 49878,
+        "cachedLayers": 24,
+        "builds": 121
+      },
+      "frame": {
+        "calls": 41,
+        "triangles": 4672650,
+        "lines": 0,
+        "points": 0,
+        "geometries": 123,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 13,
+        "sampledAt": 14774.700000047684
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "native",
+      "shadows": false,
+      "city": "small-river-valley",
+      "pose": "overview",
+      "cpu": {
+        "n": 64,
+        "p50": 7.5,
+        "p95": 8,
+        "max": 8.099999904632568
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 7.616374,
+        "p95": 8.642625,
+        "max": 9.401499
+      },
+      "interval": {
+        "n": 64,
+        "p50": 11,
+        "p95": 26,
+        "max": 31.799999952316284
+      },
+      "forestMax": {
+        "trees": 6809,
+        "triangles": 1046738,
+        "calls": 25,
+        "shadowTriangles": 49878,
+        "cachedLayers": 23,
+        "builds": 23
+      },
+      "frame": {
+        "calls": 82,
+        "triangles": 2706766,
+        "lines": 0,
+        "points": 0,
+        "geometries": 80,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 7.800000190734863,
+        "sampledAt": 4338.400000095367
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "native",
+      "shadows": false,
+      "city": "small-river-valley",
+      "pose": "edge",
+      "cpu": {
+        "n": 64,
+        "p50": 4.599999904632568,
+        "p95": 5.5,
+        "max": 5.699999809265137
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 8.469458,
+        "p95": 10.783249,
+        "max": 12.076125
+      },
+      "interval": {
+        "n": 64,
+        "p50": 13.799999952316284,
+        "p95": 27.299999952316284,
+        "max": 28.09999990463257
+      },
+      "forestMax": {
+        "trees": 3848,
+        "triangles": 2660748,
+        "calls": 22,
+        "shadowTriangles": 49987,
+        "cachedLayers": 24,
+        "builds": 24
+      },
+      "frame": {
+        "calls": 38,
+        "triangles": 4219640,
+        "lines": 0,
+        "points": 0,
+        "geometries": 83,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 5.5,
+        "sampledAt": 5521.299999952316
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "native",
+      "shadows": false,
+      "city": "small-river-valley",
+      "pose": "low",
+      "cpu": {
+        "n": 64,
+        "p50": 4.6000001430511475,
+        "p95": 5.099999904632568,
+        "max": 5.200000047683716
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 11.535916,
+        "p95": 14.006666,
+        "max": 14.070624
+      },
+      "interval": {
+        "n": 64,
+        "p50": 11.799999952316284,
+        "p95": 26.5,
+        "max": 29.100000143051147
+      },
+      "forestMax": {
+        "trees": 3658,
+        "triangles": 4282878,
+        "calls": 23,
+        "shadowTriangles": 49987,
+        "cachedLayers": 24,
+        "builds": 24
+      },
+      "frame": {
+        "calls": 37,
+        "triangles": 5809100,
+        "lines": 0,
+        "points": 0,
+        "geometries": 84,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 5.1000001430511475,
+        "sampledAt": 6713.700000047684
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "native",
+      "shadows": false,
+      "city": "small-river-valley",
+      "pose": "urban",
+      "cpu": {
+        "n": 64,
+        "p50": 1.7000000476837158,
+        "p95": 5.199999809265137,
+        "max": 10.799999952316284
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 3.787124,
+        "p95": 4.87025,
+        "max": 5.511124
+      },
+      "interval": {
+        "n": 64,
+        "p50": 12.900000095367432,
+        "p95": 27.799999952316284,
+        "max": 33.799999952316284
+      },
+      "forestMax": {
+        "trees": 2368,
+        "triangles": 363681,
+        "calls": 12,
+        "shadowTriangles": 49930,
+        "cachedLayers": 24,
+        "builds": 24
+      },
+      "frame": {
+        "calls": 27,
+        "triangles": 1928003,
+        "lines": 0,
+        "points": 0,
+        "geometries": 84,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 4.799999952316284,
+        "sampledAt": 7887.599999904633
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "native",
+      "shadows": false,
+      "city": "small-flat",
+      "pose": "overview",
+      "cpu": {
+        "n": 64,
+        "p50": 7.400000095367432,
+        "p95": 7.800000190734863,
+        "max": 8.200000047683716
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 5.707749,
+        "p95": 5.981249,
+        "max": 6.695791
+      },
+      "interval": {
+        "n": 64,
+        "p50": 13.099999904632568,
+        "p95": 27,
+        "max": 28.700000047683716
+      },
+      "forestMax": {
+        "trees": 6818,
+        "triangles": 1046626,
+        "calls": 26,
+        "shadowTriangles": 49878,
+        "cachedLayers": 24,
+        "builds": 24
+      },
+      "frame": {
+        "calls": 74,
+        "triangles": 1563296,
+        "lines": 0,
+        "points": 0,
+        "geometries": 72,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 8.100000143051147,
+        "sampledAt": 3793.600000143051
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "native",
+      "shadows": false,
+      "city": "small-flat",
+      "pose": "edge",
+      "cpu": {
+        "n": 64,
+        "p50": 5.1000001430511475,
+        "p95": 5.699999809265137,
+        "max": 5.700000047683716
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 9.256416,
+        "p95": 11.032,
+        "max": 11.441749
+      },
+      "interval": {
+        "n": 64,
+        "p50": 13.900000095367432,
+        "p95": 27.40000009536743,
+        "max": 27.90000009536743
+      },
+      "forestMax": {
+        "trees": 4437,
+        "triangles": 2823177,
+        "calls": 22,
+        "shadowTriangles": 49987,
+        "cachedLayers": 24,
+        "builds": 25
+      },
+      "frame": {
+        "calls": 34,
+        "triangles": 3297741,
+        "lines": 0,
+        "points": 0,
+        "geometries": 75,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 5.5,
+        "sampledAt": 5002.700000047684
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "native",
+      "shadows": false,
+      "city": "small-flat",
+      "pose": "low",
+      "cpu": {
+        "n": 64,
+        "p50": 4.799999952316284,
+        "p95": 5.400000095367432,
+        "max": 5.699999809265137
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 8.024875,
+        "p95": 11.08325,
+        "max": 12.097875
+      },
+      "interval": {
+        "n": 64,
+        "p50": 13,
+        "p95": 26.399999856948853,
+        "max": 28.600000143051147
+      },
+      "forestMax": {
+        "trees": 4228,
+        "triangles": 3565825,
+        "calls": 23,
+        "shadowTriangles": 49987,
+        "cachedLayers": 24,
+        "builds": 25
+      },
+      "frame": {
+        "calls": 33,
+        "triangles": 3973664,
+        "lines": 0,
+        "points": 0,
+        "geometries": 76,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 4.900000095367432,
+        "sampledAt": 6169.100000143051
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "native",
+      "shadows": false,
+      "city": "small-flat",
+      "pose": "urban",
+      "cpu": {
+        "n": 64,
+        "p50": 1.2000000476837158,
+        "p95": 3.200000047683716,
+        "max": 6.900000095367432
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 1.24925,
+        "p95": 3.463291,
+        "max": 3.843583
+      },
+      "interval": {
+        "n": 64,
+        "p50": 10.799999952316284,
+        "p95": 26.200000047683716,
+        "max": 30.200000047683716
+      },
+      "forestMax": {
+        "trees": 2671,
+        "triangles": 413970,
+        "calls": 13,
+        "shadowTriangles": 49982,
+        "cachedLayers": 24,
+        "builds": 25
+      },
+      "frame": {
+        "calls": 25,
+        "triangles": 913161,
+        "lines": 0,
+        "points": 0,
+        "geometries": 76,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 2.700000047683716,
+        "sampledAt": 7238
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "native",
+      "shadows": true,
+      "city": "small-flat",
+      "pose": "overview",
+      "cpu": {
+        "n": 64,
+        "p50": 7.099999904632568,
+        "p95": 8.100000143051147,
+        "max": 13.800000190734863
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 8.853249,
+        "p95": 9.316874,
+        "max": 10.536249
+      },
+      "interval": {
+        "n": 64,
+        "p50": 13.399999856948853,
+        "p95": 16.100000143051147,
+        "max": 21.90000009536743
+      },
+      "forestMax": {
+        "trees": 6818,
+        "triangles": 1046626,
+        "calls": 26,
+        "shadowTriangles": 49878,
+        "cachedLayers": 24,
+        "builds": 24
+      },
+      "frame": {
+        "calls": 74,
+        "triangles": 1563296,
+        "lines": 0,
+        "points": 0,
+        "geometries": 73,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 7.099999904632568,
+        "sampledAt": 3783
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "native",
+      "shadows": true,
+      "city": "small-flat",
+      "pose": "edge",
+      "cpu": {
+        "n": 64,
+        "p50": 5,
+        "p95": 5.599999904632568,
+        "max": 5.900000095367432
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 10.564,
+        "p95": 11.826958,
+        "max": 12.747874
+      },
+      "interval": {
+        "n": 64,
+        "p50": 12.800000190734863,
+        "p95": 26.699999809265137,
+        "max": 27.90000009536743
+      },
+      "forestMax": {
+        "trees": 4437,
+        "triangles": 2823177,
+        "calls": 22,
+        "shadowTriangles": 49987,
+        "cachedLayers": 24,
+        "builds": 25
+      },
+      "frame": {
+        "calls": 34,
+        "triangles": 3297741,
+        "lines": 0,
+        "points": 0,
+        "geometries": 76,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 5,
+        "sampledAt": 4931.600000143051
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "native",
+      "shadows": true,
+      "city": "small-flat",
+      "pose": "low",
+      "cpu": {
+        "n": 64,
+        "p50": 4.799999952316284,
+        "p95": 5.200000047683716,
+        "max": 5.400000095367432
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 11.884458,
+        "p95": 15.247375,
+        "max": 16.229333
+      },
+      "interval": {
+        "n": 64,
+        "p50": 12,
+        "p95": 26.899999856948853,
+        "max": 29
+      },
+      "forestMax": {
+        "trees": 4228,
+        "triangles": 3565825,
+        "calls": 23,
+        "shadowTriangles": 49987,
+        "cachedLayers": 24,
+        "builds": 25
+      },
+      "frame": {
+        "calls": 81,
+        "triangles": 4542380,
+        "lines": 0,
+        "points": 0,
+        "geometries": 77,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 5.299999952316284,
+        "sampledAt": 6109.700000047684
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "native",
+      "shadows": true,
+      "city": "small-flat",
+      "pose": "urban",
+      "cpu": {
+        "n": 64,
+        "p50": 1.6000001430511475,
+        "p95": 4.099999904632568,
+        "max": 4.900000095367432
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 1.985416,
+        "p95": 3.933708,
+        "max": 4.296249
+      },
+      "interval": {
+        "n": 64,
+        "p50": 13.700000047683716,
+        "p95": 26.59999990463257,
+        "max": 30
+      },
+      "forestMax": {
+        "trees": 2671,
+        "triangles": 413970,
+        "calls": 13,
+        "shadowTriangles": 49982,
+        "cachedLayers": 24,
+        "builds": 25
+      },
+      "frame": {
+        "calls": 25,
+        "triangles": 913161,
+        "lines": 0,
+        "points": 0,
+        "geometries": 77,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 3.8000001907348633,
+        "sampledAt": 7293.900000095367
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "native",
+      "shadows": true,
+      "city": "medium-flat",
+      "pose": "overview",
+      "cpu": {
+        "n": 64,
+        "p50": 35.5,
+        "p95": 37.10000014305115,
+        "max": 41.299999952316284
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 18.664708,
+        "p95": 23.961874,
+        "max": 25.962
+      },
+      "interval": {
+        "n": 64,
+        "p50": 35.700000047683716,
+        "p95": 38.69999980926514,
+        "max": 43.700000047683716
+      },
+      "forestMax": {
+        "trees": 29154,
+        "triangles": 4464160,
+        "calls": 64,
+        "shadowTriangles": 49878,
+        "cachedLayers": 61,
+        "builds": 62
+      },
+      "frame": {
+        "calls": 176,
+        "triangles": 11040446,
+        "lines": 0,
+        "points": 0,
+        "geometries": 119,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 36.09999990463257,
+        "sampledAt": 9737.299999952316
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "native",
+      "shadows": true,
+      "city": "medium-flat",
+      "pose": "edge",
+      "cpu": {
+        "n": 64,
+        "p50": 10,
+        "p95": 22.200000047683716,
+        "max": 23.200000047683716
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 15.972624,
+        "p95": 19.375083,
+        "max": 19.92575
+      },
+      "interval": {
+        "n": 64,
+        "p50": 19.199999809265137,
+        "p95": 24,
+        "max": 28.59999990463257
+      },
+      "forestMax": {
+        "trees": 16750,
+        "triangles": 4351386,
+        "calls": 43,
+        "shadowTriangles": 49987,
+        "cachedLayers": 37,
+        "builds": 89
+      },
+      "frame": {
+        "calls": 59,
+        "triangles": 7370283,
+        "lines": 0,
+        "points": 0,
+        "geometries": 121,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 20.699999809265137,
+        "sampledAt": 11307.099999904633
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "native",
+      "shadows": true,
+      "city": "medium-flat",
+      "pose": "low",
+      "cpu": {
+        "n": 64,
+        "p50": 20.40000009536743,
+        "p95": 23.299999952316284,
+        "max": 24.09999990463257
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 22.65075,
+        "p95": 25.388875,
+        "max": 26.927583
+      },
+      "interval": {
+        "n": 64,
+        "p50": 20.799999952316284,
+        "p95": 24.200000047683716,
+        "max": 29.299999952316284
+      },
+      "forestMax": {
+        "trees": 16961,
+        "triangles": 5918364,
+        "calls": 43,
+        "shadowTriangles": 49987,
+        "cachedLayers": 36,
+        "builds": 104
+      },
+      "frame": {
+        "calls": 60,
+        "triangles": 8730486,
+        "lines": 0,
+        "points": 0,
+        "geometries": 122,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 21.899999856948853,
+        "sampledAt": 13097.599999904633
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "native",
+      "shadows": true,
+      "city": "medium-flat",
+      "pose": "urban",
+      "cpu": {
+        "n": 64,
+        "p50": 1.7999999523162842,
+        "p95": 15,
+        "max": 19.699999809265137
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 5.540625,
+        "p95": 12.157458,
+        "max": 16.228916
+      },
+      "interval": {
+        "n": 64,
+        "p50": 13.099999904632568,
+        "p95": 26.200000047683716,
+        "max": 26.600000143051147
+      },
+      "forestMax": {
+        "trees": 10881,
+        "triangles": 1666158,
+        "calls": 25,
+        "shadowTriangles": 49878,
+        "cachedLayers": 24,
+        "builds": 121
+      },
+      "frame": {
+        "calls": 41,
+        "triangles": 4672650,
+        "lines": 0,
+        "points": 0,
+        "geometries": 123,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 15,
+        "sampledAt": 14283.900000095367
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "native",
+      "shadows": true,
+      "city": "small-river-valley",
+      "pose": "overview",
+      "cpu": {
+        "n": 64,
+        "p50": 7.5,
+        "p95": 7.8999998569488525,
+        "max": 7.900000095367432
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 8.838833,
+        "p95": 10.045083,
+        "max": 11.655499
+      },
+      "interval": {
+        "n": 64,
+        "p50": 11.600000143051147,
+        "p95": 25.90000009536743,
+        "max": 27.100000143051147
+      },
+      "forestMax": {
+        "trees": 6809,
+        "triangles": 1046738,
+        "calls": 25,
+        "shadowTriangles": 49878,
+        "cachedLayers": 23,
+        "builds": 23
+      },
+      "frame": {
+        "calls": 82,
+        "triangles": 2706766,
+        "lines": 0,
+        "points": 0,
+        "geometries": 81,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 7.799999952316284,
+        "sampledAt": 4443.599999904633
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "native",
+      "shadows": true,
+      "city": "small-river-valley",
+      "pose": "edge",
+      "cpu": {
+        "n": 64,
+        "p50": 4.5,
+        "p95": 5.1000001430511475,
+        "max": 5.300000190734863
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 12.198499,
+        "p95": 14.5705,
+        "max": 14.848749
+      },
+      "interval": {
+        "n": 64,
+        "p50": 13,
+        "p95": 27,
+        "max": 27.90000009536743
+      },
+      "forestMax": {
+        "trees": 3848,
+        "triangles": 2660748,
+        "calls": 22,
+        "shadowTriangles": 49987,
+        "cachedLayers": 24,
+        "builds": 24
+      },
+      "frame": {
+        "calls": 38,
+        "triangles": 4219640,
+        "lines": 0,
+        "points": 0,
+        "geometries": 84,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 4.900000095367432,
+        "sampledAt": 5612.799999952316
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "native",
+      "shadows": true,
+      "city": "small-river-valley",
+      "pose": "low",
+      "cpu": {
+        "n": 64,
+        "p50": 4.699999809265137,
+        "p95": 5.099999904632568,
+        "max": 5.200000047683716
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 19.606749,
+        "p95": 21.830541,
+        "max": 29.958333
+      },
+      "interval": {
+        "n": 64,
+        "p50": 14.900000095367432,
+        "p95": 20.40000009536743,
+        "max": 24.600000143051147
+      },
+      "forestMax": {
+        "trees": 3658,
+        "triangles": 4282878,
+        "calls": 23,
+        "shadowTriangles": 49987,
+        "cachedLayers": 24,
+        "builds": 24
+      },
+      "frame": {
+        "calls": 93,
+        "triangles": 7516890,
+        "lines": 0,
+        "points": 0,
+        "geometries": 85,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 4.3999998569488525,
+        "sampledAt": 6869.099999904633
+      }
+    },
+    {
+      "phase": "before",
+      "policy": "native",
+      "shadows": true,
+      "city": "small-river-valley",
+      "pose": "urban",
+      "cpu": {
+        "n": 64,
+        "p50": 1.6999998092651367,
+        "p95": 4.099999904632568,
+        "max": 4.700000047683716
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 4.239124,
+        "p95": 6.438124,
+        "max": 8.682583
+      },
+      "interval": {
+        "n": 64,
+        "p50": 13.799999952316284,
+        "p95": 26.5,
+        "max": 27.5
+      },
+      "forestMax": {
+        "trees": 2368,
+        "triangles": 363681,
+        "calls": 12,
+        "shadowTriangles": 49930,
+        "cachedLayers": 24,
+        "builds": 24
+      },
+      "frame": {
+        "calls": 27,
+        "triangles": 1928003,
+        "lines": 0,
+        "points": 0,
+        "geometries": 85,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 4.200000047683716,
+        "sampledAt": 8079
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "bounded-control",
+      "shadows": false,
+      "city": "small-flat",
+      "pose": "overview",
+      "cpu": {
+        "n": 64,
+        "p50": 0.5,
+        "p95": 1.7000000476837158,
+        "max": 1.8000001907348633
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 1.599416,
+        "p95": 1.905958,
+        "max": 2.032875
+      },
+      "interval": {
+        "n": 64,
+        "p50": 14.599999904632568,
+        "p95": 26.600000143051147,
+        "max": 27.799999952316284
+      },
+      "forestMax": {
+        "trees": 0,
+        "triangles": 25680,
+        "calls": 24,
+        "shadowTriangles": 0,
+        "cachedLayers": 0,
+        "builds": 0
+      },
+      "frame": {
+        "calls": 72,
+        "triangles": 545257,
+        "lines": 0,
+        "points": 0,
+        "geometries": 71,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 1.7999999523162842,
+        "sampledAt": 3253
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "bounded-control",
+      "shadows": false,
+      "city": "small-flat",
+      "pose": "edge",
+      "cpu": {
+        "n": 64,
+        "p50": 1.2000000476837158,
+        "p95": 1.5999999046325684,
+        "max": 1.7999999523162842
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 2.730624,
+        "p95": 3.0125,
+        "max": 3.249374
+      },
+      "interval": {
+        "n": 64,
+        "p50": 14.599999904632568,
+        "p95": 26.5,
+        "max": 30.40000009536743
+      },
+      "forestMax": {
+        "trees": 2287,
+        "triangles": 299997,
+        "calls": 32,
+        "shadowTriangles": 49967,
+        "cachedLayers": 5,
+        "builds": 5
+      },
+      "frame": {
+        "calls": 43,
+        "triangles": 784828,
+        "lines": 0,
+        "points": 0,
+        "geometries": 81,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 1.1000001430511475,
+        "sampledAt": 4465
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "bounded-control",
+      "shadows": false,
+      "city": "small-flat",
+      "pose": "low",
+      "cpu": {
+        "n": 64,
+        "p50": 1,
+        "p95": 1.2999999523162842,
+        "max": 2.200000047683716
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 2.520374,
+        "p95": 2.835249,
+        "max": 3.045083
+      },
+      "interval": {
+        "n": 64,
+        "p50": 12.899999856948853,
+        "p95": 26.200000047683716,
+        "max": 26.899999856948853
+      },
+      "forestMax": {
+        "trees": 2884,
+        "triangles": 299995,
+        "calls": 38,
+        "shadowTriangles": 49967,
+        "cachedLayers": 6,
+        "builds": 6
+      },
+      "frame": {
+        "calls": 46,
+        "triangles": 784828,
+        "lines": 0,
+        "points": 0,
+        "geometries": 83,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 1,
+        "sampledAt": 5637.899999856949
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "bounded-control",
+      "shadows": false,
+      "city": "small-flat",
+      "pose": "urban",
+      "cpu": {
+        "n": 64,
+        "p50": 0.7000000476837158,
+        "p95": 1.2999999523162842,
+        "max": 4.3999998569488525
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 1.698333,
+        "p95": 2.391666,
+        "max": 2.734625
+      },
+      "interval": {
+        "n": 64,
+        "p50": 13.899999856948853,
+        "p95": 26.299999952316284,
+        "max": 28.09999990463257
+      },
+      "forestMax": {
+        "trees": 1943,
+        "triangles": 178361,
+        "calls": 25,
+        "shadowTriangles": 49980,
+        "cachedLayers": 9,
+        "builds": 9
+      },
+      "frame": {
+        "calls": 34,
+        "triangles": 646300,
+        "lines": 0,
+        "points": 0,
+        "geometries": 85,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 1.2000000476837158,
+        "sampledAt": 6799.5
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "bounded-control",
+      "shadows": false,
+      "city": "medium-flat",
+      "pose": "overview",
+      "cpu": {
+        "n": 64,
+        "p50": 0.6000001430511475,
+        "p95": 1,
+        "max": 2.6000001430511475
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 7.290999,
+        "p95": 7.644958,
+        "max": 8.095666
+      },
+      "interval": {
+        "n": 64,
+        "p50": 13.400000095367432,
+        "p95": 26.600000143051147,
+        "max": 27.899999856948853
+      },
+      "forestMax": {
+        "trees": 0,
+        "triangles": 25222,
+        "calls": 62,
+        "shadowTriangles": 0,
+        "cachedLayers": 0,
+        "builds": 0
+      },
+      "frame": {
+        "calls": 119,
+        "triangles": 3290934,
+        "lines": 0,
+        "points": 0,
+        "geometries": 118,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 0.6000001430511475,
+        "sampledAt": 7748
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "bounded-control",
+      "shadows": false,
+      "city": "medium-flat",
+      "pose": "edge",
+      "cpu": {
+        "n": 64,
+        "p50": 1.3999998569488525,
+        "p95": 1.7999999523162842,
+        "max": 2.0999999046325684
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 6.5065,
+        "p95": 8.263416,
+        "max": 9.099958
+      },
+      "interval": {
+        "n": 64,
+        "p50": 13,
+        "p95": 26.399999856948853,
+        "max": 28.59999990463257
+      },
+      "forestMax": {
+        "trees": 3070,
+        "triangles": 299994,
+        "calls": 62,
+        "shadowTriangles": 49962,
+        "cachedLayers": 6,
+        "builds": 6
+      },
+      "frame": {
+        "calls": 75,
+        "triangles": 3504735,
+        "lines": 0,
+        "points": 0,
+        "geometries": 129,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 1.2999999523162842,
+        "sampledAt": 8958.5
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "bounded-control",
+      "shadows": false,
+      "city": "medium-flat",
+      "pose": "low",
+      "cpu": {
+        "n": 64,
+        "p50": 1.2000000476837158,
+        "p95": 1.7000000476837158,
+        "max": 2.4000000953674316
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 6.169749,
+        "p95": 8.126624,
+        "max": 8.201125
+      },
+      "interval": {
+        "n": 64,
+        "p50": 12.100000143051147,
+        "p95": 26.5,
+        "max": 29.799999952316284
+      },
+      "forestMax": {
+        "trees": 3070,
+        "triangles": 299994,
+        "calls": 60,
+        "shadowTriangles": 49962,
+        "cachedLayers": 6,
+        "builds": 6
+      },
+      "frame": {
+        "calls": 73,
+        "triangles": 3461018,
+        "lines": 0,
+        "points": 0,
+        "geometries": 130,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 2,
+        "sampledAt": 10127.099999904633
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "bounded-control",
+      "shadows": false,
+      "city": "medium-flat",
+      "pose": "urban",
+      "cpu": {
+        "n": 64,
+        "p50": 0.39999985694885254,
+        "p95": 0.8999998569488525,
+        "max": 4.900000095367432
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 7.078583,
+        "p95": 7.584291,
+        "max": 7.701041
+      },
+      "interval": {
+        "n": 64,
+        "p50": 13,
+        "p95": 26.399999856948853,
+        "max": 27.399999856948853
+      },
+      "forestMax": {
+        "trees": 124,
+        "triangles": 11760,
+        "calls": 23,
+        "shadowTriangles": 918,
+        "cachedLayers": 7,
+        "builds": 7
+      },
+      "frame": {
+        "calls": 39,
+        "triangles": 3262694,
+        "lines": 0,
+        "points": 0,
+        "geometries": 132,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 0.5,
+        "sampledAt": 11284.799999952316
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "bounded-control",
+      "shadows": false,
+      "city": "small-river-valley",
+      "pose": "overview",
+      "cpu": {
+        "n": 64,
+        "p50": 0.7000000476837158,
+        "p95": 1.5,
+        "max": 13
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 4.30175,
+        "p95": 4.643333,
+        "max": 5.001749
+      },
+      "interval": {
+        "n": 64,
+        "p50": 12,
+        "p95": 26.5,
+        "max": 29.200000047683716
+      },
+      "forestMax": {
+        "trees": 776,
+        "triangles": 59699,
+        "calls": 28,
+        "shadowTriangles": 3672,
+        "cachedLayers": 1,
+        "builds": 1
+      },
+      "frame": {
+        "calls": 83,
+        "triangles": 1708387,
+        "lines": 0,
+        "points": 0,
+        "geometries": 82,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 0.7000000476837158,
+        "sampledAt": 4375
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "bounded-control",
+      "shadows": false,
+      "city": "small-river-valley",
+      "pose": "edge",
+      "cpu": {
+        "n": 64,
+        "p50": 0.8999998569488525,
+        "p95": 1.9000000953674316,
+        "max": 2.1000001430511475
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 4.809125,
+        "p95": 5.162666,
+        "max": 5.222375
+      },
+      "interval": {
+        "n": 64,
+        "p50": 11.400000095367432,
+        "p95": 26.5,
+        "max": 27.59999990463257
+      },
+      "forestMax": {
+        "trees": 1968,
+        "triangles": 299993,
+        "calls": 32,
+        "shadowTriangles": 49930,
+        "cachedLayers": 5,
+        "builds": 5
+      },
+      "frame": {
+        "calls": 45,
+        "triangles": 1919066,
+        "lines": 0,
+        "points": 0,
+        "geometries": 89,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 0.6000001430511475,
+        "sampledAt": 5518.900000095367
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "bounded-control",
+      "shadows": false,
+      "city": "small-river-valley",
+      "pose": "low",
+      "cpu": {
+        "n": 64,
+        "p50": 0.8999998569488525,
+        "p95": 1.2999999523162842,
+        "max": 1.5
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 5.665791,
+        "p95": 6.286583,
+        "max": 6.501791
+      },
+      "interval": {
+        "n": 64,
+        "p50": 13.5,
+        "p95": 26.700000047683716,
+        "max": 27.40000009536743
+      },
+      "forestMax": {
+        "trees": 1968,
+        "triangles": 299985,
+        "calls": 35,
+        "shadowTriangles": 49982,
+        "cachedLayers": 5,
+        "builds": 5
+      },
+      "frame": {
+        "calls": 45,
+        "triangles": 1933462,
+        "lines": 0,
+        "points": 0,
+        "geometries": 90,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 0.7999999523162842,
+        "sampledAt": 6699
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "bounded-control",
+      "shadows": false,
+      "city": "small-river-valley",
+      "pose": "urban",
+      "cpu": {
+        "n": 64,
+        "p50": 0.5,
+        "p95": 1.5,
+        "max": 1.7999999523162842
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 4.105833,
+        "p95": 4.875749,
+        "max": 5.232291
+      },
+      "interval": {
+        "n": 64,
+        "p50": 13.099999904632568,
+        "p95": 26.40000009536743,
+        "max": 27.5
+      },
+      "forestMax": {
+        "trees": 1482,
+        "triangles": 98820,
+        "calls": 24,
+        "shadowTriangles": 40903,
+        "cachedLayers": 9,
+        "builds": 9
+      },
+      "frame": {
+        "calls": 36,
+        "triangles": 1718837,
+        "lines": 0,
+        "points": 0,
+        "geometries": 94,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 1,
+        "sampledAt": 7856.600000143051
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "bounded-control",
+      "shadows": true,
+      "city": "small-flat",
+      "pose": "overview",
+      "cpu": {
+        "n": 64,
+        "p50": 0.5,
+        "p95": 1.1999998092651367,
+        "max": 2
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 2.144,
+        "p95": 2.428916,
+        "max": 2.543875
+      },
+      "interval": {
+        "n": 64,
+        "p50": 12.299999952316284,
+        "p95": 26.5,
+        "max": 27.59999990463257
+      },
+      "forestMax": {
+        "trees": 0,
+        "triangles": 25680,
+        "calls": 24,
+        "shadowTriangles": 0,
+        "cachedLayers": 0,
+        "builds": 0
+      },
+      "frame": {
+        "calls": 72,
+        "triangles": 545257,
+        "lines": 0,
+        "points": 0,
+        "geometries": 72,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 0.7000000476837158,
+        "sampledAt": 3190.399999856949
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "bounded-control",
+      "shadows": true,
+      "city": "small-flat",
+      "pose": "edge",
+      "cpu": {
+        "n": 64,
+        "p50": 0.8999998569488525,
+        "p95": 1.2999999523162842,
+        "max": 1.7999999523162842
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 3.457208,
+        "p95": 4.494375,
+        "max": 4.850125
+      },
+      "interval": {
+        "n": 64,
+        "p50": 12.5,
+        "p95": 26.200000047683716,
+        "max": 29
+      },
+      "forestMax": {
+        "trees": 2287,
+        "triangles": 299997,
+        "calls": 32,
+        "shadowTriangles": 49967,
+        "cachedLayers": 5,
+        "builds": 5
+      },
+      "frame": {
+        "calls": 43,
+        "triangles": 784828,
+        "lines": 0,
+        "points": 0,
+        "geometries": 82,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 0.7000000476837158,
+        "sampledAt": 4434.299999952316
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "bounded-control",
+      "shadows": true,
+      "city": "small-flat",
+      "pose": "low",
+      "cpu": {
+        "n": 64,
+        "p50": 1.4000000953674316,
+        "p95": 2.4000000953674316,
+        "max": 3.3000001907348633
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 3.583583,
+        "p95": 4.737958,
+        "max": 5.231958
+      },
+      "interval": {
+        "n": 64,
+        "p50": 11.099999904632568,
+        "p95": 26.299999952316284,
+        "max": 28.799999952316284
+      },
+      "forestMax": {
+        "trees": 2884,
+        "triangles": 299995,
+        "calls": 38,
+        "shadowTriangles": 49967,
+        "cachedLayers": 6,
+        "builds": 6
+      },
+      "frame": {
+        "calls": 46,
+        "triangles": 784828,
+        "lines": 0,
+        "points": 0,
+        "geometries": 84,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 1.4000000953674316,
+        "sampledAt": 5544.299999952316
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "bounded-control",
+      "shadows": true,
+      "city": "small-flat",
+      "pose": "urban",
+      "cpu": {
+        "n": 64,
+        "p50": 0.7999999523162842,
+        "p95": 1.2000000476837158,
+        "max": 2.6000001430511475
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 2.096166,
+        "p95": 3.443416,
+        "max": 4.41975
+      },
+      "interval": {
+        "n": 64,
+        "p50": 14.100000143051147,
+        "p95": 26.09999990463257,
+        "max": 26.200000047683716
+      },
+      "forestMax": {
+        "trees": 1943,
+        "triangles": 178361,
+        "calls": 25,
+        "shadowTriangles": 49980,
+        "cachedLayers": 9,
+        "builds": 9
+      },
+      "frame": {
+        "calls": 34,
+        "triangles": 646300,
+        "lines": 0,
+        "points": 0,
+        "geometries": 86,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 1,
+        "sampledAt": 6728
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "bounded-control",
+      "shadows": true,
+      "city": "medium-flat",
+      "pose": "overview",
+      "cpu": {
+        "n": 64,
+        "p50": 0.6000001430511475,
+        "p95": 1.5,
+        "max": 2.299999952316284
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 7.665375,
+        "p95": 9.142749,
+        "max": 13.061333
+      },
+      "interval": {
+        "n": 64,
+        "p50": 12.400000095367432,
+        "p95": 26.299999952316284,
+        "max": 30.799999952316284
+      },
+      "forestMax": {
+        "trees": 0,
+        "triangles": 25222,
+        "calls": 62,
+        "shadowTriangles": 0,
+        "cachedLayers": 0,
+        "builds": 0
+      },
+      "frame": {
+        "calls": 119,
+        "triangles": 3290934,
+        "lines": 0,
+        "points": 0,
+        "geometries": 118,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 0.6999998092651367,
+        "sampledAt": 7841.599999904633
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "bounded-control",
+      "shadows": true,
+      "city": "medium-flat",
+      "pose": "edge",
+      "cpu": {
+        "n": 64,
+        "p50": 1.2999999523162842,
+        "p95": 1.6000001430511475,
+        "max": 1.7000000476837158
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 7.835291,
+        "p95": 13.118874,
+        "max": 16.779874
+      },
+      "interval": {
+        "n": 64,
+        "p50": 12.5,
+        "p95": 26.399999856948853,
+        "max": 28.40000009536743
+      },
+      "forestMax": {
+        "trees": 3070,
+        "triangles": 299994,
+        "calls": 62,
+        "shadowTriangles": 49962,
+        "cachedLayers": 6,
+        "builds": 6
+      },
+      "frame": {
+        "calls": 75,
+        "triangles": 3504735,
+        "lines": 0,
+        "points": 0,
+        "geometries": 129,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 1.7000000476837158,
+        "sampledAt": 9071.5
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "bounded-control",
+      "shadows": true,
+      "city": "medium-flat",
+      "pose": "low",
+      "cpu": {
+        "n": 64,
+        "p50": 1.1000001430511475,
+        "p95": 1.4000000953674316,
+        "max": 2.5
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 8.263249,
+        "p95": 9.449375,
+        "max": 14.973124
+      },
+      "interval": {
+        "n": 64,
+        "p50": 12,
+        "p95": 26.200000047683716,
+        "max": 27.799999952316284
+      },
+      "forestMax": {
+        "trees": 3070,
+        "triangles": 299994,
+        "calls": 60,
+        "shadowTriangles": 49962,
+        "cachedLayers": 6,
+        "builds": 6
+      },
+      "frame": {
+        "calls": 73,
+        "triangles": 3461018,
+        "lines": 0,
+        "points": 0,
+        "geometries": 130,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 1,
+        "sampledAt": 10258.299999952316
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "bounded-control",
+      "shadows": true,
+      "city": "medium-flat",
+      "pose": "urban",
+      "cpu": {
+        "n": 64,
+        "p50": 0.40000009536743164,
+        "p95": 0.7000000476837158,
+        "max": 4.299999952316284
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 7.076999,
+        "p95": 11.403791,
+        "max": 14.769874
+      },
+      "interval": {
+        "n": 64,
+        "p50": 11.699999809265137,
+        "p95": 26.40000009536743,
+        "max": 29.700000047683716
+      },
+      "forestMax": {
+        "trees": 124,
+        "triangles": 11760,
+        "calls": 23,
+        "shadowTriangles": 918,
+        "cachedLayers": 7,
+        "builds": 7
+      },
+      "frame": {
+        "calls": 39,
+        "triangles": 3262694,
+        "lines": 0,
+        "points": 0,
+        "geometries": 132,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 0.5,
+        "sampledAt": 11409.799999952316
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "bounded-control",
+      "shadows": true,
+      "city": "small-river-valley",
+      "pose": "overview",
+      "cpu": {
+        "n": 64,
+        "p50": 0.7000000476837158,
+        "p95": 1.1999998092651367,
+        "max": 11
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 5.182041,
+        "p95": 5.903458,
+        "max": 8.625291
+      },
+      "interval": {
+        "n": 64,
+        "p50": 12.599999904632568,
+        "p95": 26.600000143051147,
+        "max": 30.700000047683716
+      },
+      "forestMax": {
+        "trees": 776,
+        "triangles": 59699,
+        "calls": 28,
+        "shadowTriangles": 3672,
+        "cachedLayers": 1,
+        "builds": 1
+      },
+      "frame": {
+        "calls": 83,
+        "triangles": 1708387,
+        "lines": 0,
+        "points": 0,
+        "geometries": 83,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 0.8000001907348633,
+        "sampledAt": 4477.300000190735
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "bounded-control",
+      "shadows": true,
+      "city": "small-river-valley",
+      "pose": "edge",
+      "cpu": {
+        "n": 64,
+        "p50": 1,
+        "p95": 1.2999999523162842,
+        "max": 1.4000000953674316
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 6.638374,
+        "p95": 8.848124,
+        "max": 10.784208
+      },
+      "interval": {
+        "n": 64,
+        "p50": 13.099999904632568,
+        "p95": 26.59999990463257,
+        "max": 28.199999809265137
+      },
+      "forestMax": {
+        "trees": 1968,
+        "triangles": 299993,
+        "calls": 32,
+        "shadowTriangles": 49930,
+        "cachedLayers": 5,
+        "builds": 5
+      },
+      "frame": {
+        "calls": 45,
+        "triangles": 1919066,
+        "lines": 0,
+        "points": 0,
+        "geometries": 90,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 1.2000000476837158,
+        "sampledAt": 5678.700000047684
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "bounded-control",
+      "shadows": true,
+      "city": "small-river-valley",
+      "pose": "low",
+      "cpu": {
+        "n": 64,
+        "p50": 0.7000000476837158,
+        "p95": 1.7999999523162842,
+        "max": 2.4000000953674316
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 6.816208,
+        "p95": 7.650208,
+        "max": 10.549125
+      },
+      "interval": {
+        "n": 64,
+        "p50": 11.100000143051147,
+        "p95": 25.5,
+        "max": 27.90000009536743
+      },
+      "forestMax": {
+        "trees": 1968,
+        "triangles": 299985,
+        "calls": 35,
+        "shadowTriangles": 49982,
+        "cachedLayers": 5,
+        "builds": 5
+      },
+      "frame": {
+        "calls": 45,
+        "triangles": 1933462,
+        "lines": 0,
+        "points": 0,
+        "geometries": 91,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 0.7000000476837158,
+        "sampledAt": 6781.300000190735
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "bounded-control",
+      "shadows": true,
+      "city": "small-river-valley",
+      "pose": "urban",
+      "cpu": {
+        "n": 64,
+        "p50": 0.6999998092651367,
+        "p95": 1.2999999523162842,
+        "max": 1.4000000953674316
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 4.790333,
+        "p95": 5.894166,
+        "max": 9.167124
+      },
+      "interval": {
+        "n": 64,
+        "p50": 13.5,
+        "p95": 27,
+        "max": 30
+      },
+      "forestMax": {
+        "trees": 1482,
+        "triangles": 98820,
+        "calls": 24,
+        "shadowTriangles": 40903,
+        "cachedLayers": 9,
+        "builds": 9
+      },
+      "frame": {
+        "calls": 36,
+        "triangles": 1718837,
+        "lines": 0,
+        "points": 0,
+        "geometries": 95,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 1.2000000476837158,
+        "sampledAt": 7953.800000190735
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "native",
+      "shadows": false,
+      "city": "small-flat",
+      "pose": "overview",
+      "cpu": {
+        "n": 64,
+        "p50": 4.800000190734863,
+        "p95": 5.799999952316284,
+        "max": 10
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 6.017124,
+        "p95": 6.637375,
+        "max": 7.268333
+      },
+      "interval": {
+        "n": 64,
+        "p50": 13.400000095367432,
+        "p95": 27.100000143051147,
+        "max": 27.90000009536743
+      },
+      "forestMax": {
+        "trees": 6818,
+        "triangles": 1046626,
+        "calls": 26,
+        "shadowTriangles": 49878,
+        "cachedLayers": 24,
+        "builds": 24
+      },
+      "frame": {
+        "calls": 74,
+        "triangles": 1563296,
+        "lines": 0,
+        "points": 0,
+        "geometries": 72,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 4.900000095367432,
+        "sampledAt": 3484.2000000476837
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "native",
+      "shadows": false,
+      "city": "small-flat",
+      "pose": "edge",
+      "cpu": {
+        "n": 64,
+        "p50": 3.1999998092651367,
+        "p95": 3.9000000953674316,
+        "max": 4.099999904632568
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 8.077458,
+        "p95": 12.269083,
+        "max": 13.0625
+      },
+      "interval": {
+        "n": 64,
+        "p50": 12,
+        "p95": 26.40000009536743,
+        "max": 30.199999809265137
+      },
+      "forestMax": {
+        "trees": 4437,
+        "triangles": 2823177,
+        "calls": 22,
+        "shadowTriangles": 49987,
+        "cachedLayers": 24,
+        "builds": 25
+      },
+      "frame": {
+        "calls": 34,
+        "triangles": 3297741,
+        "lines": 0,
+        "points": 0,
+        "geometries": 75,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 3.9000000953674316,
+        "sampledAt": 4643.200000047684
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "native",
+      "shadows": false,
+      "city": "small-flat",
+      "pose": "low",
+      "cpu": {
+        "n": 64,
+        "p50": 3.700000047683716,
+        "p95": 4.299999952316284,
+        "max": 4.5
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 8.19275,
+        "p95": 9.717749,
+        "max": 10.31975
+      },
+      "interval": {
+        "n": 64,
+        "p50": 11.5,
+        "p95": 26.299999952316284,
+        "max": 28.700000047683716
+      },
+      "forestMax": {
+        "trees": 4228,
+        "triangles": 3565825,
+        "calls": 23,
+        "shadowTriangles": 49987,
+        "cachedLayers": 24,
+        "builds": 25
+      },
+      "frame": {
+        "calls": 33,
+        "triangles": 3973664,
+        "lines": 0,
+        "points": 0,
+        "geometries": 76,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 3.4000000953674316,
+        "sampledAt": 5816.5
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "native",
+      "shadows": false,
+      "city": "small-flat",
+      "pose": "urban",
+      "cpu": {
+        "n": 64,
+        "p50": 2,
+        "p95": 3.299999952316284,
+        "max": 3.5
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 1.890458,
+        "p95": 4.133666,
+        "max": 4.531666
+      },
+      "interval": {
+        "n": 64,
+        "p50": 11.299999952316284,
+        "p95": 27,
+        "max": 27.799999952316284
+      },
+      "forestMax": {
+        "trees": 2671,
+        "triangles": 413970,
+        "calls": 13,
+        "shadowTriangles": 49982,
+        "cachedLayers": 24,
+        "builds": 25
+      },
+      "frame": {
+        "calls": 25,
+        "triangles": 913161,
+        "lines": 0,
+        "points": 0,
+        "geometries": 76,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 3.5,
+        "sampledAt": 6893.899999856949
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "native",
+      "shadows": false,
+      "city": "medium-flat",
+      "pose": "overview",
+      "cpu": {
+        "n": 64,
+        "p50": 21.200000047683716,
+        "p95": 23.800000190734863,
+        "max": 34.69999980926514
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 15.703375,
+        "p95": 18.096041,
+        "max": 18.680749
+      },
+      "interval": {
+        "n": 64,
+        "p50": 21.600000143051147,
+        "p95": 26.399999856948853,
+        "max": 34.799999952316284
+      },
+      "forestMax": {
+        "trees": 29154,
+        "triangles": 4464160,
+        "calls": 64,
+        "shadowTriangles": 49878,
+        "cachedLayers": 61,
+        "builds": 62
+      },
+      "frame": {
+        "calls": 121,
+        "triangles": 7726200,
+        "lines": 0,
+        "points": 0,
+        "geometries": 119,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 19.40000009536743,
+        "sampledAt": 8494.5
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "native",
+      "shadows": false,
+      "city": "medium-flat",
+      "pose": "edge",
+      "cpu": {
+        "n": 64,
+        "p50": 5.6000001430511475,
+        "p95": 15.899999856948853,
+        "max": 17
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 10.83,
+        "p95": 13.740624,
+        "max": 17.896624
+      },
+      "interval": {
+        "n": 64,
+        "p50": 15.900000095367432,
+        "p95": 20.199999809265137,
+        "max": 23.09999990463257
+      },
+      "forestMax": {
+        "trees": 16750,
+        "triangles": 4351386,
+        "calls": 43,
+        "shadowTriangles": 49987,
+        "cachedLayers": 37,
+        "builds": 89
+      },
+      "frame": {
+        "calls": 59,
+        "triangles": 7370283,
+        "lines": 0,
+        "points": 0,
+        "geometries": 121,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 11.100000143051147,
+        "sampledAt": 9870.400000095367
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "native",
+      "shadows": false,
+      "city": "medium-flat",
+      "pose": "low",
+      "cpu": {
+        "n": 64,
+        "p50": 11.900000095367432,
+        "p95": 17.59999990463257,
+        "max": 20.90000009536743
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 16.502624,
+        "p95": 20.2335,
+        "max": 21.871624
+      },
+      "interval": {
+        "n": 64,
+        "p50": 14.700000047683716,
+        "p95": 19.700000047683716,
+        "max": 23.799999952316284
+      },
+      "forestMax": {
+        "trees": 16961,
+        "triangles": 5918364,
+        "calls": 43,
+        "shadowTriangles": 49987,
+        "cachedLayers": 36,
+        "builds": 104
+      },
+      "frame": {
+        "calls": 60,
+        "triangles": 8730486,
+        "lines": 0,
+        "points": 0,
+        "geometries": 122,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 19.799999952316284,
+        "sampledAt": 11170.599999904633
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "native",
+      "shadows": false,
+      "city": "medium-flat",
+      "pose": "urban",
+      "cpu": {
+        "n": 64,
+        "p50": 0.5,
+        "p95": 10.900000095367432,
+        "max": 14
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 5.574625,
+        "p95": 8.766499,
+        "max": 10.676833
+      },
+      "interval": {
+        "n": 64,
+        "p50": 14.200000047683716,
+        "p95": 19.5,
+        "max": 29.700000047683716
+      },
+      "forestMax": {
+        "trees": 10881,
+        "triangles": 1666158,
+        "calls": 25,
+        "shadowTriangles": 49878,
+        "cachedLayers": 24,
+        "builds": 121
+      },
+      "frame": {
+        "calls": 41,
+        "triangles": 4672650,
+        "lines": 0,
+        "points": 0,
+        "geometries": 123,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 10,
+        "sampledAt": 12365.299999952316
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "native",
+      "shadows": false,
+      "city": "small-river-valley",
+      "pose": "overview",
+      "cpu": {
+        "n": 64,
+        "p50": 5.3999998569488525,
+        "p95": 5.800000190734863,
+        "max": 6.400000095367432
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 7.34775,
+        "p95": 8.797375,
+        "max": 9.644374
+      },
+      "interval": {
+        "n": 64,
+        "p50": 10.299999952316284,
+        "p95": 16.700000047683716,
+        "max": 27
+      },
+      "forestMax": {
+        "trees": 6809,
+        "triangles": 1046738,
+        "calls": 25,
+        "shadowTriangles": 49878,
+        "cachedLayers": 23,
+        "builds": 23
+      },
+      "frame": {
+        "calls": 82,
+        "triangles": 2706766,
+        "lines": 0,
+        "points": 0,
+        "geometries": 80,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 5.299999952316284,
+        "sampledAt": 4636.700000047684
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "native",
+      "shadows": false,
+      "city": "small-river-valley",
+      "pose": "edge",
+      "cpu": {
+        "n": 64,
+        "p50": 3,
+        "p95": 3.5,
+        "max": 3.6999998092651367
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 8.503958,
+        "p95": 11.06375,
+        "max": 11.870541
+      },
+      "interval": {
+        "n": 64,
+        "p50": 11.100000143051147,
+        "p95": 25.899999856948853,
+        "max": 26.90000009536743
+      },
+      "forestMax": {
+        "trees": 3848,
+        "triangles": 2660748,
+        "calls": 22,
+        "shadowTriangles": 49987,
+        "cachedLayers": 24,
+        "builds": 24
+      },
+      "frame": {
+        "calls": 38,
+        "triangles": 4219640,
+        "lines": 0,
+        "points": 0,
+        "geometries": 83,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 3.0999999046325684,
+        "sampledAt": 5767.700000047684
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "native",
+      "shadows": false,
+      "city": "small-river-valley",
+      "pose": "low",
+      "cpu": {
+        "n": 64,
+        "p50": 3.0999999046325684,
+        "p95": 3.6000001430511475,
+        "max": 3.9000000953674316
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 11.706708,
+        "p95": 15.443125,
+        "max": 15.859375
+      },
+      "interval": {
+        "n": 64,
+        "p50": 11.899999856948853,
+        "p95": 25.90000009536743,
+        "max": 27.200000047683716
+      },
+      "forestMax": {
+        "trees": 3658,
+        "triangles": 4282878,
+        "calls": 23,
+        "shadowTriangles": 49987,
+        "cachedLayers": 24,
+        "builds": 24
+      },
+      "frame": {
+        "calls": 37,
+        "triangles": 5809100,
+        "lines": 0,
+        "points": 0,
+        "geometries": 84,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 2.9000000953674316,
+        "sampledAt": 6925.900000095367
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "native",
+      "shadows": false,
+      "city": "small-river-valley",
+      "pose": "urban",
+      "cpu": {
+        "n": 64,
+        "p50": 0.5,
+        "p95": 2,
+        "max": 2.1000001430511475
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 3.456874,
+        "p95": 4.532374,
+        "max": 5.02875
+      },
+      "interval": {
+        "n": 64,
+        "p50": 10.900000095367432,
+        "p95": 26.299999952316284,
+        "max": 26.5
+      },
+      "forestMax": {
+        "trees": 2368,
+        "triangles": 363681,
+        "calls": 12,
+        "shadowTriangles": 49930,
+        "cachedLayers": 24,
+        "builds": 24
+      },
+      "frame": {
+        "calls": 27,
+        "triangles": 1928003,
+        "lines": 0,
+        "points": 0,
+        "geometries": 84,
+        "textures": 1,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 1.8000001907348633,
+        "sampledAt": 7986.600000143051
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "native",
+      "shadows": true,
+      "city": "small-flat",
+      "pose": "overview",
+      "cpu": {
+        "n": 64,
+        "p50": 5,
+        "p95": 5.599999904632568,
+        "max": 6.099999904632568
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 7.462416,
+        "p95": 9.46025,
+        "max": 10.611583
+      },
+      "interval": {
+        "n": 64,
+        "p50": 10.600000143051147,
+        "p95": 26.799999952316284,
+        "max": 27
+      },
+      "forestMax": {
+        "trees": 6818,
+        "triangles": 1046626,
+        "calls": 26,
+        "shadowTriangles": 49878,
+        "cachedLayers": 24,
+        "builds": 24
+      },
+      "frame": {
+        "calls": 74,
+        "triangles": 1563296,
+        "lines": 0,
+        "points": 0,
+        "geometries": 73,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 4.700000047683716,
+        "sampledAt": 3150.100000143051
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "native",
+      "shadows": true,
+      "city": "small-flat",
+      "pose": "edge",
+      "cpu": {
+        "n": 64,
+        "p50": 3.6000001430511475,
+        "p95": 4.1000001430511475,
+        "max": 4.6000001430511475
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 10.47275,
+        "p95": 12.600624,
+        "max": 14.491999
+      },
+      "interval": {
+        "n": 64,
+        "p50": 11,
+        "p95": 26.5,
+        "max": 29.59999990463257
+      },
+      "forestMax": {
+        "trees": 4437,
+        "triangles": 2823177,
+        "calls": 22,
+        "shadowTriangles": 49987,
+        "cachedLayers": 24,
+        "builds": 25
+      },
+      "frame": {
+        "calls": 34,
+        "triangles": 3297741,
+        "lines": 0,
+        "points": 0,
+        "geometries": 76,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 3.6000001430511475,
+        "sampledAt": 4245.300000190735
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "native",
+      "shadows": true,
+      "city": "small-flat",
+      "pose": "low",
+      "cpu": {
+        "n": 64,
+        "p50": 3.700000047683716,
+        "p95": 5,
+        "max": 6.300000190734863
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 11.696999,
+        "p95": 14.697,
+        "max": 15.320375
+      },
+      "interval": {
+        "n": 64,
+        "p50": 13.099999904632568,
+        "p95": 26.800000190734863,
+        "max": 28
+      },
+      "forestMax": {
+        "trees": 4228,
+        "triangles": 3565825,
+        "calls": 23,
+        "shadowTriangles": 49987,
+        "cachedLayers": 24,
+        "builds": 25
+      },
+      "frame": {
+        "calls": 33,
+        "triangles": 3973664,
+        "lines": 0,
+        "points": 0,
+        "geometries": 77,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 3.8999998569488525,
+        "sampledAt": 5427
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "native",
+      "shadows": true,
+      "city": "small-flat",
+      "pose": "urban",
+      "cpu": {
+        "n": 64,
+        "p50": 1.7000000476837158,
+        "p95": 3.299999952316284,
+        "max": 3.700000047683716
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 1.841041,
+        "p95": 5.174499,
+        "max": 5.303833
+      },
+      "interval": {
+        "n": 64,
+        "p50": 12.799999952316284,
+        "p95": 26.700000047683716,
+        "max": 28.799999952316284
+      },
+      "forestMax": {
+        "trees": 2671,
+        "triangles": 413970,
+        "calls": 13,
+        "shadowTriangles": 49982,
+        "cachedLayers": 24,
+        "builds": 25
+      },
+      "frame": {
+        "calls": 25,
+        "triangles": 913161,
+        "lines": 0,
+        "points": 0,
+        "geometries": 77,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 2.799999952316284,
+        "sampledAt": 6610.900000095367
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "native",
+      "shadows": true,
+      "city": "medium-flat",
+      "pose": "overview",
+      "cpu": {
+        "n": 64,
+        "p50": 21.59999990463257,
+        "p95": 23.100000143051147,
+        "max": 30
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 15.05325,
+        "p95": 19.5435,
+        "max": 22.199541
+      },
+      "interval": {
+        "n": 64,
+        "p50": 21.90000009536743,
+        "p95": 27.600000143051147,
+        "max": 36.09999990463257
+      },
+      "forestMax": {
+        "trees": 29154,
+        "triangles": 4464160,
+        "calls": 64,
+        "shadowTriangles": 49878,
+        "cachedLayers": 61,
+        "builds": 62
+      },
+      "frame": {
+        "calls": 121,
+        "triangles": 7726200,
+        "lines": 0,
+        "points": 0,
+        "geometries": 119,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 19.799999952316284,
+        "sampledAt": 8547.299999952316
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "native",
+      "shadows": true,
+      "city": "medium-flat",
+      "pose": "edge",
+      "cpu": {
+        "n": 64,
+        "p50": 9.099999904632568,
+        "p95": 16.5,
+        "max": 17.299999952316284
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 17.061624,
+        "p95": 22.553708,
+        "max": 24.001416
+      },
+      "interval": {
+        "n": 64,
+        "p50": 14,
+        "p95": 20.40000009536743,
+        "max": 27.299999952316284
+      },
+      "forestMax": {
+        "trees": 16750,
+        "triangles": 4351386,
+        "calls": 43,
+        "shadowTriangles": 49987,
+        "cachedLayers": 37,
+        "builds": 89
+      },
+      "frame": {
+        "calls": 59,
+        "triangles": 7370283,
+        "lines": 0,
+        "points": 0,
+        "geometries": 121,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 12.799999952316284,
+        "sampledAt": 9782
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "native",
+      "shadows": true,
+      "city": "medium-flat",
+      "pose": "low",
+      "cpu": {
+        "n": 64,
+        "p50": 20.399999856948853,
+        "p95": 23.40000009536743,
+        "max": 26.399999856948853
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 23.324375,
+        "p95": 25.892749,
+        "max": 36.777333
+      },
+      "interval": {
+        "n": 64,
+        "p50": 20.699999809265137,
+        "p95": 24.40000009536743,
+        "max": 26.5
+      },
+      "forestMax": {
+        "trees": 16961,
+        "triangles": 5918364,
+        "calls": 43,
+        "shadowTriangles": 49987,
+        "cachedLayers": 36,
+        "builds": 104
+      },
+      "frame": {
+        "calls": 60,
+        "triangles": 8730486,
+        "lines": 0,
+        "points": 0,
+        "geometries": 122,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 20.600000143051147,
+        "sampledAt": 11486.700000047684
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "native",
+      "shadows": true,
+      "city": "medium-flat",
+      "pose": "urban",
+      "cpu": {
+        "n": 64,
+        "p50": 1.7000000476837158,
+        "p95": 10.099999904632568,
+        "max": 17
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 5.350333,
+        "p95": 12.53425,
+        "max": 14.207999
+      },
+      "interval": {
+        "n": 64,
+        "p50": 12.600000143051147,
+        "p95": 27.299999952316284,
+        "max": 29.40000009536743
+      },
+      "forestMax": {
+        "trees": 10881,
+        "triangles": 1666158,
+        "calls": 25,
+        "shadowTriangles": 49878,
+        "cachedLayers": 24,
+        "builds": 121
+      },
+      "frame": {
+        "calls": 41,
+        "triangles": 4672650,
+        "lines": 0,
+        "points": 0,
+        "geometries": 123,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 9.5,
+        "sampledAt": 12710.400000095367
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "native",
+      "shadows": true,
+      "city": "small-river-valley",
+      "pose": "overview",
+      "cpu": {
+        "n": 64,
+        "p50": 5.1000001430511475,
+        "p95": 5.599999904632568,
+        "max": 5.900000095367432
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 8.336749,
+        "p95": 10.03975,
+        "max": 12.350125
+      },
+      "interval": {
+        "n": 64,
+        "p50": 12.099999904632568,
+        "p95": 26.59999990463257,
+        "max": 28
+      },
+      "forestMax": {
+        "trees": 6809,
+        "triangles": 1046738,
+        "calls": 25,
+        "shadowTriangles": 49878,
+        "cachedLayers": 23,
+        "builds": 23
+      },
+      "frame": {
+        "calls": 82,
+        "triangles": 2706766,
+        "lines": 0,
+        "points": 0,
+        "geometries": 81,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 5.5,
+        "sampledAt": 4451.599999904633
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "native",
+      "shadows": true,
+      "city": "small-river-valley",
+      "pose": "edge",
+      "cpu": {
+        "n": 64,
+        "p50": 3,
+        "p95": 3.3999998569488525,
+        "max": 3.5
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 12.197874,
+        "p95": 14.814958,
+        "max": 15.68825
+      },
+      "interval": {
+        "n": 64,
+        "p50": 11.599999904632568,
+        "p95": 26.200000047683716,
+        "max": 26.799999952316284
+      },
+      "forestMax": {
+        "trees": 3848,
+        "triangles": 2660748,
+        "calls": 22,
+        "shadowTriangles": 49987,
+        "cachedLayers": 24,
+        "builds": 24
+      },
+      "frame": {
+        "calls": 38,
+        "triangles": 4219640,
+        "lines": 0,
+        "points": 0,
+        "geometries": 84,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 3.299999952316284,
+        "sampledAt": 5637.5
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "native",
+      "shadows": true,
+      "city": "small-river-valley",
+      "pose": "low",
+      "cpu": {
+        "n": 64,
+        "p50": 3.5999999046325684,
+        "p95": 4,
+        "max": 4.200000047683716
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 19.192958,
+        "p95": 21.251874,
+        "max": 24.2165
+      },
+      "interval": {
+        "n": 64,
+        "p50": 14.800000190734863,
+        "p95": 17.800000190734863,
+        "max": 21.90000009536743
+      },
+      "forestMax": {
+        "trees": 3658,
+        "triangles": 4282878,
+        "calls": 23,
+        "shadowTriangles": 49987,
+        "cachedLayers": 24,
+        "builds": 24
+      },
+      "frame": {
+        "calls": 37,
+        "triangles": 5809100,
+        "lines": 0,
+        "points": 0,
+        "geometries": 85,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 3.299999952316284,
+        "sampledAt": 6890.099999904633
+      }
+    },
+    {
+      "phase": "after",
+      "policy": "native",
+      "shadows": true,
+      "city": "small-river-valley",
+      "pose": "urban",
+      "cpu": {
+        "n": 64,
+        "p50": 1.6000001430511475,
+        "p95": 3,
+        "max": 3.5
+      },
+      "gpu": {
+        "n": 64,
+        "p50": 3.660124,
+        "p95": 4.747333,
+        "max": 7.667333
+      },
+      "interval": {
+        "n": 64,
+        "p50": 11.299999952316284,
+        "p95": 26.59999990463257,
+        "max": 28.5
+      },
+      "forestMax": {
+        "trees": 2368,
+        "triangles": 363681,
+        "calls": 12,
+        "shadowTriangles": 49930,
+        "cachedLayers": 24,
+        "builds": 24
+      },
+      "frame": {
+        "calls": 27,
+        "triangles": 1928003,
+        "lines": 0,
+        "points": 0,
+        "geometries": 85,
+        "textures": 3,
+        "width": 1000,
+        "height": 720,
+        "cpuMs": 3.5,
+        "sampledAt": 8043
+      }
+    }
+  ]
+}
