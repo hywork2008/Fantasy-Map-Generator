@@ -18,6 +18,7 @@ import { getHusbandryLaborBudget } from "./husbandryLabor";
 import {
   ANNUAL_FEED_DM_KG_PER_HEAD,
   FODDER_DM_KG_PER_LOT,
+  FODDER_STOCK_YEARS,
   getLivestockHayPlan,
   getPastureGrowth,
   HAY_DRY_MATTER_RETENTION,
@@ -154,12 +155,22 @@ export function harvestLivestockForage(): void {
   }
   if (!fodder) return;
   for (const market of getMarkets()) {
+    if (!market.foodLedger) continue;
+    const ledger = market.foodLedger;
+    // A market without a record starts from this month's herd orders, as a year's use.
+    ledger.fodderAnnualUseLots =
+      ledger.fodderAnnualUseLots === undefined
+        ? getLivestockFodderOrderLots(market) * 12
+        : (ledger.fodderAnnualUseLots * 11) / 12;
     const list = offers.get(market.i);
-    if (!list?.length || !market.foodLedger) continue;
+    if (!list?.length) continue;
     market.goods[fodder.i] ??= { stock: 0, price: fodder.value };
     const stock = market.goods[fodder.i];
     if (!(stock.price > 0) || !Number.isFinite(stock.price)) continue;
-    const totalKg = list.reduce((sum, offer) => sum + offer.kg, 0);
+    // The market buys only the grass its herds will eat: up to a year's sales above its stock.
+    const wantedLots = Math.max(0, ledger.fodderAnnualUseLots * FODDER_STOCK_YEARS - Math.max(0, stock.stock));
+    const offeredKg = list.reduce((sum, offer) => sum + offer.kg, 0);
+    const totalKg = Math.min(offeredKg, wantedLots * FODDER_DM_KG_PER_LOT);
     const treasury = market.marketTreasury;
     const price = stock.price * 0.8;
     const bill =
@@ -168,13 +179,13 @@ export function harvestLivestockForage(): void {
     const boughtKg = (bill / price) * FODDER_DM_KG_PER_LOT;
     for (const offer of list) {
       const row = table[offer.cell];
-      const kg = (boughtKg * offer.kg) / totalKg;
+      const kg = (boughtKg * offer.kg) / offeredKg;
       const rawHarvest = kg / HAY_DRY_MATTER_RETENTION;
       row.harvestedKg += rawHarvest;
       row.harvestLossKg += rawHarvest - kg;
       row.unharvestedKg = Math.max(0, row.unharvestedKg - rawHarvest);
       row.soldKg += kg;
-      row.revenue += (bill * offer.kg) / totalKg;
+      row.revenue += (bill * offer.kg) / offeredKg;
     }
     treasury.balance = rn(treasury.balance - bill, 2);
     creditRuralHouseholdWealth(market, bill);
@@ -214,6 +225,7 @@ function buyFeed(market: Market, entries: { cell: number; kg: number }[], budget
     row.purchasedKg += (kg * entry.kg) / need;
     row.spending += (paid * entry.kg) / need;
   }
+  market.foodLedger.fodderAnnualUseLots = (market.foodLedger.fodderAnnualUseLots ?? 0) + kg / FODDER_DM_KG_PER_LOT;
   // Bought hay is transferred into private reserves; final feeding is recorded in the dry-matter ledger.
   recordGoodFlow({
     direction: "sink",

@@ -410,6 +410,11 @@ export interface FoodLedger {
    */
   ruralHouseholdWealth?: number;
   /**
+   * Fodder lots sold to the catchment's herds over roughly the last year (×11/12 each month plus the
+   * month's sales). Caps how much spare grass the market buys (docs/plan/fodder-purchase-demand-cap.md).
+   */
+  fodderAnnualUseLots?: number;
+  /**
    * Grain the catchment's farm families bought from this market over roughly the last year (monthly
    * exponential average × 12), once their own larders ran out. Stocked like urban demand
    * (foodProduction.ts). Undefined on older saves = 0.

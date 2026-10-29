@@ -229,6 +229,16 @@ describe("physical livestock feed budget", () => {
     expect(JSON.stringify({ rows: rows(), market })).toBe(snapshot);
   });
 
+  it("buys spare grass only up to the herds' last year of Fodder purchases above the stock", () => {
+    const market = getMarkets()[0];
+    market.goods[good("Fodder").i].stock = 1;
+    market.foodLedger!.fodderAnnualUseLots = 3;
+    harvestLivestockForage();
+    // 3 lots decay by a month to 2.75; with 1 lot held, at most 1.75 more is bought.
+    expect(market.goods[good("Fodder").i].stock).toBeCloseTo(2.75, 8);
+    expect((rows()[0].soldKg + rows()[1].soldKg) / FODDER_DM_KG_PER_LOT).toBeCloseTo(1.75, 8);
+  });
+
   it("caps haymaking by assigned shared herder labor, with no population bonus Fodder source", () => {
     setHusbandryWorkers(Float32Array.from([0, 0]));
     harvestLivestockForage();
