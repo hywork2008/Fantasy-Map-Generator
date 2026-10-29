@@ -188,6 +188,14 @@ export function getHouseholdWealth(burgId: number | undefined): number {
  * purchases, L2 Phase 2/3). Returns the amount actually available and debited — callers must
  * treat any shortfall as "this population could not pay this cycle," not a debt carried forward.
  */
+/** Audit hook: each urban household credit (+) or debit (-) actually applied, by Burg. */
+export type HouseholdWealthFlowObserver = (burgId: number, amount: number) => void;
+let householdWealthFlowObserver: HouseholdWealthFlowObserver | null = null;
+
+export function setHouseholdWealthFlowObserver(observer: HouseholdWealthFlowObserver | null): void {
+  householdWealthFlowObserver = observer;
+}
+
 export function debitHouseholdWealth(burgId: number | undefined, amount: number): number {
   if (!burgId || !(amount > 0)) return 0;
   const { ledger, wealth } = ensureLedgerWithHouseholdWealth(burgId);
@@ -195,6 +203,7 @@ export function debitHouseholdWealth(burgId: number | undefined, amount: number)
   const debited = rn(Math.min(available, amount), 2);
   if (debited <= 0) return 0;
   ledger.householdWealth = rn(available - debited, 2);
+  householdWealthFlowObserver?.(burgId, -debited);
   return debited;
 }
 
@@ -203,6 +212,7 @@ export function creditHouseholdWealth(burgId: number | undefined, amount: number
   if (!burgId || !(amount > 0) || !Number.isFinite(amount)) return;
   const { ledger, wealth } = ensureLedgerWithHouseholdWealth(burgId);
   ledger.householdWealth = rn(wealth + amount, 2);
+  householdWealthFlowObserver?.(burgId, amount);
 }
 
 export function getDominantMerchant(ledger: BurgMarketLedger | undefined): BurgMarketMerchantEntry | undefined {

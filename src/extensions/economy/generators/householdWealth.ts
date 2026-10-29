@@ -173,6 +173,14 @@ export function getRuralHouseholdWealth(market: Market | undefined): number {
   return Math.max(0, ensureRuralHouseholdWealthSeeded(market));
 }
 
+/** Audit hook: each rural household credit (+) or debit (-) actually applied, by Market. */
+export type RuralHouseholdWealthFlowObserver = (marketId: number, amount: number) => void;
+let ruralFlowObserver: RuralHouseholdWealthFlowObserver | null = null;
+
+export function setRuralHouseholdWealthFlowObserver(observer: RuralHouseholdWealthFlowObserver | null): void {
+  ruralFlowObserver = observer;
+}
+
 /**
  * Credits a Market's rural household wallet — the farmgate payment's immediate cash portion
  * (foodProduction.ts's `settleFarmgatePayment`) and, later, its deferred `ruralGrainPayable` IOU
@@ -182,6 +190,7 @@ export function creditRuralHouseholdWealth(market: Market | undefined, amount: n
   if (!market?.foodLedger || !(amount > 0) || !Number.isFinite(amount)) return;
   const current = ensureRuralHouseholdWealthSeeded(market);
   market.foodLedger.ruralHouseholdWealth = rn(current + amount, 2);
+  ruralFlowObserver?.(market.i, amount);
 }
 
 /** Debits up to `amount` from a Market's rural household wallet. Returns the amount actually debited. */
@@ -191,6 +200,7 @@ export function debitRuralHouseholdWealth(market: Market | undefined, amount: nu
   const debited = rn(Math.min(available, amount), 2);
   if (debited <= 0) return 0;
   market.foodLedger.ruralHouseholdWealth = rn(available - debited, 2);
+  ruralFlowObserver?.(market.i, -debited);
   return debited;
 }
 
