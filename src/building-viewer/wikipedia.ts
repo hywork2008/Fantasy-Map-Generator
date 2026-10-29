@@ -25,6 +25,7 @@ export const catalogueWikipedia: Record<string, string> = {
 
 export const landmarkWikipedia: Record<string, string> = {
   "tower-of-babel": "Tower of Babel",
+  "tower-of-babel-hourglass": "Tower of Babel",
   amiens: "Amiens Cathedral",
   brugesCityHall: "Bruges City Hall",
   burgos: "Burgos Cathedral",
