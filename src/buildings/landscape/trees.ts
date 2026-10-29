@@ -1,6 +1,7 @@
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import { createAridTree } from "./aridTrees";
 import { createBorealTree } from "./borealTrees";
+import { createCommonFig } from "./commonFig";
 import { createDomesticApple } from "./domesticApple";
 import { createEuropeanBeech } from "./europeanBeech";
 import { createEuropeanHornbeam } from "./europeanHornbeam";
@@ -19,6 +20,7 @@ import { createUplandTree } from "./uplandTrees";
 import { createWetTemperateTree } from "./wetTemperateTrees";
 
 export const TREE_SPECIES = [
+  "common_fig",
   "european_plum",
   "european_pear",
   "domestic_apple",
@@ -63,6 +65,19 @@ type TreeDefinition = { create: TreeFactory; lod?: undefined } | { lod: TreeLodP
 
 /** One registration supplies BV factories and CE's woodland, park and churchyard LOD policy. */
 export const TREE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
+  common_fig: {
+    lod: {
+      selection: "pixels",
+      budget: "bounded",
+      heightMeters: 4.9,
+      models: {
+        low: () => createCommonFig("low"),
+        medium: () => createCommonFig("medium"),
+        high: () => createCommonFig("high"),
+        ultra: () => createCommonFig("ultra")
+      }
+    }
+  },
   european_plum: {
     lod: {
       selection: "pixels",

@@ -6,6 +6,11 @@ type TreeEntry = Pick<MedievalModel, "biomes" | "name" | "size" | "note">;
 
 /** Biome labels describe current CE woodland selection, including temperature branches. */
 const TREES: Record<TreeSpecies, TreeEntry> = {
+  common_fig: {
+    name: "Common fig · Ficus carica",
+    size: [9.5, 9.3, 5],
+    note: "Free-standing cultivated Ficus carica with a short smooth grey bole, low stout spreading boughs, a broad crown, folded three- and five-lobed leaves and green to violet pear-shaped figs beside the leaf petioles on young shoots. Concave leaf outlines retain the gaps between lobes. Illustrative leafy fruiting tree, not a measured specimen, named cultivar, wall-trained plant or Ficus religiosa. No aerial roots. Small fruit is simplified at medium and omitted at low quality; seasonal changes and crop yield are not simulated. BV registration does not place orchards in CE or change crop production. Botanical references: https://landscapeplants.oregonstate.edu/plants/ficus-carica and https://extension.umd.edu/resource/growing-figs-maryland and https://www.rhs.org.uk/fruit/figs/grow-your-own"
+  },
   european_plum: {
     name: "European plum · Prunus domestica",
     size: [6, 6, 6.2],
