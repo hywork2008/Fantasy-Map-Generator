@@ -154,7 +154,7 @@ describe("forest geometry and budgets", () => {
 
   it("enforces instance, triangle, draw and shadow limits and does no work for an unchanged camera", () => {
     const doc = document();
-    doc.biome = { id: 1, key: "tropicalRainforest", name: "Rainforest", color: "green" };
+    doc.biome = { id: 1, key: "wetland", name: "Wetland", color: "green" };
     const forest = createTownForest(doc, plan());
     const c = camera();
     for (const quality of ["light", "standard", "high"] as const) {
@@ -186,7 +186,7 @@ describe("forest geometry and budgets", () => {
     const doc = document(),
       p = plan(),
       c = camera();
-    doc.biome = { id: 1, key: "tropicalRainforest", name: "Rainforest", color: "green" };
+    doc.biome = { id: 1, key: "wetland", name: "Wetland", color: "green" };
     const forest = createTownForest(doc, p, undefined, "standard");
     forest.update(c, 720);
     const original = instances(forest.group);
@@ -194,8 +194,8 @@ describe("forest geometry and budgets", () => {
     forest.setQuality("high");
     forest.update(c, 720);
     expect(forest.stats.detailedTrees).toBeGreaterThan(0);
-    expect(forest.stats.detailedSpecies).toContain("kapok");
-    const model = createLandscapeTree("kapok");
+    expect(forest.stats.detailedSpecies).toContain("black_alder");
+    const model = createLandscapeTree("black_alder");
     let modelTriangles = 0;
     model.group.traverse(o => {
       if (o instanceof THREE.Mesh)
@@ -268,7 +268,7 @@ describe("forest geometry and budgets", () => {
     );
     const p: ForestPlan = { regions, areaM2: 36000, forestFaceIds: [], protectedFarmAreaM2: 0, protectedFarmCount: 0 };
     const doc = document();
-    doc.biome = { id: 1, key: "tropicalRainforest", name: "Rainforest", color: "green" };
+    doc.biome = { id: 1, key: "wetland", name: "Wetland", color: "green" };
     const forest = createTownForest(doc, p, undefined, "light");
     const c = camera(1400, 8000, 1400);
     c.lookAt(1400, 0, -1200);

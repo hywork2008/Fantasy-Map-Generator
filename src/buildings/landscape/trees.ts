@@ -144,7 +144,20 @@ export const TREE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
       }
     }
   },
-  kapok: { create: createKapok },
+  kapok: {
+    lod: {
+      selection: "distance",
+      budget: "quality-first",
+      heightMeters: 18.2,
+      forestHeightToRadius: 1.814,
+      models: {
+        low: () => createKapok("low"),
+        medium: () => createKapok("medium"),
+        high: () => createKapok("high"),
+        ultra: () => createKapok("ultra")
+      }
+    }
+  },
   western_red_cedar: {
     lod: {
       selection: "distance",
@@ -186,7 +199,20 @@ export const TREE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
       }
     }
   },
-  red_mangrove: { create: () => createSaltTolerantTree("red_mangrove") },
+  red_mangrove: {
+    lod: {
+      selection: "distance",
+      budget: "quality-first",
+      heightMeters: 7.8,
+      forestHeightToRadius: 1.6,
+      models: {
+        low: () => createSaltTolerantTree("red_mangrove", "low"),
+        medium: () => createSaltTolerantTree("red_mangrove", "medium"),
+        high: () => createSaltTolerantTree("red_mangrove", "high"),
+        ultra: () => createSaltTolerantTree("red_mangrove", "ultra")
+      }
+    }
+  },
   tamarisk: {
     lod: {
       selection: "distance",

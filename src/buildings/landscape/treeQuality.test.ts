@@ -16,7 +16,9 @@ it.each([
   "umbrella_thorn",
   "saxaul",
   "tamarisk",
-  "olive"
+  "olive",
+  "kapok",
+  "red_mangrove"
 ] as const)("adopts four increasingly detailed, grounded %s levels from the BV variants", species => {
   const variants = models.find(model => model.id === species.replaceAll("_", "-"))!.variants!;
   expect([...new Set(variants.map(variant => variant.level))]).toEqual(TREE_QUALITIES);
@@ -66,7 +68,9 @@ it.each([
   "umbrella_thorn",
   "saxaul",
   "tamarisk",
-  "olive"
+  "olive",
+  "kapok",
+  "red_mangrove"
 ] as const)("keeps structural branches fixed between high and ultra %s", species => {
   const high = createLandscapeTree(species, "high");
   const ultra = createLandscapeTree(species, "ultra");
