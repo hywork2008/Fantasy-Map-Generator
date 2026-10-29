@@ -90,7 +90,7 @@ it("reproducibly generates zero through three corridors with distinct floors and
 checkLandmark(model.ultraDetail!, assembly => {
   expect(assembly.group.userData.quality).toBe("ultra");
   const metrics = collectModelMetrics(assembly.group);
-  expect(metrics.triangles).toBeLessThan(400_000);
+  expect(metrics.triangles).toBeLessThan(200_000);
   expect(metrics.meshes).toBeLessThan(140);
   const names = new Set(assembly.pickables.map(mesh => mesh.name));
   expect(names.has("gothic-archivolts")).toBe(true);

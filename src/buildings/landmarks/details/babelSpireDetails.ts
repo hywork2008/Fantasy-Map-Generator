@@ -135,11 +135,11 @@ function portals(k: ArchitectureKit, radius: number, floors: number[], heights: 
   for (const [level, base] of floors.entries()) {
     const h = Math.min(12, (heights[level] - 1.2) * 0.62);
     for (const [i, entry] of babelEntranceCenters(radius).entries()) {
-      const frame = new THREE.Shape(outline(entry.width + 0.7, h + 0.5).getPoints(12));
+      const frame = new THREE.Shape(outline(entry.width + 0.7, h + 0.5).getPoints(3));
       frame.holes.push(outline(entry.width, h));
       const mesh = k.add(
         "gothic-archivolts",
-        new THREE.ExtrudeGeometry(frame, { depth: 0.18, bevelEnabled: false, curveSegments: 8 }),
+        new THREE.ExtrudeGeometry(frame, { depth: 0.18, bevelEnabled: false, curveSegments: 3 }),
         "white"
       );
       mesh.rotation.y = entry.angle;
@@ -158,9 +158,9 @@ function portals(k: ArchitectureKit, radius: number, floors: number[], heights: 
         const offset = side * entry.width * 0.23;
         const x = entry.x + Math.cos(entry.angle) * offset;
         const z = entry.z - Math.sin(entry.angle) * offset;
-        const shape = new THREE.Shape(outline(entry.width * 0.35, h * 0.26).getPoints(8));
+        const shape = new THREE.Shape(outline(entry.width * 0.35, h * 0.26).getPoints(2));
         shape.holes.push(outline(entry.width * 0.27, h * 0.23));
-        const lancet = k.add("gothic-paired-lancets", new THREE.ShapeGeometry(shape, 6), "stone");
+        const lancet = k.add("gothic-paired-lancets", new THREE.ShapeGeometry(shape, 2), "stone");
         lancet.rotation.y = entry.angle;
         lancet.position.set(x + Math.sin(entry.angle) * 0.24, y, z + Math.cos(entry.angle) * 0.24);
       }
@@ -168,7 +168,7 @@ function portals(k: ArchitectureKit, radius: number, floors: number[], heights: 
         for (let lobe = 0; lobe < 4; lobe++) {
           const a = (lobe * Math.PI) / 2;
           const u = Math.cos(a) * 0.18;
-          const ring = k.add("gothic-quatrefoils", new THREE.TorusGeometry(0.22, 0.045, 4, 8), "white");
+          const ring = k.add("gothic-quatrefoils", new THREE.TorusGeometry(0.22, 0.045, 3, 6), "white");
           ring.rotation.y = entry.angle;
           ring.position.set(
             entry.x + Math.cos(entry.angle) * u + Math.sin(entry.angle) * 0.25,
@@ -222,9 +222,11 @@ function batch(k: ArchitectureKit, start: number) {
   }
   for (const [name, meshes] of buckets) {
     if (meshes.length < 2) continue;
+    // Keep shared vertices when every part is indexed; de-indexing tripled resident vertices.
+    const indexed = meshes.every(mesh => mesh.geometry.index);
     const geometries = meshes.map(mesh => {
       mesh.updateMatrix();
-      const g = mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry.clone();
+      const g = mesh.geometry.index && !indexed ? mesh.geometry.toNonIndexed() : mesh.geometry.clone();
       g.deleteAttribute("uv");
       return g.applyMatrix4(mesh.matrix);
     });
