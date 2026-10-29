@@ -8,6 +8,7 @@ import { createLandscapeTree, hasTreeQualityLevels, TREE_SPECIES, type TreeSpeci
 
 /** Author of each species' model; reduced tiers credit their own authors below. */
 export const TREE_AUTHORS: Record<TreeSpecies, Author> = {
+  european_hornbeam: "Codex GPT-6.1 Sol",
   pedunculate_oak: "Codex GPT-6.1 Sol",
   european_beech: "Codex GPT-6.1 Sol",
   garden_parkland: "Codex GPT-6.1 Sol",
@@ -110,15 +111,17 @@ function tieredVariants(species: TreeSpecies): ModelVariant[] {
                         : "Species-specific whorled or white-barked distant silhouette"
               }
             ]
-          : species === "european_beech" || species === "pedunculate_oak"
+          : species === "european_beech" || species === "pedunculate_oak" || species === "european_hornbeam"
             ? [
                 {
                   author,
-                  date: "2026-10-29",
+                  date: species === "european_hornbeam" ? "2026-10-30" : "2026-10-29",
                   note:
                     species === "pedunculate_oak"
                       ? "New Quercus robur: furrowed bark, crooked spreading limbs, lobed leaves and fitted foliage tiers; illustrative woodland dimensions"
-                      : "New Fagus sylvatica: smooth grey bole, ascending limbs, oval folded leaves and fitted foliage tiers; illustrative woodland dimensions"
+                      : species === "european_hornbeam"
+                        ? "New Carpinus betulus: fluted grey stem, ascending branches, pleated toothed leaves and fitted dense crown tiers; illustrative woodland dimensions"
+                        : "New Fagus sylvatica: smooth grey bole, ascending limbs, oval folded leaves and fitted foliage tiers; illustrative woodland dimensions"
                 }
               ]
             : comparisonMedium && level === "low"

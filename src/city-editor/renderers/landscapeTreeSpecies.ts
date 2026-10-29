@@ -62,7 +62,13 @@ export function landscapeTreeSpecies(
         ) {
           // A deterministic visual mixture, not a calibrated natural species distribution.
           if (growthRandom(`${seed}:european-tree:${point[0]}:${point[1]}`) < 0.5) return "european_beech";
-          return growthRandom(`${seed}:oak-tree:${point[0]}:${point[1]}`) < 0.5 ? "pedunculate_oak" : preferred;
+          if (growthRandom(`${seed}:oak-tree:${point[0]}:${point[1]}`) < 0.5) return "pedunculate_oak";
+          if (
+            key === "centraleuropeangreatforest" &&
+            growthRandom(`${seed}:hornbeam-tree:${point[0]}:${point[1]}`) < 0.5
+          )
+            return "european_hornbeam";
+          return preferred;
         }
         return preferred;
       }

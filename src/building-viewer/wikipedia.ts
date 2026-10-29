@@ -147,6 +147,7 @@ const modelArticles: Record<string, string> = {
   "printers-guild-hall": "Guildhall",
   "garden-parkland": "Tilia cordata",
   "european-beech": "Fagus sylvatica",
+  "european-hornbeam": "Carpinus betulus",
   "pedunculate-oak": "Quercus robur",
   "sacred-yew": "Taxus baccata",
   "norway-spruce": "Picea abies",

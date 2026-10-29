@@ -6,6 +6,12 @@ type TreeEntry = Pick<MedievalModel, "biomes" | "name" | "size" | "note">;
 
 /** Biome labels describe current CE woodland selection, including temperature branches. */
 const TREES: Record<TreeSpecies, TreeEntry> = {
+  european_hornbeam: {
+    biomes: ["centralEuropeanGreatForest"],
+    name: "European hornbeam · Carpinus betulus",
+    size: [10, 10, 16.5],
+    note: "Summer woodland Carpinus betulus with a fluted grey bole, long ascending branches, a dense ovoid crown and folded toothed leaves abstracting prominent parallel veins. Illustrative woodland dimensions, not a measured mature maximum, hedge, pollard or columnar cultivar. Fruit clusters and seasonal changes are omitted. Mixed with oak, beech and lime in the explicit Central European great forest biome; existing park and cemetery preferences remain unchanged. Botanical references: https://www.forestresearch.gov.uk/tools-and-resources/tree-species-database/hornbeam-hbm-2/ and https://www.rhs.org.uk/plants/3136/carpinus-betulus/details and https://www.keele.ac.uk/arboretum/ourtrees/speciesaccounts/hornbeam/"
+  },
   pedunculate_oak: {
     biomes: ["temperateDeciduousForest", "centralEuropeanGreatForest"],
     name: "Pedunculate oak · Quercus robur",
