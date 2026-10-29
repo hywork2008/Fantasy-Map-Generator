@@ -72,13 +72,13 @@ export function createForestTreeDetails(parent: THREE.Group, treeLimit?: number)
     let radius = 0;
     for (let i = 0; i < positions.count; i++)
       radius = Math.max(radius, Math.hypot(positions.getX(i), positions.getZ(i)));
-    const height = lease.bounds.max.y - lease.bounds.min.y;
+    const height = lease.bounds.max.y;
     if (radius <= 0 || height <= 0) {
       lease.release();
       return;
     }
-    // Fit the existing candidate envelope: a unit crown radius, ten metres tall, roots at y=0.
-    geometry.translate(0, -lease.bounds.min.y, 0);
+    // Fit a unit crown radius and ten metres above the model's ground datum (y=0).
+    // Preserve buried roots below that datum instead of lifting the trunk above the terrain.
     geometry.scale(1 / radius, 10 / height, 1 / radius);
     geometry.computeBoundingBox();
     geometry.computeBoundingSphere();

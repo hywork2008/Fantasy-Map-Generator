@@ -230,3 +230,46 @@ it("keeps the exact distance tier for every lime despite size variation, geometr
     material.dispose();
   }
 });
+
+it.each(["kapok", "red_mangrove"] as const)(
+  "preserves the %s ground datum and buried roots while fitting every adopted tier",
+  species => {
+    const group = new THREE.Group();
+    const details = createForestTreeDetails(group);
+    const geometry = new THREE.BoxGeometry(1, 10, 1);
+    const material = new THREE.MeshLambertMaterial();
+    const base = new THREE.InstancedMesh(geometry, material, 1);
+    base.setMatrixAt(0, new THREE.Matrix4());
+    const site: ForestTreeSite = { id: "rooted", point: [0, 0], radius: 1, size: 1, species, mesh: base, index: 0 };
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 2000);
+    try {
+      for (const [distance, quality] of [
+        [35, "ultra"],
+        [70, "high"],
+        [200, "medium"],
+        [500, "low"]
+      ] as const) {
+        details.reset();
+        camera.position.set(0, 5, distance);
+        camera.lookAt(0, 5, 0);
+        const source = createLandscapeTree(species, quality);
+        const bounds = new THREE.Box3().setFromObject(source.group);
+        source.dispose();
+        expect(
+          details.update(camera, 720, [site], { triangles: Infinity, calls: Infinity, shadowTriangles: 0 }).trees
+        ).toBe(1);
+        const model = group.getObjectByName(`forest-bv-${species}-${quality}-plain`) as THREE.InstancedMesh;
+        model.geometry.computeBoundingBox();
+        const fitted = model.geometry.boundingBox!;
+        expect(fitted.max.y).toBeCloseTo(10, 5);
+        expect(fitted.min.y).toBeCloseTo((bounds.min.y * 10) / bounds.max.y, 5);
+        expect(fitted.min.y).toBeLessThan(0);
+      }
+    } finally {
+      details.dispose();
+      base.dispose();
+      geometry.dispose();
+      material.dispose();
+    }
+  }
+);
