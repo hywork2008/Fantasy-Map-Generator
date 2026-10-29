@@ -4,6 +4,7 @@ import { createBorealTree } from "./borealTrees";
 import { createDomesticApple } from "./domesticApple";
 import { createEuropeanBeech } from "./europeanBeech";
 import { createEuropeanHornbeam } from "./europeanHornbeam";
+import { createEuropeanPear } from "./europeanPear";
 import { createEuropeanYew } from "./europeanYew";
 import { createMediterraneanMontaneTree } from "./mediterraneanMontaneTrees";
 import { createPedunculateOak } from "./pedunculateOak";
@@ -17,6 +18,7 @@ import { createUplandTree } from "./uplandTrees";
 import { createWetTemperateTree } from "./wetTemperateTrees";
 
 export const TREE_SPECIES = [
+  "european_pear",
   "domestic_apple",
   "scots_pine",
   "european_hornbeam",
@@ -59,6 +61,19 @@ type TreeDefinition = { create: TreeFactory; lod?: undefined } | { lod: TreeLodP
 
 /** One registration supplies BV factories and CE's woodland, park and churchyard LOD policy. */
 export const TREE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
+  european_pear: {
+    lod: {
+      selection: "pixels",
+      budget: "bounded",
+      heightMeters: 8.8,
+      models: {
+        low: () => createEuropeanPear("low"),
+        medium: () => createEuropeanPear("medium"),
+        high: () => createEuropeanPear("high"),
+        ultra: () => createEuropeanPear("ultra")
+      }
+    }
+  },
   domestic_apple: {
     lod: {
       selection: "pixels",

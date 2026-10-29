@@ -6,6 +6,11 @@ type TreeEntry = Pick<MedievalModel, "biomes" | "name" | "size" | "note">;
 
 /** Biome labels describe current CE woodland selection, including temperature branches. */
 const TREES: Record<TreeSpecies, TreeEntry> = {
+  european_pear: {
+    name: "European pear · Pyrus communis",
+    size: [6.3, 6, 9],
+    note: "Free-standing cultivated Pyrus communis with a grey-brown bole, ascending scaffold limbs, a tapering upright crown, glossy oval leaves and yellow-green pears with swollen lower bodies and narrow necks on short fruiting spurs. Illustrative mature orchard tree, not a measured specimen, named cultivar, thorny wild pear, espalier or modern dwarf planting. Static leafy fruiting display; flower, harvest and seasonal changes are omitted. Small fruit is simplified at medium and omitted at low quality. BV registration does not place orchards in CE or change crop production. Botanical references: https://www.rhs.org.uk/plants/14227/pyrus-communis-f/details and https://www.rhs.org.uk/fruit/pears/grow-your-own"
+  },
   domestic_apple: {
     name: "Domestic apple · Malus domestica",
     size: [8.1, 7.6, 6.2],

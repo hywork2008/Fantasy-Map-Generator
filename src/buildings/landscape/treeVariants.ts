@@ -8,6 +8,7 @@ import { createLandscapeTree, hasTreeQualityLevels, TREE_SPECIES, type TreeSpeci
 
 /** Author of each species' model; reduced tiers credit their own authors below. */
 export const TREE_AUTHORS: Record<TreeSpecies, Author> = {
+  european_pear: "Codex GPT-6.1 Sol",
   domestic_apple: "Codex GPT-6.1 Sol",
   scots_pine: "Codex GPT-6.1 Sol",
   european_hornbeam: "Codex GPT-6.1 Sol",
@@ -56,6 +57,7 @@ function tieredVariants(species: TreeSpecies): ModelVariant[] {
   // Historical comparison models are explicit overrides, never a fallback for a new species.
   const comparisonMedium = COMPARISON_MEDIUM[species];
   const author = TREE_AUTHORS[species];
+  const orchard = species === "domestic_apple" || species === "european_pear";
   const boreal = species === "norway_spruce" || species === "silver_birch";
   const conifer = species === "western_red_cedar" || species === "silver_fir";
   const arid = species === "date_palm" || species === "umbrella_thorn";
@@ -75,7 +77,7 @@ function tieredVariants(species: TreeSpecies): ModelVariant[] {
       family,
       level,
       author: levelAuthor,
-      ...(species === "domestic_apple" && level !== "ultra" ? { basedOn: [variantId(family, "ultra", author)] } : {}),
+      ...(orchard && level !== "ultra" ? { basedOn: [variantId(family, "ultra", author)] } : {}),
       ...(boreal && level !== "ultra" ? { basedOn: [variantId(family, "ultra", author)] } : {}),
       ...(expanded && level !== "ultra"
         ? {
@@ -99,12 +101,15 @@ function tieredVariants(species: TreeSpecies): ModelVariant[] {
                       : "Fitted high-tier foliage vertices; shared canopy-envelope normals, vertex AO, tint variation and hidden-face removal"
             }
           ]
-        : species === "domestic_apple"
+        : orchard
           ? [
               {
                 author,
                 date: "2026-10-30",
-                note: "New Malus domestica: short bole, spreading scaffold limbs, serrated leaves and blushed spur-borne fruit; illustrative free-standing cultivated tree with four foliage tiers"
+                note:
+                  species === "european_pear"
+                    ? "New Pyrus communis: ascending scaffold branches, a tapering upright crown, glossy oval leaves and necked yellow-green spur-borne fruit; illustrative free-standing cultivated tree with four foliage tiers"
+                    : "New Malus domestica: short bole, spreading scaffold limbs, serrated leaves and blushed spur-borne fruit; illustrative free-standing cultivated tree with four foliage tiers"
               }
             ]
           : boreal
