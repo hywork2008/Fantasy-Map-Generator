@@ -6,6 +6,11 @@ type TreeEntry = Pick<MedievalModel, "biomes" | "name" | "size" | "note">;
 
 /** Biome labels describe current CE woodland selection, including temperature branches. */
 const TREES: Record<TreeSpecies, TreeEntry> = {
+  european_plum: {
+    name: "European plum · Prunus domestica",
+    size: [6, 6, 6.2],
+    note: "Free-standing cultivated Prunus domestica with a short dark-brown bole, ascending scaffold forks, a compact vase-shaped crown, folded toothed obovate leaves and purple oval drupes with a shallow suture and abstract waxy bloom on short fruiting wood. Illustrative mature orchard tree, not a measured specimen, named cultivar, Japanese plum, ornamental purple-leaf plum or dwarf planting. Purple fruit is one example within the species' range of colours. Static leafy fruiting display; flower, harvest and seasonal changes are omitted. Fruit is simplified at medium and omitted at low quality. BV registration does not place orchards in CE or change crop production. Botanical references: https://plants.ces.ncsu.edu/plants/prunus-domestica/ and https://extension.usu.edu/yardandgarden/research/plums-in-the-home-garden and https://www.rhs.org.uk/fruit/plums/grow-your-own"
+  },
   european_pear: {
     name: "European pear · Pyrus communis",
     size: [6.3, 6, 9],

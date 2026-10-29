@@ -108,6 +108,7 @@ const taskArticles: Record<number, string> = {
 };
 
 const modelArticles: Record<string, string> = {
+  "european-plum": "Prunus domestica",
   "european-pear": "Pyrus communis",
   "domestic-apple": "Apple",
   "modular-stone-arch-bridge": "Arch bridge",
