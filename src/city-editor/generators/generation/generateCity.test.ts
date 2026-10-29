@@ -42,7 +42,8 @@ describe("attempt document ownership", () => {
     injected.rejectFinished = true;
     expect(generateCityOnDocument(source, settings, seed, () => {})).toBeNull();
     expect(inputs).toHaveLength(COMPLETE_CITY_ATTEMPTS);
-    expect(inputs.every(input => input === JSON.stringify(before))).toBe(true);
+    const preparedInput = { ...before, buildingHeightPolicy: settings.buildingHeightPolicy };
+    expect(inputs.every(input => input === JSON.stringify(preparedInput))).toBe(true);
     expect(injected.finishedAttempts).toBeGreaterThanOrEqual(2);
     expect(source).toEqual(before);
     injected.rejectFinished = false;

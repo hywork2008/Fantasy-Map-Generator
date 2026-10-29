@@ -2495,8 +2495,8 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
         fact("Construction", definition.note, medievalWikipediaArticle(definition)),
         fact(
           "Scope",
-          definition.task === 33
-            ? "CE-fitted friary assembly; meter units. BV and CE share the same construction."
+          definition.task === 33 || definition.id === "abbey" || definition.id === "orthodox-monastery"
+            ? "CE-fitted religious-house assembly; meter units. BV and CE share the same construction."
             : definition.task === 43 || definition.task === 44
               ? "Shared landscape or funerary model; meter units. Shared with CE park and cemetery 3D placement."
               : "Illustrative medieval or early modern model; meter units. CE automatic placement is separate."

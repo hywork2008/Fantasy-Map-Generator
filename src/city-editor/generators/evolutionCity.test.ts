@@ -100,7 +100,7 @@ describe("evolution complete city", () => {
     const loaded = parseDocument(JSON.stringify(city))!;
     expect(loaded.gridKind).toBe("evolution");
     const recipe = loaded.fabric!.generation!;
-    expect(recipe.input).toEqual(input);
+    expect(recipe.input).toEqual({ ...input, buildingHeightPolicy: settings.buildingHeightPolicy });
     expect(generateCityOnDocument(recipe.input, recipe.settings, recipe.seed)).toEqual(city);
     expect(buildBlockFabric(loaded)).toEqual(buildBlockFabric(city));
     expect(generateCityOnDocument(input, settings, "persist")).toEqual(city);

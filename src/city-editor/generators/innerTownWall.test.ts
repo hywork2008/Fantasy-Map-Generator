@@ -358,7 +358,13 @@ describe("double town walls (P1)", () => {
     site.burg.walls = true;
     // Few dwellings: the old town alone should hold most of them.
     site.burg.dwellings = 400;
-    const settings = { ...defaultGenerationSettings(), townWallRings: "double" as const, descriptor: site };
+    // This case verifies the legacy occupancy fit; height-based fitting keeps plot occupancy intact.
+    const settings = {
+      ...defaultGenerationSettings(),
+      buildingHeightPolicy: undefined,
+      townWallRings: "double" as const,
+      descriptor: site
+    };
     let fit: HousingFitStats | undefined;
     let wall: Record<string, number> | undefined;
     const city = generateCityOnDocument(

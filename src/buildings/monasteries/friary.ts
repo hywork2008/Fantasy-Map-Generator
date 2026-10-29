@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { fitMonastery, type Monastery } from "../../city-editor/generators/monasteryLayout";
+import { fitMonastery, type Monastery, type MonasteryKind } from "../../city-editor/generators/monasteryLayout";
 import { makeRng } from "../../city-editor/generators/prng";
 import type { StructureMassing } from "../../city-editor/types/contracts/structureMassing";
 import type { Point } from "../../city-editor/types/document";
@@ -9,20 +9,28 @@ import { createLandscapeTree } from "../landscape/trees";
 import { ModelKit, type Surface } from "../medieval/modelKit";
 import { createMedievalWellModel } from "../wells/medievalWell";
 
-/** A fixed example of the same fitted programme used by generated CE friaries. */
-export function friaryPreviewPlan(): Monastery {
+/** A fixed example of the same fitted programme used by generated CE religious houses. */
+export function monasteryPreviewPlan(kind: MonasteryKind = "friary"): Monastery {
   return fitMonastery({
-    kind: "friary",
-    id: "mendicant-friary",
+    kind,
+    id: kind === "friary" ? "mendicant-friary" : kind === "abbey" ? "abbey" : "orthodox-monastery",
     faceId: "preview",
-    ring: [
-      [-40, -35],
-      [40, -35],
-      [40, 35],
-      [-40, 35]
-    ],
+    ring:
+      kind === "friary"
+        ? [
+            [-40, -35],
+            [40, -35],
+            [40, 35],
+            [-40, 35]
+          ]
+        : [
+            [-50, -45],
+            [50, -45],
+            [50, 45],
+            [-50, 45]
+          ],
     margin: 5,
-    rng: makeRng("bv-friary"),
+    rng: makeRng(`bv-${kind}`),
     maxScale: 1,
     minScale: 1
   })!.monastery;
@@ -35,13 +43,15 @@ function shape(ring: Point[], holes: Point[][] = []): THREE.Shape {
 }
 
 /** The actual CE footprints determine every wing, opening and roof ridge. No assembly-wide stretching. */
-export function createFriary(plan: Monastery = friaryPreviewPlan(), elevation = 0, foundationBottom = elevation) {
-  const k = new ModelKit("mendicant-friary");
+export function createMonastery(plan: Monastery = monasteryPreviewPlan(), elevation = 0, foundationBottom = elevation) {
+  const k = new ModelKit(plan.kind === "friary" ? "mendicant-friary" : plan.kind);
   const nave = plan.buildings.find(building => building.role === "church");
   const ridge = nave?.ridge;
   const azimuth = ridge ? Math.atan2(ridge[1][1] - ridge[0][1], ridge[1][0] - ridge[0][0]) : 0;
   const across = nave?.polygon.map(p => -p[0] * Math.sin(azimuth) + p[1] * Math.cos(azimuth)) ?? [0, 10];
-  const scale = (Math.max(...across) - Math.min(...across)) / 10;
+  const scale =
+    (Math.max(...across) - Math.min(...across)) /
+    (plan.kind === "abbey" ? 11 : plan.kind === "orthodoxMonastery" ? 8 : 10);
   const churchHeight = 7.2 * scale;
   const churchTop = churchHeight + 5 * scale * Math.tan((32 * Math.PI) / 180);
   const slab = (name: string, ring: Point[], holes: Point[][], y: number, height: number, surface: Surface) => {
@@ -59,6 +69,85 @@ export function createFriary(plan: Monastery = friaryPreviewPlan(), elevation = 
     slab(`friary-${court.kind}`, court.polygon, [], elevation + 0.01, 0.03, court.kind === "yard" ? "earth" : "green");
   for (const bed of plan.beds) slab("herb-bed", bed, [], elevation + 0.04, 0.15 * scale, "earth");
   for (const [index, building] of plan.buildings.entries()) {
+    if (
+      building.role === "dome" ||
+      building.role === "bell-tower" ||
+      (building.role === "crossing-tower" && plan.kind === "abbey")
+    ) {
+      const center = building.polygon.reduce<Point>(
+        (a, p) => [a[0] + p[0] / building.polygon.length, a[1] + p[1] / building.polygon.length],
+        [0, 0]
+      );
+      const tower = new ModelKit(building.role);
+      const width = Math.hypot(
+        building.polygon[1][0] - building.polygon[0][0],
+        building.polygon[1][1] - building.polygon[0][1]
+      );
+      if (building.role === "dome") {
+        const radius = Math.max(...building.polygon.map(p => Math.hypot(p[0] - center[0], p[1] - center[1])));
+        const base = churchTop;
+        tower.cylinder("central-drum", [0, base + scale, 0], radius * 0.75, 2 * scale, "stone");
+        const profile = [
+          [0.75, 0],
+          [1, 0.45],
+          [1.04, 0.95],
+          [0.78, 1.55],
+          [0.28, 2.15],
+          [0, 2.6]
+        ];
+        const dome = tower.add(
+          "bulbous-church-dome",
+          new THREE.LatheGeometry(
+            profile.map(([r, y]) => new THREE.Vector2(r * radius, y * scale)),
+            24
+          ),
+          "green"
+        );
+        dome.position.y = base + 2 * scale;
+        const top = base + 4.6 * scale;
+        tower.beam("orthodox-cross-upright", [0, top, 0], [0, top + 1.7 * scale, 0], 0.075 * scale, "iron");
+        tower.beam(
+          "cross-main-bar",
+          [-0.5 * scale, top + 1.1 * scale, 0],
+          [0.5 * scale, top + 1.1 * scale, 0],
+          0.075 * scale,
+          "iron"
+        );
+        tower.beam(
+          "cross-upper-bar",
+          [-0.25 * scale, top + 1.45 * scale, 0],
+          [0.25 * scale, top + 1.45 * scale, 0],
+          0.06 * scale,
+          "iron"
+        );
+        tower.beam(
+          "cross-footbar",
+          [-0.3 * scale, top + 0.4 * scale, 0],
+          [0.3 * scale, top + 0.2 * scale, 0],
+          0.06 * scale,
+          "iron"
+        );
+      } else {
+        const height = (building.role === "bell-tower" ? 10 : 14) * scale;
+        const depth = Math.hypot(
+          building.polygon[2][0] - building.polygon[1][0],
+          building.polygon[2][1] - building.polygon[1][1]
+        );
+        tower.box("stone-tower", [0, height / 2, 0], [width, height, depth], "stone");
+        tower.roof(0, 0, width, depth, height, 2.5 * scale, "iron");
+        for (const side of [-1, 1])
+          tower.box(
+            "belfry-opening",
+            [side * (width / 2 + 0.01), height - 1.5 * scale, 0],
+            [0.025, 1.7 * scale, width * 0.3],
+            "dark"
+          );
+      }
+      const model = tower.finish();
+      model.group.rotation.y = azimuth;
+      k.attach(model, planVertex(center, elevation));
+      continue;
+    }
     if (building.role === "crossing-tower") {
       const center = building.polygon.reduce<Point>(
         (a, p) => [a[0] + p[0] / building.polygon.length, a[1] + p[1] / building.polygon.length],
@@ -223,3 +312,8 @@ export function createFriary(plan: Monastery = friaryPreviewPlan(), elevation = 
   if (plan.well) k.attach(createMedievalWellModel(), planVertex(plan.well, elevation));
   return k.finish();
 }
+
+/** Backwards-compatible friary entry points for callers requesting that specific programme. */
+export const friaryPreviewPlan = () => monasteryPreviewPlan("friary");
+export const createFriary = (plan: Monastery = friaryPreviewPlan(), elevation = 0, foundationBottom = elevation) =>
+  createMonastery(plan, elevation, foundationBottom);

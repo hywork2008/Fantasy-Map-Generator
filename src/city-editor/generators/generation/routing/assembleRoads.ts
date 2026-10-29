@@ -176,8 +176,12 @@ export function applyRoads(input: ApplyRoadsInput) {
         urbanRegions
       );
       const approaches = plan.roads.length - plan.streets.length;
-      if (plan.roads.some((line, i) => i < approaches && plan.gates[i] && !probe(line, true).length))
+      if (plan.roads.some((line, i) => i < approaches && plan.gates[i] && !probe(line, true).length)) {
+        // Perimeter edges can be land on both sides while their road stroke
+        // reaches the river. Join the genuinely dry runs before the gate chord.
+        next = connectDryCellInteriors(next, shoreEdges);
         next = joinShoreStrandedGates(next, shoreEdges);
+      }
     }
     mesh = next.mesh;
     const nearestAfter = nearestVertexLookup(mesh, Math.max(1, source.frame.blockSizeMeters));

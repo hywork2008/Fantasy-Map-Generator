@@ -31,6 +31,11 @@ function mount() {
   document.body.append(root);
   mountCityEditor(root);
 }
+function svgSnapshot(): string {
+  const svg = root.querySelector("svg")!.cloneNode(true) as SVGElement;
+  svg.removeAttribute("data-redraw-cpu-ms");
+  return svg.outerHTML;
+}
 function button(text: string) {
   return [...root.querySelectorAll("button")].find(b => b.textContent?.includes(text))!;
 }
@@ -42,7 +47,7 @@ afterEach(() => {
 describe("background complete generation", () => {
   it("keeps the input and undo history intact when cancelled, then permits a fresh run", async () => {
     mount();
-    const before = root.querySelector("svg")!.outerHTML;
+    const before = svgSnapshot();
     button("Seedから生成").click();
     expect(root.getAttribute("aria-busy")).toBe("true");
     worker.onmessage!({
@@ -52,7 +57,7 @@ describe("background complete generation", () => {
     button("生成をキャンセル").click();
     await vi.waitFor(() => expect(root.hasAttribute("aria-busy")).toBe(false));
     expect(worker.terminate).toHaveBeenCalledOnce();
-    expect(root.querySelector("svg")!.outerHTML).toBe(before);
+    expect(svgSnapshot()).toBe(before);
     expect(root.querySelector<HTMLButtonElement>('button[title="Undo"]')!.disabled).toBe(true);
     button("Seedから生成").click();
     expect(root.hasAttribute("aria-busy")).toBe(true);
@@ -93,7 +98,7 @@ describe("background complete generation", () => {
   });
   it("commits a completed worker result once and supports undo", async () => {
     mount();
-    const before = root.querySelector("svg")!.outerHTML;
+    const before = svgSnapshot();
     button("Seedから生成").click();
     const { document, settings, seed } = worker.request;
     const city = generateCityOnDocument(document, settings, seed);
@@ -102,7 +107,7 @@ describe("background complete generation", () => {
     await vi.waitFor(() => expect(root.hasAttribute("aria-busy")).toBe(false));
     expect(root.querySelector(".ce-building")).not.toBeNull();
     root.querySelector<HTMLButtonElement>('button[title="Undo"]')!.click();
-    expect(root.querySelector("svg")!.outerHTML).toBe(before);
+    expect(svgSnapshot()).toBe(before);
   });
   it.each([false, true])("adopts an editable failed city only when enabled (%s), and supports undo", async enabled => {
     vi.spyOn(console, "group").mockImplementation(() => {});
@@ -112,7 +117,7 @@ describe("background complete generation", () => {
     const checkbox = root.querySelector<HTMLInputElement>('input[aria-label="デバッグ：生成失敗の途中図を表示"]')!;
     expect(checkbox.checked).toBe(false);
     if (enabled) checkbox.click();
-    const before = root.querySelector("svg")!.outerHTML;
+    const before = svgSnapshot();
     button("Seedから生成").click();
     expect(worker.request.debugFailure).toBe(enabled);
     const partial = structuredClone(worker.request.document);
@@ -183,7 +188,7 @@ describe("background complete generation", () => {
       expect(exportNormal.mock.calls.at(-1)![0].mesh.vertices[id].point).toEqual([x, y]);
       root.querySelector<HTMLButtonElement>('button[title="Undo"]')!.click();
     }
-    expect(root.querySelector("svg")!.outerHTML).toBe(before);
+    expect(svgSnapshot()).toBe(before);
   });
   it("keeps the failed city when editing after a previously accepted city", async () => {
     vi.spyOn(console, "group").mockImplementation(() => {});

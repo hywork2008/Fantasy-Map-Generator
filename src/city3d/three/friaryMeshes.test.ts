@@ -1,10 +1,15 @@
 import * as THREE from "three";
 import { expect, it, vi } from "vitest";
-import { createFriary, friaryPreviewPlan } from "../../buildings/monasteries/friary";
-import { fitMonastery, type Monastery } from "../../city-editor/generators/monasteryLayout";
+import {
+  createFriary,
+  createMonastery,
+  friaryPreviewPlan,
+  monasteryPreviewPlan
+} from "../../buildings/monasteries/friary";
+import { fitMonastery } from "../../city-editor/generators/monasteryLayout";
 import { makeRng } from "../../city-editor/generators/prng";
 import type { Point } from "../../city-editor/types/document";
-import { createTownFriaries } from "./friaryMeshes";
+import { createTownMonasteries } from "./friaryMeshes";
 
 const center = (ring: Point[]): Point =>
   ring.reduce<Point>((a, p) => [a[0] + p[0] / ring.length, a[1] + p[1] / ring.length], [0, 0]);
@@ -53,38 +58,44 @@ it("keeps both the precinct entrance and gatehouse passage open at walking heigh
   model.dispose();
 });
 
-it("preserves rotation, translation and fitted scale instead of replacing a CE plan with a fixed assembly", () => {
-  const angle = 0.43;
-  const ring: Point[] = [
-    [0, 0],
-    [75, 0],
-    [75, 66],
-    [0, 66]
-  ].map(([x, y]) => [100 + x * Math.cos(angle) - y * Math.sin(angle), -80 + x * Math.sin(angle) + y * Math.cos(angle)]);
-  const plan = fitMonastery({
-    kind: "friary",
-    id: "rotated",
-    faceId: "f",
-    ring,
-    margin: 8,
-    rng: makeRng("friary-test"),
-    maxScale: 0.75,
-    minScale: 0.62
-  })!.monastery;
-  const model = createTownFriaries([plan]);
-  expect(model.pickables).toHaveLength(1);
-  const positions = model.pickables[0].geometry.getAttribute("position");
-  expect(Array.from(positions.array).every(Number.isFinite)).toBe(true);
-  const bounds = new THREE.Box3().setFromObject(model.group);
-  expect(bounds.min.x).toBeGreaterThan(60);
-  expect(bounds.max.z).toBeGreaterThan(20);
-  expect(bounds.max.y).toBeLessThan(11);
-  model.dispose();
-});
+it.each(["friary", "abbey", "orthodoxMonastery"] as const)(
+  "preserves rotation, translation and fitted scale for %s",
+  kind => {
+    const angle = 0.43;
+    const ring: Point[] = [
+      [0, 0],
+      [75, 0],
+      [75, 66],
+      [0, 66]
+    ].map(([x, y]) => [
+      100 + x * Math.cos(angle) - y * Math.sin(angle),
+      -80 + x * Math.sin(angle) + y * Math.cos(angle)
+    ]);
+    const plan = fitMonastery({
+      kind,
+      id: "rotated",
+      faceId: "f",
+      ring,
+      margin: 8,
+      rng: makeRng("friary-test"),
+      maxScale: 0.75,
+      minScale: 0.62
+    })!.monastery;
+    const model = createTownMonasteries([plan]);
+    expect(model.pickables).toHaveLength(1);
+    const positions = model.pickables[0].geometry.getAttribute("position");
+    expect(Array.from(positions.array).every(Number.isFinite)).toBe(true);
+    const bounds = new THREE.Box3().setFromObject(model.group);
+    expect(bounds.min.x).toBeGreaterThan(60);
+    expect(bounds.max.z).toBeGreaterThan(20);
+    expect(bounds.max.y).toBeLessThan(14);
+    model.dispose();
+  }
+);
 
 it("grounds the full precinct, including the well, on one foundation and disposes its batch once", () => {
   const plan = friaryPreviewPlan();
-  const model = createTownFriaries([plan], { foundationAt: () => 12, heightAt: () => 8 });
+  const model = createTownMonasteries([plan], { foundationAt: () => 12, heightAt: () => 8 });
   const bounds = new THREE.Box3().setFromObject(model.group);
   expect(bounds.min.y).toBeCloseTo(7.8);
   const mesh = model.pickables[0];
@@ -95,8 +106,21 @@ it("grounds the full precinct, including the well, on one foundation and dispose
   expect(material).toHaveBeenCalledTimes(1);
 });
 
-it("does not render another monastery kind as a friary", () => {
-  const model = createTownFriaries([{ ...friaryPreviewPlan(), kind: "abbey" } as Monastery]);
-  expect(model.pickables).toHaveLength(0);
-  model.dispose();
-});
+it.each(["abbey", "orthodoxMonastery"] as const)(
+  "renders %s from its fitted plan and records its own BV variant",
+  kind => {
+    const plan = monasteryPreviewPlan(kind);
+    const model = createTownMonasteries([plan], { foundationAt: () => 12, heightAt: () => 8 });
+    expect(model.pickables).toHaveLength(1);
+    expect(Array.from(model.pickables[0].geometry.getAttribute("position").array).every(Number.isFinite)).toBe(true);
+    expect(model.group.userData.modelVariants).toContain(`monastery.${kind}@default#codex-gpt-6.1-sol`);
+    expect(new THREE.Box3().setFromObject(model.group).min.y).toBeCloseTo(7.8);
+    const detailed = createMonastery(plan);
+    expect(detailed.pickables.some(mesh => mesh.name === "friary-bell")).toBe(false);
+    expect(detailed.pickables.some(mesh => mesh.name === "stone-tower")).toBe(true);
+    expect(detailed.pickables.some(mesh => mesh.name === "bulbous-church-dome")).toBe(kind === "orthodoxMonastery");
+    expect(detailed.pickables.filter(mesh => mesh.name === "cloister-roof")).toHaveLength(kind === "abbey" ? 4 : 0);
+    model.dispose();
+    detailed.dispose();
+  }
+);

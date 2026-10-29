@@ -17,13 +17,12 @@ it("uses SVG well sites, excludes other water points and avoids duplicate plaza 
         { id: "neighborhood", kind: "well", center: [50, 60] },
         ...["cistern", "spring", "pond"].map(kind => ({ id: kind, kind, center: [80, 90] }))
       ],
-      monasteries: [{ id: "abbey", well: [100, 110] }]
+      monasteries: [{ id: "abbey", kind: "abbey", well: [100, 110] }]
     }
   } as DistrictFabric;
   expect(collectWellSites(city, fabric)).toEqual([
     { id: "well", point: [10, 20] },
-    { id: "neighborhood", point: [50, 60] },
-    { id: "abbey:well", point: [100, 110] }
+    { id: "neighborhood", point: [50, 60] }
   ]);
   expect(collectWellSites(city, {} as DistrictFabric)).toEqual([{ id: "plaza", point: [10, 20], kind: "publicBasin" }]);
 });
@@ -38,16 +37,17 @@ it("uses the collision-checked basin location and never adds an extra center wel
   expect(collectWellSites(city, fabric)).toEqual([]);
 });
 
-it("lets friaries own their courtyard well without duplicating it at terrain height", () => {
+it("lets all monasteries own their courtyard well without duplicating it at terrain height", () => {
   const city = { elements: [] } as unknown as CityDocument;
   const fabric = {
     aerialLandmarks: {
       monasteries: [
         { id: "friary", kind: "friary", well: [10, 20] },
-        { id: "abbey", kind: "abbey", well: [40, 50] }
+        { id: "abbey", kind: "abbey", well: [40, 50] },
+        { id: "orthodox", kind: "orthodoxMonastery", well: [70, 80] }
       ],
       domesticWater: []
     }
   } as unknown as DistrictFabric;
-  expect(collectWellSites(city, fabric)).toEqual([{ id: "abbey:well", point: [40, 50] }]);
+  expect(collectWellSites(city, fabric)).toEqual([]);
 });

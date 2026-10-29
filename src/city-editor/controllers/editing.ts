@@ -130,13 +130,12 @@ export function createEditingController(ctx: EditingContext) {
         ...ctx.generation.generateSettings.castle,
         style: next.castleStyle ?? next.fabric?.generation?.settings.castle?.style ?? "auto"
       };
-    ctx.generation.generateSettings.buildingHeightPolicy = next.buildingHeightPolicy;
-    ctx.generation.generateSettings.buildingHeightLimit = next.buildingHeightLimit;
-    ctx.generation.generateSettings.forestSettings = next.forestSettings;
-    ctx.generation.generateSettings.housingAreaScale =
-      next.fabric?.generation?.settings.housingAreaScale ?? next.housingAreaScale;
-    ctx.generation.generateSettings.housingAreaPasses =
-      next.fabric?.generation?.settings.housingAreaPasses ?? next.housingAreaPasses;
+    if (!playback) {
+      ctx.generation.generateSettings.housingAreaScale =
+        next.fabric?.generation?.settings.housingAreaScale ?? next.housingAreaScale;
+      ctx.generation.generateSettings.housingAreaPasses =
+        next.fabric?.generation?.settings.housingAreaPasses ?? next.housingAreaPasses;
+    }
     ctx.syncGenerateControls();
     ctx.rebuildEditorIndexes();
     ctx.interaction.selection = emptySelection();

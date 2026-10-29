@@ -4,7 +4,7 @@ import { createCitadelRavelin, createCourtyardLodging, createGarrisonBuilding } 
 import { tiers } from "./houses/houseVariants";
 import { CEMETERY_PROP_KINDS, createCemeteryProp } from "./landscape/cemeteryProps";
 import { type ModelVariant, variantId } from "./modelVariants";
-import { createFriary } from "./monasteries/friary";
+import { createFriary, createMonastery, monasteryPreviewPlan } from "./monasteries/friary";
 import { PLACEABLE_OBJECTS } from "./placeableObjects";
 import {
   CONTAINER_KINDS,
@@ -62,6 +62,19 @@ export const FRIARY_VARIANTS = [
     // The cloister garth plants the full lime model.
     basedOn: [variantId("tree.garden-parkland", "ultra", "Codex GPT-6.1 Sol")]
   }
+];
+
+/** Every generated religious-house programme uses the same BV and CE assembly. */
+export const MONASTERY_VARIANTS = [
+  ...FRIARY_VARIANTS,
+  ...(["abbey", "orthodoxMonastery"] as const).map(kind => ({
+    ...single<Parameters<typeof createMonastery>>(
+      `monastery.${kind}`,
+      DEFAULT_AUTHOR,
+      (plan = monasteryPreviewPlan(kind), ...args) => createMonastery(plan, ...args)
+    ),
+    basedOn: [variantId("tree.garden-parkland", "ultra", "Codex GPT-6.1 Sol")]
+  }))
 ];
 
 /** Citadel and inn buildings sized from saved CE plans; quality tiers follow the house tiers. */

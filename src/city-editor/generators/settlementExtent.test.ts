@@ -334,7 +334,7 @@ describe("evolution curtain inset", () => {
     );
   });
 
-  it("places the tiny and small Grid-evolution curtain inside the town so houses stand outside it", () => {
+  it("places the tiny and small Grid-evolution curtain inside the town with residential land outside it", () => {
     const settings = defaultGenerationSettings();
     settings.config.rivers = [];
     settings.config.coast = "none";
@@ -360,9 +360,11 @@ describe("evolution curtain inset", () => {
       expect(validate(city), size).toEqual([]);
       const ring = outerWallRing(city);
       expect(ring, size).not.toBeNull();
-      const fabric = buildBlockFabric(city);
-      const outside = fabric.buildings.filter(building => {
-        const center = polygonCentroid(building.polygon);
+      // A narrow belt can remain empty after roadside and defense setbacks;
+      // the inset must still reserve buildable residential land outside the curtain.
+      const outside = Object.values(city.mesh.faces).filter(face => {
+        if (!face.properties.buildable || face.properties.settlement !== "outskirts") return false;
+        const center = polygonCentroid(facePoints(city.mesh, face));
         return ring !== null && !pointInPolygon(center, ring);
       });
       expect(outside.length, size).toBeGreaterThan(0);

@@ -13,6 +13,8 @@ import { vertexHasCrossing } from "./passages";
 describe("Rarerland burg 518", () => {
   it("generates a river-side village with roads on both sides of every gate", () => {
     const share = shareFromDescriptor(structuredClone(fixture) as unknown as BurgSiteDescriptor);
+    // Preserve the fixture's one-house-per-dwelling occupancy model.
+    delete share.settings.buildingHeightPolicy;
     const attempts: number[] = [];
     const city = generateCityOnDocument(cityEditorDocument(share), cityEditorSettings(share), share.seed, sample => {
       attempts.push(sample.attempt);

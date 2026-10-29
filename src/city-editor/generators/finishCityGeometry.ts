@@ -6,7 +6,7 @@ import { featureGroupVertices } from "./features";
 import { castleWallIds } from "./fortifications";
 import { polygonArea, polygonCentroid, segmentInteriorInPolygon, segmentSegmentHit } from "./geom";
 import { clone, facePoints, faceVertices, indexMeshEdges } from "./mesh";
-import { onFixedCrossingApproach, straightenBridges, straightenGateCrossings } from "./passages";
+import { keepsGateSpacing, onFixedCrossingApproach, straightenBridges, straightenGateCrossings } from "./passages";
 import { regionalRoadThroughGate } from "./regionalRoadGates";
 import { minimumCellWidth, roadCellHousingWidth } from "./roadCellGeometry";
 import { waterPolygons } from "./waterGeometry";
@@ -447,7 +447,13 @@ export function finishCityGeometry(source: CityDocument, phase: "finish" | "boun
           }
         }
         v.point = candidate;
-        if (validAt(id, cornerFloors) && keepsGateRiverGap(id, candidate) && clearsObstacles && !entersCemetery(id))
+        if (
+          validAt(id, cornerFloors) &&
+          keepsGateRiverGap(id, candidate) &&
+          (!gateVertices.has(id) || keepsGateSpacing(next, id, candidate, source)) &&
+          clearsObstacles &&
+          !entersCemetery(id)
+        )
           break;
         v.point = p;
       }

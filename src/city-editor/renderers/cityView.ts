@@ -13,7 +13,7 @@ import { createTownCranes, createTownHarborCargo } from "../../city3d/three/cran
 import { createTownFacilities, type TownFacilities } from "../../city3d/three/facilityMeshes";
 import { createTownFarms, type TownFarmMeshes } from "../../city3d/three/farmMeshes";
 import { createTownForest, type TownForest } from "../../city3d/three/forestMeshes";
-import { createTownFriaries } from "../../city3d/three/friaryMeshes";
+import { createTownMonasteries } from "../../city3d/three/friaryMeshes";
 import { createTownObjects } from "../../city3d/three/objectMeshes";
 import { createTownOpenSpaces } from "../../city3d/three/openSpaceMeshes";
 import { createTownPiers } from "../../city3d/three/pierMeshes";
@@ -273,8 +273,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   let forestShadowPending = false;
   let forestShadowTimer: ReturnType<typeof setTimeout> | undefined;
   let lastForestShadowAt = -Infinity;
-  let friaries: CityStructureMeshes | null = null;
-  let friaryStamp: string | null = null;
+  let monasteries: CityStructureMeshes | null = null;
+  let monasteryStamp: string | null = null;
   let openSpaceStamp: string | null = null;
   let ships: CityStructureMeshes | null = null;
   let shipStamp: string | null = null;
@@ -733,9 +733,9 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       city.historicalPeriod
     ]);
     const openSpacesChanged = terrainChanged || plan.buildings || openSpaceStamp !== nextOpenSpaceStamp || !openSpaces;
-    const friaryPlans = (fabric.aerialLandmarks?.monasteries ?? []).filter(monastery => monastery.kind === "friary");
-    const nextFriaryStamp = JSON.stringify(friaryPlans);
-    const friariesChanged = terrainChanged || friaryStamp !== nextFriaryStamp || !friaries;
+    const monasteryPlans = fabric.aerialLandmarks?.monasteries ?? [];
+    const nextMonasteryStamp = JSON.stringify(monasteryPlans);
+    const monasteriesChanged = terrainChanged || monasteryStamp !== nextMonasteryStamp || !monasteries;
     const bridgesChanged = plan.buildings || plan.water || plan.roads || !bridges;
     let nextForestSource: ForestPlan | null = null;
     if (hasForestState(city)) {
@@ -773,7 +773,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       !piersChanged &&
       !cranesChanged &&
       !openSpacesChanged &&
-      !friariesChanged &&
+      !monasteriesChanged &&
       !bridgesChanged &&
       !farmlandChanged &&
       !forestChanged
@@ -782,12 +782,12 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       if (forestQualityChanged) requestRender();
       return;
     }
-    if (friariesChanged) {
-      if (friaries) scene.remove(friaries.group);
-      friaries?.dispose();
-      friaries = createTownFriaries(friaryPlans, terrain ?? undefined);
-      scene.add(friaries.group);
-      friaryStamp = nextFriaryStamp;
+    if (monasteriesChanged) {
+      if (monasteries) scene.remove(monasteries.group);
+      monasteries?.dispose();
+      monasteries = createTownMonasteries(monasteryPlans, terrain ?? undefined);
+      scene.add(monasteries.group);
+      monasteryStamp = nextMonasteryStamp;
     }
     if (openSpacesChanged) {
       const openSpacePlan = collectOpenSpacePlan(
@@ -1098,7 +1098,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     objects?.dispose();
     ships?.dispose();
     openSpaces?.dispose();
-    friaries?.dispose();
+    monasteries?.dispose();
     farmland?.dispose();
     forest?.dispose();
     if (forestShadowTimer) clearTimeout(forestShadowTimer);

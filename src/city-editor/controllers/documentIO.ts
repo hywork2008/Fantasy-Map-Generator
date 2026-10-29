@@ -217,7 +217,11 @@ export function createDocumentIOController(ctx: DocumentIOContext) {
       s => s.step === ctx.generation.currentStageStep
     );
     return buildShare({
-      input,
+      input: {
+        ...input,
+        buildingHeightPolicy: ctx.generation.generateSettings.buildingHeightPolicy,
+        buildingHeightLimit: ctx.generation.generateSettings.buildingHeightLimit
+      },
       debugFailure: ctx.failureDebugInput.checked,
       stage: stage && !["buildings"].includes(stage.id) ? stage.id : undefined,
       seed: ctx.generation.generateSeed,
