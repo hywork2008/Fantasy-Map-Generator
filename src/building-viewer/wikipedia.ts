@@ -24,6 +24,7 @@ export const catalogueWikipedia: Record<string, string> = {
 };
 
 export const landmarkWikipedia: Record<string, string> = {
+  "babel-spire": "Tower of Babel",
   "floating-island": "Floating island (fiction)",
   "tower-of-babel": "Tower of Babel",
   "tower-of-babel-hourglass": "Tower of Babel",

@@ -22,6 +22,11 @@ export interface LandmarkModel {
     surface: "terrain" | "flat";
     regenerate(): void;
   };
+  towerGeneration?: {
+    seed: string;
+    overhang: number;
+    regenerate(): void;
+  };
   /** Hide the ground disk for airborne studies. */
   floating?: boolean;
   create(): CityStructureMeshes;
