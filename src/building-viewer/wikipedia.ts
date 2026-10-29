@@ -108,6 +108,7 @@ const taskArticles: Record<number, string> = {
 };
 
 const modelArticles: Record<string, string> = {
+  "arabica-coffee": "Coffea arabica",
   cacao: "Theobroma cacao",
   "sweet-chestnut": "Castanea sativa",
   lemon: "Lemon",

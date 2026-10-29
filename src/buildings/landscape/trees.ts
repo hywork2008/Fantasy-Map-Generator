@@ -1,4 +1,5 @@
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
+import { createArabicaCoffee } from "./arabicaCoffee";
 import { createAridTree } from "./aridTrees";
 import { createBorealTree } from "./borealTrees";
 import { createCacao } from "./cacao";
@@ -23,6 +24,7 @@ import { createUplandTree } from "./uplandTrees";
 import { createWetTemperateTree } from "./wetTemperateTrees";
 
 export const TREE_SPECIES = [
+  "arabica_coffee",
   "cacao",
   "sweet_chestnut",
   "lemon",
@@ -71,6 +73,19 @@ type TreeDefinition = { create: TreeFactory; lod?: undefined } | { lod: TreeLodP
 
 /** One registration supplies BV factories and CE's woodland, park and churchyard LOD policy. */
 export const TREE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
+  arabica_coffee: {
+    lod: {
+      selection: "pixels",
+      budget: "bounded",
+      heightMeters: 2.4,
+      models: {
+        low: () => createArabicaCoffee("low"),
+        medium: () => createArabicaCoffee("medium"),
+        high: () => createArabicaCoffee("high"),
+        ultra: () => createArabicaCoffee("ultra")
+      }
+    }
+  },
   cacao: {
     lod: {
       selection: "pixels",

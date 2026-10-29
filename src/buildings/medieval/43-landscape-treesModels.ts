@@ -6,6 +6,11 @@ type TreeEntry = Pick<MedievalModel, "biomes" | "name" | "size" | "note">;
 
 /** Biome labels describe current CE woodland selection, including temperature branches. */
 const TREES: Record<TreeSpecies, TreeEntry> = {
+  arabica_coffee: {
+    name: "Arabica coffee · Coffea arabica",
+    size: [2.8, 2.8, 2.5],
+    note: "Illustrative compact cultivated Coffea arabica with an upright stem, opposite horizontal primary branches, short secondary laterals, paired glossy pointed elliptical leaves and small red oval cherries clustered at the same lateral nodes. Representative Arabica shrub, not Robusta, a measured specimen, named cultivar or historical pruning reconstruction. Static leafy fruiting display; flowers, internal seeds, seasonal ripening and crop yield are omitted. Foliage and cherry clusters are simplified at medium; cherries and their stalks are omitted at low. BV registration does not place coffee plantations in CE or change crop production. Botanical references: https://www.nparks.gov.sg/florafaunaweb/flora/4/8/4860 and https://www.jcu.edu.au/discover-nature-at-jcu/plants/nq-weeds-by-scientific-name2/coffea-arabica"
+  },
   cacao: {
     name: "Cacao · Theobroma cacao",
     size: [7, 7, 4.8],
