@@ -218,7 +218,7 @@ export function renderForestLayer(
     .slice(0, available);
   for (const tree of samples) {
     const radius = 3.5 + random(`${seed}:${tree.id}:radius`) * 1.5;
-    const species = landscapeTreeSpecies("garden_parkland", document, tree.point);
+    const species = landscapeTreeSpecies("garden_parkland", document, tree.point, "woodland");
     if (!species) continue;
     const needle = ["norway_spruce", "western_red_cedar", "silver_fir", "canary_pine"].includes(species);
     const angle = random(`${seed}:${tree.id}:angle`) * 360;

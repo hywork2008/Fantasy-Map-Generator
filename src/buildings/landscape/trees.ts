@@ -1,6 +1,7 @@
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import { createAridTree } from "./aridTrees";
 import { createBorealTree } from "./borealTrees";
+import { createEuropeanBeech } from "./europeanBeech";
 import { createEuropeanYew } from "./europeanYew";
 import { createMediterraneanMontaneTree } from "./mediterraneanMontaneTrees";
 import { createKapok } from "./rainforestTrees";
@@ -12,6 +13,7 @@ import { createUplandTree } from "./uplandTrees";
 import { createWetTemperateTree } from "./wetTemperateTrees";
 
 export const TREE_SPECIES = [
+  "european_beech",
   "garden_parkland",
   "norway_spruce",
   "silver_birch",
@@ -49,6 +51,20 @@ type TreeDefinition = { create: TreeFactory; lod?: undefined } | { lod: TreeLodP
 
 /** One registration supplies BV factories and CE's woodland, park and churchyard LOD policy. */
 export const TREE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
+  european_beech: {
+    lod: {
+      selection: "pixels",
+      budget: "bounded",
+      heightMeters: 20,
+      forestHeightToRadius: 3.2,
+      models: {
+        low: () => createEuropeanBeech("low"),
+        medium: () => createEuropeanBeech("medium"),
+        high: () => createEuropeanBeech("high"),
+        ultra: () => createEuropeanBeech("ultra")
+      }
+    }
+  },
   garden_parkland: {
     lod: {
       selection: "distance",

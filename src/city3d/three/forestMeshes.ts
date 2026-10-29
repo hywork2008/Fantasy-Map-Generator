@@ -386,7 +386,7 @@ export function createTownForest(
             .some(e => distance(p, e.a, e.b) < radius + 0.1)
         )
           continue;
-        const species = landscapeTreeSpecies("garden_parkland", document, p);
+        const species = landscapeTreeSpecies("garden_parkland", document, p, "woodland");
         if (!species) continue;
         const heightToRadius = treeLodProfile(species)?.forestHeightToRadius;
         const size =

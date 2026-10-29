@@ -6,6 +6,12 @@ type TreeEntry = Pick<MedievalModel, "biomes" | "name" | "size" | "note">;
 
 /** Biome labels describe current CE woodland selection, including temperature branches. */
 const TREES: Record<TreeSpecies, TreeEntry> = {
+  european_beech: {
+    biomes: ["temperateDeciduousForest", "centralEuropeanGreatForest"],
+    name: "European beech · Fagus sylvatica",
+    size: [13, 13, 20],
+    note: "Summer woodland Fagus sylvatica with a clear smooth grey bole, ascending limbs, a domed crown and folded oval green leaves. Illustrative 20 m tree, not a measured mature maximum or a cultivar. Mixed with lime in explicit European woodland biomes; existing park and cemetery preferences remain unchanged. Botanical references: https://www.forestryengland.uk/tree-species/beech and https://www.forestresearch.gov.uk/tools-and-resources/tree-species-database/beech-be/"
+  },
   garden_parkland: {
     biomes: ["grassland", "temperateDeciduousForest", "centralEuropeanGreatForest"],
     name: "Small-leaved lime · Tilia cordata",

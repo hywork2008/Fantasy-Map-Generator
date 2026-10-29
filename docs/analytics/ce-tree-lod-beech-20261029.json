@@ -1,0 +1,458 @@
+{
+  "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+  "areaM2": 25600,
+  "models": [
+    {
+      "quality": "low",
+      "variant": "tree.european-beech@low#codex-gpt-6.1-sol",
+      "triangles": 256,
+      "bytes": 27648,
+      "bounds": {
+        "min": [
+          -6.130025386810303,
+          -0.3499999940395355,
+          -5.60408878326416
+        ],
+        "max": [
+          5.589810371398926,
+          20.297298431396484,
+          6.0240349769592285
+        ]
+      }
+    },
+    {
+      "quality": "medium",
+      "variant": "tree.european-beech@medium#codex-gpt-6.1-sol",
+      "triangles": 1290,
+      "bytes": 139320,
+      "bounds": {
+        "min": [
+          -6.040575981140137,
+          -0.3499999940395355,
+          -5.8903069496154785
+        ],
+        "max": [
+          6.3394293785095215,
+          20.46877098083496,
+          6.240926265716553
+        ]
+      }
+    },
+    {
+      "quality": "high",
+      "variant": "tree.european-beech@high#codex-gpt-6.1-sol",
+      "triangles": 19184,
+      "bytes": 2071872,
+      "bounds": {
+        "min": [
+          -6.1101508140563965,
+          -0.3499999940395355,
+          -5.593232154846191
+        ],
+        "max": [
+          6.397082328796387,
+          20.33656120300293,
+          6.286200046539307
+        ]
+      }
+    },
+    {
+      "quality": "ultra",
+      "variant": "tree.european-beech@ultra#codex-gpt-6.1-sol",
+      "triangles": 71408,
+      "bytes": 7712064,
+      "bounds": {
+        "min": [
+          -5.9297099113464355,
+          -0.3499999940395355,
+          -5.656040191650391
+        ],
+        "max": [
+          6.244222640991211,
+          20.203651428222656,
+          6.265098571777344
+        ]
+      }
+    }
+  ],
+  "frames": [
+    {
+      "pose": "overview",
+      "quality": "light",
+      "cpuSubmissionMs": 42,
+      "beechTriangles": 84342,
+      "beechTrees": 75,
+      "budget": {
+        "trees": 2000,
+        "triangles": 100000,
+        "calls": 64,
+        "shadowTriangles": 0
+      },
+      "stats": {
+        "quality": "light",
+        "areaM2": 25600,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 0,
+        "middleChunks": 4,
+        "trees": 302,
+        "triangles": 416495,
+        "calls": 11,
+        "shadowTriangles": 0,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 230,
+        "detailedTriangles": 401007,
+        "detailedSpecies": [
+          "garden_parkland",
+          "european_beech"
+        ],
+        "detailedTiers": {
+          "low": 12,
+          "medium": 218,
+          "high": 0,
+          "ultra": 0
+        },
+        "builds": 4
+      }
+    },
+    {
+      "pose": "overview",
+      "quality": "standard",
+      "cpuSubmissionMs": 1.5,
+      "beechTriangles": 149304,
+      "beechTrees": 147,
+      "budget": {
+        "trees": 8000,
+        "triangles": 300000,
+        "calls": 128,
+        "shadowTriangles": 50000
+      },
+      "stats": {
+        "quality": "standard",
+        "areaM2": 25600,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 0,
+        "middleChunks": 4,
+        "trees": 302,
+        "triangles": 481457,
+        "calls": 13,
+        "shadowTriangles": 49995,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 302,
+        "detailedTriangles": 465969,
+        "detailedSpecies": [
+          "garden_parkland",
+          "european_beech"
+        ],
+        "detailedTiers": {
+          "low": 39,
+          "medium": 263,
+          "high": 0,
+          "ultra": 0
+        },
+        "builds": 4
+      }
+    },
+    {
+      "pose": "overview",
+      "quality": "high",
+      "cpuSubmissionMs": 0.8000001907348633,
+      "beechTriangles": 149304,
+      "beechTrees": 147,
+      "budget": {
+        "trees": 20000,
+        "triangles": 800000,
+        "calls": 256,
+        "shadowTriangles": 150000
+      },
+      "stats": {
+        "quality": "high",
+        "areaM2": 25600,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 0,
+        "middleChunks": 4,
+        "trees": 302,
+        "triangles": 481457,
+        "calls": 14,
+        "shadowTriangles": 149910,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 302,
+        "detailedTriangles": 465969,
+        "detailedSpecies": [
+          "garden_parkland",
+          "european_beech"
+        ],
+        "detailedTiers": {
+          "low": 39,
+          "medium": 263,
+          "high": 0,
+          "ultra": 0
+        },
+        "builds": 4
+      }
+    },
+    {
+      "pose": "edge",
+      "quality": "light",
+      "cpuSubmissionMs": 87,
+      "beechTriangles": 84308,
+      "beechTrees": 11,
+      "budget": {
+        "trees": 2000,
+        "triangles": 100000,
+        "calls": 64,
+        "shadowTriangles": 0
+      },
+      "stats": {
+        "quality": "light",
+        "areaM2": 25600,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 2,
+        "middleChunks": 2,
+        "trees": 272,
+        "triangles": 1740873,
+        "calls": 13,
+        "shadowTriangles": 0,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 136,
+        "detailedTriangles": 1725385,
+        "detailedSpecies": [
+          "garden_parkland",
+          "european_beech"
+        ],
+        "detailedTiers": {
+          "low": 0,
+          "medium": 77,
+          "high": 54,
+          "ultra": 5
+        },
+        "builds": 4
+      }
+    },
+    {
+      "pose": "edge",
+      "quality": "standard",
+      "cpuSubmissionMs": 1.5999999046325684,
+      "beechTriangles": 284410,
+      "beechTrees": 19,
+      "budget": {
+        "trees": 8000,
+        "triangles": 300000,
+        "calls": 128,
+        "shadowTriangles": 50000
+      },
+      "stats": {
+        "quality": "standard",
+        "areaM2": 25600,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 2,
+        "middleChunks": 2,
+        "trees": 272,
+        "triangles": 1940975,
+        "calls": 18,
+        "shadowTriangles": 49840,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 144,
+        "detailedTriangles": 1925487,
+        "detailedSpecies": [
+          "garden_parkland",
+          "european_beech"
+        ],
+        "detailedTiers": {
+          "low": 4,
+          "medium": 76,
+          "high": 57,
+          "ultra": 7
+        },
+        "builds": 4
+      }
+    },
+    {
+      "pose": "edge",
+      "quality": "high",
+      "cpuSubmissionMs": 0.7000000476837158,
+      "beechTriangles": 784504,
+      "beechTrees": 32,
+      "budget": {
+        "trees": 20000,
+        "triangles": 800000,
+        "calls": 256,
+        "shadowTriangles": 150000
+      },
+      "stats": {
+        "quality": "high",
+        "areaM2": 25600,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 2,
+        "middleChunks": 2,
+        "trees": 272,
+        "triangles": 2441069,
+        "calls": 18,
+        "shadowTriangles": 149508,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 157,
+        "detailedTriangles": 2425581,
+        "detailedSpecies": [
+          "garden_parkland",
+          "european_beech"
+        ],
+        "detailedTiers": {
+          "low": 1,
+          "medium": 71,
+          "high": 76,
+          "ultra": 9
+        },
+        "builds": 4
+      }
+    },
+    {
+      "pose": "inside",
+      "quality": "light",
+      "cpuSubmissionMs": 0.5999999046325684,
+      "beechTriangles": 84308,
+      "beechTrees": 11,
+      "budget": {
+        "trees": 2000,
+        "triangles": 100000,
+        "calls": 64,
+        "shadowTriangles": 0
+      },
+      "stats": {
+        "quality": "light",
+        "areaM2": 25600,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 4,
+        "middleChunks": 0,
+        "trees": 244,
+        "triangles": 2058501,
+        "calls": 13,
+        "shadowTriangles": 0,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 108,
+        "detailedTriangles": 2043013,
+        "detailedSpecies": [
+          "garden_parkland",
+          "european_beech"
+        ],
+        "detailedTiers": {
+          "low": 0,
+          "medium": 49,
+          "high": 48,
+          "ultra": 11
+        },
+        "builds": 4
+      }
+    },
+    {
+      "pose": "inside",
+      "quality": "standard",
+      "cpuSubmissionMs": 0.5,
+      "beechTriangles": 284410,
+      "beechTrees": 19,
+      "budget": {
+        "trees": 8000,
+        "triangles": 300000,
+        "calls": 128,
+        "shadowTriangles": 50000
+      },
+      "stats": {
+        "quality": "standard",
+        "areaM2": 25600,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 4,
+        "middleChunks": 0,
+        "trees": 244,
+        "triangles": 2258603,
+        "calls": 16,
+        "shadowTriangles": 49978,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 116,
+        "detailedTriangles": 2243115,
+        "detailedSpecies": [
+          "garden_parkland",
+          "european_beech"
+        ],
+        "detailedTiers": {
+          "low": 4,
+          "medium": 48,
+          "high": 51,
+          "ultra": 13
+        },
+        "builds": 4
+      }
+    },
+    {
+      "pose": "inside",
+      "quality": "high",
+      "cpuSubmissionMs": 0.5999999046325684,
+      "beechTriangles": 784316,
+      "beechTrees": 47,
+      "budget": {
+        "trees": 20000,
+        "triangles": 800000,
+        "calls": 256,
+        "shadowTriangles": 150000
+      },
+      "stats": {
+        "quality": "high",
+        "areaM2": 25600,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 4,
+        "middleChunks": 0,
+        "trees": 244,
+        "triangles": 2758509,
+        "calls": 20,
+        "shadowTriangles": 149764,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 144,
+        "detailedTriangles": 2743021,
+        "detailedSpecies": [
+          "garden_parkland",
+          "european_beech"
+        ],
+        "detailedTiers": {
+          "low": 4,
+          "medium": 53,
+          "high": 73,
+          "ultra": 14
+        },
+        "builds": 4
+      }
+    }
+  ],
+  "memory": {
+    "counts": [
+      16,
+      16,
+      16
+    ],
+    "afterDispose": 0
+  },
+  "bvChecks": {
+    "choices": [
+      "low",
+      "medium",
+      "high",
+      "ultra"
+    ]
+  },
+  "errors": [],
+  "timing": "CPU update and submission only, includes first-use model setup; not GPU completion or city FPS."
+}

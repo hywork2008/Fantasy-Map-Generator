@@ -8,6 +8,7 @@ import { createLandscapeTree, hasTreeQualityLevels, TREE_SPECIES, type TreeSpeci
 
 /** Author of each species' model; reduced tiers credit their own authors below. */
 export const TREE_AUTHORS: Record<TreeSpecies, Author> = {
+  european_beech: "Codex GPT-6.1 Sol",
   garden_parkland: "Codex GPT-6.1 Sol",
   norway_spruce: "Codex GPT-6.1 Sol",
   silver_birch: "Codex GPT-6.1 Sol",
@@ -108,24 +109,32 @@ function tieredVariants(species: TreeSpecies): ModelVariant[] {
                         : "Species-specific whorled or white-barked distant silhouette"
               }
             ]
-          : comparisonMedium && level === "low"
+          : species === "european_beech"
             ? [
-                { ...TIERS_ADDED, note: "Seven-lobe canopy silhouette" },
                 {
-                  author: "Claude Opus 5.5",
+                  author,
                   date: "2026-10-29",
-                  note: "Crown-envelope normals, interior occlusion and leaf speckle; geometry unchanged",
-                  commit: "eb36c33b8"
-                },
-                {
-                  author: "Codex GPT-6.1 Sol",
-                  date: "2026-10-29",
-                  note: "Spread the seven crown lobes into a broad lower whorl and two leaders to match high-tier dimensions"
+                  note: "New Fagus sylvatica: smooth grey bole, ascending limbs, oval folded leaves and fitted foliage tiers; illustrative woodland dimensions"
                 }
               ]
-            : comparisonMedium && level === "medium"
-              ? [{ ...TIERS_ADDED, note: "Twenty-four independent lobes on short branches" }]
-              : undefined,
+            : comparisonMedium && level === "low"
+              ? [
+                  { ...TIERS_ADDED, note: "Seven-lobe canopy silhouette" },
+                  {
+                    author: "Claude Opus 5.5",
+                    date: "2026-10-29",
+                    note: "Crown-envelope normals, interior occlusion and leaf speckle; geometry unchanged",
+                    commit: "eb36c33b8"
+                  },
+                  {
+                    author: "Codex GPT-6.1 Sol",
+                    date: "2026-10-29",
+                    note: "Spread the seven crown lobes into a broad lower whorl and two leaders to match high-tier dimensions"
+                  }
+                ]
+              : comparisonMedium && level === "medium"
+                ? [{ ...TIERS_ADDED, note: "Twenty-four independent lobes on short branches" }]
+                : undefined,
       create: () => (level === "medium" && comparisonMedium ? comparisonMedium() : createLandscapeTree(species, level))
     };
   });

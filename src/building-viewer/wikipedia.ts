@@ -146,6 +146,7 @@ const modelArticles: Record<string, string> = {
   "harbor-winch-crane": "Crane (machine)",
   "printers-guild-hall": "Guildhall",
   "garden-parkland": "Tilia cordata",
+  "european-beech": "Fagus sylvatica",
   "sacred-yew": "Taxus baccata",
   "norway-spruce": "Picea abies",
   "silver-birch": "Betula pendula",
