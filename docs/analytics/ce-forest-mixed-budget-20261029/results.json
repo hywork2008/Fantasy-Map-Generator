@@ -1,0 +1,239 @@
+{
+  "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+  "viewport": [
+    800,
+    600
+  ],
+  "dpr": 1,
+  "fixture": "Runtime-only silver_birch budget override to bounded; production species/adoption unchanged.",
+  "conditions": "One fixed seed, synthetic mixed budget policies, tight/standard/tight/far/away/restored. Layer correctness and disposal only; not full CE or p95/GPU timing.",
+  "sourceSha256": {
+    "scripts/verifyCeMixedForest.mts": "33d4cdfdee7a60d62c5af9227b89ee09c2a1636174f62c5fbf57a6738f9fa542",
+    "src/city3d/three/forestMeshes.ts": "58d8636fc80dad187abceeacd7b9848ef06c901e910ec37ffd2a4ce3167ba93f",
+    "src/city3d/three/forestTreeDetails.ts": "c33566539c85b262df0d8673e7082d4bdb20449e935d9da758cfb4aef580cdb0",
+    "src/buildings/landscape/trees.ts": "f769a778979cc87cc65e03f9a18fbf0bbe741d13dca62b67e6b3ac37c50ea4b1",
+    "src/buildings/landscape/treeQuality.ts": "db1b78b50a515c3a1d3c1ff902a8a596a22fd9d8f04acee309d1f448063ad9a7",
+    "src/city-editor/renderers/landscapeTreeSpecies.ts": "7168028d603ddf4a5dbde70f092ad3ee73a81c02a73f6286bf76af5ffe02f1b9",
+    "src/city-editor/generators/landscapeVegetation.ts": "0bcb161212afbee54e8addcd88478c68ab8b3729eb4ad8ca40dcb86af9da44f2",
+    "src/city3d/adoption.ts": "14d584dfba64e8f164b63fa477c125b6b22f68b46520c0b8635c76498720b9df"
+  },
+  "results": [
+    {
+      "mode": "tight",
+      "quality": "light",
+      "areaM2": 9216.000000000004,
+      "chunks": 4,
+      "visibleChunks": 4,
+      "nearChunks": 0,
+      "middleChunks": 4,
+      "trees": 93,
+      "triangles": 102369,
+      "calls": 9,
+      "shadowTriangles": 0,
+      "cachedLayers": 4,
+      "globalFallback": false,
+      "detailedTrees": 65,
+      "detailedTriangles": 99385,
+      "detailedSpecies": [
+        "norway_spruce"
+      ],
+      "detailedTiers": {
+        "low": 0,
+        "medium": 65,
+        "high": 0,
+        "ultra": 0
+      },
+      "builds": 4,
+      "genericTrees": 28,
+      "duplicates": 0,
+      "renderer": {
+        "calls": 9,
+        "triangles": 102369,
+        "geometries": 6
+      },
+      "placementsSha256": "6037d064ab80074b1fe9331f81c9f2fecb9f64a812e0c9222130f35211e5706d"
+    },
+    {
+      "mode": "standard",
+      "quality": "standard",
+      "areaM2": 9216.000000000004,
+      "chunks": 4,
+      "visibleChunks": 4,
+      "nearChunks": 0,
+      "middleChunks": 4,
+      "trees": 93,
+      "triangles": 137313,
+      "calls": 12,
+      "shadowTriangles": 49738,
+      "cachedLayers": 4,
+      "globalFallback": false,
+      "detailedTrees": 93,
+      "detailedTriangles": 134329,
+      "detailedSpecies": [
+        "norway_spruce",
+        "silver_birch"
+      ],
+      "detailedTiers": {
+        "low": 0,
+        "medium": 93,
+        "high": 0,
+        "ultra": 0
+      },
+      "builds": 4,
+      "genericTrees": 0,
+      "duplicates": 0,
+      "renderer": {
+        "calls": 12,
+        "triangles": 137313,
+        "geometries": 7
+      },
+      "placementsSha256": "6037d064ab80074b1fe9331f81c9f2fecb9f64a812e0c9222130f35211e5706d"
+    },
+    {
+      "mode": "tight-return",
+      "quality": "light",
+      "areaM2": 9216.000000000004,
+      "chunks": 4,
+      "visibleChunks": 4,
+      "nearChunks": 0,
+      "middleChunks": 4,
+      "trees": 93,
+      "triangles": 102369,
+      "calls": 9,
+      "shadowTriangles": 0,
+      "cachedLayers": 4,
+      "globalFallback": false,
+      "detailedTrees": 65,
+      "detailedTriangles": 99385,
+      "detailedSpecies": [
+        "norway_spruce"
+      ],
+      "detailedTiers": {
+        "low": 0,
+        "medium": 65,
+        "high": 0,
+        "ultra": 0
+      },
+      "builds": 4,
+      "genericTrees": 28,
+      "duplicates": 0,
+      "renderer": {
+        "calls": 9,
+        "triangles": 102369,
+        "geometries": 7
+      },
+      "placementsSha256": "6037d064ab80074b1fe9331f81c9f2fecb9f64a812e0c9222130f35211e5706d"
+    },
+    {
+      "mode": "far",
+      "quality": "standard",
+      "areaM2": 9216.000000000004,
+      "chunks": 4,
+      "visibleChunks": 4,
+      "nearChunks": 0,
+      "middleChunks": 4,
+      "trees": 93,
+      "triangles": 30716,
+      "calls": 10,
+      "shadowTriangles": 27732,
+      "cachedLayers": 4,
+      "globalFallback": false,
+      "detailedTrees": 93,
+      "detailedTriangles": 27732,
+      "detailedSpecies": [
+        "norway_spruce",
+        "silver_birch"
+      ],
+      "detailedTiers": {
+        "low": 93,
+        "medium": 0,
+        "high": 0,
+        "ultra": 0
+      },
+      "builds": 4,
+      "genericTrees": 0,
+      "duplicates": 0,
+      "renderer": {
+        "calls": 10,
+        "triangles": 30716,
+        "geometries": 9
+      },
+      "placementsSha256": "6037d064ab80074b1fe9331f81c9f2fecb9f64a812e0c9222130f35211e5706d"
+    },
+    {
+      "mode": "away",
+      "quality": "standard",
+      "areaM2": 9216.000000000004,
+      "chunks": 4,
+      "visibleChunks": 0,
+      "nearChunks": 0,
+      "middleChunks": 0,
+      "trees": 0,
+      "triangles": 0,
+      "calls": 0,
+      "shadowTriangles": 0,
+      "cachedLayers": 4,
+      "globalFallback": false,
+      "detailedTrees": 0,
+      "detailedTriangles": 0,
+      "detailedSpecies": [],
+      "detailedTiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 0,
+        "ultra": 0
+      },
+      "builds": 4,
+      "genericTrees": 0,
+      "duplicates": 0,
+      "renderer": {
+        "calls": 0,
+        "triangles": 0,
+        "geometries": 9
+      },
+      "placementsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "mode": "restored",
+      "quality": "standard",
+      "areaM2": 9216.000000000004,
+      "chunks": 4,
+      "visibleChunks": 4,
+      "nearChunks": 0,
+      "middleChunks": 4,
+      "trees": 93,
+      "triangles": 137313,
+      "calls": 12,
+      "shadowTriangles": 49862,
+      "cachedLayers": 4,
+      "globalFallback": false,
+      "detailedTrees": 93,
+      "detailedTriangles": 134329,
+      "detailedSpecies": [
+        "norway_spruce",
+        "silver_birch"
+      ],
+      "detailedTiers": {
+        "low": 0,
+        "medium": 93,
+        "high": 0,
+        "ultra": 0
+      },
+      "builds": 4,
+      "genericTrees": 0,
+      "duplicates": 0,
+      "renderer": {
+        "calls": 12,
+        "triangles": 137313,
+        "geometries": 9
+      },
+      "placementsSha256": "6037d064ab80074b1fe9331f81c9f2fecb9f64a812e0c9222130f35211e5706d"
+    }
+  ],
+  "released": {
+    "geometries": 0,
+    "glError": 0,
+    "contextLost": false
+  },
+  "errors": []
+}

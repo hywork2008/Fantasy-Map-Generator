@@ -1,0 +1,1134 @@
+{
+  "measuredAt": "2026-10-29T09:14:05.747Z",
+  "azimuth": 0,
+  "targetPixels": 28,
+  "conditions": "CE prototypes; native or radius 4 m / above-ground height 10 m; shared high-tier projected AABB scale; alpha >= 128; shared camera across tiers; three elevations, no shadows. Pixel metrics describe this rasterization, not perceptual equivalence or a GPU benchmark.",
+  "results": [
+    {
+      "mode": "native",
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+      "frames": [
+        {
+          "species": "garden_parkland",
+          "elevation": 12,
+          "quality": "low",
+          "variant": "tree.garden-parkland@low#codex-gpt-6.1-sol",
+          "area": 216,
+          "width": 19,
+          "height": 23,
+          "triangles": 141,
+          "bounds": {
+            "min": [
+              -4.545408248901367,
+              -0.3499999940395355,
+              -5.123096942901611
+            ],
+            "max": [
+              5.1813883781433105,
+              11.10278034210205,
+              4.940706253051758
+            ]
+          },
+          "iouWithHigh": 0.8192771084337349
+        },
+        {
+          "species": "garden_parkland",
+          "elevation": 12,
+          "quality": "medium",
+          "variant": "tree.garden-parkland@medium#claude-opus-5.5",
+          "area": 244,
+          "width": 21,
+          "height": 23,
+          "triangles": 2043,
+          "bounds": {
+            "min": [
+              -5.616284370422363,
+              -0.3499999940395355,
+              -5.4790191650390625
+            ],
+            "max": [
+              4.988864898681641,
+              11.025436401367188,
+              5.505846977233887
+            ]
+          },
+          "iouWithHigh": 0.9163346613545816
+        },
+        {
+          "species": "garden_parkland",
+          "elevation": 12,
+          "quality": "high",
+          "variant": "tree.garden-parkland@high#codex-gpt-6.1-sol",
+          "area": 237,
+          "width": 21,
+          "height": 24,
+          "triangles": 21626,
+          "bounds": {
+            "min": [
+              -5.745062828063965,
+              -0.3499999940395355,
+              -5.374495983123779
+            ],
+            "max": [
+              5.10660457611084,
+              11.533796310424805,
+              5.75089168548584
+            ]
+          },
+          "iouWithHigh": 1
+        },
+        {
+          "species": "garden_parkland",
+          "elevation": 12,
+          "quality": "ultra",
+          "variant": "tree.garden-parkland@ultra#codex-gpt-6.1-sol",
+          "area": 236,
+          "width": 21,
+          "height": 23,
+          "triangles": 84098,
+          "bounds": {
+            "min": [
+              -5.62857723236084,
+              -0.3499999940395355,
+              -5.301732063293457
+            ],
+            "max": [
+              4.987098693847656,
+              11.24359130859375,
+              5.595545291900635
+            ]
+          },
+          "iouWithHigh": 0.9306122448979591
+        },
+        {
+          "species": "garden_parkland",
+          "elevation": 40,
+          "quality": "low",
+          "variant": "tree.garden-parkland@low#codex-gpt-6.1-sol",
+          "area": 168,
+          "width": 17,
+          "height": 17,
+          "triangles": 141,
+          "bounds": {
+            "min": [
+              -4.545408248901367,
+              -0.3499999940395355,
+              -5.123096942901611
+            ],
+            "max": [
+              5.1813883781433105,
+              11.10278034210205,
+              4.940706253051758
+            ]
+          },
+          "iouWithHigh": 0.7707317073170732
+        },
+        {
+          "species": "garden_parkland",
+          "elevation": 40,
+          "quality": "medium",
+          "variant": "tree.garden-parkland@medium#claude-opus-5.5",
+          "area": 201,
+          "width": 18,
+          "height": 19,
+          "triangles": 2043,
+          "bounds": {
+            "min": [
+              -5.616284370422363,
+              -0.3499999940395355,
+              -5.4790191650390625
+            ],
+            "max": [
+              4.988864898681641,
+              11.025436401367188,
+              5.505846977233887
+            ]
+          },
+          "iouWithHigh": 0.9130434782608695
+        },
+        {
+          "species": "garden_parkland",
+          "elevation": 40,
+          "quality": "high",
+          "variant": "tree.garden-parkland@high#codex-gpt-6.1-sol",
+          "area": 195,
+          "width": 19,
+          "height": 19,
+          "triangles": 21626,
+          "bounds": {
+            "min": [
+              -5.745062828063965,
+              -0.3499999940395355,
+              -5.374495983123779
+            ],
+            "max": [
+              5.10660457611084,
+              11.533796310424805,
+              5.75089168548584
+            ]
+          },
+          "iouWithHigh": 1
+        },
+        {
+          "species": "garden_parkland",
+          "elevation": 40,
+          "quality": "ultra",
+          "variant": "tree.garden-parkland@ultra#codex-gpt-6.1-sol",
+          "area": 187,
+          "width": 18,
+          "height": 19,
+          "triangles": 84098,
+          "bounds": {
+            "min": [
+              -5.62857723236084,
+              -0.3499999940395355,
+              -5.301732063293457
+            ],
+            "max": [
+              4.987098693847656,
+              11.24359130859375,
+              5.595545291900635
+            ]
+          },
+          "iouWithHigh": 0.900497512437811
+        },
+        {
+          "species": "garden_parkland",
+          "elevation": 70,
+          "quality": "low",
+          "variant": "tree.garden-parkland@low#codex-gpt-6.1-sol",
+          "area": 227,
+          "width": 19,
+          "height": 19,
+          "triangles": 141,
+          "bounds": {
+            "min": [
+              -4.545408248901367,
+              -0.3499999940395355,
+              -5.123096942901611
+            ],
+            "max": [
+              5.1813883781433105,
+              11.10278034210205,
+              4.940706253051758
+            ]
+          },
+          "iouWithHigh": 0.7695035460992907
+        },
+        {
+          "species": "garden_parkland",
+          "elevation": 70,
+          "quality": "medium",
+          "variant": "tree.garden-parkland@medium#claude-opus-5.5",
+          "area": 293,
+          "width": 21,
+          "height": 19,
+          "triangles": 2043,
+          "bounds": {
+            "min": [
+              -5.616284370422363,
+              -0.3499999940395355,
+              -5.4790191650390625
+            ],
+            "max": [
+              4.988864898681641,
+              11.025436401367188,
+              5.505846977233887
+            ]
+          },
+          "iouWithHigh": 0.9087837837837838
+        },
+        {
+          "species": "garden_parkland",
+          "elevation": 70,
+          "quality": "high",
+          "variant": "tree.garden-parkland@high#codex-gpt-6.1-sol",
+          "area": 272,
+          "width": 21,
+          "height": 19,
+          "triangles": 21626,
+          "bounds": {
+            "min": [
+              -5.745062828063965,
+              -0.3499999940395355,
+              -5.374495983123779
+            ],
+            "max": [
+              5.10660457611084,
+              11.533796310424805,
+              5.75089168548584
+            ]
+          },
+          "iouWithHigh": 1
+        },
+        {
+          "species": "garden_parkland",
+          "elevation": 70,
+          "quality": "ultra",
+          "variant": "tree.garden-parkland@ultra#codex-gpt-6.1-sol",
+          "area": 269,
+          "width": 20,
+          "height": 19,
+          "triangles": 84098,
+          "bounds": {
+            "min": [
+              -5.62857723236084,
+              -0.3499999940395355,
+              -5.301732063293457
+            ],
+            "max": [
+              4.987098693847656,
+              11.24359130859375,
+              5.595545291900635
+            ]
+          },
+          "iouWithHigh": 0.9049295774647887
+        },
+        {
+          "species": "sacred_yew",
+          "elevation": 12,
+          "quality": "low",
+          "variant": "tree.sacred-yew@low#codex-gpt-6.1-sol",
+          "area": 313,
+          "width": 27,
+          "height": 24,
+          "triangles": 152,
+          "bounds": {
+            "min": [
+              -4.636102199554443,
+              -0.3499999940395355,
+              -4.998369216918945
+            ],
+            "max": [
+              4.880248546600342,
+              7.444388389587402,
+              5.007673263549805
+            ]
+          },
+          "iouWithHigh": 0.6852367688022284
+        },
+        {
+          "species": "sacred_yew",
+          "elevation": 12,
+          "quality": "medium",
+          "variant": "tree.sacred-yew@medium#claude-opus-5.5",
+          "area": 248,
+          "width": 27,
+          "height": 22,
+          "triangles": 2104,
+          "bounds": {
+            "min": [
+              -4.94614315032959,
+              -0.3499999940395355,
+              -4.996979236602783
+            ],
+            "max": [
+              4.704600811004639,
+              7.267587184906006,
+              4.522343158721924
+            ]
+          },
+          "iouWithHigh": 0.6770186335403726
+        },
+        {
+          "species": "sacred_yew",
+          "elevation": 12,
+          "quality": "high",
+          "variant": "tree.sacred-yew@high#codex-gpt-6.1-sol",
+          "area": 292,
+          "width": 29,
+          "height": 22,
+          "triangles": 14484,
+          "bounds": {
+            "min": [
+              -5.288394451141357,
+              -0.3499999940395355,
+              -5.083573341369629
+            ],
+            "max": [
+              5.819171905517578,
+              7.4855546951293945,
+              5.140058994293213
+            ]
+          },
+          "iouWithHigh": 1
+        },
+        {
+          "species": "sacred_yew",
+          "elevation": 12,
+          "quality": "ultra",
+          "variant": "tree.sacred-yew@ultra#codex-gpt-6.1-sol",
+          "area": 357,
+          "width": 31,
+          "height": 22,
+          "triangles": 33428,
+          "bounds": {
+            "min": [
+              -5.529186725616455,
+              -0.3499999940395355,
+              -5.279642581939697
+            ],
+            "max": [
+              5.819171905517578,
+              7.552562236785889,
+              5.472962379455566
+            ]
+          },
+          "iouWithHigh": 0.807799442896936
+        },
+        {
+          "species": "sacred_yew",
+          "elevation": 40,
+          "quality": "low",
+          "variant": "tree.sacred-yew@low#codex-gpt-6.1-sol",
+          "area": 245,
+          "width": 21,
+          "height": 19,
+          "triangles": 152,
+          "bounds": {
+            "min": [
+              -4.636102199554443,
+              -0.3499999940395355,
+              -4.998369216918945
+            ],
+            "max": [
+              4.880248546600342,
+              7.444388389587402,
+              5.007673263549805
+            ]
+          },
+          "iouWithHigh": 0.7050359712230215
+        },
+        {
+          "species": "sacred_yew",
+          "elevation": 40,
+          "quality": "medium",
+          "variant": "tree.sacred-yew@medium#claude-opus-5.5",
+          "area": 209,
+          "width": 21,
+          "height": 17,
+          "triangles": 2104,
+          "bounds": {
+            "min": [
+              -4.94614315032959,
+              -0.3499999940395355,
+              -4.996979236602783
+            ],
+            "max": [
+              4.704600811004639,
+              7.267587184906006,
+              4.522343158721924
+            ]
+          },
+          "iouWithHigh": 0.6717557251908397
+        },
+        {
+          "species": "sacred_yew",
+          "elevation": 40,
+          "quality": "high",
+          "variant": "tree.sacred-yew@high#codex-gpt-6.1-sol",
+          "area": 229,
+          "width": 22,
+          "height": 18,
+          "triangles": 14484,
+          "bounds": {
+            "min": [
+              -5.288394451141357,
+              -0.3499999940395355,
+              -5.083573341369629
+            ],
+            "max": [
+              5.819171905517578,
+              7.4855546951293945,
+              5.140058994293213
+            ]
+          },
+          "iouWithHigh": 1
+        },
+        {
+          "species": "sacred_yew",
+          "elevation": 40,
+          "quality": "ultra",
+          "variant": "tree.sacred-yew@ultra#codex-gpt-6.1-sol",
+          "area": 290,
+          "width": 24,
+          "height": 18,
+          "triangles": 33428,
+          "bounds": {
+            "min": [
+              -5.529186725616455,
+              -0.3499999940395355,
+              -5.279642581939697
+            ],
+            "max": [
+              5.819171905517578,
+              7.552562236785889,
+              5.472962379455566
+            ]
+          },
+          "iouWithHigh": 0.7835051546391752
+        },
+        {
+          "species": "sacred_yew",
+          "elevation": 70,
+          "quality": "low",
+          "variant": "tree.sacred-yew@low#codex-gpt-6.1-sol",
+          "area": 307,
+          "width": 22,
+          "height": 22,
+          "triangles": 152,
+          "bounds": {
+            "min": [
+              -4.636102199554443,
+              -0.3499999940395355,
+              -4.998369216918945
+            ],
+            "max": [
+              4.880248546600342,
+              7.444388389587402,
+              5.007673263549805
+            ]
+          },
+          "iouWithHigh": 0.6385869565217391
+        },
+        {
+          "species": "sacred_yew",
+          "elevation": 70,
+          "quality": "medium",
+          "variant": "tree.sacred-yew@medium#claude-opus-5.5",
+          "area": 258,
+          "width": 22,
+          "height": 21,
+          "triangles": 2104,
+          "bounds": {
+            "min": [
+              -4.94614315032959,
+              -0.3499999940395355,
+              -4.996979236602783
+            ],
+            "max": [
+              4.704600811004639,
+              7.267587184906006,
+              4.522343158721924
+            ]
+          },
+          "iouWithHigh": 0.6198830409356725
+        },
+        {
+          "species": "sacred_yew",
+          "elevation": 70,
+          "quality": "high",
+          "variant": "tree.sacred-yew@high#codex-gpt-6.1-sol",
+          "area": 296,
+          "width": 25,
+          "height": 21,
+          "triangles": 14484,
+          "bounds": {
+            "min": [
+              -5.288394451141357,
+              -0.3499999940395355,
+              -5.083573341369629
+            ],
+            "max": [
+              5.819171905517578,
+              7.4855546951293945,
+              5.140058994293213
+            ]
+          },
+          "iouWithHigh": 1
+        },
+        {
+          "species": "sacred_yew",
+          "elevation": 70,
+          "quality": "ultra",
+          "variant": "tree.sacred-yew@ultra#codex-gpt-6.1-sol",
+          "area": 377,
+          "width": 25,
+          "height": 23,
+          "triangles": 33428,
+          "bounds": {
+            "min": [
+              -5.529186725616455,
+              -0.3499999940395355,
+              -5.279642581939697
+            ],
+            "max": [
+              5.819171905517578,
+              7.552562236785889,
+              5.472962379455566
+            ]
+          },
+          "iouWithHigh": 0.7710526315789473
+        }
+      ]
+    },
+    {
+      "mode": "normalized",
+      "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+      "frames": [
+        {
+          "species": "garden_parkland",
+          "elevation": 12,
+          "quality": "low",
+          "variant": "tree.garden-parkland@low#codex-gpt-6.1-sol",
+          "area": 215,
+          "width": 18,
+          "height": 25,
+          "triangles": 141,
+          "bounds": {
+            "min": [
+              -3.4702329635620117,
+              -0.315236359834671,
+              -3.9112746715545654
+            ],
+            "max": [
+              3.955777883529663,
+              10,
+              3.772026777267456
+            ]
+          },
+          "iouWithHigh": 0.8311688311688312
+        },
+        {
+          "species": "garden_parkland",
+          "elevation": 12,
+          "quality": "medium",
+          "variant": "tree.garden-parkland@medium#claude-opus-5.5",
+          "area": 221,
+          "width": 17,
+          "height": 25,
+          "triangles": 2043,
+          "bounds": {
+            "min": [
+              -3.912830114364624,
+              -0.3174477517604828,
+              -3.8171982765197754
+            ],
+            "max": [
+              3.475710868835449,
+              10,
+              3.8358888626098633
+            ]
+          },
+          "iouWithHigh": 0.8982300884955752
+        },
+        {
+          "species": "garden_parkland",
+          "elevation": 12,
+          "quality": "high",
+          "variant": "tree.garden-parkland@high#codex-gpt-6.1-sol",
+          "area": 208,
+          "width": 18,
+          "height": 24,
+          "triangles": 21626,
+          "bounds": {
+            "min": [
+              -3.944267988204956,
+              -0.30345600843429565,
+              -3.6898555755615234
+            ],
+            "max": [
+              3.505934953689575,
+              10,
+              3.9482696056365967
+            ]
+          },
+          "iouWithHigh": 1
+        },
+        {
+          "species": "garden_parkland",
+          "elevation": 12,
+          "quality": "ultra",
+          "variant": "tree.garden-parkland@ultra#codex-gpt-6.1-sol",
+          "area": 211,
+          "width": 18,
+          "height": 25,
+          "triangles": 84098,
+          "bounds": {
+            "min": [
+              -3.9648592472076416,
+              -0.311288446187973,
+              -3.7346243858337402
+            ],
+            "max": [
+              3.5129916667938232,
+              10,
+              3.9415910243988037
+            ]
+          },
+          "iouWithHigh": 0.91324200913242
+        },
+        {
+          "species": "garden_parkland",
+          "elevation": 40,
+          "quality": "low",
+          "variant": "tree.garden-parkland@low#codex-gpt-6.1-sol",
+          "area": 176,
+          "width": 17,
+          "height": 20,
+          "triangles": 141,
+          "bounds": {
+            "min": [
+              -3.4702329635620117,
+              -0.315236359834671,
+              -3.9112746715545654
+            ],
+            "max": [
+              3.955777883529663,
+              10,
+              3.772026777267456
+            ]
+          },
+          "iouWithHigh": 0.8279569892473119
+        },
+        {
+          "species": "garden_parkland",
+          "elevation": 40,
+          "quality": "medium",
+          "variant": "tree.garden-parkland@medium#claude-opus-5.5",
+          "area": 184,
+          "width": 17,
+          "height": 20,
+          "triangles": 2043,
+          "bounds": {
+            "min": [
+              -3.912830114364624,
+              -0.3174477517604828,
+              -3.8171982765197754
+            ],
+            "max": [
+              3.475710868835449,
+              10,
+              3.8358888626098633
+            ]
+          },
+          "iouWithHigh": 0.851063829787234
+        },
+        {
+          "species": "garden_parkland",
+          "elevation": 40,
+          "quality": "high",
+          "variant": "tree.garden-parkland@high#codex-gpt-6.1-sol",
+          "area": 164,
+          "width": 16,
+          "height": 19,
+          "triangles": 21626,
+          "bounds": {
+            "min": [
+              -3.944267988204956,
+              -0.30345600843429565,
+              -3.6898555755615234
+            ],
+            "max": [
+              3.505934953689575,
+              10,
+              3.9482696056365967
+            ]
+          },
+          "iouWithHigh": 1
+        },
+        {
+          "species": "garden_parkland",
+          "elevation": 40,
+          "quality": "ultra",
+          "variant": "tree.garden-parkland@ultra#codex-gpt-6.1-sol",
+          "area": 174,
+          "width": 17,
+          "height": 19,
+          "triangles": 84098,
+          "bounds": {
+            "min": [
+              -3.9648592472076416,
+              -0.311288446187973,
+              -3.7346243858337402
+            ],
+            "max": [
+              3.5129916667938232,
+              10,
+              3.9415910243988037
+            ]
+          },
+          "iouWithHigh": 0.898876404494382
+        },
+        {
+          "species": "garden_parkland",
+          "elevation": 70,
+          "quality": "low",
+          "variant": "tree.garden-parkland@low#codex-gpt-6.1-sol",
+          "area": 243,
+          "width": 19,
+          "height": 19,
+          "triangles": 141,
+          "bounds": {
+            "min": [
+              -3.4702329635620117,
+              -0.315236359834671,
+              -3.9112746715545654
+            ],
+            "max": [
+              3.955777883529663,
+              10,
+              3.772026777267456
+            ]
+          },
+          "iouWithHigh": 0.8320610687022901
+        },
+        {
+          "species": "garden_parkland",
+          "elevation": 70,
+          "quality": "medium",
+          "variant": "tree.garden-parkland@medium#claude-opus-5.5",
+          "area": 271,
+          "width": 19,
+          "height": 19,
+          "triangles": 2043,
+          "bounds": {
+            "min": [
+              -3.912830114364624,
+              -0.3174477517604828,
+              -3.8171982765197754
+            ],
+            "max": [
+              3.475710868835449,
+              10,
+              3.8358888626098633
+            ]
+          },
+          "iouWithHigh": 0.8540145985401459
+        },
+        {
+          "species": "garden_parkland",
+          "elevation": 70,
+          "quality": "high",
+          "variant": "tree.garden-parkland@high#codex-gpt-6.1-sol",
+          "area": 237,
+          "width": 19,
+          "height": 18,
+          "triangles": 21626,
+          "bounds": {
+            "min": [
+              -3.944267988204956,
+              -0.30345600843429565,
+              -3.6898555755615234
+            ],
+            "max": [
+              3.505934953689575,
+              10,
+              3.9482696056365967
+            ]
+          },
+          "iouWithHigh": 1
+        },
+        {
+          "species": "garden_parkland",
+          "elevation": 70,
+          "quality": "ultra",
+          "variant": "tree.garden-parkland@ultra#codex-gpt-6.1-sol",
+          "area": 250,
+          "width": 19,
+          "height": 19,
+          "triangles": 84098,
+          "bounds": {
+            "min": [
+              -3.9648592472076416,
+              -0.311288446187973,
+              -3.7346243858337402
+            ],
+            "max": [
+              3.5129916667938232,
+              10,
+              3.9415910243988037
+            ]
+          },
+          "iouWithHigh": 0.8875968992248062
+        },
+        {
+          "species": "sacred_yew",
+          "elevation": 12,
+          "quality": "low",
+          "variant": "tree.sacred-yew@low#codex-gpt-6.1-sol",
+          "area": 203,
+          "width": 17,
+          "height": 25,
+          "triangles": 152,
+          "bounds": {
+            "min": [
+              -3.477508544921875,
+              -0.4701527953147888,
+              -3.7492425441741943
+            ],
+            "max": [
+              3.6606411933898926,
+              10,
+              3.7562215328216553
+            ]
+          },
+          "iouWithHigh": 0.6724890829694323
+        },
+        {
+          "species": "sacred_yew",
+          "elevation": 12,
+          "quality": "medium",
+          "variant": "tree.sacred-yew@medium#claude-opus-5.5",
+          "area": 180,
+          "width": 17,
+          "height": 25,
+          "triangles": 2104,
+          "bounds": {
+            "min": [
+              -3.630932569503784,
+              -0.4815903604030609,
+              -3.6682510375976562
+            ],
+            "max": [
+              3.453617811203003,
+              10,
+              3.319823741912842
+            ]
+          },
+          "iouWithHigh": 0.6744186046511628
+        },
+        {
+          "species": "sacred_yew",
+          "elevation": 12,
+          "quality": "high",
+          "variant": "tree.sacred-yew@high#codex-gpt-6.1-sol",
+          "area": 180,
+          "width": 17,
+          "height": 25,
+          "triangles": 14484,
+          "bounds": {
+            "min": [
+              -3.6350245475769043,
+              -0.46756720542907715,
+              -3.494239091873169
+            ],
+            "max": [
+              3.99985933303833,
+              10,
+              3.5330650806427
+            ]
+          },
+          "iouWithHigh": 1
+        },
+        {
+          "species": "sacred_yew",
+          "elevation": 12,
+          "quality": "ultra",
+          "variant": "tree.sacred-yew@ultra#codex-gpt-6.1-sol",
+          "area": 224,
+          "width": 18,
+          "height": 25,
+          "triangles": 33428,
+          "bounds": {
+            "min": [
+              -3.775325298309326,
+              -0.4634188711643219,
+              -3.6049365997314453
+            ],
+            "max": [
+              3.9733269214630127,
+              10,
+              3.7369353771209717
+            ]
+          },
+          "iouWithHigh": 0.7489177489177489
+        },
+        {
+          "species": "sacred_yew",
+          "elevation": 40,
+          "quality": "low",
+          "variant": "tree.sacred-yew@low#codex-gpt-6.1-sol",
+          "area": 186,
+          "width": 16,
+          "height": 22,
+          "triangles": 152,
+          "bounds": {
+            "min": [
+              -3.477508544921875,
+              -0.4701527953147888,
+              -3.7492425441741943
+            ],
+            "max": [
+              3.6606411933898926,
+              10,
+              3.7562215328216553
+            ]
+          },
+          "iouWithHigh": 0.7064676616915423
+        },
+        {
+          "species": "sacred_yew",
+          "elevation": 40,
+          "quality": "medium",
+          "variant": "tree.sacred-yew@medium#claude-opus-5.5",
+          "area": 158,
+          "width": 16,
+          "height": 20,
+          "triangles": 2104,
+          "bounds": {
+            "min": [
+              -3.630932569503784,
+              -0.4815903604030609,
+              -3.6682510375976562
+            ],
+            "max": [
+              3.453617811203003,
+              10,
+              3.319823741912842
+            ]
+          },
+          "iouWithHigh": 0.75
+        },
+        {
+          "species": "sacred_yew",
+          "elevation": 40,
+          "quality": "high",
+          "variant": "tree.sacred-yew@high#codex-gpt-6.1-sol",
+          "area": 157,
+          "width": 16,
+          "height": 20,
+          "triangles": 14484,
+          "bounds": {
+            "min": [
+              -3.6350245475769043,
+              -0.46756720542907715,
+              -3.494239091873169
+            ],
+            "max": [
+              3.99985933303833,
+              10,
+              3.5330650806427
+            ]
+          },
+          "iouWithHigh": 1
+        },
+        {
+          "species": "sacred_yew",
+          "elevation": 40,
+          "quality": "ultra",
+          "variant": "tree.sacred-yew@ultra#codex-gpt-6.1-sol",
+          "area": 189,
+          "width": 17,
+          "height": 20,
+          "triangles": 33428,
+          "bounds": {
+            "min": [
+              -3.775325298309326,
+              -0.4634188711643219,
+              -3.6049365997314453
+            ],
+            "max": [
+              3.9733269214630127,
+              10,
+              3.7369353771209717
+            ]
+          },
+          "iouWithHigh": 0.8115183246073299
+        },
+        {
+          "species": "sacred_yew",
+          "elevation": 70,
+          "quality": "low",
+          "variant": "tree.sacred-yew@low#codex-gpt-6.1-sol",
+          "area": 260,
+          "width": 20,
+          "height": 19,
+          "triangles": 152,
+          "bounds": {
+            "min": [
+              -3.477508544921875,
+              -0.4701527953147888,
+              -3.7492425441741943
+            ],
+            "max": [
+              3.6606411933898926,
+              10,
+              3.7562215328216553
+            ]
+          },
+          "iouWithHigh": 0.6549295774647887
+        },
+        {
+          "species": "sacred_yew",
+          "elevation": 70,
+          "quality": "medium",
+          "variant": "tree.sacred-yew@medium#claude-opus-5.5",
+          "area": 219,
+          "width": 20,
+          "height": 18,
+          "triangles": 2104,
+          "bounds": {
+            "min": [
+              -3.630932569503784,
+              -0.4815903604030609,
+              -3.6682510375976562
+            ],
+            "max": [
+              3.453617811203003,
+              10,
+              3.319823741912842
+            ]
+          },
+          "iouWithHigh": 0.6436781609195402
+        },
+        {
+          "species": "sacred_yew",
+          "elevation": 70,
+          "quality": "high",
+          "variant": "tree.sacred-yew@high#codex-gpt-6.1-sol",
+          "area": 210,
+          "width": 20,
+          "height": 19,
+          "triangles": 14484,
+          "bounds": {
+            "min": [
+              -3.6350245475769043,
+              -0.46756720542907715,
+              -3.494239091873169
+            ],
+            "max": [
+              3.99985933303833,
+              10,
+              3.5330650806427
+            ]
+          },
+          "iouWithHigh": 1
+        },
+        {
+          "species": "sacred_yew",
+          "elevation": 70,
+          "quality": "ultra",
+          "variant": "tree.sacred-yew@ultra#codex-gpt-6.1-sol",
+          "area": 270,
+          "width": 21,
+          "height": 20,
+          "triangles": 33428,
+          "bounds": {
+            "min": [
+              -3.775325298309326,
+              -0.4634188711643219,
+              -3.6049365997314453
+            ],
+            "max": [
+              3.9733269214630127,
+              10,
+              3.7369353771209717
+            ]
+          },
+          "iouWithHigh": 0.7454545454545455
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "sourceSha256": {
+    "scripts/verifyCeTemperateTreeTransitions.mts": "ea0bd62c23cfbcbdb434151622ed51bfe03caca0c13415412b3990eed2f6eb36",
+    "src/buildings/landscape/temperateTreeLod.ts": "ce2c3c5fb66d537ffc4aea2e1671f396c44b4e5098932e68e2131c165ce0d314",
+    "src/buildings/landscape/smallLeavedLime.ts": "53f0023aa8edf2d1307fc4127386ba3d60f544aa7c3a035e083e653f6de7fe52",
+    "src/buildings/landscape/europeanYew.ts": "251ef483f894d2f37fcebb1f0bc8b7cfeb479363c3eae845128951908ae79c46",
+    "src/buildings/landscape/treeVariants.ts": "f1d00cacbbae51a6b34567d63bf4d6ccf06430c3fb7474707b3b789ad4f121e2",
+    "src/city3d/three/forestTreeDetails.ts": "afba04da64d6e7a557e932023441a4d726dcdf7024b8aaf3046d659a1bc329d6",
+    "src/city3d/adoption.ts": "14d584dfba64e8f164b63fa477c125b6b22f68b46520c0b8635c76498720b9df"
+  }
+}

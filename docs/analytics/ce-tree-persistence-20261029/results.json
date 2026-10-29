@@ -1,0 +1,550 @@
+{
+  "conditions": "Actual CE UI: fixed small city, biome changes, undo/redo, editable JSON, 3D reopening and page-local display preferences. No performance claim.",
+  "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+  "inputMeshSha256": "d4c5d18f966c98da39734ed602d24943d11d0016f0698355650bd479ded38554",
+  "inputElementsSha256": "7462be4854e8eb8e03bcf3d0e98ee3752806b495de823bdcf8c0bceaf0f8ef5c",
+  "input": {
+    "path": "docs/analytics/raw/ce-forest-f0/small-flat.json",
+    "bytes": 3281983,
+    "sha256": "4220c49105da9d78a10d73e71122bc8f3d0f5ab597ed0f56b20bbac9946bc856"
+  },
+  "sourceSha256": {
+    "scripts/verifyCeTreePersistence.mts": "3b04c5779827ce641fff13c5401697aaff3c609e6f419f2f7b343ebf627d958c",
+    "src/city-editor/components/biomeControls.ts": "9162ecd90955cd933dd08179914d4250cb45e314d81208490f678c1281dd9dca",
+    "src/city-editor/generators/cityBiome.ts": "11613cd71bde51d4f2bf463bd1edfd213c558ba74abb372c6d50839578238a7c",
+    "src/city-editor/generators/history.ts": "fa66a37042d8ef0116ae6ec090b2ec88b0d2f7075572257e879114de0d9788c5",
+    "src/city-editor/services/io/documentCodec.ts": "1bdf76402662f5ccb90df67deaf3213b29b75b3d9be1371ce2115685c84f140d",
+    "src/city-editor/renderers/cityView.ts": "7fc7aff5fe50b0011f4c715d58dbc9060569b9278880431e4529fe467fd72a5a",
+    "src/city3d/three/forestTreeDetails.ts": "131329ed4097737390b961fc6d21ecbd8badb75a36e5ead7f960e3d1dbdc4a9f",
+    "src/city3d/adoption.ts": "14d584dfba64e8f164b63fa477c125b6b22f68b46520c0b8635c76498720b9df"
+  },
+  "states": [
+    {
+      "label": "initial",
+      "biome": "temperateDeciduousForest",
+      "qualityPreference": "light",
+      "representation": "edge-fill",
+      "forest": {
+        "quality": "light",
+        "areaM2": 993664.5634041692,
+        "chunks": 35,
+        "visibleChunks": 35,
+        "nearChunks": 0,
+        "middleChunks": 35,
+        "trees": 12048,
+        "triangles": 1848091,
+        "calls": 36,
+        "shadowTriangles": 0,
+        "cachedLayers": 35,
+        "globalFallback": false,
+        "detailedTrees": 12048,
+        "detailedTriangles": 1843344,
+        "detailedSpecies": [
+          "garden_parkland"
+        ],
+        "detailedTiers": {
+          "low": 12048,
+          "medium": 0,
+          "high": 0,
+          "ultra": 0
+        },
+        "builds": 35
+      },
+      "svgArea": 993664.5634041692,
+      "species": [
+        "garden_parkland"
+      ],
+      "treeAuthors": [
+        {
+          "author": "Codex GPT-6.1 Sol (16)",
+          "model": "tree.garden-parkland · low"
+        },
+        {
+          "author": "Codex GPT-6.1 Sol (16)",
+          "model": "tree.sacred-yew · low"
+        }
+      ],
+      "meshPreserved": true,
+      "elementsPreserved": true,
+      "documentSha256": "d5aa47e2904f732fe2480edd2483c2a396c638be3665608a59408cdf363abadb",
+      "generationSettingsSha256": "94933f040fcf33d5361b2dfc3d7bae38cd628ecad64cb5591493336939032338",
+      "version": 6
+    },
+    {
+      "label": "taiga",
+      "biome": "taiga",
+      "qualityPreference": "light",
+      "representation": "edge-fill",
+      "forest": {
+        "quality": "light",
+        "areaM2": 993664.5634041692,
+        "chunks": 35,
+        "visibleChunks": 35,
+        "nearChunks": 0,
+        "middleChunks": 35,
+        "trees": 12048,
+        "triangles": 3713779,
+        "calls": 37,
+        "shadowTriangles": 0,
+        "cachedLayers": 35,
+        "globalFallback": false,
+        "detailedTrees": 12048,
+        "detailedTriangles": 3709032,
+        "detailedSpecies": [
+          "norway_spruce",
+          "silver_birch"
+        ],
+        "detailedTiers": {
+          "low": 12048,
+          "medium": 0,
+          "high": 0,
+          "ultra": 0
+        },
+        "builds": 35
+      },
+      "svgArea": 993664.5634041692,
+      "species": [
+        "norway_spruce",
+        "silver_birch"
+      ],
+      "treeAuthors": [
+        {
+          "author": "Claude Opus 5.5 (2)",
+          "model": "tree.norway-spruce · low"
+        },
+        {
+          "author": "Codex GPT-6.1 Sol (15)",
+          "model": "tree.silver-birch · low"
+        }
+      ],
+      "meshPreserved": true,
+      "elementsPreserved": true,
+      "documentSha256": "76b2869b51246d6bd0497cc02aa1606771a75bf38b9d0d99a7dae12d8dcbf55a",
+      "generationSettingsSha256": "94933f040fcf33d5361b2dfc3d7bae38cd628ecad64cb5591493336939032338",
+      "version": 6
+    },
+    {
+      "label": "temperateRainforest",
+      "biome": "temperateRainforest",
+      "qualityPreference": "light",
+      "representation": "edge-fill",
+      "forest": {
+        "quality": "light",
+        "areaM2": 993664.5634041692,
+        "chunks": 35,
+        "visibleChunks": 35,
+        "nearChunks": 0,
+        "middleChunks": 35,
+        "trees": 12048,
+        "triangles": 5209483,
+        "calls": 36,
+        "shadowTriangles": 0,
+        "cachedLayers": 35,
+        "globalFallback": false,
+        "detailedTrees": 12048,
+        "detailedTriangles": 5204736,
+        "detailedSpecies": [
+          "western_red_cedar"
+        ],
+        "detailedTiers": {
+          "low": 12048,
+          "medium": 0,
+          "high": 0,
+          "ultra": 0
+        },
+        "builds": 35
+      },
+      "svgArea": 993664.5634041692,
+      "species": [
+        "western_red_cedar"
+      ],
+      "treeAuthors": [
+        {
+          "author": "Codex GPT-6.1 Sol (15)",
+          "model": "tree.western-red-cedar · low"
+        }
+      ],
+      "meshPreserved": true,
+      "elementsPreserved": true,
+      "documentSha256": "6593c9b264ab61c7076f8cc2466c28396ca9f6a57a5cde0df297d2d45df3ae26",
+      "generationSettingsSha256": "94933f040fcf33d5361b2dfc3d7bae38cd628ecad64cb5591493336939032338",
+      "version": 6
+    },
+    {
+      "label": "temperateConiferousForest",
+      "biome": "temperateConiferousForest",
+      "qualityPreference": "light",
+      "representation": "edge-fill",
+      "forest": {
+        "quality": "light",
+        "areaM2": 993664.5634041692,
+        "chunks": 35,
+        "visibleChunks": 35,
+        "nearChunks": 0,
+        "middleChunks": 35,
+        "trees": 12048,
+        "triangles": 5209483,
+        "calls": 36,
+        "shadowTriangles": 0,
+        "cachedLayers": 35,
+        "globalFallback": false,
+        "detailedTrees": 12048,
+        "detailedTriangles": 5204736,
+        "detailedSpecies": [
+          "western_red_cedar"
+        ],
+        "detailedTiers": {
+          "low": 12048,
+          "medium": 0,
+          "high": 0,
+          "ultra": 0
+        },
+        "builds": 35
+      },
+      "svgArea": 993664.5634041692,
+      "species": [
+        "western_red_cedar"
+      ],
+      "treeAuthors": [
+        {
+          "author": "Codex GPT-6.1 Sol (15)",
+          "model": "tree.western-red-cedar · low"
+        }
+      ],
+      "meshPreserved": true,
+      "elementsPreserved": true,
+      "documentSha256": "0da5d4ec253f93701cfc4914bdf1095e7e1893d79dc82987f0319b4990a54661",
+      "generationSettingsSha256": "94933f040fcf33d5361b2dfc3d7bae38cd628ecad64cb5591493336939032338",
+      "version": 6
+    },
+    {
+      "label": "hotDesert",
+      "biome": "hotDesert",
+      "qualityPreference": "light",
+      "representation": "edge-fill",
+      "forest": {
+        "quality": "light",
+        "areaM2": 993664.5634041692,
+        "chunks": 35,
+        "visibleChunks": 35,
+        "nearChunks": 0,
+        "middleChunks": 35,
+        "trees": 12048,
+        "triangles": 5450443,
+        "calls": 36,
+        "shadowTriangles": 0,
+        "cachedLayers": 35,
+        "globalFallback": false,
+        "detailedTrees": 12048,
+        "detailedTriangles": 5445696,
+        "detailedSpecies": [
+          "date_palm"
+        ],
+        "detailedTiers": {
+          "low": 12048,
+          "medium": 0,
+          "high": 0,
+          "ultra": 0
+        },
+        "builds": 35
+      },
+      "svgArea": 993664.5634041692,
+      "species": [
+        "date_palm"
+      ],
+      "treeAuthors": [
+        {
+          "author": "Codex GPT-6.1 Sol (15)",
+          "model": "tree.date-palm · low"
+        }
+      ],
+      "meshPreserved": true,
+      "elementsPreserved": true,
+      "documentSha256": "721acacb0ef08e503026be309db9d2d1c084113b6167c63e479e7bbe30f569b4",
+      "generationSettingsSha256": "94933f040fcf33d5361b2dfc3d7bae38cd628ecad64cb5591493336939032338",
+      "version": 6
+    },
+    {
+      "label": "taiga",
+      "biome": "taiga",
+      "qualityPreference": "light",
+      "representation": "edge-fill",
+      "forest": {
+        "quality": "light",
+        "areaM2": 993664.5634041692,
+        "chunks": 35,
+        "visibleChunks": 35,
+        "nearChunks": 0,
+        "middleChunks": 35,
+        "trees": 12048,
+        "triangles": 3713779,
+        "calls": 37,
+        "shadowTriangles": 0,
+        "cachedLayers": 35,
+        "globalFallback": false,
+        "detailedTrees": 12048,
+        "detailedTriangles": 3709032,
+        "detailedSpecies": [
+          "norway_spruce",
+          "silver_birch"
+        ],
+        "detailedTiers": {
+          "low": 12048,
+          "medium": 0,
+          "high": 0,
+          "ultra": 0
+        },
+        "builds": 35
+      },
+      "svgArea": 993664.5634041692,
+      "species": [
+        "norway_spruce",
+        "silver_birch"
+      ],
+      "treeAuthors": [
+        {
+          "author": "Claude Opus 5.5 (2)",
+          "model": "tree.norway-spruce · low"
+        },
+        {
+          "author": "Codex GPT-6.1 Sol (15)",
+          "model": "tree.silver-birch · low"
+        }
+      ],
+      "meshPreserved": true,
+      "elementsPreserved": true,
+      "documentSha256": "76b2869b51246d6bd0497cc02aa1606771a75bf38b9d0d99a7dae12d8dcbf55a",
+      "generationSettingsSha256": "94933f040fcf33d5361b2dfc3d7bae38cd628ecad64cb5591493336939032338",
+      "version": 6
+    },
+    {
+      "label": "glacier",
+      "biome": "glacier",
+      "qualityPreference": "light",
+      "representation": "edge-fill",
+      "forest": null,
+      "svgArea": 0,
+      "species": [],
+      "treeAuthors": [],
+      "meshPreserved": true,
+      "elementsPreserved": true,
+      "documentSha256": "a7f6ffd7e9ec20773a6129d332723ec5ca30b4a4bf7a7ab0c5641d7174dd4a99",
+      "generationSettingsSha256": "94933f040fcf33d5361b2dfc3d7bae38cd628ecad64cb5591493336939032338",
+      "version": 6
+    },
+    {
+      "label": "undo-glacier",
+      "biome": "taiga",
+      "qualityPreference": "light",
+      "representation": "edge-fill",
+      "forest": {
+        "quality": "light",
+        "areaM2": 993664.5634041692,
+        "chunks": 35,
+        "visibleChunks": 35,
+        "nearChunks": 0,
+        "middleChunks": 35,
+        "trees": 12048,
+        "triangles": 3713779,
+        "calls": 37,
+        "shadowTriangles": 0,
+        "cachedLayers": 35,
+        "globalFallback": false,
+        "detailedTrees": 12048,
+        "detailedTriangles": 3709032,
+        "detailedSpecies": [
+          "norway_spruce",
+          "silver_birch"
+        ],
+        "detailedTiers": {
+          "low": 12048,
+          "medium": 0,
+          "high": 0,
+          "ultra": 0
+        },
+        "builds": 35
+      },
+      "svgArea": 993664.5634041692,
+      "species": [
+        "norway_spruce",
+        "silver_birch"
+      ],
+      "treeAuthors": [
+        {
+          "author": "Claude Opus 5.5 (2)",
+          "model": "tree.norway-spruce · low"
+        },
+        {
+          "author": "Codex GPT-6.1 Sol (15)",
+          "model": "tree.silver-birch · low"
+        }
+      ],
+      "meshPreserved": true,
+      "elementsPreserved": true,
+      "documentSha256": "76b2869b51246d6bd0497cc02aa1606771a75bf38b9d0d99a7dae12d8dcbf55a",
+      "generationSettingsSha256": "94933f040fcf33d5361b2dfc3d7bae38cd628ecad64cb5591493336939032338",
+      "version": 6
+    },
+    {
+      "label": "redo-glacier",
+      "biome": "glacier",
+      "qualityPreference": "light",
+      "representation": "edge-fill",
+      "forest": null,
+      "svgArea": 0,
+      "species": [],
+      "treeAuthors": [],
+      "meshPreserved": true,
+      "elementsPreserved": true,
+      "documentSha256": "a7f6ffd7e9ec20773a6129d332723ec5ca30b4a4bf7a7ab0c5641d7174dd4a99",
+      "generationSettingsSha256": "94933f040fcf33d5361b2dfc3d7bae38cd628ecad64cb5591493336939032338",
+      "version": 6
+    },
+    {
+      "label": "reload-glacier",
+      "biome": "glacier",
+      "qualityPreference": "light",
+      "representation": "edge-fill",
+      "forest": null,
+      "svgArea": 0,
+      "species": [],
+      "treeAuthors": [],
+      "meshPreserved": true,
+      "elementsPreserved": true,
+      "documentSha256": "a7f6ffd7e9ec20773a6129d332723ec5ca30b4a4bf7a7ab0c5641d7174dd4a99",
+      "generationSettingsSha256": "94933f040fcf33d5361b2dfc3d7bae38cd628ecad64cb5591493336939032338",
+      "version": 6
+    },
+    {
+      "label": "reload-taiga",
+      "biome": "taiga",
+      "qualityPreference": "light",
+      "representation": "edge-fill",
+      "forest": {
+        "quality": "light",
+        "areaM2": 993664.5634041692,
+        "chunks": 35,
+        "visibleChunks": 35,
+        "nearChunks": 0,
+        "middleChunks": 35,
+        "trees": 12048,
+        "triangles": 3713779,
+        "calls": 37,
+        "shadowTriangles": 0,
+        "cachedLayers": 35,
+        "globalFallback": false,
+        "detailedTrees": 12048,
+        "detailedTriangles": 3709032,
+        "detailedSpecies": [
+          "norway_spruce",
+          "silver_birch"
+        ],
+        "detailedTiers": {
+          "low": 12048,
+          "medium": 0,
+          "high": 0,
+          "ultra": 0
+        },
+        "builds": 35
+      },
+      "svgArea": 993664.5634041692,
+      "species": [
+        "norway_spruce",
+        "silver_birch"
+      ],
+      "treeAuthors": [
+        {
+          "author": "Claude Opus 5.5 (2)",
+          "model": "tree.norway-spruce · low"
+        },
+        {
+          "author": "Codex GPT-6.1 Sol (15)",
+          "model": "tree.silver-birch · low"
+        }
+      ],
+      "meshPreserved": true,
+      "elementsPreserved": true,
+      "documentSha256": "76b2869b51246d6bd0497cc02aa1606771a75bf38b9d0d99a7dae12d8dcbf55a",
+      "generationSettingsSha256": "94933f040fcf33d5361b2dfc3d7bae38cd628ecad64cb5591493336939032338",
+      "version": 6
+    },
+    {
+      "label": "final",
+      "biome": "taiga",
+      "qualityPreference": "light",
+      "representation": "all-trees",
+      "forest": {
+        "quality": "light",
+        "areaM2": 993664.5634041692,
+        "chunks": 35,
+        "visibleChunks": 35,
+        "nearChunks": 0,
+        "middleChunks": 35,
+        "trees": 12048,
+        "triangles": 3713779,
+        "calls": 37,
+        "shadowTriangles": 0,
+        "cachedLayers": 35,
+        "globalFallback": false,
+        "detailedTrees": 12048,
+        "detailedTriangles": 3709032,
+        "detailedSpecies": [
+          "norway_spruce",
+          "silver_birch"
+        ],
+        "detailedTiers": {
+          "low": 12048,
+          "medium": 0,
+          "high": 0,
+          "ultra": 0
+        },
+        "builds": 35
+      },
+      "svgArea": 993664.5634041692,
+      "species": [
+        "norway_spruce",
+        "silver_birch"
+      ],
+      "treeAuthors": [
+        {
+          "author": "Claude Opus 5.5 (2)",
+          "model": "tree.norway-spruce · low"
+        },
+        {
+          "author": "Codex GPT-6.1 Sol (15)",
+          "model": "tree.silver-birch · low"
+        }
+      ],
+      "meshPreserved": true,
+      "elementsPreserved": true,
+      "documentSha256": "76b2869b51246d6bd0497cc02aa1606771a75bf38b9d0d99a7dae12d8dcbf55a",
+      "generationSettingsSha256": "94933f040fcf33d5361b2dfc3d7bae38cd628ecad64cb5591493336939032338",
+      "version": 6
+    }
+  ],
+  "localDisplay": {
+    "documentUnchanged": true
+  },
+  "savedRecords": [
+    {
+      "path": "docs/analytics/raw/ce-tree-persistence-20261029/taiga.json",
+      "bytes": 483448,
+      "sha256": "76b2869b51246d6bd0497cc02aa1606771a75bf38b9d0d99a7dae12d8dcbf55a"
+    },
+    {
+      "path": "docs/analytics/raw/ce-tree-persistence-20261029/glacier.json",
+      "bytes": 483500,
+      "sha256": "a7f6ffd7e9ec20773a6129d332723ec5ca30b4a4bf7a7ab0c5641d7174dd4a99"
+    },
+    {
+      "path": "docs/analytics/raw/ce-tree-persistence-20261029/final.json",
+      "bytes": 483448,
+      "sha256": "76b2869b51246d6bd0497cc02aa1606771a75bf38b9d0d99a7dae12d8dcbf55a"
+    }
+  ],
+  "reloadPreferences": {
+    "quality": "light",
+    "representation": "all-trees"
+  },
+  "errors": []
+}

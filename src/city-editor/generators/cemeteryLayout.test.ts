@@ -304,3 +304,36 @@ describe("cemeteryLayout", () => {
     }
   });
 });
+
+it.each(["field", "churchyard"] as const)(
+  "omits newly generated %s trees on ice without dropping burial structures",
+  form => {
+    const document = makeMinimalDocument();
+    const plan: CemeteryPlan = {
+      id: "ice-cemetery",
+      version: 1,
+      seed: "ice",
+      form,
+      faceId: "f0",
+      boundary: [
+        [-60, -60],
+        [60, -60],
+        [60, 60],
+        [-60, 60]
+      ],
+      courtyards: [],
+      accesses: [],
+      parts: [],
+      trees: [],
+      gatePoint: [0, -60],
+      provenance: "generated",
+      locked: false
+    };
+    expect(layoutCemetery(document, plan)!.trees.length).toBeGreaterThan(0);
+    document.biome = { id: 1, key: "glacier", name: "Ice", color: "white" };
+    const result = layoutCemetery(document, plan)!;
+    expect(result.trees).toEqual([]);
+    expect(result.parts.length).toBeGreaterThan(0);
+    expect(plan.trees).toEqual([]);
+  }
+);

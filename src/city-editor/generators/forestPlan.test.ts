@@ -9,7 +9,7 @@ import type { DistrictFabric } from "./blockInfill.types";
 import { createDocument, createGridDocument } from "./document";
 import { forestRegions } from "./forestGeometry";
 import { enforceForestLandCover, forestLandCover, withForestSettings } from "./forestLandCover";
-import { buildForestPlan } from "./forestPlan";
+import { buildForestPlan, cachedForestPlan } from "./forestPlan";
 import { generateCityOnDocument } from "./generation/generateCity";
 import { generateWardStep } from "./generation/previews";
 import { defaultGenerationSettings } from "./generation/settings";
@@ -346,3 +346,22 @@ describe("forest persistence and editing", () => {
     expect(parseDocument(serializeDocument(removed))?.forestSettings).toEqual(settings);
   });
 });
+
+it.each(["marine", "tundra", "glacier", "lavaField"])(
+  "keeps %s forest requests reversible without consuming farms",
+  key => {
+    const doc = withForestSettings(city(), settings);
+    const fabric = buildBlockFabric(city());
+    const before = JSON.stringify(doc.mesh);
+    expect(cachedForestPlan(doc, fabric).areaM2).toBeGreaterThan(0);
+    doc.biome = { id: 1, key, name: key, color: "grey" };
+    doc.mesh.faces.f0.properties.landCoverOverride = "forest";
+    expect(forestLandCover(doc).size).toBe(0);
+    expect(enforceForestLandCover(doc, fabric)).toBe(fabric);
+    expect(cachedForestPlan(doc, fabric)).toMatchObject({ areaM2: 0, regions: [], forestFaceIds: [] });
+    delete doc.biome;
+    delete doc.mesh.faces.f0.properties.landCoverOverride;
+    expect(cachedForestPlan(doc, fabric).areaM2).toBeGreaterThan(0);
+    expect(JSON.stringify(doc.mesh)).toBe(before);
+  }
+);

@@ -1,5 +1,7 @@
 # CE森林LOD：ハンノキ・ナナカマド・カナリアマツの4品質化
 
+確認用画像は目視比較のための一時出力とし、永続保存・Git収録を行わない。画像ファイルの有無を完了条件にせず、以下の所見・条件・計測値・再現手順を記録として残す。既存スクリプトによる画像出力も確認後に削除する。
+
 2026-10-29。[全樹種のタスクリスト](../plan/ce-forest-biome-tree-lod-tasks.md) F3-2の作業記録。
 
 ## 1. 実装と作者
@@ -43,10 +45,10 @@ CE森林は距離40／120／400 mのquality-firstとした。元ultraの樹高�
 
 CEと同じ `createBvPrototypeCache().acquire()`、DoubleSideの頂点カラー材質、HemisphereLight（0xf4f0e6／0x6d7a62、0.9）、DirectionalLight（1.15、`sunDirection(DEFAULT_SUN)`）を使った。背景0xc5c5bf、SRGB、DPR 1、1200×1200。
 
-- [4品質・斜め](ce-tree-lod-upland-20261029/models-front.png)、[側面](ce-tree-lod-upland-20261029/models-side.png)、[俯瞰](ce-tree-lod-upland-20261029/models-top.png)
-- 単木medium／high：high樹冠bounds基準の45／90 px相当で倍率を揃え、[12°](ce-tree-lod-upland-20261029/single-medium-high-12.png)、[40°](ce-tree-lod-upland-20261029/single-medium-high-40.png)、[70°](ce-tree-lod-upland-20261029/single-medium-high-70.png)を比較。
-- [各260本の林、35°／130 m](ce-tree-lod-upland-20261029/stand-medium-high.png)：同じ位置・回転・寸法で比較。
-- 実BV：[ハンノキ](ce-tree-lod-upland-20261029/bv-black-alder-medium.png)、[ナナカマド](ce-tree-lod-upland-20261029/bv-rowan-medium.png)、[カナリアマツ](ce-tree-lod-upland-20261029/bv-canary-pine-medium.png)。各4品質の選択と描画を確認した。
+- 4品質・斜め、側面、俯瞰
+- 単木medium／high：high樹冠bounds基準の45／90 px相当で倍率を揃え、12°、40°、70°を比較。
+- 各260本の林、35°／130 m：同じ位置・回転・寸法で比較。
+- 実BV：ハンノキ、ナナカマド、カナリアマツ。各4品質の選択と描画を確認した。
 
 mediumは個別葉を不透明な房へまとめるためhighより面の占有率が高く、lowの葉群や枝も粗い。画像はこの差を含む比較資料であり、全条件の最終受入はF5に残す。
 
@@ -70,9 +72,9 @@ quality-firstは森全体の三角形・本数の予算で汎用形へ戻さな�
 | `volcanicBarrens` | edge | 301 | 0 / 229 / 64 / 8 | 1,854,516 | 9 |
 | `volcanicBarrens` | low | 178 | 0 / 101 / 66 / 11 | 1,674,098 | 9 |
 
-- ハンノキ：[林縁](ce-tree-lod-upland-20261029/wetland-edge.png)、[俯瞰](ce-tree-lod-upland-20261029/wetland-overview.png)、[低視点](ce-tree-lod-upland-20261029/wetland-low.png)
-- ナナカマド：[林縁](ce-tree-lod-upland-20261029/alpineTundra-edge.png)、[俯瞰](ce-tree-lod-upland-20261029/alpineTundra-overview.png)、[低視点](ce-tree-lod-upland-20261029/alpineTundra-low.png)
-- カナリアマツ：[林縁](ce-tree-lod-upland-20261029/volcanicBarrens-edge.png)、[俯瞰](ce-tree-lod-upland-20261029/volcanicBarrens-overview.png)、[低視点](ce-tree-lod-upland-20261029/volcanicBarrens-low.png)
+- ハンノキ：林縁、俯瞰、低視点
+- ナナカマド：林縁、俯瞰、低視点
+- カナリアマツ：林縁、俯瞰、低視点
 
 品質切替3巡のgeometry数は3バイオームとも19→19→19で安定し、WebGL・pageerror・BVエラーは0件。[描画記録JSON](ce-tree-lod-upland-20261029/results.json) の時間は単発のCPU更新／提出のみで、GPU完了時間・街全体の操作p95・33 ms目標の達成を示さない。
 
@@ -90,6 +92,6 @@ node --import tsx scripts/measureCeTreeModels.mts docs/analytics/ce-tree-lod-upl
 node --import tsx scripts/verifyCeUplandTreeLod.mts
 ```
 
-変更前JSONは上書きせず保持する。棚卸しJSONにソースSHA-256、描画スクリプトに固定入力・条件を保存した。今回のJSON・画像は各ファイル2 MB未満。TypeScript全体検査は既存の `src/city-editor/renderers/fogControls.ts:45` のstring／EditorMessageKey不一致1件で失敗し、今回の変更ファイルには型エラーが報告されなかった。
+変更前JSONは上書きせず保持する。棚卸しJSONにソースSHA-256、描画スクリプトに固定入力・条件を保存した。保存対象のJSONは各ファイル2 MB未満。TypeScript全体検査は既存の `src/city-editor/renderers/fogControls.ts:45` のstring／EditorMessageKey不一致1件で失敗し、今回の変更ファイルには型エラーが報告されなかった。
 
 次のモデル作製はF4-1のイトスギ・コノテガシワ・インドボダイジュ・シダレヤナギ。残る4樹種の作製後も、各バイオームの適用確認とF5の最終受入を継続する。

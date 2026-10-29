@@ -72,13 +72,13 @@ export function createForestTreeDetails(parent: THREE.Group, treeLimit?: number)
     let radius = 0;
     for (let i = 0; i < positions.count; i++)
       radius = Math.max(radius, Math.hypot(positions.getX(i), positions.getZ(i)));
-    const height = lease.bounds.max.y - lease.bounds.min.y;
+    const height = lease.bounds.max.y;
     if (radius <= 0 || height <= 0) {
       lease.release();
       return;
     }
-    // Fit the existing candidate envelope: a unit crown radius, ten metres tall, roots at y=0.
-    geometry.translate(0, -lease.bounds.min.y, 0);
+    // Fit a unit crown radius and ten metres above the model's ground datum (y=0).
+    // Preserve buried roots below that datum instead of lifting the trunk above the terrain.
     geometry.scale(1 / radius, 10 / height, 1 / radius);
     geometry.computeBoundingBox();
     geometry.computeBoundingSphere();
@@ -124,6 +124,7 @@ export function createForestTreeDetails(parent: THREE.Group, treeLimit?: number)
     ) {
       const stats = {
         trees: 0,
+        qualityFirstTrees: 0,
         triangles: 0,
         calls: 0,
         shadowTriangles: 0,
@@ -200,6 +201,13 @@ export function createForestTreeDetails(parent: THREE.Group, treeLimit?: number)
         boundedSpecies = new Set<TreeSpecies>(),
         usedModels = new Set<Model>(),
         shadows: string[] = [];
+      // Resolve each adopted species/tier once per frame, while allowing adoption changes next frame.
+      const frameModels = new Map<string, Model | undefined>();
+      const frameModel = (species: TreeSpecies, quality: TreeQuality) => {
+        const key = `${species}:${quality}`;
+        if (!frameModels.has(key)) frameModels.set(key, getModel(species, quality));
+        return frameModels.get(key);
+      };
       let tieredTrees = 0,
         untieredTrees = 0,
         boundedTriangles = 0,
@@ -215,7 +223,7 @@ export function createForestTreeDetails(parent: THREE.Group, treeLimit?: number)
         let model: Model | undefined;
         for (let level = TREE_QUALITIES.indexOf(quality); level >= 0; level--) {
           chosen = TREE_QUALITIES[level];
-          model = getModel(site.species, chosen);
+          model = frameModel(site.species, chosen);
           if (model && (preserveQuality || boundedTriangles + model.triangles <= budget.triangles)) break;
           model = undefined;
           if (preserveQuality || !profile) break;
@@ -245,6 +253,7 @@ export function createForestTreeDetails(parent: THREE.Group, treeLimit?: number)
           if (profile) tieredTrees++;
           else untieredTrees++;
         }
+        if (profile?.budget === "quality-first") stats.qualityFirstTrees++;
         stats.trees++;
         stats.triangles += model.triangles;
         if (shadow) {

@@ -1,5 +1,7 @@
 # CE森林LOD：ベイスギ・モミの4品質化
 
+確認用画像は目視比較のための一時出力とし、永続保存・Git収録を行わない。画像ファイルの有無を完了条件にせず、以下の所見・条件・計測値・再現手順を記録として残す。既存スクリプトによる画像出力も確認後に削除する。
+
 2026-10-29。[全樹種のタスクリスト](../plan/ce-forest-biome-tree-lod-tasks.md) F1-3の作業記録。
 
 ## 1. 実装と作者
@@ -42,16 +44,16 @@
 
 lowの初期値0.85では樹冠幅が不足したため、実寸の比較と検査で調整した。mediumは林でhighより明るかったため、ベイスギの明度を0.27→0.24、モミを0.24→0.21へ下げた。モミでは細い枝の描画を減らし、mediumを3,000三角形未満に収めた。lowは500未満、highは25,000未満、ultraは120,000未満の制作目安も満たしている。
 
-highは個別の枝葉、mediumは面として縮約した房であり、拡大時の葉の隙間・不透明な面の量まで完全一致するわけではない。採用の比較資料として以下の同条件画像を残す。
+highは個別の枝葉、mediumは面として縮約した房であり、拡大時の葉の隙間・不透明な面の量まで完全一致するわけではない。採用の比較資料として以下の同条件で目視確認し、所見を残す。
 
 ## 3. 比較条件と画像
 
 すべて `createBvPrototypeCache().acquire()` を通した、CEと同じDoubleSideの頂点カラー材質・結合geometryで描く。照明は `HemisphereLight(0xf4f0e6, 0x6d7a62, 0.9)`、`DirectionalLight(1.15)`、`sunDirection(DEFAULT_SUN)`。背景は `0xc5c5bf`、SRGB、DPR 1、1200×800。
 
-- [4品質・斜め](ce-tree-lod-cedar-fir-20261029/models-front.png)、[側面](ce-tree-lod-cedar-fir-20261029/models-side.png)、[俯瞰](ce-tree-lod-cedar-fir-20261029/models-top.png)
-- medium／highの単木：highの樹冠boundsを基準に45／90 px相当で倍率を揃え、[12°](ce-tree-lod-cedar-fir-20261029/single-medium-high-12.png)、[40°](ce-tree-lod-cedar-fir-20261029/single-medium-high-40.png)、[70°](ce-tree-lod-cedar-fir-20261029/single-medium-high-70.png)を比較。枝葉の隙間で実画素の占有面積は異なる。
-- [各260本の林・35°／130 m](ce-tree-lod-cedar-fir-20261029/stand-medium-high.png)。同じ位置・回転・寸法を使い、2樹種それぞれのmedium／highを比較した。
-- 実BV画面：[ベイスギmedium](ce-tree-lod-cedar-fir-20261029/bv-western-red-cedar-medium.png)、[モミmedium](ce-tree-lod-cedar-fir-20261029/bv-silver-fir-medium.png)。それぞれ全4品質の選択と描画を確認した。
+- 4品質・斜め、側面、俯瞰
+- medium／highの単木：highの樹冠boundsを基準に45／90 px相当で倍率を揃え、12°、40°、70°を比較。枝葉の隙間で実画素の占有面積は異なる。
+- 各260本の林・35°／130 m。同じ位置・回転・寸法を使い、2樹種それぞれのmedium／highを比較した。
+- 実BV画面：ベイスギmedium、モミmedium。それぞれ全4品質の選択と描画を確認した。
 
 再現コマンド：
 
@@ -79,8 +81,8 @@ Apple M4、ANGLE Metal Renderer、Chromium。森林standardの数量は以下の
 | `montaneForest` | edge | 408 | 0 / 307 / 92 / 9 | 3,384,510 | 8 |
 | `montaneForest` | low | 230 | 0 / 128 / 89 / 13 | 3,222,704 | 8 |
 
-- [ベイスギの林縁](ce-tree-lod-cedar-fir-20261029/temperateRainforest-edge.png)、[俯瞰](ce-tree-lod-cedar-fir-20261029/temperateRainforest-overview.png)、[低視点](ce-tree-lod-cedar-fir-20261029/temperateRainforest-low.png)
-- [モミの林縁](ce-tree-lod-cedar-fir-20261029/montaneForest-edge.png)、[俯瞰](ce-tree-lod-cedar-fir-20261029/montaneForest-overview.png)、[低視点](ce-tree-lod-cedar-fir-20261029/montaneForest-low.png)
+- ベイスギの林縁、俯瞰、低視点
+- モミの林縁、俯瞰、低視点
 
 両バイオームで品質切替3巡のgeometry数はそれぞれ15→15→15で安定し、WebGLエラー・pageerrorとも0件。[描画記録JSON](ce-tree-lod-cedar-fir-20261029/results.json) は単発CPU更新／描画提出時間のみで、GPU完了時間・街全体の操作p95・33 ms目標の達成を示さない。影ありの見た目・別GPU・高DPR・全バイオームの総合受入はF5に残る。
 

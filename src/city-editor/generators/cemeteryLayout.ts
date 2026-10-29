@@ -2,6 +2,7 @@ import type { CemeteryPart, CemeteryPlan, CityDocument, Face, Id, Point } from "
 import { layoutCultureCemetery } from "./cultureCemeteryLayout";
 import { insideRing, polygonOverlaps, polylineInsideRing } from "./fortifications";
 import { nearestOnPolyline, polygonArea, polygonCentroid, segmentInteriorInPolygon } from "./geom";
+import { landscapeHasTrees } from "./landscapeVegetation";
 import {
   clipBlockWithRivers,
   convexInfillParts,
@@ -126,7 +127,7 @@ export function layoutCemetery(
   // If explicitly configured as "field" (pure burial ground with rows of headstones),
   // layout burial field directly without attempting large church buildings
   if (cemetery.form === "field") {
-    return layoutBurialField(cemetery, safe, ring, at, center, x, y, world, extentRadius);
+    return layoutBurialField(document, cemetery, safe, ring, at, center, x, y, world, extentRadius);
   }
 
   // Fit the largest rectangular frame inside the safe kernel for churchyard buildings
@@ -142,7 +143,7 @@ export function layoutCemetery(
 
   // A narrow churchyard can still serve as a burial ground without chapel buildings.
   if (!frame) {
-    return layoutBurialField(cemetery, safe, ring, at, center, x, y, world, extentRadius);
+    return layoutBurialField(document, cemetery, safe, ring, at, center, x, y, world, extentRadius);
   }
   const [w, h] = frame;
 
@@ -229,7 +230,7 @@ export function layoutCemetery(
   // Check overlaps among building parts (excluding calvary/graves which sit in open yard)
   const solidParts = parts.filter(p => p.role !== "calvary" && p.role !== "graves");
   if (solidParts.some((p, i) => solidParts.slice(i + 1).some(q => polygonOverlaps(p.footprint, q.footprint)))) {
-    return layoutBurialField(cemetery, safe, ring, at, center, x, y, world, extentRadius);
+    return layoutBurialField(document, cemetery, safe, ring, at, center, x, y, world, extentRadius);
   }
 
   // Courtyard / lawn: the entire safe kernel inside the precinct wall
@@ -278,7 +279,7 @@ export function layoutCemetery(
     world(w * 0.7, -h * 0.7),
     world(-w * 0.35, -h * 0.8),
     world(w * 0.35, -h * 0.8)
-  ].filter(p => insideRing(p, safe));
+  ].filter(p => landscapeHasTrees(document) && insideRing(p, safe));
 
   return {
     ...cemetery,
@@ -297,6 +298,7 @@ export function layoutCemetery(
  * or compact parcels where a full abbey/church complex does not fit.
  */
 function layoutBurialField(
+  document: CityDocument,
   cemetery: CemeteryPlan,
   safe: Point[],
   _ring: Point[],
@@ -364,7 +366,7 @@ function layoutBurialField(
 
   // 4. Trees: planted along perimeter borders
   let trees: Point[] = [];
-  if (cemetery.burialProfile?.vegetation !== "barren_gravel") {
+  if (cemetery.burialProfile?.vegetation !== "barren_gravel" && landscapeHasTrees(document)) {
     const treeCandidates: Point[] = [
       world(-extentRadius * 0.65, -extentRadius * 0.65),
       world(extentRadius * 0.65, -extentRadius * 0.65),

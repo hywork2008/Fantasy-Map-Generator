@@ -2,6 +2,7 @@ import type { BurialCultureProfile } from "../../data/burialCultures";
 import type { CemeteryPart, CemeteryPlan, CityDocument, Point } from "../types/document";
 import { polygonOverlaps, polylineInsideRing } from "./fortifications";
 import { nearestOnPolyline } from "./geom";
+import { landscapeHasTrees } from "./landscapeVegetation";
 import { makeRng } from "./prng";
 import { dryRuns, waterPolygons } from "./waterGeometry";
 
@@ -183,7 +184,7 @@ export function layoutCultureCemetery(
   }
 
   // Tree species affect both the placement and the renderer's canopy silhouette.
-  if (profile.vegetation !== "barren_gravel") {
+  if (profile.vegetation !== "barren_gravel" && landscapeHasTrees(document)) {
     const treeCandidates: Point[] = [];
     if (profile.vegetation === "sacred_bodhi_and_fig") treeCandidates.push(world(7, 2));
     else if (profile.vegetation === "mediterranean_cypress") {

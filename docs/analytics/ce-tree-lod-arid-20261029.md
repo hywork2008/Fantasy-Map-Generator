@@ -1,5 +1,7 @@
 # CE森林LOD：ナツメヤシ・アンブレラソーンの4品質化
 
+確認用画像は目視比較のための一時出力とし、永続保存・Git収録を行わない。画像ファイルの有無を完了条件にせず、以下の所見・条件・計測値・再現手順を記録として残す。既存スクリプトによる画像出力も確認後に削除する。
+
 2026-10-29。[全樹種のタスクリスト](../plan/ce-forest-biome-tree-lod-tasks.md) F2-1の作業記録。
 
 ## 1. 実装と作者
@@ -37,10 +39,10 @@ CE森林では元モデルを共通の樹高10 m・樹冠半径1へ正規化す�
 
 CEと同じ `createBvPrototypeCache().acquire()`、DoubleSideの頂点カラー材質、HemisphereLight（0xf4f0e6／0x6d7a62、0.9）とDirectionalLight（1.15、`sunDirection(DEFAULT_SUN)`）を使う。背景0xc5c5bf、SRGB、DPR 1、1200×800。
 
-- [4品質・斜め](ce-tree-lod-arid-20261029/models-front.png)、[側面](ce-tree-lod-arid-20261029/models-side.png)、[俯瞰](ce-tree-lod-arid-20261029/models-top.png)
-- 単木medium／high、high樹冠bounds基準の45／90 px相当：[12°](ce-tree-lod-arid-20261029/single-medium-high-12.png)、[40°](ce-tree-lod-arid-20261029/single-medium-high-40.png)、[70°](ce-tree-lod-arid-20261029/single-medium-high-70.png)
-- [各260本の林、35°／130 m](ce-tree-lod-arid-20261029/stand-medium-high.png)：同じ位置・回転・寸法で比較。
-- 実BV：[ナツメヤシmedium](ce-tree-lod-arid-20261029/bv-date-palm-medium.png)、[アンブレラソーンmedium](ce-tree-lod-arid-20261029/bv-umbrella-thorn-medium.png)。それぞれ全4品質の選択と描画を確認した。
+- 4品質・斜め、側面、俯瞰
+- 単木medium／high、high樹冠bounds基準の45／90 px相当：12°、40°、70°
+- 各260本の林、35°／130 m：同じ位置・回転・寸法で比較。
+- 実BV：ナツメヤシmedium、アンブレラソーンmedium。それぞれ全4品質の選択と描画を確認した。
 
 mediumは葉群を不透明な面へ縮約するため、highの個別葉に比べて面の占有率が高く、特にナツメヤシの葉の透け方は一致しない。画像はこの差を含む採用比較資料であり、最終受入はF5に残す。
 
@@ -61,8 +63,8 @@ mediumは葉群を不透明な面へ縮約するため、highの個別葉に比�
 | `savanna` | edge | 396 | 0 / 303 / 89 / 4 | 1,180,411 | 12 |
 | `savanna` | low | 218 | 0 / 126 / 82 / 10 | 832,780 | 12 |
 
-- ナツメヤシ：[林縁](ce-tree-lod-arid-20261029/hotDesert-edge.png)、[俯瞰](ce-tree-lod-arid-20261029/hotDesert-overview.png)、[低視点](ce-tree-lod-arid-20261029/hotDesert-low.png)
-- 混交林：[林縁](ce-tree-lod-arid-20261029/savanna-edge.png)、[俯瞰](ce-tree-lod-arid-20261029/savanna-overview.png)、[低視点](ce-tree-lod-arid-20261029/savanna-low.png)
+- ナツメヤシ：林縁、俯瞰、低視点
+- 混交林：林縁、俯瞰、低視点
 
 品質切替3巡のgeometry数はhotDesertで15→15→15、savannaで17→17→17と安定した。WebGL・pageerror・BVエラーは0件。[描画記録JSON](ce-tree-lod-arid-20261029/results.json) の時間は単発のCPU更新／提出だけで、GPU完了時間・街全体のp95・33 ms目標の達成を示さない。影ありの外観・別GPU・高DPR・全バイオームの総合確認はF5に残る。
 
@@ -76,6 +78,6 @@ node --import tsx scripts/measureCeTreeModels.mts docs/analytics/ce-tree-lod-ari
 node --import tsx scripts/verifyCeAridTreeLod.mts
 ```
 
-変更前JSONは上書きしない。棚卸しJSONにはソースSHA-256、描画スクリプトには固定入力と比較条件を保存した。今回のJSON・画像は各ファイル2 MB未満。TypeScript全体検査は既存の `src/city-editor/renderers/fogControls.ts:45` のstring／EditorMessageKey不一致1件で失敗し、今回の変更ファイルには型エラーが報告されなかった。
+変更前JSONは上書きしない。棚卸しJSONにはソースSHA-256、描画スクリプトには固定入力と比較条件を保存した。保存対象のJSONは各ファイル2 MB未満。TypeScript全体検査は既存の `src/city-editor/renderers/fogControls.ts:45` のstring／EditorMessageKey不一致1件で失敗し、今回の変更ファイルには型エラーが報告されなかった。
 
-次のモデル作製はF2-2のサクサウール・ギョリュウ・オリーブ。F1-1の既存モデル基準画像、F1-4の温帯・寒帯確認、F2-3の乾燥地での自然林／人工植栽の適用確認も残す。
+次のモデル作製はF2-2のサクサウール・ギョリュウ・オリーブ。F1-1の既存モデルの基準比較、F1-4の温帯・寒帯確認、F2-3の乾燥地での自然林／人工植栽の適用確認も残す。

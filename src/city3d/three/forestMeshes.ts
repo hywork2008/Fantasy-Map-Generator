@@ -3,6 +3,7 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import { TREE_LOD_DISTANCES } from "../../buildings/landscape/treeQuality";
 import { hasTreeQualityLevels, type TreeSpecies, treeLodProfile } from "../../buildings/landscape/trees";
 import { forestContains } from "../../city-editor/generators/forestGeometry";
+import { landscapeHasTrees } from "../../city-editor/generators/landscapeVegetation";
 import { bounds, intersectConvex, PlotIndex, plotArea } from "../../city-editor/generators/parcelGeometry";
 import { landscapeTreeSpecies } from "../../city-editor/renderers/landscapeTreeSpecies";
 import type { ForestPlan, ForestRegion } from "../../city-editor/types/contracts/forest";
@@ -142,10 +143,9 @@ export function createTownForest(
   initialQuality: Forest3dQuality = "standard",
   simplify = true
 ) {
+  if (!landscapeHasTrees(document)) plan = { ...plan, regions: [], forestFaceIds: [], areaM2: 0 };
   const group = new THREE.Group();
   group.name = "ce-forest";
-  const forestProfile = treeLodProfile(landscapeTreeSpecies("garden_parkland", document, [0, 0]));
-  const qualityFirstTrees = forestProfile?.budget === "quality-first";
   const details = createForestTreeDetails(group);
   const seed = document.generationSeed ?? document.fabric?.seed ?? document.format;
   const heightAt = terrain?.heightAt ?? (() => 0);
@@ -361,22 +361,11 @@ export function createTownForest(
     detailedTiers: { low: 0, medium: 0, high: 0, ultra: 0 },
     builds: 0
   };
-  const getLayer = (chunk: Chunk, lod: "middle" | "near"): TreeLayer => {
-    const key = `${chunk.id}:${lod}`,
-      hit = cache.get(key);
-    if (hit) {
-      cache.delete(key);
-      cache.set(key, hit);
-      return hit;
-    }
-    const root = new THREE.Group();
-    root.name = `forest-trees-${key}`;
-    group.add(root);
+  type Candidate = Omit<ForestTreeSite, "mesh" | "index">;
+  const qualityPolicy = new Map<string, boolean>();
+  const chunkSites = (chunk: Chunk): Candidate[] => {
     const [cx, cy] = chunk.id.split(",").map(Number);
-    const batches = new Map<
-      string,
-      { id: string; point: Point; radius: number; size: number; species: TreeSpecies }[]
-    >();
+    const sites: Candidate[] = [];
     const chance = density === "sparse" ? 0.5 : density === "dense" ? 1 : 0.8;
     for (let gx = cx * 32; gx < (cx + 1) * 32; gx++)
       for (let gy = cy * 32; gy < (cy + 1) * 32; gy++) {
@@ -398,19 +387,38 @@ export function createTownForest(
         )
           continue;
         const species = landscapeTreeSpecies("garden_parkland", document, p);
-        const needle =
-          species === "silver_birch"
-            ? false
-            : CONIFERS.has(species) || /conifer|taiga/i.test(document.biome?.key ?? "");
-        const batch = `${Math.floor(p[0] / TREE_CHUNK)},${Math.floor(p[1] / TREE_CHUNK)}:${needle ? "needle" : "leaf"}`;
-        const list = batches.get(batch) ?? [];
+        if (!species) continue;
         const heightToRadius = treeLodProfile(species)?.forestHeightToRadius;
         const size =
           (0.8 + random(`${seed}:tree:${id}:size`) * 0.4) *
           (heightToRadius === undefined ? 1 : (radius * heightToRadius) / 10);
-        list.push({ id, species, point: p, radius, size });
-        batches.set(batch, list);
+        sites.push({ id, species, point: p, radius, size });
       }
+    qualityPolicy.set(
+      chunk.id,
+      sites.some(site => treeLodProfile(site.species)?.budget === "quality-first")
+    );
+    return sites;
+  };
+  const getLayer = (chunk: Chunk, lod: "middle" | "near"): TreeLayer => {
+    const key = `${chunk.id}:${lod}`,
+      hit = cache.get(key);
+    if (hit) {
+      cache.delete(key);
+      cache.set(key, hit);
+      return hit;
+    }
+    const root = new THREE.Group();
+    root.name = `forest-trees-${key}`;
+    group.add(root);
+    const batches = new Map<string, Candidate[]>();
+    for (const site of chunkSites(chunk)) {
+      const policy = treeLodProfile(site.species)?.budget === "quality-first" ? "quality-first" : "bounded";
+      const batch = `${Math.floor(site.point[0] / TREE_CHUNK)},${Math.floor(site.point[1] / TREE_CHUNK)}:${policy}:${CONIFERS.has(site.species) ? "needle" : "leaf"}`;
+      const sites = batches.get(batch) ?? [];
+      sites.push(site);
+      batches.set(batch, sites);
+    }
     const meshes: THREE.InstancedMesh[] = [];
     let trees = 0,
       triangles = 0;
@@ -436,6 +444,7 @@ export function createTownForest(
         );
         mesh.setMatrixAt(i, matrix);
       });
+      mesh.userData.qualityFirst = batch.includes(":quality-first:");
       mesh.userData.forestSites = sites.map((site, index) => ({ ...site, mesh, index }));
       mesh.computeBoundingBox();
       mesh.computeBoundingSphere();
@@ -452,6 +461,7 @@ export function createTownForest(
     stats.builds++;
     return layer;
   };
+  let overviewKey = "";
   const frustum = new THREE.Frustum(),
     matrix = new THREE.Matrix4();
   return {
@@ -511,69 +521,57 @@ export function createTownForest(
         detailedSpecies: [],
         detailedTiers: { low: 0, medium: 0, high: 0, ultra: 0 }
       });
-      if (qualityFirstTrees) {
-        // Quality-first species use only their adopted tiers. Generic prototypes are transform buffers,
-        // never a visible fallback, and geometry budgets must not change an individual tree's tier.
-        const sites: ForestTreeSite[] = [];
-        const active = new Set<string>();
-        for (const { chunk, distance: dist } of visible) {
-          const layer = getLayer(chunk, "near");
-          active.add(`${chunk.id}:near`);
-          layer.group.visible = false;
-          chunk.floor.visible = true;
-          stats.calls++;
-          stats.triangles += count(chunk.floor.geometry);
-          chunk.mode = dist < TREE_LOD_DISTANCES.high ? "near" : "middle";
-          if (chunk.mode === "near") stats.nearChunks++;
-          else stats.middleChunks++;
-          for (const mesh of layer.meshes) sites.push(...(mesh.userData.forestSites as ForestTreeSite[]));
-        }
-        const result = details.update(
-          camera,
-          viewportHeight,
-          sites,
-          {
-            triangles: Infinity,
-            calls: Infinity,
-            shadowTriangles: budget.shadowTriangles
-          },
-          simplify
-        );
-        stats.trees = result.trees;
-        stats.triangles += result.triangles;
-        stats.calls += result.calls;
-        stats.shadowTriangles = result.shadowTriangles;
-        stats.detailedTrees = result.trees;
-        stats.detailedTriangles = result.triangles;
-        stats.detailedSpecies = result.species;
-        stats.detailedTiers = result.tiers;
-        for (const [key, layer] of cache) {
-          if (cache.size <= cacheLimit) break;
-          if (active.has(key)) continue;
-          for (const mesh of layer.meshes) mesh.dispose();
-          layer.group.removeFromParent();
-          cache.delete(key);
-        }
-        stats.cachedLayers = cache.size;
-        const changed = result.shadowKey !== shadowSignature;
-        shadowSignature = result.shadowKey;
-        return changed;
-      }
       const detailSites: ForestTreeSite[] = [];
-      const triangleLimit = !simplify ? Infinity : quality === "high" ? 320000 : budget.triangles;
-      const shadowLimit = !simplify ? 0 : quality === "high" ? 60000 : budget.shadowTriangles;
       const used = new Set<string>(),
         casters: string[] = [];
-      if (visible.length > budget.calls) {
+      const boundedVisible = visible.filter(({ chunk, distance: dist }) => {
+        if (!qualityPolicy.has(chunk.id)) chunkSites(chunk);
+        if (!qualityPolicy.get(chunk.id)) return true;
+        // Only actual quality-first candidates bypass aggregation. Bounded neighbours keep
+        // their generic silhouettes until the shared detail budget admits a replacement.
+        const layer = getLayer(chunk, "near");
+        used.add(`${chunk.id}:near`);
+        layer.group.visible = true;
+        chunk.floor.visible = true;
+        stats.calls++;
+        stats.triangles += count(chunk.floor.geometry);
+        chunk.mode = dist < TREE_LOD_DISTANCES.high ? "near" : "middle";
+        if (chunk.mode === "near") stats.nearChunks++;
+        else stats.middleChunks++;
+        for (const mesh of layer.meshes) {
+          mesh.visible = !mesh.userData.qualityFirst;
+          if (mesh.visible) {
+            stats.trees += mesh.count;
+            stats.triangles += count(mesh.geometry) * mesh.count;
+            stats.calls++;
+          }
+          detailSites.push(...(mesh.userData.forestSites as ForestTreeSite[]));
+        }
+        return false;
+      });
+      const triangleLimit = !simplify ? Infinity : quality === "high" ? 320000 : budget.triangles;
+      const shadowLimit = !simplify ? 0 : quality === "high" ? 60000 : budget.shadowTriangles;
+      if (boundedVisible.length > Math.max(0, budget.calls - stats.calls)) {
+        const key = boundedVisible
+          .map(({ chunk }) => chunk.id)
+          .sort()
+          .join("|");
+        if (key !== overviewKey) {
+          owned.delete(fallback.geometry);
+          fallback.geometry.dispose();
+          fallback.geometry = mergeGeometries(boundedVisible.map(({ chunk }) => chunk.far.geometry))!;
+          owned.add(fallback.geometry);
+          overviewKey = key;
+        }
         fallback.visible = true;
         stats.globalFallback = true;
-        stats.calls = 1;
-        stats.triangles = count(fallback.geometry);
-        for (const chunk of chunks) chunk.mode = "far";
+        stats.calls++;
+        stats.triangles += count(fallback.geometry);
+        for (const { chunk } of boundedVisible) chunk.mode = "far";
       } else {
-        stats.calls = visible.length;
-        stats.triangles = visible.reduce((n, c) => n + count(c.chunk.far.geometry), 0);
-        for (const { chunk, distance: dist } of visible) {
+        stats.calls += boundedVisible.length;
+        stats.triangles += boundedVisible.reduce((n, c) => n + count(c.chunk.far.geometry), 0);
+        for (const { chunk, distance: dist } of boundedVisible) {
           const pixels = (8 * scale) / Math.max(1, dist);
           const previous = chunk.mode;
           const target: LOD = !simplify
@@ -618,8 +616,10 @@ export function createTownForest(
             if (mode === "near") stats.nearChunks++;
             else stats.middleChunks++;
             layer.group.visible = true;
-            for (const mesh of layer.meshes)
+            for (const mesh of layer.meshes) {
+              mesh.visible = true;
               mesh.material = quality === "high" && mode === "near" ? smoothMaterial : material;
+            }
             chunk.floor.visible = true;
             chunk.mode = mode;
             used.add(`${chunk.id}:${mode}`);
@@ -661,6 +661,7 @@ export function createTownForest(
           },
           simplify
         );
+        stats.trees += result.qualityFirstTrees;
         stats.triangles += result.triangles;
         stats.calls += result.calls;
         stats.shadowTriangles += result.shadowTriangles;

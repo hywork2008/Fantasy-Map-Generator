@@ -22,17 +22,19 @@ export function createTemperateTreeLod(species: "lime" | "yew"): CityStructureMe
   const count = 7;
   const lobes: CanopyLobe[] = [];
   for (let i = 0; i < count; i++) {
-    const t = i / (count - 1);
-    const angle = i * 2.399963;
-    const reach = (lime ? 3.1 : 2.9) * Math.sin(0.55 + t * 2.55);
-    const radius = lime ? 2.25 : 1.9;
+    // Five spreading lower lobes and two leaders match the broad high-tier crown.
+    // A rising spiral made the distant trees read as narrow, vertically stacked clumps.
+    const lower = i < 5;
+    const angle = lower ? (i * Math.PI * 2) / 5 : (i - 5) * Math.PI + 0.6;
+    const reach = lower ? (lime ? 2.5 : 3) : 1;
+    const radius = lower ? (lime ? 2.5 : 2.2) : 2.4;
     lobes.push({
       center: new THREE.Vector3(
         Math.cos(angle) * reach,
-        (lime ? 5.2 : 3.1) + t * (lime ? 4.4 : 3.1),
+        lower ? (lime ? 7 : 4.9) : lime ? 9.3 : 6.2,
         Math.sin(angle) * reach
       ),
-      radius: new THREE.Vector3(radius, radius * (lime ? 1 : 0.65), radius)
+      radius: new THREE.Vector3(radius, lower ? (lime ? 2.8 : 1.6) : lime ? 2 : 1.4, radius)
     });
   }
   for (const part of wood) part.deleteAttribute("uv");

@@ -2,6 +2,7 @@ import type { ForestSettings, LandCoverOverride } from "../types/contracts/fores
 import type { CityDocument, Id, Point } from "../types/document";
 import type { DistrictFabric } from "./blockInfill.types";
 import { hasForestState, validForestSettings, validLandCoverOverride } from "./forestSettings";
+import { landscapeHasTrees } from "./landscapeVegetation";
 import { convexInfillParts } from "./lotGeometry";
 import { clone, facePoints } from "./mesh";
 import { bounds, corridor, intersectConvex, PlotIndex, plotArea } from "./parcelGeometry";
@@ -9,6 +10,7 @@ import { bounds, corridor, intersectConvex, PlotIndex, plotArea } from "./parcel
 /** Resolves ownership only. No fabric lookup, clipping, renderer or cache dependency. */
 export function forestLandCover(document: CityDocument): Set<Id> {
   const selected = new Set<Id>();
+  if (!landscapeHasTrees(document)) return selected;
   const protectedFaces = new Set(document.elements.flatMap(element => element.faceIds));
   for (const face of Object.values(document.mesh.faces).sort((a, b) => a.id.localeCompare(b.id))) {
     const p = face.properties;

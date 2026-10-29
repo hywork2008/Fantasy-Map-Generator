@@ -1,5 +1,7 @@
 # 森林樹木LOD：F0とトウヒ・シラカバの作製記録
 
+確認用画像は目視比較のための一時出力とし、永続保存・Git収録を行わない。画像ファイルの有無を完了条件にせず、以下の所見・条件・計測値・再現手順を記録として残す。既存スクリプトによる画像出力も確認後に削除する。
+
 2026-10-29
 
 [タスクリスト](../plan/ce-forest-biome-tree-lod-tasks.md) のF0を実施し、F1-2のトウヒ・シラカバを4品質化した。F1全体・全20樹種の総合受入は未完了。
@@ -76,10 +78,10 @@ node --import tsx scripts/verifyCeBorealTreeLod.mts
 
 比較画像：
 
-- [全8モデル・斜め](ce-tree-lod-boreal-20261029/models-front.png)
-- [側面](ce-tree-lod-boreal-20261029/models-side.png)、[俯瞰](ce-tree-lod-boreal-20261029/models-top.png)
-- [実BV・トウヒmedium](ce-tree-lod-boreal-20261029/bv-norway-spruce-medium.png)、[実BV・シラカバmedium](ce-tree-lod-boreal-20261029/bv-silver-birch-medium.png)
-- [CE森林レイヤー・林縁](ce-tree-lod-boreal-20261029/forest-edge.png)、[低視点](ce-tree-lod-boreal-20261029/forest-low.png)、[俯瞰](ce-tree-lod-boreal-20261029/forest-overview.png)
+- 全8モデル・斜め
+- 側面、俯瞰
+- 実BV・トウヒmedium、実BV・シラカバmedium
+- CE森林レイヤー・林縁、低視点、俯瞰
 
 ## 3. 確認結果と限界
 
@@ -93,4 +95,4 @@ node --import tsx scripts/verifyCeBorealTreeLod.mts
 
 ## 4. 次の作業
 
-既存シナノキ・イチイの基準画像確認（F1-1）と、ベイスギ・モミの4品質化（F1-3）へ進む。全バイオームの割当・無立木方針・混交林の判定方式は後続段階のまま維持する。
+既存シナノキ・イチイの基準比較（F1-1）と、ベイスギ・モミの4品質化（F1-3）へ進む。全バイオームの割当・無立木方針・混交林の判定方式は後続段階のまま維持する。

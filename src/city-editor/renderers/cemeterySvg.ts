@@ -1,6 +1,7 @@
 import { editorText } from "../../i18n/editorMessages";
 import { cemeteryPlots } from "../generators/cemeteryPlots";
 import { polygonCentroid } from "../generators/geom";
+import { landscapeHasTrees } from "../generators/landscapeVegetation";
 import type { CityDocument } from "../types/document";
 import { renderCultureCemetery } from "./cultureCemeterySvg";
 import { element, line, polygon } from "./svgPrimitives";
@@ -23,7 +24,7 @@ export function renderCemeteries(document: CityDocument, inspectedId?: string | 
     });
 
     if (cemetery.burialProfile) {
-      group.appendChild(renderCultureCemetery(cemetery));
+      group.appendChild(renderCultureCemetery(cemetery, document));
       layer.appendChild(group);
       continue;
     }
@@ -187,7 +188,7 @@ export function renderCemeteries(document: CityDocument, inspectedId?: string | 
     }
 
     // 5. Yew Trees: fluffy multi-circle tree canopy matching park foliage
-    for (const tree of cemetery.trees) {
+    for (const tree of landscapeHasTrees(document) ? cemetery.trees : []) {
       const treeGroup = element("g", { class: "ce-cemetery-tree" });
       const cx = tree[0];
       const cy = -tree[1];

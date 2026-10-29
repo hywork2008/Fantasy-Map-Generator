@@ -1,45 +1,61 @@
 import type { TreeSpecies } from "../../buildings/landscape/trees";
 import { growthRandom } from "../../utils/urbanMorphology";
+import { landscapeTemperature, landscapeTreeBiome } from "../generators/landscapeVegetation";
 import type { CityDocument, Point } from "../types/document";
 
-/** The site's actual vegetation and climate choose trees independently of housing culture. */
+/** Site climate adapts a preferred planting; undefined explicitly forbids generated trees. */
 export function landscapeTreeSpecies(
   preferred: TreeSpecies,
   document: CityDocument | undefined,
   point: Point
-): TreeSpecies {
+): TreeSpecies | undefined {
   if (!document) return preferred;
-  const climate = document.fabric?.generation?.settings.descriptor?.climate;
-  const temperature = climate?.temperatureC ?? document.buildingAppearanceContext?.temperatureC;
-  const biome = [document.biome?.key ?? climate?.biomeKey ?? "", ...(document.biome?.tags ?? [])]
-    .join(" ")
-    .toLowerCase();
+  const zone = landscapeTreeBiome(document);
+  const temperature = landscapeTemperature(document);
   const seed = document.generationSeed ?? document.fabric?.seed ?? "landscape";
-  // Irrigated oasis plantings in hot deserts; open umbrella thorns in savanna and dry tropical woodland.
-  if (/hotdesert/.test(biome)) return "date_palm";
-  if (/xericshrubland/.test(biome))
-    return preferred === "garden_parkland" && growthRandom(`${seed}:dry-tree:${point[0]}:${point[1]}`) < 0.3
-      ? "date_palm"
-      : "tamarisk";
-  if (/heathmoorland|alpinetundra/.test(biome)) return "rowan";
-  if (/volcanicbarrens|volcanicsoil/.test(biome)) return "canary_pine";
-  if (/^mangrove/.test(biome)) return "red_mangrove";
-  if (/colddesert|coldsteppe/.test(biome)) return "saxaul";
-  if (/tropicalrainforest|cloudforest/.test(biome)) return "kapok";
-  // Riparian woodland is tropical only where the site is hot; otherwise it is alder carr.
-  if (/floodedforest/.test(biome)) return temperature !== undefined && temperature >= 20 ? "kapok" : "black_alder";
-  if (/mediterraneanwoodlandscrub/.test(biome)) return preferred === "mediterranean_cypress" ? preferred : "olive";
-  if (/montaneforest/.test(biome)) return "silver_fir";
-  if (/temperaterainforest/.test(biome)) return "western_red_cedar";
-  if (/^wetland/.test(biome)) return "black_alder";
-  if (/savanna|tropicalseasonalforest|tropicaldryforest/.test(biome))
-    return preferred === "garden_parkland" && growthRandom(`${seed}:dry-tree:${point[0]}:${point[1]}`) < 0.3
-      ? "date_palm"
-      : "umbrella_thorn";
-  const boreal =
-    /taiga|boreal/.test(biome) || (temperature !== undefined && temperature <= 3 && /forest|woodland/.test(biome));
-  if (!boreal) return preferred;
-  // Retain the evergreen role of traditional funerary planting in a colder flora.
+  switch (zone) {
+    case "none":
+      return undefined;
+    case "preferred":
+      return preferred;
+    case "palm":
+      return "date_palm";
+    case "xeric":
+      return preferred === "garden_parkland" && growthRandom(`${seed}:dry-tree:${point[0]}:${point[1]}`) < 0.3
+        ? "date_palm"
+        : "tamarisk";
+    case "rowan":
+      return "rowan";
+    case "volcanic":
+      return "canary_pine";
+    case "mangrove":
+      return "red_mangrove";
+    case "desert":
+      return "saxaul";
+    case "rainforest":
+      return "kapok";
+    case "flooded":
+      return temperature !== undefined && temperature >= 20 ? "kapok" : "black_alder";
+    case "olive":
+      return preferred === "mediterranean_cypress" ? preferred : "olive";
+    case "fir":
+      return "silver_fir";
+    case "cedar":
+      return "western_red_cedar";
+    case "alder":
+      return "black_alder";
+    case "savanna":
+      return preferred === "garden_parkland" && growthRandom(`${seed}:dry-tree:${point[0]}:${point[1]}`) < 0.3
+        ? "date_palm"
+        : "umbrella_thorn";
+    case "conifer":
+      if (temperature === undefined || temperature > 3) return "western_red_cedar";
+      break;
+    case "temperate":
+      if (temperature === undefined || temperature > 3) return preferred;
+      break;
+  }
+  // Retain the evergreen role of funerary planting in colder woodland.
   if (preferred !== "garden_parkland") return "norway_spruce";
   return growthRandom(`${seed}:boreal-tree:${point[0]}:${point[1]}`) < 0.65 ? "norway_spruce" : "silver_birch";
 }

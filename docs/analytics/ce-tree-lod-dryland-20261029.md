@@ -1,5 +1,7 @@
 # CE森林LOD：サクサウール・ギョリュウ・オリーブの4品質化
 
+確認用画像は目視比較のための一時出力とし、永続保存・Git収録を行わない。画像ファイルの有無を完了条件にせず、以下の所見・条件・計測値・再現手順を記録として残す。既存スクリプトによる画像出力も確認後に削除する。
+
 2026-10-29。[全樹種のタスクリスト](../plan/ce-forest-biome-tree-lod-tasks.md) F2-2の作業記録。
 
 ## 1. 実装と作者
@@ -45,10 +47,10 @@ lowの幹は6分割、残す枝は3分割の側面とし、mediumは4分割の�
 
 CEと同じ `createBvPrototypeCache().acquire()`、DoubleSideの頂点カラー材質、HemisphereLight（0xf4f0e6／0x6d7a62、0.9）、DirectionalLight（1.15、`sunDirection(DEFAULT_SUN)`）を使った。背景0xc5c5bf、SRGB、DPR 1、比較画像1200×1200。
 
-- [4品質・斜め](ce-tree-lod-dryland-20261029/models-front.png)、[側面](ce-tree-lod-dryland-20261029/models-side.png)、[俯瞰](ce-tree-lod-dryland-20261029/models-top.png)
-- 単木medium／high：high樹冠bounds基準の45／90 px相当で倍率を揃え、[12°](ce-tree-lod-dryland-20261029/single-medium-high-12.png)、[40°](ce-tree-lod-dryland-20261029/single-medium-high-40.png)、[70°](ce-tree-lod-dryland-20261029/single-medium-high-70.png)を比較。
-- [各260本の林、35°／130 m](ce-tree-lod-dryland-20261029/stand-medium-high.png)：同じ位置・回転・寸法で比較。
-- 実BV：[サクサウール](ce-tree-lod-dryland-20261029/bv-saxaul-medium.png)、[ギョリュウ](ce-tree-lod-dryland-20261029/bv-tamarisk-medium.png)、[オリーブ](ce-tree-lod-dryland-20261029/bv-olive-medium.png)。各4品質の選択と描画を確認した。
+- 4品質・斜め、側面、俯瞰
+- 単木medium／high：high樹冠bounds基準の45／90 px相当で倍率を揃え、12°、40°、70°を比較。
+- 各260本の林、35°／130 m：同じ位置・回転・寸法で比較。
+- 実BV：サクサウール、ギョリュウ、オリーブ。各4品質の選択と描画を確認した。
 
 mediumは個別の枝葉を不透明な房へ縮約しており、highの透け方や細い枝の連続性とは差がある。特に拡大時のオリーブは面の量が目立つ。画像はその差を含む比較資料であり、全条件の最終受入はF5に残す。
 
@@ -72,9 +74,9 @@ mediumは個別の枝葉を不透明な房へ縮約しており、highの透け�
 | `mediterraneanWoodlandScrub` | edge | 288 | 0 / 223 / 61 / 4 | 957,328 | 10 |
 | `mediterraneanWoodlandScrub` | low | 169 | 0 / 98 / 62 / 9 | 924,807 | 10 |
 
-- サクサウール：[林縁](ce-tree-lod-dryland-20261029/coldDesert-edge.png)、[俯瞰](ce-tree-lod-dryland-20261029/coldDesert-overview.png)、[低視点](ce-tree-lod-dryland-20261029/coldDesert-low.png)
-- ギョリュウを含む疎林：[林縁](ce-tree-lod-dryland-20261029/xericShrubland-edge.png)、[俯瞰](ce-tree-lod-dryland-20261029/xericShrubland-overview.png)、[低視点](ce-tree-lod-dryland-20261029/xericShrubland-low.png)
-- オリーブ：[林縁](ce-tree-lod-dryland-20261029/mediterraneanWoodlandScrub-edge.png)、[俯瞰](ce-tree-lod-dryland-20261029/mediterraneanWoodlandScrub-overview.png)、[低視点](ce-tree-lod-dryland-20261029/mediterraneanWoodlandScrub-low.png)
+- サクサウール：林縁、俯瞰、低視点
+- ギョリュウを含む疎林：林縁、俯瞰、低視点
+- オリーブ：林縁、俯瞰、低視点
 
 品質切替3巡のgeometry数はそれぞれ19→19→19、21→21→21、19→19→19で安定し、WebGL・pageerror・BVエラーは0件。[描画記録JSON](ce-tree-lod-dryland-20261029/results.json) の時間は単発のCPU更新／提出のみで、GPU完了時間・街全体の操作p95・33 ms目標の達成を示さない。
 
@@ -92,4 +94,4 @@ node --import tsx scripts/verifyCeDrylandTreeLod.mts
 
 変更前JSONは上書きせず保持する。棚卸しJSONにはソースSHA-256、描画スクリプトには固定入力と比較条件を保存した。TypeScript全体検査は既存の `src/city-editor/renderers/fogControls.ts:45` のstring／EditorMessageKey不一致1件で失敗し、今回の変更ファイルには型エラーが報告されなかった。
 
-次のモデル作製はF3-1のカポック・オオバヒルギ。F1の既存モデル基準画像・温帯寒帯の割当と、F2-3の乾燥地の適用確認も残作業とする。
+次のモデル作製はF3-1のカポック・オオバヒルギ。F1の既存モデルの基準比較・温帯寒帯の割当と、F2-3の乾燥地の適用確認も残作業とする。

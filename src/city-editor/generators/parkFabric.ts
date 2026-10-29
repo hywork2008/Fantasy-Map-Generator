@@ -1,5 +1,6 @@
 import type { CityDocument, Face, Id, Point } from "../types/document";
 import { pointInPolygon, polygonArea, polygonCentroid } from "./geom";
+import { landscapeHasTrees } from "./landscapeVegetation";
 import { clipBlockWithRivers, convexInfillParts, insetConvexKernel, type RiverMargin } from "./lotGeometry";
 import { facePoints, indexMeshEdges } from "./mesh";
 import { subtractConvex } from "./parcelGeometry";
@@ -193,6 +194,7 @@ export function buildVacantTreeCandidates(
   seed: string,
   accept: (tree: ParkTreeCanopy, faceId: Id) => boolean
 ): { faceId: Id; tree: ParkTreeCanopy }[] {
+  if (!landscapeHasTrees(document)) return [];
   const clearance = collectClearanceData(document);
   return Object.values(document.mesh.faces).flatMap(face => {
     if (
@@ -325,7 +327,7 @@ function shapeParkFace(document: CityDocument, face: Face, seed: string, clearan
     lawnPolygons: dryLawns,
     paths,
     grassTufts,
-    trees
+    trees: landscapeHasTrees(document) ? trees : []
   };
 }
 

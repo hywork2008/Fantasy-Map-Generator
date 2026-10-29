@@ -206,6 +206,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   const sunSettings = readSunSettings();
   const fogSettings = readFogSettings();
   const scenerySettings = readScenerySettings();
+  if (options.isFmgLinked?.()) scenerySettings.style = "none";
   let sun: THREE.DirectionalLight | null = null;
   let shadowBounds = new THREE.Box3();
   const createLightingPanel = () => {

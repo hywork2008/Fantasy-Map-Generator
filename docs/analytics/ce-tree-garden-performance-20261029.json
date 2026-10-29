@@ -1,0 +1,1107 @@
+{
+  "measuredAt": "2026-10-29T08:57:57.536Z",
+  "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+  "viewport": [
+    1200,
+    1600
+  ],
+  "dpr": 1,
+  "trees": 260,
+  "shadowMap": 2048,
+  "samples": 64,
+  "warmup": 12,
+  "frames": [
+    {
+      "species": "mediterranean_cypress",
+      "shadows": false,
+      "pose": "overview",
+      "cpu": {
+        "n": 64,
+        "median": 0.5,
+        "p95": 1.3999998569488525,
+        "max": 1.7000000476837158
+      },
+      "gpu": {
+        "n": 64,
+        "median": 2.498208,
+        "p95": 3.219041,
+        "max": 3.576958
+      },
+      "interval": {
+        "n": 64,
+        "median": 12.300000000000068,
+        "p95": 26.200000000000045,
+        "max": 26.300000000000182
+      },
+      "tiers": {
+        "low": 0,
+        "medium": 260,
+        "high": 0,
+        "ultra": 0
+      },
+      "variants": [
+        "tree.mediterranean-cypress@medium#codex-gpt-6.1-sol"
+      ],
+      "render": {
+        "frame": 77,
+        "calls": 3,
+        "triangles": 438882,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 2,
+        "textures": 1
+      }
+    },
+    {
+      "species": "mediterranean_cypress",
+      "shadows": false,
+      "pose": "edge",
+      "cpu": {
+        "n": 64,
+        "median": 1,
+        "p95": 1.3000001907348633,
+        "max": 1.5
+      },
+      "gpu": {
+        "n": 64,
+        "median": 6.915124,
+        "p95": 8.412,
+        "max": 8.723166
+      },
+      "interval": {
+        "n": 64,
+        "median": 14.099999999999909,
+        "p95": 26.200000000000045,
+        "max": 26.300000000000182
+      },
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 89,
+        "ultra": 114
+      },
+      "variants": [
+        "tree.mediterranean-cypress@high#codex-gpt-6.1-sol",
+        "tree.mediterranean-cypress@ultra#claude-opus-5.5"
+      ],
+      "render": {
+        "frame": 153,
+        "calls": 5,
+        "triangles": 1498578,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 4,
+        "textures": 1
+      }
+    },
+    {
+      "species": "mediterranean_cypress",
+      "shadows": false,
+      "pose": "low",
+      "cpu": {
+        "n": 64,
+        "median": 0.5,
+        "p95": 0.7999999523162842,
+        "max": 1
+      },
+      "gpu": {
+        "n": 64,
+        "median": 5.563375,
+        "p95": 5.925458,
+        "max": 6.351624
+      },
+      "interval": {
+        "n": 64,
+        "median": 13.900000000000091,
+        "p95": 26.199999999999818,
+        "max": 26.59999999999991
+      },
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 0,
+        "ultra": 112
+      },
+      "variants": [
+        "tree.mediterranean-cypress@ultra#claude-opus-5.5"
+      ],
+      "render": {
+        "frame": 229,
+        "calls": 3,
+        "triangles": 1018306,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 4,
+        "textures": 1
+      }
+    },
+    {
+      "species": "mediterranean_cypress",
+      "shadows": true,
+      "pose": "overview",
+      "cpu": {
+        "n": 64,
+        "median": 1.4000000953674316,
+        "p95": 1.7000000476837158,
+        "max": 2
+      },
+      "gpu": {
+        "n": 64,
+        "median": 2.848083,
+        "p95": 3.240999,
+        "max": 3.969541
+      },
+      "interval": {
+        "n": 64,
+        "median": 14.300000000000182,
+        "p95": 26.100000000000364,
+        "max": 27.199999999999818
+      },
+      "tiers": {
+        "low": 0,
+        "medium": 260,
+        "high": 0,
+        "ultra": 0
+      },
+      "variants": [
+        "tree.mediterranean-cypress@medium#codex-gpt-6.1-sol"
+      ],
+      "render": {
+        "frame": 305,
+        "calls": 4,
+        "triangles": 497962,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 4,
+        "textures": 3
+      }
+    },
+    {
+      "species": "mediterranean_cypress",
+      "shadows": true,
+      "pose": "edge",
+      "cpu": {
+        "n": 64,
+        "median": 1,
+        "p95": 1.2999999523162842,
+        "max": 1.5999999046325684
+      },
+      "gpu": {
+        "n": 64,
+        "median": 7.29425,
+        "p95": 8.518625,
+        "max": 9.097666
+      },
+      "interval": {
+        "n": 64,
+        "median": 12.599999999999454,
+        "p95": 26.199999999999818,
+        "max": 26.199999999999818
+      },
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 89,
+        "ultra": 114
+      },
+      "variants": [
+        "tree.mediterranean-cypress@high#codex-gpt-6.1-sol",
+        "tree.mediterranean-cypress@ultra#claude-opus-5.5"
+      ],
+      "render": {
+        "frame": 381,
+        "calls": 7,
+        "triangles": 1558322,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 4,
+        "textures": 3
+      }
+    },
+    {
+      "species": "mediterranean_cypress",
+      "shadows": true,
+      "pose": "low",
+      "cpu": {
+        "n": 64,
+        "median": 0.7000000476837158,
+        "p95": 1,
+        "max": 1
+      },
+      "gpu": {
+        "n": 64,
+        "median": 6.296083,
+        "p95": 6.639749,
+        "max": 6.931625
+      },
+      "interval": {
+        "n": 64,
+        "median": 13.300000000000182,
+        "p95": 26.199999999999818,
+        "max": 26.300000000000182
+      },
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 0,
+        "ultra": 112
+      },
+      "variants": [
+        "tree.mediterranean-cypress@ultra#claude-opus-5.5"
+      ],
+      "render": {
+        "frame": 457,
+        "calls": 4,
+        "triangles": 1072858,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 4,
+        "textures": 3
+      }
+    },
+    {
+      "species": "oriental_evergreen",
+      "shadows": false,
+      "pose": "overview",
+      "cpu": {
+        "n": 64,
+        "median": 0.7999999523162842,
+        "p95": 1.2000000476837158,
+        "max": 1.5
+      },
+      "gpu": {
+        "n": 64,
+        "median": 1.267124,
+        "p95": 1.39675,
+        "max": 1.48575
+      },
+      "interval": {
+        "n": 64,
+        "median": 13.5,
+        "p95": 26.199999999999818,
+        "max": 26.299999999999272
+      },
+      "tiers": {
+        "low": 260,
+        "medium": 0,
+        "high": 0,
+        "ultra": 0
+      },
+      "variants": [
+        "tree.oriental-evergreen@low#codex-gpt-6.1-sol"
+      ],
+      "render": {
+        "frame": 534,
+        "calls": 3,
+        "triangles": 77222,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 2,
+        "textures": 3
+      }
+    },
+    {
+      "species": "oriental_evergreen",
+      "shadows": false,
+      "pose": "edge",
+      "cpu": {
+        "n": 64,
+        "median": 0.9000000953674316,
+        "p95": 1.2999999523162842,
+        "max": 1.5999999046325684
+      },
+      "gpu": {
+        "n": 64,
+        "median": 7.43625,
+        "p95": 9.851166,
+        "max": 10.299208
+      },
+      "interval": {
+        "n": 64,
+        "median": 13.799999999999272,
+        "p95": 26.100000000000364,
+        "max": 26.299999999999272
+      },
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 172,
+        "ultra": 21
+      },
+      "variants": [
+        "tree.oriental-evergreen@high#codex-gpt-6.1-sol",
+        "tree.oriental-evergreen@ultra#claude-opus-5.5"
+      ],
+      "render": {
+        "frame": 610,
+        "calls": 5,
+        "triangles": 2018238,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 4,
+        "textures": 3
+      }
+    },
+    {
+      "species": "oriental_evergreen",
+      "shadows": false,
+      "pose": "low",
+      "cpu": {
+        "n": 64,
+        "median": 0.5,
+        "p95": 0.9000000953674316,
+        "max": 1.0999999046325684
+      },
+      "gpu": {
+        "n": 64,
+        "median": 5.828041,
+        "p95": 7.617041,
+        "max": 7.671999
+      },
+      "interval": {
+        "n": 64,
+        "median": 13.399999999999636,
+        "p95": 26.100000000000364,
+        "max": 26.299999999999272
+      },
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 16,
+        "ultra": 88
+      },
+      "variants": [
+        "tree.oriental-evergreen@high#codex-gpt-6.1-sol",
+        "tree.oriental-evergreen@ultra#claude-opus-5.5"
+      ],
+      "render": {
+        "frame": 686,
+        "calls": 5,
+        "triangles": 1536610,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 4,
+        "textures": 3
+      }
+    },
+    {
+      "species": "oriental_evergreen",
+      "shadows": true,
+      "pose": "overview",
+      "cpu": {
+        "n": 64,
+        "median": 0.6999998092651367,
+        "p95": 1.4000000953674316,
+        "max": 1.9000000953674316
+      },
+      "gpu": {
+        "n": 64,
+        "median": 2.693791,
+        "p95": 3.242666,
+        "max": 3.564291
+      },
+      "interval": {
+        "n": 64,
+        "median": 12,
+        "p95": 26.100000000000364,
+        "max": 26.200000000000728
+      },
+      "tiers": {
+        "low": 156,
+        "medium": 104,
+        "high": 0,
+        "ultra": 0
+      },
+      "variants": [
+        "tree.oriental-evergreen@low#codex-gpt-6.1-sol",
+        "tree.oriental-evergreen@medium#codex-gpt-6.1-sol"
+      ],
+      "render": {
+        "frame": 762,
+        "calls": 7,
+        "triangles": 335369,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 5,
+        "textures": 3
+      }
+    },
+    {
+      "species": "oriental_evergreen",
+      "shadows": true,
+      "pose": "edge",
+      "cpu": {
+        "n": 64,
+        "median": 0.7000000476837158,
+        "p95": 0.8000001907348633,
+        "max": 1.1000001430511475
+      },
+      "gpu": {
+        "n": 64,
+        "median": 7.378125,
+        "p95": 9.0685,
+        "max": 10.497
+      },
+      "interval": {
+        "n": 64,
+        "median": 13,
+        "p95": 26.100000000000364,
+        "max": 26.200000000000728
+      },
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 172,
+        "ultra": 21
+      },
+      "variants": [
+        "tree.oriental-evergreen@high#codex-gpt-6.1-sol",
+        "tree.oriental-evergreen@ultra#claude-opus-5.5"
+      ],
+      "render": {
+        "frame": 838,
+        "calls": 7,
+        "triangles": 2075086,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 5,
+        "textures": 3
+      }
+    },
+    {
+      "species": "oriental_evergreen",
+      "shadows": true,
+      "pose": "low",
+      "cpu": {
+        "n": 64,
+        "median": 0.5999999046325684,
+        "p95": 0.9000000953674316,
+        "max": 1
+      },
+      "gpu": {
+        "n": 64,
+        "median": 6.625,
+        "p95": 8.252874,
+        "max": 8.476124
+      },
+      "interval": {
+        "n": 64,
+        "median": 13.299999999999272,
+        "p95": 26.200000000000728,
+        "max": 26.700000000000728
+      },
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 16,
+        "ultra": 88
+      },
+      "variants": [
+        "tree.oriental-evergreen@high#codex-gpt-6.1-sol",
+        "tree.oriental-evergreen@ultra#claude-opus-5.5"
+      ],
+      "render": {
+        "frame": 914,
+        "calls": 7,
+        "triangles": 1593458,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 5,
+        "textures": 3
+      }
+    },
+    {
+      "species": "sacred_bodhi_and_fig",
+      "shadows": false,
+      "pose": "overview",
+      "cpu": {
+        "n": 64,
+        "median": 0.7999999523162842,
+        "p95": 1,
+        "max": 1.2000000476837158
+      },
+      "gpu": {
+        "n": 64,
+        "median": 1.364875,
+        "p95": 1.496583,
+        "max": 1.578249
+      },
+      "interval": {
+        "n": 64,
+        "median": 12.5,
+        "p95": 26.099999999998545,
+        "max": 26.200000000000728
+      },
+      "tiers": {
+        "low": 260,
+        "medium": 0,
+        "high": 0,
+        "ultra": 0
+      },
+      "variants": [
+        "tree.sacred-bodhi-and-fig@low#codex-gpt-6.1-sol"
+      ],
+      "render": {
+        "frame": 991,
+        "calls": 3,
+        "triangles": 92562,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 2,
+        "textures": 3
+      }
+    },
+    {
+      "species": "sacred_bodhi_and_fig",
+      "shadows": false,
+      "pose": "edge",
+      "cpu": {
+        "n": 64,
+        "median": 0.5,
+        "p95": 0.8999998569488525,
+        "max": 1
+      },
+      "gpu": {
+        "n": 64,
+        "median": 9.903541,
+        "p95": 13.225458,
+        "max": 15.223625
+      },
+      "interval": {
+        "n": 64,
+        "median": 12.600000000000364,
+        "p95": 26.100000000000364,
+        "max": 26.19999999999891
+      },
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 174,
+        "ultra": 36
+      },
+      "variants": [
+        "tree.sacred-bodhi-and-fig@high#codex-gpt-6.1-sol",
+        "tree.sacred-bodhi-and-fig@ultra#claude-opus-5.5"
+      ],
+      "render": {
+        "frame": 1067,
+        "calls": 5,
+        "triangles": 4217852,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 4,
+        "textures": 3
+      }
+    },
+    {
+      "species": "sacred_bodhi_and_fig",
+      "shadows": false,
+      "pose": "low",
+      "cpu": {
+        "n": 64,
+        "median": 0.3000001907348633,
+        "p95": 0.7999999523162842,
+        "max": 1
+      },
+      "gpu": {
+        "n": 64,
+        "median": 10.357958,
+        "p95": 12.967666,
+        "max": 14.568375
+      },
+      "interval": {
+        "n": 64,
+        "median": 12.799999999999272,
+        "p95": 26.099999999998545,
+        "max": 26.30000000000109
+      },
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 12,
+        "ultra": 114
+      },
+      "variants": [
+        "tree.sacred-bodhi-and-fig@high#codex-gpt-6.1-sol",
+        "tree.sacred-bodhi-and-fig@ultra#claude-opus-5.5"
+      ],
+      "render": {
+        "frame": 1143,
+        "calls": 5,
+        "triangles": 5043530,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 4,
+        "textures": 3
+      }
+    },
+    {
+      "species": "sacred_bodhi_and_fig",
+      "shadows": true,
+      "pose": "overview",
+      "cpu": {
+        "n": 64,
+        "median": 0.9000000953674316,
+        "p95": 1.7999999523162842,
+        "max": 2
+      },
+      "gpu": {
+        "n": 64,
+        "median": 2.258791,
+        "p95": 2.921874,
+        "max": 3.100666
+      },
+      "interval": {
+        "n": 64,
+        "median": 12,
+        "p95": 26.200000000000728,
+        "max": 26.299999999999272
+      },
+      "tiers": {
+        "low": 134,
+        "medium": 126,
+        "high": 0,
+        "ultra": 0
+      },
+      "variants": [
+        "tree.sacred-bodhi-and-fig@low#codex-gpt-6.1-sol",
+        "tree.sacred-bodhi-and-fig@medium#codex-gpt-6.1-sol"
+      ],
+      "render": {
+        "frame": 1219,
+        "calls": 7,
+        "triangles": 304033,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 5,
+        "textures": 3
+      }
+    },
+    {
+      "species": "sacred_bodhi_and_fig",
+      "shadows": true,
+      "pose": "edge",
+      "cpu": {
+        "n": 64,
+        "median": 0.7000000476837158,
+        "p95": 1,
+        "max": 1.3000001907348633
+      },
+      "gpu": {
+        "n": 64,
+        "median": 9.431333,
+        "p95": 12.005249,
+        "max": 13.171708
+      },
+      "interval": {
+        "n": 64,
+        "median": 12.200000000000728,
+        "p95": 26.200000000000728,
+        "max": 26.200000000000728
+      },
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 174,
+        "ultra": 36
+      },
+      "variants": [
+        "tree.sacred-bodhi-and-fig@high#codex-gpt-6.1-sol",
+        "tree.sacred-bodhi-and-fig@ultra#claude-opus-5.5"
+      ],
+      "render": {
+        "frame": 1295,
+        "calls": 7,
+        "triangles": 4275893,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 5,
+        "textures": 3
+      }
+    },
+    {
+      "species": "sacred_bodhi_and_fig",
+      "shadows": true,
+      "pose": "low",
+      "cpu": {
+        "n": 64,
+        "median": 0.5,
+        "p95": 0.9000000953674316,
+        "max": 1.0999999046325684
+      },
+      "gpu": {
+        "n": 64,
+        "median": 10.689375,
+        "p95": 12.904749,
+        "max": 13.12875
+      },
+      "interval": {
+        "n": 64,
+        "median": 13.299999999999272,
+        "p95": 26.100000000002183,
+        "max": 26.299999999999272
+      },
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 12,
+        "ultra": 114
+      },
+      "variants": [
+        "tree.sacred-bodhi-and-fig@high#codex-gpt-6.1-sol",
+        "tree.sacred-bodhi-and-fig@ultra#claude-opus-5.5"
+      ],
+      "render": {
+        "frame": 1371,
+        "calls": 7,
+        "triangles": 5101571,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 5,
+        "textures": 3
+      }
+    },
+    {
+      "species": "peaceful_willow",
+      "shadows": false,
+      "pose": "overview",
+      "cpu": {
+        "n": 64,
+        "median": 0.9000000953674316,
+        "p95": 1.2999999523162842,
+        "max": 1.4000000953674316
+      },
+      "gpu": {
+        "n": 64,
+        "median": 1.428541,
+        "p95": 1.589749,
+        "max": 1.866125
+      },
+      "interval": {
+        "n": 64,
+        "median": 13.099999999998545,
+        "p95": 26.100000000002183,
+        "max": 26.30000000000291
+      },
+      "tiers": {
+        "low": 260,
+        "medium": 0,
+        "high": 0,
+        "ultra": 0
+      },
+      "variants": [
+        "tree.peaceful-willow@low#codex-gpt-6.1-sol"
+      ],
+      "render": {
+        "frame": 1448,
+        "calls": 3,
+        "triangles": 101922,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 2,
+        "textures": 3
+      }
+    },
+    {
+      "species": "peaceful_willow",
+      "shadows": false,
+      "pose": "edge",
+      "cpu": {
+        "n": 64,
+        "median": 0.2999999523162842,
+        "p95": 0.8999998569488525,
+        "max": 1
+      },
+      "gpu": {
+        "n": 64,
+        "median": 18.305375,
+        "p95": 26.863666,
+        "max": 29.89075
+      },
+      "interval": {
+        "n": 64,
+        "median": 14.200000000000728,
+        "p95": 26.200000000000728,
+        "max": 34.5
+      },
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 187,
+        "ultra": 19
+      },
+      "variants": [
+        "tree.peaceful-willow@high#codex-gpt-6.1-sol",
+        "tree.peaceful-willow@ultra#claude-opus-5.5"
+      ],
+      "render": {
+        "frame": 1524,
+        "calls": 4,
+        "triangles": 8407194,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 4,
+        "textures": 3
+      }
+    },
+    {
+      "species": "peaceful_willow",
+      "shadows": false,
+      "pose": "low",
+      "cpu": {
+        "n": 64,
+        "median": 0.5,
+        "p95": 0.7999999523162842,
+        "max": 0.9000000953674316
+      },
+      "gpu": {
+        "n": 64,
+        "median": 17.185791,
+        "p95": 23.354874,
+        "max": 30.0285
+      },
+      "interval": {
+        "n": 64,
+        "median": 13.399999999997817,
+        "p95": 26.100000000002183,
+        "max": 26.200000000000728
+      },
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 21,
+        "ultra": 98
+      },
+      "variants": [
+        "tree.peaceful-willow@high#codex-gpt-6.1-sol",
+        "tree.peaceful-willow@ultra#claude-opus-5.5"
+      ],
+      "render": {
+        "frame": 1600,
+        "calls": 4,
+        "triangles": 8177430,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 4,
+        "textures": 3
+      }
+    },
+    {
+      "species": "peaceful_willow",
+      "shadows": true,
+      "pose": "overview",
+      "cpu": {
+        "n": 64,
+        "median": 1.1999998092651367,
+        "p95": 1.4000000953674316,
+        "max": 1.5999999046325684
+      },
+      "gpu": {
+        "n": 64,
+        "median": 2.712625,
+        "p95": 3.181875,
+        "max": 3.40275
+      },
+      "interval": {
+        "n": 64,
+        "median": 12.899999999997817,
+        "p95": 26.099999999998545,
+        "max": 26.200000000000728
+      },
+      "tiers": {
+        "low": 179,
+        "medium": 81,
+        "high": 0,
+        "ultra": 0
+      },
+      "variants": [
+        "tree.peaceful-willow@low#codex-gpt-6.1-sol",
+        "tree.peaceful-willow@medium#codex-gpt-6.1-sol"
+      ],
+      "render": {
+        "frame": 1676,
+        "calls": 7,
+        "triangles": 289544,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 5,
+        "textures": 3
+      }
+    },
+    {
+      "species": "peaceful_willow",
+      "shadows": true,
+      "pose": "edge",
+      "cpu": {
+        "n": 64,
+        "median": 0.7999999523162842,
+        "p95": 1.1999998092651367,
+        "max": 1.2000000476837158
+      },
+      "gpu": {
+        "n": 64,
+        "median": 18.824583,
+        "p95": 26.216875,
+        "max": 29.759249
+      },
+      "interval": {
+        "n": 64,
+        "median": 13.700000000000728,
+        "p95": 26.299999999999272,
+        "max": 34.20000000000073
+      },
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 187,
+        "ultra": 19
+      },
+      "variants": [
+        "tree.peaceful-willow@high#codex-gpt-6.1-sol",
+        "tree.peaceful-willow@ultra#claude-opus-5.5"
+      ],
+      "render": {
+        "frame": 1752,
+        "calls": 5,
+        "triangles": 8444486,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 5,
+        "textures": 3
+      }
+    },
+    {
+      "species": "peaceful_willow",
+      "shadows": true,
+      "pose": "low",
+      "cpu": {
+        "n": 64,
+        "median": 0.6000001430511475,
+        "p95": 0.9000000953674316,
+        "max": 1.0999999046325684
+      },
+      "gpu": {
+        "n": 64,
+        "median": 17.629291,
+        "p95": 28.326625,
+        "max": 32.390708
+      },
+      "interval": {
+        "n": 64,
+        "median": 14.5,
+        "p95": 17.200000000000728,
+        "max": 30.30000000000291
+      },
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 21,
+        "ultra": 98
+      },
+      "variants": [
+        "tree.peaceful-willow@high#codex-gpt-6.1-sol",
+        "tree.peaceful-willow@ultra#claude-opus-5.5"
+      ],
+      "render": {
+        "frame": 1828,
+        "calls": 5,
+        "triangles": 8214722,
+        "points": 0,
+        "lines": 0
+      },
+      "memory": {
+        "geometries": 5,
+        "textures": 3
+      }
+    }
+  ],
+  "cleanup": [
+    {
+      "species": "mediterranean_cypress",
+      "geometries": 1,
+      "textures": 3
+    },
+    {
+      "species": "oriental_evergreen",
+      "geometries": 1,
+      "textures": 3
+    },
+    {
+      "species": "sacred_bodhi_and_fig",
+      "geometries": 1,
+      "textures": 3
+    },
+    {
+      "species": "peaceful_willow",
+      "geometries": 1,
+      "textures": 3
+    }
+  ],
+  "baselineMemory": {
+    "geometries": 1,
+    "textures": 1
+  },
+  "memoryAfterDispose": {
+    "geometries": 0,
+    "textures": 1
+  },
+  "errors": [],
+  "scope": "Isolated real CE open-space renderer, moving camera; CPU update/submission, asynchronous GPU query and rAF intervals. Not full-city operation p95 or a universal frame budget guarantee.",
+  "sourceSha256": {
+    "scripts/benchmarkCeGardenTreeLod.mts": "f18eba0b6734df7be7cf05deda78a268cd34f69625f861ff311f9b5a7fec25dc",
+    "src/city3d/three/openSpaceMeshes.ts": "1a27610c8b21168b35df876df8e06295b39a7892851ead5b989bb51b96d3c125",
+    "src/city3d/three/openSpaceTreeLod.ts": "c1508a8d0de8441f1bc0d07de33b4af8da70ecfc4d17f3f482ad5603381b31b0",
+    "src/city3d/three/forestTreeDetails.ts": "afba04da64d6e7a557e932023441a4d726dcdf7024b8aaf3046d659a1bc329d6",
+    "src/city3d/three/bvInstances.ts": "84d76ab41c1b81997b1882e2cb524529a0231536e1a2447618e3fc0ffce32fdd",
+    "src/city3d/adoption.ts": "14d584dfba64e8f164b63fa477c125b6b22f68b46520c0b8635c76498720b9df",
+    "src/buildings/landscape/trees.ts": "f769a778979cc87cc65e03f9a18fbf0bbe741d13dca62b67e6b3ac37c50ea4b1",
+    "src/buildings/landscape/sacredGardenTrees.ts": "5d1172a2a3fb4371f7ccd1618362811b048d971ae9d149e669aa693648f021be"
+  }
+}

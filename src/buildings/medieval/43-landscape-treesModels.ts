@@ -4,33 +4,45 @@ import type { MedievalModel } from "./modelKit";
 
 type TreeEntry = Pick<MedievalModel, "biomes" | "name" | "size" | "note">;
 
+/** Biome labels describe current CE woodland selection, including temperature branches. */
 const TREES: Record<TreeSpecies, TreeEntry> = {
   garden_parkland: {
-    biomes: ["temperateDeciduousForest", "centralEuropeanGreatForest"],
+    biomes: ["grassland", "temperateDeciduousForest", "centralEuropeanGreatForest"],
     name: "Small-leaved lime · Tilia cordata",
     size: [13, 13, 13],
     note: "Open-grown summer Tilia cordata, native to western and central Europe. Tapered branching timber, root flare and individually folded heart-shaped leaves; shared with CE park trees. Natural tree for medieval gardens and churchyards; not a modern cultivar. Botanical reference: https://www.forestresearch.gov.uk/tools-and-resources/tree-species-database/133243-small-leaved-lime-sli/"
   },
   norway_spruce: {
-    biomes: ["taiga", "temperateDeciduousForest"],
+    biomes: [
+      "temperateDeciduousForest",
+      "taiga",
+      "centralEuropeanGreatForest",
+      "temperateConiferousForest",
+      "borealPeatland"
+    ],
     name: "Norway spruce · Picea abies",
     size: [7, 7, 13],
     note: "Boreal Picea abies with a tapered trunk, whorled drooping branches, an upright leader and abstract evergreen needle sprays. Shared with CE cold-climate parks and cemeteries. Illustrative summer tree, not a measured specimen. Botanical reference: https://forest.jrc.ec.europa.eu/media/atlas/Picea_abies.pdf"
   },
   silver_birch: {
-    biomes: ["taiga", "temperateDeciduousForest"],
+    biomes: [
+      "temperateDeciduousForest",
+      "taiga",
+      "centralEuropeanGreatForest",
+      "temperateConiferousForest",
+      "borealPeatland"
+    ],
     name: "Silver birch · Betula pendula",
     size: [9, 9, 12],
     note: "Summer Betula pendula with pale bark, dark basal fissures, small leaves and pendulous outer twigs. Shared with CE boreal parks. Illustrative dimensions; not a cultivar. Botanical reference: https://www.forestryengland.uk/tree-species/silver-birch"
   },
   sacred_yew: {
-    biomes: ["temperateDeciduousForest", "centralEuropeanGreatForest"],
     name: "European yew · Taxus baccata",
     size: [12, 12, 9],
     note: "Mature untrimmed European yew (Taxus baccata), shared with CE churchyards. Broad evergreen crown, fluted reddish-brown trunk, spreading branches and folded serrated sprays abstracting two-ranked needles. Needle groups are abstracted for responsive viewing and city instancing. No modern columnar cultivar or topiary; no seasonal arils. Botanical reference: https://www.forestryengland.uk/tree-species/yew"
   },
   date_palm: {
-    biomes: ["hotDesert", "xericShrubland"],
+    biomes: ["hotDesert", "savanna", "tropicalSeasonalForest", "xericShrubland", "tropicalDryForest"],
     name: "Date palm · Phoenix dactylifera",
     size: [10, 10, 12],
     note: "Cultivated oasis Phoenix dactylifera with a slightly leaning, leaf-base-scarred trunk, basal offshoots, a crown of glaucous pinnate fronds with V-raised leaflets, a few hanging dead fronds and unripe date strands. Shared with CE hot-desert parks and cemeteries. Illustrative dimensions; not a measured specimen. Botanical reference: https://www.kew.org/plants/date-palm"
@@ -60,7 +72,7 @@ const TREES: Record<TreeSpecies, TreeEntry> = {
     note: "Temperate-rainforest Thuja plicata with a flared, fluted base, long reddish fibrous bark strips, J-shaped limbs that droop and turn up at the tips, flat hanging fern-like sprays of scale leaves and a gently nodding leader. Shared with CE temperate-rainforest parks and cemeteries; scaled down from old-growth giants. Botanical reference: https://en.wikipedia.org/wiki/Thuja_plicata"
   },
   black_alder: {
-    biomes: ["wetland", "floodedForest", "borealPeatland"],
+    biomes: ["wetland", "floodedForest"],
     name: "Black alder · Alnus glutinosa",
     size: [9, 9, 14],
     note: "Wetland Alnus glutinosa grown as a carr stool: three coppice-like stems over arched, partly exposed roots, a narrow oval crown of rounded leaves with notched tips, and persistent dark woody cones. Shared with CE wetland and riparian parks and cemeteries. Illustrative dimensions. Botanical reference: https://www.woodlandtrust.org.uk/trees-woods-and-wildlife/british-trees/a-z-of-british-trees/alder/"
@@ -84,13 +96,13 @@ const TREES: Record<TreeSpecies, TreeEntry> = {
     note: "Tidal Rhizophora mangle: a short bole raised above the mud on arching, branching prop roots, aerial drop roots from spreading limbs, rosettes of thick glossy elliptic leaves and hanging pencil-like propagules. Prop roots sink just below ground level. Shared with CE mangrove-coast parks and cemeteries. Illustrative dimensions. Botanical reference: https://en.wikipedia.org/wiki/Rhizophora_mangle"
   },
   tamarisk: {
-    biomes: ["xericShrubland", "hotDesert", "coldSteppe"],
+    biomes: ["xericShrubland"],
     name: "Tamarisk · Tamarix gallica",
     size: [8, 8, 6],
     note: "Dry-scrub Tamarix gallica: slender reddish-brown stems arching from one root crown into a loose weeping dome of grey-green, scale-leaved feathery plumes tipped with pink flower spikes. Salt and drought tolerant; shared with CE xeric-shrubland, oasis and steppe parks and cemeteries. Illustrative dimensions. Botanical reference: https://en.wikipedia.org/wiki/Tamarix_gallica"
   },
   rowan: {
-    biomes: ["heathMoorland", "alpineTundra"],
+    biomes: ["alpineTundra", "heathMoorland"],
     name: "Rowan · Sorbus aucuparia",
     size: [7, 7, 10],
     note: "Upland Sorbus aucuparia of heath and moor edges: a short smooth grey-brown stem, ascending limbs in a light oval crown, pinnate leaves of paired toothed leaflets and flat-topped clusters of scarlet late-summer berries. Shared with CE heath, moorland and upland parks and churchyards. Illustrative dimensions. Botanical reference: https://www.woodlandtrust.org.uk/trees-woods-and-wildlife/british-trees/a-z-of-british-trees/rowan/"
