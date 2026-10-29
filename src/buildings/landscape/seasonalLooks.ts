@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
+import { fruitGroups } from "./fruitLayer";
 import type { TreeAppearance } from "./treePhenology";
 import type { TreeQuality } from "./treeQuality";
 import {
@@ -50,6 +51,8 @@ export interface BloomSpec {
   beforeLeaves?: boolean;
   /** Fruit bodies, fruit drawn inside the crown, or points spread over the leafy crown itself. */
   sites: "fruit" | "crownExtras" | "crown";
+  /** Grid cell merging fruit into one flower site, in metres (default 0.12, one bur or fruit). */
+  siteCell?: number;
   heart: number;
   rim: number;
   /** Petal radius or catkin/strand length in metres at ultra; high and medium enlarge it. */
@@ -151,8 +154,8 @@ export const SEASONAL_LOOKS = {
     },
     default: "unripe",
     autumn: { hue: 0.11, hueJitter: 0.05, saturation: 0.6, lightnessScale: 1.3 },
-    // Browning burs stand in for split ones until the fruit layer adds the opened husks (T5).
-    fruitMesh: { tints: { fruit: { hue: 0.085, hueJitter: 0.03, saturation: 0.5, lightnessScale: 1.05 } } }
+    // Ripe burs split open on their nuts, drawn by the generator's fruit layer.
+    fruitMesh: {}
   },
   cacao: {
     appearances: ["fruit", "harvested"],
@@ -201,7 +204,8 @@ export const SEASONAL_LOOKS = {
       blend: { low: 0, medium: 0 }
     },
     default: "unripe",
-    // Harvest cuts the bunches; their four fruit axes stay as stalks until the fruit layer (T5).
+    // The original edition keeps its four fruit axes in the wood after harvest; the Bunches edition
+    // draws the fruit layer and its cut stalks instead (FRUIT_LAYER_EDITIONS).
     crownExtras: {
       kind: "fruit",
       match: exact(0xd09a2a),
@@ -265,6 +269,19 @@ export const SEASONAL_LOOKS = {
   }
 } as const satisfies Record<string, SeasonalLook>;
 export type SeasonalLookSpecies = keyof typeof SEASONAL_LOOKS;
+
+/**
+ * Looks of the fruit-layer editions (§7.1): their generators draw the fruit stages themselves,
+ * so only flowering is layered on, with the female inflorescences where the bunches will hang.
+ */
+export const FRUIT_LAYER_LOOKS = {
+  date_palm: {
+    appearances: SEASONAL_LOOKS.date_palm.appearances,
+    default: "unripe",
+    bloom: { ...SEASONAL_LOOKS.date_palm.bloom, sites: "fruit", siteCell: 0.6 },
+    fruitMesh: {}
+  }
+} as const satisfies Partial<Record<SeasonalLookSpecies, SeasonalLook>>;
 
 /** Triangle index list of a geometry, indexed or not. */
 function triangleVertices(geometry: THREE.BufferGeometry): ArrayLike<number> {
@@ -347,10 +364,26 @@ function fruitBodies(geometry: THREE.BufferGeometry): { body: Int32Array; center
   return { body, centers: sums.map((sum, i) => sum.divideScalar(counts[i])) };
 }
 
-/** Shrink every fruit about its own centroid; the stalk socket moves with it. */
+/**
+ * Shrink every fruit. Grouped fruit (fruitLayer.ts) shrinks with its stalk toward the wood it
+ * hangs from; loose bodies shrink about their own centroid.
+ */
 function shrinkBodies(geometry: THREE.BufferGeometry, scale: number): void {
-  const { body, centers } = fruitBodies(geometry);
   const position = geometry.getAttribute("position");
+  const groups = fruitGroups(geometry);
+  if (groups) {
+    for (const { start, count, anchor } of groups)
+      for (let i = start; i < start + count; i++)
+        position.setXYZ(
+          i,
+          anchor[0] + (position.getX(i) - anchor[0]) * scale,
+          anchor[1] + (position.getY(i) - anchor[1]) * scale,
+          anchor[2] + (position.getZ(i) - anchor[2]) * scale
+        );
+    position.needsUpdate = true;
+    return;
+  }
+  const { body, centers } = fruitBodies(geometry);
   const vertexBody = new Int32Array(position.count).fill(-1);
   const vertices = triangleVertices(geometry);
   for (let t = 0; t < body.length; t++) for (let k = 0; k < 3; k++) vertexBody[vertices[t * 3 + k]] = body[t];
@@ -367,8 +400,27 @@ function shrinkBodies(geometry: THREE.BufferGeometry, scale: number): void {
   position.needsUpdate = true;
 }
 
-/** Keep a stable share of fruit bodies, chosen by their position. */
+/** Keep a stable share of fruit bodies, chosen by their position; grouped fruit keeps its stalk. */
 function keepFruit(geometry: THREE.BufferGeometry, share: number): THREE.BufferGeometry {
+  const groups = fruitGroups(geometry);
+  if (groups) {
+    const kept = groups.filter(({ anchor: [x, y, z] }) => positionHash(x * 1.7, y * 1.3, z * 1.9) < share);
+    const result = new THREE.BufferGeometry();
+    for (const [name, attribute] of Object.entries(geometry.attributes)) {
+      const size = attribute.itemSize;
+      const values: number[] = [];
+      for (const { start, count } of kept)
+        for (let k = start * size; k < (start + count) * size; k++) values.push(attribute.array[k]);
+      result.setAttribute(name, new THREE.Float32BufferAttribute(values, size));
+    }
+    let start = 0;
+    result.userData.fruitGroups = kept.map(group => {
+      const moved = { ...group, start };
+      start += group.count;
+      return moved;
+    });
+    return result;
+  }
   const { body, centers } = fruitBodies(geometry);
   const kept = centers.map(c => positionHash(c.x * 1.7, c.y * 1.3, c.z * 1.9) < share);
   return filterTriangles(geometry, t => kept[body[t]]);
@@ -636,7 +688,13 @@ function applyBloom(
   let sites: THREE.Vector3[] = [];
   // Fruit is not yet set while the tree flowers.
   if (fruit) {
-    if (spec.sites === "fruit") sites = clusterSites(fruitBodies(fruit.geometry).centers, 0.12);
+    if (spec.sites === "fruit") {
+      const groups = fruitGroups(fruit.geometry);
+      const points = groups
+        ? groups.map(({ anchor }) => new THREE.Vector3(...anchor))
+        : fruitBodies(fruit.geometry).centers;
+      sites = clusterSites(points, spec.siteCell ?? 0.12);
+    }
     drop(fruit);
   }
   const extras = look.crownExtras;

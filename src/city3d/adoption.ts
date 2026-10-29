@@ -40,6 +40,22 @@ export const CE_ADOPTION: Record<string, Record<string, Adoption>> = {
       }
     ])
   ),
+  ...Object.fromEntries(
+    (
+      [
+        ["olive", "drupes", "Stalked olives in the shared fruit layer replace the triangle markers"],
+        ["date-palm", "bunches", "Branched date bunches in the shared fruit layer replace the marker axes"]
+      ] as const
+    ).map(([species, edition, note]) => [
+      `tree.${species}`,
+      Object.fromEntries(
+        (["low", "medium", "high", "ultra"] as const).map(level => [
+          level,
+          { variant: `tree.${species}@${level}#claude-opus-5.5~${edition}`, since: "2026-10-30", note }
+        ])
+      )
+    ])
+  ),
   "tree.sacred-yew": {
     medium: {
       variant: "tree.sacred-yew@medium#claude-opus-5.5",

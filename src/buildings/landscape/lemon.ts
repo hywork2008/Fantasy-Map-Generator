@@ -2,11 +2,13 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import { type CanopyLobe, createCanopyLobes, fitCanopyLobe } from "./canopyLobes";
+import { mergeFruitParts } from "./fruitLayer";
 import { createTreeBase } from "./treeBase";
 import type { TreeQuality } from "./treeQuality";
+import type { TreeAppearanceOptions } from "./treeSeasonLayers";
 
 /** Illustrative Citrus x limon: a compact evergreen crown, glossy leaves and nipple-tipped yellow fruit. */
-export function createLemon(quality: TreeQuality = "ultra"): CityStructureMeshes {
+export function createLemon(quality: TreeQuality = "ultra", options: TreeAppearanceOptions = {}): CityStructureMeshes {
   const low = quality === "low";
   const medium = quality === "medium";
   const reduced = low || medium;
@@ -17,6 +19,8 @@ export function createLemon(quality: TreeQuality = "ultra"): CityStructureMeshes
   };
   const wood: THREE.BufferGeometry[] = [];
   const fruitParts: THREE.BufferGeometry[] = [];
+  // Seasonal looks drop, thin or shrink each fruit with its stalk (fruitLayer.ts).
+  const fruitAnchors: THREE.Vector3[] | undefined = options.appearance || options.autumnPalette ? [] : undefined;
   const lobes: CanopyLobe[] = [];
   const crownPoints: THREE.Vector3[] = [];
   const positions: number[] = [],
@@ -25,7 +29,7 @@ export function createLemon(quality: TreeQuality = "ultra"): CityStructureMeshes
   const up = new THREE.Vector3(0, 1, 0);
   const crownCenter = new THREE.Vector3(0, 2.65, 0);
 
-  function timber(geometry: THREE.BufferGeometry) {
+  function timber(geometry: THREE.BufferGeometry, into = wood) {
     const flat = geometry.index ? geometry.toNonIndexed() : geometry;
     if (flat !== geometry) geometry.dispose();
     flat.deleteAttribute("uv");
@@ -37,9 +41,9 @@ export function createLemon(quality: TreeQuality = "ultra"): CityStructureMeshes
       rgb.push(color.r, color.g, color.b);
     }
     flat.setAttribute("color", new THREE.Float32BufferAttribute(rgb, 3));
-    wood.push(flat);
+    into.push(flat);
   }
-  function branch(a: THREE.Vector3, b: THREE.Vector3, radius: number) {
+  function branch(a: THREE.Vector3, b: THREE.Vector3, radius: number, into = wood) {
     const geometry = new THREE.CylinderGeometry(
       radius * 0.45,
       radius,
@@ -50,7 +54,12 @@ export function createLemon(quality: TreeQuality = "ultra"): CityStructureMeshes
     );
     geometry.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(up, b.clone().sub(a).normalize()));
     geometry.translate(...a.clone().add(b).multiplyScalar(0.5).toArray());
-    timber(geometry);
+    timber(geometry, into);
+  }
+  /** Fruit stalks join the fruit parts when a season is drawn, so harvest takes them with the fruit. */
+  function stalk(anchor: THREE.Vector3, end: THREE.Vector3, radius: number) {
+    branch(anchor, end, radius, fruitAnchors ? fruitParts : wood);
+    fruitAnchors?.push(anchor);
   }
   function triangle(a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3, color: THREE.Color) {
     const face = new THREE.Vector3().subVectors(b, a).cross(new THREE.Vector3().subVectors(c, a)).normalize();
@@ -130,8 +139,9 @@ export function createLemon(quality: TreeQuality = "ultra"): CityStructureMeshes
       geometry.setAttribute("color", new THREE.Float32BufferAttribute(rgb, 3));
       geometry.computeVertexNormals();
       fruitParts.push(geometry);
+      fruitAnchors?.push(attachment);
     }
-    if (!reduced) branch(attachment, center.clone().addScaledVector(up, radius * 1.425), 0.005);
+    if (!reduced) stalk(attachment, center.clone().addScaledVector(up, radius * 1.425), 0.005);
   }
 
   timber(
@@ -229,7 +239,7 @@ export function createLemon(quality: TreeQuality = "ultra"): CityStructureMeshes
   group.add(stem, crown);
   const pickables: THREE.Mesh[] = [stem, crown];
   if (fruitParts.length) {
-    const fruitGeometry = mergeGeometries(fruitParts)!;
+    const fruitGeometry = mergeFruitParts(fruitParts, fruitAnchors);
     for (const part of fruitParts) part.dispose();
     const fruitMaterial = new THREE.MeshLambertMaterial({ vertexColors: true });
     const mesh = new THREE.Mesh(fruitGeometry, fruitMaterial);

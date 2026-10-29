@@ -17,7 +17,13 @@ import { createKapok } from "./rainforestTrees";
 import { createSacredGardenTree } from "./sacredGardenTrees";
 import { createSaltTolerantTree } from "./saltTolerantTrees";
 import { createScotsPine } from "./scotsPine";
-import { applySeasonalLook, generatorOptions, SEASONAL_LOOKS, type SeasonalLookSpecies } from "./seasonalLooks";
+import {
+  applySeasonalLook,
+  FRUIT_LAYER_LOOKS,
+  generatorOptions,
+  SEASONAL_LOOKS,
+  type SeasonalLookSpecies
+} from "./seasonalLooks";
 import { createSmallLeavedLime } from "./smallLeavedLime";
 import { createSweetChestnut } from "./sweetChestnut";
 import { TREE_PHENOLOGY, type TreeAppearance } from "./treePhenology";
@@ -52,10 +58,10 @@ const BASE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
       budget: "bounded",
       heightMeters: 2.4,
       models: {
-        low: () => createArabicaCoffee("low"),
-        medium: () => createArabicaCoffee("medium"),
-        high: () => createArabicaCoffee("high"),
-        ultra: () => createArabicaCoffee("ultra")
+        low: options => createArabicaCoffee("low", options),
+        medium: options => createArabicaCoffee("medium", options),
+        high: options => createArabicaCoffee("high", options),
+        ultra: options => createArabicaCoffee("ultra", options)
       }
     }
   },
@@ -65,10 +71,10 @@ const BASE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
       budget: "bounded",
       heightMeters: 4.5,
       models: {
-        low: () => createCacao("low"),
-        medium: () => createCacao("medium"),
-        high: () => createCacao("high"),
-        ultra: () => createCacao("ultra")
+        low: options => createCacao("low", options),
+        medium: options => createCacao("medium", options),
+        high: options => createCacao("high", options),
+        ultra: options => createCacao("ultra", options)
       }
     }
   },
@@ -91,10 +97,10 @@ const BASE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
       budget: "bounded",
       heightMeters: 3.8,
       models: {
-        low: () => createLemon("low"),
-        medium: () => createLemon("medium"),
-        high: () => createLemon("high"),
-        ultra: () => createLemon("ultra")
+        low: options => createLemon("low", options),
+        medium: options => createLemon("medium", options),
+        high: options => createLemon("high", options),
+        ultra: options => createLemon("ultra", options)
       }
     }
   },
@@ -509,6 +515,37 @@ export const TREE_DEFINITIONS = Object.fromEntries(
     return [species, { lod: { ...definition.lod, seasonal: look.appearances, models } }];
   })
 ) as Record<TreeSpecies, TreeDefinition>;
+
+/**
+ * Editions that replace the original fruit markers with the shared fruit layer (§7.1, O02 and
+ * D02). They revise the default appearance itself, so they are separate editions that CE adopts,
+ * and the original models stay registered for comparison.
+ */
+export const FRUIT_LAYER_EDITIONS = {
+  olive: {
+    edition: "drupes",
+    models: Object.fromEntries(
+      TREE_QUALITIES.map(quality => [
+        quality,
+        (options?: TreeAppearanceOptions) => createMediterraneanMontaneTree("olive", quality, options, "drupes")
+      ])
+    ) as Record<TreeQuality, TreeFactory>
+  },
+  date_palm: {
+    edition: "bunches",
+    models: Object.fromEntries(
+      TREE_QUALITIES.map(quality => [
+        quality,
+        (options?: TreeAppearanceOptions) => {
+          const look = FRUIT_LAYER_LOOKS.date_palm;
+          // Flowering starts from the unripe bunches, whose dates mark where the strands open.
+          if (options?.appearance !== "bloom") return createAridTree("date_palm", quality, options, "bunches");
+          return applySeasonalLook(look, quality, createAridTree("date_palm", quality, {}, "bunches"), options);
+        }
+      ])
+    ) as Record<TreeQuality, TreeFactory>
+  }
+} as const satisfies Partial<Record<TreeSpecies, { edition: string; models: Record<TreeQuality, TreeFactory> }>>;
 
 export function treeLodProfile(species: TreeSpecies): TreeLodProfile | undefined {
   return TREE_DEFINITIONS[species].lod;

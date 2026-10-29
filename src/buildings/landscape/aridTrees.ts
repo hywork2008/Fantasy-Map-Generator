@@ -2,16 +2,45 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import { type CanopyLobe, createCanopyLobes, fitCanopyLobe } from "./canopyLobes";
+import { buildFruitLayer, type FruitAxis, type FruitSite, type FruitSpec } from "./fruitLayer";
 import { createTreeBase } from "./treeBase";
 import type { TreeQuality } from "./treeQuality";
+import { positionHash, type TreeAppearanceOptions } from "./treeSeasonLayers";
 
-/** Dry-climate trees: an oasis date palm, a flat-crowned savanna umbrella thorn and a cold-desert saxaul. */
+/** Dates on the strands of a branched bunch: yellow khalal ripening to brown tamar (D02). */
+const DATE_BUNCHES: FruitSpec = {
+  shape: "drupe",
+  sizeMeters: 0.038,
+  widthRatio: 0.58,
+  stalkMeters: 0.008,
+  stalkColor: 0xbf8f36,
+  cluster: { count: 1, spread: 0 },
+  palettes: {
+    unripe: [0xd9a521, 0xe2b232, 0xcc9420],
+    ripe: [0x5b3418, 0x6a3c1a, 0x4b2a12, 0x7a4a22]
+  }
+};
+/** Bunch stalks left on the palm once the bunches are cut, dried to straw brown. */
+const CUT_STALKS: FruitSpec = { ...DATE_BUNCHES, stalkColor: 0x8c7044 };
+
+/**
+ * Dry-climate trees: an oasis date palm, a flat-crowned savanna umbrella thorn and a cold-desert
+ * saxaul. The palm's dates are triangle markers on four axes (the original model) or, for
+ * `fruitForm: "bunches"`, branched bunches in the shared fruit layer, which also draws its seasons.
+ */
 export function createAridTree(
   species: "date_palm" | "umbrella_thorn" | "saxaul",
-  quality: TreeQuality = "ultra"
+  quality: TreeQuality = "ultra",
+  options: TreeAppearanceOptions = {},
+  fruitForm: "markers" | "bunches" = "markers"
 ): CityStructureMeshes {
   const palm = species === "date_palm",
     saxaul = species === "saxaul";
+  const bunches = palm && fruitForm === "bunches";
+  const appearance =
+    options.appearance === "fruit" || options.appearance === "harvested" ? options.appearance : "unripe";
+  const fruitSites: FruitSite[] = [];
+  const fruitAxes: FruitAxis[] = [];
   const tier = quality;
   const reduced = tier === "low" || tier === "medium";
   const lobes: CanopyLobe[] = [],
@@ -255,8 +284,56 @@ export function createAridTree(
     // A few drooping, unpruned old fronds hang beneath the living crown.
     for (let i = 0; i < 6; i++)
       frond(crown.clone().addScaledVector(up, -0.7), i * 1.07 + 0.4, -0.9 - random() * 0.4, 2.6, true, i % 2 === 0);
+    if (bunches) {
+      // Bunch stalks arch out from among the leaf bases; strands hang from their outer half.
+      for (let i = 0; i < 6; i++) {
+        const angle = i * 1.047 + 0.3 + positionHash(i, 0.3, 0.7) * 0.25;
+        const out = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
+        const side = new THREE.Vector3(-out.z, 0, out.x);
+        const base = crown
+          .clone()
+          .addScaledVector(out, 0.32)
+          .addScaledVector(up, -0.45 - (i % 2) * 0.15);
+        const at = (t: number) =>
+          base
+            .clone()
+            .addScaledVector(out, 0.95 * t)
+            .addScaledVector(up, 0.2 * t - 0.95 * t * t);
+        // Harvest cuts the bunch, leaving the inner third of its stalk.
+        const reach = appearance === "harvested" ? 0.32 : 1;
+        for (let k = 0; k < 4; k++)
+          fruitAxes.push({ from: at((k / 4) * reach), to: at(((k + 1) / 4) * reach), radius: 0.03 - k * 0.003 });
+        if (appearance === "harvested") continue;
+        // Reduced tiers keep every other strand of the ultra bunch, in place.
+        for (let s = 0; s < 24; s++) {
+          if (tier !== "ultra" && s % 2) continue;
+          const start = at(0.55 + (0.45 * (s + 0.5)) / 24);
+          const turn = s * 2.39996;
+          const direction = out
+            .clone()
+            .multiplyScalar(0.25)
+            .addScaledVector(side, Math.cos(turn) * 0.3)
+            .addScaledVector(out, Math.sin(turn) * 0.15)
+            .add(new THREE.Vector3(0, -1, 0))
+            .normalize();
+          const end = start.clone().addScaledVector(direction, 0.42 + positionHash(i, s, 1.3) * 0.18);
+          if (tier !== "medium") fruitAxes.push({ from: start, to: end, radius: 0.0045 });
+          for (let d = 0; d < 7; d++) {
+            const position = start.clone().lerp(end, 0.2 + d * 0.12);
+            const lateral = d * 2.4 + s;
+            fruitSites.push({
+              position,
+              hang: new THREE.Vector3(Math.cos(lateral) * 0.6, -1, Math.sin(lateral) * 0.6).normalize(),
+              order: positionHash(position.x, position.y, position.z),
+              kind: "strand",
+              bunch: i
+            });
+          }
+        }
+      }
+    }
     // Unripe date clusters on strands among the leaf bases.
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < (bunches ? 0 : 4); i++) {
       const angle = i * 1.6 + 0.3;
       const stem = crown.clone().add(new THREE.Vector3(Math.cos(angle) * 0.4, -0.35, Math.sin(angle) * 0.4));
       const end = stem.clone().add(new THREE.Vector3(Math.cos(angle) * 0.55, -0.75, Math.sin(angle) * 0.55));
@@ -458,14 +535,33 @@ export function createAridTree(
   group.name = species.replaceAll("_", "-");
   group.userData.treeQuality = quality;
   group.add(trunk, crown);
+  const pickables = [trunk, crown];
+  if (bunches) {
+    group.userData.treeAppearance = appearance;
+    const fruitGeometry = buildFruitLayer(fruitSites, appearance === "harvested" ? CUT_STALKS : DATE_BUNCHES, quality, {
+      stage: appearance === "fruit" ? "ripe" : "unripe",
+      axes: fruitAxes
+    });
+    if (fruitGeometry) {
+      const mesh = new THREE.Mesh(fruitGeometry, new THREE.MeshLambertMaterial({ vertexColors: true }));
+      mesh.name =
+        appearance === "harvested"
+          ? "date-palm-cut-bunch-stalks"
+          : appearance === "fruit"
+            ? "date-palm-bunches-of-brown-tamar-dates"
+            : "date-palm-bunches-of-yellow-khalal-dates";
+      group.add(mesh);
+      pickables.push(mesh);
+    }
+  }
   return {
     group,
-    pickables: [trunk, crown],
+    pickables,
     dispose() {
-      barkGeometry.dispose();
-      foliage.dispose();
-      barkMaterial.dispose();
-      leafMaterial.dispose();
+      for (const mesh of pickables) {
+        mesh.geometry.dispose();
+        (mesh.material as THREE.Material).dispose();
+      }
     }
   };
 }

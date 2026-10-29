@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import { TREE_PHENOLOGY, type TreeAppearance } from "./treePhenology";
 import { TREE_QUALITIES } from "./treeQuality";
-import { createLandscapeTree, TREE_SPECIES, type TreeSpecies, treeLodProfile } from "./trees";
+import { createLandscapeTree, FRUIT_LAYER_EDITIONS, TREE_SPECIES, type TreeSpecies, treeLodProfile } from "./trees";
 
 const BUDGET = { low: 500, medium: 3000, high: 25000, ultra: 120000 } as const;
 
@@ -74,6 +74,45 @@ describe("seasonal tree layers", () => {
     }
   });
 
+  it("draws the fruit-layer editions' seasons with fruit bodies in place of crown markers", () => {
+    for (const [species, { models }] of Object.entries(FRUIT_LAYER_EDITIONS) as [
+      keyof typeof FRUIT_LAYER_EDITIONS,
+      (typeof FRUIT_LAYER_EDITIONS)[keyof typeof FRUIT_LAYER_EDITIONS]
+    ][])
+      for (const appearance of treeLodProfile(species)!.seasonal!)
+        for (const quality of TREE_QUALITIES) {
+          const model = models[quality]({ appearance });
+          const names = model.pickables.map(mesh => mesh.name);
+          expect(triangles(model), `${species} ${appearance} ${quality}`).toBeLessThanOrEqual(BUDGET[quality]);
+          expect(model.group.userData.treeAppearance).toBe(appearance);
+          const fruiting = appearance === "unripe" || appearance === "fruit";
+          if (quality !== "low") {
+            expect(
+              names.some(name => /drupes|dates/.test(name)),
+              `${species} ${appearance} ${quality}`
+            ).toBe(fruiting);
+            expect(names.some(name => name.includes("cut-bunch-stalks"))).toBe(appearance === "harvested");
+          }
+          model.dispose();
+        }
+    // The olive's crown no longer carries the dark and green triangle markers.
+    const markers = createLandscapeTree("olive", "ultra");
+    const drupes = FRUIT_LAYER_EDITIONS.olive.models.ultra();
+    expect(triangles({ ...drupes, pickables: [drupes.pickables[1]] })).toBeLessThan(
+      triangles({ ...markers, pickables: [markers.pickables[1]] })
+    );
+    markers.dispose();
+    drupes.dispose();
+  });
+
+  it("opens the chestnut burs on their nuts when ripe", () => {
+    for (const quality of ["medium", "high", "ultra"] as const) {
+      const model = createLandscapeTree("sweet_chestnut", quality, { appearance: "fruit" });
+      expect(model.pickables.map(mesh => mesh.name)).toContain("sweet-chestnut-split-burs-and-nuts");
+      model.dispose();
+    }
+  });
+
   it("recolours autumn foliage without moving a vertex", () => {
     const summer = createLandscapeTree("european_beech", "high");
     const autumn = createLandscapeTree("european_beech", "high", { appearance: "autumn" });
@@ -97,8 +136,14 @@ describe("seasonal tree layers", () => {
       model.dispose();
       return counts;
     };
-    // A harvested pear keeps wood and leaves; a harvested lemon keeps a few late fruit.
-    expect(count("european_pear", "harvested")).toEqual(count("european_pear").slice(0, 2));
+    // A harvested pear keeps its leaves and loses the fruit with its stalks, which a drawn season
+    // carries in the fruit layer; a harvested lemon keeps a few late fruit.
+    const [wood, leaves] = count("european_pear");
+    const [harvestedWood, harvestedLeaves, ...harvestedFruit] = count("european_pear", "harvested");
+    expect(harvestedLeaves).toBe(leaves);
+    expect(harvestedFruit).toEqual([]);
+    expect(harvestedWood).toBeLessThan(wood);
+    expect(harvestedWood).toBe(count("european_pear", "fruit")[0]);
     const lemon = count("lemon")[2];
     const left = count("lemon", "harvested")[2];
     expect(left).toBeGreaterThan(lemon * 0.05);

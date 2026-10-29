@@ -7,7 +7,13 @@ import { createSmallLeavedLimeOpus } from "./smallLeavedLimeOpus";
 import { createTemperateTreeCodexMedium } from "./temperateTreeCodexMedium";
 import { TREE_QUALITIES, type TreeQuality } from "./treeQuality";
 import type { TreeAppearanceOptions } from "./treeSeasonLayers";
-import { createLandscapeTree, hasTreeQualityLevels, TREE_SPECIES, type TreeSpecies } from "./trees";
+import {
+  createLandscapeTree,
+  FRUIT_LAYER_EDITIONS,
+  hasTreeQualityLevels,
+  TREE_SPECIES,
+  type TreeSpecies
+} from "./trees";
 
 /** Author of each species' model; reduced tiers credit their own authors below. */
 export const TREE_AUTHORS: Record<TreeSpecies, Author> = {
@@ -338,6 +344,34 @@ function tieredVariants(species: TreeSpecies): TreeVariant[] {
       create: () => createNorwaySpruceOpus("plate", "ultra")
     });
   }
+  const fruitLayer = FRUIT_LAYER_EDITIONS[species as keyof typeof FRUIT_LAYER_EDITIONS];
+  if (fruitLayer)
+    for (const level of TREE_QUALITIES) {
+      const base = variants.find(variant => variant.level === level && !variant.edition)!;
+      variants.splice(variants.indexOf(base) + 1, 0, {
+        id: variantId(family, level, "Claude Opus 5.5", fruitLayer.edition),
+        family,
+        level,
+        author: "Claude Opus 5.5",
+        edition: fruitLayer.edition,
+        basedOn: [base.id],
+        credits: [
+          {
+            author: "Claude Opus 5.5",
+            date: "2026-10-30",
+            note:
+              species === "olive"
+                ? level === "low"
+                  ? "Shared fruit layer edition: no fruit at distant range, geometry unchanged"
+                  : "Shared fruit layer: the triangle markers in the leaves replaced by stalked olives in pairs at leaf axils of the fruiting shoots, green to violet-black by season; medium keeps a few fruit masses"
+                : level === "low"
+                  ? "Shared fruit layer edition: no fruit at distant range, geometry unchanged"
+                  : "Shared fruit layer: the four marker axes replaced by six branched bunches, strands carrying oval dates, yellow khalal to brown tamar, and cut bunch stalks after harvest; medium draws each bunch as one mass on its stalk"
+          }
+        ],
+        create: (options?: TreeAppearanceOptions) => fruitLayer.models[level](options)
+      });
+    }
   if (species === "garden_parkland") {
     const opusHigh = variantId(family, "high", "Claude Opus 5.5");
     variants.splice(

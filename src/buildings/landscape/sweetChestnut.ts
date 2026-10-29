@@ -2,9 +2,21 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import { type CanopyLobe, createCanopyLobes, fitCanopyLobe } from "./canopyLobes";
+import { buildFruitLayer, type FruitSite, type FruitSpec, mergeFruitParts } from "./fruitLayer";
 import { createTreeBase } from "./treeBase";
 import type { TreeQuality } from "./treeQuality";
 import { type LeafShoot, type TreeAppearanceOptions, WINTER_TWIGS, winterTwigs } from "./treeSeasonLayers";
+
+/** Ripe burs split into four valves on two or three glossy nuts, browning as they open. */
+const SPLIT_BURS: FruitSpec = {
+  shape: "bur",
+  sizeMeters: 0.066,
+  widthRatio: 1,
+  stalkMeters: 0.04,
+  stalkColor: 0x6d5a34,
+  cluster: { count: 1, spread: 0 },
+  palettes: { unripe: [0x8f7230], ripe: [0x8f7230, 0x9a7b36, 0x84672a] }
+};
 
 /** Illustrative Castanea sativa: a broad orchard crown, long toothed simple leaves and prickly green burs. */
 export function createSweetChestnut(
@@ -16,6 +28,9 @@ export function createSweetChestnut(
   const reduced = low || medium;
   // Bare winter trees keep the leafy skeleton; the registry drops leaves and fruit (seasonalLooks.ts).
   const bare = options.appearance === "bare";
+  // Ripe burs are drawn by the shared fruit layer at the same attachments as the green ones.
+  const ripe = options.appearance === "fruit";
+  const ripeSites: FruitSite[] = [];
   const shoots: LeafShoot[] = [];
   let seed = 74039;
   const random = () => {
@@ -24,6 +39,8 @@ export function createSweetChestnut(
   };
   const wood: THREE.BufferGeometry[] = [];
   const fruitParts: THREE.BufferGeometry[] = [];
+  // Seasonal looks drop, thin or shrink each fruit with its stalk (fruitLayer.ts).
+  const fruitAnchors: THREE.Vector3[] | undefined = options.appearance || options.autumnPalette ? [] : undefined;
   const lobes: CanopyLobe[] = [];
   const crownPoints: THREE.Vector3[] = [];
   const positions: number[] = [],
@@ -32,7 +49,7 @@ export function createSweetChestnut(
   const up = new THREE.Vector3(0, 1, 0);
   const crownCenter = new THREE.Vector3(0, 6.8, 0);
 
-  function timber(geometry: THREE.BufferGeometry) {
+  function timber(geometry: THREE.BufferGeometry, into = wood) {
     const flat = geometry.index ? geometry.toNonIndexed() : geometry;
     if (flat !== geometry) geometry.dispose();
     flat.deleteAttribute("uv");
@@ -44,9 +61,9 @@ export function createSweetChestnut(
       rgb.push(color.r, color.g, color.b);
     }
     flat.setAttribute("color", new THREE.Float32BufferAttribute(rgb, 3));
-    wood.push(flat);
+    into.push(flat);
   }
-  function branch(a: THREE.Vector3, b: THREE.Vector3, radius: number) {
+  function branch(a: THREE.Vector3, b: THREE.Vector3, radius: number, into = wood) {
     const geometry = new THREE.CylinderGeometry(
       radius * 0.45,
       radius,
@@ -57,7 +74,12 @@ export function createSweetChestnut(
     );
     geometry.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(up, b.clone().sub(a).normalize()));
     geometry.translate(...a.clone().add(b).multiplyScalar(0.5).toArray());
-    timber(geometry);
+    timber(geometry, into);
+  }
+  /** Fruit stalks join the fruit parts when a season is drawn, so harvest takes them with the fruit. */
+  function stalk(anchor: THREE.Vector3, end: THREE.Vector3, radius: number) {
+    branch(anchor, end, radius, fruitAnchors ? fruitParts : wood);
+    fruitAnchors?.push(anchor);
   }
   function triangle(a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3, color: THREE.Color) {
     const face = new THREE.Vector3().subVectors(b, a).cross(new THREE.Vector3().subVectors(c, a)).normalize();
@@ -109,6 +131,17 @@ export function createSweetChestnut(
   }
   function fruit(attachment: THREE.Vector3, radius: number, tint: number, index: number) {
     const center = attachment.clone().addScaledVector(up, -radius - 0.045);
+    if (ripe) {
+      if (!low && (!medium || index % 2 === 0))
+        ripeSites.push({
+          position: attachment,
+          hang: new THREE.Vector3(0, -1, 0),
+          order: (index * 0.618034) % 1,
+          kind: "spur",
+          scale: radius / 0.031
+        });
+      return;
+    }
     if (!low && (!medium || index % 2 === 0)) {
       const indexedShell = new THREE.SphereGeometry(
         radius,
@@ -124,6 +157,7 @@ export function createSweetChestnut(
       for (let i = 0; i < shell.getAttribute("position").count; i++) rgb.push(shellColor.r, shellColor.g, shellColor.b);
       shell.setAttribute("color", new THREE.Float32BufferAttribute(rgb, 3));
       fruitParts.push(shell);
+      fruitAnchors?.push(attachment);
       // Deterministic spherical sampling keeps thin spines in one merged fruit mesh.
       const count = medium ? 8 : quality === "high" ? 32 : 72;
       const spines: number[] = [],
@@ -160,8 +194,9 @@ export function createSweetChestnut(
       geometry.setAttribute("color", new THREE.Float32BufferAttribute(spineColors, 3));
       geometry.computeVertexNormals();
       fruitParts.push(geometry);
+      fruitAnchors?.push(attachment);
     }
-    if (!reduced && !bare) branch(attachment, center.clone().addScaledVector(up, radius), 0.005);
+    if (!reduced && !bare) stalk(attachment, center.clone().addScaledVector(up, radius), 0.005);
   }
 
   timber(
@@ -251,12 +286,13 @@ export function createSweetChestnut(
   group.userData.treeQuality = quality;
   group.add(stem, crown);
   const pickables: THREE.Mesh[] = [stem, crown];
-  if (fruitParts.length) {
-    const fruitGeometry = mergeGeometries(fruitParts)!;
+  const splitBurs = ripe ? buildFruitLayer(ripeSites, SPLIT_BURS, quality) : undefined;
+  if (fruitParts.length || splitBurs) {
+    const fruitGeometry = splitBurs ?? mergeFruitParts(fruitParts, fruitAnchors);
     for (const part of fruitParts) part.dispose();
     const fruitMaterial = new THREE.MeshLambertMaterial({ vertexColors: true });
     const mesh = new THREE.Mesh(fruitGeometry, fruitMaterial);
-    mesh.name = "sweet-chestnut-green-spiny-burs";
+    mesh.name = splitBurs ? "sweet-chestnut-split-burs-and-nuts" : "sweet-chestnut-green-spiny-burs";
     group.add(mesh);
     pickables.push(mesh);
   }
