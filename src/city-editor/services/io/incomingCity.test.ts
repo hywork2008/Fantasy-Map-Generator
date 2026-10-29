@@ -84,6 +84,27 @@ describe("parseDescriptor", () => {
 });
 
 describe("share codec", () => {
+  it("preserves fractional rotation and normalizes full turns without losing automatic orientation", () => {
+    for (const [rotation, expected] of [
+      [37.5, 37.5],
+      [360, 0],
+      [-90, 270],
+      [undefined, undefined],
+      ["invalid", undefined]
+    ]) {
+      const share = buildShare({
+        seed: "rotation",
+        grid: "hex",
+        size: "micro",
+        settings: { config: DEFAULT_SITE_CONFIG }
+      });
+      const decoded = decodeShare(
+        encodeShare({ ...share, settings: { ...share.settings, elevationRotation: rotation } })
+      );
+      expect(decoded?.settings.elevationRotation).toBe(expected);
+    }
+  });
+
   it("clamps elevation relief and keeps the share when the value is not a number", () => {
     const share = buildShare({
       seed: "relief",

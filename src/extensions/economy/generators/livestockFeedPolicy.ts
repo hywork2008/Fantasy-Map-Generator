@@ -8,6 +8,10 @@ export const FODDER_DRY_MATTER_SHARE = 0.85;
 export const FODDER_DM_KG_PER_LOT = FODDER_LOT_KG * FODDER_DRY_MATTER_SHARE;
 export const HAY_DRY_MATTER_RETENTION = 0.85;
 export const HAY_STORAGE_LOSS_PER_MONTH = 0.01;
+/**
+ * Mowing, turning, cocking and carrying. Customary mowing ran ½-1 acre a day (2.5-5 man-days/ha;
+ * VCH Wiltshire iv, medieval agriculture), so on a 1.5 t DM/ha meadow this is the low end (E1 §7.68).
+ */
 export const HAY_WORK_DAYS_PER_TONNE_DM = 3;
 export const HAY_RESERVE_MONTHS = 3;
 /** Monthly loss of grass left standing on a meadow shut up for the main cut (authored). */
@@ -202,10 +206,17 @@ export function getPastureGrowth(
   cellId: number
 ): { annualKgPerHa: number; weights: number[] } {
   const temperatures = readAgriculturalClimate(world, cellId).monthlyMeanTemperatureC;
+  const cached = pastureGrowthByTemperatures.get(temperatures);
+  if (cached) return cached;
   const growth = Array.from({ length: 12 }, (_, month) => Math.max(0, (temperatures[month] ?? 0) - 2));
   const total = growth.reduce((sum, value) => sum + value, 0);
-  return {
+  const result = {
     annualKgPerHa: PASTURE_ANNUAL_DM_KG_PER_HECTARE * Math.min(1, total / 120),
     weights: growth.map(value => (total > 0 ? value / total : 0))
   };
+  pastureGrowthByTemperatures.set(temperatures, result);
+  return result;
 }
+
+// The climate reader keeps one temperature array per cell and year; callers only read the result.
+const pastureGrowthByTemperatures = new WeakMap<ArrayLike<number>, { annualKgPerHa: number; weights: number[] }>();

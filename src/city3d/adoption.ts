@@ -30,6 +30,16 @@ export const CE_ADOPTION: Record<string, Record<string, Adoption>> = {
       note: "Matches the high-tier silhouette with fewer triangles (2,446 to 1,888)"
     }
   },
+  "tree.norway-spruce": Object.fromEntries(
+    (["low", "medium", "high", "ultra"] as const).map(level => [
+      level,
+      {
+        variant: `tree.norway-spruce@${level}#claude-opus-5.5~plate`,
+        since: "2026-10-29",
+        note: "Opus plate spruce of boreal and high-montane stands at every tier"
+      }
+    ])
+  ),
   "tree.sacred-yew": {
     medium: {
       variant: "tree.sacred-yew@medium#claude-opus-5.5",

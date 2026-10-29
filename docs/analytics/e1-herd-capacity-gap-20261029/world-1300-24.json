@@ -1,0 +1,195 @@
+{
+ "schemaVersion": 1,
+ "inputSha256": "0aac4fc87c880566a23eb07e5e45721c052383ceeeaef1dd39086f14144e400c",
+ "months": 24,
+ "notes": [
+  "Settled land cells. Heads are real animals; atCeiling/atKept split the forage by each species' feed need at its target.",
+  "pastureNeedHa is the pasture the source-based targets need after grazed fallow; pastureKeptHa is the maintained pasture.",
+  "herders are real workers (annual-equivalent); ruralAdults are real people."
+ ],
+ "samples": [
+  {
+   "label": "prepared",
+   "date": [
+    1300,
+    1
+   ],
+   "land": {
+    "ruralPeople": 3696890.4693722725,
+    "ruralAdults": 1638335.8416166157,
+    "urbanPeople": 620574.320515873,
+    "cultivatedHa": 9808635.809783936,
+    "sownWeightedYieldKg": 2323031080.2106347,
+    "ruralStapleFieldNeedHa": 5229627.868144228,
+    "fallowEquivalentHa": 2344499.2549931896,
+    "pastureNeedHa": 30374959.735982403,
+    "pastureCeilingHa": 59471376.298682295,
+    "pastureNeedWithinCeilingHa": 21284157.171141706,
+    "pastureKeptHa": 9554248.375510896,
+    "herdersAssigned": 79251.20411413908,
+    "herdersRequired": 96999.54864567518,
+    "planRequiredHa": 8664252.104596615,
+    "planTargetHa": 9962238.282219958,
+    "planLaborExcessHa": 431560.96716367925,
+    "planLaborTargetCells": 776,
+    "planAllocatedHa": 9808635.80524586,
+    "planFoodDemandPeople": 4350311.6821572725,
+    "planRuralPeople": 3696890.4693722725
+   },
+   "species": {
+    "Cattle": {
+     "target": 2651098.5060460735,
+     "atCeiling": 1850744.3643376024,
+     "atKept": 886082.5131620321,
+     "supported": 886082.5131620321
+    },
+    "Horses": {
+     "target": 637025.0536152029,
+     "atCeiling": 459168.5776799877,
+     "atKept": 223535.9261903158,
+     "supported": 223535.9261903158
+    },
+    "Camels": {
+     "target": 46372.27740287781,
+     "atCeiling": 46326.76347087168,
+     "atKept": 30343.33872486966,
+     "supported": 30343.33872486966
+    },
+    "Sheep": {
+     "target": 5702676.904424429,
+     "atCeiling": 4088376.4566414743,
+     "atKept": 1962947.9324187334,
+     "supported": 1962947.9324187334
+    },
+    "Goats": {
+     "target": 180851.88187122345,
+     "atCeiling": 180674.37753639955,
+     "atKept": 118339.02102699163,
+     "supported": 118339.02102699163
+    }
+   }
+  },
+  {
+   "label": "month 12",
+   "date": [
+    1301,
+    1
+   ],
+   "land": {
+    "ruralPeople": 3702735.900565982,
+    "ruralAdults": 1685339.954154566,
+    "urbanPeople": 624604.846941506,
+    "cultivatedHa": 9405714.476593018,
+    "sownWeightedYieldKg": 2315845790.893919,
+    "ruralStapleFieldNeedHa": 5072057.886892313,
+    "fallowEquivalentHa": 2260206.177957861,
+    "pastureNeedHa": 30509634.610785503,
+    "pastureCeilingHa": 59487877.720393136,
+    "pastureNeedWithinCeilingHa": 21348595.04932245,
+    "pastureKeptHa": 9614966.971972883,
+    "herdersAssigned": 91495.1688464284,
+    "herdersRequired": 107159.59808266163,
+    "planRequiredHa": 8046771.364921383,
+    "planTargetHa": 9615136.543668363,
+    "planLaborExcessHa": 763688.0422548675,
+    "planLaborTargetCells": 980,
+    "planAllocatedHa": 9405714.475306513,
+    "planFoodDemandPeople": 4357020.6867859205,
+    "planRuralPeople": 3702734.913736582
+   },
+   "species": {
+    "Cattle": {
+     "target": 2655627.396336157,
+     "atCeiling": 1847122.5467624424,
+     "atKept": 881776.4807833497,
+     "supported": 867841.447335334
+    },
+    "Horses": {
+     "target": 638181.9392873091,
+     "atCeiling": 458514.19493759464,
+     "atKept": 222651.62034206363,
+     "supported": 218943.5890177958
+    },
+    "Camels": {
+     "target": 46509.57245975733,
+     "atCeiling": 46463.127257219036,
+     "atKept": 30476.860502835985,
+     "supported": 29782.814313799743
+    },
+    "Sheep": {
+     "target": 5713125.990426391,
+     "atCeiling": 4082294.6462063235,
+     "atKept": 1954606.8705940403,
+     "supported": 1922498.0524175381
+    },
+    "Goats": {
+     "target": 181387.33259305358,
+     "atCeiling": 181206.19630315423,
+     "atKept": 118859.75596106042,
+     "supported": 116152.9758238191
+    }
+   }
+  },
+  {
+   "label": "month 24",
+   "date": [
+    1302,
+    1
+   ],
+   "land": {
+    "ruralPeople": 3717110.2416217327,
+    "ruralAdults": 1731596.9639699906,
+    "urbanPeople": 632684.7871318017,
+    "cultivatedHa": 9405663.113388062,
+    "sownWeightedYieldKg": 2318318245.1935253,
+    "ruralStapleFieldNeedHa": 5086838.745807207,
+    "fallowEquivalentHa": 2260480.513200467,
+    "pastureNeedHa": 30632253.183259476,
+    "pastureCeilingHa": 59486831.09677675,
+    "pastureNeedWithinCeilingHa": 21413626.645245634,
+    "pastureKeptHa": 9835085.869349124,
+    "herdersAssigned": 92149.72283574939,
+    "herdersRequired": 106982.12409555912,
+    "planRequiredHa": 8067436.331394434,
+    "planTargetHa": 9743656.361074569,
+    "planLaborExcessHa": 869476.3965406758,
+    "planLaborTargetCells": 1040,
+    "planAllocatedHa": 9405663.112397648,
+    "planFoodDemandPeople": 4383409.504068698,
+    "planRuralPeople": 3717110.2416217327
+   },
+   "species": {
+    "Cattle": {
+     "target": 2666047.3661369435,
+     "atCeiling": 1851794.2914761433,
+     "atKept": 898459.6293633032,
+     "supported": 859974.4761482826
+    },
+    "Horses": {
+     "target": 640719.0134963803,
+     "atCeiling": 459773.88579398004,
+     "atKept": 227141.46359756694,
+     "supported": 216602.90406806057
+    },
+    "Camels": {
+     "target": 46719.452863931656,
+     "atCeiling": 46671.62832038497,
+     "atKept": 31372.201480064276,
+     "supported": 29136.550645487747
+    },
+    "Sheep": {
+     "target": 5735978.420922756,
+     "atCeiling": 4093392.3155020676,
+     "atKept": 1993374.6454234004,
+     "supported": 1902608.8717678227
+    },
+    "Goats": {
+     "target": 182205.86616933346,
+     "atCeiling": 182019.35044950136,
+     "atKept": 122351.58577225066,
+     "supported": 113632.54751740232
+    }
+   }
+  }
+ ]
+}

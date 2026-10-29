@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { TREE_LOD_DISTANCES } from "../../buildings/landscape/treeQuality";
-import type { TreeSpecies } from "../../buildings/landscape/trees";
+import { hasTreeQualityLevels, type TreeSpecies, treeLodProfile } from "../../buildings/landscape/trees";
 import { forestContains } from "../../city-editor/generators/forestGeometry";
 import { bounds, intersectConvex, PlotIndex, plotArea } from "../../city-editor/generators/parcelGeometry";
 import { landscapeTreeSpecies } from "../../city-editor/renderers/landscapeTreeSpecies";
@@ -144,9 +144,9 @@ export function createTownForest(
 ) {
   const group = new THREE.Group();
   group.name = "ce-forest";
-  const limeDistanceLod = landscapeTreeSpecies("garden_parkland", document, [0, 0]) === "garden_parkland";
-  const tieredTrees = document.biome?.key === "centralEuropeanGreatForest" || limeDistanceLod;
-  const details = createForestTreeDetails(group, tieredTrees);
+  const forestProfile = treeLodProfile(landscapeTreeSpecies("garden_parkland", document, [0, 0]));
+  const qualityFirstTrees = forestProfile?.budget === "quality-first";
+  const details = createForestTreeDetails(group);
   const seed = document.generationSeed ?? document.fabric?.seed ?? document.format;
   const heightAt = terrain?.heightAt ?? (() => 0);
   const density = document.forestSettings?.density ?? "standard";
@@ -404,7 +404,11 @@ export function createTownForest(
             : CONIFERS.has(species) || /conifer|taiga/i.test(document.biome?.key ?? "");
         const batch = `${Math.floor(p[0] / TREE_CHUNK)},${Math.floor(p[1] / TREE_CHUNK)}:${needle ? "needle" : "leaf"}`;
         const list = batches.get(batch) ?? [];
-        list.push({ id, species, point: p, radius, size: 0.8 + random(`${seed}:tree:${id}:size`) * 0.4 });
+        const heightToRadius = treeLodProfile(species)?.forestHeightToRadius;
+        const size =
+          (0.8 + random(`${seed}:tree:${id}:size`) * 0.4) *
+          (heightToRadius === undefined ? 1 : (radius * heightToRadius) / 10);
+        list.push({ id, species, point: p, radius, size });
         batches.set(batch, list);
       }
     const meshes: THREE.InstancedMesh[] = [];
@@ -507,8 +511,8 @@ export function createTownForest(
         detailedSpecies: [],
         detailedTiers: { low: 0, medium: 0, high: 0, ultra: 0 }
       });
-      if (limeDistanceLod) {
-        // Lime uses only its adopted distance tiers. Generic prototypes are transform buffers,
+      if (qualityFirstTrees) {
+        // Quality-first species use only their adopted tiers. Generic prototypes are transform buffers,
         // never a visible fallback, and geometry budgets must not change an individual tree's tier.
         const sites: ForestTreeSite[] = [];
         const active = new Set<string>();
@@ -619,8 +623,12 @@ export function createTownForest(
             chunk.floor.visible = true;
             chunk.mode = mode;
             used.add(`${chunk.id}:${mode}`);
-            if (tieredTrees || (quality === "high" && mode === "near"))
-              for (const mesh of layer.meshes) detailSites.push(...(mesh.userData.forestSites as ForestTreeSite[]));
+            for (const mesh of layer.meshes)
+              detailSites.push(
+                ...(mesh.userData.forestSites as ForestTreeSite[]).filter(
+                  site => hasTreeQualityLevels(site.species) || (quality === "high" && mode === "near")
+                )
+              );
             if (mode === "near")
               for (const mesh of layer.meshes) {
                 const cost = count(mesh.geometry) * mesh.count;
@@ -641,7 +649,7 @@ export function createTownForest(
         layer.group.removeFromParent();
         cache.delete(key);
       }
-      if (tieredTrees || quality === "high") {
+      if (detailSites.length) {
         const result = details.update(
           camera,
           viewportHeight,

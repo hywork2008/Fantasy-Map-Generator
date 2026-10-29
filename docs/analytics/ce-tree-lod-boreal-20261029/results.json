@@ -1,0 +1,328 @@
+{
+  "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+  "viewport": [
+    1200,
+    800
+  ],
+  "dpr": 1,
+  "areaM2": 64768,
+  "timing": "Single CPU update/submission only; not GPU completion, full CE frame p95 or FPS.",
+  "frames": [
+    {
+      "pose": "overview",
+      "quality": "light",
+      "cpuSubmissionMs": 4.099999904632568,
+      "stats": {
+        "quality": "light",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 0,
+        "middleChunks": 0,
+        "trees": 0,
+        "triangles": 7432,
+        "calls": 4,
+        "shadowTriangles": 0,
+        "cachedLayers": 0,
+        "globalFallback": false,
+        "detailedTrees": 0,
+        "detailedTriangles": 0,
+        "detailedSpecies": [],
+        "detailedTiers": {
+          "low": 0,
+          "medium": 0,
+          "high": 0,
+          "ultra": 0
+        },
+        "builds": 0
+      },
+      "gpuGeometries": 20
+    },
+    {
+      "pose": "overview",
+      "quality": "standard",
+      "cpuSubmissionMs": 0.10000014305114746,
+      "stats": {
+        "quality": "standard",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 0,
+        "middleChunks": 0,
+        "trees": 0,
+        "triangles": 7432,
+        "calls": 4,
+        "shadowTriangles": 0,
+        "cachedLayers": 0,
+        "globalFallback": false,
+        "detailedTrees": 0,
+        "detailedTriangles": 0,
+        "detailedSpecies": [],
+        "detailedTiers": {
+          "low": 0,
+          "medium": 0,
+          "high": 0,
+          "ultra": 0
+        },
+        "builds": 0
+      },
+      "gpuGeometries": 20
+    },
+    {
+      "pose": "overview",
+      "quality": "high",
+      "cpuSubmissionMs": 0.09999990463256836,
+      "stats": {
+        "quality": "high",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 0,
+        "middleChunks": 0,
+        "trees": 0,
+        "triangles": 7432,
+        "calls": 4,
+        "shadowTriangles": 0,
+        "cachedLayers": 0,
+        "globalFallback": false,
+        "detailedTrees": 0,
+        "detailedTriangles": 0,
+        "detailedSpecies": [],
+        "detailedTiers": {
+          "low": 0,
+          "medium": 0,
+          "high": 0,
+          "ultra": 0
+        },
+        "builds": 0
+      },
+      "gpuGeometries": 20
+    },
+    {
+      "pose": "edge",
+      "quality": "light",
+      "cpuSubmissionMs": 111.29999995231628,
+      "stats": {
+        "quality": "light",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 4,
+        "middleChunks": 0,
+        "trees": 773,
+        "triangles": 99976,
+        "calls": 16,
+        "shadowTriangles": 0,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 9,
+        "detailedTriangles": 52396,
+        "detailedSpecies": [
+          "norway_spruce",
+          "silver_birch"
+        ],
+        "detailedTiers": {
+          "low": 2,
+          "medium": 6,
+          "high": 0,
+          "ultra": 1
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 30
+    },
+    {
+      "pose": "edge",
+      "quality": "standard",
+      "cpuSubmissionMs": 2,
+      "stats": {
+        "quality": "standard",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 4,
+        "middleChunks": 0,
+        "trees": 773,
+        "triangles": 299864,
+        "calls": 16,
+        "shadowTriangles": 47736,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 18,
+        "detailedTriangles": 252284,
+        "detailedSpecies": [
+          "norway_spruce",
+          "silver_birch"
+        ],
+        "detailedTiers": {
+          "low": 4,
+          "medium": 0,
+          "high": 13,
+          "ultra": 1
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 32
+    },
+    {
+      "pose": "edge",
+      "quality": "high",
+      "cpuSubmissionMs": 1.0999999046325684,
+      "stats": {
+        "quality": "high",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 4,
+        "middleChunks": 0,
+        "trees": 773,
+        "triangles": 799922,
+        "calls": 21,
+        "shadowTriangles": 149980,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 53,
+        "detailedTriangles": 752342,
+        "detailedSpecies": [
+          "norway_spruce",
+          "silver_birch"
+        ],
+        "detailedTiers": {
+          "low": 4,
+          "medium": 5,
+          "high": 43,
+          "ultra": 1
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 33
+    },
+    {
+      "pose": "low",
+      "quality": "light",
+      "cpuSubmissionMs": 0.7999999523162842,
+      "stats": {
+        "quality": "light",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 4,
+        "middleChunks": 0,
+        "trees": 773,
+        "triangles": 99816,
+        "calls": 17,
+        "shadowTriangles": 0,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 10,
+        "detailedTriangles": 52236,
+        "detailedSpecies": [
+          "norway_spruce",
+          "silver_birch"
+        ],
+        "detailedTiers": {
+          "low": 4,
+          "medium": 5,
+          "high": 0,
+          "ultra": 1
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 33
+    },
+    {
+      "pose": "low",
+      "quality": "standard",
+      "cpuSubmissionMs": 1.7000000476837158,
+      "stats": {
+        "quality": "standard",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 4,
+        "middleChunks": 0,
+        "trees": 773,
+        "triangles": 299922,
+        "calls": 18,
+        "shadowTriangles": 49796,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 11,
+        "detailedTriangles": 252342,
+        "detailedSpecies": [
+          "norway_spruce",
+          "silver_birch"
+        ],
+        "detailedTiers": {
+          "low": 3,
+          "medium": 2,
+          "high": 1,
+          "ultra": 5
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 34
+    },
+    {
+      "pose": "low",
+      "quality": "high",
+      "cpuSubmissionMs": 0.9000000953674316,
+      "stats": {
+        "quality": "high",
+        "areaM2": 64768,
+        "chunks": 4,
+        "visibleChunks": 4,
+        "nearChunks": 4,
+        "middleChunks": 0,
+        "trees": 773,
+        "triangles": 799936,
+        "calls": 20,
+        "shadowTriangles": 149978,
+        "cachedLayers": 4,
+        "globalFallback": false,
+        "detailedTrees": 31,
+        "detailedTriangles": 752356,
+        "detailedSpecies": [
+          "norway_spruce",
+          "silver_birch"
+        ],
+        "detailedTiers": {
+          "low": 0,
+          "medium": 2,
+          "high": 20,
+          "ultra": 9
+        },
+        "builds": 4
+      },
+      "gpuGeometries": 34
+    }
+  ],
+  "memory": [
+    34,
+    34,
+    34
+  ],
+  "errors": [],
+  "bvChecks": [
+    {
+      "species": "norway-spruce",
+      "choices": [
+        "low",
+        "medium",
+        "high",
+        "ultra"
+      ]
+    },
+    {
+      "species": "silver-birch",
+      "choices": [
+        "low",
+        "medium",
+        "high",
+        "ultra"
+      ]
+    }
+  ],
+  "bvErrors": []
+}

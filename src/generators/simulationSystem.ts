@@ -35,6 +35,11 @@ export interface SimulationStepContext {
   readonly tick: number;
   readonly delta: SimulationTickDelta;
   /**
+   * Calendar month starts this step crossed (Gregorian month lengths): 1 on the step that lands on
+   * the 1st of a month, 12 for an Advance Year. Absent in hand-built test contexts.
+   */
+  readonly calendarMonthsCrossed?: number;
+  /**
    * Per-system RNG for this step (derived from master seed + system id + tick +
    * calendar). Prefer `context.rng` or `appServices.rng` during `run()` — the
    * host installs the same stream on `appServices.rng` for the duration of the

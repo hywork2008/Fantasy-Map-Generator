@@ -239,7 +239,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
   let renderer: THREE.WebGLRenderer | null = null;
   let scene: THREE.Scene | null = null;
   const atmosphere = new THREE.Fog(0xc5c5bf);
-  const sky = createSkyBackdrop();
+  const sky = createSkyBackdrop(() => requestRender());
   let atmosphereRange = 600;
   let mapHalfExtent = 1;
   let camera: THREE.PerspectiveCamera | null = null;
@@ -588,8 +588,8 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
           requestRender();
         }, delay);
     }
-    // Keep the focus clear, including at nadir, and soften only the distant scenery.
-    // Scale the transition with the city so small towns retain readable streets too.
+    // Position the fog onset independently of its strength. Scale the transition
+    // with the city so the controls remain useful across camera distances.
     const focusDistance = controls ? camera.position.distanceTo(controls.target) : 0;
     const visibleHalfExtent =
       (Math.max(0.001, focusDistance) *
@@ -599,7 +599,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
     zoomReadout.value = editorText("cityEditor.messages.zoom3d", {
       value0: (mapHalfExtent / visibleHalfExtent).toFixed(2)
     });
-    atmosphere.near = Math.max(100, focusDistance * 1.05);
+    atmosphere.near = (focusDistance * fogSettings.startPercent) / 100;
     atmosphere.far =
       atmosphere.near + Math.max(atmosphereRange, focusDistance * 0.75) * (100 / Math.max(1, fogSettings.strength));
     scene.fog = fogSettings.strength > 0 ? atmosphere : null;
@@ -781,11 +781,7 @@ export function mountCity3d(initialOptions: City3dMountOptions): {
       );
       if (openSpaces) scene.remove(openSpaces.group);
       openSpaces?.dispose();
-      openSpaces = createTownOpenSpaces(
-        openSpacePlan,
-        terrain ?? undefined,
-        city.biome?.key === "centralEuropeanGreatForest" ? true : "lime"
-      );
+      openSpaces = createTownOpenSpaces(openSpacePlan, terrain ?? undefined);
       scene.add(openSpaces.group);
       openSpaceStamp = nextOpenSpaceStamp;
     }

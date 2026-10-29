@@ -3,40 +3,58 @@ import { expect, it } from "vitest";
 import { adoptedTree } from "../../city3d/adoption";
 import { models } from "../medieval/43-landscape-treesModels";
 import { TREE_QUALITIES, treeQualityAtDistance, treeQualityAtPixels } from "./treeQuality";
-import { createLandscapeTree } from "./trees";
+import { createLandscapeTree, treeLodProfile } from "./trees";
 
-it.each(["garden_parkland", "sacred_yew"] as const)(
-  "adopts four increasingly detailed, grounded %s levels from the BV variants",
-  species => {
-    const variants = models.find(model => model.id === species.replaceAll("_", "-"))!.variants!;
-    expect([...new Set(variants.map(variant => variant.level))]).toEqual(TREE_QUALITIES);
-    let previous = 0;
-    for (const level of TREE_QUALITIES) {
-      const variant = adoptedTree(species, level);
-      expect(variants.map(entry => entry.id)).toContain(variant.id);
-      const model = variant.create();
-      const triangles = model.pickables.reduce(
-        (sum, mesh) => sum + (mesh.geometry.index?.count ?? mesh.geometry.getAttribute("position").count) / 3,
-        0
-      );
-      expect(triangles).toBeGreaterThan(previous);
-      if (level === "low") expect(triangles).toBeLessThan(500);
-      if (level === "medium") expect(triangles).toBeLessThan(3000);
-      const bounds = new THREE.Box3().setFromObject(model.group);
-      expect(bounds.min.y).toBeCloseTo(-0.35, 3);
-      expect(bounds.max.y).toBeGreaterThan(species === "garden_parkland" ? 10 : 6.5);
-      for (const mesh of model.pickables) {
-        for (const coordinate of mesh.geometry.getAttribute("position").array)
-          expect(Number.isFinite(coordinate)).toBe(true);
-      }
-      previous = triangles;
-      model.dispose();
+it.each([
+  "garden_parkland",
+  "sacred_yew",
+  "norway_spruce",
+  "silver_birch",
+  "western_red_cedar",
+  "silver_fir",
+  "date_palm",
+  "umbrella_thorn",
+  "saxaul",
+  "tamarisk",
+  "olive",
+  "kapok",
+  "red_mangrove",
+  "black_alder",
+  "rowan",
+  "canary_pine",
+  "mediterranean_cypress",
+  "oriental_evergreen",
+  "sacred_bodhi_and_fig",
+  "peaceful_willow"
+] as const)("adopts four increasingly detailed, grounded %s levels from the BV variants", species => {
+  const variants = models.find(model => model.id === species.replaceAll("_", "-"))!.variants!;
+  expect([...new Set(variants.map(variant => variant.level))]).toEqual(TREE_QUALITIES);
+  let previous = 0;
+  for (const level of TREE_QUALITIES) {
+    const variant = adoptedTree(species, level);
+    expect(variants.map(entry => entry.id)).toContain(variant.id);
+    const model = variant.create();
+    const triangles = model.pickables.reduce(
+      (sum, mesh) => sum + (mesh.geometry.index?.count ?? mesh.geometry.getAttribute("position").count) / 3,
+      0
+    );
+    expect(triangles).toBeGreaterThan(previous);
+    if (level === "low") expect(triangles).toBeLessThan(500);
+    if (level === "medium") expect(triangles).toBeLessThan(3000);
+    const bounds = new THREE.Box3().setFromObject(model.group);
+    expect(bounds.min.y).toBeCloseTo(-0.35, 3);
+    expect(bounds.max.y).toBeGreaterThan(treeLodProfile(species)!.heightMeters * 0.75);
+    for (const mesh of model.pickables) {
+      for (const coordinate of mesh.geometry.getAttribute("position").array)
+        expect(Number.isFinite(coordinate)).toBe(true);
     }
-    const legacy = createLandscapeTree(species);
-    expect(legacy.group.userData.treeQuality).toBe("ultra");
-    legacy.dispose();
+    previous = triangles;
+    model.dispose();
   }
-);
+  const legacy = createLandscapeTree(species);
+  expect(legacy.group.userData.treeQuality).toBe("ultra");
+  legacy.dispose();
+});
 
 it("retains tiers across small pixel changes and responds to camera zoom", () => {
   expect([15, 50, 150, 300].map(pixels => treeQualityAtPixels(pixels))).toEqual(TREE_QUALITIES);
@@ -46,18 +64,36 @@ it("retains tiers across small pixel changes and responds to camera zoom", () =>
   expect(treeQualityAtPixels(65, "high")).toBe("medium");
 });
 
-it.each(["garden_parkland", "sacred_yew"] as const)(
-  "keeps structural branches fixed between high and ultra %s",
-  species => {
-    const high = createLandscapeTree(species, "high");
-    const ultra = createLandscapeTree(species, "ultra");
-    expect(high.pickables[0].geometry.getAttribute("position").array).toEqual(
-      ultra.pickables[0].geometry.getAttribute("position").array
-    );
-    high.dispose();
-    ultra.dispose();
-  }
-);
+it.each([
+  "garden_parkland",
+  "sacred_yew",
+  "norway_spruce",
+  "silver_birch",
+  "western_red_cedar",
+  "silver_fir",
+  "date_palm",
+  "umbrella_thorn",
+  "saxaul",
+  "tamarisk",
+  "olive",
+  "kapok",
+  "red_mangrove",
+  "black_alder",
+  "rowan",
+  "canary_pine",
+  "mediterranean_cypress",
+  "oriental_evergreen",
+  "sacred_bodhi_and_fig",
+  "peaceful_willow"
+] as const)("keeps structural branches fixed between high and ultra %s", species => {
+  const high = createLandscapeTree(species, "high");
+  const ultra = createLandscapeTree(species, "ultra");
+  expect(high.pickables[0].geometry.getAttribute("position").array).toEqual(
+    ultra.pickables[0].geometry.getAttribute("position").array
+  );
+  high.dispose();
+  ultra.dispose();
+});
 
 it("uses the exact same distance boundaries for every tree and every frame", () => {
   expect([900, 200, 80, 20].map(distance => treeQualityAtDistance(distance))).toEqual(TREE_QUALITIES);

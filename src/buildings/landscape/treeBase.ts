@@ -7,10 +7,9 @@ export interface TrunkRing {
 }
 
 /** Continuous trunk rings meet exactly; only the buttress roots extend below ground (Y=0). */
-export function createTreeBase(rings: readonly TrunkRing[], rootReach: number, rootCount: number) {
+export function createTreeBase(rings: readonly TrunkRing[], rootReach: number, rootCount: number, segments = 16) {
   const positions: number[] = [],
     indices: number[] = [];
-  const segments = 16;
   for (const {
     center: [x, y, z],
     radius

@@ -1,10 +1,15 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
+import { type CanopyLobe, createCanopyLobes, fitCanopyLobe } from "./canopyLobes";
 import { createTreeBase } from "./treeBase";
+import type { TreeQuality } from "./treeQuality";
 
 /** A town-square kapok (Ceiba pentandra): plank buttresses, a tall clean bole and tiered horizontal limbs. */
-export function createKapok(): CityStructureMeshes {
+export function createKapok(quality: TreeQuality = "ultra"): CityStructureMeshes {
+  const reduced = quality === "low" || quality === "medium";
+  const lobes: CanopyLobe[] = [];
+  let limbPoints: THREE.Vector3[] = [];
   let seed = 43177;
   const random = () => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
@@ -36,7 +41,15 @@ export function createKapok(): CityStructureMeshes {
     wood.push(flat);
   }
   function branch(a: THREE.Vector3, b: THREE.Vector3, bottom: number, top = bottom * 0.4, sides = 7) {
-    const geometry = new THREE.CylinderGeometry(top, bottom, a.distanceTo(b), sides);
+    if (reduced && bottom < (quality === "low" ? 0.21 : 0.1)) return;
+    const geometry = new THREE.CylinderGeometry(
+      top,
+      bottom,
+      a.distanceTo(b),
+      reduced ? (quality === "low" ? 3 : 4) : sides,
+      1,
+      reduced
+    );
     geometry.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(up, b.clone().sub(a).normalize()));
     geometry.translate(...a.clone().add(b).multiplyScalar(0.5).toArray());
     timber(geometry);
@@ -45,7 +58,7 @@ export function createKapok(): CityStructureMeshes {
   function buttress(angle: number, height: number, reach: number) {
     const out = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle)),
       side = new THREE.Vector3(-out.z, 0, out.x);
-    const steps = 8,
+    const steps = quality === "low" ? 2 : quality === "medium" ? 4 : 8,
       edge: THREE.Vector3[] = [],
       foot: THREE.Vector3[] = [];
     for (let i = 0; i <= steps; i++) {
@@ -101,6 +114,7 @@ export function createKapok(): CityStructureMeshes {
   /** Palmately compound leaves: five to seven narrow leaflets spread like a hand, massed into flat layers. */
   function leafLayer(center: THREE.Vector3, radius: number, count: number) {
     const color = new THREE.Color();
+    const clouds: THREE.Vector3[][] = [[], []];
     for (let i = 0; i < count; i++) {
       const angle = random() * Math.PI * 2,
         r = Math.sqrt(random()) * radius;
@@ -112,16 +126,30 @@ export function createKapok(): CityStructureMeshes {
       const heading = random() * Math.PI * 2,
         size = 0.32 + random() * 0.14;
       color.setHSL(0.24 + random() * 0.05, 0.4 + random() * 0.12, 0.2 + random() * 0.12);
+      // Preserve the whole random stream before thinning compound leaves.
+      if (quality !== "ultra" && i % 2 !== 0) continue;
       for (let j = 0; j < 6; j++) {
         const theta = heading + (j - 2.5) * 0.42;
         const tip = p
           .clone()
           .add(new THREE.Vector3(Math.cos(theta) * size, -0.04 * Math.abs(j - 2.5), Math.sin(theta) * size));
         const mid = p.clone().lerp(tip, 0.5);
-        const side = new THREE.Vector3(-Math.sin(theta), 0, Math.cos(theta)).multiplyScalar(size * 0.12);
-        triangle(p, mid.clone().add(side), tip, color);
-        triangle(p, tip, mid.clone().sub(side), color);
+        const side = new THREE.Vector3(-Math.sin(theta), 0, Math.cos(theta)).multiplyScalar(
+          size * (quality === "ultra" ? 0.12 : 0.24)
+        );
+        const a = mid.clone().add(side),
+          b = mid.clone().sub(side);
+        if (reduced) clouds[quality === "medium" && p.x < center.x ? 0 : 1].push(p, a, tip, b);
+        else {
+          triangle(p, a, tip, color);
+          triangle(p, tip, b, color);
+        }
       }
+    }
+    for (const points of clouds) {
+      if (!points.length) continue;
+      if (quality === "medium") lobes.push(fitCanopyLobe(points, 0.9, true));
+      else if (quality === "low") limbPoints.push(...points);
     }
   }
   const height = 15;
@@ -135,7 +163,8 @@ export function createKapok(): CityStructureMeshes {
         { center: [0.1, height, 0], radius: 0.5 }
       ],
       1.4,
-      4
+      4,
+      quality === "low" ? 6 : 16
     )
   );
   for (let i = 0; i < 7; i++)
@@ -143,6 +172,7 @@ export function createKapok(): CityStructureMeshes {
   // Near-horizontal limbs in loose tiers carry flat-topped cloud layers of foliage.
   const top = new THREE.Vector3(0.1, height, 0);
   for (let i = 0; i < 11; i++) {
+    limbPoints = [];
     const angle = i * 2.39996,
       tier = i / 11;
     const start = new THREE.Vector3(0.1, height - 3 + tier * 3.2, 0);
@@ -163,15 +193,22 @@ export function createKapok(): CityStructureMeshes {
       leafLayer(twig, 1.6, 55);
     }
     leafLayer(tip.clone().addScaledVector(up, 0.3), 2.1, 85);
+    if (quality === "low") lobes.push(fitCanopyLobe(limbPoints, 1, true));
   }
+  limbPoints = [];
   branch(top, top.clone().add(new THREE.Vector3(0.3, 2.4, -0.2)), 0.42, 0.15, 8);
   leafLayer(top.clone().add(new THREE.Vector3(0.3, 2.7, -0.2)), 3, 160);
+  if (quality === "low") lobes.push(fitCanopyLobe(limbPoints, 1, true));
   const barkGeometry = mergeGeometries(wood)!;
   for (const geometry of wood) geometry.dispose();
-  const foliage = new THREE.BufferGeometry();
-  foliage.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-  foliage.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-  foliage.computeVertexNormals();
+  const foliage = reduced
+    ? createCanopyLobes(lobes, { hue: 0.265, saturation: 0.44, lightness: 0.25 }, 43177)
+    : new THREE.BufferGeometry();
+  if (!reduced) {
+    foliage.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    foliage.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+    foliage.computeVertexNormals();
+  }
   const barkMaterial = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
   const leafMaterial = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
   const trunk = new THREE.Mesh(barkGeometry, barkMaterial),
@@ -180,6 +217,7 @@ export function createKapok(): CityStructureMeshes {
   crown.name = "kapok-palmate-leaf-layers";
   const group = new THREE.Group();
   group.name = "kapok";
+  group.userData.treeQuality = quality;
   group.add(trunk, crown);
   return {
     group,

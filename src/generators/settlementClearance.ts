@@ -132,9 +132,9 @@ export function planSettlementLandUse(
     );
     // An unavailable crop keeps demand visible without non-finite archive values.
     const impossible = !Number.isFinite(required);
-    const target = impossible
-      ? 0
-      : Math.max(required * (input.subsistenceReserve ?? 1.1), positive(input.laborAffordableAreaHa ?? 0));
+    // Staple fields only for the people they feed: spare hands herd, log or craft instead of tilling
+    // grain nobody buys (docs/plan/wet-region-pastoral-economy.md §2.3, M0 record).
+    const target = impossible ? 0 : required * (input.subsistenceReserve ?? 1.1);
     const previous = options.previous?.cells[input.id];
     const previousFields =
       previous?.patches.filter(p => p.kind === "cultivation").reduce((s, p) => s + p.areaHa, 0) ?? 0;

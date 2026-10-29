@@ -72,9 +72,11 @@ export const PASTURE_FEED_UTILIZATION = 0.8;
 export const FALLOW_GRAZING_DM_KG_PER_HA = 400;
 /**
  * Grazing a settled, long-cleared landscape keeps per hectare of cropland, whatever the natural
- * biome: meadow, permanent pasture, commons and wood-pasture. England c.1290 had roughly 0.3-0.4 ha
- * of meadow and pasture per arable hectare besides grazed waste (Broadberry et al. 2015, British
- * Economic Growth 1270-1870, ch.2; to be checked against the table). Model policy (E1 §7.50).
+ * biome: meadow, permanent pasture, commons and wood-pasture. England and Wales c.1300 had 1.0M
+ * acres of meadow and 1.0M of enclosed pasture to 12.0M of arable (0.17 per arable acre), besides
+ * about 20M acres of commons and waste (Allen 2005, English and Welsh Agriculture 1300-1850,
+ * Table 1). The value adds the lowland commons on cleared land to the improved grass. Model
+ * policy (E1 §7.50, §7.67).
  */
 export const CLEARED_PASTURE_PER_CULTIVATED_HA = 0.4;
 /** Share of maintained cropland sown in a year; the rest is grazed fallow. Matches landUseActivities. */

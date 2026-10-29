@@ -1,0 +1,49 @@
+{
+ "schemaVersion": 1,
+ "inputSha256": "0aac4fc87c880566a23eb07e5e45721c052383ceeeaef1dd39086f14144e400c",
+ "months": 12,
+ "date": [
+  1301,
+  1
+ ],
+ "notes": [
+  "People are the staple plan's food demand people per cell (rural, urban, market).",
+  "Factors are people-weighted geometric means of share-weighted crop-mix means; residual = yield / (base x product of the six crop factors).",
+  "Rain-fed only: irrigation is folded into the residual. Precipitation is the map's 100 mm proxy, shown in mm."
+ ],
+ "people": 4354038.969513589,
+ "yieldRatio": 0.6797914685268183,
+ "factors": {
+  "temperature": 0.9982640446893636,
+  "rainfall": 0.6880846086153379,
+  "soilType": 0.9977932169670396,
+  "coldAnomaly": 1,
+  "cropMultiplier": 1.0824079088275207,
+  "cropCycles": 1,
+  "residual": 0.916340608569836
+ },
+ "zeroFactorPeople": {},
+ "mainCropPeople": {
+  "Wheat": 1393990.3496903114,
+  "Barley": 2128375.8734280295,
+  "Buckwheat": 106690.39395599221,
+  "Oats": 448382.0991920266,
+  "Turnips": 33238.35527359111,
+  "Potatoes": 178500.31521393082,
+  "Spelt": 1437.310814857483,
+  "Rye": 63424.27194485203
+ },
+ "rainfallBandPeople": {
+  ">=3000": 698405.9954680785,
+  "2000-3000": 872968.0522913671,
+  "1200-2000": 1645478.1450501496,
+  "800-1200": 778873.2906312835,
+  "400-800": 335740.36888390663,
+  "<400": 22573.11718880436
+ },
+ "annualMeanTemperatureBandPeople": {
+  "5-10": 1554308.9512682646,
+  "0-5": 2376359.370629586,
+  "<0": 423370.6476157406
+ }
+}

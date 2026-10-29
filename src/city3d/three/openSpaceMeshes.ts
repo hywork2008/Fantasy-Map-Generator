@@ -60,7 +60,7 @@ function shapeOf(ring: Point[], holes: Point[][] = []): THREE.Shape {
 export function createTownOpenSpaces(
   plan: OpenSpacePlan,
   terrain?: Pick<CityTerrain, "heightAt" | "foundationAt">,
-  cameraTreeLod: boolean | "lime" = false
+  cameraTreeLod = true
 ) {
   const group = new THREE.Group();
   group.name = "ce-open-spaces";
@@ -140,11 +140,7 @@ export function createTownOpenSpaces(
     batches.set(site.model, list);
   }
   for (const [kind, sites] of batches) {
-    if (
-      (cameraTreeLod === true || (cameraTreeLod === "lime" && kind === "garden_parkland")) &&
-      isTreeModel(kind) &&
-      hasTreeQualityLevels(kind)
-    ) {
+    if (cameraTreeLod && isTreeModel(kind) && hasTreeQualityLevels(kind)) {
       const layer = createOpenSpaceTreeLod(kind, sites, heightAt);
       treeLayers.push(layer);
       group.add(layer.group);

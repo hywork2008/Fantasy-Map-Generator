@@ -261,6 +261,7 @@ export function planSkeletonCity(
     fmgElevations,
     elevationPreset: settings.elevationPreset ?? "flat",
     elevationRelief: settings.elevationRelief,
+    elevationRotation: settings.elevationRotation,
     elevationSeed: seed
   };
   return { plan, prepared: { ...prepared, params, cells, faceIdOf, cellSize: inputs.cellSize, half: inputs.half } };

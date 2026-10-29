@@ -18,20 +18,41 @@ function trees(group: THREE.Group) {
   return counts;
 }
 
+it.each([
+  "sacred_yew",
+  "mediterranean_cypress",
+  "oriental_evergreen",
+  "sacred_bodhi_and_fig",
+  "peaceful_willow"
+] as const)("uses registered pixel LOD for %s without a biome-specific opt-in", species => {
+  const model = createTownOpenSpaces({
+    surfaces: [],
+    sites: [{ model: species, point: [0, 500], height: 10, radius: 4, angle: 0 }]
+  });
+  try {
+    const c = camera();
+    model.update(c, 720);
+    expect(trees(model.group).get("low")).toBe(1);
+    c.zoom = 10;
+    c.updateProjectionMatrix();
+    model.update(c, 720);
+    expect(trees(model.group).get("high")).toBe(1);
+    expect(model.group.getObjectByName(`${species}-instances`)).toBeUndefined();
+  } finally {
+    model.dispose();
+  }
+});
+
 it("draws four camera-distance tiers together, culls off-screen trees and switches on camera movement without rebuilding surfaces", () => {
-  const model = createTownOpenSpaces(
-    {
-      surfaces: [],
-      sites: [30, 100, 300, 1000, -100].map(distance => ({
-        model: "garden_parkland",
-        point: [0, distance],
-        radius: 4,
-        angle: 0
-      }))
-    },
-    undefined,
-    "lime"
-  );
+  const model = createTownOpenSpaces({
+    surfaces: [],
+    sites: [30, 100, 300, 1000, -100].map(distance => ({
+      model: "garden_parkland",
+      point: [0, distance],
+      radius: 4,
+      angle: 0
+    }))
+  });
   const c = camera();
   model.update(c, 720);
   expect([...trees(model.group).entries()].sort()).toEqual([

@@ -1,4 +1,4 @@
-import { getStapleCropSuitability } from "../../../data/stapleCrops";
+import { getStapleCropSuitability, getWetPrecipitationSuitability } from "../../../data/stapleCrops";
 import { commitLandUsePlan, resolveStaticLandUseInputs, usesFantasyForestDefaults } from "../../../generators/landUse";
 import {
   ANNUAL_SOWN_SHARE,
@@ -27,10 +27,11 @@ import {
   type WorldContext
 } from "../../hostCore";
 import { type CultureType, DEFAULT_CULTURE_TYPE } from "../../hostTypes";
+import { getRuralFoodCapacity } from "../context/agriculture";
 import { computeNaturalFloodRisk } from "./floodHazard";
 import { GROSS_FOOD_NEED } from "./foodConstants";
 import type { Good, SoilType } from "./goods-generator";
-import { getRuralGrainDietShare } from "./ruralDiet";
+import { getRuralGrainDietShare, getWetPastoralDietShare } from "./ruralDiet";
 import {
   type AgriculturalClimateReader,
   createAgriculturalClimateReader,
@@ -288,6 +289,8 @@ export interface AgriculturalLandProfile {
   readonly foodPotential: Float32Array;
   /** Rural people supportable without imports, expressed in rural population points. */
   readonly ruralFoodCapacity: Float32Array;
+  /** Milk-and-meat diet share where rain is too heavy for grain (ruralDiet.ts getWetPastoralDietShare). */
+  readonly wetPastoralDietShare: Float32Array;
   /**
    * `ruralFoodCapacity` limited to the fields the residents can work with their own labour
    * (getFieldLabourFeasibility); the agricultural part of the rural settlement capacity.
@@ -362,6 +365,7 @@ export function calculateAgriculturalLandProfile(
   const yieldPerArea = new Float32Array(count);
   const foodPotential = new Float32Array(count);
   const ruralFoodCapacity = new Float32Array(count);
+  const wetPastoralDietShare = new Float32Array(count);
   const labourLimitedFoodCapacity = new Float32Array(count);
   const cultivatedArea = new Float32Array(count);
   const floweringForageArea = new Float32Array(count);
@@ -378,6 +382,7 @@ export function calculateAgriculturalLandProfile(
       yieldPerArea,
       foodPotential,
       ruralFoodCapacity,
+      wetPastoralDietShare,
       labourLimitedFoodCapacity,
       cultivatedArea,
       floweringForageArea,
@@ -434,21 +439,34 @@ export function calculateAgriculturalLandProfile(
 
     const effectiveLaborDaysPerHectare = LABOUR_DAYS_PER_HECTARE * (1 - AGTECH_LABOR_SAVINGS_MAX * effectiveAgTech);
 
+    const cropMix = conditions.cropGoods
+      ? getCropMix(world, cellId, conditions.cropGoods, { ...conditions, irrigation })
+      : undefined;
+    if (cropMix?.length) {
+      const precipitation = world.grid?.cells.prec?.[cells.g?.[cellId] ?? cellId] ?? 0;
+      wetPastoralDietShare[cellId] = getWetPastoralDietShare(
+        cropMix.reduce(
+          (sum, entry) =>
+            sum + entry.share * getWetPrecipitationSuitability(precipitation, entry.good.crop!.precipitation),
+          0
+        )
+      );
+    }
     const currentPeople = getCellFoodDemandPeople(
       world,
       cellId,
       populationRate,
       demandOptions.includeUrbanFoodDemand !== false,
-      getRuralGrainDietShare(cells, cellId, ruralFoodCapacity)
+      getRuralGrainDietShare(
+        { subsistenceNonAgriculturalCapacity: cells.subsistenceNonAgriculturalCapacity, wetPastoralDietShare },
+        cellId,
+        ruralFoodCapacity
+      )
     );
     const requiredArea = requiredFieldAreaHectares(currentPeople, yieldKgPerHa, effectiveSownShare);
     const ruralAdults = Math.max(0, cells.maleAdults?.[cellId] ?? 0) + Math.max(0, cells.femaleAdults?.[cellId] ?? 0);
     const reservedLaborExportPoints = getReservedLaborExportPoints(cells, cellId);
-    const farmableAdults = Math.max(0, ruralAdults - reservedLaborExportPoints);
     const fourCourseLaborMultiplier = 1 - FOUR_COURSE_LABOR_SAVINGS_MAX * fourCourseRotation;
-    const cropMix = conditions.cropGoods
-      ? getCropMix(world, cellId, conditions.cropGoods, { ...conditions, irrigation })
-      : undefined;
     const cycles = cropMix
       ? cropMix.reduce(
           (sum, entry) =>
@@ -478,19 +496,9 @@ export function calculateAgriculturalLandProfile(
         processingShare
       });
     const subsistenceArea = Math.min(area, requiredArea * SUBSISTENCE_FIELD_RESERVE);
-    const laborAffordableArea =
-      yieldKgPerHa > 0
-        ? getLaborAffordableAreaHectares(farmableAdults, populationRate, annualLaborDaysPerHectare, area)
-        : 0;
-    // Food first for the village, then the remaining *farmable* adults develop extra
-    // hectares for export. The urban-bound outflow stays out of farmable.
+    // Staple fields for the village only; spare adults herd and craft (wet-region-pastoral-economy.md §2.3).
     const currentArea =
-      yieldKgPerHa > 0
-        ? Math.min(
-            area,
-            world.pack.landUse?.cells[cellId]?.allocatedAreaHa ?? Math.max(subsistenceArea, laborAffordableArea)
-          )
-        : 0;
+      yieldKgPerHa > 0 ? Math.min(area, world.pack.landUse?.cells[cellId]?.allocatedAreaHa ?? subsistenceArea) : 0;
     cultivatedArea[cellId] = currentArea;
     floweringForageArea[cellId] =
       currentArea * FOUR_COURSE_CLOVER_LEY_SHARE * fourCourseRotation * getCloverSuitability(world, cellId);
@@ -536,6 +544,7 @@ export function calculateAgriculturalLandProfile(
     yieldPerArea,
     foodPotential,
     ruralFoodCapacity,
+    wetPastoralDietShare,
     labourLimitedFoodCapacity,
     cultivatedArea,
     floweringForageArea,
@@ -657,6 +666,29 @@ export function reconcileForestClearanceForAgriculture(
         : 0;
     const burg = world.pack.burgs?.[cells.burg?.[cellId] ?? 0];
     const culture = world.pack.cultures?.[cells.culture?.[cellId] ?? 0];
+    const ruralPeople = Math.max(0, cells.pop[cellId] ?? 0) * populationRate;
+    const urbanPeople =
+      burg && !burg.removed
+        ? Math.max(0, burg.population ?? 0) * populationRate * Math.max(0, world.urbanization ?? 1)
+        : 0;
+    const profile = resolveLandUseProfile({
+      explicit: burg?.landUseProfile,
+      cultural: culture?.landUseProfile,
+      raceKey: culture?.raceKey,
+      fantasy: usesFantasyForestDefaults(world)
+    });
+    const staticInput = staticInputs.get(cellId);
+    const overrides = conditions.landUseByCell?.[cellId];
+    // Herding, fishing and wet-land households eat less grain, so their fields are sized for the
+    // grain part of their diet only (ruralDiet.ts). Embedded profiles keep their own unset share.
+    const fedPeople = ruralPeople + (demandOptions.includeUrbanFoodDemand === false ? 0 : urbanPeople);
+    const grainShare = getRuralGrainDietShare(cells, cellId, getRuralFoodCapacity());
+    const localStapleShare =
+      profile !== "embedded" && fedPeople > 0 && grainShare < 1
+        ? ((overrides?.localStapleShare ?? staticInput?.localStapleShare ?? 1) *
+            (ruralPeople * grainShare + fedPeople - ruralPeople)) /
+          fedPeople
+        : (overrides?.localStapleShare ?? staticInput?.localStapleShare);
     inputs.push({
       ...staticInputs.get(cellId),
       ...conditions.landUseByCell?.[cellId],
@@ -664,17 +696,10 @@ export function reconcileForestClearanceForAgriculture(
       anchor: cells.p?.[cellId] ?? [0, 0],
       physicalLandAreaHa: constraints.physicalHectares,
       forestCover: getForestCapacityForCell(cells, cellId, constraints.biomeTags),
-      ruralPeople: Math.max(0, cells.pop[cellId] ?? 0) * populationRate,
-      urbanPeople:
-        burg && !burg.removed
-          ? Math.max(0, burg.population ?? 0) * populationRate * Math.max(0, world.urbanization ?? 1)
-          : 0,
-      profile: resolveLandUseProfile({
-        explicit: burg?.landUseProfile,
-        cultural: culture?.landUseProfile,
-        raceKey: culture?.raceKey,
-        fantasy: usesFantasyForestDefaults(world)
-      }),
+      ruralPeople,
+      urbanPeople,
+      profile,
+      localStapleShare,
       cultivableAreaHa:
         constraints.biomeTags.includes("wetland") && !((conditions.fieldDrainageByCell?.[cellId] ?? 0) > 0)
           ? constraints.terrainAndBiomeCeiling * UNDRAINED_WETLAND_ARABLE_SHARE

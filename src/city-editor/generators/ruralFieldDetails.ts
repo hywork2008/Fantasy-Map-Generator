@@ -42,6 +42,12 @@ export function planDetailedRuralFields(input: DetailedRuralFieldInput): RuralFi
     for (const part of convexInfillParts(face.polygon))
       domain.add({ polygon: part, faceId: face.faceId }, bounds(part));
   const occupied = new PlotIndex<{ polygon: Point[]; id: number }>();
+  const ordered = base.farms.map((farm, id) => ({ farm, id }));
+  if (input.settings?.range !== "near-city")
+    ordered.sort(
+      (a, b) =>
+        hash(`${input.seed}:coverage:${a.farm.plotId}`) - hash(`${input.seed}:coverage:${b.farm.plotId}`) || a.id - b.id
+    );
   base.farms.forEach((farm, id) => {
     occupied.add({ polygon: farm.polygon, id }, bounds(farm.polygon));
   });
@@ -86,7 +92,7 @@ export function planDetailedRuralFields(input: DetailedRuralFieldInput): RuralFi
   const farms: FarmPlot[] = [];
   const selected = new Set<number>();
   let capacity = 0;
-  base.farms.forEach((farm, id) => {
+  ordered.forEach(({ farm, id }) => {
     const angle = farm.orientationRadians ?? base.diagnostics.orientationRadians;
     const local = (point: Point) => rotate(point, -angle);
     const world = (point: Point) => rotate(point, angle);

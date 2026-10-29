@@ -1,11 +1,24 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
+import { type CanopyLobe, createCanopyLobes, fitCanopyLobe } from "./canopyLobes";
+import { createConiferCanopyLod } from "./coniferCanopyLod";
 import { createTreeBase } from "./treeBase";
+import type { TreeQuality } from "./treeQuality";
 
 /** A gnarled Mediterranean olive and a montane silver fir with level whorls and upright cones. */
-export function createMediterraneanMontaneTree(species: "olive" | "silver_fir"): CityStructureMeshes {
+export function createMediterraneanMontaneTree(
+  species: "olive" | "silver_fir",
+  quality: TreeQuality = "ultra"
+): CityStructureMeshes {
   const olive = species === "olive";
+  const reduced =
+    !olive && (quality === "low" || quality === "medium")
+      ? createConiferCanopyLod(quality, { hue: 0.35, saturation: 0.38, lightness: 0.21 }, 43283, 1.05, 1.18)
+      : undefined;
+  const oliveReduced = olive && (quality === "low" || quality === "medium");
+  const oliveLobes: CanopyLobe[] = [];
+  let lowPoints: THREE.Vector3[] = [];
   let seed = olive ? 43261 : 43283;
   const random = () => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
@@ -39,12 +52,25 @@ export function createMediterraneanMontaneTree(species: "olive" | "silver_fir"):
     wood.push(flat);
   }
   function branch(a: THREE.Vector3, b: THREE.Vector3, bottom: number, top = bottom * 0.4, sides = 6) {
-    const geometry = new THREE.CylinderGeometry(top, bottom, a.distanceTo(b), sides);
+    if (reduced && (quality === "low" || bottom < 0.06)) return;
+    if (oliveReduced && bottom < (quality === "low" ? 0.1 : 0.045)) return;
+    const geometry = new THREE.CylinderGeometry(
+      top,
+      bottom,
+      a.distanceTo(b),
+      oliveReduced ? (quality === "low" ? 3 : 4) : reduced ? 4 : sides,
+      1,
+      Boolean(reduced || oliveReduced)
+    );
     geometry.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(up, b.clone().sub(a).normalize()));
     geometry.translate(...a.clone().add(b).multiplyScalar(0.5).toArray());
     timber(geometry);
   }
   function triangle(a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3, color: THREE.Color) {
+    if (reduced) {
+      reduced.triangle(a, b, c);
+      return;
+    }
     for (const v of [a, b, c]) {
       positions.push(v.x, v.y, v.z);
       colors.push(color.r, color.g, color.b);
@@ -52,6 +78,7 @@ export function createMediterraneanMontaneTree(species: "olive" | "silver_fir"):
   }
   /** Narrow lance-shaped olive leaves: dark grey-green above, silvery beneath, in loose clusters. */
   function leaves(center: THREE.Vector3, radius: number, count: number) {
+    const points: THREE.Vector3[] = [];
     for (let i = 0; i < count; i++) {
       const angle = random() * Math.PI * 2,
         r = Math.sqrt(random()) * radius;
@@ -69,19 +96,30 @@ export function createMediterraneanMontaneTree(species: "olive" | "silver_fir"):
         silver ? 0.1 : 0.2 + random() * 0.1,
         silver ? 0.55 + random() * 0.1 : 0.24 + random() * 0.1
       );
+      if (quality !== "ultra" && i % 3 !== 0) continue;
+      if (quality !== "ultra") across.multiplyScalar(3);
       const tip = p.clone().add(along);
-      triangle(p, p.clone().addScaledVector(along, 0.5).add(across), tip, color);
-      triangle(p, tip, p.clone().addScaledVector(along, 0.5).sub(across), color);
+      const a = p.clone().addScaledVector(along, 0.5).add(across),
+        b = p.clone().addScaledVector(along, 0.5).sub(across);
+      if (oliveReduced) points.push(p, a, tip, b);
+      else {
+        triangle(p, a, tip, color);
+        triangle(p, tip, b, color);
+      }
     }
+    if (quality === "medium") oliveLobes.push(fitCanopyLobe(points, 0.85, true));
+    else if (quality === "low") lowPoints.push(...points);
   }
   /** Flat, two-ranked fir needles along a shoot, curving slightly up at the sides. */
-  function needles(a: THREE.Vector3, b: THREE.Vector3, width: number) {
+  function needles(a: THREE.Vector3, b: THREE.Vector3, width: number, secondary = false) {
     const direction = b.clone().sub(a).normalize(),
       side = new THREE.Vector3(-direction.z, 0, direction.x);
     if (side.lengthSq() < 1e-8) side.set(1, 0, 0);
     side.normalize();
     const color = new THREE.Color().setHSL(0.33 + random() * 0.04, 0.38, 0.14 + random() * 0.08);
-    const steps = 8;
+    // Consume the spray's randomness even when its secondary detail is omitted.
+    if (quality !== "ultra" && secondary) return;
+    const steps = quality === "ultra" ? 8 : 2;
     for (let i = 0; i < steps; i++) {
       const t = i / steps,
         reach = width * (1 - t * 0.6);
@@ -109,12 +147,14 @@ export function createMediterraneanMontaneTree(species: "olive" | "silver_fir"):
           { center: [0.2, 1.1, -0.05], radius: 0.4 }
         ],
         0.85,
-        6
+        6,
+        quality === "low" ? 6 : 16
       )
     );
     // The aged bole splits into twisting, partly hollow stems that spiral as they rise.
     const crotch = new THREE.Vector3(0.2, 1.1, -0.05);
     for (let s = 0; s < 3; s++) {
+      lowPoints = [];
       let angle = s * 2.1 + 0.3,
         a = crotch.clone().add(new THREE.Vector3(Math.cos(angle) * 0.2, 0, Math.sin(angle) * 0.2)),
         radius = 0.26;
@@ -139,6 +179,7 @@ export function createMediterraneanMontaneTree(species: "olive" | "silver_fir"):
                 .clone()
                 .add(new THREE.Vector3((random() - 0.5) * 1.2, -0.3 - random() * 0.4, (random() - 0.5) * 1.2));
               const fruit = new THREE.Color(random() < 0.5 ? 0x2a2230 : 0x6b7a3a);
+              if (oliveReduced) continue;
               triangle(
                 o,
                 o.clone().add(new THREE.Vector3(0.03, -0.04, 0)),
@@ -148,10 +189,15 @@ export function createMediterraneanMontaneTree(species: "olive" | "silver_fir"):
             }
           }
         }
+        if (quality === "low" && step === 2) {
+          oliveLobes.push(fitCanopyLobe(lowPoints, 1, true));
+          lowPoints = [];
+        }
         a = b;
         radius *= 0.72;
       }
       leaves(a, 1.2, 300);
+      if (quality === "low") oliveLobes.push(fitCanopyLobe(lowPoints, 1, true));
     }
   } else {
     const height = 19.5;
@@ -194,20 +240,24 @@ export function createMediterraneanMontaneTree(species: "olive" | "silver_fir"):
             needles(
               a.clone().addScaledVector(up, 0.06),
               shoot.clone().addScaledVector(out, 0.2).addScaledVector(up, 0.1),
-              0.18
+              0.18,
+              true
             );
           }
         }
         needles(start.clone().lerp(tip, 0.25), tip.clone().addScaledVector(out, 0.3), 0.24);
+        reduced?.finishBranch(level);
       }
     }
     needles(new THREE.Vector3(0, height - 1.5, 0), new THREE.Vector3(0, height + 0.05, 0), 0.12);
+    reduced?.finishBranch(20);
     // Silver fir cones stand upright on the topmost branches.
     for (let i = 0; i < 9; i++) {
       const angle = i * 2.39996,
         y = height - 3.2 + random() * 1.6,
         r = 0.35 + random() * 0.45;
       const a = new THREE.Vector3(Math.cos(angle) * r, y, Math.sin(angle) * r);
+      if (reduced) continue;
       const geometry = new THREE.CylinderGeometry(0.03, 0.055, 0.16, 6);
       geometry.translate(a.x, a.y + 0.08, a.z);
       const flat = geometry.toNonIndexed();
@@ -226,10 +276,16 @@ export function createMediterraneanMontaneTree(species: "olive" | "silver_fir"):
   }
   const barkGeometry = mergeGeometries(wood)!;
   for (const geometry of wood) geometry.dispose();
-  const foliage = new THREE.BufferGeometry();
-  foliage.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-  foliage.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-  foliage.computeVertexNormals();
+  const foliage = oliveReduced
+    ? createCanopyLobes(oliveLobes, { hue: 0.235, saturation: 0.18, lightness: 0.34 }, 43261)
+    : reduced
+      ? reduced.geometry()
+      : new THREE.BufferGeometry();
+  if (!reduced && !oliveReduced) {
+    foliage.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    foliage.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+    foliage.computeVertexNormals();
+  }
   const barkMaterial = new THREE.MeshLambertMaterial({ vertexColors: true });
   const leafMaterial = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
   const trunk = new THREE.Mesh(barkGeometry, barkMaterial),
@@ -238,6 +294,7 @@ export function createMediterraneanMontaneTree(species: "olive" | "silver_fir"):
   crown.name = olive ? "olive-silvery-lance-leaves-and-fruit" : "silver-fir-flat-needles-and-upright-cones";
   const group = new THREE.Group();
   group.name = species.replaceAll("_", "-");
+  group.userData.treeQuality = quality;
   group.add(trunk, crown);
   return {
     group,

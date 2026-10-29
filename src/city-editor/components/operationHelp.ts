@@ -50,7 +50,7 @@ export const OPERATION_HELP_ENTRIES: HelpEntry[] = [
   {
     id: "elevation",
     title: "cityEditor.messages.elevationPreset",
-    content: ["cityEditor.messages.elevationPresetHelp"]
+    content: ["cityEditor.messages.elevationPresetHelp", "cityEditor.messages.elevationRotationHelp"]
   },
   { id: "relief", title: "cityEditor.messages.elevationRelief", content: ["cityEditor.messages.elevationReliefHelp"] },
   { id: "river-drop", title: "cityEditor.messages.riverDrop", content: ["cityEditor.messages.riverDropHelp"] },

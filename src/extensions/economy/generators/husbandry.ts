@@ -65,6 +65,7 @@ import {
   PASTURE_FEED_UTILIZATION,
   SHEEP_PER_RURAL_PERSON
 } from "./livestockHerdTargetPolicy";
+import { WET_PASTORAL_DIET_SHARE_MAX } from "./ruralDiet";
 import { readAgriculturalClimate } from "./seasonalCropClimate";
 import { getWinterSlaughterWorkPlan } from "./winterSlaughter";
 import { EXPERIMENTAL_CARCASS_PROFILES } from "./winterSlaughterPolicy";
@@ -227,9 +228,22 @@ export function calculatePastureCeilingAreaHectares(world: Readonly<WorldContext
     PASTURE_DEFAULT_CEILING
   );
   const terrainShare = calculateTerrainWorkableShare(cells.h[cellId] ?? 0);
-  // Clearance for fields also opened grazing; the natural biome cover no longer sets the limit.
-  const cleared = Math.min(unclaimedArea, cultivated * CLEARED_PASTURE_PER_CULTIVATED_HA);
+  // Clearance for fields also opened grazing, and herding peoples cleared woodland for their herds
+  // (docs/plan/wet-region-pastoral-economy.md §3.3); the natural biome cover no longer sets the limit.
+  const cleared = Math.min(
+    unclaimedArea,
+    Math.max(cultivated * CLEARED_PASTURE_PER_CULTIVATED_HA, getHerdTargetPastureNeedHectares(world, cellId))
+  );
   return Math.max(unclaimedArea * ceiling, cleared) * terrainShare;
+}
+
+/** Pasture the demand-based herd target needs after the grazed fallow, in ha. */
+function getHerdTargetPastureNeedHectares(world: Readonly<WorldContext>, cellId: number): number {
+  const grossHa = Object.entries(getLivestockHerdTargets(world, cellId)).reduce(
+    (sum, [name, heads]) => sum + heads * getPastureHectaresPerHead(world, cellId, name),
+    0
+  );
+  return Math.max(0, grossHa - getGrazedFallowPastureEquivalentHectares(world, cellId));
 }
 
 function getCellCultivatedHectares(world: Readonly<WorldContext>, cellId: number): number {
@@ -275,8 +289,13 @@ export function getLivestockHerdTargets(world: Readonly<WorldContext>, cellId: n
     const good = goods.get(name);
     return Boolean(good && biomeSuits(world, cellId, good));
   };
+  // Wet lands too rainy for grain live on milk and meat (ruralDiet.ts): the pastoral herd scales
+  // with that diet share and is kept wherever the farm animals are, not only on open grassland.
+  const wetPastoral = Math.min(1, Math.max(0, cells.wetPastoralDietShare?.[cellId] ?? 0) / WET_PASTORAL_DIET_SHARE_MAX);
   const pastoralHeads = (name: string) =>
-    pastoral && suited(name) ? people * (PASTORAL_HEADS_PER_RURAL_PERSON[name] ?? 0) : 0;
+    people *
+    (PASTORAL_HEADS_PER_RURAL_PERSON[name] ?? 0) *
+    Math.max(pastoral && suited(name) ? 1 : 0, kept(name) ? wetPastoral : 0);
   const draught = Math.min(cultivated * DRAUGHT_HEADS_PER_CULTIVATED_HA, people * DRAUGHT_HEADS_PER_RURAL_PERSON_MAX);
   const horseShare = kept("Horses") ? getHorseDraughtShare(world.options?.historicalPeriod) : 0;
   const goatShare = suited("Goats") ? GOAT_SHARE_OF_SMALL_STOCK_IN_BROWSE : 0;
@@ -541,7 +560,9 @@ export function getGrazedCarryingCapacity(
   // Winter, not the annual total, limits the herd a cell can keep (E1 §7.45).
   const winterShare = calculateWinterFeedShare(annualNeedKg, area * growth.annualKgPerHa, growth.weights);
   const landShare = Math.min(getAnnualLivestockFeedFactor(cellId, area, targets), winterShare);
-  // Where last year's herd went hungry, keepers winter only as many as they actually fed.
+  // Where last year's herd went hungry, keepers winter as many as they actually fed, or the land's
+  // share scaled by the fed share if larger: a small shortfall must not drop a growing herd's
+  // capacity to its current size (E1 §7.61).
   const fedShare = getRecentlyFedHerdShare(cellId);
   if (fedShare === null) return heads * landShare;
   const stock = getOrCreateFaunaStockTable();
@@ -550,6 +571,6 @@ export function getGrazedCarryingCapacity(
     return sum + (herd ? Math.max(0, herd.young) + Math.max(0, herd.breeding) + Math.max(0, herd.old) : 0);
   }, 0);
   const plannedHeads = targets.reduce((sum, row) => sum + row.capacityHeads * landShare, 0);
-  const fedLimit = plannedHeads > 0 ? Math.min(1, (herdHeads * fedShare) / plannedHeads) : 1;
+  const fedLimit = plannedHeads > 0 ? Math.max(fedShare, Math.min(1, (herdHeads * fedShare) / plannedHeads)) : 1;
   return heads * landShare * fedLimit;
 }

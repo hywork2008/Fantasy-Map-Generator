@@ -63,13 +63,14 @@ export function cultivateRoadside(document: CityDocument): void {
   }
 }
 
-/** Choose a finite hinterland around the town, independently of highway strips.
+/** Choose rural land across the requested range, independently of highway strips.
  * The downstream planner reserves access, dry land and the actual net-area budget. */
 function cultivateCountryside(document: CityDocument): void {
   const shore = oceanShoreSegments(document);
   const reserved = new Set(document.elements.flatMap(element => element.faceIds));
   const budget = document.farmlandAreaHectares;
   const radius = document.frame.cityRadiusMeters;
+  const wholeFrame = document.ruralFieldVersion === 2 && document.ruralFieldSettings?.range !== "near-city";
   const reach = Math.min(
     document.frame.extentMeters,
     Math.max(
@@ -94,7 +95,7 @@ function cultivateCountryside(document: CityDocument): void {
     }
     if (face.properties.ward && face.properties.ward !== "empty" && face.properties.ward !== "farm") continue;
     const center = polygonCentroid(polygon);
-    if (budget === 0 || Math.hypot(...center) > reach || !cultivableParts(polygon, shore).length) {
+    if (budget === 0 || (!wholeFrame && Math.hypot(...center) > reach) || !cultivableParts(polygon, shore).length) {
       if (face.properties.ward === "farm") face.properties.ward = "empty";
       continue;
     }

@@ -382,7 +382,7 @@ describe("physical livestock feed budget", () => {
       }))
     } as never;
     expect(getRecentlyFedHerdShare(0)).toBeCloseTo(0.5);
-    // Sixty sheep were kept and half of them fed: thirty can be wintered.
-    expect(getGrazedCarryingCapacity(0, sheep)).toBeCloseTo(Math.min(unlimited, 30), 6);
+    // Sixty sheep were kept and half of them fed: thirty can be wintered, or half the land's share.
+    expect(getGrazedCarryingCapacity(0, sheep)).toBeCloseTo(Math.max(unlimited * 0.5, Math.min(unlimited, 30)), 6);
   });
 });

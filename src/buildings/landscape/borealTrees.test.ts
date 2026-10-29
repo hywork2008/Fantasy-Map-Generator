@@ -2,7 +2,38 @@ import * as THREE from "three";
 import { expect, it, vi } from "vitest";
 import { createTownOpenSpaces } from "../../city3d/three/openSpaceMeshes";
 import { models } from "../medieval/43-landscape-treesModels";
+import { TREE_QUALITIES } from "./treeQuality";
 import { createLandscapeTree } from "./trees";
+
+it.each(["norway_spruce", "silver_birch"] as const)(
+  "retains the %s envelope and releases all four tiers' owned resources",
+  species => {
+    const reference = createLandscapeTree(species, "ultra");
+    const envelope = new THREE.Box3().setFromObject(reference.group).getSize(new THREE.Vector3());
+    reference.dispose();
+    for (const quality of TREE_QUALITIES) {
+      const model = createLandscapeTree(species, quality);
+      const size = new THREE.Box3().setFromObject(model.group).getSize(new THREE.Vector3());
+      expect(size.y / envelope.y).toBeGreaterThan(0.92);
+      expect(size.y / envelope.y).toBeLessThan(1.08);
+      for (const axis of ["x", "z"] as const) {
+        expect(size[axis] / envelope[axis]).toBeGreaterThan(0.8);
+        expect(size[axis] / envelope[axis]).toBeLessThan(1.2);
+      }
+      const resources = new Set<THREE.BufferGeometry | THREE.Material>();
+      for (const mesh of model.pickables) {
+        resources.add(mesh.geometry);
+        for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) resources.add(material);
+        for (const name of ["position", "normal"]) {
+          for (const value of mesh.geometry.getAttribute(name).array) expect(Number.isFinite(value)).toBe(true);
+        }
+      }
+      const spies = [...resources].map(resource => vi.spyOn(resource, "dispose"));
+      model.dispose();
+      for (const spy of spies) expect(spy).toHaveBeenCalledOnce();
+    }
+  }
+);
 
 it.each([
   "norway_spruce",

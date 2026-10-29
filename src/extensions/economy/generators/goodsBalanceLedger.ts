@@ -143,20 +143,40 @@ export function clearGoodsBalanceLedger(): void {
 }
 
 /** Records an aggregate physical stock movement. Calls before the first baseline are ignored. */
+// First entry by id, as Array.find would return it. Every flow looks up its good and market, so
+// the positions are kept per array and checked against the array before use.
+const positionsByList = new WeakMap<readonly { i: number }[], { positions: Map<number, number>; length: number }>();
+
+function findById<T extends { i: number }>(list: readonly T[], id: number): T | undefined {
+  let index = positionsByList.get(list);
+  if (index?.length !== list.length) {
+    const positions = new Map<number, number>();
+    list.forEach((item, at) => {
+      if (!positions.has(item.i)) positions.set(item.i, at);
+    });
+    index = { positions, length: list.length };
+    positionsByList.set(list, index);
+  }
+  const at = index.positions.get(id);
+  if (at !== undefined && list[at]?.i === id) return list[at];
+  return list.find(item => item.i === id);
+}
+
 export function recordGoodFlow(flow: GoodFlowRecord): void {
   if (!Number.isFinite(flow.units) || flow.units <= 0) return;
+  const good = findById(getGoods(), flow.goodId);
   if (
     flow.direction === "sink" &&
     flow.category === "recipeInput" &&
     flow.marketId !== undefined &&
-    getGoods().find(good => good.i === flow.goodId)?.name === "Salt"
+    good?.name === "Salt"
   ) {
-    const market = getMarkets().find(market => market.i === flow.marketId);
+    const market = findById(getMarkets(), flow.marketId);
     if (market) market.saltProcessingInputBags = (market.saltProcessingInputBags ?? 0) + flow.units;
   }
-  const live = getGoods().find(good => good.i === flow.goodId && good.tags?.includes("liveAnimal"));
+  const live = good?.tags?.includes("liveAnimal") ? good : undefined;
   if (live && flow.marketId !== undefined) {
-    const market = getMarkets().find(market => market.i === flow.marketId);
+    const market = findById(getMarkets(), flow.marketId);
     if (market) recordLivestockLotFlow(flow, live.name, market.goods[live.i]?.stock ?? 0);
   }
   flowObserver?.(flow);

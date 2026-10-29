@@ -86,40 +86,75 @@ function actualUrbanPopulation(burg: Burg): number {
   );
 }
 
-function actualRuralPopulation(marketId: number): number {
+type MarketCellAggregates = {
+  ruralPopulation: Map<number, number>;
+  temperature: Map<number, { weighted: number; weight: number }>;
+};
+
+// Every market's countryside in one pass over the cells, held for one production cycle. The
+// per-market scans ran several times per burg decision and were a sixth of the settlement.
+let cycleCacheDepth = 0;
+let cycleAggregates: MarketCellAggregates | null = null;
+
+/** Runs `fn` with market cell aggregates cached; cells, territories and pop must not change inside. */
+export function withTextileDemandCycleCache<T>(fn: () => T): T {
+  cycleCacheDepth++;
+  try {
+    return fn();
+  } finally {
+    if (--cycleCacheDepth === 0) cycleAggregates = null;
+  }
+}
+
+/** Drops the cycle's aggregates after a territory change. */
+export function invalidateTextileDemandCache(): void {
+  cycleAggregates = null;
+}
+
+function collectMarketCellAggregates(): MarketCellAggregates {
   const world = getWorldContext();
   const cells = world.pack.cells;
+  const marketCells = getMarketCellColumn();
+  const temperatures = world.grid?.cells?.temp;
+  const populationRate = Math.max(1, world.populationRate ?? 1);
+  const ruralPopulation = new Map<number, number>();
+  const temperature = new Map<number, { weighted: number; weight: number }>();
+  for (const cellId of cells.i) {
+    if (cells.h[cellId] < 20) continue;
+    const marketId = marketCells[cellId];
+    const pop = cells.pop?.[cellId] ?? 0;
+    ruralPopulation.set(marketId, (ruralPopulation.get(marketId) ?? 0) + Math.max(0, pop) * populationRate);
+    if (!temperatures) continue;
+    const cellTemperature = temperatures[cells.g[cellId]];
+    if (!Number.isFinite(cellTemperature)) continue;
+    const populationWeight = Math.max(1, pop);
+    const entry = temperature.get(marketId);
+    if (entry) {
+      entry.weighted += cellTemperature * populationWeight;
+      entry.weight += populationWeight;
+    } else temperature.set(marketId, { weighted: cellTemperature * populationWeight, weight: populationWeight });
+  }
+  return { ruralPopulation, temperature };
+}
+
+function marketCellAggregates(): MarketCellAggregates {
+  if (!cycleCacheDepth) return collectMarketCellAggregates();
+  cycleAggregates ??= collectMarketCellAggregates();
+  return cycleAggregates;
+}
+
+function actualRuralPopulation(marketId: number): number {
   // Market-only tests and legacy transitional maps can have markets before the packed-cell columns
   // are present. They have no attributable countryside, so retain the urban-only fallback.
-  if (!cells?.i?.length) return 0;
-  const marketCells = getMarketCellColumn();
-  const populationRate = Math.max(1, world.populationRate ?? 1);
-  let population = 0;
-  for (const cellId of cells.i) {
-    if (marketCells[cellId] !== marketId || cells.h[cellId] < 20) continue;
-    population += Math.max(0, cells.pop[cellId] ?? 0) * populationRate;
-  }
-  return population;
+  if (!getWorldContext().pack.cells?.i?.length) return 0;
+  return marketCellAggregates().ruralPopulation.get(marketId) ?? 0;
 }
 
 function getMarketTemperature(marketId: number): number {
   const world = getWorldContext();
-  const cells = world.pack.cells;
-  if (!cells?.i?.length) return 10;
-  const temperatures = world.grid?.cells?.temp;
-  if (!temperatures) return 10;
-  const marketCells = getMarketCellColumn();
-  let weightedTemperature = 0;
-  let weight = 0;
-  for (const cellId of cells.i) {
-    if (marketCells[cellId] !== marketId || cells.h[cellId] < 20) continue;
-    const temperature = temperatures[cells.g[cellId]];
-    if (!Number.isFinite(temperature)) continue;
-    const populationWeight = Math.max(1, cells.pop[cellId] ?? 0);
-    weightedTemperature += temperature * populationWeight;
-    weight += populationWeight;
-  }
-  return weight > 0 ? weightedTemperature / weight : 10;
+  if (!world.pack.cells?.i?.length || !world.grid?.cells?.temp) return 10;
+  const entry = marketCellAggregates().temperature.get(marketId);
+  return entry && entry.weight > 0 ? entry.weighted / entry.weight : 10;
 }
 
 export function getMarketTextileDemandProfile(marketId: number): TextileDemandProfile {

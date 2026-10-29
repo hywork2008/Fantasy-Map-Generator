@@ -1,12 +1,15 @@
 import * as THREE from "three";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createLandscapeTree } from "../../buildings/landscape/trees";
 import { createDocument } from "../../city-editor/generators/document";
 import { forestContains, forestRegions } from "../../city-editor/generators/forestGeometry";
 import { withForestSettings } from "../../city-editor/generators/forestLandCover";
+import * as flora from "../../city-editor/renderers/landscapeTreeSpecies";
 import type { ForestPlan } from "../../city-editor/types/contracts/forest";
 import type { Point } from "../../city-editor/types/document";
 import { createTownForest, FOREST_3D_BUDGET } from "./forestMeshes";
+
+afterEach(() => vi.restoreAllMocks());
 
 const rect = (x: number, y: number, w: number, h: number): Point[] => [
   [x, y],
@@ -46,6 +49,42 @@ function instances(group: THREE.Group) {
 }
 
 describe("forest geometry and budgets", () => {
+  it.each([
+    ["hotDesert", "date_palm"],
+    ["savanna", "umbrella_thorn"]
+  ] as const)("preserves the %s tree's native tall or umbrella proportions in forest instances", (biome, species) => {
+    const doc = document();
+    doc.biome = { id: 1, key: biome, name: biome, color: "green" };
+    const forest = createTownForest(doc, plan());
+    try {
+      forest.update(camera(0, 5000, 1), 720);
+      let tree: THREE.InstancedMesh | undefined;
+      forest.group.traverseVisible(object => {
+        if (object instanceof THREE.InstancedMesh && object.count && object.userData.forestSpecies === species)
+          tree ??= object;
+      });
+      expect(tree).toBeDefined();
+      const matrix = new THREE.Matrix4();
+      tree!.getMatrixAt(0, matrix);
+      const p = tree!.geometry.getAttribute("position"),
+        v = new THREE.Vector3();
+      let min = Infinity,
+        max = -Infinity,
+        radius = 0;
+      for (let i = 0; i < p.count; i++) {
+        v.fromBufferAttribute(p, i).applyMatrix4(matrix);
+        min = Math.min(min, v.y);
+        max = Math.max(max, v.y);
+        radius = Math.max(radius, Math.hypot(v.x - matrix.elements[12], v.z - matrix.elements[14]));
+      }
+      const aspect = (max - min) / (2 * radius);
+      if (species === "umbrella_thorn") expect(aspect).toBeLessThan(0.8);
+      else expect(aspect).toBeGreaterThan(0.8);
+    } finally {
+      forest.dispose();
+    }
+  });
+
   it("cuts the same openings through floor and canopy and samples the terrain instead of a horizontal plate", () => {
     const p = plan(),
       heightAt = ([x, y]: Point) => 20 + x * 0.05 + y * 0.02;
@@ -118,7 +157,8 @@ describe("forest geometry and budgets", () => {
 
   it("enforces instance, triangle, draw and shadow limits and does no work for an unchanged camera", () => {
     const doc = document();
-    doc.biome = { id: 1, key: "hotDesert", name: "Desert", color: "sand" };
+    doc.biome = { id: 1, key: "wetland", name: "Wetland", color: "green" };
+    vi.spyOn(flora, "landscapeTreeSpecies").mockReturnValue("mediterranean_cypress");
     const forest = createTownForest(doc, plan());
     const c = camera();
     for (const quality of ["light", "standard", "high"] as const) {
@@ -146,34 +186,35 @@ describe("forest geometry and budgets", () => {
     forest.dispose();
   });
 
-  it("uses the actual BV species in high quality and restores lightweight instances without changing roots", () => {
+  it("uses adopted BV tiers and restores placements after distant aggregation", () => {
     const doc = document(),
       p = plan(),
       c = camera();
-    doc.biome = { id: 1, key: "hotDesert", name: "Desert", color: "sand" };
+    doc.biome = { id: 1, key: "wetland", name: "Wetland", color: "green" };
+    vi.spyOn(flora, "landscapeTreeSpecies").mockReturnValue("mediterranean_cypress");
     const forest = createTownForest(doc, p, undefined, "standard");
     forest.update(c, 720);
     const original = instances(forest.group);
-    expect(forest.stats.detailedTrees).toBe(0);
+    expect(forest.stats.detailedTrees).toBeGreaterThan(0);
     forest.setQuality("high");
     forest.update(c, 720);
     expect(forest.stats.detailedTrees).toBeGreaterThan(0);
-    expect(forest.stats.detailedSpecies).toContain("date_palm");
-    const model = createLandscapeTree("date_palm");
-    let modelTriangles = 0;
-    model.group.traverse(o => {
-      if (o instanceof THREE.Mesh)
-        modelTriangles += (o.geometry.index?.count ?? o.geometry.getAttribute("position").count) / 3;
-    });
-    model.dispose();
-    expect(forest.stats.detailedTriangles).toBe(modelTriangles * forest.stats.detailedTrees);
+    expect(forest.stats.detailedSpecies).toContain("mediterranean_cypress");
     const bv: THREE.InstancedMesh[] = [];
     forest.group.traverse(o => {
       if (o instanceof THREE.InstancedMesh && o.name.startsWith("forest-bv-") && visible(o)) bv.push(o);
     });
     expect(bv.length).toBeGreaterThan(0);
+    let detailedTriangles = 0;
     for (const mesh of bv) {
+      const source = createLandscapeTree("mediterranean_cypress", mesh.userData.treeQuality);
+      const modelTriangles = source.pickables.reduce(
+        (sum, m) => sum + m.geometry.getAttribute("position").count / 3,
+        0
+      );
+      source.dispose();
       expect(mesh.geometry.getAttribute("position").count / 3).toBe(modelTriangles);
+      detailedTriangles += modelTriangles * mesh.count;
       for (let i = 0; i < mesh.count; i++) {
         const m = new THREE.Matrix4();
         mesh.getMatrixAt(i, m);
@@ -181,10 +222,12 @@ describe("forest geometry and budgets", () => {
         if (original.has(position)) expect(m.elements).toEqual(original.get(position)!.elements);
       }
     }
+    expect(forest.stats.detailedTriangles).toBe(detailedTriangles);
     forest.setQuality("standard");
-    forest.update(c, 720);
+    forest.update(camera(0, 50000, 1), 720);
     expect(forest.stats.detailedTrees).toBe(0);
     for (const mesh of bv) expect(mesh.visible).toBe(false);
+    forest.update(c, 720);
     const restored = instances(forest.group);
     for (const [id, m] of original) if (restored.has(id)) expect(restored.get(id)!.elements).toEqual(m.elements);
     forest.dispose();
@@ -232,7 +275,8 @@ describe("forest geometry and budgets", () => {
     );
     const p: ForestPlan = { regions, areaM2: 36000, forestFaceIds: [], protectedFarmAreaM2: 0, protectedFarmCount: 0 };
     const doc = document();
-    doc.biome = { id: 1, key: "hotDesert", name: "Desert", color: "sand" };
+    doc.biome = { id: 1, key: "wetland", name: "Wetland", color: "green" };
+    vi.spyOn(flora, "landscapeTreeSpecies").mockReturnValue("mediterranean_cypress");
     const forest = createTownForest(doc, p, undefined, "light");
     const c = camera(1400, 8000, 1400);
     c.lookAt(1400, 0, -1200);

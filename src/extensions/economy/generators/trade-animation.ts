@@ -117,9 +117,10 @@ export class TradeAnimationModule {
 
     // A sea-only connection is intentionally chosen even when a mixed route is shorter. Ports
     // should use their established sea lane instead of needlessly unloading cargo inland.
+    const riverGraph = buildRiverNavigationGraph(getWorldContext().pack);
     const result =
-      this.findRoutePathWithAllowedEdges(startCell, endCell, true) ??
-      this.findRoutePathWithAllowedEdges(startCell, endCell, false) ??
+      this.findRoutePathWithAllowedEdges(startCell, endCell, true, riverGraph) ??
+      this.findRoutePathWithAllowedEdges(startCell, endCell, false, riverGraph) ??
       this.findWildernessLandPath(startCell, endCell);
     this.routePathCache.set(cacheKey, result);
     return result;
@@ -153,12 +154,16 @@ export class TradeAnimationModule {
     return this.routeLookupCache;
   }
 
-  private findRoutePathWithAllowedEdges(startCell: number, endCell: number, seaOnly: boolean): RoutePath | null {
+  private findRoutePathWithAllowedEdges(
+    startCell: number,
+    endCell: number,
+    seaOnly: boolean,
+    riverGraph: ReturnType<typeof buildRiverNavigationGraph>
+  ): RoutePath | null {
     const world = getWorldContext();
     const { cells } = world.pack;
     const cellRoutes = cells.routes ?? {};
     const { isSeaRoute, routeById } = this.getRouteLookup();
-    const riverGraph = buildRiverNavigationGraph(world.pack);
 
     // State encoding: stateId = cell * 3 + mode index. Retaining the prior mode makes the
     // port transfer penalty apply correctly to land/sea/river changes.

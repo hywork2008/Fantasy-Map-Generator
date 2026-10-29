@@ -1,12 +1,22 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
+import { type CanopyLobe, createCanopyLobes, fitCanopyLobe } from "./canopyLobes";
 import { createTreeBase } from "./treeBase";
+import type { TreeQuality } from "./treeQuality";
 
 /** Dry-climate trees: an oasis date palm, a flat-crowned savanna umbrella thorn and a cold-desert saxaul. */
-export function createAridTree(species: "date_palm" | "umbrella_thorn" | "saxaul"): CityStructureMeshes {
+export function createAridTree(
+  species: "date_palm" | "umbrella_thorn" | "saxaul",
+  quality: TreeQuality = "ultra"
+): CityStructureMeshes {
   const palm = species === "date_palm",
     saxaul = species === "saxaul";
+  const tier = quality;
+  const reduced = tier === "low" || tier === "medium";
+  const lobes: CanopyLobe[] = [],
+    deadLobes: CanopyLobe[] = [];
+  let lowPadPoints: THREE.Vector3[] = [];
   let seed = palm ? 43113 : saxaul ? 43151 : 43127;
   const random = () => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
@@ -45,7 +55,17 @@ export function createAridTree(species: "date_palm" | "umbrella_thorn" | "saxaul
           ? 0x2e2620
           : 0x4d4036;
   function branch(a: THREE.Vector3, b: THREE.Vector3, bottom: number, top = bottom * 0.3, sides = 6) {
-    const geometry = new THREE.CylinderGeometry(top, bottom, a.distanceTo(b), sides);
+    if (reduced && bottom < (tier === "low" ? (palm ? 0.045 : 0.07) : 0.045)) return;
+    // The palm's leaf bases are invisible at low detail; retain the two living offshoot stems.
+    if (palm && tier === "low" && bottom === 0.09) return;
+    const geometry = new THREE.CylinderGeometry(
+      top,
+      bottom,
+      a.distanceTo(b),
+      reduced ? (tier === "low" ? 3 : 4) : sides,
+      1,
+      reduced
+    );
     geometry.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(up, b.clone().sub(a).normalize()));
     geometry.translate(...a.clone().add(b).multiplyScalar(0.5).toArray());
     timber(geometry, bark);
@@ -57,7 +77,7 @@ export function createAridTree(species: "date_palm" | "umbrella_thorn" | "saxaul
     }
   }
   /** One pinnate frond: an arching rachis with V-raised paired leaflets that shorten towards the tip. */
-  function frond(base: THREE.Vector3, azimuth: number, rise: number, length: number, dead: boolean) {
+  function frond(base: THREE.Vector3, azimuth: number, rise: number, length: number, dead: boolean, lowVisible = true) {
     const out = new THREE.Vector3(Math.cos(azimuth), 0, Math.sin(azimuth));
     const side = new THREE.Vector3(-out.z, 0, out.x);
     const at = (t: number) =>
@@ -67,12 +87,13 @@ export function createAridTree(species: "date_palm" | "umbrella_thorn" | "saxaul
         .addScaledVector(up, length * (Math.sin(rise) * t - 0.55 * t * t));
     const leaf = new THREE.Color(),
       stalk = new THREE.Color(dead ? 0x7d6a4a : 0x8c8a55);
+    const clouds: THREE.Vector3[][] = [[], []];
     const segments = 14;
     for (let i = 0; i < segments; i++) {
       const a = at(i / segments),
         b = at((i + 1) / segments);
       const offset = side.clone().multiplyScalar(0.035 * (1 - i / segments) + 0.008);
-      triangle(a.clone().add(offset), b, a.clone().sub(offset), stalk);
+      if (!reduced) triangle(a.clone().add(offset), b, a.clone().sub(offset), stalk);
       if (i < 2) continue;
       const t = i / segments,
         reach = 0.75 * Math.sin(Math.PI * Math.min(1, t * 1.1)) + 0.12;
@@ -88,17 +109,74 @@ export function createAridTree(species: "date_palm" | "umbrella_thorn" | "saxaul
             .clone()
             .sub(a)
             .normalize()
-            .multiplyScalar(0.07 + 0.04 * (1 - t));
+            .multiplyScalar((0.07 + 0.04 * (1 - t)) * (tier === "ultra" ? 1 : 2));
           if (dead) leaf.setHSL(0.09 + random() * 0.03, 0.35, 0.38 + random() * 0.1);
           else leaf.setHSL(0.22 + random() * 0.05, 0.22 + random() * 0.1, 0.3 + random() * 0.12);
-          triangle(p, tip, p.clone().add(blade), leaf);
-          triangle(p.clone().add(blade), tip, p.clone().addScaledVector(up, 0.03), leaf);
+          // Always consume the same leaf-color sequence before omitting a leaflet pair.
+          if (tier !== "ultra" && step !== 0) continue;
+          if (tier === "medium") {
+            clouds[t < 0.55 ? 0 : 1].push(p, tip, p.clone().add(blade), p.clone().addScaledVector(up, 0.03));
+          } else if (tier !== "low") {
+            triangle(p, tip, p.clone().add(blade), leaf);
+            triangle(p.clone().add(blade), tip, p.clone().addScaledVector(up, 0.03), leaf);
+          }
         }
+    }
+    if (tier === "medium") {
+      for (let i = 0; i < clouds.length; i++) {
+        const points = clouds[i];
+        if (!points.length) continue;
+        // Fit in the frond's sloping frame, avoiding round masses around drooping leaves.
+        const tangent = at(i === 0 ? 0.55 : 1)
+          .sub(at(i === 0 ? 0.14 : 0.55))
+          .normalize();
+        const heading = new THREE.Quaternion().setFromAxisAngle(up, -azimuth);
+        const slope = new THREE.Quaternion().setFromAxisAngle(
+          new THREE.Vector3(0, 0, 1),
+          Math.atan2(tangent.y, Math.hypot(tangent.x, tangent.z))
+        );
+        const frame = heading.multiply(slope);
+        const inverse = frame.clone().invert();
+        const lobe = fitCanopyLobe(
+          points.map(point => point.clone().sub(base).applyQuaternion(inverse)),
+          0.65,
+          true
+        );
+        lobe.center.applyQuaternion(frame).add(base);
+        lobe.orientation = frame.multiply(new THREE.Quaternion().setFromAxisAngle(up, lobe.rotationY ?? 0));
+        lobe.rotationY = undefined;
+        (dead ? deadLobes : lobes).push(lobe);
+      }
+    } else if (tier === "low" && lowVisible) {
+      // Three folded strips follow the actual frond arch rather than becoming a spherical crown.
+      const shade = new THREE.Color().setHSL(dead ? 0.105 : 0.245, dead ? 0.35 : 0.28, dead ? 0.4 : 0.33);
+      for (let i = 0; i < 3; i++) {
+        const t0 = 0.14 + (0.86 * i) / 3,
+          t1 = 0.14 + (0.86 * (i + 1)) / 3;
+        const a = at(t0),
+          b = at(t1);
+        const edge = (p: THREE.Vector3, t: number, sign: number) => {
+          const reach = 0.75 * Math.sin(Math.PI * Math.min(1, t * 1.1)) + 0.12;
+          return p
+            .clone()
+            .addScaledVector(side, sign * reach)
+            .addScaledVector(up, reach * (dead ? -0.9 : 0.35));
+        };
+        const leftA = edge(a, t0, -1),
+          rightA = edge(a, t0, 1),
+          leftB = edge(b, t1, -1),
+          rightB = edge(b, t1, 1);
+        triangle(a, leftA, leftB, shade);
+        triangle(a, leftB, b, shade);
+        triangle(a, b, rightB, shade);
+        triangle(a, rightB, rightA, shade);
+      }
     }
   }
   /** Tiny bipinnate acacia leaves massed into flat horizontal pads. */
   function pad(center: THREE.Vector3, radius: number, count: number) {
     const color = new THREE.Color();
+    const points: THREE.Vector3[] = [];
     for (let i = 0; i < count; i++) {
       const angle = random() * Math.PI * 2,
         r = Math.sqrt(random()) * radius;
@@ -112,9 +190,20 @@ export function createAridTree(species: "date_palm" | "umbrella_thorn" | "saxaul
       );
       const across = new THREE.Vector3(-Math.sin(heading), 0.05, Math.cos(heading)).multiplyScalar(size * 0.45);
       color.setHSL(0.2 + random() * 0.06, 0.3 + random() * 0.12, 0.24 + random() * 0.12);
+      if (tier !== "ultra") {
+        if (i % 3) continue;
+        along.multiplyScalar(Math.sqrt(3));
+        across.multiplyScalar(Math.sqrt(3));
+      }
+      if (reduced) {
+        points.push(p.clone().sub(along), p.clone().add(across), p.clone().add(along), p.clone().sub(across));
+        continue;
+      }
       triangle(p.clone().sub(along), p.clone().add(across), p.clone().add(along), color);
       triangle(p.clone().sub(along), p.clone().add(along), p.clone().sub(across), color);
     }
+    if (tier === "medium") lobes.push(fitCanopyLobe(points, 1, true));
+    else if (tier === "low") for (const point of points) lowPadPoints.push(point);
   }
   if (palm) {
     const height = 9.7;
@@ -126,7 +215,8 @@ export function createAridTree(species: "date_palm" | "umbrella_thorn" | "saxaul
           radius: i === 0 ? 0.42 : i === 1 ? 0.33 : 0.3 - y * 0.006
         })),
         0.5,
-        9
+        9,
+        tier === "low" ? 6 : 16
       ),
       bark
     );
@@ -139,7 +229,8 @@ export function createAridTree(species: "date_palm" | "umbrella_thorn" | "saxaul
       const foot = new THREE.Vector3(Math.cos(angle) * 0.55, 0, Math.sin(angle) * 0.55);
       const top = foot.clone().add(new THREE.Vector3(Math.cos(angle) * 0.25, 1.4 * scale, Math.sin(angle) * 0.25));
       branch(foot, top, 0.16 * scale, 0.11 * scale, 8);
-      for (let i = 0; i < 9; i++) frond(top, angle + (i * Math.PI * 2) / 9, 1.05 - (i % 3) * 0.22, 3.2 * scale, false);
+      for (let i = 0; i < 9; i++)
+        frond(top, angle + (i * Math.PI * 2) / 9, 1.05 - (i % 3) * 0.22, 3.2 * scale, false, i % 3 === 0);
     }
     // Leaf bases and the short boot below the live crown.
     for (let i = 0; i < 18; i++) {
@@ -152,11 +243,18 @@ export function createAridTree(species: "date_palm" | "umbrella_thorn" | "saxaul
     for (let i = 0; i < 30; i++) {
       const tier = i % 3,
         angle = i * 2.39996 + random() * 0.15;
-      frond(crown.clone().addScaledVector(up, -0.3 * tier), angle, 1.25 - tier * 0.5, 4.2 + random() * 0.6, false);
+      frond(
+        crown.clone().addScaledVector(up, -0.3 * tier),
+        angle,
+        1.25 - tier * 0.5,
+        4.2 + random() * 0.6,
+        false,
+        i % 2 === 0
+      );
     }
     // A few drooping, unpruned old fronds hang beneath the living crown.
     for (let i = 0; i < 6; i++)
-      frond(crown.clone().addScaledVector(up, -0.7), i * 1.07 + 0.4, -0.9 - random() * 0.4, 2.6, true);
+      frond(crown.clone().addScaledVector(up, -0.7), i * 1.07 + 0.4, -0.9 - random() * 0.4, 2.6, true, i % 2 === 0);
     // Unripe date clusters on strands among the leaf bases.
     for (let i = 0; i < 4; i++) {
       const angle = i * 1.6 + 0.3;
@@ -167,12 +265,13 @@ export function createAridTree(species: "date_palm" | "umbrella_thorn" | "saxaul
       for (let j = 0; j < 24; j++) {
         const p = stem.clone().lerp(end, 0.35 + random() * 0.65);
         p.add(new THREE.Vector3((random() - 0.5) * 0.3, -random() * 0.25, (random() - 0.5) * 0.3));
-        triangle(
-          p,
-          p.clone().add(new THREE.Vector3(0.04, -0.05, 0)),
-          p.clone().add(new THREE.Vector3(-0.03, -0.05, 0.03)),
-          fruit
-        );
+        if (!reduced)
+          triangle(
+            p,
+            p.clone().add(new THREE.Vector3(0.04, -0.05, 0)),
+            p.clone().add(new THREE.Vector3(-0.03, -0.05, 0.03)),
+            fruit
+          );
       }
     }
   } else if (saxaul) {
@@ -184,13 +283,15 @@ export function createAridTree(species: "date_palm" | "umbrella_thorn" | "saxaul
           { center: [0.1, 0.6, -0.03], radius: 0.13 }
         ],
         0.55,
-        6
+        6,
+        tier === "low" ? 6 : 16
       ),
       bark
     );
     /** Leafless jointed green shoots hanging in loose tassels, the saxaul's photosynthetic "foliage". */
     function tassel(start: THREE.Vector3, azimuth: number) {
       const color = new THREE.Color();
+      const points: THREE.Vector3[] = [];
       for (let i = 0; i < 9; i++) {
         const theta = azimuth + (random() - 0.5) * 1.6,
           length = 0.35 + random() * 0.4;
@@ -206,16 +307,29 @@ export function createAridTree(species: "date_palm" | "umbrella_thorn" | "saxaul
             .clone()
             .add(direction)
             .add(new THREE.Vector3((random() - 0.5) * 0.03, 0, (random() - 0.5) * 0.03));
-          triangle(p.clone().add(side), q, p.clone().sub(side), color);
-          triangle(p.clone().add(side.clone().applyAxisAngle(direction.clone().normalize(), Math.PI / 2)), q, p, color);
+          // Keep every random draw, including joints omitted by the high tier.
+          if (tier === "ultra" || i % 2 === 0) {
+            const width = side.clone().multiplyScalar(tier === "ultra" ? 1 : 1.8);
+            const a = p.clone().add(width),
+              c = p.clone().sub(width);
+            const cross = p.clone().add(width.clone().applyAxisAngle(direction.clone().normalize(), Math.PI / 2));
+            if (reduced) points.push(a, q, c, cross, q, p.clone());
+            else {
+              triangle(a, q, c, color);
+              triangle(cross, q, p, color);
+            }
+          }
           p = q;
         }
       }
+      if (tier === "medium") lobes.push(fitCanopyLobe(points, 0.65, true));
+      else if (tier === "low") lowPadPoints.push(...points);
     }
     // Several crooked stems rise from the low trunk, twisting outward into a sparse rounded crown.
     const base = new THREE.Vector3(0.1, 0.6, -0.03);
     for (let i = 0; i < 6; i++) {
       const angle = i * 2.39996 + random() * 0.3;
+      lowPadPoints = [];
       let a = base.clone(),
         radius = 0.11;
       for (let step = 0; step < 4; step++) {
@@ -235,11 +349,16 @@ export function createAridTree(species: "date_palm" | "umbrella_thorn" | "saxaul
             tassel(twig, twigAngle);
           }
         }
+        if (tier === "low" && step === 1) {
+          lobes.push(fitCanopyLobe(lowPadPoints, 0.75, true));
+          lowPadPoints = [];
+        }
         a = b;
         radius *= 0.7;
       }
       tassel(a, angle);
       tassel(a, angle + Math.PI);
+      if (tier === "low") lobes.push(fitCanopyLobe(lowPadPoints, 0.75, true));
     }
   } else {
     timber(
@@ -250,13 +369,15 @@ export function createAridTree(species: "date_palm" | "umbrella_thorn" | "saxaul
           { center: [0.12, 1.6, 0.04], radius: 0.21 }
         ],
         0.75,
-        6
+        6,
+        tier === "low" ? 6 : 16
       ),
       bark
     );
     // The trunk forks low into ascending limbs that fan out into a flat parasol crown.
     const fork = new THREE.Vector3(0.12, 1.6, 0.04);
     for (let i = 0; i < 5; i++) {
+      lowPadPoints = [];
       const angle = (i * Math.PI * 2) / 5 + random() * 0.5;
       const limbEnd = fork
         .clone()
@@ -284,15 +405,42 @@ export function createAridTree(species: "date_palm" | "umbrella_thorn" | "saxaul
         }
         pad(tip, 1.3, 90);
       }
+      if (tier === "low") lobes.push(fitCanopyLobe(lowPadPoints, 1, true));
     }
+    lowPadPoints = [];
     pad(new THREE.Vector3(0.2, 7.3, 0), 2.2, 220);
+    if (tier === "low") lobes.push(fitCanopyLobe(lowPadPoints, 1, true));
   }
   const barkGeometry = mergeGeometries(wood)!;
   for (const geometry of wood) geometry.dispose();
-  const foliage = new THREE.BufferGeometry();
-  foliage.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-  foliage.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-  foliage.computeVertexNormals();
+  let foliage: THREE.BufferGeometry;
+  const parts: THREE.BufferGeometry[] = [];
+  if (positions.length) {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+    geometry.computeVertexNormals();
+    parts.push(geometry);
+  }
+  if (lobes.length)
+    parts.push(
+      createCanopyLobes(
+        lobes,
+        {
+          hue: palm ? 0.245 : saxaul ? 0.225 : 0.23,
+          saturation: palm ? 0.28 : saxaul ? 0.32 : 0.36,
+          lightness: palm ? 0.33 : saxaul ? 0.32 : 0.27
+        },
+        palm ? 43113 : saxaul ? 43151 : 43127
+      )
+    );
+  if (deadLobes.length)
+    parts.push(createCanopyLobes(deadLobes, { hue: 0.105, saturation: 0.35, lightness: 0.4 }, 43114));
+  if (parts.length === 1) foliage = parts[0];
+  else {
+    foliage = mergeGeometries(parts)!;
+    for (const part of parts) part.dispose();
+  }
   const barkMaterial = new THREE.MeshLambertMaterial({ vertexColors: true });
   const leafMaterial = new THREE.MeshLambertMaterial({
     vertexColors: true,
@@ -308,6 +456,7 @@ export function createAridTree(species: "date_palm" | "umbrella_thorn" | "saxaul
   crown.name = palm ? "date-palm-pinnate-fronds" : saxaul ? "saxaul-jointed-green-shoots" : "acacia-flat-leaf-pads";
   const group = new THREE.Group();
   group.name = species.replaceAll("_", "-");
+  group.userData.treeQuality = quality;
   group.add(trunk, crown);
   return {
     group,

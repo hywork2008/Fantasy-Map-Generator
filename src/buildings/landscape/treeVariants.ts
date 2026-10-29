@@ -1,5 +1,6 @@
 import type { Author } from "../authors";
 import { type ModelCredit, type ModelVariant, variantId } from "../modelVariants";
+import { createNorwaySpruceOpus } from "./norwaySpruceOpus";
 import { createSmallLeavedLimeOpus } from "./smallLeavedLimeOpus";
 import { createTemperateTreeCodexMedium } from "./temperateTreeCodexMedium";
 import { TREE_QUALITIES } from "./treeQuality";
@@ -47,45 +48,190 @@ const TIERS_ADDED: ModelCredit = {
 
 function tieredVariants(species: TreeSpecies): ModelVariant[] {
   const family = treeFamily(species);
-  const lod = species === "garden_parkland" ? "lime" : "yew";
-  const variants: ModelVariant[] = TREE_QUALITIES.map(level => ({
-    id: variantId(family, level, "Codex GPT-6.1 Sol"),
-    family,
-    level,
-    author: "Codex GPT-6.1 Sol",
-    credits:
-      level === "low"
+  // Historical comparison models are explicit overrides, never a fallback for a new species.
+  const comparisonMedium = COMPARISON_MEDIUM[species];
+  const author = TREE_AUTHORS[species];
+  const boreal = species === "norway_spruce" || species === "silver_birch";
+  const conifer = species === "western_red_cedar" || species === "silver_fir";
+  const arid = species === "date_palm" || species === "umbrella_thorn";
+  const dryland = species === "saxaul" || species === "tamarisk" || species === "olive";
+  const tropical = species === "kapok" || species === "red_mangrove";
+  const upland = species === "black_alder" || species === "rowan" || species === "canary_pine";
+  const garden =
+    species === "mediterranean_cypress" ||
+    species === "oriental_evergreen" ||
+    species === "sacred_bodhi_and_fig" ||
+    species === "peaceful_willow";
+  const expanded = conifer || arid || dryland || tropical || upland || garden;
+  const variants: ModelVariant[] = TREE_QUALITIES.map(level => {
+    const levelAuthor = expanded && level !== "ultra" ? "Codex GPT-6.1 Sol" : author;
+    return {
+      id: variantId(family, level, levelAuthor),
+      family,
+      level,
+      author: levelAuthor,
+      ...(boreal && level !== "ultra" ? { basedOn: [variantId(family, "ultra", author)] } : {}),
+      ...(expanded && level !== "ultra"
+        ? {
+            basedOn: [
+              variantId(family, level === "high" ? "ultra" : "high", level === "high" ? author : "Codex GPT-6.1 Sol")
+            ]
+          }
+        : {}),
+      credits: expanded
         ? [
-            { ...TIERS_ADDED, note: "Seven-lobe canopy silhouette" },
             {
-              author: "Claude Opus 5.5",
+              author: levelAuthor,
               date: "2026-10-29",
-              note: "Crown-envelope normals, interior occlusion and leaf speckle; geometry unchanged",
-              commit: "eb36c33b8"
+              note:
+                level === "ultra"
+                  ? "Existing Opus default geometry retained as the ultra reference"
+                  : level === "high"
+                    ? "Reduced sprays on the original Opus branch skeleton, preserving its random sequence"
+                    : arid && level === "low"
+                      ? "Original curved palm frond ribbons or fitted flat umbrella canopy; reduced trunk tessellation"
+                      : "Fitted high-tier foliage vertices; shared canopy-envelope normals, vertex AO, tint variation and hidden-face removal"
             }
           ]
-        : level === "medium"
-          ? [{ ...TIERS_ADDED, note: "Twenty-four independent lobes on short branches" }]
-          : undefined,
-    create: () => (level === "medium" ? createTemperateTreeCodexMedium(lod) : createLandscapeTree(species, level))
-  }));
-  const high = variantId(family, "high", "Codex GPT-6.1 Sol");
-  variants.splice(2, 0, {
-    id: variantId(family, "medium", "Claude Opus 5.5"),
-    family,
-    level: "medium",
-    author: "Claude Opus 5.5",
-    basedOn: [high],
-    credits: [
-      {
-        author: "Claude Opus 5.5",
-        date: "2026-10-29",
-        note: "One fitted lobe per high-tier leaf spray on the high-tier branches, with the low tier's shading",
-        commit: "eb36c33b8"
-      }
-    ],
-    create: () => createLandscapeTree(species, "medium")
+        : boreal
+          ? [
+              {
+                author,
+                date: "2026-10-29",
+                note:
+                  level === "ultra"
+                    ? "Existing default model retained as the detailed reference"
+                    : level === "high"
+                      ? "Reduced foliage on the unchanged ultra branch skeleton"
+                      : level === "medium"
+                        ? "Whorled needle sprays or fitted pendulous leaf lobes on structural limbs"
+                        : "Species-specific whorled or white-barked distant silhouette"
+              }
+            ]
+          : comparisonMedium && level === "low"
+            ? [
+                { ...TIERS_ADDED, note: "Seven-lobe canopy silhouette" },
+                {
+                  author: "Claude Opus 5.5",
+                  date: "2026-10-29",
+                  note: "Crown-envelope normals, interior occlusion and leaf speckle; geometry unchanged",
+                  commit: "eb36c33b8"
+                }
+              ]
+            : comparisonMedium && level === "medium"
+              ? [{ ...TIERS_ADDED, note: "Twenty-four independent lobes on short branches" }]
+              : undefined,
+      create: () => (level === "medium" && comparisonMedium ? comparisonMedium() : createLandscapeTree(species, level))
+    };
   });
+  const high = variantId(family, "high", "Codex GPT-6.1 Sol");
+  if (comparisonMedium)
+    variants.splice(2, 0, {
+      id: variantId(family, "medium", "Claude Opus 5.5"),
+      family,
+      level: "medium",
+      author: "Claude Opus 5.5",
+      basedOn: [high],
+      credits: [
+        {
+          author: "Claude Opus 5.5",
+          date: "2026-10-29",
+          note: "One fitted lobe per high-tier leaf spray on the high-tier branches, with the low tier's shading",
+          commit: "eb36c33b8"
+        }
+      ],
+      create: () => createLandscapeTree(species, "medium")
+    });
+  if (species === "norway_spruce") {
+    const opusHigh = variantId(family, "high", "Claude Opus 5.5");
+    variants.splice(
+      variants.findIndex(variant => variant.level === "ultra"),
+      0,
+      {
+        id: opusHigh,
+        family,
+        level: "high",
+        author: "Claude Opus 5.5",
+        credits: [
+          {
+            author: "Claude Opus 5.5",
+            date: "2026-10-29",
+            note: "Rebuilt from the tree itself: whorled and interwhorl limbs that dip and turn up, needles only on their outer part as fringed sprays with hanging comb branchlets (comb spruce), a needled spire, cones and dead lower stubs"
+          }
+        ],
+        create: () => createNorwaySpruceOpus("comb")
+      },
+      ...(
+        [
+          ["brush", "Brush spruce: limbs climb from the stem, short sparse branchlets, narrower crown"],
+          [
+            "plate",
+            "Plate spruce of boreal and high-montane stands: limbs 15-45 degrees above horizontal, flat sprays, no hanging branchlets, narrow snow-shedding crown"
+          ]
+        ] as const
+      ).map(([form, note]) => ({
+        id: variantId(family, "high", "Claude Opus 5.5", form),
+        family,
+        level: "high" as const,
+        author: "Claude Opus 5.5" as const,
+        edition: form,
+        basedOn: [opusHigh],
+        credits: [{ author: "Claude Opus 5.5" as const, date: "2026-10-29", note }],
+        create: () => createNorwaySpruceOpus(form)
+      }))
+    );
+    const opusPlate = variantId(family, "high", "Claude Opus 5.5", "plate");
+    variants.unshift(
+      {
+        id: variantId(family, "low", "Claude Opus 5.5", "plate"),
+        family,
+        level: "low",
+        author: "Claude Opus 5.5",
+        edition: "plate",
+        basedOn: [opusPlate],
+        credits: [
+          {
+            author: "Claude Opus 5.5",
+            date: "2026-10-29",
+            note: "Plate-spruce silhouette: eight open cones whose star-shaped rims follow the climbing limb tips"
+          }
+        ],
+        create: () => createNorwaySpruceOpus("plate", "low")
+      },
+      {
+        id: variantId(family, "medium", "Claude Opus 5.5", "plate"),
+        family,
+        level: "medium",
+        author: "Claude Opus 5.5",
+        edition: "plate",
+        basedOn: [opusPlate],
+        credits: [
+          {
+            author: "Claude Opus 5.5",
+            date: "2026-10-29",
+            note: "The plate-spruce high tier on its own whorls with one fringe tooth per segment, no interwhorl limbs, limb wood, cones or dead stubs"
+          }
+        ],
+        create: () => createNorwaySpruceOpus("plate", "medium")
+      }
+    );
+    variants.push({
+      id: variantId(family, "ultra", "Claude Opus 5.5", "plate"),
+      family,
+      level: "ultra",
+      author: "Claude Opus 5.5",
+      edition: "plate",
+      basedOn: [opusPlate],
+      credits: [
+        {
+          author: "Claude Opus 5.5",
+          date: "2026-10-29",
+          note: "Plate spruce at full detail: finer fringed sprays, second-order shoots fanned in each limb's plane, a fourth interwhorl limb, rounder wood and more cones"
+        }
+      ],
+      create: () => createNorwaySpruceOpus("plate", "ultra")
+    });
+  }
   if (species === "garden_parkland") {
     const opusHigh = variantId(family, "high", "Claude Opus 5.5");
     variants.splice(
@@ -125,6 +271,11 @@ function tieredVariants(species: TreeSpecies): ModelVariant[] {
   }
   return variants;
 }
+
+const COMPARISON_MEDIUM: Partial<Record<TreeSpecies, () => ReturnType<typeof createLandscapeTree>>> = {
+  garden_parkland: () => createTemperateTreeCodexMedium("lime"),
+  sacred_yew: () => createTemperateTreeCodexMedium("yew")
+};
 
 export const TREE_VARIANTS: readonly ModelVariant[] = TREE_SPECIES.flatMap(species =>
   hasTreeQualityLevels(species)

@@ -11,7 +11,7 @@ export function readScenerySettings(): ScenerySettings {
   try {
     const value = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null");
     return {
-      style: ["none", "countryside", "mountains"].includes(value?.style) ? value.style : "mountains",
+      style: ["none", "countryside", "mountains", "world-tree"].includes(value?.style) ? value.style : "mountains",
       height:
         typeof value?.height === "number" && Number.isFinite(value.height)
           ? Math.max(5, Math.min(40, value.height))
@@ -39,7 +39,8 @@ export function createSceneryControls(
   for (const [value, key] of [
     ["none", "sceneryNone"],
     ["countryside", "sceneryCountryside"],
-    ["mountains", "sceneryMountains"]
+    ["mountains", "sceneryMountains"],
+    ["world-tree", "sceneryWorldTree"]
   ] as const) {
     const option = document.createElement("option");
     option.value = value;
