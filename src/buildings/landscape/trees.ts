@@ -41,6 +41,8 @@ export interface TreeLodProfile {
   /** Quality-first trees retain their selected tier regardless of the city's geometry budget. */
   budget: "quality-first" | "bounded";
   heightMeters: number;
+  /** Natural stand proportions (height / crown radius); explicit park dimensions remain authoritative. */
+  forestHeightToRadius?: number;
   models: Record<TreeQuality, TreeFactory>;
 }
 type TreeDefinition = { create: TreeFactory; lod?: undefined } | { lod: TreeLodProfile };
@@ -100,8 +102,34 @@ export const TREE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
       }
     }
   },
-  date_palm: { create: () => createAridTree("date_palm") },
-  umbrella_thorn: { create: () => createAridTree("umbrella_thorn") },
+  date_palm: {
+    lod: {
+      selection: "distance",
+      budget: "quality-first",
+      heightMeters: 12,
+      forestHeightToRadius: 2.109,
+      models: {
+        low: () => createAridTree("date_palm", "low"),
+        medium: () => createAridTree("date_palm", "medium"),
+        high: () => createAridTree("date_palm", "high"),
+        ultra: () => createAridTree("date_palm", "ultra")
+      }
+    }
+  },
+  umbrella_thorn: {
+    lod: {
+      selection: "distance",
+      budget: "quality-first",
+      heightMeters: 7.8,
+      forestHeightToRadius: 1.128,
+      models: {
+        low: () => createAridTree("umbrella_thorn", "low"),
+        medium: () => createAridTree("umbrella_thorn", "medium"),
+        high: () => createAridTree("umbrella_thorn", "high"),
+        ultra: () => createAridTree("umbrella_thorn", "ultra")
+      }
+    }
+  },
   saxaul: { create: () => createAridTree("saxaul") },
   kapok: { create: createKapok },
   western_red_cedar: {

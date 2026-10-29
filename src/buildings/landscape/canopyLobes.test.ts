@@ -31,3 +31,29 @@ it.each([0, Math.PI / 4, Math.PI / 2])("retains elongated foliage and finite sha
     geometry.dispose();
   }
 });
+
+it("keeps a sloping frond thin in its own frame without changing its radii", () => {
+  const center = new THREE.Vector3(1, 5, 2);
+  const radius = new THREE.Vector3(3, 0.12, 0.4);
+  const orientation = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.2, 1.1, -0.9));
+  const geometry = createCanopyLobes(
+    [{ center, radius, orientation }],
+    { hue: 0.3, saturation: 0.4, lightness: 0.25 },
+    42
+  );
+  try {
+    const box = new THREE.Box3();
+    const inverse = orientation.clone().invert();
+    const positions = geometry.getAttribute("position");
+    for (let i = 0; i < positions.count; i++) {
+      box.expandByPoint(new THREE.Vector3().fromBufferAttribute(positions, i).sub(center).applyQuaternion(inverse));
+      expect(new THREE.Vector3().fromBufferAttribute(geometry.getAttribute("normal"), i).length()).toBeCloseTo(1, 5);
+    }
+    const size = box.getSize(new THREE.Vector3());
+    expect(size.x / size.y).toBeGreaterThan(15);
+    expect(radius.toArray()).toEqual([3, 0.12, 0.4]);
+    expect([...geometry.getAttribute("color").array].every(Number.isFinite)).toBe(true);
+  } finally {
+    geometry.dispose();
+  }
+});

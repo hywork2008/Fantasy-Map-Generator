@@ -46,6 +46,42 @@ function instances(group: THREE.Group) {
 }
 
 describe("forest geometry and budgets", () => {
+  it.each([
+    ["hotDesert", "date_palm"],
+    ["savanna", "umbrella_thorn"]
+  ] as const)("preserves the %s tree's native tall or umbrella proportions in forest instances", (biome, species) => {
+    const doc = document();
+    doc.biome = { id: 1, key: biome, name: biome, color: "green" };
+    const forest = createTownForest(doc, plan());
+    try {
+      forest.update(camera(0, 5000, 1), 720);
+      let tree: THREE.InstancedMesh | undefined;
+      forest.group.traverseVisible(object => {
+        if (object instanceof THREE.InstancedMesh && object.count && object.userData.forestSpecies === species)
+          tree ??= object;
+      });
+      expect(tree).toBeDefined();
+      const matrix = new THREE.Matrix4();
+      tree!.getMatrixAt(0, matrix);
+      const p = tree!.geometry.getAttribute("position"),
+        v = new THREE.Vector3();
+      let min = Infinity,
+        max = -Infinity,
+        radius = 0;
+      for (let i = 0; i < p.count; i++) {
+        v.fromBufferAttribute(p, i).applyMatrix4(matrix);
+        min = Math.min(min, v.y);
+        max = Math.max(max, v.y);
+        radius = Math.max(radius, Math.hypot(v.x - matrix.elements[12], v.z - matrix.elements[14]));
+      }
+      const aspect = (max - min) / (2 * radius);
+      if (species === "umbrella_thorn") expect(aspect).toBeLessThan(0.8);
+      else expect(aspect).toBeGreaterThan(0.8);
+    } finally {
+      forest.dispose();
+    }
+  });
+
   it("cuts the same openings through floor and canopy and samples the terrain instead of a horizontal plate", () => {
     const p = plan(),
       heightAt = ([x, y]: Point) => 20 + x * 0.05 + y * 0.02;
@@ -118,7 +154,7 @@ describe("forest geometry and budgets", () => {
 
   it("enforces instance, triangle, draw and shadow limits and does no work for an unchanged camera", () => {
     const doc = document();
-    doc.biome = { id: 1, key: "hotDesert", name: "Desert", color: "sand" };
+    doc.biome = { id: 1, key: "tropicalRainforest", name: "Rainforest", color: "green" };
     const forest = createTownForest(doc, plan());
     const c = camera();
     for (const quality of ["light", "standard", "high"] as const) {
@@ -150,7 +186,7 @@ describe("forest geometry and budgets", () => {
     const doc = document(),
       p = plan(),
       c = camera();
-    doc.biome = { id: 1, key: "hotDesert", name: "Desert", color: "sand" };
+    doc.biome = { id: 1, key: "tropicalRainforest", name: "Rainforest", color: "green" };
     const forest = createTownForest(doc, p, undefined, "standard");
     forest.update(c, 720);
     const original = instances(forest.group);
@@ -158,8 +194,8 @@ describe("forest geometry and budgets", () => {
     forest.setQuality("high");
     forest.update(c, 720);
     expect(forest.stats.detailedTrees).toBeGreaterThan(0);
-    expect(forest.stats.detailedSpecies).toContain("date_palm");
-    const model = createLandscapeTree("date_palm");
+    expect(forest.stats.detailedSpecies).toContain("kapok");
+    const model = createLandscapeTree("kapok");
     let modelTriangles = 0;
     model.group.traverse(o => {
       if (o instanceof THREE.Mesh)
@@ -232,7 +268,7 @@ describe("forest geometry and budgets", () => {
     );
     const p: ForestPlan = { regions, areaM2: 36000, forestFaceIds: [], protectedFarmAreaM2: 0, protectedFarmCount: 0 };
     const doc = document();
-    doc.biome = { id: 1, key: "hotDesert", name: "Desert", color: "sand" };
+    doc.biome = { id: 1, key: "tropicalRainforest", name: "Rainforest", color: "green" };
     const forest = createTownForest(doc, p, undefined, "light");
     const c = camera(1400, 8000, 1400);
     c.lookAt(1400, 0, -1200);

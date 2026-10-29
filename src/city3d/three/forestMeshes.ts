@@ -404,7 +404,11 @@ export function createTownForest(
             : CONIFERS.has(species) || /conifer|taiga/i.test(document.biome?.key ?? "");
         const batch = `${Math.floor(p[0] / TREE_CHUNK)},${Math.floor(p[1] / TREE_CHUNK)}:${needle ? "needle" : "leaf"}`;
         const list = batches.get(batch) ?? [];
-        list.push({ id, species, point: p, radius, size: 0.8 + random(`${seed}:tree:${id}:size`) * 0.4 });
+        const heightToRadius = treeLodProfile(species)?.forestHeightToRadius;
+        const size =
+          (0.8 + random(`${seed}:tree:${id}:size`) * 0.4) *
+          (heightToRadius === undefined ? 1 : (radius * heightToRadius) / 10);
+        list.push({ id, species, point: p, radius, size });
         batches.set(batch, list);
       }
     const meshes: THREE.InstancedMesh[] = [];

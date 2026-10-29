@@ -53,22 +53,24 @@ function tieredVariants(species: TreeSpecies): ModelVariant[] {
   const author = TREE_AUTHORS[species];
   const boreal = species === "norway_spruce" || species === "silver_birch";
   const conifer = species === "western_red_cedar" || species === "silver_fir";
+  const arid = species === "date_palm" || species === "umbrella_thorn";
+  const expanded = conifer || arid;
   const variants: ModelVariant[] = TREE_QUALITIES.map(level => {
-    const levelAuthor = conifer && level !== "ultra" ? "Codex GPT-6.1 Sol" : author;
+    const levelAuthor = expanded && level !== "ultra" ? "Codex GPT-6.1 Sol" : author;
     return {
       id: variantId(family, level, levelAuthor),
       family,
       level,
       author: levelAuthor,
       ...(boreal && level !== "ultra" ? { basedOn: [variantId(family, "ultra", author)] } : {}),
-      ...(conifer && level !== "ultra"
+      ...(expanded && level !== "ultra"
         ? {
             basedOn: [
               variantId(family, level === "high" ? "ultra" : "high", level === "high" ? author : "Codex GPT-6.1 Sol")
             ]
           }
         : {}),
-      credits: conifer
+      credits: expanded
         ? [
             {
               author: levelAuthor,
@@ -78,7 +80,9 @@ function tieredVariants(species: TreeSpecies): ModelVariant[] {
                   ? "Existing Opus default geometry retained as the ultra reference"
                   : level === "high"
                     ? "Reduced sprays on the original Opus branch skeleton, preserving its random sequence"
-                    : "Fitted high-tier spray vertices; shared canopy-envelope normals, vertex AO, tint variation and hidden-face removal"
+                    : arid && level === "low"
+                      ? "Original curved palm frond ribbons or fitted flat umbrella canopy; reduced trunk tessellation"
+                      : "Fitted high-tier foliage vertices; shared canopy-envelope normals, vertex AO, tint variation and hidden-face removal"
             }
           ]
         : boreal
