@@ -5,6 +5,7 @@ import { deliverConversionTimber } from "../../../generators/landUse";
 import { getTechnologyStage } from "../../../generators/technologyProgress";
 import { isTechnologyStageAtLeast } from "../../../generators/technologyTypes";
 import { pow } from "../../../simulation/deterministicMath";
+import { optionsStore } from "../../hostCore";
 import type { Burg, ShipGoodName, ShipGoodStock } from "../../hostTypes";
 import {
   SHIPBUILDING_MATERIAL_IDS,
@@ -26,6 +27,7 @@ import {
   getOrCreateCellFoodReserves,
   getOrCreateCumulativeGoodsSales,
   getOrCreateMarketGoodProductionTotals,
+  getRailwayLinks,
   getSimulationMonth,
   getSimulationYear,
   getWorldContext,
@@ -133,7 +135,12 @@ import {
 } from "./production-utils";
 import { addWholesaleGoodStock, getRetailLocalityMultiplier } from "./retailInventory";
 import { seaDeparturePortBurgId } from "./seaRoutePorts";
-import { getMarketTextileDemandProfile, getTextileMarketOrders, type TextileMarketOrders } from "./textileDemand";
+import {
+  getMarketTextileDemandProfile,
+  getTextileMarketOrders,
+  invalidateTextileDemandCache,
+  type TextileMarketOrders
+} from "./textileDemand";
 import { getGoodCargoSlotsPerUnit, getRouteCargoSlotsPerUnit } from "./tradeCargo";
 import { TradeLogisticsSettings } from "./tradeLogisticsSettings";
 import {
@@ -406,7 +413,7 @@ export class MarketsModule {
   }
 
   private marketById: Market[] = [];
-  private tradeRouteCache: { key: string; routes: MarketTradeRoutes } | null = null;
+  private tradeRouteCache: { key: string; durationKey: string; routes: MarketTradeRoutes } | null = null;
   private ruralProductionIndex: RuralProductionIndex | null = null;
 
   /** Returns the current market stock for the three ship-class Goods. */
@@ -751,10 +758,18 @@ export class MarketsModule {
   }
 
   public sync(): void {
-    this.indexMarkets();
     // A loaded map replaces route and market objects in place. Drop any routes
     // retained from the previous map before its first trade settlement.
     this.invalidateTradeRouteCache();
+    this.syncForProductionCycle();
+  }
+
+  /**
+   * Per-cycle refresh. Keeps the market-to-market paths: their cache key tracks every input,
+   * and rebuilding them was a third of each monthly settlement on large maps.
+   */
+  public syncForProductionCycle(): void {
+    this.indexMarkets();
     this.invalidateRuralProductionCache();
   }
 
@@ -1051,6 +1066,7 @@ export class MarketsModule {
   /** Rebuild rural market totals after an editor changes market territories or source data. */
   invalidateRuralProductionCache(): void {
     this.ruralProductionIndex = null;
+    invalidateTextileDemandCache();
   }
 
   private getMarketGood(market: Market, good: Good): Market["goods"][number] {
@@ -2909,7 +2925,24 @@ export class MarketsModule {
    */
   private getCachedMarketTradeRoutes(): MarketTradeRoutes {
     const key = this.getTradeRouteCacheKey();
-    if (this.tradeRouteCache?.key === key) return this.tradeRouteCache.routes;
+    const durationKey = this.getTradeRouteDurationKey();
+    const cached = this.tradeRouteCache;
+    if (cached?.key === key) {
+      if (cached.durationKey === durationKey) return cached.routes;
+      // Same paths, but sea legs follow the monthly wind and rail links change ETAs.
+      const routes: MarketTradeRoutes = {};
+      for (const [sourceId, targets] of Object.entries(cached.routes)) {
+        const retimed: Record<number, MarketTradeRoute> = {};
+        for (const [targetId, route] of Object.entries(targets))
+          retimed[Number(targetId)] = {
+            ...route,
+            durationDays: calculateRouteDurationDays(route.segments, this.worldContext.distanceScale)
+          };
+        routes[Number(sourceId)] = retimed;
+      }
+      this.tradeRouteCache = { key, durationKey, routes };
+      return routes;
+    }
 
     const routes: MarketTradeRoutes = {};
     const markets = getMarkets();
@@ -2926,23 +2959,29 @@ export class MarketsModule {
       }
     }
 
-    this.tradeRouteCache = { key, routes };
+    this.tradeRouteCache = { key, durationKey, routes };
     return routes;
   }
 
+  /**
+   * Everything a market-to-market path, its distance and its temperature depend on: market
+   * centres and their states (domestic pairs), the route graph, terrain, rivers, climate,
+   * movement settings and harbour works (mode-transfer penalties steer the path search).
+   */
   private getTradeRouteCacheKey(): string {
-    const { pack, distanceScale } = this.worldContext;
-    const movement = CaravanMovement.getOptions();
+    const { pack, grid, distanceScale } = this.worldContext;
+    const cells = pack.cells;
     const marketCentres = getMarkets()
       .map(market => {
         const burg = pack.burgs[market.centerBurgId];
-        return `${market.i}:${market.centerBurgId}:${burg?.cell}:${burg?.x}:${burg?.y}`;
+        const state = burg ? burg.state || cells?.state?.[burg.cell] || 0 : 0;
+        return `${market.i}:${market.centerBurgId}:${burg?.cell}:${burg?.x}:${burg?.y}:${state}`;
       })
       .join("|");
     const routeGeometry = (pack.routes ?? [])
       .map(route => `${route.i}:${route.group}:${route.points.map(point => point.join(",")).join("/")}`)
       .join("|");
-    const routeLinks = Object.entries(pack.cells?.routes ?? {})
+    const routeLinks = Object.entries(cells?.routes ?? {})
       .map(
         ([fromCellId, links]) =>
           `${fromCellId}:${Object.entries(links)
@@ -2950,17 +2989,31 @@ export class MarketsModule {
             .join("/")}`
       )
       .join("|");
+    const harbours = (pack.burgs as Burg[])
+      .filter(burg => burg && !burg.removed && (burg.publicWorks?.harbor ?? 0) > 0)
+      .map(burg => `${burg.cell}:${burg.publicWorks?.harbor}`)
+      .join("|");
 
     return [
       distanceScale,
-      movement.landKmPerDay,
-      movement.seaKmPerDay,
-      movement.gradeEffectStrength,
-      movement.merchantRoutePreference,
+      JSON.stringify(CaravanMovement.getOptions()),
+      optionsStore.getState().heightExponent,
+      this.usesStateBoundedTerritories(),
       marketCentres,
       routeGeometry,
-      routeLinks
+      routeLinks,
+      harbours,
+      hashNumbers(cells?.h),
+      hashNumbers(cells?.r),
+      hashNumbers(cells?.fl),
+      hashNumbers(cells?.g),
+      hashNumbers(grid?.cells?.temp)
     ].join(";");
+  }
+
+  /** Inputs that change a cached path's ETA without changing the path. */
+  private getTradeRouteDurationKey(): string {
+    return `${getSimulationMonth()};${JSON.stringify(getRailwayLinks())}`;
   }
 
   private invalidateTradeRouteCache(): void {
@@ -3202,3 +3255,14 @@ export class MarketsModule {
 }
 
 export const Markets = new MarketsModule();
+
+/** FNV-1a over a numeric column, so terrain or climate edits change the trade-route cache key. */
+function hashNumbers(values: ArrayLike<number> | undefined): string {
+  if (!values) return "";
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < values.length; index++) {
+    hash ^= values[index] | 0;
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return `${values.length}:${hash >>> 0}`;
+}

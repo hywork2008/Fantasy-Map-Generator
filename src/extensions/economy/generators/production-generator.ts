@@ -146,7 +146,8 @@ import {
   getHouseholdGarmentInventory,
   getMarketBlanketDemandProfile,
   getMarketTextileDemandProfile,
-  settleTextileHouseholdDemand
+  settleTextileHouseholdDemand,
+  withTextileDemandCycleCache
 } from "./textileDemand";
 import { HOUSEHOLD_GARMENT_NAMES, hasPhysicalTextileRecipe } from "./textileRecipeContracts";
 import { buyTownLuxuries } from "./townLuxuryPurchases";
@@ -265,7 +266,7 @@ export class ProductionModule {
   }
 
   produce(feedPeriod?: number): void {
-    withLivestockFeedPeriod(feedPeriod, () => this.produceCycle());
+    withLivestockFeedPeriod(feedPeriod, () => withTextileDemandCycleCache(() => this.produceCycle()));
   }
 
   private produceCycle(): void {
@@ -327,7 +328,7 @@ export class ProductionModule {
     // Loaded maps restore goods/markets before the singleton lookup caches are rebuilt.
     // Rural Wood and mine supply both write through those caches.
     Goods.sync();
-    Markets.sync();
+    Markets.syncForProductionCycle();
 
     // A0 flow diagnostics: retail stock before rural/burg production this cycle.
     beginFlowCycleCapture();

@@ -981,6 +981,7 @@ function advanceTimeMutationInSimulationRng(deltaYears: number, deltaMonths: num
   const addedYearsFromMonths = Math.floor((targetMonth - 1) / 12);
 
   const oldYear = simulationContext.currentYear;
+  const oldMonthIndex = oldYear * 12 + simulationContext.currentMonth;
   simulationContext.currentMonth = ((targetMonth - 1) % 12) + 1;
   simulationContext.currentYear += deltaYears + addedYearsFromMonths;
 
@@ -1082,6 +1083,7 @@ function advanceTimeMutationInSimulationRng(deltaYears: number, deltaMonths: num
   const systemContextBase = {
     tick: simulationContext.tickCount,
     delta: { years: deltaYears, months: deltaMonths, days: deltaDays },
+    calendarMonthsCrossed: simulationContext.currentYear * 12 + simulationContext.currentMonth - oldMonthIndex,
     isBulkAdvance: bulkAdvance,
     fastAdvanceRates: getActiveFastAdvanceRun()?.rates ?? null
   };
