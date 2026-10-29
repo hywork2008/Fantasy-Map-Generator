@@ -124,6 +124,7 @@ export function createForestTreeDetails(parent: THREE.Group, treeLimit?: number)
     ) {
       const stats = {
         trees: 0,
+        qualityFirstTrees: 0,
         triangles: 0,
         calls: 0,
         shadowTriangles: 0,
@@ -245,6 +246,7 @@ export function createForestTreeDetails(parent: THREE.Group, treeLimit?: number)
           if (profile) tieredTrees++;
           else untieredTrees++;
         }
+        if (profile?.budget === "quality-first") stats.qualityFirstTrees++;
         stats.trees++;
         stats.triangles += model.triangles;
         if (shadow) {

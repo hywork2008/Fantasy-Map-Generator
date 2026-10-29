@@ -158,7 +158,11 @@ describe("forest geometry and budgets", () => {
   it("enforces instance, triangle, draw and shadow limits and does no work for an unchanged camera", () => {
     const doc = document();
     doc.biome = { id: 1, key: "wetland", name: "Wetland", color: "green" };
-    vi.spyOn(flora, "landscapeTreeSpecies").mockReturnValue("mediterranean_cypress");
+    const resolver = vi
+      .spyOn(flora, "landscapeTreeSpecies")
+      .mockImplementation((_, __, point) =>
+        point[0] === 0 && point[1] === 0 ? "garden_parkland" : "mediterranean_cypress"
+      );
     const forest = createTownForest(doc, plan());
     const c = camera();
     for (const quality of ["light", "standard", "high"] as const) {
@@ -183,6 +187,7 @@ describe("forest geometry and budgets", () => {
       });
       expect(shadowTriangles).toBe(s.shadowTriangles);
     }
+    expect(resolver.mock.calls.some(([, , point]) => point[0] === 0 && point[1] === 0)).toBe(false);
     forest.dispose();
   });
 
@@ -382,3 +387,98 @@ it.each(["marine", "tundra", "glacier", "lavaField"])(
     }
   }
 );
+
+it.each(["garden_parkland", "sacred_bodhi_and_fig"] as const)(
+  "uses actual mixed candidates when the unused origin resolves to %s and restores bounded neighbours",
+  originSpecies => {
+    const resolver = vi.spyOn(flora, "landscapeTreeSpecies").mockImplementation((_, __, point) => {
+      if (point[0] === 0 && point[1] === 0) return originSpecies;
+      return point[0] < 16 ? "garden_parkland" : "sacred_bodhi_and_fig";
+    });
+    const regions = forestRegions([{ faceId: "mixed", polygon: rect(-32, -32, 64, 64) }]);
+    const input = { ...plan(), regions, areaM2: regions[0].areaM2 };
+    const forest = createTownForest(document(), input, undefined, "light");
+    const budget = FOREST_3D_BUDGET.light as { triangles: number; calls: number };
+    const savedBudget = { ...budget };
+    const c = camera(0, 90, 120);
+    const placements = () => {
+      const points = new Map<string, number[]>();
+      forest.group.traverseVisible(object => {
+        if (!(object instanceof THREE.InstancedMesh)) return;
+        for (let i = 0; i < object.count; i++) {
+          const matrix = new THREE.Matrix4();
+          object.getMatrixAt(i, matrix);
+          if (new THREE.Vector3().setFromMatrixScale(matrix).length() === 0) continue;
+          const key = `${matrix.elements[12]},${matrix.elements[14]}`;
+          expect(points.has(key)).toBe(false);
+          points.set(key, [...matrix.elements]);
+        }
+      });
+      return points;
+    };
+    try {
+      // Quality-first trees must survive, without granting the same exception to bounded neighbours.
+      budget.triangles = 1;
+      budget.calls = 0;
+      forest.update(c, 720);
+      expect(forest.stats.detailedSpecies).toEqual(["garden_parkland"]);
+      expect(forest.stats.detailedTrees).toBeGreaterThan(0);
+      const fallbackPlacements = placements();
+      expect(fallbackPlacements.size).toBe(forest.stats.trees);
+      expect([...fallbackPlacements.keys()].some(key => Number(key.split(",")[0]) > 0)).toBe(true);
+      expect(forest.stats.trees).toBeGreaterThan(forest.stats.detailedTrees);
+      const tiers = { ...forest.stats.detailedTiers };
+      Object.assign(budget, savedBudget);
+      forest.setQuality("standard");
+      forest.update(c, 720);
+      expect(forest.stats.detailedSpecies).toContain("sacred_bodhi_and_fig");
+      expect(placements()).toEqual(fallbackPlacements);
+      forest.setQuality("light");
+      budget.triangles = 1;
+      budget.calls = 0;
+      forest.update(c, 720);
+      expect(forest.stats.detailedTiers).toEqual(tiers);
+      expect(placements()).toEqual(fallbackPlacements);
+      expect(resolver.mock.calls.some(([, , point]) => point[0] === 0 && point[1] === 0)).toBe(false);
+    } finally {
+      Object.assign(budget, savedBudget);
+      forest.dispose();
+    }
+  }
+);
+
+it("aggregates only bounded chunks while retaining quality-first trees in another chunk", () => {
+  const regions = forestRegions([
+    { faceId: "quality-first", polygon: rect(-64, -64, 48, 48) },
+    ...Array.from({ length: 90 }, (_, i) => ({
+      faceId: `bounded-${i}`,
+      polygon: rect((i % 10) * 300, Math.floor(i / 10) * 300, 20, 20)
+    }))
+  ]);
+  vi.spyOn(flora, "landscapeTreeSpecies").mockImplementation((_, __, p) =>
+    p[0] < 0 ? "garden_parkland" : "mediterranean_cypress"
+  );
+  const forest = createTownForest(document(), { ...plan(), regions }, undefined, "light");
+  const c = camera(1400, 8000, 1400);
+  c.lookAt(1400, 0, -1200);
+  const budget = FOREST_3D_BUDGET.light as { calls: number };
+  const originalCalls = budget.calls;
+  try {
+    // The remaining call budget must include the quality-first chunk's floor.
+    budget.calls = 90;
+    forest.update(c, 720);
+    expect(forest.stats.globalFallback).toBe(true);
+    expect(forest.stats.detailedSpecies).toContain("garden_parkland");
+    const overview = forest.group.getObjectByName("forest-overview") as THREE.Mesh;
+    expect(overview.visible).toBe(true);
+    overview.geometry.computeBoundingBox();
+    expect(overview.geometry.boundingBox!.min.x).toBeGreaterThanOrEqual(0);
+    const free = vi.spyOn(overview.geometry, "dispose");
+    forest.dispose();
+    forest.dispose();
+    expect(free).toHaveBeenCalledOnce();
+  } finally {
+    budget.calls = originalCalls;
+    forest.dispose();
+  }
+});
