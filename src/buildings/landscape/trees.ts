@@ -20,50 +20,21 @@ import { createScotsPine } from "./scotsPine";
 import { createSmallLeavedLime } from "./smallLeavedLime";
 import { createSweetChestnut } from "./sweetChestnut";
 import type { TreeQuality } from "./treeQuality";
+import type { TreeAppearanceOptions } from "./treeSeasonLayers";
+import type { TreeSpecies } from "./treeSpecies";
 import { createUplandTree } from "./uplandTrees";
 import { createWetTemperateTree } from "./wetTemperateTrees";
 
-export const TREE_SPECIES = [
-  "arabica_coffee",
-  "cacao",
-  "sweet_chestnut",
-  "lemon",
-  "common_fig",
-  "european_plum",
-  "european_pear",
-  "domestic_apple",
-  "scots_pine",
-  "european_hornbeam",
-  "pedunculate_oak",
-  "european_beech",
-  "garden_parkland",
-  "norway_spruce",
-  "silver_birch",
-  "sacred_yew",
-  "date_palm",
-  "umbrella_thorn",
-  "saxaul",
-  "kapok",
-  "western_red_cedar",
-  "black_alder",
-  "olive",
-  "silver_fir",
-  "red_mangrove",
-  "tamarisk",
-  "rowan",
-  "canary_pine",
-  "mediterranean_cypress",
-  "oriental_evergreen",
-  "sacred_bodhi_and_fig",
-  "peaceful_willow"
-] as const;
-export type TreeSpecies = (typeof TREE_SPECIES)[number];
+export { TREE_SPECIES, type TreeSpecies } from "./treeSpecies";
 
-type TreeFactory = () => CityStructureMeshes;
+/** Factories without seasonal layers ignore the options and keep their static model. */
+type TreeFactory = (options?: TreeAppearanceOptions) => CityStructureMeshes;
 export interface TreeLodProfile {
   selection: "distance" | "pixels";
   /** Quality-first trees retain their selected tier regardless of the city's geometry budget. */
   budget: "quality-first" | "bounded";
+  /** The factories draw the species' seasonal appearances (docs/plan/bv-tree-seasonal-appearance.md). */
+  seasonal?: true;
   heightMeters: number;
   /** Natural stand proportions (height / crown radius); explicit park dimensions remain authoritative. */
   forestHeightToRadius?: number;
@@ -168,12 +139,13 @@ export const TREE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
     lod: {
       selection: "pixels",
       budget: "bounded",
+      seasonal: true,
       heightMeters: 6.1,
       models: {
-        low: () => createDomesticApple("low"),
-        medium: () => createDomesticApple("medium"),
-        high: () => createDomesticApple("high"),
-        ultra: () => createDomesticApple("ultra")
+        low: options => createDomesticApple("low", options),
+        medium: options => createDomesticApple("medium", options),
+        high: options => createDomesticApple("high", options),
+        ultra: options => createDomesticApple("ultra", options)
       }
     }
   },
@@ -223,13 +195,14 @@ export const TREE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
     lod: {
       selection: "pixels",
       budget: "bounded",
+      seasonal: true,
       heightMeters: 20,
       forestHeightToRadius: 3.2,
       models: {
-        low: () => createEuropeanBeech("low"),
-        medium: () => createEuropeanBeech("medium"),
-        high: () => createEuropeanBeech("high"),
-        ultra: () => createEuropeanBeech("ultra")
+        low: options => createEuropeanBeech("low", options),
+        medium: options => createEuropeanBeech("medium", options),
+        high: options => createEuropeanBeech("high", options),
+        ultra: options => createEuropeanBeech("ultra", options)
       }
     }
   },
@@ -519,7 +492,11 @@ export function hasTreeQualityLevels(species: TreeSpecies): boolean {
 }
 
 /** Meter-scale species models shared by BV and CE. Radius is set by the saved canopy. */
-export function createLandscapeTree(species: TreeSpecies, quality: TreeQuality = "ultra") {
+export function createLandscapeTree(
+  species: TreeSpecies,
+  quality: TreeQuality = "ultra",
+  options?: TreeAppearanceOptions
+) {
   const definition = TREE_DEFINITIONS[species];
-  return definition.lod ? definition.lod.models[quality]() : definition.create();
+  return definition.lod ? definition.lod.models[quality](options) : definition.create(options);
 }

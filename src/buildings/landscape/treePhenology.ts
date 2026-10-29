@@ -1,5 +1,5 @@
 import type { PERENNIAL_CROP_PROFILES } from "../../data/perennialCrops";
-import type { TreeSpecies } from "./trees";
+import type { TreeSpecies } from "./treeSpecies";
 
 /**
  * Seasonal appearances a tree model can show (docs/plan/bv-tree-seasonal-appearance.md §3).

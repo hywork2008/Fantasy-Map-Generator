@@ -4,6 +4,7 @@ import { createNorwaySpruceOpus } from "./norwaySpruceOpus";
 import { createSmallLeavedLimeOpus } from "./smallLeavedLimeOpus";
 import { createTemperateTreeCodexMedium } from "./temperateTreeCodexMedium";
 import { TREE_QUALITIES } from "./treeQuality";
+import type { TreeAppearanceOptions } from "./treeSeasonLayers";
 import { createLandscapeTree, hasTreeQualityLevels, TREE_SPECIES, type TreeSpecies } from "./trees";
 
 /** Author of each species' model; reduced tiers credit their own authors below. */
@@ -58,7 +59,10 @@ const TIERS_ADDED: ModelCredit = {
   commit: "45e24d51d"
 };
 
-function tieredVariants(species: TreeSpecies): ModelVariant[] {
+/** Tree variants take the seasonal look; factories without seasonal layers ignore it. */
+export type TreeVariant = ModelVariant<[TreeAppearanceOptions?]>;
+
+function tieredVariants(species: TreeSpecies): TreeVariant[] {
   const family = treeFamily(species);
   // Historical comparison models are explicit overrides, never a fallback for a new species.
   const comparisonMedium = COMPARISON_MEDIUM[species];
@@ -84,7 +88,7 @@ function tieredVariants(species: TreeSpecies): ModelVariant[] {
     species === "sacred_bodhi_and_fig" ||
     species === "peaceful_willow";
   const expanded = conifer || arid || dryland || tropical || upland || garden;
-  const variants: ModelVariant[] = TREE_QUALITIES.map(level => {
+  const variants: TreeVariant[] = TREE_QUALITIES.map(level => {
     const levelAuthor = expanded && level !== "ultra" ? "Codex GPT-6.1 Sol" : author;
     return {
       id: variantId(family, level, levelAuthor),
@@ -198,7 +202,8 @@ function tieredVariants(species: TreeSpecies): ModelVariant[] {
                 : comparisonMedium && level === "medium"
                   ? [{ ...TIERS_ADDED, note: "Twenty-four independent lobes on short branches" }]
                   : undefined,
-      create: () => (level === "medium" && comparisonMedium ? comparisonMedium() : createLandscapeTree(species, level))
+      create: (options?: TreeAppearanceOptions) =>
+        level === "medium" && comparisonMedium ? comparisonMedium() : createLandscapeTree(species, level, options)
     };
   });
   const high = variantId(family, "high", "Codex GPT-6.1 Sol");
@@ -359,7 +364,7 @@ const COMPARISON_MEDIUM: Partial<Record<TreeSpecies, () => ReturnType<typeof cre
   sacred_yew: () => createTemperateTreeCodexMedium("yew")
 };
 
-export const TREE_VARIANTS: readonly ModelVariant[] = TREE_SPECIES.flatMap(species =>
+export const TREE_VARIANTS: readonly TreeVariant[] = TREE_SPECIES.flatMap(species =>
   hasTreeQualityLevels(species)
     ? tieredVariants(species)
     : [

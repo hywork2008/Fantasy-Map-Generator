@@ -4,12 +4,30 @@ import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import { type CanopyLobe, createCanopyLobes, fitCanopyLobe } from "./canopyLobes";
 import { createTreeBase } from "./treeBase";
 import type { TreeQuality } from "./treeQuality";
+import {
+  type FoliageTint,
+  type LeafShoot,
+  type TreeAppearanceOptions,
+  tintFoliage,
+  winterTwigs
+} from "./treeSeasonLayers";
 
-/** Summer Fagus sylvatica: a clear grey bole, ascending limbs and oval, folded leaf sprays. */
-export function createEuropeanBeech(quality: TreeQuality = "ultra"): CityStructureMeshes {
+/** Copper-orange autumn beech leaves. */
+const AUTUMN: FoliageTint = { hue: 0.07, hueJitter: 0.05, saturation: 0.66, lightnessScale: 1.35 };
+
+/**
+ * Fagus sylvatica: a clear grey bole, ascending limbs and oval, folded leaf sprays. Summer by
+ * default; autumn recolours the leaves and bare drops them for twigs on the same skeleton.
+ */
+export function createEuropeanBeech(
+  quality: TreeQuality = "ultra",
+  options: TreeAppearanceOptions = {}
+): CityStructureMeshes {
   const low = quality === "low";
   const medium = quality === "medium";
   const reduced = low || medium;
+  const appearance = options.appearance === "bare" || options.appearance === "autumn" ? options.appearance : "leaf";
+  const bare = appearance === "bare";
   let seed = 43141;
   const random = () => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
@@ -18,6 +36,7 @@ export function createEuropeanBeech(quality: TreeQuality = "ultra"): CityStructu
   const wood: THREE.BufferGeometry[] = [];
   const lobes: CanopyLobe[] = [];
   const limbPoints: THREE.Vector3[][] = [];
+  const shoots: LeafShoot[] = [];
   const positions: number[] = [],
     colors: number[] = [],
     normals: number[] = [];
@@ -92,6 +111,7 @@ export function createEuropeanBeech(quality: TreeQuality = "ultra"): CityStructu
     }
     points.push(...sample);
     if (medium) lobes.push(fitCanopyLobe(sample, 1.08));
+    return sample;
   }
   timber(
     createTreeBase(
@@ -114,17 +134,18 @@ export function createEuropeanBeech(quality: TreeQuality = "ultra"): CityStructu
     const start = new THREE.Vector3(0, 5.5 + t * 10, 0);
     const elbow = new THREE.Vector3(Math.cos(angle) * reach * 0.6, 7 + t * 9.8, Math.sin(angle) * reach * 0.6);
     const tip = new THREE.Vector3(Math.cos(angle) * reach, 8.2 + t * 9.7, Math.sin(angle) * reach);
-    if (!low || i % 2 === 0) {
+    // A bare low tier keeps every limb: without leaves the branch fan is the silhouette.
+    if (!low || i % 2 === 0 || bare) {
       branch(start, elbow, 0.18 * (1 - t * 0.6));
-      if (!low) branch(elbow, tip, 0.085 * (1 - t * 0.6));
+      if (!low || bare) branch(elbow, tip, 0.085 * (1 - t * 0.6));
     }
     const points: THREE.Vector3[] = [];
     for (let j = 0; j < 4; j++) {
       const a = start.clone().lerp(tip, 0.3 + j * 0.22);
       const yaw = angle + (j % 2 ? -0.65 : 0.65);
       const end = a.clone().add(new THREE.Vector3(Math.cos(yaw) * 0.8, 0.1 + random() * 1.8, Math.sin(yaw) * 0.8));
-      if (!reduced) branch(a, end, 0.025);
-      spray(end, yaw, points);
+      if (!reduced || (bare && medium)) branch(a, end, 0.025);
+      shoots.push({ base: a, tip: end, points: spray(end, yaw, points) });
     }
     limbPoints.push(points);
   }
@@ -132,10 +153,16 @@ export function createEuropeanBeech(quality: TreeQuality = "ultra"): CityStructu
   for (let i = 0; i < 4; i++) {
     const angle = (i * Math.PI) / 2;
     const end = new THREE.Vector3(Math.cos(angle) * 0.8, 18.5 + (i % 2) * 0.35, Math.sin(angle) * 0.8);
-    if (!low) branch(new THREE.Vector3(0, 16.5, 0), end, 0.05);
-    spray(end, angle, leaderPoints);
+    if (!low || bare) branch(new THREE.Vector3(0, 16.5, 0), end, 0.05);
+    shoots.push({ base: new THREE.Vector3(0, 16.5, 0), tip: end, points: spray(end, angle, leaderPoints) });
   }
-  if (low) {
+  if (bare) {
+    // Winter twigs reach the leaf positions, so leafy and bare branch tips coincide.
+    const twigs = quality === "ultra" ? 6 : quality === "high" ? 4 : medium ? 2 : 0;
+    for (const shoot of shoots)
+      for (const [from, to] of winterTwigs(shoot, twigs)) branch(from, to, medium ? 0.018 : 0.011);
+  }
+  if (low && !bare) {
     const all = [...limbPoints.flat(), ...leaderPoints];
     // Spatial octants preserve a rounded broadleaf crown instead of stacking opposing limbs into shelves.
     for (const upper of [false, true])
@@ -152,32 +179,39 @@ export function createEuropeanBeech(quality: TreeQuality = "ultra"): CityStructu
   }
   const bark = mergeGeometries(wood)!;
   for (const part of wood) part.dispose();
-  const foliage = reduced
-    ? createCanopyLobes(lobes, { hue: 0.28, saturation: 0.48, lightness: 0.31 }, 43141)
-    : new THREE.BufferGeometry();
-  if (!reduced) {
-    foliage.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-    foliage.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-    foliage.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
-  }
   const barkMaterial = new THREE.MeshLambertMaterial({ vertexColors: true });
-  const foliageMaterial = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
   const trunk = new THREE.Mesh(bark, barkMaterial);
-  const crown = new THREE.Mesh(foliage, foliageMaterial);
   trunk.name = "beech-smooth-grey-bole-and-ascending-limbs";
-  crown.name = reduced ? "beech-fitted-leaf-sprays" : "beech-folded-oval-leaves";
   const group = new THREE.Group();
   group.name = "european-beech";
   group.userData.treeQuality = quality;
-  group.add(trunk, crown);
+  group.userData.treeAppearance = appearance;
+  group.add(trunk);
+  const pickables: THREE.Mesh[] = [trunk];
+  if (!bare) {
+    const foliage = reduced
+      ? createCanopyLobes(lobes, { hue: 0.28, saturation: 0.48, lightness: 0.31 }, 43141)
+      : new THREE.BufferGeometry();
+    if (!reduced) {
+      foliage.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+      foliage.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+      foliage.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
+    }
+    if (appearance === "autumn" || options.autumnPalette) tintFoliage(foliage, AUTUMN);
+    const foliageMaterial = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
+    const crown = new THREE.Mesh(foliage, foliageMaterial);
+    crown.name = reduced ? "beech-fitted-leaf-sprays" : "beech-folded-oval-leaves";
+    group.add(crown);
+    pickables.push(crown);
+  }
   return {
     group,
-    pickables: [trunk, crown],
+    pickables,
     dispose() {
-      bark.dispose();
-      foliage.dispose();
-      barkMaterial.dispose();
-      foliageMaterial.dispose();
+      for (const mesh of pickables) {
+        mesh.geometry.dispose();
+        (mesh.material as THREE.Material).dispose();
+      }
     }
   };
 }

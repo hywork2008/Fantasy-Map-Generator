@@ -1,4 +1,11 @@
-import { createLandscapeTree, hasTreeQualityLevels, TREE_SPECIES, type TreeSpecies } from "../landscape/trees";
+import { TREE_APPEARANCES, TREE_PHENOLOGY, type TreeAppearance } from "../landscape/treePhenology";
+import {
+  createLandscapeTree,
+  hasTreeQualityLevels,
+  TREE_SPECIES,
+  type TreeSpecies,
+  treeLodProfile
+} from "../landscape/trees";
 import { TREE_AUTHORS, TREE_VARIANTS, treeFamily } from "../landscape/treeVariants";
 import type { MedievalModel } from "./modelKit";
 
@@ -206,6 +213,39 @@ const LEVEL_LABELS: Record<string, string> = {
   low: "Low (canopy silhouette)"
 };
 
+const APPEARANCE_LABELS: Record<TreeAppearance, string> = {
+  bare: "Bare winter twigs",
+  bloom: "In flower",
+  leaf: "In leaf",
+  unripe: "Unripe fruit",
+  fruit: "Ripe fruit",
+  harvested: "Harvested",
+  autumn: "Autumn colours"
+};
+
+/** Every supported appearance, plus autumn-coloured fruit and harvest for deciduous fruit trees. */
+function seasons(species: TreeSpecies): MedievalModel["seasons"] {
+  if (!treeLodProfile(species)?.seasonal) return undefined;
+  const profile = TREE_PHENOLOGY[species];
+  const options: { id: string; label: string }[] = [];
+  for (const appearance of TREE_APPEARANCES) {
+    if (!profile.appearances.includes(appearance)) continue;
+    options.push({ id: appearance, label: APPEARANCE_LABELS[appearance] });
+    if (profile.leafHabit === "deciduous" && (appearance === "fruit" || appearance === "harvested"))
+      options.push({ id: `${appearance}+autumn`, label: `${APPEARANCE_LABELS[appearance]} · autumn colours` });
+  }
+  return {
+    default: profile.defaultAppearance,
+    options,
+    create(variantId, season) {
+      const variant = TREE_VARIANTS.find(entry => entry.id === variantId);
+      if (!variant) throw new Error(`Unknown tree variant ${variantId}`);
+      const [appearance, palette] = season.split("+");
+      return variant.create({ appearance: appearance as TreeAppearance, autumnPalette: palette === "autumn" });
+    }
+  };
+}
+
 export const models: MedievalModel[] = TREE_SPECIES.map(species => ({
   id: species.replaceAll("_", "-"),
   ...TREES[species],
@@ -217,5 +257,6 @@ export const models: MedievalModel[] = TREE_SPECIES.map(species => ({
         label: LEVEL_LABELS[variant.level]
       }))
     : undefined,
+  seasons: seasons(species),
   create: () => createLandscapeTree(species)
 }));

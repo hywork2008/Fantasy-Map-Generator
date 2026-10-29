@@ -2443,6 +2443,8 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
         ? entry.level
         : `${entry.level} · ${entry.author.split(" ")[0]}${entry.edition ? ` ${entry.edition}` : ""}`;
     const editionLabel = (entry: Variant) => (entry.edition ? label(entry.edition) : "Standard");
+    // The previewed season persists across quality and edition switches of the same tree.
+    let season = definition.seasons?.default;
     const showModel = (variant: Variant | undefined = definition.variants && adopted(levels.at(-1)!)) => {
       selection++;
       for (const item of list.querySelectorAll("button"))
@@ -2507,13 +2509,36 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
           optionFields.append(document.createElement("br"), editionRow);
         }
       }
+      if (variant && definition.seasons) {
+        const seasonRow = document.createElement("label");
+        seasonRow.textContent = "Season: ";
+        const seasonSelect = document.createElement("select");
+        seasonSelect.setAttribute("aria-label", "Tree seasonal appearance");
+        for (const entry of definition.seasons.options) {
+          const option = document.createElement("option");
+          option.value = entry.id;
+          option.textContent = entry.label;
+          seasonSelect.append(option);
+        }
+        seasonSelect.value = season!;
+        seasonSelect.addEventListener("change", () => {
+          season = seasonSelect.value;
+          showModel(variant);
+        });
+        seasonRow.append(seasonSelect);
+        optionFields.append(document.createElement("br"), seasonRow);
+      }
       if (variant && definition.variants)
         comparisonVariants = {
           id: definition.id,
           levels: definition.variants.map(entry => ({ id: column(entry), label: entry.label })),
           selected: column(variant)
         };
-      const model = variant ? variant.create() : definition.create();
+      const model = variant
+        ? definition.seasons && season !== definition.seasons.default
+          ? definition.seasons.create(variant.id, season!)
+          : variant.create()
+        : definition.create();
       massing = model;
       scene.add(model.group);
       ground.visible = true;
@@ -2534,6 +2559,9 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
         ...(variant
           ? [
               fact("Quality", variant.label),
+              ...(definition.seasons
+                ? [fact("Season", definition.seasons.options.find(entry => entry.id === season)?.label ?? season!)]
+                : []),
               ...(variant.edition || definition.variants!.some(entry => entry.edition)
                 ? [fact("Edition", editionLabel(variant))]
                 : []),
