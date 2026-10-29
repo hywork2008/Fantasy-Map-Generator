@@ -186,7 +186,7 @@ describe("forest geometry and budgets", () => {
     forest.dispose();
   });
 
-  it("uses the actual BV species in high quality and restores lightweight instances without changing roots", () => {
+  it("uses adopted BV tiers and restores placements after distant aggregation", () => {
     const doc = document(),
       p = plan(),
       c = camera();
@@ -195,26 +195,26 @@ describe("forest geometry and budgets", () => {
     const forest = createTownForest(doc, p, undefined, "standard");
     forest.update(c, 720);
     const original = instances(forest.group);
-    expect(forest.stats.detailedTrees).toBe(0);
+    expect(forest.stats.detailedTrees).toBeGreaterThan(0);
     forest.setQuality("high");
     forest.update(c, 720);
     expect(forest.stats.detailedTrees).toBeGreaterThan(0);
     expect(forest.stats.detailedSpecies).toContain("mediterranean_cypress");
-    const model = createLandscapeTree("mediterranean_cypress");
-    let modelTriangles = 0;
-    model.group.traverse(o => {
-      if (o instanceof THREE.Mesh)
-        modelTriangles += (o.geometry.index?.count ?? o.geometry.getAttribute("position").count) / 3;
-    });
-    model.dispose();
-    expect(forest.stats.detailedTriangles).toBe(modelTriangles * forest.stats.detailedTrees);
     const bv: THREE.InstancedMesh[] = [];
     forest.group.traverse(o => {
       if (o instanceof THREE.InstancedMesh && o.name.startsWith("forest-bv-") && visible(o)) bv.push(o);
     });
     expect(bv.length).toBeGreaterThan(0);
+    let detailedTriangles = 0;
     for (const mesh of bv) {
+      const source = createLandscapeTree("mediterranean_cypress", mesh.userData.treeQuality);
+      const modelTriangles = source.pickables.reduce(
+        (sum, m) => sum + m.geometry.getAttribute("position").count / 3,
+        0
+      );
+      source.dispose();
       expect(mesh.geometry.getAttribute("position").count / 3).toBe(modelTriangles);
+      detailedTriangles += modelTriangles * mesh.count;
       for (let i = 0; i < mesh.count; i++) {
         const m = new THREE.Matrix4();
         mesh.getMatrixAt(i, m);
@@ -222,10 +222,12 @@ describe("forest geometry and budgets", () => {
         if (original.has(position)) expect(m.elements).toEqual(original.get(position)!.elements);
       }
     }
+    expect(forest.stats.detailedTriangles).toBe(detailedTriangles);
     forest.setQuality("standard");
-    forest.update(c, 720);
+    forest.update(camera(0, 50000, 1), 720);
     expect(forest.stats.detailedTrees).toBe(0);
     for (const mesh of bv) expect(mesh.visible).toBe(false);
+    forest.update(c, 720);
     const restored = instances(forest.group);
     for (const [id, m] of original) if (restored.has(id)) expect(restored.get(id)!.elements).toEqual(m.elements);
     forest.dispose();

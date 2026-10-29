@@ -57,7 +57,12 @@ function tieredVariants(species: TreeSpecies): ModelVariant[] {
   const dryland = species === "saxaul" || species === "tamarisk" || species === "olive";
   const tropical = species === "kapok" || species === "red_mangrove";
   const upland = species === "black_alder" || species === "rowan" || species === "canary_pine";
-  const expanded = conifer || arid || dryland || tropical || upland;
+  const garden =
+    species === "mediterranean_cypress" ||
+    species === "oriental_evergreen" ||
+    species === "sacred_bodhi_and_fig" ||
+    species === "peaceful_willow";
+  const expanded = conifer || arid || dryland || tropical || upland || garden;
   const variants: ModelVariant[] = TREE_QUALITIES.map(level => {
     const levelAuthor = expanded && level !== "ultra" ? "Codex GPT-6.1 Sol" : author;
     return {

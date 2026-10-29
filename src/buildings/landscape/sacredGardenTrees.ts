@@ -1,7 +1,9 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
+import { type CanopyLobe, createCanopyLobes, fitCanopyLobe } from "./canopyLobes";
 import { createTreeBase } from "./treeBase";
+import type { TreeQuality } from "./treeQuality";
 
 export type SacredGardenSpecies =
   | "mediterranean_cypress"
@@ -13,10 +15,41 @@ export type SacredGardenSpecies =
  * Traditional funerary and temple-garden trees: Italian cypress, Chinese arborvitae,
  * sacred fig and weeping willow. Meter scale; deterministic and texture-free.
  */
-export function createSacredGardenTree(species: SacredGardenSpecies): CityStructureMeshes {
+export function createSacredGardenTree(
+  species: SacredGardenSpecies,
+  quality: TreeQuality = "ultra"
+): CityStructureMeshes {
   const cypress = species === "mediterranean_cypress",
     arborvitae = species === "oriental_evergreen",
     fig = species === "sacred_bodhi_and_fig";
+  const reduced = quality === "low" || quality === "medium";
+  const lobes: CanopyLobe[] = [];
+  let points: THREE.Vector3[] = [],
+    lowPoints: THREE.Vector3[] = [];
+  let strands = 0;
+  const cypressBands = new Map<string, THREE.Vector3[]>();
+  const finishSpray = () => {
+    if (!points.length) return;
+    if (quality === "medium") {
+      const lobe = fitCanopyLobe(points, fig ? 0.9 : arborvitae ? 0.85 : 0.75, true);
+      if (!fig && !arborvitae && !cypress) {
+        lobe.radius.x *= 0.8;
+        lobe.radius.z *= 0.8;
+      }
+      lobes.push(lobe);
+    } else if (quality === "low") lowPoints.push(...points);
+    points = [];
+  };
+  const finishBranch = () => {
+    if (quality !== "low" || !lowPoints.length) return;
+    const lobe = fitCanopyLobe(lowPoints, fig ? 0.95 : 0.9, true);
+    if (!fig && !arborvitae && !cypress) {
+      lobe.radius.x *= 0.85;
+      lobe.radius.z *= 0.85;
+    }
+    lobes.push(lobe);
+    lowPoints = [];
+  };
   let seed = cypress ? 43403 : arborvitae ? 43411 : fig ? 43427 : 43441;
   const random = () => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
@@ -47,27 +80,40 @@ export function createSacredGardenTree(species: SacredGardenSpecies): CityStruct
     flat.setAttribute("color", new THREE.Float32BufferAttribute(rgb, 3));
     wood.push(flat);
   }
-  function branch(a: THREE.Vector3, b: THREE.Vector3, bottom: number, top = bottom * 0.4, sides = 6) {
-    const geometry = new THREE.CylinderGeometry(top, bottom, a.distanceTo(b), sides);
+  function branch(a: THREE.Vector3, b: THREE.Vector3, bottom: number, top = bottom * 0.4, sides = 6, root = false) {
+    if (reduced && !root && bottom < (quality === "low" ? 0.07 : 0.045)) return;
+    const geometry = new THREE.CylinderGeometry(
+      top,
+      bottom,
+      a.distanceTo(b),
+      reduced ? (quality === "low" ? 3 : 4) : sides,
+      1,
+      reduced
+    );
     geometry.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(up, b.clone().sub(a).normalize()));
     geometry.translate(...a.clone().add(b).multiplyScalar(0.5).toArray());
     timber(geometry);
   }
   function triangle(a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3, color: THREE.Color) {
+    if (reduced) {
+      points.push(a, b, c);
+      return;
+    }
     for (const v of [a, b, c]) {
       positions.push(v.x, v.y, v.z);
       colors.push(color.r, color.g, color.b);
     }
   }
   /** Short, tight upward scale-leaf sprays that pack the narrow cypress column. */
-  function scaleSpray(p: THREE.Vector3, outward: THREE.Vector3) {
+  function scaleSpray(p: THREE.Vector3, outward: THREE.Vector3, visible: boolean) {
     const color = new THREE.Color().setHSL(0.3 + random() * 0.04, 0.35, 0.13 + random() * 0.08);
     const rise = new THREE.Vector3()
       .copy(up)
       .addScaledVector(outward, 0.35)
       .normalize()
       .multiplyScalar(0.3 + random() * 0.15);
-    const side = new THREE.Vector3(-outward.z, 0, outward.x).multiplyScalar(0.09);
+    if (quality !== "ultra" && !visible) return;
+    const side = new THREE.Vector3(-outward.z, 0, outward.x).multiplyScalar(quality === "ultra" ? 0.09 : 0.18);
     const tip = p.clone().add(rise),
       mid = p.clone().addScaledVector(rise, 0.45);
     triangle(p, mid.clone().add(side), tip, color);
@@ -88,17 +134,21 @@ export function createSacredGardenTree(species: SacredGardenSpecies): CityStruct
       if (width.lengthSq() < 1e-8) width.set(0.05, 0, 0);
       width.normalize().multiplyScalar(size * 0.11);
       const mid = base.clone().lerp(tip, 0.5);
+      if (quality !== "ultra" && i % 2 !== 0) continue;
+      if (quality !== "ultra") width.multiplyScalar(1.75);
       triangle(base, mid.clone().add(width), tip, color);
       triangle(base, tip, mid.clone().sub(width), color);
     }
   }
   /** Heart-shaped sacred fig leaf with its long drip tip, hanging from a slender petiole. */
-  function figLeaf(p: THREE.Vector3) {
+  function figLeaf(p: THREE.Vector3, visible: boolean) {
     const heading = random() * Math.PI * 2;
     const down = new THREE.Vector3(Math.cos(heading) * 0.6, -0.8 + random() * 0.6, Math.sin(heading) * 0.6).normalize();
     const side = new THREE.Vector3(-Math.sin(heading), 0, Math.cos(heading));
     const size = 0.17 + random() * 0.05;
     const color = new THREE.Color().setHSL(0.25 + random() * 0.05, 0.45 + random() * 0.1, 0.2 + random() * 0.12);
+    if (quality !== "ultra" && !visible) return;
+    if (quality !== "ultra") side.multiplyScalar(3);
     const stalk = p.clone().addScaledVector(down, 0.06);
     const shoulderL = stalk
         .clone()
@@ -141,12 +191,15 @@ export function createSacredGardenTree(species: SacredGardenSpecies): CityStruct
           .normalize()
           .multiplyScalar(0.14 + random() * 0.05);
         const width = new THREE.Vector3(-Math.sin(theta), 0, Math.cos(theta)).multiplyScalar(0.024);
+        if (quality !== "ultra" && k % 3 !== 0) continue;
+        if (quality !== "ultra") width.multiplyScalar(3);
         const mid = base.clone().addScaledVector(leaf, 0.5);
         triangle(base, mid.clone().add(width), base.clone().add(leaf), color);
         triangle(base, base.clone().add(leaf), mid.clone().sub(width), color);
       }
       p = q;
     }
+    if (quality === "medium" && ++strands % 3 === 0) finishSpray();
   }
   if (cypress) {
     const height = 14;
@@ -159,7 +212,8 @@ export function createSacredGardenTree(species: SacredGardenSpecies): CityStruct
           { center: [0, height - 0.4, 0], radius: 0.02 }
         ],
         0.6,
-        5
+        5,
+        quality === "low" ? 6 : 16
       )
     );
     // Steeply ascending branchlets hug the trunk; the crown is a slim spindle, widest below the middle.
@@ -170,7 +224,14 @@ export function createSacredGardenTree(species: SacredGardenSpecies): CityStruct
       const angle = random() * Math.PI * 2,
         r = envelope * (0.55 + 0.45 * Math.sqrt(random()));
       const outward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
-      scaleSpray(new THREE.Vector3(Math.cos(angle) * r, y, Math.sin(angle) * r), outward);
+      scaleSpray(new THREE.Vector3(Math.cos(angle) * r, y, Math.sin(angle) * r), outward, i % 2 === 0);
+      if (reduced && points.length) {
+        const key = quality === "low" ? `${Math.floor(y)}` : `${Math.floor(y)}:${Math.floor((angle * 3) / Math.PI)}`;
+        const cloud = cypressBands.get(key) ?? [];
+        cloud.push(...points);
+        cypressBands.set(key, cloud);
+        points = [];
+      }
       if (i % 40 === 0)
         branch(
           new THREE.Vector3(0, y - 0.4, 0),
@@ -186,6 +247,7 @@ export function createSacredGardenTree(species: SacredGardenSpecies): CityStruct
       const angle = random() * Math.PI * 2,
         y = 2 + random() * 9;
       const p = new THREE.Vector3(Math.cos(angle) * 0.85, y, Math.sin(angle) * 0.85);
+      if (reduced) continue;
       for (let k = 0; k < 4; k++) {
         const a = (k * Math.PI) / 2;
         triangle(
@@ -196,6 +258,11 @@ export function createSacredGardenTree(species: SacredGardenSpecies): CityStruct
         );
       }
     }
+    for (const cloud of cypressBands.values()) {
+      const lobe = fitCanopyLobe(cloud, quality === "low" ? 0.82 : 1, quality === "medium");
+      if (quality === "low") lobe.radius.y *= 1.55;
+      lobes.push(lobe);
+    }
   } else if (arborvitae) {
     timber(
       createTreeBase(
@@ -205,7 +272,8 @@ export function createSacredGardenTree(species: SacredGardenSpecies): CityStruct
           { center: [0.1, 1.4, 0.05], radius: 0.28 }
         ],
         0.7,
-        6
+        6,
+        quality === "low" ? 6 : 16
       )
     );
     // Old temple arborvitae fork into several upright, slightly twisting leaders.
@@ -240,6 +308,8 @@ export function createSacredGardenTree(species: SacredGardenSpecies): CityStruct
             .add(new THREE.Vector3((random() - 0.5) * 0.5, (random() - 0.5) * 0.4, (random() - 0.5) * 0.5));
           fan(p, outward, 0.45 + random() * 0.2);
         }
+        finishSpray();
+        if (i === 8 || i === 17) finishBranch();
       }
       for (let k = 0; k < 10; k++)
         fan(
@@ -247,6 +317,8 @@ export function createSacredGardenTree(species: SacredGardenSpecies): CityStruct
           new THREE.Vector3(Math.cos(k), 0, Math.sin(k)),
           0.4
         );
+      finishSpray();
+      finishBranch();
     }
   } else if (fig) {
     timber(
@@ -258,7 +330,8 @@ export function createSacredGardenTree(species: SacredGardenSpecies): CityStruct
           { center: [0.15, 3.6, 0], radius: 0.48 }
         ],
         1.3,
-        8
+        8,
+        quality === "low" ? 6 : 16
       )
     );
     // A short fluted bole spreads into massive, wide-arching limbs and a broad dome.
@@ -280,7 +353,7 @@ export function createSacredGardenTree(species: SacredGardenSpecies): CityStruct
       // A few aerial roots drop from the lower limbs, as on old temple figs.
       if (i % 2 === 0) {
         const drop = crown.clone().lerp(elbow, 0.75);
-        branch(drop, drop.clone().setY(-0.2), 0.05, 0.035, 5);
+        branch(drop, drop.clone().setY(-0.2), 0.05, 0.035, 5, true);
       }
       for (let k = 0; k < 7; k++) {
         const theta = angle + (random() - 0.5) * 2.2;
@@ -294,14 +367,23 @@ export function createSacredGardenTree(species: SacredGardenSpecies): CityStruct
         for (let l = 0; l < 140; l++) {
           const r = Math.sqrt(random()) * 1.35,
             phi = random() * Math.PI * 2;
-          figLeaf(twig.clone().add(new THREE.Vector3(Math.cos(phi) * r, (random() - 0.4) * 1, Math.sin(phi) * r)));
+          figLeaf(
+            twig.clone().add(new THREE.Vector3(Math.cos(phi) * r, (random() - 0.4) * 1, Math.sin(phi) * r)),
+            l % 3 === 0
+          );
         }
+        finishSpray();
       }
       for (let l = 0; l < 190; l++) {
         const r = Math.sqrt(random()) * 1.6,
           phi = random() * Math.PI * 2;
-        figLeaf(tip.clone().add(new THREE.Vector3(Math.cos(phi) * r, (random() - 0.3) * 1.1, Math.sin(phi) * r)));
+        figLeaf(
+          tip.clone().add(new THREE.Vector3(Math.cos(phi) * r, (random() - 0.3) * 1.1, Math.sin(phi) * r)),
+          l % 3 === 0
+        );
       }
+      finishSpray();
+      finishBranch();
     }
   } else {
     timber(
@@ -312,12 +394,14 @@ export function createSacredGardenTree(species: SacredGardenSpecies): CityStruct
           { center: [0.15, 2.2, 0.05], radius: 0.38 }
         ],
         1,
-        6
+        6,
+        quality === "low" ? 6 : 16
       )
     );
     // Short stout trunk, ascending main limbs, and curtains of whips hanging almost to the ground.
     const crown = new THREE.Vector3(0.15, 2.2, 0.05);
     for (let i = 0; i < 6; i++) {
+      strands = 0;
       const angle = (i * Math.PI * 2) / 6 + random() * 0.4;
       const out = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
       const elbow = crown
@@ -342,16 +426,36 @@ export function createSacredGardenTree(species: SacredGardenSpecies): CityStruct
         branch(from, arch, 0.03, 0.012, 4);
         strand(arch, outward, Math.min(arch.y - 0.6, 3.6 + random() * 2));
         strand(arch, outward.clone().applyAxisAngle(up, 0.5), Math.min(arch.y - 0.8, 3 + random() * 2));
+        if (quality === "low" && k === 12) {
+          finishSpray();
+          finishBranch();
+        }
       }
       strand(tip, out, 4.5);
+      finishSpray();
+      finishBranch();
     }
   }
   const barkGeometry = mergeGeometries(wood)!;
   for (const geometry of wood) geometry.dispose();
-  const foliage = new THREE.BufferGeometry();
-  foliage.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-  foliage.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-  foliage.computeVertexNormals();
+  const foliage = reduced
+    ? createCanopyLobes(
+        lobes,
+        cypress
+          ? { hue: 0.32, saturation: 0.35, lightness: 0.17 }
+          : arborvitae
+            ? { hue: 0.295, saturation: 0.45, lightness: 0.25 }
+            : fig
+              ? { hue: 0.275, saturation: 0.48, lightness: 0.25 }
+              : { hue: 0.22, saturation: 0.5, lightness: 0.35 },
+        cypress ? 43403 : arborvitae ? 43411 : fig ? 43427 : 43441
+      )
+    : new THREE.BufferGeometry();
+  if (!reduced) {
+    foliage.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    foliage.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+    foliage.computeVertexNormals();
+  }
   const barkMaterial = new THREE.MeshLambertMaterial({ vertexColors: true });
   const leafMaterial = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
   const trunk = new THREE.Mesh(barkGeometry, barkMaterial),
@@ -361,6 +465,7 @@ export function createSacredGardenTree(species: SacredGardenSpecies): CityStruct
   crown.name = `${label}-foliage`;
   const group = new THREE.Group();
   group.name = species.replaceAll("_", "-");
+  group.userData.treeQuality = quality;
   group.add(trunk, crown);
   return {
     group,

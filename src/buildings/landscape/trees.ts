@@ -268,10 +268,62 @@ export const TREE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
       }
     }
   },
-  mediterranean_cypress: { create: () => createSacredGardenTree("mediterranean_cypress") },
-  oriental_evergreen: { create: () => createSacredGardenTree("oriental_evergreen") },
-  sacred_bodhi_and_fig: { create: () => createSacredGardenTree("sacred_bodhi_and_fig") },
-  peaceful_willow: { create: () => createSacredGardenTree("peaceful_willow") }
+  mediterranean_cypress: {
+    lod: {
+      selection: "pixels",
+      budget: "bounded",
+      heightMeters: 14.4,
+      forestHeightToRadius: 12.385,
+      models: {
+        low: () => createSacredGardenTree("mediterranean_cypress", "low"),
+        medium: () => createSacredGardenTree("mediterranean_cypress", "medium"),
+        high: () => createSacredGardenTree("mediterranean_cypress", "high"),
+        ultra: () => createSacredGardenTree("mediterranean_cypress", "ultra")
+      }
+    }
+  },
+  oriental_evergreen: {
+    lod: {
+      selection: "pixels",
+      budget: "bounded",
+      heightMeters: 9.6,
+      forestHeightToRadius: 3.448,
+      models: {
+        low: () => createSacredGardenTree("oriental_evergreen", "low"),
+        medium: () => createSacredGardenTree("oriental_evergreen", "medium"),
+        high: () => createSacredGardenTree("oriental_evergreen", "high"),
+        ultra: () => createSacredGardenTree("oriental_evergreen", "ultra")
+      }
+    }
+  },
+  sacred_bodhi_and_fig: {
+    lod: {
+      selection: "pixels",
+      budget: "bounded",
+      heightMeters: 10.4,
+      forestHeightToRadius: 1.24,
+      models: {
+        low: () => createSacredGardenTree("sacred_bodhi_and_fig", "low"),
+        medium: () => createSacredGardenTree("sacred_bodhi_and_fig", "medium"),
+        high: () => createSacredGardenTree("sacred_bodhi_and_fig", "high"),
+        ultra: () => createSacredGardenTree("sacred_bodhi_and_fig", "ultra")
+      }
+    }
+  },
+  peaceful_willow: {
+    lod: {
+      selection: "pixels",
+      budget: "bounded",
+      heightMeters: 9.4,
+      forestHeightToRadius: 1.378,
+      models: {
+        low: () => createSacredGardenTree("peaceful_willow", "low"),
+        medium: () => createSacredGardenTree("peaceful_willow", "medium"),
+        high: () => createSacredGardenTree("peaceful_willow", "high"),
+        ultra: () => createSacredGardenTree("peaceful_willow", "ultra")
+      }
+    }
+  }
 };
 
 export function treeLodProfile(species: TreeSpecies): TreeLodProfile | undefined {

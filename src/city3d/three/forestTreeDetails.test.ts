@@ -29,7 +29,15 @@ it("limits simultaneously selected species, evicts inactive prototypes and admit
     const first = details.update(camera, 720, sites, budget);
     expect(first.trees).toBe(4);
     expect(first.species).not.toContain("sacred_yew");
-    const firstMesh = parent.getObjectByName("forest-bv-mediterranean_cypress-ultra-plain") as THREE.InstancedMesh;
+    const firstMesh = parent
+      .getObjectByName("forest-bv-trees")!
+      .children.find(
+        object =>
+          object instanceof THREE.InstancedMesh &&
+          object.count > 0 &&
+          object.userData.forestSpecies === "mediterranean_cypress"
+      ) as THREE.InstancedMesh;
+    expect(firstMesh).toBeDefined();
     const freedGeometry = vi.spyOn(firstMesh.geometry, "dispose");
     const freedInstance = vi.spyOn(firstMesh, "dispose");
     details.reset();

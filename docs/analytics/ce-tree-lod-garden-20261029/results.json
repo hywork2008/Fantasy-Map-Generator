@@ -1,0 +1,806 @@
+{
+  "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.7922.34 Safari/537.36",
+  "viewport": [
+    1200,
+    1600
+  ],
+  "dpr": 1,
+  "placementCountPerPark": 260,
+  "modelVariants": [
+    "tree.mediterranean-cypress@low#codex-gpt-6.1-sol",
+    "tree.mediterranean-cypress@medium#codex-gpt-6.1-sol",
+    "tree.mediterranean-cypress@high#codex-gpt-6.1-sol",
+    "tree.mediterranean-cypress@ultra#claude-opus-5.5",
+    "tree.oriental-evergreen@low#codex-gpt-6.1-sol",
+    "tree.oriental-evergreen@medium#codex-gpt-6.1-sol",
+    "tree.oriental-evergreen@high#codex-gpt-6.1-sol",
+    "tree.oriental-evergreen@ultra#claude-opus-5.5",
+    "tree.sacred-bodhi-and-fig@low#codex-gpt-6.1-sol",
+    "tree.sacred-bodhi-and-fig@medium#codex-gpt-6.1-sol",
+    "tree.sacred-bodhi-and-fig@high#codex-gpt-6.1-sol",
+    "tree.sacred-bodhi-and-fig@ultra#claude-opus-5.5",
+    "tree.peaceful-willow@low#codex-gpt-6.1-sol",
+    "tree.peaceful-willow@medium#codex-gpt-6.1-sol",
+    "tree.peaceful-willow@high#codex-gpt-6.1-sol",
+    "tree.peaceful-willow@ultra#claude-opus-5.5"
+  ],
+  "timing": "Single CPU update/submission only; not GPU completion, full CE frame p95 or FPS.",
+  "frames": [
+    {
+      "pose": "overview",
+      "species": "mediterranean_cypress",
+      "zoom": 0.5,
+      "cpuSubmissionMs": 5.099999904632568,
+      "tiers": {
+        "low": 260,
+        "medium": 0,
+        "high": 0,
+        "ultra": 0
+      },
+      "visibleTrees": 260,
+      "triangles": 88140,
+      "calls": 2,
+      "variants": [
+        "tree.mediterranean-cypress@low#codex-gpt-6.1-sol"
+      ],
+      "gpuGeometries": 17
+    },
+    {
+      "pose": "overview",
+      "species": "mediterranean_cypress",
+      "zoom": 1,
+      "cpuSubmissionMs": 10.299999952316284,
+      "tiers": {
+        "low": 0,
+        "medium": 260,
+        "high": 0,
+        "ultra": 0
+      },
+      "visibleTrees": 260,
+      "triangles": 438880,
+      "calls": 2,
+      "variants": [
+        "tree.mediterranean-cypress@medium#codex-gpt-6.1-sol"
+      ],
+      "gpuGeometries": 18
+    },
+    {
+      "pose": "overview",
+      "species": "mediterranean_cypress",
+      "zoom": 2,
+      "cpuSubmissionMs": 1.7000000476837158,
+      "tiers": {
+        "low": 0,
+        "medium": 260,
+        "high": 0,
+        "ultra": 0
+      },
+      "visibleTrees": 260,
+      "triangles": 438880,
+      "calls": 2,
+      "variants": [
+        "tree.mediterranean-cypress@medium#codex-gpt-6.1-sol"
+      ],
+      "gpuGeometries": 18
+    },
+    {
+      "pose": "edge",
+      "species": "mediterranean_cypress",
+      "zoom": 0.5,
+      "cpuSubmissionMs": 6.199999809265137,
+      "tiers": {
+        "low": 0,
+        "medium": 3,
+        "high": 257,
+        "ultra": 0
+      },
+      "visibleTrees": 260,
+      "triangles": 1339408,
+      "calls": 4,
+      "variants": [
+        "tree.mediterranean-cypress@high#codex-gpt-6.1-sol",
+        "tree.mediterranean-cypress@medium#codex-gpt-6.1-sol"
+      ],
+      "gpuGeometries": 19
+    },
+    {
+      "pose": "edge",
+      "species": "mediterranean_cypress",
+      "zoom": 1,
+      "cpuSubmissionMs": 6.5,
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 87,
+        "ultra": 116
+      },
+      "visibleTrees": 203,
+      "triangles": 1506376,
+      "calls": 4,
+      "variants": [
+        "tree.mediterranean-cypress@high#codex-gpt-6.1-sol",
+        "tree.mediterranean-cypress@ultra#claude-opus-5.5"
+      ],
+      "gpuGeometries": 20
+    },
+    {
+      "pose": "edge",
+      "species": "mediterranean_cypress",
+      "zoom": 2,
+      "cpuSubmissionMs": 0.5,
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 0,
+        "ultra": 127
+      },
+      "visibleTrees": 127,
+      "triangles": 1154684,
+      "calls": 2,
+      "variants": [
+        "tree.mediterranean-cypress@ultra#claude-opus-5.5"
+      ],
+      "gpuGeometries": 20
+    },
+    {
+      "pose": "low",
+      "species": "mediterranean_cypress",
+      "zoom": 0.5,
+      "cpuSubmissionMs": 0.5999999046325684,
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 46,
+        "ultra": 113
+      },
+      "visibleTrees": 159,
+      "triangles": 1266228,
+      "calls": 4,
+      "variants": [
+        "tree.mediterranean-cypress@high#codex-gpt-6.1-sol",
+        "tree.mediterranean-cypress@ultra#claude-opus-5.5"
+      ],
+      "gpuGeometries": 20
+    },
+    {
+      "pose": "low",
+      "species": "mediterranean_cypress",
+      "zoom": 1,
+      "cpuSubmissionMs": 0.5,
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 0,
+        "ultra": 112
+      },
+      "visibleTrees": 112,
+      "triangles": 1018304,
+      "calls": 2,
+      "variants": [
+        "tree.mediterranean-cypress@ultra#claude-opus-5.5"
+      ],
+      "gpuGeometries": 20
+    },
+    {
+      "pose": "low",
+      "species": "mediterranean_cypress",
+      "zoom": 2,
+      "cpuSubmissionMs": 0.3000001907348633,
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 0,
+        "ultra": 76
+      },
+      "visibleTrees": 76,
+      "triangles": 690992,
+      "calls": 2,
+      "variants": [
+        "tree.mediterranean-cypress@ultra#claude-opus-5.5"
+      ],
+      "gpuGeometries": 20
+    },
+    {
+      "pose": "overview",
+      "species": "oriental_evergreen",
+      "zoom": 0.5,
+      "cpuSubmissionMs": 2.5,
+      "tiers": {
+        "low": 260,
+        "medium": 0,
+        "high": 0,
+        "ultra": 0
+      },
+      "visibleTrees": 260,
+      "triangles": 77220,
+      "calls": 2,
+      "variants": [
+        "tree.oriental-evergreen@low#codex-gpt-6.1-sol"
+      ],
+      "gpuGeometries": 21
+    },
+    {
+      "pose": "overview",
+      "species": "oriental_evergreen",
+      "zoom": 1,
+      "cpuSubmissionMs": 0.7000000476837158,
+      "tiers": {
+        "low": 260,
+        "medium": 0,
+        "high": 0,
+        "ultra": 0
+      },
+      "visibleTrees": 260,
+      "triangles": 77220,
+      "calls": 2,
+      "variants": [
+        "tree.oriental-evergreen@low#codex-gpt-6.1-sol"
+      ],
+      "gpuGeometries": 21
+    },
+    {
+      "pose": "overview",
+      "species": "oriental_evergreen",
+      "zoom": 2,
+      "cpuSubmissionMs": 10.700000047683716,
+      "tiers": {
+        "low": 0,
+        "medium": 260,
+        "high": 0,
+        "ultra": 0
+      },
+      "visibleTrees": 260,
+      "triangles": 573300,
+      "calls": 2,
+      "variants": [
+        "tree.oriental-evergreen@medium#codex-gpt-6.1-sol"
+      ],
+      "gpuGeometries": 22
+    },
+    {
+      "pose": "edge",
+      "species": "oriental_evergreen",
+      "zoom": 0.5,
+      "cpuSubmissionMs": 7.199999809265137,
+      "tiers": {
+        "low": 0,
+        "medium": 151,
+        "high": 109,
+        "ultra": 0
+      },
+      "visibleTrees": 260,
+      "triangles": 1403335,
+      "calls": 3,
+      "variants": [
+        "tree.oriental-evergreen@high#codex-gpt-6.1-sol",
+        "tree.oriental-evergreen@medium#codex-gpt-6.1-sol"
+      ],
+      "gpuGeometries": 23
+    },
+    {
+      "pose": "edge",
+      "species": "oriental_evergreen",
+      "zoom": 1,
+      "cpuSubmissionMs": 10,
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 168,
+        "ultra": 24
+      },
+      "visibleTrees": 192,
+      "triangles": 2025984,
+      "calls": 4,
+      "variants": [
+        "tree.oriental-evergreen@high#codex-gpt-6.1-sol",
+        "tree.oriental-evergreen@ultra#claude-opus-5.5"
+      ],
+      "gpuGeometries": 24
+    },
+    {
+      "pose": "edge",
+      "species": "oriental_evergreen",
+      "zoom": 2,
+      "cpuSubmissionMs": 0.5,
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 1,
+        "ultra": 118
+      },
+      "visibleTrees": 119,
+      "triangles": 1859588,
+      "calls": 3,
+      "variants": [
+        "tree.oriental-evergreen@high#codex-gpt-6.1-sol",
+        "tree.oriental-evergreen@ultra#claude-opus-5.5"
+      ],
+      "gpuGeometries": 24
+    },
+    {
+      "pose": "low",
+      "species": "oriental_evergreen",
+      "zoom": 0.5,
+      "cpuSubmissionMs": 0.5,
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 96,
+        "ultra": 57
+      },
+      "visibleTrees": 153,
+      "triangles": 1836252,
+      "calls": 4,
+      "variants": [
+        "tree.oriental-evergreen@high#codex-gpt-6.1-sol",
+        "tree.oriental-evergreen@ultra#claude-opus-5.5"
+      ],
+      "gpuGeometries": 24
+    },
+    {
+      "pose": "low",
+      "species": "oriental_evergreen",
+      "zoom": 1,
+      "cpuSubmissionMs": 0.2999999523162842,
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 16,
+        "ultra": 86
+      },
+      "visibleTrees": 102,
+      "triangles": 1505256,
+      "calls": 4,
+      "variants": [
+        "tree.oriental-evergreen@high#codex-gpt-6.1-sol",
+        "tree.oriental-evergreen@ultra#claude-opus-5.5"
+      ],
+      "gpuGeometries": 24
+    },
+    {
+      "pose": "low",
+      "species": "oriental_evergreen",
+      "zoom": 2,
+      "cpuSubmissionMs": 0.5,
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 0,
+        "ultra": 67
+      },
+      "visibleTrees": 67,
+      "triangles": 1050292,
+      "calls": 2,
+      "variants": [
+        "tree.oriental-evergreen@ultra#claude-opus-5.5"
+      ],
+      "gpuGeometries": 24
+    },
+    {
+      "pose": "overview",
+      "species": "sacred_bodhi_and_fig",
+      "zoom": 0.5,
+      "cpuSubmissionMs": 5.1000001430511475,
+      "tiers": {
+        "low": 260,
+        "medium": 0,
+        "high": 0,
+        "ultra": 0
+      },
+      "visibleTrees": 260,
+      "triangles": 92560,
+      "calls": 2,
+      "variants": [
+        "tree.sacred-bodhi-and-fig@low#codex-gpt-6.1-sol"
+      ],
+      "gpuGeometries": 25
+    },
+    {
+      "pose": "overview",
+      "species": "sacred_bodhi_and_fig",
+      "zoom": 1,
+      "cpuSubmissionMs": 0.6000001430511475,
+      "tiers": {
+        "low": 260,
+        "medium": 0,
+        "high": 0,
+        "ultra": 0
+      },
+      "visibleTrees": 260,
+      "triangles": 92560,
+      "calls": 2,
+      "variants": [
+        "tree.sacred-bodhi-and-fig@low#codex-gpt-6.1-sol"
+      ],
+      "gpuGeometries": 25
+    },
+    {
+      "pose": "overview",
+      "species": "sacred_bodhi_and_fig",
+      "zoom": 2,
+      "cpuSubmissionMs": 6.299999952316284,
+      "tiers": {
+        "low": 0,
+        "medium": 260,
+        "high": 0,
+        "ultra": 0
+      },
+      "visibleTrees": 260,
+      "triangles": 405340,
+      "calls": 2,
+      "variants": [
+        "tree.sacred-bodhi-and-fig@medium#codex-gpt-6.1-sol"
+      ],
+      "gpuGeometries": 26
+    },
+    {
+      "pose": "edge",
+      "species": "sacred_bodhi_and_fig",
+      "zoom": 0.5,
+      "cpuSubmissionMs": 9.899999856948853,
+      "tiers": {
+        "low": 0,
+        "medium": 121,
+        "high": 139,
+        "ultra": 0
+      },
+      "visibleTrees": 260,
+      "triangles": 2332436,
+      "calls": 4,
+      "variants": [
+        "tree.sacred-bodhi-and-fig@high#codex-gpt-6.1-sol",
+        "tree.sacred-bodhi-and-fig@medium#codex-gpt-6.1-sol"
+      ],
+      "gpuGeometries": 27
+    },
+    {
+      "pose": "edge",
+      "species": "sacred_bodhi_and_fig",
+      "zoom": 1,
+      "cpuSubmissionMs": 19.200000047683716,
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 172,
+        "ultra": 37
+      },
+      "visibleTrees": 209,
+      "triangles": 4229622,
+      "calls": 4,
+      "variants": [
+        "tree.sacred-bodhi-and-fig@high#codex-gpt-6.1-sol",
+        "tree.sacred-bodhi-and-fig@ultra#claude-opus-5.5"
+      ],
+      "gpuGeometries": 28
+    },
+    {
+      "pose": "edge",
+      "species": "sacred_bodhi_and_fig",
+      "zoom": 2,
+      "cpuSubmissionMs": 0.40000009536743164,
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 0,
+        "ultra": 141
+      },
+      "visibleTrees": 141,
+      "triangles": 6009138,
+      "calls": 2,
+      "variants": [
+        "tree.sacred-bodhi-and-fig@ultra#claude-opus-5.5"
+      ],
+      "gpuGeometries": 28
+    },
+    {
+      "pose": "low",
+      "species": "sacred_bodhi_and_fig",
+      "zoom": 0.5,
+      "cpuSubmissionMs": 0.40000009536743164,
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 97,
+        "ultra": 81
+      },
+      "visibleTrees": 178,
+      "triangles": 4948089,
+      "calls": 4,
+      "variants": [
+        "tree.sacred-bodhi-and-fig@high#codex-gpt-6.1-sol",
+        "tree.sacred-bodhi-and-fig@ultra#claude-opus-5.5"
+      ],
+      "gpuGeometries": 28
+    },
+    {
+      "pose": "low",
+      "species": "sacred_bodhi_and_fig",
+      "zoom": 1,
+      "cpuSubmissionMs": 0.2999999523162842,
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 10,
+        "ultra": 115
+      },
+      "visibleTrees": 125,
+      "triangles": 5055300,
+      "calls": 4,
+      "variants": [
+        "tree.sacred-bodhi-and-fig@high#codex-gpt-6.1-sol",
+        "tree.sacred-bodhi-and-fig@ultra#claude-opus-5.5"
+      ],
+      "gpuGeometries": 28
+    },
+    {
+      "pose": "low",
+      "species": "sacred_bodhi_and_fig",
+      "zoom": 2,
+      "cpuSubmissionMs": 0.40000009536743164,
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 0,
+        "ultra": 91
+      },
+      "visibleTrees": 91,
+      "triangles": 3878238,
+      "calls": 2,
+      "variants": [
+        "tree.sacred-bodhi-and-fig@ultra#claude-opus-5.5"
+      ],
+      "gpuGeometries": 28
+    },
+    {
+      "pose": "overview",
+      "species": "peaceful_willow",
+      "zoom": 0.5,
+      "cpuSubmissionMs": 4.699999809265137,
+      "tiers": {
+        "low": 260,
+        "medium": 0,
+        "high": 0,
+        "ultra": 0
+      },
+      "visibleTrees": 260,
+      "triangles": 101920,
+      "calls": 2,
+      "variants": [
+        "tree.peaceful-willow@low#codex-gpt-6.1-sol"
+      ],
+      "gpuGeometries": 29
+    },
+    {
+      "pose": "overview",
+      "species": "peaceful_willow",
+      "zoom": 1,
+      "cpuSubmissionMs": 0.7000000476837158,
+      "tiers": {
+        "low": 260,
+        "medium": 0,
+        "high": 0,
+        "ultra": 0
+      },
+      "visibleTrees": 260,
+      "triangles": 101920,
+      "calls": 2,
+      "variants": [
+        "tree.peaceful-willow@low#codex-gpt-6.1-sol"
+      ],
+      "gpuGeometries": 29
+    },
+    {
+      "pose": "overview",
+      "species": "peaceful_willow",
+      "zoom": 2,
+      "cpuSubmissionMs": 13.700000047683716,
+      "tiers": {
+        "low": 0,
+        "medium": 260,
+        "high": 0,
+        "ultra": 0
+      },
+      "visibleTrees": 260,
+      "triangles": 512200,
+      "calls": 2,
+      "variants": [
+        "tree.peaceful-willow@medium#codex-gpt-6.1-sol"
+      ],
+      "gpuGeometries": 30
+    },
+    {
+      "pose": "edge",
+      "species": "peaceful_willow",
+      "zoom": 0.5,
+      "cpuSubmissionMs": 29.899999856948853,
+      "tiers": {
+        "low": 0,
+        "medium": 160,
+        "high": 100,
+        "ultra": 0
+      },
+      "visibleTrees": 260,
+      "triangles": 4044400,
+      "calls": 4,
+      "variants": [
+        "tree.peaceful-willow@high#codex-gpt-6.1-sol",
+        "tree.peaceful-willow@medium#codex-gpt-6.1-sol"
+      ],
+      "gpuGeometries": 31
+    },
+    {
+      "pose": "edge",
+      "species": "peaceful_willow",
+      "zoom": 1,
+      "cpuSubmissionMs": 48,
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 185,
+        "ultra": 20
+      },
+      "visibleTrees": 205,
+      "triangles": 8408060,
+      "calls": 3,
+      "variants": [
+        "tree.peaceful-willow@high#codex-gpt-6.1-sol",
+        "tree.peaceful-willow@ultra#claude-opus-5.5"
+      ],
+      "gpuGeometries": 32
+    },
+    {
+      "pose": "edge",
+      "species": "peaceful_willow",
+      "zoom": 2,
+      "cpuSubmissionMs": 0.5999999046325684,
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 3,
+        "ultra": 129
+      },
+      "visibleTrees": 132,
+      "triangles": 9845184,
+      "calls": 3,
+      "variants": [
+        "tree.peaceful-willow@high#codex-gpt-6.1-sol",
+        "tree.peaceful-willow@ultra#claude-opus-5.5"
+      ],
+      "gpuGeometries": 32
+    },
+    {
+      "pose": "low",
+      "species": "peaceful_willow",
+      "zoom": 0.5,
+      "cpuSubmissionMs": 0.7000000476837158,
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 106,
+        "ultra": 59
+      },
+      "visibleTrees": 165,
+      "triangles": 8404620,
+      "calls": 3,
+      "variants": [
+        "tree.peaceful-willow@high#codex-gpt-6.1-sol",
+        "tree.peaceful-willow@ultra#claude-opus-5.5"
+      ],
+      "gpuGeometries": 32
+    },
+    {
+      "pose": "low",
+      "species": "peaceful_willow",
+      "zoom": 1,
+      "cpuSubmissionMs": 0.5,
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 20,
+        "ultra": 97
+      },
+      "visibleTrees": 117,
+      "triangles": 8064684,
+      "calls": 3,
+      "variants": [
+        "tree.peaceful-willow@high#codex-gpt-6.1-sol",
+        "tree.peaceful-willow@ultra#claude-opus-5.5"
+      ],
+      "gpuGeometries": 32
+    },
+    {
+      "pose": "low",
+      "species": "peaceful_willow",
+      "zoom": 2,
+      "cpuSubmissionMs": 0.40000009536743164,
+      "tiers": {
+        "low": 0,
+        "medium": 0,
+        "high": 0,
+        "ultra": 82
+      },
+      "visibleTrees": 82,
+      "triangles": 6187064,
+      "calls": 1,
+      "variants": [
+        "tree.peaceful-willow@ultra#claude-opus-5.5"
+      ],
+      "gpuGeometries": 32
+    }
+  ],
+  "memory": [
+    {
+      "species": "mediterranean_cypress",
+      "counts": [
+        32,
+        32,
+        32
+      ]
+    },
+    {
+      "species": "oriental_evergreen",
+      "counts": [
+        32,
+        32,
+        32
+      ]
+    },
+    {
+      "species": "sacred_bodhi_and_fig",
+      "counts": [
+        32,
+        32,
+        32
+      ]
+    },
+    {
+      "species": "peaceful_willow",
+      "counts": [
+        32,
+        32,
+        32
+      ]
+    }
+  ],
+  "errors": [],
+  "bvChecks": [
+    {
+      "species": "mediterranean-cypress",
+      "choices": [
+        "low",
+        "medium",
+        "high",
+        "ultra"
+      ]
+    },
+    {
+      "species": "oriental-evergreen",
+      "choices": [
+        "low",
+        "medium",
+        "high",
+        "ultra"
+      ]
+    },
+    {
+      "species": "sacred-bodhi-and-fig",
+      "choices": [
+        "low",
+        "medium",
+        "high",
+        "ultra"
+      ]
+    },
+    {
+      "species": "peaceful-willow",
+      "choices": [
+        "low",
+        "medium",
+        "high",
+        "ultra"
+      ]
+    }
+  ],
+  "bvErrors": []
+}

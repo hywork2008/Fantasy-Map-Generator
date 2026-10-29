@@ -18,10 +18,16 @@ function trees(group: THREE.Group) {
   return counts;
 }
 
-it("uses registered pixel LOD for churchyard yews without a biome-specific opt-in", () => {
+it.each([
+  "sacred_yew",
+  "mediterranean_cypress",
+  "oriental_evergreen",
+  "sacred_bodhi_and_fig",
+  "peaceful_willow"
+] as const)("uses registered pixel LOD for %s without a biome-specific opt-in", species => {
   const model = createTownOpenSpaces({
     surfaces: [],
-    sites: [{ model: "sacred_yew", point: [0, 500], height: 10, radius: 4, angle: 0 }]
+    sites: [{ model: species, point: [0, 500], height: 10, radius: 4, angle: 0 }]
   });
   try {
     const c = camera();
@@ -31,7 +37,7 @@ it("uses registered pixel LOD for churchyard yews without a biome-specific opt-i
     c.updateProjectionMatrix();
     model.update(c, 720);
     expect(trees(model.group).get("high")).toBe(1);
-    expect(model.group.getObjectByName("sacred_yew-instances")).toBeUndefined();
+    expect(model.group.getObjectByName(`${species}-instances`)).toBeUndefined();
   } finally {
     model.dispose();
   }

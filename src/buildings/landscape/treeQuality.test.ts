@@ -21,7 +21,11 @@ it.each([
   "red_mangrove",
   "black_alder",
   "rowan",
-  "canary_pine"
+  "canary_pine",
+  "mediterranean_cypress",
+  "oriental_evergreen",
+  "sacred_bodhi_and_fig",
+  "peaceful_willow"
 ] as const)("adopts four increasingly detailed, grounded %s levels from the BV variants", species => {
   const variants = models.find(model => model.id === species.replaceAll("_", "-"))!.variants!;
   expect([...new Set(variants.map(variant => variant.level))]).toEqual(TREE_QUALITIES);
@@ -76,7 +80,11 @@ it.each([
   "red_mangrove",
   "black_alder",
   "rowan",
-  "canary_pine"
+  "canary_pine",
+  "mediterranean_cypress",
+  "oriental_evergreen",
+  "sacred_bodhi_and_fig",
+  "peaceful_willow"
 ] as const)("keeps structural branches fixed between high and ultra %s", species => {
   const high = createLandscapeTree(species, "high");
   const ultra = createLandscapeTree(species, "ultra");
