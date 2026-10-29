@@ -34,12 +34,16 @@ export const TREE_AUTHORS: Record<TreeSpecies, Author> = {
   silver_birch: "Codex GPT-6.1 Sol",
   sacred_yew: "Codex GPT-6.1 Sol",
   date_palm: "Claude Opus 5.5",
+  date_palm_orchard: "Claude Opus 5.5",
+  date_palm_orchard_male: "Claude Opus 5.5",
+  date_palm_orchard_young: "Claude Opus 5.5",
   umbrella_thorn: "Claude Opus 5.5",
   saxaul: "Claude Opus 5.5",
   kapok: "Claude Opus 5.5",
   western_red_cedar: "Claude Opus 5.5",
   black_alder: "Claude Opus 5.5",
   olive: "Claude Opus 5.5",
+  olive_orchard: "Claude Opus 5.5",
   silver_fir: "Claude Opus 5.5",
   red_mangrove: "Claude Opus 5.5",
   tamarisk: "Claude Opus 5.5",
@@ -111,6 +115,10 @@ function tieredVariants(species: TreeSpecies): TreeVariant[] {
     species === "sacred_bodhi_and_fig" ||
     species === "peaceful_willow";
   const expanded = conifer || arid || dryland || tropical || upland || garden;
+  // Grove forms keep the landscape palm's fronds and trunk generator; the olive has its own skeleton.
+  const grovePalm =
+    species === "date_palm_orchard" || species === "date_palm_orchard_male" || species === "date_palm_orchard_young";
+  const grove = grovePalm || species === "olive_orchard";
   const variants: TreeVariant[] = TREE_QUALITIES.map(level => {
     const levelAuthor = expanded && level !== "ultra" ? "Codex GPT-6.1 Sol" : author;
     return {
@@ -119,6 +127,13 @@ function tieredVariants(species: TreeSpecies): TreeVariant[] {
       level,
       author: levelAuthor,
       ...(orchard && level !== "ultra" ? { basedOn: [variantId(family, "ultra", author)] } : {}),
+      ...(grovePalm
+        ? {
+            basedOn: [
+              variantId(treeFamily("date_palm"), level, level === "ultra" ? "Claude Opus 5.5" : "Codex GPT-6.1 Sol")
+            ]
+          }
+        : {}),
       ...(boreal && level !== "ultra" ? { basedOn: [variantId(family, "ultra", author)] } : {}),
       ...(expanded && level !== "ultra"
         ? {
@@ -127,104 +142,106 @@ function tieredVariants(species: TreeSpecies): TreeVariant[] {
             ]
           }
         : {}),
-      credits: expanded
-        ? [
-            {
-              author: levelAuthor,
-              date: "2026-10-29",
-              note:
-                level === "ultra"
-                  ? "Existing Opus default geometry retained as the ultra reference"
-                  : level === "high"
-                    ? "Reduced sprays on the original Opus branch skeleton, preserving its random sequence"
-                    : arid && level === "low"
-                      ? "Original curved palm frond ribbons or fitted flat umbrella canopy; reduced trunk tessellation"
-                      : "Fitted high-tier foliage vertices; shared canopy-envelope normals, vertex AO, tint variation and hidden-face removal"
-            },
-            ...(species === "date_palm" && level === "low"
-              ? [
-                  {
-                    author: levelAuthor,
-                    date: "2026-10-30",
-                    note: "Corrected low frond face winding for BV top projection"
-                  }
-                ]
-              : [])
-          ]
-        : orchard
+      credits: grove
+        ? [{ author, date: "2026-10-30", note: GROVE_NOTES[species as keyof typeof GROVE_NOTES] }]
+        : expanded
           ? [
               {
-                author,
-                date: "2026-10-30",
+                author: levelAuthor,
+                date: "2026-10-29",
                 note:
-                  species === "arabica_coffee"
-                    ? "New Coffea arabica: compact upright cultivated shrub, opposite horizontal laterals and glossy leaf pairs, with red oval cherries clustered at lateral nodes; four foliage tiers, not a scaled generic broadleaf tree"
-                    : species === "cacao"
-                      ? "New Theobroma cacao: low five-branched fan, large entire pointed leaves, copper young flushes and ribbed yellow-orange pods on short stalks from the bole and old branches; illustrative cultivated tree with four foliage tiers"
-                      : species === "sweet_chestnut"
-                        ? "New Castanea sativa: a broad crown on stout spreading boughs, long toothed simple leaves and green spiny burs; illustrative free-standing cultivated tree with four foliage tiers"
-                        : species === "lemon"
-                          ? "New Citrus x limon: short bole, compact evergreen crown, glossy elliptical leaves, occasional twig thorns and yellow elliptical fruit with apical nipples; illustrative cultivated tree with four foliage tiers"
-                          : species === "common_fig"
-                            ? "New Ficus carica: low stout grey boughs, a broad crown, concave three- and five-lobed leaves and green/violet figs beside leaf petioles; illustrative cultivated tree with four foliage tiers"
-                            : species === "european_plum"
-                              ? "New Prunus domestica: dark short bole, ascending forks, compact crown, toothed obovate leaves and bloomed purple oval drupes on short fruiting wood; illustrative cultivated tree with four foliage tiers"
-                              : species === "european_pear"
-                                ? "New Pyrus communis: ascending scaffold branches, a tapering upright crown, glossy oval leaves and necked yellow-green spur-borne fruit; illustrative free-standing cultivated tree with four foliage tiers"
-                                : "New Malus domestica: short bole, spreading scaffold limbs, serrated leaves and blushed spur-borne fruit; illustrative free-standing cultivated tree with four foliage tiers"
-              }
+                  level === "ultra"
+                    ? "Existing Opus default geometry retained as the ultra reference"
+                    : level === "high"
+                      ? "Reduced sprays on the original Opus branch skeleton, preserving its random sequence"
+                      : arid && level === "low"
+                        ? "Original curved palm frond ribbons or fitted flat umbrella canopy; reduced trunk tessellation"
+                        : "Fitted high-tier foliage vertices; shared canopy-envelope normals, vertex AO, tint variation and hidden-face removal"
+              },
+              ...(species === "date_palm" && level === "low"
+                ? [
+                    {
+                      author: levelAuthor,
+                      date: "2026-10-30",
+                      note: "Corrected low frond face winding for BV top projection"
+                    }
+                  ]
+                : [])
             ]
-          : boreal
+          : orchard
             ? [
                 {
                   author,
-                  date: "2026-10-29",
+                  date: "2026-10-30",
                   note:
-                    level === "ultra"
-                      ? "Existing default model retained as the detailed reference"
-                      : level === "high"
-                        ? "Reduced foliage on the unchanged ultra branch skeleton"
-                        : level === "medium"
-                          ? "Whorled needle sprays or fitted pendulous leaf lobes on structural limbs"
-                          : "Species-specific whorled or white-barked distant silhouette"
+                    species === "arabica_coffee"
+                      ? "New Coffea arabica: compact upright cultivated shrub, opposite horizontal laterals and glossy leaf pairs, with red oval cherries clustered at lateral nodes; four foliage tiers, not a scaled generic broadleaf tree"
+                      : species === "cacao"
+                        ? "New Theobroma cacao: low five-branched fan, large entire pointed leaves, copper young flushes and ribbed yellow-orange pods on short stalks from the bole and old branches; illustrative cultivated tree with four foliage tiers"
+                        : species === "sweet_chestnut"
+                          ? "New Castanea sativa: a broad crown on stout spreading boughs, long toothed simple leaves and green spiny burs; illustrative free-standing cultivated tree with four foliage tiers"
+                          : species === "lemon"
+                            ? "New Citrus x limon: short bole, compact evergreen crown, glossy elliptical leaves, occasional twig thorns and yellow elliptical fruit with apical nipples; illustrative cultivated tree with four foliage tiers"
+                            : species === "common_fig"
+                              ? "New Ficus carica: low stout grey boughs, a broad crown, concave three- and five-lobed leaves and green/violet figs beside leaf petioles; illustrative cultivated tree with four foliage tiers"
+                              : species === "european_plum"
+                                ? "New Prunus domestica: dark short bole, ascending forks, compact crown, toothed obovate leaves and bloomed purple oval drupes on short fruiting wood; illustrative cultivated tree with four foliage tiers"
+                                : species === "european_pear"
+                                  ? "New Pyrus communis: ascending scaffold branches, a tapering upright crown, glossy oval leaves and necked yellow-green spur-borne fruit; illustrative free-standing cultivated tree with four foliage tiers"
+                                  : "New Malus domestica: short bole, spreading scaffold limbs, serrated leaves and blushed spur-borne fruit; illustrative free-standing cultivated tree with four foliage tiers"
                 }
               ]
-            : species === "european_beech" ||
-                species === "pedunculate_oak" ||
-                species === "european_hornbeam" ||
-                species === "scots_pine"
+            : boreal
               ? [
                   {
                     author,
-                    date: species === "european_hornbeam" || species === "scots_pine" ? "2026-10-30" : "2026-10-29",
+                    date: "2026-10-29",
                     note:
-                      species === "pedunculate_oak"
-                        ? "New Quercus robur: furrowed bark, crooked spreading limbs, lobed leaves and fitted foliage tiers; illustrative woodland dimensions"
-                        : species === "european_hornbeam"
-                          ? "New Carpinus betulus: fluted grey stem, ascending branches, pleated toothed leaves and fitted dense crown tiers; illustrative woodland dimensions"
-                          : species === "scots_pine"
-                            ? "New Pinus sylvestris: orange upper bark, a clear bole, irregular upper limbs, paired blue-green needles and fitted shoot tiers; illustrative woodland dimensions"
-                            : "New Fagus sylvatica: smooth grey bole, ascending limbs, oval folded leaves and fitted foliage tiers; illustrative woodland dimensions"
+                      level === "ultra"
+                        ? "Existing default model retained as the detailed reference"
+                        : level === "high"
+                          ? "Reduced foliage on the unchanged ultra branch skeleton"
+                          : level === "medium"
+                            ? "Whorled needle sprays or fitted pendulous leaf lobes on structural limbs"
+                            : "Species-specific whorled or white-barked distant silhouette"
                   }
                 ]
-              : comparisonMedium && level === "low"
+              : species === "european_beech" ||
+                  species === "pedunculate_oak" ||
+                  species === "european_hornbeam" ||
+                  species === "scots_pine"
                 ? [
-                    { ...TIERS_ADDED, note: "Seven-lobe canopy silhouette" },
                     {
-                      author: "Claude Opus 5.5",
-                      date: "2026-10-29",
-                      note: "Crown-envelope normals, interior occlusion and leaf speckle; geometry unchanged",
-                      commit: "eb36c33b8"
-                    },
-                    {
-                      author: "Codex GPT-6.1 Sol",
-                      date: "2026-10-29",
-                      note: "Spread the seven crown lobes into a broad lower whorl and two leaders to match high-tier dimensions"
+                      author,
+                      date: species === "european_hornbeam" || species === "scots_pine" ? "2026-10-30" : "2026-10-29",
+                      note:
+                        species === "pedunculate_oak"
+                          ? "New Quercus robur: furrowed bark, crooked spreading limbs, lobed leaves and fitted foliage tiers; illustrative woodland dimensions"
+                          : species === "european_hornbeam"
+                            ? "New Carpinus betulus: fluted grey stem, ascending branches, pleated toothed leaves and fitted dense crown tiers; illustrative woodland dimensions"
+                            : species === "scots_pine"
+                              ? "New Pinus sylvestris: orange upper bark, a clear bole, irregular upper limbs, paired blue-green needles and fitted shoot tiers; illustrative woodland dimensions"
+                              : "New Fagus sylvatica: smooth grey bole, ascending limbs, oval folded leaves and fitted foliage tiers; illustrative woodland dimensions"
                     }
                   ]
-                : comparisonMedium && level === "medium"
-                  ? [{ ...TIERS_ADDED, note: "Twenty-four independent lobes on short branches" }]
-                  : undefined,
+                : comparisonMedium && level === "low"
+                  ? [
+                      { ...TIERS_ADDED, note: "Seven-lobe canopy silhouette" },
+                      {
+                        author: "Claude Opus 5.5",
+                        date: "2026-10-29",
+                        note: "Crown-envelope normals, interior occlusion and leaf speckle; geometry unchanged",
+                        commit: "eb36c33b8"
+                      },
+                      {
+                        author: "Codex GPT-6.1 Sol",
+                        date: "2026-10-29",
+                        note: "Spread the seven crown lobes into a broad lower whorl and two leaders to match high-tier dimensions"
+                      }
+                    ]
+                  : comparisonMedium && level === "medium"
+                    ? [{ ...TIERS_ADDED, note: "Twenty-four independent lobes on short branches" }]
+                    : undefined,
       create: (options?: TreeAppearanceOptions) =>
         level === "medium" && comparisonMedium
           ? seasonalEdition(species, level, comparisonMedium, options)
@@ -413,6 +430,17 @@ function tieredVariants(species: TreeSpecies): TreeVariant[] {
   }
   return variants;
 }
+
+const GROVE_NOTES = {
+  olive_orchard:
+    "New managed Olea europaea of the traditional rain-fed grove, pruned to the open vase: a short clean trunk, four scaffold limbs from one crotch, an open centre, a low wide crown with hanging fruiting shoots and a raised skirt; landscape-olive leaves and the shared drupe fruit layer",
+  date_palm_orchard:
+    "Managed fruiting female of the irrigated oasis grove: upright cleaned trunk with trimmed leaf-base stubs, no dead fronds or offshoots, eight bunches bent down below the crown in the shared fruit layer",
+  date_palm_orchard_male:
+    "Managed male pollinator of the irrigated oasis grove: the female's cleaned trunk and crown without bunches, with erect cream inflorescences out of split spathes when in flower",
+  date_palm_orchard_young:
+    "Young grove palm before bearing: a short thick stem, a crown of shorter fronds rising near the ground and two offshoots kept until they are separated"
+} as const;
 
 const COMPARISON_MEDIUM: Partial<Record<TreeSpecies, () => ReturnType<typeof createLandscapeTree>>> = {
   garden_parkland: () => createTemperateTreeCodexMedium("lime"),

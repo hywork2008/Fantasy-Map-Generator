@@ -27,7 +27,10 @@ export interface TreePhenologyProfile {
   harvestAnchor?: { from: "autumn" | "warmest" | "coldest"; offsetMonths: number };
   /** Harvest length without a crop calendar. */
   fruitMonths?: number;
-  /** Explicit catalogue key of the perennial crop this tree bears; never resolved from display names. */
+  /**
+   * Explicit catalogue key of the perennial crop this tree bears, or for a male pollinator the crop
+   * it flowers with; never resolved from display names.
+   */
   perennialCrop?: PerennialCropKey;
 }
 
@@ -161,6 +164,26 @@ export const TREE_PHENOLOGY: Record<TreeSpecies, TreePhenologyProfile> = {
     harvestAnchor: { from: "warmest", offsetMonths: 1 },
     perennialCrop: "Dates"
   },
+  // Grove forms share the landscape palm's timing; the male flowers with the crop it pollinates.
+  date_palm_orchard: {
+    leafHabit: "evergreen",
+    appearances: ["bloom", "unripe", "fruit", "harvested"],
+    defaultAppearance: "unripe",
+    bloom: "withLeaves",
+    fruitDevelopmentMonths: 5,
+    harvestAnchor: { from: "warmest", offsetMonths: 1 },
+    perennialCrop: "Dates"
+  },
+  date_palm_orchard_male: {
+    leafHabit: "evergreen",
+    appearances: ["bloom", "leaf"],
+    defaultAppearance: "leaf",
+    bloom: "withLeaves",
+    fruitDevelopmentMonths: 5,
+    harvestAnchor: { from: "warmest", offsetMonths: 1 },
+    perennialCrop: "Dates"
+  },
+  date_palm_orchard_young: EVERGREEN,
   // Dry-season leaf fall needs seasonal precipitation, which the host does not provide yet (X01).
   umbrella_thorn: EVERGREEN,
   saxaul: { ...EVERGREEN, leafHabit: "leafless" },
@@ -169,6 +192,14 @@ export const TREE_PHENOLOGY: Record<TreeSpecies, TreePhenologyProfile> = {
   // Alder leaves fall green, so it has no autumn colour.
   black_alder: { leafHabit: "deciduous", appearances: ["bare", "leaf"], defaultAppearance: "leaf" },
   olive: {
+    leafHabit: "evergreen",
+    appearances: ["leaf", "unripe", "fruit"],
+    defaultAppearance: "fruit",
+    fruitDevelopmentMonths: 3,
+    harvestAnchor: { from: "autumn", offsetMonths: 1 },
+    perennialCrop: "Olives"
+  },
+  olive_orchard: {
     leafHabit: "evergreen",
     appearances: ["leaf", "unripe", "fruit"],
     defaultAppearance: "fruit",
@@ -286,7 +317,8 @@ function fruitWindow(
   cycle: TemperatureCycle | undefined,
   harvestWeights: ArrayLike<number> | undefined
 ): [number, number] | undefined {
-  if (!profile.appearances.includes("fruit")) return undefined;
+  // A pollinator without fruit still flowers on the timing of the crop it serves.
+  if (!profile.appearances.includes("fruit") && !profile.harvestAnchor) return undefined;
   const calendar = profile.perennialCrop ? calendarHarvest(harvestWeights) : undefined;
   const anchor = profile.harvestAnchor;
   if (cycle && anchor && cycle.range >= TREE_DORMANCY.aseasonalRangeC) {

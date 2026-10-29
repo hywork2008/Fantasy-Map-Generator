@@ -9,7 +9,7 @@ import type { TreeQuality } from "./treeQuality";
 import { positionHash, type TreeAppearanceOptions } from "./treeSeasonLayers";
 
 /** Olives hang in threes from the leaf axils of last year's shoots on short stalks (O02). */
-const OLIVE_DRUPES: FruitSpec = {
+export const OLIVE_DRUPES: FruitSpec = {
   shape: "drupe",
   sizeMeters: 0.025,
   widthRatio: 0.72,
@@ -23,7 +23,7 @@ const OLIVE_DRUPES: FruitSpec = {
   }
 };
 /** Share of the olive sites each tier draws; high and medium keep a stable subset. */
-const OLIVE_SHARE: Record<TreeQuality, number> = { low: 0, medium: 0.12, high: 0.25, ultra: 1 };
+export const OLIVE_SHARE: Record<TreeQuality, number> = { low: 0, medium: 0.12, high: 0.25, ultra: 1 };
 
 /**
  * A gnarled Mediterranean olive and a montane silver fir with level whorls and upright cones.

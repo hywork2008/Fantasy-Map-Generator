@@ -9,8 +9,9 @@ const weightsIn = (...months: number[]) => Array.from({ length: 12 }, (_, m) => 
 const looks = (states: { appearance: string }[]) => states.map(state => state.appearance).join(" ");
 
 describe("tree phenology", () => {
-  it("registers the 81 appearances of the design and resolves only supported ones", () => {
-    expect(TREE_SPECIES.reduce((sum, species) => sum + TREE_PHENOLOGY[species].appearances.length, 0)).toBe(81);
+  it("registers the 91 appearances of the design and resolves only supported ones", () => {
+    // 81 of the 32 landscape species (§4) and 10 of the four grove forms (§18).
+    expect(TREE_SPECIES.reduce((sum, species) => sum + TREE_PHENOLOGY[species].appearances.length, 0)).toBe(91);
     for (const species of TREE_SPECIES) {
       const profile = TREE_PHENOLOGY[species];
       expect(profile.appearances).toContain(profile.defaultAppearance);
@@ -53,6 +54,13 @@ describe("tree phenology", () => {
     const apple = resolveTreeAppearanceYear("domestic_apple", { monthlyMeanTemperatureC: TEMPERATE });
     expect(apple[3].appearance).toBe("bloom");
     expect(apple[9]).toEqual({ appearance: "fruit", autumnPalette: true });
+    // The male palm flowers with the date crop it pollinates and is otherwise in leaf.
+    const male = resolveTreeAppearanceYear("date_palm_orchard_male", { monthlyMeanTemperatureC: MEDITERRANEAN });
+    const female = resolveTreeAppearanceYear("date_palm_orchard", { monthlyMeanTemperatureC: MEDITERRANEAN });
+    expect(male.map(state => (state.appearance === "bloom" ? "bloom" : "leaf"))).toEqual(
+      female.map(state => (state.appearance === "bloom" ? "bloom" : "leaf"))
+    );
+    expect(looks(male)).toContain("bloom");
     const cacao = resolveTreeAppearanceYear("cacao", {
       monthlyMeanTemperatureC: TROPICAL,
       harvestWeights: weightsIn(4, 5, 6)

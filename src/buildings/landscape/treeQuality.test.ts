@@ -37,7 +37,11 @@ it.each([
   "mediterranean_cypress",
   "oriental_evergreen",
   "sacred_bodhi_and_fig",
-  "peaceful_willow"
+  "peaceful_willow",
+  "olive_orchard",
+  "date_palm_orchard",
+  "date_palm_orchard_male",
+  "date_palm_orchard_young"
 ] as const)("adopts four increasingly detailed, grounded %s levels from the BV variants", species => {
   const variants = models.find(model => model.id === species.replaceAll("_", "-"))!.variants!;
   expect([...new Set(variants.map(variant => variant.level))]).toEqual(TREE_QUALITIES);

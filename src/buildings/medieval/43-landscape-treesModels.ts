@@ -118,6 +118,21 @@ const TREES: Record<TreeSpecies, TreeEntry> = {
     size: [11.6, 10, 12],
     note: "Cultivated oasis Phoenix dactylifera with a slightly leaning, leaf-base-scarred trunk, basal offshoots, glaucous pinnate fronds with V-raised leaflets and a few hanging dead fronds. The original edition shows four hanging fruit axes with tiny ochre triangular date markers on high and ultra. The Bunches edition, adopted by CE, draws six branched bunches of oval dates on their strands in the shared fruit layer: yellow khalal, brown tamar, female inflorescences in flower and cut bunch stalks after harvest; medium shows each bunch as one mass on its stalk and low omits fruit. Reusable as an isolated fruit-bearing female landscape example; managed orchard forms, age classes and male palms require separate work. Sex, pollination, seasonal ripening and yield are not simulated. Shared with CE hot-desert parks and cemeteries. Illustrative dimensions, not a measured specimen or named cultivar. Botanical references: https://www.rhs.org.uk/plants/12768/phoenix-dactylifera-f/details and https://herbaria.plants.ox.ac.uk/bol/plants400/Profiles/op/Phoenix"
   },
+  date_palm_orchard: {
+    name: "Date palm, grove female · Phoenix dactylifera",
+    size: [10, 9.6, 11.5],
+    note: "Managed fruiting female Phoenix dactylifera of the traditional irrigated oasis grove: an upright cleaned trunk with leaf bases trimmed to short, even stubs, no hanging dead fronds or basal offshoots (cut yearly and taken for planting), and eight bunches on stalks bent down below the crown in the shared fruit layer: female inflorescences in flower, yellow khalal, brown tamar and cut bunch stalks after harvest. Medium draws each bunch as one mass on its stalk; low omits fruit. Fronds and trunk follow the landscape date palm generator. Not a measured specimen or a named cultivar; pollination, bunch thinning and yield are not simulated. BV registration does not place groves in CE or change crop production. Botanical references: https://www.rhs.org.uk/plants/12768/phoenix-dactylifera-f/details and https://herbaria.plants.ox.ac.uk/bol/plants400/Profiles/op/Phoenix"
+  },
+  date_palm_orchard_male: {
+    name: "Date palm, grove male · Phoenix dactylifera",
+    size: [10, 9.6, 11.5],
+    note: "Managed male Phoenix dactylifera kept in the oasis grove to pollinate the females: the same cleaned trunk and pruned crown as the grove female, with no bunches. In flower it carries erect cream inflorescences of dense florets on short strands out of split brown spathes among the leaf bases; at other times it is in leaf only. Flowering follows the timing of the date crop it pollinates. Not a measured specimen or a named male line; pollen collection, hand pollination and the male-to-female ratio of a grove are not simulated. BV registration does not place groves in CE. Botanical references: https://www.rhs.org.uk/plants/12768/phoenix-dactylifera-f/details and https://herbaria.plants.ox.ac.uk/bol/plants400/Profiles/op/Phoenix"
+  },
+  date_palm_orchard_young: {
+    name: "Date palm, young grove palm · Phoenix dactylifera",
+    size: [7.2, 6.6, 3.4],
+    note: "Young Phoenix dactylifera of the oasis grove before it bears: a short, thick stem, a crown of shorter fronds rising close to the ground and two offshoots kept at the foot until they root and are separated for planting. No flowers or fruit. Not a measured specimen or a named cultivar; ages and growth rates are not simulated. BV registration does not place groves in CE. Botanical references: https://www.rhs.org.uk/plants/12768/phoenix-dactylifera-f/details and https://herbaria.plants.ox.ac.uk/bol/plants400/Profiles/op/Phoenix"
+  },
   umbrella_thorn: {
     biomes: ["savanna", "tropicalSeasonalForest", "tropicalDryForest"],
     name: "Umbrella thorn acacia · Vachellia tortilis",
@@ -153,6 +168,11 @@ const TREES: Record<TreeSpecies, TreeEntry> = {
     name: "Olive · Olea europaea",
     size: [10.1, 9, 7],
     note: "Aged Mediterranean Olea europaea: a short ridged bole splitting into twisting, spiralling stems and a broad open crown of narrow lance leaves in abstract grey-green and silver tones. The original edition shows tiny green and dark triangular fruit markers on high and ultra. The Drupes edition, adopted by CE, draws stalked olives in threes at leaf axils of the fruiting shoots in the shared fruit layer, green when unripe and mixed green, violet and black when ripe; high and medium keep a stable subset and low omits fruit. Reusable as an isolated aged landscape tree; pruned orchard forms and fruit close-ups require separate work. Shared with CE Mediterranean parks, cloister gardens and cemeteries. Illustrative dimensions, not a measured specimen or pruned grove cultivar. Botanical references: https://www.rhs.org.uk/plants/olives and https://www.rhs.org.uk/plants/olives/how-to-grow-olives"
+  },
+  olive_orchard: {
+    name: "Olive, open-vase grove tree · Olea europaea",
+    size: [8, 8, 4.8],
+    note: "Managed Olea europaea of the traditional rain-fed Mediterranean grove, pruned to the open vase (vaso): a short clean trunk, four scaffold limbs leaning out about 45 degrees from one crotch, laterals fanning outward around an open centre, hanging fruiting shoots over a raised skirt at picking height and a low, wide crown. The grey-green and silver lance leaves follow the landscape olive. Olives hang in threes on short stalks from leaf axils of the fruiting shoots in the shared fruit layer: none visible in summer leaf, green when unripe, mixed green, violet and black when ripe; high and medium keep a stable subset and low omits fruit. Representative of hand-pruned groves from antiquity to the early modern period, not the modern hedgerow, high-density grove, a measured specimen or a named cultivar. Kept apart from the aged landscape olive, which CE woodland, parks and cemeteries draw; BV registration does not place groves in CE or change crop production. References: University of California ANR Olive Production Manual (Publication 3353), training and pruning chapters, and https://www.rhs.org.uk/plants/olives/how-to-grow-olives"
   },
   silver_fir: {
     biomes: ["montaneForest"],

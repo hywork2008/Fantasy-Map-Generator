@@ -1,6 +1,6 @@
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import { createArabicaCoffee } from "./arabicaCoffee";
-import { createAridTree } from "./aridTrees";
+import { createAridTree, type DatePalmForm } from "./aridTrees";
 import { createBorealTree } from "./borealTrees";
 import { createCacao } from "./cacao";
 import { createCommonFig } from "./commonFig";
@@ -12,6 +12,7 @@ import { createEuropeanPlum } from "./europeanPlum";
 import { createEuropeanYew } from "./europeanYew";
 import { createLemon } from "./lemon";
 import { createMediterraneanMontaneTree } from "./mediterraneanMontaneTrees";
+import { createOliveOrchard } from "./oliveOrchard";
 import { createPedunculateOak } from "./pedunculateOak";
 import { createKapok } from "./rainforestTrees";
 import { createSacredGardenTree } from "./sacredGardenTrees";
@@ -49,6 +50,22 @@ export interface TreeLodProfile {
   models: Record<TreeQuality, TreeFactory>;
 }
 type TreeDefinition = { create: TreeFactory; lod?: undefined } | { lod: TreeLodProfile };
+
+/**
+ * A palm bearing date bunches in the fruit layer. Flowering starts from the unripe bunches, whose
+ * dates mark where the female inflorescences open.
+ */
+function datePalmBunches(quality: TreeQuality, form: DatePalmForm, options?: TreeAppearanceOptions) {
+  if (options?.appearance !== "bloom") return createAridTree("date_palm", quality, options, "bunches", form);
+  return applySeasonalLook(
+    FRUIT_LAYER_LOOKS.date_palm,
+    quality,
+    createAridTree("date_palm", quality, {}, "bunches", form),
+    options
+  );
+}
+const perQuality = (create: (quality: TreeQuality) => TreeFactory) =>
+  Object.fromEntries(TREE_QUALITIES.map(quality => [quality, create(quality)])) as Record<TreeQuality, TreeFactory>;
 
 /** Static factories as written per species; seasonal looks are layered on below. */
 const BASE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
@@ -279,6 +296,32 @@ const BASE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
       }
     }
   },
+  // Grove palms (D01, D03) and the open-vase olive (O01) are orchard trees, kept apart from the
+  // landscape models that CE woodland, parks and cemeteries draw.
+  date_palm_orchard: {
+    lod: {
+      selection: "pixels",
+      budget: "bounded",
+      heightMeters: 11.1,
+      models: perQuality(quality => options => datePalmBunches(quality, "orchard", options))
+    }
+  },
+  date_palm_orchard_male: {
+    lod: {
+      selection: "pixels",
+      budget: "bounded",
+      heightMeters: 11.1,
+      models: perQuality(quality => options => createAridTree("date_palm", quality, options, "bunches", "male"))
+    }
+  },
+  date_palm_orchard_young: {
+    lod: {
+      selection: "pixels",
+      budget: "bounded",
+      heightMeters: 3.1,
+      models: perQuality(quality => options => createAridTree("date_palm", quality, options, "bunches", "young"))
+    }
+  },
   umbrella_thorn: {
     lod: {
       selection: "distance",
@@ -360,6 +403,14 @@ const BASE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
         high: () => createMediterraneanMontaneTree("olive", "high"),
         ultra: () => createMediterraneanMontaneTree("olive", "ultra")
       }
+    }
+  },
+  olive_orchard: {
+    lod: {
+      selection: "pixels",
+      budget: "bounded",
+      heightMeters: 4.1,
+      models: perQuality(quality => options => createOliveOrchard(quality, options))
     }
   },
   silver_fir: {
@@ -490,7 +541,14 @@ const BASE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
 };
 
 /** Species whose generators draw every appearance themselves. */
-const NATIVE_SEASONS: Partial<Record<TreeSpecies, true>> = { domestic_apple: true, european_beech: true };
+const NATIVE_SEASONS: Partial<Record<TreeSpecies, true>> = {
+  domestic_apple: true,
+  european_beech: true,
+  olive_orchard: true,
+  date_palm_orchard: true,
+  date_palm_orchard_male: true,
+  date_palm_orchard_young: true
+};
 
 /**
  * One registration supplies BV factories and CE's woodland, park and churchyard LOD policy.
@@ -524,26 +582,11 @@ export const TREE_DEFINITIONS = Object.fromEntries(
 export const FRUIT_LAYER_EDITIONS = {
   olive: {
     edition: "drupes",
-    models: Object.fromEntries(
-      TREE_QUALITIES.map(quality => [
-        quality,
-        (options?: TreeAppearanceOptions) => createMediterraneanMontaneTree("olive", quality, options, "drupes")
-      ])
-    ) as Record<TreeQuality, TreeFactory>
+    models: perQuality(quality => options => createMediterraneanMontaneTree("olive", quality, options, "drupes"))
   },
   date_palm: {
     edition: "bunches",
-    models: Object.fromEntries(
-      TREE_QUALITIES.map(quality => [
-        quality,
-        (options?: TreeAppearanceOptions) => {
-          const look = FRUIT_LAYER_LOOKS.date_palm;
-          // Flowering starts from the unripe bunches, whose dates mark where the strands open.
-          if (options?.appearance !== "bloom") return createAridTree("date_palm", quality, options, "bunches");
-          return applySeasonalLook(look, quality, createAridTree("date_palm", quality, {}, "bunches"), options);
-        }
-      ])
-    ) as Record<TreeQuality, TreeFactory>
+    models: perQuality(quality => options => datePalmBunches(quality, "landscape", options))
   }
 } as const satisfies Partial<Record<TreeSpecies, { edition: string; models: Record<TreeQuality, TreeFactory> }>>;
 

@@ -22,6 +22,24 @@ const DATE_BUNCHES: FruitSpec = {
 };
 /** Bunch stalks left on the palm once the bunches are cut, dried to straw brown. */
 const CUT_STALKS: FruitSpec = { ...DATE_BUNCHES, stalkColor: 0x8c7044 };
+/** Male inflorescences: dense cream florets on short strands, out of a split brown spathe. */
+const MALE_FLOWERS: FruitSpec = {
+  shape: "drupe",
+  sizeMeters: 0.012,
+  widthRatio: 0.8,
+  stalkMeters: 0,
+  stalkColor: 0xc2a66a,
+  cluster: { count: 1, spread: 0 },
+  palettes: { unripe: [0xf1e6c0, 0xe8dbad, 0xf6efd6], ripe: [0xf1e6c0, 0xe8dbad, 0xf6efd6] }
+};
+
+/**
+ * Managed palms of the traditional irrigated oasis grove (D01, D03): dead fronds and the lowest
+ * ring cut each year, leaf bases trimmed to short even stubs, offshoots taken off for planting,
+ * and bunches drawn down below the crown. The fruiting female, the male kept to pollinate it and
+ * a young palm before bearing, which keeps its offshoots until they are separated.
+ */
+export type DatePalmForm = "landscape" | "orchard" | "male" | "young";
 
 /**
  * Dry-climate trees: an oasis date palm, a flat-crowned savanna umbrella thorn and a cold-desert
@@ -32,13 +50,24 @@ export function createAridTree(
   species: "date_palm" | "umbrella_thorn" | "saxaul",
   quality: TreeQuality = "ultra",
   options: TreeAppearanceOptions = {},
-  fruitForm: "markers" | "bunches" = "markers"
+  fruitForm: "markers" | "bunches" = "markers",
+  palmForm: DatePalmForm = "landscape"
 ): CityStructureMeshes {
   const palm = species === "date_palm",
     saxaul = species === "saxaul";
-  const bunches = palm && fruitForm === "bunches";
-  const appearance =
-    options.appearance === "fruit" || options.appearance === "harvested" ? options.appearance : "unripe";
+  const managed = palm && palmForm !== "landscape";
+  const young = palmForm === "young",
+    male = palmForm === "male";
+  const bunches = palm && (palmForm === "orchard" || (palmForm === "landscape" && fruitForm === "bunches"));
+  const appearance = male
+    ? options.appearance === "bloom"
+      ? "bloom"
+      : "leaf"
+    : young
+      ? "leaf"
+      : options.appearance === "fruit" || options.appearance === "harvested"
+        ? options.appearance
+        : "unripe";
   const fruitSites: FruitSite[] = [];
   const fruitAxes: FruitAxis[] = [];
   const tier = quality;
@@ -235,14 +264,19 @@ export function createAridTree(
     else if (tier === "low") for (const point of points) lowPadPoints.push(point);
   }
   if (palm) {
-    const height = 9.7;
-    const lean = (y: number) => new THREE.Vector3(0.05 * y + 0.006 * y * y, y, 0.02 * y);
+    // Grove palms are set upright; a young palm's crown still rises from a short, thick stem.
+    const height = young ? 1.4 : managed ? 9 : 9.7;
+    const lean = managed
+      ? (y: number) => new THREE.Vector3(0.012 * y, y, 0.006 * y)
+      : (y: number) => new THREE.Vector3(0.05 * y + 0.006 * y * y, y, 0.02 * y);
     timber(
       createTreeBase(
-        [0, 0.5, 1.5, 4, 7, 9.5, height].map((y, i) => ({
-          center: lean(y).toArray() as [number, number, number],
-          radius: i === 0 ? 0.42 : i === 1 ? 0.33 : 0.3 - y * 0.006
-        })),
+        (young ? [0, 0.5, 1, height] : managed ? [0, 0.5, 1.5, 4, 7, height] : [0, 0.5, 1.5, 4, 7, 9.5, height]).map(
+          (y, i) => ({
+            center: lean(y).toArray() as [number, number, number],
+            radius: young ? (i === 0 ? 0.5 : 0.44 - y * 0.03) : i === 0 ? 0.42 : i === 1 ? 0.33 : 0.3 - y * 0.006
+          })
+        ),
         0.5,
         9,
         tier === "low" ? 6 : 16
@@ -250,17 +284,34 @@ export function createAridTree(
       bark
     );
     const crown = lean(height);
-    // Offshoots at the foot are the hallmark of cultivated date palms.
-    for (const [angle, scale] of [
-      [0.6, 0.45],
-      [2.9, 0.32]
-    ]) {
+    // Offshoots at the foot are the hallmark of cultivated date palms; a grove takes them off
+    // bearing palms for planting and leaves them on young ones until they root.
+    for (const [angle, scale] of managed && !young
+      ? []
+      : [
+          [0.6, 0.45],
+          [2.9, 0.32]
+        ]) {
       const foot = new THREE.Vector3(Math.cos(angle) * 0.55, 0, Math.sin(angle) * 0.55);
       const top = foot.clone().add(new THREE.Vector3(Math.cos(angle) * 0.25, 1.4 * scale, Math.sin(angle) * 0.25));
       branch(foot, top, 0.16 * scale, 0.11 * scale, 8);
       for (let i = 0; i < 9; i++)
         frond(top, angle + (i * Math.PI * 2) / 9, 1.05 - (i % 3) * 0.22, 3.2 * scale, false, i % 3 === 0);
     }
+    // Trimmed leaf bases climb the cleaned trunk of a grove palm in a regular spiral of stubs.
+    if (managed && !young)
+      for (let i = 0; i < 40; i++) {
+        const angle = i * 2.39996,
+          y = 1.4 + (i / 40) * (height - 2.4);
+        const a = lean(y);
+        branch(
+          a,
+          a.clone().add(new THREE.Vector3(Math.cos(angle) * 0.42, 0.12, Math.sin(angle) * 0.42)),
+          0.09,
+          0.07,
+          4
+        );
+      }
     // Leaf bases and the short boot below the live crown.
     for (let i = 0; i < 18; i++) {
       const angle = i * 2.39996,
@@ -269,25 +320,61 @@ export function createAridTree(
         b = a.clone().add(new THREE.Vector3(Math.cos(angle) * 0.45, 0.35, Math.sin(angle) * 0.45));
       branch(a, b, 0.09, 0.05, 5);
     }
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < (young ? 24 : 30); i++) {
       const tier = i % 3,
         angle = i * 2.39996 + random() * 0.15;
       frond(
         crown.clone().addScaledVector(up, -0.3 * tier),
         angle,
         1.25 - tier * 0.5,
-        4.2 + random() * 0.6,
+        (young ? 2.9 : 4.2) + random() * 0.6,
         false,
         i % 2 === 0
       );
     }
-    // A few drooping, unpruned old fronds hang beneath the living crown.
-    for (let i = 0; i < 6; i++)
+    // A few drooping, unpruned old fronds hang beneath the living crown; groves cut them yearly.
+    for (let i = 0; i < (managed ? 0 : 6); i++)
       frond(crown.clone().addScaledVector(up, -0.7), i * 1.07 + 0.4, -0.9 - random() * 0.4, 2.6, true, i % 2 === 0);
+    if (male && appearance === "bloom") {
+      // Male inflorescences stand short and erect among the leaf bases, out of split spathes.
+      for (let i = 0; i < 8; i++) {
+        const angle = i * 0.785 + 0.2 + positionHash(i, 0.9, 0.1) * 0.3;
+        const out = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
+        const base = crown
+          .clone()
+          .addScaledVector(out, 0.3)
+          .addScaledVector(up, -0.4 - (i % 2) * 0.12);
+        const head = base.clone().addScaledVector(out, 0.28).addScaledVector(up, 0.12);
+        fruitAxes.push({ from: base, to: head, radius: 0.045 });
+        for (let s = 0; s < 30; s++) {
+          if (tier !== "ultra" && s % 2) continue;
+          const turn = s * 2.39996;
+          const start = base.clone().lerp(head, 0.45 + (0.55 * s) / 30);
+          const direction = out
+            .clone()
+            .multiplyScalar(0.8)
+            .add(new THREE.Vector3(Math.cos(turn) * 0.55, 0.35 + Math.sin(turn) * 0.45, Math.sin(turn) * 0.55))
+            .normalize();
+          const end = start.clone().addScaledVector(direction, 0.16 + positionHash(i, s, 2.1) * 0.06);
+          if (tier !== "medium") fruitAxes.push({ from: start, to: end, radius: 0.003 });
+          for (let d = 0; d < 5; d++) {
+            const position = start.clone().lerp(end, 0.25 + d * 0.18);
+            fruitSites.push({
+              position,
+              hang: direction,
+              order: positionHash(position.x, position.y, position.z),
+              kind: "strand",
+              bunch: i
+            });
+          }
+        }
+      }
+    }
     if (bunches) {
-      // Bunch stalks arch out from among the leaf bases; strands hang from their outer half.
-      for (let i = 0; i < 6; i++) {
-        const angle = i * 1.047 + 0.3 + positionHash(i, 0.3, 0.7) * 0.25;
+      // Bunch stalks arch out from among the leaf bases; strands hang from their outer half. A
+      // grove draws more bunches and bends them down below the fronds to keep the dates clear.
+      for (let i = 0; i < (managed ? 8 : 6); i++) {
+        const angle = (managed ? i * 0.785 : i * 1.047) + 0.3 + positionHash(i, 0.3, 0.7) * 0.25;
         const out = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
         const side = new THREE.Vector3(-out.z, 0, out.x);
         const base = crown
@@ -297,8 +384,8 @@ export function createAridTree(
         const at = (t: number) =>
           base
             .clone()
-            .addScaledVector(out, 0.95 * t)
-            .addScaledVector(up, 0.2 * t - 0.95 * t * t);
+            .addScaledVector(out, (managed ? 0.85 : 0.95) * t)
+            .addScaledVector(up, managed ? 0.05 * t - 1.25 * t * t : 0.2 * t - 0.95 * t * t);
         // Harvest cuts the bunch, leaving the inner third of its stalk.
         const reach = appearance === "harvested" ? 0.32 : 1;
         for (let k = 0; k < 4; k++)
@@ -333,7 +420,7 @@ export function createAridTree(
       }
     }
     // Unripe date clusters on strands among the leaf bases.
-    for (let i = 0; i < (bunches ? 0 : 4); i++) {
+    for (let i = 0; i < (bunches || managed ? 0 : 4); i++) {
       const angle = i * 1.6 + 0.3;
       const stem = crown.clone().add(new THREE.Vector3(Math.cos(angle) * 0.4, -0.35, Math.sin(angle) * 0.4));
       const end = stem.clone().add(new THREE.Vector3(Math.cos(angle) * 0.55, -0.75, Math.sin(angle) * 0.55));
@@ -525,17 +612,34 @@ export function createAridTree(
   });
   const trunk = new THREE.Mesh(barkGeometry, barkMaterial),
     crown = new THREE.Mesh(foliage, leafMaterial);
-  trunk.name = palm
-    ? "date-palm-leaf-scarred-trunk-and-offshoots"
-    : saxaul
-      ? "saxaul-twisted-stems"
-      : "acacia-forked-limbs";
+  trunk.name = young
+    ? "date-palm-young-short-stem-and-offshoots"
+    : managed
+      ? "date-palm-orchard-cleaned-trunk-and-trimmed-leaf-bases"
+      : palm
+        ? "date-palm-leaf-scarred-trunk-and-offshoots"
+        : saxaul
+          ? "saxaul-twisted-stems"
+          : "acacia-forked-limbs";
   crown.name = palm ? "date-palm-pinnate-fronds" : saxaul ? "saxaul-jointed-green-shoots" : "acacia-flat-leaf-pads";
   const group = new THREE.Group();
-  group.name = species.replaceAll("_", "-");
+  group.name = managed
+    ? palmForm === "orchard"
+      ? "date-palm-orchard"
+      : `date-palm-orchard-${palmForm}`
+    : species.replaceAll("_", "-");
   group.userData.treeQuality = quality;
   group.add(trunk, crown);
   const pickables = [trunk, crown];
+  if (managed) group.userData.treeAppearance = appearance;
+  const inflorescences =
+    male && appearance === "bloom" && buildFruitLayer(fruitSites, MALE_FLOWERS, quality, { axes: fruitAxes });
+  if (inflorescences) {
+    const mesh = new THREE.Mesh(inflorescences, new THREE.MeshLambertMaterial({ vertexColors: true }));
+    mesh.name = "date-palm-male-blossom-inflorescences-and-spathes";
+    group.add(mesh);
+    pickables.push(mesh);
+  }
   if (bunches) {
     group.userData.treeAppearance = appearance;
     const fruitGeometry = buildFruitLayer(fruitSites, appearance === "harvested" ? CUT_STALKS : DATE_BUNCHES, quality, {
