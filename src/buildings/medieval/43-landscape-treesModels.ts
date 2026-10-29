@@ -98,8 +98,8 @@ const TREES: Record<TreeSpecies, TreeEntry> = {
   date_palm: {
     biomes: ["hotDesert", "savanna", "tropicalSeasonalForest", "xericShrubland", "tropicalDryForest"],
     name: "Date palm · Phoenix dactylifera",
-    size: [10, 10, 12],
-    note: "Cultivated oasis Phoenix dactylifera with a slightly leaning, leaf-base-scarred trunk, basal offshoots, a crown of glaucous pinnate fronds with V-raised leaflets, a few hanging dead fronds and unripe date strands. Shared with CE hot-desert parks and cemeteries. Illustrative dimensions; not a measured specimen. Botanical reference: https://www.kew.org/plants/date-palm"
+    size: [11.6, 10, 12],
+    note: "Cultivated oasis Phoenix dactylifera with a slightly leaning, leaf-base-scarred trunk, basal offshoots, glaucous pinnate fronds with V-raised leaflets and a few hanging dead fronds. High and ultra show four hanging fruit axes with tiny ochre triangular date markers; low and medium omit fruit and axes. Reusable as an isolated fruit-bearing female landscape example; modeled fruit bodies, branched fruit strands, managed orchard forms, age classes and male palms require separate work. Sex, pollination, seasonal ripening and yield are not simulated. Shared with CE hot-desert parks and cemeteries. Illustrative dimensions, not a measured specimen or named cultivar. Botanical references: https://www.rhs.org.uk/plants/12768/phoenix-dactylifera-f/details and https://herbaria.plants.ox.ac.uk/bol/plants400/Profiles/op/Phoenix"
   },
   umbrella_thorn: {
     biomes: ["savanna", "tropicalSeasonalForest", "tropicalDryForest"],

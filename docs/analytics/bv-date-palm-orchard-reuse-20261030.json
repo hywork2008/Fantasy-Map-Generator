@@ -1,0 +1,136 @@
+{
+  "models": [
+    {
+      "quality": "low",
+      "variant": "tree.date-palm@low#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "basedOn": [
+        "tree.date-palm@high#codex-gpt-6.1-sol"
+      ],
+      "fruitMarkers": 0,
+      "triangles": 452,
+      "bufferBytes": 48816,
+      "meshes": 2,
+      "materials": 2,
+      "bounds": {
+        "min": [
+          -3.4454736709594727,
+          -0.3499999940395355,
+          -4.115481376647949
+        ],
+        "max": [
+          5.786219596862793,
+          11.797164916992188,
+          4.6376051902771
+        ]
+      }
+    },
+    {
+      "quality": "medium",
+      "variant": "tree.date-palm@medium#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "basedOn": [
+        "tree.date-palm@high#codex-gpt-6.1-sol"
+      ],
+      "fruitMarkers": 0,
+      "triangles": 2454,
+      "bufferBytes": 265032,
+      "meshes": 2,
+      "materials": 2,
+      "bounds": {
+        "min": [
+          -3.0768282413482666,
+          -0.3499999940395355,
+          -3.8115463256835938
+        ],
+        "max": [
+          5.308019161224365,
+          11.794325828552246,
+          4.288698673248291
+        ]
+      }
+    },
+    {
+      "quality": "high",
+      "variant": "tree.date-palm@high#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "basedOn": [
+        "tree.date-palm@ultra#claude-opus-5.5"
+      ],
+      "fruitMarkers": 96,
+      "triangles": 4224,
+      "bufferBytes": 456192,
+      "meshes": 2,
+      "materials": 2,
+      "bounds": {
+        "min": [
+          -3.4183218479156494,
+          -0.3499999940395355,
+          -4.103763103485107
+        ],
+        "max": [
+          5.785796642303467,
+          11.825071334838867,
+          4.591574192047119
+        ]
+      }
+    },
+    {
+      "quality": "ultra",
+      "variant": "tree.date-palm@ultra#claude-opus-5.5",
+      "author": "Claude Opus 5.5",
+      "basedOn": [],
+      "fruitMarkers": 96,
+      "triangles": 6816,
+      "bufferBytes": 736128,
+      "meshes": 2,
+      "materials": 2,
+      "bounds": {
+        "min": [
+          -3.4183218479156494,
+          -0.3499999940395355,
+          -4.103763103485107
+        ],
+        "max": [
+          5.785796642303467,
+          11.859519004821777,
+          4.591574192047119
+        ]
+      }
+    }
+  ],
+  "markerPositionsMatch": true,
+  "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+  "measurementRuntime": "Chromium",
+  "nodeMediumMeasurement": {
+    "triangles": 2455,
+    "bufferBytes": 265140
+  },
+  "memory": {
+    "counts": [
+      8,
+      8,
+      8
+    ],
+    "afterDispose": {
+      "geometries": 0,
+      "textures": 0
+    }
+  },
+  "bvChecks": {
+    "choices": [
+      "low",
+      "medium",
+      "high",
+      "ultra"
+    ],
+    "adoption": {
+      "low": true,
+      "medium": true,
+      "high": true,
+      "ultra": true
+    }
+  },
+  "errors": [],
+  "scope": "Existing date palm single-tree reuse evaluation only; fruit markers are triangles, not fruit bodies or branched fruit strands. CE orchards, age/sex classes, pollination, pruning geometry and dense-stand budgets are not implemented or measured."
+}

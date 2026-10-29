@@ -166,10 +166,10 @@ export function createAridTree(
           rightA = edge(a, t0, 1),
           leftB = edge(b, t1, -1),
           rightB = edge(b, t1, 1);
-        triangle(a, leftA, leftB, shade);
-        triangle(a, leftB, b, shade);
-        triangle(a, b, rightB, shade);
-        triangle(a, rightB, rightA, shade);
+        triangle(a, leftB, leftA, shade);
+        triangle(a, b, leftB, shade);
+        triangle(a, rightB, b, shade);
+        triangle(a, rightA, rightB, shade);
       }
     }
   }

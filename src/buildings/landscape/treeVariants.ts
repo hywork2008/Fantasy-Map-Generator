@@ -109,7 +109,16 @@ function tieredVariants(species: TreeSpecies): ModelVariant[] {
                     : arid && level === "low"
                       ? "Original curved palm frond ribbons or fitted flat umbrella canopy; reduced trunk tessellation"
                       : "Fitted high-tier foliage vertices; shared canopy-envelope normals, vertex AO, tint variation and hidden-face removal"
-            }
+            },
+            ...(species === "date_palm" && level === "low"
+              ? [
+                  {
+                    author: levelAuthor,
+                    date: "2026-10-30",
+                    note: "Corrected low frond face winding for BV top projection"
+                  }
+                ]
+              : [])
           ]
         : orchard
           ? [
