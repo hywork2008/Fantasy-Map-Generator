@@ -22,12 +22,22 @@ export function babelEntranceCenters(radius: number) {
 }
 
 /** Painted round-headed entrances, coplanar with each polygonal wall face. */
-export function addBabelEntrances(k: ArchitectureKit, name: string, radius: number, base: number, height: number) {
+export function addBabelEntrances(
+  k: ArchitectureKit,
+  name: string,
+  radius: number,
+  base: number,
+  height: number,
+  pointed = false
+) {
   const shape = new THREE.Shape();
   shape.moveTo(-0.5, 0);
   shape.lineTo(0.5, 0);
   shape.lineTo(0.5, 0.65);
-  shape.absellipse(0, 0.65, 0.5, 0.35, 0, Math.PI, false, 0);
+  if (pointed) {
+    shape.quadraticCurveTo(0.45, 0.87, 0, 1);
+    shape.quadraticCurveTo(-0.45, 0.87, -0.5, 0.65);
+  } else shape.absellipse(0, 0.65, 0.5, 0.35, 0, Math.PI, false, 0);
   shape.closePath();
   const indexedArch = new THREE.ShapeGeometry(shape, 4);
   const arch = indexedArch.toNonIndexed();

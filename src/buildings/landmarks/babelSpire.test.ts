@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { expect, it } from "vitest";
+import { collectModelMetrics } from "../../building-viewer/modelMetrics";
 import { generateTowerBranches, model, SPIRE_LEVEL_HEIGHTS } from "./babelSpire";
 import { checkLandmark } from "./landmarkTestSupport";
 
@@ -83,5 +84,72 @@ it("reproducibly generates zero through three corridors with distinct floors and
       expect(branch.level).toBeGreaterThan(0);
       expect(branch.level).toBeLessThan(27);
     }
+  }
+});
+
+checkLandmark(model.ultraDetail!, assembly => {
+  expect(assembly.group.userData.quality).toBe("ultra");
+  const metrics = collectModelMetrics(assembly.group);
+  expect(metrics.triangles).toBeLessThan(400_000);
+  expect(metrics.meshes).toBeLessThan(140);
+  const names = new Set(assembly.pickables.map(mesh => mesh.name));
+  expect(names.has("gothic-archivolts")).toBe(true);
+  expect(names.has("gothic-quatrefoils")).toBe(true);
+  expect(names.has("summit-merlon")).toBe(true);
+  const roof = SPIRE_LEVEL_HEIGHTS.reduce((sum, h) => sum + h, 0);
+  // A downward ray inside the well reaches a tread below the roof, not a solid cap.
+  const ray = new THREE.Raycaster(new THREE.Vector3(0, roof + 10, 0), new THREE.Vector3(0, -1, 0));
+  const hit = ray.intersectObjects(assembly.pickables)[0];
+  expect(hit.object.name).toBe("summit-stair-tread");
+  expect(hit.point.y).toBeLessThan(roof - 1);
+  const shaft = assembly.pickables.find(mesh => mesh.name === "shaft-level-0")!;
+  const material = shaft.material as THREE.MeshStandardMaterial;
+  expect(material.map?.generateMipmaps).toBe(true);
+  expect(material.map?.wrapS).toBe(THREE.RepeatWrapping);
+  for (const [i, branch] of (assembly.group.userData.branches as ReturnType<typeof generateTowerBranches>).entries()) {
+    const haunches = assembly.pickables.filter(
+      mesh => mesh.name.startsWith(`corridor-${i}-`) && mesh.name.endsWith("-haunch")
+    );
+    expect(haunches).toHaveLength(2);
+    // Both haunches stop near the landings, leaving the corridor midpoint unsupported.
+    const start = 22.8 + model.towerGeneration!.overhang;
+    const mid = start + branch.length / 2;
+    const point = new THREE.Vector3(Math.sin(branch.angle) * mid, 0, Math.cos(branch.angle) * mid);
+    for (const mesh of haunches) {
+      const bounds = new THREE.Box3().setFromObject(mesh);
+      point.y = bounds.getCenter(new THREE.Vector3()).y;
+      expect(bounds.containsPoint(point)).toBe(false);
+    }
+  }
+});
+
+it("reproducibly selects all three satellite rooftop forms independently of terrace projection", () => {
+  const generation = model.towerGeneration!;
+  const savedSeed = generation.seed;
+  const savedOverhang = generation.overhang;
+  const seen = new Set<string>();
+  try {
+    for (const seed of ["three", "satellite", "babel"]) {
+      generation.seed = seed;
+      const assembly = model.ultraDetail!.create();
+      const styles = assembly.group.userData.satelliteRoofStyles as string[];
+      for (const style of styles) seen.add(style);
+      for (const [i, style] of styles.entries()) {
+        expect(assembly.pickables.some(mesh => mesh.name === `satellite-${i}-merlon`)).toBe(style !== "cone");
+        expect(assembly.pickables.some(mesh => mesh.name === `satellite-${i}-conical-roof`)).toBe(
+          style !== "battlements"
+        );
+      }
+      assembly.dispose();
+      generation.overhang = 12;
+      const repeat = model.ultraDetail!.create();
+      expect(repeat.group.userData.satelliteRoofStyles).toEqual(styles);
+      repeat.dispose();
+      generation.overhang = savedOverhang;
+    }
+    expect([...seen].sort()).toEqual(["battlements", "both", "cone"]);
+  } finally {
+    generation.seed = savedSeed;
+    generation.overhang = savedOverhang;
   }
 });

@@ -1,6 +1,7 @@
 import Alea from "alea";
 import { ArchitectureKit, type LandmarkModel } from "./architectureKit";
 import { addBabelEntrances, babelEntranceCenters } from "./details/babelEntrances";
+import { addSpireDetails, addSpireRoofAccess } from "./details/babelSpireDetails";
 import { BABEL_TIERS } from "./towerOfBabel";
 
 export const SPIRE_RADIUS = (BABEL_TIERS.at(-1)![0] * 2.4) / 2 - 6;
@@ -67,67 +68,85 @@ export const model: LandmarkModel = {
     "Satellites have no ground supports. Interiors, railings and structural engineering are omitted.",
   sources: [],
   towerGeneration: generation,
-  create() {
-    const k = new ArchitectureKit(this.id, "stone");
-    const floors: number[] = [];
-    let base = 0;
-    for (const [index, height] of SPIRE_LEVEL_HEIGHTS.entries()) {
-      floors.push(base);
-      k.cylinder(
-        `shaft-level-${index}`,
-        [0, base + (height - SLAB) / 2, 0],
-        SPIRE_RADIUS,
-        height - SLAB,
-        "stone",
-        SPIRE_RADIUS,
-        32
-      );
-      const rimRadius = SPIRE_RADIUS + (index < SPIRE_LEVEL_HEIGHTS.length - 1 ? generation.overhang : 0);
-      k.cylinder(`terrace-${index}`, [0, base + height - SLAB / 2, 0], rimRadius, SLAB, "stone", rimRadius, 32);
-      addBabelEntrances(k, `shaft-entrances-${index}`, SPIRE_RADIUS, base, height - SLAB);
-      base += height;
-    }
-    const branches = generateTowerBranches(generation.seed);
-    for (const [index, branch] of branches.entries()) {
-      const floor = floors[branch.level];
-      const height = SPIRE_LEVEL_HEIGHTS[branch.level];
-      const reach = SPIRE_RADIUS + generation.overhang + branch.length + branch.radius;
-      const x = Math.sin(branch.angle),
-        z = Math.cos(branch.angle);
-      const start = SPIRE_RADIUS - 0.5;
-      // The deck top is the floor datum and continues into both closed volumes.
-      const corridor = k.box(
-        `corridor-${index}`,
-        [(x * (start + reach)) / 2, floor - 0.2, (z * (start + reach)) / 2],
-        [CORRIDOR_WIDTH, 0.4, reach - start],
-        "stone"
-      );
-      corridor.rotation.y = branch.angle;
-      k.cylinder(
-        `satellite-${index}`,
-        [x * reach, floor + height * 0.25, z * reach],
-        branch.radius,
-        height * 1.5,
-        "stone",
-        branch.radius,
-        32
-      );
-      // The satellite entrance faces the incoming corridor at its floor datum.
-      k.opening(
-        `satellite-entry-${index}`,
-        x * (reach - branch.radius),
-        floor,
-        z * (reach - branch.radius),
-        1.2,
-        2.4,
-        branch.angle + Math.PI,
-        false,
-        true
-      );
-    }
-    k.group.userData.seed = generation.seed;
-    k.group.userData.branches = branches;
-    k.group.userData.overhang = generation.overhang;
-    return k.finish();
+  create: () => createSpire(false)
+};
+
+function createSpire(ultra: boolean) {
+  const k = new ArchitectureKit(model.id, "stone");
+  const floors: number[] = [];
+  let base = 0;
+  for (const [index, height] of SPIRE_LEVEL_HEIGHTS.entries()) {
+    floors.push(base);
+    k.cylinder(
+      `shaft-level-${index}`,
+      [0, base + (height - SLAB - (ultra && index === SPIRE_LEVEL_HEIGHTS.length - 1 ? 5 : 0)) / 2, 0],
+      SPIRE_RADIUS,
+      height - SLAB - (ultra && index === SPIRE_LEVEL_HEIGHTS.length - 1 ? 5 : 0),
+      "stone",
+      SPIRE_RADIUS,
+      32
+    );
+    const rimRadius = SPIRE_RADIUS + (index < SPIRE_LEVEL_HEIGHTS.length - 1 ? generation.overhang : 0);
+    if (ultra && index === SPIRE_LEVEL_HEIGHTS.length - 1) addSpireRoofAccess(k, SPIRE_RADIUS, base + height, SLAB);
+    else k.cylinder(`terrace-${index}`, [0, base + height - SLAB / 2, 0], rimRadius, SLAB, "stone", rimRadius, 32);
+    addBabelEntrances(k, `shaft-entrances-${index}`, SPIRE_RADIUS, base, height - SLAB, ultra);
+    base += height;
   }
+  const branches = generateTowerBranches(generation.seed);
+  for (const [index, branch] of branches.entries()) {
+    const floor = floors[branch.level];
+    const height = SPIRE_LEVEL_HEIGHTS[branch.level];
+    const reach = SPIRE_RADIUS + generation.overhang + branch.length + branch.radius;
+    const x = Math.sin(branch.angle),
+      z = Math.cos(branch.angle);
+    const start = SPIRE_RADIUS - 0.5;
+    // The deck top is the floor datum and continues into both closed volumes.
+    const corridor = k.box(
+      `corridor-${index}`,
+      [(x * (start + reach)) / 2, floor - 0.2, (z * (start + reach)) / 2],
+      [CORRIDOR_WIDTH, 0.4, reach - start],
+      "stone"
+    );
+    corridor.rotation.y = branch.angle;
+    k.cylinder(
+      `satellite-${index}`,
+      [x * reach, floor + height * 0.25, z * reach],
+      branch.radius,
+      height * 1.5,
+      "stone",
+      branch.radius,
+      32
+    );
+    // The satellite entrance faces the incoming corridor at its floor datum.
+    k.opening(
+      `satellite-entry-${index}`,
+      x * (reach - branch.radius),
+      floor,
+      z * (reach - branch.radius),
+      1.2,
+      2.4,
+      branch.angle + Math.PI,
+      false,
+      true
+    );
+  }
+  k.group.userData.seed = generation.seed;
+  k.group.userData.branches = branches;
+  k.group.userData.overhang = generation.overhang;
+  if (ultra) return addSpireDetails(k, floors, SPIRE_LEVEL_HEIGHTS, branches, generation, SPIRE_RADIUS);
+  return k.finish();
+}
+
+model.ultraDetail = {
+  ...model,
+  ultraDetail: undefined,
+  author: "Codex GPT-6.1 Sol",
+  name: "Babel spire · ultra detail",
+  size: [250, 250, HEIGHT + 2.5],
+  state: "Gothic stone spire with crenellated summit, open stair access and suspended satellite towers",
+  note:
+    "Mipmapped small-block masonry, molded Gothic portal surrounds, paired blind lancets and quatrefoil tracery. " +
+    "Short arched haunches reinforce only the two corridor landings. Seeded satellites select battlements, a conical tiled roof, or both. " +
+    "The main summit has a real stairwell opening, visible ascending treads and a crenellated parapet. Stone joints use a shared texture rather than individual block geometry.",
+  create: () => createSpire(true)
 };

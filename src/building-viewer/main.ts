@@ -892,30 +892,43 @@ for (const style of ["Gothic", "Romanesque", "Imaginary"] as const) {
         paragraph.append(row, document.createTextNode(" "), regenerate);
         optionFields.append(paragraph);
       }
-      if (model.highDetail) {
+      if (model.highDetail || model.ultraDetail) {
         modelOptions.hidden = false;
         const row = document.createElement("label");
         row.textContent = "Resolution: ";
         const resolution = document.createElement("select");
         for (const [value, title] of [
           ["low", "Low resolution (default)"],
-          ["high", "High resolution"]
+          ...(model.highDetail ? [["high", "High resolution"]] : []),
+          ...(model.ultraDetail ? [["ultra", "Ultra resolution"]] : [])
         ]) {
           const option = document.createElement("option");
           option.value = value;
           option.textContent = title;
           resolution.append(option);
         }
-        resolution.value = definition === model ? "low" : "high";
+        resolution.value = definition === model ? "low" : definition === model.ultraDetail ? "ultra" : "high";
         resolution.addEventListener("change", () =>
-          showLandmark(resolution.value === "high" ? model.highDetail : model)
+          showLandmark(
+            resolution.value === "ultra" ? model.ultraDetail : resolution.value === "high" ? model.highDetail : model
+          )
         );
         row.append(resolution);
         const paragraph = document.createElement("p");
         paragraph.append(row);
         optionFields.append(paragraph);
       }
-      if (model.highDetail) {
+      if (model.ultraDetail) {
+        comparisonVariants = {
+          id: model.id,
+          levels: [
+            { id: "low", label: "Low" },
+            ...(model.highDetail ? [{ id: "high", label: "High" }] : []),
+            { id: "ultra", label: "Ultra" }
+          ],
+          selected: definition === model ? "low" : definition === model.ultraDetail ? "ultra" : "high"
+        };
+      } else if (model.highDetail) {
         comparisonModel = {
           path: Object.keys(landmarkModules).find(path => landmarkModules[path] === model)!,
           quality: definition === model ? "low" : "high"
