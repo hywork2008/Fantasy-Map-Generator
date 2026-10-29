@@ -1,0 +1,2243 @@
+{
+  "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+  "seed": "ce-temperate-biomes-v1",
+  "areaM2": 8832.000000000004,
+  "terrain": "heightAt(x,y)=5+0.05*x+0.02*y",
+  "outerSideMeters": 96,
+  "holeMeters": [
+    24,
+    16
+  ],
+  "viewport": [
+    400,
+    400
+  ],
+  "dpr": 1,
+  "conditions": "6 biomes x 3 temperature conditions x 3 views, standard forest quality. Fixed sloping terrain and clearing. No full-city/GPU timing claim. No persistent images.",
+  "sourceSha256": {
+    "scripts/verifyCeTemperateBiomes.mts": "b1a6f746a6a1149726bb39cce250a9314b56da72b49bb52a485546624f121fd0",
+    "src/city-editor/generators/landscapeVegetation.ts": "0bcb161212afbee54e8addcd88478c68ab8b3729eb4ad8ca40dcb86af9da44f2",
+    "src/city-editor/renderers/landscapeTreeSpecies.ts": "7168028d603ddf4a5dbde70f092ad3ee73a81c02a73f6286bf76af5ffe02f1b9",
+    "src/city3d/three/forestMeshes.ts": "58d8636fc80dad187abceeacd7b9848ef06c901e910ec37ffd2a4ce3167ba93f",
+    "src/city3d/three/forestTreeDetails.ts": "131329ed4097737390b961fc6d21ecbd8badb75a36e5ead7f960e3d1dbdc4a9f",
+    "src/city3d/adoption.ts": "14d584dfba64e8f164b63fa477c125b6b22f68b46520c0b8635c76498720b9df",
+    "src/buildings/landscape/trees.ts": "f769a778979cc87cc65e03f9a18fbf0bbe741d13dca62b67e6b3ac37c50ea4b1"
+  },
+  "results": [
+    {
+      "key": "temperateDeciduousForest",
+      "temperatureC": null,
+      "expected": [
+        "garden_parkland"
+      ],
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 92,
+          "triangles": 173840,
+          "calls": 6,
+          "shadowTriangles": 49088,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 92,
+          "detailedTriangles": 173696,
+          "detailedSpecies": [
+            "garden_parkland"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 92,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 92,
+          "variants": [
+            "tree.garden-parkland@medium#claude-opus-5.5"
+          ],
+          "renderedTriangles": 173840,
+          "placementSha256": "bd294b30400a8cc38b0d2e9630a526bfdd42753adc772849003be6ec48523b6a"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 90,
+          "triangles": 959584,
+          "calls": 8,
+          "shadowTriangles": 48916,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 90,
+          "detailedTriangles": 959440,
+          "detailedSpecies": [
+            "garden_parkland"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 50,
+            "high": 40,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 90,
+          "variants": [
+            "tree.garden-parkland@high#codex-gpt-6.1-sol",
+            "tree.garden-parkland@medium#claude-opus-5.5"
+          ],
+          "renderedTriangles": 959584,
+          "placementSha256": "99a4b8b7a5a99d4a74861e15e13e80a9d788d024ef68a4460fc1cc9e5d9033d6"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 51,
+          "triangles": 2040150,
+          "calls": 7,
+          "shadowTriangles": 43252,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 51,
+          "detailedTriangles": 2040006,
+          "detailedSpecies": [
+            "garden_parkland"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 36,
+            "ultra": 15
+          },
+          "builds": 4,
+          "rootError": 2.2888183615066282e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 51,
+          "variants": [
+            "tree.garden-parkland@high#codex-gpt-6.1-sol",
+            "tree.garden-parkland@ultra#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 2040150,
+          "placementSha256": "5e4b3caf82a9f4004264315675539a8c2ec50c980980fd5fbd99c120c4701709"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "temperateDeciduousForest",
+      "temperatureC": 3,
+      "expected": [
+        "norway_spruce",
+        "silver_birch"
+      ],
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 92,
+          "triangles": 131820,
+          "calls": 8,
+          "shadowTriangles": 49862,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 92,
+          "detailedTriangles": 131676,
+          "detailedSpecies": [
+            "norway_spruce",
+            "silver_birch"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 92,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 92,
+          "variants": [
+            "tree.norway-spruce@medium#claude-opus-5.5~plate",
+            "tree.silver-birch@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 131820,
+          "placementSha256": "bd294b30400a8cc38b0d2e9630a526bfdd42753adc772849003be6ec48523b6a"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 90,
+          "triangles": 432242,
+          "calls": 12,
+          "shadowTriangles": 49790,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 90,
+          "detailedTriangles": 432098,
+          "detailedSpecies": [
+            "norway_spruce",
+            "silver_birch"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 50,
+            "high": 40,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 90,
+          "variants": [
+            "tree.norway-spruce@high#claude-opus-5.5~plate",
+            "tree.norway-spruce@medium#claude-opus-5.5~plate",
+            "tree.silver-birch@high#codex-gpt-6.1-sol",
+            "tree.silver-birch@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 432242,
+          "placementSha256": "99a4b8b7a5a99d4a74861e15e13e80a9d788d024ef68a4460fc1cc9e5d9033d6"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 51,
+          "triangles": 847800,
+          "calls": 9,
+          "shadowTriangles": 43498,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 51,
+          "detailedTriangles": 847656,
+          "detailedSpecies": [
+            "norway_spruce",
+            "silver_birch"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 36,
+            "ultra": 15
+          },
+          "builds": 4,
+          "rootError": 2.2888183615066282e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 51,
+          "variants": [
+            "tree.norway-spruce@high#claude-opus-5.5~plate",
+            "tree.norway-spruce@ultra#claude-opus-5.5~plate",
+            "tree.silver-birch@high#codex-gpt-6.1-sol",
+            "tree.silver-birch@ultra#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 847800,
+          "placementSha256": "5e4b3caf82a9f4004264315675539a8c2ec50c980980fd5fbd99c120c4701709"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "temperateDeciduousForest",
+      "temperatureC": 3.01,
+      "expected": [
+        "garden_parkland"
+      ],
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 92,
+          "triangles": 173840,
+          "calls": 6,
+          "shadowTriangles": 49088,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 92,
+          "detailedTriangles": 173696,
+          "detailedSpecies": [
+            "garden_parkland"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 92,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 92,
+          "variants": [
+            "tree.garden-parkland@medium#claude-opus-5.5"
+          ],
+          "renderedTriangles": 173840,
+          "placementSha256": "bd294b30400a8cc38b0d2e9630a526bfdd42753adc772849003be6ec48523b6a"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 90,
+          "triangles": 959584,
+          "calls": 8,
+          "shadowTriangles": 48916,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 90,
+          "detailedTriangles": 959440,
+          "detailedSpecies": [
+            "garden_parkland"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 50,
+            "high": 40,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 90,
+          "variants": [
+            "tree.garden-parkland@high#codex-gpt-6.1-sol",
+            "tree.garden-parkland@medium#claude-opus-5.5"
+          ],
+          "renderedTriangles": 959584,
+          "placementSha256": "99a4b8b7a5a99d4a74861e15e13e80a9d788d024ef68a4460fc1cc9e5d9033d6"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 51,
+          "triangles": 2040150,
+          "calls": 7,
+          "shadowTriangles": 43252,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 51,
+          "detailedTriangles": 2040006,
+          "detailedSpecies": [
+            "garden_parkland"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 36,
+            "ultra": 15
+          },
+          "builds": 4,
+          "rootError": 2.2888183615066282e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 51,
+          "variants": [
+            "tree.garden-parkland@high#codex-gpt-6.1-sol",
+            "tree.garden-parkland@ultra#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 2040150,
+          "placementSha256": "5e4b3caf82a9f4004264315675539a8c2ec50c980980fd5fbd99c120c4701709"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "temperateRainforest",
+      "temperatureC": null,
+      "expected": [
+        "western_red_cedar"
+      ],
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 92,
+          "triangles": 250292,
+          "calls": 6,
+          "shadowTriangles": 48942,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 92,
+          "detailedTriangles": 250148,
+          "detailedSpecies": [
+            "western_red_cedar"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 92,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 92,
+          "variants": [
+            "tree.western-red-cedar@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 250292,
+          "placementSha256": "bd294b30400a8cc38b0d2e9630a526bfdd42753adc772849003be6ec48523b6a"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 90,
+          "triangles": 730094,
+          "calls": 8,
+          "shadowTriangles": 49988,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 90,
+          "detailedTriangles": 729950,
+          "detailedSpecies": [
+            "western_red_cedar"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 50,
+            "high": 40,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 90,
+          "variants": [
+            "tree.western-red-cedar@high#codex-gpt-6.1-sol",
+            "tree.western-red-cedar@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 730094,
+          "placementSha256": "99a4b8b7a5a99d4a74861e15e13e80a9d788d024ef68a4460fc1cc9e5d9033d6"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 51,
+          "triangles": 926574,
+          "calls": 8,
+          "shadowTriangles": 40972,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 51,
+          "detailedTriangles": 926430,
+          "detailedSpecies": [
+            "western_red_cedar"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 36,
+            "ultra": 15
+          },
+          "builds": 4,
+          "rootError": 2.2888183615066282e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 51,
+          "variants": [
+            "tree.western-red-cedar@high#codex-gpt-6.1-sol",
+            "tree.western-red-cedar@ultra#claude-opus-5.5"
+          ],
+          "renderedTriangles": 926574,
+          "placementSha256": "5e4b3caf82a9f4004264315675539a8c2ec50c980980fd5fbd99c120c4701709"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "temperateRainforest",
+      "temperatureC": 3,
+      "expected": [
+        "western_red_cedar"
+      ],
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 92,
+          "triangles": 250292,
+          "calls": 6,
+          "shadowTriangles": 48942,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 92,
+          "detailedTriangles": 250148,
+          "detailedSpecies": [
+            "western_red_cedar"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 92,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 92,
+          "variants": [
+            "tree.western-red-cedar@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 250292,
+          "placementSha256": "bd294b30400a8cc38b0d2e9630a526bfdd42753adc772849003be6ec48523b6a"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 90,
+          "triangles": 730094,
+          "calls": 8,
+          "shadowTriangles": 49988,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 90,
+          "detailedTriangles": 729950,
+          "detailedSpecies": [
+            "western_red_cedar"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 50,
+            "high": 40,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 90,
+          "variants": [
+            "tree.western-red-cedar@high#codex-gpt-6.1-sol",
+            "tree.western-red-cedar@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 730094,
+          "placementSha256": "99a4b8b7a5a99d4a74861e15e13e80a9d788d024ef68a4460fc1cc9e5d9033d6"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 51,
+          "triangles": 926574,
+          "calls": 8,
+          "shadowTriangles": 40972,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 51,
+          "detailedTriangles": 926430,
+          "detailedSpecies": [
+            "western_red_cedar"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 36,
+            "ultra": 15
+          },
+          "builds": 4,
+          "rootError": 2.2888183615066282e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 51,
+          "variants": [
+            "tree.western-red-cedar@high#codex-gpt-6.1-sol",
+            "tree.western-red-cedar@ultra#claude-opus-5.5"
+          ],
+          "renderedTriangles": 926574,
+          "placementSha256": "5e4b3caf82a9f4004264315675539a8c2ec50c980980fd5fbd99c120c4701709"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "temperateRainforest",
+      "temperatureC": 3.01,
+      "expected": [
+        "western_red_cedar"
+      ],
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 92,
+          "triangles": 250292,
+          "calls": 6,
+          "shadowTriangles": 48942,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 92,
+          "detailedTriangles": 250148,
+          "detailedSpecies": [
+            "western_red_cedar"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 92,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 92,
+          "variants": [
+            "tree.western-red-cedar@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 250292,
+          "placementSha256": "bd294b30400a8cc38b0d2e9630a526bfdd42753adc772849003be6ec48523b6a"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 90,
+          "triangles": 730094,
+          "calls": 8,
+          "shadowTriangles": 49988,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 90,
+          "detailedTriangles": 729950,
+          "detailedSpecies": [
+            "western_red_cedar"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 50,
+            "high": 40,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 90,
+          "variants": [
+            "tree.western-red-cedar@high#codex-gpt-6.1-sol",
+            "tree.western-red-cedar@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 730094,
+          "placementSha256": "99a4b8b7a5a99d4a74861e15e13e80a9d788d024ef68a4460fc1cc9e5d9033d6"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 51,
+          "triangles": 926574,
+          "calls": 8,
+          "shadowTriangles": 40972,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 51,
+          "detailedTriangles": 926430,
+          "detailedSpecies": [
+            "western_red_cedar"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 36,
+            "ultra": 15
+          },
+          "builds": 4,
+          "rootError": 2.2888183615066282e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 51,
+          "variants": [
+            "tree.western-red-cedar@high#codex-gpt-6.1-sol",
+            "tree.western-red-cedar@ultra#claude-opus-5.5"
+          ],
+          "renderedTriangles": 926574,
+          "placementSha256": "5e4b3caf82a9f4004264315675539a8c2ec50c980980fd5fbd99c120c4701709"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "taiga",
+      "temperatureC": null,
+      "expected": [
+        "norway_spruce",
+        "silver_birch"
+      ],
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 92,
+          "triangles": 131820,
+          "calls": 8,
+          "shadowTriangles": 49862,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 92,
+          "detailedTriangles": 131676,
+          "detailedSpecies": [
+            "norway_spruce",
+            "silver_birch"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 92,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 92,
+          "variants": [
+            "tree.norway-spruce@medium#claude-opus-5.5~plate",
+            "tree.silver-birch@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 131820,
+          "placementSha256": "bd294b30400a8cc38b0d2e9630a526bfdd42753adc772849003be6ec48523b6a"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 90,
+          "triangles": 432242,
+          "calls": 12,
+          "shadowTriangles": 49790,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 90,
+          "detailedTriangles": 432098,
+          "detailedSpecies": [
+            "norway_spruce",
+            "silver_birch"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 50,
+            "high": 40,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 90,
+          "variants": [
+            "tree.norway-spruce@high#claude-opus-5.5~plate",
+            "tree.norway-spruce@medium#claude-opus-5.5~plate",
+            "tree.silver-birch@high#codex-gpt-6.1-sol",
+            "tree.silver-birch@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 432242,
+          "placementSha256": "99a4b8b7a5a99d4a74861e15e13e80a9d788d024ef68a4460fc1cc9e5d9033d6"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 51,
+          "triangles": 847800,
+          "calls": 9,
+          "shadowTriangles": 43498,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 51,
+          "detailedTriangles": 847656,
+          "detailedSpecies": [
+            "norway_spruce",
+            "silver_birch"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 36,
+            "ultra": 15
+          },
+          "builds": 4,
+          "rootError": 2.2888183615066282e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 51,
+          "variants": [
+            "tree.norway-spruce@high#claude-opus-5.5~plate",
+            "tree.norway-spruce@ultra#claude-opus-5.5~plate",
+            "tree.silver-birch@high#codex-gpt-6.1-sol",
+            "tree.silver-birch@ultra#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 847800,
+          "placementSha256": "5e4b3caf82a9f4004264315675539a8c2ec50c980980fd5fbd99c120c4701709"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "taiga",
+      "temperatureC": 3,
+      "expected": [
+        "norway_spruce",
+        "silver_birch"
+      ],
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 92,
+          "triangles": 131820,
+          "calls": 8,
+          "shadowTriangles": 49862,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 92,
+          "detailedTriangles": 131676,
+          "detailedSpecies": [
+            "norway_spruce",
+            "silver_birch"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 92,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 92,
+          "variants": [
+            "tree.norway-spruce@medium#claude-opus-5.5~plate",
+            "tree.silver-birch@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 131820,
+          "placementSha256": "bd294b30400a8cc38b0d2e9630a526bfdd42753adc772849003be6ec48523b6a"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 90,
+          "triangles": 432242,
+          "calls": 12,
+          "shadowTriangles": 49790,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 90,
+          "detailedTriangles": 432098,
+          "detailedSpecies": [
+            "norway_spruce",
+            "silver_birch"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 50,
+            "high": 40,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 90,
+          "variants": [
+            "tree.norway-spruce@high#claude-opus-5.5~plate",
+            "tree.norway-spruce@medium#claude-opus-5.5~plate",
+            "tree.silver-birch@high#codex-gpt-6.1-sol",
+            "tree.silver-birch@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 432242,
+          "placementSha256": "99a4b8b7a5a99d4a74861e15e13e80a9d788d024ef68a4460fc1cc9e5d9033d6"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 51,
+          "triangles": 847800,
+          "calls": 9,
+          "shadowTriangles": 43498,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 51,
+          "detailedTriangles": 847656,
+          "detailedSpecies": [
+            "norway_spruce",
+            "silver_birch"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 36,
+            "ultra": 15
+          },
+          "builds": 4,
+          "rootError": 2.2888183615066282e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 51,
+          "variants": [
+            "tree.norway-spruce@high#claude-opus-5.5~plate",
+            "tree.norway-spruce@ultra#claude-opus-5.5~plate",
+            "tree.silver-birch@high#codex-gpt-6.1-sol",
+            "tree.silver-birch@ultra#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 847800,
+          "placementSha256": "5e4b3caf82a9f4004264315675539a8c2ec50c980980fd5fbd99c120c4701709"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "taiga",
+      "temperatureC": 3.01,
+      "expected": [
+        "norway_spruce",
+        "silver_birch"
+      ],
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 92,
+          "triangles": 131820,
+          "calls": 8,
+          "shadowTriangles": 49862,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 92,
+          "detailedTriangles": 131676,
+          "detailedSpecies": [
+            "norway_spruce",
+            "silver_birch"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 92,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 92,
+          "variants": [
+            "tree.norway-spruce@medium#claude-opus-5.5~plate",
+            "tree.silver-birch@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 131820,
+          "placementSha256": "bd294b30400a8cc38b0d2e9630a526bfdd42753adc772849003be6ec48523b6a"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 90,
+          "triangles": 432242,
+          "calls": 12,
+          "shadowTriangles": 49790,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 90,
+          "detailedTriangles": 432098,
+          "detailedSpecies": [
+            "norway_spruce",
+            "silver_birch"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 50,
+            "high": 40,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 90,
+          "variants": [
+            "tree.norway-spruce@high#claude-opus-5.5~plate",
+            "tree.norway-spruce@medium#claude-opus-5.5~plate",
+            "tree.silver-birch@high#codex-gpt-6.1-sol",
+            "tree.silver-birch@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 432242,
+          "placementSha256": "99a4b8b7a5a99d4a74861e15e13e80a9d788d024ef68a4460fc1cc9e5d9033d6"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 51,
+          "triangles": 847800,
+          "calls": 9,
+          "shadowTriangles": 43498,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 51,
+          "detailedTriangles": 847656,
+          "detailedSpecies": [
+            "norway_spruce",
+            "silver_birch"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 36,
+            "ultra": 15
+          },
+          "builds": 4,
+          "rootError": 2.2888183615066282e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 51,
+          "variants": [
+            "tree.norway-spruce@high#claude-opus-5.5~plate",
+            "tree.norway-spruce@ultra#claude-opus-5.5~plate",
+            "tree.silver-birch@high#codex-gpt-6.1-sol",
+            "tree.silver-birch@ultra#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 847800,
+          "placementSha256": "5e4b3caf82a9f4004264315675539a8c2ec50c980980fd5fbd99c120c4701709"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "centralEuropeanGreatForest",
+      "temperatureC": null,
+      "expected": [
+        "garden_parkland"
+      ],
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 92,
+          "triangles": 173840,
+          "calls": 6,
+          "shadowTriangles": 49088,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 92,
+          "detailedTriangles": 173696,
+          "detailedSpecies": [
+            "garden_parkland"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 92,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 92,
+          "variants": [
+            "tree.garden-parkland@medium#claude-opus-5.5"
+          ],
+          "renderedTriangles": 173840,
+          "placementSha256": "bd294b30400a8cc38b0d2e9630a526bfdd42753adc772849003be6ec48523b6a"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 90,
+          "triangles": 959584,
+          "calls": 8,
+          "shadowTriangles": 48916,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 90,
+          "detailedTriangles": 959440,
+          "detailedSpecies": [
+            "garden_parkland"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 50,
+            "high": 40,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 90,
+          "variants": [
+            "tree.garden-parkland@high#codex-gpt-6.1-sol",
+            "tree.garden-parkland@medium#claude-opus-5.5"
+          ],
+          "renderedTriangles": 959584,
+          "placementSha256": "99a4b8b7a5a99d4a74861e15e13e80a9d788d024ef68a4460fc1cc9e5d9033d6"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 51,
+          "triangles": 2040150,
+          "calls": 7,
+          "shadowTriangles": 43252,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 51,
+          "detailedTriangles": 2040006,
+          "detailedSpecies": [
+            "garden_parkland"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 36,
+            "ultra": 15
+          },
+          "builds": 4,
+          "rootError": 2.2888183615066282e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 51,
+          "variants": [
+            "tree.garden-parkland@high#codex-gpt-6.1-sol",
+            "tree.garden-parkland@ultra#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 2040150,
+          "placementSha256": "5e4b3caf82a9f4004264315675539a8c2ec50c980980fd5fbd99c120c4701709"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "centralEuropeanGreatForest",
+      "temperatureC": 3,
+      "expected": [
+        "norway_spruce",
+        "silver_birch"
+      ],
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 92,
+          "triangles": 131820,
+          "calls": 8,
+          "shadowTriangles": 49862,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 92,
+          "detailedTriangles": 131676,
+          "detailedSpecies": [
+            "norway_spruce",
+            "silver_birch"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 92,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 92,
+          "variants": [
+            "tree.norway-spruce@medium#claude-opus-5.5~plate",
+            "tree.silver-birch@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 131820,
+          "placementSha256": "bd294b30400a8cc38b0d2e9630a526bfdd42753adc772849003be6ec48523b6a"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 90,
+          "triangles": 432242,
+          "calls": 12,
+          "shadowTriangles": 49790,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 90,
+          "detailedTriangles": 432098,
+          "detailedSpecies": [
+            "norway_spruce",
+            "silver_birch"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 50,
+            "high": 40,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 90,
+          "variants": [
+            "tree.norway-spruce@high#claude-opus-5.5~plate",
+            "tree.norway-spruce@medium#claude-opus-5.5~plate",
+            "tree.silver-birch@high#codex-gpt-6.1-sol",
+            "tree.silver-birch@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 432242,
+          "placementSha256": "99a4b8b7a5a99d4a74861e15e13e80a9d788d024ef68a4460fc1cc9e5d9033d6"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 51,
+          "triangles": 847800,
+          "calls": 9,
+          "shadowTriangles": 43498,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 51,
+          "detailedTriangles": 847656,
+          "detailedSpecies": [
+            "norway_spruce",
+            "silver_birch"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 36,
+            "ultra": 15
+          },
+          "builds": 4,
+          "rootError": 2.2888183615066282e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 51,
+          "variants": [
+            "tree.norway-spruce@high#claude-opus-5.5~plate",
+            "tree.norway-spruce@ultra#claude-opus-5.5~plate",
+            "tree.silver-birch@high#codex-gpt-6.1-sol",
+            "tree.silver-birch@ultra#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 847800,
+          "placementSha256": "5e4b3caf82a9f4004264315675539a8c2ec50c980980fd5fbd99c120c4701709"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "centralEuropeanGreatForest",
+      "temperatureC": 3.01,
+      "expected": [
+        "garden_parkland"
+      ],
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 92,
+          "triangles": 173840,
+          "calls": 6,
+          "shadowTriangles": 49088,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 92,
+          "detailedTriangles": 173696,
+          "detailedSpecies": [
+            "garden_parkland"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 92,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 92,
+          "variants": [
+            "tree.garden-parkland@medium#claude-opus-5.5"
+          ],
+          "renderedTriangles": 173840,
+          "placementSha256": "bd294b30400a8cc38b0d2e9630a526bfdd42753adc772849003be6ec48523b6a"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 90,
+          "triangles": 959584,
+          "calls": 8,
+          "shadowTriangles": 48916,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 90,
+          "detailedTriangles": 959440,
+          "detailedSpecies": [
+            "garden_parkland"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 50,
+            "high": 40,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 90,
+          "variants": [
+            "tree.garden-parkland@high#codex-gpt-6.1-sol",
+            "tree.garden-parkland@medium#claude-opus-5.5"
+          ],
+          "renderedTriangles": 959584,
+          "placementSha256": "99a4b8b7a5a99d4a74861e15e13e80a9d788d024ef68a4460fc1cc9e5d9033d6"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 51,
+          "triangles": 2040150,
+          "calls": 7,
+          "shadowTriangles": 43252,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 51,
+          "detailedTriangles": 2040006,
+          "detailedSpecies": [
+            "garden_parkland"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 36,
+            "ultra": 15
+          },
+          "builds": 4,
+          "rootError": 2.2888183615066282e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 51,
+          "variants": [
+            "tree.garden-parkland@high#codex-gpt-6.1-sol",
+            "tree.garden-parkland@ultra#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 2040150,
+          "placementSha256": "5e4b3caf82a9f4004264315675539a8c2ec50c980980fd5fbd99c120c4701709"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "temperateConiferousForest",
+      "temperatureC": null,
+      "expected": [
+        "western_red_cedar"
+      ],
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 92,
+          "triangles": 250292,
+          "calls": 6,
+          "shadowTriangles": 48942,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 92,
+          "detailedTriangles": 250148,
+          "detailedSpecies": [
+            "western_red_cedar"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 92,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 92,
+          "variants": [
+            "tree.western-red-cedar@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 250292,
+          "placementSha256": "bd294b30400a8cc38b0d2e9630a526bfdd42753adc772849003be6ec48523b6a"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 90,
+          "triangles": 730094,
+          "calls": 8,
+          "shadowTriangles": 49988,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 90,
+          "detailedTriangles": 729950,
+          "detailedSpecies": [
+            "western_red_cedar"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 50,
+            "high": 40,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 90,
+          "variants": [
+            "tree.western-red-cedar@high#codex-gpt-6.1-sol",
+            "tree.western-red-cedar@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 730094,
+          "placementSha256": "99a4b8b7a5a99d4a74861e15e13e80a9d788d024ef68a4460fc1cc9e5d9033d6"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 51,
+          "triangles": 926574,
+          "calls": 8,
+          "shadowTriangles": 40972,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 51,
+          "detailedTriangles": 926430,
+          "detailedSpecies": [
+            "western_red_cedar"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 36,
+            "ultra": 15
+          },
+          "builds": 4,
+          "rootError": 2.2888183615066282e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 51,
+          "variants": [
+            "tree.western-red-cedar@high#codex-gpt-6.1-sol",
+            "tree.western-red-cedar@ultra#claude-opus-5.5"
+          ],
+          "renderedTriangles": 926574,
+          "placementSha256": "5e4b3caf82a9f4004264315675539a8c2ec50c980980fd5fbd99c120c4701709"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "temperateConiferousForest",
+      "temperatureC": 3,
+      "expected": [
+        "norway_spruce",
+        "silver_birch"
+      ],
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 92,
+          "triangles": 131820,
+          "calls": 8,
+          "shadowTriangles": 49862,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 92,
+          "detailedTriangles": 131676,
+          "detailedSpecies": [
+            "norway_spruce",
+            "silver_birch"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 92,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 92,
+          "variants": [
+            "tree.norway-spruce@medium#claude-opus-5.5~plate",
+            "tree.silver-birch@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 131820,
+          "placementSha256": "bd294b30400a8cc38b0d2e9630a526bfdd42753adc772849003be6ec48523b6a"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 90,
+          "triangles": 432242,
+          "calls": 12,
+          "shadowTriangles": 49790,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 90,
+          "detailedTriangles": 432098,
+          "detailedSpecies": [
+            "norway_spruce",
+            "silver_birch"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 50,
+            "high": 40,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 90,
+          "variants": [
+            "tree.norway-spruce@high#claude-opus-5.5~plate",
+            "tree.norway-spruce@medium#claude-opus-5.5~plate",
+            "tree.silver-birch@high#codex-gpt-6.1-sol",
+            "tree.silver-birch@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 432242,
+          "placementSha256": "99a4b8b7a5a99d4a74861e15e13e80a9d788d024ef68a4460fc1cc9e5d9033d6"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 51,
+          "triangles": 847800,
+          "calls": 9,
+          "shadowTriangles": 43498,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 51,
+          "detailedTriangles": 847656,
+          "detailedSpecies": [
+            "norway_spruce",
+            "silver_birch"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 36,
+            "ultra": 15
+          },
+          "builds": 4,
+          "rootError": 2.2888183615066282e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 51,
+          "variants": [
+            "tree.norway-spruce@high#claude-opus-5.5~plate",
+            "tree.norway-spruce@ultra#claude-opus-5.5~plate",
+            "tree.silver-birch@high#codex-gpt-6.1-sol",
+            "tree.silver-birch@ultra#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 847800,
+          "placementSha256": "5e4b3caf82a9f4004264315675539a8c2ec50c980980fd5fbd99c120c4701709"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "temperateConiferousForest",
+      "temperatureC": 3.01,
+      "expected": [
+        "western_red_cedar"
+      ],
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 92,
+          "triangles": 250292,
+          "calls": 6,
+          "shadowTriangles": 48942,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 92,
+          "detailedTriangles": 250148,
+          "detailedSpecies": [
+            "western_red_cedar"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 92,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 92,
+          "variants": [
+            "tree.western-red-cedar@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 250292,
+          "placementSha256": "bd294b30400a8cc38b0d2e9630a526bfdd42753adc772849003be6ec48523b6a"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 90,
+          "triangles": 730094,
+          "calls": 8,
+          "shadowTriangles": 49988,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 90,
+          "detailedTriangles": 729950,
+          "detailedSpecies": [
+            "western_red_cedar"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 50,
+            "high": 40,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 90,
+          "variants": [
+            "tree.western-red-cedar@high#codex-gpt-6.1-sol",
+            "tree.western-red-cedar@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 730094,
+          "placementSha256": "99a4b8b7a5a99d4a74861e15e13e80a9d788d024ef68a4460fc1cc9e5d9033d6"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 51,
+          "triangles": 926574,
+          "calls": 8,
+          "shadowTriangles": 40972,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 51,
+          "detailedTriangles": 926430,
+          "detailedSpecies": [
+            "western_red_cedar"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 36,
+            "ultra": 15
+          },
+          "builds": 4,
+          "rootError": 2.2888183615066282e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 51,
+          "variants": [
+            "tree.western-red-cedar@high#codex-gpt-6.1-sol",
+            "tree.western-red-cedar@ultra#claude-opus-5.5"
+          ],
+          "renderedTriangles": 926574,
+          "placementSha256": "5e4b3caf82a9f4004264315675539a8c2ec50c980980fd5fbd99c120c4701709"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "montaneForest",
+      "temperatureC": null,
+      "expected": [
+        "silver_fir"
+      ],
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 92,
+          "triangles": 272648,
+          "calls": 6,
+          "shadowTriangles": 47392,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 92,
+          "detailedTriangles": 272504,
+          "detailedSpecies": [
+            "silver_fir"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 92,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 92,
+          "variants": [
+            "tree.silver-fir@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 272648,
+          "placementSha256": "bd294b30400a8cc38b0d2e9630a526bfdd42753adc772849003be6ec48523b6a"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 90,
+          "triangles": 814804,
+          "calls": 7,
+          "shadowTriangles": 49992,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 90,
+          "detailedTriangles": 814660,
+          "detailedSpecies": [
+            "silver_fir"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 50,
+            "high": 40,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 90,
+          "variants": [
+            "tree.silver-fir@high#codex-gpt-6.1-sol",
+            "tree.silver-fir@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 814804,
+          "placementSha256": "99a4b8b7a5a99d4a74861e15e13e80a9d788d024ef68a4460fc1cc9e5d9033d6"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 51,
+          "triangles": 2168988,
+          "calls": 7,
+          "shadowTriangles": 49992,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 51,
+          "detailedTriangles": 2168844,
+          "detailedSpecies": [
+            "silver_fir"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 36,
+            "ultra": 15
+          },
+          "builds": 4,
+          "rootError": 2.2888183615066282e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 51,
+          "variants": [
+            "tree.silver-fir@high#codex-gpt-6.1-sol",
+            "tree.silver-fir@ultra#claude-opus-5.5"
+          ],
+          "renderedTriangles": 2168988,
+          "placementSha256": "5e4b3caf82a9f4004264315675539a8c2ec50c980980fd5fbd99c120c4701709"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "montaneForest",
+      "temperatureC": 3,
+      "expected": [
+        "silver_fir"
+      ],
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 92,
+          "triangles": 272648,
+          "calls": 6,
+          "shadowTriangles": 47392,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 92,
+          "detailedTriangles": 272504,
+          "detailedSpecies": [
+            "silver_fir"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 92,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 92,
+          "variants": [
+            "tree.silver-fir@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 272648,
+          "placementSha256": "bd294b30400a8cc38b0d2e9630a526bfdd42753adc772849003be6ec48523b6a"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 90,
+          "triangles": 814804,
+          "calls": 7,
+          "shadowTriangles": 49992,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 90,
+          "detailedTriangles": 814660,
+          "detailedSpecies": [
+            "silver_fir"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 50,
+            "high": 40,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 90,
+          "variants": [
+            "tree.silver-fir@high#codex-gpt-6.1-sol",
+            "tree.silver-fir@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 814804,
+          "placementSha256": "99a4b8b7a5a99d4a74861e15e13e80a9d788d024ef68a4460fc1cc9e5d9033d6"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 51,
+          "triangles": 2168988,
+          "calls": 7,
+          "shadowTriangles": 49992,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 51,
+          "detailedTriangles": 2168844,
+          "detailedSpecies": [
+            "silver_fir"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 36,
+            "ultra": 15
+          },
+          "builds": 4,
+          "rootError": 2.2888183615066282e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 51,
+          "variants": [
+            "tree.silver-fir@high#codex-gpt-6.1-sol",
+            "tree.silver-fir@ultra#claude-opus-5.5"
+          ],
+          "renderedTriangles": 2168988,
+          "placementSha256": "5e4b3caf82a9f4004264315675539a8c2ec50c980980fd5fbd99c120c4701709"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "montaneForest",
+      "temperatureC": 3.01,
+      "expected": [
+        "silver_fir"
+      ],
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 92,
+          "triangles": 272648,
+          "calls": 6,
+          "shadowTriangles": 47392,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 92,
+          "detailedTriangles": 272504,
+          "detailedSpecies": [
+            "silver_fir"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 92,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 92,
+          "variants": [
+            "tree.silver-fir@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 272648,
+          "placementSha256": "bd294b30400a8cc38b0d2e9630a526bfdd42753adc772849003be6ec48523b6a"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 90,
+          "triangles": 814804,
+          "calls": 7,
+          "shadowTriangles": 49992,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 90,
+          "detailedTriangles": 814660,
+          "detailedSpecies": [
+            "silver_fir"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 50,
+            "high": 40,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 3.051757815342171e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 90,
+          "variants": [
+            "tree.silver-fir@high#codex-gpt-6.1-sol",
+            "tree.silver-fir@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 814804,
+          "placementSha256": "99a4b8b7a5a99d4a74861e15e13e80a9d788d024ef68a4460fc1cc9e5d9033d6"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 51,
+          "triangles": 2168988,
+          "calls": 7,
+          "shadowTriangles": 49992,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 51,
+          "detailedTriangles": 2168844,
+          "detailedSpecies": [
+            "silver_fir"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 36,
+            "ultra": 15
+          },
+          "builds": 4,
+          "rootError": 2.2888183615066282e-7,
+          "minCrownClearance": 0.5299715249566432,
+          "duplicates": 0,
+          "visibleInstances": 51,
+          "variants": [
+            "tree.silver-fir@high#codex-gpt-6.1-sol",
+            "tree.silver-fir@ultra#claude-opus-5.5"
+          ],
+          "renderedTriangles": 2168988,
+          "placementSha256": "5e4b3caf82a9f4004264315675539a8c2ec50c980980fd5fbd99c120c4701709"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    }
+  ],
+  "errors": []
+}
