@@ -45,7 +45,7 @@ export function getLandTransportDefinition(id: string): LandTransportDefinition 
   return LAND_TRANSPORTS.find(transport => transport.id === id);
 }
 
-const MINIMUM_CARGO_SLOTS = 1;
+export const MINIMUM_CARGO_SLOTS = 1;
 const MAX_DISTINCT_GOODS_PER_MANIFEST = 6;
 const MAX_SINGLE_GOOD_SHARE = 0.55;
 const UNIT_EPSILON = 0.000001;
@@ -180,13 +180,17 @@ export function getManifestCapacitySlots(
  * Splits pending route deals into capacity-bounded manifests. A diversity pass gives each
  * available Good a small berth; the fill pass then prefers value density without allowing one
  * Good to occupy the whole hold while alternatives remain.
+ *
+ * `maxManifests` stops packing early. Callers that use only the first manifest must pass 1: with a
+ * tiny `maxCapacitySlots` the remaining deals would otherwise be split into millions of manifests.
  */
 export function buildCargoManifests(
   deals: readonly Deal[],
   goods: readonly Good[],
   routeSegments: readonly TradeRouteSegment[],
   draftAnimalId: string,
-  maxCapacitySlots?: number
+  maxCapacitySlots?: number,
+  maxManifests = Number.POSITIVE_INFINITY
 ): CargoManifest[] {
   // Good ids start at 1: look goods up by id, not by position in the catalogue.
   const goodById = new Map(goods.map(good => [good.i, good]));
@@ -199,7 +203,7 @@ export function buildCargoManifests(
     .filter((entry): entry is { deal: Deal; good: Good; remainingUnits: number } => entry !== null);
   const manifests: CargoManifest[] = [];
 
-  while (pending.some(entry => entry.remainingUnits > UNIT_EPSILON)) {
+  while (manifests.length < maxManifests && pending.some(entry => entry.remainingUnits > UNIT_EPSILON)) {
     const pendingSlots = pending.reduce(
       (sum, entry) => sum + entry.remainingUnits * getRouteCargoSlotsPerUnit(entry.good, routeSegments),
       0
