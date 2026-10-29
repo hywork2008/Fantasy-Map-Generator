@@ -25,6 +25,7 @@ import {
   isGrazedLivestockGood
 } from "./husbandry";
 import { withLivestockFeedPeriod } from "./livestockFeedState";
+import { WET_PASTORAL_DIET_SHARE_MAX } from "./ruralDiet";
 
 const CATTLE_GOOD = {
   i: 1,
@@ -156,7 +157,7 @@ describe("husbandry", () => {
       worldContext.pack.landUse!.cells[0]!.allocatedAreaHa = 200;
       const dry = getLivestockHerdTargets(worldContext, 0);
       // Half the full wet-pastoral diet adds half the grassland pastoral herd (0.5 cattle, 2 sheep a person).
-      worldContext.pack.cells.wetPastoralDietShare = Float32Array.from([0.25]);
+      worldContext.pack.cells.wetPastoralDietShare = Float32Array.from([WET_PASTORAL_DIET_SHARE_MAX / 2]);
       const wet = getLivestockHerdTargets(worldContext, 0);
       expect(wet.Cattle - dry.Cattle).toBeCloseTo(100 * 0.5 * 0.5);
       expect(wet.Sheep - dry.Sheep).toBeCloseTo(100 * 2 * 0.5);

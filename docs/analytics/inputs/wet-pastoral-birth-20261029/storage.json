@@ -1,0 +1,12 @@
+{
+  "year": "1300",
+  "historicalPeriod": "highMedieval",
+  "culturesSet": "european",
+  "initialSettlementPattern": "standard",
+  "populationRate": "1000",
+  "urbanization": "1",
+  "gunpowderEraEnabled": "false",
+  "fmg-long-distance-trade": "on",
+  "fmg-caravan-raids": "off",
+  "fmg-extensions": "{\"state\":{\"enabledExtensions\":{\"economy\":true,\"characters\":true,\"nobility\":true,\"shipbuilding\":true}},\"version\":0}"
+}

@@ -25,11 +25,20 @@ describe("rural grain diet", () => {
   it("lowers the grain share where rain is too heavy for grain, taking the stronger reason only", () => {
     expect(getWetPastoralDietShare(1)).toBe(0);
     expect(getWetPastoralDietShare(0.6)).toBeCloseTo(WET_PASTORAL_DIET_SHARE_MAX, 6);
-    expect(getWetPastoralDietShare(0)).toBeCloseTo(1 - GRAIN_DIET_SHARE_FLOOR, 6);
+    expect(getWetPastoralDietShare(0)).toBeCloseTo(WET_PASTORAL_DIET_SHARE_MAX, 6);
     const wet = { ...cells, wetPastoralDietShare: Float32Array.from([0.5, 0.5, 0.1]) };
     expect(getRuralGrainDietShare(wet, 0, fields)).toBeCloseTo(0.5, 6);
     expect(getRuralGrainDietShare(wet, 1, fields)).toBeCloseTo(GRAIN_DIET_SHARE_FLOOR, 6);
     expect(getRuralGrainDietShare(wet, 2, fields)).toBeCloseTo(1 - NON_GRAIN_DIET_SHARE_MAX / 2, 6);
+  });
+
+  it("eats only the milk and meat the herds supply", () => {
+    const wet = {
+      wetPastoralDietShare: Float32Array.from([0.25, 0.25]),
+      herdDietShare: Float32Array.from([0.1, 0.25])
+    };
+    expect(getRuralGrainDietShare(wet, 0, fields)).toBeCloseTo(0.9, 6);
+    expect(getRuralGrainDietShare(wet, 1, fields)).toBeCloseTo(0.75, 6);
   });
 
   it("counts the people fed by milk and meat on fields sized for the grain part of their diet", () => {

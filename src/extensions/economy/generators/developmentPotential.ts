@@ -11,6 +11,7 @@ import {
   type WorldContext
 } from "../../hostCore";
 import type { Burg } from "../../hostTypes";
+import { getFaunaStockTable } from "../context/cellTables";
 import {
   ANNUAL_GATE,
   clearAnnualGateYear,
@@ -90,6 +91,7 @@ import {
   WORKABLE_DAYS_PER_ADULT
 } from "./agriculturalLandUse";
 import { isGoodEnabled } from "./goods-generator";
+import { calculateHerdDietShare } from "./herdDiet";
 import { calculateDesiredPastureAreaHectares, getHusbandryWorkerFactor, isGrazedLivestockGood } from "./husbandry";
 import { getWetPastoralFieldCapacityMultiplier } from "./ruralDiet";
 import { allocateRuralOccupations, type RuralOccupationAllocation } from "./ruralOccupationAllocation";
@@ -338,6 +340,7 @@ export class DevelopmentPotentialModule {
   clear(): void {
     clearRiverResidualFlows(getWorldContext());
     delete getWorldContext().pack.cells.wetPastoralDietShare;
+    delete getWorldContext().pack.cells.herdDietShare;
     setFoodPotential(new Float32Array());
     setCultivableArea(new Float32Array());
     setYieldPerArea(new Float32Array());
@@ -455,6 +458,12 @@ export class DevelopmentPotentialModule {
     setYieldPerArea(agriculture.yieldPerArea);
     setRuralFoodCapacity(agriculture.ruralFoodCapacity);
     world.pack.cells.wetPastoralDietShare = agriculture.wetPastoralDietShare;
+    // Herds, not rainfall alone, decide how much of the wet-land diet is milk and meat.
+    world.pack.cells.herdDietShare = calculateHerdDietShare(
+      agriculture.wetPastoralDietShare,
+      cellId => Math.max(0, world.pack.cells.pop[cellId] ?? 0) * Math.max(1, world.populationRate || 1),
+      getFaunaStockTable()
+    );
     setCultivatedArea(agriculture.cultivatedArea);
     setFloweringForageArea(agriculture.floweringForageArea);
     setIrrigatedArea(agriculture.irrigation.irrigatedAreaHa);

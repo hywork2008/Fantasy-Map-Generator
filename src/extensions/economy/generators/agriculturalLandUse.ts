@@ -458,7 +458,11 @@ export function calculateAgriculturalLandProfile(
       populationRate,
       demandOptions.includeUrbanFoodDemand !== false,
       getRuralGrainDietShare(
-        { subsistenceNonAgriculturalCapacity: cells.subsistenceNonAgriculturalCapacity, wetPastoralDietShare },
+        {
+          subsistenceNonAgriculturalCapacity: cells.subsistenceNonAgriculturalCapacity,
+          wetPastoralDietShare,
+          herdDietShare: cells.herdDietShare
+        },
         cellId,
         ruralFoodCapacity
       )

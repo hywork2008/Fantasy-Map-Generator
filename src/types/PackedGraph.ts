@@ -98,6 +98,8 @@ export interface PackedGraphCells {
   subsistenceNonAgriculturalCapacity?: Float32Array;
   /** Milk-and-meat diet share where rain is too heavy for grain (economy ruralDiet.ts); runtime, recomputed annually. */
   wetPastoralDietShare?: Float32Array;
+  /** Part of wetPastoralDietShare the cell's herds actually supply (economy herdDiet.ts); runtime, recomputed annually. */
+  herdDietShare?: Float32Array;
   /** Dominant livelihood code from `subsistenceCapacity.ts`; 0 means no stable local subsistence. */
   livelihood?: Uint8Array;
   children: TypedArray; // cell children pop
