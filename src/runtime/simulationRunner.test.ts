@@ -44,7 +44,8 @@ function installMinimalWorld(): void {
   useOptionsState.setState({
     simDemographics: false,
     simManpower: false,
-    simMilitaryRecovery: false
+    simMilitaryRecovery: false,
+    simDayRollback: true
   });
 
   simulationContext.currentYear = 1000;

@@ -10,9 +10,7 @@
 import { getEconomySlice, registerContextFallbackReset } from "./economyApi";
 
 export const CADENCE_PHASE = {
-  /** Days into the 30-day production / settlement month. */
-  productionDays: "productionDays",
-  /** Next absolute livestock feeding period on the 30-day production cadence. */
+  /** Next absolute livestock feeding period on the monthly production cadence. */
   livestockFeedNextPeriod: "livestockFeedNextPeriod",
   /** Quarter of the settlement year (0–3). */
   quarterIndex: "quarterIndex",

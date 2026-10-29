@@ -245,6 +245,8 @@ export interface OptionsState {
    */
   /** Aging, births, migration, overpopulation starvation. */
   simDemographics: boolean;
+  /** Snapshot the world before each day (or batch) so a failing system rolls it back. */
+  simDayRollback: boolean;
   /** Male civilian ↔ under-arms ledger, draft/fill/demobilize, combat loss bookkeeping. */
   simManpower: boolean;
   /** Regiment a→t recovery / dead-regiment cleanup (uses manpower pool when simManpower). */
@@ -613,6 +615,7 @@ export const optionsStore = createStore<OptionsState>(set => ({
   goldToSilverRate: DEFAULT_GOLD_TO_SILVER_RATE,
   silverToCopperRate: DEFAULT_SILVER_TO_COPPER_RATE,
   simDemographics: true,
+  simDayRollback: false,
   simManpower: true,
   simMilitaryRecovery: true,
   ruralUrbanMigration: "independent",

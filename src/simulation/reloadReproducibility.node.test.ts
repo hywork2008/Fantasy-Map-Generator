@@ -34,7 +34,7 @@ it("saves Economy's cadence phases with the world", async () => {
   const phases = () =>
     (host.simulation.extensions?.economy as { cadencePhases?: Record<string, number> } | undefined)?.cadencePhases;
   const before = { ...phases() };
-  expect(before.productionDays).toBe(17);
+  expect(before.prospectingDays).toBeGreaterThan(0);
   await host.loadArchive(await host.saveArchive());
   expect(phases()).toEqual(before);
   host.dispose();

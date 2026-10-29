@@ -74,7 +74,8 @@ import {
   getGoodCargoSlotsPerUnit,
   getManifestCapacitySlots,
   getRouteCargoSlotsPerUnit,
-  getTransportAllocations
+  getTransportAllocations,
+  MINIMUM_CARGO_SLOTS
 } from "./tradeCargo";
 import { recordCaravanCorridor } from "./tradeCorridorLedger";
 import { TradeLogisticsSettings } from "./tradeLogisticsSettings";
@@ -1491,13 +1492,15 @@ export class CaravansModule {
       );
       if (existingLoading?.loading) {
         const freeSlots = existingLoading.loading.plannedCapacitySlots - payloadUsedSlots(existingLoading);
-        if (freeSlots > UNIT_EPSILON) {
+        // A sub-berth remainder is not worth a top-up; it leaves the hold to depart as loaded.
+        if (freeSlots >= MINIMUM_CARGO_SLOTS) {
           const [topUp] = buildCargoManifests(
             transportedDeals,
             getGoods(),
             packingSegments,
             DEFAULT_DRAFT_ANIMAL_ID,
-            freeSlots
+            freeSlots,
+            1
           );
           if (topUp?.items.length) {
             const addedSlots = appendPayloadFromManifest(existingLoading, topUp);
@@ -1520,7 +1523,8 @@ export class CaravansModule {
         getGoods(),
         packingSegments,
         DEFAULT_DRAFT_ANIMAL_ID,
-        maxCapacitySlots
+        maxCapacitySlots,
+        1
       );
       if (!manifest?.items.length) break;
 
