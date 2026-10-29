@@ -24,7 +24,7 @@
 - CPUはCEの描画処理時間、操作時間はrequestAnimationFrame間隔。GPUは `EXT_disjoint_timer_query_webgl2` で最初のdrawから描画終了後までを囲み、非同期に完了を待つ。GPUがbusyだった時間だけを示す値ではなく、この範囲の経過時間である。`gl.finish()` は使わず、disjoint・不足サンプル・WebGLエラーなら失敗とする。
 - mount CPUは同期の3D構築、readyはその後2 RAFまでの待ちを含む。初期化前のJSON読み込み・都市生成は対象外。操作計測前に作ったprototype等の再利用を含むウォーム状態の操作性能と区別する。
 
-全条件の各フレーム統計と固定入力のSHA-256はGit管理外の全量JSONに保持し、[全量観測一覧](raw-observations-ce-tree-city-performance-20261029.md) にパス・サイズ・ハッシュを記録した。コミット対象は派生JSON・記録・比較画像である。
+全条件の各フレーム統計と固定入力のSHA-256はGit管理外の全量JSONに保持し、[全量観測一覧](raw-observations-ce-tree-city-performance-20261029.md) にパス・サイズ・ハッシュを記録した。保存対象は派生JSON・記録であり、比較画像は一時確認後に削除する。
 
 ## 変更前後の中都市・俯瞰（native）
 
