@@ -415,6 +415,9 @@ function getRegionalDemandShare(cellId: number, domain: "state" | "market", good
   const regions = domain === "state" ? cells.state : getMarketCellColumn();
   const regionId = regions?.[cellId];
   if (!regionId || cells.h[cellId] < 20) return 0;
+  const weightCache = regionalWeightCache?.get(good.i);
+  const cachedLocal = weightCache?.get(cellId);
+  if (cachedLocal !== undefined && !(cachedLocal > 0)) return 0;
   const weight = (cell: number): number => {
     const population = cells.pop[cell] ?? 0;
     if (!(population > 0) || !Number.isFinite(population) || cells.h[cell] < 20) return 0;
@@ -426,13 +429,59 @@ function getRegionalDemandShare(cellId: number, domain: "state" | "market", good
     );
     return Number.isFinite(rate) && rate > 0 ? population : 0;
   };
-  const local = weight(cellId);
-  if (!(local > 0)) return 0;
-  let total = 0;
-  for (const cell of cells.i) {
-    if (regions?.[cell] === regionId) total += weight(cell);
+  if (!regionalTotalCache) {
+    const local = weight(cellId);
+    if (!(local > 0)) return 0;
+    let total = 0;
+    for (const cell of cells.i) {
+      if (regions?.[cell] === regionId) total += weight(cell);
+    }
+    return total > 0 ? local / total : 0;
   }
+  let weights = weightCache;
+  if (!weights) {
+    weights = new Map();
+    regionalWeightCache?.set(good.i, weights);
+  }
+  let local = weights.get(cellId);
+  if (local === undefined) {
+    local = weight(cellId);
+    weights.set(cellId, local);
+  }
+  if (!(local > 0)) return 0;
+  const totalsKey = `${domain}:${good.i}`;
+  let totals = regionalTotalCache.get(totalsKey);
+  if (!totals) {
+    // One pass over the cells, summed in the same order as the uncached loop.
+    totals = new Map();
+    for (const cell of cells.i) {
+      const region = regions?.[cell];
+      if (!region) continue;
+      totals.set(region, (totals.get(region) ?? 0) + weight(cell));
+    }
+    regionalTotalCache.set(totalsKey, totals);
+  }
+  const total = totals.get(regionId) ?? 0;
   return total > 0 ? local / total : 0;
+}
+
+let regionalTotalCache: Map<string, Map<number, number>> | null = null;
+let regionalWeightCache: Map<number, Map<number, number>> | null = null;
+
+/**
+ * Holds getRegionalDemandShare()'s per-region totals for the duration of `fn`. The caller must not
+ * change population, state or market columns inside `fn`.
+ */
+export function withRegionalDemandShareCache<T>(fn: () => T): T {
+  if (regionalTotalCache) return fn();
+  regionalTotalCache = new Map();
+  regionalWeightCache = new Map();
+  try {
+    return fn();
+  } finally {
+    regionalTotalCache = null;
+    regionalWeightCache = null;
+  }
 }
 
 /**

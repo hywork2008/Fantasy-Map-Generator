@@ -53,6 +53,7 @@ import { laborPeople } from "./craftScale";
 import { getMarketPriceLevel, getMintPriceFloor, getMoneyPriceLevelForMarket } from "./currencySufficiency";
 import { ExportStaging } from "./exportStaging";
 import { getFarmToolsDemandByMarket } from "./farmToolsDemand";
+import { withRegionalDemandShareCache } from "./faunaPopulation";
 import { isOrchardDrink } from "./foodLots";
 import { hasViableFoodProcessingMargin } from "./foodProcessingEconomics";
 import {
@@ -921,13 +922,15 @@ export class MarketsModule {
     const marketIds = new Set(getMarkets().map(market => market.i));
     const collectionBurgs = this.getCollectionBurgsByMarket();
     const biomeProduction = Goods.getBiomesProduction();
-    for (const cellId of cells.i) {
-      const marketId = getMarketCellColumn()[cellId];
-      if (!marketId || !marketIds.has(marketId)) continue;
-      const collection = this.getCollectionBurgId(cellId, marketId, collectionBurgs);
-      for (const contribution of getRuralLiveAnimalContributions(cellId, biomeProduction))
-        this.addRuralOutput(marketId, collection, contribution.goodId, contribution.amount, cellId);
-    }
+    withRegionalDemandShareCache(() => {
+      for (const cellId of cells.i) {
+        const marketId = getMarketCellColumn()[cellId];
+        if (!marketId || !marketIds.has(marketId)) continue;
+        const collection = this.getCollectionBurgId(cellId, marketId, collectionBurgs);
+        for (const contribution of getRuralLiveAnimalContributions(cellId, biomeProduction))
+          this.addRuralOutput(marketId, collection, contribution.goodId, contribution.amount, cellId);
+      }
+    });
     const monthIndex = Math.max(0, Math.min(11, getSimulationMonth() - 1));
 
     const wood = getGoods().find(g => g.name === "Wood");
@@ -1215,6 +1218,19 @@ export class MarketsModule {
       coldStorageCapacityByState.set(depot.stateId, (coldStorageCapacityByState.get(depot.stateId) ?? 0) + monthly);
     }
 
+    // Paths depend only on the catalogue and known technology, which this call does not change.
+    type FoodPath = { outputGoodId: number; inputPerOutput: number } | null;
+    const pathsBySourceGood = new Map<number, { reservePath: FoodPath; commercialPath: FoodPath }>();
+    const getPaths = (sourceGood: Good) => {
+      let paths = pathsBySourceGood.get(sourceGood.i);
+      if (!paths) {
+        const reservePath = this.getCellFoodReservePath(sourceGood);
+        paths = { reservePath, commercialPath: this.getCellFoodCommercialPath(sourceGood, reservePath) };
+        pathsBySourceGood.set(sourceGood.i, paths);
+      }
+      return paths;
+    };
+
     const reserves = getOrCreateCellFoodReserves();
     for (const [cellId, cellEntries] of entriesByCell) {
       const residentWorkforce = getRuralCellPopulation(cellId);
@@ -1226,8 +1242,7 @@ export class MarketsModule {
         const sourceGood = Goods.get(entry.goodId);
         const freshFoodProfile = sourceGood ? getFreshFoodProfile(sourceGood) : null;
         if (!sourceGood || !freshFoodProfile) continue;
-        const reservePath = this.getCellFoodReservePath(sourceGood);
-        const commercialPath = this.getCellFoodCommercialPath(sourceGood, reservePath);
+        const { reservePath, commercialPath } = getPaths(sourceGood);
         const market = this.marketById[entry.marketId];
         if (!market) continue;
         const commercialGood = commercialPath ? Goods.get(commercialPath.outputGoodId) : undefined;
@@ -1280,7 +1295,7 @@ export class MarketsModule {
         if (outcome.reserveInputUnits > 0) {
           recordFoodProcessingConsumption(market, sourceGood.name, outcome.reserveInputUnits);
         }
-        const reservePath = this.getCellFoodReservePath(sourceGood);
+        const { reservePath, commercialPath } = getPaths(sourceGood);
         if (reservePath && outcome.reserveOutputUnits > 0) {
           recordCumulativeCellFoodReserveOutput(reservePath.outputGoodId, outcome.reserveOutputUnits);
         }
@@ -1310,7 +1325,6 @@ export class MarketsModule {
           }
         }
 
-        const commercialPath = this.getCellFoodCommercialPath(sourceGood, this.getCellFoodReservePath(sourceGood));
         if (!commercialPath || outcome.exportOutputUnits <= 0) continue;
         recordFoodProcessingConsumption(
           market,

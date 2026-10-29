@@ -189,18 +189,32 @@ function trim(record: Record<string, number>): Record<string, number> {
   return Object.fromEntries(entries.sort((a, b) => b[1] - a[1]).slice(0, KEPT));
 }
 
+// Row positions by approach id, kept per rows array so a month of shipments does not rebuild it
+// for each journey. Only this module writes the ledger: rows are appended here, and decay or load
+// replace the array, so a length change means the array was edited elsewhere and is reindexed.
+const approachRowIndexes = new WeakMap<ApproachTraffic[], { positions: Map<string, number>; length: number }>();
+
+function approachRowIndex(rows: ApproachTraffic[]): { positions: Map<string, number>; length: number } {
+  const cached = approachRowIndexes.get(rows);
+  if (cached?.length === rows.length) return cached;
+  const index = { positions: new Map(rows.map((row, at) => [row.approachId, at])), length: rows.length };
+  approachRowIndexes.set(rows, index);
+  return index;
+}
+
 /** Folds one journey into `rows` in place and returns it. */
 export function applyApproachJourney(
   rows: ApproachTraffic[],
   approaches: JourneyApproaches,
   journey: ApproachJourney
 ): ApproachTraffic[] {
-  const index = new Map(rows.map((row, at) => [row.approachId, at]));
+  const index = approachRowIndex(rows);
   const rowOf = (ref: ApproachRef) => {
-    let at = index.get(ref.approachId);
+    let at = index.positions.get(ref.approachId);
     if (at === undefined) {
       at = rows.push(emptyRow(ref)) - 1;
-      index.set(ref.approachId, at);
+      index.positions.set(ref.approachId, at);
+      index.length = rows.length;
     }
     return rows[at];
   };

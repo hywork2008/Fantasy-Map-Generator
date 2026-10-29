@@ -206,10 +206,17 @@ export function getPastureGrowth(
   cellId: number
 ): { annualKgPerHa: number; weights: number[] } {
   const temperatures = readAgriculturalClimate(world, cellId).monthlyMeanTemperatureC;
+  const cached = pastureGrowthByTemperatures.get(temperatures);
+  if (cached) return cached;
   const growth = Array.from({ length: 12 }, (_, month) => Math.max(0, (temperatures[month] ?? 0) - 2));
   const total = growth.reduce((sum, value) => sum + value, 0);
-  return {
+  const result = {
     annualKgPerHa: PASTURE_ANNUAL_DM_KG_PER_HECTARE * Math.min(1, total / 120),
     weights: growth.map(value => (total > 0 ? value / total : 0))
   };
+  pastureGrowthByTemperatures.set(temperatures, result);
+  return result;
 }
+
+// The climate reader keeps one temperature array per cell and year; callers only read the result.
+const pastureGrowthByTemperatures = new WeakMap<ArrayLike<number>, { annualKgPerHa: number; weights: number[] }>();
