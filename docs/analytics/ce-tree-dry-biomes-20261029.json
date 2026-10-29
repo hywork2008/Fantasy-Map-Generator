@@ -1,0 +1,2729 @@
+{
+  "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+  "seed": "ce-dry-biomes-v1",
+  "areaM2": 8832.000000000004,
+  "terrain": "heightAt(x,y)=5+0.05*x+0.02*y",
+  "outerSideMeters": 96,
+  "holeMeters": [
+    24,
+    16
+  ],
+  "viewport": [
+    400,
+    400
+  ],
+  "dpr": 1,
+  "conditions": "9 dry biomes x 2 densities x 3 views, standard forest quality; explicit forest land-cover and saved park/cemetery selection audits. Fixed sloping terrain and clearing. No full-city/GPU timing claim. No persistent images.",
+  "sourceSha256": {
+    "scripts/verifyCeDryBiomeStands.mts": "b9037146cd82affb034b9491bd72ff13d26dc0724c19676dd5a90b9a25731d8d",
+    "src/city-editor/generators/landscapeVegetation.ts": "0bcb161212afbee54e8addcd88478c68ab8b3729eb4ad8ca40dcb86af9da44f2",
+    "src/city-editor/generators/forestLandCover.ts": "7615a5e2e922bfc44f1f71b2a5a9321ff57788ff61fe63e7aa23b0ce546fe5ce",
+    "src/city-editor/renderers/openSpaceSites.ts": "14de2f78d0e51c9d1ae5e0a15366a9125db540b3b78683606fdfac44ecde7a3a",
+    "src/city-editor/renderers/landscapeTreeSpecies.ts": "7168028d603ddf4a5dbde70f092ad3ee73a81c02a73f6286bf76af5ffe02f1b9",
+    "src/city3d/three/forestMeshes.ts": "58d8636fc80dad187abceeacd7b9848ef06c901e910ec37ffd2a4ce3167ba93f",
+    "src/city3d/three/forestTreeDetails.ts": "131329ed4097737390b961fc6d21ecbd8badb75a36e5ead7f960e3d1dbdc4a9f",
+    "src/city3d/adoption.ts": "14d584dfba64e8f164b63fa477c125b6b22f68b46520c0b8635c76498720b9df",
+    "src/buildings/landscape/trees.ts": "f769a778979cc87cc65e03f9a18fbf0bbe741d13dca62b67e6b3ac37c50ea4b1"
+  },
+  "results": [
+    {
+      "key": "hotDesert",
+      "density": "sparse",
+      "expected": [
+        "date_palm"
+      ],
+      "speciesCounts": {
+        "date_palm": 64
+      },
+      "policy": {
+        "defaultForestFaces": 0,
+        "modes": {
+          "legacy": 0,
+          "farmland": 26,
+          "surroundings": 51
+        },
+        "manualForestFaces": 1,
+        "manualIsRequestedFace": true,
+        "protectedFaces": 6,
+        "parkSpecies": {
+          "date_palm": 64
+        },
+        "cemeterySpecies": {
+          "date_palm": 64
+        },
+        "cemeteryPreferred": "mediterranean_cypress",
+        "savedPlantingPreserved": true
+      },
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 54,
+          "triangles": 132660,
+          "calls": 6,
+          "shadowTriangles": 49080,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 54,
+          "detailedTriangles": 132516,
+          "detailedSpecies": [
+            "date_palm"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 54,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.2679088946897621,
+          "duplicates": 0,
+          "visibleInstances": 54,
+          "variants": [
+            "tree.date-palm@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 132660,
+          "candidateSha256": "8d4bceedbce070dda31472d0ddb727424ee99b711d3dfb3823d832802976d9d5",
+          "placementSha256": "711c716742327d2a00d29cd529d942ac303a8ae720b09ea97013b931642aada1"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 52,
+          "triangles": 166692,
+          "calls": 8,
+          "shadowTriangles": 48918,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 52,
+          "detailedTriangles": 166548,
+          "detailedSpecies": [
+            "date_palm"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 30,
+            "high": 22,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.2679088946897621,
+          "duplicates": 0,
+          "visibleInstances": 52,
+          "variants": [
+            "tree.date-palm@high#codex-gpt-6.1-sol",
+            "tree.date-palm@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 166692,
+          "candidateSha256": "8d4bceedbce070dda31472d0ddb727424ee99b711d3dfb3823d832802976d9d5",
+          "placementSha256": "8acca14541d8f8039eb77fa28e494dd5fd65e1a57b1e211a08003a8a7da9f891"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 27,
+          "triangles": 129744,
+          "calls": 8,
+          "shadowTriangles": 48384,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 27,
+          "detailedTriangles": 129600,
+          "detailedSpecies": [
+            "date_palm"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 21,
+            "ultra": 6
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.2679088946897621,
+          "duplicates": 0,
+          "visibleInstances": 27,
+          "variants": [
+            "tree.date-palm@high#codex-gpt-6.1-sol",
+            "tree.date-palm@ultra#claude-opus-5.5"
+          ],
+          "renderedTriangles": 129744,
+          "candidateSha256": "8d4bceedbce070dda31472d0ddb727424ee99b711d3dfb3823d832802976d9d5",
+          "placementSha256": "1c37501d1938bdd45ac6ced40e21d0aaf44a80b4c6ee59b6a6d96d1ff6d2244b"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "hotDesert",
+      "density": "standard",
+      "expected": [
+        "date_palm"
+      ],
+      "speciesCounts": {
+        "date_palm": 64
+      },
+      "policy": {
+        "defaultForestFaces": 0,
+        "modes": {
+          "legacy": 0,
+          "farmland": 26,
+          "surroundings": 51
+        },
+        "manualForestFaces": 1,
+        "manualIsRequestedFace": true,
+        "protectedFaces": 6,
+        "parkSpecies": {
+          "date_palm": 64
+        },
+        "cemeterySpecies": {
+          "date_palm": 64
+        },
+        "cemeteryPreferred": "mediterranean_cypress",
+        "savedPlantingPreserved": true
+      },
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 86,
+          "triangles": 211188,
+          "calls": 6,
+          "shadowTriangles": 49080,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 86,
+          "detailedTriangles": 211044,
+          "detailedSpecies": [
+            "date_palm"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 86,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.1276269542519004,
+          "duplicates": 0,
+          "visibleInstances": 86,
+          "variants": [
+            "tree.date-palm@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 211188,
+          "candidateSha256": "7f992bd772f8bb87a8975f9df0550d781af9119ff58d583ad04d8566eb64a5c5",
+          "placementSha256": "0ed006b06d25caa4bd16bc0d4e87a0447aefc0df67bbfbc1d371d3875db8494b"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 84,
+          "triangles": 271770,
+          "calls": 8,
+          "shadowTriangles": 48918,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 84,
+          "detailedTriangles": 271626,
+          "detailedSpecies": [
+            "date_palm"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 47,
+            "high": 37,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.1276269542519004,
+          "duplicates": 0,
+          "visibleInstances": 84,
+          "variants": [
+            "tree.date-palm@high#codex-gpt-6.1-sol",
+            "tree.date-palm@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 271770,
+          "candidateSha256": "7f992bd772f8bb87a8975f9df0550d781af9119ff58d583ad04d8566eb64a5c5",
+          "placementSha256": "d91a7734674a0622b2d4e5065bea248805e59077cdc548f82b656fe937f99cff"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 44,
+          "triangles": 209328,
+          "calls": 8,
+          "shadowTriangles": 49344,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 44,
+          "detailedTriangles": 209184,
+          "detailedSpecies": [
+            "date_palm"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 35,
+            "ultra": 9
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.1276269542519004,
+          "duplicates": 0,
+          "visibleInstances": 44,
+          "variants": [
+            "tree.date-palm@high#codex-gpt-6.1-sol",
+            "tree.date-palm@ultra#claude-opus-5.5"
+          ],
+          "renderedTriangles": 209328,
+          "candidateSha256": "7f992bd772f8bb87a8975f9df0550d781af9119ff58d583ad04d8566eb64a5c5",
+          "placementSha256": "e5a41c8d2f93fc93b8b8dd6c48677b804b01115d905b10862f26bcfd4329a1e1"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "coldDesert",
+      "density": "sparse",
+      "expected": [
+        "saxaul"
+      ],
+      "speciesCounts": {
+        "saxaul": 64
+      },
+      "policy": {
+        "defaultForestFaces": 0,
+        "modes": {
+          "legacy": 0,
+          "farmland": 26,
+          "surroundings": 51
+        },
+        "manualForestFaces": 1,
+        "manualIsRequestedFace": true,
+        "protectedFaces": 6,
+        "parkSpecies": {
+          "saxaul": 64
+        },
+        "cemeterySpecies": {
+          "saxaul": 64
+        },
+        "cemeteryPreferred": "mediterranean_cypress",
+        "savedPlantingPreserved": true
+      },
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 54,
+          "triangles": 85572,
+          "calls": 6,
+          "shadowTriangles": 49042,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 54,
+          "detailedTriangles": 85428,
+          "detailedSpecies": [
+            "saxaul"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 54,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.2679088946897621,
+          "duplicates": 0,
+          "visibleInstances": 54,
+          "variants": [
+            "tree.saxaul@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 85572,
+          "candidateSha256": "8d4bceedbce070dda31472d0ddb727424ee99b711d3dfb3823d832802976d9d5",
+          "placementSha256": "4e27f0e5581da1c2c0888765c0c2a9d78fb9c51bd506c1ce6205a1dcab3d207b"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 52,
+          "triangles": 137806,
+          "calls": 8,
+          "shadowTriangles": 49584,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 52,
+          "detailedTriangles": 137662,
+          "detailedSpecies": [
+            "saxaul"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 31,
+            "high": 21,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.2679088946897621,
+          "duplicates": 0,
+          "visibleInstances": 52,
+          "variants": [
+            "tree.saxaul@high#codex-gpt-6.1-sol",
+            "tree.saxaul@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 137806,
+          "candidateSha256": "8d4bceedbce070dda31472d0ddb727424ee99b711d3dfb3823d832802976d9d5",
+          "placementSha256": "cf1ce5572c30f950989cce6fba9b63e717c4cc6b21af9335d4b9624e3876c743"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 26,
+          "triangles": 122536,
+          "calls": 8,
+          "shadowTriangles": 46428,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 26,
+          "detailedTriangles": 122392,
+          "detailedSpecies": [
+            "saxaul"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 20,
+            "ultra": 6
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.2679088946897621,
+          "duplicates": 0,
+          "visibleInstances": 26,
+          "variants": [
+            "tree.saxaul@high#codex-gpt-6.1-sol",
+            "tree.saxaul@ultra#claude-opus-5.5"
+          ],
+          "renderedTriangles": 122536,
+          "candidateSha256": "8d4bceedbce070dda31472d0ddb727424ee99b711d3dfb3823d832802976d9d5",
+          "placementSha256": "f620e69e7738adef00de78a2916e747fa0f0ea5b171be5882e2302b50209bd10"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "coldDesert",
+      "density": "standard",
+      "expected": [
+        "saxaul"
+      ],
+      "speciesCounts": {
+        "saxaul": 64
+      },
+      "policy": {
+        "defaultForestFaces": 0,
+        "modes": {
+          "legacy": 0,
+          "farmland": 26,
+          "surroundings": 51
+        },
+        "manualForestFaces": 1,
+        "manualIsRequestedFace": true,
+        "protectedFaces": 6,
+        "parkSpecies": {
+          "saxaul": 64
+        },
+        "cemeterySpecies": {
+          "saxaul": 64
+        },
+        "cemeteryPreferred": "mediterranean_cypress",
+        "savedPlantingPreserved": true
+      },
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 86,
+          "triangles": 136196,
+          "calls": 6,
+          "shadowTriangles": 49042,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 86,
+          "detailedTriangles": 136052,
+          "detailedSpecies": [
+            "saxaul"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 86,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.1276269542519004,
+          "duplicates": 0,
+          "visibleInstances": 86,
+          "variants": [
+            "tree.saxaul@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 136196,
+          "candidateSha256": "7f992bd772f8bb87a8975f9df0550d781af9119ff58d583ad04d8566eb64a5c5",
+          "placementSha256": "60196204c5f592730f0e6d6c0daa6f55ba7171da8f6c4dfc8af218be1528f715"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 84,
+          "triangles": 228000,
+          "calls": 8,
+          "shadowTriangles": 49584,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 84,
+          "detailedTriangles": 227856,
+          "detailedSpecies": [
+            "saxaul"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 48,
+            "high": 36,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.1276269542519004,
+          "duplicates": 0,
+          "visibleInstances": 84,
+          "variants": [
+            "tree.saxaul@high#codex-gpt-6.1-sol",
+            "tree.saxaul@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 228000,
+          "candidateSha256": "7f992bd772f8bb87a8975f9df0550d781af9119ff58d583ad04d8566eb64a5c5",
+          "placementSha256": "2cea9cbc15b158bc82e4aa5786d34c0261eab6f18d23d2d4f09f651faef1b649"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 42,
+          "triangles": 196392,
+          "calls": 8,
+          "shadowTriangles": 46432,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 42,
+          "detailedTriangles": 196248,
+          "detailedSpecies": [
+            "saxaul"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 33,
+            "ultra": 9
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.1276269542519004,
+          "duplicates": 0,
+          "visibleInstances": 42,
+          "variants": [
+            "tree.saxaul@high#codex-gpt-6.1-sol",
+            "tree.saxaul@ultra#claude-opus-5.5"
+          ],
+          "renderedTriangles": 196392,
+          "candidateSha256": "7f992bd772f8bb87a8975f9df0550d781af9119ff58d583ad04d8566eb64a5c5",
+          "placementSha256": "4d87cfc868ec365b1b4f1bc73b20616e7a3d8ff970d62fa46fed2a800a25c3b9"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "savanna",
+      "density": "sparse",
+      "expected": [
+        "umbrella_thorn",
+        "date_palm"
+      ],
+      "speciesCounts": {
+        "date_palm": 18,
+        "umbrella_thorn": 46
+      },
+      "policy": {
+        "defaultForestFaces": 0,
+        "modes": {
+          "legacy": 0,
+          "farmland": 26,
+          "surroundings": 51
+        },
+        "manualForestFaces": 1,
+        "manualIsRequestedFace": true,
+        "protectedFaces": 6,
+        "parkSpecies": {
+          "date_palm": 18,
+          "umbrella_thorn": 46
+        },
+        "cemeterySpecies": {
+          "umbrella_thorn": 64
+        },
+        "cemeteryPreferred": "mediterranean_cypress",
+        "savedPlantingPreserved": true
+      },
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 54,
+          "triangles": 111681,
+          "calls": 8,
+          "shadowTriangles": 49638,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 54,
+          "detailedTriangles": 111537,
+          "detailedSpecies": [
+            "umbrella_thorn",
+            "date_palm"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 54,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.2679088946897621,
+          "duplicates": 0,
+          "visibleInstances": 54,
+          "variants": [
+            "tree.date-palm@medium#codex-gpt-6.1-sol",
+            "tree.umbrella-thorn@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 111681,
+          "candidateSha256": "8d4bceedbce070dda31472d0ddb727424ee99b711d3dfb3823d832802976d9d5",
+          "placementSha256": "9c2c31f97be55673ca8689c80cc9601c40f4639632334ad4073b53c20c12f054"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 52,
+          "triangles": 180339,
+          "calls": 10,
+          "shadowTriangles": 49136,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 52,
+          "detailedTriangles": 180195,
+          "detailedSpecies": [
+            "umbrella_thorn",
+            "date_palm"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 30,
+            "high": 22,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.2679088946897621,
+          "duplicates": 0,
+          "visibleInstances": 52,
+          "variants": [
+            "tree.date-palm@high#codex-gpt-6.1-sol",
+            "tree.date-palm@medium#codex-gpt-6.1-sol",
+            "tree.umbrella-thorn@high#codex-gpt-6.1-sol",
+            "tree.umbrella-thorn@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 180339,
+          "candidateSha256": "8d4bceedbce070dda31472d0ddb727424ee99b711d3dfb3823d832802976d9d5",
+          "placementSha256": "f0dc7a3442a816e439b874b6d84d1e6c5172b003f6db26a1576183d0dba0e8e1"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 26,
+          "triangles": 180188,
+          "calls": 9,
+          "shadowTriangles": 48204,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 26,
+          "detailedTriangles": 180044,
+          "detailedSpecies": [
+            "umbrella_thorn",
+            "date_palm"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 20,
+            "ultra": 6
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.2679088946897621,
+          "duplicates": 0,
+          "visibleInstances": 26,
+          "variants": [
+            "tree.date-palm@high#codex-gpt-6.1-sol",
+            "tree.date-palm@ultra#claude-opus-5.5",
+            "tree.umbrella-thorn@high#codex-gpt-6.1-sol",
+            "tree.umbrella-thorn@ultra#claude-opus-5.5"
+          ],
+          "renderedTriangles": 180188,
+          "candidateSha256": "8d4bceedbce070dda31472d0ddb727424ee99b711d3dfb3823d832802976d9d5",
+          "placementSha256": "0a4709477922d15d07e0eb4334e4a8ac763da753ea89c7017786a9f3829e0fd4"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "savanna",
+      "density": "standard",
+      "expected": [
+        "umbrella_thorn",
+        "date_palm"
+      ],
+      "speciesCounts": {
+        "date_palm": 18,
+        "umbrella_thorn": 46
+      },
+      "policy": {
+        "defaultForestFaces": 0,
+        "modes": {
+          "legacy": 0,
+          "farmland": 26,
+          "surroundings": 51
+        },
+        "manualForestFaces": 1,
+        "manualIsRequestedFace": true,
+        "protectedFaces": 6,
+        "parkSpecies": {
+          "date_palm": 18,
+          "umbrella_thorn": 46
+        },
+        "cemeterySpecies": {
+          "umbrella_thorn": 64
+        },
+        "cemeteryPreferred": "mediterranean_cypress",
+        "savedPlantingPreserved": true
+      },
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 86,
+          "triangles": 178302,
+          "calls": 8,
+          "shadowTriangles": 49071,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 86,
+          "detailedTriangles": 178158,
+          "detailedSpecies": [
+            "umbrella_thorn",
+            "date_palm"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 86,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.1276269542519004,
+          "duplicates": 0,
+          "visibleInstances": 86,
+          "variants": [
+            "tree.date-palm@medium#codex-gpt-6.1-sol",
+            "tree.umbrella-thorn@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 178302,
+          "candidateSha256": "7f992bd772f8bb87a8975f9df0550d781af9119ff58d583ad04d8566eb64a5c5",
+          "placementSha256": "a48bd1780b57c2739a74bcc3a282288a98fc1282edcd23902edef0ae948c2571"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 84,
+          "triangles": 298629,
+          "calls": 11,
+          "shadowTriangles": 49366,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 84,
+          "detailedTriangles": 298485,
+          "detailedSpecies": [
+            "umbrella_thorn",
+            "date_palm"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 47,
+            "high": 37,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.1276269542519004,
+          "duplicates": 0,
+          "visibleInstances": 84,
+          "variants": [
+            "tree.date-palm@high#codex-gpt-6.1-sol",
+            "tree.date-palm@medium#codex-gpt-6.1-sol",
+            "tree.umbrella-thorn@high#codex-gpt-6.1-sol",
+            "tree.umbrella-thorn@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 298629,
+          "candidateSha256": "7f992bd772f8bb87a8975f9df0550d781af9119ff58d583ad04d8566eb64a5c5",
+          "placementSha256": "7fc04a58b697da304f40ae718d14b60cbbc8901c64a6f468076bcfd226f0fc53"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 43,
+          "triangles": 295476,
+          "calls": 10,
+          "shadowTriangles": 48204,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 43,
+          "detailedTriangles": 295332,
+          "detailedSpecies": [
+            "umbrella_thorn",
+            "date_palm"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 34,
+            "ultra": 9
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.1276269542519004,
+          "duplicates": 0,
+          "visibleInstances": 43,
+          "variants": [
+            "tree.date-palm@high#codex-gpt-6.1-sol",
+            "tree.date-palm@ultra#claude-opus-5.5",
+            "tree.umbrella-thorn@high#codex-gpt-6.1-sol",
+            "tree.umbrella-thorn@ultra#claude-opus-5.5"
+          ],
+          "renderedTriangles": 295476,
+          "candidateSha256": "7f992bd772f8bb87a8975f9df0550d781af9119ff58d583ad04d8566eb64a5c5",
+          "placementSha256": "245c18b275d723fc6c0b3f21f2e6c41540ba1845d5a9b97e6a15b533f55e0a21"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "grassland",
+      "density": "sparse",
+      "expected": [
+        "garden_parkland"
+      ],
+      "speciesCounts": {
+        "garden_parkland": 64
+      },
+      "policy": {
+        "defaultForestFaces": 0,
+        "modes": {
+          "legacy": 0,
+          "farmland": 26,
+          "surroundings": 51
+        },
+        "manualForestFaces": 1,
+        "manualIsRequestedFace": true,
+        "protectedFaces": 6,
+        "parkSpecies": {
+          "garden_parkland": 64
+        },
+        "cemeterySpecies": {
+          "mediterranean_cypress": 64
+        },
+        "cemeteryPreferred": "mediterranean_cypress",
+        "savedPlantingPreserved": true
+      },
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 54,
+          "triangles": 102096,
+          "calls": 6,
+          "shadowTriangles": 49088,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 54,
+          "detailedTriangles": 101952,
+          "detailedSpecies": [
+            "garden_parkland"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 54,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.2679088946897621,
+          "duplicates": 0,
+          "visibleInstances": 54,
+          "variants": [
+            "tree.garden-parkland@medium#claude-opus-5.5"
+          ],
+          "renderedTriangles": 102096,
+          "candidateSha256": "8d4bceedbce070dda31472d0ddb727424ee99b711d3dfb3823d832802976d9d5",
+          "placementSha256": "85640ba2c25cc5a974d405914678cdcc237438632cbf28a943d86c527f66f475"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 52,
+          "triangles": 532556,
+          "calls": 8,
+          "shadowTriangles": 48916,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 52,
+          "detailedTriangles": 532412,
+          "detailedSpecies": [
+            "garden_parkland"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 30,
+            "high": 22,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.2679088946897621,
+          "duplicates": 0,
+          "visibleInstances": 52,
+          "variants": [
+            "tree.garden-parkland@high#codex-gpt-6.1-sol",
+            "tree.garden-parkland@medium#claude-opus-5.5"
+          ],
+          "renderedTriangles": 532556,
+          "candidateSha256": "8d4bceedbce070dda31472d0ddb727424ee99b711d3dfb3823d832802976d9d5",
+          "placementSha256": "a69312731c219003721c1a6abf98f34d7162428af60a0adf7c4cb97398e039a4"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 28,
+          "triangles": 1042976,
+          "calls": 7,
+          "shadowTriangles": 43252,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 28,
+          "detailedTriangles": 1042832,
+          "detailedSpecies": [
+            "garden_parkland"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 21,
+            "ultra": 7
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.2679088946897621,
+          "duplicates": 0,
+          "visibleInstances": 28,
+          "variants": [
+            "tree.garden-parkland@high#codex-gpt-6.1-sol",
+            "tree.garden-parkland@ultra#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 1042976,
+          "candidateSha256": "8d4bceedbce070dda31472d0ddb727424ee99b711d3dfb3823d832802976d9d5",
+          "placementSha256": "370c020b9c86493d7505113c6a855417136ad1ded4677da7015b62c2550532c2"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "grassland",
+      "density": "standard",
+      "expected": [
+        "garden_parkland"
+      ],
+      "speciesCounts": {
+        "garden_parkland": 64
+      },
+      "policy": {
+        "defaultForestFaces": 0,
+        "modes": {
+          "legacy": 0,
+          "farmland": 26,
+          "surroundings": 51
+        },
+        "manualForestFaces": 1,
+        "manualIsRequestedFace": true,
+        "protectedFaces": 6,
+        "parkSpecies": {
+          "garden_parkland": 64
+        },
+        "cemeterySpecies": {
+          "mediterranean_cypress": 64
+        },
+        "cemeteryPreferred": "mediterranean_cypress",
+        "savedPlantingPreserved": true
+      },
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 86,
+          "triangles": 162512,
+          "calls": 6,
+          "shadowTriangles": 49088,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 86,
+          "detailedTriangles": 162368,
+          "detailedSpecies": [
+            "garden_parkland"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 86,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.1276269542519004,
+          "duplicates": 0,
+          "visibleInstances": 86,
+          "variants": [
+            "tree.garden-parkland@medium#claude-opus-5.5"
+          ],
+          "renderedTriangles": 162512,
+          "candidateSha256": "7f992bd772f8bb87a8975f9df0550d781af9119ff58d583ad04d8566eb64a5c5",
+          "placementSha256": "042e0804c21fbd9ffc703a208540b928243bfbe11ad6d2118d9e4c6acb4bece3"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 84,
+          "triangles": 908780,
+          "calls": 8,
+          "shadowTriangles": 48916,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 84,
+          "detailedTriangles": 908636,
+          "detailedSpecies": [
+            "garden_parkland"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 46,
+            "high": 38,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.1276269542519004,
+          "duplicates": 0,
+          "visibleInstances": 84,
+          "variants": [
+            "tree.garden-parkland@high#codex-gpt-6.1-sol",
+            "tree.garden-parkland@medium#claude-opus-5.5"
+          ],
+          "renderedTriangles": 908780,
+          "candidateSha256": "7f992bd772f8bb87a8975f9df0550d781af9119ff58d583ad04d8566eb64a5c5",
+          "placementSha256": "77f70bfb34eb8862e1e61ea75cfcd2a0881b0c8611076df4e221c12c06b2778c"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 48,
+          "triangles": 1725384,
+          "calls": 7,
+          "shadowTriangles": 43252,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 48,
+          "detailedTriangles": 1725240,
+          "detailedSpecies": [
+            "garden_parkland"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 37,
+            "ultra": 11
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.1276269542519004,
+          "duplicates": 0,
+          "visibleInstances": 48,
+          "variants": [
+            "tree.garden-parkland@high#codex-gpt-6.1-sol",
+            "tree.garden-parkland@ultra#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 1725384,
+          "candidateSha256": "7f992bd772f8bb87a8975f9df0550d781af9119ff58d583ad04d8566eb64a5c5",
+          "placementSha256": "fece579ad888b54bf3fa5f96cfdd6783f3c365923f7f16847361bbbfe2b54e83"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "tropicalSeasonalForest",
+      "density": "sparse",
+      "expected": [
+        "umbrella_thorn",
+        "date_palm"
+      ],
+      "speciesCounts": {
+        "date_palm": 18,
+        "umbrella_thorn": 46
+      },
+      "policy": {
+        "defaultForestFaces": 0,
+        "modes": {
+          "legacy": 0,
+          "farmland": 26,
+          "surroundings": 51
+        },
+        "manualForestFaces": 1,
+        "manualIsRequestedFace": true,
+        "protectedFaces": 6,
+        "parkSpecies": {
+          "date_palm": 18,
+          "umbrella_thorn": 46
+        },
+        "cemeterySpecies": {
+          "umbrella_thorn": 64
+        },
+        "cemeteryPreferred": "mediterranean_cypress",
+        "savedPlantingPreserved": true
+      },
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 54,
+          "triangles": 111681,
+          "calls": 8,
+          "shadowTriangles": 49638,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 54,
+          "detailedTriangles": 111537,
+          "detailedSpecies": [
+            "umbrella_thorn",
+            "date_palm"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 54,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.2679088946897621,
+          "duplicates": 0,
+          "visibleInstances": 54,
+          "variants": [
+            "tree.date-palm@medium#codex-gpt-6.1-sol",
+            "tree.umbrella-thorn@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 111681,
+          "candidateSha256": "8d4bceedbce070dda31472d0ddb727424ee99b711d3dfb3823d832802976d9d5",
+          "placementSha256": "9c2c31f97be55673ca8689c80cc9601c40f4639632334ad4073b53c20c12f054"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 52,
+          "triangles": 180339,
+          "calls": 10,
+          "shadowTriangles": 49136,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 52,
+          "detailedTriangles": 180195,
+          "detailedSpecies": [
+            "umbrella_thorn",
+            "date_palm"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 30,
+            "high": 22,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.2679088946897621,
+          "duplicates": 0,
+          "visibleInstances": 52,
+          "variants": [
+            "tree.date-palm@high#codex-gpt-6.1-sol",
+            "tree.date-palm@medium#codex-gpt-6.1-sol",
+            "tree.umbrella-thorn@high#codex-gpt-6.1-sol",
+            "tree.umbrella-thorn@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 180339,
+          "candidateSha256": "8d4bceedbce070dda31472d0ddb727424ee99b711d3dfb3823d832802976d9d5",
+          "placementSha256": "f0dc7a3442a816e439b874b6d84d1e6c5172b003f6db26a1576183d0dba0e8e1"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 26,
+          "triangles": 180188,
+          "calls": 9,
+          "shadowTriangles": 48204,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 26,
+          "detailedTriangles": 180044,
+          "detailedSpecies": [
+            "umbrella_thorn",
+            "date_palm"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 20,
+            "ultra": 6
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.2679088946897621,
+          "duplicates": 0,
+          "visibleInstances": 26,
+          "variants": [
+            "tree.date-palm@high#codex-gpt-6.1-sol",
+            "tree.date-palm@ultra#claude-opus-5.5",
+            "tree.umbrella-thorn@high#codex-gpt-6.1-sol",
+            "tree.umbrella-thorn@ultra#claude-opus-5.5"
+          ],
+          "renderedTriangles": 180188,
+          "candidateSha256": "8d4bceedbce070dda31472d0ddb727424ee99b711d3dfb3823d832802976d9d5",
+          "placementSha256": "0a4709477922d15d07e0eb4334e4a8ac763da753ea89c7017786a9f3829e0fd4"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "tropicalSeasonalForest",
+      "density": "standard",
+      "expected": [
+        "umbrella_thorn",
+        "date_palm"
+      ],
+      "speciesCounts": {
+        "date_palm": 18,
+        "umbrella_thorn": 46
+      },
+      "policy": {
+        "defaultForestFaces": 0,
+        "modes": {
+          "legacy": 0,
+          "farmland": 26,
+          "surroundings": 51
+        },
+        "manualForestFaces": 1,
+        "manualIsRequestedFace": true,
+        "protectedFaces": 6,
+        "parkSpecies": {
+          "date_palm": 18,
+          "umbrella_thorn": 46
+        },
+        "cemeterySpecies": {
+          "umbrella_thorn": 64
+        },
+        "cemeteryPreferred": "mediterranean_cypress",
+        "savedPlantingPreserved": true
+      },
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 86,
+          "triangles": 178302,
+          "calls": 8,
+          "shadowTriangles": 49071,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 86,
+          "detailedTriangles": 178158,
+          "detailedSpecies": [
+            "umbrella_thorn",
+            "date_palm"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 86,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.1276269542519004,
+          "duplicates": 0,
+          "visibleInstances": 86,
+          "variants": [
+            "tree.date-palm@medium#codex-gpt-6.1-sol",
+            "tree.umbrella-thorn@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 178302,
+          "candidateSha256": "7f992bd772f8bb87a8975f9df0550d781af9119ff58d583ad04d8566eb64a5c5",
+          "placementSha256": "a48bd1780b57c2739a74bcc3a282288a98fc1282edcd23902edef0ae948c2571"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 84,
+          "triangles": 298629,
+          "calls": 11,
+          "shadowTriangles": 49366,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 84,
+          "detailedTriangles": 298485,
+          "detailedSpecies": [
+            "umbrella_thorn",
+            "date_palm"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 47,
+            "high": 37,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.1276269542519004,
+          "duplicates": 0,
+          "visibleInstances": 84,
+          "variants": [
+            "tree.date-palm@high#codex-gpt-6.1-sol",
+            "tree.date-palm@medium#codex-gpt-6.1-sol",
+            "tree.umbrella-thorn@high#codex-gpt-6.1-sol",
+            "tree.umbrella-thorn@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 298629,
+          "candidateSha256": "7f992bd772f8bb87a8975f9df0550d781af9119ff58d583ad04d8566eb64a5c5",
+          "placementSha256": "7fc04a58b697da304f40ae718d14b60cbbc8901c64a6f468076bcfd226f0fc53"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 43,
+          "triangles": 295476,
+          "calls": 10,
+          "shadowTriangles": 48204,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 43,
+          "detailedTriangles": 295332,
+          "detailedSpecies": [
+            "umbrella_thorn",
+            "date_palm"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 34,
+            "ultra": 9
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.1276269542519004,
+          "duplicates": 0,
+          "visibleInstances": 43,
+          "variants": [
+            "tree.date-palm@high#codex-gpt-6.1-sol",
+            "tree.date-palm@ultra#claude-opus-5.5",
+            "tree.umbrella-thorn@high#codex-gpt-6.1-sol",
+            "tree.umbrella-thorn@ultra#claude-opus-5.5"
+          ],
+          "renderedTriangles": 295476,
+          "candidateSha256": "7f992bd772f8bb87a8975f9df0550d781af9119ff58d583ad04d8566eb64a5c5",
+          "placementSha256": "245c18b275d723fc6c0b3f21f2e6c41540ba1845d5a9b97e6a15b533f55e0a21"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "mediterraneanWoodlandScrub",
+      "density": "sparse",
+      "expected": [
+        "olive"
+      ],
+      "speciesCounts": {
+        "olive": 64
+      },
+      "policy": {
+        "defaultForestFaces": 0,
+        "modes": {
+          "legacy": 0,
+          "farmland": 26,
+          "surroundings": 51
+        },
+        "manualForestFaces": 1,
+        "manualIsRequestedFace": true,
+        "protectedFaces": 6,
+        "parkSpecies": {
+          "olive": 64
+        },
+        "cemeterySpecies": {
+          "mediterranean_cypress": 64
+        },
+        "cemeteryPreferred": "mediterranean_cypress",
+        "savedPlantingPreserved": true
+      },
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 54,
+          "triangles": 72342,
+          "calls": 6,
+          "shadowTriangles": 49469,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 54,
+          "detailedTriangles": 72198,
+          "detailedSpecies": [
+            "olive"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 54,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.2679088946897621,
+          "duplicates": 0,
+          "visibleInstances": 54,
+          "variants": [
+            "tree.olive@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 72342,
+          "candidateSha256": "8d4bceedbce070dda31472d0ddb727424ee99b711d3dfb3823d832802976d9d5",
+          "placementSha256": "2f793bb62d3409a2d2fe3fcd054e4aa11941c95df23824e25877c262785fb090"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 52,
+          "triangles": 233720,
+          "calls": 8,
+          "shadowTriangles": 49756,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 52,
+          "detailedTriangles": 233576,
+          "detailedSpecies": [
+            "olive"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 31,
+            "high": 21,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.2679088946897621,
+          "duplicates": 0,
+          "visibleInstances": 52,
+          "variants": [
+            "tree.olive@high#codex-gpt-6.1-sol",
+            "tree.olive@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 233720,
+          "candidateSha256": "8d4bceedbce070dda31472d0ddb727424ee99b711d3dfb3823d832802976d9d5",
+          "placementSha256": "e7500b2bf00e9c9d3c9718f77030408f472447ab896b30502d2502a8683bf45f"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 25,
+          "triangles": 308579,
+          "calls": 8,
+          "shadowTriangles": 43389,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 25,
+          "detailedTriangles": 308435,
+          "detailedSpecies": [
+            "olive"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 20,
+            "ultra": 5
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.2679088946897621,
+          "duplicates": 0,
+          "visibleInstances": 25,
+          "variants": [
+            "tree.olive@high#codex-gpt-6.1-sol",
+            "tree.olive@ultra#claude-opus-5.5"
+          ],
+          "renderedTriangles": 308579,
+          "candidateSha256": "8d4bceedbce070dda31472d0ddb727424ee99b711d3dfb3823d832802976d9d5",
+          "placementSha256": "78515058c3d373a427a39207ef00101606aa610cbe93e1beacb88cb2d46fa9e3"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "mediterraneanWoodlandScrub",
+      "density": "standard",
+      "expected": [
+        "olive"
+      ],
+      "speciesCounts": {
+        "olive": 64
+      },
+      "policy": {
+        "defaultForestFaces": 0,
+        "modes": {
+          "legacy": 0,
+          "farmland": 26,
+          "surroundings": 51
+        },
+        "manualForestFaces": 1,
+        "manualIsRequestedFace": true,
+        "protectedFaces": 6,
+        "parkSpecies": {
+          "olive": 64
+        },
+        "cemeterySpecies": {
+          "mediterranean_cypress": 64
+        },
+        "cemeteryPreferred": "mediterranean_cypress",
+        "savedPlantingPreserved": true
+      },
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 86,
+          "triangles": 115126,
+          "calls": 6,
+          "shadowTriangles": 49469,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 86,
+          "detailedTriangles": 114982,
+          "detailedSpecies": [
+            "olive"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 86,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.1276269542519004,
+          "duplicates": 0,
+          "visibleInstances": 86,
+          "variants": [
+            "tree.olive@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 115126,
+          "candidateSha256": "7f992bd772f8bb87a8975f9df0550d781af9119ff58d583ad04d8566eb64a5c5",
+          "placementSha256": "f1138c6ee0f2fabf781218f8f3dc35e1c1acf1c7822f1af5f5fe9fc0e7996269"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 84,
+          "triangles": 393684,
+          "calls": 8,
+          "shadowTriangles": 49756,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 84,
+          "detailedTriangles": 393540,
+          "detailedSpecies": [
+            "olive"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 48,
+            "high": 36,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.1276269542519004,
+          "duplicates": 0,
+          "visibleInstances": 84,
+          "variants": [
+            "tree.olive@high#codex-gpt-6.1-sol",
+            "tree.olive@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 393684,
+          "candidateSha256": "7f992bd772f8bb87a8975f9df0550d781af9119ff58d583ad04d8566eb64a5c5",
+          "placementSha256": "5193c7c8c2be571a2db4a9839273625279e1b70bdb0db916e991f24176fcf573"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 41,
+          "triangles": 502789,
+          "calls": 8,
+          "shadowTriangles": 43389,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 41,
+          "detailedTriangles": 502645,
+          "detailedSpecies": [
+            "olive"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 33,
+            "ultra": 8
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.1276269542519004,
+          "duplicates": 0,
+          "visibleInstances": 41,
+          "variants": [
+            "tree.olive@high#codex-gpt-6.1-sol",
+            "tree.olive@ultra#claude-opus-5.5"
+          ],
+          "renderedTriangles": 502789,
+          "candidateSha256": "7f992bd772f8bb87a8975f9df0550d781af9119ff58d583ad04d8566eb64a5c5",
+          "placementSha256": "97ca733fd06500b874d50ba86801ccfb916178ef98d18f4b04cb3d159edf2305"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "xericShrubland",
+      "density": "sparse",
+      "expected": [
+        "tamarisk",
+        "date_palm"
+      ],
+      "speciesCounts": {
+        "date_palm": 18,
+        "tamarisk": 46
+      },
+      "policy": {
+        "defaultForestFaces": 0,
+        "modes": {
+          "legacy": 0,
+          "farmland": 26,
+          "surroundings": 51
+        },
+        "manualForestFaces": 1,
+        "manualIsRequestedFace": true,
+        "protectedFaces": 6,
+        "parkSpecies": {
+          "date_palm": 18,
+          "tamarisk": 46
+        },
+        "cemeterySpecies": {
+          "tamarisk": 64
+        },
+        "cemeteryPreferred": "mediterranean_cypress",
+        "savedPlantingPreserved": true
+      },
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 54,
+          "triangles": 141355,
+          "calls": 8,
+          "shadowTriangles": 48976,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 54,
+          "detailedTriangles": 141211,
+          "detailedSpecies": [
+            "tamarisk",
+            "date_palm"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 54,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.2679088946897621,
+          "duplicates": 0,
+          "visibleInstances": 54,
+          "variants": [
+            "tree.date-palm@medium#codex-gpt-6.1-sol",
+            "tree.tamarisk@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 141355,
+          "candidateSha256": "8d4bceedbce070dda31472d0ddb727424ee99b711d3dfb3823d832802976d9d5",
+          "placementSha256": "0f392bd9c9316af0f77b366fdfde02298dbc330f0f3d69552ab2406070c6c621"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 52,
+          "triangles": 197489,
+          "calls": 10,
+          "shadowTriangles": 48596,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 52,
+          "detailedTriangles": 197345,
+          "detailedSpecies": [
+            "tamarisk",
+            "date_palm"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 30,
+            "high": 22,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.2679088946897621,
+          "duplicates": 0,
+          "visibleInstances": 52,
+          "variants": [
+            "tree.date-palm@high#codex-gpt-6.1-sol",
+            "tree.date-palm@medium#codex-gpt-6.1-sol",
+            "tree.tamarisk@high#codex-gpt-6.1-sol",
+            "tree.tamarisk@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 197489,
+          "candidateSha256": "8d4bceedbce070dda31472d0ddb727424ee99b711d3dfb3823d832802976d9d5",
+          "placementSha256": "e8cd7b57ba71070e0e7ee1633533d5d040c70296f2b07cd0622ce811d5bd577b"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 26,
+          "triangles": 158756,
+          "calls": 11,
+          "shadowTriangles": 47780,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 26,
+          "detailedTriangles": 158612,
+          "detailedSpecies": [
+            "tamarisk",
+            "date_palm"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 20,
+            "ultra": 6
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.2679088946897621,
+          "duplicates": 0,
+          "visibleInstances": 26,
+          "variants": [
+            "tree.date-palm@high#codex-gpt-6.1-sol",
+            "tree.date-palm@ultra#claude-opus-5.5",
+            "tree.tamarisk@high#codex-gpt-6.1-sol",
+            "tree.tamarisk@ultra#claude-opus-5.5"
+          ],
+          "renderedTriangles": 158756,
+          "candidateSha256": "8d4bceedbce070dda31472d0ddb727424ee99b711d3dfb3823d832802976d9d5",
+          "placementSha256": "da9d3c43a77dcd968e63c5b2fb51436b8439986bc6e5fd5e6e23d8934d494c84"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "xericShrubland",
+      "density": "standard",
+      "expected": [
+        "tamarisk",
+        "date_palm"
+      ],
+      "speciesCounts": {
+        "date_palm": 18,
+        "tamarisk": 46
+      },
+      "policy": {
+        "defaultForestFaces": 0,
+        "modes": {
+          "legacy": 0,
+          "farmland": 26,
+          "surroundings": 51
+        },
+        "manualForestFaces": 1,
+        "manualIsRequestedFace": true,
+        "protectedFaces": 6,
+        "parkSpecies": {
+          "date_palm": 18,
+          "tamarisk": 46
+        },
+        "cemeterySpecies": {
+          "tamarisk": 64
+        },
+        "cemeteryPreferred": "mediterranean_cypress",
+        "savedPlantingPreserved": true
+      },
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 86,
+          "triangles": 224818,
+          "calls": 8,
+          "shadowTriangles": 48976,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 86,
+          "detailedTriangles": 224674,
+          "detailedSpecies": [
+            "tamarisk",
+            "date_palm"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 86,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.1276269542519004,
+          "duplicates": 0,
+          "visibleInstances": 86,
+          "variants": [
+            "tree.date-palm@medium#codex-gpt-6.1-sol",
+            "tree.tamarisk@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 224818,
+          "candidateSha256": "7f992bd772f8bb87a8975f9df0550d781af9119ff58d583ad04d8566eb64a5c5",
+          "placementSha256": "f737819378fe533401a2267fd6811fa087e9918b5d2a2c300859dbf4a06697d7"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 84,
+          "triangles": 324431,
+          "calls": 11,
+          "shadowTriangles": 48934,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 84,
+          "detailedTriangles": 324287,
+          "detailedSpecies": [
+            "tamarisk",
+            "date_palm"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 47,
+            "high": 37,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.1276269542519004,
+          "duplicates": 0,
+          "visibleInstances": 84,
+          "variants": [
+            "tree.date-palm@high#codex-gpt-6.1-sol",
+            "tree.date-palm@medium#codex-gpt-6.1-sol",
+            "tree.tamarisk@high#codex-gpt-6.1-sol",
+            "tree.tamarisk@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 324431,
+          "candidateSha256": "7f992bd772f8bb87a8975f9df0550d781af9119ff58d583ad04d8566eb64a5c5",
+          "placementSha256": "51a493395d1bbb5d97eb894f8931b7f1452e823fa65caffdd33cacb4bd3f66f6"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 43,
+          "triangles": 259792,
+          "calls": 9,
+          "shadowTriangles": 46916,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 43,
+          "detailedTriangles": 259648,
+          "detailedSpecies": [
+            "tamarisk",
+            "date_palm"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 34,
+            "ultra": 9
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.1276269542519004,
+          "duplicates": 0,
+          "visibleInstances": 43,
+          "variants": [
+            "tree.date-palm@high#codex-gpt-6.1-sol",
+            "tree.date-palm@ultra#claude-opus-5.5",
+            "tree.tamarisk@high#codex-gpt-6.1-sol",
+            "tree.tamarisk@ultra#claude-opus-5.5"
+          ],
+          "renderedTriangles": 259792,
+          "candidateSha256": "7f992bd772f8bb87a8975f9df0550d781af9119ff58d583ad04d8566eb64a5c5",
+          "placementSha256": "a2ec74337f6ac67cccc2e25c99c914808cb71557b9ba09b9239a183a2aa66297"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "coldSteppe",
+      "density": "sparse",
+      "expected": [
+        "saxaul"
+      ],
+      "speciesCounts": {
+        "saxaul": 64
+      },
+      "policy": {
+        "defaultForestFaces": 0,
+        "modes": {
+          "legacy": 0,
+          "farmland": 26,
+          "surroundings": 51
+        },
+        "manualForestFaces": 1,
+        "manualIsRequestedFace": true,
+        "protectedFaces": 6,
+        "parkSpecies": {
+          "saxaul": 64
+        },
+        "cemeterySpecies": {
+          "saxaul": 64
+        },
+        "cemeteryPreferred": "mediterranean_cypress",
+        "savedPlantingPreserved": true
+      },
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 54,
+          "triangles": 85572,
+          "calls": 6,
+          "shadowTriangles": 49042,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 54,
+          "detailedTriangles": 85428,
+          "detailedSpecies": [
+            "saxaul"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 54,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.2679088946897621,
+          "duplicates": 0,
+          "visibleInstances": 54,
+          "variants": [
+            "tree.saxaul@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 85572,
+          "candidateSha256": "8d4bceedbce070dda31472d0ddb727424ee99b711d3dfb3823d832802976d9d5",
+          "placementSha256": "4e27f0e5581da1c2c0888765c0c2a9d78fb9c51bd506c1ce6205a1dcab3d207b"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 52,
+          "triangles": 137806,
+          "calls": 8,
+          "shadowTriangles": 49584,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 52,
+          "detailedTriangles": 137662,
+          "detailedSpecies": [
+            "saxaul"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 31,
+            "high": 21,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.2679088946897621,
+          "duplicates": 0,
+          "visibleInstances": 52,
+          "variants": [
+            "tree.saxaul@high#codex-gpt-6.1-sol",
+            "tree.saxaul@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 137806,
+          "candidateSha256": "8d4bceedbce070dda31472d0ddb727424ee99b711d3dfb3823d832802976d9d5",
+          "placementSha256": "cf1ce5572c30f950989cce6fba9b63e717c4cc6b21af9335d4b9624e3876c743"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 26,
+          "triangles": 122536,
+          "calls": 8,
+          "shadowTriangles": 46428,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 26,
+          "detailedTriangles": 122392,
+          "detailedSpecies": [
+            "saxaul"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 20,
+            "ultra": 6
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.2679088946897621,
+          "duplicates": 0,
+          "visibleInstances": 26,
+          "variants": [
+            "tree.saxaul@high#codex-gpt-6.1-sol",
+            "tree.saxaul@ultra#claude-opus-5.5"
+          ],
+          "renderedTriangles": 122536,
+          "candidateSha256": "8d4bceedbce070dda31472d0ddb727424ee99b711d3dfb3823d832802976d9d5",
+          "placementSha256": "f620e69e7738adef00de78a2916e747fa0f0ea5b171be5882e2302b50209bd10"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "coldSteppe",
+      "density": "standard",
+      "expected": [
+        "saxaul"
+      ],
+      "speciesCounts": {
+        "saxaul": 64
+      },
+      "policy": {
+        "defaultForestFaces": 0,
+        "modes": {
+          "legacy": 0,
+          "farmland": 26,
+          "surroundings": 51
+        },
+        "manualForestFaces": 1,
+        "manualIsRequestedFace": true,
+        "protectedFaces": 6,
+        "parkSpecies": {
+          "saxaul": 64
+        },
+        "cemeterySpecies": {
+          "saxaul": 64
+        },
+        "cemeteryPreferred": "mediterranean_cypress",
+        "savedPlantingPreserved": true
+      },
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 86,
+          "triangles": 136196,
+          "calls": 6,
+          "shadowTriangles": 49042,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 86,
+          "detailedTriangles": 136052,
+          "detailedSpecies": [
+            "saxaul"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 86,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.1276269542519004,
+          "duplicates": 0,
+          "visibleInstances": 86,
+          "variants": [
+            "tree.saxaul@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 136196,
+          "candidateSha256": "7f992bd772f8bb87a8975f9df0550d781af9119ff58d583ad04d8566eb64a5c5",
+          "placementSha256": "60196204c5f592730f0e6d6c0daa6f55ba7171da8f6c4dfc8af218be1528f715"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 84,
+          "triangles": 228000,
+          "calls": 8,
+          "shadowTriangles": 49584,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 84,
+          "detailedTriangles": 227856,
+          "detailedSpecies": [
+            "saxaul"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 48,
+            "high": 36,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.1276269542519004,
+          "duplicates": 0,
+          "visibleInstances": 84,
+          "variants": [
+            "tree.saxaul@high#codex-gpt-6.1-sol",
+            "tree.saxaul@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 228000,
+          "candidateSha256": "7f992bd772f8bb87a8975f9df0550d781af9119ff58d583ad04d8566eb64a5c5",
+          "placementSha256": "2cea9cbc15b158bc82e4aa5786d34c0261eab6f18d23d2d4f09f651faef1b649"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 42,
+          "triangles": 196392,
+          "calls": 8,
+          "shadowTriangles": 46432,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 42,
+          "detailedTriangles": 196248,
+          "detailedSpecies": [
+            "saxaul"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 33,
+            "ultra": 9
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.1276269542519004,
+          "duplicates": 0,
+          "visibleInstances": 42,
+          "variants": [
+            "tree.saxaul@high#codex-gpt-6.1-sol",
+            "tree.saxaul@ultra#claude-opus-5.5"
+          ],
+          "renderedTriangles": 196392,
+          "candidateSha256": "7f992bd772f8bb87a8975f9df0550d781af9119ff58d583ad04d8566eb64a5c5",
+          "placementSha256": "4d87cfc868ec365b1b4f1bc73b20616e7a3d8ff970d62fa46fed2a800a25c3b9"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "tropicalDryForest",
+      "density": "sparse",
+      "expected": [
+        "umbrella_thorn",
+        "date_palm"
+      ],
+      "speciesCounts": {
+        "date_palm": 18,
+        "umbrella_thorn": 46
+      },
+      "policy": {
+        "defaultForestFaces": 0,
+        "modes": {
+          "legacy": 0,
+          "farmland": 26,
+          "surroundings": 51
+        },
+        "manualForestFaces": 1,
+        "manualIsRequestedFace": true,
+        "protectedFaces": 6,
+        "parkSpecies": {
+          "date_palm": 18,
+          "umbrella_thorn": 46
+        },
+        "cemeterySpecies": {
+          "umbrella_thorn": 64
+        },
+        "cemeteryPreferred": "mediterranean_cypress",
+        "savedPlantingPreserved": true
+      },
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 54,
+          "triangles": 111681,
+          "calls": 8,
+          "shadowTriangles": 49638,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 54,
+          "detailedTriangles": 111537,
+          "detailedSpecies": [
+            "umbrella_thorn",
+            "date_palm"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 54,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.2679088946897621,
+          "duplicates": 0,
+          "visibleInstances": 54,
+          "variants": [
+            "tree.date-palm@medium#codex-gpt-6.1-sol",
+            "tree.umbrella-thorn@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 111681,
+          "candidateSha256": "8d4bceedbce070dda31472d0ddb727424ee99b711d3dfb3823d832802976d9d5",
+          "placementSha256": "9c2c31f97be55673ca8689c80cc9601c40f4639632334ad4073b53c20c12f054"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 52,
+          "triangles": 180339,
+          "calls": 10,
+          "shadowTriangles": 49136,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 52,
+          "detailedTriangles": 180195,
+          "detailedSpecies": [
+            "umbrella_thorn",
+            "date_palm"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 30,
+            "high": 22,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.2679088946897621,
+          "duplicates": 0,
+          "visibleInstances": 52,
+          "variants": [
+            "tree.date-palm@high#codex-gpt-6.1-sol",
+            "tree.date-palm@medium#codex-gpt-6.1-sol",
+            "tree.umbrella-thorn@high#codex-gpt-6.1-sol",
+            "tree.umbrella-thorn@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 180339,
+          "candidateSha256": "8d4bceedbce070dda31472d0ddb727424ee99b711d3dfb3823d832802976d9d5",
+          "placementSha256": "f0dc7a3442a816e439b874b6d84d1e6c5172b003f6db26a1576183d0dba0e8e1"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 26,
+          "triangles": 180188,
+          "calls": 9,
+          "shadowTriangles": 48204,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 26,
+          "detailedTriangles": 180044,
+          "detailedSpecies": [
+            "umbrella_thorn",
+            "date_palm"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 20,
+            "ultra": 6
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.2679088946897621,
+          "duplicates": 0,
+          "visibleInstances": 26,
+          "variants": [
+            "tree.date-palm@high#codex-gpt-6.1-sol",
+            "tree.date-palm@ultra#claude-opus-5.5",
+            "tree.umbrella-thorn@high#codex-gpt-6.1-sol",
+            "tree.umbrella-thorn@ultra#claude-opus-5.5"
+          ],
+          "renderedTriangles": 180188,
+          "candidateSha256": "8d4bceedbce070dda31472d0ddb727424ee99b711d3dfb3823d832802976d9d5",
+          "placementSha256": "0a4709477922d15d07e0eb4334e4a8ac763da753ea89c7017786a9f3829e0fd4"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    },
+    {
+      "key": "tropicalDryForest",
+      "density": "standard",
+      "expected": [
+        "umbrella_thorn",
+        "date_palm"
+      ],
+      "speciesCounts": {
+        "date_palm": 18,
+        "umbrella_thorn": 46
+      },
+      "policy": {
+        "defaultForestFaces": 0,
+        "modes": {
+          "legacy": 0,
+          "farmland": 26,
+          "surroundings": 51
+        },
+        "manualForestFaces": 1,
+        "manualIsRequestedFace": true,
+        "protectedFaces": 6,
+        "parkSpecies": {
+          "date_palm": 18,
+          "umbrella_thorn": 46
+        },
+        "cemeterySpecies": {
+          "umbrella_thorn": 64
+        },
+        "cemeteryPreferred": "mediterranean_cypress",
+        "savedPlantingPreserved": true
+      },
+      "frames": [
+        {
+          "view": "overview",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 0,
+          "middleChunks": 4,
+          "trees": 86,
+          "triangles": 178302,
+          "calls": 8,
+          "shadowTriangles": 49071,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 86,
+          "detailedTriangles": 178158,
+          "detailedSpecies": [
+            "umbrella_thorn",
+            "date_palm"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 86,
+            "high": 0,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.1276269542519004,
+          "duplicates": 0,
+          "visibleInstances": 86,
+          "variants": [
+            "tree.date-palm@medium#codex-gpt-6.1-sol",
+            "tree.umbrella-thorn@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 178302,
+          "candidateSha256": "7f992bd772f8bb87a8975f9df0550d781af9119ff58d583ad04d8566eb64a5c5",
+          "placementSha256": "a48bd1780b57c2739a74bcc3a282288a98fc1282edcd23902edef0ae948c2571"
+        },
+        {
+          "view": "edge",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 2,
+          "middleChunks": 2,
+          "trees": 84,
+          "triangles": 298629,
+          "calls": 11,
+          "shadowTriangles": 49366,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 84,
+          "detailedTriangles": 298485,
+          "detailedSpecies": [
+            "umbrella_thorn",
+            "date_palm"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 47,
+            "high": 37,
+            "ultra": 0
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.1276269542519004,
+          "duplicates": 0,
+          "visibleInstances": 84,
+          "variants": [
+            "tree.date-palm@high#codex-gpt-6.1-sol",
+            "tree.date-palm@medium#codex-gpt-6.1-sol",
+            "tree.umbrella-thorn@high#codex-gpt-6.1-sol",
+            "tree.umbrella-thorn@medium#codex-gpt-6.1-sol"
+          ],
+          "renderedTriangles": 298629,
+          "candidateSha256": "7f992bd772f8bb87a8975f9df0550d781af9119ff58d583ad04d8566eb64a5c5",
+          "placementSha256": "7fc04a58b697da304f40ae718d14b60cbbc8901c64a6f468076bcfd226f0fc53"
+        },
+        {
+          "view": "low",
+          "quality": "standard",
+          "areaM2": 8832.000000000004,
+          "chunks": 4,
+          "visibleChunks": 4,
+          "nearChunks": 4,
+          "middleChunks": 0,
+          "trees": 43,
+          "triangles": 295476,
+          "calls": 10,
+          "shadowTriangles": 48204,
+          "cachedLayers": 4,
+          "globalFallback": false,
+          "detailedTrees": 43,
+          "detailedTriangles": 295332,
+          "detailedSpecies": [
+            "umbrella_thorn",
+            "date_palm"
+          ],
+          "detailedTiers": {
+            "low": 0,
+            "medium": 0,
+            "high": 34,
+            "ultra": 9
+          },
+          "builds": 4,
+          "rootError": 2.622604364788117e-7,
+          "minCrownClearance": 0.1276269542519004,
+          "duplicates": 0,
+          "visibleInstances": 43,
+          "variants": [
+            "tree.date-palm@high#codex-gpt-6.1-sol",
+            "tree.date-palm@ultra#claude-opus-5.5",
+            "tree.umbrella-thorn@high#codex-gpt-6.1-sol",
+            "tree.umbrella-thorn@ultra#claude-opus-5.5"
+          ],
+          "renderedTriangles": 295476,
+          "candidateSha256": "7f992bd772f8bb87a8975f9df0550d781af9119ff58d583ad04d8566eb64a5c5",
+          "placementSha256": "245c18b275d723fc6c0b3f21f2e6c41540ba1845d5a9b97e6a15b533f55e0a21"
+        }
+      ],
+      "geometriesAfterDispose": 0
+    }
+  ],
+  "errors": []
+}
