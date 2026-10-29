@@ -1,11 +1,20 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
+import { createConiferCanopyLod } from "./coniferCanopyLod";
 import { createTreeBase } from "./treeBase";
+import type { TreeQuality } from "./treeQuality";
 
 /** Wet temperate trees: a fluted western red cedar and a multi-stemmed black alder of the carr. */
-export function createWetTemperateTree(species: "western_red_cedar" | "black_alder"): CityStructureMeshes {
+export function createWetTemperateTree(
+  species: "western_red_cedar" | "black_alder",
+  quality: TreeQuality = "ultra"
+): CityStructureMeshes {
   const cedar = species === "western_red_cedar";
+  const reduced =
+    cedar && (quality === "low" || quality === "medium")
+      ? createConiferCanopyLod(quality, { hue: 0.29, saturation: 0.42, lightness: 0.24 }, 43201, 1.05, 1.05)
+      : undefined;
   let seed = cedar ? 43201 : 43223;
   const random = () => {
     seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
@@ -39,12 +48,17 @@ export function createWetTemperateTree(species: "western_red_cedar" | "black_ald
     wood.push(flat);
   }
   function branch(a: THREE.Vector3, b: THREE.Vector3, bottom: number, top = bottom * 0.4, sides = 6) {
-    const geometry = new THREE.CylinderGeometry(top, bottom, a.distanceTo(b), sides);
+    if (reduced && (quality === "low" || bottom < 0.05)) return;
+    const geometry = new THREE.CylinderGeometry(top, bottom, a.distanceTo(b), reduced ? 4 : sides, 1, Boolean(reduced));
     geometry.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(up, b.clone().sub(a).normalize()));
     geometry.translate(...a.clone().add(b).multiplyScalar(0.5).toArray());
     timber(geometry);
   }
   function triangle(a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3, color: THREE.Color) {
+    if (reduced) {
+      reduced.triangle(a, b, c);
+      return;
+    }
     for (const v of [a, b, c]) {
       positions.push(v.x, v.y, v.z);
       colors.push(color.r, color.g, color.b);
@@ -59,7 +73,7 @@ export function createWetTemperateTree(species: "western_red_cedar" | "black_ald
     if (side.lengthSq() < 1e-8) side.set(1, 0, 0);
     side.normalize();
     const color = new THREE.Color().setHSL(0.27 + random() * 0.04, 0.42, 0.17 + random() * 0.1);
-    const steps = 7;
+    const steps = quality === "ultra" ? 7 : 3;
     for (let i = 0; i < steps; i++) {
       const t = i / steps,
         p = a.clone().addScaledVector(direction, length * t),
@@ -162,10 +176,12 @@ export function createWetTemperateTree(species: "western_red_cedar" | "black_ald
           spray(a, hang, 0.5 * (1 - t * 0.5));
         }
         spray(sag, tip.clone().addScaledVector(out, 0.35), 0.5 * (1 - t * 0.5));
+        reduced?.finishBranch(level);
       }
     }
     // The leader droops gently, as cedars' tops typically do.
     spray(new THREE.Vector3(0, height - 1.2, 0), new THREE.Vector3(0.35, height + 0.1, 0.1), 0.25);
+    reduced?.finishBranch(16);
   } else {
     timber(
       createTreeBase(
@@ -230,10 +246,12 @@ export function createWetTemperateTree(species: "western_red_cedar" | "black_ald
   }
   const barkGeometry = mergeGeometries(wood)!;
   for (const geometry of wood) geometry.dispose();
-  const foliage = new THREE.BufferGeometry();
-  foliage.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-  foliage.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
-  foliage.computeVertexNormals();
+  const foliage = reduced ? reduced.geometry() : new THREE.BufferGeometry();
+  if (!reduced) {
+    foliage.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    foliage.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+    foliage.computeVertexNormals();
+  }
   const barkMaterial = new THREE.MeshLambertMaterial({ vertexColors: true });
   const leafMaterial = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide });
   const trunk = new THREE.Mesh(barkGeometry, barkMaterial),
@@ -242,6 +260,7 @@ export function createWetTemperateTree(species: "western_red_cedar" | "black_ald
   crown.name = cedar ? "cedar-scale-leaf-sprays" : "alder-notched-leaves-and-cones";
   const group = new THREE.Group();
   group.name = species.replaceAll("_", "-");
+  if (cedar) group.userData.treeQuality = quality;
   group.add(trunk, crown);
   return {
     group,

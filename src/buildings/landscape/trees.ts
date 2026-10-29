@@ -104,10 +104,34 @@ export const TREE_DEFINITIONS: Record<TreeSpecies, TreeDefinition> = {
   umbrella_thorn: { create: () => createAridTree("umbrella_thorn") },
   saxaul: { create: () => createAridTree("saxaul") },
   kapok: { create: createKapok },
-  western_red_cedar: { create: () => createWetTemperateTree("western_red_cedar") },
+  western_red_cedar: {
+    lod: {
+      selection: "distance",
+      budget: "quality-first",
+      heightMeters: 18.5,
+      models: {
+        low: () => createWetTemperateTree("western_red_cedar", "low"),
+        medium: () => createWetTemperateTree("western_red_cedar", "medium"),
+        high: () => createWetTemperateTree("western_red_cedar", "high"),
+        ultra: () => createWetTemperateTree("western_red_cedar", "ultra")
+      }
+    }
+  },
   black_alder: { create: () => createWetTemperateTree("black_alder") },
   olive: { create: () => createMediterraneanMontaneTree("olive") },
-  silver_fir: { create: () => createMediterraneanMontaneTree("silver_fir") },
+  silver_fir: {
+    lod: {
+      selection: "distance",
+      budget: "quality-first",
+      heightMeters: 19.5,
+      models: {
+        low: () => createMediterraneanMontaneTree("silver_fir", "low"),
+        medium: () => createMediterraneanMontaneTree("silver_fir", "medium"),
+        high: () => createMediterraneanMontaneTree("silver_fir", "high"),
+        ultra: () => createMediterraneanMontaneTree("silver_fir", "ultra")
+      }
+    }
+  },
   red_mangrove: { create: () => createSaltTolerantTree("red_mangrove") },
   tamarisk: { create: () => createSaltTolerantTree("tamarisk") },
   rowan: { create: () => createUplandTree("rowan") },

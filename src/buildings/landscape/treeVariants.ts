@@ -52,42 +52,66 @@ function tieredVariants(species: TreeSpecies): ModelVariant[] {
   const comparisonMedium = COMPARISON_MEDIUM[species];
   const author = TREE_AUTHORS[species];
   const boreal = species === "norway_spruce" || species === "silver_birch";
-  const variants: ModelVariant[] = TREE_QUALITIES.map(level => ({
-    id: variantId(family, level, author),
-    family,
-    level,
-    author,
-    ...(boreal && level !== "ultra" ? { basedOn: [variantId(family, "ultra", author)] } : {}),
-    credits: boreal
-      ? [
-          {
-            author,
-            date: "2026-10-29",
-            note:
-              level === "ultra"
-                ? "Existing default model retained as the detailed reference"
-                : level === "high"
-                  ? "Reduced foliage on the unchanged ultra branch skeleton"
-                  : level === "medium"
-                    ? "Whorled needle sprays or fitted pendulous leaf lobes on structural limbs"
-                    : "Species-specific whorled or white-barked distant silhouette"
+  const conifer = species === "western_red_cedar" || species === "silver_fir";
+  const variants: ModelVariant[] = TREE_QUALITIES.map(level => {
+    const levelAuthor = conifer && level !== "ultra" ? "Codex GPT-6.1 Sol" : author;
+    return {
+      id: variantId(family, level, levelAuthor),
+      family,
+      level,
+      author: levelAuthor,
+      ...(boreal && level !== "ultra" ? { basedOn: [variantId(family, "ultra", author)] } : {}),
+      ...(conifer && level !== "ultra"
+        ? {
+            basedOn: [
+              variantId(family, level === "high" ? "ultra" : "high", level === "high" ? author : "Codex GPT-6.1 Sol")
+            ]
           }
-        ]
-      : comparisonMedium && level === "low"
+        : {}),
+      credits: conifer
         ? [
-            { ...TIERS_ADDED, note: "Seven-lobe canopy silhouette" },
             {
-              author: "Claude Opus 5.5",
+              author: levelAuthor,
               date: "2026-10-29",
-              note: "Crown-envelope normals, interior occlusion and leaf speckle; geometry unchanged",
-              commit: "eb36c33b8"
+              note:
+                level === "ultra"
+                  ? "Existing Opus default geometry retained as the ultra reference"
+                  : level === "high"
+                    ? "Reduced sprays on the original Opus branch skeleton, preserving its random sequence"
+                    : "Fitted high-tier spray vertices; shared canopy-envelope normals, vertex AO, tint variation and hidden-face removal"
             }
           ]
-        : comparisonMedium && level === "medium"
-          ? [{ ...TIERS_ADDED, note: "Twenty-four independent lobes on short branches" }]
-          : undefined,
-    create: () => (level === "medium" && comparisonMedium ? comparisonMedium() : createLandscapeTree(species, level))
-  }));
+        : boreal
+          ? [
+              {
+                author,
+                date: "2026-10-29",
+                note:
+                  level === "ultra"
+                    ? "Existing default model retained as the detailed reference"
+                    : level === "high"
+                      ? "Reduced foliage on the unchanged ultra branch skeleton"
+                      : level === "medium"
+                        ? "Whorled needle sprays or fitted pendulous leaf lobes on structural limbs"
+                        : "Species-specific whorled or white-barked distant silhouette"
+              }
+            ]
+          : comparisonMedium && level === "low"
+            ? [
+                { ...TIERS_ADDED, note: "Seven-lobe canopy silhouette" },
+                {
+                  author: "Claude Opus 5.5",
+                  date: "2026-10-29",
+                  note: "Crown-envelope normals, interior occlusion and leaf speckle; geometry unchanged",
+                  commit: "eb36c33b8"
+                }
+              ]
+            : comparisonMedium && level === "medium"
+              ? [{ ...TIERS_ADDED, note: "Twenty-four independent lobes on short branches" }]
+              : undefined,
+      create: () => (level === "medium" && comparisonMedium ? comparisonMedium() : createLandscapeTree(species, level))
+    };
+  });
   const high = variantId(family, "high", "Codex GPT-6.1 Sol");
   if (comparisonMedium)
     variants.splice(2, 0, {

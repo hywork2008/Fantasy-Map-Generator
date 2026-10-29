@@ -5,7 +5,7 @@ import { models } from "../medieval/43-landscape-treesModels";
 import { TREE_QUALITIES, treeQualityAtDistance, treeQualityAtPixels } from "./treeQuality";
 import { createLandscapeTree } from "./trees";
 
-it.each(["garden_parkland", "sacred_yew", "norway_spruce", "silver_birch"] as const)(
+it.each(["garden_parkland", "sacred_yew", "norway_spruce", "silver_birch", "western_red_cedar", "silver_fir"] as const)(
   "adopts four increasingly detailed, grounded %s levels from the BV variants",
   species => {
     const variants = models.find(model => model.id === species.replaceAll("_", "-"))!.variants!;
@@ -46,7 +46,7 @@ it("retains tiers across small pixel changes and responds to camera zoom", () =>
   expect(treeQualityAtPixels(65, "high")).toBe("medium");
 });
 
-it.each(["garden_parkland", "sacred_yew", "norway_spruce", "silver_birch"] as const)(
+it.each(["garden_parkland", "sacred_yew", "norway_spruce", "silver_birch", "western_red_cedar", "silver_fir"] as const)(
   "keeps structural branches fixed between high and ultra %s",
   species => {
     const high = createLandscapeTree(species, "high");

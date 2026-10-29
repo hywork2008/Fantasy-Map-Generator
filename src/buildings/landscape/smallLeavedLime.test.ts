@@ -32,11 +32,24 @@ it("retains foliage colors when CE batches park trees into instances", () => {
       { model: "garden_parkland", point: [10, 0], radius: 4, angle: 1 }
     ]
   });
-  expect(model.pickables).toHaveLength(2);
-  const foliage = model.pickables.find(mesh => (mesh.material as THREE.MeshLambertMaterial).vertexColors)!;
-  expect(foliage.geometry.getAttribute("color").count).toBe(foliage.geometry.getAttribute("position").count);
-  expect((foliage as THREE.InstancedMesh).count).toBe(2);
-  model.dispose();
+  try {
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
+    camera.position.set(5, 7, 30);
+    camera.lookAt(5, 6, 0);
+    model.update(camera, 720);
+    const drawn: THREE.InstancedMesh[] = [];
+    model.group.traverseVisible(object => {
+      if (object instanceof THREE.InstancedMesh && object.count) drawn.push(object);
+    });
+    expect(drawn).toHaveLength(1);
+    const foliage = drawn[0];
+    expect((foliage.material as THREE.MeshLambertMaterial).vertexColors).toBe(true);
+    expect(foliage.geometry.getAttribute("color").count).toBe(foliage.geometry.getAttribute("position").count);
+    expect(new Set(foliage.geometry.getAttribute("color").array).size).toBeGreaterThan(5);
+    expect(foliage.count).toBe(2);
+  } finally {
+    model.dispose();
+  }
 });
 
 it("covers the leader with a leafy upper crown instead of a hollow canopy ring", () => {

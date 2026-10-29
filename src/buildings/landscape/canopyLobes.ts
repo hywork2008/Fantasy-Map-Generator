@@ -4,6 +4,8 @@ import * as THREE from "three";
 export interface CanopyLobe {
   center: THREE.Vector3;
   radius: THREE.Vector3;
+  /** Fixed world-space orientation of an elongated spray, independent of the camera. */
+  rotationY?: number;
 }
 export interface CanopyPalette {
   hue: number;
@@ -12,7 +14,7 @@ export interface CanopyPalette {
 }
 
 /** Fit a lobe to the second moments of a spray, so a reduced tier occupies the same volume as its leaves. */
-export function fitCanopyLobe(points: readonly THREE.Vector3[], coverage = 1): CanopyLobe {
+export function fitCanopyLobe(points: readonly THREE.Vector3[], coverage = 1, alignHorizontal = false): CanopyLobe {
   const center = new THREE.Vector3();
   for (const point of points) center.add(point);
   center.divideScalar(Math.max(1, points.length));
@@ -26,6 +28,28 @@ export function fitCanopyLobe(points: readonly THREE.Vector3[], coverage = 1): C
   // A uniformly filled ellipsoid has E[x^2 + z^2] = 2a^2 / 5 and E[y^2] = b^2 / 5.
   const a = Math.sqrt((2.5 * horizontal) / n) * coverage,
     b = Math.sqrt((5 * vertical) / n) * coverage;
+  if (alignHorizontal) {
+    let xx = 0,
+      zz = 0,
+      xz = 0;
+    for (const point of points) {
+      const x = point.x - center.x,
+        z = point.z - center.z;
+      xx += x * x;
+      zz += z * z;
+      xz += x * z;
+    }
+    const spread = Math.hypot(xx - zz, 2 * xz);
+    return {
+      center,
+      radius: new THREE.Vector3(
+        Math.sqrt(5 * Math.max(1e-12, (xx + zz + spread) / (2 * n))) * coverage,
+        b,
+        Math.sqrt(5 * Math.max(1e-12, (xx + zz - spread) / (2 * n))) * coverage
+      ),
+      rotationY: -0.5 * Math.atan2(2 * xz, xx - zz)
+    };
+  }
   return { center, radius: new THREE.Vector3(a, b, a) };
 }
 
@@ -47,21 +71,32 @@ export function createCanopyLobes(
   const source = new THREE.IcosahedronGeometry(1, 0);
   const unit = source.getAttribute("position");
   const box = new THREE.Box3();
-  for (const { center, radius } of lobes) {
-    box.expandByPoint(center.clone().sub(radius));
-    box.expandByPoint(center.clone().add(radius));
+  for (const { center, radius, rotationY } of lobes) {
+    const extent =
+      rotationY === undefined
+        ? radius
+        : new THREE.Vector3(
+            Math.hypot(radius.x * Math.cos(rotationY), radius.z * Math.sin(rotationY)),
+            radius.y,
+            Math.hypot(radius.x * Math.sin(rotationY), radius.z * Math.cos(rotationY))
+          );
+    box.expandByPoint(center.clone().sub(extent));
+    box.expandByPoint(center.clone().add(extent));
   }
   const crownCenter = box.getCenter(new THREE.Vector3());
   const crownRadius = box.getSize(new THREE.Vector3()).multiplyScalar(0.5);
   const inside = (point: THREE.Vector3, skip: number) =>
-    lobes.some(
-      ({ center, radius }, i) =>
-        i !== skip &&
-        ((point.x - center.x) / radius.x) ** 2 +
-          ((point.y - center.y) / radius.y) ** 2 +
-          ((point.z - center.z) / radius.z) ** 2 <
-          0.92
-    );
+    lobes.some(({ center, radius, rotationY }, i) => {
+      if (i === skip) return false;
+      let x = point.x - center.x,
+        z = point.z - center.z;
+      if (rotationY !== undefined) {
+        const localX = x * Math.cos(rotationY) - z * Math.sin(rotationY);
+        z = x * Math.sin(rotationY) + z * Math.cos(rotationY);
+        x = localX;
+      }
+      return (x / radius.x) ** 2 + ((point.y - center.y) / radius.y) ** 2 + (z / radius.z) ** 2 < 0.92;
+    });
   const positions: number[] = [],
     normals: number[] = [],
     colors: number[] = [];
@@ -71,8 +106,9 @@ export function createCanopyLobes(
   const lobeNormal = new THREE.Vector3(),
     crownNormal = new THREE.Vector3(),
     relative = new THREE.Vector3(),
+    up = new THREE.Vector3(0, 1, 0),
     lift = new THREE.Vector3(0, 0.3, 0);
-  lobes.forEach(({ center, radius }, index) => {
+  lobes.forEach(({ center, radius, rotationY }, index) => {
     rotation.makeRotationY(random() * Math.PI * 2);
     const tint = (random() - 0.5) * 0.04;
     // Shared corners move together, so the jagged outline stays closed.
@@ -92,15 +128,18 @@ export function createCanopyLobes(
           .fromBufferAttribute(unit, i + j)
           .multiplyScalar(corner(i + j))
           .applyMatrix4(rotation)
-          .multiply(radius)
-          .add(center);
+          .multiply(radius);
+      if (rotationY !== undefined) for (const point of triangle) point.applyAxisAngle(up, rotationY);
+      for (const point of triangle) point.add(center);
       const hidden = triangle.every(point => inside(point, index));
       const speckle = random() - 0.5,
         hue = random() - 0.5;
       if (hidden) continue;
       for (const point of triangle) {
         relative.subVectors(point, center);
+        if (rotationY !== undefined) relative.applyAxisAngle(up, -rotationY);
         lobeNormal.set(relative.x / radius.x ** 2, relative.y / radius.y ** 2, relative.z / radius.z ** 2).normalize();
+        if (rotationY !== undefined) lobeNormal.applyAxisAngle(up, rotationY);
         relative.subVectors(point, crownCenter).divide(crownRadius);
         crownNormal.copy(relative).divide(crownRadius).normalize();
         // Lifting the normal stands in for light scattered through leaves, which keeps the underside from going black.

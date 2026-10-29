@@ -1,0 +1,1274 @@
+{
+  "measuredAt": "2026-10-29T00:02:37.903Z",
+  "conditions": "One CPU build per adopted model; no warm-up, frame timing, GPU memory or GPU rendering measured. bufferBytes counts source geometry attributes/indices only.",
+  "sourceSha256": {
+    "src/buildings/landscape/aridTrees.ts": "b644c26160e87f45376c756017ea0c6d6a32b2f144e48ab92042a9cdc4aaff27",
+    "src/buildings/landscape/borealTrees.ts": "d944525305bc7b664b73343069980269484f3b2f734f26ed51f301cef83ebba2",
+    "src/buildings/landscape/canopyLobes.ts": "3178e80c270f81e204a642d36af068987d2050d0c4b62f6f141e134f447ecb0b",
+    "src/buildings/landscape/cemeteryProps.ts": "7530be65226da4b756642f1f808eb6d0915dff5f9e67804e270446be3ff4b17f",
+    "src/buildings/landscape/coniferCanopyLod.ts": "95a40ad02877a6186c51d71ea66b3ff2212975a633c24d5b8dcbeac67c6d9b13",
+    "src/buildings/landscape/europeanYew.ts": "85a9dd6fc8251eea4fd6d24b9b441d2e5743c77b3259f00c79dfe58b466ab50e",
+    "src/buildings/landscape/mediterraneanMontaneTrees.ts": "7419d2e81fcbcd7f69ce5ae99a23e900508c541dd59618205f51385ea3e38c41",
+    "src/buildings/landscape/norwaySpruceOpus.ts": "7e6dae939d25405d18e15b63d17bbbfdd5fac592b7b9fe7c9eda78ca6506316e",
+    "src/buildings/landscape/rainforestTrees.ts": "f957428dbf657ba88765bef0ef756a43ca8cc4971de4b99a54b1c16c011fb47c",
+    "src/buildings/landscape/sacredGardenTrees.ts": "006634dc791c03ece41d75e4588f3037f711dc5517e9e78d1c8126413babdc23",
+    "src/buildings/landscape/saltTolerantTrees.ts": "984fb00e686014f45afd7dcc1a57dcf89241c6b970e7ef4cbe4a14c7b463403c",
+    "src/buildings/landscape/smallLeavedLime.ts": "6f7b72c8aa94598ac7c109438714d5549ae7b37eade115c0e0be57d2cd4e134a",
+    "src/buildings/landscape/smallLeavedLimeOpus.ts": "169e415060e7458b0e3173ba679d9c7eb01f2e512a0592e622e0248fd47a61d5",
+    "src/buildings/landscape/temperateTreeCodexMedium.ts": "c6f24b59e1ab147caf221b0cd2fd48a64a366d992a9f4c57f1a0ab4a792e630f",
+    "src/buildings/landscape/temperateTreeLod.ts": "7d5f63b7ded996694f429f4c5bb9d92f6ccc3e78c853213d63029f8b08828c3f",
+    "src/buildings/landscape/treeBase.ts": "5d588461cd7c3e2bf98509e10194cde3d9369cc7d7f393f2b7c3c3e9b418b30b",
+    "src/buildings/landscape/treeQuality.ts": "db1b78b50a515c3a1d3c1ff902a8a596a22fd9d8f04acee309d1f448063ad9a7",
+    "src/buildings/landscape/treeVariants.ts": "93eeaa5f2f3cf95e67ae3ad7fe39bd39ec0be08ac33ac5bf960366b5d3149ca5",
+    "src/buildings/landscape/trees.ts": "b4756f0e7f15a6866a4fff2ff11d2f64c3b1148b2d29ca9da45a570d13b4b9c8",
+    "src/buildings/landscape/uplandTrees.ts": "01f4feb652068d9c34323b0c1313b09395f2ffb25d981c2401ab10258d54257e",
+    "src/buildings/landscape/wetTemperateTrees.ts": "d823ffd45e2be19ab4b6cc7bf909dcebe4e9b8b4706448d9c73263500cb28eac",
+    "src/buildings/medieval/43-landscape-treesModels.ts": "ac38fc04fd713bc0d0443adf3c6a88073ada18bbec7177bd07d2243939d6d8fd",
+    "src/city3d/adoption.ts": "14d584dfba64e8f164b63fa477c125b6b22f68b46520c0b8635c76498720b9df",
+    "src/data/biomeCatalog.ts": "b7d37626815701313d61b22d9aa0d4265c93e68d30b5b4d2eb0be4cbb3a9d449"
+  },
+  "biomes": [
+    {
+      "key": "marine",
+      "tags": [
+        "marine"
+      ]
+    },
+    {
+      "key": "hotDesert",
+      "tags": [
+        "dry",
+        "desert",
+        "nomadic"
+      ]
+    },
+    {
+      "key": "coldDesert",
+      "tags": [
+        "dry",
+        "desert",
+        "cold",
+        "nomadic"
+      ]
+    },
+    {
+      "key": "savanna",
+      "tags": [
+        "dry",
+        "grassland",
+        "arable",
+        "nomadic",
+        "tropical"
+      ]
+    },
+    {
+      "key": "grassland",
+      "tags": [
+        "grassland",
+        "arable",
+        "nomadic"
+      ]
+    },
+    {
+      "key": "tropicalSeasonalForest",
+      "tags": [
+        "forest",
+        "arable",
+        "tropical"
+      ]
+    },
+    {
+      "key": "temperateDeciduousForest",
+      "tags": [
+        "forest",
+        "arable"
+      ]
+    },
+    {
+      "key": "tropicalRainforest",
+      "tags": [
+        "forest",
+        "tropical"
+      ]
+    },
+    {
+      "key": "temperateRainforest",
+      "tags": [
+        "forest"
+      ]
+    },
+    {
+      "key": "taiga",
+      "tags": [
+        "forest",
+        "cold"
+      ]
+    },
+    {
+      "key": "tundra",
+      "tags": [
+        "cold"
+      ]
+    },
+    {
+      "key": "glacier",
+      "tags": [
+        "cold",
+        "snow"
+      ]
+    },
+    {
+      "key": "wetland",
+      "tags": [
+        "wetland"
+      ]
+    },
+    {
+      "key": "centralEuropeanGreatForest",
+      "tags": [
+        "forest",
+        "arable"
+      ]
+    },
+    {
+      "key": "mediterraneanWoodlandScrub",
+      "tags": [
+        "dry",
+        "scrub",
+        "arable"
+      ]
+    },
+    {
+      "key": "temperateConiferousForest",
+      "tags": [
+        "forest"
+      ]
+    },
+    {
+      "key": "montaneForest",
+      "tags": [
+        "forest",
+        "mountain"
+      ]
+    },
+    {
+      "key": "alpineTundra",
+      "tags": [
+        "cold",
+        "mountain"
+      ]
+    },
+    {
+      "key": "mangrove",
+      "tags": [
+        "wetland",
+        "coastal",
+        "forest",
+        "tropical"
+      ]
+    },
+    {
+      "key": "xericShrubland",
+      "tags": [
+        "dry",
+        "scrub",
+        "nomadic"
+      ]
+    },
+    {
+      "key": "cloudForest",
+      "tags": [
+        "forest",
+        "mountain",
+        "tropical"
+      ]
+    },
+    {
+      "key": "heathMoorland",
+      "tags": [
+        "grassland",
+        "wetland"
+      ]
+    },
+    {
+      "key": "floodedForest",
+      "tags": [
+        "forest",
+        "wetland"
+      ]
+    },
+    {
+      "key": "coldSteppe",
+      "tags": [
+        "grassland",
+        "dry",
+        "nomadic"
+      ]
+    },
+    {
+      "key": "tropicalDryForest",
+      "tags": [
+        "forest",
+        "dry",
+        "tropical"
+      ]
+    },
+    {
+      "key": "borealPeatland",
+      "tags": [
+        "wetland",
+        "cold"
+      ]
+    },
+    {
+      "key": "volcanicBarrens",
+      "tags": [
+        "dry",
+        "mountain",
+        "volcanic"
+      ]
+    },
+    {
+      "key": "lavaField",
+      "tags": [
+        "dry",
+        "mountain",
+        "volcanic"
+      ]
+    },
+    {
+      "key": "volcanicSoil",
+      "tags": [
+        "arable",
+        "volcanic"
+      ]
+    }
+  ],
+  "models": [
+    {
+      "id": "garden-parkland",
+      "name": "Small-leaved lime · Tilia cordata",
+      "biomes": [
+        "temperateDeciduousForest",
+        "centralEuropeanGreatForest"
+      ]
+    },
+    {
+      "id": "norway-spruce",
+      "name": "Norway spruce · Picea abies",
+      "biomes": [
+        "taiga",
+        "temperateDeciduousForest"
+      ]
+    },
+    {
+      "id": "silver-birch",
+      "name": "Silver birch · Betula pendula",
+      "biomes": [
+        "taiga",
+        "temperateDeciduousForest"
+      ]
+    },
+    {
+      "id": "sacred-yew",
+      "name": "European yew · Taxus baccata",
+      "biomes": [
+        "temperateDeciduousForest",
+        "centralEuropeanGreatForest"
+      ]
+    },
+    {
+      "id": "date-palm",
+      "name": "Date palm · Phoenix dactylifera",
+      "biomes": [
+        "hotDesert",
+        "xericShrubland"
+      ]
+    },
+    {
+      "id": "umbrella-thorn",
+      "name": "Umbrella thorn acacia · Vachellia tortilis",
+      "biomes": [
+        "savanna",
+        "tropicalSeasonalForest",
+        "tropicalDryForest"
+      ]
+    },
+    {
+      "id": "saxaul",
+      "name": "Black saxaul · Haloxylon ammodendron",
+      "biomes": [
+        "coldDesert",
+        "coldSteppe"
+      ]
+    },
+    {
+      "id": "kapok",
+      "name": "Kapok · Ceiba pentandra",
+      "biomes": [
+        "tropicalRainforest",
+        "cloudForest",
+        "floodedForest"
+      ]
+    },
+    {
+      "id": "western-red-cedar",
+      "name": "Western red cedar · Thuja plicata",
+      "biomes": [
+        "temperateRainforest",
+        "temperateConiferousForest"
+      ]
+    },
+    {
+      "id": "black-alder",
+      "name": "Black alder · Alnus glutinosa",
+      "biomes": [
+        "wetland",
+        "floodedForest",
+        "borealPeatland"
+      ]
+    },
+    {
+      "id": "olive",
+      "name": "Olive · Olea europaea",
+      "biomes": [
+        "mediterraneanWoodlandScrub"
+      ]
+    },
+    {
+      "id": "silver-fir",
+      "name": "Silver fir · Abies alba",
+      "biomes": [
+        "montaneForest"
+      ]
+    },
+    {
+      "id": "red-mangrove",
+      "name": "Red mangrove · Rhizophora mangle",
+      "biomes": [
+        "mangrove"
+      ]
+    },
+    {
+      "id": "tamarisk",
+      "name": "Tamarisk · Tamarix gallica",
+      "biomes": [
+        "xericShrubland",
+        "hotDesert",
+        "coldSteppe"
+      ]
+    },
+    {
+      "id": "rowan",
+      "name": "Rowan · Sorbus aucuparia",
+      "biomes": [
+        "heathMoorland",
+        "alpineTundra"
+      ]
+    },
+    {
+      "id": "canary-pine",
+      "name": "Canary Island pine · Pinus canariensis",
+      "biomes": [
+        "volcanicBarrens",
+        "volcanicSoil"
+      ]
+    },
+    {
+      "id": "mediterranean-cypress",
+      "name": "Italian cypress · Cupressus sempervirens",
+      "biomes": []
+    },
+    {
+      "id": "oriental-evergreen",
+      "name": "Chinese arborvitae · Platycladus orientalis",
+      "biomes": []
+    },
+    {
+      "id": "sacred-bodhi-and-fig",
+      "name": "Sacred fig · Ficus religiosa",
+      "biomes": []
+    },
+    {
+      "id": "peaceful-willow",
+      "name": "Weeping willow · Salix babylonica",
+      "biomes": []
+    }
+  ],
+  "results": [
+    {
+      "species": "garden_parkland",
+      "quality": "low",
+      "variant": "tree.garden-parkland@low#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "triangles": 153,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 14832,
+      "bounds": {
+        "min": [
+          -4.315896511077881,
+          -0.3499999940395355,
+          -5.457488059997559
+        ],
+        "max": [
+          4.0335798263549805,
+          11.493958473205566,
+          4.310822010040283
+        ]
+      },
+      "buildMs": 2.883041999999989
+    },
+    {
+      "species": "garden_parkland",
+      "quality": "medium",
+      "variant": "tree.garden-parkland@medium#claude-opus-5.5",
+      "author": "Claude Opus 5.5",
+      "triangles": 1888,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 163320,
+      "bounds": {
+        "min": [
+          -5.753598690032959,
+          -0.3499999940395355,
+          -5.6494221687316895
+        ],
+        "max": [
+          5.131603717803955,
+          11.112615585327148,
+          5.638861179351807
+        ]
+      },
+      "buildMs": 19.327665999999994
+    },
+    {
+      "species": "garden_parkland",
+      "quality": "high",
+      "variant": "tree.garden-parkland@high#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "triangles": 21626,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 1949832,
+      "bounds": {
+        "min": [
+          -5.745062828063965,
+          -0.3499999940395355,
+          -5.374495983123779
+        ],
+        "max": [
+          5.10660457611084,
+          11.533796310424805,
+          5.75089168548584
+        ]
+      },
+      "buildMs": 18.131249999999994
+    },
+    {
+      "species": "garden_parkland",
+      "quality": "ultra",
+      "variant": "tree.garden-parkland@ultra#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "triangles": 84098,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 8696808,
+      "bounds": {
+        "min": [
+          -5.62857723236084,
+          -0.3499999940395355,
+          -5.301732063293457
+        ],
+        "max": [
+          4.987098693847656,
+          11.24359130859375,
+          5.595545291900635
+        ]
+      },
+      "buildMs": 26.14587499999999
+    },
+    {
+      "species": "norway_spruce",
+      "quality": "low",
+      "variant": "tree.norway-spruce@low#claude-opus-5.5~plate",
+      "author": "Claude Opus 5.5",
+      "triangles": 244,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 14760,
+      "bounds": {
+        "min": [
+          -1.9978654384613037,
+          -0.3499999940395355,
+          -2.144097089767456
+        ],
+        "max": [
+          2.182814598083496,
+          12,
+          2.112076759338379
+        ]
+      },
+      "buildMs": 0.6439169999999876
+    },
+    {
+      "species": "norway_spruce",
+      "quality": "medium",
+      "variant": "tree.norway-spruce@medium#claude-opus-5.5~plate",
+      "author": "Claude Opus 5.5",
+      "triangles": 1529,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 165132,
+      "bounds": {
+        "min": [
+          -2.249217987060547,
+          -0.3499999940395355,
+          -2.417870283126831
+        ],
+        "max": [
+          2.4707064628601074,
+          12,
+          2.4967141151428223
+        ]
+      },
+      "buildMs": 4.669166999999959
+    },
+    {
+      "species": "norway_spruce",
+      "quality": "high",
+      "variant": "tree.norway-spruce@high#claude-opus-5.5~plate",
+      "author": "Claude Opus 5.5",
+      "triangles": 6521,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 704268,
+      "bounds": {
+        "min": [
+          -2.249217987060547,
+          -0.3499999940395355,
+          -2.189373254776001
+        ],
+        "max": [
+          2.3483076095581055,
+          12,
+          2.228524923324585
+        ]
+      },
+      "buildMs": 7.346958000000029
+    },
+    {
+      "species": "norway_spruce",
+      "quality": "ultra",
+      "variant": "tree.norway-spruce@ultra#claude-opus-5.5~plate",
+      "author": "Claude Opus 5.5",
+      "triangles": 21749,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 2348892,
+      "bounds": {
+        "min": [
+          -2.249217987060547,
+          -0.3499999940395355,
+          -2.439594268798828
+        ],
+        "max": [
+          2.17704701423645,
+          12,
+          2.3101797103881836
+        ]
+      },
+      "buildMs": 18.775750000000016
+    },
+    {
+      "species": "silver_birch",
+      "quality": "low",
+      "variant": "tree.silver-birch@low#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "triangles": 424,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 31320,
+      "bounds": {
+        "min": [
+          -3.590196132659912,
+          -0.3499999940395355,
+          -3.5053329467773438
+        ],
+        "max": [
+          3.741041421890259,
+          11.164238929748535,
+          3.4806196689605713
+        ]
+      },
+      "buildMs": 0.7720829999999523
+    },
+    {
+      "species": "silver_birch",
+      "quality": "medium",
+      "variant": "tree.silver-birch@medium#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "triangles": 1248,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 134784,
+      "bounds": {
+        "min": [
+          -3.5087687969207764,
+          -0.3499999940395355,
+          -3.601382255554199
+        ],
+        "max": [
+          3.7550888061523438,
+          11.231107711791992,
+          3.5711212158203125
+        ]
+      },
+      "buildMs": 12.795875000000024
+    },
+    {
+      "species": "silver_birch",
+      "quality": "high",
+      "variant": "tree.silver-birch@high#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "triangles": 13160,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 1421280,
+      "bounds": {
+        "min": [
+          -4.115437984466553,
+          -0.3499999940395355,
+          -4.10408353805542
+        ],
+        "max": [
+          3.885054588317871,
+          11.28912353515625,
+          3.955301523208618
+        ]
+      },
+      "buildMs": 10.80316700000003
+    },
+    {
+      "species": "silver_birch",
+      "quality": "ultra",
+      "variant": "tree.silver-birch@ultra#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "triangles": 51320,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 5542560,
+      "bounds": {
+        "min": [
+          -3.9150192737579346,
+          -0.3499999940395355,
+          -3.9564049243927
+        ],
+        "max": [
+          3.953695058822632,
+          11.189739227294922,
+          3.8145482540130615
+        ]
+      },
+      "buildMs": 13.862666999999988
+    },
+    {
+      "species": "sacred_yew",
+      "quality": "low",
+      "variant": "tree.sacred-yew@low#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "triangles": 167,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 16344,
+      "bounds": {
+        "min": [
+          -3.7909023761749268,
+          -0.3499999940395355,
+          -4.532950401306152
+        ],
+        "max": [
+          3.2617156505584717,
+          7.297728538513184,
+          3.8919129371643066
+        ]
+      },
+      "buildMs": 0.4900830000000269
+    },
+    {
+      "species": "sacred_yew",
+      "quality": "medium",
+      "variant": "tree.sacred-yew@medium#claude-opus-5.5",
+      "author": "Claude Opus 5.5",
+      "triangles": 1827,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 153348,
+      "bounds": {
+        "min": [
+          -5.396177768707275,
+          -0.3499999940395355,
+          -5.090918064117432
+        ],
+        "max": [
+          5.287976264953613,
+          7.442111968994141,
+          5.218350410461426
+        ]
+      },
+      "buildMs": 5.0378749999999854
+    },
+    {
+      "species": "sacred_yew",
+      "quality": "high",
+      "variant": "tree.sacred-yew@high#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "triangles": 14484,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 943224,
+      "bounds": {
+        "min": [
+          -5.288394451141357,
+          -0.3499999940395355,
+          -5.083573341369629
+        ],
+        "max": [
+          5.819171905517578,
+          7.4855546951293945,
+          5.140058994293213
+        ]
+      },
+      "buildMs": 10.079999999999984
+    },
+    {
+      "species": "sacred_yew",
+      "quality": "ultra",
+      "variant": "tree.sacred-yew@ultra#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "triangles": 33428,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 2989176,
+      "bounds": {
+        "min": [
+          -5.529186725616455,
+          -0.3499999940395355,
+          -5.279642581939697
+        ],
+        "max": [
+          5.819171905517578,
+          7.552562236785889,
+          5.472962379455566
+        ]
+      },
+      "buildMs": 8.206375000000037
+    },
+    {
+      "species": "date_palm",
+      "quality": "default",
+      "variant": "tree.date-palm@default#claude-opus-5.5",
+      "author": "Claude Opus 5.5",
+      "triangles": 6816,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 736128,
+      "bounds": {
+        "min": [
+          -3.4183218479156494,
+          -0.3499999940395355,
+          -4.103763103485107
+        ],
+        "max": [
+          5.785796642303467,
+          11.859519004821777,
+          4.591574192047119
+        ]
+      },
+      "buildMs": 4.067542000000003
+    },
+    {
+      "species": "umbrella_thorn",
+      "quality": "default",
+      "variant": "tree.umbrella-thorn@default#claude-opus-5.5",
+      "author": "Claude Opus 5.5",
+      "triangles": 14660,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 1583280,
+      "bounds": {
+        "min": [
+          -6.316171169281006,
+          -0.3499999940395355,
+          -5.984020709991455
+        ],
+        "max": [
+          6.225910186767578,
+          7.772593975067139,
+          6.618110656738281
+        ]
+      },
+      "buildMs": 7.351958000000025
+    },
+    {
+      "species": "saxaul",
+      "quality": "default",
+      "variant": "tree.saxaul@default#claude-opus-5.5",
+      "author": "Claude Opus 5.5",
+      "triangles": 6332,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 683856,
+      "bounds": {
+        "min": [
+          -2.6790895462036133,
+          -0.3499999940395355,
+          -2.9551146030426025
+        ],
+        "max": [
+          2.9196250438690186,
+          4.0781025886535645,
+          2.427147626876831
+        ]
+      },
+      "buildMs": 3.222167000000013
+    },
+    {
+      "species": "kapok",
+      "quality": "default",
+      "variant": "tree.kapok@default#claude-opus-5.5",
+      "author": "Claude Opus 5.5",
+      "triangles": 36752,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 3969216,
+      "bounds": {
+        "min": [
+          -8.358107566833496,
+          -0.3499999940395355,
+          -9.378076553344727
+        ],
+        "max": [
+          10.178540229797363,
+          18.20826530456543,
+          8.767988204956055
+        ]
+      },
+      "buildMs": 12.03125
+    },
+    {
+      "species": "western_red_cedar",
+      "quality": "low",
+      "variant": "tree.western-red-cedar@low#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "triangles": 432,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 46656,
+      "bounds": {
+        "min": [
+          -5.095034599304199,
+          -0.3499999940395355,
+          -4.250772953033447
+        ],
+        "max": [
+          4.486009120941162,
+          18.73287010192871,
+          4.862213611602783
+        ]
+      },
+      "buildMs": 3.6632079999999974
+    },
+    {
+      "species": "western_red_cedar",
+      "quality": "medium",
+      "variant": "tree.western-red-cedar@medium#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "triangles": 2719,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 293652,
+      "bounds": {
+        "min": [
+          -5.12158727645874,
+          -0.3499999940395355,
+          -4.840609073638916
+        ],
+        "max": [
+          5.118681907653809,
+          18.76055145263672,
+          5.280091285705566
+        ]
+      },
+      "buildMs": 17.10024999999996
+    },
+    {
+      "species": "western_red_cedar",
+      "quality": "high",
+      "variant": "tree.western-red-cedar@high#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "triangles": 14850,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 1603800,
+      "bounds": {
+        "min": [
+          -4.989820957183838,
+          -0.3499999940395355,
+          -5.047463893890381
+        ],
+        "max": [
+          4.833878040313721,
+          18.600000381469727,
+          5.007920265197754
+        ]
+      },
+      "buildMs": 8.495457999999985
+    },
+    {
+      "species": "western_red_cedar",
+      "quality": "ultra",
+      "variant": "tree.western-red-cedar@ultra#claude-opus-5.5",
+      "author": "Claude Opus 5.5",
+      "triangles": 26122,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 2821176,
+      "bounds": {
+        "min": [
+          -4.989820957183838,
+          -0.3499999940395355,
+          -5.047463893890381
+        ],
+        "max": [
+          4.83782958984375,
+          18.600000381469727,
+          5.007920265197754
+        ]
+      },
+      "buildMs": 8.962958000000015
+    },
+    {
+      "species": "black_alder",
+      "quality": "default",
+      "variant": "tree.black-alder@default#claude-opus-5.5",
+      "author": "Claude Opus 5.5",
+      "triangles": 23600,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 2548800,
+      "bounds": {
+        "min": [
+          -4.103204727172852,
+          -0.3499999940395355,
+          -3.7353272438049316
+        ],
+        "max": [
+          3.818408966064453,
+          13.143988609313965,
+          3.8857483863830566
+        ]
+      },
+      "buildMs": 6.957249999999988
+    },
+    {
+      "species": "olive",
+      "quality": "default",
+      "variant": "tree.olive@default#claude-opus-5.5",
+      "author": "Claude Opus 5.5",
+      "triangles": 25091,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 2709828,
+      "bounds": {
+        "min": [
+          -4.686888217926025,
+          -0.3499999940395355,
+          -3.9306089878082275
+        ],
+        "max": [
+          4.992724418640137,
+          6.115581512451172,
+          4.4788923263549805
+        ]
+      },
+      "buildMs": 11.342083000000002
+    },
+    {
+      "species": "silver_fir",
+      "quality": "low",
+      "variant": "tree.silver-fir@low#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "triangles": 416,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 44928,
+      "bounds": {
+        "min": [
+          -3.632883310317993,
+          -0.3499999940395355,
+          -3.8660223484039307
+        ],
+        "max": [
+          3.684697389602661,
+          19.885906219482422,
+          3.980090856552124
+        ]
+      },
+      "buildMs": 7.7916250000000105
+    },
+    {
+      "species": "silver_fir",
+      "quality": "medium",
+      "variant": "tree.silver-fir@medium#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "triangles": 2962,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 319896,
+      "bounds": {
+        "min": [
+          -4.193490982055664,
+          -0.3499999940395355,
+          -4.3162455558776855
+        ],
+        "max": [
+          4.443206787109375,
+          19.710710525512695,
+          4.214929580688477
+        ]
+      },
+      "buildMs": 15.15891700000003
+    },
+    {
+      "species": "silver_fir",
+      "quality": "high",
+      "variant": "tree.silver-fir@high#codex-gpt-6.1-sol",
+      "author": "Codex GPT-6.1 Sol",
+      "triangles": 16664,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 1799712,
+      "bounds": {
+        "min": [
+          -3.9573991298675537,
+          -0.3499999940395355,
+          -3.964296817779541
+        ],
+        "max": [
+          3.9999911785125732,
+          19.549999237060547,
+          3.9508326053619385
+        ]
+      },
+      "buildMs": 7.978375000000028
+    },
+    {
+      "species": "silver_fir",
+      "quality": "ultra",
+      "variant": "tree.silver-fir@ultra#claude-opus-5.5",
+      "author": "Claude Opus 5.5",
+      "triangles": 104596,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 11296368,
+      "bounds": {
+        "min": [
+          -3.9573991298675537,
+          -0.3499999940395355,
+          -3.964296817779541
+        ],
+        "max": [
+          3.9999911785125732,
+          19.549999237060547,
+          3.9508326053619385
+        ]
+      },
+      "buildMs": 17.93737500000003
+    },
+    {
+      "species": "red_mangrove",
+      "quality": "default",
+      "variant": "tree.red-mangrove@default#claude-opus-5.5",
+      "author": "Claude Opus 5.5",
+      "triangles": 24848,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 2683584,
+      "bounds": {
+        "min": [
+          -3.6473891735076904,
+          -0.3499999940395355,
+          -4.570605754852295
+        ],
+        "max": [
+          4.302476406097412,
+          7.733223915100098,
+          3.7876362800598145
+        ]
+      },
+      "buildMs": 16.49091599999997
+    },
+    {
+      "species": "tamarisk",
+      "quality": "default",
+      "variant": "tree.tamarisk@default#claude-opus-5.5",
+      "author": "Claude Opus 5.5",
+      "triangles": 8020,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 866160,
+      "bounds": {
+        "min": [
+          -3.893491268157959,
+          -0.3499999940395355,
+          -3.7159664630889893
+        ],
+        "max": [
+          3.945730209350586,
+          4.816387176513672,
+          3.227008581161499
+        ]
+      },
+      "buildMs": 4.1760419999999385
+    },
+    {
+      "species": "rowan",
+      "quality": "default",
+      "variant": "tree.rowan@default#claude-opus-5.5",
+      "author": "Claude Opus 5.5",
+      "triangles": 26140,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 2823120,
+      "bounds": {
+        "min": [
+          -3.3228015899658203,
+          -0.3499999940395355,
+          -3.192317485809326
+        ],
+        "max": [
+          3.5747392177581787,
+          9.500325202941895,
+          3.659430980682373
+        ]
+      },
+      "buildMs": 9.057249999999954
+    },
+    {
+      "species": "canary_pine",
+      "quality": "default",
+      "variant": "tree.canary-pine@default#claude-opus-5.5",
+      "author": "Claude Opus 5.5",
+      "triangles": 35214,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 3803112,
+      "bounds": {
+        "min": [
+          -5.271912574768066,
+          -0.3499999940395355,
+          -4.974122047424316
+        ],
+        "max": [
+          5.240196704864502,
+          15.532020568847656,
+          5.1038641929626465
+        ]
+      },
+      "buildMs": 15.65579200000002
+    },
+    {
+      "species": "mediterranean_cypress",
+      "quality": "default",
+      "variant": "tree.mediterranean-cypress@default#claude-opus-5.5",
+      "author": "Claude Opus 5.5",
+      "triangles": 9092,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 981936,
+      "bounds": {
+        "min": [
+          -1.1524900197982788,
+          -0.3499999940395355,
+          -1.143402338027954
+        ],
+        "max": [
+          1.1636701822280884,
+          14.398395538330078,
+          1.1585566997528076
+        ]
+      },
+      "buildMs": 5.132791999999995
+    },
+    {
+      "species": "oriental_evergreen",
+      "quality": "default",
+      "variant": "tree.oriental-evergreen@default#claude-opus-5.5",
+      "author": "Claude Opus 5.5",
+      "triangles": 15676,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 1693008,
+      "bounds": {
+        "min": [
+          -2.0926766395568848,
+          -0.3499999940395355,
+          -2.277456283569336
+        ],
+        "max": [
+          2.8007898330688477,
+          9.635854721069336,
+          2.619338035583496
+        ]
+      },
+      "buildMs": 7.055166999999983
+    },
+    {
+      "species": "sacred_bodhi_and_fig",
+      "quality": "default",
+      "variant": "tree.sacred-bodhi-and-fig@default#claude-opus-5.5",
+      "author": "Claude Opus 5.5",
+      "triangles": 42618,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 4602744,
+      "bounds": {
+        "min": [
+          -7.0704264640808105,
+          -0.3499999940395355,
+          -8.17674446105957
+        ],
+        "max": [
+          7.9167962074279785,
+          10.341320991516113,
+          7.776249408721924
+        ]
+      },
+      "buildMs": 11.398459000000003
+    },
+    {
+      "species": "peaceful_willow",
+      "quality": "default",
+      "variant": "tree.peaceful-willow@default#claude-opus-5.5",
+      "author": "Claude Opus 5.5",
+      "triangles": 75452,
+      "meshes": 2,
+      "materials": 2,
+      "bufferBytes": 8148816,
+      "bounds": {
+        "min": [
+          -5.88075065612793,
+          -0.3499999940395355,
+          -6.610345363616943
+        ],
+        "max": [
+          6.185160160064697,
+          9.375225067138672,
+          6.298342704772949
+        ]
+      },
+      "buildMs": 29.900874999999928
+    }
+  ]
+}
